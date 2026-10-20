@@ -1,0 +1,210 @@
+'' std/net phase P12 (C:\dev\docs\tiko-stdlib\RFC-0001 sections 15.4-15.5): Url and
+'' QueryValues.  Resolution: every example of RFC 3986 section 5.4.1 (normal) and 5.4.2
+'' (abnormal) against its base http://a/b/c/d;p?q.  Parsing and round trips: cases from
+'' Go's net/url tests (url_test.go urltests), hand-copied -- not re-measured, there is no
+'' Go here -- with the deviations the RFC's section 15.6 lists (Host without brackets, no
+'' Opaque, port range checked).  Queries: ordered multimap, ';' as data, '+' as space.
+#import "std/net"
+#import "std/containers"
+using containers
+
+dim shared as integer fails = 0
+
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+sub Same( byref what as string, byref got as ustring, byref want as ustring )
+    if got <> want then
+        print "FAIL "; what; ": got '"; got; "' want '"; want; "'"
+        fails += 1
+    end if
+end sub
+
+function U( byref s as ustring ) as net.Url
+    dim r as net.NetResultUrl = net.ParseUrl( s )
+    if r.IsOk( ) = false then
+        print "FAIL parse "; s
+        fails += 1
+        return net.Url( )
+    end if
+    return r.Value( )
+end function
+
+'' Parsed and printed again.
+function RT( byref s as ustring ) as ustring
+    dim r as net.NetResultUrl = net.ParseUrl( s )
+    if r.IsOk( ) = false then return "error"
+    return r.Value( ).ToString( )
+end function
+
+'' ---------------------------------------------------------------- RFC 3986 5.4
+
+dim base_ as net.Url = U( "http://a/b/c/d;p?q" )
+
+function Res( byref b as net.Url, byref ref_ as ustring ) as ustring
+    dim r as net.NetResultUrl = b.Resolve( ref_ )
+    if r.IsOk( ) = false then return "error"
+    return r.Value( ).ToString( )
+end function
+
+'' (reference, result) pairs in one dimension: a two-dimensional string array with an
+'' initializer is a TKO0994 internal error in tiko today, while fbc accepts it.
+dim normal( 0 to 45 ) as ustring = { _
+    "g:h", "g:h", "g", "http://a/b/c/g", "./g", "http://a/b/c/g", _
+    "g/", "http://a/b/c/g/", "/g", "http://a/g", "//g", "http://g", _
+    "?y", "http://a/b/c/d;p?y", "g?y", "http://a/b/c/g?y", "#s", "http://a/b/c/d;p?q#s", _
+    "g#s", "http://a/b/c/g#s", "g?y#s", "http://a/b/c/g?y#s", ";x", "http://a/b/c/;x", _
+    "g;x", "http://a/b/c/g;x", "g;x?y#s", "http://a/b/c/g;x?y#s", "", "http://a/b/c/d;p?q", _
+    ".", "http://a/b/c/", "./", "http://a/b/c/", "..", "http://a/b/", _
+    "../", "http://a/b/", "../g", "http://a/b/g", "../..", "http://a/", _
+    "../../", "http://a/", "../../g", "http://a/g" }
+for i as long = 0 to 22
+    Same( "5.4.1 " & normal( i * 2 ), Res( base_, normal( i * 2 ) ), normal( i * 2 + 1 ) )
+next
+
+dim abnormal( 0 to 37 ) as ustring = { _
+    "../../../g", "http://a/g", "../../../../g", "http://a/g", "/./g", "http://a/g", _
+    "/../g", "http://a/g", "g.", "http://a/b/c/g.", ".g", "http://a/b/c/.g", _
+    "g..", "http://a/b/c/g..", "..g", "http://a/b/c/..g", "./../g", "http://a/b/g", _
+    "./g/.", "http://a/b/c/g/", "g/./h", "http://a/b/c/g/h", "g/../h", "http://a/b/c/h", _
+    "g;x=1/./y", "http://a/b/c/g;x=1/y", "g;x=1/../y", "http://a/b/c/y", _
+    "g?y/./x", "http://a/b/c/g?y/./x", "g?y/../x", "http://a/b/c/g?y/../x", _
+    "g#s/./x", "http://a/b/c/g#s/./x", "g#s/../x", "http://a/b/c/g#s/../x", _
+    "http:g", "http:g" }
+for i as long = 0 to 18
+    Same( "5.4.2 " & abnormal( i * 2 ), Res( base_, abnormal( i * 2 ) ), abnormal( i * 2 + 1 ) )
+next
+Check( "resolve bad ref", base_.Resolve( "http://x/%zz" ).IsOk( ) = false )
+Same( "resolve no path base",Res( U( "http://a" ), "b" ), "http://a/b" )
+Same( "resolve escaped", Res( U( "http://a/b%20c/d" ), "e%2Ff" ), "http://a/b%20c/e%2Ff" )
+
+'' ---------------------------------------------------------------- Go urltests
+
+dim same_( 0 to 31 ) as ustring = { _
+    "http://www.google.com", "http://www.google.com/", "http://www.google.com/file%20one%26two", _
+    "http://www.google.com/#file%20one%26two", "ftp://webmaster@www.google.com/", _
+    "http://www.google.com/?q=go+language", "http://www.google.com/?q=go%20language", _
+    "http://www.google.com/a%20b?q=c+d", "http:www.google.com/?q=go+language", _
+    "http:%2f%2fwww.google.com/?q=go+language", "mailto:/webmaster@golang.org", _
+    "mailto:webmaster@golang.org", "/foo?query=http://bad", "//foo", "//user@foo/path?a=b", _
+    "///threeslashes", "http://user:password@google.com", "http://www.google.com/?", _
+    "http://www.google.com/?foo=bar?", "http://[fe80::1%25en0]/", "http://[fe80::1%25en0]:8080/", _
+    "http://rest.rsc.io/foo%2fbar/baz%2Fquux?alt=media", "mysql://a,b,c/bar", _
+    "scheme://!$&'()*+,;=hello!:1/path", "http://host/!$&'()*+,;=:@[hello]", _
+    "http://example.com/oid/[order_id]", "http://192.168.0.2:8080/foo", _
+    "http://[2b01:e34:ef40:7730:8e70:5aff:fefe:edac]:8080/foo", _
+    "magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a&dn", _
+    "http://example.com/#!/foo", "http://a/b?c#d", "file:///etc/hosts" }
+for i as long = 0 to 31
+    Same( "round trip " & same_( i ), RT( same_( i ) ), same_( i ) )
+next
+
+'' Go re-escapes these
+Same( "user @", RT( "http://j@ne:password@google.com" ), "http://j%40ne:password@google.com" )
+Same( "password @", RT( "http://jane:p@ssword@google.com" ), "http://jane:p%40ssword@google.com" )
+Same( "zone escapes", RT( "http://[fe80::1%25%65%6e%301-._~]/" ), "http://[fe80::1%25en01-._~]/" )
+Same( "zone space", RT( "tcp://[2020::2020:20:2020:2020%25Windows%20Loves%20Spaces]:2020" ), _
+    "tcp://[2020::2020:20:2020:2020%25Windows%20Loves%20Spaces]:2020" )
+Same( "scheme case", RT( "HTTP://www.google.com/" ), "http://www.google.com/" )
+Same( "empty fragment", RT( "http://www.google.com/#" ), "http://www.google.com/" )
+Same( "empty port", RT( "http://x:/" ), "http://x/" )
+Same( "non-ascii path", RT( "http://x/caf" & wchr( 233 ) ), "http://x/caf%C3%A9" )
+
+'' fields
+dim f as net.Url = U( "https://us%65r:p%40ss@Example.COM:8443/a%20b/c?x=1&y=%20#fr%20ag" )
+Same( "scheme", f.Scheme, "https" )
+Same( "user", f.User, "user" )
+Same( "password", f.Password, "p@ss" )
+Same( "host", f.Host, "Example.COM" )
+Check( "port", f.Port = 8443 )
+Same( "path", f.Path, "/a b/c" )
+Same( "rawquery", f.RawQuery, "x=1&y=%20" )
+Same( "fragment", f.Fragment, "fr ag" )
+Same( "hostport", f.HostPort( ), "Example.COM:8443" )
+Same( "escaped path", f.EscapedPath( ), "/a%20b/c" )
+Check( "absolute", f.IsAbsolute( ) andalso ( U( "/x" ).IsAbsolute( ) = false ) )
+Same( "query y", f.Query( ).Get( "y" ).ValueOr( "?" ), " " )
+dim v6 as net.Url = U( "http://[::1]:80/" )
+Same( "v6 host", v6.Host, "::1" )
+Same( "v6 hostport", v6.HostPort( ), "[::1]:80" )
+Same( "zone host", U( "http://[fe80::1%25en0]/" ).Host, "fe80::1%en0" )
+Check( "no port", U( "http://x/" ).Port = -1 )
+Same( "raw path kept", U( "http://rest.rsc.io/foo%2fbar" ).Path, "/foo/bar" )
+Same( "rootless path", U( "mailto:webmaster@golang.org" ).Path, "webmaster@golang.org" )
+
+'' a Url built from fields
+dim b as net.Url
+b.Scheme = "https"
+b.Host = "example.com"
+b.Port = 8443
+b.Path = "/a b/" & wchr( 252 )
+b.RawQuery = "x=1"
+b.Fragment = "top"
+Same( "built", b.ToString( ), "https://example.com:8443/a%20b/%C3%BC?x=1#top" )
+dim b2 as net.Url
+b2.Path = "a:b"
+Same( "built colon", b2.ToString( ), "./a:b" )
+b2.Path = "//x"
+Same( "built double slash", b2.ToString( ), "/.//x" )
+dim b3 as net.Url
+b3.Scheme = "http"
+b3.Host = "fe80::1%en0"
+b3.Path = "x"
+Same( "built v6", b3.ToString( ), "http://[fe80::1%25en0]/x" )
+'' a changed Path drops the written form it no longer matches
+dim ch as net.Url = U( "http://h/a%2Fb" )
+ch.Path = "/c/d"
+Same( "changed path", ch.ToString( ), "http://h/c/d" )
+
+'' errors
+dim bad( 0 to 17 ) as ustring = { "http://[::1]:namedport", "http://x:namedport", "http://[::1]a", _
+    "http://[::1]%23", "http://[fe80::1%en0]/", "http://a b.com/", "http://%41:8080/", ":foo", _
+    "1http://foo", "http://x/%zz", "http://x/" & chr( 127 ), "http://x:65536/", "http://[::1]:-1/", _
+    "http://[::1", "http://[1.2.3.4]/", "http://x/a" & chr( 10 ), "http://us er@x/", "x#%g0" }
+for i as long = 0 to 17
+    Same( "bad url " & i, RT( bad( i ) ), "error" )
+next
+Same( "relative colon", RT( "x:y" ), "x:y" )
+Same( "relative colon later", RT( "a/b:c" ), "a/b:c" )
+Check( "first segment colon", net.ParseUrl( "1a:b" ).IsOk( ) = false )
+dim be as net.NetResultUrl = net.ParseUrl( "http://x/%zz" )
+Check( "bad url code", be.Failure( ).Code( ) = net.NET_INVALID_URL )
+
+'' ---------------------------------------------------------------- QueryValues
+
+dim pq as net.NetResultQuery = net.ParseQuery( "a=1&b=2&a=3&c&d=&=e&&f=x+y%2Bz" )
+Check( "parse query", pq.IsOk( ) )
+dim q as net.QueryValues = pq.Value( )
+Check( "count", q.Count( ) = 7 )
+Same( "a first", q.Get( "a" ).ValueOr( "?" ), "1" )
+Check( "a all", ( q.GetAll( "a" ).num = 2 ) andalso ( q.GetAll( "a" ).items( 1 ) = "3" ) )
+Check( "c bare", q.Has( "c" ) andalso ( q.Get( "c" ).ValueOr( "?" ) = "" ) )
+Same( "d empty", q.Get( "d" ).ValueOr( "?" ), "" )
+Same( "empty key", q.Get( "" ).ValueOr( "?" ), "e" )
+Same( "plus", q.Get( "f" ).ValueOr( "?" ), "x y+z" )
+Check( "missing", q.Get( "zz" ).HasValue( ) = false )
+Same( "order", q.KeyAt( 2 ) & "=" & q.ValueAt( 2 ), "a=3" )
+Same( "semicolon is data", net.ParseQuery( "a=1;b=2" ).Value( ).Get( "a" ).ValueOr( "?" ), "1;b=2" )
+Check( "bad query", net.ParseQuery( "a=%zz" ).IsOk( ) = false )
+Check( "lenient Query", U( "http://x/?a=%zz&b=1" ).Query( ).Has( "b" ) andalso ( U( "http://x/?a=%zz&b=1" ).Query( ).Has( "a" ) = false ) )
+
+dim w as net.QueryValues
+w.Add( "q", "go language" )
+w.Add( "x", "a&b=c" )
+w.Add( "q", wchr( 233 ) )
+Same( "encode", w.Encode( ), "q=go+language&x=a%26b%3Dc&q=%C3%A9" )
+w.SetValue( "q", "one" )
+Same( "setvalue", w.Encode( ), "q=one&x=a%26b%3Dc" )
+w.SetValue( "new", "v" )
+w.Remove( "x" )
+Same( "remove", w.Encode( ), "q=one&new=v" )
+w.Remove( "nothing" )
+Check( "remove none", w.Count( ) = 2 )
+dim back as net.QueryValues = net.ParseQuery( w.Encode( ) ).Value( )
+Same( "query round trip", back.Get( "new" ).ValueOr( "?" ), "v" )
+
+if fails = 0 then print "ok" else print fails; " failed"

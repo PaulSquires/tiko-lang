@@ -1,0 +1,42 @@
+#import "std/net"
+#import "std/fs"
+
+'' A server: port 0 lets the system pick a free one.
+dim server as net.TcpListener
+if server.Bind( net.SocketAddress( net.Loopback( ), 0 ) ).IsOk( ) = false then end 1
+dim where as net.SocketAddress = server.LocalAddress( ).Value( )
+
+'' A client connects; the system completes it before Accept is called,
+'' so one thread can play both parts.
+dim client as net.TcpStream
+dim r as net.NetResultBool = client.Connect( where, 2000 )
+if r.IsOk( ) = false then
+    print r.Failure( ).Message( )
+    end 1
+end if
+dim conn as net.TcpStream
+server.Accept( conn, 2000 )
+
+'' Both ends are streams: WriteUtf8 out, ReadExact in.
+client.WriteUtf8( "hello" )
+dim as string buf = space( 5 )
+conn.ReadExact( cptr( ubyte ptr, strptr( buf ) ), 5 )
+print "server got: "; buf
+conn.WriteUtf8( ucase( buf ) )
+client.ReadExact( cptr( ubyte ptr, strptr( buf ) ), 5 )
+print "client got: "; buf
+
+'' Shutdown( write ) ends the data: the server's next read returns 0 bytes.
+client.Shutdown( net.SHUTDOWN_WRITE )
+dim as ubyte one( 0 to 0 )
+print "server read after shutdown: "; conn.Read( @one( 0 ), 1 ).Value( ); " bytes"
+
+'' Nothing more is coming, so a timed read fails instead of waiting for ever.
+client.SetReadTimeout( 100 )
+dim t as fs.FsResultI64 = client.Read( @one( 0 ), 1 )
+print "client read: "; t.Failure( ).Message( )
+
+'' A port nothing listens on any more.
+server.Close( )
+dim late as net.TcpStream
+print "refused? "; cbool( late.Connect( where, 5000 ).Failure( ).Code( ) = net.NET_CONNECTION_REFUSED )

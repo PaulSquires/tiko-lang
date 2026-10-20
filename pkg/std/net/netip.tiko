@@ -1,0 +1,378 @@
+#module "net"
+#import "std/containers"
+#import "std/outcome"
+using containers
+using outcome
+'' std/net: netip -- IpAddress and SocketAddress: parse, print, classify.  No OS
+'' calls.  Parsing is strict (no leading zeros in a v4 part, the CVE-2021-29921
+'' class); v6 prints as RFC 5952 section 4 says, a v4-mapped address as
+'' ::ffff:a.b.c.d (section 5).
+
+'' -------------------------------------------------------------- IpAddress
+
+constructor IpAddress( )
+    this.hV6 = FALSE
+end constructor
+
+const function IpAddress.IsV4( ) as boolean
+    return ( this.hV6 = FALSE )
+end function
+
+const function IpAddress.IsV6( ) as boolean
+    return this.hV6
+end function
+
+const function IpAddress.Bytes( ) as Array( of ubyte )
+    dim as Array( of ubyte ) r
+    dim as long n = iif( this.hV6, 16, 4 )
+    for i as long = 0 to n - 1
+        r.Push( this.hB( i ) )
+    next
+    return r
+end function
+
+const function IpAddress.Zone( ) as ustring
+    return this.hZone
+end function
+
+'' A copy with the zone set; a v4 address takes none.
+function IpAddress.WithZone( byref z as const ustring ) as IpAddress
+    dim as IpAddress r = this
+    if( this.hV6 ) then r.hZone = z
+    return r
+end function
+
+const function IpAddress.IsV4Mapped( ) as boolean
+    if( this.hV6 = FALSE ) then return FALSE
+    for i as long = 0 to 9
+        if( this.hB( i ) <> 0 ) then return FALSE
+    next
+    return ( this.hB( 10 ) = 255 ) andalso ( this.hB( 11 ) = 255 )
+end function
+
+const function IpAddress.Unmap( ) as IpAddress
+    if( this.IsV4Mapped( ) = FALSE ) then return this
+    return Ipv4( this.hB( 12 ), this.hB( 13 ), this.hB( 14 ), this.hB( 15 ) )
+end function
+
+'' The classifiers look through a v4-mapped address, as Go's netip does.
+const function IpAddress.IsLoopback( ) as boolean
+    dim as IpAddress a = this.Unmap( )
+    if( a.hV6 = FALSE ) then return ( a.hB( 0 ) = 127 )
+    for i as long = 0 to 14
+        if( a.hB( i ) <> 0 ) then return FALSE
+    next
+    return ( a.hB( 15 ) = 1 )
+end function
+
+const function IpAddress.IsPrivate( ) as boolean
+    dim as IpAddress a = this.Unmap( )
+    if( a.hV6 ) then return ( ( a.hB( 0 ) and &hFE ) = &hFC )
+    if( a.hB( 0 ) = 10 ) then return TRUE
+    if( ( a.hB( 0 ) = 172 ) andalso ( ( a.hB( 1 ) and &hF0 ) = 16 ) ) then return TRUE
+    return ( a.hB( 0 ) = 192 ) andalso ( a.hB( 1 ) = 168 )
+end function
+
+const function IpAddress.IsLinkLocal( ) as boolean
+    dim as IpAddress a = this.Unmap( )
+    if( a.hV6 ) then return ( a.hB( 0 ) = &hFE ) andalso ( ( a.hB( 1 ) and &hC0 ) = &h80 )
+    return ( a.hB( 0 ) = 169 ) andalso ( a.hB( 1 ) = 254 )
+end function
+
+const function IpAddress.IsMulticast( ) as boolean
+    dim as IpAddress a = this.Unmap( )
+    if( a.hV6 ) then return ( a.hB( 0 ) = &hFF )
+    return ( ( a.hB( 0 ) and &hF0 ) = 224 )
+end function
+
+const function IpAddress.IsUnspecified( ) as boolean
+    dim as long n = iif( this.hV6, 16, 4 )
+    for i as long = 0 to n - 1
+        if( this.hB( i ) <> 0 ) then return FALSE
+    next
+    return TRUE
+end function
+
+const function IpAddress.IsGlobalUnicast( ) as boolean
+    dim as IpAddress a = this.Unmap( )
+    if( a.IsUnspecified( ) orelse a.IsLoopback( ) orelse a.IsMulticast( ) orelse a.IsLinkLocal( ) ) then return FALSE
+    if( a.hV6 = FALSE ) then
+        if( ( a.hB( 0 ) = 255 ) andalso ( a.hB( 1 ) = 255 ) andalso ( a.hB( 2 ) = 255 ) andalso ( a.hB( 3 ) = 255 ) ) then return FALSE
+    end if
+    return TRUE
+end function
+
+const function IpAddress.Equals( byref other as const IpAddress ) as boolean
+    if( this.hV6 <> other.hV6 ) then return FALSE
+    dim as long n = iif( this.hV6, 16, 4 )
+    for i as long = 0 to n - 1
+        if( this.hB( i ) <> other.hB( i ) ) then return FALSE
+    next
+    return ( this.hZone = other.hZone )
+end function
+
+private function hV4Text( byval a as ubyte, byval b as ubyte, byval c as ubyte, byval d as ubyte ) as ustring
+    return a & "." & b & "." & c & "." & d
+end function
+
+const function IpAddress.ToString( ) as ustring
+    if( this.hV6 = FALSE ) then return hV4Text( this.hB( 0 ), this.hB( 1 ), this.hB( 2 ), this.hB( 3 ) )
+    dim as ustring z
+    if( len( this.hZone ) > 0 ) then z = "%" & this.hZone
+    if( this.IsV4Mapped( ) ) then
+        return "::ffff:" & hV4Text( this.hB( 12 ), this.hB( 13 ), this.hB( 14 ), this.hB( 15 ) ) & z
+    end if
+    dim as long w( 0 to 7 )
+    for i as long = 0 to 7
+        w( i ) = this.hB( i * 2 ) * 256 + this.hB( i * 2 + 1 )
+    next
+    '' the longest run of two or more zero groups, the first of equals (RFC 5952 4.2)
+    dim as long bestAt = -1, bestLen = 1
+    dim as long i = 0
+    while( i < 8 )
+        if( w( i ) = 0 ) then
+            dim as long j = i
+            while( ( j < 8 ) andalso ( w( j ) = 0 ) )
+                j += 1
+            wend
+            if( j - i > bestLen ) then
+                bestAt = i
+                bestLen = j - i
+            end if
+            i = j
+        else
+            i += 1
+        end if
+    wend
+    dim as ustring r
+    i = 0
+    while( i < 8 )
+        if( i = bestAt ) then
+            r &= "::"
+            i += bestLen
+        else
+            if( ( i > 0 ) andalso ( i <> bestAt + bestLen ) ) then r &= ":"
+            r &= lcase( hex( w( i ) ) )
+            i += 1
+        end if
+    wend
+    return r & z
+end function
+
+'' -------------------------------------------------------------- constructors
+
+public function Ipv4( byval a as ubyte, byval b as ubyte, byval c as ubyte, byval d as ubyte ) as IpAddress
+    dim as IpAddress r
+    r.hB( 0 ) = a
+    r.hB( 1 ) = b
+    r.hB( 2 ) = c
+    r.hB( 3 ) = d
+    return r
+end function
+
+public function IpFromBytes( byref b as Array( of ubyte ) ) as NetResultIp
+    dim as IpAddress r
+    if( ( b.num <> 4 ) andalso ( b.num <> 16 ) ) then
+        return NetFail( of IpAddress )( NET_INVALID_ADDRESS, 0, "IpFromBytes", str( b.num ) & " bytes" )
+    end if
+    r.hV6 = ( b.num = 16 )
+    for i as long = 0 to b.num - 1
+        r.hB( i ) = b.items( i )
+    next
+    return Ok( of IpAddress, NetError )( r )
+end function
+
+public function Loopback( byval v6 as boolean = FALSE ) as IpAddress
+    if( v6 = FALSE ) then return Ipv4( 127, 0, 0, 1 )
+    dim as IpAddress r
+    r.hV6 = TRUE
+    r.hB( 15 ) = 1
+    return r
+end function
+
+public function Any_( byval v6 as boolean = FALSE ) as IpAddress
+    dim as IpAddress r
+    r.hV6 = v6
+    return r
+end function
+
+'' -------------------------------------------------------------- parsing
+
+private function hHexDigit( byval c as ulong ) as long
+    select case c
+    case 48 to 57  : return c - 48
+    case 97 to 102 : return c - 87
+    case 65 to 70  : return c - 55
+    end select
+    return -1
+end function
+
+'' s[st..en) as a dotted quad into b( at .. at + 3 ).  Each part is 0-255 in decimal
+'' with no leading zero; exactly four parts.
+private function hParseV4( byref s as const ustring, byval st as long, byval en as long, b() as ubyte, byval at as long ) as boolean
+    dim as long part = 0, i = st
+    while( part < 4 )
+        dim as long v = 0, digits = 0, first = i
+        while( ( i < en ) andalso ( s[i] >= 48 ) andalso ( s[i] <= 57 ) )
+            v = v * 10 + ( s[i] - 48 )
+            digits += 1
+            if( ( digits > 3 ) orelse ( v > 255 ) ) then return FALSE
+            i += 1
+        wend
+        if( digits = 0 ) then return FALSE
+        if( ( digits > 1 ) andalso ( s[first] = 48 ) ) then return FALSE
+        b( at + part ) = v
+        part += 1
+        if( part < 4 ) then
+            if( ( i >= en ) orelse ( s[i] <> 46 ) ) then return FALSE
+            i += 1
+        end if
+    wend
+    return ( i = en )
+end function
+
+'' s[st..en) as RFC 4291 section 2.2 text, into b( 0 .. 15 ).
+private function hParseV6( byref s as const ustring, byval st as long, byval en as long, b() as ubyte ) as boolean
+    dim as long ellipsis = -1, k = 0, i = st
+    if( ( en - st >= 2 ) andalso ( s[st] = 58 ) andalso ( s[st + 1] = 58 ) ) then
+        ellipsis = 0
+        i += 2
+        if( i = en ) then return TRUE
+    end if
+    while( k < 16 )
+        dim as long v = 0, digits = 0, first = i
+        while( ( i < en ) andalso ( hHexDigit( s[i] ) >= 0 ) )
+            v = v * 16 + hHexDigit( s[i] )
+            digits += 1
+            if( digits > 4 ) then return FALSE
+            i += 1
+        wend
+        if( digits = 0 ) then return FALSE
+        if( ( i < en ) andalso ( s[i] = 46 ) ) then
+            '' an embedded v4 address: the last 32 bits
+            if( ( ellipsis < 0 ) andalso ( k <> 12 ) ) then return FALSE
+            if( k + 4 > 16 ) then return FALSE
+            if( hParseV4( s, first, en, b(), k ) = FALSE ) then return FALSE
+            k += 4
+            i = en
+            exit while
+        end if
+        b( k ) = v shr 8
+        b( k + 1 ) = v and 255
+        k += 2
+        if( i = en ) then exit while
+        if( s[i] <> 58 ) then return FALSE
+        i += 1
+        if( i = en ) then return FALSE
+        if( s[i] = 58 ) then
+            if( ellipsis >= 0 ) then return FALSE
+            ellipsis = k
+            i += 1
+            if( i = en ) then exit while
+        end if
+    wend
+    if( i <> en ) then return FALSE
+    if( k < 16 ) then
+        if( ellipsis < 0 ) then return FALSE
+        dim as long n = k - ellipsis
+        for j as long = n - 1 to 0 step -1
+            b( 16 - n + j ) = b( ellipsis + j )
+        next
+        for j as long = ellipsis to 16 - n - 1
+            b( j ) = 0
+        next
+    elseif( ellipsis >= 0 ) then
+        return FALSE                                   '' "::" must stand for at least one group
+    end if
+    return TRUE
+end function
+
+'' s[st..en) as an address; a zone ("%name") only on v6.
+function NetParseIpRange( byref s as const ustring, byval st as long, byval en as long, byref r as IpAddress ) as boolean
+    dim as IpAddress a
+    dim as long pct = -1
+    for i as long = st to en - 1
+        if( s[i] = 58 ) then a.hV6 = TRUE
+        if( ( s[i] = 37 ) andalso ( pct < 0 ) ) then pct = i
+    next
+    if( a.hV6 = FALSE ) then
+        if( pct >= 0 ) then return FALSE
+        if( hParseV4( s, st, en, a.hB(), 0 ) = FALSE ) then return FALSE
+    else
+        dim as long e = en
+        if( pct >= 0 ) then
+            if( pct = en - 1 ) then return FALSE       '' an empty zone
+            a.hZone = mid( s, pct + 2, en - pct - 1 )
+            e = pct
+        end if
+        if( hParseV6( s, st, e, a.hB() ) = FALSE ) then return FALSE
+    end if
+    r = a
+    return TRUE
+end function
+
+public function ParseIp( byref s as const ustring ) as NetResultIp
+    dim as IpAddress a
+    if( NetParseIpRange( s, 0, len( s ), a ) = FALSE ) then
+        return NetFail( of IpAddress )( NET_INVALID_ADDRESS, 0, "ParseIp", s )
+    end if
+    return Ok( of IpAddress, NetError )( a )
+end function
+
+'' -------------------------------------------------------------- SocketAddress
+
+constructor SocketAddress( )
+    this.Port = 0
+end constructor
+
+constructor SocketAddress( byref ip_ as const IpAddress, byval port_ as ushort )
+    this.Ip = ip_
+    this.Port = port_
+end constructor
+
+const function SocketAddress.ToString( ) as ustring
+    if( this.Ip.IsV6( ) ) then return "[" & this.Ip.ToString( ) & "]:" & this.Port
+    return this.Ip.ToString( ) & ":" & this.Port
+end function
+
+const function SocketAddress.Equals( byref other as const SocketAddress ) as boolean
+    return ( this.Port = other.Port ) andalso this.Ip.Equals( other.Ip )
+end function
+
+'' "a.b.c.d:port" or "[v6]:port"; the port is required, 0-65535 in decimal.
+public function ParseSocketAddress( byref s as const ustring ) as NetResultAddr
+    dim as SocketAddress r
+    dim as long n = len( s ), colon = -1
+    dim as boolean good = FALSE
+    if( ( n > 0 ) andalso ( s[0] = 91 ) ) then
+        dim as long close_ = instr( s, "]" ) - 1
+        if( ( close_ > 1 ) andalso ( close_ + 1 < n ) andalso ( s[close_ + 1] = 58 ) ) then
+            good = NetParseIpRange( s, 1, close_, r.Ip ) andalso r.Ip.IsV6( )
+            colon = close_ + 1
+        end if
+    else
+        colon = instrrev( s, ":" ) - 1
+        if( ( colon > 0 ) andalso ( instr( left( s, colon ), ":" ) = 0 ) ) then
+            good = NetParseIpRange( s, 0, colon, r.Ip )
+        end if
+    end if
+    if( good ) then
+        dim as long v = 0, digits = 0
+        for i as long = colon + 1 to n - 1
+            if( ( s[i] < 48 ) orelse ( s[i] > 57 ) ) then
+                good = FALSE
+                exit for
+            end if
+            v = v * 10 + ( s[i] - 48 )
+            digits += 1
+            if( ( digits > 5 ) orelse ( v > 65535 ) ) then
+                good = FALSE
+                exit for
+            end if
+        next
+        if( digits = 0 ) then good = FALSE
+        r.Port = v
+    end if
+    if( good = FALSE ) then return NetFail( of SocketAddress )( NET_INVALID_ADDRESS, 0, "ParseSocketAddress", s )
+    return Ok( of SocketAddress, NetError )( r )
+end function

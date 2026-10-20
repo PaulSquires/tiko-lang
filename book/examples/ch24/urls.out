@@ -1,0 +1,11 @@
+scheme   https
+user     ann
+host     example.com  port  8443
+path     /docs/a b.html
+query    q=tiko+lang&page=2
+q        tiko lang
+fragment intro
+https://ann@example.com:8443/img/logo.png
+https://ann@example.com:8443/docs/a%20b.html?page=3
+http://localhost:8080/search%20results?name=Zo%C3%AB+Wu&tags=a%26b
+ParseUrl 'http://example.com/100%': invalid URL

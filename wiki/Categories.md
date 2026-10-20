@@ -42,6 +42,7 @@ Looking for a function by what it does? The [Function Finder](Function-Finder) g
 - [Optional](Category-Optional) — 7 pages
 - [OS](Category-OS) — 1 pages
 - [Process](Category-Process) — 1 pages
+- [Net](Category-Net) — 1 pages
 - [Config](Category-Config) — 1 pages
 - [Result](Category-Result) — 10 pages
 - [Smart Pointers](Category-Smart-Pointers) — 12 pages

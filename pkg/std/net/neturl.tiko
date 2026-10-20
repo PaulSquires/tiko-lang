@@ -1,0 +1,624 @@
+#module "net"
+#import "std/containers"
+#import "std/outcome"
+#import "std/codec"
+using containers
+using outcome
+'' std/net: neturl -- Url, QueryValues, ParseUrl, ParseQuery (RFC-0001 section 15.4).
+'' No sockets, no OS calls.
+''
+'' The grammar is RFC 3986's with Go net/url's leniency, and so are the escaping
+'' rules: Path, User, Password and Fragment are stored DECODED; Host is stored
+'' without the brackets of an IPv6 literal and with its zone decoded
+'' (fe80::1%eth0); RawQuery is kept as written.  When a decoded path or fragment
+'' would not escape back to what was written ("/a!b" escapes as "/a%21b"), the
+'' written form is kept internally and ToString uses it while it still decodes to
+'' the field (Go's RawPath rule).  A ';' in a query is data, never a separator.
+
+const TKU_PATH = 1
+const TKU_USER = 2
+const TKU_FRAGMENT = 3
+const TKU_HOST = 4
+const TKU_ZONE = 5
+
+'' Go's shouldEscape, for one byte of the UTF-8 form.
+private function hShouldEscape( byval c as long, byval mode as long ) as boolean
+    select case c
+    case 48 to 57, 65 to 90, 97 to 122 : return FALSE           '' 0-9 A-Z a-z
+    case 45, 95, 46, 126 : return FALSE                         '' - _ . ~
+    end select
+    if( ( mode = TKU_HOST ) orelse ( mode = TKU_ZONE ) ) then
+        if( c >= 128 ) then return FALSE
+        select case c
+        case 33, 36, 38, 39, 40, 41, 42, 43, 44, 59, 61, 58, 91, 93, 60, 62, 34
+            return FALSE                                        '' ! $ & ' ( ) * + , ; = : [ ] < > "
+        end select
+        return TRUE
+    end if
+    select case c
+    case 36, 38, 43, 44, 47, 58, 59, 61, 63, 64                 '' $ & + , / : ; = ? @
+        select case mode
+        case TKU_PATH : return ( c = 63 )
+        case TKU_USER : return ( c = 64 ) orelse ( c = 47 ) orelse ( c = 63 ) orelse ( c = 58 )
+        end select
+        return FALSE
+    end select
+    if( mode = TKU_FRAGMENT ) then
+        select case c
+        case 33, 40, 41, 42 : return FALSE                      '' ! ( ) *
+        end select
+    end if
+    return TRUE
+end function
+
+private function hEscape( byref s as const ustring, byval mode as long ) as ustring
+    dim as string b = s
+    dim as string r
+    dim as string digits = "0123456789ABCDEF"
+    for i as long = 0 to len( b ) - 1
+        dim as long c = b[i]
+        if( hShouldEscape( c, mode ) ) then
+            r &= "%" & chr( digits[c shr 4] ) & chr( digits[c and 15] )
+        else
+            r &= chr( c )
+        end if
+    next
+    dim as ustring u = r
+    return u
+end function
+
+private function hHex( byval c as ulong ) as long
+    select case c
+    case 48 to 57  : return c - 48
+    case 97 to 102 : return c - 87
+    case 65 to 70  : return c - 55
+    end select
+    return -1
+end function
+
+'' %XX to bytes, '+' to a space when plus.  FALSE for a '%' not followed by two hex
+'' digits, or (host) a character a host may not hold or an escaped ASCII byte: a
+'' host may escape only UTF-8 (Go's rule).  `exact` is FALSE when the
+'' bytes were not UTF-8 (the text then holds U+FFFD).
+private function hUnescape( byref s as const ustring, byval mode as long, byval plus as boolean, byref outp as ustring, byref exact as boolean ) as boolean
+    dim as string b = s
+    dim as string r
+    dim as long i = 0, n = len( b )
+    while( i < n )
+        dim as long c = b[i]
+        if( c = 37 ) then
+            if( i + 2 >= n ) then return FALSE
+            dim as long hi = hHex( b[i + 1] ), lo = hHex( b[i + 2] )
+            if( ( hi < 0 ) orelse ( lo < 0 ) ) then return FALSE
+            if( ( mode = TKU_HOST ) andalso ( hi < 8 ) ) then return FALSE
+            r &= chr( hi * 16 + lo )
+            i += 3
+        else
+            if( ( ( mode = TKU_HOST ) orelse ( mode = TKU_ZONE ) ) andalso ( c < 128 ) andalso hShouldEscape( c, TKU_HOST ) ) then return FALSE
+            if( plus andalso ( c = 43 ) ) then c = 32
+            r &= chr( c )
+            i += 1
+        end if
+    wend
+    dim as ustring u = r
+    dim as string back = u
+    exact = ( back = r )
+    outp = u
+    return TRUE
+end function
+
+'' Go's validEncoded: `s` may stand as written in a path or fragment.
+private function hValidEncoded( byref s as const ustring, byval mode as long ) as boolean
+    for i as long = 0 to len( s ) - 1
+        dim as ulong c = s[i]
+        select case c
+        case 33, 36, 38, 39, 40, 41, 42, 43, 44, 59, 61, 58, 64, 91, 93, 37
+            '' ! $ & ' ( ) * + , ; = : @ [ ] %
+        case else
+            if( ( c >= 128 ) orelse hShouldEscape( c, mode ) ) then return FALSE
+        end select
+    next
+    return TRUE
+end function
+
+'' -------------------------------------------------------------- QueryValues
+
+public type QueryValues
+    declare function Get( byref k as const ustring ) as Optional( of ustring )   '' the first value
+    declare function GetAll( byref k as const ustring ) as Array( of ustring )
+    declare function Has( byref k as const ustring ) as boolean
+    declare sub Add( byref k as const ustring, byref v as const ustring )
+    declare sub SetValue( byref k as const ustring, byref v as const ustring )  '' replaces every value of k
+    declare sub Remove( byref k as const ustring )
+    declare function Count( ) as long                    '' pairs, in order
+    declare function KeyAt( byval i as long ) as ustring  '' 0-based
+    declare function ValueAt( byval i as long ) as ustring
+    declare function Encode( ) as ustring                 '' k=v&k=v, codec.PCT_QUERY, insertion order
+
+    '' Internal.
+    as Array( of ustring ) hKeys, hVals
+end type
+
+public type NetResultQuery as Result( of QueryValues, NetError )
+
+function QueryValues.Get( byref k as const ustring ) as Optional( of ustring )
+    for i as long = 0 to this.hKeys.num - 1
+        if( this.hKeys.items( i ) = k ) then return Some( of ustring )( this.hVals.items( i ) )
+    next
+    return None( of ustring )( )
+end function
+
+function QueryValues.GetAll( byref k as const ustring ) as Array( of ustring )
+    dim as Array( of ustring ) r
+    for i as long = 0 to this.hKeys.num - 1
+        if( this.hKeys.items( i ) = k ) then r.Push( this.hVals.items( i ) )
+    next
+    return r
+end function
+
+function QueryValues.Has( byref k as const ustring ) as boolean
+    for i as long = 0 to this.hKeys.num - 1
+        if( this.hKeys.items( i ) = k ) then return TRUE
+    next
+    return FALSE
+end function
+
+sub QueryValues.Add( byref k as const ustring, byref v as const ustring )
+    dim as ustring kk = k, vv = v
+    this.hKeys.Push( kk )
+    this.hVals.Push( vv )
+end sub
+
+'' The first pair of k keeps its place and takes v; the others go.
+sub QueryValues.SetValue( byref k as const ustring, byref v as const ustring )
+    dim as long at = -1
+    dim as long i = 0
+    while( i < this.hKeys.num )
+        if( this.hKeys.items( i ) = k ) then
+            if( at < 0 ) then
+                at = i
+                this.hVals.items( i ) = v
+                i += 1
+            else
+                this.hKeys.Remove( i )
+                this.hVals.Remove( i )
+            end if
+        else
+            i += 1
+        end if
+    wend
+    if( at < 0 ) then this.Add( k, v )
+end sub
+
+sub QueryValues.Remove( byref k as const ustring )
+    dim as long i = 0
+    while( i < this.hKeys.num )
+        if( this.hKeys.items( i ) = k ) then
+            this.hKeys.Remove( i )
+            this.hVals.Remove( i )
+        else
+            i += 1
+        end if
+    wend
+end sub
+
+function QueryValues.Count( ) as long
+    return this.hKeys.num
+end function
+
+function QueryValues.KeyAt( byval i as long ) as ustring
+    return this.hKeys.items( i )
+end function
+
+function QueryValues.ValueAt( byval i as long ) as ustring
+    return this.hVals.items( i )
+end function
+
+function QueryValues.Encode( ) as ustring
+    dim as ustring r
+    for i as long = 0 to this.hKeys.num - 1
+        if( i > 0 ) then r &= "&"
+        r &= codec.PercentEncode( this.hKeys.items( i ), codec.PCT_QUERY ) & "=" & codec.PercentEncode( this.hVals.items( i ), codec.PCT_QUERY )
+    next
+    return r
+end function
+
+'' Pairs split on '&' (empty ones skipped), each at its first '='; '+' is a space.
+'' A bad escape fails the whole parse, unless lenient, which drops that pair.
+private function hParseQuery( byref raw as const ustring, byval lenient as boolean, byref q as QueryValues ) as boolean
+    dim as long st = 1, n = len( raw )
+    while( st <= n + 1 )
+        dim as long amp = instr( st, raw, "&" )
+        if( amp = 0 ) then amp = n + 1
+        dim as ustring pair = mid( raw, st, amp - st )
+        st = amp + 1
+        if( len( pair ) > 0 ) then
+            dim as ustring k = pair, v
+            dim as long eq = instr( pair, "=" )
+            if( eq > 0 ) then
+                k = left( pair, eq - 1 )
+                v = mid( pair, eq + 1 )
+            end if
+            dim as ustring dk, dv
+            dim as boolean ex
+            if( hUnescape( k, 0, TRUE, dk, ex ) andalso hUnescape( v, 0, TRUE, dv, ex ) ) then
+                q.Add( dk, dv )
+            elseif( lenient = FALSE ) then
+                return FALSE
+            end if
+        end if
+        if( amp > n ) then exit while
+    wend
+    return TRUE
+end function
+
+public function ParseQuery( byref raw as const ustring ) as NetResultQuery
+    dim as QueryValues q
+    if( hParseQuery( raw, FALSE, q ) = FALSE ) then return NetFail( of QueryValues )( NET_INVALID_URL, 0, "ParseQuery", raw )
+    return Ok( of QueryValues, NetError )( q )
+end function
+
+'' -------------------------------------------------------------- Url
+
+public type Url
+    declare constructor( )
+    as ustring Scheme, User, Password, Host, Path, RawQuery, Fragment
+    as long Port                                          '' -1 when absent
+    declare function Query( ) as QueryValues              '' RawQuery parsed; bad pairs dropped
+    declare function Resolve( byref reference as const ustring ) as Result( of Url, NetError )   '' RFC 3986 section 5.2
+    declare function ResolveUrl( byref reference as const Url ) as Url
+    declare function ToString( ) as ustring
+    declare function EscapedPath( ) as ustring
+    declare function HostPort( ) as ustring               '' host:port, [v6]:port; no ':port' when absent
+    declare function IsAbsolute( ) as boolean             '' has a scheme
+
+    '' Internal: what ParseUrl saw, so that ToString gives it back.
+    as ustring hRawPath, hRawFragment
+    as boolean hAuthority, hUser, hPassword, hQuery
+end type
+
+public type NetResultUrl as Result( of Url, NetError )
+
+constructor Url( )
+    this.Port = -1
+    this.hAuthority = FALSE
+    this.hUser = FALSE
+    this.hPassword = FALSE
+    this.hQuery = FALSE
+end constructor
+
+'' Sets Path from its written form; FALSE for a bad escape.
+private function hSetPath( byref u as Url, byref raw as const ustring ) as boolean
+    dim as ustring p
+    dim as boolean exact
+    if( hUnescape( raw, TKU_PATH, FALSE, p, exact ) = FALSE ) then return FALSE
+    u.Path = p
+    if( exact andalso ( hEscape( p, TKU_PATH ) = raw ) ) then u.hRawPath = "" else u.hRawPath = raw
+    return TRUE
+end function
+
+private function hSetFragment( byref u as Url, byref raw as const ustring ) as boolean
+    dim as ustring f
+    dim as boolean exact
+    if( hUnescape( raw, TKU_FRAGMENT, FALSE, f, exact ) = FALSE ) then return FALSE
+    u.Fragment = f
+    if( exact andalso ( hEscape( f, TKU_FRAGMENT ) = raw ) ) then u.hRawFragment = "" else u.hRawFragment = raw
+    return TRUE
+end function
+
+private function hRawStillGood( byref raw as const ustring, byref decoded as const ustring, byval mode as long ) as boolean
+    if( ( len( raw ) = 0 ) orelse ( hValidEncoded( raw, mode ) = FALSE ) ) then return FALSE
+    dim as ustring d
+    dim as boolean exact
+    if( hUnescape( raw, mode, FALSE, d, exact ) = FALSE ) then return FALSE
+    return ( d = decoded )
+end function
+
+function Url.EscapedPath( ) as ustring
+    if( hRawStillGood( this.hRawPath, this.Path, TKU_PATH ) ) then return this.hRawPath
+    if( this.Path = "*" ) then return "*"
+    return hEscape( this.Path, TKU_PATH )
+end function
+
+private function hEscapedFragment( byref u as Url ) as ustring
+    if( hRawStillGood( u.hRawFragment, u.Fragment, TKU_FRAGMENT ) ) then return u.hRawFragment
+    return hEscape( u.Fragment, TKU_FRAGMENT )
+end function
+
+private function hHostText( byref h as const ustring ) as ustring
+    if( instr( h, ":" ) = 0 ) then return hEscape( h, TKU_HOST )
+    '' an IPv6 literal: brackets, and its zone's '%' as %25
+    dim as long pct = instr( h, "%" )
+    if( pct = 0 ) then return "[" & h & "]"
+    return "[" & left( h, pct - 1 ) & "%25" & hEscape( mid( h, pct + 1 ), TKU_HOST ) & "]"
+end function
+
+function Url.HostPort( ) as ustring
+    dim as ustring r = hHostText( this.Host )
+    if( this.Port >= 0 ) then r &= ":" & this.Port
+    return r
+end function
+
+function Url.IsAbsolute( ) as boolean
+    return ( len( this.Scheme ) > 0 )
+end function
+
+private function hHasAuthority( byref u as Url ) as boolean
+    return u.hAuthority orelse ( len( u.Host ) > 0 ) orelse u.hUser orelse ( len( u.User ) > 0 ) orelse ( len( u.Password ) > 0 ) orelse ( u.Port >= 0 )
+end function
+
+function Url.ToString( ) as ustring
+    dim as ustring r
+    if( len( this.Scheme ) > 0 ) then r = this.Scheme & ":"
+    dim as boolean auth = hHasAuthority( this )
+    if( auth ) then
+        r &= "//"
+        if( this.hUser orelse ( len( this.User ) > 0 ) orelse ( len( this.Password ) > 0 ) ) then
+            r &= hEscape( this.User, TKU_USER )
+            if( this.hPassword orelse ( len( this.Password ) > 0 ) ) then r &= ":" & hEscape( this.Password, TKU_USER )
+            r &= "@"
+        end if
+        r &= this.HostPort( )
+    end if
+    dim as ustring p = this.EscapedPath( )
+    if( len( p ) > 0 ) then
+        if( auth andalso ( p[0] <> 47 ) ) then
+            r &= "/"
+        elseif( ( auth = FALSE ) andalso ( left( p, 2 ) = "//" ) andalso ( ( len( this.Scheme ) > 0 ) orelse ( left( p, 3 ) <> "///" ) ) ) then
+            r &= "/."                                           '' RFC 3986 5.3: would read as an authority
+        elseif( ( auth = FALSE ) andalso ( len( this.Scheme ) = 0 ) ) then
+            dim as long colon = instr( p, ":" ), slash = instr( p, "/" )
+            if( ( colon > 0 ) andalso ( ( slash = 0 ) orelse ( slash > colon ) ) ) then r &= "./"   '' not a scheme
+        end if
+        r &= p
+    end if
+    if( this.hQuery orelse ( len( this.RawQuery ) > 0 ) ) then r &= "?" & this.RawQuery
+    if( len( this.Fragment ) > 0 ) then r &= "#" & hEscapedFragment( this )
+    return r
+end function
+
+function Url.Query( ) as QueryValues
+    dim as QueryValues q
+    hParseQuery( this.RawQuery, TRUE, q )
+    return q
+end function
+
+'' host or host:port of an authority, Go's parseHost; FALSE when invalid.
+private function hParseHost( byref u as Url, byref h as const ustring ) as boolean
+    dim as ustring portText
+    if( ( len( h ) > 0 ) andalso ( h[0] = 91 ) ) then
+        dim as long close_ = instrrev( h, "]" )
+        if( close_ = 0 ) then return FALSE
+        portText = mid( h, close_ + 1 )
+        dim as ustring inner = mid( h, 2, close_ - 2 )
+        dim as ustring ipPart = inner, zone
+        dim as long z = instr( inner, "%25" )
+        if( z > 0 ) then
+            ipPart = left( inner, z - 1 )
+            dim as boolean exact
+            if( hUnescape( mid( inner, z + 3 ), TKU_ZONE, FALSE, zone, exact ) = FALSE ) then return FALSE
+            if( len( zone ) = 0 ) then return FALSE
+        end if
+        if( instr( ipPart, "%" ) > 0 ) then return FALSE           '' a zone is written %25
+        if( ( len( ipPart ) > 0 ) andalso ( ( ipPart[0] = 118 ) orelse ( ipPart[0] = 86 ) ) ) then
+            if( z > 0 ) then return FALSE                       '' IPvFuture, kept as written
+        else
+            dim as IpAddress a
+            if( NetParseIpRange( ipPart, 0, len( ipPart ), a ) = FALSE ) then return FALSE
+            if( a.IsV6( ) = FALSE ) then return FALSE
+        end if
+        u.Host = ipPart
+        if( z > 0 ) then u.Host &= "%" & zone
+    else
+        dim as long colon = instrrev( h, ":" )
+        dim as ustring hostText = h
+        if( colon > 0 ) then
+            portText = mid( h, colon )
+            hostText = left( h, colon - 1 )
+        end if
+        dim as boolean exact
+        dim as ustring dec
+        if( hUnescape( hostText, TKU_HOST, FALSE, dec, exact ) = FALSE ) then return FALSE
+        u.Host = dec
+    end if
+    if( len( portText ) > 0 ) then
+        if( portText[0] <> 58 ) then return FALSE
+        if( len( portText ) > 1 ) then
+            if( len( portText ) > 6 ) then return FALSE
+            dim as long v = 0
+            for i as long = 1 to len( portText ) - 1
+                if( ( portText[i] < 48 ) orelse ( portText[i] > 57 ) ) then return FALSE
+                v = v * 10 + ( portText[i] - 48 )
+            next
+            if( v > 65535 ) then return FALSE
+            u.Port = v
+        end if
+    end if
+    return TRUE
+end function
+
+private function hValidUserinfo( byref s as const ustring ) as boolean
+    for i as long = 0 to len( s ) - 1
+        dim as ulong c = s[i]
+        select case c
+        case 48 to 57, 65 to 90, 97 to 122
+        case 45, 46, 95, 58, 126, 33, 36, 38, 39, 40, 41, 42, 43, 44, 59, 61, 37, 64
+            '' - . _ : ~ ! $ & ' ( ) * + , ; = % @
+        case else
+            if( c < 128 ) then return FALSE
+        end select
+    next
+    return TRUE
+end function
+
+private function hParseAuthority( byref u as Url, byref a as const ustring ) as boolean
+    u.hAuthority = TRUE
+    dim as long at = instrrev( a, "@" )
+    if( at = 0 ) then return hParseHost( u, a )
+    if( hParseHost( u, mid( a, at + 1 ) ) = FALSE ) then return FALSE
+    dim as ustring ui = left( a, at - 1 )
+    if( hValidUserinfo( ui ) = FALSE ) then return FALSE
+    u.hUser = TRUE
+    dim as boolean exact
+    dim as long colon = instr( ui, ":" )
+    if( colon = 0 ) then return hUnescape( ui, TKU_USER, FALSE, u.User, exact )
+    u.hPassword = TRUE
+    if( hUnescape( left( ui, colon - 1 ), TKU_USER, FALSE, u.User, exact ) = FALSE ) then return FALSE
+    return hUnescape( mid( ui, colon + 1 ), TKU_USER, FALSE, u.Password, exact )
+end function
+
+private function hParse( byref s as const ustring, byref u as Url ) as boolean
+    for i as long = 0 to len( s ) - 1
+        if( ( s[i] < 32 ) orelse ( s[i] = 127 ) ) then return FALSE
+    next
+    dim as ustring rest = s
+    dim as long hash = instr( s, "#" )
+    if( hash > 0 ) then
+        rest = left( s, hash - 1 )
+        if( hSetFragment( u, mid( s, hash + 1 ) ) = FALSE ) then return FALSE
+    end if
+    if( rest = "*" ) then
+        u.Path = "*"
+        return TRUE
+    end if
+    '' the scheme: a letter, then letters, digits, + - . up to a ':'
+    for i as long = 0 to len( rest ) - 1
+        dim as ulong c = rest[i]
+        if( ( ( c >= 65 ) andalso ( c <= 90 ) ) orelse ( ( c >= 97 ) andalso ( c <= 122 ) ) ) then
+            continue for
+        end if
+        if( ( ( c >= 48 ) andalso ( c <= 57 ) ) orelse ( c = 43 ) orelse ( c = 45 ) orelse ( c = 46 ) ) then
+            if( i = 0 ) then exit for
+            continue for
+        end if
+        if( c = 58 ) then
+            if( i = 0 ) then return FALSE                       '' "missing protocol scheme"
+            u.Scheme = lcase( left( rest, i ) )
+            rest = mid( rest, i + 2 )
+        end if
+        exit for
+    next
+    dim as long q = instr( rest, "?" )
+    if( q > 0 ) then
+        u.hQuery = TRUE
+        u.RawQuery = mid( rest, q + 1 )
+        rest = left( rest, q - 1 )
+    end if
+    if( ( len( u.Scheme ) = 0 ) andalso ( len( rest ) > 0 ) andalso ( rest[0] <> 47 ) ) then
+        '' a relative path: its first segment cannot hold a ':' (RFC 3986 path-noscheme)
+        dim as long colon = instr( rest, ":" ), slash = instr( rest, "/" )
+        if( ( colon > 0 ) andalso ( ( slash = 0 ) orelse ( colon < slash ) ) ) then return FALSE
+    end if
+    if( ( left( rest, 2 ) = "//" ) andalso ( ( len( u.Scheme ) > 0 ) orelse ( left( rest, 3 ) <> "///" ) ) ) then
+        dim as ustring auth = mid( rest, 3 )
+        rest = ""
+        dim as long slash = instr( auth, "/" )
+        if( slash > 0 ) then
+            rest = mid( auth, slash )
+            auth = left( auth, slash - 1 )
+        end if
+        if( hParseAuthority( u, auth ) = FALSE ) then return FALSE
+    end if
+    return hSetPath( u, rest )
+end function
+
+public function ParseUrl( byref s as const ustring ) as NetResultUrl
+    dim as Url u
+    if( hParse( s, u ) = FALSE ) then return NetFail( of Url )( NET_INVALID_URL, 0, "ParseUrl", s )
+    return Ok( of Url, NetError )( u )
+end function
+
+'' -------------------------------------------------------------- resolution
+
+'' RFC 3986 section 5.2.4.
+private function hRemoveDots( byref path_ as const ustring ) as ustring
+    dim as ustring inp = path_, outp
+    while( len( inp ) > 0 )
+        if( left( inp, 3 ) = "../" ) then
+            inp = mid( inp, 4 )
+        elseif( left( inp, 2 ) = "./" ) then
+            inp = mid( inp, 3 )
+        elseif( left( inp, 3 ) = "/./" ) then
+            inp = mid( inp, 3 )
+        elseif( inp = "/." ) then
+            inp = "/"
+        elseif( ( left( inp, 4 ) = "/../" ) orelse ( inp = "/.." ) ) then
+            inp = "/" & mid( inp, 5 )
+            dim as long cut = instrrev( outp, "/" )
+            if( cut > 0 ) then outp = left( outp, cut - 1 ) else outp = ""
+        elseif( ( inp = "." ) orelse ( inp = ".." ) ) then
+            inp = ""
+        else
+            dim as long nxt = instr( 2, inp, "/" )
+            if( nxt = 0 ) then nxt = len( inp ) + 1
+            outp &= left( inp, nxt - 1 )
+            inp = mid( inp, nxt )
+        end if
+    wend
+    return outp
+end function
+
+private sub hCopyAuthority( byref t as Url, byref s as const Url )
+    t.User = s.User
+    t.Password = s.Password
+    t.Host = s.Host
+    t.Port = s.Port
+    t.hAuthority = s.hAuthority
+    t.hUser = s.hUser
+    t.hPassword = s.hPassword
+end sub
+
+'' RFC 3986 section 5.2.2, strict (a reference with this URL's own scheme is not
+'' treated as relative), on the escaped paths.
+function Url.ResolveUrl( byref reference as const Url ) as Url
+    dim as Url r = reference
+    dim as Url t
+    dim as ustring rp = r.EscapedPath( )
+    if( len( r.Scheme ) > 0 ) then
+        t = r
+        hSetPath( t, hRemoveDots( rp ) )
+        return t
+    end if
+    t.Scheme = this.Scheme
+    if( hHasAuthority( r ) ) then
+        hCopyAuthority( t, r )
+        hSetPath( t, hRemoveDots( rp ) )
+        t.RawQuery = r.RawQuery
+        t.hQuery = r.hQuery
+    else
+        hCopyAuthority( t, this )
+        if( len( rp ) = 0 ) then
+            hSetPath( t, this.EscapedPath( ) )
+            if( r.hQuery orelse ( len( r.RawQuery ) > 0 ) ) then
+                t.RawQuery = r.RawQuery
+                t.hQuery = TRUE
+            else
+                t.RawQuery = this.RawQuery
+                t.hQuery = this.hQuery
+            end if
+        else
+            if( rp[0] = 47 ) then
+                hSetPath( t, hRemoveDots( rp ) )
+            else
+                dim as ustring bp = this.EscapedPath( ), merged
+                if( hHasAuthority( this ) andalso ( len( bp ) = 0 ) ) then
+                    merged = "/" & rp
+                else
+                    merged = left( bp, instrrev( bp, "/" ) ) & rp
+                end if
+                hSetPath( t, hRemoveDots( merged ) )
+            end if
+            t.RawQuery = r.RawQuery
+            t.hQuery = r.hQuery
+        end if
+    end if
+    t.Fragment = r.Fragment
+    t.hRawFragment = r.hRawFragment
+    return t
+end function
+
+function Url.Resolve( byref reference as const ustring ) as Result( of Url, NetError )
+    dim as Url r
+    if( hParse( reference, r ) = FALSE ) then return NetFail( of Url )( NET_INVALID_URL, 0, "Resolve", reference )
+    return Ok( of Url, NetError )( this.ResolveUrl( r ) )
+end function

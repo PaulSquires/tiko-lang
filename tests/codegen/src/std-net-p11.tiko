@@ -1,0 +1,356 @@
+'' std/net phase P11 (C:\dev\docs\tiko-stdlib\RFC-0001 sections 15.1-15.3, 15.5): IP
+'' parse/format against the RFC 5952 section 4 examples, v4 leading-zero rejection,
+'' v4-mapped, zones, the classifiers; SocketAddress; Resolve of literals and localhost;
+'' TCP over loopback in one thread (v4, and a dual-stack [::] listener reached through
+'' ConnectHost and through 127.0.0.1), fs.Stream composition, EOF after Shutdown, Accept
+'' and read timeouts, refused, address in use; UDP round trips, truncation, a v6 socket
+'' talking to a v4 one, timeouts; fs.FS_TIMED_OUT's text.  Loopback only: nothing here
+'' touches an external network.  The same source runs on Linux in WSL.
+#import "std/net"
+#import "std/fs"
+#import "std/containers"
+using containers
+
+dim shared as integer fails = 0
+
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+'' The canonical text of a parse, or "error".
+function Ip( byref s as ustring ) as ustring
+    dim r as net.NetResultIp = net.ParseIp( s )
+    if r.IsOk( ) = false then return "error"
+    return r.Value( ).ToString( )
+end function
+
+function IpOf( byref s as ustring ) as net.IpAddress
+    dim r as net.NetResultIp = net.ParseIp( s )
+    if r.IsOk( ) = false then
+        print "FAIL parse "; s
+        fails += 1
+        return net.IpAddress( )
+    end if
+    return r.Value( )
+end function
+
+function Sa( byref s as ustring ) as ustring
+    dim r as net.NetResultAddr = net.ParseSocketAddress( s )
+    if r.IsOk( ) = false then return "error"
+    return r.Value( ).ToString( )
+end function
+
+sub Same( byref what as string, byref got as ustring, byref want as ustring )
+    if got <> want then
+        print "FAIL "; what; ": got '"; got; "' want '"; want; "'"
+        fails += 1
+    end if
+end sub
+
+'' ---------------------------------------------------------------- addresses
+
+'' RFC 5952 section 4
+Same( "5952 4.1", Ip( "2001:0db8::0001" ), "2001:db8::1" )
+Same( "5952 4.2.1", Ip( "2001:db8:0:0:0:0:2:1" ), "2001:db8::2:1" )
+Same( "5952 4.2.1b", Ip( "2001:db8::0:1" ), "2001:db8::1" )
+Same( "5952 4.2.2", Ip( "2001:db8:0:1:1:1:1:1" ), "2001:db8:0:1:1:1:1:1" )
+Same( "5952 4.2.2b", Ip( "::2:3:4:5:6:7:8" ), "0:2:3:4:5:6:7:8" )
+Same( "5952 4.2.3", Ip( "2001:0:0:1:0:0:0:1" ), "2001:0:0:1::1" )
+Same( "5952 4.2.3b", Ip( "2001:db8:0:0:1:0:0:1" ), "2001:db8::1:0:0:1" )
+Same( "5952 4.3", Ip( "2001:DB8::ABCD" ), "2001:db8::abcd" )
+Same( "5952 5", Ip( "0:0:0:0:0:ffff:c000:0201" ), "::ffff:192.0.2.1" )
+Same( "::", Ip( "::" ), "::" )
+Same( "::1", Ip( "::1" ), "::1" )
+Same( "1::", Ip( "1::" ), "1::" )
+Same( "full", Ip( "1:2:3:4:5:6:7:8" ), "1:2:3:4:5:6:7:8" )
+Same( "v4 in v6", Ip( "::1.2.3.4" ), "::102:304" )
+Same( "v4", Ip( "192.168.1.1" ), "192.168.1.1" )
+Same( "v4 zeros", Ip( "0.0.0.0" ), "0.0.0.0" )
+Same( "zone", Ip( "fe80::1%eth0" ), "fe80::1%eth0" )
+Check( "zone value", IpOf( "fe80::1%eth0" ).Zone( ) = "eth0" )
+
+'' strict: leading zeros (CVE-2021-29921 class) and malformed text
+dim bad( 0 to 17 ) as ustring = { "01.2.3.4", "1.2.3.04", "1.2.3", "1.2.3.4.5", "256.1.1.1", _
+    "1.2.3.4%eth0", "1::2::3", "1:2:3:4:5:6:7:8:9", "12345::", ":1", "1:", "::1.2.3", _
+    "::ffff:1.2.3.04", "1:2:3:4:5:6:7::8", "", "fe80::1%", "1.2.3.4 ", "g::1" }
+for i as long = 0 to 17
+    Same( "bad ip " & i, Ip( bad( i ) ), "error" )
+next
+dim e as net.NetResultIp = net.ParseIp( "01.2.3.4" )
+Check( "bad ip code", e.Failure( ).Code( ) = net.NET_INVALID_ADDRESS )
+Same( "bad ip message", e.Failure( ).Message( ), "ParseIp '01.2.3.4': invalid address" )
+
+'' classifiers
+Check( "loopback v4", IpOf( "127.9.9.9" ).IsLoopback( ) )
+Check( "loopback v6", IpOf( "::1" ).IsLoopback( ) )
+Check( "loopback mapped", IpOf( "::ffff:127.0.0.1" ).IsLoopback( ) )
+Check( "not loopback", IpOf( "::2" ).IsLoopback( ) = false )
+Check( "private 10", IpOf( "10.1.2.3" ).IsPrivate( ) )
+Check( "private 172.16", IpOf( "172.16.0.1" ).IsPrivate( ) )
+Check( "private 172.31", IpOf( "172.31.255.255" ).IsPrivate( ) )
+Check( "not private 172.32", IpOf( "172.32.0.1" ).IsPrivate( ) = false )
+Check( "private 192.168", IpOf( "192.168.0.1" ).IsPrivate( ) )
+Check( "private fd00", IpOf( "fd00::1" ).IsPrivate( ) )
+Check( "link-local v4", IpOf( "169.254.1.1" ).IsLinkLocal( ) )
+Check( "link-local v6", IpOf( "fe80::1" ).IsLinkLocal( ) )
+Check( "not link-local fec0", IpOf( "fec0::1" ).IsLinkLocal( ) = false )
+Check( "multicast v4", IpOf( "239.1.2.3" ).IsMulticast( ) )
+Check( "multicast v6", IpOf( "ff02::1" ).IsMulticast( ) )
+Check( "unspecified v4", IpOf( "0.0.0.0" ).IsUnspecified( ) )
+Check( "unspecified v6", IpOf( "::" ).IsUnspecified( ) )
+Check( "global 8.8.8.8", IpOf( "8.8.8.8" ).IsGlobalUnicast( ) )
+Check( "global 10/8", IpOf( "10.0.0.1" ).IsGlobalUnicast( ) )
+Check( "global 2001:db8", IpOf( "2001:db8::1" ).IsGlobalUnicast( ) )
+Check( "not global broadcast", IpOf( "255.255.255.255" ).IsGlobalUnicast( ) = false )
+Check( "not global loopback", IpOf( "127.0.0.1" ).IsGlobalUnicast( ) = false )
+Check( "not global multicast", IpOf( "ff02::1" ).IsGlobalUnicast( ) = false )
+
+'' mapped, bytes, equality
+dim m as net.IpAddress = IpOf( "::ffff:10.0.0.7" )
+Check( "mapped", m.IsV4Mapped( ) andalso m.IsV6( ) )
+Check( "unmap", m.Unmap( ).IsV4( ) andalso ( m.Unmap( ).ToString( ) = "10.0.0.7" ) )
+Check( "unmap other", IpOf( "::1" ).Unmap( ).IsV6( ) )
+Check( "bytes v4", IpOf( "1.2.3.4" ).Bytes( ).num = 4 )
+Check( "bytes v6", IpOf( "::1" ).Bytes( ).num = 16 )
+dim bb as Array( of ubyte ) = IpOf( "2001:db8::7" ).Bytes( )
+Check( "from bytes", net.IpFromBytes( bb ).Value( ).Equals( IpOf( "2001:db8::7" ) ) )
+bb.Push( 1 )
+Check( "from 17 bytes", net.IpFromBytes( bb ).IsOk( ) = false )
+Check( "ipv4", net.Ipv4( 10, 0, 0, 1 ).Equals( IpOf( "10.0.0.1" ) ) )
+Check( "loopback()", net.Loopback( ).ToString( ) = "127.0.0.1" andalso net.Loopback( true ).ToString( ) = "::1" )
+Check( "any()", net.Any_( ).ToString( ) = "0.0.0.0" andalso net.Any_( true ).ToString( ) = "::" )
+Check( "zone differs", IpOf( "fe80::1%1" ).Equals( IpOf( "fe80::1%2" ) ) = false )
+Check( "v4 <> mapped", IpOf( "1.2.3.4" ).Equals( IpOf( "::ffff:1.2.3.4" ) ) = false )
+Check( "with zone", IpOf( "fe80::1" ).WithZone( "7" ).ToString( ) = "fe80::1%7" )
+
+'' SocketAddress
+Same( "sa v4", Sa( "1.2.3.4:80" ), "1.2.3.4:80" )
+Same( "sa v6", Sa( "[::1]:8080" ), "[::1]:8080" )
+Same( "sa v6 long", Sa( "[2001:0db8::1]:0" ), "[2001:db8::1]:0" )
+Same( "sa zone", Sa( "[fe80::1%eth0]:65535" ), "[fe80::1%eth0]:65535" )
+dim sbad( 0 to 9 ) as ustring = { "::1:80", "1.2.3.4", "1.2.3.4:", "1.2.3.4:65536", "[1.2.3.4]:80", _
+    "[::1]80", "[::1]", ":80", "1.2.3.4:8a", "[::1]:123456" }
+for i as long = 0 to 9
+    Same( "bad sa " & i, Sa( sbad( i ) ), "error" )
+next
+Check( "sa equals", net.ParseSocketAddress( "[::1]:5" ).Value( ).Equals( net.SocketAddress( net.Loopback( true ), 5 ) ) )
+
+'' ---------------------------------------------------------------- Resolve
+
+dim rl as net.NetResultAddrs = net.Resolve( "10.1.2.3", 99 )
+Check( "resolve literal", rl.IsOk( ) andalso ( rl.Value( ).num = 1 ) andalso ( rl.Value( ).items( 0 ).ToString( ) = "10.1.2.3:99" ) )
+rl = net.Resolve( "[::1]", 7 )
+Check( "resolve bracketed", rl.IsOk( ) andalso ( rl.Value( ).items( 0 ).ToString( ) = "[::1]:7" ) )
+rl = net.Resolve( "10.1.2.3", 1, net.AF_IPV6 )
+Check( "resolve wrong family", ( rl.IsOk( ) = false ) andalso ( rl.Failure( ).Code( ) = net.NET_INVALID_ADDRESS ) )
+rl = net.Resolve( "" )
+Check( "resolve empty", rl.IsOk( ) = false )
+rl = net.Resolve( "localhost", 80 )
+dim as boolean sawLoop = false
+if rl.IsOk( ) then
+    for i as long = 0 to rl.Value( ).num - 1
+        if rl.Value( ).items( i ).Ip.IsLoopback( ) andalso ( rl.Value( ).items( i ).Port = 80 ) then sawLoop = true
+    next
+else
+    print "resolve localhost: "; rl.Failure( ).Message( )
+end if
+Check( "resolve localhost", sawLoop )
+rl = net.Resolve( "localhost", 80, net.AF_IPV4 )
+Check( "resolve localhost v4", rl.IsOk( ) andalso rl.Value( ).items( 0 ).Ip.IsV4( ) )
+
+'' ---------------------------------------------------------------- TCP
+
+function Text( byref b as Array( of ubyte ) ) as string
+    dim as string s = space( b.num )
+    for i as long = 0 to b.num - 1
+        s[i] = b.items( i )
+    next
+    return s
+end function
+
+'' Reads exactly n bytes as text, or "<error>".
+function ReadN( byref s as fs.Stream, byval n as long ) as string
+    dim as string buf = space( n )
+    dim r as fs.FsResultBool = s.ReadExact( cptr( ubyte ptr, strptr( buf ) ), n )
+    if r.IsOk( ) = false then return "<" & r.Failure( ).Message( ) & ">"
+    return buf
+end function
+
+scope
+    dim l as net.TcpListener
+    Check( "bind", l.Bind( net.SocketAddress( net.Loopback( ), 0 ) ).IsOk( ) )
+    dim la as net.SocketAddress = l.LocalAddress( ).Value( )
+    Check( "ephemeral port", ( la.Port > 0 ) andalso la.Ip.IsLoopback( ) )
+
+    '' no one waiting yet
+    dim t0 as net.TcpStream
+    dim as double st = timer
+    dim ar as net.NetResultBool = l.Accept( t0, 150 )
+    dim as double took = timer - st
+    Check( "accept timeout", ( ar.IsOk( ) = false ) andalso ( ar.Failure( ).Code( ) = net.NET_TIMED_OUT ) )
+    Check( "accept timeout length " & took, ( took >= 0.1 ) andalso ( took < 2 ) )
+
+    '' the kernel completes the connect before Accept, so one thread can do both sides
+    dim c as net.TcpStream
+    Check( "connect", c.Connect( la, 2000 ).IsOk( ) )
+    Check( "connect again", c.Connect( la ).Failure( ).Code( ) = net.NET_ALREADY_OPEN )
+    dim srv as net.TcpStream
+    Check( "accept", l.Accept( srv, 2000 ).IsOk( ) )
+    Check( "accept into open", l.Accept( srv, 0 ).Failure( ).Code( ) = net.NET_ALREADY_OPEN )
+    Check( "peer = local", srv.PeerAddress( ).Value( ).Equals( c.LocalAddress( ).Value( ) ) )
+    Check( "local = peer", c.PeerAddress( ).Value( ).Equals( la ) )
+    Check( "nodelay", c.SetNoDelay( true ).IsOk( ) )
+    Check( "keepalive", c.SetKeepAlive( true ).IsOk( ) )
+    Check( "is a stream", c.CanRead( ) andalso c.CanWrite( ) andalso ( c.CanSeek( ) = false ) )
+
+    Check( "write", c.WriteUtf8( "hello, wörld" ).IsOk( ) )
+    Same( "server reads", ReadN( srv, 13 ), "hello, w" & chr( &hC3, &hB6 ) & "rld" )
+    dim as string big = string( 4000, "x" ) & "END"
+    Check( "server writes", srv.WriteAll( cptr( ubyte ptr, strptr( big ) ), len( big ) ).IsOk( ) )
+    Same( "client reads", ReadN( c, len( big ) ), big )
+
+    '' read timeout: fs.FS_TIMED_OUT, with its text from std/fs
+    Check( "set read timeout", c.SetReadTimeout( 200 ).IsOk( ) )
+    dim as ubyte one( 0 to 0 )
+    st = timer
+    dim rr as fs.FsResultI64 = c.Read( @one( 0 ), 1 )
+    took = timer - st
+    Check( "read timed out", ( rr.IsOk( ) = false ) andalso ( rr.Failure( ).Code( ) = fs.FS_TIMED_OUT ) )
+    if rr.IsOk( ) = false then Same( "timed out text", rr.Failure( ).Message( ), "timed out" )
+    Check( "read timeout length " & took, ( took >= 0.15 ) andalso ( took < 2 ) )
+    Check( "reset text", fs.FsError( fs.FS_CONNECTION_RESET, 0, "Read", "" ).Message( ) = "connection reset by peer" )
+    Check( "codes 26 27", ( fs.FS_TIMED_OUT = 26 ) andalso ( fs.FS_CONNECTION_RESET = 27 ) )
+
+    '' Shutdown( write ): the other side reads end of data
+    Check( "shutdown", c.Shutdown( net.SHUTDOWN_WRITE ).IsOk( ) )
+    dim as Array( of ubyte ) rest
+    dim re as fs.FsResultI64 = srv.ReadToEnd( rest )
+    Check( "eof after shutdown", re.IsOk( ) andalso ( re.Value( ) = 0 ) )
+
+    '' the port is taken (SO_EXCLUSIVEADDRUSE / no SO_REUSEPORT)
+    dim l2 as net.TcpListener
+    dim br as net.NetResultBool = l2.Bind( la )
+    Check( "address in use", ( br.IsOk( ) = false ) andalso ( br.Failure( ).Code( ) = net.NET_ADDRESS_IN_USE ) )
+
+    Check( "close", c.Close( ).IsOk( ) andalso ( c.IsOpen( ) = false ) )
+    Check( "close twice", c.Close( ).IsOk( ) )
+    dim cr as fs.FsResultI64 = c.Read( @one( 0 ), 1 )
+    Check( "read closed", cr.Failure( ).Code( ) = fs.FS_CLOSED )
+    Check( "nodelay closed", c.SetNoDelay( true ).Failure( ).Code( ) = net.NET_CLOSED )
+    Check( "peer closed", c.PeerAddress( ).Failure( ).Code( ) = net.NET_CLOSED )
+    l.Close( )
+
+    '' nothing listens now: refused
+    dim c2 as net.TcpStream
+    dim rf as net.NetResultBool = c2.Connect( la, 10000 )
+    Check( "refused", ( rf.IsOk( ) = false ) andalso ( rf.Failure( ).Code( ) = net.NET_CONNECTION_REFUSED ) )
+    if rf.IsOk( ) = false then Check( "refused subject", rf.Failure( ).Subject( ) = la.ToString( ) )
+end scope
+
+'' a dual-stack [::] listener: reached as localhost (v6 first) and as 127.0.0.1
+scope
+    dim l as net.TcpListener
+    dim b as net.NetResultBool = l.Bind( net.SocketAddress( net.Any_( true ), 0 ) )
+    if b.IsOk( ) then
+        dim as ushort port = l.LocalAddress( ).Value( ).Port
+        dim c as net.TcpStream
+        dim ch as net.NetResultBool = c.ConnectHost( "localhost", port, 5000 )
+        Check( "connect host", ch.IsOk( ) )
+        dim s as net.TcpStream
+        Check( "accept host", l.Accept( s, 2000 ).IsOk( ) )
+        c.WriteUtf8( "ping" )
+        Same( "host round trip", ReadN( s, 4 ), "ping" )
+        dim c4 as net.TcpStream
+        Check( "v4 to dual stack", c4.Connect( net.SocketAddress( net.Loopback( ), port ), 2000 ).IsOk( ) )
+        dim s4 as net.TcpStream
+        Check( "accept v4", l.Accept( s4, 2000 ).IsOk( ) )
+        Check( "v4 peer is mapped", s4.PeerAddress( ).Value( ).Ip.IsV4Mapped( ) )
+    else
+        print "no IPv6 here: "; b.Failure( ).Message( )
+    end if
+end scope
+
+'' a v6-only listener does not take v4
+scope
+    dim l as net.TcpListener
+    if l.Bind( net.SocketAddress( net.Any_( true ), 0 ), 16, false ).IsOk( ) then
+        dim c as net.TcpStream
+        dim r as net.NetResultBool = c.Connect( net.SocketAddress( net.Loopback( ), l.LocalAddress( ).Value( ).Port ), 5000 )
+        Check( "v6only refuses v4", r.IsOk( ) = false )
+    end if
+end scope
+
+'' ---------------------------------------------------------------- UDP
+
+scope
+    dim a as net.UdpSocket, b as net.UdpSocket
+    Check( "udp bind a", a.Bind( net.SocketAddress( net.Loopback( ), 0 ) ).IsOk( ) )
+    Check( "udp bind b", b.Bind( net.SocketAddress( net.Loopback( ), 0 ) ).IsOk( ) )
+    dim aa as net.SocketAddress = a.LocalAddress( ).Value( )
+    dim ba as net.SocketAddress = b.LocalAddress( ).Value( )
+    dim as string msg = "datagram one"
+    dim sr as net.NetResultI64 = a.SendTo( cptr( ubyte ptr, strptr( msg ) ), len( msg ), ba )
+    Check( "sendto", sr.IsOk( ) andalso ( sr.Value( ) = len( msg ) ) )
+    dim as string buf = space( 100 )
+    dim src as net.SocketAddress
+    Check( "udp read timeout", b.SetReadTimeout( 2000 ).IsOk( ) )
+    dim rr as net.NetResultI64 = b.ReceiveFrom( cptr( ubyte ptr, strptr( buf ) ), 100, src )
+    Check( "receivefrom", rr.IsOk( ) andalso ( left( buf, rr.Value( ) ) = msg ) )
+    Check( "receivefrom src", src.Equals( aa ) )
+
+    '' truncation
+    dim as string long_ = string( 100, "y" )
+    a.SendTo( cptr( ubyte ptr, strptr( long_ ) ), 100, ba )
+    dim as string small = space( 10 )
+    rr = b.ReceiveFrom( cptr( ubyte ptr, strptr( small ) ), 10, src )
+    Check( "truncated", ( rr.IsOk( ) = false ) andalso ( rr.Failure( ).Code( ) = net.NET_MESSAGE_TOO_LONG ) )
+    Check( "truncated data", small = string( 10, "y" ) )
+
+    '' connected: Send / Receive
+    Check( "udp connect", a.Connect( ba ).IsOk( ) )
+    dim as string m2 = "two"
+    Check( "send", a.Send( cptr( ubyte ptr, strptr( m2 ) ), 3 ).IsOk( ) )
+    rr = b.ReceiveFrom( cptr( ubyte ptr, strptr( buf ) ), 100, src )
+    Check( "receive two", rr.IsOk( ) andalso ( left( buf, rr.Value( ) ) = "two" ) )
+    b.SendTo( cptr( ubyte ptr, strptr( m2 ) ), 3, aa )
+    a.SetReadTimeout( 2000 )
+    rr = a.Receive( cptr( ubyte ptr, strptr( buf ) ), 100 )
+    Check( "receive connected", rr.IsOk( ) andalso ( rr.Value( ) = 3 ) )
+
+    '' timeout
+    Check( "udp short timeout", b.SetReadTimeout( 150 ).IsOk( ) )
+    dim as double st = timer
+    rr = b.ReceiveFrom( cptr( ubyte ptr, strptr( buf ) ), 100, src )
+    Check( "udp timed out", ( rr.IsOk( ) = false ) andalso ( rr.Failure( ).Code( ) = net.NET_TIMED_OUT ) )
+    Check( "udp timeout length", ( timer - st >= 0.1 ) andalso ( timer - st < 2 ) )
+
+    Check( "join non-multicast", a.JoinMulticast( net.Ipv4( 10, 0, 0, 1 ) ).Failure( ).Code( ) = net.NET_INVALID_ADDRESS )
+    Check( "broadcast", a.SetBroadcast( true ).IsOk( ) )
+    Check( "bind twice", a.Bind( aa ).Failure( ).Code( ) = net.NET_ALREADY_OPEN )
+
+    '' a v6 socket sending to a v4 address goes v4-mapped
+    dim v6 as net.UdpSocket
+    if v6.Bind( net.SocketAddress( net.Any_( true ), 0 ) ).IsOk( ) then
+        dim sr6 as net.NetResultI64 = v6.SendTo( cptr( ubyte ptr, strptr( msg ) ), len( msg ), ba )
+        Check( "v6 to v4", sr6.IsOk( ) )
+        b.SetReadTimeout( 2000 )
+        rr = b.ReceiveFrom( cptr( ubyte ptr, strptr( buf ) ), 100, src )
+        Check( "v6 to v4 arrives", rr.IsOk( ) andalso ( left( buf, rr.Value( ) ) = msg ) )
+        b.SendTo( cptr( ubyte ptr, strptr( msg ) ), len( msg ), src )
+        v6.SetReadTimeout( 2000 )
+        dim from6 as net.SocketAddress
+        rr = v6.ReceiveFrom( cptr( ubyte ptr, strptr( buf ) ), 100, from6 )
+        Check( "v4 reply to v6", rr.IsOk( ) andalso from6.Ip.IsV4Mapped( ) )
+    end if
+
+    dim cl as net.UdpSocket
+    dim r0 as net.NetResultI64 = cl.Receive( cptr( ubyte ptr, strptr( buf ) ), 10 )
+    Check( "receive unopened", r0.Failure( ).Code( ) = net.NET_NOT_CONNECTED )
+    r0 = a.SendTo( nullptr, 5, ba )
+    Check( "null buffer", r0.Failure( ).Code( ) = net.NET_INVALID_ARGUMENT )
+end scope
+
+if fails = 0 then print "ok" else print fails; " failed"

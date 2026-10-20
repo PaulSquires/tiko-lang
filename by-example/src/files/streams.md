@@ -50,6 +50,9 @@ stream too:
 override fails with `FS_UNSUPPORTED`, and `CanRead( )` is `false`. The
 `TextWriter` neither knows nor cares what it is writing to.
 
+A network connection is a stream as well: [`std/net`'s `TcpStream`](../net/tcp.md)
+takes the same `WriteUtf8`, `ReadExact` and `TextWriter`.
+
 ### Activities
 
 1. Wrap the `File` in a `BufferedWriter` and the `TextWriter` around that.

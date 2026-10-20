@@ -1,0 +1,13 @@
+#import "std/net"
+
+'' An address from text, printed back in its standard form.
+var a = net.ParseIp( "2001:DB8:0:0::1" )
+print a.Value( ).ToString( )
+
+'' Every failure is a value with a reason.
+var bad = net.ParseIp( "300.1.2.3" )
+print bad.IsOk( ), bad.Failure( ).Message( )
+
+'' A URL taken apart.
+var u = net.ParseUrl( "https://example.com/a%20b?x=1" )
+print u.Value( ).Host, u.Value( ).Path, u.Value( ).RawQuery

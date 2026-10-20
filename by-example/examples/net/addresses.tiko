@@ -1,0 +1,32 @@
+#import "std/net"
+
+sub Show( byref text as ustring )
+    var r = net.ParseIp( text )
+    if r.IsOk( ) = false then
+        print text; ": refused"
+        return
+    end if
+    var a = r.Value( )
+    print text; " -> "; a.ToString( ); _
+        iif( a.IsLoopback( ), " loopback", "" ); iif( a.IsPrivate( ), " private", "" ); _
+        iif( a.IsMulticast( ), " multicast", "" ); iif( a.IsGlobalUnicast( ), " global", "" )
+end sub
+
+Show( "127.0.0.1" )
+Show( "10.20.30.40" )
+Show( "8.8.8.8" )
+Show( "FF02:0:0:0:0:0:0:1" )
+Show( "::ffff:192.168.0.1" )
+Show( "192.168.000.001" )
+
+'' A port makes a SocketAddress; IPv6 is written in brackets.
+var sa = net.ParseSocketAddress( "[2001:db8::7]:443" ).Value( )
+print sa.Ip.ToString( ), sa.Port
+
+'' Building one, and comparing.
+dim as net.SocketAddress local_ = net.SocketAddress( net.Loopback( ), 8080 )
+print local_.ToString( ), local_.Equals( net.ParseSocketAddress( "127.0.0.1:8080" ).Value( ) )
+
+'' A name is looked up; an address written as text comes back as itself.
+var r = net.Resolve( "127.0.0.1", 80 )
+print r.Value( ).Count( ), r.Value( ).items( 0 ).ToString( )

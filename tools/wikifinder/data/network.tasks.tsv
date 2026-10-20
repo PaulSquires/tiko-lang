@@ -1,0 +1,15 @@
+# Networking: task headings in display order, pages to skip, see-also links.
+#   task    <task id>  <heading>
+#   ignore  <page>  <reason>
+#   seealso <page>  <label>
+task	ip	Parse, print and classify IP addresses
+task	resolve	Look up a host name
+task	client	Connect to a TCP server
+task	tcpio	Read and write a TCP connection
+task	server	Accept TCP connections
+task	udp	Send and receive UDP datagrams
+task	url	Take a URL apart and build one
+task	query	Read and build query strings
+task	neterr	Find out why a network call failed
+seealso	Category-Net	Net guide
+seealso	Category-Codec	Codec guide (percent-encoding)

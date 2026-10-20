@@ -1,0 +1,12 @@
+'' RUN: std/net phase P12 -- Url and QueryValues: every RFC 3986 section 5.4.1 and 5.4.2
+'' resolution example, Go net/url parse/print round trips, fields, Urls built from fields,
+'' malformed URLs, ParseQuery / Encode / SetValue / Remove, ';' as data
+'' (C:\dev\docs\tiko-stdlib\RFC-0001 section 15.4).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/std-net-p12.tiko -o tests/codegen/stdnetp12.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/stdnetp12.exe
+'' RUN: tests/codegen/stdnetp12.exe
+'' EXPECT-RUN-OUT: ok
+'' EXPECT-RUN-EXIT: 0

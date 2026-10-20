@@ -1,0 +1,25 @@
+#import "std/net"
+
+var u = net.ParseUrl( "http://user@shop.example:8080/cat%C3%A9gorie/../items?id=7&sort=price+asc#reviews" ).Value( )
+print "scheme "; u.Scheme; ", user "; u.User; ", host "; u.Host; ", port"; u.Port
+print u.Path
+print u.RawQuery
+print u.Fragment
+
+'' Links on the page, made absolute.
+print u.Resolve( "item?id=8" ).Value( ).ToString( )
+print u.Resolve( "/" ).Value( ).ToString( )
+print u.Resolve( "//cdn.example/app.js" ).Value( ).ToString( )
+
+'' The query, as name/value pairs.
+var q = u.Query( )
+print q.Get( "sort" ).ValueOr( "" ), q.Get( "missing" ).ValueOr( "(none)" )
+q.SetValue( "id", "9" )
+q.Add( "tag", "new & used" )
+print q.Encode( )
+
+'' Changing a field: ToString escapes it.
+u.Path = "/items/summer sale"
+u.RawQuery = q.Encode( )
+u.Fragment = ""
+print u.ToString( )
