@@ -1,0 +1,13 @@
+'' RUN: a method called on a BYREF property's result -- 'c.Parent.Has( k )', 'c.Parent.Parent.SetN( 11 )'
+'' -- takes the returned pointer as THIS. The receiver was copied into a temporary through an unsized
+'' aggregate load, and clang rejected the IR ('[0 x i8]'; fbc-examples r2ir01, fbJson). Expected
+'' output measured with fbc-modern.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/byref-prop-receiver.bas -o tests/codegen/byrefpropreceiver.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/byrefpropreceiver.exe
+'' RUN: tests/codegen/byrefpropreceiver.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: truefalse
+'' EXPECT-RUN-OUT:  11 13 7
