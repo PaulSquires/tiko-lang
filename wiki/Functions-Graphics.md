@@ -8,7 +8,7 @@ The functions to draw on a graphics screen, read the mouse, build Windows GUI co
 - `vendor/PsControls/<Name>`: `#import "vendor/PsControls/<Name>"`, then `using <Name>` to call it by its bare name.
 - `fbgfx.bi`: `#include "fbgfx.bi"`.
 
-Jump to: [Open a graphics window](#open-a-graphics-window) · [Draw lines, shapes and pixels](#draw-lines-shapes-and-pixels) · [Draw text](#draw-text) · [Make colours](#make-colours) · [Create and inspect images](#create-and-inspect-images) · [Copy images to and from the screen](#copy-images-to-and-from-the-screen) · [Choose how Put combines pixels](#choose-how-put-combines-pixels) · [Load and save images](#load-and-save-images) · [Draw without flicker](#draw-without-flicker) · [Set the drawing area and coordinates](#set-the-drawing-area-and-coordinates) · [Read the mouse, keyboard and joystick](#read-the-mouse-keyboard-and-joystick) · [Take text, numbers and dates from the user](#take-text-numbers-and-dates-from-the-user) · [Add buttons and switches](#add-buttons-and-switches) · [Show lists and choices](#show-lists-and-choices) · [Add menus, toolbars and status bars](#add-menus-toolbars-and-status-bars) · [Split, scroll and lay out a window](#split-scroll-and-lay-out-a-window) · [Show messages, colour pickers and tooltips](#show-messages-colour-pickers-and-tooltips) · [Show progress and charts](#show-progress-and-charts) · [Paint and support your own controls](#paint-and-support-your-own-controls)
+Jump to: [Open a graphics window](#open-a-graphics-window) · [Draw lines, shapes and pixels](#draw-lines-shapes-and-pixels) · [Draw text](#draw-text) · [Make colours](#make-colours) · [Create and inspect images](#create-and-inspect-images) · [Copy images to and from the screen](#copy-images-to-and-from-the-screen) · [Choose how Put combines pixels](#choose-how-put-combines-pixels) · [Load and save images](#load-and-save-images) · [Draw without flicker](#draw-without-flicker) · [Set the drawing area and coordinates](#set-the-drawing-area-and-coordinates) · [Read the mouse, keyboard and joystick](#read-the-mouse-keyboard-and-joystick) · [Run a program of controls](#run-a-program-of-controls) · [Take text, numbers and dates from the user](#take-text-numbers-and-dates-from-the-user) · [Add buttons and switches](#add-buttons-and-switches) · [Show lists and choices](#show-lists-and-choices) · [Add menus, toolbars and status bars](#add-menus-toolbars-and-status-bars) · [Split, scroll and lay out a window](#split-scroll-and-lay-out-a-window) · [Show messages, colour pickers and tooltips](#show-messages-colour-pickers-and-tooltips) · [Show progress and charts](#show-progress-and-charts) · [Paint and support your own controls](#paint-and-support-your-own-controls)
 
 ## Open a graphics window
 
@@ -117,6 +117,13 @@ Jump to: [Open a graphics window](#open-a-graphics-window) · [Draw lines, shape
 | [ScreenEvent](Screenevent) | Returns -1 if a mouse, keyboard or window event is waiting, and fetches it. | built-in |
 | [Event](Event-Message-Data-From-Screenevent) | Holds one event fetched by ScreenEvent: its type and its key or mouse data. | `fbgfx.bi` |
 
+## Run a program of controls
+
+| Function | What it does | From |
+|---|---|---|
+| [PsApp](PsApp) | Runs a program of controls: start-up, the message loop, forms with callbacks, DPI. | `vendor/PsControls/PsApp` |
+| [PsTheme](PsTheme) | Colours every control from one light or dark theme that can follow Windows. | `vendor/PsControls/PsTheme` |
+
 ## Take text, numbers and dates from the user
 
 | Function | What it does | From |
@@ -186,6 +193,7 @@ Jump to: [Open a graphics window](#open-a-graphics-window) · [Draw lines, shape
 | [PsPopupMenu](PsPopupMenu) | Shows a themed popup menu with checks, accelerator labels and nested submenus. | `vendor/PsControls/PsPopupMenu` |
 | [PsColumnHeader](PsColumnHeader) | Draws a band of resizable column headers above a list or grid. | `vendor/PsControls/PsColumnHeader` |
 | [PsTipHost](PsTipHost) | Switches the controls' tooltips between the system tooltip and PsTooltip. | `vendor/PsControls/PsTipHost` |
+| [PsRegistry](PsRegistry) | Keeps what each control needs from the message loop, the theme and DPI changes. | `vendor/PsControls/PsRegistry` |
 
 ## See Also
 

@@ -14,6 +14,7 @@ task	file	Load and save images
 task	pages	Draw without flicker
 task	coords	Set the drawing area and coordinates
 task	input	Read the mouse, keyboard and joystick
+task	ctl-app	Run a program of controls
 task	ctl-text	Take text, numbers and dates from the user
 task	ctl-button	Add buttons and switches
 task	ctl-list	Show lists and choices
@@ -35,6 +36,9 @@ seealso	Category-User-Input-Functions-Graphics-Library	Graphics input functions
 seealso	Category-PsControls	PsControls guide
 seealso	Vendor-Packages	Vendor packages
 from	fbgfx.bi	include	-
+from	vendor/PsControls/PsApp	import	PsApp
+from	vendor/PsControls/PsTheme	import	PsTheme
+from	vendor/PsControls/PsRegistry	import	PsRegistry
 from	vendor/PsControls/PsTextBox	import	PsTextBox
 from	vendor/PsControls/PsNumericUpDown	import	PsNumericUpDown
 from	vendor/PsControls/PsDatePicker	import	PsDatePicker

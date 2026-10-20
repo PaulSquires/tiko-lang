@@ -52,6 +52,8 @@ Multikey	MultiKey	-	input	built-in	-	Returns -1 while the key with a given scanc
 Getjoystick	GetJoystick	-	input	built-in	-	Fills in a joystick's buttons and axis positions; returns 0 on success or 1.
 Screenevent	ScreenEvent	-	input	built-in	-	Returns -1 if a mouse, keyboard or window event is waiting, and fetches it.
 Event-Message-Data-From-Screenevent	Event	-	input	fbgfx.bi	-	Holds one event fetched by ScreenEvent: its type and its key or mouse data.
+PsApp	PsApp	-	ctl-app	vendor/PsControls/PsApp	-	Runs a program of controls: start-up, the message loop, forms with callbacks, DPI.
+PsTheme	PsTheme	-	ctl-app	vendor/PsControls/PsTheme	-	Colours every control from one light or dark theme that can follow Windows.
 PsTextBox	PsTextBox	-	ctl-text	vendor/PsControls/PsTextBox	-	Lets the user type text in a themed frame, on one line or several.
 PsNumericUpDown	PsNumericUpDown	-	ctl-text	vendor/PsControls/PsNumericUpDown	-	Lets the user pick a number with minus and plus buttons, or type it.
 PsDatePicker	PsDatePicker	-	ctl-text	vendor/PsControls/PsDatePicker	-	Lets the user type a date or pick it from a dropdown calendar.
@@ -82,3 +84,4 @@ PsImage	PsImage	-	ctl-support	vendor/PsControls/PsImage	-	Loads an icon, PNG, BM
 PsPopupMenu	PsPopupMenu	-	ctl-support	vendor/PsControls/PsPopupMenu	-	Shows a themed popup menu with checks, accelerator labels and nested submenus.
 PsColumnHeader	PsColumnHeader	-	ctl-support	vendor/PsControls/PsColumnHeader	-	Draws a band of resizable column headers above a list or grid.
 PsTipHost	PsTipHost	-	ctl-support	vendor/PsControls/PsTipHost	-	Switches the controls' tooltips between the system tooltip and PsTooltip.
+PsRegistry	PsRegistry	-	ctl-support	vendor/PsControls/PsRegistry	-	Keeps what each control needs from the message loop, the theme and DPI changes.
