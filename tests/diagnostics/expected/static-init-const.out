@@ -49,7 +49,7 @@ global var i32 gx = 5
 global var i32 ACCEPTED$k3
 global var f64 ACCEPTED$k4
 global var i32 ACCEPTED$k5 = 69
-global var i32 ACCEPTED$k6
+global var i32 ACCEPTED$k6 = 4278256131
 global var agg ACCEPTED$k7 size 8 = bytes 41 00 00 00 00 00 00 00
 global var i32 ACCEPTED$k8 = 2
 global var agg ACCEPTED$k9 size 4
@@ -429,12 +429,12 @@ func void _ZN2TZaSERKS_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 23 functions, 31 blocks, 173 insts, 53 statements not lowered, 0 scope imbalance
+lowered: 23 functions, 31 blocks, 173 insts, 52 statements not lowered, 0 scope imbalance
   inside ? 2
-  inside N_VAR 51
-  skip-site src/mir/lowerstore.tiko:1196 33
-  skip-site src/mir/lowerstore.tiko:1151 18
-  skip-site src/mir/lowermodinit.tiko:77 2
+  inside N_VAR 50
+  skip-site src/mir/lowerstore.tiko:1250 32
+  skip-site src/mir/lowerstore.tiko:1205 18
+  skip-site src/mir/lowermodinit.tiko:78 2
 tests/diagnostics/src/static-init-const.bas(98,20): error TKO0725: 'e21' has static storage and must be initialised from a constant, not a variable
      |
   98 |     static as long e21 = iif( 1, gx, 2 )
