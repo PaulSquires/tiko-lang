@@ -47,6 +47,47 @@ Every language feature and library that ships with tiko, one row each, with the 
 | [Finance](Category-Finance) | Money, and what you do with it. **The two money types** first, because a `DOUBLE` is the wrong place to keep an amount and `0.1 + 0.2 <> 0.3` says so: `Currency` is a `LONGINT` scaled by 10,000 -- eight bytes, four places, exact, the VB6 / COM `CY` / SQL Server `money` shape -- and `Decimal` is the .NET `System.Decimal`, a 96-bit mantissa with a per-value scale of 0..28. Both round **half-to-even** and report overflow as an infectious `Invalid`. **Then the finance functions**: interest and rate conventions with day count, the time value of money, loans and amortization schedules, cash-flow appraisal, depreciation, and portfolio returns and risk. Compounding frequency and payment frequency are **separate parameters**, so one code path serves both the US and Canadian mortgage conventions; growth over an integer number of periods is **exact**, solvers take a `float64` kernel and say so; and an amortization schedule's final balance lands on **exactly** zero. |
 | [Logging](Category-Logging) | A structured logger: levels spaced by ten, typed fields, a zero-allocation disabled path, and an event that lives on the caller's stack so it is thread-safe without thread-local storage. |
 
+## Vendor controls
+
+Owner-drawn Win32 controls written in tiko, shipped as source in the `vendor` package: `#import "vendor/PsControls/PsButton"` and nothing on the command line. Nothing underneath is a system control, so every colour is settable, dark palettes included. [PsControls](Category-PsControls) covers importing, type names and requirements; demos for every control are in the toolchain's `examples/PsControls/`.
+
+| Control | What it is |
+|---|---|
+| [PsTextBox](PsTextBox) | A themeable frame — border, rounded corners, outer fill — around a RichEdit editor that does the typing, selection, clipboard and undo. |
+| [PsNumericUpDown](PsNumericUpDown) | A spinner: a rounded frame holding a `−` button, an editable numeric field and a `+` button. |
+| [PsDatePicker](PsDatePicker) | An editable date field with a calendar icon and a popup calendar; typing and picking reach the same `SYSTEMTIME`. |
+| [PsCalendar](PsCalendar) | A month calendar inside your window: one month or a grid of up to twelve, a min/max range, and drill-down from days to months and years. |
+| [PsButton](PsButton) | A momentary command button: a rounded rectangle with an optional glyph either side of an optional caption. |
+| [PsCheckBox](PsCheckBox) | A checkbox drawn from a font glyph, with an optional caption on either side and a focus ring. |
+| [PsOptionButton](PsOptionButton) | A radio button: a circle and an optional caption, with a focus ring around the pair. |
+| [PsToggle](PsToggle) | An ON/OFF switch: a rounded pill whose fill follows the state and a knob that slides end to end. |
+| [PsListTree](PsListTree) | A list **and** tree of rows you paint yourself: unlimited-depth nodes, in-place label editing, group headers, single, multiple or extended selection, and a multi-column report mode. |
+| [PsComboBox](PsComboBox) | A dropdown selector: a button showing the current choice that drops a list with that choice checkmarked. |
+| [PsSelectBar](PsSelectBar) | A flat row of text labels, exactly one current, marked by a coloured underline. |
+| [PsTabBar](PsTabBar) | A strip of tabs with an icon and a close X each; click to select, drag to reorder. |
+| [PsMenuBar](PsMenuBar) | A menu bar of text items, each owning a dropdown; moving across items while one is open switches menus. |
+| [PsToolbar](PsToolbar) | A command toolbar: buttons with icon and caption, separators, split and dropdown buttons, cells holding your own child windows, and overflow when it runs out of room. |
+| [PsIconPanel](PsIconPanel) | A horizontal strip of glyph cells: latching toggles, momentary buttons and separator rules. |
+| [PsStatusBar](PsStatusBar) | A status bar of text panels along the bottom of a window, one able to stretch. |
+| [PsSplitter](PsSplitter) | A draggable divider between two panes that reports where the user dragged it. |
+| [PsScrollPanel](PsScrollPanel) | A scrolling viewport onto a page of ordinary child controls taller than the space for it. |
+| [PsVScrollBar](PsVScrollBar) / [PsHScrollBar](PsHScrollBar) | Flat vertical and horizontal scrollbars for content whose scrolling you already own. |
+| [PsMessageBox](PsMessageBox) | A modal message box: caption band, optional icon, wrapped message, one to three buttons. |
+| [PsColorPicker](PsColorPicker) | A modal colour picker popup; `PsColorPicker_DoModal` blocks until the user answers. |
+| [PsTooltip](PsTooltip) | A themed tooltip near the cursor, with an optional title and icon, wrapping and fade. |
+| [PsProgressBar](PsProgressBar) | A progress bar, flat or gradient, solid or in blocks, or with no known end. |
+| [PsChart](PsChart) | Line, column, high-low-open-close price and pie charts from the series you supply. |
+
+The support modules the controls are built from:
+
+| Module | What it is |
+|---|---|
+| [PsBufferPaint](PsBufferPaint) | The flicker-free drawing surface every control paints through: an offscreen bitmap copied to the screen in one blit. |
+| [PsImage](PsImage) | Loads `.ico`, `.png`, `.bmp` or `.jpg` files, or an existing `HBITMAP`/`HICON`, for a control's icon slots. |
+| [PsPopupMenu](PsPopupMenu) | The floating menu behind menu bars, combo boxes and toolbars: check glyphs, accelerators, submenus. |
+| [PsColumnHeader](PsColumnHeader) | A column header band with draggable dividers; PsListTree places one above its rows. |
+| [PsTipHost](PsTipHost) | The tooltip backend switch: the system tooltip or PsTooltip. |
+
 ## Toolchain
 
 | Feature | What it is |
@@ -54,7 +95,6 @@ Every language feature and library that ships with tiko, one row each, with the 
 | [C Header Import](Category-C-Header-Import) | tiko implements it through libclang, on both targets, with `-cimport`/`-cimport-out`. `#cinclude once "sqlite3.h"` uses a C library's **own header** in place of a hand-written binding: the header goes to **Clang**, and what comes back becomes FreeBASIC declarations for the target being built — structs, unions, enums, typedefs, variadics, function pointers with their real signatures, globals and object-like macros. It emits **text** and lets the compiler compute the layout itself, so the two answers can be **compared**; a disagreement is a compile-time error naming the record and the first differing member. libclang is loaded on first use via `DyLibLoad`, never linked. Pairs with [`#foreignlib`](modern-Foreignlib) — declarations and linkage — to ship a binding entirely inside your own tree. `-cimport`/`-cimport-out` generate a **deterministic** binding file you can check in and diff across an SDK upgrade. Start with the [tutorial](modern-Cinclude-tutorial). |
 | [Foreign Library Linking](Category-Foreign-Library-Linking) | `#foreignlib SQLITE dynamic "vendor/sqlite3"` binds a name to a library **shipped inside your source tree**, resolved relative to the *declaring file* rather than the working directory, with the target variant picked by filename convention (`sqlite3_windows_x86_64.dll.a`, `sqlite3_linux_x86_64.so`). `static`/`dynamic` is **mandatory** — a file of the other kind is an error listing every path tried, never a silent substitution. Declarations then say `lib SQLITE` instead of a string literal, so a cross-platform binding stops duplicating every `Declare` inside `#ifdef`. `#inclib` and `#libpath` are unchanged. Start with the [tutorial](modern-Foreignlib-tutorial). |
 | [Vendor Packages](Vendor-Packages) | `#import "vendor/sqlite3" link dynamic` reaches a C library the toolchain ships, with nothing on the command line: its header -- translated once by `tiko c2t` -- comes across whole and unqualified, its library is linked statically or dynamically as the import asks, and a dynamic library is copied beside the program, with a `$ORIGIN` run path on Linux. `vendor/` is the toolchain's alone, like `std/`. |
-| [PsControls](Category-PsControls) | Owner-drawn Win32 controls written in tiko, shipped as source in `vendor/PsControls`: text, numeric and date entry, buttons and switches, a list/tree, menus, toolbars, tabs, splitters, scroll bars, a message box, a colour picker, tooltips, a progress bar and a chart. One `#import` per control; nothing underneath is a system control, so every colour is settable. |
 | [LLVM Backend](Category-LLVM-Backend) | tiko's only backend. It emits LLVM IR and runs `clang -c`, with its own ABI pass for Win64 and SysV AMD64, and clang drives the link. It covers windows-x86_64 and linux-x86_64, and there is no `-gen` switch. Needs clang 18 or newer: it is not bundled, and tiko takes `TKO_CLANG` if set, then LLVM's usual install location, then `PATH`. Inline `ASM` is refused with `TKO0407` rather than miscompiled. |
 | [tiko build](Category-Tiko-Build) | `tiko build`, `run`, `check`, `clean` and `metadata` build a project from its `tiko.toml`: targets (`exe`, `dll`, `lib`), profiles (`debug`, `release`, your own) and paths relative to the manifest. Every main file is cached beside the modules, misses compile in parallel (`-j`), and a link with nothing new is skipped. `--message-format json` is a line-per-event stream and `tiko metadata` the resolved project, both versioned contracts for editors; task recipes for VS Code, Zed and Sublime. |
 | [__TIKO_COMPILER__](Category-Tiko-Compiler-Define) | tiko's identity define, always `1`. `#ifdef __TIKO_COMPILER__` is how a source tree asks "is this tiko?". `__TIKO_VERSION__` gives the version. |
