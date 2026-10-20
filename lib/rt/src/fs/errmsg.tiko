@@ -55,7 +55,9 @@ dim shared as zstring ptr hFsMessages( 0 to FB_FS_CODE_MAX ) = { _
 	@"would block", _
 	@"too many links", _
 	@"broken pipe", _
-	@"invalid argument" _
+	@"invalid argument", _
+	@"timed out", _
+	@"connection reset by peer" _
 }
 
 extern "rtlib"

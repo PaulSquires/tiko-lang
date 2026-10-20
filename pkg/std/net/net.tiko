@@ -1,0 +1,294 @@
+#module "net"
+#import "std/containers"
+#import "std/outcome"
+#import "std/fs"
+using containers
+using outcome
+'' std/net -- IP addresses, name resolution, TCP and UDP sockets, URLs
+''
+''     #import "std/net"
+''
+''     dim c as net.TcpStream
+''     dim r as net.NetResultBool = c.ConnectHost( "example.com", 80, 5000 )
+''     if r.IsOk( ) then
+''         c.WriteUtf8( !"HEAD / HTTP/1.0\r\nHost: example.com\r\n\r\n" )
+''         dim as Array( of ubyte ) reply
+''         c.ReadToEnd( reply )
+''     end if
+''     dim u as net.NetResultUrl = net.ParseUrl( "https://example.com/a%20b?q=1#top" )
+''     if u.IsOk( ) then print u.Value( ).Path, u.Value( ).Query( ).Get( "q" ).ValueOr( "" )
+''
+'' C:\dev\docs\tiko-stdlib\RFC-0001 section 15.
+''
+''   addresses     IpAddress (v4 or v6, with a zone), SocketAddress (an IpAddress and a
+''                 port), ParseIp, ParseSocketAddress, Ipv4, Loopback, Any_.  Parsing
+''                 is strict: a v4 part with a leading zero is refused.  v6 prints as
+''                 RFC 5952 says (lower case, the longest zero run as ::).
+''   resolution    Resolve( host, port, family ) -- GetAddrInfoW / getaddrinfo,
+''                 blocking.  An IP literal comes back as itself without a lookup.
+''   TCP           TcpStream is an fs.Stream: Connect / ConnectHost (with a timeout),
+''                 then Read / Write and everything fs.Stream composes on them.
+''                 TcpListener: Bind, then Accept (with a timeout).
+''   UDP           UdpSocket: Bind or Connect, SendTo / ReceiveFrom, Send / Receive.
+''                 A datagram larger than the buffer is NET_MESSAGE_TOO_LONG.
+''   URLs          Url (RFC 3986, Go net/url's leniency), Url.Resolve (RFC 3986
+''                 section 5.2), QueryValues (an ordered multimap), ParseQuery.  URLs
+''                 need no sockets and touch no network state.
+''
+'' ERRORS.  Socket calls report NetError; reading and writing a TcpStream report
+'' fs.FsError, because that is fs.Stream's contract -- a read timeout there is
+'' fs.FS_TIMED_OUT and a reset peer fs.FS_CONNECTION_RESET.
+''
+'' BLOCKING.  Every call blocks its thread until it is done or its timeout ends.  A
+'' goroutine in a socket call holds its worker thread, so bound the number of
+'' connections served at once by the worker count, or use timeouts.  Sockets are
+'' not inherited by child processes.  No socket object is copyable; none is
+'' thread-safe, but distinct sockets on distinct threads are fine.
+''
+'' PLATFORM NOTES.  Windows: ws2_32, started on the first socket or Resolve call
+'' and never cleaned up.  A listener binds with SO_EXCLUSIVEADDRUSE (another
+'' process cannot take its port); after a read times out Winsock calls the socket
+'' state "indeterminate" -- close it.  Linux: a listener binds with SO_REUSEADDR (a
+'' restarted server can bind during TIME_WAIT); writes use MSG_NOSIGNAL, so a write
+'' to a reset peer is an error and never SIGPIPE.  A v6 zone read back from the OS
+'' is the interface number on both systems.
+
+#if __FB_LANG__ <> "fb"
+    #error "std/net requires -lang fb"
+#endif
+
+'' -------------------------------------------------------------- errors
+
+public enum NetErrorCode
+    NET_OK = 0
+    NET_HOST_NOT_FOUND          '' the name has no address
+    NET_TEMPORARY_FAILURE       '' the resolver could not answer now; try again
+    NET_CONNECTION_REFUSED      '' nothing listens there
+    NET_CONNECTION_RESET        '' the peer reset the connection
+    NET_TIMED_OUT               '' the timeout ended first
+    NET_ADDRESS_IN_USE          '' Bind: the port is taken
+    NET_ADDRESS_NOT_AVAILABLE   '' Bind: the address is not this machine's
+    NET_NETWORK_UNREACHABLE     '' no route to the network
+    NET_HOST_UNREACHABLE        '' no route to the host
+    NET_ACCESS_DENIED           '' a privileged port, a broadcast without SetBroadcast
+    NET_MESSAGE_TOO_LONG        '' a datagram larger than the buffer, or than UDP allows
+    NET_NOT_CONNECTED           '' Send / Receive / PeerAddress on an unconnected socket
+    NET_INVALID_ADDRESS         '' text that is not an address, or the wrong family
+    NET_CLOSED                  '' an operation on a socket that is not open
+    NET_ALREADY_OPEN            '' Connect / Bind / Accept into a socket already open
+    NET_INVALID_ARGUMENT        '' a negative size, a null buffer
+    NET_INVALID_URL             '' text that is not a URL or a query
+    NET_UNKNOWN                 '' mapped to nothing; OsCode( ) is the real answer
+end enum
+
+public function NetErrorMessage( byval c as NetErrorCode ) as ustring
+    select case c
+    case NET_OK                    : return "no error"
+    case NET_HOST_NOT_FOUND        : return "host not found"
+    case NET_TEMPORARY_FAILURE     : return "temporary failure in name resolution"
+    case NET_CONNECTION_REFUSED    : return "connection refused"
+    case NET_CONNECTION_RESET      : return "connection reset by peer"
+    case NET_TIMED_OUT             : return "timed out"
+    case NET_ADDRESS_IN_USE        : return "address already in use"
+    case NET_ADDRESS_NOT_AVAILABLE : return "address not available"
+    case NET_NETWORK_UNREACHABLE   : return "network unreachable"
+    case NET_HOST_UNREACHABLE      : return "host unreachable"
+    case NET_ACCESS_DENIED         : return "access denied"
+    case NET_MESSAGE_TOO_LONG      : return "message too long"
+    case NET_NOT_CONNECTED         : return "socket not connected"
+    case NET_INVALID_ADDRESS       : return "invalid address"
+    case NET_CLOSED                : return "socket is not open"
+    case NET_ALREADY_OPEN          : return "socket is already open"
+    case NET_INVALID_ARGUMENT      : return "invalid argument"
+    case NET_INVALID_URL           : return "invalid URL"
+    case NET_UNKNOWN               : return "operating system call failed"
+    end select
+    return "unknown error"
+end function
+
+public type NetError
+    '' Default-constructible because Result default-constructs both slots.
+    declare constructor( )
+    declare constructor( byval c as NetErrorCode, byval osc as long, byref op as const ustring, byref subj as const ustring )
+    declare const function Code( ) as NetErrorCode
+    declare const function OsCode( ) as long          '' WSAGetLastError / errno / EAI_*; 0 when none
+    declare const function Operation( ) as ustring    '' "Connect", "Resolve", "ParseUrl", ...
+    declare const function Subject( ) as ustring      '' the address, host or text
+    declare const function Message( ) as ustring      '' "Connect '127.0.0.1:9': connection refused"
+private:
+    as NetErrorCode m_code
+    as long m_os
+    as ustring m_op
+    as ustring m_subj
+end type
+
+constructor NetError( )
+    this.m_code = NET_UNKNOWN
+    this.m_os = 0
+end constructor
+
+constructor NetError( byval c as NetErrorCode, byval osc as long, byref op as const ustring, byref subj as const ustring )
+    this.m_code = c
+    this.m_os = osc
+    this.m_op = op
+    this.m_subj = subj
+end constructor
+
+const function NetError.Code( ) as NetErrorCode
+    return this.m_code
+end function
+
+const function NetError.OsCode( ) as long
+    return this.m_os
+end function
+
+const function NetError.Operation( ) as ustring
+    return this.m_op
+end function
+
+const function NetError.Subject( ) as ustring
+    return this.m_subj
+end function
+
+const function NetError.Message( ) as ustring
+    dim as ustring m = this.m_op
+    if( len( this.m_subj ) > 0 ) then m &= " '" & this.m_subj & "'"
+    m &= ": " & NetErrorMessage( this.m_code )
+    if( this.m_os <> 0 ) then m &= " (os error " & this.m_os & ")"
+    return m
+end function
+
+function NetFail( of T )( byval c as NetErrorCode, byval osc as long, byref op as const ustring, byref subj as const ustring ) as Result( of T, NetError )
+    return Fail( of T, NetError )( NetError( c, osc, op, subj ) )
+end function
+
+'' -------------------------------------------------------------- addresses
+
+public enum AddressFamily
+    AF_ANY = 0                  '' Resolve: both
+    AF_IPV4
+    AF_IPV6
+end enum
+
+public enum ShutdownHow
+    SHUTDOWN_READ = 0
+    SHUTDOWN_WRITE
+    SHUTDOWN_BOTH
+end enum
+
+'' A value: copy it, compare it with Equals.  v4 is held in the first four bytes.
+public type IpAddress
+    declare constructor( )                               '' 0.0.0.0
+    declare const function IsV4( ) as boolean
+    declare const function IsV6( ) as boolean
+    declare const function Bytes( ) as Array( of ubyte ) '' 4 or 16
+    declare const function Zone( ) as ustring            '' "eth0" of fe80::1%eth0; "" otherwise
+    declare function WithZone( byref z as const ustring ) as IpAddress
+    declare const function IsLoopback( ) as boolean      '' 127/8, ::1
+    declare const function IsPrivate( ) as boolean       '' 10/8, 172.16/12, 192.168/16, fc00::/7
+    declare const function IsLinkLocal( ) as boolean     '' 169.254/16, fe80::/10 (unicast)
+    declare const function IsMulticast( ) as boolean     '' 224/4, ff00::/8
+    declare const function IsUnspecified( ) as boolean   '' 0.0.0.0, ::
+    declare const function IsGlobalUnicast( ) as boolean '' none of the above but private, and not 255.255.255.255
+    declare const function IsV4Mapped( ) as boolean      '' ::ffff:a.b.c.d
+    declare const function Unmap( ) as IpAddress         '' ::ffff:a.b.c.d -> a.b.c.d; anything else unchanged
+    declare const function ToString( ) as ustring
+    declare const function Equals( byref other as const IpAddress ) as boolean
+
+    '' Internal: public only because the rest of the module builds addresses.
+    as ubyte hB( 0 to 15 )
+    as boolean hV6
+    as ustring hZone
+end type
+
+public type SocketAddress
+    declare constructor( )
+    declare constructor( byref ip_ as const IpAddress, byval port_ as ushort )
+    as IpAddress Ip
+    as ushort Port
+    declare const function ToString( ) as ustring        '' 1.2.3.4:80 / [::1]:80
+    declare const function Equals( byref other as const SocketAddress ) as boolean
+end type
+
+public type NetResultBool  as Result( of boolean, NetError )
+public type NetResultI64   as Result( of longint, NetError )
+public type NetResultIp    as Result( of IpAddress, NetError )
+public type NetResultAddr  as Result( of SocketAddress, NetError )
+public type NetAddrList    as Array( of SocketAddress )
+public type NetResultAddrs as Result( of NetAddrList, NetError )
+
+public declare function ParseIp( byref s as const ustring ) as NetResultIp
+public declare function Ipv4( byval a as ubyte, byval b as ubyte, byval c as ubyte, byval d as ubyte ) as IpAddress
+public declare function IpFromBytes( byref b as Array( of ubyte ) ) as NetResultIp   '' 4 or 16 bytes
+public declare function Loopback( byval v6 as boolean = FALSE ) as IpAddress
+public declare function Any_( byval v6 as boolean = FALSE ) as IpAddress
+public declare function ParseSocketAddress( byref s as const ustring ) as NetResultAddr
+public declare function Resolve( byref host as const ustring, byval port as ushort = 0, byval family as AddressFamily = AF_ANY ) as NetResultAddrs
+
+'' -------------------------------------------------------------- sockets
+
+public type TcpStream extends fs.Stream
+    declare constructor( )
+    declare destructor( ) override
+    declare function Connect( byref addr as const SocketAddress, byval timeoutMs as long = -1 ) as NetResultBool
+    declare function ConnectHost( byref host as const ustring, byval port as ushort, byval timeoutMs as long = -1 ) as NetResultBool
+    declare function Close( ) as NetResultBool
+    declare function Shutdown( byval how as ShutdownHow ) as NetResultBool
+    declare function SetReadTimeout ( byval ms as long ) as NetResultBool   '' <= 0: none; expiry is fs.FS_TIMED_OUT
+    declare function SetWriteTimeout( byval ms as long ) as NetResultBool
+    declare function SetNoDelay( byval on_ as boolean ) as NetResultBool
+    declare function SetKeepAlive( byval on_ as boolean ) as NetResultBool
+    declare function LocalAddress( ) as NetResultAddr
+    declare function PeerAddress ( ) as NetResultAddr
+    declare const function IsOpen( ) as boolean
+    declare const function CanRead ( ) as boolean override
+    declare const function CanWrite( ) as boolean override
+    declare const function CanSeek ( ) as boolean override
+    declare function Read ( byval buf as ubyte ptr, byval n as longint ) as fs.FsResultI64 override
+    declare function Write( byval buf as const ubyte ptr, byval n as longint ) as fs.FsResultI64 override
+    declare function Flush( ) as fs.FsResultBool override            '' nothing is buffered
+
+    '' Internal (TcpListener.Accept fills it).  The SOCKET or descriptor; -1 when closed.
+    as integer hFd
+    as long hReadMs, hWriteMs                     '' applied at Connect / Accept too
+private:
+    declare constructor( byref other as const TcpStream )
+    declare operator let( byref other as const TcpStream )
+end type
+
+public type TcpListener
+    declare constructor( )
+    declare destructor( )
+    declare function Bind( byref addr as const SocketAddress, byval backlog as long = 128, byval dualStack as boolean = TRUE ) as NetResultBool
+    declare function Accept( byref conn as TcpStream, byval timeoutMs as long = -1 ) as NetResultBool   '' NET_TIMED_OUT on expiry
+    declare function LocalAddress( ) as NetResultAddr
+    declare function Close( ) as NetResultBool
+    declare const function IsOpen( ) as boolean
+    as integer hFd
+private:
+    declare constructor( byref other as const TcpListener )
+    declare operator let( byref other as const TcpListener )
+end type
+
+public type UdpSocket
+    declare constructor( )
+    declare destructor( )
+    declare function Bind( byref addr as const SocketAddress ) as NetResultBool
+    declare function Connect( byref addr as const SocketAddress ) as NetResultBool    '' then Send / Receive
+    declare function SendTo( byval p as const ubyte ptr, byval n as long, byref dst as const SocketAddress ) as NetResultI64
+    declare function ReceiveFrom( byval p as ubyte ptr, byval n as long, byref src as SocketAddress ) as NetResultI64
+    declare function Send( byval p as const ubyte ptr, byval n as long ) as NetResultI64
+    declare function Receive( byval p as ubyte ptr, byval n as long ) as NetResultI64
+    declare function SetBroadcast( byval on_ as boolean ) as NetResultBool
+    declare function JoinMulticast( byref group as const IpAddress ) as NetResultBool
+    declare function SetReadTimeout( byval ms as long ) as NetResultBool      '' expiry is NET_TIMED_OUT
+    declare function LocalAddress( ) as NetResultAddr
+    declare function Close( ) as NetResultBool
+    declare const function IsOpen( ) as boolean
+    as integer hFd
+    as boolean hV6
+    as long hReadMs
+private:
+    declare constructor( byref other as const UdpSocket )
+    declare operator let( byref other as const UdpSocket )
+end type

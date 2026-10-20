@@ -1,0 +1,1010 @@
+#module "net"
+#import "std/containers"
+#import "std/outcome"
+#import "std/fs"
+using containers
+using outcome
+'' std/net: netsock -- Resolve, TcpStream, TcpListener, UdpSocket.  ws2_32 on
+'' Windows, libc on Linux, both declared here (RFC-0001 S12); the BSD calls are the
+'' same on both, so one body serves both and only the declarations, the constants
+'' and a few helpers differ.  sockaddr_in and sockaddr_in6 have the same layout on
+'' both systems; only AF_INET6's value differs.  Rules: RFC-0001 section 15.3.
+
+#ifdef __FB_WIN32__
+
+#include once "fbatomic.bi"
+#inclib "ws2_32"
+#inclib "iphlpapi"
+
+type TknAddrInfo                       '' ADDRINFOW
+    as long ai_flags, ai_family, ai_socktype, ai_protocol
+    as uinteger ai_addrlen
+    as ushort ptr ai_canonname
+    as any ptr ai_addr
+    as TknAddrInfo ptr ai_next
+end type
+
+type TknFdSet                          '' fd_set holding one SOCKET
+    as ulong cnt
+    as uinteger fd
+end type
+
+type TknTimeval
+    as long sec, usec
+end type
+
+extern "Windows"
+    declare function tkn_WSAStartup alias "WSAStartup" ( byval ver as ushort, byval dat as any ptr ) as long
+    declare function tkn_WSAGetLastError alias "WSAGetLastError" ( ) as long
+    declare function tkn_WSASocketW alias "WSASocketW" ( byval af as long, byval type_ as long, byval proto as long, _
+        byval info as any ptr, byval g as ulong, byval flags as ulong ) as uinteger
+    declare function tkn_WSAIoctl alias "WSAIoctl" ( byval s as uinteger, byval code as ulong, byval inb as any ptr, _
+        byval inn as ulong, byval outb as any ptr, byval outn as ulong, byval got as ulong ptr, _
+        byval ov as any ptr, byval cr as any ptr ) as long
+    declare function tkn_closesocket alias "closesocket" ( byval s as uinteger ) as long
+    declare function tkn_connect alias "connect" ( byval s as uinteger, byval sa as const any ptr, byval n as long ) as long
+    declare function tkn_bind alias "bind" ( byval s as uinteger, byval sa as const any ptr, byval n as long ) as long
+    declare function tkn_listen alias "listen" ( byval s as uinteger, byval backlog as long ) as long
+    declare function tkn_accept alias "accept" ( byval s as uinteger, byval sa as any ptr, byval n as long ptr ) as uinteger
+    declare function tkn_send alias "send" ( byval s as uinteger, byval buf as const any ptr, byval n as long, byval flags as long ) as long
+    declare function tkn_recv alias "recv" ( byval s as uinteger, byval buf as any ptr, byval n as long, byval flags as long ) as long
+    declare function tkn_sendto alias "sendto" ( byval s as uinteger, byval buf as const any ptr, byval n as long, _
+        byval flags as long, byval sa as const any ptr, byval sn as long ) as long
+    declare function tkn_recvfrom alias "recvfrom" ( byval s as uinteger, byval buf as any ptr, byval n as long, _
+        byval flags as long, byval sa as any ptr, byval sn as long ptr ) as long
+    declare function tkn_setsockopt alias "setsockopt" ( byval s as uinteger, byval lvl as long, byval nm as long, _
+        byval v as const any ptr, byval n as long ) as long
+    declare function tkn_getsockopt alias "getsockopt" ( byval s as uinteger, byval lvl as long, byval nm as long, _
+        byval v as any ptr, byval n as long ptr ) as long
+    declare function tkn_getsockname alias "getsockname" ( byval s as uinteger, byval sa as any ptr, byval n as long ptr ) as long
+    declare function tkn_getpeername alias "getpeername" ( byval s as uinteger, byval sa as any ptr, byval n as long ptr ) as long
+    declare function tkn_shutdown alias "shutdown" ( byval s as uinteger, byval how as long ) as long
+    declare function tkn_ioctlsocket alias "ioctlsocket" ( byval s as uinteger, byval cmd as long, byval arg as ulong ptr ) as long
+    declare function tkn_select alias "select" ( byval nfds as long, byval rd as TknFdSet ptr, byval wr as TknFdSet ptr, _
+        byval ex as TknFdSet ptr, byval tv as const TknTimeval ptr ) as long
+    declare function tkn_GetAddrInfoW alias "GetAddrInfoW" ( byval node as const ushort ptr, byval svc as const ushort ptr, _
+        byval hints as const TknAddrInfo ptr, byval res as TknAddrInfo ptr ptr ) as long
+    declare sub tkn_FreeAddrInfoW alias "FreeAddrInfoW" ( byval ai as TknAddrInfo ptr )
+    declare function tkn_if_nametoindex alias "if_nametoindex" ( byval n as const zstring ptr ) as ulong
+    declare function tkn_SetHandleInformation alias "SetHandleInformation" ( byval h as any ptr, byval mask as ulong, byval flags as ulong ) as long
+    declare sub tkn_Sleep alias "Sleep" ( byval ms as ulong )
+end extern
+
+const TKN_AF_INET6 = 23
+const TKN_SOL_SOCKET = &hFFFF
+const TKN_SO_EXCLUSIVEADDRUSE = -5
+const TKN_SO_KEEPALIVE = 8
+const TKN_SO_BROADCAST = &h20
+const TKN_SO_ERROR = &h1007
+const TKN_SO_RCVTIMEO = &h1006
+const TKN_SO_SNDTIMEO = &h1005
+const TKN_IPV6_V6ONLY = 27
+const TKN_IP_ADD_MEMBERSHIP = 12
+const TKN_IPV6_ADD_MEMBERSHIP = 12
+const TKN_MSG_NOSIGNAL = 0
+const TKN_ETIMEDOUT = 10060
+const TKN_EAGAIN = 10060               '' a blocking recv/send past SO_RCVTIMEO/SNDTIMEO
+const TKN_EINTR = 10004
+const TKN_EINPROGRESS = 10035          '' WSAEWOULDBLOCK: a non-blocking connect under way
+const TKN_EMSGSIZE = 10040
+
+dim shared as long tkn_wsaState        '' 0 not started, 1 starting, 2 started
+
+private function hLastErr( ) as long
+    return tkn_WSAGetLastError( )
+end function
+
+'' WSAStartup once per process, whichever thread gets there first (D6); never
+'' cleaned up.  0, or the WSAStartup error.
+private function hStartup( ) as long
+    if( FB.AtomicLoadLong( @tkn_wsaState ) = 2 ) then return 0
+    if( FB.AtomicCasLong( @tkn_wsaState, 0, 1 ) = 0 ) then
+        dim as ubyte wsa( 0 to 511 )
+        dim as long rc = tkn_WSAStartup( &h0202, @wsa( 0 ) )
+        FB.AtomicCasLong( @tkn_wsaState, 1, iif( rc = 0, 2, 0 ) )
+        return rc
+    end if
+    while( FB.AtomicLoadLong( @tkn_wsaState ) = 1 )
+        tkn_Sleep( 0 )
+    wend
+    return iif( FB.AtomicLoadLong( @tkn_wsaState ) = 2, 0, 10093 )    '' WSANOTINITIALISED
+end function
+
+'' A socket nothing inherits (rule 2): -1 on failure.
+private function hSocket( byval v6 as boolean, byval type_ as long ) as integer
+    if( hStartup( ) <> 0 ) then return -1
+    '' WSA_FLAG_OVERLAPPED (what socket( ) gives) or WSA_FLAG_NO_HANDLE_INHERIT
+    dim as uinteger s = tkn_WSASocketW( iif( v6, TKN_AF_INET6, 2 ), type_, 0, nullptr, 0, &h81 )
+    if( s = cast( uinteger, -1 ) ) then return -1
+    if( type_ = 2 ) then
+        '' SIO_UDP_CONNRESET off: an ICMP port-unreachable must not fail the next recvfrom
+        dim as long off = 0
+        dim as ulong got = 0
+        tkn_WSAIoctl( s, &h9800000Cul, @off, 4, nullptr, 0, @got, nullptr, nullptr )
+    end if
+    return cast( integer, s )
+end function
+
+private sub hCloseFd( byval fd as integer )
+    tkn_closesocket( cast( uinteger, fd ) )
+end sub
+
+private function hSetBlocking( byval fd as integer, byval on_ as boolean ) as boolean
+    dim as ulong v = iif( on_, 0ul, 1ul )
+    return ( tkn_ioctlsocket( cast( uinteger, fd ), &h8004667E, @v ) = 0 )   '' FIONBIO
+end function
+
+'' 1 ready (or failed: see SO_ERROR), 0 timed out, -1 error.  ms < 0 waits for ever.
+private function hWait( byval fd as integer, byval forWrite as boolean, byval ms as long ) as long
+    dim as TknFdSet a, x
+    a.cnt = 1 : a.fd = cast( uinteger, fd )
+    x.cnt = 1 : x.fd = cast( uinteger, fd )
+    dim as TknTimeval tv
+    dim as TknTimeval ptr ptv = nullptr
+    if( ms >= 0 ) then
+        tv.sec = ms \ 1000
+        tv.usec = ( ms mod 1000 ) * 1000
+        ptv = @tv
+    end if
+    dim as long rc
+    if( forWrite ) then
+        rc = tkn_select( 0, nullptr, @a, @x, ptv )      '' a failed connect is in the except set
+    else
+        rc = tkn_select( 0, @a, nullptr, nullptr, ptv )
+    end if
+    if( rc < 0 ) then return -1
+    return iif( rc = 0, 0, 1 )
+end function
+
+private function hTimeoutOpt( byval fd as integer, byval nm as long, byval ms as long ) as boolean
+    dim as ulong v = iif( ms > 0, ms, 0 )
+    return ( tkn_setsockopt( cast( uinteger, fd ), TKN_SOL_SOCKET, nm, @v, 4 ) = 0 )
+end function
+
+private function hScope( byref z as const ustring ) as ulong
+    dim as string n = z
+    return tkn_if_nametoindex( strptr( n ) )
+end function
+
+#else
+
+type TknAddrInfo
+    as long ai_flags, ai_family, ai_socktype, ai_protocol
+    as ulong ai_addrlen
+    as any ptr ai_addr
+    as zstring ptr ai_canonname
+    as TknAddrInfo ptr ai_next
+end type
+
+type TknPollFd
+    as long fd
+    as short events, revents
+end type
+
+type TknTimeval
+    as longint sec, usec
+end type
+
+extern "C"
+    declare function tkn_socket alias "socket" ( byval af as long, byval type_ as long, byval proto as long ) as long
+    declare function tkn_close alias "close" ( byval fd as long ) as long
+    declare function tkn_connect alias "connect" ( byval fd as long, byval sa as const any ptr, byval n as ulong ) as long
+    declare function tkn_bind alias "bind" ( byval fd as long, byval sa as const any ptr, byval n as ulong ) as long
+    declare function tkn_listen alias "listen" ( byval fd as long, byval backlog as long ) as long
+    declare function tkn_accept4 alias "accept4" ( byval fd as long, byval sa as any ptr, byval n as ulong ptr, byval flags as long ) as long
+    declare function tkn_send alias "send" ( byval fd as long, byval buf as const any ptr, byval n as uinteger, byval flags as long ) as integer
+    declare function tkn_recv alias "recv" ( byval fd as long, byval buf as any ptr, byval n as uinteger, byval flags as long ) as integer
+    declare function tkn_sendto alias "sendto" ( byval fd as long, byval buf as const any ptr, byval n as uinteger, _
+        byval flags as long, byval sa as const any ptr, byval sn as ulong ) as integer
+    declare function tkn_recvfrom alias "recvfrom" ( byval fd as long, byval buf as any ptr, byval n as uinteger, _
+        byval flags as long, byval sa as any ptr, byval sn as ulong ptr ) as integer
+    declare function tkn_setsockopt alias "setsockopt" ( byval fd as long, byval lvl as long, byval nm as long, _
+        byval v as const any ptr, byval n as ulong ) as long
+    declare function tkn_getsockopt alias "getsockopt" ( byval fd as long, byval lvl as long, byval nm as long, _
+        byval v as any ptr, byval n as ulong ptr ) as long
+    declare function tkn_getsockname alias "getsockname" ( byval fd as long, byval sa as any ptr, byval n as ulong ptr ) as long
+    declare function tkn_getpeername alias "getpeername" ( byval fd as long, byval sa as any ptr, byval n as ulong ptr ) as long
+    declare function tkn_shutdown alias "shutdown" ( byval fd as long, byval how as long ) as long
+    declare function tkn_fcntl alias "fcntl" ( byval fd as long, byval cmd as long, ... ) as long
+    declare function tkn_poll alias "poll" ( byval fds as TknPollFd ptr, byval n as uinteger, byval ms as long ) as long
+    declare function tkn_getaddrinfo alias "getaddrinfo" ( byval node as const zstring ptr, byval svc as const zstring ptr, _
+        byval hints as const TknAddrInfo ptr, byval res as TknAddrInfo ptr ptr ) as long
+    declare sub tkn_freeaddrinfo alias "freeaddrinfo" ( byval ai as TknAddrInfo ptr )
+    declare function tkn_if_nametoindex alias "if_nametoindex" ( byval n as const zstring ptr ) as ulong
+    declare function tkn_errno_location alias "__errno_location" ( ) as long ptr
+end extern
+
+const TKN_AF_INET6 = 10
+const TKN_SOL_SOCKET = 1
+const TKN_SO_REUSEADDR = 2
+const TKN_SO_KEEPALIVE = 9
+const TKN_SO_BROADCAST = 6
+const TKN_SO_ERROR = 4
+const TKN_SO_RCVTIMEO = 20
+const TKN_SO_SNDTIMEO = 21
+const TKN_IPV6_V6ONLY = 26
+const TKN_IP_ADD_MEMBERSHIP = 35
+const TKN_IPV6_ADD_MEMBERSHIP = 20
+const TKN_SOCK_CLOEXEC = &h80000
+const TKN_MSG_NOSIGNAL = &h4000
+const TKN_MSG_TRUNC = &h20
+const TKN_ETIMEDOUT = 110
+const TKN_EAGAIN = 11                  '' a blocking recv/send past SO_RCVTIMEO/SNDTIMEO
+const TKN_EINTR = 4
+const TKN_EINPROGRESS = 115
+const TKN_EMSGSIZE = 90
+
+private function hLastErr( ) as long
+    return *tkn_errno_location( )
+end function
+
+private function hStartup( ) as long
+    return 0
+end function
+
+private function hSocket( byval v6 as boolean, byval type_ as long ) as integer
+    dim as long fd = tkn_socket( iif( v6, TKN_AF_INET6, 2 ), type_ or TKN_SOCK_CLOEXEC, 0 )
+    if( fd < 0 ) then return -1
+    return fd
+end function
+
+private sub hCloseFd( byval fd as integer )
+    tkn_close( fd )
+end sub
+
+private function hSetBlocking( byval fd as integer, byval on_ as boolean ) as boolean
+    dim as long fl = tkn_fcntl( fd, 3 )                        '' F_GETFL
+    if( fl < 0 ) then return FALSE
+    if( on_ ) then fl and= not &o4000 else fl or= &o4000        '' O_NONBLOCK
+    return ( tkn_fcntl( fd, 4, fl ) = 0 )                       '' F_SETFL
+end function
+
+private function hWait( byval fd as integer, byval forWrite as boolean, byval ms as long ) as long
+    dim as double deadline = timer + ms / 1000
+    do
+        dim as TknPollFd p
+        p.fd = fd
+        p.events = iif( forWrite, 4, 1 )                        '' POLLOUT / POLLIN
+        p.revents = 0
+        dim as long left_ = ms
+        if( ms >= 0 ) then
+            left_ = clng( fix( ( deadline - timer ) * 1000 ) )
+            if( left_ < 0 ) then left_ = 0
+        end if
+        dim as long rc = tkn_poll( @p, 1, left_ )
+        if( rc > 0 ) then return 1
+        if( rc = 0 ) then return 0
+        if( hLastErr( ) <> TKN_EINTR ) then return -1
+    loop
+end function
+
+private function hTimeoutOpt( byval fd as integer, byval nm as long, byval ms as long ) as boolean
+    dim as TknTimeval tv
+    if( ms > 0 ) then
+        tv.sec = ms \ 1000
+        tv.usec = ( ms mod 1000 ) * 1000
+    end if
+    return ( tkn_setsockopt( fd, TKN_SOL_SOCKET, nm, @tv, sizeof( TknTimeval ) ) = 0 )
+end function
+
+private function hScope( byref z as const ustring ) as ulong
+    dim as string n = z
+    n &= chr( 0 )
+    return tkn_if_nametoindex( strptr( n ) )
+end function
+
+#endif
+
+'' -------------------------------------------------------------- shared helpers
+
+private function hSetOpt( byval fd as integer, byval lvl as long, byval nm as long, byval v as long ) as boolean
+    return ( tkn_setsockopt( fd, lvl, nm, @v, 4 ) = 0 )
+end function
+
+'' The pending error of a non-blocking connect.
+private function hSoError( byval fd as integer ) as long
+    dim as long v = 0
+#ifdef __FB_WIN32__
+    dim as long n = 4
+#else
+    dim as ulong n = 4
+#endif
+    if( tkn_getsockopt( fd, TKN_SOL_SOCKET, TKN_SO_ERROR, @v, @n ) <> 0 ) then return hLastErr( )
+    return v
+end function
+
+private function hMapErr( byval e as long ) as NetErrorCode
+    select case e
+#ifdef __FB_WIN32__
+    case 10061               : return NET_CONNECTION_REFUSED
+    case 10054, 10053, 10052 : return NET_CONNECTION_RESET
+    case 10060               : return NET_TIMED_OUT
+    case 10048               : return NET_ADDRESS_IN_USE
+    case 10049               : return NET_ADDRESS_NOT_AVAILABLE
+    case 10051, 10050        : return NET_NETWORK_UNREACHABLE
+    case 10065               : return NET_HOST_UNREACHABLE
+    case 10013               : return NET_ACCESS_DENIED
+    case 10040               : return NET_MESSAGE_TOO_LONG
+    case 10057, 10058        : return NET_NOT_CONNECTED
+    case 10047               : return NET_INVALID_ADDRESS
+    case 11001, 11004        : return NET_HOST_NOT_FOUND
+    case 11002               : return NET_TEMPORARY_FAILURE
+#else
+    case 111                 : return NET_CONNECTION_REFUSED
+    case 104, 103            : return NET_CONNECTION_RESET
+    case 110, 11             : return NET_TIMED_OUT
+    case 98                  : return NET_ADDRESS_IN_USE
+    case 99                  : return NET_ADDRESS_NOT_AVAILABLE
+    case 101, 100            : return NET_NETWORK_UNREACHABLE
+    case 113                 : return NET_HOST_UNREACHABLE
+    case 13, 1               : return NET_ACCESS_DENIED
+    case 90                  : return NET_MESSAGE_TOO_LONG
+    case 107, 32             : return NET_NOT_CONNECTED
+    case 97                  : return NET_INVALID_ADDRESS
+#endif
+    end select
+    return NET_UNKNOWN
+end function
+
+'' Stream I/O reports fs.FsError (D2).
+private function hFsFail( byval e as long, byref op as const ustring ) as fs.FsResultI64
+    dim as fs.FsErrorCode c = fs.FS_UNKNOWN
+    select case e
+#ifdef __FB_WIN32__
+    case 10060               : c = fs.FS_TIMED_OUT
+    case 10054, 10053, 10052 : c = fs.FS_CONNECTION_RESET
+    case 10058               : c = fs.FS_BROKEN_PIPE
+    case 10057               : c = fs.FS_CLOSED
+    case 10004               : c = fs.FS_INTERRUPTED
+#else
+    case 11                  : c = fs.FS_TIMED_OUT
+    case 104, 103            : c = fs.FS_CONNECTION_RESET
+    case 32                  : c = fs.FS_BROKEN_PIPE
+    case 107                 : c = fs.FS_CLOSED
+#endif
+    end select
+    return Fail( of longint, fs.FsError )( fs.FsError( c, e, op, "" ) )
+end function
+
+private function hFailBool( byval e as long, byref op as const ustring, byref subj as const ustring ) as NetResultBool
+    return NetFail( of boolean )( hMapErr( e ), e, op, subj )
+end function
+
+private function hOkBool( ) as NetResultBool
+    return Ok( of boolean, NetError )( TRUE )
+end function
+
+'' -------------------------------------------------------------- sockaddr
+
+'' The sockaddr_in / sockaddr_in6 for `a` in buf (at least 28 bytes); its length,
+'' or 0 when a zone names no interface.
+private function hSockaddr( byref a as const SocketAddress, byval buf as ubyte ptr ) as long
+    for i as long = 0 to 27
+        buf[i] = 0
+    next
+    buf[2] = a.Port shr 8
+    buf[3] = a.Port and 255
+    if( a.Ip.IsV6( ) = FALSE ) then
+        buf[0] = 2
+        for i as long = 0 to 3
+            buf[4 + i] = a.Ip.hB( i )
+        next
+        return 16
+    end if
+    buf[0] = TKN_AF_INET6
+    for i as long = 0 to 15
+        buf[8 + i] = a.Ip.hB( i )
+    next
+    dim as ustring z = a.Ip.hZone
+    if( len( z ) > 0 ) then
+        dim as ulong sc = 0
+        dim as boolean digits = TRUE
+        for i as long = 0 to len( z ) - 1
+            if( ( z[i] < 48 ) orelse ( z[i] > 57 ) ) then digits = FALSE
+        next
+        if( digits andalso ( len( z ) <= 9 ) ) then sc = culng( valuint( z ) ) else sc = hScope( z )
+        if( sc = 0 ) then return 0
+        *cptr( ulong ptr, buf + 24 ) = sc
+    end if
+    return 28
+end function
+
+private function hFromSockaddr( byval buf as const ubyte ptr ) as SocketAddress
+    dim as SocketAddress r
+    r.Port = buf[2] * 256 + buf[3]
+    dim as long fam = buf[0] + buf[1] * 256
+    if( fam = 2 ) then
+        r.Ip = Ipv4( buf[4], buf[5], buf[6], buf[7] )
+    elseif( fam = TKN_AF_INET6 ) then
+        r.Ip.hV6 = TRUE
+        for i as long = 0 to 15
+            r.Ip.hB( i ) = buf[8 + i]
+        next
+        dim as ulong sc = *cptr( const ulong ptr, buf + 24 )
+        if( sc <> 0 ) then r.Ip.hZone = str( sc )
+    end if
+    return r
+end function
+
+private function hName( byval fd as integer, byval peer as boolean, byref op as const ustring ) as NetResultAddr
+    if( fd = -1 ) then return NetFail( of SocketAddress )( NET_CLOSED, 0, op, "" )
+    dim as ubyte buf( 0 to 127 )
+#ifdef __FB_WIN32__
+    dim as long n = 128
+#else
+    dim as ulong n = 128
+#endif
+    dim as long rc
+    if( peer ) then rc = tkn_getpeername( fd, @buf( 0 ), @n ) else rc = tkn_getsockname( fd, @buf( 0 ), @n )
+    if( rc <> 0 ) then
+        dim as long e = hLastErr( )
+        return NetFail( of SocketAddress )( hMapErr( e ), e, op, "" )
+    end if
+    return Ok( of SocketAddress, NetError )( hFromSockaddr( @buf( 0 ) ) )
+end function
+
+'' connect( ), with a timeout when ms >= 0 (rule 4): non-blocking, wait, SO_ERROR,
+'' blocking again.  0, or the OS error (TKN_ETIMEDOUT when the time ran out).
+private function hConnect( byval fd as integer, byval sa as const ubyte ptr, byval n as long, byval ms as long ) as long
+    if( ms < 0 ) then
+        if( tkn_connect( fd, sa, n ) = 0 ) then return 0
+        dim as long e = hLastErr( )
+        if( e <> TKN_EINTR ) then return e
+        '' Linux: interrupted, but the connection goes on; wait for it
+        if( hWait( fd, TRUE, -1 ) < 0 ) then return hLastErr( )
+        return hSoError( fd )
+    end if
+    if( hSetBlocking( fd, FALSE ) = FALSE ) then return hLastErr( )
+    dim as long e = 0
+    if( tkn_connect( fd, sa, n ) <> 0 ) then
+        e = hLastErr( )
+        if( ( e = TKN_EINPROGRESS ) orelse ( e = TKN_EINTR ) ) then
+            dim as long w = hWait( fd, TRUE, ms )
+            if( w = 0 ) then
+                e = TKN_ETIMEDOUT
+            elseif( w < 0 ) then
+                e = hLastErr( )
+            else
+                e = hSoError( fd )
+            end if
+        end if
+    end if
+    hSetBlocking( fd, TRUE )
+    return e
+end function
+
+'' -------------------------------------------------------------- Resolve
+
+public function Resolve( byref host as const ustring, byval port as ushort = 0, byval family as AddressFamily = AF_ANY ) as NetResultAddrs
+    dim as NetAddrList r
+    dim as ustring h = host
+    if( ( len( h ) >= 2 ) andalso ( h[0] = 91 ) andalso ( h[len( h ) - 1] = 93 ) ) then h = mid( h, 2, len( h ) - 2 )
+    if( len( h ) = 0 ) then return NetFail( of NetAddrList )( NET_INVALID_ADDRESS, 0, "Resolve", host )
+    dim as IpAddress lit
+    if( NetParseIpRange( h, 0, len( h ), lit ) ) then
+        if( ( ( family = AF_IPV4 ) andalso lit.IsV6( ) ) orelse ( ( family = AF_IPV6 ) andalso lit.IsV4( ) ) ) then
+            return NetFail( of NetAddrList )( NET_INVALID_ADDRESS, 0, "Resolve", host )
+        end if
+        r.Push( SocketAddress( lit, port ) )
+        return Ok( of NetAddrList, NetError )( r )
+    end if
+    dim as long st = hStartup( )
+    if( st <> 0 ) then return NetFail( of NetAddrList )( NET_UNKNOWN, st, "Resolve", host )
+    dim as TknAddrInfo hints
+    hints.ai_family = iif( family = AF_IPV4, 2, iif( family = AF_IPV6, TKN_AF_INET6, 0 ) )
+    hints.ai_socktype = 1                                       '' SOCK_STREAM: one entry per address
+    dim as TknAddrInfo ptr res = nullptr
+    dim as long rc
+#ifdef __FB_WIN32__
+    dim as ushort ptr w = callocate( len( h ) + 1, 2 )
+    for i as long = 0 to len( h ) - 1
+        w[i] = h[i]
+    next
+    rc = tkn_GetAddrInfoW( w, nullptr, @hints, @res )
+    deallocate( w )
+    if( rc <> 0 ) then return NetFail( of NetAddrList )( hMapErr( rc ), rc, "Resolve", host )
+#else
+    dim as string z = h
+    z &= chr( 0 )
+    rc = tkn_getaddrinfo( strptr( z ), nullptr, @hints, @res )
+    if( rc <> 0 ) then
+        dim as NetErrorCode c = NET_UNKNOWN
+        select case rc
+        case -2, -5 : c = NET_HOST_NOT_FOUND                    '' EAI_NONAME EAI_NODATA
+        case -3     : c = NET_TEMPORARY_FAILURE                 '' EAI_AGAIN
+        case -11                                                '' EAI_SYSTEM
+            rc = hLastErr( )
+            c = hMapErr( rc )
+        end select
+        return NetFail( of NetAddrList )( c, rc, "Resolve", host )
+    end if
+#endif
+    dim as TknAddrInfo ptr p = res
+    while( p <> nullptr )
+        if( ( p->ai_family = 2 ) orelse ( p->ai_family = TKN_AF_INET6 ) ) then
+            dim as SocketAddress a = hFromSockaddr( p->ai_addr )
+            a.Port = port
+            dim as boolean seen = FALSE
+            for i as long = 0 to r.num - 1
+                if( r.items( i ).Equals( a ) ) then seen = TRUE
+            next
+            if( seen = FALSE ) then r.Push( a )
+        end if
+        p = p->ai_next
+    wend
+#ifdef __FB_WIN32__
+    tkn_FreeAddrInfoW( res )
+#else
+    tkn_freeaddrinfo( res )
+#endif
+    if( r.num = 0 ) then return NetFail( of NetAddrList )( NET_HOST_NOT_FOUND, 0, "Resolve", host )
+    return Ok( of NetAddrList, NetError )( r )
+end function
+
+'' -------------------------------------------------------------- TcpStream
+
+constructor TcpStream( )
+    this.hFd = -1
+    this.hReadMs = 0
+    this.hWriteMs = 0
+end constructor
+
+destructor TcpStream( )
+    this.Close( )
+end destructor
+
+const function TcpStream.IsOpen( ) as boolean
+    return ( this.hFd <> -1 )
+end function
+
+const function TcpStream.CanRead( ) as boolean
+    return ( this.hFd <> -1 )
+end function
+
+const function TcpStream.CanWrite( ) as boolean
+    return ( this.hFd <> -1 )
+end function
+
+const function TcpStream.CanSeek( ) as boolean
+    return FALSE
+end function
+
+function TcpStream.Flush( ) as fs.FsResultBool
+    return Ok( of boolean, fs.FsError )( TRUE )
+end function
+
+'' The timeouts set before Connect / Accept, applied to the new socket.
+private sub hApplyTimeouts( byref s as TcpStream )
+    if( s.hReadMs > 0 ) then hTimeoutOpt( s.hFd, TKN_SO_RCVTIMEO, s.hReadMs )
+    if( s.hWriteMs > 0 ) then hTimeoutOpt( s.hFd, TKN_SO_SNDTIMEO, s.hWriteMs )
+end sub
+
+function TcpStream.Connect( byref addr as const SocketAddress, byval timeoutMs as long = -1 ) as NetResultBool
+    dim as ustring subj = addr.ToString( )
+    if( this.hFd <> -1 ) then return NetFail( of boolean )( NET_ALREADY_OPEN, 0, "Connect", subj )
+    dim as ubyte sa( 0 to 31 )
+    dim as long n = hSockaddr( addr, @sa( 0 ) )
+    if( n = 0 ) then return NetFail( of boolean )( NET_INVALID_ADDRESS, 0, "Connect", subj )
+    dim as integer fd = hSocket( addr.Ip.IsV6( ), 1 )
+    if( fd = -1 ) then return hFailBool( hLastErr( ), "Connect", subj )
+    dim as long e = hConnect( fd, @sa( 0 ), n, timeoutMs )
+    if( e <> 0 ) then
+        hCloseFd( fd )
+        return hFailBool( e, "Connect", subj )
+    end if
+    this.hFd = fd
+    hApplyTimeouts( this )
+    return hOkBool( )
+end function
+
+'' Each address Resolve gives, v6 and v4 alternating (v6 first), one after another
+'' until one connects; timeoutMs bounds the whole attempt.
+function TcpStream.ConnectHost( byref host as const ustring, byval port as ushort, byval timeoutMs as long = -1 ) as NetResultBool
+    if( this.hFd <> -1 ) then return NetFail( of boolean )( NET_ALREADY_OPEN, 0, "ConnectHost", host )
+    dim as NetResultAddrs rr = Resolve( host, port )
+    if( rr.IsOk( ) = FALSE ) then return Fail( of boolean, NetError )( rr.Failure( ) )
+    dim as NetAddrList all = rr.Value( ), v6, v4, order
+    for i as long = 0 to all.num - 1
+        if( all.items( i ).Ip.IsV6( ) ) then v6.Push( all.items( i ) ) else v4.Push( all.items( i ) )
+    next
+    for i as long = 0 to iif( v6.num > v4.num, v6.num, v4.num ) - 1
+        if( i < v6.num ) then order.Push( v6.items( i ) )
+        if( i < v4.num ) then order.Push( v4.items( i ) )
+    next
+    dim as double deadline = timer + timeoutMs / 1000
+    dim as NetResultBool last
+    for i as long = 0 to order.num - 1
+        dim as long ms = -1
+        if( timeoutMs >= 0 ) then
+            ms = clng( fix( ( deadline - timer ) * 1000 ) )
+            if( ms <= 0 ) then return NetFail( of boolean )( NET_TIMED_OUT, 0, "ConnectHost", host )
+        end if
+        last = this.Connect( order.items( i ), ms )
+        if( last.IsOk( ) ) then return last
+    next
+    return last
+end function
+
+function TcpStream.Close( ) as NetResultBool
+    if( this.hFd <> -1 ) then hCloseFd( this.hFd )
+    this.hFd = -1
+    return hOkBool( )
+end function
+
+function TcpStream.Shutdown( byval how as ShutdownHow ) as NetResultBool
+    if( this.hFd = -1 ) then return NetFail( of boolean )( NET_CLOSED, 0, "Shutdown", "" )
+    if( tkn_shutdown( this.hFd, how ) <> 0 ) then return hFailBool( hLastErr( ), "Shutdown", "" )
+    return hOkBool( )
+end function
+
+function TcpStream.SetReadTimeout( byval ms as long ) as NetResultBool
+    this.hReadMs = iif( ms > 0, ms, 0 )
+    if( this.hFd <> -1 ) then
+        if( hTimeoutOpt( this.hFd, TKN_SO_RCVTIMEO, this.hReadMs ) = FALSE ) then return hFailBool( hLastErr( ), "SetReadTimeout", "" )
+    end if
+    return hOkBool( )
+end function
+
+function TcpStream.SetWriteTimeout( byval ms as long ) as NetResultBool
+    this.hWriteMs = iif( ms > 0, ms, 0 )
+    if( this.hFd <> -1 ) then
+        if( hTimeoutOpt( this.hFd, TKN_SO_SNDTIMEO, this.hWriteMs ) = FALSE ) then return hFailBool( hLastErr( ), "SetWriteTimeout", "" )
+    end if
+    return hOkBool( )
+end function
+
+function TcpStream.SetNoDelay( byval on_ as boolean ) as NetResultBool
+    if( this.hFd = -1 ) then return NetFail( of boolean )( NET_CLOSED, 0, "SetNoDelay", "" )
+    if( hSetOpt( this.hFd, 6, 1, iif( on_, 1, 0 ) ) = FALSE ) then return hFailBool( hLastErr( ), "SetNoDelay", "" )   '' IPPROTO_TCP TCP_NODELAY
+    return hOkBool( )
+end function
+
+function TcpStream.SetKeepAlive( byval on_ as boolean ) as NetResultBool
+    if( this.hFd = -1 ) then return NetFail( of boolean )( NET_CLOSED, 0, "SetKeepAlive", "" )
+    if( hSetOpt( this.hFd, TKN_SOL_SOCKET, TKN_SO_KEEPALIVE, iif( on_, 1, 0 ) ) = FALSE ) then return hFailBool( hLastErr( ), "SetKeepAlive", "" )
+    return hOkBool( )
+end function
+
+function TcpStream.LocalAddress( ) as NetResultAddr
+    return hName( this.hFd, FALSE, "LocalAddress" )
+end function
+
+function TcpStream.PeerAddress( ) as NetResultAddr
+    return hName( this.hFd, TRUE, "PeerAddress" )
+end function
+
+function TcpStream.Read( byval buf as ubyte ptr, byval n as longint ) as fs.FsResultI64
+    if( this.hFd = -1 ) then return fs.FsFail( of longint )( fs.FS_CLOSED, "Read", "" )
+    if( ( n < 0 ) orelse ( ( buf = nullptr ) andalso ( n > 0 ) ) ) then
+        return fs.FsFail( of longint )( fs.FS_INVALID_ARGUMENT, "Read", "" )
+    end if
+    if( n = 0 ) then return Ok( of longint, fs.FsError )( 0 )
+    if( n > &h40000000 ) then n = &h40000000
+    do
+        dim as longint got = tkn_recv( this.hFd, buf, n, 0 )
+        if( got >= 0 ) then return Ok( of longint, fs.FsError )( got )
+        dim as long e = hLastErr( )
+        if( e <> TKN_EINTR ) then return hFsFail( e, "Read" )
+    loop
+end function
+
+function TcpStream.Write( byval buf as const ubyte ptr, byval n as longint ) as fs.FsResultI64
+    if( this.hFd = -1 ) then return fs.FsFail( of longint )( fs.FS_CLOSED, "Write", "" )
+    if( ( n < 0 ) orelse ( ( buf = nullptr ) andalso ( n > 0 ) ) ) then
+        return fs.FsFail( of longint )( fs.FS_INVALID_ARGUMENT, "Write", "" )
+    end if
+    if( n = 0 ) then return Ok( of longint, fs.FsError )( 0 )
+    if( n > &h40000000 ) then n = &h40000000
+    do
+        dim as longint put_ = tkn_send( this.hFd, buf, n, TKN_MSG_NOSIGNAL )
+        if( put_ >= 0 ) then return Ok( of longint, fs.FsError )( put_ )
+        dim as long e = hLastErr( )
+        if( e <> TKN_EINTR ) then return hFsFail( e, "Write" )
+    loop
+end function
+
+'' -------------------------------------------------------------- TcpListener
+
+constructor TcpListener( )
+    this.hFd = -1
+end constructor
+
+destructor TcpListener( )
+    this.Close( )
+end destructor
+
+const function TcpListener.IsOpen( ) as boolean
+    return ( this.hFd <> -1 )
+end function
+
+'' Rule 5: SO_EXCLUSIVEADDRUSE on Windows, SO_REUSEADDR on Linux; a v6 socket is
+'' dual-stack exactly when dualStack says so.
+function TcpListener.Bind( byref addr as const SocketAddress, byval backlog as long = 128, byval dualStack as boolean = TRUE ) as NetResultBool
+    dim as ustring subj = addr.ToString( )
+    if( this.hFd <> -1 ) then return NetFail( of boolean )( NET_ALREADY_OPEN, 0, "Bind", subj )
+    dim as ubyte sa( 0 to 31 )
+    dim as long n = hSockaddr( addr, @sa( 0 ) )
+    if( n = 0 ) then return NetFail( of boolean )( NET_INVALID_ADDRESS, 0, "Bind", subj )
+    dim as integer fd = hSocket( addr.Ip.IsV6( ), 1 )
+    if( fd = -1 ) then return hFailBool( hLastErr( ), "Bind", subj )
+#ifdef __FB_WIN32__
+    hSetOpt( fd, TKN_SOL_SOCKET, TKN_SO_EXCLUSIVEADDRUSE, 1 )
+#else
+    hSetOpt( fd, TKN_SOL_SOCKET, TKN_SO_REUSEADDR, 1 )
+#endif
+    if( addr.Ip.IsV6( ) ) then hSetOpt( fd, 41, TKN_IPV6_V6ONLY, iif( dualStack, 0, 1 ) )
+    dim as long e = 0
+    if( tkn_bind( fd, @sa( 0 ), n ) <> 0 ) then
+        e = hLastErr( )
+    elseif( tkn_listen( fd, iif( backlog > 0, backlog, 128 ) ) <> 0 ) then
+        e = hLastErr( )
+    end if
+    if( e <> 0 ) then
+        hCloseFd( fd )
+        return hFailBool( e, "Bind", subj )
+    end if
+    this.hFd = fd
+    return hOkBool( )
+end function
+
+function TcpListener.Accept( byref conn as TcpStream, byval timeoutMs as long = -1 ) as NetResultBool
+    if( this.hFd = -1 ) then return NetFail( of boolean )( NET_CLOSED, 0, "Accept", "" )
+    if( conn.hFd <> -1 ) then return NetFail( of boolean )( NET_ALREADY_OPEN, 0, "Accept", "" )
+    do
+        if( timeoutMs >= 0 ) then
+            dim as long w = hWait( this.hFd, FALSE, timeoutMs )
+            if( w = 0 ) then return NetFail( of boolean )( NET_TIMED_OUT, 0, "Accept", "" )
+            if( w < 0 ) then return hFailBool( hLastErr( ), "Accept", "" )
+        end if
+#ifdef __FB_WIN32__
+        dim as uinteger s = tkn_accept( this.hFd, nullptr, nullptr )
+        if( s <> cast( uinteger, -1 ) ) then
+            tkn_SetHandleInformation( cast( any ptr, s ), 1, 0 )   '' HANDLE_FLAG_INHERIT off
+            conn.hFd = cast( integer, s )
+            exit do
+        end if
+#else
+        dim as long s = tkn_accept4( this.hFd, nullptr, nullptr, TKN_SOCK_CLOEXEC )
+        if( s >= 0 ) then
+            conn.hFd = s
+            exit do
+        end if
+#endif
+        dim as long e = hLastErr( )
+        if( e <> TKN_EINTR ) then return hFailBool( e, "Accept", "" )
+    loop
+    hApplyTimeouts( conn )
+    return hOkBool( )
+end function
+
+function TcpListener.LocalAddress( ) as NetResultAddr
+    return hName( this.hFd, FALSE, "LocalAddress" )
+end function
+
+function TcpListener.Close( ) as NetResultBool
+    if( this.hFd <> -1 ) then hCloseFd( this.hFd )
+    this.hFd = -1
+    return hOkBool( )
+end function
+
+'' -------------------------------------------------------------- UdpSocket
+
+constructor UdpSocket( )
+    this.hFd = -1
+    this.hV6 = FALSE
+    this.hReadMs = 0
+end constructor
+
+destructor UdpSocket( )
+    this.Close( )
+end destructor
+
+const function UdpSocket.IsOpen( ) as boolean
+    return ( this.hFd <> -1 )
+end function
+
+'' Opens the socket for `v6` when it is not open yet.  0, or the OS error.
+private function hUdpOpen( byref u as UdpSocket, byval v6 as boolean ) as long
+    if( u.hFd <> -1 ) then return 0
+    dim as integer fd = hSocket( v6, 2 )
+    if( fd = -1 ) then return hLastErr( )
+    if( v6 ) then hSetOpt( fd, 41, TKN_IPV6_V6ONLY, 0 )
+    if( u.hReadMs > 0 ) then hTimeoutOpt( fd, TKN_SO_RCVTIMEO, u.hReadMs )
+    u.hFd = fd
+    u.hV6 = v6
+    return 0
+end function
+
+'' `a` as this socket's family wants it: a v4 address on a v6 socket is v4-mapped;
+'' a v6 one on a v4 socket must be v4-mapped.  0 when it cannot be.
+private function hUdpSockaddr( byref u as UdpSocket, byref a as const SocketAddress, byval buf as ubyte ptr ) as long
+    dim as SocketAddress t = a
+    if( u.hV6 andalso t.Ip.IsV4( ) ) then
+        dim as IpAddress m
+        m.hV6 = TRUE
+        m.hB( 10 ) = 255
+        m.hB( 11 ) = 255
+        for i as long = 0 to 3
+            m.hB( 12 + i ) = t.Ip.hB( i )
+        next
+        t.Ip = m
+    elseif( ( u.hV6 = FALSE ) andalso t.Ip.IsV6( ) ) then
+        if( t.Ip.IsV4Mapped( ) = FALSE ) then return 0
+        t.Ip = t.Ip.Unmap( )
+    end if
+    return hSockaddr( t, buf )
+end function
+
+function UdpSocket.Bind( byref addr as const SocketAddress ) as NetResultBool
+    dim as ustring subj = addr.ToString( )
+    if( this.hFd <> -1 ) then return NetFail( of boolean )( NET_ALREADY_OPEN, 0, "Bind", subj )
+    dim as ubyte sa( 0 to 31 )
+    dim as long n = hSockaddr( addr, @sa( 0 ) )
+    if( n = 0 ) then return NetFail( of boolean )( NET_INVALID_ADDRESS, 0, "Bind", subj )
+    dim as long e = hUdpOpen( this, addr.Ip.IsV6( ) )
+    if( e = 0 ) then
+        if( tkn_bind( this.hFd, @sa( 0 ), n ) <> 0 ) then
+            e = hLastErr( )
+            this.Close( )
+        end if
+    end if
+    if( e <> 0 ) then return hFailBool( e, "Bind", subj )
+    return hOkBool( )
+end function
+
+function UdpSocket.Connect( byref addr as const SocketAddress ) as NetResultBool
+    dim as ustring subj = addr.ToString( )
+    dim as long e = hUdpOpen( this, addr.Ip.IsV6( ) )
+    if( e <> 0 ) then return hFailBool( e, "Connect", subj )
+    dim as ubyte sa( 0 to 31 )
+    dim as long n = hUdpSockaddr( this, addr, @sa( 0 ) )
+    if( n = 0 ) then return NetFail( of boolean )( NET_INVALID_ADDRESS, 0, "Connect", subj )
+    if( tkn_connect( this.hFd, @sa( 0 ), n ) <> 0 ) then return hFailBool( hLastErr( ), "Connect", subj )
+    return hOkBool( )
+end function
+
+private function hUdpArgs( byval p as const ubyte ptr, byval n as long, byref op as const ustring, byref r as NetResultI64 ) as boolean
+    if( ( n < 0 ) orelse ( ( p = nullptr ) andalso ( n > 0 ) ) ) then
+        r = NetFail( of longint )( NET_INVALID_ARGUMENT, 0, op, "" )
+        return FALSE
+    end if
+    return TRUE
+end function
+
+'' A failed receive: past SO_RCVTIMEO is NET_TIMED_OUT on both systems.
+private function hUdpRecvFail( byval e as long, byref op as const ustring ) as NetResultI64
+    if( e = TKN_EAGAIN ) then return NetFail( of longint )( NET_TIMED_OUT, e, op, "" )
+    return NetFail( of longint )( hMapErr( e ), e, op, "" )
+end function
+
+function UdpSocket.SendTo( byval p as const ubyte ptr, byval n as long, byref dst as const SocketAddress ) as NetResultI64
+    dim as NetResultI64 r
+    if( hUdpArgs( p, n, "SendTo", r ) = FALSE ) then return r
+    dim as ustring subj = dst.ToString( )
+    dim as long e = hUdpOpen( this, dst.Ip.IsV6( ) )
+    if( e <> 0 ) then return NetFail( of longint )( hMapErr( e ), e, "SendTo", subj )
+    dim as ubyte sa( 0 to 31 )
+    dim as long sn = hUdpSockaddr( this, dst, @sa( 0 ) )
+    if( sn = 0 ) then return NetFail( of longint )( NET_INVALID_ADDRESS, 0, "SendTo", subj )
+    do
+        dim as longint put_ = tkn_sendto( this.hFd, p, n, TKN_MSG_NOSIGNAL, @sa( 0 ), sn )
+        if( put_ >= 0 ) then return Ok( of longint, NetError )( put_ )
+        e = hLastErr( )
+        if( e <> TKN_EINTR ) then return NetFail( of longint )( hMapErr( e ), e, "SendTo", subj )
+    loop
+end function
+
+'' A datagram longer than n fills the buffer and is NET_MESSAGE_TOO_LONG; `src`
+'' is set either way.
+function UdpSocket.ReceiveFrom( byval p as ubyte ptr, byval n as long, byref src as SocketAddress ) as NetResultI64
+    dim as NetResultI64 r
+    if( hUdpArgs( p, n, "ReceiveFrom", r ) = FALSE ) then return r
+    if( this.hFd = -1 ) then return NetFail( of longint )( NET_CLOSED, 0, "ReceiveFrom", "" )
+    dim as ubyte sa( 0 to 127 )
+    do
+#ifdef __FB_WIN32__
+        dim as long sn = 128
+        dim as longint got = tkn_recvfrom( this.hFd, p, n, 0, @sa( 0 ), @sn )
+#else
+        dim as ulong sn = 128
+        dim as longint got = tkn_recvfrom( this.hFd, p, n, TKN_MSG_TRUNC, @sa( 0 ), @sn )
+#endif
+        if( got >= 0 ) then
+            src = hFromSockaddr( @sa( 0 ) )
+            if( got > n ) then return NetFail( of longint )( NET_MESSAGE_TOO_LONG, 0, "ReceiveFrom", src.ToString( ) )
+            return Ok( of longint, NetError )( got )
+        end if
+        dim as long e = hLastErr( )
+        if( e = TKN_EMSGSIZE ) then
+            src = hFromSockaddr( @sa( 0 ) )
+            return NetFail( of longint )( NET_MESSAGE_TOO_LONG, e, "ReceiveFrom", src.ToString( ) )
+        end if
+        if( e <> TKN_EINTR ) then return hUdpRecvFail( e, "ReceiveFrom" )
+    loop
+end function
+
+function UdpSocket.Send( byval p as const ubyte ptr, byval n as long ) as NetResultI64
+    dim as NetResultI64 r
+    if( hUdpArgs( p, n, "Send", r ) = FALSE ) then return r
+    if( this.hFd = -1 ) then return NetFail( of longint )( NET_NOT_CONNECTED, 0, "Send", "" )
+    do
+        dim as longint put_ = tkn_send( this.hFd, p, n, TKN_MSG_NOSIGNAL )
+        if( put_ >= 0 ) then return Ok( of longint, NetError )( put_ )
+        dim as long e = hLastErr( )
+        if( e <> TKN_EINTR ) then return NetFail( of longint )( hMapErr( e ), e, "Send", "" )
+    loop
+end function
+
+function UdpSocket.Receive( byval p as ubyte ptr, byval n as long ) as NetResultI64
+    dim as NetResultI64 r
+    if( hUdpArgs( p, n, "Receive", r ) = FALSE ) then return r
+    if( this.hFd = -1 ) then return NetFail( of longint )( NET_NOT_CONNECTED, 0, "Receive", "" )
+    do
+#ifdef __FB_WIN32__
+        dim as longint got = tkn_recv( this.hFd, p, n, 0 )
+#else
+        dim as longint got = tkn_recv( this.hFd, p, n, TKN_MSG_TRUNC )
+#endif
+        if( got > n ) then return NetFail( of longint )( NET_MESSAGE_TOO_LONG, 0, "Receive", "" )
+        if( got >= 0 ) then return Ok( of longint, NetError )( got )
+        dim as long e = hLastErr( )
+        if( e = TKN_EMSGSIZE ) then return NetFail( of longint )( NET_MESSAGE_TOO_LONG, e, "Receive", "" )
+        if( e <> TKN_EINTR ) then return hUdpRecvFail( e, "Receive" )
+    loop
+end function
+
+function UdpSocket.SetBroadcast( byval on_ as boolean ) as NetResultBool
+    if( this.hFd = -1 ) then return NetFail( of boolean )( NET_CLOSED, 0, "SetBroadcast", "" )
+    if( hSetOpt( this.hFd, TKN_SOL_SOCKET, TKN_SO_BROADCAST, iif( on_, 1, 0 ) ) = FALSE ) then return hFailBool( hLastErr( ), "SetBroadcast", "" )
+    return hOkBool( )
+end function
+
+'' On the default interface (the zone's, for a v6 group with one).
+function UdpSocket.JoinMulticast( byref group as const IpAddress ) as NetResultBool
+    dim as ustring subj = group.ToString( )
+    if( this.hFd = -1 ) then return NetFail( of boolean )( NET_CLOSED, 0, "JoinMulticast", subj )
+    if( ( group.IsMulticast( ) = FALSE ) orelse ( group.IsV6( ) <> this.hV6 ) ) then
+        return NetFail( of boolean )( NET_INVALID_ADDRESS, 0, "JoinMulticast", subj )
+    end if
+    dim as ubyte m( 0 to 19 )
+    dim as long rc
+    if( group.IsV4( ) ) then
+        for i as long = 0 to 3
+            m( i ) = group.hB( i )                              '' imr_multiaddr; imr_interface = INADDR_ANY
+        next
+        rc = tkn_setsockopt( this.hFd, 0, TKN_IP_ADD_MEMBERSHIP, @m( 0 ), 8 )
+    else
+        for i as long = 0 to 15
+            m( i ) = group.hB( i )
+        next
+        if( len( group.hZone ) > 0 ) then
+            dim as SocketAddress t = SocketAddress( group, 0 )
+            dim as ubyte sa( 0 to 31 )
+            if( hSockaddr( t, @sa( 0 ) ) = 0 ) then return NetFail( of boolean )( NET_INVALID_ADDRESS, 0, "JoinMulticast", subj )
+            for i as long = 0 to 3
+                m( 16 + i ) = sa( 24 + i )                      '' ipv6mr_interface
+            next
+        end if
+        rc = tkn_setsockopt( this.hFd, 41, TKN_IPV6_ADD_MEMBERSHIP, @m( 0 ), 20 )
+    end if
+    if( rc <> 0 ) then return hFailBool( hLastErr( ), "JoinMulticast", subj )
+    return hOkBool( )
+end function
+
+function UdpSocket.SetReadTimeout( byval ms as long ) as NetResultBool
+    this.hReadMs = iif( ms > 0, ms, 0 )
+    if( this.hFd <> -1 ) then
+        if( hTimeoutOpt( this.hFd, TKN_SO_RCVTIMEO, this.hReadMs ) = FALSE ) then return hFailBool( hLastErr( ), "SetReadTimeout", "" )
+    end if
+    return hOkBool( )
+end function
+
+function UdpSocket.LocalAddress( ) as NetResultAddr
+    return hName( this.hFd, FALSE, "LocalAddress" )
+end function
+
+function UdpSocket.Close( ) as NetResultBool
+    if( this.hFd <> -1 ) then hCloseFd( this.hFd )
+    this.hFd = -1
+    return hOkBool( )
+end function

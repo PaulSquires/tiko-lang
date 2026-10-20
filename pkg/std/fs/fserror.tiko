@@ -92,6 +92,12 @@ public enum FsErrorCode
     FS_TOO_MANY_LINKS       '' the hard-link limit was reached
     FS_BROKEN_PIPE          '' a write to a pipe with no reader
     FS_INVALID_ARGUMENT     '' contradictory options, a negative offset, a zero size
+
+    '' APPENDED FOR SOCKETS (C:\dev\docs\tiko-stdlib\RFC-0001 D2): std/net's TcpStream
+    '' reports through fs.Stream.  Until tiko-rt's table knows them, FsErrorMessage says
+    '' "unknown error" for these two and FsError.Message( ) supplies the text itself.
+    FS_TIMED_OUT            '' a read or write timeout ran out
+    FS_CONNECTION_RESET     '' the peer reset the connection
 end enum
 
 FBFS_EXTERN
@@ -173,6 +179,10 @@ const function FsError.Operation( ) as ustring
 end function
 
 const function FsError.Message( ) as ustring
+    select case this.m_code
+    case FS_TIMED_OUT        : return "timed out"
+    case FS_CONNECTION_RESET : return "connection reset by peer"
+    end select
     return FsErrorMessage( this.m_code )
 end function
 

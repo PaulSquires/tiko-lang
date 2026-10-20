@@ -35,4 +35,7 @@ const FB_FS_WOULD_BLOCK      = 22
 const FB_FS_TOO_MANY_LINKS   = 23
 const FB_FS_BROKEN_PIPE      = 24
 const FB_FS_INVALID_ARGUMENT = 25
-const FB_FS_CODE_MAX         = FB_FS_INVALID_ARGUMENT
+'' std/net's sockets (C:\dev\docs\tiko-stdlib\RFC-0001 D2)
+const FB_FS_TIMED_OUT        = 26
+const FB_FS_CONNECTION_RESET = 27
+const FB_FS_CODE_MAX         = FB_FS_CONNECTION_RESET
