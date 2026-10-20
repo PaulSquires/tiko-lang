@@ -590,7 +590,9 @@ function LowerUdtArrayInit_ _
     ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
       byval init as Tko.NodeId, byval selfv as MirValue ptr = nullptr ) as boolean
 
-    dim as Tko.TypeId el = c.types->Inner( t )
+    '' UNQUALIFIED: initialising a 'const G' element is building a G, and the paren-list path
+    '' found no fields on the qualified type (fbc-examples r2ice01).
+    dim as Tko.TypeId el = c.types->Unqualify( c.types->Inner( t ) )
     '' THE ELEMENT'S SIZE, through SizeOfType rather than Layout( ).size: a UDT's
     '' layout record is not what carries its size here, and reading it gave 0 --
     '' which this rejected as 'no size', declining every UDT array initialiser.

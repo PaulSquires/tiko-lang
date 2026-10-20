@@ -1,0 +1,18 @@
+'' RUN: static and shared initialisers that stopped on TKO0994 (fbc-examples round 2): a const UDT
+'' in static storage and indexed through an array of one (r2ice01), '@"lit"' in a static pointer
+'' (r2ice02), '= any' on a static (r2ice04), rgb( ) in a shared initialiser (r2ice05) and procptr( )
+'' in a static UDT's tuple (r2ice08) -- and an unsigned 32-bit constant in a 64-bit static, which
+'' was sign-extended. Expected output measured with fbc-modern.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/static-init-r2.bas -o tests/codegen/staticinitr2.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0994
+'' EXPECT-FILE: tests/codegen/staticinitr2.exe
+'' RUN: tests/codegen/staticinitr2.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  1 2 5 6 8 9
+'' EXPECT-RUN-OUT: cd1 11
+'' EXPECT-RUN-OUT: hello
+'' EXPECT-RUN-OUT: fbs abc cd2 12
+'' EXPECT-RUN-OUT: FFFFFFFF FF010203 FF010203 FFFFFFFF FF010203 4010203 FF2C0203

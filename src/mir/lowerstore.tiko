@@ -644,10 +644,25 @@ function AddrWordOf_ _
     '' vtable, fbc examples win32/COM).
     dim as Tko.NodeId pce = NoConvOperand_( c, e )
     if pce <> Tko.NODE_NONE then e = Unparen_( c, pce )
-    if c.ast->Kind( e ) <> Tko.N_ADDROF then return false
-    dim as Tko.UnaryPayload ptr up = _
-        @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, e )].data )]
-    dim as Tko.NodeId opnd = Unparen_( c, up->operand )
+    dim as Tko.NodeId opnd = Tko.NODE_NONE
+    '' 'procptr( f )' IS '@f' here as it is in GlobalRelocInit_: fbsound's
+    '' 'static cdtor as cdtor_struct = ( procptr( _fbs_init ), ... )' declined (fbc-examples r2ice08).
+    if c.ast->Kind( e ) = Tko.N_CALL then
+        dim as Tko.ListPayload ptr pcp = _
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+        if (pcp->count <> 1) orelse (pcp->target = Tko.NODE_NONE) then return false
+        if c.ast->Kind( pcp->target ) <> Tko.N_IDENT then return false
+        dim as Tko.IdentPayload ptr pip = _
+            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, pcp->target )].data )]
+        if Tko.Text.LowerAscii( c.names->Spelling( pip->name ) ) <> "procptr" then return false
+        opnd = Unparen_( c, cast( Tko.NodeId, c.ast->children[pcp->first] ) )
+        if c.ast->Kind( opnd ) = Tko.N_STRING_LIT then return false
+    else
+        if c.ast->Kind( e ) <> Tko.N_ADDROF then return false
+        dim as Tko.UnaryPayload ptr up = _
+            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+        opnd = Unparen_( c, up->operand )
+    end if
     '' '@Dog.speak' -- A MEMBER PROCEDURE, static or not, named through its type: a procedure
     '' word like '@f' (manual proguide emulation_polymorphism's callback tables).
     if c.ast->Kind( opnd ) = Tko.N_MEMBER then
@@ -837,6 +852,14 @@ private function GlobalRelocInit_ _
         @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, init )].data )]
     dim as Tko.NodeId a = up->operand
     if a = Tko.NODE_NONE then return false
+    '' '@"lit"' IS THE LITERAL'S OWN GLOBAL, as AddrWordOf_ already reads it: fbc emits
+    '' 'static uint8* Z$1 = (uint8*)"fbs";'. It declined (fbc-examples r2ice02).
+    if c.ast->Kind( Unparen_( c, a ) ) = Tko.N_STRING_LIT then
+        c.m->globals[g].initReloc = c.m->AddStringLiteral( StringLitText_( c, Unparen_( c, a ) ), *c.names )
+        c.m->globals[g].initRelocOff = 0
+        c.m->globals[g].hasInit = true
+        return true
+    end if
 
     '' '@array( n )' -- the element's offset from the array's own address.
     dim as int64 off = 0
@@ -1015,6 +1038,13 @@ sub InitSharedGlobal _
         end if
     end if
     if (g < 0) orelse (init = Tko.NODE_NONE) then return
+    '' '= ANY' IS NO INITIALISER: 'static text as zstring * 11 = any' is fbc's 'static uint8
+    '' TEXT$1[11];', zeroed storage as any static has. It declined (fbc-examples r2ice04).
+    if c.ast->Kind( init ) = Tko.N_IDENT then
+        dim as Tko.IdentPayload ptr aip = _
+            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, init )].data )]
+        if Tko.Text.LowerAscii( c.names->Spelling( aip->name ) ) = "any" then return
+    end if
 
     '' A FLOATING initialiser first, because the integer folder cannot carry one:
     '' ConstVal holds a longint, so 'dim shared as double d = 1.5' had no value at all
@@ -1206,6 +1236,10 @@ sub InitSharedGlobal _
         SkipHere( c )
         return
     end if
+    '' AN UNSIGNED 32-BIT CONSTANT IS ZERO-EXTENDED. ConstVal keeps a 32-bit value sign-extended
+    '' with 'uns' beside it, so 'dim shared as integer k = &hFF010203ul' (and 'culng( ... )', 'rgb( ... )')
+    '' read back &hFFFFFFFFFF010203 where fbc has &hFF010203 (found beside fbc-examples r2ice05).
+    if cv.uns andalso (cv.bits = 32) then cv.value = cv.value and &hFFFFFFFFll
     c.m->globals[g].initInt = cv.value
     c.m->globals[g].hasInit = true
 end sub

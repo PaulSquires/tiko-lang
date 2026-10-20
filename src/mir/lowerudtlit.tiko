@@ -1242,6 +1242,9 @@ function FoldAggInit_ _
       byval relocs as containers.Array( of uint32 ) ptr = nullptr ) as boolean
 
     if size_ <= 0 then return false
+    '' A CONST UDT OR ARRAY IS THE SAME IMAGE: 'dim shared g as const G = ( 1, 2 )' declined at
+    '' FlattenUdtFields_, which knows no qualifier (fbc-examples r2ice01; Station922's vtables).
+    t = c.types->Unqualify( t )
     if init = Tko.NODE_NONE then return false
     select case c.ast->Kind( init )
     case Tko.N_TUPLE, Tko.N_PAREN, Tko.N_INITIALIZER
@@ -1260,7 +1263,7 @@ function FoldAggInit_ _
     '' table in fb/tuicore.bi, fb/tuiwidthtab.bi and fb/math.bi declined.
     if c.types->Kind( t ) = Tko.TK_ARRAY then
         if c.types->IsDynArray( t ) then return false
-        dim as Tko.TypeId et = c.types->Inner( t )
+        dim as Tko.TypeId et = c.types->Unqualify( c.types->Inner( t ) )
 
         '' AN ARRAY OF FIXED-LENGTH STRINGS IS A BYTE IMAGE TOO -- measured, fbc emits
         '' 'static char ZARRAY$1[3][3][10] = { { "abc", "def" }, ... }' and nothing else.
@@ -1430,6 +1433,8 @@ function FoldAggInit_ _
                 c.syms, fsc, 0, c.types, c.info )
             if cv.known = false then return false
             bits = cv.value
+            '' ...ZERO-EXTENDED when it is an unsigned 32-bit one -- see InitSharedGlobal.
+            if cv.uns andalso (cv.bits = 32) then bits = bits and &hFFFFFFFFll
         end if
 
         if (off < 0) orelse (off + wid > size_) then return false

@@ -1355,14 +1355,9 @@ private function ArrayStrides _
     if t = Tko.TYPE_NONE then return false
     if c.types->Kind( t ) <> Tko.TK_ARRAY then return false
 
-    dim as Tko.TypeId elem = c.types->Inner( t )
-    dim as int32 esz
-    dim as int32 ui = c.udts->Find( elem )
-    if ui >= 0 then
-        esz = c.udts->udts[ui].size
-    else
-        esz = c.types->Layout( elem ).size
-    end if
+    '' SizeOfType, which unqualifies: the UDT table is keyed on the bare type, so an array of
+    '' 'const G' had no element size and every 'a( i ).f' declined (fbc-examples r2ice01).
+    dim as int32 esz = SizeOfType( c, c.types->Inner( t ) )
     if esz <= 0 then return false
 
     '' Rank comes from the retained bounds rather than from 'dims', so a type whose

@@ -780,6 +780,22 @@ private function ConstCall_ _
         return cvv
     end if
 
+    '' RGB AND RGBA OVER CONSTANTS FOLD, as fbc folds them: each component cast to ubyte, the
+    '' result a ulong. Measured: 'rgb( 300, 2, 3 )' is &hFF2C0203, 'rgb( -1, 2, 3 )' &hFFFF0203,
+    '' 'rgba( 1, 2, 3, 4 )' &h4010203. Without it 'dim shared as ulong c = rgb( 255, 255, 255 )'
+    '' had no value and declined (fbc-examples r2ice05).
+    if ((nm = "rgb") andalso (cp->count = 3)) orelse ((nm = "rgba") andalso (cp->count = 4)) then
+        dim as uint32 rgbAcc = iif( cp->count = 3, &hFF000000ul, 0ul )
+        for k as int32 = 0 to cp->count - 1
+            dim as ConstVal kv = ConstOf( ast, cast( Tko.NodeId, ast.children[cp->first + k] ), _
+                                          src, names, intBits, syms, scope_, depth, types, info )
+            if kv.known = false then return CVNone_( )
+            dim as int32 sh = iif( k = 3, 24, 16 - k * 8 )
+            rgbAcc or= cast( uint32, kv.value and 255 ) shl sh
+        next
+        return CVWU_( cast( int64, rgbAcc ), 32, true )
+    end if
+
     if cp->count <> 1 then return CVNone_( )
     dim as Tko.NodeId a0 = cast( Tko.NodeId, ast.children[cp->first] )
 
