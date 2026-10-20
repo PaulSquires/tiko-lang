@@ -43,6 +43,7 @@
 - [Smart Pointers](Category-Smart-Pointers)
 - [Date and Time (Chrono)](Category-Date-and-Time-Chrono)
 - [Filesystem](Category-Filesystem)
+- [Config (INI and TOML)](Category-Config)
 - [Math Library](Category-Math-Library)
 - [Finance](Category-Finance)
 - [Logging](Category-Logging)
