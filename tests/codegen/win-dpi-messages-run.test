@@ -1,0 +1,14 @@
+'' RUN: PsApp finding F8 -- inc/win/winuser.bi lacked WM_DPICHANGED, so PsForm defined its own.
+'' The tree's header (not the packaged toolchain's) declares WM_DPICHANGED,
+'' WM_DPICHANGED_BEFOREPARENT, WM_DPICHANGED_AFTERPARENT and WM_GETDPISCALEDSIZE with
+'' winuser.h's values.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/win-dpi-messages.bas -o tests/codegen/windpimessages.exe
+'' ENV: TKO_INCLUDE=inc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: verify:
+'' EXPECT-FILE: tests/codegen/windpimessages.exe
+'' RUN: tests/codegen/windpimessages.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 2E0 2E2 2E3 2E4

@@ -128,8 +128,11 @@ private:
     m_bShown        as boolean
 end type
 
-' WM_DPICHANGED (winuser.h 0x02E0): inc/win/winuser.bi does not declare it.
-const PSF_WM_DPICHANGED = &h02E0
+' WM_DPICHANGED is declared by inc/win/winuser.bi; a toolchain packaged before that header
+' change lacks it, so the value is supplied here until the toolchain is repackaged.
+#ifndef WM_DPICHANGED
+const WM_DPICHANGED = &h02E0
+#endif
 
 ' The property every form sets on its own HWND; FromHwnd and the pump read it.
 const PSF_PROP = wstr( "PsApp.Form" )
@@ -418,7 +421,7 @@ function PSFORM_T.Dispatch( byval hwnd as HWND, byval uMsg as UINT, byval wParam
     select case uMsg
     case WM_ACTIVATEAPP
         if wParam = 0 then PsRegistry_Dismiss( hwnd )
-    case PSF_WM_DPICHANGED
+    case WM_DPICHANGED
         ' Per-monitor DPI: the form, its fonts and every control on it move to the new DPI, then
         ' the window takes the rect Windows suggests (its WM_SIZE runs OnSize), then OnDpiChanged.
         dim as long newDpi = LOWORD( wParam )
