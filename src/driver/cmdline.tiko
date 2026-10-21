@@ -321,26 +321,46 @@ private sub AppendDefaultLibDir( byref opts as Tko.DriverOptions )
     opts.defaultLibPaths.Push( "." )
 end sub
 
-private function MatchExact( byval arg as string ) as Tko.OptId
+'' THE OPTIONS BY SPELLING, and the joined ones in table order, built once: an argument was
+'' up to three scans of the whole table (exact, the '--opt=' half, joined). The first row of
+'' a spelling wins, as the scan's did; the joined list keeps the table's order, so the
+'' longest-prefix rule below picks what it picked.
+dim shared as containers.Map( of string, int32 ) optBySpelling
+dim shared as containers.Array( of int32 ) optJoined
+dim shared as boolean optIndexReady = false
+
+private sub InitOptIndex_( )
     Tko.InitOptTable( )
+    if optIndexReady then return
     for i as int32 = 1 to Tko.OPT_COUNT - 1
         dim as Tko.OptInfo ptr info = Tko.OptInfoOf( cast( Tko.OptId, i ) )
-        if *info->spelling = arg then return cast( Tko.OptId, i )
+        optBySpelling.Add( *info->spelling, i )
+        if info->kind = Tko.OPTK_JOINED then optJoined.Push( i )
     next
+    optIndexReady = true
+end sub
+
+function OptIdOfSpelling( byref spell as string ) as Tko.OptId
+    InitOptIndex_( )
+    dim as int32 at = 0
+    if optBySpelling.TryGet( spell, at ) then return cast( Tko.OptId, at )
     return Tko.OPT_NONE
+end function
+
+private function MatchExact( byval arg as string ) as Tko.OptId
+    return OptIdOfSpelling( arg )
 end function
 
 '' Longest joined prefix wins, so "-Wno-" beats a hypothetical "-W".
 private function MatchJoined _
     ( byval arg as string, byref value as string ) as Tko.OptId
 
-    Tko.InitOptTable( )
+    InitOptIndex_( )
     dim as Tko.OptId best = Tko.OPT_NONE
     dim as int32 bestLen = 0
 
-    for i as int32 = 1 to Tko.OPT_COUNT - 1
+    for each i as int32 in optJoined
         dim as Tko.OptInfo ptr info = Tko.OptInfoOf( cast( Tko.OptId, i ) )
-        if info->kind <> Tko.OPTK_JOINED then continue for
         dim as string spell = *info->spelling
         dim as int32 n = len( spell )
         dim as boolean fits = (len( arg ) > n) andalso (left( arg, n ) = spell)

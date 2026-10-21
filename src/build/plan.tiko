@@ -36,20 +36,21 @@ private sub RebasePaths_( byref dir_ as string, byref v as Tko.StrVec )
             spell = left( w, eq - 1 )
             val_ = mid( w, eq + 1 )
         end if
-        for k as int32 = 1 to Tko.OPT_COUNT - 1
-            dim as Tko.OptInfo ptr info = Tko.OptInfoOf( cast( Tko.OptId, k ) )
-            if *info->spelling <> spell then continue for
-            if info->kind <> Tko.OPTK_VALUE then exit for
-            dim as string an = *info->argName
-            dim as boolean isPath = (an = "dir") orelse (an = "file") orelse (an = "path")
-            if eq > 0 then
-                if isPath andalso (val_ <> "-") then v[i] = spell & "=" & Rel( dir_, val_ )
-            elseif i + 1 < v.Count then
-                i += 1
-                if isPath andalso (v[i] <> "-") then v[i] = Rel( dir_, v[i] )
+        '' The option of that spelling, by the table's index rather than a scan of it.
+        dim as Tko.OptId k = Tko.Cmdline.OptIdOfSpelling( spell )
+        if k <> Tko.OPT_NONE then
+            dim as Tko.OptInfo ptr info = Tko.OptInfoOf( k )
+            if info->kind = Tko.OPTK_VALUE then
+                dim as string an = *info->argName
+                dim as boolean isPath = (an = "dir") orelse (an = "file") orelse (an = "path")
+                if eq > 0 then
+                    if isPath andalso (val_ <> "-") then v[i] = spell & "=" & Rel( dir_, val_ )
+                elseif i + 1 < v.Count then
+                    i += 1
+                    if isPath andalso (v[i] <> "-") then v[i] = Rel( dir_, v[i] )
+                end if
             end if
-            exit for
-        next
+        end if
         i += 1
     wend
 end sub

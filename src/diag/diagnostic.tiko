@@ -38,12 +38,23 @@ function DiagIdName( byval id as DiagId ) as string
     return *DiagInfoOf( id )->idName
 end function
 
+'' THE IDS BY NAME, built at the first lookup: '-w' and '-Wno-' push one name per warning,
+'' and each was a scan of every row. Write-once like the table; the first row of a name wins,
+'' as the scan's did.
+dim shared as containers.Map( of string, int32 ) diagByName
+dim shared as boolean diagByNameReady = false
+
 function DiagIdFromName( byval spelling as string ) as DiagId
     InitDiagTable( )
+    if diagByNameReady = false then
+        for i as int32 = 1 to DIAG_COUNT - 1
+            diagByName.Add( *diagTable(i).idName, i )
+        next
+        diagByNameReady = true
+    end if
     dim as string want = ucase( trim( spelling ) )
-    for i as int32 = 1 to DIAG_COUNT - 1
-        if *diagTable(i).idName = want then return cast( DiagId, i )
-    next
+    dim as int32 at = 0
+    if diagByName.TryGet( want, at ) then return cast( DiagId, at )
     return DIAG_NONE
 end function
 
