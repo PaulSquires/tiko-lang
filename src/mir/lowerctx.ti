@@ -225,6 +225,8 @@ type Ctx
     as int32                 dataHead
     as containers.Array( of uint32 ) dataLabelName
     as containers.Array( of uint32 ) dataLabelBlock
+    '' ...and name + 1 -> the FIRST entry of that name, for RESTORE (a scan per restore).
+    as IdMap                dataLabelAt
 
     '' The procedure being lowered, as a SYMBOL. MirFunction carries only the mangled
     '' name, and __FUNCTION__ needs the source one -- 'NS.INNER', not '_ZN2NS5INNEREv'.
@@ -294,6 +296,9 @@ type Ctx
     '' is lowered, because a forward 'goto' has to know how many scopes it leaves before
     '' the label itself has been reached.
     as containers.Array( of uint32 ) labelName
+    '' ...and name + 1 -> slot. A scan of labelName per label and per goto was labels x
+    '' jumps in one procedure, which main-module legacy code is. Reset by ClearLabels.
+    as IdMap                labelAt
     as containers.Array( of int32 )  labelBlock     '' -1 until the block is created
     as containers.Array( of int32 )  labelDepth     '' -1 when the pre-scan never saw it
     '' ...and WHERE each label is: its scope keys, inner to the body's own scope, as a

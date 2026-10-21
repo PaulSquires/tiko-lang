@@ -375,6 +375,7 @@ namespace Tko.Mir
         as int32                 used
         declare function Find( byval k as uint32 ) as int32     '' -1 when absent
         declare sub Put( byval k as uint32, byval v as int32 )
+        declare sub Clear( )        '' empty again, for a table that is per procedure
     end type
 
     type MirFunction

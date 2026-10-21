@@ -57,6 +57,12 @@ sub IdMap.Put( byval k as uint32, byval v as int32 )
     loop
 end sub
 
+sub IdMap.Clear( )
+    this.keys.Clear( )
+    this.vals.Clear( )
+    this.used = 0
+end sub
+
 sub MirFunction.AddParam _
     ( byval ty as MirType, byval aggSize as uint32, byval aggClass as uint32, _
       byval attr as uint8, byval ext as uint8 )
