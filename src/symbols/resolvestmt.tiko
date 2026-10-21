@@ -69,10 +69,8 @@ private sub GenericMemberList_ ( byref c as Ctx, byval id as Tko.NodeId, byval h
     if same then return
     '' Once per SOURCE LOCATION: an instantiation re-parses the member into new nodes.
     dim as uint32 at = cast( uint32, c.ast->Loc( id ) )
-    for i as int32 = 0 to c.genArgSeen.Count - 1
-        if c.genArgSeen[i] = at then return
-    next
-    c.genArgSeen.Push( at )
+    if c.genArgSeen.Contains( at ) then return
+    c.genArgSeen.Put( at, 1 )
     dim as string want
     for i as int32 = 0 to gl->count - 1
         if i > 0 then want &= ", "

@@ -1380,7 +1380,7 @@ private sub CheckIncompleteObjects_ ( byref c as Ctx )
             if pta <> NODE_NONE then MarkTypeRefTree4_( c, pta, mark )
         next
     next
-    dim as containers.Array( of uint32 ) doneLoc
+    dim as containers.Map( of uint32, int32 ) doneLoc      '' a set: a scan per report was reports^2
     for i as int32 = 1 to total
         dim as NodeId n = cast( NodeId, i )
         if c.ast->Kind( n ) <> N_TYPEREF then continue for
@@ -1394,12 +1394,8 @@ private sub CheckIncompleteObjects_ ( byref c as Ctx )
         if c.types->Kind( t ) <> TK_FORWARD then laterNm = CompletedBelow4_( c, n )
         if (c.types->Kind( t ) <> TK_FORWARD) andalso (len( laterNm ) = 0) then continue for
         dim as SourceLoc lc = c.ast->Loc( n )
-        dim as boolean seen = false
-        for k as int32 = 0 to doneLoc.Count - 1
-            if doneLoc[k] = cast( uint32, lc ) then seen = true
-        next
-        if seen then continue for
-        doneLoc.Push( cast( uint32, lc ) )
+        if doneLoc.Contains( cast( uint32, lc ) ) then continue for
+        doneLoc.Put( cast( uint32, lc ), 1 )
         if len( laterNm ) > 0 then
             c.diags->Report( TKO0811, PointRange( lc ), laterNm )
         else

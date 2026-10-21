@@ -54,7 +54,7 @@ sub DiscoverInstantiations_ _
     for i as int32 = 0 to deep.Count - 1
         diags.pending.Push( deep[i] )
         diags.errors += 1
-        c.genArgSeen.Push( cast( uint32, deep[i].range.first ) )
+        c.genArgSeen.Put( cast( uint32, deep[i].range.first ), 1 )
     next
     InstantiatePending_( c )
     InstantiatePendingProcs_( c )

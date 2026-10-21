@@ -60,10 +60,8 @@ private function InstDepthOk_ _
     end if
     '' Once per place: the walk can resolve one type reference more than once.
     dim as uint32 at = cast( uint32, c.ast->Loc( at_ ) )
-    for i as int32 = 0 to c.genArgSeen.Count - 1
-        if c.genArgSeen[i] = at then return false
-    next
-    c.genArgSeen.Push( at )
+    if c.genArgSeen.Contains( at ) then return false
+    c.genArgSeen.Put( at, 1 )
     c.diags->Report( Tko.TKO0829, Tko.PointRange( c.ast->Loc( at_ ) ), _
                      c.names->Spelling( gname ), str( lim ) )
     return false
@@ -643,12 +641,8 @@ function InstantiateGenericProc_ _
         end if
         if written andalso (ord <> Tko.SYMBOL_NONE) then
             dim as uint32 at = cast( uint32, c.ast->Loc( callId ) )
-            dim as boolean seen = false
-            for i as int32 = 0 to c.genArgSeen.Count - 1
-                if c.genArgSeen[i] = at then seen = true
-            next
-            if seen = false then
-                c.genArgSeen.Push( at )
+            if c.genArgSeen.Contains( at ) = false then
+                c.genArgSeen.Put( at, 1 )
                 c.diags->Report( Tko.TKO0816, Tko.PointRange( c.ast->Loc( callId ) ), _
                                  c.names->Spelling( gname ), "0", str( taCount ) )
             end if
@@ -676,12 +670,8 @@ function InstantiateGenericProc_ _
     '' 'Mk( of T )' dropped its statement in silence. See GenericArgsCheck_ for the type half.
     if written andalso (pl->count <> taCount) then
         dim as uint32 at = cast( uint32, c.ast->Loc( callId ) )
-        dim as boolean seen = false
-        for i as int32 = 0 to c.genArgSeen.Count - 1
-            if c.genArgSeen[i] = at then seen = true
-        next
-        if seen = false then
-            c.genArgSeen.Push( at )
+        if c.genArgSeen.Contains( at ) = false then
+            c.genArgSeen.Put( at, 1 )
             c.diags->Report( Tko.TKO0816, Tko.PointRange( c.ast->Loc( callId ) ), _
                              c.names->Spelling( gname ), str( pl->count ), str( taCount ) )
         end if

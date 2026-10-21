@@ -282,10 +282,8 @@ private sub GenericArgsCheck_ _
     if want = given then return
     '' BY SOURCE LOCATION: an instantiation re-parses the template's body into new nodes.
     dim as uint32 at = cast( uint32, c.ast->Loc( id ) )
-    for i as int32 = 0 to c.genArgSeen.Count - 1
-        if c.genArgSeen[i] = at then return
-    next
-    c.genArgSeen.Push( at )
+    if c.genArgSeen.Contains( at ) then return
+    c.genArgSeen.Put( at, 1 )
     dim as string nm = c.names->Spelling( gs->name )
     if given = 0 then
         c.diags->Report( Tko.TKO0815, Tko.PointRange( c.ast->Loc( id ) ), nm )

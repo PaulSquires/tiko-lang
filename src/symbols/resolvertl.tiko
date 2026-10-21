@@ -96,10 +96,8 @@ end function
 '' ready, and an instantiation re-parses a generic's body into new nodes.
 private sub RtlReport_ ( byref c as Ctx, byval n as Tko.NodeId, byval nm as Tko.InternId )
     dim as uint32 at = cast( uint32, c.ast->Loc( n ) )
-    for i as int32 = 0 to c.rtlSeen.Count - 1
-        if c.rtlSeen[i] = at then return
-    next
-    c.rtlSeen.Push( at )
+    if c.rtlSeen.Contains( at ) then return
+    c.rtlSeen.Put( at, 1 )
     c.diags->Report( Tko.TKO0813, Tko.PointRange( c.ast->Loc( n ) ), c.names->Spelling( nm ) )
 end sub
 

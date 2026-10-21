@@ -253,8 +253,9 @@ sub ReportUndeclared _
     next
 
     '' Every line reported, as file and line pairs -- an instantiation's body is walked
-    '' apart from the rest and would otherwise name its line again.
-    dim as containers.Array( of uint32 ) done
+    '' apart from the rest and would otherwise name its line again. A SET keyed (file, line):
+    '' a scan per report was reports^2 in a file full of undeclared names.
+    dim as containers.Map( of int64, int32 ) done
     for i as int32 = 0 to rst.unresolvedIds.Count - 1
         dim as Tko.NodeId id = cast( Tko.NodeId, rst.unresolvedIds[i] )
         if (id < 1) orelse (cast( int32, id ) > total) then continue for
@@ -296,13 +297,10 @@ sub ReportUndeclared _
             if (ppAssert[k] = cast( uint32, dl.file )) andalso _
                (ppAssert[k + 1] = cast( uint32, dl.physLine )) then seen = true
         next
-        for k as int32 = 0 to done.Count - 2 step 2
-            if (done[k] = cast( uint32, dl.file )) andalso _
-               (done[k + 1] = cast( uint32, dl.physLine )) then seen = true
-        next
+        dim as int64 dk = (cast( int64, cast( uint32, dl.file ) ) shl 32) or cast( int64, cast( uint32, dl.physLine ) )
+        if done.Contains( dk ) then seen = true
         if seen then continue for
-        done.Push( cast( uint32, dl.file ) )
-        done.Push( cast( uint32, dl.physLine ) )
+        done.Put( dk, 1 )
         '' 'va_first', 'va_arg' AND 'va_next' are fbc's 286 on every 64-bit target, not undeclared
         '' names -- and 'va_first( )' went on to an internal compiler error (TKO0994; the NeHe
         '' OpenGL lessons). TKO0981 says so, and what to use instead.
@@ -381,13 +379,10 @@ sub ReportUndeclared _
                    andalso (genHdr[k + 2] = fnm) then seen = true
             next
         end if
-        for k as int32 = 0 to done.Count - 2 step 2
-            if (done[k] = cast( uint32, dl.file )) andalso _
-               (done[k + 1] = cast( uint32, dl.physLine )) then seen = true
-        next
+        dim as int64 dk = (cast( int64, cast( uint32, dl.file ) ) shl 32) or cast( int64, cast( uint32, dl.physLine ) )
+        if done.Contains( dk ) then seen = true
         if seen then continue for
-        done.Push( cast( uint32, dl.file ) )
-        done.Push( cast( uint32, dl.physLine ) )
+        done.Put( dk, 1 )
         diags.Report( Tko.TKO0808, Tko.PointRange( ast.Loc( id ) ), tn )
         dim as int32 dot = instr( tn, "." )
         if dot > 1 then
