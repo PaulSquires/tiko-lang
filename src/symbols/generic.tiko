@@ -762,11 +762,10 @@ function InstantiateProcAt_ _
     '' one name in one scope chain as overloads, so the two arrows coexist.
     dim as Tko.InternId ikey = _
         c.names->Fold( c.names->GetString( key & "#" & str( cast( int32, gsid ) ) ) )
-    for i as int32 = 0 to cast( int32, c.procInstKey.Count ) - 1
-        if cast( Tko.InternId, c.procInstKey[i] ) = ikey then
-            return cast( Tko.SymbolId, c.procInstSym[i] )
-        end if
-    next
+    scope
+        dim as int32 pi_ = -1
+        if c.procInstAt.TryGet( cast( uint32, ikey ), pi_ ) then return cast( Tko.SymbolId, c.procInstSym[pi_] )
+    end scope
 
     '' The symbol is DECLARED NOW and its body filled in by the deferred pass, so a
     '' recursive generic -- one whose body calls itself at the same arguments -- finds
@@ -788,6 +787,7 @@ function InstantiateProcAt_ _
         if pspell = 0 then pspell = gname
         Tko.Mangle.RegisterInst( *c.types, inm, pspell, argTypes )
     end scope
+    if c.procInstAt.Contains( cast( uint32, ikey ) ) = false then c.procInstAt.Put( cast( uint32, ikey ), c.procInstKey.Count )
     c.procInstKey.Push( cast( uint32, ikey ) )
     c.procInstSym.Push( cast( uint32, isid ) )
 
