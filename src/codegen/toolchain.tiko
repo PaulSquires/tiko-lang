@@ -143,12 +143,11 @@ private function Q( byref s as string ) as string
     return Tko.Spawn.QuoteArg( s )
 end function
 
-'' True the first time 'key' is offered, false after. 'seen' starts as chr( 0 ) and
-'' holds every key so far, each closed by a NUL, so one instr answers it.
-private function FirstTime_( byref seen as string, byref key as string ) as boolean
-    if instr( seen, chr( 0 ) & key & chr( 0 ) ) > 0 then return false
-    seen &= key & chr( 0 )
-    return true
+'' True the first time 'key' is offered, false after. A SET: it was one string of
+'' NUL-closed keys searched with instr per library, and libraries repeat hundreds of
+'' times each (2026-10-21).
+private function FirstTime_( byref seen as containers.Set( of string ), byref key as string ) as boolean
+    return seen.Add( key )
 end function
 
 '' EVERY TOOL RUNS THROUGH HERE, so '-v' can show the command -- the whole link line
@@ -616,7 +615,10 @@ function LinkExe _
     '' a repeat can be the one that resolves a later reference: without lld the line is
     '' left as asked. Keyed on the argument as written, case-folded on COFF, where
     '' 'Crypt32' and 'crypt32' are one file.
-    dim as string seenLib = chr( 0 )
+    dim as containers.Set( of string ) seenLib
+    '' ...and what each library NAME resolved to, so a repeat skips the directory probes:
+    '' the answer depends on the name and t.libPaths alone, neither of which moves here.
+    dim as containers.Map( of string, string ) namedOf
     for i as int32 = 0 to t.libFiles.Count - 1
         if dedupe then
             dim as string key = t.libFiles[i]
@@ -645,6 +647,7 @@ function LinkExe _
             if lcase( t.libs[i] ) = "msvcrt" then continue for
         end if
         dim as string named = ""
+        dim as boolean cached = namedOf.TryGet( t.libs[i], named )
         '' TWO SPELLINGS, AND THE IMPORT LIBRARY WINS -- which is GNU ld's order and
         '' was measured, not assumed: with libfblib.dll.a and libfblib.a both in one
         '' directory, 'fbc -l fblib' produced a program that RAN, so it took the
@@ -654,7 +657,7 @@ function LinkExe _
         '' lib<name>.dll.a IS WHAT fbc's OWN -dll PRODUCES, so a tiko program calling
         '' an fbc-built DLL finds it by the name the source uses. Without this the
         '' link asked lld-link for '<name>.lib' and stopped there.
-        if target.id = TARGET_WINDOWS_X86_64 then
+        if (cached = false) andalso (target.id = TARGET_WINDOWS_X86_64) then
             for k as int32 = 0 to t.libPaths.Count - 1
                 dim as string dllImp = t.libPaths[k] & "/lib" & t.libs[i] & ".dll.a"
                 dim as string statLib = t.libPaths[k] & "/lib" & t.libs[i] & ".a"
@@ -669,7 +672,7 @@ function LinkExe _
         end if
         '' Nothing found means it is not ours to resolve: a system library lives in
         '' none of these directories, and '-l' is what reaches it.
-        if len( named ) = 0 then
+        if (cached = false) andalso (len( named ) = 0) then
             '' 'lib "dwmapi.dll"' IS A DLL NAME, and on this target the import library
             '' drops the suffix. fbc passes '-ldwmapi.dll' too, and MinGW ld finds
             '' libdwmapi.dll.a from it; lld-link asked for 'dwmapi.dll.lib', which no
@@ -691,6 +694,7 @@ function LinkExe _
             '' link line and wrote the program somewhere else (audit F-49).
             named = "-l" & ln
         end if
+        if cached = false then namedOf.Put( t.libs[i], named )
         '' Once, judged on what reaches the linker: 'dwmapi.dll' and 'dwmapi' are one
         '' '-ldwmapi' here, and a found libgreet.a is the same file however it was asked.
         if dedupe then
