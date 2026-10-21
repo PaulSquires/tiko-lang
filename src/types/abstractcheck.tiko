@@ -229,26 +229,20 @@ sub CheckOverridePromise _
     ( byref ast as AstArena, byref store as VTables, byref names as Interner, _
       byref diags as DiagnosticEngine )
 
+    '' Both lists as one set: a scan of each per 'override' was overrides squared.
+    dim as containers.Set( of uint32 ) kept
+    for i as int32 = 0 to store.overrode.Count - 1
+        kept.Add( store.overrode[i] )
+    next
+    for i as int32 = 0 to store.patternOnly.Count - 1
+        kept.Add( store.patternOnly[i] )
+    next
     for n as int32 = 0 to ast.Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         if ast.Kind( id ) <> N_PROC then continue for
         dim as StmtPayload ptr sp = @ast.stmts[cast( int32, ast.nodes[n].data )]
         if (sp->extra and PF_OVERRIDE) = 0 then continue for
-        dim as boolean found = false
-        for i as int32 = 0 to store.overrode.Count - 1
-            if store.overrode[i] = cast( uint32, id ) then
-                found = true
-                exit for
-            end if
-        next
-        if found then continue for
-        for i as int32 = 0 to store.patternOnly.Count - 1
-            if store.patternOnly[i] = cast( uint32, id ) then
-                found = true
-                exit for
-            end if
-        next
-        if found then continue for
+        if kept.Contains( cast( uint32, id ) ) then continue for
         diags.Report( TKO0621, PointRange( ast.Loc( id ) ), names.Spelling( sp->name ) )
     next
 end sub

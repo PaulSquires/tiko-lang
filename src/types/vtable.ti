@@ -69,7 +69,11 @@ namespace Tko
         as int32     count
     end type
 
+    type VtIndexMap as containers.Map( of uint32, int32 )
+    type VtSlotMap as containers.Map( of int64, int32 )
+
     type VTables
+        '' Push only through Add, which keeps at_.
         as containers.Array( of VtInfo ) types_
         as containers.Array( of VtSlot ) slots
         '' The interned 'base' -- the field an EXTENDS becomes. See udtlayout.ti.
@@ -86,8 +90,20 @@ namespace Tko
         '' than reported from the builder, which has no diagnostics engine -- and would
         '' have to be given one on a path the dumps also take.
         as containers.Array( of VtMismatch ) mismatches
+        '' WHERE EACH TYPE'S TABLE IS in types_, for Find -- the first, as the scan it
+        '' replaced found. Find is asked per UDT per fixpoint round, per object built and
+        '' per virtual call, so the scan was types x uses (as UdtLayouts.Find was).
+        as VtIndexMap at_
+        '' A BIG TABLE'S SLOTS by (table shl 32) or procedure, and by declaration node:
+        '' the FIRST slot of each, as SlotOf's scans found. Built on a table's first
+        '' SlotOf (slotsAt_[vi] <> 0); a table's slots never change once Add has it.
+        as VtSlotMap slotByProc_
+        as VtSlotMap slotByDecl_
+        as containers.Array( of int32 ) slotsAt_
 
         declare function Find( byval t as TypeId ) as int32
+        declare sub Add( byref v as VtInfo )
+        declare sub IndexSlots_( byval vi as int32 )
         '' Which slot dispatches to this procedure, or -1 if it is not virtual in this
         '' type. This is what a call site needs and the only reason the table exists.
         '' 'decl' is the callee's own declaration node, which is how an ABSTRACT slot

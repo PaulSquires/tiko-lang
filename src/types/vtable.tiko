@@ -7,11 +7,40 @@
 namespace Tko
 
 function VTables.Find( byval t as TypeId ) as int32
-    for i as int32 = 0 to this.types_.Count - 1
-        if this.types_[i].type_ = t then return i
-    next
+    dim as int32 i = -1
+    if this.at_.TryGet( cast( uint32, t ), i ) then return i
     return -1
 end function
+
+'' The first table of a type is the one Find returns, as the scan it replaced did.
+sub VTables.Add( byref v as VtInfo )
+    if this.at_.Contains( cast( uint32, v.type_ ) ) = false then
+        this.at_.Put( cast( uint32, v.type_ ), this.types_.Count )
+    end if
+    this.types_.Push( v )
+end sub
+
+'' A table this small is scanned: the maps cost more than they save.
+const VT_SLOT_SCAN_MAX as int32 = 8
+
+private function SlotKey_( byval vi as int32, byval k as uint32 ) as int64
+    return (cast( int64, vi ) shl 32) or cast( int64, k )
+end function
+
+sub VTables.IndexSlots_( byval vi as int32 )
+    while this.slotsAt_.Count <= vi
+        this.slotsAt_.Push( 0 )
+    wend
+    if this.slotsAt_[vi] <> 0 then return
+    dim as VtInfo ptr v = @this.types_[vi]
+    for i as int32 = 0 to v->count - 1
+        dim as int64 kp = SlotKey_( vi, cast( uint32, this.slots[v->first + i].proc_ ) )
+        if this.slotByProc_.Contains( kp ) = false then this.slotByProc_.Put( kp, i )
+        dim as int64 kd = SlotKey_( vi, cast( uint32, this.slots[v->first + i].decl ) )
+        if this.slotByDecl_.Contains( kd ) = false then this.slotByDecl_.Put( kd, i )
+    next
+    this.slotsAt_[vi] = 1
+end sub
 
 function VTables.SlotOf _
     ( byval t as TypeId, byval p as SymbolId, byval decl as NodeId ) as int32
@@ -19,6 +48,14 @@ function VTables.SlotOf _
     dim as int32 vi = this.Find( t )
     if vi < 0 then return -1
     dim as VtInfo ptr v = @this.types_[vi]
+    if v->count > VT_SLOT_SCAN_MAX then
+        this.IndexSlots_( vi )
+        dim as int32 at = -1
+        if this.slotByProc_.TryGet( SlotKey_( vi, cast( uint32, p ) ), at ) then return at
+        if decl = NODE_NONE then return -1
+        if this.slotByDecl_.TryGet( SlotKey_( vi, cast( uint32, decl ) ), at ) then return at
+        return -1
+    end if
     for i as int32 = 0 to v->count - 1
         if this.slots[v->first + i].proc_ = p then return i
     next
@@ -724,7 +761,7 @@ private function BuildOne_ _
 
     CheckImplicitDtorConv_( ast, syms, types, store, ts, bt )
 
-    store.types_.Push( v )
+    store.Add( v )
     return true
 end function
 
@@ -760,23 +797,27 @@ end function
 private sub NotePatternOnly_ _
     ( byref ast as AstArena, byref syms as SymbolTable, byref store as VTables )
 
+    '' EVERY TEMPLATE SCOPE SOME UDT INSTANTIATES, gathered once at the first template
+    '' met: a scan of every symbol per template was templates x symbols.
+    dim as containers.Set( of uint32 ) usedScopes
+    dim as boolean gathered = false
     for i as int32 = 1 to syms.Count( )
         dim as Symbol ptr s = syms.SymbolAt( cast( SymbolId, i ) )
         if s = nullptr then continue for
         if s->kind <> cast( uint8, SYM_UDT ) then continue for
         if IsGenericTemplateUdt_( ast, s ) = false then continue for
         if s->inner = SCOPE_NONE then continue for
-        dim as boolean used = false
-        for j as int32 = 1 to syms.Count( )
-            dim as Symbol ptr u = syms.SymbolAt( cast( SymbolId, j ) )
-            if u = nullptr then continue for
-            if u->kind <> cast( uint8, SYM_UDT ) then continue for
-            if TemplateScopeOf_( ast, syms, u ) = s->inner then
-                used = true
-                exit for
-            end if
-        next
-        if used then continue for
+        if gathered = false then
+            gathered = true
+            for j as int32 = 1 to syms.Count( )
+                dim as Symbol ptr u = syms.SymbolAt( cast( SymbolId, j ) )
+                if u = nullptr then continue for
+                if u->kind <> cast( uint8, SYM_UDT ) then continue for
+                dim as ScopeId us = TemplateScopeOf_( ast, syms, u )
+                if us <> SCOPE_NONE then usedScopes.Add( cast( uint32, us ) )
+            next
+        end if
+        if usedScopes.Contains( cast( uint32, s->inner ) ) then continue for
         dim as SymScope ptr sc = syms.ScopeAt( s->inner )
         if sc = nullptr then continue for
         dim as SymbolId cur = sc->firstSym
