@@ -107,6 +107,8 @@ constructor SymbolTable( )
     this.aliasPos = 0
     this.undefs = 0
     this.shadows = 0
+    this.aliasIdxDone = 0
+    this.importIdxDone = 0
     this.Rehash( SYMTAB_INITIAL_SLOTS )
 end constructor
 
@@ -206,19 +208,25 @@ function SymbolTable.LookupLocal _
     return this.LiveGen( head )
 end function
 
+private function SymFileKey_( byval sid as uint32, byval f as uint32 ) as int64
+    return (cast( int64, sid ) shl 32) or cast( int64, f )
+end function
+
 function SymbolTable.AliasHidden( byval sid as SymbolId ) as boolean
     dim as uint32 at = this.usePos
     if at = USEPOS_LATEST then at = this.aliasPos
     if (at = 0) orelse (at >= cast( uint32, this.nodeModFile.Count )) then return false
     dim as uint32 f = this.nodeModFile[at]
     if f = 0 then return false
-    dim as boolean isAlias = false
-    for k as int32 = 0 to this.aliasPairSym.Count - 1
-        if this.aliasPairSym[k] <> cast( uint32, sid ) then continue for
-        isAlias = true
-        if this.aliasPairFile[k] = f then return false
-    next
-    return isAlias
+    '' An alias any pair names, and no pair of it for this file -- see aliasIsSym.
+    while this.aliasIdxDone < this.aliasPairSym.Count
+        dim as int32 k = this.aliasIdxDone
+        this.aliasIsSym.Put( this.aliasPairSym[k], k )
+        this.aliasSymFile.Put( SymFileKey_( this.aliasPairSym[k], this.aliasPairFile[k] ), k )
+        this.aliasIdxDone += 1
+    wend
+    if this.aliasIsSym.Contains( cast( uint32, sid ) ) = false then return false
+    return this.aliasSymFile.Contains( SymFileKey_( cast( uint32, sid ), f ) ) = false
 end function
 
 '' THE GENERATION OF A NAME VISIBLE FROM 'usePos' -- see UndefSym. Newest first: a
@@ -257,10 +265,19 @@ end function
 '' through 'using http' -- it is not found, and the unit's undeclared-name report says why
 '' (TKO0860, from hiddenHits).
 function SymbolTable.IsImportNs( byval sid as SymbolId ) as boolean
-    for each x as uint32 in this.importNs
-        if x = cast( uint32, sid ) then return true
-    next
-    return false
+    return this.ImportIndexOf( sid ) >= 0
+end function
+
+'' importFirst catching up with importNs first -- see the header.
+function SymbolTable.ImportIndexOf( byval sid as SymbolId ) as int32
+    while this.importIdxDone < this.importNs.Count
+        dim as int32 k = this.importIdxDone
+        if this.importFirst.Contains( this.importNs[k] ) = false then this.importFirst.Put( this.importNs[k], k )
+        this.importIdxDone += 1
+    wend
+    dim as int32 k = -1
+    if this.importFirst.TryGet( cast( uint32, sid ), k ) then return k
+    return -1
 end function
 
 function SymbolTable.PublicOnly( byval got as SymbolId ) as SymbolId
@@ -287,11 +304,8 @@ function SymbolTable.HiddenModuleOf( byval nm as InternId ) as string
         while cur <> SCOPE_NONE
             dim as SymScope ptr sc = this.ScopeAt( cur )
             if sc = nullptr then exit while
-            for k as int32 = 0 to this.importNs.Count - 1
-                if this.importNs[k] = cast( uint32, sc->owner ) then
-                    return lcase( this.importChains[k] )
-                end if
-            next
+            dim as int32 k = this.ImportIndexOf( sc->owner )
+            if k >= 0 then return lcase( this.importChains[k] )
             cur = sc->parent
         wend
     next

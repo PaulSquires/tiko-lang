@@ -142,9 +142,15 @@ private sub QualifierChain _
             '' itself named it.
             dim as int32 imp_ = -1
             if (owner <> nullptr) andalso (syms.importNs.Count > 0) then
-                for k as int32 = 0 to syms.importNs.Count - 1
-                    if syms.importNs[k] = cast( uint32, s->owner ) then imp_ = k
-                next
+                '' The LAST match, as the forward scan with no exit gave; IsImportNs's set first.
+                if syms.IsImportNs( s->owner ) then
+                    for k as int32 = syms.importNs.Count - 1 to 0 step -1
+                        if syms.importNs[k] = cast( uint32, s->owner ) then
+                            imp_ = k
+                            exit for
+                        end if
+                    next
+                end if
             end if
             if imp_ >= 0 then
                 dim as string ch = syms.importChains[imp_]

@@ -324,6 +324,17 @@ namespace Tko
         as containers.Array( of uint32 ) aliasPairSym
         as containers.Array( of uint32 ) aliasPairFile
         as containers.Array( of uint32 ) nodeModFile
+        '' ...AND aliasPairSym AND importNs AS SETS: AliasHidden runs on every LookupLocal hit in
+        '' a module unit and IsImportNs per qualified access, and each scanned its whole list per
+        '' call. The lists are pushed by driver/modiface.tiko and ONLY EVER GROW, so the sets
+        '' catch up lazily to their Count (aliasIdxDone, importIdxDone) rather than in step.
+        '' aliasIsSym: sid present; aliasSymFile: (sid, file) present; importFirst: sid -> the
+        '' FIRST k with importNs[k] = sid.
+        as containers.Map( of uint32, int32 ) aliasIsSym
+        as containers.Map( of int64, int32 ) aliasSymFile
+        as int32       aliasIdxDone
+        as containers.Map( of uint32, int32 ) importFirst
+        as int32       importIdxDone
         '' ...and the node a TYPE NAME is resolved for, which AliasHidden reads when usePos
         '' says USEPOS_LATEST, as Collect's does: 0 for none.
         as uint32      aliasPos
@@ -461,6 +472,8 @@ namespace Tko
         '' ...and whether 'sid' is a module's own interface namespace, which an exported
         '' macro's body names the module's helpers through (RFC-0004 §6).
         declare function IsImportNs( byval sid as SymbolId ) as boolean
+        '' ...the first k with importNs[k] = sid, or -1.
+        declare function ImportIndexOf( byval sid as SymbolId ) as int32
         '' The chain of the module whose hidden name nm is, if PublicOnly refused one; "".
         declare function HiddenModuleOf( byval nm as InternId ) as string
         declare function LookupThroughUsings _
