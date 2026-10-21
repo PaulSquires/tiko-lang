@@ -42,6 +42,11 @@
 
 public const MAP_MIN_CAPACITY as long = 8
 
+'' The largest power of two a long holds.  A table this size still grows no
+'' further: past ~8 x 10^8 live entries Put fills it, and when no slot is left
+'' Put returns FALSE without storing (there is no error channel).
+public const MAP_MAX_CAPACITY as long = &h40000000
+
 '' slot states
 const MAP_EMPTY as ubyte = 0
 const MAP_USED  as ubyte = 1
@@ -174,13 +179,22 @@ end function
 '' a put/remove loop over distinct keys keeps that at 1, and returning early
 '' here left 8 tombstones in 8 slots, no EMPTY slot to end a probe, and every
 '' later Put dropped its key.  The rehash stays at this size while the live
-'' entries fill no more than half of it, and doubles past that -- otherwise a
-'' map holding steady just under the load factor would rehash on every Put.
+'' entries fill no more than a third of it, and doubles past that, so at least
+'' 0.4 of the table is free again afterwards: rehashing every few Puts is what
+'' a map holding steady near the load factor would otherwise do.
+''
+'' NOTHING IS COPIED.  Every live key and value is SWAPPED out to a temporary
+'' and swapped into its new slot -- the old rehash copied each one twice, into
+'' the temporary and back through Put, which for string keys is two allocations
+'' per entry per rehash.
+''
+'' Sizes are worked out in 64 bits and stop at MAP_MAX_CAPACITY: 'want * 3' in a
+'' long overflowed past ~4 x 10^8 entries and the doubling never ended.
 sub Map( of TK, TV ).Reserve( byval n as long )
     dim as long cap = this.Capacity( )
-    dim as long want = MAP_MIN_CAPACITY
+    dim as longint want = MAP_MIN_CAPACITY
 
-    while( (want * 3) \ 4 < n )
+    while( ( (want * 3) \ 4 < n ) andalso ( want < MAP_MAX_CAPACITY ) )
         want *= 2
     wend
 
@@ -188,10 +202,13 @@ sub Map( of TK, TV ).Reserve( byval n as long )
         if( this.used = this.num ) then
             exit sub
         end if
-        want = iif( this.num * 2 <= cap, cap, cap * 2 )
+        want = cap
+        if( ( clngint( this.num ) * 3 > cap ) andalso ( cap < MAP_MAX_CAPACITY ) ) then
+            want = clngint( cap ) * 2
+        end if
     end if
 
-    '' keep the old contents while the new tables are built
+    '' move the live entries out, then size the new tables
     dim as long oldcap = cap
     dim oldkeys( any ) as TK
     dim oldvals( any ) as TV
@@ -204,8 +221,8 @@ sub Map( of TK, TV ).Reserve( byval n as long )
         for i as long = 0 to oldcap-1
             oldstate( i ) = this.state( i )
             if( this.state( i ) = MAP_USED ) then
-                oldkeys( i ) = this.keys_( i )
-                oldvals( i ) = this.vals_( i )
+                swap oldkeys( i ), this.keys_( i )
+                swap oldvals( i ), this.vals_( i )
             end if
         next
     end if
@@ -218,9 +235,20 @@ sub Map( of TK, TV ).Reserve( byval n as long )
     this.num = 0
     this.used = 0
 
+    '' the new table has no tombstones and no duplicate keys: each entry goes in
+    '' the first EMPTY slot of its probe chain
+    dim as long mask = this.cap_ - 1
     for i as long = 0 to oldcap-1
         if( oldstate( i ) = MAP_USED ) then
-            this.Put( oldkeys( i ), oldvals( i ) )
+            dim as long j = cast( long, HashOf( oldkeys( i ) ) and cast( ulongint, mask ) )
+            while( this.state( j ) <> MAP_EMPTY )
+                j = (j + 1) and mask
+            wend
+            swap this.keys_( j ), oldkeys( i )
+            swap this.vals_( j ), oldvals( i )
+            this.state( j ) = MAP_USED
+            this.num += 1
+            this.used += 1
         end if
     next
 end sub
@@ -249,7 +277,7 @@ function Map( of TK, TV ).Put( byref k as TK, byref v as TV ) as boolean
     dim as TK kk = k
     dim as TV vv = v
 
-    if( (this.used + 1) * 4 >= this.Capacity( ) * 3 ) then
+    if( ( clngint( this.used ) + 1 ) * 4 >= clngint( this.Capacity( ) ) * 3 ) then
         this.Reserve( this.num + 1 )
     end if
 

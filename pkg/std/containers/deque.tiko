@@ -14,6 +14,11 @@
 ''
 '' Index 0 is the FRONT.  'for each' walks front to back.
 ''
+'' WRITE THROUGH [ ], NOT At( ).  'd.At( i ) = v' is a CALL with the argument
+'' 'i = v' -- a comparison -- and assigns nothing (warning TKO0931); 'd[ i ] = v'
+'' and '( d.At( i ) ) = v' assign.  Front( ) and Back( ) take no argument, so
+'' 'd.Front( ) = v' does assign.
+''
 '' EMPTY: the Pop forms return a default T, as Array.Pop does; the TryPop forms
 '' say whether there was anything.  Front, Back and d[ i ] require 0 <= i <
 '' Count( ); outside that they return a reference to storage whose value is
@@ -25,6 +30,10 @@
 ''     dim d as containers.Deque( of long ) = { 1, 2, 3 }
 
 public const DEQUE_MIN_CAPACITY as long = 8
+
+'' The largest power of two a long holds.  A push into a deque this full is
+'' dropped: there is no error channel, and the ring cannot grow past it.
+public const DEQUE_MAX_CAPACITY as long = &h40000000
 
 public type DequeIterator( of T )
     as any ptr src
@@ -38,6 +47,7 @@ public type Deque( of T )
     as T items( any )
     as long head_       '' slot of the front element
     as long num
+    as long cap_        '' slots allocated -- see Capacity( )
 
     declare sub PushBack( byref v as T )
     declare sub PushFront( byref v as T )
@@ -71,8 +81,10 @@ sub DequeIterator( of T ).MoveNext( )
     this.idx += 1
 end sub
 
+'' Kept in a field, as Array and Map do: ubound( ) is a runtime call, and every
+'' push, pop and index asks for the mask.
 function Deque( of T ).Capacity( ) as long
-    return ubound( this.items ) + 1
+    return this.cap_
 end function
 
 function Deque( of T ).Count( ) as long
@@ -83,47 +95,76 @@ function Deque( of T ).IsEmpty( ) as boolean
     return this.num = 0
 end function
 
-'' Grows to the next power of two >= n, unwrapping the ring so the front lands
-'' in slot 0.  Elements move by SWAP, so a growing Deque( of ustring ) copies no
-'' strings (the sort module's measurement).
+'' Grows to the next power of two >= n, at most DEQUE_MAX_CAPACITY.
+''
+'' ONE ALLOCATION: the buffer is 'redim preserve'd in place, and only the part of
+'' the ring that had wrapped round to slot 0 is moved -- by SWAP, up past the old
+'' end -- so the front stays where it was.  It used to build a second buffer,
+'' swap every element into it and back.  A growing Deque( of ustring ) copies no
+'' strings either way.
 sub Deque( of T ).Reserve( byval n as long )
     dim as long cap = this.Capacity( )
     if( n <= cap ) then
         exit sub
     end if
-    dim as long newcap = DEQUE_MIN_CAPACITY
-    while( newcap < n )
+    '' in 64 bits: doubling a long past 2^30 overflows negative and never ends
+    dim as longint newcap = DEQUE_MIN_CAPACITY
+    while( newcap < n andalso newcap < DEQUE_MAX_CAPACITY )
         newcap *= 2
     wend
+    if( newcap <= cap ) then
+        exit sub
+    end if
 
-    dim as T fresh( any )
-    redim fresh( 0 to newcap - 1 )
-    if( cap > 0 ) then
-        dim as long mask = cap - 1
-        for i as long = 0 to this.num - 1
-            swap fresh( i ), this.items( ( this.head_ + i ) and mask )
+    if( cap = 0 ) then
+        redim this.items( 0 to newcap - 1 )
+        this.head_ = 0
+    else
+        redim preserve this.items( 0 to newcap - 1 )
+        '' the ring ran head_ .. cap-1 and then 0 .. wrapped-1; newcap >= 2 * cap,
+        '' so the wrapped part fits straight after the old end
+        dim as long wrapped = this.head_ + this.num - cap
+        for i as long = 0 to wrapped - 1
+            swap this.items( cap + i ), this.items( i )
         next
     end if
-    erase this.items
-    redim this.items( 0 to newcap - 1 )
-    for i as long = 0 to this.num - 1
-        swap this.items( i ), fresh( i )
-    next
-    this.head_ = 0
+    this.cap_ = newcap
 end sub
 
+'' v may refer INTO this deque -- 'd.PushBack( d[ 0 ] )' -- and a growing Reserve
+'' swaps every element out of the old ring and frees it, so on growth v is
+'' copied FIRST.  Only on growth: the common push pays no extra copy.
 sub Deque( of T ).PushBack( byref v as T )
-    this.Reserve( this.num + 1 )
-    dim as long mask = this.Capacity( ) - 1
-    this.items( ( this.head_ + this.num ) and mask ) = v
+    if( this.num >= this.Capacity( ) ) then
+        dim as T tmp = v
+        this.Reserve( this.num + 1 )
+        if( this.num >= this.Capacity( ) ) then
+            exit sub
+        end if
+        dim as long mask = this.Capacity( ) - 1
+        swap this.items( ( this.head_ + this.num ) and mask ), tmp
+    else
+        dim as long mask = this.Capacity( ) - 1
+        this.items( ( this.head_ + this.num ) and mask ) = v
+    end if
     this.num += 1
 end sub
 
 sub Deque( of T ).PushFront( byref v as T )
-    this.Reserve( this.num + 1 )
-    dim as long mask = this.Capacity( ) - 1
-    this.head_ = ( this.head_ - 1 ) and mask
-    this.items( this.head_ ) = v
+    if( this.num >= this.Capacity( ) ) then
+        dim as T tmp = v
+        this.Reserve( this.num + 1 )
+        if( this.num >= this.Capacity( ) ) then
+            exit sub
+        end if
+        dim as long mask = this.Capacity( ) - 1
+        this.head_ = ( this.head_ - 1 ) and mask
+        swap this.items( this.head_ ), tmp
+    else
+        dim as long mask = this.Capacity( ) - 1
+        this.head_ = ( this.head_ - 1 ) and mask
+        this.items( this.head_ ) = v
+    end if
     this.num += 1
 end sub
 
@@ -195,6 +236,7 @@ sub Deque( of T ).Clear( )
     end if
     this.head_ = 0
     this.num = 0
+    this.cap_ = cap
 end sub
 
 function Deque( of T ).GetIterator( ) as DequeIterator( of T )

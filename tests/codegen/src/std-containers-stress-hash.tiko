@@ -1,0 +1,526 @@
+'' std/containers stress, part 1 of 4: Map and Set under load.
+''
+'' DIFFERENTIAL: every operation is mirrored into a direct-address model (a plain
+'' dynamic array indexed by key) and every return value, Count( ) and periodically
+'' the whole content -- through FOR EACH, Keys( ) and Values( ) -- is compared with
+'' it. A deterministic xorshift drives the operation mix, so a failure reproduces.
+''
+'' Also: fill to capacity and drain, churn at a steady live count (the tombstone
+'' class 92036e012 fixed, at every live count, with a per-op time bound so a
+'' rehash-per-Put thrash shows), keys whose HashOf collides on purpose, string
+'' keys with counted values (copy, assignment, Clear, destructor balance) and a
+'' large fill.
+''
+''     std-containers-stress-hash [SCALE]       SCALE multiplies the op counts (default 1)
+#import "std/containers"
+using containers
+
+dim shared as long fails, checks
+dim shared as ulongint rng = 88172645463325252ull
+
+function Rand64( ) as ulongint
+    rng xor= rng shl 13
+    rng xor= rng shr 7
+    rng xor= rng shl 17
+    return rng
+end function
+
+function RandBelow( byval n as long ) as long
+    return cast( long, Rand64( ) mod culngint( n ) )
+end function
+
+sub Fail( byref what as string )
+    fails += 1
+    if( fails <= 25 ) then
+        print "FAIL " & what
+    end if
+end sub
+
+#define CHECK(what, e) checks += 1 : if (e) = 0 then Fail(what)
+
+dim shared as long SCALE = 1
+if( len( command( 1 ) ) > 0 ) then
+    SCALE = valint( command( 1 ) )
+end if
+
+dim shared as double t0
+function F3( byval x as double ) as string
+    dim as longint n = fix( x * 1000 + 0.5 )
+    return str( n \ 1000 ) & "." & right( "00" & str( n mod 1000 ), 3 )
+end function
+sub Section( byref name_ as string )
+    t0 = timer
+    print "-- " & name_
+end sub
+sub Done( byref name_ as string, byval ops as longint )
+    dim as double dt = timer - t0
+    print "   " & name_ & " ops=" & ops & "  " & F3( dt ) & " s  " & F3( dt * 1e6 / iif( ops > 0, ops, 1 ) ) & " us/op"
+end sub
+
+'' ------------------------------------------------------------ counted value
+dim shared as long live
+
+type Counted
+    as long v
+    declare constructor( )
+    declare constructor( byval n as long )
+    declare constructor( byref rhs as Counted )
+    declare operator let( byref rhs as Counted )
+    declare destructor( )
+end type
+constructor Counted( )
+    live += 1
+end constructor
+constructor Counted( byval n as long )
+    v = n : live += 1
+end constructor
+constructor Counted( byref rhs as Counted )
+    v = rhs.v : live += 1
+end constructor
+operator Counted.let( byref rhs as Counted )
+    v = rhs.v
+end operator
+destructor Counted( )
+    live -= 1
+end destructor
+
+'' ------------------------------------------------------------ colliding keys
+'' HashOf keeps only the low 3 bits of the id: every key lands in one of 8 home
+'' slots, so probe chains run the length of the table.
+type ColKey extends containers.Hashable
+    as long id
+    declare function HashOf( ) as ulongint override
+end type
+function ColKey.HashOf( ) as ulongint
+    return culngint( this.id and 7 )
+end function
+operator = ( byref x as ColKey, byref y as ColKey ) as boolean
+    return x.id = y.id
+end operator
+
+'' One hash for every key: the whole table is one chain.
+type OneKey extends containers.Hashable
+    as long id
+    declare function HashOf( ) as ulongint override
+end type
+function OneKey.HashOf( ) as ulongint
+    return 12345
+end function
+operator = ( byref x as OneKey, byref y as OneKey ) as boolean
+    return x.id = y.id
+end operator
+
+'' ------------------------------------------------------------ helpers
+'' Spread key indices so they are neither contiguous nor all positive.
+function KeyOf( byval i as long ) as long
+    return i * 7919 - 1000003
+end function
+
+sub CompareMapLong( byref m as Map( of long, long ), present( ) as boolean, vals( ) as long, byval kn_ as long, byref where as string )
+    dim as long n = 0
+    for i as long = 0 to kn_ - 1
+        if( present( i ) ) then n += 1
+    next
+    CHECK( where & ": count", m.Count( ) = n )
+
+    '' every model entry is in the map
+    dim as long bad = 0
+    for i as long = 0 to kn_ - 1
+        dim as long v
+        dim as boolean got = m.TryGet( KeyOf( i ), v )
+        if( got <> present( i ) ) then
+            bad += 1
+        elseif( got andalso v <> vals( i ) ) then
+            bad += 1
+        end if
+    next
+    CHECK( where & ": lookups (" & bad & " wrong)", bad = 0 )
+
+    '' every map entry is in the model, and FOR EACH visits each once
+    dim as long seen = 0, stray = 0
+    for each kv in m
+        seen += 1
+        dim as long idx = ( kv.key + 1000003 ) \ 7919
+        if( idx < 0 orelse idx >= kn_ ) then
+            stray += 1
+        elseif( present( idx ) = false orelse vals( idx ) <> kv.value orelse KeyOf( idx ) <> kv.key ) then
+            stray += 1
+        end if
+    next
+    CHECK( where & ": for each visits " & seen & " of " & n, seen = n )
+    CHECK( where & ": for each strays " & stray, stray = 0 )
+    CHECK( where & ": Keys()", m.Keys( ).Count( ) = n )
+    CHECK( where & ": Values()", m.Values( ).Count( ) = n )
+
+    '' load factor: live + tombstones stay under 3/4 of the slots
+    CHECK( where & ": load " & m.Count( ) & "/" & m.Capacity( ), m.Count( ) * 4 <= m.Capacity( ) * 3 )
+end sub
+
+'' ======================================================== H1 Map differential
+scope
+    Section( "H1 Map( of long, long ) differential" )
+    const KN = 4096
+    dim as boolean present( 0 to KN - 1 )
+    dim as long vals( 0 to KN - 1 )
+    dim m as Map( of long, long )
+    dim as long nlive = 0
+    dim as long nops = 400000 * SCALE
+
+    for op as long = 1 to nops
+        dim as long i = RandBelow( KN )
+        dim as long k = KeyOf( i )
+        dim as long r = RandBelow( 100 )
+
+        '' phases: the first and third quarters grow, the second and fourth shrink,
+        '' so the table is driven both to its high-water mark and to near empty
+        dim as long phase = ( op * 4 \ nops ) and 1
+        if( phase = 1 ) then
+            if( r < 50 ) then r = 50 + RandBelow( 25 )     '' Remove-heavy
+        end if
+
+        if( r < 45 ) then
+            dim as long v = op
+            dim as boolean isnew = m.Put( k, v )
+            CHECK( "H1 Put new? op " & op, isnew = ( present( i ) = false ) )
+            if( present( i ) = false ) then nlive += 1
+            present( i ) = true : vals( i ) = v
+        elseif( r < 50 ) then
+            dim as long v = -op
+            dim as boolean added = m.Add( k, v )
+            CHECK( "H1 Add op " & op, added = ( present( i ) = false ) )
+            if( added ) then
+                present( i ) = true : vals( i ) = v : nlive += 1
+            end if
+        elseif( r < 75 ) then
+            dim as boolean gone = m.Remove( k )
+            CHECK( "H1 Remove op " & op, gone = present( i ) )
+            if( present( i ) ) then nlive -= 1
+            present( i ) = false
+        elseif( r < 90 ) then
+            dim as long v = 77
+            dim as boolean got = m.TryGet( k, v )
+            CHECK( "H1 TryGet op " & op, got = present( i ) )
+            if( got ) then
+                CHECK( "H1 TryGet value op " & op, v = vals( i ) )
+            else
+                CHECK( "H1 TryGet leaves outv op " & op, v = 77 )
+            end if
+        elseif( r < 95 ) then
+            CHECK( "H1 Contains op " & op, m.Contains( k ) = present( i ) )
+        else
+            '' the indexer inserts a default 0 on a miss
+            m[ k ] += 3
+            if( present( i ) = false ) then
+                present( i ) = true : vals( i ) = 0 : nlive += 1
+            end if
+            vals( i ) += 3
+        end if
+
+        CHECK( "H1 Count op " & op, m.Count( ) = nlive )
+
+        if( op mod 50000 = 0 ) then
+            CompareMapLong( m, present( ), vals( ), KN, "H1 sweep op " & op )
+        end if
+    next
+    CompareMapLong( m, present( ), vals( ), KN, "H1 final" )
+
+    '' fill every key, then drain every key, then refill: the maximum the model allows
+    for i as long = 0 to KN - 1
+        m.Put( KeyOf( i ), i ) : present( i ) = true : vals( i ) = i
+    next
+    CompareMapLong( m, present( ), vals( ), KN, "H1 full" )
+    dim as long capfull = m.Capacity( )
+    for i as long = 0 to KN - 1
+        m.Remove( KeyOf( i ) ) : present( i ) = false
+    next
+    CompareMapLong( m, present( ), vals( ), KN, "H1 drained" )
+    for i as long = KN - 1 to 0 step -1
+        m.Put( KeyOf( i ), -i ) : present( i ) = true : vals( i ) = -i
+    next
+    CompareMapLong( m, present( ), vals( ), KN, "H1 refilled" )
+    CHECK( "H1 refill did not grow past the first fill (" & m.Capacity( ) & " vs " & capfull & ")", m.Capacity( ) <= capfull )
+
+    m.Clear( )
+    CHECK( "H1 Clear count", m.Count( ) = 0 )
+    CHECK( "H1 Clear keeps capacity", m.Capacity( ) = capfull )
+    dim as long v
+    CHECK( "H1 Clear lookup", m.TryGet( KeyOf( 5 ), v ) = false )
+    Done( "H1", nops + 3 * KN )
+end scope
+
+'' ======================================================== H2 churn
+'' A steady live count L, and distinct keys put and removed past it. Capacity must
+'' stay bounded and the per-op cost flat: the old Reserve dropped keys here, and a
+'' naive same-size rehash would rebuild the table on every Put near the load factor.
+scope
+    Section( "H2 churn at a steady live count" )
+    dim as long sizes( 0 to 10 ) = { 0, 1, 4, 5, 6, 7, 11, 12, 100, 1000, 10000 }
+    dim as longint total = 0
+    dim as double worst = 0
+    dim as long worstL = -1
+
+    for si as long = 0 to 10
+        dim as long L = sizes( si )
+        dim m as Map( of long, long )
+        dim s as Set( of long )
+        for i as long = 0 to L - 1
+            m.Put( i, i ) : s.Add( i )
+        next
+        dim as long maxcap = 0
+        dim as long bad = 0
+        dim as long churn = 20000 * SCALE
+        dim as double t = timer
+        for c as long = 1 to churn
+            dim as long k = 1000000 + c
+            if( m.Put( k, c ) = false ) then bad += 1
+            if( s.Add( k ) = false ) then bad += 1
+            dim as long v
+            if( m.TryGet( k, v ) = false orelse v <> c ) then bad += 1
+            if( s.Contains( k ) = false ) then bad += 1
+            if( m.Remove( k ) = false ) then bad += 1
+            if( s.Remove( k ) = false ) then bad += 1
+            if( m.Count( ) <> L orelse s.Count( ) <> L ) then bad += 1
+            if( m.Capacity( ) > maxcap ) then maxcap = m.Capacity( )
+        next
+        t = timer - t
+        for i as long = 0 to L - 1
+            dim as long v
+            if( m.TryGet( i, v ) = false orelse v <> i ) then bad += 1
+            if( s.Contains( i ) = false ) then bad += 1
+        next
+        '' the smallest power of two with L+1 under the load factor, times 4 of slack
+        dim as long want = 8
+        while( ( want * 3 ) \ 4 < L + 1 )
+            want *= 2
+        wend
+        CHECK( "H2 L=" & L & ": " & bad & " wrong results", bad = 0 )
+        CHECK( "H2 L=" & L & ": capacity " & maxcap & " > 4x " & want, maxcap <= want * 4 )
+        dim as double us = t * 1e6 / churn
+        print "   L=" & L & " cap=" & maxcap & "  " & F3( us ) & " us/cycle"
+        if( us > worst ) then worst = us : worstL = L
+        total += churn
+    next
+    print "   worst cycle cost at L=" & worstL
+    Done( "H2", total )
+end scope
+
+'' ======================================================== H3 strings + lifetime
+scope
+    Section( "H3 Map( of string, Counted ) lifetime" )
+    dim as long base_ = live
+    scope
+        const N = 20000
+        dim m as Map( of string, Counted )
+        for i as long = 0 to N * SCALE - 1
+            m.Put( "key-" & i, Counted( i ) )
+        next
+        CHECK( "H3 count after fill", m.Count( ) = N * SCALE )
+        '' overwrite every third, remove every other
+        for i as long = 0 to N * SCALE - 1 step 3
+            m.Put( "key-" & i, Counted( -i ) )
+        next
+        for i as long = 0 to N * SCALE - 1 step 2
+            m.Remove( "key-" & i )
+        next
+        dim as long bad = 0
+        for i as long = 0 to N * SCALE - 1
+            dim c as Counted
+            dim as boolean got = m.TryGet( "key-" & i, c )
+            if( got <> ( ( i and 1 ) = 1 ) ) then
+                bad += 1
+            elseif( got ) then
+                if( c.v <> iif( i mod 3 = 0, -i, i ) ) then bad += 1
+            end if
+        next
+        CHECK( "H3 lookups after overwrite/remove (" & bad & ")", bad = 0 )
+
+        '' copy and assignment are deep and independent in both directions
+        dim copy_ as Map( of string, Counted ) = m
+        dim assigned as Map( of string, Counted )
+        assigned.Put( "junk", Counted( 1 ) )
+        assigned = m
+        CHECK( "H3 copy count", copy_.Count( ) = m.Count( ) )
+        CHECK( "H3 assigned count", assigned.Count( ) = m.Count( ) )
+        copy_.Put( "key-1", Counted( 999 ) )
+        m.Remove( "key-3" )
+        dim c as Counted
+        m.TryGet( "key-1", c )
+        CHECK( "H3 copy independent of source", c.v = 1 )
+        CHECK( "H3 assigned unaffected by source remove", assigned.Contains( "key-3" ) )
+        CHECK( "H3 assigned lost its old entry", assigned.Contains( "junk" ) = false )
+
+        '' self-assignment
+        assigned = assigned
+        CHECK( "H3 self-assign keeps count", assigned.Count( ) = copy_.Count( ) )
+
+        m.Clear( )
+        CHECK( "H3 Clear", m.Count( ) = 0 )
+        '' reuse after Clear
+        for i as long = 0 to 999
+            m.Put( "again-" & i, Counted( i ) )
+        next
+        CHECK( "H3 refill after Clear", m.Count( ) = 1000 )
+    end scope
+    CHECK( "H3 every Counted destroyed (" & ( live - base_ ) & " leaked)", live = base_ )
+    Done( "H3", 20000 * SCALE * 4 )
+end scope
+
+'' ======================================================== H4 colliding hashes
+scope
+    Section( "H4 colliding HashOf: 8 home slots, then 1" )
+    const KN = 2000
+    dim as boolean present( 0 to KN - 1 )
+    dim as long vals( 0 to KN - 1 )
+    dim m as Map( of ColKey, long )
+    dim as long nlive = 0, bad = 0
+    dim as long nops = 60000 * SCALE
+    for op as long = 1 to nops
+        dim key as ColKey
+        dim as long i = RandBelow( KN )
+        key.id = i
+        dim as long r = RandBelow( 10 )
+        if( r < 5 ) then
+            if( m.Put( key, op ) <> ( present( i ) = false ) ) then bad += 1
+            if( present( i ) = false ) then nlive += 1
+            present( i ) = true : vals( i ) = op
+        elseif( r < 8 ) then
+            if( m.Remove( key ) <> present( i ) ) then bad += 1
+            if( present( i ) ) then nlive -= 1
+            present( i ) = false
+        else
+            dim as long v
+            dim as boolean got = m.TryGet( key, v )
+            if( got <> present( i ) ) then bad += 1
+            if( got andalso v <> vals( i ) ) then bad += 1
+        end if
+        if( m.Count( ) <> nlive ) then bad += 1
+    next
+    dim as long seen = 0
+    for each kv in m
+        if( present( kv.key.id ) = false orelse vals( kv.key.id ) <> kv.value ) then bad += 1
+        seen += 1
+    next
+    CHECK( "H4 ColKey differential (" & bad & " wrong)", bad = 0 )
+    CHECK( "H4 ColKey for each", seen = nlive )
+
+    dim one as Map( of OneKey, long )
+    bad = 0
+    for i as long = 0 to 499
+        dim key as OneKey
+        key.id = i
+        one.Put( key, i * 2 )
+    next
+    for i as long = 0 to 499 step 2
+        dim key as OneKey
+        key.id = i
+        if( one.Remove( key ) = false ) then bad += 1
+    next
+    for i as long = 0 to 499
+        dim key as OneKey
+        key.id = i
+        dim as long v
+        dim as boolean got = one.TryGet( key, v )
+        if( got <> ( ( i and 1 ) = 1 ) ) then bad += 1
+        if( got andalso v <> i * 2 ) then bad += 1
+    next
+    CHECK( "H4 OneKey (" & bad & " wrong)", bad = 0 )
+    CHECK( "H4 OneKey count", one.Count( ) = 250 )
+    Done( "H4", nops + 1250 )
+end scope
+
+'' ======================================================== H5 Set differential
+scope
+    Section( "H5 Set( of long ) differential + Set( of string ) fill" )
+    const KN = 4096
+    dim as boolean present( 0 to KN - 1 )
+    dim s as Set( of long )
+    dim as long nlive = 0, bad = 0
+    dim as long nops = 300000 * SCALE
+    for op as long = 1 to nops
+        dim as long i = RandBelow( KN )
+        dim as long k = KeyOf( i )
+        dim as long r = RandBelow( 10 )
+        if( ( op * 4 \ nops ) and 1 ) then
+            if( r < 4 ) then r = 4 + RandBelow( 3 )
+        end if
+        if( r < 4 ) then
+            if( s.Add( k ) <> ( present( i ) = false ) ) then bad += 1
+            if( present( i ) = false ) then nlive += 1
+            present( i ) = true
+        elseif( r < 7 ) then
+            if( s.Remove( k ) <> present( i ) ) then bad += 1
+            if( present( i ) ) then nlive -= 1
+            present( i ) = false
+        else
+            if( s.Contains( k ) <> present( i ) ) then bad += 1
+        end if
+        if( s.Count( ) <> nlive ) then bad += 1
+    next
+    dim as long seen = 0
+    for each e in s
+        dim as long idx = ( e + 1000003 ) \ 7919
+        if( idx < 0 orelse idx >= KN ) then
+            bad += 1
+        elseif( present( idx ) = false ) then
+            bad += 1
+        end if
+        seen += 1
+    next
+    CHECK( "H5 Set differential (" & bad & " wrong)", bad = 0 )
+    CHECK( "H5 Set for each", seen = nlive )
+    CHECK( "H5 Set load", s.Count( ) * 4 <= s.Capacity( ) * 3 )
+
+    dim ss as Set( of string )
+    dim as long N = 100000 * SCALE
+    for i as long = 0 to N - 1
+        ss.Add( hex( i * 2654435761ull ) )
+    next
+    bad = 0
+    for i as long = 0 to N - 1
+        if( ss.Contains( hex( i * 2654435761ull ) ) = false ) then bad += 1
+        if( ss.Contains( "x" & i ) ) then bad += 1
+    next
+    CHECK( "H5 Set( of string ) " & N & " (" & bad & " wrong)", bad = 0 )
+    CHECK( "H5 Set( of string ) count", ss.Count( ) = N )
+    Done( "H5", nops + 3 * N )
+end scope
+
+'' ======================================================== H6 large fill
+scope
+    Section( "H6 large fill" )
+    dim as long N = 500000 * SCALE
+    dim m as Map( of long, long )
+    for i as long = 0 to N - 1
+        m.Put( i, i xor &h5A5A5A5A )
+    next
+    CHECK( "H6 count " & N, m.Count( ) = N )
+    CHECK( "H6 load", m.Count( ) * 4 <= m.Capacity( ) * 3 )
+    dim as long bad = 0
+    for i as long = 0 to N - 1
+        dim as long v
+        if( m.TryGet( i, v ) = false orelse v <> ( i xor &h5A5A5A5A ) ) then bad += 1
+    next
+    CHECK( "H6 every key (" & bad & ")", bad = 0 )
+    for i as long = 0 to N - 1 step 2
+        m.Remove( i )
+    next
+    bad = 0
+    for i as long = 0 to N - 1
+        if( m.Contains( i ) <> ( ( i and 1 ) = 1 ) ) then bad += 1
+    next
+    CHECK( "H6 after removing evens (" & bad & ")", bad = 0 )
+    CHECK( "H6 count after removing evens", m.Count( ) = N \ 2 )
+    '' reserve up front: no growth during the fill
+    dim r as Map( of long, long )
+    r.Reserve( N )
+    dim as long capr = r.Capacity( )
+    for i as long = 0 to N - 1
+        r.Put( i, i )
+    next
+    CHECK( "H6 Reserve( N ) then N puts does not grow", r.Capacity( ) = capr )
+    print "   capacity for " & N & " = " & m.Capacity( ) & ", reserved " & capr
+    Done( "H6", 4 * N )
+end scope
+
+print "stress-hash: " & checks & " checks, " & fails & " failed"
+end iif( fails = 0, 0, 1 )

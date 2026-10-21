@@ -840,8 +840,9 @@ sub OrderedSetIterator( of T ).MoveNext( )
     this.node = p
 end sub
 
-'' The black height, or -1 when any red-black invariant is broken.  See
-'' orderedmap.tiko -- same check, same reason for being a member.
+'' The black height, or -1 when any invariant is broken -- the red-black ones,
+'' parent links, strict in-order ascent, the node count.  See orderedmap.tiko --
+'' same check, same reason for being a member.
 function OrderedSet( of T ).BlackHeight( ) as long
     dim as RBSetNode( of T ) ptr n = this.root
     dim as long h = 1
@@ -860,7 +861,36 @@ function OrderedSet( of T ).BlackHeight( ) as long
         wend
     end if
 
+    '' and the walk checks the links, the order and the count as it goes
+    dim as RBSetNode( of T ) ptr prev = nullptr
+    dim as long seen = 0
+    if( this.root <> nullptr ) then
+        if( this.root->parent <> nullptr ) then
+            return -1
+        end if
+    end if
+
     while( n <> nullptr )
+        '' each child points back at its parent
+        if( n->left <> nullptr ) then
+            if( n->left->parent <> n ) then
+                return -1
+            end if
+        end if
+        if( n->right <> nullptr ) then
+            if( n->right->parent <> n ) then
+                return -1
+            end if
+        end if
+        '' in-order, so each item is strictly greater than the one before
+        if( prev <> nullptr ) then
+            if( ( prev->item < n->item ) = false ) then
+                return -1
+            end if
+        end if
+        prev = n
+        seen += 1
+
         dim as boolean isleaf = (n->left = nullptr) orelse (n->right = nullptr)
         if( isleaf ) then
             dim as long c = 1
@@ -907,6 +937,10 @@ function OrderedSet( of T ).BlackHeight( ) as long
             n = p
         end if
     wend
+
+    if( seen <> this.num ) then
+        return -1
+    end if
 
     dim as boolean rootred = false
     if( this.root <> nullptr ) then

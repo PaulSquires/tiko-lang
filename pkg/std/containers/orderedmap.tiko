@@ -955,8 +955,12 @@ sub OrderedMapPairIter( of TK, TV ).MoveNext( )
     this.it.MoveNext( )
 end sub
 
-'' The number of black nodes on any root-to-null path, or -1 if the paths
-'' disagree -- which is the invariant that a broken rebalance breaks.
+'' The number of black nodes on any root-to-null path, or -1 if ANY invariant is
+'' broken: the paths disagree on that number (what a broken rebalance breaks), a
+'' red node has a red child, the root is red, a child's parent pointer is not
+'' its parent, an in-order walk is not strictly ascending, or it does not visit
+'' Count( ) nodes.  The last three were added after the stress tests
+'' (tests/codegen/src/std-containers-stress-ordered.tiko).
 ''
 '' Here rather than in the test suite because it needs the node layout, and
 '' because a container whose correctness rests on an invariant should be able to
@@ -982,7 +986,36 @@ function OrderedMap( of TK, TV ).BlackHeight( ) as long
         wend
     end if
 
+    '' and the walk checks the links, the order and the count as it goes
+    dim as RBMapNode( of TK, TV ) ptr prev = nullptr
+    dim as long seen = 0
+    if( this.root <> nullptr ) then
+        if( this.root->parent <> nullptr ) then
+            return -1
+        end if
+    end if
+
     while( n <> nullptr )
+        '' each child points back at its parent
+        if( n->left <> nullptr ) then
+            if( n->left->parent <> n ) then
+                return -1
+            end if
+        end if
+        if( n->right <> nullptr ) then
+            if( n->right->parent <> n ) then
+                return -1
+            end if
+        end if
+        '' in-order, so each key is strictly greater than the one before
+        if( prev <> nullptr ) then
+            if( ( prev->key < n->key ) = false ) then
+                return -1
+            end if
+        end if
+        prev = n
+        seen += 1
+
         dim as boolean isleaf = (n->left = nullptr) orelse (n->right = nullptr)
         if( isleaf ) then
             dim as long c = 1
@@ -1030,6 +1063,10 @@ function OrderedMap( of TK, TV ).BlackHeight( ) as long
             n = p
         end if
     wend
+
+    if( seen <> this.num ) then
+        return -1
+    end if
 
     dim as boolean rootred = false
     if( this.root <> nullptr ) then

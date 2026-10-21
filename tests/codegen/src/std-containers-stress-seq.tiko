@@ -1,0 +1,819 @@
+'' std/containers stress, part 2 of 4: Array, Deque, LinkedList, PriorityQueue, BitSet.
+''
+'' DIFFERENTIAL against plain dynamic arrays, driven by a deterministic xorshift:
+'' every return value and Count( ) per operation, the whole content periodically.
+'' Also: large fills, wrap-around at every ring capacity, an argument that refers
+'' INTO the container while it grows ('a.Push( a[ 0 ] )' at Count = Capacity),
+'' copy / assignment / self-assignment, destructor balance, and BitSet word
+'' boundaries, shrink-then-grow and set operations against themselves.
+''
+''     std-containers-stress-seq [SCALE]        SCALE multiplies the op counts (default 1)
+#import "std/containers"
+using containers
+
+dim shared as long fails, checks
+dim shared as ulongint rng = 88172645463325252ull
+
+function Rand64( ) as ulongint
+    rng xor= rng shl 13
+    rng xor= rng shr 7
+    rng xor= rng shl 17
+    return rng
+end function
+
+function RandBelow( byval n as long ) as long
+    return cast( long, Rand64( ) mod culngint( n ) )
+end function
+
+sub Fail( byref what as string )
+    fails += 1
+    if( fails <= 25 ) then
+        print "FAIL " & what
+    end if
+end sub
+
+#define CHECK(what, e) checks += 1 : if (e) = 0 then Fail(what)
+
+dim shared as long SCALE = 1
+if( len( command( 1 ) ) > 0 ) then
+    SCALE = valint( command( 1 ) )
+end if
+
+dim shared as double t0
+function F3( byval x as double ) as string
+    dim as longint n = fix( x * 1000 + 0.5 )
+    return str( n \ 1000 ) & "." & right( "00" & str( n mod 1000 ), 3 )
+end function
+sub Section( byref name_ as string )
+    t0 = timer
+    print "-- " & name_
+end sub
+sub Done( byref name_ as string, byval ops as longint )
+    dim as double dt = timer - t0
+    print "   " & name_ & " ops=" & ops & "  " & F3( dt ) & " s  " & F3( dt * 1e6 / iif( ops > 0, ops, 1 ) ) & " us/op"
+end sub
+
+dim shared as long live
+type Counted
+    as long v
+    declare constructor( )
+    declare constructor( byval n as long )
+    declare constructor( byref rhs as Counted )
+    declare operator let( byref rhs as Counted )
+    declare destructor( )
+end type
+constructor Counted( )
+    live += 1
+end constructor
+constructor Counted( byval n as long )
+    v = n : live += 1
+end constructor
+constructor Counted( byref rhs as Counted )
+    v = rhs.v : live += 1
+end constructor
+operator Counted.let( byref rhs as Counted )
+    v = rhs.v
+end operator
+destructor Counted( )
+    live -= 1
+end destructor
+
+type Rec
+    as long key
+    as long seq
+end type
+
+type LongLess as function( byref x as long, byref y as long ) as boolean
+function Greater( byref x as long, byref y as long ) as boolean
+    return x > y
+end function
+
+'' ======================================================== S1 Array differential
+scope
+    Section( "S1 Array( of long ) differential" )
+    const MAXN = 3000
+    dim as long model( 0 to MAXN + 10 )
+    dim as long mn = 0
+    dim a as Array( of long )
+    dim as long bad = 0
+    dim as long nops = 200000 * SCALE
+
+    for op as long = 1 to nops
+        dim as long r = RandBelow( 100 )
+        if( mn >= MAXN ) then r = 40 + RandBelow( 30 )   '' only removals when full
+        if( r < 30 ) then
+            a.Push( op ) : model( mn ) = op : mn += 1
+        elseif( r < 40 ) then
+            dim as long i = RandBelow( mn + 1 )
+            a.Insert( i, -op )
+            for k2 as long = mn to i + 1 step -1
+                model( k2 ) = model( k2 - 1 )
+            next
+            model( i ) = -op : mn += 1
+        elseif( r < 50 ) then
+            dim as long v = a.Pop( )
+            if( mn > 0 ) then
+                mn -= 1
+                if( v <> model( mn ) ) then bad += 1
+            else
+                if( v <> 0 ) then bad += 1
+            end if
+        elseif( r < 60 ) then
+            if( mn > 0 ) then
+                dim as long i = RandBelow( mn )
+                a.Remove( i )
+                for k2 as long = i to mn - 2
+                    model( k2 ) = model( k2 + 1 )
+                next
+                mn -= 1
+            else
+                a.Remove( 0 )                           '' out of range: no-op
+            end if
+        elseif( r < 70 ) then
+            if( mn > 0 ) then
+                dim as long i = RandBelow( mn )
+                a.RemoveSwap( i )
+                mn -= 1
+                model( i ) = model( mn )
+            end if
+        elseif( r < 85 ) then
+            if( mn > 0 ) then
+                dim as long i = RandBelow( mn )
+                a[ i ] = op * 3 : model( i ) = op * 3
+            end if
+        elseif( r < 95 ) then
+            if( mn > 0 ) then
+                dim as long i = RandBelow( mn )
+                if( a.At( i ) <> model( i ) ) then bad += 1
+            end if
+        elseif( r < 97 ) then
+            a.Reserve( RandBelow( MAXN * 2 ) )
+        elseif( r < 99 ) then
+            a.Shrink( )
+            if( a.Capacity( ) <> mn ) then bad += 1
+        else
+            a.Clear( ) : mn = 0
+        end if
+
+        '' out-of-range Insert / Remove are no-ops
+        if( op mod 997 = 0 ) then
+            a.Insert( mn + 1, 5 ) : a.Insert( -1, 5 ) : a.Remove( mn ) : a.Remove( -1 ) : a.RemoveSwap( mn )
+        end if
+
+        if( a.Count( ) <> mn ) then bad += 1
+        if( a.Capacity( ) < mn ) then bad += 1
+        if( op mod 5000 = 0 ) then
+            dim as long i = 0
+            for each v in a
+                if( v <> model( i ) ) then bad += 1
+                i += 1
+            next
+            if( i <> mn ) then bad += 1
+        end if
+    next
+    CHECK( "S1 Array differential (" & bad & " wrong)", bad = 0 )
+    Done( "S1", nops )
+end scope
+
+'' ======================================================== S2 Array large
+scope
+    Section( "S2 Array large fill" )
+    dim as long N = 2000000 * SCALE
+    dim a as Array( of long )
+    for i as long = 0 to N - 1
+        a.Push( i )
+    next
+    dim as long bad = 0
+    for i as long = 0 to N - 1
+        if( a[ i ] <> i ) then bad += 1
+    next
+    CHECK( "S2 contents (" & bad & ")", bad = 0 )
+    CHECK( "S2 count", a.Count( ) = N )
+    dim as long cap = a.Capacity( )
+    CHECK( "S2 capacity is a power of two >= count", cap >= N andalso ( cap and ( cap - 1 ) ) = 0 )
+    a.Shrink( )
+    CHECK( "S2 Shrink to count", a.Capacity( ) = N )
+    dim as longint sum = 0
+    while( a.IsEmpty( ) = false )
+        sum += a.Pop( )
+    wend
+    CHECK( "S2 pop-all sum", sum = clngint( N ) * ( N - 1 ) \ 2 )
+    a.Shrink( )
+    CHECK( "S2 Shrink empty frees", a.Capacity( ) = 0 )
+    print "   " & N & " pushes, capacity " & cap
+    Done( "S2", 3 * clngint( N ) )
+end scope
+
+'' ======================================================== S3 aliasing during growth
+'' An argument that is a reference INTO the container, passed while the call grows
+'' it. Array.Insert copies first; this checks every method that can grow.
+scope
+    Section( "S3 argument aliasing the container while it grows" )
+    dim as long badPush = 0, badIns = 0, badDqB = 0, badDqF = 0, badPq = 0, badLl = 0, tries = 0
+    for n as long = 1 to 300
+        dim a as Array( of string )
+        for i as long = 0 to n - 1
+            a.Push( "string number " & i & " long enough to live on the heap" )
+        next
+        if( a.Count( ) = a.Capacity( ) ) then
+            tries += 1
+            a.Push( a[ 0 ] )
+            if( a[ n ] <> "string number 0 long enough to live on the heap" ) then badPush += 1
+        end if
+        dim b as Array( of string )
+        for i as long = 0 to n - 1
+            b.Push( "insert source " & i & " long enough to live on the heap" )
+        next
+        if( b.Count( ) = b.Capacity( ) ) then
+            b.Insert( 0, b[ n - 1 ] )
+            if( b[ 0 ] <> "insert source " & ( n - 1 ) & " long enough to live on the heap" ) then badIns += 1
+        end if
+
+        dim d as Deque( of string )
+        for i as long = 0 to n - 1
+            d.PushBack( "deque item " & i & " long enough to live on the heap" )
+        next
+        if( d.Count( ) = d.Capacity( ) ) then
+            d.PushBack( d[ 0 ] )
+            if( d.Back( ) <> "deque item 0 long enough to live on the heap" ) then badDqB += 1
+        end if
+        dim e as Deque( of string )
+        for i as long = 0 to n - 1
+            e.PushBack( "deque item " & i & " long enough to live on the heap" )
+        next
+        if( e.Count( ) = e.Capacity( ) ) then
+            e.PushFront( e.Back( ) )
+            if( e.Front( ) <> "deque item " & ( n - 1 ) & " long enough to live on the heap" ) then badDqF += 1
+        end if
+
+        dim q as PriorityQueue( of string )
+        for i as long = 0 to n - 1
+            q.Push( "pq " & ( 1000 + i ) & " long enough to live on the heap" )
+        next
+        q.Push( q.Peek( ) )
+        dim as string p1 = q.Pop( ), p2 = q.Pop( )
+        if( p1 <> "pq 1000 long enough to live on the heap" orelse p2 <> p1 ) then badPq += 1
+
+        dim l as LinkedList( of string )
+        for i as long = 0 to n - 1
+            l.PushBack( "list " & i & " long enough to live on the heap" )
+        next
+        l.PushBack( l.Front( ) )
+        l.PushFront( l.Back( ) )
+        if( l.Front( ) <> "list 0 long enough to live on the heap" orelse l.Back( ) <> l.Front( ) ) then badLl += 1
+    next
+    print "   " & tries & " growth points tried per container"
+    CHECK( "S3 Array.Push( a[ 0 ] ) at capacity (" & badPush & " corrupt)", badPush = 0 )
+    CHECK( "S3 Array.Insert( 0, a[ n-1 ] ) at capacity (" & badIns & " corrupt)", badIns = 0 )
+    CHECK( "S3 Deque.PushBack( d[ 0 ] ) at capacity (" & badDqB & " corrupt)", badDqB = 0 )
+    CHECK( "S3 Deque.PushFront( d.Back( ) ) at capacity (" & badDqF & " corrupt)", badDqF = 0 )
+    CHECK( "S3 PriorityQueue.Push( q.Peek( ) ) (" & badPq & " corrupt)", badPq = 0 )
+    CHECK( "S3 LinkedList.PushBack( l.Front( ) ) (" & badLl & " corrupt)", badLl = 0 )
+    Done( "S3", 300 * 6 )
+end scope
+
+'' ======================================================== S4 lifetime
+scope
+    Section( "S4 Counted lifetime: Array, Deque, LinkedList, PriorityQueue" )
+    '' LinkedList's Front and Back each hold a 'static as T blank', built on the first
+    '' call and alive until exit: construct them before taking the baseline
+    scope
+        dim w as LinkedList( of Counted )
+        w.PushBack( Counted( 0 ) )
+        w.Front( ) : w.Back( )
+    end scope
+    dim as long base_ = live
+    scope
+        dim a as Array( of Counted )
+        for i as long = 0 to 9999
+            a.Push( Counted( i ) )
+        next
+        for i as long = 0 to 4999
+            dim c as Counted = a.Pop( )
+        next
+        dim copy_ as Array( of Counted ) = a
+        dim asg as Array( of Counted )
+        asg.Push( Counted( 7 ) )
+        asg = a
+        asg = asg
+        CHECK( "S4 Array copy", copy_.Count( ) = 5000 andalso copy_[ 4999 ].v = 4999 )
+        CHECK( "S4 Array self-assign", asg.Count( ) = 5000 andalso asg[ 123 ].v = 123 )
+        a.Clear( )
+
+        dim d as Deque( of Counted )
+        for i as long = 0 to 9999
+            if( i and 1 ) then d.PushBack( Counted( i ) ) else d.PushFront( Counted( i ) )
+        next
+        for i as long = 0 to 4999
+            if( i and 1 ) then
+                dim c as Counted = d.PopBack( )
+            else
+                dim c as Counted = d.PopFront( )
+            end if
+        next
+        dim dc as Deque( of Counted ) = d
+        CHECK( "S4 Deque copy", dc.Count( ) = 5000 )
+
+        dim l as LinkedList( of Counted )
+        for i as long = 0 to 9999
+            l.PushBack( Counted( i ) )
+        next
+        dim lc as LinkedList( of Counted ) = l
+        dim la as LinkedList( of Counted )
+        la.PushBack( Counted( 1 ) )
+        la = l
+        la = la
+        CHECK( "S4 LinkedList self-assign keeps " & la.Count( ), la.Count( ) = 10000 )
+        for i as long = 0 to 4999
+            l.PopFront( )
+        next
+        CHECK( "S4 LinkedList copy independent", lc.Count( ) = 10000 andalso lc.Front( ).v = 0 )
+
+        dim qq as PriorityQueue( of long )
+        for i as long = 0 to 9999
+            qq.Push( i )
+        next
+        qq.Clear( )
+        CHECK( "S4 PQ Clear", qq.Count( ) = 0 )
+    end scope
+    CHECK( "S4 every Counted destroyed (" & ( live - base_ ) & " leaked)", live = base_ )
+    Done( "S4", 50000 )
+end scope
+
+'' ======================================================== S5 Deque differential
+scope
+    Section( "S5 Deque( of long ) differential" )
+    const MSZ = 400000
+    dim as long model( any )
+    redim model( 0 to MSZ - 1 )
+    dim as long mh = MSZ \ 2, mn = 0
+    dim d as Deque( of long )
+    dim as long bad = 0
+    dim as long nops = 400000 * SCALE
+    dim as long target = 0
+
+    for op as long = 1 to nops
+        '' the target size wanders, so the ring wraps at every capacity on the way
+        if( op mod 2000 = 0 ) then target = RandBelow( 3000 )
+        dim as long r = RandBelow( 100 )
+        dim as boolean grow = ( mn < target )
+        if( mh < 2 orelse mh + mn > MSZ - 2 ) then
+            '' recentre the model
+            dim as long nh = ( MSZ - mn ) \ 2
+            dim as long tmp( any )
+            redim tmp( 0 to mn )
+            for i as long = 0 to mn - 1
+                tmp( i ) = model( mh + i )
+            next
+            for i as long = 0 to mn - 1
+                model( nh + i ) = tmp( i )
+            next
+            mh = nh
+        end if
+        if( r < 40 ) then
+            if( grow orelse r < 15 ) then
+                if( r and 1 ) then
+                    d.PushBack( op ) : model( mh + mn ) = op : mn += 1
+                else
+                    d.PushFront( op ) : mh -= 1 : model( mh ) = op : mn += 1
+                end if
+            else
+                if( r and 1 ) then
+                    dim as long v = d.PopBack( )
+                    if( mn > 0 ) then
+                        mn -= 1
+                        if( v <> model( mh + mn ) ) then bad += 1
+                    elseif( v <> 0 ) then
+                        bad += 1
+                    end if
+                else
+                    dim as long v = d.PopFront( )
+                    if( mn > 0 ) then
+                        if( v <> model( mh ) ) then bad += 1
+                        mh += 1 : mn -= 1
+                    elseif( v <> 0 ) then
+                        bad += 1
+                    end if
+                end if
+            end if
+        elseif( r < 55 ) then
+            dim as long v = -1
+            if( r and 1 ) then
+                dim as boolean got = d.TryPopBack( v )
+                if( got <> ( mn > 0 ) ) then bad += 1
+                if( got ) then
+                    mn -= 1
+                    if( v <> model( mh + mn ) ) then bad += 1
+                elseif( v <> -1 ) then
+                    bad += 1
+                end if
+            else
+                dim as boolean got = d.TryPopFront( v )
+                if( got <> ( mn > 0 ) ) then bad += 1
+                if( got ) then
+                    if( v <> model( mh ) ) then bad += 1
+                    mh += 1 : mn -= 1
+                end if
+            end if
+        elseif( r < 75 ) then
+            if( mn > 0 ) then
+                dim as long i = RandBelow( mn )
+                if( d[ i ] <> model( mh + i ) ) then bad += 1
+                ( d.At( i ) ) = op : model( mh + i ) = op
+                if( d.Front( ) <> model( mh ) orelse d.Back( ) <> model( mh + mn - 1 ) ) then bad += 1
+            end if
+        elseif( r < 99 ) then
+            if( r and 1 ) then
+                d.PushBack( op ) : model( mh + mn ) = op : mn += 1
+            else
+                d.PushFront( op ) : mh -= 1 : model( mh ) = op : mn += 1
+            end if
+        elseif( RandBelow( 50 ) = 0 ) then
+            d.Clear( ) : mn = 0
+        else
+            d.Reserve( RandBelow( 5000 ) )
+        end if
+
+        if( d.Count( ) <> mn ) then bad += 1
+        if( d.IsEmpty( ) <> ( mn = 0 ) ) then bad += 1
+        if( op mod 3000 = 0 ) then
+            dim as long i = 0
+            for each v in d
+                if( v <> model( mh + i ) ) then bad += 1
+                i += 1
+            next
+            if( i <> mn ) then bad += 1
+        end if
+    next
+    CHECK( "S5 Deque differential (" & bad & " wrong)", bad = 0 )
+
+    '' large: a FIFO a million long, then drained
+    dim f as Deque( of long )
+    dim as long N = 1000000 * SCALE
+    bad = 0
+    for i as long = 0 to N - 1
+        f.PushBack( i )
+        if( ( i and 3 ) = 3 ) then
+            if( f.PopFront( ) <> ( i \ 4 ) ) then bad += 1
+        end if
+    next
+    dim as long expect = N \ 4
+    while( f.IsEmpty( ) = false )
+        if( f.PopFront( ) <> expect ) then bad += 1
+        expect += 1
+    wend
+    CHECK( "S5 FIFO " & N & " (" & bad & " wrong)", bad = 0 andalso expect = N )
+    Done( "S5", nops + 2 * clngint( N ) )
+end scope
+
+'' ======================================================== S6 LinkedList differential
+scope
+    Section( "S6 LinkedList( of long ) differential + SortList" )
+    const MSZ = 400000
+    dim as long model( any )
+    redim model( 0 to MSZ - 1 )
+    dim as long mh = MSZ \ 2, mn = 0
+    dim l as LinkedList( of long )
+    dim as long bad = 0
+    dim as long nops = 300000 * SCALE
+    for op as long = 1 to nops
+        dim as long r = RandBelow( 100 )
+        if( mn > 4000 ) then r = 50 + RandBelow( 40 )
+        if( mh < 2 orelse mh + mn > MSZ - 2 ) then
+            dim as long nh = ( MSZ - mn ) \ 2
+            dim as long tmp( any )
+            redim tmp( 0 to mn )
+            for i as long = 0 to mn - 1
+                tmp( i ) = model( mh + i )
+            next
+            for i as long = 0 to mn - 1
+                model( nh + i ) = tmp( i )
+            next
+            mh = nh
+        end if
+        if( r < 25 ) then
+            l.PushBack( op ) : model( mh + mn ) = op : mn += 1
+        elseif( r < 50 ) then
+            l.PushFront( op ) : mh -= 1 : model( mh ) = op : mn += 1
+        elseif( r < 70 ) then
+            dim as long v = l.PopBack( )
+            if( mn > 0 ) then
+                mn -= 1
+                if( v <> model( mh + mn ) ) then bad += 1
+            elseif( v <> 0 ) then
+                bad += 1
+            end if
+        elseif( r < 90 ) then
+            dim as long v = l.PopFront( )
+            if( mn > 0 ) then
+                if( v <> model( mh ) ) then bad += 1
+                mh += 1 : mn -= 1
+            elseif( v <> 0 ) then
+                bad += 1
+            end if
+        elseif( r < 99 ) then
+            if( mn > 0 ) then
+                if( l.Front( ) <> model( mh ) orelse l.Back( ) <> model( mh + mn - 1 ) ) then bad += 1
+                ( l.Front( ) ) = op : model( mh ) = op
+            end if
+        else
+            dim c as LinkedList( of long ) = l
+            l.Clear( )
+            l = c
+        end if
+        if( l.Count( ) <> mn ) then bad += 1
+        if( op mod 5000 = 0 ) then
+            dim as long i = 0
+            for each v in l
+                if( v <> model( mh + i ) ) then bad += 1
+                i += 1
+            next
+            if( i <> mn ) then bad += 1
+        end if
+    next
+    CHECK( "S6 LinkedList differential (" & bad & " wrong)", bad = 0 )
+
+    '' Front( ) of an empty list is a reference to a static blank shared by every
+    '' list of that T: a write through it must not be what the next empty list reads
+    scope
+        dim e1 as LinkedList( of long ), e2 as LinkedList( of long )
+        ( e1.Front( ) ) = 42
+        ( e1.Back( ) ) = 43
+        CHECK( "S6 empty Front( ) reads back a value another list wrote (" & e2.Front( ) & ")", e2.Front( ) = 0 )
+        CHECK( "S6 empty Back( ) reads back a value another list wrote (" & e2.Back( ) & ")", e2.Back( ) = 0 )
+        CHECK( "S6 empty PopFront( ) is a default T", e2.PopFront( ) = 0 )
+        ( e1.Front( ) ) = 0 : ( e1.Back( ) ) = 0
+    end scope
+
+    '' SortList: sorted, a permutation, and stable
+    dim rl as LinkedList( of Rec )
+    dim as long N = 100000 * SCALE
+    dim as long hist( 0 to 99 )
+    for i as long = 0 to N - 1
+        dim x as Rec
+        x.key = RandBelow( 100 ) : x.seq = i
+        hist( x.key ) += 1
+        rl.PushBack( x )
+    next
+    SortListBy( rl, function( byref x as Rec, byref y as Rec ) as boolean
+        return x.key < y.key
+    end function )
+    dim as long prevk = -1, prevs = -1, unstable = 0, unsorted = 0, n2 = 0
+    for each x in rl
+        if( x.key < prevk ) then unsorted += 1
+        if( x.key = prevk andalso x.seq < prevs ) then unstable += 1
+        hist( x.key ) -= 1
+        prevk = x.key : prevs = x.seq : n2 += 1
+    next
+    dim as long histbad = 0
+    for i as long = 0 to 99
+        if( hist( i ) <> 0 ) then histbad += 1
+    next
+    CHECK( "S6 SortListBy sorted (" & unsorted & ")", unsorted = 0 )
+    CHECK( "S6 SortListBy stable (" & unstable & ")", unstable = 0 )
+    CHECK( "S6 SortListBy permutation", histbad = 0 andalso n2 = N )
+
+    '' large list
+    dim big as LinkedList( of long )
+    dim as long M = 1000000 * SCALE
+    for i as long = 0 to M - 1
+        big.PushBack( M - i )
+    next
+    SortList( big )
+    bad = 0
+    dim as long want = 1
+    for each v in big
+        if( v <> want ) then bad += 1
+        want += 1
+    next
+    CHECK( "S6 SortList " & M & " reversed (" & bad & ")", bad = 0 )
+    Done( "S6", nops + N + 2 * clngint( M ) )
+end scope
+
+'' ======================================================== S7 PriorityQueue
+scope
+    Section( "S7 PriorityQueue differential" )
+    dim as long bad = 0
+    dim as long nops = 300000 * SCALE
+    for pass as long = 0 to 1
+        '' pass 0: 64 values, heavy duplicates; pass 1: a wide range
+        dim as long V = iif( pass = 0, 64, 20000 )
+        dim as long cnt( any )
+        redim cnt( 0 to V - 1 )
+        dim as long mn = 0, mmin = V
+        dim q as PriorityQueue( of long )
+        for op as long = 1 to nops \ 2
+            dim as long r = RandBelow( 10 )
+            if( r < 5 orelse mn = 0 ) then
+                dim as long x = RandBelow( V )
+                q.Push( x ) : cnt( x ) += 1 : mn += 1
+                if( x < mmin ) then mmin = x
+            elseif( r < 9 ) then
+                dim as long x = q.Pop( )
+                if( x <> mmin ) then bad += 1
+                cnt( mmin ) -= 1 : mn -= 1
+                while( mmin < V andalso cnt( mmin ) = 0 )
+                    mmin += 1
+                wend
+            else
+                if( q.Peek( ) <> mmin ) then bad += 1
+            end if
+            if( q.Count( ) <> mn ) then bad += 1
+        next
+        '' drain in order
+        dim as long prev = -1
+        while( q.IsEmpty( ) = false )
+            dim as long x = q.Pop( )
+            if( x < prev ) then bad += 1
+            prev = x
+        wend
+        dim as long y = 5
+        if( q.TryPop( y ) orelse y <> 5 ) then bad += 1
+        if( q.Pop( ) <> 0 ) then bad += 1
+    next
+    CHECK( "S7 PriorityQueue differential (" & bad & " wrong)", bad = 0 )
+
+    '' MakeHeap + ToSortedArray against Sort
+    dim a as Array( of long )
+    for i as long = 0 to 99999
+        a.Push( RandBelow( 1000 ) )
+    next
+    dim h as PriorityQueue( of long ) = MakeHeap( a )
+    dim s as Array( of long ) = h.ToSortedArray( )
+    dim ref as Array( of long ) = a
+    Sort( ref )
+    bad = 0
+    for i as long = 0 to ref.Count( ) - 1
+        if( s[ i ] <> ref[ i ] ) then bad += 1
+    next
+    CHECK( "S7 MakeHeap/ToSortedArray == Sort (" & bad & ")", bad = 0 andalso s.Count( ) = ref.Count( ) )
+    CHECK( "S7 ToSortedArray leaves the queue", h.Count( ) = 100000 )
+
+    '' max-first through a comparer
+    dim qb as PriorityQueueBy( of long, LongLess ) = PriorityQueueBy( of long, LongLess )( @Greater )
+    for i as long = 0 to 99999
+        qb.Push( RandBelow( 1000000 ) )
+    next
+    dim as long prev = &h7FFFFFFF
+    bad = 0
+    while( qb.IsEmpty( ) = false )
+        dim as long x = qb.Pop( )
+        if( x > prev ) then bad += 1
+        prev = x
+    wend
+    CHECK( "S7 PriorityQueueBy max-first (" & bad & ")", bad = 0 )
+    Done( "S7", nops + 400000 )
+end scope
+
+'' ======================================================== S8 BitSet differential
+scope
+    Section( "S8 BitSet differential" )
+    const MB = 70000
+    dim as boolean ma( any ), mb_( any )
+    redim ma( 0 to MB ) : redim mb_( 0 to MB )
+    dim a as BitSet, b as BitSet
+    dim as long bad = 0
+    dim as long nops = 200000 * SCALE
+
+    for op as long = 1 to nops
+        '' indices cluster round word boundaries a third of the time
+        dim as long i
+        if( RandBelow( 3 ) = 0 ) then
+            i = ( RandBelow( 1000 ) * 64 + RandBelow( 3 ) - 1 + 64 ) mod 65536
+        else
+            i = RandBelow( 65536 )
+        end if
+        dim as long r = RandBelow( 100 )
+        if( r < 30 ) then
+            a.Set( i ) : ma( i ) = true
+        elseif( r < 40 ) then
+            a.Set( i, false ) : ma( i ) = false
+        elseif( r < 50 ) then
+            a.Reset( i ) : ma( i ) = false
+        elseif( r < 60 ) then
+            a.Flip( i ) : ma( i ) = not ma( i )
+        elseif( r < 80 ) then
+            if( a.Test( i ) <> ma( i ) ) then bad += 1
+        elseif( r < 85 ) then
+            b.Set( i ) : mb_( i ) = true
+        elseif( r < 88 ) then
+            b.Flip( i ) : mb_( i ) = not mb_( i )
+        elseif( r < 92 ) then
+            dim as long f = a.FirstSet( i ), want = -1
+            for j as long = i to MB
+                if( ma( j ) ) then want = j : exit for
+            next
+            if( f <> want ) then bad += 1
+        elseif( r < 96 ) then
+            dim as long f = a.NextClear( i ), want = -1
+            for j as long = i to MB
+                if( ma( j ) = false ) then want = j : exit for
+            next
+            if( f <> want ) then bad += 1
+        elseif( r < 99 ) then
+            '' shrink then grow: the bits that fell off must read back clear
+            dim as long nl = RandBelow( 65536 )
+            a.Resize( nl )
+            for j as long = nl to MB
+                ma( j ) = false
+            next
+            if( RandBelow( 2 ) ) then a.Resize( 65536 )
+        else
+            dim as long ty = RandBelow( 4 )
+            select case ty
+            case 0
+                a.UnionWith( b )
+                for j as long = 0 to MB
+                    ma( j ) = ma( j ) orelse mb_( j )
+                next
+            case 1
+                a.IntersectWith( b )
+                for j as long = 0 to MB
+                    ma( j ) = ma( j ) andalso mb_( j )
+                next
+            case 2
+                a.DifferenceWith( b )
+                for j as long = 0 to MB
+                    ma( j ) = ma( j ) andalso ( mb_( j ) = false )
+                next
+            case 3
+                a.SymmetricDifferenceWith( b )
+                for j as long = 0 to MB
+                    ma( j ) = ( ma( j ) <> mb_( j ) )
+                next
+            end select
+        end if
+
+        if( op mod 2000 = 0 ) then
+            dim as long ones = 0, la = 0, ok = 1
+            for j as long = 0 to MB
+                if( ma( j ) ) then ones += 1 : la = j + 1
+            next
+            if( a.CountOnes( ) <> ones ) then bad += 1
+            if( a.Length( ) < la ) then bad += 1
+            if( a.IsEmpty( ) <> ( ones = 0 ) ) then bad += 1
+            dim as long prev = -1, seen = 0
+            for each j in a
+                if( j <= prev orelse ma( j ) = false ) then bad += 1
+                prev = j : seen += 1
+            next
+            if( seen <> ones ) then bad += 1
+            '' subset / equals against the model
+            dim as boolean sub_ = true, eq = true
+            for j as long = 0 to MB
+                if( ma( j ) andalso mb_( j ) = false ) then sub_ = false
+                if( ma( j ) <> mb_( j ) ) then eq = false
+            next
+            if( a.IsSubsetOf( b ) <> sub_ ) then bad += 1
+            if( a.Equals( b ) <> eq ) then bad += 1
+        end if
+    next
+    CHECK( "S8 BitSet differential (" & bad & " wrong)", bad = 0 )
+
+    '' set operations against themselves
+    dim c as BitSet
+    for j as long = 0 to 9999 step 3
+        c.Set( j )
+    next
+    dim as long n0 = c.CountOnes( )
+    c.UnionWith( c )
+    CHECK( "S8 self-union", c.CountOnes( ) = n0 )
+    c.IntersectWith( c )
+    CHECK( "S8 self-intersect", c.CountOnes( ) = n0 )
+    CHECK( "S8 self-subset", c.IsSubsetOf( c ) andalso c.Equals( c ) )
+    dim c2 as BitSet = c
+    c2.SymmetricDifferenceWith( c2 )
+    CHECK( "S8 self-symmetric-difference empties", c2.CountOnes( ) = 0 )
+    c.DifferenceWith( c )
+    CHECK( "S8 self-difference empties", c.CountOnes( ) = 0 andalso c.IsEmpty( ) )
+
+    '' SetAll / ClearAll at lengths round a word
+    dim as long badall = 0
+    for nl as long = 0 to 200
+        dim e as BitSet = BitSet( nl )
+        e.SetAll( )
+        if( e.CountOnes( ) <> e.Length( ) ) then badall += 1
+        if( e.Test( e.Length( ) ) ) then badall += 1
+        e.Resize( e.Length( ) + 64 )
+        if( e.CountOnes( ) <> nl andalso e.CountOnes( ) <> e.Length( ) - 64 ) then badall += 1
+        e.ClearAll( )
+        if( e.CountOnes( ) <> 0 ) then badall += 1
+    next
+    CHECK( "S8 SetAll/ClearAll/Resize round words (" & badall & ")", badall = 0 )
+
+    '' large
+    dim big as BitSet
+    dim as long N = 4000000 * SCALE
+    for j as long = 0 to N - 1 step 7
+        big.Set( j )
+    next
+    CHECK( "S8 large CountOnes", big.CountOnes( ) = ( N + 6 ) \ 7 )
+    dim as long fs = ( ( N - 8 + 6 ) \ 7 ) * 7
+    if( fs >= N ) then fs = -1
+    CHECK( "S8 large FirstSet", big.FirstSet( N - 8 ) = fs )
+    CHECK( "S8 large FirstSet past the end", big.FirstSet( N + 100 ) = -1 )
+    Done( "S8", nops + N \ 7 )
+end scope
+
+print "stress-seq: " & checks & " checks, " & fails & " failed"
+end iif( fails = 0, 0, 1 )

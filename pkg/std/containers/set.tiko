@@ -26,6 +26,10 @@
 
 public const SET_MIN_CAPACITY as long = 8
 
+'' The largest power of two a long holds; past it Add fills the table and then
+'' returns FALSE without storing, as Map.Put does.
+public const SET_MAX_CAPACITY as long = &h40000000
+
 const SET_EMPTY as ubyte = 0
 const SET_USED  as ubyte = 1
 const SET_TOMB  as ubyte = 2
@@ -113,14 +117,15 @@ end function
 '' with them.
 ''
 '' SO A TABLE WITH TOMBSTONES IS REHASHED EVEN WHEN IT IS BIG ENOUGH -- see
-'' Map.Reserve, which had the same early return and the same dropped keys.
-'' At this size while the live elements fill no more than half of it, doubled
-'' past that.
+'' Map.Reserve, which had the same early return and the same dropped keys,
+'' and for the rest: at this size while the live elements fill no more than a
+'' third of it, doubled past that; elements move by SWAP, never copied; sizes
+'' in 64 bits, stopping at SET_MAX_CAPACITY.
 sub Set( of T ).Reserve( byval n as long )
     dim as long cap = this.Capacity( )
-    dim as long want = SET_MIN_CAPACITY
+    dim as longint want = SET_MIN_CAPACITY
 
-    while( (want * 3) \ 4 < n )
+    while( ( (want * 3) \ 4 < n ) andalso ( want < SET_MAX_CAPACITY ) )
         want *= 2
     wend
 
@@ -128,7 +133,10 @@ sub Set( of T ).Reserve( byval n as long )
         if( this.used = this.num ) then
             exit sub
         end if
-        want = iif( this.num * 2 <= cap, cap, cap * 2 )
+        want = cap
+        if( ( clngint( this.num ) * 3 > cap ) andalso ( cap < SET_MAX_CAPACITY ) ) then
+            want = clngint( cap ) * 2
+        end if
     end if
 
     dim as long oldcap = cap
@@ -141,7 +149,7 @@ sub Set( of T ).Reserve( byval n as long )
         for i as long = 0 to oldcap-1
             oldstate( i ) = this.state( i )
             if( this.state( i ) = SET_USED ) then
-                oldelems( i ) = this.elems( i )
+                swap oldelems( i ), this.elems( i )
             end if
         next
     end if
@@ -153,9 +161,17 @@ sub Set( of T ).Reserve( byval n as long )
     this.num = 0
     this.used = 0
 
+    dim as long mask = this.cap_ - 1
     for i as long = 0 to oldcap-1
         if( oldstate( i ) = SET_USED ) then
-            this.Add( oldelems( i ) )
+            dim as long j = cast( long, HashOf( oldelems( i ) ) and cast( ulongint, mask ) )
+            while( this.state( j ) <> SET_EMPTY )
+                j = (j + 1) and mask
+            wend
+            swap this.elems( j ), oldelems( i )
+            this.state( j ) = SET_USED
+            this.num += 1
+            this.used += 1
         end if
     next
 end sub
@@ -181,7 +197,7 @@ function Set( of T ).Add( byref v as T ) as boolean
     '' Add( ) with its own old storage -- and the reserve reallocates it.
     dim as T vv = v
 
-    if( (this.used + 1) * 4 >= this.Capacity( ) * 3 ) then
+    if( ( clngint( this.used ) + 1 ) * 4 >= clngint( this.Capacity( ) ) * 3 ) then
         this.Reserve( this.num + 1 )
     end if
 

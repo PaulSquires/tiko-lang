@@ -1,0 +1,376 @@
+'' std/containers stress, part 4 of 4: the sorts and algo.tiko.
+''
+'' Sort, StableSort and SortBy over every size round the insertion cutoff and the
+'' patterns that break quicksorts (sorted, reversed, all equal, few distinct,
+'' organ pipe, sawtooth, median-of-three killer); each result is checked sorted
+'' AND a permutation of the input (a histogram), and the comparison count is held
+'' to a multiple of n log2 n so a quadratic fallback shows. Stability with
+'' records. Strings. Then every algo.tiko procedure against a brute-force model.
+''
+''     std-containers-stress-algo [SCALE]       SCALE multiplies the sizes (default 1)
+#import "std/containers"
+using containers
+
+dim shared as long fails, checks
+dim shared as ulongint rng = 88172645463325252ull
+
+function Rand64( ) as ulongint
+    rng xor= rng shl 13
+    rng xor= rng shr 7
+    rng xor= rng shl 17
+    return rng
+end function
+
+function RandBelow( byval n as long ) as long
+    return cast( long, Rand64( ) mod culngint( n ) )
+end function
+
+sub Fail( byref what as string )
+    fails += 1
+    if( fails <= 25 ) then
+        print "FAIL " & what
+    end if
+end sub
+
+#define CHECK(what, e) checks += 1 : if (e) = 0 then Fail(what)
+
+dim shared as long SCALE = 1
+if( len( command( 1 ) ) > 0 ) then
+    SCALE = valint( command( 1 ) )
+end if
+
+dim shared as double t0
+function F3( byval x as double ) as string
+    dim as longint n = fix( x * 1000 + 0.5 )
+    return str( n \ 1000 ) & "." & right( "00" & str( n mod 1000 ), 3 )
+end function
+sub Section( byref name_ as string )
+    t0 = timer
+    print "-- " & name_
+end sub
+sub Done( byref name_ as string, byval ops as longint )
+    dim as double dt = timer - t0
+    print "   " & name_ & " ops=" & ops & "  " & F3( dt ) & " s"
+end sub
+
+type Rec
+    as long key
+    as long seq
+end type
+
+const VR = 1000                        '' value range for the histogram check
+
+sub Fill( byref a as Array( of long ), byval n as long, byval pattern as long )
+    a.Clear( )
+    for i as long = 0 to n - 1
+        dim as long v
+        select case pattern
+        case 0 : v = RandBelow( VR )                                   '' random
+        case 1 : v = ( i * VR ) \ iif( n > 0, n, 1 )                   '' sorted
+        case 2 : v = VR - 1 - ( i * VR ) \ iif( n > 0, n, 1 )          '' reversed
+        case 3 : v = 7                                                 '' all equal
+        case 4 : v = RandBelow( 3 )                                    '' few distinct
+        case 5 : v = iif( i < n \ 2, i, n - i ) mod VR                 '' organ pipe
+        case 6 : v = i mod 17                                          '' sawtooth
+        case 7                                                         '' median-of-3 killer
+            if( i < n \ 2 ) then
+                v = iif( i and 1, ( n \ 2 + i ) mod VR, i mod VR )
+            else
+                v = ( ( i - n \ 2 ) * 2 ) mod VR
+            end if
+        case 8 : v = iif( i = n - 1, 0, ( i * VR ) \ iif( n > 0, n, 1 ) ) '' sorted + one low at end
+        end select
+        a.Push( v )
+    next
+end sub
+
+function patName( byval p as long ) as string
+    select case p
+    case 0 : return "random"
+    case 1 : return "sorted"
+    case 2 : return "reversed"
+    case 3 : return "equal"
+    case 4 : return "few"
+    case 5 : return "organ"
+    case 6 : return "saw"
+    case 7 : return "m3kill"
+    case else : return "sorted+1"
+    end select
+end function
+
+'' ======================================================== A1 sorts
+scope
+    Section( "A1 Sort / StableSort / SortBy: sizes x patterns" )
+    dim as long sizes( 0 to 13 ) = { 0, 1, 2, 3, 15, 16, 17, 31, 32, 33, 100, 1000, 10000, 200000 }
+    sizes( 13 ) = 200000 * SCALE
+    dim as long badSorted = 0, badPerm = 0, nruns = 0
+    dim as double worstRatio = 0
+    dim as string worstWhat
+    for si as long = 0 to 13
+        dim as long n = sizes( si )
+        for pattern as long = 0 to 8
+            dim a as Array( of long )
+            Fill( a, n, pattern )
+            dim as long hist( 0 to VR - 1 )
+            for i as long = 0 to n - 1
+                hist( a[ i ] ) += 1
+            next
+            for which as long = 0 to 2
+                dim b as Array( of long ) = a
+                dim as longint cmps = 0
+                select case which
+                case 0
+                    SortBy( b, function[ byref cmps ]( byref x as long, byref y as long ) as boolean
+                        cmps += 1
+                        return x < y
+                    end function )
+                case 1
+                    StableSortBy( b, function[ byref cmps ]( byref x as long, byref y as long ) as boolean
+                        cmps += 1
+                        return x < y
+                    end function )
+                case 2
+                    Sort( b )
+                end select
+                nruns += 1
+                if( IsSorted( b ) = false ) then
+                    badSorted += 1
+                    if( badSorted < 5 ) then print "   unsorted: n=" & n & " " & patName( pattern ) & " which=" & which
+                end if
+                dim as long h2( 0 to VR - 1 )
+                dim as boolean permOk = ( b.Count( ) = n )
+                for i as long = 0 to b.Count( ) - 1
+                    dim as long v = b[ i ]
+                    if( v < 0 orelse v >= VR ) then
+                        permOk = false
+                    else
+                        h2( v ) += 1
+                    end if
+                next
+                for v as long = 0 to VR - 1
+                    if( h2( v ) <> hist( v ) ) then permOk = false
+                next
+                if( permOk = false ) then badPerm += 1
+                if( n >= 1000 andalso which < 2 ) then
+                    dim as double ratio = cmps / ( n * log( n ) / log( 2 ) )
+                    if( ratio > worstRatio ) then
+                        worstRatio = ratio
+                        worstWhat = iif( which = 0, "SortBy", "StableSortBy" ) & " n=" & n & " " & patName( pattern )
+                    end if
+                end if
+            next
+        next
+    next
+    CHECK( "A1 sorted (" & badSorted & " of " & nruns & " runs not sorted)", badSorted = 0 )
+    CHECK( "A1 permutation (" & badPerm & " runs lost or invented elements)", badPerm = 0 )
+    print "   worst comparisons / (n log2 n) = " & F3( worstRatio ) & "  (" & worstWhat & ")"
+    CHECK( "A1 comparisons within 3 n log2 n (" & F3( worstRatio ) & ")", worstRatio <= 3.0 )
+    Done( "A1", nruns )
+end scope
+
+'' ======================================================== A2 stability, records, strings
+scope
+    Section( "A2 stability and strings" )
+    dim as long N = 100000 * SCALE
+    dim r as Array( of Rec )
+    for i as long = 0 to N - 1
+        dim x as Rec
+        x.key = RandBelow( 50 ) : x.seq = i
+        r.Push( x )
+    next
+    dim s as Array( of Rec ) = r
+    StableSortBy( s, function( byref x as Rec, byref y as Rec ) as boolean
+        return x.key < y.key
+    end function )
+    dim as long unstable = 0, unsorted = 0
+    for i as long = 1 to N - 1
+        if( s[ i ].key < s[ i - 1 ].key ) then unsorted += 1
+        if( s[ i ].key = s[ i - 1 ].key andalso s[ i ].seq < s[ i - 1 ].seq ) then unstable += 1
+    next
+    CHECK( "A2 StableSortBy sorted (" & unsorted & ")", unsorted = 0 )
+    CHECK( "A2 StableSortBy stable (" & unstable & ")", unstable = 0 )
+    '' a comparer that says TRUE for equal elements is a contract breach; it must not crash
+    dim u as Array( of Rec ) = r
+    SortBy( u, function( byref x as Rec, byref y as Rec ) as boolean
+        return x.key <= y.key
+    end function )
+    CHECK( "A2 SortBy with a non-strict comparer keeps every element", u.Count( ) = N )
+
+    dim ss as Array( of string )
+    dim as long M = 50000 * SCALE
+    for i as long = 0 to M - 1
+        ss.Push( hex( Rand64( ) ) & chr( 65 + RandBelow( 26 ) ) )
+    next
+    ss.Push( "" ) : ss.Push( "" ) : ss.Push( string( 300, "z" ) )
+    dim st as Array( of string ) = ss
+    Sort( ss )
+    StableSort( st )
+    dim as long bad = 0
+    for i as long = 1 to ss.Count( ) - 1
+        if( ss[ i ] < ss[ i - 1 ] ) then bad += 1
+        if( ss[ i ] <> st[ i ] ) then bad += 1
+    next
+    CHECK( "A2 strings sorted, Sort == StableSort (" & bad & ")", bad = 0 andalso ss[ 0 ] = "" andalso ss[ 1 ] = "" )
+    Done( "A2", N * 2 + M * 2 )
+end scope
+
+'' ======================================================== A3 algo against brute force
+scope
+    Section( "A3 algo.tiko against brute force" )
+    dim as long bad = 0, rounds = 0
+    for round_ as long = 1 to 300 * SCALE
+        dim as long n = RandBelow( 60 )
+        dim as long range_ = 1 + RandBelow( 20 )
+        dim a as Array( of long )
+        for i as long = 0 to n - 1
+            a.Push( RandBelow( range_ ) )
+        next
+        dim s as Array( of long ) = a
+        Sort( s )
+
+        '' LowerBound / UpperBound / BinarySearch at every probe, including outside
+        for v as long = -2 to range_ + 1
+            dim as long lb = n, ub = n
+            for i as long = n - 1 to 0 step -1
+                if( s[ i ] >= v ) then lb = i
+                if( s[ i ] > v ) then ub = i
+            next
+            if( LowerBound( s, v ) <> lb ) then bad += 1
+            if( UpperBound( s, v ) <> ub ) then bad += 1
+            dim as long bs = BinarySearch( s, v )
+            if( lb < n andalso s[ lb ] = v ) then
+                if( bs <> lb ) then bad += 1
+            else
+                if( bs <> -lb - 1 ) then bad += 1
+            end if
+        next
+
+        '' PartitionPoint over a predicate the sorted array is partitioned by
+        dim as long cut = RandBelow( range_ + 1 )
+        dim as long pp = n
+        for i as long = n - 1 to 0 step -1
+            if( s[ i ] >= cut ) then pp = i
+        next
+        if( PartitionPoint( s, function[ byval cut ]( byref x as long ) as boolean
+            return x < cut
+        end function ) <> pp ) then bad += 1
+
+        '' MinIndex / MaxIndex: the FIRST extreme, -1 when empty
+        dim as long mi = -1, ma = -1
+        for i as long = 0 to n - 1
+            if( mi = -1 orelse a[ i ] < a[ mi ] ) then mi = i
+            if( ma = -1 orelse a[ i ] > a[ ma ] ) then ma = i
+        next
+        if( MinIndex( a ) <> mi orelse MaxIndex( a ) <> ma ) then bad += 1
+
+        '' ReverseArray, RotateArray for every k in -2n .. 2n
+        dim rv as Array( of long ) = a
+        ReverseArray( rv )
+        for i as long = 0 to n - 1
+            if( rv[ i ] <> a[ n - 1 - i ] ) then bad += 1
+        next
+        for k as long = -2 * n - 1 to 2 * n + 1
+            dim ro as Array( of long ) = a
+            RotateArray( ro, k )
+            if( n > 0 ) then
+                dim as long sh = ( ( k mod n ) + n ) mod n
+                for i as long = 0 to n - 1
+                    if( ro[ i ] <> a[ ( i + sh ) mod n ] ) then bad += 1
+                next
+            end if
+            if( ro.Count( ) <> n ) then bad += 1
+        next
+
+        '' Dedup: consecutive runs, returns the number removed
+        dim dd as Array( of long ) = a
+        dim as long removed = Dedup( dd )
+        dim as long want = 0, j = 0, badd = 0
+        for i as long = 0 to n - 1
+            if( i > 0 andalso a[ i ] = a[ i - 1 ] ) then
+                want += 1
+            else
+                if( j >= dd.Count( ) ) then
+                    badd += 1
+                elseif( dd[ j ] <> a[ i ] ) then
+                    badd += 1
+                end if
+                j += 1
+            end if
+        next
+        if( removed <> want orelse dd.Count( ) <> n - want orelse badd <> 0 ) then bad += 1
+
+        '' NthElement for every k, PartialSort for a random k
+        if( n > 0 ) then
+            for k as long = 0 to n - 1
+                dim ne as Array( of long ) = a
+                NthElement( ne, k )
+                if( ne[ k ] <> s[ k ] ) then bad += 1
+                for i as long = 0 to n - 1
+                    if( i < k andalso ne[ i ] > ne[ k ] ) then bad += 1
+                    if( i > k andalso ne[ i ] < ne[ k ] ) then bad += 1
+                next
+            next
+            dim ps as Array( of long ) = a
+            dim as long k = RandBelow( n + 2 )
+            PartialSort( ps, k )
+            for i as long = 0 to iif( k < n, k, n ) - 1
+                if( ps[ i ] <> s[ i ] ) then bad += 1
+            next
+            dim sp as Array( of long ) = ps
+            Sort( sp )
+            for i as long = 0 to n - 1
+                if( sp[ i ] <> s[ i ] ) then bad += 1
+            next
+            '' out of range k is a no-op
+            dim nx as Array( of long ) = a
+            NthElement( nx, n ) : NthElement( nx, -1 )
+            for i as long = 0 to n - 1
+                if( nx[ i ] <> a[ i ] ) then bad += 1
+            next
+        end if
+        rounds += 1
+    next
+    CHECK( "A3 bounds/search/partition/minmax/reverse/rotate/dedup/nth/partial (" & bad & " wrong over " & rounds & " rounds)", bad = 0 )
+
+    '' NextPermutation: n! distinct for distinct elements, the multinomial for repeats
+    dim as long fact = 1, badp = 0
+    for n as long = 0 to 8
+        if( n > 0 ) then fact *= n
+        dim p as Array( of long )
+        for i as long = 1 to n
+            p.Push( i )
+        next
+        dim as long cnt = 0
+        do
+            cnt += 1
+        loop while NextPermutation( p )
+        if( cnt <> fact ) then badp += 1
+        '' after the last it wraps round to sorted
+        for i as long = 0 to n - 1
+            if( p[ i ] <> i + 1 ) then badp += 1
+        next
+    next
+    dim m as Array( of long ) = { 1, 1, 2, 2, 2, 3 }      '' 6! / ( 2! 3! 1! ) = 60
+    dim as long cm = 0
+    do
+        cm += 1
+    loop while NextPermutation( m )
+    CHECK( "A3 NextPermutation counts n! for n = 0..8 (" & badp & ")", badp = 0 )
+    CHECK( "A3 NextPermutation multiset count " & cm & " = 60", cm = 60 )
+
+    '' large NthElement on adversarial input
+    dim big as Array( of long )
+    dim as long N = 1000000 * SCALE
+    Fill( big, N, 7 )
+    dim bs as Array( of long ) = big
+    Sort( bs )
+    dim as double t = timer
+    NthElement( big, N \ 2 )
+    t = timer - t
+    CHECK( "A3 NthElement median of " & N & " m3kill", big[ N \ 2 ] = bs[ N \ 2 ] )
+    print "   NthElement median of " & N & " (m3kill): " & F3( t ) & " s"
+    Done( "A3", rounds )
+end scope
+
+print "stress-algo: " & checks & " checks, " & fails & " failed"
+end iif( fails = 0, 0, 1 )

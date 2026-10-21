@@ -83,6 +83,10 @@ sub HeapPopInto( of T, TCmp )( byref a as Array( of T ), byref outv as T, byref 
     dim as long n = a.num - 1
     swap a.items( 0 ), a.items( n )
     swap outv, a.items( n )
+    '' the slot now holds whatever outv held before: release it now, not when the
+    '' slot is next written (TryPop into a variable that already has a value)
+    dim as T blank
+    swap a.items( n ), blank
     a.num = n
     HeapSiftDownBy( a, 0, n, less )
 end sub

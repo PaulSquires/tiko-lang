@@ -1,0 +1,427 @@
+'' std/containers stress, part 3 of 4: OrderedMap and OrderedSet under load.
+''
+'' DIFFERENTIAL against a direct-address model, driven by a deterministic xorshift:
+'' every return value and Count( ) per operation; periodically the in-order walk,
+'' the red-black invariant (BlackHeight( ) <> -1), and TryFirst / TryLast /
+'' TryFloor / TryCeiling at random probes, below the minimum and above the
+'' maximum. Also: adversarial insertion and removal orders (ascending, descending,
+'' zig-zag) with a time bound that a degenerate tree would break, string keys with
+'' counted values, copy / assignment / self-assignment, and the set operations
+'' against themselves.
+''
+''     std-containers-stress-ordered [SCALE]    SCALE multiplies the op counts (default 1)
+#import "std/containers"
+using containers
+
+dim shared as long fails, checks
+dim shared as ulongint rng = 88172645463325252ull
+
+function Rand64( ) as ulongint
+    rng xor= rng shl 13
+    rng xor= rng shr 7
+    rng xor= rng shl 17
+    return rng
+end function
+
+function RandBelow( byval n as long ) as long
+    return cast( long, Rand64( ) mod culngint( n ) )
+end function
+
+sub Fail( byref what as string )
+    fails += 1
+    if( fails <= 25 ) then
+        print "FAIL " & what
+    end if
+end sub
+
+#define CHECK(what, e) checks += 1 : if (e) = 0 then Fail(what)
+
+dim shared as long SCALE = 1
+if( len( command( 1 ) ) > 0 ) then
+    SCALE = valint( command( 1 ) )
+end if
+
+dim shared as double t0
+function F3( byval x as double ) as string
+    dim as longint n = fix( x * 1000 + 0.5 )
+    return str( n \ 1000 ) & "." & right( "00" & str( n mod 1000 ), 3 )
+end function
+sub Section( byref name_ as string )
+    t0 = timer
+    print "-- " & name_
+end sub
+sub Done( byref name_ as string, byval ops as longint )
+    dim as double dt = timer - t0
+    print "   " & name_ & " ops=" & ops & "  " & F3( dt ) & " s  " & F3( dt * 1e6 / iif( ops > 0, ops, 1 ) ) & " us/op"
+end sub
+
+dim shared as long live
+type Counted
+    as long v
+    declare constructor( )
+    declare constructor( byval n as long )
+    declare constructor( byref rhs as Counted )
+    declare operator let( byref rhs as Counted )
+    declare destructor( )
+end type
+constructor Counted( )
+    live += 1
+end constructor
+constructor Counted( byval n as long )
+    v = n : live += 1
+end constructor
+constructor Counted( byref rhs as Counted )
+    v = rhs.v : live += 1
+end constructor
+operator Counted.let( byref rhs as Counted )
+    v = rhs.v
+end operator
+destructor Counted( )
+    live -= 1
+end destructor
+
+'' keys are 2*i - KN so they are signed and have gaps a Floor / Ceiling can land in
+function KeyOf( byval i as long, byval kn as long ) as long
+    return 2 * i - kn
+end function
+
+'' ======================================================== O1 OrderedMap differential
+scope
+    Section( "O1 OrderedMap( of long, long ) differential" )
+    const KN = 3000
+    dim as boolean present( any )
+    dim as long vals( any )
+    redim present( 0 to KN - 1 ) : redim vals( 0 to KN - 1 )
+    dim m as OrderedMap( of long, long )
+    dim as long nlive = 0, bad = 0, badrb = 0, badorder = 0, badnav = 0
+    dim as long nops = 300000 * SCALE
+
+    for op as long = 1 to nops
+        dim as long i = RandBelow( KN )
+        dim as long k = KeyOf( i, KN )
+        dim as long r = RandBelow( 100 )
+        if( ( op * 4 \ nops ) and 1 ) then
+            if( r < 50 ) then r = 50 + RandBelow( 25 )
+        end if
+        if( r < 45 ) then
+            if( m.Put( k, op ) <> ( present( i ) = false ) ) then bad += 1
+            if( present( i ) = false ) then nlive += 1
+            present( i ) = true : vals( i ) = op
+        elseif( r < 50 ) then
+            dim as boolean added = m.Add( k, -op )
+            if( added <> ( present( i ) = false ) ) then bad += 1
+            if( added ) then present( i ) = true : vals( i ) = -op : nlive += 1
+        elseif( r < 75 ) then
+            if( m.Remove( k ) <> present( i ) ) then bad += 1
+            if( present( i ) ) then nlive -= 1
+            present( i ) = false
+        elseif( r < 90 ) then
+            dim as long v = 77
+            dim as boolean got = m.TryGet( k, v )
+            if( got <> present( i ) ) then bad += 1
+            if( got andalso v <> vals( i ) ) then bad += 1
+            if( got = false andalso v <> 77 ) then bad += 1
+        elseif( r < 95 ) then
+            if( m.Contains( k ) <> present( i ) ) then bad += 1
+        else
+            m[ k ] += 3
+            if( present( i ) = false ) then present( i ) = true : vals( i ) = 0 : nlive += 1
+            vals( i ) += 3
+        end if
+        if( m.Count( ) <> nlive ) then bad += 1
+
+        if( op mod 20000 = 0 ) then
+            if( m.BlackHeight( ) = -1 ) then badrb += 1
+            '' in-order walk == ascending model
+            dim as long j = 0, seen = 0
+            for each kv in m
+                while( j < KN andalso present( j ) = false )
+                    j += 1
+                wend
+                if( j >= KN ) then
+                    badorder += 1
+                elseif( kv.key <> KeyOf( j, KN ) orelse kv.value <> vals( j ) ) then
+                    badorder += 1
+                end if
+                j += 1 : seen += 1
+            next
+            if( seen <> nlive ) then badorder += 1
+            dim ks as Array( of long ) = m.Keys( )
+            if( ks.Count( ) <> nlive orelse IsSorted( ks ) = false ) then badorder += 1
+
+            '' navigation: random probes, odd keys fall between entries
+            for p as long = 1 to 200
+                dim as long probe = RandBelow( 2 * KN + 20 ) - KN - 10
+                dim as long fl = -1, ce = -1
+                for q as long = 0 to KN - 1
+                    if( present( q ) ) then
+                        if( KeyOf( q, KN ) <= probe ) then fl = q
+                        if( ce = -1 andalso KeyOf( q, KN ) >= probe ) then ce = q
+                    end if
+                next
+                dim as long ok_ = 0
+                if( m.TryFloor( probe, ok_ ) <> ( fl >= 0 ) ) then
+                    badnav += 1
+                elseif( fl >= 0 andalso ok_ <> KeyOf( fl, KN ) ) then
+                    badnav += 1
+                end if
+                if( m.TryCeiling( probe, ok_ ) <> ( ce >= 0 ) ) then
+                    badnav += 1
+                elseif( ce >= 0 andalso ok_ <> KeyOf( ce, KN ) ) then
+                    badnav += 1
+                end if
+            next
+            dim as long fk, fv, lk, lv
+            dim as long first_ = -1, last_ = -1
+            for q as long = 0 to KN - 1
+                if( present( q ) ) then
+                    if( first_ = -1 ) then first_ = q
+                    last_ = q
+                end if
+            next
+            if( m.TryFirst( fk, fv ) <> ( first_ >= 0 ) ) then badnav += 1
+            if( first_ >= 0 andalso ( fk <> KeyOf( first_, KN ) orelse fv <> vals( first_ ) ) ) then badnav += 1
+            if( m.TryLast( lk, lv ) <> ( last_ >= 0 ) ) then badnav += 1
+            if( last_ >= 0 andalso ( lk <> KeyOf( last_, KN ) orelse lv <> vals( last_ ) ) ) then badnav += 1
+        end if
+    next
+    CHECK( "O1 OrderedMap differential (" & bad & " wrong)", bad = 0 )
+    CHECK( "O1 red-black invariant (" & badrb & " broken)", badrb = 0 )
+    CHECK( "O1 in-order walk (" & badorder & " wrong)", badorder = 0 )
+    CHECK( "O1 First/Last/Floor/Ceiling (" & badnav & " wrong)", badnav = 0 )
+
+    '' drain completely, then the empty-tree answers
+    for q as long = 0 to KN - 1
+        m.Remove( KeyOf( q, KN ) )
+    next
+    dim as long dk, dv
+    CHECK( "O1 drained", m.Count( ) = 0 andalso m.IsEmpty( ) )
+    CHECK( "O1 empty TryFirst/TryLast", m.TryFirst( dk, dv ) = false andalso m.TryLast( dk, dv ) = false )
+    CHECK( "O1 empty TryFloor/TryCeiling", m.TryFloor( 0, dk ) = false andalso m.TryCeiling( 0, dk ) = false )
+    CHECK( "O1 empty BlackHeight", m.BlackHeight( ) <> -1 )
+    Done( "O1", nops )
+end scope
+
+'' ======================================================== O2 adversarial orders
+scope
+    Section( "O2 adversarial insertion and removal orders" )
+    dim as long N = 200000 * SCALE
+    dim as longint total = 0
+    for pattern as long = 0 to 3
+        dim m as OrderedMap( of long, long )
+        dim as double t = timer
+        for i as long = 0 to N - 1
+            dim as long k
+            select case pattern
+            case 0 : k = i                                       '' ascending
+            case 1 : k = N - i                                   '' descending
+            case 2 : k = iif( i and 1, i, N * 2 - i )            '' zig-zag from both ends
+            case 3 : k = ( i * 40503 ) and ( 262143 * SCALE )    '' scattered, with repeats
+            end select
+            m.Put( k, i )
+        next
+        dim as double tins = timer - t
+        dim as long bh = m.BlackHeight( )
+        CHECK( "O2 pattern " & pattern & " red-black after inserts", bh <> -1 )
+        '' a red-black tree of n nodes has black height at most log2( n + 1 ) + 1
+        dim as long lim = 2
+        dim as long n2 = m.Count( ) + 1
+        while( n2 > 1 )
+            n2 \= 2 : lim += 1
+        wend
+        CHECK( "O2 pattern " & pattern & " black height " & bh & " <= " & lim, bh <= lim )
+        dim ks as Array( of long ) = m.Keys( )
+        CHECK( "O2 pattern " & pattern & " keys sorted", IsSorted( ks ) )
+
+        '' remove in the order that stresses the opposite side of the fix-up
+        dim as long cnt = ks.Count( ), badrm = 0
+        '' the invariant walk is O(n log n): sample it 32 times, outside the timing
+        dim as long every = cnt \ 32 + 1
+        dim as double trm = 0, tseg = timer
+        for j as long = 0 to cnt - 1
+            dim as long k
+            select case pattern
+            case 0 : k = ks[ j ]
+            case 1 : k = ks[ cnt - 1 - j ]
+            case 2 : k = ks[ iif( j and 1, j \ 2, cnt - 1 - j \ 2 ) ]
+            case 3 : k = ks[ ( j * 7 ) mod cnt ]
+            end select
+            if( m.Remove( k ) = false ) then
+                if( pattern <> 3 ) then badrm += 1
+            end if
+            if( j mod every = 0 ) then
+                trm += timer - tseg
+                if( m.BlackHeight( ) = -1 ) then badrm += 1
+                tseg = timer
+            end if
+        next
+        if( pattern = 3 ) then
+            '' ( j * 7 ) mod cnt is not a permutation for every cnt: sweep the rest
+            for j as long = 0 to cnt - 1
+                m.Remove( ks[ j ] )
+            next
+        end if
+        trm += timer - tseg
+        CHECK( "O2 pattern " & pattern & " removal (" & badrm & ")", badrm = 0 andalso m.Count( ) = 0 )
+        print "   pattern " & pattern & ": " & cnt & " keys, black height " & bh & ", insert " & F3( tins ) & " s, remove " & F3( trm ) & " s"
+        total += N + cnt
+    next
+    Done( "O2", total )
+end scope
+
+'' ======================================================== O3 strings + lifetime
+scope
+    Section( "O3 OrderedMap( of string, Counted ) lifetime, copy, assignment" )
+    '' warm OrderedMap's own statics, if any, before the baseline
+    scope
+        dim w as OrderedMap( of string, Counted )
+        w.Put( "w", Counted( 0 ) )
+        w[ "x" ].v = 1
+    end scope
+    dim as long base_ = live
+    scope
+        const N = 20000
+        dim m as OrderedMap( of string, Counted )
+        for i as long = 0 to N * SCALE - 1
+            m.Put( "key-" & right( "0000000" & i, 8 ), Counted( i ) )
+        next
+        for i as long = 0 to N * SCALE - 1 step 2
+            m.Remove( "key-" & right( "0000000" & i, 8 ) )
+        next
+        CHECK( "O3 count", m.Count( ) = N * SCALE \ 2 )
+        dim as long j = 1, bad = 0
+        for each kv in m
+            if( kv.key <> "key-" & right( "0000000" & j, 8 ) orelse kv.value.v <> j ) then bad += 1
+            j += 2
+        next
+        CHECK( "O3 string order (" & bad & ")", bad = 0 )
+
+        dim c as OrderedMap( of string, Counted ) = m
+        dim a as OrderedMap( of string, Counted )
+        a.Put( "junk", Counted( 1 ) )
+        a = m
+        a = a
+        CHECK( "O3 self-assign keeps " & a.Count( ), a.Count( ) = m.Count( ) )
+        CHECK( "O3 self-assign tree valid", a.BlackHeight( ) <> -1 )
+        CHECK( "O3 assignment dropped the old entry", a.Contains( "junk" ) = false )
+        c.Remove( "key-00000001" )
+        CHECK( "O3 copy independent", m.Contains( "key-00000001" ) andalso c.Contains( "key-00000001" ) = false )
+        m.Clear( )
+        CHECK( "O3 Clear", m.Count( ) = 0 andalso c.Count( ) = N * SCALE \ 2 - 1 )
+    end scope
+    CHECK( "O3 every Counted destroyed (" & ( live - base_ ) & " leaked)", live = base_ )
+    Done( "O3", 20000 * SCALE * 3 )
+end scope
+
+'' ======================================================== O4 OrderedSet
+scope
+    Section( "O4 OrderedSet( of long ) differential + set operations" )
+    const KN = 2000
+    dim as boolean ma( any ), mb_( any )
+    redim ma( 0 to KN - 1 ) : redim mb_( 0 to KN - 1 )
+    dim a as OrderedSet( of long ), b as OrderedSet( of long )
+    dim as long bad = 0, badops = 0, nlive = 0
+    dim as long nops = 200000 * SCALE
+    for op as long = 1 to nops
+        dim as long i = RandBelow( KN )
+        dim as long r = RandBelow( 1000 )
+        if( r < 400 ) then
+            if( a.Add( i ) <> ( ma( i ) = false ) ) then bad += 1
+            ma( i ) = true
+        elseif( r < 650 ) then
+            if( a.Remove( i ) <> ma( i ) ) then bad += 1
+            ma( i ) = false
+        elseif( r < 850 ) then
+            if( a.Contains( i ) <> ma( i ) ) then bad += 1
+        elseif( r < 990 ) then
+            if( r and 1 ) then
+                b.Add( i ) : mb_( i ) = true
+            else
+                b.Remove( i ) : mb_( i ) = false
+            end if
+        else
+            select case r mod 3
+            case 0
+                a.UnionWith( b )
+                for q as long = 0 to KN - 1
+                    ma( q ) = ma( q ) orelse mb_( q )
+                next
+            case 1
+                a.IntersectWith( b )
+                for q as long = 0 to KN - 1
+                    ma( q ) = ma( q ) andalso mb_( q )
+                next
+            case 2
+                a.ExceptWith( b )
+                for q as long = 0 to KN - 1
+                    ma( q ) = ma( q ) andalso ( mb_( q ) = false )
+                next
+            end select
+            if( a.BlackHeight( ) = -1 ) then badops += 1
+        end if
+        if( op mod 10000 = 0 ) then
+            dim as long q = 0, seen = 0, n = 0
+            for z as long = 0 to KN - 1
+                if( ma( z ) ) then n += 1
+            next
+            if( a.Count( ) <> n ) then bad += 1
+            for each v in a
+                while( q < KN andalso ma( q ) = false )
+                    q += 1
+                wend
+                if( v <> q ) then bad += 1
+                q += 1 : seen += 1
+            next
+            if( seen <> n ) then bad += 1
+            dim it as Array( of long ) = a.Items( )
+            if( it.Count( ) <> n orelse IsSorted( it ) = false ) then bad += 1
+            if( a.BlackHeight( ) = -1 ) then bad += 1
+        end if
+    next
+    CHECK( "O4 OrderedSet differential (" & bad & " wrong)", bad = 0 )
+    CHECK( "O4 set operations keep the tree valid (" & badops & ")", badops = 0 )
+
+    '' against themselves
+    dim s as OrderedSet( of long )
+    for i as long = 0 to 999
+        s.Add( i * 3 )
+    next
+    s.UnionWith( s )
+    CHECK( "O4 self-union keeps " & s.Count( ), s.Count( ) = 1000 )
+    s.IntersectWith( s )
+    CHECK( "O4 self-intersect keeps " & s.Count( ), s.Count( ) = 1000 )
+    s = s
+    CHECK( "O4 self-assign keeps " & s.Count( ), s.Count( ) = 1000 )
+    s.ExceptWith( s )
+    CHECK( "O4 self-except empties (" & s.Count( ) & " left)", s.Count( ) = 0 )
+    CHECK( "O4 tree valid after the self operations", s.BlackHeight( ) <> -1 )
+
+    '' navigation at the extremes
+    dim e as OrderedSet( of long )
+    for i as long = 10 to 1000 step 10
+        e.Add( i )
+    next
+    dim as long v
+    CHECK( "O4 floor below min", e.TryFloor( 5, v ) = false )
+    CHECK( "O4 ceiling below min", e.TryCeiling( 5, v ) andalso v = 10 )
+    CHECK( "O4 floor above max", e.TryFloor( 5000, v ) andalso v = 1000 )
+    CHECK( "O4 ceiling above max", e.TryCeiling( 5000, v ) = false )
+    CHECK( "O4 floor exact", e.TryFloor( 500, v ) andalso v = 500 )
+    CHECK( "O4 ceiling between", e.TryCeiling( 501, v ) andalso v = 510 )
+    CHECK( "O4 floor between", e.TryFloor( 509, v ) andalso v = 500 )
+
+    '' large
+    dim big as OrderedSet( of long )
+    dim as long N = 500000 * SCALE
+    for i as long = 0 to N - 1
+        big.Add( ( i * 7919 ) mod N )
+    next
+    CHECK( "O4 large count", big.Count( ) = N )
+    CHECK( "O4 large valid", big.BlackHeight( ) <> -1 )
+    dim as long f, l_
+    CHECK( "O4 large first/last", big.TryFirst( f ) andalso f = 0 andalso big.TryLast( l_ ) andalso l_ = N - 1 )
+    Done( "O4", nops + N )
+end scope
+
+print "stress-ordered: " & checks & " checks, " & fails & " failed"
+end iif( fails = 0, 0, 1 )

@@ -1,0 +1,11 @@
+'' RUN: std/containers stress, ordered -- OrderedMap and OrderedSet: random operations against a model, the red-black invariant, First/Last/Floor/Ceiling probes, sorted/reversed/zig-zag orders of 200K keys, self-assignment and self set operations.
+'' SCALE 1 here (no argument); 'stdcstressordered.exe 5' for a heavier run. Prints per-section timings.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/std-containers-stress-ordered.tiko -o tests/codegen/stdcstressordered.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/stdcstressordered.exe
+'' RUN: tests/codegen/stdcstressordered.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: stress-ordered:
+'' EXPECT-RUN-OUT: checks, 0 failed

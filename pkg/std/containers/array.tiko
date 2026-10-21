@@ -11,6 +11,11 @@
 ''     dim v as containers.Array( of string )           '' do
 ''     v.Push( "ada" )
 ''
+'' WRITE THROUGH [ ], NOT At( ).  'a.At( i ) = v' is a CALL with the argument
+'' 'i = v' -- a comparison -- and assigns nothing (warning TKO0931); 'a[ i ] = v'
+'' and '( a.At( i ) ) = v' assign.  That is FreeBASIC's statement grammar, not
+'' something this type can change.
+''
 '' INDICES ARE ZERO-BASED.  This is a deliberate break with 'dim arr(1 to 10)'
 '' BASIC tradition, taken because Count and index arithmetic are otherwise a
 '' permanent source of off-by-one, and because every other language's growable
@@ -55,6 +60,7 @@ end type
 public type Array( of T )
     as T items( any )
     as long num
+    as long cap_                        '' slots allocated -- see Capacity( )
 
     declare function Count( ) as long
     declare function Capacity( ) as long
@@ -92,8 +98,10 @@ function Array( of T ).Count( ) as long
     return this.num
 end function
 
+'' KEPT IN A FIELD, set wherever items is sized, as Map does (7fdcce493): ubound and
+'' lbound of a dynamic array are runtime calls, and Push asks on every call.
 function Array( of T ).Capacity( ) as long
-    return ubound( this.items ) - lbound( this.items ) + 1
+    return this.cap_
 end function
 
 function Array( of T ).IsEmpty( ) as boolean
@@ -107,26 +115,34 @@ sub Array( of T ).Reserve( byval n as long )
         exit sub
     end if
 
-    dim as long cap = this.Capacity( )
+    '' In 64 bits: doubling a long past 2^30 overflows negative and never ends.  A
+    '' doubling that would pass the largest long takes exactly n instead.
+    dim as longint cap = this.Capacity( )
     if( cap < ARRAY_MIN_CAPACITY ) then
         cap = ARRAY_MIN_CAPACITY
     end if
     while( cap < n )
         cap *= 2
     wend
+    if( cap > &h7FFFFFFFll ) then
+        cap = n
+    end if
 
     redim preserve this.items( 0 to cap-1 )
+    this.cap_ = cap
 end sub
 
 sub Array( of T ).Shrink( )
     if( this.num = 0 ) then
         erase this.items
+        this.cap_ = 0
         exit sub
     end if
     if( this.num = this.Capacity( ) ) then
         exit sub
     end if
     redim preserve this.items( 0 to this.num-1 )
+    this.cap_ = this.num
 end sub
 
 operator Array( of T ).[] ( byval i as long ) byref as T
@@ -137,22 +153,30 @@ function Array( of T ).At( byval i as long ) byref as T
     return this.items( i )
 end function
 
+'' v may refer INTO this array -- 'a.Push( a[ 0 ] )' -- and a growing Reserve
+'' reallocates the storage it refers to, so on growth v is copied FIRST, as
+'' Insert does.  Only on growth: the common push pays no extra copy.
 sub Array( of T ).Push( byref v as T )
-    this.Reserve( this.num + 1 )
-    this.items( this.num ) = v
+    if( this.num >= this.Capacity( ) ) then
+        dim as T tmp = v
+        this.Reserve( this.num + 1 )
+        swap this.items( this.num ), tmp
+    else
+        this.items( this.num ) = v
+    end if
     this.num += 1
 end sub
 
-'' Remove and return the last element.  The slot is left alone rather than
-'' cleared: for a T with a destructor the language destroys it when the array
-'' does, and clearing here would cost a construction per pop.
+'' Remove and return the last element.  It is SWAPPED out, so the slot is left
+'' holding r's default and a popped string's buffer goes with r -- it used to
+'' be copied out and the original left alive in the slot until overwritten.
 function Array( of T ).Pop( ) as T
     dim as T r
     if( this.num = 0 ) then
         return r
     end if
     this.num -= 1
-    r = this.items( this.num )
+    swap r, this.items( this.num )
     return r
 end function
 
@@ -168,25 +192,29 @@ sub Array( of T ).Insert( byval i as long, byref v as T )
 
     this.Reserve( this.num + 1 )
 
+    '' every move is a SWAP: no element is copied, only the new one (see sort.tiko)
     for k as long = this.num to i+1 step -1
-        this.items( k ) = this.items( k-1 )
+        swap this.items( k ), this.items( k-1 )
     next
 
-    this.items( i ) = tmp
+    swap this.items( i ), tmp
     this.num += 1
 end sub
 
-'' Order-preserving removal, O(n).
+'' Order-preserving removal, O(n).  The removed element is swapped down to the
+'' end and released there, so no element is copied and none lingers in a slot.
 sub Array( of T ).Remove( byval i as long )
     if( (i < 0) orelse (i >= this.num) ) then
         exit sub
     end if
 
     for k as long = i to this.num-2
-        this.items( k ) = this.items( k+1 )
+        swap this.items( k ), this.items( k+1 )
     next
 
     this.num -= 1
+    dim as T blank
+    swap this.items( this.num ), blank
 end sub
 
 '' O(1) removal that does NOT preserve order: the last element moves into the
@@ -198,8 +226,10 @@ sub Array( of T ).RemoveSwap( byval i as long )
 
     this.num -= 1
     if( i <> this.num ) then
-        this.items( i ) = this.items( this.num )
+        swap this.items( i ), this.items( this.num )
     end if
+    dim as T blank
+    swap this.items( this.num ), blank
 end sub
 
 '' Drops every element but keeps the capacity, so a clear-and-refill loop does

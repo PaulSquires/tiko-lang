@@ -1,0 +1,11 @@
+'' RUN: std/containers stress, seq -- Array, Deque, LinkedList, PriorityQueue, BitSet: random operations against a model, 2M pushes, ring wrap-around, an argument referring into the container while it grows, the empty-list blank, SortList stability, BitSet word boundaries and self set operations.
+'' SCALE 1 here (no argument); 'stdcstressseq.exe 5' for a heavier run. Prints per-section timings.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/std-containers-stress-seq.tiko -o tests/codegen/stdcstressseq.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/stdcstressseq.exe
+'' RUN: tests/codegen/stdcstressseq.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: stress-seq:
+'' EXPECT-RUN-OUT: checks, 0 failed

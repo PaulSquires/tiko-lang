@@ -99,7 +99,8 @@ sub BitSet.Resize( byval nbits as long )
     if( nbits < 0 ) then
         nbits = 0
     end if
-    dim as long nw = ( nbits + 63 ) \ 64
+    '' in 64 bits: 'nbits + 63' overflows a long for the top 63 bit counts
+    dim as long nw = cast( long, ( clngint( nbits ) + 63 ) \ 64 )
     dim as long have = ubound( this.words ) + 1
     if( nw <> have ) then
         if( nw = 0 ) then

@@ -1,0 +1,11 @@
+'' RUN: std/containers stress, hash -- Map and Set: random operations checked against a plain-array model, fill/drain/refill, churn at 11 steady sizes, keys forced to collide, string keys with counted values, a 500K fill.
+'' SCALE 1 here (no argument); 'stdcstresshash.exe 5' for a heavier run. Prints per-section timings.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/std-containers-stress-hash.tiko -o tests/codegen/stdcstresshash.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/stdcstresshash.exe
+'' RUN: tests/codegen/stdcstresshash.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: stress-hash:
+'' EXPECT-RUN-OUT: checks, 0 failed

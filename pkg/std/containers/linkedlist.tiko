@@ -194,9 +194,16 @@ end function
 
 '' Front and Back on an empty list return a reference to a shared blank.  A
 '' reference has to refer to something, and there is nothing else to refer to.
+''
+'' THE BLANK IS RESET ON EVERY EMPTY CALL.  It is one static per T, shared by
+'' every list of that T, and the reference is writable: '( e1.Front( ) ) = 42'
+'' on one empty list made every other empty list's Front( ) read 42.  A write
+'' through it now lasts only until the next empty Front or Back.
 function LinkedList( of T ).Front( ) byref as T
     static as T blank
     if( this.head = nullptr ) then
+        dim as T fresh
+        swap blank, fresh
         return blank
     end if
     return this.head->value
@@ -205,6 +212,8 @@ end function
 function LinkedList( of T ).Back( ) byref as T
     static as T blank
     if( this.tail = nullptr ) then
+        dim as T fresh
+        swap blank, fresh
         return blank
     end if
     return this.tail->value
