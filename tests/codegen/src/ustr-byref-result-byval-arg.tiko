@@ -1,0 +1,67 @@
+'' A USTRING THAT COMES BACK BY REFERENCE, passed straight to a 'byval as ustring' parameter
+'' (AW-004). 'F( a[ 0 ] )' over containers.Array( of ustring ) handed fb_UStrAssign the 24-byte
+'' descriptor where its address belongs, and clang refused the module: Check records the
+'' 'operator []' on the N_INDEX, so the subscript looked like a paren-less call and its byref
+'' result was loaded. A user 'operator []' returning by value went the same way. The expected
+'' output is fbc-modern 1.20's (fb/array.bi's FB.Array in place of std/containers), byte for byte.
+#import "std/containers"
+
+sub F( byval s as ustring )
+    print "F [" & s & "]"
+end sub
+
+type Sink
+    k as long
+    declare sub M( byval s as ustring )
+end type
+sub Sink.M( byval s as ustring )
+    print "M [" & s & "]"
+end sub
+
+type RefIx
+    v as ustring
+    declare operator [] ( byval i as long ) byref as ustring
+end type
+operator RefIx.[] ( byval i as long ) byref as ustring
+    return v
+end operator
+
+type ValIx
+    v as ustring
+    declare operator [] ( byval i as long ) as ustring
+end type
+operator ValIx.[] ( byval i as long ) as ustring
+    return v & "!"
+end operator
+
+dim shared g as ustring
+function R( ) byref as ustring
+    return g
+end function
+
+dim a as containers.Array( of ustring )
+a.Push( "x" )
+a.Push( "héllo" )
+dim snk as Sink
+g = "fr"
+
+F( a[ 0 ] )
+F( a[ 1 ] )
+F( a.At( 1 ) )
+snk.M( a[ 0 ] )
+snk.M( a[ 1 ] )
+snk.M( a.At( 0 ) )
+F( R( ) )
+snk.M( R( ) )
+
+dim rix as RefIx
+rix.v = "byref-op"
+F( rix[ 0 ] )
+snk.M( rix[ 0 ] )
+dim vix as ValIx
+vix.v = "byval-op"
+F( vix[ 0 ] )
+snk.M( vix[ 0 ] )
+
+'' The copies are the callee's: the sources are untouched.
+print a[ 0 ]; " "; a[ 1 ]; " "; g; " "; rix.v

@@ -1,0 +1,23 @@
+'' AW-004, RUN: a ustring returned BY REFERENCE -- containers.Array( of ustring )'s 'a[ i ]' and
+'' '.At( i )', a user 'operator []' (byref and byval), a 'byref as ustring' function -- passed
+'' straight to a 'byval as ustring' sub and method parameter. 'a[ 0 ]' was invalid IR (TKO0113).
+'' Expected output is fbc-modern 1.20's, byte for byte.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/ustr-byref-result-byval-arg.tiko -o tests/codegen/ustrbyrefres.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/ustrbyrefres.exe
+'' RUN: tests/codegen/ustrbyrefres.exe
+'' EXPECT-RUN-OUT: F [x]
+'' EXPECT-RUN-OUT: F [héllo]
+'' EXPECT-RUN-OUT: F [héllo]
+'' EXPECT-RUN-OUT: M [x]
+'' EXPECT-RUN-OUT: M [héllo]
+'' EXPECT-RUN-OUT: M [x]
+'' EXPECT-RUN-OUT: F [fr]
+'' EXPECT-RUN-OUT: M [fr]
+'' EXPECT-RUN-OUT: F [byref-op]
+'' EXPECT-RUN-OUT: M [byref-op]
+'' EXPECT-RUN-OUT: F [byval-op!]
+'' EXPECT-RUN-OUT: M [byval-op!]
+'' EXPECT-RUN-OUT: x héllo fr byref-op
