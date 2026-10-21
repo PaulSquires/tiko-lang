@@ -7,6 +7,11 @@
 
 namespace Tko.Mir
 
+'' lowerfieldinit.tiko
+declare function CopyCallResultOnAddr_ _
+    ( byref c as Ctx, byref addr as MirValue, byval t as Tko.TypeId, _
+      byval init as Tko.NodeId ) as boolean
+
 '' THE MODULE INITIALISER AND FINALISER.
 ''
 '' fbc emits '_GLOBAL__I' and '_GLOBAL__D' carrying GCC's constructor and destructor
@@ -73,6 +78,9 @@ sub EmitModuleInit_( byref c as Ctx )
                         dim as boolean conv = LowerConvCtorInit_( c, -1, gt, mic, @ga )
                         ReleaseUdtTemps_( c, um ) : ReleaseWstrTemps_( c, wm ) : ReleaseStrTemps_( c, sm )
                         if conv then continue for
+                        '' ...OR A FUNCTION RETURNING THE TYPE: 'dim shared as __float128 M_PIq =
+                        '' strtoflt128( "3.14...Q", 0 )' -- see CopyCallResultOnAddr_.
+                        if CopyCallResultOnAddr_( c, ga, gt, mic ) then continue for
                         '' A NAMED INITIALISER NOTHING COULD BUILD is a decline, never a quiet default
                         '' construction in its place.
                         SkipHere( c )

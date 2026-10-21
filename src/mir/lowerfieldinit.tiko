@@ -285,11 +285,54 @@ function CtorCallOnAddr_ _
 
     dim as Tko.ListPayload ptr cp = _
         @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
+    '' ...ONLY A CALL OF THE TYPE ITSELF. A FUNCTION returning it -- 'dim shared as Q g = mk( 5 )' --
+    '' had its ARGUMENTS handed to Q's constructors: g was Q( 5 ) where fbc copies mk( 5 )'s result,
+    '' and it verified (found beside fbc-examples r3ice08).
+    if cp->target <> Tko.NODE_NONE then
+        dim as Tko.Symbol ptr tsy = c.syms->SymbolAt( c.info->RefOf( cp->target ) )
+        if tsy <> nullptr then
+            if tsy->kind = cast( uint8, Tko.SYM_PROC ) then return false
+        end if
+    end if
     dim as containers.Array( of uint32 ) args
     for i as int32 = 0 to cp->count - 1
         args.Push( cast( uint32, c.ast->children[cp->first + i] ) )
     next
     return CtorArgsOnAddr_( c, addr, ctors, args )
+end function
+
+'' A FUNCTION RETURNING THE TYPE, as a shared or field initialiser: 'dim shared as __float128 M_PIq =
+'' strtoflt128( "3.14...Q", 0 )', 'as Q f = mk( 5 )'. The global declined, with no source line
+'' (fbc-examples r3ice08, BigFloat quadmath), and the FIELD was silently Q( 5 ) -- CtorCallOnAddr_
+'' handed the function's arguments to Q's constructors. Measured, fbc does not build in place here
+'' as a local declaration does: it COPIES the result -- the copy constructor, the implicit deep copy
+'' of a string field, else the bytes -- and then destroys the temporary (2 constructions and 2
+'' destructions over a type with only a destructor).
+function CopyCallResultOnAddr_ _
+    ( byref c as Ctx, byref addr as MirValue, byval t as Tko.TypeId, _
+      byval init as Tko.NodeId ) as boolean
+
+    if IsCallResult_( c, init ) = false then return false
+    if CallReturnsByref_( c, init ) then return false
+    if c.types->Unqualify( c.info->TypeOf_( init ) ) <> c.types->Unqualify( t ) then return false
+    dim as int32 sm = c.strTemps.Count, wm = c.wstrTemps.Count, um = c.udtTemps.Count
+    dim as MirValue ra = LowerAddr( c, init )
+    dim as int32 sz = SizeOfType( c, t )
+    dim as boolean ok = (ra.kind <> cast( uint8, MV_NONE )) andalso (sz > 0)
+    if ok then
+        dim as Tko.SymbolId cc = InitCopyCtorOf_( c, t )
+        if cc <> Tko.SYMBOL_NONE then
+            dim as containers.Array( of uint32 ) ca
+            ca.Push( cast( uint32, ra.kind ) ) : ca.Push( cast( uint32, ra.id ) )
+            EmitStructorCall( c, cc, -1, @addr, @ca )
+        elseif NeedsLetBody_( c, t ) then
+            CallImplicitCopy_( c, t, addr, ra )
+        else
+            StoreThrough( c, addr, LowerExprLoad( c, ra, MT_AGG, sz ) )
+        end if
+    end if
+    ReleaseUdtTemps_( c, um ) : ReleaseWstrTemps_( c, wm ) : ReleaseStrTemps_( c, sm )
+    return ok
 end function
 
 '' 'host as DWSTRING = "127.0.0.1"' -- A BARE VALUE THAT PICKS A CONVERTING CONSTRUCTOR,
@@ -448,6 +491,7 @@ sub EmitFieldInit_ _
     if c.types->Kind( c.types->Unqualify( ft ) ) = Tko.TK_UDT then
         if LowerUdtParenInit_( c, -1, ft, init, @addr ) then return
         if CtorCallOnAddr_( c, addr, ft, init ) then return
+        if CopyCallResultOnAddr_( c, addr, ft, init ) then return
         if ConvCtorOnAddr_( c, addr, ft, init ) then return
     end if
 

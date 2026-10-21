@@ -1,0 +1,23 @@
+'' RUN: initialisers that stopped on TKO0994 (fbc-examples round 3): '@' over adjacent literals and
+'' '@wstr( ... )' in a static (r3ice01, r3ice02); '@' over str( ) of a string constant (r3ice03); a shared
+'' UDT initialised from a FUNCTION -- copied, then the temporary destroyed, as fbc does (r3ice08); a
+'' 17-term string constant (r3ice09). Also a FIELD initialised from a function, which silently took the
+'' call's arguments as constructor arguments. Expected output measured with fbc-modern.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/static-init-r3.bas -o tests/codegen/staticinitr3.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0994
+'' EXPECT-FILE: tests/codegen/staticinitr3.exe
+'' RUN: tests/codegen/staticinitr3.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: copy
+'' EXPECT-RUN-OUT: copy
+'' EXPECT-RUN-OUT: abcdx 2 All (*.*)! xy
+'' EXPECT-RUN-OUT: User:Pw
+'' EXPECT-RUN-OUT: v=%d
+'' EXPECT-RUN-OUT:  15 21 4 2
+'' EXPECT-RUN-OUT: v9 9
+'' EXPECT-RUN-OUT: copy
+'' EXPECT-RUN-OUT:  15
+'' EXPECT-RUN-OUT:  45

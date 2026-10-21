@@ -403,6 +403,12 @@ function LowerExpr _
             dim as string sctx
             if ConstStringTextOf_( c, litOp, sctx ) then return LowerTextAddr( c, sctx )
         end if
+        '' ...AND '@str( FS )' OVER A STRING CONSTANT, which fbc folds to the literal:
+        '' 'printf( @str( FormatString ), ... )' declined (fbc-examples r3ice03).
+        if (c.ast->Kind( litOp ) = Tko.N_CALL) andalso IsStringType( c, c.info->TypeOf_( litOp ) ) then
+            dim as string cctx
+            if ConstStringTextOf_( c, litOp, cctx ) then return LowerTextAddr( c, cctx )
+        end if
         '' ...AND SO IS '@S' OVER A STRING CONSTANT. 'const s = "abc"' emits no
         '' variable -- it folds -- so LowerAddr had nothing to take and
         '' 'dim as byte ptr p = @s' declined. Measured, fbc hands back the

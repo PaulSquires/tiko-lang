@@ -30,7 +30,9 @@ function ConstStringTextOf_ _
       byval scope_ as Tko.ScopeId = Tko.SCOPE_GLOBAL ) as boolean
 
     if id = Tko.NODE_NONE then return false
-    if depth > 16 then return false
+    '' A BOUND FOR A CYCLE, not a size: a left-nested '&' chain recurses once per term, and 16 stopped
+    '' a 16-term table constant (fbc-examples r3ice09, BeginnerChess's ACH_TABLE).
+    if depth > 4096 then return false
 
     '' A CONSTANT'S TEXT KEEPS ITS NULS until it lands somewhere: fbc folds
     '' '"A" + !"\0" + "B"' to the three bytes -- 'len' of it is 3 -- and only a target
@@ -193,6 +195,11 @@ function ConstStringTextOf_ _
         if wnm = "str" then
             if wp->count <> 1 then return false
             dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[wp->first] )
+            '' 'str( "text" )' IS THE TEXT: fbc folds 'const UP = str( "User:Pw" )' to the
+            '' literal, and '@UP' then declined here (fbc-examples r3ice03, Base64.bas).
+            if IsStringType( c, c.info->TypeOf_( a0 ) ) then
+                return ConstStringTextOf_( c, a0, outText, depth + 1, scope_ )
+            end if
             '' A FLOAT ARGUMENT RENDERS THROUGH StrOfDouble, which is the same
             '' sixteen-significant-digit expansion fbc's own STR( ) produces and the one
             '' check-str gates. Reading it as an integer instead would answer 1 for 1.5.
@@ -279,7 +286,7 @@ end function
 '' a constant? fbc folds such a chain into ONE zstring literal, so a NUL in it ends the value;
 '' a chain with a call in it ('chr( 0 )', 'str( n )') is a counted string and keeps its NULs.
 function LitOnlyChain_( byref c as Ctx, byval id as Tko.NodeId, byval depth as int32 ) as boolean
-    if (id = Tko.NODE_NONE) orelse (depth > 16) then return false
+    if (id = Tko.NODE_NONE) orelse (depth > 4096) then return false   '' as ConstStringTextOf_
     select case c.ast->Kind( id )
     case Tko.N_STRING_LIT
         return true
@@ -310,6 +317,33 @@ function LitOnlyChain_( byref c as Ctx, byval id as Tko.NodeId, byval depth as i
         return LitOnlyChain_( c, StmtOf( c, item )->b, depth + 1 )
     end select
     return false
+end function
+
+'' '@<CONSTANT TEXT>' IS THE LITERAL'S OWN GLOBAL, whatever spells the text: adjacent literals
+'' ('@"ab" "cd"'), a string constant, 'str( "x" )', and '@wstr( <text> )' as a WIDE literal. fbc emits
+'' 'static char* G$[] = { "abcd" }' and '(uint16*)L"xy"'. Only a bare literal was taken, so these
+'' declined in a static initialiser (fbc-examples r3ice01, r3ice02). The global's index, or -1.
+function ConstTextGlobal_( byref c as Ctx, byval opnd as Tko.NodeId ) as int32
+    opnd = Unparen_( c, opnd )
+    dim as string txt
+    if IsWstrCall_( c, opnd ) then
+        dim as Tko.ListPayload ptr wlp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, opnd )].data )]
+        if wlp->count <> 1 then return -1
+        if ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->children[wlp->first] ), txt ) = false then return -1
+        return c.m->AddWideStringLiteral( txt, *c.names )
+    end if
+    select case c.ast->Kind( opnd )
+    case Tko.N_STRING_LIT, Tko.N_STRCAT, Tko.N_CALL, Tko.N_BINARY
+    case Tko.N_IDENT
+        if IsConstNameRef_( c, opnd ) = false then return -1
+    case else
+        return -1
+    end select
+    if IsStringType( c, c.info->TypeOf_( opnd ) ) = false then
+        if c.ast->Kind( opnd ) <> Tko.N_STRCAT then return -1
+    end if
+    if ConstStringTextOf_( c, opnd, txt ) = false then return -1
+    return c.m->AddStringLiteral( txt, *c.names )
 end function
 
 end namespace
