@@ -1,0 +1,184 @@
+'' std/tls (C:\dev\docs\tiko-stdlib\RFC-0002): a server thread over a loopback listener
+'' shakes hands with the test PKI (std-tls-pki.ti) and echoes; the client checks a verified
+'' handshake by name and by IP, a 200 000-byte echo both ways, close_notify, an untrusted
+'' chain, a name mismatch, an expired leaf, InsecureSkipVerify, MinVersion 1.3, and the
+'' config and state errors.  Loopback only; SChannel on Windows, libssl.so.3 on Linux.
+#import "std/tls"
+#import "std/net"
+#import "std/fs"
+#import "std/containers"
+using containers
+
+#include once "std-tls-pki.ti"
+
+dim shared as integer fails = 0
+
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+'' What the server thread serves: one config per connection, in order.
+type ServerJob
+    as net.TcpListener ptr lis
+    as tls.TlsConfig ptr cfgs( 0 to 15 )
+    as long n
+    as long served                    '' handshakes the server completed
+    as long echoedEof                 '' connections whose Read ended in 0 (close_notify)
+end type
+
+sub Server( byval p as any ptr )
+    dim as ServerJob ptr j = p
+    dim as ubyte ptr b = allocate( 65536 )
+    for i as long = 0 to j->n - 1
+        dim c as net.TcpStream
+        if j->lis->Accept( c, 10000 ).IsOk( ) = false then exit for
+        c.SetReadTimeout( 10000 )
+        dim t as tls.TlsStream
+        if t.Accept( c, *j->cfgs( i ) ).IsOk( ) = false then continue for
+        j->served += 1
+        do
+            dim g as fs.FsResultI64 = t.Read( b, 65536 )
+            if g.IsOk( ) = false then exit do
+            if g.Value( ) = 0 then
+                j->echoedEof += 1
+                exit do
+            end if
+            if t.WriteAll( b, g.Value( ) ).IsOk( ) = false then exit do
+        loop
+        t.Close( )
+    next
+    deallocate( b )
+end sub
+
+'' A client handshake to the server: the TlsError code (TLS_OK when it shook hands);
+'' with `echo`, a round trip of 200 000 bytes and Close.
+function Client( byval port as long, byref host as const ustring, byref cfg as const tls.TlsConfig, _
+                 byval echo as boolean, byref proto as ustring ) as tls.TlsErrorCode
+    dim c as net.TcpStream
+    if c.Connect( net.SocketAddress( net.Loopback( ), port ), 5000 ).IsOk( ) = false then return tls.TLS_UNKNOWN
+    c.SetReadTimeout( 10000 )
+    dim s as tls.TlsStream
+    dim r as tls.TlsResultBool = s.Connect( c, host, cfg )
+    if r.IsOk( ) = false then return r.Failure( ).Code( )
+    proto = s.Protocol( )
+    Check( "IsOpen", s.IsOpen( ) )
+    Check( "ServerName", s.ServerName( ) = host )
+    if echo then
+        dim as Array( of ubyte ) big
+        for i as long = 0 to 199999
+            big.Push( cubyte( ( i * 7 ) mod 251 ) )
+        next
+        Check( "write big", s.WriteBytes( big ).IsOk( ) )
+        dim as ubyte ptr b = allocate( 200000 )
+        Check( "read big", s.ReadExact( b, 200000 ).IsOk( ) )
+        dim as boolean same = true
+        for i as long = 0 to 199999
+            if b[i] <> ( ( i * 7 ) mod 251 ) then
+                same = false
+                exit for
+            end if
+        next
+        Check( "echo bytes", same )
+        deallocate( b )
+    end if
+    Check( "Close", s.Close( ).IsOk( ) )
+    Check( "closed", s.IsOpen( ) = false )
+    dim as ubyte one
+    dim rr as fs.FsResultI64 = s.Read( @one, 1 )
+    Check( "Read after Close", ( rr.IsOk( ) = false ) andalso ( rr.Failure( ).Code( ) = fs.FS_CLOSED ) )
+    return tls.TLS_OK
+end function
+
+sub Main_( )
+    '' ------------------------------------------------------------ config errors
+    dim bad as tls.TlsConfig
+    Check( "AddRootPem garbage", bad.AddRootPem( "not pem" ).Failure( ).Code( ) = tls.TLS_BAD_PEM )
+    Check( "AddRootPem bad base64", bad.AddRootPem( !"-----BEGIN CERTIFICATE-----\n@@@@\n-----END CERTIFICATE-----\n" ).Failure( ).Code( ) = tls.TLS_BAD_PEM )
+    Check( "SetIdentityPem no key", bad.SetIdentityPem( LEAF_PEM, CA_PEM ).Failure( ).Code( ) = tls.TLS_BAD_PEM )
+    Check( "SetIdentityPem no cert", bad.SetIdentityPem( LEAF_KEY, LEAF_KEY ).Failure( ).Code( ) = tls.TLS_BAD_PEM )
+    Check( "AddRootFile missing", bad.AddRootFile( "no/such/file.pem" ).Failure( ).Code( ) = tls.TLS_BAD_PEM )
+    Check( "no roots", bad.RootCount( ) = 0 )
+    Check( "no identity", bad.HasIdentity( ) = false )
+    dim roots as tls.TlsConfig
+    Check( "AddRootPem", roots.AddRootPem( "junk before" & CA_PEM & "junk after" ).IsOk( ) )
+    Check( "RootCount", roots.RootCount( ) = 1 )
+    Check( "default min", roots.MinVersion = tls.TLS_VERSION_1_2 )
+
+    dim good as tls.TlsConfig
+    Check( "SetIdentityPem", good.SetIdentityPem( LEAF_PEM, LEAF_KEY ).IsOk( ) )
+    Check( "HasIdentity", good.HasIdentity( ) )
+    dim expired as tls.TlsConfig
+    Check( "SetIdentityPem expired", expired.SetIdentityPem( EXPIRED_PEM, LEAF_KEY ).IsOk( ) )
+
+    '' a copy is a value
+    dim copied as tls.TlsConfig = roots
+    copied.InsecureSkipVerify = true
+    Check( "copy independent", roots.InsecureSkipVerify = false andalso copied.RootCount( ) = 1 )
+
+    '' ------------------------------------------------------------ state errors
+    dim idle as tls.TlsStream
+    Check( "Close unopened", idle.Close( ).Failure( ).Code( ) = tls.TLS_CLOSED )
+    dim as ubyte one
+    Check( "Read unopened", idle.Read( @one, 1 ).Failure( ).Code( ) = fs.FS_CLOSED )
+    Check( "Write unopened", idle.Write( @one, 1 ).Failure( ).Code( ) = fs.FS_CLOSED )
+    Check( "CanSeek", idle.CanSeek( ) = false )
+    dim dummy as net.TcpStream
+    Check( "Connect empty name", idle.Connect( dummy, "", roots ).Failure( ).Code( ) = tls.TLS_INVALID_ARGUMENT )
+    Check( "Accept no identity", idle.Accept( dummy, roots ).Failure( ).Code( ) = tls.TLS_NO_IDENTITY )
+
+    '' nothing listens on the port a closed listener had
+    dim gone as net.TcpListener
+    gone.Bind( net.SocketAddress( net.Loopback( ), 0 ) )
+    dim as long deadPort = gone.LocalAddress( ).Value( ).Port
+    gone.Close( )
+    dim refused as tls.TlsStream
+    Check( "ConnectHost refused", refused.ConnectHost( "127.0.0.1", deadPort, roots, 3000 ).Failure( ).Code( ) = tls.TLS_CONNECT_FAILED )
+
+    '' ------------------------------------------------------------ handshakes
+    dim lis as net.TcpListener
+    Check( "Bind", lis.Bind( net.SocketAddress( net.Loopback( ), 0 ) ).IsOk( ) )
+    dim as long port = lis.LocalAddress( ).Value( ).Port
+
+    dim insecure as tls.TlsConfig
+    insecure.InsecureSkipVerify = true
+    dim v13 as tls.TlsConfig = roots
+    v13.MinVersion = tls.TLS_VERSION_1_3
+    dim good13 as tls.TlsConfig = good
+    good13.MinVersion = tls.TLS_VERSION_1_3
+
+    dim job as ServerJob
+    job.lis = @lis
+    job.n = 7
+    job.cfgs( 0 ) = @good        '' verified by name, echo
+    job.cfgs( 1 ) = @good        '' verified by IP, echo
+    job.cfgs( 2 ) = @good        '' no roots: untrusted
+    job.cfgs( 3 ) = @good        '' wrong name
+    job.cfgs( 4 ) = @good        '' wrong name, insecure
+    job.cfgs( 5 ) = @expired     '' expired leaf
+    job.cfgs( 6 ) = @good13      '' 1.3 only, both sides
+    dim th as any ptr = threadcreate( @Server, @job, 1024 * 1024 )
+
+    dim as ustring proto
+    Check( "localhost", Client( port, "localhost", roots, true, proto ) = tls.TLS_OK )
+    Check( "protocol", ( proto = "TLSv1.2" ) orelse ( proto = "TLSv1.3" ) )
+    Check( "127.0.0.1", Client( port, "127.0.0.1", roots, true, proto ) = tls.TLS_OK )
+    dim none_ as tls.TlsConfig
+    Check( "untrusted", Client( port, "localhost", none_, false, proto ) = tls.TLS_CERT_UNTRUSTED )
+    Check( "name mismatch", Client( port, "wrong.test", roots, false, proto ) = tls.TLS_CERT_NAME_MISMATCH )
+    Check( "insecure", Client( port, "wrong.test", insecure, false, proto ) = tls.TLS_OK )
+    Check( "expired", Client( port, "localhost", roots, false, proto ) = tls.TLS_CERT_EXPIRED )
+    Check( "1.3", Client( port, "localhost", v13, false, proto ) = tls.TLS_OK )
+    Check( "1.3 protocol", proto = "TLSv1.3" )
+    threadwait( th )
+    '' the four that verified; a client that refuses the chain after the handshake
+    '' (SChannel checks it then) counts as served too
+    Check( "served", job.served >= 4 )
+    Check( "close_notify read as the end", job.echoedEof >= 4 )
+end sub
+
+Main_( )
+if fails = 0 then print "ok"
+end iif( fails = 0, 0, 1 )

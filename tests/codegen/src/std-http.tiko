@@ -1,0 +1,385 @@
+'' std/http (C:\dev\docs\tiko-stdlib\RFC-0002): a small HTTP/1.1 server in this file
+'' (a thread per connection over a loopback listener, plain and TLS) answers fixed
+'' routes, and the client checks Content-Length, chunked (with trailers) and read-to-close
+'' bodies, HEAD, 1xx skipped, 404 as a response, redirects (302, 303, 307, a loop),
+'' basic auth from the URL, default and request headers, connection reuse, the retry
+'' after the server drops an idle connection, ResponseStream, MaxBodyBytes, a short
+'' body, a malformed status line, a timeout, the argument errors, and https with the test
+'' PKI (trusted, and untrusted with its TlsCode).  Loopback only.
+#import "std/http"
+#import "std/tls"
+#import "std/net"
+#import "std/fs"
+#import "std/containers"
+using containers
+
+#include once "std-tls-pki.ti"
+
+dim shared as integer fails = 0
+dim shared as long accepted = 0            '' plain connections the server accepted
+
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+sub Same( byref what as string, byref got as const ustring, byref want as const ustring )
+    if got <> want then
+        print "FAIL "; what; ": got '"; got; "' want '"; want; "'"
+        fails += 1
+    end if
+end sub
+
+'' ---------------------------------------------------------------- the server
+
+'' A thread nobody waits for (tiko has no THREADDETACH): the handle is dropped.
+sub Detach( byval th as any ptr )
+end sub
+
+type Conn
+    as net.TcpStream tcp
+    as tls.TlsStream t
+    as boolean secure
+end type
+
+type Listen
+    as net.TcpListener ptr lis
+    as tls.TlsConfig ptr cfg                 '' nullptr: plain
+end type
+
+function S_( byval c as Conn ptr ) as fs.Stream ptr
+    if c->secure then return @c->t
+    return @c->tcp
+end function
+
+'' One line ending CRLF, without it; FALSE at the end or on an error.
+function ReadLine_( byval s as fs.Stream ptr, byref ln as string ) as boolean
+    ln = ""
+    dim as ubyte ch
+    do
+        dim r as fs.FsResultI64 = s->Read( @ch, 1 )
+        if ( r.IsOk( ) = false ) orelse ( r.Value( ) = 0 ) then return false
+        if ch = 10 then
+            if right( ln, 1 ) = chr( 13 ) then ln = left( ln, len( ln ) - 1 )
+            return true
+        end if
+        ln &= chr( ch )
+    loop
+end function
+
+sub Send_( byval s as fs.Stream ptr, byref text as const string )
+    s->WriteAll( cptr( const ubyte ptr, strptr( text ) ), len( text ) )
+end sub
+
+function Reply( byval status as string, byref body as const string, byref extra as const string = "" ) as string
+    return "HTTP/1.1 " & status & !"\r\nContent-Length: " & len( body ) & !"\r\n" & extra & !"\r\n" & body
+end function
+
+sub ServeConn( byval p as any ptr )
+    dim as Conn ptr c = p
+    dim as fs.Stream ptr s = S_( c )
+    do
+        dim as string ln, method_, path, hdrs, body
+        if ReadLine_( s, ln ) = false then exit do
+        dim as long sp1 = instr( ln, " " ), sp2 = instrrev( ln, " " )
+        method_ = left( ln, sp1 - 1 )
+        path = mid( ln, sp1 + 1, sp2 - sp1 - 1 )
+        dim as long clen = 0
+        dim as boolean closeAfter = false
+        do
+            if ReadLine_( s, ln ) = false then exit do
+            if len( ln ) = 0 then exit do
+            hdrs &= ln & !"\n"
+            if lcase( left( ln, 15 ) ) = "content-length:" then clen = valint( mid( ln, 16 ) )
+            if lcase( ln ) = "connection: close" then closeAfter = true
+        loop
+        if clen > 0 then
+            body = space( clen )
+            s->ReadExact( cptr( ubyte ptr, strptr( body ) ), clen )
+        end if
+        dim as string q
+        dim as long qa = instr( path, "?" )
+        if qa > 0 then
+            q = mid( path, qa + 1 )
+            path = left( path, qa - 1 )
+        end if
+        select case path
+        case "/len"
+            Send_( s, Reply( "200 OK", "hello", !"Content-Type: text/plain\r\nX-Multi: a\r\nx-multi: b\r\n" ) )
+        case "/utf8"
+            Send_( s, Reply( "200 OK", "h" & chr( &hC3, &hA9 ) & "llo", !"X-Name: caf" & chr( &hC3, &hA9 ) & !"\r\n" ) )
+        case "/chunk"
+            Send_( s, !"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n3;ext=1\r\nhel\r\n8\r\nlo world\r\n0\r\nX-Trailer: t\r\n\r\n" )
+        case "/close"
+            Send_( s, !"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nuntil the end" )
+            exit do
+        case "/head"
+            Send_( s, !"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\n" )
+        case "/cont"
+            Send_( s, !"HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 103 Early Hints\r\nLink: </x>\r\n\r\n" & Reply( "200 OK", "after" ) )
+        case "/redir"
+            Send_( s, Reply( "302 Found", "moved", !"Location: /len\r\n" ) )
+        case "/r303"
+            Send_( s, Reply( "303 See Other", "", !"Location: echo?from=303\r\n" ) )
+        case "/r307"
+            Send_( s, Reply( "307 Temporary Redirect", "", !"Location: /echo\r\n" ) )
+        case "/loop"
+            Send_( s, Reply( "302 Found", "", !"Location: /loop\r\n" ) )
+        case "/echo"
+            Send_( s, Reply( "200 OK", method_ & !"\n" & q & !"\n" & body & !"\n" & hdrs ) )
+        case "/404"
+            Send_( s, Reply( "404 Not Found", "nope" ) )
+        case "/big"
+            Send_( s, Reply( "200 OK", string( 300000, "x" ) ) )
+        case "/short"
+            Send_( s, !"HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\nhello" )
+            exit do
+        case "/badchunk"
+            Send_( s, !"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\nzz\r\n" )
+            exit do
+        case "/bad"
+            Send_( s, !"HTTP/1.1 OK\r\n\r\n" )
+            exit do
+        case "/slow"
+            sleep 1500, 1
+            exit do
+        case "/drop"
+            Send_( s, Reply( "200 OK", "dropping" ) )
+            exit do                            '' says keep-alive, then closes
+        case else
+            Send_( s, Reply( "500 Internal Server Error", path ) )
+        end select
+        if closeAfter then exit do
+    loop
+    if c->secure then c->t.Close( )
+    c->tcp.Close( )
+    delete c
+end sub
+
+sub Acceptor( byval p as any ptr )
+    dim as Listen ptr l = p
+    do
+        dim as Conn ptr c = new Conn
+        if l->lis->Accept( c->tcp, 30000 ).IsOk( ) = false then
+            delete c
+            exit do
+        end if
+        c->tcp.SetReadTimeout( 10000 )
+        if l->cfg <> nullptr then
+            if c->t.Accept( c->tcp, *l->cfg ).IsOk( ) = false then
+                c->tcp.Close( )
+                delete c
+                continue do
+            end if
+            c->secure = true
+        else
+            accepted += 1
+        end if
+        Detach( threadcreate( @ServeConn, c, 1024 * 1024 ) )
+    loop
+end sub
+
+'' ---------------------------------------------------------------- the client
+
+function Code( byref r as http.HttpResultResponse ) as http.HttpErrorCode
+    if r.IsOk( ) then return http.HTTP_OK
+    return r.Failure( ).Code( )
+end function
+
+sub Main_( )
+    dim lis as net.TcpListener
+    Check( "Bind", lis.Bind( net.SocketAddress( net.Loopback( ), 0 ) ).IsOk( ) )
+    dim as long port = lis.LocalAddress( ).Value( ).Port
+    dim as ustring base_ = "http://127.0.0.1:" & port
+    dim plain as Listen
+    plain.lis = @lis
+    Detach( threadcreate( @Acceptor, @plain, 1024 * 1024 ) )
+
+    dim cl as http.Client
+    Check( "defaults", cl.TimeoutMs = 30000 andalso cl.MaxRedirects = 10 andalso cl.KeepAlive )
+
+    '' Content-Length, headers case-insensitive and multi-valued
+    dim r as http.HttpResultResponse = cl.Fetch( base_ & "/len" )
+    Check( "len ok", r.IsOk( ) )
+    if r.IsOk( ) then
+        dim byref v as http.Response = r.Value( )
+        Check( "len status", v.StatusCode = 200 )
+        Same( "len reason", v.Reason, "OK" )
+        Same( "len proto", v.Proto, "HTTP/1.1" )
+        Same( "len body", v.Text( ), "hello" )
+        Check( "len success", v.IsSuccess( ) )
+        Same( "len header", v.Header.Get( "CONTENT-type" ).ValueOr( "" ), "text/plain" )
+        Check( "len multi", v.Header.GetAll( "x-multi" ).num = 2 )
+        Check( "len has", v.Header.Has( "content-length" ) andalso ( v.Header.Has( "nope" ) = false ) )
+        Same( "len url", v.Url, base_ & "/len" )
+    end if
+    Check( "one connection", cl.IdleCount( ) = 1 )
+
+    '' reuse: three more requests, still one connection
+    dim as long before = accepted
+    for i as long = 1 to 3
+        Same( "reuse body", cl.Fetch( base_ & "/len" ).Value( ).Text( ), "hello" )
+    next
+    Check( "reused", accepted = before )
+
+    '' UTF-8 in a header and a body
+    r = cl.Fetch( base_ & "/utf8" )
+    Same( "utf8 body", r.Value( ).Text( ), "h" & wchr( &hE9 ) & "llo" )
+    Same( "utf8 header", r.Value( ).Header.Get( "x-name" ).ValueOr( "" ), "caf" & wchr( &hE9 ) )
+
+    '' chunked with an extension and a trailer
+    r = cl.Fetch( base_ & "/chunk" )
+    Same( "chunk body", r.Value( ).Text( ), "hello world" )
+    Same( "chunk reused afterwards", cl.Fetch( base_ & "/len" ).Value( ).Text( ), "hello" )
+
+    '' read to the close
+    before = accepted
+    r = cl.Fetch( base_ & "/close" )
+    Same( "close body", r.Value( ).Text( ), "until the end" )
+    Same( "after close", cl.Fetch( base_ & "/len" ).Value( ).Text( ), "hello" )
+    Check( "close not reused", accepted = before + 1 )
+
+    '' HEAD: a length and no body
+    r = cl.Head( base_ & "/head" )
+    Check( "head", r.IsOk( ) andalso r.Value( ).StatusCode = 200 andalso r.Value( ).Body.num = 0 )
+    Same( "after head", cl.Fetch( base_ & "/len" ).Value( ).Text( ), "hello" )
+
+    '' 100 and 103 skipped
+    Same( "1xx", cl.Fetch( base_ & "/cont" ).Value( ).Text( ), "after" )
+
+    '' a 404 is a response
+    r = cl.Fetch( base_ & "/404" )
+    Check( "404", r.IsOk( ) andalso r.Value( ).StatusCode = 404 andalso r.Value( ).IsSuccess( ) = false )
+    Same( "404 body", r.Value( ).Text( ), "nope" )
+
+    '' redirects
+    r = cl.Fetch( base_ & "/redir" )
+    Same( "302 body", r.Value( ).Text( ), "hello" )
+    Same( "302 url", r.Value( ).Url, base_ & "/len" )
+    r = cl.Post( base_ & "/r303", "text/plain", "data" )
+    Same( "303 to GET", left( r.Value( ).Text( ), 13 ), !"GET\nfrom=303\n" )
+    r = cl.Post( base_ & "/r307", "text/plain", "data" )
+    Same( "307 keeps POST", left( r.Value( ).Text( ), 11 ), !"POST\n\ndata\n" )
+    Check( "307 content type", instr( r.Value( ).Text( ), "Content-Type: text/plain" ) > 0 )
+    Check( "loop", Code( cl.Fetch( base_ & "/loop" ) ) = http.HTTP_TOO_MANY_REDIRECTS )
+    dim nofollow as http.Client
+    nofollow.MaxRedirects = 0
+    r = nofollow.Fetch( base_ & "/redir" )
+    Check( "no follow", r.IsOk( ) andalso r.Value( ).StatusCode = 302 )
+    Same( "no follow location", r.Value( ).Header.Get( "location" ).ValueOr( "" ), "/len" )
+
+    '' request headers, defaults, basic auth from the URL
+    dim req as http.Request = http.Request( "PUT", "http://user:pw@127.0.0.1:" & port & "/echo?a=1&b=2" )
+    req.Header.Add( "X-Test", "yes" )
+    req.SetBody( "payload", "application/x-test" )
+    cl.DefaultHeader.Add( "X-Default", "d" )
+    cl.DefaultHeader.Add( "X-Test", "overridden" )
+    r = cl.Send( req )
+    dim as ustring t = r.Value( ).Text( )
+    Same( "echo head", left( t, 20 ), !"PUT\na=1&b=2\npayload\n" )
+    Check( "echo auth", instr( t, "Authorization: Basic dXNlcjpwdw==" ) > 0 )
+    Check( "echo x-test", instr( t, "X-Test: yes" ) > 0 andalso instr( t, "overridden" ) = 0 )
+    Check( "echo default", instr( t, "X-Default: d" ) > 0 )
+    Check( "echo agent", instr( t, "User-Agent: tiko-http/0.1" ) > 0 )
+    Check( "echo host", instr( t, "Host: 127.0.0.1:" & port ) > 0 )
+    Check( "echo length", instr( t, "Content-Length: 7" ) > 0 )
+    Check( "echo type", instr( t, "Content-Type: application/x-test" ) > 0 )
+    cl.DefaultHeader.Clear( )
+    dim req2 as http.Request = http.Request( "GET", base_ & "/echo" )
+    req2.SetBasicAuth( "a", "b" )
+    Check( "SetBasicAuth", instr( cl.Send( req2 ).Value( ).Text( ), "Authorization: Basic YTpi" ) > 0 )
+
+    '' the server drops a kept-alive connection: the next request retries on a new one
+    Same( "drop", cl.Fetch( base_ & "/drop" ).Value( ).Text( ), "dropping" )
+    sleep 100, 1
+    r = cl.Fetch( base_ & "/len" )
+    Check( "retry after drop", r.IsOk( ) )
+    if r.IsOk( ) then Same( "retry body", r.Value( ).Text( ), "hello" )
+
+    '' ResponseStream: the body at the caller's pace
+    dim rs as http.ResponseStream
+    Check( "Open", cl.Open( http.Request( "GET", base_ & "/big" ), rs ).IsOk( ) )
+    Check( "Open length", rs.ContentLength( ) = 300000 )
+    Check( "Open status", rs.StatusCode = 200 )
+    dim as Array( of ubyte ) all_
+    Check( "ReadToEnd", rs.ReadToEnd( all_ ).IsOk( ) )
+    Check( "ReadToEnd bytes", all_.num = 300000 )
+    Check( "stream Close", rs.Close( ).IsOk( ) )
+    Check( "stream closed", rs.Close( ).Failure( ).Code( ) = http.HTTP_CLOSED )
+    dim as ubyte one
+    Check( "stream Read closed", rs.Read( @one, 1 ).Failure( ).Code( ) = fs.FS_CLOSED )
+
+    '' limits and broken servers
+    dim small as http.Client
+    small.MaxBodyBytes = 1000
+    Check( "MaxBodyBytes", Code( small.Fetch( base_ & "/big" ) ) = http.HTTP_BODY_TOO_LARGE )
+    Check( "short body", Code( cl.Fetch( base_ & "/short" ) ) = http.HTTP_BAD_RESPONSE )
+    Check( "bad chunk", Code( cl.Fetch( base_ & "/badchunk" ) ) = http.HTTP_BAD_RESPONSE )
+    Check( "bad status", Code( cl.Fetch( base_ & "/bad" ) ) = http.HTTP_BAD_RESPONSE )
+    dim quick as http.Client
+    quick.TimeoutMs = 300
+    Check( "timeout", Code( quick.Fetch( base_ & "/slow" ) ) = http.HTTP_TIMED_OUT )
+
+    '' arguments
+    Check( "scheme", Code( cl.Fetch( "ftp://127.0.0.1/x" ) ) = http.HTTP_UNSUPPORTED_SCHEME )
+    Check( "no host", Code( cl.Fetch( "http:///x" ) ) = http.HTTP_INVALID_URL )
+    Check( "bad url", Code( cl.Fetch( "http://[::1/" ) ) = http.HTTP_INVALID_URL )
+    dim inj as http.Request = http.Request( "GET", base_ & "/len" )
+    inj.Header.Add( "X-Bad", !"a\r\nInjected: 1" )
+    Check( "header injection", Code( cl.Send( inj ) ) = http.HTTP_INVALID_ARGUMENT )
+    Check( "bad method", Code( cl.Send( http.Request( "GE T", base_ & "/len" ) ) ) = http.HTTP_INVALID_ARGUMENT )
+    dim gone as net.TcpListener
+    gone.Bind( net.SocketAddress( net.Loopback( ), 0 ) )
+    dim as long deadPort = gone.LocalAddress( ).Value( ).Port
+    gone.Close( )
+    r = cl.Fetch( "http://127.0.0.1:" & deadPort & "/" )
+    Check( "refused", Code( r ) = http.HTTP_CONNECT_FAILED )
+    Check( "refused message", instr( r.Failure( ).Message( ), "connection refused" ) > 0 )
+
+    '' the module's shorthands
+    Same( "http.Fetch", http.Fetch( base_ & "/len" ).Value( ).Text( ), "hello" )
+    Check( "http.Post", left( http.Post( base_ & "/echo", "text/plain", "x" ).Value( ).Text( ), 7 ) = !"POST\n\nx" )
+
+    '' Headers on its own
+    dim h as http.Headers
+    h.Add( "A", "1" ) : h.Add( "b", "2" ) : h.Add( "a", "3" )
+    h.SetValue( "A", "9" )
+    Check( "SetValue", h.Count( ) = 2 andalso h.NameAt( 0 ) = "A" andalso h.ValueAt( 0 ) = "9" andalso h.NameAt( 1 ) = "b" )
+    h.Remove( "B" )
+    Check( "Remove", h.Count( ) = 1 andalso h.Get( "b" ).HasValue( ) = false )
+
+    '' https
+    dim scfg as tls.TlsConfig
+    Check( "identity", scfg.SetIdentityPem( LEAF_PEM, LEAF_KEY ).IsOk( ) )
+    dim slis as net.TcpListener
+    '' dual-stack, so "localhost" answers on ::1 as well as 127.0.0.1 (a refused connect
+    '' costs Windows about 2 s)
+    Check( "Bind tls", slis.Bind( net.SocketAddress( net.Any_( true ), 0 ) ).IsOk( ) )
+    dim as long sport = slis.LocalAddress( ).Value( ).Port
+    dim secure as Listen
+    secure.lis = @slis
+    secure.cfg = @scfg
+    Detach( threadcreate( @Acceptor, @secure, 1024 * 1024 ) )
+    dim hc as http.Client
+    Check( "root", hc.TlsOptions.AddRootPem( CA_PEM ).IsOk( ) )
+    r = hc.Fetch( "https://localhost:" & sport & "/chunk" )
+    Check( "https", r.IsOk( ) )
+    if r.IsOk( ) then Same( "https body", r.Value( ).Text( ), "hello world" )
+    Same( "https reuse", hc.Fetch( "https://localhost:" & sport & "/len" ).Value( ).Text( ), "hello" )
+    Check( "https idle", hc.IdleCount( ) = 1 )
+    dim untrusted as http.Client
+    r = untrusted.Fetch( "https://localhost:" & sport & "/len" )
+    Check( "https untrusted", Code( r ) = http.HTTP_TLS_FAILED )
+    if r.IsOk( ) = false then Check( "https TlsCode", r.Failure( ).TlsCode( ) = tls.TLS_CERT_UNTRUSTED )
+
+    cl.CloseIdle( )
+    Check( "CloseIdle", cl.IdleCount( ) = 0 )
+    hc.CloseIdle( )
+    sleep 200, 1                                  '' the server threads see their connections end
+end sub
+
+Main_( )
+if fails = 0 then print "ok"
+end iif( fails = 0, 0, 1 )

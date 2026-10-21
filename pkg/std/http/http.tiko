@@ -1,0 +1,414 @@
+#module "http"
+#import "std/containers"
+#import "std/outcome"
+#import "std/fs"
+#import "std/net"
+#import "std/tls"
+#import "std/codec"
+using containers
+using outcome
+'' std/http -- an HTTP/1.1 client over std/net and std/tls
+''
+''     #import "std/http"
+''
+''     dim r as http.HttpResultResponse = http.Fetch( "https://example.com/" )
+''     if r.IsOk( ) then
+''         print r.Value( ).StatusCode, r.Value( ).Header.Get( "content-type" ).ValueOr( "" )
+''         print r.Value( ).Text( )
+''     else
+''         print r.Failure( ).Message( )
+''     end if
+''
+'' C:\dev\docs\tiko-stdlib\RFC-0002 (HTTP client and TLS).
+''
+''   Client        holds the settings (TimeoutMs, MaxRedirects, MaxBodyBytes,
+''                 KeepAlive, UserAgent, DefaultHeader, TlsOptions) and the idle
+''                 connections it may reuse.  Send( Request ) reads the whole body
+''                 into a Response; Open( Request, ResponseStream ) hands the body
+''                 over as an fs.Stream to read at the caller's pace.  Fetch / Post /
+''                 Head and the module's own Fetch / Post are shorthands.
+''   Request       a value: Method, Url, Header, Body; SetBody, SetBasicAuth.
+''   Response      a value: StatusCode, Reason, Proto, Url (after redirects),
+''                 Header, Body, Text( ).
+''   Headers       an ordered multimap; names compare without regard to case.
+''
+'' WHAT IT DOES.  http and https URLs; persistent connections (one request at a
+'' time on each); Content-Length, chunked and read-to-close bodies; redirects
+'' (301, 302 and 303 become GET, 307 and 308 keep the method and body; the
+'' Authorization header is dropped when the host changes); basic authentication
+'' from the URL or SetBasicAuth; 1xx responses skipped.  A request that fails on a
+'' reused connection before any reply is retried once on a new one.  Not done: proxies,
+'' cookies, compressed bodies (no Accept-Encoding is sent), HTTP/2, Expect: 100-continue.
+''
+'' ERRORS.  Send / Open report HttpError: a status like 404 is NOT an error --
+'' check StatusCode.  TlsCode( ) carries a TLS failure's tls.TlsErrorCode.  Reading
+'' a ResponseStream reports fs.FsError: a body shorter than its length is
+'' fs.FS_UNEXPECTED_EOF, a bad chunk fs.FS_INVALID_DATA.
+''
+'' BLOCKING.  Every call blocks its thread; TimeoutMs bounds the connect and each
+'' read or write, not the whole exchange.  A Client is not thread-safe; use one
+'' per thread.  Neither a Client nor a ResponseStream is copyable, and a
+'' ResponseStream must not outlive the Client that opened it.
+
+#if __FB_LANG__ <> "fb"
+    #error "std/http requires -lang fb"
+#endif
+
+extern "C"
+    declare function HttpMemcpy alias "memcpy" ( byval d as any ptr, byval s as const any ptr, byval n as uinteger ) as any ptr
+end extern
+
+'' -------------------------------------------------------------- errors
+
+public enum HttpErrorCode
+    HTTP_OK = 0
+    HTTP_INVALID_URL            '' not a URL, or no host
+    HTTP_UNSUPPORTED_SCHEME     '' not http or https
+    HTTP_CONNECT_FAILED         '' resolving or connecting failed (Detail( ) says why)
+    HTTP_TLS_FAILED             '' the TLS handshake or the certificate check failed (TlsCode( ))
+    HTTP_TIMED_OUT              '' a connect, read or write timed out
+    HTTP_IO                     '' sending the request or reading the reply failed
+    HTTP_BAD_RESPONSE           '' a malformed status line, header or chunk; a body cut short
+    HTTP_TOO_MANY_REDIRECTS     '' more than MaxRedirects
+    HTTP_HEADERS_TOO_LARGE      '' the response head exceeds 64 KiB
+    HTTP_BODY_TOO_LARGE         '' Send: a body larger than MaxBodyBytes
+    HTTP_INVALID_ARGUMENT       '' an empty method, a header name or value that cannot be sent
+    HTTP_CLOSED                 '' an operation on a ResponseStream that is not open
+    HTTP_UNKNOWN
+end enum
+
+public function HttpErrorMessage( byval c as HttpErrorCode ) as ustring
+    select case c
+    case HTTP_OK                 : return "no error"
+    case HTTP_INVALID_URL        : return "invalid URL"
+    case HTTP_UNSUPPORTED_SCHEME : return "unsupported URL scheme"
+    case HTTP_CONNECT_FAILED     : return "connection failed"
+    case HTTP_TLS_FAILED         : return "TLS failed"
+    case HTTP_TIMED_OUT          : return "timed out"
+    case HTTP_IO                 : return "I/O error"
+    case HTTP_BAD_RESPONSE       : return "malformed response"
+    case HTTP_TOO_MANY_REDIRECTS : return "too many redirects"
+    case HTTP_HEADERS_TOO_LARGE  : return "response headers too large"
+    case HTTP_BODY_TOO_LARGE     : return "response body too large"
+    case HTTP_INVALID_ARGUMENT   : return "invalid argument"
+    case HTTP_CLOSED             : return "response is not open"
+    case HTTP_UNKNOWN            : return "unknown error"
+    end select
+    return "unknown error"
+end function
+
+public type HttpError
+    '' Default-constructible because Result default-constructs both slots.
+    declare constructor( )
+    declare constructor( byval c as HttpErrorCode, byval osc as long, byref op as const ustring, _
+                         byref subj as const ustring, byref detail_ as const ustring = "", _
+                         byval tlsc as tls.TlsErrorCode = tls.TLS_OK )
+    declare const function Code( ) as HttpErrorCode
+    declare const function OsCode( ) as long                 '' the socket's, the TLS library's, or 0
+    declare const function TlsCode( ) as tls.TlsErrorCode    '' HTTP_TLS_FAILED's reason; TLS_OK otherwise
+    declare const function Operation( ) as ustring           '' "Send", "Open", ...
+    declare const function Subject( ) as ustring             '' the URL
+    declare const function Detail( ) as ustring              '' the lower layer's message; "" when none
+    declare const function Message( ) as ustring
+private:
+    as HttpErrorCode m_code
+    as long m_os
+    as tls.TlsErrorCode m_tls
+    as ustring m_op
+    as ustring m_subj
+    as ustring m_detail
+end type
+
+constructor HttpError( )
+    this.m_code = HTTP_UNKNOWN
+    this.m_os = 0
+    this.m_tls = tls.TLS_OK
+end constructor
+
+constructor HttpError( byval c as HttpErrorCode, byval osc as long, byref op as const ustring, _
+                       byref subj as const ustring, byref detail_ as const ustring = "", _
+                       byval tlsc as tls.TlsErrorCode = tls.TLS_OK )
+    this.m_code = c
+    this.m_os = osc
+    this.m_op = op
+    this.m_subj = subj
+    this.m_detail = detail_
+    this.m_tls = tlsc
+end constructor
+
+const function HttpError.Code( ) as HttpErrorCode
+    return this.m_code
+end function
+
+const function HttpError.OsCode( ) as long
+    return this.m_os
+end function
+
+const function HttpError.TlsCode( ) as tls.TlsErrorCode
+    return this.m_tls
+end function
+
+const function HttpError.Operation( ) as ustring
+    return this.m_op
+end function
+
+const function HttpError.Subject( ) as ustring
+    return this.m_subj
+end function
+
+const function HttpError.Detail( ) as ustring
+    return this.m_detail
+end function
+
+const function HttpError.Message( ) as ustring
+    dim as ustring m = this.m_op
+    if( len( this.m_subj ) > 0 ) then m &= " '" & this.m_subj & "'"
+    m &= ": " & HttpErrorMessage( this.m_code )
+    if( len( this.m_detail ) > 0 ) then m &= " (" & this.m_detail & ")"
+    return m
+end function
+
+public type HttpResultBool as Result( of boolean, HttpError )
+
+function HttpFail( of T )( byval c as HttpErrorCode, byval osc as long, byref op as const ustring, _
+                           byref subj as const ustring, byref detail_ as const ustring = "" ) as Result( of T, HttpError )
+    return Fail( of T, HttpError )( HttpError( c, osc, op, subj, detail_ ) )
+end function
+
+'' -------------------------------------------------------------- headers
+
+'' A value: an ordered multimap of header fields.  Names keep the spelling they
+'' were added with and compare without regard to ASCII case.
+public type Headers
+    declare const function Get( byref nm as const ustring ) as Optional( of ustring )   '' the first value
+    declare const function GetAll( byref nm as const ustring ) as Array( of ustring )
+    declare const function Has( byref nm as const ustring ) as boolean
+    declare sub Add( byref nm as const ustring, byref v as const ustring )
+    declare sub SetValue( byref nm as const ustring, byref v as const ustring )  '' replaces every value of nm
+    declare sub Remove( byref nm as const ustring )
+    declare sub Clear( )
+    declare const function Count( ) as long              '' fields, in order
+    declare const function NameAt( byval i as long ) as ustring   '' 0-based
+    declare const function ValueAt( byval i as long ) as ustring
+    as Array( of ustring ) hNames, hVals
+end type
+
+private function hSameName( byref a as const ustring, byref b as const ustring ) as boolean
+    if( len( a ) <> len( b ) ) then return FALSE
+    return ( lcase( a ) = lcase( b ) )
+end function
+
+const function Headers.Get( byref nm as const ustring ) as Optional( of ustring )
+    for i as long = 0 to this.hNames.num - 1
+        if( hSameName( this.hNames.items( i ), nm ) ) then return Some( of ustring )( this.hVals.items( i ) )
+    next
+    return None( of ustring )( )
+end function
+
+const function Headers.GetAll( byref nm as const ustring ) as Array( of ustring )
+    dim as Array( of ustring ) r
+    for i as long = 0 to this.hNames.num - 1
+        if( hSameName( this.hNames.items( i ), nm ) ) then r.Push( this.hVals.items( i ) )
+    next
+    return r
+end function
+
+const function Headers.Has( byref nm as const ustring ) as boolean
+    for i as long = 0 to this.hNames.num - 1
+        if( hSameName( this.hNames.items( i ), nm ) ) then return TRUE
+    next
+    return FALSE
+end function
+
+sub Headers.Add( byref nm as const ustring, byref v as const ustring )
+    dim as ustring n = nm, w = v
+    this.hNames.Push( n )
+    this.hVals.Push( w )
+end sub
+
+sub Headers.SetValue( byref nm as const ustring, byref v as const ustring )
+    dim as long at_ = -1
+    dim as long i = 0
+    while( i < this.hNames.num )
+        if( hSameName( this.hNames.items( i ), nm ) ) then
+            if( at_ < 0 ) then
+                at_ = i
+                this.hVals.items( i ) = v
+                i += 1
+            else
+                this.hNames.Remove( i )
+                this.hVals.Remove( i )
+            end if
+        else
+            i += 1
+        end if
+    wend
+    if( at_ < 0 ) then this.Add( nm, v )
+end sub
+
+sub Headers.Remove( byref nm as const ustring )
+    dim as long i = 0
+    while( i < this.hNames.num )
+        if( hSameName( this.hNames.items( i ), nm ) ) then
+            this.hNames.Remove( i )
+            this.hVals.Remove( i )
+        else
+            i += 1
+        end if
+    wend
+end sub
+
+sub Headers.Clear( )
+    this.hNames.Clear( )
+    this.hVals.Clear( )
+end sub
+
+const function Headers.Count( ) as long
+    return this.hNames.num
+end function
+
+const function Headers.NameAt( byval i as long ) as ustring
+    if( ( i < 0 ) orelse ( i >= this.hNames.num ) ) then return ""
+    return this.hNames.items( i )
+end function
+
+const function Headers.ValueAt( byval i as long ) as ustring
+    if( ( i < 0 ) orelse ( i >= this.hVals.num ) ) then return ""
+    return this.hVals.items( i )
+end function
+
+'' -------------------------------------------------------------- request and response
+
+public type Request
+    declare constructor( )                               '' GET, no URL
+    declare constructor( byref method_ as const ustring, byref url_ as const ustring )
+    as ustring Method                                    '' sent as given: "GET", "POST", ...
+    as ustring Url
+    as Headers Header
+    as Array( of ubyte ) Body                            '' sent with a Content-Length
+    declare sub SetBody( byref text as const ustring, byref contentType as const ustring = "text/plain; charset=utf-8" )
+    declare sub SetBodyBytes( byref b as Array( of ubyte ), byref contentType as const ustring = "application/octet-stream" )
+    declare sub SetBasicAuth( byref user as const ustring, byref password as const ustring )
+end type
+
+constructor Request( )
+    this.Method = "GET"
+end constructor
+
+constructor Request( byref method_ as const ustring, byref url_ as const ustring )
+    this.Method = method_
+    this.Url = url_
+end constructor
+
+sub Request.SetBody( byref text as const ustring, byref contentType as const ustring = "text/plain; charset=utf-8" )
+    dim as string b = text
+    this.Body.Clear( )
+    this.Body.Reserve( len( b ) )
+    for i as long = 0 to len( b ) - 1
+        this.Body.Push( b[i] )
+    next
+    if( len( contentType ) > 0 ) then this.Header.SetValue( "Content-Type", contentType )
+end sub
+
+sub Request.SetBodyBytes( byref b as Array( of ubyte ), byref contentType as const ustring = "application/octet-stream" )
+    this.Body = b
+    if( len( contentType ) > 0 ) then this.Header.SetValue( "Content-Type", contentType )
+end sub
+
+sub Request.SetBasicAuth( byref user as const ustring, byref password as const ustring )
+    this.Header.SetValue( "Authorization", "Basic " & codec.Base64Encode( user & ":" & password ) )
+end sub
+
+public type Response
+    declare constructor( )
+    as long StatusCode                                   '' 200, 404, ...
+    as ustring Reason                                    '' "OK"
+    as ustring Proto                                     '' "HTTP/1.1"
+    as ustring Url                                       '' the URL that answered, after redirects
+    as Headers Header
+    as Array( of ubyte ) Body
+    declare const function Text( ) as ustring            '' Body decoded as UTF-8; bad bytes become U+FFFD
+    declare const function IsSuccess( ) as boolean       '' 200 to 299
+end type
+
+public type HttpResultResponse as Result( of Response, HttpError )
+
+constructor Response( )
+    this.StatusCode = 0
+end constructor
+
+const function Response.Text( ) as ustring
+    if( this.Body.num = 0 ) then return ""
+    dim as string b = space( this.Body.num )
+    for i as long = 0 to this.Body.num - 1
+        b[i] = this.Body.items( i )
+    next
+    dim as ustring u = b
+    return u
+end function
+
+const function Response.IsSuccess( ) as boolean
+    return ( this.StatusCode >= 200 ) andalso ( this.StatusCode <= 299 )
+end function
+
+'' -------------------------------------------------------------- the client
+
+
+public type ResponseStream extends fs.Stream
+    declare constructor( )
+    declare destructor( ) override
+    as long StatusCode
+    as ustring Reason, Proto, Url
+    as Headers Header
+    declare const function ContentLength( ) as longint   '' -1 when the length is not known in advance
+    declare function Close( ) as HttpResultBool          '' the connection goes back to the Client when the body was read to its end
+    declare const function IsOpen( ) as boolean
+    declare const function CanRead ( ) as boolean override
+    declare const function CanWrite( ) as boolean override
+    declare const function CanSeek ( ) as boolean override
+    declare function Read( byval buf as ubyte ptr, byval n as longint ) as fs.FsResultI64 override
+
+    '' Internal: the body's framing and where the connection goes afterwards.
+    as any ptr hConn                                     '' the connection (httpclient.tiko's HttpConn)
+    as any ptr hClient                                   '' the Client
+    as long hMode                                        '' 0 no body, 1 length, 2 chunked, 3 to close
+    as longint hLeft                                     '' length: bytes left; chunked: bytes left in this chunk
+    as longint hLength
+    as boolean hDone, hReuse
+private:
+    declare constructor( byref other as const ResponseStream )
+    declare operator let( byref other as const ResponseStream )
+end type
+
+public type Client
+    declare constructor( )
+    declare destructor( )
+    as long TimeoutMs                                    '' 30000; connect and each read / write; <= 0 none
+    as long MaxRedirects                                 '' 10; 0 returns the 3xx response itself
+    as longint MaxBodyBytes                              '' 64 MiB: Send's limit
+    as boolean KeepAlive                                 '' TRUE: reuse connections
+    as long MaxIdle                                      '' 8 idle connections kept
+    as ustring UserAgent                                 '' "tiko-http/0.1"; "" sends none
+    as Headers DefaultHeader                             '' added to every request that lacks them
+    as tls.TlsConfig TlsOptions
+    declare function Send( byref req as const Request ) as HttpResultResponse
+    declare function Open( byref req as const Request, byref resp as ResponseStream ) as HttpResultBool
+    declare function Fetch( byref url as const ustring ) as HttpResultResponse
+    declare function Head( byref url as const ustring ) as HttpResultResponse
+    declare function Post( byref url as const ustring, byref contentType as const ustring, _
+                           byref body as const ustring ) as HttpResultResponse
+    declare sub CloseIdle( )                             '' closes the idle connections
+    declare const function IdleCount( ) as long
+
+    '' Internal.
+    as Array( of any ptr ) hIdle                         '' HttpConn ptrs
+    as long hOpened                                      '' connections opened, for tests
+private:
+    declare constructor( byref other as const Client )
+    declare operator let( byref other as const Client )
+end type
+
+'' The module's shorthands: one request on a fresh Client with the defaults.
+public declare function Fetch( byref url as const ustring ) as HttpResultResponse
+public declare function Post( byref url as const ustring, byref contentType as const ustring, _
+                              byref body as const ustring ) as HttpResultResponse

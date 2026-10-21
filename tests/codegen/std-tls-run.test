@@ -1,0 +1,12 @@
+'' RUN: std/tls -- handshakes over loopback with the test PKI: verified by name and by IP,
+'' a 200 000-byte echo, close_notify, untrusted, name mismatch, expired, InsecureSkipVerify,
+'' MinVersion 1.3, config and state errors (C:\dev\docs\tiko-stdlib\RFC-0002).  Loopback
+'' only; the same source runs on Linux.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -mt tests/codegen/src/std-tls.tiko -o tests/codegen/stdtls.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/stdtls.exe
+'' RUN: tests/codegen/stdtls.exe
+'' EXPECT-RUN-OUT: ok
+'' EXPECT-RUN-EXIT: 0

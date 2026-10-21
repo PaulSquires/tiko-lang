@@ -1,0 +1,56 @@
+'' The test PKI for std/tls and std/http (C:\dev\docs\tiko-stdlib\RFC-0002): a root CA, a
+'' leaf for localhost / 127.0.0.1 / ::1 valid 2026-2056, and the same leaf expired in 2021,
+'' all EC P-256.  Made once with OpenSSL 3.0.13 by the script below; the keys are test keys
+'' and protect nothing.
+''
+''   openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out ca.key
+''   openssl req -x509 -new -key ca.key -sha256 -days 36500 -subj "/CN=tiko test root CA" \
+''     -addext "basicConstraints=critical,CA:TRUE" -addext "keyUsage=critical,keyCertSign,cRLSign" -out ca.pem
+''   openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out leaf.key
+''   openssl req -new -key leaf.key -subj "/CN=localhost" -out leaf.csr
+''   (ca.cnf: an `openssl ca` section with policy commonName=supplied and an extension
+''    section: basicConstraints=critical,CA:FALSE, keyUsage=critical,digitalSignature,
+''    extendedKeyUsage=serverAuth, subjectAltName=DNS:localhost,IP:127.0.0.1,IP:::1)
+''   openssl ca -batch -config ca.cnf -cert ca.pem -keyfile ca.key -extensions leaf \
+''     -startdate 20260101000000Z -enddate 20560101000000Z -in leaf.csr -out leaf.pem -notext
+''   openssl ca ... -startdate 20200101000000Z -enddate 20210101000000Z -in leaf.csr -out expired.pem
+const CA_PEM = "-----BEGIN CERTIFICATE-----" & !"\n" & _
+    "MIIBnzCCAUWgAwIBAgIUOwMd2ED0n0S5nJi+O9AHz73ZVRUwCgYIKoZIzj0EAwIw" & !"\n" & _
+    "HDEaMBgGA1UEAwwRdGlrbyB0ZXN0IHJvb3QgQ0EwIBcNMjYxMDIxMTkzOTEyWhgP" & !"\n" & _
+    "MjEyNjA5MjcxOTM5MTJaMBwxGjAYBgNVBAMMEXRpa28gdGVzdCByb290IENBMFkw" & !"\n" & _
+    "EwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEADxy9zmL4CnsHI8y/oO8WdfnYV6miLkv" & !"\n" & _
+    "oDg5d/nDzQf9rfC6Yrk3VpeZz5r8Pn2kXfJFk2MFy2bfE/iMhGQJVKNjMGEwHQYD" & !"\n" & _
+    "VR0OBBYEFPX6hHiM3xk+5G+Chw5jYkue14L8MB8GA1UdIwQYMBaAFPX6hHiM3xk+" & !"\n" & _
+    "5G+Chw5jYkue14L8MA8GA1UdEwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgEGMAoG" & !"\n" & _
+    "CCqGSM49BAMCA0gAMEUCIQCVwKbI4Vs6w+Y7XaSoQaZgKwQ+3ghAillnCFLob8m4" & !"\n" & _
+    "DQIgTJs+R6LKIv0n6mRJ4cVH4/hCMpIXAquj2qVEa2Y5DaY=" & !"\n" & _
+    "-----END CERTIFICATE-----" & !"\n"
+const LEAF_PEM = "-----BEGIN CERTIFICATE-----" & !"\n" & _
+    "MIIBxjCCAW2gAwIBAgICEAAwCgYIKoZIzj0EAwIwHDEaMBgGA1UEAwwRdGlrbyB0" & !"\n" & _
+    "ZXN0IHJvb3QgQ0EwIBcNMjYwMTAxMDAwMDAwWhgPMjA1NjAxMDEwMDAwMDBaMBQx" & !"\n" & _
+    "EjAQBgNVBAMMCWxvY2FsaG9zdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABCQn" & !"\n" & _
+    "Sj2u2ppvR2V5eea8UbYvJax7pK5n7Yn5z59pluSmxTgTdXZ1SfMRvF/3sEl0kSic" & !"\n" & _
+    "X/Qy+lXuKdjxIGXJSzijgaQwgaEwDAYDVR0TAQH/BAIwADAOBgNVHQ8BAf8EBAMC" & !"\n" & _
+    "B4AwEwYDVR0lBAwwCgYIKwYBBQUHAwEwLAYDVR0RBCUwI4IJbG9jYWxob3N0hwR/" & !"\n" & _
+    "AAABhxAAAAAAAAAAAAAAAAAAAAABMB0GA1UdDgQWBBS+xT/DoFyAWYpAUz+RpI3S" & !"\n" & _
+    "XxaMLDAfBgNVHSMEGDAWgBT1+oR4jN8ZPuRvgocOY2JLnteC/DAKBggqhkjOPQQD" & !"\n" & _
+    "AgNHADBEAiAOhNSYpobkNjBtNHszMiIbTrPWUh9s3vpX/2XfvRnK2QIgUl3FUYOk" & !"\n" & _
+    "/UoqQPHxjyPYKhEx1PeHvviyQFrJ7Wh7CRc=" & !"\n" & _
+    "-----END CERTIFICATE-----" & !"\n"
+const LEAF_KEY = "-----BEGIN PRIVATE KEY-----" & !"\n" & _
+    "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgL5mgZuGz8wFo3+CH" & !"\n" & _
+    "iBGmzHAaxrJbxzzPV8+nQpQ20rihRANCAAQkJ0o9rtqab0dleXnmvFG2LyWse6Su" & !"\n" & _
+    "Z+2J+c+faZbkpsU4E3V2dUnzEbxf97BJdJEonF/0MvpV7inY8SBlyUs4" & !"\n" & _
+    "-----END PRIVATE KEY-----" & !"\n"
+const EXPIRED_PEM = "-----BEGIN CERTIFICATE-----" & !"\n" & _
+    "MIIBxDCCAWugAwIBAgICEAEwCgYIKoZIzj0EAwIwHDEaMBgGA1UEAwwRdGlrbyB0" & !"\n" & _
+    "ZXN0IHJvb3QgQ0EwHhcNMjAwMTAxMDAwMDAwWhcNMjEwMTAxMDAwMDAwWjAUMRIw" & !"\n" & _
+    "EAYDVQQDDAlsb2NhbGhvc3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQkJ0o9" & !"\n" & _
+    "rtqab0dleXnmvFG2LyWse6SuZ+2J+c+faZbkpsU4E3V2dUnzEbxf97BJdJEonF/0" & !"\n" & _
+    "MvpV7inY8SBlyUs4o4GkMIGhMAwGA1UdEwEB/wQCMAAwDgYDVR0PAQH/BAQDAgeA" & !"\n" & _
+    "MBMGA1UdJQQMMAoGCCsGAQUFBwMBMCwGA1UdEQQlMCOCCWxvY2FsaG9zdIcEfwAA" & !"\n" & _
+    "AYcQAAAAAAAAAAAAAAAAAAAAATAdBgNVHQ4EFgQUvsU/w6BcgFmKQFM/kaSN0l8W" & !"\n" & _
+    "jCwwHwYDVR0jBBgwFoAU9fqEeIzfGT7kb4KHDmNiS57XgvwwCgYIKoZIzj0EAwID" & !"\n" & _
+    "RwAwRAIgNO4U7DuODaINS2PRL2enNvSRkf+zlEgTrfBgzpPdHhwCIH/JIpu4vVD2" & !"\n" & _
+    "wEL1TbuLDjXUxPUJdmh84IrH2sRQC/zi" & !"\n" & _
+    "-----END CERTIFICATE-----" & !"\n"

@@ -1,0 +1,696 @@
+#module "tls"
+#import "std/containers"
+#import "std/outcome"
+#import "std/fs"
+using containers
+using outcome
+'' std/tls: tlswin -- the SChannel engine.  SSPI over memory buffers: the
+'' handshake tokens and the records go through the transport fs.Stream, so a TCP
+'' socket, a proxy tunnel or a test pipe serve alike.  The client asks SChannel for
+'' manual validation and checks the chain itself (CertGetCertificateChain, then the
+'' SSL chain policy), which is how extra roots and InsecureSkipVerify work.
+'' Declared here (RFC-0001 S12); SCH_CREDENTIALS needs Windows 10 1809.
+
+#ifdef __FB_WIN32__
+
+#inclib "secur32"
+#inclib "crypt32"
+#inclib "ncrypt"
+
+type TktSecHandle
+    as uinteger lower, upper
+end type
+
+type TktSecBuffer
+    as ulong cb, type_
+    as any ptr pv
+end type
+
+type TktSecBufferDesc
+    as ulong ver, cnt
+    as TktSecBuffer ptr bufs
+end type
+
+type TktTlsParameters                  '' TLS_PARAMETERS
+    as ulong cAlpnIds
+    as any ptr rgstrAlpnIds
+    as ulong grbitDisabledProtocols
+    as ulong cDisabledCrypto
+    as any ptr pDisabledCrypto
+    as ulong dwFlags
+end type
+
+type TktSchCredentials                 '' SCH_CREDENTIALS
+    as ulong dwVersion, dwCredFormat, cCreds
+    as any ptr ptr paCred
+    as any ptr hRootStore
+    as ulong cMappers
+    as any ptr aphMappers
+    as ulong dwSessionLifespan, dwFlags, cTlsParameters
+    as TktTlsParameters ptr pTlsParameters
+end type
+
+type TktStreamSizes                    '' SecPkgContext_StreamSizes
+    as ulong cbHeader, cbTrailer, cbMaximumMessage, cBuffers, cbBlockSize
+end type
+
+type TktConnInfo                       '' SecPkgContext_ConnectionInfo
+    as ulong dwProtocol, aiCipher, dwCipherStrength, aiHash, dwHashStrength, aiExch, dwExchStrength
+end type
+
+type TktCertContext                    '' CERT_CONTEXT
+    as ulong dwCertEncodingType
+    as ubyte ptr pbCertEncoded
+    as ulong cbCertEncoded
+    as any ptr pCertInfo
+    as any ptr hCertStore
+end type
+
+type TktChainPara                      '' CERT_CHAIN_PARA: CERT_USAGE_MATCH and its CERT_ENHKEY_USAGE are 8-aligned
+    as ulong cbSize, pad0
+    as ulong dwType, pad1
+    as ulong cUsageIdentifier, pad2
+    as zstring ptr ptr rgpszUsageIdentifier
+end type
+
+type TktChainEngineConfig              '' CERT_CHAIN_ENGINE_CONFIG (Windows 8)
+    as ulong cbSize
+    as any ptr hRestrictedRoot, hRestrictedTrust, hRestrictedOther
+    as ulong cAdditionalStore
+    as any ptr ptr rghAdditionalStore
+    as ulong dwFlags, dwUrlRetrievalTimeout, MaximumCachedCertificates, CycleDetectionModulus
+    as any ptr hExclusiveRoot, hExclusiveTrustedPeople
+    as ulong dwExclusiveFlags
+end type
+
+type TktSslPolicyPara                  '' SSL_EXTRA_CERT_CHAIN_POLICY_PARA
+    as ulong cbSize, dwAuthType, fdwChecks
+    as const ushort ptr pwszServerName
+end type
+
+type TktPolicyPara                     '' CERT_CHAIN_POLICY_PARA
+    as ulong cbSize, dwFlags
+    as any ptr pvExtraPolicyPara
+end type
+
+type TktPolicyStatus                   '' CERT_CHAIN_POLICY_STATUS
+    as ulong cbSize, dwError
+    as long lChainIndex, lElementIndex
+    as any ptr pvExtraPolicyStatus
+end type
+
+type TktKeyProvInfo                    '' CRYPT_KEY_PROV_INFO
+    as const ushort ptr pwszContainerName, pwszProvName
+    as ulong dwProvType, dwFlags, cProvParam
+    as any ptr rgProvParam
+    as ulong dwKeySpec
+end type
+
+type TktNcBuffer                       '' NCryptBuffer
+    as ulong cbBuffer, BufferType
+    as any ptr pvBuffer
+end type
+
+type TktNcBufferDesc                   '' NCryptBufferDesc
+    as ulong ulVersion, cBuffers
+    as TktNcBuffer ptr pBuffers
+end type
+
+extern "Windows"
+    declare function tkt_AcquireCredentialsHandleW alias "AcquireCredentialsHandleW" ( byval principal as const ushort ptr, _
+        byval package as const ushort ptr, byval use_ as ulong, byval logonId as any ptr, byval authData as any ptr, _
+        byval getKeyFn as any ptr, byval getKeyArg as any ptr, byval cred as TktSecHandle ptr, byval expiry as longint ptr ) as long
+    declare function tkt_FreeCredentialsHandle alias "FreeCredentialsHandle" ( byval cred as TktSecHandle ptr ) as long
+    declare function tkt_InitializeSecurityContextW alias "InitializeSecurityContextW" ( byval cred as TktSecHandle ptr, _
+        byval ctx as TktSecHandle ptr, byval target as const ushort ptr, byval req as ulong, byval r1 as ulong, _
+        byval rep as ulong, byval inp as TktSecBufferDesc ptr, byval r2 as ulong, byval newCtx as TktSecHandle ptr, _
+        byval outp as TktSecBufferDesc ptr, byval attr as ulong ptr, byval expiry as longint ptr ) as long
+    declare function tkt_AcceptSecurityContext alias "AcceptSecurityContext" ( byval cred as TktSecHandle ptr, _
+        byval ctx as TktSecHandle ptr, byval inp as TktSecBufferDesc ptr, byval req as ulong, byval rep as ulong, _
+        byval newCtx as TktSecHandle ptr, byval outp as TktSecBufferDesc ptr, byval attr as ulong ptr, _
+        byval expiry as longint ptr ) as long
+    declare function tkt_DeleteSecurityContext alias "DeleteSecurityContext" ( byval ctx as TktSecHandle ptr ) as long
+    declare function tkt_FreeContextBuffer alias "FreeContextBuffer" ( byval p as any ptr ) as long
+    declare function tkt_QueryContextAttributesW alias "QueryContextAttributesW" ( byval ctx as TktSecHandle ptr, _
+        byval attr as ulong, byval buf as any ptr ) as long
+    declare function tkt_ApplyControlToken alias "ApplyControlToken" ( byval ctx as TktSecHandle ptr, byval inp as TktSecBufferDesc ptr ) as long
+    declare function tkt_EncryptMessage alias "EncryptMessage" ( byval ctx as TktSecHandle ptr, byval qop as ulong, _
+        byval msg as TktSecBufferDesc ptr, byval seq as ulong ) as long
+    declare function tkt_DecryptMessage alias "DecryptMessage" ( byval ctx as TktSecHandle ptr, byval msg as TktSecBufferDesc ptr, _
+        byval seq as ulong, byval qop as ulong ptr ) as long
+
+    declare function tkt_CertOpenStore alias "CertOpenStore" ( byval prov as any ptr, byval enc as ulong, byval hprov as any ptr, _
+        byval flags as ulong, byval para as const any ptr ) as any ptr
+    declare function tkt_CertCloseStore alias "CertCloseStore" ( byval store as any ptr, byval flags as ulong ) as long
+    declare function tkt_CertAddEncodedCertificateToStore alias "CertAddEncodedCertificateToStore" ( byval store as any ptr, _
+        byval enc as ulong, byval der as const ubyte ptr, byval n as ulong, byval disp as ulong, byval ctx as any ptr ptr ) as long
+    declare function tkt_CertFreeCertificateContext alias "CertFreeCertificateContext" ( byval ctx as any ptr ) as long
+    declare function tkt_CertSetCertificateContextProperty alias "CertSetCertificateContextProperty" ( byval ctx as any ptr, _
+        byval prop as ulong, byval flags as ulong, byval dat as const any ptr ) as long
+    declare function tkt_CertCreateCertificateChainEngine alias "CertCreateCertificateChainEngine" ( _
+        byval cfg as TktChainEngineConfig ptr, byval eng as any ptr ptr ) as long
+    declare sub tkt_CertFreeCertificateChainEngine alias "CertFreeCertificateChainEngine" ( byval eng as any ptr )
+    declare function tkt_CertGetCertificateChain alias "CertGetCertificateChain" ( byval eng as any ptr, byval cert as any ptr, _
+        byval tm as any ptr, byval extra as any ptr, byval para as TktChainPara ptr, byval flags as ulong, _
+        byval r as any ptr, byval chain as any ptr ptr ) as long
+    declare sub tkt_CertFreeCertificateChain alias "CertFreeCertificateChain" ( byval chain as any ptr )
+    declare function tkt_CertVerifyCertificateChainPolicy alias "CertVerifyCertificateChainPolicy" ( byval oid as any ptr, _
+        byval chain as any ptr, byval para as TktPolicyPara ptr, byval status as TktPolicyStatus ptr ) as long
+
+    declare function tkt_NCryptOpenStorageProvider alias "NCryptOpenStorageProvider" ( byval prov as uinteger ptr, _
+        byval name_ as const ushort ptr, byval flags as ulong ) as long
+    declare function tkt_NCryptImportKey alias "NCryptImportKey" ( byval prov as uinteger, byval impKey as uinteger, _
+        byval blobType as const ushort ptr, byval params as TktNcBufferDesc ptr, byval key as uinteger ptr, _
+        byval dat as const ubyte ptr, byval n as ulong, byval flags as ulong ) as long
+    declare function tkt_NCryptFinalizeKey alias "NCryptFinalizeKey" ( byval key as uinteger, byval flags as ulong ) as long
+    declare function tkt_NCryptDeleteKey alias "NCryptDeleteKey" ( byval key as uinteger, byval flags as ulong ) as long
+    declare function tkt_NCryptFreeObject alias "NCryptFreeObject" ( byval obj as uinteger ) as long
+
+    declare function tkt_GetCurrentProcessId alias "GetCurrentProcessId" ( ) as ulong
+    declare function tkt_GetTickCount64 alias "GetTickCount64" ( ) as ulongint
+end extern
+
+const TKT_SEC_E_OK = 0
+const TKT_SEC_I_CONTINUE_NEEDED = &h00090312
+const TKT_SEC_I_CONTEXT_EXPIRED = &h00090317
+const TKT_SEC_I_INCOMPLETE_CREDENTIALS = &h00090320
+const TKT_SEC_I_RENEGOTIATE = &h00090321
+const TKT_SEC_E_INCOMPLETE_MESSAGE = -2146893032        '' &h80090318 as the long a SECURITY_STATUS is
+const TKT_SECBUFFER_EMPTY = 0
+const TKT_SECBUFFER_DATA = 1
+const TKT_SECBUFFER_TOKEN = 2
+const TKT_SECBUFFER_EXTRA = 5
+const TKT_SECBUFFER_STREAM_TRAILER = 6
+const TKT_SECBUFFER_STREAM_HEADER = 7
+const TKT_SECBUFFER_ALERT = 17
+'' ISC_REQ_ / ASC_REQ_: replay + sequence detect, confidentiality, allocate memory,
+'' extended error, stream (the extended-error and stream bits differ)
+const TKT_ISC_REQ = &h4 or &h8 or &h10 or &h100 or &h4000 or &h8000
+const TKT_ASC_REQ = &h4 or &h8 or &h10 or &h100 or &h8000 or &h10000
+const TKT_ENC = &h10001                '' X509_ASN_ENCODING or PKCS_7_ASN_ENCODING
+const TKT_RECV_MIN = 16384 + 512
+
+'' The engine's state.
+type TktEng
+    as TktSecHandle cred, ctx
+    as boolean haveCred, haveCtx
+    as TktStreamSizes sizes
+    as ubyte ptr rbuf                  '' records received, not yet decrypted
+    as long rlen, rcap
+    as ubyte ptr pbuf                  '' plaintext decrypted, not yet read
+    as long ppos, plen, pcap
+    as ubyte ptr wbuf                  '' one record being encrypted
+    as long wcap
+    as uinteger key                    '' Accept: the imported key, deleted at the end
+    as any ptr cert                    '' Accept: the leaf's CERT_CONTEXT
+    as any ptr store                   '' Accept: the chain's memory store
+end type
+
+private function hW( byref s as const ustring ) as ustring
+    return s                           '' a ustring's text is NUL-terminated already
+end function
+
+private sub hGrowRecv( byval e as TktEng ptr, byval need as long )
+    if( e->rcap >= need ) then exit sub
+    dim as long c = iif( e->rcap = 0, TKT_RECV_MIN, e->rcap )
+    while( c < need )
+        c *= 2
+    wend
+    e->rbuf = reallocate( e->rbuf, c )
+    e->rcap = c
+end sub
+
+'' Reads more records into rbuf: >0 bytes, 0 at the end of the transport, -1 with err.
+private function hRecvMore( byref s as TlsStream, byval e as TktEng ptr, byref err_ as fs.FsError ) as longint
+    if( e->rlen >= e->rcap ) then hGrowRecv( e, e->rlen + 1 )
+    dim as fs.FsResultI64 r = s.hT->Read( e->rbuf + e->rlen, e->rcap - e->rlen )
+    if( r.IsOk( ) = FALSE ) then
+        err_ = r.Failure( )
+        return -1
+    end if
+    e->rlen += r.Value( )
+    return r.Value( )
+end function
+
+'' Keeps the SECBUFFER_EXTRA tail of rbuf (the bytes SSPI did not consume).
+private sub hKeepExtra( byval e as TktEng ptr, byref b as TktSecBuffer )
+    if( ( b.type_ = TKT_SECBUFFER_EXTRA ) andalso ( b.cb > 0 ) ) then
+        TlsMemmove( e->rbuf, e->rbuf + ( e->rlen - b.cb ), b.cb )
+        e->rlen = b.cb
+    else
+        e->rlen = 0
+    end if
+end sub
+
+private sub hFreeEng( byval e as TktEng ptr )
+    if( e = nullptr ) then exit sub
+    if( e->haveCtx ) then tkt_DeleteSecurityContext( @e->ctx )
+    if( e->haveCred ) then tkt_FreeCredentialsHandle( @e->cred )
+    if( e->cert <> nullptr ) then tkt_CertFreeCertificateContext( e->cert )
+    if( e->store <> nullptr ) then tkt_CertCloseStore( e->store, 0 )
+    if( e->key <> 0 ) then tkt_NCryptDeleteKey( e->key, 0 )
+    if( e->rbuf <> nullptr ) then deallocate( e->rbuf )
+    if( e->pbuf <> nullptr ) then deallocate( e->pbuf )
+    if( e->wbuf <> nullptr ) then deallocate( e->wbuf )
+    delete e
+end sub
+
+'' -------------------------------------------------------------- certificates
+
+private function hDerPtr( byref d as const string ) as const ubyte ptr
+    return cptr( const ubyte ptr, strptr( d ) )
+end function
+
+'' A memory store holding every CERTIFICATE block of the PEM texts.
+private function hStoreFromPem( byref pems as Array( of string ) ) as any ptr
+    dim as any ptr st = tkt_CertOpenStore( cptr( any ptr, 2 ), 0, nullptr, 0, nullptr )    '' CERT_STORE_PROV_MEMORY
+    if( st = nullptr ) then return nullptr
+    for i as long = 0 to pems.num - 1
+        dim as Array( of string ) ders, texts
+        TlsPemBlocks( pems.items( i ), "CERTIFICATE", ders, texts )
+        for j as long = 0 to ders.num - 1
+            tkt_CertAddEncodedCertificateToStore( st, TKT_ENC, hDerPtr( ders.items( j ) ), len( ders.items( j ) ), 4, nullptr )
+        next
+    next
+    return st
+end function
+
+private function hMapPolicy( byval err_ as ulong ) as TlsErrorCode
+    select case err_
+    case &h800B0109, &h800B010A, &h800B0111, &h80092004        '' untrusted root, chaining, explicit distrust
+        return TLS_CERT_UNTRUSTED
+    case &h800B0101, &h800B0102                                 '' expired / validity nesting
+        return TLS_CERT_EXPIRED
+    case &h800B010F                                             '' CN_NO_MATCH
+        return TLS_CERT_NAME_MISMATCH
+    end select
+    return TLS_CERT_INVALID
+end function
+
+'' Builds a chain for the server's leaf with engine `eng` and runs the SSL policy
+'' on it: 0, or the policy's error.
+private function hPolicy( byval eng as any ptr, byval leaf as TktCertContext ptr, byval extra as any ptr, _
+                          byref nm as const ustring ) as ulong
+    static as zstring * 24 serverAuth = "1.3.6.1.5.5.7.3.1"
+    dim as zstring ptr usage = @serverAuth
+    dim as TktChainPara cp
+    cp.cbSize = sizeof( TktChainPara )
+    cp.dwType = 0
+    cp.cUsageIdentifier = 1
+    cp.rgpszUsageIdentifier = @usage
+    dim as any ptr chain = nullptr
+    if( tkt_CertGetCertificateChain( eng, leaf, nullptr, extra, @cp, 0, nullptr, @chain ) = 0 ) then
+        return &h800B010A
+    end if
+    dim as ustring wname = nm
+    if( ( len( wname ) >= 2 ) andalso ( left( wname, 1 ) = "[" ) ) then wname = mid( wname, 2, len( wname ) - 2 )
+    wname = hW( wname )
+    dim as TktSslPolicyPara sp
+    sp.cbSize = sizeof( TktSslPolicyPara )
+    sp.dwAuthType = 2                                   '' AUTHTYPE_SERVER
+    sp.fdwChecks = 0
+    sp.pwszServerName = cptr( const ushort ptr, strptr( wname ) )
+    dim as TktPolicyPara pp
+    pp.cbSize = sizeof( TktPolicyPara )
+    pp.pvExtraPolicyPara = @sp
+    dim as TktPolicyStatus ps
+    ps.cbSize = sizeof( TktPolicyStatus )
+    dim as ulong rc = 0
+    if( tkt_CertVerifyCertificateChainPolicy( cptr( any ptr, 4 ), chain, @pp, @ps ) = 0 ) then   '' CERT_CHAIN_POLICY_SSL
+        rc = &h800B010A
+    else
+        rc = ps.dwError
+    end if
+    tkt_CertFreeCertificateChain( chain )
+    return rc
+end function
+
+'' The client's check of the server: the system roots first; if the chain does not
+'' end at one of them and the config adds roots, again with those as the only roots.
+private function hVerify( byref s as TlsStream, byval e as TktEng ptr, byref cfg as const TlsConfig, _
+                          byref op as const ustring ) as TlsResultBool
+    dim as TktCertContext ptr leaf = nullptr
+    dim as long st = tkt_QueryContextAttributesW( @e->ctx, &h53, @leaf )     '' SECPKG_ATTR_REMOTE_CERT_CONTEXT
+    if( ( st <> 0 ) orelse ( leaf = nullptr ) ) then return TlsFail( TLS_CERT_INVALID, st, op, s.hName )
+    dim as ulong rc = hPolicy( nullptr, leaf, leaf->hCertStore, s.hName )
+    if( ( hMapPolicy( rc ) = TLS_CERT_UNTRUSTED ) andalso ( rc <> 0 ) andalso ( cfg.hRoots.num > 0 ) ) then
+        dim as any ptr roots = hStoreFromPem( cfg.hRoots )
+        if( roots <> nullptr ) then
+            dim as any ptr extras( 0 to 0 ) = { leaf->hCertStore }
+            dim as TktChainEngineConfig ec
+            ec.cbSize = sizeof( TktChainEngineConfig )
+            ec.cAdditionalStore = 1
+            ec.rghAdditionalStore = @extras( 0 )
+            ec.hExclusiveRoot = roots
+            dim as any ptr eng = nullptr
+            if( tkt_CertCreateCertificateChainEngine( @ec, @eng ) <> 0 ) then
+                rc = hPolicy( eng, leaf, leaf->hCertStore, s.hName )
+                tkt_CertFreeCertificateChainEngine( eng )
+            end if
+            tkt_CertCloseStore( roots, 0 )
+        end if
+    end if
+    tkt_CertFreeCertificateContext( leaf )
+    if( rc <> 0 ) then return TlsFail( hMapPolicy( rc ), rc, op, s.hName )
+    return TlsOk( )
+end function
+
+'' Accept: the leaf as a CERT_CONTEXT whose private key SChannel can open -- the
+'' PKCS#8 key imported into the user's software key store under a fresh name.
+private function hIdentity( byval e as TktEng ptr, byref cfg as const TlsConfig, byref op as const ustring ) as TlsResultBool
+    dim as Array( of string ) ders, texts, kders, ktexts
+    TlsPemBlocks( cfg.hCertPem, "CERTIFICATE", ders, texts )
+    TlsPemBlocks( cfg.hKeyPem, "PRIVATE KEY", kders, ktexts )
+    if( ( ders.num = 0 ) orelse ( kders.num = 0 ) ) then return TlsFail( TLS_NO_IDENTITY, 0, op, "" )
+    e->store = tkt_CertOpenStore( cptr( any ptr, 2 ), 0, nullptr, 0, nullptr )
+    if( e->store = nullptr ) then return TlsFail( TLS_UNKNOWN, 0, op, "" )
+    for j as long = ders.num - 1 to 0 step -1
+        dim as any ptr c = nullptr
+        dim as any ptr ptr pc = nullptr
+        if( j = 0 ) then pc = @c
+        if( tkt_CertAddEncodedCertificateToStore( e->store, TKT_ENC, hDerPtr( ders.items( j ) ), len( ders.items( j ) ), 4, pc ) = 0 ) then
+            return TlsFail( TLS_BAD_PEM, 0, op, "certificate" )
+        end if
+        if( j = 0 ) then e->cert = c
+    next
+
+    static as long serial
+    serial += 1
+    dim as ustring kname = hW( "tiko-tls-" & tkt_GetCurrentProcessId( ) & "-" & tkt_GetTickCount64( ) & "-" & serial )
+    dim as ustring kprov = hW( "Microsoft Software Key Storage Provider" )
+    dim as uinteger prov = 0
+    dim as long st = tkt_NCryptOpenStorageProvider( @prov, cptr( const ushort ptr, strptr( kprov ) ), 0 )
+    if( st <> 0 ) then return TlsFail( TLS_UNAVAILABLE, st, op, "key storage provider" )
+    dim as TktNcBuffer nb
+    nb.cbBuffer = ( len( kname ) + 1 ) * 2                '' with the NUL
+    nb.BufferType = 45                                  '' NCRYPTBUFFER_PKCS_KEY_NAME
+    nb.pvBuffer = strptr( kname )
+    dim as TktNcBufferDesc nd
+    nd.ulVersion = 0
+    nd.cBuffers = 1
+    nd.pBuffers = @nb
+    dim as ustring blob = hW( "PKCS8_PRIVATEKEY" )
+    st = tkt_NCryptImportKey( prov, 0, cptr( const ushort ptr, strptr( blob ) ), @nd, @e->key, _
+                              hDerPtr( kders.items( 0 ) ), len( kders.items( 0 ) ), &h400 )  '' NCRYPT_DO_NOT_FINALIZE_FLAG
+    tkt_NCryptFreeObject( prov )
+    if( st <> 0 ) then
+        e->key = 0
+        return TlsFail( TLS_BAD_KEY, st, op, "", "NCryptImportKey" )
+    end if
+    st = tkt_NCryptFinalizeKey( e->key, 0 )
+    if( st <> 0 ) then
+        tkt_NCryptFreeObject( e->key )
+        e->key = 0
+        return TlsFail( TLS_BAD_KEY, st, op, "", "NCryptFinalizeKey" )
+    end if
+    dim as TktKeyProvInfo kp
+    kp.pwszContainerName = cptr( const ushort ptr, strptr( kname ) )
+    kp.pwszProvName = cptr( const ushort ptr, strptr( kprov ) )
+    kp.dwProvType = 0
+    kp.dwFlags = 0
+    kp.dwKeySpec = 0                                   '' with dwProvType 0: a CNG key
+    if( tkt_CertSetCertificateContextProperty( e->cert, 2, 0, @kp ) = 0 ) then    '' CERT_KEY_PROV_INFO_PROP_ID
+        return TlsFail( TLS_BAD_KEY, 0, op, "", "CertSetCertificateContextProperty" )
+    end if
+    return TlsOk( )
+end function
+
+'' -------------------------------------------------------------- handshake
+
+private function hSendToken( byref s as TlsStream, byref b as TktSecBuffer, byref err_ as fs.FsError ) as boolean
+    dim as boolean ok_ = TRUE
+    if( ( b.pv <> nullptr ) andalso ( b.cb > 0 ) ) then ok_ = TlsSendAll( s, b.pv, b.cb, err_ )
+    if( b.pv <> nullptr ) then tkt_FreeContextBuffer( b.pv )
+    b.pv = nullptr
+    b.cb = 0
+    return ok_
+end function
+
+private function hHsFail( byval st as long, byref op as const ustring, byref subj as const ustring ) as TlsResultBool
+    select case cast( ulong, st )
+    case &h80090325 : return TlsFail( TLS_CERT_UNTRUSTED, st, op, subj )      '' SEC_E_UNTRUSTED_ROOT
+    case &h80090328 : return TlsFail( TLS_CERT_EXPIRED, st, op, subj )        '' SEC_E_CERT_EXPIRED
+    case &h80090322 : return TlsFail( TLS_CERT_NAME_MISMATCH, st, op, subj )  '' SEC_E_WRONG_PRINCIPAL
+    case &h8009030D, &h8009030E                                               '' UNKNOWN_CREDENTIALS, NO_CREDENTIALS
+        return TlsFail( TLS_BAD_KEY, st, op, subj )
+    end select
+    return TlsFail( TLS_HANDSHAKE_FAILED, st, op, subj )
+end function
+
+'' Runs ISC/ASC until the context is complete, starting with what is already in
+'' rbuf.  `fresh` is TRUE for the first client call, which has no input.
+private function hHandshake( byref s as TlsStream, byval e as TktEng ptr, byval fresh as boolean, _
+                             byval readFirst as boolean, byref op as const ustring ) as TlsResultBool
+    dim as ustring target = hW( s.hName )
+    dim as fs.FsError ferr
+    dim as ulong attr = 0
+    dim as boolean needRead = readFirst andalso ( e->rlen = 0 )
+    if( fresh ) then
+        dim as TktSecBuffer ob( 0 to 0 )
+        ob( 0 ).type_ = TKT_SECBUFFER_TOKEN
+        dim as TktSecBufferDesc od = ( 0, 1, @ob( 0 ) )
+        dim as long st = tkt_InitializeSecurityContextW( @e->cred, nullptr, cptr( const ushort ptr, strptr( target ) ), _
+            TKT_ISC_REQ, 0, 0, nullptr, 0, @e->ctx, @od, @attr, nullptr )
+        if( st <> TKT_SEC_I_CONTINUE_NEEDED ) then return hHsFail( st, op, s.hName )
+        e->haveCtx = TRUE
+        if( hSendToken( s, ob( 0 ), ferr ) = FALSE ) then return TlsTransportFail( ferr, op, s.hName )
+        needRead = TRUE
+    end if
+    do
+        if( needRead ) then
+            dim as longint got = hRecvMore( s, e, ferr )
+            if( got < 0 ) then return TlsTransportFail( ferr, op, s.hName )
+            if( got = 0 ) then return TlsFail( TLS_TRANSPORT, 0, op, s.hName, "connection closed during the handshake" )
+        end if
+        dim as TktSecBuffer ib( 0 to 1 )
+        ib( 0 ).type_ = TKT_SECBUFFER_TOKEN
+        ib( 0 ).cb = e->rlen
+        ib( 0 ).pv = e->rbuf
+        ib( 1 ).type_ = TKT_SECBUFFER_EMPTY
+        dim as TktSecBufferDesc id_ = ( 0, 2, @ib( 0 ) )
+        dim as TktSecBuffer ob( 0 to 1 )
+        ob( 0 ).type_ = TKT_SECBUFFER_TOKEN
+        ob( 1 ).type_ = TKT_SECBUFFER_ALERT
+        dim as TktSecBufferDesc od = ( 0, 2, @ob( 0 ) )
+        dim as long st
+        if( s.hServer ) then
+            dim as TktSecHandle ptr pctx = nullptr
+            if( e->haveCtx ) then pctx = @e->ctx
+            st = tkt_AcceptSecurityContext( @e->cred, pctx, @id_, TKT_ASC_REQ, 0, _
+                                            @e->ctx, @od, @attr, nullptr )
+            if( ( st = TKT_SEC_E_OK ) orelse ( st = TKT_SEC_I_CONTINUE_NEEDED ) ) then e->haveCtx = TRUE
+        else
+            st = tkt_InitializeSecurityContextW( @e->cred, @e->ctx, cptr( const ushort ptr, strptr( target ) ), _
+                TKT_ISC_REQ, 0, 0, @id_, 0, nullptr, @od, @attr, nullptr )
+        end if
+        if( ob( 1 ).pv <> nullptr ) then tkt_FreeContextBuffer( ob( 1 ).pv )
+        if( st = TKT_SEC_E_INCOMPLETE_MESSAGE ) then
+            if( ob( 0 ).pv <> nullptr ) then tkt_FreeContextBuffer( ob( 0 ).pv )
+            needRead = TRUE
+            continue do
+        end if
+        '' a failing call may still carry an alert for the peer
+        if( hSendToken( s, ob( 0 ), ferr ) = FALSE ) then
+            if( ( st = TKT_SEC_E_OK ) orelse ( st = TKT_SEC_I_CONTINUE_NEEDED ) ) then
+                return TlsTransportFail( ferr, op, s.hName )
+            end if
+        end if
+        select case st
+        case TKT_SEC_E_OK
+            hKeepExtra( e, ib( 1 ) )
+            return TlsOk( )
+        case TKT_SEC_I_CONTINUE_NEEDED, TKT_SEC_I_INCOMPLETE_CREDENTIALS
+            hKeepExtra( e, ib( 1 ) )
+            needRead = ( e->rlen = 0 )
+        case else
+            return hHsFail( st, op, s.hName )
+        end select
+    loop
+end function
+
+private function hCredential( byref s as TlsStream, byval e as TktEng ptr, byref cfg as const TlsConfig, _
+                              byref op as const ustring ) as TlsResultBool
+    dim as TktTlsParameters tp
+    '' SP_PROT_*: everything below the minimum, both directions
+    tp.grbitDisabledProtocols = iif( cfg.MinVersion = TLS_VERSION_1_3, &hFFFul, &h3FFul )
+    dim as TktSchCredentials sc
+    sc.dwVersion = 5                                    '' SCH_CREDENTIALS_VERSION
+    sc.cTlsParameters = 1
+    sc.pTlsParameters = @tp
+    dim as any ptr certs( 0 to 0 )
+    if( s.hServer ) then
+        dim as TlsResultBool r = hIdentity( e, cfg, op )
+        if( r.IsOk( ) = FALSE ) then return r
+        certs( 0 ) = e->cert
+        sc.cCreds = 1
+        sc.paCred = @certs( 0 )
+    else
+        '' SCH_CRED_MANUAL_CRED_VALIDATION, SCH_CRED_NO_DEFAULT_CREDS, SCH_USE_STRONG_CRYPTO
+        sc.dwFlags = &h8 or &h10 or &h00400000
+    end if
+    dim as ustring pkg = hW( "Microsoft Unified Security Protocol Provider" )
+    dim as long st = tkt_AcquireCredentialsHandleW( nullptr, cptr( const ushort ptr, strptr( pkg ) ), _
+        iif( s.hServer, 1ul, 2ul ), nullptr, @sc, nullptr, nullptr, @e->cred, nullptr )
+    if( st <> 0 ) then
+        if( s.hServer ) then return TlsFail( TLS_BAD_KEY, st, op, "", "AcquireCredentialsHandle" )
+        return TlsFail( TLS_UNAVAILABLE, st, op, s.hName )
+    end if
+    e->haveCred = TRUE
+    return TlsOk( )
+end function
+
+function TlsEngOpen( byref s as TlsStream, byref cfg as const TlsConfig, byref op as const ustring ) as TlsResultBool
+    dim as TktEng ptr e = new TktEng
+    dim as TlsResultBool r = hCredential( s, e, cfg, op )
+    if( r.IsOk( ) ) then r = hHandshake( s, e, ( s.hServer = FALSE ), TRUE, op )
+    if( r.IsOk( ) andalso ( s.hServer = FALSE ) andalso ( cfg.InsecureSkipVerify = FALSE ) ) then r = hVerify( s, e, cfg, op )
+    if( r.IsOk( ) ) then
+        dim as long st = tkt_QueryContextAttributesW( @e->ctx, 4, @e->sizes )     '' SECPKG_ATTR_STREAM_SIZES
+        if( st <> 0 ) then r = TlsFail( TLS_UNKNOWN, st, op, s.hName )
+    end if
+    if( r.IsOk( ) = FALSE ) then
+        hFreeEng( e )
+        return r
+    end if
+    dim as TktConnInfo ci
+    if( tkt_QueryContextAttributesW( @e->ctx, &h5A, @ci ) = 0 ) then             '' SECPKG_ATTR_CONNECTION_INFO
+        if( ( ci.dwProtocol and &h3000 ) <> 0 ) then
+            s.hProto = "TLSv1.3"
+        elseif( ( ci.dwProtocol and &hC00 ) <> 0 ) then
+            s.hProto = "TLSv1.2"
+        else
+            s.hProto = "TLS"
+        end if
+    end if
+    e->wcap = e->sizes.cbHeader + e->sizes.cbMaximumMessage + e->sizes.cbTrailer
+    e->wbuf = allocate( e->wcap )
+    s.hEng = e
+    return TlsOk( )
+end function
+
+'' -------------------------------------------------------------- records
+
+private sub hKeepPlain( byval e as TktEng ptr, byval p as const ubyte ptr, byval n as long )
+    if( n <= 0 ) then exit sub
+    if( e->ppos >= e->plen ) then
+        e->ppos = 0
+        e->plen = 0
+    end if
+    if( e->plen + n > e->pcap ) then
+        e->pcap = e->plen + n + 4096
+        e->pbuf = reallocate( e->pbuf, e->pcap )
+    end if
+    TlsMemcpy( e->pbuf + e->plen, p, n )
+    e->plen += n
+end sub
+
+function TlsEngRead( byref s as TlsStream, byval buf as ubyte ptr, byval n as longint ) as fs.FsResultI64
+    dim as TktEng ptr e = s.hEng
+    dim as fs.FsError ferr
+    do
+        if( e->plen > e->ppos ) then
+            dim as longint k = e->plen - e->ppos
+            if( k > n ) then k = n
+            TlsMemcpy( buf, e->pbuf + e->ppos, k )
+            e->ppos += k
+            return Ok( of longint, fs.FsError )( k )
+        end if
+        if( s.hEof ) then return Ok( of longint, fs.FsError )( 0 )
+        dim as boolean needRead = ( e->rlen = 0 )
+        if( needRead = FALSE ) then
+            dim as TktSecBuffer b( 0 to 3 )
+            b( 0 ).type_ = TKT_SECBUFFER_DATA
+            b( 0 ).cb = e->rlen
+            b( 0 ).pv = e->rbuf
+            dim as TktSecBufferDesc d = ( 0, 4, @b( 0 ) )
+            dim as long st = tkt_DecryptMessage( @e->ctx, @d, 0, nullptr )
+            select case st
+            case TKT_SEC_E_OK, TKT_SEC_I_RENEGOTIATE, TKT_SEC_I_CONTEXT_EXPIRED
+                dim as TktSecBuffer ptr extra = nullptr
+                for i as long = 1 to 3
+                    if( b( i ).type_ = TKT_SECBUFFER_DATA ) then hKeepPlain( e, b( i ).pv, b( i ).cb )
+                    if( b( i ).type_ = TKT_SECBUFFER_EXTRA ) then extra = @b( i )
+                next
+                if( extra <> nullptr ) then
+                    hKeepExtra( e, *extra )
+                else
+                    e->rlen = 0
+                end if
+                if( st = TKT_SEC_I_CONTEXT_EXPIRED ) then
+                    s.hEof = TRUE                       '' close_notify
+                elseif( st = TKT_SEC_I_RENEGOTIATE ) then
+                    '' TLS 1.3 post-handshake messages (a session ticket, a key
+                    '' update): SSPI wants them fed back through the handshake call
+                    dim as TlsResultBool h = hHandshake( s, e, FALSE, FALSE, "Read" )
+                    if( h.IsOk( ) = FALSE ) then return fs.FsFail( of longint )( fs.FS_INVALID_DATA, "Read", "" )
+                end if
+            case TKT_SEC_E_INCOMPLETE_MESSAGE
+                needRead = TRUE
+            case else
+                return Fail( of longint, fs.FsError )( fs.FsError( fs.FS_INVALID_DATA, st, "Read", "" ) )
+            end select
+        end if
+        if( needRead ) then
+            dim as longint got = hRecvMore( s, e, ferr )
+            if( got < 0 ) then return Fail( of longint, fs.FsError )( ferr )
+            if( got = 0 ) then s.hEof = TRUE           '' closed without close_notify: the end too
+        end if
+    loop
+end function
+
+function TlsEngWrite( byref s as TlsStream, byval buf as const ubyte ptr, byval n as longint ) as fs.FsResultI64
+    dim as TktEng ptr e = s.hEng
+    dim as long k = iif( n > e->sizes.cbMaximumMessage, e->sizes.cbMaximumMessage, n )
+    dim as TktSecBuffer b( 0 to 3 )
+    b( 0 ).type_ = TKT_SECBUFFER_STREAM_HEADER
+    b( 0 ).cb = e->sizes.cbHeader
+    b( 0 ).pv = e->wbuf
+    b( 1 ).type_ = TKT_SECBUFFER_DATA
+    b( 1 ).cb = k
+    b( 1 ).pv = e->wbuf + e->sizes.cbHeader
+    b( 2 ).type_ = TKT_SECBUFFER_STREAM_TRAILER
+    b( 2 ).cb = e->sizes.cbTrailer
+    b( 2 ).pv = e->wbuf + e->sizes.cbHeader + k
+    b( 3 ).type_ = TKT_SECBUFFER_EMPTY
+    TlsMemcpy( b( 1 ).pv, buf, k )
+    dim as TktSecBufferDesc d = ( 0, 4, @b( 0 ) )
+    dim as long st = tkt_EncryptMessage( @e->ctx, 0, @d, 0 )
+    if( st <> 0 ) then return Fail( of longint, fs.FsError )( fs.FsError( fs.FS_UNKNOWN, st, "Write", "" ) )
+    dim as fs.FsError ferr
+    if( TlsSendAll( s, e->wbuf, b( 0 ).cb + b( 1 ).cb + b( 2 ).cb, ferr ) = FALSE ) then
+        return Fail( of longint, fs.FsError )( ferr )
+    end if
+    return Ok( of longint, fs.FsError )( clngint( k ) )
+end function
+
+sub TlsEngClose( byref s as TlsStream )
+    dim as TktEng ptr e = s.hEng
+    if( e = nullptr ) then exit sub
+    dim as ulong tok = 1                                '' SCHANNEL_SHUTDOWN
+    dim as TktSecBuffer cb( 0 to 0 )
+    cb( 0 ).type_ = TKT_SECBUFFER_TOKEN
+    cb( 0 ).cb = 4
+    cb( 0 ).pv = @tok
+    dim as TktSecBufferDesc cd = ( 0, 1, @cb( 0 ) )
+    if( tkt_ApplyControlToken( @e->ctx, @cd ) <> 0 ) then exit sub
+    dim as TktSecBuffer ob( 0 to 0 )
+    ob( 0 ).type_ = TKT_SECBUFFER_TOKEN
+    dim as TktSecBufferDesc od = ( 0, 1, @ob( 0 ) )
+    dim as ulong attr = 0
+    if( s.hServer ) then
+        tkt_AcceptSecurityContext( @e->cred, @e->ctx, nullptr, TKT_ASC_REQ, 0, nullptr, @od, @attr, nullptr )
+    else
+        dim as ustring target = hW( s.hName )
+        tkt_InitializeSecurityContextW( @e->cred, @e->ctx, cptr( const ushort ptr, strptr( target ) ), TKT_ISC_REQ, _
+            0, 0, nullptr, 0, nullptr, @od, @attr, nullptr )
+    end if
+    dim as fs.FsError ferr
+    hSendToken( s, ob( 0 ), ferr )
+end sub
+
+sub TlsEngFree( byref s as TlsStream )
+    hFreeEng( s.hEng )
+    s.hEng = nullptr
+end sub
+
+#endif

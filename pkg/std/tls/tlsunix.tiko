@@ -1,0 +1,393 @@
+#module "tls"
+#import "std/containers"
+#import "std/outcome"
+#import "std/fs"
+using containers
+using outcome
+'' std/tls: tlsunix -- the OpenSSL 3 engine, loaded at run time (C long is integer: LP64).  libssl.so.3 and
+'' libcrypto.so.3 are opened with DYLIBLOAD on the first handshake and never
+'' closed; nothing is linked, so a program that never shakes hands never needs them
+'' (RFC-0002 H1).  The SSL object talks to two memory BIOs and this file pumps them
+'' through the transport fs.Stream, as tlswin.tiko pumps SSPI's buffers.
+
+#ifdef __FB_UNIX__
+
+#include once "fbatomic.bi"
+
+type TkoFnV2P as function cdecl ( ) as any ptr
+type TkoFnP2P as function cdecl ( byval a as any ptr ) as any ptr
+type TkoFnP2L as function cdecl ( byval a as any ptr ) as long
+type TkoFnP2V as sub cdecl ( byval a as any ptr )
+type TkoFnPP2L as function cdecl ( byval a as any ptr, byval b as any ptr ) as long
+type TkoFnPPL2L as function cdecl ( byval a as any ptr, byval b as any ptr, byval n as long ) as long
+type TkoFnPLLP2L as function cdecl ( byval a as any ptr, byval c as long, byval l as integer, byval p as any ptr ) as integer
+type TkoFnPLP2V as sub cdecl ( byval a as any ptr, byval m as long, byval cb as any ptr )
+type TkoFnPPP2V as sub cdecl ( byval a as any ptr, byval b as any ptr, byval c as any ptr )
+type TkoFnPL2P as function cdecl ( byval a as any ptr, byval n as long ) as any ptr
+type TkoFnPQ2Q as function cdecl ( byval a as any ptr, byval o as ulongint ) as ulongint
+type TkoFnPPPP2P as function cdecl ( byval a as any ptr, byval b as any ptr, byval c as any ptr, byval d as any ptr ) as any ptr
+type TkoFn2UL as function cdecl ( ) as uinteger
+type TkoFnULPU2V as sub cdecl ( byval e as uinteger, byval buf as zstring ptr, byval n as uinteger )
+
+'' The entry points, filled by hLoad.
+dim shared as TkoFnV2P    tko_TLS_client_method, tko_TLS_server_method, tko_BIO_s_mem
+dim shared as TkoFnP2P    tko_SSL_CTX_new, tko_SSL_new, tko_SSL_CTX_get_cert_store, tko_SSL_get0_param, tko_BIO_new
+dim shared as TkoFnP2V    tko_SSL_CTX_free, tko_SSL_free, tko_X509_free, tko_EVP_PKEY_free, tko_SSL_set_connect_state, _
+                          tko_SSL_set_accept_state
+dim shared as TkoFnP2L    tko_SSL_CTX_set_default_verify_paths, tko_SSL_do_handshake, tko_SSL_shutdown, _
+                          tko_SSL_CTX_check_private_key, tko_BIO_free
+dim shared as TkoFnPP2L   tko_SSL_CTX_use_certificate, tko_SSL_CTX_use_PrivateKey, tko_X509_STORE_add_cert, _
+                          tko_SSL_set1_host, tko_X509_VERIFY_PARAM_set1_ip_asc
+dim shared as TkoFnPPL2L  tko_SSL_read, tko_SSL_write, tko_BIO_read, tko_BIO_write
+dim shared as TkoFnPLLP2L tko_SSL_CTX_ctrl, tko_SSL_ctrl, tko_BIO_ctrl
+dim shared as TkoFnPLP2V  tko_SSL_CTX_set_verify
+dim shared as TkoFnPPP2V  tko_SSL_set_bio
+dim shared as TkoFnPL2P   tko_BIO_new_mem_buf
+dim shared as TkoFnPQ2Q   tko_SSL_CTX_set_options
+dim shared as TkoFnPPPP2P tko_PEM_read_bio_X509, tko_PEM_read_bio_PrivateKey
+dim shared as function cdecl ( byval s as any ptr, byval r as long ) as long tko_SSL_get_error
+dim shared as function cdecl ( byval s as any ptr ) as integer tko_SSL_get_verify_result
+dim shared as function cdecl ( byval s as any ptr ) as const zstring ptr tko_SSL_get_version
+dim shared as TkoFn2UL    tko_ERR_get_error
+dim shared as sub cdecl ( ) tko_ERR_clear_error
+dim shared as TkoFnULPU2V tko_ERR_error_string_n
+
+dim shared as long tko_sslState           '' 0 not tried, 1 loading, 2 loaded, 3 not available
+dim shared as any ptr tko_libssl, tko_libcrypto
+
+private function hSym( byval lib_ as any ptr, byref nm as const string, byref ok_ as boolean ) as any ptr
+    dim as any ptr p = dylibsymbol( lib_, nm )
+    if( p = nullptr ) then ok_ = FALSE
+    return p
+end function
+
+private function hLoadAll( ) as boolean
+    tko_libcrypto = dylibload( "libcrypto.so.3" )
+    if( tko_libcrypto = nullptr ) then return FALSE
+    tko_libssl = dylibload( "libssl.so.3" )
+    if( tko_libssl = nullptr ) then return FALSE
+    dim as boolean k = TRUE
+    dim as any ptr s = tko_libssl, c = tko_libcrypto
+    tko_TLS_client_method = hSym( s, "TLS_client_method", k )
+    tko_TLS_server_method = hSym( s, "TLS_server_method", k )
+    tko_SSL_CTX_new = hSym( s, "SSL_CTX_new", k )
+    tko_SSL_CTX_free = hSym( s, "SSL_CTX_free", k )
+    tko_SSL_CTX_set_default_verify_paths = hSym( s, "SSL_CTX_set_default_verify_paths", k )
+    tko_SSL_CTX_get_cert_store = hSym( s, "SSL_CTX_get_cert_store", k )
+    tko_SSL_CTX_ctrl = hSym( s, "SSL_CTX_ctrl", k )
+    tko_SSL_CTX_set_verify = hSym( s, "SSL_CTX_set_verify", k )
+    tko_SSL_CTX_set_options = hSym( s, "SSL_CTX_set_options", k )
+    tko_SSL_CTX_use_certificate = hSym( s, "SSL_CTX_use_certificate", k )
+    tko_SSL_CTX_use_PrivateKey = hSym( s, "SSL_CTX_use_PrivateKey", k )
+    tko_SSL_CTX_check_private_key = hSym( s, "SSL_CTX_check_private_key", k )
+    tko_SSL_new = hSym( s, "SSL_new", k )
+    tko_SSL_free = hSym( s, "SSL_free", k )
+    tko_SSL_set_bio = hSym( s, "SSL_set_bio", k )
+    tko_SSL_set_connect_state = hSym( s, "SSL_set_connect_state", k )
+    tko_SSL_set_accept_state = hSym( s, "SSL_set_accept_state", k )
+    tko_SSL_ctrl = hSym( s, "SSL_ctrl", k )
+    tko_SSL_set1_host = hSym( s, "SSL_set1_host", k )
+    tko_SSL_get0_param = hSym( s, "SSL_get0_param", k )
+    tko_SSL_do_handshake = hSym( s, "SSL_do_handshake", k )
+    tko_SSL_read = hSym( s, "SSL_read", k )
+    tko_SSL_write = hSym( s, "SSL_write", k )
+    tko_SSL_get_error = hSym( s, "SSL_get_error", k )
+    tko_SSL_shutdown = hSym( s, "SSL_shutdown", k )
+    tko_SSL_get_verify_result = hSym( s, "SSL_get_verify_result", k )
+    tko_SSL_get_version = hSym( s, "SSL_get_version", k )
+    tko_BIO_s_mem = hSym( c, "BIO_s_mem", k )
+    tko_BIO_new = hSym( c, "BIO_new", k )
+    tko_BIO_new_mem_buf = hSym( c, "BIO_new_mem_buf", k )
+    tko_BIO_free = hSym( c, "BIO_free", k )
+    tko_BIO_read = hSym( c, "BIO_read", k )
+    tko_BIO_write = hSym( c, "BIO_write", k )
+    tko_BIO_ctrl = hSym( c, "BIO_ctrl", k )
+    tko_PEM_read_bio_X509 = hSym( c, "PEM_read_bio_X509", k )
+    tko_PEM_read_bio_PrivateKey = hSym( c, "PEM_read_bio_PrivateKey", k )
+    tko_X509_free = hSym( c, "X509_free", k )
+    tko_EVP_PKEY_free = hSym( c, "EVP_PKEY_free", k )
+    tko_X509_STORE_add_cert = hSym( c, "X509_STORE_add_cert", k )
+    tko_X509_VERIFY_PARAM_set1_ip_asc = hSym( c, "X509_VERIFY_PARAM_set1_ip_asc", k )
+    tko_ERR_get_error = hSym( c, "ERR_get_error", k )
+    tko_ERR_clear_error = hSym( c, "ERR_clear_error", k )
+    tko_ERR_error_string_n = hSym( c, "ERR_error_string_n", k )
+    return k
+end function
+
+'' Loads the libraries once per process, whichever thread gets there first (D6).
+private function hLoad( ) as boolean
+    if( FB.AtomicLoadLong( @tko_sslState ) = 2 ) then return TRUE
+    if( FB.AtomicCasLong( @tko_sslState, 0, 1 ) = 0 ) then
+        FB.AtomicCasLong( @tko_sslState, 1, iif( hLoadAll( ), 2, 3 ) )
+    end if
+    while( FB.AtomicLoadLong( @tko_sslState ) = 1 )
+        sleep 1
+    wend
+    return ( FB.AtomicLoadLong( @tko_sslState ) = 2 )
+end function
+
+const TKO_SSL_ERROR_SSL = 1
+const TKO_SSL_ERROR_WANT_READ = 2
+const TKO_SSL_ERROR_WANT_WRITE = 3
+const TKO_SSL_ERROR_SYSCALL = 5
+const TKO_SSL_ERROR_ZERO_RETURN = 6
+const TKO_BIO_CTRL_PENDING = 10
+
+type TkoEng
+    as any ptr ctx, ssl
+    as any ptr rbio, wbio                 '' owned by ssl once SSL_set_bio ran
+    as ubyte ptr buf                      '' transport transfer buffer
+    as long cap
+end type
+
+private sub hFreeEng( byval e as TkoEng ptr )
+    if( e = nullptr ) then exit sub
+    if( e->ssl <> nullptr ) then
+        tko_SSL_free( e->ssl )
+    else
+        if( e->rbio <> nullptr ) then tko_BIO_free( e->rbio )
+        if( e->wbio <> nullptr ) then tko_BIO_free( e->wbio )
+    end if
+    if( e->ctx <> nullptr ) then tko_SSL_CTX_free( e->ctx )
+    if( e->buf <> nullptr ) then deallocate( e->buf )
+    delete e
+end sub
+
+'' The first queued OpenSSL error as text; the queue is cleared.
+private function hErrText( byref code as long ) as ustring
+    dim as uinteger e = tko_ERR_get_error( )
+    code = clng( e and &h7FFFFFFF )
+    if( e = 0 ) then return ""
+    dim as zstring * 256 z
+    tko_ERR_error_string_n( e, @z, 256 )
+    tko_ERR_clear_error( )
+    return z
+end function
+
+'' Sends everything the SSL object queued in its write BIO.
+private function hFlush( byref s as TlsStream, byval e as TkoEng ptr, byref err_ as fs.FsError ) as boolean
+    do
+        dim as long n = tko_BIO_read( e->wbio, e->buf, e->cap )
+        if( n <= 0 ) then return TRUE
+        if( TlsSendAll( s, e->buf, n, err_ ) = FALSE ) then return FALSE
+    loop
+end function
+
+'' Reads once from the transport into the read BIO: >0, 0 at the end, -1 with err.
+private function hFill( byref s as TlsStream, byval e as TkoEng ptr, byref err_ as fs.FsError ) as longint
+    dim as fs.FsResultI64 r = s.hT->Read( e->buf, e->cap )
+    if( r.IsOk( ) = FALSE ) then
+        err_ = r.Failure( )
+        return -1
+    end if
+    if( r.Value( ) > 0 ) then tko_BIO_write( e->rbio, e->buf, r.Value( ) )
+    return r.Value( )
+end function
+
+'' Each PEM block of `pem` read with `reader` (PEM_read_bio_X509 / _PrivateKey).
+private function hPemObjects( byref pem as const string, byval reader as TkoFnPPPP2P, byref objs as Array( of any ptr ) ) as boolean
+    dim as any ptr b = tko_BIO_new_mem_buf( strptr( pem ), len( pem ) )
+    if( b = nullptr ) then return FALSE
+    do
+        dim as any ptr o = reader( b, nullptr, nullptr, nullptr )
+        if( o = nullptr ) then exit do
+        objs.Push( o )
+    loop
+    tko_BIO_free( b )
+    tko_ERR_clear_error( )                '' the last read's "no start line"
+    return ( objs.num > 0 )
+end function
+
+private function hMapVerify( byval v as integer ) as TlsErrorCode
+    select case v
+    case 9, 10, 13, 14                    '' not yet valid, expired, bad time fields
+        return TLS_CERT_EXPIRED
+    case 62, 64                           '' hostname / IP address mismatch
+        return TLS_CERT_NAME_MISMATCH
+    case 2, 18, 19, 20, 21, 27, 28        '' no issuer, self-signed, untrusted, rejected
+        return TLS_CERT_UNTRUSTED
+    end select
+    return TLS_CERT_INVALID
+end function
+
+private function hContext( byref s as TlsStream, byval e as TkoEng ptr, byref cfg as const TlsConfig, _
+                           byref op as const ustring ) as TlsResultBool
+    dim as long code
+    e->ctx = tko_SSL_CTX_new( iif( s.hServer, tko_TLS_server_method( ), tko_TLS_client_method( ) ) )
+    if( e->ctx = nullptr ) then
+        dim as ustring t = hErrText( code )
+        return TlsFail( TLS_UNAVAILABLE, code, op, s.hName, t )
+    end if
+    '' SSL_CTX_set_min_proto_version; TLS1_2_VERSION / TLS1_3_VERSION
+    tko_SSL_CTX_ctrl( e->ctx, 123, iif( cfg.MinVersion = TLS_VERSION_1_3, &h304, &h303 ), nullptr )
+    '' SSL_OP_IGNORE_UNEXPECTED_EOF: a peer closing without close_notify reads as the end
+    tko_SSL_CTX_set_options( e->ctx, 1ull shl 7 )
+    if( s.hServer ) then
+        dim as Array( of any ptr ) certs, keys
+        if( hPemObjects( cfg.hCertPem, tko_PEM_read_bio_X509, certs ) = FALSE ) then
+            return TlsFail( TLS_BAD_PEM, 0, op, "certificate" )
+        end if
+        if( tko_SSL_CTX_use_certificate( e->ctx, certs.items( 0 ) ) <> 1 ) then
+            for i as long = 0 to certs.num - 1 : tko_X509_free( certs.items( i ) ) : next
+            dim as ustring t = hErrText( code )
+            return TlsFail( TLS_BAD_PEM, code, op, "certificate", t )
+        end if
+        tko_X509_free( certs.items( 0 ) )
+        for i as long = 1 to certs.num - 1
+            tko_SSL_CTX_ctrl( e->ctx, 14, 0, certs.items( i ) )       '' SSL_CTX_add_extra_chain_cert: takes it
+        next
+        if( hPemObjects( cfg.hKeyPem, tko_PEM_read_bio_PrivateKey, keys ) = FALSE ) then
+            return TlsFail( TLS_BAD_KEY, 0, op, "" )
+        end if
+        dim as long rc = tko_SSL_CTX_use_PrivateKey( e->ctx, keys.items( 0 ) )
+        tko_EVP_PKEY_free( keys.items( 0 ) )
+        if( ( rc <> 1 ) orelse ( tko_SSL_CTX_check_private_key( e->ctx ) <> 1 ) ) then
+            dim as ustring t = hErrText( code )
+            return TlsFail( TLS_BAD_KEY, code, op, "", t )
+        end if
+    else
+        if( cfg.InsecureSkipVerify ) then
+            tko_SSL_CTX_set_verify( e->ctx, 0, nullptr )               '' SSL_VERIFY_NONE
+        else
+            tko_SSL_CTX_set_verify( e->ctx, 1, nullptr )               '' SSL_VERIFY_PEER
+            tko_SSL_CTX_set_default_verify_paths( e->ctx )
+            dim as any ptr st = tko_SSL_CTX_get_cert_store( e->ctx )
+            for i as long = 0 to cfg.hRoots.num - 1
+                dim as Array( of any ptr ) certs
+                hPemObjects( cfg.hRoots.items( i ), tko_PEM_read_bio_X509, certs )
+                for j as long = 0 to certs.num - 1
+                    tko_X509_STORE_add_cert( st, certs.items( j ) )    '' takes a reference
+                    tko_X509_free( certs.items( j ) )
+                next
+            next
+            tko_ERR_clear_error( )                                     '' a root already in the store
+        end if
+    end if
+    return TlsOk( )
+end function
+
+function TlsEngOpen( byref s as TlsStream, byref cfg as const TlsConfig, byref op as const ustring ) as TlsResultBool
+    if( hLoad( ) = FALSE ) then return TlsFail( TLS_UNAVAILABLE, 0, op, s.hName, "libssl.so.3 not found" )
+    dim as TkoEng ptr e = new TkoEng
+    e->cap = 16384 + 512
+    e->buf = allocate( e->cap )
+    dim as long code
+    dim as TlsResultBool r = hContext( s, e, cfg, op )
+    if( r.IsOk( ) = FALSE ) then
+        hFreeEng( e )
+        return r
+    end if
+    e->ssl = tko_SSL_new( e->ctx )
+    e->rbio = tko_BIO_new( tko_BIO_s_mem( ) )
+    e->wbio = tko_BIO_new( tko_BIO_s_mem( ) )
+    if( ( e->ssl = nullptr ) orelse ( e->rbio = nullptr ) orelse ( e->wbio = nullptr ) ) then
+        hFreeEng( e )
+        return TlsFail( TLS_UNKNOWN, 0, op, s.hName )
+    end if
+    tko_SSL_set_bio( e->ssl, e->rbio, e->wbio )
+    if( s.hServer ) then
+        tko_SSL_set_accept_state( e->ssl )
+    else
+        tko_SSL_set_connect_state( e->ssl )
+        dim as string host = s.hName
+        if( ( len( host ) >= 2 ) andalso ( left( host, 1 ) = "[" ) ) then host = mid( host, 2, len( host ) - 2 )
+        if( TlsIsIpLiteral( host ) ) then
+            if( cfg.InsecureSkipVerify = FALSE ) then tko_X509_VERIFY_PARAM_set1_ip_asc( tko_SSL_get0_param( e->ssl ), strptr( host ) )
+        else
+            tko_SSL_ctrl( e->ssl, 55, 0, strptr( host ) )             '' SSL_set_tlsext_host_name: SNI
+            if( cfg.InsecureSkipVerify = FALSE ) then tko_SSL_set1_host( e->ssl, strptr( host ) )
+        end if
+    end if
+
+    dim as fs.FsError ferr
+    do
+        tko_ERR_clear_error( )
+        dim as long rc = tko_SSL_do_handshake( e->ssl )
+        if( hFlush( s, e, ferr ) = FALSE ) then
+            hFreeEng( e )
+            return TlsTransportFail( ferr, op, s.hName )
+        end if
+        if( rc = 1 ) then exit do
+        dim as long er = tko_SSL_get_error( e->ssl, rc )
+        if( er = TKO_SSL_ERROR_WANT_READ ) then
+            dim as longint got = hFill( s, e, ferr )
+            if( got < 0 ) then
+                hFreeEng( e )
+                return TlsTransportFail( ferr, op, s.hName )
+            end if
+            if( got = 0 ) then
+                hFreeEng( e )
+                return TlsFail( TLS_TRANSPORT, 0, op, s.hName, "connection closed during the handshake" )
+            end if
+        elseif( er <> TKO_SSL_ERROR_WANT_WRITE ) then
+            dim as integer v = iif( s.hServer, 0, tko_SSL_get_verify_result( e->ssl ) )
+            dim as ustring t = hErrText( code )
+            hFreeEng( e )
+            if( v <> 0 ) then return TlsFail( hMapVerify( v ), v, op, s.hName )
+            return TlsFail( TLS_HANDSHAKE_FAILED, code, op, s.hName, t )
+        end if
+    loop
+    dim as const zstring ptr pv = tko_SSL_get_version( e->ssl )
+    if( pv <> nullptr ) then s.hProto = *pv
+    s.hEng = e
+    return TlsOk( )
+end function
+
+function TlsEngRead( byref s as TlsStream, byval buf as ubyte ptr, byval n as longint ) as fs.FsResultI64
+    dim as TkoEng ptr e = s.hEng
+    dim as fs.FsError ferr
+    if( n > &h40000000 ) then n = &h40000000
+    do
+        if( s.hEof ) then return Ok( of longint, fs.FsError )( 0 )
+        tko_ERR_clear_error( )
+        dim as long rc = tko_SSL_read( e->ssl, buf, n )
+        if( rc > 0 ) then return Ok( of longint, fs.FsError )( clngint( rc ) )
+        dim as long er = tko_SSL_get_error( e->ssl, rc )
+        '' a post-handshake message may want an answer (a key update)
+        if( hFlush( s, e, ferr ) = FALSE ) then return Fail( of longint, fs.FsError )( ferr )
+        select case er
+        case TKO_SSL_ERROR_WANT_READ
+            dim as longint got = hFill( s, e, ferr )
+            if( got < 0 ) then return Fail( of longint, fs.FsError )( ferr )
+            if( got = 0 ) then s.hEof = TRUE                 '' closed without close_notify: the end too
+        case TKO_SSL_ERROR_ZERO_RETURN
+            s.hEof = TRUE                                     '' close_notify
+        case TKO_SSL_ERROR_WANT_WRITE
+        case else
+            dim as long code
+            hErrText( code )
+            return Fail( of longint, fs.FsError )( fs.FsError( fs.FS_INVALID_DATA, code, "Read", "" ) )
+        end select
+    loop
+end function
+
+function TlsEngWrite( byref s as TlsStream, byval buf as const ubyte ptr, byval n as longint ) as fs.FsResultI64
+    dim as TkoEng ptr e = s.hEng
+    dim as fs.FsError ferr
+    if( n > &h40000000 ) then n = &h40000000
+    tko_ERR_clear_error( )
+    dim as long rc = tko_SSL_write( e->ssl, cptr( any ptr, buf ), n )
+    if( rc <= 0 ) then
+        dim as long code
+        hErrText( code )
+        return Fail( of longint, fs.FsError )( fs.FsError( fs.FS_UNKNOWN, code, "Write", "" ) )
+    end if
+    if( hFlush( s, e, ferr ) = FALSE ) then return Fail( of longint, fs.FsError )( ferr )
+    return Ok( of longint, fs.FsError )( clngint( rc ) )
+end function
+
+sub TlsEngClose( byref s as TlsStream )
+    dim as TkoEng ptr e = s.hEng
+    if( e = nullptr ) then exit sub
+    tko_SSL_shutdown( e->ssl )
+    dim as fs.FsError ferr
+    hFlush( s, e, ferr )
+    tko_ERR_clear_error( )
+end sub
+
+sub TlsEngFree( byref s as TlsStream )
+    hFreeEng( s.hEng )
+    s.hEng = nullptr
+end sub
+
+#endif

@@ -1,0 +1,758 @@
+#module "http"
+#import "std/containers"
+#import "std/outcome"
+#import "std/fs"
+#import "std/net"
+#import "std/tls"
+#import "std/codec"
+using containers
+using outcome
+'' std/http: httpclient -- connections, the request on the wire, the response
+'' head, the body's framing (RFC 9112 section 6.3) and the redirect loop.
+
+const HTTP_HEAD_MAX = 65536             '' the status line and headers together
+const HTTP_LINE_MAX = 8192              '' one chunk-size or trailer line
+const HTTP_BUF = 16384
+
+'' -------------------------------------------------------------- connections
+
+'' One connection: the socket, TLS over it when https, a read buffer.
+type HttpConn
+    as net.TcpStream tcp
+    as tls.TlsStream tlsS
+    as boolean secure
+    as ustring key                                       '' "https://host:port": what may reuse it
+    as ubyte ptr buf
+    as long bpos, blen, bcap
+end type
+
+private function hStream( byval c as HttpConn ptr ) as fs.Stream ptr
+    if( c->secure ) then return @c->tlsS
+    return @c->tcp
+end function
+
+private sub hConnFree( byval c as HttpConn ptr )
+    if( c = nullptr ) then exit sub
+    if( c->tlsS.IsOpen( ) ) then c->tlsS.Close( )
+    if( c->tcp.IsOpen( ) ) then c->tcp.Close( )
+    if( c->buf <> nullptr ) then deallocate( c->buf )
+    delete c
+end sub
+
+'' Refills the read buffer: >0, 0 at the end, -1 with err.
+private function hFill( byval c as HttpConn ptr, byref err_ as fs.FsError ) as longint
+    if( c->bpos >= c->blen ) then
+        c->bpos = 0
+        c->blen = 0
+    end if
+    if( c->blen >= c->bcap ) then
+        c->bcap = iif( c->bcap = 0, HTTP_BUF, c->bcap * 2 )
+        c->buf = reallocate( c->buf, c->bcap )
+    end if
+    dim as fs.FsResultI64 r = hStream( c )->Read( c->buf + c->blen, c->bcap - c->blen )
+    if( r.IsOk( ) = FALSE ) then
+        err_ = r.Failure( )
+        return -1
+    end if
+    c->blen += r.Value( )
+    return r.Value( )
+end function
+
+'' One line ending LF (CR LF or a bare LF), without the ending: 1, 0 at the end of
+'' the stream before any byte, -1 with err (a line over `max_` is FS_TOO_LARGE).
+private function hReadLine( byval c as HttpConn ptr, byref ln as string, byval max_ as long, byref err_ as fs.FsError ) as long
+    ln = ""
+    dim as boolean any_ = FALSE
+    do
+        while( c->bpos < c->blen )
+            dim as ubyte ch = c->buf[c->bpos]
+            c->bpos += 1
+            any_ = TRUE
+            if( ch = 10 ) then
+                if( ( len( ln ) > 0 ) andalso ( ln[len( ln ) - 1] = 13 ) ) then ln = left( ln, len( ln ) - 1 )
+                return 1
+            end if
+            if( len( ln ) >= max_ ) then
+                err_ = fs.FsError( fs.FS_TOO_LARGE, 0, "Read", "" )
+                return -1
+            end if
+            ln &= chr( ch )
+        wend
+        dim as longint got = hFill( c, err_ )
+        if( got < 0 ) then return -1
+        if( got = 0 ) then
+            if( any_ = FALSE ) then return 0
+            err_ = fs.FsError( fs.FS_UNEXPECTED_EOF, 0, "Read", "" )
+            return -1
+        end if
+    loop
+end function
+
+private function hIoFail( of T )( byref e as fs.FsError, byref op as const ustring, byref url as const ustring ) as Result( of T, HttpError )
+    if( e.Code( ) = fs.FS_TIMED_OUT ) then return HttpFail( of T )( HTTP_TIMED_OUT, e.OsCode( ), op, url )
+    return HttpFail( of T )( HTTP_IO, e.OsCode( ), op, url, e.Message( ) )
+end function
+
+'' A new connection to the URL's host, TLS when https.
+private function hDial( byref cl as Client, byref u as net.Url, byval secure as boolean, byval port as ushort, _
+                        byref key as const ustring, byref op as const ustring, byref url as const ustring, _
+                        byref conn as HttpConn ptr ) as HttpResultBool
+    dim as HttpConn ptr c = new HttpConn
+    c->secure = secure
+    c->key = key
+    if( cl.TimeoutMs > 0 ) then
+        c->tcp.SetReadTimeout( cl.TimeoutMs )
+        c->tcp.SetWriteTimeout( cl.TimeoutMs )
+    end if
+    dim as net.NetResultBool r = c->tcp.ConnectHost( u.Host, port, iif( cl.TimeoutMs > 0, cl.TimeoutMs, -1 ) )
+    if( r.IsOk( ) = FALSE ) then
+        hConnFree( c )
+        if( r.Failure( ).Code( ) = net.NET_TIMED_OUT ) then
+            return HttpFail( of boolean )( HTTP_TIMED_OUT, r.Failure( ).OsCode( ), op, url )
+        end if
+        return HttpFail( of boolean )( HTTP_CONNECT_FAILED, r.Failure( ).OsCode( ), op, url, r.Failure( ).Message( ) )
+    end if
+    if( secure ) then
+        dim as tls.TlsResultBool t = c->tlsS.Connect( c->tcp, u.Host, cl.TlsOptions )
+        if( t.IsOk( ) = FALSE ) then
+            hConnFree( c )
+            dim as tls.TlsError te = t.Failure( )
+            if( te.Code( ) = tls.TLS_TIMED_OUT ) then return HttpFail( of boolean )( HTTP_TIMED_OUT, te.OsCode( ), op, url )
+            return Fail( of boolean, HttpError )( HttpError( HTTP_TLS_FAILED, te.OsCode( ), op, url, te.Message( ), te.Code( ) ) )
+        end if
+    end if
+    cl.hOpened += 1
+    conn = c
+    return Ok( of boolean, HttpError )( TRUE )
+end function
+
+'' An idle connection for `key`, or nullptr.
+private function hTakeIdle( byref cl as Client, byref key as const ustring ) as HttpConn ptr
+    for i as long = cl.hIdle.num - 1 to 0 step -1
+        dim as HttpConn ptr c = cptr( HttpConn ptr, cl.hIdle.items( i ) )
+        if( c->key = key ) then
+            cl.hIdle.Remove( i )
+            return c
+        end if
+    next
+    return nullptr
+end function
+
+private sub hGiveBack( byref cl as Client, byval c as HttpConn ptr )
+    if( ( cl.KeepAlive = FALSE ) orelse ( cl.MaxIdle <= 0 ) orelse ( c->bpos < c->blen ) ) then
+        hConnFree( c )                                   '' bytes past the body: the peer is confused
+        exit sub
+    end if
+    while( cl.hIdle.num >= cl.MaxIdle )
+        hConnFree( cptr( HttpConn ptr, cl.hIdle.items( 0 ) ) )
+        cl.hIdle.Remove( 0 )
+    wend
+    c->bpos = 0
+    c->blen = 0
+    dim as any ptr p = c
+    cl.hIdle.Push( p )
+end sub
+
+'' -------------------------------------------------------------- the request
+
+private function hValidName( byref nm as const ustring ) as boolean
+    if( len( nm ) = 0 ) then return FALSE
+    for i as long = 1 to len( nm )
+        dim as long ch = asc( nm, i )
+        '' RFC 9110 tchar
+        select case ch
+        case asc( "a" ) to asc( "z" ), asc( "A" ) to asc( "Z" ), asc( "0" ) to asc( "9" )
+        case asc( "!" ), asc( "#" ), asc( "$" ), asc( "%" ), asc( "&" ), asc( "'" ), asc( "*" ), asc( "+" ), _
+             asc( "-" ), asc( "." ), asc( "^" ), asc( "_" ), asc( "`" ), asc( "|" ), asc( "~" )
+        case else
+            return FALSE
+        end select
+    next
+    return TRUE
+end function
+
+private function hValidValue( byref v as const ustring ) as boolean
+    for i as long = 1 to len( v )
+        dim as long ch = asc( v, i )
+        if( ( ch = 13 ) orelse ( ch = 10 ) orelse ( ch = 0 ) ) then return FALSE
+    next
+    return TRUE
+end function
+
+'' The request head in bytes: request line, headers, blank line.
+private function hHead( byref cl as Client, byref req as const Request, byref u as net.Url, byval secure as boolean, _
+                        byref head as string ) as boolean
+    dim as ustring target = u.EscapedPath( )
+    if( len( target ) = 0 ) then target = "/"
+    if( len( u.RawQuery ) > 0 ) then target &= "?" & u.RawQuery
+    dim as ustring host = u.Host
+    if( instr( host, ":" ) > 0 ) then host = "[" & host & "]"
+    if( ( u.Port >= 0 ) andalso ( u.Port <> iif( secure, 443, 80 ) ) ) then host &= ":" & u.Port
+    dim as Headers h = req.Header
+    for i as long = 0 to h.Count( ) - 1
+        if( ( hValidName( h.NameAt( i ) ) = FALSE ) orelse ( hValidValue( h.ValueAt( i ) ) = FALSE ) ) then return FALSE
+    next
+    for i as long = 0 to cl.DefaultHeader.Count( ) - 1
+        if( h.Has( cl.DefaultHeader.NameAt( i ) ) = FALSE ) then h.Add( cl.DefaultHeader.NameAt( i ), cl.DefaultHeader.ValueAt( i ) )
+    next
+    if( ( len( u.User ) > 0 ) andalso ( h.Has( "Authorization" ) = FALSE ) ) then
+        h.Add( "Authorization", "Basic " & codec.Base64Encode( u.User & ":" & u.Password ) )
+    end if
+    if( ( h.Has( "User-Agent" ) = FALSE ) andalso ( len( cl.UserAgent ) > 0 ) ) then h.Add( "User-Agent", cl.UserAgent )
+    if( h.Has( "Accept" ) = FALSE ) then h.Add( "Accept", "*/*" )
+    h.Remove( "Host" )
+    h.Remove( "Content-Length" )
+    h.Remove( "Transfer-Encoding" )
+    dim as ustring m = ucase( req.Method )
+    if( ( req.Body.num > 0 ) orelse ( m = "POST" ) orelse ( m = "PUT" ) orelse ( m = "PATCH" ) ) then
+        h.Add( "Content-Length", str( req.Body.num ) )
+    end if
+    if( cl.KeepAlive = FALSE ) then h.SetValue( "Connection", "close" )
+    dim as ustring t = req.Method & " " & target & !" HTTP/1.1\r\nHost: " & host & !"\r\n"
+    for i as long = 0 to h.Count( ) - 1
+        t &= h.NameAt( i ) & ": " & h.ValueAt( i ) & !"\r\n"
+    next
+    t &= !"\r\n"
+    head = t
+    return TRUE
+end function
+
+'' -------------------------------------------------------------- the response head
+
+private function hTrim( byref s as const string ) as string
+    dim as long a = 1, b = len( s )
+    while( ( a <= b ) andalso ( ( s[a - 1] = 32 ) orelse ( s[a - 1] = 9 ) ) )
+        a += 1
+    wend
+    while( ( b >= a ) andalso ( ( s[b - 1] = 32 ) orelse ( s[b - 1] = 9 ) ) )
+        b -= 1
+    wend
+    return mid( s, a, b - a + 1 )
+end function
+
+'' TRUE when the comma-separated header list holds `token` (ASCII case ignored).
+private function hHasToken( byref h as const Headers, byref nm as const ustring, byref token as const ustring ) as boolean
+    dim as Array( of ustring ) vs = h.GetAll( nm )
+    for i as long = 0 to vs.num - 1
+        dim as string v = lcase( vs.items( i ) )
+        dim as long p = 1
+        do
+            dim as long q = instr( p, v, "," )
+            dim as string part = hTrim( iif( q = 0, mid( v, p ), mid( v, p, q - p ) ) )
+            if( part = lcase( token ) ) then return TRUE
+            if( q = 0 ) then exit do
+            p = q + 1
+        loop
+    next
+    return FALSE
+end function
+
+'' The last transfer coding, lower case; "" when none.
+private function hLastCoding( byref h as const Headers ) as string
+    dim as Array( of ustring ) vs = h.GetAll( "Transfer-Encoding" )
+    if( vs.num = 0 ) then return ""
+    dim as string v = lcase( vs.items( vs.num - 1 ) )
+    dim as long q = instrrev( v, "," )
+    return hTrim( iif( q = 0, v, mid( v, q + 1 ) ) )
+end function
+
+'' Reads one response head into rs: 1, 0 when the connection ended before any byte,
+'' -1 with the HttpError in `fail_`.
+private function hReadHead( byval c as HttpConn ptr, byref rs as ResponseStream, byref op as const ustring, _
+                            byref url as const ustring, byref fail_ as HttpResultBool ) as long
+    dim as fs.FsError ferr
+    dim as string ln
+    dim as long total = 0
+    dim as long r = hReadLine( c, ln, HTTP_HEAD_MAX, ferr )
+    if( r = 0 ) then return 0
+    if( r < 0 ) then
+        if( ferr.Code( ) = fs.FS_TOO_LARGE ) then
+            fail_ = HttpFail( of boolean )( HTTP_HEADERS_TOO_LARGE, 0, op, url )
+        elseif( ferr.Code( ) = fs.FS_CONNECTION_RESET ) then
+            return 0                                     '' a reused connection the server had dropped
+        else
+            fail_ = hIoFail( of boolean )( ferr, op, url )
+        end if
+        return -1
+    end if
+    '' HTTP/1.x SP 3DIGIT [SP reason]
+    if( ( len( ln ) < 12 ) orelse ( left( ln, 7 ) <> "HTTP/1." ) orelse ( ln[8] <> 32 ) ) then
+        fail_ = HttpFail( of boolean )( HTTP_BAD_RESPONSE, 0, op, url, "status line" )
+        return -1
+    end if
+    dim as string code = mid( ln, 10, 3 )
+    for i as long = 0 to 2
+        if( ( code[i] < 48 ) orelse ( code[i] > 57 ) ) then
+            fail_ = HttpFail( of boolean )( HTTP_BAD_RESPONSE, 0, op, url, "status code" )
+            return -1
+        end if
+    next
+    if( ( len( ln ) > 12 ) andalso ( ln[12] <> 32 ) ) then
+        fail_ = HttpFail( of boolean )( HTTP_BAD_RESPONSE, 0, op, url, "status line" )
+        return -1
+    end if
+    rs.Proto = left( ln, 8 )
+    rs.StatusCode = valint( code )
+    rs.Reason = mid( ln, 14 )
+    rs.Header.Clear( )
+    total = len( ln )
+    do
+        r = hReadLine( c, ln, HTTP_HEAD_MAX, ferr )
+        if( r <= 0 ) then
+            if( r = 0 ) then ferr = fs.FsError( fs.FS_UNEXPECTED_EOF, 0, "Read", "" )
+            if( ferr.Code( ) = fs.FS_TOO_LARGE ) then
+                fail_ = HttpFail( of boolean )( HTTP_HEADERS_TOO_LARGE, 0, op, url )
+            elseif( ferr.Code( ) = fs.FS_UNEXPECTED_EOF ) then
+                fail_ = HttpFail( of boolean )( HTTP_BAD_RESPONSE, 0, op, url, "the head ended early" )
+            else
+                fail_ = hIoFail( of boolean )( ferr, op, url )
+            end if
+            return -1
+        end if
+        total += len( ln ) + 2
+        if( total > HTTP_HEAD_MAX ) then
+            fail_ = HttpFail( of boolean )( HTTP_HEADERS_TOO_LARGE, 0, op, url )
+            return -1
+        end if
+        if( len( ln ) = 0 ) then exit do
+        if( ( ln[0] = 32 ) orelse ( ln[0] = 9 ) ) then
+            '' obsolete line folding (RFC 9112 section 5.2): one space in its place
+            if( rs.Header.Count( ) = 0 ) then
+                fail_ = HttpFail( of boolean )( HTTP_BAD_RESPONSE, 0, op, url, "header" )
+                return -1
+            end if
+            dim as long last = rs.Header.Count( ) - 1
+            dim as string folded = hTrim( ln )
+            dim as ustring uf = folded
+            rs.Header.hVals.items( last ) &= " " & uf
+            continue do
+        end if
+        dim as long colon = instr( ln, ":" )
+        if( colon <= 1 ) then
+            fail_ = HttpFail( of boolean )( HTTP_BAD_RESPONSE, 0, op, url, "header" )
+            return -1
+        end if
+        dim as string nm = left( ln, colon - 1 )
+        if( hValidName( nm ) = FALSE ) then
+            fail_ = HttpFail( of boolean )( HTTP_BAD_RESPONSE, 0, op, url, "header name" )
+            return -1
+        end if
+        dim as string v = hTrim( mid( ln, colon + 1 ) )
+        dim as ustring uv = v                            '' UTF-8; anything else becomes U+FFFD
+        rs.Header.Add( nm, uv )
+    loop
+    return 1
+end function
+
+'' Sets the body's framing from the head (RFC 9112 section 6.3).
+private function hFraming( byref rs as ResponseStream, byref method_ as const ustring, byref op as const ustring, _
+                           byref url as const ustring, byref fail_ as HttpResultBool ) as boolean
+    rs.hLength = -1
+    rs.hLeft = 0
+    rs.hDone = FALSE
+    rs.hReuse = ( rs.Proto = "HTTP/1.1" ) andalso ( hHasToken( rs.Header, "Connection", "close" ) = FALSE )
+    if( ( ucase( method_ ) = "HEAD" ) orelse ( rs.StatusCode < 200 ) orelse ( rs.StatusCode = 204 ) _
+        orelse ( rs.StatusCode = 304 ) ) then
+        rs.hMode = 0
+        rs.hDone = TRUE
+        rs.hLength = 0
+        if( rs.StatusCode = 101 ) then rs.hReuse = FALSE
+        return TRUE
+    end if
+    if( rs.Header.Has( "Transfer-Encoding" ) ) then
+        if( hLastCoding( rs.Header ) <> "chunked" ) then
+            rs.hMode = 3                                 '' an unknown coding: read to the close
+            rs.hReuse = FALSE
+        else
+            rs.hMode = 2
+        end if
+        return TRUE
+    end if
+    dim as Array( of ustring ) cls = rs.Header.GetAll( "Content-Length" )
+    if( cls.num > 0 ) then
+        dim as longint n = -1
+        for i as long = 0 to cls.num - 1
+            dim as string v = hTrim( cls.items( i ) )
+            dim as boolean digits = ( len( v ) > 0 ) andalso ( len( v ) <= 18 )
+            for j as long = 0 to len( v ) - 1
+                if( ( v[j] < 48 ) orelse ( v[j] > 57 ) ) then digits = FALSE
+            next
+            if( digits = FALSE ) orelse ( ( n >= 0 ) andalso ( vallng( v ) <> n ) ) then
+                fail_ = HttpFail( of boolean )( HTTP_BAD_RESPONSE, 0, op, url, "Content-Length" )
+                return FALSE
+            end if
+            n = vallng( v )
+        next
+        rs.hMode = 1
+        rs.hLength = n
+        rs.hLeft = n
+        if( n = 0 ) then rs.hDone = TRUE
+        return TRUE
+    end if
+    rs.hMode = 3
+    rs.hReuse = FALSE
+    return TRUE
+end function
+
+'' -------------------------------------------------------------- ResponseStream
+
+constructor ResponseStream( )
+    this.hConn = nullptr
+    this.hClient = nullptr
+end constructor
+
+destructor ResponseStream( )
+    if( this.hConn <> nullptr ) then this.Close( )
+end destructor
+
+const function ResponseStream.ContentLength( ) as longint
+    return this.hLength
+end function
+
+const function ResponseStream.IsOpen( ) as boolean
+    return ( this.hConn <> nullptr )
+end function
+
+const function ResponseStream.CanRead( ) as boolean
+    return ( this.hConn <> nullptr )
+end function
+
+const function ResponseStream.CanWrite( ) as boolean
+    return FALSE
+end function
+
+const function ResponseStream.CanSeek( ) as boolean
+    return FALSE
+end function
+
+function ResponseStream.Close( ) as HttpResultBool
+    if( this.hConn = nullptr ) then return HttpFail( of boolean )( HTTP_CLOSED, 0, "Close", this.Url )
+    dim as HttpConn ptr c = cptr( HttpConn ptr, this.hConn )
+    this.hConn = nullptr
+    if( this.hDone andalso this.hReuse andalso ( this.hClient <> nullptr ) ) then
+        hGiveBack( *cptr( Client ptr, this.hClient ), c )
+    else
+        hConnFree( c )
+    end if
+    return Ok( of boolean, HttpError )( TRUE )
+end function
+
+'' Copies up to n buffered-or-fresh bytes of the connection: >0, 0 at the end, -1.
+private function hRaw( byval c as HttpConn ptr, byval buf as ubyte ptr, byval n as longint, byref err_ as fs.FsError ) as longint
+    if( c->bpos >= c->blen ) then
+        dim as longint got = hFill( c, err_ )
+        if( got <= 0 ) then return got
+    end if
+    dim as longint k = c->blen - c->bpos
+    if( k > n ) then k = n
+    HttpMemcpy( buf, c->buf + c->bpos, k )
+    c->bpos += k
+    return k
+end function
+
+'' The next chunk's size line; at the last chunk, the trailers too.
+private function hNextChunk( byref rs as ResponseStream, byref err_ as fs.FsError ) as boolean
+    dim as string ln
+    dim as long r = hReadLine( cptr( HttpConn ptr, rs.hConn ), ln, HTTP_LINE_MAX, err_ )
+    if( r <= 0 ) then
+        if( r = 0 ) then err_ = fs.FsError( fs.FS_UNEXPECTED_EOF, 0, "Read", "" )
+        return FALSE
+    end if
+    dim as long semi = instr( ln, ";" )
+    dim as string h = hTrim( iif( semi > 0, left( ln, semi - 1 ), ln ) )
+    if( ( len( h ) = 0 ) orelse ( len( h ) > 15 ) ) then
+        err_ = fs.FsError( fs.FS_INVALID_DATA, 0, "Read", "" )
+        return FALSE
+    end if
+    dim as longint n = 0
+    for i as long = 0 to len( h ) - 1
+        dim as long d
+        select case h[i]
+        case 48 to 57  : d = h[i] - 48
+        case 65 to 70  : d = h[i] - 55
+        case 97 to 102 : d = h[i] - 87
+        case else
+            err_ = fs.FsError( fs.FS_INVALID_DATA, 0, "Read", "" )
+            return FALSE
+        end select
+        n = n * 16 + d
+    next
+    rs.hLeft = n
+    if( n = 0 ) then
+        do                                               '' trailers, discarded
+            r = hReadLine( cptr( HttpConn ptr, rs.hConn ), ln, HTTP_LINE_MAX, err_ )
+            if( r <= 0 ) then
+                if( r = 0 ) then err_ = fs.FsError( fs.FS_UNEXPECTED_EOF, 0, "Read", "" )
+                return FALSE
+            end if
+        loop until( len( ln ) = 0 )
+        rs.hDone = TRUE
+    end if
+    return TRUE
+end function
+
+function ResponseStream.Read( byval buf as ubyte ptr, byval n as longint ) as fs.FsResultI64
+    if( this.hConn = nullptr ) then return fs.FsFail( of longint )( fs.FS_CLOSED, "Read", "" )
+    if( ( n < 0 ) orelse ( ( buf = nullptr ) andalso ( n > 0 ) ) ) then
+        return fs.FsFail( of longint )( fs.FS_INVALID_ARGUMENT, "Read", "" )
+    end if
+    if( ( n = 0 ) orelse this.hDone ) then return Ok( of longint, fs.FsError )( 0 )
+    dim as fs.FsError ferr
+    select case this.hMode
+    case 1
+        dim as longint got = hRaw( cptr( HttpConn ptr, this.hConn ), buf, iif( n > this.hLeft, this.hLeft, n ), ferr )
+        if( got < 0 ) then return Fail( of longint, fs.FsError )( ferr )
+        if( got = 0 ) then return fs.FsFail( of longint )( fs.FS_UNEXPECTED_EOF, "Read", this.Url )
+        this.hLeft -= got
+        if( this.hLeft = 0 ) then this.hDone = TRUE
+        return Ok( of longint, fs.FsError )( got )
+    case 2
+        if( this.hLeft = 0 ) then
+            if( hNextChunk( this, ferr ) = FALSE ) then return Fail( of longint, fs.FsError )( ferr )
+            if( this.hDone ) then return Ok( of longint, fs.FsError )( 0 )
+        end if
+        dim as longint got = hRaw( cptr( HttpConn ptr, this.hConn ), buf, iif( n > this.hLeft, this.hLeft, n ), ferr )
+        if( got < 0 ) then return Fail( of longint, fs.FsError )( ferr )
+        if( got = 0 ) then return fs.FsFail( of longint )( fs.FS_UNEXPECTED_EOF, "Read", this.Url )
+        this.hLeft -= got
+        if( this.hLeft = 0 ) then
+            '' the CRLF after the chunk's data
+            dim as string ln
+            dim as long r = hReadLine( cptr( HttpConn ptr, this.hConn ), ln, 2, ferr )
+            if( ( r <= 0 ) orelse ( len( ln ) > 0 ) ) then
+                return fs.FsFail( of longint )( fs.FS_INVALID_DATA, "Read", this.Url )
+            end if
+        end if
+        return Ok( of longint, fs.FsError )( got )
+    case else
+        dim as longint got = hRaw( cptr( HttpConn ptr, this.hConn ), buf, n, ferr )
+        if( got < 0 ) then return Fail( of longint, fs.FsError )( ferr )
+        if( got = 0 ) then this.hDone = TRUE
+        return Ok( of longint, fs.FsError )( got )
+    end select
+end function
+
+'' -------------------------------------------------------------- one exchange
+
+'' Sends `req` to `u` and reads the final response head into rs (1xx skipped).
+private function hExchange( byref cl as Client, byref req as const Request, byref u as net.Url, _
+                            byref url as const ustring, byref rs as ResponseStream, byref op as const ustring ) as HttpResultBool
+    dim as string scheme = lcase( u.Scheme )
+    if( ( scheme <> "http" ) andalso ( scheme <> "https" ) ) then
+        return HttpFail( of boolean )( HTTP_UNSUPPORTED_SCHEME, 0, op, url )
+    end if
+    if( len( u.Host ) = 0 ) then return HttpFail( of boolean )( HTTP_INVALID_URL, 0, op, url, "no host" )
+    dim as boolean secure = ( scheme = "https" )
+    dim as ushort port = iif( u.Port >= 0, u.Port, iif( secure, 443, 80 ) )
+    dim as ustring key = scheme & "://" & lcase( u.Host ) & ":" & port
+    dim as string head
+    if( hHead( cl, req, u, secure, head ) = FALSE ) then
+        return HttpFail( of boolean )( HTTP_INVALID_ARGUMENT, 0, op, url, "header" )
+    end if
+
+    for attempt as long = 1 to 2
+        dim as HttpConn ptr c = iif( cl.KeepAlive, hTakeIdle( cl, key ), cptr( HttpConn ptr, nullptr ) )
+        dim as boolean reused = ( c <> nullptr )
+        if( c = nullptr ) then
+            dim as HttpResultBool d = hDial( cl, u, secure, port, key, op, url, c )
+            if( d.IsOk( ) = FALSE ) then return d
+        end if
+        dim as fs.Stream ptr st = hStream( c )
+        dim as fs.FsResultBool w = st->WriteAll( cptr( const ubyte ptr, strptr( head ) ), len( head ) )
+        if( w.IsOk( ) andalso ( req.Body.num > 0 ) ) then w = st->WriteAll( @req.Body.items( 0 ), req.Body.num )
+        if( w.IsOk( ) = FALSE ) then
+            hConnFree( c )
+            if( reused ) then continue for
+            return hIoFail( of boolean )( w.Failure( ), op, url )
+        end if
+        do
+            dim as HttpResultBool fail_
+            dim as long r = hReadHead( c, rs, op, url, fail_ )
+            if( r = 0 ) then
+                hConnFree( c )
+                if( reused ) then continue for
+                return HttpFail( of boolean )( HTTP_BAD_RESPONSE, 0, op, url, "the connection closed with no response" )
+            end if
+            if( r < 0 ) then
+                hConnFree( c )
+                return fail_
+            end if
+            if( ( rs.StatusCode >= 100 ) andalso ( rs.StatusCode < 200 ) andalso ( rs.StatusCode <> 101 ) ) then continue do
+            exit do
+        loop
+        dim as HttpResultBool fail_
+        if( hFraming( rs, req.Method, op, url, fail_ ) = FALSE ) then
+            hConnFree( c )
+            return fail_
+        end if
+        if( hHasToken( req.Header, "Connection", "close" ) orelse ( cl.KeepAlive = FALSE ) ) then rs.hReuse = FALSE
+        rs.hConn = c
+        rs.hClient = @cl
+        rs.Url = url
+        return Ok( of boolean, HttpError )( TRUE )
+    next
+    return HttpFail( of boolean )( HTTP_IO, 0, op, url, "the connection closed with no response" )
+end function
+
+private function hIsRedirect( byval code as long ) as boolean
+    select case code
+    case 301, 302, 303, 307, 308 : return TRUE
+    end select
+    return FALSE
+end function
+
+'' Reads and drops up to 64 KiB of an unwanted body, so the connection can be reused.
+private sub hDiscard( byref rs as ResponseStream )
+    dim as ubyte b( 0 to 4095 )
+    dim as long total = 0
+    while( ( rs.hDone = FALSE ) andalso ( total < 65536 ) )
+        dim as fs.FsResultI64 r = rs.Read( @b( 0 ), 4096 )
+        if( ( r.IsOk( ) = FALSE ) orelse ( r.Value( ) = 0 ) ) then exit while
+        total += r.Value( )
+    wend
+    rs.Close( )
+end sub
+
+private function hOpen( byref cl as Client, byref req0 as const Request, byref rs as ResponseStream, _
+                        byref op as const ustring ) as HttpResultBool
+    if( rs.hConn <> nullptr ) then rs.Close( )
+    if( len( req0.Method ) = 0 ) orelse ( hValidName( req0.Method ) = FALSE ) then
+        return HttpFail( of boolean )( HTTP_INVALID_ARGUMENT, 0, op, req0.Url, "method" )
+    end if
+    dim as Request req = req0
+    dim as net.NetResultUrl pu = net.ParseUrl( req.Url )
+    if( pu.IsOk( ) = FALSE ) then return HttpFail( of boolean )( HTTP_INVALID_URL, 0, op, req.Url )
+    dim as net.Url u = pu.Value( )
+    dim as ustring url = req.Url
+    dim as long hops = 0
+    do
+        dim as HttpResultBool r = hExchange( cl, req, u, url, rs, op )
+        if( r.IsOk( ) = FALSE ) then return r
+        if( ( hIsRedirect( rs.StatusCode ) = FALSE ) orelse ( cl.MaxRedirects <= 0 ) ) then return r
+        dim as Optional( of ustring ) loc = rs.Header.Get( "Location" )
+        if( loc.HasValue( ) = FALSE ) then return r
+        if( hops >= cl.MaxRedirects ) then
+            rs.Close( )
+            return HttpFail( of boolean )( HTTP_TOO_MANY_REDIRECTS, 0, op, url )
+        end if
+        dim as net.NetResultUrl nu = u.Resolve( loc.Value( ) )
+        if( nu.IsOk( ) = FALSE ) then return r                 '' a Location we cannot follow: the 3xx is the answer
+        dim as long code = rs.StatusCode
+        hDiscard( rs )
+        dim as net.Url nxt = nu.Value( )
+        nxt.Fragment = ""
+        if( lcase( nxt.Host ) <> lcase( u.Host ) ) then req.Header.Remove( "Authorization" )
+        dim as ustring m = ucase( req.Method )
+        if( ( code = 303 andalso m <> "HEAD" ) orelse ( ( code = 301 orelse code = 302 ) andalso m = "POST" ) ) then
+            req.Method = "GET"
+            req.Body.Clear( )
+            req.Header.Remove( "Content-Type" )
+        end if
+        u = nxt
+        url = u.ToString( )
+        hops += 1
+    loop
+end function
+
+'' -------------------------------------------------------------- Client
+
+constructor Client( )
+    this.TimeoutMs = 30000
+    this.MaxRedirects = 10
+    this.MaxBodyBytes = 64ll * 1024 * 1024
+    this.KeepAlive = TRUE
+    this.MaxIdle = 8
+    this.UserAgent = "tiko-http/0.1"
+end constructor
+
+destructor Client( )
+    this.CloseIdle( )
+end destructor
+
+sub Client.CloseIdle( )
+    for i as long = 0 to this.hIdle.num - 1
+        hConnFree( cptr( HttpConn ptr, this.hIdle.items( i ) ) )
+    next
+    this.hIdle.Clear( )
+end sub
+
+const function Client.IdleCount( ) as long
+    return this.hIdle.num
+end function
+
+function Client.Open( byref req as const Request, byref resp as ResponseStream ) as HttpResultBool
+    return hOpen( this, req, resp, "Open" )
+end function
+
+function Client.Send( byref req as const Request ) as HttpResultResponse
+    dim as ResponseStream rs
+    dim as HttpResultBool r = hOpen( this, req, rs, "Send" )
+    if( r.IsOk( ) = FALSE ) then return Fail( of Response, HttpError )( r.Failure( ) )
+    dim as Response res
+    res.StatusCode = rs.StatusCode
+    res.Reason = rs.Reason
+    res.Proto = rs.Proto
+    res.Url = rs.Url
+    res.Header = rs.Header
+    if( rs.hLength > 0 ) then
+        if( rs.hLength > this.MaxBodyBytes ) then
+            rs.Close( )
+            return HttpFail( of Response )( HTTP_BODY_TOO_LARGE, 0, "Send", rs.Url )
+        end if
+        res.Body.Reserve( rs.hLength )
+    end if
+    dim as ubyte ptr chunk = allocate( HTTP_BUF )
+    do
+        dim as fs.FsResultI64 g = rs.Read( chunk, HTTP_BUF )
+        if( g.IsOk( ) = FALSE ) then
+            deallocate( chunk )
+            dim as fs.FsError fe = g.Failure( )
+            rs.Close( )
+            select case fe.Code( )
+            case fs.FS_UNEXPECTED_EOF, fs.FS_INVALID_DATA, fs.FS_TOO_LARGE
+                return HttpFail( of Response )( HTTP_BAD_RESPONSE, 0, "Send", res.Url, "body: " & fs.FsErrorMessage( fe.Code( ) ) )
+            end select
+            return hIoFail( of Response )( fe, "Send", res.Url )
+        end if
+        if( g.Value( ) = 0 ) then exit do
+        if( res.Body.num + g.Value( ) > this.MaxBodyBytes ) then
+            deallocate( chunk )
+            rs.Close( )
+            return HttpFail( of Response )( HTTP_BODY_TOO_LARGE, 0, "Send", res.Url )
+        end if
+        for i as long = 0 to g.Value( ) - 1
+            res.Body.Push( chunk[i] )
+        next
+    loop
+    deallocate( chunk )
+    rs.Close( )
+    return Ok( of Response, HttpError )( res )
+end function
+
+function Client.Fetch( byref url as const ustring ) as HttpResultResponse
+    dim as Request req = Request( "GET", url )
+    return this.Send( req )
+end function
+
+function Client.Head( byref url as const ustring ) as HttpResultResponse
+    dim as Request req = Request( "HEAD", url )
+    return this.Send( req )
+end function
+
+function Client.Post( byref url as const ustring, byref contentType as const ustring, _
+                      byref body as const ustring ) as HttpResultResponse
+    dim as Request req = Request( "POST", url )
+    req.SetBody( body, contentType )
+    return this.Send( req )
+end function
+
+public function Fetch( byref url as const ustring ) as HttpResultResponse
+    dim as Client c
+    return c.Fetch( url )
+end function
+
+public function Post( byref url as const ustring, byref contentType as const ustring, _
+                      byref body as const ustring ) as HttpResultResponse
+    dim as Client c
+    return c.Post( url, contentType, body )
+end function
