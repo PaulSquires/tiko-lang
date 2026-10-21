@@ -76,7 +76,7 @@ end function
 
 '' Does a member of this type need INITIALISING -- a string descriptor zeroed, a dynamic
 '' array's descriptor built, a nested constructor run, a vptr stored?
-function TypeNeedsInit_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+private function TypeNeedsInitWalk_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     if t = Tko.TYPE_NONE then return false
     if IsStringType( c, t ) then return true
     if c.types->IsDynArray( t ) then return true
@@ -146,7 +146,7 @@ end function
 '' NOT the same set as above, which is what the measurement said and symmetry would
 '' not: 'extends object' needs a constructor and no destructor, and a field with a
 '' user constructor needs a constructor and no destructor either.
-function TypeNeedsDtor_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+private function TypeNeedsDtorWalk_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     if t = Tko.TYPE_NONE then return false
     if IsObjectT_( c, t ) then return false
     if IsStringType( c, t ) then return true
@@ -609,7 +609,7 @@ function NeedsLetBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     return HasDynArrayMember_( c, t )
 end function
 
-function HasDynArrayMember_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+private function HasDynArrayWalk_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     if t = Tko.TYPE_NONE then return false
     if c.types->IsDynArray( t ) then return true
     if c.types->Kind( t ) <> Tko.TK_UDT then return false
@@ -1190,11 +1190,9 @@ sub WantImplicit_ _
     '' bare 'declare's since that golden was written.
     t = c.types->Unqualify( t )
 
-    for i as int32 = 0 to c.implWantedType.Count - 1
-        if (c.implWantedType[i] = cast( uint32, t )) andalso (c.implWantedKind[i] = k) then
-            return
-        end if
-    next
+    dim as int64 key = (cast( int64, cast( uint32, t ) ) shl 32) or cast( int64, cast( uint32, k ) )
+    if c.ix.implWantedAt.Contains( key ) then return
+    c.ix.implWantedAt.Put( key, c.implWantedType.Count )
     c.implWantedType.Push( cast( uint32, t ) )
     c.implWantedKind.Push( k )
 end sub
@@ -1478,5 +1476,7 @@ sub EmitImplicitStructors( byref c as Ctx )
         EmitOneImplicit_( c, t, kind_ )
     wend
 end sub
+
+#include once "mir/lowerimplmemo.tiko"
 
 end namespace

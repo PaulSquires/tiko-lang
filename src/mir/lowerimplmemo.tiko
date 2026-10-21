@@ -1,0 +1,35 @@
+'' lowerimplmemo.tiko -- the three per-type "does it need work" questions, memoised.
+''
+'' TypeNeedsInit_, TypeNeedsDtor_ and HasDynArrayMember_ walk every field of every
+'' nested type, and about a hundred call sites ask them -- per declaration, per copy,
+'' per scope exit. Each answer reads only what is final before lowering starts (see
+'' lowerindex.ti), so it is computed once per Lower and kept, TypeId -> 1 + answer.
+''
+'' INCLUDED from lowerimpl.tiko, inside the same namespace, so the walks stay private.
+
+function TypeNeedsInit_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    dim as int32 m = c.ix.needsInit.Find( cast( uint32, t ) )
+    if m >= 0 then return (m <> 0)
+    dim as boolean r = TypeNeedsInitWalk_( c, t )
+    c.ix.needsInit.Put( cast( uint32, t ), iif( r, 1, 0 ) )
+    return r
+end function
+
+function TypeNeedsDtor_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    dim as int32 m = c.ix.needsDtor.Find( cast( uint32, t ) )
+    if m >= 0 then return (m <> 0)
+    dim as boolean r = TypeNeedsDtorWalk_( c, t )
+    c.ix.needsDtor.Put( cast( uint32, t ), iif( r, 1, 0 ) )
+    return r
+end function
+
+function HasDynArrayMember_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if t = Tko.TYPE_NONE then return false
+    dim as int32 m = c.ix.hasDynArr.Find( cast( uint32, t ) )
+    if m >= 0 then return (m <> 0)
+    dim as boolean r = HasDynArrayWalk_( c, t )
+    c.ix.hasDynArr.Put( cast( uint32, t ), iif( r, 1, 0 ) )
+    return r
+end function

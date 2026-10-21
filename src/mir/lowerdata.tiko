@@ -80,8 +80,8 @@ function CollectDataBlocks( byref c as Ctx, byval root as Tko.NodeId ) as int32
         '' Every label at or before this block now names it.
         '' In order, then emptied at once: a front-pop shifted the rest every time.
         for k as int32 = 0 to pendingLabels.Count - 1
-            if c.dataLabelAt.Find( pendingLabels[k] + 1 ) < 0 then
-                c.dataLabelAt.Put( pendingLabels[k] + 1, c.dataLabelName.Count )
+            if c.ix.dataLabelAt.Find( pendingLabels[k] + 1 ) < 0 then
+                c.ix.dataLabelAt.Put( pendingLabels[k] + 1, c.dataLabelName.Count )
             end if
             c.dataLabelName.Push( pendingLabels[k] )
             c.dataLabelBlock.Push( cast( uint32, g ) )
@@ -453,7 +453,7 @@ function LowerRestore( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         dim as Tko.IdentPayload ptr ip = _
             @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lbl )].data )]
         target = -1
-        dim as int32 at = c.dataLabelAt.Find( cast( uint32, ip->name ) + 1 )
+        dim as int32 at = c.ix.dataLabelAt.Find( cast( uint32, ip->name ) + 1 )
         if at >= 0 then target = cast( int32, c.dataLabelBlock[at] )
         '' A LABEL WITH NO DATA AFTER IT. fbc emits a reference to a label it never
         '' defines and its own C backend then refuses the program -- a defect, not a

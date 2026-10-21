@@ -14,9 +14,9 @@ namespace Tko.Mir
 '' The label slot for a name, created on first mention. A goto may be lowered before
 '' its label exists, so both directions come through here.
 function LabelSlot( byref c as Ctx, byval nm as Tko.InternId ) as int32
-    dim as int32 at = c.labelAt.Find( cast( uint32, nm ) + 1 )
+    dim as int32 at = c.ix.labelAt.Find( cast( uint32, nm ) + 1 )
     if at >= 0 then return at
-    c.labelAt.Put( cast( uint32, nm ) + 1, c.labelName.Count )
+    c.ix.labelAt.Put( cast( uint32, nm ) + 1, c.labelName.Count )
     c.labelName.Push( cast( uint32, nm ) )
     c.labelBlock.Push( -1 )
     c.labelDepth.Push( -1 )
@@ -33,7 +33,7 @@ sub ClearLabels( byref c as Ctx, byval base_ as int32 )
         c.labelName.Pop( ) : c.labelBlock.Pop( ) : c.labelDepth.Pop( )
         c.labelPathAt.Pop( ) : c.labelPathLen.Pop( ) : c.labelCleanupAt.Pop( )
     wend
-    c.labelAt.Clear( )
+    c.ix.labelAt.Clear( )
     while c.labelPaths.Count > 0 : c.labelPaths.Pop( ) : wend
     while c.scanPath.Count > 0 : c.scanPath.Pop( ) : wend
     c.labelBase = base_

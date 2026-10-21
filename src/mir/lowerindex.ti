@@ -1,0 +1,46 @@
+'' lowerindex.ti -- the lowering's lookup indexes: hash maps kept beside the Ctx tables
+'' they index, so a by-key question is a probe and not a scan.
+''
+'' Each one replaced a linear scan that made some shape of program quadratic (docs:
+'' tiko-speed LOOKUPS.md). Every index answers EXACTLY what its scan answered -- first
+'' match where the scan stopped at the first -- and is written beside the table it
+'' indexes, so the two cannot drift. A type of its own because Ctx lives in a header at
+'' the 1500-line cap; Ctx holds one of these as 'ix'.
+
+#ifndef __TKO_LOWERINDEX_BI__
+#define __TKO_LOWERINDEX_BI__
+
+#include once "mir/mir.ti"
+
+namespace Tko.Mir
+
+    type LowerIndex64 as containers.Map( of int64, int32 )
+
+    type LowerIndex
+        '' Ctx.labelName: name + 1 -> slot. Labels x jumps in one procedure (lookups M3).
+        '' Reset by ClearLabels with the arrays.
+        as IdMap        labelAt
+        '' Ctx.dataLabelName: name + 1 -> its FIRST entry, for RESTORE.
+        as IdMap        dataLabelAt
+        '' Ctx.modInitGlobal: global + 1 -> its entry. The list is deduplicated on
+        '' push, so an entry is unique per global.
+        as IdMap        modInitAt
+        '' Ctx.implWanted*: (type shl 32) or kind, a structor already asked for.
+        as LowerIndex64 implWantedAt
+        '' TypeId -> the FIRST SYM_UDT symbol of that type, scanning from symbol 1 as
+        '' DtorOf_'s scan did. Grown to the table's count on each query, which keeps the
+        '' first-wins answer if symbols are ever added (lowering adds none today).
+        as IdMap        udtSymByType
+        as int32        udtSymScanned
+        '' ANSWERS THAT CANNOT CHANGE WITHIN ONE Lower: TypeId -> 1 + the answer.
+        '' TypeNeedsInit_ / TypeNeedsDtor_ / HasDynArrayMember_ read only the symbol
+        '' table, the AST, the types and the vtables, all final before lowering, and
+        '' recursed over every field of every nested type per ask (~100 call sites).
+        as IdMap        needsInit
+        as IdMap        needsDtor
+        as IdMap        hasDynArr
+    end type
+
+end namespace
+
+#endif

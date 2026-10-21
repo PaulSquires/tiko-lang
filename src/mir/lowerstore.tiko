@@ -1014,11 +1014,9 @@ sub InitSharedGlobal _
             '' destroyed it again at the end.
             if (gs->flags and Tko.SYMF_EXTERN) <> 0 then wants = false
             if wants then
-                dim as boolean already = false
-                for i as int32 = 0 to c.modInitGlobal.Count - 1
-                    if c.modInitGlobal[i] = g then already = true
-                next
+                dim as boolean already = (c.ix.modInitAt.Find( cast( uint32, g ) + 1 ) >= 0)
                 if already = false then
+                    c.ix.modInitAt.Put( cast( uint32, g ) + 1, c.modInitGlobal.Count )
                     c.modInitGlobal.Push( g )
                     c.modInitType.Push( cast( uint32, gs->type_ ) )
                     '' 'dim shared f as foo = foo( 7 )' NAMES ITS CONSTRUCTOR, and the
@@ -1157,9 +1155,10 @@ sub InitSharedGlobal _
             dim as Tko.TypeId it_ = c.types->Unqualify( c.m->globals[g].frontendType )
             if c.types->Kind( it_ ) = Tko.TK_ARRAY then it_ = c.types->Unqualify( c.types->Inner( it_ ) )
             if (c.types->Kind( it_ ) = Tko.TK_UDT) andalso (StructorOf( c, it_, "__ctor" ) = Tko.SYMBOL_NONE) andalso (TypeNeedsDtor_( c, it_ ) = false) then
-                for i as int32 = 0 to c.modInitGlobal.Count - 1
-                    if (c.modInitGlobal[i] = g) andalso (cast( Tko.NodeId, c.modInitCall[i] ) = Tko.NODE_NONE) then c.modInitType[i] = cast( uint32, Tko.TYPE_NONE )
-                next
+                dim as int32 mi = c.ix.modInitAt.Find( cast( uint32, g ) + 1 )
+                if mi >= 0 then
+                    if cast( Tko.NodeId, c.modInitCall[mi] ) = Tko.NODE_NONE then c.modInitType[mi] = cast( uint32, Tko.TYPE_NONE )
+                end if
             end if
             return
         end if
@@ -1193,11 +1192,10 @@ sub InitSharedGlobal _
         '' is not foldable to bytes and never will be; it was recorded above and is
         '' emitted in EmitModuleInit_, so declining here would count a statement that is
         '' in fact lowered.
-        for i as int32 = 0 to c.modInitGlobal.Count - 1
-            if c.modInitGlobal[i] = g then
-                if cast( Tko.NodeId, c.modInitCall[i] ) <> Tko.NODE_NONE then return
-            end if
-        next
+        dim as int32 mInit = c.ix.modInitAt.Find( cast( uint32, g ) + 1 )
+        if mInit >= 0 then
+            if cast( Tko.NodeId, c.modInitCall[mInit] ) <> Tko.NODE_NONE then return
+        end if
         SkipHere( c )
         return
     end if

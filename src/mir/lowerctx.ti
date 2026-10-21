@@ -8,6 +8,7 @@
 #define __TKO_LOWERCTX_BI__
 
 #include once "mir/lower.ti"
+#include once "mir/lowerindex.ti"
 #include once "symbols/mangle.ti"
 #include once "symbols/modsym.ti"
 
@@ -19,6 +20,7 @@ namespace Tko.Mir
 const ERR_LOCAL_JMP_BYTES = 512
 
 type Ctx
+    as LowerIndex           ix       '' lookup indexes over the tables below -- lowerindex.ti
     as Tko.AstArena ptr     ast
     as Tko.SymbolTable ptr  syms
     as Tko.TypeContext ptr  types
@@ -225,8 +227,6 @@ type Ctx
     as int32                 dataHead
     as containers.Array( of uint32 ) dataLabelName
     as containers.Array( of uint32 ) dataLabelBlock
-    '' ...and name + 1 -> the FIRST entry of that name, for RESTORE (a scan per restore).
-    as IdMap                dataLabelAt
 
     '' The procedure being lowered, as a SYMBOL. MirFunction carries only the mangled
     '' name, and __FUNCTION__ needs the source one -- 'NS.INNER', not '_ZN2NS5INNEREv'.
@@ -296,9 +296,6 @@ type Ctx
     '' is lowered, because a forward 'goto' has to know how many scopes it leaves before
     '' the label itself has been reached.
     as containers.Array( of uint32 ) labelName
-    '' ...and name + 1 -> slot. A scan of labelName per label and per goto was labels x
-    '' jumps in one procedure, which main-module legacy code is. Reset by ClearLabels.
-    as IdMap                labelAt
     as containers.Array( of int32 )  labelBlock     '' -1 until the block is created
     as containers.Array( of int32 )  labelDepth     '' -1 when the pre-scan never saw it
     '' ...and WHERE each label is: its scope keys, inner to the body's own scope, as a
@@ -400,7 +397,6 @@ declare sub EmitDimensionCheck_ _
 declare function EmitRtl _
     ( byref c as Ctx, byval r as RtlId, byref args as containers.Array( of uint32 ) ) as MirValue
 
-
     '' lowerctl.tiko -- control flow.
     declare sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
     declare sub LowerExitLike _
@@ -414,7 +410,6 @@ declare function EmitRtl _
     declare sub ClearLabels( byref c as Ctx, byval base_ as int32 )
     '' lowerfor.tiko -- a UDT object in SLOT destroyed as a scope cleanup.
     declare sub RegisterForUdtDtor_( byref c as Ctx, byval ct as Tko.TypeId, byval slot as int32 )
-
 
     '' lower.tiko -- shared by the other lowering files.
     '' lowerboundchk.tiko -- the indirect jump a failed -e check hands back, and the
