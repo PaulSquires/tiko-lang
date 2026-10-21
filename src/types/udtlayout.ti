@@ -51,17 +51,25 @@ namespace Tko
         as int32     count
     end type
 
+    type UdtIndexMap as containers.Map( of uint32, int32 )
+
     '' Layouts live beside the type table rather than inside TypeInfo: only a few
     '' types are UDTs, and the field pool would otherwise sit unused on every one.
     type UdtLayouts
         as containers.Array( of UdtInfo )  udts
         as containers.Array( of UdtField ) fields
+        '' WHERE EACH TYPE'S LAYOUT IS in udts, for Find. A scan of udts per call was
+        '' types x fields when every field asks for its type's alignment: an importer of
+        '' sys/win spent minutes laying out its structs (tracks-2026 TB-011). Push only
+        '' through Add.
+        as UdtIndexMap             at_
         '' The interned 'base' -- the field an 'extends' becomes. Held here rather than
         '' looked up per call: FieldOffset has no interner and is on the hot path of
         '' every member access.
         as InternId                baseName
 
         declare function Find( byval t as TypeId ) as int32
+        declare sub Add( byref u as UdtInfo )
         declare function FieldOffset _
             ( byval t as TypeId, byval nm as InternId, byref found as boolean ) as int32
         '' The same walk, also handing back the FIELD'S OWN TYPE. A dotted

@@ -1,0 +1,17 @@
+'' MANY PUBLIC NAMES, AND TYPES NESTED IN TYPES, THROUGH AN IMPORT. ModSym.Mark and
+'' MarkImported put a declaration's 'public' / 'private' on its symbols by scanning the whole
+'' table once per declaration, and UdtLayouts.Find scanned every layout once per field: a cold
+'' build of tracks-2026, whose units import sys/win, took 755 s (TB-011). Both are one pass
+'' now. 4,096 macro-made public consts, an enum's constants in both of its scopes, a
+'' 'public declare' overload set over plain definitions, and four levels of embedded types
+'' (sizes and offsets measured with fbc-modern) must come through unchanged.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i tests/modules/src/markscale/libs tests/modules/src/markscale/main.bas -o tests/modules/markscale.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/markscale.exe
+'' EXPECT-RUN-OUT:  5
+'' EXPECT-RUN-OUT:  3 5
+'' EXPECT-RUN-OUT:  42 5
+'' EXPECT-RUN-OUT:  8 20 44 92
+'' EXPECT-RUN-OUT:  48 20

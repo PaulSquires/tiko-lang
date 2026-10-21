@@ -8,11 +8,18 @@
 namespace Tko
 
 function UdtLayouts.Find( byval t as TypeId ) as int32
-    for i as int32 = 0 to this.udts.Count - 1
-        if this.udts[i].type_ = t then return i
-    next
+    dim as int32 i = -1
+    if this.at_.TryGet( cast( uint32, t ), i ) then return i
     return -1
 end function
+
+'' The first layout of a type is the one Find returns, as the scan it replaced did.
+sub UdtLayouts.Add( byref u as UdtInfo )
+    if this.at_.Contains( cast( uint32, u.type_ ) ) = false then
+        this.at_.Put( cast( uint32, u.type_ ), this.udts.Count )
+    end if
+    this.udts.Push( u )
+end sub
 
 function UdtLayouts.FieldOffset _
     ( byval t as TypeId, byval nm as InternId, byref found as boolean ) as int32
@@ -675,7 +682,7 @@ private function LayOutOne _
         u.size = AlignUp( total, maxAlign )
         if u.size = 0 then u.size = 1
         FitCUnits_( store, u )
-        store.udts.Push( u )
+        store.Add( u )
         return true
     end if
     PlaceGroup( flds, idx, 0, ((s->flags and SYMF_UNION_KIND) <> 0), pack, 0, true, _
@@ -690,7 +697,7 @@ private function LayOutOne _
     if (pack > 0) andalso (sizeAlign > pack) then sizeAlign = pack
     u.size = AlignUp( offset, sizeAlign )
     if u.size = 0 then u.size = 1
-    store.udts.Push( u )
+    store.Add( u )
     return true
 end function
 

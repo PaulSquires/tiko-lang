@@ -61,15 +61,21 @@ private function InUnit_ _
     return false
 end function
 
+private function MarkKey_( byval sc as Tko.ScopeId, byval nm as Tko.InternId ) as int64
+    return (cast( int64, cast( uint32, sc ) ) shl 32) or cast( int64, cast( uint32, nm ) )
+end function
+
+'' THE WORDS ARE GATHERED FIRST and put on the symbols in one pass: a scan of the whole table per
+'' declaration was declarations x symbols, and an importer of sys/win -- tens of thousands of
+'' public names over as many symbols -- spent minutes in it per unit (tracks-2026).
 private sub MarkNamed_ _
-    ( byref syms as Tko.SymbolTable, byval sc as Tko.ScopeId, byval nm as Tko.InternId, _
-      byval f as uint32 )
+    ( byref marks as containers.Map( of int64, uint32 ), byval sc as Tko.ScopeId, _
+      byval nm as Tko.InternId, byval f as uint32 )
     if nm = 0 then return
-    for si as int32 = 1 to syms.Count( )
-        dim as Tko.Symbol ptr s = syms.SymbolAt( cast( Tko.SymbolId, si ) )
-        if s = nullptr then continue for
-        if (s->parent = sc) andalso (s->name = nm) then s->flags or= f
-    next
+    dim as int64 key = MarkKey_( sc, nm )
+    dim as uint32 had = 0
+    marks.TryGet( key, had )
+    marks.Put( key, had or f )
 end sub
 
 private function InFiles_ _
@@ -90,6 +96,7 @@ private sub MarkWords_ _
       byref info as Tko.SemanticInfo, byref src as Tko.SourceManager, _
       byref only as Tko.FileIdVec )
 
+    dim as containers.Map( of int64, uint32 ) marks
     for n as int32 = 1 to ast.Count( )
         dim as Tko.NodeId id = cast( Tko.NodeId, n )
         dim as Tko.NodeKind k = ast.Kind( id )
@@ -122,13 +129,13 @@ private sub MarkWords_ _
             for i as int32 = 0 to sp->count - 1
                 dim as Tko.NodeId item = cast( Tko.NodeId, ast.children[sp->first + i] )
                 if ast.Kind( item ) <> Tko.N_VAR_ITEM then continue for
-                MarkNamed_( syms, sc, ast.stmts[cast( int32, ast.nodes[cast( int32, item )].data )].name, f )
+                MarkNamed_( marks, sc, ast.stmts[cast( int32, ast.nodes[cast( int32, item )].data )].name, f )
             next
         elseif k = Tko.N_ENUM then
             '' AN ENUM'S CONSTANTS ARE AS PUBLIC AS IT IS -- the copies a plain enum puts in
             '' the scope around it and the ones in its own. 'shapes.GREEN' of a 'public enum'
             '' was TKO0860 in an importer, and an anonymous enum's had no other spelling.
-            MarkNamed_( syms, sc, sp->name, f )
+            MarkNamed_( marks, sc, sp->name, f )
             dim as Tko.ScopeId inner = Tko.SCOPE_NONE
             if sp->name <> 0 then
                 dim as Tko.Symbol ptr es = syms.SymbolAt( syms.LookupLocal( sc, sp->name ) )
@@ -140,12 +147,21 @@ private sub MarkWords_ _
                 dim as Tko.NodeId item = cast( Tko.NodeId, ast.children[sp->first + i] )
                 if ast.Kind( item ) <> Tko.N_ENUM_ITEM then continue for
                 dim as Tko.InternId inm = ast.stmts[cast( int32, ast.nodes[cast( int32, item )].data )].name
-                MarkNamed_( syms, sc, inm, f )
-                if inner <> Tko.SCOPE_NONE then MarkNamed_( syms, inner, inm, f )
+                MarkNamed_( marks, sc, inm, f )
+                if inner <> Tko.SCOPE_NONE then MarkNamed_( marks, inner, inm, f )
             next
         else
-            MarkNamed_( syms, sc, sp->name, f )
+            MarkNamed_( marks, sc, sp->name, f )
         end if
+    next
+
+    if marks.Count( ) = 0 then return
+    for si as int32 = 1 to syms.Count( )
+        dim as Tko.Symbol ptr s = syms.SymbolAt( cast( Tko.SymbolId, si ) )
+        if s = nullptr then continue for
+        if s->name = 0 then continue for
+        dim as uint32 f = 0
+        if marks.TryGet( MarkKey_( s->parent, s->name ), f ) then s->flags or= f
     next
 end sub
 

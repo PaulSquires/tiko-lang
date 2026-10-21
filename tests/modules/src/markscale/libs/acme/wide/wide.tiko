@@ -1,0 +1,68 @@
+'' Many public names over many symbols, and types nested in types. Mark and MarkImported
+'' once scanned the whole symbol table per declaration, and UdtLayouts.Find scanned every
+'' layout per field (tracks-2026 TB-011): what the one-pass rewrite has to keep is below.
+#module "wide"
+
+#macro L0( p )
+    public const p##0 = 1
+    public const p##1 = 1
+    public const p##2 = 1
+    public const p##3 = 1
+    public const p##4 = 1
+    public const p##5 = 1
+    public const p##6 = 1
+    public const p##7 = 2
+#endmacro
+#macro L1( p )
+    L0( p##0 ) : L0( p##1 ) : L0( p##2 ) : L0( p##3 )
+    L0( p##4 ) : L0( p##5 ) : L0( p##6 ) : L0( p##7 )
+#endmacro
+#macro L2( p )
+    L1( p##0 ) : L1( p##1 ) : L1( p##2 ) : L1( p##3 )
+    L1( p##4 ) : L1( p##5 ) : L1( p##6 ) : L1( p##7 )
+#endmacro
+#macro L3( p )
+    L2( p##0 ) : L2( p##1 ) : L2( p##2 ) : L2( p##3 )
+    L2( p##4 ) : L2( p##5 ) : L2( p##6 ) : L2( p##7 )
+#endmacro
+
+L3( K )
+
+'' An enum's constants are as public as it is, in both scopes.
+public enum Hue
+    RED = 3
+    GREEN
+    BLUE
+end enum
+
+'' 'public declare' above a plain definition makes the definition public: one name, every
+'' overload.
+public declare function Twice overload( byval a as long ) as long
+public declare function Twice overload( byval a as double ) as double
+function Twice( byval a as long ) as long
+    return a * 2
+end function
+function Twice( byval a as double ) as double
+    return a * 2.5
+end function
+
+'' Each level embeds the one below twice; every field asks Find for its type.
+public type U0
+    as byte b
+    as long l
+end type
+public type U1
+    as U0 x
+    as byte c
+    as U0 y
+end type
+public type U2
+    as U1 x
+    as byte c
+    as U1 y
+end type
+public type U3
+    as U2 x
+    as byte c
+    as U2 y
+end type
