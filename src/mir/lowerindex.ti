@@ -39,6 +39,18 @@ namespace Tko.Mir
         as IdMap        needsInit
         as IdMap        needsDtor
         as IdMap        hasDynArr
+        '' UniqueGlobalName: name -> the last suffix it handed out. Var globals are never
+        '' removed, so every suffix below that one is still taken and the scan resumes
+        '' there; from 2 each time, k statics of one name were k squared interns.
+        as IdMap        globalSuffix
+        '' THE LAST N_PROC whose N_PARAM nodes were listed, for lowerparam's accessors:
+        '' each walked the children from 0 per index, and the call lowering asks them
+        '' per argument, so a call was params squared. Keyed on the payload's child
+        '' range as well as the node, so a different list is never read as this one.
+        as uint32       paramProc
+        as int32        paramFirst
+        as int32        paramCount
+        as containers.Array( of uint32 ) paramNodes
     end type
 
 end namespace

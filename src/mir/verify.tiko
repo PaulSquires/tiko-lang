@@ -119,16 +119,21 @@ function Verify _
                     Fail( r, bn, "switch has " & str( b->switchVals.Count ) & " values for " & _
                                  str( b->indirectTargets.Count ) & " targets" )
                 end if
+                '' How often each value appeared BEFORE this case: one report per earlier
+                '' twin, as the pairwise scan made -- which was cases squared per switch.
+                dim as containers.Map( of int64, int32 ) seenVals
                 for ti as int32 = 0 to b->indirectTargets.Count - 1
                     dim as int32 st = cast( int32, b->indirectTargets[ti] )
                     if (st < 0) orelse (st >= f->blocks.Count) then
                         Fail( r, bn, "switch target " & str( st ) & " does not exist" )
                     end if
-                    for tj as int32 = 0 to ti - 1
-                        if b->switchVals[tj] = b->switchVals[ti] then
-                            Fail( r, bn, "switch value " & str( b->switchVals[ti] ) & " appears twice" )
-                        end if
+                    if ti >= b->switchVals.Count then continue for
+                    dim as int32 twins = 0
+                    seenVals.TryGet( b->switchVals[ti], twins )
+                    for tj as int32 = 1 to twins
+                        Fail( r, bn, "switch value " & str( b->switchVals[ti] ) & " appears twice" )
                     next
+                    seenVals.Put( b->switchVals[ti], twins + 1 )
                 next
             end if
 

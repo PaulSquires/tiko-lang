@@ -107,7 +107,10 @@ function RtlByName( byref nm as string ) as RtlId
     case "fb___fixunsdfdi" : want = "__fixunsdfdi"
     case "fb_leftself"     : want = "fb_leftself"
     end select
-    #define RTL( r_id, r_sym, r_ret, r_args ) if LowerName_( r_sym ) = want then return r_id
+    '' THE LENGTH FIRST: lowercasing all ~540 symbols per ask was ~540 allocations per
+    '' 'procptr( ident )' and per undeclared-name check. Lowercasing keeps the length.
+    dim as int32 wantLen = len( want )
+    #define RTL( r_id, r_sym, r_ret, r_args ) if (len( r_sym ) = wantLen) andalso (LowerName_( r_sym ) = want) then return r_id
     TKO_RTL_LIST( RTL )
     #undef RTL
     return RTL_NONE

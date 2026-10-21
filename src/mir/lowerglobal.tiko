@@ -192,9 +192,14 @@ private function UniqueGlobalName _
     if c.m->FindVarGlobal( nm ) < 0 then return nm
 
     dim as string base_ = c.names->Spelling( nm )
-    for n as int32 = 2 to 1000
+    dim as int32 from_ = c.ix.globalSuffix.Find( cast( uint32, nm ) )
+    if from_ < 2 then from_ = 2
+    for n as int32 = from_ to 1000
         dim as Tko.InternId cand = c.names->GetString( base_ & "$" & str( n ) )
-        if c.m->FindVarGlobal( cand ) < 0 then return cand
+        if c.m->FindVarGlobal( cand ) < 0 then
+            c.ix.globalSuffix.Put( cast( uint32, nm ), n )
+            return cand
+        end if
     next
     return nm
 end function
