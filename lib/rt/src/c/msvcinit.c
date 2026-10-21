@@ -27,10 +27,11 @@
 ** is the relationship fbrt0's .ctors.65435 has to fbc's priority floor of 101 on
 ** the gnu side. It was .CRT$XCB while the walk ran forwards.
 **
-** WHY atexit AND NOT A TERMINATOR SECTION.  atexit is LIFO, so a handler
-** registered here -- before any module constructor has run, and therefore before
-** any module destructor has been registered -- runs LAST.  fb_hRtExit has to run
-** after everything it might tear down, which is exactly that position.
+** fb_hRtExit IS NOT CALLED FROM HERE.  It was atexit'd from this initialiser, and
+** that ran it BEFORE the module destructors: msvccrtexe.c registers their walk
+** first, before the initialisers, so LIFO put it last.  Under -mt a destructor
+** then entered a deleted lock.  Each entry point now ends the runtime itself,
+** after the destructors -- msvccrtexe.c's exit handler, msvccrtdll.c's detach.
 **
 ** MSVC ONLY, and the file is empty elsewhere.  On the gnu targets fbrt0.c's
 ** object is on the link line and doing this job (it was fbc's own fbrt0.o until
@@ -45,7 +46,6 @@
 #include <stdio.h>
 
 void fb_hRtInit( void );
-void fb_hRtExit( void );
 
 /* A BAD ARGUMENT TO A CRT FUNCTION MUST RETURN, NOT KILL THE PROCESS.
 **
@@ -85,11 +85,6 @@ static void tkort_msvc_startup( void )
 	_set_invalid_parameter_handler( tkort_invalid_parameter );
 
 	fb_hRtInit( );
-
-	/* Registered from inside the initialiser rather than beside it, so the
-	** ordering argument above holds by construction: nothing else can have
-	** registered a handler yet. */
-	atexit( fb_hRtExit );
 }
 
 /* The section has to be DECLARED read-only before anything can be allocated

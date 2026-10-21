@@ -27,6 +27,10 @@ void __cdecl _initterm( tkort_pvfv *first, tkort_pvfv *last );
 /* The .CRT$X walk, in fbc's order -- msvccrt.c says what that is. */
 void tkort_run_initialisers( void );
 
+/* The runtime's shutdown, after the DLL's own exit table -- msvcinit.c says why
+** it is the entry point's job and not the initialiser's. */
+void fb_hRtExit( void );
+
 /* msvccrt.c's atexit consults this; see the note there. */
 extern int ( __cdecl *tkort_dll_atexit )( tkort_pvfv fn );
 
@@ -36,8 +40,8 @@ void   __cdecl free( void *block );
 #define TKORT_DLL_PROCESS_DETACH 0
 #define TKORT_DLL_PROCESS_ATTACH 1
 
-/* THIS DLL'S EXIT TABLE.  What the DLL registers with atexit -- fb_hRtExit first,
-** from msvcinit.c's initialiser -- runs when the DLL goes, last registered first, as
+/* THIS DLL'S EXIT TABLE.  What the DLL registers with atexit -- from its module
+** constructors -- runs when the DLL goes, last registered first, as
 ** MSVC's CRT runs a DLL's own table.  Registration happens on DLL_PROCESS_ATTACH,
 ** under the loader lock, so the table takes no lock of its own. */
 static tkort_pvfv *tkort_exit_tab = 0;
@@ -64,7 +68,7 @@ int __stdcall _DllMainCRTStartup( void *instance, unsigned long reason,
     (void)reserved;
 
     if( reason == TKORT_DLL_PROCESS_ATTACH ) {
-        /* BEFORE the initialisers: msvcinit.c's registers fb_hRtExit. */
+        /* BEFORE the initialisers: a module constructor may call atexit. */
         tkort_dll_atexit = tkort_dll_onexit;
         tkort_run_initialisers( );
     } else if( reason == TKORT_DLL_PROCESS_DETACH ) {
@@ -77,6 +81,8 @@ int __stdcall _DllMainCRTStartup( void *instance, unsigned long reason,
         free( tkort_exit_tab );
         tkort_exit_tab = 0;
         tkort_exit_cap = 0;
+        /* LAST, as it ran when msvcinit.c registered it first in this table. */
+        fb_hRtExit( );
     }
     return 1;
 }

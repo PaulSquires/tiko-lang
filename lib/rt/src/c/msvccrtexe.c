@@ -27,6 +27,8 @@ void   __cdecl exit( int code );
 void tkort_run_initialisers( void );
 void __cdecl tkort_run_terminators( void );
 
+void fb_hRtExit( void );
+
 int    __cdecl atexit( tkort_pvfv fn );
 
 /* THE MODULE DESTRUCTORS. LLVM puts '@llvm.global_dtors' into .CRT$XTX on this
@@ -37,7 +39,23 @@ int    __cdecl atexit( tkort_pvfv fn );
 ** REGISTERED FIRST, so that it runs LAST: atexit handlers run in reverse order
 ** of registration, and a module destructor is what fbc's
 ** '__attribute__(( destructor ))' means -- after everything else. The walk itself
-** is tkort_run_terminators, in msvccrt.c with the constructors' walk. */
+** is tkort_run_terminators, in msvccrt.c with the constructors' walk. FIRST is
+** also what makes an 'end' in a module's top-level code still finalise: it exits
+** from inside the initialisers, and a handler registered after them would not
+** exist yet (tests/modules/init-end).
+**
+** AND THEN THE RUNTIME'S OWN SHUTDOWN, in the same handler. fb_hRtExit is the
+** gnu targets' priority-100 destructor, after every one a program can write, and
+** it deletes the -mt locks. msvcinit.c used to atexit it from its initialiser --
+** registered after this handler, so it ran BEFORE it, and a 'dim shared' object
+** whose destructor assigned a ustring entered a deleted lock under -mt and died
+** with an access violation at exit (tests/codegen/mt-shared-dtor-exit). A DLL
+** calls it from its own detach, msvccrtdll.c. */
+static void __cdecl tkort_exe_exit( void )
+{
+    tkort_run_terminators( );
+    fb_hRtExit( );
+}
 
 extern int main( int argc, char **argv );
 
@@ -50,7 +68,7 @@ int mainCRTStartup( void )
     _configure_narrow_argv( 2 );
     _initialize_narrow_environment( );
 
-    atexit( tkort_run_terminators );
+    atexit( tkort_exe_exit );
 
     tkort_run_initialisers( );
 
