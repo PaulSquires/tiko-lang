@@ -408,9 +408,8 @@ end sub
 '' The rank the FIRST redim gave a rank-0 dynamic array, or 0.
 private function RecordedRank_ ( byref c as Ctx, byval sid as SymbolId ) as int32
     if sid = SYMBOL_NONE then return 0
-    for i as int32 = 0 to c.redimSym.Count - 1
-        if c.redimSym[i] = cast( uint32, sid ) then return cast( int32, c.redimRank[i] )
-    next
+    dim as int32 i = -1
+    if c.redimAt.TryGet( cast( uint32, sid ), i ) then return cast( int32, c.redimRank[i] )
     return 0
 end function
 
@@ -430,6 +429,8 @@ private sub RecordFirstRedims_( byref c as Ctx )
             dim as int32 written = Tko.RedimRank.ItemRank( *c.ast, *c.syms, *c.types, *c.info, item, sid, c.info->ScopeOf( id ) )
             if written <= 0 then continue for
             if RecordedRank_( c, sid ) <> 0 then continue for
+            if c.redimAt.Contains( cast( uint32, sid ) ) = false then c.redimAt.Put( cast( uint32, sid ), c.redimSym.Count )
+            if c.redimOfItem.Contains( cast( uint32, item ) ) = false then c.redimOfItem.Put( cast( uint32, item ), c.redimSym.Count )
             c.redimSym.Push( cast( uint32, sid ) )
             c.redimRank.Push( cast( uint32, written ) )
             c.redimItem.Push( cast( uint32, item ) )

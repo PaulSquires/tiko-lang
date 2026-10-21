@@ -985,12 +985,10 @@ end sub
 private function RecordedRankAbove_ _
     ( byref c as Ctx, byval ts as Symbol ptr, byval sid as SymbolId, byval use as NodeId ) as int32
     if (ts <> nullptr) andalso (ts->kind = cast( uint8, SYM_PARAMETER )) then return 0
-    for i as int32 = 0 to c.redimSym.Count - 1
-        if c.redimSym[i] <> cast( uint32, sid ) then continue for
-        if c.redimItem[i] >= cast( uint32, use ) then return 0
-        return cast( int32, c.redimRank[i] )
-    next
-    return 0
+    dim as int32 i = -1
+    if c.redimAt.TryGet( cast( uint32, sid ), i ) = false then return 0
+    if c.redimItem[i] >= cast( uint32, use ) then return 0
+    return cast( int32, c.redimRank[i] )
 end function
 
 private sub CheckRedimRank_( byref c as Ctx )
@@ -1079,11 +1077,7 @@ private sub CheckRedimRank_( byref c as Ctx )
             if rank <= 0 then
                 '' A RANK-0 ARRAY TAKES ITS RANK FROM ITS FIRST REDIM; that redim itself is
                 '' not judged, every later one is.
-                dim as boolean isFirst = false
-                for ri as int32 = 0 to c.redimItem.Count - 1
-                    if c.redimItem[ri] = cast( uint32, item ) then isFirst = true
-                next
-                if isFirst then continue for
+                if c.redimOfItem.Contains( cast( uint32, item ) ) then continue for
                 if (s <> nullptr) andalso (s->kind <> cast( uint8, SYM_PARAMETER )) then rank = RecordedRank_( c, c.info->RefOf( tgt ) )
             end if
             if rank <= 0 then continue for

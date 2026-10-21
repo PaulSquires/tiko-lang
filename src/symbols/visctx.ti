@@ -30,6 +30,9 @@ type Ctx
     as NodeIdVec             redimSym
     as NodeIdVec             redimRank
     as NodeIdVec             redimItem
+    '' ...and sid -> its FIRST entry, item -> its entry: each rank test scanned the table per
+    '' subscript or redim. Pushed only beside the three above, by RecordFirstRedims_.
+    as containers.Map( of uint32, int32 ) redimAt, redimOfItem
     '' The overload each CALLEE node's call chose, indexed by node id -- see
     '' RecordChosenOverloads_. Local to this pass on purpose.
     as NodeIdVec             chosenFor
