@@ -328,13 +328,7 @@ function LowerProcPtr _
         if rr <> RTL_NONE then
             dim as boolean is32 = (c.types->target.pointerBits = 32)
             dim as Tko.InternId rnm = c.names->GetString( RtlLinkName( rr, is32 ) )
-            dim as int32 ridx = -1
-            for i as int32 = 0 to c.m->functions.Count - 1
-                if c.m->functions[i]->name = rnm then
-                    ridx = i
-                    exit for
-                end if
-            next
+            dim as int32 ridx = c.m->OldestFunctionNamed( rnm )
             if ridx < 0 then
                 dim as MirFunction ptr rdecl = _
                     c.m->AddFunction( rnm, RtlReturn( rr, is32 ) )

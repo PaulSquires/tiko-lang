@@ -689,6 +689,11 @@ namespace Tko.Mir
         '' function. Measured on 6,400 classes with one virtual method each.
         as containers.Array( of int32 ) globalByName
         as containers.Array( of int32 ) funcByName
+        '' ...and each name's OLDEST function, index plus one, which is what the by-name
+        '' scans of the function table returned and what a call site must keep picking.
+        '' The chain above runs newest first; a scan per call (every RTL call) was
+        '' calls x functions. Written only by AddFunction, as funcByName is.
+        as containers.Array( of int32 ) funcOldestByName
         '' A PROCEDURE TYPE -> ITS SIGNATURE-ONLY FUNCTION, index plus one, indexed by
         '' the frontend TypeId. A call through a procedure pointer has no function to
         '' name, so one is made per procedure type; finding it again used to build
@@ -725,6 +730,8 @@ namespace Tko.Mir
         declare function FindPtrTable( byval nm as InternId ) as int32
         declare function FindVarGlobal( byval nm as InternId ) as int32
         declare function FirstFunctionNamed( byval nm as InternId ) as int32
+        '' The LOWEST index named 'nm' -- the first a scan from 0 finds -- or -1.
+        declare function OldestFunctionNamed( byval nm as InternId ) as int32
         '' A DIM SHARED variable. Unlike a literal these are never merged: two
         '' variables of the same value are still two variables.
         '' A vtable or an RTTI record. Named globals, never merged: two types with

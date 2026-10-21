@@ -653,13 +653,7 @@ function ImplStructorAddr_ _
     if len( nm ) = 0 then return none_
     WantImplicit_( c, t, kind_ )
     dim as Tko.InternId id = c.names->GetString( nm )
-    dim as int32 fidx = -1
-    for i as int32 = 0 to c.m->functions.Count - 1
-        if c.m->functions[i]->name = id then
-            fidx = i
-            exit for
-        end if
-    next
+    dim as int32 fidx = c.m->OldestFunctionNamed( id )
     if fidx < 0 then
         dim as MirFunction ptr decl = c.m->AddFunction( id, MT_VOID )
         decl->isDefinition = false
@@ -1159,13 +1153,7 @@ private sub CallImplByName_ _
     if len( nm ) = 0 then return
     if selfv.kind = cast( uint8, MV_NONE ) then return
     dim as Tko.InternId id = c.names->GetString( nm )
-    dim as int32 fidx = -1
-    for i as int32 = 0 to c.m->functions.Count - 1
-        if c.m->functions[i]->name = id then
-            fidx = i
-            exit for
-        end if
-    next
+    dim as int32 fidx = c.m->OldestFunctionNamed( id )
     if fidx < 0 then
         dim as MirFunction ptr decl = c.m->AddFunction( id, MT_VOID )
         decl->isDefinition = false
@@ -1219,13 +1207,7 @@ private sub CallImplTwo_ _
         return
     end if
     dim as Tko.InternId id = c.names->GetString( nm )
-    dim as int32 fidx = -1
-    for i as int32 = 0 to c.m->functions.Count - 1
-        if c.m->functions[i]->name = id then
-            fidx = i
-            exit for
-        end if
-    next
+    dim as int32 fidx = c.m->OldestFunctionNamed( id )
     if fidx < 0 then
         dim as MirFunction ptr decl = c.m->AddFunction( id, MT_VOID )
         decl->isDefinition = false

@@ -113,11 +113,20 @@ function MirModule.AddFunction _
     f->nextTemp = 1
     this.functions.Push( f )
     IndexName_( this.funcByName, nm, this.functions.Count - 1, f->nextSameName )
+    dim as int32 key = cast( int32, nm )
+    while this.funcOldestByName.Count <= key
+        this.funcOldestByName.Push( 0 )
+    wend
+    if this.funcOldestByName[key] = 0 then this.funcOldestByName[key] = this.functions.Count
     return f
 end function
 
 function MirModule.FirstFunctionNamed( byval nm as InternId ) as int32
     return HeadOf_( this.funcByName, nm )
+end function
+
+function MirModule.OldestFunctionNamed( byval nm as InternId ) as int32
+    return HeadOf_( this.funcOldestByName, nm )
 end function
 
 function MirModule.FindPtrTable( byval nm as InternId ) as int32

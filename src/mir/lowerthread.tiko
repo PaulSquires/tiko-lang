@@ -607,10 +607,8 @@ function UsesThreadRtl _
     wanted(0) = names.GetString( RtlLinkName( RTL_THREAD_CREATE, is32 ) )
     wanted(1) = names.GetString( RtlLinkName( RTL_THREAD_WAIT, is32 ) )
     wanted(2) = names.GetString( RtlLinkName( RTL_THREAD_CALL, is32 ) )
-    for i as int32 = 0 to m.functions.Count - 1
-        for k as int32 = 0 to 2
-            if m.functions[i]->name = wanted(k) then return true
-        next
+    for k as int32 = 0 to 2
+        if m.OldestFunctionNamed( wanted(k) ) >= 0 then return true
     next
     return false
 end function

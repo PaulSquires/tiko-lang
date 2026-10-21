@@ -1092,13 +1092,7 @@ function FuncAddrOfRtl( byref c as Ctx, byval r as RtlId ) as MirValue
     dim as MirValue none_
     dim as boolean is32 = (c.types->target.pointerBits = 32)
     dim as Tko.InternId nm = c.names->GetString( RtlLinkName( r, is32 ) )
-    dim as int32 idx = -1
-    for i as int32 = 0 to c.m->functions.Count - 1
-        if c.m->functions[i]->name = nm then
-            idx = i
-            exit for
-        end if
-    next
+    dim as int32 idx = c.m->OldestFunctionNamed( nm )
     if idx < 0 then
         dim as MirFunction ptr d = c.m->AddFunction( nm, RtlReturn( r, is32 ) )
         d->isDefinition = false

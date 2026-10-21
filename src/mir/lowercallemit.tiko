@@ -42,13 +42,7 @@ function EmitDirectCall_ _
 
     dim as Tko.InternId nm = c.names->GetString( _
         Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
-    dim as int32 fidx = -1
-    for i as int32 = 0 to c.m->functions.Count - 1
-        if c.m->functions[i]->name = nm then
-            fidx = i
-            exit for
-        end if
-    next
+    dim as int32 fidx = c.m->OldestFunctionNamed( nm )
     if fidx < 0 then
         dim as MirFunction ptr decl = c.m->AddFunction( nm, rt )
         decl->isDefinition = false
@@ -103,11 +97,8 @@ function MemberCallRetTy_ _
     if c.ast->Kind( pn ) <> Tko.N_PROC then return MT_VOID
     dim as Tko.InternId nm = c.names->GetString( _
         Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
-    for i as int32 = 0 to c.m->functions.Count - 1
-        if c.m->functions[i]->name = nm then
-            return cast( MirType, c.m->functions[i]->retTy )
-        end if
-    next
+    dim as int32 fi = c.m->OldestFunctionNamed( nm )
+    if fi >= 0 then return cast( MirType, c.m->functions[fi]->retTy )
     return MT_VOID
 end function
 
@@ -142,13 +133,7 @@ function EmitMemberCallArgs_ _
     '' this very module did not declare.
     dim as Tko.InternId nm = c.names->GetString( _
         Tko.Mangle.ProcName( *c.ast, pn, *c.syms, *c.names, *c.types, *c.info ) )
-    dim as int32 fidx = -1
-    for i as int32 = 0 to c.m->functions.Count - 1
-        if c.m->functions[i]->name = nm then
-            fidx = i
-            exit for
-        end if
-    next
+    dim as int32 fidx = c.m->OldestFunctionNamed( nm )
 
     dim as MirValue sretTmp
     dim as boolean useSret = false

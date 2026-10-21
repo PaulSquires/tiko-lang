@@ -378,13 +378,7 @@ function EmitRtl _
     '' '@N'. A 32-bit pointer means win32: Linux is 64-bit only by decision.
     dim as boolean is32 = (c.types->target.pointerBits = 32)
     dim as Tko.InternId nm = c.names->GetString( RtlLinkName( r, is32 ) )
-    dim as int32 fidx = -1
-    for i as int32 = 0 to c.m->functions.Count - 1
-        if c.m->functions[i]->name = nm then
-            fidx = i
-            exit for
-        end if
-    next
+    dim as int32 fidx = c.m->OldestFunctionNamed( nm )
     if fidx < 0 then
         dim as MirFunction ptr decl = c.m->AddFunction( nm, RtlReturn( r, is32 ) )
         decl->isDefinition = false
