@@ -450,6 +450,25 @@ function CloseExprCall( byref p as Tko.ParserState ) as Tko.NodeId
     return MakeStmt( p, Tko.N_INTRINSIC, t.loc, sp )
 end function
 
+'' WHETHER A LIST SPELLS get OR put is noted as the list grows (GetPutKnown_): each name's
+'' spelling is folded once, not two strings per name per GET or PUT.
+private function GetPutKnown_ _
+    ( byref p as Tko.ParserState, byref ix as Tko.ProcNameIndex, byref names as Tko.NodeIdVec, _
+      byval isGet as boolean ) as boolean
+    if names.Count < ix.spelledSeen then
+        ix.spelledSeen = 0
+        ix.hasGet = false
+        ix.hasPut = false
+    end if
+    while ix.spelledSeen < names.Count
+        dim as string s = Tko.Text.LowerAscii( p.names->Spelling( cast( Tko.InternId, names[ix.spelledSeen] ) ) )
+        if s = "get" then ix.hasGet = true
+        if s = "put" then ix.hasPut = true
+        ix.spelledSeen += 1
+    wend
+    return iif( isGet, ix.hasGet, ix.hasPut )
+end function
+
 '' DOES THE '( ... )' AFTER GET/PUT HOLD A TOP-LEVEL COMMA? The file form always does -- '#f, , x'
 '' -- and 'get( x )' without one is a method named get, called from a sibling (fbc-examples r2ice10).
 '' p.pos is at the keyword; the '(' follows it.
@@ -461,14 +480,10 @@ function GetPutHasComma( byref p as Tko.ParserState ) as boolean
     if HasTok( p, p.pos + 2 ) then
         if cast( Tko.TokenKind, p.toks->At( p.pos + 2 ).kind ) <> Tko.TK_HASH then
             '' BY SPELLING: a keyword token carries no interned name.
-            dim as string nm = iif( Peek( p ) = Tko.KW_GET, "get", "put" )
-            for each known as uint32 in p.procNames
-                if Tko.Text.LowerAscii( p.names->Spelling( cast( Tko.InternId, known ) ) ) = nm then return false
-            next
+            dim as boolean isGet = (Peek( p ) = Tko.KW_GET)
+            if GetPutKnown_( p, p.procIx, p.procNames, isGet ) then return false
             if p.memberDepth > 0 then
-                for each known as uint32 in p.memberProcNames
-                    if Tko.Text.LowerAscii( p.names->Spelling( cast( Tko.InternId, known ) ) ) = nm then return false
-                next
+                if GetPutKnown_( p, p.memberProcIx, p.memberProcNames, isGet ) then return false
             end if
         end if
     end if

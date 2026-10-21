@@ -389,9 +389,7 @@ function ParenlessFnCall_ _
     if args.Count = 0 then return Tko.NODE_NONE
     if p.ast->Kind( callee ) <> Tko.N_IDENT then return Tko.NODE_NONE
     dim as uint32 nm = cast( uint32, p.ast->idents[cast( int32, p.ast->nodes[cast( int32, callee )].data )].name )
-    for each known as uint32 in p.procNames
-        if known = nm then return Tko.NODE_NONE
-    next
+    if KnownProc_( p, false, nm ) then return Tko.NODE_NONE
     dim as string spelled = "|" & p.names->Spelling( cast( Tko.InternId, nm ) ) & "|"
     if instr( PARENLESS_FN_CALLS_, spelled ) = 0 then return Tko.NODE_NONE
     return MakeList( p, Tko.N_CALL, loc, callee, args )
@@ -407,9 +405,7 @@ function IsLabelHere_( byref p as Tko.ParserState ) as boolean
     if cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind ) <> Tko.TK_EOL then return false
     if (p.toks->At( p.pos + 1 ).flags and Tko.TF_COLON) = 0 then return false
     dim as uint32 nm = cast( uint32, Cur( p ).literal )
-    for each known as uint32 in p.procNames
-        if known = nm then return false
-    next
+    if KnownProc_( p, false, nm ) then return false
     if len( p.preludeProcs ) = 0 then p.preludeProcs = PreludeProcSpellings( )
     dim as string spelled = "|" & p.names->Spelling( cast( Tko.InternId, nm ) ) & "|"
     if instr( p.preludeProcs, spelled ) > 0 then return false
@@ -422,11 +418,25 @@ function IsLabelHere_( byref p as Tko.ParserState ) as boolean
     if instr( UNDECLARED_RTL_PROCS_, spelled ) > 0 then return false
     '' A METHOD, by bare name inside a member body, is 'this.name' (implicit this).
     if p.memberDepth > 0 then
-        for each known as uint32 in p.memberProcNames
-            if known = nm then return false
-        next
+        if KnownProc_( p, true, nm ) then return false
     end if
     return true
+end function
+
+'' procNames (member: memberProcNames) holds nm -- through the list's ProcNameIndex, caught
+'' up first. The lists only grow while a parse pushes onto them.
+function KnownProc_( byref p as Tko.ParserState, byval member as boolean, byval nm as uint32 ) as boolean
+    dim as Tko.NodeIdVec ptr names = iif( member, @p.memberProcNames, @p.procNames )
+    dim as Tko.ProcNameIndex ptr ix = iif( member, @p.memberProcIx, @p.procIx )
+    if names->Count < ix->seen then
+        ix->ids.Clear( )
+        ix->seen = 0
+    end if
+    while ix->seen < names->Count
+        ix->ids.Add( (*names)[ix->seen] )
+        ix->seen += 1
+    wend
+    return ix->ids.Contains( nm )
 end function
 
 end namespace

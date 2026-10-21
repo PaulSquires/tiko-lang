@@ -507,16 +507,21 @@ end sub
 
 '' '#pragma private' IN EFFECT AT TOKEN pos (PpResult.privateAt): fbc makes every procedure
 '' defined under it private, a method's body too, unless it says 'public'.
+''
+'' BY BINARY SEARCH: the pairs are pushed with the output's token count, which only grows, so
+'' their positions never decrease. The answer is the LAST pair at or before pos_, as the walk
+'' that stopped at the first one past it found -- per procedure declaration, over every pragma.
 private function PragmaPrivate_( byref p as Tko.ParserState, byval pos_ as int32 ) as boolean
     if p.stream = nullptr then return false
     dim as Tko.PpStream ptr st = cast( Tko.PpStream ptr, p.stream )
     if st->outp = nullptr then return false
-    dim as boolean on_ = false
-    for i as int32 = 0 to st->outp->privateAt.Count - 2 step 2
-        if cast( int32, st->outp->privateAt[i] ) > pos_ then exit for
-        on_ = (st->outp->privateAt[i + 1] <> 0)
-    next
-    return on_
+    dim as int32 lo = 0, hi = st->outp->privateAt.Count \ 2   '' first pair past pos_ is in [lo, hi]
+    while lo < hi
+        dim as int32 mid_ = (lo + hi) \ 2
+        if cast( int32, st->outp->privateAt[2 * mid_] ) > pos_ then hi = mid_ else lo = mid_ + 1
+    wend
+    if lo = 0 then return false
+    return (st->outp->privateAt[2 * (lo - 1) + 1] <> 0)
 end function
 
 private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
