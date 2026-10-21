@@ -1041,6 +1041,7 @@ function Run _
         '' once each however many roots name them -- ONCE PER MODULE, not per path: two
         '' roots compiled into different directories each name their own '<chain>.o'.
         dim as Tko.StrVec modObjs
+        dim as containers.Set( of string ) modObjChains   '' RecordChain_ of each: a SET
         for i as int32 = 0 to objInputs.Count - 1
             linkObjs.Push( objInputs[i] )
             '' ...AND WHAT IT ASKS THE LINK FOR -- its '.fbctinf', as fbc reads it. See
@@ -1050,11 +1051,7 @@ function Run _
                                      ctx.options.pragmaLibPaths, _
                                      ctx.options.pragmaLibFiles, ctx.options.threadSafe, named )
             for each mo as string in named
-                dim as boolean seen = false
-                for each x as string in modObjs
-                    if RecordChain_( x ) = RecordChain_( mo ) then seen = true
-                next
-                if seen then continue for
+                if modObjChains.Add( RecordChain_( mo ) ) = false then continue for
                 modObjs.Push( mo )
                 if fs.IsFile( mo ) = false then
                     ctx.diags.ReportGlobal( Tko.TKO0153, objInputs[i], mo )
@@ -1145,16 +1142,16 @@ function Run _
             '' (tiko-build B0, 2026-10-11). This build's object stays: the roots compiled
             '' against its interface.
             if (modObjs.Count > 0) andalso (ctx.ifaceChains.Count > 0) then
+                '' By SET and the chains' index: every object was checked against every
+                '' module object, and each of those against every chain.
+                dim as containers.Set( of string ) isModObj
+                for each mo as string in modObjs
+                    isModObj.Add( mo )
+                next
                 dim as Tko.StrVec kept
                 for each lo as string in linkObjs
                     dim as boolean drop = false
-                    for each mo as string in modObjs
-                        if lo <> mo then continue for
-                        dim as string ch = RecordChain_( mo )
-                        for each c as string in ctx.ifaceChains
-                            if c = ch then drop = true
-                        next
-                    next
+                    if isModObj.Contains( lo ) then drop = ctx.ifaceIndex.Contains( RecordChain_( lo ) )
                     if drop = false then kept.Push( lo )
                 next
                 linkObjs.Clear( )

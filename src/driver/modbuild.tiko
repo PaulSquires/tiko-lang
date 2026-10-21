@@ -142,6 +142,7 @@ function BuildImports _
         ctx.ifaceEdgeFrom.Push( g.edgeFrom[e] )
         ctx.ifaceEdgeTo.Push( g.edgeTo[e] )
     next
+    IndexInterfaces( ctx )
     ctx.ifaceRootDir = DirOfFile( ctx.sources.PathOf( cast( Tko.FileId, 1 ) ) )
     '' NOT FOR A SCAN: ModuleCacheRoot MAKES the directory, and an editor scanning as you
     '' type must not create or fill the user's module cache.

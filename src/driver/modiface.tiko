@@ -45,9 +45,49 @@ function ImportIndex( byref ctx as Tko.CompilerContext, byref rec as Tko.PpImpor
     end if
     dim as ModWhere w
     if ResolveImport( ctx, rec, fromDir, pn, pr, w ) = false then return -1
-    for i as int32 = 0 to ctx.ifaceChains.Count - 1
-        if ctx.ifaceChains[i] = w.chain then return i
+    return ChainIndex( ctx, w.chain )
+end function
+
+'' THE GRAPH'S CHAINS ARE DISTINCT (NodeFor_ in modgraph.tiko makes one node per chain), so
+'' the first index of a chain, which ImportIndex's scan returned, is the only one -- the
+'' scans that kept the last, or every, match found the same. Edges keep their order within
+'' a module: Closure_ visits them as its scan of the whole list did.
+sub IndexInterfaces( byref ctx as Tko.CompilerContext )
+    dim as int32 n = ctx.ifaceChains.Count
+    ctx.ifaceIndex.Clear( )
+    for i as int32 = 0 to n - 1
+        ctx.ifaceIndex.Add( ctx.ifaceChains[i], i )
     next
+    ctx.ifaceAdjFirst.Clear( )
+    for i as int32 = 0 to n
+        ctx.ifaceAdjFirst.Push( 0 )
+    next
+    for e as int32 = 0 to ctx.ifaceEdgeFrom.Count - 1
+        dim as int32 f = cast( int32, ctx.ifaceEdgeFrom[e] )
+        if (f >= 0) andalso (f < n) then ctx.ifaceAdjFirst[f + 1] += 1
+    next
+    for i as int32 = 1 to n
+        ctx.ifaceAdjFirst[i] += ctx.ifaceAdjFirst[i - 1]
+    next
+    dim as Tko.FileIdVec fill
+    ctx.ifaceAdjTo.Clear( )
+    for i as int32 = 0 to n - 1
+        fill.Push( ctx.ifaceAdjFirst[i] )
+    next
+    for e as int32 = 0 to cast( int32, ctx.ifaceAdjFirst[n] ) - 1
+        ctx.ifaceAdjTo.Push( 0 )
+    next
+    for e as int32 = 0 to ctx.ifaceEdgeFrom.Count - 1
+        dim as int32 f = cast( int32, ctx.ifaceEdgeFrom[e] )
+        if (f < 0) orelse (f >= n) then continue for
+        ctx.ifaceAdjTo[fill[f]] = ctx.ifaceEdgeTo[e]
+        fill[f] += 1
+    next
+end sub
+
+function ChainIndex( byref ctx as Tko.CompilerContext, byref chain as string ) as int32
+    dim as int32 at = -1
+    if ctx.ifaceIndex.TryGet( chain, at ) then return at
     return -1
 end function
 
@@ -57,10 +97,8 @@ private sub Closure_ _
       byref order as containers.Array( of int32 ) )
     if seen[n] <> 0 then return
     seen[n] = 1
-    for e as int32 = 0 to ctx.ifaceEdgeFrom.Count - 1
-        if cast( int32, ctx.ifaceEdgeFrom[e] ) = n then
-            Closure_( ctx, cast( int32, ctx.ifaceEdgeTo[e] ), seen, order )
-        end if
+    for a as int32 = cast( int32, ctx.ifaceAdjFirst[n] ) to cast( int32, ctx.ifaceAdjFirst[n + 1] ) - 1
+        Closure_( ctx, cast( int32, ctx.ifaceAdjTo[a] ), seen, order )
     next
     order.Push( n )
 end sub
@@ -78,10 +116,8 @@ private sub Tagged_( byref ctx as Tko.CompilerContext, byval n as int32, byref t
         p = e + 1
         if left( ln, 2 ) <> "''" then exit while
         if left( ln, len( lead ) ) <> lead then continue while
-        dim as string ch = mid( ln, instrrev( ln, " " ) + 1 )
-        for i as int32 = 0 to ctx.ifaceChains.Count - 1
-            if ctx.ifaceChains[i] = ch then outv.Push( i )
-        next
+        dim as int32 at = ChainIndex( ctx, mid( ln, instrrev( ln, " " ) + 1 ) )
+        if at >= 0 then outv.Push( at )
     wend
 end sub
 
@@ -178,10 +214,7 @@ private sub BindReexports_ _
             if sp = 0 then continue while
             dim as string al = left( rest, sp - 1 )
             dim as string ch = mid( rest, sp + 1 )
-            dim as int32 m = -1
-            for i as int32 = 0 to ctx.ifaceChains.Count - 1
-                if ctx.ifaceChains[i] = ch then m = i
-            next
+            dim as int32 m = ChainIndex( ctx, ch )
             if m < 0 then continue while
             if nsOf[m] = 0 then continue while
             dim as Tko.Symbol ptr host = syms.SymbolAt( cast( Tko.SymbolId, nsOf[n] ) )
@@ -346,12 +379,14 @@ sub BindImports _
         aliasRec.Push( cast( uint32, k ) )
     next
     if syms.aliasPairSym.Count > 0 then MapNodeFiles_( ctx, ast, syms, lo, hi )
-    '' Each module imported here once, however many aliases name it.
+    '' Each module imported here once, however many aliases name it: the first alias of each.
+    dim as containers.Array( of uint8 ) joined
+    for i as int32 = 0 to ctx.ifaceChains.Count - 1
+        joined.Push( 0 )
+    next
     for q as int32 = 0 to aliasMod.Count - 1
-        dim as boolean first_ = true
-        for r as int32 = 0 to q - 1
-            if aliasMod[r] = aliasMod[q] then first_ = false
-        next
+        dim as boolean first_ = (joined[aliasMod[q]] = 0)
+        joined[aliasMod[q]] = 1
         if first_ then
             JoinOverloads_( ctx, syms, cast( int32, aliasMod[q] ), nsOf[aliasMod[q]], modScope )
         end if
@@ -362,20 +397,23 @@ sub InitOrder( byref ctx as Tko.CompilerContext, byref outv as Tko.StrVec )
     outv.Clear( )
     dim as int32 self_ = -1
     if ctx.modFileCount > 0 then
-        for i as int32 = 0 to ctx.ifaceChains.Count - 1
-            if ctx.ifaceChains[i] = ctx.modChain then self_ = i
-        next
+        self_ = ChainIndex( ctx, ctx.modChain )
         if self_ < 0 then return
+    end if
+    '' What self_ imports directly, marked by module: an edge scan per module in the order.
+    dim as containers.Array( of uint8 ) direct
+    if self_ >= 0 then
+        for i as int32 = 0 to ctx.ifaceChains.Count - 1
+            direct.Push( 0 )
+        next
+        for a as int32 = cast( int32, ctx.ifaceAdjFirst[self_] ) to cast( int32, ctx.ifaceAdjFirst[self_ + 1] ) - 1
+            dim as uint32 t = ctx.ifaceAdjTo[a]
+            if t < cast( uint32, direct.Count ) then direct[t] = 1
+        next
     end if
     for each o as uint32 in ctx.ifaceOrder
         dim as boolean wanted = (self_ < 0)
-        if wanted = false then
-            for e as int32 = 0 to ctx.ifaceEdgeFrom.Count - 1
-                dim as boolean hit = (cast( int32, ctx.ifaceEdgeFrom[e] ) = self_)
-                if hit then hit = (ctx.ifaceEdgeTo[e] = o)
-                if hit then wanted = true
-            next
-        end if
+        if wanted = false then wanted = (o < cast( uint32, direct.Count )) andalso (direct[o] <> 0)
         if wanted then outv.Push( ctx.ifaceChains[o] )
     next
 end sub
@@ -385,10 +423,7 @@ sub PublishInterface _
       byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
       byref info as Tko.SemanticInfo )
 
-    dim as int32 self_ = -1
-    for i as int32 = 0 to ctx.ifaceChains.Count - 1
-        if ctx.ifaceChains[i] = ctx.modChain then self_ = i
-    next
+    dim as int32 self_ = ChainIndex( ctx, ctx.modChain )
     if self_ < 0 then return
     '' The namespaces of the module's own imports, for the names its interface spells
     '' through their aliases.

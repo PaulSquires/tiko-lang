@@ -109,6 +109,13 @@ namespace Tko
         as FileIdVec              ifaceOrder
         as FileIdVec              ifaceEdgeFrom
         as FileIdVec              ifaceEdgeTo
+        '' ...INDEXED, with them and nowhere else (IndexInterfaces, modiface.tiko): each chain's
+        '' index, and each module's edge targets in edge order, ifaceAdjTo[ifaceAdjFirst[n] ..
+        '' ifaceAdjFirst[n + 1] - 1]. Every closure, cache key and init order scanned the whole
+        '' chain list or edge list per module.
+        as containers.Map( of string, int32 ) ifaceIndex
+        as FileIdVec              ifaceAdjFirst
+        as FileIdVec              ifaceAdjTo
         as string                 ifaceRootDir
         '' THE MODULES THE ROOTS IMPORT ARE BUILT (src/driver/modbuild.tiko), so a root's
         '' '#import' is not TKO0992.

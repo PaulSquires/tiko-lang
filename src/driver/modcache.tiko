@@ -209,12 +209,12 @@ function CleanModuleCache( byref ctx as Tko.CompilerContext ) as string
     return "removed " & n & " module cache entr" & iif( n = 1, "y", "ies" ) & " from " & root & Nl_( )
 end function
 
-'' Module n's dependencies, all of them, each once.
+'' Module n's dependencies, all of them, each once -- by its own edges (ctx.ifaceAdjFirst),
+'' not a scan of every edge of the build per module reached.
 private sub Closure_ _
     ( byref ctx as Tko.CompilerContext, byval n as int32, byref seen as containers.Array( of uint8 ) )
-    for e as int32 = 0 to ctx.ifaceEdgeFrom.Count - 1
-        if cast( int32, ctx.ifaceEdgeFrom[e] ) <> n then continue for
-        dim as int32 m = cast( int32, ctx.ifaceEdgeTo[e] )
+    for a as int32 = cast( int32, ctx.ifaceAdjFirst[n] ) to cast( int32, ctx.ifaceAdjFirst[n + 1] ) - 1
+        dim as int32 m = cast( int32, ctx.ifaceAdjTo[a] )
         if seen[m] <> 0 then continue for
         seen[m] = 1
         Closure_( ctx, m, seen )
@@ -431,35 +431,27 @@ end function
 function ModuleCacheDeps( byref ctx as Tko.CompilerContext, byref dl as string ) as boolean
     '' What the unit read that is not its own source nor an interface held in memory.
     dl = ""
-    dim as Tko.StrVec done_
+    '' SETS, not lists: every file read was checked against every module file and every path
+    '' already written -- files x files for a unit that reads a windows.bi-sized tree.
+    dim as containers.Set( of uint32 ) own_
+    for each m as uint32 in ctx.modFiles
+        own_.Add( m )
+    next
+    dim as containers.Set( of string ) done_
     for each f as uint32 in ctx.unitFilesRead
-        dim as boolean own = false
-        for each m as uint32 in ctx.modFiles
-            if m = f then own = true
-        next
-        if own then continue for
+        if own_.Contains( f ) then continue for
         dim as Tko.SourceFile ptr sf = ctx.sources.FileAt( cast( Tko.FileId, f ) )
         if sf = nullptr then continue for
         if sf->isVirtual then continue for
         dim as string p = ctx.sources.AbsPathOf( cast( Tko.FileId, f ) )
-        dim as boolean dup = false
-        for each x as string in done_
-            if x = p then dup = true
-        next
-        if dup then continue for
-        done_.Push( p )
+        if done_.Add( p ) = false then continue for
         dim as string st = Tko.DiskCache.Stamp( p )
         if len( st ) = 0 then return false
         dl &= st & chr( 9 ) & p & Nl_( )
     next
     for each m_ as string in ctx.unitProbesMissed
         dim as string ap_ = AbsPath( m_ )
-        dim as boolean dup = false
-        for each x as string in done_
-            if x = "-" & ap_ then dup = true
-        next
-        if dup then continue for
-        done_.Push( "-" & ap_ )
+        if done_.Add( "-" & ap_ ) = false then continue for
         dl &= "-" & chr( 9 ) & "-" & chr( 9 ) & ap_ & Nl_( )
     next
     return true
