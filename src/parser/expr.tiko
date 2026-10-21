@@ -94,8 +94,8 @@ sub AstArena.RecordTokens _
     this.tokenRanges.Push( cast( uint32, lastTok ) )
 end sub
 
-'' Scanned BACKWARDS, so a node recorded twice reads as its most recent range. That
-'' does not happen today; it is the safe direction if it ever does.
+'' The NEWEST entry of a node wins (SideTableFind), so a node recorded twice reads as its
+'' most recent range. That does not happen today; it is the safe direction if it ever does.
 sub AstArena.RecordCallTypeArgs _
     ( byval id as NodeId, byval firstArg as int32, byval argCount as int32 )
     if id = NODE_NONE then return
@@ -108,27 +108,21 @@ end sub
 function AstArena.CallTypeArgsOf _
     ( byval id as NodeId, byref firstArg as int32, byref argCount as int32 ) as boolean
     if id = NODE_NONE then return false
-    for i as int32 = this.callTypeArgs.Count - 3 to 0 step -3
-        if cast( NodeId, this.callTypeArgs[i] ) = id then
-            firstArg = cast( int32, this.callTypeArgs[i + 1] )
-            argCount = cast( int32, this.callTypeArgs[i + 2] )
-            return true
-        end if
-    next
-    return false
+    dim as int32 i = SideTableFind( this.callTypeArgAt, this.callTypeArgs, 3, id )
+    if i < 0 then return false
+    firstArg = cast( int32, this.callTypeArgs[i + 1] )
+    argCount = cast( int32, this.callTypeArgs[i + 2] )
+    return true
 end function
 
 function AstArena.TokensOf _
     ( byval id as NodeId, byref firstTok as int32, byref lastTok as int32 ) as boolean
     if id = NODE_NONE then return false
-    for i as int32 = this.tokenRanges.Count - 3 to 0 step -3
-        if cast( NodeId, this.tokenRanges[i] ) = id then
-            firstTok = cast( int32, this.tokenRanges[i + 1] )
-            lastTok = cast( int32, this.tokenRanges[i + 2] )
-            return true
-        end if
-    next
-    return false
+    dim as int32 i = SideTableFind( this.tokenRangeAt, this.tokenRanges, 3, id )
+    if i < 0 then return false
+    firstTok = cast( int32, this.tokenRanges[i + 1] )
+    lastTok = cast( int32, this.tokenRanges[i + 2] )
+    return true
 end function
 
 private function NewNode _

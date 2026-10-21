@@ -455,6 +455,15 @@ namespace Tko
     type ChildPool  as containers.Array( of uint32 )
     type NodeIdVec  as containers.Array( of uint32 )   '' a working list of NodeIds
 
+    '' A SIDE TABLE'S NodeId -> index of its NEWEST entry, caught up from 'seen' (the pool
+    '' elements indexed so far) on each lookup and rebuilt if the pool ever shrank, so it gives
+    '' the backward scan's answer whoever pushed. The scans ran per N_CALL and N_INTRINSIC
+    '' Resolve looked at, and a miss -- the normal case -- read the whole table.
+    type NodeSideIndex
+        as containers.Map( of uint32, int32 ) at_
+        as int32 seen
+    end type
+
     type AstArena
         as NodeVec     nodes        '' index 0 is a permanent N_NONE sentinel
         as UnaryVec    unaries
@@ -475,9 +484,9 @@ namespace Tko
         '' re-parse is how they are got -- the token buffer only ever grows, so an
         '' index recorded during the first parse stays valid.
         ''
-        '' Triples (node, firstTok, lastTok), appended in parse order and scanned
-        '' linearly. Only N_TYPE and out-of-line N_PROC definitions are recorded, and
-        '' the scan happens once per member per instantiation, so it is not hot.
+        '' Triples (node, firstTok, lastTok), appended in parse order and found by node
+        '' through tokenRangeAt. Only N_TYPE and out-of-line N_PROC definitions are
+        '' recorded.
         as ChildPool   tokenRanges
 
         '' EVERY DECLARATION OF A MODULE UNIT, as (node, firstTok, endTok) triples, endTok
@@ -498,7 +507,8 @@ namespace Tko
         '' N_CALL expects its target to be an N_IDENT and its children to be arguments;
         '' putting the type list in either place would change a shape a dozen files
         '' already depend on. Triples (call node, first, count) into the shared child
-        '' pool, scanned linearly -- explicit type arguments are rare.
+        '' pool, found by node through callTypeArgAt -- every N_CALL asks, and explicit
+        '' type arguments are rare, so nearly every question is a miss.
         as ChildPool   callTypeArgs
 
         '' THE PRIORITY OF A MODULE STRUCTOR -- 'sub f( ) constructor 101'. Pairs (proc
@@ -526,6 +536,11 @@ namespace Tko
         '' procedure is the caret in". A side table for structorPrio's reason.
         as ChildPool   procEnds
 
+        '' tokenRanges, callTypeArgs and collInit by node: SideTableFind (ast/collinit.tiko).
+        as NodeSideIndex tokenRangeAt
+        as NodeSideIndex callTypeArgAt
+        as NodeSideIndex collInitAt
+
         declare constructor( )
         declare sub RecordTokens _
             ( byval id as NodeId, byval firstTok as int32, byval lastTok as int32 )
@@ -550,6 +565,10 @@ namespace Tko
         ( byref ast as AstArena, byval item as NodeId, byval braces as NodeId, _
           byval block as NodeId )
     declare function CollInitOf( byref ast as AstArena, byval item as NodeId ) as NodeId
+    '' The index of the newest 'stride'-wide entry of 'pool' whose first element is id, or -1.
+    declare function SideTableFind _
+        ( byref ix as NodeSideIndex, byref pool as ChildPool, byval stride as int32, _
+          byval id as NodeId ) as int32
 
     declare function NodeKindCategory( byval k as NodeKind ) as NodeCategory
 

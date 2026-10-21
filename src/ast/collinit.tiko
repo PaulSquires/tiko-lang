@@ -6,8 +6,7 @@
 '' element -- symbols/collinit.tiko has the rule -- gathers them in an N_BLOCK of their
 '' own, and records here which block belongs to which declarator, so Check's tree walk
 '' and lowering can reach statements no list in the tree holds. Triples of (item,
-'' original N_INITIALIZER, block) in the shared child pool, scanned linearly: they are
-'' rare.
+'' original N_INITIALIZER, block) in the shared child pool, found through collInitAt.
 ''
 '' Its own module because the AST's other side tables are defined in parser/expr.tiko,
 '' which sits at the 1500-line cap.
@@ -30,10 +29,25 @@ end sub
 '' declarator with an empty '{ }' IS one, and its block is empty.
 function CollInitOf( byref ast as AstArena, byval item as NodeId ) as NodeId
     if item = NODE_NONE then return NODE_NONE
-    for i as int32 = ast.collInit.Count - 3 to 0 step -3
-        if cast( NodeId, ast.collInit[i] ) = item then return cast( NodeId, ast.collInit[i + 2] )
-    next
-    return NODE_NONE
+    dim as int32 i = SideTableFind( ast.collInitAt, ast.collInit, 3, item )
+    if i < 0 then return NODE_NONE
+    return cast( NodeId, ast.collInit[i + 2] )
+end function
+
+function SideTableFind _
+    ( byref ix as NodeSideIndex, byref pool as ChildPool, byval stride as int32, _
+      byval id as NodeId ) as int32
+    if pool.Count < ix.seen then
+        ix.at_.Clear( )
+        ix.seen = 0
+    end if
+    while ix.seen + stride <= pool.Count
+        ix.at_.Put( pool[ix.seen], ix.seen )   '' a later entry of one node replaces it
+        ix.seen += stride
+    wend
+    dim as int32 i = -1
+    if ix.at_.TryGet( cast( uint32, id ), i ) then return i
+    return -1
 end function
 
 end namespace
