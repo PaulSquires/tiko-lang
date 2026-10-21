@@ -55,7 +55,7 @@ function LowerStrRvalueB_ _
     if (cp->count < 1) orelse (cp->count > 3) then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
-    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
 
     '' The FIRST argument decides. These names are overloaded on wide strings too, and
     '' the wide overload belongs to LowerWideRvalue.
@@ -213,7 +213,7 @@ function LowerStrOf_ _
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
-    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
 
     '' CHR first: same family, but variadic and with a COUNT in front.
     if nm = "chr" then
@@ -413,7 +413,7 @@ function LowerStrNumCallB_ _
     if (cp->count < 1) orelse (cp->count > 3) then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
-    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
 
     dim as RtlId vr = RTL_NONE
     select case nm

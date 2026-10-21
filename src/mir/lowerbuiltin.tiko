@@ -144,7 +144,7 @@ sub NoteBuiltinDecline( byref c as Ctx, byval calleeNode as Tko.NodeId )
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, calleeNode )].data )]
     if cast( int32, ip->name ) <= TKO_KEYWORD_COUNT then exit sub
-    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
     dim as int32 argc = 0
     dim as MirType ty = MT_VOID
     dim as boolean known = Tko.Check.IsTypedIntrinsicName( nm )
@@ -190,7 +190,7 @@ function LowerBuiltinProc _
     if c.ast->Kind( calleeNode ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, calleeNode )].data )]
-    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
 
     '' ASSERT AND ASSERTWARN EMIT NOTHING, and their argument is NOT EVALUATED.
     '' Measured by running fbc's output: without -g, 'assert( f( ) = 1 )' where f

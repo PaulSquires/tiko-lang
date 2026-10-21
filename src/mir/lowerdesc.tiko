@@ -814,7 +814,7 @@ function AnyDimCount _
             @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, adn )].data )]
         '' EVERY 'any', not just the leading run: 'dim a( 0 to 0, any )' is the MIXED
         '' form, and counting only from the front called it zero and half-lowered it.
-        if Tko.Text.LowerAscii( c.names->Spelling( aip->name ) ) <> "any" then continue for
+        if LowerSpelling_( c.ix, *c.names, aip->name ) <> "any" then continue for
         n += 1
     next
     return n
@@ -1203,7 +1203,7 @@ function LowerArrayBoundCall _
     if (cp->count < 1) orelse (cp->count > 2) then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
-    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
 
     dim as RtlId r = RTL_NONE
     if nm = "lbound" then
@@ -1337,7 +1337,7 @@ sub RedimFieldInit_( byref c as Ctx, byref fa as MirValue, byval f as Tko.Symbol
     for i as int32 = 0 to sp->count - 1
         dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[sp->first + i] )
         if c.ast->Kind( an ) = Tko.N_IDENT then
-            if Tko.Text.LowerAscii( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, an )].data )].name ) ) = "any" then return
+            if LowerSpelling_( c.ix, *c.names, c.ast->idents[cast( int32, c.ast->nodes[cast( int32, an )].data )].name ) = "any" then return
         end if
     next
     dim as MirType zt = DescIntTy_( c )

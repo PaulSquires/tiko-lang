@@ -30,6 +30,7 @@ declare function StrSwapKind_ _
 
 
 #include once "mir/lowerutil.tiko"
+#include once "mir/lowerindex.tiko"
 #include once "mir/lowerexpr.tiko"
 '' A CAPTURING LAMBDA'S OBJECT, split out of lowerexpr.tiko at the 1500-line cap.
 #include once "mir/lowerclosure.tiko"
@@ -473,7 +474,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                         dim as Tko.IdentPayload ptr nip = _
                             @c.ast->idents[cast( int32, _
                                 c.ast->nodes[cast( int32, np->target )].data )]
-                        select case Tko.Text.LowerAscii( c.names->Spelling( nip->name ) )
+                        select case LowerSpelling_( c.ix, *c.names, nip->name )
                         case "assert", "assertwarn"
                             deliberateNoOp = true
                         end select

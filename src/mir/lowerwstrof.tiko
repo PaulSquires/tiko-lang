@@ -76,7 +76,7 @@ function LowerWstrOf _
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
-    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "wstr" then return false
+    if LowerSpelling_( c.ix, *c.names, ip->name ) <> "wstr" then return false
 
     dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[lp->first] )
 

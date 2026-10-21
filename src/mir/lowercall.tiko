@@ -189,7 +189,7 @@ private function PathEntryCallee_( byref c as Ctx, byval callee as Tko.SymbolId 
     dim as Tko.StmtPayload ptr sp = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
     if sp->aliasName = 0 then return false
-    select case Tko.Text.LowerAscii( c.names->Spelling( sp->aliasName ) )
+    select case LowerSpelling_( c.ix, *c.names, sp->aliasName )
     case "fb_filekill", "fb_mkdir", "fb_rmdir", "fb_chdir", "fb_dir", "fb_dir64", _
          "fb_fileexists", "fb_filelen", "fb_filelenex", "fb_filecopy", "fb_filedatetime", _
          "fb_shell", "fb_exec", "fb_getenviron", "fb_setenviron"   '' the same rule for their text

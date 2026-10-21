@@ -79,7 +79,7 @@ private function BodyCallsStructorWord_ _
         if c.ast->Kind( cp->target ) <> Tko.N_IDENT then continue for
         dim as Tko.IdentPayload ptr tip = _
             @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
-        if Tko.Text.LowerAscii( c.names->Spelling( tip->name ) ) = want then return true
+        if LowerSpelling_( c.ix, *c.names, tip->name ) = want then return true
     next
     return false
 end function
@@ -258,7 +258,7 @@ sub LowerProc _
         '' argument arrived one place late. The scope walk cannot answer this one --
         '' these ARE declared inside the type -- so it stays a name test.
         if isOperator then
-            select case Tko.Text.LowerAscii( c.names->Spelling( sp->name ) )
+            select case LowerSpelling_( c.ix, *c.names, sp->name )
             case "new", "delete", "new[]", "delete[]"
                 thisSym = Tko.SYMBOL_NONE
             end select

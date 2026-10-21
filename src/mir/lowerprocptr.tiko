@@ -203,7 +203,7 @@ function LowerProcPtr _
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
-    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "procptr" then return false
+    if LowerSpelling_( c.ix, *c.names, ip->name ) <> "procptr" then return false
 
     '' The operand names a PROCEDURE. Anything else -- an overload set nothing chose
     '' between, a name that did not resolve -- has no single address to take.

@@ -264,7 +264,7 @@ private function IsSpawnFrameField_ ( byref c as Ctx, byval target as Tko.NodeId
     if ft = Tko.TYPE_NONE then return false
     ft = c.types->Unqualify( ft )
     if c.types->Kind( ft ) <> Tko.TK_UDT then return false
-    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( c.types->NameOf( ft ) ) )
+    dim as string nm = LowerSpelling_( c.ix, *c.names, c.types->NameOf( ft ) )
     return (left( nm, 17 ) = "__tko_spawnframe_")
 end function
 

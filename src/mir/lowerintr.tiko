@@ -849,7 +849,7 @@ function LowerIif _
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
-    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "iif" then return false
+    if LowerSpelling_( c.ix, *c.names, ip->name ) <> "iif" then return false
 
     '' The result type is the one the surrounding expression asked for; an aggregate
     '' or an untyped one has no temporary to write, so it declines.
@@ -990,7 +990,7 @@ private function IsVirtualArg_( byref c as Ctx, byval a as Tko.NodeId ) as boole
     if c.ast->Kind( a ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, a )].data )]
-    return (Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) = "virtual")
+    return (LowerSpelling_( c.ix, *c.names, ip->name ) = "virtual")
 end function
 
 '' THE RUNTIME ENTRY POINT BEHIND AN INTRINSIC, for 'procptr( cls )'. Measured, one
@@ -1263,7 +1263,7 @@ function LowerVarPtrCall_ _
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
-    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
     if nm <> "varptr" then return false
 
     dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
@@ -1287,7 +1287,7 @@ function LowerStrPtrCall_ _
     '' 'strptr( s )' emits, and over a fixed string both give the buffer's address.
     '' It was not implemented at all, so 'mid( *sadd( s ), 1 ) = "0"' declined while
     '' the strptr line beside it in the same corpus file lowered.
-    dim as string spnm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string spnm = LowerSpelling_( c.ix, *c.names, ip->name )
     if (spnm <> "strptr") andalso (spnm <> "sadd") then return false
 
     dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )

@@ -40,7 +40,7 @@ function IsAggIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
-    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "iif" then return false
+    if LowerSpelling_( c.ix, *c.names, ip->name ) <> "iif" then return false
     for k as int32 = 1 to 2
         dim as Tko.TypeId at = _
             c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[lp->first + k] ) )
@@ -64,7 +64,7 @@ function IsStrIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
-    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "iif" then return false
+    if LowerSpelling_( c.ix, *c.names, ip->name ) <> "iif" then return false
     for k as int32 = 1 to 2
         dim as Tko.TypeId at = _
             c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[lp->first + k] ) )
@@ -215,7 +215,7 @@ function NoConvOperand_ _
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return Tko.NODE_NONE
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
-    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
 
     dim as Tko.NodeId op = Tko.NODE_NONE
     '' 'cptr' TAKES A TYPE AND A VALUE exactly as 'cast' does, and is the spelling
@@ -329,7 +329,7 @@ function LowerAddr _
             if c.ast->Kind( xlp->target ) = Tko.N_IDENT then
                 dim as Tko.IdentPayload ptr xip = _
                     @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, xlp->target )].data )]
-                dim as string xnm = Tko.Text.LowerAscii( c.names->Spelling( xip->name ) )
+                dim as string xnm = LowerSpelling_( c.ix, *c.names, xip->name )
                 if xnm = "cast" then
                     dim as Tko.NodeId xt = cast( Tko.NodeId, c.ast->children[xlp->first] )
                     if c.ast->Kind( xt ) = Tko.N_TYPEREF then
@@ -794,7 +794,7 @@ function LowerAddr _
             if c.ast->Kind( cl->target ) = Tko.N_IDENT then
                 dim as Tko.IdentPayload ptr cip = _
                     @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cl->target )].data )]
-                dim as string cnm = Tko.Text.LowerAscii( c.names->Spelling( cip->name ) )
+                dim as string cnm = LowerSpelling_( c.ix, *c.names, cip->name )
                 if (cnm = "cast") orelse (cnm = "ctype") then
                     dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cl->first] )
                     if c.ast->Kind( a0 ) = Tko.N_TYPEREF then

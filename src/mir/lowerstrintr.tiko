@@ -37,7 +37,7 @@ function LowerMidAssign _
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr tip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
-    if Tko.Text.LowerAscii( c.names->Spelling( tip->name ) ) <> "mid" then return false
+    if LowerSpelling_( c.ix, *c.names, tip->name ) <> "mid" then return false
     '' A NAME THE SOURCE DECLARED IS NOT THE INTRINSIC.
     if c.info->RefOf( cp->target ) <> Tko.SYMBOL_NONE then return false
 
@@ -239,7 +239,7 @@ function LowerDir _
     if c.ast->Kind( id ) = Tko.N_IDENT then
         if c.info->RefOf( id ) <> Tko.SYMBOL_NONE then return false
         dim as Tko.IdentPayload ptr dip = @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, id )].data )]
-        if Tko.Text.LowerAscii( c.names->Spelling( dip->name ) ) <> "dir" then return false
+        if LowerSpelling_( c.ix, *c.names, dip->name ) <> "dir" then return false
         dim as containers.Array( of uint32 ) dargs
         dargs.Push( cast( uint32, MV_CONST_INT ) ) : dargs.Push( 0 )
         outv = EmitRtl( c, RTL_DIR_NEXT, dargs )
@@ -253,7 +253,7 @@ function LowerDir _
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr tip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
-    if Tko.Text.LowerAscii( c.names->Spelling( tip->name ) ) <> "dir" then return false
+    if LowerSpelling_( c.ix, *c.names, tip->name ) <> "dir" then return false
     '' A NAME THE SOURCE DECLARED IS NOT THE INTRINSIC.
     if c.info->RefOf( cp->target ) <> Tko.SYMBOL_NONE then return false
 

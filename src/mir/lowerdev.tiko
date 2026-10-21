@@ -85,7 +85,7 @@ function LowerColorCall_ _
     if c.ast->Kind( calleeNode ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, calleeNode )].data )]
-    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "color" then
+    if LowerSpelling_( c.ix, *c.names, ip->name ) <> "color" then
         return false
     end if
     return LowerColorArgs_( c, argFirst, argCount, outv )
@@ -325,7 +325,7 @@ private function LowerNameFn_ _
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
-    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "name" then return false
+    if LowerSpelling_( c.ix, *c.names, ip->name ) <> "name" then return false
 
     return EmitRename_( c, cast( Tko.NodeId, c.ast->children[cp->first] ), _
                         cast( Tko.NodeId, c.ast->children[cp->first + 1] ), outv )
@@ -355,7 +355,7 @@ private function LowerScreenFn_ _
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
-    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "screen" then return false
+    if LowerSpelling_( c.ix, *c.names, ip->name ) <> "screen" then return false
     if (cp->count < 2) orelse (cp->count > 3) then return false
 
     dim as Tko.NodeId rowN = cast( Tko.NodeId, c.ast->children[cp->first] )

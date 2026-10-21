@@ -377,13 +377,24 @@ function EmitRtl _
     '' The LINKER-VISIBLE name, which on win32 carries the underscore and the stdcall
     '' '@N'. A 32-bit pointer means win32: Linux is 64-bit only by decision.
     dim as boolean is32 = (c.types->target.pointerBits = 32)
-    dim as Tko.InternId nm = c.names->GetString( RtlLinkName( r, is32 ) )
-    dim as int32 fidx = c.m->OldestFunctionNamed( nm )
+    dim as int32 ri = cast( int32, r )
+    dim as int32 fidx = -1
+    if (ri >= 0) andalso (ri < c.ix.rtlFunc.Count) then fidx = c.ix.rtlFunc[ri] - 1
     if fidx < 0 then
-        dim as MirFunction ptr decl = c.m->AddFunction( nm, RtlReturn( r, is32 ) )
-        decl->isDefinition = false
-        RtlSignature( decl, r, is32 )
-        fidx = c.m->functions.Count - 1
+        dim as Tko.InternId nm = c.names->GetString( RtlLinkName( r, is32 ) )
+        fidx = c.m->OldestFunctionNamed( nm )
+        if fidx < 0 then
+            dim as MirFunction ptr decl = c.m->AddFunction( nm, RtlReturn( r, is32 ) )
+            decl->isDefinition = false
+            RtlSignature( decl, r, is32 )
+            fidx = c.m->functions.Count - 1
+        end if
+        if ri >= 0 then
+            while c.ix.rtlFunc.Count <= ri
+                c.ix.rtlFunc.Push( 0 )
+            wend
+            c.ix.rtlFunc[ri] = fidx + 1
+        end if
     end if
 
     dim as int32 first = c.m->argPool.Count \ 2
@@ -938,7 +949,7 @@ function LowerLen _
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
-    dim as string lenNm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string lenNm = LowerSpelling_( c.ix, *c.names, ip->name )
     '' SIZEOF IS NOT LEN. It is ALWAYS the type's size and never a runtime call:
     '' measured, 'sizeof( s )' over a var-length string is 24 and 'sizeof( z )' over a
     '' 'zstring * 8' is 8, where 'len' of either is fb_StrLen. Sharing this function is
@@ -1251,7 +1262,7 @@ function IifArmType_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return Tko.TYPE_NONE
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
-    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "iif" then
+    if LowerSpelling_( c.ix, *c.names, ip->name ) <> "iif" then
         return Tko.TYPE_NONE
     end if
     for k as int32 = 1 to 2
@@ -1275,7 +1286,7 @@ function IsIifCall_ _
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
-    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "iif" then return false
+    if LowerSpelling_( c.ix, *c.names, ip->name ) <> "iif" then return false
     condE = cast( Tko.NodeId, c.ast->children[lp->first] )
     thenE = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
     elseE = cast( Tko.NodeId, c.ast->children[lp->first + 2] )
@@ -1297,7 +1308,7 @@ function IsStringIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
-    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "iif" then return false
+    if LowerSpelling_( c.ix, *c.names, ip->name ) <> "iif" then return false
 
     for k as int32 = 1 to 2
         dim as Tko.NodeId arm = cast( Tko.NodeId, c.ast->children[lp->first + k] )

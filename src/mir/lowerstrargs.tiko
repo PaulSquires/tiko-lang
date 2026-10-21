@@ -604,7 +604,7 @@ function UStrResultArgTemp_ _
         if (c.ast->Kind( ucp->target ) = Tko.N_IDENT) andalso (ucp->count >= 1) then
             dim as Tko.IdentPayload ptr uip = _
                 @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, ucp->target )].data )]
-            select case Tko.Text.LowerAscii( c.names->Spelling( uip->name ) )
+            select case LowerSpelling_( c.ix, *c.names, uip->name )
             case "ucase", "lcase", "trim", "ltrim", "rtrim", "left", "right", "mid"
                 dim as Tko.NodeId ua0 = cast( Tko.NodeId, c.ast->children[ucp->first] )
                 '' ...or a ustring CHAIN, which Check types STRING: 'TakeU( ucase( u & "x" ) )'

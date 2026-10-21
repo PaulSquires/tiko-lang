@@ -716,7 +716,7 @@ function IntrinOverWideConcat_( byref c as Ctx, byval e as Tko.NodeId ) as boole
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
-    select case Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    select case LowerSpelling_( c.ix, *c.names, ip->name )
     case "ucase", "lcase", "trim", "ltrim", "rtrim", "left", "right", "mid"
     case else
         return false
@@ -1035,7 +1035,7 @@ private function WideLitUnits_ _
         if c.ast->Kind( wcp->target ) <> Tko.N_IDENT then return false
         dim as Tko.IdentPayload ptr wip = _
             @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, wcp->target )].data )]
-        if Tko.Text.LowerAscii( c.names->Spelling( wip->name ) ) <> "wchr" then
+        if LowerSpelling_( c.ix, *c.names, wip->name ) <> "wchr" then
             return false
         end if
         if wcp->count < 1 then return false
@@ -1306,7 +1306,7 @@ function LowerWideRvalueB_ _
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
-    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
     if cp->count < 1 then return false
 
     '' 'wchr( a, b, ... )' -- THE WIDE TWIN OF CHR, and variadic like it: a COUNT and

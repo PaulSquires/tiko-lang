@@ -661,7 +661,7 @@ function AddrWordOf_ _
         if c.ast->Kind( pcp->target ) <> Tko.N_IDENT then return false
         dim as Tko.IdentPayload ptr pip = _
             @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, pcp->target )].data )]
-        if Tko.Text.LowerAscii( c.names->Spelling( pip->name ) ) <> "procptr" then return false
+        if LowerSpelling_( c.ix, *c.names, pip->name ) <> "procptr" then return false
         opnd = Unparen_( c, cast( Tko.NodeId, c.ast->children[pcp->first] ) )
         if c.ast->Kind( opnd ) = Tko.N_STRING_LIT then return false
     else
@@ -847,7 +847,7 @@ private function GlobalRelocInit_ _
         if c.ast->Kind( wcp->target ) <> Tko.N_IDENT then exit while
         dim as Tko.IdentPayload ptr wip = _
             @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, wcp->target )].data )]
-        dim as string wnm2 = Tko.Text.LowerAscii( c.names->Spelling( wip->name ) )
+        dim as string wnm2 = LowerSpelling_( c.ix, *c.names, wip->name )
         if ((wnm2 = "cptr") orelse (wnm2 = "cast")) andalso (wcp->count = 2) then
             init = cast( Tko.NodeId, c.ast->children[wcp->first + 1] )
         elseif (wnm2 = "procptr") andalso (wcp->count = 1) then
@@ -1051,7 +1051,7 @@ sub InitSharedGlobal _
     if (g < 0) orelse (init = Tko.NODE_NONE) then return
     '' '= ANY' IS NO INITIALISER, zeroed storage as any static has (fbc-examples r2ice04).
     if c.ast->Kind( init ) = Tko.N_IDENT then
-        if Tko.Text.LowerAscii( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, init )].data )].name ) ) = "any" then return
+        if LowerSpelling_( c.ix, *c.names, c.ast->idents[cast( int32, c.ast->nodes[cast( int32, init )].data )].name ) = "any" then return
     end if
 
     '' A FLOATING initialiser first, because the integer folder cannot carry one:

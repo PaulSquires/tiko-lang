@@ -672,7 +672,7 @@ function CallsUserProcNamedLikeBuiltin _
     end if
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
-    return Tko.Check.IsTypedIntrinsicName( Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) )
+    return Tko.Check.IsTypedIntrinsicName( LowerSpelling_( c.ix, *c.names, ip->name ) )
 end function
 
 '' THE SHADOW AUDIT (audit Phase 4, node-recorded overload decisions). A lowering site that

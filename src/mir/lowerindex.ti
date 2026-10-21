@@ -51,7 +51,18 @@ namespace Tko.Mir
         as int32        paramFirst
         as int32        paramCount
         as containers.Array( of uint32 ) paramNodes
+        '' InternId -> 1 + its index in lowerSpell, the LowerAscii of its spelling. See
+        '' LowerSpelling_ (lowerindex.tiko).
+        as containers.Array( of int32 )  lowerSpellAt
+        as containers.Array( of string ) lowerSpell
+        '' RtlId -> 1 + EmitRtl's function index. Building and interning the link name
+        '' per runtime call was the cost; once that name has an entry its OLDEST entry
+        '' cannot change (functions are only pushed), so the index is final.
+        as containers.Array( of int32 )  rtlFunc
     end type
+
+    declare function LowerSpelling_ _
+        ( byref ix as LowerIndex, byref names as Tko.Interner, byval id as Tko.InternId ) as string
 
 end namespace
 

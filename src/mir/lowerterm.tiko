@@ -388,7 +388,7 @@ function IsWstrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
     '' ...and the WIDE RADIX FAMILY, which is wide by the same rule and for the same
     '' reason: Check computes no type for the call, so only the NAME says so.
-    select case Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    select case LowerSpelling_( c.ix, *c.names, ip->name )
     '' ...AND 'wspace( n )', which is wide for the same reason and was not here:
     '' it lowered standalone -- fb_WstrSpace -- and compared against a wstring, but
     '' inside a CONCATENATION TermIsWide_ asks this list, decided the term was
@@ -420,7 +420,7 @@ function IsStrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
-    return (Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) = "str")
+    return (LowerSpelling_( c.ix, *c.names, ip->name ) = "str")
 end function
 
 function StrTermFlavour_( byref c as Ctx, byval term as Tko.NodeId ) as int32

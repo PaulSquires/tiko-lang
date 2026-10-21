@@ -37,7 +37,7 @@ private function StrCallOperand_ _
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return e
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
-    if Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "str" then return e
+    if LowerSpelling_( c.ix, *c.names, ip->name ) <> "str" then return e
     return cast( Tko.NodeId, c.ast->children[cp->first] )
 end function
 

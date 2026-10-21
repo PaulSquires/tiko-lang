@@ -170,7 +170,7 @@ function LowerPeek _
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr tip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
-    if Tko.Text.LowerAscii( c.names->Spelling( tip->name ) ) <> "peek" then return false
+    if LowerSpelling_( c.ix, *c.names, tip->name ) <> "peek" then return false
     '' ...AND NOT A PROCEDURE OF THE PROGRAM'S OWN that happens to be spelled PEEK --
     '' see IntrinsicCallType_, which types the call by the same rule.
     scope
@@ -258,7 +258,7 @@ private function PokeTypeName_ _
     if c.ast->Kind( n ) <> Tko.N_IDENT then return Tko.TY_NONE
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, n )].data )]
-    select case Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    select case LowerSpelling_( c.ix, *c.names, ip->name )
     case "byte"     : return Tko.TY_BYTE
     case "ubyte"    : return Tko.TY_UBYTE
     case "short"    : return Tko.TY_SHORT

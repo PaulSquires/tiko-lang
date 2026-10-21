@@ -41,7 +41,7 @@ function LowerRadixCall_ _
     if (cp->count < 1) orelse (cp->count > 2) then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
-    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
 
     dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
     dim as Tko.NodeId a1 = Tko.NODE_NONE

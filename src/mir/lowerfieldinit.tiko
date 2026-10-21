@@ -94,7 +94,7 @@ function FieldInitIsAny_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if c.ast->Kind( id ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, id )].data )]
-    return (Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) = "any")
+    return (LowerSpelling_( c.ix, *c.names, ip->name ) = "any")
 end function
 
 '' 'as A a = A( "456" )' -- A CONSTRUCTOR CALL AS A FIELD INITIALISER.

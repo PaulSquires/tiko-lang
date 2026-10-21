@@ -1328,7 +1328,7 @@ function LowerBaseCtorCall_ _
     '' constructor of this same type over the whole of 'this'. Measured on fbc, which
     '' emits a plain '_ZN1QC1Ev( THIS )' for the delegating form -- and emits NO
     '' PROLOGUE at all in the delegating constructor, because the one it calls does it.
-    dim as string ctorWord = Tko.Text.LowerAscii( c.names->Spelling( tip->name ) )
+    dim as string ctorWord = LowerSpelling_( c.ix, *c.names, tip->name )
     dim as boolean delegating = (ctorWord = "constructor")
     if (ctorWord <> "base") andalso (delegating = false) then return false
 

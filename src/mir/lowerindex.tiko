@@ -1,0 +1,21 @@
+'' lowerindex.tiko -- the helpers behind lowerindex.ti's caches.
+''
+'' INCLUDED from lower.tiko, inside the same namespace.
+
+'' LowerAscii( names.Spelling( id ) ), kept per id. About seventy recognisers ask it
+'' of the callee of every call node they see -- two string copies and a lowercase
+'' pass each time, for a spelling that cannot change. The text is the same string.
+function LowerSpelling_ _
+    ( byref ix as LowerIndex, byref names as Tko.Interner, byval id as Tko.InternId ) as string
+
+    dim as int32 k = cast( int32, id )
+    if k < 0 then return Tko.Text.LowerAscii( names.Spelling( id ) )
+    while ix.lowerSpellAt.Count <= k
+        ix.lowerSpellAt.Push( 0 )
+    wend
+    if ix.lowerSpellAt[k] = 0 then
+        ix.lowerSpell.Push( Tko.Text.LowerAscii( names.Spelling( id ) ) )
+        ix.lowerSpellAt[k] = ix.lowerSpell.Count
+    end if
+    return ix.lowerSpell[ix.lowerSpellAt[k] - 1]
+end function

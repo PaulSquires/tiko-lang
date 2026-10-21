@@ -111,7 +111,7 @@ private function IsAnyInit_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if c.ast->Kind( id ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, id )].data )]
-    return (Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) = "any")
+    return (LowerSpelling_( c.ix, *c.names, ip->name ) = "any")
 end function
 
 '' The single argument of a type literal that is a COPY of the target -- 'type<T>( y )'
@@ -241,7 +241,7 @@ function LowerByrefResult_ _
                     dim as Tko.IdentPayload ptr wip = _
                         @c.ast->idents[cast( int32, _
                             c.ast->nodes[cast( int32, wp->target )].data )]
-                    if Tko.Text.LowerAscii( c.names->Spelling( wip->name ) ) = "wstr" then
+                    if LowerSpelling_( c.ix, *c.names, wip->name ) = "wstr" then
                         dim as Tko.NodeId inner_ = _
                             Unparen_( c, cast( Tko.NodeId, c.ast->children[wp->first] ) )
                         '' ...but WIDE: fbc stores L"also good", and the narrow bytes read as a

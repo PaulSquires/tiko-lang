@@ -73,7 +73,7 @@ function LowerBitOp _
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr tip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
-    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( tip->name ) )
+    dim as string nm = LowerSpelling_( c.ix, *c.names, tip->name )
     dim as int32 which = 0
     select case nm
     case "bit"      : which = 1
@@ -766,7 +766,7 @@ private function OpenDeviceRtl_ _
     case Tko.N_IDENT
         dim as Tko.IdentPayload ptr ip = _
             @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, a )].data )]
-        dw = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+        dw = LowerSpelling_( c.ix, *c.names, ip->name )
         '' ERR IS ASKED BEFORE THE BINDING TEST, and that order is the fix rather than
         '' a detail. tiko's prelude declares 'err' as an alias for fb_ErrorGetNum, so
         '' the name DOES bind -- and 'open err for output' lowered to fb_FileOpen

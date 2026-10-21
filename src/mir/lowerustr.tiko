@@ -57,7 +57,7 @@ function IsUStrIntrinCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     end if
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
-    select case Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    select case LowerSpelling_( c.ix, *c.names, ip->name )
     case "trim", "ltrim", "rtrim", "left", "right", "mid", "ucase", "lcase"
     case else
         return false
@@ -79,7 +79,7 @@ function LowerUStrIntrinB_ _
     if (cp->count < 1) orelse (cp->count > 3) then return false
     dim as Tko.IdentPayload ptr ip = _
         @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
-    dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
+    dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
 
     '' THE FIRST ARGUMENT DECIDES, exactly as it does for the wide family.
     dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
