@@ -385,6 +385,11 @@ namespace Tko
         '' for the name (JoinTwin). Resolve gives each twin its original's result type.
         as containers.Array( of uint32 ) joinOrig
         as containers.Array( of uint32 ) joinCopy
+        '' WHERE DECLARESYM LAST APPENDED TO THE OVERLOAD CHAIN IT REACHED FROM A SYMBOL, by
+        '' SymbolId, 0 for none: k overloads of one name walked the chain from its head each
+        '' time, k^2 (LOOKUPS.md M8). A chain only grows at its end, so the walk resumes from
+        '' here; CutOverloads, the one place a chain is cut, forgets every one of them.
+        as containers.Array( of uint32 ) ovlTail
 
         declare constructor( )
         declare sub Attach( byval it as Interner ptr )
@@ -407,6 +412,8 @@ namespace Tko
         '' same id is never chained twice.
         declare sub ChainOverload _
             ( byval scope_ as ScopeId, byval nm as InternId, byval id as SymbolId )
+        '' End id's overload chain at id. The only way to shorten a chain: see ovlTail.
+        declare sub CutOverloads( byval id as SymbolId )
 
         '' A TWIN of procedure 'of_' in scope_'s overload set for its name -- the set's last
         '' member, or the whole set when there is none. The twin keeps of_'s PARENT, so it

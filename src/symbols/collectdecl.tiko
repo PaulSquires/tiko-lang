@@ -381,7 +381,7 @@ private function Declare_ _
                 old->payload = 0
                 old->type_ = Tko.TYPE_NONE
                 old->inner = Tko.SCOPE_NONE
-                old->nextOverload = Tko.SYMBOL_NONE
+                w.syms->CutOverloads( id )
                 old->flags = 0
                 return id
             end if

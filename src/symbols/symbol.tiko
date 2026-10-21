@@ -857,7 +857,11 @@ function SymbolTable.DeclareSym _
     elseif existing <> SYMBOL_NONE then
         '' Chain onto the end of the overload list; the head stays indexed.
         this.symbols[cast( int32, id )].flags or= SYMF_OVERLOAD
+        '' ...FROM WHERE THE LAST APPEND THROUGH 'existing' LEFT OFF -- see ovlTail.
         dim as SymbolId cur = existing
+        if cast( int32, existing ) < this.ovlTail.Count then
+            if this.ovlTail[cast( int32, existing )] <> 0 then cur = cast( SymbolId, this.ovlTail[cast( int32, existing )] )
+        end if
         dim as int32 guard = 0
         while this.symbols[cast( int32, cur )].nextOverload <> SYMBOL_NONE
             cur = this.symbols[cast( int32, cur )].nextOverload
@@ -865,6 +869,10 @@ function SymbolTable.DeclareSym _
             if guard > 4096 then exit while
         wend
         this.symbols[cast( int32, cur )].nextOverload = id
+        while this.ovlTail.Count <= cast( int32, existing )
+            this.ovlTail.Push( 0 )
+        wend
+        this.ovlTail[cast( int32, existing )] = cast( uint32, id )
     elseif genOlder <> SYMBOL_NONE then
         '' A NEW GENERATION: every earlier symbol of this name here was '#undef'ed. It
         '' takes the slot, and the old head stays reachable through it.
@@ -921,6 +929,12 @@ sub SymbolTable.ChainOverload _
     loop
     this.symbols[cast( int32, cur )].nextOverload = id
     this.symbols[cast( int32, id )].flags or= SYMF_OVERLOAD
+end sub
+
+sub SymbolTable.CutOverloads( byval id as SymbolId )
+    if (id = SYMBOL_NONE) orelse (cast( int32, id ) >= this.symbols.Count) then return
+    this.symbols[cast( int32, id )].nextOverload = SYMBOL_NONE
+    this.ovlTail.Clear( )
 end sub
 
 '' See symbol.ti. Declared through DeclareSym, which chains it after the set or opens the
