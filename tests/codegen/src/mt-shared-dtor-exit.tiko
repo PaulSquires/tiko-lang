@@ -1,0 +1,36 @@
+'' A 'dim shared' object's destructor runs BEFORE the runtime shuts down. Under -mt it
+'' assigns a ustring, which takes the string lock; fb_hRtExit deletes that lock, and
+'' running it first made this exit with an access violation. The order of the exit-time
+'' lines is fbc-modern's, measured: main's atexit handler, then the module destructors.
+
+declare function c_atexit cdecl alias "atexit" ( byval fn as sub cdecl( ) ) as long
+declare function c_puts cdecl alias "puts" ( byval s as const zstring ptr ) as long
+declare function c_fflush cdecl alias "fflush" ( byval f as any ptr ) as long
+
+sub Say( byval s as const zstring ptr )
+    c_puts( s )
+    c_fflush( 0 )
+end sub
+
+sub FromMain cdecl( )
+    Say( "atexit-from-main" )
+end sub
+
+sub ModuleDtor( ) destructor
+    Say( "module-dtor" )
+end sub
+
+type T
+    s as ustring
+    declare destructor( )
+end type
+
+destructor T( )
+    this.s = "bye"
+    Say( iif( this.s = "bye", @"shared-dtor bye", @"shared-dtor WRONG" ) )
+end destructor
+
+dim shared as T x
+
+c_atexit( @FromMain )
+Say( "end" )
