@@ -88,10 +88,18 @@ private sub BtLabels_ ( byref c as Ctx, byval id as NodeId, byref labels as cont
     next
 end sub
 
+'' THE LABELS AS A SET. Each GOTO asked the whole list, so a procedure of n labels
+'' and n gotos was n^2: 16,000 of each spent most of 'layout+rules' here (2026-10-21).
+private sub LabelSet_ ( byref labels as containers.Array( of uint32 ), byref outv as containers.Set( of uint32 ) )
+    for each l as uint32 in labels
+        outv.Add( l )
+    next
+end sub
+
 private sub BtWalk_ _
     ( byref c as Ctx, byval id as NodeId, byval procKw as TokenKind, _
       byval nFor as int32, byval nDo as int32, byval nWhile as int32, byval nSel as int32, _
-      byref labels as containers.Array( of uint32 ) )
+      byref labels as containers.Set( of uint32 ) )
     if id = NODE_NONE then return
     dim as NodeKind k = c.ast->Kind( id )
     if (NodeKindCategory( k ) = NCAT_EXPR) orelse (NodeKindCategory( k ) = NCAT_TYPE) then return
@@ -116,9 +124,7 @@ private sub BtWalk_ _
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if k = N_GOTO then
         if sp->name = 0 then return
-        for each l as uint32 in labels
-            if l = cast( uint32, sp->name ) then return
-        next
+        if labels.Contains( cast( uint32, sp->name ) ) then return
         c.diags->Report( TKO0949, PointRange( c.ast->Loc( id ) ), c.names->Spelling( sp->name ) )
         return
     end if
@@ -136,7 +142,9 @@ private sub CheckBranchTargets_( byref c as Ctx )
     if c.root <> NODE_NONE then
         dim as containers.Array( of uint32 ) top
         BtLabels_( c, c.root, top )
-        BtWalk_( c, c.root, cast( TokenKind, 0 ), 0, 0, 0, 0, top )
+        dim as containers.Set( of uint32 ) topSet
+        LabelSet_( top, topSet )
+        BtWalk_( c, c.root, cast( TokenKind, 0 ), 0, 0, 0, 0, topSet )
     end if
     for n as int32 = 0 to c.ast->Count( ) - 1
         if c.ast->Kind( cast( NodeId, n ) ) <> N_PROC then continue for
@@ -144,6 +152,8 @@ private sub CheckBranchTargets_( byref c as Ctx )
         if pp->b = NODE_NONE then continue for
         dim as containers.Array( of uint32 ) labels
         BtLabels_( c, pp->b, labels )
-        BtWalk_( c, pp->b, cast( TokenKind, pp->op ), 0, 0, 0, 0, labels )
+        dim as containers.Set( of uint32 ) labelSet
+        LabelSet_( labels, labelSet )
+        BtWalk_( c, pp->b, cast( TokenKind, pp->op ), 0, 0, 0, 0, labelSet )
     next
 end sub

@@ -114,6 +114,10 @@ private sub CheckBranchCross_ ( byref c as Ctx, byval id as NodeId )
     '' THE LABELS AND THE LOCAL DEFINITIONS, in node order, once per tree.
     static as int32 lab( ), vars( ), tmps( )
     static as int32 nLab, nVar, nTmp
+    '' ...AND THE LABELS OF EACH NAME as a chain through lab( ), in node order: every GOTO
+    '' scanned all of them for the first later one of its name, gotos x labels (2026-10-21).
+    static as containers.Map( of uint32, int32 ) labHead
+    static as int32 labNext( )
     static as any ptr forAst = nullptr
     static as int32 forCount = -1
     static as uint32 forGen = 0
@@ -121,6 +125,7 @@ private sub CheckBranchCross_ ( byref c as Ctx, byval id as NodeId )
     if (forAst <> cast( any ptr, c.ast )) orelse (forCount <> n) orelse (forGen <> VisRunGen_( )) then
         redim lab( 0 to 15 ) : redim vars( 0 to 15 ) : redim tmps( 0 to 15 )
         nLab = 0 : nVar = 0 : nTmp = 0
+        labHead.Clear( )
         for i as int32 = 1 to n
             dim as NodeKind ik = c.ast->Kind( cast( NodeId, i ) )
             if ik = N_LABEL then
@@ -141,6 +146,19 @@ private sub CheckBranchCross_ ( byref c as Ctx, byval id as NodeId )
                 vars( nVar ) = i : nVar += 1
             end if
         next
+        redim labNext( 0 to iif( nLab > 0, nLab - 1, 0 ) )
+        dim as containers.Map( of uint32, int32 ) labTail
+        for i as int32 = 0 to nLab - 1
+            dim as uint32 ln = c.ast->stmts[cast( int32, c.ast->nodes[lab( i )].data )].name
+            labNext( i ) = -1
+            dim as int32 t = -1
+            if labTail.TryGet( ln, t ) then
+                labNext( t ) = i
+            else
+                labHead.Put( ln, i )
+            end if
+            labTail.Put( ln, i )
+        next
         forAst = c.ast : forCount = n : forGen = VisRunGen_( )
     end if
 
@@ -149,17 +167,26 @@ private sub CheckBranchCross_ ( byref c as Ctx, byval id as NodeId )
     dim as ScopeId gproc = BxProcScope_( c, c.info->ScopeOf( id ) )
     '' The label: FORWARD, in the same procedure.
     dim as int32 lid = 0
-    for i as int32 = 0 to nLab - 1
-        if lab( i ) <= id then continue for
-        dim as StmtPayload ptr lp = @c.ast->stmts[cast( int32, c.ast->nodes[lab( i )].data )]
-        if lp->name <> gp->name then continue for
-        if BxProcScope_( c, c.info->ScopeOf( cast( NodeId, lab( i ) ) ) ) <> gproc then continue for
-        lid = lab( i )
-        exit for
-    next
+    dim as int32 li = -1
+    if labHead.TryGet( cast( uint32, gp->name ), li ) = false then li = -1
+    while li >= 0
+        if lab( li ) > id then
+            if BxProcScope_( c, c.info->ScopeOf( cast( NodeId, lab( li ) ) ) ) = gproc then
+                lid = lab( li )
+                exit while
+            end if
+        end if
+        li = labNext( li )
+    wend
     if lid = 0 then return
     dim as ScopeId lscope = c.info->ScopeOf( cast( NodeId, lid ) )
-    for v as int32 = 0 to nVar - 1
+    '' vars( ) is in node order: start at the first one past the GOTO, not at 0
+    dim as int32 vlo = 0, vhi = nVar
+    while vlo < vhi
+        dim as int32 vm = ( vlo + vhi ) \ 2
+        if vars( vm ) <= id then vlo = vm + 1 else vhi = vm
+    wend
+    for v as int32 = vlo to nVar - 1
         dim as int32 vid = vars( v )
         if vid <= id then continue for
         if vid >= lid then exit for
