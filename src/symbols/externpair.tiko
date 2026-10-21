@@ -1,0 +1,39 @@
+'' externpair.tiko -- one later declaration of an extern's name, judged against it.
+''
+'' Split out of latesweeps2.tiko at the 1500-line lint cap and included from it above
+'' CheckExternRange_, in the same namespace; that is where the measured rules are.
+
+'' ...ONE LATER DECLARATION df OF AN EXTERN'S NAME, in a statement written with 'op'.
+private sub ExternPair_ ( byref c as Ctx, byval df as NodeId, byval op as uint32, _
+                          byval erank as int32, elo( ) as int64, ehi( ) as int64, byval isString as boolean )
+    dim as StmtPayload ptr dp = _
+        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, df )].data )]
+    if (c.ast->nodes[cast( int32, df )].flags and NF_QUALIFIED) <> 0 then return
+    if op = cast( uint32, KW_REDIM ) then
+        if (dp->a <> NODE_NONE) andalso (erank > 0) then
+            c.diags->Report( TKO0723, PointRange( c.ast->Loc( df ) ) )
+        end if
+        return
+    end if
+    if isString andalso (dp->b <> NODE_NONE) then
+        c.diags->Report( TKO0628, PointRange( c.ast->Loc( df ) ), _
+                         c.names->Spelling( dp->name ) )
+        return
+    end if
+    if erank <= 0 then return
+    dim as int64 dlo(0 to 7), dhi(0 to 7)
+    dim as int32 drank = WrittenBounds_( c, df, dlo(), dhi() )
+    if drank <= 0 then return
+    if drank <> erank then
+        c.diags->Report( TKO0728, PointRange( c.ast->Loc( df ) ), _
+                         c.names->Spelling( dp->name ) )
+        return
+    end if
+    for d as int32 = 0 to erank - 1
+        if (dlo(d) <> elo(d)) orelse (dhi(d) <> ehi(d)) then
+            c.diags->Report( TKO0727, PointRange( c.ast->Loc( df ) ), _
+                             c.names->Spelling( dp->name ) )
+            exit for
+        end if
+    next
+end sub

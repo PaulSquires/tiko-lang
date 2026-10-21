@@ -912,6 +912,8 @@ private function WrittenBounds_ _
     return bl->count
 end function
 
+#include once "symbols/externpair.tiko"
+
 '' A DEFINITION AGREES WITH ITS EXTERN. Measured, over 'extern array(0 to 1) as integer':
 ''
 ''     dim array(0 to 0) as integer            error 37   the bounds differ
@@ -930,6 +932,13 @@ end function
 '' is by name within a block, which is what keeps a same-named local in some procedure
 '' out of it.
 private sub CheckExternRange_ ( byref c as Ctx, byval first as int32, byval count as int32 )
+    '' THE BLOCK'S OTHER DECLARATIONS BY FOLDED NAME, statement order kept, built at its first
+    '' extern: each extern scanned every later statement of the block, externs x statements.
+    '' defAt/defLast: name -> first/last entry; an entry is (k, item, op), chained by defNext.
+    dim as containers.Map( of uint32, int32 ) defAt, defLast
+    dim as containers.Array( of int32 ) defNext, defK
+    dim as containers.Array( of uint32 ) defNode, defOp
+    dim as boolean indexed = false
     for i as int32 = 0 to count - 1
         dim as NodeId st = cast( NodeId, c.ast->children[first + i] )
         if st = NODE_NONE then continue for
@@ -943,6 +952,36 @@ private sub CheckExternRange_ ( byref c as Ctx, byval first as int32, byval coun
         dim as StmtPayload ptr sp = _
             @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, st )].data )]
         if sp->op <> cast( uint16, KW_EXTERN ) then continue for
+        if indexed = false then
+            indexed = true
+            for k as int32 = 0 to count - 1
+                dim as NodeId st2 = cast( NodeId, c.ast->children[first + k] )
+                if st2 = NODE_NONE then continue for
+                if c.ast->Kind( st2 ) <> N_VAR then continue for
+                dim as StmtPayload ptr sp2 = _
+                    @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, st2 )].data )]
+                if sp2->op = cast( uint16, KW_EXTERN ) then continue for
+                for m as int32 = 0 to sp2->count - 1
+                    dim as NodeId df = cast( NodeId, c.ast->children[sp2->first + m] )
+                    if c.ast->Kind( df ) <> N_VAR_ITEM then continue for
+                    dim as StmtPayload ptr dp = _
+                        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, df )].data )]
+                    if dp->name = 0 then continue for
+                    dim as uint32 key = cast( uint32, c.names->Fold( dp->name ) )
+                    dim as int32 e = defK.Count, t = -1
+                    defK.Push( k )
+                    defNode.Push( cast( uint32, df ) )
+                    defOp.Push( cast( uint32, sp2->op ) )
+                    defNext.Push( -1 )
+                    if defLast.TryGet( key, t ) then
+                        defNext[t] = e
+                    else
+                        defAt.Put( key, e )
+                    end if
+                    defLast.Put( key, e )
+                next
+            next
+        end if
         for j as int32 = 0 to sp->count - 1
             dim as NodeId ex = cast( NodeId, c.ast->children[sp->first + j] )
             if c.ast->Kind( ex ) <> N_VAR_ITEM then continue for
@@ -960,50 +999,14 @@ private sub CheckExternRange_ ( byref c as Ctx, byval first as int32, byval coun
                            (c.types->BuiltinOf( et ) = TY_USTRING)
             end if
             '' Every later declaration of the name in this block.
-            for k as int32 = i + 1 to count - 1
-                dim as NodeId st2 = cast( NodeId, c.ast->children[first + k] )
-                if st2 = NODE_NONE then continue for
-                if c.ast->Kind( st2 ) <> N_VAR then continue for
-                dim as StmtPayload ptr sp2 = _
-                    @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, st2 )].data )]
-                if sp2->op = cast( uint16, KW_EXTERN ) then continue for
-                for m as int32 = 0 to sp2->count - 1
-                    dim as NodeId df = cast( NodeId, c.ast->children[sp2->first + m] )
-                    if c.ast->Kind( df ) <> N_VAR_ITEM then continue for
-                    dim as StmtPayload ptr dp = _
-                        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, df )].data )]
-                    if dp->name = 0 then continue for
-                    if c.names->Fold( dp->name ) <> want then continue for
-                    if (c.ast->nodes[cast( int32, df )].flags and NF_QUALIFIED) <> 0 then continue for
-                    if sp2->op = cast( uint16, KW_REDIM ) then
-                        if (dp->a <> NODE_NONE) andalso (erank > 0) then
-                            c.diags->Report( TKO0723, PointRange( c.ast->Loc( df ) ) )
-                        end if
-                        continue for
-                    end if
-                    if isString andalso (dp->b <> NODE_NONE) then
-                        c.diags->Report( TKO0628, PointRange( c.ast->Loc( df ) ), _
-                                         c.names->Spelling( dp->name ) )
-                        continue for
-                    end if
-                    if erank <= 0 then continue for
-                    dim as int64 dlo(0 to 7), dhi(0 to 7)
-                    dim as int32 drank = WrittenBounds_( c, df, dlo(), dhi() )
-                    if drank <= 0 then continue for
-                    if drank <> erank then
-                        c.diags->Report( TKO0728, PointRange( c.ast->Loc( df ) ), _
-                                         c.names->Spelling( dp->name ) )
-                        continue for
-                    end if
-                    for d as int32 = 0 to erank - 1
-                        if (dlo(d) <> elo(d)) orelse (dhi(d) <> ehi(d)) then
-                            c.diags->Report( TKO0727, PointRange( c.ast->Loc( df ) ), _
-                                             c.names->Spelling( dp->name ) )
-                            exit for
-                        end if
-                    next
-                next
-            next
+            dim as int32 e = -1
+            if defAt.TryGet( cast( uint32, want ), e ) = false then e = -1
+            while e >= 0
+                if defK[e] > i then
+                    ExternPair_( c, cast( NodeId, defNode[e] ), defOp[e], erank, elo(), ehi(), isString )
+                end if
+                e = defNext[e]
+            wend
         next
     next
 end sub
