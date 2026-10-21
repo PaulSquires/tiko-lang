@@ -144,6 +144,12 @@ private sub SelectConstCheck_ _
     '' repeats one -- 'case 1, 1', 'case 1' twice, 'case 3' inside an earlier '2 to 4',
     '' and two ranges that share an end. A plain SELECT takes the first match instead.
     dim as containers.Array( of int64 ) prevLo, prevHi
+    '' ...SPLIT INTO POINTS AND RANGES, to find the FIRST earlier one that overlaps without
+    '' scanning them all per case (cases^2 for a big 'select case as const'): ptAt is a point
+    '' value -> its first k, rangeK every range's k in order. The answer is the same k.
+    dim as containers.Map( of int64, int32 ) ptAt
+    dim as containers.Array( of int32 ) rangeK
+    dim as int32 nPoints = 0
 
     for i as int32 = 0 to lp->count - 1
         dim as Tko.NodeId cs = cast( Tko.NodeId, c.ast->children[lp->first + i] )
@@ -184,13 +190,44 @@ private sub SelectConstCheck_ _
                 b = a
             end if
 
-            for k as int32 = 0 to prevLo.Count - 1
+            dim as int32 hit = -1
+            for r as int32 = 0 to rangeK.Count - 1
+                dim as int32 k = rangeK[r]
                 if (a <= prevHi[k]) andalso (b >= prevLo[k]) then
-                    c.diags->Report( Tko.TKO0977, Tko.PointRange( c.ast->Loc( loc ) ), _
-                                     str( iif( a > prevLo[k], a, prevLo[k] ) ) )
+                    hit = k
                     exit for
                 end if
             next
+            dim as int32 pk = -1
+            if a = b then
+                if ptAt.TryGet( a, pk ) then
+                    if (hit < 0) orelse (pk < hit) then hit = pk
+                end if
+            elseif ((b - a) > 0) andalso ((b - a) < nPoints) andalso (b < &h7FFFFFFFFFFFFFFFll) then
+                for v as int64 = a to b
+                    if ptAt.TryGet( v, pk ) then
+                        if (hit < 0) orelse (pk < hit) then hit = pk
+                    end if
+                next
+            else
+                for k as int32 = 0 to prevLo.Count - 1
+                    if (hit >= 0) andalso (k >= hit) then exit for
+                    if (prevLo[k] = prevHi[k]) andalso (a <= prevHi[k]) andalso (b >= prevLo[k]) then
+                        hit = k
+                        exit for
+                    end if
+                next
+            end if
+            if hit >= 0 then
+                c.diags->Report( Tko.TKO0977, Tko.PointRange( c.ast->Loc( loc ) ), _
+                                 str( iif( a > prevLo[hit], a, prevLo[hit] ) ) )
+            end if
+            if a = b then
+                if ptAt.Contains( a ) = false then ptAt.Put( a, prevLo.Count )
+                nPoints += 1
+            else
+                rangeK.Push( prevLo.Count )
+            end if
             prevLo.Push( a )
             prevHi.Push( b )
 
