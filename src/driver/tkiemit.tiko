@@ -69,6 +69,12 @@ type TkiWriter_
     '' The '' uses <chain> lines RequiredHeaders_ found: imported modules whose public
     '' headers the written tokens name something from.
     as string                  uses
+    '' INDEXES for what was scanned per token or per written name: by FileId, 1 for a file of
+    '' the module (InModule_); the chains already in 'uses' (AddUse_); and each public
+    '' header's FIRST entry in pr.pubHdrFile, by its file (PubUseOf_).
+    as containers.Array( of uint8 )      modMark
+    as containers.Set( of string )       usedSeen
+    as containers.Map( of uint32, int32 ) pubHdrAt
 end type
 
 function InterfaceNamespace( byref chain as string ) as string
@@ -90,10 +96,8 @@ end function
 
 private function InModule_( byref w as TkiWriter_, byval i as int32 ) as boolean
     dim as uint32 f = FileOf_( w, i )
-    for each m as uint32 in w.ctx->modFiles
-        if m = f then return true
-    next
-    return false
+    if f >= cast( uint32, w.modMark.Count ) then return false
+    return (w.modMark[f] <> 0)
 end function
 
 '' The end of line that ends the statement starting at i -- a ':' counts.
@@ -764,10 +768,8 @@ private sub Qualify_( byref w as TkiWriter_ )
     next
 end sub
 
-private sub AddUse_( byref used as Tko.StrVec, byref c as string )
-    for each u as string in used
-        if u = c then return
-    next
+private sub AddUse_( byref w as TkiWriter_, byref used as Tko.StrVec, byref c as string )
+    if w.usedSeen.Add( c ) = false then return
     used.Push( c )
 end sub
 
@@ -775,12 +777,8 @@ private sub PubUseOf_( byref w as TkiWriter_, byref pr as Tko.PpResult, _
                        byval q as Tko.Symbol ptr, byref used as Tko.StrVec )
     if q = nullptr then return
     dim as uint32 qf = cast( uint32, w.ctx->sources.Decode( q->loc ).file )
-    for k as int32 = 0 to pr.pubHdrFile.Count - 1
-        if pr.pubHdrFile[k] = qf then
-            AddUse_( used, pr.pubHdrChain[k] )
-            return
-        end if
-    next
+    dim as int32 k = -1
+    if w.pubHdrAt.TryGet( qf, k ) then AddUse_( w, used, pr.pubHdrChain[k] )
 end sub
 
 '' WHICH IMPORTED MODULE'S PUBLIC HEADER a written name comes from, if any: added to used.
@@ -809,7 +807,7 @@ private sub PubUses_ _
     '' A builtin -- 'long' -- has no symbol either, but has a type.
     if w.info->TypeOf_( nd ) <> Tko.TYPE_NONE then return
     for each c as string in pr.pubHdrChain
-        AddUse_( used, c )
+        AddUse_( w, used, c )
     next
 end sub
 
@@ -832,9 +830,21 @@ private function RequiredHeaders_ _
     '' must read them too, though it did not import that module itself. An exported macro
     '' can name anything, so with one, every such module is used.
     dim as Tko.StrVec used
+    w.usedSeen.Clear( )
     if (pr <> nullptr) andalso allOf then
         for each c as string in pr->pubHdrChain
-            AddUse_( used, c )
+            AddUse_( w, used, c )
+        next
+    end if
+    '' THE HEADERS BY FILE, first entry of each: a written name was a scan of both lists.
+    dim as containers.Map( of uint32, int32 ) modHdrAt
+    w.pubHdrAt.Clear( )
+    if pr <> nullptr then
+        for k as int32 = 0 to pr->modHdrFile.Count - 1
+            modHdrAt.Add( pr->modHdrFile[k], k )
+        next
+        for k as int32 = 0 to pr->pubHdrFile.Count - 1
+            w.pubHdrAt.Add( pr->pubHdrFile[k], k )
         next
     end if
     '' 'public #cinclude' (T101): those travel whatever the interface names.
@@ -870,16 +880,14 @@ private function RequiredHeaders_ _
             PubUses_( w, *pr, nd, nm, s, used )
             if s = nullptr then continue for
             dim as uint32 f = cast( uint32, w.ctx->sources.Decode( s->loc ).file )
-            for k as int32 = 0 to pr->modHdrFile.Count - 1
-                if pr->modHdrFile[k] = f then
-                    dim as int32 r = cast( int32, pr->modHdrRoot[k] )
-                    if (r >= 0) andalso (r < need.Count) then
-                        need[r] = 1
-                        byName[r] = 1
-                    end if
-                    exit for
+            dim as int32 k = -1
+            if modHdrAt.TryGet( f, k ) then
+                dim as int32 r = cast( int32, pr->modHdrRoot[k] )
+                if (r >= 0) andalso (r < need.Count) then
+                    need[r] = 1
+                    byName[r] = 1
                 end if
-            next
+            end if
         next
     end if
     w.uses = ""
@@ -948,7 +956,7 @@ private function Joins_( byref w as TkiWriter_ ) as string
     dim as string r = ""
     dim as Tko.ScopeId ms = Tko.ModSym.ModuleScope( *w.syms )
     if ms = Tko.SCOPE_NONE then return r
-    dim as containers.Array( of uint32 ) done_
+    dim as containers.Set( of uint32 ) done_     '' the names joined so far
     for si as int32 = 1 to w.syms->Count( )
         dim as Tko.Symbol ptr ps = w.syms->SymbolAt( cast( Tko.SymbolId, si ) )
         if ps = nullptr then continue for
@@ -957,11 +965,7 @@ private function Joins_( byref w as TkiWriter_ ) as string
         if (ps->flags and Tko.SYMF_MODSRC) = 0 then continue for
         if (ps->flags and Tko.SYMF_PUBLIC) = 0 then continue for
         if (ps->flags and Tko.SYMF_OVERLOAD) = 0 then continue for
-        dim as boolean seen = false
-        for each d as uint32 in done_
-            if d = cast( uint32, ps->name ) then seen = true
-        next
-        if seen then continue for
+        if done_.Contains( cast( uint32, ps->name ) ) then continue for
         dim as Tko.SymbolId cur = w.syms->LookupLocal( ms, ps->name )
         dim as Tko.Symbol ptr hs = w.syms->SymbolAt( cur )
         if hs = nullptr then continue for
@@ -979,7 +983,7 @@ private function Joins_( byref w as TkiWriter_ ) as string
             cur = os->nextOverload
         wend
         if joined = false then continue for
-        done_.Push( cast( uint32, ps->name ) )
+        done_.Add( cast( uint32, ps->name ) )
         r &= "'' joins " & w.ctx->names.Spelling( ps->name ) & !"\n"
     next
     return r
@@ -997,6 +1001,12 @@ function WriteInterface _
     w.aliases = @aliases : w.spaces = @spaces
     w.atLineStart = true
     w.prevTok = -1
+    for each m as uint32 in ctx.modFiles
+        while cast( uint32, w.modMark.Count ) <= m
+            w.modMark.Push( 0 )
+        wend
+        w.modMark[m] = 1
+    next
     for j as int32 = 0 to toks.Count - 1
         w.endAt.Push( 0 )
         w.nodeAt.Push( 0 )
