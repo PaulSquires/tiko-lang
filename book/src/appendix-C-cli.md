@@ -105,7 +105,7 @@ A subcommand is the first word on the command line. It builds a project from its
 
 | Option | What it does |
 |---|---|
-| `-target ‹name›` | windows-x86_64 (the Windows default) or linux-x86_64 |
+| `-target ‹name›` | windows-x86_64 (the Windows default), linux-x86_64 or macos-arm64 |
 | `-m64` | 64-bit target (the only supported width) |
 | `-m32` | rejected: 32-bit is not supported (x86-64 only) |
 | `-s ‹console|gui›` | Windows subsystem of an executable; console is the default |
@@ -171,4 +171,4 @@ A subcommand is the first word on the command line. It builds a project from its
 | `--build-only-unit ‹n›` | internal to 'tiko build': compile root n alone into the cache, and link nothing |
 | `--bootstrap-subset-check` | reject constructs outside the self-hosting subset |
 
-<!-- 91 options, generated 2026-10-20 from src/driver/options.ti at 5adabac30 -->
+<!-- 91 options, generated 2026-10-20 from src/driver/options.ti at 7e528c1f2 -->
