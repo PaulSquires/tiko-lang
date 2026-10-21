@@ -27,9 +27,9 @@ namespace Tko.Scan
 
 function ScanResult.FileIndex( byref absPath as string ) as int32
     dim as string key = Tko.Text.LowerAscii( absPath )
-    for i as int32 = 0 to this.files.Count - 1
-        if Tko.Text.LowerAscii( this.files[i] ) = key then return i
-    next
+    dim as int32 at = -1
+    if this.fileKey.TryGet( key, at ) then return at
+    this.fileKey.Put( key, this.files.Count )
     this.files.Push( absPath )
     return this.files.Count - 1
 end function
@@ -686,16 +686,32 @@ sub Finish( byref ctx as Tko.CompilerContext )
     if r = nullptr then return
     dim as int32 n = r->syms.Count
 
-    '' Each alias takes its module's public top-level symbols.
+    '' Each alias takes its module's public top-level symbols. GROUPED BY CHAIN, once: it was
+    '' every symbol lowercased again for every alias. A symbol goes to the first alias of its
+    '' chain, as the alias-by-alias pass gave it -- or on to the next, should one leave it at top level.
+    dim as containers.Map( of string, int32 ) firstAlias
+    dim as containers.Array( of int32 ) nextAlias
     for a as int32 = 0 to r->aliasRec.Count - 1
+        nextAlias.Push( -1 )
+    next
+    for a as int32 = r->aliasRec.Count - 1 to 0 step -1
         dim as string want = Tko.Text.LowerAscii( r->aliasChain[a] )
+        dim as int32 later = -1
+        if firstAlias.TryGet( want, later ) then nextAlias[a] = later
+        firstAlias.Put( want, a )
+    next
+    if r->aliasRec.Count > 0 then
         for i as int32 = 0 to n - 1
             if r->syms[i].parent >= 0 then continue for
             if r->syms[i].isPublic = false then continue for
-            if Tko.Text.LowerAscii( r->syms[i].chain ) <> want then continue for
-            r->syms[i].parent = r->aliasRec[a]
+            dim as int32 a = -1
+            if firstAlias.TryGet( Tko.Text.LowerAscii( r->syms[i].chain ), a ) = false then continue for
+            while (a >= 0) andalso (r->syms[i].parent < 0)
+                r->syms[i].parent = r->aliasRec[a]
+                a = nextAlias[a]
+            wend
         next
-    next
+    end if
 
     '' WHAT THE ROOT CANNOT SEE goes: a module's record still at top level (private, or of
     '' a module only a module imports), and everything under one.

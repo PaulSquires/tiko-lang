@@ -85,6 +85,9 @@ namespace Tko.Scan
     type ScanResult
         as ScanSymVec  syms
         as StrVec      files    '' absolute paths as tiko spells them
+        '' ...each one's index by its lowercased path, pushed with it (FileIndex is files'
+        '' only writer): every record's file was a scan lowercasing every path so far.
+        as containers.Map( of string, int32 ) fileKey
         as ScanDiagVec diags
         '' ---- input: the root's text, when the caller scans an unsaved buffer ----
         as boolean     hasRootText
