@@ -52,6 +52,7 @@ namespace Tko
     end type
 
     type UdtIndexMap as containers.Map( of uint32, int32 )
+    type UdtFieldMap as containers.Map( of int64, int32 )
 
     '' Layouts live beside the type table rather than inside TypeInfo: only a few
     '' types are UDTs, and the field pool would otherwise sit unused on every one.
@@ -67,8 +68,20 @@ namespace Tko
         '' looked up per call: FieldOffset has no interner and is on the hot path of
         '' every member access.
         as InternId                baseName
+        '' A BIG LAYOUT'S FIELDS BY NAME: (layout shl 32) or name -> field index, the
+        '' FIRST field of that name, as the scan was. A scan per member access was
+        '' fields x accesses -- 16k fields took 2 s to lower. Built on a layout's first
+        '' query (fieldsAt_[ui] <> 0); safe because a layout's fields never change once
+        '' Add has it. fieldsAt_[ui] also holds its LAST 'base' field plus two.
+        as UdtFieldMap             fieldAt_
+        as containers.Array( of int32 ) fieldsAt_
 
         declare function Find( byval t as TypeId ) as int32
+        '' The first field of layout 'ui' named 'nm', as an index into fields; -1 for none.
+        declare function FieldIndexIn( byval ui as int32, byval nm as InternId ) as int32
+        '' The last field of layout 'ui' named 'base', -1 for none.
+        declare function BaseFieldIn( byval ui as int32 ) as int32
+        declare sub IndexFields_( byval ui as int32 )
         declare sub Add( byref u as UdtInfo )
         declare function FieldOffset _
             ( byval t as TypeId, byval nm as InternId, byref found as boolean ) as int32

@@ -21,6 +21,56 @@ sub UdtLayouts.Add( byref u as UdtInfo )
     this.udts.Push( u )
 end sub
 
+'' A layout this small is scanned: the map costs more than it saves.
+const UDT_FIELD_SCAN_MAX as int32 = 8
+
+private function FieldKey_( byval ui as int32, byval nm as InternId ) as int64
+    return (cast( int64, ui ) shl 32) or cast( int64, cast( uint32, nm ) )
+end function
+
+sub UdtLayouts.IndexFields_( byval ui as int32 )
+    while this.fieldsAt_.Count <= ui
+        this.fieldsAt_.Push( 0 )
+    wend
+    if this.fieldsAt_[ui] <> 0 then return
+    dim as UdtInfo ptr u = @this.udts[ui]
+    dim as int32 lastBase = -1
+    for i as int32 = 0 to u->count - 1
+        dim as int32 fi = u->first + i
+        dim as int64 k = FieldKey_( ui, this.fields[fi].name )
+        if this.fieldAt_.Contains( k ) = false then this.fieldAt_.Put( k, fi )
+        if this.fields[fi].name = this.baseName then lastBase = fi
+    next
+    this.fieldsAt_[ui] = lastBase + 2
+end sub
+
+function UdtLayouts.FieldIndexIn( byval ui as int32, byval nm as InternId ) as int32
+    dim as UdtInfo ptr u = @this.udts[ui]
+    if u->count <= UDT_FIELD_SCAN_MAX then
+        for i as int32 = 0 to u->count - 1
+            if this.fields[u->first + i].name = nm then return u->first + i
+        next
+        return -1
+    end if
+    this.IndexFields_( ui )
+    dim as int32 fi = -1
+    if this.fieldAt_.TryGet( FieldKey_( ui, nm ), fi ) then return fi
+    return -1
+end function
+
+function UdtLayouts.BaseFieldIn( byval ui as int32 ) as int32
+    dim as UdtInfo ptr u = @this.udts[ui]
+    if u->count <= UDT_FIELD_SCAN_MAX then
+        dim as int32 baseAt = -1
+        for i as int32 = 0 to u->count - 1
+            if this.fields[u->first + i].name = this.baseName then baseAt = u->first + i
+        next
+        return baseAt
+    end if
+    this.IndexFields_( ui )
+    return this.fieldsAt_[ui] - 2
+end function
+
 function UdtLayouts.FieldOffset _
     ( byval t as TypeId, byval nm as InternId, byref found as boolean ) as int32
 
@@ -37,16 +87,13 @@ function UdtLayouts.FieldOffsetType _
     fieldType = TYPE_NONE
     dim as int32 ui = this.Find( t )
     if ui < 0 then return 0
-    dim as UdtInfo ptr u = @this.udts[ui]
-    dim as int32 baseAt = -1
-    for i as int32 = 0 to u->count - 1
-        if this.fields[u->first + i].name = nm then
-            found = true
-            fieldType = this.fields[u->first + i].type_
-            return this.fields[u->first + i].offset
-        end if
-        if this.fields[u->first + i].name = this.baseName then baseAt = u->first + i
-    next
+    dim as int32 fi = this.FieldIndexIn( ui, nm )
+    if fi >= 0 then
+        found = true
+        fieldType = this.fields[fi].type_
+        return this.fields[fi].offset
+    end if
+    dim as int32 baseAt = this.BaseFieldIn( ui )
 
     '' AN INHERITED FIELD. 'extends T' is a field named 'base', so a name this type does
     '' not hold is looked for in that field's type, and its offset is added -- which is

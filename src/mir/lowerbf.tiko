@@ -89,13 +89,7 @@ function BitfieldParts _
     dim as int32 ui = c.udts->Find( bt )
     if ui < 0 then return false
     dim as int32 off = 0
-    dim as int32 fi = -1
-    for i as int32 = 0 to c.udts->udts[ui].count - 1
-        if c.udts->fields[c.udts->udts[ui].first + i].name = fs->name then
-            fi = c.udts->udts[ui].first + i
-            exit for
-        end if
-    next
+    dim as int32 fi = c.udts->FieldIndexIn( ui, fs->name )
     if fi < 0 then return false
     if BitfieldUnit_( c, fi, fs->type_, off, bitOff, bitWidth, unitTy, unitUnsigned ) = false then return false
     dim as MirInst fa
@@ -382,10 +376,7 @@ function BitfieldMemberInit_ _
     if (f = nullptr) orelse ((f->flags and Tko.SYMF_BITFIELD) = 0) then return false
     dim as int32 ui = c.udts->Find( t )
     if ui < 0 then return false
-    dim as int32 fi = -1
-    for i as int32 = 0 to c.udts->udts[ui].count - 1
-        if c.udts->fields[c.udts->udts[ui].first + i].name = f->name then fi = c.udts->udts[ui].first + i : exit for
-    next
+    dim as int32 fi = c.udts->FieldIndexIn( ui, f->name )
     if fi < 0 then return false
     dim as MirValue v = ConstInt( c, 0, MT_I64 )
     if init <> Tko.NODE_NONE then v = LowerNumArg_( c, init, MT_I64 )
