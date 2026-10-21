@@ -11,16 +11,20 @@
 '' RelexInto records either against (loc, kind, id); the newest entry wins, so two pastes at one
 '' use site that differ only in case or spacing read the second's -- the one place this is
 '' still wrong. -1 when nothing was recorded.
+'' The notes of one (loc, id) are a chain, newest first (ppindex.tiko): the backward scan of
+'' every note, per synthesised identifier, restricted to the ones that can match.
 private function PasteNoteOf_( byref e as PpEngine, byref t as Token, byval wantGap as boolean ) as int32
     if (t.flags and TF_SYNTHESISED) = 0 then return -1
-    for i as int32 = e.pasteLoc.Count - 1 to 0 step -1
-        if (e.pasteLoc[i] = cast( uint32, t.loc )) andalso (e.pasteId[i] = cast( uint32, t.literal )) andalso _
-           (e.pasteKind[i] = cast( uint32, t.kind )) then
+    dim as int32 i = -1
+    if e.ix.pasteHead.TryGet( PpPasteKey_( cast( uint32, t.loc ), cast( uint32, t.literal ) ), i ) = false then return -1
+    while i >= 0
+        if e.pasteKind[i] = cast( uint32, t.kind ) then
             '' The newest entry that HAS the answer: a speculative join's re-lex ('Y' against
             '' ')', ppjoin.tiko) notes the same token again with no gap of its own.
             if len( iif( wantGap, e.pasteGap[i], e.pasteText[i] ) ) > 0 then return i
         end if
-    next
+        i = e.ix.pastePrev[i]
+    wend
     return -1
 end function
 
@@ -110,10 +114,7 @@ private sub RelexInto _
                     memcpy( strptr( gp ), @idf->text[k], id_.offset - k )
                 end if
             end if
-            if (len( sp ) > 0) orelse (len( gp ) > 0) then
-                e.pasteLoc.Push( cast( uint32, at ) ) : e.pasteId.Push( cast( uint32, t.literal ) )
-                e.pasteKind.Push( cast( uint32, t.kind ) ) : e.pasteText.Push( sp ) : e.pasteGap.Push( gp )
-            end if
+            if (len( sp ) > 0) orelse (len( gp ) > 0) then PpPasteNote_( e, at, t, sp, gp )
             t.loc = at
         end if
         t.flags or= TF_FROM_MACRO

@@ -9,6 +9,7 @@
 #import "std/fs"
 #include once "pp/pp.ti"
 #include once "pp/ppmodule.ti"
+#include once "pp/ppindex.ti"
 #include once "support/text.ti"
 
 namespace Tko
@@ -233,6 +234,7 @@ type PpEngine
     as int32                   optionDepth( 0 to 1 )
     as int32                   optionStack( 0 to (2 * PP_OPTION_STACK_MAX) - 1 )
     as PpModState             modst         '' '#module' / '#import' / '#export': ppmodule.tiko
+    as PpIndexes              ix            '' lookup indexes beside the lists above: ppindex.tiko
 end type
 
 '' --------------------------------------------------------------- small helpers
@@ -305,7 +307,7 @@ private function IsDeclaredVisible_( byref e as PpEngine, byval id as InternId )
         dim as string ns = mid( ofs, a, b - a )
         dim as string nsl = Text.LowerAscii( ns )
         if (cur = nsl) orelse (left( cur, len( nsl ) + 1 ) = nsl & ".") then return true
-        if instr( e.usingPaths, "|" & nsl & "|" ) > 0 then return true
+        if e.ix.usingSet.Contains( nsl ) then return true   '' = instr( usingPaths, "|nsl|" )
         a = b + 1
     wend
     return false
@@ -331,15 +333,7 @@ private sub MarkConst_ _
     e.constVal[ix] = v
 end sub
 
-'' A declaration in a module's interface: not the importer's name (RFC-0004 §5).
-private function InIfaceFile_( byref e as PpEngine, byval at as SourceLoc ) as boolean
-    if (at = LOC_NONE) orelse (e.modst.ifaceFiles.Count = 0) then return false
-    dim as uint32 f = cast( uint32, e.src->Decode( at ).file )
-    for each x as uint32 in e.modst.ifaceFiles
-        if x = f then return true
-    next
-    return false
-end function
+#include once "pp/ppindex.tiko"   '' the lookup indexes, InIfaceFile_
 
 #include once "pp/pplocal.tiko"   '' PpProcEnter, PpProcLeave, the local notes
 
@@ -444,7 +438,7 @@ sub PpNoteUsingIn( byref st as PpStream, byval fromNs as string, byval path as s
     dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
     dim as string pr = fromNs & ">" & path
     if len( e->usingIn ) = 0 then e->usingIn = "|"
-    if instr( e->usingIn, "|" & pr & "|" ) = 0 then e->usingIn += pr & "|"
+    if e->ix.usingInSet.Add( pr ) then e->usingIn += pr & "|"
 end sub
 
 sub PpNoteTypeNs( byref st as PpStream, byval nm as InternId, byval nsPath as string )
@@ -462,7 +456,7 @@ sub PpNoteUsing( byref st as PpStream, byval path as string )
     if (st.engine = nullptr) orelse (len( path ) = 0) then return
     dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
     if len( e->usingPaths ) = 0 then e->usingPaths = "|"
-    if instr( e->usingPaths, "|" & path & "|" ) = 0 then e->usingPaths += path & "|"
+    if e->ix.usingSet.Add( path ) then e->usingPaths += path & "|"
 end sub
 
 function PpHasDeclared( byref st as PpStream, byval nm as InternId ) as boolean
@@ -1256,13 +1250,7 @@ private sub PpTrackBlock( byref e as PpEngine, byref t as Token )
     if closer then
         if e.blockDepth > 0 then e.blockDepth -= 1
         '' Everything defined deeper than the block just closed goes with it.
-        for i as int32 = 0 to e.macros.Count - 1
-            if e.macros[i].isDefined then
-                if e.macros[i].blockDepth > e.blockDepth then
-                    e.macros[i].isDefined = false
-                end if
-            end if
-        next
+        PpCloseBlockMacros_( e )   '' ppindex.tiko
     end if
 
     '' Only KEYWORDS are remembered: an identifier between END and SUB is not a

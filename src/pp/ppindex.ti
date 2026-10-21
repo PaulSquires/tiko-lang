@@ -1,0 +1,57 @@
+'' ppindex.ti -- the preprocessor's LOOKUP INDEXES: membership flags and maps kept beside
+'' lists the engine used to scan per directive or per token. See ppindex.tiko. Engine-
+'' private: included by pp.tiko only.
+''
+'' EVERY ONE GIVES THE ANSWER ITS SCAN GAVE -- first match, last match, insertion order --
+'' and every list it indexes is still there, still written, for whatever reads it in order.
+'' An index over a list on the PpResult (which outlives the engine and is not written here
+'' alone in principle) is caught up lazily from a count, and rebuilt if the list shrank.
+
+#pragma once
+
+#include once "pp/pp.ti"
+
+namespace Tko
+
+type PpIndexes
+    '' BY FileId, non-zero: onceFiles, allIncluded and modst.ifaceFiles as flags. Every
+    '' '#include' asked the first two by a scan -- 8,000 distinct '#include once' files took
+    '' 0.66 s in the preprocessor alone, doubling 2.2x per doubling (tiko-speed M4).
+    as IdVec     onceMark
+    as IdVec     inclMark
+    as IdVec     ifaceMark
+    '' THE MACRO SLOTS EVER DEFINED INSIDE A BLOCK (blockDepth > 0), once each: all that an
+    '' 'end sub' / 'end function' / 'end scope' can undefine. It swept the whole table --
+    '' windows.bi's twenty thousand macros -- at every one.
+    as IdVec     blockMark
+    as IdVec     blockSlots
+    '' usingPaths and usingIn as sets of their "|...|" entries: 'instr' over the whole string
+    '' per 'using' was quadratic in the usings.
+    as containers.Set( of string ) usingSet
+    as containers.Set( of string ) usingInSet
+    '' THE NEWEST PASTE NOTE PER (loc, id), and per note the previous one of that key: what
+    '' PasteNoteOf_ walked backwards over every note for, per synthesised identifier.
+    as containers.Map( of int64, int32 ) pasteHead
+    as containers.Array( of int32 ) pastePrev
+    '' '#pragma reserve': per folded id, the modes claimed so far, OR-ed.
+    as IdVec     reserveAcc
+    '' modst.aliasIds: per InternId, the LAST index holding it + 1 (the scan had no exit).
+    as IdVec     aliasLast
+    '' modst.parkedIds: per InternId, its index + 1. Each id is parked once and updated after.
+    as IdVec     parkedAt
+    '' modst.parkedFile GROUPED BY FILE for PpModHermSkip, rebuilt when a park changed it:
+    '' the distinct files, each group's first and last parked index, and the next index in
+    '' the same group (-1 ends it).
+    as boolean   hermDirty
+    as IdVec     hermGrpFile
+    as containers.Array( of int32 ) hermGrpHead, hermGrpTail, hermNext
+    '' THE PpResult'S MODULE-HEADER LISTS (ppmodule.tiko, ppmodhdr.tiko), caught up from
+    '' these counts: per FileId the FIRST modHdrFile entry's root + 1 and the FIRST
+    '' pubHdrFile entry's index + 1; per path the LAST modHeaders index.
+    as int32      hdrSeen, pubSeen, pathSeen
+    as IdVec     hdrRootOf
+    as IdVec     pubHdrAt
+    as containers.Map( of string, int32 ) hdrPathAt
+end type
+
+end namespace

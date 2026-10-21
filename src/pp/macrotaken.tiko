@@ -42,7 +42,7 @@ private sub TakenName_( byref e as PpEngine, byref t as Token, byval id as Inter
                     dim as int32 b = instr( a, ofs, "|" )
                     if b = 0 then exit while
                     dim as string ns = mid( ofs, a, b - a )
-                    if instr( e.usingPaths, "|" & ns & "|" ) > 0 then
+                    if e.ix.usingSet.Contains( ns ) then   '' = instr( usingPaths, "|ns|" )
                         what = "already declared, in namespace '" & ns & "' that a 'using' imports"
                         exit while
                     end if

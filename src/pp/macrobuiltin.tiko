@@ -9,11 +9,7 @@
 
 private function FileShown_( byref e as PpEngine, byref d as DecodedLoc ) as string
     if d.shownName <> INTERN_NONE then return e.src->ShownPathOf( d )
-    dim as boolean included = false
-    for each f as uint32 in e.allIncluded
-        if cast( FileId, f ) = d.file then included = true
-    next
-    if included = false then return e.src->ShownPathOf( d )
+    if PpWasIncluded_( e, d.file ) = false then return e.src->ShownPathOf( d )   '' allIncluded, by flag
     dim as string ap = e.src->AbsPathOf( d.file )
     #ifdef __FB_WIN32__
         for k as int32 = 0 to len( ap ) - 1

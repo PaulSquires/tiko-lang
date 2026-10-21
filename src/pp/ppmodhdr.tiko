@@ -44,13 +44,10 @@ private function PpModHdrSlot_( byref e as PpEngine ) as int32
     if e.cfg->moduleFiles = nullptr then return -1
     if e.modst.pubRoots.Count = 0 then return -1
     dim as uint32 f = cast( uint32, PpModHdrFile_( e ) )
-    dim as int32 root = -1
-    for k as int32 = 0 to e.outp->modHdrFile.Count - 1
-        if e.outp->modHdrFile[k] = f then
-            root = cast( int32, e.outp->modHdrRoot[k] )
-            exit for
-        end if
-    next
+    '' The first modHdrFile entry's root, indexed (ppindex.tiko): asked per '#define', per
+    '' '#undef' and per name a conditional reads.
+    PpModHdrSync_( e )
+    dim as int32 root = cast( int32, PpFlagOf_( e.ix.hdrRootOf, f ) ) - 1
     if root < 0 then return -1
     for s as int32 = 0 to e.modst.pubRoots.Count - 1
         if cast( int32, e.modst.pubRoots[s] ) = root then return s
@@ -70,10 +67,7 @@ end sub
 sub PpModMarkPublic _
     ( byref e as PpEngine, byval at as SourceLoc, byval got as FileId, byref what as string )
     dim as string p = e.src->AbsPathOf( got )
-    dim as int32 k = -1
-    for i as int32 = 0 to e.outp->modHeaders.Count - 1
-        if e.outp->modHeaders[i] = p then k = i
-    next
+    dim as int32 k = PpModHeaderAt_( e, p )
     if (e.modst.isModuleFile = false) orelse (k < 0) then
         Report( e, TKO0369, at, what )
         return
@@ -253,16 +247,16 @@ end sub
 private sub PpModHermPark1_( byref e as PpEngine, byval i as int32 )
     dim as PpMacro ptr m = @e.macros[i]
     dim as uint32 id = cast( uint32, m->name )
-    dim as int32 at_ = -1
-    for k as int32 = 0 to e.modst.parkedIds.Count - 1
-        if e.modst.parkedIds[k] = id then at_ = k : exit for
-    next
+    '' parkedIds holds each id once: its index by flag (ppindex.tiko), not by a scan.
+    dim as int32 at_ = cast( int32, PpFlagOf_( e.ix.parkedAt, id ) ) - 1
     dim as uint32 df = 0
     if m->loc <> LOC_NONE then df = cast( uint32, e.src->Decode( m->loc ).file )
+    e.ix.hermDirty = true
     if at_ < 0 then
         e.modst.parkedIds.Push( id )
         e.modst.parkedMacs.Push( *m )
         e.modst.parkedFile.Push( df )
+        PpFlagSet_( e.ix.parkedAt, id, cast( uint32, e.modst.parkedIds.Count ) )
     else
         e.modst.parkedMacs[at_] = *m
         e.modst.parkedFile[at_] = df
@@ -310,15 +304,41 @@ sub PpModHermNote( byref e as PpEngine, byval from as FileId, byval got as FileI
     if e.modst.inclParent[g] = 0 then e.modst.inclParent[g] = cast( uint32, from )
 end sub
 
+'' modst.parkedFile GROUPED BY FILE, for PpModHermSkip (ppindex.ti).
+private sub PpModHermGroup_( byref e as PpEngine )
+    e.ix.hermDirty = false
+    e.ix.hermGrpFile.Clear( ) : e.ix.hermGrpHead.Clear( ) : e.ix.hermGrpTail.Clear( ) : e.ix.hermNext.Clear( )
+    dim as containers.Map( of uint32, int32 ) grp
+    for k as int32 = 0 to e.modst.parkedIds.Count - 1
+        dim as uint32 f = e.modst.parkedFile[k]
+        dim as int32 g = -1
+        e.ix.hermNext.Push( -1 )
+        if grp.TryGet( f, g ) then
+            e.ix.hermNext[e.ix.hermGrpTail[g]] = k
+            e.ix.hermGrpTail[g] = k
+        else
+            grp.Put( f, e.ix.hermGrpFile.Count )
+            e.ix.hermGrpFile.Push( f )
+            e.ix.hermGrpHead.Push( k )
+            e.ix.hermGrpTail.Push( k )
+        end if
+    next
+end sub
+
 '' AN '#include' THE once RULE SKIPS: the header was read already, perhaps in a module's
 '' interface, whose region parked its macros. The reader that includes it itself gets them
 '' back -- every parked macro defined in that header or in a file it included -- unless it
 '' has defined the name again meanwhile.
+''
+'' THE WALK UP THE INCLUDE CHAIN IS PER FILE, not per parked macro: the parked macros are grouped
+'' by the file each was defined in (PpModHermGroup_), and a group whose file is not under got is
+'' passed over whole. Parked ids are distinct, so the order the macros come back in is no matter.
+'' It walked every parked macro's chain at every skipped include -- windows.bi's, in a module.
 sub PpModHermSkip( byref e as PpEngine, byval got as FileId )
-    for k as int32 = 0 to e.modst.parkedIds.Count - 1
-        dim as InternId id = cast( InternId, e.modst.parkedIds[k] )
-        if MacroFor( e, id ) <> nullptr then continue for
-        dim as uint32 f = e.modst.parkedFile[k]
+    if e.modst.parkedIds.Count = 0 then return
+    if e.ix.hermDirty orelse (e.ix.hermNext.Count <> e.modst.parkedIds.Count) then PpModHermGroup_( e )
+    for g as int32 = 0 to e.ix.hermGrpFile.Count - 1
+        dim as uint32 f = e.ix.hermGrpFile[g]
         dim as int32 hops = 0
         while (f <> 0) andalso (f <> cast( uint32, got )) andalso (hops < 64)
             if cast( int32, f ) >= e.modst.inclParent.Count then f = 0 : exit while
@@ -326,9 +346,15 @@ sub PpModHermSkip( byref e as PpEngine, byval got as FileId )
             hops += 1
         wend
         if f <> cast( uint32, got ) then continue for
-        dim as int32 slot = SlotOf( e, id )
-        if slot = 0 then continue for
-        e.macros[slot - 1] = e.modst.parkedMacs[k]
+        dim as int32 k = e.ix.hermGrpHead[g]
+        while k >= 0
+            dim as InternId id = cast( InternId, e.modst.parkedIds[k] )
+            if MacroFor( e, id ) = nullptr then
+                dim as int32 slot = SlotOf( e, id )
+                if slot > 0 then e.macros[slot - 1] = e.modst.parkedMacs[k]
+            end if
+            k = e.ix.hermNext[k]
+        wend
     next
 end sub
 

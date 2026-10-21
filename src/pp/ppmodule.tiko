@@ -98,18 +98,15 @@ sub PpModNoteHeader( byref e as PpEngine, byval from as FileId, byval got as Fil
         dim as string fp = e.src->PathOf( from )
         if right( fp, 8 ) = ".pub.tki" then pc = left( fp, len( fp ) - 8 )
     end if
+    '' THE FIRST ENTRY PER FILE of pubHdrFile and modHdrFile, and the last per path of
+    '' modHeaders, are indexed (PpModHdrSync_, ppindex.tiko): this runs per '#include'.
+    PpModHdrSync_( e )
     if len( pc ) = 0 then
-        for k as int32 = 0 to e.outp->pubHdrFile.Count - 1
-            if e.outp->pubHdrFile[k] = cast( uint32, from ) then
-                pc = e.outp->pubHdrChain[k]
-                exit for
-            end if
-        next
+        dim as int32 pk = cast( int32, PpFlagOf_( e.ix.pubHdrAt, cast( uint32, from ) ) ) - 1
+        if pk >= 0 then pc = e.outp->pubHdrChain[pk]
     end if
     if len( pc ) > 0 then
-        for each f as uint32 in e.outp->pubHdrFile
-            if f = cast( uint32, got ) then return
-        next
+        if PpFlagOf_( e.ix.pubHdrAt, cast( uint32, got ) ) <> 0 then return
         e.outp->pubHdrFile.Push( cast( uint32, got ) )
         e.outp->pubHdrChain.Push( pc )
         return
@@ -121,27 +118,19 @@ sub PpModNoteHeader( byref e as PpEngine, byval from as FileId, byval got as Fil
     dim as int32 root = -1
     if own then
         dim as string p = e.src->AbsPathOf( got )
-        for k as int32 = 0 to e.outp->modHeaders.Count - 1
-            if e.outp->modHeaders[k] = p then root = k
-        next
+        root = PpModHeaderAt_( e, p )
         if root < 0 then
             root = e.outp->modHeaders.Count
             e.outp->modHeaders.Push( p )
         end if
     else
         '' A file a header includes belongs to that header's subtree.
-        for k as int32 = 0 to e.outp->modHdrFile.Count - 1
-            if e.outp->modHdrFile[k] = cast( uint32, from ) then
-                root = cast( int32, e.outp->modHdrRoot[k] )
-                exit for
-            end if
-        next
+        root = cast( int32, PpFlagOf_( e.ix.hdrRootOf, cast( uint32, from ) ) ) - 1
         if root < 0 then return
     end if
     '' The first header to reach a file keeps it.
-    for each f as uint32 in e.outp->modHdrFile
-        if f = cast( uint32, got ) then return
-    next
+    PpModHdrSync_( e )
+    if PpFlagOf_( e.ix.hdrRootOf, cast( uint32, got ) ) <> 0 then return
     e.outp->modHdrFile.Push( cast( uint32, got ) )
     e.outp->modHdrRoot.Push( cast( uint32, root ) )
 end sub
@@ -486,13 +475,12 @@ private sub PpModImport_( byref e as PpEngine, byval at as SourceLoc )
     dim as PpImportFn fn = e.cfg->importFn
     dim as string chain_
     if fn( e.cfg->importCtx, rec, got, chain_ ) = false then return
-    e.modst.aliasIds.Push( cast( uint32, e.names->GetString( Text.LowerAscii( rec.alias_ ) ) ) )
-    e.modst.aliasChains.Push( chain_ )
+    PpAliasAdd_( e, e.names->GetString( Text.LowerAscii( rec.alias_ ) ), chain_ )
     for k as int32 = got.Count - 1 to 0 step -1
         dim as FileId id = cast( FileId, got[k] )
         if PpAlreadyOnce( e, id ) then continue for
-        e.onceFiles.Push( cast( uint32, id ) )
-        e.modst.ifaceFiles.Push( cast( uint32, id ) )
+        PpOnceAdd_( e, id )
+        PpIfaceAdd_( e, id )
         dim as TokenVec ptr toks = PpLexFile( e, id )
         PushFrame( e, toks, INTERN_NONE, id, false )
         e.frames[e.frames.Count - 1].iface = true
@@ -538,10 +526,8 @@ end function
 '' its module exports (RFC-0004 §6): expanded through the macro's interface name. The three
 '' tokens have to be in one frame. False, touching nothing, when it is not one.
 function PpModQualifiedMacro( byref e as PpEngine, byref t as Token ) as boolean
-    dim as int32 ai = -1
-    for i as int32 = 0 to e.modst.aliasIds.Count - 1
-        if e.modst.aliasIds[i] = t.literal then ai = i
-    next
+    '' The LAST alias of that id, by flag (ppindex.tiko): asked per identifier token.
+    dim as int32 ai = cast( int32, PpFlagOf_( e.ix.aliasLast, t.literal ) ) - 1
     if ai < 0 then return false
     dim as PpFrame ptr f = @e.frames[e.frames.Count - 1]
     if f->pos + 2 > f->toks->Count - 1 then return false

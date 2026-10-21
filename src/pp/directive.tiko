@@ -71,11 +71,9 @@ private function PpLexFile( byref e as PpEngine, byval file as FileId ) as Token
     return PpLangMeta_( e, r )
 end function
 
+'' By flag, not by a scan of onceFiles (ppindex.tiko): asked at every include.
 private function PpAlreadyOnce( byref e as PpEngine, byval file as FileId ) as boolean
-    for each f as uint32 in e.onceFiles
-        if cast( FileId, f ) = file then return true
-    next
-    return false
+    return PpFlagOf_( e.ix.onceMark, cast( uint32, file ) ) <> 0
 end function
 
 #include once "pp/ppforeignlib.tiko"
@@ -192,12 +190,10 @@ private sub PpInclude( byref e as PpEngine, byval at as SourceLoc, byval once as
     if e.modst.cincPublic then PpModMarkPublic( e, at, got, "'public #include'" )
     if PpAlreadyOnce( e, got ) then PpModHermSkip( e, got ) : return
     if isOnce then
-        for each f as uint32 in e.allIncluded
-            if cast( FileId, f ) = got then PpModHermSkip( e, got ) : return
-        next
-        e.onceFiles.Push( cast( uint32, got ) )
+        if PpWasIncluded_( e, got ) then PpModHermSkip( e, got ) : return
+        PpOnceAdd_( e, got )
     end if
-    e.allIncluded.Push( cast( uint32, got ) )
+    PpIncludedAdd_( e, got )
 
     e.outp->includeCount += 1
     dim as TokenVec ptr toks = PpLexFile( e, got )
@@ -253,7 +249,7 @@ private sub PpCInclude( byref e as PpEngine, byval at as SourceLoc, byref word a
     '' a public declaration names something from it, and always after 'public #cinclude'.
     PpModCIncludeHeader( e, at, got )
     if PpAlreadyOnce( e, got ) then return
-    e.onceFiles.Push( cast( uint32, got ) )
+    PpOnceAdd_( e, got )
     e.outp->includeCount += 1
     dim as TokenVec ptr toks = PpLexFile( e, got )
     PushFrame( e, toks, INTERN_NONE, got, false )
@@ -836,19 +832,16 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
                 Advance( e )
                 dim as InternId rid = e.names->Fold( e.names->GetString( rname ) )
                 if modes <> 0 then
-                    dim as boolean clash = false
-                    for i as int32 = 0 to e.reserveNames.Count - 1
-                        if e.reserveNames[i] <> cast( uint32, rid ) then continue for
-                        if (cast( int32, e.reserveModes[i] ) and modes) <> 0 then
-                            clash = true
-                            exit for
-                        end if
-                    next
+                    '' A CLASH is an earlier entry of this name sharing a mode: the OR of
+                    '' its entries' modes answers that without a scan (ppindex.tiko).
+                    dim as uint32 had = PpFlagOf_( e.ix.reserveAcc, cast( uint32, rid ) )
+                    dim as boolean clash = ((cast( int32, had ) and modes) <> 0)
                     if clash then
                         Report( e, TKO0764, at, rname )
                     else
                         e.reserveNames.Push( cast( uint32, rid ) )
                         e.reserveModes.Push( cast( uint32, modes ) )
+                        PpFlagSet_( e.ix.reserveAcc, cast( uint32, rid ), had or cast( uint32, modes ) )
                         '' ...AND ONTO THE RESULT, which outlives this engine. Only the
                         '' plain form reserves the name for the LANGUAGE: '( asm )' and
                         '' '( extern )' reserve it for the assembler and the linker, and
@@ -878,9 +871,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
             if e.frames.IsEmpty( ) = false then
                 dim as FileId cf = e.frames[e.frames.Count - 1].file
                 if cf <> FILE_NONE then
-                    if PpAlreadyOnce( e, cf ) = false then
-                        e.onceFiles.Push( cast( uint32, cf ) )
-                    end if
+                    if PpAlreadyOnce( e, cf ) = false then PpOnceAdd_( e, cf )
                 end if
             end if
             SkipToEol( e )

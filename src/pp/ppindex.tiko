@@ -1,0 +1,133 @@
+'' ppindex.tiko -- the lookup indexes of ppindex.ti, and the small helpers that keep each in
+'' step with the list it indexes. #included by pp.tiko IN PLACE, inside its 'namespace Tko',
+'' ahead of everything that pushes onto those lists.
+
+'' A FLAG ARRAY BY DENSE ID (FileId, InternId, macro slot), grown on demand as macroSlot is.
+private sub PpFlagSet_( byref v as IdVec, byval i as uint32, byval value as uint32 = 1 )
+    dim as int32 ix = cast( int32, i )
+    if ix < 0 then return
+    while v.Count <= ix
+        v.Push( 0 )
+    wend
+    v[ix] = value
+end sub
+
+private function PpFlagOf_( byref v as IdVec, byval i as uint32 ) as uint32
+    dim as int32 ix = cast( int32, i )
+    if (ix < 0) orelse (ix >= v.Count) then return 0
+    return v[ix]
+end function
+
+'' '#include once' / '#pragma once' / '#cinclude' / an '#import''s interfaces: onceFiles.
+private sub PpOnceAdd_( byref e as PpEngine, byval f as FileId )
+    e.onceFiles.Push( cast( uint32, f ) )
+    PpFlagSet_( e.ix.onceMark, cast( uint32, f ) )
+end sub
+
+private sub PpIncludedAdd_( byref e as PpEngine, byval f as FileId )
+    e.allIncluded.Push( cast( uint32, f ) )
+    PpFlagSet_( e.ix.inclMark, cast( uint32, f ) )
+end sub
+
+private function PpWasIncluded_( byref e as PpEngine, byval f as FileId ) as boolean
+    return PpFlagOf_( e.ix.inclMark, cast( uint32, f ) ) <> 0
+end function
+
+private sub PpIfaceAdd_( byref e as PpEngine, byval f as FileId )
+    e.modst.ifaceFiles.Push( cast( uint32, f ) )
+    PpFlagSet_( e.ix.ifaceMark, cast( uint32, f ) )
+end sub
+
+'' A declaration in a module's interface: not the importer's name (RFC-0004 §5).
+private function InIfaceFile_( byref e as PpEngine, byval at as SourceLoc ) as boolean
+    if (at = LOC_NONE) orelse (e.modst.ifaceFiles.Count = 0) then return false
+    dim as uint32 f = cast( uint32, e.src->Decode( at ).file )
+    return PpFlagOf_( e.ix.ifaceMark, f ) <> 0
+end function
+
+'' A '#define' AT BLOCK DEPTH > 0 (PpDefine): its slot is one an END may undefine.
+private sub PpNoteBlockMacro_( byref e as PpEngine, byval id as InternId )
+    dim as int32 slot = SlotOf( e, id )
+    if slot = 0 then return
+    if PpFlagOf_( e.ix.blockMark, cast( uint32, slot - 1 ) ) <> 0 then return
+    PpFlagSet_( e.ix.blockMark, cast( uint32, slot - 1 ) )
+    e.ix.blockSlots.Push( cast( uint32, slot - 1 ) )
+end sub
+
+'' THE BLOCK JUST CLOSED TAKES EVERYTHING DEFINED DEEPER THAN IT. Only a slot PpDefine ever
+'' gave a non-zero depth can hold one: every other write of a slot (journal, park, '#tki')
+'' copies back a value that slot itself had.
+private sub PpCloseBlockMacros_( byref e as PpEngine )
+    for each s as uint32 in e.ix.blockSlots
+        dim as PpMacro ptr m = @e.macros[cast( int32, s )]
+        if m->isDefined andalso (m->blockDepth > e.blockDepth) then m->isDefined = false
+    next
+end sub
+
+'' THE KEY OF A PASTE NOTE: (loc, id). The kind is compared on the chain.
+private function PpPasteKey_( byval at as uint32, byval id as uint32 ) as int64
+    return (cast( int64, at ) shl 32) or cast( int64, id )
+end function
+
+private sub PpPasteNote_ _
+    ( byref e as PpEngine, byval at as SourceLoc, byref t as Token, byref sp as string, byref gp as string )
+    e.pasteLoc.Push( cast( uint32, at ) ) : e.pasteId.Push( cast( uint32, t.literal ) )
+    e.pasteKind.Push( cast( uint32, t.kind ) ) : e.pasteText.Push( sp ) : e.pasteGap.Push( gp )
+    dim as int64 key = PpPasteKey_( cast( uint32, at ), cast( uint32, t.literal ) )
+    dim as int32 prev = -1
+    if e.ix.pasteHead.TryGet( key, prev ) = false then prev = -1
+    e.ix.pastePrev.Push( prev )
+    e.ix.pasteHead.Put( key, e.pasteLoc.Count - 1 )
+end sub
+
+'' modst.aliasIds / aliasChains, pushed together.
+private sub PpAliasAdd_( byref e as PpEngine, byval id as InternId, byref chain_ as string )
+    e.modst.aliasIds.Push( cast( uint32, id ) )
+    e.modst.aliasChains.Push( chain_ )
+    PpFlagSet_( e.ix.aliasLast, cast( uint32, id ), cast( uint32, e.modst.aliasIds.Count ) )
+end sub
+
+'' CATCH THE MODULE-HEADER INDEXES UP with the PpResult's lists. Each list only grows while
+'' an engine reads into it; one that is shorter than what was indexed is a different list,
+'' and is indexed again from its start.
+private sub PpModHdrSync_( byref e as PpEngine )
+    dim as PpResult ptr r = e.outp
+    if r->modHdrFile.Count < e.ix.hdrSeen then
+        e.ix.hdrRootOf.Clear( )
+        e.ix.hdrSeen = 0
+    end if
+    while e.ix.hdrSeen < r->modHdrFile.Count
+        dim as uint32 f = r->modHdrFile[e.ix.hdrSeen]
+        if PpFlagOf_( e.ix.hdrRootOf, f ) = 0 then
+            PpFlagSet_( e.ix.hdrRootOf, f, r->modHdrRoot[e.ix.hdrSeen] + 1 )
+        end if
+        e.ix.hdrSeen += 1
+    wend
+    if r->pubHdrFile.Count < e.ix.pubSeen then
+        e.ix.pubHdrAt.Clear( )
+        e.ix.pubSeen = 0
+    end if
+    while e.ix.pubSeen < r->pubHdrFile.Count
+        dim as uint32 f = r->pubHdrFile[e.ix.pubSeen]
+        if PpFlagOf_( e.ix.pubHdrAt, f ) = 0 then
+            PpFlagSet_( e.ix.pubHdrAt, f, cast( uint32, e.ix.pubSeen + 1 ) )
+        end if
+        e.ix.pubSeen += 1
+    wend
+    if r->modHeaders.Count < e.ix.pathSeen then
+        e.ix.hdrPathAt.Clear( )
+        e.ix.pathSeen = 0
+    end if
+    while e.ix.pathSeen < r->modHeaders.Count
+        e.ix.hdrPathAt.Put( r->modHeaders[e.ix.pathSeen], e.ix.pathSeen )
+        e.ix.pathSeen += 1
+    wend
+end sub
+
+'' The LAST modHeaders index holding path p, or -1 -- what the scans without an exit found.
+private function PpModHeaderAt_( byref e as PpEngine, byref p as string ) as int32
+    PpModHdrSync_( e )
+    dim as int32 k = -1
+    if e.ix.hdrPathAt.TryGet( p, k ) then return k
+    return -1
+end function
