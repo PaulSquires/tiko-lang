@@ -510,7 +510,16 @@ function ByvalStrTemp_ _
             '' fb_UStrAssign consumes it -- see the caller in lowercall.tiko. So is a
             '' PAREN-LESS call or a property, 'TakeU( o.GetU )': LowerAddr answered with
             '' the procedure's CODE address, and fb_UStrAssign read it as a descriptor.
-            dim as Tko.Symbol ptr ups = c.syms->SymbolAt( c.info->RefOf( argNode ) )
+            '' ...BUT NOT A SUBSCRIPT OVER A UDT: Check records its 'operator []' on the
+            '' N_INDEX, so 'F( a[ 0 ] )' over containers.Array( of ustring ) looked like a
+            '' paren-less call, and LowerExpr loaded the 24-byte descriptor through the byref
+            '' result where fb_UStrAssign wants its address -- clang refused it (AW-004).
+            '' LowerAddr's N_INDEX arm (LowerPtrIndex) already hands back the operator's
+            '' pointer, byref or not. fbc-modern 1.20 prints the element.
+            dim as Tko.Symbol ptr ups = nullptr
+            if c.ast->Kind( argNode ) <> Tko.N_INDEX then
+                ups = c.syms->SymbolAt( c.info->RefOf( argNode ) )
+            end if
             dim as boolean upc = false
             if ups <> nullptr then upc = (ups->kind = cast( uint8, Tko.SYM_PROC ))
             '' ...BUT AN ARRAY ELEMENT IS AN N_CALL TOO -- 'w( 1 )' parses as one -- and it
