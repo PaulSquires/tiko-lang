@@ -111,6 +111,11 @@ end function
 '' Grow to hold at least n elements under a 0.75 load factor.  Rehashing drops
 '' every tombstone, which is what stops an add/remove loop filling the table
 '' with them.
+''
+'' SO A TABLE WITH TOMBSTONES IS REHASHED EVEN WHEN IT IS BIG ENOUGH -- see
+'' Map.Reserve, which had the same early return and the same dropped keys.
+'' At this size while the live elements fill no more than half of it, doubled
+'' past that.
 sub Set( of T ).Reserve( byval n as long )
     dim as long cap = this.Capacity( )
     dim as long want = SET_MIN_CAPACITY
@@ -120,7 +125,10 @@ sub Set( of T ).Reserve( byval n as long )
     wend
 
     if( want <= cap ) then
-        exit sub
+        if( this.used = this.num ) then
+            exit sub
+        end if
+        want = iif( this.num * 2 <= cap, cap, cap * 2 )
     end if
 
     dim as long oldcap = cap
@@ -209,6 +217,14 @@ function Set( of T ).Add( byref v as T ) as boolean
 
         i = (i + 1) and mask
     next
+
+    '' No EMPTY slot anywhere: a backstop, as in Map.Put.
+    if( firsttomb >= 0 ) then
+        this.elems( firsttomb ) = vv
+        this.state( firsttomb ) = SET_USED
+        this.num += 1
+        return true
+    end if
 
     return false
 end function

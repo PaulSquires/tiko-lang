@@ -168,6 +168,14 @@ end function
 '' Grow to at least n entries' worth of slots, keeping the load factor under
 '' 0.75.  Rehashing also drops every tombstone, which is what stops a
 '' put/remove loop from filling the table with them.
+''
+'' SO A TABLE WITH TOMBSTONES IS REHASHED EVEN WHEN IT IS BIG ENOUGH.  Put calls
+'' this when live + tombstones reach the load factor, asking only for live + 1;
+'' a put/remove loop over distinct keys keeps that at 1, and returning early
+'' here left 8 tombstones in 8 slots, no EMPTY slot to end a probe, and every
+'' later Put dropped its key.  The rehash stays at this size while the live
+'' entries fill no more than half of it, and doubles past that -- otherwise a
+'' map holding steady just under the load factor would rehash on every Put.
 sub Map( of TK, TV ).Reserve( byval n as long )
     dim as long cap = this.Capacity( )
     dim as long want = MAP_MIN_CAPACITY
@@ -177,7 +185,10 @@ sub Map( of TK, TV ).Reserve( byval n as long )
     wend
 
     if( want <= cap ) then
-        exit sub
+        if( this.used = this.num ) then
+            exit sub
+        end if
+        want = iif( this.num * 2 <= cap, cap, cap * 2 )
     end if
 
     '' keep the old contents while the new tables are built
@@ -276,6 +287,16 @@ function Map( of TK, TV ).Put( byref k as TK, byref v as TV ) as boolean
 
         i = (i + 1) and mask
     next
+
+    '' No EMPTY slot anywhere.  Reserve keeps one, so this is a backstop: without
+    '' it a table of nothing but USED and TOMB dropped the key and returned FALSE.
+    if( firsttomb >= 0 ) then
+        this.keys_( firsttomb ) = kk
+        this.vals_( firsttomb ) = vv
+        this.state( firsttomb ) = MAP_USED
+        this.num += 1
+        return true
+    end if
 
     return false
 end function
