@@ -26,9 +26,9 @@
 namespace Tko.Modules
 
 private function NodeFor_( byref g as ModGraph, byref w as ModWhere, byval loc as Tko.SourceLoc ) as int32
-    for i as int32 = 0 to g.chains.Count - 1
-        if g.chains[i] = w.chain then return i
-    next
+    dim as int32 at = -1
+    if g.nodeOf.TryGet( w.chain, at ) then return at
+    g.nodeOf.Put( w.chain, g.chains.Count )
     g.chains.Push( w.chain )
     g.dirs.Push( w.dir_ )
     g.pkgNames.Push( w.pkgName )
@@ -148,6 +148,37 @@ private sub ExpandNode_ _
     g.fileCount.Push( cast( uint32, g.fileIds.Count ) - g.fileFirst[n] )
 end sub
 
+'' Each node's edges, out and in, keeping their order: a counting sort of the edge list by
+'' its from (to) node. Built again when called again, so it always matches the edges.
+private sub Bucket_( byval n as int32, byref key as Tko.IdVec, byref first as Tko.IdVec, _
+                     byref edge as Tko.IdVec )
+    first.Clear( )
+    edge.Clear( )
+    for i as int32 = 0 to n
+        first.Push( 0 )
+    next
+    for e as int32 = 0 to key.Count - 1
+        first[key[e] + 1] += 1
+        edge.Push( 0 )
+    next
+    for i as int32 = 1 to n
+        first[i] += first[i - 1]
+    next
+    dim as Tko.IdVec fill
+    for i as int32 = 0 to n - 1
+        fill.Push( first[i] )
+    next
+    for e as int32 = 0 to key.Count - 1
+        edge[fill[key[e]]] = cast( uint32, e )
+        fill[key[e]] += 1
+    next
+end sub
+
+private sub Adjacency_( byref g as ModGraph )
+    Bucket_( g.chains.Count, g.edgeFrom, g.outFirst, g.outEdge )
+    Bucket_( g.chains.Count, g.edgeTo, g.inFirst, g.inEdge )
+end sub
+
 '' ------------------------------------------------------------------ cycles
 
 private sub ReportCycle_( byref ctx as Tko.CompilerContext, byref g as ModGraph, _
@@ -171,9 +202,9 @@ private sub Visit_( byref ctx as Tko.CompilerContext, byref g as ModGraph, _
     g.color[n] = 1
     g.stackNode.Push( cast( uint32, n ) )
     g.stackEdge.Push( cast( uint32, iif( via < 0, 0, via ) ) )
-    for e as int32 = 0 to g.edgeFrom.Count - 1
+    for a as int32 = cast( int32, g.outFirst[n] ) to cast( int32, g.outFirst[n + 1] ) - 1
         if g.cycled then exit for
-        if cast( int32, g.edgeFrom[e] ) <> n then continue for
+        dim as int32 e = cast( int32, g.outEdge[a] )
         dim as int32 m = g.edgeTo[e]
         if g.color[m] = 1 then
             dim as int32 fromK = 0
@@ -192,23 +223,22 @@ end sub
 
 '' ------------------------------------------------------------------- order
 
-'' Dependencies first; among the modules that are ready, the least chain.
+'' Dependencies first; among the modules that are ready, the least chain. READY IS A COUNT:
+'' each module's edges to a module not yet placed, less one per edge as its target is placed
+'' -- the same test as every edge of the module scanned, without scanning every edge of the
+'' graph for every module every round.
 private sub Order_( byref g as ModGraph, byref order as Tko.IdVec )
     dim as int32 n = g.chains.Count
-    dim as Tko.IdVec placed
+    dim as Tko.IdVec placed, waiting
     for i as int32 = 0 to n - 1
         placed.Push( 0 )
+        waiting.Push( g.outFirst[i + 1] - g.outFirst[i] )
     next
     for round_ as int32 = 1 to n
         dim as int32 best = -1
         for i as int32 = 0 to n - 1
             if placed[i] <> 0 then continue for
-            dim as boolean ready = true
-            for e as int32 = 0 to g.edgeFrom.Count - 1
-                if cast( int32, g.edgeFrom[e] ) <> i then continue for
-                if placed[g.edgeTo[e]] = 0 then ready = false : exit for
-            next
-            if ready = false then continue for
+            if waiting[i] <> 0 then continue for
             if best < 0 then
                 best = i
             elseif g.chains[i] < g.chains[best] then
@@ -218,6 +248,9 @@ private sub Order_( byref g as ModGraph, byref order as Tko.IdVec )
         if best < 0 then exit for         '' only after a cycle, which is reported already
         placed[best] = 1
         order.Push( cast( uint32, best ) )
+        for a as int32 = cast( int32, g.inFirst[best] ) to cast( int32, g.inFirst[best + 1] ) - 1
+            waiting[g.edgeFrom[g.inEdge[a]]] -= 1
+        next
     next
 end sub
 
@@ -247,6 +280,7 @@ function BuildGraph _
         ExpandNode_( ctx, g, i, quiet )
         i += 1
     wend
+    Adjacency_( g )
 
     for k as int32 = 0 to g.chains.Count - 1
         g.color.Push( 0 )
@@ -275,6 +309,7 @@ function PrintGraph( byref ctx as Tko.CompilerContext, byval rootCount as int32 
         SearchPaths( ctx, roots, pkg )
         Tko.Build.OnSearch( ctx.build, roots, pkg, ctx.options.includePaths, ctx.options.defines )
     end if
+    Adjacency_( g )
     dim as Tko.IdVec order
     if built then
         for each o as uint32 in g.order
@@ -293,9 +328,8 @@ function PrintGraph( byref ctx as Tko.CompilerContext, byval rootCount as int32 
         dim as string ln = g.chains[n] & space( width_ - len( g.chains[n] ) + 2 ) & g.dirs[n]
         '' What it imports, by chain, sorted and once each.
         dim as Tko.StrVec deps
-        for e as int32 = 0 to g.edgeFrom.Count - 1
-            if g.edgeFrom[e] <> n then continue for
-            dim as string c = g.chains[g.edgeTo[e]]
+        for a as int32 = cast( int32, g.outFirst[n] ) to cast( int32, g.outFirst[n + 1] ) - 1
+            dim as string c = g.chains[g.edgeTo[g.outEdge[a]]]
             dim as boolean seen = false
             for each d as string in deps
                 if d = c then seen = true : exit for

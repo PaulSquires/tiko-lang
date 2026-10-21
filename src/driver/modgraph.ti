@@ -27,6 +27,14 @@ type ModGraph
     as Tko.IdVec  edgeFrom
     as Tko.IdVec  edgeTo
     as Tko.IdVec  edgeLoc       '' the '#import', for TKO0906
+    '' INDEXES, so nothing scans the whole graph per node: each chain's node (NodeFor_), and
+    '' once the graph is complete (Adjacency_) each node's outgoing edges and incoming edges,
+    '' in edge order -- outEdge[outFirst[n] .. outFirst[n + 1] - 1], likewise in*.
+    as containers.Map( of string, int32 ) nodeOf
+    as Tko.IdVec  outFirst
+    as Tko.IdVec  outEdge
+    as Tko.IdVec  inFirst
+    as Tko.IdVec  inEdge
     '' The depth-first search: 0 unvisited, 1 on the stack, 2 done.
     as Tko.IdVec  color
     as Tko.IdVec  stackNode
