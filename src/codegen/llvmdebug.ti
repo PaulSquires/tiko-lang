@@ -41,6 +41,8 @@ namespace Tko.Codegen
         as Tko.Interner ptr    names
     end type
 
+    type DbgSpMap as containers.Map( of uint32, int32 )
+
     type DebugInfo
         as Tko.SourceManager ptr sm
         as DebugFrontend ptr fe
@@ -64,6 +66,8 @@ namespace Tko.Codegen
         as containers.Array( of uint32 ) spSym
         as containers.Array( of int32 )  spId
         as containers.Array( of uint8 ) spDone      '' ...and whether its text has been written
+        '' ...and procSym -> its index in those three: a scan per subprogram was F squared.
+        as DbgSpMap  spAt
         as string   globals         '' ', !N' for each DIGlobalVariableExpression
         as int32     intType         '' 'integer', for the descriptors' counts
     end type

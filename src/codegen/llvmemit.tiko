@@ -1246,15 +1246,16 @@ extern "c"
 end extern
 
 '' WHICH NAMES THE BODY CALLS, as '@name(' or '@"name"(' -- every '@' visited once, each
-'' matched name recorded between NULs in 'found' (a quoted one with its leading '"'). It answers exactly what an
+'' matched name added to the set 'found' (a quoted one with its leading '"'). It answers exactly what an
 '' 'instr( body, "@" & name & "(" )' per name answered: a needle starts with '@' and ends
 '' with '(', which no identifier and no quoted name contains, so at any '@' at most one
 '' name can match and it is the longest one there. That was ~34 scans of the whole module
 '' per unit -- 1.43 s of tiko-lang's 18 s self-compile (speed audit, 2026-10-07).
-private function CalledNames_( byref body as string ) as string
-    dim as string found = chr( 0 )
+'' A SET, not the NUL-separated string it was: the 'instr' per name found was names
+'' squared over the module. Only membership is ever asked of it (Called_).
+private sub CalledNames_( byref body as string, byref found as containers.Set( of string ) )
     dim as int32 n = len( body )
-    if n = 0 then return found
+    if n = 0 then return
     dim as uint8 ptr base_ = cast( uint8 ptr, strptr( body ) )
     dim as int32 i = 0
     while i < n
@@ -1271,8 +1272,7 @@ private function CalledNames_( byref body as string ) as string
                 if (en + 1 < n) andalso (base_[en + 1] = 40) then
                     '' Recorded WITH its opening quote: '@"x"(' is not '@x(', as no needle
                     '' matched one for the other.
-                    dim as string nm = chr( 34 ) & mid( body, st + 1, en - st )
-                    if instr( found, chr( 0 ) & nm & chr( 0 ) ) = 0 then found &= nm & chr( 0 )
+                    found.Add( chr( 34 ) & mid( body, st + 1, en - st ) )
                 end if
             end if
         else
@@ -1288,23 +1288,22 @@ private function CalledNames_( byref body as string ) as string
                 en += 1
             wend
             if (en > st) andalso (en < n) andalso (base_[en] = 40) then
-                dim as string nm = mid( body, st + 1, en - st )
-                if instr( found, chr( 0 ) & nm & chr( 0 ) ) = 0 then found &= nm & chr( 0 )
+                found.Add( mid( body, st + 1, en - st ) )
             end if
         end if
         i += 1
     wend
-    return found
-end function
+end sub
 
-private function Called_( byref found as string, byref nm as string ) as boolean
-    return instr( found, chr( 0 ) & nm & chr( 0 ) ) > 0
+private function Called_( byref found as containers.Set( of string ), byref nm as string ) as boolean
+    return found.Contains( nm )
 end function
 
 private function IntrinsicDecls _
     ( byref e as EmitCtx, byref body as string ) as string
     dim as string r
-    dim as string called = CalledNames_( body )
+    dim as containers.Set( of string ) called
+    CalledNames_( body, called )
     '' The full set this emitter can produce, each declared only if it appears. A
     '' declaration that is never called is harmless but noisy, and noise in emitted IR
     '' is what makes a real difference hard to see in a golden diff.
@@ -1382,10 +1381,7 @@ private sub RenameClashingGlobals_( byref m as MirModule, byref names as Tko.Int
     for gi as int32 = 0 to m.globals.Count - 1
         if (m.globals[gi].isInternal = false) orelse (m.globals[gi].isVar = false) then continue for
         dim as Tko.InternId gn = m.globals[gi].name
-        dim as boolean clash = false
-        for fi as int32 = 0 to m.functions.Count - 1
-            if m.functions[fi]->name = gn then clash = true : exit for
-        next
+        dim as boolean clash = (m.FirstFunctionNamed( gn ) >= 0)
         dim as string sp = names.Spelling( gn )
         for k as int32 = lbound( libm ) to ubound( libm )
             if libm( k ) = sp then clash = true
@@ -1446,16 +1442,18 @@ function EmitLlvm _
         dim as MirFunction ptr f = m.functions[fi]
         if f = nullptr then continue for
         if f->isDefinition then continue for
+        '' Along the name's chain, not the whole table: the table scan was F squared.
         dim as boolean alsoDefined = false
-        for gi as int32 = 0 to m.functions.Count - 1
+        dim as int32 gi = m.FirstFunctionNamed( f->name )
+        while gi >= 0
             dim as MirFunction ptr g = m.functions[gi]
-            if g = nullptr then continue for
-            if g->isDefinition = false then continue for
-            if g->name = f->name then
+            if g = nullptr then exit while
+            if g->isDefinition then
                 alsoDefined = true
-                exit for
+                exit while
             end if
-        next
+            gi = g->nextSameName - 1
+        wend
         if alsoDefined then continue for
         EmitFunction( e, f )
     next

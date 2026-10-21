@@ -98,6 +98,7 @@ sub DbgBegin _
     d.fileMeta.Clear( )
     d.typeMeta.Clear( )
     d.spSym.Clear( )
+    d.spAt.Clear( )
     d.spId.Clear( )
     d.spDone.Clear( )
     d.globals = ""
@@ -111,10 +112,10 @@ end sub
 
 '' The reserved number for a procedure's subprogram, made on first ask.
 private function SpFor_( byref d as DebugInfo, byval procSym as uint32 ) as int32
-    for i as int32 = 0 to d.spSym.Count - 1
-        if d.spSym[i] = procSym then return d.spId[i]
-    next
+    dim as int32 at = -1
+    if d.spAt.TryGet( procSym, at ) then return d.spId[at]
     dim as int32 id = ReserveNode_( d )
+    d.spAt.Put( procSym, d.spSym.Count )
     d.spSym.Push( procSym )
     d.spId.Push( id )
     d.spDone.Push( 0 )
@@ -157,9 +158,8 @@ function DbgSubprogram _
         dim as Tko.Symbol ptr ps = d.fe->syms->SymbolAt( cast( Tko.SymbolId, procSym ) )
         if ps <> nullptr then nm = QualifiedName_( d, ps )
         id = SpFor_( d, procSym )
-        for i as int32 = 0 to d.spSym.Count - 1
-            if d.spSym[i] = procSym then d.spDone[i] = 1
-        next
+        dim as int32 at = -1
+        if d.spAt.TryGet( procSym, at ) then d.spDone[at] = 1
     else
         id = ReserveNode_( d )
     end if

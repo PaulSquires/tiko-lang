@@ -99,6 +99,10 @@ function DeclareUnknownVtableSlots _
     '' loaded and called indirectly with the call site's own signature, and a
     '' name this module does call has a MirFunction and is skipped here.
     dim as string decls
+    '' THE NAMES ALREADY DECLARED HERE, asked FIRST: a base's methods sit in every derived
+    '' table, and each repeat cost a search of the whole module text. A name in the set
+    '' passed the outSoFar test once, and outSoFar does not change in this loop.
+    dim as containers.Set( of string ) declared
     for gi as int32 = 0 to m.globals.Count - 1
         dim as MirGlobal ptr g = @m.globals[gi]
         if g->ptrCount <= 0 then continue for
@@ -108,11 +112,12 @@ function DeclareUnknownVtableSlots _
             if m.FirstFunctionNamed( pn ) >= 0 then continue for
             dim as string pns = names.Spelling( pn )
             dim as string ln = "declare void @""" & pns & """()"
-            if outSoFar.Contains( ln ) then continue for
             '' ...NOR TWICE HERE: a base's method sits in its own vtable and in every derived
             '' one. A module's classes that an importer never used reached it only through
             '' those tables, and clang refused the second 'declare' (fbx/webview2).
-            if instr( decls, ln & chr( 10 ) ) > 0 then continue for
+            if declared.Contains( ln ) then continue for
+            if outSoFar.Contains( ln ) then continue for
+            declared.Add( ln )
             decls += ln & chr( 10 )
         next
     next
