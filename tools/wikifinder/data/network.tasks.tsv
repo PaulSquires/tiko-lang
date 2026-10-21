@@ -11,5 +11,10 @@ task	udp	Send and receive UDP datagrams
 task	url	Take a URL apart and build one
 task	query	Read and build query strings
 task	neterr	Find out why a network call failed
+task	http	Fetch a web page or call a web API
+task	httpstream	Read a large download as it arrives
+task	tls	Encrypt a connection with TLS
+task	httperr	Find out why an HTTP request or TLS handshake failed
 seealso	Category-Net	Net guide
+seealso	Category-Http	HTTP and TLS guide
 seealso	Category-Codec	Codec guide (percent-encoding)
