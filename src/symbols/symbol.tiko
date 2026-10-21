@@ -306,12 +306,14 @@ function SymbolTable.LookupInNamespace _
     dim as SymbolId got = this.LookupLocal( nsScope, nm )
     if got <> SYMBOL_NONE then return this.PublicOnly( got )
     if depth >= 8 then return SYMBOL_NONE
-    for i as int32 = 0 to this.usingAt.Count - 1
-        if this.usingAt[i] <> cast( uint32, nsScope ) then continue for
-        if this.UsingHere( i ) = false then continue for
-        got = this.LookupInNamespace( cast( ScopeId, this.usingInner[i] ), nm, depth + 1 )
-        if got <> SYMBOL_NONE then return got
-    next
+    dim as int32 i = this.UsingFirst( nsScope )
+    while i >= 0
+        if this.UsingHere( i ) then
+            got = this.LookupInNamespace( cast( ScopeId, this.usingInner[i] ), nm, depth + 1 )
+            if got <> SYMBOL_NONE then return got
+        end if
+        i = this.usingNext[i]
+    wend
     return SYMBOL_NONE
 end function
 
@@ -340,13 +342,15 @@ function SymbolTable.LookupInNamespaceTyped _
         if IsTypeNameKind( cast( SymbolKind, g->kind ) ) = wantType then return this.PublicOnly( got )
     end if
     if depth >= 8 then return SYMBOL_NONE
-    for i as int32 = 0 to this.usingAt.Count - 1
-        if this.usingAt[i] <> cast( uint32, nsScope ) then continue for
-        if this.UsingHere( i ) = false then continue for
-        got = this.LookupInNamespaceTyped( _
-            cast( ScopeId, this.usingInner[i] ), nm, wantType, depth + 1 )
-        if got <> SYMBOL_NONE then return got
-    next
+    dim as int32 i = this.UsingFirst( nsScope )
+    while i >= 0
+        if this.UsingHere( i ) then
+            got = this.LookupInNamespaceTyped( _
+                cast( ScopeId, this.usingInner[i] ), nm, wantType, depth + 1 )
+            if got <> SYMBOL_NONE then return got
+        end if
+        i = this.usingNext[i]
+    wend
     return SYMBOL_NONE
 end function
 
@@ -367,13 +371,15 @@ function SymbolTable.LookupThroughUsings _
     dim as int32 guard = 0
     while (s <> SCOPE_NONE) andalso (guard < 1024)
         guard += 1
-        for i as int32 = 0 to this.usingAt.Count - 1
-            if this.usingAt[i] <> cast( uint32, s ) then continue for
-            if this.UsingHere( i ) = false then continue for
-            dim as SymbolId got = _
-                this.LookupInNamespace( cast( ScopeId, this.usingInner[i] ), nm )
-            if got <> SYMBOL_NONE then return got
-        next
+        dim as int32 i = this.UsingFirst( s )
+        while i >= 0
+            if this.UsingHere( i ) then
+                dim as SymbolId got = _
+                    this.LookupInNamespace( cast( ScopeId, this.usingInner[i] ), nm )
+                if got <> SYMBOL_NONE then return got
+            end if
+            i = this.usingNext[i]
+        wend
         dim as SymScope ptr sc = this.ScopeAt( s )
         if sc = nullptr then exit while
         s = sc->parent
@@ -441,15 +447,17 @@ function SymbolTable.LookupTyped _
     guard = 0
     while (sc <> SCOPE_NONE) andalso (guard < SCOPE_WALK_MAX)
         guard += 1
-        for i as int32 = 0 to this.usingAt.Count - 1
-            if this.usingAt[i] <> cast( uint32, sc ) then continue for
-            if this.UsingHere( i ) = false then continue for
-            '' ...AND THROUGH THAT NAMESPACE'S OWN USINGS. See
-            '' LookupInNamespaceTyped: a single probe missed every transitive one.
-            dim as SymbolId got = this.LookupInNamespaceTyped( _
-                cast( ScopeId, this.usingInner[i] ), nm, wantType, 0 )
-            if got <> SYMBOL_NONE then return got
-        next
+        dim as int32 i = this.UsingFirst( sc )
+        while i >= 0
+            if this.UsingHere( i ) then
+                '' ...AND THROUGH THAT NAMESPACE'S OWN USINGS. See
+                '' LookupInNamespaceTyped: a single probe missed every transitive one.
+                dim as SymbolId got = this.LookupInNamespaceTyped( _
+                    cast( ScopeId, this.usingInner[i] ), nm, wantType, 0 )
+                if got <> SYMBOL_NONE then return got
+            end if
+            i = this.usingNext[i]
+        wend
         dim as SymScope ptr s_ = this.ScopeAt( sc )
         if s_ = nullptr then exit while
         sc = s_->parent
@@ -486,12 +494,14 @@ function SymbolTable.Lookup _
     while s <> SCOPE_NONE
         guard += 1
         if guard > 1024 then exit while
-        for i as int32 = 0 to this.usingAt.Count - 1
-            if this.usingAt[i] <> cast( uint32, s ) then continue for
-            if this.UsingHere( i ) = false then continue for
-            dim as SymbolId got = this.PublicOnly( this.LookupLocal( cast( ScopeId, this.usingInner[i] ), nm ) )
-            if got <> SYMBOL_NONE then return got
-        next
+        dim as int32 i = this.UsingFirst( s )
+        while i >= 0
+            if this.UsingHere( i ) then
+                dim as SymbolId got = this.PublicOnly( this.LookupLocal( cast( ScopeId, this.usingInner[i] ), nm ) )
+                if got <> SYMBOL_NONE then return got
+            end if
+            i = this.usingNext[i]
+        wend
         dim as SymScope ptr sc = this.ScopeAt( s )
         if sc = nullptr then exit while
         s = sc->parent
@@ -549,18 +559,71 @@ function SymbolTable.UsingHere( byval i as int32 ) as boolean
     return this.UsingFileSees( this.usingFile[i], at )
 end function
 
+private function UsingKey_ _
+    ( byval scope_ as ScopeId, byval nsScope as ScopeId, byval f as uint32 ) as string
+    return str( cast( uint32, scope_ ) ) & ":" & str( cast( uint32, nsScope ) ) & ":" & str( f )
+end function
+
+'' Using i joins the tail of its scope's chain; usingNext must already reach i - 1.
+private sub ChainUsing_( byref t as SymbolTable, byval i as int32 )
+    dim as int32 sc = cast( int32, t.usingAt[i] )
+    while t.usingHead.Count <= sc
+        t.usingHead.Push( -1 )
+        t.usingTail.Push( -1 )
+    wend
+    t.usingNext.Push( -1 )
+    if t.usingHead[sc] < 0 then
+        t.usingHead[sc] = i
+    else
+        t.usingNext[t.usingTail[sc]] = i
+    end if
+    t.usingTail[sc] = i
+end sub
+
 sub SymbolTable.AddUsing _
     ( byval scope_ as ScopeId, byval nsScope as ScopeId, byval node as uint32 )
     if (scope_ = SCOPE_NONE) orelse (nsScope = SCOPE_NONE) then return
     dim as uint32 f = this.UsingFileOf( node, nsScope )
-    for i as int32 = 0 to this.usingAt.Count - 1
-        if (this.usingAt[i] = cast( uint32, scope_ )) andalso _
-           (this.usingInner[i] = cast( uint32, nsScope )) andalso _
-           (this.usingFile[i] = f) then return
-    next
+    dim as string key = UsingKey_( scope_, nsScope, f )
+    if this.usingKeys.Contains( key ) then return
+    this.usingKeys.Put( key, this.usingAt.Count )
     this.usingAt.Push( cast( uint32, scope_ ) )
     this.usingInner.Push( cast( uint32, nsScope ) )
     this.usingFile.Push( f )
+    ChainUsing_( this, this.usingAt.Count - 1 )
+end sub
+
+function SymbolTable.UsingFirst( byval scope_ as ScopeId ) as int32
+    if cast( int32, scope_ ) >= this.usingHead.Count then return -1
+    return this.usingHead[cast( int32, scope_ )]
+end function
+
+'' Usings lo .. hi - 1 are gone: all THREE parallel arrays lose them, and the chains and
+'' the repeat test are built again over what is left, in the same index order.
+sub SymbolTable.RemoveUsings( byval lo as int32, byval hi as int32 )
+    if lo < 0 then lo = 0
+    if hi > this.usingAt.Count then hi = this.usingAt.Count
+    if lo >= hi then return
+    dim as containers.Array( of uint32 ) a, b, f
+    for i as int32 = 0 to this.usingAt.Count - 1
+        if (i >= lo) andalso (i < hi) then continue for
+        a.Push( this.usingAt[i] )
+        b.Push( this.usingInner[i] )
+        f.Push( this.usingFile[i] )
+    next
+    swap this.usingAt, a
+    swap this.usingInner, b
+    swap this.usingFile, f
+    this.usingHead.Clear( )
+    this.usingTail.Clear( )
+    this.usingNext.Clear( )
+    this.usingKeys.Clear( )
+    for i as int32 = 0 to this.usingAt.Count - 1
+        dim as string key = UsingKey_( cast( ScopeId, this.usingAt[i] ), _
+            cast( ScopeId, this.usingInner[i] ), this.usingFile[i] )
+        if this.usingKeys.Contains( key ) = false then this.usingKeys.Put( key, i )
+        ChainUsing_( this, i )
+    next
 end sub
 
 '' '#undef name' OF A DECLARED SYMBOL. fbc keeps macros and symbols in one table and

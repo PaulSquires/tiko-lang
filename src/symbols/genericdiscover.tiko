@@ -64,10 +64,9 @@ sub DiscoverInstantiations_ _
     '' (fbc: error 42) -- but only in a unit declaring a generic. Removed AFTER the
     '' instantiation, which sees them as the real pass's own InstantiatePending_ does; the
     '' ones an instantiated body registers itself (from uinst on) stay, as it is not walked again.
-    for i as int32 = uinst - 1 to uwalk step -1
-        c.syms->usingAt.Remove( i )
-        c.syms->usingInner.Remove( i )
-    next
+    '' ALL THREE parallel arrays: usingFile was left out, so every using after these read the
+    '' unit file of the one that had stood there (and the per-scope chains need rebuilding).
+    c.syms->RemoveUsings( uwalk, uinst )
     info.Resize( ast.Count( ) )
 end sub
 

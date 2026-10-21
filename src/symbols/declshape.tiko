@@ -754,11 +754,13 @@ private sub CollectNsNamed_ ( byref c as Ctx, byval ns as ScopeId, byval nm as I
         next
         if seen = false then got.Push( cast( uint32, sid ) )
     end if
-    for i as int32 = 0 to c.syms->usingAt.Count - 1
-        if c.syms->usingAt[i] <> cast( uint32, ns ) then continue for
-        if c.syms->UsingHere( i ) = false then continue for
-        CollectNsNamed_( c, cast( ScopeId, c.syms->usingInner[i] ), nm, got, depth + 1 )
-    next
+    dim as int32 i = c.syms->UsingFirst( ns )
+    while i >= 0
+        if c.syms->UsingHere( i ) then
+            CollectNsNamed_( c, cast( ScopeId, c.syms->usingInner[i] ), nm, got, depth + 1 )
+        end if
+        i = c.syms->usingNext[i]
+    wend
 end sub
 
 private sub CheckUsingAmbiguity_ ( byref c as Ctx )
@@ -774,6 +776,24 @@ private sub CheckUsingAmbiguity_ ( byref c as Ctx )
         uFile.Push( c.syms->UsingFileOf( cast( uint32, n ), ns->inner ) )
     next
     if uNode.Count < 1 then return
+    '' ...BUCKETED BY THE SCOPE THEY STAND IN, node order kept: every name asked every using
+    '' of the unit at every scope of its chain, which with CollectNsNamed_'s own scan was
+    '' cubic in usings (docs/tiko-speed/LOOKUPS.md M1). uHead by ScopeId, uNext by u, -1 none.
+    dim as containers.Array( of int32 ) uHead, uTail, uNext
+    for u as int32 = 0 to uNode.Count - 1
+        dim as int32 bs = cast( int32, uScope[u] )
+        while uHead.Count <= bs
+            uHead.Push( -1 )
+            uTail.Push( -1 )
+        wend
+        uNext.Push( -1 )
+        if uHead[bs] < 0 then
+            uHead[bs] = u
+        else
+            uNext[uTail[bs]] = u
+        end if
+        uTail[bs] = u
+    next
     '' The right side of a member access is qualified, and not this question.
     dim as containers.Array( of uint8 ) qualified
     for n as int32 = 0 to total
@@ -822,15 +842,20 @@ private sub CheckUsingAmbiguity_ ( byref c as Ctx )
             walk = ss->parent
         next
         if declared then continue for
+        '' Two are enough to report, so the walk stops there; nothing else reads 'got'.
         dim as containers.Array( of uint32 ) got
         for guard as int32 = 0 to 255
-            if sc = SCOPE_NONE then exit for
-            for u as int32 = 0 to uNode.Count - 1
-                if uScope[u] <> cast( uint32, sc ) then continue for
-                if uNode[u] >= cast( uint32, n ) then continue for
-                if c.syms->UsingFileSees( uFile[u], cast( uint32, n ) ) = false then continue for
-                CollectNsNamed_( c, cast( ScopeId, uInner[u] ), nm, got, 0 )
-            next
+            if (sc = SCOPE_NONE) orelse (got.Count >= 2) then exit for
+            dim as int32 u = -1
+            if cast( int32, sc ) < uHead.Count then u = uHead[cast( int32, sc )]
+            while (u >= 0) andalso (got.Count < 2)
+                '' Node order: every later using of the bucket stands at or below n too.
+                if uNode[u] >= cast( uint32, n ) then exit while
+                if c.syms->UsingFileSees( uFile[u], cast( uint32, n ) ) then
+                    CollectNsNamed_( c, cast( ScopeId, uInner[u] ), nm, got, 0 )
+                end if
+                u = uNext[u]
+            wend
             dim as SymScope ptr ss = c.syms->ScopeAt( sc )
             if ss = nullptr then exit for
             sc = ss->parent

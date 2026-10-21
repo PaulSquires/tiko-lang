@@ -370,6 +370,16 @@ namespace Tko
         '' writes it (M22), so its 'using' does too: in a unit of several files, a sibling
         '' that did not write it must not see the module's names bare. See UsingHere.
         as containers.Array( of uint32 ) usingFile
+        '' ...AND THE USINGS OF EACH SCOPE AS A CHAIN, in index order: usingHead/usingTail by
+        '' ScopeId, usingNext by using index, -1 for none. Every lookup found a scope's usings
+        '' by scanning ALL of them, at every scope hop and every level of a using chain: 4000
+        '' usings took 91 s in Resolve, CUBIC (docs/tiko-speed/LOOKUPS.md M1). usingKeys is
+        '' AddUsing's repeat test on (scope, namespace, file). Written ONLY by AddUsing and
+        '' RemoveUsings, which keep all of them in step with the three arrays above.
+        as containers.Array( of int32 ) usingHead
+        as containers.Array( of int32 ) usingTail
+        as containers.Array( of int32 ) usingNext
+        as containers.Map( of string, int32 ) usingKeys
         '' AN IMPORTED MODULE'S OVERLOAD OF A HEADER'S NAME (RFC-0001 F4), as pairs: the
         '' symbol in the module's interface namespace, and its twin in this unit's chain
         '' for the name (JoinTwin). Resolve gives each twin its original's result type.
@@ -452,6 +462,10 @@ namespace Tko
         '' Register 'using ns' in a scope, written at node 'node' (0: unknown). Repeats are
         '' ignored, so a header included twice does not grow the list.
         declare sub AddUsing( byval scope_ as ScopeId, byval nsScope as ScopeId, byval node as uint32 = 0 )
+        '' The first using written in scope_, or -1; the next is usingNext[i]. Index order.
+        declare function UsingFirst( byval scope_ as ScopeId ) as int32
+        '' Remove usings lo .. hi - 1 from every array above, and re-chain what is left.
+        declare sub RemoveUsings( byval lo as int32, byval hi as int32 )
         '' ...and whether using i applies to the node being looked up from: a using of an
         '' imported module's namespace belongs to the unit file that wrote it (usingFile).
         declare function UsingHere( byval i as int32 ) as boolean

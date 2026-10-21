@@ -240,13 +240,15 @@ private function VisibleAbove_ _
         guard += 1
         dim as Tko.SymbolId got = c.syms->LookupLocalTyped( sc, nm, false )
         if VisibleValue_( c, got, use, scope_ ) then return got
-        for i as int32 = 0 to c.syms->usingAt.Count - 1
-            if c.syms->usingAt[i] <> cast( uint32, sc ) then continue for
-            if c.syms->UsingHere( i ) = false then continue for
-            got = c.syms->LookupInNamespaceTyped( _
-                cast( Tko.ScopeId, c.syms->usingInner[i] ), nm, false, 0 )
-            if VisibleValue_( c, got, use, scope_ ) then return got
-        next
+        dim as int32 i = c.syms->UsingFirst( sc )
+        while i >= 0
+            if c.syms->UsingHere( i ) then
+                got = c.syms->LookupInNamespaceTyped( _
+                    cast( Tko.ScopeId, c.syms->usingInner[i] ), nm, false, 0 )
+                if VisibleValue_( c, got, use, scope_ ) then return got
+            end if
+            i = c.syms->usingNext[i]
+        wend
         dim as Tko.SymScope ptr ss = c.syms->ScopeAt( sc )
         if ss = nullptr then exit while
         sc = ss->parent
