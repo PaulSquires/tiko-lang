@@ -1,0 +1,20 @@
+'' RUN: shapes that stopped on TKO0994 (fbc-examples round 3) -- an enum member and a function of one
+'' name after windows.bi grew the symbol table (r3ice06), 'p[ i ].x' through a const UDT pointer
+'' (r3ice04), a method named get called bare with commas (r3ice05), a 2-D UDT-array field initialiser
+'' (r3ice07), a member on a user operator's result (r3ice10) -- and the user unary operators that the
+'' builtin of the same name bypassed through the type's numeric cast (r3mis01). Expected output
+'' measured with fbc-modern.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/stmt-shapes-r3.bas -o tests/codegen/stmtshapesr3.exe
+'' ENV: TKO_INCLUDE=inc
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0994
+'' EXPECT-FILE: tests/codegen/stmtshapesr3.exe
+'' RUN: tests/codegen/stmtshapesr3.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  255 1 0
+'' EXPECT-RUN-OUT:  3 4
+'' EXPECT-RUN-OUT:  72
+'' EXPECT-RUN-OUT:  5 2 1 0
+'' EXPECT-RUN-OUT: 8/37 10/1  12-200

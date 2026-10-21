@@ -453,7 +453,25 @@ end function
 '' DOES THE '( ... )' AFTER GET/PUT HOLD A TOP-LEVEL COMMA? The file form always does -- '#f, , x'
 '' -- and 'get( x )' without one is a method named get, called from a sibling (fbc-examples r2ice10).
 '' p.pos is at the keyword; the '(' follows it.
+'' ...AND NOT A PROCEDURE OF THAT NAME. With no '#' after the '(', a method or procedure called get
+'' or put that the parse has already declared is the call: 'get( buf( 0 ), l, , TRUE )' in a sibling
+'' method of chisock's TYPE (fbc-examples r3ice05). fbc decides it by symbol; this is IsLabelHere_'s
+'' rule -- a method only inside a member body.
 function GetPutHasComma( byref p as Tko.ParserState ) as boolean
+    if HasTok( p, p.pos + 2 ) then
+        if cast( Tko.TokenKind, p.toks->At( p.pos + 2 ).kind ) <> Tko.TK_HASH then
+            '' BY SPELLING: a keyword token carries no interned name.
+            dim as string nm = iif( Peek( p ) = Tko.KW_GET, "get", "put" )
+            for each known as uint32 in p.procNames
+                if Tko.Text.LowerAscii( p.names->Spelling( cast( Tko.InternId, known ) ) ) = nm then return false
+            next
+            if p.memberDepth > 0 then
+                for each known as uint32 in p.memberProcNames
+                    if Tko.Text.LowerAscii( p.names->Spelling( cast( Tko.InternId, known ) ) ) = nm then return false
+                next
+            end if
+        end if
+    end if
     dim as int32 depth = 0
     dim as int32 i = p.pos + 2
     while HasTok( p, i )

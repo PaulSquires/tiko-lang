@@ -66,7 +66,25 @@ function LowerMathCall_ _
     dim as boolean havePre = false
     dim as MirValue pre
     if c.types->Kind( c.types->Unqualify( at ) ) = Tko.TK_UDT then
-        dim as Tko.SymbolId uop = c.syms->Lookup( _
+        '' A USER OPERATOR RETURNING A UDT is an ordinary call Check has resolved (IntrinsicCallType_,
+        '' fbc-examples r3mis01): the scalar result type below is not its result.
+        if c.types->Kind( c.types->Unqualify( c.info->TypeOf_( id ) ) ) = Tko.TK_UDT then return false
+        '' THE OVERLOAD CHECK CHOSE FIRST: 'operator abs( byref x as D ) as long' over a D that also casts
+        '' to long is the call (IntrinsicCallType_), and the name lookup below missed the global
+        '' operator, so the builtin ran on the cast -- 3 where fbc prints -300 (beside fbc-examples r3mis01).
+        dim as Tko.SymbolId uop = c.info->DecisionOf( id )
+        if uop = Tko.SYMBOL_NONE then uop = c.info->RefOf( id )
+        '' ...ONLY ONE THAT TAKES THIS UDT: the name's binding is the chain head whatever the argument.
+        if uop <> Tko.SYMBOL_NONE then
+            if c.syms->SymbolAt( uop )->kind <> cast( uint8, Tko.SYM_PROC ) then
+                uop = Tko.SYMBOL_NONE
+            else
+                dim as Tko.TypeId p0 = c.types->Unqualify( ParamTypeAt( c, uop, 0 ) )
+                if c.types->Kind( p0 ) = Tko.TK_REFERENCE then p0 = c.types->Unqualify( c.types->Inner( p0 ) )
+                if p0 <> c.types->Unqualify( at ) then uop = Tko.SYMBOL_NONE
+            end if
+        end if
+        if uop = Tko.SYMBOL_NONE then uop = c.syms->Lookup( _
             c.info->ScopeOf( id ), c.names->Fold( c.names->GetString( nm ) ) )
         if uop <> Tko.SYMBOL_NONE then
             dim as MirType urt = LowerType( c.info->TypeOf_( id ), *c.types )

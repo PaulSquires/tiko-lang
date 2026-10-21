@@ -1182,7 +1182,9 @@ function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
         dim as Tko.TypeId el = c.types->Inner( pt )
         if el = Tko.TYPE_NONE then return none_
         esz = c.types->Layout( el ).size
-        dim as int32 ui = c.udts->Find( el )
+        '' UNQUALIFIED: the UDT table is keyed on the bare type, so 'p[ i ].x' over a 'const T ptr'
+        '' had no element size and declined (fbc-examples r3ice04, nuklear_gdi).
+        dim as int32 ui = c.udts->Find( c.types->Unqualify( el ) )
         if ui >= 0 then esz = c.udts->udts[ui].size
         '' ...AND A FIXED-LENGTH STRING POINTEE STEPS BY ITS CHARACTER, as its arithmetic
         '' does (PtrArithElem_): 'pz[ 2 ]' over '@z', a 'zstring * 64', is the string at

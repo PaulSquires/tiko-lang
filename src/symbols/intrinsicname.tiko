@@ -220,6 +220,20 @@ private function IntrinsicCallType_ _
             c.info->SetRef( cp->target, Tko.SYMBOL_NONE )
             return bt
         end if
+        '' ...BUT A USER OPERATOR TAKING THE UDT ARGUMENT ITSELF IS THE CALL. 'operator exp( byref x
+        '' as D ) as D' over a D that also has 'operator cast( ) as long': the table typed 'exp( d )'
+        '' through the CAST and the builtin ran on the number -- 55 where fbc's user operator gives
+        '' 8, for exp, abs, sgn, int, frac and sqr alike (fbc-examples r3mis01, r3ice10).
+        if (bsym->kind = cast( uint8, Tko.SYM_PROC )) andalso (cp->count >= 1) then
+            if (nm <> "cast") andalso (nm <> "len") andalso (nm <> "sizeof") then
+                dim as Tko.TypeId ka = BareArgType_( c, c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[cp->first] ) ) )
+                if ka <> Tko.TYPE_NONE then
+                    if c.types->Kind( ka ) = Tko.TK_UDT then
+                        if UdtOverloadTakes_( c, c.info->RefOf( cp->target ), ka ) then return Tko.TYPE_NONE
+                    end if
+                end if
+            end if
+        end if
     end if
     return IntrinsicTableType_( c, cp, nm )
 end function

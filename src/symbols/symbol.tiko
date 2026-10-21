@@ -750,6 +750,10 @@ function SymbolTable.DeclareSym _
         dim as boolean enumYields = (e->kind = cast( uint8, SYM_ENUMCONST )) andalso _
                                     (k <> SYM_ENUMCONST)
         if enumYields then
+            '' ...AND STAYS YIELDED ACROSS A REHASH, which re-indexes every symbol not marked: the
+            '' member, first in the table, took the name back from 'declare function nk_rgb' once
+            '' windows.bi had grown the table, and every call declined (fbc-examples r3ice06).
+            this.symbols[cast( int32, existing )].flags or= SYMF_SUPERSEDED
             existing = SYMBOL_NONE
         elseif split andalso cbool( (e->altClass = SYMBOL_NONE) orelse (altOlder <> SYMBOL_NONE) ) then
             chainTo = existing

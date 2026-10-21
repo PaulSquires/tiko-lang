@@ -611,6 +611,32 @@ function LowerUdtArrayInit_ _
         base_.id = slot
     end if
 
+    '' MORE THAN ONE DIMENSION IS WRITTEN IN ROWS -- '{ { ( 0, 1 ), ( 1, 1 ) }, { ... } }' -- and a row
+    '' is not an element: each leaf goes to its own element index (ArrayInitLeaves_), after the plain
+    '' data is zeroed as a short row leaves it. It declined, in a field's implicit constructor with no
+    '' source line (fbc-examples r3ice07, tetrisame SRS.bas).
+    if c.types->types[cast( int32, t )].dims > 1 then
+        dim as containers.Array( of uint32 ) leaves, lidx
+        ArrayInitLeaves_( c, t, init, leaves, lidx )
+        if leaves.Count = 0 then return false
+        if (TypeNeedsInit_( c, el ) = false) andalso (StructorOf( c, el, "__ctor" ) = Tko.SYMBOL_NONE) andalso (total > 0) then
+            dim as containers.Array( of uint32 ) zz
+            zz.Push( cast( uint32, base_.kind ) ) : zz.Push( cast( uint32, base_.id ) )
+            zz.Push( cast( uint32, MV_CONST_INT ) ) : zz.Push( 0 )
+            zz.Push( cast( uint32, MV_CONST_INT ) ) : zz.Push( cast( uint32, total * esz ) )
+            EmitRtl( c, RTL_MEMSET, zz )
+        end if
+        for k as int32 = 0 to leaves.Count - 1
+            if (total > 0) andalso (cast( int32, lidx[k] ) >= total) then return false
+            dim as MirInst la
+            la.op = cast( uint16, M_FIELD_ADDR ) : la.ty = cast( uint8, MT_PTR ) : la.a = base_
+            la.imm = cast( int32, lidx[k] ) * esz
+            dim as MirValue lea = Emit( c, la )
+            if LowerUdtElemInit_( c, lea, el, cast( Tko.NodeId, leaves[k] ) ) = false then return false
+        next
+        return true
+    end if
+
     for i as int32 = 0 to lp->count - 1
         if (total > 0) andalso (i >= total) then exit for
         dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + i] )
