@@ -41,9 +41,8 @@ end sub
 
 private function FindInst_( byref types as Tko.TypeContext, byval nm as Tko.InternId ) as int32
     if nm = 0 then return -1
-    for i as int32 = 0 to types.instName.Count - 1
-        if types.instName[i] = cast( uint32, nm ) then return i
-    next
+    dim as int32 i = -1
+    if types.instAt.TryGet( cast( uint32, nm ), i ) then return i
     return -1
 end function
 
@@ -56,6 +55,7 @@ sub RegisterInst _
       byval spell as Tko.InternId, byref args as containers.Array( of uint32 ) )
 
     if FindInst_( types, nm ) >= 0 then return
+    types.instAt.Put( cast( uint32, nm ), types.instName.Count )
     types.instName.Push( cast( uint32, nm ) )
     types.instSpell.Push( cast( uint32, spell ) )
     types.instArgFirst.Push( types.instArgs.Count )

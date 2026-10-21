@@ -307,6 +307,10 @@ namespace Tko
         as containers.Array( of int32 )  instArgFirst
         as containers.Array( of int32 )  instArgCount
         as containers.Array( of uint32 ) instArgs
+        '' ...AND WHERE EACH NAME IS in instName. FindInst_ scanned it on every
+        '' instantiation, tuple, procedure and mangled UDT component, instantiations
+        '' x those (2026-10-21). Written only by RegisterInst, which never repeats a name.
+        as containers.Map( of uint32, int32 ) instAt
         '' NAME A BUILTIN THE WAY THIS PROGRAM DOES (T34): int32, float64, uint8 ... rather than
         '' long, double, ubyte. Those sized names are prelude typedefs, so a type that came from
         '' 'int32' IS 'long' here and the spelling is gone; the driver sets this per unit from
