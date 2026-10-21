@@ -1,0 +1,18 @@
+'' RUN: invalid IR and a clang crash from fbc-examples round 3 -- a byval parameter of a non-trivial
+'' UDT on a global operator (r3ir01), a method on the by-value result of 'operator []' (r3ir02), an
+'' indexed property setter with a byval string index (r3ir03), and a POD over 64 KB copied by
+'' assignment and through an implicit let, which crashed clang's instruction selection (r3ir04).
+'' Expected output, constructor and destructor counts included, measured with fbc-modern.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/ir-shapes-r3.bas -o tests/codegen/irshapesr3.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/irshapesr3.exe
+'' RUN: tests/codegen/irshapesr3.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  7 3 1
+'' EXPECT-RUN-OUT:  3 3
+'' EXPECT-RUN-OUT:  7
+'' EXPECT-RUN-OUT:  7 abc
+'' EXPECT-RUN-OUT:  17
+'' EXPECT-RUN-OUT:  6 match

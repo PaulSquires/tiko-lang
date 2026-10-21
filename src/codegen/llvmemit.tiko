@@ -907,6 +907,8 @@ end sub
 '' stack slot, so a split entry block writes every 'alloca' line first and each one's
 '' debug declaration where it always was. A block below the threshold -- every block of
 '' every ordinary procedure -- is written exactly as before.
+#include once "codegen/llvmaggcopy.tiko"   '' FuseBigAggCopy_
+
 const SPLIT_INSTS_ = 1000
 
 private sub EmitBlock _
@@ -929,6 +931,12 @@ private sub EmitBlock _
             Line( e, "br label %" & nx )
             e.outp += nx & ":" & chr( 10 )
             run_ = 0
+        end if
+        if i + 1 < b.insts.Count then
+            if FuseBigAggCopy_( e, b.insts[i], b.insts[i + 1], bi, i + 1 ) then
+                i += 1 : run_ += 2
+                continue for
+            end if
         end if
         EmitInst( e, b.insts[i] )
         run_ += 1
@@ -1329,6 +1337,9 @@ private function IntrinsicDecls _
         if Called_( called, "llvm." & vas( i ) ) = false then continue for
         r += "declare void @llvm." & vas( i ) & "(ptr) nounwind" & chr( 10 )
     next
+    if Called_( called, "llvm.memcpy.p0.p0.i64" ) then
+        r += "declare void @llvm.memcpy.p0.p0.i64(ptr, ptr, i64, i1) nounwind" & chr( 10 )
+    end if
     if Called_( called, "llvm.va_copy" ) then
         r += "declare void @llvm.va_copy(ptr, ptr) nounwind" & chr( 10 )
     end if

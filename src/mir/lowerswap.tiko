@@ -10,6 +10,9 @@ namespace Tko.Mir
 
 using Tko
 
+declare function ByvalUdtCopyArg_ _   '' lowercallarg.tiko
+    ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+      byref outa as MirValue, byref outSlot as int32, byref outType as Tko.TypeId ) as boolean
 declare function StrSwapKind_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byref n as int64 ) as int32
 
@@ -605,6 +608,13 @@ private function PushPropIndexArgs_ _
             if StrDescriptorOf_( c, a, av ) = false then return false
         elseif byref_ then
             av = LowerAddr( c, a )
+        elseif ByvalStrIndirect_( c, pt ) then
+            '' A BYVAL STRING INDEX IS THE CALLER'S COPY, by address, as at a call (ByvalStrTemp_); the
+            '' descriptor itself went by value -- invalid IR, '[24 x i8]' expected 'ptr' (fbc-examples
+            '' r3ir03, BulletScript's 'labels->item( _paramWord ) = getScriptSize( )').
+            dim as int32 bss
+            if ByvalStrTemp_( c, a, pt, av, bss ) = false then return false
+            if bss >= 0 then c.strTemps.Push( cast( uint32, bss ) )
         else
             '' A STRING FOR A 'wstring ptr' / 'zstring ptr' INDEX goes through a call's encoder: 'pDisp.Put(
             '' "Pattern" ) = v' passed the NARROW literal as the wide name, and COM answered DISP_E_UNKNOWNNAME.
@@ -1313,6 +1323,21 @@ private function OperandValue_ _
             v = tmp
         end if
     else
+        '' A BYVAL UDT THAT TRAVELS BY HIDDEN POINTER -- a copy constructor or a destructor -- is a copy
+        '' made for the operator and destroyed with the statement, as a call's argument is. Its
+        '' aggregate VALUE went where the pointer belongs: invalid IR, '[4 x i8]' expected 'ptr'
+        '' (fbc-examples r3ir01, BigFloat's 'operator *( byref, byval as BigFloat_t )').
+        if ByvalUdtIndirect_( c, pt ) then
+            dim as int32 bvs
+            dim as Tko.TypeId bvt
+            if ByvalUdtCopyArg_( c, e, pt, v, bvs, bvt ) = false then return false
+            if bvs >= 0 then
+                c.udtTemps.Push( cast( uint32, bvs ) )
+                c.udtTempTypes.Push( cast( uint32, bvt ) )
+            end if
+            args.Push( cast( uint32, v.kind ) ) : args.Push( cast( uint32, v.id ) )
+            return true
+        end if
         v = LowerExpr( c, e )
         if v.kind = cast( uint8, MV_NONE ) then return false
         dim as MirType pmt = LowerType( pt, *c.types )

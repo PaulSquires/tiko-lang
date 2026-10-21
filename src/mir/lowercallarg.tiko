@@ -1077,7 +1077,7 @@ end function
 '' result, mkFrom's own argument copy, mkFrom's result and then n1's copy. Destroying it
 '' straight after the call ran it before the rest of the expression. A conversion
 '' temporary (UdtConvTemp_) follows the same rule, byval, byref and as an operand.
-private function ByvalUdtCopyArg_ _
+function ByvalUdtCopyArg_ _   '' not private: an operator's operand takes it too (lowerswap.tiko)
     ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
       byref outa as MirValue, byref outSlot as int32, byref outType as Tko.TypeId ) as boolean
 

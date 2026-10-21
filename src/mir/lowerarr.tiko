@@ -1069,7 +1069,21 @@ function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
         dim as MirValue ixv
         dim as boolean ixByref = false
         if LowerUdtIndexOp_( c, id, ixv, ixByref ) then
-            if ixByref then return ixv
+            '' (An sret callee reports a pointer result but hands back the LOADED aggregate.)
+            if ixByref andalso (ixv.ty <> cast( uint8, MT_AGG )) then return ixv
+            '' ...A UDT RETURNED BY VALUE IS A TEMPORARY, and a member call on it needs that storage:
+            '' 'lst[ 1 ].toInt( )' passed the loaded aggregate as THIS -- invalid IR, '[32 x i8]'
+            '' expected 'ptr' (fbc-examples r3ir02, fb_list). A scalar still declines, as above.
+            dim as Tko.TypeId ixt = c.info->TypeOf_( id )
+            if (ixv.kind <> cast( uint8, MV_NONE )) andalso (LowerType( ixt, *c.types ) = MT_AGG) then
+                dim as int32 ixs = NewTempLocal( c, MT_AGG, SizeOfType( c, ixt ) )
+                if ixs >= 0 then
+                    dim as MirValue ixa
+                    ixa.kind = cast( uint8, MV_LOCAL ) : ixa.ty = cast( uint8, MT_PTR ) : ixa.id = ixs
+                    StoreThrough( c, ixa, ixv )
+                    return ixa
+                end if
+            end if
             return none_
         end if
         if UdtMemberNamed_( c, pt, "[]" ) <> Tko.SYMBOL_NONE then return none_

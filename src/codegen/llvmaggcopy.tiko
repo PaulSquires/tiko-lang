@@ -1,0 +1,46 @@
+'' llvmaggcopy.tiko -- a large aggregate copy as llvm.memcpy.
+''
+'' Split out of llvmemit.tiko at the 1500-line cap and included from it in place, after the
+'' private helpers it uses (Line, ValStr, AggSizeOfAddr).
+
+'' A LARGE AGGREGATE COPY IS A MEMCPY. MIR copies a UDT as 'load agg' then 'store agg', and LLVM's
+'' instruction selector expands a first-class aggregate value element by element: over a 82,120-byte
+'' POD -- 'work = p' in a chess engine's search -- clang crashed outright (fbc-examples r3ir04;
+'' 64,136 bytes compiled). Only the adjacent pair whose loaded value nothing else reads is fused, so
+'' no memory can change between the two and no other reader loses its value.
+const BIG_AGG_COPY_ = 4096
+
+private function TempReadElsewhere_ _
+    ( byref e as EmitCtx, byval tid as uint32, byval skipB as int32, byval skipI as int32 ) as boolean
+    for bi as int32 = 0 to e.f->blocks.Count - 1
+        dim as MirBlock ptr bk = @e.f->blocks[bi]
+        for ii as int32 = 0 to bk->insts.Count - 1
+            if (bi = skipB) andalso (ii = skipI) then continue for
+            dim as MirInst ptr q = @bk->insts[ii]
+            if (q->a.kind = cast( uint8, MV_TEMP )) andalso (q->a.id = tid) then return true
+            if (q->b.kind = cast( uint8, MV_TEMP )) andalso (q->b.id = tid) then return true
+            for k as int32 = 0 to q->count - 1
+                dim as int32 ak = (q->first + k) * 2
+                if (ak < 0) orelse (ak + 1 >= e.m->argPool.Count) then exit for
+                if (e.m->argPool[ak] = cast( uint32, MV_TEMP )) andalso (e.m->argPool[ak + 1] = tid) then return true
+            next
+        next
+        if (bk->cond.kind = cast( uint8, MV_TEMP )) andalso (bk->cond.id = tid) then return true
+        if (bk->ret2.kind = cast( uint8, MV_TEMP )) andalso (bk->ret2.id = tid) then return true
+    next
+    return false
+end function
+
+private function FuseBigAggCopy_ _
+    ( byref e as EmitCtx, byref ld as MirInst, byref st as MirInst, byval bi as int32, byval si as int32 ) as boolean
+    if cast( MirOp, ld.op ) <> M_LOAD then return false
+    if cast( MirType, ld.ty ) <> MT_AGG then return false
+    if cast( MirOp, st.op ) <> M_STORE then return false
+    if (st.b.kind <> cast( uint8, MV_TEMP )) orelse (st.b.id <> ld.result) then return false
+    dim as int32 sz = AggSizeOfAddr( e, ld.a, ld.imm )
+    if sz < BIG_AGG_COPY_ then return false
+    if TempReadElsewhere_( e, ld.result, bi, si ) then return false
+    Line( e, "call void @llvm.memcpy.p0.p0.i64(ptr " & ValStr( e, st.a ) & ", ptr " & ValStr( e, ld.a ) & _
+             ", i64 " & str( sz ) & ", i1 false)" )
+    return true
+end function
