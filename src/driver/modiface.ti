@@ -28,7 +28,7 @@ declare sub InstallImports( byref ctx as Tko.CompilerContext, byref cfg as Tko.P
 declare sub BindImports _
     ( byref ctx as Tko.CompilerContext, byref ast as Tko.AstArena, _
       byref syms as Tko.SymbolTable, byref info as Tko.SemanticInfo, _
-      byref imports as Tko.PpImportVec )
+      byref imports as Tko.PpImportVec, byref importRead as Tko.FileIdVec )
 
 '' WHAT A UNIT'S INITIALISATION CALLS, in build order (RFC-0006 §3): for a module unit,
 '' the modules it imports directly; for a root, every module of the build.

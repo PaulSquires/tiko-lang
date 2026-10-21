@@ -1,0 +1,8 @@
+'' TKO0919, fbc's 255, for a TYPE NAME two usings both reach: 'dim x as T' (measured,
+'' fbc-modern 1.20: "Ambiguous symbol access, explicit scope resolution required for NB.T,
+'' NA.T"). Only expressions were checked. 'na.T' is qualified and fine.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/using-ambiguous-type.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: using-ambiguous-type.bas(13,10): error TKO0919: 't' is ambiguous
+'' EXPECT-MAX-DIAG: 1

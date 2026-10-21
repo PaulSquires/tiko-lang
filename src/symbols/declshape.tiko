@@ -763,6 +763,23 @@ private sub CollectNsNamed_ ( byref c as Ctx, byval ns as ScopeId, byval nm as I
     wend
 end sub
 
+'' A DECLARATION AN '#import' READ: in a module's interface, or in a header it includes --
+'' sys/win's windows.bi, which declares CONTEXT and DECIMAL. SymbolTable.importLocLo.
+private function FromImport_ ( byref c as Ctx, byval at as SourceLoc ) as boolean
+    dim as int32 lo = 0, hi = c.syms->importLocLo.Count - 1
+    while lo <= hi
+        dim as int32 m = (lo + hi) \ 2
+        if cast( uint32, at ) < c.syms->importLocLo[m] then
+            hi = m - 1
+        elseif cast( uint32, at ) > c.syms->importLocHi[m] then
+            lo = m + 1
+        else
+            return true
+        end if
+    wend
+    return false
+end function
+
 private sub CheckUsingAmbiguity_ ( byref c as Ctx )
     dim as containers.Array( of uint32 ) uNode, uScope, uInner, uFile
     dim as int32 total = c.ast->Count( )
@@ -806,18 +823,32 @@ private sub CheckUsingAmbiguity_ ( byref c as Ctx )
     next
     for n as int32 = 1 to total - 1
         dim as NodeId x = cast( NodeId, n )
-        if c.ast->Kind( x ) <> N_IDENT then continue for
-        if qualified[n] <> 0 then continue for
+        dim as InternId nm = 0
+        select case c.ast->Kind( x )
+        case N_IDENT
+            if qualified[n] <> 0 then continue for
+            nm = c.ast->idents[cast( int32, c.ast->nodes[n].data )].name
+        case N_TYPEREF
+            '' ...AND A TYPE NAME: 'dim x as T' over two usings that each declare a T is fbc's
+            '' 255 too (measured, fbc-modern 1.20, 2026-10-21). Only a bare one: 'na.T' keeps
+            '' its qualifier in ownerName.
+            dim as StmtPayload ptr tp = @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+            if tp->ownerName <> 0 then continue for
+            nm = tp->name
+        case else
+            continue for
+        end select
+        if nm = 0 then continue for
         dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( x ) )
         if s = nullptr then continue for
         select case cast( SymbolKind, s->kind )
-        case SYM_VARIABLE, SYM_CONSTANT, SYM_PROC, SYM_ENUMCONST
+        case SYM_VARIABLE, SYM_CONSTANT, SYM_PROC, SYM_ENUMCONST, SYM_UDT, SYM_TYPEDEF, SYM_ENUM
         case else
             continue for
         end select
         dim as SymScope ptr home = c.syms->ScopeAt( s->parent )
-        if (home = nullptr) orelse (home->kind <> cast( uint8, SCOPEK_NAMESPACE )) then continue for
-        dim as InternId nm = c.ast->idents[cast( int32, c.ast->nodes[n].data )].name
+        if home = nullptr then continue for
+        if (home->kind <> cast( uint8, SCOPEK_NAMESPACE )) andalso (FromImport_( c, s->loc ) = false) then continue for
         '' AN EXPRESSION'S NAME HAS NO SCOPE RECORDED; its statement does, and is built after
         '' it -- the first node past it with a scope is the statement it sits in.
         dim as ScopeId sc = c.info->ScopeOf( x )
@@ -828,13 +859,23 @@ private sub CheckUsingAmbiguity_ ( byref c as Ctx )
         '' A NAME DECLARED ANYWHERE ON THE CHAIN, above the use, is what the use means: it
         '' beats every using (T58, Lookup). Otherwise the usings of EVERY scope on the chain
         '' are asked together -- fbc's 255 names an inner using's and an outer one's alike.
+        ''
+        '' ...UNLESS AN '#import' DECLARED IT. sys/win's windows.bi is an imported module's
+        '' text, not the program's, so its CONTEXT does not beat 'using tasks''s Context: it is
+        '' one more candidate. It won silently, and 'c.Done( )' then asked CPU registers for
+        '' a method. A program's own declaration, or its own '#include', still wins.
         dim as boolean declared = false
+        dim as SymbolId hdr = SYMBOL_NONE
         dim as ScopeId walk = sc
         for guard as int32 = 0 to 255
             if walk = SCOPE_NONE then exit for
-            dim as Symbol ptr loc_ = c.syms->SymbolAt( c.syms->LookupLocal( walk, nm ) )
+            dim as SymbolId lid = c.syms->LookupLocal( walk, nm )
+            dim as Symbol ptr loc_ = c.syms->SymbolAt( lid )
             if loc_ <> nullptr then
-                if (loc_->declAt = 0) orelse (loc_->declAt < cast( uint32, n )) then declared = true
+                if (loc_->declAt = 0) orelse (loc_->declAt < cast( uint32, n )) then
+                    if FromImport_( c, loc_->loc ) then hdr = lid : exit for
+                    declared = true
+                end if
             end if
             if declared then exit for
             dim as SymScope ptr ss = c.syms->ScopeAt( walk )
@@ -844,6 +885,7 @@ private sub CheckUsingAmbiguity_ ( byref c as Ctx )
         if declared then continue for
         '' Two are enough to report, so the walk stops there; nothing else reads 'got'.
         dim as containers.Array( of uint32 ) got
+        if hdr <> SYMBOL_NONE then got.Push( cast( uint32, hdr ) )
         for guard as int32 = 0 to 255
             if (sc = SCOPE_NONE) orelse (got.Count >= 2) then exit for
             dim as int32 u = -1
@@ -862,6 +904,9 @@ private sub CheckUsingAmbiguity_ ( byref c as Ctx )
         next
         if got.Count >= 2 then
             c.diags->Report( TKO0919, PointRange( c.ast->Loc( x ) ), c.names->Spelling( nm ) )
+            if hdr <> SYMBOL_NONE then
+                c.diags->Report( TKO0866, PointRange( c.syms->SymbolAt( hdr )->loc ), c.names->Spelling( nm ) )
+            end if
         end if
     next
 end sub

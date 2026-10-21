@@ -20,6 +20,8 @@ type PpIndexes
     as IdVec     onceMark
     as IdVec     inclMark
     as IdVec     ifaceMark
+    '' ...and PpResult.importRead: a file read while an '#import' was being read.
+    as IdVec     importMark
     '' THE MACRO SLOTS EVER DEFINED INSIDE A BLOCK (blockDepth > 0), once each: all that an
     '' 'end sub' / 'end function' / 'end scope' can undefine. It swept the whole table --
     '' windows.bi's twenty thousand macros -- at every one.

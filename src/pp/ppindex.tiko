@@ -24,6 +24,13 @@ private sub PpOnceAdd_( byref e as PpEngine, byval f as FileId )
     PpFlagSet_( e.ix.onceMark, cast( uint32, f ) )
 end sub
 
+private sub PpImportReadAdd_( byref e as PpEngine, byval f as FileId )
+    if f = FILE_NONE then return
+    if PpFlagOf_( e.ix.importMark, cast( uint32, f ) ) <> 0 then return
+    PpFlagSet_( e.ix.importMark, cast( uint32, f ) )
+    e.outp->importRead.Push( cast( uint32, f ) )
+end sub
+
 private sub PpIncludedAdd_( byref e as PpEngine, byval f as FileId )
     e.allIncluded.Push( cast( uint32, f ) )
     PpFlagSet_( e.ix.inclMark, cast( uint32, f ) )

@@ -1,0 +1,11 @@
+'' TKO0739, fbc's 18, over a type with an ANONYMOUS UNION or TYPE in it, over a named UNION, and
+'' over a type with a field whose type is named '_X'. CheckMemberExists_ (latesweeps2.tiko)
+'' declined all three, so 'c.Foo( )' over sys/win's CONTEXT stopped the build with TKO0994.
+'' The members that exist -- spliced out of the anonymous aggregates -- still bind.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/member-missing-anon-union.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: member-missing-anon-union.bas(24,9): error TKO0739: 't' has no member named 'nope'
+'' EXPECT-OUT: member-missing-anon-union.bas(25,3): error TKO0739: 't' has no member named 'gone'
+'' EXPECT-OUT: member-missing-anon-union.bas(26,9): error TKO0739: 'v' has no member named 'missing'
+'' EXPECT-MAX-DIAG: 3

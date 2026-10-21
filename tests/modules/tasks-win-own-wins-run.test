@@ -1,0 +1,12 @@
+'' RUN: the program's own '#include once "windows.bi"' beats 'using tasks' (fbc's lookup:
+'' a declaration on the chain wins over a using), and 'tasks.Context' qualified reaches the
+'' module's. Only a header an '#import' reads is a candidate rather than the winner
+'' (tasks-win-using-ambiguous).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/modules/src/taskswin/own-wins.tiko -o tests/modules/taskswinownwins.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0919
+'' EXPECT-FILE: tests/modules/taskswinownwins.exe
+'' RUN: tests/modules/taskswinownwins.exe
+'' EXPECT-RUN-OUT: -1false

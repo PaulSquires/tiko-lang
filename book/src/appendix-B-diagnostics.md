@@ -184,6 +184,7 @@ Text like ‹arg1› marks where the compiler substitutes a name, type or path.
 | `TKO0863` | error | alias '‹arg1›' conflicts with a declaration of the same name |
 | `TKO0864` | error | '‹arg1›' belongs to imported module '‹arg2›'; only that module can define it |
 | `TKO0865` | note | '‹arg1›' here is the procedure '‹arg2›', which hides ‹arg3› |
+| `TKO0866` | note | '‹arg1›' is also declared here, in a header an '#import' reads |
 | `TKO0867` | error | constant definitions form a cycle: ‹arg1› |
 | `TKO0869` | error | '‹arg1›' is initialised from '‹arg2›', which is declared later |
 | `TKO0868` | error | '‹arg1›' is module-private but appears in the public declaration of '‹arg2›' |

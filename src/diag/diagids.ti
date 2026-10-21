@@ -125,6 +125,8 @@
     DIAG( TKO0864, SEV_ERROR,   "'%0' belongs to imported module '%1'; only that module can define it" )
     '' Beside TKO0972 when the procedure a dotted name reached hides a namespace or module (TB-004).
     DIAG( TKO0865, SEV_NOTE,    "'%0' here is the procedure '%1', which hides %2" )
+    '' Beside TKO0919 when one of the names is an imported module's header's -- declshape.tiko.
+    DIAG( TKO0866, SEV_NOTE,    "'%0' is also declared here, in a header an '#import' reads" )
     DIAG( TKO0867, SEV_ERROR,   "constant definitions form a cycle: %0" )
     DIAG( TKO0869, SEV_ERROR,   "'%0' is initialised from '%1', which is declared later" )
     DIAG( TKO0868, SEV_ERROR,   "'%0' is module-private but appears in the public declaration of '%1'" )

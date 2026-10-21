@@ -1,0 +1,9 @@
+'' sys/win and std/tasks + std/money, each 'using'd: Win32's CONTEXT and DECIMAL against
+'' tasks.Context and money.Decimal. Neither one wins.
+#import "sys/win"
+#import "std/tasks"
+#import "std/money"
+using tasks
+using money
+dim c as Context
+dim d as Decimal

@@ -560,22 +560,22 @@ private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
         if ts = nullptr then return
         if ts->inner = SCOPE_NONE then return
         if GenericDeclaresMember_( c, ts, want ) then return
-        '' A UNION or an ANONYMOUS aggregate inside the type is not searched here, so
-        '' a type holding one is not judged at all.
-        if (ts->flags and SYMF_UNION_KIND) <> 0 then return
+        '' A UNION, AND AN ANONYMOUS UNION OR TYPE INSIDE ONE, IS JUDGED TOO. Collect splices
+        '' an anonymous aggregate's members into the enclosing type (collectanon.tiko), so
+        '' they are fields of 'ts->inner' like any other and this walk finds them. Declining
+        '' over a union, over a spliced field, or over a field whose type is named '_X' left
+        '' 'c.nope( )' unreported, and lowering then stopped with TKO0994 -- winnt.bi's
+        '' CONTEXT has all three.
         for i as int32 = 0 to c.syms->symbols.Count - 1
             dim as Symbol ptr f = @c.syms->symbols[i]
             if f->parent <> ts->inner then continue for
-            if (f->flags and SYMF_UNION) <> 0 then return
             if c.names->Fold( f->name ) = want then return
             if f->kind = cast( uint8, SYM_FIELD ) then
-                '' An anonymous nested TYPE/UNION field opens its members into the
-                '' owner: decline over any field whose type is an unnamed UDT.
+                '' A field whose type is an UNNAMED UDT is declined: nothing names it.
                 if f->type_ <> TYPE_NONE then
                     dim as TypeId fu = c.types->Unqualify( f->type_ )
                     if c.types->Kind( fu ) = TK_UDT then
                         if c.types->NameOf( fu ) = 0 then return
-                        if left( c.names->Spelling( c.types->NameOf( fu ) ), 1 ) = "_" then return
                     end if
                 end if
             end if

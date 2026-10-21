@@ -1,0 +1,13 @@
+'' TKO0919 + TKO0866: a header an '#import' reads (sys/win's windows.bi) does not beat a
+'' 'using''s name -- both are candidates. Win32's CONTEXT won silently over 'using tasks''s
+'' Context, and a method call on it then stopped the build (TKO0994); DECIMAL likewise over
+'' money.Decimal. A program's own declaration or '#include' still wins (tasks-win-own-wins).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/modules/src/taskswin/using-ambiguous.tiko -o tests/modules/taskswinusingamb.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: using-ambiguous.tiko(8,10): error TKO0919: 'context' is ambiguous
+'' EXPECT-OUT: winnt.bi(1409,1): note TKO0866: 'context' is also declared here, in a header an '#import' reads
+'' EXPECT-OUT: using-ambiguous.tiko(9,10): error TKO0919: 'decimal' is ambiguous
+'' EXPECT-OUT: wtypes.bi(353,1): note TKO0866: 'decimal' is also declared here
+'' EXPECT-MAX-DIAG: 4

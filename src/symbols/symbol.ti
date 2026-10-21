@@ -316,6 +316,11 @@ namespace Tko
         as StrVec     importPaths
         as StrVec     importAliases
         as containers.Array( of uint32 ) importLocs
+        '' THE SOURCE AN '#import' READ: each interface, and each header it includes, as the
+        '' first and last location of the file (PpResult.importRead). A declaration there is
+        '' an imported module's, so it does not beat a 'using''s name: both are TKO0919.
+        as containers.Array( of uint32 ) importLocLo
+        as containers.Array( of uint32 ) importLocHi
         '' AN IMPORT BELONGS TO THE FILE THAT WRITES IT (M22; RFC-0002 §2). In a module unit of
         '' several files, each alias symbol and each file of the unit that imported it, as
         '' pairs; and for each node id, the unit file it was written in, 1-based, or 0 for a

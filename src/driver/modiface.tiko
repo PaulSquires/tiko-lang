@@ -302,9 +302,26 @@ end sub
 sub BindImports _
     ( byref ctx as Tko.CompilerContext, byref ast as Tko.AstArena, _
       byref syms as Tko.SymbolTable, byref info as Tko.SemanticInfo, _
-      byref imports as Tko.PpImportVec )
+      byref imports as Tko.PpImportVec, byref importRead as Tko.FileIdVec )
 
     if ctx.ifaceChains.Count = 0 then return
+    '' THE FILES READ FOR THE IMPORTS, as the source locations each spans (SymbolTable.importLocLo).
+    for each f as uint32 in importRead
+        dim as Tko.SourceFile ptr sf = ctx.sources.FileAt( cast( Tko.FileId, f ) )
+        if sf = nullptr then continue for
+        '' Kept SORTED, for the binary search in declshape.tiko's FromImport_.
+        dim as uint32 lo = cast( uint32, sf->locBase )
+        dim as int32 k = syms.importLocLo.Count
+        syms.importLocLo.Push( 0 )
+        syms.importLocHi.Push( 0 )
+        while (k > 0) andalso (syms.importLocLo[k - 1] > lo)
+            syms.importLocLo[k] = syms.importLocLo[k - 1]
+            syms.importLocHi[k] = syms.importLocHi[k - 1]
+            k -= 1
+        wend
+        syms.importLocLo[k] = lo
+        syms.importLocHi[k] = lo + cast( uint32, sf->text.Count )
+    next
     dim as Tko.ScopeId modScope = Tko.ModSym.ModuleScope( syms )
 
     '' Each interface this unit read: its namespace, for the mangler.
