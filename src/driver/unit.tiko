@@ -53,6 +53,10 @@ private function UnitSpellsSized_ _
     ( byref ctx as Tko.CompilerContext, byref ast as Tko.AstArena, byval rootId as Tko.FileId, _
       byref modFiles as Tko.IdVec ) as boolean
     dim as int32 sized = 0, legacy = 0
+    dim as containers.Set( of uint32 ) ownFile     '' modFiles, asked per vote
+    for each m as uint32 in modFiles
+        ownFile.Add( m )
+    next
     for n as int32 = 1 to ast.Count( ) - 1
         if ast.Kind( cast( Tko.NodeId, n ) ) <> Tko.N_TYPEREF then continue for
         dim as Tko.StmtPayload ptr tp = @ast.stmts[cast( int32, ast.nodes[n].data )]
@@ -70,11 +74,7 @@ private function UnitSpellsSized_ _
         if vote = 0 then continue for
         dim as Tko.FileId f = ctx.sources.Decode( ast.Loc( cast( Tko.NodeId, n ) ) ).file
         dim as boolean own = (f = rootId)
-        if own = false then
-            for k as int32 = 0 to modFiles.Count - 1
-                if cast( Tko.FileId, modFiles[k] ) = f then own = true : exit for
-            next
-        end if
+        if own = false then own = ownFile.Contains( cast( uint32, f ) )
         if own = false then continue for
         if vote > 0 then sized += 1 else legacy += 1
     next
@@ -300,37 +300,43 @@ function CompileUnit _
             queried.Push( ast.children[cp->first + 1] )
         next
     end if
-    for n as int32 = 1 to ast.Count( )
-        dim as Tko.NodeId un = cast( Tko.NodeId, n )
-        if ast.Kind( un ) <> Tko.N_IDENT then continue for
-        dim as boolean asked = false
+    '' BY SET, and the table walked once: every identifier was checked against every query and
+    '' every reserved name, and the table walked whole per reserved name. The reports are as
+    '' before -- each identifier's in node order, then each reserved name's first symbol in
+    '' the list's order.
+    if pr.reservedNames.Count > 0 then
+        dim as containers.Set( of uint32 ) isQueried, isReserved
         for each q as uint32 in queried
-            if q = cast( uint32, n ) then asked = true
+            isQueried.Add( q )
         next
-        if asked then continue for
-        dim as Tko.IdentPayload ptr uip = _
-            @ast.idents[cast( int32, ast.nodes[cast( int32, un )].data )]
-        for k as int32 = 0 to pr.reservedNames.Count - 1
-            if uip->name <> cast( Tko.InternId, pr.reservedNames[k] ) then
-                continue for
-            end if
+        for each r as uint32 in pr.reservedNames
+            isReserved.Add( r )
+        next
+        for n as int32 = 1 to ast.Count( )
+            dim as Tko.NodeId un = cast( Tko.NodeId, n )
+            if ast.Kind( un ) <> Tko.N_IDENT then continue for
+            if isQueried.Contains( cast( uint32, n ) ) then continue for
+            dim as Tko.IdentPayload ptr uip = _
+                @ast.idents[cast( int32, ast.nodes[cast( int32, un )].data )]
+            if isReserved.Contains( cast( uint32, uip->name ) ) = false then continue for
             ctx.diags.Report( Tko.TKO0770, Tko.PointRange( ast.Loc( un ) ), _
                               ctx.names.Spelling( uip->name ) )
-            exit for
         next
-    next
-
-    for k as int32 = 0 to pr.reservedNames.Count - 1
-        dim as Tko.InternId rnm = cast( Tko.InternId, pr.reservedNames[k] )
+        dim as containers.Map( of uint32, int32 ) firstSym
         for si as int32 = 1 to syms.Count( )
             dim as Tko.Symbol ptr rsym = syms.SymbolAt( cast( Tko.SymbolId, si ) )
             if rsym = nullptr then continue for
-            if rsym->name <> rnm then continue for
+            if isReserved.Contains( cast( uint32, rsym->name ) ) then firstSym.Add( cast( uint32, rsym->name ), si )
+        next
+        for k as int32 = 0 to pr.reservedNames.Count - 1
+            dim as Tko.InternId rnm = cast( Tko.InternId, pr.reservedNames[k] )
+            dim as int32 si = 0
+            if firstSym.TryGet( pr.reservedNames[k], si ) = false then continue for
+            dim as Tko.Symbol ptr rsym = syms.SymbolAt( cast( Tko.SymbolId, si ) )
             ctx.diags.Report( Tko.TKO0769, Tko.PointRange( rsym->loc ), _
                               ctx.names.Spelling( rnm ) )
-            exit for
         next
-    next
+    end if
 
     if ctx.diags.Stopped( ) then return false
 

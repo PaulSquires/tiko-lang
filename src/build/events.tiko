@@ -39,10 +39,7 @@ sub OnModule _
 
     if obs = nullptr then return
     dim as Observer ptr o = obs
-    for each c as string in o->modChains
-        if c = chain then return
-    next
-    o->modChains.Push( chain )
+    if o->modChains.Add( chain ) = false then return
     o->modJson.Push( "{""chain"":" & JsonStr( chain ) & ",""package"":" & JsonStr( pkg ) & _
                      ",""dir"":" & JsonStr( dir_ ) & ",""files"":" & JsonArr( files ) & _
                      ",""imports"":" & JsonArr( imports ) & "}" )

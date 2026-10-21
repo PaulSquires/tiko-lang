@@ -25,7 +25,8 @@ namespace Tko.Build
         as int32    warnings
         '' 'tiko metadata' (B2): what a '--print-graph' run reports instead of printing --
         '' each module once, as a JSON object, and where the last run looked for imports.
-        as Tko.StrVec modChains
+        '' The chains already reported are a SET: a graph of n modules asked n times.
+        as containers.Set( of string ) modChains
         as Tko.StrVec modJson
         as string     searchJson
         as string     includesJson

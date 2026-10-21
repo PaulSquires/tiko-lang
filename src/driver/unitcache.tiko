@@ -300,11 +300,10 @@ end function
 '' It was '<output>.link', beside the artefact: one more file in the user's output directory,
 '' removed by nothing but 'tiko clean'. In the pool it is trimmed like an entry; a record
 '' that outlives its artefact cannot match, since it names the artefact's stamp.
-'' True the first time 'key' is offered to 'seen' (which starts as chr( 0 )), false after.
-private function FirstTime_( byref seen as string, byref key as string ) as boolean
-    if instr( seen, chr( 0 ) & key & chr( 0 ) ) > 0 then return false
-    seen &= key & chr( 0 )
-    return true
+'' True the first time 'key' is offered to 'seen', false after. A SET: it was one string of
+'' NUL-separated keys searched with instr, every request a scan of all before it.
+private function FirstTime_( byref seen as containers.Set( of string ), byref key as string ) as boolean
+    return seen.Add( key )
 end function
 
 '' A LIBRARY ONCE, by the rule the link line itself applies (codegen/toolchain.tiko): on a COFF
@@ -336,7 +335,7 @@ function LinkSignature _
         sig &= "obj " & Tko.DiskCache.Stamp( o ) & chr( 9 ) & Tko.Modules.AbsPath( o ) & nl
     next
     dim as boolean coff = (Tko.Codegen.TargetFor( ctx.options.target ).objFormat = Tko.Codegen.OBJ_COFF)
-    dim as string seen = chr( 0 )
+    dim as containers.Set( of string ) seen
     for each l as string in ctx.options.pragmaLibs
         if FirstTime_( seen, "lib " & LibKey_( l, coff ) ) then sig &= "lib " & l & nl
     next
