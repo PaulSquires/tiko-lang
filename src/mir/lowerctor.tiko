@@ -65,6 +65,16 @@ private function CtorArgValue_ _
                     end if
                 end if
                 if c.types->BuiltinOf( pin ) = Tko.TY_WSTRING then
+                    '' A USTRING IS ITS UTF-16 DATA POINTER, through the call path's own encoder:
+                    '' an lvalue's own data, an rvalue's from a temporary deleted after the
+                    '' statement. Neither narrow nor wide above, so 'new T( s )' fell to LowerExpr,
+                    '' which has no value for a ustring, and declined (TKO0994); 'new T( f( ) )'
+                    '' passed a pointer to the wrong bytes.
+                    if IsUStringType( c, at ) orelse IsUStrChain_( c, argNode ) then
+                        dim as int32 upk = PropPtrStrArg_( c, argNode, pt, outv )
+                        if upk < 0 then return false
+                        if upk > 0 then return true
+                    end if
                     '' A CONCATENATION WITH A WIDE TERM is wide whatever Check typed it:
                     '' '"Delete?" + dws' over a DWSTRING is the UDT to Check and a WSTRING
                     '' to fbc, which builds it with fb_WstrConcatAW.

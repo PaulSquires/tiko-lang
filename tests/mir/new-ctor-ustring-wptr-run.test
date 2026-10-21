@@ -1,0 +1,11 @@
+'' RUN: 'new T( u )' with a ustring u for a 'byval as wstring ptr' constructor parameter, over
+'' an overloaded and a single constructor, a non-empty and an empty ustring, and an rvalue. It
+'' stopped on TKO0994 (lvalue) or passed the wrong bytes (rvalue, len 3).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/mir/src/new-ctor-ustring-wptr.bas -o tests/mir/newctorustrwptr.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/mir/newctorustrwptr.exe
+'' RUN: tests/mir/newctorustrwptr.exe
+'' EXPECT-RUN-OUT:  5 5 6
+'' EXPECT-RUN-OUT: -1-1 1
