@@ -15,6 +15,18 @@ type OwnerIndex
     as containers.Array( of uint8 )  head           '' a namespace, type or typedef has this name
 end type
 
+'' EVERY SYM_PROC BY FOLDED NAME, table order kept: ProcNamedAnywhere_, ArrowOperatorAnywhere_
+'' and CmpOpMayApply_ (proccheck.tiko) scanned the whole symbol table per expression they
+'' judged. Symbols are only ever appended and keep their name and kind in this pass, so the
+'' index catches up to symbols.Count on each use (builtTo) rather than being rebuilt.
+'' head/tail: name -> first/last entry; an entry is a symbol id, chained by nxt.
+type ProcNameIndex
+    as int32                  builtTo = 0
+    as containers.Map( of uint32, int32 ) head, tail
+    as containers.Array( of int32 )  nxt
+    as containers.Array( of uint32 ) sid
+end type
+
 type Ctx
     as AstArena ptr         ast
     as SymbolTable ptr      syms
@@ -39,6 +51,8 @@ type Ctx
     as NodeId                root
     '' THE SYMBOL TABLE BY FOLDED NAME, for the owner-path sweeps -- see OwnerIndex.
     as OwnerIndex            owners
+    '' EVERY PROCEDURE BY NAME, for proccheck.tiko -- see ProcNameIndex.
+    as ProcNameIndex         procsByName
     '' EVERY UDT'S LAYOUT, for '#assert sizeof( T )' and 'offsetof' -- built on first use by
     '' AssertLayouts_ (assertlayout.tiko), since the layout pass proper runs after this one.
     as UdtLayouts            udts

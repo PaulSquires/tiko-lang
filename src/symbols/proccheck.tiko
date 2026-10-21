@@ -656,14 +656,33 @@ end sub
 '' '(**pp)->i' where the left side is the object itself. CheckDeref_ leaves a UDT alone
 '' because a type may overload 'operator ->'; when it declares none, the arrow has
 '' nothing to go through.
+'' The first entry of ProcNameIndex for folded name 'want', or -1 -- see visctx.ti.
+private function ProcsNamed_ ( byref c as Ctx, byval want as InternId ) as int32
+    dim as ProcNameIndex ptr x = @c.procsByName
+    while x->builtTo < c.syms->symbols.Count
+        dim as int32 i = x->builtTo
+        x->builtTo += 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( uint8, SYM_PROC ) then continue while
+        dim as uint32 key = cast( uint32, c.names->Fold( s->name ) )
+        dim as int32 e = x->sid.Count, t = -1
+        x->sid.Push( cast( uint32, i ) )
+        x->nxt.Push( -1 )
+        if x->tail.TryGet( key, t ) then
+            x->nxt[t] = e
+        else
+            x->head.Put( key, e )
+        end if
+        x->tail.Put( key, e )
+    wend
+    dim as int32 e = -1
+    if x->head.TryGet( cast( uint32, want ), e ) then return e
+    return -1
+end function
+
 private function ArrowOperatorAnywhere_ ( byref c as Ctx ) as boolean
     dim as InternId nm = c.names->Fold( c.names->GetString( "->" ) )
-    for i as int32 = 0 to c.syms->symbols.Count - 1
-        dim as Symbol ptr s = @c.syms->symbols[i]
-        if s->kind <> cast( uint8, SYM_PROC ) then continue for
-        if c.names->Fold( s->name ) = nm then return true
-    next
-    return false
+    return ProcsNamed_( c, nm ) >= 0
 end function
 
 private sub CheckArrowOnValue_ ( byref c as Ctx, byval id as NodeId )
@@ -709,12 +728,7 @@ end sub
 '' not modelled here, so one is enough to decline.
 private function ProcNamedAnywhere_ ( byref c as Ctx, byref nm as string ) as boolean
     dim as InternId want = c.names->Fold( c.names->GetString( nm ) )
-    for i as int32 = 0 to c.syms->symbols.Count - 1
-        dim as Symbol ptr s = @c.syms->symbols[i]
-        if s->kind <> cast( uint8, SYM_PROC ) then continue for
-        if c.names->Fold( s->name ) = want then return true
-    next
-    return false
+    return ProcsNamed_( c, want ) >= 0
 end function
 
 '' 'erase x' OVER AN ARRAY OF A TYPE WITH STRUCTORS reconstructs every element, and fbc
@@ -1203,10 +1217,10 @@ end function
 private function CmpOpMayApply_ _
     ( byref c as Ctx, byref nm as string, byval lt as TypeId, byval rt as TypeId ) as boolean
     dim as InternId want = c.names->Fold( c.names->GetString( nm ) )
-    for i as int32 = 0 to c.syms->symbols.Count - 1
-        dim as Symbol ptr s = @c.syms->symbols[i]
-        if s->kind <> cast( uint8, SYM_PROC ) then continue for
-        if c.names->Fold( s->name ) <> want then continue for
+    dim as int32 e = ProcsNamed_( c, want )
+    while e >= 0
+        dim as Symbol ptr s = @c.syms->symbols[cast( int32, c.procsByName.sid[e] )]
+        e = c.procsByName.nxt[e]
         dim as NodeId pn = cast( NodeId, s->payload )
         if (pn = NODE_NONE) orelse (c.ast->Kind( pn ) <> N_PROC) then return true
         dim as StmtPayload ptr pp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
@@ -1223,7 +1237,7 @@ private function CmpOpMayApply_ _
             if IsOrExtends_( c, lt, p ) orelse IsOrExtends_( c, rt, p ) then return true
         next
         if np <> 2 then return true
-    next
+    wend
     return false
 end function
 
