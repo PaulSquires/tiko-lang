@@ -780,6 +780,17 @@ private function FromImport_ ( byref c as Ctx, byval at as SourceLoc ) as boolea
     return false
 end function
 
+'' ...BUT NOT A NAME A MODULE'S OVERLOADS JOINED (RFC-0001 F4): windows.bi's GetWindowText
+'' and qo's are one set, twinned into the unit's own (SymbolTable.JoinTwin), and a bare
+'' call chooses among them by signature (tests/modules/overload-join-using).
+private function JoinedName_ ( byref c as Ctx, byval nm as InternId ) as boolean
+    for q as int32 = 0 to c.syms->joinCopy.Count - 1
+        dim as Symbol ptr ts = c.syms->SymbolAt( cast( SymbolId, c.syms->joinCopy[q] ) )
+        if (ts <> nullptr) andalso (ts->name = nm) then return true
+    next
+    return false
+end function
+
 private sub CheckUsingAmbiguity_ ( byref c as Ctx )
     dim as containers.Array( of uint32 ) uNode, uScope, uInner, uFile
     dim as int32 total = c.ast->Count( )
@@ -873,7 +884,7 @@ private sub CheckUsingAmbiguity_ ( byref c as Ctx )
             dim as Symbol ptr loc_ = c.syms->SymbolAt( lid )
             if loc_ <> nullptr then
                 if (loc_->declAt = 0) orelse (loc_->declAt < cast( uint32, n )) then
-                    if FromImport_( c, loc_->loc ) then hdr = lid : exit for
+                    if FromImport_( c, loc_->loc ) andalso (JoinedName_( c, nm ) = false) then hdr = lid : exit for
                     declared = true
                 end if
             end if
