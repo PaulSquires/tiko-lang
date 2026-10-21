@@ -744,6 +744,24 @@ function ResolveTypeRefAt_ _
                 dim as Tko.SymbolId qsid
                 if first_ then
                     qsid = c.syms->Lookup( sc, cid )
+                    '' A FIELD DOES NOT QUALIFY ANOTHER FIELD'S TYPE. 'as fs.MemoryStream Fs'
+                    '' puts a field named like the namespace in the very scope the type is
+                    '' read from, and the lookup found it: no type, no layout for the whole
+                    '' UDT, and every method's 'this.x' lowered to nothing (TKO0993). fbc
+                    '' reads the namespace there, for this field and every later one
+                    '' (fbc-modern 1.20, 2026-10-21) -- but NOT from a method body or a
+                    '' 'declare' parameter, where the field wins (errors 14 and 59). So only
+                    '' a field of the scope the lookup started in is looked past.
+                    dim as Tko.Symbol ptr fs_ = c.syms->SymbolAt( qsid )
+                    if fs_ <> nullptr then
+                        if (fs_->kind = cast( uint8, Tko.SYM_FIELD )) andalso (fs_->parent = sc) then
+                            dim as Tko.SymScope ptr fsc = c.syms->ScopeAt( sc )
+                            if fsc <> nullptr then
+                                dim as Tko.SymbolId outer = c.syms->Lookup( fsc->parent, cid )
+                                if outer <> Tko.SYMBOL_NONE then qsid = outer
+                            end if
+                        end if
+                    end if
                 else
                     qsid = c.syms->LookupLocalTyped( sc, cid, true )
                     if qsid = Tko.SYMBOL_NONE then qsid = c.syms->LookupInNamespaceTyped( sc, cid, true )

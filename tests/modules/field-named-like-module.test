@@ -1,0 +1,13 @@
+'' A FIELD NAMED LIKE A NAMESPACE OR MODULE, TYPED THROUGH IT: 'as fs.MemoryStream Fs'. The
+'' qualifier's lookup, made from the type's own scope, found the field, so the field had no
+'' type and the UDT no layout: every method's 'this.x' lowered to nothing and the MIR
+'' verifier refused it (TKO0993; std/http's 'Client.Tls'). fbc-modern 1.20 reads the
+'' namespace for that field and every later one, and prints 727 12 for the Pair half.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/fieldmod/main.tiko -o tests/modules/fieldmod.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/fieldmod.exe
+'' EXPECT-RUN-OUT:  0
+'' EXPECT-RUN-OUT:  42
+'' EXPECT-RUN-OUT:  727           12

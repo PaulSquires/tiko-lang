@@ -1,0 +1,24 @@
+#module "fm"
+#import "std/containers"
+#import "std/fs"
+
+public type Bag
+    as containers.Array( of long ) a
+    declare const function Count( ) as long
+end type
+
+const function Bag.Count( ) as long
+    return this.a.Count( )
+end function
+
+'' 'Fs' IS SPELLED LIKE THE MODULE ITS OWN TYPE COMES FROM.
+public type Holder
+    as Bag Items
+    as fs.MemoryStream Fs
+    as long hK
+    declare const function N( ) as long
+end type
+
+const function Holder.N( ) as long
+    return this.Items.Count( ) + this.hK
+end function
