@@ -1,0 +1,44 @@
+#cmdline "-mt"
+#import "std/http"
+#import "std/net"
+#import "std/fs"
+
+'' A web server that answers one request, on this machine, so the example
+'' needs no network. It reads the request up to the blank line, then replies.
+sub Serve( byval p as any ptr )
+    dim as net.TcpListener ptr lis = p
+    dim c as net.TcpStream
+    if lis->Accept( c, 5000 ).IsOk( ) = false then exit sub
+    dim as string seen
+    dim as ubyte b( 0 to 1023 )
+    while instr( seen, !"\r\n\r\n" ) = 0
+        dim got as fs.FsResultI64 = c.Read( @b( 0 ), 1024 )
+        if got.IsOk( ) = false orelse got.Value( ) = 0 then exit while
+        for i as long = 0 to got.Value( ) - 1
+            seen &= chr( b( i ) )
+        next
+    wend
+    c.WriteUtf8( !"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n" & _
+                 !"Content-Length: 13\r\n\r\nhello, client" )
+    c.Close( )
+end sub
+
+sub Main( )
+    dim lis as net.TcpListener
+    lis.Bind( net.SocketAddress( net.Loopback( ), 0 ) )
+    dim as long port = lis.LocalAddress( ).Value( ).Port
+    dim th as any ptr = threadcreate( @Serve, @lis, 1024 * 1024 )
+
+    dim r as http.HttpResultResponse = http.Fetch( "http://127.0.0.1:" & port & "/greeting" )
+    if r.IsOk( ) then
+        print r.Value( ).StatusCode; " "; r.Value( ).Reason
+        print r.Value( ).Header.Get( "content-type" ).ValueOr( "?" )
+        print r.Value( ).Text( )
+    end if
+    threadwait( th )
+
+    dim bad as http.HttpResultResponse = http.Fetch( "ftp://example.com/file" )
+    print bad.Failure( ).Message( )
+end sub
+
+Main( )

@@ -1,0 +1,4 @@
+ 200 OK
+text/plain
+hello, client
+Send 'ftp://example.com/file': unsupported URL scheme

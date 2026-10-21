@@ -2,11 +2,11 @@
 
 # Networking
 
-The functions to look up hosts, connect over TCP and UDP, parse and build URLs, grouped by what you want to do. The **From** column says what a program needs before it can call one:
+The functions to look up hosts, connect over TCP and UDP, parse and build URLs, fetch web pages over HTTP and HTTPS, grouped by what you want to do. The **From** column says what a program needs before it can call one:
 
-- `std/net`: `#import "std/net"`, then `using net` to call it by its bare name.
+- `std/<Name>`: `#import "std/<Name>"`, then `using <Name>` to call it by its bare name.
 
-Jump to: [Parse, print and classify IP addresses](#parse-print-and-classify-ip-addresses) · [Look up a host name](#look-up-a-host-name) · [Connect to a TCP server](#connect-to-a-tcp-server) · [Read and write a TCP connection](#read-and-write-a-tcp-connection) · [Accept TCP connections](#accept-tcp-connections) · [Send and receive UDP datagrams](#send-and-receive-udp-datagrams) · [Take a URL apart and build one](#take-a-url-apart-and-build-one) · [Read and build query strings](#read-and-build-query-strings) · [Find out why a network call failed](#find-out-why-a-network-call-failed)
+Jump to: [Parse, print and classify IP addresses](#parse-print-and-classify-ip-addresses) · [Look up a host name](#look-up-a-host-name) · [Connect to a TCP server](#connect-to-a-tcp-server) · [Read and write a TCP connection](#read-and-write-a-tcp-connection) · [Accept TCP connections](#accept-tcp-connections) · [Send and receive UDP datagrams](#send-and-receive-udp-datagrams) · [Take a URL apart and build one](#take-a-url-apart-and-build-one) · [Read and build query strings](#read-and-build-query-strings) · [Find out why a network call failed](#find-out-why-a-network-call-failed) · [Fetch a web page or call a web API](#fetch-a-web-page-or-call-a-web-api) · [Read a large download as it arrives](#read-a-large-download-as-it-arrives) · [Encrypt a connection with TLS](#encrypt-a-connection-with-tls) · [Find out why an HTTP request or TLS handshake failed](#find-out-why-an-http-request-or-tls-handshake-failed)
 
 ## Parse, print and classify IP addresses
 
@@ -98,9 +98,54 @@ Jump to: [Parse, print and classify IP addresses](#parse-print-and-classify-ip-a
 | [NetError](Category-Net#errors) | Holds why a network call failed: a code, the system's number and a message. | `std/net` |
 | [NetErrorMessage](Category-Net#errors) | Returns the fixed English text for a NetErrorCode. | `std/net` |
 
+## Fetch a web page or call a web API
+
+| Function | What it does | From |
+|---|---|---|
+| [Fetch](Category-Http#a-client) | Fetches a URL with GET on a fresh client and returns the whole response. | `std/http` |
+| [Post](Category-Http#a-client) | Posts a text body to a URL on a fresh client and returns the whole response. | `std/http` |
+| [Client](Category-Http#a-client) | Holds the request settings and reuses connections to the same host. | `std/http` |
+| [Client.Fetch](Category-Http#a-client) | Fetches a URL with GET and returns the whole response. | `std/http` |
+| [Client.Head](Category-Http#a-client) | Sends a HEAD request and returns the status and headers. | `std/http` |
+| [Client.Post](Category-Http#a-client) | Posts a text body with its content type and returns the whole response. | `std/http` |
+| [Client.Send](Category-Http#requests) | Sends a Request, follows redirects and reads the whole body into a Response. | `std/http` |
+| [Request](Category-Http#requests) | Holds a method, URL, headers and body to send. | `std/http` |
+| [Request.SetBody](Category-Http#requests) | Sets the body as UTF-8 text and its Content-Type. | `std/http` |
+| [Request.SetBasicAuth](Category-Http#requests) | Adds an Authorization: Basic header for a user name and password. | `std/http` |
+| [Response](Category-Http#responses) | Holds the status, headers, final URL and body of a reply. | `std/http` |
+| [Response.Text](Category-Http#responses) | Returns the body decoded as UTF-8 text. | `std/http` |
+| [Headers](Category-Http#responses) | Holds header fields in order, with names compared regardless of case. | `std/http` |
+
+## Read a large download as it arrives
+
+| Function | What it does | From |
+|---|---|---|
+| [Client.Open](Category-Http#reading-a-body-as-it-arrives) | Sends a request and hands the body over as a stream to read at your own pace. | `std/http` |
+| [ResponseStream](Category-Http#reading-a-body-as-it-arrives) | Reads a response body as a stream and gives the connection back when closed. | `std/http` |
+
+## Encrypt a connection with TLS
+
+| Function | What it does | From |
+|---|---|---|
+| [TlsStream](Category-Http#tls-on-its-own) | Encrypts a connected stream with TLS, as a client or a server. | `std/tls` |
+| [TlsStream.ConnectHost](Category-Http#tls-on-its-own) | Opens a TCP connection to a host and shakes hands as a TLS client. | `std/tls` |
+| [TlsStream.Connect](Category-Http#tls-on-its-own) | Shakes hands as a TLS client over a stream that is already connected. | `std/tls` |
+| [TlsStream.Accept](Category-Http#tls-on-its-own) | Shakes hands as a TLS server over an accepted connection. | `std/tls` |
+| [TlsConfig](Category-Http#tls-on-its-own) | Holds the TLS version floor, extra trusted roots and a server's certificate and key. | `std/tls` |
+| [TlsConfig.AddRootPem](Category-Http#tls-on-its-own) | Trusts the root certificates in PEM text as well as the system's. | `std/tls` |
+| [TlsConfig.SetIdentityPem](Category-Http#tls-on-its-own) | Sets a server's certificate chain and PKCS#8 private key from PEM text. | `std/tls` |
+
+## Find out why an HTTP request or TLS handshake failed
+
+| Function | What it does | From |
+|---|---|---|
+| [HttpError](Category-Http#errors) | Holds why an HTTP request failed: a code, the URL and the lower layer's message. | `std/http` |
+| [TlsError](Category-Http#errors) | Holds why a TLS handshake failed, such as an untrusted or expired certificate. | `std/tls` |
+
 ## See Also
 
 - [Net guide](Category-Net)
+- [HTTP and TLS guide](Category-Http)
 - [Codec guide (percent-encoding)](Category-Codec)
 
 ---

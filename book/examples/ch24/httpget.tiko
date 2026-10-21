@@ -1,0 +1,54 @@
+#cmdline "-mt"
+#import "std/http"
+#import "std/net"
+#import "std/fs"
+
+'' A server on this machine that answers each request on one connection with
+'' the request line it received, until the client goes away.
+function ReadHead( byref c as net.TcpStream, byref head as string ) as boolean
+    dim as ubyte ch
+    head = ""
+    while right( head, 4 ) <> !"\r\n\r\n"
+        dim got as fs.FsResultI64 = c.Read( @ch, 1 )
+        if got.IsOk( ) = false orelse got.Value( ) = 0 then return false
+        head &= chr( ch )
+    wend
+    return true
+end function
+
+sub Serve( byval p as any ptr )
+    dim as net.TcpListener ptr lis = p
+    dim c as net.TcpStream
+    if lis->Accept( c, 5000 ).IsOk( ) = false then exit sub
+    dim as string head
+    while ReadHead( c, head )
+        dim as long at_ = instr( lcase( head ), "content-length:" )
+        if at_ > 0 then
+            dim as long n = valint( mid( head, at_ + 15 ) )
+            dim as string body = space( n )
+            c.ReadExact( cptr( ubyte ptr, strptr( body ) ), n )
+        end if
+        dim as string reply = "you sent: " & left( head, instr( head, !"\r\n" ) - 1 )
+        c.WriteUtf8( !"HTTP/1.1 200 OK\r\nContent-Length: " & len( reply ) & !"\r\n\r\n" & reply )
+    wend
+end sub
+
+sub Main( )
+    dim lis as net.TcpListener
+    lis.Bind( net.SocketAddress( net.Loopback( ), 0 ) )
+    dim as ustring site = "http://127.0.0.1:" & lis.LocalAddress( ).Value( ).Port
+    dim th as any ptr = threadcreate( @Serve, @lis, 1024 * 1024 )
+
+    dim c as http.Client
+    c.TimeoutMs = 5000
+    dim r as http.HttpResultResponse = c.Fetch( site & "/notes?day=mon" )
+    print r.Value( ).StatusCode; "  "; r.Value( ).Text( )
+    r = c.Post( site & "/notes", "text/plain", "buy milk" )
+    print r.Value( ).StatusCode; "  "; r.Value( ).Text( )
+    print "idle connections kept:"; c.IdleCount( )
+
+    c.CloseIdle( )                      '' the server sees the client go
+    threadwait( th )
+end sub
+
+Main( )

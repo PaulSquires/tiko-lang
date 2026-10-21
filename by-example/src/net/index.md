@@ -31,6 +31,7 @@ The pages in this section:
 - [TCP](tcp.md): a connection, which reads and writes like a file.
 - [UDP](udp.md): single messages, sent and received whole.
 - [URLs](urls.md): taking URLs apart, resolving links, query strings.
+- [HTTP](http.md): fetching a web page, with `http` or `https`.
 
 ### Activities
 

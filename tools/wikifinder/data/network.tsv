@@ -45,3 +45,27 @@ Category-Net#query-strings	QueryValues.Add / SetValue / Remove	-	query	std/net	-
 Category-Net#query-strings	QueryValues.Encode	-	query	std/net	-	Returns the pairs as query text in order, with spaces as plus signs.
 Category-Net#errors	NetError	-	neterr	std/net	-	Holds why a network call failed: a code, the system's number and a message.
 Category-Net#errors	NetErrorMessage	-	neterr	std/net	-	Returns the fixed English text for a NetErrorCode.
+Category-Http#a-client	Fetch	-	http	std/http	-	Fetches a URL with GET on a fresh client and returns the whole response.
+Category-Http#a-client	Post	-	http	std/http	-	Posts a text body to a URL on a fresh client and returns the whole response.
+Category-Http#a-client	Client	-	http	std/http	-	Holds the request settings and reuses connections to the same host.
+Category-Http#a-client	Client.Fetch	-	http	std/http	-	Fetches a URL with GET and returns the whole response.
+Category-Http#a-client	Client.Head	-	http	std/http	-	Sends a HEAD request and returns the status and headers.
+Category-Http#a-client	Client.Post	-	http	std/http	-	Posts a text body with its content type and returns the whole response.
+Category-Http#requests	Client.Send	-	http	std/http	-	Sends a Request, follows redirects and reads the whole body into a Response.
+Category-Http#requests	Request	-	http	std/http	-	Holds a method, URL, headers and body to send.
+Category-Http#requests	Request.SetBody	-	http	std/http	-	Sets the body as UTF-8 text and its Content-Type.
+Category-Http#requests	Request.SetBasicAuth	-	http	std/http	-	Adds an Authorization: Basic header for a user name and password.
+Category-Http#responses	Response	-	http	std/http	-	Holds the status, headers, final URL and body of a reply.
+Category-Http#responses	Response.Text	-	http	std/http	-	Returns the body decoded as UTF-8 text.
+Category-Http#responses	Headers	-	http	std/http	-	Holds header fields in order, with names compared regardless of case.
+Category-Http#reading-a-body-as-it-arrives	Client.Open	-	httpstream	std/http	-	Sends a request and hands the body over as a stream to read at your own pace.
+Category-Http#reading-a-body-as-it-arrives	ResponseStream	-	httpstream	std/http	-	Reads a response body as a stream and gives the connection back when closed.
+Category-Http#tls-on-its-own	TlsStream	-	tls	std/tls	-	Encrypts a connected stream with TLS, as a client or a server.
+Category-Http#tls-on-its-own	TlsStream.ConnectHost	-	tls	std/tls	-	Opens a TCP connection to a host and shakes hands as a TLS client.
+Category-Http#tls-on-its-own	TlsStream.Connect	-	tls	std/tls	-	Shakes hands as a TLS client over a stream that is already connected.
+Category-Http#tls-on-its-own	TlsStream.Accept	-	tls	std/tls	-	Shakes hands as a TLS server over an accepted connection.
+Category-Http#tls-on-its-own	TlsConfig	-	tls	std/tls	-	Holds the TLS version floor, extra trusted roots and a server's certificate and key.
+Category-Http#tls-on-its-own	TlsConfig.AddRootPem	-	tls	std/tls	-	Trusts the root certificates in PEM text as well as the system's.
+Category-Http#tls-on-its-own	TlsConfig.SetIdentityPem	-	tls	std/tls	-	Sets a server's certificate chain and PKCS#8 private key from PEM text.
+Category-Http#errors	HttpError	-	httperr	std/http	-	Holds why an HTTP request failed: a code, the URL and the lower layer's message.
+Category-Http#errors	TlsError	-	httperr	std/tls	-	Holds why a TLS handshake failed, such as an untrusted or expired certificate.

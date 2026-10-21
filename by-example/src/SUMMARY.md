@@ -205,6 +205,7 @@
   - [TCP](net/tcp.md)
   - [UDP](net/udp.md)
   - [URLs](net/urls.md)
+  - [HTTP](net/http.md)
 - [Libraries](libraries/index.md)
   - [Logging](libraries/logging.md)
   - [The default logger](libraries/default-logger.md)

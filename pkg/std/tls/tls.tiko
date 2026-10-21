@@ -1,0 +1,501 @@
+#module "tls"
+#import "std/containers"
+#import "std/outcome"
+#import "std/fs"
+#import "std/net"
+#import "std/codec"
+using containers
+using outcome
+'' std/tls -- TLS client and server streams over any connected fs.Stream
+''
+''     #import "std/tls"
+''
+''     dim cfg as tls.TlsConfig
+''     dim s as tls.TlsStream
+''     dim r as tls.TlsResultBool = s.ConnectHost( "example.com", 443, cfg, 5000 )
+''     if r.IsOk( ) then
+''         s.WriteUtf8( !"HEAD / HTTP/1.0\r\nHost: example.com\r\n\r\n" )
+''         dim as Array( of ubyte ) reply
+''         s.ReadToEnd( reply )
+''     else
+''         print r.Failure( ).Message( )
+''     end if
+''
+'' C:\dev\docs\tiko-stdlib\RFC-0002 (HTTP client and TLS).
+''
+''   TlsConfig     a value: the lowest protocol version (TLS 1.2 by default), extra
+''                 trusted roots on top of the system's (AddRootPem / AddRootFile),
+''                 InsecureSkipVerify, and a server's certificate chain and private
+''                 key (SetIdentityPem / SetIdentityFiles; PEM, the key PKCS#8).
+''   TlsStream     an fs.Stream.  ConnectHost opens its own TCP connection (the Tcp
+''                 field) and shakes hands as a client; Connect shakes hands as a
+''                 client over a stream already connected, and Accept as a server.
+''                 Then Read / Write and everything fs.Stream composes on them.
+''                 Close sends close_notify.
+''
+'' VERIFYING.  A client checks the server's chain against the system's trusted
+'' roots plus the config's, and the name it was given against the certificate's
+'' DNS and IP names.  Revocation is not checked.  InsecureSkipVerify turns every
+'' check off, for tests only.
+''
+'' ERRORS.  ConnectHost / Connect / Accept / Close report TlsError; reading and
+'' writing report fs.FsError, as every fs.Stream does: a record that does not
+'' decrypt is fs.FS_INVALID_DATA, and a transport's own error passes through.  The
+'' peer closing the connection, with or without close_notify, reads as the end of
+'' the stream.
+''
+'' PLATFORM NOTES.  Windows: SChannel (secur32, crypt32, ncrypt), Windows 10 1809 or
+'' later.  Accept imports the private key into the user's key store under a
+'' generated name for the life of the stream and deletes it afterwards, because
+'' SChannel cannot use a key that exists only in this process.  Linux: OpenSSL 3,
+'' loaded at run time from libssl.so.3 and libcrypto.so.3 -- nothing is linked, a
+'' program that never shakes hands never needs them, and without them every
+'' handshake fails with TLS_UNAVAILABLE.
+''
+'' BLOCKING.  Every call blocks, as std/net's do; the transport's timeouts apply to
+'' the handshake too.  Not copyable, not thread-safe; distinct streams on distinct
+'' threads are fine.
+
+#if __FB_LANG__ <> "fb"
+    #error "std/tls requires -lang fb"
+#endif
+
+extern "C"
+    declare function TlsMemcpy alias "memcpy" ( byval d as any ptr, byval s as const any ptr, byval n as uinteger ) as any ptr
+    declare function TlsMemmove alias "memmove" ( byval d as any ptr, byval s as const any ptr, byval n as uinteger ) as any ptr
+end extern
+
+'' -------------------------------------------------------------- errors
+
+public enum TlsErrorCode
+    TLS_OK = 0
+    TLS_UNAVAILABLE             '' no TLS library: libssl.so.3 missing, SChannel refused credentials
+    TLS_CONNECT_FAILED          '' ConnectHost: the TCP connection failed (Detail( ) says why)
+    TLS_TRANSPORT               '' the transport failed or closed during the handshake
+    TLS_TIMED_OUT               '' the transport timed out during the handshake
+    TLS_HANDSHAKE_FAILED        '' no common version or cipher, a bad message, an alert
+    TLS_CERT_UNTRUSTED          '' the chain ends at no trusted root
+    TLS_CERT_EXPIRED            '' a certificate in the chain is outside its validity period
+    TLS_CERT_NAME_MISMATCH      '' the certificate does not name the host
+    TLS_CERT_INVALID            '' any other certificate problem (usage, signature, revoked)
+    TLS_BAD_PEM                 '' text holding no PEM block of the kind wanted, or bad base64
+    TLS_BAD_KEY                 '' a private key the TLS library refuses, or not the certificate's
+    TLS_NO_IDENTITY             '' Accept with no certificate and key in the config
+    TLS_CLOSED                  '' an operation on a stream that is not open
+    TLS_ALREADY_OPEN            '' ConnectHost / Connect / Accept on a stream already open
+    TLS_INVALID_ARGUMENT        '' an empty server name
+    TLS_UNKNOWN                 '' mapped to nothing; OsCode( ) is the real answer
+end enum
+
+public enum TlsVersion
+    TLS_VERSION_1_2 = 0
+    TLS_VERSION_1_3
+end enum
+
+public function TlsErrorMessage( byval c as TlsErrorCode ) as ustring
+    select case c
+    case TLS_OK                 : return "no error"
+    case TLS_UNAVAILABLE        : return "TLS is not available"
+    case TLS_CONNECT_FAILED     : return "connection failed"
+    case TLS_TRANSPORT          : return "transport failed during the handshake"
+    case TLS_TIMED_OUT          : return "timed out"
+    case TLS_HANDSHAKE_FAILED   : return "handshake failed"
+    case TLS_CERT_UNTRUSTED     : return "certificate is not trusted"
+    case TLS_CERT_EXPIRED       : return "certificate has expired or is not yet valid"
+    case TLS_CERT_NAME_MISMATCH : return "certificate does not match the host name"
+    case TLS_CERT_INVALID       : return "certificate is not valid"
+    case TLS_BAD_PEM            : return "invalid PEM data"
+    case TLS_BAD_KEY            : return "invalid private key"
+    case TLS_NO_IDENTITY        : return "no certificate and key to serve"
+    case TLS_CLOSED             : return "stream is not open"
+    case TLS_ALREADY_OPEN       : return "stream is already open"
+    case TLS_INVALID_ARGUMENT   : return "invalid argument"
+    case TLS_UNKNOWN            : return "TLS library call failed"
+    end select
+    return "unknown error"
+end function
+
+public type TlsError
+    '' Default-constructible because Result default-constructs both slots.
+    declare constructor( )
+    declare constructor( byval c as TlsErrorCode, byval osc as long, byref op as const ustring, _
+                         byref subj as const ustring, byref detail_ as const ustring = "" )
+    declare const function Code( ) as TlsErrorCode
+    declare const function OsCode( ) as long          '' SECURITY_STATUS / chain policy error / OpenSSL verify or ERR code
+    declare const function Operation( ) as ustring    '' "ConnectHost", "Connect", "Accept", "AddRootPem", ...
+    declare const function Subject( ) as ustring      '' the host, or the file
+    declare const function Detail( ) as ustring       '' the transport's or the library's own text; "" when none
+    declare const function Message( ) as ustring      '' "Connect 'example.com': certificate is not trusted"
+private:
+    as TlsErrorCode m_code
+    as long m_os
+    as ustring m_op
+    as ustring m_subj
+    as ustring m_detail
+end type
+
+constructor TlsError( )
+    this.m_code = TLS_UNKNOWN
+    this.m_os = 0
+end constructor
+
+constructor TlsError( byval c as TlsErrorCode, byval osc as long, byref op as const ustring, _
+                      byref subj as const ustring, byref detail_ as const ustring = "" )
+    this.m_code = c
+    this.m_os = osc
+    this.m_op = op
+    this.m_subj = subj
+    this.m_detail = detail_
+end constructor
+
+const function TlsError.Code( ) as TlsErrorCode
+    return this.m_code
+end function
+
+const function TlsError.OsCode( ) as long
+    return this.m_os
+end function
+
+const function TlsError.Operation( ) as ustring
+    return this.m_op
+end function
+
+const function TlsError.Subject( ) as ustring
+    return this.m_subj
+end function
+
+const function TlsError.Detail( ) as ustring
+    return this.m_detail
+end function
+
+const function TlsError.Message( ) as ustring
+    dim as ustring m = this.m_op
+    if( len( this.m_subj ) > 0 ) then m &= " '" & this.m_subj & "'"
+    m &= ": " & TlsErrorMessage( this.m_code )
+    if( len( this.m_detail ) > 0 ) then m &= " (" & this.m_detail & ")"
+    if( this.m_os <> 0 ) then m &= " (os error " & hex( this.m_os ) & ")"
+    return m
+end function
+
+public type TlsResultBool as Result( of boolean, TlsError )
+
+function TlsFail( byval c as TlsErrorCode, byval osc as long, byref op as const ustring, _
+                  byref subj as const ustring, byref detail_ as const ustring = "" ) as TlsResultBool
+    return Fail( of boolean, TlsError )( TlsError( c, osc, op, subj, detail_ ) )
+end function
+
+function TlsOk( ) as TlsResultBool
+    return Ok( of boolean, TlsError )( TRUE )
+end function
+
+'' -------------------------------------------------------------- config
+
+'' A value: copy it freely.  The PEM text is kept as given and handed to the TLS
+'' library at each handshake.
+public type TlsConfig
+    declare constructor( )
+    as TlsVersion MinVersion                 '' TLS_VERSION_1_2
+    as boolean InsecureSkipVerify            '' FALSE; TRUE checks neither chain nor name
+    declare function AddRootPem( byref pem as const ustring ) as TlsResultBool       '' every CERTIFICATE block in it
+    declare function AddRootFile( byref path as const ustring ) as TlsResultBool
+    declare function SetIdentityPem( byref certPem as const ustring, byref keyPem as const ustring ) as TlsResultBool
+    declare function SetIdentityFiles( byref certPath as const ustring, byref keyPath as const ustring ) as TlsResultBool
+    declare const function RootCount( ) as long
+    declare const function HasIdentity( ) as boolean
+
+    '' Internal: the engines read them.
+    as Array( of string ) hRoots             '' one PEM CERTIFICATE block each
+    as string hCertPem                       '' the chain, leaf first
+    as string hKeyPem
+end type
+
+'' The DER bytes of the PEM blocks labelled `label` in `pem`, in order; FALSE when
+'' a block's base64 does not decode.  Text outside the blocks is ignored.
+function TlsPemBlocks( byref pem as const string, byref label as const string, _
+                       byref ders as Array( of string ), byref texts as Array( of string ) ) as boolean
+    dim as string head = "-----BEGIN " & label & "-----"
+    dim as string tail = "-----END " & label & "-----"
+    dim as long p = 1
+    do
+        dim as long a = instr( p, pem, head )
+        if( a = 0 ) then exit do
+        dim as long b = instr( a + len( head ), pem, tail )
+        if( b = 0 ) then return FALSE
+        dim as string body = mid( pem, a + len( head ), b - a - len( head ) )
+        dim as string clean
+        for i as long = 0 to len( body ) - 1
+            dim as ubyte ch = body[i]
+            if( ( ch <> 13 ) andalso ( ch <> 10 ) andalso ( ch <> 32 ) andalso ( ch <> 9 ) ) then clean &= chr( ch )
+        next
+        dim as Array( of ubyte ) bytes
+        dim as ustring uclean = clean
+        dim as codec.EncResultI64 r = codec.Base64Decode( uclean, bytes )
+        if( r.IsOk( ) = FALSE ) then return FALSE
+        dim as string der = space( bytes.num )
+        for i as long = 0 to bytes.num - 1
+            der[i] = bytes.items( i )
+        next
+        ders.Push( der )
+        dim as string whole = mid( pem, a, b + len( tail ) - a ) & !"\n"
+        texts.Push( whole )
+        p = b + len( tail )
+    loop
+    return TRUE
+end function
+
+constructor TlsConfig( )
+    this.MinVersion = TLS_VERSION_1_2
+    this.InsecureSkipVerify = FALSE
+end constructor
+
+function TlsConfig.AddRootPem( byref pem as const ustring ) as TlsResultBool
+    dim as string s = pem
+    dim as Array( of string ) ders, texts
+    if( ( TlsPemBlocks( s, "CERTIFICATE", ders, texts ) = FALSE ) orelse ( ders.num = 0 ) ) then
+        return TlsFail( TLS_BAD_PEM, 0, "AddRootPem", "" )
+    end if
+    for i as long = 0 to texts.num - 1
+        this.hRoots.Push( texts.items( i ) )
+    next
+    return TlsOk( )
+end function
+
+private function hReadText( byref path as const ustring, byref op as const ustring, byref txt as ustring ) as TlsResultBool
+    dim as fs.FsResultUStr r = fs.ReadAllText( path, 16 * 1024 * 1024 )
+    if( r.IsOk( ) = FALSE ) then
+        return TlsFail( TLS_BAD_PEM, r.Failure( ).OsCode( ), op, path, r.Failure( ).Message( ) )
+    end if
+    txt = r.Value( )
+    return TlsOk( )
+end function
+
+function TlsConfig.AddRootFile( byref path as const ustring ) as TlsResultBool
+    dim as ustring txt
+    dim as TlsResultBool r = hReadText( path, "AddRootFile", txt )
+    if( r.IsOk( ) = FALSE ) then return r
+    r = this.AddRootPem( txt )
+    if( r.IsOk( ) = FALSE ) then return TlsFail( TLS_BAD_PEM, 0, "AddRootFile", path )
+    return r
+end function
+
+function TlsConfig.SetIdentityPem( byref certPem as const ustring, byref keyPem as const ustring ) as TlsResultBool
+    dim as string c = certPem, k = keyPem
+    dim as Array( of string ) ders, texts, kders, ktexts
+    if( ( TlsPemBlocks( c, "CERTIFICATE", ders, texts ) = FALSE ) orelse ( ders.num = 0 ) ) then
+        return TlsFail( TLS_BAD_PEM, 0, "SetIdentityPem", "certificate" )
+    end if
+    if( ( TlsPemBlocks( k, "PRIVATE KEY", kders, ktexts ) = FALSE ) orelse ( kders.num <> 1 ) ) then
+        return TlsFail( TLS_BAD_PEM, 0, "SetIdentityPem", "PKCS#8 private key" )
+    end if
+    dim as string chain
+    for i as long = 0 to texts.num - 1
+        chain &= texts.items( i )
+    next
+    this.hCertPem = chain
+    this.hKeyPem = ktexts.items( 0 )
+    return TlsOk( )
+end function
+
+function TlsConfig.SetIdentityFiles( byref certPath as const ustring, byref keyPath as const ustring ) as TlsResultBool
+    dim as ustring c, k
+    dim as TlsResultBool r = hReadText( certPath, "SetIdentityFiles", c )
+    if( r.IsOk( ) = FALSE ) then return r
+    r = hReadText( keyPath, "SetIdentityFiles", k )
+    if( r.IsOk( ) = FALSE ) then return r
+    r = this.SetIdentityPem( c, k )
+    if( r.IsOk( ) = FALSE ) then
+        return TlsFail( TLS_BAD_PEM, 0, "SetIdentityFiles", r.Failure( ).Subject( ) )
+    end if
+    return r
+end function
+
+const function TlsConfig.RootCount( ) as long
+    return this.hRoots.num
+end function
+
+const function TlsConfig.HasIdentity( ) as boolean
+    return ( len( this.hCertPem ) > 0 )
+end function
+
+'' -------------------------------------------------------------- stream
+
+public type TlsStream extends fs.Stream
+    declare constructor( )
+    declare destructor( ) override
+    declare function ConnectHost( byref host as const ustring, byval port as ushort, byref cfg as const TlsConfig, _
+                                  byval timeoutMs as long = -1 ) as TlsResultBool
+    declare function Connect( byref transport as fs.Stream, byref server as const ustring, _
+                              byref cfg as const TlsConfig ) as TlsResultBool
+    declare function Accept( byref transport as fs.Stream, byref cfg as const TlsConfig ) as TlsResultBool
+    declare function Close( ) as TlsResultBool            '' close_notify; then closes Tcp if ConnectHost opened it
+    declare const function IsOpen( ) as boolean
+    declare const function Protocol( ) as ustring         '' "TLSv1.2" / "TLSv1.3"; "" when not open
+    declare const function ServerName( ) as ustring       '' the name verified (a client), or ""
+    declare const function CanRead ( ) as boolean override
+    declare const function CanWrite( ) as boolean override
+    declare const function CanSeek ( ) as boolean override
+    declare function Read ( byval buf as ubyte ptr, byval n as longint ) as fs.FsResultI64 override
+    declare function Write( byval buf as const ubyte ptr, byval n as longint ) as fs.FsResultI64 override
+    declare function Flush( ) as fs.FsResultBool override            '' every Write is sent whole
+
+    '' The connection ConnectHost opens; set its timeouts before or after.  Unused
+    '' by Connect and Accept, whose transport the caller owns and must keep alive.
+    as net.TcpStream Tcp
+
+    '' Internal: the engine's state (tlswin.tiko / tlsunix.tiko).
+    as fs.Stream ptr hT                      '' the transport; nullptr when closed
+    as any ptr hEng
+    as boolean hServer, hEof
+    as ustring hName, hProto
+private:
+    declare constructor( byref other as const TlsStream )
+    declare operator let( byref other as const TlsStream )
+end type
+
+'' The engine (one per OS): handshake over s.hT, which is set; on failure the engine
+'' has released whatever it made.
+declare function TlsEngOpen( byref s as TlsStream, byref cfg as const TlsConfig, byref op as const ustring ) as TlsResultBool
+declare function TlsEngRead( byref s as TlsStream, byval buf as ubyte ptr, byval n as longint ) as fs.FsResultI64
+declare function TlsEngWrite( byref s as TlsStream, byval buf as const ubyte ptr, byval n as longint ) as fs.FsResultI64
+declare sub TlsEngClose( byref s as TlsStream )          '' close_notify, best effort
+declare sub TlsEngFree( byref s as TlsStream )
+
+'' Writes all n bytes to the transport: TRUE, or FALSE with err filled.
+function TlsSendAll( byref s as TlsStream, byval p as const ubyte ptr, byval n as longint, byref err_ as fs.FsError ) as boolean
+    if( n <= 0 ) then return TRUE
+    dim as fs.FsResultBool r = s.hT->WriteAll( p, n )
+    if( r.IsOk( ) = FALSE ) then
+        err_ = r.Failure( )
+        return FALSE
+    end if
+    return TRUE
+end function
+
+'' A transport failure during a handshake, as a TlsError.
+function TlsTransportFail( byref e as fs.FsError, byref op as const ustring, byref subj as const ustring ) as TlsResultBool
+    if( e.Code( ) = fs.FS_TIMED_OUT ) then return TlsFail( TLS_TIMED_OUT, e.OsCode( ), op, subj )
+    return TlsFail( TLS_TRANSPORT, e.OsCode( ), op, subj, e.Message( ) )
+end function
+
+'' TRUE when name is an IPv4 or IPv6 literal (with or without brackets).
+function TlsIsIpLiteral( byref nm as const ustring ) as boolean
+    dim as ustring n = nm
+    if( ( len( n ) >= 2 ) andalso ( left( n, 1 ) = "[" ) andalso ( right( n, 1 ) = "]" ) ) then
+        n = mid( n, 2, len( n ) - 2 )
+    end if
+    return net.ParseIp( n ).IsOk( )
+end function
+
+constructor TlsStream( )
+    this.hT = nullptr
+    this.hEng = nullptr
+end constructor
+
+destructor TlsStream( )
+    if( this.hT <> nullptr ) then
+        TlsEngFree( this )
+        this.hT = nullptr
+    end if
+end destructor
+
+const function TlsStream.IsOpen( ) as boolean
+    return ( this.hT <> nullptr )
+end function
+
+const function TlsStream.Protocol( ) as ustring
+    return this.hProto
+end function
+
+const function TlsStream.ServerName( ) as ustring
+    return this.hName
+end function
+
+const function TlsStream.CanRead( ) as boolean
+    return ( this.hT <> nullptr )
+end function
+
+const function TlsStream.CanWrite( ) as boolean
+    return ( this.hT <> nullptr )
+end function
+
+const function TlsStream.CanSeek( ) as boolean
+    return FALSE
+end function
+
+function TlsStream.Flush( ) as fs.FsResultBool
+    return Ok( of boolean, fs.FsError )( TRUE )
+end function
+
+private function hStart( byref s as TlsStream, byref transport as fs.Stream, byref nm as const ustring, _
+                         byval server as boolean, byref cfg as const TlsConfig, byref op as const ustring ) as TlsResultBool
+    s.hT = @transport
+    s.hServer = server
+    s.hEof = FALSE
+    s.hName = nm
+    s.hProto = ""
+    dim as TlsResultBool r = TlsEngOpen( s, cfg, op )
+    if( r.IsOk( ) = FALSE ) then
+        s.hT = nullptr
+        s.hEng = nullptr
+        s.hName = ""
+    end if
+    return r
+end function
+
+function TlsStream.Connect( byref transport as fs.Stream, byref server as const ustring, _
+                            byref cfg as const TlsConfig ) as TlsResultBool
+    if( this.hT <> nullptr ) then return TlsFail( TLS_ALREADY_OPEN, 0, "Connect", server )
+    if( len( server ) = 0 ) then return TlsFail( TLS_INVALID_ARGUMENT, 0, "Connect", "" )
+    return hStart( this, transport, server, FALSE, cfg, "Connect" )
+end function
+
+function TlsStream.Accept( byref transport as fs.Stream, byref cfg as const TlsConfig ) as TlsResultBool
+    if( this.hT <> nullptr ) then return TlsFail( TLS_ALREADY_OPEN, 0, "Accept", "" )
+    if( cfg.HasIdentity( ) = FALSE ) then return TlsFail( TLS_NO_IDENTITY, 0, "Accept", "" )
+    return hStart( this, transport, "", TRUE, cfg, "Accept" )
+end function
+
+function TlsStream.ConnectHost( byref host as const ustring, byval port as ushort, byref cfg as const TlsConfig, _
+                                byval timeoutMs as long = -1 ) as TlsResultBool
+    if( this.hT <> nullptr ) then return TlsFail( TLS_ALREADY_OPEN, 0, "ConnectHost", host )
+    if( len( host ) = 0 ) then return TlsFail( TLS_INVALID_ARGUMENT, 0, "ConnectHost", "" )
+    dim as net.NetResultBool c = this.Tcp.ConnectHost( host, port, timeoutMs )
+    if( c.IsOk( ) = FALSE ) then
+        if( c.Failure( ).Code( ) = net.NET_TIMED_OUT ) then
+            return TlsFail( TLS_TIMED_OUT, c.Failure( ).OsCode( ), "ConnectHost", host )
+        end if
+        return TlsFail( TLS_CONNECT_FAILED, c.Failure( ).OsCode( ), "ConnectHost", host, c.Failure( ).Message( ) )
+    end if
+    dim as TlsResultBool r = hStart( this, this.Tcp, host, FALSE, cfg, "ConnectHost" )
+    if( r.IsOk( ) = FALSE ) then this.Tcp.Close( )
+    return r
+end function
+
+function TlsStream.Close( ) as TlsResultBool
+    if( this.hT = nullptr ) then return TlsFail( TLS_CLOSED, 0, "Close", "" )
+    TlsEngClose( this )
+    TlsEngFree( this )
+    this.hT = nullptr
+    this.hEng = nullptr
+    this.hProto = ""
+    if( this.Tcp.IsOpen( ) ) then this.Tcp.Close( )
+    return TlsOk( )
+end function
+
+function TlsStream.Read( byval buf as ubyte ptr, byval n as longint ) as fs.FsResultI64
+    if( this.hT = nullptr ) then return fs.FsFail( of longint )( fs.FS_CLOSED, "Read", "" )
+    if( ( n < 0 ) orelse ( ( buf = nullptr ) andalso ( n > 0 ) ) ) then
+        return fs.FsFail( of longint )( fs.FS_INVALID_ARGUMENT, "Read", "" )
+    end if
+    if( n = 0 ) then return Ok( of longint, fs.FsError )( 0 )
+    return TlsEngRead( this, buf, n )
+end function
+
+function TlsStream.Write( byval buf as const ubyte ptr, byval n as longint ) as fs.FsResultI64
+    if( this.hT = nullptr ) then return fs.FsFail( of longint )( fs.FS_CLOSED, "Write", "" )
+    if( ( n < 0 ) orelse ( ( buf = nullptr ) andalso ( n > 0 ) ) ) then
+        return fs.FsFail( of longint )( fs.FS_INVALID_ARGUMENT, "Write", "" )
+    end if
+    if( n = 0 ) then return Ok( of longint, fs.FsError )( 0 )
+    return TlsEngWrite( this, buf, n )
+end function

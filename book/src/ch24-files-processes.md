@@ -778,6 +778,35 @@ can be set to any text. `Resolve` turns a relative link into an absolute one the
 removing `.` and `..`. An invalid escape such as a lone `%` is `NET_INVALID_URL` rather than a guess
 at what was meant.
 
+### Fetching a web page
+
+```tiko
+{{#include ../examples/ch24/httpget.tiko}}
+```
+
+```text
+{{#include ../examples/ch24/httpget.out}}
+```
+
+`std/http` is an HTTP/1.1 client over those sockets, and `std/tls` encrypts the connection when the
+URL says `https`. The listing serves itself, on a second thread, so it runs without a network — the
+`Serve` routine is all a server needs to say to an HTTP client: a status line, headers, a blank
+line and a body of the length the headers announced.
+
+`http.Fetch( url )` makes one request with the defaults. An `http.Client` holds settings —
+`TimeoutMs`, `MaxRedirects`, `UserAgent`, `DefaultHeader`, `TlsOptions` — and **keeps connections
+open**: both requests above travelled over one connection, which is still kept for the next request
+to the same site. `Send` takes a `Request` built by hand, with any method, headers and body;
+`Fetch`, `Head` and `Post` are shorthands for it. A `Response` holds `StatusCode`, `Header`, the
+`Body` bytes and `Text( )`. For a body too large to hold, `Open` returns a `ResponseStream`, an
+`fs.Stream` like a `File` or a `TcpStream`.
+
+**A status is not an error.** A 404 is a request that worked and an answer the program has to look
+at, so it comes back as a `Response`. An `HttpError` means there was no answer: `HTTP_CONNECT_FAILED`,
+`HTTP_TIMED_OUT`, `HTTP_BAD_RESPONSE`, or `HTTP_TLS_FAILED` when the server's certificate is not
+trusted, out of date, or for another name — the error's `TlsCode( )` says which. Redirects are
+followed for you, up to ten.
+
 ## What it costs
 
 - **A `File` holds an operating-system handle until it is closed or goes out of scope.** Keep it
@@ -794,6 +823,9 @@ at what was meant.
 - **A `TomlValue` is a value**: `Get( key )` and copying a table copy the whole subtree under it.
   `Find( key )` and `[ i ]` reach into the tree without a copy. Looking a key up scans its table,
   which is what a configuration file's tables can afford.
+- **An `http.Client` keeps up to eight idle connections open** for reuse, each an operating-system
+  handle (and, for `https`, a TLS session). `CloseIdle( )` lets them go; so does the client going
+  out of scope.
 - **A socket holds an operating-system handle and, while a call waits, a thread.** Close
   connections in the narrowest scope that needs them, and give every network read a timeout:
   without one a peer that stops answering stops the program with it.
@@ -834,6 +866,9 @@ at what was meant.
   `Accept`, `TcpStream.Connect` / `ConnectHost` — a `TcpStream` is an `fs.Stream`. `UdpSocket`
   for datagrams. Every call blocks; give it a timeout. `ParseUrl` gives a `Url` of decoded fields,
   `Resolve` makes links absolute, `QueryValues` reads and writes query strings.
+- `std/http`: `http.Fetch`, or an `http.Client` that reuses connections and follows redirects;
+  `Send` a `Request`, read a `Response` — a 404 is a response, not an error. `std/tls` encrypts
+  `https`, and checks the server's certificate against the system's trusted roots.
 
 ## Exercises
 
@@ -864,3 +899,6 @@ at what was meant.
     three before the server reads any?
 12. Write `LinkReport( pageUrl, links )`: resolve each link of a page against its URL and print the
     ones that leave the page's host.
+13. Make `httpget.tiko`'s server answer `/old` with `302 Found` and a `Location: /notes` header, and
+    fetch `/old`. What does `r.Value( ).Url` hold afterwards? Set `c.MaxRedirects = 0` and fetch it
+    again.

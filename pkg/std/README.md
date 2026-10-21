@@ -29,6 +29,8 @@ libraries in `inc/fb`; that directory is gone, and its code lives here.
 | `std/os` | `Args`, `GetEnv`/`SetEnv`/`Environment`/`ExpandEnv`, host facts, `Exit_`, `CatchInterrupt` and the interrupt flag | |
 | `std/process` | `Command`, `Child`, `PipeStream`, `ExitStatus`, `Run`, `Output_`, `Shell` | |
 | `std/net` | `IpAddress`, `SocketAddress`, `Resolve`, `TcpStream` (an `fs.Stream`), `TcpListener`, `UdpSocket`; `Url`, `QueryValues`, `ParseUrl`, `ParseQuery` | |
+| `std/tls` | `TlsStream` (an `fs.Stream`: `ConnectHost`, `Connect`, `Accept`), `TlsConfig`; SChannel on Windows, OpenSSL 3 loaded at run time on Linux | |
+| `std/http` | `Client` (`Fetch`, `Head`, `Post`, `Send`, `Open`), `Request`, `Response`, `ResponseStream`, `Headers`; `Fetch`, `Post` | |
 
 **How a module's names are used:**
 - **Qualified, or through `using`.** `strings.Replace( s, "a", "b" )`, or `using strings` and

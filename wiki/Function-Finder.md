@@ -20,7 +20,7 @@ Pick the area closest to what you want to do. An area's page groups its function
 | [**Money and finance**](Functions-Finance) | calculate interest, returns and schedules with exact decimals | [DecimalParse](Modern-Finance-DecimalParse) · [CurrencyParse](Modern-Finance-CurrencyParse) · [LoanPayment](Modern-Finance-LoanPayment) · [NetPresentValue](Modern-Finance-NetPresentValue) |
 | [**Logging**](Functions-Logging) | write log messages to the console, files or your own sinks | [Logger.Info](Modern-Log-Info) · [Logger.AddSink](Modern-Log-AddSink) · [LogEvent.AddText](Modern-Log-LogEvent-AddText) · [Logger.MinLevel](Modern-Log-MinLevel) |
 | [**Encoding, hashes and IDs**](Functions-Encoding) | encode and decode Base64, hex and percent-encoding; hash and checksum data; generate UUIDs | [Base64Encode](Category-Codec#base64-base32-and-hex) · [NewV4](Category-UUID#which-kind-to-make) · [PercentEncode](Category-Codec#percent-encoding) · [HexEncode](Category-Codec#base64-base32-and-hex) |
-| [**Networking**](Functions-Network) | look up hosts, connect over TCP and UDP, parse and build URLs | [ParseIp](Category-Net#ip-addresses) · [Resolve](Category-Net#looking-up-host-names) · [TcpStream.ConnectHost](Category-Net#tcp-connections) · [TcpListener.Bind](Category-Net#tcp-servers) |
+| [**Networking**](Functions-Network) | look up hosts, connect over TCP and UDP, parse and build URLs, fetch web pages over HTTP and HTTPS | [ParseIp](Category-Net#ip-addresses) · [Resolve](Category-Net#looking-up-host-names) · [TcpStream.ConnectHost](Category-Net#tcp-connections) · [TcpListener.Bind](Category-Net#tcp-servers) |
 
 ---
 

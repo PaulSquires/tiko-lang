@@ -50,6 +50,7 @@
 - [OS](Category-OS)
 - [Process](Category-Process)
 - [Net](Category-Net)
+- [HTTP and TLS](Category-Http)
 - [Math Library](Category-Math-Library)
 - [Finance](Category-Finance)
 - [Logging](Category-Logging)

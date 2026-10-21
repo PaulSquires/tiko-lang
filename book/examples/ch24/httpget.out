@@ -1,0 +1,3 @@
+ 200  you sent: GET /notes?day=mon HTTP/1.1
+ 200  you sent: POST /notes HTTP/1.1
+idle connections kept: 1
