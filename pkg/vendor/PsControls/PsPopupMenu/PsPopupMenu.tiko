@@ -437,14 +437,14 @@ sub PSPOPUPMENU_STATE.LayoutItems()
         dim as SIZE sz
         dim as long nChars = len( this.items(i).wszCaption )
         if nChars > 0 then
-            if GetTextExtentPoint32W( hDC, PsWPtr(this.items(i).wszCaption), nChars, @sz ) then
+            if GetTextExtentPoint32W( hDC, this.items(i).wszCaption, nChars, @sz ) then
                 if sz.cx > maxCaptionW then maxCaptionW = sz.cx
             end if
         end if
         nChars = len( this.items(i).wszAccel )
         if nChars > 0 then
             bHasAccel = true
-            if GetTextExtentPoint32W( hDC, PsWPtr(this.items(i).wszAccel), nChars, @sz ) then
+            if GetTextExtentPoint32W( hDC, this.items(i).wszAccel, nChars, @sz ) then
                 if sz.cx > maxAccelW then maxAccelW = sz.cx
             end if
         end if

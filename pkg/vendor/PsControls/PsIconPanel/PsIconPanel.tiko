@@ -1763,7 +1763,7 @@ function PsIconPanel_WndProc( _
                 dim as NMTTDISPINFOW ptr pdi = cast(NMTTDISPINFOW ptr, lParam)
                 ' store in an instance-lifetime buffer and point lpszText at it
                 pIcon->wszTooltip = PsIconPanel_ResolveTooltipText( pIcon, pIcon->nLastHotIdx )
-                pdi->lpszText = cast( LPWSTR, PsWPtr(pIcon->wszTooltip) )
+                pdi->lpszText = cast( LPWSTR, strptr(pIcon->wszTooltip) )
                 pdi->hinst    = NULL
             end if
             return 0

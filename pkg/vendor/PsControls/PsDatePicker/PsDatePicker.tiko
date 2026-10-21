@@ -2662,8 +2662,7 @@ public sub PsDatePicker_GetIdealSize( byval hCtrl as HWND, byref nWidth as long,
     dim as HFONT hOld = 0
     if pCtrl->hMainFont then hOld = cast(HFONT, SelectObject( hdc, pCtrl->hMainFont ))
     dim as SIZE sz
-    dim as WSTRING ptr pw = cast(WSTRING ptr, PsWPtr(sMeasure))
-    GetTextExtentPoint32W( hdc, pw, len(sMeasure), @sz )
+    GetTextExtentPoint32W( hdc, sMeasure, len(sMeasure), @sz )
     dim as TEXTMETRICW tm
     GetTextMetricsW( hdc, @tm )
     if hOld then SelectObject( hdc, hOld )

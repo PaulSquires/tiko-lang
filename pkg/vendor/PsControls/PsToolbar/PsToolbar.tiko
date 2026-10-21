@@ -749,7 +749,7 @@ sub PSTOOLBAR_STATE.LayoutItems()
             if .isVisible = false then continue for
             if len(.wszText) = 0 then continue for
             dim as SIZE sz
-            if GetTextExtentPoint32W( hDC, PsWPtr(.wszText), len( .wszText ), @sz ) then
+            if GetTextExtentPoint32W( hDC, .wszText, len( .wszText ), @sz ) then
                 .nTextWidth = sz.cx
             end if
         end with
@@ -2813,7 +2813,7 @@ function PsToolbar_WndProc( _
                 dim as NMTTDISPINFOW ptr pdi = cast(NMTTDISPINFOW ptr, lParam)
                 ' store in an instance-lifetime buffer and point lpszText at it
                 pTB->wszTooltip = PsToolbar_ResolveTooltipText( pTB, pTB->nLastHotIdx )
-                pdi->lpszText = cast( LPWSTR, PsWPtr(pTB->wszTooltip) )
+                pdi->lpszText = cast( LPWSTR, strptr(pTB->wszTooltip) )
                 pdi->hinst    = NULL
             end if
             return 0

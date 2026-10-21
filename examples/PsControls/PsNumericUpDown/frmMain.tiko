@@ -675,8 +675,8 @@ sub PsNumericUpDown_SelfTest()
     dim as ustring wszLo = format( -1000.0, "0.00" )
     dim as ustring wszHi = format( 50.0, "0.00" )
     dim as SIZE szLo, szHi
-    GetTextExtentPoint32W( hdcM, PsWPtr(wszLo), len(wszLo), @szLo )
-    GetTextExtentPoint32W( hdcM, PsWPtr(wszHi), len(wszHi), @szHi )
+    GetTextExtentPoint32W( hdcM, wszLo, len(wszLo), @szLo )
+    GetTextExtentPoint32W( hdcM, wszHi, len(wszHi), @szHi )
     dim as TEXTMETRICW tmM
     GetTextMetricsW( hdcM, @tmM )
     SelectObject( hdcM, hOldM )

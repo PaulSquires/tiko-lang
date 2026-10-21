@@ -1285,7 +1285,7 @@ function PsProgressBar_WndProc( _
                 ' wszTooltip: that field is the host's authored text, and a callback's answer
                 ' written there would silently become stored state.
                 pBar->wszTipBuf = PsProgressBar_ResolveTooltipText( pBar )
-                pdi->lpszText = cast( LPWSTR, PsWPtr(pBar->wszTipBuf) )
+                pdi->lpszText = cast( LPWSTR, strptr(pBar->wszTipBuf) )
                 pdi->hinst    = NULL
             end if
             return 0

@@ -285,7 +285,7 @@ sub PSSELECTBAR_STATE.LayoutPanels()
             dim as long nChars = len( .wszText )
             if nChars > 0 then
                 dim as SIZE sz
-                if GetTextExtentPoint32W( hDC, PsWPtr(.wszText), nChars, @sz ) then
+                if GetTextExtentPoint32W( hDC, .wszText, nChars, @sz ) then
                     textW(i) = sz.cx
                 end if
             end if
@@ -1598,7 +1598,7 @@ function PsSelectBar_WndProc( _
                 dim as NMTTDISPINFOW ptr pdi = cast(NMTTDISPINFOW ptr, lParam)
                 ' store in an instance-lifetime buffer and point lpszText at it
                 pSel->wszTooltip = PsSelectBar_ResolveTooltipText( pSel, pSel->nLastHotIdx )
-                pdi->lpszText = cast( LPWSTR, PsWPtr(pSel->wszTooltip) )
+                pdi->lpszText = cast( LPWSTR, strptr(pSel->wszTooltip) )
                 pdi->hinst    = NULL
             end if
             return 0

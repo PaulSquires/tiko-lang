@@ -599,7 +599,7 @@ private sub PsTextBox_ApplyParaFormat( byval pTextBox as PSTEXTBOX_STATE ptr )
     end if
 
     if len(wszSaved) > 0 then
-        SendMessage( pTextBox->hRichEdit, WM_SETTEXT, 0, cast(LPARAM, PsWPtr(wszSaved)) )
+        SendMessage( pTextBox->hRichEdit, WM_SETTEXT, 0, cast(LPARAM, strptr(wszSaved)) )
         SendMessage( pTextBox->hRichEdit, EM_SETSEL, cast(WPARAM, dwStart), cast(LPARAM, dwEnd) )
     end if
 
@@ -772,7 +772,7 @@ public function PsTextBox_SetText( byval hTextBoxControl as HWND, byval Text as 
     dim as PSTEXTBOX_STATE ptr pTextBox = GetTextBoxPointer(hTextBoxControl)
     if pTextBox = null then return false
     pTextBox->bInternalChange = true
-    SendMessage( pTextBox->hRichEdit, WM_SETTEXT, 0, cast(LPARAM, PsWPtr(Text)) )
+    SendMessage( pTextBox->hRichEdit, WM_SETTEXT, 0, cast(LPARAM, strptr(Text)) )
     pTextBox->bInternalChange = false
     return true
 end function
@@ -806,7 +806,7 @@ function PsTextBox_ReplaceSel( byval hTextBoxControl as HWND, byval Text as ustr
     dim as PSTEXTBOX_STATE ptr pTextBox = GetTextBoxPointer(hTextBoxControl)
     if pTextBox = null then return false
     pTextBox->bInternalChange = true
-    SendMessage( pTextBox->hRichEdit, EM_REPLACESEL, true, cast(LPARAM, PsWPtr(Text)) )
+    SendMessage( pTextBox->hRichEdit, EM_REPLACESEL, true, cast(LPARAM, strptr(Text)) )
     pTextBox->bInternalChange = false
     return true
 end function
@@ -1496,7 +1496,7 @@ function PsTextBoxRichEdit_SubclassProc ( _
                 else
                     wsStyle or= DT_NOCLIP or DT_SINGLELINE
                 end if
-                DrawText( hdc, PsWPtr(pTextBox->CueText), -1, @editRect, wsStyle )
+                DrawText( hdc, pTextBox->CueText, -1, @editRect, wsStyle )
                 RestoreDC( hdc, -1 )
                 ReleaseDC( hWin, hdc )
 
@@ -1648,7 +1648,7 @@ function PsTextBoxRichEdit_SubclassProc ( _
                             PsTextBox_FormatNumeric( val(wszText), pTextBox->nDecimalPlaces, false )
                         if wszFormatted <> wszText then
                             pTextBox->bInternalChange = true
-                            SendMessage( hWin, WM_SETTEXT, 0, cast(LPARAM, PsWPtr(wszFormatted)) )
+                            SendMessage( hWin, WM_SETTEXT, 0, cast(LPARAM, strptr(wszFormatted)) )
                             pTextBox->bInternalChange = false
                         end if
                     end if

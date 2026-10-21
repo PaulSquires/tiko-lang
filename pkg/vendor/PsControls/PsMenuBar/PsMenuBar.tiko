@@ -266,7 +266,7 @@ sub PSMENUBAR_STATE.LayoutItems()
         dim as long nChars = len( this.items(i).wszText )
         if nChars > 0 then
             dim as SIZE sz
-            if GetTextExtentPoint32W( hDC, PsWPtr(this.items(i).wszText), nChars, @sz ) then
+            if GetTextExtentPoint32W( hDC, this.items(i).wszText, nChars, @sz ) then
                 textW = sz.cx
             end if
         end if

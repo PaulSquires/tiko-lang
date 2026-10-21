@@ -51,16 +51,6 @@ using gdiplus
 ' exports Ok, but a host's own "ok" now compiles beside "using gdiplus" (probed: module-level,
 ' parameter and local), so nothing breaks if you keep one.
 
-' DWSTRING's .vptr never returned NULL, but an empty ustring's STRPTR does -- and Win32
-' does not treat the two alike: DrawTextW with DT_CALCRECT measures "" as one line and
-' NULL as nothing. Every former .vptr site goes through here, so an empty string still
-' hands Win32 a "".
-public function PsWPtr( byref s as ustring ) as wstring ptr
-    static as wstring * 1 wszEmpty
-    if len( s ) then return cast( wstring ptr, strptr( s ) )
-    return @wszEmpty
-end function
-
 public declare function isMouseOverRECT( byval hWin as HWND, byval rc as RECT ) as boolean
 public declare function isMouseOverWindow( byval hChild as HWND ) as boolean
 public declare function PaintRect( byval hDC as HDC, byval rc as RECT ptr, byval clr as COLORREF ) as long

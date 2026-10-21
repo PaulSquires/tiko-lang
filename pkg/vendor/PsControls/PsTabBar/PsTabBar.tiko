@@ -307,7 +307,7 @@ sub PSTABBAR_STATE.LayoutTabs()
         dim as integer nChars = len( this.tabs(i).Text )
         if nChars > 0 then
             dim as SIZE sz
-            if GetTextExtentPoint32W( hDC, PsWPtr(this.tabs(i).Text), nChars, @sz ) then
+            if GetTextExtentPoint32W( hDC, this.tabs(i).Text, nChars, @sz ) then
                 textW = sz.cx
             end if
         end if
@@ -1939,7 +1939,7 @@ function PsTabBar_WndProc( _
                 dim as NMTTDISPINFOW ptr pdi = cast(NMTTDISPINFOW ptr, lParam)
                 ' store in an instance-lifetime buffer and point lpszText at it
                 pTabBar->wszTooltip = PsTabBar_ResolveTooltipText( pTabBar, pTabBar->nLastHotIdx )
-                pdi->lpszText = cast( LPWSTR, PsWPtr(pTabBar->wszTooltip) )
+                pdi->lpszText = cast( LPWSTR, strptr(pTabBar->wszTooltip) )
                 pdi->hinst    = NULL
             end if
             return 0

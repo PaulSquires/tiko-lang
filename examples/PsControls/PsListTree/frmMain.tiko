@@ -408,7 +408,7 @@ function Header_AutoSizeCallback( byval hHeader as HWND, byval idx as integer ) 
     dim as HDC hDC = GetDC( hHeader )
     dim as HFONT hOldFont = SelectObject( hDC, ghFont(GUIFONTBOLD_10) )
     dim as SIZE sz
-    if GetTextExtentPoint32W( hDC, PsWPtr(wszText), len(wszText), @sz ) then bestW = sz.cx
+    if GetTextExtentPoint32W( hDC, wszText, len(wszText), @sz ) then bestW = sz.cx
     SelectObject( hDC, hOldFont )
     ReleaseDC( hHeader, hDC )
     if bestW > 0 then bestW += PsColumnHeader_GetPadding( hHeader ) * 2

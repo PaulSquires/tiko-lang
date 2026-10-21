@@ -124,7 +124,7 @@ function PsImageFile.Load( byval wszPath as ustring ) as long
         end if
     end if
 
-    _pBitmap = new CGpBitmap( PsWPtr(wszPath) )
+    _pBitmap = new CGpBitmap( strptr(wszPath) )
     if this.IsValid() = 0 then
         this.Dispose()
         return 0

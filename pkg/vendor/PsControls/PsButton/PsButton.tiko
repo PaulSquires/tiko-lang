@@ -481,7 +481,7 @@ sub PSBUTTON_STATE.LayoutButton()
 
     if bText then
         dim as SIZE sz
-        if GetTextExtentPoint32W( hDC, PsWPtr(this.wszText), len( this.wszText ), @sz ) then
+        if GetTextExtentPoint32W( hDC, this.wszText, len( this.wszText ), @sz ) then
             this.nTextWidth = sz.cx
         end if
     end if
@@ -1535,7 +1535,7 @@ function PsButton_WndProc( _
         dim as long nLen = len( pBtn->wszText )
         if nLen > (nMax - 1) then nLen = nMax - 1
         if nLen > 0 then
-            dim as ushort ptr pSrc = cast( ushort ptr, PsWPtr(pBtn->wszText) )
+            dim as ushort ptr pSrc = cast( ushort ptr, strptr(pBtn->wszText) )
             if pSrc then
                 for i as long = 0 to nLen - 1
                     pDst[i] = pSrc[i]
@@ -1563,7 +1563,7 @@ function PsButton_WndProc( _
                 ' wszTooltip: that field is the host's authored text, and a callback's answer
                 ' written there would silently become stored state.
                 pBtn->wszTipBuf = PsButton_ResolveTooltipText( pBtn )
-                pdi->lpszText = cast( LPWSTR, PsWPtr(pBtn->wszTipBuf) )
+                pdi->lpszText = cast( LPWSTR, strptr(pBtn->wszTipBuf) )
                 pdi->hinst    = NULL
             end if
             return 0

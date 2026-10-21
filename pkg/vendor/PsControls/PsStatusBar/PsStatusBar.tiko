@@ -177,7 +177,7 @@ sub PSSTATUSBAR_STATE.LayoutPanels()
         dim as integer nChars = len( this.panels(i).Text )
         if nChars > 0 then
             dim as SIZE sz
-            if GetTextExtentPoint32W( hDC, PsWPtr(this.panels(i).Text), nChars, @sz ) then
+            if GetTextExtentPoint32W( hDC, this.panels(i).Text, nChars, @sz ) then
                 textW = sz.cx
             end if
         end if
@@ -1090,7 +1090,7 @@ function PsStatusBar_WndProc( _
                 dim as NMTTDISPINFOW ptr pdi = cast(NMTTDISPINFOW ptr, lParam)
                 ' store in an instance-lifetime buffer and point lpszText at it
                 pStatus->wszTooltip = PsStatusBar_ResolveTooltipText( pStatus, pStatus->nLastHotIdx )
-                pdi->lpszText = cast( LPWSTR, PsWPtr(pStatus->wszTooltip) )
+                pdi->lpszText = cast( LPWSTR, strptr(pStatus->wszTooltip) )
                 pdi->hinst    = NULL
             end if
             return 0

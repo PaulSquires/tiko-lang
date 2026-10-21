@@ -1796,7 +1796,7 @@ sub CHT_MeasureText( byval hWin as HWND, byval hFont as HFONT, _
     dim as long nChars = len( wszText )
     if nChars > 0 then
         dim as SIZE sz
-        if GetTextExtentPoint32W( hDC, PsWPtr(wszText), nChars, @sz ) then
+        if GetTextExtentPoint32W( hDC, wszText, nChars, @sz ) then
             nW = sz.cx
             if sz.cy > nH then nH = sz.cy
         end if
@@ -2664,7 +2664,7 @@ function PsChart_WndProc( byval hwnd as HWND, byval uMsg as UINT, _
                 ' Into a FIELD, not a local: comctl32 keeps the pointer and reads it after
                 ' this function has returned.
                 pChart->wszTipBuf = PsChart_ResolveTooltipText( pChart )
-                pdi->lpszText = cast( LPWSTR, PsWPtr(pChart->wszTipBuf) )
+                pdi->lpszText = cast( LPWSTR, strptr(pChart->wszTipBuf) )
                 pdi->hinst    = NULL
             end if
             return 0

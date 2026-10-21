@@ -400,7 +400,7 @@ sub frmMain_RunSelfTest()
         if rc.left <> xExpect then okContig = false
         dim as ustring wszText = PsMenuBar_GetItemText( hBar, i )
         dim as SIZE sz
-        GetTextExtentPoint32W( hDC, PsWPtr(wszText), len(wszText), @sz )
+        GetTextExtentPoint32W( hDC, wszText, len(wszText), @sz )
         dim as long wExpect = sz.cx + (PsMenuBar_GetPadding(hBar) * 2)
         if (rc.right - rc.left) <> wExpect then okWidths = false
         xExpect = rc.right
@@ -431,13 +431,13 @@ sub frmMain_RunSelfTest()
     hOldFont = SelectObject( hDC, ghFont(GUIFONT_10) )
     dim as SIZE sz
     dim as ustring wszM = "Alpha"
-    GetTextExtentPoint32W( hDC, PsWPtr(wszM), len(wszM), @sz ) : if sz.cx > wMaxCap then wMaxCap = sz.cx
+    GetTextExtentPoint32W( hDC, wszM, len(wszM), @sz ) : if sz.cx > wMaxCap then wMaxCap = sz.cx
     wszM = "Beta item long caption"
-    GetTextExtentPoint32W( hDC, PsWPtr(wszM), len(wszM), @sz ) : if sz.cx > wMaxCap then wMaxCap = sz.cx
+    GetTextExtentPoint32W( hDC, wszM, len(wszM), @sz ) : if sz.cx > wMaxCap then wMaxCap = sz.cx
     wszM = "Gamma"
-    GetTextExtentPoint32W( hDC, PsWPtr(wszM), len(wszM), @sz ) : if sz.cx > wMaxCap then wMaxCap = sz.cx
+    GetTextExtentPoint32W( hDC, wszM, len(wszM), @sz ) : if sz.cx > wMaxCap then wMaxCap = sz.cx
     wszM = "Ctrl+B"
-    GetTextExtentPoint32W( hDC, PsWPtr(wszM), len(wszM), @sz ) : wAccel = sz.cx
+    GetTextExtentPoint32W( hDC, wszM, len(wszM), @sz ) : wAccel = sz.cx
     SelectObject( hDC, hOldFont )
     ReleaseDC( hTest, hDC )
 

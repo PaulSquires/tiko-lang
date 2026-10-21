@@ -898,7 +898,7 @@ function PSCOLORPICKER_STATE.MeasureTabWidth( byval idx as long ) as long
             if hFontUse = 0 then hFontUse = cast( HFONT, GetStockObject( DEFAULT_GUI_FONT ) )
             dim as HFONT hOld = cast( HFONT, SelectObject( hDC, hFontUse ) )
             dim as SIZE sz
-            GetTextExtentPoint32W( hDC, PsWPtr(wszCaption), len(wszCaption), @sz )
+            GetTextExtentPoint32W( hDC, wszCaption, len(wszCaption), @sz )
             nTextW = sz.cx
             SelectObject( hDC, hOld )
             ReleaseDC( this.hWin, hDC )
@@ -2066,7 +2066,7 @@ private function PsColorPicker_CaretX( _
     if nPrefix > 0 then
         dim as ustring wszPrefix = left( pClr->wszEdit, nPrefix )
         dim as SIZE sz
-        if GetTextExtentPoint32W( hDC, PsWPtr(wszPrefix), len( wszPrefix ), @sz ) then
+        if GetTextExtentPoint32W( hDC, wszPrefix, len( wszPrefix ), @sz ) then
             nOut += sz.cx
         end if
     end if
