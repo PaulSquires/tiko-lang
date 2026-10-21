@@ -1,0 +1,29 @@
+#import "./fm"
+
+namespace ns
+    type Q
+        as long z = 7
+    end type
+end namespace
+
+'' A field named like a namespace, then a later field typed through that namespace.
+type Pair
+    as ns.Q Ns
+    as long k
+    as ns.Q other
+    declare const function Sum( ) as long
+end type
+
+const function Pair.Sum( ) as long
+    return this.Ns.z + this.k * 10 + this.other.z * 100
+end function
+
+dim h as fm.Holder
+print h.N( )
+h.Items.a.Push( 5 )
+h.Items.a.Push( 6 )
+h.hK = 40
+print h.N( )
+dim p as Pair
+p.k = 2
+print p.Sum( ), sizeof( Pair )
