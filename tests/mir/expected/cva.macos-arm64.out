@@ -41,11 +41,13 @@ func void SUM(i64 $0, ...) {
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
-func agg:8[I] OPENED(i64 $0, ...) {
+func i64 OPENED(i64 $0, ...) {
   local agg $tmp0 size 8
   local i64 n
   local agg args size 8
+  local agg $abi3 size 8
   entry0:
+    %9 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 8)
     %3 = alloca ptr n
@@ -57,7 +59,9 @@ func agg:8[I] OPENED(i64 $0, ...) {
     %7 = load @args
     store @$tmp0, %7
     %8 = load @$tmp0
-    ret %8
+    store @$abi3, %8
+    %10 = load @$abi3
+    ret %10
 }
 func void WALK(ptr $0) {
   local ptr args
@@ -94,4 +98,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 4 blocks, 61 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (1 by-value aggregate signatures, no classifier for this target)
+lowered: 4 functions, 4 blocks, 61 insts, 0 statements not lowered, 0 scope imbalance

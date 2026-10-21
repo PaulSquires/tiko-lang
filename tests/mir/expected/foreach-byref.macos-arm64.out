@@ -62,11 +62,13 @@ func void _ZN4ITER8MOVENEXTEv(ptr $0) {
     store %3, %8
     ret
 }
-func agg:16[I,I] _ZN3BAG11GETITERATOREv(ptr $0) {
+func i64x2 _ZN3BAG11GETITERATOREv(ptr $0) {
   local agg $tmp0 size 16
   local ptr this
   local agg it size 16
+  local agg $abi3 size 16
   entry0:
+    %13 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 16)
     %3 = alloca ptr this
@@ -83,7 +85,9 @@ func agg:16[I,I] _ZN3BAG11GETITERATOREv(ptr $0) {
     %11 = load @it
     store @$tmp0, %11
     %12 = load @$tmp0
-    ret %12
+    store @$abi3, %12
+    %14 = load @$abi3
+    ret %14
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i32 SUMOF(ptr $0) {
@@ -92,7 +96,9 @@ func i32 SUMOF(ptr $0) {
   local i32 s
   local i32 e
   local agg $tmp4 size 16
+  local agg $abi5 size 16
   entry0:
+    %20 = alloca ptr $abi5
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -103,7 +109,9 @@ func i32 SUMOF(ptr $0) {
     %6 = alloca ptr e
     %7 = load @a
     %8 = alloca ptr $tmp4
-    %9 = call agg _ZN3BAG11GETITERATOREv(%7)
+    %21 = call i64x2 _ZN3BAG11GETITERATOREv(%7)
+    store @$abi5, %21
+    %9 = load @$abi5
     store @$tmp4, %9
     br each.test3
   each.body1:
@@ -134,7 +142,9 @@ func i32 SUMOFVAL(ptr $0) {
   local i32 s
   local i32 e
   local agg $tmp4 size 16
+  local agg $abi5 size 16
   entry0:
+    %20 = alloca ptr $abi5
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -145,7 +155,9 @@ func i32 SUMOFVAL(ptr $0) {
     %6 = alloca ptr e
     %7 = load @a
     %8 = alloca ptr $tmp4
-    %9 = call agg _ZN3BAG11GETITERATOREv(%7)
+    %21 = call i64x2 _ZN3BAG11GETITERATOREv(%7)
+    store @$abi5, %21
+    %9 = load @$abi5
     store @$tmp4, %9
     br each.test3
   each.body1:
@@ -186,4 +198,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 7 functions, 15 blocks, 120 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (1 by-value aggregate signatures, no classifier for this target)
+lowered: 7 functions, 15 blocks, 120 insts, 0 statements not lowered, 0 scope imbalance

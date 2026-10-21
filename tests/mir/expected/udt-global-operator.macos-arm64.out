@@ -1,9 +1,11 @@
-func agg:4[I] _ZplRK1US1_(ptr $0, ptr $1) {
+func i32 _ZplRK1US1_(ptr $0, ptr $1) {
   local agg $tmp0 size 4
   local ptr lhs
   local ptr rhs
   local agg t size 4
+  local agg $abi4 size 8
   entry0:
+    %20 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 4)
     %3 = alloca ptr lhs
@@ -27,15 +29,19 @@ func agg:4[I] _ZplRK1US1_(ptr $0, ptr $1) {
     %18 = load @t
     store @$tmp0, %18
     %19 = load @$tmp0
-    ret %19
+    store @$abi4, %19
+    %21 = load @$abi4
+    ret %21
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-func agg:4[I] _ZmiRK1US1_(ptr $0, ptr $1) {
+func i32 _ZmiRK1US1_(ptr $0, ptr $1) {
   local agg $tmp0 size 4
   local ptr lhs
   local ptr rhs
   local agg t size 4
+  local agg $abi4 size 8
   entry0:
+    %20 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 4)
     %3 = alloca ptr lhs
@@ -59,7 +65,9 @@ func agg:4[I] _ZmiRK1US1_(ptr $0, ptr $1) {
     %18 = load @t
     store @$tmp0, %18
     %19 = load @$tmp0
-    ret %19
+    store @$abi4, %19
+    %21 = load @$abi4
+    ret %21
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -67,7 +75,13 @@ func i32 main(i32 $0, ptr $1) {
   local agg b size 4
   local agg r size 4
   local agg ca size 4
+  local agg $abi5 size 8
+  local agg $abi6 size 8
+  local agg $abi7 size 8
   entry0:
+    %29 = alloca ptr $abi5
+    %31 = alloca ptr $abi6
+    %33 = alloca ptr $abi7
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -87,12 +101,16 @@ func i32 main(i32 $0, ptr $1) {
     %14 = const i64 2
     %15 = trunc %14
     store %13, %15
-    %16 = call agg _ZplRK1US1_(@a, @b)
+    %30 = call i32 _ZplRK1US1_(@a, @b)
+    store @$abi5, %30
+    %16 = load @$abi5
     store @r, %16
     %17 = field.addr @r, 0
     %18 = load %17
     call.rtl void fb_PrintInt(0, %18, 1)
-    %19 = call agg _ZmiRK1US1_(@a, @b)
+    %32 = call i32 _ZmiRK1US1_(@a, @b)
+    store @$abi6, %32
+    %19 = load @$abi6
     store @r, %19
     %20 = field.addr @r, 0
     %21 = load %20
@@ -100,7 +118,9 @@ func i32 main(i32 $0, ptr $1) {
     %22 = alloca ptr ca
     %23 = load @a
     store @ca, %23
-    %24 = call agg _ZplRK1US1_(@ca, @b)
+    %34 = call i32 _ZplRK1US1_(@ca, @b)
+    store @$abi7, %34
+    %24 = load @$abi7
     store @r, %24
     %25 = field.addr @r, 0
     %26 = load %25
@@ -114,4 +134,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 86 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (2 by-value aggregate signatures, no classifier for this target)
+lowered: 3 functions, 3 blocks, 86 insts, 0 statements not lowered, 0 scope imbalance

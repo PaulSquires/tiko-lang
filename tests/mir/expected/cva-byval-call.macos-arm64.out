@@ -1,7 +1,9 @@
-func agg:8[I] SIDEFX_BYVAL(agg:8[I] $0) {
+func i64 SIDEFX_BYVAL(i64 $0) {
   local agg $tmp0 size 8
   local agg a size 8
+  local agg $abi2 size 8
   entry0:
+    %6 = alloca ptr $abi2
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 8)
     %3 = alloca ptr a
@@ -9,14 +11,20 @@ func agg:8[I] SIDEFX_BYVAL(agg:8[I] $0) {
     %4 = load @a
     store @$tmp0, %4
     %5 = load @$tmp0
-    ret %5
+    store @$abi2, %5
+    %7 = load @$abi2
+    ret %7
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void F(i64 $0, ...) {
   local i64 n
   local agg args size 8
   local agg $tmp2 size 8
+  local agg $abi3 size 8
+  local agg $abi4 size 8
   entry0:
+    %9 = alloca ptr $abi3
+    %11 = alloca ptr $abi4
     %1 = alloca ptr n
     store @n, $0
     %2 = alloca ptr args
@@ -24,7 +32,11 @@ func void F(i64 $0, ...) {
     %4 = load @n
     va.start @args, %4
     %5 = load @args
-    %6 = call agg SIDEFX_BYVAL(%5)
+    store @$abi3, %5
+    %10 = load @$abi3
+    %12 = call i64 SIDEFX_BYVAL(%10)
+    store @$abi4, %12
+    %6 = load @$abi4
     %7 = alloca ptr $tmp2
     store @$tmp2, %6
     %8 = va.arg @$tmp2
@@ -52,4 +64,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 31 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (1 by-value aggregate signatures, no classifier for this target)
+lowered: 3 functions, 3 blocks, 31 insts, 0 statements not lowered, 0 scope imbalance

@@ -5,14 +5,18 @@
 '' ARGS: --dump-ir tests/mir/src/udt-compound-op.bas
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: 0 statements not lowered
-'' THE ABI-LOWERED CALL, on the two targets with a classifier (macos-arm64 refuses until AAPCS64).
+'' THE ABI-LOWERED CALL, on each target.
 '' EXPECT-OUT[win64]: call i32 _ZplR1QS0_(@q1, @q2)
 '' EXPECT-OUT[linux-x86_64]: call i32 _ZplR1QS0_(@q1, @q2)
+'' EXPECT-OUT[macos-arm64]: call i32 _ZplR1QS0_(@q1, @q2)
 '' EXPECT-OUT[win64]: call i32 _ZplR1Qi(@q1,
 '' EXPECT-OUT[linux-x86_64]: call i32 _ZplR1Qi(@q1,
+'' EXPECT-OUT[macos-arm64]: call i32 _ZplR1Qi(@q1,
 '' EXPECT-OUT: call i32 _ZpliR1Q(
 '' EXPECT-OUT: call i32 _ZN1NcviEv(@n1)
 '' EXPECT-OUT[win64]: call i32 _Zv23catR1QS0_(@q1, @q2)
 '' EXPECT-OUT[linux-x86_64]: call i32 _Zv23catR1QS0_(@q1, @q2)
+'' EXPECT-OUT[macos-arm64]: call i32 _Zv23catR1QS0_(@q1, @q2)
 '' EXPECT-OUT[win64]: call i32 _ZplR1QS0_(%44, @q2)
 '' EXPECT-OUT[linux-x86_64]: call i32 _ZplR1QS0_(%44, @q2)
+'' EXPECT-OUT[macos-arm64]: call i32 _ZplR1QS0_(%44, @q2)

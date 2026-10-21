@@ -16,9 +16,9 @@ func void _ZN1TC1Ei(ptr $0, i32 $1) {
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-func i32 G(agg:4[I] $0) {
+func i32 G(i64 $0) {
   local i32 $tmp0
-  local agg x size 4
+  local agg x size 8
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
@@ -39,7 +39,13 @@ func i32 main(i32 $0, ptr $1) {
   local agg $tmp6 size 4
   local i32 r3
   local agg $tmp8 size 4
+  local agg $abi9 size 8
+  local agg $abi10 size 8
+  local agg $abi11 size 8
   entry0:
+    %43 = alloca ptr $abi9
+    %45 = alloca ptr $abi10
+    %47 = alloca ptr $abi11
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -64,7 +70,9 @@ func i32 main(i32 $0, ptr $1) {
     %17 = trunc %16
     call void _ZN1TC1Ei(@$tmp4, %17)
     %18 = load @$tmp4
-    %19 = call i32 G(%18)
+    store @$abi9, %18
+    %44 = load @$abi9
+    %19 = call i32 G(%44)
     store @r1, %19
     %20 = alloca ptr r2
     %21 = alloca ptr $tmp6
@@ -72,7 +80,9 @@ func i32 main(i32 $0, ptr $1) {
     %23 = trunc %22
     call void _ZN1TC1Ei(@$tmp6, %23)
     %24 = load @$tmp6
-    %25 = call i32 G(%24)
+    store @$abi10, %24
+    %46 = load @$abi10
+    %25 = call i32 G(%46)
     store @r2, %25
     %26 = alloca ptr r3
     %27 = alloca ptr $tmp8
@@ -80,7 +90,9 @@ func i32 main(i32 $0, ptr $1) {
     %29 = trunc %28
     call void _ZN1TC1Ei(@$tmp8, %29)
     %30 = load @$tmp8
-    %31 = call i32 G(%30)
+    store @$abi11, %30
+    %48 = load @$abi11
+    %31 = call i32 G(%48)
     store @r3, %31
     %32 = field.addr @x, 0
     %33 = load %32
@@ -106,4 +118,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 78 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (1 by-value aggregate signatures, no classifier for this target)
+lowered: 3 functions, 3 blocks, 78 insts, 0 statements not lowered, 0 scope imbalance

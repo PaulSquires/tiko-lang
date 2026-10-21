@@ -28,7 +28,7 @@ func ptr _ZN6HOLDERixEi(ptr $0, i32 $1) {
     %12 = load @$tmp0
     ret %12
 }
-func void _ZN8REALSINK4TAKEE3R16(ptr $0, agg:16[I,I] $1) {
+func void _ZN8REALSINK4TAKEE3R16(ptr $0, i64x2 $1) {
   local ptr this
   local agg r size 16
   entry0:
@@ -46,11 +46,13 @@ func void _ZN8REALSINK4TAKEE3R16(ptr $0, agg:16[I,I] $1) {
     store %4, %9
     ret
 }
-func agg:16[I,I] _ZN8REALSINK4MAKEEv(ptr $0) {
+func i64x2 _ZN8REALSINK4MAKEEv(ptr $0) {
   local agg $tmp0 size 16
   local ptr this
   local agg r size 16
+  local agg $abi3 size 16
   entry0:
+    %12 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 16)
     %3 = alloca ptr this
@@ -66,7 +68,9 @@ func agg:16[I,I] _ZN8REALSINK4MAKEEv(ptr $0) {
     %10 = load @r
     store @$tmp0, %10
     %11 = load @$tmp0
-    ret %11
+    store @$abi3, %11
+    %13 = load @$abi3
+    ret %13
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i32 main(i32 $0, ptr $1) {
@@ -75,7 +79,11 @@ func i32 main(i32 $0, ptr $1) {
   local agg rs size 16
   local ptr s
   local agg got size 16
+  local agg $abi5 size 16
+  local agg $abi6 size 16
   entry0:
+    %44 = alloca ptr $abi5
+    %46 = alloca ptr $abi6
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -111,7 +119,9 @@ func i32 main(i32 $0, ptr $1) {
     %27 = load %26
     %28 = field.addr %27, 0
     %29 = load %28
-    call.ind void %29(%26, %25)
+    store @$abi5, %25
+    %45 = load @$abi5
+    call.ind void %29(%26, %45)
     %30 = field.addr @rs, 8
     %31 = load %30
     call.rtl void fb_PrintLongint(0, %31, 1)
@@ -120,7 +130,9 @@ func i32 main(i32 $0, ptr $1) {
     %34 = load %33
     %35 = field.addr %34, 8
     %36 = load %35
-    %37 = call.ind agg %36(%33)
+    %47 = call.ind i64x2 %36(%33)
+    store @$abi6, %47
+    %37 = load @$abi6
     store @got, %37
     %38 = field.addr @got, 0
     %39 = load %38
@@ -135,9 +147,9 @@ func i32 main(i32 $0, ptr $1) {
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void _ZN8REALSINKC1Ev(ptr $0)
-declare void _ZN4SINK4TAKEE3R16(ptr $0, agg:16[I,I] $1)
+declare void _ZN4SINK4TAKEE3R16(ptr $0, i64x2 $1)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
-declare agg:16[I,I] _ZN4SINK4MAKEEv(ptr $0)
+declare i64x2 _ZN4SINK4MAKEEv(ptr $0)
 declare void fb_End(i32 $0)
 func void _ZN8REALSINKC1Ev(ptr $0) {
   entry0:
@@ -160,4 +172,4 @@ func void _ZN4SINKC1Ev(ptr $0) {
 }
 declare void _ZN10fb_Object$C1Ev(ptr $0)
 verify: ok
-lowered: 6 functions, 6 blocks, 108 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (4 by-value aggregate signatures, no classifier for this target)
+lowered: 6 functions, 6 blocks, 108 insts, 0 statements not lowered, 0 scope imbalance

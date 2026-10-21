@@ -1,22 +1,25 @@
 global str $str0 "  expect 7123"
 global str $str1 "  expect 405"
 global str $str2 "  expect 129"
-func i32 F5(i8 $0, i8 $1, i8 $2, agg:5[I] $3) {
+func i32 F5(i32 $0, i32 $1, i32 $2, i64 $3) {
   local i32 $tmp0
   local i8 b1
   local i8 b2
   local i8 b3
-  local agg s size 5
+  local agg s size 8
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
     %3 = alloca ptr b1
-    store @b1, $0
+    %28 = trunc $0
+    store @b1, %28
     %4 = alloca ptr b2
-    store @b2, $1
+    %29 = trunc $1
+    store @b2, %29
     %5 = alloca ptr b3
-    store @b3, $2
+    %30 = trunc $2
+    store @b3, %30
     %6 = alloca ptr s
     store @s, $3
     %7 = load @b1
@@ -42,16 +45,17 @@ func i32 F5(i8 $0, i8 $1, i8 $2, agg:5[I] $3) {
     %27 = trunc %26
     ret %27
 }
-func i32 F3(i8 $0, agg:3[I] $1) {
+func i32 F3(i32 $0, i64 $1) {
   local i32 $tmp0
   local i8 b1
-  local agg s size 3
+  local agg s size 8
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
     %3 = alloca ptr b1
-    store @b1, $0
+    %14 = trunc $0
+    store @b1, %14
     %4 = alloca ptr s
     store @s, $1
     %5 = load @b1
@@ -65,19 +69,21 @@ func i32 F3(i8 $0, agg:3[I] $1) {
     %13 = trunc %12
     ret %13
 }
-func i32 F13(i8 $0, i8 $1, agg:13[I,I] $2) {
+func i32 F13(i32 $0, i32 $1, i64x2 $2) {
   local i32 $tmp0
   local i8 b1
   local i8 b2
-  local agg s size 13
+  local agg s size 16
   entry0:
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
     %3 = alloca ptr b1
-    store @b1, $0
+    %22 = trunc $0
+    store @b1, %22
     %4 = alloca ptr b2
-    store @b2, $1
+    %23 = trunc $1
+    store @b2, %23
     %5 = alloca ptr s
     store @s, $2
     %6 = load @b1
@@ -104,7 +110,13 @@ func void RUN_IT() {
   local agg s size 5
   local agg t size 3
   local agg u size 13
+  local agg $abi5 size 8
+  local agg $abi6 size 8
+  local agg $abi7 size 16
   entry0:
+    %61 = alloca ptr $abi5
+    %64 = alloca ptr $abi6
+    %68 = alloca ptr $abi7
     %1 = alloca ptr junk
     %2 = call.rtl ptr memset(@junk, 0, 32)
     %3 = alloca ptr i
@@ -162,14 +174,22 @@ func void RUN_IT() {
     %41 = trunc %40
     %42 = const i64 1
     %43 = trunc %42
-    %44 = call i32 F5(%43, %41, %39, %37)
+    %58 = sext %43
+    %59 = sext %41
+    %60 = sext %39
+    store @$abi5, %37
+    %62 = load @$abi5
+    %44 = call i32 F5(%58, %59, %60, %62)
     call.rtl void fb_PrintInt(0, %44, 0)
     %45 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 13)
     call.rtl void fb_PrintString(0, %45, 1)
     %46 = load @t
     %47 = const i64 4
     %48 = trunc %47
-    %49 = call i32 F3(%48, %46)
+    %63 = sext %48
+    store @$abi6, %46
+    %65 = load @$abi6
+    %49 = call i32 F3(%63, %65)
     call.rtl void fb_PrintInt(0, %49, 0)
     %50 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 12)
     call.rtl void fb_PrintString(0, %50, 1)
@@ -178,7 +198,11 @@ func void RUN_IT() {
     %53 = trunc %52
     %54 = const i64 1
     %55 = trunc %54
-    %56 = call i32 F13(%55, %53, %51)
+    %66 = sext %55
+    %67 = sext %53
+    store @$abi7, %51
+    %69 = load @$abi7
+    %56 = call i32 F13(%66, %67, %69)
     call.rtl void fb_PrintInt(0, %56, 0)
     %57 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 12)
     call.rtl void fb_PrintString(0, %57, 1)
@@ -205,4 +229,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 9 blocks, 151 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (3 by-value aggregate signatures, no classifier for this target)
+lowered: 5 functions, 9 blocks, 151 insts, 0 statements not lowered, 0 scope imbalance

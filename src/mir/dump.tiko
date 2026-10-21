@@ -15,6 +15,12 @@ namespace Tko.Mir
 '' then an INTEGER, '[M]' MEMORY. Empty when nothing was classified.
 private function EbName( byval packed as uint32 ) as string
     if packed = 0 then return ""
+    '' AAPCS64's: '[H3f]' for a three-float HFA, '[H2d]' for two doubles, '[A]' otherwise.
+    if TKO_AA_IS( packed ) then
+        dim as int32 n = TKO_AA_HFAN( packed )
+        if n = 0 then return "[A]"
+        return "[H" & str( n ) & iif( (packed and TKO_AA_HFA_DBL) <> 0, "d]", "f]" )
+    end if
     if packed = TKO_EB_MEMORY then return "[M]"
     dim as string r = "["
     dim as uint32 c0 = TKO_EB0( packed )

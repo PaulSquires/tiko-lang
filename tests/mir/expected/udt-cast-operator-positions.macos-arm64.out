@@ -2,7 +2,7 @@ global str $str0 "byref :"
 global str $str1 "init  :"
 global str $str2 "assign:"
 global str $str3 "cast  :"
-func agg:24[M] _ZN5WIDE_cv7NARROW_Ev(ptr $0) {
+func void _ZN5WIDE_cv7NARROW_Ev(ptr $0, ptr $1) {
   local agg $tmp0 size 24
   local ptr this
   local agg n size 24
@@ -10,7 +10,7 @@ func agg:24[M] _ZN5WIDE_cv7NARROW_Ev(ptr $0) {
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 24)
     %3 = alloca ptr this
-    store @this, $0
+    store @this, $1
     %4 = alloca ptr n
     %5 = call.rtl ptr memset(@n, 0, 24)
     %6 = field.addr @n, 0
@@ -25,7 +25,8 @@ func agg:24[M] _ZN5WIDE_cv7NARROW_Ev(ptr $0) {
     %12 = load @n
     store @$tmp0, %12
     %13 = load @$tmp0
-    ret %13
+    store $0, %13
+    ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void TAKEREF_(ptr $0) {
@@ -59,7 +60,15 @@ func i32 main(i32 $0, ptr $1) {
   local agg n2 size 24
   local agg n3 size 24
   local agg $tmp5 size 24
+  local agg $abi6 size 24
+  local agg $abi7 size 24
+  local agg $abi8 size 24
+  local agg $abi9 size 24
   entry0:
+    %44 = alloca ptr $abi6
+    %45 = alloca ptr $abi7
+    %46 = alloca ptr $abi8
+    %47 = alloca ptr $abi9
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -77,7 +86,8 @@ func i32 main(i32 $0, ptr $1) {
     %11 = const i64 9
     store %10, %11
     %12 = alloca ptr n1
-    %13 = call agg _ZN5WIDE_cv7NARROW_Ev(@w)
+    call void _ZN5WIDE_cv7NARROW_Ev(@$abi6, @w)
+    %13 = load @$abi6
     store @n1, %13
     %14 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str1, 7)
     call.rtl void fb_PrintString(0, %14, 0)
@@ -92,7 +102,8 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_PrintLongint(0, %20, 1)
     %21 = alloca ptr n2
     %22 = call.rtl ptr memset(@n2, 0, 24)
-    %23 = call agg _ZN5WIDE_cv7NARROW_Ev(@w)
+    call void _ZN5WIDE_cv7NARROW_Ev(@$abi7, @w)
+    %23 = load @$abi7
     store @n2, %23
     %24 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str2, 7)
     call.rtl void fb_PrintString(0, %24, 0)
@@ -106,7 +117,8 @@ func i32 main(i32 $0, ptr $1) {
     %30 = load %29
     call.rtl void fb_PrintLongint(0, %30, 1)
     %31 = alloca ptr n3
-    %32 = call agg _ZN5WIDE_cv7NARROW_Ev(@w)
+    call void _ZN5WIDE_cv7NARROW_Ev(@$abi8, @w)
+    %32 = load @$abi8
     store @n3, %32
     %33 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str3, 7)
     call.rtl void fb_PrintString(0, %33, 0)
@@ -120,7 +132,8 @@ func i32 main(i32 $0, ptr $1) {
     %39 = load %38
     call.rtl void fb_PrintLongint(0, %39, 1)
     %40 = alloca ptr $tmp5
-    %41 = call agg _ZN5WIDE_cv7NARROW_Ev(@w)
+    call void _ZN5WIDE_cv7NARROW_Ev(@$abi9, @w)
+    %41 = load @$abi9
     store @$tmp5, %41
     call void TAKEREF_(@$tmp5)
     %42 = const i32 0
@@ -131,4 +144,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 100 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (1 by-value aggregate signatures, no classifier for this target)
+lowered: 3 functions, 3 blocks, 100 insts, 0 statements not lowered, 0 scope imbalance

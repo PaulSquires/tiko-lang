@@ -1,5 +1,5 @@
-func void _ZN3BAR6FOOBAREN3FOO2T1E(agg:4[I] $0) {
-  local agg a size 4
+func void _ZN3BAR6FOOBAREN3FOO2T1E(i64 $0) {
+  local agg a size 8
   entry0:
     %1 = alloca ptr a
     store @a, $0
@@ -12,7 +12,9 @@ declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg $tmp1 size 4
+  local agg $abi2 size 8
   entry0:
+    %12 = alloca ptr $abi2
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -25,7 +27,9 @@ func i32 main(i32 $0, ptr $1) {
     %8 = field.addr @$tmp1, 0
     store %8, %7
     %9 = load @$tmp1
-    call void _ZN3BAR6FOOBAREN3FOO2T1E(%9)
+    store @$abi2, %9
+    %13 = load @$abi2
+    call void _ZN3BAR6FOOBAREN3FOO2T1E(%13)
     %10 = const i32 0
     call.rtl void fb_End(%10)
     %11 = load @$tmp0
@@ -34,4 +38,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 2 functions, 2 blocks, 21 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (1 by-value aggregate signatures, no classifier for this target)
+lowered: 2 functions, 2 blocks, 21 insts, 0 statements not lowered, 0 scope imbalance

@@ -1,0 +1,23 @@
+'' AAPCS64 (APPLE), what clang writes for the same C shapes -- build/aapcsig.sh compares all
+'' of them against clang itself; these pin one of each kind so the suite sees a regression
+'' without clang. HFAs travel as arrays, both ways; any other aggregate as i64 / [2 x i64];
+'' over 16 bytes as the address of the caller's copy -- NOT byval, which is SysV's -- and
+'' its result through sret. See src/codegen/abi.tiko.
+'' TEST: cli
+'' ARGS: -target macos-arm64 --emit-ir tests/abi/apple/sig.tiko
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: declare i8 @"f_C1"(i64)
+'' EXPECT-OUT: declare i64 @"f_C3"(i64)
+'' EXPECT-OUT: declare [2 x i64] @"f_I3"([2 x i64])
+'' EXPECT-OUT: declare void @"f_L3"(ptr sret([24 x i8]) align 8, ptr)
+'' EXPECT-OUT: declare void @"g_L3"(i32, ptr)
+'' EXPECT-OUT: declare [3 x float] @"f_F3"([3 x float])
+'' EXPECT-OUT: declare [4 x double] @"f_D4"([4 x double])
+'' EXPECT-OUT: declare void @"g_F5"(i32, ptr)
+'' EXPECT-OUT: declare [2 x i64] @"f_FD"([2 x i64])
+'' EXPECT-OUT: declare [3 x float] @"f_FA3"([3 x float])
+'' EXPECT-OUT: declare [4 x float] @"f_NF4"([4 x float])
+'' EXPECT-OUT: declare [1 x float] @"f_UF"([1 x float])
+'' EXPECT-OUT: declare void @"hfa9"(double, double, double, double, double, double, [3 x double], double)
+'' EXPECT-OUT: define [3 x float] @"k_F3"([3 x float] %p0)
+'' EXPECT-NOT: byval

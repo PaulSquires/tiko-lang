@@ -2,30 +2,44 @@ func void P() {
   local agg a size 4
   local agg d size 8
   local agg a2 size 4
+  local agg $abi3 size 8
+  local agg $abi4 size 8
+  local agg $abi5 size 8
   entry0:
+    %12 = alloca ptr $abi3
+    %14 = alloca ptr $abi4
+    %16 = alloca ptr $abi5
     %1 = alloca ptr a
     %2 = const i64 7
     %3 = trunc %2
-    %4 = call agg _Z2MkIiEi(%3)
+    %13 = call i32 _Z2MkIiEi(%3)
+    store @$abi3, %13
+    %4 = load @$abi3
     store @a, %4
     %5 = alloca ptr d
     %6 = const f64 2.5
-    %7 = call agg _Z2MkIdEd(%6)
+    %15 = call f64x1 _Z2MkIdEd(%6)
+    store @$abi4, %15
+    %7 = load @$abi4
     store @d, %7
     %8 = alloca ptr a2
     %9 = const i64 9
     %10 = trunc %9
-    %11 = call agg _Z2MkIiEi(%10)
+    %17 = call i32 _Z2MkIiEi(%10)
+    store @$abi5, %17
+    %11 = load @$abi5
     store @a2, %11
     ret
 }
-declare agg:4[I] _Z2MkIiEi(i32 $0)
-declare agg:8[S] _Z2MkIdEd(f64 $0)
-func agg:4[I] _Z2MkIiEi(i32 $0) {
+declare i32 _Z2MkIiEi(i32 $0)
+declare f64x1 _Z2MkIdEd(f64 $0)
+func i32 _Z2MkIiEi(i32 $0) {
   local agg $tmp0 size 4
   local i32 x
   local agg b size 4
+  local agg $abi3 size 8
   entry0:
+    %10 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 4)
     %3 = alloca ptr x
@@ -38,14 +52,18 @@ func agg:4[I] _Z2MkIiEi(i32 $0) {
     %8 = load @b
     store @$tmp0, %8
     %9 = load @$tmp0
-    ret %9
+    store @$abi3, %9
+    %11 = load @$abi3
+    ret %11
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-func agg:8[S] _Z2MkIdEd(f64 $0) {
+func f64x1 _Z2MkIdEd(f64 $0) {
   local agg $tmp0 size 8
   local f64 x
   local agg b size 8
+  local agg $abi3 size 8
   entry0:
+    %10 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 8)
     %3 = alloca ptr x
@@ -58,7 +76,9 @@ func agg:8[S] _Z2MkIdEd(f64 $0) {
     %8 = load @b
     store @$tmp0, %8
     %9 = load @$tmp0
-    ret %9
+    store @$abi3, %9
+    %11 = load @$abi3
+    ret %11
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -76,4 +96,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 4 blocks, 46 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (4 by-value aggregate signatures, no classifier for this target)
+lowered: 4 functions, 4 blocks, 46 insts, 0 statements not lowered, 0 scope imbalance

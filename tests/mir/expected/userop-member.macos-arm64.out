@@ -53,12 +53,14 @@ func ptr _ZplR3BIGS0_(ptr $0, ptr $1, ptr $2) {
     %16 = load @$tmp0
     ret %16
 }
-func agg:4[I] _ZplR5SMALLS0_(ptr $0, ptr $1) {
+func i32 _ZplR5SMALLS0_(ptr $0, ptr $1) {
   local agg $tmp0 size 4
   local ptr x
   local ptr y
   local agg r size 4
+  local agg $abi4 size 8
   entry0:
+    %20 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 4)
     %3 = alloca ptr x
@@ -82,7 +84,9 @@ func agg:4[I] _ZplR5SMALLS0_(ptr $0, ptr $1) {
     %18 = load @r
     store @$tmp0, %18
     %19 = load @$tmp0
-    ret %19
+    store @$abi4, %19
+    %21 = load @$abi4
+    ret %21
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -94,7 +98,9 @@ func i32 main(i32 $0, ptr $1) {
   local agg $tmp6 size 32
   local i32 r2
   local agg $tmp8 size 4
+  local agg $abi9 size 8
   entry0:
+    %24 = alloca ptr $abi9
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -116,7 +122,9 @@ func i32 main(i32 $0, ptr $1) {
     store @r1, %14
     call void _ZN3BIGD1Ev(@$tmp6)
     %15 = alloca ptr r2
-    %16 = call agg _ZplR5SMALLS0_(@u, @v)
+    %25 = call i32 _ZplR5SMALLS0_(@u, @v)
+    store @$abi9, %25
+    %16 = load @$abi9
     %17 = alloca ptr $tmp8
     store @$tmp8, %16
     %18 = field.addr @$tmp8, 0
@@ -138,4 +146,4 @@ declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 95 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (1 by-value aggregate signatures, no classifier for this target)
+lowered: 5 functions, 5 blocks, 95 insts, 0 statements not lowered, 0 scope imbalance

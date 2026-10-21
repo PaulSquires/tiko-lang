@@ -32,12 +32,14 @@ declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_StrConcatAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare void _ZN3BoxI8FBSTRINGEC1ERKS1_(ptr $0, ptr $1)
 declare void _ZN3BoxI8FBSTRINGED1Ev(ptr $0)
-func agg:8[I] _Zv24+<8>R3BoxIu7INTEGERES2_(ptr $0, ptr $1) {
+func i64 _Zv24+<8>R3BoxIu7INTEGERES2_(ptr $0, ptr $1) {
   local agg $tmp0 size 8
   local ptr x
   local ptr y
   local agg r size 8
+  local agg $abi4 size 8
   entry0:
+    %17 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 8)
     %3 = alloca ptr x
@@ -58,7 +60,9 @@ func agg:8[I] _Zv24+<8>R3BoxIu7INTEGERES2_(ptr $0, ptr $1) {
     %15 = load @r
     store @$tmp0, %15
     %16 = load @$tmp0
-    ret %16
+    store @$abi4, %16
+    %18 = load @$abi4
+    ret %18
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i32 main(i32 $0, ptr $1) {
@@ -67,7 +71,9 @@ func i32 main(i32 $0, ptr $1) {
   local agg i1 size 8
   local agg i2 size 8
   local agg m size 8
+  local agg $abi5 size 8
   entry0:
+    %22 = alloca ptr $abi5
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -88,7 +94,9 @@ func i32 main(i32 $0, ptr $1) {
     %14 = const i64 4
     store %13, %14
     %15 = alloca ptr m
-    %16 = call agg _Zv24+<8>R3BoxIu7INTEGERES2_(@i1, @i2)
+    %23 = call i64 _Zv24+<8>R3BoxIu7INTEGERES2_(@i1, @i2)
+    store @$abi5, %23
+    %16 = load @$abi5
     store @m, %16
     %17 = field.addr @m, 0
     %18 = load %17
@@ -144,4 +152,4 @@ func void _ZN3BoxI8FBSTRINGEaSERKS1_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 7 functions, 7 blocks, 91 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (1 by-value aggregate signatures, no classifier for this target)
+lowered: 7 functions, 7 blocks, 91 insts, 0 statements not lowered, 0 scope imbalance

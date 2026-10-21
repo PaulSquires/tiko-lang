@@ -315,6 +315,15 @@ function TypeName( byval t as MirType ) as string
     case MT_F64  : return "f64"
     case MT_PTR  : return "ptr"
     case MT_AGG  : return "agg"
+    case MT_HFA_F32_1 : return "f32x1"
+    case MT_HFA_F32_2 : return "f32x2"
+    case MT_HFA_F32_3 : return "f32x3"
+    case MT_HFA_F32_4 : return "f32x4"
+    case MT_HFA_F64_1 : return "f64x1"
+    case MT_HFA_F64_2 : return "f64x2"
+    case MT_HFA_F64_3 : return "f64x3"
+    case MT_HFA_F64_4 : return "f64x4"
+    case MT_A2_I64    : return "i64x2"
     end select
     return "?"
 end function

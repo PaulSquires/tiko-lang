@@ -1,9 +1,11 @@
-func agg:4[I] _ZN2NSmiERNS_1DES1_(ptr $0, ptr $1) {
+func i32 _ZN2NSmiERNS_1DES1_(ptr $0, ptr $1) {
   local agg $tmp0 size 4
   local ptr a
   local ptr b
   local agg r size 4
+  local agg $abi4 size 8
   entry0:
+    %9 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 4)
     %3 = alloca ptr a
@@ -15,15 +17,19 @@ func agg:4[I] _ZN2NSmiERNS_1DES1_(ptr $0, ptr $1) {
     %7 = load @r
     store @$tmp0, %7
     %8 = load @$tmp0
-    ret %8
+    store @$abi4, %8
+    %10 = load @$abi4
+    ret %10
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-func agg:4[I] _ZN2NSdvERNS_1DES1_(ptr $0, ptr $1) {
+func i32 _ZN2NSdvERNS_1DES1_(ptr $0, ptr $1) {
   local agg $tmp0 size 4
   local ptr a
   local ptr b
   local agg r size 4
+  local agg $abi4 size 8
   entry0:
+    %9 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 4)
     %3 = alloca ptr a
@@ -35,13 +41,17 @@ func agg:4[I] _ZN2NSdvERNS_1DES1_(ptr $0, ptr $1) {
     %7 = load @r
     store @$tmp0, %7
     %8 = load @$tmp0
-    ret %8
+    store @$abi4, %8
+    %10 = load @$abi4
+    ret %10
 }
-func agg:4[I] _ZN2NSngERNS_1DE(ptr $0) {
+func i32 _ZN2NSngERNS_1DE(ptr $0) {
   local agg $tmp0 size 4
   local ptr a
   local agg r size 4
+  local agg $abi3 size 8
   entry0:
+    %8 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 4)
     %3 = alloca ptr a
@@ -51,7 +61,9 @@ func agg:4[I] _ZN2NSngERNS_1DE(ptr $0) {
     %6 = load @r
     store @$tmp0, %6
     %7 = load @$tmp0
-    ret %7
+    store @$abi3, %7
+    %9 = load @$abi3
+    ret %9
 }
 func void G() {
   local agg r size 4
@@ -60,24 +72,44 @@ func void G() {
   local agg $tmp3 size 4
   local agg b size 4
   local agg $tmp5 size 4
+  local agg $abi6 size 8
+  local agg $abi7 size 8
+  local agg $abi8 size 8
+  local agg $abi9 size 8
+  local agg $abi10 size 8
   entry0:
+    %14 = alloca ptr $abi6
+    %16 = alloca ptr $abi7
+    %18 = alloca ptr $abi8
+    %20 = alloca ptr $abi9
+    %22 = alloca ptr $abi10
     %1 = alloca ptr r
     %2 = call.rtl ptr memset(@r, 0, 4)
     %3 = alloca ptr q
     %4 = call.rtl ptr memset(@q, 0, 4)
     %5 = alloca ptr a
-    %6 = call agg _ZN2NSmiERNS_1DES1_(@r, @r)
+    %15 = call i32 _ZN2NSmiERNS_1DES1_(@r, @r)
+    store @$abi6, %15
+    %6 = load @$abi6
     %7 = alloca ptr $tmp3
     store @$tmp3, %6
-    %8 = call agg _ZN2NSdvERNS_1DES1_(@$tmp3, @r)
+    %17 = call i32 _ZN2NSdvERNS_1DES1_(@$tmp3, @r)
+    store @$abi7, %17
+    %8 = load @$abi7
     store @a, %8
     %9 = alloca ptr b
-    %10 = call agg _ZN2NSngERNS_1DE(@r)
+    %19 = call i32 _ZN2NSngERNS_1DE(@r)
+    store @$abi8, %19
+    %10 = load @$abi8
     store @b, %10
-    %11 = call agg _ZN2NSmiERNS_1DES1_(@r, @r)
+    %21 = call i32 _ZN2NSmiERNS_1DES1_(@r, @r)
+    store @$abi9, %21
+    %11 = load @$abi9
     %12 = alloca ptr $tmp5
     store @$tmp5, %11
-    %13 = call agg _ZN2NSdvERNS_1DES1_(@$tmp5, @r)
+    %23 = call i32 _ZN2NSdvERNS_1DES1_(@$tmp5, @r)
+    store @$abi10, %23
+    %13 = load @$abi10
     store @q, %13
     ret
 }
@@ -97,4 +129,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 57 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (3 by-value aggregate signatures, no classifier for this target)
+lowered: 5 functions, 5 blocks, 57 insts, 0 statements not lowered, 0 scope imbalance

@@ -36,6 +36,23 @@ namespace Tko.Mir
         MT_F64
         MT_PTR
         MT_AGG
+        '' AAPCS64'S COERCIONS, which only the ABI pass writes (codegen/abi.tiko). Each is a
+        '' fixed LLVM array -- '[3 x float]', '[2 x i64]' -- because an array is what makes
+        '' LLVM's AArch64 backend allocate CONSECUTIVE registers or move the whole thing to
+        '' the stack, as AAPCS64 C.3 / C.11 require: measured, a '[3 x double]' with two V
+        '' registers left went on the stack whole and the double after it followed (NSRN =
+        '' 8). Separate scalars would have split it. An HFA has one to four members, so these
+        '' are all of them; no 16-aligned aggregate exists in FreeBASIC, so clang's 'i128'
+        '' has no counterpart here.
+        MT_HFA_F32_1
+        MT_HFA_F32_2
+        MT_HFA_F32_3
+        MT_HFA_F32_4
+        MT_HFA_F64_1
+        MT_HFA_F64_2
+        MT_HFA_F64_3
+        MT_HFA_F64_4
+        MT_A2_I64
     end enum
 
     '' MIR( opcode, mnemonic, operand count, has result )
@@ -203,6 +220,16 @@ namespace Tko.Mir
     #define TKO_EB_PACK( c0, c1 )  ((c0) or ((c1) shl 2))
     #define TKO_EB0( p )           ((p) and 3)
     #define TKO_EB1( p )           (((p) shr 2) and 3)
+
+    '' THE AAPCS64 CONCLUSION, in the same field on an arm64 target, where the eightbyte
+    '' classes mean nothing (eightbyte.tiko, ClassifyAapcs64_). Bit 31 marks it, so no
+    '' value of one scheme reads as the other. Bits 0-2: the HFA's member count, 1-4, or
+    '' 0 for an aggregate that is not one; bit 3: its members are doubles, not floats.
+    '' Everything else -- integer registers or memory -- follows from the size alone.
+    const TKO_AA_MARK      as uint32 = &h80000000
+    const TKO_AA_HFA_DBL   as uint32 = 8
+    #define TKO_AA_IS( p )         (((p) and TKO_AA_MARK) <> 0)
+    #define TKO_AA_HFAN( p )       ((p) and 7)
 
     '' PARAMETER ATTRIBUTES. Not decoration -- each one CHANGES how the argument
     '' travels, and LLVM will not do it without being told.

@@ -54,11 +54,6 @@ namespace Tko.Codegen
         '' a half-applied ABI is a miscompile, and the emitter's own ICE is a better
         '' failure than a call whose two halves disagree.
         as int32 declined
-        '' A by-value aggregate on a target whose classifier is not written yet
-        '' (ABI_AAPCS64_APPLE). Any at all and the pass rewrote NOTHING; the driver stops the
-        '' build with TKO0992 naming the first, refusedWhat.
-        as int32  refused
-        as string refusedWhat
     end type
 
     declare sub LowerModule _

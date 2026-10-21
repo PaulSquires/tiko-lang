@@ -3,9 +3,6 @@
 '' TEST: cli
 '' ARGS: --dump-ir -i toolchains/tiko-windows/inc tests/mir/src/foreach-map-in-sub.bas
 '' EXPECT-EXIT: 0
-'' A BY-VALUE AGGREGATE (a std module's, or the test's own): macos-arm64 refuses it until AAPCS64 lands.
-'' EXPECT-EXIT[macos-arm64]: 1
-'' EXPECT-OUT[macos-arm64]: error TKO0992: not implemented in this build: an aggregate passed or returned by value on macos-arm64
 '' EXPECT-OUT: verify: ok
 '' EXPECT-OUT: 0 statements not lowered
 '' EXPECT-NOT: call agg _ZN11MapIterator

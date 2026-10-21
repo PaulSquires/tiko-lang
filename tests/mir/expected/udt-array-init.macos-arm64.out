@@ -48,11 +48,13 @@ func void _ZN1CD1Ev(ptr $0) {
     ret
 }
 declare void fb_StrDelete(ptr $0)
-func agg:4[I] MKU(i32 $0) {
+func i32 MKU(i32 $0) {
   local agg $tmp0 size 4
   local i32 v
   local agg r size 4
+  local agg $abi3 size 8
   entry0:
+    %10 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 4)
     %3 = alloca ptr v
@@ -65,7 +67,9 @@ func agg:4[I] MKU(i32 $0) {
     %8 = load @r
     store @$tmp0, %8
     %9 = load @$tmp0
-    ret %9
+    store @$abi3, %9
+    %11 = load @$abi3
+    ret %11
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func ptr MKC(ptr $0, i32 $1) {
@@ -97,7 +101,11 @@ func i32 main(i32 $0, ptr $1) {
   local agg b size 48
   local agg $tmp3 size 24
   local agg $tmp4 size 24
+  local agg $abi5 size 8
+  local agg $abi6 size 8
   entry0:
+    %50 = alloca ptr $abi5
+    %52 = alloca ptr $abi6
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -107,12 +115,16 @@ func i32 main(i32 $0, ptr $1) {
     %5 = field.addr @a, 0
     %6 = const i64 1
     %7 = trunc %6
-    %8 = call agg MKU(%7)
+    %51 = call i32 MKU(%7)
+    store @$abi5, %51
+    %8 = load @$abi5
     store %5, %8
     %9 = field.addr @a, 4
     %10 = const i64 2
     %11 = trunc %10
-    %12 = call agg MKU(%11)
+    %53 = call i32 MKU(%11)
+    store @$abi6, %53
+    %12 = load @$abi6
     store %9, %12
     %13 = const i64 0
     %14 = const i64 4
@@ -169,4 +181,4 @@ declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_PrintString(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 6 blocks, 123 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (1 by-value aggregate signatures, no classifier for this target)
+lowered: 6 functions, 6 blocks, 123 insts, 0 statements not lowered, 0 scope imbalance

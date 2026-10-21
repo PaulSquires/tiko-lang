@@ -39,11 +39,15 @@ func ptr _ZN3FOOcv8FBSTRINGEv(ptr $0) {
 declare ptr fb_DoubleToStr(f64 $0)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
 declare ptr fb_StrAllocTempResult(ptr $0)
-func agg:8[S] _ZmiR3FOOf(ptr $0, f32 $1) {
+func f64x1 _ZmiR3FOOf(ptr $0, f32 $1) {
   local agg $tmp0 size 8
   local ptr l
   local f32 r
+  local agg $abi3 size 8
+  local agg $abi4 size 8
   entry0:
+    %16 = alloca ptr $abi3
+    %18 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 8)
     %3 = alloca ptr l
@@ -61,17 +65,25 @@ func agg:8[S] _ZmiR3FOOf(ptr $0, f32 $1) {
     %13 = field.addr @$tmp0, 0
     store %13, %12
     %14 = load @$tmp0
-    ret %14
+    store @$abi3, %14
+    %17 = load @$abi3
+    ret %17
   after1:
     %15 = load @$tmp0
-    ret %15
+    store @$abi4, %15
+    %19 = load @$abi4
+    ret %19
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-func agg:8[S] _ZplfR3FOO(f32 $0, ptr $1) {
+func f64x1 _ZplfR3FOO(f32 $0, ptr $1) {
   local agg $tmp0 size 8
   local f32 l
   local ptr r
+  local agg $abi3 size 8
+  local agg $abi4 size 8
   entry0:
+    %14 = alloca ptr $abi3
+    %16 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 8)
     %3 = alloca ptr l
@@ -87,16 +99,24 @@ func agg:8[S] _ZplfR3FOO(f32 $0, ptr $1) {
     %11 = field.addr @$tmp0, 0
     store %11, %10
     %12 = load @$tmp0
-    ret %12
+    store @$abi3, %12
+    %15 = load @$abi3
+    ret %15
   after1:
     %13 = load @$tmp0
-    ret %13
+    store @$abi4, %13
+    %17 = load @$abi4
+    ret %17
 }
-func agg:8[S] _ZmlR3FOOS0_(ptr $0, ptr $1) {
+func f64x1 _ZmlR3FOOS0_(ptr $0, ptr $1) {
   local agg $tmp0 size 8
   local ptr l
   local ptr r
+  local agg $abi3 size 8
+  local agg $abi4 size 8
   entry0:
+    %15 = alloca ptr $abi3
+    %17 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 8)
     %3 = alloca ptr l
@@ -113,10 +133,14 @@ func agg:8[S] _ZmlR3FOOS0_(ptr $0, ptr $1) {
     %12 = field.addr @$tmp0, 0
     store %12, %11
     %13 = load @$tmp0
-    ret %13
+    store @$abi3, %13
+    %16 = load @$abi3
+    ret %16
   after1:
     %14 = load @$tmp0
-    ret %14
+    store @$abi4, %14
+    %18 = load @$abi4
+    ret %18
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -125,7 +149,13 @@ func i32 main(i32 $0, ptr $1) {
   local agg $tmp3 size 8
   local agg $tmp4 size 8
   local agg $tmp5 size 8
+  local agg $abi6 size 8
+  local agg $abi7 size 8
+  local agg $abi8 size 8
   entry0:
+    %31 = alloca ptr $abi6
+    %33 = alloca ptr $abi7
+    %35 = alloca ptr $abi8
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -143,21 +173,27 @@ func i32 main(i32 $0, ptr $1) {
     store %11, %10
     %12 = call f64 _ZN3FOOcvdEv(@r)
     %13 = fptrunc %12
-    %14 = call agg _ZmiR3FOOf(@l, %13)
+    %32 = call f64x1 _ZmiR3FOOf(@l, %13)
+    store @$abi6, %32
+    %14 = load @$abi6
     %15 = alloca ptr $tmp3
     store @$tmp3, %14
     %16 = call ptr _ZN3FOOcv8FBSTRINGEv(@$tmp3)
     call.rtl void fb_PrintString(0, %16, 1)
     %17 = call f64 _ZN3FOOcvdEv(@l)
     %18 = fptrunc %17
-    %19 = call agg _ZplfR3FOO(%18, @r)
+    %34 = call f64x1 _ZplfR3FOO(%18, @r)
+    store @$abi7, %34
+    %19 = load @$abi7
     %20 = alloca ptr $tmp4
     store @$tmp4, %19
     %21 = call ptr _ZN3FOOcv8FBSTRINGEv(@$tmp4)
     call.rtl void fb_WriteString(0, %21, 1)
     %22 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str0, 4)
     %23 = call.rtl i32 fb_PrintUsingInit(%22)
-    %24 = call agg _ZmlR3FOOS0_(@l, @r)
+    %36 = call f64x1 _ZmlR3FOOS0_(@l, @r)
+    store @$abi8, %36
+    %24 = load @$abi8
     %25 = alloca ptr $tmp5
     store @$tmp5, %24
     %26 = call f64 _ZN3FOOcvdEv(@$tmp5)
@@ -177,4 +213,4 @@ declare i32 fb_PrintUsingDouble(i32 $0, f64 $1, i32 $2)
 declare i32 fb_PrintUsingEnd(i32 $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 9 blocks, 116 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (3 by-value aggregate signatures, no classifier for this target)
+lowered: 6 functions, 9 blocks, 116 insts, 0 statements not lowered, 0 scope imbalance

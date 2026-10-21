@@ -1,10 +1,12 @@
-func void _Z6Outer_I3RECES0_i(agg:4[I] $0, i32 $1) {
-  local agg tag size 4
+func void _Z6Outer_I3RECES0_i(i64 $0, i32 $1) {
+  local agg tag size 8
   local i32 n
   local agg buf size 72
   local i64 $tmp3
   local i64 $tmp4
+  local agg $abi5 size 8
   entry0:
+    %50 = alloca ptr $abi5
     %1 = alloca ptr tag
     store @tag, $0
     %2 = alloca ptr n
@@ -86,16 +88,18 @@ func void _Z6Outer_I3RECES0_i(agg:4[I] $0, i32 $1) {
     %47 = load @$tmp4
     call.rtl void fb_PrintLongint(0, %47, 1)
     %48 = load @tag
-    call void _Z4TakeI3RECES0_R7FBARRAYIS0_E(%48, @buf)
+    store @$abi5, %48
+    %51 = load @$abi5
+    call void _Z4TakeI3RECES0_R7FBARRAYIS0_E(%51, @buf)
     %49 = call.rtl i32 fb_ArrayErase(@buf)
     ret
 }
 declare i32 fb_ArrayRedimEx(ptr $0, i64 $1, i32 $2, i32 $3, i64 $4, ...)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
-declare void _Z4TakeI3RECES0_R7FBARRAYIS0_E(agg:4[I] $0, ptr $1)
+declare void _Z4TakeI3RECES0_R7FBARRAYIS0_E(i64 $0, ptr $1)
 declare i32 fb_ArrayErase(ptr $0)
-func void _Z4TakeI3RECES0_R7FBARRAYIS0_E(agg:4[I] $0, ptr $1) {
-  local agg tag size 4
+func void _Z4TakeI3RECES0_R7FBARRAYIS0_E(i64 $0, ptr $1) {
+  local agg tag size 8
   local ptr b
   local i64 $tmp2
   local i64 $tmp3
@@ -153,7 +157,9 @@ func void _Z4TakeI3RECES0_R7FBARRAYIS0_E(agg:4[I] $0, ptr $1) {
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg t size 4
+  local agg $abi2 size 8
   entry0:
+    %11 = alloca ptr $abi2
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -164,7 +170,9 @@ func i32 main(i32 $0, ptr $1) {
     %6 = const i64 20
     %7 = trunc %6
     %8 = load @t
-    call void _Z6Outer_I3RECES0_i(%8, %7)
+    store @$abi2, %8
+    %12 = load @$abi2
+    call void _Z6Outer_I3RECES0_i(%12, %7)
     %9 = const i32 0
     call.rtl void fb_End(%9)
     %10 = load @$tmp0
@@ -174,4 +182,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 19 blocks, 113 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (3 by-value aggregate signatures, no classifier for this target)
+lowered: 3 functions, 19 blocks, 113 insts, 0 statements not lowered, 0 scope imbalance

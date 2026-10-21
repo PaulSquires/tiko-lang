@@ -1,4 +1,4 @@
-func agg:24[M] _ZN5WIDE_cv7NARROW_Ev(ptr $0) {
+func void _ZN5WIDE_cv7NARROW_Ev(ptr $0, ptr $1) {
   local agg $tmp0 size 24
   local ptr this
   local agg n size 24
@@ -6,7 +6,7 @@ func agg:24[M] _ZN5WIDE_cv7NARROW_Ev(ptr $0) {
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 24)
     %3 = alloca ptr this
-    store @this, $0
+    store @this, $1
     %4 = alloca ptr n
     %5 = call.rtl ptr memset(@n, 0, 24)
     %6 = field.addr @n, 0
@@ -21,14 +21,16 @@ func agg:24[M] _ZN5WIDE_cv7NARROW_Ev(ptr $0) {
     %12 = load @n
     store @$tmp0, %12
     %13 = load @$tmp0
-    ret %13
+    store $0, %13
+    ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-func void TAKE_(agg:24[M] $0) {
+func void TAKE_(ptr $0) {
   local agg n size 24
   entry0:
     %1 = alloca ptr n
-    store @n, $0
+    %8 = load $0
+    store @n, %8
     %2 = field.addr @n, 0
     %3 = load %2
     call.rtl void fb_PrintLongint(0, %3, 0)
@@ -45,7 +47,11 @@ func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg w size 56
   local agg $tmp2 size 24
+  local agg $abi3 size 24
+  local agg $abi4 size 24
   entry0:
+    %17 = alloca ptr $abi3
+    %18 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -63,10 +69,12 @@ func i32 main(i32 $0, ptr $1) {
     %11 = const i64 9
     store %10, %11
     %12 = alloca ptr $tmp2
-    %13 = call agg _ZN5WIDE_cv7NARROW_Ev(@w)
+    call void _ZN5WIDE_cv7NARROW_Ev(@$abi3, @w)
+    %13 = load @$abi3
     store @$tmp2, %13
     %14 = load @$tmp2
-    call void TAKE_(%14)
+    store @$abi4, %14
+    call void TAKE_(@$abi4)
     %15 = const i32 0
     call.rtl void fb_End(%15)
     %16 = load @$tmp0
@@ -75,4 +83,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 3 functions, 3 blocks, 53 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (2 by-value aggregate signatures, no classifier for this target)
+lowered: 3 functions, 3 blocks, 53 insts, 0 statements not lowered, 0 scope imbalance

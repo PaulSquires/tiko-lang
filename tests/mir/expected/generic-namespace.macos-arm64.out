@@ -3,25 +3,35 @@ func void P() {
   local agg c size 4
   local agg i size 4
   local agg q size 4
+  local agg $abi3 size 8
+  local agg $abi4 size 8
   entry0:
+    %7 = alloca ptr $abi3
+    %9 = alloca ptr $abi4
     %1 = alloca ptr c
     %2 = call.rtl ptr memset(@c, 0, 4)
     %3 = alloca ptr i
-    %4 = call agg _ZN4CollIiE11GETITERATOREv(@c)
+    %8 = call i32 _ZN4CollIiE11GETITERATOREv(@c)
+    store @$abi3, %8
+    %4 = load @$abi3
     store @i, %4
     %5 = alloca ptr q
-    %6 = call agg _ZN4CollIiE1AEv(@c)
+    %10 = call i32 _ZN4CollIiE1AEv(@c)
+    store @$abi4, %10
+    %6 = load @$abi4
     store @q, %6
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-declare agg:4[I] _ZN4CollIiE11GETITERATOREv(ptr $0)
-declare agg:4[I] _ZN4CollIiE1AEv(ptr $0)
-func agg:4[I] _ZN4CollIiE11GETITERATOREv(ptr $0) {
+declare i32 _ZN4CollIiE11GETITERATOREv(ptr $0)
+declare i32 _ZN4CollIiE1AEv(ptr $0)
+func i32 _ZN4CollIiE11GETITERATOREv(ptr $0) {
   local agg $tmp0 size 4
   local ptr this
   local agg it size 4
+  local agg $abi3 size 8
   entry0:
+    %11 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 4)
     %3 = alloca ptr this
@@ -35,13 +45,17 @@ func agg:4[I] _ZN4CollIiE11GETITERATOREv(ptr $0) {
     %9 = load @it
     store @$tmp0, %9
     %10 = load @$tmp0
-    ret %10
+    store @$abi3, %10
+    %12 = load @$abi3
+    ret %12
 }
-func agg:4[I] _ZN4CollIiE1AEv(ptr $0) {
+func i32 _ZN4CollIiE1AEv(ptr $0) {
   local agg $tmp0 size 4
   local ptr this
   local agg p size 4
+  local agg $abi3 size 8
   entry0:
+    %8 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 4)
     %3 = alloca ptr this
@@ -51,7 +65,9 @@ func agg:4[I] _ZN4CollIiE1AEv(ptr $0) {
     %6 = load @p
     store @$tmp0, %6
     %7 = load @$tmp0
-    ret %7
+    store @$abi3, %7
+    %9 = load @$abi3
+    ret %9
 }
 func i8 _ZN2ItIiE7ISVALIDEv(ptr $0) {
   local i8 $tmp0
@@ -117,4 +133,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 7 functions, 7 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (4 by-value aggregate signatures, no classifier for this target)
+lowered: 7 functions, 7 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance

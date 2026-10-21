@@ -32,6 +32,17 @@ function LlvmType _
     '' nothing to derive it from.
     case MT_PTR  : return "ptr"
     case MT_AGG  : return AggType( aggSize )
+    '' AAPCS64's coercions (mir.ti): arrays, so the backend keeps them in consecutive
+    '' registers or puts them on the stack whole.
+    case MT_HFA_F32_1 : return "[1 x float]"
+    case MT_HFA_F32_2 : return "[2 x float]"
+    case MT_HFA_F32_3 : return "[3 x float]"
+    case MT_HFA_F32_4 : return "[4 x float]"
+    case MT_HFA_F64_1 : return "[1 x double]"
+    case MT_HFA_F64_2 : return "[2 x double]"
+    case MT_HFA_F64_3 : return "[3 x double]"
+    case MT_HFA_F64_4 : return "[4 x double]"
+    case MT_A2_I64    : return "[2 x i64]"
     end select
     return "void"
 end function

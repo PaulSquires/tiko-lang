@@ -5,9 +5,6 @@
 '' TEST: cli
 '' ARGS: --dump-ir -i toolchains/tiko-windows/inc tests/mir/src/generic-field-container.bas
 '' EXPECT-EXIT: 0
-'' A BY-VALUE AGGREGATE (a std module's, or the test's own): macos-arm64 refuses it until AAPCS64 lands.
-'' EXPECT-EXIT[macos-arm64]: 1
-'' EXPECT-OUT[macos-arm64]: error TKO0992: not implemented in this build: an aggregate passed or returned by value on macos-arm64
 
 '' A FIELD CALL BINDS TO THE INSTANTIATION'S MEMBER, named for its argument. The
 '' generic's own members are never lowered -- their parameters are void and their

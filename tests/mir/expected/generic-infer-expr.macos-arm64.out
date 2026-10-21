@@ -1,8 +1,10 @@
-func agg:16[I,I] _Z2MkIu7INTEGERERS0_(ptr $0) {
+func i64x2 _Z2MkIu7INTEGERERS0_(ptr $0) {
   local agg $tmp0 size 16
   local ptr x
   local agg r size 16
+  local agg $abi3 size 16
   entry0:
+    %15 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 16)
     %3 = alloca ptr x
@@ -21,7 +23,9 @@ func agg:16[I,I] _Z2MkIu7INTEGERERS0_(ptr $0) {
     %13 = load @r
     store @$tmp0, %13
     %14 = load @$tmp0
-    ret %14
+    store @$abi3, %14
+    %16 = load @$abi3
+    ret %16
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i64 _Z1GIu7INTEGERES0_(i64 $0) {
@@ -36,11 +40,13 @@ func i64 _Z1GIu7INTEGERES0_(i64 $0) {
     %4 = const i64 1
     ret %4
 }
-func agg:16[S,I] _Z2MkIdERd(ptr $0) {
+func i64x2 _Z2MkIdERd(ptr $0) {
   local agg $tmp0 size 16
   local ptr x
   local agg r size 16
+  local agg $abi3 size 16
   entry0:
+    %15 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 16)
     %3 = alloca ptr x
@@ -59,7 +65,9 @@ func agg:16[S,I] _Z2MkIdERd(ptr $0) {
     %13 = load @r
     store @$tmp0, %13
     %14 = load @$tmp0
-    ret %14
+    store @$abi3, %14
+    %16 = load @$abi3
+    ret %16
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -71,7 +79,13 @@ func i32 main(i32 $0, ptr $1) {
   local i64 z
   local agg d size 16
   local f64 $tmp8
+  local agg $abi9 size 16
+  local agg $abi10 size 16
+  local agg $abi11 size 16
   entry0:
+    %38 = alloca ptr $abi9
+    %40 = alloca ptr $abi10
+    %42 = alloca ptr $abi11
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -84,7 +98,9 @@ func i32 main(i32 $0, ptr $1) {
     %7 = const i64 3
     store @b, %7
     %8 = alloca ptr p
-    %9 = call agg _Z2MkIu7INTEGERERS0_(@a)
+    %39 = call i64x2 _Z2MkIu7INTEGERERS0_(@a)
+    store @$abi9, %39
+    %9 = load @$abi9
     store @p, %9
     %10 = alloca ptr w
     %11 = load @a
@@ -92,7 +108,9 @@ func i32 main(i32 $0, ptr $1) {
     %13 = add %11, %12
     %14 = alloca ptr $tmp5
     store @$tmp5, %13
-    %15 = call agg _Z2MkIu7INTEGERERS0_(@$tmp5)
+    %41 = call i64x2 _Z2MkIu7INTEGERERS0_(@$tmp5)
+    store @$abi10, %41
+    %15 = load @$abi10
     store @w, %15
     %16 = alloca ptr z
     %17 = load @a
@@ -108,7 +126,9 @@ func i32 main(i32 $0, ptr $1) {
     %26 = fdiv %24, %25
     %27 = alloca ptr $tmp8
     store @$tmp8, %26
-    %28 = call agg _Z2MkIdERd(@$tmp8)
+    %43 = call i64x2 _Z2MkIdERd(@$tmp8)
+    store @$abi11, %43
+    %28 = load @$abi11
     store @d, %28
     %29 = field.addr @p, 8
     %30 = load %29
@@ -131,4 +151,4 @@ declare void fb_PrintBool(i32 $0, i8 $1, i32 $2)
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 4 blocks, 94 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (2 by-value aggregate signatures, no classifier for this target)
+lowered: 4 functions, 4 blocks, 94 insts, 0 statements not lowered, 0 scope imbalance

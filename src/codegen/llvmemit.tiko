@@ -279,6 +279,9 @@ private function AlignOf _
     case MT_I32, MT_F32 : return 4
     case MT_I64, MT_F64 : return 8
     case MT_PTR : return e.tgt->layout.pointerBits \ 8
+    '' An array is aligned as its element.
+    case MT_HFA_F32_1, MT_HFA_F32_2, MT_HFA_F32_3, MT_HFA_F32_4 : return 4
+    case MT_HFA_F64_1, MT_HFA_F64_2, MT_HFA_F64_3, MT_HFA_F64_4, MT_A2_I64 : return 8
     end select
     dim as int32 a = e.tgt->layout.maxAlign
     if sizeBytes < a then

@@ -1,9 +1,11 @@
-func agg:8[I] _Zv25+<23>R3BoxI7PAYLOADES2_(ptr $0, ptr $1) {
+func i64 _Zv25+<23>R3BoxI7PAYLOADES2_(ptr $0, ptr $1) {
   local agg $tmp0 size 8
   local ptr a
   local ptr b
   local agg r size 8
+  local agg $abi4 size 8
   entry0:
+    %13 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 8)
     %3 = alloca ptr a
@@ -20,7 +22,9 @@ func agg:8[I] _Zv25+<23>R3BoxI7PAYLOADES2_(ptr $0, ptr $1) {
     %11 = load @r
     store @$tmp0, %11
     %12 = load @$tmp0
-    ret %12
+    store @$abi4, %12
+    %14 = load @$abi4
+    ret %14
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func ptr _Zv15*<23>R3BoxI7PAYLOADE(ptr $0) {
@@ -62,7 +66,9 @@ func i32 main(i32 $0, ptr $1) {
   local agg y size 8
   local agg z size 8
   local agg px size 8
+  local agg $abi6 size 8
   entry0:
+    %41 = alloca ptr $abi6
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -79,7 +85,9 @@ func i32 main(i32 $0, ptr $1) {
     %11 = field.addr @y, 0
     store %11, @pay
     %12 = alloca ptr z
-    %13 = call agg _Zv25+<23>R3BoxI7PAYLOADES2_(@x, @y)
+    %42 = call i64 _Zv25+<23>R3BoxI7PAYLOADES2_(@x, @y)
+    store @$abi6, %42
+    %13 = load @$abi6
     store @z, %13
     %14 = field.addr @z, 0
     %15 = load %14
@@ -123,4 +131,4 @@ declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 4 blocks, 89 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (1 by-value aggregate signatures, no classifier for this target)
+lowered: 4 functions, 4 blocks, 89 insts, 0 statements not lowered, 0 scope imbalance

@@ -1,8 +1,10 @@
-func agg:24[M] MAKEV(f64 $0) {
+func f64x3 MAKEV(f64 $0) {
   local agg $tmp0 size 24
   local f64 a
   local agg t size 24
+  local agg $abi3 size 24
   entry0:
+    %10 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 24)
     %3 = alloca ptr a
@@ -15,13 +17,17 @@ func agg:24[M] MAKEV(f64 $0) {
     %8 = load @t
     store @$tmp0, %8
     %9 = load @$tmp0
-    ret %9
+    store @$abi3, %9
+    %11 = load @$abi3
+    ret %11
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-func agg:24[M] MAKEV2() {
+func f64x3 MAKEV2() {
   local agg $tmp0 size 24
   local agg t size 24
+  local agg $abi2 size 24
   entry0:
+    %7 = alloca ptr $abi2
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 24)
     %3 = alloca ptr t
@@ -29,7 +35,9 @@ func agg:24[M] MAKEV2() {
     %5 = load @t
     store @$tmp0, %5
     %6 = load @$tmp0
-    ret %6
+    store @$abi2, %6
+    %8 = load @$abi2
+    ret %8
 }
 func void _ZN1DD1Ev(ptr $0) {
   local ptr this
@@ -67,14 +75,22 @@ func void P() {
   local agg $tmp3 size 8
   local agg c2 size 8
   local agg $tmp5 size 8
+  local agg $abi6 size 24
+  local agg $abi7 size 24
   entry0:
+    %18 = alloca ptr $abi6
+    %20 = alloca ptr $abi7
     %1 = alloca ptr a
     %2 = const f64 1
-    %3 = call agg MAKEV(%2)
+    %19 = call f64x3 MAKEV(%2)
+    store @$abi6, %19
+    %3 = load @$abi6
     store @a, %3
     %4 = alloca ptr b
     %5 = call.rtl ptr memset(@b, 0, 24)
-    %6 = call agg MAKEV2()
+    %21 = call f64x3 MAKEV2()
+    store @$abi7, %21
+    %6 = load @$abi7
     store @b, %6
     %7 = alloca ptr c1
     %8 = alloca ptr $tmp3
@@ -111,4 +127,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 6 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (2 by-value aggregate signatures, no classifier for this target)
+lowered: 6 functions, 6 blocks, 69 insts, 0 statements not lowered, 0 scope imbalance

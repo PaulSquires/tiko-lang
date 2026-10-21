@@ -19,6 +19,7 @@
 '' EXPECT-OUT: call void _Z2F4RK2T2(@v2)
 '' EXPECT-OUT: call void _Z2F5P2T1(@v2)
 '' EXPECT-OUT: call void _Z2F6PK2T2(@v2)
-'' THE ABI-LOWERED CALL, on the two targets with a classifier (macos-arm64 refuses until AAPCS64).
+'' THE ABI-LOWERED CALL, on each target.
 '' EXPECT-OUT[win64]: call void _Z2F72T1(%29)
 '' EXPECT-OUT[linux-x86_64]: call void _Z2F72T1(%29)
+'' EXPECT-OUT[macos-arm64]: call void _Z2F72T1(%29)

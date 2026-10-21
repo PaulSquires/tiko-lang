@@ -275,10 +275,12 @@ func void _ZN1KC1Ei(ptr $0, i32 $1) {
     store %12, %13
     ret
 }
-func agg:4[I] MKK(i32 $0) {
+func i32 MKK(i32 $0) {
   local agg $tmp0 size 4
   local i32 n
+  local agg $abi2 size 8
   entry0:
+    %6 = alloca ptr $abi2
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 4)
     %3 = alloca ptr n
@@ -286,7 +288,9 @@ func agg:4[I] MKK(i32 $0) {
     %4 = load @n
     call void _ZN1KC1Ei(@$tmp0, %4)
     %5 = load @$tmp0
-    ret %5
+    store @$abi2, %5
+    %7 = load @$abi2
+    ret %7
 }
 func i32 LENOF(ptr $0) {
   local i32 $tmp0
@@ -319,7 +323,9 @@ func void RUN1() {
   local agg $tmp6 size 4
   local agg $tmp7 size 32
   local agg $tmp8 size 4
+  local agg $abi9 size 8
   entry0:
+    %160 = alloca ptr $abi9
     %1 = load @@RUN1$h1$init
     %2 = const i64 0
     %3 = icmp.ne %1, %2
@@ -465,7 +471,9 @@ func void RUN1() {
     store @@RUN1$k1$init, %86
     %87 = const i64 8
     %88 = trunc %87
-    %89 = call agg MKK(%88)
+    %161 = call i32 MKK(%88)
+    store @$abi9, %161
+    %89 = load @$abi9
     store @$tmp8, %89
     %91 = load @$tmp8
     store @@RUN1$k1, %91
@@ -681,4 +689,4 @@ func void _ZN1SaSERKS_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 26 functions, 42 blocks, 457 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (1 by-value aggregate signatures, no classifier for this target)
+lowered: 26 functions, 42 blocks, 457 insts, 0 statements not lowered, 0 scope imbalance

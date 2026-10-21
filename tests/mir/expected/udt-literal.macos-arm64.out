@@ -1,6 +1,8 @@
-func agg:8[I] MAKEP() {
+func i64 MAKEP() {
   local agg $tmp0 size 8
+  local agg $abi1 size 8
   entry0:
+    %10 = alloca ptr $abi1
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 8)
     %3 = const i64 1
@@ -12,12 +14,16 @@ func agg:8[I] MAKEP() {
     %8 = field.addr @$tmp0, 4
     store %8, %6
     %9 = load @$tmp0
-    ret %9
+    store @$abi1, %9
+    %11 = load @$abi1
+    ret %11
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-func agg:8[I] MAKEPTYPED() {
+func i64 MAKEPTYPED() {
   local agg $tmp0 size 8
+  local agg $abi1 size 8
   entry0:
+    %10 = alloca ptr $abi1
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 8)
     %3 = const i64 3
@@ -29,7 +35,9 @@ func agg:8[I] MAKEPTYPED() {
     %8 = field.addr @$tmp0, 4
     store %8, %6
     %9 = load @$tmp0
-    ret %9
+    store @$abi1, %9
+    %11 = load @$abi1
+    ret %11
 }
 func void _ZN7CTORUDTC1Ev(ptr $0) {
   local ptr this
@@ -80,7 +88,9 @@ func i32 main(i32 $0, ptr $1) {
   local agg witharg size 4
   local agg withnone size 4
   local agg viacall size 4
+  local agg $abi15 size 8
   entry0:
+    %122 = alloca ptr $abi15
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -114,7 +124,9 @@ func i32 main(i32 $0, ptr $1) {
     %24 = field.addr @$tmp3, 4
     store %24, %22
     %25 = load @$tmp3
-    call void Q(%25)
+    store @$abi15, %25
+    %123 = load @$abi15
+    call void Q(%123)
     %26 = alloca ptr $tmp4
     %27 = const i64 11
     %28 = trunc %27
@@ -246,9 +258,9 @@ func i32 main(i32 $0, ptr $1) {
     ret %121
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
-declare void Q(agg:8[I] $0)
+declare void Q(i64 $0)
 declare void R(ptr $0)
 declare void S(ptr $0)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 206 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (3 by-value aggregate signatures, no classifier for this target)
+lowered: 5 functions, 5 blocks, 206 insts, 0 statements not lowered, 0 scope imbalance

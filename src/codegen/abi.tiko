@@ -19,8 +19,75 @@ end function
 
 '' WIN64 OR SysV, AND NOTHING ELSE REACHES A CLASSIFIER. Every test in this file used to be
 '' 'abi = ABI_WIN64', with SysV as whatever was left -- so a third ABI would have been
-'' classified as SysV in eight places at once. ABI_AAPCS64_APPLE is stopped in LowerModule
-'' before any aggregate is looked at; reaching here with it is a compiler bug.
+'' classified as SysV in eight places at once. ABI_AAPCS64_APPLE takes its own branch,
+'' ahead of every call to this; reaching here with it is a compiler bug.
+private function AbiIsAapcs_( byref target as TargetDescription ) as boolean
+    return (target.abi = ABI_AAPCS64_APPLE)
+end function
+
+'' ---------------------------------------------------------------- AAPCS64 (Apple)
+''
+'' MEASURED, clang 21, 'arm64-apple-macosx13.0' -- what clang writes for a C struct
+'' passed and returned by value (docs/tiko-macos FACTS.md):
+''
+''     an HFA of N <= 4 floats / doubles     [N x float] / [N x double], both ways
+''     anything else, 1 to 8 bytes           argument i64; result the integer of its
+''                                           size (i8 i16 i24 i32 ... i64)
+''     anything else, 9 to 16 bytes          [2 x i64], both ways
+''     over 16 bytes                         argument: a pointer to the CALLER's copy,
+''                                           not byval; result: sret
+''
+'' A result of 3, 5, 6 or 7 bytes goes back as i64 here, where clang writes i24 ... i56:
+'' MIR has no such integers, and in x0 the two are the same bits -- each side reads only
+'' the bytes the aggregate has. Every other shape is clang's own spelling.
+''
+'' The arrays are what make the backend honour AAPCS64's "registers or the stack, never
+'' both": see the MirType comment in mir.ti. So there is no register budget to keep here,
+'' unlike SysV's.
+private function AapcsHfaType_( byval cls as uint32 ) as MirType
+    dim as int32 n = TKO_AA_HFAN( cls )
+    if (TKO_AA_IS( cls ) = false) orelse (n = 0) then return MT_VOID
+    dim as boolean dbl = ((cls and TKO_AA_HFA_DBL) <> 0)
+    select case n
+    case 1 : return iif( dbl, MT_HFA_F64_1, MT_HFA_F32_1 )
+    case 2 : return iif( dbl, MT_HFA_F64_2, MT_HFA_F32_2 )
+    case 3 : return iif( dbl, MT_HFA_F64_3, MT_HFA_F32_3 )
+    case 4 : return iif( dbl, MT_HFA_F64_4, MT_HFA_F32_4 )
+    end select
+    return MT_VOID
+end function
+
+'' The type an aggregate ARGUMENT travels as; MT_PTR is the address of the caller's copy.
+'' No class recorded is the integer rule by size, as SysV's size-only fallback is.
+private function AapcsArgType_( byval sz as int32, byval cls as uint32 ) as MirType
+    dim as MirType h = AapcsHfaType_( cls )
+    if h <> MT_VOID then return h
+    if sz <= 8 then return MT_I64
+    if sz <= 16 then return MT_A2_I64
+    return MT_PTR
+end function
+
+'' ...and a RESULT, MT_VOID for one that goes through the hidden pointer.
+private function AapcsRetType_( byval sz as int32, byval cls as uint32 ) as MirType
+    dim as MirType h = AapcsHfaType_( cls )
+    if h <> MT_VOID then return h
+    if sz <= 8 then
+        dim as MirType it = DirectIntType( sz )
+        return iif( it <> MT_VOID, it, MT_I64 )
+    end if
+    if sz <= 16 then return MT_A2_I64
+    return MT_VOID
+end function
+
+'' THE COPY EACH REGISTER FORM IS LOADED FROM AND STORED TO: a whole i64 or [2 x i64] is
+'' moved at once, so the slot is rounded up to 8 or 16 bytes. An HFA's array is exactly
+'' its members, which those sizes also cover; past 16 it is the aggregate itself.
+private function AapcsSlotSize_( byval sz as int32 ) as int32
+    if sz <= 8 then return 8
+    if sz <= 16 then return 16
+    return sz
+end function
+
 private function AbiIsWin64_( byref target as TargetDescription ) as boolean
     select case target.abi
     case ABI_WIN64      : return true
@@ -33,6 +100,10 @@ end function
 function ClassifyAggregate _
     ( byval sizeBytes as int32, byref target as TargetDescription ) as AbiClassKind
 
+    if AbiIsAapcs_( target ) then
+        if sizeBytes > 16 then return ABIC_INDIRECT
+        return ABIC_DIRECT_INT
+    end if
     if AbiIsWin64_( target ) then
         if DirectIntType( sizeBytes ) <> MT_VOID then return ABIC_DIRECT_INT
         return ABIC_INDIRECT
@@ -93,6 +164,10 @@ private function RetDirect_ _
       byref t0 as MirType, byref t1 as MirType ) as boolean
 
     t1 = MT_VOID
+    if AbiIsAapcs_( target ) then
+        t0 = AapcsRetType_( sz, cls )
+        return (t0 <> MT_VOID)
+    end if
     t0 = DirectIntType( sz )
     if AbiIsWin64_( target ) then return (t0 <> MT_VOID)
     if (sz > 16) orelse (cls = TKO_EB_MEMORY) then return false
@@ -109,6 +184,8 @@ end function
 private function SysvReturnUnmodelled_ _
     ( byval sz as int32, byval cls as uint32, byref target as TargetDescription ) as boolean
 
+    '' AAPCS64 models every size.
+    if AbiIsAapcs_( target ) then return false
     if AbiIsWin64_( target ) then return false
     if (sz <= 0) orelse (sz > 16) then return false
     return (cls = 0) andalso (DirectIntType( sz ) = MT_VOID)
@@ -117,6 +194,7 @@ end function
 '' A SysV register slot is WHOLE EIGHTBYTES: a register is loaded out of it and stored
 '' into it at full width, and a thirteen-byte slot would take an i64 at offset 8.
 private function RegSlotSize_( byval sz as int32, byref target as TargetDescription ) as int32
+    if AbiIsAapcs_( target ) then return AapcsSlotSize_( sz )
     if AbiIsWin64_( target ) then return sz
     return (sz + 7) and (not 7)
 end function
@@ -126,6 +204,7 @@ end function
 '' left when the last one is 3, 5, 6 or 7 bytes -- 'i32' over 3, 'i64' over 5 to 7.
 '' Every other size is exactly its registers. Win64 passes no aggregate in pieces.
 private function ArgSlotSize_( byval sz as int32, byref target as TargetDescription ) as int32
+    if AbiIsAapcs_( target ) then return AapcsSlotSize_( sz )
     if AbiIsWin64_( target ) then return sz
     dim as int32 tail_ = sz and 7
     select case tail_
@@ -370,6 +449,26 @@ private sub RewriteCallArgs _
             StoreAggInto( r, slot, loaded, sz )
         else
             StoreAggInto( r, slot, av, sz )
+        end if
+
+        '' ---- AAPCS64: ONE argument, whatever the shape -- the array, the integer, or the
+        '' copy's address -- so the run never grows.
+        if AbiIsAapcs_( *r.tgt ) then
+            dim as uint32 acls = 0
+            if i < callee->paramClasses.Count then acls = callee->paramClasses[i]
+            dim as MirType at_ = AapcsArgType_( sz, acls )
+            if at_ = MT_PTR then
+                r.m->argPool.Push( cast( uint32, MV_LOCAL ) )
+                r.m->argPool.Push( cast( uint32, slot ) )
+                r.st->indirectParams += 1
+            else
+                dim as MirValue av2 = LoadAs( r, LocalVal( slot ), at_ )
+                r.m->argPool.Push( cast( uint32, av2.kind ) )
+                r.m->argPool.Push( av2.id )
+                r.st->coercedParams += 1
+            end if
+            newCount += 1
+            continue for
         end if
 
         if AbiIsWin64_( *r.tgt ) then
@@ -722,6 +821,18 @@ private sub RewriteSignature _
             pcls.Push( packed )
             pattr.Push( at_ )
             pexts.Push( ex ) : pnarr.Push( cast( uint8, pt ) )
+            porig.Push( i ) : ppart.Push( 0 )
+            continue for
+        end if
+
+        '' ---- AAPCS64: one parameter, never byval -- over 16 bytes the callee is handed the
+        '' address of the caller's copy in a register, which is Win64's shape, not SysV's.
+        if AbiIsAapcs_( target ) then
+            ptys.Push( cast( uint8, AapcsArgType_( sz, packed ) ) )
+            paggs.Push( cast( uint32, sz ) )
+            pcls.Push( packed )
+            pattr.Push( TKO_PA_NONE )
+            pexts.Push( TKO_PX_NONE ) : pnarr.Push( ptys[ptys.Count - 1] )
             porig.Push( i ) : ppart.Push( 0 )
             continue for
         end if
@@ -1221,65 +1332,12 @@ private sub DeclineInconsistentReturns _
     next
 end sub
 
-'' AN AGGREGATE BY VALUE THAT A TARGET WITH NO CLASSIFIER WOULD HAVE TO PASS: a function
-'' this module defines, or one a definition calls, directly or through a pointer that
-'' carries its signature. Counted into st.refused, the first one named in refusedWhat. A
-'' declaration nothing calls is not a use: its signature never reaches the object.
-private sub FindUnclassified_( byref m as MirModule, byref names as Tko.Interner, byref st as AbiStats )
-    dim as containers.Array( of uint8 ) used
-    for fi as int32 = 0 to m.functions.Count - 1
-        dim as uint8 z = 0
-        used.Push( z )
-    next
-    for fi as int32 = 0 to m.functions.Count - 1
-        dim as MirFunction ptr f = m.functions[fi]
-        if f = nullptr then continue for
-        if f->isDefinition = false then continue for
-        used[fi] = 1
-        for bi as int32 = 0 to f->blocks.Count - 1
-            for ii as int32 = 0 to f->blocks[bi].insts.Count - 1
-                dim as MirInst ptr ins = @f->blocks[bi].insts[ii]
-                dim as MirOp op = cast( MirOp, ins->op )
-                dim as int32 ci = -1
-                if (op = M_CALL) orelse (op = M_CALL_RTL) then ci = cast( int32, ins->callee )
-                if op = M_CALL_IND then
-                    ci = cast( int32, ins->callee ) - 1
-                    if (ci < 0) andalso (cast( MirType, ins->ty ) = MT_AGG) then
-                        st.refused += 1
-                        if len( st.refusedWhat ) = 0 then st.refusedWhat = "a call through a pointer in '" & names.Spelling( f->name ) & "'"
-                    end if
-                end if
-                if (ci >= 0) andalso (ci < m.functions.Count) then used[ci] = 1
-            next
-        next
-    next
-    for fi as int32 = 0 to m.functions.Count - 1
-        dim as MirFunction ptr f = m.functions[fi]
-        if (f = nullptr) orelse (used[fi] = 0) then continue for
-        dim as boolean agg = (cast( MirType, f->retTy ) = MT_AGG)
-        for i as int32 = 0 to f->paramTys.Count - 1
-            if cast( MirType, f->paramTys[i] ) = MT_AGG then agg = true
-        next
-        if agg then
-            st.refused += 1
-            if len( st.refusedWhat ) = 0 then st.refusedWhat = "'" & names.Spelling( f->name ) & "'"
-        end if
-    next
-end sub
-
 sub LowerModule _
     ( byref m as MirModule, byref names as Tko.Interner, _
       byref target as TargetDescription, byref st as AbiStats )
 
-    '' NO CLASSIFIER YET FOR AAPCS64 (docs/tiko-macos M3). A module that passes or returns
-    '' no aggregate by value needs none -- the narrow-integer widening below is the same
-    '' rule on every target -- so it goes on; one that does is REFUSED, and untouched,
-    '' rather than given SysV's answer. The driver reports st.refused.
     select case target.abi
-    case ABI_WIN64, ABI_SYSV_AMD64
-    case ABI_AAPCS64_APPLE
-        FindUnclassified_( m, names, st )
-        if st.refused > 0 then return
+    case ABI_WIN64, ABI_SYSV_AMD64, ABI_AAPCS64_APPLE
     case else
         Tko.TargetIce( "abi LowerModule", target.id )
     end select
@@ -1287,7 +1345,7 @@ sub LowerModule _
     DeclineInconsistentReturns( m, st )
 
     '' WHICH AGGREGATES STILL FIT IN REGISTERS, every signature, before anything reads it.
-    '' SysV's question alone; an AAPCS64 module that got this far has no aggregate to ask it of.
+    '' SysV's question alone: AAPCS64's arrays leave register exhaustion to the backend.
     if target.abi = ABI_SYSV_AMD64 then
         for fi as int32 = 0 to m.functions.Count - 1
             if m.functions[fi] <> nullptr then SysvRegisterBudget_( m.functions[fi], target )

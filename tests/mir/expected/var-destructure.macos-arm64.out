@@ -1,9 +1,13 @@
 global var i32 calls
 global str $str1 "from-var"
 global str $str2 "!"
-func agg:8[I] COUNTED() {
+func i64 COUNTED() {
   local agg $tmp0 size 8
+  local agg $abi1 size 8
+  local agg $abi2 size 8
   entry0:
+    %16 = alloca ptr $abi1
+    %18 = alloca ptr $abi2
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 8)
     %3 = load @@calls
@@ -21,10 +25,14 @@ func agg:8[I] COUNTED() {
     %13 = field.addr @$tmp0, 4
     store %13, %11
     %14 = load @$tmp0
-    ret %14
+    store @$abi1, %14
+    %17 = load @$abi1
+    ret %17
   after1:
     %15 = load @$tmp0
-    ret %15
+    store @$abi2, %15
+    %19 = load @$abi2
+    ret %19
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i32 main(i32 $0, ptr $1) {
@@ -43,7 +51,9 @@ func i32 main(i32 $0, ptr $1) {
   local agg $dt4 size 8
   local i32 p
   local i32 q
+  local agg $abi15 size 8
   entry0:
+    %73 = alloca ptr $abi15
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -131,7 +141,9 @@ func i32 main(i32 $0, ptr $1) {
     %58 = trunc %57
     store @@calls, %58
     %59 = alloca ptr $dt4
-    %60 = call agg COUNTED()
+    %74 = call i64 COUNTED()
+    store @$abi15, %74
+    %60 = load @$abi15
     store @$dt4, %60
     %61 = alloca ptr p
     %62 = field.addr @$dt4, 0
@@ -214,4 +226,4 @@ func void _ZN8FBTUPLE2Ii8FBSTRINGEaSERKS1_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 6 functions, 8 blocks, 154 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (1 by-value aggregate signatures, no classifier for this target)
+lowered: 6 functions, 8 blocks, 154 insts, 0 statements not lowered, 0 scope imbalance

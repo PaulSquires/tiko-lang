@@ -71,11 +71,13 @@ func void _ZN8PAIRITER8MOVENEXTEv(ptr $0) {
     store %3, %8
     ret
 }
-func agg:4[I] _ZN8PAIRCOLL11GETITERATOREv(ptr $0) {
+func i32 _ZN8PAIRCOLL11GETITERATOREv(ptr $0) {
   local agg $tmp0 size 4
   local ptr this
   local agg it size 4
+  local agg $abi3 size 8
   entry0:
+    %11 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 4)
     %3 = alloca ptr this
@@ -89,7 +91,9 @@ func agg:4[I] _ZN8PAIRCOLL11GETITERATOREv(ptr $0) {
     %9 = load @it
     store @$tmp0, %9
     %10 = load @$tmp0
-    ret %10
+    store @$abi3, %10
+    %12 = load @$abi3
+    ret %12
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void S1() {
@@ -107,7 +111,11 @@ func void S1() {
   local agg $tmp11 size 32
   local i32 k2
   local agg v2 size 24
+  local agg $abi14 size 8
+  local agg $abi15 size 8
   entry0:
+    %59 = alloca ptr $abi14
+    %61 = alloca ptr $abi15
     %1 = alloca ptr c
     %2 = call.rtl ptr memset(@c, 0, 4)
     %3 = alloca ptr keys
@@ -118,7 +126,9 @@ func void S1() {
     %7 = call.rtl ptr fb_StrInit(@vals, -1, @@$str1, 1, 0)
     %8 = alloca ptr $fe1
     %9 = alloca ptr $tmp4
-    %10 = call agg _ZN8PAIRCOLL11GETITERATOREv(@c)
+    %60 = call i32 _ZN8PAIRCOLL11GETITERATOREv(@c)
+    store @$abi14, %60
+    %10 = load @$abi14
     store @$tmp4, %10
     %11 = alloca ptr $tmp5
     %14 = alloca ptr k
@@ -161,7 +171,9 @@ func void S1() {
     %29 = const i64 0
     %30 = trunc %29
     store @seen, %30
-    %33 = call agg _ZN8PAIRCOLL11GETITERATOREv(@c)
+    %62 = call i32 _ZN8PAIRCOLL11GETITERATOREv(@c)
+    store @$abi15, %62
+    %33 = load @$abi15
     store @$tmp10, %33
     br each.test7
   each.body5:
@@ -288,4 +300,4 @@ func void _ZN8FBTUPLE2Ii8FBSTRINGEaSERKS1_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 10 functions, 24 blocks, 181 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (1 by-value aggregate signatures, no classifier for this target)
+lowered: 10 functions, 24 blocks, 181 insts, 0 statements not lowered, 0 scope imbalance

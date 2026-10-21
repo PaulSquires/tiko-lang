@@ -184,7 +184,7 @@ func ptr _ZN2WDcvwEv(ptr $0) {
     %6 = load @$tmp0
     ret %6
 }
-func agg:256[M] _Zv23catR2WSR8FBSTRING(ptr $0, ptr $1) {
+func void _Zv23catR2WSR8FBSTRING(ptr $0, ptr $1, ptr $2) {
   local agg $tmp0 size 256
   local ptr a
   local ptr s
@@ -193,9 +193,9 @@ func agg:256[M] _Zv23catR2WSR8FBSTRING(ptr $0, ptr $1) {
     %1 = alloca ptr $tmp0
     call void _ZN2WSC1Ev(@$tmp0)
     %2 = alloca ptr a
-    store @a, $0
+    store @a, $1
     %3 = alloca ptr s
-    store @s, $1
+    store @s, $2
     %4 = load @a
     %5 = call ptr _ZN2WScvwEv(%4)
     %6 = load @s
@@ -207,11 +207,12 @@ func agg:256[M] _Zv23catR2WSR8FBSTRING(ptr $0, ptr $1) {
     %10 = load @$tmp3
     call.rtl void fb_WstrDelete(%10)
     %11 = load @$tmp0
-    ret %11
+    store $0, %11
+    ret
 }
 declare ptr fb_WstrConcatWA(ptr $0, ptr $1, i64 $2)
 declare void fb_WstrDelete(ptr $0)
-func agg:256[M] VIARETURN(ptr $0, ptr $1) {
+func void VIARETURN(ptr $0, ptr $1, ptr $2) {
   local agg $tmp0 size 256
   local ptr a
   local ptr s
@@ -219,9 +220,9 @@ func agg:256[M] VIARETURN(ptr $0, ptr $1) {
   entry0:
     %1 = alloca ptr $tmp0
     %2 = alloca ptr a
-    store @a, $0
+    store @a, $1
     %3 = alloca ptr s
-    store @s, $1
+    store @s, $2
     %4 = load @a
     %5 = call ptr _ZN2WScvwEv(%4)
     %6 = load @s
@@ -233,9 +234,10 @@ func agg:256[M] VIARETURN(ptr $0, ptr $1) {
     %10 = load @$tmp3
     call.rtl void fb_WstrDelete(%10)
     %11 = load @$tmp0
-    ret %11
+    store $0, %11
+    ret
 }
-func agg:256[M] VIAASSIGN(ptr $0) {
+func void VIAASSIGN(ptr $0, ptr $1) {
   local agg $tmp0 size 256
   local ptr a
   local ptr $tmp2
@@ -243,7 +245,7 @@ func agg:256[M] VIAASSIGN(ptr $0) {
     %1 = alloca ptr $tmp0
     call void _ZN2WSC1Ev(@$tmp0)
     %2 = alloca ptr a
-    store @a, $0
+    store @a, $1
     %3 = load @a
     %4 = call ptr _ZN2WScvwEv(%3)
     %5 = call.rtl ptr fb_WstrConcatWA(%4, @@$str5, 2)
@@ -254,17 +256,19 @@ func agg:256[M] VIAASSIGN(ptr $0) {
     %8 = load @$tmp2
     call.rtl void fb_WstrDelete(%8)
     %9 = load @$tmp0
-    ret %9
+    store $0, %9
+    ret
 }
-func agg:256[M] RETLIT() {
+func void RETLIT(ptr $0) {
   local agg $tmp0 size 256
   entry0:
     %1 = alloca ptr $tmp0
     call void _ZN2WSC1ERw(@$tmp0, @@$wstr6)
     %2 = load @$tmp0
-    ret %2
+    store $0, %2
+    ret
 }
-func agg:256[M] RETVAR() {
+func void RETVAR(ptr $0) {
   local agg $tmp0 size 256
   local agg w size 256
   entry0:
@@ -273,9 +277,10 @@ func agg:256[M] RETVAR() {
     %3 = call.rtl ptr fb_WstrAssign(@w, 64, @@$wstr7)
     call void _ZN2WSC1ERw(@$tmp0, @w)
     %4 = load @$tmp0
-    ret %4
+    store $0, %4
+    ret
 }
-func agg:256[M] ASGVAR() {
+func void ASGVAR(ptr $0) {
   local agg $tmp0 size 256
   local agg w size 256
   entry0:
@@ -285,7 +290,8 @@ func agg:256[M] ASGVAR() {
     %3 = call.rtl ptr fb_WstrAssign(@w, 64, @@$wstr8)
     call void _ZN2WSaSERw(@$tmp0, @w)
     %4 = load @$tmp0
-    ret %4
+    store $0, %4
+    ret
 }
 func ptr VIARETURND(ptr $0, ptr $1, ptr $2) {
   local ptr $tmp0
@@ -328,7 +334,19 @@ func i32 main(i32 $0, ptr $1) {
   local agg ad size 256
   local agg h size 256
   local agg $tmp12 size 24
+  local agg $abi13 size 256
+  local agg $abi14 size 256
+  local agg $abi15 size 256
+  local agg $abi16 size 256
+  local agg $abi17 size 256
+  local agg $abi18 size 256
   entry0:
+    %70 = alloca ptr $abi13
+    %71 = alloca ptr $abi14
+    %72 = alloca ptr $abi15
+    %73 = alloca ptr $abi16
+    %74 = alloca ptr $abi17
+    %75 = alloca ptr $abi18
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -348,7 +366,8 @@ func i32 main(i32 $0, ptr $1) {
     %11 = field.addr @$tmp3, 16
     store %11, 0
     %12 = call.rtl ptr fb_StrAssign(@$tmp3, -1, @@$str10, 6, 0)
-    %13 = call agg _Zv23catR2WSR8FBSTRING(@a, @$tmp3)
+    call void _Zv23catR2WSR8FBSTRING(@$abi13, @a, @$tmp3)
+    %13 = load @$abi13
     store @b, %13
     call.rtl void fb_StrDelete(@$tmp3)
     %14 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str11, 3)
@@ -366,7 +385,8 @@ func i32 main(i32 $0, ptr $1) {
     %21 = field.addr @$tmp5, 16
     store %21, 0
     %22 = call.rtl ptr fb_StrAssign(@$tmp5, -1, @@$str12, 6, 0)
-    %23 = call agg VIARETURN(@a, @$tmp5)
+    call void VIARETURN(@$abi14, @a, @$tmp5)
+    %23 = load @$abi14
     call.rtl void fb_StrDelete(@$tmp5)
     store @c, %23
     %24 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str13, 3)
@@ -376,7 +396,8 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_PrintString(0, %26, 1)
     %27 = alloca ptr d
     call void _ZN2WSC1Ev(@d)
-    %28 = call agg VIAASSIGN(@a)
+    call void VIAASSIGN(@$abi15, @a)
+    %28 = load @$abi15
     store @d, %28
     %29 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str14, 3)
     call.rtl void fb_PrintString(0, %29, 0)
@@ -385,7 +406,8 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_PrintString(0, %31, 1)
     %32 = alloca ptr g
     call void _ZN2WSC1Ev(@g)
-    %33 = call agg RETLIT()
+    call void RETLIT(@$abi16)
+    %33 = load @$abi16
     store @g, %33
     %34 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str15, 3)
     call.rtl void fb_PrintString(0, %34, 0)
@@ -394,7 +416,8 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_PrintString(0, %36, 1)
     %37 = alloca ptr e
     call void _ZN2WSC1Ev(@e)
-    %38 = call agg RETVAR()
+    call void RETVAR(@$abi17)
+    %38 = load @$abi17
     store @e, %38
     %39 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str16, 3)
     call.rtl void fb_PrintString(0, %39, 0)
@@ -403,7 +426,8 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_PrintString(0, %41, 1)
     %42 = alloca ptr f
     call void _ZN2WSC1Ev(@f)
-    %43 = call agg ASGVAR()
+    call void ASGVAR(@$abi18)
+    %43 = load @$abi18
     store @f, %43
     %44 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str17, 3)
     call.rtl void fb_PrintString(0, %44, 0)
@@ -462,4 +486,4 @@ declare ptr fb_WstrToStr(ptr $0)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 17 functions, 17 blocks, 312 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (6 by-value aggregate signatures, no classifier for this target)
+lowered: 17 functions, 17 blocks, 312 insts, 0 statements not lowered, 0 scope imbalance

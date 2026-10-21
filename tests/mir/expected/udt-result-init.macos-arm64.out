@@ -38,15 +38,16 @@ func void _ZN5TDTORD1Ev(ptr $0) {
     store @this, $0
     ret
 }
-func agg:512[M] FPLAIN_NONE() {
+func void FPLAIN_NONE(ptr $0) {
   local agg $tmp0 size 512
   entry0:
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 512)
     %3 = load @$tmp0
-    ret %3
+    store $0, %3
+    ret
 }
-func agg:512[M] FCTOR_ASSIGN() {
+func void FCTOR_ASSIGN(ptr $0) {
   local agg $tmp0 size 512
   local agg t0 size 512
   entry0:
@@ -60,7 +61,8 @@ func agg:512[M] FCTOR_ASSIGN() {
     condbr %5, if.then2, if.else3
   if.join1:
     %7 = load @$tmp0
-    ret %7
+    store $0, %7
+    ret
   if.then2:
     %6 = load @t0
     store @$tmp0, %6
@@ -68,40 +70,44 @@ func agg:512[M] FCTOR_ASSIGN() {
   if.else3:
     br if.join1
 }
-func agg:512[M] FCTOR_NONE() {
+func void FCTOR_NONE(ptr $0) {
   local agg $tmp0 size 512
   entry0:
     %1 = alloca ptr $tmp0
     call void _ZN5TCTORC1Ev(@$tmp0)
     %2 = load @$tmp0
-    ret %2
+    store $0, %2
+    ret
 }
-func agg:512[M] FCTOR_EXIT(i64 $0) {
+func void FCTOR_EXIT(ptr $0, i64 $1) {
   local agg $tmp0 size 512
   local i64 k
   entry0:
     %1 = alloca ptr $tmp0
     call void _ZN5TCTORC1Ev(@$tmp0)
     %2 = alloca ptr k
-    store @k, $0
+    store @k, $1
     %3 = load @k
     condbr %3, if.then2, if.else3
   if.join1:
     %5 = load @$tmp0
-    ret %5
+    store $0, %5
+    ret
   if.then2:
     %4 = load @$tmp0
-    ret %4
+    store $0, %4
+    ret
   if.else3:
     br if.join1
 }
-func agg:520[M] FINIT_NONE() {
+func void FINIT_NONE(ptr $0) {
   local agg $tmp0 size 520
   entry0:
     %1 = alloca ptr $tmp0
     call void _ZN5TINITC1Ev(@$tmp0)
     %2 = load @$tmp0
-    ret %2
+    store $0, %2
+    ret
 }
 declare void _ZN5TINITC1Ev(ptr $0)
 func ptr FDTOR_NONE(ptr $0) {
@@ -114,7 +120,7 @@ func ptr FDTOR_NONE(ptr $0) {
     %3 = load @$tmp0
     ret %3
 }
-func agg:512[M] FCTOR_RETURN() {
+func void FCTOR_RETURN(ptr $0) {
   local agg $tmp0 size 512
   local agg t size 512
   entry0:
@@ -124,7 +130,8 @@ func agg:512[M] FCTOR_RETURN() {
     %3 = load @t
     store @$tmp0, %3
     %4 = load @$tmp0
-    ret %4
+    store $0, %4
+    ret
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -133,14 +140,27 @@ func i32 main(i32 $0, ptr $1) {
   local agg r size 520
   local agg $tmp4 size 520
   local agg s size 8
+  local agg $abi6 size 512
+  local agg $abi7 size 512
+  local agg $abi8 size 512
+  local agg $abi9 size 512
+  local agg $abi10 size 520
+  local agg $abi11 size 512
   entry0:
+    %53 = alloca ptr $abi6
+    %54 = alloca ptr $abi7
+    %55 = alloca ptr $abi8
+    %56 = alloca ptr $abi9
+    %57 = alloca ptr $abi10
+    %58 = alloca ptr $abi11
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
     %3 = const i32 0
     call.rtl void fb_Init($0, $1, %3)
     %4 = alloca ptr p
-    %5 = call agg FPLAIN_NONE()
+    call void FPLAIN_NONE(@$abi6)
+    %5 = load @$abi6
     store @p, %5
     %6 = field.addr @p, 0
     %7 = const i64 5
@@ -151,7 +171,8 @@ func i32 main(i32 $0, ptr $1) {
     call.rtl void fb_PrintLongint(0, %11, 1)
     %12 = alloca ptr q
     call void _ZN5TCTORC1Ev(@q)
-    %13 = call agg FCTOR_ASSIGN()
+    call void FCTOR_ASSIGN(@$abi7)
+    %13 = load @$abi7
     store @q, %13
     %14 = field.addr @q, 0
     %15 = const i64 0
@@ -160,7 +181,8 @@ func i32 main(i32 $0, ptr $1) {
     %18 = ptr.add %14, %17
     %19 = load %18
     call.rtl void fb_PrintLongint(0, %19, 1)
-    %20 = call agg FCTOR_NONE()
+    call void FCTOR_NONE(@$abi8)
+    %20 = load @$abi8
     store @q, %20
     %21 = field.addr @q, 0
     %22 = const i64 0
@@ -170,7 +192,8 @@ func i32 main(i32 $0, ptr $1) {
     %26 = load %25
     call.rtl void fb_PrintLongint(0, %26, 1)
     %27 = const i64 1
-    %28 = call agg FCTOR_EXIT(%27)
+    call void FCTOR_EXIT(@$abi9, %27)
+    %28 = load @$abi9
     store @q, %28
     %29 = field.addr @q, 0
     %30 = const i64 0
@@ -180,7 +203,8 @@ func i32 main(i32 $0, ptr $1) {
     %34 = load %33
     call.rtl void fb_PrintLongint(0, %34, 1)
     %35 = alloca ptr r
-    %36 = call agg FINIT_NONE()
+    call void FINIT_NONE(@$abi10)
+    %36 = load @$abi10
     %37 = alloca ptr $tmp4
     store @$tmp4, %36
     call void _ZN5TINITC1ERKS_(@r, @$tmp4)
@@ -192,7 +216,8 @@ func i32 main(i32 $0, ptr $1) {
     %42 = field.addr @s, 0
     %43 = load %42
     call.rtl void fb_PrintLongint(0, %43, 1)
-    %44 = call agg FCTOR_RETURN()
+    call void FCTOR_RETURN(@$abi11)
+    %44 = load @$abi11
     store @q, %44
     %45 = field.addr @q, 0
     %46 = const i64 0
@@ -498,4 +523,4 @@ func void _ZN5TINITaSERKS_(ptr $0, ptr $1) {
     ret
 }
 verify: ok
-lowered: 14 functions, 20 blocks, 405 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (6 by-value aggregate signatures, no classifier for this target)
+lowered: 14 functions, 20 blocks, 405 insts, 0 statements not lowered, 0 scope imbalance

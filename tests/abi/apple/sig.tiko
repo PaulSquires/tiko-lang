@@ -1,0 +1,382 @@
+'' tests/abi/apple/sig.tiko -- tiko's side of build/aapcsig.sh, the same shapes as sig.c.
+type C1
+    a as byte
+end type
+type C3
+    a as byte
+    b as byte
+    c as byte
+end type
+type S3
+    a as short
+    b as byte
+end type
+type I1
+    a as long
+end type
+type I5
+    a as long
+    b as byte
+end type
+type I2
+    a as long
+    b as long
+end type
+type I3
+    a as long
+    b as long
+    c as long
+end type
+type L2
+    a as longint
+    b as longint
+end type
+type L12
+    a as longint
+    b as long
+end type
+type L3
+    a as longint
+    b as longint
+    c as longint
+end type
+type F1
+    a as single
+end type
+type F2
+    a as single
+    b as single
+end type
+type F3
+    a as single
+    b as single
+    c as single
+end type
+type F4
+    a as single
+    b as single
+    c as single
+    d as single
+end type
+type F5
+    a as single
+    b as single
+    c as single
+    d as single
+    e as single
+end type
+type D1
+    a as double
+end type
+type D2
+    a as double
+    b as double
+end type
+type D3
+    a as double
+    b as double
+    c as double
+end type
+type D4
+    a as double
+    b as double
+    c as double
+    d as double
+end type
+type D5
+    a as double
+    b as double
+    c as double
+    d as double
+    e as double
+end type
+type FD
+    a as single
+    b as double
+end type
+type FI
+    a as single
+    b as long
+end type
+type FA3
+    a(0 to 2) as single
+end type
+type NF4
+    x as F2
+    y as F2
+end type
+type DA2
+    a(0 to 1) as double
+end type
+union UF
+    a as single
+    b as single
+end union
+type B13
+    a(0 to 12) as byte
+end type
+type B17
+    a(0 to 16) as byte
+end type
+extern "C"
+declare function f_C1( byval x as C1 ) as C1
+declare sub g_C1( byval i as long, byval x as C1 )
+declare function f_C3( byval x as C3 ) as C3
+declare sub g_C3( byval i as long, byval x as C3 )
+declare function f_S3( byval x as S3 ) as S3
+declare sub g_S3( byval i as long, byval x as S3 )
+declare function f_I1( byval x as I1 ) as I1
+declare sub g_I1( byval i as long, byval x as I1 )
+declare function f_I5( byval x as I5 ) as I5
+declare sub g_I5( byval i as long, byval x as I5 )
+declare function f_I2( byval x as I2 ) as I2
+declare sub g_I2( byval i as long, byval x as I2 )
+declare function f_I3( byval x as I3 ) as I3
+declare sub g_I3( byval i as long, byval x as I3 )
+declare function f_L2( byval x as L2 ) as L2
+declare sub g_L2( byval i as long, byval x as L2 )
+declare function f_L12( byval x as L12 ) as L12
+declare sub g_L12( byval i as long, byval x as L12 )
+declare function f_L3( byval x as L3 ) as L3
+declare sub g_L3( byval i as long, byval x as L3 )
+declare function f_F1( byval x as F1 ) as F1
+declare sub g_F1( byval i as long, byval x as F1 )
+declare function f_F2( byval x as F2 ) as F2
+declare sub g_F2( byval i as long, byval x as F2 )
+declare function f_F3( byval x as F3 ) as F3
+declare sub g_F3( byval i as long, byval x as F3 )
+declare function f_F4( byval x as F4 ) as F4
+declare sub g_F4( byval i as long, byval x as F4 )
+declare function f_F5( byval x as F5 ) as F5
+declare sub g_F5( byval i as long, byval x as F5 )
+declare function f_D1( byval x as D1 ) as D1
+declare sub g_D1( byval i as long, byval x as D1 )
+declare function f_D2( byval x as D2 ) as D2
+declare sub g_D2( byval i as long, byval x as D2 )
+declare function f_D3( byval x as D3 ) as D3
+declare sub g_D3( byval i as long, byval x as D3 )
+declare function f_D4( byval x as D4 ) as D4
+declare sub g_D4( byval i as long, byval x as D4 )
+declare function f_D5( byval x as D5 ) as D5
+declare sub g_D5( byval i as long, byval x as D5 )
+declare function f_FD( byval x as FD ) as FD
+declare sub g_FD( byval i as long, byval x as FD )
+declare function f_FI( byval x as FI ) as FI
+declare sub g_FI( byval i as long, byval x as FI )
+declare function f_FA3( byval x as FA3 ) as FA3
+declare sub g_FA3( byval i as long, byval x as FA3 )
+declare function f_NF4( byval x as NF4 ) as NF4
+declare sub g_NF4( byval i as long, byval x as NF4 )
+declare function f_DA2( byval x as DA2 ) as DA2
+declare sub g_DA2( byval i as long, byval x as DA2 )
+declare function f_UF( byval x as UF ) as UF
+declare sub g_UF( byval i as long, byval x as UF )
+declare function f_B13( byval x as B13 ) as B13
+declare sub g_B13( byval i as long, byval x as B13 )
+declare function f_B17( byval x as B17 ) as B17
+declare sub g_B17( byval i as long, byval x as B17 )
+declare sub hfa9( byval a as double, byval b as double, byval c as double, byval d as double, byval e as double, byval f as double, byval x as D3, byval g as double )
+declare sub gpr7( byval a as longint, byval b as longint, byval c as longint, byval d as longint, byval e as longint, byval f as longint, byval g as longint, byval x as L2, byval h as longint )
+function k_C1( byval x as C1 ) as C1
+    return x
+end function
+function k_C3( byval x as C3 ) as C3
+    return x
+end function
+function k_S3( byval x as S3 ) as S3
+    return x
+end function
+function k_I1( byval x as I1 ) as I1
+    return x
+end function
+function k_I5( byval x as I5 ) as I5
+    return x
+end function
+function k_I2( byval x as I2 ) as I2
+    return x
+end function
+function k_I3( byval x as I3 ) as I3
+    return x
+end function
+function k_L2( byval x as L2 ) as L2
+    return x
+end function
+function k_L12( byval x as L12 ) as L12
+    return x
+end function
+function k_L3( byval x as L3 ) as L3
+    return x
+end function
+function k_F1( byval x as F1 ) as F1
+    return x
+end function
+function k_F2( byval x as F2 ) as F2
+    return x
+end function
+function k_F3( byval x as F3 ) as F3
+    return x
+end function
+function k_F4( byval x as F4 ) as F4
+    return x
+end function
+function k_F5( byval x as F5 ) as F5
+    return x
+end function
+function k_D1( byval x as D1 ) as D1
+    return x
+end function
+function k_D2( byval x as D2 ) as D2
+    return x
+end function
+function k_D3( byval x as D3 ) as D3
+    return x
+end function
+function k_D4( byval x as D4 ) as D4
+    return x
+end function
+function k_D5( byval x as D5 ) as D5
+    return x
+end function
+function k_FD( byval x as FD ) as FD
+    return x
+end function
+function k_FI( byval x as FI ) as FI
+    return x
+end function
+function k_FA3( byval x as FA3 ) as FA3
+    return x
+end function
+function k_NF4( byval x as NF4 ) as NF4
+    return x
+end function
+function k_DA2( byval x as DA2 ) as DA2
+    return x
+end function
+function k_UF( byval x as UF ) as UF
+    return x
+end function
+function k_B13( byval x as B13 ) as B13
+    return x
+end function
+function k_B17( byval x as B17 ) as B17
+    return x
+end function
+end extern
+sub call_C1( byref p as C1 )
+    g_C1( 1, p )
+    dim as C1 r = f_C1( p )
+end sub
+sub call_C3( byref p as C3 )
+    g_C3( 1, p )
+    dim as C3 r = f_C3( p )
+end sub
+sub call_S3( byref p as S3 )
+    g_S3( 1, p )
+    dim as S3 r = f_S3( p )
+end sub
+sub call_I1( byref p as I1 )
+    g_I1( 1, p )
+    dim as I1 r = f_I1( p )
+end sub
+sub call_I5( byref p as I5 )
+    g_I5( 1, p )
+    dim as I5 r = f_I5( p )
+end sub
+sub call_I2( byref p as I2 )
+    g_I2( 1, p )
+    dim as I2 r = f_I2( p )
+end sub
+sub call_I3( byref p as I3 )
+    g_I3( 1, p )
+    dim as I3 r = f_I3( p )
+end sub
+sub call_L2( byref p as L2 )
+    g_L2( 1, p )
+    dim as L2 r = f_L2( p )
+end sub
+sub call_L12( byref p as L12 )
+    g_L12( 1, p )
+    dim as L12 r = f_L12( p )
+end sub
+sub call_L3( byref p as L3 )
+    g_L3( 1, p )
+    dim as L3 r = f_L3( p )
+end sub
+sub call_F1( byref p as F1 )
+    g_F1( 1, p )
+    dim as F1 r = f_F1( p )
+end sub
+sub call_F2( byref p as F2 )
+    g_F2( 1, p )
+    dim as F2 r = f_F2( p )
+end sub
+sub call_F3( byref p as F3 )
+    g_F3( 1, p )
+    dim as F3 r = f_F3( p )
+end sub
+sub call_F4( byref p as F4 )
+    g_F4( 1, p )
+    dim as F4 r = f_F4( p )
+end sub
+sub call_F5( byref p as F5 )
+    g_F5( 1, p )
+    dim as F5 r = f_F5( p )
+end sub
+sub call_D1( byref p as D1 )
+    g_D1( 1, p )
+    dim as D1 r = f_D1( p )
+end sub
+sub call_D2( byref p as D2 )
+    g_D2( 1, p )
+    dim as D2 r = f_D2( p )
+end sub
+sub call_D3( byref p as D3 )
+    g_D3( 1, p )
+    dim as D3 r = f_D3( p )
+end sub
+sub call_D4( byref p as D4 )
+    g_D4( 1, p )
+    dim as D4 r = f_D4( p )
+end sub
+sub call_D5( byref p as D5 )
+    g_D5( 1, p )
+    dim as D5 r = f_D5( p )
+end sub
+sub call_FD( byref p as FD )
+    g_FD( 1, p )
+    dim as FD r = f_FD( p )
+end sub
+sub call_FI( byref p as FI )
+    g_FI( 1, p )
+    dim as FI r = f_FI( p )
+end sub
+sub call_FA3( byref p as FA3 )
+    g_FA3( 1, p )
+    dim as FA3 r = f_FA3( p )
+end sub
+sub call_NF4( byref p as NF4 )
+    g_NF4( 1, p )
+    dim as NF4 r = f_NF4( p )
+end sub
+sub call_DA2( byref p as DA2 )
+    g_DA2( 1, p )
+    dim as DA2 r = f_DA2( p )
+end sub
+sub call_UF( byref p as UF )
+    g_UF( 1, p )
+    dim as UF r = f_UF( p )
+end sub
+sub call_B13( byref p as B13 )
+    g_B13( 1, p )
+    dim as B13 r = f_B13( p )
+end sub
+sub call_B17( byref p as B17 )
+    g_B17( 1, p )
+    dim as B17 r = f_B17( p )
+end sub
+sub callhfa9( byref p as D3 )
+    hfa9( 1, 2, 3, 4, 5, 6, p, 7 )
+end sub
+sub callgpr7( byref p as L2 )
+    gpr7( 1, 2, 3, 4, 5, 6, 7, p, 8 )
+end sub

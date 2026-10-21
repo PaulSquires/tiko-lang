@@ -89,7 +89,7 @@ func void _ZN9FOO_BYVALC1E3BAR(ptr $0, ptr $1) {
     ret
 }
 declare void fb_PrintLongint(i32 $0, i64 $1, i32 $2)
-func void _ZN9FOO_PLAINC1E5PLAIN(ptr $0, agg:8[I] $1) {
+func void _ZN9FOO_PLAINC1E5PLAIN(ptr $0, i64 $1) {
   local ptr this
   local agg v size 8
   entry0:
@@ -127,7 +127,7 @@ func void TAKE_REF(ptr $0) {
     call.rtl void fb_PrintLongint(0, %5, 1)
     ret
 }
-func void TAKE_VAL(agg:8[I] $0) {
+func void TAKE_VAL(i64 $0) {
   local agg f size 8
   entry0:
     %1 = alloca ptr f
@@ -152,7 +152,7 @@ func void TAKEP_REF(ptr $0) {
     call.rtl void fb_PrintLongint(0, %5, 1)
     ret
 }
-func void TAKEP_VAL(agg:8[I] $0) {
+func void TAKEP_VAL(i64 $0) {
   local agg f size 8
   entry0:
     %1 = alloca ptr f
@@ -187,7 +187,15 @@ func i32 main(i32 $0, ptr $1) {
   local agg $tmp6 size 8
   local agg $tmp7 size 8
   local agg $tmp8 size 8
+  local agg $abi9 size 8
+  local agg $abi10 size 8
+  local agg $abi11 size 8
+  local agg $abi12 size 8
   entry0:
+    %22 = alloca ptr $abi9
+    %24 = alloca ptr $abi10
+    %26 = alloca ptr $abi11
+    %28 = alloca ptr $abi12
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -211,17 +219,25 @@ func i32 main(i32 $0, ptr $1) {
     %12 = alloca ptr $tmp6
     call void _ZN9FOO_BYVALC1E3BAR(@$tmp6, @$tmp5)
     %13 = load @$tmp6
-    call void TAKE_VAL(%13)
+    store @$abi9, %13
+    %23 = load @$abi9
+    call void TAKE_VAL(%23)
     call void _ZN3BARD1Ev(@$tmp5)
     %14 = load @pl
     %15 = alloca ptr $tmp7
-    call void _ZN9FOO_PLAINC1E5PLAIN(@$tmp7, %14)
+    store @$abi10, %14
+    %25 = load @$abi10
+    call void _ZN9FOO_PLAINC1E5PLAIN(@$tmp7, %25)
     call void TAKEP_REF(@$tmp7)
     %16 = load @pl
     %17 = alloca ptr $tmp8
-    call void _ZN9FOO_PLAINC1E5PLAIN(@$tmp8, %16)
+    store @$abi11, %16
+    %27 = load @$abi11
+    call void _ZN9FOO_PLAINC1E5PLAIN(@$tmp8, %27)
     %18 = load @$tmp8
-    call void TAKEP_VAL(%18)
+    store @$abi12, %18
+    %29 = load @$abi12
+    call void TAKEP_VAL(%29)
     %19 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str8, 4)
     call.rtl void fb_PrintString(0, %19, 1)
     call void _ZN3BARD1Ev(@b)
@@ -233,4 +249,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 11 functions, 11 blocks, 153 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (3 by-value aggregate signatures, no classifier for this target)
+lowered: 11 functions, 11 blocks, 153 insts, 0 statements not lowered, 0 scope imbalance

@@ -12,12 +12,14 @@ func i32 _ZN1DcviEv(ptr $0) {
     %6 = load %5
     ret %6
 }
-func agg:4[I] _ZmiR1DS0_(ptr $0, ptr $1) {
+func i32 _ZmiR1DS0_(ptr $0, ptr $1) {
   local agg $tmp0 size 4
   local ptr a
   local ptr b
   local agg r size 4
+  local agg $abi4 size 8
   entry0:
+    %9 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 4)
     %3 = alloca ptr a
@@ -29,15 +31,19 @@ func agg:4[I] _ZmiR1DS0_(ptr $0, ptr $1) {
     %7 = load @r
     store @$tmp0, %7
     %8 = load @$tmp0
-    ret %8
+    store @$abi4, %8
+    %10 = load @$abi4
+    ret %10
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-func agg:4[I] _ZmlR1Di(ptr $0, i32 $1) {
+func i32 _ZmlR1Di(ptr $0, i32 $1) {
   local agg $tmp0 size 4
   local ptr a
   local i32 n
   local agg r size 4
+  local agg $abi4 size 8
   entry0:
+    %9 = alloca ptr $abi4
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 4)
     %3 = alloca ptr a
@@ -49,7 +55,9 @@ func agg:4[I] _ZmlR1Di(ptr $0, i32 $1) {
     %7 = load @r
     store @$tmp0, %7
     %8 = load @$tmp0
-    ret %8
+    store @$abi4, %8
+    %10 = load @$abi4
+    ret %10
 }
 func void G() {
   local agg x size 4
@@ -57,21 +65,33 @@ func void G() {
   local agg a size 4
   local agg b size 4
   local agg $tmp4 size 4
+  local agg $abi5 size 8
+  local agg $abi6 size 8
+  local agg $abi7 size 8
   entry0:
+    %13 = alloca ptr $abi5
+    %15 = alloca ptr $abi6
+    %17 = alloca ptr $abi7
     %1 = alloca ptr x
     %2 = call.rtl ptr memset(@x, 0, 4)
     %3 = alloca ptr y
     %4 = call.rtl ptr memset(@y, 0, 4)
     %5 = alloca ptr a
-    %6 = call agg _ZmiR1DS0_(@x, @y)
+    %14 = call i32 _ZmiR1DS0_(@x, @y)
+    store @$abi5, %14
+    %6 = load @$abi5
     store @a, %6
     %7 = alloca ptr b
-    %8 = call agg _ZmiR1DS0_(@x, @y)
+    %16 = call i32 _ZmiR1DS0_(@x, @y)
+    store @$abi6, %16
+    %8 = load @$abi6
     %9 = alloca ptr $tmp4
     store @$tmp4, %8
     %10 = const i64 2
     %11 = trunc %10
-    %12 = call agg _ZmlR1Di(@$tmp4, %11)
+    %18 = call i32 _ZmlR1Di(@$tmp4, %11)
+    store @$abi7, %18
+    %12 = load @$abi7
     store @b, %12
     ret
 }
@@ -91,4 +111,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 5 functions, 5 blocks, 53 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (2 by-value aggregate signatures, no classifier for this target)
+lowered: 5 functions, 5 blocks, 53 insts, 0 statements not lowered, 0 scope imbalance

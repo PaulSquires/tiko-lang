@@ -2,8 +2,8 @@
 '' TEST: cli
 '' ARGS: --dump-ir -i toolchains/tiko-windows/inc tests/mir/src/ustr-concat-overload.bas
 '' EXPECT-EXIT: 0
-'' A BY-VALUE AGGREGATE (a std module's, or the test's own): macos-arm64 refuses it until AAPCS64 lands.
+'' std/fs ON macos-arm64 STOPS AT ITS POSIX BINDING until docs/tiko-macos M5 generates it on the Mac.
 '' EXPECT-EXIT[macos-arm64]: 1
-'' EXPECT-OUT[macos-arm64]: error TKO0992: not implemented in this build: an aggregate passed or returned by value on macos-arm64
+'' EXPECT-OUT[macos-arm64]: sys/posix: no binding for this target yet
 '' EXPECT-OUT: verify: ok
 '' EXPECT-OUT: 0 statements not lowered

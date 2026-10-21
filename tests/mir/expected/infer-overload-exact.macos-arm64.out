@@ -1,4 +1,4 @@
-func i8 _Z4PICKaa(i8 $0, i8 $1) {
+func i8 _Z4PICKaa(i32 $0, i32 $1) {
   local i8 $tmp0
   local i8 a
   local i8 b
@@ -7,9 +7,11 @@ func i8 _Z4PICKaa(i8 $0, i8 $1) {
     %2 = const i8 0
     store @$tmp0, %2
     %3 = alloca ptr a
-    store @a, $0
+    %6 = trunc $0
+    store @a, %6
     %4 = alloca ptr b
-    store @b, $1
+    %7 = trunc $1
+    store @b, %7
     %5 = load @a
     ret %5
 }
@@ -50,15 +52,18 @@ func f64 _Z4PICKdd(f64 $0, f64 $1) {
     %7 = mul %5, %6
     ret %7
 }
-func agg:2[I] _Z4SomeIaEa(i8 $0) {
+func i16 _Z4SomeIaEa(i32 $0) {
   local agg $tmp0 size 2
   local i8 x
   local agg r size 2
+  local agg $abi3 size 8
   entry0:
+    %15 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 2)
     %3 = alloca ptr x
-    store @x, $0
+    %14 = trunc $0
+    store @x, %14
     %4 = alloca ptr r
     %5 = call.rtl ptr memset(@r, 0, 2)
     %6 = field.addr @r, 0
@@ -72,14 +77,18 @@ func agg:2[I] _Z4SomeIaEa(i8 $0) {
     %12 = load @r
     store @$tmp0, %12
     %13 = load @$tmp0
-    ret %13
+    store @$abi3, %13
+    %16 = load @$abi3
+    ret %16
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-func agg:8[I] _Z4SomeIiEi(i32 $0) {
+func i64 _Z4SomeIiEi(i32 $0) {
   local agg $tmp0 size 8
   local i32 x
   local agg r size 8
+  local agg $abi3 size 8
   entry0:
+    %14 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 8)
     %3 = alloca ptr x
@@ -97,13 +106,17 @@ func agg:8[I] _Z4SomeIiEi(i32 $0) {
     %12 = load @r
     store @$tmp0, %12
     %13 = load @$tmp0
-    ret %13
+    store @$abi3, %13
+    %15 = load @$abi3
+    ret %15
 }
-func agg:16[S,I] _Z4SomeIdEd(f64 $0) {
+func i64x2 _Z4SomeIdEd(f64 $0) {
   local agg $tmp0 size 16
   local f64 x
   local agg r size 16
+  local agg $abi3 size 16
   entry0:
+    %14 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 16)
     %3 = alloca ptr x
@@ -121,7 +134,9 @@ func agg:16[S,I] _Z4SomeIdEd(f64 $0) {
     %12 = load @r
     store @$tmp0, %12
     %13 = load @$tmp0
-    ret %13
+    store @$abi3, %13
+    %15 = load @$abi3
+    ret %15
 }
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
@@ -131,7 +146,13 @@ func i32 main(i32 $0, ptr $1) {
   local agg ob size 2
   local agg ol size 8
   local agg od size 16
+  local agg $abi7 size 8
+  local agg $abi8 size 8
+  local agg $abi9 size 16
   entry0:
+    %38 = alloca ptr $abi7
+    %40 = alloca ptr $abi8
+    %42 = alloca ptr $abi9
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -151,20 +172,29 @@ func i32 main(i32 $0, ptr $1) {
     %12 = alloca ptr ob
     %13 = load @bb
     %14 = load @bb
-    %15 = call i8 _Z4PICKaa(%14, %13)
-    %16 = call agg _Z4SomeIaEa(%15)
+    %35 = sext %14
+    %36 = sext %13
+    %15 = call i8 _Z4PICKaa(%35, %36)
+    %37 = sext %15
+    %39 = call i16 _Z4SomeIaEa(%37)
+    store @$abi7, %39
+    %16 = load @$abi7
     store @ob, %16
     %17 = alloca ptr ol
     %18 = load @ll
     %19 = load @ll
     %20 = call i32 _Z4PICKii(%19, %18)
-    %21 = call agg _Z4SomeIiEi(%20)
+    %41 = call i64 _Z4SomeIiEi(%20)
+    store @$abi8, %41
+    %21 = load @$abi8
     store @ol, %21
     %22 = alloca ptr od
     %23 = load @dd
     %24 = load @dd
     %25 = call f64 _Z4PICKdd(%24, %23)
-    %26 = call agg _Z4SomeIdEd(%25)
+    %43 = call i64x2 _Z4SomeIdEd(%25)
+    store @$abi9, %43
+    %26 = load @$abi9
     store @od, %26
     %27 = field.addr @ob, 1
     %28 = load %27
@@ -186,4 +216,4 @@ declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_PrintDouble(i32 $0, f64 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 7 functions, 7 blocks, 128 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (3 by-value aggregate signatures, no classifier for this target)
+lowered: 7 functions, 7 blocks, 128 insts, 0 statements not lowered, 0 scope imbalance

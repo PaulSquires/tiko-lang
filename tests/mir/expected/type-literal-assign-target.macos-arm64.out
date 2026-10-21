@@ -34,7 +34,7 @@ func void BYREFP(ptr $0) {
     ret
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
-func void BYVALP(agg:16[S,I] $0) {
+func void BYVALP(i64x2 $0) {
   local agg q size 16
   entry0:
     %1 = alloca ptr q
@@ -95,7 +95,9 @@ func f32 STAT() {
 func i32 main(i32 $0, ptr $1) {
   local i32 $tmp0
   local agg lv size 16
+  local agg $abi2 size 16
   entry0:
+    %145 = alloca ptr $abi2
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -187,7 +189,9 @@ func i32 main(i32 $0, ptr $1) {
     %63 = load %62
     call.rtl void fb_PrintSingle(0, %63, 1)
     %64 = load @lv
-    call void BYVALP(%64)
+    store @$abi2, %64
+    %146 = load @$abi2
+    call void BYVALP(%146)
     %65 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str9, 12)
     call.rtl void fb_PrintString(0, %65, 0)
     %66 = field.addr @lv, 0
@@ -298,4 +302,4 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_PrintUInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 4 functions, 4 blocks, 258 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (1 by-value aggregate signatures, no classifier for this target)
+lowered: 4 functions, 4 blocks, 258 insts, 0 statements not lowered, 0 scope imbalance

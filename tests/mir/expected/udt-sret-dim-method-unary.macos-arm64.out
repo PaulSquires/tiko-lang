@@ -425,11 +425,13 @@ func ptr MKFREE(ptr $0, i32 $1) {
     %8 = load @$tmp0
     ret %8
 }
-func agg:4[I] MKFAC(i32 $0) {
+func i32 MKFAC(i32 $0) {
   local agg $tmp0 size 4
   local i32 n
   local agg f size 4
+  local agg $abi3 size 8
   entry0:
+    %10 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 4)
     %3 = alloca ptr n
@@ -442,7 +444,9 @@ func agg:4[I] MKFAC(i32 $0) {
     %8 = load @f
     store @$tmp0, %8
     %9 = load @$tmp0
-    ret %9
+    store @$abi3, %9
+    %11 = load @$abi3
+    ret %11
 }
 func void _ZN3FAC5INNEREv(ptr $0) {
   local ptr this
@@ -520,7 +524,9 @@ func i32 main(i32 $0, ptr $1) {
   local agg obj$29 size 4
   local agg z1 size 8
   local agg z2 size 8
+  local agg $abi32 size 8
   entry0:
+    %156 = alloca ptr $abi32
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -627,7 +633,9 @@ func i32 main(i32 $0, ptr $1) {
     %79 = alloca ptr a4
     %80 = const i64 40
     %81 = trunc %80
-    %82 = call agg MKFAC(%81)
+    %157 = call i32 MKFAC(%81)
+    store @$abi32, %157
+    %82 = load @$abi32
     %83 = alloca ptr $tmp19
     store @$tmp19, %82
     %84 = call ptr _ZN3FAC9HP__get__Ev(@a4, @$tmp19)
@@ -746,4 +754,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 18 functions, 25 blocks, 560 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (1 by-value aggregate signatures, no classifier for this target)
+lowered: 18 functions, 25 blocks, 560 insts, 0 statements not lowered, 0 scope imbalance

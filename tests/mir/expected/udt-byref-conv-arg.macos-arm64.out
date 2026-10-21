@@ -407,11 +407,13 @@ func i32 GETSEVEN() {
     %4 = trunc %3
     ret %4
 }
-func agg:4[I] RX(i32 $0) {
+func i32 RX(i32 $0) {
   local agg $tmp0 size 4
   local i32 v
   local agg $tmp2 size 4
+  local agg $abi3 size 8
   entry0:
+    %7 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 4)
     %3 = alloca ptr v
@@ -422,7 +424,9 @@ func agg:4[I] RX(i32 $0) {
     call void _ZN1XC1ER1W(@$tmp0, @$tmp2)
     call void _ZN1WD1Ev(@$tmp2)
     %6 = load @$tmp0
-    ret %6
+    store @$abi3, %6
+    %8 = load @$abi3
+    ret %8
 }
 func void MAIN() {
   local i32 n
@@ -474,7 +478,9 @@ func void MAIN() {
   local agg xb size 4
   local agg $tmp47 size 4
   local agg $tmp48 size 4
+  local agg $abi49 size 8
   entry0:
+    %288 = alloca ptr $abi49
     %1 = alloca ptr n
     %2 = const i64 6
     %3 = trunc %2
@@ -912,7 +918,9 @@ func void MAIN() {
     call.rtl void fb_PrintString(0, %235, 0)
     %236 = const i64 16
     %237 = trunc %236
-    %238 = call agg RX(%237)
+    %289 = call i32 RX(%237)
+    store @$abi49, %289
+    %238 = load @$abi49
     store @$tmp42, %238
     %240 = field.addr @$tmp42, 0
     %241 = load %240
@@ -1011,4 +1019,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 21 functions, 25 blocks, 767 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (1 by-value aggregate signatures, no classifier for this target)
+lowered: 21 functions, 25 blocks, 767 insts, 0 statements not lowered, 0 scope imbalance

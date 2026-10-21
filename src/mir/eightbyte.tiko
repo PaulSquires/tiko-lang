@@ -97,14 +97,89 @@ private sub FoldField_ _
     next
 end sub
 
+'' ---------------------------------------------------------------- AAPCS64 (Apple)
+''
+'' THE ONE QUESTION AAPCS64 ASKS OF A TYPE'S FIELDS: is it a HOMOGENEOUS FLOATING-POINT
+'' AGGREGATE -- one to four members, every one the SAME float type, nested aggregates and
+'' arrays flattened (AAPCS64 5.9.5.1). Measured with clang 21, arm64-apple-macosx13.0:
+'' '{float,float,float}', 'float v[3]' and '{ {float,float}, {float,float} }' are '[N x
+'' float]'; '{float,double}' is not an HFA and is '[2 x i64]'; five floats are memory.
+'' Everything else the convention needs follows from the size, which the ABI pass has.
+''
+'' Each leaf is recorded by the member slot it fills -- offset \ element size -- so a
+'' union of two floats at offset 0 is ONE member, and a gap or a stray offset is not an
+'' HFA.
+private sub AapcsLeaves_ _
+    ( byref c as Ctx, byval t as Tko.TypeId, byval off as int32, _
+      byref esz as int32, byref mask as uint32, byref bad as boolean )
+
+    if bad then return
+    dim as Tko.TypeId b = c.types->Unqualify( t )
+    if c.types->Kind( b ) = Tko.TK_ARRAY then
+        dim as Tko.TypeId el = c.types->Inner( b )
+        dim as int32 elsz = SizeOfType( c, el )
+        if elsz <= 0 then
+            bad = true
+            return
+        end if
+        for i as int32 = 0 to (SizeOfType( c, b ) \ elsz) - 1
+            AapcsLeaves_( c, el, off + (i * elsz), esz, mask, bad )
+            if bad then return
+        next
+        return
+    end if
+    if c.types->Kind( b ) = Tko.TK_UDT then
+        dim as int32 li = c.udts->Find( b )
+        if li < 0 then
+            bad = true
+            return
+        end if
+        for i as int32 = 0 to c.udts->udts[li].count - 1
+            dim as Tko.UdtField ptr f = @c.udts->fields[c.udts->udts[li].first + i]
+            AapcsLeaves_( c, f->type_, off + f->offset, esz, mask, bad )
+            if bad then return
+        next
+        return
+    end if
+    if IsSseLeaf_( c, b ) = false then
+        bad = true
+        return
+    end if
+    dim as int32 lsz = SizeOfType( c, b )
+    if esz = 0 then esz = lsz
+    if (lsz <> esz) orelse ((off mod esz) <> 0) orelse ((off \ esz) >= 4) then
+        bad = true
+        return
+    end if
+    mask or= (1ul shl (off \ esz))
+end sub
+
+private function ClassifyAapcs64_( byref c as Ctx, byval t as Tko.TypeId, byval sz as int32 ) as uint32
+    dim as int32 esz = 0
+    dim as uint32 mask = 0
+    dim as boolean bad = false
+    AapcsLeaves_( c, t, 0, esz, mask, bad )
+    if bad orelse (esz = 0) then return TKO_AA_MARK
+    '' Members 0 to n-1, every one present, and nothing else in the size.
+    dim as int32 n = 0
+    while (mask and (1ul shl n)) <> 0
+        n += 1
+    wend
+    if (mask <> ((1ul shl n) - 1)) orelse (n * esz <> sz) then return TKO_AA_MARK
+    return TKO_AA_MARK or cast( uint32, n ) or iif( esz = 8, TKO_AA_HFA_DBL, 0ul )
+end function
+
 '' The packed eightbyte classes of a type, for MirFunction.AddParam. Zero for anything
-'' that is not an aggregate -- a scalar needs no classification.
+'' that is not an aggregate -- a scalar needs no classification. On an arm64 target the
+'' field carries the AAPCS64 conclusion instead (TKO_AA_*): the eightbyte classes are an
+'' x86-64 question.
 function ClassifyEightbytes _
     ( byref c as Ctx, byval t as Tko.TypeId ) as uint32
 
     if t = Tko.TYPE_NONE then return 0
     dim as int32 sz = SizeOfType( c, t )
     if sz <= 0 then return 0
+    if c.types->target.arch = Tko.ARCH_ARM64 then return ClassifyAapcs64_( c, t, sz )
     '' OVER SIXTEEN BYTES IS MEMORY, before anything is walked.
     if sz > 16 then return TKO_EB_MEMORY
 

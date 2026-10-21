@@ -52,11 +52,13 @@ func void _ZN4ITER8MOVENEXTEv(ptr $0) {
     store %3, %8
     ret
 }
-func agg:8[I] _ZN4COLL11GETITERATOREv(ptr $0) {
+func i64 _ZN4COLL11GETITERATOREv(ptr $0) {
   local agg $tmp0 size 8
   local ptr this
   local agg t size 8
+  local agg $abi3 size 8
   entry0:
+    %12 = alloca ptr $abi3
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 8)
     %3 = alloca ptr this
@@ -71,7 +73,9 @@ func agg:8[I] _ZN4COLL11GETITERATOREv(ptr $0) {
     %10 = load @t
     store @$tmp0, %10
     %11 = load @$tmp0
-    ret %11
+    store @$abi3, %11
+    %13 = load @$abi3
+    ret %13
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func void P() {
@@ -81,14 +85,20 @@ func void P() {
   local agg $tmp3 size 8
   local i32 y
   local agg $tmp5 size 8
+  local agg $abi6 size 8
+  local agg $abi7 size 8
   entry0:
+    %35 = alloca ptr $abi6
+    %37 = alloca ptr $abi7
     %1 = alloca ptr c
     %2 = call.rtl ptr memset(@c, 0, 4)
     %3 = alloca ptr total
     %4 = call.rtl ptr memset(@total, 0, 4)
     %5 = alloca ptr x
     %6 = alloca ptr $tmp3
-    %7 = call agg _ZN4COLL11GETITERATOREv(@c)
+    %36 = call i64 _ZN4COLL11GETITERATOREv(@c)
+    store @$abi6, %36
+    %7 = load @$abi6
     store @$tmp3, %7
     %16 = alloca ptr y
     %17 = alloca ptr $tmp5
@@ -111,7 +121,9 @@ func void P() {
     %15 = call i8 _ZN4ITER7ISVALIDEv(@$tmp3)
     condbr %15, each.body1, each.exit4
   each.exit4:
-    %18 = call agg _ZN4COLL11GETITERATOREv(@c)
+    %38 = call i64 _ZN4COLL11GETITERATOREv(@c)
+    store @$abi7, %38
+    %18 = load @$abi7
     store @$tmp5, %18
     br each.test7
   each.body5:
@@ -170,4 +182,4 @@ func i32 main(i32 $0, ptr $1) {
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 6 functions, 20 blocks, 101 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (1 by-value aggregate signatures, no classifier for this target)
+lowered: 6 functions, 20 blocks, 101 insts, 0 statements not lowered, 0 scope imbalance

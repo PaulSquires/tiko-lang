@@ -1,70 +1,73 @@
-func void SONE(agg:4[I] $0) {
-  local agg o size 4
+func void SONE(i64 $0) {
+  local agg o size 8
   entry0:
     %1 = alloca ptr o
     store @o, $0
     ret
 }
-func void STWO(agg:4[I] $0) {
-  local agg t size 4
+func void STWO(i64 $0) {
+  local agg t size 8
   entry0:
     %1 = alloca ptr t
     store @t, $0
     ret
 }
-func void STHREE(agg:24[M] $0) {
+func void STHREE(ptr $0) {
   local agg t size 24
   entry0:
     %1 = alloca ptr t
-    store @t, $0
+    %2 = load $0
+    store @t, %2
     ret
 }
-func void SDEEP(agg:16[I,I] $0) {
+func void SDEEP(i64x2 $0) {
   local agg d size 16
   entry0:
     %1 = alloca ptr d
     store @d, $0
     ret
 }
-func void SPTRF(agg:16[I,I] $0) {
+func void SPTRF(i64x2 $0) {
   local agg p size 16
   entry0:
     %1 = alloca ptr p
     store @p, $0
     ret
 }
-func void SDER(agg:16[I,S] $0) {
+func void SDER(i64x2 $0) {
   local agg d size 16
   entry0:
     %1 = alloca ptr d
     store @d, $0
     ret
 }
-func void SONEUDT(agg:4[I] $0) {
-  local agg o size 4
+func void SONEUDT(i64 $0) {
+  local agg o size 8
   entry0:
     %1 = alloca ptr o
     store @o, $0
     ret
 }
-func void SONEONE(agg:4[I] $0) {
-  local agg o size 4
+func void SONEONE(i64 $0) {
+  local agg o size 8
   entry0:
     %1 = alloca ptr o
     store @o, $0
     ret
 }
-func void SZS(agg:12[I,I] $0) {
-  local agg z size 12
+func void SZS(i64x2 $0) {
+  local agg z size 16
   entry0:
     %1 = alloca ptr z
     store @z, $0
     ret
 }
-func agg:4[I] MKTWO() {
+func i32 MKTWO() {
   local agg $tmp0 size 4
   local agg t size 4
+  local agg $abi2 size 8
   entry0:
+    %7 = alloca ptr $abi2
     %1 = alloca ptr $tmp0
     %2 = call.rtl ptr memset(@$tmp0, 0, 4)
     %3 = alloca ptr t
@@ -72,7 +75,9 @@ func agg:4[I] MKTWO() {
     %5 = load @t
     store @$tmp0, %5
     %6 = load @$tmp0
-    ret %6
+    store @$abi2, %6
+    %8 = load @$abi2
+    ret %8
 }
 declare ptr memset(ptr $0, i32 $1, i64 $2)
 func i32 main(i32 $0, ptr $1) {
@@ -88,7 +93,9 @@ func i32 main(i32 $0, ptr $1) {
   local agg zf size 12
   local ptr h
   local agg $tmp11 size 4
+  local agg $abi12 size 8
   entry0:
+    %48 = alloca ptr $abi12
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -142,7 +149,9 @@ func i32 main(i32 $0, ptr $1) {
     %41 = call.rtl ptr fb_ThreadCall(%40, 1, 0, 1, 12, 2, 3, 6, @zf)
     store @h, %41
     %42 = func.addr ptr STWO
-    %43 = call agg MKTWO()
+    %49 = call i32 MKTWO()
+    store @$abi12, %49
+    %43 = load @$abi12
     %44 = alloca ptr $tmp11
     store @$tmp11, %43
     %45 = call.rtl ptr fb_ThreadCall(%42, 1, 0, 1, 12, 2, 4, 4, @$tmp11)
@@ -156,7 +165,7 @@ declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_ThreadCall(ptr $0, i32 $1, i64 $2, i32 $3, ...)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 11 functions, 11 blocks, 86 insts, 0 statements not lowered, 0 scope imbalance, ABI NOT APPLIED (10 by-value aggregate signatures, no classifier for this target)
+lowered: 11 functions, 11 blocks, 86 insts, 0 statements not lowered, 0 scope imbalance
 tests/mir/src/threadcall-byval-udt.bas(138,20): warning TKO0797: 'threadcall' is not supported: 'sone' will not run, and the thread handle is 0
      |
  138 | h = threadcall sOne( o1 )
