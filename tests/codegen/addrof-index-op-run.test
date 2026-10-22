@@ -1,0 +1,14 @@
+'' '@b[ i ]' through a byref 'operator []': an overloaded argument, a plain one, an
+'' initialiser and a dereference -- see the source. It was TKO0632 / TKO0634 / TKO0994.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/addrof-index-op.bas -o tests/codegen/addrofindexop.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/addrofindexop.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  66
+'' EXPECT-RUN-OUT: -1
+'' EXPECT-RUN-OUT:  65
+'' EXPECT-RUN-OUT: 66
+'' EXPECT-RUN-OUT: 67
+'' EXPECT-RUN-OUT:  67

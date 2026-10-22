@@ -1,0 +1,34 @@
+'' '@cut[ 0 ]' over containers.Array, passed to an overload set that also takes the Array
+'' itself, with a member chain on the result -- the std/codec DetectEncoding shape that
+'' was TKO0994 -- and dereferenced.
+#import "std/containers"
+type Enc
+    as long Kind
+end type
+type Res
+    as Enc e
+    declare function Value( ) as Enc
+end type
+function Res.Value( ) as Enc
+    return e
+end function
+type Opts
+    as long x
+end type
+function Detect overload ( byval p as const ubyte ptr, byval n as longint, _
+        byref o as const Opts, byval complete as boolean = TRUE ) as Res
+    dim as Res r
+    r.e.Kind = p[0] - 64
+    return r
+end function
+function Detect overload ( byref buf as containers.Array( of ubyte ), byref o as const Opts ) as Res
+    dim as Res r
+    r.e.Kind = -1
+    return r
+end function
+dim as containers.Array( of ubyte ) cut
+dim as ubyte v = 65 : cut.Push( v )
+dim as Opts d
+print Detect( @cut[0], 1, d, false ).Value( ).Kind
+print Detect( cut, d ).Value( ).Kind
+print *(@cut[0])

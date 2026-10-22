@@ -1418,7 +1418,9 @@ private function TypeOfUncached_ _
         dim as Tko.SymbolId psid = c.info->RefOf( ap->operand )
         dim as Tko.Symbol ptr psym = c.syms->SymbolAt( psid )
         '' '@x.f' over a BYREF PROPERTY GETTER is its answer's address, 'integer ptr' (checkbase.tiko).
-        if (psym <> nullptr) andalso (psym->kind = cast( uint8, Tko.SYM_PROC )) then
+        '' ...BUT '@a[ i ]' IS THE ELEMENT'S: an N_INDEX's symbol is its UDT's 'operator []', and typing it as
+        '' that procedure's pointer refused a 'ubyte ptr' overload (TKO0632/TKO0994) and '*(@a[ 0 ])' (TKO0634).
+        if (psym <> nullptr) andalso (psym->kind = cast( uint8, Tko.SYM_PROC )) andalso (c.ast->Kind( ap->operand ) <> Tko.N_INDEX) then
             if ByrefPropOperand_( c, ap->operand, psym ) = false then t = ProcTypeOfSymbol_( c, psid )
         end if
         if t = Tko.TYPE_NONE then
