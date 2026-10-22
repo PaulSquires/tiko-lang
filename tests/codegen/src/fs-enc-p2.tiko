@@ -116,7 +116,7 @@ end if
 '' -- every encoding through every write call, and back
 dim as fs.TextEncoding encs( 0 to 7 )
 encs( 0 ) = fs.Utf8( ) : encs( 1 ) = fs.Utf8( true ) : encs( 2 ) = fs.Utf16LE( ) : encs( 3 ) = fs.Utf16LE( false )
-encs( 4 ) = fs.Utf16BE( ) : encs( 5 ) = fs.Utf16BE( false ) : encs( 6 ) = fs.CodePage( 1252 ) : encs( 7 ) = fs.Binary_( )
+encs( 4 ) = fs.Utf16BE( ) : encs( 5 ) = fs.Utf16BE( false ) : encs( 6 ) = fs.CodePage( 1252 ) : encs( 7 ) = fs.BinaryMode( )
 for e as long = 0 to 7
     for c as long = 0 to 7
         '' the code page and BINARY hold only corpus 0-3; UTF-8 turns the lone surrogate into U+FFFD
@@ -144,7 +144,7 @@ scope
     Check( "strict write fails", ( s.IsOk( ) = false ) andalso ( s.Failure( ).Code( ) = fs.FS_INVALID_DATA ) _
         andalso ( s.Failure( ).Operation( ) = "WriteAllText" ) )
     Check( "strict write leaves the file", FileHex( p ) = "6B 65 65 70" )
-    Check( "strict write creates nothing", fs.WriteAllText( q, wchr( &h2603 ), fs.Binary_( ) ).IsOk( ) = false )
+    Check( "strict write creates nothing", fs.WriteAllText( q, wchr( &h2603 ), fs.BinaryMode( ) ).IsOk( ) = false )
     Check( "no file created", fs.Exists( q ) = false )
     Check( "strict append leaves the file", ( fs.AppendAllText( p, wchr( &h2603 ), fs.CodePage( 1252 ) ).IsOk( ) = false ) _
         andalso ( FileHex( p ) = "6B 65 65 70" ) )
@@ -241,7 +241,7 @@ scope
     next
     WriteRaw( p, raw )
     dim as string want = FileHex( p )
-    var t = fs.ReadAllText( p, fs.Binary_( ), fs.TEXT_STRICT )
+    var t = fs.ReadAllText( p, fs.BinaryMode( ), fs.TEXT_STRICT )
     dim as boolean same = t.IsOk( ) andalso ( len( t.Value( ) ) = 256 )
     if same then
         for i as long = 0 to 255
@@ -249,13 +249,13 @@ scope
         next
     end if
     Check( "binary read identity", same )
-    Check( "binary write identity", fs.WriteAllText( q, t.Value( ), fs.Binary_( ) ).IsOk( ) andalso ( FileHex( q ) = want ) )
+    Check( "binary write identity", fs.WriteAllText( q, t.Value( ), fs.BinaryMode( ) ).IsOk( ) andalso ( FileHex( q ) = want ) )
     fs.RemoveFile( q )
-    Check( "binary append identity", fs.AppendAllText( q, t.Value( ), fs.Binary_( ) ).IsOk( ) andalso ( FileHex( q ) = want ) )
-    Check( "binary atomic identity", fs.WriteAtomic( q, t.Value( ), fs.Binary_( ) ).IsOk( ) andalso ( FileHex( q ) = want ) )
+    Check( "binary append identity", fs.AppendAllText( q, t.Value( ), fs.BinaryMode( ) ).IsOk( ) andalso ( FileHex( q ) = want ) )
+    Check( "binary atomic identity", fs.WriteAtomic( q, t.Value( ), fs.BinaryMode( ) ).IsOk( ) andalso ( FileHex( q ) = want ) )
     dim as containers.Array( of ustring ) bl
-    Check( "binary lines", fs.ReadAllLines( p, bl, fs.Binary_( ) ).Value( ) = 2 )
-    var r = fs.WriteAllText( q, "a" & wchr( &h100 ), fs.Binary_( ), fs.TEXT_REPLACE )
+    Check( "binary lines", fs.ReadAllLines( p, bl, fs.BinaryMode( ) ).Value( ) = 2 )
+    var r = fs.WriteAllText( q, "a" & wchr( &h100 ), fs.BinaryMode( ), fs.TEXT_REPLACE )
     Check( "binary replace", r.IsOk( ) andalso ( r.Value( ) = false ) andalso ( FileHex( q ) = "61 3F" ) )
 end scope
 

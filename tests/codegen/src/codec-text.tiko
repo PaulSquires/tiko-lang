@@ -67,7 +67,7 @@ Check( "name 1252", codec.CodePage( 1252 ).Name( ) = "windows-1252" )
 Check( "name 28591", codec.CodePage( 28591 ).Name( ) = "iso-8859-1" )
 Check( "name 437", codec.CodePage( 437 ).Name( ) = "ibm437" )
 Check( "name 20127", codec.CodePage( 20127 ).Name( ) = "cp20127" )
-Check( "name binary", codec.Binary_( ).Name( ) = "binary" )
+Check( "name binary", codec.BinaryMode( ).Name( ) = "binary" )
 Check( "65001 is utf8", ( codec.CodePage( 65001 ).Kind = codec.TEXT_UTF8 ) andalso ( codec.CodePage( 65001 ).Bom = false ) )
 Check( "default is utf8", codec.TextEncoding( ).Kind = codec.TEXT_UTF8 )
 Check( "bom defaults", ( codec.Utf8( ).Bom = false ) andalso codec.Utf16LE( ).Bom andalso codec.Utf16BE( ).Bom )
@@ -161,7 +161,7 @@ scope
     dim as containers.Array( of ubyte ) bom8 = Bytes( chr( &hEF, &hBB, &hBF ) & "x" )
     Check( "ansi keeps a utf-8 bom", Units( codec.DecodeText( bom8, codec.CodePage( 1252 ) ).Value( ) ) = "00EF 00BB 00BF 0078" )
     Check( "utf8 consumes its bom", codec.DecodeText( bom8, codec.Utf8( ) ).Value( ) = "x" )
-    Check( "binary keeps a bom", Units( codec.DecodeText( bom8, codec.Binary_( ) ).Value( ) ) = "00EF 00BB 00BF 0078" )
+    Check( "binary keeps a bom", Units( codec.DecodeText( bom8, codec.BinaryMode( ) ).Value( ) ) = "00EF 00BB 00BF 0078" )
     dim as containers.Array( of ubyte ) le = Bytes( chr( &hFF, &hFE, &h68, 0, &h69, 0 ) )
     Check( "utf16le consumes FF FE", codec.DecodeText( le, codec.Utf16LE( ) ).Value( ) = "hi" )
     Check( "utf16be keeps FF FE as U+FFFE", Units( codec.DecodeText( le, codec.Utf16BE( ) ).Value( ) ) = "FFFE 6800 6900" )
@@ -194,7 +194,7 @@ scope
         dim as ubyte v = i
         all256.Push( v )
     next
-    var r = codec.DecodeText( all256, codec.Binary_( ), true )
+    var r = codec.DecodeText( all256, codec.BinaryMode( ), true )
     dim as boolean same = r.IsOk( ) andalso ( len( r.Value( ) ) = 256 )
     if same then
         for i as long = 0 to 255
@@ -202,13 +202,13 @@ scope
         next
     end if
     Check( "binary decode identity", same )
-    dim as codec.TextEncoding bb = codec.Binary_( )
+    dim as codec.TextEncoding bb = codec.BinaryMode( )
     bb.Bom = true
     var w = codec.EncodeText( r.Value( ), bb, b )
     Check( "binary encode identity, no bom", w.IsOk( ) andalso w.Value( ) andalso ( HexOf( b ) = HexOf( all256 ) ) )
-    var s = codec.EncodeText( "a" & wchr( &h100 ), codec.Binary_( ), b )
+    var s = codec.EncodeText( "a" & wchr( &h100 ), codec.BinaryMode( ), b )
     Check( "binary strict refuses U+0100", ( s.IsOk( ) = false ) andalso ( s.Failure( ).Code( ) = codec.ENC_UNMAPPABLE ) andalso ( s.Failure( ).Position( ) = 2 ) andalso ( b.Count( ) = 0 ) )
-    var q = codec.EncodeText( "a" & wchr( &h100 ), codec.Binary_( ), b, false )
+    var q = codec.EncodeText( "a" & wchr( &h100 ), codec.BinaryMode( ), b, false )
     Check( "binary replace", q.IsOk( ) andalso ( q.Value( ) = false ) andalso ( HexOf( b ) = "61 3F" ) )
 end scope
 
@@ -338,7 +338,7 @@ scope
     Check( "detect valid utf-8", ( e6.Value( ).Kind = codec.TEXT_UTF8 ) andalso ( e6.Value( ).Bom = false ) )
     var e7 = codec.DetectEncoding( Bytes( "caf" & chr( &hE9 ) ), d )
     Check( "detect 1252 -> fallback", ( e7.Value( ).Kind = codec.TEXT_CODEPAGE ) andalso ( e7.Value( ).CodePage = 1252 ) )
-    dim as codec.TextDetect db = codec.TextDetect( codec.Binary_( ) )
+    dim as codec.TextDetect db = codec.TextDetect( codec.BinaryMode( ) )
     var e8 = codec.DetectEncoding( Bytes( "caf" & chr( &hE9 ) ), db )
     Check( "detect fallback binary", e8.Value( ).Kind = codec.TEXT_BINARY )
     var e9 = codec.DetectEncoding( Bytes( "caf" & chr( &hE9 ) ), codec.TextDetect( ) )
@@ -364,9 +364,9 @@ scope
     Check( "fs.Utf16LE is codec's", ( e.Kind = fs.TEXT_UTF16LE ) andalso ( e.Bom = false ) )
     Check( "fs.TextEncoding is codec's", ( f.Kind = codec.TEXT_CODEPAGE ) andalso ( f.Name( ) = "windows-1252" ) )
     Check( "fs factories", ( fs.Utf8( ).Name( ) = "utf-8" ) andalso ( fs.Utf16BE( ).Name( ) = "utf-16be" ) _
-        andalso ( fs.Ansi( ).Name( ) = "ansi" ) andalso ( fs.Binary_( ).Kind = fs.TEXT_BINARY ) _
+        andalso ( fs.Ansi( ).Name( ) = "ansi" ) andalso ( fs.BinaryMode( ).Kind = fs.TEXT_BINARY ) _
         andalso ( fs.CodePage( 65001 ).Kind = fs.TEXT_UTF8 ) )
-    dim as fs.TextDetect d = codec.TextDetect( fs.Binary_( ) )
+    dim as fs.TextDetect d = codec.TextDetect( fs.BinaryMode( ) )
     Check( "fs.TextDetect is codec's", d.Fallback.Kind = codec.TEXT_BINARY )
 end scope
 

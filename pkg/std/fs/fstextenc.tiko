@@ -32,7 +32,7 @@ using containers
 ''
 '' DETECTING (E6): ReadAllText( p, found, opts ) takes a BOM if there is one, else valid
 '' UTF-8 (an empty file is UTF-8), else opts.Fallback -- Ansi( ) for the editor's rule,
-'' Binary_( ) to lose nothing -- and says in `found` which it used. A UTF-32 BOM is
+'' BinaryMode( ) to lose nothing -- and says in `found` which it used. A UTF-32 BOM is
 '' FS_UNSUPPORTED. The whole file is judged; TextReader( s, opts ) judges a prefix.
 ''
 '' APPENDING CHECKS THE BOM (E10). A file that starts with a BOM for a different UTF

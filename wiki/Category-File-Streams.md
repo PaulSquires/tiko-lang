@@ -112,13 +112,13 @@ AppendAllText( p, s, enc [, mode ] )
 WriteAtomic( p, s, enc [, mode ] )
 ```
 
-The encodings are `Utf8( [bom] )`, `Utf16LE( [bom] )`, `Utf16BE( [bom] )`, `Ansi( )`, `CodePage( n )` and `Binary_( )`. `fs.TextEncoding` is `codec.TextEncoding` under another name. A program with both `using fs` and `using codec` has to qualify these names.
+The encodings are `Utf8( [bom] )`, `Utf16LE( [bom] )`, `Utf16BE( [bom] )`, `Ansi( )`, `CodePage( n )` and `BinaryMode( )`. `fs.TextEncoding` is `codec.TextEncoding` under another name. A program with both `using fs` and `using codec` has to qualify these names.
 
 - **The encoding you name is the one used.** A BOM that matches it is skipped. Any other leading bytes are text, so reading a file that starts with a UTF-8 BOM as `Ansi( )` gives you the three BOM characters. UTF-16 drops an odd last byte.
 - **Writes are strict by default.** If a character cannot be written in the encoding, the call fails with FS_INVALID_DATA and the file is not touched. With TEXT_REPLACE each such character becomes `?`, the write succeeds, and the result's value is `false`. A value of `true` means every character was written exactly. Characters are never replaced by lookalikes.
-- **BOMs.** `Utf16LE( )` and `Utf16BE( )` write one unless you pass `false`. `Utf8( )` writes one only as `Utf8( true )`. A code page and `Binary_( )` never do.
+- **BOMs.** `Utf16LE( )` and `Utf16BE( )` write one unless you pass `false`. `Utf8( )` writes one only as `Utf8( true )`. A code page and `BinaryMode( )` never do.
 - **AppendAllText checks the BOM.** If the file starts with a BOM for a different UTF encoding, the call fails with FS_INVALID_DATA and the file is not changed. A new or empty file gets the encoding's BOM. A file that already has text never gets a second one.
-- **`Binary_( )`** reads each byte as the character with the same number, U+0000 to U+00FF. The text writes back to exactly the same bytes, so any file round-trips.
+- **`BinaryMode( )`** reads each byte as the character with the same number, U+0000 to U+00FF. The text writes back to exactly the same bytes, so any file round-trips.
 - **`Ansi( )`** is the system's ANSI code page, and exists only on Windows. On Linux, use `CodePage( 1252 )` or another built-in code page.
 - A call with no encoding behaves as before. `WriteAllText( p, s, Utf8( ) )` writes exactly the bytes `WriteAllText( p, s )` does.
 
@@ -208,7 +208,7 @@ TextErrorMode                           TEXT_REPLACE (U+FFFD) or TEXT_STRICT (FS
 
 **Text is ReadAllText's text.** TextReader honours the same byte-order marks, defaults to UTF-8 the same way and replaces invalid input the same way, so a file read whole and the same file read through a TextReader agree. TextWriter writes UTF-8, with NewLine platform-native by default.
 
-**With an encoding, the same holds encoding by encoding.** `TextReader( s, enc )` reads as `ReadAllText( p, enc )` does, and `ReadLines( p, enc )` gives `ReadAllLines( p, lines, enc )`'s lines. Code pages and `Binary_( )` are cut into lines at the LF byte; no code page uses that byte inside a character. `TextReader( s, opts )` detects as `ReadAllText( p, found, opts )` does, but it judges only the first `opts.PrefixBytes` bytes (64 KiB) before its first line. A file whose first invalid UTF-8 comes after that point is read as UTF-8 by the stream, and in the fallback by the whole-file call. `Detected( )` says what the reader is using.
+**With an encoding, the same holds encoding by encoding.** `TextReader( s, enc )` reads as `ReadAllText( p, enc )` does, and `ReadLines( p, enc )` gives `ReadAllLines( p, lines, enc )`'s lines. Code pages and `BinaryMode( )` are cut into lines at the LF byte; no code page uses that byte inside a character. `TextReader( s, opts )` detects as `ReadAllText( p, found, opts )` does, but it judges only the first `opts.PrefixBytes` bytes (64 KiB) before its first line. A file whose first invalid UTF-8 comes after that point is read as UTF-8 by the stream, and in the fallback by the whole-file call. `Detected( )` says what the reader is using.
 
 **A TextWriter with an encoding encodes each Write in full before writing any of it.** Under TEXT_STRICT, the default, a Write that holds a character the encoding cannot represent fails with FS_INVALID_DATA and writes nothing, not even the BOM. A Write that succeeds returns `true` when every character was written exactly, and `false` when TEXT_REPLACE turned one into `?`.
 

@@ -57,6 +57,6 @@ public function CodePage( byval cp as ulong ) as TextEncoding
 end function
 
 '' Byte n is U+00nn: every file reads, and the text writes back to the same bytes.
-public function Binary_( ) as TextEncoding
-    return codec.Binary_( )
+public function BinaryMode( ) as TextEncoding
+    return codec.BinaryMode( )
 end function

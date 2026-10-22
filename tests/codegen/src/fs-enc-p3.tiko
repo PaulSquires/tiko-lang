@@ -147,7 +147,7 @@ corpus(15) = "A" & chr( &hAA ) & chr( 10 ) & "B"                                
 
 dim as fs.TextEncoding encs( 0 to 8 )
 encs( 0 ) = fs.Utf8( ) : encs( 1 ) = fs.Utf8( true ) : encs( 2 ) = fs.Utf16LE( ) : encs( 3 ) = fs.Utf16LE( false )
-encs( 4 ) = fs.Utf16BE( ) : encs( 5 ) = fs.CodePage( 1252 ) : encs( 6 ) = fs.Binary_( ) : encs( 7 ) = fs.CodePage( 1253 )
+encs( 4 ) = fs.Utf16BE( ) : encs( 5 ) = fs.CodePage( 1252 ) : encs( 6 ) = fs.BinaryMode( ) : encs( 7 ) = fs.CodePage( 1253 )
 encs( 8 ) = fs.Ansi( )
 
 dim as fs.TextDetect noDetect
@@ -169,7 +169,7 @@ scope
     texts( 3 ) = wchr( &h65E5, &h672C, 13, 10, &h8A9E, 10 ) & "x"
     dim as fs.TextEncoding wenc( 0 to 5 )
     wenc( 0 ) = fs.Utf8( true ) : wenc( 1 ) = fs.Utf16LE( ) : wenc( 2 ) = fs.Utf16BE( false )
-    wenc( 3 ) = fs.CodePage( 932 ) : wenc( 4 ) = fs.CodePage( 1252 ) : wenc( 5 ) = fs.Binary_( )
+    wenc( 3 ) = fs.CodePage( 932 ) : wenc( 4 ) = fs.CodePage( 1252 ) : wenc( 5 ) = fs.BinaryMode( )
     for t as long = 0 to 3
         for e as long = 0 to 5
             dim as containers.Array( of ubyte ) b
@@ -198,7 +198,7 @@ end scope
 scope
     dim as fs.TextDetect dets( 0 to 3 )
     dets( 0 ) = fs.TextDetect( fs.CodePage( 1252 ) )
-    dets( 1 ) = fs.TextDetect( fs.Binary_( ) )
+    dets( 1 ) = fs.TextDetect( fs.BinaryMode( ) )
     dets( 2 ) = fs.TextDetect( fs.CodePage( 1252 ), true )
     dets( 3 ) = fs.TextDetect( )
     for i as long = 0 to 15
@@ -294,7 +294,7 @@ end scope
 scope
     dim as fs.TextEncoding wenc( 0 to 6 )
     wenc( 0 ) = fs.Utf8( ) : wenc( 1 ) = fs.Utf8( true ) : wenc( 2 ) = fs.Utf16LE( ) : wenc( 3 ) = fs.Utf16BE( )
-    wenc( 4 ) = fs.Utf16LE( false ) : wenc( 5 ) = fs.CodePage( 1252 ) : wenc( 6 ) = fs.Binary_( )
+    wenc( 4 ) = fs.Utf16LE( false ) : wenc( 5 ) = fs.CodePage( 1252 ) : wenc( 6 ) = fs.BinaryMode( )
     for e as long = 0 to 6
         dim as fs.MemoryStream m
         dim as fs.TextWriter tw = fs.TextWriter( m, wenc( e ) )
@@ -327,7 +327,7 @@ scope
     Check( "strict writeline writes no newline either", ( l.IsOk( ) = false ) andalso ( MemHex( m ) = "6F 6B" ) )
 
     dim as fs.MemoryStream m3
-    dim as fs.TextWriter t3 = fs.TextWriter( m3, fs.Binary_( ) )
+    dim as fs.TextWriter t3 = fs.TextWriter( m3, fs.BinaryMode( ) )
     Check( "binary strict first write: no bytes", ( t3.Write( wchr( &h100 ) ).IsOk( ) = false ) andalso ( m3.Length( ) = 0 ) )
 
     dim as fs.MemoryStream m4

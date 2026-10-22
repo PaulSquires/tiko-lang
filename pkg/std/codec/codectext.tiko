@@ -161,8 +161,8 @@ public function Ansi( ) as TextEncoding
     return CodePage( 0 )
 end function
 
-'' Byte n is U+00nn. The name has the underscore because BINARY is a keyword.
-public function Binary_( ) as TextEncoding
+'' Byte n is U+00nn: any bytes become text, and that text becomes the same bytes.
+public function BinaryMode( ) as TextEncoding
     dim as TextEncoding e
     e.Kind = TEXT_BINARY
     return e
@@ -172,7 +172,7 @@ end function
 
 public type TextDetect
     '' Fallback UTF-8, no UTF-16 guess, a 64 KiB prefix: detection that agrees with the
-    '' default rules. Set Fallback to Ansi( ) for the editor's rule, or Binary_( ).
+    '' default rules. Set Fallback to Ansi( ) for the editor's rule, or BinaryMode( ).
     declare constructor( )
     declare constructor( byval fallback as TextEncoding, byval utf16NoBom as boolean = FALSE, _
         byval prefixBytes as long = 65536 )

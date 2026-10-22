@@ -130,15 +130,15 @@ An encoding is a `TextEncoding` value, made by one of these functions:
 | `Utf16BE( bom = true )` | UTF-16, big-endian | `utf-16be` |
 | `Ansi( )` | the system's ANSI code page, looked up at each call (1252 in western Europe and the Americas) | `ansi` |
 | `CodePage( n )` | a Windows code page by number; `CodePage( 65001 )` is `Utf8( )` | `windows-1252`, `iso-8859-1`, `ibm437`, `shift_jis`, … or `cp<n>` |
-| `Binary_( )` | byte *n* is character U+00*nn*, and back | `binary` |
+| `BinaryMode( )` | byte *n* is character U+00*nn*, and back | `binary` |
 
-`TextEncoding` has three fields: `Kind` (`TEXT_UTF8`, `TEXT_UTF16LE`, `TEXT_UTF16BE`, `TEXT_CODEPAGE` or `TEXT_BINARY`), `CodePage`, and `Bom`. A default-constructed `TextEncoding` is UTF-8 without a BOM. `Binary_` has the underscore because `binary` is a keyword.
+`TextEncoding` has three fields: `Kind` (`TEXT_UTF8`, `TEXT_UTF16LE`, `TEXT_UTF16BE`, `TEXT_CODEPAGE` or `TEXT_BINARY`), `CodePage`, and `Bom`. A default-constructed `TextEncoding` is UTF-8 without a BOM.
 
 ### Decoding
 
 `DecodeText( bytes, enc [, strict] )`, or `DecodeText( ptr, count, enc [, strict] )`, returns the text.
 
-- **The encoding you name is the one used.** A byte-order mark that matches it is skipped: `EF BB BF` for UTF-8, `FF FE` for UTF-16LE, `FE FF` for UTF-16BE. Any other leading bytes are text. A code page and `Binary_( )` skip nothing, so reading a file that starts with a UTF-8 BOM as `CodePage( 1252 )` gives the three characters `ï»¿`.
+- **The encoding you name is the one used.** A byte-order mark that matches it is skipped: `EF BB BF` for UTF-8, `FF FE` for UTF-16LE, `FE FF` for UTF-16BE. Any other leading bytes are text. A code page and `BinaryMode( )` skip nothing, so reading a file that starts with a UTF-8 BOM as `CodePage( 1252 )` gives the three characters `ï»¿`.
 - UTF-16 drops an odd last byte and keeps an unpaired surrogate.
 - Bytes the encoding does not define become U+FFFD. For a code page they become whatever character Windows gives them. With `strict = true` they fail instead, with `ENC_INVALID_UTF8` or `ENC_INVALID_BYTES`.
 
@@ -189,7 +189,7 @@ A UTF-32 BOM fails with `ENC_UNSUPPORTED`.
 
 | `TextDetect` field | Default | Meaning |
 |---|---|---|
-| `Fallback` | `Utf8( )` | used when there is no BOM and the bytes are not valid UTF-8 — `Ansi( )` for files from Windows programs, `Binary_( )` to keep every byte |
+| `Fallback` | `Utf8( )` | used when there is no BOM and the bytes are not valid UTF-8 — `Ansi( )` for files from Windows programs, `BinaryMode( )` to keep every byte |
 | `Utf16NoBom` | `false` | guess UTF-16 without a BOM: at least two units, nine in ten of them a zero byte beside a non-zero one, the zero always on the same side. Text with no zero bytes never passes. |
 | `PrefixBytes` | 65536 | how much a stream looks at before its first line, and the sample the UTF-16 guess uses |
 
