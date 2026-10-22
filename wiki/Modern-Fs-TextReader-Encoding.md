@@ -1,4 +1,4 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **TextReader.Encoding**
+[Home](Home) › [Filesystem](Category-Filesystem) › [File Streams](Category-File-Streams) › **TextReader.Encoding**
 
 # TextReader.Encoding
 
@@ -30,5 +30,5 @@ print tr.Encoding( )    '' utf-8
 ---
 
 **Library:** [Filesystem Library](Category-Filesystem)
-**Category:** [Filesystem](Category-Filesystem)
+**Category:** [File Streams](Category-File-Streams)
 **Documented under:** Streams

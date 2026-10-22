@@ -1,4 +1,4 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **MemoryStream.Length**
+[Home](Home) › [Filesystem](Category-Filesystem) › [File Streams](Category-File-Streams) › **MemoryStream.Length**
 
 # MemoryStream.Length
 
@@ -27,5 +27,5 @@ print m.Length( )    '' 3
 ---
 
 **Library:** [Filesystem Library](Category-Filesystem)
-**Category:** [Filesystem](Category-Filesystem)
+**Category:** [File Streams](Category-File-Streams)
 **Documented under:** Streams

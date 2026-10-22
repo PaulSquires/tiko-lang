@@ -1,4 +1,4 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **Stream.Seek**
+[Home](Home) › [Filesystem](Category-Filesystem) › [File Streams](Category-File-Streams) › **Stream.Seek**
 
 # Stream.Seek
 
@@ -29,5 +29,5 @@ print m.Seek( -9, SEEK_FROM_CURRENT ).IsOk( ) '' false
 ---
 
 **Library:** [Filesystem Library](Category-Filesystem)
-**Category:** [Filesystem](Category-Filesystem)
+**Category:** [File Streams](Category-File-Streams)
 **Documented under:** Streams

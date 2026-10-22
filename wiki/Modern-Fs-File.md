@@ -1,4 +1,4 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **File**
+[Home](Home) › [Filesystem](Category-Filesystem) › [File Streams](Category-File-Streams) › **File**
 
 # File
 
@@ -52,5 +52,5 @@ RemoveDirAll( dir_ )
 ---
 
 **Library:** [Filesystem Library](Category-Filesystem)
-**Category:** [Filesystem](Category-Filesystem)
+**Category:** [File Streams](Category-File-Streams)
 **Documented under:** Files

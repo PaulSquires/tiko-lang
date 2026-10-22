@@ -1,4 +1,4 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **BufferedReader.ReadLine**
+[Home](Home) › [Filesystem](Category-Filesystem) › [File Streams](Category-File-Streams) › **BufferedReader.ReadLine**
 
 # BufferedReader.ReadLine
 
@@ -33,5 +33,5 @@ print br.ReadLine( ln ).Value( )        '' false
 ---
 
 **Library:** [Filesystem Library](Category-Filesystem)
-**Category:** [Filesystem](Category-Filesystem)
+**Category:** [File Streams](Category-File-Streams)
 **Documented under:** Streams

@@ -83,7 +83,7 @@ var r = hash.DigestFile( hash.HASH_SHA256, "no-such-file.iso" )
 if r.IsOk( ) = false then print r.Failure( ).Message( )
 ```
 
-`Digest` and `DigestHex` take a `HashAlgorithm` (`HASH_CRC32`, `HASH_SHA256`, …) and a `ustring`, a byte array, or — for `DigestHex` — a `string` of raw bytes. `DigestFile` reads a file in 64 KB pieces and returns a `Result`, so a missing file is a value, not a crash. `HashStream( h, stream )` feeds any [`fs.Stream`](Category-Filesystem) into a hasher.
+`Digest` and `DigestHex` take a `HashAlgorithm` (`HASH_CRC32`, `HASH_SHA256`, …) and a `ustring`, a byte array, or — for `DigestHex` — a `string` of raw bytes. `DigestFile` reads a file in 64 KB pieces and returns a `Result`, so a missing file is a value, not a crash. `HashStream( h, stream )` feeds any [`fs.Stream`](Category-File-Streams) into a hasher.
 
 ## HMAC
 

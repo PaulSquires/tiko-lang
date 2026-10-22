@@ -48,7 +48,8 @@ Looking for a function by what it does? The [Function Finder](Function-Finder) g
 - [Result](Category-Result) — 10 pages
 - [Smart Pointers](Category-Smart-Pointers) — 12 pages
 - [Date and Time (Chrono)](Category-Date-and-Time-Chrono) — 191 pages
-- [Filesystem](Category-Filesystem) — 140 pages
+- [Filesystem](Category-Filesystem) — 164 pages
+- [File Streams](Category-File-Streams) — 69 pages
 - [Math Library](Category-Math-Library) — 197 pages
 - [Finance](Category-Finance) — 151 pages
 - [Logging](Category-Logging) — 33 pages

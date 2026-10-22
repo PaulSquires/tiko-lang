@@ -43,6 +43,7 @@
 - [Smart Pointers](Category-Smart-Pointers)
 - [Date and Time (Chrono)](Category-Date-and-Time-Chrono)
 - [Filesystem](Category-Filesystem)
+- [File Streams](Category-File-Streams)
 - [Config (INI and TOML)](Category-Config)
 - [Codec](Category-Codec)
 - [Hash](Category-Hash)

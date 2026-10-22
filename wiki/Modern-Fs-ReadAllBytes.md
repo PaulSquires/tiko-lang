@@ -1,4 +1,4 @@
-[Home](Home) › [Filesystem](Category-Filesystem) › [Filesystem Library](Category-Filesystem) › **ReadAllBytes**
+[Home](Home) › [Filesystem](Category-Filesystem) › [File Streams](Category-File-Streams) › **ReadAllBytes**
 
 # ReadAllBytes
 
@@ -45,5 +45,5 @@ RemoveDirAll( dir_ )
 ---
 
 **Library:** [Filesystem Library](Category-Filesystem)  
-**Category:** [Filesystem](Category-Filesystem)  
+**Category:** [File Streams](Category-File-Streams)  
 **Documented under:** File Operations

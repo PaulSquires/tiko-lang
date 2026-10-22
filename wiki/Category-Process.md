@@ -71,7 +71,7 @@ An `ExitStatus` has `Code( )`, `Success( )` (`Code( ) = 0`) and, on Linux, `Sign
 
 ## A Running Child
 
-For anything longer-lived, `Spawn` a `Child` and talk to it while it runs. With `STDIO_PIPE`, `Stdin( )`, `Stdout( )` and `Stderr( )` are `PipeStream`s — [streams](Category-Filesystem) like a file, so `WriteUtf8`, `ReadExact` and `ReadToEnd` all work on them.
+For anything longer-lived, `Spawn` a `Child` and talk to it while it runs. With `STDIO_PIPE`, `Stdin( )`, `Stdout( )` and `Stderr( )` are `PipeStream`s — [streams](Category-File-Streams) like a file, so `WriteUtf8`, `ReadExact` and `ReadToEnd` all work on them.
 
 ```freebasic
 #import "std/process"

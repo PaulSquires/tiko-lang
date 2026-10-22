@@ -90,7 +90,7 @@ The client adds `Host`, `Content-Length`, `User-Agent` and `Accept: */*` itself.
 
 ## Reading A Body As It Arrives
 
-`Send` keeps the whole body in memory. `Open` hands it over as a stream instead, to read at your own pace — a large download straight to a file, for example. A `ResponseStream` is a [stream](Category-Filesystem), so everything a stream can do works on it.
+`Send` keeps the whole body in memory. `Open` hands it over as a stream instead, to read at your own pace — a large download straight to a file, for example. A `ResponseStream` is a [stream](Category-File-Streams), so everything a stream can do works on it.
 
 ```freebasic
 #import "std/http"

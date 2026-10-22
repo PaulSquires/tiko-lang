@@ -26,6 +26,7 @@ task	devices	Open devices, pipes and the console
 task	config	Read and write settings files: TOML and INI
 ignore	File-I-O-Functions	an overview page, not a function
 seealso	Category-Filesystem	Filesystem library guide
+seealso	Category-File-Streams	File streams guide
 seealso	Category-File-I-O-Functions	File I/O functions
 seealso	Category-Config	Config: INI and TOML files
 seealso	Category-Result	Result

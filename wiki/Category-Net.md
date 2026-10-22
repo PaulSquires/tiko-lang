@@ -14,7 +14,7 @@ if u.IsOk( ) then
 end if
 ```
 
-Every call that can fail returns a `Result`; a socket call's failure is a `NetError`. Reading and writing a `TcpStream` reports an `fs.FsError` instead, because a `TcpStream` is a [stream](Category-Filesystem) like a file.
+Every call that can fail returns a `Result`; a socket call's failure is a `NetError`. Reading and writing a `TcpStream` reports an `fs.FsError` instead, because a `TcpStream` is a [stream](Category-File-Streams) like a file.
 
 ## IP Addresses
 

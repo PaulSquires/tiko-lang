@@ -398,6 +398,7 @@ Jump to: [Read or write a whole file](#read-or-write-a-whole-file) · [Check tha
 ## See Also
 
 - [Filesystem library guide](Category-Filesystem)
+- [File streams guide](Category-File-Streams)
 - [File I/O functions](Category-File-I-O-Functions)
 - [Config: INI and TOML files](Category-Config)
 - [Result](Category-Result)
