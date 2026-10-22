@@ -1,0 +1,64 @@
+'' gencopyctor.tiko -- MAY A GENERIC INSTANCE BE COPY-CONSTRUCTED FROM HERE?
+''
+'' Included from latechecks.tiko, above CheckCopyStructor_, in the same namespace and over
+'' the same Ctx.
+''
+'' A generic instance's members are its DEFINITIONS re-parsed (InstantiateMembers_), and
+'' they carry no visibility: 'private:' is written on the declarations inside the template's
+'' TYPE. The non-copyable idiom -- a private copy constructor DECLARED and never defined --
+'' has no definition at all, so the instance had no copy constructor to find. 'dim c as
+'' Box( of long ) = b' compiled and failed to link, where the same over an ordinary type is
+'' TKO0633 (fbc's 205). The answer is read off the template, as RequireOperator_ does for a
+'' private 'let' (latesweeps2.tiko). fs RFC-0002 section 10.5 G3.
+''
+'' Returns -1 when the type is no generic instance, or its template declares no copy
+'' constructor; 0 when one is reachable from 'here'; 1 when every one is hidden.
+private function GenericCopyCtorHidden_ _
+    ( byref c as Ctx, byval udt as TypeId, byval here as TypeId ) as int32
+
+    if (udt = TYPE_NONE) orelse (c.types->Kind( udt ) <> TK_UDT) then return -1
+    dim as InternId tn = c.types->NameOf( udt )
+    if tn = 0 then return -1
+    if instr( c.names->Spelling( tn ), "<" ) = 0 then return -1
+    dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( udt ) )
+    dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Symbol ptr s = c.syms->SymbolAt( ts )
+    if (s = nullptr) orelse (s->payload = 0) then return -1
+    dim as NodeId gn = cast( NodeId, s->payload )
+    if c.ast->Kind( gn ) <> N_TYPE then return -1
+    dim as StmtPayload ptr gp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, gn )].data )]
+    if gp->b = NODE_NONE then return -1        '' no parameter list: not a template
+    dim as InternId gname = gp->name
+
+    dim as int32 seen = 0, hidden = 0
+    for i as int32 = 0 to gp->count - 1
+        dim as NodeId m = cast( NodeId, c.ast->children[gp->first + i] )
+        if (m = NODE_NONE) orelse (c.ast->Kind( m ) <> N_PROC) then continue for
+        dim as StmtPayload ptr mp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, m )].data )]
+        if mp->op <> cast( uint16, KW_CONSTRUCTOR ) then continue for
+        if RequiredParams_( c, m ) <> 1 then continue for
+        '' The one required parameter names the template itself: 'Box( of T )' or 'Box'.
+        dim as boolean copyCtor = false
+        for k as int32 = 0 to mp->count - 1
+            dim as NodeId prm = cast( NodeId, c.ast->children[mp->first + k] )
+            if c.ast->Kind( prm ) <> N_PARAM then continue for
+            dim as NodeId tr = c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )].a
+            if (tr = NODE_NONE) orelse (c.ast->Kind( tr ) <> N_TYPEREF) then exit for
+            dim as StmtPayload ptr trp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, tr )].data )]
+            copyCtor = (trp->op = cast( uint16, TK_IDENT )) andalso (trp->name = gname)
+            exit for
+        next
+        if copyCtor = false then continue for
+        seen += 1
+        if (mp->extra and PF_MEMB_PRIVATE) <> 0 then
+            if here <> udt then hidden += 1
+        elseif (mp->extra and PF_MEMB_PROTECTED) <> 0 then
+            if (here <> udt) andalso ((here = TYPE_NONE) orelse (DerivesFrom_( c, here, udt ) = false)) then
+                hidden += 1
+            end if
+        end if
+    next
+    if seen = 0 then return -1
+    return iif( hidden = seen, 1, 0 )
+end function

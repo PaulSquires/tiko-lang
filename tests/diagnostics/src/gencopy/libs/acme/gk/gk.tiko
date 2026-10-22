@@ -1,0 +1,40 @@
+'' A NON-COPYABLE GENERIC: it owns a handle that cannot be copied, and says so with a
+'' private copy constructor and 'let', declared and never defined.
+#module "gk"
+public type Handle
+    as long h
+    declare constructor( )
+  private:
+    declare constructor( byref o as const Handle )
+    declare operator let( byref o as const Handle )
+end type
+constructor Handle( )
+    h = 1
+end constructor
+
+public type Owner( of T )
+    as T v
+    as Handle hd
+    declare constructor( )
+    declare function Twin( ) as long
+  private:
+    declare constructor( byref o as const Owner( of T ) )
+    declare operator let( byref o as const Owner( of T ) )
+end type
+constructor Owner( of T )( )
+end constructor
+'' An ordinary member, so the type is used and not only copied.
+function Owner( of T ).Twin( ) as long
+    return sizeof( T )
+end function
+
+public type Shared_( of T )
+    as T v
+    declare constructor( )
+    declare constructor( byref o as const Shared_( of T ) )
+end type
+constructor Shared_( of T )( )
+end constructor
+constructor Shared_( of T )( byref o as const Shared_( of T ) )
+    v = o.v
+end constructor

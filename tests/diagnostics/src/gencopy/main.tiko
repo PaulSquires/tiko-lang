@@ -1,0 +1,10 @@
+'' Copies of acme/gk's generics; see gk.tiko.
+#import "acme/gk"
+dim as gk.Owner( of long ) a
+dim as gk.Owner( of long ) b = a                    '' TKO0633: the copy ctor is private
+dim as gk.Owner( of double ) d
+dim as gk.Owner( of double ) e = d                  '' TKO0633
+dim as gk.Shared_( of long ) s
+dim as gk.Shared_( of long ) t = s                  '' fine: its copy ctor is public
+dim as gk.Owner( of long ) ptr p = @a               '' fine: no copy
+print a.Twin( ) + t.v + p->Twin( )

@@ -1,0 +1,11 @@
+'' TKO0633, fbc's 205, for copying a GENERIC instance whose template declares a private copy
+'' constructor -- the non-copyable idiom, declared and never defined -- across a module
+'' boundary. An instance's members are its re-parsed definitions and carry no visibility,
+'' so there was no copy constructor to find: the copy compiled and failed to link. A
+'' public copy constructor, and a pointer, are fine. See symbols/gencopyctor.tiko.
+'' TEST: cli
+'' ARGS: --dump-ir -i tests/diagnostics/src/gencopy/libs tests/diagnostics/src/gencopy/main.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: main.tiko(4,28): error TKO0633
+'' EXPECT-OUT: main.tiko(6,30): error TKO0633
+'' EXPECT-MAX-DIAG: 2

@@ -1313,6 +1313,8 @@ private sub CheckSharedInits_( byref c as Ctx )
     next
 end sub
 
+#include once "symbols/gencopyctor.tiko"
+
 '' THE COPY CONSTRUCTOR -- the '__ctor' overload whose one required parameter is a
 '' reference to the type itself. A private one is what stops a type being copied, which is
 '' the point of declaring one.
@@ -1320,6 +1322,9 @@ private sub CheckCopyStructor_ _
     ( byref c as Ctx, byval udt as TypeId, byval here as TypeId, _
       byval at as SourceLoc, byval vnm as InternId )
 
+    dim as int32 gh = GenericCopyCtorHidden_( c, udt, here )   '' gencopyctor.tiko
+    if gh = 1 then c.diags->Report( TKO0633, PointRange( at ), c.names->Spelling( vnm ) )
+    if gh >= 0 then return
     dim as Symbol ptr st = StructorOf_( c, udt, "__ctor" )
     if st = nullptr then return
     dim as boolean sawCopy = false
