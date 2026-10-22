@@ -56,6 +56,25 @@ dim shared as TKORT_TLSENTRY tkort_tls_ctxtb( 0 to FB_TLSKEYS - 1 )
 	#define TKORT_TLSGET( k )       k
 #endif
 
+'' THE CALLER'S LAST ERROR SURVIVES fb_TlsGetCtx. TlsGetValue clears it on success
+'' (documented: it calls SetLastError( ERROR_SUCCESS )), and under -exx every
+'' procedure entry reaches here through fb_ErrorSetFuncName -- so a program built
+'' -mt -exx lost GetLastError / WSAGetLastError across any call between the failing
+'' API and the read: std/net saw a non-blocking connect's WSAEWOULDBLOCK as 0 and
+'' every request failed (ApexWealth-2026 AW-006). pthread_getspecific leaves errno
+'' alone, and the single-threaded table is a plain load, so only Windows MT needs it.
+#if defined( ENABLE_MT ) and (defined( __FB_WIN32__ ) or defined( __FB_WIN64__ ))
+	extern "c"   '' NON-FBCALL: kernel32 imports, not rtlib entry points.
+		declare function ctx_GetLastError stdcall alias "GetLastError" ( ) as uint32
+		declare sub ctx_SetLastError stdcall alias "SetLastError" ( byval e as uint32 )
+	end extern
+	#define TKORT_SAVEERR( v )      dim as uint32 v = ctx_GetLastError( )
+	#define TKORT_RESTOREERR( v )   ctx_SetLastError( v )
+#else
+	#define TKORT_SAVEERR( v )
+	#define TKORT_RESTOREERR( v )
+#endif
+
 extern "rtlib"
 
 '' Retrieve or create the TLS context for a key. calloc, not malloc: every
@@ -64,6 +83,7 @@ extern "rtlib"
 function tkort_TlsGetCtx alias "fb_TlsGetCtx" _
 	( byval index_ as int32, byval len_ as uinteger, byval dtor as FB_TLS_DESTRUCTOR ) as any ptr
 
+	TKORT_SAVEERR( lastErr )
 	dim as any ptr ctx = TKORT_TLSGET( tkort_tls_ctxtb(index_) )
 	dim as FB_TLS_CTX_HEADER ptr hdr = any
 
@@ -76,6 +96,7 @@ function tkort_TlsGetCtx alias "fb_TlsGetCtx" _
 		end if
 	end if
 
+	TKORT_RESTOREERR( lastErr )
 	return ctx
 end function
 
