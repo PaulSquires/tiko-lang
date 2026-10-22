@@ -8,7 +8,7 @@ The functions to read and write files, build paths, list and walk directories, g
 - `std/config`: `#import "std/config"`, then `using config` to call it by its bare name.
 - `std/fs`: `#import "std/fs"`, then `using fs` to call it by its bare name.
 
-Jump to: [Read or write a whole file](#read-or-write-a-whole-file) · [Check that a file or folder exists](#check-that-a-file-or-folder-exists) · [Build and take apart paths](#build-and-take-apart-paths) · [Clean up, compare and resolve paths](#clean-up-compare-and-resolve-paths) · [List and walk folders](#list-and-walk-folders) · [Copy, move and delete files](#copy-move-and-delete-files) · [Create, copy and remove folders](#create-copy-and-remove-folders) · [Find standard folders and make temporary files](#find-standard-folders-and-make-temporary-files) · [FileInfo: size, kind, times and flags](#fileinfo-size-kind-times-and-flags) · [File numbers: open and close files](#file-numbers-open-and-close-files) · [File numbers: read, write and seek](#file-numbers-read-write-and-seek) · [Read and write text a line at a time](#read-and-write-text-a-line-at-a-time) · [File: open a file and work in place](#file-open-a-file-and-work-in-place) · [Streams: read and write bytes](#streams-read-and-write-bytes) · [Find files by pattern](#find-files-by-pattern) · [Control a folder walk](#control-a-folder-walk) · [FsError: find out why a call failed](#fserror-find-out-why-a-call-failed) · [Links, permissions and file identity](#links-permissions-and-file-identity) · [Disk space and volumes](#disk-space-and-volumes) · [Lock, map and watch files](#lock-map-and-watch-files) · [Open devices, pipes and the console](#open-devices-pipes-and-the-console) · [Read and write settings files: TOML and INI](#read-and-write-settings-files-toml-and-ini)
+Jump to: [Read or write a whole file](#read-or-write-a-whole-file) · [Check that a file or folder exists](#check-that-a-file-or-folder-exists) · [Build and take apart paths](#build-and-take-apart-paths) · [Clean up, compare and resolve paths](#clean-up-compare-and-resolve-paths) · [List and walk folders](#list-and-walk-folders) · [Copy, move and delete files](#copy-move-and-delete-files) · [Create, copy and remove folders](#create-copy-and-remove-folders) · [Find standard folders and make temporary files](#find-standard-folders-and-make-temporary-files) · [FileInfo: size, kind, times and flags](#fileinfo-size-kind-times-and-flags) · [File numbers: open and close files](#file-numbers-open-and-close-files) · [File numbers: read, write and seek](#file-numbers-read-write-and-seek) · [Read and write text a line at a time](#read-and-write-text-a-line-at-a-time) · [File: open a file and work in place](#file-open-a-file-and-work-in-place) · [Read and write fixed-size records](#read-and-write-fixed-size-records) · [Streams: read and write bytes](#streams-read-and-write-bytes) · [Find files by pattern](#find-files-by-pattern) · [Control a folder walk](#control-a-folder-walk) · [FsError: find out why a call failed](#fserror-find-out-why-a-call-failed) · [Links, permissions and file identity](#links-permissions-and-file-identity) · [Disk space and volumes](#disk-space-and-volumes) · [Lock, map and watch files](#lock-map-and-watch-files) · [Open devices, pipes and the console](#open-devices-pipes-and-the-console) · [Read and write settings files: TOML and INI](#read-and-write-settings-files-toml-and-ini)
 
 ## Read or write a whole file
 
@@ -236,6 +236,20 @@ Jump to: [Read or write a whole file](#read-or-write-a-whole-file) · [Check tha
 | [OpenOptionsWrite](Modern-Fs-OpenOptionsWrite) | Returns the OpenOptions for writing a new file or an existing one emptied. | `std/fs` |
 | [OpenOptionsAppend](Modern-Fs-OpenOptionsAppend) | Returns the OpenOptions for adding to the end of a file, creating it if needed. | `std/fs` |
 
+## Read and write fixed-size records
+
+| Function | What it does | From |
+|---|---|---|
+| [RecordFile](Modern-Fs-RecordFile) | Holds a file of fixed-size records of one type, read and written by number. | `std/fs` |
+| [RecordFile.Open](Modern-Fs-RecordFile-Open) | Opens a file of records for reading and writing, creating it if it is missing. | `std/fs` |
+| [RecordFile.GetRecord](Modern-Fs-RecordFile-GetRecord) | Reads record n into a variable; false when the file has no such record. | `std/fs` |
+| [RecordFile.PutRecord](Modern-Fs-RecordFile-PutRecord) | Writes a variable as record n, growing the file when n is past the end. | `std/fs` |
+| [RecordFile.Append](Modern-Fs-RecordFile-Append) | Writes a variable after the last record and returns its record number. | `std/fs` |
+| [RecordFile.Count](Modern-Fs-RecordFile-Count) | Returns the number of whole records in the file. | `std/fs` |
+| [ReadRecord](Modern-Fs-ReadRecord) | Reads record n of a type from an open File, counting records from 1. | `std/fs` |
+| [WriteRecord](Modern-Fs-WriteRecord) | Writes a value as record n of an open File, growing the file if needed. | `std/fs` |
+| [RecordCount](Modern-Fs-RecordCount) | Returns the number of whole records of a type in an open File. | `std/fs` |
+
 ## Streams: read and write bytes
 
 | Function | What it does | From |
@@ -248,6 +262,7 @@ Jump to: [Read or write a whole file](#read-or-write-a-whole-file) · [Check tha
 | [Stream.WriteAll](Modern-Fs-Stream-WriteAll) | Writes all n bytes, calling Write as often as it takes. | `std/fs` |
 | [Stream.WriteBytes](Modern-Fs-Stream-WriteBytes) | Writes every byte of an Array. | `std/fs` |
 | [Stream.WriteUtf8](Modern-Fs-Stream-WriteUtf8) | Writes a string as UTF-8, with no BOM. | `std/fs` |
+| [Stream.WriteText](Modern-Fs-Stream-WriteText) | Writes a string in a text encoding, the bytes WriteAllText would write. | `std/fs` |
 | [Stream.Seek](Modern-Fs-Stream-Seek) | Moves the position from the start, the current place or the end; returns the new position. | `std/fs` |
 | [Stream.Position](Modern-Fs-Stream-Position) | Returns the current position, or fails on a stream that cannot seek. | `std/fs` |
 | [Stream.Flush](Modern-Fs-Stream-Flush) | Passes any buffered bytes on to where they are going. | `std/fs` |
@@ -261,6 +276,7 @@ Jump to: [Read or write a whole file](#read-or-write-a-whole-file) · [Check tha
 | [MemoryStream.Clear](Modern-Fs-MemoryStream-Clear) | Empties the stream; its length and position become 0. | `std/fs` |
 | [MemoryStream.ToBytes](Modern-Fs-MemoryStream-ToBytes) | Copies every byte held into an Array; returns the count. | `std/fs` |
 | [MemoryStream.ToUtf8Text](Modern-Fs-MemoryStream-ToUtf8Text) | Returns the bytes held decoded as text, the same way ReadAllText decodes a file. | `std/fs` |
+| [MemoryStream.ToText](Modern-Fs-MemoryStream-ToText) | Returns the bytes held decoded in a text encoding, as ReadAllText would read them. | `std/fs` |
 | [BufferedReader](Modern-Fs-BufferedReader) | Holds a Stream that reads another in large pieces, so many small reads stay fast. | `std/fs` |
 | [BufferedReader.ReadByte](Modern-Fs-BufferedReader-ReadByte) | Reads the next byte; returns false at the end. | `std/fs` |
 | [BufferedReader.ReadLine](Modern-Fs-BufferedReader-ReadLine) | Reads the next line as raw bytes in a string, not decoded; returns false at the end. | `std/fs` |

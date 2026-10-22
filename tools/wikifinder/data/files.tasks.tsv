@@ -15,6 +15,7 @@ task	fnopen	File numbers: open and close files
 task	fnio	File numbers: read, write and seek
 task	text	Read and write text a line at a time
 task	file	File: open a file and work in place
+task	records	Read and write fixed-size records
 task	streams	Streams: read and write bytes
 task	glob	Find files by pattern
 task	walk	Control a folder walk

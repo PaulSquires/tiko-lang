@@ -22,6 +22,7 @@ end type
 - A multi-byte sequence split between two reads of the inner stream is joined before it is decoded.
 - With an encoding, it reads as ReadAllText( p, enc ) does: that encoding, whatever the data starts with, and only a byte-order mark that matches it is dropped. See [Choosing An Encoding](Category-File-Streams#choosing-an-encoding).
 - With a TextDetect, it reads the first opts.PrefixBytes bytes (64 KiB) before its first line and picks the encoding from them: a byte-order mark, else UTF-8 if they are valid UTF-8, else opts.Fallback. Detected( ) returns the encoding it picked.
+- Without an encoding, a UTF-32 byte-order mark at the start fails the first ReadLine or ReadToEnd with FS_UNSUPPORTED. With an encoding, the encoding is believed.
 - Not a Stream: it produces text, not bytes.
 
 ## Examples

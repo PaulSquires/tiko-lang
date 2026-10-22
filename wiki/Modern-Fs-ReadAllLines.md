@@ -14,6 +14,7 @@ ReadAllLines( p, lines, enc [, mode ] )   '' in a TextEncoding; the same lines i
 ## Notes
 
 - FsResultLong -- fills Array( of ustring )
+- Without an encoding, a file that starts with a UTF-32 byte-order mark (FF FE 00 00 or 00 00 FE FF) fails with FS_UNSUPPORTED rather than being read as UTF-16 or UTF-8.
 
 ## Examples
 

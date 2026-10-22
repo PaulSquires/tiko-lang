@@ -7,31 +7,29 @@ type Score
 end type
 
 dim as ustring dir_ = fs.CreateTempDir( "tbe" ).Value( )
-dim o as fs.OpenOptions
-o.Read = true
-o.Write = true
-o.Create = true
-dim f as fs.File
-f.Open( fs.PathJoin( dir_, "scores.dat" ), o )
+dim as fs.RecordFile( of Score ) scores
+'' Read and write, and created if it is missing.
+scores.Open( fs.PathJoin( dir_, "scores.dat" ) )
 
-'' Record n lives n * sizeof( Score ) bytes into the file.
-const SZ = sizeof( Score )
 dim s as Score
-for n as int32 = 0 to 3
+for n as int32 = 1 to 4
     s.player = n
     s.points = n * 100
-    f.WriteAt( n * SZ, cptr( ubyte ptr, @s ), SZ )
+    scores.Append( s )                  '' returns the new record's number
 next
-print "file size:"; f.Size( ).Value( )
+print "records:"; scores.Count( ).Value( ); _
+      ", each"; scores.RecordLength( ); " bytes"
 
-'' Straight to record 2, change it, write it back in place.
-f.ReadAt( 2 * SZ, cptr( ubyte ptr, @s ), SZ )
+'' Straight to record 3, change it, write it back in place.
+scores.GetRecord( 3, s )
 s.points += 5
-f.WriteAt( 2 * SZ, cptr( ubyte ptr, @s ), SZ )
+scores.PutRecord( 3, s )
 
-for n as int32 = 0 to 3
-    f.ReadAt( n * SZ, cptr( ubyte ptr, @s ), SZ )
-    print "player"; s.player; ":"; s.points
+for each r in scores                    '' each a Result, in record order
+    print "player"; r.Value( ).player; ":"; r.Value( ).points
 next
-f.Close( )
+
+'' There is no record 9: the value is false, and s is left as it was.
+print "record 9 there? "; scores.GetRecord( 9, s ).Value( )
+scores.Close( )
 fs.RemoveDirAll( dir_ )

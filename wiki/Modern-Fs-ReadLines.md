@@ -17,6 +17,7 @@ ReadLines( p, enc [, mode ] )    '' in a TextEncoding: ReadAllLines( p, lines, e
 - Lines are ReadAllLines' lines: a line ends at LF; one CR before the LF is dropped; a CR anywhere else is text; the last line needs no LF; a final LF is not followed by an empty line.
 - A failure is a yielded element, not an exception and not silence: a file that cannot be opened gives exactly one element, the failure; a read error ends the sequence after it.
 - Leaving the loop early -- exit for, goto, return -- closes the file.
+- Without an encoding, a file that starts with a UTF-32 byte-order mark (FF FE 00 00 or 00 00 FE FF) fails with FS_UNSUPPORTED rather than being read as UTF-16 or UTF-8. The failure is the one element.
 
 ## Examples
 

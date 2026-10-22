@@ -190,6 +190,7 @@
   - [Paths](files/paths.md)
   - [Reading and writing files](files/readwrite.md)
   - [Line by line](files/lines.md)
+  - [Text encodings](files/encodings.md)
   - [Opening a File](files/opening.md)
   - [Records at a position](files/records.md)
   - [Binary formats](files/binary.md)

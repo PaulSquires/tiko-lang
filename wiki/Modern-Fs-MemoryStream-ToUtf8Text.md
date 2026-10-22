@@ -13,6 +13,7 @@ MemoryStream.ToUtf8Text( )
 ## Notes
 
 - Every byte decoded as text by ReadAllText's rules, so a file and a MemoryStream holding the same bytes give the same string: a UTF-8, UTF-16LE or UTF-16BE byte-order mark is honoured and dropped; no mark means UTF-8; invalid UTF-8 becomes U+FFFD.
+- It cannot fail, so it decodes a UTF-32 byte-order mark as the marks above, where ReadAllText refuses one. [MemoryStream.ToText](Modern-Fs-MemoryStream-ToText) decodes in an encoding you name and reports failures.
 
 ## Examples
 

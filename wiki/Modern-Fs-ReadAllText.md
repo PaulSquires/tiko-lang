@@ -16,6 +16,7 @@ ReadAllText( p, found, opts [, mode ] )   '' detect: a BOM, else UTF-8, else opt
 ## Notes
 
 - FsResultUStr
+- Without an encoding, a file that starts with a UTF-32 byte-order mark (FF FE 00 00 or 00 00 FE FF) fails with FS_UNSUPPORTED rather than being read as UTF-16 or UTF-8.
 - With an encoding, that encoding is used whatever the file starts with; only a BOM that matches it is skipped. `mode` is TEXT_REPLACE (bytes that do not decode become U+FFFD, the default) or TEXT_STRICT (they fail with FS_INVALID_DATA). See [Choosing An Encoding](Category-File-Streams#choosing-an-encoding).
 - With a `TextDetect`, the encoding is a BOM if there is one, else UTF-8 if the bytes are valid UTF-8 (an empty file is), else `opts.Fallback`, and `found` is set to it. A UTF-32 BOM is FS_UNSUPPORTED. See [Detection](Category-Codec#detection).
 

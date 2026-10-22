@@ -1,3 +1,4 @@
 records: 3, each 16 bytes
 record 2: 20 part2
 record 2 now: 15
+record 4 there? false

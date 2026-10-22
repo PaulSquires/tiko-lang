@@ -1,7 +1,8 @@
 # Records at a position
 
-`ReadAt` and `WriteAt` read and write bytes at a position in the file, so a
-file of fixed-size records can be read and changed by record number.
+A file of fixed-size records can be read and changed **by record number**,
+without touching the records around the one you want. A
+`RecordFile( of T )` is such a file, holding records of the type `T`.
 
 ```tiko
 {{#include ../../examples/files/records.tiko}}
@@ -13,18 +14,28 @@ file of fixed-size records can be read and changed by record number.
 {{#include ../../examples/files/records.out}}
 ```
 
-`WriteAt( position, buffer, count )` writes `count` bytes at byte `position`;
-`ReadAt` reads them. Record `n` starts `n * sizeof( Score )` bytes into the
-file, so record 2 is read, changed and written back without touching the
-others. `Size( )` is the length of the file in bytes.
+`Open( path )` opens the file for reading and writing, and creates it if it is
+not there. Records are numbered **from 1**. `Append` adds a record after the
+last one and returns its number; `PutRecord( n, s )` writes record `n` and
+`GetRecord( n, s )` reads it. `Count( )` is the number of whole records, and
+`for each` walks them in order, one `Result` per record.
 
-Neither call moves the file's position, and several threads may use them on
-one `File` at once. The record must hold only fixed-size fields: a `ustring` is
-a pointer to its text, and a pointer written to a file means nothing when it is
-read back.
+Reading a record that is not all there, past the end or a short last record,
+is not an error: the value is `false` and the record is left as it was.
+Writing past the end grows the file, and the records in the gap read as zeros.
+
+The record must hold only fixed-size fields: numbers, `zstring * n`, and types
+made of those. A `ustring` is a pointer to its text, and a pointer written to a
+file means nothing when it is read back. The bytes are the record's bytes in
+memory, so add `field = 1` to the type for a layout with no padding.
+
+Underneath, these are `ReadAt` and `WriteAt`, which read and write bytes at a
+byte position in any `File` without moving its position. Use them directly for
+a file that mixes records with other data, such as a header, and
+`ReadRecord( of T )`, `WriteRecord( of T )` and `RecordCount( of T )` for
+records in a `File` you opened yourself.
 
 ### Activities
 
 1. Add a `bonus as int32` field to `Score`. Which numbers in the output change?
-2. Read record 10, past the end of the file, and print the count `ReadAt`
-   returns.
+2. Write record 6 with `PutRecord`, then print `Count( )` and record 5.

@@ -7,33 +7,25 @@ type Item
     label as string * 8       '' fixed width: every record the same
 end type
 
-'' Record n starts (n - 1) records into the file.
-function Offset( byval n as int32 ) as int64
-    return ( n - 1 ) * sizeof( Item )
-end function
-
-dim o as fs.OpenOptions
-o.Read = true
-o.Write = true
-o.Create = true
-dim f as fs.File
-f.Open( "stock.dat", o )
+dim stock as fs.RecordFile( of Item )
+stock.Open( "stock.dat" )                 '' read and write; created if missing
 
 dim it as Item
 for n as int32 = 1 to 3
     it.id = n
     it.qty = n * 10
     it.label = "part" & n
-    f.WriteAt( Offset( n ), cptr( ubyte ptr, @it ), sizeof( Item ) )
+    stock.Append( it )                    '' becomes record n
 next
-print "records:"; f.Size( ).Value( ) \ sizeof( Item ); _
-      ", each"; sizeof( Item ); " bytes"
+print "records:"; stock.Count( ).Value( ); _
+      ", each"; stock.RecordLength( ); " bytes"
 
-f.ReadAt( Offset( 2 ), cptr( ubyte ptr, @it ), sizeof( Item ) )
+stock.GetRecord( 2, it )
 print "record 2:"; it.qty; " "; rtrim( it.label )
 it.qty -= 5
-f.WriteAt( Offset( 2 ), cptr( ubyte ptr, @it ), sizeof( Item ) )
-f.ReadAt( Offset( 2 ), cptr( ubyte ptr, @it ), sizeof( Item ) )
+stock.PutRecord( 2, it )
+stock.GetRecord( 2, it )
 print "record 2 now:"; it.qty
-f.Close( )
+print "record 4 there? "; stock.GetRecord( 4, it ).Value( )
+stock.Close( )
 fs.RemoveFile( "stock.dat" )

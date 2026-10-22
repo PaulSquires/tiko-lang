@@ -11,6 +11,7 @@ type MemoryStream extends Stream
     declare constructor( )                         '' empty
     declare constructor( buf as Array( of ubyte ) ) '' a copy of buf, position 0
     declare constructor( byref s as const ustring ) '' the UTF-8 bytes of s, position 0
+    Length( ) / ToBytes( buf ) / ToUtf8Text( ) / ToText( enc [, mode ] ) / Clear( )
 end type
 ```
 

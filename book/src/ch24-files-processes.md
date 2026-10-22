@@ -43,8 +43,41 @@ same bytes everywhere. `ReadLines` accepts either ending, removes it, and yields
 `Result( of ustring, FsError )` per line — `ln.Value( )` is the text. It holds one line in memory at
 a time, whatever the size of the file, and leaving the loop early closes the file.
 
-Text is UTF-8. A `TextReader` and `ReadLines` also honour a byte-order mark at the start of a file,
-for UTF-8 and UTF-16 text written by other programs.
+Text is UTF-8 unless you say otherwise, and a `TextReader` and `ReadLines` also honour a byte-order
+mark at the start of a file, for UTF-8 and UTF-16 text written by other programs.
+
+### Text in other encodings
+
+Not every file is UTF-8. Windows tools save UTF-16, and older programs save in a **code page** such
+as Windows-1252, one byte per character, in which the same letters are different bytes. Every text
+call in std/fs takes an encoding as an extra, last argument:
+
+```tiko
+{{#include ../examples/ch24/encodings.tiko}}
+```
+
+```text
+{{#include ../examples/ch24/encodings.out}}
+```
+
+An encoding is a `TextEncoding`. `Utf8( )` is the default; `Utf16LE( )` and `Utf16BE( )` write a
+byte-order mark unless passed `false`; `CodePage( n )` is a Windows code page by number, and
+`Ansi( )` the one the machine is set to, on Windows only; `BinaryMode( )` reads byte n as character
+n, so any file reads and writes back unchanged. `ReadAllText`, `ReadAllLines`, `WriteAllText`,
+`AppendAllText`, `WriteAtomic`, `ReadLines`, `TextReader` and `TextWriter` all take one, and so do
+`Stream.WriteText` and `MemoryStream.ToText` for bytes in memory.
+
+A read with an encoding **believes it**: a byte-order mark that matches is skipped, and any other
+bytes are text. Bytes that are not valid in the encoding become U+FFFD, or fail under `TEXT_STRICT`.
+When the encoding is not known, pass a `TextDetect` instead, as the listing does: a byte-order mark
+decides, else UTF-8 if the bytes are valid UTF-8, else the fallback it names, and `found` says which
+was used. A file that starts with a UTF-32 mark is refused with `FS_UNSUPPORTED`, never misread.
+
+A write is **strict by default**. A character the encoding cannot hold fails with
+`FS_INVALID_DATA` before the file is opened, so the file keeps what it had. Pass `TEXT_REPLACE` to
+write a `?` in its place instead; the write then succeeds and its value is `false`, meaning "written,
+but not exactly". `AppendAllText` with an encoding refuses to add UTF-16 to a file that starts with
+a UTF-8 mark, or the other way round.
 
 ### Opening a file
 
@@ -96,7 +129,7 @@ prefer a format both sides agree on.
 ### Records at a position
 
 A file of fixed-size records can be read and written **by number**, without touching the records
-around the one you want:
+around the one you want. A `RecordFile( of T )` is such a file, of records of the type `T`:
 
 ```tiko
 {{#include ../examples/ch24/records.tiko}}
@@ -106,12 +139,24 @@ around the one you want:
 {{#include ../examples/ch24/records.out}}
 ```
 
-`WriteAt( position, buffer, count )` writes `count` bytes at a byte position, and `ReadAt` reads
-them; record `n` begins `( n - 1 ) * sizeof( Item )` bytes into the file. Neither moves the file's
-position, and both may be called from several threads on one `File`. `Size( )` is the length of
-the file in bytes. Every field must have a fixed size for this to work, which is why `label` is a
-`string * 8` rather than a `ustring`: a variable-length string is a pointer, and a pointer written to
-a file means nothing when it is read back.
+`Open` opens the file for reading and writing and creates it if it is missing; `Open( p, options )`
+takes `OpenOptions` instead. Records are numbered from 1, and record `n` begins
+`( n - 1 ) * sizeof( Item )` bytes into the file. `Append` writes after the last record and returns
+the new record's number, `GetRecord` and `PutRecord` read and write record `n`, `Count( )` is the
+number of whole records, and `for each r in stock` walks them, one `Result` per record. Reading a
+record that is not all there — past the end, or a short last record — is not a failure: the value
+is `false` and the record is left untouched. Writing past the end grows the file, and the records
+in between read as zeros.
+
+Every field must have a fixed size for this to work, which is why `label` is a `string * 8` rather
+than a `ustring`: a variable-length string is a pointer, and a pointer written to a file means
+nothing when it is read back. Nothing checks this for you. The bytes are the record's bytes in
+memory, padding included; `field = 1` removes the padding.
+
+Underneath are `File.ReadAt( position, buffer, count )` and `WriteAt`, which read and write bytes
+at any byte position without moving the file's position, and may be called from several threads on
+one `File`. Use them for a file that mixes records with other data, and `ReadRecord( of T )`,
+`WriteRecord( of T )` and `RecordCount( of T )` for records in a `File` you have opened yourself.
 
 ### Binary formats
 
@@ -536,7 +581,8 @@ tiko still compiles the file statements of the BASIC family — `open`, `print #
 | `open … for output` / `append` / `input` | open a text file | `File.Create`, `OpenAppend`, `OpenRead` |
 | `print #`, `line input #`, `eof` | write and read lines | `TextWriter.WriteLine`, `ReadLines`, `TextReader.ReadLine` |
 | `write #`, `input #` | comma-separated fields | `WriteLine` of the fields, `strings.SplitCsvRow` |
-| `open … for random`, `get #`, `put #` | fixed-size records | `File.ReadAt`, `WriteAt` |
+| `open … for random`, `get #`, `put #` | fixed-size records | `RecordFile`: `GetRecord`, `PutRecord`, `Append` |
+| `open … encoding "utf-16"` | text in another encoding | an encoding argument: `ReadAllText( p, Utf16LE( ) )` |
 | `lof( f )`, `seek` | length, position | `File.Size( )`, `Seek` |
 | `mkdir p`, `rmdir p` | create or remove a directory | `CreateDir`, `CreateDirAll`, `RemoveDir`, `RemoveDirAll` |
 | `chdir p`, `curdir( )` | change or read the current directory | `SetCurrentDir`, `CurrentDir` |
@@ -836,8 +882,12 @@ followed for you, up to ten.
   `Open( p, OpenOptions )`, closes itself, and reports every failure as an `FsError`.
 - `TextWriter.WriteLine` writes lines; `for each ln in ReadLines( p )` reads them back.
   `strings.SplitCsvRow` splits a line of comma-separated fields.
-- `ReadAt` and `WriteAt` read and write fixed-size records at a position; every field must be
-  fixed-size.
+- Every text call takes an encoding: `Utf8( )`, `Utf16LE( )`, `Utf16BE( )`, `CodePage( n )`,
+  `Ansi( )`, `BinaryMode( )`. Reads believe it; `TextDetect` guesses; writes refuse what the
+  encoding cannot hold unless given `TEXT_REPLACE`.
+- `RecordFile( of T )` reads and writes fixed-size records by number, from 1, with `GetRecord`,
+  `PutRecord`, `Append` and `for each`; every field must be fixed-size. `ReadAt` and `WriteAt` are
+  the byte-level calls underneath.
 - `std/codec` lays out binary formats in a byte `Array`: `Get`/`Put`/`Append` + width + `LE`/`BE`,
   and LEB128 varints with `AppendUVarint`/`ReadUVarint`.
 - A `File` is a `Stream`, like `MemoryStream`; buffers, text readers and writers, and `Copy` work on
@@ -874,7 +924,7 @@ followed for you, up to ten.
 
 1. Walk a directory tree and count its files by extension, printing the counts in a stable order.
    {solution="ex24-01"}
-2. Write `Sell( f, record, n )` for the stock file of `records.tiko`: it reduces the quantity of
+2. Write `Sell( stock, record, n )` for the stock file of `records.tiko`: it reduces the quantity of
    record `record` by `n` and refuses, returning `false`, if there are not enough.
    {solution="ex24-02"}
 3. Make `pathescape.tiko` refuse any name that would leave `uploads`, and print which names were

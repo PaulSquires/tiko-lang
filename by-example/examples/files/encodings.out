@@ -1,0 +1,10 @@
+Text encodings
+UTF-8:        63 61 66 C3 A9
+UTF-16LE:     FF FE 63 00 61 00 66 00 E9 00
+Windows-1252: 63 61 66 E9
+as 1252, last character: U+00E9
+as UTF-8, last character: U+FFFD
+detected: windows-1252
+a snowman in 1252: refused
+with TEXT_REPLACE: exact = false
+bytes:        73 6E 6F 77 3F

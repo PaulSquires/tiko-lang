@@ -32,8 +32,9 @@ The pages in this section:
 - [Paths](paths.md): taking paths apart and putting them together.
 - [Reading and writing files](readwrite.md): a whole file in one call.
 - [Line by line](lines.md): `File`, `TextWriter` and `ReadLines`.
+- [Text encodings](encodings.md): UTF-16, Windows code pages and raw bytes.
 - [Opening a File](opening.md): the ways to open, and what each refuses.
-- [Records at a position](records.md): `ReadAt` and `WriteAt`.
+- [Records at a position](records.md): `RecordFile`, `ReadAt` and `WriteAt`.
 - [Binary formats](binary.md): numbers in a byte order, and varints.
 - [Streams](streams.md): one interface for files, memory and your own types.
 - [File information](metadata.md): `Stat` and the yes-or-no questions.

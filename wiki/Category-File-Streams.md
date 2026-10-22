@@ -80,6 +80,8 @@ With no encoding named, five rules:
 4. **WriteAllText writes UTF-8 with no BOM.** Name `Utf8( true )` if you need one.
 5. **ReadAllLines splits on `\n` and strips a preceding `\r`**, so CRLF, LF and a mixed file give the same lines. A final newline does not produce a trailing empty line; an empty file gives zero lines. A lone `\r` is not a terminator -- classic Mac endings are not supported.
 
+A file that starts with a UTF-32 byte-order mark (FF FE 00 00 or 00 00 FE FF) is refused with FS_UNSUPPORTED by every call that chooses the encoding itself -- ReadAllText, ReadAllLines, ReadLines and a TextReader -- rather than read as UTF-16 or UTF-8. A call given an encoding believes it.
+
 Reading a directory is FS_IS_A_DIRECTORY on both platforms. A file too large to allocate is FS_NO_SPACE, not a truncation.
 
 ### Choosing An Encoding
@@ -110,6 +112,8 @@ ReadAllLines( p, lines, enc [, mode ] )
 WriteAllText( p, s, enc [, mode ] )        mode TEXT_STRICT by default
 AppendAllText( p, s, enc [, mode ] )
 WriteAtomic( p, s, enc [, mode ] )
+Stream.WriteText( s, enc [, mode ] )       the bytes WriteAllText would write
+MemoryStream.ToText( enc [, mode ] )       the text ReadAllText would read
 ```
 
 The encodings are `Utf8( [bom] )`, `Utf16LE( [bom] )`, `Utf16BE( [bom] )`, `Ansi( )`, `CodePage( n )` and `BinaryMode( )`. `fs.TextEncoding` is `codec.TextEncoding` under another name. A program with both `using fs` and `using codec` has to qualify these names.
@@ -162,6 +166,29 @@ OpenOptionsRead( ) / OpenOptionsWrite( ) / OpenOptionsAppend( )
 
 **Locks are whole-file and belong to the handle.** Lock waits, TryLock fails with FS_WOULD_BLOCK, and closing the File releases its lock. They use the same mechanism as FileLock, so the two exclude each other.
 
+## Records
+
+```text
+RecordFile( of T )        a file of fixed-size records of T, numbered from 1
+  .Open( p [, recordLen ] ) / .Open( p, opts [, recordLen ] )   read + write + create by default
+  .GetRecord( n, r )      FsResultBool -- false, r untouched, if record n is not all there
+  .PutRecord( n, r )      FsResultBool -- past the end grows the file
+  .Append( r )            FsResultI64 -- the new record's number
+  .Count( )               FsResultI64 -- whole records only
+  .Close( ) .IsOpen( ) .RecordLength( )
+  for each r in rf        each an FsResult of T
+ReadRecord( of T )( f, n, r ) / WriteRecord( of T )( f, n, r ) / RecordCount( of T )( f )
+                          the same, on a File you opened yourself
+```
+
+**Records are numbered from 1**, and record n is the bytes at ( n - 1 ) times the record length, which is sizeof( T ) unless Open is given a longer one for a file whose records are padded. This is the model of [Random](Random) files, with the failures returned as values.
+
+**A record that is not there is not an error.** Reading past the end, or a short last record, gives a value of false and leaves the record as it was; Count( ) does not count a short record. Writing past the end grows the file, and the records in the gap read as zeros. Append can never leave a gap.
+
+**T must be plain data**: numbers, zstring * n and wstring * n, and types made of those. A ustring, string, pointer or dynamic array is written as the address it holds, which means nothing when the file is read back, and nothing checks this for you. The bytes are T's bytes in memory, padding included; `field = 1` removes the padding, and [std/codec](Category-Codec)'s Get and Put helpers lay out a format that must read the same on another machine.
+
+**It owns its File.** A RecordFile closes itself when it goes out of scope; do not copy one, pass it byref. There are no record locks: File.Lock locks the whole file.
+
 ## Streams
 
 ```text
@@ -173,9 +200,11 @@ Stream                    the byte-stream base type
   .ReadExact( buf, n )    FsResultBool -- FS_UNEXPECTED_EOF if the data ends first
   .ReadToEnd( buf )       FsResultI64 -- APPENDS to an Array( of ubyte )
   .WriteAll( buf, n ) / .WriteBytes( buf ) / .WriteUtf8( s )
+  .WriteText( s, enc [, mode ] )   FsResultBool -- false if written lossily
   .Position( )            FsResultI64
   .CanRead( ) .CanWrite( ) .CanSeek( )
 MemoryStream              a growable byte buffer; a value
+  .Length( ) .ToBytes( buf ) .ToUtf8Text( ) .ToText( enc [, mode ] ) .Clear( )
 Copy( src, dst [, bufSize ] )   FsResultI64 -- src's position to its end
 ```
 
@@ -290,6 +319,12 @@ Every entry, grouped by task. [Files and folders](Functions-Files) lists them be
 | [AppendAllText](Modern-Fs-AppendAllText) | Adds text to the end of a file, creating the file if it is not there. | `std/fs` |
 | [AppendAllBytes](Modern-Fs-AppendAllBytes) | Adds an Array of bytes to the end of a file, creating the file if it is not there. | `std/fs` |
 | [WriteAtomic](Modern-Fs-WriteAtomic) | Replaces a file so a reader sees the old or the new contents, never a half-written file. | `std/fs` |
+
+### File numbers: open and close files
+
+| Function | What it does | From |
+|---|---|---|
+| [Random](Random) | Opens a file with Open for reading and writing fixed-size records, 128 bytes by default. | built-in |
 
 ### Read and write text a line at a time
 

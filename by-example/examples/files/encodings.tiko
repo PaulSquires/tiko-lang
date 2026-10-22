@@ -1,0 +1,50 @@
+#import "std/fs"
+#import "std/containers"
+
+print "Text encodings"
+
+sub ShowBytes( byref label as string, byref p as const ustring )
+    dim as containers.Array( of ubyte ) b
+    fs.ReadAllBytes( p, b )
+    dim as string h
+    for i as long = 0 to b.Count( ) - 1
+        h &= " " & hex( b[i], 2 )
+    next
+    print label; h
+end sub
+
+dim as ustring dir_ = fs.CreateTempDir( "tbe" ).Value( )
+dim as ustring p = fs.PathJoin( dir_, "note.txt" )
+'' "cafe", the last letter an e with an acute accent
+dim as ustring text = "caf" & wchr( &hE9 )
+
+'' The same four characters, written three ways.
+fs.WriteAllText( p, text )                      '' UTF-8, the default
+ShowBytes( "UTF-8:       ", p )
+fs.WriteAllText( p, text, fs.Utf16LE( ) )       '' BOM, two bytes a character
+ShowBytes( "UTF-16LE:    ", p )
+fs.WriteAllText( p, text, fs.CodePage( 1252 ) ) '' Windows Western, one byte
+ShowBytes( "Windows-1252:", p )
+
+'' Read it back in the encoding it was written in...
+dim as ustring t = fs.ReadAllText( p, fs.CodePage( 1252 ) ).Value( )
+print "as 1252, last character: U+"; hex( t[3], 4 )
+'' ...because the default, UTF-8, cannot make sense of the byte E9.
+t = fs.ReadAllText( p ).Value( )
+print "as UTF-8, last character: U+"; hex( t[3], 4 )
+
+'' Not sure? A BOM, else valid UTF-8, else the fallback you name.
+dim as fs.TextEncoding found
+fs.ReadAllText( p, found, fs.TextDetect( fs.CodePage( 1252 ) ) )
+print "detected: "; found.Name( )
+
+'' A character the encoding has no byte for is refused; nothing is written...
+var r = fs.WriteAllText( p, "snow" & wchr( &h2603 ), fs.CodePage( 1252 ) )
+print "a snowman in 1252: "; iif( r.IsOk( ), "written", "refused" )
+'' ...unless you allow a '?' in its place; then the result says it was lossy.
+r = fs.WriteAllText( p, "snow" & wchr( &h2603 ), fs.CodePage( 1252 ), _
+                     fs.TEXT_REPLACE )
+print "with TEXT_REPLACE: exact = "; r.Value( )
+ShowBytes( "bytes:       ", p )
+
+fs.RemoveDirAll( dir_ )

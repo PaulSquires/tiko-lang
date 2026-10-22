@@ -1,6 +1,7 @@
 Records at a position
-file size: 32
-player 0: 0
+records: 4, each 8 bytes
 player 1: 100
-player 2: 205
-player 3: 300
+player 2: 200
+player 3: 305
+player 4: 400
+record 9 there? false

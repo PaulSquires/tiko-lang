@@ -1,0 +1,28 @@
+#import "std/fs"
+
+'' Two programs saved the same name: one in Windows-1252, one in UTF-16.
+dim as ustring name_ = "M" & wchr( &hFC ) & "ller"      '' u with an umlaut
+fs.WriteAllText( "legacy.txt", name_, fs.CodePage( 1252 ) )
+fs.WriteAllText( "unicode.txt", name_, fs.Utf16LE( ) )
+
+'' Read both without knowing which is which: a BOM, else UTF-8 if the
+'' bytes are valid UTF-8, else the fallback named here.
+dim as fs.TextDetect guess = fs.TextDetect( fs.CodePage( 1252 ) )
+dim as fs.TextEncoding found
+dim as ustring a = fs.ReadAllText( "legacy.txt", found, guess ).Value( )
+print "legacy.txt:  "; found.Name( )
+dim as ustring u = fs.ReadAllText( "unicode.txt", found, guess ).Value( )
+print "unicode.txt: "; found.Name( )
+print "the same text: "; iif( a = u, "yes", "no" )
+
+'' Windows-1252 has no arrow, so writing one is refused, and the
+'' file is left as it was.
+var r = fs.WriteAllText( "legacy.txt", name_ & wchr( &h2192 ), _
+                         fs.CodePage( 1252 ) )
+print "an arrow in 1252: "; iif( r.IsOk( ), "written", "refused" )
+dim as ustring now_ = _
+    fs.ReadAllText( "legacy.txt", fs.CodePage( 1252 ) ).Value( )
+print "legacy.txt unchanged: "; iif( now_ = name_, "yes", "no" )
+
+fs.RemoveFile( "legacy.txt" )
+fs.RemoveFile( "unicode.txt" )

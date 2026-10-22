@@ -6,28 +6,23 @@ type Item
     qty as int32
 end type
 
-function Sell( byref f as fs.File, byval rec as int32, _
+function Sell( byref stock as fs.RecordFile( of Item ), byval rec as int32, _
                byval n as int32 ) as boolean
     dim it as Item
-    dim as int64 at = ( rec - 1 ) * sizeof( Item )
-    var got = f.ReadAt( at, cptr( ubyte ptr, @it ), sizeof( Item ) )
-    if got.IsOk( ) = false then return false
+    var got = stock.GetRecord( rec, it )
+    if got.ValueOr( false ) = false then return false   '' failed, or no record
     if it.qty < n then return false
     it.qty -= n
-    return f.WriteAt( at, cptr( ubyte ptr, @it ), sizeof( Item ) ).IsOk( )
+    return stock.PutRecord( rec, it ).IsOk( )
 end function
 
-dim o as fs.OpenOptions
-o.Read = true
-o.Write = true
-o.Create = true
-dim f as fs.File
-f.Open( "ex.dat", o )
+dim stock as fs.RecordFile( of Item )
+stock.Open( "ex.dat" )
 dim it as Item
 it.id = 1 : it.qty = 5
-f.WriteAt( 0, cptr( ubyte ptr, @it ), sizeof( Item ) )
-print Sell( f, 1, 3 ); Sell( f, 1, 3 )
-f.ReadAt( 0, cptr( ubyte ptr, @it ), sizeof( Item ) )
+stock.Append( it )
+print Sell( stock, 1, 3 ); Sell( stock, 1, 3 ); Sell( stock, 2, 1 )
+stock.GetRecord( 1, it )
 print "left:"; it.qty
-f.Close( )
+stock.Close( )
 fs.RemoveFile( "ex.dat" )

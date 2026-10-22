@@ -12,7 +12,7 @@ type Stream extends object
     Read( buf, n ) / Write( buf, n )             '' virtual, FsResultI64
     Seek( offset [, origin ] )                   '' virtual, FsResultI64
     Flush( )                                     '' virtual, FsResultBool
-    ReadExact / ReadToEnd / WriteAll / WriteBytes / WriteUtf8 / Position
+    ReadExact / ReadToEnd / WriteAll / WriteBytes / WriteUtf8 / WriteText / Position
 end type
 ```
 

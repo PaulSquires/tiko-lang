@@ -161,6 +161,15 @@ Modern-Fs-OpenOptions	OpenOptions	-	file	std/fs	-	Holds the flags that say how F
 Modern-Fs-OpenOptionsRead	OpenOptionsRead	-	file	std/fs	-	Returns the OpenOptions for reading a file that must already exist.
 Modern-Fs-OpenOptionsWrite	OpenOptionsWrite	-	file	std/fs	-	Returns the OpenOptions for writing a new file or an existing one emptied.
 Modern-Fs-OpenOptionsAppend	OpenOptionsAppend	-	file	std/fs	-	Returns the OpenOptions for adding to the end of a file, creating it if needed.
+Modern-Fs-RecordFile	RecordFile	-	records	std/fs	-	Holds a file of fixed-size records of one type, read and written by number.
+Modern-Fs-RecordFile-Open	RecordFile.Open	-	records	std/fs	-	Opens a file of records for reading and writing, creating it if it is missing.
+Modern-Fs-RecordFile-GetRecord	RecordFile.GetRecord	-	records	std/fs	-	Reads record n into a variable; false when the file has no such record.
+Modern-Fs-RecordFile-PutRecord	RecordFile.PutRecord	-	records	std/fs	-	Writes a variable as record n, growing the file when n is past the end.
+Modern-Fs-RecordFile-Append	RecordFile.Append	-	records	std/fs	-	Writes a variable after the last record and returns its record number.
+Modern-Fs-RecordFile-Count	RecordFile.Count	-	records	std/fs	-	Returns the number of whole records in the file.
+Modern-Fs-ReadRecord	ReadRecord	-	records	std/fs	-	Reads record n of a type from an open File, counting records from 1.
+Modern-Fs-WriteRecord	WriteRecord	-	records	std/fs	-	Writes a value as record n of an open File, growing the file if needed.
+Modern-Fs-RecordCount	RecordCount	-	records	std/fs	-	Returns the number of whole records of a type in an open File.
 Modern-Fs-Stream	Stream	-	streams	std/fs	-	Holds the base type of every byte stream, with read, write, seek and flush.
 Modern-Fs-Stream-Read	Stream.Read	-	streams	std/fs	-	Reads up to n bytes and returns how many; 0 means the end of the data.
 Modern-Fs-Stream-ReadExact	Stream.ReadExact	-	streams	std/fs	-	Reads exactly n bytes, or fails if the data ends first.
@@ -169,6 +178,7 @@ Modern-Fs-Stream-Write	Stream.Write	-	streams	std/fs	-	Writes up to n bytes and 
 Modern-Fs-Stream-WriteAll	Stream.WriteAll	-	streams	std/fs	-	Writes all n bytes, calling Write as often as it takes.
 Modern-Fs-Stream-WriteBytes	Stream.WriteBytes	-	streams	std/fs	-	Writes every byte of an Array.
 Modern-Fs-Stream-WriteUtf8	Stream.WriteUtf8	-	streams	std/fs	-	Writes a string as UTF-8, with no BOM.
+Modern-Fs-Stream-WriteText	Stream.WriteText	-	streams	std/fs	-	Writes a string in a text encoding, the bytes WriteAllText would write.
 Modern-Fs-Stream-Seek	Stream.Seek	-	streams	std/fs	-	Moves the position from the start, the current place or the end; returns the new position.
 Modern-Fs-Stream-Position	Stream.Position	-	streams	std/fs	-	Returns the current position, or fails on a stream that cannot seek.
 Modern-Fs-Stream-Flush	Stream.Flush	-	streams	std/fs	-	Passes any buffered bytes on to where they are going.
@@ -182,6 +192,7 @@ Modern-Fs-MemoryStream-Length	MemoryStream.Length	-	streams	std/fs	-	Returns the
 Modern-Fs-MemoryStream-Clear	MemoryStream.Clear	-	streams	std/fs	-	Empties the stream; its length and position become 0.
 Modern-Fs-MemoryStream-ToBytes	MemoryStream.ToBytes	-	streams	std/fs	-	Copies every byte held into an Array; returns the count.
 Modern-Fs-MemoryStream-ToUtf8Text	MemoryStream.ToUtf8Text	-	streams	std/fs	-	Returns the bytes held decoded as text, the same way ReadAllText decodes a file.
+Modern-Fs-MemoryStream-ToText	MemoryStream.ToText	-	streams	std/fs	-	Returns the bytes held decoded in a text encoding, as ReadAllText would read them.
 Modern-Fs-BufferedReader	BufferedReader	-	streams	std/fs	-	Holds a Stream that reads another in large pieces, so many small reads stay fast.
 Modern-Fs-BufferedReader-ReadByte	BufferedReader.ReadByte	-	streams	std/fs	-	Reads the next byte; returns false at the end.
 Modern-Fs-BufferedReader-ReadLine	BufferedReader.ReadLine	-	streams	std/fs	-	Reads the next line as raw bytes in a string, not decoded; returns false at the end.

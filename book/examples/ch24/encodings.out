@@ -1,0 +1,5 @@
+legacy.txt:  windows-1252
+unicode.txt: utf-16le
+the same text: yes
+an arrow in 1252: refused
+legacy.txt unchanged: yes
