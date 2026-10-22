@@ -1,0 +1,13 @@
+'' RUN: a name written INSIDE a header an '#import' read -- here WORD in windows.bi's BGR( ),
+'' expanded in the program -- is the header's own use, not the program's: TKO0919 does not
+'' judge it, even with a 'using' that offers a 'Word' (src/symbols/declshape.tiko). The
+'' program's own bare WORD in the same unit would still be TKO0919 (tasks-win-using-ambiguous
+'' is that rule).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/modules/src/taskswin/header-macro-own.tiko -o tests/modules/taskswinheadermacroown.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0919
+'' EXPECT-FILE: tests/modules/taskswinheadermacroown.exe
+'' RUN: tests/modules/taskswinheadermacroown.exe
+'' EXPECT-RUN-OUT: 30201

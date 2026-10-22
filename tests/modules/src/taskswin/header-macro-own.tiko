@@ -1,0 +1,12 @@
+'' A 'using' offers a 'Word' function, and windows.bi (read for sys/win's import) declares
+'' type WORD. The program's own bare WORD would be TKO0919; but BGR( ) is windows.bi's macro,
+'' and the WORD its expansion casts to is written in windows.bi, against windows.bi's own
+'' declaration -- not ambiguous.
+#import "sys/win"
+namespace shades
+    function Word( ) as integer
+        return 1
+    end function
+end namespace
+using shades
+print hex( BGR( 1, 2, 3 ) )

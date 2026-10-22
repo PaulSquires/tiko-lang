@@ -850,6 +850,11 @@ private sub CheckUsingAmbiguity_ ( byref c as Ctx )
             continue for
         end select
         if nm = 0 then continue for
+        '' A USE WRITTEN IN A HEADER AN '#import' READ is that header's, against its own
+        '' declarations -- not the program's text, and not this question. windows.bi's BGR( )
+        '' casts to its own WORD, and a 'using' that offers some 'Word' expands it in the
+        '' program but must not make the header's own spelling ambiguous.
+        if FromImport_( c, c.ast->Loc( x ) ) then continue for
         dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( x ) )
         if s = nullptr then continue for
         select case cast( SymbolKind, s->kind )
