@@ -1,0 +1,17 @@
+'' TKO0605, fbc's 11, for a STRING constant initialised from what fbc does not fold: string,
+'' space, left, the one-argument ucase, hex, mkd, the program's own function and a
+'' variable. Each was accepted, and the constant's first use was TKO0994. The forms fbc
+'' folds -- str, wstr, chr, wchr, the two-argument lcase and ucase -- are fine. See
+'' symbols/declshape.tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/const-str-not-constant.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: const-str-not-constant.bas(7,18): error TKO0605
+'' EXPECT-OUT: const-str-not-constant.bas(8,11): error TKO0605
+'' EXPECT-OUT: const-str-not-constant.bas(9,17): error TKO0605
+'' EXPECT-OUT: const-str-not-constant.bas(10,13): error TKO0605
+'' EXPECT-OUT: const-str-not-constant.bas(11,11): error TKO0605
+'' EXPECT-OUT: const-str-not-constant.bas(12,17): error TKO0605
+'' EXPECT-OUT: const-str-not-constant.bas(13,11): error TKO0605
+'' EXPECT-OUT: const-str-not-constant.bas(14,11): error TKO0605
+'' EXPECT-MAX-DIAG: 8
