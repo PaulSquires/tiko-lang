@@ -30,6 +30,11 @@ using containers
 '' it was. A BOM is written when the encoding's Bom says so: Utf16LE( ) and Utf16BE( ) by
 '' default, Utf8( TRUE ) when asked, a code page and BINARY never (E8).
 ''
+'' DETECTING (E6): ReadAllText( p, found, opts ) takes a BOM if there is one, else valid
+'' UTF-8 (an empty file is UTF-8), else opts.Fallback -- Ansi( ) for the editor's rule,
+'' Binary_( ) to lose nothing -- and says in `found` which it used. A UTF-32 BOM is
+'' FS_UNSUPPORTED. The whole file is judged; TextReader( s, opts ) judges a prefix.
+''
 '' APPENDING CHECKS THE BOM (E10). A file that starts with a BOM for a different UTF
 '' fails with FS_INVALID_DATA and is left as it was. A new or empty file gets the BOM; a
 '' file with text in it never gets another. Code pages and BINARY have no BOM, so there
@@ -41,6 +46,8 @@ using containers
 
 public declare function ReadAllText overload ( byref p as const ustring, byval enc as TextEncoding, _
     byval mode as TextErrorMode = TEXT_REPLACE ) as FsResultUStr
+public declare function ReadAllText overload ( byref p as const ustring, byref found as TextEncoding, _
+    byref opts as const TextDetect, byval mode as TextErrorMode = TEXT_REPLACE ) as FsResultUStr
 public declare function ReadAllLines overload ( byref p as const ustring, lines as Array( of ustring ), _
     byval enc as TextEncoding, byval mode as TextErrorMode = TEXT_REPLACE ) as FsResultLong
 public declare function WriteAllText overload ( byref p as const ustring, byref s as const ustring, _
@@ -61,6 +68,21 @@ public function ReadAllText( byref p as const ustring, byval enc as TextEncoding
     if( r.IsOk( ) = FALSE ) then return Fail( of ustring, FsError )( hEncRelabel( r.Failure( ), "ReadAllText", p ) )
     dim as boolean strict = ( mode = TEXT_STRICT )
     dim as codec.EncResultText t = codec.DecodeText( b, enc, strict )
+    if( t.IsOk( ) = FALSE ) then return Fail( of ustring, FsError )( FsEncodingFailure( t.Failure( ), "ReadAllText", p ) )
+    return Ok( of ustring, FsError )( t.Value( ) )
+end function
+
+'' The bytes of p, decoded in the encoding opts' rules find for them; found is set to it.
+public function ReadAllText( byref p as const ustring, byref found as TextEncoding, byref opts as const TextDetect, _
+        byval mode as TextErrorMode ) as FsResultUStr
+    dim as Array( of ubyte ) b
+    dim as FsResultI64 r = ReadAllBytes( p, b )
+    if( r.IsOk( ) = FALSE ) then return Fail( of ustring, FsError )( hEncRelabel( r.Failure( ), "ReadAllText", p ) )
+    dim as codec.EncResultEncoding d = codec.DetectEncoding( b, opts )
+    if( d.IsOk( ) = FALSE ) then return Fail( of ustring, FsError )( FsEncodingFailure( d.Failure( ), "ReadAllText", p ) )
+    found = d.Value( )
+    dim as boolean strict = ( mode = TEXT_STRICT )
+    dim as codec.EncResultText t = codec.DecodeText( b, found, strict )
     if( t.IsOk( ) = FALSE ) then return Fail( of ustring, FsError )( FsEncodingFailure( t.Failure( ), "ReadAllText", p ) )
     return Ok( of ustring, FsError )( t.Value( ) )
 end function

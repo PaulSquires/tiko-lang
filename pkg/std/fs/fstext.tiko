@@ -24,6 +24,14 @@ using containers
 '' under TEXT_STRICT, fails with FS_INVALID_DATA. UTF-8 lines are cut at the LF BYTE,
 '' which no multi-byte sequence contains, so a sequence split across two reads of the
 '' inner stream is simply joined before it is decoded.
+''
+'' OR BY A NAMED ENCODING (C:\dev\docs\tiko-fs\RFC-0002, P3): TextReader( s, enc ) reads as
+'' ReadAllText( p, enc ) does -- only a BOM that matches enc is skipped -- and
+'' TextReader( s, opts ) detects as ReadAllText( p, found, opts ) does, from the first
+'' opts.PrefixBytes bytes (64 KiB; the buffer's size at most). A code page and BINARY are
+'' cut at the LF byte too: no single- or double-byte code page has 0x0A as a trail byte.
+'' TextWriter( s, enc ) encodes each Write in full before writing any of it, so a strict
+'' Write that cannot encode a character writes nothing -- its BOM included.
 
 
 
@@ -387,19 +395,29 @@ private function hValidUtf8( byval b as const ubyte ptr, byval n as long ) as bo
 end function
 
 public type TextReader
+    '' ReadAllText's rules: a BOM, else UTF-8.
     declare constructor( byref inner as Stream, byval mode as TextErrorMode = TEXT_REPLACE )
+    '' enc, whatever the stream starts with; only a BOM that matches it is skipped.
+    declare constructor( byref inner as Stream, byval enc as TextEncoding, byval mode as TextErrorMode = TEXT_REPLACE )
+    '' A BOM, else valid UTF-8, else opts.Fallback -- judged on the first opts.PrefixBytes.
+    declare constructor( byref inner as Stream, byref opts as const TextDetect, byval mode as TextErrorMode = TEXT_REPLACE )
     declare destructor( )
 
     '' The next line, decoded; FALSE at the end.
     declare function ReadLine( byref line_ as ustring ) as FsResultBool
     '' Everything left, decoded and APPENDED to s; TRUE when anything was appended.
     declare function ReadToEnd( byref s as ustring ) as FsResultBool
-    '' "utf-8", "utf-16le" or "utf-16be" once the first read has looked; "" before.
+    '' The encoding's name -- "utf-8", "utf-16le", "utf-16be", "windows-1252", "binary",
+    '' ... -- once the first read has looked; "" before.
     declare const function Encoding( ) as ustring
+    '' The encoding in use, its Bom TRUE when the stream started with one. Before the first
+    '' read: the encoding given, or UTF-8.
+    declare const function Detected( ) as TextEncoding
 
 private:
     declare constructor( byref other as const TextReader )
     declare operator let( byref other as const TextReader )
+    declare sub hInit( byref inner as Stream, byval mode as TextErrorMode, byval how as long )
     declare function hFill( byref failure as FsError ) as long
     declare function hStart( byref failure as FsError ) as boolean
     declare function hDecode8( byref b as const string, byref out_ as ustring, byref failure as FsError ) as boolean
@@ -412,10 +430,13 @@ private:
     as long          m_pos
     as long          m_len
     as boolean       m_eof
-    as long          m_enc      '' 0 not yet known, 1 UTF-8, 2 UTF-16LE, 3 UTF-16BE
+    as long          m_enc      '' 0 not yet known, 1 UTF-8, 2 UTF-16LE, 3 UTF-16BE, 4 code page or BINARY
+    as long          m_how      '' 0 ReadAllText's rules, 1 m_found as given, 2 detect with m_detect
+    as TextEncoding  m_found
+    as TextDetect    m_detect
 end type
 
-constructor TextReader( byref inner as Stream, byval mode as TextErrorMode )
+sub TextReader.hInit( byref inner as Stream, byval mode as TextErrorMode, byval how as long )
     this.m_inner = @inner
     this.m_mode = mode
     this.m_cap = FS_TEXT_DEFAULT_CAPACITY
@@ -424,6 +445,21 @@ constructor TextReader( byref inner as Stream, byval mode as TextErrorMode )
     this.m_len = 0
     this.m_eof = FALSE
     this.m_enc = 0
+    this.m_how = how
+end sub
+
+constructor TextReader( byref inner as Stream, byval mode as TextErrorMode )
+    this.hInit( inner, mode, 0 )
+end constructor
+
+constructor TextReader( byref inner as Stream, byval enc as TextEncoding, byval mode as TextErrorMode )
+    this.hInit( inner, mode, 1 )
+    this.m_found = enc
+end constructor
+
+constructor TextReader( byref inner as Stream, byref opts as const TextDetect, byval mode as TextErrorMode )
+    this.hInit( inner, mode, 2 )
+    this.m_detect = opts
 end constructor
 
 destructor TextReader( )
@@ -431,15 +467,12 @@ destructor TextReader( )
 end destructor
 
 const function TextReader.Encoding( ) as ustring
-    select case this.m_enc
-    case 1
-        return "utf-8"
-    case 2
-        return "utf-16le"
-    case 3
-        return "utf-16be"
-    end select
-    return ""
+    if( this.m_enc = 0 ) then return ""
+    return this.m_found.Name( )
+end function
+
+const function TextReader.Detected( ) as TextEncoding
+    return this.m_found
 end function
 
 '' As BufferedReader.hFill: compact, then one inner read. 0 at the end, -1 on failure.
@@ -465,32 +498,96 @@ function TextReader.hFill( byref failure as FsError ) as long
 end function
 
 '' Rule 1: looks at the first bytes -- reading until there are three or the data ends
-'' -- and consumes a BOM.
+'' -- and consumes a BOM. With an encoding given, only that encoding's BOM; detecting,
+'' first reads up to the prefix and judges it.
 function TextReader.hStart( byref failure as FsError ) as boolean
     if( this.m_enc <> 0 ) then return TRUE
-    while( ( this.m_len - this.m_pos < 3 ) andalso ( this.m_eof = FALSE ) )
+    dim as long want = 3
+    if( this.m_how = 2 ) then
+        want = iif( this.m_detect.PrefixBytes > 0, this.m_detect.PrefixBytes, 65536 )
+        if( want > this.m_cap ) then want = this.m_cap
+        if( want < 4 ) then want = 4
+    end if
+    while( ( this.m_len - this.m_pos < want ) andalso ( this.m_eof = FALSE ) )
         if( this.hFill( failure ) < 0 ) then return FALSE
     wend
     dim as long avail = this.m_len - this.m_pos
     dim as ubyte ptr p = this.m_buf + this.m_pos
-    this.m_enc = 1
-    if( avail >= 2 ) then
-        if( ( p[0] = &hFF ) andalso ( p[1] = &hFE ) ) then
-            this.m_enc = 2 : this.m_pos += 2 : return TRUE
+
+    if( this.m_how = 0 ) then
+        this.m_enc = 1
+        this.m_found = Utf8( )
+        if( avail >= 2 ) then
+            if( ( p[0] = &hFF ) andalso ( p[1] = &hFE ) ) then
+                this.m_found = Utf16LE( )
+                this.m_enc = 2 : this.m_pos += 2 : return TRUE
+            end if
+            if( ( p[0] = &hFE ) andalso ( p[1] = &hFF ) ) then
+                this.m_found = Utf16BE( )
+                this.m_enc = 3 : this.m_pos += 2 : return TRUE
+            end if
         end if
-        if( ( p[0] = &hFE ) andalso ( p[1] = &hFF ) ) then
-            this.m_enc = 3 : this.m_pos += 2 : return TRUE
+        if( avail >= 3 ) then
+            if( ( p[0] = &hEF ) andalso ( p[1] = &hBB ) andalso ( p[2] = &hBF ) ) then
+                this.m_found = Utf8( TRUE )
+                this.m_pos += 3
+            end if
         end if
+        return TRUE
     end if
-    if( avail >= 3 ) then
-        if( ( p[0] = &hEF ) andalso ( p[1] = &hBB ) andalso ( p[2] = &hBF ) ) then this.m_pos += 3
+
+    if( this.m_how = 2 ) then
+        dim as codec.EncResultEncoding d = codec.DetectEncoding( p, avail, this.m_detect, this.m_eof )
+        if( d.IsOk( ) = FALSE ) then
+            failure = FsEncodingFailure( d.Failure( ), "ReadLine", "" )
+            return FALSE
+        end if
+        this.m_found = d.Value( )
     end if
+
+    '' the encoding given or found: a BOM that matches it is skipped
+    select case this.m_found.Kind
+    case TEXT_UTF8
+        this.m_enc = 1
+        if( avail >= 3 ) then
+            if( ( p[0] = &hEF ) andalso ( p[1] = &hBB ) andalso ( p[2] = &hBF ) ) then this.m_pos += 3
+        end if
+    case TEXT_UTF16LE
+        this.m_enc = 2
+        if( avail >= 2 ) then
+            if( ( p[0] = &hFF ) andalso ( p[1] = &hFE ) ) then this.m_pos += 2
+        end if
+    case TEXT_UTF16BE
+        this.m_enc = 3
+        if( avail >= 2 ) then
+            if( ( p[0] = &hFE ) andalso ( p[1] = &hFF ) ) then this.m_pos += 2
+        end if
+    case else
+        '' a code page or BINARY: nothing to skip, and an encoding this platform cannot
+        '' convert fails now, as ReadAllText( p, enc ) fails on an empty file
+        dim as codec.EncResultText t = codec.DecodeText( nullptr, 0, this.m_found )
+        if( t.IsOk( ) = FALSE ) then
+            failure = FsEncodingFailure( t.Failure( ), "ReadLine", "" )
+            return FALSE
+        end if
+        this.m_enc = 4
+    end select
     return TRUE
 end function
 
 '' UTF-8 bytes to text: the ustring conversion, which replaces as ReadAllText does --
-'' after a check, under TEXT_STRICT.
+'' after a check, under TEXT_STRICT. A code page or BINARY goes through std/codec.
 function TextReader.hDecode8( byref b as const string, byref out_ as ustring, byref failure as FsError ) as boolean
+    if( this.m_enc = 4 ) then
+        dim as boolean strict = ( this.m_mode = TEXT_STRICT )
+        dim as codec.EncResultText t = codec.DecodeText( cptr( const ubyte ptr, strptr( b ) ), len( b ), this.m_found, strict )
+        if( t.IsOk( ) = FALSE ) then
+            failure = FsEncodingFailure( t.Failure( ), "ReadLine", "" )
+            return FALSE
+        end if
+        out_ = t.Value( )
+        return TRUE
+    end if
     if( this.m_mode = TEXT_STRICT ) then
         if( hValidUtf8( cptr( const ubyte ptr, strptr( b ) ), len( b ) ) = FALSE ) then
             failure = FsError( FS_INVALID_DATA, 0, "ReadLine", "" )
@@ -522,8 +619,8 @@ function TextReader.ReadLine( byref line_ as ustring ) as FsResultBool
     dim as FsError f
     if( this.hStart( f ) = FALSE ) then return Fail( of boolean, FsError )( f )
 
-    if( this.m_enc = 1 ) then
-        '' UTF-8: whole bytes up to the LF byte, then decoded once
+    if( ( this.m_enc = 1 ) orelse ( this.m_enc = 4 ) ) then
+        '' UTF-8, a code page or BINARY: whole bytes up to the LF byte, then decoded once
         dim as string acc
         dim as boolean any_ = FALSE
         do
@@ -588,7 +685,7 @@ function TextReader.ReadToEnd( byref s as ustring ) as FsResultBool
     dim as FsError f
     if( this.hStart( f ) = FALSE ) then return Fail( of boolean, FsError )( f )
 
-    if( this.m_enc = 1 ) then
+    if( ( this.m_enc = 1 ) orelse ( this.m_enc = 4 ) ) then
         dim as string acc
         do
             if( this.m_pos < this.m_len ) then
@@ -627,12 +724,18 @@ end function
 '' -------------------------------------------------------------- TextWriter
 
 public type TextWriter
+    '' UTF-8, with a BOM before the first text if asked.
     declare constructor( byref inner as Stream, byval writeBom as boolean = FALSE )
+    '' enc, its BOM before the first text when enc.Bom says so. mode is TEXT_STRICT by
+    '' default: a Write that cannot encode a character fails and writes NOTHING.
+    declare constructor( byref inner as Stream, byval enc as TextEncoding, byval mode as TextErrorMode = TEXT_STRICT )
 
     '' Platform-native by default (RFC-0001 F15): CRLF on Windows, LF on Linux. Only
     '' WriteLine uses it; Write writes s exactly as given.
     as ustring NewLine
 
+    '' TRUE when written exactly; FALSE when written, but under TEXT_REPLACE a character
+    '' became '?' (or, in UTF-8, a lone surrogate U+FFFD).
     declare function Write    ( byref s as const ustring ) as FsResultBool
     declare function WriteLine( byref s as const ustring = "" ) as FsResultBool
     declare function Flush( ) as FsResultBool
@@ -640,25 +743,68 @@ public type TextWriter
 private:
     declare constructor( byref other as const TextWriter )
     declare operator let( byref other as const TextWriter )
+    declare sub hInit( byref inner as Stream )
 
-    as Stream ptr m_inner
-    as boolean    m_bom
-    as boolean    m_started
+    as Stream ptr    m_inner
+    as boolean       m_bom
+    as boolean       m_started
+    as boolean       m_hasEnc
+    as TextEncoding  m_enc
+    as TextErrorMode m_mode
 end type
 
-constructor TextWriter( byref inner as Stream, byval writeBom as boolean )
+sub TextWriter.hInit( byref inner as Stream )
     this.m_inner = @inner
-    this.m_bom = writeBom
     this.m_started = FALSE
 #ifdef __FB_WIN32__
     this.NewLine = chr( 13, 10 )
 #else
     this.NewLine = chr( 10 )
 #endif
+end sub
+
+constructor TextWriter( byref inner as Stream, byval writeBom as boolean )
+    this.hInit( inner )
+    this.m_bom = writeBom
+    this.m_hasEnc = FALSE
+end constructor
+
+constructor TextWriter( byref inner as Stream, byval enc as TextEncoding, byval mode as TextErrorMode )
+    this.hInit( inner )
+    this.m_enc = enc
+    this.m_mode = mode
+    this.m_hasEnc = TRUE
+    this.m_bom = enc.Bom
 end constructor
 
 '' UTF-8; the BOM, if asked for, before the first text. A lone surrogate is U+FFFD.
+'' With an encoding: the text is encoded in full first, so a refusal writes nothing.
 function TextWriter.Write( byref s as const ustring ) as FsResultBool
+    if( this.m_hasEnc ) then
+        dim as TextEncoding body = this.m_enc
+        body.Bom = FALSE
+        dim as Array( of ubyte ) b
+        dim as boolean strict = ( this.m_mode = TEXT_STRICT )
+        dim as codec.EncResultBool e = codec.EncodeText( s, body, b, strict )
+        if( e.IsOk( ) = FALSE ) then return Fail( of boolean, FsError )( FsEncodingFailure( e.Failure( ), "Write", "" ) )
+        if( this.m_started = FALSE ) then
+            this.m_started = TRUE
+            if( this.m_bom ) then
+                dim as Array( of ubyte ) bom
+                codec.EncodeText( "", this.m_enc, bom )
+                if( bom.Count( ) > 0 ) then
+                    dim as FsResultBool w = this.m_inner->WriteAll( @bom.items( 0 ), bom.Count( ) )
+                    if( w.IsOk( ) = FALSE ) then return w
+                end if
+            end if
+        end if
+        if( b.Count( ) > 0 ) then
+            dim as FsResultBool w = this.m_inner->WriteAll( @b.items( 0 ), b.Count( ) )
+            if( w.IsOk( ) = FALSE ) then return w
+        end if
+        return Ok( of boolean, FsError )( e.Value( ) )
+    end if
+
     if( this.m_started = FALSE ) then
         this.m_started = TRUE
         if( this.m_bom ) then
@@ -674,7 +820,9 @@ end function
 function TextWriter.WriteLine( byref s as const ustring ) as FsResultBool
     dim as FsResultBool r = this.Write( s )
     if( r.IsOk( ) = FALSE ) then return r
-    return this.Write( this.NewLine )
+    dim as FsResultBool n = this.Write( this.NewLine )
+    if( n.IsOk( ) = FALSE ) then return n
+    return Ok( of boolean, FsError )( r.Value( ) andalso n.Value( ) )
 end function
 
 function TextWriter.Flush( ) as FsResultBool
@@ -710,6 +858,8 @@ public type LineIterator
 
     as ustring       m_path
     as TextErrorMode m_mode
+    as boolean       m_hasEnc
+    as TextEncoding  m_enc
     as File ptr      m_file
     as TextReader ptr m_reader
     as boolean       m_opened
@@ -720,6 +870,7 @@ end type
 
 constructor LineIterator( )
     this.m_mode = TEXT_REPLACE
+    this.m_hasEnc = FALSE
     this.m_file = nullptr
     this.m_reader = nullptr
     this.m_opened = FALSE
@@ -730,6 +881,8 @@ end constructor
 constructor LineIterator( byref other as const LineIterator )
     this.m_path = other.m_path
     this.m_mode = other.m_mode
+    this.m_hasEnc = other.m_hasEnc
+    this.m_enc = other.m_enc
     this.m_file = nullptr
     this.m_reader = nullptr
     this.m_opened = FALSE
@@ -742,6 +895,8 @@ operator LineIterator.let( byref other as const LineIterator )
     this.hRelease( )
     this.m_path = other.m_path
     this.m_mode = other.m_mode
+    this.m_hasEnc = other.m_hasEnc
+    this.m_enc = other.m_enc
     this.m_opened = FALSE
     this.m_live = FALSE
     this.m_done = FALSE
@@ -770,7 +925,11 @@ sub LineIterator.hOpen( )
         this.hRelease( )
         exit sub
     end if
-    this.m_reader = new TextReader( *this.m_file, this.m_mode )
+    if( this.m_hasEnc ) then
+        this.m_reader = new TextReader( *this.m_file, this.m_enc, this.m_mode )
+    else
+        this.m_reader = new TextReader( *this.m_file, this.m_mode )
+    end if
     this.hFetch( )
 end sub
 
@@ -820,21 +979,38 @@ public type LineRange
     declare const function GetIterator( ) as LineIterator
     as ustring       m_path
     as TextErrorMode m_mode
+    as boolean       m_hasEnc
+    as TextEncoding  m_enc
 end type
 
 const function LineRange.GetIterator( ) as LineIterator
     dim as LineIterator it
     it.m_path = this.m_path
     it.m_mode = this.m_mode
+    it.m_hasEnc = this.m_hasEnc
+    it.m_enc = this.m_enc
     return it
 end function
 
 public declare function ReadLines overload ( byref p as const ustring, byval mode as TextErrorMode = TEXT_REPLACE ) as LineRange
+'' The lines of p in enc: ReadAllLines( p, lines, enc )'s lines, one at a time.
+public declare function ReadLines overload ( byref p as const ustring, byval enc as TextEncoding, _
+    byval mode as TextErrorMode = TEXT_REPLACE ) as LineRange
 
 public function ReadLines( byref p as const ustring, byval mode as TextErrorMode ) as LineRange
     dim as LineRange r
     r.m_path = p
     r.m_mode = mode
+    r.m_hasEnc = FALSE
+    return r
+end function
+
+public function ReadLines( byref p as const ustring, byval enc as TextEncoding, byval mode as TextErrorMode ) as LineRange
+    dim as LineRange r
+    r.m_path = p
+    r.m_mode = mode
+    r.m_hasEnc = TRUE
+    r.m_enc = enc
     return r
 end function
 

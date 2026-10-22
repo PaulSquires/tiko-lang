@@ -1,0 +1,361 @@
+'' std/fs text encodings, streams (C:\dev\docs\tiko-fs\RFC-0002 phase P3): TextReader with an
+'' encoding and with detection, through a stream that delivers ONE byte per read, held equal
+'' line for line to ReadAllLines and whole to ReadAllText over a raw corpus read in every
+'' encoding, both modes; text in every encoding (a surrogate pair and a double-byte character
+'' split across reads); detection against ReadAllText( p, found, opts ); ReadLines with an
+'' encoding; and TextWriter in every encoding, strict writes writing nothing.
+#import "std/fs"
+#import "std/codec"
+#import "std/containers"
+
+dim shared as integer fails = 0
+
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+'' One byte per Read, whatever is asked: every boundary, everywhere.
+type Trickle extends fs.Stream
+    as fs.MemoryStream inner
+    declare const function CanRead( ) as boolean override
+    declare function Read( byval buf as ubyte ptr, byval n as longint ) as fs.FsResultI64 override
+end type
+
+const function Trickle.CanRead( ) as boolean
+    return true
+end function
+
+function Trickle.Read( byval buf as ubyte ptr, byval n as longint ) as fs.FsResultI64
+    if n <= 0 then return this.inner.Read( buf, n )
+    return this.inner.Read( buf, 1 )
+end function
+
+function Bytes( byref s as const string ) as containers.Array( of ubyte )
+    dim as containers.Array( of ubyte ) b
+    for k as integer = 1 to len( s )
+        dim as ubyte v = asc( s, k )
+        b.Push( v )
+    next
+    return b
+end function
+
+function HexOf( byref b as containers.Array( of ubyte ) ) as string
+    dim as string r
+    for i as long = 0 to b.Count( ) - 1
+        if i > 0 then r &= " "
+        r &= hex( b[i], 2 )
+    next
+    return r
+end function
+
+function MemHex( byref m as fs.MemoryStream ) as string
+    dim as containers.Array( of ubyte ) b
+    m.ToBytes( b )
+    return HexOf( b )
+end function
+
+function EncHex( byref s as const ustring, byval enc as fs.TextEncoding ) as string
+    dim as containers.Array( of ubyte ) b
+    codec.EncodeText( s, enc, b, false )
+    return HexOf( b )
+end function
+
+dim as ustring tmp = fs.CreateTempDir( ).ValueOr( "" )
+if len( tmp ) = 0 then print "no temp dir" : end 1
+dim as ustring p = fs.PathJoin( tmp, "t.txt" )
+
+'' The reader and the whole-file calls must agree: the same lines, or both fail; the same
+'' text from ReadToEnd, or both fail. how: 0 an encoding, 1 detection.
+sub Agree( byref what as string, byref p as const ustring, byref b as containers.Array( of ubyte ), _
+        byval enc as fs.TextEncoding, byref opts as const fs.TextDetect, byval how as long, byval mode as fs.TextErrorMode )
+    fs.WriteAllBytes( p, b )
+    dim as containers.Array( of ustring ) want
+    dim as fs.TextEncoding found
+    dim as fs.FsResultUStr whole
+    if how = 0 then
+        whole = fs.ReadAllText( p, enc, mode )
+    else
+        whole = fs.ReadAllText( p, found, opts, mode )
+    end if
+    dim as boolean wholeOk = whole.IsOk( )
+    if wholeOk then
+        if how = 0 then fs.ReadAllLines( p, want, enc, mode ) else fs.ReadAllLines( p, want, found, mode )
+    end if
+
+    '' line by line
+    dim as Trickle t
+    t.inner = fs.MemoryStream( b )
+    dim as fs.TextReader ptr tr
+    if how = 0 then tr = new fs.TextReader( t, enc, mode ) else tr = new fs.TextReader( t, opts, mode )
+    dim as ustring ln
+    dim as long n = 0
+    dim as boolean same = true, failed = false
+    do
+        dim as fs.FsResultBool r = tr->ReadLine( ln )
+        if r.IsOk( ) = false then failed = true : exit do
+        if r.Value( ) = false then exit do
+        if ( n >= want.Count( ) ) orelse ( ln <> want[n] ) then same = false
+        n += 1
+    loop
+    if wholeOk then
+        Check( what & ": lines", ( failed = false ) andalso same andalso ( n = want.Count( ) ) )
+        if how = 1 then
+            dim as fs.TextEncoding d = tr->Detected( )
+            Check( what & ": detected " & found.Name( ) & "/" & d.Name( ), ( d.Kind = found.Kind ) andalso ( d.CodePage = found.CodePage ) _
+                andalso ( d.Bom = found.Bom ) andalso ( tr->Encoding( ) = found.Name( ) ) )
+        end if
+    else
+        Check( what & ": both fail (lines)", failed )
+    end if
+    delete tr
+
+    '' whole
+    dim as Trickle t2
+    t2.inner = fs.MemoryStream( b )
+    dim as fs.TextReader ptr tr2
+    if how = 0 then tr2 = new fs.TextReader( t2, enc, mode ) else tr2 = new fs.TextReader( t2, opts, mode )
+    dim as ustring all_
+    dim as fs.FsResultBool ra = tr2->ReadToEnd( all_ )
+    if wholeOk then
+        Check( what & ": whole", ra.IsOk( ) andalso ( all_ = whole.Value( ) ) )
+    else
+        Check( what & ": both fail (whole)", ( ra.IsOk( ) = false ) andalso ( ra.Failure( ).Code( ) = whole.Failure( ).Code( ) ) )
+    end if
+    delete tr2
+end sub
+
+dim as string corpus( 0 to 15 )
+corpus(0) = "plain"
+corpus(1) = "a" & chr( 10 ) & "b" & chr( 13, 10 ) & "c"
+corpus(2) = "a" & chr( 13 ) & "b" & chr( 10 ) & chr( 10 ) & "c" & chr( 10 )
+corpus(3) = chr( &hEF, &hBB, &hBF ) & "bom " & chr( &hC3, &hB1 ) & chr( 10 ) & chr( &hE6, &h97, &hA5 ) & chr( 13, 10 )
+corpus(4) = chr( &hFF, &hFE ) & chr( &h41, 0, 13, 0, 10, 0, &h3D, &hD8, &h00, &hDE, 10, 0, &h00, &hD8, &h42, 0 )
+corpus(5) = chr( &hFE, &hFF ) & chr( 0, &h41, 0, 10, &hD8, &h3D, &hDE, &h00, 0, 13 )
+corpus(6) = chr( &hFF, &hFE ) & chr( &h41, 0, &h42 )
+corpus(7) = "a" & chr( &h80 ) & "b" & chr( 10 ) & chr( &hE6, &h97 ) & chr( 10 ) & "c" & chr( &hC0, &hAF ) & "d"
+corpus(8) = ""
+corpus(9) = chr( 10 )
+corpus(10) = chr( &hF0, &h9F, &h98, &h80 ) & chr( 10 ) & chr( &hED, &hA0, &h80 )
+corpus(11) = chr( 13 )
+corpus(12) = "x" & chr( 13, 13, 10 )
+corpus(13) = "caf" & chr( &hE9 ) & " " & chr( &h80, &h99, &hA0, &hFF, 13, 10 ) & "end"     '' Windows-1252
+corpus(14) = "h" & chr( 0 ) & "i" & chr( 0, 13, 0, 10, 0 ) & "!" & chr( 0 )                  '' UTF-16LE, no BOM
+corpus(15) = "A" & chr( &hAA ) & chr( 10 ) & "B"                                             '' 1253's undefined AA
+
+dim as fs.TextEncoding encs( 0 to 8 )
+encs( 0 ) = fs.Utf8( ) : encs( 1 ) = fs.Utf8( true ) : encs( 2 ) = fs.Utf16LE( ) : encs( 3 ) = fs.Utf16LE( false )
+encs( 4 ) = fs.Utf16BE( ) : encs( 5 ) = fs.CodePage( 1252 ) : encs( 6 ) = fs.Binary_( ) : encs( 7 ) = fs.CodePage( 1253 )
+encs( 8 ) = fs.Ansi( )
+
+dim as fs.TextDetect noDetect
+'' -- every raw input read in every encoding, both modes: stream = whole file
+for i as long = 0 to 15
+    dim as containers.Array( of ubyte ) b = Bytes( corpus( i ) )
+    for e as long = 0 to 8
+        Agree( "raw " & i & " " & encs( e ).Name( ) & " replace", p, b, encs( e ), noDetect, 0, fs.TEXT_REPLACE )
+        Agree( "raw " & i & " " & encs( e ).Name( ) & " strict", p, b, encs( e ), noDetect, 0, fs.TEXT_STRICT )
+    next
+next
+
+'' -- text written in each encoding and read back through the stream, split everywhere
+scope
+    dim as ustring texts( 0 to 3 )
+    texts( 0 ) = "line one" & wchr( 13, 10 ) & "caf" & wchr( &hE9 ) & wchr( 10 ) & "last"
+    texts( 1 ) = wchr( &hD834, &hDD1E ) & wchr( 10 ) & wchr( &h4E2D, &h6587 ) & wchr( 13, 10 )
+    texts( 2 ) = "a" & wchr( &hD800 ) & wchr( 10 ) & wchr( &hDC00 ) & "b"
+    texts( 3 ) = wchr( &h65E5, &h672C, 13, 10, &h8A9E, 10 ) & "x"
+    dim as fs.TextEncoding wenc( 0 to 5 )
+    wenc( 0 ) = fs.Utf8( true ) : wenc( 1 ) = fs.Utf16LE( ) : wenc( 2 ) = fs.Utf16BE( false )
+    wenc( 3 ) = fs.CodePage( 932 ) : wenc( 4 ) = fs.CodePage( 1252 ) : wenc( 5 ) = fs.Binary_( )
+    for t as long = 0 to 3
+        for e as long = 0 to 5
+            dim as containers.Array( of ubyte ) b
+            codec.EncodeText( texts( t ), wenc( e ), b, false )
+            Agree( "text " & t & " " & wenc( e ).Name( ), p, b, wenc( e ), noDetect, 0, fs.TEXT_REPLACE )
+        next
+    next
+    '' the round trip itself, where the encoding holds the text
+    dim as containers.Array( of ubyte ) b
+    codec.EncodeText( texts( 1 ), fs.Utf16LE( ), b )
+    dim as Trickle tt
+    tt.inner = fs.MemoryStream( b )
+    dim as fs.TextReader r16 = fs.TextReader( tt, fs.Utf16LE( ) )
+    dim as ustring l1, l2
+    Check( "pair split across reads", r16.ReadLine( l1 ).ValueOr( false ) andalso ( l1 = wchr( &hD834, &hDD1E ) ) )
+    Check( "cjk line", r16.ReadLine( l2 ).ValueOr( false ) andalso ( l2 = wchr( &h4E2D, &h6587 ) ) )
+    codec.EncodeText( texts( 3 ), fs.CodePage( 932 ), b )
+    dim as Trickle tj
+    tj.inner = fs.MemoryStream( b )
+    dim as fs.TextReader rj = fs.TextReader( tj, fs.CodePage( 932 ), fs.TEXT_STRICT )
+    Check( "932 split across reads", rj.ReadLine( l1 ).ValueOr( false ) andalso ( l1 = wchr( &h65E5, &h672C ) ) )
+    Check( "932 second line", rj.ReadLine( l2 ).ValueOr( false ) andalso ( l2 = wchr( &h8A9E ) ) )
+end scope
+
+'' -- detection: the stream finds what ReadAllText( p, found, opts ) finds
+scope
+    dim as fs.TextDetect dets( 0 to 3 )
+    dets( 0 ) = fs.TextDetect( fs.CodePage( 1252 ) )
+    dets( 1 ) = fs.TextDetect( fs.Binary_( ) )
+    dets( 2 ) = fs.TextDetect( fs.CodePage( 1252 ), true )
+    dets( 3 ) = fs.TextDetect( )
+    for i as long = 0 to 15
+        dim as containers.Array( of ubyte ) b = Bytes( corpus( i ) )
+        for d as long = 0 to 3
+            Agree( "detect " & i & " opts " & d, p, b, fs.Utf8( ), dets( d ), 1, fs.TEXT_REPLACE )
+        next
+    next
+    dim as fs.TextEncoding found
+    fs.WriteAllBytes( p, Bytes( corpus( 13 ) ) )
+    var r = fs.ReadAllText( p, found, dets( 0 ) )
+    Check( "detect 1252 file", r.IsOk( ) andalso ( found.CodePage = 1252 ) andalso ( left( r.Value( ), 4 ) = "caf" & wchr( &hE9 ) ) )
+    fs.WriteAllBytes( p, Bytes( corpus( 14 ) ) )
+    fs.ReadAllText( p, found, dets( 2 ) )
+    Check( "detect bomless utf-16 when asked", ( found.Kind = fs.TEXT_UTF16LE ) andalso ( found.Bom = false ) )
+    fs.ReadAllText( p, found, dets( 0 ) )
+    Check( "no guess unless asked", found.Kind = fs.TEXT_UTF8 )
+    fs.WriteAllBytes( p, Bytes( chr( &hFF, &hFE, 0, 0, &h41, 0, 0, 0 ) ) )
+    var u = fs.ReadAllText( p, found, dets( 0 ) )
+    Check( "utf-32 refused", ( u.IsOk( ) = false ) andalso ( u.Failure( ).Code( ) = fs.FS_UNSUPPORTED ) )
+    dim as fs.MemoryStream m32 = fs.MemoryStream( Bytes( chr( &hFF, &hFE, 0, 0, &h41, 0, 0, 0 ) ) )
+    dim as fs.TextReader r32 = fs.TextReader( m32, dets( 0 ) )
+    dim as ustring ln
+    var u2 = r32.ReadLine( ln )
+    Check( "utf-32 refused by the stream", ( u2.IsOk( ) = false ) andalso ( u2.Failure( ).Code( ) = fs.FS_UNSUPPORTED ) )
+    fs.WriteAllBytes( p, Bytes( "" ) )
+    Check( "empty file is utf-8", fs.ReadAllText( p, found, dets( 0 ) ).IsOk( ) andalso ( found.Kind = fs.TEXT_UTF8 ) )
+    '' a prefix that ends inside a UTF-8 character is not a reason to fall back
+    dim as string big = string( 9, "a" ) & chr( &hE4, &hB8, &hAD )
+    dim as Trickle mb
+    mb.inner = fs.MemoryStream( Bytes( big ) )      '' one byte a read: the prefix stops after E4
+    dim as fs.TextReader rb = fs.TextReader( mb, fs.TextDetect( fs.CodePage( 1252 ), false, 10 ) )
+    rb.ReadLine( ln )
+    Check( "prefix cut inside a character", ( rb.Detected( ).Kind = fs.TEXT_UTF8 ) andalso ( ln = string( 9, "a" ) & wchr( &h4E2D ) ) )
+end scope
+
+'' -- the encoding a reader reports
+scope
+    dim as fs.MemoryStream m = fs.MemoryStream( Bytes( chr( &hEF, &hBB, &hBF ) & "x" ) )
+    dim as fs.TextReader tr = fs.TextReader( m, fs.CodePage( 1252 ) )
+    Check( "encoding before", tr.Encoding( ) = "" )
+    dim as ustring ln
+    tr.ReadLine( ln )
+    Check( "encoding named", tr.Encoding( ) = "windows-1252" )
+    Check( "explicit wins over a bom", ln = wchr( &hEF, &hBB, &hBF ) & "x" )
+    dim as fs.MemoryStream m2 = fs.MemoryStream( Bytes( chr( &hEF, &hBB, &hBF ) & "x" ) )
+    dim as fs.TextReader t2 = fs.TextReader( m2 )
+    t2.ReadLine( ln )
+    Check( "default reader reports the bom", t2.Detected( ).Bom andalso ( t2.Encoding( ) = "utf-8" ) )
+    dim as fs.MemoryStream m3 = fs.MemoryStream( Bytes( "a" ) )
+    dim as fs.TextReader t3 = fs.TextReader( m3, fs.CodePage( 50220 ) )
+    var r = t3.ReadLine( ln )
+    Check( "unsupported code page", ( r.IsOk( ) = false ) andalso ( r.Failure( ).Code( ) = fs.FS_UNSUPPORTED ) )
+    dim as fs.MemoryStream m4
+    dim as fs.TextReader t4 = fs.TextReader( m4, fs.CodePage( 50220 ) )
+    Check( "unsupported code page, empty stream", t4.ReadLine( ln ).IsOk( ) = false )
+end scope
+
+'' -- ReadLines with an encoding: ReadAllLines' lines
+scope
+    dim as ustring txt = "one" & wchr( 13, 10 ) & wchr( &h4E2D ) & wchr( 10 ) & "three"
+    fs.WriteAllText( p, txt, fs.Utf16BE( ) )
+    dim as containers.Array( of ustring ) want
+    fs.ReadAllLines( p, want, fs.Utf16BE( ) )
+    dim as long n = 0
+    dim as boolean same = true
+    for each r in fs.ReadLines( p, fs.Utf16BE( ) )
+        if ( r.IsOk( ) = false ) orelse ( n >= want.Count( ) ) then
+            same = false
+        elseif r.Value( ) <> want[n] then
+            same = false
+        end if
+        n += 1
+    next
+    Check( "readlines utf-16be", same andalso ( n = 3 ) )
+    fs.WriteAllBytes( p, Bytes( corpus( 15 ) ) )
+    n = 0
+    dim as boolean failed = false
+    for each r in fs.ReadLines( p, fs.CodePage( 1253 ), fs.TEXT_STRICT )
+        if r.IsOk( ) = false then failed = true
+        n += 1
+    next
+    Check( "readlines strict failure yielded", failed andalso ( n = 1 ) )
+    n = 0
+    for each r in fs.ReadLines( fs.PathJoin( tmp, "nope.txt" ), fs.Utf16LE( ) )
+        Check( "readlines missing", ( r.IsOk( ) = false ) andalso ( r.Failure( ).Code( ) = fs.FS_NOT_FOUND ) )
+        n += 1
+    next
+    Check( "readlines missing once", n = 1 )
+end scope
+
+'' -- TextWriter in every encoding: the bytes of the whole text, the BOM once
+scope
+    dim as fs.TextEncoding wenc( 0 to 6 )
+    wenc( 0 ) = fs.Utf8( ) : wenc( 1 ) = fs.Utf8( true ) : wenc( 2 ) = fs.Utf16LE( ) : wenc( 3 ) = fs.Utf16BE( )
+    wenc( 4 ) = fs.Utf16LE( false ) : wenc( 5 ) = fs.CodePage( 1252 ) : wenc( 6 ) = fs.Binary_( )
+    for e as long = 0 to 6
+        dim as fs.MemoryStream m
+        dim as fs.TextWriter tw = fs.TextWriter( m, wenc( e ) )
+        tw.NewLine = chr( 13, 10 )
+        dim as boolean ok = tw.WriteLine( "' SETTINGS FILE" ).ValueOr( false )
+        ok = ok andalso tw.WriteLine( ).ValueOr( false )
+        ok = ok andalso tw.Write( "x=" ).ValueOr( false ) andalso tw.Write( "1" ).ValueOr( false )
+        ok = ok andalso tw.WriteLine( "" ).ValueOr( false )
+        ok = ok andalso tw.WriteLine( "caf" & wchr( &hE9 ) ).ValueOr( false )
+        dim as ustring all_ = "' SETTINGS FILE" & wchr( 13, 10, 13, 10 ) & "x=1" & wchr( 13, 10 ) & "caf" & wchr( &hE9, 13, 10 )
+        Check( "writer " & wenc( e ).Name( ) & "/" & wenc( e ).Bom, ok andalso ( MemHex( m ) = EncHex( all_, wenc( e ) ) ) )
+    next
+    '' FileSystemObject's W1: unicode, a surrogate pair -- here split across two Writes
+    dim as fs.MemoryStream m
+    dim as fs.TextWriter tw = fs.TextWriter( m, fs.Utf16LE( ) )
+    tw.NewLine = chr( 13, 10 )
+    tw.Write( "a" & wchr( &hD834 ) )
+    tw.WriteLine( wchr( &hDD1E ) )
+    Check( "utf-16 pair across writes", MemHex( m ) = "FF FE 61 00 34 D8 1E DD 0D 00 0A 00" )
+end scope
+
+'' -- strict writes write nothing, the BOM included; replace reports
+scope
+    dim as fs.MemoryStream m
+    dim as fs.TextWriter tw = fs.TextWriter( m, fs.CodePage( 1252 ) )
+    var r = tw.Write( "cjk" & wchr( &h4E2D ) )
+    Check( "strict write fails", ( r.IsOk( ) = false ) andalso ( r.Failure( ).Code( ) = fs.FS_INVALID_DATA ) andalso ( m.Length( ) = 0 ) )
+    Check( "after a refusal", tw.Write( "ok" ).ValueOr( false ) andalso ( MemHex( m ) = "6F 6B" ) )
+    var l = tw.WriteLine( wchr( &h2603 ) )
+    Check( "strict writeline writes no newline either", ( l.IsOk( ) = false ) andalso ( MemHex( m ) = "6F 6B" ) )
+
+    dim as fs.MemoryStream m3
+    dim as fs.TextWriter t3 = fs.TextWriter( m3, fs.Binary_( ) )
+    Check( "binary strict first write: no bytes", ( t3.Write( wchr( &h100 ) ).IsOk( ) = false ) andalso ( m3.Length( ) = 0 ) )
+
+    dim as fs.MemoryStream m4
+    dim as fs.TextWriter t4 = fs.TextWriter( m4, fs.Utf16LE( ), fs.TEXT_STRICT )
+    Check( "utf-16 never refuses", t4.Write( wchr( &hDC00 ) ).ValueOr( false ) andalso ( MemHex( m4 ) = "FF FE 00 DC" ) )
+
+    dim as fs.MemoryStream m5
+    dim as fs.TextWriter t5 = fs.TextWriter( m5, fs.CodePage( 1252 ), fs.TEXT_REPLACE )
+    t5.NewLine = chr( 10 )
+    var w = t5.WriteLine( "a" & wchr( &h2603 ) )
+    Check( "replace writeline lossy", w.IsOk( ) andalso ( w.Value( ) = false ) andalso ( MemHex( m5 ) = "61 3F 0A" ) )
+    var x = t5.Write( "b" )
+    Check( "replace exact", x.IsOk( ) andalso x.Value( ) )
+
+    dim as fs.MemoryStream m6
+    dim as fs.TextWriter t6 = fs.TextWriter( m6, fs.CodePage( 50220 ) )
+    var u = t6.Write( "a" )
+    Check( "unsupported writer", ( u.IsOk( ) = false ) andalso ( u.Failure( ).Code( ) = fs.FS_UNSUPPORTED ) )
+end scope
+
+'' -- the old writer is unchanged
+scope
+    dim as fs.MemoryStream m
+    dim as fs.TextWriter tw = fs.TextWriter( m, true )
+    tw.NewLine = chr( 10 )
+    var r = tw.WriteLine( "a" & wchr( &hD800 ) )
+    Check( "old writer", r.IsOk( ) andalso r.Value( ) andalso ( MemHex( m ) = "EF BB BF 61 EF BF BD 0A" ) )
+end scope
+
+fs.RemoveDirAll( tmp )
+if fails = 0 then print "ok"

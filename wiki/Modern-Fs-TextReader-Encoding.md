@@ -13,6 +13,7 @@ TextReader.Encoding( )
 ## Notes
 
 - "utf-8", "utf-16le" or "utf-16be" once the first read has looked at the start of the data; "" before that.
+- A reader given an encoding, or one that detected a code page, names it the same way: "windows-1252", "ansi", "binary", and so on. Detected( ) returns the encoding itself, with Bom true when the data started with one.
 
 ## Examples
 

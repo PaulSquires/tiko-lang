@@ -192,9 +192,13 @@ Copy( src, dst [, bufSize ] )   FsResultI64 -- src's position to its end
 ```text
 BufferedReader( inner [, capacity ] )   a Stream: .ReadByte .ReadUntil .ReadLine (bytes) .Peek
 BufferedWriter( inner [, capacity ] )   a Stream: small writes passed on in large pieces
-TextReader( inner [, mode ] )           .ReadLine( line ) .ReadToEnd( s ) .Encoding( )
+TextReader( inner [, mode ] )           .ReadLine( line ) .ReadToEnd( s ) .Encoding( ) .Detected( )
+TextReader( inner, enc [, mode ] )      in a named TextEncoding
+TextReader( inner, opts [, mode ] )     detecting the encoding: a TextDetect
 TextWriter( inner [, writeBom ] )       .Write( s ) .WriteLine( [ s ] ) .NewLine .Flush( )
+TextWriter( inner, enc [, mode ] )      in a named TextEncoding; TEXT_STRICT by default
 ReadLines( p [, mode ] )                for each line -- one FsResultUStr per line, lazily
+ReadLines( p, enc [, mode ] )           in a named TextEncoding
 TextErrorMode                           TEXT_REPLACE (U+FFFD) or TEXT_STRICT (FS_INVALID_DATA)
 ```
 
@@ -203,6 +207,42 @@ TextErrorMode                           TEXT_REPLACE (U+FFFD) or TEXT_STRICT (FS
 **Lines are ReadAllLines' lines**, in every reader: a line ends at LF, one CR before it is dropped, a CR anywhere else is text, the last line needs no LF, and a final LF is not followed by an empty line.
 
 **Text is ReadAllText's text.** TextReader honours the same byte-order marks, defaults to UTF-8 the same way and replaces invalid input the same way, so a file read whole and the same file read through a TextReader agree. TextWriter writes UTF-8, with NewLine platform-native by default.
+
+**With an encoding, the same holds encoding by encoding.** `TextReader( s, enc )` reads as `ReadAllText( p, enc )` does, and `ReadLines( p, enc )` gives `ReadAllLines( p, lines, enc )`'s lines. Code pages and `Binary_( )` are cut into lines at the LF byte; no code page uses that byte inside a character. `TextReader( s, opts )` detects as `ReadAllText( p, found, opts )` does, but it judges only the first `opts.PrefixBytes` bytes (64 KiB) before its first line. A file whose first invalid UTF-8 comes after that point is read as UTF-8 by the stream, and in the fallback by the whole-file call. `Detected( )` says what the reader is using.
+
+**A TextWriter with an encoding encodes each Write in full before writing any of it.** Under TEXT_STRICT, the default, a Write that holds a character the encoding cannot represent fails with FS_INVALID_DATA and writes nothing, not even the BOM. A Write that succeeds returns `true` when every character was written exactly, and `false` when TEXT_REPLACE turned one into `?`.
+
+```freebasic
+#import "std/fs"
+using fs
+
+dim as ustring dir_ = CreateTempDir( "fbdoc" ).Value( )
+dim as ustring p = PathJoin( dir_, "log.txt" )
+
+scope
+    dim as File f
+    f.Create( p )
+    dim as TextWriter w = TextWriter( f, Utf16LE( ) )   ' FF FE, then UTF-16LE
+    w.WriteLine( "first" )
+    w.WriteLine( "caf" & wchr( &hE9 ) )
+end scope
+
+for each ln in ReadLines( p, Utf16LE( ) )
+    print ln.Value( )                                   ' first, café
+next
+
+' Detection: a BOM, else UTF-8, else the fallback -- here Windows-1252
+dim as File g
+g.OpenRead( p )
+dim as TextReader r = TextReader( g, TextDetect( CodePage( 1252 ) ) )
+dim as ustring s
+r.ReadLine( s )
+print s, r.Encoding( ), r.Detected( ).Bom             ' first  utf-16le  true
+g.Close( )
+
+RemoveDirAll( dir_ )
+```
+
 
 **ReadLines never holds the file in memory**, yields its failures as elements, and closes the file when the loop is left early.
 

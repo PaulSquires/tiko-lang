@@ -1,0 +1,12 @@
+'' RUN: std/fs text encodings, streams (C:\dev\docs\tiko-fs\RFC-0002 phase P3) -- TextReader with
+'' an encoding and with detection through a one-byte-per-read stream, held equal to ReadAllLines
+'' and ReadAllText over a raw corpus in every encoding and both modes; text in every encoding
+'' split across reads; detection against ReadAllText( p, found, opts ); ReadLines with an
+'' encoding; TextWriter in every encoding, strict writes writing nothing.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/fs-enc-p3.tiko -o tests/codegen/fsencp3.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/fsencp3.exe
+'' RUN: tests/codegen/fsencp3.exe
+'' EXPECT-RUN-OUT: ok

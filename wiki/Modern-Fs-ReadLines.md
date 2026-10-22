@@ -8,6 +8,7 @@ Reads a file a line at a time in a for each loop, never holding the whole file i
 
 ```freebasic
 ReadLines( p [, mode ] )
+ReadLines( p, enc [, mode ] )    '' in a TextEncoding: ReadAllLines( p, lines, enc )'s lines
 ```
 
 ## Notes
