@@ -981,51 +981,7 @@ private sub CheckExternInitAndDefaultCtor_( byref c as Ctx )
     CheckFieldDefaultCtor_( c )
 end sub
 
-'' A DYNAMIC ARRAY CANNOT BE A MEMBER OF A UNION -- fbc error 162, "Dynamic arrays cannot
-'' be part of UNION's or nested TYPE's". A dynamic array is a DESCRIPTOR that has to be
-'' constructed and destroyed, and a union's members overlap: there is no way to say which
-'' of them owns the storage.
-private sub CheckDynArrayInUnion_( byref c as Ctx )
-    for i as int32 = 0 to c.syms->symbols.Count - 1
-        dim as Symbol ptr s = @c.syms->symbols[i]
-        if s->kind <> cast( uint8, SYM_FIELD ) then continue for
-        if s->type_ = TYPE_NONE then continue for
-        dim as TypeId u = c.types->Unqualify( s->type_ )
-        if c.types->Kind( u ) <> TK_ARRAY then continue for
-        '' A DYNAMIC array records a NEGATIVE rank, and its magnitude is rank + 1: -1 is
-        '' 'dim a( )', -2 is 'a( any )', -3 is 'a( any, any )'. Testing for -1 alone found
-        '' only the unspecified form and missed every one the corpus writes.
-        if c.types->types[cast( int32, u )].dims >= 0 then continue for
-
-        '' Either the field's immediate enclosing aggregate is a UNION -- which is what
-        '' SYMF_UNION records for an anonymous one -- or the named type it sits in is.
-        '' ...OR ANY ENCLOSING AGGREGATE IS. structs/dynamic-array-field-in-union-2.bas
-        '' writes 'type UDT { union { type { array( any ) } } }' -- the field sits in an
-        '' anonymous TYPE whose parent is the union, so neither its own SYMF_UNION nor its
-        '' immediate owner says union, and fbc still reports 162. The walk goes outward
-        '' through the enclosing type scopes.
-        '' ...OR ANY ENCLOSING ANONYMOUS AGGREGATE IS A UNION. structs/dynamic-array-
-        '' field-in-union-2.bas writes 'type UDT { union { type { array( any ) } } }': the
-        '' field sits in an anonymous TYPE nested in the union, so its own SYMF_UNION is
-        '' clear and the enclosing SCOPE is the outer UDT -- anonymous aggregates are
-        '' flattened into one scope, so no scope walk can see the union either. Collect
-        '' already records the answer per field: anonUnionMask has a bit per nesting
-        '' level, set for the levels that are unions, so a non-zero mask means 'inside a
-        '' union somewhere'. fbc reports 162 for all of them.
-        dim as boolean inUnion = ((s->flags and SYMF_UNION) <> 0)
-        if inUnion = false then inUnion = (s->anonUnionMask <> 0)
-        if inUnion = false then
-            dim as SymScope ptr sc = c.syms->ScopeAt( s->parent )
-            if sc = nullptr then continue for
-            if sc->kind <> cast( uint8, SCOPEK_TYPE ) then continue for
-            dim as Symbol ptr owner = c.syms->SymbolAt( sc->owner )
-            if owner = nullptr then continue for
-            inUnion = ((owner->flags and SYMF_UNION_KIND) <> 0)
-        end if
-        if inUnion = false then continue for
-        c.diags->Report( TKO0659, PointRange( s->loc ), c.names->Spelling( s->name ) )
-    next
-end sub
+#include once "symbols/unionmember.tiko"   '' CheckUnionMembers_: fbc's 161, 162, 163, 164
 
 '' CheckBaseHasDefaultCtor_ is in basector.tiko, included from latesweeps2.tiko.
 

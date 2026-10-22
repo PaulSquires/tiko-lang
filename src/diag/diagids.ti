@@ -998,6 +998,9 @@
     '' fbc's 14 for 'dim a as ns.F' / 'dim b as G' over a FUNCTION: tiko took the procedure's
     '' own type for the variable -- symbols/resolvetype.tiko.
     DIAG( TKO0997, SEV_ERROR,   "'%0' is a procedure, not a type" )
+    '' fbc's 161, 163 and 164: a union member that has to be constructed or destroyed --
+    '' symbols/unionmember.tiko. 162, a dynamic array, is TKO0659.
+    DIAG( TKO0998, SEV_ERROR,   "'%0' cannot be a member of a union: %1" )
 
 #endmacro
 

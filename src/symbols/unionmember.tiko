@@ -1,0 +1,161 @@
+'' unionmember.tiko -- WHAT A UNION CANNOT HOLD. Split out of latechecks.tiko at the 1500-line
+'' cap and included from it, in the same namespace and over the same Ctx.
+''
+'' A union's members overlap, so nothing can say which of them owns the storage: a member
+'' that has to be constructed or destroyed cannot be one. fbc refuses four shapes, measured
+'' on fbc-modern 1.20, 2026-10-22, each as a named union's member and in an anonymous union
+'' inside a TYPE, and each through an anonymous TYPE nested in the union:
+''
+''     as string s / as ustring s / s( 2 ) as string   error 161, "Var-len strings ..."
+''     a( any ) as long                                error 162, "Dynamic arrays ..."
+''     h as T, T with a constructor -- written, or one   error 163, "Fields with constructors"
+''       fbc writes for a string or dynamic-array field,
+''       a field initialiser, or 'extends object'; and
+''       a fixed array of such a T
+''     h as T, T with only a destructor                 error 164, "Fields with destructors"
+''     zstring * 8, wstring * 8, string ptr, T ptr      accepted
+''
+'' Only 162 was refused (TKO0659). The others compiled, and a union holding a string died
+'' with heap corruption at scope exit (0xC0000374): the string's destructor ran over
+'' whatever the other member had written. They are TKO0998, an author decision (fs RFC-0002
+'' section 10.5 G5).
+
+'' Is the field inside a union -- its own, an enclosing named one, or any enclosing anonymous
+'' one?
+private function FieldInUnion_ ( byref c as Ctx, byval s as Symbol ptr ) as boolean
+    '' Either the field's immediate enclosing aggregate is a UNION -- which is what
+    '' SYMF_UNION records for an anonymous one -- or the named type it sits in is.
+    '' ...OR ANY ENCLOSING ANONYMOUS AGGREGATE IS A UNION. structs/dynamic-array-
+    '' field-in-union-2.bas writes 'type UDT { union { type { array( any ) } } }': the
+    '' field sits in an anonymous TYPE nested in the union, so its own SYMF_UNION is
+    '' clear and the enclosing SCOPE is the outer UDT -- anonymous aggregates are
+    '' flattened into one scope, so no scope walk can see the union either. Collect
+    '' already records the answer per field: anonUnionMask has a bit per nesting
+    '' level, set for the levels that are unions, so a non-zero mask means 'inside a
+    '' union somewhere'. fbc reports 162 for all of them.
+    if (s->flags and SYMF_UNION) <> 0 then return true
+    if s->anonUnionMask <> 0 then return true
+    dim as SymScope ptr sc = c.syms->ScopeAt( s->parent )
+    if sc = nullptr then return false
+    if sc->kind <> cast( uint8, SCOPEK_TYPE ) then return false
+    dim as Symbol ptr owner = c.syms->SymbolAt( sc->owner )
+    if owner = nullptr then return false
+    return ((owner->flags and SYMF_UNION_KIND) <> 0)
+end function
+
+'' A variable-length string: 'string' or 'ustring', or a fixed array of one.
+private function UnionVarLenString_ ( byref c as Ctx, byval t as TypeId ) as boolean
+    dim as TypeId u = c.types->Unqualify( t )
+    for guard as int32 = 0 to 15
+        if c.types->Kind( u ) <> TK_ARRAY then exit for
+        u = c.types->Unqualify( c.types->Inner( u ) )
+    next
+    if c.types->Kind( u ) <> TK_BUILTIN then return false
+    select case c.types->BuiltinOf( u )
+    case TY_STRING, TY_USTRING
+        return true
+    end select
+    return false
+end function
+
+'' A DYNAMIC ARRAY FIELD as it was WRITTEN: a field in a TYPE says so with '( any )' (TKO0721
+'' otherwise). Not from its type: a bound that does not fold types the field dynamic as well
+'' -- 'Name(0 to sizeof(IMAGE_SYMBOL_EX) - 1) as UBYTE' in win/winnt.bi does, imported into
+'' the std/tui tests -- and that refused a union fbc accepts. A field with no declaration
+'' node, a generic instance's, falls back to its type.
+private function FieldWrittenDynamic_ ( byref c as Ctx, byval f as Symbol ptr ) as boolean
+    dim as NodeId fn = cast( NodeId, f->payload )
+    if (f->payload = 0) orelse (c.ast->Kind( fn ) <> N_FIELD) then
+        return c.types->IsDynArray( c.types->Unqualify( f->type_ ) )
+    end if
+    dim as StmtPayload ptr fp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, fn )].data )]
+    '' The bounds are lo/hi pairs, and 'any' may stand in either place.
+    for k as int32 = 0 to fp->count - 1
+        dim as NodeId bk = cast( NodeId, c.ast->children[fp->first + k] )
+        if c.ast->Kind( bk ) <> N_IDENT then continue for
+        dim as InternId bn = c.ast->idents[cast( int32, c.ast->nodes[cast( int32, bk )].data )].name
+        if Text.LowerAscii( c.names->Spelling( bn ) ) = "any" then return true
+    next
+    return false
+end function
+
+'' What a type needs: 1 a constructor, written or one fbc writes for it; 2 only a
+'' destructor; 0 neither. A fixed array of the type needs what the type does; a dynamic one
+'' is judged where it is a field, by FieldWrittenDynamic_.
+private function UnionStructorNeed_ ( byref c as Ctx, byval t as TypeId, byval depth as int32 ) as int32
+    if depth > 16 then return 0
+    dim as TypeId u = c.types->Unqualify( t )
+    for guard as int32 = 0 to 15
+        if c.types->Kind( u ) <> TK_ARRAY then exit for
+        u = c.types->Unqualify( c.types->Inner( u ) )
+    next
+    if c.types->Kind( u ) <> TK_UDT then return 0
+    if StructorOf_( c, u, "__ctor" ) <> nullptr then return 1
+    dim as InternId tn = c.types->NameOf( u )
+    if tn = 0 then return 0
+    if Text.LowerAscii( c.names->Spelling( tn ) ) = "object" then return 1
+    dim as int32 need = 0
+    if StructorOf_( c, u, "__dtor" ) <> nullptr then need = 2
+    dim as ScopeId ds = cast( ScopeId, c.types->DeclScopeOf( u ) )
+    dim as SymbolId ts = c.syms->LookupLocalTyped( ds, tn, true )
+    if ts = SYMBOL_NONE then ts = c.syms->LookupTyped( ds, tn, true )
+    dim as Symbol ptr us = c.syms->SymbolAt( ts )
+    if (us = nullptr) orelse (us->inner = SCOPE_NONE) then return need
+    dim as SymScope ptr sc = c.syms->ScopeAt( us->inner )
+    if sc = nullptr then return need
+    dim as SymbolId cur = sc->firstSym
+    for guard as int32 = 0 to 9999
+        if cur = SYMBOL_NONE then exit for
+        dim as Symbol ptr f = c.syms->SymbolAt( cur )
+        if f = nullptr then exit for
+        cur = f->nextInScope
+        if f->kind <> cast( uint8, SYM_FIELD ) then continue for
+        if f->type_ = TYPE_NONE then continue for
+        if FieldWrittenDynamic_( c, f ) then return 1
+        if UnionVarLenString_( c, f->type_ ) then return 1
+        '' A FIELD INITIALISER: 'i as long = 3' makes fbc write the type a constructor.
+        if f->payload <> 0 then
+            dim as NodeId fn = cast( NodeId, f->payload )
+            if c.ast->Kind( fn ) = N_FIELD then
+                dim as StmtPayload ptr fp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, fn )].data )]
+                if fp->c <> NODE_NONE then return 1
+                if (fp->b <> NODE_NONE) andalso ((f->flags and SYMF_BITFIELD) = 0) then return 1
+            end if
+        end if
+        '' A FIELD OF A TYPE THAT NEEDS ONE -- and the base, which is a field too.
+        dim as int32 inner = UnionStructorNeed_( c, f->type_, depth + 1 )
+        if inner = 1 then return 1
+        if inner = 2 then need = 2
+    next
+    return need
+end function
+
+private sub CheckUnionMembers_( byref c as Ctx )
+    for i as int32 = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr s = @c.syms->symbols[i]
+        if s->kind <> cast( uint8, SYM_FIELD ) then continue for
+        if s->type_ = TYPE_NONE then continue for
+        if FieldInUnion_( c, s ) = false then continue for
+        dim as TypeId u = c.types->Unqualify( s->type_ )
+        '' A DYNAMIC array records a NEGATIVE rank, and its magnitude is rank + 1: -1 is
+        '' 'dim a( )', -2 is 'a( any )', -3 is 'a( any, any )'. Testing for -1 alone found
+        '' only the unspecified form and missed every one the corpus writes.
+        if c.types->Kind( u ) = TK_ARRAY then
+            if c.types->types[cast( int32, u )].dims < 0 then
+                c.diags->Report( TKO0659, PointRange( s->loc ), c.names->Spelling( s->name ) )
+                continue for
+            end if
+        end if
+        dim as string why = ""
+        if UnionVarLenString_( c, u ) then
+            why = "a variable-length string has to be constructed and destroyed"
+        else
+            select case UnionStructorNeed_( c, u, 0 )
+            case 1 : why = "its type has a constructor"
+            case 2 : why = "its type has a destructor"
+            end select
+        end if
+        if len( why ) = 0 then continue for
+        c.diags->Report( TKO0998, PointRange( s->loc ), c.names->Spelling( s->name ), why )
+    next
+end sub

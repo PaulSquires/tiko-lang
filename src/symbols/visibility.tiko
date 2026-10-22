@@ -1490,7 +1490,7 @@ sub Run _
     CheckBaseHasDefaultCtor_( c )
     CheckPrivateBaseStructor_( c )
     CheckExternInitAndDefaultCtor_( c )
-    CheckDynArrayInUnion_( c )
+    CheckUnionMembers_( c )
     CheckVirtualNeedsObject_( c )
 end sub
 

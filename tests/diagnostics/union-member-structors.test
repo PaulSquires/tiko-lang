@@ -1,0 +1,25 @@
+'' TKO0998 for a union member that has to be constructed or destroyed: fbc's 161 (a string or
+'' ustring), 163 (a type with a constructor, written or one fbc writes) and 164 (only a
+'' destructor), with TKO0659 kept for 162 (a dynamic array). In a named union, an anonymous one
+'' in a TYPE, a TYPE nested in it, a generic union and one local to a generic procedure, per
+'' instantiation. A union holding a string compiled and died with heap corruption at scope
+'' exit. Pointers and fixed-length strings are fine. See symbols/unionmember.tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/union-member-structors.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: union-member-structors.bas(28,5): error TKO0998
+'' EXPECT-OUT: union-member-structors.bas(29,5): error TKO0998
+'' EXPECT-OUT: union-member-structors.bas(30,5): error TKO0998
+'' EXPECT-OUT: union-member-structors.bas(31,5): error TKO0659
+'' EXPECT-OUT: union-member-structors.bas(32,5): error TKO0998
+'' EXPECT-OUT: union-member-structors.bas(33,5): error TKO0998
+'' EXPECT-OUT: union-member-structors.bas(34,5): error TKO0998
+'' EXPECT-OUT: union-member-structors.bas(35,5): error TKO0998
+'' EXPECT-OUT: union-member-structors.bas(36,5): error TKO0998
+'' EXPECT-OUT: union-member-structors.bas(37,5): error TKO0998
+'' EXPECT-OUT: union-member-structors.bas(38,5): error TKO0998
+'' EXPECT-OUT: union-member-structors.bas(48,13): error TKO0998
+'' EXPECT-OUT: union-member-structors.bas(51,9): error TKO0998
+'' EXPECT-OUT: union-member-structors.bas(58,5): error TKO0998
+'' EXPECT-OUT: union-member-structors.bas(66,13): error TKO0998
+'' EXPECT-MAX-DIAG: 15
