@@ -1,0 +1,13 @@
+'' TKO0971 AT AN ARGUMENT: a type, typedef or enum name passed to a procedure, with or
+'' without parentheses, to a procedure pointer, or as a subscript. It compiled and passed
+'' nothing before. See symbols/typevalue.tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/type-name-arg.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: type-name-arg.bas(14,5): error TKO0971: 'hinstance' is a type, not a value
+'' EXPECT-OUT: type-name-arg.bas(15,6): error TKO0971: 'hinstance' is a type, not a value
+'' EXPECT-OUT: type-name-arg.bas(16,10): error TKO0971: 'hinstance' is a type, not a value
+'' EXPECT-OUT: type-name-arg.bas(17,5): error TKO0971: 'm' is a type, not a value
+'' EXPECT-OUT: type-name-arg.bas(18,12): error TKO0971: 'm' is a type, not a value
+'' EXPECT-OUT: type-name-arg.bas(19,5): error TKO0971: 'e' is a type, not a value
+'' EXPECT-MAX-DIAG: 6

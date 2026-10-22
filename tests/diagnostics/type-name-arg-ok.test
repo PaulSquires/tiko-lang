@@ -1,0 +1,9 @@
+'' ...and the legal type-name arguments still compile and run as fbc's: a UDT name with a
+'' constructor, sizeof, len, cast and an enum member.
+'' TEST: cli
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' CLEAN: build/.tna
+'' ARGS: -target windows-x86_64 tests/diagnostics/src/type-name-arg-ok.bas -x build/.tna/run.exe
+'' EXPECT-EXIT: 0
+'' RUN: build/.tna/run.exe
+'' EXPECT-RUN-OUT:  7 7 8 4 2 0

@@ -1230,7 +1230,7 @@ private sub Walk_ _
     if k = N_PROC then CheckOperatorArity_( c, id )
     if k = N_PROC then CheckNonMemberOperator_( c, id )
     if k = N_BINARY then CheckBareArrayOperands_( c, id )
-    if (k = N_AMBIGUOUS) orelse (k = N_BINARY) orelse (k = N_INTRINSIC) orelse (k = N_VAR_ITEM) then CheckTypeNameValue_( c, id, k )   '' typevalue.tiko
+    if (k = N_AMBIGUOUS) orelse (k = N_BINARY) orelse (k = N_INTRINSIC) orelse (k = N_VAR_ITEM) orelse (k = N_CALL) then CheckTypeNameValue_( c, id, k )   '' typevalue.tiko
     if k = N_INTRINSIC then CheckBareArrayPrint_( c, id )
     if k = N_INTRINSIC then CheckGfxTarget_( c, id )
     WalkExtra_( c, id, k, innerByref, here )

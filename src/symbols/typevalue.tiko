@@ -15,10 +15,17 @@
 '' declared", because to fbc the name is not a variable at all.
 ''
 '' CHECKED AT THE SITES THAT CERTAINLY NEED A VALUE, as the bare-array rule beside it is:
-'' an assignment's two sides, a binary operand, a PRINT item and a declaration's
-'' initialiser. A type name is legal as the subject of a member ('T.K', 'E.A'), as the
-'' operand of sizeof/len/typeof, in a cast and in 'new' -- none of which is one of these.
+'' an assignment's two sides, a binary operand, a PRINT item, a declaration's
+'' initialiser and an argument to a procedure, a procedure pointer or an array -- with or
+'' without parentheses. A type name is legal as the subject of a member ('T.K', 'E.A'), as
+'' the operand of sizeof/len/typeof, in a cast and in 'new' -- none of which is one of these.
 '' 'o IS T' names a type on purpose, and either side may be one: skipped whole.
+''
+'' THE ARGUMENT SITE was missed until José Roca's report: over windows.bi, 'Foo hInstance'
+'' and 'Foo2 hwnd' compiled and passed nothing, because FB names fold case and those spell
+'' the typedefs HINSTANCE and HWND. fbc says error 42. A call's head must be the program's
+'' -- a procedure, a variable, a parameter or a field -- so a builtin with a type operand
+'' never reaches the rule.
 ''
 '' A UDT NAME CAN BE A VALUE: 'var f1 = foo' over a type with a constructor builds one
 '' (fbc's dim/auto_var2.bas). So a name that resolves to a UDT is refused only as an
@@ -48,6 +55,27 @@ private sub ReportTypeNameValue_ ( byref c as Ctx, byval n as NodeId )
     c.diags->Report( TKO0971, PointRange( c.ast->Loc( n ) ), c.names->Spelling( ip->name ) )
 end sub
 
+'' Whether a call's head is the program's: a procedure, or a value that is called or indexed.
+private function IsProgramCallHead_ ( byref c as Ctx, byval sid as SymbolId ) as boolean
+    dim as Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = nullptr then return false
+    select case cast( SymbolKind, s->kind )
+    case SYM_PROC, SYM_VARIABLE, SYM_PARAMETER, SYM_FIELD
+        return true
+    end select
+    return false
+end function
+
+'' The first argument in a child run that is a type name; true when one was reported.
+private function CheckTypeNameArgs_ ( byref c as Ctx, byval first as int32, _
+                                      byval count as int32 ) as boolean
+    for i as int32 = 0 to count - 1
+        dim as NodeId an = cast( NodeId, c.ast->children[first + i] )
+        if IsTypeNameValue_( c, an ) then ReportTypeNameValue_( c, an ) : return true
+    next
+    return false
+end function
+
 '' One report per statement: the first operand that is a type name.
 private sub CheckTypeNameValue_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
     select case k
@@ -55,7 +83,20 @@ private sub CheckTypeNameValue_ ( byref c as Ctx, byval id as NodeId, byval k as
         dim as StmtPayload ptr sp = _
             @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
         if IsTypeNameValue_( c, sp->a, (c.info->AmbiguousOf( id ) = AMB_ASSIGN) ) then ReportTypeNameValue_( c, sp->a ) : return
-        if IsTypeNameValue_( c, sp->b ) then ReportTypeNameValue_( c, sp->b )
+        if IsTypeNameValue_( c, sp->b ) then ReportTypeNameValue_( c, sp->b ) : return
+        '' 'Foo hInstance': a parenless call's arguments are the statement's children.
+        if c.info->AmbiguousOf( id ) <> AMB_CALL then return
+        if sp->a = NODE_NONE then return
+        if IsProgramCallHead_( c, c.info->RefOf( sp->a ) ) = false then return
+        CheckTypeNameArgs_( c, sp->first, sp->count )
+    case N_CALL
+        dim as ListPayload ptr lp = _
+            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        if lp->count = 0 then return
+        dim as SymbolId head = c.info->RefOf( id )
+        if (head = SYMBOL_NONE) andalso (lp->target <> NODE_NONE) then head = c.info->RefOf( lp->target )
+        if IsProgramCallHead_( c, head ) = false then return
+        CheckTypeNameArgs_( c, lp->first, lp->count )
     case N_BINARY
         dim as BinaryPayload ptr bp = _
             @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
