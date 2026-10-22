@@ -1,0 +1,11 @@
+'' TKO0917 for a QUALIFIED 'N.UDT( )' over a type with nothing to construct: fbc's 42, and 1
+'' as an argument. Only an unqualified name was asked about, so 'fs.FileInfo( )' went on
+'' to lowering: 'fs.Stat( p ).ValueOr( fs.FileInfo( ) ).Size( )' printed 0 for a 5-byte
+'' file, and the MIR verifier stopped the same call over a named Result. See
+'' symbols/declshape.tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/udt-call-no-ctor-qualified.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: udt-call-no-ctor-qualified.bas(21,21): error TKO0917
+'' EXPECT-OUT: udt-call-no-ctor-qualified.bas(22,14): error TKO0917
+'' EXPECT-MAX-DIAG: 2

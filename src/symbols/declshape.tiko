@@ -510,8 +510,25 @@ end sub
 '' string field, a field initializer or OBJECT is constructed, and the call is fine.
 private sub CheckUdtCallNoCtor_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
-    if (lp->target = NODE_NONE) orelse (c.ast->Kind( lp->target ) <> N_IDENT) then return
-    dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+    if lp->target = NODE_NONE then return
+    dim as Symbol ptr ts = nullptr
+    if c.ast->Kind( lp->target ) = N_IDENT then
+        ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+    elseif c.ast->Kind( lp->target ) = N_MEMBER then
+        '' A QUALIFIED TYPE -- 'N.Info( )', and 'fs.FileInfo( )' through a module's alias --
+        '' is the same call, fbc's error 42 the same. Only an N_IDENT was asked about, so
+        '' it went on to lowering, which built a call with no receiver: 'fs.Stat( p
+        '' ).ValueOr( fs.FileInfo( ) ).Size( )' printed 0 for a 5-byte file, and over a
+        '' named Result the MIR verifier stopped it (fs RFC-0002 section 10.5 G6). Only a
+        '' TYPE is taken here: 'obj.member( )' is a method or an index.
+        ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+        if ts = nullptr then
+            dim as NodeId rhs = c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].rhs
+            ts = c.syms->SymbolAt( c.info->RefOf( rhs ) )
+        end if
+        if ts = nullptr then return
+        if (ts->kind <> cast( uint8, SYM_UDT )) andalso (ts->kind <> cast( uint8, SYM_TYPEDEF )) then return
+    end if
     if ts = nullptr then return
     dim as TypeId t = TYPE_NONE
     select case cast( SymbolKind, ts->kind )
