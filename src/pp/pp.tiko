@@ -528,7 +528,14 @@ private sub PushFrame _
     f.useLoc = useLoc
     f.lineLoc = iif( lineLoc <> LOC_NONE, lineLoc, useLoc )
     if e.frames.Count > 0 then f.inImport = e.frames[e.frames.Count - 1].inImport
-    if f.inImport then PpImportReadAdd_( e, file )
+    if f.inImport then
+        '' The file that read this one: the nearest enclosing frame with a file.
+        dim as FileId parent = FILE_NONE
+        for k as int32 = e.frames.Count - 1 to 0 step -1
+            if e.frames[k].file <> FILE_NONE then parent = e.frames[k].file : exit for
+        next
+        PpImportReadAdd_( e, file, parent )
+    end if
     e.frames.Push( f )
     if e.frames.Count > e.outp->maxDepth then e.outp->maxDepth = e.frames.Count
 end sub

@@ -22,6 +22,10 @@ type PpIndexes
     as IdVec     ifaceMark
     '' ...and PpResult.importRead: a file read while an '#import' was being read.
     as IdVec     importMark
+    '' ...and the file that read it (by FileId, 0 = the import's own interface): a header the
+    '' PROGRAM then '#include's, skipped as already read, hands it and what it read back to the
+    '' program (PpImportReadOwn_).
+    as IdVec     importParent
     '' THE MACRO SLOTS EVER DEFINED INSIDE A BLOCK (blockDepth > 0), once each: all that an
     '' 'end sub' / 'end function' / 'end scope' can undefine. It swept the whole table --
     '' windows.bi's twenty thousand macros -- at every one.

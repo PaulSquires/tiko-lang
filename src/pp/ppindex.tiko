@@ -24,11 +24,40 @@ private sub PpOnceAdd_( byref e as PpEngine, byval f as FileId )
     PpFlagSet_( e.ix.onceMark, cast( uint32, f ) )
 end sub
 
-private sub PpImportReadAdd_( byref e as PpEngine, byval f as FileId )
+private sub PpImportReadAdd_( byref e as PpEngine, byval f as FileId, byval parent as FileId = FILE_NONE )
     if f = FILE_NONE then return
     if PpFlagOf_( e.ix.importMark, cast( uint32, f ) ) <> 0 then return
     PpFlagSet_( e.ix.importMark, cast( uint32, f ) )
+    if parent <> FILE_NONE then PpFlagSet_( e.ix.importParent, cast( uint32, f ), cast( uint32, parent ) )
     e.outp->importRead.Push( cast( uint32, f ) )
+end sub
+
+'' THE PROGRAM '#include'S A HEADER AN '#import' ALREADY READ. The include is skipped (once),
+'' but the header is now the program's own as well, and so is everything it read: its
+'' declarations win over a 'using''s name as any own '#include''s do, rather than counting as
+'' the import's (TKO0919). sys/win/direct2d includes windows.bi after 'using com', whose
+'' 'Guid' function made windows.bi's GUID type ambiguous only because sys/win/com had read
+'' windows.bi first.
+private sub PpImportReadOwn_( byref e as PpEngine, byval f as FileId )
+    if (f = FILE_NONE) orelse (PpFlagOf_( e.ix.importMark, cast( uint32, f ) ) = 0) then return
+    dim as int32 w = 0
+    for r as int32 = 0 to e.outp->importRead.Count - 1
+        dim as uint32 g = e.outp->importRead[r]
+        dim as boolean own = false
+        dim as uint32 walk = g
+        for guard as int32 = 0 to 255
+            if walk = cast( uint32, f ) then own = true : exit for
+            walk = PpFlagOf_( e.ix.importParent, walk )
+            if walk = 0 then exit for
+        next
+        if own = false then
+            e.outp->importRead[w] = g
+            w += 1
+        end if
+    next
+    while e.outp->importRead.Count > w
+        e.outp->importRead.Pop( )
+    wend
 end sub
 
 private sub PpIncludedAdd_( byref e as PpEngine, byval f as FileId )

@@ -1,0 +1,11 @@
+'' sys/win's import READS windows.bi first; the program's own '#include once "windows.bi"'
+'' after it is skipped as already read -- and still makes windows.bi the program's own, so
+'' its CONTEXT beats 'using tasks' as in own-wins. sys/win/direct2d is this shape: it
+'' includes windows.bi after 'using com', and com's 'Guid' function made GUID ambiguous.
+#import "sys/win"
+#import "std/tasks"
+#include once "windows.bi"
+using tasks
+dim w as Context
+dim c as tasks.Context
+print sizeof( w ) > 100; c.IsCancelled( )

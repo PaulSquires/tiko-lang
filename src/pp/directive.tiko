@@ -188,9 +188,17 @@ private sub PpInclude( byref e as PpEngine, byval at as SourceLoc, byval once as
     PpModNoteHeader( e, d.file, got )
     PpModHermNote( e, d.file, got )
     if e.modst.cincPublic then PpModMarkPublic( e, at, got, "'public #include'" )
-    if PpAlreadyOnce( e, got ) then PpModHermSkip( e, got ) : return
+    '' A header an '#import' read, skipped here: the program's own from now on (PpImportReadOwn_).
+    dim as boolean ownFrame = (e.frames.Count = 0) orelse (e.frames[e.frames.Count - 1].inImport = false)
+    if PpAlreadyOnce( e, got ) then
+        if ownFrame then PpImportReadOwn_( e, got )
+        PpModHermSkip( e, got ) : return
+    end if
     if isOnce then
-        if PpWasIncluded_( e, got ) then PpModHermSkip( e, got ) : return
+        if PpWasIncluded_( e, got ) then
+            if ownFrame then PpImportReadOwn_( e, got )
+            PpModHermSkip( e, got ) : return
+        end if
         PpOnceAdd_( e, got )
     end if
     PpIncludedAdd_( e, got )

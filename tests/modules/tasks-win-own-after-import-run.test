@@ -1,0 +1,13 @@
+'' RUN: a header an '#import' already read (sys/win's windows.bi), then '#include'd by the
+'' program itself, is the program's own: the skipped include hands it, and every header it
+'' read, back (src/pp/ppindex.tiko PpImportReadOwn_). Its CONTEXT beats 'using tasks' with no
+'' TKO0919, as in tasks-win-own-wins. Without this, sys/win/direct2d's 'AS GUID' was TKO0919
+'' against sys/win/com's Guid function, and the toolchain's sys/win verify failed.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/modules/src/taskswin/own-after-import.tiko -o tests/modules/taskswinownafterimport.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0919
+'' EXPECT-FILE: tests/modules/taskswinownafterimport.exe
+'' RUN: tests/modules/taskswinownafterimport.exe
+'' EXPECT-RUN-OUT: -1false
