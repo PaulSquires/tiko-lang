@@ -50,6 +50,9 @@ public enum EncodingErrorCode
     ENC_INVALID_UTF8        '' decoded bytes asked for as text are not UTF-8
     ENC_TRUNCATED           '' the data ended inside a value
     ENC_OVERFLOW            '' a varint wider than 64 bits
+    ENC_UNMAPPABLE          '' a character the text encoding has no bytes for
+    ENC_INVALID_BYTES       '' bytes the code page does not define, under strict
+    ENC_UNSUPPORTED         '' an encoding or code page this platform cannot convert
 end enum
 
 '' Fixed English text for a code.
@@ -63,6 +66,9 @@ public function EncodingErrorMessage( byval c as EncodingErrorCode ) as ustring
     case ENC_INVALID_UTF8    : return "decoded data is not valid UTF-8"
     case ENC_TRUNCATED       : return "data ends inside a value"
     case ENC_OVERFLOW        : return "value does not fit in 64 bits"
+    case ENC_UNMAPPABLE      : return "character not representable in the encoding"
+    case ENC_INVALID_BYTES   : return "bytes not valid in the encoding"
+    case ENC_UNSUPPORTED     : return "encoding not supported"
     end select
     return "unknown error"
 end function

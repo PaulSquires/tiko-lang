@@ -1,0 +1,682 @@
+#module "codec"
+#import "std/containers"
+#import "std/outcome"
+using containers
+using outcome
+'' std/codec: text in a named encoding -- TextEncoding, DecodeText, EncodeText and
+'' DetectEncoding
+''
+''     dim b as containers.Array( of ubyte )
+''     codec.EncodeText( "caf" & wchr( &hE9 ), codec.Utf16LE( ), b )   '' FF FE 63 00 61 00 66 00 E9 00
+''     print codec.DecodeText( b, codec.Utf16LE( ) ).Value( )          '' café
+''     codec.EncodeText( wchr( &h2603 ), codec.Ansi( ), b )            '' fails: ENC_UNMAPPABLE
+''
+'' C:\dev\docs\tiko-fs\RFC-0002-text-encodings.md. std/fs takes the same TextEncoding
+'' for its files (fs.ReadAllText( p, fs.Utf16LE( ) ) and the rest); this is the in-memory
+'' half, over Array( of ubyte ) or a pointer and a length.
+''
+'' FIVE KINDS. UTF-8 and UTF-16 (LE or BE) hold every character. A CODE PAGE is
+'' Windows' numbering: Ansi( ) is code page 0, the system's ANSI code page at the time of
+'' the call, and CodePage( 65001 ) IS Utf8( ). BINARY maps byte n to U+00nn and back, so
+'' any bytes become text and the text becomes the same bytes again, on every machine.
+''
+'' DECODING BELIEVES THE CALLER. The encoding named is the encoding used: a BOM that
+'' MATCHES it (EF BB BF for UTF-8, FF FE for UTF-16LE, FE FF for UTF-16BE) is consumed,
+'' and any other leading bytes are text. A code page and BINARY consume nothing. UTF-16
+'' drops an odd last byte and keeps a lone surrogate. Bytes the encoding does not
+'' define become U+FFFD -- for a code page, whatever Windows gives them -- or, with
+'' strict = TRUE, fail with ENC_INVALID_UTF8 or ENC_INVALID_BYTES.
+''
+'' ENCODING IS STRICT BY DEFAULT. A character a code page or BINARY cannot hold fails
+'' the call with ENC_UNMAPPABLE and leaves buf empty. With strict = FALSE it becomes '?'
+'' (Windows: the code page's default character) and the result's value is FALSE: "written,
+'' but not exactly". Best-fit is never used, so U+221E does not quietly become '8'. UTF-8
+'' writes a lone surrogate as U+FFFD, as every UTF-8 writer here does, and reports that
+'' as FALSE too; UTF-16 copies it. The BOM is written when enc.Bom says so, for UTF-8 and
+'' UTF-16 only; Utf16LE( ) and Utf16BE( ) default to one, Utf8( ) does not.
+''
+'' WHERE THE CODE PAGES COME FROM. On Windows, MultiByteToWideChar and WideCharToMultiByte,
+'' always with WC_NO_BEST_FIT_CHARS -- except code page 54936 (GB18030), which holds every
+'' character and takes no such flag. Elsewhere, built-in tables (codecpages.tiko,
+'' generated from Windows' own answers) for 1250-1258, 28591, 28605, 437 and 850, which
+'' decode and encode exactly as Windows does; Ansi( ) and every other code page fail with
+'' ENC_UNSUPPORTED there. Everywhere, the stateful code pages (ISO-2022, HZ, UTF-7) and the
+'' ones Windows will not convert without best-fit fail with ENC_UNSUPPORTED.
+''
+'' DETECTION (DetectEncoding) is for files whose encoding is not known: a BOM if there
+'' is one, else valid UTF-8, else TextDetect.Fallback. Empty input is UTF-8. A UTF-32 BOM
+'' fails with ENC_UNSUPPORTED rather than passing for UTF-16. The BOM-less UTF-16 guess
+'' is off unless TextDetect.Utf16NoBom asks for it. Detection never yields BINARY, but
+'' BINARY can be the fallback: "BOM, else UTF-8, else the bytes as they are".
+
+#ifdef __FB_WIN32__
+extern "C"
+    declare function enct_MultiByteToWideChar stdcall alias "MultiByteToWideChar" ( byval cp as ulong, _
+        byval flags as ulong, byval src as const ubyte ptr, byval n as long, byval dst as ushort ptr, _
+        byval dn as long ) as long
+    declare function enct_WideCharToMultiByte stdcall alias "WideCharToMultiByte" ( byval cp as ulong, _
+        byval flags as ulong, byval src as const ushort ptr, byval n as long, byval dst as ubyte ptr, _
+        byval dn as long, byval defChar as const ubyte ptr, byval usedDef as long ptr ) as long
+    declare function enct_GetLastError stdcall alias "GetLastError" ( ) as ulong
+    declare function enct_GetACP stdcall alias "GetACP" ( ) as ulong
+end extern
+
+const ENCT_MB_ERR_INVALID_CHARS = &h8
+const ENCT_WC_ERR_INVALID_CHARS = &h80
+const ENCT_WC_NO_BEST_FIT_CHARS = &h400
+const ENCT_ERROR_NO_UNICODE_TRANSLATION = 1113
+#endif
+
+extern "C"
+    declare function enct_memcpy alias "memcpy" _
+        ( byval d as any ptr, byval s as const any ptr, byval n as uinteger ) as any ptr
+end extern
+
+'' ------------------------------------------------------------ TextEncoding
+
+public enum TextEncodingKind
+    TEXT_UTF8     = 1
+    TEXT_UTF16LE  = 2
+    TEXT_UTF16BE  = 3
+    TEXT_CODEPAGE = 4       '' single- or double-byte code page
+    TEXT_BINARY   = 5       '' byte n <-> U+00nn, lossless
+end enum
+
+public type TextEncoding
+    '' UTF-8 without a BOM, the encoding of every call that names none.
+    declare constructor( )
+
+    as TextEncodingKind Kind
+    as ulong   CodePage     '' TEXT_CODEPAGE only; 0 = the ANSI code page
+    as boolean Bom          '' write a BOM; UTF-8 and UTF-16 only
+
+    '' "utf-8", "utf-16le", "utf-16be", "ansi", "windows-1252", "iso-8859-1", "ibm437",
+    '' "cp<n>" for a code page with no common name, or "binary".
+    declare const function Name( ) as ustring
+end type
+
+constructor TextEncoding( )
+    this.Kind = TEXT_UTF8
+    this.CodePage = 0
+    this.Bom = FALSE
+end constructor
+
+const function TextEncoding.Name( ) as ustring
+    select case this.Kind
+    case TEXT_UTF8     : return "utf-8"
+    case TEXT_UTF16LE  : return "utf-16le"
+    case TEXT_UTF16BE  : return "utf-16be"
+    case TEXT_BINARY   : return "binary"
+    case TEXT_CODEPAGE
+        select case this.CodePage
+        case 0            : return "ansi"
+        case 65001        : return "utf-8"
+        case 1250 to 1258 : return "windows-" & this.CodePage
+        case 28591        : return "iso-8859-1"
+        case 28605        : return "iso-8859-15"
+        case 437, 850     : return "ibm" & this.CodePage
+        case 932          : return "shift_jis"
+        case 936          : return "gbk"
+        case 949          : return "ks_c_5601-1987"
+        case 950          : return "big5"
+        case 54936        : return "gb18030"
+        end select
+        return "cp" & this.CodePage
+    end select
+    return ""
+end function
+
+public function Utf8( byval bom as boolean = FALSE ) as TextEncoding
+    dim as TextEncoding e
+    e.Bom = bom
+    return e
+end function
+
+public function Utf16LE( byval bom as boolean = TRUE ) as TextEncoding
+    dim as TextEncoding e
+    e.Kind = TEXT_UTF16LE
+    e.Bom = bom
+    return e
+end function
+
+public function Utf16BE( byval bom as boolean = TRUE ) as TextEncoding
+    dim as TextEncoding e
+    e.Kind = TEXT_UTF16BE
+    e.Bom = bom
+    return e
+end function
+
+'' A Windows code page by number. 65001 is UTF-8, so it gives Utf8( ).
+public function CodePage( byval cp as ulong ) as TextEncoding
+    dim as TextEncoding e
+    if( cp = 65001 ) then return e
+    e.Kind = TEXT_CODEPAGE
+    e.CodePage = cp
+    return e
+end function
+
+'' The system's ANSI code page, looked up at each conversion: 1252 in western Europe and
+'' the Americas, 932 in Japan, 1251 in Russia. Windows only; ENC_UNSUPPORTED elsewhere.
+public function Ansi( ) as TextEncoding
+    return CodePage( 0 )
+end function
+
+'' Byte n is U+00nn. The name has the underscore because BINARY is a keyword.
+public function Binary_( ) as TextEncoding
+    dim as TextEncoding e
+    e.Kind = TEXT_BINARY
+    return e
+end function
+
+'' -------------------------------------------------------------- TextDetect
+
+public type TextDetect
+    '' Fallback UTF-8, no UTF-16 guess, a 64 KiB prefix: detection that agrees with the
+    '' default rules. Set Fallback to Ansi( ) for the editor's rule, or Binary_( ).
+    declare constructor( )
+    declare constructor( byval fallback as TextEncoding, byval utf16NoBom as boolean = FALSE, _
+        byval prefixBytes as long = 65536 )
+
+    as TextEncoding Fallback    '' no BOM, and the bytes are not valid UTF-8
+    as boolean      Utf16NoBom  '' allow the NUL-pattern guess for BOM-less UTF-16
+    as long         PrefixBytes '' a stream's look-ahead, and the guess's sample; <= 0 is 65536
+end type
+
+constructor TextDetect( )
+    this.Utf16NoBom = FALSE
+    this.PrefixBytes = 65536
+end constructor
+
+constructor TextDetect( byval fallback as TextEncoding, byval utf16NoBom as boolean, byval prefixBytes as long )
+    this.Fallback = fallback
+    this.Utf16NoBom = utf16NoBom
+    this.PrefixBytes = prefixBytes
+end constructor
+
+public type EncResultBool     as Result( of boolean, EncodingError )
+public type EncResultEncoding as Result( of TextEncoding, EncodingError )
+
+'' -------------------------------------------------------------- internal
+
+'' buf = the n bytes at p.
+sub EncTSetBytes( byref buf as Array( of ubyte ), byval p as const ubyte ptr, byval n as long )
+    buf.Clear( )
+    if( n <= 0 ) then exit sub
+    buf.Reserve( n )
+    enct_memcpy( @buf.items( 0 ), p, n )
+    buf.num = n
+end sub
+
+'' Code pages no conversion here will take: UTF-16 and UTF-32 by number (they have
+'' their own kinds), the stateful ones (ISO-2022 50220-50229, HZ 52936, UTF-7 65000),
+'' and the ones WideCharToMultiByte converts only with best-fit (42, ISCII 57002-57011).
+function EncTCpRefused( byval cp as ulong ) as boolean
+    select case cp
+    case 1200, 1201, 12000, 12001, 42, 52936, 65000
+        return TRUE
+    case 50220 to 50229, 57002 to 57011
+        return TRUE
+    end select
+    return FALSE
+end function
+
+'' The built-in table's index for cp, or -1.
+function EncTTableIndex( byval cp as ulong ) as long
+    for i as long = 0 to ENC_CP_COUNT - 1
+        if( EncCpIds( i ) = cp ) then return i
+    next
+    return -1
+end function
+
+function EncTTableInvalid( byval cp as ulong, byval b as long ) as boolean
+    dim as ulong key = ( cp shl 8 ) or b
+    for i as long = 0 to ENC_CP_INVALID - 1
+        if( EncCpInvalid( i ) = key ) then return TRUE
+    next
+    return FALSE
+end function
+
+'' TRUE when s holds a surrogate that is not half of a pair.
+function EncTHasLoneSurrogate( byref s as const ustring ) as boolean
+    dim as long n = len( s ), i = 0
+    while( i < n )
+        dim as ulong u = s[i]
+        if( ( u >= &hD800 ) andalso ( u <= &hDBFF ) ) then
+            if( i + 1 >= n ) then return TRUE
+            dim as ulong v = s[i + 1]
+            if( ( v < &hDC00 ) orelse ( v > &hDFFF ) ) then return TRUE
+            i += 2
+        elseif( ( u >= &hDC00 ) andalso ( u <= &hDFFF ) ) then
+            return TRUE
+        else
+            i += 1
+        end if
+    wend
+    return FALSE
+end function
+
+'' UTF-16 units from bytes, a matching BOM skipped, an odd last byte dropped.
+function EncTDecode16( byval p as const ubyte ptr, byval n as longint, byval be as boolean ) as ustring
+    dim as longint start = 0
+    if( n >= 2 ) then
+        if( be andalso ( p[0] = &hFE ) andalso ( p[1] = &hFF ) ) then start = 2
+        if( ( be = FALSE ) andalso ( p[0] = &hFF ) andalso ( p[1] = &hFE ) ) then start = 2
+    end if
+    dim as long units = clng( ( n - start ) \ 2 )
+    if( units <= 0 ) then return ""
+    dim as ustring u = wspace( units )
+    dim as const ubyte ptr q = p + start
+    for i as long = 0 to units - 1
+        dim as ulong lo = q[i * 2], hi = q[i * 2 + 1]
+        if( be ) then swap lo, hi
+        u[i] = lo or ( hi shl 8 )
+    next
+    return u
+end function
+
+'' Through a built-in table: every platform can, Linux must.
+function EncTDecodeTable( byval p as const ubyte ptr, byval n as longint, byval cp as ulong, _
+        byval strict as boolean, byref op as const ustring ) as EncResultText
+    dim as long idx = EncTTableIndex( cp )
+    if( idx < 0 ) then return EncFail( of ustring )( ENC_UNSUPPORTED, 0, op )
+    if( n <= 0 ) then return Ok( of ustring, EncodingError )( "" )
+    dim as ustring u = wspace( clng( n ) )
+    for i as long = 0 to clng( n ) - 1
+        dim as long b = p[i]
+        if( b < 128 ) then
+            u[i] = b
+        else
+            if( strict andalso EncTTableInvalid( cp, b ) ) then
+                return EncFail( of ustring )( ENC_INVALID_BYTES, i + 1, op )
+            end if
+            u[i] = EncCpHigh( idx * 128 + b - 128 )
+        end if
+    next
+    return Ok( of ustring, EncodingError )( u )
+end function
+
+'' A unit encodes to the byte that decodes to it, or to nothing: the rule
+'' gencodepages proved against WideCharToMultiByte( WC_NO_BEST_FIT_CHARS ).
+function EncTEncodeTable( byref s as const ustring, byval cp as ulong, byref buf as Array( of ubyte ), _
+        byval strict as boolean, byref op as const ustring ) as EncResultBool
+    buf.Clear( )
+    dim as long idx = EncTTableIndex( cp )
+    if( idx < 0 ) then return EncFail( of boolean )( ENC_UNSUPPORTED, 0, op )
+    dim as long n = len( s )
+    dim as boolean exact = TRUE
+    if( n = 0 ) then return Ok( of boolean, EncodingError )( TRUE )
+    buf.Reserve( n )
+    for i as long = 0 to n - 1
+        dim as ulong u = s[i]
+        dim as long b = -1
+        if( u < 128 ) then
+            b = u
+        else
+            for k as long = 0 to 127
+                if( EncCpHigh( idx * 128 + k ) = u ) then
+                    b = 128 + k
+                    exit for
+                end if
+            next
+        end if
+        if( b < 0 ) then
+            if( strict ) then
+                buf.Clear( )
+                return EncFail( of boolean )( ENC_UNMAPPABLE, i + 1, op )
+            end if
+            exact = FALSE
+            b = 63
+        end if
+        buf.items( i ) = b
+    next
+    buf.num = n
+    return Ok( of boolean, EncodingError )( exact )
+end function
+
+#ifdef __FB_WIN32__
+'' The code page a conversion uses: 0 is GetACP( ) now.
+function EncTResolveCp( byval cp as ulong ) as ulong
+    if( cp = 0 ) then return enct_GetACP( )
+    return cp
+end function
+
+function EncTDecodeWin( byval p as const ubyte ptr, byval n as longint, byval cp as ulong, _
+        byval strict as boolean, byref op as const ustring ) as EncResultText
+    if( n <= 0 ) then return Ok( of ustring, EncodingError )( "" )
+    if( n > &h7FFFFFFF ) then return EncFail( of ustring )( ENC_INVALID_LENGTH, 0, op )
+    dim as ulong fl = iif( strict, ENCT_MB_ERR_INVALID_CHARS, 0 )
+    dim as long wn = enct_MultiByteToWideChar( cp, fl, p, clng( n ), nullptr, 0 )
+    if( wn <= 0 ) then
+        if( enct_GetLastError( ) = ENCT_ERROR_NO_UNICODE_TRANSLATION ) then
+            return EncFail( of ustring )( ENC_INVALID_BYTES, 0, op )
+        end if
+        return EncFail( of ustring )( ENC_UNSUPPORTED, 0, op )
+    end if
+    dim as ustring u = wspace( wn )
+    if( enct_MultiByteToWideChar( cp, fl, p, clng( n ), cptr( ushort ptr, strptr( u ) ), wn ) <> wn ) then
+        return EncFail( of ustring )( ENC_UNSUPPORTED, 0, op )
+    end if
+    return Ok( of ustring, EncodingError )( u )
+end function
+
+'' Two passes: the size (and, for every code page but 54936, whether a character had no
+'' byte), then the bytes. Strict fails before the second.
+function EncTEncodeWin( byref s as const ustring, byval cp as ulong, byref buf as Array( of ubyte ), _
+        byval strict as boolean, byref op as const ustring ) as EncResultBool
+    buf.Clear( )
+    dim as long n = len( s )
+    if( n = 0 ) then return Ok( of boolean, EncodingError )( TRUE )
+    dim as const ushort ptr w = cptr( const ushort ptr, strptr( s ) )
+    dim as boolean exact = TRUE
+    dim as long need
+
+    if( cp = 54936 ) then
+        '' GB18030 maps every character; only a lone surrogate can fail, and only
+        '' WC_ERR_INVALID_CHARS says so -- the used-default flag is not allowed here.
+        dim as ulong fl = ENCT_WC_ERR_INVALID_CHARS
+        need = enct_WideCharToMultiByte( cp, fl, w, n, nullptr, 0, nullptr, nullptr )
+        if( need <= 0 ) then
+            if( strict ) then return EncFail( of boolean )( ENC_UNMAPPABLE, 0, op )
+            exact = FALSE
+            fl = 0
+            need = enct_WideCharToMultiByte( cp, fl, w, n, nullptr, 0, nullptr, nullptr )
+            if( need <= 0 ) then return EncFail( of boolean )( ENC_UNSUPPORTED, 0, op )
+        end if
+        buf.Reserve( need )
+        if( enct_WideCharToMultiByte( cp, fl, w, n, @buf.items( 0 ), need, nullptr, nullptr ) <> need ) then
+            return EncFail( of boolean )( ENC_UNSUPPORTED, 0, op )
+        end if
+        buf.num = need
+        return Ok( of boolean, EncodingError )( exact )
+    end if
+
+    dim as long used = 0
+    need = enct_WideCharToMultiByte( cp, ENCT_WC_NO_BEST_FIT_CHARS, w, n, nullptr, 0, nullptr, @used )
+    if( need <= 0 ) then return EncFail( of boolean )( ENC_UNSUPPORTED, 0, op )
+    if( strict andalso ( used <> 0 ) ) then return EncFail( of boolean )( ENC_UNMAPPABLE, 0, op )
+    buf.Reserve( need )
+    used = 0
+    if( enct_WideCharToMultiByte( cp, ENCT_WC_NO_BEST_FIT_CHARS, w, n, @buf.items( 0 ), need, nullptr, @used ) <> need ) then
+        buf.Clear( )
+        return EncFail( of boolean )( ENC_UNSUPPORTED, 0, op )
+    end if
+    if( strict andalso ( used <> 0 ) ) then return EncFail( of boolean )( ENC_UNMAPPABLE, 0, op )
+    buf.num = need
+    return Ok( of boolean, EncodingError )( used = 0 )
+end function
+#endif
+
+'' -------------------------------------------------------------- DecodeText
+
+'' Bytes to text in enc. See the top of this file for the rules.
+public function DecodeText overload ( byval p as const ubyte ptr, byval n as longint, byval enc as TextEncoding, _
+        byval strict as boolean = FALSE ) as EncResultText
+    const op = "DecodeText"
+    if( ( n < 0 ) orelse ( ( p = nullptr ) andalso ( n > 0 ) ) ) then
+        return EncFail( of ustring )( ENC_INVALID_LENGTH, 0, op )
+    end if
+
+    dim as TextEncodingKind k = enc.Kind
+    dim as ulong cp = enc.CodePage
+    if( ( k = TEXT_CODEPAGE ) andalso ( cp = 65001 ) ) then k = TEXT_UTF8
+#ifdef __FB_WIN32__
+    if( k = TEXT_CODEPAGE ) then
+        cp = EncTResolveCp( cp )
+        if( cp = 65001 ) then k = TEXT_UTF8
+    end if
+#endif
+
+    select case k
+    case TEXT_UTF8
+        dim as longint start = 0
+        if( n >= 3 ) then
+            if( ( p[0] = &hEF ) andalso ( p[1] = &hBB ) andalso ( p[2] = &hBF ) ) then start = 3
+        end if
+        if( n - start > &h7FFFFFFF ) then return EncFail( of ustring )( ENC_INVALID_LENGTH, 0, op )
+        dim as long m = clng( n - start )
+        if( strict ) then
+            dim as long bad = EncFirstBadUtf8( p + start, m )
+            if( bad <> 0 ) then return EncFail( of ustring )( ENC_INVALID_UTF8, clng( start ) + bad, op )
+        end if
+        if( m = 0 ) then return Ok( of ustring, EncodingError )( "" )
+        '' the string-to-ustring conversion: ReadAllText's replacement, exactly
+        dim as string b = space( m )
+        enct_memcpy( strptr( b ), p + start, m )
+        dim as ustring u = b
+        return Ok( of ustring, EncodingError )( u )
+
+    case TEXT_UTF16LE, TEXT_UTF16BE
+        return Ok( of ustring, EncodingError )( EncTDecode16( p, n, k = TEXT_UTF16BE ) )
+
+    case TEXT_BINARY
+        if( n > &h7FFFFFFF ) then return EncFail( of ustring )( ENC_INVALID_LENGTH, 0, op )
+        if( n = 0 ) then return Ok( of ustring, EncodingError )( "" )
+        dim as ustring u = wspace( clng( n ) )
+        for i as long = 0 to clng( n ) - 1
+            u[i] = p[i]
+        next
+        return Ok( of ustring, EncodingError )( u )
+
+    case TEXT_CODEPAGE
+        if( EncTCpRefused( cp ) ) then return EncFail( of ustring )( ENC_UNSUPPORTED, 0, op )
+#ifdef __FB_WIN32__
+        return EncTDecodeWin( p, n, cp, strict, op )
+#else
+        return EncTDecodeTable( p, n, cp, strict, op )
+#endif
+    end select
+    return EncFail( of ustring )( ENC_UNSUPPORTED, 0, op )
+end function
+
+public function DecodeText overload ( byref buf as Array( of ubyte ), byval enc as TextEncoding, _
+        byval strict as boolean = FALSE ) as EncResultText
+    return DecodeText( EncArrayPtr( buf ), buf.num, enc, strict )
+end function
+
+'' -------------------------------------------------------------- EncodeText
+
+'' Text to bytes in enc, BOM included when enc.Bom asks for one; buf is replaced. TRUE when
+'' every character was written exactly; FALSE when strict = FALSE let something become
+'' '?' (or, for UTF-8, a lone surrogate U+FFFD). A failure leaves buf empty.
+public function EncodeText overload ( byref s as const ustring, byval enc as TextEncoding, _
+        byref buf as Array( of ubyte ), byval strict as boolean = TRUE ) as EncResultBool
+    const op = "EncodeText"
+    buf.Clear( )
+
+    dim as TextEncodingKind k = enc.Kind
+    dim as ulong cp = enc.CodePage
+    if( ( k = TEXT_CODEPAGE ) andalso ( cp = 65001 ) ) then k = TEXT_UTF8
+#ifdef __FB_WIN32__
+    if( k = TEXT_CODEPAGE ) then
+        cp = EncTResolveCp( cp )
+        if( cp = 65001 ) then k = TEXT_UTF8
+    end if
+#endif
+
+    select case k
+    case TEXT_UTF8
+        dim as string b = s
+        dim as long m = len( b )
+        dim as long start = iif( enc.Bom andalso ( enc.Kind = TEXT_UTF8 ), 3, 0 )
+        if( m + start > 0 ) then
+            buf.Reserve( m + start )
+            if( start > 0 ) then
+                buf.items( 0 ) = &hEF : buf.items( 1 ) = &hBB : buf.items( 2 ) = &hBF
+            end if
+            if( m > 0 ) then enct_memcpy( @buf.items( start ), strptr( b ), m )
+            buf.num = m + start
+        end if
+        return Ok( of boolean, EncodingError )( EncTHasLoneSurrogate( s ) = FALSE )
+
+    case TEXT_UTF16LE, TEXT_UTF16BE
+        dim as long n = len( s )
+        dim as long start = iif( enc.Bom, 2, 0 )
+        dim as boolean be = ( k = TEXT_UTF16BE )
+        if( n * 2 + start > 0 ) then
+            buf.Reserve( n * 2 + start )
+            if( start > 0 ) then
+                buf.items( 0 ) = iif( be, &hFE, &hFF )
+                buf.items( 1 ) = iif( be, &hFF, &hFE )
+            end if
+            for i as long = 0 to n - 1
+                dim as ulong u = s[i]
+                dim as ubyte lo = u and &hFF, hi = ( u shr 8 ) and &hFF
+                if( be ) then swap lo, hi
+                buf.items( start + i * 2 ) = lo
+                buf.items( start + i * 2 + 1 ) = hi
+            next
+            buf.num = n * 2 + start
+        end if
+        return Ok( of boolean, EncodingError )( TRUE )
+
+    case TEXT_BINARY
+        dim as long n = len( s )
+        dim as boolean exact = TRUE
+        if( n = 0 ) then return Ok( of boolean, EncodingError )( TRUE )
+        buf.Reserve( n )
+        for i as long = 0 to n - 1
+            dim as ulong u = s[i]
+            if( u > &hFF ) then
+                if( strict ) then
+                    buf.Clear( )
+                    return EncFail( of boolean )( ENC_UNMAPPABLE, i + 1, op )
+                end if
+                exact = FALSE
+                u = 63
+            end if
+            buf.items( i ) = u
+        next
+        buf.num = n
+        return Ok( of boolean, EncodingError )( exact )
+
+    case TEXT_CODEPAGE
+        if( EncTCpRefused( cp ) ) then return EncFail( of boolean )( ENC_UNSUPPORTED, 0, op )
+#ifdef __FB_WIN32__
+        return EncTEncodeWin( s, cp, buf, strict, op )
+#else
+        return EncTEncodeTable( s, cp, buf, strict, op )
+#endif
+    end select
+    return EncFail( of boolean )( ENC_UNSUPPORTED, 0, op )
+end function
+
+'' ---------------------------------------------------------- DetectEncoding
+
+'' The NUL-pattern guess: at least two units, and nine in ten of them one ASCII-range
+'' byte and one zero, the zero always on the same side. Text with no NUL bytes -- "Bush
+'' hid the facts" included -- never passes.
+function EncTLooksUtf16( byval p as const ubyte ptr, byval n as longint, byref be as boolean ) as boolean
+    dim as long pairs = clng( n \ 2 )
+    if( pairs < 2 ) then return FALSE
+    dim as long le = 0, bec = 0
+    for i as long = 0 to pairs - 1
+        dim as long a = p[i * 2], b = p[i * 2 + 1]
+        if( ( b = 0 ) andalso ( a <> 0 ) ) then le += 1
+        if( ( a = 0 ) andalso ( b <> 0 ) ) then bec += 1
+    next
+    if( le * 10 >= pairs * 9 ) then
+        be = FALSE
+        return TRUE
+    end if
+    if( bec * 10 >= pairs * 9 ) then
+        be = TRUE
+        return TRUE
+    end if
+    return FALSE
+end function
+
+'' TRUE when p[0 .. n-1] is UTF-8 -- or, when it is only a prefix (complete = FALSE), UTF-8
+'' that may stop inside its last character.
+function EncTUtf8Prefix( byval p as const ubyte ptr, byval n as long, byval complete as boolean ) as boolean
+    dim as long bad = EncFirstBadUtf8( p, n )
+    if( bad = 0 ) then return TRUE
+    if( complete ) then return FALSE
+    '' the bad byte must be a lead byte whose sequence is cut by the end, with every
+    '' byte after it a continuation
+    dim as long i = bad - 1
+    if( n - i > 3 ) then return FALSE
+    dim as long c = p[i], need
+    if( ( c >= &hC2 ) andalso ( c <= &hDF ) ) then
+        need = 1
+    elseif( ( c >= &hE0 ) andalso ( c <= &hEF ) ) then
+        need = 2
+    elseif( ( c >= &hF0 ) andalso ( c <= &hF4 ) ) then
+        need = 3
+    else
+        return FALSE
+    end if
+    if( n - i - 1 >= need ) then return FALSE
+    for j as long = i + 1 to n - 1
+        if( ( p[j] < &h80 ) orelse ( p[j] > &hBF ) ) then return FALSE
+    next
+    return TRUE
+end function
+
+'' The encoding of p[0 .. n-1] by opts' rules; complete = FALSE when the bytes are only
+'' the start of the data (a stream's look-ahead). A UTF-32 BOM is ENC_UNSUPPORTED.
+public function DetectEncoding overload ( byval p as const ubyte ptr, byval n as longint, _
+        byref opts as const TextDetect, byval complete as boolean = TRUE ) as EncResultEncoding
+    const op = "DetectEncoding"
+    if( ( n < 0 ) orelse ( ( p = nullptr ) andalso ( n > 0 ) ) ) then
+        return Fail( of TextEncoding, EncodingError )( EncodingError( ENC_INVALID_LENGTH, 0, op ) )
+    end if
+    if( n >= 4 ) then
+        dim as boolean le32 = ( p[0] = &hFF ) andalso ( p[1] = &hFE ) andalso ( p[2] = 0 ) andalso ( p[3] = 0 )
+        dim as boolean be32 = ( p[0] = 0 ) andalso ( p[1] = 0 ) andalso ( p[2] = &hFE ) andalso ( p[3] = &hFF )
+        if( le32 orelse be32 ) then
+            return Fail( of TextEncoding, EncodingError )( EncodingError( ENC_UNSUPPORTED, 1, op ) )
+        end if
+    end if
+    if( n >= 3 ) then
+        if( ( p[0] = &hEF ) andalso ( p[1] = &hBB ) andalso ( p[2] = &hBF ) ) then
+            return Ok( of TextEncoding, EncodingError )( Utf8( TRUE ) )
+        end if
+    end if
+    if( n >= 2 ) then
+        if( ( p[0] = &hFF ) andalso ( p[1] = &hFE ) ) then return Ok( of TextEncoding, EncodingError )( Utf16LE( TRUE ) )
+        if( ( p[0] = &hFE ) andalso ( p[1] = &hFF ) ) then return Ok( of TextEncoding, EncodingError )( Utf16BE( TRUE ) )
+    end if
+
+    dim as longint sample = iif( opts.PrefixBytes > 0, opts.PrefixBytes, 65536 )
+    if( sample > n ) then sample = n
+    if( opts.Utf16NoBom ) then
+        dim as boolean be
+        if( EncTLooksUtf16( p, sample, be ) ) then
+            if( be ) then return Ok( of TextEncoding, EncodingError )( Utf16BE( FALSE ) )
+            return Ok( of TextEncoding, EncodingError )( Utf16LE( FALSE ) )
+        end if
+    end if
+
+    if( n > &h7FFFFFFF ) then
+        return Fail( of TextEncoding, EncodingError )( EncodingError( ENC_INVALID_LENGTH, 0, op ) )
+    end if
+    if( EncTUtf8Prefix( p, clng( n ), complete ) ) then return Ok( of TextEncoding, EncodingError )( Utf8( FALSE ) )
+    return Ok( of TextEncoding, EncodingError )( opts.Fallback )
+end function
+
+public function DetectEncoding overload ( byref buf as Array( of ubyte ), byref opts as const TextDetect ) as EncResultEncoding
+    return DetectEncoding( EncArrayPtr( buf ), buf.num, opts, TRUE )
+end function
+
+'' ----------------------------------------------------------- CodePageTable
+
+'' The built-in table for cp -- what CodePage( cp ) uses where the OS has no code pages:
+'' units holds the 256 characters bytes 0-255 decode to, and invalid holds 256 bytes, 1
+'' where a strict decode refuses that byte. FALSE, with both empty, when cp has no table.
+public function CodePageTable( byval cp as ulong, byref units as ustring, byref invalid as string ) as boolean
+    units = ""
+    invalid = ""
+    dim as long idx = EncTTableIndex( cp )
+    if( idx < 0 ) then return FALSE
+    units = wspace( 256 )
+    invalid = string( 256, 0 )
+    for b as long = 0 to 255
+        if( b < 128 ) then
+            units[b] = b
+        else
+            units[b] = EncCpHigh( idx * 128 + b - 128 )
+            if( EncTTableInvalid( cp, b ) ) then invalid[b] = 1
+        end if
+    next
+    return TRUE
+end function

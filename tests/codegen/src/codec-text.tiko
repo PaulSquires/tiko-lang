@@ -1,0 +1,373 @@
+'' std/codec text encodings (C:\dev\docs\tiko-fs\RFC-0002 phase P1): TextEncoding and its
+'' names; EncodeText's bytes for every encoding against goldens produced by the FB
+'' editor's own Doc_EncodeForDisk; round trips over a corpus; strict and replace on both
+'' sides; no best-fit; a BOM consumed only when it matches; BINARY over all 256 bytes;
+'' every built-in code-page table against MultiByteToWideChar and WideCharToMultiByte;
+'' refused code pages; and DetectEncoding.
+#import "std/codec"
+#import "std/containers"
+#import "std/fs"
+''
+'' The same source runs on Linux (by hand, in WSL: see the RFC's notes): there the
+'' code-page conversions are the built-in tables, which the Windows run proves equal to
+'' the API, and the Linux run proves the table engine equal to the tables.
+
+#ifdef __FB_WIN32__
+extern "C"
+    declare function t_MB2W stdcall alias "MultiByteToWideChar" ( byval cp as ulong, byval fl as ulong, _
+        byval s as const ubyte ptr, byval n as long, byval w as ushort ptr, byval wn as long ) as long
+    declare function t_W2MB stdcall alias "WideCharToMultiByte" ( byval cp as ulong, byval fl as ulong, _
+        byval w as const ushort ptr, byval wn as long, byval s as ubyte ptr, byval n as long, _
+        byval dc as const ubyte ptr, byval used as long ptr ) as long
+    declare function t_GetACP stdcall alias "GetACP" ( ) as ulong
+end extern
+#endif
+
+dim shared as integer fails = 0
+
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+function HexOf( byref b as containers.Array( of ubyte ) ) as string
+    dim as string r
+    for i as long = 0 to b.Count( ) - 1
+        if i > 0 then r &= " "
+        r &= hex( b[i], 2 )
+    next
+    return r
+end function
+
+function Bytes( byref s as const string ) as containers.Array( of ubyte )
+    dim as containers.Array( of ubyte ) b
+    for k as integer = 1 to len( s )
+        b.Push( asc( s, k ) )
+    next
+    return b
+end function
+
+function Units( byref s as const ustring ) as string
+    dim as string r
+    for i as long = 0 to len( s ) - 1
+        if i > 0 then r &= " "
+        r &= hex( s[i], 4 )
+    next
+    return r
+end function
+
+'' -- names and factories
+Check( "name utf-8", codec.Utf8( ).Name( ) = "utf-8" )
+Check( "name utf-16le", codec.Utf16LE( ).Name( ) = "utf-16le" )
+Check( "name utf-16be", codec.Utf16BE( ).Name( ) = "utf-16be" )
+Check( "name ansi", codec.Ansi( ).Name( ) = "ansi" )
+Check( "name 1252", codec.CodePage( 1252 ).Name( ) = "windows-1252" )
+Check( "name 28591", codec.CodePage( 28591 ).Name( ) = "iso-8859-1" )
+Check( "name 437", codec.CodePage( 437 ).Name( ) = "ibm437" )
+Check( "name 20127", codec.CodePage( 20127 ).Name( ) = "cp20127" )
+Check( "name binary", codec.Binary_( ).Name( ) = "binary" )
+Check( "65001 is utf8", ( codec.CodePage( 65001 ).Kind = codec.TEXT_UTF8 ) andalso ( codec.CodePage( 65001 ).Bom = false ) )
+Check( "default is utf8", codec.TextEncoding( ).Kind = codec.TEXT_UTF8 )
+Check( "bom defaults", ( codec.Utf8( ).Bom = false ) andalso codec.Utf16LE( ).Bom andalso codec.Utf16BE( ).Bom )
+
+'' -- the editor's Doc_EncodeForDisk, run over the same text (RFC-0002's P1 notes give the harness):
+''    enc 0 ANSI (CP_ACP 1252, WC_NO_BEST_FIT_CHARS), 1 UTF-8, 2 UTF-8 + BOM, 3 UTF-16LE + BOM
+dim as ustring corpus( 0 to 6 )
+corpus( 0 ) = ""
+corpus( 1 ) = "hello" & wchr( 13, 10 )
+corpus( 2 ) = "caf" & wchr( &hE9 ) & " " & wchr( &hFF, &hA0 )
+corpus( 3 ) = wchr( &h20AC, &h201C, &h201D )
+corpus( 4 ) = wchr( &h4E2D, &h6587 )
+corpus( 5 ) = wchr( &hD834, &hDD1E )
+corpus( 6 ) = "x" & wchr( &h221E, &h2603 )
+dim as string golden( 0 to 6, 0 to 3 ) = { _
+    { "", "", "EF BB BF", "FF FE" }, _
+    { "68 65 6C 6C 6F 0D 0A", "68 65 6C 6C 6F 0D 0A", "EF BB BF 68 65 6C 6C 6F 0D 0A", "FF FE 68 00 65 00 6C 00 6C 00 6F 00 0D 00 0A 00" }, _
+    { "63 61 66 E9 20 FF A0", "63 61 66 C3 A9 20 C3 BF C2 A0", "EF BB BF 63 61 66 C3 A9 20 C3 BF C2 A0", "FF FE 63 00 61 00 66 00 E9 00 20 00 FF 00 A0 00" }, _
+    { "80 93 94", "E2 82 AC E2 80 9C E2 80 9D", "EF BB BF E2 82 AC E2 80 9C E2 80 9D", "FF FE AC 20 1C 20 1D 20" }, _
+    { "3F 3F", "E4 B8 AD E6 96 87", "EF BB BF E4 B8 AD E6 96 87", "FF FE 2D 4E 87 65" }, _
+    { "3F 3F", "F0 9D 84 9E", "EF BB BF F0 9D 84 9E", "FF FE 34 D8 1E DD" }, _
+    { "78 3F 3F", "78 E2 88 9E E2 98 83", "EF BB BF 78 E2 88 9E E2 98 83", "FF FE 78 00 1E 22 03 26" } }
+dim as boolean goldenLossy( 0 to 6 ) = { false, false, false, false, true, true, true }
+
+dim as codec.TextEncoding editorEnc( 0 to 3 )
+#ifdef __FB_WIN32__
+editorEnc( 0 ) = codec.Ansi( )
+dim as boolean ansiIs1252 = ( t_GetACP( ) = 1252 )
+#else
+editorEnc( 0 ) = codec.CodePage( 1252 )     '' no ANSI here: the 1252 table gives the same bytes
+dim as boolean ansiIs1252 = true
+#endif
+editorEnc( 1 ) = codec.Utf8( )
+editorEnc( 2 ) = codec.Utf8( true )
+editorEnc( 3 ) = codec.Utf16LE( )
+
+dim as containers.Array( of ubyte ) b
+if ansiIs1252 = false then print "note: the ANSI code page is not 1252 -- ANSI goldens skipped"
+for c as long = 0 to 6
+    for e as long = 0 to 3
+        if ( e = 0 ) andalso ( ansiIs1252 = false ) then continue for
+        var r = codec.EncodeText( corpus( c ), editorEnc( e ), b, false )
+        Check( "golden " & c & "/" & e & " ok", r.IsOk( ) )
+        Check( "golden " & c & "/" & e & " bytes [" & HexOf( b ) & "]", HexOf( b ) = golden( c, e ) )
+        if e = 0 then Check( "golden " & c & " lossy", r.Value( ) = ( goldenLossy( c ) = false ) )
+    next
+next
+
+'' -- round trips: every encoding that can hold the text gives it back
+dim as codec.TextEncoding all( 0 to 6 )
+all( 0 ) = codec.Utf8( ) : all( 1 ) = codec.Utf8( true ) : all( 2 ) = codec.Utf16LE( )
+all( 3 ) = codec.Utf16LE( false ) : all( 4 ) = codec.Utf16BE( ) : all( 5 ) = codec.Utf16BE( false )
+all( 6 ) = codec.CodePage( 1252 )
+for c as long = 0 to 6
+    for e as long = 0 to 6
+        if ( e = 6 ) andalso ( c >= 4 ) then continue for
+        var w = codec.EncodeText( corpus( c ), all( e ), b )
+        var r = codec.DecodeText( b, all( e ), true )
+        Check( "round trip " & c & " " & all( e ).Name( ) & " bom " & all( e ).Bom, _
+            w.IsOk( ) andalso w.Value( ) andalso r.IsOk( ) andalso ( r.Value( ) = corpus( c ) ) )
+    next
+next
+
+'' -- UTF-16 keeps a lone surrogate both ways; UTF-8 writes U+FFFD and says so
+scope
+    dim as ustring lone = "a" & wchr( &hD800 ) & "b"
+    var w = codec.EncodeText( lone, codec.Utf16LE( false ), b )
+    Check( "u16 lone surrogate exact", w.IsOk( ) andalso w.Value( ) andalso ( HexOf( b ) = "61 00 00 D8 62 00" ) )
+    Check( "u16 lone surrogate back", codec.DecodeText( b, codec.Utf16LE( ) ).Value( ) = lone )
+    var w8 = codec.EncodeText( lone, codec.Utf8( ), b )
+    Check( "u8 lone surrogate lossy", w8.IsOk( ) andalso ( w8.Value( ) = false ) andalso ( HexOf( b ) = "61 EF BF BD 62" ) )
+end scope
+
+'' -- strict is the encode default; replace reports; no best-fit
+scope
+    var s = codec.EncodeText( "a" & wchr( &h2603 ), codec.CodePage( 1252 ), b )
+    Check( "strict unmappable fails", ( s.IsOk( ) = false ) andalso ( s.Failure( ).Code( ) = codec.ENC_UNMAPPABLE ) )
+    Check( "strict unmappable writes nothing", b.Count( ) = 0 )
+    var r = codec.EncodeText( "a" & wchr( &h2603 ), codec.CodePage( 1252 ), b, false )
+    Check( "replace is lossy", r.IsOk( ) andalso ( r.Value( ) = false ) andalso ( HexOf( b ) = "61 3F" ) )
+    var inf = codec.EncodeText( wchr( &h221E ), codec.CodePage( 1252 ), b, false )
+    Check( "no best fit for infinity", HexOf( b ) = "3F" )
+    var bf = codec.EncodeText( wchr( &h0101 ), codec.CodePage( 1252 ), b, false )
+    Check( "no best fit for a-macron", HexOf( b ) = "3F" )
+    var lone = codec.EncodeText( wchr( &hDC00 ), codec.CodePage( 1252 ), b )
+    Check( "lone surrogate unmappable in 1252", lone.IsOk( ) = false )
+end scope
+
+'' -- an explicit encoding wins over a BOM; only a matching BOM is consumed
+scope
+    dim as containers.Array( of ubyte ) bom8 = Bytes( chr( &hEF, &hBB, &hBF ) & "x" )
+    Check( "ansi keeps a utf-8 bom", Units( codec.DecodeText( bom8, codec.CodePage( 1252 ) ).Value( ) ) = "00EF 00BB 00BF 0078" )
+    Check( "utf8 consumes its bom", codec.DecodeText( bom8, codec.Utf8( ) ).Value( ) = "x" )
+    Check( "binary keeps a bom", Units( codec.DecodeText( bom8, codec.Binary_( ) ).Value( ) ) = "00EF 00BB 00BF 0078" )
+    dim as containers.Array( of ubyte ) le = Bytes( chr( &hFF, &hFE, &h68, 0, &h69, 0 ) )
+    Check( "utf16le consumes FF FE", codec.DecodeText( le, codec.Utf16LE( ) ).Value( ) = "hi" )
+    Check( "utf16be keeps FF FE as U+FFFE", Units( codec.DecodeText( le, codec.Utf16BE( ) ).Value( ) ) = "FFFE 6800 6900" )
+    Check( "ansi reads FF FE as text", Units( codec.DecodeText( le, codec.CodePage( 1252 ) ).Value( ) ) = "00FF 00FE 0068 0000 0069 0000" )
+    dim as containers.Array( of ubyte ) odd = Bytes( chr( &hFF, &hFE, &h61, 0, &h62 ) )
+    Check( "utf16 drops an odd last byte", codec.DecodeText( odd, codec.Utf16LE( ) ).Value( ) = "a" )
+    dim as containers.Array( of ubyte ) nob = Bytes( chr( &h68, 0, &h69, 0 ) )
+    Check( "bomless utf16le", codec.DecodeText( nob, codec.Utf16LE( ) ).Value( ) = "hi" )
+end scope
+
+'' -- strict decoding
+scope
+    dim as containers.Array( of ubyte ) bad8 = Bytes( "ab" & chr( &hE9 ) & "c" )
+    var r = codec.DecodeText( bad8, codec.Utf8( ), true )
+    Check( "strict utf8 fails", ( r.IsOk( ) = false ) andalso ( r.Failure( ).Code( ) = codec.ENC_INVALID_UTF8 ) andalso ( r.Failure( ).Position( ) = 3 ) )
+    Check( "replace utf8 is U+FFFD", Units( codec.DecodeText( bad8, codec.Utf8( ) ).Value( ) ) = "0061 0062 FFFD 0063" )
+    dim as containers.Array( of ubyte ) g = Bytes( "A" & chr( &hAA ) )
+    var s = codec.DecodeText( g, codec.CodePage( 1253 ), true )
+    Check( "strict 1253 undefined byte fails", ( s.IsOk( ) = false ) andalso ( s.Failure( ).Code( ) = codec.ENC_INVALID_BYTES ) )
+    Check( "replace 1253 undefined byte", Units( codec.DecodeText( g, codec.CodePage( 1253 ) ).Value( ) ) = "0041 F8F9" )
+    dim as containers.Array( of ubyte ) u1 = Bytes( chr( &h81, &h8D, &h8F, &h90, &h9D ) )
+    var t = codec.DecodeText( u1, codec.CodePage( 1252 ), true )
+    Check( "1252 undefined bytes are C1, even strict", t.IsOk( ) andalso ( Units( t.Value( ) ) = "0081 008D 008F 0090 009D" ) )
+end scope
+
+'' -- BINARY: all 256 bytes and back; units above U+00FF refused or '?'
+scope
+    dim as containers.Array( of ubyte ) all256
+    for i as long = 0 to 255
+        dim as ubyte v = i
+        all256.Push( v )
+    next
+    var r = codec.DecodeText( all256, codec.Binary_( ), true )
+    dim as boolean same = r.IsOk( ) andalso ( len( r.Value( ) ) = 256 )
+    if same then
+        for i as long = 0 to 255
+            if r.Value( )[i] <> i then same = false
+        next
+    end if
+    Check( "binary decode identity", same )
+    dim as codec.TextEncoding bb = codec.Binary_( )
+    bb.Bom = true
+    var w = codec.EncodeText( r.Value( ), bb, b )
+    Check( "binary encode identity, no bom", w.IsOk( ) andalso w.Value( ) andalso ( HexOf( b ) = HexOf( all256 ) ) )
+    var s = codec.EncodeText( "a" & wchr( &h100 ), codec.Binary_( ), b )
+    Check( "binary strict refuses U+0100", ( s.IsOk( ) = false ) andalso ( s.Failure( ).Code( ) = codec.ENC_UNMAPPABLE ) andalso ( s.Failure( ).Position( ) = 2 ) andalso ( b.Count( ) = 0 ) )
+    var q = codec.EncodeText( "a" & wchr( &h100 ), codec.Binary_( ), b, false )
+    Check( "binary replace", q.IsOk( ) andalso ( q.Value( ) = false ) andalso ( HexOf( b ) = "61 3F" ) )
+end scope
+
+'' -- every built-in table is Windows' answer: 256 bytes each way, strict validity, and
+''    the encode rule over every BMP unit
+dim as ulong tableCps( 0 to 12 ) = { 1250, 1251, 1252, 1253, 1254, 1255, 1256, 1257, 1258, 28591, 28605, 437, 850 }
+for c as long = 0 to 12
+    dim as ulong cp = tableCps( c )
+    dim as ustring tu
+    dim as string inv
+    Check( "table " & cp & " exists", codec.CodePageTable( cp, tu, inv ) andalso ( len( tu ) = 256 ) andalso ( len( inv ) = 256 ) )
+    dim as long bad = 0
+#ifdef __FB_WIN32__
+    for x as long = 0 to 255
+        dim as ubyte bb = x
+        dim as ushort wu( 0 to 3 )
+        if ( t_MB2W( cp, 0, @bb, 1, @wu( 0 ), 4 ) <> 1 ) orelse ( wu( 0 ) <> tu[x] ) then bad += 1
+        dim as boolean refused = ( t_MB2W( cp, 8, @bb, 1, @wu( 0 ), 4 ) <> 1 )
+        if refused <> ( inv[x] = 1 ) then bad += 1
+    next
+#else
+    '' the engine against the tables: all 256 bytes lenient, then each byte strict
+    dim as containers.Array( of ubyte ) all256
+    for x as long = 0 to 255
+        dim as ubyte v = x
+        all256.Push( v )
+    next
+    var lenient = codec.DecodeText( all256, codec.CodePage( cp ) )
+    if ( lenient.IsOk( ) = false ) orelse ( lenient.Value( ) <> tu ) then bad += 1
+    for x as long = 0 to 255
+        dim as containers.Array( of ubyte ) one
+        dim as ubyte v = x
+        one.Push( v )
+        dim as boolean refused = ( codec.DecodeText( one, codec.CodePage( cp ), true ).IsOk( ) = false )
+        if refused <> ( inv[x] = 1 ) then bad += 1
+    next
+#endif
+    Check( "table " & cp & " decode = MultiByteToWideChar", bad = 0 )
+    '' every BMP unit but the surrogates, encoded lenient in one call: one byte per unit
+    dim as ustring everything = wspace( &hF800 )
+    dim as long k = 0
+    for u as long = 0 to &hFFFF
+        if ( u >= &hD800 ) andalso ( u <= &hDFFF ) then continue for
+        everything[k] = u
+        k += 1
+    next
+    var w = codec.EncodeText( everything, codec.CodePage( cp ), b, false )
+    dim as long mism = 0
+    if w.IsOk( ) andalso ( b.Count( ) = &hF800 ) then
+        k = 0
+        for u as long = 0 to &hFFFF
+            if ( u >= &hD800 ) andalso ( u <= &hDFFF ) then continue for
+            dim as long want = 63
+            for x as long = 0 to 255
+                if tu[x] = u then want = x : exit for
+            next
+            if b[k] <> want then mism += 1
+            k += 1
+        next
+    else
+        mism = -1
+    end if
+    Check( "table " & cp & " encode rule = WideCharToMultiByte (" & mism & ")", mism = 0 )
+next
+scope
+    dim as ustring nu
+    dim as string ni
+    Check( "no table for 932", codec.CodePageTable( 932, nu, ni ) = false )
+end scope
+
+#ifdef __FB_WIN32__
+'' -- a double-byte code page through the API, LF included
+scope
+    dim as ustring jp = wchr( &h65E5, &h672C, 10, &h8A9E )
+    var w = codec.EncodeText( jp, codec.CodePage( 932 ), b )
+    Check( "932 encode", w.IsOk( ) andalso ( HexOf( b ) = "93 FA 96 7B 0A 8C EA" ) )
+    Check( "932 decode", codec.DecodeText( b, codec.CodePage( 932 ), true ).Value( ) = jp )
+end scope
+
+'' -- refused code pages
+scope
+    dim as ulong refusedCps( 0 to 5 ) = { 50220, 50229, 52936, 65000, 1200, 57002 }
+    for i as long = 0 to 5
+        var d = codec.DecodeText( Bytes( "a" ), codec.CodePage( refusedCps( i ) ) )
+        var e = codec.EncodeText( "a", codec.CodePage( refusedCps( i ) ), b )
+        Check( "refused " & refusedCps( i ), ( d.IsOk( ) = false ) andalso ( d.Failure( ).Code( ) = codec.ENC_UNSUPPORTED ) _
+            andalso ( e.IsOk( ) = false ) andalso ( e.Failure( ).Code( ) = codec.ENC_UNSUPPORTED ) )
+    next
+    var g = codec.EncodeText( "a" & wchr( &h4E2D ), codec.CodePage( 54936 ), b )
+    Check( "gb18030 encodes", g.IsOk( ) andalso g.Value( ) )
+    var gl = codec.EncodeText( wchr( &hD800 ), codec.CodePage( 54936 ), b )
+    Check( "gb18030 lone surrogate strict", gl.IsOk( ) = false )
+end scope
+#else
+'' -- no ANSI and no OS code pages here: only the tables
+scope
+    var a = codec.DecodeText( Bytes( "a" ), codec.Ansi( ) )
+    Check( "ansi unsupported", ( a.IsOk( ) = false ) andalso ( a.Failure( ).Code( ) = codec.ENC_UNSUPPORTED ) )
+    var aw = codec.EncodeText( "a", codec.Ansi( ), b )
+    Check( "ansi write unsupported", ( aw.IsOk( ) = false ) andalso ( aw.Failure( ).Code( ) = codec.ENC_UNSUPPORTED ) )
+    var j = codec.DecodeText( Bytes( "a" ), codec.CodePage( 932 ) )
+    Check( "932 unsupported", ( j.IsOk( ) = false ) andalso ( j.Failure( ).Code( ) = codec.ENC_UNSUPPORTED ) )
+    var u = codec.EncodeText( "a" & wchr( &h2603 ), codec.CodePage( 1252 ), b )
+    Check( "table strict unmappable", ( u.IsOk( ) = false ) andalso ( u.Failure( ).Position( ) = 2 ) andalso ( b.Count( ) = 0 ) )
+    var g = codec.DecodeText( Bytes( "A" & chr( &hAA ) ), codec.CodePage( 1253 ), true )
+    Check( "table strict invalid byte position", ( g.IsOk( ) = false ) andalso ( g.Failure( ).Position( ) = 2 ) )
+end scope
+#endif
+
+'' -- detection
+scope
+    dim as codec.TextDetect d
+    d.Fallback = codec.CodePage( 1252 )
+    var e0 = codec.DetectEncoding( Bytes( "" ), d )
+    Check( "detect empty = utf-8", e0.IsOk( ) andalso ( e0.Value( ).Kind = codec.TEXT_UTF8 ) andalso ( e0.Value( ).Bom = false ) )
+    var e1 = codec.DetectEncoding( Bytes( chr( &hEF, &hBB, &hBF ) & "x" ), d )
+    Check( "detect utf-8 bom", ( e1.Value( ).Kind = codec.TEXT_UTF8 ) andalso e1.Value( ).Bom )
+    var e2 = codec.DetectEncoding( Bytes( chr( &hFF, &hFE, &h61, 0 ) ), d )
+    Check( "detect utf-16le bom", ( e2.Value( ).Kind = codec.TEXT_UTF16LE ) andalso e2.Value( ).Bom )
+    var e3 = codec.DetectEncoding( Bytes( chr( &hFE, &hFF, 0, &h61 ) ), d )
+    Check( "detect utf-16be bom", ( e3.Value( ).Kind = codec.TEXT_UTF16BE ) andalso e3.Value( ).Bom )
+    var e4 = codec.DetectEncoding( Bytes( chr( &hFF, &hFE, 0, 0, &h61, 0, 0, 0 ) ), d )
+    Check( "detect utf-32le refused", ( e4.IsOk( ) = false ) andalso ( e4.Failure( ).Code( ) = codec.ENC_UNSUPPORTED ) )
+    var e5 = codec.DetectEncoding( Bytes( chr( 0, 0, &hFE, &hFF ) ), d )
+    Check( "detect utf-32be refused", e5.IsOk( ) = false )
+    var e6 = codec.DetectEncoding( Bytes( "caf" & chr( &hC3, &hA9 ) ), d )
+    Check( "detect valid utf-8", ( e6.Value( ).Kind = codec.TEXT_UTF8 ) andalso ( e6.Value( ).Bom = false ) )
+    var e7 = codec.DetectEncoding( Bytes( "caf" & chr( &hE9 ) ), d )
+    Check( "detect 1252 -> fallback", ( e7.Value( ).Kind = codec.TEXT_CODEPAGE ) andalso ( e7.Value( ).CodePage = 1252 ) )
+    dim as codec.TextDetect db = codec.TextDetect( codec.Binary_( ) )
+    var e8 = codec.DetectEncoding( Bytes( "caf" & chr( &hE9 ) ), db )
+    Check( "detect fallback binary", e8.Value( ).Kind = codec.TEXT_BINARY )
+    var e9 = codec.DetectEncoding( Bytes( "caf" & chr( &hE9 ) ), codec.TextDetect( ) )
+    Check( "default fallback is utf-8", e9.Value( ).Kind = codec.TEXT_UTF8 )
+    '' the BOM-less UTF-16 guess: off by default, on when asked; never on NUL-free text
+    dim as containers.Array( of ubyte ) hi16 = Bytes( chr( &h68, 0, &h69, 0, &h21, 0 ) )
+    Check( "no guess by default", codec.DetectEncoding( hi16, d ).Value( ).Kind = codec.TEXT_UTF8 )
+    d.Utf16NoBom = true
+    Check( "guess utf-16le", codec.DetectEncoding( hi16, d ).Value( ).Kind = codec.TEXT_UTF16LE )
+    Check( "guess utf-16be", codec.DetectEncoding( Bytes( chr( 0, &h68, 0, &h69 ) ), d ).Value( ).Kind = codec.TEXT_UTF16BE )
+    Check( "bush hid the facts", codec.DetectEncoding( Bytes( "Bush hid the facts" ), d ).Value( ).Kind = codec.TEXT_UTF8 )
+    Check( "one unit is too short to guess", codec.DetectEncoding( Bytes( chr( &h68, 0 ) ), d ).Value( ).Kind = codec.TEXT_UTF8 )
+    '' a prefix that stops inside a character is still UTF-8 when it is only a prefix
+    dim as containers.Array( of ubyte ) cut = Bytes( "ab" & chr( &hE4, &hB8 ) )
+    Check( "cut prefix, incomplete", codec.DetectEncoding( @cut.items( 0 ), 4, d, false ).Value( ).Kind = codec.TEXT_UTF8 )
+    Check( "cut prefix, complete", codec.DetectEncoding( @cut.items( 0 ), 4, d, true ).Value( ).Kind = codec.TEXT_CODEPAGE )
+end scope
+
+'' -- std/fs re-exports the type and the factories: the same type under either name
+scope
+    dim as codec.TextEncoding e = fs.Utf16LE( false )
+    dim as fs.TextEncoding f = codec.CodePage( 1252 )
+    Check( "fs.Utf16LE is codec's", ( e.Kind = fs.TEXT_UTF16LE ) andalso ( e.Bom = false ) )
+    Check( "fs.TextEncoding is codec's", ( f.Kind = codec.TEXT_CODEPAGE ) andalso ( f.Name( ) = "windows-1252" ) )
+    Check( "fs factories", ( fs.Utf8( ).Name( ) = "utf-8" ) andalso ( fs.Utf16BE( ).Name( ) = "utf-16be" ) _
+        andalso ( fs.Ansi( ).Name( ) = "ansi" ) andalso ( fs.Binary_( ).Kind = fs.TEXT_BINARY ) _
+        andalso ( fs.CodePage( 65001 ).Kind = fs.TEXT_UTF8 ) )
+    dim as fs.TextDetect d = codec.TextDetect( fs.Binary_( ) )
+    Check( "fs.TextDetect is codec's", d.Fallback.Kind = codec.TEXT_BINARY )
+end scope
+
+if fails = 0 then print "ok"

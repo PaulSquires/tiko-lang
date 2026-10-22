@@ -1,0 +1,12 @@
+'' RUN: std/codec text encodings (C:\dev\docs\tiko-fs\RFC-0002 phase P1) -- TextEncoding names,
+'' EncodeText's bytes against the FB editor's Doc_EncodeForDisk, round trips, strict and replace,
+'' no best-fit, a BOM consumed only when it matches, BINARY over 256 bytes, every built-in
+'' code-page table against MultiByteToWideChar/WideCharToMultiByte, refused code pages and
+'' DetectEncoding.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/codec-text.tiko -o tests/codegen/codectext.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/codectext.exe
+'' RUN: tests/codegen/codectext.exe
+'' EXPECT-RUN-OUT: ok

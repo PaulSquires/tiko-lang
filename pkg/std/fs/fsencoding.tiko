@@ -1,0 +1,62 @@
+#module "fs"
+#import "std/codec"
+'' std/fs: fsencoding -- std/codec's TextEncoding, under std/fs's own names
+''
+''     fs.WriteAllText( p, s, fs.Utf16LE( ) )                 '' FF FE, then UTF-16LE
+''     dim as ustring t = fs.ReadAllText( p, fs.Ansi( ) ).Value( )
+''
+'' C:\dev\docs\tiko-fs\RFC-0002-text-encodings.md, decision E2: the transcoder and the
+'' type live in std/codec, and std/fs re-exports them so that a program reading files
+'' needs one #import. `#import ... public` would re-export them as fs.codec.Utf16LE( );
+'' these aliases and one-line forwarders make them fs.Utf16LE( ) and, after `using fs`,
+'' plain Utf16LE( ). fs.TextEncoding IS codec.TextEncoding, so either name works with
+'' either module's calls. A program with both `using fs` and `using codec` has to
+'' qualify these names: two USINGs declare them.
+''
+'' This file holds only the names. The overloads that take an encoding are beside the
+'' calls they overload: fstext.tiko (TextReader, TextWriter, ReadLines) and
+'' fstextenc.tiko (the whole-file calls).
+
+#if __FB_LANG__ <> "fb"
+    #error "std/fs requires -lang fb (it uses namespaces)"
+#endif
+
+public type TextEncoding     as codec.TextEncoding
+public type TextEncodingKind as codec.TextEncodingKind
+public type TextDetect       as codec.TextDetect
+
+public const TEXT_UTF8     as TextEncodingKind = codec.TEXT_UTF8
+public const TEXT_UTF16LE  as TextEncodingKind = codec.TEXT_UTF16LE
+public const TEXT_UTF16BE  as TextEncodingKind = codec.TEXT_UTF16BE
+public const TEXT_CODEPAGE as TextEncodingKind = codec.TEXT_CODEPAGE
+public const TEXT_BINARY   as TextEncodingKind = codec.TEXT_BINARY
+
+'' UTF-8; no BOM unless asked.
+public function Utf8( byval bom as boolean = FALSE ) as TextEncoding
+    return codec.Utf8( bom )
+end function
+
+'' UTF-16 little-endian; a BOM (FF FE) unless told not to.
+public function Utf16LE( byval bom as boolean = TRUE ) as TextEncoding
+    return codec.Utf16LE( bom )
+end function
+
+'' UTF-16 big-endian; a BOM (FE FF) unless told not to.
+public function Utf16BE( byval bom as boolean = TRUE ) as TextEncoding
+    return codec.Utf16BE( bom )
+end function
+
+'' The system's ANSI code page at the time of each call. Windows only.
+public function Ansi( ) as TextEncoding
+    return codec.Ansi( )
+end function
+
+'' A Windows code page by number; 65001 is Utf8( ). On Linux, the built-in tables only.
+public function CodePage( byval cp as ulong ) as TextEncoding
+    return codec.CodePage( cp )
+end function
+
+'' Byte n is U+00nn: every file reads, and the text writes back to the same bytes.
+public function Binary_( ) as TextEncoding
+    return codec.Binary_( )
+end function
