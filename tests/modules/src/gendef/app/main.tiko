@@ -1,0 +1,14 @@
+'' Calls acme/gd's members without the defaulted arguments; see gd.tiko.
+#import "acme/gd"
+dim as gd.Rec( of long ) r
+print r.Open( "x" )
+print r.Open( "x", 3 )
+print r.Size( )
+dim as gd.Rec( of double ) d = gd.Rec( of double )( 5 )
+print d.Size( )
+print d.Open( "xyz" )
+print r.Pick( "xy" )
+print r.Pick( 2 )
+print r.Pick( 1.5 )
+print r.Pick( 2.5, "e" )
+print gd.UseHere( )

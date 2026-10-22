@@ -1,0 +1,21 @@
+'' A DEFAULT WRITTEN ONLY ON A GENERIC MEMBER'S DECLARATION, the definition repeating none:
+'' a method, an overload set, a constructor, and 'sizeof( T )', which differs per
+'' instantiation. An instantiation re-parses only the definition, so each call that left
+'' the argument out was TKO0776 -- TKO0632 for the overloads -- and the constructor took
+'' none. Called from an importer and from the module itself.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc -i tests/modules/src/gendef/libs tests/modules/src/gendef/app/main.tiko -o tests/modules/gendeflink.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/modules/gendeflink.exe
+'' RUN: tests/modules/gendeflink.exe
+'' EXPECT-RUN-OUT:  1001
+'' EXPECT-RUN-OUT:  1004
+'' EXPECT-RUN-OUT:  4
+'' EXPECT-RUN-OUT:  8
+'' EXPECT-RUN-OUT:  8
+'' EXPECT-RUN-OUT:  9
+'' EXPECT-RUN-OUT:  200
+'' EXPECT-RUN-OUT: d1.5
+'' EXPECT-RUN-OUT: e2.5
+'' EXPECT-RUN-OUT:  1004

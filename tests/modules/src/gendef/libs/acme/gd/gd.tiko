@@ -1,0 +1,39 @@
+'' DEFAULTS WRITTEN ONLY ON THE DECLARATIONS of a generic's members, as FreeBASIC is
+'' usually written: the out-of-line definitions repeat none of them.
+#module "gd"
+public type Rec( of T )
+    as long base_
+    declare constructor( byval b as long = 1000 )
+    declare function Open( byref p as const ustring, byval n as long = 0 ) as long
+    declare function Size( byval extra as long = sizeof( T ) ) as long
+    declare function Pick overload ( byref p as const ustring, byval n as long = 7 ) as long
+    declare function Pick overload ( byval n as long ) as long
+    declare function Pick overload ( byval x as double, byref tag as const ustring = "d" ) as ustring
+    declare function Inside( ) as long
+end type
+constructor Rec( of T )( byval b as long )
+    base_ = b
+end constructor
+function Rec( of T ).Open( byref p as const ustring, byval n as long ) as long
+    return base_ + len( p ) + n
+end function
+function Rec( of T ).Size( byval extra as long ) as long
+    return extra
+end function
+function Rec( of T ).Pick( byref p as const ustring, byval n as long ) as long
+    return len( p ) + n
+end function
+function Rec( of T ).Pick( byval n as long ) as long
+    return n * 100
+end function
+function Rec( of T ).Pick( byval x as double, byref tag as const ustring ) as ustring
+    return tag & str( x )
+end function
+'' The module's own call, through its own instantiation.
+function Rec( of T ).Inside( ) as long
+    return this.Open( "ab" )
+end function
+public function UseHere( ) as long
+    dim as Rec( of short ) r
+    return r.Size( ) + r.Inside( )
+end function

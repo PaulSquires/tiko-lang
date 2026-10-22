@@ -1281,6 +1281,8 @@ private function TypeBodyProcMods_ _
     return 0
 end function
 
+#include once "symbols/genericdefaults.tiko"
+
 private sub InstantiateMembers_ _
     ( byref c as Ctx, byval gnode as Tko.NodeId, byval gname as Tko.InternId, _
       byval inm as Tko.InternId, byval iin as Tko.ScopeId, byval scope_ as Tko.ScopeId, _
@@ -1390,6 +1392,8 @@ private sub InstantiateMembers_ _
         fp2->extra or= TypeBodyProcMods_( c, gnode, fp2->name )
         dim as Tko.InternId mname = fp2->name
         dim as uint16 mop = fp2->op
+        '' ...AND THE DECLARATION'S DEFAULTS GO ON. See genericdefaults.tiko.
+        GraftDeclDefaults_( c, gnode, fresh, mname, p0 )
 
         '' THE MEMBER'S SYMBOL, declared here because nothing else will. Collect treats
         '' 'sub Box.Put( )' as a DEFINITION of something declared elsewhere and

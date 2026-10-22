@@ -1,0 +1,194 @@
+'' genericdefaults.tiko -- A DEFAULT WRITTEN ONLY ON A GENERIC MEMBER'S DECLARATION.
+''
+'' Included from generic.tiko, above InstantiateMembers_, in the same namespace and over
+'' the same Ctx.
+''
+'' 'declare function Open( byref p as const ustring, byval n as long = 0 ) as long' inside
+'' 'type G( of T )', defined out of line as 'function G( of T ).Open( ..., byval n as long )'
+'' with no '= 0', is how FreeBASIC is usually written: the default lives on the declaration.
+'' An instantiation re-parses only the DEFINITION -- the declaration is never instantiated --
+'' so 'g.Open( "x" )' found a parameter with no default and was TKO0776, or TKO0632 over an
+'' overload set. The same member of an ordinary type works, because its symbol IS the
+'' declaration.
+''
+'' So the declaration's default is parsed again, from its own tokens, onto the fresh
+'' definition's parameter. AGAIN, not shared: 'byval n as long = sizeof( T )' types
+'' differently per instantiation, and SemanticInfo is keyed by node -- the reason the
+'' definitions are re-parsed at all (see InstantiateMembers_).
+
+'' The token range a generic TYPE was parsed from -- decltype.tiko records one for each.
+private function GenTypeTokens_ _
+    ( byref c as Ctx, byval gnode as Tko.NodeId, byref t0 as int32, byref t1 as int32 ) as boolean
+    dim as int32 n = c.ast->tokenRanges.Count
+    for i as int32 = n - 3 to 0 step -3
+        if cast( Tko.NodeId, c.ast->tokenRanges[i] ) <> gnode then continue for
+        t0 = cast( int32, c.ast->tokenRanges[i + 1] )
+        t1 = cast( int32, c.ast->tokenRanges[i + 2] )
+        return true
+    next
+    return false
+end function
+
+'' Two written type references, the same as written: kind, name, qualifier, const, what a
+'' pointer points at and a generic's arguments. Only used to tell overloads apart.
+private function SameWrittenRef_ _
+    ( byref c as Ctx, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean
+    for guard as int32 = 0 to 63
+        if (a = Tko.NODE_NONE) orelse (b = Tko.NODE_NONE) then return a = b
+        if c.ast->Kind( a ) <> c.ast->Kind( b ) then return false
+        if c.ast->Kind( a ) <> Tko.N_TYPEREF then return true
+        if ((c.ast->nodes[cast( int32, a )].flags xor c.ast->nodes[cast( int32, b )].flags) _
+            and Tko.NF_CONST) <> 0 then return false
+        dim as Tko.StmtPayload ptr ap = StmtOf( c, a )
+        dim as Tko.StmtPayload ptr bp = StmtOf( c, b )
+        if ap->op <> bp->op then return false
+        if ap->name <> bp->name then return false
+        if ap->ownerName <> bp->ownerName then return false
+        if ap->count <> bp->count then return false
+        for k as int32 = 0 to ap->count - 1
+            if SameWrittenRef_( c, cast( Tko.NodeId, c.ast->children[ap->first + k] ), _
+                                   cast( Tko.NodeId, c.ast->children[bp->first + k] ) ) = false then
+                return false
+            end if
+        next
+        a = ap->a
+        b = bp->a
+    next
+    return false
+end function
+
+'' The parameters of an N_PROC, in order.
+private sub ProcParams_ _
+    ( byref c as Ctx, byval pn as Tko.NodeId, byref outp as containers.Array( of uint32 ) )
+    dim as Tko.StmtPayload ptr sp = StmtOf( c, pn )
+    for i as int32 = 0 to sp->count - 1
+        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        if c.ast->Kind( prm ) = Tko.N_PARAM then outp.Push( cast( uint32, prm ) )
+    next
+end sub
+
+'' THE DECLARATION a definition belongs to, inside the generic's TYPE: the same kind and
+'' name, the same number of parameters and, among overloads, the same written types. When
+'' no overload matches by type but only one has the count, that one.
+private function DeclFor_ _
+    ( byref c as Ctx, byval gnode as Tko.NodeId, byval def_ as Tko.NodeId, _
+      byval defName as Tko.InternId ) as Tko.NodeId
+
+    dim as Tko.StmtPayload ptr dp = StmtOf( c, def_ )
+    dim as uint16 dop = dp->op
+    dim as boolean structor = _
+        (dop = cast( uint16, Tko.KW_CONSTRUCTOR )) orelse (dop = cast( uint16, Tko.KW_DESTRUCTOR ))
+    dim as containers.Array( of uint32 ) dpar
+    ProcParams_( c, def_, dpar )
+
+    dim as Tko.NodeId byCount = Tko.NODE_NONE
+    dim as int32 nByCount = 0
+    dim as Tko.StmtPayload ptr tp = StmtOf( c, gnode )
+    dim as int32 tFirst = tp->first, tCount = tp->count
+    for i as int32 = 0 to tCount - 1
+        dim as Tko.NodeId m = cast( Tko.NodeId, c.ast->children[tFirst + i] )
+        if c.ast->Kind( m ) <> Tko.N_PROC then continue for
+        dim as Tko.StmtPayload ptr mp = StmtOf( c, m )
+        if mp->op <> dop then continue for
+        if (structor = false) andalso (mp->name <> defName) then continue for
+        dim as containers.Array( of uint32 ) mpar
+        ProcParams_( c, m, mpar )
+        if mpar.Count <> dpar.Count then continue for
+        byCount = m
+        nByCount += 1
+        dim as boolean same = true
+        for k as int32 = 0 to mpar.Count - 1
+            if SameWrittenRef_( c, StmtOf( c, cast( Tko.NodeId, mpar[k] ) )->a, _
+                                   StmtOf( c, cast( Tko.NodeId, dpar[k] ) )->a ) = false then
+                same = false
+                exit for
+            end if
+        next
+        if same then return m
+    next
+    if nByCount = 1 then return byCount
+    return Tko.NODE_NONE
+end function
+
+'' The token a node was parsed from, searched for within t0..t1 by its location.
+private function TokenAt_ _
+    ( byref toks as Tko.TokenVec, byval t0 as int32, byval t1 as int32, _
+      byval loc as Tko.SourceLoc ) as int32
+    if t1 > toks.Count then t1 = toks.Count
+    for i as int32 = t0 to t1 - 1
+        if toks[i].loc = loc then return i
+    next
+    return -1
+end function
+
+'' The first token of a parameter's default -- the one after its '=' or '=>' -- reading
+'' from the parameter's first token; -1 when the list or the parameter ends first.
+private function DefaultTok_ _
+    ( byref toks as Tko.TokenVec, byval i as int32, byval t1 as int32 ) as int32
+    dim as int32 depth = 0
+    if t1 > toks.Count then t1 = toks.Count
+    while i < t1
+        select case cast( Tko.TokenKind, toks[i].kind )
+        case Tko.TK_LPAREN
+            depth += 1
+        case Tko.TK_RPAREN
+            if depth = 0 then return -1
+            depth -= 1
+        case Tko.TK_COMMA
+            if depth = 0 then return -1
+        case Tko.TK_EQ, Tko.TK_FATARROW
+            if depth = 0 then return i + 1
+        case Tko.TK_EOL, Tko.TK_EOF
+            return -1
+        end select
+        i += 1
+    wend
+    return -1
+end function
+
+'' Gives every parameter of the fresh definition that has no default the one its
+'' declaration writes, parsed again from the declaration's tokens.
+private sub GraftDeclDefaults_ _
+    ( byref c as Ctx, byval gnode as Tko.NodeId, byval fresh as Tko.NodeId, _
+      byval defName as Tko.InternId, byval p0 as Tko.ParserState ptr )
+
+    dim as Tko.NodeId decl = DeclFor_( c, gnode, fresh, defName )
+    if decl = Tko.NODE_NONE then return
+    dim as containers.Array( of uint32 ) dpar, fpar
+    ProcParams_( c, decl, dpar )
+    ProcParams_( c, fresh, fpar )
+    dim as int32 t0 = 0, t1 = 0
+    dim as boolean haveToks = false
+    for k as int32 = 0 to fpar.Count - 1
+        if k >= dpar.Count then exit for
+        if StmtOf( c, cast( Tko.NodeId, fpar[k] ) )->b <> Tko.NODE_NONE then continue for
+        if StmtOf( c, cast( Tko.NodeId, dpar[k] ) )->b = Tko.NODE_NONE then continue for
+        if haveToks = false then
+            if GenTypeTokens_( c, gnode, t0, t1 ) = false then return
+            haveToks = true
+        end if
+        dim as int32 pt = TokenAt_( *p0->toks, t0, t1, c.ast->Loc( cast( Tko.NodeId, dpar[k] ) ) )
+        if pt < 0 then continue for
+        dim as int32 et = DefaultTok_( *p0->toks, pt, t1 )
+        if et < 0 then continue for
+
+        dim as Tko.ParserState q
+        q.toks = p0->toks
+        q.stream = nullptr
+        q.litPool = p0->litPool
+        q.ast = c.ast
+        q.src = c.srcMgr
+        q.names = c.names
+        q.diags = c.diags
+        q.pos = et
+        q.silent = true
+        q.lambdaSeq = p0->lambdaSeq
+        q.procNames = p0->procNames
+        q.memberProcNames = p0->memberProcNames
+        dim as Tko.NodeId dv = Tko.Parse.Expression( q )
+        p0->lambdaSeq = q.lambdaSeq
+        if dv = Tko.NODE_NONE then continue for
+        '' Re-fetched: the parse grew the arenas the payload lives in.
+        StmtOf( c, cast( Tko.NodeId, fpar[k] ) )->b = dv
+    next
+end sub
