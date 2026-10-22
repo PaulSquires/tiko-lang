@@ -443,6 +443,11 @@ private function GenericBody_( byref w as TkiWriter_, byval s as int32 ) as bool
     dim as Tko.TokenKind vis = Kind_( w, s )
     if vis = Tko.KW_PRIVATE then return false
     if vis = Tko.KW_PUBLIC then kw += 1
+    '' A CONST MEMBER is spelled 'const function Box( of T ).IsOpen( )', and read from its
+    '' first word it was a 'const' declaration: Declaration_ found it at no level of its
+    '' own and dropped it, so an importer instantiated nothing -- a call linked to the
+    '' generic's own symbol and 'for each' found no GetIterator( ) (TKO0606).
+    if Kind_( w, kw ) = Tko.KW_CONST then kw += 1
     select case Kind_( w, kw )
     case Tko.KW_SUB, Tko.KW_FUNCTION, Tko.KW_PROPERTY, Tko.KW_OPERATOR, _
          Tko.KW_CONSTRUCTOR, Tko.KW_DESTRUCTOR

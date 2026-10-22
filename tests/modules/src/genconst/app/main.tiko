@@ -1,0 +1,13 @@
+'' Calls acme/gc's const generic members; see gc.tiko.
+#import "acme/gc"
+dim as gc.Box( of long ) b
+print b.IsSet( )
+b.v = 21
+print b.IsSet( )
+print b.Twice( )
+for each x in b
+    print x
+next
+dim as gc.Box( of double ) d
+d.v = 1.25
+print d.Twice( )

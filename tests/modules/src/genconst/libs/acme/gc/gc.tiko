@@ -1,0 +1,37 @@
+'' CONST MEMBERS OF A PUBLIC GENERIC TYPE, defined out of line as 'const function
+'' Box( of T ).X( )'. Their bodies have to reach the interface like any other member's.
+#module "gc"
+public type Walk( of T )
+    as long i
+    as long n
+    declare function IsValid( ) as boolean
+    declare function Value( ) as T
+    declare sub MoveNext( )
+end type
+function Walk( of T ).IsValid( ) as boolean
+    return i < n
+end function
+function Walk( of T ).Value( ) as T
+    return cast( T, i * 10 )
+end function
+sub Walk( of T ).MoveNext( )
+    i += 1
+end sub
+
+public type Box( of T )
+    as T v
+    declare const function IsSet( ) as boolean
+    declare const function Twice( ) as T
+    declare const function GetIterator( ) as Walk( of T )
+end type
+const function Box( of T ).IsSet( ) as boolean
+    return v <> 0
+end function
+public const function Box( of T ).Twice( ) as T
+    return v * 2
+end function
+const function Box( of T ).GetIterator( ) as Walk( of T )
+    dim as Walk( of T ) w
+    w.n = 3
+    return w
+end function

@@ -1,0 +1,17 @@
+'' CONST MEMBERS OF A MODULE'S PUBLIC GENERIC TYPE, called from an importer. Their bodies,
+'' spelled 'const function Box( of T ).X( )', were left out of the interface: a call
+'' failed to link on the generic's own symbol, BOX::ISSET() const, and 'for each' over a
+'' const GetIterator( ) was TKO0606.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc -i tests/modules/src/genconst/libs tests/modules/src/genconst/app/main.tiko -o tests/modules/genconstlink.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/modules/genconstlink.exe
+'' RUN: tests/modules/genconstlink.exe
+'' EXPECT-RUN-OUT: false
+'' EXPECT-RUN-OUT: true
+'' EXPECT-RUN-OUT:  42
+'' EXPECT-RUN-OUT:  0
+'' EXPECT-RUN-OUT:  10
+'' EXPECT-RUN-OUT:  20
+'' EXPECT-RUN-OUT:  2.5
