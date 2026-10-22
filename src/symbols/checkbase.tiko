@@ -162,6 +162,20 @@ private function ThisArgType_ _
     return c.types->Inner( u )
 end function
 
+'' A MEMBER ACCESS RESOLVE ALREADY BOUND TO AN INSTANTIATED GENERIC METHOD --
+'' 'b.Put_( of Person )' (genericmethod.tiko). The member is not looked up again by name:
+'' the name finds the TEMPLATE, which has no code, and the call then reached lowering
+'' untyped (TKO0994).
+private function GenericMethodInst_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
+    if s = nullptr then return false
+    if s->kind <> cast( uint8, Tko.SYM_PROC ) then return false
+    if (s->flags and Tko.SYMF_GENERIC_INST) = 0 then return false
+    dim as Tko.SymScope ptr sc = c.syms->ScopeAt( s->parent )
+    if sc = nullptr then return false
+    return (sc->kind = cast( uint8, Tko.SCOPEK_TYPE ))
+end function
+
 '' A METHOD NAMED WITHOUT PARENTHESES OVER AN OVERLOAD SET IS A CALL OF THE ONE OVERLOAD
 '' THAT NEEDS NO ARGUMENT -- none, or a default for every parameter -- not of the chain's
 '' head. Measured on fbc-modern, over 'GetX( byval p as GD ptr ) as long' declared before

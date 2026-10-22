@@ -1,0 +1,14 @@
+'' Calls acme/gm's generic methods; see gm.tiko.
+#import "acme/gm"
+type Person
+    as long Age
+    as long Id
+end type
+dim as gm.Rec r
+dim as Person p
+dim as short sh
+print r.Put_( of Person )( p )
+print r.Put_( p )
+print gm.Rec.Size( of double )( )
+print r.Plain( )
+print r.Put_( sh )

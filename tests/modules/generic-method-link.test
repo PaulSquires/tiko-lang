@@ -1,0 +1,15 @@
+'' GENERIC METHODS OF A MODULE'S PUBLIC TYPE, called from an importer: written and inferred
+'' type arguments, a static one through the qualified type, and one instantiation made on
+'' both sides of the module boundary, which links once. Each call was TKO0994.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc -i tests/modules/src/genmeth/libs tests/modules/src/genmeth/app/main.tiko -o tests/modules/genmethlink.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: duplicate symbol
+'' EXPECT-FILE: tests/modules/genmethlink.exe
+'' RUN: tests/modules/genmethlink.exe
+'' EXPECT-RUN-OUT:  1008
+'' EXPECT-RUN-OUT:  1008
+'' EXPECT-RUN-OUT:  8
+'' EXPECT-RUN-OUT:  1002
+'' EXPECT-RUN-OUT:  1002

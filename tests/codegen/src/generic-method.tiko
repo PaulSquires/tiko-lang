@@ -1,0 +1,65 @@
+'' A GENERIC METHOD OF AN ORDINARY TYPE -- 'declare function Put_( of T )' inside 'type Box'.
+'' Every call of one was TKO0994: the call bound to the template, which has no code. Each
+'' shape below reaches an instance of its own: type arguments written and inferred, two
+'' types with a method of one name, THIS inside the body, a SUB, '->' through a pointer,
+'' 'this.Put_' and a bare 'Put_' from another method, one generic method calling another,
+'' and a STATIC one named through a namespace-qualified type. fbc-modern has no generic
+'' methods (its error 147), so the expected output is the arithmetic, not an oracle's.
+type Person field = 1
+    as long Age
+    as short H
+end type
+type Box
+    as long x = 100
+    declare function Put_( of T )( byref r as T ) as long
+    declare sub Fill( of T )( byref r as T, byval v as long )
+    declare function Twice( of T )( byref r as T ) as long
+    declare function Thrice( byref r as Person ) as long
+end type
+type Crate
+    as long y = 7
+    declare function Put_( of T )( byref r as T ) as long
+end type
+namespace NS
+    type Unit
+        as long pad
+        declare static function Size( of T )( ) as long
+    end type
+    function Unit.Size( of T )( ) as long
+        return sizeof( T ) * 10
+    end function
+end namespace
+function Box.Put_( of T )( byref r as T ) as long
+    return this.x + sizeof( T )
+end function
+sub Box.Fill( of T )( byref r as T, byval v as long )
+    r.Age = v
+end sub
+function Box.Twice( of T )( byref r as T ) as long
+    return this.Put_( of T )( r ) * 2
+end function
+function Box.Thrice( byref r as Person ) as long
+    return Put_( of Person )( r ) * 3
+end function
+function Crate.Put_( of T )( byref r as T ) as long
+    return y * 1000 + sizeof( T )
+end function
+dim as Box b
+dim as Crate k
+dim as Person p
+dim as long n = 5
+dim as double d
+print b.Put_( of Person )( p )
+print b.Put_( p )
+print b.Put_( of long )( n )
+print b.Put_( d )
+print k.Put_( of Person )( p )
+b.Fill( of Person )( p, 42 )
+print p.Age
+b.Fill( p, 43 )
+print p.Age
+print b.Twice( of Person )( p )
+print b.Thrice( p )
+dim as Box ptr pb = @b
+print pb->Put_( of Person )( p )
+print NS.Unit.Size( of short )( )

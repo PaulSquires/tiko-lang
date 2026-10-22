@@ -1,0 +1,118 @@
+'' genericmethod.tiko -- A GENERIC METHOD OF AN ORDINARY TYPE: 'b.Put_( of Person )( p )'.
+''
+'' Split out of generic.tiko at the 1500-line cap and included from it, just ahead of
+'' InstantiateGenericProc_, its one user.
+''
+'' 'declare function Put_( of T )( byref r as T ) as long' inside a NON-generic 'type Box'
+'' parsed, and so did 'function Box.Put_( of T )' -- but a call through a value reached
+'' nothing. InstantiateGenericProc_ looked through an N_MEMBER target only for a
+'' NAMESPACE, so the call bound to the TEMPLATE, which has no code, and the statement
+'' was TKO0994. Generic free procedures and members of generic TYPES were fine; only
+'' this shape, a method that is generic by itself, was missing.
+
+'' THE METHOD A MEMBER CALL NAMES, when it is a generic one -- or SYMBOL_NONE, which is
+'' every ordinary member call and every 'NS.f( )'. The base's type is the same answer
+'' the inference pass already gives a method call's result (InferArgType_), so a
+'' variable, a parameter, a field and a 'var' are all reached, and a namespace is not:
+'' it has no type.
+private function GenericMethodHead_ _
+    ( byref c as Ctx, byval mn as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.SymbolId
+
+    dim as Tko.BinaryPayload ptr qbp = _
+        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, mn )].data )]
+    if c.ast->Kind( qbp->rhs ) <> Tko.N_IDENT then return Tko.SYMBOL_NONE
+    dim as Tko.TypeId bt = InferArgType_( c, qbp->lhs, scope_ )
+    '' ...or a TYPE, for a static one: 'NS.Box.Size( of short )( )'. Resolve has bound the
+    '' base already, the type name and the qualified one alike.
+    if bt = Tko.TYPE_NONE then
+        dim as Tko.Symbol ptr us = c.syms->SymbolAt( c.info->RefOf( qbp->lhs ) )
+        if us = nullptr then return Tko.SYMBOL_NONE
+        if us->kind <> cast( uint8, Tko.SYM_UDT ) then return Tko.SYMBOL_NONE
+        bt = us->type_
+    end if
+    if bt = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
+    '' 'pb->Put_( of T )( r )' reaches through the pointer, and so does 'this.Put_( ... )':
+    '' THIS is a pointer that is written with a dot.
+    dim as boolean viaPtr = ((c.ast->nodes[cast( int32, mn )].flags and Tko.NF_ARROW) <> 0)
+    if (viaPtr = false) andalso (c.ast->Kind( qbp->lhs ) = Tko.N_IDENT) then
+        viaPtr = (IdentNameOf( c, qbp->lhs ) = c.names->Fold( c.names->GetString( "this" ) ))
+    end if
+    if viaPtr then
+        bt = c.types->Unqualify( bt )
+        if c.types->Kind( bt ) <> Tko.TK_POINTER then return Tko.SYMBOL_NONE
+        bt = c.types->Inner( bt )
+    end if
+    dim as Tko.SymbolId msid = TypeMemberNamed_( c, bt, _
+        c.names->Spelling( IdentNameOf( c, qbp->rhs ) ) )
+    if msid = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
+    if GenericOfSet_( c, msid ) = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
+    return msid
+end function
+
+'' THE DEFINITION of a generic method, which is what an instantiation re-parses. The
+'' method's symbol carries its DECLARATION -- the line inside 'type Box' -- and that has
+'' no body: re-parsed, it produced a prototype and nothing to lower.
+private function GenericMethodDef_( byref c as Ctx, byval msid as Tko.SymbolId ) as Tko.NodeId
+    dim as int32 n0 = c.ast->tokenRanges.Count
+    for i as int32 = 0 to n0 - 3 step 3
+        dim as Tko.NodeId dn = cast( Tko.NodeId, c.ast->tokenRanges[i] )
+        if c.ast->Kind( dn ) <> Tko.N_PROC then continue for
+        dim as Tko.StmtPayload ptr dp = StmtOf( c, dn )
+        if (dp->extra and Tko.PF_GENERIC_PROC) = 0 then continue for
+        if dp->ownerName = 0 then continue for
+        if c.info->RefOf( dn ) <> msid then continue for
+        if dp->b = Tko.NODE_NONE then continue for
+        return dn
+    next
+    return Tko.NODE_NONE
+end function
+
+'' THE NODE AN INSTANTIATION OF THIS GENERIC RE-PARSES: 'gn', its symbol's own -- unless
+'' the generic is a METHOD, whose symbol holds the declaration and whose body is the
+'' definition (above). By the symbol's SCOPE, not by how the call was written: 'Put_( of
+'' Person )( r )' inside another method names it with no base at all, instantiated the
+'' declaration, and cached that -- so a later 'b.Put_( of Person )' got the same empty
+'' instance. NODE_NONE when a method has no definition to instantiate.
+private function GenericMethodBody_ _
+    ( byref c as Ctx, byval gsid as Tko.SymbolId, byval gn as Tko.NodeId ) as Tko.NodeId
+
+    dim as Tko.Symbol ptr gs = c.syms->SymbolAt( gsid )
+    if gs = nullptr then return gn
+    dim as Tko.SymScope ptr sc = c.syms->ScopeAt( gs->parent )
+    if sc = nullptr then return gn
+    if sc->kind <> cast( uint8, Tko.SCOPEK_TYPE ) then return gn
+    if StmtOf( c, gn )->b <> Tko.NODE_NONE then return gn   '' defined inside the type
+    return GenericMethodDef_( c, gsid )
+end function
+
+'' WHAT THE DECLARATION SAYS AND THE DEFINITION NEED NOT: 'declare static function
+'' Size( of T )( )' over a plain 'function Box.Size( of T )( )'. The instance is the
+'' re-parsed DEFINITION, so without this a static generic method took a receiver and a
+'' const one lost its K.
+private sub GenericMethodInherit_ _
+    ( byref c as Ctx, byval gn as Tko.NodeId, byval fresh as Tko.NodeId )
+
+    dim as Tko.Symbol ptr ms = c.syms->SymbolAt( c.info->RefOf( gn ) )
+    if ms = nullptr then return
+    dim as Tko.NodeId dn = cast( Tko.NodeId, ms->payload )
+    if (dn = Tko.NODE_NONE) orelse (dn = gn) then return
+    if c.ast->Kind( dn ) <> Tko.N_PROC then return
+    dim as Tko.StmtPayload ptr fp = StmtOf( c, fresh )
+    fp->extra or= StmtOf( c, dn )->extra and _
+        (Tko.PF_STATIC or Tko.PF_CONST or Tko.PF_MEMB_PRIVATE or Tko.PF_MEMB_PROTECTED)
+end sub
+
+'' THE PAYLOAD AN INSTANCE OF A GENERIC METHOD GETS: its own re-parsed body, or 0 for
+'' anything else. Collect binds 'function Box.PUT_<n>( )' to the instance symbol as a
+'' declaration's definition, and a definition sets no payload, so the call scored nothing.
+'' An OPERATOR's instance stays without one, as it always was: given its body, 'x->v' over
+'' Box( of T )'s generic '->' found no field 'v' (tests/mir/generic-global-operator).
+private function GenericMethodPayload_ _
+    ( byref c as Ctx, byval home as Tko.ScopeId, byval fresh as Tko.NodeId ) as int64
+
+    dim as Tko.SymScope ptr sc = c.syms->ScopeAt( home )
+    if sc = nullptr then return 0
+    if sc->kind <> cast( uint8, Tko.SCOPEK_TYPE ) then return 0
+    if StmtOf( c, fresh )->op = cast( uint16, Tko.KW_OPERATOR ) then return 0
+    return fresh
+end function

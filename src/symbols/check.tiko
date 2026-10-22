@@ -1083,7 +1083,7 @@ private function TypeOfUncached_ _
             end if
         end if
 
-        if (bt <> Tko.TYPE_NONE) andalso (c.ast->Kind( mp->rhs ) = Tko.N_IDENT) then
+        if (bt <> Tko.TYPE_NONE) andalso (c.ast->Kind( mp->rhs ) = Tko.N_IDENT) andalso (GenericMethodInst_( c, id ) = false) then
             dim as Tko.IdentPayload ptr ip = _
                 @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, mp->rhs )].data )]
             dim as Tko.SymbolId fs = FieldOf_( c, bt, ip->name )

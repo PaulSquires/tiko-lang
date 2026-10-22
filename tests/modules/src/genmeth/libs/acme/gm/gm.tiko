@@ -1,0 +1,19 @@
+'' A PUBLIC TYPE WITH GENERIC METHODS: the definitions travel in the interface and each
+'' importer instantiates what it calls. Plain( ) instantiates Put_( of short ) here as well,
+'' so the importer's own Put_( of short ) must fold into the module's, not collide with it.
+#module "gm"
+public type Rec
+    as long base_ = 1000
+    declare function Put_( of T )( byref r as T ) as long
+    declare static function Size( of T )( ) as long
+    declare function Plain( ) as long
+end type
+function Rec.Put_( of T )( byref r as T ) as long
+    return base_ + sizeof( T )
+end function
+function Rec.Size( of T )( ) as long
+    return sizeof( T )
+end function
+function Rec.Plain( ) as long
+    return Put_( of short )( 0 )
+end function

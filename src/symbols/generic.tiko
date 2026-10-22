@@ -562,6 +562,7 @@ declare function InstantiateProcAt_ _
 
 
 #include once "symbols/genericset.tiko"
+#include once "symbols/genericmethod.tiko"
 
 function InstantiateGenericProc_ _
     ( byref c as Ctx, byval callId as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.SymbolId
@@ -591,7 +592,15 @@ function InstantiateGenericProc_ _
     '' find a different one or none.
     dim as Tko.ScopeId lookScope = scope_
     dim as boolean qualified = false
+    dim as Tko.SymbolId methodHead = Tko.SYMBOL_NONE
     if c.ast->Kind( tgt ) = Tko.N_MEMBER then
+        dim as Tko.BinaryPayload ptr qbp = _
+            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, tgt )].data )]
+        '' ...AND A METHOD CALL IS ONE TOO, when the method is generic -- genericmethod.tiko.
+        methodHead = GenericMethodHead_( c, tgt, scope_ )
+        if methodHead <> Tko.SYMBOL_NONE then tgt = qbp->rhs
+    end if
+    if (methodHead = Tko.SYMBOL_NONE) andalso (c.ast->Kind( tgt ) = Tko.N_MEMBER) then
         dim as Tko.BinaryPayload ptr qbp = _
             @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, tgt )].data )]
         if c.ast->Kind( qbp->lhs ) <> Tko.N_IDENT then return Tko.SYMBOL_NONE
@@ -618,7 +627,9 @@ function InstantiateGenericProc_ _
     '' A QUALIFIED NAME LOOKS ONLY IN THAT SCOPE: 'NS.Mk' means the Mk in NS, and
     '' walking outward from it would find a different one.
     dim as Tko.SymbolId gsid
-    if qualified then
+    if methodHead <> Tko.SYMBOL_NONE then
+        gsid = methodHead
+    elseif qualified then
         gsid = c.syms->LookupLocal( lookScope, gname )
     else
         gsid = c.syms->Lookup( lookScope, gname )
@@ -654,6 +665,8 @@ function InstantiateGenericProc_ _
     dim as Tko.NodeId gn = cast( Tko.NodeId, gs->payload )
     if gn = Tko.NODE_NONE then return Tko.SYMBOL_NONE
     if c.ast->Kind( gn ) <> Tko.N_PROC then return Tko.SYMBOL_NONE
+    gn = GenericMethodBody_( c, gsid, gn )        '' a METHOD's is its definition's
+    if gn = Tko.NODE_NONE then return Tko.SYMBOL_NONE
     dim as Tko.StmtPayload ptr gp = StmtOf( c, gn )
     if (gp->extra and Tko.PF_GENERIC_PROC) = 0 then return Tko.SYMBOL_NONE
     '' ...and a call the generic cannot take is the GENERIC'S failure, not the head's:
@@ -872,6 +885,7 @@ sub InstantiatePendingProcs_( byref c as Ctx )
             fp->rawName = inm
             fp->extra and= not Tko.PF_GENERIC_PROC
             fp->c = Tko.NODE_NONE
+            GenericMethodInherit_( c, gn, fresh )   '' 'static' and the like -- genericmethod.tiko
 
             '' A LAMBDA WRITTEN INSIDE A GENERIC BODY is hoisted by the RE-PARSE, into
             '' the re-parse's own ParserState -- which is a local here, so the
@@ -940,6 +954,8 @@ sub InstantiatePendingProcs_( byref c as Ctx )
             dim as Tko.Symbol ptr msym = c.syms->SymbolAt( made )
             if (isym <> nullptr) andalso (msym <> nullptr) then
                 if isym->payload = 0 then isym->payload = msym->payload
+                '' ...or its own body, for a generic METHOD -- GenericMethodPayload_.
+                if isym->payload = 0 then isym->payload = GenericMethodPayload_( c, home, fresh )
                 if isym->type_ = Tko.TYPE_NONE then isym->type_ = msym->type_
                 isym->inner = msym->inner
                 isym->flags or= Tko.SYMF_DEFINED or Tko.SYMF_GENERIC_INST

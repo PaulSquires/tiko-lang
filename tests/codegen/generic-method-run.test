@@ -1,0 +1,19 @@
+'' A generic method of a non-generic type, called every way one can be -- see the source.
+'' It was TKO0994, "this statement was not compiled", at every call.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/generic-method.tiko -o tests/codegen/genericmethod.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/genericmethod.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  106
+'' EXPECT-RUN-OUT:  106
+'' EXPECT-RUN-OUT:  104
+'' EXPECT-RUN-OUT:  108
+'' EXPECT-RUN-OUT:  7006
+'' EXPECT-RUN-OUT:  42
+'' EXPECT-RUN-OUT:  43
+'' EXPECT-RUN-OUT:  212
+'' EXPECT-RUN-OUT:  318
+'' EXPECT-RUN-OUT:  106
+'' EXPECT-RUN-OUT:  20
