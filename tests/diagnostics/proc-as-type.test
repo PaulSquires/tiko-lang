@@ -1,0 +1,12 @@
+'' A procedure named as a type -- 'dim a as ns.F', 'dim b as G' -- is fbc's error 14 on
+'' both lines (fbc-modern 1.20, 2026-10-22). tiko took the procedure's own type and declared
+'' a 4-byte variable: 'dim a as win.MSG' meant sys/win's Msg function, not windows.bi's
+'' 48-byte MSG. A real type and a variable's sizeof in the same unit are untouched; each
+'' error is reported once.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/proc-as-type.bas -o tests/diagnostics/src/proc-as-type.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: proc-as-type.bas(12,10): error TKO0997: 'ns.f' is a procedure, not a type
+'' EXPECT-OUT: proc-as-type.bas(13,10): error TKO0997: 'g' is a procedure, not a type
+'' EXPECT-NOT: TKO0808
+'' EXPECT-MAX-DIAG: 2

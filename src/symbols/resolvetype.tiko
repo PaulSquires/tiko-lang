@@ -818,6 +818,27 @@ function ResolveTypeRefAt_ _
             end if
         end if
 
+        '' A PROCEDURE IS NOT A TYPE. The typed lookup prefers a type of that name and falls
+        '' back to whatever holds it, and a procedure's symbol carries a type of its own -- so
+        '' 'dim a as win.MSG', with sys/win's Msg function the only 'msg' in win, declared a
+        '' 4-byte variable where windows.bi's MSG is 48. fbc: error 14 for both 'dim a as ns.F'
+        '' and 'dim b as G' (measured, fbc-modern 1.20, 2026-10-22). The ref is kept, so the
+        '' unresolved-type pass does not also call it undeclared (TKO0808).
+        if sid <> Tko.SYMBOL_NONE then
+            dim as Tko.Symbol ptr ps_ = c.syms->SymbolAt( sid )
+            if (ps_ <> nullptr) andalso (ps_->kind = cast( uint8, Tko.SYM_PROC )) then
+                '' Once: a declaration's type is resolved more than once, and the ref set
+                '' here is what the second visit finds.
+                if c.info->RefOf( id ) <> sid then
+                    dim as string pn = c.names->Spelling( sp->name )
+                    if sp->ownerName <> 0 then pn = c.names->Spelling( sp->ownerName ) & "." & pn
+                    c.diags->Report( Tko.TKO0997, Tko.PointRange( c.ast->Loc( id ) ), pn )
+                end if
+                c.info->SetRef( id, sid )
+                c.info->SetType( id, Tko.TYPE_NONE )
+                return Tko.TYPE_NONE
+            end if
+        end if
         if sid <> Tko.SYMBOL_NONE then
             ForwardTypeRef_( c, id, sid, scope_ )    '' named above its declaration: fbc's 14
             c.info->SetRef( id, sid )

@@ -1,0 +1,8 @@
+'' TKO0997: 'win.MSG' is sys/win's Msg function, a procedure and not a type. It declared a
+'' 4-byte variable where windows.bi's MSG is 48; spell the struct tagMSG (or MSG with the
+'' program's own '#include "windows.bi"').
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -c -i toolchains/tiko-windows/inc tests/modules/src/taskswin/win-msg-qualified.tiko -o tests/modules/src/taskswin/win-msg-qualified.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: win-msg-qualified.tiko(4,10): error TKO0997: 'win.msg' is a procedure, not a type
+'' EXPECT-MAX-DIAG: 1

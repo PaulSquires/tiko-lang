@@ -995,6 +995,9 @@
     DIAG( TKO0995, SEV_WARNING, "internal compiler error: this statement was not compiled (%0 in this module) and is left out of the build" )
     '' fbc's 28 -- symbols/declshape.tiko CheckBareStrDecl_.
     DIAG( TKO0996, SEV_ERROR,   "'%0' is a bare %1, which has no length; write '%1 * N' or '%1 ptr'" )
+    '' fbc's 14 for 'dim a as ns.F' / 'dim b as G' over a FUNCTION: tiko took the procedure's
+    '' own type for the variable -- symbols/resolvetype.tiko.
+    DIAG( TKO0997, SEV_ERROR,   "'%0' is a procedure, not a type" )
 
 #endmacro
 

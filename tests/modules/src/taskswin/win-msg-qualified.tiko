@@ -1,0 +1,4 @@
+'' 'win.MSG' qualified names sys/win's Msg FUNCTION -- windows.bi's MSG is not in win.
+#import "sys/win"
+using win
+dim a as win.MSG
