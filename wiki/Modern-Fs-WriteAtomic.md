@@ -9,6 +9,7 @@ Replaces a file so a reader sees the old or the new contents, never a half-writt
 ```freebasic
 WriteAtomic( p, s )        '' text, written as UTF-8
 WriteAtomic( p, bytes )    '' Array( of ubyte ), written as given
+WriteAtomic( p, s, enc [, mode ] )   '' text in a TextEncoding; TEXT_STRICT by default
 ```
 
 ## Examples

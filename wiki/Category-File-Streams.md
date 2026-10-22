@@ -68,17 +68,59 @@ WriteAtomic( p, s )                    FsResultBool -- see below
 WriteAtomic( p, bytes )                Array( of ubyte ), written as given
 ```
 
+Each text call also takes a text encoding: see [Choosing An Encoding](#choosing-an-encoding).
+
 ### Text Encoding
 
-Five rules:
+With no encoding named, five rules:
 
 1. **A BOM is honoured and consumed** -- UTF-8, UTF-16LE and UTF-16BE. It is not part of the returned text.
 2. **No BOM means UTF-8.** Not the ANSI codepage, not the console codepage, on either platform -- a codepage default would make the same file read differently on two machines.
 3. **Invalid input is replaced, not rejected.** ReadAllText on a binary file succeeds and returns mojibake. If you need to know, read bytes.
-4. **WriteAllText writes UTF-8 with no BOM.** Write one via WriteAllBytes if you need it.
+4. **WriteAllText writes UTF-8 with no BOM.** Name `Utf8( true )` if you need one.
 5. **ReadAllLines splits on `\n` and strips a preceding `\r`**, so CRLF, LF and a mixed file give the same lines. A final newline does not produce a trailing empty line; an empty file gives zero lines. A lone `\r` is not a terminator -- classic Mac endings are not supported.
 
 Reading a directory is FS_IS_A_DIRECTORY on both platforms. A file too large to allocate is FS_NO_SPACE, not a truncation.
+
+### Choosing An Encoding
+
+The rules above apply when you name no encoding. To read or write another encoding, add a `TextEncoding`, the same one [std/codec](Category-Codec#text-encodings) uses:
+
+```freebasic
+#import "std/fs"
+using fs
+
+dim as ustring dir_ = CreateTempDir( "fbdoc" ).Value( )
+dim as ustring p = PathJoin( dir_, "notes.txt" )
+
+WriteAllText( p, "café", Utf16LE( ) )              ' FF FE 63 00 61 00 66 00 E9 00
+print ReadAllText( p, Utf16LE( ) ).Value( )         ' café
+
+dim r as FsResultBool = WriteAllText( p, "snow " & wchr( &h2603 ), CodePage( 1252 ) )
+print r.IsOk( )                  ' false: 1252 has no snowman, so nothing was written
+r = WriteAllText( p, "snow " & wchr( &h2603 ), CodePage( 1252 ), TEXT_REPLACE )
+print r.IsOk( ), r.Value( )      ' true  false: written, but the snowman became ?
+
+RemoveDirAll( dir_ )
+```
+
+```text
+ReadAllText( p, enc [, mode ] )            mode TEXT_REPLACE by default
+ReadAllLines( p, lines, enc [, mode ] )
+WriteAllText( p, s, enc [, mode ] )        mode TEXT_STRICT by default
+AppendAllText( p, s, enc [, mode ] )
+WriteAtomic( p, s, enc [, mode ] )
+```
+
+The encodings are `Utf8( [bom] )`, `Utf16LE( [bom] )`, `Utf16BE( [bom] )`, `Ansi( )`, `CodePage( n )` and `Binary_( )`. `fs.TextEncoding` is `codec.TextEncoding` under another name. A program with both `using fs` and `using codec` has to qualify these names.
+
+- **The encoding you name is the one used.** A BOM that matches it is skipped. Any other leading bytes are text, so reading a file that starts with a UTF-8 BOM as `Ansi( )` gives you the three BOM characters. UTF-16 drops an odd last byte.
+- **Writes are strict by default.** If a character cannot be written in the encoding, the call fails with FS_INVALID_DATA and the file is not touched. With TEXT_REPLACE each such character becomes `?`, the write succeeds, and the result's value is `false`. A value of `true` means every character was written exactly. Characters are never replaced by lookalikes.
+- **BOMs.** `Utf16LE( )` and `Utf16BE( )` write one unless you pass `false`. `Utf8( )` writes one only as `Utf8( true )`. A code page and `Binary_( )` never do.
+- **AppendAllText checks the BOM.** If the file starts with a BOM for a different UTF encoding, the call fails with FS_INVALID_DATA and the file is not changed. A new or empty file gets the encoding's BOM. A file that already has text never gets a second one.
+- **`Binary_( )`** reads each byte as the character with the same number, U+0000 to U+00FF. The text writes back to exactly the same bytes, so any file round-trips.
+- **`Ansi( )`** is the system's ANSI code page, and exists only on Windows. On Linux, use `CodePage( 1252 )` or another built-in code page.
+- A call with no encoding behaves as before. `WriteAllText( p, s, Utf8( ) )` writes exactly the bytes `WriteAllText( p, s )` does.
 
 ### WriteAtomic
 

@@ -112,6 +112,7 @@ public declare function ReadAllLines overload ( byref p as const ustring, lines 
 public declare function WriteAllText overload ( byref p as const ustring, byref s as const ustring ) as FsResultBool
 public declare function WriteAllBytes overload ( byref p as const ustring, buf as Array( of ubyte ) ) as FsResultBool
 public declare function AppendAllText overload ( byref p as const ustring, byref s as const ustring ) as FsResultBool
+declare function FsSplitLines( byref s as const ustring, lines as Array( of ustring ) ) as long
 
 public function ReadAllText( byref p as const ustring ) as FsResultUStr
     dim as long status = FS_OK
@@ -167,11 +168,17 @@ public function ReadAllLines( byref p as const ustring, lines as Array( of ustri
         return Fail( of long, FsError )( t.Failure( ) )
     end if
 
-    dim as ustring s = t.Value( )
+    return Ok( of long, FsError )( FsSplitLines( t.Value( ), lines ) )
+end function
+
+'' ReadAllLines' rule, over text already read: appends to lines, returns the count. The
+'' encoding overloads (fstextenc.tiko) split with it too, so every encoding has the
+'' same lines.
+function FsSplitLines( byref s as const ustring, lines as Array( of ustring ) ) as long
     dim as long n = len( s ), start = 0, nParts = 0
 
     if( n = 0 ) then
-        return Ok( of long, FsError )( 0 )
+        return 0
     end if
 
     for i as long = 0 to n - 1
@@ -197,7 +204,7 @@ public function ReadAllLines( byref p as const ustring, lines as Array( of ustri
         nParts += 1
     end if
 
-    return Ok( of long, FsError )( nParts )
+    return nParts
 end function
 
 public function WriteAllText( byref p as const ustring, byref s as const ustring ) as FsResultBool

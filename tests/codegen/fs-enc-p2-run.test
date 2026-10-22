@@ -1,0 +1,12 @@
+'' RUN: std/fs text encodings, whole-file calls (C:\dev\docs\tiko-fs\RFC-0002 phase P2) -- the
+'' calls without an encoding keep their bytes; the editor's Doc_EncodeForDisk goldens through
+'' WriteAllText; every encoding through WriteAllText, AppendAllText and WriteAtomic and back;
+'' strict writes touch nothing; FileSystemObject's read rules; ReadAllLines' lines in every
+'' encoding; the append BOM check; BINARY over all 256 bytes; and the failures.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/fs-enc-p2.tiko -o tests/codegen/fsencp2.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/fsencp2.exe
+'' RUN: tests/codegen/fsencp2.exe
+'' EXPECT-RUN-OUT: ok

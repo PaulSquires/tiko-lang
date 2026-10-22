@@ -8,11 +8,13 @@ Adds text to the end of a file, creating the file if it is not there.
 
 ```freebasic
 AppendAllText( p, s )
+AppendAllText( p, s, enc [, mode ] )   '' in a TextEncoding; TEXT_STRICT by default
 ```
 
 ## Notes
 
 - FsResultBool
+- With an encoding: if the file starts with a BOM for a different UTF encoding, the call fails with FS_INVALID_DATA and the file is not changed. A new or empty file gets the encoding's BOM; a file with text in it never gets another. See [Choosing An Encoding](Category-File-Streams#choosing-an-encoding).
 
 ## Examples
 

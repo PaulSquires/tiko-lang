@@ -1,0 +1,280 @@
+'' std/fs text encodings, whole-file calls (C:\dev\docs\tiko-fs\RFC-0002 phase P2): the
+'' calls without an encoding keep their bytes; the editor's Doc_EncodeForDisk goldens through
+'' WriteAllText; every encoding through WriteAllText, AppendAllText and WriteAtomic and back;
+'' strict writes touch nothing; FileSystemObject's read rules (an explicit encoding wins, a
+'' matching BOM is skipped, an odd UTF-16 byte is dropped); ReadAllLines' lines in every
+'' encoding; the append BOM check; BINARY over all 256 bytes; and the failures.
+#import "std/fs"
+#import "std/codec"
+#import "std/containers"
+
+extern "C"
+    declare function t_GetACP stdcall alias "GetACP" ( ) as ulong
+end extern
+
+dim shared as integer fails = 0
+
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+function HexOf( byref b as containers.Array( of ubyte ) ) as string
+    dim as string r
+    for i as long = 0 to b.Count( ) - 1
+        if i > 0 then r &= " "
+        r &= hex( b[i], 2 )
+    next
+    return r
+end function
+
+function FileHex( byref p as const ustring ) as string
+    dim as containers.Array( of ubyte ) b
+    if fs.ReadAllBytes( p, b ).IsOk( ) = false then return "<none>"
+    return HexOf( b )
+end function
+
+function Bytes( byref s as const string ) as containers.Array( of ubyte )
+    dim as containers.Array( of ubyte ) b
+    for k as integer = 1 to len( s )
+        dim as ubyte v = asc( s, k )
+        b.Push( v )
+    next
+    return b
+end function
+
+sub WriteRaw( byref p as const ustring, byref s as const string )
+    fs.WriteAllBytes( p, Bytes( s ) )
+end sub
+
+function Units( byref s as const ustring ) as string
+    dim as string r
+    for i as long = 0 to len( s ) - 1
+        if i > 0 then r &= " "
+        r &= hex( s[i], 4 )
+    next
+    return r
+end function
+
+function EncHex( byref s as const ustring, byval enc as fs.TextEncoding ) as string
+    dim as containers.Array( of ubyte ) b
+    codec.EncodeText( s, enc, b, false )
+    return HexOf( b )
+end function
+
+dim as ustring tmp = fs.CreateTempDir( ).ValueOr( "" )
+if len( tmp ) = 0 then print "no temp dir" : end 1
+dim as ustring p = fs.PathJoin( tmp, "t.txt" )
+dim as ustring q = fs.PathJoin( tmp, "q.txt" )
+
+dim as ustring corpus( 0 to 7 )
+corpus( 0 ) = ""
+corpus( 1 ) = "hello" & wchr( 13, 10 )
+corpus( 2 ) = "caf" & wchr( &hE9 ) & " " & wchr( &hFF, &hA0 )
+corpus( 3 ) = wchr( &h20AC, &h201C, &h201D )
+corpus( 4 ) = wchr( &h4E2D, &h6587 )
+corpus( 5 ) = wchr( &hD834, &hDD1E )
+corpus( 6 ) = "x" & wchr( &h221E, &h2603 )
+corpus( 7 ) = "a" & wchr( &hD800 ) & "b"        '' a lone surrogate
+
+'' -- no encoding argument: the same bytes as Utf8( ), both ways
+for c as long = 0 to 7
+    fs.WriteAllText( p, corpus( c ) )
+    dim as string plain = FileHex( p )
+    var w = fs.WriteAllText( p, corpus( c ), fs.Utf8( ) )
+    Check( "utf8 write = plain write " & c, w.IsOk( ) andalso ( FileHex( p ) = plain ) )
+    Check( "utf8 write exact " & c, w.Value( ) = ( c <> 7 ) )
+    fs.AppendAllText( q, corpus( c ) )
+next
+scope
+    dim as string raws( 0 to 4 ) = { "", "plain", chr( &hEF, &hBB, &hBF ) & "bom", "bad" & chr( &hE9, &h80 ) & "x", chr( &hC3 ) }
+    for i as long = 0 to 4
+        WriteRaw( p, raws( i ) )
+        Check( "utf8 read = plain read " & i, fs.ReadAllText( p, fs.Utf8( ) ).Value( ) = fs.ReadAllText( p ).Value( ) )
+    next
+end scope
+
+'' -- the editor's Doc_EncodeForDisk goldens (codec-text.tiko has the same table), through a file
+if t_GetACP( ) = 1252 then
+    dim as string golden( 0 to 6 ) = { "FF FE", "FF FE 68 00 65 00 6C 00 6C 00 6F 00 0D 00 0A 00", _
+        "FF FE 63 00 61 00 66 00 E9 00 20 00 FF 00 A0 00", "FF FE AC 20 1C 20 1D 20", "FF FE 2D 4E 87 65", _
+        "FF FE 34 D8 1E DD", "FF FE 78 00 1E 22 03 26" }
+    dim as string ansiGolden( 0 to 6 ) = { "", "68 65 6C 6C 6F 0D 0A", "63 61 66 E9 20 FF A0", "80 93 94", "3F 3F", "3F 3F", "78 3F 3F" }
+    for c as long = 0 to 6
+        var u = fs.WriteAllText( p, corpus( c ), fs.Utf16LE( ) )
+        Check( "golden utf16 " & c, u.IsOk( ) andalso u.Value( ) andalso ( FileHex( p ) = golden( c ) ) )
+        var a = fs.WriteAllText( p, corpus( c ), fs.Ansi( ), fs.TEXT_REPLACE )
+        Check( "golden ansi " & c, a.IsOk( ) andalso ( FileHex( p ) = ansiGolden( c ) ) )
+        Check( "golden ansi lossy " & c, a.Value( ) = ( c < 4 ) )
+    next
+else
+    print "note: the ANSI code page is not 1252 -- ANSI goldens skipped"
+end if
+
+'' -- every encoding through every write call, and back
+dim as fs.TextEncoding encs( 0 to 7 )
+encs( 0 ) = fs.Utf8( ) : encs( 1 ) = fs.Utf8( true ) : encs( 2 ) = fs.Utf16LE( ) : encs( 3 ) = fs.Utf16LE( false )
+encs( 4 ) = fs.Utf16BE( ) : encs( 5 ) = fs.Utf16BE( false ) : encs( 6 ) = fs.CodePage( 1252 ) : encs( 7 ) = fs.Binary_( )
+for e as long = 0 to 7
+    for c as long = 0 to 7
+        '' the code page and BINARY hold only corpus 0-3; UTF-8 turns the lone surrogate into U+FFFD
+        if ( e >= 6 ) andalso ( c >= 4 ) then continue for
+        if ( e <= 1 ) andalso ( c = 7 ) then continue for
+        dim as string want = EncHex( corpus( c ), encs( e ) )
+        if ( e = 7 ) andalso ( c = 3 ) then continue for       '' U+20AC is above U+00FF
+        dim as string what = encs( e ).Name( ) & "/" & encs( e ).Bom & " " & c
+        var w = fs.WriteAllText( p, corpus( c ), encs( e ) )
+        Check( "write " & what, w.IsOk( ) andalso w.Value( ) andalso ( FileHex( p ) = want ) )
+        Check( "read " & what, fs.ReadAllText( p, encs( e ), fs.TEXT_STRICT ).ValueOr( "?" ) = corpus( c ) )
+        fs.RemoveFile( q )
+        var a = fs.AppendAllText( q, corpus( c ), encs( e ) )
+        Check( "append new " & what, a.IsOk( ) andalso ( FileHex( q ) = want ) )
+        var t = fs.WriteAtomic( p, corpus( c ), encs( e ) )
+        Check( "atomic " & what, t.IsOk( ) andalso t.Value( ) andalso ( FileHex( p ) = want ) )
+    next
+next
+
+'' -- strict writes touch nothing; replace reports; no best-fit
+scope
+    WriteRaw( p, "keep" )
+    fs.RemoveFile( q )
+    var s = fs.WriteAllText( p, "a" & wchr( &h2603 ), fs.CodePage( 1252 ) )
+    Check( "strict write fails", ( s.IsOk( ) = false ) andalso ( s.Failure( ).Code( ) = fs.FS_INVALID_DATA ) _
+        andalso ( s.Failure( ).Operation( ) = "WriteAllText" ) )
+    Check( "strict write leaves the file", FileHex( p ) = "6B 65 65 70" )
+    Check( "strict write creates nothing", fs.WriteAllText( q, wchr( &h2603 ), fs.Binary_( ) ).IsOk( ) = false )
+    Check( "no file created", fs.Exists( q ) = false )
+    Check( "strict append leaves the file", ( fs.AppendAllText( p, wchr( &h2603 ), fs.CodePage( 1252 ) ).IsOk( ) = false ) _
+        andalso ( FileHex( p ) = "6B 65 65 70" ) )
+    Check( "strict atomic leaves the file", ( fs.WriteAtomic( p, wchr( &h2603 ), fs.CodePage( 1252 ) ).IsOk( ) = false ) _
+        andalso ( FileHex( p ) = "6B 65 65 70" ) )
+    var r = fs.WriteAllText( p, "a" & wchr( &h2603 ), fs.CodePage( 1252 ), fs.TEXT_REPLACE )
+    Check( "replace write is lossy", r.IsOk( ) andalso ( r.Value( ) = false ) andalso ( FileHex( p ) = "61 3F" ) )
+    fs.WriteAllText( p, wchr( &h221E, &h0101 ), fs.CodePage( 1252 ), fs.TEXT_REPLACE )
+    Check( "no best fit", FileHex( p ) = "3F 3F" )
+end scope
+
+'' -- FileSystemObject's read rules: the encoding named is the encoding used
+scope
+    WriteRaw( p, chr( &hEF, &hBB, &hBF ) & "caf" & chr( &hC3, &hA9, 13, 10 ) )
+    Check( "ansi read keeps a utf-8 bom", Units( fs.ReadAllText( p, fs.CodePage( 1252 ) ).Value( ) ) = _
+        "00EF 00BB 00BF 0063 0061 0066 00C3 00A9 000D 000A" )
+    Check( "utf8 read skips its bom", fs.ReadAllText( p, fs.Utf8( ) ).Value( ) = "caf" & wchr( &hE9, 13, 10 ) )
+    WriteRaw( p, chr( &hFF, &hFE ) & "a" & chr( 0, 13, 0, 10, 0, &h2D, &h4E, 13, 0, 10, 0 ) )
+    Check( "utf16le read skips FF FE", fs.ReadAllText( p, fs.Utf16LE( ) ).Value( ) = "a" & wchr( 13, 10, &h4E2D, 13, 10 ) )
+    Check( "ansi read of FF FE is text", Units( left( fs.ReadAllText( p, fs.CodePage( 1252 ) ).Value( ), 3 ) ) = "00FF 00FE 0061" )
+    WriteRaw( p, chr( &hFF, &hFE ) & "a" & chr( 0, 98 ) )
+    Check( "odd last byte dropped", fs.ReadAllText( p, fs.Utf16LE( ) ).Value( ) = "a" )
+    WriteRaw( p, "a" & chr( 0, 13, 0, 10, 0 ) & "b" & chr( 0 ) )
+    Check( "bomless utf16le", fs.ReadAllText( p, fs.Utf16LE( false ) ).Value( ) = "a" & wchr( 13, 10 ) & "b" )
+    WriteRaw( p, "caf" & chr( &hE9 ) & " " & chr( &h80, &h99, &hA0, &hFF, 13, 10 ) )
+    Check( "1252 read", Units( fs.ReadAllText( p, fs.CodePage( 1252 ) ).Value( ) ) = _
+        "0063 0061 0066 00E9 0020 20AC 2122 00A0 00FF 000D 000A" )
+    var bad = fs.ReadAllText( p, fs.Utf8( ), fs.TEXT_STRICT )
+    Check( "strict utf8 read fails", ( bad.IsOk( ) = false ) andalso ( bad.Failure( ).Code( ) = fs.FS_INVALID_DATA ) )
+    Check( "replace utf8 read", fs.ReadAllText( p, fs.Utf8( ) ).Value( ) = fs.ReadAllText( p ).Value( ) )
+end scope
+
+'' -- lines are ReadAllLines' lines in every encoding
+scope
+    dim as ustring forms( 0 to 4 ) = { _
+        "a" & wchr( 13, 10 ) & "b" & wchr( 10 ) & "c" & wchr( 13 ) & "d" & wchr( 13, 10, 13, 10 ) & "e", _
+        "x" & wchr( 10 ), "", wchr( 10 ), "end" & wchr( 13 ) }
+    for f as long = 0 to 4
+        WriteRaw( q, "" )
+        fs.WriteAllText( q, forms( f ) )
+        dim as containers.Array( of ustring ) ref_
+        dim as long nref = fs.ReadAllLines( q, ref_ ).Value( )
+        for e as long = 0 to 7
+            fs.WriteAllText( p, forms( f ), encs( e ) )
+            dim as containers.Array( of ustring ) got
+            var r = fs.ReadAllLines( p, got, encs( e ) )
+            dim as boolean same = r.IsOk( ) andalso ( r.Value( ) = nref ) andalso ( got.Count( ) = nref )
+            if same then
+                for i as long = 0 to nref - 1
+                    if got[i] <> ref_[i] then same = false
+                next
+            end if
+            Check( "lines form " & f & " " & encs( e ).Name( ) & "/" & encs( e ).Bom, same )
+        next
+    next
+    dim as ustring jp = wchr( &h65E5, &h672C, 13, 10, &h8A9E )
+    fs.WriteAllText( p, jp, fs.CodePage( 932 ) )
+    dim as containers.Array( of ustring ) jl
+    Check( "932 lines", ( fs.ReadAllLines( p, jl, fs.CodePage( 932 ) ).Value( ) = 2 ) andalso ( jl[0] = wchr( &h65E5, &h672C ) ) _
+        andalso ( jl[1] = wchr( &h8A9E ) ) )
+end scope
+
+'' -- appending checks the BOM, and writes one only into a new or empty file
+scope
+    fs.RemoveFile( p )
+    fs.AppendAllText( p, "a", fs.Utf16LE( ) )
+    fs.AppendAllText( p, "b", fs.Utf16LE( ) )
+    Check( "append: one bom", FileHex( p ) = "FF FE 61 00 62 00" )
+    WriteRaw( p, "" )
+    fs.AppendAllText( p, "a", fs.Utf8( true ) )
+    Check( "append: empty file gets the bom", FileHex( p ) = "EF BB BF 61" )
+    var m = fs.AppendAllText( p, "b", fs.Utf8( ) )
+    Check( "append: matching bom", m.IsOk( ) andalso ( FileHex( p ) = "EF BB BF 61 62" ) )
+    var x = fs.AppendAllText( p, "c", fs.Utf16LE( ) )
+    Check( "append: contradicting bom fails", ( x.IsOk( ) = false ) andalso ( x.Failure( ).Code( ) = fs.FS_INVALID_DATA ) _
+        andalso ( x.Failure( ).Operation( ) = "AppendAllText" ) )
+    Check( "append: file unchanged", FileHex( p ) = "EF BB BF 61 62" )
+    WriteRaw( p, chr( &hFE, &hFF, 0, &h61 ) )
+    Check( "append: utf8 onto utf-16be fails", fs.AppendAllText( p, "c", fs.Utf8( ) ).IsOk( ) = false )
+    Check( "append: utf16le onto utf-16be fails", fs.AppendAllText( p, "c", fs.Utf16LE( ) ).IsOk( ) = false )
+    Check( "append: utf16be onto utf-16be", fs.AppendAllText( p, "c", fs.Utf16BE( ) ).IsOk( ) andalso ( FileHex( p ) = "FE FF 00 61 00 63" ) )
+    WriteRaw( p, "x" )
+    fs.AppendAllText( p, "y", fs.Utf16LE( ) )
+    Check( "append: no bom into a file with text", FileHex( p ) = "78 79 00" )
+    WriteRaw( p, chr( &hFF, &hFE ) )
+    Check( "append: a code page is not checked", fs.AppendAllText( p, "z", fs.CodePage( 1252 ) ).IsOk( ) andalso ( FileHex( p ) = "FF FE 7A" ) )
+end scope
+
+'' -- BINARY: all 256 bytes through every call
+scope
+    dim as string raw
+    for i as long = 0 to 255
+        raw &= chr( i )
+    next
+    WriteRaw( p, raw )
+    dim as string want = FileHex( p )
+    var t = fs.ReadAllText( p, fs.Binary_( ), fs.TEXT_STRICT )
+    dim as boolean same = t.IsOk( ) andalso ( len( t.Value( ) ) = 256 )
+    if same then
+        for i as long = 0 to 255
+            if t.Value( )[i] <> i then same = false
+        next
+    end if
+    Check( "binary read identity", same )
+    Check( "binary write identity", fs.WriteAllText( q, t.Value( ), fs.Binary_( ) ).IsOk( ) andalso ( FileHex( q ) = want ) )
+    fs.RemoveFile( q )
+    Check( "binary append identity", fs.AppendAllText( q, t.Value( ), fs.Binary_( ) ).IsOk( ) andalso ( FileHex( q ) = want ) )
+    Check( "binary atomic identity", fs.WriteAtomic( q, t.Value( ), fs.Binary_( ) ).IsOk( ) andalso ( FileHex( q ) = want ) )
+    dim as containers.Array( of ustring ) bl
+    Check( "binary lines", fs.ReadAllLines( p, bl, fs.Binary_( ) ).Value( ) = 2 )
+    var r = fs.WriteAllText( q, "a" & wchr( &h100 ), fs.Binary_( ), fs.TEXT_REPLACE )
+    Check( "binary replace", r.IsOk( ) andalso ( r.Value( ) = false ) andalso ( FileHex( q ) = "61 3F" ) )
+end scope
+
+'' -- failures
+scope
+    dim as ustring nope = fs.PathJoin( tmp, "nope.txt" )
+    var r = fs.ReadAllText( nope, fs.Utf16LE( ) )
+    Check( "missing file", ( r.IsOk( ) = false ) andalso ( r.Failure( ).Code( ) = fs.FS_NOT_FOUND ) _
+        andalso ( r.Failure( ).Operation( ) = "ReadAllText" ) andalso ( r.Failure( ).Path( ) = nope ) )
+    dim as containers.Array( of ustring ) ls
+    var l = fs.ReadAllLines( nope, ls, fs.Ansi( ) )
+    Check( "missing file, lines", ( l.IsOk( ) = false ) andalso ( l.Failure( ).Operation( ) = "ReadAllLines" ) )
+    WriteRaw( p, "a" )
+    var u = fs.ReadAllText( p, fs.CodePage( 50220 ) )
+    Check( "unsupported code page", ( u.IsOk( ) = false ) andalso ( u.Failure( ).Code( ) = fs.FS_UNSUPPORTED ) )
+    var uw = fs.WriteAllText( p, "a", fs.CodePage( 65000 ) )
+    Check( "unsupported code page write", ( uw.IsOk( ) = false ) andalso ( uw.Failure( ).Code( ) = fs.FS_UNSUPPORTED ) _
+        andalso ( FileHex( p ) = "61" ) )
+end scope
+
+fs.RemoveDirAll( tmp )
+if fails = 0 then print "ok"

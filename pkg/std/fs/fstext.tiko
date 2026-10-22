@@ -1,6 +1,7 @@
 #module "fs"
 #import "std/outcome"
 #import "std/containers"
+#import "std/codec"
 using outcome
 using containers
 '' std/fs: fstext -- BufferedReader, BufferedWriter, TextReader, TextWriter, ReadLines,
@@ -339,6 +340,14 @@ public enum TextErrorMode
     TEXT_REPLACE = 0        '' invalid UTF-8 becomes U+FFFD -- ReadAllText's rule
     TEXT_STRICT  = 1        '' invalid UTF-8 fails with FS_INVALID_DATA
 end enum
+
+'' A std/codec failure as an FsError: an encoding this platform cannot convert is
+'' FS_UNSUPPORTED; bytes that do not decode, or a character that does not encode, are
+'' FS_INVALID_DATA.
+function FsEncodingFailure( byref e as const codec.EncodingError, byref op as const ustring, byref p as const ustring ) as FsError
+    if( e.Code( ) = codec.ENC_UNSUPPORTED ) then return FsError( FS_UNSUPPORTED, 0, op, p )
+    return FsError( FS_INVALID_DATA, 0, op, p )
+end function
 
 '' TRUE when b[0..n-1] is well-formed UTF-8: no stray continuation byte, no truncated or
 '' overlong sequence, no surrogate, nothing above U+10FFFF.

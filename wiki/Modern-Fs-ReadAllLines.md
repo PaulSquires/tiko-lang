@@ -8,6 +8,7 @@ Reads a file's lines into an Array, without their line endings; returns the coun
 
 ```freebasic
 ReadAllLines( p, lines )
+ReadAllLines( p, lines, enc [, mode ] )   '' in a TextEncoding; the same lines in every encoding
 ```
 
 ## Notes

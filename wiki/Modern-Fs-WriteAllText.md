@@ -8,11 +8,13 @@ Writes a string to a file as UTF-8, creating the file or replacing it.
 
 ```freebasic
 WriteAllText( p, s )
+WriteAllText( p, s, enc [, mode ] )   '' in a TextEncoding: Utf16LE( ), Ansi( ), CodePage( n ), ...
 ```
 
 ## Notes
 
 - FsResultBool
+- With an encoding, `mode` is TEXT_STRICT by default: a character the encoding cannot hold fails the call with FS_INVALID_DATA, and the file is not touched. With TEXT_REPLACE it becomes `?`, and the value is `false`. A BOM is written when the encoding has one (`Utf16LE( )` does, `Utf8( )` does not). See [Choosing An Encoding](Category-File-Streams#choosing-an-encoding).
 
 ## Examples
 
