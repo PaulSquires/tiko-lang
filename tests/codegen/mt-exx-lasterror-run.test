@@ -1,0 +1,13 @@
+'' Under -mt -exx, a procedure's entry (fb_ErrorSetFuncName -> fb_TlsGetCtx -> TlsGetValue)
+'' cleared the Win32 last error before the procedure could read it (lib/rt/src/thread/ctx.tiko;
+'' ApexWealth-2026 AW-006: std/net failed every request). Links the PACKAGED runtime, so it
+'' fails until the toolchain is repackaged with that fix.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -mt -exx tests/codegen/src/mt-exx-lasterror.tiko -o tests/codegen/mtexxlasterror.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/mtexxlasterror.exe
+'' RUN: tests/codegen/mtexxlasterror.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: 10035
+'' EXPECT-RUN-OUT: 10061

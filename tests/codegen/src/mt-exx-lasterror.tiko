@@ -1,0 +1,23 @@
+'' Under -mt -exx every procedure entry records its name (fb_ErrorSetFuncName), and that
+'' reaches the thread's context through TlsGetValue, which CLEARS the Win32 last error. So a
+'' helper that reads GetLastError (or WSAGetLastError -- the same value) after the failing
+'' call saw 0: std/net turned a non-blocking connect's WSAEWOULDBLOCK into "unknown error"
+'' and every request failed. The runtime now saves and restores it around the lookup.
+
+extern "Windows"
+    declare sub w_SetLastError alias "SetLastError" ( byval e as ulong )
+    declare function w_GetLastError alias "GetLastError" ( ) as ulong
+end extern
+
+function ReadIt( ) as ulong
+    return w_GetLastError( )
+end function
+
+function ReadThroughTwo( ) as ulong
+    return ReadIt( )
+end function
+
+w_SetLastError( 10035 )
+print ReadIt( )
+w_SetLastError( 10061 )
+print ReadThroughTwo( )
