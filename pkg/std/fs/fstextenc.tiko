@@ -110,6 +110,36 @@ private function hEncode( byref s as const ustring, byval enc as TextEncoding, b
     return TRUE
 end function
 
+'' ---------------------------------------------------- Stream and MemoryStream (E11)
+
+'' s in enc: exactly the bytes WriteAllText( p, s, enc ) would put in a file, BOM
+'' included when enc.Bom says so. Text written in PIECES wants the BOM once, so pass the
+'' BOM-less form after the first piece -- Utf16LE( FALSE ) -- or use a TextWriter, which
+'' does that itself. Strict (the default) refuses a character enc cannot hold and writes
+'' NOTHING; TEXT_REPLACE writes '?' and returns Value( ) FALSE. WriteUtf8( s ) is
+'' WriteText( s, Utf8( ) ) without the lossy report.
+function Stream.WriteText( byref s as const ustring, byval enc as TextEncoding, byval mode as TextErrorMode ) as FsResultBool
+    dim as Array( of ubyte ) b
+    dim as boolean exact
+    dim as FsError f
+    if( hEncode( s, enc, mode, b, exact, f, "WriteText", "" ) = FALSE ) then return Fail( of boolean, FsError )( f )
+    dim as FsResultBool w = this.WriteBytes( b )
+    if( w.IsOk( ) = FALSE ) then return w
+    return Ok( of boolean, FsError )( exact )
+end function
+
+'' Every byte, whatever the position, decoded in enc -- the text ReadAllText( p, enc,
+'' mode ) gives for a file holding the same bytes: a BOM matching enc is skipped, and
+'' anything else is text (E5).
+const function MemoryStream.ToText( byval enc as TextEncoding, byval mode as TextErrorMode ) as FsResultUStr
+    dim as boolean strict = ( mode = TEXT_STRICT )
+    dim as codec.EncResultText t = codec.DecodeText( this.m_buf, this.m_len, enc, strict )
+    if( t.IsOk( ) = FALSE ) then return Fail( of ustring, FsError )( FsEncodingFailure( t.Failure( ), "ToText", "" ) )
+    return Ok( of ustring, FsError )( t.Value( ) )
+end function
+
+'' ------------------------------------------------------------- whole-file writes
+
 public function WriteAllText( byref p as const ustring, byref s as const ustring, byval enc as TextEncoding, _
         byval mode as TextErrorMode ) as FsResultBool
     dim as Array( of ubyte ) b

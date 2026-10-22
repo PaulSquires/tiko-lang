@@ -1,0 +1,12 @@
+'' RUN: std/fs text encodings, P4 (C:\dev\docs\tiko-fs\RFC-0002 phase P4) -- Stream.WriteText
+'' writes codec.EncodeText's bytes (= WriteAllText's), strict refusals write nothing;
+'' MemoryStream.ToText equals ReadAllText( p, enc, mode ) over a raw corpus in every encoding and
+'' both modes; a UTF-32 BOM is FS_UNSUPPORTED to every reader that chooses the encoding itself,
+'' while an encoding given is believed.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/fs-enc-p4.tiko -o tests/codegen/fsencp4.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/fsencp4.exe
+'' RUN: tests/codegen/fsencp4.exe
+'' EXPECT-RUN-OUT: ok

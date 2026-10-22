@@ -497,12 +497,13 @@ function TextReader.hFill( byref failure as FsError ) as long
     return clng( r.Value( ) )
 end function
 
-'' Rule 1: looks at the first bytes -- reading until there are three or the data ends
+'' Rule 1: looks at the first bytes -- reading until there are four or the data ends
 '' -- and consumes a BOM. With an encoding given, only that encoding's BOM; detecting,
-'' first reads up to the prefix and judges it.
+'' first reads up to the prefix and judges it. Under the old rules a UTF-32 BOM is
+'' FS_UNSUPPORTED, as ReadAllText's is (RFC-0002 E12); an encoding given is believed.
 function TextReader.hStart( byref failure as FsError ) as boolean
     if( this.m_enc <> 0 ) then return TRUE
-    dim as long want = 3
+    dim as long want = 4
     if( this.m_how = 2 ) then
         want = iif( this.m_detect.PrefixBytes > 0, this.m_detect.PrefixBytes, 65536 )
         if( want > this.m_cap ) then want = this.m_cap
@@ -515,6 +516,10 @@ function TextReader.hStart( byref failure as FsError ) as boolean
     dim as ubyte ptr p = this.m_buf + this.m_pos
 
     if( this.m_how = 0 ) then
+        if( FsUtf32Bom( p, avail ) ) then
+            failure = FsError( FS_UNSUPPORTED, 0, "ReadLine", "" )
+            return FALSE
+        end if
         this.m_enc = 1
         this.m_found = Utf8( )
         if( avail >= 2 ) then
@@ -1060,11 +1065,18 @@ public function ReadAllBytes( byref p as const ustring, buf as Array( of ubyte )
 end function
 
 '' ReadAllText's text, from at most maxBytes bytes: the same decoding (MemoryStream's
-'' ToUtf8Text, which the P2 suite holds equal to ReadAllText).
+'' ToUtf8Text, which the P2 suite holds equal to ReadAllText), and ReadAllText's refusal
+'' of a UTF-32 BOM (RFC-0002 E12).
 public function ReadAllText( byref p as const ustring, byval maxBytes as longint ) as FsResultUStr
     dim as Array( of ubyte ) b
     dim as FsResultI64 r = ReadAllBytes( p, b, maxBytes )
     if( r.IsOk( ) = FALSE ) then return Fail( of ustring, FsError )( hRelabel( r.Failure( ), "ReadAllText", p ) )
+    if( b.Count( ) >= 4 ) then
+        dim as ubyte q( 0 to 3 ) = { b[0], b[1], b[2], b[3] }
+        if( FsUtf32Bom( @q(0), 4 ) ) then
+            return Fail( of ustring, FsError )( FsError( FS_UNSUPPORTED, 0, "ReadAllText", p ) )
+        end if
+    end if
     dim as MemoryStream m = MemoryStream( b )
     return Ok( of ustring, FsError )( m.ToUtf8Text( ) )
 end function

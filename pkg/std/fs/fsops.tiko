@@ -114,12 +114,31 @@ public declare function WriteAllBytes overload ( byref p as const ustring, buf a
 public declare function AppendAllText overload ( byref p as const ustring, byref s as const ustring ) as FsResultBool
 declare function FsSplitLines( byref s as const ustring, lines as Array( of ustring ) ) as long
 
+'' RFC-0002 E12: TRUE when the file at p starts with a UTF-32 BOM. The runtime's decoder
+'' reads FF FE 00 00 as UTF-16LE and 00 00 FE FF as UTF-8, and either way the text then
+'' starts with U+0000 -- so ReadAllText opens the file again to look only in that case.
+private function hFileHasUtf32Bom( byref p as const ustring ) as boolean
+    dim as File f
+    if( f.OpenRead( p ).IsOk( ) = FALSE ) then return FALSE
+    dim as ubyte q( 0 to 3 )
+    dim as FsResultI64 r = f.ReadAt( 0, @q(0), 4 )
+    f.Close( )
+    if( r.IsOk( ) = FALSE ) then return FALSE
+    return FsUtf32Bom( @q(0), r.Value( ) )
+end function
+
 public function ReadAllText( byref p as const ustring ) as FsResultUStr
     dim as long status = FS_OK
     dim as ustring s = FsReadAllTextRaw( p, status )
 
     if( status <> FS_OK ) then
         return FsFail( of ustring )( cast( FsErrorCode, status ), "ReadAllText", p )
+    end if
+
+    if( len( s ) > 0 ) then
+        if( s[0] = 0 ) then
+            if( hFileHasUtf32Bom( p ) ) then return FsFail( of ustring )( FS_UNSUPPORTED, "ReadAllText", p )
+        end if
     end if
 
     return Ok( of ustring, FsError )( s )
