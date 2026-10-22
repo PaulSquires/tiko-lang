@@ -102,6 +102,14 @@ scope
         if i = 6 then s = "a" & wchr( &h65E5, &h672C ) & wchr( 10 )
         dim as fs.MemoryStream m
         var w = m.WriteText( s, encs( i ) )
+#ifndef __FB_WIN32__
+        '' Linux has tables for the single-byte code pages only: no 932, and no Ansi( )
+        if ( i = 6 ) orelse ( i = 8 ) then
+            Check( "WriteText unsupported " & i, ( w.IsOk( ) = false ) andalso _
+                ( w.Failure( ).Code( ) = fs.FS_UNSUPPORTED ) andalso ( m.Length( ) = 0 ) )
+            continue for
+        end if
+#endif
         Check( "WriteText ok " & i, w.IsOk( ) andalso w.Value( ) )
         Check( "WriteText = EncodeText " & i, MemHex( m ) = EncHex( s, encs( i ) ) )
         fs.WriteAllText( p, s, encs( i ) )
