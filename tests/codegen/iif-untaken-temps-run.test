@@ -1,0 +1,24 @@
+'' RUN: a STRING iif whose arms build UDT temporaries -- a byref const or byval parameter
+'' temporary (strings.Format's FormatString), a returned UDT read in the arm, a ustring result,
+'' a nested iif. The arm that did not run built nothing and must destroy nothing: tiko destroyed
+'' it in the join, on storage no constructor touched, and crashed (0xC0000374 in tiko-editor;
+'' here at the first line). The scalar, UDT and wide iifs already released an arm's temporaries
+'' in the arm; LowerStringIif_ released only its strings. Output identical to fbc-modern's,
+'' constructions and destructions balanced.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/iif-untaken-temps.bas -o tests/codegen/iifuntakentemps.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: verify:
+'' EXPECT-FILE: tests/codegen/iifuntakentemps.exe
+'' RUN: tests/codegen/iifuntakentemps.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: byref then = r:taken  balance  0
+'' EXPECT-RUN-OUT: byref else = r:taken  balance  0
+'' EXPECT-RUN-OUT: byval = v:taken  balance  0
+'' EXPECT-RUN-OUT: returned = taken  balance  0
+'' EXPECT-RUN-OUT: ustring = u:taken  balance  0
+'' EXPECT-RUN-OUT: nested = r:b  balance  0
+'' EXPECT-RUN-OUT: one arm = r:x  balance  0
+'' EXPECT-RUN-OUT: loop = r:even  balance  0
+'' EXPECT-RUN-OUT: ctors  107 dtors  107

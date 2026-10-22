@@ -600,20 +600,24 @@ function LowerStringIif_ _
     dim as int32 joinB = NewBlock( c, "iif.join" )
     Terminate( c, MTERM_CONDBR, thenB, elseB, cond )
 
-    '' AN ARM'S OWN STRING TEMPORARIES DIE IN THAT ARM. A NESTED iif registers its
-    '' slot inside one of these blocks, and the statement-end flush emits every
-    '' delete in the JOIN -- which the other path also reaches. Same rule the UDT
-    '' arms were given, and the same symptom: a free of stack garbage.
+    '' AN ARM'S OWN TEMPORARIES -- UDT, STRING AND WIDE -- DIE IN THAT ARM, as in LowerIif: the
+    '' statement-end flush emits every delete and destructor in the JOIN, which the other path
+    '' reaches too. 'iif( c, strings.Format( "a" ), strings.Format( "b" ) )' destroyed the untaken
+    '' arm's never-built FormatString there: 0xC0000374 (tests/driver/iif-untaken-temps).
     c.curBlock = thenB
-    dim as int32 stm = c.strTemps.Count
+    dim as int32 stm = c.strTemps.Count, tum = c.udtTemps.Count, twm = c.wstrTemps.Count
     if StrIifArmInit_( c, isU, slot, taddr, thenE ) = false then return StrIifAbandon_( c, joinB, elseB )
+    ReleaseUdtTemps_( c, tum )
     ReleaseStrTemps_( c, stm )
+    ReleaseWstrTemps_( c, twm )
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
 
     c.curBlock = elseB
-    dim as int32 sem = c.strTemps.Count
+    dim as int32 sem = c.strTemps.Count, eum = c.udtTemps.Count, ewm = c.wstrTemps.Count
     if StrIifArmInit_( c, isU, slot, taddr, elseE ) = false then return StrIifAbandon_( c, joinB, -1 )
+    ReleaseUdtTemps_( c, eum )
     ReleaseStrTemps_( c, sem )
+    ReleaseWstrTemps_( c, ewm )
     Terminate( c, MTERM_BR, joinB, -1, NoVal( ) )
 
     c.curBlock = joinB
