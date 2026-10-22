@@ -1,0 +1,294 @@
+'' std/fs records (C:\dev\docs\tiko-fs\RFC-0002 phase P5, decisions E14-E21): ReadRecord,
+'' WriteRecord and RecordCount over a File, and RecordFile -- the bytes held equal to what
+'' fbc's OPEN ... FOR RANDOM + PUT writes (the oracle, hex below), 1-based numbers, past the
+'' end and a partial last record read as FALSE with the record untouched, writing past the
+'' end grows with zeros, padded records, for each, and the failures.
+#import "std/fs"
+#import "std/containers"
+
+dim shared as integer fails = 0
+
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+type Person field = 1
+    as zstring * 20 Name
+    as long         Age
+    as double       Score
+end type
+
+function Same( byref a as const Person, byref b as const Person ) as boolean
+    return ( a.Name = b.Name ) andalso ( a.Age = b.Age ) andalso ( a.Score = b.Score )
+end function
+
+function IsZero( byref a as const Person ) as boolean
+    dim as const ubyte ptr q = cptr( const ubyte ptr, @a )
+    for i as long = 0 to sizeof( Person ) - 1
+        if q[i] <> 0 then return false
+    next
+    return true
+end function
+
+function FileHex( byref p as const ustring ) as string
+    dim as containers.Array( of ubyte ) b
+    fs.ReadAllBytes( p, b )
+    dim as string r
+    for i as long = 0 to b.Count( ) - 1
+        r &= hex( b[i], 2 )
+    next
+    return r
+end function
+
+function Mk( byval n as long ) as Person
+    dim as Person p
+    p.Name = "person" & n
+    p.Age = 20 + n
+    p.Score = n * 1.5
+    return p
+end function
+
+'' fbc-modern: OPEN "put3.dat" FOR RANDOM AS #1 LEN = SIZEOF( Person ); PUT #1, n, p for
+'' n = 1 to 3; PUT #1, 6, p (p still person3); the file's bytes, in hex.
+dim shared as string ORACLE : ORACLE = "706572736F6E310000000000000000000000000015000000000000000000F83F" _
+             & "706572736F6E3200000000000000000000000000160000000000000000000840" _
+             & "706572736F6E330000000000000000000000000017000000000000000000124" _
+             & "0" & string( 128, "0" ) _
+             & "706572736F6E3300000000000000000000000000170000000000000000001240"
+
+dim as ustring tmp = fs.CreateTempDir( ).ValueOr( "" )
+if len( tmp ) = 0 then print "no temp dir" : end 1
+dim as ustring p = fs.PathJoin( tmp, "people.dat" )
+
+'' ----------------------------------------------------------- the free functions
+
+scope
+    dim as fs.File f
+    dim as fs.OpenOptions rw
+    rw.Read = true : rw.Write = true : rw.Create = true : rw.Truncate = true
+    f.Open( p, rw )
+    for n as long = 1 to 3
+        dim as Person x = Mk( n )
+        var w = fs.WriteRecord( of Person )( f, n, x )
+        Check( "WriteRecord " & n, w.IsOk( ) andalso w.Value( ) )
+    next
+    var c = fs.RecordCount( of Person )( f )
+    Check( "RecordCount 3", c.IsOk( ) andalso ( c.Value( ) = 3 ) )
+
+    dim as Person r
+    var g = fs.ReadRecord( of Person )( f, 2, r )
+    Check( "ReadRecord 2", g.IsOk( ) andalso g.Value( ) andalso Same( r, Mk( 2 ) ) )
+
+    '' past the end: FALSE, the record untouched
+    dim as Person s = Mk( 99 )
+    var e = fs.ReadRecord( of Person )( f, 9, s )
+    Check( "past the end", e.IsOk( ) andalso ( e.Value( ) = false ) andalso Same( s, Mk( 99 ) ) )
+    var e4 = fs.ReadRecord( of Person )( f, 4, s )
+    Check( "one past", e4.IsOk( ) andalso ( e4.Value( ) = false ) andalso Same( s, Mk( 99 ) ) )
+
+    '' growing: PUT 6 as fbc did, and the bytes are fbc's bytes
+    dim as Person x3 = Mk( 3 )
+    var w6 = fs.WriteRecord( of Person )( f, 6, x3 )
+    Check( "WriteRecord 6", w6.IsOk( ) andalso w6.Value( ) )
+    f.Close( )
+    Check( "fbc PUT bytes", FileHex( p ) = ORACLE )
+
+    dim as fs.File h
+    h.OpenRead( p )
+    var c6 = fs.RecordCount( of Person )( h )
+    Check( "RecordCount 6", c6.IsOk( ) andalso ( c6.Value( ) = 6 ) )
+    dim as Person z = Mk( 7 )
+    var g5 = fs.ReadRecord( of Person )( h, 5, z )
+    Check( "gap reads zeros", g5.IsOk( ) andalso g5.Value( ) andalso IsZero( z ) )
+    dim as Person r6
+    var g6 = fs.ReadRecord( of Person )( h, 6, r6 )
+    Check( "record 6", g6.IsOk( ) andalso g6.Value( ) andalso Same( r6, Mk( 3 ) ) )
+
+    '' bad numbers
+    for each_ as long = 0 to 2
+        dim as longint n = iif( each_ = 0, 0, iif( each_ = 1, -1, &h7FFFFFFFFFFFFFFFll ) )
+        var b = fs.ReadRecord( of Person )( h, n, z )
+        Check( "bad n " & n, ( b.IsOk( ) = false ) andalso ( b.Failure( ).Code( ) = fs.FS_INVALID_ARGUMENT ) )
+    next
+    var bw = fs.WriteRecord( of Person )( h, 0, z )
+    Check( "bad n write", ( bw.IsOk( ) = false ) andalso ( bw.Failure( ).Code( ) = fs.FS_INVALID_ARGUMENT ) )
+    Check( "bad n op", ( bw.IsOk( ) = false ) andalso ( bw.Failure( ).Operation( ) = "WriteRecord" ) )
+
+    '' a read-only file refuses the write
+    var ro = fs.WriteRecord( of Person )( h, 1, z )
+    Check( "read-only write fails", ro.IsOk( ) = false )
+    h.Close( )
+
+    '' a closed file
+    var cl = fs.ReadRecord( of Person )( h, 1, z )
+    Check( "closed", ( cl.IsOk( ) = false ) andalso ( cl.Failure( ).Code( ) = fs.FS_CLOSED ) )
+    Check( "closed op", ( cl.IsOk( ) = false ) andalso ( cl.Failure( ).Operation( ) = "ReadRecord" ) )
+end scope
+
+'' -- a partial last record is not counted and reads as FALSE
+scope
+    dim as containers.Array( of ubyte ) b
+    fs.ReadAllBytes( p, b )
+    for i as long = 1 to 5
+        b.Push( &hAB )
+    next
+    fs.WriteAllBytes( p, b )
+    dim as fs.File f
+    f.OpenRead( p )
+    var c = fs.RecordCount( of Person )( f )
+    Check( "partial not counted", c.IsOk( ) andalso ( c.Value( ) = 6 ) )
+    dim as Person s = Mk( 99 )
+    var g = fs.ReadRecord( of Person )( f, 7, s )
+    Check( "partial reads FALSE", g.IsOk( ) andalso ( g.Value( ) = false ) andalso Same( s, Mk( 99 ) ) )
+    f.Close( )
+end scope
+
+'' ------------------------------------------------------------------ RecordFile
+
+scope
+    dim as ustring q = fs.PathJoin( tmp, "rf.dat" )
+    dim as fs.RecordFile( of Person ) rf
+    Check( "not open", rf.IsOpen( ) = false )
+
+    '' iterating an unopened file yields one failure, then stops
+    dim as long k = 0
+    dim as boolean failed = false
+    for each r in rf
+        k += 1
+        if r.IsOk( ) = false then failed = ( r.Failure( ).Code( ) = fs.FS_CLOSED )
+    next
+    Check( "iterate closed", ( k = 1 ) andalso failed )
+
+    var o = rf.Open( q )
+    Check( "Open creates", o.IsOk( ) andalso rf.IsOpen( ) andalso fs.Exists( q ) )
+    Check( "RecordLength", rf.RecordLength( ) = sizeof( Person ) )
+
+    k = 0
+    for each r in rf
+        k += 1
+    next
+    Check( "iterate empty", k = 0 )
+
+    for n as long = 1 to 3
+        var a = rf.Append( Mk( n ) )
+        Check( "Append " & n, a.IsOk( ) andalso ( a.Value( ) = n ) )
+    next
+    var c = rf.Count( )
+    Check( "Count 3", c.IsOk( ) andalso ( c.Value( ) = 3 ) )
+
+    dim as Person r
+    var g = rf.GetRecord( 3, r )
+    Check( "GetRecord 3", g.IsOk( ) andalso g.Value( ) andalso Same( r, Mk( 3 ) ) )
+    var pu = rf.PutRecord( 2, Mk( 42 ) )
+    Check( "PutRecord 2", pu.IsOk( ) andalso pu.Value( ) )
+    rf.GetRecord( 2, r )
+    Check( "PutRecord read back", Same( r, Mk( 42 ) ) )
+    var g9 = rf.GetRecord( 9, r )
+    Check( "GetRecord past", g9.IsOk( ) andalso ( g9.Value( ) = false ) andalso Same( r, Mk( 42 ) ) )
+
+    '' for each: records 1..3 in order
+    k = 0
+    dim as boolean inorder = true
+    for each x in rf
+        k += 1
+        if x.IsOk( ) = false then
+            inorder = false
+        else
+            dim as long want = iif( k = 2, 42, k )
+            if Same( x.Value( ), Mk( want ) ) = false then inorder = false
+        end if
+    next
+    Check( "for each", ( k = 3 ) andalso inorder )
+    rf.Close( )
+    Check( "closed", rf.IsOpen( ) = false )
+
+    '' the same bytes the free functions write
+    dim as fs.File f
+    f.OpenRead( q )
+    dim as Person r1
+    var g1 = fs.ReadRecord( of Person )( f, 1, r1 )
+    Check( "free reads RecordFile", g1.ValueOr( false ) andalso Same( r1, Mk( 1 ) ) )
+    f.Close( )
+
+    '' read-only options: reads, refuses writes
+    dim as fs.RecordFile( of Person ) ro
+    var oo = ro.Open( q, fs.OpenOptionsRead( ) )
+    Check( "Open read-only", oo.IsOk( ) )
+    var gr = ro.GetRecord( 1, r )
+    Check( "read-only get", gr.ValueOr( false ) andalso Same( r, Mk( 1 ) ) )
+    var pw = ro.PutRecord( 1, Mk( 5 ) )
+    Check( "read-only put fails", pw.IsOk( ) = false )
+    Check( "read-only put op", ( pw.IsOk( ) = false ) andalso ( pw.Failure( ).Operation( ) = "PutRecord" ) )
+    ro.Close( )
+
+    '' a record length below sizeof( T ) is refused and nothing is opened
+    dim as fs.RecordFile( of Person ) bad
+    var ob = bad.Open( q, 10 )
+    Check( "short record length", ( ob.IsOk( ) = false ) andalso ( ob.Failure( ).Code( ) = fs.FS_INVALID_ARGUMENT ) )
+    Check( "short record length not open", bad.IsOpen( ) = false )
+end scope
+
+'' -- a partial last record is not walked, and Append overwrites it
+scope
+    dim as ustring q = fs.PathJoin( tmp, "part.dat" )
+    dim as fs.RecordFile( of Person ) rf
+    rf.Open( q )
+    rf.Append( Mk( 1 ) )
+    rf.Append( Mk( 2 ) )
+    rf.Close( )
+    dim as containers.Array( of ubyte ) b
+    fs.ReadAllBytes( q, b )
+    for i as long = 1 to 7
+        b.Push( &hCD )
+    next
+    fs.WriteAllBytes( q, b )
+    rf.Open( q )
+    dim as long k = 0
+    for each x in rf
+        k += 1
+    next
+    Check( "partial not walked", k = 2 )
+    var a = rf.Append( Mk( 3 ) )
+    Check( "Append over partial", a.IsOk( ) andalso ( a.Value( ) = 3 ) )
+    var sz = rf.Count( )
+    Check( "Append over partial count", sz.ValueOr( -1 ) = 3 )
+    rf.Close( )
+    dim as containers.Array( of ubyte ) after
+    fs.ReadAllBytes( q, after )
+    Check( "Append over partial size", after.Count( ) = 3 * sizeof( Person ) )
+end scope
+
+'' -- padded records: the slot is recordLen, T's bytes at its start, padding kept
+scope
+    dim as ustring q = fs.PathJoin( tmp, "pad.dat" )
+    dim as containers.Array( of ubyte ) b
+    for i as long = 1 to 40
+        b.Push( &hAA )
+    next
+    fs.WriteAllBytes( q, b )
+    dim as fs.RecordFile( of Person ) rf
+    var o = rf.Open( q, 40 )
+    Check( "padded open", o.IsOk( ) andalso ( rf.RecordLength( ) = 40 ) )
+    var c1 = rf.Count( )
+    Check( "padded count 1", c1.ValueOr( -1 ) = 1 )
+    rf.PutRecord( 1, Mk( 1 ) )
+    rf.PutRecord( 3, Mk( 3 ) )
+    var c3 = rf.Count( )
+    Check( "padded count 3", c3.ValueOr( -1 ) = 3 )
+    dim as Person r = Mk( 99 )
+    var g2 = rf.GetRecord( 2, r )
+    Check( "padded gap", g2.ValueOr( false ) andalso IsZero( r ) )
+    var g3 = rf.GetRecord( 3, r )
+    Check( "padded 3", g3.ValueOr( false ) andalso Same( r, Mk( 3 ) ) )
+    rf.Close( )
+    dim as string hx = FileHex( q )
+    Check( "padded size", len( hx ) = 2 * 120 )
+    Check( "padding kept", mid( hx, 2 * 32 + 1, 16 ) = "AAAAAAAAAAAAAAAA" )
+    Check( "padded slot 3 tail", mid( hx, 2 * 112 + 1, 16 ) = "0000000000000000" )
+end scope
+
+fs.RemoveDirAll( tmp )
+if fails = 0 then print "ok"

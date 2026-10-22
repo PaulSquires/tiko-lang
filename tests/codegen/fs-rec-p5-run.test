@@ -1,0 +1,11 @@
+'' RUN: std/fs records (C:\dev\docs\tiko-fs\RFC-0002 phase P5) -- ReadRecord, WriteRecord,
+'' RecordCount and RecordFile: the bytes equal fbc's OPEN ... FOR RANDOM + PUT, 1-based numbers,
+'' past the end and a partial last record read FALSE with the record untouched, writing past
+'' the end grows with zeros, padded records, for each, and the failures.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/fs-rec-p5.tiko -o tests/codegen/fsrecp5.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/fsrecp5.exe
+'' RUN: tests/codegen/fsrecp5.exe
+'' EXPECT-RUN-OUT: ok

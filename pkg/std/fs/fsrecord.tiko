@@ -1,0 +1,300 @@
+#module "fs"
+#import "std/outcome"
+using outcome
+'' std/fs: fsrecord -- fixed-length records by number: ReadRecord, WriteRecord, RecordCount
+'' and RecordFile, what OPEN ... FOR RANDOM with GET and PUT does
+''
+''     type Person field = 1
+''         as zstring * 20 Name
+''         as long         Age
+''     end type
+''
+''     dim as fs.RecordFile( of Person ) people
+''     people.Open( "people.dat" )                     '' read + write, created if missing
+''     people.Append( p )                              '' returns the new record's number
+''     people.GetRecord( 2, p )                        '' Value( ) FALSE: there is no record 2
+''     for each r in people                            '' each an FsResult of Person
+''         print r.Value( ).Name
+''     next
+''
+'' C:\dev\docs\tiko-fs\RFC-0002-text-encodings.md section 5.11, decisions E14-E21.
+''
+'' RECORD n IS 1-BASED (E15), at ( n - 1 ) * the record length, which is sizeof( T )
+'' unless RecordFile.Open is given a longer one for a file with padded records (E18).
+'' Reading a record that is not all there -- past the end, or a partial last record -- is
+'' Ok( FALSE ) and leaves the record untouched (E16); RecordCount does not count a partial
+'' record. Writing past the end GROWS the file (E17), the gap reading as zeros, as legacy
+'' PUT does; Append is the spelling that cannot leave a gap.
+''
+'' T MUST BE PLAIN DATA (E19): numbers, fixed-length zstring * N / wstring * N, and nested
+'' TYPEs of those. A string, ustring, pointer or dynamic array writes the ADDRESS it
+'' holds, which means nothing when the file is read back, and an object with a vtable
+'' writes its vtable pointer. Nothing can check this at compile time (RFC-0002 U5), so
+'' it is the caller's rule. The bytes are T's bytes as they are in memory: use `field = 1`
+'' for a layout without padding, and std/codec's Get/Put LE/BE helpers for a format that
+'' must read the same on another machine.
+''
+'' NO RECORD LOCKS (E21): File.Lock locks the whole file.
+
+#if __FB_LANG__ <> "fb"
+    #error "std/fs requires -lang fb (it uses namespaces)"
+#endif
+
+extern "C"
+    declare function fb_fsrecord_memcpy alias "memcpy" _
+        ( byval d as any ptr, byval s as const any ptr, byval n as uinteger ) as any ptr
+end extern
+
+'' ---------------------------------------------------------------- the kernels
+''
+'' Not generic: the generic calls below pass sizeof( T ) and the record's address. Each
+'' failure is relabelled with the caller's operation and the file's path.
+
+private function hRecFail( byref f as File, byref e as const FsError, byref op as const ustring ) as FsError
+    return FsError( e.Code( ), e.OsCode( ), op, f.Path( ) )
+end function
+
+'' The byte offset of record n, or -1 when n or recLen is out of range.
+private function hRecOffset( byval n as longint, byval recLen as longint ) as longint
+    if( ( n < 1 ) orelse ( recLen < 1 ) ) then return -1
+    if( n - 1 > &h7FFFFFFFFFFFFFFFll \ recLen - 1 ) then return -1
+    return ( n - 1 ) * recLen
+end function
+
+'' Record n's first dataLen bytes into dst. Ok( FALSE ), dst untouched, when the file does
+'' not hold all recLen bytes of record n.
+function FsRecordRead( byref f as File, byval n as longint, byval recLen as longint, byval dataLen as longint, _
+        byval dst as any ptr, byref op as const ustring ) as FsResultBool
+    dim as longint at_ = hRecOffset( n, recLen )
+    if( at_ < 0 ) then return Fail( of boolean, FsError )( FsError( FS_INVALID_ARGUMENT, 0, op, f.Path( ) ) )
+    dim as FsResultI64 sz = f.Size( )
+    if( sz.IsOk( ) = FALSE ) then return Fail( of boolean, FsError )( hRecFail( f, sz.Failure( ), op ) )
+    if( ( sz.Value( ) < recLen ) orelse ( at_ > sz.Value( ) - recLen ) ) then return Ok( of boolean, FsError )( FALSE )
+
+    dim as ubyte ptr tmp = allocate( dataLen )
+    if( tmp = nullptr ) then return Fail( of boolean, FsError )( FsError( FS_NO_SPACE, 0, op, f.Path( ) ) )
+    dim as longint got = 0
+    while( got < dataLen )
+        dim as FsResultI64 r = f.ReadAt( at_ + got, tmp + got, dataLen - got )
+        if( r.IsOk( ) = FALSE ) then
+            deallocate( tmp )
+            return Fail( of boolean, FsError )( hRecFail( f, r.Failure( ), op ) )
+        end if
+        if( r.Value( ) = 0 ) then exit while
+        got += r.Value( )
+    wend
+    if( got < dataLen ) then
+        '' the file shrank between Size and the read
+        deallocate( tmp )
+        return Ok( of boolean, FsError )( FALSE )
+    end if
+    fb_fsrecord_memcpy( dst, tmp, dataLen )
+    deallocate( tmp )
+    return Ok( of boolean, FsError )( TRUE )
+end function
+
+'' dataLen bytes from src as record n; the file then holds all recLen bytes of it.
+function FsRecordWrite( byref f as File, byval n as longint, byval recLen as longint, byval dataLen as longint, _
+        byval src as const any ptr, byref op as const ustring ) as FsResultBool
+    dim as longint at_ = hRecOffset( n, recLen )
+    if( at_ < 0 ) then return Fail( of boolean, FsError )( FsError( FS_INVALID_ARGUMENT, 0, op, f.Path( ) ) )
+    dim as const ubyte ptr p = src
+    dim as longint put_ = 0
+    while( put_ < dataLen )
+        dim as FsResultI64 w = f.WriteAt( at_ + put_, p + put_, dataLen - put_ )
+        if( w.IsOk( ) = FALSE ) then return Fail( of boolean, FsError )( hRecFail( f, w.Failure( ), op ) )
+        put_ += w.Value( )
+    wend
+    if( recLen > dataLen ) then
+        '' a padded record: make the slot whole, so that it counts and reads back
+        dim as FsResultI64 sz = f.Size( )
+        if( sz.IsOk( ) = FALSE ) then return Fail( of boolean, FsError )( hRecFail( f, sz.Failure( ), op ) )
+        if( sz.Value( ) < at_ + recLen ) then
+            dim as FsResultBool g = f.SetSize( at_ + recLen )
+            if( g.IsOk( ) = FALSE ) then return Fail( of boolean, FsError )( hRecFail( f, g.Failure( ), op ) )
+        end if
+    end if
+    return Ok( of boolean, FsError )( TRUE )
+end function
+
+'' Whole records in the file; a partial last record is not counted.
+function FsRecordCount( byref f as File, byval recLen as longint, byref op as const ustring ) as FsResultI64
+    if( recLen < 1 ) then return Fail( of longint, FsError )( FsError( FS_INVALID_ARGUMENT, 0, op, f.Path( ) ) )
+    dim as FsResultI64 sz = f.Size( )
+    if( sz.IsOk( ) = FALSE ) then return Fail( of longint, FsError )( hRecFail( f, sz.Failure( ), op ) )
+    return Ok( of longint, FsError )( sz.Value( ) \ recLen )
+end function
+
+'' -------------------------------------------------------- over any open File
+
+'' Record n of T: Ok( TRUE ) with r filled, or Ok( FALSE ) with r untouched when the file
+'' does not hold all of record n. n < 1 is FS_INVALID_ARGUMENT.
+public function ReadRecord( of T )( byref f as File, byval n as longint, byref r as T ) as FsResultBool
+    return FsRecordRead( f, n, sizeof( T ), sizeof( T ), @r, "ReadRecord" )
+end function
+
+'' r as record n of T, growing the file when n is past the end.
+public function WriteRecord( of T )( byref f as File, byval n as longint, byref r as const T ) as FsResultBool
+    return FsRecordWrite( f, n, sizeof( T ), sizeof( T ), @r, "WriteRecord" )
+end function
+
+'' The number of whole records of T in the file.
+public function RecordCount( of T )( byref f as File ) as FsResultI64
+    return FsRecordCount( f, sizeof( T ), "RecordCount" )
+end function
+
+'' ------------------------------------------------------------- RecordFile
+
+'' What `for each r in rf` walks: records 1, 2, ... while they are whole, each an Ok( r );
+'' an IO failure is yielded once, as a Fail, and ends the walk.
+public type RecordIterator( of T )
+    declare function IsValid ( ) as boolean
+    declare function Value   ( ) byref as Result( of T, FsError )
+    declare sub      MoveNext( )
+    declare sub      hFetch  ( )
+
+    as File ptr               m_file
+    as long                   m_len
+    as longint                m_n
+    as boolean                m_started
+    as boolean                m_live
+    as boolean                m_failed
+    as Result( of T, FsError ) m_cur
+end type
+
+sub RecordIterator( of T ).hFetch( )
+    dim as T rec
+    dim as FsResultBool r = FsRecordRead( *this.m_file, this.m_n, this.m_len, sizeof( T ), @rec, "RecordFile" )
+    if( r.IsOk( ) = FALSE ) then
+        this.m_cur = Fail( of T, FsError )( r.Failure( ) )
+        this.m_failed = TRUE
+        this.m_live = TRUE
+    elseif( r.Value( ) ) then
+        this.m_cur = Ok( of T, FsError )( rec )
+        this.m_live = TRUE
+    else
+        this.m_live = FALSE
+    end if
+end sub
+
+function RecordIterator( of T ).IsValid( ) as boolean
+    if( this.m_started = FALSE ) then
+        this.m_started = TRUE
+        this.m_n = 1
+        this.hFetch( )
+    end if
+    return this.m_live
+end function
+
+function RecordIterator( of T ).Value( ) byref as Result( of T, FsError )
+    return this.m_cur
+end function
+
+sub RecordIterator( of T ).MoveNext( )
+    if( this.m_failed ) then
+        this.m_live = FALSE
+        exit sub
+    end if
+    this.m_n += 1
+    this.hFetch( )
+end sub
+
+'' A file of records of T, opened once. DO NOT COPY ONE: it owns its File. (File itself
+'' refuses a copy with TKO0633; through a generic type the copy compiles today and only
+'' fails to link -- RFC-0002 section 10.5.)
+public type RecordFile( of T )
+    '' Read + write, created if missing -- legacy OPEN ... FOR RANDOM -- unless opts say
+    '' otherwise. The record length is sizeof( T ) unless given; a longer one reads files
+    '' whose records are padded. (Four overloads rather than a default argument: a method
+    '' of a generic type loses its defaults today -- RFC-0002 section 10.5.)
+    declare function Open overload ( byref p as const ustring ) as FsResultBool
+    declare function Open overload ( byref p as const ustring, byval recordLen as long ) as FsResultBool
+    declare function Open overload ( byref p as const ustring, byref opts as const OpenOptions ) as FsResultBool
+    declare function Open overload ( byref p as const ustring, byref opts as const OpenOptions, _
+        byval recordLen as long ) as FsResultBool
+    declare function Close( ) as FsResultBool
+    '' Not const, nor is anything here: a const method of a generic type is not
+    '' instantiated across a module boundary today (RFC-0002 section 10.5).
+    declare function IsOpen( ) as boolean
+    declare function RecordLength( ) as long
+
+    declare function GetRecord( byval n as longint, byref r as T ) as FsResultBool
+    declare function PutRecord( byval n as longint, byref r as const T ) as FsResultBool
+    declare function Append   ( byref r as const T ) as FsResultI64
+    declare function Count    ( ) as FsResultI64
+
+    declare function GetIterator( ) as RecordIterator( of T )
+
+    as File m_file
+    as long m_len
+end type
+
+function RecordFile( of T ).Open( byref p as const ustring ) as FsResultBool
+    return this.Open( p, sizeof( T ) )
+end function
+
+function RecordFile( of T ).Open( byref p as const ustring, byval recordLen as long ) as FsResultBool
+    dim as OpenOptions o
+    o.Read = TRUE
+    o.Write = TRUE
+    o.Create = TRUE
+    return this.Open( p, o, recordLen )
+end function
+
+function RecordFile( of T ).Open( byref p as const ustring, byref opts as const OpenOptions ) as FsResultBool
+    return this.Open( p, opts, sizeof( T ) )
+end function
+
+function RecordFile( of T ).Open( byref p as const ustring, byref opts as const OpenOptions, byval recordLen as long ) as FsResultBool
+    if( recordLen < sizeof( T ) ) then
+        return Fail( of boolean, FsError )( FsError( FS_INVALID_ARGUMENT, 0, "RecordFile.Open", p ) )
+    end if
+    dim as FsResultBool r = this.m_file.Open( p, opts )
+    if( r.IsOk( ) ) then this.m_len = recordLen
+    return r
+end function
+
+function RecordFile( of T ).Close( ) as FsResultBool
+    return this.m_file.Close( )
+end function
+
+function RecordFile( of T ).IsOpen( ) as boolean
+    return this.m_file.IsOpen( )
+end function
+
+'' The record length in bytes: sizeof( T ), or what Open was given.
+function RecordFile( of T ).RecordLength( ) as long
+    return iif( this.m_len > 0, this.m_len, sizeof( T ) )
+end function
+
+function RecordFile( of T ).GetRecord( byval n as longint, byref r as T ) as FsResultBool
+    return FsRecordRead( this.m_file, n, this.RecordLength( ), sizeof( T ), @r, "GetRecord" )
+end function
+
+function RecordFile( of T ).PutRecord( byval n as longint, byref r as const T ) as FsResultBool
+    return FsRecordWrite( this.m_file, n, this.RecordLength( ), sizeof( T ), @r, "PutRecord" )
+end function
+
+'' r after the last whole record; returns its number. A partial last record is overwritten.
+function RecordFile( of T ).Append( byref r as const T ) as FsResultI64
+    dim as FsResultI64 c = FsRecordCount( this.m_file, this.RecordLength( ), "Append" )
+    if( c.IsOk( ) = FALSE ) then return c
+    dim as longint n = c.Value( ) + 1
+    dim as FsResultBool w = FsRecordWrite( this.m_file, n, this.RecordLength( ), sizeof( T ), @r, "Append" )
+    if( w.IsOk( ) = FALSE ) then return Fail( of longint, FsError )( w.Failure( ) )
+    return Ok( of longint, FsError )( n )
+end function
+
+function RecordFile( of T ).Count( ) as FsResultI64
+    return FsRecordCount( this.m_file, this.RecordLength( ), "Count" )
+end function
+
+function RecordFile( of T ).GetIterator( ) as RecordIterator( of T )
+    dim as RecordIterator( of T ) it
+    it.m_file = @this.m_file
+    it.m_len = this.RecordLength( )
+    it.m_started = FALSE
+    it.m_live = FALSE
+    it.m_failed = FALSE
+    return it
+end function
