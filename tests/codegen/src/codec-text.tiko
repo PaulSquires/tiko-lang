@@ -353,8 +353,8 @@ scope
     Check( "one unit is too short to guess", codec.DetectEncoding( Bytes( chr( &h68, 0 ) ), d ).Value( ).Kind = codec.TEXT_UTF8 )
     '' a prefix that stops inside a character is still UTF-8 when it is only a prefix
     dim as containers.Array( of ubyte ) cut = Bytes( "ab" & chr( &hE4, &hB8 ) )
-    Check( "cut prefix, incomplete", codec.DetectEncoding( @cut.items( 0 ), 4, d, false ).Value( ).Kind = codec.TEXT_UTF8 )
-    Check( "cut prefix, complete", codec.DetectEncoding( @cut.items( 0 ), 4, d, true ).Value( ).Kind = codec.TEXT_CODEPAGE )
+    Check( "cut prefix, incomplete", codec.DetectEncoding( @cut[0], 4, d, false ).Value( ).Kind = codec.TEXT_UTF8 )
+    Check( "cut prefix, complete", codec.DetectEncoding( @cut[0], 4, d, true ).Value( ).Kind = codec.TEXT_CODEPAGE )
 end scope
 
 '' -- std/fs re-exports the type and the factories: the same type under either name
