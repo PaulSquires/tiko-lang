@@ -6,7 +6,9 @@
 '' U+FFFD rather than failing. STRING <-> WSTRING goes through the C locale
 '' (mbstowcs / wcstombs) and is therefore codepage- and platform-dependent; a
 '' USTRING must convert identically everywhere or the type has no reason to
-'' exist. The two families genuinely disagree, deliberately.
+'' exist. The two families genuinely disagree, deliberately -- except that on
+'' Windows STRING -> WSTRING now reads valid UTF-8 as UTF-8 first, so for that
+'' text the two agree (strw/convfrom_str.tiko).
 ''
 '' THE CONSEQUENCE, STATED PLAINLY: arbitrary binary does NOT round-trip through
 '' a ustring. Bytes that are not valid UTF-8 become U+FFFD and the originals are

@@ -3,9 +3,10 @@
 '' THIS FAMILY GOES THROUGH THE C LOCALE -- mbstowcs on the way in, wcstombs on
 '' the way out -- so the same STRING produces different WSTRINGs on different
 '' machines and codepages. src/ustr/conv.tiko deliberately does not: a USTRING is
-'' UTF-8 on every target. The two must not be made to agree, because each is
-'' right for what its type is for, and this is the fourth place in the port where
-'' the two wide families make deliberately opposite choices.
+'' UTF-8 on every target. ONE EXCEPTION: on Windows the way IN decodes valid
+'' UTF-8 as UTF-8 before it tries the locale (convfrom_str.tiko, fb_wstr_ConvFromA,
+'' which every narrow-to-wide entry point here goes through). The way out is
+'' unchanged.
 ''
 '' THE 4x GUESS. There is no way to ask wcstombs how long the result will be
 '' without converting, so fbc allocates 4 BYTES PER CHARACTER and takes the

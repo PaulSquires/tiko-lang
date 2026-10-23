@@ -1,0 +1,12 @@
+'' RUN: STRING -> WSTRING decodes valid UTF-8 as UTF-8 on Windows (then the ANSI code page),
+'' so std/chrono's UTF-8 locale names reach a `const wstring ptr` (sys/win Msg) intact --
+'' 'miércoles', not 'miÃ©rcoles'. Asserts UTF-16 code units; locale-independent. Needs the
+'' runtime of this commit, so it passes only once the toolchain is repackaged (it links the
+'' packaged libfb.a).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/utf8-to-wstring.tiko -o tests/codegen/utf8towstring.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/utf8towstring.exe
+'' RUN: tests/codegen/utf8towstring.exe
+'' EXPECT-RUN-OUT: ok

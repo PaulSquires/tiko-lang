@@ -1,12 +1,18 @@
 '' convfrom_str.tiko -- strw_convfrom_str.o: STRING -> WSTRING, two entry points.
 ''
-'' THIS FAMILY GOES THROUGH THE C LOCALE, and that is the difference from
-'' src/ustr/conv.tiko next door. mbstowcs interprets the bytes in the process
-'' locale, so the same STRING produces different WSTRINGs on different machines
-'' and different codepages. USTRING deliberately does not work this way -- it is
-'' UTF-8 on every target -- and the two must not be made to agree, because each
-'' is right for what it is for: WSTRING is the OS's text type, USTRING is
-'' portable text.
+'' THIS FAMILY GOES THROUGH THE C LOCALE -- mbstowcs interprets the bytes in the
+'' process locale, so the same STRING produces different WSTRINGs on different
+'' machines and codepages -- EXCEPT FOR UTF-8 ON WINDOWS. There, bytes above 127
+'' that are valid UTF-8 are decoded as UTF-8 (MultiByteToWideChar with
+'' MB_ERR_INVALID_CHARS), and only the rest takes the locale. tiko diverges from
+'' fbc here, by the author's decision (2026-10-23), for the same reason as the
+'' file statements' paths (fs/upath.tiko): a tiko STRING is usually UTF-8 -- from
+'' source, std/chrono's locale names, std/fs -- and the ANSI reading turned every
+'' accent into mojibake on its way to a W function (a Spanish weekday name in a
+'' MessageBoxW, its UTF-8 e-acute shown as two cp1252 characters). It also makes STRING -> WSTRING agree with STRING ->
+'' USTRING (src/ustr/conv.tiko) for valid UTF-8. Pure ASCII and legacy ANSI bytes
+'' (a Latin-1 e-acute, &hE9, is not valid UTF-8) convert exactly as before, so a WSTRING
+'' -> STRING -> WSTRING round trip through the code page still holds.
 ''
 '' THE FALLBACK IS NOT AN ERROR PATH, it is the common one on a C-locale system:
 '' mbstowcs fails on any byte above 127, and then ASCII is translated and
@@ -15,6 +21,65 @@
 
 #include once "inc/descriptors.ti"
 #include once "inc/sysbind.ti"
+
+#ifdef __FB_WIN32__
+
+const CP_UTF8_              = 65001
+const MB_ERR_INVALID_CHARS_ = 8
+
+extern "c"   '' NON-FBCALL: a kernel32 import.
+	declare function w_MultiByteToWideChar stdcall alias "MultiByteToWideChar" _
+		( byval cp as uint32, byval flags as uint32, byval s as const zstring ptr, byval n as int32, _
+		  byval w as wstring ptr, byval wn as int32 ) as int32
+end extern
+
+'' THE UTF-8 TEST: the UTF-16 length of src INCLUDING the terminator when it has a
+'' byte above 127 and every byte is valid UTF-8, else 0 -- and 0 sends the caller
+'' down the locale path. ASCII-only text answers 0 on purpose: it converts the
+'' same either way, and the locale path keeps fbc's exact counts for it.
+private function hUtf8Units( byval src as zstring ptr ) as int32
+	dim as uint8 ptr s = cptr( uint8 ptr, src )
+	dim as integer i = 0
+	while( s[i] <> 0 )
+		if( s[i] > 127 ) then
+			return w_MultiByteToWideChar( CP_UTF8_, MB_ERR_INVALID_CHARS_, src, -1, nullptr, 0 )
+		end if
+		i += 1
+	wend
+	return 0
+end function
+
+'' Converts valid UTF-8 (units from hUtf8Units) into dst, at most dst_chars
+'' characters plus the terminator. Truncation goes through a temporary, because
+'' MultiByteToWideChar fails outright on a short buffer, and never splits a
+'' surrogate pair. Returns the count written, excluding the terminator.
+private function hFromUtf8 _
+	( byval dst as wstring ptr, byval dst_chars as integer, byval src as zstring ptr, _
+	  byval units as int32 ) as integer
+
+	if( (units - 1) <= dst_chars ) then
+		w_MultiByteToWideChar( CP_UTF8_, 0, src, -1, dst, units )
+		return units - 1
+	end if
+
+	dim as wstring ptr t = cptr( wstring ptr, allocate( units * sizeof( wstring ) ) )
+	if( t = nullptr ) then
+		dst[0] = 0
+		return 0
+	end if
+	w_MultiByteToWideChar( CP_UTF8_, 0, src, -1, t, units )
+	dim as integer n = dst_chars
+	if( (n > 0) andalso (t[n - 1] >= &hD800) andalso (t[n - 1] <= &hDBFF) ) then n -= 1
+	for i as integer = 0 to n - 1
+		dst[i] = t[i]
+	next
+	dst[n] = 0
+	deallocate( t )
+	return n
+
+end function
+
+#endif
 
 
 '' mbstowcs failed -- translate at least the ASCII and write '?' for the rest.
@@ -52,6 +117,11 @@ function tkort_wstr_ConvFromA alias "fb_wstr_ConvFromA" _
 		return 0
 	end if
 
+	#ifdef __FB_WIN32__
+		dim as int32 units = hUtf8Units( src )
+		if( units > 0 ) then return hFromUtf8( dst, dst_chars, src, units )
+	#endif
+
 	'' The count is in CHARACTERS, not bytes, and includes room for the
 	'' terminator -- hence dst_chars + 1.
 	dim as integer chars = cast( integer, mbstowcs( dst, src, dst_chars + 1 ) )
@@ -85,6 +155,16 @@ extern "rtlib"
 function tkort_StrToWstr alias "fb_StrToWstr" ( byval src as zstring ptr ) as wstring ptr
 
 	if( src = nullptr ) then return nullptr
+
+	#ifdef __FB_WIN32__
+		dim as int32 units = hUtf8Units( src )
+		if( units > 0 ) then
+			dim as wstring ptr u = cptr( wstring ptr, allocate( units * sizeof( wstring ) ) )
+			if( u = nullptr ) then return nullptr
+			w_MultiByteToWideChar( CP_UTF8_, 0, src, -1, u, units )
+			return u
+		end if
+	#endif
 
 	'' Measure first. A negative result means the bytes are not valid in this
 	'' locale at all, and then the length is taken as bytes and the ASCII

@@ -1,0 +1,126 @@
+'' STRING -> WSTRING reads valid UTF-8 as UTF-8 on Windows, before the ANSI code page: a
+'' tiko divergence from fbc. std/chrono's WeekdayName returns UTF-8, and handed to a
+'' `const wstring ptr` parameter -- sys/win's Msg, over MessageBoxW -- 'miércoles' came out
+'' as 'miÃ©rcoles'. Asserts UTF-16 code units, never the machine's locale: the text is built
+'' from bytes, and the chrono half is compared with an independent GetLocaleInfoEx read.
+'' Prints "ok".
+#import "std/chrono"
+using chrono
+
+dim shared as integer fails = 0
+sub Check( byref what as string, byval ok as boolean )
+    if ok = false then
+        print "FAIL "; what
+        fails += 1
+    end if
+end sub
+
+'' The shape of sys/win's Msg: a STRING argument becomes a wide temporary (fb_StrToWstr).
+function WideUnits( byval p as const wstring ptr, byval cap as integer, byval units as ushort ptr ) as integer
+    dim as integer n = 0
+    if p = nullptr then return 0
+    while p[n] <> 0 andalso n < cap
+        units[n] = p[n]
+        n += 1
+    wend
+    return n
+end function
+
+#ifdef __FB_WIN32__
+extern "Windows"
+    declare function tstGetLocaleInfoEx alias "GetLocaleInfoEx" _
+        ( byval lpLocaleName as const wstring ptr, byval LCType as ulong, _
+          byval lpLCData as wstring ptr, byval cchData as long ) as long
+end extern
+#endif
+
+'' "miércoles" as UTF-8 bytes: e-acute is C3 A9.
+dim as string s = "mi" & chr( &hC3, &hA9 ) & "rcoles"
+'' U+1F600 as UTF-8, one surrogate pair in UTF-16.
+dim as string emoji = chr( &hF0, &h9F, &h98, &h80 )
+
+#ifdef __FB_WIN32__
+    '' 1. the argument path (fb_StrToWstr), what Msg sees
+    dim as ushort u( 0 to 63 )
+    dim as integer n = WideUnits( s, 64, @u(0) )
+    Check( "arg length", n = 9 )
+    Check( "arg e-acute", u(2) = &hE9 )
+    Check( "arg tail", u(3) = asc( "r" ) )
+
+    '' 2. assignment into a fixed wstring (fb_WstrAssignFromA)
+    dim as wstring * 32 w = s
+    Check( "assign length", len( w ) = 9 )
+    Check( "assign e-acute", w[2] = &hE9 )
+
+    '' 3. WSTR( string )
+    Check( "wstr", wstr( s ) = w )
+
+    '' 4. mixed concatenation, both orders (fb_WstrConcatWA / fb_WstrConcatAW)
+    dim as wstring * 4 pre = "<"
+    dim as wstring * 40 wa = pre & s
+    Check( "concat WA", len( wa ) = 10 andalso wa[3] = &hE9 )
+    dim as wstring * 40 aw = s & pre
+    Check( "concat AW", len( aw ) = 10 andalso aw[2] = &hE9 andalso aw[9] = asc( "<" ) )
+
+    '' 5. astral: four bytes become a surrogate pair
+    n = WideUnits( emoji, 64, @u(0) )
+    Check( "emoji pair", n = 2 andalso u(0) = &hD83D andalso u(1) = &hDE00 )
+
+    '' 6. truncation into a short buffer keeps whole characters, and never half a pair. From
+    ''    a VARIABLE: an expression goes through a wide temporary and a wide-to-wide copy,
+    ''    which cuts by units, as fbc's does.
+    dim as wstring * 3 w3 = s
+    Check( "truncate", len( w3 ) = 2 andalso w3[0] = asc( "m" ) andalso w3[1] = asc( "i" ) )
+    dim as string ae = "a" & emoji
+    dim as wstring * 4 w4 = ae
+    Check( "truncate pair whole", len( w4 ) = 3 andalso w4[1] = &hD83D andalso w4[2] = &hDE00 )
+    dim as wstring * 3 w2 = ae
+    Check( "truncate pair dropped", len( w2 ) = 1 andalso w2[0] = asc( "a" ) )
+
+    '' 7. legacy bytes are not UTF-8 and still take the code page: one character, not U+FFFD
+    dim as wstring * 8 lat = "x" & chr( &hE9 ) & "y"
+    Check( "latin-1 fallback", len( lat ) = 3 andalso lat[1] <> &hFFFD andalso lat[2] = asc( "y" ) )
+
+    '' 8. ASCII is untouched
+    dim as wstring * 8 a = "abc"
+    Check( "ascii", a = wstr( "abc" ) )
+
+    '' 9. the report: every weekday and month name, through a wide parameter, equals the OS's
+    ''    own UTF-16 -- whatever the locale, accents or not
+    const LOCALE_SDAYNAME1 = &h2A, LOCALE_SABBREVDAYNAME1 = &h31
+    const LOCALE_SMONTHNAME1 = &h38, LOCALE_SABBREVMONTHNAME1 = &h44
+    dim as wstring * 128 ref
+    for d as integer = 1 to 7
+        tstGetLocaleInfoEx( nullptr, LOCALE_SDAYNAME1 + d - 1, @ref, 128 )
+        dim as wstring * 128 got = DateTime.WeekdayName( d )
+        Check( "WeekdayName " & d, got = ref )
+        tstGetLocaleInfoEx( nullptr, LOCALE_SABBREVDAYNAME1 + d - 1, @ref, 128 )
+        got = DateTime.WeekdayName( d, true )
+        Check( "WeekdayName abbr " & d, got = ref )
+    next
+    for m as integer = 1 to 12
+        tstGetLocaleInfoEx( nullptr, LOCALE_SMONTHNAME1 + m - 1, @ref, 128 )
+        dim as wstring * 128 got = DateTime.MonthName( m )
+        Check( "MonthName " & m, got = ref )
+        tstGetLocaleInfoEx( nullptr, LOCALE_SABBREVMONTHNAME1 + m - 1, @ref, 128 )
+        got = DateTime.MonthName( m, true )
+        Check( "MonthName abbr " & m, got = ref )
+    next
+
+    '' 10. every other chrono function that returns OS text: its STRING through a wide
+    ''     temporary must equal the same bytes decoded by USTRING's own UTF-8 codec
+    dim as DateTime dt = DateTime.FromUnixSeconds( 1792800000 )   '' a Wednesday
+    dim as string texts( 0 to 7 ) = { _
+        dt.ToLocaleDateString( lsShort ), dt.ToLocaleDateString( lsLong ), _
+        dt.ToLocaleTimeString( lsShort ), dt.ToLocaleTimeString( lsLong ), _
+        dt.ToLocaleString( lsShort ), dt.ToLocaleString( lsLong ), _
+        TimeZoneInfo.StandardName( ), TimeZoneInfo.DaylightName( ) }
+    for i as integer = 0 to 7
+        dim as ustring viaU = texts( i )
+        dim as wstring * 256 wU = viaU
+        dim as wstring * 256 wS = texts( i )
+        Check( "chrono text " & i, len( texts( i ) ) > 0 andalso wS = wU )
+    next
+#endif
+
+if fails = 0 then print "ok"
