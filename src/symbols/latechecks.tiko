@@ -984,6 +984,7 @@ private sub CheckExternInitAndDefaultCtor_( byref c as Ctx )
 end sub
 
 #include once "symbols/unionmember.tiko"   '' CheckUnionMembers_: fbc's 161, 162, 163, 164
+#include once "symbols/staticcall.tiko"    '' CheckStaticCall_: fbc's 214
 
 '' CheckBaseHasDefaultCtor_ is in basector.tiko, included from latesweeps2.tiko.
 

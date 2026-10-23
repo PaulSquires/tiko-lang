@@ -1,0 +1,21 @@
+'' TKO0999 for std/chrono's ToLocaleDateString / ToLocaleTimeString / ToLocaleString called
+'' through the TYPE, as reported: each lowered with no receiver and segfaulted, lsShort as much
+'' as lsLong. The same calls on an object, and the static WeekdayName, are accepted. See
+'' symbols/staticcall.tiko and diagnostics/nonstatic-type-call.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/chrono-static-call.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: chrono-static-call.tiko(7,22): error TKO0999: 'tolocaledatestring'
+'' EXPECT-OUT: chrono-static-call.tiko(8,22): error TKO0999: 'tolocaletimestring'
+'' EXPECT-OUT: chrono-static-call.tiko(9,22): error TKO0999: 'tolocalestring'
+'' EXPECT-OUT: chrono-static-call.tiko(10,22): error TKO0999: 'tolocaledatestring'
+'' EXPECT-OUT: chrono-static-call.tiko(11,22): error TKO0999: 'tolocaletimestring'
+'' EXPECT-OUT: chrono-static-call.tiko(12,22): error TKO0999: 'tolocalestring'
+'' EXPECT-NOT: chrono-static-call.tiko(14,
+'' EXPECT-NOT: chrono-static-call.tiko(15,
+'' EXPECT-NOT: chrono-static-call.tiko(16,
+'' EXPECT-NOT: chrono-static-call.tiko(17,
+'' EXPECT-NOT: chrono-static-call.tiko(18,
+'' EXPECT-NOT: chrono-static-call.tiko(19,
+'' EXPECT-NOT: chrono-static-call.tiko(20,
+'' EXPECT-MAX-DIAG: 6

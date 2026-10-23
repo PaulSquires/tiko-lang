@@ -1,0 +1,20 @@
+'' The reported crash: std/chrono's ToLocale* are INSTANCE methods, and called through the type
+'' each was a segfault -- lsShort as much as lsLong, so not a buffer. Lines 7 to 12 are TKO0999
+'' (fbc's 214); lines 14 to 20, on an object, are accepted.
+#import "std/chrono"
+dim as chrono.DateTime d = chrono.DateTime.FromUnixSeconds( 1792800000 )
+
+print chrono.DateTime.ToLocaleDateString( chrono.lsLong )
+print chrono.DateTime.ToLocaleTimeString( chrono.lsLong )
+print chrono.DateTime.ToLocaleString( chrono.lsLong )
+print chrono.DateTime.ToLocaleDateString( chrono.lsShort )
+print chrono.DateTime.ToLocaleTimeString( chrono.lsShort )
+print chrono.DateTime.ToLocaleString( chrono.lsShort )
+
+print d.ToLocaleDateString( chrono.lsLong )
+print d.ToLocaleTimeString( chrono.lsLong )
+print d.ToLocaleString( chrono.lsLong )
+print d.ToLocaleDateString( chrono.lsShort )
+print d.ToLocaleTimeString( chrono.lsShort )
+print d.ToLocaleString( chrono.lsShort )
+print chrono.DateTime.WeekdayName( 3, true )

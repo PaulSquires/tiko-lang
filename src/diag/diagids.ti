@@ -1001,6 +1001,9 @@
     '' fbc's 161, 163 and 164: a union member that has to be constructed or destroyed --
     '' symbols/unionmember.tiko. 162, a dynamic array, is TKO0659.
     DIAG( TKO0998, SEV_ERROR,   "'%0' cannot be a member of a union: %1" )
+    '' fbc's 214: 'T.m( )' over a non-static member, with no object to call it on --
+    '' symbols/staticcall.tiko.
+    DIAG( TKO0999, SEV_ERROR,   "'%0' is not a static member; call it through an object of its type" )
 
 #endmacro
 

@@ -1,0 +1,62 @@
+'' staticcall.tiko -- a NON-STATIC MEMBER CALLED THROUGH ITS TYPE: fbc's error 214, "Member isn't
+'' static", here TKO0999. Included from latechecks.tiko, inside its namespace.
+''
+'' Measured on fbc-modern 1.20, 2026-10-23: 'T.Get( 1 )', 'T.Get 1', 'dim q = T.Get( 1 )',
+'' 'N.T.Get( 1 )', and 'P.Get( 1 )' from inside a method of a type extending P, are each 214. It
+'' is judged on the overload the call PICKS: over a set with a static 'Get2( long )' and an
+'' instance 'Get2( string )', 'T.Get2( 1 )' is fine and 'T.Get2( "a" )' is 214. Naming one
+'' without calling it -- 'procptr( T.Get )', '@T.Get' -- is fine.
+''
+'' tiko accepted every one of them and lowered the call on a ZEROED TEMPORARY of the type, so
+'' the method ran with a receiver nobody wrote: 'print chrono.DateTime.ToLocaleDateString(
+'' chrono.lsLong )' segfaulted, and a method that read only a zero field returned garbage that
+'' looked like an answer.
+
+'' The procedure a call through 'Type.name' resolved to, when its base is a TYPE (not a value of
+'' it) and the procedure is not STATIC; SYMBOL_NONE otherwise.
+private function NonStaticTypeCallee_ ( byref c as Ctx, byval callN as NodeId, byval tgt as NodeId ) as SymbolId
+    if tgt = NODE_NONE then return SYMBOL_NONE
+    if c.ast->Kind( tgt ) <> N_MEMBER then return SYMBOL_NONE
+    dim as BinaryPayload ptr bp = @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, tgt )].data )]
+    '' The base must be the type's NAME, bare or qualified. 'T( 1 ).m( )' and 'type<T>( ).m( )'
+    '' construct an object first, and their base binds to the type all the same.
+    if (c.ast->Kind( bp->lhs ) <> N_IDENT) andalso (c.ast->Kind( bp->lhs ) <> N_MEMBER) then return SYMBOL_NONE
+    dim as Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( bp->lhs ) )
+    if bs = nullptr then return SYMBOL_NONE
+    if (bs->kind <> cast( uint8, SYM_UDT )) andalso (bs->kind <> cast( uint8, SYM_TYPEDEF )) then return SYMBOL_NONE
+
+    '' The PICKED overload is on the call; the target and its name carry the set's head.
+    dim as SymbolId sid = SYMBOL_NONE
+    if callN <> NODE_NONE then sid = c.info->RefOf( callN )
+    if sid = SYMBOL_NONE then sid = c.info->RefOf( tgt )
+    if sid = SYMBOL_NONE then sid = c.info->RefOf( bp->rhs )
+    dim as Symbol ptr ps = c.syms->SymbolAt( sid )
+    if ps = nullptr then return SYMBOL_NONE
+    if ps->kind <> cast( uint8, SYM_PROC ) then return SYMBOL_NONE
+    dim as NodeId dn = cast( NodeId, ps->payload )
+    if (dn = NODE_NONE) orelse (cast( int32, dn ) > c.ast->Count( )) then return SYMBOL_NONE
+    if c.ast->Kind( dn ) <> N_PROC then return SYMBOL_NONE
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, dn )].data )]
+    if (sp->extra and PF_STATIC) <> 0 then return SYMBOL_NONE
+    return sid
+end function
+
+'' 'T.m( ... )' (N_CALL) and the statement 'T.m ...' (N_AMBIGUOUS with no operator).
+private sub CheckStaticCall_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
+    dim as NodeId callN = NODE_NONE, tgt = NODE_NONE
+    if k = N_CALL then
+        callN = id
+        tgt = c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )].target
+    elseif k = N_AMBIGUOUS then
+        dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        if sp->op <> 0 then return
+        tgt = sp->a
+        callN = id
+    else
+        return
+    end if
+    dim as SymbolId sid = NonStaticTypeCallee_( c, callN, tgt )
+    if sid = SYMBOL_NONE then return
+    c.diags->Report( TKO0999, PointRange( c.ast->Loc( tgt ) ), _
+                     c.names->Spelling( c.syms->SymbolAt( sid )->name ) )
+end sub

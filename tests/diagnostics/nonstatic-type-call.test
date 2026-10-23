@@ -1,0 +1,18 @@
+'' TKO0999 for a NON-STATIC member called through its TYPE -- fbc's error 214. tiko lowered the
+'' call on a zeroed temporary of the type: 'print chrono.DateTime.ToLocaleDateString(
+'' chrono.lsLong )' segfaulted. Judged on the overload the call picks. See
+'' symbols/staticcall.tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/nonstatic-type-call.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: nonstatic-type-call.bas(32,13): error TKO0999: 'get' is not a static member
+'' EXPECT-OUT: nonstatic-type-call.bas(34,10): error TKO0999: 'get'
+'' EXPECT-OUT: nonstatic-type-call.bas(35,20): error TKO0999: 'get'
+'' EXPECT-OUT: nonstatic-type-call.bas(36,10): error TKO0999: 'get2'
+'' EXPECT-OUT: nonstatic-type-call.bas(37,4): error TKO0999: 'get'
+'' EXPECT-NOT: nonstatic-type-call.bas(39,
+'' EXPECT-NOT: nonstatic-type-call.bas(40,
+'' EXPECT-NOT: nonstatic-type-call.bas(41,
+'' EXPECT-NOT: nonstatic-type-call.bas(42,
+'' EXPECT-NOT: nonstatic-type-call.bas(43,
+'' EXPECT-MAX-DIAG: 5
