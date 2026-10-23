@@ -180,6 +180,38 @@ private function ExactCastOverload_ _
     return Tko.SYMBOL_NONE
 end function
 
+'' THE C-INTRINSIC A 'cast( <number>, <string> )' IS, or "" when it is not that shape. fbc's
+'' rtlStrToVal parses a string operand by the TARGET's width and signedness -- the same
+'' fb_VALINT / VALUINT / VALLNG / VALULNG / VAL rows the C-intrinsics below use (STR2BOOL for a
+'' boolean). Measured: cast( integer, "2.7" ) 2, "Segoe UI" 0, cast( long, "99999999999" ) -1.
+private function CastNumTwin_ _
+    ( byref c as Ctx, byval dst as Tko.TypeId, byval src as Tko.TypeId ) as string
+
+    if (dst = Tko.TYPE_NONE) orelse (src = Tko.TYPE_NONE) then return ""
+    dim as int64 n = 0
+    dim as int32 k = StrSwapKind_( c, src, n )
+    if (IsStringType( c, src ) = false) andalso (IsWideString_( c, src ) = false) andalso _
+       (k <> 0) andalso (k <> 1) andalso (k <> 3) andalso (k <> 4) then return ""
+    dim as Tko.TypeId t = c.types->Unqualify( dst )
+    if c.types->Kind( t ) <> Tko.TK_BUILTIN then return ""
+    select case c.types->BuiltinOf( t )
+    case Tko.TY_BYTE      : return "cbyte"
+    case Tko.TY_UBYTE     : return "cubyte"
+    case Tko.TY_SHORT     : return "cshort"
+    case Tko.TY_USHORT    : return "cushort"
+    case Tko.TY_LONG      : return "clng"
+    case Tko.TY_ULONG     : return "culng"
+    case Tko.TY_INTEGER   : return "cint"
+    case Tko.TY_UINTEGER  : return "cuint"
+    case Tko.TY_LONGINT   : return "clngint"
+    case Tko.TY_ULONGINT  : return "culngint"
+    case Tko.TY_SINGLE    : return "csng"
+    case Tko.TY_DOUBLE    : return "cdbl"
+    case Tko.TY_BOOLEAN   : return "cbool"
+    end select
+    return ""
+end function
+
 function LowerConvIntrinsic _
     ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType ) as MirValue
 
@@ -231,7 +263,15 @@ function LowerConvIntrinsic _
     '' 'int64 vr = fb_VALLNG( &X$0 )'. Run, all thirteen print 37.
     ''
     '' CAST and CPTR are NOT in this: 'cast( string, s )' is the identity on a string
-    '' and has nothing to parse.
+    '' and has nothing to parse. ...BUT 'cast( <a number>, <a string> )' IS a parse -- it
+    '' is the C-intrinsic of that type (CastNumTwin_), and was the one spelling left out:
+    '' over a call result it loaded the descriptor's data pointer (a heap address where 0
+    '' belonged; tiko-editor's font name for SCI_STYLESETFONT), over a variable it ICEd.
+    '' TE-016, tests/codegen/cast-string-numeric-run.
+    if nm = "cast" then
+        dim as string twin = CastNumTwin_( c, c.info->TypeOf_( id ), c.info->TypeOf_( arg ) )
+        if len( twin ) then nm = twin
+    end if
     dim as boolean isCastLike = (nm = "cast") orelse (nm = "cptr")
     if isCastLike = false then
         dim as Tko.TypeId at2 = c.info->TypeOf_( arg )

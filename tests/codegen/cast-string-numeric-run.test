@@ -1,0 +1,29 @@
+'' RUN: cast( <number>, <string> ) PARSES the string, as the C-intrinsic of that type does -- fbc's
+'' rtlStrToVal, fb_VALINT / VALUINT / VALLNG / VALULNG / VAL by the target's width and signedness.
+'' tiko left 'cast' out of that rule: over a call result it loaded the descriptor's data pointer (a
+'' heap address where 0 belonged -- tiko-editor handed it to SCI_STYLESETFONT as a font name) and
+'' over a variable it ICEd (TKO0994). Every target type, a variable, a call result, a member, a
+'' fixed zstring and wstring. Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/cast-string-numeric.bas -o tests/codegen/caststrnum.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: verify:
+'' EXPECT-FILE: tests/codegen/caststrnum.exe
+'' RUN: tests/codegen/caststrnum.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: [Segoe UI] b  0 ub 0 sh  0 ush 0 l  0 ul 0 i  0 ui 0 li  0 uli 0 sg  0 d  0 call  0  0  0
+'' EXPECT-RUN-OUT: [123] b  123 ub 123 sh  123 ush 123 l  123 ul 123 i  123 ui 123 li  123 uli 123 sg  123 d  123 call  123  123  123
+'' EXPECT-RUN-OUT: [2.7] b  2 ub 2 sh  2 ush 2 l  2 ul 2 i  2 ui 2 li  2 uli 2 sg  2.7 d  2.7 call  2  2  2.7
+'' EXPECT-RUN-OUT: [-2.5] b -2 ub 254 sh -2 ush 65534 l -2 ul 4294967294 i -2 ui 18446744073709551614 li -2 uli 18446744073709551614 sg -2.5 d -2.5 call -2 -2 -2.5
+'' EXPECT-RUN-OUT: [&hFF] b -1 ub 255 sh  255 ush 255 l  255 ul 255 i  255 ui 255 li  255 uli 255 sg  255 d  255 call  255  255  255
+'' EXPECT-RUN-OUT: [1e3] b  1 ub 1 sh  1 ush 1 l  1 ul 1 i  1 ui 1 li  1 uli 1 sg  1000 d  1000 call  1  1  1000
+'' EXPECT-RUN-OUT: [  42abc] b  42 ub 42 sh  42 ush 42 l  42 ul 42 i  42 ui 42 li  42 uli 42 sg  42 d  42 call  42  42  42
+'' EXPECT-RUN-OUT: [] b  0 ub 0 sh  0 ush 0 l  0 ul 0 i  0 ui 0 li  0 uli 0 sg  0 d  0 call  0  0  0
+'' EXPECT-RUN-OUT: [99999999999] b -1 ub 255 sh -1 ush 65535 l -1 ul 4294967295 i  99999999999 ui 99999999999 li  99999999999 uli 99999999999 sg  1e+011 d  99999999999 call  99999999999 -1  99999999999
+'' EXPECT-RUN-OUT: [-1] b -1 ub 255 sh -1 ush 65535 l -1 ul 4294967295 i -1 ui 18446744073709551615 li -1 uli 18446744073709551615 sg -1 d -1 call -1 -1 -1
+'' EXPECT-RUN-OUT: [300] b  44 ub 44 sh  300 ush 300 l  300 ul 300 i  300 ui 300 li  300 uli 300 sg  300 d  300 call  300  300  300
+'' EXPECT-RUN-OUT: member  0
+'' EXPECT-RUN-OUT: member  77
+'' EXPECT-RUN-OUT: zstring -31 4294967265
+'' EXPECT-RUN-OUT: wstring  65  65

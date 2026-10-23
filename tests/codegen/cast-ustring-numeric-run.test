@@ -1,0 +1,18 @@
+'' RUN: cast( <number>, <ustring> ) is the C-intrinsic of that type over the ustring (clng( u ) is
+'' fbc's val( u )). fbc-modern's ustring is a class with no such cast, so the cast is held to its
+'' twin: every line prints 'same'.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/cast-ustring-numeric.tiko -o tests/codegen/castustrnum.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: verify:
+'' EXPECT-FILE: tests/codegen/castustrnum.exe
+'' RUN: tests/codegen/castustrnum.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: [4096] same 4096 4096
+'' EXPECT-RUN-OUT: [Segoe UI] same 0 0
+'' EXPECT-RUN-OUT: [2.7] same 2 2.7
+'' EXPECT-RUN-OUT: [-2.5] same -2 -2.5
+'' EXPECT-RUN-OUT: [&hFF] same 255 255
+'' EXPECT-RUN-OUT: [99999999999] same 99999999999 99999999999
+'' EXPECT-RUN-OUT: [] same 0 0

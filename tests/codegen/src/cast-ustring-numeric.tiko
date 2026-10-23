@@ -1,0 +1,26 @@
+'' cast( <number>, <ustring> ) is the C-intrinsic of that type over the ustring -- the same
+'' parse 'clng( u )' does, which is fbc's 'val( u )': fb_VAL...( fb_UStrToStr( &U, -1 ) ).
+'' There is no fbc output for this (fbc-modern's ustring is a class with no such cast), so
+'' the test holds the cast to its twin: every line must print "same".
+function G( byref s as const ustring ) as ustring
+    return s
+end function
+
+sub Check( byref u as const ustring )
+    dim as boolean same = _
+        ( cast( byte, u ) = cbyte( u ) ) andalso ( cast( ubyte, u ) = cubyte( u ) ) andalso _
+        ( cast( short, u ) = cshort( u ) ) andalso ( cast( ushort, u ) = cushort( u ) ) andalso _
+        ( cast( long, u ) = clng( u ) ) andalso ( cast( ulong, u ) = culng( u ) ) andalso _
+        ( cast( integer, u ) = cint( u ) ) andalso ( cast( uinteger, u ) = cuint( u ) ) andalso _
+        ( cast( longint, u ) = clngint( u ) ) andalso ( cast( ulongint, u ) = culngint( u ) ) andalso _
+        ( cast( double, u ) = cdbl( u ) ) andalso ( cast( integer, G( u ) ) = cint( u ) )
+    print "[" & u & "] " & iif( same, "same", "DIFFERENT" ) & " " & cast( integer, u ) & " " & cast( double, u )
+end sub
+
+Check( "4096" )
+Check( "Segoe UI" )
+Check( "2.7" )
+Check( "-2.5" )
+Check( "&hFF" )
+Check( "99999999999" )
+Check( "" )
