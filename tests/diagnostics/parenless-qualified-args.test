@@ -1,0 +1,22 @@
+'' TKO0776 for a QUALIFIED procedure named without parentheses when a parameter has no
+'' default -- fbc's error 1. tiko judged only a bare name: 'print win.MonthName' called
+'' it with nothing in the argument's place, and a statement 'ns.s' was TKO0994. See
+'' symbols/latechecks.tiko, CheckParenlessArgs_.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/parenless-qualified-args.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: parenless-qualified-args.bas(38,9): error TKO0776: argument 1 of 'f'
+'' EXPECT-OUT: parenless-qualified-args.bas(39,19): error TKO0776
+'' EXPECT-OUT: parenless-qualified-args.bas(40,1): error TKO0776: argument 1 of 's'
+'' EXPECT-OUT: parenless-qualified-args.bas(41,9): error TKO0776: argument 1 of 'm'
+'' EXPECT-OUT: parenless-qualified-args.bas(42,8): error TKO0776: argument 1 of 'sm'
+'' EXPECT-OUT: parenless-qualified-args.bas(43,9): error TKO0776: argument 1 of 'f'
+'' EXPECT-OUT: parenless-qualified-args.bas(43,14): error TKO0776: argument 1 of 'sm'
+'' EXPECT-NOT: parenless-qualified-args.bas(45,
+'' EXPECT-NOT: parenless-qualified-args.bas(46,
+'' EXPECT-NOT: parenless-qualified-args.bas(47,
+'' EXPECT-NOT: parenless-qualified-args.bas(48,
+'' EXPECT-NOT: parenless-qualified-args.bas(49,
+'' EXPECT-NOT: parenless-qualified-args.bas(50,
+'' EXPECT-NOT: parenless-qualified-args.bas(51,
+'' EXPECT-MAX-DIAG: 7

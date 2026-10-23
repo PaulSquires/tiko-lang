@@ -613,6 +613,8 @@ end sub
 '' a statement 'S' or 'S 5' is an N_AMBIGUOUS call, and its written arguments count. Over
 '' an overload set a paren-less read calls the one that needs no argument
 '' (ParenlessMethodOf_), so it is reported only when none does.
+'' A QUALIFIED NAME TOO (fbc-modern, 2026-10-23): 'print ns.f', 'ns.s', 't1.m', 'T.sm' are
+'' error 1. tiko read only N_IDENT: 'print win.MonthName' passed nothing; 'ns.s' was TKO0994.
 private function FirstRequiredMissing_ _
     ( byref c as Ctx, byval sid as SymbolId, byval given as int32 ) as int32
     dim as Symbol ptr s = c.syms->SymbolAt( sid )
@@ -650,7 +652,7 @@ private sub CheckParenlessArgs_ ( byref c as Ctx, byval id as NodeId, byval k as
         if sp->op <> 0 then return
         nmN = sp->a
         if nmN = NODE_NONE then return
-        if c.ast->Kind( nmN ) <> N_IDENT then return
+        if (c.ast->Kind( nmN ) <> N_IDENT) andalso (c.ast->Kind( nmN ) <> N_MEMBER) then return
         given = sp->count
     elseif (c.ast->nodes[cast( int32, id )].flags and NF_CALL_TARGET) <> 0 then
         return
