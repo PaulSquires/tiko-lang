@@ -74,6 +74,19 @@ RT_JOBS=${TKORT_JOBS:-$(nproc 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/nu
 
 CFG=${1:-Debug}
 FLAGS=$(rt_cfg_flags "$CFG") || rt_die "unknown configuration '$CFG' (Debug|Release|RelWithDebInfo)"
+# THE C OBJECTS' DEBUG INFO FOLLOWS THE CONFIGURATION, and names no build directory. Every
+# Release libfb.a object carried its -cc1 line -- the worktree's path, the MSVC and SDK
+# versions -- because -g was passed in every configuration (review BLD-05). The prefix map
+# rewrites the tree's absolute path to lib/rt in whatever debug info remains.
+case "$CFG" in
+    Release|MinSizeRel) CDBG="" ;;
+    *)                  CDBG="-g" ;;
+esac
+CMAP="-ffile-prefix-map=$RT_ROOT=lib/rt"
+# ...in both spellings on Windows: clang is handed the source as C:/..., not /c/...
+if command -v cygpath > /dev/null 2>&1; then
+    CMAP="$CMAP -ffile-prefix-map=$(cygpath -m "$RT_ROOT")=lib/rt"
+fi
 shift 2>/dev/null || true
 
 TARGETS=${*:-$RT_TARGETS}
@@ -266,7 +279,7 @@ build_one( ) {
     #
     # -O2 EVEN IN Debug. These are primitives -- an atomic wrapper compiled at -O0
     # is a call around a call -- and there is no tiko-rt source to step through in
-    # them. -g is still passed so a backtrace names the file.
+    # them. -g (CDBG) is passed outside Release so a backtrace names the file.
     for csrc in $(ls "$RT_ROOT"/src/c/*.c 2>/dev/null); do
         # fbrt0.c IS A LOOSE OBJECT, never a member: nothing refers to it by name, so
         # an archive search would never pull it in. build_rt0 installs it.
@@ -280,7 +293,7 @@ build_one( ) {
         # triple only by accident of which headers it reaches for.
         cabi=""
         case "$target" in windows-x86_64) cabi="-D TKORT_MSVC" ;; esac
-        if ! "$CLANG" --target="$ctgt" -O2 -g -std=c99 -Wall -Wextra $cabi $cpic \
+        if ! "$CLANG" --target="$ctgt" -O2 $CDBG $CMAP -std=c99 -Wall -Wextra $cabi $cpic \
                 -c "$csrc" -o "$cobj"; then
             rt_die "$target/$thread: $(basename "$csrc") failed to compile"
         fi
@@ -354,12 +367,12 @@ build_rt0( ) {
     _tri=$(rt_clang_triple "$_t")
     [ -n "$_tri" ] || _tri=$(rt_target_triple "$_t")
     mkdir -p "$_dir"
-    "$CLANG" --target="$_tri" -O2 -g -std=c99 -Wall -Wextra \
+    "$CLANG" --target="$_tri" -O2 $CDBG $CMAP -std=c99 -Wall -Wextra \
         -c "$RT_ROOT/src/c/fbrt0.c" -o "$_dir/fbrt0.o" \
         || rt_die "$_t: fbrt0.c failed to compile"
     case $_t in
         linux-*)
-            "$CLANG" --target="$_tri" -O2 -g -std=c99 -Wall -Wextra -fPIC \
+            "$CLANG" --target="$_tri" -O2 $CDBG $CMAP -std=c99 -Wall -Wextra -fPIC \
                 -c "$RT_ROOT/src/c/fbrt0.c" -o "$_dir/fbrt0pic.o" \
                 || rt_die "$_t: fbrt0.c (pic) failed to compile" ;;
     esac
