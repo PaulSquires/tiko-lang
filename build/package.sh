@@ -236,6 +236,12 @@ if [ "$DO_BUILD" = "1" ]; then
     done
 else
     note "--no-build: packaging what is already built"
+    # WHAT bin/ HOLDS IS WHAT build.sh LAST STAMPED, and a newer timestamp cannot tell a
+    # Debug binary from a Release one -- '--no-build' would have shipped a Debug exe in a
+    # toolchain whose MANIFEST says Release.
+    _stamp=$( cat "$ROOT/build/obj/.build-stamp" 2>/dev/null )
+    [ -n "$_stamp" ] || die "--no-build: bin/ carries no build stamp -- run build/build.sh $CFG"
+    [ "${_stamp%%|*}" = "$CFG" ] || die "--no-build: bin/ holds a ${_stamp%%|*} build, not $CFG -- run build/build.sh $CFG"
 fi
 
 TIKO="$ROOT/bin/tiko$EXT"
@@ -940,4 +946,10 @@ SIZE=$( du -sh "$OUT" | cut -f1 )
 } > "$OUT/MANIFEST.txt"
 
 note "manifest -> MANIFEST.txt"
+# --verify GATES. It recorded FAIL lines in the manifest and then said "ok".
+if [ "$DO_VERIFY" = "1" ] && echo "$VERIFY_LINES" | grep -q ' FAIL'; then
+    echo "$VERIFY_LINES" | grep ' FAIL' >&2
+    note "FAILED -- --verify found a target that does not build and run ($NFILES files, $SIZE)"
+    exit 1
+fi
 note "ok -- $NFILES files, $SIZE"
