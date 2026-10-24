@@ -352,6 +352,13 @@ namespace Tko
 
     declare function OptInfoOf( byval id as OptId ) as OptInfo ptr
     declare sub InitOptTable( )
+
+    '' The write-once tables' builders, for Cmdline.InitTables (review ARCH-07).
+    declare sub InitTokenTables( )      '' lexer/lexer.tiko
+    declare sub InitNodeTables( )       '' parser/expr.tiko
+    declare sub InitIntrinsicTable( )   '' parser/intrinsics.tiko
+    declare sub InitBuiltins( )         '' types/type.tiko
+    declare sub InitSymNames( )         '' symbols/symbol.tiko
     declare function CategoryName( byval c as OptCategory ) as string
 
 end namespace

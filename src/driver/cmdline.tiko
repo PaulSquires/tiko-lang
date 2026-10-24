@@ -342,6 +342,18 @@ private sub InitOptIndex_( )
     optIndexReady = true
 end sub
 
+sub InitTables( )
+    Tko.InitDiagTable( )
+    Tko.DiagIdFromName( "" )            '' builds the by-name index
+    Tko.InitOptTable( )
+    InitOptIndex_( )
+    Tko.InitTokenTables( )
+    Tko.InitNodeTables( )               '' and the infix precedences
+    Tko.InitIntrinsicTable( )
+    Tko.InitBuiltins( )
+    Tko.InitSymNames( )
+end sub
+
 function OptIdOfSpelling( byref spell as string ) as Tko.OptId
     InitOptIndex_( )
     dim as int32 at = 0

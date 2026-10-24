@@ -12,6 +12,7 @@
 #import "std/containers"
 #include once "api/tikoparser.ti"
 #include once "driver/driver.ti"
+#include once "driver/cmdline.ti"
 #include once "driver/scan.ti"
 #include once "support/text.ti"
 
@@ -202,6 +203,7 @@ private function DoScan_ _
     dim as ScanJob_ job
     job.args = @args
     job.r = @r
+    Tko.Cmdline.InitTables( )              '' before the scan thread (review ARCH-07)
     dim as any ptr th = threadcreate( @ScanOnBigStack_, @job, 64 * 1024 * 1024 )
     if th = nullptr then
         Tko.Driver.Run( args, 0, @r )

@@ -19,7 +19,7 @@ end type
 dim shared as BuiltinInfo builtinTb( 0 to TY_BUILTIN_COUNT - 1 )
 dim shared as boolean builtinReady = false
 
-private sub InitBuiltins( )
+sub InitBuiltins( )
     if builtinReady then return
     for i as int32 = 0 to TY_BUILTIN_COUNT - 1
         builtinTb(i).name = @"?"

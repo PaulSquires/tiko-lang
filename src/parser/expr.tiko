@@ -12,7 +12,7 @@ dim shared as zstring ptr nodeNames( 0 to N_KIND_COUNT - 1 )
 dim shared as uint8       nodeCats( 0 to N_KIND_COUNT - 1 )
 dim shared as boolean     nodeTablesReady = false
 
-private sub InitNodeTables( )
+sub InitNodeTables( )
     if nodeTablesReady then return
     for i as int32 = 0 to N_KIND_COUNT - 1
         nodeNames(i) = @"?"
@@ -25,6 +25,7 @@ private sub InitNodeTables( )
     TKO_NODE_LIST( NODE )
     #undef NODE
     nodeTablesReady = true
+    InfixPrec( cast( TokenKind, 0 ) )    '' and the precedences, so no query builds them
 end sub
 
 function CallConvOf( byval procFlags as uint16 ) as CallConv

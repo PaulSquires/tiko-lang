@@ -28,6 +28,12 @@ namespace Tko.Cmdline
     '' The option spelled exactly 'spell' ('-o', '--emit-ir'), or OPT_NONE.
     declare function OptIdOfSpelling( byref spell as string ) as Tko.OptId
 
+    '' EVERY WRITE-ONCE TABLE, BUILT NOW (review ARCH-07). Each is built on first use, and two
+    '' of them -- the diagnostic names and the infix precedences -- inside a query, so the
+    '' first caller builds them: under the API DLL's scan threads, two at once. main and the
+    '' API's scan entry call this before any thread starts; the lazy guards stay.
+    declare sub InitTables( )
+
 end namespace
 
 #endif

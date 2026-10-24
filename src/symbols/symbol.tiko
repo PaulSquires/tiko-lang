@@ -10,7 +10,7 @@ namespace Tko
 dim shared as zstring ptr symKindNames( 0 to SYM_KIND_COUNT - 1 )
 dim shared as boolean symNamesReady = false
 
-private sub InitSymNames( )
+sub InitSymNames( )
     if symNamesReady then return
     for i as int32 = 0 to SYM_KIND_COUNT - 1
         symKindNames(i) = @"?"

@@ -7,6 +7,7 @@
 #import "std/containers"
 #include once "driver/driver.ti"
 #include once "build/build.ti"
+#include once "driver/cmdline.ti"
 
 using Tko
 
@@ -71,6 +72,7 @@ end sub
 
 dim as RunJob_ job
 job.args = @args
+Tko.Cmdline.InitTables( )                  '' before any thread (review ARCH-07)
 #ifdef __FB_WIN32__
     extern "Windows"
         declare function CreateThread_ alias "CreateThread" ( byval attrs as any ptr, byval stackSize as uinteger, _

@@ -11,7 +11,7 @@ namespace Tko
 dim shared as uint8   intrForm( 0 to TK_KIND_COUNT - 1 )
 dim shared as boolean intrReady = false
 
-private sub InitIntrinsicTable( )
+sub InitIntrinsicTable( )
     if intrReady then return
     for i as int32 = 0 to TK_KIND_COUNT - 1
         intrForm(i) = cast( uint8, IFORM_NONE )

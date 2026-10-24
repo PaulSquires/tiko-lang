@@ -14,7 +14,7 @@ dim shared as zstring ptr kindNames( 0 to TK_KIND_COUNT - 1 )
 dim shared as uint8 kindClasses( 0 to TK_KIND_COUNT - 1 )
 dim shared as boolean tokenTablesReady = false
 
-private sub InitTokenTables( )
+sub InitTokenTables( )
     if tokenTablesReady then return
 
     for i as int32 = 0 to TK_KIND_COUNT - 1
