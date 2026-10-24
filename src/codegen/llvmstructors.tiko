@@ -252,7 +252,7 @@ private function StructorLists_( byref e as EmitCtx, byref m as MirModule ) as s
             '' marks its own .ctors.NNNNN writable. The .CRT$X fragments are read-only,
             '' as tiko-rt's own brackets are.
             dim as string gn = "@__tko_" & iif( isCtor, "ctor.", "dtor." ) & str( nused )
-            dim as string gk = iif( e.tgt->id = Tko.TARGET_WINDOWS_X86_64, "constant", "global" )
+            dim as string gk = iif( e.tgt->layout.isMsvc, "constant", "global" )
             r += gn & " = internal " & gk & " ptr " & GlobalName( e, f->name ) & _
                  ", section """ & StructorSection_( e, isCtor, f->structorPrio ) & _
                  """, align 8" & chr( 10 )
@@ -295,7 +295,7 @@ private function StructorLists_( byref e as EmitCtx, byref m as MirModule ) as s
             next
             continue for
         end if
-        dim as boolean rev = (e.tgt->id = Tko.TARGET_WIN64)
+        dim as boolean rev = (e.tgt->layout.isWindows andalso (e.tgt->layout.isMsvc = false))
         dim as string items
         for k as int32 = 0 to dflt.Count - 1
             dim as int32 fi = dflt[iif( rev, dflt.Count - 1 - k, k )]
@@ -320,7 +320,7 @@ private function StructorLists_( byref e as EmitCtx, byref m as MirModule ) as s
             ListPush_( mCtors, nmCtors, 65534, ModSym_( "__tko_initall", "" ) )
             ListPush_( mDtors, nmDtors, 65534, ModSym_( "__tko_modfini_drain", "" ) )
         else
-            dim as string gk = iif( e.tgt->id = Tko.TARGET_WINDOWS_X86_64, "constant", "global" )
+            dim as string gk = iif( e.tgt->layout.isMsvc, "constant", "global" )
             r += "@__tko_ctor.modinit = internal " & gk & " ptr " & ModSym_( "__tko_initall", "" ) & _
                  ", section " & chr( 34 ) & StructorSection_( e, true, 65534 ) & chr( 34 ) & ", align 8" & nl
             r += "@__tko_dtor.modfini = internal " & gk & " ptr " & ModSym_( "__tko_modfini_drain", "" ) & _

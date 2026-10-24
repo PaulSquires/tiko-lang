@@ -270,7 +270,7 @@ function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfig
     cfg.defines = @ctx.options.defines
     cfg.targetOs = Tko.TargetOs( ctx.options.target )
     cfg.targetArch = Tko.TargetArch( ctx.options.target )
-    cfg.targetIsMsvc = (ctx.options.target = Tko.TARGET_WINDOWS_X86_64)
+    cfg.targetIsMsvc = Tko.TargetLayoutFor( ctx.options.target ).isMsvc
     cfg.threadSafe = ctx.options.threadSafe
     cfg.errFlags = ctx.options.errFlags
     cfg.debugInfo = ctx.options.debugInfo
@@ -643,7 +643,7 @@ private function LinkAll _
     '' with them. The MinGW target keeps the file: GNU-style links take a DLL as it is.
     for i as int32 = 0 to ctx.options.pragmaLibFiles.Count - 1
         dim as string lf = ctx.options.pragmaLibFiles[i]
-        if (ctx.options.target = Tko.TARGET_WINDOWS_X86_64) andalso _
+        if Tko.TargetLayoutFor( ctx.options.target ).isMsvc andalso _
            (len( lf ) > 4) andalso (lcase( right( lf, 4 ) ) = ".dll") then
             dim as string why
             dim as string defText = Tko.Codegen.DllDefText( lf, why )

@@ -398,7 +398,7 @@ function LinkExe _
     '' four bytes at offset 128, with every other byte of 4,178,432 identical. The MinGW
     '' driver takes --no-insert-timestamp and writes zero; lld-link takes /Brepro and
     '' writes a hash of the image instead. ELF carries no link time at all.
-    if target.id = TARGET_WINDOWS_X86_64 then
+    if target.layout.isMsvc then
         cmd += " -Xlinker /Brepro"
     elseif target.objFormat = OBJ_COFF then
         cmd += " -Wl,--no-insert-timestamp"
@@ -429,7 +429,7 @@ function LinkExe _
     '' clang's '-shared' is the --dll AND the dllcrt2.o AND the DllMainCRTStartup entry,
     '' and --out-implib writes the import library in the same step dlltool took.
     if t.buildDll then
-        if target.id = TARGET_WINDOWS_X86_64 then
+        if target.layout.isMsvc then
             cmd += " -Xlinker -dll"
             if len( t.implibPath ) > 0 then
                 cmd += " -Xlinker " & Q( "-implib:" & t.implibPath )
@@ -475,12 +475,12 @@ function LinkExe _
     '' -S drops the debug-map stabs, -x the local symbols.
     if macho then
         if t.stripSymbols then cmd += " -Wl,-S -Wl,-x"
-    elseif (target.id <> TARGET_WINDOWS_X86_64) andalso t.stripSymbols then
+    elseif (target.layout.isMsvc = false) andalso t.stripSymbols then
         cmd += " -s"
     end if
     '' '-g' ON THE MSVC TARGET: lld-link drops .debug_* unless told to keep them, and
     '' the line tables are DWARF (llvmdebug.ti), not a PDB.
-    if (target.id = TARGET_WINDOWS_X86_64) andalso (t.stripSymbols = false) then
+    if (target.layout.isMsvc) andalso (t.stripSymbols = false) then
         cmd += " -Xlinker -debug:dwarf"
     end if
     '' DROP WHAT NOTHING REACHES, a section at a time -- CompileIr gives each procedure and
@@ -497,7 +497,7 @@ function LinkExe _
     '' see it here. The MinGW frontend folds nothing unless asked.
     '' ld64's is -dead_strip, which keeps __mod_init_func and exported symbols as roots; it
     '' folds nothing unless asked.
-    if target.id = TARGET_WINDOWS_X86_64 then
+    if target.layout.isMsvc then
         cmd += " -Xlinker -opt:ref -Xlinker -opt:noicf"
     elseif macho then
         cmd += " -Wl,-dead_strip"
@@ -513,7 +513,7 @@ function LinkExe _
     '' startup in crt2.o serves both subsystems and needs only the flag.
     dim as boolean wantGui = t.guiSubsystem andalso (t.buildDll = false)
     if wantGui then
-        if target.id = TARGET_WINDOWS_X86_64 then
+        if target.layout.isMsvc then
             cmd += " -Xlinker -subsystem:windows -Xlinker -entry:mainCRTStartup"
         elseif target.objFormat = OBJ_COFF then
             cmd += " -Wl,--subsystem,windows"
@@ -541,7 +541,7 @@ function LinkExe _
     '' MACH-O HAS NO PIC VARIANTS: every arm64 Mach-O object is position-independent, and
     '' tiko-rt builds one fbrt0.o and one pair of archives there.
     dim as boolean rt0Missing = false
-    if target.id <> TARGET_WINDOWS_X86_64 then
+    if (target.layout.isMsvc = false) then
         dim as string rt0 = "fbrt0.o"
         if t.buildDll andalso (target.objFormat = OBJ_ELF) then rt0 = "fbrt0pic.o"
         dim as boolean rt0Found = false
@@ -647,7 +647,7 @@ function LinkExe _
         ''   - without Visual Studio it found OUR import library and linked, quietly
         ''     importing half the C library from msvcrt.dll and half from ucrtbase.dll --
         ''     two heaps, and a strdup freed by the other one's free.
-        if target.id = TARGET_WINDOWS_X86_64 then
+        if target.layout.isMsvc then
             if lcase( t.libs[i] ) = "msvcrt" then continue for
         end if
         dim as string named = ""
@@ -661,7 +661,7 @@ function LinkExe _
         '' lib<name>.dll.a IS WHAT fbc's OWN -dll PRODUCES, so a tiko program calling
         '' an fbc-built DLL finds it by the name the source uses. Without this the
         '' link asked lld-link for '<name>.lib' and stopped there.
-        if (cached = false) andalso (target.id = TARGET_WINDOWS_X86_64) then
+        if (cached = false) andalso (target.layout.isMsvc) then
             for k as int32 = 0 to t.libPaths.Count - 1
                 dim as string dllImp = t.libPaths[k] & "/lib" & t.libs[i] & ".dll.a"
                 dim as string statLib = t.libPaths[k] & "/lib" & t.libs[i] & ".a"
@@ -749,7 +749,7 @@ function LinkExe _
     '' THE SYSTEM LIBRARIES THE RUNTIME REACHES INTO, and they are not the same set on
     '' the two platforms. Neither list is guessable; each was found by linking and
     '' reading what was still undefined.
-    if target.id = TARGET_WINDOWS_X86_64 then
+    if target.layout.isMsvc then
         '' THE MICROSOFT ABI. Not a variant of the MinGW branch below -- it shares none
         '' of it. There is no crt2.o to point '-B' at, because the UCRT supplies the
         '' startup; clang's own msvc driver finds it.

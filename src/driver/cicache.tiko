@@ -75,7 +75,7 @@ function CacheKey _
     k &= "INCLUDE " & Env_( "INCLUDE" ) & nl
     k &= "VCToolsInstallDir " & Env_( "VCToolsInstallDir" ) & nl
     k &= "WindowsSdkDir " & Env_( "WindowsSdkDir" ) & nl
-    if ctx.options.target = Tko.TARGET_WIN64 then k &= "gcc " & GccOnPath_( ) & nl
+    if Tko.TargetLayoutFor( ctx.options.target ).isWindows andalso (Tko.TargetLayoutFor( ctx.options.target ).isMsvc = false) then k &= "gcc " & GccOnPath_( ) & nl
     return k
 end function
 

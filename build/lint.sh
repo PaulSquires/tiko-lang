@@ -25,6 +25,7 @@
 #  10. THE POSIX BINDING's two generated copies are identical.
 #  11. UNIT SIZE: a unit with its #include'd .tiko fragments, 6000 lines (ceilings below).
 #  12. FUNCTION STATICS. 'static as' is process state by another name (D12); allowlisted.
+#  13. TARGET FACTS ARE PROPERTIES: no 'x = TARGET_...' test outside the target tables.
 #
 # TODO: port to tools/tiko-lang-lint once tiko-lang can compile itself, so the lint is
 # self-hosted like everything else.
@@ -209,6 +210,21 @@ for f in $(grep -rlE '^[[:space:]]*static[[:space:]]+as[[:space:]]' src --includ
     n=$(grep -cE '^[[:space:]]*static[[:space:]]+as[[:space:]]' "$f")
     cap=$(static_ceiling "$f")
     [ "$n" -gt "$cap" ] && note "STATIC $f has $n 'static as' locals (allowed $cap; docs/plan/01 D12)"
+done
+
+# ------------------------------------------------- 13. no target-id comparisons
+#
+# WHAT A TARGET IS -- MSVC or not, Windows or not, its widths -- IS A TargetLayout PROPERTY,
+# set in one place (types/type.tiko TargetLayoutFor, codegen/target.tiko TargetFor). A
+# comparison of the id elsewhere is a fact restated: 'isMsvc' was derived three ways, and a
+# new target (macos-arm64, then ARM64 Linux) has to find every one (review ARCH-09). Only the
+# two tables, and c2t's list of targets to generate for, name ids.
+for f in $(grep -rlE '(=|<>)[[:space:]]*(Tko\.)?(Codegen\.)?TARGET_[A-Z0-9_]+' src --include=*.tiko 2>/dev/null); do
+    case "$f" in
+        src/types/type.tiko|src/codegen/target.tiko|src/c2t/c2t.tiko) continue ;;
+    esac
+    codel=$(grep -nE '(=|<>)[[:space:]]*(Tko\.)?(Codegen\.)?TARGET_[A-Z0-9_]+' "$f" | grep -vE "^[0-9]+:[[:space:]]*''" | head -1)
+    [ -n "$codel" ] && note "TARGETID $f compares a target id ($codel) -- read a TargetLayout property"
 done
 
 # ---------------------------------------- 6. unsigned loop counters and bounds
