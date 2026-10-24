@@ -17,7 +17,7 @@ record the application owns.
 
 **Layout.** `TuiSplitV` stacks pieces top to bottom and `TuiSplitH` puts them
 side by side. Each piece has a constraint: `TuiLength( n )` for exactly `n`
-cells, `TuiPercent`, `TuiRatio`, `TuiMin_` and `TuiMax_`, and `TuiFill( )` for
+cells, `TuiPercent`, `TuiRatio`, `TuiAtLeast` and `TuiAtMost`, and `TuiFill( )` for
 a share of what is left. Splitting a piece again builds any screen, and the
 result is the same for the same sizes on every platform.
 

@@ -12,7 +12,7 @@ using outcome
 '' std/process: procposix -- the POSIX side, libc only.  posix_spawn with file
 '' actions for the three stdio descriptors and the directory, every pipe opened
 '' close-on-exec (rule 4), default signal dispositions and an empty signal mask in
-'' the child, and poll( ) for Output_ (rule 5).  Every constant and struct layout is
+'' the child, and poll( ) for Capture (rule 5).  Every constant and struct layout is
 '' the target's, from sys/posix; errno, environ and pipe2 are the per-OS file's
 '' (proclinux.tiko).  posix_spawn_file_actions_addchdir_np needs glibc 2.29.
 
@@ -131,7 +131,7 @@ end sub
 
 '' ---- starting
 
-'' Spawn's body; Output_ calls it with its own defaults for the slots the Command left
+'' Spawn's body; Capture calls it with its own defaults for the slots the Command left
 '' at -1.
 function ProcStart( byref c as Command, byref k as Child, byval dIn as long, byval dOut as long, byval dErr as long, _
                     byref op as const ustring, byref failure as ProcError ) as boolean
@@ -390,7 +390,7 @@ sub PipeStream.Close( )
     this.hFd = -1
 end sub
 
-'' ---- Output_ (rule 5): one poll( ) over stdout, stderr and a non-blocking stdin.
+'' ---- Capture (rule 5): one poll( ) over stdout, stderr and a non-blocking stdin.
 
 function ProcOutput( byref c as Command, byref stdinData as Array( of ubyte ) ) as ProcResultOutput
     dim as Child k

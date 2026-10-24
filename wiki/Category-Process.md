@@ -7,7 +7,7 @@ The `std/process` module starts other programs, passes them arguments without a 
 ```freebasic
 #import "std/process"
 
-dim r as process.ProcResultOutput = process.Output_( process.Command( "git" ).Arg( "status" ).Arg( "--short" ) )
+dim r as process.ProcResultOutput = process.Capture( process.Command( "git" ).Arg( "status" ).Arg( "--short" ) )
 if r.IsOk( ) then
     print r.Value( ).StdoutText( )
 else
@@ -15,7 +15,7 @@ else
 end if
 ```
 
-`Output` is a keyword, so the helper is `Output_`. Write `process.Command( … )` qualified even after `using process`: an unqualified `Command( … )` is the built-in `COMMAND` function.
+`Output` is a keyword, so the helper is `Capture`. Write `process.Command( … )` qualified even after `using process`: an unqualified `Command( … )` is the built-in `COMMAND` function.
 
 ## Commands
 
@@ -45,8 +45,8 @@ A `Command` describes what to run. Every setter returns the `Command`, so calls 
 | Helper | Gives |
 |---|---|
 | `Run( cmd )` | runs with the child's stdin, stdout and stderr inherited; `ProcResultStatus` |
-| `Output_( cmd )` | collects stdout and stderr, stdin is empty; `ProcResultOutput` |
-| `Output_( cmd, stdinData )` | the same, with `stdinData` (an `Array( of ubyte )`) fed to the child's stdin |
+| `Capture( cmd )` | collects stdout and stderr, stdin is empty; `ProcResultOutput` |
+| `Capture( cmd, stdinData )` | the same, with `stdinData` (an `Array( of ubyte )`) fed to the child's stdin |
 | `Shell( commandLine )` | the one way to a shell: `cmd.exe /d /s /c` on Windows, `/bin/sh -c` on Linux |
 | `CurrentId( )` | this process's id |
 
@@ -56,7 +56,7 @@ A `Command` describes what to run. Every setter returns the `Command`, so calls 
 dim st as process.ProcResultStatus = process.Run( process.Command( "tiko" ).Arg( "--version" ) )
 if st.IsOk( ) then print "exit code"; st.Value( ).Code( )
 
-dim o as process.ProcResultOutput = process.Output_( process.Command( "tiko" ).Arg( "--version" ) )
+dim o as process.ProcResultOutput = process.Capture( process.Command( "tiko" ).Arg( "--version" ) )
 if o.IsOk( ) then
     print o.Value( ).Stdout.Count( ); " bytes on stdout"
     print o.Value( ).StdoutText( )
@@ -65,7 +65,7 @@ end if
 
 A `ProcessOutput` holds `Status` (an `ExitStatus`), `Stdout` and `Stderr` (each an `Array( of ubyte )`), and `StdoutText( )` / `StderrText( )`, which decode the bytes as UTF-8 with U+FFFD for anything invalid.
 
-`Output_` reads stdout and stderr **at the same time**, so a program that writes megabytes to both cannot stall waiting for one of them to be read.
+`Capture` reads stdout and stderr **at the same time**, so a program that writes megabytes to both cannot stall waiting for one of them to be read.
 
 An `ExitStatus` has `Code( )`, `Success( )` (`Code( ) = 0`) and, on Linux, `Signal( )`: the signal that ended the program, with `Code( )` -1 then.
 

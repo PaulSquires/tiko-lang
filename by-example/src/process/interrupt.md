@@ -40,7 +40,7 @@ With goroutines, `tasks.InterruptContext( )` is a
 [context](../concurrency/cancellation.md) that Ctrl-C cancels, so every
 goroutine watching it stops too.
 
-`os.Exit_( code )` is `end code` as a procedure call. `os.Abort( )` ends the
+`os.ExitWith( code )` is `end code` as a procedure call. `os.Abort( )` ends the
 program at once, without running destructors or flushing files.
 
 ### Activities

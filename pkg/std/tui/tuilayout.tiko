@@ -74,15 +74,15 @@ public function TuiRatio( byval num as long, byval den as long ) as TuiConstrain
     return TuiConstraintOf( TUICON_RATIO, num, den )
 end function
 
-'' Min_ and Max_ carry underscores from fb/tuilayout.bi, where they avoided colliding with FB.Min
-'' and FB.Max from fb/math.bi. FreeBASIC identifiers are case-insensitive, so that was a collision
-'' WITHIN namespace FB and the Tui prefix did not save it -- the same shadowing that made a
-'' parameter named `ok` fail with error 72.
-public function TuiMin_( byval n as long ) as TuiConstraint
+'' AtLeast and AtMost, not Min and Max: fb/tuilayout.bi spelled them TuiMin_ and TuiMax_ to dodge
+'' FB.Min and FB.Max from fb/math.bi -- FreeBASIC identifiers are case-insensitive, so that was a
+'' collision WITHIN namespace FB and the Tui prefix did not save it. A public name does not carry
+'' an underscore to dodge one (review LIB-05); it says what the constraint is.
+public function TuiAtLeast( byval n as long ) as TuiConstraint
     return TuiConstraintOf( TUICON_MIN, n )
 end function
 
-public function TuiMax_( byval n as long ) as TuiConstraint
+public function TuiAtMost( byval n as long ) as TuiConstraint
     return TuiConstraintOf( TUICON_MAX, n )
 end function
 

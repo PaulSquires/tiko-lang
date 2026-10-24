@@ -82,7 +82,7 @@ end function
 public enum TuiMessageKind
     TUIMSG_INFO = 0
     TUIMSG_WARNING
-    TUIMSG_ERROR_          '' `Error` is a statement; the enum member follows
+    TUIMSG_ERROR
     TUIMSG_QUESTION
 end enum
 
@@ -111,7 +111,7 @@ function TuiMessageBox.Cancelled( ) as boolean : return m_cancelled : end functi
 public function TuiMessageKindStyle( byval k as ubyte, byref th as TuiTheme ) as TuiStyle
     select case k
     case TUIMSG_WARNING  : return th.warning
-    case TUIMSG_ERROR_   : return th.danger
+    case TUIMSG_ERROR   : return th.danger
     case TUIMSG_QUESTION : return th.accent
     case else            : return th.info
     end select

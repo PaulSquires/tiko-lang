@@ -8,7 +8,7 @@ using outcome
 ''
 ''     #import "std/process"
 ''
-''     dim r as process.ProcResultOutput = process.Output_( process.Command( "git" ).Arg( "status" ).Arg( "--short" ) )
+''     dim r as process.ProcResultOutput = process.Capture( process.Command( "git" ).Arg( "status" ).Arg( "--short" ) )
 ''     if r.IsOk( ) then print r.Value( ).StdoutText( )
 ''     dim st as process.ProcResultStatus = process.Run( process.Command( "tiko" ).Arg( "--version" ) )
 ''     if st.IsOk( ) then print st.Value( ).Code( )
@@ -22,9 +22,9 @@ using outcome
 ''                 Stdout/Stderr (PipeStreams, which are fs.Streams) when they were
 ''                 STDIO_PIPE, then Wait / WaitTimeout / TryWait, Kill, Terminate.
 ''                 Destroying a Child neither kills nor waits for the program.
-''   helpers       Run (stdio inherited), Output_ (stdout and stderr collected, stdin
+''   helpers       Run (stdio inherited), Capture (stdout and stderr collected, stdin
 ''                 from a byte array or nothing), Shell (a command line for cmd.exe or
-''                 /bin/sh), CurrentId.  ('Output' is a keyword, hence Output_.)
+''                 /bin/sh), CurrentId.  ('Output' is a keyword, hence Capture.)
 ''
 '' NO SHELL, EVER, EXCEPT Shell.  A Command passes an argument vector: on Windows it is
 '' quoted into a command line by the rules CommandLineToArgvW undoes; on Linux it is
@@ -39,7 +39,7 @@ using outcome
 '' PLATFORM NOTES.  Only the three stdio handles reach a child: Windows passes an
 '' explicit handle list, Linux opens every pipe close-on-exec.  (On Linux a file
 '' opened with the legacy OPEN statement is not close-on-exec and does reach the
-'' child.)  Output_ drains stdout and stderr together without threads -- overlapped
+'' child.)  Capture drains stdout and stderr together without threads -- overlapped
 '' pipes on Windows, poll( ) on Linux -- so a child writing a lot to both cannot
 '' deadlock it.  On Linux the first spawn sets SIGPIPE to ignored in this process
 '' (children start with default signal dispositions), so a write to a pipe whose
@@ -712,8 +712,8 @@ end function
 '' -------------------------------------------------------------- the surface
 
 public declare function Run( byref c as Command ) as ProcResultStatus
-public declare function Output_ overload ( byref c as Command ) as ProcResultOutput
-public declare function Output_ overload ( byref c as Command, byref stdinData as Array( of ubyte ) ) as ProcResultOutput
+public declare function Capture overload ( byref c as Command ) as ProcResultOutput
+public declare function Capture overload ( byref c as Command, byref stdinData as Array( of ubyte ) ) as ProcResultOutput
 public declare function Shell( byref commandLine as const ustring ) as ProcResultStatus
 public declare function CurrentId( ) as ulong
 
@@ -726,13 +726,13 @@ public function Run( byref c as Command ) as ProcResultStatus
 end function
 
 '' stdout and stderr are pipes and stdin is NUL, unless the Command set them.
-public function Output_( byref c as Command ) as ProcResultOutput
+public function Capture( byref c as Command ) as ProcResultOutput
     dim as Array( of ubyte ) none
     return ProcOutput( c, none )
 end function
 
 '' ... and stdin is a pipe fed `stdinData`, then closed.
-public function Output_( byref c as Command, byref stdinData as Array( of ubyte ) ) as ProcResultOutput
+public function Capture( byref c as Command, byref stdinData as Array( of ubyte ) ) as ProcResultOutput
     return ProcOutput( c, stdinData )
 end function
 

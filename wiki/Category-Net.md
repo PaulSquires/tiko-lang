@@ -36,7 +36,7 @@ print net.Ipv4( 192, 168, 1, 20 ).IsPrivate( )
 | `Ipv4( a, b, c, d )` | an IPv4 address from its four numbers |
 | `IpFromBytes( bytes )` | an address from 4 or 16 bytes |
 | `Loopback( v6 )` | `127.0.0.1`, or `::1` with `TRUE` |
-| `Any_( v6 )` | `0.0.0.0`, or `::` — "every address of this machine" for `Bind` |
+| `AnyAddress( v6 )` | `0.0.0.0`, or `::` — "every address of this machine" for `Bind` |
 | `ToString( )` | IPv6 in its shortest form: lower case, the longest run of zeros as `::` |
 | `IsV4( )`, `IsV6( )`, `Bytes( )`, `Zone( )`, `WithZone( z )` | the parts |
 | `IsLoopback( )`, `IsPrivate( )`, `IsLinkLocal( )`, `IsMulticast( )`, `IsUnspecified( )`, `IsGlobalUnicast( )` | what kind of address it is |
@@ -112,7 +112,7 @@ end if
 
 | Call | Does |
 |---|---|
-| `Bind( addr, backlog, dualStack )` | binds and starts listening. Port 0 picks a free port — read it back with `LocalAddress( )`. Bound to `Any_( TRUE )` (`::`), a listener with `dualStack` (the default) also takes IPv4 connections |
+| `Bind( addr, backlog, dualStack )` | binds and starts listening. Port 0 picks a free port — read it back with `LocalAddress( )`. Bound to `AnyAddress( TRUE )` (`::`), a listener with `dualStack` (the default) also takes IPv4 connections |
 | `Accept( conn, timeoutMs )` | waits for the next connection and opens `conn` on it; `NET_TIMED_OUT` when the timeout ends first |
 | `LocalAddress( )`, `Close( )`, `IsOpen( )` | |
 

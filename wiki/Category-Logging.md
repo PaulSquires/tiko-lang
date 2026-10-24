@@ -112,8 +112,8 @@ AddSink( s as Sink ptr )              the LOGGER DOES NOT OWN THE SINK
 RemoveSink( s ) / ClearSinks( )
 SinkCount( ) as int32
 
-WithField( k, v as LogValue ) as Logger_    child, by value, deep copy
-WithName( n ) as Logger_                    child with a component name
+WithField( k, v as LogValue ) as LoggerType    child, by value, deep copy
+WithName( n ) as LoggerType                    child with a component name
 
 Log( lv ) as LogEvent                 and Trace/Debug/Info/Warn/Error/Fatal
 Log( lv, m )                          and the same six taking a message
@@ -333,7 +333,7 @@ The kind stays in the name on purpose: AddInt and AddFloat decide whether the JS
 
 The logger's own level methods keep their plain names -- `lg.Error( "boom" )`, `lg.Log( lv )` -- because being an intrinsic is not enough to block a member name; only a keyword or a statement is. WithField is the one exception for that reason: WITH is a statement, so a member called `With` is refused (TKO0600).
 
-One more, for anyone deriving from these types: `type Logger as Logger_` makes Logger an incomplete type inside the module, so a member returning a logger by value is declared `as Logger_`. Callers write `dim as Logger`.
+One more, for anyone deriving from these types: `type Logger as LoggerType` makes Logger an incomplete type inside the module, so a member returning a logger by value is declared `as LoggerType`. Callers write `dim as Logger`.
 
 ## Writing Your Own Sink
 

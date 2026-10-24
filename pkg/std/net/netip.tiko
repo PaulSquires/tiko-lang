@@ -190,7 +190,7 @@ public function Loopback( byval v6 as boolean = FALSE ) as IpAddress
     return r
 end function
 
-public function Any_( byval v6 as boolean = FALSE ) as IpAddress
+public function AnyAddress( byval v6 as boolean = FALSE ) as IpAddress
     dim as IpAddress r
     r.hV6 = v6
     return r

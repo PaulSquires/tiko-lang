@@ -21,7 +21,7 @@ using outcome
 '' C:\dev\docs\tiko-stdlib\RFC-0001 section 15.
 ''
 ''   addresses     IpAddress (v4 or v6, with a zone), SocketAddress (an IpAddress and a
-''                 port), ParseIp, ParseSocketAddress, Ipv4, Loopback, Any_.  Parsing
+''                 port), ParseIp, ParseSocketAddress, Ipv4, Loopback, AnyAddress.  Parsing
 ''                 is strict: a v4 part with a leading zero is refused.  v6 prints as
 ''                 RFC 5952 says (lower case, the longest zero run as ::).
 ''   resolution    Resolve( host, port, family ) -- GetAddrInfoW / getaddrinfo,
@@ -221,7 +221,7 @@ public declare function ParseIp( byref s as const ustring ) as NetResultIp
 public declare function Ipv4( byval a as ubyte, byval b as ubyte, byval c as ubyte, byval d as ubyte ) as IpAddress
 public declare function IpFromBytes( byref b as Array( of ubyte ) ) as NetResultIp   '' 4 or 16 bytes
 public declare function Loopback( byval v6 as boolean = FALSE ) as IpAddress
-public declare function Any_( byval v6 as boolean = FALSE ) as IpAddress
+public declare function AnyAddress( byval v6 as boolean = FALSE ) as IpAddress
 public declare function ParseSocketAddress( byref s as const ustring ) as NetResultAddr
 public declare function Resolve( byref host as const ustring, byval port as ushort = 0, byval family as AddressFamily = AF_ANY ) as NetResultAddrs
 

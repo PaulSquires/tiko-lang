@@ -1,6 +1,6 @@
 '' RUN: std/process phase P5 -- argument round trip (spaces, quotes, backslashes before quotes,
 '' trailing backslashes, empty, tab, non-ASCII incl. a surrogate pair) checked against the OS's own
-'' CommandLineToArgvW in the child; ToString; Run/Shell exit codes; Output_ with 1 MiB on both pipes
+'' CommandLineToArgvW in the child; ToString; Run/Shell exit codes; Capture with 1 MiB on both pipes
 '' (no deadlock) and StderrToStdout; stdinData echo; a Child's PipeStreams through fs.Stream; Env /
 '' EnvRemove / EnvClear; NUL and '=' refused; Cwd and a bad Cwd; PATH lookup in the child's PATH and
 '' never in the current directory; a .cmd through cmd.exe and '%PATH%' refused; HANDLE_LIST keeping an

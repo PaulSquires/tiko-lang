@@ -484,7 +484,7 @@ SUITE( fbc_tests.tui.tuiwidget_ )
 		'' End goes to the last item and scrolls to show it
 		dim as TuiEvent e
 		e.kind = TUIEVENT_KEY
-		e.key.code = TUIKEY_END_
+		e.key.code = TUIKEY_END
 		CU_ASSERT_TRUE ( lst.HandleEvent( e ) )
 		CU_ASSERT_EQUAL( ls.selected, 19 )
 		CU_ASSERT_EQUAL( ls.offset, 15 )
@@ -541,7 +541,7 @@ SUITE( fbc_tests.tui.tuiwidget_ )
 		t.SetFocused( TRUE )
 		dim as TuiEvent e
 		e.kind = TUIEVENT_KEY
-		e.key.code = TUIKEY_END_
+		e.key.code = TUIKEY_END
 		CU_ASSERT_TRUE ( t.HandleEvent( e ) )
 		CU_ASSERT_EQUAL( ts.selected, 7 )
 		CU_ASSERT_TRUE ( ts.offset > 0 )

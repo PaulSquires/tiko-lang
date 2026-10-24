@@ -8,7 +8,7 @@ using outcome
 '' std/process: procwin -- the Windows side, kernel32 only.  CreateProcessW with a
 '' STARTUPINFOEX whose PROC_THREAD_ATTRIBUTE_HANDLE_LIST names the three stdio handles
 '' and nothing else (rule 4); every pipe is a uniquely named pipe whose own end is
-'' overlapped, so Output_ can wait on both of a child's outputs at once (rule 5).
+'' overlapped, so Capture can wait on both of a child's outputs at once (rule 5).
 
 #ifdef __FB_WIN32__
 
@@ -261,7 +261,7 @@ end sub
 
 '' ---- starting
 
-'' Spawn's body; Output_ calls it with its own defaults for the slots the Command left
+'' Spawn's body; Capture calls it with its own defaults for the slots the Command left
 '' at -1.
 function ProcStart( byref c as Command, byref k as Child, byval dIn as long, byval dOut as long, byval dErr as long, _
                     byref op as const ustring, byref failure as ProcError ) as boolean
@@ -569,7 +569,7 @@ sub PipeStream.Close( )
     hClose( this.hEvent )
 end sub
 
-'' ---- Output_ (rule 5): overlapped reads of stdout and stderr and writes of stdin,
+'' ---- Capture (rule 5): overlapped reads of stdout and stderr and writes of stdin,
 '' all outstanding at once, under one WaitForMultipleObjects.
 
 type TkpOp

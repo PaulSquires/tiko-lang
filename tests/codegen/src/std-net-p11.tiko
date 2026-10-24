@@ -121,7 +121,7 @@ bb.Push( 1 )
 Check( "from 17 bytes", net.IpFromBytes( bb ).IsOk( ) = false )
 Check( "ipv4", net.Ipv4( 10, 0, 0, 1 ).Equals( IpOf( "10.0.0.1" ) ) )
 Check( "loopback()", net.Loopback( ).ToString( ) = "127.0.0.1" andalso net.Loopback( true ).ToString( ) = "::1" )
-Check( "any()", net.Any_( ).ToString( ) = "0.0.0.0" andalso net.Any_( true ).ToString( ) = "::" )
+Check( "any()", net.AnyAddress( ).ToString( ) = "0.0.0.0" andalso net.AnyAddress( true ).ToString( ) = "::" )
 Check( "zone differs", IpOf( "fe80::1%1" ).Equals( IpOf( "fe80::1%2" ) ) = false )
 Check( "v4 <> mapped", IpOf( "1.2.3.4" ).Equals( IpOf( "::ffff:1.2.3.4" ) ) = false )
 Check( "with zone", IpOf( "fe80::1" ).WithZone( "7" ).ToString( ) = "fe80::1%7" )
@@ -253,7 +253,7 @@ end scope
 '' a dual-stack [::] listener: reached as localhost (v6 first) and as 127.0.0.1
 scope
     dim l as net.TcpListener
-    dim b as net.NetResultBool = l.Bind( net.SocketAddress( net.Any_( true ), 0 ) )
+    dim b as net.NetResultBool = l.Bind( net.SocketAddress( net.AnyAddress( true ), 0 ) )
     if b.IsOk( ) then
         dim as ushort port = l.LocalAddress( ).Value( ).Port
         dim c as net.TcpStream
@@ -276,7 +276,7 @@ end scope
 '' a v6-only listener does not take v4
 scope
     dim l as net.TcpListener
-    if l.Bind( net.SocketAddress( net.Any_( true ), 0 ), 16, false ).IsOk( ) then
+    if l.Bind( net.SocketAddress( net.AnyAddress( true ), 0 ), 16, false ).IsOk( ) then
         dim c as net.TcpStream
         dim r as net.NetResultBool = c.Connect( net.SocketAddress( net.Loopback( ), l.LocalAddress( ).Value( ).Port ), 5000 )
         Check( "v6only refuses v4", r.IsOk( ) = false )
@@ -333,7 +333,7 @@ scope
 
     '' a v6 socket sending to a v4 address goes v4-mapped
     dim v6 as net.UdpSocket
-    if v6.Bind( net.SocketAddress( net.Any_( true ), 0 ) ).IsOk( ) then
+    if v6.Bind( net.SocketAddress( net.AnyAddress( true ), 0 ) ).IsOk( ) then
         dim sr6 as net.NetResultI64 = v6.SendTo( cptr( ubyte ptr, strptr( msg ) ), len( msg ), ba )
         Check( "v6 to v4", sr6.IsOk( ) )
         b.SetReadTimeout( 2000 )

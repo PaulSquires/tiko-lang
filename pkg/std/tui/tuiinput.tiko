@@ -73,7 +73,7 @@ public enum TuiKeyCode
     TUIKEY_LEFT
     TUIKEY_RIGHT
     TUIKEY_HOME
-    TUIKEY_END_                 '' `End` is a keyword
+    TUIKEY_END
     TUIKEY_PAGEUP
     TUIKEY_PAGEDOWN
     TUIKEY_INSERT
@@ -188,7 +188,7 @@ public function TuiKeyBaseName( byval code as ushort ) as ustring
     case TUIKEY_LEFT      : return "Left"
     case TUIKEY_RIGHT     : return "Right"
     case TUIKEY_HOME      : return "Home"
-    case TUIKEY_END_      : return "End"
+    case TUIKEY_END      : return "End"
     case TUIKEY_PAGEUP    : return "PageUp"
     case TUIKEY_PAGEDOWN  : return "PageDown"
     case TUIKEY_INSERT    : return "Insert"
@@ -368,7 +368,7 @@ public function TuiTildeKey( byval n as long ) as TuiKeyCode
     case 1, 7  : return TUIKEY_HOME
     case 2     : return TUIKEY_INSERT
     case 3     : return TUIKEY_DELETE
-    case 4, 8  : return TUIKEY_END_
+    case 4, 8  : return TUIKEY_END
     case 5     : return TUIKEY_PAGEUP
     case 6     : return TUIKEY_PAGEDOWN
     case 11    : return TUIKEY_F1
@@ -394,7 +394,7 @@ public function TuiLetterKey( byval f as string ) as TuiKeyCode
     case "C" : return TUIKEY_RIGHT
     case "D" : return TUIKEY_LEFT
     case "H" : return TUIKEY_HOME
-    case "F" : return TUIKEY_END_
+    case "F" : return TUIKEY_END
     case "P" : return TUIKEY_F1
     case "Q" : return TUIKEY_F2
     case "R" : return TUIKEY_F3
@@ -713,7 +713,7 @@ public function TuiFromRecord( byref rec as INPUT_RECORD, byref outEv as TuiEven
         case VK_LEFT   : kc = TUIKEY_LEFT
         case VK_RIGHT  : kc = TUIKEY_RIGHT
         case VK_HOME   : kc = TUIKEY_HOME
-        case VK_END    : kc = TUIKEY_END_
+        case VK_END    : kc = TUIKEY_END
         case VK_PRIOR  : kc = TUIKEY_PAGEUP
         case VK_NEXT   : kc = TUIKEY_PAGEDOWN
         case VK_INSERT : kc = TUIKEY_INSERT

@@ -25,7 +25,7 @@ Grouped by task. [Operating system](Functions-System) lists them beside the rest
 | [Run](Run) | Hands control to another program and ends this one; returns -1 if it cannot start. | built-in |
 | [Command](Category-Process#commands) (std/process) | Holds a program and its arguments, passed exactly as given with no shell in between. | `std/process` |
 | [Run](Category-Process#running-to-completion) (std/process) | Runs a Command with this program's console, waits, and returns its exit status. | `std/process` |
-| [Output_](Category-Process#running-to-completion) | Runs a Command, waits, and returns its exit status and all it wrote to stdout and stderr. | `std/process` |
+| [Capture](Category-Process#running-to-completion) | Runs a Command, waits, and returns its exit status and all it wrote to stdout and stderr. | `std/process` |
 | [Shell](Category-Process#running-to-completion) (std/process) | Runs a command line through cmd.exe or /bin/sh, waits, and returns its exit status. | `std/process` |
 
 ## Set up a program's arguments, folder and pipes
@@ -158,7 +158,7 @@ Grouped by task. [Operating system](Functions-System) lists them beside the rest
 | Function | What it does | From |
 |---|---|---|
 | [System](System) | Closes all open files and ends the program, with an optional exit code. | built-in |
-| [Exit_](Category-OS#exit) | Ends the program with an exit code, running module destructors and flushing files. | `std/os` |
+| [ExitWith](Category-OS#exit) | Ends the program with an exit code, running module destructors and flushing files. | `std/os` |
 | [Abort](Category-OS#exit) | Ends the program at once, with no cleanup at all. | `std/os` |
 
 ## Check free memory and redirection

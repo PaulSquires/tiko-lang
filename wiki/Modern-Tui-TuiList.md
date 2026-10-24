@@ -36,7 +36,7 @@ lst.wrapSelection = TRUE
 lst.SetFocused( TRUE )
 
 dim as TuiEvent e
-e.kind = TUIEVENT_KEY : e.key.code = TUIKEY_END_
+e.kind = TUIEVENT_KEY : e.key.code = TUIKEY_END
 lst.HandleEvent( e )
 print st.selected                 '' 2
 

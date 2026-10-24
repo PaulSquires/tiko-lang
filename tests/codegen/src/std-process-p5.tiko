@@ -136,7 +136,7 @@ sub ChildMain( byref a as Array( of ustring ) )
     case "cwd"
         RawLine( Hex16( fs.CurrentDir( ).ValueOr( "" ) ) )
     case "exit"
-        os.Exit_( valint( a.items( 2 ) ) )
+        os.ExitWith( valint( a.items( 2 ) ) )
     case "sleep"
         sleep valint( a.items( 2 ) ), 1
     case "spew"
@@ -171,15 +171,15 @@ sub ChildMain( byref a as Array( of ustring ) )
             for i as long = 0 to n - 1
                 p[i] = buf(i)
             next
-            if( lcase( right( p, 15 ) ) = "tkp5-legacy.txt" ) then os.Exit_( 1 )
+            if( lcase( right( p, 15 ) ) = "tkp5-legacy.txt" ) then os.ExitWith( 1 )
         end if
 #endif
-        os.Exit_( 0 )
+        os.ExitWith( 0 )
     case "break"
         os.CatchInterrupt( FALSE )
         RawLine( "ready" )
         os.WaitInterrupt( 20000 )
-        os.Exit_( 40 + os.LastInterrupt( ) )
+        os.ExitWith( 40 + os.LastInterrupt( ) )
     end select
 end sub
 
@@ -219,7 +219,7 @@ function Lines( byref po as process.ProcessOutput ) as Array( of string )
 end function
 
 function OutOf( byref c as process.Command ) as process.ProcessOutput
-    dim as process.ProcResultOutput r = process.Output_( c )
+    dim as process.ProcResultOutput r = process.Capture( c )
     if( r.IsOk( ) = FALSE ) then
         print "FAIL output: "; r.Failure( ).Message( )
         fails += 1
@@ -280,7 +280,7 @@ sub ParentMain( )
     Check( process.Run( Me( "exit" ).Arg( "0" ) ).Value( ).Success( ), "Success" )
     Check( CodeOf( process.Shell( "exit 3" ) ) = 3, "Shell exit 3" )
 
-    '' ---- Output_: 1 MiB on both pipes at once cannot deadlock
+    '' ---- Capture: 1 MiB on both pipes at once cannot deadlock
     dim as process.ProcessOutput big = OutOf( Me( "spew" ).Arg( "1048576" ) )
     Check( big.Stdout.num = 1048576, "spew stdout size " & big.Stdout.num )
     Check( big.Stderr.num = 1048576, "spew stderr size " & big.Stderr.num )
@@ -300,7 +300,7 @@ sub ParentMain( )
     for i as long = 0 to 299999
         inData.Push( ( i * 7 + 3 ) and 255 )
     next
-    dim as process.ProcResultOutput er = process.Output_( Me( "echo" ), inData )
+    dim as process.ProcResultOutput er = process.Capture( Me( "echo" ), inData )
     Check( er.IsOk( ), "echo ok" )
     if( er.IsOk( ) ) then
         dim as boolean eq = ( er.Value( ).Stdout.num = 300000 )
@@ -378,9 +378,9 @@ sub ParentMain( )
     fs.WriteAllText( script, "@echo %1" & chr( 13, 10 ) )
     Check( FirstLine( process.Command( script ).Arg( "hello world" ) ) = """hello world""", ".cmd argument" )
     Check( FirstLine( process.Command( "tkp5" ).Arg( "a&b" ).Env( "PATH", tmp ) ) = """a&b""", ".cmd by PATHEXT" )
-    dim as process.ProcResultOutput un = process.Output_( process.Command( script ).Arg( "%PATH%" ) )
+    dim as process.ProcResultOutput un = process.Capture( process.Command( script ).Arg( "%PATH%" ) )
     Check( ( un.IsOk( ) = FALSE ) andalso ( un.Failure( ).Code( ) = process.PROC_UNSAFE_ARGUMENT ), ".cmd %PATH% refused" )
-    Check( process.Output_( process.Command( script ).Arg( "say ""x"" & y" ) ).IsOk( ) = FALSE, ".cmd quote+meta refused" )
+    Check( process.Capture( process.Command( script ).Arg( "say ""x"" & y" ) ).IsOk( ) = FALSE, ".cmd quote+meta refused" )
 
     '' ---- rule 4: an inheritable legacy OPEN handle does not reach the child
     dim as ustring legacy = fs.PathJoin( tmp, "tkp5-legacy.txt" )

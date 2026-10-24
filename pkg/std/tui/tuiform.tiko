@@ -257,7 +257,7 @@ function TuiTextInput.HandleEvent( byref e as TuiEvent ) as boolean
     '' collapses one
     dim as boolean isMove = FALSE
     select case e.key.code
-    case TUIKEY_LEFT, TUIKEY_RIGHT, TUIKEY_HOME, TUIKEY_END_ : isMove = TRUE
+    case TUIKEY_LEFT, TUIKEY_RIGHT, TUIKEY_HOME, TUIKEY_END : isMove = TRUE
     end select
     if( isMove ) then
         if( shift ) then
@@ -316,7 +316,7 @@ function TuiTextInput.HandleEvent( byref e as TuiEvent ) as boolean
         hScrollToCursor( )
         return TRUE
 
-    case TUIKEY_END_
+    case TUIKEY_END
         state->cursor = len( state->text )
         hScrollToCursor( )
         return TRUE
@@ -480,7 +480,7 @@ function TuiTextArea.HandleEvent( byref e as TuiEvent ) as boolean
     case TUIKEY_PAGEUP   : state->cursorLine -= h
     case TUIKEY_PAGEDOWN : state->cursorLine += h
     case TUIKEY_HOME     : state->cursorCol = 0
-    case TUIKEY_END_     : state->cursorCol = len( state->lines_[ state->cursorLine ] )
+    case TUIKEY_END     : state->cursorCol = len( state->lines_[ state->cursorLine ] )
     case TUIKEY_LEFT
         if( state->cursorCol > 0 ) then
             state->cursorCol = TuiPrevGraphemeIdx( state->lines_[ state->cursorLine ], state->cursorCol )

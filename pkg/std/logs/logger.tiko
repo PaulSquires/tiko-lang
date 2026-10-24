@@ -53,9 +53,9 @@ using containers
 '' The forward alias exists so LogEvent can hold a `Logger ptr` before Logger
 '' is defined. NOTE the consequence, measured: `Logger` is an INCOMPLETE type
 '' here, so a member that returns a logger BY VALUE must be declared as
-'' `Logger_` -- spelling it `Logger` is `error 71: Incomplete type`. Callers are
+'' `LoggerType` -- spelling it `Logger` is `error 71: Incomplete type`. Callers are
 '' unaffected: the alias is complete by the time they see it.
-public type Logger as Logger_
+public type Logger as LoggerType
 
 '' ============================================================== LogEvent
 public type LogEvent
@@ -85,7 +85,7 @@ public type LogEvent
 end type
 
 '' ============================================================== Logger
-public type Logger_
+public type LoggerType
     declare constructor( )
     declare destructor( )
 
@@ -101,8 +101,8 @@ public type Logger_
     declare sub ClearSinks( )
     declare function SinkCount( ) as long
 
-    declare function WithField( byref k as ustring, byref v as LogValue ) as Logger_
-    declare function WithName( byref n as ustring ) as Logger_
+    declare function WithField( byref k as ustring, byref v as LogValue ) as LoggerType
+    declare function WithName( byref n as ustring ) as LoggerType
 
     declare function Log   ( byval lv as LogLevel ) as LogEvent
     declare function Trace ( ) as LogEvent
@@ -129,26 +129,26 @@ public type Logger_
     m_sinks    as SinkPtrArray
 end type
 
-constructor Logger_( )
+constructor LoggerType( )
     this.m_minlevel = LOG_INFO
 end constructor
 
-destructor Logger_( )
+destructor LoggerType( )
 end destructor
 
-property Logger_.MinLevel( ) as LogLevel
+property LoggerType.MinLevel( ) as LogLevel
     return this.m_minlevel
 end property
 
-property Logger_.MinLevel( byval lv as LogLevel )
+property LoggerType.MinLevel( byval lv as LogLevel )
     this.m_minlevel = lv
 end property
 
-property Logger_.Name( ) as ustring
+property LoggerType.Name( ) as ustring
     return this.m_name
 end property
 
-property Logger_.Name( byref n as ustring )
+property LoggerType.Name( byref n as ustring )
     this.m_name = n
 end property
 
@@ -160,28 +160,28 @@ end property
 '' What it does NOT avoid is evaluating the ARGUMENTS at the call site. That is
 '' irreducible at runtime in a language without lazy arguments, and it is what
 '' logmacros.tiko (phase 5) exists to remove.
-function Logger_.Enabled( byval lv as LogLevel ) as boolean
+function LoggerType.Enabled( byval lv as LogLevel ) as boolean
     return ( lv >= this.m_minlevel )
 end function
 
 '' THE LOGGER DOES NOT OWN ITS SINKS. Lifetime is the program's: a sink must
 '' outlive every logger holding it. That is what makes copying a Logger -- which
 '' With( ) requires -- cheap and obviously not a duplicated file handle.
-sub Logger_.AddSink( byval s as Sink ptr )
+sub LoggerType.AddSink( byval s as Sink ptr )
     if( s <> nullptr ) then this.m_sinks.Push( s )
 end sub
 
-sub Logger_.RemoveSink( byval s as Sink ptr )
+sub LoggerType.RemoveSink( byval s as Sink ptr )
     for i as long = this.m_sinks.Count( ) - 1 to 0 step -1
         if( this.m_sinks[i] = s ) then this.m_sinks.Remove( i )
     next
 end sub
 
-sub Logger_.ClearSinks( )
+sub LoggerType.ClearSinks( )
     this.m_sinks.Clear( )
 end sub
 
-function Logger_.SinkCount( ) as long
+function LoggerType.SinkCount( ) as long
     return this.m_sinks.Count( )
 end function
 
@@ -204,31 +204,31 @@ end function
 '' A CHILD IS A SNAPSHOT: changing the parent's MinLevel afterwards does not
 '' change the child's. That is the right default for what With( ) is for -- a
 '' subsystem that captures its logger once at startup.
-function Logger_.WithField( byref k as ustring, byref v as LogValue ) as Logger_
-    dim child as Logger_ = this
+function LoggerType.WithField( byref k as ustring, byref v as LogValue ) as LoggerType
+    dim child as LoggerType = this
     child.m_fields.Push( LogField( k, v ) )
     return child
 end function
 
-function Logger_.WithName( byref n as ustring ) as Logger_
-    dim child as Logger_ = this
+function LoggerType.WithName( byref n as ustring ) as LoggerType
+    dim child as LoggerType = this
     child.m_name = n
     return child
 end function
 
-sub Logger_.Emit( byref r as LogRecord )
+sub LoggerType.Emit( byref r as LogRecord )
     for i as long = 0 to this.m_sinks.Count( ) - 1
         this.m_sinks[i]->Write( r )
     next
 end sub
 
-sub Logger_.Flush( )
+sub LoggerType.Flush( )
     for i as long = 0 to this.m_sinks.Count( ) - 1
         this.m_sinks[i]->Flush( )
     next
 end sub
 
-function Logger_.Log( byval lv as LogLevel ) as LogEvent
+function LoggerType.Log( byval lv as LogLevel ) as LogEvent
     dim e as LogEvent
     e.m_owner   = @this
     e.m_enabled = this.Enabled( lv )
@@ -256,29 +256,29 @@ function Logger_.Log( byval lv as LogLevel ) as LogEvent
     return e
 end function
 
-function Logger_.Trace ( ) as LogEvent : return this.Log( LOG_TRACE ) : end function
-function Logger_.Debug ( ) as LogEvent : return this.Log( LOG_DEBUG ) : end function
-function Logger_.Info  ( ) as LogEvent : return this.Log( LOG_INFO  ) : end function
-function Logger_.Warn  ( ) as LogEvent : return this.Log( LOG_WARN  ) : end function
-function Logger_.Error( ) as LogEvent : return this.Log( LOG_ERROR ) : end function
-function Logger_.Fatal ( ) as LogEvent : return this.Log( LOG_FATAL ) : end function
+function LoggerType.Trace ( ) as LogEvent : return this.Log( LOG_TRACE ) : end function
+function LoggerType.Debug ( ) as LogEvent : return this.Log( LOG_DEBUG ) : end function
+function LoggerType.Info  ( ) as LogEvent : return this.Log( LOG_INFO  ) : end function
+function LoggerType.Warn  ( ) as LogEvent : return this.Log( LOG_WARN  ) : end function
+function LoggerType.Error( ) as LogEvent : return this.Log( LOG_ERROR ) : end function
+function LoggerType.Fatal ( ) as LogEvent : return this.Log( LOG_FATAL ) : end function
 
 '' The one-line form, expected to be the majority of call sites. It exists so
 '' that structured logging does not tax the case with nothing to capture. The
 '' overload pair resolves on ARITY, which is the one thing fbc overload
 '' resolution is reliable at.
-sub Logger_.Log( byval lv as LogLevel, byref m as ustring )
+sub LoggerType.Log( byval lv as LogLevel, byref m as ustring )
     if( this.Enabled( lv ) = FALSE ) then exit sub
     dim e as LogEvent = this.Log( lv )
     e.Msg( m )
 end sub
 
-sub Logger_.Trace ( byref m as ustring ) : this.Log( LOG_TRACE, m ) : end sub
-sub Logger_.Debug ( byref m as ustring ) : this.Log( LOG_DEBUG, m ) : end sub
-sub Logger_.Info  ( byref m as ustring ) : this.Log( LOG_INFO , m ) : end sub
-sub Logger_.Warn  ( byref m as ustring ) : this.Log( LOG_WARN , m ) : end sub
-sub Logger_.Error( byref m as ustring ) : this.Log( LOG_ERROR, m ) : end sub
-sub Logger_.Fatal ( byref m as ustring ) : this.Log( LOG_FATAL, m ) : end sub
+sub LoggerType.Trace ( byref m as ustring ) : this.Log( LOG_TRACE, m ) : end sub
+sub LoggerType.Debug ( byref m as ustring ) : this.Log( LOG_DEBUG, m ) : end sub
+sub LoggerType.Info  ( byref m as ustring ) : this.Log( LOG_INFO , m ) : end sub
+sub LoggerType.Warn  ( byref m as ustring ) : this.Log( LOG_WARN , m ) : end sub
+sub LoggerType.Error( byref m as ustring ) : this.Log( LOG_ERROR, m ) : end sub
+sub LoggerType.Fatal ( byref m as ustring ) : this.Log( LOG_FATAL, m ) : end sub
 
 '' ============================================================== LogEvent impl
 constructor LogEvent( )

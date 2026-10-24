@@ -26,7 +26,7 @@ using outcome
 ''   host          OS_NAME, ARCH_NAME, OsVersion, Hostname, UserName, ProcessId,
 ''                 CpuCount (the processors this process may run on), PageSize,
 ''                 TotalMemory, IsTerminal.  Home and config folders are std/fs's.
-''   exit          Exit_( code ) is END code: module destructors run, files flush.
+''   exit          ExitWith( code ) is END code: module destructors run, files flush.
 ''                 Abort( ) ends at once with no cleanup.  ('Exit' is a keyword.)
 ''   interrupts    CatchInterrupt( ) turns Ctrl-C, Ctrl-Break, SIGTERM, SIGHUP and the
 ''                 console's close/logoff/shutdown into a flag the program polls
@@ -170,7 +170,7 @@ public declare function PageSize( ) as long
 public declare function TotalMemory( ) as ulongint
 public declare function IsTerminal( byval fd as long ) as boolean
 
-public declare sub Exit_( byval code as long )
+public declare sub ExitWith( byval code as long )
 public declare sub Abort( )
 
 public declare function CatchInterrupt( byval forceOnSecond as boolean = TRUE ) as OsResultBool
@@ -258,6 +258,6 @@ public function ExpandEnv( byref s as const ustring ) as ustring
     return r
 end function
 
-public sub Exit_( byval code as long )
+public sub ExitWith( byval code as long )
     end code
 end sub

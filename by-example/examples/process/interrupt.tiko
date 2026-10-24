@@ -13,6 +13,6 @@ loop
 print "saved"; saved; " records"
 if os.Interrupted( ) then
     print "interrupted by kind"; os.LastInterrupt( )
-    os.Exit_( 130 )
+    os.ExitWith( 130 )
 end if
 print "no interruption"

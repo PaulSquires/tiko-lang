@@ -7,7 +7,7 @@ Returns a child logger that adds one field to every record it makes.
 ## Syntax
 
 ```freebasic
-WithField( k, v as LogValue ) as Logger_
+WithField( k, v as LogValue ) as LoggerType
 ```
 
 ## Examples

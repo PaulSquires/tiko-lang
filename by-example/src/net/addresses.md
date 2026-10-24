@@ -27,7 +27,7 @@ as IPv6 (`::ffff:192.168.0.1`) is answered as the IPv4 address it holds;
 
 `ParseSocketAddress` needs the port, and brackets around an IPv6 address,
 because its colons would otherwise run into the port's. `Loopback( )` and
-`Any_( )` are the two addresses a program names most: this machine, and every
+`AnyAddress( )` are the two addresses a program names most: this machine, and every
 interface of it.
 
 `Resolve( host, port )` asks the system for a name's addresses and returns all

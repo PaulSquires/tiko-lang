@@ -52,8 +52,8 @@ SUITE( fbc_tests.tui.tuiinput_ )
 		dim as ushort code_( ... ) = { _
 			TUIKEY_UP, TUIKEY_DOWN, TUIKEY_RIGHT, _
 			TUIKEY_LEFT, TUIKEY_HOME, TUIKEY_HOME, _
-			TUIKEY_HOME, TUIKEY_END_, TUIKEY_END_, _
-			TUIKEY_END_, TUIKEY_INSERT, TUIKEY_DELETE, _
+			TUIKEY_HOME, TUIKEY_END, TUIKEY_END, _
+			TUIKEY_END, TUIKEY_INSERT, TUIKEY_DELETE, _
 			TUIKEY_PAGEUP, TUIKEY_PAGEDOWN, TUIKEY_F1, _
 			TUIKEY_F2, TUIKEY_F3, TUIKEY_F4, _
 			TUIKEY_F1, TUIKEY_F5, TUIKEY_F6, _
@@ -446,7 +446,7 @@ SUITE( fbc_tests.tui.tuiinput_ )
 		k.mods = TUIMOD_CTRL or TUIMOD_ALT or TUIMOD_SHIFT
 		CU_ASSERT_EQUAL( TuiKeyName( k ), "Ctrl+Alt+Shift+F5" )
 
-		k.code = TUIKEY_END_
+		k.code = TUIKEY_END
 		k.mods = 0
 		CU_ASSERT_EQUAL( TuiKeyName( k ), "End" )
 

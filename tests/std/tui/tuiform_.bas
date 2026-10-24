@@ -68,7 +68,7 @@ SUITE( fbc_tests.tui.tuiform_ )
 		'' Home and End
 		dim as TuiEvent e
 		e.kind = TUIEVENT_KEY
-		e.key.code = TUIKEY_END_
+		e.key.code = TUIKEY_END
 		ti.HandleEvent( e )
 		CU_ASSERT_EQUAL( st.cursor, 6 )
 		e.key.code = TUIKEY_HOME

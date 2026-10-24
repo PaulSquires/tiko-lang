@@ -199,8 +199,8 @@ Jump to: [Print text to the console](#print-text-to-the-console) · [Ask the use
 | [TuiFill](Modern-Tui-TuiFill) | Returns a constraint that shares the space left over, by weight. | `std/tui` |
 | [TuiPercent](Modern-Tui-TuiPercent) | Returns a constraint for a percentage of the whole space being split. | `std/tui` |
 | [TuiRatio](Modern-Tui-TuiRatio) | Returns a constraint for a fraction of the whole space, such as one third. | `std/tui` |
-| [TuiMin_](Modern-Tui-TuiMin) | Returns a constraint for at least n cells, more if there is room. | `std/tui` |
-| [TuiMax_](Modern-Tui-TuiMax) | Returns a constraint for at most n cells. | `std/tui` |
+| [TuiAtLeast](Modern-Tui-TuiAtLeast) | Returns a constraint for at least n cells, more if there is room. | `std/tui` |
+| [TuiAtMost](Modern-Tui-TuiAtMost) | Returns a constraint for at most n cells. | `std/tui` |
 | [TuiConstraint](Modern-Tui-TuiConstraint) | Holds one sizing rule for a split, such as a fixed length or a share of the rest. | `std/tui` |
 | [TuiSolve](Modern-Tui-TuiSolve) | Returns the sizes that constraints give a total, adding up to exactly that total. | `std/tui` |
 | [TuiCenter](Modern-Tui-TuiCenter) | Returns a rectangle of a given size centred in another, as for a dialog. | `std/tui` |

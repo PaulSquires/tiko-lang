@@ -68,7 +68,7 @@ Home, config and cache folders are in [std/fs](Category-Filesystem).
 
 ## Exit
 
-`os.Exit_( code )` ends the program the way `end code` does: module destructors run and open files are flushed. `os.Abort( )` ends it at once with no cleanup at all. The trailing underscore is there because `Exit` is a keyword.
+`os.ExitWith( code )` ends the program the way `end code` does: module destructors run and open files are flushed. `os.Abort( )` ends it at once with no cleanup at all. The trailing underscore is there because `Exit` is a keyword.
 
 ## Ctrl-C And Termination
 

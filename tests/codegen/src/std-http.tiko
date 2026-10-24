@@ -358,7 +358,7 @@ sub Main_( )
     dim slis as net.TcpListener
     '' dual-stack, so "localhost" answers on ::1 as well as 127.0.0.1 (a refused connect
     '' costs Windows about 2 s)
-    Check( "Bind tls", slis.Bind( net.SocketAddress( net.Any_( true ), 0 ) ).IsOk( ) )
+    Check( "Bind tls", slis.Bind( net.SocketAddress( net.AnyAddress( true ), 0 ) ).IsOk( ) )
     dim as long sport = slis.LocalAddress( ).Value( ).Port
     dim secure as Listen
     secure.lis = @slis

@@ -377,7 +377,7 @@ function TuiList.HandleEvent( byref e as TuiEvent ) as boolean
     case TUIKEY_PAGEUP   : state->selected -= h
     case TUIKEY_PAGEDOWN : state->selected += h
     case TUIKEY_HOME     : state->selected = 0
-    case TUIKEY_END_     : state->selected = items.Count( ) - 1
+    case TUIKEY_END     : state->selected = items.Count( ) - 1
     case else            : return FALSE
     end select
 
@@ -504,7 +504,7 @@ function TuiTable.HandleEvent( byref e as TuiEvent ) as boolean
     case TUIKEY_PAGEUP   : state->selected -= h
     case TUIKEY_PAGEDOWN : state->selected += h
     case TUIKEY_HOME     : state->selected = 0
-    case TUIKEY_END_     : state->selected = rows.Count( ) - 1
+    case TUIKEY_END     : state->selected = rows.Count( ) - 1
     case else            : return FALSE
     end select
 

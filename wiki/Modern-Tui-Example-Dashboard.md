@@ -136,7 +136,7 @@ function DashApp.Update( byref e as TuiEvent ) as TuiCmd
 		case TUIKEY_PAGEUP   : procState.selected -= h
 		case TUIKEY_PAGEDOWN : procState.selected += h
 		case TUIKEY_HOME     : procState.selected = 0
-		case TUIKEY_END_     : procState.selected = procs.Count( ) - 1
+		case TUIKEY_END     : procState.selected = procs.Count( ) - 1
 		case else            : return TuiNone( )
 		end select
 		if( procState.selected < 0 ) then procState.selected = 0

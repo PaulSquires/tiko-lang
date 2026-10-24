@@ -7,7 +7,7 @@ Returns a child logger with its own component name and the parent's sinks.
 ## Syntax
 
 ```freebasic
-WithName( n ) as Logger_
+WithName( n ) as LoggerType
 ```
 
 ## Examples

@@ -1,5 +1,5 @@
 '' std/tui, a real module since 2026-10-10 (it was a facade over fb/tui.bi): TuiRectOf, the
-'' public TuiMin_ and TUIKEY_END_, TuiRgb, TuiStringWidth, and TUI_UCD_VERSION -- a header
+'' public TuiAtLeast and TUIKEY_END, TuiRgb, TuiStringWidth, and TUI_UCD_VERSION -- a header
 '' #define, now a public constant -- bare under 'using tui'. Nothing touches the terminal.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/tui.bas -o tests/modules/stdtui.exe

@@ -1,5 +1,5 @@
 '' std/os phase P4 (C:\dev\docs\tiko-stdlib\RFC-0001 section 8) and std/tasks' InterruptContext.
-'' Prints "ok" and ends through os.Exit_( 7 ).  The real-interrupt half runs on Linux only
+'' Prints "ok" and ends through os.ExitWith( 7 ).  The real-interrupt half runs on Linux only
 '' (kill( getpid( ), SIGINT )); Windows' CTRL_BREAK test needs a child process (std/process, P5).
 #import "std/os"
 #import "std/tasks"
@@ -97,5 +97,5 @@ Check( os.WaitInterrupt( 20 ) = FALSE, "reset drains" )
 os.ReleaseInterrupt( )
 
 if( fails = 0 ) then print "ok"
-os.Exit_( 7 )
+os.ExitWith( 7 )
 print "not reached"

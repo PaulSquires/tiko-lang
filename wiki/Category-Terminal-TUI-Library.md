@@ -418,8 +418,8 @@ A constraint solver over one rectangle, split horizontally or vertically. No CSS
 TuiLength( n )          '' exactly n cells
 TuiPercent( n )         '' n% of the total
 TuiRatio( num, den )
-TuiMin_( n )            '' at least n
-TuiMax_( n )            '' at most n
+TuiAtLeast( n )            '' at least n
+TuiAtMost( n )            '' at most n
 TuiFill( weight )       '' share what is left, by weight (default 1)
 
 dim as TuiConstraintArray cs
@@ -470,7 +470,7 @@ TuiMouse
     .mods
 ```
 
-Named keys: ENTER, TAB, BACKSPACE, ESCAPE, UP, DOWN, LEFT, RIGHT, HOME, END_, PAGEUP, PAGEDOWN, INSERT, DELETE, F1..F12. END_ has the underscore because END is a statement.
+Named keys: ENTER, TAB, BACKSPACE, ESCAPE, UP, DOWN, LEFT, RIGHT, HOME, END, PAGEUP, PAGEDOWN, INSERT, DELETE, F1..F12.
 
 ```text
 TuiKeyName( k )         "Ctrl+Shift+F5", for display and for logs
@@ -799,12 +799,12 @@ tiko is case-insensitive and has a large statement vocabulary, so several obviou
 | Name | Why it is unavailable | What the module uses |
 | --- | --- | --- |
 | `kind` | collides with the abstract `Kind( )` | `borderKind`, `graphKind`, `msgKind`, `meterStyle` |
-| `end` | a statement | `TUIKEY_END_` |
+| `end` | a statement | `TUIKEY_END` |
 | `next` | a statement | `TuiFocusRing.Next_` |
 | `line` | a statement | `TuiCanvas.Line_` |
-| `min`, `max` | intrinsics | `TuiMin_`, `TuiMax_` |
+| `min`, `max` | intrinsics | `TuiAtLeast`, `TuiAtMost` |
 | `dim` | a statement | `dim_` on TuiTheme |
-| `error` | an intrinsic | `TUIMSG_ERROR_` |
+| `error` | an intrinsic | `TUIMSG_ERROR` |
 | `focused` | collides in some widgets | `focused_` |
 | `from`, `to` | `to` is a keyword | `from_` and `to_` on TuiMeter |
 | `open` | a statement | `open_` on TuiSelectState |
@@ -984,8 +984,8 @@ Every entry, grouped by task. [Console and terminal](Functions-Console) lists th
 | [TuiFill](Modern-Tui-TuiFill) | Returns a constraint that shares the space left over, by weight. | `std/tui` |
 | [TuiPercent](Modern-Tui-TuiPercent) | Returns a constraint for a percentage of the whole space being split. | `std/tui` |
 | [TuiRatio](Modern-Tui-TuiRatio) | Returns a constraint for a fraction of the whole space, such as one third. | `std/tui` |
-| [TuiMin_](Modern-Tui-TuiMin) | Returns a constraint for at least n cells, more if there is room. | `std/tui` |
-| [TuiMax_](Modern-Tui-TuiMax) | Returns a constraint for at most n cells. | `std/tui` |
+| [TuiAtLeast](Modern-Tui-TuiAtLeast) | Returns a constraint for at least n cells, more if there is room. | `std/tui` |
+| [TuiAtMost](Modern-Tui-TuiAtMost) | Returns a constraint for at most n cells. | `std/tui` |
 | [TuiConstraint](Modern-Tui-TuiConstraint) | Holds one sizing rule for a split, such as a fixed length or a share of the rest. | `std/tui` |
 | [TuiSolve](Modern-Tui-TuiSolve) | Returns the sizes that constraints give a total, adding up to exactly that total. | `std/tui` |
 | [TuiCenter](Modern-Tui-TuiCenter) | Returns a rectangle of a given size centred in another, as for a dialog. | `std/tui` |

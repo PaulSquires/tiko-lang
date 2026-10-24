@@ -36,15 +36,15 @@ SUITE( fbc_tests.tui.tuilayout_ )
 			case 2  : cs.Push( TuiLength( 12 ) ) : cs.Push( TuiFill( ) ) : cs.Push( TuiLength( 9 ) )
 			case 3  : cs.Push( TuiFill( 1 ) ) : cs.Push( TuiFill( 2 ) ) : cs.Push( TuiFill( 1 ) )
 			case 4  : cs.Push( TuiRatio( 1, 3 ) ) : cs.Push( TuiRatio( 2, 3 ) )
-			case 5  : cs.Push( TuiMin_( 10 ) ) : cs.Push( TuiFill( ) )
-			case 6  : cs.Push( TuiMax_( 20 ) ) : cs.Push( TuiFill( ) )
+			case 5  : cs.Push( TuiAtLeast( 10 ) ) : cs.Push( TuiFill( ) )
+			case 6  : cs.Push( TuiAtMost( 20 ) ) : cs.Push( TuiFill( ) )
 			case 7  : cs.Push( TuiLength( 50 ) ) : cs.Push( TuiLength( 50 ) ) : cs.Push( TuiLength( 50 ) )
-			case 8  : cs.Push( TuiMin_( 40 ) ) : cs.Push( TuiMin_( 40 ) ) : cs.Push( TuiMin_( 40 ) )
+			case 8  : cs.Push( TuiAtLeast( 40 ) ) : cs.Push( TuiAtLeast( 40 ) ) : cs.Push( TuiAtLeast( 40 ) )
 			case 9  : cs.Push( TuiPercent( 33 ) ) : cs.Push( TuiPercent( 33 ) ) : cs.Push( TuiPercent( 34 ) )
 			case 10 : cs.Push( TuiPercent( 80 ) ) : cs.Push( TuiPercent( 80 ) )
 			case 11 : cs.Push( TuiLength( 1 ) ) : cs.Push( TuiFill( ) ) : cs.Push( TuiLength( 1 ) )
-			case 12 : cs.Push( TuiFill( 3 ) ) : cs.Push( TuiLength( 7 ) ) : cs.Push( TuiFill( 5 ) ) : cs.Push( TuiMin_( 4 ) )
-			case 13 : cs.Push( TuiRatio( 1, 7 ) ) : cs.Push( TuiFill( 2 ) ) : cs.Push( TuiMax_( 6 ) ) : cs.Push( TuiPercent( 25 ) )
+			case 12 : cs.Push( TuiFill( 3 ) ) : cs.Push( TuiLength( 7 ) ) : cs.Push( TuiFill( 5 ) ) : cs.Push( TuiAtLeast( 4 ) )
+			case 13 : cs.Push( TuiRatio( 1, 7 ) ) : cs.Push( TuiFill( 2 ) ) : cs.Push( TuiAtMost( 6 ) ) : cs.Push( TuiPercent( 25 ) )
 			end select
 
 			for total as long = 1 to 200
@@ -128,13 +128,13 @@ SUITE( fbc_tests.tui.tuilayout_ )
 		CU_ASSERT_EQUAL( z[1].w, 50 )
 
 		'' MIN takes at least n, and grows into slack when nothing else can
-		cs.Clear( ) : cs.Push( TuiMin_( 10 ) ) : cs.Push( TuiLength( 20 ) )
+		cs.Clear( ) : cs.Push( TuiAtLeast( 10 ) ) : cs.Push( TuiLength( 20 ) )
 		dim as TuiRectArray d = TuiSplitH( TuiRectOf( 0, 0, 100, 1 ), cs )
 		CU_ASSERT_EQUAL( d[0].w, 80 )
 		CU_ASSERT_EQUAL( d[1].w, 20 )
 
 		'' MAX takes n when there is room
-		cs.Clear( ) : cs.Push( TuiMax_( 20 ) ) : cs.Push( TuiFill( ) )
+		cs.Clear( ) : cs.Push( TuiAtMost( 20 ) ) : cs.Push( TuiFill( ) )
 		dim as TuiRectArray e = TuiSplitH( TuiRectOf( 0, 0, 100, 1 ), cs )
 		CU_ASSERT_EQUAL( e[0].w, 20 )
 		CU_ASSERT_EQUAL( e[1].w, 80 )
@@ -213,7 +213,7 @@ SUITE( fbc_tests.tui.tuilayout_ )
 		'' FILL is sacrificed before a MAX, and MAX before a LENGTH
 		dim as TuiConstraintArray ord
 		ord.Push( TuiLength( 30 ) )
-		ord.Push( TuiMax_( 30 ) )
+		ord.Push( TuiAtMost( 30 ) )
 		ord.Push( TuiFill( ) )
 		dim as TuiRectArray c = TuiSplitH( TuiRectOf( 0, 0, 40, 1 ), ord )
 		CU_ASSERT_EQUAL( c[0].w, 30 )      '' LENGTH survives
@@ -227,9 +227,9 @@ SUITE( fbc_tests.tui.tuilayout_ )
 	'' beats a layout that overflows its parent.
 	TEST( rfc0006_s3_impossible_minimums_still_sum )
 		dim as TuiConstraintArray cs
-		cs.Push( TuiMin_( 40 ) )
-		cs.Push( TuiMin_( 40 ) )
-		cs.Push( TuiMin_( 40 ) )
+		cs.Push( TuiAtLeast( 40 ) )
+		cs.Push( TuiAtLeast( 40 ) )
+		cs.Push( TuiAtLeast( 40 ) )
 
 		for total as long = 1 to 130
 			dim as TuiRectArray p = TuiSplitH( TuiRectOf( 0, 0, total, 1 ), cs )

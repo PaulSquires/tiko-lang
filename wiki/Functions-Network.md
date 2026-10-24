@@ -21,7 +21,7 @@ Jump to: [Parse, print and classify IP addresses](#parse-print-and-classify-ip-a
 | [Ipv4](Category-Net#ip-addresses) | Returns the IPv4 address made of four numbers. | `std/net` |
 | [IpFromBytes](Category-Net#ip-addresses) | Returns the address held in 4 or 16 bytes. | `std/net` |
 | [Loopback](Category-Net#ip-addresses) | Returns 127.0.0.1, or ::1 when asked for IPv6. | `std/net` |
-| [Any_](Category-Net#ip-addresses) | Returns 0.0.0.0 or ::, the address that binds every interface. | `std/net` |
+| [AnyAddress](Category-Net#ip-addresses) | Returns 0.0.0.0 or ::, the address that binds every interface. | `std/net` |
 | [SocketAddress](Category-Net#ip-addresses) | Holds an IP address and a port, printed as 1.2.3.4:80 or [::1]:80. | `std/net` |
 | [ParseSocketAddress](Category-Net#ip-addresses) | Parses an address and port, with brackets around IPv6. | `std/net` |
 
