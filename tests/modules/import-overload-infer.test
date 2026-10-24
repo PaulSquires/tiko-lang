@@ -1,0 +1,12 @@
+'' A MEMBER CALL ON A 'VAR' FROM AN OVERLOADED IMPORTED PROCEDURE. Inferring the var's type
+'' for a generic-method lookup ran the overload set's exact-match test, which resolved each
+'' candidate's first parameter -- 'Host', written unqualified in the module -- from the
+'' CALLER's scope, and ResolveTypeRef records its answer on that node. 'r.IsOk( )' was then
+'' TKO0994: std/tui's 'var r = tui.TuiRun( app, opts ) : r.IsOk( )' (book Ch 34 tledger).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/ovinfer/main.tiko -o tests/modules/ovinfer.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/ovinfer.exe
+'' EXPECT-RUN-OUT: true 42
+'' EXPECT-RUN-OUT: 43

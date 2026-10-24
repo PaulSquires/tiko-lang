@@ -1,0 +1,15 @@
+#import "./rm"
+type MyApp extends rm.Host
+    declare function Init( ) as long override
+end type
+function MyApp.Init( ) as long
+    return 40
+end function
+dim app as MyApp
+dim o as rm.Opts
+o.n = 2
+'' 'var' from an overloaded imported call, then a member call on it: the statement used to be
+'' dropped (TKO0994).
+var r = rm.Run( app, o )
+print str( r.IsOk( ) ) & " " & str( r.Value( ) )
+print str( rm.Run( app, o, 1 ).Value( ) )

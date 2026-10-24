@@ -1,0 +1,17 @@
+'' The module half of tests/modules/import-overload-infer: an overloaded procedure whose first
+'' parameter is a type this module names without a qualifier.
+#module "rm"
+#import "std/outcome"
+public type Opts
+    as long n
+end type
+public type Host extends object
+    declare abstract function Init( ) as long
+end type
+public type RunResult as outcome.Result( of long, Opts )
+public function Run overload( byref app as Host, byval o as Opts, byval x as long ) as RunResult
+    return outcome.Ok( of long, Opts )( app.Init( ) + o.n + x )
+end function
+public function Run overload( byref app as Host, byval o as Opts ) as RunResult
+    return Run( app, o, 0 )
+end function

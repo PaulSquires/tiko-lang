@@ -332,8 +332,10 @@ private function InferArgType_ _
                             end if
                         next
                         if p0 <> Tko.NODE_NONE then
+                            dim as Tko.ScopeId osc = osy->parent
+                            if osc = Tko.SCOPE_NONE then osc = scope_
                             dim as Tko.TypeId pt0 = _
-                                ResolveTypeRef( c, StmtOf( c, p0 )->a, scope_ )
+                                ResolveTypeRef( c, StmtOf( c, p0 )->a, osc )
                             if pt0 <> Tko.TYPE_NONE then
                                 if c.types->Unqualify( pt0 ) = a0u then
                                     dim as Tko.TypeId ort = osy->type_
