@@ -9,7 +9,7 @@
 ''
 '' The symbol's payload is the DECLARATION node -- a definition joins its declare rather
 '' than chaining beside it -- so the two nodes are both to hand here and nowhere else.
-private sub CheckByrefResultAgrees_ ( byref c as Ctx, byval id as NodeId )
+sub CheckByrefResultAgrees_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if sp->b = NODE_NONE then return
@@ -39,7 +39,7 @@ declare function ByrefCallValue_ ( byref c as Ctx, byval v as NodeId ) as boolea
 ''     static i as long             error 318   -- the SAME SIZE, and still refused
 ''     static i as const integer    error 318   -- the qualifier counts
 ''     ...and 'byref as const integer' takes the const one, so it is identity, not width.
-private sub CheckByrefResultType_ _
+sub CheckByrefResultType_ _
     ( byref c as Ctx, byval id as NodeId, byval byrefResult as boolean, _
       byval resultType as TypeId )
 
@@ -249,7 +249,7 @@ end function
 '' THE BASE OF THE CHAIN IS WHAT MATTERS: 'x.i' is local because x is, and 'array( i )'
 '' because array is. So the walk goes down to the head of the member and index chain, and
 '' a CALL is refused outright unless it returns byref itself.
-private sub CheckByrefResultValue_ _
+sub CheckByrefResultValue_ _
     ( byref c as Ctx, byval id as NodeId, byval byrefResult as boolean )
 
     if byrefResult = false then return
@@ -404,7 +404,7 @@ end sub
 ''     Two( 0, 1 ) = 42     -- two arguments                    no warning
 ''     Plain( 0 ) = 42      -- a byval result                   no warning
 ''     SlotAt( 0 = 42 )     ( SlotAt( 0 ) ) = 42     NoArg( ) = 42    no warning
-private sub CheckEqParsedAsArg_ ( byref c as Ctx, byval id as NodeId )
+sub CheckEqParsedAsArg_ ( byref c as Ctx, byval id as NodeId )
     if c.info->AmbiguousOf( id ) <> AMB_CALL then return
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if sp->a = NODE_NONE then return
@@ -466,7 +466,7 @@ end sub
 '' is re-read as a call instead (ReadCallAssignAsCall_), and with two or more it is the byref
 '' result's assignment -- so this is what is left: a call that returns a value, not a place.
 '' A property setter and an array element are assignments, and are not calls to a procedure.
-private sub CheckByvalResultTarget_ ( byref c as Ctx, byval id as NodeId )
+sub CheckByvalResultTarget_ ( byref c as Ctx, byval id as NodeId )
     if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then return
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if sp->a = NODE_NONE then return

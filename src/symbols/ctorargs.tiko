@@ -286,7 +286,7 @@ end function
 
 '' Is 't' a type these checks judge, and 'init' a value they judge? Not an anonymous,
 '' synthesised or generic type; not a UDT value (JudgeConversion_'s), a tuple or 'this'.
-private function StructorJudged_ ( byref c as Ctx, byref t as TypeId, byval init as NodeId ) as boolean
+function StructorJudged_ ( byref c as Ctx, byref t as TypeId, byval init as NodeId ) as boolean
     t = c.types->Unqualify( t )
     if (t = TYPE_NONE) orelse (c.types->Kind( t ) <> TK_UDT) then return false
     dim as InternId tn = c.types->NameOf( t )
@@ -375,7 +375,7 @@ end function
 '' -- otherwise error 181 (58 for a few), and with neither declared too. tiko accepted all
 '' of them, or stopped on TKO0994; and refused 'return d' over a type with only 'let(
 '' byval as long )', which fbc takes. 'byAssign' is true for 'function ='.
-private function ResultValueRefused_ _
+function ResultValueRefused_ _
     ( byref c as Ctx, byval t as TypeId, byval v as NodeId, byval byAssign as boolean ) as boolean
     if StructorJudged_( c, t, v ) = false then return false
     if byAssign = false then

@@ -29,6 +29,7 @@
 namespace Tko.Vis
 
 #include once "symbols/visctx.ti"
+#include once "symbols/semdecl.ti"
 
 '' The TYPE a symbol was declared in, or TYPE_NONE. A member's scope is the type's own.
 private function OwningType_ _
@@ -46,7 +47,7 @@ end function
 
 '' 'extends' is a FIELD NAMED 'base' at offset 0 -- the same fact vtable.bas leans on --
 '' so the base type is that field's type.
-private function BaseOf_ ( byref c as Ctx, byval t as TypeId ) as TypeId
+function BaseOf_ ( byref c as Ctx, byval t as TypeId ) as TypeId
     if t = TYPE_NONE then return TYPE_NONE
     if c.types->Kind( t ) <> TK_UDT then return TYPE_NONE
     dim as InternId tn = c.types->NameOf( t )
@@ -65,7 +66,7 @@ private function BaseOf_ ( byref c as Ctx, byval t as TypeId ) as TypeId
     return b->type_
 end function
 
-private function DerivesFrom_ _
+function DerivesFrom_ _
     ( byref c as Ctx, byval derived as TypeId, byval base_ as TypeId ) as boolean
 
     dim as TypeId cur = derived
@@ -190,7 +191,7 @@ end sub
 ''
 '' AN ARROW THROUGH A UDT IS NOT REPORTED, only through a builtin: a type may overload
 '' 'operator ->', and that question is not measured here.
-private function IsThisBase_ ( byref c as Ctx, byval n as NodeId ) as boolean
+function IsThisBase_ ( byref c as Ctx, byval n as NodeId ) as boolean
     if n = NODE_NONE then return false
     if c.ast->Kind( n ) <> N_IDENT then return false
     dim as InternId nm = _
@@ -281,7 +282,7 @@ end sub
 ''
 '' A POINTER IS NOT A DECLARATION OF ONE. 'dim as T ptr p' constructs nothing; only 'new T'
 '' does, and that names its type in an expression where no symbol carries it.
-private function StructorOf_ _
+function StructorOf_ _
     ( byref c as Ctx, byval udt as TypeId, byref nm as string ) as Symbol ptr
 
     if udt = TYPE_NONE then return nullptr
@@ -331,7 +332,7 @@ end function
 '' How many parameters this declaration REQUIRES -- a defaulted one is not required, and
 '' neither is an ellipsis. A constructor that requires none is a DEFAULT constructor, and
 '' it is the one a bare 'dim as T x' calls.
-private function RequiredParams_ ( byref c as Ctx, byval decl as NodeId ) as int32
+function RequiredParams_ ( byref c as Ctx, byval decl as NodeId ) as int32
     if decl = NODE_NONE then return -1
     if c.ast->Kind( decl ) <> N_PROC then return -1
     dim as StmtPayload ptr sp = _
@@ -351,7 +352,7 @@ end function
 
 '' Every parameter of a declaration, defaulted or not. Lives here, before the
 '' latechecks include, because the array default-constructor test there needs it.
-private function ParamCount_ ( byref c as Ctx, byval decl as NodeId ) as int32
+function ParamCount_ ( byref c as Ctx, byval decl as NodeId ) as int32
     if decl = NODE_NONE then return -1
     if c.ast->Kind( decl ) <> N_PROC then return -1
     dim as StmtPayload ptr sp = _
@@ -823,7 +824,6 @@ private sub CheckArraySubscript_ ( byref c as Ctx, byval id as NodeId )
     next
 end sub
 
-#include once "symbols/assigntarget.tiko"
 
 '' INSIDE A CONST METHOD, 'this' IS CONST -- so a FIELD CANNOT BE WRITTEN. fbc error 119,
 '' the same "Cannot modify a constant" it gives for a named constant.
@@ -971,7 +971,7 @@ end sub
 ''     f = p      error 181        n = p      OK    (n as integer)
 ''     p = f      error 181        p = 1      OK
 ''     p = 1.0    error 181        f = cast( single, cast( integer, p ) )   OK
-private sub PtrFloatPair_ _
+sub PtrFloatPair_ _
     ( byref c as Ctx, byval at as NodeId, byval lt as TypeId, byval rt as TypeId )
 
     if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return
@@ -998,7 +998,6 @@ private sub PtrFloatPair_ _
     c.diags->Report( TKO0670, PointRange( c.ast->Loc( at ) ) )
 end sub
 
-#include once "symbols/assigncheck.tiko"
 
 '' '&=' CONCATENATES, so its target must be a STRING -- fbc error 20, "Type mismatch".
 '' Measured: 'i &= 1' over an integer and 'd &= 1' over a double are both refused, while
@@ -1102,7 +1101,6 @@ private sub CheckDelete_ ( byref c as Ctx, byval id as NodeId, byval here as Typ
     CheckOneStructor_( c, pointee, "__dtor", here, c.ast->Loc( id ), 0 )
 end sub
 
-#include once "symbols/byrefcheck.tiko"
 #include once "symbols/defcheck.tiko"
 #include once "symbols/latesweeps2.tiko"
 

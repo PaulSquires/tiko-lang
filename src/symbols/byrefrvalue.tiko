@@ -17,7 +17,7 @@
 '' Included from latechecks.tiko, before CheckByrefBinding_, which asks it after its own
 '' literal and call shapes.
 
-private function ByrefInitIsValue_ ( byref c as Ctx, byval e as NodeId ) as boolean
+function ByrefInitIsValue_ ( byref c as Ctx, byval e as NodeId ) as boolean
     for depth as int32 = 0 to 15
         if e = NODE_NONE then return false
         select case c.ast->Kind( e )

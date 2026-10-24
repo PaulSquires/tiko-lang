@@ -316,7 +316,7 @@ end sub
 '' function 'as boolean' are fbc's 181 / 24 / 181 (2026-10-13), and tiko took all three.
 '' A POINTER CONSTANT is fbc's warning 5 only, into any of these -- 'by = NP' with 'const NP
 '' as any ptr = 0', so 'by = nullptr' too -- and is TKO0968's, not this error's.
-private function PtrIntNarrow_ ( byref c as Ctx, byval lt as TypeId, byval rt as TypeId, byval rhs as NodeId ) as boolean
+function PtrIntNarrow_ ( byref c as Ctx, byval lt as TypeId, byval rt as TypeId, byval rhs as NodeId ) as boolean
     if (lt = TYPE_NONE) orelse (rt = TYPE_NONE) then return false
     '' ONLY A RUN-TIME POINTER: an address, a variable or a field. 'b = cptr( any ptr, 0 )' is a
     '' constant null, and fbc takes it into a byte (numbers/cast-nullptr.bas).

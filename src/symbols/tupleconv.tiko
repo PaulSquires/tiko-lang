@@ -24,7 +24,7 @@
 '' from a long is refused too (fbc's 7 there).
 
 '' Is this a tuple -- the kind, or the synthesized name Check gives one?
-private function TcTuple_ ( byref c as Ctx, byval t as TypeId ) as boolean
+function TcTuple_ ( byref c as Ctx, byval t as TypeId ) as boolean
     t = c.types->Unqualify( t )
     if c.types->Kind( t ) = TK_TUPLE then return true
     if c.types->Kind( t ) <> TK_UDT then return false
@@ -35,7 +35,7 @@ private function TcTuple_ ( byref c as Ctx, byval t as TypeId ) as boolean
 end function
 
 '' Does a UDT need constructing: a constructor of its own, a vtable, or a field that does?
-private function TcNeedsCtor_ ( byref c as Ctx, byval t as TypeId, byval depth as int32 ) as boolean
+function TcNeedsCtor_ ( byref c as Ctx, byval t as TypeId, byval depth as int32 ) as boolean
     if depth > 8 then return false
     t = c.types->Unqualify( t )
     if c.types->Kind( t ) <> TK_UDT then return false
@@ -129,7 +129,6 @@ private function TcLetTakes_ ( byref c as Ctx, byval eu as TypeId, byval vu as T
     return false
 end function
 
-declare function TupleSpelling_ ( byref c as Ctx, byval t as TypeId ) as string  '' latesweeps4.tiko
 
 '' A type as the source spells it: '(integer, integer)', never the '$tup:8:8' key.
 private function TcName_ ( byref c as Ctx, byval t as TypeId ) as string
@@ -187,7 +186,7 @@ end function
 '' The first var-len 'string' field of t -- or 'ustring' too, with wantU -- through record
 '' fields, or 0. A type with a constructor, or a base, builds its fields itself and is not
 '' judged: 'type( ... )' over one is a constructor call.
-private function TlTextField_ _
+function TlTextField_ _
     ( byref c as Ctx, byval t as TypeId, byval depth as int32, byval wantU as boolean ) as Symbol ptr
     if depth > 8 then return nullptr
     t = c.types->Unqualify( t )

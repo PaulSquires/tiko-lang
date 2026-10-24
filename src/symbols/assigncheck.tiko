@@ -125,7 +125,7 @@ private function ThisObjectTarget_( byref c as Ctx, byval n as NodeId ) as boole
     return c.types->Kind( c.types->Unqualify( c.types->Inner( t ) ) ) = TK_UDT
 end function
 
-private sub CheckPtrAssign_ _
+sub CheckPtrAssign_ _
     ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId = TYPE_NONE, _
       byval byrefResult as boolean = false )
     dim as StmtPayload ptr sp = _
@@ -177,7 +177,7 @@ private sub CheckPtrAssign_ _
     end select
 end sub
 
-private sub CheckPtrInit_ ( byref c as Ctx, byval id as NodeId )
+sub CheckPtrInit_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr ip = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if (ip->a = NODE_NONE) orelse (ip->b = NODE_NONE) then return
@@ -198,7 +198,7 @@ private sub CheckPtrInit_ ( byref c as Ctx, byval id as NodeId )
     IntFromPtrWarn_( c, id, lt, rt, ip->b )
 end sub
 
-private sub CheckPtrFloatAssign_ ( byref c as Ctx, byval id as NodeId )
+sub CheckPtrFloatAssign_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if sp->op = 0 then return
@@ -209,7 +209,7 @@ end sub
 
 '' ...AND AN INITIALISER, which is the same conversion written differently:
 '' 'dim p as byte ptr = 1.0' is error 181 exactly as 'p = 1.0' is.
-private sub CheckPtrFloatInit_ ( byref c as Ctx, byval id as NodeId )
+sub CheckPtrFloatInit_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr ip = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if (ip->a = NODE_NONE) orelse (ip->b = NODE_NONE) then return
@@ -231,7 +231,7 @@ end sub
 ''
 '' The parent is the enclosing type's base, and its field count is what the symbol table
 '' holds for its scope: every SYM_FIELD there that is not the 'base' link and not static.
-private sub CheckBaseInitCount_ _
+sub CheckBaseInitCount_ _
     ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
 
     if here = TYPE_NONE then return
@@ -312,7 +312,7 @@ end sub
 '' and fine: 'cast( UDT, x ).i = 5', and 'cx.q->i = 5' through a pointer field of a const
 '' object -- the pointee is not const. tiko judged only a const variable's own '.', so the
 '' chain is walked one FIELD at a time: a '.' asks its object, a '->' its pointee.
-private sub CheckConstUdtField_ ( byref c as Ctx, byval id as NodeId )
+sub CheckConstUdtField_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if sp->op = 0 then return
@@ -416,7 +416,7 @@ private function UdtArgBad_ ( byref c as Ctx, byval pt as TypeId, byval at as Ty
     if StructorOf_( c, pu, "let" ) <> nullptr then return false
     return true
 end function
-private sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
+sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = _
         @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if lp->target = NODE_NONE then return
@@ -618,7 +618,7 @@ end sub
 ''
 '' A UDT ON EITHER SIDE IS NOT THIS QUESTION -- a conversion operator may exist -- and
 '' neither is a pointer: 'p = s' is a different mismatch.
-private function CharAccess_ _
+function CharAccess_ _
     ( byref c as Ctx, byval n as NodeId, byval u as TypeId ) as boolean
     if n = NODE_NONE then return false
     dim as NodeKind k = c.ast->Kind( n )
@@ -647,7 +647,7 @@ declare function StrPtrMismatch_ _
 '' as 'type<T>( ... )' does. Only over a type with a constructor or a destructor -- whose
 '' temporary fbc destroys, measured -- a plain field list is
 '' already right, and is left alone.
-private sub RetypeBareTypeLit_ _
+sub RetypeBareTypeLit_ _
     ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId = TYPE_NONE )
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     dim as NodeId v = sp->b
@@ -677,7 +677,7 @@ private sub RetypeBareTypeLit_ _
     c.info->SetType( v, dt )
 end sub
 
-private sub CheckStringNumberAssign_ _
+sub CheckStringNumberAssign_ _
     ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId = TYPE_NONE )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]

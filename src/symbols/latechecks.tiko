@@ -798,7 +798,7 @@ end sub
 ''
 '' AND AN ABSTRACT METHOD HAS NO BODY -- fbc error 224, "Implemented body for an ABSTRACT
 '' method". The declaration says there is nothing to call.
-private function ExtendsObject_ ( byref c as Ctx, byval t as TypeId ) as boolean
+function ExtendsObject_ ( byref c as Ctx, byval t as TypeId ) as boolean
     dim as InternId objNm = c.names->Fold( c.names->GetString( "object" ) )
     dim as TypeId cur = t
     dim as int32 guard = 0
@@ -856,7 +856,7 @@ end sub
 '' NARROWED TO THAT ONE DIVIDE deliberately: everything numeric converts to everything
 '' numeric in a constant, and answering which narrowings fbc also refuses is a separate
 '' measurement.
-private function IsStringyType_ ( byref c as Ctx, byval t as TypeId ) as boolean
+function IsStringyType_ ( byref c as Ctx, byval t as TypeId ) as boolean
     if t = TYPE_NONE then return false
     dim as TypeId u = c.types->Unqualify( t )
     '' A FIXED-LENGTH string is an ARRAY of a character builtin, and counts.
@@ -1190,7 +1190,6 @@ private sub CheckConstDeclTypes_( byref c as Ctx )
     next
 end sub
 
-#include once "symbols/byrefrvalue.tiko"
 private sub CheckByrefBinding_( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]

@@ -16,7 +16,7 @@
 '' that a 'const' before 'ptr' qualifies the pointer, and CheckConstWriteTarget_ asks the
 '' question this sub could not. What is left here is the bare NAME, the literal and the
 '' let( ) list.
-private sub CheckAssignTarget_ ( byref c as Ctx, byval id as NodeId )
+sub CheckAssignTarget_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if sp->op = 0 then return

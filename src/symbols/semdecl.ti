@@ -1,0 +1,69 @@
+'' semdecl.ti -- the procedures one Vis unit calls in another (LATER-PLAN E, review ARCH-01).
+''
+'' The post-Check sweeps were ONE unit, visibility.tiko and the 51 fragments it included, and
+'' the fragments shared private procedures by textual position. Cut into units, each
+'' procedure called across a unit boundary is declared here, in the namespace and over the
+'' Ctx of visctx.ti, which every Vis unit includes first. Written by a script from the
+'' definitions (their headers, verbatim), so a signature change is made at the definition
+'' and copied here -- the compiler refuses a declare that disagrees with its body.
+#pragma once
+
+declare function ArrProcResult_ ( byref c as Ctx, byval id as NodeId ) as TypeId
+declare sub CheckArrayArgs_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckArrayAssign_ ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId )
+declare sub CheckArrayInit_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckArrayResultName_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckArrayReturn_ ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId )
+declare sub CheckArraySwap_ ( byref c as Ctx, byval id as NodeId )
+declare function CharAccess_ _
+    ( byref c as Ctx, byval n as NodeId, byval u as TypeId ) as boolean
+declare sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckBaseInitCount_ _
+    ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
+declare sub CheckConstUdtField_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckPtrAssign_ _
+    ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId = TYPE_NONE, _
+      byval byrefResult as boolean = false )
+declare sub CheckPtrFloatAssign_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckPtrFloatInit_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckPtrInit_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckStringNumberAssign_ _
+    ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId = TYPE_NONE )
+declare sub RetypeBareTypeLit_ _
+    ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId = TYPE_NONE )
+declare sub CheckAssignTarget_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckByrefResultAgrees_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckByrefResultType_ _
+    ( byref c as Ctx, byval id as NodeId, byval byrefResult as boolean, _
+      byval resultType as TypeId )
+declare sub CheckByrefResultValue_ _
+    ( byref c as Ctx, byval id as NodeId, byval byrefResult as boolean )
+declare sub CheckByvalResultTarget_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckEqParsedAsArg_ ( byref c as Ctx, byval id as NodeId )
+declare function ByrefInitIsValue_ ( byref c as Ctx, byval e as NodeId ) as boolean
+declare function ResultValueRefused_ _
+    ( byref c as Ctx, byval t as TypeId, byval v as NodeId, byval byAssign as boolean ) as boolean
+declare function StructorJudged_ ( byref c as Ctx, byref t as TypeId, byval init as NodeId ) as boolean
+declare function PtrIntNarrow_ ( byref c as Ctx, byval lt as TypeId, byval rt as TypeId, byval rhs as NodeId ) as boolean
+declare function ExtendsObject_ ( byref c as Ctx, byval t as TypeId ) as boolean
+declare function IsStringyType_ ( byref c as Ctx, byval t as TypeId ) as boolean
+declare sub JudgeConversion_ _
+    ( byref c as Ctx, byval at as NodeId, byval lt as TypeId, byval rt as TypeId, _
+      byval byAssign as boolean )
+declare function TupleSpelling_ ( byref c as Ctx, byval t as TypeId ) as string   '' tupleconv.tiko too
+declare sub CheckPtrReturn_ ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId, byval byrefResult as boolean = false )
+declare function TcNeedsCtor_ ( byref c as Ctx, byval t as TypeId, byval depth as int32 ) as boolean
+declare function TcTuple_ ( byref c as Ctx, byval t as TypeId ) as boolean
+declare function TlTextField_ _
+    ( byref c as Ctx, byval t as TypeId, byval depth as int32, byval wantU as boolean ) as Symbol ptr
+declare function BaseOf_ ( byref c as Ctx, byval t as TypeId ) as TypeId
+declare function DerivesFrom_ _
+    ( byref c as Ctx, byval derived as TypeId, byval base_ as TypeId ) as boolean
+declare function IsThisBase_ ( byref c as Ctx, byval n as NodeId ) as boolean
+declare function ParamCount_ ( byref c as Ctx, byval decl as NodeId ) as int32
+declare sub PtrFloatPair_ _
+    ( byref c as Ctx, byval at as NodeId, byval lt as TypeId, byval rt as TypeId )
+declare function RequiredParams_ ( byref c as Ctx, byval decl as NodeId ) as int32
+declare function StructorOf_ _
+    ( byref c as Ctx, byval udt as TypeId, byref nm as string ) as Symbol ptr
+'' (end of declares)

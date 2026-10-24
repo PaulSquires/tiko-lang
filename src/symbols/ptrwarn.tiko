@@ -306,7 +306,6 @@ end sub
 '' -- TKO0910 here, which says more (declshape.tiko PtrIntNarrow_) -- but warning 5 ALONE for
 '' a pointer CONSTANT: 'by = NP', 'bo = nullptr' (2026-10-13). So those warn when 'rn' is
 '' not refused. tiko said nothing about any of it.
-declare function PtrIntNarrow_ ( byref c as Ctx, byval lt as TypeId, byval rt as TypeId, byval rhs as NodeId ) as boolean
 
 private sub IntFromPtrWarn_ _
     ( byref c as Ctx, byval at_ as NodeId, byval lt as TypeId, byval rt as TypeId, _
@@ -385,14 +384,8 @@ end sub
 
 '' 'return expr' in a function declared 'as T ptr'. A byref result returns an address and
 '' is not this question.
-declare sub JudgeConversion_ _
-    ( byref c as Ctx, byval at as NodeId, byval lt as TypeId, byval rt as TypeId, _
-      byval byAssign as boolean )
-declare function ResultValueRefused_ _
-    ( byref c as Ctx, byval t as TypeId, byval v as NodeId, byval byAssign as boolean ) as boolean  '' ctorargs.tiko
-declare function StructorJudged_ ( byref c as Ctx, byref t as TypeId, byval init as NodeId ) as boolean       '' ctorargs.tiko
 
-private sub CheckPtrReturn_ ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId, byval byrefResult as boolean = false )
+sub CheckPtrReturn_ ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId, byval byrefResult as boolean = false )
     if resultType = TYPE_NONE then return
     if c.types->Kind( resultType ) = TK_REFERENCE then return
     dim as NodeId e = c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )].a

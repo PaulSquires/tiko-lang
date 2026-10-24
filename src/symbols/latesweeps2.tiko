@@ -207,7 +207,7 @@ end function
 
 declare sub CheckPrintStrCast_ ( byref c as Ctx, byval id as NodeId ) : declare sub CheckGetPutUStr_ ( byref c as Ctx, byval id as NodeId ) : declare function JudgeStrCast_( byref c as Ctx, byval at as NodeId, byval udt as TypeId, byval dst as TypeId ) as boolean  '' strcastcheck.tiko
 
-private sub JudgeConversion_ _
+sub JudgeConversion_ _
     ( byref c as Ctx, byval at as NodeId, byval lt as TypeId, byval rt as TypeId, _
       byval byAssign as boolean )
     dim as TypeId lu = ValueType_( c, lt )
