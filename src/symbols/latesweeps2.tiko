@@ -5,7 +5,7 @@
 '' hand. WalkExtra_ is called once per node from Walk_; RunLateSweeps2_ once from Run.
 
 '' The UDT symbol behind a type, or 0.
-private function UdtSymbolOf_ ( byref c as Ctx, byval udt as TypeId ) as Symbol ptr
+function UdtSymbolOf_ ( byref c as Ctx, byval udt as TypeId ) as Symbol ptr
     if udt = TYPE_NONE then return nullptr
     if c.types->Kind( udt ) <> TK_UDT then return nullptr
     dim as InternId tn = c.types->NameOf( udt )
@@ -25,7 +25,7 @@ end function
 '' against Wrap( of long ) or against a plain type, while two Box( of long ) are one type.
 '' It used to be declined here by its name -- 'box<6>' has a '<' -- so fbc's own
 '' generics/fail-assign-across-instantiations.bas compiled and stored one into the other.
-private function DeclaresAnywhere_ _
+function DeclaresAnywhere_ _
     ( byref c as Ctx, byval udt as TypeId, byref nm as string ) as boolean
     dim as TypeId t = udt
     dim as int32 guard = 0
@@ -69,7 +69,7 @@ private function Rescued_ _
 end function
 
 '' Strip a reference; a fixed string stays what it is.
-private function ValueType_ ( byref c as Ctx, byval t as TypeId ) as TypeId
+function ValueType_ ( byref c as Ctx, byval t as TypeId ) as TypeId
     if t = TYPE_NONE then return TYPE_NONE
     dim as TypeId u = c.types->Unqualify( t )
     if c.types->Kind( u ) = TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
@@ -342,8 +342,6 @@ private sub CheckUdtAssign_ ( byref c as Ctx, byval id as NodeId )
                       IsSpawnFrameField_( c, sp->a ) = false )
 end sub
 
-declare function CtorInitRefused_ ( byref c as Ctx, byval t as TypeId, byval init as NodeId ) as boolean  '' ctorargs.tiko
-declare sub CheckCtorArrayInit_ ( byref c as Ctx, byval t as TypeId, byval init as NodeId )                '' ctorargs.tiko
 
 private sub CheckUdtInits_ ( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1
@@ -878,7 +876,7 @@ end function
 
 '' The written bounds of a declaration item: lo/hi pairs into 'lo'/'hi', the rank as the
 '' result, -1 when any bound does not fold. '...' takes its size from the initializer.
-private function WrittenBounds_ _
+function WrittenBounds_ _
     ( byref c as Ctx, byval item as NodeId, lo() as int64, hi() as int64 ) as int32
     dim as StmtPayload ptr ip = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, item )].data )]
@@ -912,7 +910,6 @@ private function WrittenBounds_ _
     return bl->count
 end function
 
-#include once "symbols/externpair.tiko"
 
 '' A DEFINITION AGREES WITH ITS EXTERN. Measured, over 'extern array(0 to 1) as integer':
 ''
@@ -1173,7 +1170,7 @@ end sub
 '' The node's children are not all arguments: PLACEMENT NEW puts its buffer in child 0 and
 '' the ARRAY form its element count there, and fbc allows no constructor arguments
 '' alongside either. So 'new( buf ) T' and 'new T[ 5 ]' both call the DEFAULT constructor.
-private sub NewCtorArgs_ _
+sub NewCtorArgs_ _
     ( byref c as Ctx, byval id as NodeId, byref first as int32, byref count as int32 )
     dim as ListPayload ptr lp = _
         @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
@@ -1375,12 +1372,6 @@ end sub
 #include once "symbols/latesweeps3.tiko"
 #include once "symbols/valuestmt.tiko"
 #include once "symbols/branchcross.tiko"
-#include once "symbols/constout.tiko"
-#include once "symbols/staticdef.tiko"
-#include once "symbols/declshape.tiko"
-#include once "symbols/ctorargs.tiko"
-#include once "symbols/braceinit.tiko"
-#include once "symbols/typelitstr.tiko"
 #include once "symbols/anyptrderef.tiko"
 #include once "symbols/branchtarget.tiko"
 #include once "symbols/condcheck.tiko"

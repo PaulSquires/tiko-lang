@@ -476,7 +476,6 @@ private function AssertIntrinsic_ _
     return (ot <> TYPE_NONE)
 end function
 
-#include once "symbols/assertlayout.tiko"
 
 '' The SIZE sizeof or len answers at compile time, or -1. A string's len is its contents, and
 '' an array's size is not asked; a fixed-length string is its buffer.
@@ -1272,7 +1271,7 @@ end sub
 '' ids run in parse order, so 'below' is a larger id than the use, as DeclaredBelow_ has
 '' it. Through a chain of typedefs, each one's target; only a plain, unqualified target
 '' names a forward type at all. The UDT's name, or "" when this use is not one.
-private function CompletedBelow4_ ( byref c as Ctx, byval use as NodeId, byval at_ as NodeId = NODE_NONE ) as string
+function CompletedBelow4_ ( byref c as Ctx, byval use as NodeId, byval at_ as NodeId = NODE_NONE ) as string
     dim as SymbolId sid = c.info->RefOf( use )
     '' WHERE the use is, when that is not the type reference itself -- a call to a function
     '' whose declared result is the reference.
@@ -1327,7 +1326,6 @@ private function CompletedBelow4_ ( byref c as Ctx, byval use as NodeId, byval a
     return ""
 end function
 
-declare sub CheckByrefResultCalls_ ( byref c as Ctx, byval total as int32 )  '' staticdef.tiko
 private sub CheckIncompleteObjects_ ( byref c as Ctx )
     dim as int32 total = c.ast->Count( )
     dim as containers.Array( of uint8 ) mark

@@ -4,7 +4,7 @@
 '' CheckExternRange_, in the same namespace; that is where the measured rules are.
 
 '' ...ONE LATER DECLARATION df OF AN EXTERN'S NAME, in a statement written with 'op'.
-private sub ExternPair_ ( byref c as Ctx, byval df as NodeId, byval op as uint32, _
+sub ExternPair_ ( byref c as Ctx, byval df as NodeId, byval op as uint32, _
                           byval erank as int32, elo( ) as int64, ehi( ) as int64, byval isString as boolean )
     dim as StmtPayload ptr dp = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, df )].data )]

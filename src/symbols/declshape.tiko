@@ -89,7 +89,7 @@ private function BareStrWord_ ( byref c as Ctx, byval n as NodeId ) as string
     return ""
 end function
 
-private sub CheckDeclShape_ ( byref c as Ctx, byval id as NodeId )
+sub CheckDeclShape_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     dim as TokenKind op = cast( TokenKind, sp->op )
     for k as int32 = 0 to sp->count - 1
@@ -206,7 +206,7 @@ end sub
 '' does to fbc, which has no uint8 at all. tiko gave the field no type and said nothing:
 '' ComputeUdtLayouts then refused the whole record, every use of it was TKO0994, and
 '' 'tiko c2t --verify' reported it as "tiko did not lay it out".
-private sub CheckFieldShape_ ( byref c as Ctx, byval id as NodeId )
+sub CheckFieldShape_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr fp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     dim as string bw = BareStrWord_( c, fp->a )
     '' ('type B extends wstring' makes a field 'base' of that type -- the parser's, which no
@@ -265,7 +265,7 @@ private sub CheckBareStrByValue_ ( byref c as Ctx, byval id as NodeId, byval sp 
     if IsBareCharStr_( c, c.info->TypeOf_( sp->a ) ) then c.diags->Report( TKO0963, PointRange( c.ast->Loc( id ) ) )
 end sub
 
-private sub CheckProcShape_ ( byref c as Ctx, byval id as NodeId )
+sub CheckProcShape_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     CheckBareStrByValue_( c, id, sp )
     select case cast( TokenKind, sp->op )
@@ -350,7 +350,7 @@ function PtrIntNarrow_ ( byref c as Ctx, byval lt as TypeId, byval rt as TypeId,
     return false
 end function
 
-private sub CheckPtrIntWidth_ ( byref c as Ctx, byval id as NodeId )
+sub CheckPtrIntWidth_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if c.ast->Kind( id ) = N_AMBIGUOUS then
         if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then return
@@ -411,7 +411,7 @@ private function FieldHasInit_ ( byref c as Ctx, byval t as TypeId ) as boolean
     return false
 end function
 
-private sub CheckTypeLiteral_ ( byref c as Ctx, byval id as NodeId )
+sub CheckTypeLiteral_ ( byref c as Ctx, byval id as NodeId )
     if (c.ast->nodes[cast( int32, id )].flags and NF_TYPE_LITERAL) = 0 then return
     dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     dim as TypeId t = TYPE_NONE
@@ -481,7 +481,7 @@ private sub CheckFileGetPutAmount_ ( byref c as Ctx, byval sp as StmtPayload ptr
     if bad then c.diags->Report( TKO0959, PointRange( c.ast->Loc( amt ) ) )
 end sub
 
-private sub CheckFileGetPutArray_ ( byref c as Ctx, byval id as NodeId )
+sub CheckFileGetPutArray_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     select case cast( TokenKind, sp->op )
     case KW_GET, KW_PUT
@@ -508,7 +508,7 @@ end sub
 '' only a destructor, and 'P( )' over one of plain fields, in an initializer or as a
 '' parameter's default (functions/paraminit-undeclared-1). A type with a constructor, a
 '' string field, a field initializer or OBJECT is constructed, and the call is fine.
-private sub CheckUdtCallNoCtor_ ( byref c as Ctx, byval id as NodeId )
+sub CheckUdtCallNoCtor_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if lp->target = NODE_NONE then return
     dim as Symbol ptr ts = nullptr
@@ -625,7 +625,7 @@ private function ConstStrInitBad_ ( byref c as Ctx, byval e as NodeId, byval dep
     return NODE_NONE
 end function
 
-private sub CheckConstStrInit_ ( byref c as Ctx, byval id as NodeId )
+sub CheckConstStrInit_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     dim as int32 spFirst = sp->first, spCount = sp->count
     for i as int32 = 0 to spCount - 1
@@ -654,7 +654,7 @@ private function StripParens_ ( byref c as Ctx, byval n as NodeId ) as NodeId
     return n
 end function
 
-private sub CheckAssignTempDeref_ ( byref c as Ctx, byval id as NodeId )
+sub CheckAssignTempDeref_ ( byref c as Ctx, byval id as NodeId )
     if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then return
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     dim as NodeId d = StripParens_( c, sp->a )
@@ -707,7 +707,7 @@ private function PtrStrElemBad_ ( byref c as Ctx, byval el as TypeId, byval e as
     return NODE_NONE
 end function
 
-private sub CheckPtrStringInit_ ( byref c as Ctx, byval id as NodeId )
+sub CheckPtrStringInit_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     for k as int32 = 0 to sp->count - 1
         dim as NodeId item = cast( NodeId, c.ast->children[sp->first + k] )
@@ -734,7 +734,7 @@ end sub
 '' 'for i as foo ptr = 0 to 3' OVER A FORWARD TYPE -- fbc's error 71 at the NEXT: the step is
 '' pointer arithmetic, and the pointee has no size (compound/for-ptr-fwdref). Reported at the
 '' body block, which is the NEXT line when the body is empty and the first statement otherwise.
-private sub CheckForPtrFwd_ ( byref c as Ctx, byval id as NodeId )
+sub CheckForPtrFwd_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if sp->a = NODE_NONE then return
     dim as TypeId t = TYPE_NONE
@@ -756,7 +756,7 @@ end sub
 '' ('for t.x = 1 to 3'), an array element, a byref parameter, and its 14 for '*p'. tiko
 '' ran none of those loops (MIR-7), and since F-01 stopped them as unlowered. A UDT
 '' variable is a counter too -- its 'operator for' / 'next' -- and a byval parameter is.
-private sub CheckForScalarCounter_ ( byref c as Ctx, byval id as NodeId )
+sub CheckForScalarCounter_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if (sp->a = NODE_NONE) orelse (sp->c <> NODE_NONE) then return
     dim as boolean bad = (c.ast->Kind( sp->a ) <> N_IDENT)
@@ -776,7 +776,7 @@ private sub CheckForScalarCounter_ ( byref c as Ctx, byval id as NodeId )
     if bad then c.diags->Report( TKO0953, PointRange( c.ast->Loc( sp->a ) ) )
 end sub
 
-private sub CheckForConstCounter_ ( byref c as Ctx, byval id as NodeId )
+sub CheckForConstCounter_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if (sp->a = NODE_NONE) orelse (sp->c <> NODE_NONE) then return
     if c.ast->Kind( sp->a ) <> N_IDENT then return
@@ -794,7 +794,7 @@ end sub
 '' A non-capturing lambda, or a capturing one with concrete parameters, is fine. tiko lowers
 '' the case, but fbc's limitation is the one to match. The lifted procedure carries the
 '' generic's type parameters in 'c' and the closure as its first parameter, '__tko_cl'.
-private sub CheckLambdaTypeParam_ ( byref c as Ctx, byval id as NodeId )
+sub CheckLambdaTypeParam_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if left( lcase( c.names->Spelling( sp->name ) ), 13 ) <> "__tko_lambda_" then return
     if (sp->c = NODE_NONE) orelse (c.ast->Kind( sp->c ) <> N_BLOCK) then return
@@ -882,7 +882,7 @@ private function JoinedName_ ( byref c as Ctx, byval nm as InternId ) as boolean
     return false
 end function
 
-private sub CheckUsingAmbiguity_ ( byref c as Ctx )
+sub CheckUsingAmbiguity_ ( byref c as Ctx )
     dim as containers.Array( of uint32 ) uNode, uScope, uInner, uFile
     dim as int32 total = c.ast->Count( )
     for n as int32 = 1 to total - 1
@@ -1027,7 +1027,7 @@ end sub
 ''
 '' tiko reached emission with no type for the literal: an internal error for the first, and
 '' IR clang refused for the second. One passed to a single procedure takes its parameter's.
-private sub CheckBareTypeLiterals_ ( byref c as Ctx )
+sub CheckBareTypeLiterals_ ( byref c as Ctx )
     dim as int32 total = c.ast->Count( )
     dim as containers.Array( of uint8 ) argOf
     for n as int32 = 0 to total

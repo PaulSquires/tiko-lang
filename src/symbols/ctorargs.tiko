@@ -357,7 +357,7 @@ end function
 
 '' True when no constructor of 't' takes the initialiser 'init'. A type with none is
 '' JudgeConversion_'s.
-private function CtorInitRefused_ ( byref c as Ctx, byval t as TypeId, byval init as NodeId ) as boolean
+function CtorInitRefused_ ( byref c as Ctx, byval t as TypeId, byval init as NodeId ) as boolean
     if StructorJudged_( c, t, init ) = false then return false
     if StructorOf_( c, t, "__ctor" ) = nullptr then return false
     return (StructorChainFit_( c, t, init, "__ctor" ) = 1)
@@ -406,7 +406,7 @@ private sub CheckCtorInitList_ _
 end sub
 
 '' A brace list 'init' for a variable or field of type 't', when t is an array of a UDT.
-private sub CheckCtorArrayInit_ ( byref c as Ctx, byval t as TypeId, byval init as NodeId )
+sub CheckCtorArrayInit_ ( byref c as Ctx, byval t as TypeId, byval init as NodeId )
     if (t = TYPE_NONE) orelse (init = NODE_NONE) then return
     if c.ast->Kind( init ) <> N_INITIALIZER then return
     dim as TypeId u = c.types->Unqualify( t )
@@ -422,7 +422,7 @@ end sub
 
 '' ...AND A FIELD'S: 'type H : dim as T f = v : end type' is the same 24 (58), measured over
 '' the same shapes. A variable's is asked from CheckUdtInits_ (latesweeps2.tiko).
-private sub CheckFieldCtorInits_ ( byref c as Ctx )
+sub CheckFieldCtorInits_ ( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
         if s->kind <> cast( uint8, SYM_FIELD ) then continue for
@@ -445,7 +445,7 @@ private sub CheckFieldCtorInits_ ( byref c as Ctx )
 end sub
 
 '' 'T( ... )' naming the type, and 'new T( ... )'.
-private sub CheckCtorCallArgs_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
+sub CheckCtorCallArgs_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
     dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if lp->target = NODE_NONE then return
     if k = N_NEW then

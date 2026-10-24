@@ -10,7 +10,7 @@
 '' it the arguments of each recorded call. Included from latechecks.tiko, after
 '' CheckSharedRef_.
 
-private sub CollInitSharedRefs_ ( byref c as Ctx, byval s as Symbol ptr )
+sub CollInitSharedRefs_ ( byref c as Ctx, byval s as Symbol ptr )
     if s = nullptr then return
     if s->kind <> cast( uint8, SYM_VARIABLE ) then return
     if s->payload <= 0 then return

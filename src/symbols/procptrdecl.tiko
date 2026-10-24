@@ -21,7 +21,7 @@
 '' and both callers then refuse to guess.
 
 '' The declaration's N_PARAM for parameter 'idx', the ellipsis not counted.
-private function ProcDeclParam_ _
+function ProcDeclParam_ _
     ( byval ast as Tko.AstArena ptr, byval decl as Tko.NodeId, _
       byval idx as int32 ) as Tko.NodeId
 
@@ -42,7 +42,7 @@ private function ProcDeclParam_ _
 end function
 
 '' The declaration behind the procedure-pointer VALUE of expression 'e'.
-private function ProcPtrDeclOf_ _
+function ProcPtrDeclOf_ _
     ( byval ast as Tko.AstArena ptr, byval syms as Tko.SymbolTable ptr, _
       byval types as Tko.TypeContext ptr, byval info as Tko.SemanticInfo ptr, _
       byval names as Tko.Interner ptr, byval e as Tko.NodeId, _

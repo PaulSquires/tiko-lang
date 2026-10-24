@@ -21,7 +21,7 @@ private function AssertLayouts_ ( byref c as Ctx ) as UdtLayouts ptr
 end function
 
 '' A UDT's size, or -1.
-private function AssertUdtSize_ ( byref c as Ctx, byval u as TypeId ) as int64
+function AssertUdtSize_ ( byref c as Ctx, byval u as TypeId ) as int64
     dim as UdtLayouts ptr ls = AssertLayouts_( c )
     dim as int32 ix = ls->Find( u )
     if ix < 0 then return -1
@@ -32,7 +32,7 @@ end function
 '' 'offsetof( T, f )' or 'offsetof( T, a.b )', walked as LowerOffsetOf walks it: the type
 '' written as a UDT's or typedef's name, the field a path of names. Anything else -- a
 '' user procedure of the name, a field the layout does not hold -- is false, unknown.
-private function AssertOffsetOf_ ( byref c as Ctx, byval n as NodeId, byref v as int64 ) as boolean
+function AssertOffsetOf_ ( byref c as Ctx, byval n as NodeId, byref v as int64 ) as boolean
     if c.ast->Kind( n ) <> N_CALL then return false
     dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
     if (lp->count <> 2) orelse (lp->target = NODE_NONE) then return false

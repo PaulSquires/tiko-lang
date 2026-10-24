@@ -146,7 +146,7 @@ rm -f build/.lint.size
 # .ti and a sources.txt line -- and lower its number; never raise one.
 unit_ceiling( ) {
     case "$1" in
-        src/symbols/visibility.tiko) echo 13500 ;;   # LATER-PLAN E: falls as each sem unit is cut
+        src/symbols/visibility.tiko) echo 10000 ;;   # LATER-PLAN E: falls as each sem unit is cut
         src/parser/parser.tiko)      echo 9500 ;;
         src/symbols/check.tiko)      echo 9000 ;;
         src/pp/pp.tiko)              echo 9000 ;;

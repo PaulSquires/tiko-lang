@@ -1,4 +1,4 @@
-'' semdecl.ti -- the procedures one Vis unit calls in another (LATER-PLAN E, review ARCH-01).
+'' semcalls.ti -- the procedures one Vis unit calls in another (LATER-PLAN E, review ARCH-01).
 ''
 '' The post-Check sweeps were ONE unit, visibility.tiko and the 51 fragments it included, and
 '' the fragments shared private procedures by textual position. Cut into units, each
@@ -111,4 +111,64 @@ declare sub CheckOneStructor_ _
       byval here as TypeId, byval at as SourceLoc, byval vnm as InternId )
 declare function IsProcPtr_ ( byref c as Ctx, byval t as TypeId ) as boolean
 declare function ProcOwner_ ( byref c as Ctx, byval id as NodeId ) as TypeId
+declare function UdtHasCtorField_ ( byref c as Ctx, byval t as TypeId, byval depth as int32 ) as Symbol ptr
+declare function AssertOffsetOf_ ( byref c as Ctx, byval n as NodeId, byref v as int64 ) as boolean
+declare function AssertUdtSize_ ( byref c as Ctx, byval u as TypeId ) as int64
+declare sub CheckBraceLists_ ( byref c as Ctx )
+declare sub CollInitSharedRefs_ ( byref c as Ctx, byval s as Symbol ptr )
+declare sub CheckConstOutput_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckCtorArrayInit_ ( byref c as Ctx, byval t as TypeId, byval init as NodeId )
+declare sub CheckCtorCallArgs_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
+declare sub CheckFieldCtorInits_ ( byref c as Ctx )
+declare function CtorInitRefused_ ( byref c as Ctx, byval t as TypeId, byval init as NodeId ) as boolean
+declare sub CheckAssignTempDeref_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckBareTypeLiterals_ ( byref c as Ctx )
+declare sub CheckConstStrInit_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckDeclShape_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckFieldShape_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckFileGetPutArray_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckForConstCounter_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckForPtrFwd_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckForScalarCounter_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckLambdaTypeParam_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckProcShape_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckPtrIntWidth_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckPtrStringInit_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckTypeLiteral_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckUdtCallNoCtor_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckUsingAmbiguity_ ( byref c as Ctx )
+declare sub CheckDefinitionAgrees_ ( byref c as Ctx, byval id as NodeId )
+declare sub ExternPair_ ( byref c as Ctx, byval df as NodeId, byval op as uint32, _
+                          byval erank as int32, elo( ) as int64, ehi( ) as int64, byval isString as boolean )
+declare function ArgClass_ ( byref c as Ctx, byval t as TypeId ) as int32
+declare sub CheckSharedRef_ ( byref c as Ctx, byval id as NodeId, byval vnm as InternId )
+declare function IsFloatBuiltin_ ( byref c as Ctx, byval t as TypeId ) as boolean
+declare function NamedLvalue_ ( byref c as Ctx, byval n as NodeId ) as boolean
+declare function ProcPtrArgBad_ ( byref c as Ctx, byval pt as TypeId, byval arg as NodeId ) as boolean
+declare function ParamTypeAt_ _
+    ( byref c as Ctx, byval decl as NodeId, byval want as int32, _
+      byref rank as int32 ) as TypeId
+declare function DeclaresAnywhere_ _
+    ( byref c as Ctx, byval udt as TypeId, byref nm as string ) as boolean
+declare sub NewCtorArgs_ _
+    ( byref c as Ctx, byval id as NodeId, byref first as int32, byref count as int32 )
+declare function UdtSymbolOf_ ( byref c as Ctx, byval udt as TypeId ) as Symbol ptr
+declare function ValueType_ ( byref c as Ctx, byval t as TypeId ) as TypeId
+declare function WrittenBounds_ _
+    ( byref c as Ctx, byval item as NodeId, lo() as int64, hi() as int64 ) as int32
+declare function CompletedBelow4_ ( byref c as Ctx, byval use as NodeId, byval at_ as NodeId = NODE_NONE ) as string
+declare function ProcDeclParam_ _
+    ( byval ast as Tko.AstArena ptr, byval decl as Tko.NodeId, _
+      byval idx as int32 ) as Tko.NodeId
+declare function ProcPtrDeclOf_ _
+    ( byval ast as Tko.AstArena ptr, byval syms as Tko.SymbolTable ptr, _
+      byval types as Tko.TypeContext ptr, byval info as Tko.SemanticInfo ptr, _
+      byval names as Tko.Interner ptr, byval e as Tko.NodeId, _
+      byval depth as int32 = 0 ) as Tko.NodeId
+declare sub CheckByrefResultCalls_ ( byref c as Ctx, byval total as int32 )
+declare sub CheckConvIntrinsic_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckStaticMemberDef_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckTypeLiteralText_ ( byref c as Ctx )
+declare sub CheckTypeNameValue_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
+declare sub CheckUnionMembers_( byref c as Ctx )
 '' (end of declares)

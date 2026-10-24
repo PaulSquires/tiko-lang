@@ -24,7 +24,7 @@
 '' Check typed as the record itself -- an argument, 'type<T>( ... )' -- and in
 '' tupleconv.tiko's TypeLitTextBad_ for one it typed as a tuple and the destination names.
 
-private sub CheckTypeLiteralText_ ( byref c as Ctx )
+sub CheckTypeLiteralText_ ( byref c as Ctx )
     dim as int32 total = c.ast->Count( )
     '' THE 'dim' FORM OVER A 'string' FIELD IS TKO0757's already, from
     '' CheckAggregateInitFields_; it is not reported twice.

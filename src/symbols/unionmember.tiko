@@ -130,7 +130,7 @@ private function UnionStructorNeed_ ( byref c as Ctx, byval t as TypeId, byval d
     return need
 end function
 
-private sub CheckUnionMembers_( byref c as Ctx )
+sub CheckUnionMembers_( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
         if s->kind <> cast( uint8, SYM_FIELD ) then continue for

@@ -114,7 +114,7 @@ end sub
 '' 'static' STORAGE IS NOT ENOUGH: that variable outlives the frame, and fbc still calls
 '' it local. What the initialiser may name is a SHARED one, so the test is on SYMF_SHARED
 '' of what is referenced and not on "does it have automatic storage".
-private sub CheckSharedRef_ ( byref c as Ctx, byval id as NodeId, byval vnm as InternId )
+sub CheckSharedRef_ ( byref c as Ctx, byval id as NodeId, byval vnm as InternId )
     if id = NODE_NONE then return
     dim as NodeKind k = c.ast->Kind( id )
     if k = N_IDENT then
@@ -233,7 +233,6 @@ end sub
 '' because the parentheses already called g. tiko's parser has no types, so it built
 '' the call anyway and lowering declined it without a word.
 #include once "symbols/tmpllocal.tiko"   '' LocalInTemplate_ (T43)
-#include once "symbols/typevalue.tiko"   '' CheckTypeNameValue_
 private sub CheckCalledExpr_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = _
         @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
@@ -324,11 +323,10 @@ private sub CheckCalledExpr_ ( byref c as Ctx, byval id as NodeId )
     c.diags->Report( TKO0772, PointRange( c.ast->Loc( id ) ) )
 end sub
 
-#include once "symbols/procptrdecl.tiko"
 
 '' The class of a VALUE type for ProcPtrArgBad_: 1 a string of any kind, 2 a number, 3 a
 '' boolean, 0 anything else.
-private function ArgClass_ ( byref c as Ctx, byval t as TypeId ) as int32
+function ArgClass_ ( byref c as Ctx, byval t as TypeId ) as int32
     if t = TYPE_NONE then return 0
     dim as TypeId u = c.types->Unqualify( t )
     if c.types->Kind( u ) = TK_ARRAY then
@@ -354,7 +352,7 @@ private function ArgClass_ ( byref c as Ctx, byval t as TypeId ) as int32
     return 0
 end function
 
-private function IsFloatBuiltin_ ( byref c as Ctx, byval t as TypeId ) as boolean
+function IsFloatBuiltin_ ( byref c as Ctx, byval t as TypeId ) as boolean
     if c.types->Kind( t ) <> TK_BUILTIN then return false
     select case c.types->BuiltinOf( t )
     case TY_SINGLE, TY_DOUBLE
@@ -365,7 +363,7 @@ end function
 
 '' A NAMED VALUE, which a byref parameter binds directly -- a literal or an expression
 '' binds a temporary of the parameter's own type instead.
-private function NamedLvalue_ ( byref c as Ctx, byval n as NodeId ) as boolean
+function NamedLvalue_ ( byref c as Ctx, byval n as NodeId ) as boolean
     select case c.ast->Kind( n )
     case N_DEREF, N_INDEX
         return true
@@ -410,7 +408,7 @@ end function
 '' error 58, over the shapes measured and nothing wider -- the table is
 '' tests/diagnostics/src/procptr-argtypes.bas. Mismatched POINTERS are fbc WARNINGS
 '' (1, 2 and 3), not errors, and are not this question.
-private function ProcPtrArgBad_ ( byref c as Ctx, byval pt as TypeId, byval arg as NodeId ) as boolean
+function ProcPtrArgBad_ ( byref c as Ctx, byval pt as TypeId, byval arg as NodeId ) as boolean
     if pt = TYPE_NONE then return false
     dim as TypeId at = c.info->TypeOf_( arg )
     if at = TYPE_NONE then return false
@@ -982,7 +980,6 @@ private sub CheckExternInitAndDefaultCtor_( byref c as Ctx )
     CheckFieldDefaultCtor_( c )
 end sub
 
-#include once "symbols/unionmember.tiko"   '' CheckUnionMembers_: fbc's 161, 162, 163, 164
 
 '' CheckBaseHasDefaultCtor_ is in basector.tiko, included from latesweeps2.tiko.
 
@@ -1252,7 +1249,6 @@ private sub CheckQualifiedInits_( byref c as Ctx )
     next
 end sub
 
-#include once "symbols/collinitshared.tiko"
 private sub CheckSharedInits_( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]

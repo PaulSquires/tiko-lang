@@ -230,7 +230,7 @@ private sub CheckDefinitionShape_ ( byref c as Ctx, byval id as NodeId, byval sp
     if (rt = own) andalso (own <> TYPE_NONE) then c.diags->Report( TKO0958, PointRange( c.ast->Loc( id ) ) )
 end sub
 
-private sub CheckDefinitionAgrees_ ( byref c as Ctx, byval id as NodeId )
+sub CheckDefinitionAgrees_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = DefStmt_( c, id )
     if sp->b = NODE_NONE then return
     CheckDefinitionShape_( c, id, sp )

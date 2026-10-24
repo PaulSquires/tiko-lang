@@ -77,7 +77,7 @@ private function CheckTypeNameArgs_ ( byref c as Ctx, byval first as int32, _
 end function
 
 '' One report per statement: the first operand that is a type name.
-private sub CheckTypeNameValue_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
+sub CheckTypeNameValue_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
     select case k
     case N_AMBIGUOUS
         dim as StmtPayload ptr sp = _

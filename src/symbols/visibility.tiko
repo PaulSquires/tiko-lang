@@ -29,7 +29,7 @@
 namespace Tko.Vis
 
 #include once "symbols/visctx.ti"
-#include once "symbols/semdecl.ti"
+#include once "symbols/semcalls.ti"
 
 '' The TYPE a symbol was declared in, or TYPE_NONE. A member's scope is the type's own.
 private function OwningType_ _
@@ -1099,7 +1099,6 @@ private sub CheckDelete_ ( byref c as Ctx, byval id as NodeId, byval here as Typ
     CheckOneStructor_( c, pointee, "__dtor", here, c.ast->Loc( id ), 0 )
 end sub
 
-#include once "symbols/defcheck.tiko"
 #include once "symbols/latesweeps2.tiko"
 
 private sub Walk_ _

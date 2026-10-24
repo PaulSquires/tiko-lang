@@ -1139,7 +1139,6 @@ private sub CheckAnyInitTypes_( byref c as Ctx )
     next
 end sub
 
-#include once "symbols/aggctorfield.tiko"   '' UdtHasCtorField_ -- split out at the line cap
 
 private sub CheckAggregateInitFields_( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1

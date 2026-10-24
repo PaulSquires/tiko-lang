@@ -106,7 +106,7 @@ private sub ConstOutReport_ ( byref c as Ctx, byval n as NodeId )
     c.diags->Report( TKO0617, PointRange( c.ast->Loc( n ) ), SpellOf_( c, Unparen3_( c, n ) ) )
 end sub
 
-private sub CheckConstOutput_ ( byref c as Ctx, byval id as NodeId )
+sub CheckConstOutput_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if c.ast->Kind( id ) = N_INTRINSIC then
         select case cast( TokenKind, sp->op )

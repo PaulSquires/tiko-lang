@@ -4,7 +4,7 @@
 '' one, and a parenthesised list cannot fill it: measured on fbc-modern, 'dim as H h = ( 7, 1 )'
 '' and '( 7 )' over a type holding a T with constructors are errors 7 and 24. tiko filled the
 '' fields. A tuple and a type declaring its own constructor are not this question.
-private function UdtHasCtorField_ ( byref c as Ctx, byval t as TypeId, byval depth as int32 ) as Symbol ptr
+function UdtHasCtorField_ ( byref c as Ctx, byval t as TypeId, byval depth as int32 ) as Symbol ptr
     if depth > 8 then return nullptr
     dim as TypeId u = ValueType_( c, t )
     if (u = TYPE_NONE) orelse (c.types->Kind( u ) <> TK_UDT) then return nullptr

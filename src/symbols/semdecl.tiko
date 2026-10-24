@@ -1,0 +1,34 @@
+'' semdecl.tiko -- the post-Check pass: declaration-shape sweeps: declarations, statics, definitions, brace initialisers, constructor arguments.
+''
+'' A unit of its own since 2026-10-24 (LATER-PLAN E, review ARCH-01): these fragments were
+'' #included by visibility.tiko and shared its private procedures by position. What they call
+'' in another Vis unit, and what another calls here, is declared in semcalls.ti.
+
+#import "std/containers"
+#include once "symbols/visibility.ti"
+#include once "diag/diagids.ti"
+#include once "symbols/check.ti"
+#include once "symbols/modsym.ti"
+#include once "types/udtlayout.ti"
+
+namespace Tko.Vis
+
+#include once "symbols/visctx.ti"
+#include once "symbols/semcalls.ti"
+
+#include once "symbols/typevalue.tiko"
+#include once "symbols/procptrdecl.tiko"
+#include once "symbols/unionmember.tiko"
+#include once "symbols/collinitshared.tiko"
+#include once "symbols/defcheck.tiko"
+#include once "symbols/externpair.tiko"
+#include once "symbols/assertlayout.tiko"
+#include once "symbols/aggctorfield.tiko"
+#include once "symbols/constout.tiko"
+#include once "symbols/staticdef.tiko"
+#include once "symbols/declshape.tiko"
+#include once "symbols/ctorargs.tiko"
+#include once "symbols/braceinit.tiko"
+#include once "symbols/typelitstr.tiko"
+
+end namespace

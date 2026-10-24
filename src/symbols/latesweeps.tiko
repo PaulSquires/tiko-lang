@@ -607,7 +607,7 @@ end sub
 '' TYPES ARE COMPARED AS WRITTEN, qualifiers included. fbc's own rule for when a const
 '' difference collides is not measured here, so a pair that differs only in one is left
 '' alone -- a miss rather than a wrong answer.
-private function ParamTypeAt_ _
+function ParamTypeAt_ _
     ( byref c as Ctx, byval decl as NodeId, byval want as int32, _
       byref rank as int32 ) as TypeId
 

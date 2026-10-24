@@ -290,7 +290,7 @@ private sub BrWalk_ _
     next
 end sub
 
-private sub CheckBraceLists_ ( byref c as Ctx )
+sub CheckBraceLists_ ( byref c as Ctx )
     '' node -> symbol + 1, for the declarators and fields: their TYPE is on the symbol.
     dim as containers.Array( of uint32 ) map
     for i as int32 = 0 to c.ast->Count( )

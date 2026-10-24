@@ -15,7 +15,7 @@
 '' dim/member-var-bad-5 and member-var-bad-byref-2 write the first and the third. tiko took
 '' the definition's own type. Only a SCALAR member is judged: an array's element type is
 '' what its definition writes, and its bounds are TKO0751's.
-private sub CheckStaticMemberDef_ ( byref c as Ctx, byval id as NodeId )
+sub CheckStaticMemberDef_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     for k as int32 = 0 to sp->count - 1
         dim as NodeId item = cast( NodeId, c.ast->children[sp->first + k] )
@@ -297,7 +297,7 @@ private sub CheckUdtExactCast_ _
     c.diags->Report( TKO0890, PointRange( c.ast->Loc( id ) ), nm, c.types->Name( at ) )
 end sub
 
-private sub CheckConvIntrinsic_ ( byref c as Ctx, byval id as NodeId )
+sub CheckConvIntrinsic_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if (lp->target = NODE_NONE) orelse (lp->count < 1) then return
     if c.ast->Kind( lp->target ) <> N_IDENT then return
@@ -373,7 +373,7 @@ private sub CheckConvIntrinsic_ ( byref c as Ctx, byval id as NodeId )
 end sub
 
 '' Asked from CheckIncompleteObjects_ in latesweeps4.tiko, which is at the line cap.
-private sub CheckByrefResultCalls_ ( byref c as Ctx, byval total as int32 )
+sub CheckByrefResultCalls_ ( byref c as Ctx, byval total as int32 )
     '' A CALL TO A BYREF-RESULT FUNCTION whose declared result is not complete where it is
     '' called: 'print f( )', 'f( )' and 'f( ) = 1' are fbc's 71, '@f( )' is not -- measured
     '' with the typedef rule in CompletedBelow4_. Only a declaration's byref result may name
