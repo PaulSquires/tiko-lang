@@ -687,6 +687,12 @@ function ResolveTypeRefAt_ _
         for gi as int32 = c.gparamName.Count - 1 to 0 step -1
             if cast( Tko.InternId, c.gparamName[gi] ) = sp->name then
                 base_ = cast( Tko.TypeId, c.gparamType[gi] )
+                '' 'byref k as const T' -- the CONST is on this node, and returning early
+                '' skipped the wrap at the end, so a write through k compiled and mutated
+                '' the caller (fbc: error 119).
+                if (n->flags and Tko.NF_CONST) <> 0 then
+                    base_ = c.types->Qualify( base_, Tko.TF_CONST )
+                end if
                 c.info->SetType( id, base_ )
                 return base_
             end if

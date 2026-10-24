@@ -1,0 +1,7 @@
+'' 'byref k as const T' keeps its CONST when the generic is instantiated. Returning early
+'' for a type parameter skipped the wrap, so 'k = this.v' compiled and set the caller's n
+'' to 42 (fbc-modern 1.20: error 119 on the write).
+'' TEST: cli
+'' ARGS: check tests/diagnostics/src/generic-const-param.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: generic-const-param.bas(8,5): error TKO0617: cannot modify 'k': it is a constant
