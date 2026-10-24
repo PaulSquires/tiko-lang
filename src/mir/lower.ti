@@ -109,22 +109,34 @@ namespace Tko.Mir
         as containers.Array( of int32 )  skipSiteN
     end type
 
+    '' WHAT LOWERING READS OF ONE UNIT, as one value (review ARCH-05, LATER-PLAN G step 3): it
+    '' was fifteen parameters, and every new input was a sixteenth at both ends. The front end's
+    '' products (the tree, its symbols, types and semantic info, the layouts and vtables) by
+    '' pointer, and the unit's own facts by value.
+    ''
     '' isMainModule: does this module's top-level code become 'main', or a module
     '' CONSTRUCTOR? Exactly one module in a program may answer true; the rest emit
     '' 'fb_ctor__<moduleName>'. See LowerMainModule for the measurements behind it.
     '' errFlags is Options.errFlags, fbc's bitmask: 8 array bounds, 16 null pointers,
     '' 256 the error's location, 1024 array dimensions decide what is emitted.
+    type LowerInput
+        as Tko.AstArena ptr      ast
+        as Tko.NodeId            root
+        as Tko.SymbolTable ptr   syms
+        as Tko.TypeContext ptr   types
+        as Tko.Interner ptr      names
+        as Tko.SemanticInfo ptr  info
+        as Tko.SourceManager ptr src
+        as Tko.UdtLayouts ptr    udts
+        as Tko.VTables ptr       vts
+        as boolean               isMainModule = true
+        as string                moduleName
+        as int32                  errFlags
+        as any ptr               diags          '' a Tko.DiagnosticEngine, or nullptr
+        as int32                  moduleFile = -1
+    end type
     declare function Lower _
-        ( byref ast as Tko.AstArena, byval root as Tko.NodeId, _
-          byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
-          byref names as Tko.Interner, byref info as Tko.SemanticInfo, _
-          byref src as Tko.SourceManager, byref udts as Tko.UdtLayouts, _
-          byref vts as Tko.VTables, _
-          byref m as MirModule, byref st as LowerStats, _
-          byval isMainModule as boolean = true, _
-          byref moduleName as string = "", _
-          byval errFlags as int32 = 0, _
-          byval diags as any ptr = nullptr, byval moduleFile as int32 = -1 ) as int32
+        ( byref inp as LowerInput, byref m as MirModule, byref st as LowerStats ) as int32
 
     '' THE PROGRAM CALLS A THREAD ENTRY POINT, so the link needs the thread-safe
     '' runtime. Measured on fbc-modern with '-v' and no '-mt' on the command line:
