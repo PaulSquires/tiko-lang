@@ -1,30 +1,3 @@
-global var i64 _ZN1A3EV$E
-global var i64 plain
-global var i64 SCALAR$
-func void _ZN1A8DECLAREDEv() {
-  entry0:
-    ret
-}
-func i32 main(i32 $0, ptr $1) {
-  local i32 $tmp0
-  entry0:
-    %1 = alloca ptr $tmp0
-    %2 = const i32 0
-    store @$tmp0, %2
-    %3 = const i32 0
-    call.rtl void fb_Init($0, $1, %3)
-    %4 = const i32 0
-    call.rtl void fb_End(%4)
-    %5 = load @$tmp0
-    ret %5
-}
-declare void fb_Init(i32 $0, ptr $1, i32 $2)
-declare void fb_End(i32 $0)
-verify: ok
-lowered: 2 functions, 2 blocks, 8 insts, 2 statements not lowered, 0 scope imbalance
-  inside N_VAR 2
-  skip-site src\mir\lowervarinit.tiko:63 1
-  skip-site src\mir\lowervarinit.tiko:15 1
 tests/diagnostics/src/outside-namespace-2.bas(17,9): error TKO0669: 'a.declared' adds a new name to a namespace from outside it
      |
   17 | declare sub a.declared( )

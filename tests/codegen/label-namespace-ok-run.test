@@ -1,0 +1,16 @@
+'' RUN: a label shares its name with a local, a shared variable, a constant and a parameter,
+'' and hides none -- label-namespace.bas's half that fbc compiles, built and run. It was that
+'' test's '0 statements not lowered' until lowering stopped after an error (LATER-PLAN D step 2).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/label-namespace-ok.bas -o tests/codegen/labelnsok.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/labelnsok.exe
+'' RUN: tests/codegen/labelnsok.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: now
+'' EXPECT-RUN-OUT: k
+'' EXPECT-RUN-OUT:  3
+'' EXPECT-RUN-OUT:  5
+'' EXPECT-RUN-OUT:  7
+'' EXPECT-RUN-OUT:  4

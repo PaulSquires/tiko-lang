@@ -1,30 +1,3 @@
-func i32 main(i32 $0, ptr $1) {
-  local i32 $tmp0
-  local ptr eight
-  local ptr alsoeight
-  local ptr nine
-  entry0:
-    %1 = alloca ptr $tmp0
-    %2 = const i32 0
-    store @$tmp0, %2
-    %3 = const i32 0
-    call.rtl void fb_Init($0, $1, %3)
-    %4 = alloca ptr eight
-    %5 = call.rtl ptr memset(@eight, 0, 8)
-    %6 = alloca ptr alsoeight
-    %7 = call.rtl ptr memset(@alsoeight, 0, 8)
-    %8 = alloca ptr nine
-    %9 = call.rtl ptr memset(@nine, 0, 8)
-    %10 = const i32 0
-    call.rtl void fb_End(%10)
-    %11 = load @$tmp0
-    ret %11
-}
-declare void fb_Init(i32 $0, ptr $1, i32 $2)
-declare ptr memset(ptr $0, i32 $1, i64 $2)
-declare void fb_End(i32 $0)
-verify: ok
-lowered: 1 functions, 1 blocks, 14 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/pointer-depth.bas(9,13): error TKO0760: too many levels of pointer indirection (the limit is 8)
      |
    9 | dim nine as integer ptr ptr ptr ptr ptr ptr ptr ptr ptr

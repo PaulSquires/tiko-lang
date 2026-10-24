@@ -1,27 +1,3 @@
-extern ptrs __fb_ZTS6Object [ ]
-global str $str1 "4GOOD"
-global ptrs _ZTSN4GOODE [ 0, @$str1, @__fb_ZTS6Object ]
-global ptrs _ZTVN4GOODE [ 0, @_ZTSN4GOODE, _ZN4GOOD1VEv, _ZNK4GOOD2CVEv, 0, _ZN4GOODD1Ev ]
-global str $str4 "3BAD"
-global ptrs _ZTSN3BADE [ 0, @$str4, @__fb_ZTS6Object ]
-global ptrs _ZTVN3BADE [ 0, @_ZTSN3BADE, _ZN3BAD3SUBEv, _ZN3BAD2B3Ev, _ZN3BADC1Ev, 0 ]
-func i32 main(i32 $0, ptr $1) {
-  local i32 $tmp0
-  entry0:
-    %1 = alloca ptr $tmp0
-    %2 = const i32 0
-    store @$tmp0, %2
-    %3 = const i32 0
-    call.rtl void fb_Init($0, $1, %3)
-    %4 = const i32 0
-    call.rtl void fb_End(%4)
-    %5 = load @$tmp0
-    ret %5
-}
-declare void fb_Init(i32 $0, ptr $1, i32 $2)
-declare void fb_End(i32 $0)
-verify: ok
-lowered: 1 functions, 1 blocks, 8 insts, 0 statements not lowered, 0 scope imbalance
 tests/diagnostics/src/virtual-placement.bas(18,21): error TKO0678: nothing may follow VIRTUAL or ABSTRACT but the procedure keyword
      |
   18 |     declare virtual const sub b1( )

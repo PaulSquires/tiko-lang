@@ -402,7 +402,14 @@ function CompileUnit _
         Tko.CheckAbstractInstances( ast, syms, ctx.types, info, vts, ctx.names, ctx.diags )
         Tko.CheckOverridePromise( ast, vts, ctx.names, ctx.diags )
         Tko.CheckOverrideCompatible( ast, vts, ctx.names, ctx.diags )
-        if ctx.diags.Stopped( ) then return false
+        '' NO LOWERING AFTER A USER ERROR (review SEM-11, LATER-PLAN D step 2; the author's call,
+        '' 2026-10-24). Every pass above runs to the end, so an editor and a build hear every
+        '' error the front end can find -- but a tree Check rejected is not lowered: lowering it
+        '' produced declines (TKO0994) and verifier faults that were noise about a program that
+        '' was never sound, after the errors that mattered and out of source order. It waited
+        '' for the error CAP before; the two diagnostics lowering raised moved to the sweeps first
+        '' (symbols/constsubscript.tiko, builtinarity.tiko) so that none is lost by stopping here.
+        if FrontendFailed_( ctx ) then return false
         '' A MODULE OF THE BUILD LEAVES ITS INTERFACE for what imports it (modiface.tiko).
         dim as boolean publishes = (ctx.modFileCount > 0) andalso ctx.importsBuilt
         if publishes then publishes = (FrontendFailed_( ctx ) = false)
