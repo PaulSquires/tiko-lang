@@ -1,0 +1,16 @@
+'' A TIKO DLL'S STRING RESULTS STAY RIGHT PAST 256 CALLS (review RT-01). The host frees each
+'' result's data and releases the descriptor to its own runtime, so the DLL's pool never got
+'' it back: from the 257th call every result was "" (total 2196 = 1+...+256 with fbc too).
+'' tiko-rt grows a spent pool instead -- a deliberate divergence from fbc -- and says so once.
+'' TEST: cli
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' CLEAN: build/.dls
+'' COPY: tests/driver/src/dllstr => build/.dls/src
+'' STEP: -target windows-x86_64 -dll build/.dls/src/words.bas -o build/.dls/src/words.dll
+'' ARGS: -target windows-x86_64 build/.dls/src/app.bas -o build/.dls/src/app.exe
+'' EXPECT-EXIT: 0
+'' RUN: build/.dls/src/app.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: tiko-rt: the string temporary pool was exhausted and has grown
+'' EXPECT-RUN-OUT: total 1203
+'' EXPECT-RUN-OUT: empty 0

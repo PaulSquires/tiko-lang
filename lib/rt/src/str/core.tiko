@@ -45,9 +45,9 @@
 '' string lock would otherwise deadlock on it.
 ''
 '' NOT established, and therefore left as the safest reading:
-''   - what fbc does when the 256-entry pool is exhausted. Ours returns NULL
-''     and the callers are fbc's C. If fbc's suite never exhausts the pool, the
-''     gate cannot cover this and it stays an untested branch.
+''   - what fbc does when the 256-entry pool is exhausted -- MEASURED since: an
+''     empty string. Ours grows the pool instead (the spill blocks below, review
+''     RT-01), a deliberate divergence; tests/driver/dll-string-results covers it.
 ''   - whether fbc range-checks a descriptor against the pool table on delete.
 ''     Ours does, because a temporary that did NOT come from the pool must not
 ''     be pushed onto its free list.
@@ -78,6 +78,21 @@ dim shared as FB_STR_TMPDESC tkort_tmpTable( 0 to FB_STR_TMPDESCRIPTORS - 1 )
 dim shared as FB_LIST        tkort_tmpList
 dim shared as integer        tkort_tmpReady
 dim shared as integer        tkort_tmpWarned     '' exhaustion reported once -- see hPoolAlloc
+
+'' SPILL BLOCKS (review RT-01, 2026-10-24). The table above is fbc's 256 descriptors, and
+'' fbc answers an EMPTY string once they are spent. Two things spend them: a temporary
+'' the compiler forgot to release, and a DLL's string results -- the host frees the data
+'' but releases the descriptor to ITS OWN runtime, which does not know it, so a tiko DLL
+'' returned "" from its 257th call on (sum 2196 = 1+...+256, measured; fbc the same).
+'' tiko diverges here on purpose: a spent table gets another block of 256 from the heap,
+'' with its own free list, and the result is right. A block is never given back. Whether
+'' a descriptor is ours stays a range check -- one per block.
+type TKORT_STR_SPILL
+	as FB_LIST            lst
+	as FB_STR_TMPDESC ptr tbl
+end type
+dim shared as TKORT_STR_SPILL ptr ptr tkort_tmpSpill
+dim shared as integer        tkort_tmpSpillN, tkort_tmpSpillCap
 
 '' ALLOCATE, NOT CALLOCATE.
 ''
@@ -144,19 +159,60 @@ private function hFromPool( byval s as FBSTRING ptr ) as integer
 	return (p >= lo) andalso (p < hi)
 end function
 
+'' The spill block holding s, or -1.
+private function hSpillOf( byval s as FBSTRING ptr ) as integer
+	dim as uint8 ptr p = cptr( uint8 ptr, s )
+	for k as integer = 0 to tkort_tmpSpillN - 1
+		dim as uint8 ptr lo = cptr( uint8 ptr, tkort_tmpSpill[k]->tbl )
+		dim as uint8 ptr hi = lo + (sizeof( FB_STR_TMPDESC ) * FB_STR_TMPDESCRIPTORS)
+		if( (p >= lo) andalso (p < hi) ) then return k
+	next
+	return -1
+end function
+
+'' Ours to release: the table's, or a spill block's.
+private function hOurs( byval s as FBSTRING ptr ) as integer
+	if( hFromPool( s ) ) then return -1
+	if( (s = nullptr) orelse (tkort_tmpSpillN = 0) ) then return 0
+	return (hSpillOf( s ) >= 0)
+end function
+
+private function hSpillAlloc( ) as FB_LISTELEM ptr
+	for k as integer = 0 to tkort_tmpSpillN - 1
+		dim as FB_LISTELEM ptr e = fb_hListAllocElem( @tkort_tmpSpill[k]->lst )
+		if( e <> nullptr ) then return e
+	next
+	if( tkort_tmpSpillN = tkort_tmpSpillCap ) then
+		dim as integer ncap = iif( tkort_tmpSpillCap = 0, 8, tkort_tmpSpillCap * 2 )
+		dim as any ptr np = reallocate( tkort_tmpSpill, ncap * sizeof( TKORT_STR_SPILL ptr ) )
+		if( np = nullptr ) then return nullptr
+		tkort_tmpSpill = np
+		tkort_tmpSpillCap = ncap
+	end if
+	dim as TKORT_STR_SPILL ptr b = callocate( 1, sizeof( TKORT_STR_SPILL ) )
+	if( b = nullptr ) then return nullptr
+	b->tbl = callocate( FB_STR_TMPDESCRIPTORS, sizeof( FB_STR_TMPDESC ) )
+	if( b->tbl = nullptr ) then
+		deallocate( b )
+		return nullptr
+	end if
+	fb_hListInit( @b->lst, b->tbl, sizeof( FB_STR_TMPDESC ), FB_STR_TMPDESCRIPTORS )
+	tkort_tmpSpill[tkort_tmpSpillN] = b
+	tkort_tmpSpillN += 1
+	'' Said once, on stderr: a leaking temporary is a compiler bug worth knowing about,
+	'' and a DLL's results are the expected cause. The run goes on, and is right.
+	if( tkort_tmpWarned = 0 ) then
+		tkort_tmpWarned = 1
+		fprintf( stderr, !"tiko-rt: the string temporary pool was exhausted and has grown\n" )
+	end if
+	return fb_hListAllocElem( @b->lst )
+end function
+
 private function hPoolAlloc( ) as FBSTRING ptr
 	hPoolEnsure( )
 	dim as FB_LISTELEM ptr e = fb_hListAllocElem( @tkort_tmpList )
-	if( e = nullptr ) then
-		'' POOL EXHAUSTED: every caller then answers an EMPTY string, which is how a
-		'' temporary leak, or a DLL's results never handed back, used to look -- a
-		'' wrong value with nothing said. Said once, on stderr, and the run goes on.
-		if( tkort_tmpWarned = 0 ) then
-			tkort_tmpWarned = 1
-			fprintf( stderr, !"tiko-rt: the string temporary pool is exhausted; string results will be empty\n" )
-		end if
-		return nullptr
-	end if
+	if( e = nullptr ) then e = hSpillAlloc( )
+	if( e = nullptr ) then return nullptr              '' out of memory
 	dim as FB_STR_TMPDESC ptr t = cptr( FB_STR_TMPDESC ptr, e )
 	t->desc.data = nullptr
 	t->desc.len  = 0
@@ -165,9 +221,14 @@ private function hPoolAlloc( ) as FBSTRING ptr
 end function
 
 private sub hPoolFree( byval s as FBSTRING ptr )
-	if( hFromPool( s ) = 0 ) then exit sub
 	dim as uint8 ptr p = cptr( uint8 ptr, s ) - offsetof( FB_STR_TMPDESC, desc )
-	fb_hListFreeElem( @tkort_tmpList, cptr( FB_LISTELEM ptr, p ) )
+	if( hFromPool( s ) ) then
+		fb_hListFreeElem( @tkort_tmpList, cptr( FB_LISTELEM ptr, p ) )
+		exit sub
+	end if
+	if( (s = nullptr) orelse (tkort_tmpSpillN = 0) ) then exit sub
+	dim as integer k = hSpillOf( s )
+	if( k >= 0 ) then fb_hListFreeElem( @tkort_tmpSpill[k]->lst, cptr( FB_LISTELEM ptr, p ) )
 end sub
 
 '' --------------------------------------------------------- the entry points
@@ -198,12 +259,15 @@ end function
 function tkort_hStrDelTempDesc alias "fb_hStrDelTempDesc" _
 	( byval s as FBSTRING ptr ) as int32
 
-	if( hFromPool( s ) = 0 ) then return -1
+	'' The spill count read unlocked only ever grows from 0, so a stale 0 sends a
+	'' table-less descriptor the same way it always went.
+	if( (hFromPool( s ) = 0) andalso (tkort_tmpSpillN = 0) ) then return -1
 
 	STRLOCK()
-	hPoolFree( s )
+	dim as integer ours = hOurs( s )
+	if( ours ) then hPoolFree( s )
 	STRUNLOCK()
-	return 0
+	return iif( ours, 0, -1 )
 
 end function
 
@@ -503,7 +567,7 @@ function tkort_hStrDelTemp_NoLock alias "fb_hStrDelTemp_NoLock" _
 	'' Gating the whole function on the temp bit exhausted the 256-entry pool,
 	'' because literal-backed descriptors ARE ours and were never handed back.
 	'' Gating it on the pool leaked the data. Each question governs its own half.
-	dim as integer mine = hFromPool( s )
+	dim as integer mine = hOurs( s )
 
 	if( (FB_ISTEMP( s ) = 0) andalso (mine = 0) ) then
 		'' Neither a temporary nor ours: a live string belonging to someone

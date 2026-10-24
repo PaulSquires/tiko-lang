@@ -56,6 +56,16 @@ dim shared as FB_USTR_TMPDESC tkort_utmpTable( 0 to FB_STR_TMPDESCRIPTORS - 1 )
 dim shared as FB_LIST         tkort_utmpList
 dim shared as integer         tkort_utmpWarned    '' exhaustion reported once
 
+'' SPILL BLOCKS, as the narrow pool's (str/core.tiko; review RT-01): a spent table gets
+'' another block of 256 from the heap, with its own free list, and a ustring temporary
+'' is never handed back empty. A block is never given back.
+type TKORT_USTR_SPILL
+	as FB_LIST             lst
+	as FB_USTR_TMPDESC ptr tbl
+end type
+dim shared as TKORT_USTR_SPILL ptr ptr tkort_utmpSpill
+dim shared as integer         tkort_utmpSpillN, tkort_utmpSpillCap
+
 '' ROUND TO 16 CODE UNITS -- which is 32 BYTES, matching the narrow allocator's
 '' 32-byte granule. Rounding to 32 units would silently double the granularity
 '' and every ustring in the program would carry twice the slack.
@@ -88,13 +98,53 @@ end sub
 '' is on element addresses, so the bound is the last element inclusive -- unlike
 '' the narrow pool, where the compare is on descriptor addresses and the bound
 '' has to be the end of the table.
-private function hElem( byval s as FBUSTRING ptr ) as FB_USTR_TMPDESC ptr
+'' The pool entry s is, and in 'lst' the free list it goes back to; NULL when s is not ours.
+private function hElem( byval s as FBUSTRING ptr, byref lst as FB_LIST ptr ) as FB_USTR_TMPDESC ptr
+	lst = nullptr
 	if( s = nullptr ) then return nullptr
 	dim as uint8 ptr p = cptr( uint8 ptr, s ) - offsetof( FB_USTR_TMPDESC, desc )
 	dim as FB_USTR_TMPDESC ptr e = cptr( FB_USTR_TMPDESC ptr, p )
-	if( e < @tkort_utmpTable(0) ) then return nullptr
-	if( e > @tkort_utmpTable(FB_STR_TMPDESCRIPTORS - 1) ) then return nullptr
-	return e
+	if( (e >= @tkort_utmpTable(0)) andalso (e <= @tkort_utmpTable(FB_STR_TMPDESCRIPTORS - 1)) ) then
+		lst = @tkort_utmpList
+		return e
+	end if
+	for k as integer = 0 to tkort_utmpSpillN - 1
+		dim as FB_USTR_TMPDESC ptr lo = tkort_utmpSpill[k]->tbl
+		if( (e >= lo) andalso (e <= @lo[FB_STR_TMPDESCRIPTORS - 1]) ) then
+			lst = @tkort_utmpSpill[k]->lst
+			return e
+		end if
+	next
+	return nullptr
+end function
+
+private function hSpillAlloc( ) as FB_LISTELEM ptr
+	for k as integer = 0 to tkort_utmpSpillN - 1
+		dim as FB_LISTELEM ptr e = fb_hListAllocElem( @tkort_utmpSpill[k]->lst )
+		if( e <> nullptr ) then return e
+	next
+	if( tkort_utmpSpillN = tkort_utmpSpillCap ) then
+		dim as integer ncap = iif( tkort_utmpSpillCap = 0, 8, tkort_utmpSpillCap * 2 )
+		dim as any ptr np = reallocate( tkort_utmpSpill, ncap * sizeof( TKORT_USTR_SPILL ptr ) )
+		if( np = nullptr ) then return nullptr
+		tkort_utmpSpill = np
+		tkort_utmpSpillCap = ncap
+	end if
+	dim as TKORT_USTR_SPILL ptr b = callocate( 1, sizeof( TKORT_USTR_SPILL ) )
+	if( b = nullptr ) then return nullptr
+	b->tbl = callocate( FB_STR_TMPDESCRIPTORS, sizeof( FB_USTR_TMPDESC ) )
+	if( b->tbl = nullptr ) then
+		deallocate( b )
+		return nullptr
+	end if
+	fb_hListInit( @b->lst, b->tbl, sizeof( FB_USTR_TMPDESC ), FB_STR_TMPDESCRIPTORS )
+	tkort_utmpSpill[tkort_utmpSpillN] = b
+	tkort_utmpSpillN += 1
+	if( tkort_utmpWarned = 0 ) then
+		tkort_utmpWarned = 1
+		fprintf( stderr, !"tiko-rt: the ustring temporary pool was exhausted and has grown\n" )
+	end if
+	return fb_hListAllocElem( @b->lst )
 end function
 
 '' --------------------------------------------------------- the entry points
@@ -106,13 +156,8 @@ function tkort_hUStrAllocTempDesc alias "fb_hUStrAllocTempDesc" ( ) as FBUSTRING
 	hPoolEnsure( )
 
 	dim as FB_LISTELEM ptr e = fb_hListAllocElem( @tkort_utmpList )
-	if( e = nullptr ) then                          '' pool exhausted -- 256 is the cap
-		if( tkort_utmpWarned = 0 ) then
-			tkort_utmpWarned = 1
-			fprintf( stderr, !"tiko-rt: the ustring temporary pool is exhausted; ustring results will be empty\n" )
-		end if
-		return nullptr
-	end if
+	if( e = nullptr ) then e = hSpillAlloc( )      '' the table is spent: a spill block
+	if( e = nullptr ) then return nullptr          '' out of memory
 
 	dim as FB_USTR_TMPDESC ptr t = cptr( FB_USTR_TMPDESC ptr, e )
 	t->desc.data = nullptr
@@ -132,10 +177,11 @@ end function
 function tkort_hUStrDelTempDesc alias "fb_hUStrDelTempDesc" _
 	( byval s as FBUSTRING ptr ) as int32
 
-	dim as FB_USTR_TMPDESC ptr e = hElem( s )
+	dim as FB_LIST ptr lst
+	dim as FB_USTR_TMPDESC ptr e = hElem( s, lst )
 	if( e = nullptr ) then return -1
 
-	fb_hListFreeElem( @tkort_utmpList, @e->elem )
+	fb_hListFreeElem( lst, @e->elem )
 
 	e->desc.data = nullptr
 	e->desc.len  = 0
