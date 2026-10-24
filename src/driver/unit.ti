@@ -6,6 +6,7 @@
 #include once "tko.ti"
 #include once "driver/driver.ti"
 #include once "codegen/target.ti"
+#include once "codegen/llvmemit.ti"
 #include once "pp/pp.ti"
 
 namespace Tko.Driver
@@ -41,7 +42,7 @@ declare function ToolFail_ _
       byref a0 as string = "", byref a1 as string = "", byref a2 as string = "" ) as int32
 declare function FrontendFailed_( byref ctx as Tko.CompilerContext ) as boolean
 declare function EmitStopFile_ _
-    ( byref ctx as Tko.CompilerContext, byref irText as string, _
+    ( byref ctx as Tko.CompilerContext, byref er as Tko.Codegen.EmitResult, _
       byref td as Tko.Codegen.TargetDescription, byval id as Tko.FileId, _
       byval i as int32, byval srcCount as int32 ) as int32
 '' WAITS FOR EVERY QUEUED clang -c (driver/objqueue.ti) and returns the first failure, already
@@ -49,7 +50,7 @@ declare function EmitStopFile_ _
 declare function DrainObjects( byref ctx as Tko.CompilerContext ) as int32
 
 declare function BuildFromIr _
-    ( byref ctx as Tko.CompilerContext, byref irText as string, _
+    ( byref ctx as Tko.CompilerContext, byref er as Tko.Codegen.EmitResult, _
       byref td as Tko.Codegen.TargetDescription, byref objPath as string ) as int32
 declare function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfig
 '' Is an fb_ name a runtime procedure -- for Check.ReportUndeclared. Defined in unit.tiko.

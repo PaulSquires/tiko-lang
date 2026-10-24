@@ -12,7 +12,7 @@
 #define __TKO_LLVMREFS_BI__
 
 #include once "mir/mir.ti"
-#include once "support/irtext.ti"
+#include once "codegen/irsink.ti"
 
 namespace Tko.Codegen
 
@@ -25,7 +25,7 @@ namespace Tko.Codegen
     '' function; 'outSoFar' is what has been written, so nothing is declared twice.
     declare function DeclareUnknownVtableSlots _
         ( byref m as Tko.Mir.MirModule, byref names as Tko.Interner, _
-          byref outSoFar as IrText ) as string
+          byref outSoFar as IrSink ) as string
 
 end namespace
 

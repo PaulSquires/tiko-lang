@@ -76,7 +76,7 @@ end function
 
 function DeclareUnknownVtableSlots _
     ( byref m as Tko.Mir.MirModule, byref names as Tko.Interner, _
-      byref outSoFar as IrText ) as string
+      byref outSoFar as IrSink ) as string
 
     '' RETURNS the declarations to append; 'outSoFar' is the module text written so far,
     '' so a name already declared there is not declared twice.
@@ -116,7 +116,7 @@ function DeclareUnknownVtableSlots _
             '' one. A module's classes that an importer never used reached it only through
             '' those tables, and clang refused the second 'declare' (fbx/webview2).
             if declared.Contains( ln ) then continue for
-            if outSoFar.Contains( ln ) then continue for
+            if outSoFar.HasVoidDeclare( ln ) then continue for
             declared.Add( ln )
             decls += ln & chr( 10 )
         next

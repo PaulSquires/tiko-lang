@@ -26,7 +26,13 @@ namespace Tko.Codegen
 
     type EmitResult
         as boolean ok
-        as string  text        '' the module, when ok
+        '' THE MODULE, when ok, in three parts written in order: 'text' (the head), the file
+        '' 'bodyPath' when the body outgrew memory (codegen/irsink.ti; "" when it did not),
+        '' then 'tail'. Something to add at the end -- the '.fbctinf' section -- goes on
+        '' 'tail'. WriteEmitted writes all three and deletes the file.
+        as string  text
+        as string  bodyPath
+        as string  tail
         '' The FIRST thing that could not be emitted, named. Not a list: the first one
         '' is the one to fix, and the rest are usually the same cause counted again.
         as string  ice
@@ -39,6 +45,10 @@ namespace Tko.Codegen
           byref target as TargetDescription, byval sm as Tko.SourceManager ptr = nullptr, _
           byval debugInfo as boolean = false, byval mainPath as string = "", _
           byval dfe as DebugFrontend ptr = nullptr ) as EmitResult
+
+    '' The module 'er' holds, to the open file 'fh' (0: stdout). False when a spilled body
+    '' could not be read back.
+    declare function WriteEmitted( byval fh as int32, byref er as EmitResult ) as boolean
 
 end namespace
 

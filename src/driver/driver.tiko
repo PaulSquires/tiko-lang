@@ -407,7 +407,7 @@ end function
 '' fbc's '-r' is the same shape: 'fbc -gen llvm -r x.bas -o x.ll' writes the IR there. With
 '' several modules and one -o, each is '<-o stem>.<n>.ll', as their intermediate objects are.
 function EmitStopFile_ _
-    ( byref ctx as Tko.CompilerContext, byref irText as string, _
+    ( byref ctx as Tko.CompilerContext, byref er as Tko.Codegen.EmitResult, _
       byref td as Tko.Codegen.TargetDescription, byval id as Tko.FileId, _
       byval i as int32, byval srcCount as int32 ) as int32
 
@@ -415,7 +415,9 @@ function EmitStopFile_ _
     dim as string outp = ctx.options.outputPath
     if len( outp ) = 0 then
         if ctx.options.emitAsm = false then
-            print irText;
+            if Tko.Codegen.WriteEmitted( 0, er ) = false then
+                return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0112, "<stdout>" )
+            end if
             return Tko.EXIT_OK
         end if
         outp = StripExt_( ctx.sources.PathOf( id ) ) & ext
@@ -427,8 +429,9 @@ function EmitStopFile_ _
     dim as int32 fh = freefile
     dim as int32 orc = open( irPath for output as #fh )
     if orc <> 0 then return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0112, irPath )
-    print #fh, irText;
+    dim as boolean wrote = Tko.Codegen.WriteEmitted( fh, er )
     close #fh
+    if wrote = false then return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0112, irPath )
     if ctx.options.emitAsm = false then return Tko.EXIT_OK
 
     dim as Tko.Codegen.ToolPaths tools = Tools_( ctx )
@@ -538,7 +541,7 @@ private sub KillTemps_( byref ctx as Tko.CompilerContext, byref tempObjs as Tko.
 end sub
 
 function BuildFromIr _
-    ( byref ctx as Tko.CompilerContext, byref irText as string, _
+    ( byref ctx as Tko.CompilerContext, byref er as Tko.Codegen.EmitResult, _
       byref td as Tko.Codegen.TargetDescription, byref objPath as string ) as int32
 
     dim as Tko.Codegen.ToolPaths tools = _
@@ -568,8 +571,9 @@ function BuildFromIr _
     if orc <> 0 then
         return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0112, irPath )
     end if
-    print #fh, irText;
+    dim as boolean wrote = Tko.Codegen.WriteEmitted( fh, er )
     close #fh
+    if wrote = false then return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0112, irPath )
     ctx.timing.Add( Tko.PH_WRITEIR, tWrite )
 
     '' A COMPILER THAT EXITS 0 AND WRITES NOTHING IS A FAILURE. With 'TKO_CLANG=where.exe'

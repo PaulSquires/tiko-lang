@@ -7,6 +7,7 @@
 #include once "codegen/llvmrefs.ti"
 #include once "codegen/abi.ti"
 #include once "support/irtext.ti"
+#include once "codegen/irsink.ti"
 
 namespace Tko.Codegen
 
@@ -19,7 +20,7 @@ type EmitCtx
     as MirModule ptr    m
     as Tko.Interner ptr names
     as TargetDescription ptr tgt
-    as IrText           outp        '' appended to, never re-copied -- see irtext.ti
+    as IrSink           outp        '' appended to, never re-copied; spilled past a size -- irsink.ti
     as string           ice
     as MirFunction ptr  f
     '' A temp that is really a CONSTANT. M_CONST has no LLVM counterpart -- a constant
@@ -1237,8 +1238,8 @@ end sub
 ''
 '' AN INTRINSIC MUST BE DECLARED before it is called, and which ones are needed is only
 '' known once every function has been emitted. So the body is built first and the
-'' declarations are prepended -- which is also why the emitter builds one string and
-'' writes it once rather than streaming to a file.
+'' declarations are written ahead of it -- from memory, or ahead of the body's spill file
+'' when it outgrew the threshold (codegen/irsink.ti), byte for byte the same module.
 '' Does this module carry a function of its own under that LINKER NAME?
 ''
 '' The intrinsic declarations below are chosen by scanning the emitted TEXT, and
@@ -1253,70 +1254,15 @@ private function ModuleDeclares_( byref e as EmitCtx, byref nm as string ) as bo
     return false
 end function
 
-extern "c"
-    declare function MemChr_ alias "memchr" ( byval s as const any ptr, byval c as int32, _
-                                              byval n as uinteger ) as any ptr
-end extern
-
-'' WHICH NAMES THE BODY CALLS, as '@name(' or '@"name"(' -- every '@' visited once, each
-'' matched name added to the set 'found' (a quoted one with its leading '"'). It answers exactly what an
-'' 'instr( body, "@" & name & "(" )' per name answered: a needle starts with '@' and ends
-'' with '(', which no identifier and no quoted name contains, so at any '@' at most one
-'' name can match and it is the longest one there. That was ~34 scans of the whole module
-'' per unit -- 1.43 s of tiko-lang's 18 s self-compile (speed audit, 2026-10-07).
-'' A SET, not the NUL-separated string it was: the 'instr' per name found was names
-'' squared over the module. Only membership is ever asked of it (Called_).
-private sub CalledNames_( byref body as string, byref found as containers.Set( of string ) )
-    dim as int32 n = len( body )
-    if n = 0 then return
-    dim as uint8 ptr base_ = cast( uint8 ptr, strptr( body ) )
-    dim as int32 i = 0
-    while i < n
-        dim as uint8 ptr hit = MemChr_( base_ + i, 64, n - i )
-        if hit = nullptr then exit while
-        i = cast( int32, hit - base_ )
-        dim as int32 st = i + 1, en = 0
-        if (st < n) andalso (base_[st] = 34) then
-            '' '@"name"(' -- the name is what lies between the quotes.
-            dim as uint8 ptr q = MemChr_( base_ + st + 1, 34, n - st - 1 )
-            if q <> nullptr then
-                en = cast( int32, q - base_ )
-                st += 1
-                if (en + 1 < n) andalso (base_[en + 1] = 40) then
-                    '' Recorded WITH its opening quote: '@"x"(' is not '@x(', as no needle
-                    '' matched one for the other.
-                    found.Add( chr( 34 ) & mid( body, st + 1, en - st ) )
-                end if
-            end if
-        else
-            '' '@name(' -- an unquoted LLVM identifier, then the parenthesis.
-            en = st
-            while en < n
-                dim as uint8 c = base_[en]
-                dim as boolean ident = ((c >= 48) andalso (c <= 57)) orelse _
-                                       ((c >= 65) andalso (c <= 90)) orelse _
-                                       ((c >= 97) andalso (c <= 122)) orelse _
-                                       (c = 46) orelse (c = 95) orelse (c = 36) orelse (c = 45)
-                if ident = false then exit while
-                en += 1
-            wend
-            if (en > st) andalso (en < n) andalso (base_[en] = 40) then
-                found.Add( mid( body, st + 1, en - st ) )
-            end if
-        end if
-        i += 1
-    wend
-end sub
-
 private function Called_( byref found as containers.Set( of string ), byref nm as string ) as boolean
     return found.Contains( nm )
 end function
 
+'' 'called' is every name the body calls (CalledNames), gathered over its spilled chunks
+'' and what stayed in memory.
 private function IntrinsicDecls _
-    ( byref e as EmitCtx, byref body as string ) as string
+    ( byref e as EmitCtx, byref called as containers.Set( of string ) ) as string
     dim as string r
-    dim as containers.Set( of string ) called
-    CalledNames_( body, called )
     '' The full set this emitter can produce, each declared only if it appears. A
     '' declaration that is never called is harmless but noisy, and noise in emitted IR
     '' is what makes a real difference hard to see in a golden diff.
@@ -1421,11 +1367,13 @@ function EmitLlvm _
         e.dbg = @dbg
     end if
 
+    e.outp.Start( )
     RenameClashingGlobals_( m, names )
     for gi as int32 = 0 to m.globals.Count - 1
         EmitGlobal( e, m.globals[gi] )
     next
     if m.globals.Count > 0 then e.outp += chr( 10 )
+    e.outp.Boundary( )
 
     '' AN UNREFERENCED PRIVATE PROCEDURE IS NOT EMITTED, because fbc does not emit one:
     '' emitting it made a link fail that fbc links, and only -O0 showed it (LLVM deletes
@@ -1446,6 +1394,7 @@ function EmitLlvm _
         dim as boolean isRoot = (f->isModuleCtor orelse f->isModuleDtor)
         if f->isPrivate andalso unref andalso (isRoot = false) then continue for
         EmitFunction( e, f )
+        e.outp.Boundary( )
     next
     '' A DECLARATION OF SOMETHING THIS MODULE ALSO DEFINES IS SKIPPED. Two MirFunction
     '' entries can carry one name: a call lowered before the definition was reached
@@ -1471,6 +1420,7 @@ function EmitLlvm _
         wend
         if alsoDefined then continue for
         EmitFunction( e, f )
+        e.outp.Boundary( )
     next
 
     '' A VTABLE SLOT MAY NAME A FUNCTION THIS MODULE NEVER DECLARES -- see
@@ -1482,6 +1432,7 @@ function EmitLlvm _
     e.outp += StructorLists_( e, m )
 
     if len( e.ice ) > 0 then
+        e.outp.Discard( )
         res.ok = false
         res.ice = e.ice
         return res
@@ -1491,10 +1442,22 @@ function EmitLlvm _
         "target datalayout = """ & target.dataLayout & """" & chr( 10 ) & _
         "target triple = """ & target.triple & """" & chr( 10 ) & chr( 10 )
     res.ok = true
-    dim as string body_ = e.outp
-    res.text = hdr & IntrinsicDecls( e, body_ ) & chr( 10 ) & body_
-    if e.dbg <> nullptr then res.text += DbgFinish( dbg )
+    '' THE MODULE IS text, THEN THE SPILLED BODY (if any), THEN tail -- WriteEmitted puts
+    '' them out in that order. Never joined here: the join was one more copy of the module.
+    dim as string rest = e.outp.Finish( )
+    CalledNames( rest, e.outp.called )
+    res.text = hdr & IntrinsicDecls( e, e.outp.called ) & chr( 10 )
+    res.bodyPath = e.outp.spillPath
+    swap res.tail, rest
+    if e.dbg <> nullptr then res.tail += DbgFinish( dbg )
     return res
+end function
+
+function WriteEmitted( byval fh as int32, byref er as EmitResult ) as boolean
+    dim as boolean ok = WriteSpilled( fh, er.text, er.bodyPath, er.tail )
+    if len( er.bodyPath ) > 0 then kill( er.bodyPath )
+    er.bodyPath = ""
+    return ok
 end function
 
 end namespace

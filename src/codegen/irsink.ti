@@ -1,0 +1,61 @@
+'' irsink.ti -- the emitter's output: in memory while small, streamed to a file past a size.
+''
+'' WHY. EmitLlvm built the whole module in one IrText, then copied it out to prepend the
+'' intrinsic declarations (which ones are needed is known only at the end), and the driver
+'' printed that copy. Measured 2026-10-24 with '--time-passes' peaks: a 50 MB string literal
+'' went from 286 MB after lowering to 415 MB after emission, 20,000 small functions from
+'' 251 MB to 344 MB -- the module text held three to four times over.
+''
+'' WHAT IT DOES. The emitter appends as before and calls Boundary( ) between top-level
+'' items -- after the globals and after each function -- which is where a chunk can end
+'' with nothing straddling it. Past the threshold the chunk goes to a temporary file and
+'' the buffer is reused. Before it goes, the two questions the end of emission asks of the
+'' text are answered for it: which '@name(' it calls (CalledNames, for IntrinsicDecls) and
+'' which 'declare void @"x"()' lines it holds (for DeclareUnknownVtableSlots). The OUTPUT
+'' IS BYTE-IDENTICAL either way: the head (target lines + intrinsic declarations) is
+'' written first, then the spilled body, then what was still in memory.
+''
+'' THE THRESHOLD is 1 MB: on the 20,000-function probe, emission's rise over lowering went
+'' 93 MB -> 8 MB at 1 MB, 11 MB at 2 MB, 31 MB at 8 MB, at no cost in time; the literal's
+'' 129 MB -> 55 MB, which is the one 50 MB line itself. A unit under 1 MB of IR never
+'' touches the disk. TKO_IR_SPILL=<bytes> overrides it; TKO_IR_SPILL=1 spills at every
+'' boundary, which is how the byte-identity of the streamed path is tested.
+#pragma once
+#include once "tko.ti"
+#include once "support/irtext.ti"
+'' The includer imports std/containers first, as every header that names a container expects.
+
+namespace Tko.Codegen
+
+    type IrSink
+        as IrText  buf
+        as int32   threshold       '' 0 until Start( ): then the byte count that spills
+        as string  spillPath       '' "" until the first spill
+        as int32   fh              '' the open spill file, 0 when none
+        as boolean failed          '' the spill file could not be made: stay in memory
+        '' What the spilled text answered, gathered chunk by chunk.
+        as containers.Set( of string ) called
+        as containers.Set( of string ) declaredVoid
+
+        declare sub Start( )
+        declare operator += ( byref s as string )
+        '' Between two top-level items: spill the buffer if it has grown past the threshold.
+        declare sub Boundary( )
+        '' Whether 'line' -- a whole 'declare void @"x"()' -- is in the text so far.
+        declare function HasVoidDeclare( byref ln as string ) as boolean
+        '' Close the spill file; what is still in memory is returned and the buffer emptied.
+        declare function Finish( ) as string
+        '' Delete the spill file (after it was copied out, or on an ICE).
+        declare sub Discard( )
+    end type
+
+    '' Every '@name(' / '@"name"(' in 'body', added to 'found' (a quoted one with its '"').
+    declare sub CalledNames( byref body as string, byref found as containers.Set( of string ) )
+
+    '' THE MODULE, WRITTEN: 'head', then the spilled body file (if any), then 'tail'. To the
+    '' open file 'fh', or to stdout when fh is 0. False when the body file could not be read.
+    declare function WriteSpilled _
+        ( byval fh as int32, byref head as string, byref bodyPath as string, _
+          byref tail as string ) as boolean
+
+end namespace

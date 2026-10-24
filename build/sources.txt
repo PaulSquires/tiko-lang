@@ -99,6 +99,7 @@ src/codegen/target.tiko
 src/codegen/llvmtype.tiko
 src/codegen/abi.tiko
 src/codegen/llvmdebug.tiko
+src/codegen/irsink.tiko
 src/codegen/llvmrefs.tiko
 src/codegen/llvmemit.tiko
 src/codegen/toolchain.tiko

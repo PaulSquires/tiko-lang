@@ -578,7 +578,7 @@ function CompileUnit _
                 '' empty, and this gate sent a '-c' run down the print-to-
                 '' stdout arm -- object never written, exit code 0.
                 if ctx.options.emitIr orelse ctx.options.emitAsm then
-                    dim as int32 ex = EmitStopFile_( ctx, er.text, td, id, i, srcCount )
+                    dim as int32 ex = EmitStopFile_( ctx, er, td, id, i, srcCount )
                     if (ex <> Tko.EXIT_OK) andalso (toolExit = Tko.EXIT_OK) then toolExit = ex
                 elseif wantsOutput then
                     '' The result IS the exit code. BuildFromIr reports its
@@ -638,7 +638,7 @@ function CompileUnit _
                     if ctx.options.compileOnly then
                         dim as Tko.StrVec noMods
                         dim as boolean records = modC andalso (ctx.modFileCount = 0)
-                        er.text += Tko.Codegen.ObjInfoIr( ctx.options.libs, _
+                        er.tail += Tko.Codegen.ObjInfoIr( ctx.options.libs, _
                             ctx.options.pragmaLibs, ctx.options.libPaths, _
                             ctx.options.pragmaLibPaths, _
                             ctx.options.pragmaLibFiles, ctx.options.threadSafe, _
@@ -647,15 +647,18 @@ function CompileUnit _
                     '' THE FIRST FAILURE STAYS. Assigned straight to toolExit,
                     '' module 2 compiling cleanly reset module 1's clang failure
                     '' to OK -- and the link then ran without its object.
-                    dim as int32 bx = BuildFromIr( ctx, er.text, td, objPath )
+                    dim as int32 bx = BuildFromIr( ctx, er, td, objPath )
                     if bx = Tko.EXIT_OK then
                         linkObjs.Push( objPath )
                     elseif toolExit = Tko.EXIT_OK then
                         toolExit = bx
                     end if
                 else
-                    print er.text;
+                    Tko.Codegen.WriteEmitted( 0, er )
                 end if
+                '' A SPILLED BODY NOT WRITTEN OUT -- the file could not be opened, the
+                '' toolchain was missing -- is still a temporary file of this run's.
+                if len( er.bodyPath ) > 0 then kill( er.bodyPath )
             else
                 '' AN INTERNAL FAULT, and exits as one. The compiler could not
                 '' emit something it accepted. It was 'emit: ICE:' on STDOUT --

@@ -1,0 +1,207 @@
+'' irsink.tiko -- see the header.
+
+#import "std/containers"
+#include once "codegen/irsink.ti"
+
+extern "c"
+    declare function MemChr_ alias "memchr" ( byval s as const any ptr, byval c as int32, _
+                                              byval n as uinteger ) as any ptr
+    declare function MemSet_ alias "memset" ( byval s as any ptr, byval c as int32, _
+                                              byval n as uinteger ) as any ptr
+end extern
+
+namespace Tko.Codegen
+
+const IR_SPILL_DEFAULT as int32 = 1024 * 1024
+const IR_COPY_CHUNK as int32 = 1024 * 1024
+
+sub IrSink.Start( )
+    this.threshold = IR_SPILL_DEFAULT
+    dim as string ev = environ( "TKO_IR_SPILL" )
+    if len( ev ) > 0 then
+        dim as longint v = vallng( ev )
+        if (v > 0) andalso (v < 2147483647) then this.threshold = cast( int32, v )
+    end if
+end sub
+
+operator IrSink.+= ( byref s as string )
+    this.buf += s
+end operator
+
+'' A spill file no other run has: the name is tried until one does not exist yet.
+private function OpenSpill_( byref path_ as string ) as int32
+    dim as string tmp = environ( "TEMP" )
+    if len( tmp ) = 0 then tmp = environ( "TMPDIR" )
+    if len( tmp ) = 0 then tmp = "/tmp"
+    dim as string stamp_ = hex( cast( uint32, ( timer * 1000000 ) mod 4294967296 ) )
+    for n as int32 = 0 to 999
+        dim as string p = tmp & "/tiko-ir-" & stamp_ & "-" & str( n ) & ".part"
+        dim as int32 probe = freefile
+        if open( p for input as #probe ) = 0 then
+            close #probe
+            continue for
+        end if
+        dim as int32 fh = freefile
+        if open( p for binary access write as #fh ) <> 0 then return 0
+        path_ = p
+        return fh
+    next
+    return 0
+end function
+
+'' THE 'declare void @"x"()' LINES of a chunk, whole. A line of the module that contains that
+'' text starts with it: inside a function every line is indented, and a quote inside a
+'' constant or a metadata string is written '\22'.
+private sub VoidDeclares_( byref chunk as string, byref found as containers.Set( of string ) )
+    dim as string lead = "declare void @" & chr( 34 )
+    dim as int32 at = 1
+    do
+        dim as int32 p = instr( at, chunk, lead )
+        if p = 0 then exit do
+        dim as int32 q = instr( p + len( lead ), chunk, chr( 34 ) & "()" )
+        dim as int32 eol = instr( p, chunk, chr( 10 ) )
+        if eol = 0 then eol = len( chunk ) + 1
+        if (q > 0) andalso (q < eol) then found.Add( mid( chunk, p, q + 3 - p ) )
+        at = eol + 1
+    loop while at <= len( chunk )
+end sub
+
+sub IrSink.Boundary( )
+    if this.failed orelse (this.threshold <= 0) then exit sub
+    if this.buf.used < this.threshold then exit sub
+    if this.fh = 0 then
+        this.fh = OpenSpill_( this.spillPath )
+        if this.fh = 0 then
+            this.failed = true
+            exit sub
+        end if
+    end if
+    dim as string chunk = this.buf
+    CalledNames( chunk, this.called )
+    VoidDeclares_( chunk, this.declaredVoid )
+    if put( #this.fh, , chunk ) <> 0 then
+        '' A FULL DISK is not a reason to fail the build: the rest stays in memory, and the
+        '' module is the spilled part plus that. Nothing is lost -- only the saving.
+        this.failed = true
+        exit sub
+    end if
+    '' Back to NULs past 'used', which IrText.Contains relies on.
+    MemSet_( strptr( this.buf.buf ), 0, this.buf.used )
+    this.buf.used = 0
+end sub
+
+function IrSink.HasVoidDeclare( byref ln as string ) as boolean
+    if this.declaredVoid.Contains( ln ) then return true
+    return this.buf.Contains( ln )
+end function
+
+function IrSink.Finish( ) as string
+    if this.fh <> 0 then
+        close #this.fh
+        this.fh = 0
+    end if
+    dim as string rest = this.buf
+    this.buf.buf = ""
+    this.buf.used = 0
+    return rest
+end function
+
+sub IrSink.Discard( )
+    if this.fh <> 0 then
+        close #this.fh
+        this.fh = 0
+    end if
+    if len( this.spillPath ) > 0 then kill( this.spillPath )
+    this.spillPath = ""
+end sub
+
+'' WHICH NAMES THE BODY CALLS, as '@name(' or '@"name"(' -- every '@' visited once, each
+'' matched name added to the set 'found' (a quoted one with its leading '"'). It answers exactly what an
+'' 'instr( body, "@" & name & "(" )' per name answered: a needle starts with '@' and ends
+'' with '(', which no identifier and no quoted name contains, so at any '@' at most one
+'' name can match and it is the longest one there. That was ~34 scans of the whole module
+'' per unit -- 1.43 s of tiko-lang's 18 s self-compile (speed audit, 2026-10-07).
+'' A SET, not the NUL-separated string it was: the 'instr' per name found was names
+'' squared over the module. Only membership is ever asked of it (Called_).
+''
+'' CHUNK BY CHUNK GIVES THE SAME SET: IrSink cuts only between top-level items, and no
+'' '@name(' spans two of them.
+sub CalledNames( byref body as string, byref found as containers.Set( of string ) )
+    dim as int32 n = len( body )
+    if n = 0 then return
+    dim as uint8 ptr base_ = cast( uint8 ptr, strptr( body ) )
+    dim as int32 i = 0
+    while i < n
+        dim as uint8 ptr hit = MemChr_( base_ + i, 64, n - i )
+        if hit = nullptr then exit while
+        i = cast( int32, hit - base_ )
+        dim as int32 st = i + 1, en = 0
+        if (st < n) andalso (base_[st] = 34) then
+            '' '@"name"(' -- the name is what lies between the quotes.
+            dim as uint8 ptr q = MemChr_( base_ + st + 1, 34, n - st - 1 )
+            if q <> nullptr then
+                en = cast( int32, q - base_ )
+                st += 1
+                if (en + 1 < n) andalso (base_[en + 1] = 40) then
+                    '' Recorded WITH its opening quote: '@"x"(' is not '@x(', as no needle
+                    '' matched one for the other.
+                    found.Add( chr( 34 ) & mid( body, st + 1, en - st ) )
+                end if
+            end if
+        else
+            '' '@name(' -- an unquoted LLVM identifier, then the parenthesis.
+            en = st
+            while en < n
+                dim as uint8 c = base_[en]
+                dim as boolean ident = ((c >= 48) andalso (c <= 57)) orelse _
+                                       ((c >= 65) andalso (c <= 90)) orelse _
+                                       ((c >= 97) andalso (c <= 122)) orelse _
+                                       (c = 46) orelse (c = 95) orelse (c = 36) orelse (c = 45)
+                if ident = false then exit while
+                en += 1
+            wend
+            if (en > st) andalso (en < n) andalso (base_[en] = 40) then
+                found.Add( mid( body, st + 1, en - st ) )
+            end if
+        end if
+        i += 1
+    wend
+end sub
+
+'' To 'fh', or to stdout when it is 0.
+private sub Out_( byval fh as int32, byref s as string )
+    if fh <> 0 then
+        print #fh, s;
+    else
+        print s;
+    end if
+end sub
+
+function WriteSpilled _
+    ( byval fh as int32, byref head as string, byref bodyPath as string, _
+      byref tail as string ) as boolean
+    Out_( fh, head )
+    dim as boolean ok = true
+    if len( bodyPath ) > 0 then
+        dim as int32 bh = freefile
+        if open( bodyPath for binary access read as #bh ) <> 0 then
+            ok = false
+        else
+            dim as longint left_ = lof( bh )
+            dim as string chunk
+            while left_ > 0
+                dim as int32 n = IR_COPY_CHUNK
+                if left_ < n then n = cast( int32, left_ )
+                chunk = space( n )
+                get #bh, , chunk
+                Out_( fh, chunk )
+                left_ -= n
+            wend
+            close #bh
+        end if
+    end if
+    Out_( fh, tail )
+    return ok
+end function
+
+end namespace

@@ -166,6 +166,43 @@ CH_READ=$(awk '/^source bytes/{print $3}' "$WORK/chunk.out")
 CHUNK_RSS=$( peak_rss --check -fmax-errors 100000 $FBCUNIT $(cat "$LAST") )
 SELF_RSS=$( peak_rss --check -i src $SELF )
 
+# ---------------------------------------------------------------- 5b. lower + emit
+# THE --check ROWS ABOVE STOP BEFORE CODE EXISTS. Lowering and the emitter hold the MIR and
+# the module text on top of the front end, so they are measured from inside: --time-passes
+# prints the process's peak after each phase (driver/phasetime.ti), and each phase's RISE
+# over the one before is what it added. Three units: a generated 8 MB string literal (one
+# line the emitter cannot cut), 20,000 generated small functions (many lines it can), and
+# the largest corpus file. --emit-ir to a file is the emitter's whole job with no clang.
+#
+# THE CEILING, measured 2026-10-24 before the IR was streamed (codegen/irsink.ti), Debug
+# build: 50 MB literal emit +129 MB; 20,000 functions emit +93 MB. After: +55 MB, +8 MB.
+# The budget judges the emitter's rise against the size of the .ll it wrote: at most half
+# of it plus 16 MB -- streaming keeps one chunk and the longest line, never the module.
+awk 'BEGIN { s = "x"; while (length(s) < 8388608) s = s s;
+             printf "dim as string s = \"%s\"\nprint len( s )\n", substr(s, 1, 8388608) }' > "$WORK/lit.bas"
+awk 'BEGIN { for (i = 0; i < 20000; i++)
+                 printf "function f%d( byval a as long ) as long\n    dim as long b = a * %d + 3\n    if b > 10 then b -= 7\n    return b\nend function\n", i, i
+             print "dim as long t"
+             for (i = 0; i < 20000; i += 1000) printf "t += f%d( %d )\n", i, i
+             print "print t" }' > "$WORK/fns.bas"
+lower_emit( ) {   # <file> -> "front lower emit llbytes", peaks in bytes
+    "$TIKO" --emit-ir --time-passes $FBCUNIT "$1" -o "$WORK/le.ll" > "$WORK/le.out" 2>&1 || true
+    LLB=$( [ -f "$WORK/le.ll" ] && wc -c < "$WORK/le.ll" || echo 0 )
+    rm -f "$WORK/le.ll"
+    awk -v llb="$LLB" '{ gsub( /\r/, "" ) } / peak .* MB$/ { mb = $(NF-1)
+             if ($1 == "lower") lo = mb; else if ($1 == "emit") em = mb; else if (lo == "") fr = mb }
+         END { printf "%.0f %.0f %.0f %d", fr*1048576, lo*1048576, em*1048576, llb }' "$WORK/le.out"
+}
+LE_LIT=$( lower_emit "$WORK/lit.bas" )
+LE_FNS=$( lower_emit "$WORK/fns.bas" )
+# The largest corpus file that BUILDS: the largest of all is a syntax test with no IR.
+LE_BIG="0 0 0 0"
+for f in $(find "$CORPUS_ROOT" -name '*.bas' -printf '%s %p
+' | sort -rn | head -40 | awk '{print $2}'); do
+    LE_BIG=$( lower_emit "$f" )
+    [ "${LE_BIG##* }" != "0" ] && break
+done
+
 # ---------------------------------------------------------------- 6. vs fbc -gen gcc
 # THE ROW SAYS 'tiko build'. tiko compiles itself (build/bootstrap.sh), but that build is
 # not yet timed against fbc's build of the same sources. The
@@ -214,8 +251,15 @@ awk -v files="$FILES" -v input="$INPUT" \
     -v selfpar="$SELF_PAR" -v selffe="$SELF_FE" \
     -v selfastb="$SELF_AST_B" -v selfastt="$SELF_AST_T" \
     -v floor="$RSS_FLOOR" -v bigrss="$BIG_RSS" -v bigread="$BIG_READ" \
-    -v chrss="$CHUNK_RSS" -v chread="$CH_READ" -v selfrss="$SELF_RSS" -v e2e="$E2E" '
+    -v chrss="$CHUNK_RSS" -v chread="$CH_READ" -v selfrss="$SELF_RSS" -v e2e="$E2E" \
+    -v lelit="$LE_LIT" -v lefns="$LE_FNS" -v lebig="$LE_BIG" '
 function mb( b ) { return b / 1048576.0 }
+function lerow( name, v,    a, er, cap ) {
+    split( v, a, " " )
+    er = mb(a[3] - a[2]); cap = 16 + mb(a[4]) / 2
+    printf "    %-24s front %7.1f MB  lower %+7.1f  emit %+7.1f  (.ll %6.1f MB)  emit <= %5.1f  %s\n", \
+        name, mb(a[1]), mb(a[2] - a[1]), er, mb(a[4]), cap, verdict(er, cap, 0)
+}
 function verdict( got, want, higher ) {
     if( higher ) return (got >= want) ? "MET" : "MISSED"
     return (got <= want) ? "MET" : "MISSED"
@@ -242,6 +286,10 @@ BEGIN {
     printf "  many units in one process -- reported, not judged by that rule:\n"
     printf "    300-file chunk %6.2f MB, %5.2f MB read, %.1fx  (%.1fx above the floor)\n", mb(chrss), mb(chread), chrss/chread, (chrss-floor)/chread
     printf "    self-compile   %6.2f MB, %5.2f MB read, %.1fx  (%.1fx above the floor)\n", mb(selfrss), mb(selfread), selfrss/selfread, (selfrss-floor)/selfread
+    printf "  lower + emit, one unit (peaks from --time-passes; emit budget 16 MB + half the .ll):\n"
+    lerow( "8 MB literal", lelit )
+    lerow( "20,000 functions", lefns )
+    lerow( "largest building corpus", lebig )
     printf "\nend to end vs fbc -gen gcc: %s   budget: not slower\n", e2e
 }'
 printf '%s' "$CMP"
