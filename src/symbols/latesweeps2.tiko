@@ -380,9 +380,9 @@ private sub CheckUdtInits_ ( byref c as Ctx )
     for n as int32 = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_VAR_ITEM then continue for
-        if (c.ast->nodes[n].flags and NF_QUALIFIED) = 0 then continue for
+        if (c.ast->Flags( n ) and NF_QUALIFIED) = 0 then continue for
         dim as StmtPayload ptr ip = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+            c.ast->StmtOf( n )
         if ip->b = NODE_NONE then continue for
         dim as Symbol ptr ms = c.syms->SymbolAt( c.info->RefOf( id ) )
         if ms = nullptr then
@@ -1117,7 +1117,7 @@ private function ExternDeclaredElsewhere_ _
     for n as int32 = 0 to c.ast->Count( ) - 1
         if c.ast->Kind( cast( NodeId, n ) ) <> N_VAR then continue for
         dim as StmtPayload ptr sp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+            c.ast->StmtOf( n )
         if sp->op <> cast( uint16, KW_EXTERN ) then continue for
         for i as int32 = 0 to sp->count - 1
             dim as NodeId item = c.ast->ChildAt( sp->first, i )

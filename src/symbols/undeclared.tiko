@@ -67,7 +67,7 @@ private function IdentSpelled_ _
     if n = Tko.NODE_NONE then return ""
     if ast.Kind( n ) <> Tko.N_IDENT then return ""
     return Tko.Text.LowerAscii( names.Spelling( _
-        ast.idents[cast( int32, ast.nodes[cast( int32, n )].data )].name ) )
+        ast.IdentOf( n )->name ) )
 end function
 
 '' THE IMPORT A NAME WAS MEANT FOR: '#import "std/strings"' binds 'strings' alone, and
@@ -133,38 +133,38 @@ sub ReportUndeclared _
             '' says T is a parameter. fb/comptr.bi's ComQIPtr is that line, and every com
             '' suite includes it. By LOCATION, because an instantiation re-parses the type:
             '' the reference reported is a fresh node, but on the same header line.
-            dim as Tko.StmtPayload ptr gtp = @ast.stmts[cast( int32, ast.nodes[i].data )]
+            dim as Tko.StmtPayload ptr gtp = ast.StmtOf( i )
             if (gtp->b <> Tko.NODE_NONE) andalso (ast.Kind( gtp->b ) = Tko.N_BLOCK) then
-                dim as Tko.ListPayload ptr gpl = @ast.lists[cast( int32, ast.nodes[cast( int32, gtp->b )].data )]
+                dim as Tko.ListPayload ptr gpl = ast.ListOf( gtp->b )
                 dim as Tko.DecodedLoc hl = src.Decode( ast.Loc( n ) )
                 for k as int32 = 0 to gpl->count - 1
-                    dim as Tko.NodeId pn = cast( Tko.NodeId, ast.children[gpl->first + k] )
+                    dim as Tko.NodeId pn = ast.ChildAt( gpl->first, k )
                     if ast.Kind( pn ) = Tko.N_IDENT then
                         genHdr.Push( cast( uint32, hl.file ) ) : genHdr.Push( cast( uint32, hl.physLine ) )
-                        genHdr.Push( cast( uint32, names.Fold( ast.idents[cast( int32, ast.nodes[cast( int32, pn )].data )].name ) ) )
+                        genHdr.Push( cast( uint32, names.Fold( ast.IdentOf( pn )->name ) ) )
                     end if
                 next
             end if
         end if
         select case ast.Kind( n )
         case Tko.N_PARAM
-            dim as Tko.NodeId d = ast.stmts[cast( int32, ast.nodes[i].data )].b
+            dim as Tko.NodeId d = ast.StmtOf( i )->b
             if (d > 0) andalso (cast( int32, d ) <= total) then skip[cast( int32, d )] = 1
         case Tko.N_TYPE, Tko.N_PROC
             '' A generic's parameter list, '( of T, U )': in 'b' on a type, 'c' on a
             '' procedure. Each name DECLARES a parameter.
-            dim as Tko.StmtPayload ptr sp = @ast.stmts[cast( int32, ast.nodes[i].data )]
+            dim as Tko.StmtPayload ptr sp = ast.StmtOf( i )
             dim as Tko.NodeId pl = iif( ast.Kind( n ) = Tko.N_TYPE, sp->b, sp->c )
             if pl <> Tko.NODE_NONE then
                 if ast.Kind( pl ) = Tko.N_BLOCK then
-                    dim as Tko.ListPayload ptr lp = @ast.lists[cast( int32, ast.nodes[cast( int32, pl )].data )]
+                    dim as Tko.ListPayload ptr lp = ast.ListOf( pl )
                     for k as int32 = 0 to lp->count - 1
                         skip[cast( int32, ast.children[lp->first + k] )] = 1
                     next
                 end if
             end if
         case Tko.N_CALL
-            dim as Tko.ListPayload ptr cp = @ast.lists[cast( int32, ast.nodes[i].data )]
+            dim as Tko.ListPayload ptr cp = ast.ListOf( i )
             dim as string cn = IdentSpelled_( ast, names, cp->target )
             if (cn = "assert") orelse (cn = "assertwarn") then
                 MarkRange_( skip, cast( int32, cp->target ), i )
@@ -197,7 +197,7 @@ sub ReportUndeclared _
                         '' Only with no second argument -- 'procptr( T.m, virtual )' and a
                         '' signature that selected nothing are Check's to leave unbound.
                         dim as Tko.BinaryPayload ptr mb = _
-                            @ast.binaries[cast( int32, ast.nodes[cast( int32, pa )].data )]
+                            ast.BinaryOf( pa )
                         dim as Tko.Symbol ptr ts = syms.SymbolAt( info.RefOf( mb->lhs ) )
                         dim as string mn = IdentSpelled_( ast, names, mb->rhs )
                         if (ts <> nullptr) andalso (len( mn ) > 0) then
@@ -211,13 +211,13 @@ sub ReportUndeclared _
             end if
         case Tko.N_AMBIGUOUS
             '' The PAREN-LESS call statement, 'assert x = 1': 'a' is the callee.
-            dim as Tko.StmtPayload ptr ap = @ast.stmts[cast( int32, ast.nodes[i].data )]
+            dim as Tko.StmtPayload ptr ap = ast.StmtOf( i )
             dim as string an = IdentSpelled_( ast, names, ap->a )
             if (ap->op = 0) andalso ((an = "assert") orelse (an = "assertwarn")) then
                 MarkRange_( skip, cast( int32, ap->a ), i )
             end if
         case Tko.N_INTRINSIC
-            dim as Tko.StmtPayload ptr op = @ast.stmts[cast( int32, ast.nodes[i].data )]
+            dim as Tko.StmtPayload ptr op = ast.StmtOf( i )
             if op->op = cast( uint16, Tko.KW_OPEN ) then
                 select case IdentSpelled_( ast, names, op->a )
                 case "cons", "err", "scrn", "pipe", "lpt", "com"
@@ -231,17 +231,17 @@ sub ReportUndeclared _
             '' target, 'type X as FB.Foo' or 'as FB.Array( of Cell )', is fbc's error 3.
             '' Measured: in every other position an undeclared name is an error -- a DIM, a
             '' field, a parameter, a result, an EXTERN, a local -- pointer or not.
-            dim as Tko.NodeId ta = ast.stmts[cast( int32, ast.nodes[i].data )].a
+            dim as Tko.NodeId ta = ast.StmtOf( i )->a
             '' ...through its 'ptr' and 'const' wrappers, each a nameless typeref around it.
             for wd as int32 = 1 to 16
                 if (ta < 1) orelse (cast( int32, ta ) > total) then exit for
                 if ast.Kind( ta ) <> Tko.N_TYPEREF then exit for
-                if ast.stmts[cast( int32, ast.nodes[cast( int32, ta )].data )].name <> Tko.INTERN_NONE then exit for
-                ta = ast.stmts[cast( int32, ast.nodes[cast( int32, ta )].data )].a
+                if ast.StmtOf( ta )->name <> Tko.INTERN_NONE then exit for
+                ta = ast.StmtOf( ta )->a
             next
             if (ta > 0) andalso (cast( int32, ta ) <= total) then
                 if ast.Kind( ta ) = Tko.N_TYPEREF then
-                    dim as Tko.StmtPayload ptr tap = @ast.stmts[cast( int32, ast.nodes[cast( int32, ta )].data )]
+                    dim as Tko.StmtPayload ptr tap = ast.StmtOf( ta )
                     if (tap->ownerName = Tko.INTERN_NONE) andalso (tap->count = 0) then skip[cast( int32, ta )] = 1
                 end if
             end if
@@ -262,7 +262,7 @@ sub ReportUndeclared _
         if skip[cast( int32, id )] = 1 then continue for
         if info.RefOf( id ) <> Tko.SYMBOL_NONE then continue for
         if info.TypeOf_( id ) <> Tko.TYPE_NONE then continue for
-        dim as Tko.InternId rawNm = ast.idents[cast( int32, ast.nodes[cast( int32, id )].data )].name
+        dim as Tko.InternId rawNm = ast.IdentOf( id )->name
         dim as boolean isReserved = false
         for k as int32 = 0 to reserved.Count - 1
             if cast( Tko.InternId, reserved[k] ) = rawNm then isReserved = true
@@ -354,7 +354,7 @@ sub ReportUndeclared _
         if info.TypeOf_( id ) <> Tko.TYPE_NONE then continue for
         if info.RefOf( id ) <> Tko.SYMBOL_NONE then continue for
         if src.IsBuiltin( ast.Loc( id ) ) then continue for
-        dim as Tko.StmtPayload ptr tp = @ast.stmts[cast( int32, ast.nodes[cast( int32, id )].data )]
+        dim as Tko.StmtPayload ptr tp = ast.StmtOf( id )
         if tp->name = Tko.INTERN_NONE then continue for
         dim as string tn = names.Spelling( tp->name )
         '' A NAME THE COMPILER MADE is never the user's to have declared: a lambda's closure

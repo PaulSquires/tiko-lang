@@ -9,8 +9,8 @@
 private sub TypedefKeywordTarget_( byref p as Tko.ParserState, byval n as Tko.NodeId )
     if (n = Tko.NODE_NONE) orelse p.silent then return
     if p.ast->Kind( n ) <> Tko.N_TYPEREF then return
-    if (p.ast->nodes[cast( int32, n )].flags and Tko.NF_PROC_TYPE) <> 0 then return
-    dim as Tko.TokenKind k = cast( Tko.TokenKind, p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, n )].data )].op )
+    if (p.ast->Flags( n ) and Tko.NF_PROC_TYPE) <> 0 then return
+    dim as Tko.TokenKind k = cast( Tko.TokenKind, p.ast->StmtOf( n )->op )
     if Tko.IsKeywordKind( k ) = false then return
     if Tko.IsTypeKeyword( k ) then return
     if Tko.KeywordClassOf( k ) = Tko.KWCLASS_INTRINSIC then return
@@ -313,14 +313,14 @@ private sub MarkCxx_( byref p as Tko.ParserState, byval n as Tko.NodeId )
     select case p.ast->Kind( n )
     case Tko.N_PROC, Tko.N_TYPE, Tko.N_VAR
         dim as Tko.StmtPayload ptr mp = _
-            @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, n )].data )]
+            p.ast->StmtOf( n )
         mp->extra or= Tko.PF_CXX
     case Tko.N_NAMESPACE
         dim as Tko.StmtPayload ptr np = _
-            @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, n )].data )]
+            p.ast->StmtOf( n )
         np->extra or= Tko.PF_CXX
         for i as int32 = 0 to np->count - 1
-            MarkCxx_( p, cast( Tko.NodeId, p.ast->children[np->first + i] ) )
+            MarkCxx_( p, p.ast->ChildAt( np->first, i ) )
         next
     end select
 end sub
@@ -442,7 +442,7 @@ private function MarkPrivate _
     '' data is 0, and the flag landed on stmts[0] -- another statement's (audit F-72).
     if Tko.NodeKindCategory( p.ast->Kind( n ) ) <> Tko.NCAT_DECL then return n
     dim as Tko.StmtPayload ptr sp = _
-        @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, n )].data )]
+        p.ast->StmtOf( n )
     if visKw = Tko.KW_PUBLIC then
         sp->extra or= Tko.PF_VIS_PUBLIC
         return n
@@ -613,7 +613,7 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
                 '' the source spelling; the same line outside a block is 'CLSID_SHELLLINK$'.
                 if (foreign_ orelse cxx_) andalso (p.ast->Kind( m ) = Tko.N_TYPE) then
                     dim as Tko.StmtPayload ptr tp2 = _
-                        @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, m )].data )]
+                        p.ast->StmtOf( m )
                     if cxx_ then
                         tp2->extra or= Tko.PF_CXX
                     else
@@ -622,7 +622,7 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
                 end if
                 if foreign_ andalso (p.ast->Kind( m ) = Tko.N_VAR) then
                     dim as Tko.StmtPayload ptr vp = _
-                        @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, m )].data )]
+                        p.ast->StmtOf( m )
                     vp->extra or= Tko.PF_FOREIGN
                 end if
                 if cxx_ then MarkCxx_( p, m )
@@ -633,7 +633,7 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
                 if foreign_ andalso (p.ast->Kind( m ) = Tko.N_NAMESPACE) then MarkCxx_( p, m )
                 if foreign_ andalso (p.ast->Kind( m ) = Tko.N_PROC) then
                     dim as Tko.StmtPayload ptr mp = _
-                        @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, m )].data )]
+                        p.ast->StmtOf( m )
                     mp->extra or= Tko.PF_FOREIGN
                     '' The BLOCK supplies a convention to members that wrote none:
                     '' measured, 'extern "C"' gives _EC and 'extern "Windows"' _EW@4.

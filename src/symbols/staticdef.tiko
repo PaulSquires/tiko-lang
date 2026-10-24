@@ -384,13 +384,13 @@ sub CheckByrefResultCalls_ ( byref c as Ctx, byval total as int32 )
     next
     for i as int32 = 1 to total
         if c.ast->Kind( cast( NodeId, i ) ) <> N_ADDROF then continue for
-        dim as NodeId ao = Unparen3_( c, c.ast->unaries[cast( int32, c.ast->nodes[i].data )].operand )
+        dim as NodeId ao = Unparen3_( c, c.ast->UnaryOf( i )->operand )
         if (ao > 0) andalso (cast( int32, ao ) <= total) then addrOf[cast( int32, ao )] = 1
     next
     for i as int32 = 1 to total
         if c.ast->Kind( cast( NodeId, i ) ) <> N_CALL then continue for
         if addrOf[i] <> 0 then continue for
-        dim as ListPayload ptr cp = @c.ast->lists[cast( int32, c.ast->nodes[i].data )]
+        dim as ListPayload ptr cp = c.ast->ListOf( i )
         if cp->target = NODE_NONE then continue for
         dim as Symbol ptr ps = c.syms->SymbolAt( c.info->RefOf( cast( NodeId, i ) ) )
         if ps = nullptr then ps = c.syms->SymbolAt( c.info->RefOf( cp->target ) )

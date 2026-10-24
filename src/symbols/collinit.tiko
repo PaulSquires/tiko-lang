@@ -160,7 +160,7 @@ private function CiCallStmt_ _
     bp.rhs = CiIdent_( c, lc, methodNm )
     c.ast->binaries.Push( bp )
     dim as Tko.NodeId callee = CiNode_( c, Tko.N_MEMBER, lc, c.ast->binaries.Count - 1 )
-    c.ast->nodes[cast( int32, callee )].flags or= Tko.NF_CALL_TARGET
+    c.ast->OrFlags( callee, Tko.NF_CALL_TARGET )
 
     dim as Tko.ListPayload lp
     lp.target = callee

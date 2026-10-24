@@ -361,13 +361,13 @@ private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
         end if
 
         dim as Tko.NodeId n = MakeStmt( p, Tko.N_IF, t.loc, sp )
-        p.ast->nodes[cast( int32, n )].flags or= Tko.NF_SINGLE_LINE
+        p.ast->OrFlags( n, Tko.NF_SINGLE_LINE )
         dim as Tko.StmtPayload done_
         done_.b = MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, branches )
         '' THE ELSE BLOCK TRAVELS IN 'c', and this payload REPLACES the node's, so
         '' it has to be carried across or the branch just parsed is thrown away.
         done_.c = sp.c
-        p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, n )].data )] = done_
+        p.ast->stmts[cast( int32, p.ast->DataOf( n ) )] = done_
         return n
     end if
 
@@ -583,7 +583,7 @@ private function ParseFor( byref p as Tko.ParserState ) as Tko.NodeId
         end if
         AcceptNext_( p, t.loc, true )
         dim as Tko.NodeId en = MakeStmt( p, Tko.N_FOREACH, t.loc, sp )
-        p.ast->nodes[cast( int32, en )].flags or= eachFlags
+        p.ast->OrFlags( en, eachFlags )
         return en
     end if
 
@@ -617,7 +617,7 @@ private function ParseFor( byref p as Tko.ParserState ) as Tko.NodeId
     p.forDepth += 1
     sp.b = Block( p )
     p.forDepth -= 1
-    if sp.b <> Tko.NODE_NONE then p.ast->nodes[cast( int32, sp.b )].loc = Cur( p ).loc   '' the NEXT, for diagnostics
+    if sp.b <> Tko.NODE_NONE then p.ast->SetLoc( sp.b, Cur( p ).loc )   '' the NEXT, for diagnostics
     AcceptNext_( p, t.loc )
 
     return MakeStmt( p, Tko.N_FOR, t.loc, sp )
@@ -656,7 +656,7 @@ private function ParseDo( byref p as Tko.ParserState ) as Tko.NodeId
     end if
 
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_DO, t.loc, sp )
-    p.ast->nodes[cast( int32, n )].flags or= flags
+    p.ast->OrFlags( n, flags )
     return n
 end function
 
@@ -870,7 +870,7 @@ private function ParseAmbiguous( byref p as Tko.ParserState ) as Tko.NodeId
         Accept( p, Tko.TK_GT )
         sp.b = Expression( p )
         dim as Tko.NodeId an = MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, sp )
-        if fatArrow then p.ast->nodes[cast( int32, an )].flags or= Tko.NF_FAT_ARROW
+        if fatArrow then p.ast->OrFlags( an, Tko.NF_FAT_ARROW )
         return an
     end if
 
@@ -941,7 +941,7 @@ private function ParseAmbiguous( byref p as Tko.ParserState ) as Tko.NodeId
     if Peek( p ) = Tko.TK_COMMA then
         if p.ast->Kind( sp.a ) = Tko.N_CALL then
             dim as Tko.ListPayload ptr lcp = _
-                @p.ast->lists[cast( int32, p.ast->nodes[cast( int32, sp.a )].data )]
+                p.ast->ListOf( sp.a )
             if (lcp->count = 1) andalso (lcp->target <> Tko.NODE_NONE) then
                 dim as Tko.NodeId inner = _
                     cast( Tko.NodeId, p.ast->children[lcp->first] )
@@ -1105,7 +1105,7 @@ function Statement( byref p as Tko.ParserState ) as Tko.NodeId
         '' only showed up when the IF was the LAST statement of a block, because
         '' otherwise the token it ate was an ordinary statement that reparsed fine.
         if (n <> Tko.NODE_NONE) andalso _
-           ((p.ast->nodes[cast( int32, n )].flags and Tko.NF_SINGLE_LINE) <> 0) then
+           ((p.ast->Flags( n ) and Tko.NF_SINGLE_LINE) <> 0) then
             consumesLine = false
         end if
     case Tko.KW_SELECT    : n = ParseSelect( p )

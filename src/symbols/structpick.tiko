@@ -12,7 +12,7 @@
 namespace Tko.Check
 
 private function SpStmt_( byref ast as Tko.AstArena, byval n as Tko.NodeId ) as Tko.StmtPayload ptr
-    return @ast.stmts[cast( int32, ast.nodes[cast( int32, n )].data )]
+    return ast.StmtOf( n )
 end function
 
 private function SpProcNode_( byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, byval sid as Tko.SymbolId ) as Tko.NodeId
@@ -30,7 +30,7 @@ private function SpParamCount_( byref ast as Tko.AstArena, byref syms as Tko.Sym
     dim as Tko.StmtPayload ptr pp = SpStmt_( ast, pn )
     dim as int32 n = 0
     for i as int32 = 0 to pp->count - 1
-        if ast.Kind( cast( Tko.NodeId, ast.children[pp->first + i] ) ) = Tko.N_PARAM then n += 1
+        if ast.Kind( ast.ChildAt( pp->first, i ) ) = Tko.N_PARAM then n += 1
     next
     return n
 end function
@@ -42,7 +42,7 @@ private function SpParamType_( byref ast as Tko.AstArena, byref syms as Tko.Symb
     dim as Tko.StmtPayload ptr pp = SpStmt_( ast, pn )
     dim as int32 seen = 0
     for i as int32 = 0 to pp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[pp->first + i] )
+        dim as Tko.NodeId prm = ast.ChildAt( pp->first, i )
         if ast.Kind( prm ) <> Tko.N_PARAM then continue for
         if seen = idx then return info.TypeOf_( SpStmt_( ast, prm )->a )
         seen += 1
@@ -254,7 +254,7 @@ function StructorCastCost _
         dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
         dim as boolean byrefRes = false
         if (pn <> Tko.NODE_NONE) andalso (ast.Kind( pn ) = Tko.N_PROC) then
-            byrefRes = ((ast.nodes[cast( int32, pn )].flags and Tko.NF_BYREF) <> 0)
+            byrefRes = ((ast.Flags( pn ) and Tko.NF_BYREF) <> 0)
         end if
         if rt <> Tko.TYPE_NONE then
             if types.Kind( rt ) = Tko.TK_REFERENCE then rt = types.Unqualify( types.Inner( rt ) )
@@ -292,7 +292,7 @@ function PickStructor _
             dim as Tko.StmtPayload ptr pp = SpStmt_( ast, pn )
             dim as int32 np = 0
             for i as int32 = 0 to pp->count - 1
-                if ast.Kind( cast( Tko.NodeId, ast.children[pp->first + i] ) ) = Tko.N_PARAM then np += 1
+                if ast.Kind( ast.ChildAt( pp->first, i ) ) = Tko.N_PARAM then np += 1
             next
             '' A TYPED VARIADIC LAST PARAMETER takes any number of arguments past the fixed
             '' ones, each costed against its element type (docs/tiko-params/RFC-0001). This
@@ -300,9 +300,9 @@ function PickStructor _
             '' and pick the same constructor; lowering, which has the nodes, tells them apart.
             dim as Tko.NodeId tvp = Tko.NODE_NONE
             for i as int32 = pp->count - 1 to 0 step -1
-                dim as Tko.NodeId lp_ = cast( Tko.NodeId, ast.children[pp->first + i] )
+                dim as Tko.NodeId lp_ = ast.ChildAt( pp->first, i )
                 if ast.Kind( lp_ ) <> Tko.N_PARAM then continue for
-                if (ast.nodes[cast( int32, lp_ )].flags and Tko.NF_VARIADIC) <> 0 then tvp = lp_
+                if (ast.Flags( lp_ ) and Tko.NF_VARIADIC) <> 0 then tvp = lp_
                 exit for
             next
             if tvp <> Tko.NODE_NONE then np -= 1
@@ -316,7 +316,7 @@ function PickStructor _
                 arityOk = true
                 dim as int32 sd = 0
                 for i as int32 = 0 to pp->count - 1
-                    dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[pp->first + i] )
+                    dim as Tko.NodeId prm = ast.ChildAt( pp->first, i )
                     if ast.Kind( prm ) <> Tko.N_PARAM then continue for
                     if prm = tvp then exit for
                     if sd >= argT.Count then
@@ -333,7 +333,7 @@ function PickStructor _
                 dim as int32 ai = 0
                 dim as boolean viable = true
                 for i as int32 = 0 to pp->count - 1
-                    dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[pp->first + i] )
+                    dim as Tko.NodeId prm = ast.ChildAt( pp->first, i )
                     if ast.Kind( prm ) <> Tko.N_PARAM then continue for
                     if prm = tvp then exit for   '' packed below
                     '' The defaulted tail costs nothing: there is no argument to convert.
@@ -343,7 +343,7 @@ function PickStructor _
                     dim as int32 cost = 0
                     '' AN ARRAY PARAMETER IS MATCHED BY ITS ELEMENT TYPE: its declared type IS
                     '' the element, the array-ness is the node's flag (structs/udt-array-ops-1).
-                    if (ast.nodes[cast( int32, prm )].flags and Tko.NF_ARRAY) <> 0 then
+                    if (ast.Flags( prm ) and Tko.NF_ARRAY) <> 0 then
                         dim as Tko.TypeId ae = at2
                         if ae <> Tko.TYPE_NONE then
                             if types.Kind( ae ) = Tko.TK_ARRAY then ae = types.Inner( ae )
@@ -440,11 +440,11 @@ function LoneScalarStructor _
     if (pp->extra and Tko.PF_GENERIC_PROC) <> 0 then return Tko.SYMBOL_NONE
     dim as int32 ai = 0
     for i as int32 = 0 to pp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[pp->first + i] )
+        dim as Tko.NodeId prm = ast.ChildAt( pp->first, i )
         if ast.Kind( prm ) <> Tko.N_PARAM then continue for
         dim as Tko.StmtPayload ptr psp = SpStmt_( ast, prm )
         if psp->op = cast( uint16, Tko.TK_ELLIPSIS ) then return Tko.SYMBOL_NONE
-        if (ast.nodes[cast( int32, prm )].flags and (Tko.NF_VARIADIC or Tko.NF_ARRAY)) <> 0 then return Tko.SYMBOL_NONE
+        if (ast.Flags( prm ) and (Tko.NF_VARIADIC or Tko.NF_ARRAY)) <> 0 then return Tko.SYMBOL_NONE
         if ai >= argT.Count then
             if psp->b = Tko.NODE_NONE then return Tko.SYMBOL_NONE   '' a missing argument
             ai += 1
@@ -458,7 +458,7 @@ function LoneScalarStructor _
         if SpScalar_( types, at ) = false then return Tko.SYMBOL_NONE
         '' A BYREF parameter only as a pointer given an enum, which gets a temporary of its own
         '' type (mir/lowerbyref.tiko ByrefConvArg_); any other pair would pass the wrong width.
-        if (ast.nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0 then
+        if (ast.Flags( prm ) and Tko.NF_BYREF) <> 0 then
             if types.Kind( types.Unqualify( info.TypeOf_( psp->a ) ) ) <> Tko.TK_POINTER then return Tko.SYMBOL_NONE
             if types.Kind( types.Unqualify( at ) ) <> Tko.TK_ENUM then return Tko.SYMBOL_NONE
         end if
@@ -682,7 +682,7 @@ private function PtrCastBest_ _
         if ast <> nullptr then
             dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
             if (pn <> Tko.NODE_NONE) andalso (ast->Kind( pn ) = Tko.N_PROC) then
-                byrefRes = ((ast->nodes[cast( int32, pn )].flags and Tko.NF_BYREF) <> 0)
+                byrefRes = ((ast->Flags( pn ) and Tko.NF_BYREF) <> 0)
             end if
         end if
         if (rt <> Tko.TYPE_NONE) andalso (byrefRes = false) then
@@ -844,7 +844,7 @@ function NumCastArgPick _
             '' a 'byref as' result spelled as a pointer to it is the thing itself
             dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
             if (pn <> Tko.NODE_NONE) andalso (ast.Kind( pn ) = Tko.N_PROC) andalso (types.Kind( rt ) = Tko.TK_POINTER) then
-                if (ast.stmts[cast( int32, ast.nodes[cast( int32, pn )].data )].extra and Tko.PF_BYREF_RESULT) <> 0 then
+                if (ast.StmtOf( pn )->extra and Tko.PF_BYREF_RESULT) <> 0 then
                     rt = types.Unqualify( types.Inner( rt ) )
                 end if
             end if
@@ -889,8 +889,8 @@ function CharRefCastPick _
         dim as boolean byRes = false
         dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
         if (pn <> Tko.NODE_NONE) andalso (ast.Kind( pn ) = Tko.N_PROC) then
-            byRes = ((ast.nodes[cast( int32, pn )].flags and Tko.NF_BYREF) <> 0) orelse _
-                    ((ast.stmts[cast( int32, ast.nodes[cast( int32, pn )].data )].extra and Tko.PF_BYREF_RESULT) <> 0)
+            byRes = ((ast.Flags( pn ) and Tko.NF_BYREF) <> 0) orelse _
+                    ((ast.StmtOf( pn )->extra and Tko.PF_BYREF_RESULT) <> 0)
         end if
         if rt <> Tko.TYPE_NONE then
             if types.Kind( rt ) = Tko.TK_REFERENCE then rt = types.Unqualify( types.Inner( rt ) ) : byRes = true
@@ -996,7 +996,7 @@ function CopyStructorOf _
             dim as int32 seen = 0
             dim as boolean ok = false
             for i as int32 = 0 to pp->count - 1
-                dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[pp->first + i] )
+                dim as Tko.NodeId prm = ast.ChildAt( pp->first, i )
                 if ast.Kind( prm ) <> Tko.N_PARAM then continue for
                 if seen = 0 then
                     dim as Tko.TypeId pt = info.TypeOf_( SpStmt_( ast, prm )->a )

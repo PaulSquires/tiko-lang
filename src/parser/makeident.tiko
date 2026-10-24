@@ -18,6 +18,6 @@ function MakeIdent( byref p as Tko.ParserState, byref t as Tko.Token ) as Tko.No
     p.ast->idents.Push( ip )
     dim as Tko.NodeId n = Tko.NewNode( *p.ast, Tko.N_IDENT, t.loc, p.ast->idents.Count - 1 )
     '' A FUNCTION-LIKE MACRO'S NAME WITHOUT '(' -- see TF_BARE_FNMACRO.
-    if (t.flags and Tko.TF_BARE_FNMACRO) <> 0 then p.ast->nodes[cast( int32, n )].flags or= Tko.NF_BARE_MACRO
+    if (t.flags and Tko.TF_BARE_FNMACRO) <> 0 then p.ast->OrFlags( n, Tko.NF_BARE_MACRO )
     return n
 end function

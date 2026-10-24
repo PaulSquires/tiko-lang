@@ -213,7 +213,7 @@ private function DeclScope_( byref w as TkiWriter_, byval n as Tko.NodeId ) as T
     if os = nullptr then return sc
     dim as Tko.Symbol ptr ow = w.syms->SymbolAt( os->owner )
     if ow = nullptr then return sc
-    dim as Tko.StmtPayload ptr sp = @w.ast->stmts[cast( int32, w.ast->nodes[cast( int32, n )].data )]
+    dim as Tko.StmtPayload ptr sp = w.ast->StmtOf( n )
     if ow->name = sp->name then return os->parent
     return sc
 end function
@@ -299,10 +299,10 @@ private sub SharedVar_( byref w as TkiWriter_, byval s as int32, byval kw as int
                         byval e as int32, byval n as Tko.NodeId, byval sc as Tko.ScopeId )
     '' The names are the N_VAR_ITEMs', found by location.
     dim as containers.Array( of uint32 ) itemLocs
-    dim as Tko.StmtPayload ptr sp = @w.ast->stmts[cast( int32, w.ast->nodes[cast( int32, n )].data )]
+    dim as Tko.StmtPayload ptr sp = w.ast->StmtOf( n )
     for c as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId item = cast( Tko.NodeId, w.ast->children[sp->first + c] )
-        if w.ast->Kind( item ) = Tko.N_VAR_ITEM then itemLocs.Push( cast( uint32, w.ast->nodes[cast( int32, item )].loc ) )
+        dim as Tko.NodeId item = w.ast->ChildAt( sp->first, c )
+        if w.ast->Kind( item ) = Tko.N_VAR_ITEM then itemLocs.Push( cast( uint32, w.ast->Loc( item ) ) )
     next
 
     dim as int32 stop_ = e
@@ -726,11 +726,11 @@ private sub Qualify_( byref w as TkiWriter_ )
         dim as Tko.InternId nm = Tko.INTERN_NONE
         select case w.ast->Kind( nd )
         case Tko.N_TYPEREF
-            dim as Tko.StmtPayload ptr tp = @w.ast->stmts[cast( int32, w.ast->nodes[id].data )]
+            dim as Tko.StmtPayload ptr tp = w.ast->StmtOf( id )
             if tp->ownerName <> Tko.INTERN_NONE then continue for
             nm = tp->name
         case Tko.N_IDENT
-            nm = w.ast->idents[cast( int32, w.ast->nodes[id].data )].name
+            nm = w.ast->IdentOf( id )->name
         case else
             continue for
         end select
@@ -747,7 +747,7 @@ private sub Qualify_( byref w as TkiWriter_ )
             if look = Tko.SCOPE_NONE then look = Tko.ModSym.ModuleScope( *w.syms )
             if w.ast->Kind( nd ) = Tko.N_IDENT then
                 sid = w.syms->Lookup( look, w.ctx->names.Fold( nm ) )
-            elseif w.ast->stmts[cast( int32, w.ast->nodes[id].data )].count > 0 then
+            elseif w.ast->StmtOf( id )->count > 0 then
                 sid = w.syms->LookupTyped( look, w.ctx->names.Fold( nm ), true )
             end if
         end if
@@ -864,9 +864,9 @@ private function RequiredHeaders_ _
             dim as Tko.InternId nm = Tko.INTERN_NONE
             select case w.ast->Kind( nd )
             case Tko.N_TYPEREF
-                nm = w.ast->stmts[cast( int32, w.ast->nodes[id].data )].name
+                nm = w.ast->StmtOf( id )->name
             case Tko.N_IDENT
-                nm = w.ast->idents[cast( int32, w.ast->nodes[id].data )].name
+                nm = w.ast->IdentOf( id )->name
             case else
                 continue for
             end select
@@ -1041,7 +1041,7 @@ function WriteInterface _
         if (pn <= 0) orelse (pn > ast.Count( )) then continue for
         if w.firstSight[pn] = 0 then continue for
         if ast.Kind( cast( Tko.NodeId, pn ) ) <> Tko.N_PROC then continue for
-        if ast.stmts[cast( int32, ast.nodes[pn].data )].b = Tko.NODE_NONE then continue for
+        if ast.StmtOf( pn )->b = Tko.NODE_NONE then continue for
         dim as Tko.SymbolId oid = syms.LookupLocal( ps->parent, ps->name )
         dim as int32 guard = 0
         while (oid <> Tko.SYMBOL_NONE) andalso (guard < 1000)
@@ -1057,7 +1057,7 @@ function WriteInterface _
                 dim as int32 on_ = cast( int32, os->payload )
                 if (on_ > 0) andalso (on_ <= ast.Count( )) then
                     if ast.Kind( cast( Tko.NodeId, on_ ) ) = Tko.N_PROC then
-                        if ast.stmts[cast( int32, ast.nodes[on_].data )].b = Tko.NODE_NONE then
+                        if ast.StmtOf( on_ )->b = Tko.NODE_NONE then
                             w.firstSight[pn] = 0
                             exit while
                         end if

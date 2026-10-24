@@ -63,7 +63,7 @@ function AssertOffsetOf_ ( byref c as Ctx, byval n as NodeId, byref v as int64 )
         if c.types->Kind( cur ) <> TK_UDT then return false
         dim as boolean found = false
         dim as TypeId ft = TYPE_NONE
-        off += ls->FieldOffsetType( cur, c.ast->idents[cast( int32, c.ast->nodes[cast( int32, path[i] )].data )].name, found, ft )
+        off += ls->FieldOffsetType( cur, c.ast->IdentOf( path[i] )->name, found, ft )
         if found = false then return false
         cur = ft
     next

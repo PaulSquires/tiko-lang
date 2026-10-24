@@ -213,7 +213,7 @@ private function NodeIs_( byref h as Harvest_, byval n as int64, byval k as Tko.
 end function
 
 private function StmtAt_( byref h as Harvest_, byval n as Tko.NodeId ) as Tko.StmtPayload ptr
-    return @h.ast->stmts[cast( int32, h.ast->nodes[cast( int32, n )].data )]
+    return h.ast->StmtOf( n )
 end function
 
 '' The N_PROC node that carries a procedure's modifiers: its definition, else its first
@@ -429,7 +429,7 @@ private sub HarvestSymbol_ _
         end if
         if NodeIs_( h, s->payload, Tko.N_PARAM ) then
             dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
-            dim as uint16 nf = h.ast->nodes[cast( int32, pn )].flags
+            dim as uint16 nf = h.ast->Flags( pn )
             if (nf and Tko.NF_BYREF) <> 0 then fl or= SF_BYREF
             if (nf and Tko.NF_ARRAY) <> 0 then fl or= SF_ARRAY
             if StmtAt_( h, pn )->b <> Tko.NODE_NONE then fl or= SF_OPTIONAL
@@ -508,7 +508,7 @@ private sub CountRefs_( byref h as Harvest_ )
         dim as Tko.NodeId tgt = sp->a
         if tgt = Tko.NODE_NONE then continue for
         if h.ast->Kind( tgt ) = Tko.N_MEMBER then
-            tgt = h.ast->binaries[cast( int32, h.ast->nodes[cast( int32, tgt )].data )].rhs
+            tgt = h.ast->BinaryOf( tgt )->rhs
         end if
         if tgt = Tko.NODE_NONE then continue for
         if h.ast->Kind( tgt ) <> Tko.N_IDENT then continue for

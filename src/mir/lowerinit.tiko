@@ -239,8 +239,7 @@ function LowerByrefResult_ _
             if (wp->count = 1) andalso (wp->target <> Tko.NODE_NONE) then
                 if c.ast->Kind( wp->target ) = Tko.N_IDENT then
                     dim as Tko.IdentPayload ptr wip = _
-                        @c.ast->idents[cast( int32, _
-                            c.ast->nodes[cast( int32, wp->target )].data )]
+                        c.ast->IdentOf( wp->target )
                     if LowerSpelling_( c.ix, *c.names, wip->name ) = "wstr" then
                         dim as Tko.NodeId inner_ = _
                             Unparen_( c, cast( Tko.NodeId, c.ast->children[wp->first] ) )

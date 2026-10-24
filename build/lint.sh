@@ -242,6 +242,19 @@ while read -r inc frag; do
 done < build/.lint.fragnew   # not a pipe: note( ) counts in this shell
 rm -f build/.lint.frag build/.lint.fragok build/.lint.fragnew
 
+# ------------------------------------- 15. the AST's node records through AstArena
+#
+# A NODE'S 'data' INDEXES ONE OF SIX POOLS, chosen by how the parser built it, and reading it
+# into the wrong one returns a valid-looking record (review ARCH-11; latesweeps4.tiko recorded
+# the abort). AstArena's accessors read one pool each and check it in a -g build (ast/nodes.ti),
+# so nothing outside src/ast indexes an arena's 'nodes' itself -- StmtOf, ListOf, Kind, Loc,
+# Flags, DataOf, NodeAt, OrFlags, SetKind ... instead (LATER-PLAN F step 3).
+for f in $(grep -rlE '(^|[^A-Za-z0-9_.>])([A-Za-z_][A-Za-z0-9_]*(\.|->))?ast(\.|->)nodes\[' src --include=*.tiko --include=*.ti 2>/dev/null); do
+    case "$f" in src/ast/*) continue ;; esac
+    codel=$(grep -nE '(^|[^A-Za-z0-9_.>])([A-Za-z_][A-Za-z0-9_]*(\.|->))?ast(\.|->)nodes\[' "$f" | grep -vE "^[0-9]+:[[:space:]]*''" | head -1)
+    [ -n "$codel" ] && note "ASTNODES $f indexes an arena's nodes ($codel) -- use an AstArena accessor"
+done
+
 # ---------------------------------------- 6. unsigned loop counters and bounds
 #
 # 'for i as ulong = 0 to n - 1' with n = 0 underflows to 4294967295 and the loop

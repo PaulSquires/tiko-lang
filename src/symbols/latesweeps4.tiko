@@ -842,7 +842,7 @@ private function StmtCall_ ( byref c as Ctx, byval id as NodeId ) as boolean
             '' the end whenever that pool was the longer: garbage, mostly, and an abort when
             '' the index met the vector's capacity (fbc-int/query-symbol.bas, Debug build).
             if (ik <> N_AMBIGUOUS) andalso (ik <> N_INTRINSIC) then continue for
-            dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[i].data )]
+            dim as StmtPayload ptr sp = c.ast->StmtOf( i )
             dim as NodeId a = NODE_NONE
             if ik = N_AMBIGUOUS then
                 a = sp->a
@@ -1336,11 +1336,11 @@ private sub CheckIncompleteObjects_ ( byref c as Ctx )
         dim as NodeId n = cast( NodeId, i )
         select case c.ast->Kind( n )
         case N_TYPEDEF
-            dim as NodeId ta = c.ast->stmts[cast( int32, c.ast->nodes[i].data )].a
+            dim as NodeId ta = c.ast->StmtOf( i )->a
             if ta <> NODE_NONE then MarkTypeRefTree4_( c, ta, mark )
         case N_TYPEREF
-            dim as uint16 fl = c.ast->nodes[i].flags
-            dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[i].data )]
+            dim as uint16 fl = c.ast->Flags( i )
+            dim as StmtPayload ptr sp = c.ast->StmtOf( i )
             if (fl and NF_PTR) <> 0 then
                 if sp->a <> NODE_NONE then MarkTypeRefTree4_( c, sp->a, mark )
             end if
@@ -1351,8 +1351,8 @@ private sub CheckIncompleteObjects_ ( byref c as Ctx )
             end if
         case N_PROC
             '' A DECLARATION -- no body -- may take a BYREF result of an incomplete type.
-            dim as StmtPayload ptr psp = @c.ast->stmts[cast( int32, c.ast->nodes[i].data )]
-            if (psp->b = NODE_NONE) andalso (((c.ast->nodes[i].flags and NF_BYREF) <> 0) orelse ((psp->extra and PF_BYREF_RESULT) <> 0)) then
+            dim as StmtPayload ptr psp = c.ast->StmtOf( i )
+            if (psp->b = NODE_NONE) andalso (((c.ast->Flags( i ) and NF_BYREF) <> 0) orelse ((psp->extra and PF_BYREF_RESULT) <> 0)) then
                 if psp->a <> NODE_NONE then MarkTypeRefTree4_( c, psp->a, mark )
             end if
         end select
@@ -1365,12 +1365,12 @@ private sub CheckIncompleteObjects_ ( byref c as Ctx )
         dim as NodeId n = cast( NodeId, i )
         dim as boolean decl = false
         if c.ast->Kind( n ) = N_PROC then
-            decl = (c.ast->stmts[cast( int32, c.ast->nodes[i].data )].b = NODE_NONE)
+            decl = (c.ast->StmtOf( i )->b = NODE_NONE)
         elseif c.ast->Kind( n ) = N_TYPEREF then
-            decl = ((c.ast->nodes[i].flags and NF_PROC_TYPE) <> 0)
+            decl = ((c.ast->Flags( i ) and NF_PROC_TYPE) <> 0)
         end if
         if decl = false then continue for
-        dim as StmtPayload ptr pp = @c.ast->stmts[cast( int32, c.ast->nodes[i].data )]
+        dim as StmtPayload ptr pp = c.ast->StmtOf( i )
         for j as int32 = 0 to pp->count - 1
             dim as NodeId ch = c.ast->ChildAt( pp->first, j )
             if (ch < 1) orelse (c.ast->Kind( ch ) <> N_PARAM) then continue for
@@ -1384,7 +1384,7 @@ private sub CheckIncompleteObjects_ ( byref c as Ctx )
         dim as NodeId n = cast( NodeId, i )
         if c.ast->Kind( n ) <> N_TYPEREF then continue for
         if mark[i] <> 0 then continue for
-        if (c.ast->nodes[i].flags and (NF_PTR or NF_PROC_TYPE)) <> 0 then continue for
+        if (c.ast->Flags( i ) and (NF_PTR or NF_PROC_TYPE)) <> 0 then continue for
         dim as TypeId t = c.info->TypeOf_( n )
         if t = TYPE_NONE then continue for
         t = c.types->Unqualify( t )
@@ -1408,7 +1408,7 @@ private sub CheckIncompleteObjects_ ( byref c as Ctx )
     for i as int32 = 1 to total
         dim as NodeId n = cast( NodeId, i )
         if c.ast->Kind( n ) <> N_CALL then continue for
-        dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[i].data )]
+        dim as ListPayload ptr lp = c.ast->ListOf( i )
         if (lp->count <> 1) orelse (lp->target = NODE_NONE) then continue for
         if c.ast->Kind( lp->target ) <> N_IDENT then continue for
         if c.info->RefOf( lp->target ) <> SYMBOL_NONE then continue for
@@ -1433,7 +1433,7 @@ private sub CheckIncompleteObjects_ ( byref c as Ctx )
     '' typedef, 'type P as FWDREF ptr'. 'delete' over an 'any ptr' is fbc's. tiko accepted them.
     for i as int32 = 1 to total
         if c.ast->Kind( cast( NodeId, i ) ) <> N_DELETE_STMT then continue for
-        dim as NodeId dn = c.ast->stmts[cast( int32, c.ast->nodes[i].data )].a
+        dim as NodeId dn = c.ast->StmtOf( i )->a
         if dn = NODE_NONE then continue for
         dim as TypeId t = c.info->TypeOf_( dn )
         if t = TYPE_NONE then continue for

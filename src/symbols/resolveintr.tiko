@@ -43,7 +43,7 @@ private sub BuiltinCallTarget_ _
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( IdentNameOf( c, tg ) ) )
     if Check.IsTypedIntrinsicName( nm ) = false then return
     lp->target = tg
-    c.ast->nodes[cast( int32, tg )].flags or= Tko.NF_CALL_TARGET   '' the CALLED name now
+    c.ast->OrFlags( tg, Tko.NF_CALL_TARGET )   '' the CALLED name now
 
     dim as Tko.Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( tg ) )
     if bs = nullptr then return
@@ -136,8 +136,8 @@ sub DropNsPrefix_ _
             dim as Tko.Symbol ptr ps = c.syms->SymbolAt( c.info->RefOf( mb->rhs ) )
             if ps = nullptr then return
             if ps->kind <> cast( uint8, Tko.SYM_PROC ) then return
-            c.ast->nodes[cast( int32, n )].kind = cast( uint16, Tko.N_IDENT )
-            c.ast->nodes[cast( int32, n )].data = c.ast->nodes[cast( int32, mb->rhs )].data
+            c.ast->SetKind( n, cast( uint16, Tko.N_IDENT ) )
+            c.ast->SetData( n, c.ast->DataOf( mb->rhs ) )
             c.info->SetRef( n, Tko.SYMBOL_NONE )
             c.st->droppedNsIds.Push( cast( uint32, n ) )
             WalkExpr( c, n, scope_ )

@@ -938,8 +938,7 @@ private function ResolveCall_ _
                             cast( Tko.NodeId, c.ast->children[argFirst + ai] )
                         if c.ast->Kind( bvn ) = Tko.N_UNARY then
                             dim as Tko.UnaryPayload ptr bvp = _
-                                @c.ast->unaries[cast( int32, _
-                                    c.ast->nodes[cast( int32, bvn )].data )]
+                                c.ast->UnaryOf( bvn )
                             argIsByval = _
                                 (cast( Tko.TokenKind, bvp->op ) = Tko.KW_BYVAL)
                         end if
@@ -1318,7 +1317,7 @@ end function
 '' below take the tables, so they cannot use Check's own StmtOf.
 private function StmtAt_ _
     ( byref ast as Tko.AstArena, byval id as Tko.NodeId ) as Tko.StmtPayload ptr
-    return @ast.stmts[cast( int32, ast.nodes[cast( int32, id )].data )]
+    return ast.StmtOf( id )
 end function
 
 '' HOW GOOD A NUMERIC 'operator cast' IS, for choosing among several. Higher wins; 0
@@ -1403,7 +1402,7 @@ function ArrowOperatorFor _
                     dim as int32 np = 0
                     dim as Tko.TypeId p0 = Tko.TYPE_NONE
                     for i as int32 = 0 to pp->count - 1
-                        dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[pp->first + i] )
+                        dim as Tko.NodeId prm = ast.ChildAt( pp->first, i )
                         if ast.Kind( prm ) <> Tko.N_PARAM then continue for
                         if np = 0 then p0 = info.TypeOf_( StmtAt_( ast, prm )->a )
                         np += 1

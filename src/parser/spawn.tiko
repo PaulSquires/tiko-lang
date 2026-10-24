@@ -73,7 +73,7 @@ private function SpTypeRef_ _
     dim as Tko.StmtPayload up
     up.a = n
     dim as Tko.NodeId pn = MakeStmt( p, Tko.N_TYPEREF, loc, up )
-    p.ast->nodes[cast( int32, pn )].flags or= Tko.NF_PTR
+    p.ast->OrFlags( pn, Tko.NF_PTR )
     return pn
 end function
 
@@ -97,7 +97,7 @@ private function SpMember_ _
     p.ast->binaries.Push( mb )
     dim as Tko.NodeId mem = _
         NewNodeAt( p, Tko.N_BINARY, loc, p.ast->binaries.Count - 1 )
-    p.ast->nodes[cast( int32, mem )].kind = cast( uint16, Tko.N_MEMBER )
+    p.ast->SetKind( mem, cast( uint16, Tko.N_MEMBER ) )
     return mem
 end function
 
@@ -118,7 +118,7 @@ function MakeSpawn_ _
     if callNode = Tko.NODE_NONE then return Tko.NODE_NONE
     if p.ast->Kind( callNode ) <> Tko.N_CALL then return Tko.NODE_NONE
     dim as Tko.ListPayload ptr cp = _
-        @p.ast->lists[cast( int32, p.ast->nodes[cast( int32, callNode )].data )]
+        p.ast->ListOf( callNode )
     if cp->target = Tko.NODE_NONE then return Tko.NODE_NONE
     '' A PLAIN NAME ONLY. The frame's field types are the CALLEE'S PARAMETER types,
     '' which Resolve looks up by name from the spawn site's scope; a dotted or
@@ -195,7 +195,7 @@ function MakeSpawn_ _
     pp0.name = sfpNm
     pp0.a = SpTypeRef_( p, 0, t.loc, true, Tko.KW_ANY )
     dim as Tko.NodeId prm = MakeStmt( p, Tko.N_PARAM, t.loc, pp0 )
-    p.ast->nodes[cast( int32, prm )].flags or= Tko.NF_BYVAL_WRITTEN
+    p.ast->OrFlags( prm, Tko.NF_BYVAL_WRITTEN )
 
     dim as Tko.StmtPayload fp
     fp.name = fnNm
@@ -268,7 +268,7 @@ function MakeSpawn_ _
     p.ast->binaries.Push( qb )
     dim as Tko.NodeId qn = _
         NewNodeAt( p, Tko.N_BINARY, t.loc, p.ast->binaries.Count - 1 )
-    p.ast->nodes[cast( int32, qn )].kind = cast( uint16, Tko.N_MEMBER )
+    p.ast->SetKind( qn, cast( uint16, Tko.N_MEMBER ) )
 
     dim as Tko.UnaryPayload ap
     ap.op = cast( uint16, Tko.TK_AT )
@@ -297,7 +297,7 @@ function MakeSpawn_ _
     ssp.name = frmNm
     ssp.rawName = fnNm
     ssp.aliasName = _
-        p.ast->idents[cast( int32, p.ast->nodes[cast( int32, calleeN )].data )].name
+        p.ast->IdentOf( calleeN )->name
     ssp.extra = cast( uint16, argc )
     ssp.b = scN
     '' ...and the CALLEE NODE, the one the thunk's call reuses, so Resolve can tell

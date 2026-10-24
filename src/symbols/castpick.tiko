@@ -36,7 +36,7 @@ function CastResultClass _
     dim as boolean byrefRes = false
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if (pn <> Tko.NODE_NONE) andalso (ast.Kind( pn ) = Tko.N_PROC) then
-        byrefRes = ((ast.nodes[cast( int32, pn )].flags and Tko.NF_BYREF) <> 0)
+        byrefRes = ((ast.Flags( pn ) and Tko.NF_BYREF) <> 0)
     end if
     dim as Tko.TypeId rt = types.Unqualify( s->type_ )
     if types.Kind( rt ) = Tko.TK_REFERENCE then

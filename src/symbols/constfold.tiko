@@ -22,16 +22,16 @@ private function QualifiedTypeSym_ _
       byval n as Tko.NodeId, byval wantType as boolean, byval depth as int32 ) as Tko.SymbolId
     if (n = Tko.NODE_NONE) orelse (depth > 16) then return Tko.SYMBOL_NONE
     if ast.Kind( n ) = Tko.N_IDENT then
-        dim as Tko.InternId nm = ast.idents[cast( int32, ast.nodes[cast( int32, n )].data )].name
+        dim as Tko.InternId nm = ast.IdentOf( n )->name
         if wantType then return syms.LookupTyped( scope_, nm, true )
         return syms.Lookup( scope_, nm )
     end if
     if ast.Kind( n ) <> Tko.N_MEMBER then return Tko.SYMBOL_NONE
-    dim as Tko.BinaryPayload ptr bp = @ast.binaries[cast( int32, ast.nodes[cast( int32, n )].data )]
+    dim as Tko.BinaryPayload ptr bp = ast.BinaryOf( n )
     if ast.Kind( bp->rhs ) <> Tko.N_IDENT then return Tko.SYMBOL_NONE
     dim as Tko.Symbol ptr ns = syms.SymbolAt( QualifiedTypeSym_( ast, syms, scope_, bp->lhs, false, depth + 1 ) )
     if (ns = nullptr) orelse (ns->kind <> cast( uint8, Tko.SYM_NAMESPACE )) orelse (ns->inner = Tko.SCOPE_NONE) then return Tko.SYMBOL_NONE
-    dim as Tko.InternId rn = ast.idents[cast( int32, ast.nodes[cast( int32, bp->rhs )].data )].name
+    dim as Tko.InternId rn = ast.IdentOf( bp->rhs )->name
     return syms.LookupInNamespaceTyped( ns->inner, rn, wantType )
 end function
 
@@ -129,7 +129,7 @@ private function DottedScope_ _
     select case ast.Kind( id )
     case Tko.N_IDENT
         dim as Tko.InternId nm = _
-            ast.idents[cast( int32, ast.nodes[cast( int32, id )].data )].name
+            ast.IdentOf( id )->name
         dim as Tko.SymbolId sid = syms->Lookup( scope_, nm )
         if sid = Tko.SYMBOL_NONE then return Tko.SCOPE_NONE
         dim as Tko.Symbol ptr s = syms->SymbolAt( sid )
@@ -137,12 +137,12 @@ private function DottedScope_ _
         return s->inner
     case Tko.N_MEMBER
         dim as Tko.BinaryPayload ptr mb = _
-            @ast.binaries[cast( int32, ast.nodes[cast( int32, id )].data )]
+            ast.BinaryOf( id )
         dim as Tko.ScopeId outer = DottedScope_( ast, syms, scope_, mb->lhs, depth + 1 )
         if outer = Tko.SCOPE_NONE then return Tko.SCOPE_NONE
         if ast.Kind( mb->rhs ) <> Tko.N_IDENT then return Tko.SCOPE_NONE
         dim as Tko.InternId rn = _
-            ast.idents[cast( int32, ast.nodes[cast( int32, mb->rhs )].data )].name
+            ast.IdentOf( mb->rhs )->name
         dim as Tko.SymbolId rid = syms->LookupLocal( outer, rn )
         if rid = Tko.SYMBOL_NONE then return Tko.SCOPE_NONE
         dim as Tko.Symbol ptr rs = syms->SymbolAt( rid )
@@ -198,11 +198,11 @@ private function LitIsInt_( byref ast as Tko.AstArena, byval id as Tko.NodeId ) 
             return true
         case Tko.N_PAREN
             dim as Tko.ListPayload ptr pp = _
-                @ast.lists[cast( int32, ast.nodes[cast( int32, id )].data )]
+                ast.ListOf( id )
             if pp->count <> 1 then return false
             id = cast( Tko.NodeId, ast.children[pp->first] )
         case Tko.N_UNARY
-            id = ast.unaries[cast( int32, ast.nodes[cast( int32, id )].data )].operand
+            id = ast.UnaryOf( id )->operand
         case else
             return false
         end select
@@ -217,20 +217,20 @@ private function LitNum_ _
     dim as Tko.NodeKind k = ast.Kind( id )
     if k = Tko.N_PAREN then
         dim as Tko.ListPayload ptr pp = _
-            @ast.lists[cast( int32, ast.nodes[cast( int32, id )].data )]
+            ast.ListOf( id )
         if pp->count <> 1 then return false
         return LitNum_( ast, cast( Tko.NodeId, ast.children[pp->first] ), d )
     end if
     if k = Tko.N_UNARY then
         dim as Tko.UnaryPayload ptr up = _
-            @ast.unaries[cast( int32, ast.nodes[cast( int32, id )].data )]
+            ast.UnaryOf( id )
         if LitNum_( ast, up->operand, d ) = false then return false
         if cast( Tko.TokenKind, up->op ) = Tko.TK_MINUS then d = -d
         return true
     end if
     dim as Tko.LiteralPayload ptr lp = nullptr
     if (k = Tko.N_FLOAT_LIT) orelse (k = Tko.N_INT_LIT) then
-        lp = @ast.literals[cast( int32, ast.nodes[cast( int32, id )].data )]
+        lp = ast.LiteralOf( id )
     end if
     if lp = nullptr then return false
     if k = Tko.N_FLOAT_LIT then
@@ -271,16 +271,16 @@ function ConstFloatOf _
 
     case Tko.N_PAREN
         dim as Tko.ListPayload ptr pp = _
-            @ast.lists[cast( int32, ast.nodes[cast( int32, id )].data )]
+            ast.ListOf( id )
         if pp->count <> 1 then return false
         return ConstFloatOf( ast, cast( Tko.NodeId, ast.children[pp->first] ), _
                              outd, depth + 1, syms, scope_, names )
 
     '' ...and 'type<double>( 2.5 )', a one-element literal of a builtin type, is its element.
     case Tko.N_TUPLE
-        if (ast.nodes[cast( int32, id )].flags and Tko.NF_TYPE_LITERAL) = 0 then return false
+        if (ast.Flags( id ) and Tko.NF_TYPE_LITERAL) = 0 then return false
         dim as Tko.ListPayload ptr tl = _
-            @ast.lists[cast( int32, ast.nodes[cast( int32, id )].data )]
+            ast.ListOf( id )
         if (tl->count <> 1) orelse (tl->target = Tko.NODE_NONE) then return false
         if ast.Kind( tl->target ) <> Tko.N_TYPEREF then return false
         return ConstFloatOf( ast, cast( Tko.NodeId, ast.children[tl->first] ), _
@@ -288,7 +288,7 @@ function ConstFloatOf _
 
     case Tko.N_UNARY
         dim as Tko.UnaryPayload ptr up = _
-            @ast.unaries[cast( int32, ast.nodes[cast( int32, id )].data )]
+            ast.UnaryOf( id )
         if ConstFloatOf( ast, up->operand, outd, depth + 1, syms, scope_, names ) = false then
             return false
         end if
@@ -301,7 +301,7 @@ function ConstFloatOf _
 
     case Tko.N_BINARY
         dim as Tko.BinaryPayload ptr bp = _
-            @ast.binaries[cast( int32, ast.nodes[cast( int32, id )].data )]
+            ast.BinaryOf( id )
         dim as float64 l, r
         if ConstFloatOf( ast, bp->lhs, l, depth + 1, syms, scope_, names ) = false then
             return false
@@ -338,7 +338,7 @@ function ConstFloatOf _
         if syms = nullptr then return false
         if depth >= 16 then return false
         dim as Tko.InternId inm = _
-            ast.idents[cast( int32, ast.nodes[cast( int32, id )].data )].name
+            ast.IdentOf( id )->name
         dim as Tko.SymbolId csid = syms->Lookup( scope_, inm )
         if csid = Tko.SYMBOL_NONE then return false
         dim as Tko.Symbol ptr cs = syms->SymbolAt( csid )
@@ -349,7 +349,7 @@ function ConstFloatOf _
         dim as Tko.NodeId citem = cast( Tko.NodeId, cs->payload )
         if ast.Kind( citem ) <> Tko.N_VAR_ITEM then return false
         dim as Tko.StmtPayload ptr cip = _
-            @ast.stmts[cast( int32, ast.nodes[cast( int32, citem )].data )]
+            ast.StmtOf( citem )
         if ConstFloatOf( ast, cip->b, outd, depth + 1, syms, cs->parent, names ) = false then
             return false
         end if
@@ -370,11 +370,11 @@ function ConstFloatOf _
     case Tko.N_CALL
         if names = nullptr then return false
         dim as Tko.ListPayload ptr cp = _
-            @ast.lists[cast( int32, ast.nodes[cast( int32, id )].data )]
+            ast.ListOf( id )
         if (cp->target = Tko.NODE_NONE) orelse (cp->count <> 1) then return false
         if ast.Kind( cp->target ) <> Tko.N_IDENT then return false
         dim as Tko.IdentPayload ptr ip = _
-            @ast.idents[cast( int32, ast.nodes[cast( int32, cp->target )].data )]
+            ast.IdentOf( cp->target )
         dim as string nm = Tko.Text.LowerAscii( names->Spelling( ip->name ) )
         select case nm
         case "abs", "sgn", "int", "fix", "frac", "sqr", "csng", "cdbl", "cint", "clng", "clngint", "atn"
@@ -475,7 +475,7 @@ private function ConstStrLen_ _
     select case ast.Kind( id )
     case Tko.N_STRING_LIT
         dim as Tko.LiteralPayload ptr lp = _
-            @ast.literals[cast( int32, ast.nodes[cast( int32, id )].data )]
+            ast.LiteralOf( id )
         if lp->strKind = cast( uint8, Tko.STRK_ESCAPED ) then return -1
         if lp->strLength <= 0 then return 0
         dim as Tko.SourceFile ptr f = src.FileAt( cast( Tko.FileId, lp->strFile ) )
@@ -499,10 +499,10 @@ private function ConstStrLen_ _
     case Tko.N_STRCAT
         '' Adjacent literals: '"a" "b"' is one string.
         dim as Tko.ListPayload ptr sp = _
-            @ast.lists[cast( int32, ast.nodes[cast( int32, id )].data )]
+            ast.ListOf( id )
         dim as int32 total = 0
         for i as int32 = 0 to sp->count - 1
-            dim as int32 n = ConstStrLen_( ast, cast( Tko.NodeId, ast.children[sp->first + i] ), _
+            dim as int32 n = ConstStrLen_( ast, ast.ChildAt( sp->first, i ), _
                                           src, names, syms, scope_, depth + 1 )
             if n < 0 then return -1
             total += n
@@ -511,7 +511,7 @@ private function ConstStrLen_ _
 
     case Tko.N_PAREN
         dim as Tko.ListPayload ptr pp = _
-            @ast.lists[cast( int32, ast.nodes[cast( int32, id )].data )]
+            ast.ListOf( id )
         if pp->count <> 1 then return -1
         return ConstStrLen_( ast, cast( Tko.NodeId, ast.children[pp->first] ), _
                              src, names, syms, scope_, depth + 1 )
@@ -519,7 +519,7 @@ private function ConstStrLen_ _
     case Tko.N_BINARY
         '' '&' concatenates, and so does '+' between two strings.
         dim as Tko.BinaryPayload ptr bp = _
-            @ast.binaries[cast( int32, ast.nodes[cast( int32, id )].data )]
+            ast.BinaryOf( id )
         dim as Tko.TokenKind op = cast( Tko.TokenKind, bp->op )
         if (op <> Tko.TK_AMP) andalso (op <> Tko.TK_PLUS) then return -1
         dim as int32 a = ConstStrLen_( ast, bp->lhs, src, names, syms, scope_, depth + 1 )
@@ -535,7 +535,7 @@ private function ConstStrLen_ _
         '' node, and neither is a string.
         if syms = nullptr then return -1
         dim as Tko.InternId inm = _
-            ast.idents[cast( int32, ast.nodes[cast( int32, id )].data )].name
+            ast.IdentOf( id )->name
         dim as Tko.SymbolId csid = syms->Lookup( scope_, inm )
         if csid = Tko.SYMBOL_NONE then return -1
         dim as Tko.Symbol ptr cs = syms->SymbolAt( csid )
@@ -546,7 +546,7 @@ private function ConstStrLen_ _
         dim as Tko.NodeId citem = cast( Tko.NodeId, cs->payload )
         if ast.Kind( citem ) <> Tko.N_VAR_ITEM then return -1
         dim as Tko.StmtPayload ptr cip = _
-            @ast.stmts[cast( int32, ast.nodes[cast( int32, citem )].data )]
+            ast.StmtOf( citem )
         return ConstStrLen_( ast, cip->b, src, names, syms, cs->parent, depth + 1 )
     end select
 
@@ -589,11 +589,11 @@ private function ConstCall_ _
       byval types as Tko.TypeContext ptr, byval info as Tko.SemanticInfo ptr ) as ConstVal
 
     dim as Tko.ListPayload ptr cp = _
-        @ast.lists[cast( int32, ast.nodes[cast( int32, id )].data )]
+        ast.ListOf( id )
     if cp->target = Tko.NODE_NONE then return CVNone_( )
     if ast.Kind( cp->target ) <> Tko.N_IDENT then return CVNone_( )
     dim as Tko.IdentPayload ptr ip = _
-        @ast.idents[cast( int32, ast.nodes[cast( int32, cp->target )].data )]
+        ast.IdentOf( cp->target )
     dim as string nm = Tko.Text.LowerAscii( names.Spelling( ip->name ) )
 
     '' 'len' OF A COMPILE-TIME STRING. See ConstStrLen_ above for why -- 'string *
@@ -693,7 +693,7 @@ private function ConstCall_ _
         dim as Tko.NodeId ba = cast( Tko.NodeId, ast.children[cp->first] )
         if ast.Kind( ba ) <> Tko.N_IDENT then return CVNone_( )
         dim as Tko.Symbol ptr bs = syms->SymbolAt( syms->Lookup( scope_, _
-            ast.idents[cast( int32, ast.nodes[cast( int32, ba )].data )].name ) )
+            ast.IdentOf( ba )->name ) )
         if bs = nullptr then return CVNone_( )
         if bs->kind <> cast( uint8, Tko.SYM_VARIABLE ) then return CVNone_( )
         dim as Tko.TypeId bt = types->Unqualify( bs->type_ )
@@ -722,7 +722,7 @@ private function ConstCall_ _
                                      types, info )
         if c.known = false then return CVNone_( )
         dim as int32 pick = iif( c.value <> 0, 1, 2 )
-        return ConstOf( ast, cast( Tko.NodeId, ast.children[cp->first + pick] ), _
+        return ConstOf( ast, ast.ChildAt( cp->first, pick ), _
                         src, names, intBits, syms, scope_, depth, types, info)
     end if
 
@@ -787,7 +787,7 @@ private function ConstCall_ _
     if ((nm = "rgb") andalso (cp->count = 3)) orelse ((nm = "rgba") andalso (cp->count = 4)) then
         dim as uint32 rgbAcc = iif( cp->count = 3, &hFF000000ul, 0ul )
         for k as int32 = 0 to cp->count - 1
-            dim as ConstVal kv = ConstOf( ast, cast( Tko.NodeId, ast.children[cp->first + k] ), _
+            dim as ConstVal kv = ConstOf( ast, ast.ChildAt( cp->first, k ), _
                                           src, names, intBits, syms, scope_, depth, types, info )
             if kv.known = false then return CVNone_( )
             dim as int32 sh = iif( k = 3, 24, 16 - k * 8 )
@@ -804,7 +804,7 @@ private function ConstCall_ _
     if (nm = "len") orelse (nm = "asc") then
         if ast.Kind( a0 ) <> Tko.N_STRING_LIT then return CVNone_( )
         dim as Tko.LiteralPayload ptr lp = _
-            @ast.literals[cast( int32, ast.nodes[cast( int32, a0 )].data )]
+            ast.LiteralOf( a0 )
         '' THE DECODED TEXT, not the span: 'asc( !"\n" )' read the backslash, 92, where
         '' fbc's is 10, and 'len( "a""b" )' counted the doubled quote. A wide literal is
         '' not folded here.
@@ -862,7 +862,7 @@ private function ConstCall_ _
     if (nm = "cvs") orelse (nm = "cvd") then cvBytes = 0
     if (cvBytes >= 2) andalso (ast.Kind( a0 ) = Tko.N_STRING_LIT) then
         dim as Tko.LiteralPayload ptr clp = _
-            @ast.literals[cast( int32, ast.nodes[cast( int32, a0 )].data )]
+            ast.LiteralOf( a0 )
         '' AN ESCAPED LITERAL IS NOT ITS OWN BYTES. An escaped newline spans two
         '' characters and is
         '' one byte, so reading the span would fold the backslash. Refused rather than
@@ -981,11 +981,11 @@ function ClampConstToTypeRef _
     if v.known = false then return v
     if tref = Tko.NODE_NONE then return v
     if ast.Kind( tref ) <> Tko.N_TYPEREF then return v
-    dim as Tko.AstNode ptr tn = @ast.nodes[cast( int32, tref )]
+    dim as Tko.AstNode ptr tn = ast.NodeAt( tref )
     if (tn->flags and Tko.NF_PTR) <> 0 then return v
     if (tn->flags and Tko.NF_PROC_TYPE) <> 0 then return v
     dim as Tko.StmtPayload ptr tp = _
-        @ast.stmts[cast( int32, ast.nodes[cast( int32, tref )].data )]
+        ast.StmtOf( tref )
     dim as int32 bits = 0
     dim as boolean uns = false
     select case cast( Tko.TokenKind, tp->op )
@@ -1035,7 +1035,7 @@ function ConstOf _
     select case ast.Kind( id )
     case Tko.N_INT_LIT
         dim as Tko.LiteralPayload ptr lp = _
-            @ast.literals[cast( int32, ast.nodes[cast( int32, id )].data )]
+            ast.LiteralOf( id )
         dim as int64 iv = cast( int64, lp->intValue )
         '' ...AND AN UNSUFFIXED DECIMAL OF 2^31 TO 2^32 - 1, OR 2^63 UP, IS UINTEGER, as
         '' Check types it -- 'const BIGC = 18446744073709551615 : print BIGC > 0' folded
@@ -1062,12 +1062,12 @@ function ConstOf _
         if syms = nullptr then return CVNone_( )
         if depth >= 16 then return CVNone_( )
         dim as Tko.BinaryPayload ptr qm = _
-            @ast.binaries[cast( int32, ast.nodes[cast( int32, id )].data )]
+            ast.BinaryOf( id )
         if ast.Kind( qm->rhs ) <> Tko.N_IDENT then return CVNone_( )
         dim as Tko.ScopeId qs = DottedScope_( ast, syms, scope_, qm->lhs, 0 )
         if qs = Tko.SCOPE_NONE then return CVNone_( )
         dim as Tko.InternId qn = _
-            ast.idents[cast( int32, ast.nodes[cast( int32, qm->rhs )].data )].name
+            ast.IdentOf( qm->rhs )->name
         dim as Tko.SymbolId qsid = syms->LookupLocal( qs, qn )
         if qsid = Tko.SYMBOL_NONE then return CVNone_( )
         dim as Tko.Symbol ptr qsy = syms->SymbolAt( qsid )
@@ -1086,7 +1086,7 @@ function ConstOf _
         dim as Tko.NodeId qitem = cast( Tko.NodeId, qsy->payload )
         if ast.Kind( qitem ) <> Tko.N_VAR_ITEM then return CVNone_( )
         dim as Tko.StmtPayload ptr qip = _
-            @ast.stmts[cast( int32, ast.nodes[cast( int32, qitem )].data )]
+            ast.StmtOf( qitem )
         dim as ConstVal qvv = ConstOf( ast, qip->b, src, names, intBits, syms, _
                                        qsy->parent, depth + 1, types, info )
         return ClampConstToTypeRef( ast, qip->a, qvv, intBits )
@@ -1104,7 +1104,7 @@ function ConstOf _
         if syms = nullptr then return CVNone_( )
         if depth >= 16 then return CVNone_( )
         dim as Tko.InternId inm = _
-            ast.idents[cast( int32, ast.nodes[cast( int32, id )].data )].name
+            ast.IdentOf( id )->name
         dim as Tko.SymbolId csid = syms->Lookup( scope_, inm )
         if csid = Tko.SYMBOL_NONE then return CVNone_( )
         dim as Tko.Symbol ptr cs = syms->SymbolAt( csid )
@@ -1136,7 +1136,7 @@ function ConstOf _
         dim as Tko.NodeId citem = cast( Tko.NodeId, cs->payload )
         if ast.Kind( citem ) <> Tko.N_VAR_ITEM then return CVNone_( )
         dim as Tko.StmtPayload ptr cip = _
-            @ast.stmts[cast( int32, ast.nodes[cast( int32, citem )].data )]
+            ast.StmtOf( citem )
         dim as ConstVal ivv = _
             ConstOf( ast, cip->b, src, names, intBits, syms, cs->parent, depth + 1, types, info)
         '' AT THE CONSTANT'S OWN DECLARED WIDTH AND SIGNEDNESS.
@@ -1152,14 +1152,14 @@ function ConstOf _
 
     case Tko.N_PAREN
         dim as Tko.ListPayload ptr pp = _
-            @ast.lists[cast( int32, ast.nodes[cast( int32, id )].data )]
+            ast.ListOf( id )
         if pp->count <> 1 then return CVNone_( )
         return ConstOf( ast, cast( Tko.NodeId, ast.children[pp->first] ), src, names, _
                         intBits, syms, scope_, depth, types, info)
 
     case Tko.N_UNARY
         dim as Tko.UnaryPayload ptr up = _
-            @ast.unaries[cast( int32, ast.nodes[cast( int32, id )].data )]
+            ast.UnaryOf( id )
         dim as ConstVal v = ConstOf( ast, up->operand, src, names, intBits, syms, scope_, depth, types, info)
         if v.known = false then return CVNone_( )
         '' A unary operator folds at its OPERAND's width: 'not 0' is -1 either way, but
@@ -1179,7 +1179,7 @@ function ConstOf _
 
     case Tko.N_BINARY
         dim as Tko.BinaryPayload ptr bp = _
-            @ast.binaries[cast( int32, ast.nodes[cast( int32, id )].data )]
+            ast.BinaryOf( id )
         dim as ConstVal l = ConstOf( ast, bp->lhs, src, names, intBits, syms, scope_, depth, types, info)
         if l.known = false then return CVNone_( )
         dim as ConstVal r = ConstOf( ast, bp->rhs, src, names, intBits, syms, scope_, depth, types, info)
@@ -1291,8 +1291,8 @@ function ConstOf _
     '' 'type<byte>( 1 )' -- A ONE-ELEMENT LITERAL OF A BUILTIN TYPE is its element at that type:
     '' 'dim shared b as byte = type<byte>( 1 )' folds in fbc (dim/global-init.bas) and declined here.
     case Tko.N_TUPLE
-        if (ast.nodes[cast( int32, id )].flags and Tko.NF_TYPE_LITERAL) = 0 then return CVNone_( )
-        dim as Tko.ListPayload ptr tl = @ast.lists[cast( int32, ast.nodes[cast( int32, id )].data )]
+        if (ast.Flags( id ) and Tko.NF_TYPE_LITERAL) = 0 then return CVNone_( )
+        dim as Tko.ListPayload ptr tl = ast.ListOf( id )
         if (tl->count <> 1) orelse (tl->target = Tko.NODE_NONE) then return CVNone_( )
         if ast.Kind( tl->target ) <> Tko.N_TYPEREF then return CVNone_( )
         dim as ConstVal tv = ConstOf( ast, cast( Tko.NodeId, ast.children[tl->first] ), src, names, _

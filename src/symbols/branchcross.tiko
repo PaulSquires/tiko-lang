@@ -135,13 +135,13 @@ private sub CheckBranchCross_ ( byref c as Ctx, byval id as NodeId )
                 if nTmp > ubound( tmps ) then redim preserve tmps( 0 to nTmp * 2 )
                 tmps( nTmp ) = i : nTmp += 1
             elseif ik = N_VAR then
-                dim as StmtPayload ptr vp = @c.ast->stmts[cast( int32, c.ast->nodes[i].data )]
+                dim as StmtPayload ptr vp = c.ast->StmtOf( i )
                 select case cast( TokenKind, vp->op )
                 case KW_DIM, KW_VAR, KW_REDIM
                 case else
                     continue for
                 end select
-                if (c.ast->nodes[i].flags and (NF_SHARED or NF_STATIC)) <> 0 then continue for
+                if (c.ast->Flags( i ) and (NF_SHARED or NF_STATIC)) <> 0 then continue for
                 if nVar > ubound( vars ) then redim preserve vars( 0 to nVar * 2 )
                 vars( nVar ) = i : nVar += 1
             end if
@@ -149,7 +149,7 @@ private sub CheckBranchCross_ ( byref c as Ctx, byval id as NodeId )
         redim labNext( 0 to iif( nLab > 0, nLab - 1, 0 ) )
         dim as containers.Map( of uint32, int32 ) labTail
         for i as int32 = 0 to nLab - 1
-            dim as uint32 ln = c.ast->stmts[cast( int32, c.ast->nodes[lab( i )].data )].name
+            dim as uint32 ln = c.ast->stmts[cast( int32, c.ast->DataOf( lab( i ) ) )].name
             labNext( i ) = -1
             dim as int32 t = -1
             if labTail.TryGet( ln, t ) then
@@ -192,7 +192,7 @@ private sub CheckBranchCross_ ( byref c as Ctx, byval id as NodeId )
         if vid >= lid then exit for
         dim as ScopeId vscope = c.info->ScopeOf( cast( NodeId, vid ) )
         if BxHolds_( c, vscope, lscope ) = false then continue for
-        dim as StmtPayload ptr vp = @c.ast->stmts[cast( int32, c.ast->nodes[vid].data )]
+        dim as StmtPayload ptr vp = c.ast->StmtOf( vid )
         for j as int32 = 0 to vp->count - 1
             dim as NodeId it = c.ast->ChildAt( vp->first, j )
             if (it < 1) orelse (c.ast->Kind( it ) <> N_VAR_ITEM) then continue for
@@ -211,7 +211,7 @@ private sub CheckBranchCross_ ( byref c as Ctx, byval id as NodeId )
     for t as int32 = 0 to nTmp - 1
         dim as int32 sid = tmps( t )
         if sid <= lid then continue for
-        dim as StmtPayload ptr tp = @c.ast->stmts[cast( int32, c.ast->nodes[sid].data )]
+        dim as StmtPayload ptr tp = c.ast->StmtOf( sid )
         dim as NodeId head = tp->a
         if (head = NODE_NONE) orelse (head <= id) orelse (head >= lid) then continue for
         dim as string gname = c.names->Spelling( gp->name )

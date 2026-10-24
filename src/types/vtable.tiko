@@ -81,11 +81,11 @@ private sub ParamTypes_ _
 
     if decl = NODE_NONE then return
     if ast.Kind( decl ) <> N_PROC then return
-    dim as StmtPayload ptr sp = @ast.stmts[cast( int32, ast.nodes[cast( int32, decl )].data )]
+    dim as StmtPayload ptr sp = ast.StmtOf( decl )
     for i as int32 = 0 to sp->count - 1
-        dim as NodeId prm = cast( NodeId, ast.children[sp->first + i] )
+        dim as NodeId prm = ast.ChildAt( sp->first, i )
         if ast.Kind( prm ) <> N_PARAM then continue for
-        dim as StmtPayload ptr pp = @ast.stmts[cast( int32, ast.nodes[cast( int32, prm )].data )]
+        dim as StmtPayload ptr pp = ast.StmtOf( prm )
         outv.Push( cast( uint32, info.TypeOf_( pp->a ) ) )
     next
 end sub
@@ -141,7 +141,7 @@ private function ReturnTypeOf_ _
 
     if decl = NODE_NONE then return TYPE_NONE
     if ast.Kind( decl ) <> N_PROC then return TYPE_NONE
-    dim as StmtPayload ptr sp = @ast.stmts[cast( int32, ast.nodes[cast( int32, decl )].data )]
+    dim as StmtPayload ptr sp = ast.StmtOf( decl )
     if sp->a = NODE_NONE then return TYPE_NONE
     return info.TypeOf_( sp->a )
 end function
@@ -156,16 +156,16 @@ private sub CompareByref_ _
     if (oldd = NODE_NONE) orelse (newd = NODE_NONE) then return
     if ast.Kind( oldd ) <> N_PROC then return
     if ast.Kind( newd ) <> N_PROC then return
-    dim as StmtPayload ptr op = @ast.stmts[cast( int32, ast.nodes[cast( int32, oldd )].data )]
-    dim as StmtPayload ptr np = @ast.stmts[cast( int32, ast.nodes[cast( int32, newd )].data )]
+    dim as StmtPayload ptr op = ast.StmtOf( oldd )
+    dim as StmtPayload ptr np = ast.StmtOf( newd )
     if op->count <> np->count then return
     for i as int32 = 0 to op->count - 1
-        dim as NodeId a = cast( NodeId, ast.children[op->first + i] )
-        dim as NodeId b = cast( NodeId, ast.children[np->first + i] )
+        dim as NodeId a = ast.ChildAt( op->first, i )
+        dim as NodeId b = ast.ChildAt( np->first, i )
         if ast.Kind( a ) <> N_PARAM then continue for
         if ast.Kind( b ) <> N_PARAM then continue for
-        dim as uint16 flagsA = ast.nodes[cast( int32, a )].flags
-        dim as uint16 flagsB = ast.nodes[cast( int32, b )].flags
+        dim as uint16 flagsA = ast.Flags( a )
+        dim as uint16 flagsB = ast.Flags( b )
         dim as uint16 mask = cast( uint16, NF_BYREF or NF_BYVAL_WRITTEN )
         dim as uint16 ma = cast( uint16, flagsA and mask )
         dim as uint16 mb = cast( uint16, flagsB and mask )
@@ -174,8 +174,8 @@ private sub CompareByref_ _
         '' any virtual method") for '( any )' by '( any, any )'. The rank as written is
         '' what the parser recorded in 'extra': 0 for '( )', 1 for '( any )', and so on.
         if ((flagsA and NF_ARRAY) <> 0) andalso ((flagsB and NF_ARRAY) <> 0) then
-            dim as StmtPayload ptr pa = @ast.stmts[cast( int32, ast.nodes[cast( int32, a )].data )]
-            dim as StmtPayload ptr pb = @ast.stmts[cast( int32, ast.nodes[cast( int32, b )].data )]
+            dim as StmtPayload ptr pa = ast.StmtOf( a )
+            dim as StmtPayload ptr pb = ast.StmtOf( b )
             if pa->extra <> pb->extra then
                 NoteMismatch_( store, newd, VTM_RANK )
                 return
@@ -195,15 +195,15 @@ end sub
 '' (virtual/virtual.bas, bydescParams2). The rank as written is the parameter's 'extra'.
 private function RanksAgree_ ( byref ast as AstArena, byval a as NodeId, byval b as NodeId ) as boolean
     if (a = NODE_NONE) orelse (b = NODE_NONE) then return true
-    dim as StmtPayload ptr pa = @ast.stmts[cast( int32, ast.nodes[cast( int32, a )].data )]
-    dim as StmtPayload ptr pb = @ast.stmts[cast( int32, ast.nodes[cast( int32, b )].data )]
+    dim as StmtPayload ptr pa = ast.StmtOf( a )
+    dim as StmtPayload ptr pb = ast.StmtOf( b )
     if pa->count <> pb->count then return true
     for i as int32 = 0 to pa->count - 1
-        dim as NodeId x = cast( NodeId, ast.children[pa->first + i] )
-        dim as NodeId y = cast( NodeId, ast.children[pb->first + i] )
+        dim as NodeId x = ast.ChildAt( pa->first, i )
+        dim as NodeId y = ast.ChildAt( pb->first, i )
         if (ast.Kind( x ) <> N_PARAM) orelse (ast.Kind( y ) <> N_PARAM) then continue for
-        if ((ast.nodes[cast( int32, x )].flags and NF_ARRAY) = 0) orelse ((ast.nodes[cast( int32, y )].flags and NF_ARRAY) = 0) then continue for
-        if ast.stmts[cast( int32, ast.nodes[cast( int32, x )].data )].extra <> ast.stmts[cast( int32, ast.nodes[cast( int32, y )].data )].extra then return false
+        if ((ast.Flags( x ) and NF_ARRAY) = 0) orelse ((ast.Flags( y ) and NF_ARRAY) = 0) then continue for
+        if ast.StmtOf( x )->extra <> ast.StmtOf( y )->extra then return false
     next
     return true
 end function
@@ -303,16 +303,16 @@ private sub CheckOverrideBody_ _
     '' BY THEIR RETURN TYPE and by nothing else -- virtual.bas declares 'cast( ) as
     '' string' beside 'cast( ) as integer' -- so a parameter-list match says nothing
     '' about whether one overrides the other, and every pair looked incompatible.
-    dim as StmtPayload ptr osp = @ast.stmts[cast( int32, ast.nodes[cast( int32, oldd )].data )]
-    dim as StmtPayload ptr nsp = @ast.stmts[cast( int32, ast.nodes[cast( int32, newd )].data )]
+    dim as StmtPayload ptr osp = ast.StmtOf( oldd )
+    dim as StmtPayload ptr nsp = ast.StmtOf( newd )
     dim as boolean isOperator = (cast( TokenKind, osp->op ) = KW_OPERATOR) orelse _
                                 (cast( TokenKind, nsp->op ) = KW_OPERATOR)
 
     '' A COVARIANT BYREF RESULT IS LEGAL: 'byref as A' overridden by 'byref as B' where
     '' B extends A, which compatible-override.bas writes. By VALUE the same pair is fbc
     '' error 225, which is why the test is on the byref-ness rather than on the types.
-    dim as uint16 obf = cast( uint16, ast.nodes[cast( int32, oldd )].flags and NF_BYREF )
-    dim as uint16 nbf = cast( uint16, ast.nodes[cast( int32, newd )].flags and NF_BYREF )
+    dim as uint16 obf = cast( uint16, ast.Flags( oldd ) and NF_BYREF )
+    dim as uint16 nbf = cast( uint16, ast.Flags( newd ) and NF_BYREF )
     dim as boolean bothByref = (obf <> 0) andalso (nbf <> 0)
 
     dim as TypeId ra = ReturnTypeOf_( ast, info, oldd )
@@ -379,8 +379,8 @@ private function Overrides_ _
     '' AN OPERATOR IS ALSO TOLD APART BY ITS RESULT: 'cast( ) as string' and 'cast( ) as integer' take
     '' the same (no) parameters and are two slots. Read as one, the second took the first's slot and
     '' a call to the first went direct -- A's string cast through an 'A ptr' to a B (virtual/virtual.bas).
-    dim as StmtPayload ptr sa = @ast.stmts[cast( int32, ast.nodes[cast( int32, a )].data )]
-    dim as StmtPayload ptr sb = @ast.stmts[cast( int32, ast.nodes[cast( int32, b )].data )]
+    dim as StmtPayload ptr sa = ast.StmtOf( a )
+    dim as StmtPayload ptr sb = ast.StmtOf( b )
     if (sa->op = cast( uint16, KW_OPERATOR )) andalso (sb->op = cast( uint16, KW_OPERATOR )) then
         if ReturnTypeOf_( ast, info, a ) <> ReturnTypeOf_( ast, info, b ) then return false
     end if
@@ -462,7 +462,7 @@ private function DeclaredDtorOf_ _
                 dim as NodeId d = cast( NodeId, mo->payload )
                 if (d <> NODE_NONE) andalso (ast.Kind( d ) = N_PROC) then
                     dim as StmtPayload ptr dsp = _
-                        @ast.stmts[cast( int32, ast.nodes[cast( int32, d )].data )]
+                        ast.StmtOf( d )
                     if cast( TokenKind, dsp->op ) = KW_DESTRUCTOR then return d
                 end if
             end if
@@ -503,7 +503,7 @@ private sub CheckImplicitDtorConv_ _
     dim as NodeId bd = DeclaredDtorOf_( ast, syms, bs )
     if bd = NODE_NONE then return
     dim as StmtPayload ptr bsp = _
-        @ast.stmts[cast( int32, ast.nodes[cast( int32, bd )].data )]
+        ast.StmtOf( bd )
     if (bsp->extra and PF_VIRTUAL) = 0 then return
 
     '' AGAINST THE DEFAULT, which is what an implicit destructor is given -- so the
@@ -528,7 +528,7 @@ private function TemplateScopeOf_ _
     dim as NodeId dn = cast( NodeId, s->payload )
     if dn = NODE_NONE then return SCOPE_NONE
     if ast.Kind( dn ) <> N_TYPE then return SCOPE_NONE
-    dim as StmtPayload ptr sp = @ast.stmts[cast( int32, ast.nodes[cast( int32, dn )].data )]
+    dim as StmtPayload ptr sp = ast.StmtOf( dn )
     if sp->b = NODE_NONE then return SCOPE_NONE
     if sp->name = 0 then return SCOPE_NONE
     if s->name = sp->name then return SCOPE_NONE
@@ -691,7 +691,7 @@ private function BuildOne_ _
                         dim as NodeId decl = cast( NodeId, mo->payload )
                         if (decl <> NODE_NONE) andalso (ast.Kind( decl ) = N_PROC) then
                             dim as StmtPayload ptr pp = _
-                                @ast.stmts[cast( int32, ast.nodes[cast( int32, decl )].data )]
+                                ast.StmtOf( decl )
                             dim as boolean isAbstract = ((pp->extra and PF_ABSTRACT) <> 0)
                             dim as boolean isVirtual = ((pp->extra and PF_VIRTUAL) <> 0) orelse _
                                                        isAbstract
@@ -778,7 +778,7 @@ private function IsGenericTemplateUdt_ _
     dim as NodeId dn = cast( NodeId, s->payload )
     if dn = NODE_NONE then return false
     if ast.Kind( dn ) <> N_TYPE then return false
-    dim as StmtPayload ptr sp = @ast.stmts[cast( int32, ast.nodes[cast( int32, dn )].data )]
+    dim as StmtPayload ptr sp = ast.StmtOf( dn )
     if sp->b = NODE_NONE then return false
     return (s->name = sp->name)
 end function

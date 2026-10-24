@@ -60,7 +60,7 @@ end sub
 function ItemIsRedim_ ( byref c as Ctx, byval item as NodeId ) as boolean
     for n as int32 = cast( int32, item ) + 1 to c.ast->Count( ) - 1
         if c.ast->Kind( cast( NodeId, n ) ) <> N_VAR then continue for
-        dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+        dim as StmtPayload ptr sp = c.ast->StmtOf( n )
         for k as int32 = 0 to sp->count - 1
             if c.ast->ChildAt( sp->first, k ) = item then return (sp->op = cast( uint16, KW_REDIM ))
         next

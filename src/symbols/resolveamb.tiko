@@ -305,7 +305,7 @@ private function ReadDotArgAsCall_ _
     sp->first = newFirst
     sp->count = oldCount + 1 - skip
     sp->a = base_
-    c.ast->nodes[cast( int32, base_ )].flags or= Tko.NF_CALL_TARGET  '' the statement's callee
+    c.ast->OrFlags( base_, Tko.NF_CALL_TARGET )  '' the statement's callee
 
     '' RE-WALKED, because the first walk bound it as a member of the base and this is
     '' not that any more: the name has to find the one at global scope now.

@@ -137,7 +137,7 @@ end sub
 private function IsOffsetofField_ ( byref c as Ctx, byval id as NodeId ) as boolean
     for i as int32 = 1 to c.ast->Count( )
         if c.ast->Kind( cast( NodeId, i ) ) <> N_CALL then continue for
-        dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[i].data )]
+        dim as ListPayload ptr lp = c.ast->ListOf( i )
         if lp->count <> 2 then continue for
         if cast( NodeId, c.ast->children[lp->first + 1] ) <> id then continue for
         if (lp->target = NODE_NONE) orelse (c.ast->Kind( lp->target ) <> N_IDENT) then continue for

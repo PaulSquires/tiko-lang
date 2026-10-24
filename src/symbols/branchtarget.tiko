@@ -148,7 +148,7 @@ private sub CheckBranchTargets_( byref c as Ctx )
     end if
     for n as int32 = 0 to c.ast->Count( ) - 1
         if c.ast->Kind( cast( NodeId, n ) ) <> N_PROC then continue for
-        dim as StmtPayload ptr pp = @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+        dim as StmtPayload ptr pp = c.ast->StmtOf( n )
         if pp->b = NODE_NONE then continue for
         dim as containers.Array( of uint32 ) labels
         BtLabels_( c, pp->b, labels )

@@ -280,7 +280,7 @@ sub CheckProcShape_ ( byref c as Ctx, byval id as NodeId )
             dim as NodeKind nk = c.ast->Kind( cast( NodeId, i ) )
             if (nk = N_PROC) orelse (nk = N_TYPE) orelse (nk = N_MODULE) then exit for
             if nk <> N_AMBIGUOUS then continue for
-            dim as NodeId ca = c.ast->stmts[cast( int32, c.ast->nodes[i].data )].a
+            dim as NodeId ca = c.ast->StmtOf( i )->a
             if (ca = NODE_NONE) orelse (c.ast->Kind( ca ) <> N_CALL) then continue for
             dim as NodeId ct = c.ast->ListOf( ca )->target
             if (ct = NODE_NONE) orelse (c.ast->Kind( ct ) <> N_IDENT) then continue for
@@ -920,7 +920,7 @@ sub CheckUsingAmbiguity_ ( byref c as Ctx )
     next
     for n as int32 = 1 to total - 1
         if c.ast->Kind( cast( NodeId, n ) ) <> N_MEMBER then continue for
-        dim as NodeId r = c.ast->binaries[cast( int32, c.ast->nodes[n].data )].rhs
+        dim as NodeId r = c.ast->BinaryOf( n )->rhs
         if (r > 0) andalso (cast( int32, r ) < total) then qualified[cast( int32, r )] = 1
     next
     for n as int32 = 1 to total - 1
@@ -929,12 +929,12 @@ sub CheckUsingAmbiguity_ ( byref c as Ctx )
         select case c.ast->Kind( x )
         case N_IDENT
             if qualified[n] <> 0 then continue for
-            nm = c.ast->idents[cast( int32, c.ast->nodes[n].data )].name
+            nm = c.ast->IdentOf( n )->name
         case N_TYPEREF
             '' ...AND A TYPE NAME: 'dim x as T' over two usings that each declare a T is fbc's
             '' 255 too (measured, fbc-modern 1.20, 2026-10-21). Only a bare one: 'na.T' keeps
             '' its qualifier in ownerName.
-            dim as StmtPayload ptr tp = @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+            dim as StmtPayload ptr tp = c.ast->StmtOf( n )
             if tp->ownerName <> 0 then continue for
             nm = tp->name
         case else
@@ -1035,7 +1035,7 @@ sub CheckBareTypeLiterals_ ( byref c as Ctx )
     next
     for n as int32 = 1 to total - 1
         if c.ast->Kind( cast( NodeId, n ) ) <> N_CALL then continue for
-        dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[n].data )]
+        dim as ListPayload ptr lp = c.ast->ListOf( n )
         if lp->target = NODE_NONE then continue for
         dim as Symbol ptr hs = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
         if hs = nullptr then hs = c.syms->SymbolAt( c.info->RefOf( cast( NodeId, n ) ) )
@@ -1055,9 +1055,9 @@ sub CheckBareTypeLiterals_ ( byref c as Ctx )
         dim as NodeId cn = NODE_NONE, cn2 = NODE_NONE
         select case c.ast->Kind( cast( NodeId, n ) )
         case N_IF_BRANCH, N_WHILE, N_DO
-            cn = c.ast->stmts[cast( int32, c.ast->nodes[n].data )].a
+            cn = c.ast->StmtOf( n )->a
         case N_MEMBER
-            cn = c.ast->binaries[cast( int32, c.ast->nodes[n].data )].lhs
+            cn = c.ast->BinaryOf( n )->lhs
         end select
         if (cn > 0) andalso (cast( int32, cn ) < total) then argOf[cast( int32, cn )] = 3
         if (cn2 > 0) andalso (cast( int32, cn2 ) < total) then argOf[cast( int32, cn2 )] = 3
@@ -1065,8 +1065,8 @@ sub CheckBareTypeLiterals_ ( byref c as Ctx )
     for n as int32 = 1 to total - 1
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_TUPLE then continue for
-        if (c.ast->nodes[n].flags and NF_TYPE_LITERAL) = 0 then continue for
-        if c.ast->lists[cast( int32, c.ast->nodes[n].data )].target <> NODE_NONE then continue for
+        if (c.ast->Flags( n ) and NF_TYPE_LITERAL) = 0 then continue for
+        if c.ast->ListOf( n )->target <> NODE_NONE then continue for
         dim as boolean bad = (argOf[n] = 2) orelse (argOf[n] = 3)
         if bad then c.diags->Report( TKO0925, PointRange( c.ast->Loc( id ) ) )
     next

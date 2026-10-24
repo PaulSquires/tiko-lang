@@ -251,7 +251,7 @@ private sub WalkExpr _
 
     if id = Tko.NODE_NONE then return
     dim as Tko.NodeKind k = c.ast->Kind( id )
-    dim as Tko.AstNode ptr n = @c.ast->nodes[cast( int32, id )]
+    dim as Tko.AstNode ptr n = c.ast->NodeAt( id )
 
     select case k
     case Tko.N_CLOSURE
@@ -1029,8 +1029,7 @@ sub WalkStmt _
                 dim as int32 ndim = 1
                 if ip3->c <> Tko.NODE_NONE then
                     if c.ast->Kind( ip3->c ) = Tko.N_BLOCK then
-                        ndim = c.ast->lists[cast( int32, _
-                            c.ast->nodes[cast( int32, ip3->c )].data )].count
+                        ndim = c.ast->ListOf( ip3->c )->count
                     end if
                 end if
                 if ndim < 0 then ndim = 0
@@ -1143,8 +1142,7 @@ sub WalkStmt _
             if ip->c <> Tko.NODE_NONE then
                 if c.ast->Kind( ip->c ) = Tko.N_BLOCK then
                     dim as Tko.ListPayload ptr dl = _
-                        @c.ast->lists[cast( int32, _
-                            c.ast->nodes[cast( int32, ip->c )].data )]
+                        c.ast->ListOf( ip->c )
                     for d as int32 = 0 to dl->count - 1
                         WalkStmt( c, cast( Tko.NodeId, _
                             c.ast->children[dl->first + d] ), here )

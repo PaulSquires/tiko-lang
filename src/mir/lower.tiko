@@ -470,8 +470,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 if np->target <> Tko.NODE_NONE then
                     if c.ast->Kind( np->target ) = Tko.N_IDENT then
                         dim as Tko.IdentPayload ptr nip = _
-                            @c.ast->idents[cast( int32, _
-                                c.ast->nodes[cast( int32, np->target )].data )]
+                            c.ast->IdentOf( np->target )
                         select case LowerSpelling_( c.ix, *c.names, nip->name )
                         case "assert", "assertwarn"
                             deliberateNoOp = true

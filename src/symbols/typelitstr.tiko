@@ -34,14 +34,14 @@ sub CheckTypeLiteralText_ ( byref c as Ctx )
     next
     for n as int32 = 1 to total - 1
         if c.ast->Kind( cast( NodeId, n ) ) <> N_VAR_ITEM then continue for
-        dim as NodeId b = c.ast->stmts[cast( int32, c.ast->nodes[n].data )].b
+        dim as NodeId b = c.ast->StmtOf( n )->b
         if (b > 0) andalso (cast( int32, b ) < total) then dimInit[cast( int32, b )] = 1
     next
     for n as int32 = 1 to total - 1
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_TUPLE then continue for
-        if (c.ast->nodes[n].flags and NF_TYPE_LITERAL) = 0 then continue for
-        if c.ast->lists[cast( int32, c.ast->nodes[n].data )].count = 0 then continue for
+        if (c.ast->Flags( n ) and NF_TYPE_LITERAL) = 0 then continue for
+        if c.ast->ListOf( n )->count = 0 then continue for
         dim as TypeId t = ValueType_( c, c.info->TypeOf_( id ) )
         if t = TYPE_NONE then continue for
         if c.types->Kind( t ) <> TK_UDT then continue for

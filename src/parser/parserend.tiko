@@ -136,7 +136,7 @@ function CheckEndOfStatement_ _
     '' A MEMBER ASSIGNMENT LEAVES WHAT FOLLOWS ALONE -- see the header.
     if n <> Tko.NODE_NONE then
         if p.ast->Kind( n ) = Tko.N_AMBIGUOUS then
-            dim as int32 asi = cast( int32, p.ast->nodes[cast( int32, n )].data )
+            dim as int32 asi = cast( int32, p.ast->DataOf( n ) )
             dim as Tko.StmtPayload ptr asp = @p.ast->stmts[asi]
             '' op 0 is a CALL; anything else is the assignment token.
             if asp->op <> 0 then
@@ -235,10 +235,10 @@ end function
 sub MarkLetList_( byref p as Tko.ParserState, byval n as Tko.NodeId )
     if n = Tko.NODE_NONE then return
     if p.ast->Kind( n ) <> Tko.N_AMBIGUOUS then return
-    dim as Tko.NodeId tg = p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, n )].data )].a
+    dim as Tko.NodeId tg = p.ast->StmtOf( n )->a
     if tg = Tko.NODE_NONE then return
     if (p.ast->Kind( tg ) <> Tko.N_TUPLE) andalso (p.ast->Kind( tg ) <> Tko.N_PAREN) then return
-    p.ast->nodes[cast( int32, tg )].flags or= Tko.NF_LET_LIST
+    p.ast->OrFlags( tg, Tko.NF_LET_LIST )
 end sub
 
 '' ------------------------------------------------------------- symbol arguments
@@ -251,7 +251,7 @@ sub MarkSymbolArgs_ _
     ( byref p as Tko.ParserState, byval target as Tko.NodeId, byref items as Tko.NodeIdVec )
     if (target = Tko.NODE_NONE) orelse (items.Count = 0) then return
     if p.ast->Kind( target ) <> Tko.N_IDENT then return
-    select case lcase( p.names->Spelling( p.ast->idents[cast( int32, p.ast->nodes[cast( int32, target )].data )].name ) )
+    select case lcase( p.names->Spelling( p.ast->IdentOf( target )->name ) )
     case "procptr"
         MarkCallTarget_( p, cast( Tko.NodeId, items[0] ) )
     case "__fb_query_symbol__"
@@ -375,7 +375,7 @@ sub ParenGroupOperand_ _
     if (k = Tko.TK_EQ) orelse (Tko.InfixPrec( k ) = 0) then return
     if sp.a = Tko.NODE_NONE then return
     if p.ast->Kind( sp.a ) <> Tko.N_CALL then return
-    dim as Tko.ListPayload ptr lcp = @p.ast->lists[cast( int32, p.ast->nodes[cast( int32, sp.a )].data )]
+    dim as Tko.ListPayload ptr lcp = p.ast->ListOf( sp.a )
     if (lcp->count <> 1) orelse (lcp->target = Tko.NODE_NONE) then return
     dim as Tko.NodeId inner = cast( Tko.NodeId, p.ast->children[lcp->first] )
     sp.a = lcp->target
@@ -388,7 +388,7 @@ function ParenlessFnCall_ _
       byref args as Tko.NodeIdVec ) as Tko.NodeId
     if args.Count = 0 then return Tko.NODE_NONE
     if p.ast->Kind( callee ) <> Tko.N_IDENT then return Tko.NODE_NONE
-    dim as uint32 nm = cast( uint32, p.ast->idents[cast( int32, p.ast->nodes[cast( int32, callee )].data )].name )
+    dim as uint32 nm = cast( uint32, p.ast->IdentOf( callee )->name )
     if KnownProc_( p, false, nm ) then return Tko.NODE_NONE
     dim as string spelled = "|" & p.names->Spelling( cast( Tko.InternId, nm ) ) & "|"
     if instr( PARENLESS_FN_CALLS_, spelled ) = 0 then return Tko.NODE_NONE

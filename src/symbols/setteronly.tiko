@@ -42,7 +42,7 @@ sub CheckSetterOnlyReads_ ( byref c as Ctx )
     next
     for n as int32 = 1 to total - 1
         if c.ast->Kind( cast( NodeId, n ) ) <> N_AMBIGUOUS then continue for
-        dim as NodeId a = c.ast->stmts[cast( int32, c.ast->nodes[n].data )].a
+        dim as NodeId a = c.ast->StmtOf( n )->a
         if (a <= 0) orelse (cast( int32, a ) >= total) then continue for
         isTarget[cast( int32, a )] = 1
         if c.ast->Kind( a ) = N_CALL then
@@ -56,7 +56,7 @@ sub CheckSetterOnlyReads_ ( byref c as Ctx )
         if isTarget[n] <> 0 then continue for
         dim as SymbolId sid = c.info->RefOf( id )
         if sid = SYMBOL_NONE then
-            sid = c.info->RefOf( c.ast->binaries[cast( int32, c.ast->nodes[n].data )].rhs )
+            sid = c.info->RefOf( c.ast->BinaryOf( n )->rhs )
         end if
         if sid = SYMBOL_NONE then continue for
         if SetterOnly_( c, sid ) = false then continue for

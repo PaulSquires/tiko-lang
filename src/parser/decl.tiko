@@ -102,7 +102,7 @@ private function MakeMemberRef_ _
     p.ast->binaries.Push( bp )
     dim as Tko.NodeId n = _
         NewNodeAt( p, Tko.N_BINARY, dotTok.loc, p.ast->binaries.Count - 1 )
-    p.ast->nodes[cast( int32, n )].kind = cast( uint16, Tko.N_MEMBER )
+    p.ast->SetKind( n, cast( uint16, Tko.N_MEMBER ) )
     return n
 end function
 
@@ -228,7 +228,7 @@ private function VarItem _
         '' left on the line: 'redim .array1(2 to 2) as integer' is namespace/redim-3.bas.
         if Accept( p, Tko.KW_AS ) then sp.a = TypeRef( p )
         dim as Tko.NodeId dn = MakeStmt( p, Tko.N_VAR_ITEM, t.loc, sp )
-        if sp.c <> Tko.NODE_NONE then p.ast->nodes[cast( int32, dn )].flags or= Tko.NF_ARRAY
+        if sp.c <> Tko.NODE_NONE then p.ast->OrFlags( dn, Tko.NF_ARRAY )
         return dn
     end if
 
@@ -249,7 +249,7 @@ private function VarItem _
         ParseArrayBoundsInto( p, sp, t )
         if Accept( p, Tko.KW_AS ) then sp.a = TypeRef( p )
         dim as Tko.NodeId rn = MakeStmt( p, Tko.N_VAR_ITEM, t.loc, sp )
-        if sp.c <> Tko.NODE_NONE then p.ast->nodes[cast( int32, rn )].flags or= Tko.NF_ARRAY
+        if sp.c <> Tko.NODE_NONE then p.ast->OrFlags( rn, Tko.NF_ARRAY )
         return rn
     end if
 
@@ -306,7 +306,7 @@ private function VarItem _
         if qexpr <> Tko.NODE_NONE then
             qexpr = MakeMemberRef_( p, dotTok, qexpr, MakeIdent( p, memberTok ) )
             if isArrow then
-                p.ast->nodes[cast( int32, qexpr )].flags or= Tko.NF_ARROW
+                p.ast->OrFlags( qexpr, Tko.NF_ARROW )
             end if
         end if
     loop
@@ -348,8 +348,8 @@ private function VarItem _
     end if
 
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_VAR_ITEM, t.loc, sp )
-    if sp.c <> Tko.NODE_NONE then p.ast->nodes[cast( int32, n )].flags or= Tko.NF_ARRAY
-    if qualified then p.ast->nodes[cast( int32, n )].flags or= Tko.NF_QUALIFIED
+    if sp.c <> Tko.NODE_NONE then p.ast->OrFlags( n, Tko.NF_ARRAY )
+    if qualified then p.ast->OrFlags( n, Tko.NF_QUALIFIED )
     return n
 end function
 
@@ -430,7 +430,7 @@ private function VarDestructure _
         p.ast->children.Push( items[i] )
     next
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_VAR, t.loc, sp )
-    p.ast->nodes[cast( int32, n )].flags or= (flags or Tko.NF_DECL_WRITTEN)
+    p.ast->OrFlags( n, (flags or Tko.NF_DECL_WRITTEN) )
     return n
 end function
 
@@ -492,7 +492,7 @@ function ForEachDestructure_ _
     '' body's own run is already closed, so the declarations cannot be pushed in front
     '' of it in place. The old run is simply left unreferenced.
     dim as Tko.ListPayload ptr bl = _
-        @p.ast->lists[cast( int32, p.ast->nodes[cast( int32, body )].data )]
+        p.ast->ListOf( body )
     dim as Tko.NodeIdVec stmts
     stmts.Push( cast( uint32, decls ) )
     for i as int32 = 0 to bl->count - 1
@@ -576,14 +576,14 @@ private function ParseVarDecl( byref p as Tko.ParserState ) as Tko.NodeId
             itemByref = true
         end if
         dim as Tko.NodeId item = VarItem( p, sp.op = cast( uint16, Tko.KW_REDIM ) )
-        if itemByref then p.ast->nodes[cast( int32, item )].flags or= Tko.NF_BYREF
+        if itemByref then p.ast->OrFlags( item, Tko.NF_BYREF )
         items.Push( cast( uint32, item ) )
         '' The item may be an ERROR node, which has no StmtPayload -- indexing its
         '' 'data' as one is a segfault. Error nodes must be checked for, never
         '' assumed away (docs/plan/05 invariant 5).
         dim as boolean isItem = (p.ast->Kind( item ) = Tko.N_VAR_ITEM)
         if isItem andalso (sharedType <> Tko.NODE_NONE) then
-            dim as int32 si = cast( int32, p.ast->nodes[cast( int32, item )].data )
+            dim as int32 si = cast( int32, p.ast->DataOf( item ) )
             if p.ast->stmts[si].a = Tko.NODE_NONE then p.ast->stmts[si].a = sharedType
         end if
         if isItem = false then exit do
@@ -598,7 +598,7 @@ private function ParseVarDecl( byref p as Tko.ParserState ) as Tko.NodeId
     next
 
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_VAR, t.loc, sp )
-    p.ast->nodes[cast( int32, n )].flags or= (flags or Tko.NF_DECL_WRITTEN)
+    p.ast->OrFlags( n, (flags or Tko.NF_DECL_WRITTEN) )
     return n
 end function
 
@@ -630,7 +630,7 @@ private function ParseConstDecl( byref p as Tko.ParserState ) as Tko.NodeId
         '' '#if' above it can see.
         if (p.aggDepth = 0) andalso (p.stream <> nullptr) then   '' a local too, undone at 'end sub'
             if p.ast->Kind( item ) = Tko.N_VAR_ITEM then
-                dim as int32 csi = cast( int32, p.ast->nodes[cast( int32, item )].data )
+                dim as int32 csi = cast( int32, p.ast->DataOf( item ) )
                 dim as int64 cval = 0
                 if ConstFoldsToInt_( p, p.ast->stmts[csi].b, cval ) then
                     Tko.PpNoteConst( *cast( Tko.PpStream ptr, p.stream ), _
@@ -643,7 +643,7 @@ private function ParseConstDecl( byref p as Tko.ParserState ) as Tko.NodeId
         '' An ERROR node has no StmtPayload; indexing its 'data' as one is a segfault.
         if p.ast->Kind( item ) <> Tko.N_VAR_ITEM then exit do
         if sharedType <> Tko.NODE_NONE then
-            dim as int32 si = cast( int32, p.ast->nodes[cast( int32, item )].data )
+            dim as int32 si = cast( int32, p.ast->DataOf( item ) )
             if p.ast->stmts[si].a = Tko.NODE_NONE then p.ast->stmts[si].a = sharedType
         end if
         if Accept( p, Tko.TK_COMMA ) = false then exit do
@@ -1042,8 +1042,8 @@ private function ParseProc _
     end if
     if declareOnly then
         dim as Tko.NodeId dn = MakeStmt( p, Tko.N_PROC, t.loc, sp )
-        if qualified then p.ast->nodes[cast( int32, dn )].flags or= Tko.NF_QUALIFIED
-        if byrefRet then p.ast->nodes[cast( int32, dn )].flags or= Tko.NF_BYREF
+        if qualified then p.ast->OrFlags( dn, Tko.NF_QUALIFIED )
+        if byrefRet then p.ast->OrFlags( dn, Tko.NF_BYREF )
         return dn
     end if
 
@@ -1070,8 +1070,8 @@ private function ParseProc _
         p.ast->structorPrio.Push( cast( uint32, pn ) )
         p.ast->structorPrio.Push( cast( uint32, structPrio ) )
     end if
-    if qualified then p.ast->nodes[cast( int32, pn )].flags or= Tko.NF_QUALIFIED
-    if byrefRet then p.ast->nodes[cast( int32, pn )].flags or= Tko.NF_BYREF
+    if qualified then p.ast->OrFlags( pn, Tko.NF_QUALIFIED )
+    if byrefRet then p.ast->OrFlags( pn, Tko.NF_BYREF )
     '' A QUALIFIED DEFINITION -- 'function Box.Get( ) as T' -- may belong to a generic,
     '' and a GENERIC PROCEDURE is one in its own right. Either way instantiating it has
     '' to parse this body again to get nodes of its own. Nothing else is recorded: an
@@ -1346,14 +1346,14 @@ private function ParseAggregateBody _
             '' payload and corrupt it silently.
             dim as boolean tagIt = (vis <> 0) andalso (mn <> Tko.NODE_NONE)
             if tagIt then
-                select case p.ast->nodes[cast( int32, mn )].kind
+                select case p.ast->Kind( mn )
                 '' N_CONST and N_VAR belong here with N_PROC: a 'const' or a 'static'
                 '' inside a type body is a MEMBER, and 'T.MYCONST' from outside is fbc
                 '' error 202 exactly as a private field is. All three carry a
                 '' StmtPayload whose 'extra' is the modifier set.
                 case Tko.N_PROC, Tko.N_CONST, Tko.N_VAR, Tko.N_ENUM
                     dim as Tko.StmtPayload ptr mp = _
-                        @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, mn )].data )]
+                        p.ast->StmtOf( mn )
                     mp->extra or= vis
                 case Tko.N_TYPE
                     ApplyVisibility( p, mn, vis )
@@ -1429,7 +1429,7 @@ private function ParseAggregateBody _
     EmptyAggCheck_( p, sp, isUnion )
     ExpectEnd( p, iif( isUnion, Tko.KW_UNION, Tko.KW_TYPE ), t.loc )
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_TYPE, t.loc, sp )
-    if isUnion then p.ast->nodes[cast( int32, n )].flags or= Tko.NF_IS_UNION
+    if isUnion then p.ast->OrFlags( n, Tko.NF_IS_UNION )
     '' THE DECREMENT USED TO SIT AFTER THE RETURN, so aggDepth only ever grew: once one
     '' TYPE had been seen anywhere in the unit, a bare anonymous 'union' at module level
     '' was accepted for the rest of the file rather than being the error fbc calls it.

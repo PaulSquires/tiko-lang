@@ -27,8 +27,8 @@ private function PpTypeKey_( byref p as Tko.ParserState, byval tr as Tko.NodeId 
     for guard as int32 = 0 to 15
         if tr = Tko.NODE_NONE then return ""
         if p.ast->Kind( tr ) <> Tko.N_TYPEREF then return ""
-        dim as uint16 fl = p.ast->nodes[cast( int32, tr )].flags
-        dim as Tko.StmtPayload ptr sp = @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, tr )].data )]
+        dim as uint16 fl = p.ast->Flags( tr )
+        dim as Tko.StmtPayload ptr sp = p.ast->StmtOf( tr )
         if (fl and Tko.NF_PTR) <> 0 then
             suffix &= " ptr"
             tr = sp->a
@@ -55,8 +55,8 @@ private function PpTypeText_( byref p as Tko.ParserState, byval tr as Tko.NodeId
     dim as string suffix
     for guard as int32 = 0 to 15
         if (tr = Tko.NODE_NONE) orelse (p.ast->Kind( tr ) <> Tko.N_TYPEREF) then return ""
-        dim as uint16 fl = p.ast->nodes[cast( int32, tr )].flags
-        dim as Tko.StmtPayload ptr sp = @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, tr )].data )]
+        dim as uint16 fl = p.ast->Flags( tr )
+        dim as Tko.StmtPayload ptr sp = p.ast->StmtOf( tr )
         if (fl and Tko.NF_PTR) <> 0 then
             suffix = " PTR" & suffix
             tr = sp->a
@@ -81,9 +81,9 @@ function PpProcText_ _
     dim as string ps = ""
     if len( owner ) > 0 then ps = "AS " & owner
     for i as int32 = skipFirst to sp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, p.ast->children[sp->first + i] )
+        dim as Tko.NodeId prm = p.ast->ChildAt( sp->first, i )
         if p.ast->Kind( prm ) <> Tko.N_PARAM then continue for
-        dim as string pt = PpTypeText_( p, p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, prm )].data )].a )
+        dim as string pt = PpTypeText_( p, p.ast->StmtOf( prm )->a )
         if len( pt ) = 0 then return ""
         if len( ps ) > 0 then ps &= ", "
         ps &= "AS " & pt
@@ -114,9 +114,9 @@ private sub NoteMembers_( byref p as Tko.ParserState, byval n as Tko.NodeId, byv
     if tsp->name = Tko.INTERN_NONE then return
     dim as string tnm = p.names->Spelling( tsp->name )
     for i as int32 = 0 to tsp->count - 1
-        dim as Tko.NodeId m = cast( Tko.NodeId, p.ast->children[tsp->first + i] )
+        dim as Tko.NodeId m = p.ast->ChildAt( tsp->first, i )
         if p.ast->Kind( m ) <> Tko.N_PROC then continue for
-        dim as Tko.StmtPayload ptr msp = @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, m )].data )]
+        dim as Tko.StmtPayload ptr msp = p.ast->StmtOf( m )
         dim as string mnm
         dim as string cc = PpCallConvText_( msp->extra )
         select case cast( Tko.TokenKind, msp->op )
@@ -140,7 +140,7 @@ end sub
 sub NoteParamType_( byref p as Tko.ParserState, byval n as Tko.NodeId )
     if (p.stream = nullptr) orelse (n = Tko.NODE_NONE) then return
     if p.ast->Kind( n ) <> Tko.N_PARAM then return
-    dim as Tko.StmtPayload ptr sp = @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, n )].data )]
+    dim as Tko.StmtPayload ptr sp = p.ast->StmtOf( n )
     if (sp->name = Tko.INTERN_NONE) orelse (sp->a = Tko.NODE_NONE) then return
     dim as string key = PpTypeKey_( p, sp->a )
     if len( key ) = 0 then return
@@ -154,30 +154,30 @@ private sub NoteTypes_( byref p as Tko.ParserState, byval n as Tko.NodeId )
     dim as Tko.PpStream ptr st = cast( Tko.PpStream ptr, p.stream )
     '' The payload is read only for the kinds that have one -- N_ERROR's data is 0 (F-72).
     if Tko.NodeKindCategory( p.ast->Kind( n ) ) <> Tko.NCAT_DECL then return
-    dim as Tko.StmtPayload ptr sp = @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, n )].data )]
+    dim as Tko.StmtPayload ptr sp = p.ast->StmtOf( n )
     select case p.ast->Kind( n )
     case Tko.N_VAR
         for i as int32 = 0 to sp->count - 1
-            dim as Tko.NodeId item = cast( Tko.NodeId, p.ast->children[sp->first + i] )
+            dim as Tko.NodeId item = p.ast->ChildAt( sp->first, i )
             if p.ast->Kind( item ) <> Tko.N_VAR_ITEM then continue for
-            dim as Tko.StmtPayload ptr ip = @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, item )].data )]
+            dim as Tko.StmtPayload ptr ip = p.ast->StmtOf( item )
             Tko.PpNoteType( *st, ip->name, PpTypeKey_( p, ip->a ), Tko.PP_TYPE_VAR, p.ast->Loc( item ) )
         next
     case Tko.N_TYPEDEF
         dim as string key = PpTypeKey_( p, sp->a )
         '' A PROCEDURE TYPE is keyed by its text -- 'P' then fbc's spelling of it.
         if (len( key ) = 0) andalso (sp->a <> Tko.NODE_NONE) then
-            if (p.ast->nodes[cast( int32, sp->a )].flags and Tko.NF_PROC_TYPE) <> 0 then
-                dim as Tko.StmtPayload ptr psp = @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, sp->a )].data )]
+            if (p.ast->Flags( sp->a ) and Tko.NF_PROC_TYPE) <> 0 then
+                dim as Tko.StmtPayload ptr psp = p.ast->StmtOf( sp->a )
                 dim as string ptxt = PpProcText_( p, psp, psp->op = cast( uint16, Tko.KW_FUNCTION ), PpCallConvText_( psp->extra ), "", 0 )
                 if len( ptxt ) > 0 then key = "P" & ptxt
             end if
         end if
         Tko.PpNoteType( *st, sp->name, key, Tko.PP_TYPE_TYPEDEF, p.ast->Loc( n ) )
         for i as int32 = 0 to sp->count - 1
-            dim as Tko.NodeId more = cast( Tko.NodeId, p.ast->children[sp->first + i] )
+            dim as Tko.NodeId more = p.ast->ChildAt( sp->first, i )
             if p.ast->Kind( more ) <> Tko.N_TYPEDEF then continue for
-            dim as Tko.StmtPayload ptr mp = @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, more )].data )]
+            dim as Tko.StmtPayload ptr mp = p.ast->StmtOf( more )
             Tko.PpNoteType( *st, mp->name, key, Tko.PP_TYPE_TYPEDEF, p.ast->Loc( more ) )
         next
     case Tko.N_TYPE, Tko.N_ENUM

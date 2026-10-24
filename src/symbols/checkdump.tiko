@@ -23,7 +23,7 @@ function Dump _
                 '' different arena, which is the exact mistake phase-5-check.md warns
                 '' about, made again while writing this.
                 dim as Tko.StmtPayload ptr ap = _
-                    @ast.stmts[cast( int32, ast.nodes[cast( int32, n )].data )]
+                    ast.StmtOf( n )
                 dim as Tko.TypeId dt = info.TypeOf_( ap->a )
                 dim as Tko.TypeId st2 = info.TypeOf_( ap->b )
                 dim as string verdict = "assign:unknown"
@@ -42,7 +42,7 @@ function Dump _
 
         if ast.Kind( n ) <> Tko.N_INTRINSIC then continue for
         dim as Tko.StmtPayload ptr sp = _
-            @ast.stmts[cast( int32, ast.nodes[cast( int32, n )].data )]
+            ast.StmtOf( n )
         if sp->count <= 0 then continue for
         dim as Tko.NodeId arg = cast( Tko.NodeId, ast.children[sp->first] )
         if arg = Tko.NODE_NONE then continue for

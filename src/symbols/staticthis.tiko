@@ -48,7 +48,7 @@ private sub StaticThisRange_ _
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_IDENT then continue for
         if memberRhs[n] <> 0 then continue for
-        dim as string nm = lcase( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[n].data )].name ) )
+        dim as string nm = lcase( c.names->Spelling( c.ast->IdentOf( n )->name ) )
         if nm <> "this" then
             dim as Symbol ptr fs = c.syms->SymbolAt( c.info->RefOf( id ) )
             if fs = nullptr then continue for
@@ -89,7 +89,7 @@ sub CheckStaticThis_ ( byref c as Ctx )
     next
     for n as int32 = 1 to total - 1
         if c.ast->Kind( cast( NodeId, n ) ) <> N_MEMBER then continue for
-        dim as NodeId r = c.ast->binaries[cast( int32, c.ast->nodes[n].data )].rhs
+        dim as NodeId r = c.ast->BinaryOf( n )->rhs
         if (r > 0) andalso (cast( int32, r ) < total) then memberRhs[cast( int32, r )] = 1
     next
     if c.ast->Kind( c.root ) <> N_MODULE then return

@@ -449,7 +449,7 @@ private function LValueRoot_( byref c as Ctx, byval n as Tko.NodeId ) as Tko.Nod
     dim as int32 guard = 0
     while (n <> Tko.NODE_NONE) andalso (guard < 64)
         guard += 1
-        dim as uint32 d = c.ast->nodes[cast( int32, n )].data
+        dim as uint32 d = c.ast->DataOf( n )
         select case c.ast->Kind( n )
         case Tko.N_IDENT
             return n
@@ -474,7 +474,7 @@ function TermReadsLValue_ _
     ( byref c as Ctx, byval target as Tko.NodeId, byval e as Tko.NodeId ) as boolean
 
     if (target = Tko.NODE_NONE) orelse (e = Tko.NODE_NONE) then return false
-    dim as uint32 d = c.ast->nodes[cast( int32, e )].data
+    dim as uint32 d = c.ast->DataOf( e )
     select case c.ast->Kind( e )
     case Tko.N_IDENT
         if SameLValue( c, target, e ) then return true
@@ -592,7 +592,7 @@ function LowerOffsetOf _
         cur = c.types->Unqualify( cur )
         if c.types->Kind( cur ) <> Tko.TK_UDT then return false
         dim as Tko.IdentPayload ptr fip = _
-            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, path[i] )].data )]
+            c.ast->IdentOf( path[i] )
         dim as boolean found = false
         dim as Tko.TypeId ft = Tko.TYPE_NONE
         off += c.udts->FieldOffsetType( cur, fip->name, found, ft )

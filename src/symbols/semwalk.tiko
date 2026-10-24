@@ -423,7 +423,7 @@ sub RecordFirstRedims_( byref c as Ctx )
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_VAR then continue for
         dim as StmtPayload ptr sp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+            c.ast->StmtOf( n )
         if sp->op <> cast( uint16, KW_REDIM ) then continue for
         for i as int32 = 0 to sp->count - 1
             dim as NodeId item = c.ast->ChildAt( sp->first, i )
@@ -1364,7 +1364,7 @@ sub CheckQualifiedStringInits_( byref c as Ctx )
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_VAR_ITEM then continue for
         dim as StmtPayload ptr ip = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+            c.ast->StmtOf( n )
         if ip->b = NODE_NONE then continue for
 
         '' A VAR-LEN STRING, whether written out or inferred from the initialiser.
@@ -1381,7 +1381,7 @@ sub CheckQualifiedStringInits_( byref c as Ctx )
         if (c.types->BuiltinOf( u ) <> TY_STRING) andalso (c.types->BuiltinOf( u ) <> TY_USTRING) then continue for
 
         dim as boolean qualified = _
-            ((c.ast->nodes[n].flags and NF_QUALIFIED) <> 0)
+            ((c.ast->Flags( n ) and NF_QUALIFIED) <> 0)
         dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
         if qualified = false then
             if s = nullptr then continue for

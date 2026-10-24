@@ -576,6 +576,15 @@ namespace Tko
         '' Child 'i' of a list or statement whose children start at 'first' in the shared pool.
         declare function ChildAt( byval first as int32, byval i as int32 ) as NodeId
         declare function Flags( byval id as NodeId ) as uint16
+        '' THE NODE RECORD, for the passes that build or rewrite one in place (the parser, Resolve's
+        '' rewrites, generic instantiation). Nothing outside src/ast indexes 'nodes' itself -- lint
+        '' rule 15 -- so a reader cannot take a node's 'data' to the wrong pool by hand.
+        declare function DataOf( byval id as NodeId ) as uint32
+        declare function NodeAt( byval id as NodeId ) as AstNode ptr
+        declare sub OrFlags( byval id as NodeId, byval f as uint16 )
+        declare sub SetKind( byval id as NodeId, byval k as uint16 )
+        declare sub SetLoc( byval id as NodeId, byval l as SourceLoc )
+        declare sub SetData( byval id as NodeId, byval d as uint32 )
     end type
 
     enum AstPool
@@ -635,6 +644,24 @@ namespace Tko
     private function AstArena.Flags( byval id as NodeId ) as uint16
         return this.nodes[cast( int32, id )].flags
     end function
+    private function AstArena.DataOf( byval id as NodeId ) as uint32
+        return this.nodes[cast( int32, id )].data
+    end function
+    private function AstArena.NodeAt( byval id as NodeId ) as AstNode ptr
+        return @this.nodes[cast( int32, id )]
+    end function
+    private sub AstArena.OrFlags( byval id as NodeId, byval f as uint16 )
+        this.nodes[cast( int32, id )].flags or= f
+    end sub
+    private sub AstArena.SetKind( byval id as NodeId, byval k as uint16 )
+        this.nodes[cast( int32, id )].kind = k
+    end sub
+    private sub AstArena.SetLoc( byval id as NodeId, byval l as SourceLoc )
+        this.nodes[cast( int32, id )].loc = l
+    end sub
+    private sub AstArena.SetData( byval id as NodeId, byval d as uint32 )
+        this.nodes[cast( int32, id )].data = d
+    end sub
 
     declare function NodeKindName( byval k as NodeKind ) as string
 

@@ -140,7 +140,7 @@ private function MakeClosure_ _
     for i as int32 = 0 to capIdents.Count - 1
         dim as Tko.NodeId cn = cast( Tko.NodeId, capIdents[i] )
         dim as Tko.InternId cnm = _
-            p.ast->idents[cast( int32, p.ast->nodes[cast( int32, cn )].data )].name
+            p.ast->IdentOf( cn )->name
         dim as Tko.InternId fnm = p.names->Fold( p.names->GetString( _
             "__CAP_" & p.names->Spelling( cnm ) ) )
         dim as Tko.BinaryPayload mb
@@ -150,9 +150,9 @@ private function MakeClosure_ _
         p.ast->binaries.Push( mb )
         dim as Tko.NodeId mem = _
             NewNodeAt( p, Tko.N_BINARY, t.loc, p.ast->binaries.Count - 1 )
-        p.ast->nodes[cast( int32, mem )].kind = cast( uint16, Tko.N_MEMBER )
+        p.ast->SetKind( mem, cast( uint16, Tko.N_MEMBER ) )
         dim as Tko.NodeId src_ = mem
-        if (p.ast->nodes[cast( int32, cn )].flags and Tko.NF_BYREF) <> 0 then
+        if (p.ast->Flags( cn ) and Tko.NF_BYREF) <> 0 then
             dim as Tko.UnaryPayload dp
             dp.op = cast( uint16, Tko.TK_STAR )
             dp.operand = mem
@@ -169,13 +169,13 @@ private function MakeClosure_ _
         vp.count = 1
         p.ast->children.Push( cast( uint32, item ) )
         dim as Tko.NodeId vn = MakeStmt( p, Tko.N_VAR, t.loc, vp )
-        p.ast->nodes[cast( int32, vn )].flags or= Tko.NF_BYREF
+        p.ast->OrFlags( vn, Tko.NF_BYREF )
         body.Push( cast( uint32, vn ) )
     next
     '' ...then the lambda's own statements, read out of the block it was parsed into.
     if sp.b <> Tko.NODE_NONE then
         dim as Tko.ListPayload ptr bl = _
-            @p.ast->lists[cast( int32, p.ast->nodes[cast( int32, sp.b )].data )]
+            p.ast->ListOf( sp.b )
         for i as int32 = 0 to bl->count - 1
             body.Push( p.ast->children[bl->first + i] )
         next
@@ -188,7 +188,7 @@ private function MakeClosure_ _
     pp0.name = selfNm
     pp0.a = TypeRefNamed_( p, clsNm, t.loc )
     dim as Tko.NodeId p0 = MakeStmt( p, Tko.N_PARAM, t.loc, pp0 )
-    p.ast->nodes[cast( int32, p0 )].flags or= Tko.NF_BYREF
+    p.ast->OrFlags( p0, Tko.NF_BYREF )
     prms.Push( cast( uint32, p0 ) )
     for i as int32 = 0 to sp.count - 1
         prms.Push( p.ast->children[sp.first + i] )
@@ -211,7 +211,7 @@ private function MakeClosure_ _
         end if
     end if
     dim as Tko.NodeId ln = MakeStmt( p, Tko.N_PROC, t.loc, sp )
-    if byrefRet then p.ast->nodes[cast( int32, ln )].flags or= Tko.NF_BYREF
+    if byrefRet then p.ast->OrFlags( ln, Tko.NF_BYREF )
     p.lambdas.Push( cast( uint32, ln ) )
 
     dim as Tko.StmtPayload cp2
@@ -288,7 +288,7 @@ private function LambdaExpr( byref p as Tko.ParserState ) as Tko.NodeId
                 dim as Tko.Token ct = Cur( p )
                 dim as Tko.NodeId cn = MakeIdent( p, ct )
                 if capByref then
-                    p.ast->nodes[cast( int32, cn )].flags or= Tko.NF_BYREF
+                    p.ast->OrFlags( cn, Tko.NF_BYREF )
                 end if
                 capIdents.Push( cast( uint32, cn ) )
                 Advance( p )
@@ -361,7 +361,7 @@ private function LambdaExpr( byref p as Tko.ParserState ) as Tko.NodeId
         end if
     end if
     dim as Tko.NodeId ln = MakeStmt( p, Tko.N_PROC, t.loc, sp )
-    if byrefRet then p.ast->nodes[cast( int32, ln )].flags or= Tko.NF_BYREF
+    if byrefRet then p.ast->OrFlags( ln, Tko.NF_BYREF )
     p.lambdas.Push( cast( uint32, ln ) )
 
     return MakeAddrOfName( p, sp.name, t.loc, ld.offset, cast( int32, t.length ) )

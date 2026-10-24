@@ -30,8 +30,8 @@ private function SameWrittenType_ _
     if (a = Tko.NODE_NONE) orelse (b = Tko.NODE_NONE) then return false
     if w.ast->Kind( a ) <> Tko.N_TYPEREF then return false
     if w.ast->Kind( b ) <> Tko.N_TYPEREF then return false
-    dim as uint16 af = w.ast->nodes[cast( int32, a )].flags
-    dim as uint16 bf = w.ast->nodes[cast( int32, b )].flags
+    dim as uint16 af = w.ast->Flags( a )
+    dim as uint16 bf = w.ast->Flags( b )
     dim as uint16 mask = Tko.NF_PTR or Tko.NF_CONST or Tko.NF_PROC_TYPE
     if (af and mask) <> (bf and mask) then return false
     dim as Tko.StmtPayload ptr ap = StmtOf( w, a )
@@ -57,8 +57,8 @@ private function SameSignature_ _
     if SameWrittenType_( w, a->a, b->a, scope_ ) = false then return false
     if a->count <> b->count then return false
     for i as int32 = 0 to a->count - 1
-        dim as Tko.NodeId an = cast( Tko.NodeId, w.ast->children[a->first + i] )
-        dim as Tko.NodeId bn = cast( Tko.NodeId, w.ast->children[b->first + i] )
+        dim as Tko.NodeId an = w.ast->ChildAt( a->first, i )
+        dim as Tko.NodeId bn = w.ast->ChildAt( b->first, i )
         if (w.ast->Kind( an ) <> Tko.N_PARAM) orelse _
            (w.ast->Kind( bn ) <> Tko.N_PARAM) then return false
         if SameWrittenType_( w, StmtOf( w, an )->a, StmtOf( w, bn )->a, scope_ ) = false then
@@ -83,7 +83,7 @@ private function Undecidable_ _
         t = UnaliasWritten_( w, scope_, t )
         if t = Tko.NODE_NONE then exit while
         if w.ast->Kind( t ) <> Tko.N_TYPEREF then exit while
-        if (w.ast->nodes[cast( int32, t )].flags and Tko.NF_PROC_TYPE) <> 0 then return true
+        if (w.ast->Flags( t ) and Tko.NF_PROC_TYPE) <> 0 then return true
         dim as Tko.StmtPayload ptr tp = StmtOf( w, t )
         if tp->count > 0 then return true
         t = tp->a
@@ -126,8 +126,8 @@ private function SameOverloadIdentity_ _
     end if
     if a->count <> b->count then return false
     for i as int32 = 0 to a->count - 1
-        dim as Tko.NodeId an = cast( Tko.NodeId, w.ast->children[a->first + i] )
-        dim as Tko.NodeId bn = cast( Tko.NodeId, w.ast->children[b->first + i] )
+        dim as Tko.NodeId an = w.ast->ChildAt( a->first, i )
+        dim as Tko.NodeId bn = w.ast->ChildAt( b->first, i )
         if (w.ast->Kind( an ) <> Tko.N_PARAM) orelse _
            (w.ast->Kind( bn ) <> Tko.N_PARAM) then return false
         dim as Tko.StmtPayload ptr ap = StmtOf( w, an )
@@ -136,8 +136,8 @@ private function SameOverloadIdentity_ _
         dim as boolean aEll = (ap->op = cast( uint16, Tko.TK_ELLIPSIS ))
         dim as boolean bEll = (bp->op = cast( uint16, Tko.TK_ELLIPSIS ))
         if aEll <> bEll then return false
-        dim as boolean aArr = ((w.ast->nodes[cast( int32, an )].flags and Tko.NF_ARRAY) <> 0)
-        dim as boolean bArr = ((w.ast->nodes[cast( int32, bn )].flags and Tko.NF_ARRAY) <> 0)
+        dim as boolean aArr = ((w.ast->Flags( an ) and Tko.NF_ARRAY) <> 0)
+        dim as boolean bArr = ((w.ast->Flags( bn ) and Tko.NF_ARRAY) <> 0)
         if aArr <> bArr then return false
         '' The RANK an array parameter spelled, 0 for 'a( )' -- see ParseParam. Unknown
         '' collides with any rank; two known ranks only with each other.
@@ -161,7 +161,7 @@ private function BuiltinShape_ _
     while depth < 64
         if t = Tko.NODE_NONE then return -1
         if w.ast->Kind( t ) <> Tko.N_TYPEREF then return -1
-        dim as uint16 fl = w.ast->nodes[cast( int32, t )].flags
+        dim as uint16 fl = w.ast->Flags( t )
         if (fl and Tko.NF_PROC_TYPE) <> 0 then return -1
         dim as Tko.StmtPayload ptr tp = StmtOf( w, t )
         if tp->count <> 0 then return -1
@@ -198,16 +198,16 @@ private function CertainlyDifferentParams_ _
 
     if a->count <> b->count then return false
     for i as int32 = 0 to a->count - 1
-        dim as Tko.NodeId an = cast( Tko.NodeId, w.ast->children[a->first + i] )
-        dim as Tko.NodeId bn = cast( Tko.NodeId, w.ast->children[b->first + i] )
+        dim as Tko.NodeId an = w.ast->ChildAt( a->first, i )
+        dim as Tko.NodeId bn = w.ast->ChildAt( b->first, i )
         if (w.ast->Kind( an ) <> Tko.N_PARAM) orelse _
            (w.ast->Kind( bn ) <> Tko.N_PARAM) then return false
         dim as Tko.StmtPayload ptr ap = StmtOf( w, an )
         dim as Tko.StmtPayload ptr bp = StmtOf( w, bn )
         if (ap->op = cast( uint16, Tko.TK_ELLIPSIS )) orelse _
            (bp->op = cast( uint16, Tko.TK_ELLIPSIS )) then return false
-        dim as boolean aArr = ((w.ast->nodes[cast( int32, an )].flags and Tko.NF_ARRAY) <> 0)
-        dim as boolean bArr = ((w.ast->nodes[cast( int32, bn )].flags and Tko.NF_ARRAY) <> 0)
+        dim as boolean aArr = ((w.ast->Flags( an ) and Tko.NF_ARRAY) <> 0)
+        dim as boolean bArr = ((w.ast->Flags( bn ) and Tko.NF_ARRAY) <> 0)
         if aArr <> bArr then return true
         dim as uint16 ka = 0, kb = 0
         dim as int32 da = BuiltinShape_( w, ap->a, ka )
@@ -360,7 +360,7 @@ end function
 private function ParserRefused_ _
     ( byref w as Walker, byval sp as Tko.StmtPayload ptr ) as boolean
     for i as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId pn = cast( Tko.NodeId, w.ast->children[sp->first + i] )
+        dim as Tko.NodeId pn = w.ast->ChildAt( sp->first, i )
         if w.ast->Kind( pn ) = Tko.N_PARAM then
             dim as Tko.StmtPayload ptr pp = StmtOf( w, pn )
             if pp->op = cast( uint16, Tko.TK_ELLIPSIS ) then
@@ -658,7 +658,7 @@ private sub CheckModCtorMember_ _
         guard += 1
         dim as Tko.NodeId md = cast( Tko.NodeId, ms->payload )
         if (md <> Tko.NODE_NONE) andalso (md <> id) andalso (w.ast->Kind( md ) = Tko.N_PROC) then
-            dim as Tko.StmtPayload ptr mp = @w.ast->stmts[cast( int32, w.ast->nodes[cast( int32, md )].data )]
+            dim as Tko.StmtPayload ptr mp = w.ast->StmtOf( md )
             if mp->b = Tko.NODE_NONE then
                 dim as string what = iif( (sp->extra and Tko.PF_MODCTOR) <> 0, "constructor", "destructor" )
                 dim as string why = ""

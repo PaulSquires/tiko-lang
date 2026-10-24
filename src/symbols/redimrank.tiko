@@ -17,10 +17,10 @@ function ItemRank _
 
     sid = SYMBOL_NONE
     if ast.Kind( item ) <> N_VAR_ITEM then return 0
-    dim as StmtPayload ptr ip = @ast.stmts[cast( int32, ast.nodes[cast( int32, item )].data )]
+    dim as StmtPayload ptr ip = ast.StmtOf( item )
     dim as int32 written = 0
     if (ip->c <> NODE_NONE) andalso (ast.Kind( ip->c ) = N_BLOCK) then
-        written = ast.lists[cast( int32, ast.nodes[cast( int32, ip->c )].data )].count
+        written = ast.ListOf( ip->c )->count
     end if
     if written <= 0 then return 0
     '' 'redim this.a( ... )' names its array through the member reference in 'b'.
@@ -50,12 +50,12 @@ function FirstRank _
     if target = SYMBOL_NONE then return 0
     for n as int32 = 0 to ast.Count( ) - 1
         if ast.Kind( cast( NodeId, n ) ) <> N_VAR then continue for
-        dim as StmtPayload ptr sp = @ast.stmts[cast( int32, ast.nodes[n].data )]
+        dim as StmtPayload ptr sp = ast.StmtOf( n )
         if sp->op <> cast( uint16, KW_REDIM ) then continue for
         for i as int32 = 0 to sp->count - 1
             dim as SymbolId sid
             dim as int32 r = ItemRank( ast, syms, types, info, _
-                                      cast( NodeId, ast.children[sp->first + i] ), sid, info.ScopeOf( cast( NodeId, n ) ) )
+                                      ast.ChildAt( sp->first, i ), sid, info.ScopeOf( cast( NodeId, n ) ) )
             if (r > 0) andalso (sid = target) then return r
         next
     next

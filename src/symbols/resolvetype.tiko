@@ -232,7 +232,7 @@ function ProcTypeParamType_ _
             end if
         end if
         if pRef then
-            c.ast->nodes[cast( int32, prm )].flags or= Tko.NF_BYREF
+            c.ast->OrFlags( prm, Tko.NF_BYREF )
         end if
     end if
     '' AN ARRAY PARAMETER IS A REFERENCE TO THE FBARRAY TEMPLATE, rank and
@@ -383,7 +383,7 @@ function ResolveTypeRefAt_ _
     if id = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( id ) <> Tko.N_TYPEREF then return Tko.TYPE_NONE
 
-    dim as Tko.AstNode ptr n = @c.ast->nodes[cast( int32, id )]
+    dim as Tko.AstNode ptr n = c.ast->NodeAt( id )
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     c.st->typeRefs += 1
 
@@ -1008,7 +1008,7 @@ function BindParamType_ _
                 end if
             end if
             if wantsRef then
-                c.ast->nodes[cast( int32, id )].flags or= Tko.NF_BYREF
+                c.ast->OrFlags( id, Tko.NF_BYREF )
             end if
         end if
     end if

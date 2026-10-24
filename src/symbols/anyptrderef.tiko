@@ -28,9 +28,9 @@ private sub CheckAnyPtrDeref_ ( byref c as Ctx )
         dim as NodeId operand = NODE_NONE
         select case c.ast->Kind( id )
         case N_DEREF
-            operand = c.ast->unaries[cast( int32, c.ast->nodes[n].data )].operand
+            operand = c.ast->UnaryOf( n )->operand
         case N_INDEX
-            operand = c.ast->lists[cast( int32, c.ast->nodes[n].data )].target
+            operand = c.ast->ListOf( n )->target
         case else
             continue for
         end select

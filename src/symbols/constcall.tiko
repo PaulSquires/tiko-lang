@@ -55,7 +55,7 @@ sub CheckConstObjectCalls_ ( byref c as Ctx )
         if c.ast->Kind( id ) <> N_MEMBER then continue for
         dim as SymbolId sid = c.info->RefOf( id )
         if sid = SYMBOL_NONE then
-            sid = c.info->RefOf( c.ast->binaries[cast( int32, c.ast->nodes[n].data )].rhs )
+            sid = c.info->RefOf( c.ast->BinaryOf( n )->rhs )
         end if
         if sid = SYMBOL_NONE then continue for
         if NonConstMethod_( c, sid ) = false then continue for

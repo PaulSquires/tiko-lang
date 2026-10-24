@@ -9,7 +9,7 @@ private function ProcArity _
 
     dim as int32 n = 0
     for i as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, w.ast->children[sp->first + i] )
+        dim as Tko.NodeId prm = w.ast->ChildAt( sp->first, i )
         if w.ast->Kind( prm ) = Tko.N_PARAM then n += 1
     next
     return n
@@ -200,8 +200,8 @@ private function UndefinedProcWithArity _
                 end if
                 if isProc andalso (dp0->count = sp->count) then
                     for pi as int32 = 0 to sp->count - 1
-                        dim as Tko.NodeId an = cast( Tko.NodeId, w.ast->children[dp0->first + pi] )
-                        dim as Tko.NodeId bn = cast( Tko.NodeId, w.ast->children[sp->first + pi] )
+                        dim as Tko.NodeId an = w.ast->ChildAt( dp0->first, pi )
+                        dim as Tko.NodeId bn = w.ast->ChildAt( sp->first, pi )
                         if (w.ast->Kind( an ) <> Tko.N_PARAM) orelse (w.ast->Kind( bn ) <> Tko.N_PARAM) then continue for
                         if SameWrittenType_( w, StmtOf( w, an )->a, StmtOf( w, bn )->a, scope_ ) = false then
                             isProc = false

@@ -66,7 +66,7 @@ private function StmtOf _
     ( byref w as Walker, byval id as Tko.NodeId ) as Tko.StmtPayload ptr
 
     if id = Tko.NODE_NONE then return nullptr
-    dim as Tko.AstNode ptr n = @w.ast->nodes[cast( int32, id )]
+    dim as Tko.AstNode ptr n = w.ast->NodeAt( id )
     return @w.ast->stmts[cast( int32, n->data )]
 end function
 
@@ -74,7 +74,7 @@ private function ListOf _
     ( byref w as Walker, byval id as Tko.NodeId ) as Tko.ListPayload ptr
 
     if id = Tko.NODE_NONE then return nullptr
-    dim as Tko.AstNode ptr n = @w.ast->nodes[cast( int32, id )]
+    dim as Tko.AstNode ptr n = w.ast->NodeAt( id )
     return @w.ast->lists[cast( int32, n->data )]
 end function
 
@@ -125,7 +125,7 @@ private function IsDynArrayItem_ _
 
     if item = Tko.NODE_NONE then return false
     if cast( int32, item ) >= w.ast->nodes.Count then return false
-    if (w.ast->nodes[cast( int32, item )].flags and Tko.NF_ARRAY) = 0 then return false
+    if (w.ast->Flags( item ) and Tko.NF_ARRAY) = 0 then return false
     dim as Tko.StmtPayload ptr ip = StmtOf( w, item )
     if ip = nullptr then return false
     if ip->c = Tko.NODE_NONE then return true
@@ -133,9 +133,9 @@ private function IsDynArrayItem_ _
     dim as Tko.ListPayload ptr lp = ListOf( w, ip->c )
     if lp = nullptr then return false
     for i as int32 = 0 to lp->count - 1
-        dim as Tko.NodeId d = cast( Tko.NodeId, w.ast->children[lp->first + i] )
+        dim as Tko.NodeId d = w.ast->ChildAt( lp->first, i )
         if w.ast->Kind( d ) <> Tko.N_IDENT then return false
-        dim as Tko.InternId dn = w.ast->idents[cast( int32, w.ast->nodes[cast( int32, d )].data )].name
+        dim as Tko.InternId dn = w.ast->IdentOf( d )->name
         dim as Tko.Symbol ptr ds = w.syms->SymbolAt( w.syms->LookupTyped( scope_, dn, false ) )
         if ds <> nullptr then
             if (ds->kind = cast( uint8, Tko.SYM_CONSTANT )) orelse (ds->kind = cast( uint8, Tko.SYM_ENUMCONST )) then return false
@@ -206,7 +206,7 @@ private function Deferred_ _
     dim as boolean level = (sc->kind = cast( uint8, Tko.SCOPEK_MODULE ))
     if level = false then level = (sc->kind = cast( uint8, Tko.SCOPEK_NAMESPACE ))
     if level = false then return false
-    if (w.ast->nodes[cast( int32, id )].flags and Tko.NF_QUALIFIED) <> 0 then return true
+    if (w.ast->Flags( id ) and Tko.NF_QUALIFIED) <> 0 then return true
     dim as Tko.StmtPayload ptr sp = StmtOf( w, id )
     return (sp->op = cast( uint16, Tko.KW_CONSTRUCTOR )) orelse _
            (sp->op = cast( uint16, Tko.KW_DESTRUCTOR ))
@@ -241,7 +241,7 @@ sub WalkNode _
 
     if id = Tko.NODE_NONE then return
     dim as Tko.NodeKind k = w.ast->Kind( id )
-    dim as Tko.AstNode ptr n = @w.ast->nodes[cast( int32, id )]
+    dim as Tko.AstNode ptr n = w.ast->NodeAt( id )
 
     '' Resolve re-walks this tree and must land in the SAME scopes. Recording them
     '' here is cheaper and far less fragile than duplicating the traversal rules.
@@ -270,16 +270,16 @@ sub WalkNode _
         if sp->op = cast( uint16, Tko.KW_REDIM ) then
             dim as boolean declares = false
             for i as int32 = 0 to sp->count - 1
-                dim as Tko.NodeId it2 = cast( Tko.NodeId, w.ast->children[sp->first + i] )
+                dim as Tko.NodeId it2 = w.ast->ChildAt( sp->first, i )
                 if w.ast->Kind( it2 ) <> Tko.N_VAR_ITEM then continue for
                 if StmtOf( w, it2 )->a <> Tko.NODE_NONE then declares = true
             next
             if declares = false then return
         end if
         for i as int32 = 0 to sp->count - 1
-            dim as Tko.NodeId item = cast( Tko.NodeId, w.ast->children[sp->first + i] )
+            dim as Tko.NodeId item = w.ast->ChildAt( sp->first, i )
             if w.ast->Kind( item ) <> Tko.N_VAR_ITEM then continue for
-            dim as Tko.AstNode ptr itemNode = @w.ast->nodes[cast( int32, item )]
+            dim as Tko.AstNode ptr itemNode = w.ast->NodeAt( item )
             '' 'dim UDT.i as integer' DEFINES a static member declared inside the
             '' type; it does not declare 'i' out here.
             if (itemNode->flags and Tko.NF_QUALIFIED) <> 0 then continue for
@@ -402,7 +402,7 @@ sub WalkNode _
                         '' diagnostic into a failed redim, which says less about the
                         '' same refusal.
                         dim as boolean itemIsArray = _
-                            ((w.ast->nodes[cast( int32, item )].flags and _
+                            ((w.ast->Flags( item ) and _
                               Tko.NF_ARRAY) <> 0)
                         '' ...AND ONLY WITH BOUNDS WRITTEN. 'dim array( )' or 'dim array( any )'
                         '' after 'common array( )' re-declares it -- fbc's error 4, measured on
@@ -540,7 +540,7 @@ sub WalkNode _
                 if (n->flags and Tko.NF_STATIC) <> 0 then s->flags or= Tko.SYMF_STATIC
                 '' ...and from the ITEM as well, for a 'byref' written again after a
                 '' comma, which belongs to that item rather than to the declaration.
-                if ((n->flags or w.ast->nodes[cast( int32, item )].flags) and _
+                if ((n->flags or w.ast->Flags( item )) and _
                     Tko.NF_BYREF) <> 0 then s->flags or= Tko.SYMF_BYREF
                 if isExtern then
                     s->flags or= Tko.SYMF_EXTERN
@@ -808,7 +808,7 @@ sub WalkNode _
             if pts->kind = cast( uint8, Tko.SYM_TYPEDEF ) then
                 if SameTypeRef_( w, cast( Tko.NodeId, pts->payload ), sp->a ) then
                     for i as int32 = 0 to sp->count - 1
-                        WalkNode( w, cast( Tko.NodeId, w.ast->children[sp->first + i] ), scope_ )
+                        WalkNode( w, w.ast->ChildAt( sp->first, i ), scope_ )
                     next
                     return
                 end if
@@ -827,7 +827,7 @@ sub WalkNode _
         '' 'type as integer a, b' -- every name after the first is a child N_TYPEDEF
         '' sharing the same type reference.
         for i as int32 = 0 to sp->count - 1
-            WalkNode( w, cast( Tko.NodeId, w.ast->children[sp->first + i] ), scope_ )
+            WalkNode( w, w.ast->ChildAt( sp->first, i ), scope_ )
         next
 
     case Tko.N_PROC
@@ -1287,7 +1287,7 @@ sub WalkNode _
         if hasIdent then hasIdent = (w.ast->Kind( sp->a ) = Tko.N_IDENT)
         if isLoopDecl andalso declaresVar andalso hasIdent then
             dim as Tko.IdentPayload ptr ip = _
-                @w.ast->idents[cast( int32, w.ast->nodes[cast( int32, sp->a )].data )]
+                w.ast->IdentOf( sp->a )
             Declare_( w, inner, ip->name, Tko.SYM_VARIABLE, w.ast->Loc( sp->a ) )
         end if
         WalkNode( w, sp->a, inner )

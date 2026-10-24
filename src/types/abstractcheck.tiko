@@ -93,7 +93,7 @@ sub CheckAbstractInstances _
             dim as NodeId decl = cast( NodeId, s->payload )
             if decl = NODE_NONE then continue for
             if ast.Kind( decl ) <> N_PROC then continue for
-            if (ast.nodes[cast( int32, decl )].flags and NF_BYREF) <> 0 then continue for
+            if (ast.Flags( decl ) and NF_BYREF) <> 0 then continue for
         end if
         if AbstractHere_( types, store, s->type_ ) = false then continue for
         diags.Report( TKO0620, PointRange( s->loc ), names.Spelling( s->name ) )
@@ -109,12 +109,12 @@ sub CheckAbstractInstances _
     for n as int32 = 0 to ast.Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         if ast.Kind( id ) <> N_PARAM then continue for
-        if (ast.nodes[n].flags and NF_BYVAL_WRITTEN) = 0 then continue for
+        if (ast.Flags( n ) and NF_BYVAL_WRITTEN) = 0 then continue for
         '' THE TYPEREF'S OWN TYPE, not the parameter symbol's. A parameter binds no
         '' symbol back onto its node, and its symbol's payload is an index -- the
         '' typeref is the only handle on what was written.
         dim as StmtPayload ptr pp = _
-            @ast.stmts[cast( int32, ast.nodes[n].data )]
+            ast.StmtOf( n )
         if AbstractHere_( types, store, info.TypeOf_( pp->a ) ) = false then continue for
         diags.Report( TKO0620, PointRange( ast.Loc( id ) ), names.Spelling( pp->name ) )
     next
@@ -135,10 +135,10 @@ sub CheckAbstractInstances _
         dim as NodeKind nk = ast.Kind( id )
         dim as boolean builds = (nk = N_NEW)
         if nk = N_TUPLE then
-            builds = ((ast.nodes[n].flags and NF_TYPE_LITERAL) <> 0)
+            builds = ((ast.Flags( n ) and NF_TYPE_LITERAL) <> 0)
         end if
         if builds = false then continue for
-        dim as ListPayload ptr lp = @ast.lists[cast( int32, ast.nodes[n].data )]
+        dim as ListPayload ptr lp = ast.ListOf( n )
         '' A BARE 'type( )' NAMES NO TYPE. It takes one from the parameter it is being
         '' passed to, so the only handle is the type Check gave the node itself --
         '' 'foo( type( ) )' over a 'byref x as A' is still constructing an A.
@@ -160,26 +160,26 @@ sub CheckAbstractInstances _
     for n as int32 = 0 to ast.Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         if ast.Kind( id ) <> N_CALL then continue for
-        dim as ListPayload ptr cp = @ast.lists[cast( int32, ast.nodes[n].data )]
+        dim as ListPayload ptr cp = ast.ListOf( n )
         if cp->target = NODE_NONE then continue for
         dim as Symbol ptr ps = syms.SymbolAt( info.RefOf( id ) )
         if ps = nullptr then ps = syms.SymbolAt( info.RefOf( cp->target ) )
         if (ps = nullptr) orelse (ps->kind <> cast( uint8, SYM_PROC )) then continue for
         dim as NodeId pd = cast( NodeId, ps->payload )
         if (pd = NODE_NONE) orelse (ast.Kind( pd ) <> N_PROC) then continue for
-        dim as StmtPayload ptr pdp = @ast.stmts[cast( int32, ast.nodes[cast( int32, pd )].data )]
+        dim as StmtPayload ptr pdp = ast.StmtOf( pd )
         dim as int32 ai = 0
         for pi_ as int32 = 0 to pdp->count - 1
-            dim as NodeId pn = cast( NodeId, ast.children[pdp->first + pi_] )
+            dim as NodeId pn = ast.ChildAt( pdp->first, pi_ )
             if (pn = NODE_NONE) orelse (ast.Kind( pn ) <> N_PARAM) then continue for
             if ai >= cp->count then exit for
-            dim as NodeId arg = cast( NodeId, ast.children[cp->first + ai] )
+            dim as NodeId arg = ast.ChildAt( cp->first, ai )
             ai += 1
             if (arg = NODE_NONE) orelse (ast.Kind( arg ) <> N_TUPLE) then continue for
-            if (ast.nodes[cast( int32, arg )].flags and NF_TYPE_LITERAL) = 0 then continue for
-            if ast.lists[cast( int32, ast.nodes[cast( int32, arg )].data )].target <> NODE_NONE then continue for
+            if (ast.Flags( arg ) and NF_TYPE_LITERAL) = 0 then continue for
+            if ast.ListOf( arg )->target <> NODE_NONE then continue for
             if info.TypeOf_( arg ) <> TYPE_NONE then continue for
-            dim as NodeId pta = ast.stmts[cast( int32, ast.nodes[cast( int32, pn )].data )].a
+            dim as NodeId pta = ast.StmtOf( pn )->a
             if pta = NODE_NONE then continue for
             dim as TypeId pt = types.Unqualify( info.TypeOf_( pta ) )
             if types.Kind( pt ) = TK_REFERENCE then pt = types.Unqualify( types.Inner( pt ) )
@@ -198,7 +198,7 @@ sub CheckAbstractInstances _
     for n as int32 = 0 to ast.Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         if ast.Kind( id ) <> N_CALL then continue for
-        dim as ListPayload ptr cp = @ast.lists[cast( int32, ast.nodes[n].data )]
+        dim as ListPayload ptr cp = ast.ListOf( n )
         if cp->target = NODE_NONE then continue for
         dim as Symbol ptr cs = syms.SymbolAt( info.RefOf( cp->target ) )
         if cs = nullptr then continue for
@@ -240,7 +240,7 @@ sub CheckOverridePromise _
     for n as int32 = 0 to ast.Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         if ast.Kind( id ) <> N_PROC then continue for
-        dim as StmtPayload ptr sp = @ast.stmts[cast( int32, ast.nodes[n].data )]
+        dim as StmtPayload ptr sp = ast.StmtOf( n )
         if (sp->extra and PF_OVERRIDE) = 0 then continue for
         if kept.Contains( cast( uint32, id ) ) then continue for
         diags.Report( TKO0621, PointRange( ast.Loc( id ) ), names.Spelling( sp->name ) )
@@ -262,14 +262,14 @@ sub CheckOverrideCompatible _
         if cast( VtMismatchKind, m->kind ) = VTM_IMPL_DTOR_CC then
             if ast.Kind( m->decl ) <> N_TYPE then continue for
             dim as StmtPayload ptr tsp = _
-                @ast.stmts[cast( int32, ast.nodes[cast( int32, m->decl )].data )]
+                ast.StmtOf( m->decl )
             diags.Report( TKO0768, PointRange( ast.Loc( m->decl ) ), _
                           names.Spelling( tsp->name ) )
             continue for
         end if
         if ast.Kind( m->decl ) <> N_PROC then continue for
         dim as StmtPayload ptr sp = _
-            @ast.stmts[cast( int32, ast.nodes[cast( int32, m->decl )].data )]
+            ast.StmtOf( m->decl )
         dim as DiagId d = TKO0622
         select case cast( VtMismatchKind, m->kind )
         case VTM_CONST : d = TKO0623

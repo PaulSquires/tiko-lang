@@ -596,7 +596,7 @@ end function
 
 private function StmtOf _
     ( byref ast as Tko.AstArena, byval id as Tko.NodeId ) as Tko.StmtPayload ptr
-    return @ast.stmts[cast( int32, ast.nodes[cast( int32, id )].data )]
+    return ast.StmtOf( id )
 end function
 
 '' The enclosing NAMESPACE and TYPE names, outermost first. A procedure's own scope
@@ -696,7 +696,7 @@ private function OperatorCode _
 
     dim as int32 arity = 0
     for i as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[sp->first + i] )
+        dim as Tko.NodeId prm = ast.ChildAt( sp->first, i )
         if ast.Kind( prm ) = Tko.N_PARAM then arity += 1
     next
     '' A MEMBER OPERATOR COUNTS ITS RECEIVER. Measured: a member 'operator ^=' with
@@ -831,12 +831,12 @@ private function StdcallBytes _
     if hasThis then total += 4
     dim as Tko.StmtPayload ptr sp = StmtOf( ast, proc_ )
     for i as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[sp->first + i] )
+        dim as Tko.NodeId prm = ast.ChildAt( sp->first, i )
         if ast.Kind( prm ) <> Tko.N_PARAM then continue for
         '' BYREF is a pointer whatever it refers to -- AND SO IS AN ARRAY, which
         '' passes a descriptor pointer. Measured: 'ap2( x( ) as double )' is @8 on
         '' win32, not @12, and 'ap3( x( ) as string )' @8 and not @16.
-        if (ast.nodes[cast( int32, prm )].flags and _
+        if (ast.Flags( prm ) and _
             (Tko.NF_BYREF or Tko.NF_ARRAY)) <> 0 then
             total += 4
             continue for
@@ -1211,17 +1211,17 @@ private function ProcNameCore _
     '' POINTER's is, and TypeCode handles that.
     dim as int32 emitted = 0
     for i as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[sp->first + i] )
+        dim as Tko.NodeId prm = ast.ChildAt( sp->first, i )
         if ast.Kind( prm ) <> Tko.N_PARAM then continue for
         dim as Tko.StmtPayload ptr pp = StmtOf( ast, prm )
         dim as Tko.TypeId pt = info.TypeOf_( pp->a )
-        if (ast.nodes[cast( int32, prm )].flags and Tko.NF_ARRAY) <> 0 then
+        if (ast.Flags( prm ) and Tko.NF_ARRAY) <> 0 then
             outp += ArrayParamCode( pt, types, syms, names, subs, _
                                     cast( int32, pp->extra ) )
             emitted += 1
             continue for
         end if
-        if (ast.nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0 then
+        if (ast.Flags( prm ) and Tko.NF_BYREF) <> 0 then
             pt = types.Reference( pt )
         else
             '' A BYVAL PARAMETER'S OWN CONST IS NOT PART OF THE NAME. Read out of fbc's

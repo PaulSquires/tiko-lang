@@ -931,8 +931,7 @@ function ProcPtrPickOverload_ _
         if (tlp->count = 1) andalso (tlp->target <> Tko.NODE_NONE) then
             if c.ast->Kind( tlp->target ) = Tko.N_IDENT then
                 dim as Tko.IdentPayload ptr tip = _
-                    @c.ast->idents[cast( int32, _
-                        c.ast->nodes[cast( int32, tlp->target )].data )]
+                    c.ast->IdentOf( tlp->target )
                 isTypeof = (Tko.Text.LowerAscii( _
                     c.names->Spelling( tip->name ) ) = "typeof")
             end if

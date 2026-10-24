@@ -25,13 +25,13 @@ private function AggHasField_ ( byref p as Tko.ParserState, byval first as int32
     for i as int32 = first to first + count - 1
         dim as Tko.NodeId m = cast( Tko.NodeId, p.ast->children[i] )
         if m = Tko.NODE_NONE then continue for
-        select case p.ast->nodes[cast( int32, m )].kind
+        select case p.ast->Kind( m )
         case Tko.N_FIELD
             return true
         case Tko.N_VAR
-            if p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, m )].data )].op = cast( uint16, Tko.KW_REDIM ) then return true
+            if p.ast->StmtOf( m )->op = cast( uint16, Tko.KW_REDIM ) then return true
         case Tko.N_TYPE
-            dim as Tko.StmtPayload ptr mp = @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, m )].data )]
+            dim as Tko.StmtPayload ptr mp = p.ast->StmtOf( m )
             if AggHasField_( p, mp->first, mp->count ) then return true
         end select
     next
@@ -40,8 +40,8 @@ end function
 
 '' Is this node the bare word 'any'.
 private function IsAnyWord_ ( byref p as Tko.ParserState, byval n as Tko.NodeId ) as boolean
-    if (n = Tko.NODE_NONE) orelse (p.ast->nodes[cast( int32, n )].kind <> Tko.N_IDENT) then return false
-    return lcase( p.names->Spelling( p.ast->idents[cast( int32, p.ast->nodes[cast( int32, n )].data )].name ) ) = "any"
+    if (n = Tko.NODE_NONE) orelse (p.ast->Kind( n ) <> Tko.N_IDENT) then return false
+    return lcase( p.names->Spelling( p.ast->IdentOf( n )->name ) ) = "any"
 end function
 
 '' TWO RULES ABOUT A MEMBER, asked of every body from here. Measured on fbc-modern 1.20,
@@ -62,8 +62,8 @@ private sub AggMemberCheck_ ( byref p as Tko.ParserState, byref sp as Tko.StmtPa
     for i as int32 = sp.first to sp.first + sp.count - 1
         dim as Tko.NodeId m = cast( Tko.NodeId, p.ast->children[i] )
         if m = Tko.NODE_NONE then continue for
-        dim as Tko.StmtPayload ptr mp = @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, m )].data )]
-        select case p.ast->nodes[cast( int32, m )].kind
+        dim as Tko.StmtPayload ptr mp = p.ast->StmtOf( m )
+        select case p.ast->Kind( m )
         case Tko.N_VAR
             if (sp.name = 0) andalso (mp->op = cast( uint16, Tko.KW_STATIC )) then
                 p.diags->Report( Tko.TKO0884, Tko.PointRange( p.ast->Loc( m ) ), iif( isUnion, "UNION", "TYPE" ) )

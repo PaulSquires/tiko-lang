@@ -97,11 +97,11 @@ private function FcKindOf_ _
     if ps = nullptr then return FK_UNKNOWN
     dim as Tko.NodeId pn = cast( Tko.NodeId, ps->payload )
     if (pn = Tko.NODE_NONE) orelse (ast.Kind( pn ) <> Tko.N_PROC) then return FK_UNKNOWN
-    dim as Tko.StmtPayload ptr pp = @ast.stmts[cast( int32, ast.nodes[cast( int32, pn )].data )]
+    dim as Tko.StmtPayload ptr pp = ast.StmtOf( pn )
     for k as int32 = 0 to pp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[pp->first + k] )
+        dim as Tko.NodeId prm = ast.ChildAt( pp->first, k )
         if ast.Kind( prm ) <> Tko.N_PARAM then continue for
-        dim as Tko.NodeId ptn = ast.stmts[cast( int32, ast.nodes[cast( int32, prm )].data )].a
+        dim as Tko.NodeId ptn = ast.StmtOf( prm )->a
         if ptn = Tko.NODE_NONE then return FK_UNKNOWN
         dim as Tko.TypeId pt = types.Unqualify( info.TypeOf_( ptn ) )
         if types.Kind( pt ) = Tko.TK_REFERENCE then pt = types.Unqualify( types.Inner( pt ) )
@@ -451,7 +451,7 @@ private function FcLiteral_ _
     ( byref ast as Tko.AstArena, byref src as Tko.SourceManager, byval lit as Tko.NodeId, _
       byref s as FcState_, byref file as Tko.FileId, byref base_ as int32 ) as boolean
 
-    dim as Tko.LiteralPayload ptr lp = @ast.literals[cast( int32, ast.nodes[cast( int32, lit )].data )]
+    dim as Tko.LiteralPayload ptr lp = ast.LiteralOf( lit )
     file = cast( Tko.FileId, lp->strFile )
     base_ = lp->strOffset
     s.srcEnd = lp->strLength
@@ -623,7 +623,7 @@ private function FcArrayArg_ _
 
     if (e = Tko.NODE_NONE) orelse (ast.Kind( e ) <> Tko.N_CALL) then return false
     if types.IsDynArray( types.Unqualify( info.TypeOf_( e ) ) ) then return true
-    dim as Tko.ListPayload ptr lp = @ast.lists[cast( int32, ast.nodes[cast( int32, e )].data )]
+    dim as Tko.ListPayload ptr lp = ast.ListOf( e )
     if (lp->count <> 0) orelse (lp->target = Tko.NODE_NONE) then return false
     dim as Tko.TypeId tt = info.TypeOf_( lp->target )
     if tt = Tko.TYPE_NONE then return false
@@ -645,7 +645,7 @@ sub CheckFormatStrings _
     for i as int32 = 1 to ast.Count( )
         dim as Tko.NodeId n = cast( Tko.NodeId, i )
         if ast.Kind( n ) <> Tko.N_CALL then continue for
-        dim as Tko.ListPayload ptr cp = @ast.lists[cast( int32, ast.nodes[cast( int32, n )].data )]
+        dim as Tko.ListPayload ptr cp = ast.ListOf( n )
         if (cp->target = Tko.NODE_NONE) orelse (cp->count <= 0) then continue for
         dim as Tko.SymbolId callee = info.RefOf( n )
         if callee = Tko.SYMBOL_NONE then callee = info.RefOf( cp->target )
@@ -654,7 +654,7 @@ sub CheckFormatStrings _
         if s->kind <> cast( uint8, Tko.SYM_PROC ) then continue for
         dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
         if (pn = Tko.NODE_NONE) orelse (ast.Kind( pn ) <> Tko.N_PROC) then continue for
-        dim as Tko.StmtPayload ptr pp = @ast.stmts[cast( int32, ast.nodes[cast( int32, pn )].data )]
+        dim as Tko.StmtPayload ptr pp = ast.StmtOf( pn )
         if (pp->extra and Tko.PF_GENERIC_PROC) <> 0 then continue for
 
         '' The FormatString parameter's argument, and the typed variadic of FormatArg.
@@ -663,12 +663,12 @@ sub CheckFormatStrings _
         dim as Tko.TypeId argElem = Tko.TYPE_NONE
         dim as int32 ai = 0
         for k as int32 = 0 to pp->count - 1
-            dim as Tko.NodeId prm = cast( Tko.NodeId, ast.children[pp->first + k] )
+            dim as Tko.NodeId prm = ast.ChildAt( pp->first, k )
             if ast.Kind( prm ) <> Tko.N_PARAM then continue for
-            dim as Tko.NodeId pta = ast.stmts[cast( int32, ast.nodes[cast( int32, prm )].data )].a
+            dim as Tko.NodeId pta = ast.StmtOf( prm )->a
             dim as Tko.TypeId pt = Tko.TYPE_NONE
             if pta <> Tko.NODE_NONE then pt = info.TypeOf_( pta )
-            if (ast.nodes[cast( int32, prm )].flags and Tko.NF_VARIADIC) <> 0 then
+            if (ast.Flags( prm ) and Tko.NF_VARIADIC) <> 0 then
                 if FcStdStringsType_( syms, types, names, pt, "formatarg" ) then
                     varAt = ai
                     argElem = types.Unqualify( pt )
@@ -677,20 +677,20 @@ sub CheckFormatStrings _
                 exit for
             end if
             if (ai < cp->count) andalso FcStdStringsType_( syms, types, names, pt, "formatstring" ) then
-                dim as Tko.NodeId a = cast( Tko.NodeId, ast.children[cp->first + ai] )
+                dim as Tko.NodeId a = ast.ChildAt( cp->first, ai )
                 if (a <> Tko.NODE_NONE) andalso (ast.Kind( a ) = Tko.N_STRING_LIT) then lit = a
             end if
             ai += 1
         next
         if (lit = Tko.NODE_NONE) orelse (varAt < 0) then continue for
         '' A spread: the list's length is a run-time fact.
-        if (cp->count = varAt + 1) andalso FcArrayArg_( ast, types, info, cast( Tko.NodeId, ast.children[cp->first + varAt] ) ) then continue for
+        if (cp->count = varAt + 1) andalso FcArrayArg_( ast, types, info, ast.ChildAt( cp->first, varAt ) ) then continue for
 
         dim as Tko.SymbolId ctorFirst = StructorNamed( syms, types, names, argElem, "__ctor" )
         if ctorFirst = Tko.SYMBOL_NONE then continue for
         dim as FcState_ st
         for v as int32 = varAt to cp->count - 1
-            dim as Tko.NodeId a = cast( Tko.NodeId, ast.children[cp->first + v] )
+            dim as Tko.NodeId a = ast.ChildAt( cp->first, v )
             dim as int32 kind = FK_UNKNOWN
             if a <> Tko.NODE_NONE then kind = FcKindOf_( ast, syms, types, names, info, ctorFirst, info.TypeOf_( a ) )
             st.kinds.Push( kind )

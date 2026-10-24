@@ -354,10 +354,10 @@ sub MarkCallTarget_( byref p as Tko.ParserState, byval n as Tko.NodeId )
     if n = Tko.NODE_NONE then return
     dim as Tko.NodeKind k = p.ast->Kind( n )
     if k = Tko.N_PAREN then
-        dim as Tko.ListPayload ptr pl = @p.ast->lists[cast( int32, p.ast->nodes[cast( int32, n )].data )]
+        dim as Tko.ListPayload ptr pl = p.ast->ListOf( n )
         if pl->count > 0 then MarkCallTarget_( p, cast( Tko.NodeId, p.ast->children[pl->first] ) )
     end if
-    if (k = Tko.N_IDENT) orelse (k = Tko.N_MEMBER) then p.ast->nodes[cast( int32, n )].flags or= Tko.NF_CALL_TARGET
+    if (k = Tko.N_IDENT) orelse (k = Tko.N_MEMBER) then p.ast->OrFlags( n, Tko.NF_CALL_TARGET )
 end sub
 private function MakeUnary _
     ( byref p as Tko.ParserState, byval op as Tko.TokenKind, byval loc as Tko.SourceLoc, _
@@ -625,7 +625,7 @@ private function AllowsAnyArg _
     ( byref p as Tko.ParserState, byval callee as Tko.NodeId ) as boolean
 
     if callee = Tko.NODE_NONE then return false
-    dim as Tko.AstNode ptr n = @p.ast->nodes[cast( int32, callee )]
+    dim as Tko.AstNode ptr n = p.ast->NodeAt( callee )
     if cast( Tko.NodeKind, n->kind ) <> Tko.N_IDENT then return false
     dim as string nm = p.names->Spelling( p.ast->idents[cast( int32, n->data )].name )
     select case nm
@@ -644,7 +644,7 @@ private function IsProcPtrCallee_ _
     ( byref p as Tko.ParserState, byval callee as Tko.NodeId ) as boolean
 
     if callee = Tko.NODE_NONE then return false
-    dim as Tko.AstNode ptr n = @p.ast->nodes[cast( int32, callee )]
+    dim as Tko.AstNode ptr n = p.ast->NodeAt( callee )
     if cast( Tko.NodeKind, n->kind ) <> Tko.N_IDENT then return false
     dim as string nm = Tko.Text.LowerAscii( _
         p.names->Spelling( p.ast->idents[cast( int32, n->data )].name ) )
@@ -828,9 +828,9 @@ function PostfixChain _
                 member = MakeIdent( p, nameTok )
             end if
             result = MakeBinary( p, k, t.loc, result, member )
-            p.ast->nodes[cast( int32, result )].kind = cast( uint16, Tko.N_MEMBER )
+            p.ast->SetKind( result, cast( uint16, Tko.N_MEMBER ) )
             if k = Tko.TK_ARROW then
-                p.ast->nodes[cast( int32, result )].flags or= Tko.NF_ARROW
+                p.ast->OrFlags( result, Tko.NF_ARROW )
             end if
             '' ...and the derefs wrap the ACCESS, innermost first.
             for di as int32 = 1 to arrowDerefs
@@ -1035,10 +1035,10 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
             Expect( p, Tko.TK_RPAREN, ")" )
         end if
         dim as Tko.NodeId nn = MakeList( p, Tko.N_NEW, t.loc, nty, nargs )
-        if nIsArray then p.ast->nodes[cast( int32, nn )].flags or= Tko.NF_ARRAY
-        if nNoInit then p.ast->nodes[cast( int32, nn )].flags or= Tko.NF_NOINIT
+        if nIsArray then p.ast->OrFlags( nn, Tko.NF_ARRAY )
+        if nNoInit then p.ast->OrFlags( nn, Tko.NF_NOINIT )
         if nplace <> Tko.NODE_NONE then
-            p.ast->nodes[cast( int32, nn )].flags or= Tko.NF_PLACEMENT
+            p.ast->OrFlags( nn, Tko.NF_PLACEMENT )
         end if
         return nn
 
@@ -1105,7 +1105,7 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
            ((Peek( p ) = Tko.TK_EOL) orelse (Peek( p ) = Tko.TK_EOF)) then
             dim as Tko.NodeIdVec noItems
             dim as Tko.NodeId en = MakeList( p, Tko.N_TUPLE, t.loc, litType, noItems )
-            p.ast->nodes[cast( int32, en )].flags or= Tko.NF_TYPE_LITERAL
+            p.ast->OrFlags( en, Tko.NF_TYPE_LITERAL )
             return en
         end if
         if (Peek( p ) <> Tko.TK_LPAREN) andalso (litType <> Tko.NODE_NONE) then
@@ -1116,7 +1116,7 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
             '' 'type<integer>-1' is -1.
             oneItem.Push( cast( uint32, Expression( p, Tko.PREC_SIGN ) ) )
             dim as Tko.NodeId bn = MakeList( p, Tko.N_TUPLE, t.loc, litType, oneItem )
-            p.ast->nodes[cast( int32, bn )].flags or= Tko.NF_TYPE_LITERAL
+            p.ast->OrFlags( bn, Tko.NF_TYPE_LITERAL )
             return PostfixChain( p, bn )
         end if
         if Peek( p ) <> Tko.TK_LPAREN then
@@ -1133,8 +1133,8 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         end if
         Expect( p, Tko.TK_RPAREN, ")" )
         dim as Tko.NodeId tn = MakeList( p, Tko.N_TUPLE, t.loc, litType, titems )
-        p.ast->nodes[cast( int32, tn )].flags or= Tko.NF_HAS_COMMA
-        p.ast->nodes[cast( int32, tn )].flags or= Tko.NF_TYPE_LITERAL
+        p.ast->OrFlags( tn, Tko.NF_HAS_COMMA )
+        p.ast->OrFlags( tn, Tko.NF_TYPE_LITERAL )
         return PostfixChain( p, tn )
 
     case Tko.TK_LPAREN
@@ -1160,7 +1160,7 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         dim as Tko.NodeId n = 0
         if sawComma then
             n = MakeList( p, Tko.N_TUPLE, t.loc, Tko.NODE_NONE, items )
-            p.ast->nodes[cast( int32, n )].flags or= Tko.NF_HAS_COMMA
+            p.ast->OrFlags( n, Tko.NF_HAS_COMMA )
         else
             n = MakeList( p, Tko.N_PAREN, t.loc, Tko.NODE_NONE, items )
         end if
@@ -1267,7 +1267,7 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
                 Advance( p )
                 dim as Tko.NodeId member = MakeIdent( p, nameTok )
                 dim as Tko.NodeId n = MakeBinary( p, Tko.TK_DOT, t.loc, base_, member )
-                p.ast->nodes[cast( int32, n )].kind = cast( uint16, Tko.N_MEMBER )
+                p.ast->SetKind( n, cast( uint16, Tko.N_MEMBER ) )
                 return PostfixChain( p, n )
             end if
             return base_
@@ -1284,7 +1284,7 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
                 dim as Tko.NodeId member = MakeIdent( p, nameTok )
                 dim as Tko.NodeId n = MakeBinary( p, Tko.TK_DOT, t.loc, _
                                                   Tko.NODE_NONE, member )
-                p.ast->nodes[cast( int32, n )].kind = cast( uint16, Tko.N_MEMBER )
+                p.ast->SetKind( n, cast( uint16, Tko.N_MEMBER ) )
                 return PostfixChain( p, n )
             end if
         end if
@@ -1414,7 +1414,7 @@ private sub DumpNode _
       byref outp as string )
 
     if id = Tko.NODE_NONE then return
-    dim as Tko.AstNode ptr n = @ast.nodes[cast( int32, id )]
+    dim as Tko.AstNode ptr n = ast.NodeAt( id )
     dim as Tko.NodeKind k = cast( Tko.NodeKind, n->kind )
     dim as Tko.DecodedLoc d = src.Decode( n->loc )
 
@@ -1471,7 +1471,7 @@ private sub DumpNode _
         DumpNode( ast, src, names, ip->c, indent + 1, outp )
         for i as int32 = 0 to ip->count - 1
             DumpNode( ast, src, names, _
-                      cast( Tko.NodeId, ast.children[ip->first + i] ), indent + 1, outp )
+                      ast.ChildAt( ip->first, i ), indent + 1, outp )
         next
     case Tko.N_CALL, Tko.N_INDEX, Tko.N_PAREN, Tko.N_TUPLE, Tko.N_INITIALIZER, Tko.N_STRCAT
         dim as Tko.ListPayload ptr lp = @ast.lists[cast( int32, n->data )]
@@ -1479,7 +1479,7 @@ private sub DumpNode _
             DumpNode( ast, src, names, lp->target, indent + 1, outp )
         end if
         for i as int32 = 0 to lp->count - 1
-            dim as Tko.NodeId child = cast( Tko.NodeId, ast.children[lp->first + i] )
+            dim as Tko.NodeId child = ast.ChildAt( lp->first, i )
             DumpNode( ast, src, names, child, indent + 1, outp )
         next
     end select

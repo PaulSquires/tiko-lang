@@ -15,8 +15,8 @@ private function SameDeclShape_ _
     if (cast( int32, aItem ) >= w.ast->nodes.Count) orelse _
        (cast( int32, bItem ) >= w.ast->nodes.Count) then return true
 
-    dim as Tko.AstNode ptr an = @w.ast->nodes[cast( int32, aItem )]
-    dim as Tko.AstNode ptr bn = @w.ast->nodes[cast( int32, bItem )]
+    dim as Tko.AstNode ptr an = w.ast->NodeAt( aItem )
+    dim as Tko.AstNode ptr bn = w.ast->NodeAt( bItem )
 
     '' 'extern a as integer' against 'extern a( ) as integer' -- one is an array and
     '' the other is not. fbc error 54.
@@ -34,7 +34,7 @@ end function
 private function DimCount_( byref w as Walker, byval id as Tko.NodeId ) as int32
     if id = Tko.NODE_NONE then return 0
     if w.ast->Kind( id ) <> Tko.N_BLOCK then return 0
-    return w.ast->lists[cast( int32, w.ast->nodes[cast( int32, id )].data )].count
+    return w.ast->ListOf( id )->count
 end function
 
 '' Two bounds blocks: the same number of dimensions, and where both sides wrote an
@@ -69,12 +69,12 @@ private function SameBounds_ _
     if na <> nb then return false
 
     dim as Tko.ListPayload ptr la = _
-        @w.ast->lists[cast( int32, w.ast->nodes[cast( int32, a )].data )]
+        w.ast->ListOf( a )
     dim as Tko.ListPayload ptr lb = _
-        @w.ast->lists[cast( int32, w.ast->nodes[cast( int32, b )].data )]
+        w.ast->ListOf( b )
     for i as int32 = 0 to na - 1
-        dim as Tko.NodeId da = cast( Tko.NodeId, w.ast->children[la->first + i] )
-        dim as Tko.NodeId db = cast( Tko.NodeId, w.ast->children[lb->first + i] )
+        dim as Tko.NodeId da = w.ast->ChildAt( la->first, i )
+        dim as Tko.NodeId db = w.ast->ChildAt( lb->first, i )
         '' 'a(9)' is a bare expression -- the upper bound -- and 'a(0 to 9)' is an
         '' N_CASE_RANGE. A mix of the two spellings is left alone rather than guessed at.
         '' 'any' marks a VAR-LEN dimension. Measured: 'extern a(any)' against
@@ -119,9 +119,9 @@ private function IsVarLenBounds_( byref w as Walker, byval id as Tko.NodeId ) as
     dim as int32 n = DimCount_( w, id )
     if n = 0 then return true
     dim as Tko.ListPayload ptr lp = _
-        @w.ast->lists[cast( int32, w.ast->nodes[cast( int32, id )].data )]
+        w.ast->ListOf( id )
     for i as int32 = 0 to n - 1
-        if IsAnyBound_( w, cast( Tko.NodeId, w.ast->children[lp->first + i] ) ) = false then
+        if IsAnyBound_( w, w.ast->ChildAt( lp->first, i ) ) = false then
             return false
         end if
     next
@@ -133,7 +133,7 @@ private function IsAnyBound_( byref w as Walker, byval id as Tko.NodeId ) as boo
     if id = Tko.NODE_NONE then return false
     if w.ast->Kind( id ) <> Tko.N_IDENT then return false
     dim as Tko.InternId nm = _
-        w.ast->idents[cast( int32, w.ast->nodes[cast( int32, id )].data )].name
+        w.ast->IdentOf( id )->name
     return (w.names->Spelling( nm ) = "any")
 end function
 
@@ -163,8 +163,8 @@ private function SameLiteral_ _
                 return true
             end if
             if w.src = nullptr then return true
-            dim as Tko.LiteralPayload ptr la = @w.ast->literals[cast( int32, w.ast->nodes[cast( int32, a )].data )]
-            dim as Tko.LiteralPayload ptr lb = @w.ast->literals[cast( int32, w.ast->nodes[cast( int32, b )].data )]
+            dim as Tko.LiteralPayload ptr la = w.ast->LiteralOf( a )
+            dim as Tko.LiteralPayload ptr lb = w.ast->LiteralOf( b )
             if (la->strKind <> lb->strKind) orelse (la->strLength <> lb->strLength) then return false
             dim as Tko.SourceFile ptr sfa = w.src->FileAt( cast( Tko.FileId, la->strFile ) )
             dim as Tko.SourceFile ptr sfb = w.src->FileAt( cast( Tko.FileId, lb->strFile ) )
@@ -177,12 +177,12 @@ private function SameLiteral_ _
         end if
         '' 'wstr( "1" )' -- ONE CALL of one name each side: the argument is what differs.
         if (ka = Tko.N_CALL) andalso (kb = Tko.N_CALL) then
-            dim as Tko.ListPayload ptr ca = @w.ast->lists[cast( int32, w.ast->nodes[cast( int32, a )].data )]
-            dim as Tko.ListPayload ptr cb = @w.ast->lists[cast( int32, w.ast->nodes[cast( int32, b )].data )]
+            dim as Tko.ListPayload ptr ca = w.ast->ListOf( a )
+            dim as Tko.ListPayload ptr cb = w.ast->ListOf( b )
             if (ca->count = 1) andalso (cb->count = 1) andalso (ca->target <> Tko.NODE_NONE) andalso (cb->target <> Tko.NODE_NONE) then
                 if (w.ast->Kind( ca->target ) = Tko.N_IDENT) andalso (w.ast->Kind( cb->target ) = Tko.N_IDENT) then
-                    dim as Tko.InternId na = w.ast->idents[cast( int32, w.ast->nodes[cast( int32, ca->target )].data )].name
-                    dim as Tko.InternId nb = w.ast->idents[cast( int32, w.ast->nodes[cast( int32, cb->target )].data )].name
+                    dim as Tko.InternId na = w.ast->IdentOf( ca->target )->name
+                    dim as Tko.InternId nb = w.ast->IdentOf( cb->target )->name
                     if w.names->Fold( na ) = w.names->Fold( nb ) then
                         return SameLiteral_( w, cast( Tko.NodeId, w.ast->children[ca->first] ), cast( Tko.NodeId, w.ast->children[cb->first] ) )
                     end if
@@ -194,9 +194,9 @@ private function SameLiteral_ _
         if (w.ast->Kind( a ) = Tko.N_FLOAT_LIT) andalso _
            (w.ast->Kind( b ) = Tko.N_FLOAT_LIT) then
             dim as float64 af = _
-                w.ast->literals[cast( int32, w.ast->nodes[cast( int32, a )].data )].fltValue
+                w.ast->LiteralOf( a )->fltValue
             dim as float64 bf = _
-                w.ast->literals[cast( int32, w.ast->nodes[cast( int32, b )].data )].fltValue
+                w.ast->LiteralOf( b )->fltValue
             return (af = bf)
         end if
     end if
@@ -224,7 +224,7 @@ private function RedimRestatesParam_ _
     if w.ast->Kind( prm ) <> Tko.N_PARAM then return false
 
     dim as boolean isArray = _
-        ((w.ast->nodes[cast( int32, prm )].flags and Tko.NF_ARRAY) <> 0)
+        ((w.ast->Flags( prm ) and Tko.NF_ARRAY) <> 0)
     if isArray = false then return false
 
     dim as Tko.NodeId pta = StmtOf( w, prm )->a
@@ -262,8 +262,8 @@ private function SameTypeRef_ _
     '' CONST IS PART OF THE TYPE. 'const a as const integer = 0' and 'const a as integer
     '' = 0' are two different declarations of one name -- fbc error 4 -- and comparing only
     '' the underlying type called them the same and merged them.
-    dim as boolean aConst = ((w.ast->nodes[cast( int32, a )].flags and Tko.NF_CONST) <> 0)
-    dim as boolean bConst = ((w.ast->nodes[cast( int32, b )].flags and Tko.NF_CONST) <> 0)
+    dim as boolean aConst = ((w.ast->Flags( a ) and Tko.NF_CONST) <> 0)
+    dim as boolean bConst = ((w.ast->Flags( b ) and Tko.NF_CONST) <> 0)
     if aConst <> bConst then return false
 
     dim as boolean aNamed = (ap->op = cast( uint16, Tko.TK_IDENT ))
@@ -310,7 +310,7 @@ private function LiteralLen_ _
 
     if id = Tko.NODE_NONE then return false
     if w.ast->Kind( id ) <> Tko.N_INT_LIT then return false
-    outv = w.ast->literals[cast( int32, w.ast->nodes[cast( int32, id )].data )].intValue
+    outv = w.ast->LiteralOf( id )->intValue
     return true
 end function
 
@@ -331,7 +331,7 @@ private function UnaliasWritten_ _
     for depth as int32 = 0 to 8
         if (t = Tko.NODE_NONE) orelse (scope_ = Tko.SCOPE_NONE) then return t
         if w.ast->Kind( t ) <> Tko.N_TYPEREF then return t
-        if (w.ast->nodes[cast( int32, t )].flags and mask) <> 0 then return t
+        if (w.ast->Flags( t ) and mask) <> 0 then return t
         dim as Tko.StmtPayload ptr tp = StmtOf( w, t )
         if tp->op <> cast( uint16, Tko.TK_IDENT ) then return t
         dim as Tko.Symbol ptr s = w.syms->SymbolAt( w.syms->LookupTyped( scope_, tp->name, true ) )

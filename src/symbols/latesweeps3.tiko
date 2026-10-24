@@ -272,8 +272,7 @@ private function IsOutsideDefinition_ ( byref c as Ctx, byval item as NodeId ) a
     if ip->a = NODE_NONE then return false
     if ip->c <> NODE_NONE then
         if c.ast->Kind( ip->c ) = N_BLOCK then
-            if c.ast->lists[cast( int32, _
-                c.ast->nodes[cast( int32, ip->c )].data )].count > 0 then return false
+            if c.ast->ListOf( ip->c )->count > 0 then return false
         end if
     end if
     return true
@@ -429,7 +428,7 @@ private sub CheckArrayBoundKinds_( byref c as Ctx )
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_VAR_ITEM then continue for
         dim as StmtPayload ptr ip = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+            c.ast->StmtOf( n )
         if ip->c = NODE_NONE then continue for
         if c.ast->Kind( ip->c ) <> N_BLOCK then continue for
         dim as ListPayload ptr bl = _
@@ -459,7 +458,7 @@ private sub CheckRedimInType_( byref c as Ctx )
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_TYPE then continue for
         dim as StmtPayload ptr sp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+            c.ast->StmtOf( n )
         for i as int32 = 0 to sp->count - 1
             dim as NodeId m = c.ast->ChildAt( sp->first, i )
             if m = NODE_NONE then continue for
@@ -480,8 +479,7 @@ private sub CheckRedimInType_( byref c as Ctx )
                     c.ast->StmtOf( it )
                 if ipp->c <> NODE_NONE then
                     if c.ast->Kind( ipp->c ) = N_BLOCK then
-                        if c.ast->lists[cast( int32, _
-                            c.ast->nodes[cast( int32, ipp->c )].data )].count > 0 then continue for
+                        if c.ast->ListOf( ipp->c )->count > 0 then continue for
                     end if
                 end if
                 c.diags->Report( TKO0766, PointRange( c.ast->Loc( m ) ) )
@@ -500,7 +498,7 @@ private sub CheckPointerDepth_( byref c as Ctx )
         '' type one level shallower, and reporting each would give nine diagnostics for
         '' one declaration. A typeref whose PARENT is another typeref is an inner one --
         '' which is what a pointer wrapper is, so the test is on the node's own flags.
-        if (c.ast->nodes[n].flags and NF_PTR) = 0 then continue for
+        if (c.ast->Flags( n ) and NF_PTR) = 0 then continue for
         dim as int32 depth = PointerDepth_( c, c.info->TypeOf_( id ) )
         if depth <= 8 then continue for
         c.diags->Report( TKO0760, PointRange( c.ast->Loc( id ) ) )
@@ -568,7 +566,7 @@ private sub CheckConstDeclTypes2_( byref c as Ctx )
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_CONST then continue for
         dim as StmtPayload ptr sp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+            c.ast->StmtOf( n )
         for i as int32 = 0 to sp->count - 1
             dim as NodeId item = c.ast->ChildAt( sp->first, i )
             if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
@@ -828,7 +826,7 @@ private sub CheckRedimDeclShape_( byref c as Ctx )
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_VAR then continue for
         dim as StmtPayload ptr sp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+            c.ast->StmtOf( n )
         if sp->op <> cast( uint16, KW_REDIM ) then continue for
         for i as int32 = 0 to sp->count - 1
             dim as NodeId item = c.ast->ChildAt( sp->first, i )
@@ -845,8 +843,7 @@ private sub CheckRedimDeclShape_( byref c as Ctx )
             if ip->c <> NODE_NONE then
                 if c.ast->Kind( ip->c ) = N_BLOCK then
                     hasParens = true
-                    bounds = c.ast->lists[cast( int32, _
-                        c.ast->nodes[cast( int32, ip->c )].data )].count
+                    bounds = c.ast->ListOf( ip->c )->count
                 end if
             end if
             if hasParens = false then

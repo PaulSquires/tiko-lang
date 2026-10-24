@@ -337,9 +337,9 @@ function RewriteShadowedIntrinsic_ _
     end if
 
     c.info->Resize( c.ast->Count( ) )
-    dim as Tko.SourceLoc keepLoc = c.ast->nodes[cast( int32, id )].loc
-    c.ast->nodes[cast( int32, id )] = c.ast->nodes[cast( int32, fresh )]
-    c.ast->nodes[cast( int32, id )].loc = keepLoc
+    dim as Tko.SourceLoc keepLoc = c.ast->Loc( id )
+    *c.ast->NodeAt( id ) = *c.ast->NodeAt( fresh )
+    c.ast->SetLoc( id, keepLoc )
     return true
 end function
 
@@ -452,7 +452,7 @@ private function InferProcTypeArgs_ _
             dim as Tko.StmtPayload ptr pp = StmtOf( c, prm )
             if pp->a = Tko.NODE_NONE then continue for
             if c.ast->Kind( pp->a ) <> Tko.N_TYPEREF then continue for
-            dim as Tko.AstNode ptr tn = @c.ast->nodes[cast( int32, pp->a )]
+            dim as Tko.AstNode ptr tn = c.ast->NodeAt( pp->a )
             dim as Tko.StmtPayload ptr tp = StmtOf( c, pp->a )
 
             '' 'byval p as T ptr' -- A POINTER PARAMETER STILL NAMES T. Pointers were

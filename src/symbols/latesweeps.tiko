@@ -149,7 +149,7 @@ sub CheckStructorOutsideNamespace_( byref c as Ctx )
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_PROC then continue for
         dim as StmtPayload ptr sp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+            c.ast->StmtOf( n )
         '' A DEFINITION, not a declare. A structor keeps its body among its CHILDREN
         '' rather than in 'b' -- testing 'b' alone skipped every constructor.
         dim as boolean hasBody = (sp->b <> NODE_NONE)
@@ -234,7 +234,7 @@ sub DefineQualifiedExterns_( byref c as Ctx )
     for n as int32 = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_VAR then continue for
-        dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+        dim as StmtPayload ptr sp = c.ast->StmtOf( n )
         if (sp->op = cast( uint16, KW_EXTERN )) orelse (sp->op = cast( uint16, KW_COMMON )) then continue for
         dim as ScopeId here = c.info->ScopeOf( id )
         if here = SCOPE_NONE then continue for
@@ -273,9 +273,9 @@ sub CheckOutsideNamespace_( byref c as Ctx )
         dim as NodeId id = cast( NodeId, n )
         dim as NodeKind k = c.ast->Kind( id )
         if (k <> N_PROC) andalso (k <> N_VAR_ITEM) then continue for
-        if (c.ast->nodes[n].flags and NF_QUALIFIED) = 0 then continue for
+        if (c.ast->Flags( n ) and NF_QUALIFIED) = 0 then continue for
         dim as StmtPayload ptr sp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+            c.ast->StmtOf( n )
         '' 'redim x.arr( 0 to 9 )' NAMES ITS ARRAY THROUGH AN OBJECT -- 'x' is a variable,
         '' or 'this' -- and declares nothing into anything. The parser marks such an item
         '' with the REDIM keyword in 'extra'; five of this suite's own MIR tests write it,
@@ -406,7 +406,7 @@ sub CheckConstBounds_( byref c as Ctx )
     for n as int32 = 0 to c.ast->Count( ) - 1
         if c.ast->Kind( cast( NodeId, n ) ) <> N_CONST then continue for
         dim as StmtPayload ptr sp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+            c.ast->StmtOf( n )
         for i as int32 = 0 to sp->count - 1
             dim as NodeId item = c.ast->ChildAt( sp->first, i )
             if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
@@ -508,9 +508,9 @@ sub CheckByrefResultSet_( byref c as Ctx )
     for n as int32 = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_PROC then continue for
-        if (c.ast->nodes[n].flags and NF_BYREF) = 0 then continue for
+        if (c.ast->Flags( n ) and NF_BYREF) = 0 then continue for
         dim as StmtPayload ptr sp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+            c.ast->StmtOf( n )
         if sp->b = NODE_NONE then continue for
         dim as boolean sawReturn = false
         dim as boolean sawAssign = false
@@ -527,7 +527,7 @@ end sub
 sub CheckSubReturnValue_( byref c as Ctx )
     for n as int32 = 0 to c.ast->Count( ) - 1
         if c.ast->Kind( cast( NodeId, n ) ) <> N_PROC then continue for
-        dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+        dim as StmtPayload ptr sp = c.ast->StmtOf( n )
         if (sp->a <> NODE_NONE) orelse (sp->b = NODE_NONE) then continue for
         dim as boolean sr = false, sa = false
         dim as NodeId vr = NODE_NONE
@@ -544,7 +544,7 @@ sub CheckAliasAgrees_( byref c as Ctx )
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_PROC then continue for
         dim as StmtPayload ptr sp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+            c.ast->StmtOf( n )
         if sp->b = NODE_NONE then continue for
         if sp->aliasName = 0 then continue for
         dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
@@ -570,7 +570,7 @@ sub CheckReturnStyles_( byref c as Ctx )
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_PROC then continue for
         dim as StmtPayload ptr sp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+            c.ast->StmtOf( n )
         if sp->a = NODE_NONE then continue for
         '' A UDT RESULT WITH A CONSTRUCTOR, and nothing else.
         dim as TypeId rt = c.types->Unqualify( c.info->TypeOf_( sp->a ) )
@@ -578,7 +578,7 @@ sub CheckReturnStyles_( byref c as Ctx )
         if c.types->Kind( rt ) <> TK_UDT then continue for
         if StructorOf_( c, rt, "__ctor" ) = nullptr then continue for
         '' A BYREF RESULT IS EXEMPT -- see the header.
-        if (c.ast->nodes[n].flags and NF_BYREF) <> 0 then continue for
+        if (c.ast->Flags( n ) and NF_BYREF) <> 0 then continue for
 
         dim as boolean sawReturn = false
         dim as boolean sawAssign = false
@@ -907,7 +907,7 @@ sub CheckBitfieldWidths_( byref c as Ctx )
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_FIELD then continue for
         dim as StmtPayload ptr fp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+            c.ast->StmtOf( n )
         if fp->b = NODE_NONE then continue for
         '' THE WIDTH AS WRITTEN. Only a plain integer literal is judged: anything else
         '' would need the folder, which this pass does not carry, and a width that does
@@ -996,7 +996,7 @@ sub CheckRedimRank_( byref c as Ctx )
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_VAR then continue for
         dim as StmtPayload ptr sp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
+            c.ast->StmtOf( n )
         if sp->op <> cast( uint16, KW_REDIM ) then continue for
         for i as int32 = 0 to sp->count - 1
             dim as NodeId item = c.ast->ChildAt( sp->first, i )
@@ -1008,8 +1008,7 @@ sub CheckRedimRank_( byref c as Ctx )
             dim as int32 written = 0
             if ip->c <> NODE_NONE then
                 if c.ast->Kind( ip->c ) = N_BLOCK then
-                    written = c.ast->lists[cast( int32, _
-                        c.ast->nodes[cast( int32, ip->c )].data )].count
+                    written = c.ast->ListOf( ip->c )->count
                 end if
             end if
             '' The array: a QUALIFIED target sits in 'b' as an expression; a bare one

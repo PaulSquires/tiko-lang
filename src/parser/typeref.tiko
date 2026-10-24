@@ -43,10 +43,10 @@ private sub CheckVarargConv_ _
     if p.fbcallConv = Tko.CC_NONE then exit sub
     dim as int32 before = 0
     for i as int32 = 0 to sp.count - 1
-        dim as Tko.NodeId pn = cast( Tko.NodeId, p.ast->children[sp.first + i] )
+        dim as Tko.NodeId pn = p.ast->ChildAt( sp.first, i )
         if p.ast->Kind( pn ) <> Tko.N_PARAM then continue for
         dim as Tko.StmtPayload ptr pp = _
-            @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, pn )].data )]
+            p.ast->StmtOf( pn )
         if pp->op <> cast( uint16, Tko.TK_ELLIPSIS ) then
             before += 1
             continue for
@@ -96,8 +96,8 @@ end sub
 private function TupleElemBad_( byref p as Tko.ParserState, byval n as Tko.NodeId ) as boolean
     if n = Tko.NODE_NONE then return false
     if p.ast->Kind( n ) <> Tko.N_TYPEREF then return false
-    if (p.ast->nodes[cast( int32, n )].flags and Tko.NF_PTR) <> 0 then return false
-    dim as Tko.StmtPayload ptr tp = @p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, n )].data )]
+    if (p.ast->Flags( n ) and Tko.NF_PTR) <> 0 then return false
+    dim as Tko.StmtPayload ptr tp = p.ast->StmtOf( n )
     select case cast( Tko.TokenKind, tp->op )
     case Tko.KW_ANY
         return true
@@ -242,13 +242,13 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
         if ptConv = Tko.CC_CDECL then sp.extra or= Tko.PF_CDECL
         if ptConv = Tko.CC_STDCALL then sp.extra or= Tko.PF_STDCALL
         dim as Tko.NodeId pn = MakeStmt( p, Tko.N_TYPEREF, t.loc, sp )
-        p.ast->nodes[cast( int32, pn )].flags or= flags or Tko.NF_PROC_TYPE
+        p.ast->OrFlags( pn, flags or Tko.NF_PROC_TYPE )
         while (Peek( p ) = Tko.KW_PTR) orelse (Peek( p ) = Tko.KW_POINTER)
             Advance( p )
             dim as Tko.StmtPayload up
             up.a = pn
             pn = MakeStmt( p, Tko.N_TYPEREF, t.loc, up )
-            p.ast->nodes[cast( int32, pn )].flags or= Tko.NF_PTR
+            p.ast->OrFlags( pn, Tko.NF_PTR )
         wend
         return pn
     end if
@@ -303,7 +303,7 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
                 elems.Push( cast( uint32, etr ) )
                 if p.pos = before then exit do
                 if (enm <> 0) andalso (p.ast->Kind( etr ) = Tko.N_TYPEREF) then
-                    p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, etr )].data )].aliasName = enm
+                    p.ast->StmtOf( etr )->aliasName = enm
                 end if
                 if (tupBad = false) andalso (p.silent = false) then
                     if TupleElemBad_( p, etr ) then
@@ -454,12 +454,11 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
             if (opnd <> Tko.NODE_NONE) andalso landed then
                 if p.ast->Kind( opnd ) = Tko.N_CALL then
                     dim as Tko.ListPayload ptr olp = _
-                        @p.ast->lists[cast( int32, p.ast->nodes[cast( int32, opnd )].data )]
+                        p.ast->ListOf( opnd )
                     if olp->target <> Tko.NODE_NONE then
                         if p.ast->Kind( olp->target ) = Tko.N_IDENT then
                             dim as Tko.IdentPayload ptr oip = _
-                                @p.ast->idents[cast( int32, _
-                                    p.ast->nodes[cast( int32, olp->target )].data )]
+                                p.ast->IdentOf( olp->target )
                             select case p.names->Spelling( oip->name )
                             case "sub", "function"
                                 isSignature = true
@@ -749,7 +748,7 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
     end if
 
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_TYPEREF, t.loc, sp )
-    p.ast->nodes[cast( int32, n )].flags or= flags
+    p.ast->OrFlags( n, flags )
 
     '' 'ptr' may repeat, and 'const' may appear between the levels.
     ''
@@ -783,13 +782,13 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
         dim as Tko.StmtPayload up
         up.a = n
         n = MakeStmt( p, Tko.N_TYPEREF, t.loc, up )
-        p.ast->nodes[cast( int32, n )].flags or= Tko.NF_PTR
+        p.ast->OrFlags( n, Tko.NF_PTR )
         if pendingConst then
-            p.ast->nodes[cast( int32, n )].flags or= Tko.NF_CONST
+            p.ast->OrFlags( n, Tko.NF_CONST )
             pendingConst = false
         end if
     loop
-    if pendingConst then p.ast->nodes[cast( int32, n )].flags or= Tko.NF_CONST
+    if pendingConst then p.ast->OrFlags( n, Tko.NF_CONST )
 
     return n
 end function

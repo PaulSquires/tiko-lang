@@ -122,7 +122,7 @@ private function ParseParam( byref p as Tko.ParserState ) as Tko.NodeId
     if sawEq then sp.b = Expression( p )
 
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_PARAM, t.loc, sp )
-    p.ast->nodes[cast( int32, n )].flags or= flags
+    p.ast->OrFlags( n, flags )
     NoteParamType_( p, n )
     return n
 end function
@@ -231,10 +231,10 @@ sub ParseParamList( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
         for i as int32 = 0 to params.Count - 1
             dim as Tko.NodeId vn = cast( Tko.NodeId, params[i] )
             if p.ast->Kind( vn ) <> Tko.N_PARAM then continue for
-            if (p.ast->nodes[cast( int32, vn )].flags and Tko.NF_VARIADIC) = 0 then continue for
+            if (p.ast->Flags( vn ) and Tko.NF_VARIADIC) = 0 then continue for
             if i < params.Count - 1 then
                 p.diags->Report( Tko.TKO0973, Tko.PointRange( p.ast->Loc( vn ) ) )
-            elseif p.ast->stmts[cast( int32, p.ast->nodes[cast( int32, vn )].data )].b <> Tko.NODE_NONE then
+            elseif p.ast->StmtOf( vn )->b <> Tko.NODE_NONE then
                 p.diags->Report( Tko.TKO0974, Tko.PointRange( p.ast->Loc( vn ) ) )
             end if
         next
@@ -257,7 +257,7 @@ private sub CheckPropertyShape_ _
     end if
     dim as int32 n = 0
     for i as int32 = 0 to sp.count - 1
-        if p.ast->Kind( cast( Tko.NodeId, p.ast->children[sp.first + i] ) ) = Tko.N_PARAM then n += 1
+        if p.ast->Kind( p.ast->ChildAt( sp.first, i ) ) = Tko.N_PARAM then n += 1
     next
     if sp.a <> Tko.NODE_NONE then
         if n > 1 then p.diags->Report( Tko.TKO0786, Tko.PointRange( at ) )
