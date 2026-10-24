@@ -66,7 +66,9 @@ newer_than( ) {
     shift
     for inp in "$@"; do
         [ -e "$inp" ] || continue
-        if [ -n "$(find "$inp" -type f ! -name '*.o' -newer "$ref" -print -quit 2>/dev/null)" ]; then
+        # __pycache__ is a byproduct of running a tool, never an input (review BLD-04).
+        if [ -n "$(find "$inp" -type f ! -name '*.o' ! -name '*.pyc' ! -path '*/__pycache__/*' \
+                -newer "$ref" -print -quit 2>/dev/null)" ]; then
             return 0
         fi
     done
@@ -95,7 +97,9 @@ else
         # A DIFFERENT STAGE0 than the one bin/ was built with, chosen as build.sh chooses
         # it -- so a bin/ an fbc built is rebuilt once the seed is the default.
         STALE=1
-    elif newer_than "$TIKO" "$ROOT/src" "$ROOT/build/sources.txt" \
+    # pkg/ AND inc/ ARE INPUTS: the compiler imports std/containers and std/fs from pkg/ and
+    # builds against the tree's inc/, so an edit there left a stale bin/ "up to date".
+    elif newer_than "$TIKO" "$ROOT/src" "$ROOT/pkg" "$ROOT/inc" "$ROOT/build/sources.txt" \
                     "$ROOT/build/build.sh" "$STAMPCC"; then
         STALE=1
     elif newer_than "$RUNNER" "$ROOT/tools" "$STAMPCC"; then
