@@ -17,9 +17,12 @@ Design record: [`C:\dev\docs\tiko-rt`](../docs/tiko-rt/README.md).
 
 ## The one rule
 
-**No `rtlib/**/*.c` file is ever opened.** See [PROVENANCE.md](PROVENANCE.md).
-It is a process rule with a licensing reason, it is enforced by `build/lint.sh`,
-and breaking it once cannot be undone by care afterwards.
+**tiko-rt is a reimplementation in FreeBASIC, not a transliteration.** Until
+2026-08-29 no `rtlib/**/*.c` file was ever opened; the author lifted that rule
+(R2) on that date and rtlib bodies may now be read to learn what a function
+does -- see [PROVENANCE.md](PROVENANCE.md) for the rule, what it costs and what
+stands. Copying a body in is still not the method, and `build/lint.sh` keeps any
+`.c` outside the closed list in `src/c/` out of the tree.
 
 ## Build
 

@@ -142,8 +142,11 @@ for f in $(find src -name '*.tiko' -o -name '*.ti' 2>/dev/null); do
             note "$f: EXTERN $kind is never correct -- FBCALL is EXTERN \"rtlib\" (RFC-0002 section 2.2)"
         fi
     done
-    # EXTERN "c" without the marker on the same line.
-    if codelines "$f" | grep -iE 'extern[[:space:]]+"c"' | grep -qv 'NON-FBCALL'; then
+    # EXTERN "c" without the marker on the same line. A 'type X extern "c"' is a
+    # mangling choice for a C struct, not an export block -- the generated
+    # sysbind/*.ti bindings declare _IO_FILE that way -- so it is not this rule's.
+    if codelines "$f" | grep -iE 'extern[[:space:]]+"c"' \
+            | grep -viE '^[0-9]+:[[:space:]]*type[[:space:]]' | grep -qv 'NON-FBCALL'; then
         note "$f: EXTERN \"c\" without a '' NON-FBCALL marker -- FBCALL exports need EXTERN \"rtlib\" (RFC-0002 section 2.2)"
     fi
 done
