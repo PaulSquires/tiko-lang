@@ -24,6 +24,7 @@
 #   9. MODULE DIRECTIVES in tiko's own source: '#import "std/..."' only.
 #  10. THE POSIX BINDING's two generated copies are identical.
 #  11. UNIT SIZE: a unit with its #include'd .tiko fragments, 6000 lines (ceilings below).
+#  12. FUNCTION STATICS. 'static as' is process state by another name (D12); allowlisted.
 #
 # TODO: port to tools/tiko-lang-lint once tiko-lang can compile itself, so the lint is
 # self-hosted like everything else.
@@ -177,6 +178,38 @@ while read -r u n; do
     [ "$n" -gt "$cap" ] && note "UNITSIZE $u is $n lines with its #include'd fragments (limit $cap)"
 done < build/.lint.closure
 rm -f build/.lint.units build/.lint.closure
+
+# ------------------------------------------------------------- 12. function statics
+#
+# A 'static' LOCAL IS 'dim shared' WITH A NARROWER NAME (review ARCH-06): it lives as long
+# as the process and is shared by every unit compiled in it -- visrungen's per-tree cache
+# went stale across units exactly that way. The ones here are allowlisted with their
+# reason and their COUNT, which may fall and never rise; anything new goes on a context.
+#
+#   c2t/sha256.tiko          the 64 round constants              constant
+#   driver/driver.tiko       the prelude text                    write-once
+#   symbols/branchcross.tiko per-tree label/var tables           keyed on AST + run generation
+#   symbols/constfold.tiko   pow( ) looked up once               write-once
+#   symbols/genericinfer.tiko a recursion depth                  balanced around one call
+#   symbols/latesweeps4.tiko per-tree marks                      keyed on AST + run generation
+#   symbols/visrungen.tiko   the run generation itself           the key the caches use
+static_ceiling( ) {
+    case "$1" in
+        src/c2t/sha256.tiko)          echo 1 ;;
+        src/driver/driver.tiko)       echo 1 ;;
+        src/symbols/branchcross.tiko) echo 7 ;;
+        src/symbols/constfold.tiko)   echo 2 ;;
+        src/symbols/genericinfer.tiko) echo 1 ;;
+        src/symbols/latesweeps4.tiko) echo 4 ;;
+        src/symbols/visrungen.tiko)   echo 1 ;;
+        *)                            echo 0 ;;
+    esac
+}
+for f in $(grep -rlE '^[[:space:]]*static[[:space:]]+as[[:space:]]' src --include=*.tiko 2>/dev/null); do
+    n=$(grep -cE '^[[:space:]]*static[[:space:]]+as[[:space:]]' "$f")
+    cap=$(static_ceiling "$f")
+    [ "$n" -gt "$cap" ] && note "STATIC $f has $n 'static as' locals (allowed $cap; docs/plan/01 D12)"
+done
 
 # ---------------------------------------- 6. unsigned loop counters and bounds
 #
