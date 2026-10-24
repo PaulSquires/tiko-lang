@@ -127,6 +127,8 @@ sub ServeConn( byval p as any ptr )
             Send_( s, Reply( "307 Temporary Redirect", "", !"Location: /echo\r\n" ) )
         case "/loop"
             Send_( s, Reply( "302 Found", "", !"Location: /loop\r\n" ) )
+        case "/down"                                  '' ?<port>: https -> http, same host
+            Send_( s, Reply( "302 Found", "", "Location: http://localhost:" & q & !"/echo\r\n" ) )
         case "/echo"
             Send_( s, Reply( "200 OK", method_ & !"\n" & q & !"\n" & body & !"\n" & hdrs ) )
         case "/404"
@@ -373,6 +375,12 @@ sub Main_( )
     r = untrusted.Fetch( "https://localhost:" & sport & "/len" )
     Check( "https untrusted", Code( r ) = http.HTTP_TLS_FAILED )
     if r.IsOk( ) = false then Check( "https TlsCode", r.Failure( ).TlsCode( ) = tls.TLS_CERT_UNTRUSTED )
+    '' AN https -> http REDIRECT DROPS THE CREDENTIALS, though the host is the same one.
+    dim reqd as http.Request = http.Request( "GET", "https://localhost:" & sport & "/down?" & port )
+    reqd.SetBasicAuth( "a", "b" )
+    r = hc.Send( reqd )
+    Check( "downgrade followed", r.IsOk( ) )
+    if r.IsOk( ) then Check( "downgrade drops auth", instr( r.Value( ).Text( ), "Authorization" ) = 0 )
 
     cl.CloseIdle( )
     Check( "CloseIdle", cl.IdleCount( ) = 0 )

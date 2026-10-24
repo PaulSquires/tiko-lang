@@ -641,7 +641,14 @@ private function hOpen( byref cl as Client, byref req0 as const Request, byref r
         hDiscard( rs )
         dim as net.Url nxt = nu.Value( )
         nxt.Fragment = ""
-        if( lcase( nxt.Host ) <> lcase( u.Host ) ) then req.Header.Remove( "Authorization" )
+        '' CREDENTIALS DO NOT FOLLOW a redirect to another host, nor one from https down to
+        '' http, where they would cross the wire in the clear (review ROB-08).
+        if( ( lcase( nxt.Host ) <> lcase( u.Host ) ) orelse _
+            ( ( lcase( u.Scheme ) = "https" ) andalso ( lcase( nxt.Scheme ) <> "https" ) ) ) then
+            req.Header.Remove( "Authorization" )
+            req.Header.Remove( "Proxy-Authorization" )
+            req.Header.Remove( "Cookie" )
+        end if
         dim as ustring m = ucase( req.Method )
         if( ( code = 303 andalso m <> "HEAD" ) orelse ( ( code = 301 orelse code = 302 ) andalso m = "POST" ) ) then
             req.Method = "GET"
