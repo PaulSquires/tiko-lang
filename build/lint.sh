@@ -23,6 +23,7 @@
 #   8. ATTRIBUTION HEADER on every lib/gfx source (LGPL obligation).
 #   9. MODULE DIRECTIVES in tiko's own source: '#import "std/..."' only.
 #  10. THE POSIX BINDING's two generated copies are identical.
+#  11. UNIT SIZE: a unit with its #include'd .tiko fragments, 6000 lines (ceilings below).
 #
 # TODO: port to tools/tiko-lang-lint once tiko-lang can compile itself, so the lint is
 # self-hosted like everything else.
@@ -107,8 +108,8 @@ rm -f build/.lint.layer
 #   symbols/symbol.tiko    the symbol-kind name table  write-once, built from an X-macro
 #   diag/engine.tiko       the stderr file handle    a PROCESS resource, opened once
 #
-# The first three are lazily-built constant tables: written by their Init sub and
-# read-only thereafter, so they are shared state but not mutable state. The fourth is
+# The first seven are lazily-built constant tables: written by their Init sub and
+# read-only thereafter, so they are shared state but not mutable state. The eighth is
 # a handle to a process-wide resource; opening it twice under threads would be benign.
 # Nothing else may be added here without the same kind of argument.
 allow_shared( ) {
@@ -130,6 +131,52 @@ done
 wc -l $ALL $STD | awk '$2 != "total" && $1 > 1500 { print "SIZE " $2 " is " $1 " lines (limit 1500)" }' > build/.lint.size
 while read -r l; do note "$l"; done < build/.lint.size
 rm -f build/.lint.size
+
+# ------------------------------------------------- 11. unit size, includes counted
+#
+# RULE 3 IS MET BY '#include'. 175 .tiko files are bodies another one includes textually
+# so that each stays under 1500 lines, while the unit fbc actually compiles is 6-18k lines
+# (review ARCH-02, 2026-10-24). So a unit in build/sources.txt is measured with the CLOSURE
+# of its '#include once "*.tiko"' fragments, and capped at 6000.
+#
+# The units already over it are CEILINGS, not exemptions: each may shrink and may grow only
+# to its number (today's size, rounded up to the next 500). Split one into real units -- a
+# .ti and a sources.txt line -- and lower its number; never raise one.
+unit_ceiling( ) {
+    case "$1" in
+        src/symbols/visibility.tiko) echo 18500 ;;
+        src/parser/parser.tiko)      echo 9500 ;;
+        src/symbols/check.tiko)      echo 9000 ;;
+        src/pp/pp.tiko)              echo 9000 ;;
+        src/symbols/resolve.tiko)    echo 6500 ;;
+        *)                           echo 6000 ;;
+    esac
+}
+{
+    find src -name '*.tiko' | sort | xargs wc -l | awk '$2 != "total" { print "S", $2, $1 }'
+    grep -HE '^[[:space:]]*#include once "[^"]+\.tiko"' $(find src -name '*.tiko') | \
+        sed -E 's|^([^:]+):.*"([^"]+)".*|E \1 \2|'
+    grep -v '^#' build/sources.txt | awk 'NF { print "U", $1 }'
+} > build/.lint.units
+awk '
+$1 == "S" { sz[$2] = $3 }
+$1 == "E" { d = $2; sub( /\/[^\/]*$/, "", d ); t = "src/" $3
+            if( !( t in sz ) ) t = d "/" $3
+            kids[$2] = kids[$2] " " t }
+$1 == "U" { units[++nu] = $2 }
+function closure( f,    n, a, i, s ) {
+    if( f in seen ) return 0
+    seen[f] = 1; s = sz[f]; n = split( kids[f], a, " " )
+    for( i = 1; i <= n; i++ ) s += closure( a[i] )
+    return s
+}
+END { for( u = 1; u <= nu; u++ ) { delete seen; print units[u], closure( units[u] ) } }
+' build/.lint.units > build/.lint.closure
+while read -r u n; do
+    cap=$(unit_ceiling "$u")
+    [ "$n" -gt "$cap" ] && note "UNITSIZE $u is $n lines with its #include'd fragments (limit $cap)"
+done < build/.lint.closure
+rm -f build/.lint.units build/.lint.closure
 
 # ---------------------------------------- 6. unsigned loop counters and bounds
 #
