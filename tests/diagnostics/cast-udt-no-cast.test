@@ -1,0 +1,12 @@
+'' 'cast( integer | double, t )' over a UDT with no 'operator cast' is fbc's 20 -- TKO0890, as
+'' 'cint( t )' already was; it reached lowering and declined (TKO0994). See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/cast-udt-no-cast.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: cast-udt-no-cast.bas(7,7): error TKO0890: 'cast' cannot convert a 't'
+'' EXPECT-OUT: cast-udt-no-cast.bas(8,11): error TKO0890: 'cint' cannot convert a 't'
+'' EXPECT-OUT: cast-udt-no-cast.bas(9,20): error TKO0890: 'cast' cannot convert a 't'
+'' EXPECT-OUT: cast-udt-no-cast.bas(10,7): error TKO0890: 'cast' cannot convert a 't'
+'' EXPECT-OUT: cast-udt-no-cast.bas(11,7): error TKO0804
+'' EXPECT-NOT: TKO0994
+'' EXPECT-MAX-DIAG: 5

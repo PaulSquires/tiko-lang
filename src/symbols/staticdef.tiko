@@ -285,8 +285,16 @@ private sub CheckUdtExactCast_ _
     if (h = "(") orelse (h = "$") orelse (h = "~") then return
     if instr( c.names->Spelling( un ), "<" ) > 0 then return
     if BaseOf_( c, at ) <> TYPE_NONE then return
+    '' NO 'operator cast' AT ALL is fbc's 20 as well (measured: 'cast( integer, t )', 'cast( double, t )'
+    '' over a type with only fields). It was left to "another rule" that did not exist, and lowering
+    '' declined the statement -- the one TKO0994 the tests still had (LATER-PLAN D step 5).
     dim as Symbol ptr cs = StructorOf_( c, at, "cast" )
-    if cs = nullptr then return   '' no cast at all is another rule's
+    '' ...BUT A STRING TARGET with no cast at all is TKO0803's, which says why (cast-string-operand).
+    if cs = nullptr then
+        select case want
+        case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING : return
+        end select
+    end if
     for guard as int32 = 0 to 63
         if cs = nullptr then exit for
         dim as TypeId rt = c.types->Unqualify( cs->type_ )

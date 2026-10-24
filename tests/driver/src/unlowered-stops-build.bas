@@ -1,6 +1,6 @@
-'' A statement lowering declines. Check accepts 'cast( integer, t )' over a UDT today (fbc's
-'' error 20), so this is the shape to use until it does not -- then pick another decline.
-type T : a as integer : end type
-dim as T t : print "before"
-print cast( integer, t )
+'' A statement lowering declines ON PURPOSE: no construct in the gate or fbc-examples corpus
+'' declines any more, so the tests set TKO_TEST_DECLINE_LINE=5 (lower.tiko LowerStmt). It was
+'' 'cast( integer, t )' over a UDT until Check refused that as fbc's 20 (TKO0890).
+print "before"
+print "dropped"
 print "after"

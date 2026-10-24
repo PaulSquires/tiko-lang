@@ -1462,7 +1462,7 @@ function Lower _
     c.m = @m
     c.st = @st
     c.curBlock = -1
-    c.errFlags = errFlags
+    c.errFlags = errFlags : c.testDeclineLine = valint( environ( "TKO_TEST_DECLINE_LINE" ) )   '' lower.tiko LowerStmt
     '' THE FILE NAME THE ERROR MESSAGES CARRY. fbc puts the module's own path
     '' into every bounds-check call so the abort can say which file the bad
     '' index came from. Taken once here rather than decoded at each access.
