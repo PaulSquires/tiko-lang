@@ -1,0 +1,6 @@
+'' '-Wno-TKO0995' is refused, as '-Wno-' of an error is: TKO0995 says a statement is missing
+'' from the build (LATER-PLAN D step 5).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 --allow-unlowered -Wno-TKO0995 tests/driver/src/unlowered-stops-build.bas -o tests/driver/unloweredwno.exe
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: error TKO0106: 'TKO0995' is not a recognised value for '-Wno'

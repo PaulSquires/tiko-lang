@@ -48,6 +48,9 @@ end sub
 sub DiagnosticEngine.Ignore( byval id as DiagId )
     dim as boolean bad = (id <= DIAG_NONE) orelse (id >= DIAG_COUNT)
     if bad then return
+    '' A STATEMENT LEFT OUT OF THE BUILD IS ALWAYS SAID (TKO0995, --allow-unlowered): not by
+    '' -Wno-, not by '-w none' (LATER-PLAN D step 5).
+    if id = TKO0995 then return
     this.policy[id] = POLICY_IGNORE
 end sub
 

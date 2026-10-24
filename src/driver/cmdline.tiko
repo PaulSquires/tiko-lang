@@ -601,6 +601,12 @@ function Parse _
             elseif Tko.DiagInfoOf( d )->defaultSev = Tko.SEV_ERROR then
                 diags.ReportGlobal( Tko.TKO0106, value, "-Wno" )
                 ok = false
+            '' ...NOR A STATEMENT LEFT OUT OF THE BUILD. TKO0995 is '--allow-unlowered's warning
+            '' that the program runs without a statement; silencing it made that silent again
+            '' (review ARCH-10 / MIR-06, LATER-PLAN D step 5).
+            elseif d = Tko.TKO0995 then
+                diags.ReportGlobal( Tko.TKO0106, value, "-Wno" )
+                ok = false
             else
                 opts.ignoredDiags.Push( Tko.DiagIdName( d ) )
             end if

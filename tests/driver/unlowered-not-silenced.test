@@ -1,0 +1,8 @@
+'' TKO0995 CANNOT BE SILENCED (review ARCH-10 / MIR-06, LATER-PLAN D step 5): '-w none' hides
+'' every warning but this one -- the program is built without a statement, and saying so is
+'' the whole of what '--allow-unlowered' still owes the user.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 --allow-unlowered -w none tests/driver/src/unlowered-stops-build.bas -o tests/driver/unloweredquiet.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: unlowered-stops-build.bas(5,1): warning TKO0995
