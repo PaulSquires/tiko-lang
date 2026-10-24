@@ -35,10 +35,11 @@ namespace Tko
     ''   unit     this type, ctx.unit
     ''
     '' 'options.threadSafe' is written after the parse (unit.tiko, modbuild.tiko) and is NOT a
-    '' unit field: one unit making a thread makes the whole LINK threaded, and __FB_MT__ is -1 in
-    '' every unit compiled AFTER it -- fbc-modern 1.20 does exactly that (measured 2026-10-24,
-    '' 'print __FB_MT__': 'fbc a.bas b.bas' with the thread in a gives b -1, 'fbc b.bas a.bas'
-    '' gives it 0; tiko prints the same in both orders), so it is process state a unit discovers.
+    '' unit field: one unit making a thread makes the whole LINK threaded, and __FB_MT__ is -1
+    '' from that call on and in every unit compiled AFTER it -- fbc-modern 1.20 does exactly that
+    '' (measured 2026-10-24, 'print __FB_MT__': 'fbc a.bas b.bas' with the thread in a gives a
+    '' and b -1, 'fbc b.bas a.bas' gives b 0; tests/codegen/mt-order-*-run.test), so it is
+    '' process state a unit discovers.
     type UnitState
         '' A MODULE UNIT BEING COMPILED (ADR 0017): its chain ('acme.net.http'), its name
         '' ('http'), and its files in order. modFileCount = 0 for a classic compile.

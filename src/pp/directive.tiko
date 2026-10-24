@@ -1179,6 +1179,20 @@ private sub PpDefineValue _
     if len( body ) > 0 then RelexInto( e, body, LOC_NONE, m->body )
 end sub
 
+'' THE PARSER READ 'threadcreate', 'threadwait' or 'threadcall' (parser/makeident.tiko), and fbc
+'' turns '-mt' on at that point: __FB_MT__ is -1 in what the preprocessor has still to read of
+'' this unit and in every unit after it, and the link takes the thread-safe runtime. Measured on
+'' fbc-modern 1.20 ('print __FB_MT__' and '#if __FB_MT__' before and after the call, and in a
+'' second unit in both orders); fbc's own restart request for the unit does not take effect, so
+'' what came before the call keeps its 0.
+sub PpNoteThreaded( byref st as PpStream )
+    if st.engine = nullptr then return
+    dim as PpEngine ptr e = cast( PpEngine ptr, st.engine )
+    if e->cfg->threadSafe then return
+    e->cfg->threadSafe = true
+    PpDefineValue( *e, "__FB_MT__", "-1" )
+end sub
+
 '' A predefined FUNCTION-LIKE macro of one parameter.
 ''
 '' LOBYTE / HIBYTE / LOWORD / HIWORD are not keywords and not compiler intrinsics --

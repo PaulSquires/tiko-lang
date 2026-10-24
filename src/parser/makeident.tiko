@@ -1,4 +1,4 @@
-'' makeident.tiko -- MakeIdent, the N_IDENT for a token. #included by expr.tiko inside
+'' makeident.tiko -- MakeIdent, the N_IDENT for a token, and NoteThreadUse_. #included by expr.tiko inside
 '' namespace Tko.Parse; split out of it at the 1500-line cap.
 
 function MakeIdent( byref p as Tko.ParserState, byref t as Tko.Token ) as Tko.NodeId
@@ -21,3 +21,26 @@ function MakeIdent( byref p as Tko.ParserState, byref t as Tko.Token ) as Tko.No
     if (t.flags and Tko.TF_BARE_FNMACRO) <> 0 then p.ast->OrFlags( n, Tko.NF_BARE_MACRO )
     return n
 end function
+
+'' 'threadcall' read: see NoteThreadUse_.
+sub NoteThreaded_( byref p as Tko.ParserState )
+    if p.mtNoted orelse (p.stream = nullptr) then return
+    p.mtNoted = true
+    Tko.PpNoteThreaded( *cast( Tko.PpStream ptr, p.stream ) )
+end sub
+
+'' A NAME IN EXPRESSION POSITION that makes a thread -- 'threadcreate' or 'threadwait', the two
+'' of fbc's three that are procedures (the third, 'threadcall', is a keyword: NoteThreaded_).
+'' fbc turns __FB_MT__ on when it parses one, for the rest of the unit and every unit after it;
+'' measured on fbc-modern 1.20, a 'print __FB_MT__' before the call shows 0 and one after it
+'' -1, in the same unit and in an '#if'. See pp/directive.tiko PpNoteThreaded.
+sub NoteThreadUse_( byref p as Tko.ParserState, byref t as Tko.Token )
+    if p.mtNoted orelse (p.stream = nullptr) then return
+    if cast( Tko.TokenKind, t.kind ) <> Tko.TK_IDENT then return
+    if p.mtCreate = Tko.INTERN_NONE then
+        p.mtCreate = p.names->Fold( p.names->GetString( "threadcreate" ) )
+        p.mtWait = p.names->Fold( p.names->GetString( "threadwait" ) )
+    end if
+    dim as Tko.InternId f = p.names->Fold( cast( Tko.InternId, t.literal ) )
+    if (f = p.mtCreate) orelse (f = p.mtWait) then NoteThreaded_( p )
+end sub

@@ -139,10 +139,10 @@ namespace Tko.Mir
     ''     nothing of the kind                           -lfb
     ''
     '' so fbc turns it on for the three that make a thread and for nothing else --
-    '' a mutex in a single-threaded program needs no thread-safe runtime. The
-    '' decision is the LINK's alone: '__FB_MT__' stays 0 unless '-mt' was written,
-    '' measured the same way, which is consistent with it being made after the
-    '' preprocessor has long finished.
+    '' a mutex in a single-threaded program needs no thread-safe runtime. '__FB_MT__'
+    '' follows the same three calls, but as they are PARSED, not here: it is -1 from
+    '' the first of them on and in every later unit (pp/directive.tiko PpNoteThreaded),
+    '' which this keeps the link agreeing with.
     declare function UsesThreadRtl _
         ( byref m as MirModule, byref names as Tko.Interner, _
           byval is32 as boolean ) as boolean

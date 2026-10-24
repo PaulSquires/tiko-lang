@@ -422,6 +422,10 @@ namespace Tko
     '' name, and 'defined( )' does not see it (RFC-0004 §5).
     '' 'kind' is parser/declkind.tiko's: 1 anything, 2 a variable, 3 a procedure. '#if' refuses
     '' the last two by name.
+    '' A THREAD-MAKING CALL WAS PARSED: __FB_MT__ is -1 from here on, and cfg.threadSafe says so
+    '' to the driver, which carries it to the units after this one (directive.tiko).
+    declare sub PpNoteThreaded( byref st as PpStream )
+
     declare sub PpNoteDeclared _
         ( byref st as PpStream, byval nm as InternId, byval at as SourceLoc = LOC_NONE, _
           byval kind as int32 = 1, byval atTop as boolean = true, byval nsPath as string = "" )

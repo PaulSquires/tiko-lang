@@ -180,6 +180,8 @@ function CompileUnit _
     if ctx.scan <> nullptr then Tko.PpSnapshotMacros( st, scanMacros )
     Tko.PpClose( st )
     ctx.timing.Add( Tko.PH_FRONT, tPh )
+    '' A THREAD-MAKING CALL in this unit turned '-mt' on for the units after it (PpNoteThreaded).
+    if cfg.threadSafe then ctx.options.threadSafe = true
 
     '' '#cmdline' -- WHAT THE SOURCE ASKED TO BE COMPILED WITH. Collected from
     '' every module of this pass before any of it is acted on, because that is

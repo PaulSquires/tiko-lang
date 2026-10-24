@@ -1,0 +1,13 @@
+'' __FB_MT__ INSIDE ONE UNIT turns on at the first 'threadcreate' / 'threadwait' / 'threadcall'
+'' the parser reads (pp/directive.tiko PpNoteThreaded): fbc-modern 1.20 prints exactly this.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/mt-order/inunit.bas -o tests/codegen/mtinunit.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/mtinunit.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: before:  0
+'' EXPECT-RUN-OUT: pp before: off
+'' EXPECT-RUN-OUT: after: -1
+'' EXPECT-RUN-OUT: pp after: on
+'' EXPECT-RUN-OUT: in a later procedure: -1

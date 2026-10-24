@@ -184,6 +184,10 @@ namespace Tko
         as NodeIdVec            memberProcNames
         as int32                 memberDepth
         as ProcNameIndex        procIx, memberProcIx   '' parserend.tiko's KnownProc_
+        '' A THREAD-MAKING CALL HAS BEEN READ (makeident.tiko NoteThreadUse_), and the two names
+        '' that are one, folded, looked up the first time an identifier is.
+        as boolean              mtNoted
+        as InternId             mtCreate, mtWait
     end type
 
 end namespace

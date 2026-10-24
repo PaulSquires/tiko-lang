@@ -1,0 +1,11 @@
+'' __FB_MT__ ACROSS UNITS, the threaded one second: 'fbc plain.bas thread.bas' leaves the
+'' plain unit, compiled before any thread call was read, at 0 -- the state is sticky FORWARD
+'' only. See mt-order-thread-first-run.test.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/mt-order/plain.bas tests/codegen/src/mt-order/thread.bas -o tests/codegen/mtorder2.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/mtorder2.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: thread unit: -1
+'' EXPECT-RUN-OUT: plain unit:  0

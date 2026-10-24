@@ -1,0 +1,14 @@
+'' __FB_MT__ ACROSS UNITS, the threaded one first (review ARCH-05, LATER-PLAN G step 4: the
+'' sticky state a multi-unit build shows). fbc-modern 1.20, 'fbc thread.bas plain.bas': the
+'' thread unit sees -1 after its own call, and so does every unit compiled after it. The
+'' second unit's top-level code runs first, as a module constructor (ctor-order-run.test).
+'' tiko gave the thread unit 0: it turned -mt on after LOWERING the unit, not as the call
+'' was parsed.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/mt-order/thread.bas tests/codegen/src/mt-order/plain.bas -o tests/codegen/mtorder1.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/mtorder1.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: plain unit: -1
+'' EXPECT-RUN-OUT: thread unit: -1
