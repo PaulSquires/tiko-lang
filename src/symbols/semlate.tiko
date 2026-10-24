@@ -1,0 +1,21 @@
+'' semlate.tiko -- the post-Check pass: the sweeps that must run last: late checks, the late-sweep chain, initialisation order, branches.
+''
+'' A unit of its own since 2026-10-24 (LATER-PLAN E, review ARCH-01): these fragments were
+'' #included by visibility.tiko and shared its private procedures by position. What they call
+'' in another Vis unit, and what another calls here, is declared in semcalls.ti.
+
+#import "std/containers"
+#include once "symbols/visibility.ti"
+#include once "diag/diagids.ti"
+#include once "symbols/check.ti"
+#include once "symbols/modsym.ti"
+#include once "types/udtlayout.ti"
+
+namespace Tko.Vis
+
+#include once "symbols/visctx.ti"
+#include once "symbols/semcalls.ti"
+
+#include once "symbols/latesweeps2.tiko"
+
+end namespace

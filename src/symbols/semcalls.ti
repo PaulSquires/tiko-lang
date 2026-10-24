@@ -171,4 +171,59 @@ declare sub CheckStaticMemberDef_ ( byref c as Ctx, byval id as NodeId )
 declare sub CheckTypeLiteralText_ ( byref c as Ctx )
 declare sub CheckTypeNameValue_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
 declare sub CheckUnionMembers_( byref c as Ctx )
+declare sub CheckAbstractBody_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckBareArrayOperands_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckBareArrayPrint_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckByrefBinding_( byref c as Ctx )
+declare sub CheckCalledExpr_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckConstDeclTypes_( byref c as Ctx )
+declare sub CheckCopyStructor_ _
+    ( byref c as Ctx, byval udt as TypeId, byval here as TypeId, _
+      byval at as SourceLoc, byval vnm as InternId )
+declare sub CheckDirectCallArgs_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckExternInitAndDefaultCtor_( byref c as Ctx )
+declare sub CheckFixLenParams_( byref c as Ctx )
+declare sub CheckImplicitStructors_( byref c as Ctx )
+declare sub CheckNestedStatics_( byref c as Ctx )
+declare sub CheckParenlessArgs_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
+declare sub CheckPrivateBaseStructor_( byref c as Ctx )
+declare sub CheckProcPtrArgs_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckQualifiedInits_( byref c as Ctx )
+declare sub CheckSharedInits_( byref c as Ctx )
+declare sub CheckVirtualNeedsObject_( byref c as Ctx )
+declare function IifArmsMeet_ ( byref c as Ctx, byval id as NodeId, byval ua as TypeId, byval ub as TypeId ) as boolean
+declare sub CheckAliasAgrees_( byref c as Ctx )
+declare sub CheckArrayDeclShapes_( byref c as Ctx )
+declare sub CheckBitfieldWidths_( byref c as Ctx )
+declare sub CheckByrefResultSet_( byref c as Ctx )
+declare sub CheckConstBounds_( byref c as Ctx )
+declare sub CheckDuplicateOverloads_( byref c as Ctx )
+declare sub CheckOutsideNamespace_( byref c as Ctx )
+declare sub CheckRedimRank_( byref c as Ctx )
+declare sub CheckReturnStyles_( byref c as Ctx )
+declare sub CheckSharedInBlock_( byref c as Ctx )
+declare sub CheckStaticInitFromVar_( byref c as Ctx )
+declare sub CheckStructorOutsideNamespace_( byref c as Ctx )
+declare sub CheckSubReturnValue_( byref c as Ctx )
+declare sub CheckUnionInitGroups_( byref c as Ctx )
+declare sub DefineQualifiedExterns_( byref c as Ctx )
+declare function RecordedRankAbove_ _
+    ( byref c as Ctx, byval ts as Symbol ptr, byval sid as SymbolId, byval use as NodeId ) as int32
+declare sub RunLateSweeps2_ ( byref c as Ctx )
+declare sub WalkExtra_ _
+    ( byref c as Ctx, byval id as NodeId, byval k as NodeKind, byval byrefResult as boolean, _
+      byval here as TypeId )
+declare function EnclosingTypeOf_ _
+    ( byref c as Ctx, byval scope_ as ScopeId ) as TypeId
+declare function RecordedRank_ ( byref c as Ctx, byval sid as SymbolId ) as int32
+declare function StructorReachable_ _
+    ( byref c as Ctx, byval st as Symbol ptr, byval udt as TypeId, _
+      byval here as TypeId ) as boolean
+declare function VisRunGen_( byval bump as boolean = false ) as uint32
+declare function NamespaceScopeOf_ _
+    ( byref c as Ctx, byval path as InternId ) as ScopeId
+declare sub ScanReturnStyles_ _
+    ( byref c as Ctx, byval id as NodeId, byref sawReturn as boolean, _
+      byref sawAssign as boolean, byval valRet as NodeId ptr = nullptr )
+declare function TypeScopeOf_ ( byref c as Ctx, byval path as InternId ) as ScopeId
 '' (end of declares)

@@ -22,7 +22,7 @@
 '' member variable in nested UDT". Measured, and "nested" means INSIDE A PROCEDURE and
 '' nothing else: a type declared inside another TYPE takes one, and so does a top-level
 '' type.
-private sub CheckNestedStatics_( byref c as Ctx )
+sub CheckNestedStatics_( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
         '' A STATIC MEMBER IS AN N_VAR, not an N_FIELD -- it has storage of its own and
@@ -62,7 +62,7 @@ private sub CheckNestedStatics_( byref c as Ctx )
     next
 end sub
 
-private sub CheckFixLenParams_( byref c as Ctx )
+sub CheckFixLenParams_( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
         dim as SymbolKind sk = cast( SymbolKind, s->kind )
@@ -200,7 +200,7 @@ private function IsBareArray_ ( byref c as Ctx, byval n as NodeId ) as boolean
     return true
 end function
 
-private sub CheckBareArrayOperands_ ( byref c as Ctx, byval id as NodeId )
+sub CheckBareArrayOperands_ ( byref c as Ctx, byval id as NodeId )
     dim as BinaryPayload ptr bp = _
         @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if IsBareArray_( c, bp->lhs ) then
@@ -212,7 +212,7 @@ private sub CheckBareArrayOperands_ ( byref c as Ctx, byval id as NodeId )
     end if
 end sub
 
-private sub CheckBareArrayPrint_ ( byref c as Ctx, byval id as NodeId )
+sub CheckBareArrayPrint_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     dim as TokenKind k = cast( TokenKind, sp->op )
@@ -233,7 +233,7 @@ end sub
 '' because the parentheses already called g. tiko's parser has no types, so it built
 '' the call anyway and lowering declined it without a word.
 #include once "symbols/tmpllocal.tiko"   '' LocalInTemplate_ (T43)
-private sub CheckCalledExpr_ ( byref c as Ctx, byval id as NodeId )
+sub CheckCalledExpr_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = _
         @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     dim as NodeId tgt = lp->target
@@ -497,7 +497,7 @@ end function
 '' 'fp(,)' are all refused, while 'fp2(1)' over 'byval as integer = 7' is not. Nothing
 '' checked a pointer call's arguments at all: the call went out short, and the callee
 '' read the rest off the stack.
-private sub CheckProcPtrArgs_ ( byref c as Ctx, byval id as NodeId )
+sub CheckProcPtrArgs_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = _
         @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     dim as NodeId tgt = lp->target
@@ -642,7 +642,7 @@ private function FirstRequiredMissing_ _
     return 0
 end function
 
-private sub CheckParenlessArgs_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
+sub CheckParenlessArgs_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
     dim as NodeId nmN = id
     dim as int32 given = 0
     if k = N_AMBIGUOUS then
@@ -674,7 +674,7 @@ private sub CheckParenlessArgs_ ( byref c as Ctx, byval id as NodeId, byval k as
                      c.names->Spelling( s->name ) )
 end sub
 
-private sub CheckDirectCallArgs_ ( byref c as Ctx, byval id as NodeId )
+sub CheckDirectCallArgs_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = _
         @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     dim as NodeId tgt = lp->target
@@ -781,7 +781,7 @@ end sub
 ''
 '' OVER THE AST, not the symbol table: the DEFINITION joins its DECLARE, and the symbol's
 '' payload stays the DECLARATION node -- which has no body, so the symbol sweep saw none.
-private sub CheckAbstractBody_ ( byref c as Ctx, byval id as NodeId )
+sub CheckAbstractBody_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if (sp->extra and PF_ABSTRACT) = 0 then return
@@ -808,7 +808,7 @@ function ExtendsObject_ ( byref c as Ctx, byval t as TypeId ) as boolean
     return false
 end function
 
-private sub CheckVirtualNeedsObject_( byref c as Ctx )
+sub CheckVirtualNeedsObject_( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
         if s->kind <> cast( uint8, SYM_PROC ) then continue for
@@ -929,7 +929,7 @@ end function
 '' rule as a base's, one level down: 'dim as T x' has nothing to call, while
 '' 'dim as T x = T( 1 )' names what to call.
 
-private sub CheckExternInitAndDefaultCtor_( byref c as Ctx )
+sub CheckExternInitAndDefaultCtor_( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
         if s->kind <> cast( uint8, SYM_VARIABLE ) then continue for
@@ -998,7 +998,7 @@ end sub
 '' THE WHOLE OVERLOAD CHAIN IS WALKED for the ctor, because the default one need not be
 '' first: ComInit declares its private copy constructor before its public default one, and
 '' reading only the head of the chain refused a file fbc accepts.
-private sub CheckPrivateBaseStructor_( byref c as Ctx )
+sub CheckPrivateBaseStructor_( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
         if s->kind <> cast( uint8, SYM_UDT ) then continue for
@@ -1140,7 +1140,7 @@ end function
 '' over a type that extends zstring, or one that extends wstring, is fine to fbc, while a
 '' STRING variable in the literal's place is its 24 (fbc-modern 1.20, 2026-09-30;
 '' udt-zstring/iif.bas, udt-wstring/iif.bas). The literal types as a STRING here.
-private function IifArmsMeet_ ( byref c as Ctx, byval id as NodeId, byval ua as TypeId, byval ub as TypeId ) as boolean
+function IifArmsMeet_ ( byref c as Ctx, byval id as NodeId, byval ua as TypeId, byval ub as TypeId ) as boolean
     if IifStringUdtArm_( c, ua, ub ) orelse IifStringUdtArm_( c, ub, ua ) then return true
     dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     for k as int32 = 1 to 2
@@ -1152,7 +1152,7 @@ private function IifArmsMeet_ ( byref c as Ctx, byval id as NodeId, byval ua as 
     return false
 end function
 
-private sub CheckConstDeclTypes_( byref c as Ctx )
+sub CheckConstDeclTypes_( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
         '' A VARIABLE IS THE SAME QUESTION: 'dim s as string = 1' and
@@ -1185,7 +1185,7 @@ private sub CheckConstDeclTypes_( byref c as Ctx )
     next
 end sub
 
-private sub CheckByrefBinding_( byref c as Ctx )
+sub CheckByrefBinding_( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
         if s->kind <> cast( uint8, SYM_VARIABLE ) then continue for
@@ -1237,7 +1237,7 @@ end sub
 '' defines a type's STATIC MEMBER, which has static storage and the same restriction -- but
 '' the symbol's own declaration item is the 'static pi as ...' INSIDE the type, which
 '' carries no initialiser, so the sweep below never saw this one.
-private sub CheckQualifiedInits_( byref c as Ctx )
+sub CheckQualifiedInits_( byref c as Ctx )
     for n as int32 = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_VAR_ITEM then continue for
@@ -1249,7 +1249,7 @@ private sub CheckQualifiedInits_( byref c as Ctx )
     next
 end sub
 
-private sub CheckSharedInits_( byref c as Ctx )
+sub CheckSharedInits_( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
         CollInitSharedRefs_( c, s )     '' collinitshared.tiko
@@ -1269,7 +1269,7 @@ end sub
 '' THE COPY CONSTRUCTOR -- the '__ctor' overload whose one required parameter is a
 '' reference to the type itself. A private one is what stops a type being copied, which is
 '' the point of declaring one.
-private sub CheckCopyStructor_ _
+sub CheckCopyStructor_ _
     ( byref c as Ctx, byval udt as TypeId, byval here as TypeId, _
       byval at as SourceLoc, byval vnm as InternId )
 
@@ -1370,7 +1370,7 @@ private function CtorChosenBy_ _
     return Tko.Check.PickStructor( *c.ast, *c.syms, *c.types, *c.names, *c.info, headId, argT )
 end function
 
-private sub CheckImplicitStructors_( byref c as Ctx )
+sub CheckImplicitStructors_( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
         dim as SymbolKind k = cast( SymbolKind, s->kind )

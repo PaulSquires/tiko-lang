@@ -300,7 +300,7 @@ function StructorOf_ _
 end function
 
 '' The type whose procedures this SCOPE sits inside, or TYPE_NONE at module level.
-private function EnclosingTypeOf_ _
+function EnclosingTypeOf_ _
     ( byref c as Ctx, byval scope_ as ScopeId ) as TypeId
 
     dim as ScopeId cur = scope_
@@ -366,7 +366,7 @@ function ParamCount_ ( byref c as Ctx, byval decl as NodeId ) as int32
     return n
 end function
 
-private function StructorReachable_ _
+function StructorReachable_ _
     ( byref c as Ctx, byval st as Symbol ptr, byval udt as TypeId, _
       byval here as TypeId ) as boolean
 
@@ -407,7 +407,7 @@ sub CheckOneStructor_ _
     c.diags->Report( TKO0633, PointRange( at ), c.names->Spelling( vnm ) )
 end sub
 '' The rank the FIRST redim gave a rank-0 dynamic array, or 0.
-private function RecordedRank_ ( byref c as Ctx, byval sid as SymbolId ) as int32
+function RecordedRank_ ( byref c as Ctx, byval sid as SymbolId ) as int32
     if sid = SYMBOL_NONE then return 0
     dim as int32 i = -1
     if c.redimAt.TryGet( cast( uint32, sid ), i ) then return cast( int32, c.redimRank[i] )
@@ -440,8 +440,6 @@ private sub RecordFirstRedims_( byref c as Ctx )
 end sub
 
 #include once "symbols/visrungen.tiko"
-#include once "symbols/latechecks.tiko"
-#include once "symbols/latesweeps.tiko"
 
 '' 'iif' RETURNS ONE TYPE, so its two arms may not disagree about what they are -- fbc
 '' error 24, "Invalid data types". Measured:
@@ -1099,7 +1097,6 @@ private sub CheckDelete_ ( byref c as Ctx, byval id as NodeId, byval here as Typ
     CheckOneStructor_( c, pointee, "__dtor", here, c.ast->Loc( id ), 0 )
 end sub
 
-#include once "symbols/latesweeps2.tiko"
 
 private sub Walk_ _
     ( byref c as Ctx, byval id as NodeId, byval here as TypeId, _

@@ -67,7 +67,7 @@ private sub OwnerIndexBuild_( byref c as Ctx )
     c.owners.builtAt = n
 end sub
 
-private function NamespaceScopeOf_ _
+function NamespaceScopeOf_ _
     ( byref c as Ctx, byval path as InternId ) as ScopeId
 
     if path = 0 then return SCOPE_NONE
@@ -127,7 +127,7 @@ private function OwnerHeadExists_ ( byref c as Ctx, byval path as InternId ) as 
 end function
 
 '' The scope of a TYPE named by a plain (undotted, non-generic) owner path, or SCOPE_NONE.
-private function TypeScopeOf_ ( byref c as Ctx, byval path as InternId ) as ScopeId
+function TypeScopeOf_ ( byref c as Ctx, byval path as InternId ) as ScopeId
     if path = 0 then return SCOPE_NONE
     dim as string qp = c.names->Spelling( path )
     if (instr( qp, "." ) > 0) orelse (instr( qp, "(" ) > 0) then return SCOPE_NONE
@@ -144,7 +144,7 @@ end function
 '' is the tell: a structor names its type in 'name' and its namespace in 'ownerName', a
 '' property its type in 'ownerName' -- and when that path leads through a NAMESPACE the
 '' definition has been written outside it.
-private sub CheckStructorOutsideNamespace_( byref c as Ctx )
+sub CheckStructorOutsideNamespace_( byref c as Ctx )
     for n as int32 = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_PROC then continue for
@@ -230,7 +230,7 @@ end sub
 '' symbol stayed EXTERN, every reference went out as an external and nothing defined it --
 '' 'undefined symbol: A::B::I$' (namespace/outside.bas, namespace/dups.bas). The owner path is
 '' walked from the definition's own scope, as StaticMemberSym_ walks it when lowering.
-private sub DefineQualifiedExterns_( byref c as Ctx )
+sub DefineQualifiedExterns_( byref c as Ctx )
     for n as int32 = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_VAR then continue for
@@ -268,7 +268,7 @@ private sub DefineQualifiedExterns_( byref c as Ctx )
     next
 end sub
 
-private sub CheckOutsideNamespace_( byref c as Ctx )
+sub CheckOutsideNamespace_( byref c as Ctx )
     for n as int32 = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         dim as NodeKind k = c.ast->Kind( id )
@@ -402,7 +402,7 @@ end sub
 '' IT REPORTS ONLY WHAT IT CAN POSITIVELY ESTABLISH. Asking "did the fold succeed" instead
 '' measured THIS compiler's folder against fbc's: tiko-lang does not fold lbound of a
 '' FIXED array either, and that refused three lines fbc accepts.
-private sub CheckConstBounds_( byref c as Ctx )
+sub CheckConstBounds_( byref c as Ctx )
     for n as int32 = 0 to c.ast->Count( ) - 1
         if c.ast->Kind( cast( NodeId, n ) ) <> N_CONST then continue for
         dim as StmtPayload ptr sp = _
@@ -449,7 +449,7 @@ end sub
 '' ONE ERROR PER PROCEDURE, on the procedure, because the two spellings may be anywhere in
 '' the body and fbc's line number is whichever came second -- which is not worth modelling
 '' when the fact being reported is about the procedure as a whole.
-private sub ScanReturnStyles_ _
+sub ScanReturnStyles_ _
     ( byref c as Ctx, byval id as NodeId, byref sawReturn as boolean, _
       byref sawAssign as boolean, byval valRet as NodeId ptr = nullptr )
 
@@ -504,7 +504,7 @@ end sub
 '' one that assigns in a single branch, or returns, is accepted -- fbc asks whether the
 '' result is set at all, not on every path. The same body scan the return-style rule
 '' uses.
-private sub CheckByrefResultSet_( byref c as Ctx )
+sub CheckByrefResultSet_( byref c as Ctx )
     for n as int32 = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_PROC then continue for
@@ -524,7 +524,7 @@ end sub
 '' A PROCEDURE WITH NO RESULT RETURNS NO VALUE -- fbc's error 17 for 'return 5' in a sub,
 '' a constructor or a property setter. tiko emitted 'ret i64 5' in a void function and
 '' clang refused it (TKO0113).
-private sub CheckSubReturnValue_( byref c as Ctx )
+sub CheckSubReturnValue_( byref c as Ctx )
     for n as int32 = 0 to c.ast->Count( ) - 1
         if c.ast->Kind( cast( NodeId, n ) ) <> N_PROC then continue for
         dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
@@ -539,7 +539,7 @@ end sub
 '' THE ALIAS ON A DEFINITION MUST MATCH THE DECLARATION'S -- fbc error 311. Measured:
 '' 'declare sub f alias "foo"( )' then 'sub f alias "bar"( )' is refused; the same alias
 '' twice, or an alias on the declare alone, is accepted.
-private sub CheckAliasAgrees_( byref c as Ctx )
+sub CheckAliasAgrees_( byref c as Ctx )
     for n as int32 = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_PROC then continue for
@@ -565,7 +565,7 @@ end sub
 '' implicit result variable, so 'return x' and 'function = y' may be mixed over one:
 '' measured, a byref function over a type with constructors is accepted while the byval
 '' one is error 184. functions/return-byref.bas writes exactly that.
-private sub CheckReturnStyles_( byref c as Ctx )
+sub CheckReturnStyles_( byref c as Ctx )
     for n as int32 = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_PROC then continue for
@@ -842,7 +842,7 @@ private function SameSignature_ _
     return true
 end function
 
-private sub CheckDuplicateOverloads_( byref c as Ctx )
+sub CheckDuplicateOverloads_( byref c as Ctx )
     dim as boolean aliasOk = (c.diags->ErrorCount( ) = 0)
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
@@ -902,7 +902,7 @@ end sub
 ''
 '' HERE AND NOT IN THE PARSER, which has the width but not the TYPE: the field's type is a
 '' typeref that nothing has resolved yet when the ':' is read.
-private sub CheckBitfieldWidths_( byref c as Ctx )
+sub CheckBitfieldWidths_( byref c as Ctx )
     for n as int32 = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_FIELD then continue for
@@ -937,7 +937,7 @@ end sub
 '' for 'dim as U x = ( ( 1, 2 ) )' and for '( ( 1, 2 ), 3 )' and '( 1, ( 2, 3 ) )' alike:
 '' any nested parenthesised group inside a union's initializer is refused, whatever the
 '' union holds. Eleven corpus files, all over a declared UNION.
-private sub CheckUnionInitGroups_( byref c as Ctx )
+sub CheckUnionInitGroups_( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
         if s->kind <> cast( uint8, SYM_VARIABLE ) then continue for
@@ -982,7 +982,7 @@ end sub
 ''
 '' (dim/dynamic-wrong-dimensions-dim-access-redim-1..2, -param-*). The access check read the
 '' first redim wherever it was, and the redim check took a parameter's.
-private function RecordedRankAbove_ _
+function RecordedRankAbove_ _
     ( byref c as Ctx, byval ts as Symbol ptr, byval sid as SymbolId, byval use as NodeId ) as int32
     if (ts <> nullptr) andalso (ts->kind = cast( uint8, SYM_PARAMETER )) then return 0
     dim as int32 i = -1
@@ -991,7 +991,7 @@ private function RecordedRankAbove_ _
     return cast( int32, c.redimRank[i] )
 end function
 
-private sub CheckRedimRank_( byref c as Ctx )
+sub CheckRedimRank_( byref c as Ctx )
     for n as int32 = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_VAR then continue for
@@ -1118,7 +1118,7 @@ private function BoundsHaveEllipsis_ ( byref c as Ctx, byval bounds as NodeId ) 
     return false
 end function
 
-private sub CheckArrayDeclShapes_( byref c as Ctx )
+sub CheckArrayDeclShapes_( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
         dim as SymbolKind k = cast( SymbolKind, s->kind )
@@ -1186,7 +1186,7 @@ end sub
 '' string variable. A literal, a constant and an ADDRESS ('= @x') are accepted, and so is
 '' a plain 'dim' from anything, and a BYREF from a shared. Only a bare NAMED variable on
 '' the right is judged.
-private sub CheckStaticInitFromVar_( byref c as Ctx )
+sub CheckStaticInitFromVar_( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
         if s->kind <> cast( uint8, SYM_VARIABLE ) then continue for
@@ -1216,7 +1216,7 @@ end sub
 
 '' 'dim shared' INSIDE A SCOPE BLOCK OR A PROCEDURE -- fbc error 96 in a scope and 61 in
 '' a sub: shared storage is a module-level thing. 'static' inside a scope is fine.
-private sub CheckSharedInBlock_( byref c as Ctx )
+sub CheckSharedInBlock_( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
         if s->kind <> cast( uint8, SYM_VARIABLE ) then continue for
