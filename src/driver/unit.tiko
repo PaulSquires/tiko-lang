@@ -529,6 +529,13 @@ function CompileUnit _
                     doCodegen = false
                 end if
             end if
+        elseif (vr.failures > 0) andalso (FrontendFailed_( ctx ) = false) then
+            '' 'tiko check' and '--dump-ir' build nothing, and both exited 0 over a module
+            '' the verifier rejected. Not after a user error: that tree was never sound.
+            dim as int32 vnl = instr( vr.report, chr( 10 ) )
+            dim as string vfirst = iif( vnl > 0, left( vr.report, vnl - 1 ), vr.report )
+            toolExit = ToolFail_( ctx, Tko.EXIT_ICE, Tko.TKO0993, _
+                "the MIR verifier found " & str( vr.failures ) & " fault(s): " & vfirst )
         end if
         if doCodegen then
             dim as Tko.Codegen.TargetDescription td = _
@@ -661,6 +668,9 @@ function CompileUnit _
                 print #eh, vr.report;
                 close #eh
             end if
+        elseif (vr.failures > 0) andalso FrontendFailed_( ctx ) then
+            '' A REJECTED TREE is not the verifier's to judge; its faults are the errors'.
+            print "verify: skipped -- the program has errors"
         elseif vr.failures > 0 then
             print "verify: " & str( vr.failures ) & " FAILURES"
             print vr.report;
