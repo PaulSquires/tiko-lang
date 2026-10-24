@@ -145,7 +145,7 @@ private function IifCondConst_ ( byref c as Ctx, byval n as NodeId, byval depth 
     return false
 end function
 
-private sub CheckIifUdt_ ( byref c as Ctx, byval id as NodeId )
+sub CheckIifUdt_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if (lp->target = NODE_NONE) orelse (lp->count <> 3) then return
     if c.ast->Kind( lp->target ) <> N_IDENT then return

@@ -66,4 +66,49 @@ declare sub PtrFloatPair_ _
 declare function RequiredParams_ ( byref c as Ctx, byval decl as NodeId ) as int32
 declare function StructorOf_ _
     ( byref c as Ctx, byval udt as TypeId, byref nm as string ) as Symbol ptr
+declare sub CheckBaseHasDefaultCtor_( byref c as Ctx )
+declare sub CheckConstObjectCalls_ ( byref c as Ctx )
+declare function ByrefNeedsInit_ ( byref c as Ctx, byval s as Symbol ptr ) as boolean
+declare sub CheckFieldDefaultCtor_( byref c as Ctx )
+declare function ItemIsRedim_ ( byref c as Ctx, byval item as NodeId ) as boolean
+declare function GenericCopyCtorHidden_ _
+    ( byref c as Ctx, byval udt as TypeId, byval here as TypeId ) as int32
+declare sub CheckIifUdt_ ( byref c as Ctx, byval id as NodeId )
+declare function HasDefaultCtor_ ( byref c as Ctx, byval u as TypeId, byval isArray as boolean ) as boolean
+declare function SpellOf_ ( byref c as Ctx, byval n as NodeId ) as string
+declare function Unparen3_ ( byref c as Ctx, byval id as NodeId ) as NodeId
+declare sub CheckArrowOnValue_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckBaseCallAbstract_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckDerefAddrOperand_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
+declare sub CheckEraseStructors_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
+declare sub CheckGfxTarget_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckIndexNeedsPointer_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckMemberOnlyOperator_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckModifierAgrees_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckNewString_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckNonMemberOperator_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckNotPointer_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckOperatorArity_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckProcPtrCompound_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckPtrCompound_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckSelectCaseKinds_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckUdtCompare_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckUdtCompound_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckUdtUnary_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckWithSubject_ ( byref c as Ctx, byval id as NodeId )
+declare function PlainUdtOperand_ ( byref c as Ctx, byval t as TypeId ) as boolean
+declare function TupleLike_ ( byref c as Ctx, byval t as TypeId ) as boolean
+declare sub CheckRecursiveType_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckSetterOnlyReads_ ( byref c as Ctx )
+declare sub CheckStaticCall_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
+declare sub CheckStaticThis_ ( byref c as Ctx )
+declare function StructorIsField_ _
+    ( byref c as Ctx, byval ot as TypeId, byref nm as string ) as boolean
+declare sub CheckUdtPrintUsing_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckUdtStrIntrinsic_ ( byref c as Ctx, byval id as NodeId )
+declare sub CheckOneStructor_ _
+    ( byref c as Ctx, byval udt as TypeId, byref nm as string, _
+      byval here as TypeId, byval at as SourceLoc, byval vnm as InternId )
+declare function IsProcPtr_ ( byref c as Ctx, byval t as TypeId ) as boolean
+declare function ProcOwner_ ( byref c as Ctx, byval id as NodeId ) as TypeId
 '' (end of declares)

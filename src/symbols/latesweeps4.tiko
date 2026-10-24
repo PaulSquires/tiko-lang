@@ -4,7 +4,7 @@
 '' CheckCastStringSize_, in the same namespace and over the same Ctx.
 
 '' THE SINGLE CHILD OF A PARENTHESIS, or the node itself.
-private function Unparen3_ ( byref c as Ctx, byval id as NodeId ) as NodeId
+function Unparen3_ ( byref c as Ctx, byval id as NodeId ) as NodeId
     for guard as int32 = 0 to 15
         if id = NODE_NONE then return id
         if c.ast->Kind( id ) <> N_PAREN then return id

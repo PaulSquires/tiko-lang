@@ -1,0 +1,32 @@
+'' semproc.tiko -- the post-Check pass: procedure and structor sweeps: procedure checks, base constructors, recursive types, static calls.
+''
+'' A unit of its own since 2026-10-24 (LATER-PLAN E, review ARCH-01): these fragments were
+'' #included by visibility.tiko and shared its private procedures by position. What they call
+'' in another Vis unit, and what another calls here, is declared in semdecl.ti.
+
+#import "std/containers"
+#include once "symbols/visibility.ti"
+#include once "diag/diagids.ti"
+#include once "symbols/check.ti"
+#include once "symbols/modsym.ti"
+#include once "types/udtlayout.ti"
+
+namespace Tko.Vis
+
+#include once "symbols/visctx.ti"
+#include once "symbols/semdecl.ti"
+
+#include once "symbols/fieldctor.tiko"
+#include once "symbols/staticcall.tiko"
+#include once "symbols/gencopyctor.tiko"
+#include once "symbols/structorfield.tiko"
+#include once "symbols/proccheck.tiko"
+#include once "symbols/recursivetype.tiko"
+#include once "symbols/iifudt.tiko"
+#include once "symbols/setteronly.tiko"
+#include once "symbols/constcall.tiko"
+#include once "symbols/staticthis.tiko"
+#include once "symbols/udtstrintr.tiko"
+#include once "symbols/basector.tiko"
+
+end namespace

@@ -875,7 +875,7 @@ end function
 
 '' CAN A TYPE BE BUILT WITH NO ARGUMENT? True with no constructor at all, or one that takes
 '' none -- stricter for an ARRAY, as below. Shared by the variable and the field checks.
-private function HasDefaultCtor_ ( byref c as Ctx, byval u as TypeId, byval isArray as boolean ) as boolean
+function HasDefaultCtor_ ( byref c as Ctx, byval u as TypeId, byval isArray as boolean ) as boolean
     dim as Symbol ptr ct = StructorOf_( c, u, "__ctor" )
     '' NO CONSTRUCTOR AT ALL is fine: the implicit default one is always callable.
     if ct = nullptr then return true
@@ -930,7 +930,6 @@ end function
 '' initialiser -- fbc error 183, "TYPE or CLASS has no default constructor". The same
 '' rule as a base's, one level down: 'dim as T x' has nothing to call, while
 '' 'dim as T x = T( 1 )' names what to call.
-#include once "symbols/fieldctor.tiko"
 
 private sub CheckExternInitAndDefaultCtor_( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1
@@ -984,7 +983,6 @@ private sub CheckExternInitAndDefaultCtor_( byref c as Ctx )
 end sub
 
 #include once "symbols/unionmember.tiko"   '' CheckUnionMembers_: fbc's 161, 162, 163, 164
-#include once "symbols/staticcall.tiko"    '' CheckStaticCall_: fbc's 214
 
 '' CheckBaseHasDefaultCtor_ is in basector.tiko, included from latesweeps2.tiko.
 
@@ -1271,7 +1269,6 @@ private sub CheckSharedInits_( byref c as Ctx )
     next
 end sub
 
-#include once "symbols/gencopyctor.tiko"
 
 '' THE COPY CONSTRUCTOR -- the '__ctor' overload whose one required parameter is a
 '' reference to the type itself. A private one is what stops a type being copied, which is

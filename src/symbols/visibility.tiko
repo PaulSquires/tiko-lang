@@ -80,7 +80,7 @@ function DerivesFrom_ _
 end function
 
 '' The type whose procedures this node sits inside, or TYPE_NONE at module level.
-private function ProcOwner_ ( byref c as Ctx, byval id as NodeId ) as TypeId
+function ProcOwner_ ( byref c as Ctx, byval id as NodeId ) as TypeId
     dim as SymbolId psid = c.info->RefOf( id )
     if psid = SYMBOL_NONE then return TYPE_NONE
     return OwningType_( c, c.syms->SymbolAt( psid ) )
@@ -383,7 +383,7 @@ end function
 '' own comment says -- and reading only the head refused 'dim as ComInit co', which fbc
 '' accepts. What a bare declaration calls is the constructor that REQUIRES NO ARGUMENT,
 '' and the type is fine if any such constructor is reachable.
-private sub CheckOneStructor_ _
+sub CheckOneStructor_ _
     ( byref c as Ctx, byval udt as TypeId, byref nm as string, _
       byval here as TypeId, byval at as SourceLoc, byval vnm as InternId )
 
@@ -926,7 +926,6 @@ private sub CheckConstThisCall_ _
                      c.names->Spelling( ps->name ) )
 end sub
 
-#include once "symbols/structorfield.tiko"
 '' 'x.constructor( )' AND 'x.destructor( )' NAME A STRUCTOR EXPLICITLY -- which is legal
 '' only when the type DECLARED one. fbc gives error 18, "Element not defined": the IMPLICIT
 '' structor is not a member anything can name.
@@ -1036,7 +1035,7 @@ end sub
 ''
 '' A pointer to DATA does all three; what makes a procedure pointer different is that
 '' there is no element size to scale by and nothing at the far end to read.
-private function IsProcPtr_ ( byref c as Ctx, byval t as TypeId ) as boolean
+function IsProcPtr_ ( byref c as Ctx, byval t as TypeId ) as boolean
     if t = TYPE_NONE then return false
     dim as TypeId u = c.types->Unqualify( t )
     if c.types->Kind( u ) <> TK_POINTER then return false
@@ -1062,7 +1061,6 @@ private sub CheckProcPtrArith_ ( byref c as Ctx, byval id as NodeId )
     end if
 end sub
 
-#include once "symbols/proccheck.tiko"
 
 private sub CheckProcPtrDeref_ ( byref c as Ctx, byval id as NodeId )
     dim as UnaryPayload ptr up = _

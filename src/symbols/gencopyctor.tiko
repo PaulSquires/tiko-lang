@@ -13,7 +13,7 @@
 ''
 '' Returns -1 when the type is no generic instance, or its template declares no copy
 '' constructor; 0 when one is reachable from 'here'; 1 when every one is hidden.
-private function GenericCopyCtorHidden_ _
+function GenericCopyCtorHidden_ _
     ( byref c as Ctx, byval udt as TypeId, byval here as TypeId ) as int32
 
     if (udt = TYPE_NONE) orelse (c.types->Kind( udt ) <> TK_UDT) then return -1

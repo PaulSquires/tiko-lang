@@ -90,7 +90,7 @@ private function UdtHasTextClassCast_ ( byref c as Ctx, byval t as TypeId ) as b
     return false
 end function
 
-private sub CheckUdtStrIntrinsic_ ( byref c as Ctx, byval id as NodeId )
+sub CheckUdtStrIntrinsic_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if (lp->count < 1) orelse (lp->target = NODE_NONE) then return
     if c.ast->Kind( lp->target ) <> N_IDENT then return
@@ -123,7 +123,7 @@ private sub CheckUdtStrIntrinsic_ ( byref c as Ctx, byval id as NodeId )
     if bad then c.diags->Report( TKO0938, PointRange( c.ast->Loc( a ) ), nm, c.types->Name( c.types->Unqualify( at ) ) )
 end sub
 
-private sub CheckUdtPrintUsing_ ( byref c as Ctx, byval id as NodeId )
+sub CheckUdtPrintUsing_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cast( TokenKind, sp->op ) <> KW_PRINT then return
     if sp->extra = 0 then return

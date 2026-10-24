@@ -42,7 +42,7 @@ private function NonStaticTypeCallee_ ( byref c as Ctx, byval callN as NodeId, b
 end function
 
 '' 'T.m( ... )' (N_CALL) and the statement 'T.m ...' (N_AMBIGUOUS with no operator).
-private sub CheckStaticCall_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
+sub CheckStaticCall_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
     dim as NodeId callN = NODE_NONE, tgt = NODE_NONE
     if k = N_CALL then
         callN = id

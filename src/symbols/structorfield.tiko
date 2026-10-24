@@ -6,7 +6,7 @@
 '' 't.constructor = 3' stores into it and reads it back (measured, fbc-modern 1.20). The
 '' name is an explicit structor call only when no such field exists; tiko-lang refused the
 '' field as a structor the type does not declare, TKO0666 (T93).
-private function StructorIsField_ _
+function StructorIsField_ _
     ( byref c as Ctx, byval ot as TypeId, byref nm as string ) as boolean
     dim as InternId tn = c.types->NameOf( ot )
     if tn = 0 then return false

@@ -54,7 +54,7 @@ private sub RecursiveMembers_ _
     next
 end sub
 
-private sub CheckRecursiveType_ ( byref c as Ctx, byval id as NodeId )
+sub CheckRecursiveType_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if sp->name = 0 then return
     dim as string nm = c.names->Spelling( sp->name )

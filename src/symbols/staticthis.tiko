@@ -79,7 +79,7 @@ private sub StaticThisList_ _
     next
 end sub
 
-private sub CheckStaticThis_ ( byref c as Ctx )
+sub CheckStaticThis_ ( byref c as Ctx )
     dim as int32 total = c.ast->Count( )
     if c.root = NODE_NONE then return
     '' A NAME AFTER '.' OR '->' IS A MEMBER OF THAT OBJECT, not a bare field.

@@ -7,7 +7,7 @@
 '' may fill -- and every helper from latesweeps2.tiko above the include is in scope.
 
 '' The name an expression carries, for the diagnostic's '%0'.
-private function SpellOf_ ( byref c as Ctx, byval n as NodeId ) as string
+function SpellOf_ ( byref c as Ctx, byval n as NodeId ) as string
     if n = NODE_NONE then return ""
     if c.ast->Kind( n ) <> N_IDENT then return ""
     return c.names->Spelling( _

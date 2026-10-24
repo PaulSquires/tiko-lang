@@ -10,7 +10,7 @@
 '' ptr or a static member; a UNION is 163, not this. fbc's generics/fail-result-nodefaultctor
 '' .bas -- Result( of long, NoDefaultCtor ) holds an E by value -- compiled: tiko checked
 '' only a variable. A generic's field is reported in the instance.
-private sub CheckFieldDefaultCtor_( byref c as Ctx )
+sub CheckFieldDefaultCtor_( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
         if s->kind <> cast( uint8, SYM_FIELD ) then continue for
@@ -57,7 +57,7 @@ private sub CheckFieldDefaultCtor_( byref c as Ctx )
 end sub
 
 '' Is this N_VAR_ITEM declared by a REDIM? Its statement is built after it, and names it.
-private function ItemIsRedim_ ( byref c as Ctx, byval item as NodeId ) as boolean
+function ItemIsRedim_ ( byref c as Ctx, byval item as NodeId ) as boolean
     for n as int32 = cast( int32, item ) + 1 to c.ast->Count( ) - 1
         if c.ast->Kind( cast( NodeId, n ) ) <> N_VAR then continue for
         dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
@@ -74,7 +74,7 @@ end function
 '' 1.20, 2026-09-30; dim/byref2.bas, dim/byref-init-from-byref.bas). The definition is
 '' what must carry the initializer -- fbc's 320 is on its line. An EXTERN is the same:
 '' 'extern byref ri as integer' is fine alone (dim/byref.bas), and its 'dim' is judged.
-private function ByrefNeedsInit_ ( byref c as Ctx, byval s as Symbol ptr ) as boolean
+function ByrefNeedsInit_ ( byref c as Ctx, byval s as Symbol ptr ) as boolean
     if (s->flags and SYMF_EXTERN) <> 0 then return false
     dim as SymScope ptr sc = c.syms->ScopeAt( s->parent )
     return (sc = nullptr) orelse (sc->kind <> cast( uint8, SCOPEK_TYPE ))

@@ -48,7 +48,7 @@ private function ConstObject_ ( byref c as Ctx, byval m as NodeId ) as boolean
     return c.types->IsConst( t )
 end function
 
-private sub CheckConstObjectCalls_ ( byref c as Ctx )
+sub CheckConstObjectCalls_ ( byref c as Ctx )
     dim as int32 total = c.ast->Count( )
     for n as int32 = 1 to total - 1
         dim as NodeId id = cast( NodeId, n )

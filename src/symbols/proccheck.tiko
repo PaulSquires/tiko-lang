@@ -8,7 +8,7 @@
 '' declaration did not have is refused; one it did have may be repeated or left off.
 '' The same shape as the byref-result agreement below, and read the same way: the symbol
 '' the definition bound points at the declaration node.
-private sub CheckModifierAgrees_ ( byref c as Ctx, byval id as NodeId )
+sub CheckModifierAgrees_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if sp->b = NODE_NONE then return
@@ -47,7 +47,7 @@ end sub
 '' SOME OPERATORS ARE MEMBERS OR NOTHING -- fbc error 152, "Operator must be a member
 '' function". MEASURED at module level: 'let', 'cast', '[]' and the compound assignments
 '' are refused, while a binary '+' is the ordinary free operator and is accepted.
-private sub CheckMemberOnlyOperator_ ( byref c as Ctx, byval id as NodeId )
+sub CheckMemberOnlyOperator_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cast( TokenKind, sp->op ) <> KW_OPERATOR then return
@@ -75,7 +75,7 @@ end sub
 '' function": every arithmetic, comparison and logical operator, the unary functions
 '' ('not', 'abs', 'len' ...) and '->', which is legal only as a global. Measured
 '' 2026-09-19, each one declared inside a type, fbc-modern 1.20 and 1.10.1 agreeing.
-private sub CheckNonMemberOperator_ ( byref c as Ctx, byval id as NodeId )
+sub CheckNonMemberOperator_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cast( TokenKind, sp->op ) <> KW_OPERATOR then return
@@ -106,7 +106,7 @@ end sub
 '' Measured 2026-09-19 on fbc-modern 1.20 and 1.10.1, for declarations and for members
 '' defined outside their type; tiko-lang accepted every count. What fbc refuses for other
 '' reasons -- a member '+', a global '@', 'andalso' -- is not asked here.
-private sub CheckOperatorArity_ ( byref c as Ctx, byval id as NodeId )
+sub CheckOperatorArity_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cast( TokenKind, sp->op ) <> KW_OPERATOR then return
@@ -155,7 +155,7 @@ end sub
 '' Measured: 'n[0]' over an integer and 'x[0]' over a UDT with no 'operator []' are
 '' refused; 'p[0]' over a pointer and 's[0]' over a STRING are the ordinary uses. A UDT
 '' that declares 'operator []' is left alone: that is the other ordinary use.
-private sub CheckIndexNeedsPointer_ ( byref c as Ctx, byval id as NodeId )
+sub CheckIndexNeedsPointer_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = _
         @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if lp->target = NODE_NONE then return
@@ -185,7 +185,7 @@ end sub
 '' pointer" -- and so do their vector forms 'new zstring[10]'; a FIXED one, 'new zstring
 '' * 10' or 'new string * 10', is error 201, "The NEW operator cannot be used with
 '' fixed-length strings". 'new string' and 'new integer' are the ordinary uses.
-private sub CheckNewString_ ( byref c as Ctx, byval id as NodeId )
+sub CheckNewString_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = _
         @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if lp->target = NODE_NONE then return
@@ -238,7 +238,7 @@ end sub
 '' 'not p' OVER A POINTER -- fbc error 20, "Type mismatch". A pointer is compared, not
 '' negated: 'if p = 0' is the spelling. Measured against 'not n' over an integer, which is
 '' the ordinary bitwise use.
-private sub CheckNotPointer_ ( byref c as Ctx, byval id as NodeId )
+sub CheckNotPointer_ ( byref c as Ctx, byval id as NodeId )
     dim as UnaryPayload ptr up = _
         @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cast( TokenKind, up->op ) <> KW_NOT then return
@@ -252,7 +252,7 @@ end sub
 '' 'p += 1' OVER A PROCEDURE POINTER -- fbc error 20. The binary '+' was already refused
 '' (TKO0646); the compound spelling reached lowering. 'ip += 1' over a data pointer is
 '' the ordinary use.
-private sub CheckProcPtrCompound_ ( byref c as Ctx, byval id as NodeId )
+sub CheckProcPtrCompound_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     select case cast( TokenKind, sp->op )
@@ -275,7 +275,7 @@ end sub
 '' the flag is read here under its own name because gfx.bas is not visible from this pass.
 const VIS_GFX_HASTARGET as uint16 = &h0200
 
-private sub CheckGfxTarget_ ( byref c as Ctx, byval id as NodeId )
+sub CheckGfxTarget_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     select case cast( TokenKind, sp->op )
@@ -563,7 +563,7 @@ private sub CheckSelectConstRange_ _
     next
 end sub
 
-private sub CheckSelectCaseKinds_ ( byref c as Ctx, byval id as NodeId )
+sub CheckSelectCaseKinds_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
@@ -632,7 +632,7 @@ end sub
 '' 'with' TAKES A UDT VALUE -- fbc error 24 for 'with 0', 'with @x' (a POINTER, even to a
 '' UDT) and 'with cptr( UDT ptr, 0 )'. A dereference, a field or a variable of UDT type
 '' are the ordinary subjects.
-private sub CheckWithSubject_ ( byref c as Ctx, byval id as NodeId )
+sub CheckWithSubject_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if sp->a = NODE_NONE then return
@@ -685,7 +685,7 @@ private function ArrowOperatorAnywhere_ ( byref c as Ctx ) as boolean
     return ProcsNamed_( c, nm ) >= 0
 end function
 
-private sub CheckArrowOnValue_ ( byref c as Ctx, byval id as NodeId )
+sub CheckArrowOnValue_ ( byref c as Ctx, byval id as NodeId )
     dim as BinaryPayload ptr mp = _
         @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cast( TokenKind, mp->op ) <> TK_ARROW then return
@@ -705,7 +705,7 @@ end sub
 
 '' 'base.f( )' TO AN ABSTRACT METHOD -- fbc error 307, "Non-virtual call to ABSTRACT
 '' method". An explicit base call binds statically, and there is no body to bind to.
-private sub CheckBaseCallAbstract_ ( byref c as Ctx, byval id as NodeId )
+sub CheckBaseCallAbstract_ ( byref c as Ctx, byval id as NodeId )
     dim as BinaryPayload ptr mp = _
         @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if mp->lhs = NODE_NONE then return
@@ -736,7 +736,7 @@ end function
 '' DEFAULTED is error 176, one with a calling convention written on it 174, and a
 '' destructor with one 175. Measured, one corpus file each; a parameterless cdecl pair is
 '' the ordinary case.
-private sub CheckEraseStructors_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
+sub CheckEraseStructors_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     dim as StmtPayload ptr sp = _
         @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if cast( TokenKind, sp->op ) <> KW_ERASE then return
@@ -795,7 +795,7 @@ end sub
 '' A UDT COMPARED WITH ANYTHING needs an 'operator =' (or '<>', ...) -- fbc error 20 for
 '' 'print (t = e1)' over a type that declares none, and for two values of one plain type
 '' alike. Any procedure of the operator's name, member or global, is enough to decline.
-private function TupleLike_ ( byref c as Ctx, byval t as TypeId ) as boolean
+function TupleLike_ ( byref c as Ctx, byval t as TypeId ) as boolean
     if t = TYPE_NONE then return false
     if c.types->Kind( t ) <> TK_UDT then return false
     dim as InternId nm = c.types->NameOf( t )
@@ -914,7 +914,7 @@ end function
 '' 'p *= 2', 'p and= 2', 'p shl= 1' over a pointer one; tiko compiled every one. Not '&=',
 '' which concatenates, nor 'imp=' / 'eqv=', which were not measured; a UDT side is
 '' CheckUdtCompound_'s.
-private sub CheckPtrCompound_ ( byref c as Ctx, byval id as NodeId )
+sub CheckPtrCompound_ ( byref c as Ctx, byval id as NodeId )
     if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then return
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     select case cast( TokenKind, sp->op )
@@ -936,7 +936,7 @@ private sub CheckPtrCompound_ ( byref c as Ctx, byval id as NodeId )
     Report0820_( c, id, left( selfNm, len( selfNm ) - 1 ) )
 end sub
 
-private sub CheckUdtCompound_ ( byref c as Ctx, byval id as NodeId )
+sub CheckUdtCompound_ ( byref c as Ctx, byval id as NodeId )
     if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then return
     if c.info->RefOf( id ) <> SYMBOL_NONE then return
     dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
@@ -970,7 +970,7 @@ end sub
 
 '' '*i' OVER A NUMBER and '@5' OVER A LITERAL -- fbc's 28 and 24. A string is left to
 '' the rules that already judge it.
-private sub CheckDerefAddrOperand_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
+sub CheckDerefAddrOperand_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
     dim as UnaryPayload ptr up = @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     dim as NodeId opnd = up->operand
     if opnd = NODE_NONE then return
@@ -999,7 +999,7 @@ private sub CheckDerefAddrOperand_ ( byref c as Ctx, byval id as NodeId, byval k
     c.diags->Report( TKO0950, PointRange( c.ast->Loc( id ) ) )
 end sub
 
-private sub CheckUdtUnary_ ( byref c as Ctx, byval id as NodeId )
+sub CheckUdtUnary_ ( byref c as Ctx, byval id as NodeId )
     dim as UnaryPayload ptr up = @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     select case cast( TokenKind, up->op )
     case TK_MINUS, TK_PLUS, KW_NOT
@@ -1113,7 +1113,7 @@ end function
 ''
 '' tiko took whichever cast it found, or failed to lower. A tuple, a generic instance and a type
 '' extending a builtin are not judged here.
-private function PlainUdtOperand_ ( byref c as Ctx, byval t as TypeId ) as boolean
+function PlainUdtOperand_ ( byref c as Ctx, byval t as TypeId ) as boolean
     if c.types->Kind( t ) <> TK_UDT then return false
     if TupleLike_( c, t ) then return false
     if instr( c.names->Spelling( c.types->NameOf( t ) ), "<" ) > 0 then return false
@@ -1241,7 +1241,7 @@ private function CmpOpMayApply_ _
     return false
 end function
 
-private sub CheckUdtCompare_ ( byref c as Ctx, byval id as NodeId )
+sub CheckUdtCompare_ ( byref c as Ctx, byval id as NodeId )
     dim as BinaryPayload ptr bp = _
         @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     UdtCastOperands_( c, id, bp )

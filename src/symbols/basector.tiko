@@ -88,7 +88,7 @@ private function CtorCallsBase_ ( byref c as Ctx, byval body as NodeId ) as bool
     return false
 end function
 
-private sub CheckBaseHasDefaultCtor_( byref c as Ctx )
+sub CheckBaseHasDefaultCtor_( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
         if s->kind <> cast( uint8, SYM_UDT ) then continue for
