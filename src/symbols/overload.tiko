@@ -365,6 +365,42 @@ declare function SameProc_ _
 declare function ProcHasBody_ _
     ( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
 
+'' THE RANKING RULE, ONCE (review SEM-08, LATER-PLAN D step 3): a VIABLE candidate at 'cost'
+'' is offered, and the cheapest wins; an equal cost is a tie -- unless the two are halves of
+'' ONE procedure. The call loop in ResolveCall_ and the two operator loops below each kept
+'' their own copy of this, and a fix to one was invisible to the others.
+''
+'' THE FIRST VIABLE CANDIDATE IS KEPT WHATEVER IT COSTS. Viability is decided per argument by
+'' the caller; seeding the best with CONV_NONE made the SUM a ceiling too, so five user
+'' conversions at CONV_USERDEF each came to exactly CONV_NONE and the only candidate was
+'' dropped -- fbsqlite's 'Args( 1LL, ... 8LL )', TKO0632, where fbc binds the 8-parameter one.
+''
+'' TWO HALVES OF ONE PROCEDURE ARE NOT TWO CANDIDATES. Collect attaches a definition to its
+'' declaration by ARITY, because it runs before any type is resolved -- so when two overloads
+'' take the same NUMBER of parameters it cannot tell which one a definition belongs to, and
+'' the definition declares a symbol of its own. The set then holds the same procedure twice,
+'' the two cost identically, and the call resolved to NOTHING: not a diagnostic, an untyped
+'' call whose consumer then declined. That is every header with a same-arity overload set and
+'' a body somewhere -- fb/fspath.bi's seven decomposition functions each have three, and its
+'' own test lost 80 statements to it; fb/chrono.bi declares three '-' operators and defines
+'' them lower down, and no operator bound at all. Here the types ARE resolved, so the two are
+'' compared the way a linker would, by mangled name, and the one with a BODY wins.
+private sub RankOffer_ _
+    ( byref c as Ctx, byref best as Tko.SymbolId, byref bestCost as int32, _
+      byref ties as int32, byval cur as Tko.SymbolId, byval cost as int32 )
+    if (best = Tko.SYMBOL_NONE) orelse (cost < bestCost) then
+        bestCost = cost
+        best = cur
+        ties = 0
+    elseif cost = bestCost then
+        if SameProc_( c, best, cur ) then
+            if ProcHasBody_( c, cur ) then best = cur
+        else
+            ties += 1
+        end if
+    end if
+end sub
+
 '' 'seen': 0 nothing, 1 an ordinary candidate none of which fits (TKO0820 at the caller), 2 a fit.
 private function UserBinaryOp_ _
     ( byref c as Ctx, byval op as Tko.TokenKind, byval lt as Tko.TypeId, _
@@ -578,24 +614,7 @@ private function UserBinaryOp_ _
                     end if
                     if total < CONV_NONE then
                         seen = 2
-                        if total < bestCost then
-                            bestCost = total
-                            best = cur
-                            ties = 0
-                        elseif total = bestCost then
-                            '' TWO HALVES OF ONE OPERATOR ARE NOT TWO CANDIDATES, for
-                            '' the same reason a procedure's are not: Collect pairs a
-                            '' definition with its declaration by ARITY, and every
-                            '' binary operator has the same arity. fb/chrono.bi
-                            '' declares three '-' operators and defines them lower
-                            '' down, so the set held each one twice, they cost
-                            '' identically, and NO operator bound at all.
-                            if SameProc_( c, best, cur ) then
-                                if ProcHasBody_( c, cur ) then best = cur
-                            else
-                                ties += 1
-                            end if
-                        end if
+                        RankOffer_( c, best, bestCost, ties, cur, total )
                     end if
                 end if
             end if
@@ -660,26 +679,7 @@ function UserUnaryOp_ _
                     elseif (np = 0) andalso member_ then
                         total = CONV_EXACT
                     end if
-                    if total < CONV_NONE then
-                        if total < bestCost then
-                            bestCost = total
-                            best = cur
-                            ties = 0
-                        elseif total = bestCost then
-                            '' TWO HALVES OF ONE OPERATOR ARE NOT TWO CANDIDATES, for
-                            '' the same reason a procedure's are not: Collect pairs a
-                            '' definition with its declaration by ARITY, and every
-                            '' binary operator has the same arity. fb/chrono.bi
-                            '' declares three '-' operators and defines them lower
-                            '' down, so the set held each one twice, they cost
-                            '' identically, and NO operator bound at all.
-                            if SameProc_( c, best, cur ) then
-                                if ProcHasBody_( c, cur ) then best = cur
-                            else
-                                ties += 1
-                            end if
-                        end if
-                    end if
+                    if total < CONV_NONE then RankOffer_( c, best, bestCost, ties, cur, total )
                 end if
             end if
             cur = s->nextOverload
@@ -1154,43 +1154,7 @@ private function ResolveCall_ _
                     dim as int32 tvCost = PackedArgsCost_( c, tvPrm, argFirst, ai, argT, overloaded, tvBad )
                     if tvCost < 0 then viable = false else total += tvCost + CONV_EXPANDED
                 end if
-                if viable then
-                    '' THE FIRST VIABLE CANDIDATE IS KEPT WHATEVER IT COSTS. Viability is
-                    '' decided per argument above; seeding the best with CONV_NONE made the SUM
-                    '' a ceiling too, so five user conversions at CONV_USERDEF each came to
-                    '' exactly CONV_NONE and the only candidate was dropped -- fbsqlite's
-                    '' 'Args( 1LL, ... 8LL )', TKO0632, where fbc binds the 8-parameter one.
-                    if (best = Tko.SYMBOL_NONE) orelse (total < bestCost) then
-                        bestCost = total
-                        best = cur
-                        ties = 0
-                    elseif total = bestCost then
-                        '' TWO HALVES OF ONE PROCEDURE ARE NOT TWO CANDIDATES.
-                        ''
-                        '' Collect attaches a definition to its declaration by ARITY,
-                        '' because it runs before any type is resolved -- so when two
-                        '' overloads take the same NUMBER of parameters it cannot tell
-                        '' which one a definition belongs to, and the definition
-                        '' declares a symbol of its own. The set then holds the same
-                        '' procedure twice, the two cost identically, and the call
-                        '' resolved to NOTHING: not a diagnostic, an untyped call whose
-                        '' consumer then declined.
-                        ''
-                        '' That is every header with a same-arity overload set and a
-                        '' body somewhere -- fb/fspath.bi's seven decomposition
-                        '' functions each have three, and its own test lost 80
-                        '' statements to it.
-                        ''
-                        '' Here the types ARE resolved, so the two can be compared the
-                        '' way a linker would: by mangled name. The one with a BODY
-                        '' wins, so the call reaches the definition.
-                        if SameProc_( c, best, cur ) then
-                            if ProcHasBody_( c, cur ) then best = cur
-                        else
-                            ties += 1
-                        end if
-                    end if
-                end if
+                if viable then RankOffer_( c, best, bestCost, ties, cur, total )
             end if
         end if
         cur = s->nextOverload
