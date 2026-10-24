@@ -641,6 +641,9 @@ function DateTime.ToString( ) as ustring
     return this.ToIsoString( )
 end function
 
+'' THE PLAIN FORMS ASSERT (pkg/std/README.md, review LIB-03): ParseIso and ParseExact are for
+'' text known to be valid, and bad text is runtime error 1 -- the value is still Invalid( ),
+'' for an 'on error' handler that resumes. TryParseIso / TryParseExact are what answer false.
 function DateTime.TryParseIso( byref s as string, byref result as DateTime ) as boolean
     dim as longint t
     dim as long off
@@ -654,7 +657,7 @@ function DateTime.TryParse( byref s as string, byref result as DateTime ) as boo
 end function
 function DateTime.ParseIso( byref s as string ) as DateTime
     dim as DateTime r
-    DateTime.TryParseIso( s, r )
+    if DateTime.TryParseIso( s, r ) = false then error 1
     return r
 end function
 
@@ -684,7 +687,7 @@ function Instant.TryParseIso( byref s as string, byref result as Instant ) as bo
 end function
 function Instant.ParseIso( byref s as string ) as Instant
     dim as Instant r
-    Instant.TryParseIso( s, r )
+    if Instant.TryParseIso( s, r ) = false then error 1
     return r
 end function
 
@@ -706,7 +709,7 @@ function LocalDate.TryParseIso( byref s as string, byref result as LocalDate ) a
 end function
 function LocalDate.ParseIso( byref s as string ) as LocalDate
     dim as LocalDate r
-    LocalDate.TryParseIso( s, r )
+    if LocalDate.TryParseIso( s, r ) = false then error 1
     return r
 end function
 
@@ -728,7 +731,7 @@ function LocalTime.TryParseIso( byref s as string, byref result as LocalTime ) a
 end function
 function LocalTime.ParseIso( byref s as string ) as LocalTime
     dim as LocalTime r
-    LocalTime.TryParseIso( s, r )
+    if LocalTime.TryParseIso( s, r ) = false then error 1
     return r
 end function
 
@@ -776,7 +779,7 @@ end function
 
 function DateTime.ParseExact( byref s as string, byref pattern as string ) as DateTime
     dim as DateTime r
-    DateTime.TryParseExact( s, pattern, r )
+    if DateTime.TryParseExact( s, pattern, r ) = false then error 1
     return r
 end function
 
@@ -798,6 +801,6 @@ function TimeSpan.TryParseIso( byref s as string, byref result as TimeSpan ) as 
 end function
 function TimeSpan.ParseIso( byref s as string ) as TimeSpan
     dim as TimeSpan r
-    TimeSpan.TryParseIso( s, r )
+    if TimeSpan.TryParseIso( s, r ) = false then error 1
     return r
 end function

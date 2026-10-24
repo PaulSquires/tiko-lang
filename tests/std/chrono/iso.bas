@@ -185,7 +185,7 @@ SUITE( fbc_tests.chrono.iso )
 			CU_ASSERT( DateTime.TryParseIso( bad( i ), r ) = false )
 			'' result is ALWAYS written, so the stale value is gone
 			CU_ASSERT( r.IsValid = false )
-			CU_ASSERT( DateTime.ParseIso( bad( i ) ).IsValid = false )
+			CU_ASSERT( DateTime.TryParseIso( bad( i ), r ) = false )   '' ParseIso asserts now (LIB-03)
 		next
 
 		'' the controls: each of these must PASS

@@ -31,6 +31,7 @@ libraries in `inc/fb`; that directory is gone, and its code lives here.
 | `std/net` | `IpAddress`, `SocketAddress`, `Resolve`, `TcpStream` (an `fs.Stream`), `TcpListener`, `UdpSocket`; `Url`, `QueryValues`, `ParseUrl`, `ParseQuery` | |
 | `std/tls` | `TlsStream` (an `fs.Stream`: `ConnectHost`, `Connect`, `Accept`), `TlsConfig`; SChannel on Windows, OpenSSL 3 loaded at run time on Linux | |
 | `std/http` | `Client` (`Fetch`, `Head`, `Post`, `Send`, `Open`), `Request`, `Response`, `ResponseStream`, `Headers`; `Fetch`, `Post` | |
+| `std/config` | INI and TOML files: `LoadToml`/`ParseToml`, `TomlValue` and `Path`, `LoadIni`/`ParseIni`, `ConfigError`; and writing both back | |
 
 **How a module's names are used:**
 - **Qualified, or through `using`.** `strings.Replace( s, "a", "b" )`, or `using strings` and
@@ -44,6 +45,21 @@ libraries in `inc/fb`; that directory is gone, and its code lives here.
   are hashable already.
 - **`spawn` and `select channel` need `#import "std/tasks"`** in the file that uses them, and
   `-mt` (TKO0423 says so).
+
+**How a std procedure fails** (review LIB-03, 2026-10-24). One rule, so a caller knows from
+a signature what failing looks like:
+- **A failure the caller can recover from -- input from outside the program, a file, a socket,
+  a parse -- is a value.** Either a `Result( of T, E )` whose `E` is the module's own error type
+  (`fs.FsError`, `net.NetError`, `config.ConfigError`, ...), with `Code( )` and `Message( )`; or,
+  for a value type, a `Try...( ..., byref result ) as boolean` beside the plain form.
+- **Misuse is a runtime error**, raised with `error n`: a precondition the caller could have
+  checked -- `Value( )` of an empty `Optional` or a failed `Result`, an index outside `Count`,
+  `Send` on a closed channel. It ends the program unless an `on error` handler is active.
+- **The plain form of a `Try` pair asserts**: `DateTime.ParseIso( s )` is for text known to be
+  ISO 8601, and bad text is runtime error 1 -- `TryParseIso` is the one that answers `false`.
+- **Never a default with nothing said.** A procedure that cannot do what it was asked returns a
+  failure or raises an error; it does not hand back zero, `""` or an empty value as if it had
+  succeeded. `err` is not a channel: the next runtime call clears it.
 
 **Settings.** `std/logs` elides log calls below `LOG_MIN_LEVEL` at compile time (10, everything,
 when unset); a module never sees its importer's `-d`, so it is set in a `tiko.toml`'s

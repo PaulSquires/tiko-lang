@@ -1,0 +1,12 @@
+'' THE PLAIN PARSE ASSERTS (pkg/std/README.md, review LIB-03): 'DateTime.ParseIso( "not a date" )'
+'' returned an Invalid value with err = 0, a failure nothing reported. It is runtime error 1
+'' now; TryParseIso is the form that answers false.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/chrono-parse-asserts.tiko -o tests/codegen/chronoparseasserts.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/chronoparseasserts.exe
+'' EXPECT-RUN-EXIT: 1
+'' EXPECT-RUN-OUT: false
+'' EXPECT-RUN-OUT: 2025-03-04T14:30:05Z
+'' EXPECT-RUN-OUT: runtime error 1

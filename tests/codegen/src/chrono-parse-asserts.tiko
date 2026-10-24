@@ -1,0 +1,7 @@
+'' TryParseIso answers false; ParseIso asserts, so bad text is runtime error 1.
+#import "std/chrono"
+dim as chrono.DateTime d
+print chrono.DateTime.TryParseIso( "not a date", d ), d.IsValid
+print chrono.DateTime.ParseIso( "2025-03-04T14:30:05Z" ).ToIsoString( )
+print chrono.DateTime.ParseIso( "not a date" ).IsValid
+print "not reached"
