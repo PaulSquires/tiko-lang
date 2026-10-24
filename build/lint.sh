@@ -226,6 +226,22 @@ for f in $(grep -rlE '(=|<>)[[:space:]]*(Tko\.)?(Codegen\.)?TARGET_[A-Z0-9_]+' s
     [ -n "$codel" ] && note "TARGETID $f compares a target id ($codel) -- read a TargetLayout property"
 done
 
+# ------------------------------------- 14. no new textual fragments
+#
+# RULE 3'S CAP WAS MET BY '#include'ING ONE .tiko INTO ANOTHER, and the units grew to 18,000
+# lines that way (review ARCH-01/ARCH-02): the Vis closure was 52 files sharing privates by
+# position until LATER-PLAN E cut it into units. So every '#include once "*.tiko"' that exists
+# is listed in build/lint-fragments.txt, and one that is not there fails: a new piece of code
+# that needs its own file gets a .ti and a sources.txt line. The list may only shrink.
+grep -HE '^[[:space:]]*#include once "[^"]+\.tiko"' $(find src -name '*.tiko' | sort) | \
+    sed -E 's|^([^:]+):.*"([^"]+)".*|\1 \2|' | LC_ALL=C sort > build/.lint.frag
+grep -v '^#' build/lint-fragments.txt | LC_ALL=C sort > build/.lint.fragok
+LC_ALL=C comm -23 build/.lint.frag build/.lint.fragok > build/.lint.fragnew
+while read -r inc frag; do
+    note "FRAGMENT $inc includes $frag, which build/lint-fragments.txt does not list -- make it a unit (.ti + sources.txt)"
+done < build/.lint.fragnew   # not a pipe: note( ) counts in this shell
+rm -f build/.lint.frag build/.lint.fragok build/.lint.fragnew
+
 # ---------------------------------------- 6. unsigned loop counters and bounds
 #
 # 'for i as ulong = 0 to n - 1' with n = 0 underflows to 4294967295 and the loop
