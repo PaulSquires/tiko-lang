@@ -1,0 +1,9 @@
+'' A SOURCE LINE IS ECHOED WITHOUT ITS CONTROL BYTES: an ESC sequence or a BEL in a header
+'' someone else wrote reached the terminal raw (review ROB-05). Each shows as '?', one
+'' cell, so the caret still lands under the '+'.
+'' TEST: cli
+'' ARGS: check tests/diagnostics/src/diag-control-bytes.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0820: no operator '+' takes these operand types
+'' EXPECT-OUT:    2 | dim as integer x = "?[2J?" + 1
+'' EXPECT-OUT:      |                            ^

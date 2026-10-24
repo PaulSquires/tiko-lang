@@ -31,6 +31,30 @@ private function Gutter( byval n as int32, byval gutterWidth as int32 ) as strin
     return s
 end function
 
+'' THE SOURCE LINE AS A TERMINAL MAY SEE IT. A diagnostic echoes a line of whatever file
+'' it is about -- an included header someone else wrote -- and an ESC (or a C1 CSI) in it
+'' was written to the terminal raw: an escape sequence a header could use to rewrite what
+'' the user sees (review ROB-05). A C0 or C1 control or DEL is shown as '?', one cell, as
+'' wide as DisplayWidth counts it; a NUL counts zero cells and is dropped. A tab stays a
+'' tab, which the caret row below relies on.
+private function SafeLine_( byref t as string ) as string
+    dim as string r = ""
+    dim as int32 n = len( t ), i = 0
+    while i < n
+        dim as uint8 ch = t[i]
+        if ch = 0 then
+            i += 1
+        elseif ((ch < 32) andalso (ch <> 9)) orelse (ch = 127) then
+            r += "?" : i += 1
+        elseif (ch = &hC2) andalso (i + 1 < n) andalso (t[i + 1] >= &h80) andalso (t[i + 1] <= &h9F) then
+            r += "?" : i += 2
+        else
+            r += chr( ch ) : i += 1
+        end if
+    wend
+    return r
+end function
+
 function Snippet _
     ( byref src as Tko.SourceManager, byref rng as Tko.SourceRange, _
       byval useColor as boolean, byval caretColor as string ) as string
@@ -62,7 +86,7 @@ function Snippet _
 
     dim as string outp = ""
     outp += Tint( useColor, ANSI_GREY, pad + " |" ) + chr( 10 )
-    outp += Tint( useColor, ANSI_GREY, Gutter( a.lineNo, gutterWidth ) + bar ) + lineText + chr( 10 )
+    outp += Tint( useColor, ANSI_GREY, Gutter( a.lineNo, gutterWidth ) + bar ) + SafeLine_( lineText ) + chr( 10 )
 
     '' Build the caret row in DISPLAY columns, expanding tabs the same way the
     '' source line will render them.
