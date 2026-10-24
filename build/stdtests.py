@@ -149,6 +149,14 @@ RPATCHES = {
                                  (r"\.Bool\(", ".AddBool("), (r"\.Ptr_\(", ".AddPtr("),
                                  (r"\.Time\(", ".AddTime("), (r"\.Span\(", ".AddSpan("),
                                  (r"\.Val\(", ".AddValue(")],
+    # NO U NAMES IN std/chrono: a producer that takes no text returns USTRING under its plain
+    # name, so ToIsoUString, ToLocale*UString, MonthUName and WeekdayUName are those names.
+    "chrono/utext.bas": [(r"\bToIsoUString\(", "ToIsoString("),
+                         (r"\bToLocaleDateUString\(", "ToLocaleDateString("),
+                         (r"\bToLocaleTimeUString\(", "ToLocaleTimeString("),
+                         (r"\bToLocaleUString\(", "ToLocaleString("),
+                         (r"\bMonthUName\(", "MonthName("),
+                         (r"\bWeekdayUName\(", "WeekdayName(")],
 }
 
 RX_INC = re.compile(r'^\s*#include(?:\s+once)?\s+"(fb/[\w]+\.bi|containers\.bi)"[^\n]*\n?', re.I | re.M)

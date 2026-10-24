@@ -293,12 +293,11 @@ public type TimeSpan
     declare function DivideBy ( byref o as TimeSpan ) as double
     declare function CompareTo( byref o as TimeSpan ) as long
 
-    declare function ToIsoString( ) as string
-    declare function ToString   ( ) as string
+    declare function ToIsoString( ) as ustring
+    declare function ToString   ( ) as ustring
     declare static function TryParseIso( byref s as string, byref result as TimeSpan ) as boolean
     declare static function ParseIso   ( byref s as string ) as TimeSpan
 
-    declare function ToIsoUString( ) as ustring
     declare static function TryParseIso overload ( byref s as ustring, byref result as TimeSpan ) as boolean
     declare static function ParseIso    overload ( byref s as ustring ) as TimeSpan
 end type
@@ -571,12 +570,11 @@ public type LocalDate
     declare function EndOfMonth  ( ) as LocalDate
     declare function CompareTo( byref o as LocalDate ) as long
 
-    declare function ToIsoString( ) as string
-    declare function ToString   ( ) as string
+    declare function ToIsoString( ) as ustring
+    declare function ToString   ( ) as ustring
     declare static function TryParseIso( byref s as string, byref result as LocalDate ) as boolean
     declare static function ParseIso   ( byref s as string ) as LocalDate
 
-    declare function ToIsoUString( ) as ustring
     declare static function TryParseIso overload ( byref s as ustring, byref result as LocalDate ) as boolean
     declare static function ParseIso    overload ( byref s as ustring ) as LocalDate
 end type
@@ -815,12 +813,11 @@ public type LocalTime
 
     declare function CompareTo( byref o as LocalTime ) as long
 
-    declare function ToIsoString( ) as string
-    declare function ToString   ( ) as string
+    declare function ToIsoString( ) as ustring
+    declare function ToString   ( ) as ustring
     declare static function TryParseIso( byref s as string, byref result as LocalTime ) as boolean
     declare static function ParseIso   ( byref s as string ) as LocalTime
 
-    declare function ToIsoUString( ) as ustring
     declare static function TryParseIso overload ( byref s as ustring, byref result as LocalTime ) as boolean
     declare static function ParseIso    overload ( byref s as ustring ) as LocalTime
 end type
@@ -971,8 +968,8 @@ public type Instant
     declare function Subtract ( byref s as TimeSpan ) as Instant
     declare function CompareTo( byref o as Instant  ) as long
 
-    declare function ToIsoString( ) as string
-    declare function ToString   ( ) as string
+    declare function ToIsoString( ) as ustring
+    declare function ToString   ( ) as ustring
     '' Requires an offset in the input: there is no way to place a naive
     '' reading on the UTC timeline without guessing.
     declare static function TryParseIso( byref s as string, byref result as Instant ) as boolean
@@ -985,7 +982,6 @@ public type Instant
     declare property UnixMilliseconds( ) as longint
     declare property UnixMicroseconds( ) as longint
 
-    declare function ToIsoUString( ) as ustring
     declare static function TryParseIso overload ( byref s as ustring, byref result as Instant ) as boolean
     declare static function ParseIso    overload ( byref s as ustring ) as Instant
 end type

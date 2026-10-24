@@ -126,14 +126,14 @@ function hStampText( byref r as LogRecord, byval mode as TextStamp, byref monoba
         dim as double secs = ( r.mono - monobase ) / cdbl( DT_TICKS_PER_SECOND )
         return "+" + trim( str( secs ) ) + "s"
     case TS_ISO_UTC
-        return hIsoMillis( r.stamp.ToIsoUString( ) )
+        return hIsoMillis( r.stamp.ToIsoString( ) )
     case TS_ISO_LOCAL
         '' Still ISO layout with an explicit offset -- never a locale date
         '' string. A log that changes shape per machine cannot be merged.
         dim as short offMin = cshort( fb_DtClockLocalOffsetNow( ) )
-        return hIsoMillis( DateTime.FromInstant( r.stamp, offMin ).ToIsoUString( ) )
+        return hIsoMillis( DateTime.FromInstant( r.stamp, offMin ).ToIsoString( ) )
     case TS_TIME_ONLY
-        dim as ustring iso = hIsoMillis( r.stamp.ToIsoUString( ) )
+        dim as ustring iso = hIsoMillis( r.stamp.ToIsoString( ) )
         dim as long t = instr( str( iso ), "T" )
         if( t = 0 ) then return iso
         dim as string s = mid( str( iso ), t + 1 )
@@ -422,7 +422,7 @@ sub JsonRenderer.Render( byref r as LogRecord, byref outbuf as ustring )
     outbuf += "{"
     hJsonString( this.timekey, outbuf )
     outbuf += ":"
-    hJsonString( r.stamp.ToIsoUString( ), outbuf )
+    hJsonString( r.stamp.ToIsoString( ), outbuf )
 
     outbuf += ","
     hJsonString( this.levelkey, outbuf )

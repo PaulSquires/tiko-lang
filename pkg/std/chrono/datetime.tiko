@@ -107,8 +107,8 @@ public type DateTime
 
     declare function CompareTo      ( byref o as DateTime ) as long
 
-    declare function ToIsoString( ) as string
-    declare function ToString   ( ) as string
+    declare function ToIsoString( ) as ustring
+    declare function ToString   ( ) as ustring
     declare static function TryParseIso( byref s as string, byref result as DateTime ) as boolean
     declare static function TryParse   ( byref s as string, byref result as DateTime ) as boolean
     declare static function ParseIso   ( byref s as string ) as DateTime
@@ -133,12 +133,14 @@ public type DateTime
 
     '' Locale formatting (RFC-0007 section 3).  Output is whatever the
     '' machine says; use RFC-0006 patterns for anything written to a file.
-    declare function ToLocaleDateString( byval style as long = lsShort ) as string
-    declare function ToLocaleTimeString( byval style as long = lsShort ) as string
-    declare function ToLocaleString    ( byval style as long = lsShort ) as string
+    '' USTRING, because month, weekday and zone names are routinely
+    '' non-ASCII: as a STRING they reached the console in its code page.
+    declare function ToLocaleDateString( byval style as long = lsShort ) as ustring
+    declare function ToLocaleTimeString( byval style as long = lsShort ) as ustring
+    declare function ToLocaleString    ( byval style as long = lsShort ) as ustring
 
-    declare static function MonthName  ( byval mo as long, byval abbreviated as boolean = false ) as string
-    declare static function WeekdayName( byval dow as long, byval abbreviated as boolean = false ) as string
+    declare static function MonthName  ( byval mo as long, byval abbreviated as boolean = false ) as ustring
+    declare static function WeekdayName( byval dow as long, byval abbreviated as boolean = false ) as ustring
 
     '' Interop (RFC-0007 section 4)
     declare static function FromUnixSeconds     ( byval v as longint ) as DateTime
@@ -154,12 +156,10 @@ public type DateTime
     declare static function FromOleDate  ( byval d as double ) as DateTime
 
     '' ------------------------------------------------ USTRING (phase 8)
-    '' The tree's rule (std/strings) is that the INPUT type decides the
-    '' output type, and that a function cannot return the type it was
-    '' handed.  So anything taking text overloads and returns USTRING;
-    '' anything taking none cannot overload on return type alone and so
-    '' carries a U in its name.
-    declare function ToIsoUString( ) as ustring
+    '' Text that takes no text in -- ToIsoString, ToString( ), the locale
+    '' family -- comes back as USTRING, the language's default string.
+    '' Anything taking text overloads on it: a STRING pattern or input gives
+    '' a STRING back, a USTRING one a USTRING.
     declare function ToString  overload ( byref pattern as ustring ) as ustring
     declare function TryFormat overload ( byref pattern as ustring, byref result as ustring ) as boolean
 
@@ -169,13 +169,6 @@ public type DateTime
     declare static function TryParseExact overload ( byref s as ustring, byref pattern as ustring, byref result as DateTime ) as boolean
     declare static function ParseExact    overload ( byref s as ustring, byref pattern as ustring ) as DateTime
 
-    '' Locale output is the ONLY part of this library that is routinely
-    '' non-ASCII, and so the only part where USTRING genuinely earns it.
-    declare function ToLocaleDateUString( byval style as long = lsShort ) as ustring
-    declare function ToLocaleTimeUString( byval style as long = lsShort ) as ustring
-    declare function ToLocaleUString    ( byval style as long = lsShort ) as ustring
-    declare static function MonthUName  ( byval mo as long, byval abbreviated as boolean = false ) as ustring
-    declare static function WeekdayUName( byval dow as long, byval abbreviated as boolean = false ) as ustring
 end type
 
 public declare operator + ( byref a as DateTime, byref s as TimeSpan ) as DateTime
@@ -638,13 +631,13 @@ end operator
 '' TryParse ALWAYS writes its result, so a caller who ignores the return value
 '' still cannot read a stale value -- it gets Invalid.
 
-function DateTime.ToIsoString( ) as string
+function DateTime.ToIsoString( ) as ustring
     dim as zstring * 40 buf
     dim as long n = fb_DtIsoFormat( this.m_ticks, this.m_offset, @buf, 40 )
     if n <= 0 then return ""
     return left( buf, n )
 end function
-function DateTime.ToString( ) as string
+function DateTime.ToString( ) as ustring
     return this.ToIsoString( )
 end function
 
@@ -665,13 +658,13 @@ function DateTime.ParseIso( byref s as string ) as DateTime
     return r
 end function
 
-function Instant.ToIsoString( ) as string
+function Instant.ToIsoString( ) as ustring
     dim as zstring * 40 buf
     dim as long n = fb_DtIsoFormat( this.m_ticks, 0, @buf, 40 )
     if n <= 0 then return ""
     return left( buf, n )
 end function
-function Instant.ToString( ) as string
+function Instant.ToString( ) as ustring
     return this.ToIsoString( )
 end function
 
@@ -695,13 +688,13 @@ function Instant.ParseIso( byref s as string ) as Instant
     return r
 end function
 
-function LocalDate.ToIsoString( ) as string
+function LocalDate.ToIsoString( ) as ustring
     dim as zstring * 16 buf
     dim as long n = fb_DtIsoFormatDate( this.m_days, @buf, 16 )
     if n <= 0 then return ""
     return left( buf, n )
 end function
-function LocalDate.ToString( ) as string
+function LocalDate.ToString( ) as ustring
     return this.ToIsoString( )
 end function
 function LocalDate.TryParseIso( byref s as string, byref result as LocalDate ) as boolean
@@ -717,13 +710,13 @@ function LocalDate.ParseIso( byref s as string ) as LocalDate
     return r
 end function
 
-function LocalTime.ToIsoString( ) as string
+function LocalTime.ToIsoString( ) as ustring
     dim as zstring * 24 buf
     dim as long n = fb_DtIsoFormatTime( this.m_ticks, @buf, 24 )
     if n <= 0 then return ""
     return left( buf, n )
 end function
-function LocalTime.ToString( ) as string
+function LocalTime.ToString( ) as ustring
     return this.ToIsoString( )
 end function
 function LocalTime.TryParseIso( byref s as string, byref result as LocalTime ) as boolean
@@ -787,13 +780,13 @@ function DateTime.ParseExact( byref s as string, byref pattern as string ) as Da
     return r
 end function
 
-function TimeSpan.ToIsoString( ) as string
+function TimeSpan.ToIsoString( ) as ustring
     dim as zstring * 48 buf
     dim as long n = fb_DtIsoFormatDuration( this.m_ticks, @buf, 48 )
     if n <= 0 then return ""
     return left( buf, n )
 end function
-function TimeSpan.ToString( ) as string
+function TimeSpan.ToString( ) as ustring
     return this.ToIsoString( )
 end function
 function TimeSpan.TryParseIso( byref s as string, byref result as TimeSpan ) as boolean

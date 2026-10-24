@@ -32,14 +32,14 @@ namespace TimeZoneInfo
         return fb_DtZoneSupportsDst( ) <> 0
     end function
 
-    public function StandardName( ) as string
+    public function StandardName( ) as ustring
         dim as zstring * 160 buf
         dim as long n = fb_DtZoneStandardName( @buf, 160 )
         if n <= 0 then return ""
         return left( buf, n )
     end function
 
-    public function DaylightName( ) as string
+    public function DaylightName( ) as ustring
         dim as zstring * 160 buf
         dim as long n = fb_DtZoneDaylightName( @buf, 160 )
         if n <= 0 then return ""
@@ -97,7 +97,7 @@ end function
 '' CANNOT be asserted by exact string.  Its tests check non-emptiness, valid
 '' UTF-8, ordering and distinctness -- and nothing more.  Anything written to
 '' a file should use the RFC-0006 pattern formatter, which is invariant.
-function DateTime.ToLocaleDateString( byval style as long ) as string
+function DateTime.ToLocaleDateString( byval style as long ) as ustring
     dim as zstring * 256 buf
     if this.IsValid = false then return ""
     dim as long n = fb_DtLocaleDateString( this.m_ticks, style, @buf, 256 )
@@ -105,7 +105,7 @@ function DateTime.ToLocaleDateString( byval style as long ) as string
     return left( buf, n )
 end function
 
-function DateTime.ToLocaleTimeString( byval style as long ) as string
+function DateTime.ToLocaleTimeString( byval style as long ) as ustring
     dim as zstring * 256 buf
     if this.IsValid = false then return ""
     dim as long n = fb_DtLocaleTimeString( this.m_ticks, style, @buf, 256 )
@@ -113,22 +113,22 @@ function DateTime.ToLocaleTimeString( byval style as long ) as string
     return left( buf, n )
 end function
 
-function DateTime.ToLocaleString( byval style as long ) as string
-    dim as string d = this.ToLocaleDateString( style )
-    dim as string t = this.ToLocaleTimeString( style )
+function DateTime.ToLocaleString( byval style as long ) as ustring
+    dim as ustring d = this.ToLocaleDateString( style )
+    dim as ustring t = this.ToLocaleTimeString( style )
     if len( d ) = 0 then return t
     if len( t ) = 0 then return d
     return d + " " + t
 end function
 
-function DateTime.MonthName( byval mo as long, byval abbreviated as boolean ) as string
+function DateTime.MonthName( byval mo as long, byval abbreviated as boolean ) as ustring
     dim as zstring * 128 buf
     dim as long n = fb_DtLocaleMonthName( mo, iif( abbreviated, 1, 0 ), @buf, 128 )
     if n <= 0 then return ""
     return left( buf, n )
 end function
 
-function DateTime.WeekdayName( byval dow as long, byval abbreviated as boolean ) as string
+function DateTime.WeekdayName( byval dow as long, byval abbreviated as boolean ) as ustring
     dim as zstring * 128 buf
     dim as long n = fb_DtLocaleWeekdayName( dow, iif( abbreviated, 1, 0 ), @buf, 128 )
     if n <= 0 then return ""
@@ -243,26 +243,8 @@ end property
 '' and FreeBASIC decodes STRING -> USTRING as UTF-8 and encodes back the
 '' same way, so each of these is a boundary conversion and nothing more.
 ''
-'' ISO 8601 and the pattern formatter are ASCII by construction, so their
-'' USTRING forms exist for uniformity rather than need.  The LOCALE family
-'' is the one that matters -- month, weekday and zone names are routinely
-'' non-ASCII -- and is why phase 8 waited for a frozen STRING surface.
-
-function DateTime.ToIsoUString( ) as ustring
-    return this.ToIsoString( )
-end function
-function Instant.ToIsoUString( ) as ustring
-    return this.ToIsoString( )
-end function
-function LocalDate.ToIsoUString( ) as ustring
-    return this.ToIsoString( )
-end function
-function LocalTime.ToIsoUString( ) as ustring
-    return this.ToIsoString( )
-end function
-function TimeSpan.ToIsoUString( ) as ustring
-    return this.ToIsoString( )
-end function
+'' Text that takes no text in (ToIsoString, ToString( ), the locale family)
+'' is USTRING itself and needs no overload here.
 
 function DateTime.ToString overload ( byref pattern as ustring ) as ustring
     dim as string p = pattern
@@ -336,21 +318,6 @@ function TimeSpan.ParseIso overload ( byref s as ustring ) as TimeSpan
     return TimeSpan.ParseIso( t )
 end function
 
-function DateTime.ToLocaleDateUString( byval style as long ) as ustring
-    return this.ToLocaleDateString( style )
-end function
-function DateTime.ToLocaleTimeUString( byval style as long ) as ustring
-    return this.ToLocaleTimeString( style )
-end function
-function DateTime.ToLocaleUString( byval style as long ) as ustring
-    return this.ToLocaleString( style )
-end function
-function DateTime.MonthUName( byval mo as long, byval abbreviated as boolean ) as ustring
-    return DateTime.MonthName( mo, abbreviated )
-end function
-function DateTime.WeekdayUName( byval dow as long, byval abbreviated as boolean ) as ustring
-    return DateTime.WeekdayName( dow, abbreviated )
-end function
 
 '' =============================================================== WallClock
 ''

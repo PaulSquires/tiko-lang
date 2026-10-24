@@ -310,8 +310,8 @@ public function LogValueToText( byref v as LogValue ) as ustring
     case LK_UINT     : return trim( str( v.u ) )
     case LK_STR      : return v.s
     case LK_PTR      : return "&h" + ucase( hex( cast( uinteger, v.p ) ) )
-    case LK_INSTANT  : return Instant( v.tk ).ToIsoUString( )
-    case LK_TIMESPAN : return TimeSpan( v.tk ).ToIsoUString( )
+    case LK_INSTANT  : return Instant( v.tk ).ToIsoString( )
+    case LK_TIMESPAN : return TimeSpan( v.tk ).ToIsoString( )
     case LK_DBL
         '' The three non-finite cases are named here, because the text
         '' spellings differ by platform and by renderer.

@@ -17,36 +17,36 @@ SUITE( fbc_tests.chrono.utext )
 		dim as DateTime u = DateTime( 2025, 3, 4, 14, 30, 5, 0 ).WithOffset( 0 )
 		dim as DateTime n = DateTime( 2025, 3, 4 )
 
-		dim as ustring a = d.ToIsoUString( )
+		dim as ustring a = d.ToIsoString( )
 		dim as ustring b = d.ToIsoString( )
 		CU_ASSERT( a = b )
 		CU_ASSERT( len( a ) = len( d.ToIsoString( ) ) )   '' ISO is ASCII, so units = bytes
 
-		dim as ustring ua = u.ToIsoUString( )
+		dim as ustring ua = u.ToIsoString( )
 		dim as ustring ub = u.ToIsoString( )
 		CU_ASSERT( ua = ub )
-		dim as ustring na = n.ToIsoUString( )
+		dim as ustring na = n.ToIsoString( )
 		dim as ustring nb = n.ToIsoString( )
 		CU_ASSERT( na = nb )
 
-		dim as ustring ia = Instant.FromTicks( d.Ticks ).ToIsoUString( )
+		dim as ustring ia = Instant.FromTicks( d.Ticks ).ToIsoString( )
 		dim as ustring ib = Instant.FromTicks( d.Ticks ).ToIsoString( )
 		CU_ASSERT( ia = ib )
 
-		dim as ustring da = LocalDate( 2025, 3, 4 ).ToIsoUString( )
+		dim as ustring da = LocalDate( 2025, 3, 4 ).ToIsoString( )
 		dim as ustring db = LocalDate( 2025, 3, 4 ).ToIsoString( )
 		CU_ASSERT( da = db )
 
-		dim as ustring ta = LocalTime( 14, 30, 5, 123 ).ToIsoUString( )
+		dim as ustring ta = LocalTime( 14, 30, 5, 123 ).ToIsoString( )
 		dim as ustring tb = LocalTime( 14, 30, 5, 123 ).ToIsoString( )
 		CU_ASSERT( ta = tb )
 
-		dim as ustring sa = TimeSpan( 1, 2, 3, 4, 500 ).ToIsoUString( )
+		dim as ustring sa = TimeSpan( 1, 2, 3, 4, 500 ).ToIsoString( )
 		dim as ustring sb = TimeSpan( 1, 2, 3, 4, 500 ).ToIsoString( )
 		CU_ASSERT( sa = sb )
 
 		'' Invalid produces an empty USTRING, not a stale or garbage one
-		dim as ustring inv = DateTime.Invalid.ToIsoUString( )
+		dim as ustring inv = DateTime.Invalid.ToIsoString( )
 		CU_ASSERT( len( inv ) = 0 )
 	END_TEST
 
@@ -192,21 +192,21 @@ SUITE( fbc_tests.chrono.utext )
 	TEST( locale_ustring_ )
 		dim as DateTime d = DateTime( 2025, 3, 4, 14, 30, 5, 0 )
 
-		dim as ustring ud = d.ToLocaleDateUString( )
+		dim as ustring ud = d.ToLocaleDateString( )
 		dim as ustring sd = d.ToLocaleDateString( )
 		CU_ASSERT( ud = sd )
 		CU_ASSERT( len( ud ) > 0 )
 
-		dim as ustring ut = d.ToLocaleTimeUString( )
+		dim as ustring ut = d.ToLocaleTimeString( )
 		dim as ustring st = d.ToLocaleTimeString( )
 		CU_ASSERT( ut = st )
 
-		dim as ustring uf = d.ToLocaleUString( )
+		dim as ustring uf = d.ToLocaleString( )
 		dim as ustring sf = d.ToLocaleString( )
 		CU_ASSERT( uf = sf )
 
 		for m as long = 1 to 12
-			dim as ustring a = DateTime.MonthUName( m )
+			dim as ustring a = DateTime.MonthName( m )
 			dim as ustring b = DateTime.MonthName( m )
 			CU_ASSERT( a = b )
 			CU_ASSERT( len( a ) > 0 )
@@ -217,15 +217,15 @@ SUITE( fbc_tests.chrono.utext )
 		next
 
 		for w as long = 1 to 7
-			dim as ustring a = DateTime.WeekdayUName( w )
+			dim as ustring a = DateTime.WeekdayName( w )
 			dim as ustring b = DateTime.WeekdayName( w )
 			CU_ASSERT( a = b )
 			CU_ASSERT( len( a ) > 0 )
 		next
 
 		'' out-of-range stays empty through the USTRING door too
-		dim as ustring z1 = DateTime.MonthUName( 0 )
-		dim as ustring z2 = DateTime.WeekdayUName( 8 )
+		dim as ustring z1 = DateTime.MonthName( 0 )
+		dim as ustring z2 = DateTime.WeekdayName( 8 )
 		CU_ASSERT( len( z1 ) = 0 )
 		CU_ASSERT( len( z2 ) = 0 )
 	END_TEST
@@ -242,7 +242,7 @@ SUITE( fbc_tests.chrono.utext )
 			dim as DateTime d = DateTime.FromTicks( t, 0 )
 			if d.IsValid = false then continue for
 
-			dim as ustring u = d.ToIsoUString( )
+			dim as ustring u = d.ToIsoString( )
 			dim as ustring s = d.ToIsoString( )
 			CU_ASSERT( u = s )
 
