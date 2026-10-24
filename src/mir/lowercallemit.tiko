@@ -225,7 +225,7 @@ function EmitMemberCallArgs_ _
     '' from the storage the caller supplied.
     '' ...EXCEPT THE DECLARED VARIABLE, which is built and has nothing to read: its address
     '' goes back to SretInPlaceInit_, the only caller that offers one.
-    if useSret andalso c.sretIntoTaken andalso (sretTmp.id = c.sretIntoSlot) then return sretTmp
+    if useSret andalso c.stmt.sretIntoTaken andalso (sretTmp.id = c.stmt.sretIntoSlot) then return sretTmp
     if useSret then return LowerExprLoad( c, sretTmp, MT_AGG )
     return r
 end function
@@ -264,11 +264,11 @@ function SretResultSlot_ _
     ( byref c as Ctx, byval t as Tko.TypeId, byval registerDtor as boolean, _
       byval sym as Tko.SymbolId ) as int32
 
-    if c.sretIntoOn andalso (sym = c.sretIntoSym) then
-        if c.types->Unqualify( t ) = c.sretIntoType then
-            c.sretIntoOn = false
-            c.sretIntoTaken = true
-            return c.sretIntoSlot
+    if c.stmt.sretIntoOn andalso (sym = c.stmt.sretIntoSym) then
+        if c.types->Unqualify( t ) = c.stmt.sretIntoType then
+            c.stmt.sretIntoOn = false
+            c.stmt.sretIntoTaken = true
+            return c.stmt.sretIntoSlot
         end if
     end if
     dim as int32 tslot = NewTempLocal( c, MT_AGG, SizeOfType( c, t ) )
@@ -288,7 +288,7 @@ end function
 '' temporary and is left alone.
 sub SretResultSlotAfter_( byref c as Ctx, byval t as Tko.TypeId, byval slot as int32 )
     if slot < 0 then return
-    if c.sretIntoTaken andalso (slot = c.sretIntoSlot) then return
+    if c.stmt.sretIntoTaken andalso (slot = c.stmt.sretIntoSlot) then return
     if TypeNeedsDtor_( c, t ) = false then return
     c.udtTemps.Push( cast( uint32, slot ) )
     c.udtTempTypes.Push( cast( uint32, t ) )
@@ -405,29 +405,29 @@ function SretInPlaceInit_ _
     if UsesSretReturn( c, cs->type_ ) = false then return false
 
     dim as int32 cmark = c.udtTemps.Count
-    c.sretIntoSlot = slot
-    c.sretIntoType = ut
-    c.sretIntoSym = callee
-    c.sretIntoTaken = false
+    c.stmt.sretIntoSlot = slot
+    c.stmt.sretIntoType = ut
+    c.stmt.sretIntoSym = callee
+    c.stmt.sretIntoTaken = false
     dim as MirValue ra
     '' A GETTER HAS NO ADDRESS ARM in LowerAddr; its value path is LowerPropertyGet_, which
     '' arms the offer itself once this node's receiver is lowered.
     if isProp then
-        c.sretIntoNode = e
-        c.sretIntoAtNode = true
+        c.stmt.sretIntoNode = e
+        c.stmt.sretIntoAtNode = true
         if LowerPropertyGet_( c, e, ra ) = false then ra.kind = cast( uint8, MV_NONE )
-        c.sretIntoAtNode = false
+        c.stmt.sretIntoAtNode = false
     elseif isBare then
         '' ...and a paren-less call's is LowerBareProcCall_, asked for the ADDRESS.
-        c.sretIntoOn = true
+        c.stmt.sretIntoOn = true
         if LowerBareProcCall_( c, e, MT_PTR, ra ) = false then ra.kind = cast( uint8, MV_NONE )
     else
-        c.sretIntoOn = true
+        c.stmt.sretIntoOn = true
         ra = LowerAddr( c, e )
     end if
-    c.sretIntoOn = false
-    dim as boolean taken = c.sretIntoTaken
-    c.sretIntoTaken = false
+    c.stmt.sretIntoOn = false
+    dim as boolean taken = c.stmt.sretIntoTaken
+    c.stmt.sretIntoTaken = false
 
     if taken then
         if (ra.kind = cast( uint8, MV_LOCAL )) andalso (ra.id = slot) then return true

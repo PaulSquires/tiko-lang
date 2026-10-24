@@ -32,8 +32,53 @@ namespace Tko.Mir
 '' and glibc's 200, and within the 528 the context holds past the alignment.
 const ERR_LOCAL_JMP_BYTES = 512
 
+'' THE STATEMENT BEING LOWERED: scratch that lives for one statement and is read by the
+'' calls, stores and declines inside it -- c.stmt. Its own type since 2026-10-24 (review
+'' ARCH-04), so what is statement state is said once instead of being scattered through
+'' Ctx's hundred fields. LowerStmt does not save and restore it: a nested statement (an IF's
+'' body) writes the same fields, as it always did, and each field's comment says who arms
+'' and who clears it.
+type StmtState
+    '' WHETHER THE LAST CALL LOWERED. Read by the statement dispatcher, because a
+    '' call's arguments are emitted before the call can fail and an instruction count
+    '' therefore cannot tell a dropped call from a lowered one. Calls NEST, and the
+    '' OUTERMOST is the last to write it -- which is the one the statement is asking
+    '' about, and why this is a flag rather than a counter.
+    as boolean              lastCallOk, pathUtf8   '' pathUtf8: lowering a classic file statement's path (lowercall.tiko)
+    as int32                 lastCallFailLine
+    '' A HIDDEN RESULT DESTINATION ON OFFER: 'dim as T x = f( )' hands x's slot to the
+    '' first hidden-pointer call that asks. SretResultSlot_ / SretInPlaceInit_.
+    as boolean              sretIntoOn
+    as boolean              sretIntoTaken
+    as int32                 sretIntoSlot
+    as Tko.TypeId           sretIntoType
+    as Tko.SymbolId         sretIntoSym
+    '' ...and for a GETTER, the member node whose own call it is: armed by
+    '' LowerPropertyGet_ only once that node's receiver is lowered.
+    as boolean              propAddrWanted   '' LowerAddr asks LowerPropertyGet_ for a byref getter's pointer
+    as boolean              sretIntoAtNode
+    as Tko.NodeId           sretIntoNode
+    '' The statement kind currently being lowered, so a decline INSIDE one can say which.
+    '' The statement-dispatch breakdown accounts for about 3,700 of ~98,700 declines; the
+    '' rest happen part-way through a statement and had no attribution at all.
+    as uint16               curStmtKind
+    '' The statement being lowered, so a decline can name the SOURCE LINE it came
+    '' from. Bucketing by the diagnostic hides what bucketing by the line shows.
+    as uint32                curStmtNode
+    '' A BUILTIN'S CALLEE whose call declined in this statement -- reported as TKO0801
+    '' only if the statement is then dropped (SkipAt). See NoteBuiltinDecline.
+    as uint32                badBuiltinNode
+    '' The sub-expression to BLAME for the next decline, when something narrower than
+    '' the statement is known to be at fault. A statement written inside a MACRO reports
+    '' the macro's own line, so 'CU_ASSERT( x )' attributed every failure in the corpus
+    '' to one line of fbcunit.bi; the ARGUMENT's tokens come from the INVOCATION and
+    '' point where the work actually is. Cleared as it is consumed.
+    as uint32                blameNode
+end type
+
 type Ctx
     as LowerIndex           ix       '' lookup indexes over the tables below -- lowerindex.ti
+    as StmtState            stmt     '' the statement being lowered -- StmtState above
     as Tko.AstArena ptr     ast
     as Tko.SymbolTable ptr  syms
     as Tko.TypeContext ptr  types
@@ -217,26 +262,8 @@ type Ctx
     '' A BYREF RESULT: the slot holds an ADDRESS, and 'function = expr' stores the
     '' address of expr rather than its value.
     as boolean              byrefResult
-    '' WHETHER THE LAST CALL LOWERED. Read by the statement dispatcher, because a
-    '' call's arguments are emitted before the call can fail and an instruction count
-    '' therefore cannot tell a dropped call from a lowered one. Calls NEST, and the
-    '' OUTERMOST is the last to write it -- which is the one the statement is asking
-    '' about, and why this is a flag rather than a counter.
-    as boolean              lastCallOk, pathUtf8   '' pathUtf8: lowering a classic file statement's path (lowercall.tiko)
-    as int32                 lastCallFailLine
+    '' (the statement-scoped fields that were here are in StmtState, above)
     as int32                 sretParam
-    '' A HIDDEN RESULT DESTINATION ON OFFER: 'dim as T x = f( )' hands x's slot to the
-    '' first hidden-pointer call that asks. SretResultSlot_ / SretInPlaceInit_.
-    as boolean              sretIntoOn
-    as boolean              sretIntoTaken
-    as int32                 sretIntoSlot
-    as Tko.TypeId           sretIntoType
-    as Tko.SymbolId         sretIntoSym
-    '' ...and for a GETTER, the member node whose own call it is: armed by
-    '' LowerPropertyGet_ only once that node's receiver is lowered.
-    as boolean              propAddrWanted   '' LowerAddr asks LowerPropertyGet_ for a byref getter's pointer
-    as boolean              sretIntoAtNode
-    as Tko.NodeId           sretIntoNode
     as int32                 dataHead
     as containers.Array( of uint32 ) dataLabelName
     as containers.Array( of uint32 ) dataLabelBlock
@@ -271,16 +298,6 @@ type Ctx
     as uint8                resultTy
     as Tko.TypeId           resultType
 
-    '' The statement kind currently being lowered, so a decline INSIDE one can say which.
-    '' The statement-dispatch breakdown accounts for about 3,700 of ~98,700 declines; the
-    '' rest happen part-way through a statement and had no attribution at all.
-    as uint16               curStmtKind
-    '' The statement being lowered, so a decline can name the SOURCE LINE it came
-    '' from. Bucketing by the diagnostic hides what bucketing by the line shows.
-    as uint32                curStmtNode
-    '' A BUILTIN'S CALLEE whose call declined in this statement -- reported as TKO0801
-    '' only if the statement is then dropped (SkipAt). See NoteBuiltinDecline.
-    as uint32                badBuiltinNode
     '' The line Emit stamps on each instruction, decoded once per statement: the
     '' statement and function it was decoded for, and the answer.
     as uint32                dbgNode
@@ -290,12 +307,6 @@ type Ctx
     as int32                 moduleFile
     as any ptr              dbgFn
     as int32                 dbgLine
-    '' The sub-expression to BLAME for the next decline, when something narrower than
-    '' the statement is known to be at fault. A statement written inside a MACRO reports
-    '' the macro's own line, so 'CU_ASSERT( x )' attributed every failure in the corpus
-    '' to one line of fbcunit.bi; the ARGUMENT's tokens come from the INVOCATION and
-    '' point where the work actually is. Cleared as it is consumed.
-    as uint32                blameNode
 
     '' DIM SHARED / STATIC storage, keyed by SYMBOL rather than by name. Two statics
     '' called 'n' in sibling scopes are two declarations and so two symbols; keying on

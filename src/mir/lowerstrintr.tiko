@@ -331,10 +331,10 @@ function LowerDir _
     dim as MirValue pv
     if TermIsWide_( c, pat ) orelse IsWideString_( c, c.info->TypeOf_( pat ) ) orelse ConcatHasWideTerm_( c, pat ) then
         '' A WIDE PATTERN, as UTF-8 (lib/rt/src/fs/upath.tiko).
-        dim as boolean savedPath = c.pathUtf8
-        c.pathUtf8 = true
+        dim as boolean savedPath = c.stmt.pathUtf8
+        c.stmt.pathUtf8 = true
         dim as boolean okw = WideToNarrowTemp_( c, pat, pv )
-        c.pathUtf8 = savedPath
+        c.stmt.pathUtf8 = savedPath
         if okw = false then return false
     elseif UStrToStrTemp_( c, pat, pv ) = false then
         if StrDescriptorOf_( c, pat, pv ) = false then return false

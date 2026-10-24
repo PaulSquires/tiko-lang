@@ -1023,10 +1023,10 @@ function ZstrDataOf_ _
 
     '' A USTRING IS A NARROW COPY, never its own UTF-16 data -- see UStrZstrData_.
     if UStrZstrData_( c, id, outv ) then return true
-    '' A WIDE PATH: its narrow temporary's data, as UTF-8 (c.pathUtf8 -- NAME sets it). 'name w as
+    '' A WIDE PATH: its narrow temporary's data, as UTF-8 (c.stmt.pathUtf8 -- NAME sets it). 'name w as
     '' w2' over wstrings reached nothing here and was TKO0994. Only for a path: every other wide
     '' operand keeps the arms below, which order their temporaries differently (wide-narrow-args).
-    if c.pathUtf8 andalso (TermIsWide_( c, id ) orelse IsWideString_( c, c.info->TypeOf_( id ) ) orelse ConcatHasWideTerm_( c, id )) then
+    if c.stmt.pathUtf8 andalso (TermIsWide_( c, id ) orelse IsWideString_( c, c.info->TypeOf_( id ) ) orelse ConcatHasWideTerm_( c, id )) then
         dim as MirValue wt
         if WideToNarrowTemp_( c, id, wt ) = false then return false
         outv = LowerExprLoad( c, wt, MT_PTR )

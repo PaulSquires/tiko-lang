@@ -119,11 +119,11 @@ sub LowerStmtAt_( byref c as Ctx, byval id as Tko.NodeId )
         if c.ast->Kind( id ) <> Tko.N_LABEL then return
     end if
     '' Saved and restored: statements nest, and a decline belongs to the INNERMOST one.
-    dim as uint16 savedKind = c.curStmtKind
-    dim as uint32 savedNode = c.curStmtNode
-    c.curStmtKind = cast( uint16, c.ast->Kind( id ) )
-    c.curStmtNode = cast( uint32, id )
-    c.badBuiltinNode = 0  '' a decline is this statement's to report -- NoteBuiltinDecline
+    dim as uint16 savedKind = c.stmt.curStmtKind
+    dim as uint32 savedNode = c.stmt.curStmtNode
+    c.stmt.curStmtKind = cast( uint16, c.ast->Kind( id ) )
+    c.stmt.curStmtNode = cast( uint32, id )
+    c.stmt.badBuiltinNode = 0  '' a decline is this statement's to report -- NoteBuiltinDecline
 
     '' STATEMENT-LIFETIME STRING TEMPORARIES. A string 'iif' builds its result in a
     '' temporary descriptor that must be released once the statement that consumes it
@@ -151,9 +151,9 @@ sub LowerStmtAt_( byref c as Ctx, byval id as Tko.NodeId )
 
     ReleaseWstrTemps_( c, wtmpMark )
 
-    c.curStmtKind = savedKind
-    c.curStmtNode = savedNode
-    c.badBuiltinNode = 0
+    c.stmt.curStmtKind = savedKind
+    c.stmt.curStmtNode = savedNode
+    c.stmt.badBuiltinNode = 0
 end sub
 
 private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
@@ -370,8 +370,8 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
             '' AND WHETHER A CALL GAVE UP, which the instruction count cannot tell:
             '' the ARGUMENTS are lowered before the call can fail, so a statement whose
             '' call was never emitted looked exactly like one that lowered.
-            c.lastCallOk = true
-            c.lastCallFailLine = 0
+            c.stmt.lastCallOk = true
+            c.stmt.lastCallFailLine = 0
             '' 'W( 1, 2 )' is an expression; 'W 1, 2' is this statement's own callee
             '' and children, and looks nothing like a call node.
             if c.ast->Kind( sp->a ) = Tko.N_CALL then
@@ -427,8 +427,8 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                         '' The call DID lower after all, so the failure the ordinary
                         '' path recorded on the way past is not one.
                         if released then
-                            c.lastCallOk = true
-                            c.lastCallFailLine = 0
+                            c.stmt.lastCallOk = true
+                            c.stmt.lastCallFailLine = 0
                         end if
                     else
                         '' ...AND WHEN IT LOWERED FINE. The branch above releases only
@@ -484,15 +484,15 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
 
             if deliberateNoOp then
                 '' nothing to emit, and nothing to count
-            elseif c.lastCallOk = false then
+            elseif c.stmt.lastCallOk = false then
                 '' BLAMED ON THE BRANCH THAT ACTUALLY GAVE UP, not on this line.
                 '' Every declining call in the corpus aggregated HERE, because this
                 '' is where the flag is read -- one site with hundreds of counts and
                 '' nothing to say which of the eighteen give-up branches inside
                 '' lowercall.tiko produced them. CallFailed_ records its caller's
                 '' __LINE__ and the histogram gets that instead.
-                if c.lastCallFailLine > 0 then
-                    SkipAt( c, "lowercall.tiko", c.lastCallFailLine )
+                if c.stmt.lastCallFailLine > 0 then
+                    SkipAt( c, "lowercall.tiko", c.stmt.lastCallFailLine )
                 else
                     SkipHere( c )
                 end if

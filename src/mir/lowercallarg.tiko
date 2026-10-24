@@ -808,7 +808,7 @@ function SetterUdtArg_ _
     if conv = false then
         if ByvalUdtCopyArg_( c, valNode, pt, outv, ts, tt ) = false then
             outv = none_
-            c.blameNode = cast( uint32, valNode )
+            c.stmt.blameNode = cast( uint32, valNode )
             return true
         end if
         if ts >= 0 then
@@ -818,7 +818,7 @@ function SetterUdtArg_ _
         return true
     end if
     if UdtConvTemp_( c, valNode, pt, ca, ts, tt ) = false then
-        c.blameNode = cast( uint32, valNode )
+        c.stmt.blameNode = cast( uint32, valNode )
         return true
     end if
     '' A statement temporary, destroyed after the call -- as the call path's.

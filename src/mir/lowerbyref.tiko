@@ -567,7 +567,7 @@ function ByrefConvArg_ _
     dim as Tko.TypeId tt = Tko.TYPE_NONE
     if UdtConvTemp_( c, argNode, pu, outa, ts, tt, true ) = false then
         outa = none_
-        c.blameNode = cast( uint32, argNode )
+        c.stmt.blameNode = cast( uint32, argNode )
         return true
     end if
     if ts >= 0 then

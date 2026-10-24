@@ -1017,7 +1017,7 @@ end function
 function LowerCompoundUserOp_ _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
 
-    dim as Tko.NodeId sid = cast( Tko.NodeId, c.curStmtNode )
+    dim as Tko.NodeId sid = cast( Tko.NodeId, c.stmt.curStmtNode )
     if sid = Tko.NODE_NONE then return false
     if c.ast->Kind( sid ) <> Tko.N_AMBIGUOUS then return false
     if c.info->AmbiguousOf( sid ) <> Tko.AMB_ASSIGN then return false
@@ -1390,9 +1390,9 @@ function LowerPropertyGet_ _
     '' THE DECLARATION'S OWN GETTER BUILDS x IN PLACE, armed only now that the receiver is
     '' lowered: 'dim as H a = x.twin.twin' had the INNER getter -- the same symbol, called
     '' for the receiver -- take x. SretInPlaceInit_.
-    if c.sretIntoAtNode andalso (c.sretIntoNode = node) then
-        c.sretIntoAtNode = false
-        c.sretIntoOn = true
+    if c.stmt.sretIntoAtNode andalso (c.stmt.sretIntoNode = node) then
+        c.stmt.sretIntoAtNode = false
+        c.stmt.sretIntoOn = true
     end if
     '' A BYREF GETTER returns the ADDRESS of its answer -- 'property f( ) byref as integer':
     '' the value is read through it (functions/return-byref.bas properties). tiko printed the
@@ -1403,14 +1403,14 @@ function LowerPropertyGet_ _
     if gByref andalso (IsStringType( c, gs->type_ ) = false) then
         dim as MirValue gp = EmitMemberCallArgs_( c, g, self_, MT_PTR, @gargs, PropertyVSlot_( c, node, g ) )
         if gp.kind = cast( uint8, MV_NONE ) then return false
-        if c.propAddrWanted then
+        if c.stmt.propAddrWanted then
             outv = gp
         else
             outv = LowerExprLoad( c, gp, gmt )
         end if
         return (outv.kind <> cast( uint8, MV_NONE ))
     end if
-    if c.propAddrWanted then return false   '' an ordinary getter has no address to give
+    if c.stmt.propAddrWanted then return false   '' an ordinary getter has no address to give
     outv = EmitMemberCallArgs_( c, g, self_, gmt, @gargs, PropertyVSlot_( c, node, g ) )
     return (outv.kind <> cast( uint8, MV_NONE ))
 end function

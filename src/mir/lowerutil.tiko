@@ -113,14 +113,14 @@ function Emit( byref c as Ctx, byref ins as MirInst ) as MirValue
     '' THE SOURCE LINE, for '-g'. Decoded once per statement, and only when the
     '' statement is in the procedure's own file: a line from an included macro would
     '' name a file the procedure's subprogram does not describe.
-    if (c.curStmtNode <> c.dbgNode) orelse (c.dbgFn <> c.f) then
-        c.dbgNode = c.curStmtNode
+    if (c.stmt.curStmtNode <> c.dbgNode) orelse (c.dbgFn <> c.f) then
+        c.dbgNode = c.stmt.curStmtNode
         c.dbgFn = c.f
         c.dbgLine = 0
-        if (c.curStmtNode <> 0) andalso (c.srcMgr <> nullptr) andalso (c.f->dbgFile > 0) then
+        if (c.stmt.curStmtNode <> 0) andalso (c.srcMgr <> nullptr) andalso (c.f->dbgFile > 0) then
             dim as int32 pl
             dim as Tko.FileId fl = _
-                c.srcMgr->FileLineOf( c.ast->Loc( cast( Tko.NodeId, c.curStmtNode ) ), pl )
+                c.srcMgr->FileLineOf( c.ast->Loc( cast( Tko.NodeId, c.stmt.curStmtNode ) ), pl )
             if cast( uint32, fl ) + 1 = c.f->dbgFile then c.dbgLine = pl
         end if
     end if

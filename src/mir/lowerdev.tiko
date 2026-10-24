@@ -284,13 +284,13 @@ private function EmitRename_ _
 
     if oldN = Tko.NODE_NONE then return false
     if newN = Tko.NODE_NONE then return false
-    '' WIDE NAMES AS UTF-8 (c.pathUtf8): fbc's 'fb_WstrToStr' is the ANSI code page.
-    dim as boolean savedPath = c.pathUtf8
-    c.pathUtf8 = true
+    '' WIDE NAMES AS UTF-8 (c.stmt.pathUtf8): fbc's 'fb_WstrToStr' is the ANSI code page.
+    dim as boolean savedPath = c.stmt.pathUtf8
+    c.stmt.pathUtf8 = true
     dim as MirValue oldp, newp
     dim as boolean ok = ZstrDataOf_( c, oldN, oldp )
     if ok then ok = ZstrDataOf_( c, newN, newp )
-    c.pathUtf8 = savedPath
+    c.stmt.pathUtf8 = savedPath
     if ok = false then return false
 
     dim as containers.Array( of uint32 ) args

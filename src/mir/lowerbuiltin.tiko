@@ -150,12 +150,12 @@ sub NoteBuiltinDecline( byref c as Ctx, byval calleeNode as Tko.NodeId )
     dim as boolean known = Tko.Check.IsTypedIntrinsicName( nm )
     if BuiltinProcRtl( nm, argc, ty, true ) <> RTL_NONE then known = true
     if known = false then exit sub
-    c.badBuiltinNode = cast( uint32, calleeNode )
+    c.stmt.badBuiltinNode = cast( uint32, calleeNode )
 end sub
 
 sub ReportBuiltinDecline( byref c as Ctx )
-    dim as Tko.NodeId callee = cast( Tko.NodeId, c.badBuiltinNode )
-    c.badBuiltinNode = 0
+    dim as Tko.NodeId callee = cast( Tko.NodeId, c.stmt.badBuiltinNode )
+    c.stmt.badBuiltinNode = 0
     if (callee = Tko.NODE_NONE) orelse (c.diags = nullptr) then exit sub
     for each seen as uint32 in c.st->badBuiltinCalls
         if seen = cast( uint32, callee ) then exit sub
@@ -476,10 +476,10 @@ function LowerBuiltinProc _
             '' UTF-8 for RUN, CHAIN and DYLIBLOAD, by the path rule (lib/rt/src/fs/upath.tiko),
             '' where fbc's ANSI loses '日本'; the other descriptor builtins keep fbc's conversion.
             if TermIsWide_( c, a ) orelse ConcatHasWideTerm_( c, a ) then
-                dim as boolean savedB = c.pathUtf8
-                c.pathUtf8 = (r = RTL_RUN) orelse (r = RTL_CHAIN) orelse (r = RTL_DYLIB_LOAD)
+                dim as boolean savedB = c.stmt.pathUtf8
+                c.stmt.pathUtf8 = (r = RTL_RUN) orelse (r = RTL_CHAIN) orelse (r = RTL_DYLIB_LOAD)
                 dim as boolean okb = WideToNarrowTemp_( c, a, sdv )
-                c.pathUtf8 = savedB
+                c.stmt.pathUtf8 = savedB
                 if okb = false then return false
                 args.Push( cast( uint32, sdv.kind ) )
                 args.Push( cast( uint32, sdv.id ) )

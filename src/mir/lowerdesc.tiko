@@ -909,7 +909,7 @@ private function EmitRedimCall_ _
     '' stops with error 1, illegal function call, at the line -- tiko carried on with the
     '' array unchanged (audit F-71).
     dim as MirValue rrc = EmitRtl( c, r, args )
-    EmitRtlErrorCheck_( c, cast( Tko.NodeId, c.curStmtNode ), rrc )
+    EmitRtlErrorCheck_( c, cast( Tko.NodeId, c.stmt.curStmtNode ), rrc )
     return true
 end function
 

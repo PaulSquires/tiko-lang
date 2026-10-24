@@ -275,11 +275,11 @@ function LowerAddr _
     dim as Tko.Symbol ptr bps = iif( bpg <> Tko.SYMBOL_NONE, c.syms->SymbolAt( bpg ), cast( Tko.Symbol ptr, 0 ) )
     dim as Tko.NodeId bpn = iif( bps <> nullptr, cast( Tko.NodeId, bps->payload ), Tko.NODE_NONE )
     if (bpn <> Tko.NODE_NONE) andalso (c.ast->Kind( bpn ) = Tko.N_PROC) andalso ((c.ast->nodes[cast( int32, bpn )].flags and Tko.NF_BYREF) <> 0) then
-        dim as boolean pw0 = c.propAddrWanted
-        c.propAddrWanted = true
+        dim as boolean pw0 = c.stmt.propAddrWanted
+        c.stmt.propAddrWanted = true
         dim as MirValue ppa
         dim as boolean gotPa = LowerPropertyGet_( c, id, ppa )
-        c.propAddrWanted = pw0
+        c.stmt.propAddrWanted = pw0
         if gotPa then return ppa
     end if
 
