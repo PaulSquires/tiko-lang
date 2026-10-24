@@ -1217,7 +1217,7 @@ function LowerArrayBoundCall _
         return false
     end if
 
-    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
 
     '' A FIXED ARRAY FOLDS, and nothing was folding it. The comment above said so and
     '' the code returned false instead, so 'ubound( a )' over 'dim a( 0 to 7 )'
@@ -1234,7 +1234,7 @@ function LowerArrayBoundCall _
         dim as int32 dimIx = 0
         dim as boolean constDim = true
         if cp->count = 2 then
-            dim as Tko.NodeId d1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+            dim as Tko.NodeId d1 = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) )
             dim as Tko.Check.ConstVal dcv = Tko.Check.ConstOf( _
                 *c.ast, d1, *c.srcMgr, *c.names, c.types->target.pointerBits )
             if dcv.known then
@@ -1286,7 +1286,7 @@ function LowerArrayBoundCall _
         dim as int32 dynIx = 0
         dim as boolean dynConst = true
         if cp->count = 2 then
-            dim as Tko.NodeId d1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+            dim as Tko.NodeId d1 = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) )
             dim as Tko.Check.ConstVal dcv = Tko.Check.ConstOf( _
                 *c.ast, d1, *c.srcMgr, *c.names, c.types->target.pointerBits )
             dynConst = dcv.known
@@ -1302,7 +1302,7 @@ function LowerArrayBoundCall _
     dim as MirType zt = DescIntTy_( c )
     dim as MirValue dimV = ConstInt( c, 1, zt )
     if cp->count = 2 then
-        dim as Tko.NodeId a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+        dim as Tko.NodeId a1 = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) )
         dim as MirValue dv = LowerExpr( c, a1 )
         if dv.kind = cast( uint8, MV_NONE ) then return false
         dimV = CoerceTy( c, dv, zt, c.info->TypeOf_( a1 ))

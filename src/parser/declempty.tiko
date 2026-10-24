@@ -23,7 +23,7 @@ end function
 '' Does this member list hold a field, directly or through an anonymous union or type.
 private function AggHasField_ ( byref p as Tko.ParserState, byval first as int32, byval count as int32 ) as boolean
     for i as int32 = first to first + count - 1
-        dim as Tko.NodeId m = cast( Tko.NodeId, p.ast->children[i] )
+        dim as Tko.NodeId m = cast( Tko.NodeId, p.ast->ChildSlot( i ) )
         if m = Tko.NODE_NONE then continue for
         select case p.ast->Kind( m )
         case Tko.N_FIELD
@@ -60,7 +60,7 @@ end function
 private sub AggMemberCheck_ ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, byval isUnion as boolean )
     if p.silent then return
     for i as int32 = sp.first to sp.first + sp.count - 1
-        dim as Tko.NodeId m = cast( Tko.NodeId, p.ast->children[i] )
+        dim as Tko.NodeId m = cast( Tko.NodeId, p.ast->ChildSlot( i ) )
         if m = Tko.NODE_NONE then continue for
         dim as Tko.StmtPayload ptr mp = p.ast->StmtOf( m )
         select case p.ast->Kind( m )
@@ -82,7 +82,7 @@ private sub AggMemberCheck_ ( byref p as Tko.ParserState, byref sp as Tko.StmtPa
             dim as boolean dyn = true
             for j as int32 = mp->first to mp->first + mp->count - 1
                 '' LOW/HIGH PAIRS, and '(any)' has no low bound: an empty slot is skipped.
-                dim as Tko.NodeId bj = cast( Tko.NodeId, p.ast->children[j] )
+                dim as Tko.NodeId bj = cast( Tko.NodeId, p.ast->ChildSlot( j ) )
                 if (bj <> Tko.NODE_NONE) andalso (IsAnyWord_( p, bj ) = false) then dyn = false
             next
             if dyn = false then continue for

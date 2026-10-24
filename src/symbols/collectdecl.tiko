@@ -71,7 +71,7 @@ private function IsClassLikeUdt_ _
     '' The payload is the N_TYPE node: 'b' holds a generic's parameters, 'c' the base.
     dim as Tko.NodeId node = cast( Tko.NodeId, u->payload )
     dim as boolean isTypeNode = (node <> Tko.NODE_NONE)
-    if isTypeNode then isTypeNode = (cast( int32, node ) < w.ast->nodes.Count)
+    if isTypeNode then isTypeNode = (cast( int32, node ) < w.ast->NodePoolCount( ))
     if isTypeNode then isTypeNode = (w.ast->Kind( node ) = Tko.N_TYPE)
     if isTypeNode then
         dim as Tko.StmtPayload ptr tp = StmtOf( w, node )
@@ -111,7 +111,7 @@ private function OuterValueTaken_ _
             if own andalso (s->kind = cast( uint8, Tko.SYM_PROC )) then
                 dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
                 dim as boolean isProc = (pn <> Tko.NODE_NONE)
-                if isProc then isProc = (cast( int32, pn ) < w.ast->nodes.Count)
+                if isProc then isProc = (cast( int32, pn ) < w.ast->NodePoolCount( ))
                 if isProc then isProc = (w.ast->Kind( pn ) = Tko.N_PROC)
                 if isProc then own = ((StmtOf( w, pn )->extra and Tko.PF_GENERIC_PROC) = 0)
             end if
@@ -157,7 +157,7 @@ private function ClassNameTaken_ _
             dim as Tko.NodeId pn = Tko.NODE_NONE
             if ps <> nullptr then pn = cast( Tko.NodeId, ps->payload )
             dim as boolean isProc = (pn <> Tko.NODE_NONE)
-            if isProc then isProc = (cast( int32, pn ) < w.ast->nodes.Count)
+            if isProc then isProc = (cast( int32, pn ) < w.ast->NodePoolCount( ))
             if isProc then isProc = (w.ast->Kind( pn ) = Tko.N_PROC)
             if isProc then
                 if (StmtOf( w, pn )->extra and Tko.PF_GENERIC_PROC) <> 0 then return Tko.SYMBOL_NONE

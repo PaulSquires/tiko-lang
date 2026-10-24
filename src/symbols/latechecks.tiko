@@ -288,7 +288,7 @@ sub CheckCalledExpr_ ( byref c as Ctx, byval id as NodeId )
             dim as ListPayload ptr ip = _
                 c.ast->ListOf( inner )
             if ip->count < 1 then return
-            inner = cast( NodeId, c.ast->children[ip->first] )
+            inner = cast( NodeId, c.ast->ChildSlot( ip->first ) )
         wend
         if c.ast->Kind( inner ) = N_IDENT then
             dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( inner ) )
@@ -1058,7 +1058,7 @@ private function PointerCharRef_ ( byref c as Ctx, byval e as NodeId ) as boolea
         dim as ListPayload ptr pp = _
             c.ast->ListOf( e )
         if pp->count <> 1 then return false
-        e = cast( NodeId, c.ast->children[pp->first] )
+        e = cast( NodeId, c.ast->ChildSlot( pp->first ) )
     wend
     dim as TypeId bt = TYPE_NONE
     select case c.ast->Kind( e )

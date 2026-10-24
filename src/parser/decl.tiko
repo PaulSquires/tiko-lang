@@ -99,9 +99,9 @@ private function MakeMemberRef_ _
     bp.op = cast( uint16, Tko.TK_DOT )
     bp.lhs = lhs
     bp.rhs = rhs
-    p.ast->binaries.Push( bp )
+    p.ast->PushBinary( bp )
     dim as Tko.NodeId n = _
-        NewNodeAt( p, Tko.N_BINARY, dotTok.loc, p.ast->binaries.Count - 1 )
+        NewNodeAt( p, Tko.N_BINARY, dotTok.loc, p.ast->BinaryPoolCount( ) - 1 )
     p.ast->SetKind( n, cast( uint16, Tko.N_MEMBER ) )
     return n
 end function
@@ -409,14 +409,14 @@ private function VarDestructure _
     for i as int32 = 0 to names.Count - 1
         dim as Tko.IdentPayload bip
         bip.name = tmpName
-        p.ast->idents.Push( bip )
+        p.ast->PushIdent( bip )
         dim as Tko.NodeId base_ = _
-            NewNodeAt( p, Tko.N_IDENT, lp.loc, cast( uint32, p.ast->idents.Count - 1 ) )
+            NewNodeAt( p, Tko.N_IDENT, lp.loc, cast( uint32, p.ast->IdentPoolCount( ) - 1 ) )
         dim as Tko.IdentPayload fip
         fip.name = p.names->GetString( "_" & str( i + 1 ) )
-        p.ast->idents.Push( fip )
+        p.ast->PushIdent( fip )
         dim as Tko.NodeId fld = _
-            NewNodeAt( p, Tko.N_IDENT, lp.loc, cast( uint32, p.ast->idents.Count - 1 ) )
+            NewNodeAt( p, Tko.N_IDENT, lp.loc, cast( uint32, p.ast->IdentPoolCount( ) - 1 ) )
 
         dim as Tko.StmtPayload ep
         ep.name = cast( Tko.InternId, names[i] )
@@ -424,10 +424,10 @@ private function VarDestructure _
         items.Push( cast( uint32, MakeStmt( p, Tko.N_VAR_ITEM, lp.loc, ep ) ) )
     next
 
-    sp.first = p.ast->children.Count
+    sp.first = p.ast->ChildPoolCount( )
     sp.count = items.Count
     for i as int32 = 0 to items.Count - 1
-        p.ast->children.Push( items[i] )
+        p.ast->PushChild( items[i] )
     next
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_VAR, t.loc, sp )
     p.ast->OrFlags( n, (flags or Tko.NF_DECL_WRITTEN) )
@@ -464,14 +464,14 @@ function ForEachDestructure_ _
     for i as int32 = 0 to names.Count - 1
         dim as Tko.IdentPayload bip
         bip.name = tmpName
-        p.ast->idents.Push( bip )
+        p.ast->PushIdent( bip )
         dim as Tko.NodeId base_ = _
-            NewNodeAt( p, Tko.N_IDENT, t.loc, cast( uint32, p.ast->idents.Count - 1 ) )
+            NewNodeAt( p, Tko.N_IDENT, t.loc, cast( uint32, p.ast->IdentPoolCount( ) - 1 ) )
         dim as Tko.IdentPayload fip
         fip.name = p.names->GetString( "_" & str( i + 1 ) )
-        p.ast->idents.Push( fip )
+        p.ast->PushIdent( fip )
         dim as Tko.NodeId fld = _
-            NewNodeAt( p, Tko.N_IDENT, t.loc, cast( uint32, p.ast->idents.Count - 1 ) )
+            NewNodeAt( p, Tko.N_IDENT, t.loc, cast( uint32, p.ast->IdentPoolCount( ) - 1 ) )
 
         dim as Tko.StmtPayload ep
         ep.name = cast( Tko.InternId, names[i] )
@@ -481,10 +481,10 @@ function ForEachDestructure_ _
 
     dim as Tko.StmtPayload vp
     vp.op = cast( uint16, Tko.KW_VAR )
-    vp.first = p.ast->children.Count
+    vp.first = p.ast->ChildPoolCount( )
     vp.count = items.Count
     for i as int32 = 0 to items.Count - 1
-        p.ast->children.Push( items[i] )
+        p.ast->PushChild( items[i] )
     next
     dim as Tko.NodeId decls = MakeStmt( p, Tko.N_VAR, t.loc, vp )
 
@@ -496,7 +496,7 @@ function ForEachDestructure_ _
     dim as Tko.NodeIdVec stmts
     stmts.Push( cast( uint32, decls ) )
     for i as int32 = 0 to bl->count - 1
-        stmts.Push( p.ast->children[bl->first + i] )
+        stmts.Push( p.ast->ChildSlot( bl->first + i ) )
     next
     return MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, stmts )
 end function
@@ -584,17 +584,17 @@ private function ParseVarDecl( byref p as Tko.ParserState ) as Tko.NodeId
         dim as boolean isItem = (p.ast->Kind( item ) = Tko.N_VAR_ITEM)
         if isItem andalso (sharedType <> Tko.NODE_NONE) then
             dim as int32 si = cast( int32, p.ast->DataOf( item ) )
-            if p.ast->stmts[si].a = Tko.NODE_NONE then p.ast->stmts[si].a = sharedType
+            if p.ast->StmtAt( si )->a = Tko.NODE_NONE then p.ast->StmtAt( si )->a = sharedType
         end if
         if isItem = false then exit do
         if p.pos = before then exit do
         if Accept( p, Tko.TK_COMMA ) = false then exit do
     loop
 
-    sp.first = p.ast->children.Count
+    sp.first = p.ast->ChildPoolCount( )
     sp.count = items.Count
     for i as int32 = 0 to items.Count - 1
-        p.ast->children.Push( items[i] )
+        p.ast->PushChild( items[i] )
     next
 
     dim as Tko.NodeId n = MakeStmt( p, Tko.N_VAR, t.loc, sp )
@@ -632,11 +632,11 @@ private function ParseConstDecl( byref p as Tko.ParserState ) as Tko.NodeId
             if p.ast->Kind( item ) = Tko.N_VAR_ITEM then
                 dim as int32 csi = cast( int32, p.ast->DataOf( item ) )
                 dim as int64 cval = 0
-                if ConstFoldsToInt_( p, p.ast->stmts[csi].b, cval ) then
+                if ConstFoldsToInt_( p, p.ast->StmtAt( csi )->b, cval ) then
                     Tko.PpNoteConst( *cast( Tko.PpStream ptr, p.stream ), _
-                                     p.ast->stmts[csi].name, cval, p.ast->Loc( item ), cbool( p.procDepth <> 0 ) )
+                                     p.ast->StmtAt( csi )->name, cval, p.ast->Loc( item ), cbool( p.procDepth <> 0 ) )
                 else
-                    NoteConstStr_( p, p.ast->stmts[csi].name, p.ast->stmts[csi].b )   '' declconst.tiko
+                    NoteConstStr_( p, p.ast->StmtAt( csi )->name, p.ast->StmtAt( csi )->b )   '' declconst.tiko
                 end if
             end if
         end if
@@ -644,14 +644,14 @@ private function ParseConstDecl( byref p as Tko.ParserState ) as Tko.NodeId
         if p.ast->Kind( item ) <> Tko.N_VAR_ITEM then exit do
         if sharedType <> Tko.NODE_NONE then
             dim as int32 si = cast( int32, p.ast->DataOf( item ) )
-            if p.ast->stmts[si].a = Tko.NODE_NONE then p.ast->stmts[si].a = sharedType
+            if p.ast->StmtAt( si )->a = Tko.NODE_NONE then p.ast->StmtAt( si )->a = sharedType
         end if
         if Accept( p, Tko.TK_COMMA ) = false then exit do
     loop
-    sp.first = p.ast->children.Count
+    sp.first = p.ast->ChildPoolCount( )
     sp.count = items.Count
     for i as int32 = 0 to items.Count - 1
-        p.ast->children.Push( items[i] )
+        p.ast->PushChild( items[i] )
     next
     return MakeStmt( p, Tko.N_CONST, t.loc, sp )
 end function
@@ -1420,10 +1420,10 @@ private function ParseAggregateBody _
         EndOfStatement( p )
     loop
 
-    sp.first = p.ast->children.Count
+    sp.first = p.ast->ChildPoolCount( )
     sp.count = members.Count
     for i as int32 = 0 to members.Count - 1
-        p.ast->children.Push( members[i] )
+        p.ast->PushChild( members[i] )
     next
 
     EmptyAggCheck_( p, sp, isUnion )

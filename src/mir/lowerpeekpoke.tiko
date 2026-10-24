@@ -31,7 +31,7 @@ private function PeekPokeType_ _
         dim as Tko.ListPayload ptr tlp = _
             c.ast->ListOf( tn )
         if tlp->count = 1 then
-            tt = c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[tlp->first] ) )
+            tt = c.info->TypeOf_( cast( Tko.NodeId, c.ast->ChildSlot( tlp->first ) ) )
         end if
     end if
 
@@ -85,7 +85,7 @@ function LowerPoke( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as int32 base_ = sp->first
     dim as Tko.TypeId dt = c.types->Builtin( Tko.TY_UBYTE )
     if sp->count = 3 then
-        if PeekPokeType_( c, cast( Tko.NodeId, c.ast->children[base_] ), dt ) = false then
+        if PeekPokeType_( c, cast( Tko.NodeId, c.ast->ChildSlot( base_ ) ), dt ) = false then
             return false
         end if
         base_ += 1
@@ -94,9 +94,9 @@ function LowerPoke( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as MirType mt = LowerType( dt, *c.types )
     if (mt = MT_VOID) orelse (mt = MT_AGG) then return false
 
-    dim as MirValue addr = LowerExpr( c, cast( Tko.NodeId, c.ast->children[base_] ) )
+    dim as MirValue addr = LowerExpr( c, cast( Tko.NodeId, c.ast->ChildSlot( base_ ) ) )
     if addr.kind = cast( uint8, MV_NONE ) then return false
-    dim as Tko.NodeId vn = cast( Tko.NodeId, c.ast->children[base_ + 1] )
+    dim as Tko.NodeId vn = cast( Tko.NodeId, c.ast->ChildSlot( base_ + 1 ) )
     dim as MirValue val = LowerExprN_( c, vn )
     if val.kind = cast( uint8, MV_NONE ) then return false
     val = CoerceTy( c, val, mt, NumSrcType_( c, vn ))
@@ -183,7 +183,7 @@ function LowerPeek _
     dim as int32 base_ = cp->first
     dim as Tko.TypeId dt = c.types->Builtin( Tko.TY_UBYTE )
     if cp->count = 2 then
-        dim as Tko.NodeId tn = cast( Tko.NodeId, c.ast->children[base_] )
+        dim as Tko.NodeId tn = cast( Tko.NodeId, c.ast->ChildSlot( base_ ) )
         dim as Tko.BuiltinType b = PokeTypeName_( c, tn )
         if b <> Tko.TY_NONE then
             dt = c.types->Builtin( b )
@@ -198,7 +198,7 @@ function LowerPeek _
                     c.ast->ListOf( tn )
                 if tlp->count = 1 then
                     tt = c.info->TypeOf_( _
-                        cast( Tko.NodeId, c.ast->children[tlp->first] ) )
+                        cast( Tko.NodeId, c.ast->ChildSlot( tlp->first ) ) )
                 end if
             end if
             '' ...or a NAMED TYPE: 'type array as ubyte' and then
@@ -239,7 +239,7 @@ function LowerPeek _
         if (mt = MT_VOID) orelse (mt = MT_AGG) then return false
     end if
 
-    dim as MirValue addr = LowerExpr( c, cast( Tko.NodeId, c.ast->children[base_] ) )
+    dim as MirValue addr = LowerExpr( c, cast( Tko.NodeId, c.ast->ChildSlot( base_ ) ) )
     if addr.kind = cast( uint8, MV_NONE ) then return false
     addr = Coerce( c, addr, MT_PTR, false )
     if addr.kind = cast( uint8, MV_NONE ) then return false

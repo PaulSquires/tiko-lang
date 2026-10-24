@@ -740,7 +740,7 @@ sub LowerCollInitCalls_( byref c as Ctx, byval item as Tko.NodeId )
     dim as uint32 savedPos = c.syms->usePos
     c.syms->usePos = cast( uint32, item )
     for k as int32 = 0 to count_ - 1
-        LowerStmtAt_( c, cast( Tko.NodeId, c.ast->children[first_ + k] ) )
+        LowerStmtAt_( c, cast( Tko.NodeId, c.ast->ChildSlot( first_ + k ) ) )
     next
     c.syms->usePos = savedPos
 end sub

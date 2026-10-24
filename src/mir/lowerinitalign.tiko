@@ -31,7 +31,7 @@ private function ListCount_( byref c as Ctx, byval lst as Tko.NodeId ) as int32
 end function
 
 private function ListAt_( byref c as Ctx, byval lst as Tko.NodeId, byval i as int32 ) as Tko.NodeId
-    return cast( Tko.NodeId, c.ast->children[c.ast->ListOf( lst )->first + i] )
+    return cast( Tko.NodeId, c.ast->ChildSlot( c.ast->ListOf( lst )->first + i ) )
 end function
 
 '' ONE UDT-TYPED SLOT -- a field or an element -- at leaf 'start', from list position ci.

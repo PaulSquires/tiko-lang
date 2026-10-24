@@ -982,7 +982,7 @@ function LowerLen _
         end if
     end scope
 
-    dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[lp->first] )
+    dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) )
     '' 'sizeof' OF A WIDE CONSTANT is (chars + 1) * wchar -- lowerwstrof.tiko WideConstChars_.
     if isSizeof andalso (WideConstChars_( c, a ) >= 0) then
         outv = ConstInt( c, (WideConstChars_( c, a ) + 1) * c.types->target.wcharBytes, MT_I64 )
@@ -1287,9 +1287,9 @@ function IsIifCall_ _
     dim as Tko.IdentPayload ptr ip = _
         c.ast->IdentOf( lp->target )
     if LowerSpelling_( c.ix, *c.names, ip->name ) <> "iif" then return false
-    condE = cast( Tko.NodeId, c.ast->children[lp->first] )
-    thenE = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
-    elseE = cast( Tko.NodeId, c.ast->children[lp->first + 2] )
+    condE = cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) )
+    thenE = cast( Tko.NodeId, c.ast->ChildSlot( lp->first + 1 ) )
+    elseE = cast( Tko.NodeId, c.ast->ChildSlot( lp->first + 2 ) )
     return true
 end function
 

@@ -74,7 +74,7 @@ sub CheckGetPutUStr_ ( byref c as Ctx, byval id as NodeId )
     end select
     if (sp->extra and 1) = 0 then return        '' the graphics form
     if sp->count < 2 then return
-    dim as NodeId it = cast( NodeId, c.ast->children[sp->first + 1] )
+    dim as NodeId it = cast( NodeId, c.ast->ChildSlot( sp->first + 1 ) )
     dim as TypeId t = ValueType_( c, c.info->TypeOf_( it ) )
     if t = TYPE_NONE then return
     dim as TypeId b = t

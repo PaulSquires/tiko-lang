@@ -28,7 +28,7 @@ sub CollInitSharedRefs_ ( byref c as Ctx, byval s as Symbol ptr )
     dim as int32 first_ = bl->first
     dim as int32 count_ = bl->count
     for k as int32 = 0 to count_ - 1
-        dim as NodeId st = cast( NodeId, c.ast->children[first_ + k] )
+        dim as NodeId st = cast( NodeId, c.ast->ChildSlot( first_ + k ) )
         '' The statement's call: CheckSharedRef_ walks its ARGUMENTS and not its callee,
         '' which is 'x.Push' -- the variable itself.
         CheckSharedRef_( c, c.ast->StmtOf( st )->a, s->name )

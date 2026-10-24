@@ -120,7 +120,7 @@ private function AmFold_ _
         dim as Tko.ListPayload ptr pp = _
             c.ast->ListOf( n )
         if pp->count <> 1 then return AM_UNKNOWN
-        return AmFold_( c, cast( Tko.NodeId, c.ast->children[pp->first] ), v, depth + 1 )
+        return AmFold_( c, cast( Tko.NodeId, c.ast->ChildSlot( pp->first ) ), v, depth + 1 )
     case Tko.N_UNARY
         dim as Tko.UnaryPayload ptr up = _
             c.ast->UnaryOf( n )
@@ -162,7 +162,7 @@ private function AmFold_ _
         if lp->count = 1 then
             select case Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
             case "cbyte", "cubyte", "cshort", "cushort", "clng", "culng", "clngint", "culngint", "cint", "cuint"
-                return AmFold_( c, cast( Tko.NodeId, c.ast->children[lp->first] ), v, depth + 1 )
+                return AmFold_( c, cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) ), v, depth + 1 )
             end select
             return AM_NONCONST
         end if
@@ -171,7 +171,7 @@ private function AmFold_ _
         case "cptr", "cast"
         case else : return AM_NONCONST
         end select
-        return AmFold_( c, cast( Tko.NodeId, c.ast->children[lp->first + 1] ), v, depth + 1 )
+        return AmFold_( c, cast( Tko.NodeId, c.ast->ChildSlot( lp->first + 1 ) ), v, depth + 1 )
     case Tko.N_IDENT
         '' A NAMED CONSTANT is its initialiser; a variable is not a constant.
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
@@ -418,7 +418,7 @@ private function UdtStrPtrChosen_ _
         dim as Tko.StmtPayload ptr sp = StmtOf( c, prm )
         if sp->op = cast( uint16, Tko.TK_ELLIPSIS ) then exit for
         if (c.ast->Flags( prm ) and Tko.NF_VARIADIC) <> 0 then exit for
-        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[argFirst + ai] )
+        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->ChildSlot( argFirst + ai ) )
         dim as Tko.TypeId at = cast( Tko.TypeId, argT[ai] )
         ai += 1
         if (at = Tko.TYPE_NONE) orelse (sp->a = Tko.NODE_NONE) then continue for
@@ -466,7 +466,7 @@ private sub ReportArgMismatch_ _
             for k as int32 = ai to argCount - 1
                 dim as Tko.TypeId vat = Tko.TYPE_NONE
                 if k < argT.Count then vat = cast( Tko.TypeId, argT[k] )
-                dim as Tko.NodeId van = cast( Tko.NodeId, c.ast->children[argFirst + k] )
+                dim as Tko.NodeId van = cast( Tko.NodeId, c.ast->ChildSlot( argFirst + k ) )
                 if PackedArgCost_( c, van, prm, vat, vpt, false ) >= CONV_NONE then
                     c.diags->Report( Tko.TKO0698, Tko.PointRange( c.ast->Loc( van ) ) )
                     exit sub
@@ -474,7 +474,7 @@ private sub ReportArgMismatch_ _
             next
             exit sub
         end if
-        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[argFirst + ai] )
+        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->ChildSlot( argFirst + ai ) )
         dim as Tko.TypeId at = cast( Tko.TypeId, argT[ai] )
         ai += 1
         if (c.ast->Flags( prm ) and Tko.NF_ARRAY) <> 0 then continue for
@@ -521,7 +521,7 @@ private sub NullptrTieNote_ _
     ( byref c as Ctx, byval argFirst as int32, byval argCount as int32 )
     dim as Tko.InternId nm = c.names->Fold( c.names->GetString( "nullptr" ) )
     for i as int32 = 0 to argCount - 1
-        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[argFirst + i] )
+        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->ChildSlot( argFirst + i ) )
         if c.ast->Kind( a ) <> Tko.N_IDENT then continue for
         dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( a ) )
         if s = nullptr then continue for

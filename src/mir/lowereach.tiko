@@ -761,7 +761,7 @@ function LowerForEachArray _
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     if sp->count <> 1 then return false
     if sp->a = Tko.NODE_NONE then return false
-    dim as Tko.NodeId seqE = cast( Tko.NodeId, c.ast->children[sp->first] )
+    dim as Tko.NodeId seqE = cast( Tko.NodeId, c.ast->ChildSlot( sp->first ) )
 
     dim as Tko.TypeId at = c.info->TypeOf_( seqE )
     if at = Tko.TYPE_NONE then return false

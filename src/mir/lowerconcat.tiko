@@ -68,7 +68,7 @@ private function UdtCatAssignViaLet_ _
         if (ln <> Tko.NODE_NONE) andalso (c.ast->Kind( ln ) = Tko.N_PROC) then
             dim as Tko.StmtPayload ptr lp = StmtOf( c, ln )
             if lp->count >= 1 then
-                dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[lp->first] )
+                dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) )
                 dim as Tko.TypeId pu = Tko.TYPE_NONE
                 if c.ast->Kind( prm ) = Tko.N_PARAM then pu = c.types->Unqualify( c.info->TypeOf_( StmtOf( c, prm )->a ) )
                 '' ...or 'byval as const zstring ptr' (extendszstring2): the characters' address too.
@@ -342,7 +342,7 @@ sub FlattenConcat _
         dim as Tko.ListPayload ptr pp = _
             c.ast->ListOf( inner )
         if pp->count <> 1 then exit while
-        inner = cast( Tko.NodeId, c.ast->children[pp->first] )
+        inner = cast( Tko.NodeId, c.ast->ChildSlot( pp->first ) )
     wend
     dim as boolean builtinOp = (c.info->RefOf( inner ) = Tko.SYMBOL_NONE)
     dim as boolean parenBin = (inner <> id)
@@ -454,15 +454,15 @@ private function LValueRoot_( byref c as Ctx, byval n as Tko.NodeId ) as Tko.Nod
         case Tko.N_IDENT
             return n
         case Tko.N_MEMBER
-            n = c.ast->binaries[cast( int32, d )].lhs
+            n = c.ast->BinaryAt( cast( int32, d ) )->lhs
         case Tko.N_DEREF
-            n = c.ast->unaries[cast( int32, d )].operand
+            n = c.ast->UnaryAt( cast( int32, d ) )->operand
         case Tko.N_INDEX, Tko.N_CALL
-            n = c.ast->lists[cast( int32, d )].target
+            n = c.ast->ListAt( cast( int32, d ) )->target
         case Tko.N_PAREN
-            dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( int32, d )]
+            dim as Tko.ListPayload ptr lp = c.ast->ListAt( cast( int32, d ) )
             if lp->count <> 1 then return Tko.NODE_NONE
-            n = cast( Tko.NodeId, c.ast->children[lp->first] )
+            n = cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) )
         case else
             return Tko.NODE_NONE
         end select
@@ -482,12 +482,12 @@ function TermReadsLValue_ _
         if (troot = Tko.NODE_NONE) orelse (troot = target) then return false
         return SameLValue( c, troot, e )
     case Tko.N_UNARY, Tko.N_ADDROF, Tko.N_DEREF
-        return TermReadsLValue_( c, target, c.ast->unaries[cast( int32, d )].operand )
+        return TermReadsLValue_( c, target, c.ast->UnaryAt( cast( int32, d ) )->operand )
     case Tko.N_BINARY, Tko.N_MEMBER
-        if TermReadsLValue_( c, target, c.ast->binaries[cast( int32, d )].lhs ) then return true
-        return TermReadsLValue_( c, target, c.ast->binaries[cast( int32, d )].rhs )
+        if TermReadsLValue_( c, target, c.ast->BinaryAt( cast( int32, d ) )->lhs ) then return true
+        return TermReadsLValue_( c, target, c.ast->BinaryAt( cast( int32, d ) )->rhs )
     case Tko.N_CALL, Tko.N_INDEX, Tko.N_PAREN, Tko.N_TUPLE
-        dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( int32, d )]
+        dim as Tko.ListPayload ptr lp = c.ast->ListAt( cast( int32, d ) )
         if TermReadsLValue_( c, target, lp->target ) then return true
         for i as int32 = 0 to lp->count - 1
             if TermReadsLValue_( c, target, c.ast->ChildAt( lp->first, i ) ) then return true
@@ -545,7 +545,7 @@ function LowerOffsetOf _
 
     '' THE TYPE. Written as a bare name, so Resolve bound it to the UDT's own symbol
     '' rather than typing the node.
-    dim as Tko.NodeId tn = cast( Tko.NodeId, c.ast->children[lp->first] )
+    dim as Tko.NodeId tn = cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) )
     dim as Tko.TypeId ut = c.info->TypeOf_( tn )
     if ut = Tko.TYPE_NONE then
         dim as Tko.SymbolId ts = c.info->RefOf( tn )
@@ -571,7 +571,7 @@ function LowerOffsetOf _
     '' The spine is left-nested -- N_MEMBER( N_MEMBER( a, b ), c ) -- so it is walked
     '' from the outside in and the names come out reversed, then applied in order,
     '' each one's offset added and its TYPE becoming the next one's container.
-    dim as Tko.NodeId fn = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
+    dim as Tko.NodeId fn = cast( Tko.NodeId, c.ast->ChildSlot( lp->first + 1 ) )
     dim as containers.Array( of uint32 ) path
     while c.ast->Kind( fn ) = Tko.N_MEMBER
         dim as Tko.BinaryPayload ptr mbp = _

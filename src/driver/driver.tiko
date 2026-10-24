@@ -327,16 +327,16 @@ end sub
 '' arena is made of -- USED, not reserved, because a growable array's slack is an
 '' allocation policy and the budget is about the representation.
 private function AstBytes_( byref a as Tko.AstArena ) as int64
-    dim as int64 pools = a.children.Count + a.tokenRanges.Count + _
+    dim as int64 pools = a.ChildPoolCount( ) + a.tokenRanges.Count + _
                            a.extraTopLevel.Count + a.callTypeArgs.Count + _
                            a.structorPrio.Count + a.procEnds.Count
-    return a.nodes.Count    * sizeof( Tko.AstNode ) + _
-           a.unaries.Count  * sizeof( Tko.UnaryPayload ) + _
-           a.binaries.Count * sizeof( Tko.BinaryPayload ) + _
-           a.literals.Count * sizeof( Tko.LiteralPayload ) + _
-           a.idents.Count   * sizeof( Tko.IdentPayload ) + _
-           a.lists.Count    * sizeof( Tko.ListPayload ) + _
-           a.stmts.Count    * sizeof( Tko.StmtPayload ) + _
+    return a.NodePoolCount( )    * sizeof( Tko.AstNode ) + _
+           a.UnaryPoolCount( )  * sizeof( Tko.UnaryPayload ) + _
+           a.BinaryPoolCount( ) * sizeof( Tko.BinaryPayload ) + _
+           a.LiteralPoolCount( ) * sizeof( Tko.LiteralPayload ) + _
+           a.IdentPoolCount( )   * sizeof( Tko.IdentPayload ) + _
+           a.ListPoolCount( )    * sizeof( Tko.ListPayload ) + _
+           a.StmtPoolCount( )    * sizeof( Tko.StmtPayload ) + _
            pools * sizeof( uint32 )
 end function
 

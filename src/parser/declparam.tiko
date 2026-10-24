@@ -154,10 +154,10 @@ private sub ParseArrayBounds _
         loop
     end if
     Expect( p, Tko.TK_RPAREN, ")" )
-    sp.first = p.ast->children.Count
+    sp.first = p.ast->ChildPoolCount( )
     sp.count = bounds.Count
     for i as int32 = 0 to bounds.Count - 1
-        p.ast->children.Push( bounds[i] )
+        p.ast->PushChild( bounds[i] )
     next
 end sub
 
@@ -219,10 +219,10 @@ sub ParseParamList( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
         end if
         Expect( p, Tko.TK_RPAREN, ")" )
     end if
-    sp.first = p.ast->children.Count
+    sp.first = p.ast->ChildPoolCount( )
     sp.count = params.Count
     for i as int32 = 0 to params.Count - 1
-        p.ast->children.Push( params[i] )
+        p.ast->PushChild( params[i] )
     next
     '' A TYPED VARIADIC IS THE LAST PARAMETER AND HAS NO DEFAULT -- what the arguments past
     '' the fixed ones pack into, so nothing can follow it and nothing is left to default.

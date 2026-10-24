@@ -31,7 +31,7 @@ private sub RecursiveMembers_ _
     ( byref c as Ctx, byval self_ as NodeId, byval first as int32, byval count as int32, _
       byref selfName as string )
     for i as int32 = first to first + count - 1
-        dim as NodeId m = cast( NodeId, c.ast->children[i] )
+        dim as NodeId m = cast( NodeId, c.ast->ChildSlot( i ) )
         if (m < 1) orelse (m > c.ast->Count( )) then continue for
         dim as StmtPayload ptr mp = c.ast->StmtOf( m )
         select case c.ast->Kind( m )

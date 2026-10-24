@@ -177,7 +177,7 @@ private function ByrefCastLvalue_ _
     if (lp->count <> 2) orelse (lp->target = Tko.NODE_NONE) then return false
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     if lcase( c.names->Spelling( c.ast->IdentOf( lp->target )->name ) ) <> "cast" then return false
-    dim as Tko.NodeId op = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
+    dim as Tko.NodeId op = cast( Tko.NodeId, c.ast->ChildSlot( lp->first + 1 ) )
     dim as Tko.TypeId ut = c.types->Unqualify( c.info->TypeOf_( op ) )
     dim as Tko.TypeId want = c.types->Unqualify( c.info->TypeOf_( id ) )
     if (c.types->Kind( ut ) <> Tko.TK_UDT) orelse (want = Tko.TYPE_NONE) then return false
@@ -222,13 +222,13 @@ function NoConvOperand_ _
     '' the corpus uses for a pointer one.
     if (nm = "cast") orelse (nm = "cptr") then
         if lp->count <> 2 then return Tko.NODE_NONE
-        op = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
+        op = cast( Tko.NodeId, c.ast->ChildSlot( lp->first + 1 ) )
     else
         select case nm
         case "cbyte", "cubyte", "cshort", "cushort", "clng", "culng", "cint", _
              "cuint", "clngint", "culngint", "csng", "cdbl", "csign", "cunsg"
             if lp->count <> 1 then return Tko.NODE_NONE
-            op = cast( Tko.NodeId, c.ast->children[lp->first] )
+            op = cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) )
         case else
             return Tko.NODE_NONE
         end select
@@ -308,7 +308,7 @@ function LowerAddr _
         dim as Tko.ListPayload ptr plp = _
             c.ast->ListOf( id )
         if plp->count = 1 then
-            return LowerAddr( c, cast( Tko.NodeId, c.ast->children[plp->first] ) )
+            return LowerAddr( c, cast( Tko.NodeId, c.ast->ChildSlot( plp->first ) ) )
         end if
         return v
     end if
@@ -331,13 +331,13 @@ function LowerAddr _
                     c.ast->IdentOf( xlp->target )
                 dim as string xnm = LowerSpelling_( c.ix, *c.names, xip->name )
                 if xnm = "cast" then
-                    dim as Tko.NodeId xt = cast( Tko.NodeId, c.ast->children[xlp->first] )
+                    dim as Tko.NodeId xt = cast( Tko.NodeId, c.ast->ChildSlot( xlp->first ) )
                     if c.ast->Kind( xt ) = Tko.N_TYPEREF then
                         dim as Tko.TypeId xtt = _
                             c.types->Unqualify( c.info->TypeOf_( xt ) )
                         if c.types->Kind( xtt ) = Tko.TK_UDT then
                             dim as Tko.NodeId xop = _
-                                cast( Tko.NodeId, c.ast->children[xlp->first + 1] )
+                                cast( Tko.NodeId, c.ast->ChildSlot( xlp->first + 1 ) )
                             '' 'this' HOLDS A POINTER, so the object's address is its
                             '' VALUE. Its own address is a pointer to a pointer, and
                             '' 'cast( Base, this ) = u' then wrote the base object
@@ -404,7 +404,7 @@ function LowerAddr _
         if (slt <> Tko.TYPE_NONE) andalso (smt <> MT_VOID) andalso (smt <> MT_AGG) andalso _
            ((c.ast->Flags( id ) and Tko.NF_TYPE_LITERAL) <> 0) then
             dim as Tko.ListPayload ptr stp = c.ast->ListOf( id )
-            if stp->count = 1 then return ByrefTemp_( c, cast( Tko.NodeId, c.ast->children[stp->first] ), slt )
+            if stp->count = 1 then return ByrefTemp_( c, cast( Tko.NodeId, c.ast->ChildSlot( stp->first ) ), slt )
         end if
         return v
     end if
@@ -796,13 +796,13 @@ function LowerAddr _
                     c.ast->IdentOf( cl->target )
                 dim as string cnm = LowerSpelling_( c.ix, *c.names, cip->name )
                 if (cnm = "cast") orelse (cnm = "ctype") then
-                    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cl->first] )
+                    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->ChildSlot( cl->first ) )
                     if c.ast->Kind( a0 ) = Tko.N_TYPEREF then
                         dim as Tko.TypeId tt = c.info->TypeOf_( id )
                         if tt <> Tko.TYPE_NONE then
                             if c.types->Kind( tt ) = Tko.TK_UDT then
                                 return LowerAddr( c, cast( Tko.NodeId, _
-                                                  c.ast->children[cl->first + 1] ) )
+                                                  c.ast->ChildSlot( cl->first + 1 ) ) )
                             end if
                         end if
                     end if
@@ -818,7 +818,7 @@ function LowerAddr _
         dim as Tko.ListPayload ptr pp = _
             c.ast->ListOf( id )
         if pp->count = 1 then
-            return LowerAddr( c, cast( Tko.NodeId, c.ast->children[pp->first] ) )
+            return LowerAddr( c, cast( Tko.NodeId, c.ast->ChildSlot( pp->first ) ) )
         end if
         return v
     end if
@@ -898,9 +898,9 @@ function LowerAddr _
         dim as Tko.ListPayload ptr ip2 = _
             c.ast->ListOf( id )
         dim as MirValue av
-        if LowerAggIif_( c, cast( Tko.NodeId, c.ast->children[ip2->first] ), _
-                            cast( Tko.NodeId, c.ast->children[ip2->first + 1] ), _
-                            cast( Tko.NodeId, c.ast->children[ip2->first + 2] ), av ) then
+        if LowerAggIif_( c, cast( Tko.NodeId, c.ast->ChildSlot( ip2->first ) ), _
+                            cast( Tko.NodeId, c.ast->ChildSlot( ip2->first + 1 ) ), _
+                            cast( Tko.NodeId, c.ast->ChildSlot( ip2->first + 2 ) ), av ) then
             return av
         end if
         return v
@@ -930,9 +930,9 @@ function LowerAddr _
         dim as Tko.ListPayload ptr ip3 = _
             c.ast->ListOf( id )
         dim as MirValue sv2
-        if LowerStringIif_( c, cast( Tko.NodeId, c.ast->children[ip3->first] ), _
-                               cast( Tko.NodeId, c.ast->children[ip3->first + 1] ), _
-                               cast( Tko.NodeId, c.ast->children[ip3->first + 2] ), _
+        if LowerStringIif_( c, cast( Tko.NodeId, c.ast->ChildSlot( ip3->first ) ), _
+                               cast( Tko.NodeId, c.ast->ChildSlot( ip3->first + 1 ) ), _
+                               cast( Tko.NodeId, c.ast->ChildSlot( ip3->first + 2 ) ), _
                                sv2 ) then
             return sv2
         end if
@@ -1231,7 +1231,7 @@ function LowerPtrIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
     dim as MirType offTy = MT_I64
     if c.types->target.pointerBits = 32 then offTy = MT_I32
 
-    dim as Tko.NodeId ix = cast( Tko.NodeId, c.ast->children[sp->first] )
+    dim as Tko.NodeId ix = cast( Tko.NodeId, c.ast->ChildSlot( sp->first ) )
     dim as MirValue iv
     if IsUdtValue_( c, ix ) then iv = LowerNumArg_( c, ix, offTy ) else iv = LowerExpr( c, ix )   '' a UDT through its cast
     if iv.kind = cast( uint8, MV_NONE ) then return none_

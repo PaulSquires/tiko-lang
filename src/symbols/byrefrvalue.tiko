@@ -24,7 +24,7 @@ function ByrefInitIsValue_ ( byref c as Ctx, byval e as NodeId ) as boolean
         case N_PAREN
             dim as ListPayload ptr pp = c.ast->ListOf( e )
             if pp->count <> 1 then return false
-            e = cast( NodeId, c.ast->children[pp->first] )
+            e = cast( NodeId, c.ast->ChildSlot( pp->first ) )
         case N_ADDROF, N_UNARY, N_BINARY
             return true
         case N_CALL
@@ -41,7 +41,7 @@ function ByrefInitIsValue_ ( byref c as Ctx, byval e as NodeId ) as boolean
                 return true
             case "cast", "cptr"
                 if lp->count <> 2 then return false
-                dim as NodeId opnd = cast( NodeId, c.ast->children[lp->first + 1] )
+                dim as NodeId opnd = cast( NodeId, c.ast->ChildSlot( lp->first + 1 ) )
                 dim as TypeId rt = c.types->Unqualify( c.info->TypeOf_( e ) )
                 dim as TypeId ot = c.info->TypeOf_( opnd )
                 if (rt = TYPE_NONE) orelse (ot = TYPE_NONE) then return false

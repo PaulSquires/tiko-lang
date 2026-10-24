@@ -296,7 +296,7 @@ function CtorCallOnAddr_ _
     end if
     dim as containers.Array( of uint32 ) args
     for i as int32 = 0 to cp->count - 1
-        args.Push( cast( uint32, c.ast->children[cp->first + i] ) )
+        args.Push( cast( uint32, c.ast->ChildSlot( cp->first + i ) ) )
     next
     return CtorArgsOnAddr_( c, addr, ctors, args )
 end function

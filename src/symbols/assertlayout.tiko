@@ -40,11 +40,11 @@ function AssertOffsetOf_ ( byref c as Ctx, byval n as NodeId, byref v as int64 )
     if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return false
     if lcase( c.names->Spelling( _
         c.ast->IdentOf( lp->target )->name ) ) <> "offsetof" then return false
-    dim as NodeId tn = Unparen3_( c, cast( NodeId, c.ast->children[lp->first] ) )
+    dim as NodeId tn = Unparen3_( c, cast( NodeId, c.ast->ChildSlot( lp->first ) ) )
     dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( tn ) )
     if ts = nullptr then return false
     if (ts->kind <> cast( uint8, SYM_UDT )) andalso (ts->kind <> cast( uint8, SYM_TYPEDEF )) then return false
-    dim as NodeId fn = cast( NodeId, c.ast->children[lp->first + 1] )
+    dim as NodeId fn = cast( NodeId, c.ast->ChildSlot( lp->first + 1 ) )
     dim as containers.Array( of uint32 ) path
     while c.ast->Kind( fn ) = N_MEMBER
         dim as BinaryPayload ptr mbp = c.ast->BinaryOf( fn )

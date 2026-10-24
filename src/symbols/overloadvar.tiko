@@ -59,7 +59,7 @@ private function PackedArgsCost_ _
     dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
     dim as int32 total = 0
     for k as int32 = ai to argT.Count - 1
-        dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[argFirst + k] )
+        dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->ChildSlot( argFirst + k ) )
         dim as int32 cost = PackedArgCost_( c, an, prm, cast( Tko.TypeId, argT[k] ), pt, overloaded )
         if cost >= CONV_NONE then
             bad = an
@@ -75,5 +75,5 @@ private function TypedVariadicSpread_ _
     ( byref c as Ctx, byval nFixed as int32, byval argFirst as int32, byval argCount as int32 ) as boolean
 
     if argCount <> nFixed + 1 then return false
-    return IsArrayArgShape_( c, cast( Tko.NodeId, c.ast->children[argFirst + nFixed] ) )
+    return IsArrayArgShape_( c, cast( Tko.NodeId, c.ast->ChildSlot( argFirst + nFixed ) ) )
 end function

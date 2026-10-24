@@ -68,7 +68,7 @@ private function NonMacroNode_( byref c as Ctx, byval n0 as uint32 ) as uint32
             dim as Tko.ListPayload ptr lp = _
                 c.ast->ListOf( n )
             if lp->count < 1 then return cast( uint32, n )
-            n = cast( Tko.NodeId, c.ast->children[lp->first] )
+            n = cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) )
         case Tko.N_BINARY
             dim as Tko.BinaryPayload ptr bp = _
                 c.ast->BinaryOf( n )

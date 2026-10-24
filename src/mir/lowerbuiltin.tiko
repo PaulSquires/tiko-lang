@@ -213,7 +213,7 @@ function LowerBuiltinProc _
 
     dim as containers.Array( of uint32 ) args
     for i as int32 = 0 to argCount - 1
-        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[argFirst + i] )
+        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->ChildSlot( argFirst + i ) )
 
         '' AN ELIDED ARGUMENT IS THE DEFAULT fbc passes in its place. Measured:
         ''

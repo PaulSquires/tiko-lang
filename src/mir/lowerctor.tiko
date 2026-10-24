@@ -638,7 +638,7 @@ private function ImplicitCopyCall_ _
     if cp->count <> 1 then return false
     if CopyCtorOf_( c, t ) <> Tko.SYMBOL_NONE then return false
     if NeedsLetBody_( c, t ) = false then return false
-    dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
     if c.types->Unqualify( c.info->TypeOf_( a ) ) <> c.types->Unqualify( t ) then return false
     dim as MirValue src = LowerAddr( c, a )
     if src.kind = cast( uint8, MV_NONE ) then return false
@@ -1187,7 +1187,7 @@ function PushCtorArgs_ _
 
     dim as int32 pi = 0
     for i as int32 = 0 to count - 1
-        dim as Tko.NodeId ae = cast( Tko.NodeId, c.ast->children[first_ + i] )
+        dim as Tko.NodeId ae = cast( Tko.NodeId, c.ast->ChildSlot( first_ + i ) )
 
         '' A TYPED VARIADIC takes every argument from here on, packed -- unless it is ONE
         '' whole array, which is spread and passed below like any array argument.

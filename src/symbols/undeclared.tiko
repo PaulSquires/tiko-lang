@@ -159,7 +159,7 @@ sub ReportUndeclared _
                 if ast.Kind( pl ) = Tko.N_BLOCK then
                     dim as Tko.ListPayload ptr lp = ast.ListOf( pl )
                     for k as int32 = 0 to lp->count - 1
-                        skip[cast( int32, ast.children[lp->first + k] )] = 1
+                        skip[cast( int32, ast.ChildSlot( lp->first + k ) )] = 1
                     next
                 end if
             end if
@@ -169,11 +169,11 @@ sub ReportUndeclared _
             if (cn = "assert") orelse (cn = "assertwarn") then
                 MarkRange_( skip, cast( int32, cp->target ), i )
             elseif (cn = "offsetof") andalso (cp->count >= 2) then
-                MarkRange_( skip, cast( int32, ast.children[cp->first] ) + 1, _
-                            cast( int32, ast.children[cp->first + cp->count - 1] ) )
+                MarkRange_( skip, cast( int32, ast.ChildSlot( cp->first ) ) + 1, _
+                            cast( int32, ast.ChildSlot( cp->first + cp->count - 1 ) ) )
             elseif (cn = "procptr") andalso (cp->count >= 1) then
                 '' 'procptr( zz )' is fbc's error 8, "Undefined symbol", not 42.
-                dim as Tko.NodeId pa = cast( Tko.NodeId, ast.children[cp->first] )
+                dim as Tko.NodeId pa = cast( Tko.NodeId, ast.ChildSlot( cp->first ) )
                 if ast.Kind( pa ) = Tko.N_IDENT then skip[cast( int32, pa )] = SKIP_PROCPTR
                 '' ...AND ONE THAT BINDS HAS TO BIND A PROCEDURE. Measured: 'procptr( v )'
                 '' over a variable, a procedure-pointer variable, a CONST, an enum

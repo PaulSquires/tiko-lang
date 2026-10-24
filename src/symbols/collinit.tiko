@@ -122,16 +122,16 @@ private function CiNode_ _
     n.flags = 0
     n.loc = lc
     n.data = payload
-    c.ast->nodes.Push( n )
-    return cast( Tko.NodeId, c.ast->nodes.Count - 1 )
+    c.ast->PushNode( n )
+    return cast( Tko.NodeId, c.ast->NodePoolCount( ) - 1 )
 end function
 
 private function CiIdent_ _
     ( byref c as Ctx, byval lc as Tko.SourceLoc, byval nm as Tko.InternId ) as Tko.NodeId
     dim as Tko.IdentPayload ip
     ip.name = nm
-    c.ast->idents.Push( ip )
-    return CiNode_( c, Tko.N_IDENT, lc, c.ast->idents.Count - 1 )
+    c.ast->PushIdent( ip )
+    return CiNode_( c, Tko.N_IDENT, lc, c.ast->IdentPoolCount( ) - 1 )
 end function
 
 '' 'x.Method( args )' as a statement: N_AMBIGUOUS over N_CALL over N_MEMBER, the shape the
@@ -148,7 +148,7 @@ private function CiCallStmt_ _
     if nested then
         dim as Tko.ListPayload ptr el = ListOf( c, elem )
         for k as int32 = 0 to el->count - 1
-            args.Push( c.ast->children[el->first + k] )
+            args.Push( c.ast->ChildSlot( el->first + k ) )
         next
     else
         args.Push( cast( uint32, elem ) )
@@ -158,22 +158,22 @@ private function CiCallStmt_ _
     bp.op = cast( uint16, Tko.TK_DOT )
     bp.lhs = CiIdent_( c, lc, varNm )
     bp.rhs = CiIdent_( c, lc, methodNm )
-    c.ast->binaries.Push( bp )
-    dim as Tko.NodeId callee = CiNode_( c, Tko.N_MEMBER, lc, c.ast->binaries.Count - 1 )
+    c.ast->PushBinary( bp )
+    dim as Tko.NodeId callee = CiNode_( c, Tko.N_MEMBER, lc, c.ast->BinaryPoolCount( ) - 1 )
     c.ast->OrFlags( callee, Tko.NF_CALL_TARGET )
 
     dim as Tko.ListPayload lp
     lp.target = callee
-    lp.first = c.ast->children.Count
+    lp.first = c.ast->ChildPoolCount( )
     lp.count = args.Count
     for k as int32 = 0 to args.Count - 1
-        c.ast->children.Push( args[k] )
+        c.ast->PushChild( args[k] )
     next
-    c.ast->lists.Push( lp )
+    c.ast->PushList( lp )
     dim as Tko.StmtPayload sp
-    sp.a = CiNode_( c, Tko.N_CALL, lc, c.ast->lists.Count - 1 )
-    c.ast->stmts.Push( sp )
-    return CiNode_( c, Tko.N_AMBIGUOUS, lc, c.ast->stmts.Count - 1 )
+    sp.a = CiNode_( c, Tko.N_CALL, lc, c.ast->ListPoolCount( ) - 1 )
+    c.ast->PushStmt( sp )
+    return CiNode_( c, Tko.N_AMBIGUOUS, lc, c.ast->StmtPoolCount( ) - 1 )
 end function
 
 '' True when this item IS a collection initialiser -- built now or on the first walk, or
@@ -193,7 +193,7 @@ private function CollInit_ _
         dim as int32 bfirst = bkl->first
         dim as int32 bcount = bkl->count
         for k as int32 = 0 to bcount - 1
-            WalkStmt( c, cast( Tko.NodeId, c.ast->children[bfirst + k] ), here )
+            WalkStmt( c, cast( Tko.NodeId, c.ast->ChildSlot( bfirst + k ) ), here )
         next
         return true
     end if
@@ -256,7 +256,7 @@ private function CollInit_ _
     dim as containers.Array( of uint32 ) elems
     dim as Tko.ListPayload ptr bl = ListOf( c, braces )
     for k as int32 = 0 to bl->count - 1
-        elems.Push( c.ast->children[bl->first + k] )
+        elems.Push( c.ast->ChildSlot( bl->first + k ) )
     next
     dim as containers.Array( of uint32 ) stmts
     for k as int32 = 0 to elems.Count - 1
@@ -264,15 +264,15 @@ private function CollInit_ _
     next
     dim as Tko.ListPayload lp
     lp.target = Tko.NODE_NONE
-    lp.first = c.ast->children.Count
+    lp.first = c.ast->ChildPoolCount( )
     lp.count = stmts.Count
     for k as int32 = 0 to stmts.Count - 1
-        c.ast->children.Push( stmts[k] )
+        c.ast->PushChild( stmts[k] )
     next
-    c.ast->lists.Push( lp )
-    blk = CiNode_( c, Tko.N_BLOCK, c.ast->Loc( braces ), c.ast->lists.Count - 1 )
+    c.ast->PushList( lp )
+    blk = CiNode_( c, Tko.N_BLOCK, c.ast->Loc( braces ), c.ast->ListPoolCount( ) - 1 )
     Tko.RecordCollInit( *c.ast, item, braces, blk )
-    c.info->Resize( c.ast->nodes.Count )
+    c.info->Resize( c.ast->NodePoolCount( ) )
 
     sp = StmtOf( c, id )
     ip = StmtOf( c, item )

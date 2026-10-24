@@ -35,7 +35,7 @@ private function IsStaticProc_ _
     if s->kind <> cast( uint8, Tko.SYM_PROC ) then return false
     dim as Tko.NodeId n = cast( Tko.NodeId, s->payload )
     if n = Tko.NODE_NONE then return false
-    if cast( int32, n ) >= c.ast->nodes.Count then return false
+    if cast( int32, n ) >= c.ast->NodePoolCount( ) then return false
     if c.ast->Kind( n ) <> Tko.N_PROC then return false
     dim as Tko.StmtPayload ptr sp = StmtOf( c, n )
     return ((sp->extra and Tko.PF_STATIC) <> 0)
@@ -391,7 +391,7 @@ private sub WalkExpr _
         end if
 
     case Tko.N_UNARY, Tko.N_ADDROF, Tko.N_DEREF
-        WalkExpr( c, c.ast->unaries[cast( int32, n->data )].operand, scope_ )
+        WalkExpr( c, c.ast->UnaryAt( cast( int32, n->data ) )->operand, scope_ )
 
     case Tko.N_BINARY
         '' BOTH OPERANDS READ BEFORE EITHER IS WALKED. A payload pointer points INTO
@@ -400,7 +400,7 @@ private sub WalkExpr _
         '' whatever occupies the freed block -- a NodeId out of range, indexed
         '' without a bound. Confirmed, not reasoned: reserving every arena so it
         '' cannot reallocate makes the crash disappear.
-        dim as Tko.BinaryPayload ptr bp = @c.ast->binaries[cast( int32, n->data )]
+        dim as Tko.BinaryPayload ptr bp = c.ast->BinaryAt( cast( int32, n->data ) )
         dim as Tko.NodeId blhs = bp->lhs
         dim as Tko.NodeId brhs = bp->rhs
         WalkExpr( c, blhs, scope_ )
@@ -415,7 +415,7 @@ private sub WalkExpr _
 
     case Tko.N_MEMBER
         '' Only the base: the member name needs the base's type.
-        dim as Tko.BinaryPayload ptr mb = @c.ast->binaries[cast( int32, n->data )]
+        dim as Tko.BinaryPayload ptr mb = c.ast->BinaryAt( cast( int32, n->data ) )
 
         '' '.field' WITH NO BASE is the WITH shorthand, and the base it wants is the
         '' subject of the innermost open WITH. The parser cannot supply it -- it does
@@ -859,7 +859,7 @@ sub WalkStmt _
             dim as Tko.ListPayload ptr pl2 = _
                 c.ast->ListOf( wsp->a )
             if pl2->count <> 1 then exit while
-            wsp->a = cast( Tko.NodeId, c.ast->children[pl2->first] )
+            wsp->a = cast( Tko.NodeId, c.ast->ChildSlot( pl2->first ) )
         wend
         WalkExpr( c, wsp->a, here )
         dim as boolean pushed = false
@@ -1145,7 +1145,7 @@ sub WalkStmt _
                         c.ast->ListOf( ip->c )
                     for d as int32 = 0 to dl->count - 1
                         WalkStmt( c, cast( Tko.NodeId, _
-                            c.ast->children[dl->first + d] ), here )
+                            c.ast->ChildSlot( dl->first + d ) ), here )
                     next
                 end if
             end if
@@ -1350,7 +1350,7 @@ sub WalkStmt _
                     '' so asking here returns nothing for every sequence there is.
                     '' That is what left the variable untyped even once it was
                     '' correctly declared.
-                    dim as Tko.NodeId seqE = cast( Tko.NodeId, c.ast->children[sp->first] )
+                    dim as Tko.NodeId seqE = cast( Tko.NodeId, c.ast->ChildSlot( sp->first ) )
                     dim as Tko.TypeId seqT = Tko.TYPE_NONE
                     dim as Tko.Symbol ptr ssym = c.syms->SymbolAt( c.info->RefOf( seqE ) )
                     if ssym <> nullptr then seqT = ssym->type_
@@ -1427,7 +1427,7 @@ sub WalkStmt _
         BindThis( c, here, sp->ownerName )
         dim as int32 pCount = sp->count, pFirst = sp->first, pBody = sp->b
         for i as int32 = 0 to pCount - 1
-            WalkStmt( c, cast( Tko.NodeId, c.ast->children[pFirst + i] ), here )
+            WalkStmt( c, cast( Tko.NodeId, c.ast->ChildSlot( pFirst + i ) ), here )
         next
         WalkStmt( c, pBody, here )
         c.currentProc = saved

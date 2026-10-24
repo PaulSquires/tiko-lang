@@ -200,7 +200,7 @@ private function LitIsInt_( byref ast as Tko.AstArena, byval id as Tko.NodeId ) 
             dim as Tko.ListPayload ptr pp = _
                 ast.ListOf( id )
             if pp->count <> 1 then return false
-            id = cast( Tko.NodeId, ast.children[pp->first] )
+            id = cast( Tko.NodeId, ast.ChildSlot( pp->first ) )
         case Tko.N_UNARY
             id = ast.UnaryOf( id )->operand
         case else
@@ -219,7 +219,7 @@ private function LitNum_ _
         dim as Tko.ListPayload ptr pp = _
             ast.ListOf( id )
         if pp->count <> 1 then return false
-        return LitNum_( ast, cast( Tko.NodeId, ast.children[pp->first] ), d )
+        return LitNum_( ast, cast( Tko.NodeId, ast.ChildSlot( pp->first ) ), d )
     end if
     if k = Tko.N_UNARY then
         dim as Tko.UnaryPayload ptr up = _
@@ -273,7 +273,7 @@ function ConstFloatOf _
         dim as Tko.ListPayload ptr pp = _
             ast.ListOf( id )
         if pp->count <> 1 then return false
-        return ConstFloatOf( ast, cast( Tko.NodeId, ast.children[pp->first] ), _
+        return ConstFloatOf( ast, cast( Tko.NodeId, ast.ChildSlot( pp->first ) ), _
                              outd, depth + 1, syms, scope_, names )
 
     '' ...and 'type<double>( 2.5 )', a one-element literal of a builtin type, is its element.
@@ -283,7 +283,7 @@ function ConstFloatOf _
             ast.ListOf( id )
         if (tl->count <> 1) orelse (tl->target = Tko.NODE_NONE) then return false
         if ast.Kind( tl->target ) <> Tko.N_TYPEREF then return false
-        return ConstFloatOf( ast, cast( Tko.NodeId, ast.children[tl->first] ), _
+        return ConstFloatOf( ast, cast( Tko.NodeId, ast.ChildSlot( tl->first ) ), _
                              outd, depth + 1, syms, scope_, names )
 
     case Tko.N_UNARY
@@ -382,7 +382,7 @@ function ConstFloatOf _
             return false
         end select
         dim as float64 x
-        if ConstFloatOf( ast, cast( Tko.NodeId, ast.children[cp->first] ), x, _
+        if ConstFloatOf( ast, cast( Tko.NodeId, ast.ChildSlot( cp->first ) ), x, _
                          depth + 1, syms, scope_, names ) = false then
             return false
         end if
@@ -513,7 +513,7 @@ private function ConstStrLen_ _
         dim as Tko.ListPayload ptr pp = _
             ast.ListOf( id )
         if pp->count <> 1 then return -1
-        return ConstStrLen_( ast, cast( Tko.NodeId, ast.children[pp->first] ), _
+        return ConstStrLen_( ast, cast( Tko.NodeId, ast.ChildSlot( pp->first ) ), _
                              src, names, syms, scope_, depth + 1 )
 
     case Tko.N_BINARY
@@ -618,7 +618,7 @@ private function ConstCall_ _
     '' not found, and stays unanswered as before.
     if ((nm = "sizeof") orelse (nm = "len")) andalso (cp->count = 1) andalso _
        (types <> nullptr) andalso (info <> nullptr) then
-        dim as Tko.NodeId ta = cast( Tko.NodeId, ast.children[cp->first] )
+        dim as Tko.NodeId ta = cast( Tko.NodeId, ast.ChildSlot( cp->first ) )
         if ast.Kind( ta ) = Tko.N_TYPEREF then
             dim as Tko.TypeId tt = info->TypeOf_( ta )
             if tt <> Tko.TYPE_NONE then
@@ -663,7 +663,7 @@ private function ConstCall_ _
     end if
 
     if (nm = "len") andalso (cp->count = 1) then
-        dim as int32 sl = ConstStrLen_( ast, cast( Tko.NodeId, ast.children[cp->first] ), _
+        dim as int32 sl = ConstStrLen_( ast, cast( Tko.NodeId, ast.ChildSlot( cp->first ) ), _
                                        src, names, syms, scope_, depth )
         if sl >= 0 then return CVW_( cast( int64, sl ), 32 )
         return CVNone_( )
@@ -677,7 +677,7 @@ private function ConstCall_ _
     '' and fifteen AfxUrl* functions dropped the call that fills it. A string VARIABLE is not
     '' ConstStrLen_'s business, so 'sizeof( s )' keeps its descriptor's size.
     if (nm = "sizeof") andalso (cp->count = 1) then
-        dim as int32 zl = ConstStrLen_( ast, cast( Tko.NodeId, ast.children[cp->first] ), _
+        dim as int32 zl = ConstStrLen_( ast, cast( Tko.NodeId, ast.ChildSlot( cp->first ) ), _
                                        src, names, syms, scope_, depth )
         if zl >= 0 then return CVW_( cast( int64, zl + 1 ), 32 )
     end if
@@ -690,7 +690,7 @@ private function ConstCall_ _
     '' dimension from 1 to the rank; anything else stays unknown.
     if ((nm = "lbound") orelse (nm = "ubound")) andalso (types <> nullptr) andalso (syms <> nullptr) then
         if (cp->count < 1) orelse (cp->count > 2) then return CVNone_( )
-        dim as Tko.NodeId ba = cast( Tko.NodeId, ast.children[cp->first] )
+        dim as Tko.NodeId ba = cast( Tko.NodeId, ast.ChildSlot( cp->first ) )
         if ast.Kind( ba ) <> Tko.N_IDENT then return CVNone_( )
         dim as Tko.Symbol ptr bs = syms->SymbolAt( syms->Lookup( scope_, _
             ast.IdentOf( ba )->name ) )
@@ -704,7 +704,7 @@ private function ConstCall_ _
         if rank < 1 then return CVNone_( )
         dim as int64 bd = 1
         if cp->count = 2 then
-            dim as ConstVal dv = ConstOf( ast, cast( Tko.NodeId, ast.children[cp->first + 1] ), _
+            dim as ConstVal dv = ConstOf( ast, cast( Tko.NodeId, ast.ChildSlot( cp->first + 1 ) ), _
                                           src, names, intBits, syms, scope_, depth + 1, types, info )
             if dv.known = false then return CVNone_( )
             bd = dv.value
@@ -717,7 +717,7 @@ private function ConstCall_ _
     end if
 
     if (nm = "iif") andalso (cp->count = 3) then
-        dim as ConstVal c = ConstOf( ast, cast( Tko.NodeId, ast.children[cp->first] ), _
+        dim as ConstVal c = ConstOf( ast, cast( Tko.NodeId, ast.ChildSlot( cp->first ) ), _
                                      src, names, intBits, syms, scope_, depth, _
                                      types, info )
         if c.known = false then return CVNone_( )
@@ -739,7 +739,7 @@ private function ConstCall_ _
     '' pointed at never mentioned a cast.
     if ((nm = "cast") orelse (nm = "cptr")) andalso (cp->count = 2) then
         dim as ConstVal cvv = ConstOf( ast, _
-                        cast( Tko.NodeId, ast.children[cp->first + 1] ), src, _
+                        cast( Tko.NodeId, ast.ChildSlot( cp->first + 1 ) ), src, _
                         names, intBits, syms, scope_, depth, types, info)
         '' ...BUT THE CAST NARROWS, and the value it yields is the NARROWED one.
         '' The note above said narrowing was the caller's business; measured, it
@@ -757,18 +757,18 @@ private function ConstCall_ _
         '' D3DCOLOR_COLORVALUE's 'cast( DWORD, 1.0 * 255.f )' in a shared vertex table
         '' (fbc examples win32/d3d9_primitives) had no value and the table declined.
         if (cvv.known = false) andalso (types <> nullptr) andalso (info <> nullptr) then
-            dim as Tko.TypeId fct = types->Unqualify( info->TypeOf_( cast( Tko.NodeId, ast.children[cp->first] ) ) )
+            dim as Tko.TypeId fct = types->Unqualify( info->TypeOf_( cast( Tko.NodeId, ast.ChildSlot( cp->first ) ) ) )
             if types->Kind( fct ) = Tko.TK_BUILTIN then
                 if (Tko.BuiltinClass( types->BuiltinOf( fct ) ) = Tko.TC_INT) orelse (Tko.BuiltinClass( types->BuiltinOf( fct ) ) = Tko.TC_INTPTR) then
                     dim as float64 fcd
-                    if ConstFloatOf( ast, cast( Tko.NodeId, ast.children[cp->first + 1] ), fcd, 0, syms, scope_, @names ) then
+                    if ConstFloatOf( ast, cast( Tko.NodeId, ast.ChildSlot( cp->first + 1 ) ), fcd, 0, syms, scope_, @names ) then
                         cvv = CV_( RoundHalfEven_( fcd ) )
                     end if
                 end if
             end if
         end if
         if (cvv.known) andalso (types <> nullptr) andalso (info <> nullptr) then
-            dim as Tko.NodeId cta = cast( Tko.NodeId, ast.children[cp->first] )
+            dim as Tko.NodeId cta = cast( Tko.NodeId, ast.ChildSlot( cp->first ) )
             dim as Tko.TypeId ctt = info->TypeOf_( cta )
             if ctt <> Tko.TYPE_NONE then
                 dim as Tko.TypeId ctu = types->Unqualify( ctt )
@@ -797,7 +797,7 @@ private function ConstCall_ _
     end if
 
     if cp->count <> 1 then return CVNone_( )
-    dim as Tko.NodeId a0 = cast( Tko.NodeId, ast.children[cp->first] )
+    dim as Tko.NodeId a0 = cast( Tko.NodeId, ast.ChildSlot( cp->first ) )
 
     '' LEN and ASC read the literal's SPAN out of the source buffer: the parser keeps
     '' the extent, not the decoded text.
@@ -1154,7 +1154,7 @@ function ConstOf _
         dim as Tko.ListPayload ptr pp = _
             ast.ListOf( id )
         if pp->count <> 1 then return CVNone_( )
-        return ConstOf( ast, cast( Tko.NodeId, ast.children[pp->first] ), src, names, _
+        return ConstOf( ast, cast( Tko.NodeId, ast.ChildSlot( pp->first ) ), src, names, _
                         intBits, syms, scope_, depth, types, info)
 
     case Tko.N_UNARY
@@ -1295,7 +1295,7 @@ function ConstOf _
         dim as Tko.ListPayload ptr tl = ast.ListOf( id )
         if (tl->count <> 1) orelse (tl->target = Tko.NODE_NONE) then return CVNone_( )
         if ast.Kind( tl->target ) <> Tko.N_TYPEREF then return CVNone_( )
-        dim as ConstVal tv = ConstOf( ast, cast( Tko.NodeId, ast.children[tl->first] ), src, names, _
+        dim as ConstVal tv = ConstOf( ast, cast( Tko.NodeId, ast.ChildSlot( tl->first ) ), src, names, _
                                       intBits, syms, scope_, depth + 1, types, info )
         return ClampConstToTypeRef( ast, tl->target, tv, intBits )
     end select

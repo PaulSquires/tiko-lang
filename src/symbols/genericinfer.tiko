@@ -76,7 +76,7 @@ private function InferArgType_ _
     case Tko.N_PAREN
         dim as Tko.ListPayload ptr lp = ListOf( c, a )
         if lp->count <> 1 then return Tko.TYPE_NONE
-        return InferArgType_( c, cast( Tko.NodeId, c.ast->children[lp->first] ), scope_ )
+        return InferArgType_( c, cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) ), scope_ )
     case Tko.N_IDENT
         dim as Tko.InternId nm = IdentNameOf( c, a )
         if nm = 0 then return Tko.TYPE_NONE
@@ -312,7 +312,7 @@ private function InferArgType_ _
                 '' runs later.
                 if cp->count < 1 then return Tko.TYPE_NONE
                 dim as Tko.TypeId a0t = InferArgType_( c, _
-                    cast( Tko.NodeId, c.ast->children[cp->first] ), scope_ )
+                    cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) ), scope_ )
                 if a0t = Tko.TYPE_NONE then return Tko.TYPE_NONE
                 dim as Tko.TypeId a0u = c.types->Unqualify( a0t )
                 dim as Tko.SymbolId ocur = psid
@@ -358,7 +358,7 @@ private function InferArgType_ _
             if c.types->Kind( rt ) = Tko.TK_REFERENCE then rt = c.types->Inner( rt )
             return rt
         end if
-        dim as Tko.NodeId tn = cast( Tko.NodeId, c.ast->children[cp->first] )
+        dim as Tko.NodeId tn = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
         if c.ast->Kind( tn ) <> Tko.N_TYPEREF then return Tko.TYPE_NONE
         return ResolveTypeRef( c, tn, scope_ )
     case Tko.N_BINARY

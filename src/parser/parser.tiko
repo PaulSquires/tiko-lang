@@ -367,7 +367,7 @@ private function ParseIf( byref p as Tko.ParserState ) as Tko.NodeId
         '' THE ELSE BLOCK TRAVELS IN 'c', and this payload REPLACES the node's, so
         '' it has to be carried across or the branch just parsed is thrown away.
         done_.c = sp.c
-        p.ast->stmts[cast( int32, p.ast->DataOf( n ) )] = done_
+        *p.ast->StmtAt( cast( int32, p.ast->DataOf( n ) ) ) = done_
         return n
     end if
 
@@ -460,10 +460,10 @@ private function ParseSelect( byref p as Tko.ParserState ) as Tko.NodeId
             if Accept( p, Tko.TK_COMMA ) = false then exit do
         loop
 
-        cs.first = p.ast->children.Count
+        cs.first = p.ast->ChildPoolCount( )
         cs.count = patterns.Count
         for i as int32 = 0 to patterns.Count - 1
-            p.ast->children.Push( patterns[i] )
+            p.ast->PushChild( patterns[i] )
         next
         cs.b = Block( p )
         cases.Push( cast( uint32, MakeStmt( p, Tko.N_CASE, ct.loc, cs ) ) )
@@ -552,8 +552,8 @@ private function ParseFor( byref p as Tko.ParserState ) as Tko.NodeId
             feTmp = p.names->GetString( "$fe" & str( p.destructureSeq ) )
             dim as Tko.IdentPayload tip
             tip.name = feTmp
-            p.ast->idents.Push( tip )
-            sp.a = NewNodeAt( p, Tko.N_IDENT, t.loc, cast( uint32, p.ast->idents.Count - 1 ) )
+            p.ast->PushIdent( tip )
+            sp.a = NewNodeAt( p, Tko.N_IDENT, t.loc, cast( uint32, p.ast->IdentPoolCount( ) - 1 ) )
         else
             sp.a = Expression( p, Tko.PREC_POSTFIX )
         end if
@@ -570,9 +570,9 @@ private function ParseFor( byref p as Tko.ParserState ) as Tko.NodeId
             if p.names->Spelling( id ) = "in" then Advance( p )
         end if
         dim as Tko.NodeId seq = Expression( p )
-        sp.first = p.ast->children.Count
+        sp.first = p.ast->ChildPoolCount( )
         sp.count = 1
-        p.ast->children.Push( cast( uint32, seq ) )
+        p.ast->PushChild( cast( uint32, seq ) )
         p.forDepth += 1
         sp.b = Block( p )
         p.forDepth -= 1
@@ -608,11 +608,11 @@ private function ParseFor( byref p as Tko.ParserState ) as Tko.NodeId
     if Expect( p, Tko.KW_TO, "to" ) then toExpr = Expression( p )   '' fbc's 12: 'for i = 1' was an ICE
     if Accept( p, Tko.KW_STEP ) then stepExpr = Expression( p )
 
-    sp.first = p.ast->children.Count
+    sp.first = p.ast->ChildPoolCount( )
     sp.count = 3
-    p.ast->children.Push( cast( uint32, fromExpr ) )
-    p.ast->children.Push( cast( uint32, toExpr ) )
-    p.ast->children.Push( cast( uint32, stepExpr ) )
+    p.ast->PushChild( cast( uint32, fromExpr ) )
+    p.ast->PushChild( cast( uint32, toExpr ) )
+    p.ast->PushChild( cast( uint32, stepExpr ) )
 
     p.forDepth += 1
     sp.b = Block( p )
@@ -944,7 +944,7 @@ private function ParseAmbiguous( byref p as Tko.ParserState ) as Tko.NodeId
                 p.ast->ListOf( sp.a )
             if (lcp->count = 1) andalso (lcp->target <> Tko.NODE_NONE) then
                 dim as Tko.NodeId inner = _
-                    cast( Tko.NodeId, p.ast->children[lcp->first] )
+                    cast( Tko.NodeId, p.ast->ChildSlot( lcp->first ) )
                 sp.a = lcp->target
                 args.Push( cast( uint32, inner ) )
                 Advance( p )        '' the comma
@@ -968,10 +968,10 @@ private function ParseAmbiguous( byref p as Tko.ParserState ) as Tko.NodeId
     end if
     dim as Tko.NodeId fnCall = ParenlessFnCall_( p, sp.a, t.loc, args )  '' 'hex 5' -- parserend.tiko
     if fnCall <> Tko.NODE_NONE then sp.a = fnCall : args.Clear( )
-    sp.first = p.ast->children.Count
+    sp.first = p.ast->ChildPoolCount( )
     sp.count = args.Count
     for i as int32 = 0 to args.Count - 1
-        p.ast->children.Push( args[i] )
+        p.ast->PushChild( args[i] )
     next
 
     return MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, sp )

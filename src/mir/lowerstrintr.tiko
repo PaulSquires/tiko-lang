@@ -41,10 +41,10 @@ function LowerMidAssign _
     '' A NAME THE SOURCE DECLARED IS NOT THE INTRINSIC.
     if c.info->RefOf( cp->target ) <> Tko.SYMBOL_NONE then return false
 
-    dim as Tko.NodeId dstN = cast( Tko.NodeId, c.ast->children[cp->first] )
-    dim as Tko.NodeId startN = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+    dim as Tko.NodeId dstN = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
+    dim as Tko.NodeId startN = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) )
     dim as Tko.NodeId lenN = Tko.NODE_NONE
-    if cp->count = 3 then lenN = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
+    if cp->count = 3 then lenN = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 2 ) )
 
     dim as MirValue sv = LowerNumArg_( c, startN, MT_I64 )
     if sv.kind = cast( uint8, MV_NONE ) then return false
@@ -263,7 +263,7 @@ function LowerDir _
     dim as Tko.NodeId attr = Tko.NODE_NONE
     dim as Tko.NodeId outn = Tko.NODE_NONE
     if cp->count >= 1 then
-        dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
+        dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
         '' ...a 'ustring * N' too, which IsStringType does not count: it was read as the
         '' continuation form and declined. fbc: 'fb_Dir( fb_UStrToStr( D$0, <tag> ), 16, 0 )'.
         '' ...AND A WIDE ONE: 'dir( w )' over a wstring was taken for the continuation form and
@@ -271,8 +271,8 @@ function LowerDir _
         if IsStringType( c, c.info->TypeOf_( a0 ) ) orelse IsUStringType( c, c.info->TypeOf_( a0 ) ) orelse _
            IsWideString_( c, c.info->TypeOf_( a0 ) ) orelse TermIsWide_( c, a0 ) orelse ConcatHasWideTerm_( c, a0 ) then
             pat = a0
-            if cp->count >= 2 then attr = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
-            if cp->count >= 3 then outn = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
+            if cp->count >= 2 then attr = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) )
+            if cp->count >= 3 then outn = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 2 ) )
         else
             '' The continuation form takes at most the out parameter.
             if cp->count <> 1 then return false

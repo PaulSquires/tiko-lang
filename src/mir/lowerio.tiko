@@ -86,8 +86,8 @@ function LowerBitOp _
     '' nothing here does, so a resolved reference wins over the builtin.
     if c.info->RefOf( cp->target ) <> Tko.SYMBOL_NONE then return false
 
-    dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[cp->first] )
-    dim as Tko.NodeId bn = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+    dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
+    dim as Tko.NodeId bn = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) )
     dim as MirValue av = LowerExprN_( c, an )
     if av.kind = cast( uint8, MV_NONE ) then return false
     dim as MirValue bv = LowerExprN_( c, bn )
@@ -167,7 +167,7 @@ function LowerLrset( byref c as Ctx, byval id as Tko.NodeId, byval isRight as bo
     '' an assignment expression, because that is exactly what its argument list looks
     '' like to the generic intrinsic parser.
     if sp->count < 1 then return false
-    dim as Tko.NodeId asn = cast( Tko.NodeId, c.ast->children[sp->first] )
+    dim as Tko.NodeId asn = cast( Tko.NodeId, c.ast->ChildSlot( sp->first ) )
     if c.ast->Kind( asn ) <> Tko.N_BINARY then return false
     dim as Tko.BinaryPayload ptr bp = _
         c.ast->BinaryOf( asn )
@@ -396,7 +396,7 @@ function PrintOne _
         if StrIdentityConvOperand_( c, it ) <> Tko.NODE_NONE then
             dim as Tko.ListPayload ptr scp = _
                 c.ast->ListOf( it )
-            dim as Tko.NodeId stn = cast( Tko.NodeId, c.ast->children[scp->first] )
+            dim as Tko.NodeId stn = cast( Tko.NodeId, c.ast->ChildSlot( scp->first ) )
             if c.ast->Kind( stn ) = Tko.N_TYPEREF then
                 t = c.types->Unqualify( c.info->TypeOf_( stn ) )
             end if
@@ -811,7 +811,7 @@ function LowerOpenCall_ _
     dim as MirValue enc
     if (sp->extra and Tko.OPEN_HAS_ENCODING) <> 0 then
         if sp->count < 1 then return false
-        dim as Tko.NodeId en = cast( Tko.NodeId, c.ast->children[sp->first] )
+        dim as Tko.NodeId en = cast( Tko.NodeId, c.ast->ChildSlot( sp->first ) )
         if ZstrDataOf_( c, en, enc ) = false then return false
     end if
 
@@ -827,7 +827,7 @@ function LowerOpenCall_ _
     if devR <> RTL_NONE then
         dim as Tko.NodeId opN = Tko.NODE_NONE
         if (sp->extra and Tko.OPEN_HAS_ENCODING) = 0 then
-            if sp->count >= 1 then opN = cast( Tko.NodeId, c.ast->children[sp->first] )
+            if sp->count >= 1 then opN = cast( Tko.NodeId, c.ast->ChildSlot( sp->first ) )
         end if
         if opN <> Tko.NODE_NONE then
             '' A WIDE OPERAND -- 'open pipe w', w a wstring -- into a narrow temporary, as UTF-8 by
@@ -992,7 +992,7 @@ function LowerLineInput( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.NodeId prompt = sp->c
     if sp->a = Tko.NODE_NONE then
         if (prompt = Tko.NODE_NONE) andalso (sp->count >= 2) then
-            prompt = cast( Tko.NodeId, c.ast->children[sp->first] )
+            prompt = cast( Tko.NodeId, c.ast->ChildSlot( sp->first ) )
             dstIdx = 1
         end if
     end if

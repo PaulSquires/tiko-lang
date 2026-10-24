@@ -468,8 +468,8 @@ private sub CheckIifArms_ ( byref c as Ctx, byval id as NodeId )
         c.ast->IdentOf( lp->target )->name
     if c.names->Fold( nm ) <> c.names->Fold( c.names->GetString( "iif" ) ) then return
 
-    dim as TypeId ta = c.info->TypeOf_( cast( NodeId, c.ast->children[lp->first + 1] ) )
-    dim as TypeId tb = c.info->TypeOf_( cast( NodeId, c.ast->children[lp->first + 2] ) )
+    dim as TypeId ta = c.info->TypeOf_( cast( NodeId, c.ast->ChildSlot( lp->first + 1 ) ) )
+    dim as TypeId tb = c.info->TypeOf_( cast( NodeId, c.ast->ChildSlot( lp->first + 2 ) ) )
     if (ta = TYPE_NONE) orelse (tb = TYPE_NONE) then return
     dim as TypeId ua = c.types->Unqualify( ta )
     dim as TypeId ub = c.types->Unqualify( tb )

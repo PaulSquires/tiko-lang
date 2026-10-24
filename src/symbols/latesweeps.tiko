@@ -424,7 +424,7 @@ sub CheckConstBounds_( byref c as Ctx )
                 c.ast->IdentOf( lp->target )->name )
             if (spell <> "lbound") andalso (spell <> "ubound") then continue for
             if lp->count < 1 then continue for
-            dim as NodeId arr = cast( NodeId, c.ast->children[lp->first] )
+            dim as NodeId arr = cast( NodeId, c.ast->ChildSlot( lp->first ) )
             dim as Symbol ptr asym = c.syms->SymbolAt( c.info->RefOf( arr ) )
             if asym = nullptr then continue for
             if c.types->IsDynArray( asym->type_ ) = false then continue for

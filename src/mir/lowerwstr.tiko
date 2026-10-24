@@ -721,7 +721,7 @@ function IntrinOverWideConcat_( byref c as Ctx, byval e as Tko.NodeId ) as boole
     case else
         return false
     end select
-    return IsWideChain_( c, cast( Tko.NodeId, c.ast->children[lp->first] ) )
+    return IsWideChain_( c, cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) ) )
 end function
 
 '' IS THIS A WIDE CHAIN BY ITS SHAPE -- a concatenation with a wide term and no ustring one,
@@ -1269,7 +1269,7 @@ function WideOperand_ _
         dim as Tko.ListPayload ptr sclp = _
             c.ast->ListOf( id )
         if sclp->count = 1 then
-            dim as Tko.NodeId sca = cast( Tko.NodeId, c.ast->children[sclp->first] )
+            dim as Tko.NodeId sca = cast( Tko.NodeId, c.ast->ChildSlot( sclp->first ) )
             if UserCastToWide_( c, sca, outv ) then return true
         end if
     end if
@@ -1350,7 +1350,7 @@ function LowerWideRvalueB_ _
     '' what registers a wide temporary for its fb_WstrDelete.
     if nm = "wspace" then
         if cp->count <> 1 then return false
-        dim as Tko.NodeId sn = cast( Tko.NodeId, c.ast->children[cp->first] )
+        dim as Tko.NodeId sn = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
         dim as MirValue nv = LowerNumArg_( c, sn, MT_I64 )   '' a UDT through its numeric cast
         if nv.kind = cast( uint8, MV_NONE ) then return false
         dim as containers.Array( of uint32 ) sa
@@ -1365,7 +1365,7 @@ function LowerWideRvalueB_ _
 
     '' The FIRST argument decides: these names are all overloaded on narrow strings
     '' too, and only the wide overload is lowered here.
-    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
     dim as MirValue s0
     if WideOperand_( c, a0, s0 ) = false then return false
 
@@ -1373,7 +1373,7 @@ function LowerWideRvalueB_ _
     dim as Tko.NodeId a1 = Tko.NODE_NONE
     dim as boolean isAny = false
     if cp->count >= 2 then
-        a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+        a1 = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) )
         if c.ast->Kind( a1 ) = Tko.N_UNARY then
             dim as Tko.UnaryPayload ptr up = _
                 c.ast->UnaryOf( a1 )
@@ -1466,7 +1466,7 @@ function LowerWideRvalueB_ _
         '' A 'mid' WITHOUT a length passes -1, not 0 -- measured, and 0 would silently
         '' produce an empty string instead of the rest of the source.
         if cp->count = 3 then
-            dim as Tko.NodeId a2 = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
+            dim as Tko.NodeId a2 = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 2 ) )
             dim as MirValue n2 = LowerNumArg_( c, a2, MT_I64 )
             if n2.kind = cast( uint8, MV_NONE ) then return false
             args.Push( cast( uint32, n2.kind ) ) : args.Push( cast( uint32, n2.id ) )

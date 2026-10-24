@@ -424,7 +424,7 @@ function LowerUdtParenInit_ _
         return false
     end if
     if pl0->count = 1 then
-        dim as Tko.NodeId only_ = cast( Tko.NodeId, c.ast->children[pl0->first] )
+        dim as Tko.NodeId only_ = cast( Tko.NodeId, c.ast->ChildSlot( pl0->first ) )
         dim as Tko.TypeId ot = c.info->TypeOf_( only_ )
         if ot <> Tko.TYPE_NONE then
             if c.types->Unqualify( ot ) = c.types->Unqualify( t ) then

@@ -615,7 +615,7 @@ function UStrResultArgTemp_ _
                 c.ast->IdentOf( ucp->target )
             select case LowerSpelling_( c.ix, *c.names, uip->name )
             case "ucase", "lcase", "trim", "ltrim", "rtrim", "left", "right", "mid"
-                dim as Tko.NodeId ua0 = cast( Tko.NodeId, c.ast->children[ucp->first] )
+                dim as Tko.NodeId ua0 = cast( Tko.NodeId, c.ast->ChildSlot( ucp->first ) )
                 '' ...or a ustring CHAIN, which Check types STRING: 'TakeU( ucase( u & "x" ) )'
                 intrin = IsUStringType( c, c.info->TypeOf_( ua0 ) ) orelse IsUStrChain_( c, ua0 )
             end select

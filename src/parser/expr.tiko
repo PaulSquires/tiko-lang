@@ -137,8 +137,8 @@ private function NewNode _
     n.flags = 0
     n.loc = loc
     n.data = payload
-    a.nodes.Push( n )
-    return cast( NodeId, a.nodes.Count - 1 )
+    a.PushNode( n )
+    return cast( NodeId, a.NodePoolCount( ) - 1 )
 end function
 
 '' --------------------------------------------------------------- infix lookup
@@ -242,8 +242,8 @@ private function MakeLiteral _
         lp.suffix = src->suffix
         lp.radix = src->radix
     end if
-    p.ast->literals.Push( lp )
-    return Tko.NewNode( *p.ast, kind, t.loc, p.ast->literals.Count - 1, Tko.POOL_LITERAL )
+    p.ast->PushLiteral( lp )
+    return Tko.NewNode( *p.ast, kind, t.loc, p.ast->LiteralPoolCount( ) - 1, Tko.POOL_LITERAL )
 end function
 
 '' One token as the node it IS -- a literal for a literal, an identifier otherwise.
@@ -355,7 +355,7 @@ sub MarkCallTarget_( byref p as Tko.ParserState, byval n as Tko.NodeId )
     dim as Tko.NodeKind k = p.ast->Kind( n )
     if k = Tko.N_PAREN then
         dim as Tko.ListPayload ptr pl = p.ast->ListOf( n )
-        if pl->count > 0 then MarkCallTarget_( p, cast( Tko.NodeId, p.ast->children[pl->first] ) )
+        if pl->count > 0 then MarkCallTarget_( p, cast( Tko.NodeId, p.ast->ChildSlot( pl->first ) ) )
     end if
     if (k = Tko.N_IDENT) orelse (k = Tko.N_MEMBER) then p.ast->OrFlags( n, Tko.NF_CALL_TARGET )
 end sub
@@ -367,8 +367,8 @@ private function MakeUnary _
     up.op = cast( uint16, op )
     up.operand = operand
     if kind = Tko.N_ADDROF then MarkCallTarget_( p, operand )
-    p.ast->unaries.Push( up )
-    return Tko.NewNode( *p.ast, kind, loc, p.ast->unaries.Count - 1, Tko.POOL_UNARY )
+    p.ast->PushUnary( up )
+    return Tko.NewNode( *p.ast, kind, loc, p.ast->UnaryPoolCount( ) - 1, Tko.POOL_UNARY )
 end function
 
 '' '@name' built from an interned NAME rather than from a token. The hoisted-lambda
@@ -382,9 +382,9 @@ function MakeAddrOfName _
     ip.name = nm
     ip.spellOffset = spellOff
     ip.spellLength = spellLen
-    p.ast->idents.Push( ip )
+    p.ast->PushIdent( ip )
     dim as Tko.NodeId lid = _
-        NewNode( *p.ast, Tko.N_IDENT, loc, p.ast->idents.Count - 1, Tko.POOL_IDENT )
+        NewNode( *p.ast, Tko.N_IDENT, loc, p.ast->IdentPoolCount( ) - 1, Tko.POOL_IDENT )
     return MakeUnary( p, Tko.TK_AT, loc, lid, Tko.N_ADDROF )
 end function
 
@@ -396,8 +396,8 @@ private function MakeBinary _
     bp.op = cast( uint16, op )
     bp.lhs = lhs
     bp.rhs = rhs
-    p.ast->binaries.Push( bp )
-    return Tko.NewNode( *p.ast, Tko.N_BINARY, loc, p.ast->binaries.Count - 1, Tko.POOL_BINARY )
+    p.ast->PushBinary( bp )
+    return Tko.NewNode( *p.ast, Tko.N_BINARY, loc, p.ast->BinaryPoolCount( ) - 1, Tko.POOL_BINARY )
 end function
 
 '' Children are appended to the shared pool, so a list node allocates nothing of
@@ -408,18 +408,18 @@ function MakeList _
 
     dim as Tko.ListPayload lp
     lp.target = target
-    lp.first = p.ast->children.Count
+    lp.first = p.ast->ChildPoolCount( )
     lp.count = items.Count
     for i as int32 = 0 to items.Count - 1
-        p.ast->children.Push( items[i] )
+        p.ast->PushChild( items[i] )
     next
-    p.ast->lists.Push( lp )
+    p.ast->PushList( lp )
     '' A CALLED NAME, and one an argument names as a SYMBOL: no paren-less read -- NF_CALL_TARGET.
     if kind = Tko.N_CALL then
         MarkCallTarget_( p, target )
         MarkSymbolArgs_( p, target, items )     '' 'procptr( f )' ... -- parserend.tiko
     end if
-    return Tko.NewNode( *p.ast, kind, loc, p.ast->lists.Count - 1, Tko.POOL_LIST )
+    return Tko.NewNode( *p.ast, kind, loc, p.ast->ListPoolCount( ) - 1, Tko.POOL_LIST )
 end function
 
 '' A general statement/declaration node.
@@ -427,8 +427,8 @@ function MakeStmt _
     ( byref p as Tko.ParserState, byval kind as Tko.NodeKind, byval loc as Tko.SourceLoc, _
       byref sp as Tko.StmtPayload ) as Tko.NodeId
 
-    p.ast->stmts.Push( sp )
-    return Tko.NewNode( *p.ast, kind, loc, p.ast->stmts.Count - 1, Tko.POOL_STMT )
+    p.ast->PushStmt( sp )
+    return Tko.NewNode( *p.ast, kind, loc, p.ast->StmtPoolCount( ) - 1, Tko.POOL_STMT )
 end function
 
 function NewNodeAt _
@@ -627,7 +627,7 @@ private function AllowsAnyArg _
     if callee = Tko.NODE_NONE then return false
     dim as Tko.AstNode ptr n = p.ast->NodeAt( callee )
     if cast( Tko.NodeKind, n->kind ) <> Tko.N_IDENT then return false
-    dim as string nm = p.names->Spelling( p.ast->idents[cast( int32, n->data )].name )
+    dim as string nm = p.names->Spelling( p.ast->IdentAt( cast( int32, n->data ) )->name )
     select case nm
     case "instr", "instrrev", "trim", "ltrim", "rtrim"
         return true
@@ -647,7 +647,7 @@ private function IsProcPtrCallee_ _
     dim as Tko.AstNode ptr n = p.ast->NodeAt( callee )
     if cast( Tko.NodeKind, n->kind ) <> Tko.N_IDENT then return false
     dim as string nm = Tko.Text.LowerAscii( _
-        p.names->Spelling( p.ast->idents[cast( int32, n->data )].name ) )
+        p.names->Spelling( p.ast->IdentAt( cast( int32, n->data ) )->name ) )
     return (nm = "procptr")
 end function
 
@@ -758,10 +758,10 @@ function PostfixChain _
             '' THE PENDING TYPE ARGUMENTS BELONG TO THIS CALL. Cleared afterwards, so a
             '' second call in the same postfix chain does not inherit them.
             if typeArgs.Count > 0 then
-                dim as int32 taFirst = p.ast->children.Count
+                dim as int32 taFirst = p.ast->ChildPoolCount( )
                 dim as int32 taCount = typeArgs.Count
                 for i as int32 = 0 to taCount - 1
-                    p.ast->children.Push( typeArgs[i] )
+                    p.ast->PushChild( typeArgs[i] )
                 next
                 p.ast->RecordCallTypeArgs( result, taFirst, taCount )
                 while typeArgs.Count > 0
@@ -820,9 +820,9 @@ function PostfixChain _
                 dim as Tko.FileId odf
                 oip.spellOffset = p.src->LocOffset( nameTok.loc, odf )
                 oip.spellLength = cast( int32, nameTok.length )
-                p.ast->idents.Push( oip )
+                p.ast->PushIdent( oip )
                 member = NewNode( *p.ast, Tko.N_IDENT, nameTok.loc, _
-                                  p.ast->idents.Count - 1 )
+                                  p.ast->IdentPoolCount( ) - 1 )
             else
                 Advance( p )
                 member = MakeIdent( p, nameTok )
@@ -972,9 +972,9 @@ function Primary( byref p as Tko.ParserState ) as Tko.NodeId
         dim as Tko.StmtPayload tcp
         tcp.op = cast( uint16, Tko.KW_THREADCALL )
         dim as Tko.NodeId tcCall = Expression( p, Tko.PREC_POSTFIX )
-        tcp.first = p.ast->children.Count
+        tcp.first = p.ast->ChildPoolCount( )
         tcp.count = 1
-        p.ast->children.Push( cast( uint32, tcCall ) )
+        p.ast->PushChild( cast( uint32, tcCall ) )
         return MakeStmt( p, Tko.N_INTRINSIC, t.loc, tcp )
 
     case Tko.KW_NEW
@@ -1422,25 +1422,25 @@ private sub DumpNode _
 
     select case k
     case Tko.N_INT_LIT
-        dim as Tko.LiteralPayload ptr lp = @ast.literals[cast( int32, n->data )]
+        dim as Tko.LiteralPayload ptr lp = ast.LiteralAt( cast( int32, n->data ) )
         row += " " & str( lp->intValue ) & " radix=" & lp->radix
     case Tko.N_FLOAT_LIT
-        dim as Tko.LiteralPayload ptr lp = @ast.literals[cast( int32, n->data )]
+        dim as Tko.LiteralPayload ptr lp = ast.LiteralAt( cast( int32, n->data ) )
         row += " " & str( lp->fltValue )
     case Tko.N_STRING_LIT
-        dim as Tko.LiteralPayload ptr lp = @ast.literals[cast( int32, n->data )]
+        dim as Tko.LiteralPayload ptr lp = ast.LiteralAt( cast( int32, n->data ) )
         row += " len=" & lp->strLength & " kind=" & lp->strKind
     case Tko.N_IDENT
-        dim as Tko.IdentPayload ptr ip = @ast.idents[cast( int32, n->data )]
+        dim as Tko.IdentPayload ptr ip = ast.IdentAt( cast( int32, n->data ) )
         row += " '" & names.Spelling( ip->name ) & "'"
     case Tko.N_UNARY, Tko.N_ADDROF, Tko.N_DEREF
-        dim as Tko.UnaryPayload ptr up = @ast.unaries[cast( int32, n->data )]
+        dim as Tko.UnaryPayload ptr up = ast.UnaryAt( cast( int32, n->data ) )
         row += " " & Tko.TokenKindText( cast( Tko.TokenKind, up->op ) )
     case Tko.N_BINARY, Tko.N_MEMBER
-        dim as Tko.BinaryPayload ptr bp = @ast.binaries[cast( int32, n->data )]
+        dim as Tko.BinaryPayload ptr bp = ast.BinaryAt( cast( int32, n->data ) )
         row += " " & Tko.TokenKindText( cast( Tko.TokenKind, bp->op ) )
     case Tko.N_INTRINSIC
-        dim as Tko.StmtPayload ptr ip = @ast.stmts[cast( int32, n->data )]
+        dim as Tko.StmtPayload ptr ip = ast.StmtAt( cast( int32, n->data ) )
         '' TokenKindText, matching the statement dumper: one shape printed one way.
         if ip->op <> 0 then
             dim as string ot = Tko.TokenKindText( cast( Tko.TokenKind, ip->op ) )
@@ -1453,10 +1453,10 @@ private sub DumpNode _
 
     select case k
     case Tko.N_UNARY, Tko.N_ADDROF, Tko.N_DEREF
-        dim as Tko.UnaryPayload ptr up = @ast.unaries[cast( int32, n->data )]
+        dim as Tko.UnaryPayload ptr up = ast.UnaryAt( cast( int32, n->data ) )
         DumpNode( ast, src, names, up->operand, indent + 1, outp )
     case Tko.N_BINARY, Tko.N_MEMBER
-        dim as Tko.BinaryPayload ptr bp = @ast.binaries[cast( int32, n->data )]
+        dim as Tko.BinaryPayload ptr bp = ast.BinaryAt( cast( int32, n->data ) )
         DumpNode( ast, src, names, bp->lhs, indent + 1, outp )
         DumpNode( ast, src, names, bp->rhs, indent + 1, outp )
     case Tko.N_INTRINSIC
@@ -1465,7 +1465,7 @@ private sub DumpNode _
         '' printer stops at the bare row and every child is invisible to a golden,
         '' which is precisely how a construct that parsed but dropped its arguments
         '' would look.
-        dim as Tko.StmtPayload ptr ip = @ast.stmts[cast( int32, n->data )]
+        dim as Tko.StmtPayload ptr ip = ast.StmtAt( cast( int32, n->data ) )
         DumpNode( ast, src, names, ip->a, indent + 1, outp )
         DumpNode( ast, src, names, ip->b, indent + 1, outp )
         DumpNode( ast, src, names, ip->c, indent + 1, outp )
@@ -1474,7 +1474,7 @@ private sub DumpNode _
                       ast.ChildAt( ip->first, i ), indent + 1, outp )
         next
     case Tko.N_CALL, Tko.N_INDEX, Tko.N_PAREN, Tko.N_TUPLE, Tko.N_INITIALIZER, Tko.N_STRCAT
-        dim as Tko.ListPayload ptr lp = @ast.lists[cast( int32, n->data )]
+        dim as Tko.ListPayload ptr lp = ast.ListAt( cast( int32, n->data ) )
         if lp->target <> Tko.NODE_NONE then
             DumpNode( ast, src, names, lp->target, indent + 1, outp )
         end if

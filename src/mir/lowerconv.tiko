@@ -124,7 +124,7 @@ function StrIdentityConvOperand_ _
     dim as string nm = ConvName_( c, cp )
     if (nm <> "cast") andalso (nm <> "cptr") then return Tko.NODE_NONE
     if cp->count <> 2 then return Tko.NODE_NONE
-    dim as Tko.NodeId op = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+    dim as Tko.NodeId op = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) )
     '' UNQUALIFIED on both sides. IsStringType tests the BUILTIN kind and a 'const
     '' string' is a distinct qualified entry, so 'cast( string, x )' over a
     '' 'dim x as const string' answered 'not a string' and the identity was missed --
@@ -135,7 +135,7 @@ function StrIdentityConvOperand_ _
     '' recognised at all.
     dim as Tko.TypeId rt2 = c.info->TypeOf_( id )
     if rt2 = Tko.TYPE_NONE then
-        dim as Tko.NodeId tn2 = cast( Tko.NodeId, c.ast->children[cp->first] )
+        dim as Tko.NodeId tn2 = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
         if c.ast->Kind( tn2 ) = Tko.N_TYPEREF then rt2 = c.info->TypeOf_( tn2 )
     end if
     if IsStringType( c, c.types->Unqualify( rt2 ) ) = false then
@@ -500,7 +500,7 @@ function LowerConvIntrinsic _
     if udtCastLike then
         dim as Tko.TypeId dstT = c.info->TypeOf_( id )
         if dstT = Tko.TYPE_NONE then
-            dim as Tko.NodeId tn3 = cast( Tko.NodeId, c.ast->children[cp->first] )
+            dim as Tko.NodeId tn3 = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
             if c.ast->Kind( tn3 ) = Tko.N_TYPEREF then dstT = c.info->TypeOf_( tn3 )
         end if
         dim as MirValue uv

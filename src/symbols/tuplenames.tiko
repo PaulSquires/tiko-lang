@@ -99,7 +99,7 @@ function TupleShapeOf_ _
     case Tko.N_PAREN
         dim as Tko.ListPayload ptr lp = c.ast->ListOf( e )
         if lp->count <> 1 then return Tko.NODE_NONE
-        return TupleShapeOf_( c, cast( Tko.NodeId, c.ast->children[lp->first] ), depth + 1 )
+        return TupleShapeOf_( c, cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) ), depth + 1 )
     case Tko.N_DEREF
         return TupleShapeOf_( c, c.ast->UnaryOf( e )->operand, depth + 1 )
     case Tko.N_INDEX

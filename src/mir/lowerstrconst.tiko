@@ -67,7 +67,7 @@ function ConstStringTextOf_ _
         dim as Tko.ListPayload ptr lp = _
             c.ast->ListOf( id )
         if lp->count <> 1 then return false
-        return ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->children[lp->first] ), _
+        return ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) ), _
                                    outText, depth + 1, scope_ )
 
     case Tko.N_TUPLE
@@ -85,7 +85,7 @@ function ConstStringTextOf_ _
         case else
             return false
         end select
-        return ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->children[tp->first] ), _
+        return ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->ChildSlot( tp->first ) ), _
                                    outText, depth + 1, scope_ )
 
     case Tko.N_BINARY
@@ -177,14 +177,14 @@ function ConstStringTextOf_ _
         '' fbc deliberately does not.
         if (wnm = "lcase") orelse (wnm = "ucase") then
             if wp->count <> 2 then return false
-            dim as Tko.NodeId mArg = cast( Tko.NodeId, c.ast->children[wp->first + 1] )
+            dim as Tko.NodeId mArg = cast( Tko.NodeId, c.ast->ChildSlot( wp->first + 1 ) )
             dim as Tko.Check.ConstVal mv = Tko.Check.ConstOf( _
                 *c.ast, mArg, *c.srcMgr, *c.names, c.types->target.pointerBits, _
                 c.syms, scope_ )
             if mv.known = false then return false
             if mv.value <> 1 then return false
             dim as string ct2
-            if ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->children[wp->first] ), _
+            if ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->ChildSlot( wp->first ) ), _
                                    ct2, depth + 1, scope_ ) = false then return false
             if wnm = "lcase" then
                 outText = Tko.Text.LowerAscii( ct2 )
@@ -196,7 +196,7 @@ function ConstStringTextOf_ _
 
         if wnm = "str" then
             if wp->count <> 1 then return false
-            dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[wp->first] )
+            dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->ChildSlot( wp->first ) )
             '' 'str( "text" )' IS THE TEXT: fbc folds 'const UP = str( "User:Pw" )' to the
             '' literal, and '@UP' then declined here (fbc-examples r3ice03, Base64.bas).
             if IsStringType( c, c.info->TypeOf_( a0 ) ) then
@@ -240,7 +240,7 @@ function ConstStringTextOf_ _
         '' argument: the conversion changes the WIDTH, not the characters.
         if wnm <> "wstr" then return false
         if wp->count <> 1 then return false
-        return ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->children[wp->first] ), _
+        return ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->ChildSlot( wp->first ) ), _
                                    outText, depth + 1, scope_ )
 
     case Tko.N_IDENT, Tko.N_MEMBER
@@ -309,7 +309,7 @@ function LitOnlyChain_( byref c as Ctx, byval id as Tko.NodeId, byval depth as i
         if (wlp->count <> 1) orelse (wlp->target = Tko.NODE_NONE) then return false
         if c.ast->Kind( wlp->target ) <> Tko.N_IDENT then return false
         if LowerSpelling_( c.ix, *c.names, c.ast->IdentOf( wlp->target )->name ) <> "wstr" then return false
-        return LitOnlyChain_( c, cast( Tko.NodeId, c.ast->children[wlp->first] ), depth + 1 )
+        return LitOnlyChain_( c, cast( Tko.NodeId, c.ast->ChildSlot( wlp->first ) ), depth + 1 )
     case Tko.N_IDENT, Tko.N_MEMBER
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( id ) )
         if (cs = nullptr) orelse (cs->kind <> cast( uint8, Tko.SYM_CONSTANT )) orelse (cs->payload = 0) then return false
@@ -331,7 +331,7 @@ function ConstTextGlobal_( byref c as Ctx, byval opnd as Tko.NodeId ) as int32
     if IsWstrCall_( c, opnd ) then
         dim as Tko.ListPayload ptr wlp = c.ast->ListOf( opnd )
         if wlp->count <> 1 then return -1
-        if ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->children[wlp->first] ), txt ) = false then return -1
+        if ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->ChildSlot( wlp->first ) ), txt ) = false then return -1
         return c.m->AddWideStringLiteral( txt, *c.names )
     end if
     select case c.ast->Kind( opnd )

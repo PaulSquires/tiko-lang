@@ -71,8 +71,8 @@ private function SelIdent_ _
     ( byref p as Tko.ParserState, byval lc as Tko.SourceLoc, byref nm as string ) as Tko.NodeId
     dim as Tko.IdentPayload ip
     ip.name = SelName_( p, nm )
-    p.ast->idents.Push( ip )
-    return NewNodeAt( p, Tko.N_IDENT, lc, p.ast->idents.Count - 1 )
+    p.ast->PushIdent( ip )
+    return NewNodeAt( p, Tko.N_IDENT, lc, p.ast->IdentPoolCount( ) - 1 )
 end function
 
 '' 'a.b' -- and 'FB.Spawn'-style qualified names are the same node.
@@ -83,8 +83,8 @@ private function SelDot_ _
     bp.op = cast( uint16, Tko.TK_DOT )
     bp.lhs = lhs
     bp.rhs = SelIdent_( p, lc, nm )
-    p.ast->binaries.Push( bp )
-    return NewNodeAt( p, Tko.N_MEMBER, lc, p.ast->binaries.Count - 1 )
+    p.ast->PushBinary( bp )
+    return NewNodeAt( p, Tko.N_MEMBER, lc, p.ast->BinaryPoolCount( ) - 1 )
 end function
 
 '' 'FB.<name>' as an expression -- or '__tko_mod_std_tasks.<name>': TasksNs.
@@ -130,10 +130,10 @@ private function SelDim_ _
     items.Push( cast( uint32, MakeStmt( p, Tko.N_VAR_ITEM, lc, item ) ) )
     dim as Tko.StmtPayload dsp
     dsp.op = cast( uint16, iif( isVar, Tko.KW_VAR, Tko.KW_DIM ) )
-    dsp.first = p.ast->children.Count
+    dsp.first = p.ast->ChildPoolCount( )
     dsp.count = items.Count
     for i as int32 = 0 to items.Count - 1
-        p.ast->children.Push( items[i] )
+        p.ast->PushChild( items[i] )
     next
     return MakeStmt( p, Tko.N_VAR, lc, dsp )
 end function
@@ -144,14 +144,14 @@ private function SelInt_ _
     dim as Tko.LiteralPayload lp
     lp.intValue = cast( uint64, abs( v ) )
     lp.radix = 10
-    p.ast->literals.Push( lp )
-    dim as Tko.NodeId n = NewNodeAt( p, Tko.N_INT_LIT, lc, p.ast->literals.Count - 1 )
+    p.ast->PushLiteral( lp )
+    dim as Tko.NodeId n = NewNodeAt( p, Tko.N_INT_LIT, lc, p.ast->LiteralPoolCount( ) - 1 )
     if v < 0 then
         dim as Tko.UnaryPayload up
         up.op = cast( uint16, Tko.TK_MINUS )
         up.operand = n
-        p.ast->unaries.Push( up )
-        n = NewNodeAt( p, Tko.N_UNARY, lc, p.ast->unaries.Count - 1 )
+        p.ast->PushUnary( up )
+        n = NewNodeAt( p, Tko.N_UNARY, lc, p.ast->UnaryPoolCount( ) - 1 )
     end if
     return n
 end function
@@ -164,8 +164,8 @@ private function SelEq_ _
     bp.op = cast( uint16, Tko.TK_EQ )
     bp.lhs = lhs
     bp.rhs = rhs
-    p.ast->binaries.Push( bp )
-    return NewNodeAt( p, Tko.N_BINARY, lc, p.ast->binaries.Count - 1 )
+    p.ast->PushBinary( bp )
+    return NewNodeAt( p, Tko.N_BINARY, lc, p.ast->BinaryPoolCount( ) - 1 )
 end function
 
 '' ONE BRANCH of the dispatch chain: 'f = <n>' guarding a block.
@@ -347,8 +347,8 @@ function ParseSelectChannel_ _
             dim as Tko.UnaryPayload dp
             dp.op = cast( uint16, Tko.TK_STAR )
             dp.operand = ep
-            p.ast->unaries.Push( dp )
-            dim as Tko.NodeId deref = NewNodeAt( p, Tko.N_DEREF, lc, p.ast->unaries.Count - 1 )
+            p.ast->PushUnary( dp )
+            dim as Tko.NodeId deref = NewNodeAt( p, Tko.N_DEREF, lc, p.ast->UnaryPoolCount( ) - 1 )
             '' A 'typeof' TYPEREF carries its expression in 'b' and names itself the
             '' way every keyword-spelled type does -- the folded keyword text in
             '' 'name' and the token kind in 'op'.

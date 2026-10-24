@@ -149,7 +149,7 @@ private sub CheckBranchCross_ ( byref c as Ctx, byval id as NodeId )
         redim labNext( 0 to iif( nLab > 0, nLab - 1, 0 ) )
         dim as containers.Map( of uint32, int32 ) labTail
         for i as int32 = 0 to nLab - 1
-            dim as uint32 ln = c.ast->stmts[cast( int32, c.ast->DataOf( lab( i ) ) )].name
+            dim as uint32 ln = c.ast->StmtAt( cast( int32, c.ast->DataOf( lab( i ) ) ) )->name
             labNext( i ) = -1
             dim as int32 t = -1
             if labTail.TryGet( ln, t ) then
@@ -234,7 +234,7 @@ private sub CheckBranchCross_ ( byref c as Ctx, byval id as NodeId )
         end if
         c.diags->Report( TKO0881, PointRange( c.ast->Loc( id ) ), gname, "the FOR's end value" )
         if tp->count >= 3 then
-            if c.ast->children[tp->first + 2] <> NODE_NONE then
+            if c.ast->ChildSlot( tp->first + 2 ) <> NODE_NONE then
                 c.diags->Report( TKO0881, PointRange( c.ast->Loc( id ) ), gname, "the FOR's step value" )
             end if
         end if

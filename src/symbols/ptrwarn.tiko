@@ -129,7 +129,7 @@ private function PwZero_ ( byref c as Ctx, byval n as NodeId, byval depth as int
     case N_PAREN
         dim as ListPayload ptr pp = c.ast->ListOf( n )
         if pp->count <> 1 then return false
-        return PwZero_( c, cast( NodeId, c.ast->children[pp->first] ), depth + 1 )
+        return PwZero_( c, cast( NodeId, c.ast->ChildSlot( pp->first ) ), depth + 1 )
     case N_UNARY
         dim as UnaryPayload ptr up = c.ast->UnaryOf( n )
         dim as TokenKind uop = cast( TokenKind, up->op )
@@ -155,10 +155,10 @@ private function PwZero_ ( byref c as Ctx, byval n as NodeId, byval depth as int
         case "cbyte", "cubyte", "cshort", "cushort", "clng", "culng", "cint", "cuint", _
              "clngint", "culngint", "cbool"
             if cp->count <> 1 then return false
-            return PwZero_( c, cast( NodeId, c.ast->children[cp->first] ), depth + 1 )
+            return PwZero_( c, cast( NodeId, c.ast->ChildSlot( cp->first ) ), depth + 1 )
         case "cast"
             if cp->count <> 2 then return false
-            return PwZero_( c, cast( NodeId, c.ast->children[cp->first + 1] ), depth + 1 )
+            return PwZero_( c, cast( NodeId, c.ast->ChildSlot( cp->first + 1 ) ), depth + 1 )
         end select
     end select
     return false
@@ -173,7 +173,7 @@ private function PwOverloadedAddr_ ( byref c as Ctx, byval n as NodeId ) as bool
         if c.ast->Kind( n ) <> N_PAREN then exit for
         dim as ListPayload ptr pp = c.ast->ListOf( n )
         if pp->count <> 1 then return false
-        n = cast( NodeId, c.ast->children[pp->first] )
+        n = cast( NodeId, c.ast->ChildSlot( pp->first ) )
     next
     if n = NODE_NONE then return false
     dim as NodeId o = NODE_NONE
@@ -185,7 +185,7 @@ private function PwOverloadedAddr_ ( byref c as Ctx, byval n as NodeId ) as bool
         if (cp->target = NODE_NONE) orelse (cp->count <> 1) then return false
         if c.ast->Kind( cp->target ) <> N_IDENT then return false
         if lcase( c.names->Spelling( c.ast->IdentOf( cp->target )->name ) ) <> "procptr" then return false
-        o = cast( NodeId, c.ast->children[cp->first] )
+        o = cast( NodeId, c.ast->ChildSlot( cp->first ) )
     end if
     if o = NODE_NONE then return false
     dim as SymbolId sid = c.info->RefOf( o )
@@ -237,7 +237,7 @@ private function PwAddrOfCall_ ( byref c as Ctx, byval n as NodeId ) as boolean
         if c.ast->Kind( n ) <> N_PAREN then exit for
         dim as ListPayload ptr pp = c.ast->ListOf( n )
         if pp->count <> 1 then return false
-        n = cast( NodeId, c.ast->children[pp->first] )
+        n = cast( NodeId, c.ast->ChildSlot( pp->first ) )
     next
     if n = NODE_NONE then return false
     if c.ast->Kind( n ) <> N_ADDROF then return false

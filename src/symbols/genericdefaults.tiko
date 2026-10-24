@@ -86,7 +86,7 @@ private function DeclFor_ _
     dim as Tko.StmtPayload ptr tp = StmtOf( c, gnode )
     dim as int32 tFirst = tp->first, tCount = tp->count
     for i as int32 = 0 to tCount - 1
-        dim as Tko.NodeId m = cast( Tko.NodeId, c.ast->children[tFirst + i] )
+        dim as Tko.NodeId m = cast( Tko.NodeId, c.ast->ChildSlot( tFirst + i ) )
         if c.ast->Kind( m ) <> Tko.N_PROC then continue for
         dim as Tko.StmtPayload ptr mp = StmtOf( c, m )
         if mp->op <> dop then continue for

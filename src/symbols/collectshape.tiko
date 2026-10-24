@@ -12,8 +12,8 @@ private function SameDeclShape_ _
     ( byref w as Walker, byval aItem as Tko.NodeId, byval bItem as Tko.NodeId ) as boolean
 
     if (aItem = Tko.NODE_NONE) orelse (bItem = Tko.NODE_NONE) then return true
-    if (cast( int32, aItem ) >= w.ast->nodes.Count) orelse _
-       (cast( int32, bItem ) >= w.ast->nodes.Count) then return true
+    if (cast( int32, aItem ) >= w.ast->NodePoolCount( )) orelse _
+       (cast( int32, bItem ) >= w.ast->NodePoolCount( )) then return true
 
     dim as Tko.AstNode ptr an = w.ast->NodeAt( aItem )
     dim as Tko.AstNode ptr bn = w.ast->NodeAt( bItem )
@@ -184,7 +184,7 @@ private function SameLiteral_ _
                     dim as Tko.InternId na = w.ast->IdentOf( ca->target )->name
                     dim as Tko.InternId nb = w.ast->IdentOf( cb->target )->name
                     if w.names->Fold( na ) = w.names->Fold( nb ) then
-                        return SameLiteral_( w, cast( Tko.NodeId, w.ast->children[ca->first] ), cast( Tko.NodeId, w.ast->children[cb->first] ) )
+                        return SameLiteral_( w, cast( Tko.NodeId, w.ast->ChildSlot( ca->first ) ), cast( Tko.NodeId, w.ast->ChildSlot( cb->first ) ) )
                     end if
                 end if
             end if
@@ -220,7 +220,7 @@ private function RedimRestatesParam_ _
     ( byref w as Walker, byval prm as Tko.NodeId, byval itemType as Tko.NodeId ) as boolean
 
     if prm = Tko.NODE_NONE then return false
-    if cast( int32, prm ) >= w.ast->nodes.Count then return false
+    if cast( int32, prm ) >= w.ast->NodePoolCount( ) then return false
     if w.ast->Kind( prm ) <> Tko.N_PARAM then return false
 
     dim as boolean isArray = _

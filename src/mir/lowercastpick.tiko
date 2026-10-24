@@ -275,7 +275,7 @@ function IntrCastForce_( byref c as Ctx, byval id as Tko.NodeId ) as int32
     dim as string nm = LowerSpelling_( c.ix, *c.names, c.ast->IdentOf( cp->target )->name )
     if instr( " left right val valint vallng valuint valulng ", " " & nm & " " ) = 0 then return 0
     if CallsUserProcNamedLikeBuiltin( c, id ) then return 0
-    dim as Tko.TypeId at = c.types->Unqualify( c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[cp->first] ) ) )
+    dim as Tko.TypeId at = c.types->Unqualify( c.info->TypeOf_( cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) ) ) )
     if c.types->Kind( at ) <> Tko.TK_UDT then return 0
     dim as int32 oc, prm
     dim as Tko.SymbolId s = Tko.Check.IntrStrOvlPick( *c.ast, *c.syms, *c.types, *c.names, at, (nm = "left") orelse (nm = "right"), oc, prm )

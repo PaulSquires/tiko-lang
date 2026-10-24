@@ -577,10 +577,10 @@ sub GfxFinish _
     ( byref p as Tko.ParserState, byref sp as Tko.StmtPayload, _
       byref items as Tko.NodeIdVec )
 
-    sp.first = p.ast->children.Count
+    sp.first = p.ast->ChildPoolCount( )
     sp.count = items.Count
     for i as int32 = 0 to items.Count - 1
-        p.ast->children.Push( items[i] )
+        p.ast->PushChild( items[i] )
     next
 end sub
 

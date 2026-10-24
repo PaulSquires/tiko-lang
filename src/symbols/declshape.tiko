@@ -273,7 +273,7 @@ sub CheckProcShape_ ( byref c as Ctx, byval id as NodeId )
         if (sp->b = NODE_NONE) orelse (c.ast->Kind( sp->b ) <> N_BLOCK) then return
         dim as ListPayload ptr bp = c.ast->ListOf( sp->b )
         dim as NodeId first_ = NODE_NONE
-        if bp->count > 0 then first_ = cast( NodeId, c.ast->children[bp->first] )
+        if bp->count > 0 then first_ = cast( NodeId, c.ast->ChildSlot( bp->first ) )
         '' Every chain call inside the body: node ids run in source order, and the body's
         '' own nodes lie between the procedure's first parameter and the block.
         for i as int32 = cast( int32, sp->b ) - 1 to 1 step -1
@@ -324,7 +324,7 @@ function PtrIntNarrow_ ( byref c as Ctx, byval lt as TypeId, byval rt as TypeId,
         if (rhs = NODE_NONE) orelse (c.ast->Kind( rhs ) <> N_PAREN) then exit for
         dim as ListPayload ptr pp = c.ast->ListOf( rhs )
         if pp->count <> 1 then exit for
-        rhs = cast( NodeId, c.ast->children[pp->first] )
+        rhs = cast( NodeId, c.ast->ChildSlot( pp->first ) )
     next
     if rhs = NODE_NONE then return false
     select case c.ast->Kind( rhs )
@@ -446,9 +446,9 @@ end sub
 '' an element 'a( 0 )' and a number take one. tiko accepted all of them (audit F-71).
 private sub CheckFileGetPutAmount_ ( byref c as Ctx, byval sp as StmtPayload ptr )
     if sp->count < 3 then return
-    dim as NodeId amt = cast( NodeId, c.ast->children[sp->first + 2] )
+    dim as NodeId amt = cast( NodeId, c.ast->ChildSlot( sp->first + 2 ) )
     if (amt = NODE_NONE) orelse (c.ast->Kind( amt ) = N_ELIDED) then return
-    dim as NodeId v = cast( NodeId, c.ast->children[sp->first + 1] )
+    dim as NodeId v = cast( NodeId, c.ast->ChildSlot( sp->first + 1 ) )
     if (v = NODE_NONE) orelse (c.ast->Kind( v ) = N_ELIDED) then return
     dim as boolean bad = false
     if c.ast->Kind( v ) = N_CALL then
@@ -583,7 +583,7 @@ private function ConstStrInitBad_ ( byref c as Ctx, byval e as NodeId, byval dep
     case N_PAREN
         dim as ListPayload ptr pl = c.ast->ListOf( e )
         if pl->count <> 1 then return NODE_NONE
-        return ConstStrInitBad_( c, cast( NodeId, c.ast->children[pl->first] ), depth + 1 )
+        return ConstStrInitBad_( c, cast( NodeId, c.ast->ChildSlot( pl->first ) ), depth + 1 )
     case N_BINARY
         dim as BinaryPayload ptr bp = c.ast->BinaryOf( e )
         select case cast( TokenKind, bp->op )
@@ -629,7 +629,7 @@ sub CheckConstStrInit_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = c.ast->StmtOf( id )
     dim as int32 spFirst = sp->first, spCount = sp->count
     for i as int32 = 0 to spCount - 1
-        dim as NodeId item = cast( NodeId, c.ast->children[spFirst + i] )
+        dim as NodeId item = cast( NodeId, c.ast->ChildSlot( spFirst + i ) )
         if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
         dim as NodeId v = c.ast->StmtOf( item )->b
         if v = NODE_NONE then continue for
@@ -649,7 +649,7 @@ private function StripParens_ ( byref c as Ctx, byval n as NodeId ) as NodeId
         if (n = NODE_NONE) orelse (c.ast->Kind( n ) <> N_PAREN) then exit for
         dim as ListPayload ptr pp = c.ast->ListOf( n )
         if pp->count <> 1 then exit for
-        n = cast( NodeId, c.ast->children[pp->first] )
+        n = cast( NodeId, c.ast->ChildSlot( pp->first ) )
     next
     return n
 end function

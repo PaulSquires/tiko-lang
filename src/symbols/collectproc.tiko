@@ -430,7 +430,7 @@ private function RefuseVariadicOverload_ _
     #macro VARIADIC_( _p_, _out_ )
         _out_ = false
         for vi as int32 = 0 to (_p_)->count - 1
-            dim as Tko.NodeId vn = cast( Tko.NodeId, w.ast->children[(_p_)->first + vi] )
+            dim as Tko.NodeId vn = cast( Tko.NodeId, w.ast->ChildSlot( (_p_)->first + vi ) )
             if w.ast->Kind( vn ) = Tko.N_PARAM then
                 if StmtOf( w, vn )->op = cast( uint16, Tko.TK_ELLIPSIS ) then _out_ = true
             end if

@@ -78,7 +78,7 @@ private function RaIntConstShape_( byref c as Ctx, byval id as Tko.NodeId ) as b
     case Tko.N_PAREN
         dim as Tko.ListPayload ptr pp = c.ast->ListOf( id )
         if pp->count <> 1 then return false
-        return RaIntConstShape_( c, cast( Tko.NodeId, c.ast->children[pp->first] ) )
+        return RaIntConstShape_( c, cast( Tko.NodeId, c.ast->ChildSlot( pp->first ) ) )
     case Tko.N_UNARY
         dim as Tko.UnaryPayload ptr up = c.ast->UnaryOf( id )
         if cast( Tko.TokenKind, up->op ) <> Tko.TK_MINUS then return false
@@ -125,7 +125,7 @@ end function
 
 private function RaParenInner_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
     dim as Tko.ListPayload ptr pp = c.ast->ListOf( id )
-    return cast( Tko.NodeId, c.ast->children[pp->first] )
+    return cast( Tko.NodeId, c.ast->ChildSlot( pp->first ) )
 end function
 
 '' Is the chain worth taking? Needs a constant, a non-constant, and nothing unlowerable.

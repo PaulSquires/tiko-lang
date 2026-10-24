@@ -95,7 +95,7 @@ private function CvaOperands_ _
         outFirst = sp->first
         return sp->count
     end if
-    dim as NodeId only_ = cast( NodeId, c.ast->children[sp->first] )
+    dim as NodeId only_ = cast( NodeId, c.ast->ChildSlot( sp->first ) )
     dim as NodeKind k = c.ast->Kind( only_ )
     if (k <> N_TUPLE) andalso (k <> N_PAREN) then
         outFirst = sp->first
@@ -113,8 +113,8 @@ private function CvaPair_ _
 
     dim as int32 first_
     if CvaOperands_( c, id, first_ ) <> 2 then return false
-    a = cast( NodeId, c.ast->children[first_] )
-    b = cast( NodeId, c.ast->children[first_ + 1] )
+    a = cast( NodeId, c.ast->ChildSlot( first_ ) )
+    b = cast( NodeId, c.ast->ChildSlot( first_ + 1 ) )
     return true
 end function
 
@@ -122,7 +122,7 @@ end function
 private function CvaSingle_( byref c as Ctx, byval id as NodeId ) as NodeId
     dim as int32 first_
     if CvaOperands_( c, id, first_ ) <> 1 then return NODE_NONE
-    return cast( NodeId, c.ast->children[first_] )
+    return cast( NodeId, c.ast->ChildSlot( first_ ) )
 end function
 
 private sub EmitVa2_ _
@@ -196,7 +196,7 @@ function LowerCvaArg _
     if (mt = MT_VOID) orelse (mt = MT_AGG) then return false
 
     dim as MirValue av
-    if CvaAddr_( c, cast( NodeId, c.ast->children[lp->first] ), av ) = false then
+    if CvaAddr_( c, cast( NodeId, c.ast->ChildSlot( lp->first ) ), av ) = false then
         return false
     end if
 

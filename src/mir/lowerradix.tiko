@@ -43,9 +43,9 @@ function LowerRadixCall_ _
         c.ast->IdentOf( cp->target )
     dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
 
-    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
     dim as Tko.NodeId a1 = Tko.NODE_NONE
-    if cp->count = 2 then a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+    if cp->count = 2 then a1 = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) )
 
     '' SPACE and STRING first: their argument is a COUNT, not a value to render, and
     '' neither takes a width.

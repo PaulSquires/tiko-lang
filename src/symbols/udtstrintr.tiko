@@ -97,7 +97,7 @@ sub CheckUdtStrIntrinsic_ ( byref c as Ctx, byval id as NodeId )
     if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
     dim as string nm = lcase( c.names->Spelling( _
         c.ast->IdentOf( lp->target )->name ) )
-    dim as NodeId a = cast( NodeId, c.ast->children[lp->first] )
+    dim as NodeId a = cast( NodeId, c.ast->ChildSlot( lp->first ) )
     dim as TypeId at = c.info->TypeOf_( a )
     if at = TYPE_NONE then return
     dim as BuiltinType k = UdtTextCast_( c, at )

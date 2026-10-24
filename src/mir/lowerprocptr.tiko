@@ -50,7 +50,7 @@ function ProcAddrForWanted_ _
         dim as Tko.ListPayload ptr lp = _
             c.ast->ListOf( id )
         if (lp->count <> 1) orelse (lp->target = Tko.NODE_NONE) then return false
-        fnE = cast( Tko.NodeId, c.ast->children[lp->first] )
+        fnE = cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) )
     end select
     if fnE = Tko.NODE_NONE then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( fnE ) )
@@ -207,7 +207,7 @@ function LowerProcPtr _
 
     '' The operand names a PROCEDURE. Anything else -- an overload set nothing chose
     '' between, a name that did not resolve -- has no single address to take.
-    dim as Tko.NodeId fnE = cast( Tko.NodeId, c.ast->children[lp->first] )
+    dim as Tko.NodeId fnE = cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) )
 
     '' THE OVERLOAD THE TARGET'S TYPE NAMES -- see LowerExprWant_.
     if lp->count = 1 then
@@ -220,7 +220,7 @@ function LowerProcPtr _
     '' own INDEX constants. Emitting the procedure's address instead would be a
     '' well-typed value and the wrong number.
     if lp->count = 2 then
-        dim as Tko.NodeId va = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
+        dim as Tko.NodeId va = cast( Tko.NodeId, c.ast->ChildSlot( lp->first + 1 ) )
         if IsVirtualArg_( c, va ) then
             if c.ast->Kind( fnE ) <> Tko.N_MEMBER then return false
             dim as Tko.BinaryPayload ptr vmb = _
@@ -280,7 +280,7 @@ function LowerProcPtr _
     '' the VOID builtin in a procedure TYPE, which is what ResolveTypeRef fills in --
     '' so comparing them raw made every 'procptr( s, sub( ) )' miss its own overload.
     if lp->count = 2 then
-        dim as Tko.NodeId sigN = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
+        dim as Tko.NodeId sigN = cast( Tko.NodeId, c.ast->ChildSlot( lp->first + 1 ) )
         dim as boolean sigOk = (c.ast->Kind( sigN ) = Tko.N_TYPEREF)
         if sigOk = false then sigOk = (c.ast->Kind( sigN ) = Tko.N_IDENT)
         if sigOk then

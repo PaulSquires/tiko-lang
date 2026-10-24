@@ -44,7 +44,7 @@ function Dump _
         dim as Tko.StmtPayload ptr sp = _
             ast.StmtOf( n )
         if sp->count <= 0 then continue for
-        dim as Tko.NodeId arg = cast( Tko.NodeId, ast.children[sp->first] )
+        dim as Tko.NodeId arg = cast( Tko.NodeId, ast.ChildSlot( sp->first ) )
         if arg = Tko.NODE_NONE then continue for
         dim as Tko.TypeId t = info.TypeOf_( arg )
         dim as string nm = "?"

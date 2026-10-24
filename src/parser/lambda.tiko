@@ -147,17 +147,17 @@ private function MakeClosure_ _
         mb.op = cast( uint16, Tko.TK_DOT )
         mb.lhs = IdentNamed_( p, selfNm, t.loc )
         mb.rhs = IdentNamed_( p, fnm, t.loc )
-        p.ast->binaries.Push( mb )
+        p.ast->PushBinary( mb )
         dim as Tko.NodeId mem = _
-            NewNodeAt( p, Tko.N_BINARY, t.loc, p.ast->binaries.Count - 1 )
+            NewNodeAt( p, Tko.N_BINARY, t.loc, p.ast->BinaryPoolCount( ) - 1 )
         p.ast->SetKind( mem, cast( uint16, Tko.N_MEMBER ) )
         dim as Tko.NodeId src_ = mem
         if (p.ast->Flags( cn ) and Tko.NF_BYREF) <> 0 then
             dim as Tko.UnaryPayload dp
             dp.op = cast( uint16, Tko.TK_STAR )
             dp.operand = mem
-            p.ast->unaries.Push( dp )
-            src_ = NewNodeAt( p, Tko.N_DEREF, t.loc, p.ast->unaries.Count - 1 )
+            p.ast->PushUnary( dp )
+            src_ = NewNodeAt( p, Tko.N_DEREF, t.loc, p.ast->UnaryPoolCount( ) - 1 )
         end if
         dim as Tko.StmtPayload ip2
         ip2.name = cnm
@@ -165,9 +165,9 @@ private function MakeClosure_ _
         dim as Tko.NodeId item = MakeStmt( p, Tko.N_VAR_ITEM, t.loc, ip2 )
         dim as Tko.StmtPayload vp
         vp.op = cast( uint16, Tko.KW_VAR )
-        vp.first = p.ast->children.Count
+        vp.first = p.ast->ChildPoolCount( )
         vp.count = 1
-        p.ast->children.Push( cast( uint32, item ) )
+        p.ast->PushChild( cast( uint32, item ) )
         dim as Tko.NodeId vn = MakeStmt( p, Tko.N_VAR, t.loc, vp )
         p.ast->OrFlags( vn, Tko.NF_BYREF )
         body.Push( cast( uint32, vn ) )
@@ -177,7 +177,7 @@ private function MakeClosure_ _
         dim as Tko.ListPayload ptr bl = _
             p.ast->ListOf( sp.b )
         for i as int32 = 0 to bl->count - 1
-            body.Push( p.ast->children[bl->first + i] )
+            body.Push( p.ast->ChildSlot( bl->first + i ) )
         next
     end if
     sp.b = MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, body )
@@ -191,12 +191,12 @@ private function MakeClosure_ _
     p.ast->OrFlags( p0, Tko.NF_BYREF )
     prms.Push( cast( uint32, p0 ) )
     for i as int32 = 0 to sp.count - 1
-        prms.Push( p.ast->children[sp.first + i] )
+        prms.Push( p.ast->ChildSlot( sp.first + i ) )
     next
-    sp.first = p.ast->children.Count
+    sp.first = p.ast->ChildPoolCount( )
     sp.count = prms.Count
     for i as int32 = 0 to prms.Count - 1
-        p.ast->children.Push( prms[i] )
+        p.ast->PushChild( prms[i] )
     next
 
     sp.name = invNm
@@ -217,10 +217,10 @@ private function MakeClosure_ _
     dim as Tko.StmtPayload cp2
     cp2.name = clsNm
     cp2.a = ln
-    cp2.first = p.ast->children.Count
+    cp2.first = p.ast->ChildPoolCount( )
     cp2.count = capIdents.Count
     for i as int32 = 0 to capIdents.Count - 1
-        p.ast->children.Push( capIdents[i] )
+        p.ast->PushChild( capIdents[i] )
     next
     return MakeStmt( p, Tko.N_CLOSURE, t.loc, cp2 )
 end function
@@ -232,8 +232,8 @@ private function IdentNamed_ _
       byval loc as Tko.SourceLoc ) as Tko.NodeId
     dim as Tko.IdentPayload ip
     ip.name = nm
-    p.ast->idents.Push( ip )
-    return NewNodeAt( p, Tko.N_IDENT, loc, p.ast->idents.Count - 1 )
+    p.ast->PushIdent( ip )
+    return NewNodeAt( p, Tko.N_IDENT, loc, p.ast->IdentPoolCount( ) - 1 )
 end function
 
 '' ...and a TYPEREF naming one.

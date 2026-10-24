@@ -333,10 +333,10 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
         '' made six times. No builtin type is spelled '(' , so the op is free.
         dim as Tko.StmtPayload tp
         tp.op = cast( uint16, Tko.TK_LPAREN )
-        tp.first = p.ast->children.Count
+        tp.first = p.ast->ChildPoolCount( )
         tp.count = elems.Count
         for i as int32 = 0 to elems.Count - 1
-            p.ast->children.Push( elems[i] )
+            p.ast->PushChild( elems[i] )
         next
         return MakeStmt( p, Tko.N_TYPEREF, t.loc, tp )
     end if
@@ -668,10 +668,10 @@ function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
                 if Accept( p, Tko.TK_COMMA ) = false then exit do
             loop
             Expect( p, Tko.TK_RPAREN, ")" )
-            sp.first = p.ast->children.Count
+            sp.first = p.ast->ChildPoolCount( )
             sp.count = gargs.Count
             for i as int32 = 0 to gargs.Count - 1
-                p.ast->children.Push( gargs[i] )
+                p.ast->PushChild( gargs[i] )
             next
         else
             p.pos = save

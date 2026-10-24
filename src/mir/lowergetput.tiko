@@ -27,7 +27,7 @@ private function FileGetIob_ _
       byref args as containers.Array( of uint32 ), byref ok as boolean ) as boolean
     ok = true
     if isPut orelse (sp->count < 4) then return false
-    dim as Tko.NodeId nrN = cast( Tko.NodeId, c.ast->children[sp->first + 3] )
+    dim as Tko.NodeId nrN = cast( Tko.NodeId, c.ast->ChildSlot( sp->first + 3 ) )
     if nrN = Tko.NODE_NONE then return false
     if c.ast->Kind( nrN ) = Tko.N_ELIDED then return false
     dim as MirValue na = LowerAddr( c, nrN )
@@ -71,10 +71,10 @@ function LowerFileGetPut _
     dim as Tko.NodeId posN = Tko.NODE_NONE
     dim as Tko.NodeId varN = Tko.NODE_NONE
     if sp->count = 1 then
-        varN = cast( Tko.NodeId, c.ast->children[sp->first] )
+        varN = cast( Tko.NodeId, c.ast->ChildSlot( sp->first ) )
     else
-        posN = cast( Tko.NodeId, c.ast->children[sp->first] )
-        varN = cast( Tko.NodeId, c.ast->children[sp->first + 1] )
+        posN = cast( Tko.NodeId, c.ast->ChildSlot( sp->first ) )
+        varN = cast( Tko.NodeId, c.ast->ChildSlot( sp->first + 1 ) )
     end if
     if varN = Tko.NODE_NONE then return false
     if c.ast->Kind( varN ) = Tko.N_ELIDED then return false
@@ -304,7 +304,7 @@ function LowerFileGetPut _
     '' THE AMOUNT IS IN ELEMENTS: 'put #1, , buf( 0 ), 10' over a LONG array is 40 bytes,
     '' measured ('fb_FilePutLarge( 1, 0ll, BUF$0, 40ull )'). tiko wrote one element.
     if sp->count >= 3 then
-        dim as Tko.NodeId amtN = cast( Tko.NodeId, c.ast->children[sp->first + 2] )
+        dim as Tko.NodeId amtN = cast( Tko.NodeId, c.ast->ChildSlot( sp->first + 2 ) )
         if amtN <> Tko.NODE_NONE then
             if c.ast->Kind( amtN ) <> Tko.N_ELIDED then
                 dim as MirValue av = LowerExprN_( c, amtN )

@@ -14,8 +14,8 @@
 private function LowerSeekStmt_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     if sp->count <> 2 then return false
-    dim as Tko.NodeId chE = cast( Tko.NodeId, c.ast->children[sp->first] )
-    dim as Tko.NodeId poE = cast( Tko.NodeId, c.ast->children[sp->first + 1] )
+    dim as Tko.NodeId chE = cast( Tko.NodeId, c.ast->ChildSlot( sp->first ) )
+    dim as Tko.NodeId poE = cast( Tko.NodeId, c.ast->ChildSlot( sp->first + 1 ) )
     if (c.ast->Kind( chE ) = Tko.N_ELIDED) orelse _
        (c.ast->Kind( poE ) = Tko.N_ELIDED) then return false
 
@@ -57,7 +57,7 @@ private function LowerColorArgs_ _
     dim as containers.Array( of uint32 ) args
     for k as int32 = 0 to 1
         dim as Tko.NodeId e = Tko.NODE_NONE
-        if k < count then e = cast( Tko.NodeId, c.ast->children[first + k] )
+        if k < count then e = cast( Tko.NodeId, c.ast->ChildSlot( first + k ) )
         if e <> Tko.NODE_NONE then
             if c.ast->Kind( e ) = Tko.N_ELIDED then e = Tko.NODE_NONE
         end if
@@ -142,7 +142,7 @@ private function LowerWidthStmt_( byref c as Ctx, byval id as Tko.NodeId ) as bo
     if sp->count > 2 then return false
 
     dim as Tko.NodeId a0 = Tko.NODE_NONE
-    if sp->count >= 1 then a0 = cast( Tko.NodeId, c.ast->children[sp->first] )
+    if sp->count >= 1 then a0 = cast( Tko.NodeId, c.ast->ChildSlot( sp->first ) )
     if a0 <> Tko.NODE_NONE then
         if c.ast->Kind( a0 ) = Tko.N_ELIDED then a0 = Tko.NODE_NONE
     end if
@@ -159,7 +159,7 @@ private function LowerWidthStmt_( byref c as Ctx, byval id as Tko.NodeId ) as bo
             if sp->count <> 2 then return false
             dim as MirValue dv
             if NarrowOperandAny_( c, a0, dv ) = false then return false
-            dim as Tko.NodeId a1 = cast( Tko.NodeId, c.ast->children[sp->first + 1] )
+            dim as Tko.NodeId a1 = cast( Tko.NodeId, c.ast->ChildSlot( sp->first + 1 ) )
             if c.ast->Kind( a1 ) = Tko.N_ELIDED then return false
             dim as MirValue nv = LowerNumArg_( c, a1, MT_I32 )
             if nv.kind = cast( uint8, MV_NONE ) then return false
@@ -200,7 +200,7 @@ private function LowerColorStmt_( byref c as Ctx, byval id as Tko.NodeId ) as bo
     '' two, and it declined: 'color( 1, 2 )' itself, and Rosetta Draw_a_sphere's
     '' 'Color( RGB(..), RGB(..) )'. fbc: 'fb_Color( fg, bg, 0 )', as the bare spelling.
     if sp->count = 1 then
-        dim as Tko.NodeId t1 = cast( Tko.NodeId, c.ast->children[sp->first] )
+        dim as Tko.NodeId t1 = cast( Tko.NodeId, c.ast->ChildSlot( sp->first ) )
         if (c.ast->Kind( t1 ) = Tko.N_TUPLE) andalso _
            ((c.ast->Flags( t1 ) and Tko.NF_TYPE_LITERAL) = 0) then
             dim as Tko.ListPayload ptr tl = c.ast->ListOf( t1 )
@@ -234,12 +234,12 @@ private function LowerLockStmt_ _
     if sp->count < 2 then return false
     if sp->count > 3 then return false
 
-    dim as Tko.NodeId hn = cast( Tko.NodeId, c.ast->children[sp->first] )
+    dim as Tko.NodeId hn = cast( Tko.NodeId, c.ast->ChildSlot( sp->first ) )
     dim as MirValue hv = LowerNumArg_( c, hn, MT_I32 )
     if hv.kind = cast( uint8, MV_NONE ) then return false
     if hv.kind = cast( uint8, MV_NONE ) then return false
 
-    dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[sp->first + 1] )
+    dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->ChildSlot( sp->first + 1 ) )
     dim as MirValue av = LowerNumArg_( c, an, MT_I64 )
     if av.kind = cast( uint8, MV_NONE ) then return false
     if av.kind = cast( uint8, MV_NONE ) then return false
@@ -248,7 +248,7 @@ private function LowerLockStmt_ _
     '' does not carry a dead 'const i64 0' fbc never emits.
     dim as MirValue bv
     if sp->count = 3 then
-        dim as Tko.NodeId bn = cast( Tko.NodeId, c.ast->children[sp->first + 2] )
+        dim as Tko.NodeId bn = cast( Tko.NodeId, c.ast->ChildSlot( sp->first + 2 ) )
         bv = LowerNumArg_( c, bn, MT_I64 )
         if bv.kind = cast( uint8, MV_NONE ) then return false
     else
@@ -327,8 +327,8 @@ private function LowerNameFn_ _
         c.ast->IdentOf( cp->target )
     if LowerSpelling_( c.ix, *c.names, ip->name ) <> "name" then return false
 
-    return EmitRename_( c, cast( Tko.NodeId, c.ast->children[cp->first] ), _
-                        cast( Tko.NodeId, c.ast->children[cp->first + 1] ), outv )
+    return EmitRename_( c, cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) ), _
+                        cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) ), outv )
 end function
 
 '' 'screen( row, column [, colourFlag ] )' IN EXPRESSION POSITION -- the character or
@@ -358,8 +358,8 @@ private function LowerScreenFn_ _
     if LowerSpelling_( c.ix, *c.names, ip->name ) <> "screen" then return false
     if (cp->count < 2) orelse (cp->count > 3) then return false
 
-    dim as Tko.NodeId rowN = cast( Tko.NodeId, c.ast->children[cp->first] )
-    dim as Tko.NodeId colN = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+    dim as Tko.NodeId rowN = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
+    dim as Tko.NodeId colN = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) )
 
     '' Source order, then swapped at the call: fbc evaluates the row expression first
     '' even though the column is passed first, and either may have a side effect.
@@ -372,7 +372,7 @@ private function LowerScreenFn_ _
 
     dim as MirValue flagV
     if cp->count = 3 then
-        dim as Tko.NodeId fN = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
+        dim as Tko.NodeId fN = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 2 ) )
         flagV = LowerNumArg_( c, fN, MT_I32 )
         if flagV.kind = cast( uint8, MV_NONE ) then return false
     else

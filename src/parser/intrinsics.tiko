@@ -168,10 +168,10 @@ private sub IntrPrint( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
         if (Peek( p ) <> Tko.TK_SEMICOLON) andalso (Peek( p ) <> Tko.TK_COMMA) then exit do
     loop
 
-    sp.first = p.ast->children.Count
+    sp.first = p.ast->ChildPoolCount( )
     sp.count = items.Count
     for i as int32 = 0 to items.Count - 1
-        p.ast->children.Push( items[i] )
+        p.ast->PushChild( items[i] )
     next
 end sub
 
@@ -234,10 +234,10 @@ private sub IntrInput( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
 
     dim as Tko.NodeIdVec items
     IntrArgList( p, items )
-    sp.first = p.ast->children.Count
+    sp.first = p.ast->ChildPoolCount( )
     sp.count = items.Count
     for i as int32 = 0 to items.Count - 1
-        p.ast->children.Push( items[i] )
+        p.ast->PushChild( items[i] )
     next
 end sub
 
@@ -363,10 +363,10 @@ private sub IntrOpen _
         if p.pos = before then exit do
     loop
 
-    sp.first = p.ast->children.Count
+    sp.first = p.ast->ChildPoolCount( )
     sp.count = items.Count
     for i as int32 = 0 to items.Count - 1
-        p.ast->children.Push( items[i] )
+        p.ast->PushChild( items[i] )
     next
 end sub
 
@@ -394,11 +394,11 @@ function OpenExprCall( byref p as Tko.ParserState ) as Tko.NodeId
     IntrOpen( p, sp, true )
     Expect( p, Tko.TK_RPAREN, ")" )
     if (devN <> Tko.NODE_NONE) andalso (sp.a <> Tko.NODE_NONE) then
-        dim as int32 nf = p.ast->children.Count
-        p.ast->children.Push( cast( uint32, sp.a ) )
+        dim as int32 nf = p.ast->ChildPoolCount( )
+        p.ast->PushChild( cast( uint32, sp.a ) )
         for i as int32 = 0 to sp.count - 1
-            dim as uint32 ch = p.ast->children[sp.first + i]   '' a copy: Push may move the array
-            p.ast->children.Push( ch )
+            dim as uint32 ch = p.ast->ChildSlot( sp.first + i )   '' a copy: Push may move the array
+            p.ast->PushChild( ch )
         next
         sp.first = nf : sp.count += 1
         sp.a = devN
@@ -442,10 +442,10 @@ function CloseExprCall( byref p as Tko.ParserState ) as Tko.NodeId
     end if
     Expect( p, Tko.TK_RPAREN, ")" )
 
-    sp.first = p.ast->children.Count
+    sp.first = p.ast->ChildPoolCount( )
     sp.count = items.Count
     for i as int32 = 0 to items.Count - 1
-        p.ast->children.Push( items[i] )
+        p.ast->PushChild( items[i] )
     next
     return MakeStmt( p, Tko.N_INTRINSIC, t.loc, sp )
 end function
@@ -537,10 +537,10 @@ function GetPutExprCall( byref p as Tko.ParserState ) as Tko.NodeId
     loop
     Expect( p, Tko.TK_RPAREN, ")" )
 
-    sp.first = p.ast->children.Count
+    sp.first = p.ast->ChildPoolCount( )
     sp.count = items.Count
     for i as int32 = 0 to items.Count - 1
-        p.ast->children.Push( items[i] )
+        p.ast->PushChild( items[i] )
     next
     return MakeStmt( p, Tko.N_INTRINSIC, t.loc, sp )
 end function
@@ -576,10 +576,10 @@ private sub IntrFileNumList _
         end if
         if Accept( p, Tko.TK_COMMA ) = false then exit do
     loop
-    sp.first = p.ast->children.Count
+    sp.first = p.ast->ChildPoolCount( )
     sp.count = items.Count
     for i as int32 = 0 to items.Count - 1
-        p.ast->children.Push( items[i] )
+        p.ast->PushChild( items[i] )
     next
 end sub
 
@@ -629,10 +629,10 @@ private sub IntrGetPut( byref p as Tko.ParserState, byref sp as Tko.StmtPayload 
         if p.pos = before then exit do
     loop
 
-    sp.first = p.ast->children.Count
+    sp.first = p.ast->ChildPoolCount( )
     sp.count = items.Count
     for i as int32 = 0 to items.Count - 1
-        p.ast->children.Push( items[i] )
+        p.ast->PushChild( items[i] )
     next
 end sub
 
@@ -670,10 +670,10 @@ private sub IntrData( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
         if p.pos = before then exit do
         if Accept( p, Tko.TK_COMMA ) = false then exit do
     loop
-    sp.first = p.ast->children.Count
+    sp.first = p.ast->ChildPoolCount( )
     sp.count = items.Count
     for i as int32 = 0 to items.Count - 1
-        p.ast->children.Push( items[i] )
+        p.ast->PushChild( items[i] )
     next
 end sub
 
@@ -734,10 +734,10 @@ private sub IntrOn( byref p as Tko.ParserState, byref sp as Tko.StmtPayload )
         Advance( p )
         if Accept( p, Tko.TK_COMMA ) = false then exit do
     loop
-    sp.first = p.ast->children.Count
+    sp.first = p.ast->ChildPoolCount( )
     sp.count = items.Count
     for i as int32 = 0 to items.Count - 1
-        p.ast->children.Push( items[i] )
+        p.ast->PushChild( items[i] )
     next
 end sub
 
@@ -858,15 +858,15 @@ function ParseIntrinsic( byref p as Tko.ParserState ) as Tko.NodeId
                 lrBp.op = cast( uint16, Tko.TK_EQ )
                 lrBp.lhs = lrLhs
                 lrBp.rhs = Expression( p )
-                p.ast->binaries.Push( lrBp )
+                p.ast->PushBinary( lrBp )
                 lrLhs = NewNodeAt( p, Tko.N_BINARY, lrAt.loc, _
-                                    cast( uint32, p.ast->binaries.Count - 1 ) )
+                                    cast( uint32, p.ast->BinaryPoolCount( ) - 1 ) )
             end if
             lrItems.Push( cast( uint32, lrLhs ) )
-            sp.first = p.ast->children.Count
+            sp.first = p.ast->ChildPoolCount( )
             sp.count = lrItems.Count
             for i as int32 = 0 to lrItems.Count - 1
-                p.ast->children.Push( lrItems[i] )
+                p.ast->PushChild( lrItems[i] )
             next
             return MakeStmt( p, Tko.N_INTRINSIC, t.loc, sp )
         end if
@@ -889,10 +889,10 @@ function ParseIntrinsic( byref p as Tko.ParserState ) as Tko.NodeId
 
         dim as Tko.NodeIdVec items
         IntrArgList( p, items )
-        sp.first = p.ast->children.Count
+        sp.first = p.ast->ChildPoolCount( )
         sp.count = items.Count
         for i as int32 = 0 to items.Count - 1
-            p.ast->children.Push( items[i] )
+            p.ast->PushChild( items[i] )
         next
     end select
 

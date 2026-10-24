@@ -268,9 +268,9 @@ sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
     dim as Tko.NodeId fromE = Tko.NODE_NONE
     dim as Tko.NodeId toE = Tko.NODE_NONE
     dim as Tko.NodeId stepE = Tko.NODE_NONE
-    if sp->count >= 1 then fromE = cast( Tko.NodeId, c.ast->children[sp->first] )
-    if sp->count >= 2 then toE = cast( Tko.NodeId, c.ast->children[sp->first + 1] )
-    if sp->count >= 3 then stepE = cast( Tko.NodeId, c.ast->children[sp->first + 2] )
+    if sp->count >= 1 then fromE = cast( Tko.NodeId, c.ast->ChildSlot( sp->first ) )
+    if sp->count >= 2 then toE = cast( Tko.NodeId, c.ast->ChildSlot( sp->first + 1 ) )
+    if sp->count >= 3 then stepE = cast( Tko.NodeId, c.ast->ChildSlot( sp->first + 2 ) )
 
     dim as MirValue addr = LowerAddr( c, sp->a )
     if addr.kind = cast( uint8, MV_NONE ) then

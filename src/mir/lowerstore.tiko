@@ -662,7 +662,7 @@ function AddrWordOf_ _
         dim as Tko.IdentPayload ptr pip = _
             c.ast->IdentOf( pcp->target )
         if LowerSpelling_( c.ix, *c.names, pip->name ) <> "procptr" then return false
-        opnd = Unparen_( c, cast( Tko.NodeId, c.ast->children[pcp->first] ) )
+        opnd = Unparen_( c, cast( Tko.NodeId, c.ast->ChildSlot( pcp->first ) ) )
         if c.ast->Kind( opnd ) = Tko.N_STRING_LIT then return false
     else
         if c.ast->Kind( e ) <> Tko.N_ADDROF then return false
@@ -849,11 +849,11 @@ private function GlobalRelocInit_ _
             c.ast->IdentOf( wcp->target )
         dim as string wnm2 = LowerSpelling_( c.ix, *c.names, wip->name )
         if ((wnm2 = "cptr") orelse (wnm2 = "cast")) andalso (wcp->count = 2) then
-            init = cast( Tko.NodeId, c.ast->children[wcp->first + 1] )
+            init = cast( Tko.NodeId, c.ast->ChildSlot( wcp->first + 1 ) )
         elseif (wnm2 = "procptr") andalso (wcp->count = 1) then
             '' 'procptr( f )' names the procedure directly, with no '@' around it,
             '' so the operand IS what the address-of path below wants.
-            dim as Tko.NodeId pfn = cast( Tko.NodeId, c.ast->children[wcp->first] )
+            dim as Tko.NodeId pfn = cast( Tko.NodeId, c.ast->ChildSlot( wcp->first ) )
             return GlobalRelocProc_( c, g, pfn )
         else
             exit while
@@ -891,7 +891,7 @@ private function GlobalRelocInit_ _
         dim as boolean lbKnown = false
         if c.types->ArrayBound( aat, 0, false, lbKnown ) <> 0 then return false
         if lbKnown = false then return false
-        dim as Tko.NodeId ixn = cast( Tko.NodeId, c.ast->children[acp->first] )
+        dim as Tko.NodeId ixn = cast( Tko.NodeId, c.ast->ChildSlot( acp->first ) )
         dim as Tko.Check.ConstVal ixv = Tko.Check.ConstOf( _
             *c.ast, ixn, *c.srcMgr, *c.names, c.types->target.pointerBits )
         if ixv.known = false then return false
@@ -1096,7 +1096,7 @@ sub InitSharedGlobal _
         dim as Tko.ListPayload ptr wlp = _
             c.ast->ListOf( flit )
         if (wlp->count = 1) andalso IsWstrCall_( c, flit ) then
-            dim as Tko.NodeId wa = cast( Tko.NodeId, c.ast->children[wlp->first] )
+            dim as Tko.NodeId wa = cast( Tko.NodeId, c.ast->ChildSlot( wlp->first ) )
             if c.ast->Kind( wa ) = Tko.N_STRING_LIT then flit = wa
         end if
     end if
@@ -1227,9 +1227,9 @@ sub InitSharedGlobal _
             if (fcp->count = 2) andalso (fcp->target <> Tko.NODE_NONE) then
                 if c.ast->Kind( fcp->target ) = Tko.N_IDENT then
                     dim as string fcn = lcase( c.names->Spelling( c.ast->IdentOf( fcp->target )->name ) )
-                    dim as MirType ftt = LowerType( c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[fcp->first] ) ), *c.types )
+                    dim as MirType ftt = LowerType( c.info->TypeOf_( cast( Tko.NodeId, c.ast->ChildSlot( fcp->first ) ) ), *c.types )
                     if (fcn = "cast") andalso (ftt <> MT_VOID) andalso (ftt <> MT_AGG) andalso (IsFloatTy( ftt ) = false) then
-                        fe = cast( Tko.NodeId, c.ast->children[fcp->first + 1] )
+                        fe = cast( Tko.NodeId, c.ast->ChildSlot( fcp->first + 1 ) )
                     end if
                 end if
             end if

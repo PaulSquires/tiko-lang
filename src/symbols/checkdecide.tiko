@@ -146,7 +146,7 @@ private sub DecideProcAddr_( byref c as Ctx, byval v as Tko.NodeId, byval wantT 
     case Tko.N_CALL
         dim as Tko.ListPayload ptr lp = c.ast->ListOf( v )
         if (lp->count <> 1) orelse (lp->target = Tko.NODE_NONE) then return
-        fnE = cast( Tko.NodeId, c.ast->children[lp->first] )
+        fnE = cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) )
     case else
         return
     end select

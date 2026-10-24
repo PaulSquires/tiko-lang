@@ -297,7 +297,7 @@ function CompileUnit _
             if ast.Kind( cp->target ) <> Tko.N_IDENT then continue for
             dim as Tko.InternId cn = ast.IdentOf( cp->target )->name
             if Tko.Text.LowerAscii( ctx.names.Spelling( cn ) ) <> "__fb_query_symbol__" then continue for
-            queried.Push( ast.children[cp->first + 1] )
+            queried.Push( ast.ChildSlot( cp->first + 1 ) )
         next
     end if
     '' BY SET, and the table walked once: every identifier was checked against every query and

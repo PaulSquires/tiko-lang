@@ -362,7 +362,7 @@ function LowerThreadCall_ _
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     if cast( Tko.TokenKind, sp->op ) <> Tko.KW_THREADCALL then return false
     if sp->count <> 1 then return false
-    dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first] )
+    dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->ChildSlot( sp->first ) )
 
     dim as int32 aFirst, aCount
     dim as Tko.SymbolId callee = ThreadCalleeOf_( c, it, aFirst, aCount )
@@ -453,7 +453,7 @@ function LowerThreadCall_ _
     dim as int32 pbytes = c.types->target.pointerBits \ 8
     for i as int32 = 0 to slots - 1
         dim as Tko.NodeId ae = Tko.NODE_NONE
-        if i < aCount then ae = cast( Tko.NodeId, c.ast->children[aFirst + i] )
+        if i < aCount then ae = cast( Tko.NodeId, c.ast->ChildSlot( aFirst + i ) )
         if ae <> Tko.NODE_NONE then
             if c.ast->Kind( ae ) = Tko.N_ELIDED then ae = Tko.NODE_NONE
         end if

@@ -980,7 +980,7 @@ function LowerGfxExprCall_ _
         if (cp->count < 1) orelse (cp->count > 3) then return false
         dim as MirValue tgt = ConstInt( c, 0, MT_PTR )
         if cp->count = 3 then
-            dim as MirValue tv = LowerExpr( c, cast( Tko.NodeId, c.ast->children[cp->first + 2] ) )
+            dim as MirValue tv = LowerExpr( c, cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 2 ) ) )
             if tv.kind = cast( uint8, MV_NONE ) then return false
             tgt = Coerce( c, tv, MT_PTR )
         end if

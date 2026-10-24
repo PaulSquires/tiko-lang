@@ -134,7 +134,7 @@ function TypeLitCopySource_ _
     dim as Tko.TypeId tt = c.types->Unqualify( c.info->TypeOf_( target ) )
     if tt = Tko.TYPE_NONE then return Tko.NODE_NONE
     if c.types->Kind( tt ) <> Tko.TK_UDT then return Tko.NODE_NONE
-    dim as Tko.NodeId arg = cast( Tko.NodeId, c.ast->children[lp->first] )
+    dim as Tko.NodeId arg = cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) )
     if c.types->Unqualify( c.info->TypeOf_( arg ) ) <> tt then return Tko.NODE_NONE
     return arg
 end function
@@ -242,7 +242,7 @@ function LowerByrefResult_ _
                         c.ast->IdentOf( wp->target )
                     if LowerSpelling_( c.ix, *c.names, wip->name ) = "wstr" then
                         dim as Tko.NodeId inner_ = _
-                            Unparen_( c, cast( Tko.NodeId, c.ast->children[wp->first] ) )
+                            Unparen_( c, cast( Tko.NodeId, c.ast->ChildSlot( wp->first ) ) )
                         '' ...but WIDE: fbc stores L"also good", and the narrow bytes read as a
                         '' wstring were garbage (functions/return-byref.bas f8).
                         dim as int32 wch_ = 0
@@ -516,7 +516,7 @@ function LowerTypeLitConvert_ _
     if t = Tko.TYPE_NONE then return false
     if c.types->Kind( t ) = Tko.TK_UDT then return false
 
-    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[lp->first] )
+    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) )
     dim as MirType mt = LowerType( t, *c.types )
     if mt = MT_VOID then return false
     if mt = MT_AGG then
@@ -562,7 +562,7 @@ function NarrowingTypeLitOperand_( byref c as Ctx, byval id as Tko.NodeId ) as T
     dim as Tko.TypeId tt = c.types->Unqualify( c.info->TypeOf_( id ) )
     if c.types->Kind( tt ) <> Tko.TK_BUILTIN then return Tko.NODE_NONE
     if c.types->BuiltinOf( tt ) <> Tko.TY_STRING then return Tko.NODE_NONE
-    dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[tp->first] )
+    dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->ChildSlot( tp->first ) )
     if TermIsWide_( c, e ) orelse IsWideChain_( c, e ) then return e
     if IsUStringType( c, c.info->TypeOf_( e ) ) orelse IsUStrChain_( c, e ) then return e
     return Tko.NODE_NONE
@@ -585,7 +585,7 @@ function ScalarTypeLitOperand_ _
     dim as Tko.TypeId dt = c.types->Unqualify( dstT )
     if c.types->Kind( dt ) = Tko.TK_UDT then return Tko.NODE_NONE
     if c.types->Kind( dt ) = Tko.TK_ARRAY then return Tko.NODE_NONE
-    return cast( Tko.NodeId, c.ast->children[tp->first] )
+    return cast( Tko.NodeId, c.ast->ChildSlot( tp->first ) )
 end function
 
 function Unparen_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
@@ -610,14 +610,14 @@ function Unparen_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
             '' ...EXCEPT OVER A WIDE OR UTF-16 OPERAND, where it is a real conversion --
             '' see NarrowingTypeLitOperand_.
             if NarrowingTypeLitOperand_( c, n ) <> Tko.NODE_NONE then return n
-            n = cast( Tko.NodeId, c.ast->children[tp->first] )
+            n = cast( Tko.NodeId, c.ast->ChildSlot( tp->first ) )
             continue for
         end if
         if c.ast->Kind( n ) <> Tko.N_PAREN then return n
         dim as Tko.ListPayload ptr lp = _
             c.ast->ListOf( n )
         if lp->count <> 1 then return n
-        n = cast( Tko.NodeId, c.ast->children[lp->first] )
+        n = cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) )
     next
     return n
 end function

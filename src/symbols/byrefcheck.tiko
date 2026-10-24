@@ -317,7 +317,7 @@ sub CheckByrefResultValue_ _
                 c.ast->ListOf( head )
             if hk = N_PAREN then
                 if lp->count <> 1 then exit while
-                head = cast( NodeId, c.ast->children[lp->first] )
+                head = cast( NodeId, c.ast->ChildSlot( lp->first ) )
             else
                 '' 'p[ i ]' over a POINTER is a dereference too.
                 dim as TypeId ixt = c.info->TypeOf_( lp->target )
@@ -415,7 +415,7 @@ sub CheckEqParsedAsArg_ ( byref c as Ctx, byval id as NodeId )
         '' marked the comparison it built. Exactly one argument was written.
         dim as ListPayload ptr lp = c.ast->ListOf( sp->a )
         if lp->count <> 1 then return
-        arg = cast( NodeId, c.ast->children[lp->first] )
+        arg = cast( NodeId, c.ast->ChildSlot( lp->first ) )
         if c.ast->Kind( arg ) <> N_BINARY then return
         if (c.ast->Flags( arg ) and NF_FOLDED_EQ) = 0 then return
         callee = lp->target
@@ -427,7 +427,7 @@ sub CheckEqParsedAsArg_ ( byref c as Ctx, byval id as NodeId )
             return
         end select
         if sp->count <> 1 then return
-        arg = cast( NodeId, c.ast->children[sp->first] )
+        arg = cast( NodeId, c.ast->ChildSlot( sp->first ) )
         if c.ast->Kind( arg ) <> N_BINARY then return
         if cast( TokenKind, c.ast->BinaryOf( arg )->op ) <> TK_EQ then return
     end if

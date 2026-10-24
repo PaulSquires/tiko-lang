@@ -81,7 +81,7 @@ private function InferForEachVarTypes_( byref c as Ctx ) as int32
         if vsym = nullptr then continue for
         if vsym->type_ <> Tko.TYPE_NONE then continue for
 
-        dim as Tko.NodeId seqE = cast( Tko.NodeId, c.ast->children[sp->first] )
+        dim as Tko.NodeId seqE = cast( Tko.NodeId, c.ast->ChildSlot( sp->first ) )
         dim as Tko.TypeId seqT = TypeOf_( c, seqE )
         if seqT = Tko.TYPE_NONE then continue for
         seqT = c.types->Unqualify( seqT )
@@ -234,7 +234,7 @@ private function DestructureArity_( byref c as Ctx, byval body as Tko.NodeId ) a
     dim as Tko.ListPayload ptr bl = _
         c.ast->ListOf( body )
     if bl->count < 1 then return -1
-    dim as Tko.NodeId first_ = cast( Tko.NodeId, c.ast->children[bl->first] )
+    dim as Tko.NodeId first_ = cast( Tko.NodeId, c.ast->ChildSlot( bl->first ) )
     if c.ast->Kind( first_ ) <> Tko.N_VAR then return -1
     dim as Tko.StmtPayload ptr vp = _
         c.ast->StmtOf( first_ )
@@ -293,7 +293,7 @@ private sub CheckDestructure_( byref c as Ctx )
         else
             '' 'var (a) = x' is the parser's TKO0821 -- a single name is not judged twice.
             if sp->count < 3 then continue for
-            dim as Tko.NodeId first_ = cast( Tko.NodeId, c.ast->children[sp->first] )
+            dim as Tko.NodeId first_ = cast( Tko.NodeId, c.ast->ChildSlot( sp->first ) )
             if c.ast->Kind( first_ ) <> Tko.N_VAR_ITEM then continue for
             dim as Tko.StmtPayload ptr fp = c.ast->StmtOf( first_ )
             if left( c.names->Spelling( fp->name ), 3 ) <> "$dt" then continue for
@@ -311,7 +311,7 @@ sub CheckForEach_( byref c as Ctx )
             c.ast->StmtOf( n )
         if sp->count <> 1 then continue for
 
-        dim as Tko.NodeId seqE = cast( Tko.NodeId, c.ast->children[sp->first] )
+        dim as Tko.NodeId seqE = cast( Tko.NodeId, c.ast->ChildSlot( sp->first ) )
         dim as Tko.TypeId seqT = TypeOf_( c, seqE )
         '' NO TYPE IS NOT A DIAGNOSTIC HERE. The sequence may be an expression nothing
         '' has typed yet, and reporting "not iterable" for one of those would put an

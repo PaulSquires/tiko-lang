@@ -767,7 +767,7 @@ private sub CheckByrefInitShapes_ ( byref c as Ctx )
                 if c.ast->Kind( sb ) <> N_PAREN then exit for
                 dim as ListPayload ptr upp = c.ast->ListOf( sb )
                 if upp->count <> 1 then exit for
-                sb = cast( NodeId, c.ast->children[upp->first] )
+                sb = cast( NodeId, c.ast->ChildSlot( upp->first ) )
             next
             dim as boolean fixedAddr = true
             select case c.ast->Kind( sb )
@@ -937,7 +937,7 @@ private sub CheckExternRange_ ( byref c as Ctx, byval first as int32, byval coun
     dim as containers.Array( of uint32 ) defNode, defOp
     dim as boolean indexed = false
     for i as int32 = 0 to count - 1
-        dim as NodeId st = cast( NodeId, c.ast->children[first + i] )
+        dim as NodeId st = cast( NodeId, c.ast->ChildSlot( first + i ) )
         if st = NODE_NONE then continue for
         if c.ast->Kind( st ) = N_NAMESPACE then
             dim as StmtPayload ptr np = _
@@ -952,7 +952,7 @@ private sub CheckExternRange_ ( byref c as Ctx, byval first as int32, byval coun
         if indexed = false then
             indexed = true
             for k as int32 = 0 to count - 1
-                dim as NodeId st2 = cast( NodeId, c.ast->children[first + k] )
+                dim as NodeId st2 = cast( NodeId, c.ast->ChildSlot( first + k ) )
                 if st2 = NODE_NONE then continue for
                 if c.ast->Kind( st2 ) <> N_VAR then continue for
                 dim as StmtPayload ptr sp2 = _
@@ -1086,7 +1086,7 @@ private function MentionsUbound_ _
             dim as string tn = lcase( c.names->Spelling( _
                 c.ast->IdentOf( lp->target )->name ) )
             if (tn = "ubound") andalso (lp->count >= 1) then
-                dim as NodeId a0 = cast( NodeId, c.ast->children[lp->first] )
+                dim as NodeId a0 = cast( NodeId, c.ast->ChildSlot( lp->first ) )
                 if c.info->RefOf( a0 ) = sym then return true
             end if
         end if
@@ -1236,7 +1236,7 @@ private sub CheckOperatorVisibility_ _
         if c.info->RefOf( clp->target ) <> SYMBOL_NONE then return
         select case lcase( c.names->Spelling( c.ast->IdentOf( clp->target )->name ) )
         case "str", "wstr"
-            dim as TypeId at_ = ValueType_( c, c.info->TypeOf_( cast( NodeId, c.ast->children[clp->first] ) ) )
+            dim as TypeId at_ = ValueType_( c, c.info->TypeOf_( cast( NodeId, c.ast->ChildSlot( clp->first ) ) ) )
             if (at_ <> TYPE_NONE) andalso (c.types->Kind( at_ ) = TK_UDT) then RequireOperator_( c, at_, "cast", here, id )
         end select
 
@@ -1255,7 +1255,7 @@ private sub CheckOperatorVisibility_ _
         if ccount = 0 then
             CheckOneStructor_( c, nt, "__ctor", here, c.ast->Loc( id ), 0 )
         elseif ccount = 1 then
-            dim as NodeId a0 = cast( NodeId, c.ast->children[cfirst] )
+            dim as NodeId a0 = cast( NodeId, c.ast->ChildSlot( cfirst ) )
             if ValueType_( c, c.info->TypeOf_( a0 ) ) = nt then
                 CheckCopyStructor_( c, nt, here, c.ast->Loc( id ), 0 )
             end if

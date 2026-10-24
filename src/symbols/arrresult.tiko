@@ -75,7 +75,7 @@ private sub ArrCheckSource_ _
         if c.ast->Kind( e ) <> N_PAREN then exit for
         dim as ListPayload ptr pl = c.ast->ListOf( e )
         if pl->count <> 1 then exit for
-        e = cast( NodeId, c.ast->children[pl->first] )
+        e = cast( NodeId, c.ast->ChildSlot( pl->first ) )
     next
 
     select case c.ast->Kind( e )
@@ -124,7 +124,7 @@ private function ArrIsResultCall_ ( byref c as Ctx, byval e0 as NodeId ) as bool
         if c.ast->Kind( e ) <> N_PAREN then exit for
         dim as ListPayload ptr pl = c.ast->ListOf( e )
         if pl->count <> 1 then return false
-        e = cast( NodeId, c.ast->children[pl->first] )
+        e = cast( NodeId, c.ast->ChildSlot( pl->first ) )
     next
     if e = NODE_NONE then return false
     if c.ast->Kind( e ) <> N_CALL then return false

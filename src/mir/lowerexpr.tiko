@@ -241,7 +241,7 @@ function LowerExpr _
         dim as Tko.ListPayload ptr pp = _
             c.ast->ListOf( id )
         if pp->count <> 1 then return v
-        return LowerExpr( c, cast( Tko.NodeId, c.ast->children[pp->first] ) )
+        return LowerExpr( c, cast( Tko.NodeId, c.ast->ChildSlot( pp->first ) ) )
 
     case Tko.N_IDENT, Tko.N_MEMBER
         '' 'NS.K' AND 'NS.SOME_ENUM_MEMBER' FOLD TO THEIR VALUES, exactly as the

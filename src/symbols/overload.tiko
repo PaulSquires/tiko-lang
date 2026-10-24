@@ -750,7 +750,7 @@ private function ResolveCall_ _
     '' rather than wrong.
     dim as containers.Array( of uint32 ) argT
     for i as int32 = 0 to argCount - 1
-        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[argFirst + i] )
+        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->ChildSlot( argFirst + i ) )
         '' AN ELIDED ARGUMENT -- 'locate , 10' -- has no type and needs none: it takes
         '' the parameter's default, so it is recorded as TYPE_NONE and costed as a
         '' parameter that was not written at all. Treating it as an untyped argument
@@ -935,7 +935,7 @@ private function ResolveCall_ _
                     dim as boolean argIsByval = false
                     if ai < argCount then
                         dim as Tko.NodeId bvn = _
-                            cast( Tko.NodeId, c.ast->children[argFirst + ai] )
+                            cast( Tko.NodeId, c.ast->ChildSlot( argFirst + ai ) )
                         if c.ast->Kind( bvn ) = Tko.N_UNARY then
                             dim as Tko.UnaryPayload ptr bvp = _
                                 c.ast->UnaryOf( bvn )
@@ -982,7 +982,7 @@ private function ResolveCall_ _
                             if argConst andalso (prmConst = false) then
                                 dim as Tko.NodeId an3 = Tko.NODE_NONE
                                 if ai < argCount then
-                                    an3 = cast( Tko.NodeId, c.ast->children[argFirst + ai] )
+                                    an3 = cast( Tko.NodeId, c.ast->ChildSlot( argFirst + ai ) )
                                 end if
                                 '' ...EXCEPT A CONST STRING TO 'byref as zstring': fbc asks CONST
                                 '' only of a SAME-type match, so it scores this one, chooses it
@@ -1044,7 +1044,7 @@ private function ResolveCall_ _
                         dim as boolean prmArray = _
                             ((c.ast->Flags( prm ) and Tko.NF_ARRAY) <> 0)
                         dim as Tko.NodeId an4 = _
-                            cast( Tko.NodeId, c.ast->children[argFirst + ai] )
+                            cast( Tko.NodeId, c.ast->ChildSlot( argFirst + ai ) )
                         dim as boolean argArray = IsArrayArgShape_( c, an4 )
                         if prmArray <> argArray then
                             viable = false
@@ -1078,7 +1078,7 @@ private function ResolveCall_ _
                     '' statement declined with the constructor sitting right there.
                     if ai < argCount then
                         dim as Tko.NodeId an5 = _
-                            cast( Tko.NodeId, c.ast->children[argFirst + ai] )
+                            cast( Tko.NodeId, c.ast->ChildSlot( argFirst + ai ) )
                         if BareTypeLiteral_( c, an5 ) then
                             dim as Tko.TypeId pu5 = pt
                             if pu5 <> Tko.TYPE_NONE then
@@ -1101,7 +1101,7 @@ private function ResolveCall_ _
                     '' against the string parameters it was measured against.
                     dim as Tko.TypeId costFrom = at2
                     dim as Tko.NodeId an6 = Tko.NODE_NONE
-                    if ai < argCount then an6 = cast( Tko.NodeId, c.ast->children[argFirst + ai] )
+                    if ai < argCount then an6 = cast( Tko.NodeId, c.ast->ChildSlot( argFirst + ai ) )
                     dim as int32 sw = ConstStrArgWidth_( c, an6 )
                     dim as boolean constStr = (sw = 1) orelse (sw = 2)
                     if constStr andalso StrFamilyParam_( c, pt ) then
@@ -1299,7 +1299,7 @@ private function ResolveCall_ _
     '' candidate has won, and a bare literal cannot help choose between candidates --
     '' fbc cannot either, and says so.
     for i as int32 = 0 to argCount - 1
-        dim as Tko.NodeId a2 = cast( Tko.NodeId, c.ast->children[argFirst + i] )
+        dim as Tko.NodeId a2 = cast( Tko.NodeId, c.ast->ChildSlot( argFirst + i ) )
         if BareTypeLiteral_( c, a2 ) = false then continue for
         dim as Tko.TypeId pt2 = ProcParamTypeAt_( c, best, i )
         if pt2 = Tko.TYPE_NONE then continue for

@@ -207,7 +207,7 @@ private sub CheckUdtRadixChr_ _
     '' 'byref as zstring' alike, measured. Its own udt-zstring/strptr.bas passes a type that EXTENDS
     '' zstring, which PlainUdtOperand_ does not judge.
     if ((nm = "strptr") orelse (nm = "sadd")) andalso (lp->count = 1) then
-        dim as NodeId sa = cast( NodeId, c.ast->children[lp->first] )
+        dim as NodeId sa = cast( NodeId, c.ast->ChildSlot( lp->first ) )
         dim as TypeId st = c.info->TypeOf_( sa )
         if st = TYPE_NONE then return
         st = c.types->Unqualify( st )
@@ -218,7 +218,7 @@ private sub CheckUdtRadixChr_ _
     end if
     if ((nm = "string") orelse (nm = "wstring")) andalso (lp->count = 2) then
         if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
-        dim as NodeId fa = cast( NodeId, c.ast->children[lp->first + 1] )
+        dim as NodeId fa = cast( NodeId, c.ast->ChildSlot( lp->first + 1 ) )
         dim as TypeId ft = c.info->TypeOf_( fa )
         if ft = TYPE_NONE then return
         ft = c.types->Unqualify( ft )
@@ -233,7 +233,7 @@ private sub CheckUdtRadixChr_ _
     end if
     if instr( " hex oct bin whex woct wbin chr wchr ", " " & nm & " " ) = 0 then return
     if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
-    dim as NodeId a0 = cast( NodeId, c.ast->children[lp->first] )
+    dim as NodeId a0 = cast( NodeId, c.ast->ChildSlot( lp->first ) )
     dim as TypeId at = c.info->TypeOf_( a0 )
     if at = TYPE_NONE then return
     at = c.types->Unqualify( at )
@@ -317,20 +317,20 @@ sub CheckConvIntrinsic_ ( byref c as Ctx, byval id as NodeId )
     '' measured: over a type casting to long, 'cast( long, a )' compiles and 'cast( integer, a )',
     '' 'cast( double, a )' are fbc's 20. A builtin T only; the type argument comes first.
     if (nm = "cast") andalso (lp->count = 2) then
-        dim as TypeId ct = c.info->TypeOf_( cast( NodeId, c.ast->children[lp->first] ) )
+        dim as TypeId ct = c.info->TypeOf_( cast( NodeId, c.ast->ChildSlot( lp->first ) ) )
         if ct <> TYPE_NONE then
             ct = c.types->Unqualify( ct )
             if c.types->Kind( ct ) = TK_BUILTIN then want = c.types->BuiltinOf( ct )
         end if
         if want = TY_NONE then return
-        CheckUdtExactCast_( c, id, cast( NodeId, c.ast->children[lp->first + 1] ), want, nm )
+        CheckUdtExactCast_( c, id, cast( NodeId, c.ast->ChildSlot( lp->first + 1 ) ), want, nm )
         return
     end if
     '' 'cbool( p )' OVER A RUN-TIME POINTER is fbc's 20, as clng and the rest are below; a
     '' pointer CONSTANT -- 'cbool( nullptr )', 'cbool( cptr( any ptr, 0 ) )' -- is silent in
     '' fbc too (2026-10-13). The same split as 'bo = p' (declshape.tiko PtrIntNarrow_).
     if (nm = "cbool") andalso (lp->count = 1) andalso (c.info->RefOf( lp->target ) = SYMBOL_NONE) then
-        dim as NodeId barg = cast( NodeId, c.ast->children[lp->first] )
+        dim as NodeId barg = cast( NodeId, c.ast->ChildSlot( lp->first ) )
         dim as TypeId bt = c.info->TypeOf_( barg )
         if PtrIntNarrow_( c, c.types->Builtin( TY_BOOLEAN ), bt, barg ) then
             c.diags->Report( TKO0890, PointRange( c.ast->Loc( id ) ), nm, c.types->Name( c.types->Unqualify( bt ) ) )
@@ -344,7 +344,7 @@ sub CheckConvIntrinsic_ ( byref c as Ctx, byval id as NodeId )
     end if
     if (c.info->RefOf( lp->target ) <> SYMBOL_NONE) orelse (c.info->RefOf( id ) <> SYMBOL_NONE) then return
     if lp->count <> 1 then return
-    dim as NodeId arg = cast( NodeId, c.ast->children[lp->first] )
+    dim as NodeId arg = cast( NodeId, c.ast->ChildSlot( lp->first ) )
     dim as TypeId at = c.info->TypeOf_( arg )
     if at = TYPE_NONE then return
     at = c.types->Unqualify( at )

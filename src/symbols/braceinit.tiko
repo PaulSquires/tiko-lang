@@ -78,7 +78,7 @@ private sub BrTuple_ ( byref c as Ctx, byval n as NodeId, byval t as TypeId )
     dim as boolean holds = (t = TYPE_NONE)
     if holds = false then holds = BrHoldsArray_( c, t, 0 )
     for i as int32 = 0 to count_ - 1
-        dim as NodeId el = cast( NodeId, c.ast->children[first_ + i] )
+        dim as NodeId el = cast( NodeId, c.ast->ChildSlot( first_ + i ) )
         select case c.ast->Kind( el )
         case N_INITIALIZER
             if holds = false then BrReportList_( c, el )
@@ -97,7 +97,7 @@ private sub BrArrayList_ _
     dim as int32 first_ = lp->first
     dim as int32 count_ = lp->count
     for i as int32 = 0 to count_ - 1
-        dim as NodeId el = cast( NodeId, c.ast->children[first_ + i] )
+        dim as NodeId el = cast( NodeId, c.ast->ChildSlot( first_ + i ) )
         select case c.ast->Kind( el )
         case N_INITIALIZER
             if depth + 1 < dims then
@@ -257,7 +257,7 @@ private sub BrWalk_ _
             else
                 BrWalk_( c, map, tgt, arrRes, false )
                 for i as int32 = 0 to count_ - 1
-                    BrWalk_( c, map, cast( NodeId, c.ast->children[first_ + i] ), arrRes, false )
+                    BrWalk_( c, map, cast( NodeId, c.ast->ChildSlot( first_ + i ) ), arrRes, false )
                 next
             end if
         end select
@@ -271,7 +271,7 @@ private sub BrWalk_ _
         dim as int32 first_ = bl->first
         dim as int32 count_ = bl->count
         for i as int32 = 0 to count_ - 1
-            BrWalk_( c, map, cast( NodeId, c.ast->children[first_ + i] ), arrRes, false )
+            BrWalk_( c, map, cast( NodeId, c.ast->ChildSlot( first_ + i ) ), arrRes, false )
         next
         return
     end if
@@ -286,7 +286,7 @@ private sub BrWalk_ _
     BrWalk_( c, map, b, arrRes, false )
     BrWalk_( c, map, cc, arrRes, false )
     for i as int32 = 0 to count_ - 1
-        BrWalk_( c, map, cast( NodeId, c.ast->children[first_ + i] ), arrRes, isVar )
+        BrWalk_( c, map, cast( NodeId, c.ast->ChildSlot( first_ + i ) ), arrRes, isVar )
     next
 end sub
 

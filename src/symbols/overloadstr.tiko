@@ -17,7 +17,7 @@ private function ConcatHasUString_ _
         dim as Tko.ListPayload ptr pp = _
             c.ast->ListOf( id )
         if pp->count <> 1 then return false
-        return ConcatHasUString_( c, cast( Tko.NodeId, c.ast->children[pp->first] ) )
+        return ConcatHasUString_( c, cast( Tko.NodeId, c.ast->ChildSlot( pp->first ) ) )
     end if
     dim as Tko.TypeId t = TypeOf_( c, id )
     if t = Tko.TYPE_NONE then return false
@@ -153,7 +153,7 @@ private function ConstStrArgWidth_ _
         if ks = nullptr then return 0
         if ks->kind <> cast( uint8, Tko.SYM_CONSTANT ) then return 0
         '' A PREDECLARED constant -- 'true', 'false' -- carries a VALUE here, not a node.
-        if (ks->payload <= 0) orelse (ks->payload >= c.ast->nodes.Count) then return 0
+        if (ks->payload <= 0) orelse (ks->payload >= c.ast->NodePoolCount( )) then return 0
         dim as Tko.NodeId item = cast( Tko.NodeId, ks->payload )
         if c.ast->Kind( item ) <> Tko.N_VAR_ITEM then return 0
         return ConstStrArgWidth_( c, StmtOf( c, item )->b, depth + 1 )
@@ -211,7 +211,7 @@ private function ConcatHasWideStr_ _
         dim as Tko.ListPayload ptr pp = _
             c.ast->ListOf( id )
         if pp->count <> 1 then return false
-        return ConcatHasWideStr_( c, cast( Tko.NodeId, c.ast->children[pp->first] ) )
+        return ConcatHasWideStr_( c, cast( Tko.NodeId, c.ast->ChildSlot( pp->first ) ) )
     end if
     dim as Tko.TypeId t = TypeOf_( c, id )
     if t = Tko.TYPE_NONE then return false

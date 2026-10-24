@@ -137,7 +137,7 @@ function CheckEndOfStatement_ _
     if n <> Tko.NODE_NONE then
         if p.ast->Kind( n ) = Tko.N_AMBIGUOUS then
             dim as int32 asi = cast( int32, p.ast->DataOf( n ) )
-            dim as Tko.StmtPayload ptr asp = @p.ast->stmts[asi]
+            dim as Tko.StmtPayload ptr asp = p.ast->StmtAt( asi )
             '' op 0 is a CALL; anything else is the assignment token.
             if asp->op <> 0 then
                 if asp->a <> Tko.NODE_NONE then
@@ -377,7 +377,7 @@ sub ParenGroupOperand_ _
     if p.ast->Kind( sp.a ) <> Tko.N_CALL then return
     dim as Tko.ListPayload ptr lcp = p.ast->ListOf( sp.a )
     if (lcp->count <> 1) orelse (lcp->target = Tko.NODE_NONE) then return
-    dim as Tko.NodeId inner = cast( Tko.NodeId, p.ast->children[lcp->first] )
+    dim as Tko.NodeId inner = cast( Tko.NodeId, p.ast->ChildSlot( lcp->first ) )
     sp.a = lcp->target
     args.Push( cast( uint32, Expression( p, 1, inner ) ) )
     Accept( p, Tko.TK_COMMA )

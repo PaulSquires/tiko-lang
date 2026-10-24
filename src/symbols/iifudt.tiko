@@ -155,11 +155,11 @@ sub CheckIifUdt_ ( byref c as Ctx, byval id as NodeId )
     '' either branch printed the narrow bytes read as UTF-16. fbc-modern 1.20 refuses every
     '' mix of the three kinds with error 24 -- a literal or a STRING with a USTRING or a
     '' WSTRING, and a USTRING with a WSTRING, either way round; measured 2026-10-03.
-    dim as string sk1 = IifStringKind_( c, cast( NodeId, c.ast->children[lp->first + 1] ) )
-    dim as string sk2 = IifStringKind_( c, cast( NodeId, c.ast->children[lp->first + 2] ) )
+    dim as string sk1 = IifStringKind_( c, cast( NodeId, c.ast->ChildSlot( lp->first + 1 ) ) )
+    dim as string sk2 = IifStringKind_( c, cast( NodeId, c.ast->ChildSlot( lp->first + 2 ) ) )
     dim as boolean mixed = (len( sk1 ) > 0) andalso (len( sk2 ) > 0)
     if mixed then mixed = (sk1 <> sk2)
-    if mixed then mixed = (IifCondConst_( c, cast( NodeId, c.ast->children[lp->first] ) ) = false)
+    if mixed then mixed = (IifCondConst_( c, cast( NodeId, c.ast->ChildSlot( lp->first ) ) ) = false)
     if mixed then
         c.diags->Report( TKO0946, PointRange( c.ast->Loc( id ) ), sk1, sk2 )
         return

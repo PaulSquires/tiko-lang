@@ -63,7 +63,7 @@ function ProcPtrDeclOf_ _
         if (fl and Tko.NF_PROC_TYPE) <> 0 then return e
         if (fl and Tko.NF_PTR) <> 0 then
             '' 'as FP ptr' -- the pointee's declaration.
-            nx = ast->stmts[dat].a
+            nx = ast->StmtAt( dat )->a
         else
             '' A NAME: a typedef's symbol keeps its own type reference.
             dim as Tko.Symbol ptr ts = syms->SymbolAt( info->RefOf( e ) )
@@ -73,19 +73,19 @@ function ProcPtrDeclOf_ _
         end if
 
     case Tko.N_PAREN
-        if ast->lists[dat].count < 1 then return Tko.NODE_NONE
-        nx = cast( Tko.NodeId, ast->children[ast->lists[dat].first] )
+        if ast->ListAt( dat )->count < 1 then return Tko.NODE_NONE
+        nx = cast( Tko.NodeId, ast->ChildSlot( ast->ListAt( dat )->first ) )
 
     case Tko.N_DEREF, Tko.N_ADDROF
-        nx = ast->unaries[dat].operand
+        nx = ast->UnaryAt( dat )->operand
 
     case Tko.N_INDEX
-        nx = ast->lists[dat].target
+        nx = ast->ListAt( dat )->target
 
     case Tko.N_IDENT, Tko.N_MEMBER
         dim as Tko.SymbolId sid = info->RefOf( e )
         if (sid = Tko.SYMBOL_NONE) andalso (ast->Kind( e ) = Tko.N_MEMBER) then
-            sid = info->RefOf( ast->binaries[dat].rhs )
+            sid = info->RefOf( ast->BinaryAt( dat )->rhs )
         end if
         dim as Tko.Symbol ptr s = syms->SymbolAt( sid )
         if s = nullptr then return Tko.NODE_NONE
@@ -137,15 +137,15 @@ function ProcPtrDeclOf_ _
         end select
 
     case Tko.N_CALL
-        dim as Tko.NodeId tgt = ast->lists[dat].target
+        dim as Tko.NodeId tgt = ast->ListAt( dat )->target
         if tgt = Tko.NODE_NONE then return Tko.NODE_NONE
         '' 'procptr( f )' IS the procedure.
         if ast->Kind( tgt ) = Tko.N_IDENT then
             dim as Tko.InternId inm = _
                 ast->IdentOf( tgt )->name
             if Tko.Text.LowerAscii( names->Spelling( inm ) ) = "procptr" then
-                if ast->lists[dat].count < 1 then return Tko.NODE_NONE
-                nx = cast( Tko.NodeId, ast->children[ast->lists[dat].first] )
+                if ast->ListAt( dat )->count < 1 then return Tko.NODE_NONE
+                nx = cast( Tko.NodeId, ast->ChildSlot( ast->ListAt( dat )->first ) )
             end if
         end if
         if nx = Tko.NODE_NONE then

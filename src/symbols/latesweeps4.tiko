@@ -11,7 +11,7 @@ function Unparen3_ ( byref c as Ctx, byval id as NodeId ) as NodeId
         dim as ListPayload ptr pp = _
             c.ast->ListOf( id )
         if pp->count <> 1 then return id
-        id = cast( NodeId, c.ast->children[pp->first] )
+        id = cast( NodeId, c.ast->ChildSlot( pp->first ) )
     next
     return id
 end function
@@ -99,7 +99,7 @@ private function ExprIsConstNum_ ( byref c as Ctx, byval id as NodeId ) as boole
         select case lcase( c.names->Spelling( _
             c.ast->IdentOf( cp->target )->name ) )
         case "asc", "len"
-            return ExprIsConstStr_( c, cast( NodeId, c.ast->children[cp->first] ) )
+            return ExprIsConstStr_( c, cast( NodeId, c.ast->ChildSlot( cp->first ) ) )
         end select
     end select
     return false
@@ -161,12 +161,12 @@ function ExprIsConstStr_ ( byref c as Ctx, byval id as NodeId ) as boolean
             return true
         case "str"
             if cp->count <> 1 then return false
-            return ExprIsConstNum_( c, cast( NodeId, c.ast->children[cp->first] ) )
+            return ExprIsConstNum_( c, cast( NodeId, c.ast->ChildSlot( cp->first ) ) )
         case "iif"
             if cp->count <> 3 then return false
-            if ExprIsConstNum_( c, cast( NodeId, c.ast->children[cp->first] ) ) = false then return false
-            if ExprIsConstStr_( c, cast( NodeId, c.ast->children[cp->first + 1] ) ) = false then return false
-            return ExprIsConstStr_( c, cast( NodeId, c.ast->children[cp->first + 2] ) )
+            if ExprIsConstNum_( c, cast( NodeId, c.ast->ChildSlot( cp->first ) ) ) = false then return false
+            if ExprIsConstStr_( c, cast( NodeId, c.ast->ChildSlot( cp->first + 1 ) ) ) = false then return false
+            return ExprIsConstStr_( c, cast( NodeId, c.ast->ChildSlot( cp->first + 2 ) ) )
         end select
     end select
     return false
@@ -377,7 +377,7 @@ private sub CheckStrRepeatArg_ ( byref c as Ctx, byval id as NodeId )
     dim as string nm = lcase( c.names->Spelling( _
         c.ast->IdentOf( lp->target )->name ) )
     if (nm <> "string") andalso (nm <> "wstring") then return
-    dim as NodeId x = Unparen3_( c, cast( NodeId, c.ast->children[lp->first + 1] ) )
+    dim as NodeId x = Unparen3_( c, cast( NodeId, c.ast->ChildSlot( lp->first + 1 ) ) )
     if x = NODE_NONE then return
     dim as boolean isLit = (c.ast->Kind( x ) = N_STRING_LIT)
     if isLit then
@@ -453,7 +453,7 @@ private function AssertIntrinsic_ _
     nm = lcase( c.names->Spelling( _
         c.ast->IdentOf( lp->target )->name ) )
     if (nm <> "typeof") andalso (nm <> "sizeof") andalso (nm <> "len") then return false
-    dim as NodeId a = Unparen3_( c, cast( NodeId, c.ast->children[lp->first] ) )
+    dim as NodeId a = Unparen3_( c, cast( NodeId, c.ast->ChildSlot( lp->first ) ) )
     '' A NAMED CONSTANT IS NOT READ: 'const s = "a"' is 'zstring * 2' to fbc's typeof and
     '' sizeof, and tiko types it otherwise -- fbc's const/const-decl.bas asserts exactly that.
     dim as Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( a ) )
@@ -761,7 +761,7 @@ private sub CheckUnprintableStr_ ( byref c as Ctx, byval id as NodeId )
     dim as string nm = lcase( c.names->Spelling( _
         c.ast->IdentOf( lp->target )->name ) )
     if (nm <> "str") andalso (nm <> "wstr") then return
-    dim as NodeId a = cast( NodeId, c.ast->children[lp->first] )
+    dim as NodeId a = cast( NodeId, c.ast->ChildSlot( lp->first ) )
     dim as TypeId bt = Unprintable_( c, a )
     if bt <> TYPE_NONE then c.diags->Report( TKO0871, PointRange( c.ast->Loc( a ) ), UnprintableName_( c, bt ), nm )
 end sub
@@ -849,7 +849,7 @@ private function StmtCall_ ( byref c as Ctx, byval id as NodeId ) as boolean
             elseif ik = N_INTRINSIC then
                 '' 'threadcall Sb( 1 )': the call is the intrinsic's one child, and no value.
                 if (cast( TokenKind, sp->op ) = KW_THREADCALL) andalso (sp->count >= 1) then
-                    a = cast( NodeId, c.ast->children[sp->first] )
+                    a = cast( NodeId, c.ast->ChildSlot( sp->first ) )
                 end if
             end if
             if (a > 0) andalso (a <= n) then
@@ -1010,7 +1010,7 @@ private sub CheckUStrCtorCall_ ( byref c as Ctx, byval id as NodeId )
     if c.types->Kind( udt ) <> TK_UDT then return
     dim as NodeIdVec args
     for i as int32 = 0 to lp->count - 1
-        args.Push( c.ast->children[lp->first + i] )
+        args.Push( c.ast->ChildSlot( lp->first + i ) )
     next
     if CtorsRefuseUStrZptr_( c, udt, args ) = false then return
     c.diags->Report( TKO0632, PointRange( c.ast->Loc( id ) ), _
@@ -1259,7 +1259,7 @@ private sub MarkTypeRefTree4_ ( byref c as Ctx, byval t as NodeId, byref mark as
         dim as StmtPayload ptr sp = c.ast->StmtOf( n )
         if sp->a <> NODE_NONE then stack.Push( cast( uint32, sp->a ) )
         for j as int32 = 0 to sp->count - 1
-            stack.Push( c.ast->children[sp->first + j] )
+            stack.Push( c.ast->ChildSlot( sp->first + j ) )
         next
     wend
 end sub
@@ -1414,7 +1414,7 @@ private sub CheckIncompleteObjects_ ( byref c as Ctx )
         if c.info->RefOf( lp->target ) <> SYMBOL_NONE then continue for
         dim as string fnm = lcase( c.names->Spelling( c.ast->IdentOf( lp->target )->name ) )
         if (fnm <> "sizeof") andalso (fnm <> "len") then continue for
-        dim as NodeId an = cast( NodeId, c.ast->children[lp->first] )
+        dim as NodeId an = cast( NodeId, c.ast->ChildSlot( lp->first ) )
         dim as TypeId t = TYPE_NONE
         dim as Symbol ptr asy = c.syms->SymbolAt( c.info->RefOf( an ) )
         if (asy <> nullptr) andalso ((asy->kind = cast( uint8, SYM_TYPEDEF )) orelse (asy->kind = cast( uint8, SYM_UDT ))) then

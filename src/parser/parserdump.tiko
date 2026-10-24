@@ -11,7 +11,7 @@ private sub DumpAny _
       byref outp as IrText )
 
     if id = Tko.NODE_NONE then return
-    if cast( int32, id ) >= ast.nodes.Count then return
+    if cast( int32, id ) >= ast.NodePoolCount( ) then return
     '' THE BUILTIN PRELUDE IS NOT WHAT THE USER WROTE. It is real source and is parsed
     '' like everything else, but printing its thirty declarations under every file
     '' would bury the file.
@@ -42,7 +42,7 @@ private sub DumpAny _
     dim as boolean isList = (k = Tko.N_BLOCK) orelse (k = Tko.N_MODULE)
 
     if isList then
-        dim as Tko.ListPayload ptr lp = @ast.lists[cast( int32, n->data )]
+        dim as Tko.ListPayload ptr lp = ast.ListAt( cast( int32, n->data ) )
         row += " (" & lp->count & ")"
         outp += row & " <" & d.lineNo & ":" & d.column & ">" & chr( 10 )
         for i as int32 = 0 to lp->count - 1
@@ -57,7 +57,7 @@ private sub DumpAny _
         return
     end if
 
-    dim as Tko.StmtPayload ptr sp = @ast.stmts[cast( int32, n->data )]
+    dim as Tko.StmtPayload ptr sp = ast.StmtAt( cast( int32, n->data ) )
     if sp->name <> Tko.INTERN_NONE then row += " '" & names.Spelling( sp->name ) & "'"
     if sp->op <> 0 then
         dim as string ot = Tko.TokenKindText( cast( Tko.TokenKind, sp->op ) )

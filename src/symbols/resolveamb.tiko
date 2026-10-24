@@ -133,16 +133,16 @@ private function ReadCallAssignAsCall_ _
     dim as int32 lastIx = lp->first + lp->count - 1
     dim as Tko.BinaryPayload bp
     bp.op = cast( uint16, Tko.TK_EQ )
-    bp.lhs = cast( Tko.NodeId, c.ast->children[lastIx] )
+    bp.lhs = cast( Tko.NodeId, c.ast->ChildSlot( lastIx ) )
     bp.rhs = sp->b
-    c.ast->binaries.Push( bp )
+    c.ast->PushBinary( bp )
     dim as Tko.AstNode bn
     bn.kind = cast( uint16, Tko.N_BINARY )
     bn.flags = Tko.NF_FOLDED_EQ         '' Check's warning 34 reads it -- byrefcheck.tiko (T19)
     bn.loc = c.ast->Loc( id )
-    bn.data = cast( uint32, c.ast->binaries.Count - 1 )
-    c.ast->nodes.Push( bn )
-    c.ast->children[lastIx] = cast( uint32, c.ast->nodes.Count - 1 )
+    bn.data = cast( uint32, c.ast->BinaryPoolCount( ) - 1 )
+    c.ast->PushNode( bn )
+    c.ast->SetChildSlot( lastIx, cast( uint32, c.ast->NodePoolCount( ) - 1 ) )
 
     '' The statement is now a CALL and nothing else: its assigned value has moved
     '' inside the argument, and leaving 'b' set would lower it twice.
@@ -253,7 +253,7 @@ private function ReadDotArgAsCall_ _
     '' four-argument call of a three-argument SUB, and the call declined to lower.
     dim as int32 skip = 0
     if oldCount > 0 then
-        if c.ast->Kind( cast( Tko.NodeId, c.ast->children[oldFirst] ) ) = _
+        if c.ast->Kind( cast( Tko.NodeId, c.ast->ChildSlot( oldFirst ) ) ) = _
            Tko.N_ELIDED then skip = 1
     end if
 
@@ -270,37 +270,37 @@ private function ReadDotArgAsCall_ _
     '' AfxNova's CImageCtx alone: '.SendMessageW .GetParent( hwnd ), uMsg, wParam,
     '' lParam'.
     if (skip = 0) andalso (oldCount > 0) andalso (c.ast->Kind( sp->a ) = Tko.N_MEMBER) then
-        dim as uint32 inner = c.ast->children[oldFirst]
-        dim as int32 liftFirst = c.ast->children.Count
-        c.ast->children.Push( inner )
+        dim as uint32 inner = c.ast->ChildSlot( oldFirst )
+        dim as int32 liftFirst = c.ast->ChildPoolCount( )
+        c.ast->PushChild( inner )
         dim as Tko.ListPayload lp2
         lp2.target = newArg
         lp2.first = liftFirst
         lp2.count = 1
-        c.ast->lists.Push( lp2 )
+        c.ast->PushList( lp2 )
         dim as Tko.AstNode cn
         cn.kind = cast( uint16, Tko.N_CALL )
         cn.flags = 0
         cn.loc = c.ast->Loc( newArg )
-        cn.data = cast( uint32, c.ast->lists.Count - 1 )
-        c.ast->nodes.Push( cn )
-        newArg = cast( Tko.NodeId, c.ast->nodes.Count - 1 )
+        cn.data = cast( uint32, c.ast->ListPoolCount( ) - 1 )
+        c.ast->PushNode( cn )
+        newArg = cast( Tko.NodeId, c.ast->NodePoolCount( ) - 1 )
         '' THE SIDE TABLES ARE SIZED TO THE NODE COUNT, and this node did not exist when
         '' they were sized: without this its binding and its type are written past the
         '' end and read back as nothing, so the call resolved to no callee and the
         '' statement declined in silence -- which is worse than the five-argument call
         '' it replaced.
-        c.info->Resize( c.ast->nodes.Count )
+        c.info->Resize( c.ast->NodePoolCount( ) )
         skip = 1
     end if
 
     '' THROUGH A LOCAL. Pushing an element of the same vector passes a reference into
     '' storage the push may have just reallocated.
-    dim as int32 newFirst = c.ast->children.Count
-    c.ast->children.Push( cast( uint32, newArg ) )
+    dim as int32 newFirst = c.ast->ChildPoolCount( )
+    c.ast->PushChild( cast( uint32, newArg ) )
     for i as int32 = skip to oldCount - 1
-        dim as uint32 ch = c.ast->children[oldFirst + i]
-        c.ast->children.Push( ch )
+        dim as uint32 ch = c.ast->ChildSlot( oldFirst + i )
+        c.ast->PushChild( ch )
     next
     sp->first = newFirst
     sp->count = oldCount + 1 - skip

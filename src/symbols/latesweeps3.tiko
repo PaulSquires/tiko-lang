@@ -30,7 +30,7 @@ private function ExprSpelling_ ( byref c as Ctx, byval n as NodeId, byval depth 
         if len( r ) then r &= "[ ]"
     case N_PAREN
         dim as ListPayload ptr pl = c.ast->ListOf( n )
-        if pl->count = 1 then r = ExprSpelling_( c, cast( NodeId, c.ast->children[pl->first] ), depth + 1 )
+        if pl->count = 1 then r = ExprSpelling_( c, cast( NodeId, c.ast->ChildSlot( pl->first ) ), depth + 1 )
         if len( r ) then r = "( " & r & " )"
     case N_MEMBER
         dim as BinaryPayload ptr mb = c.ast->BinaryOf( n )
@@ -137,7 +137,7 @@ private sub CheckConstWriteTarget_ ( byref c as Ctx, byval id as NodeId )
                     '' pointer, so assigning to the call is its 119, const string or not.
                     '' A fixed one's is error 24 instead and is not judged here.
                     if ((cn = "strptr") orelse (cn = "sadd")) andalso (lp->count >= 1) then
-                        dim as TypeId st0 = c.info->TypeOf_( cast( NodeId, c.ast->children[lp->first] ) )
+                        dim as TypeId st0 = c.info->TypeOf_( cast( NodeId, c.ast->ChildSlot( lp->first ) ) )
                         if c.types->Kind( st0 ) = TK_REFERENCE then st0 = c.types->Inner( st0 )
                         st0 = c.types->Unqualify( st0 )
                         if c.types->Kind( st0 ) = TK_BUILTIN then
@@ -153,7 +153,7 @@ private sub CheckConstWriteTarget_ ( byref c as Ctx, byval id as NodeId )
                     '' type is the string it returns, so argument 0 is what is judged.
                     if cn = "mid" then
                         if lp->count >= 1 then
-                            dim as NodeId m0 = cast( NodeId, c.ast->children[lp->first] )
+                            dim as NodeId m0 = cast( NodeId, c.ast->ChildSlot( lp->first ) )
                             if ConstDesignated_( c, m0 ) then
                                 c.diags->Report( TKO0617, _
                                     PointRange( c.ast->Loc( m0 ) ), SpellOf_( c, m0 ) )
@@ -299,7 +299,7 @@ private sub CheckOutsideRange_ ( byref c as Ctx, byval blk as NodeId )
         return
     end if
     for i as int32 = 0 to lc - 1
-        dim as NodeId st = cast( NodeId, c.ast->children[lf + i] )
+        dim as NodeId st = cast( NodeId, c.ast->ChildSlot( lf + i ) )
         if st = NODE_NONE then continue for
         dim as NodeKind sk = c.ast->Kind( st )
         '' Descend into everything that carries a statement list of its own.
@@ -383,7 +383,7 @@ private sub CheckOutsideRange_ ( byref c as Ctx, byval blk as NodeId )
             dim as InternId wn = c.names->Fold( ip->name )
             dim as boolean seen = false
             for m as int32 = 0 to i - 1
-                dim as NodeId ps = cast( NodeId, c.ast->children[lf + m] )
+                dim as NodeId ps = cast( NodeId, c.ast->ChildSlot( lf + m ) )
                 if ps = NODE_NONE then continue for
                 if c.ast->Kind( ps ) <> N_VAR then continue for
                 dim as StmtPayload ptr pv = _
@@ -666,7 +666,7 @@ private sub CheckThreadCall_ ( byref c as Ctx, byval id as NodeId )
     if cast( TokenKind, sp->op ) <> KW_THREADCALL then return
     '' THE CALL IS THE ONE CHILD, not 'a': the parser pushes it into the child list.
     if sp->count < 1 then return
-    dim as NodeId tcall = cast( NodeId, c.ast->children[sp->first] )
+    dim as NodeId tcall = cast( NodeId, c.ast->ChildSlot( sp->first ) )
     if tcall = NODE_NONE then return
     if c.ast->Kind( tcall ) <> N_CALL then
         '' 'threadcall NoArgs' WITHOUT PARENTHESES is the name alone, no N_CALL. It runs
@@ -948,7 +948,7 @@ private sub CheckCastStringSize_ ( byref c as Ctx, byval id as NodeId )
         c.ast->IdentOf( lp->target )->name ) )
     if (cn <> "cast") andalso (cn <> "cptr") then return
     if lp->count < 1 then return
-    dim as NodeId tref = cast( NodeId, c.ast->children[lp->first] )
+    dim as NodeId tref = cast( NodeId, c.ast->ChildSlot( lp->first ) )
     if tref = NODE_NONE then return
     if c.ast->Kind( tref ) <> N_TYPEREF then return
     dim as TypeId t = c.types->Unqualify( c.info->TypeOf_( tref ) )
@@ -956,7 +956,7 @@ private sub CheckCastStringSize_ ( byref c as Ctx, byval id as NodeId )
     '' A POINTER ON ONE SIDE AND NOT THE OTHER, first and for every target type -- see
     '' CheckCastPtrPair_. It reports at most one diagnostic and says so.
     if lp->count = 2 then
-        if CheckCastPtrPair_( c, id, cn, t, cast( NodeId, c.ast->children[lp->first + 1] ) ) then return
+        if CheckCastPtrPair_( c, id, cn, t, cast( NodeId, c.ast->ChildSlot( lp->first + 1 ) ) ) then return
     end if
     '' A SIZED string is an ARRAY of the character type and a POINTER is a pointer; only
     '' the bare builtin has nothing to cast into.
@@ -976,7 +976,7 @@ private sub CheckCastStringSize_ ( byref c as Ctx, byval id as NodeId )
     '' statement silently, which is worse than saying so. Both are gaps, not compatibility.
     case TY_USTRING
         if lp->count = 2 then
-            dim as TypeId uot = c.info->TypeOf_( cast( NodeId, c.ast->children[lp->first + 1] ) )
+            dim as TypeId uot = c.info->TypeOf_( cast( NodeId, c.ast->ChildSlot( lp->first + 1 ) ) )
             if uot <> TYPE_NONE then
                 dim as TypeId uu = c.types->Unqualify( uot )
                 if c.types->Kind( uu ) = TK_REFERENCE then uu = c.types->Unqualify( c.types->Inner( uu ) )
@@ -999,7 +999,7 @@ private sub CheckCastStringSize_ ( byref c as Ctx, byval id as NodeId )
     '' a 'string * 8', a ustring, a number and every wide spelling by neither.
     case TY_STRING
         if lp->count <> 2 then return
-        dim as NodeId cop = cast( NodeId, c.ast->children[lp->first + 1] )
+        dim as NodeId cop = cast( NodeId, c.ast->ChildSlot( lp->first + 1 ) )
         if ExprIsWide_( c, cop ) then
             c.diags->Report( TKO0802, PointRange( c.ast->Loc( id ) ), cn )
             return
@@ -1359,7 +1359,7 @@ private function RunTimeLeaf_ _
             '' ...and LEN over anything but a STRING is its size: 'len( gx )' is accepted,
             '' 'len( gs )' and 'len( str( gx ) )' are fbc's 11.
             if lp->count < 1 then return NODE_NONE
-            dim as NodeId la = cast( NodeId, c.ast->children[lp->first] )
+            dim as NodeId la = cast( NodeId, c.ast->ChildSlot( lp->first ) )
             dim as TypeId lt = c.info->TypeOf_( la )
             if lt = TYPE_NONE then return NODE_NONE
             dim as TypeId ludt
@@ -1375,9 +1375,9 @@ private function RunTimeLeaf_ _
             return n
         case "iif"
             if lp->count <> 3 then return NODE_NONE
-            dim as NodeId ic = cast( NodeId, c.ast->children[lp->first] )
-            dim as NodeId ia = cast( NodeId, c.ast->children[lp->first + 1] )
-            dim as NodeId ib = cast( NodeId, c.ast->children[lp->first + 2] )
+            dim as NodeId ic = cast( NodeId, c.ast->ChildSlot( lp->first ) )
+            dim as NodeId ia = cast( NodeId, c.ast->ChildSlot( lp->first + 1 ) )
+            dim as NodeId ib = cast( NodeId, c.ast->ChildSlot( lp->first + 2 ) )
             dim as NodeId cl = RunTimeLeaf_( c, ic, ptrTarget, depth + 1 )
             if cl <> NODE_NONE then return cl
             '' A CONSTANT CONDITION IS FOLDED AND ONLY THE ARM IT PICKS IS JUDGED --

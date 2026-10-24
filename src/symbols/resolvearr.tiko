@@ -18,7 +18,7 @@ function InitCountAt _
             c.ast->ListOf( n )
         if level = depth then return lp->count
         if lp->count = 0 then return -1
-        n = cast( Tko.NodeId, c.ast->children[lp->first] )
+        n = cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) )
     next
     return -1
 end function
@@ -75,8 +75,8 @@ function ArrayFromBounds _
     dim as containers.Array( of uint32 ) los, his
     dim as int32 i = 0
     while i + 1 < count + 1 andalso i + 1 <= count - 1
-        los.Push( c.ast->children[first + i] )
-        his.Push( c.ast->children[first + i + 1] )
+        los.Push( c.ast->ChildSlot( first + i ) )
+        his.Push( c.ast->ChildSlot( first + i + 1 ) )
         i += 2
     wend
     return ArrayFromPairs( c, base_, los, his, Tko.NODE_NONE, false, scope_ )

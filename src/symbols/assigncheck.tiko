@@ -323,7 +323,7 @@ sub CheckConstUdtField_ ( byref c as Ctx, byval id as NodeId )
         case N_PAREN
             dim as ListPayload ptr pp = c.ast->ListOf( m )
             if pp->count <> 1 then return
-            m = cast( NodeId, c.ast->children[pp->first] )
+            m = cast( NodeId, c.ast->ChildSlot( pp->first ) )
             continue for
         case N_CALL
             '' 'cx.a( 1 )' -- a subscript of an array FIELD; a method call is not a target.

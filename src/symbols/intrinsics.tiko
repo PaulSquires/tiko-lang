@@ -271,7 +271,7 @@ private function NotAString_ _
     if cp->target <> Tko.NODE_NONE then
         if c.info->RefOf( cp->target ) <> Tko.SYMBOL_NONE then return Tko.TYPE_NONE
     end if
-    dim as Tko.NodeId arg = cast( Tko.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId arg = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
     c.diags->Report( Tko.TKO0626, Tko.PointRange( c.ast->Loc( arg ) ), nm )
     return Tko.TYPE_NONE
 end function
@@ -308,7 +308,7 @@ private sub CheckDerivedPtrCast_ _
         if c.types->BaseDistance( sp_, rp ) >= 0 then return
     end if
 
-    dim as Tko.NodeId at = cast( Tko.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId at = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
     c.diags->Report( Tko.TKO0627, Tko.PointRange( c.ast->Loc( at ) ) )
 end sub
 
@@ -336,7 +336,7 @@ private function ExprIntrinsicType_ _
 
     dim as Tko.TypeId a0 = Tko.TYPE_NONE
     if cp->count > 0 then
-        a0 = TypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first] ) )
+        a0 = TypeOf_( c, cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) ) )
     end if
     dim as Tko.BuiltinType ab = Tko.TY_NONE
     '' A CONCATENATION WITH A USTRING TERM IS A USTRING ARGUMENT, though '&' itself types
@@ -344,7 +344,7 @@ private function ExprIntrinsicType_ _
     '' 'right( "0" & u, 1 )' are USTRING. Typed STRING, tracks' money formatter returned
     '' 'right( pad & str( kept ), 2 )' through a narrow conversion and printed "4".
     if cp->count > 0 then
-        if ConcatHasUString_( c, cast( Tko.NodeId, c.ast->children[cp->first] ) ) then ab = Tko.TY_USTRING
+        if ConcatHasUString_( c, cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) ) ) then ab = Tko.TY_USTRING
     end if
     if (a0 <> Tko.TYPE_NONE) andalso (ab = Tko.TY_NONE) then
         dim as Tko.TypeId fs = FixedStringElem( a0, *c.types )
@@ -441,7 +441,7 @@ private function ExprIntrinsicType_ _
             if c.types->Kind( lu ) = Tko.TK_UDT then
                 '' WHICH ONE is checkdecide.tiko's, and recorded for LowerLen on the argument.
                 dim as Tko.SymbolId lop = LenOperatorFor_( c, lu )
-                if lop <> Tko.SYMBOL_NONE then c.info->SetDecision( cast( Tko.NodeId, c.ast->children[cp->first] ), lop ) : return c.syms->SymbolAt( lop )->type_
+                if lop <> Tko.SYMBOL_NONE then c.info->SetDecision( cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) ), lop ) : return c.syms->SymbolAt( lop )->type_
             end if
         end if
         return c.types->Builtin( Tko.TY_INTEGER )
@@ -811,7 +811,7 @@ private function UntypedLeaf_ _
             dim as Tko.ListPayload ptr lp = _
                 c.ast->ListOf( cur )
             if lp->count <> 1 then return cur
-            cur = cast( Tko.NodeId, c.ast->children[lp->first] )
+            cur = cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) )
         case Tko.N_UNARY
             dim as Tko.UnaryPayload ptr up = _
                 c.ast->UnaryOf( cur )
@@ -914,7 +914,7 @@ function ProcPtrPickOverload_ _
 
     '' A SIGNATURE: the one whose PARAMETER TYPES match it, position for position. A
     '' destructor takes none, so this only ever discriminates constructors.
-    dim as Tko.NodeId sigN = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
+    dim as Tko.NodeId sigN = cast( Tko.NodeId, c.ast->ChildSlot( lp->first + 1 ) )
     '' ...OR A TYPEDEF NAMING ONE. 'type t as sub( byval as single )' followed by
     '' 'procptr( s, t )' writes the second argument as an ORDINARY IDENTIFIER, so
     '' it is not an N_TYPEREF and carries no type of its own -- and the whole
@@ -937,7 +937,7 @@ function ProcPtrPickOverload_ _
             end if
         end if
         if isTypeof then
-            sigN = cast( Tko.NodeId, c.ast->children[tlp->first] )
+            sigN = cast( Tko.NodeId, c.ast->ChildSlot( tlp->first ) )
         end if
     end if
     dim as Tko.TypeId sigT = Tko.TYPE_NONE
@@ -1111,7 +1111,7 @@ private function PeekTypeArg_ _
         if Tko.Text.LowerAscii( c.names->Spelling( tnp->name ) ) <> "typeof" then
             return Tko.TYPE_NONE
         end if
-        return TypeOf_( c, cast( Tko.NodeId, c.ast->children[tp->first] ) )
+        return TypeOf_( c, cast( Tko.NodeId, c.ast->ChildSlot( tp->first ) ) )
     end if
     if c.ast->Kind( n ) <> Tko.N_IDENT then return Tko.TYPE_NONE
     dim as Tko.IdentPayload ptr ip = _
@@ -1211,7 +1211,7 @@ private function IntrinsicTableType_ _
     '' a type reference, resolved by the time Check runs, and it IS the result type --
     '' there is nothing to infer and nothing to check it against.
     if (nm = "cva_arg") andalso (cp->count = 2) then
-        dim as Tko.NodeId vt = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+        dim as Tko.NodeId vt = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) )
         if c.ast->Kind( vt ) <> Tko.N_TYPEREF then return Tko.TYPE_NONE
         return c.info->TypeOf_( vt )
     end if
@@ -1221,18 +1221,18 @@ private function IntrinsicTableType_ _
     '' argument -- a bare keyword or a 'typeof' -- IS the result type.
     if (nm = "peek") andalso (cp->count >= 1) andalso (cp->count <= 2) then
         if cp->count = 1 then return c.types->Builtin( Tko.TY_UBYTE )
-        dim as Tko.NodeId pt = cast( Tko.NodeId, c.ast->children[cp->first] )
+        dim as Tko.NodeId pt = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
         dim as Tko.TypeId ptt = PeekTypeArg_( c, pt )
         if ptt <> Tko.TYPE_NONE then return ptt
         return Tko.TYPE_NONE
     end if
 
     if ((nm = "cast") orelse (nm = "cptr")) andalso (cp->count = 2) then
-        dim as Tko.NodeId ta = cast( Tko.NodeId, c.ast->children[cp->first] )
+        dim as Tko.NodeId ta = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
         if c.ast->Kind( ta ) <> Tko.N_TYPEREF then return Tko.TYPE_NONE
         dim as Tko.TypeId rt = c.info->TypeOf_( ta )
         if rt = Tko.TYPE_NONE then return Tko.TYPE_NONE
-        dim as Tko.NodeId sn = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+        dim as Tko.NodeId sn = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) )
         dim as Tko.TypeId st = TypeOf_( c, sn )
         if st = Tko.TYPE_NONE then return rt
         '' 'this' DENOTES THE OBJECT, not the pointer. tiko-lang types it as a
@@ -1329,14 +1329,14 @@ private function IntrinsicTableType_ _
     if nm = "iif" then
         if cp->count <> 3 then return Tko.TYPE_NONE
         dim as Tko.TypeId ta = _
-            TypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first + 1] ) )
+            TypeOf_( c, cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) ) )
         dim as Tko.TypeId tb = _
-            TypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first + 2] ) )
+            TypeOf_( c, cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 2 ) ) )
         '' A USTRING CHAIN ARM IS A USTRING. Check types every '&' STRING; fbc says
         '' 'typeof( iif( f, u & "x", u & s ) )' is USTRING, measured, and a STRING iif
         '' read the UTF-16 temporary its arms build as narrow bytes.
-        ta = IifUStrChainArm_( c, cast( Tko.NodeId, c.ast->children[cp->first + 1] ), ta )
-        tb = IifUStrChainArm_( c, cast( Tko.NodeId, c.ast->children[cp->first + 2] ), tb )
+        ta = IifUStrChainArm_( c, cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) ), ta )
+        tb = IifUStrChainArm_( c, cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 2 ) ), tb )
         if ta = tb then return ta
         if ta = Tko.TYPE_NONE then return tb
         if tb = Tko.TYPE_NONE then return ta
@@ -1395,7 +1395,7 @@ private function IntrinsicTableType_ _
         '' whole expression came out untyped. There is one argument here.
         dim as int32 ppCount = cp->count
         if ppCount = 2 then
-            dim as Tko.NodeId ppSecond = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+            dim as Tko.NodeId ppSecond = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) )
             if ppSecond = Tko.NODE_NONE then
                 ppCount = 1
             elseif c.ast->Kind( ppSecond ) = Tko.N_ERROR then
@@ -1412,7 +1412,7 @@ private function IntrinsicTableType_ _
         '' comment above had it as an override selector that "does not change the result
         '' type", and typing it as a procedure pointer left every one of them declining.
         if ppCount = 2 then
-            dim as Tko.NodeId va = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+            dim as Tko.NodeId va = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) )
             if IsVirtualKeyword_( c, va ) then
                 return c.types->Builtin( Tko.TY_LONGINT )
             end if
@@ -1423,7 +1423,7 @@ private function IntrinsicTableType_ _
         '' T.proc1 )' gave fp a VOID slot and the store into it was malformed. Both
         '' shapes are bound to their procedure symbol by then, so the type comes from
         '' the same place.
-        dim as Tko.NodeId pa = cast( Tko.NodeId, c.ast->children[cp->first] )
+        dim as Tko.NodeId pa = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
         dim as Tko.NodeKind pk = c.ast->Kind( pa )
         if (pk <> Tko.N_IDENT) andalso (pk <> Tko.N_MEMBER) then return Tko.TYPE_NONE
 
@@ -1467,14 +1467,14 @@ private function IntrinsicTableType_ _
     case "cdbl"     : b = Tko.TY_DOUBLE
     case "cbool"    : b = Tko.TY_BOOLEAN
     case "csign", "cunsg"
-        return SignedFlip_( TypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first] ) ), _
+        return SignedFlip_( TypeOf_( c, cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) ) ), _
                             (nm = "cunsg"), *c.types )
     end select
     if b = Tko.TY_NONE then return Tko.TYPE_NONE
 
     '' A POINTER argument reaches only the pointer-width conversions. For every other
     '' one -- cbyte, csng, cbool -- fbc refuses a pointer outright.
-    dim as Tko.TypeId at = TypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first] ) )
+    dim as Tko.TypeId at = TypeOf_( c, cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) ) )
     if at <> Tko.TYPE_NONE then
         if c.types->Kind( at ) = Tko.TK_POINTER then
             if IsPointerSized_( b, *c.types ) = false then return Tko.TYPE_NONE

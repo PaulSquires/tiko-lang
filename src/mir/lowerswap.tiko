@@ -38,7 +38,7 @@ private function StrCallOperand_ _
     dim as Tko.IdentPayload ptr ip = _
         c.ast->IdentOf( cp->target )
     if LowerSpelling_( c.ix, *c.names, ip->name ) <> "str" then return e
-    return cast( Tko.NodeId, c.ast->children[cp->first] )
+    return cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
 end function
 
 private function SwapOperandType_ _
@@ -400,7 +400,7 @@ function LowerUdtIndexOp_ _
 
     dim as MirValue self_ = LowerAddr( c, sp->target )
     if self_.kind = cast( uint8, MV_NONE ) then return false
-    dim as Tko.NodeId ie = cast( Tko.NodeId, c.ast->children[sp->first] )
+    dim as Tko.NodeId ie = cast( Tko.NodeId, c.ast->ChildSlot( sp->first ) )
 
     '' THE ARGUMENT IN THE SHAPE THE PARAMETER ASKS FOR -- the same three-way answer an
     '' operator's operand already gets in lowerselfop.tiko, and the reason this is not a
@@ -593,7 +593,7 @@ private function PushPropIndexArgs_ _
         dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if seen >= idxCount then exit for
-        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[idxFirst + seen] )
+        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->ChildSlot( idxFirst + seen ) )
         dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
         dim as MirValue av
         dim as boolean byref_ = _
@@ -659,7 +659,7 @@ private function PropIndexCost_ _
         if seen >= idxCount then exit for
         dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
         dim as Tko.TypeId at = c.info->TypeOf_( _
-            cast( Tko.NodeId, c.ast->children[idxFirst + seen] ) )
+            cast( Tko.NodeId, c.ast->ChildSlot( idxFirst + seen ) ) )
         if (pt = Tko.TYPE_NONE) orelse (at = Tko.TYPE_NONE) then return Tko.Check.CONV_NONE
         dim as Tko.TypeId pu = c.types->Unqualify( pt )
         if c.types->Kind( pu ) = Tko.TK_REFERENCE then

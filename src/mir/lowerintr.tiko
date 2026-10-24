@@ -72,7 +72,7 @@ function LowerCloseCall_ _
         return (outv.kind <> cast( uint8, MV_NONE ))
     end if
     if sp->count <> 1 then return false
-    dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first] )
+    dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->ChildSlot( sp->first ) )
     if c.ast->Kind( it ) = Tko.N_ELIDED then return false
 
     dim as MirValue fn = LowerNumArg_( c, it, MT_I32 )
@@ -112,7 +112,7 @@ end function
 function LowerError( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     if sp->count <> 1 then return false
-    dim as Tko.NodeId numE = cast( Tko.NodeId, c.ast->children[sp->first] )
+    dim as Tko.NodeId numE = cast( Tko.NodeId, c.ast->ChildSlot( sp->first ) )
     dim as MirValue num = LowerNumArg_( c, numE, MT_I32 )
     if num.kind = cast( uint8, MV_NONE ) then return false
 
@@ -857,9 +857,9 @@ function LowerIif _
 
     '' The result type is the one the surrounding expression asked for; an aggregate
     '' or an untyped one has no temporary to write, so it declines.
-    dim as Tko.NodeId condE = cast( Tko.NodeId, c.ast->children[lp->first] )
-    dim as Tko.NodeId thenE = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
-    dim as Tko.NodeId elseE = cast( Tko.NodeId, c.ast->children[lp->first + 2] )
+    dim as Tko.NodeId condE = cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) )
+    dim as Tko.NodeId thenE = cast( Tko.NodeId, c.ast->ChildSlot( lp->first + 1 ) )
+    dim as Tko.NodeId elseE = cast( Tko.NodeId, c.ast->ChildSlot( lp->first + 2 ) )
 
     '' The result type is the one the surrounding expression asked for; failing that,
     '' the CALL's own -- which Check does not compute for iif -- and failing that, an
@@ -1270,7 +1270,7 @@ function LowerVarPtrCall_ _
     dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
     if nm <> "varptr" then return false
 
-    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
     outv = LowerAddr( c, a0 )
     return (outv.kind <> cast( uint8, MV_NONE ))
 end function
@@ -1294,7 +1294,7 @@ function LowerStrPtrCall_ _
     dim as string spnm = LowerSpelling_( c.ix, *c.names, ip->name )
     if (spnm <> "strptr") andalso (spnm <> "sadd") then return false
 
-    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
     if TermIsWide_( c, a0 ) then return WideOperand_( c, a0, outv )
 
     '' A UDT THAT CASTS TO A ZSTRING IS THE CAST, and the cast's result already IS the

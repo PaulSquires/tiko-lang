@@ -165,7 +165,7 @@ private function BuiltinBesideUserProc_ _
        (ps->kind <> cast( uint8, Tko.SCOPEK_MODULE )) then return false
     if cp->count >= 1 then
         dim as Tko.TypeId ka = BareArgType_( c, _
-            c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[cp->first] ) ) )
+            c.info->TypeOf_( cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) ) ) )
         if ka = Tko.TYPE_NONE then return false
         '' ...AND ONLY WHEN AN OVERLOAD TAKES IT -- see UdtOverloadTakes_.
         if c.types->Kind( ka ) = Tko.TK_UDT then
@@ -226,7 +226,7 @@ private function IntrinsicCallType_ _
         '' 8, for exp, abs, sgn, int, frac and sqr alike (fbc-examples r3mis01, r3ice10).
         if (bsym->kind = cast( uint8, Tko.SYM_PROC )) andalso (cp->count >= 1) then
             if (nm <> "cast") andalso (nm <> "len") andalso (nm <> "sizeof") then
-                dim as Tko.TypeId ka = BareArgType_( c, c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[cp->first] ) ) )
+                dim as Tko.TypeId ka = BareArgType_( c, c.info->TypeOf_( cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) ) ) )
                 if ka <> Tko.TYPE_NONE then
                     if c.types->Kind( ka ) = Tko.TK_UDT then
                         if UdtOverloadTakes_( c, c.info->RefOf( cp->target ), ka ) then return Tko.TYPE_NONE

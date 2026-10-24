@@ -768,11 +768,11 @@ function CtorLitArgIsWide_ _
     ( byref c as Ctx, byval ctors as Tko.SymbolId, byval first_ as int32, _
       byval count as int32, byval idx as int32 ) as boolean
 
-    dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[first_ + idx] )
+    dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->ChildSlot( first_ + idx ) )
     if c.ast->Kind( Unparen_( c, a ) ) <> Tko.N_STRING_LIT then return false
     dim as containers.Array( of uint32 ) argT
     for i as int32 = 0 to count - 1
-        argT.Push( cast( uint32, c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[first_ + i] ) ) ) )
+        argT.Push( cast( uint32, c.info->TypeOf_( cast( Tko.NodeId, c.ast->ChildSlot( first_ + i ) ) ) ) )
     next
     dim as Tko.SymbolId pick = PickCtor( c, ctors, argT )
     if pick = Tko.SYMBOL_NONE then return false

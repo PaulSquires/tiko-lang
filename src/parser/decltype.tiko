@@ -72,10 +72,10 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
             if DeclName( p, ep.name ) = false then exit while
             extra.Push( cast( uint32, MakeStmt( p, Tko.N_TYPEDEF, nt.loc, ep ) ) )
         wend
-        sp.first = p.ast->children.Count
+        sp.first = p.ast->ChildPoolCount( )
         sp.count = extra.Count
         for i as int32 = 0 to extra.Count - 1
-            p.ast->children.Push( extra[i] )
+            p.ast->PushChild( extra[i] )
         next
         return MakeStmt( p, Tko.N_TYPEDEF, t.loc, sp )
     end if
@@ -156,10 +156,10 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
             TypedefKeywordTarget_( p, ep2.a )
             extra2.Push( cast( uint32, MakeStmt( p, Tko.N_TYPEDEF, nt2.loc, ep2 ) ) )
         wend
-        sp.first = p.ast->children.Count
+        sp.first = p.ast->ChildPoolCount( )
         sp.count = extra2.Count
         for i as int32 = 0 to extra2.Count - 1
-            p.ast->children.Push( extra2[i] )
+            p.ast->PushChild( extra2[i] )
         next
         return MakeStmt( p, Tko.N_TYPEDEF, t.loc, sp )
     end if
@@ -285,10 +285,10 @@ private function ParseEnumDecl( byref p as Tko.ParserState ) as Tko.NodeId
         if Accept( p, Tko.TK_COMMA ) = false then EndOfStatement( p )
     loop
 
-    sp.first = p.ast->children.Count
+    sp.first = p.ast->ChildPoolCount( )
     sp.count = items.Count
     for i as int32 = 0 to items.Count - 1
-        p.ast->children.Push( items[i] )
+        p.ast->PushChild( items[i] )
     next
     if (items.Count = 0) andalso EndsHere_( p, Tko.KW_ENUM ) then p.diags->Report( Tko.TKO0876, Tko.PointRange( Cur( p ).loc ), "ENUM" )  '' declempty.tiko
     ExpectEnd( p, Tko.KW_ENUM )
@@ -406,10 +406,10 @@ private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
     p.nsPath = outerNs
     if p.stream <> nullptr then Tko.PpSetNamespace( *cast( Tko.PpStream ptr, p.stream ), p.nsPath )
 
-    sp.first = p.ast->children.Count
+    sp.first = p.ast->ChildPoolCount( )
     sp.count = members.Count
     for i as int32 = 0 to members.Count - 1
-        p.ast->children.Push( members[i] )
+        p.ast->PushChild( members[i] )
     next
     ExpectEnd( p, Tko.KW_NAMESPACE )
 
@@ -421,9 +421,9 @@ private function ParseNamespaceDecl( byref p as Tko.ParserState ) as Tko.NodeId
         dim as Tko.StmtPayload outer
         outer.name = cast( Tko.InternId, parts[i] )
         outer.rawName = cast( Tko.InternId, rawParts[i] )
-        outer.first = p.ast->children.Count
+        outer.first = p.ast->ChildPoolCount( )
         outer.count = 1
-        p.ast->children.Push( cast( uint32, n ) )
+        p.ast->PushChild( cast( uint32, n ) )
         n = MakeStmt( p, Tko.N_NAMESPACE, t.loc, outer )
     next
     return n
@@ -604,7 +604,7 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
                 if p.pos = before then Advance( p )
             loop
 
-            sp.first = p.ast->children.Count
+            sp.first = p.ast->ChildPoolCount( )
             sp.count = members.Count
             for i as int32 = 0 to members.Count - 1
                 dim as Tko.NodeId m = cast( Tko.NodeId, members[i] )
@@ -646,7 +646,7 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
                         end if
                     end if
                 end if
-                p.ast->children.Push( members[i] )
+                p.ast->PushChild( members[i] )
             next
             p.externConv = outerConv
             ExpectEnd( p, Tko.KW_EXTERN )
@@ -736,10 +736,10 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
             NoteUsing_( p, mp )
             moreUsing.Push( cast( uint32, MakeStmt( p, Tko.N_USING, ut.loc, up ) ) )
         wend
-        sp.first = p.ast->children.Count
+        sp.first = p.ast->ChildPoolCount( )
         sp.count = moreUsing.Count
         for i as int32 = 0 to moreUsing.Count - 1
-            p.ast->children.Push( moreUsing[i] )
+            p.ast->PushChild( moreUsing[i] )
         next
         return MakeStmt( p, Tko.N_USING, t.loc, sp )
 

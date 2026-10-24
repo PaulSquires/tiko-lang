@@ -65,7 +65,7 @@ function IsUStrIntrinCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     case else
         return false
     end select
-    return UStrIntrinArgIsU_( c, cast( Tko.NodeId, c.ast->children[cp->first] ) )
+    return UStrIntrinArgIsU_( c, cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) ) )
 end function
 
 '' One 'ucase( u )' / 'mid( u, 2, 3 )' / 'instr( u, v )' and the rest, over a USTRING
@@ -85,11 +85,11 @@ function LowerUStrIntrinB_ _
     dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
 
     '' THE FIRST ARGUMENT DECIDES, exactly as it does for the wide family.
-    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
     if UStrIntrinArgIsU_( c, a0 ) = false then return false
 
     dim as Tko.NodeId a1 = Tko.NODE_NONE
-    if cp->count >= 2 then a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+    if cp->count >= 2 then a1 = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) )
 
     '' WHICH ENTRY POINT, decided before anything is emitted: StrDescriptorOf_ may emit
     '' a call of its own, and a decline afterwards would leave it behind.
@@ -218,7 +218,7 @@ function LowerUStrIntrinB_ _
         '' A 'mid' WITHOUT a length passes -1, not 0 -- 0 would silently produce an
         '' empty string instead of the rest of the source. Same rule as the narrow one.
         if cp->count = 3 then
-            dim as Tko.NodeId a2 = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
+            dim as Tko.NodeId a2 = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 2 ) )
             dim as MirValue n2 = LowerNumArg_( c, a2, MT_I64 )
             if n2.kind = cast( uint8, MV_NONE ) then return false
             args.Push( cast( uint32, n2.kind ) ) : args.Push( cast( uint32, n2.id ) )

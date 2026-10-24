@@ -67,7 +67,7 @@ private function StmtOf _
 
     if id = Tko.NODE_NONE then return nullptr
     dim as Tko.AstNode ptr n = w.ast->NodeAt( id )
-    return @w.ast->stmts[cast( int32, n->data )]
+    return w.ast->StmtAt( cast( int32, n->data ) )
 end function
 
 private function ListOf _
@@ -75,7 +75,7 @@ private function ListOf _
 
     if id = Tko.NODE_NONE then return nullptr
     dim as Tko.AstNode ptr n = w.ast->NodeAt( id )
-    return @w.ast->lists[cast( int32, n->data )]
+    return w.ast->ListAt( cast( int32, n->data ) )
 end function
 
 #include once "symbols/collectkw.tiko"
@@ -124,7 +124,7 @@ private function IsDynArrayItem_ _
     ( byref w as Walker, byval item as Tko.NodeId, byval scope_ as Tko.ScopeId ) as boolean
 
     if item = Tko.NODE_NONE then return false
-    if cast( int32, item ) >= w.ast->nodes.Count then return false
+    if cast( int32, item ) >= w.ast->NodePoolCount( ) then return false
     if (w.ast->Flags( item ) and Tko.NF_ARRAY) = 0 then return false
     dim as Tko.StmtPayload ptr ip = StmtOf( w, item )
     if ip = nullptr then return false
@@ -218,7 +218,7 @@ private sub WalkChildren _
 
     dim as boolean later = false
     for i as int32 = 0 to count - 1
-        dim as Tko.NodeId c = cast( Tko.NodeId, w.ast->children[first + i] )
+        dim as Tko.NodeId c = cast( Tko.NodeId, w.ast->ChildSlot( first + i ) )
         if Deferred_( w, c, scope_ ) then
             later = true
             continue for
@@ -227,7 +227,7 @@ private sub WalkChildren _
     next
     if later = false then return
     for i as int32 = 0 to count - 1
-        dim as Tko.NodeId c = cast( Tko.NodeId, w.ast->children[first + i] )
+        dim as Tko.NodeId c = cast( Tko.NodeId, w.ast->ChildSlot( first + i ) )
         if Deferred_( w, c, scope_ ) then WalkNode( w, c, scope_ )
     next
 end sub
@@ -461,7 +461,7 @@ sub WalkNode _
                     if prs->kind = cast( uint8, Tko.SYM_FIELD ) then
                         dim as Tko.NodeId fld = cast( Tko.NodeId, prs->payload )
                         dim as boolean isFieldNode = (fld <> Tko.NODE_NONE) andalso _
-                            (cast( int32, fld ) < w.ast->nodes.Count)
+                            (cast( int32, fld ) < w.ast->NodePoolCount( ))
                         if isFieldNode then isFieldNode = (w.ast->Kind( fld ) = Tko.N_FIELD)
                         if isFieldNode then
                             if SameTypeRef_( w, StmtOf( w, fld )->a, ip->a ) then continue for

@@ -116,12 +116,12 @@ function LowerQuerySymbol_ _
 
     '' THE QUERY, which must be a constant: it selects between answers of different
     '' kinds, and there is nothing to emit for one that is not known here.
-    dim as Tko.NodeId qn = cast( Tko.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId qn = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
     dim as int64 qraw = 0
     if QSymConstOf_( c, qn, qraw ) = false then return false
     dim as int32 q = cast( int32, qraw ) and QSYM_QUERYMASK
 
-    dim as Tko.NodeId sn = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+    dim as Tko.NodeId sn = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) )
     dim as Tko.SymbolId sid = c.info->RefOf( sn )
     dim as Tko.Symbol ptr sy = c.syms->SymbolAt( sid )
     '' A NAME THAT IS ONLY A LABEL binds to nothing -- labels are declared under a key no

@@ -95,13 +95,13 @@ private sub CheckCtorArgsOf_ _
     if (c.ast->StmtOf( decl )->extra and PF_GENERIC_PROC) <> 0 then return
 
     if argCount = 1 then
-        dim as TypeId a0 = c.types->Unqualify( c.info->TypeOf_( cast( NodeId, c.ast->children[argFirst] ) ) )
+        dim as TypeId a0 = c.types->Unqualify( c.info->TypeOf_( cast( NodeId, c.ast->ChildSlot( argFirst ) ) ) )
         if c.types->Kind( a0 ) = TK_REFERENCE then a0 = c.types->Unqualify( c.types->Inner( a0 ) )
         if c.types->Kind( a0 ) = TK_UDT then return
     end if
 
     for i as int32 = 0 to argCount - 1
-        dim as NodeId warg = cast( NodeId, c.ast->children[argFirst + i] )
+        dim as NodeId warg = cast( NodeId, c.ast->ChildSlot( argFirst + i ) )
         if c.ast->Kind( warg ) = N_ELIDED then continue for
         dim as NodeId prm = ProcDeclParam_( c.ast, decl, i )
         if prm = NODE_NONE then exit for
@@ -144,7 +144,7 @@ private function CheckCtorArity_ _
     if s->kind <> cast( uint8, SYM_PROC ) then return false
 
     if argCount = 1 then
-        dim as NodeId a0n = cast( NodeId, c.ast->children[argFirst] )
+        dim as NodeId a0n = cast( NodeId, c.ast->ChildSlot( argFirst ) )
         dim as TypeId a0 = c.types->Unqualify( c.info->TypeOf_( a0n ) )
         if a0 = TYPE_NONE then return false
         if c.types->Kind( a0 ) = TK_REFERENCE then a0 = c.types->Unqualify( c.types->Inner( a0 ) )
@@ -394,7 +394,7 @@ private sub CheckCtorInitList_ _
     dim as int32 first_ = lp->first
     dim as int32 count_ = lp->count
     for i as int32 = 0 to count_ - 1
-        dim as NodeId el = cast( NodeId, c.ast->children[first_ + i] )
+        dim as NodeId el = cast( NodeId, c.ast->ChildSlot( first_ + i ) )
         select case c.ast->Kind( el )
         case N_INITIALIZER
             CheckCtorInitList_( c, el, elemT, depth + 1 )

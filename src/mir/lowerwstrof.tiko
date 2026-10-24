@@ -82,7 +82,7 @@ function LowerWstrOf _
         c.ast->IdentOf( lp->target )
     if LowerSpelling_( c.ix, *c.names, ip->name ) <> "wstr" then return false
 
-    dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[lp->first] )
+    dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) )
 
     '' A STRING LITERAL is FOLDED, not converted. Measured: fbc emits L"abc" and no
     '' call at all -- 'wstr( "  ab  " )' becomes '(uint16*)L"  ab  "'. Sending it
@@ -348,7 +348,7 @@ function WideConstLitNode_( byref c as Ctx, byval e as Tko.NodeId, byval viaWstr
         if IsWstrCall_( c, e ) = false then return Tko.NODE_NONE
         dim as Tko.ListPayload ptr wl = c.ast->ListOf( e )
         if wl->count <> 1 then return Tko.NODE_NONE
-        return WideConstLitNode_( c, cast( Tko.NodeId, c.ast->children[wl->first] ), true )
+        return WideConstLitNode_( c, cast( Tko.NodeId, c.ast->ChildSlot( wl->first ) ), true )
     case Tko.N_STRING_LIT
         if viaWstr orelse LitHasUnicodeEscape_( c, e ) then return e
     case Tko.N_IDENT, Tko.N_MEMBER

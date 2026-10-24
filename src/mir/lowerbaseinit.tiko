@@ -28,7 +28,7 @@ function LowerBaseFieldInit_ _
 
     '' A SINGLE ARGUMENT OF THE BASE'S OWN TYPE IS A COPY of the whole subobject.
     if count = 1 then
-        dim as Tko.NodeId only_ = cast( Tko.NodeId, c.ast->children[first_] )
+        dim as Tko.NodeId only_ = cast( Tko.NodeId, c.ast->ChildSlot( first_ ) )
         dim as Tko.TypeId ot2 = c.types->Unqualify( c.info->TypeOf_( only_ ) )
         '' ...OR OF A TYPE DERIVED FROM IT: 'base( u )' in D's copy constructor over 'byref u
         '' as D' copies u's base part (manual proguide udt/ctordtor-dynamicarray4, varlendata4).
@@ -63,7 +63,7 @@ function LowerBaseFieldInit_ _
         dim as Tko.TypeId fty = cast( Tko.TypeId, lTy[i] ) : dim as int32 foff = cast( int32, lOff[i] )
         dim as MirType fmt = LowerType( fty, *c.types )
         if fmt = MT_VOID then return false
-        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[first_ + i] )
+        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->ChildSlot( first_ + i ) )
         '' A RECORD-TYPED FIELD takes a value of exactly its type, stored whole with its
         '' size: 'new Line2( type<Point>( 1, 2 ), 9 )' (T32). Anything else is declined.
         if fmt = MT_AGG then

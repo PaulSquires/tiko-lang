@@ -65,7 +65,7 @@ private sub StaticThisList_ _
     ( byref c as Ctx, byval first_ as int32, byval count_ as int32, byref prev as int32, _
       byref memberRhs as containers.Array( of uint8 ) )
     for i as int32 = 0 to count_ - 1
-        dim as NodeId ch = cast( NodeId, c.ast->children[first_ + i] )
+        dim as NodeId ch = cast( NodeId, c.ast->ChildSlot( first_ + i ) )
         if ch = NODE_NONE then continue for
         select case c.ast->Kind( ch )
         case N_PROC

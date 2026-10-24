@@ -478,7 +478,7 @@ private sub CaseValueRange_ _
         dim as ListPayload ptr pp = _
             c.ast->ListOf( bare )
         if pp->count < 1 then exit while
-        bare = cast( NodeId, c.ast->children[pp->first] )
+        bare = cast( NodeId, c.ast->ChildSlot( pp->first ) )
     wend
     if c.ast->Kind( bare ) = N_UNARY then
         dim as UnaryPayload ptr up = _

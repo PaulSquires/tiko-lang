@@ -112,7 +112,7 @@ sub ArrayInitLeaves_ _
     else
         dim as Tko.ListPayload ptr lp = c.ast->ListOf( init )
         for i as int32 = 0 to lp->count - 1
-            leaves.Push( c.ast->children[lp->first + i] )
+            leaves.Push( c.ast->ChildSlot( lp->first + i ) )
         next
     end if
     for i as int32 = 0 to leaves.Count - 1
@@ -470,7 +470,7 @@ function PackedElemsInit_ _
     if (isStr = false) andalso (emt = MT_AGG) andalso (c.types->Kind( el ) <> Tko.TK_UDT) then return false
     if emt = MT_VOID then return false
     for k as int32 = 0 to n - 1
-        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[first + k] )
+        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->ChildSlot( first + k ) )
         dim as MirInst fa
         fa.op = cast( uint16, M_FIELD_ADDR ) : fa.ty = cast( uint8, MT_PTR )
         fa.a = base_ : fa.imm = k * esz

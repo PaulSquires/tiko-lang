@@ -59,7 +59,7 @@ function LowerStrRvalueB_ _
 
     '' The FIRST argument decides. These names are overloaded on wide strings too, and
     '' the wide overload belongs to LowerWideRvalue.
-    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
     if IsWideString_( c, c.info->TypeOf_( a0 ) ) then return false
 
     '' ...AND A USTRING BELONGS TO lowerustr.tiko. Falling through to the narrow rows
@@ -75,7 +75,7 @@ function LowerStrRvalueB_ _
     dim as Tko.NodeId a1 = Tko.NODE_NONE
     dim as boolean isAny = false
     if cp->count >= 2 then
-        a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+        a1 = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) )
         if c.ast->Kind( a1 ) = Tko.N_UNARY then
             dim as Tko.UnaryPayload ptr up = _
                 c.ast->UnaryOf( a1 )
@@ -148,7 +148,7 @@ function LowerStrRvalueB_ _
     '' right -- the rule LowerCallParts follows for an ordinary call applies here too.
     dim as MirValue v2
     if (r = RTL_STR_MID) andalso (cp->count = 3) then
-        dim as Tko.NodeId a2 = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
+        dim as Tko.NodeId a2 = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 2 ) )
         v2 = LowerNumArg_( c, a2, MT_I64 )
         if v2.kind = cast( uint8, MV_NONE ) then return false
     end if
@@ -248,7 +248,7 @@ function LowerStrOf_ _
     end select
     if mr <> RTL_NONE then
         if cp->count <> 1 then return false
-        dim as Tko.NodeId ma = cast( Tko.NodeId, c.ast->children[cp->first] )
+        dim as Tko.NodeId ma = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
         dim as MirValue mv = LowerNumArg_( c, ma, mt2 )
         if mv.kind = cast( uint8, MV_NONE ) then return false
         dim as containers.Array( of uint32 ) ma2
@@ -259,7 +259,7 @@ function LowerStrOf_ _
 
     if nm <> "str" then return false
     if cp->count <> 1 then return false
-    dim as Tko.NodeId sa = cast( Tko.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId sa = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
 
     '' STR OF A STRING IS THE IDENTITY and fbc emits no conversion for it -- but it is
     '' not a no-op either: 'str( z )' over a 'zstring * N' is
@@ -438,7 +438,7 @@ function LowerStrNumCallB_ _
     end select
     if vr <> RTL_NONE then
         if cp->count <> 1 then return false
-        dim as Tko.NodeId v0 = cast( Tko.NodeId, c.ast->children[cp->first] )
+        dim as Tko.NodeId v0 = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
 
         '' A NON-STRING OPERAND IS THE OTHER HALF OF THE FAMILY. 'cvi( 1.58e40 )' does
         '' not read a string's bytes -- there is no string -- it REINTERPRETS a
@@ -538,13 +538,13 @@ function LowerStrNumCallB_ _
 
     if nm = "asc" then
         if (cp->count < 1) orelse (cp->count > 2) then return false
-        dim as Tko.NodeId a0asc = cast( Tko.NodeId, c.ast->children[cp->first] )
+        dim as Tko.NodeId a0asc = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
         '' 'asc( W, n )' OVER A WIDE CONSTANT FOLDS, as fbc folds it: 'wstr( !"A\000B" )' holds a NUL
         '' the runtime stops at, so 'asc( s, 3 )' read 0 where fbc gives 66 (string/asc.bas).
         dim as Tko.NodeId awl = WideConstLitNode_( c, a0asc )
         dim as Tko.Check.ConstVal apv : apv.known = true : apv.value = 1
         dim as Tko.NodeId anl = iif( (awl = Tko.NODE_NONE) andalso (TermIsWide_( c, a0asc ) = false), WideConstLitNode_( c, a0asc, true ), Tko.NODE_NONE ) : dim as boolean anar = (anl <> Tko.NODE_NONE) andalso (Utf8WideLit_( c, anl ) = false)   '' ...and a NARROW constant, read past an embedded NUL (string/asc.bas)
-        if ((awl <> Tko.NODE_NONE) orelse anar) andalso (cp->count = 2) then apv = Tko.Check.ConstOf( *c.ast, cast( Tko.NodeId, c.ast->children[cp->first + 1] ), *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms, c.info->ScopeOf( a0asc ) )
+        if ((awl <> Tko.NODE_NONE) orelse anar) andalso (cp->count = 2) then apv = Tko.Check.ConstOf( *c.ast, cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) ), *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms, c.info->ScopeOf( a0asc ) )
         if (awl <> Tko.NODE_NONE) andalso apv.known then outv = ConstInt( c, WideLitUnitAt_( c, awl, apv.value ), MT_I32 ) : return (outv.kind <> cast( uint8, MV_NONE ))
         if anar andalso apv.known then outv = ConstInt( c, WideLitUnitAt_( c, anl, apv.value ), MT_I32 ) : return (outv.kind <> cast( uint8, MV_NONE ))
         '' A WIDE OPERAND HAS ITS OWN ENTRY POINT, as the val family above does:
@@ -576,7 +576,7 @@ function LowerStrNumCallB_ _
             if ascR = RTL_USTR_ASC then PushStrLen_( c, aa, -1 )
         end if
         if cp->count = 2 then
-            dim as Tko.NodeId a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
+            dim as Tko.NodeId a1 = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) )
             '' The POSITION follows the pointer -- int64 on win64 and int32 on
             '' win32, measured on both halves of the family.
             dim as MirType pw = MT_I64
@@ -608,14 +608,14 @@ function LowerStrNumCallB_ _
     dim as int32 si = cp->first
     if cp->count = 3 then
         if isRev then
-            startE = cast( Tko.NodeId, c.ast->children[cp->first + 2] )
+            startE = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 2 ) )
         else
-            startE = cast( Tko.NodeId, c.ast->children[cp->first] )
+            startE = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
             si += 1
         end if
     end if
-    dim as Tko.NodeId sE = cast( Tko.NodeId, c.ast->children[si] )
-    dim as Tko.NodeId tE = cast( Tko.NodeId, c.ast->children[si + 1] )
+    dim as Tko.NodeId sE = cast( Tko.NodeId, c.ast->ChildSlot( si ) )
+    dim as Tko.NodeId tE = cast( Tko.NodeId, c.ast->ChildSlot( si + 1 ) )
 
     '' 'instr( s, any t )' strips any of those CHARACTERS and is a different entry
     '' point. The ANY sits on the SECOND string, not on the start.

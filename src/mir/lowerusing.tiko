@@ -288,7 +288,7 @@ end function
 '' does not. A ',' cannot appear here at all: fbc rejects it with error 47.
 function UsingEndsLine_( byref c as Ctx, byval sp as Tko.StmtPayload ptr ) as boolean
     if sp->count = 0 then return false
-    dim as Tko.NodeId last = cast( Tko.NodeId, c.ast->children[sp->first + sp->count - 1] )
+    dim as Tko.NodeId last = cast( Tko.NodeId, c.ast->ChildSlot( sp->first + sp->count - 1 ) )
     return (c.ast->Kind( last ) <> Tko.N_PRINT_SEP)
 end function
 
@@ -556,7 +556,7 @@ function LowerPrintPos _
         return false
     end if
 
-    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->children[cp->first] )
+    dim as Tko.NodeId a0 = cast( Tko.NodeId, c.ast->ChildSlot( cp->first ) )
     dim as MirValue n = LowerNumArg_( c, a0, want )   '' a UDT through its numeric cast
     if n.kind = cast( uint8, MV_NONE ) then return false
 

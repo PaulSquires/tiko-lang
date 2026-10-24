@@ -83,7 +83,7 @@ private function AddrOfType_ _
             dim as Tko.ListPayload ptr pp = _
                 c.ast->ListOf( lo )
             if pp->count <> 1 then exit for
-            lo = cast( Tko.NodeId, c.ast->children[pp->first] )
+            lo = cast( Tko.NodeId, c.ast->ChildSlot( pp->first ) )
         next
         if lo <> Tko.NODE_NONE then
             dim as boolean isLit = false

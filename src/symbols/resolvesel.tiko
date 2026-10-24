@@ -85,7 +85,7 @@ private sub ConstBoundCheck_ _
     '' is not -- and fbc refuses the latter even over an array whose bounds it knows,
     '' because it cannot tell WHICH bound is being asked for.
     if lp->count >= 2 then
-        dim as Tko.NodeId dimArg = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
+        dim as Tko.NodeId dimArg = cast( Tko.NodeId, c.ast->ChildSlot( lp->first + 1 ) )
         dim as int64 dv = 0
         if SelConstVal_( c, dimArg, here, dv ) = false then
             c.diags->Report( Tko.TKO0674, Tko.PointRange( c.ast->Loc( ip->b ) ) )

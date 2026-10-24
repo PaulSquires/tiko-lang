@@ -234,7 +234,7 @@ private function TypeLitTextBad_ _
     while c.ast->Kind( rn ) = N_PAREN
         dim as ListPayload ptr pl = c.ast->ListOf( rn )
         if pl->count <> 1 then exit while
-        rn = cast( NodeId, c.ast->children[pl->first] )
+        rn = cast( NodeId, c.ast->ChildSlot( pl->first ) )
     wend
     if c.ast->Kind( rn ) <> N_TUPLE then return false
     if (c.ast->Flags( rn ) and NF_TYPE_LITERAL) = 0 then return false
@@ -257,7 +257,7 @@ private function TupleConvBad_ _
     while c.ast->Kind( rn ) = N_PAREN
         dim as ListPayload ptr pl = c.ast->ListOf( rn )
         if pl->count <> 1 then exit while
-        rn = cast( NodeId, c.ast->children[pl->first] )
+        rn = cast( NodeId, c.ast->ChildSlot( pl->first ) )
     wend
     if c.ast->Kind( rn ) <> N_TUPLE then return TupleValueBad_( c, t, rn )
     if (c.ast->Flags( rn ) and NF_TYPE_LITERAL) <> 0 then return false

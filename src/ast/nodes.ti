@@ -465,6 +465,7 @@ namespace Tko
     end type
 
     type AstArena
+    private:
         as NodeVec     nodes        '' index 0 is a permanent N_NONE sentinel
         as UnaryVec    unaries
         as BinaryVec   binaries
@@ -473,6 +474,7 @@ namespace Tko
         as ListVec     lists
         as StmtVec     stmts
         as ChildPool   children
+    public:
 
         '' THE TOKEN RANGE a declaration was parsed from, for the declarations that
         '' may have to be parsed a SECOND time: a generic's TYPE body and the
@@ -585,6 +587,35 @@ namespace Tko
         declare sub SetKind( byval id as NodeId, byval k as uint16 )
         declare sub SetLoc( byval id as NodeId, byval l as SourceLoc )
         declare sub SetData( byval id as NodeId, byval d as uint32 )
+        '' THE POOLS THEMSELVES, by index -- for the code that BUILDS nodes (the parser, Resolve's
+        '' rewrites, generic instantiation) and the few readers that hold a payload index rather
+        '' than a node. The pools are private (review ARCH-11, LATER-PLAN F step 3): these are the
+        '' only way in, so a read by node goes through StmtOf and its siblings, and the -g check.
+        declare function StmtAt( byval i as int32 ) as StmtPayload ptr
+        declare sub PushStmt( byref v as StmtPayload )
+        declare function StmtPoolCount( ) as int32
+        declare function ListAt( byval i as int32 ) as ListPayload ptr
+        declare sub PushList( byref v as ListPayload )
+        declare function ListPoolCount( ) as int32
+        declare function IdentAt( byval i as int32 ) as IdentPayload ptr
+        declare sub PushIdent( byref v as IdentPayload )
+        declare function IdentPoolCount( ) as int32
+        declare function UnaryAt( byval i as int32 ) as UnaryPayload ptr
+        declare sub PushUnary( byref v as UnaryPayload )
+        declare function UnaryPoolCount( ) as int32
+        declare function BinaryAt( byval i as int32 ) as BinaryPayload ptr
+        declare sub PushBinary( byref v as BinaryPayload )
+        declare function BinaryPoolCount( ) as int32
+        declare function LiteralAt( byval i as int32 ) as LiteralPayload ptr
+        declare sub PushLiteral( byref v as LiteralPayload )
+        declare function LiteralPoolCount( ) as int32
+        declare function ChildSlot( byval i as int32 ) as uint32
+        declare sub SetChildSlot( byval i as int32, byval v as uint32 )
+        declare sub PushChild( byval v as uint32 )
+        declare function ChildPoolCount( ) as int32
+        declare sub PushNode( byref n as AstNode )
+        '' Every node slot, the N_NONE sentinel at 0 included -- Count( ) is one fewer.
+        declare function NodePoolCount( ) as int32
     end type
 
     enum AstPool
@@ -662,6 +693,78 @@ namespace Tko
     private sub AstArena.SetData( byval id as NodeId, byval d as uint32 )
         this.nodes[cast( int32, id )].data = d
     end sub
+    private function AstArena.StmtAt( byval i as int32 ) as StmtPayload ptr
+        return @this.stmts[i]
+    end function
+    private sub AstArena.PushStmt( byref v as StmtPayload )
+        this.stmts.Push( v )
+    end sub
+    private function AstArena.StmtPoolCount( ) as int32
+        return this.stmts.Count
+    end function
+    private function AstArena.ListAt( byval i as int32 ) as ListPayload ptr
+        return @this.lists[i]
+    end function
+    private sub AstArena.PushList( byref v as ListPayload )
+        this.lists.Push( v )
+    end sub
+    private function AstArena.ListPoolCount( ) as int32
+        return this.lists.Count
+    end function
+    private function AstArena.IdentAt( byval i as int32 ) as IdentPayload ptr
+        return @this.idents[i]
+    end function
+    private sub AstArena.PushIdent( byref v as IdentPayload )
+        this.idents.Push( v )
+    end sub
+    private function AstArena.IdentPoolCount( ) as int32
+        return this.idents.Count
+    end function
+    private function AstArena.UnaryAt( byval i as int32 ) as UnaryPayload ptr
+        return @this.unaries[i]
+    end function
+    private sub AstArena.PushUnary( byref v as UnaryPayload )
+        this.unaries.Push( v )
+    end sub
+    private function AstArena.UnaryPoolCount( ) as int32
+        return this.unaries.Count
+    end function
+    private function AstArena.BinaryAt( byval i as int32 ) as BinaryPayload ptr
+        return @this.binaries[i]
+    end function
+    private sub AstArena.PushBinary( byref v as BinaryPayload )
+        this.binaries.Push( v )
+    end sub
+    private function AstArena.BinaryPoolCount( ) as int32
+        return this.binaries.Count
+    end function
+    private function AstArena.LiteralAt( byval i as int32 ) as LiteralPayload ptr
+        return @this.literals[i]
+    end function
+    private sub AstArena.PushLiteral( byref v as LiteralPayload )
+        this.literals.Push( v )
+    end sub
+    private function AstArena.LiteralPoolCount( ) as int32
+        return this.literals.Count
+    end function
+    private function AstArena.ChildSlot( byval i as int32 ) as uint32
+        return this.children[i]
+    end function
+    private sub AstArena.SetChildSlot( byval i as int32, byval v as uint32 )
+        this.children[i] = v
+    end sub
+    private sub AstArena.PushChild( byval v as uint32 )
+        this.children.Push( v )
+    end sub
+    private function AstArena.ChildPoolCount( ) as int32
+        return this.children.Count
+    end function
+    private sub AstArena.PushNode( byref n as AstNode )
+        this.nodes.Push( n )
+    end sub
+    private function AstArena.NodePoolCount( ) as int32
+        return this.nodes.Count
+    end function
 
     declare function NodeKindName( byval k as NodeKind ) as string
 

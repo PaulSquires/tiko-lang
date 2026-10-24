@@ -803,7 +803,7 @@ private function TypeOfUncached_ _
         dim as Tko.ListPayload ptr lp = _
             c.ast->ListOf( id )
         if lp->count > 0 then
-            t = TypeOf_( c, cast( Tko.NodeId, c.ast->children[lp->first] ) )
+            t = TypeOf_( c, cast( Tko.NodeId, c.ast->ChildSlot( lp->first ) ) )
         end if
 
     case Tko.N_UNARY
@@ -1356,7 +1356,7 @@ private function TypeOfUncached_ _
                     '' A BYREF result is a REFERENCE to the element; the element's own
                     '' type is what the expression has, exactly as a byref parameter's
                     '' use does.
-                    dim as Tko.SymbolId ixs = IndexOperatorFor_( c, pt, iif( xp->count > 0, cast( Tko.NodeId, c.ast->children[xp->first] ), Tko.NODE_NONE ) )
+                    dim as Tko.SymbolId ixs = IndexOperatorFor_( c, pt, iif( xp->count > 0, cast( Tko.NodeId, c.ast->ChildSlot( xp->first ) ), Tko.NODE_NONE ) )
                     if ixs <> Tko.SYMBOL_NONE then
                         dim as Tko.Symbol ptr ixsym = c.syms->SymbolAt( ixs )
                         if ixsym <> nullptr then

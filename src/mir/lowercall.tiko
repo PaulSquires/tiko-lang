@@ -447,7 +447,7 @@ private function LowerCallPartsBody_ _
     end if
     if tvHere then
         dim as boolean tvSpread = false
-        if argCount = nparams then tvSpread = IsWholeArrayArg_( c, cast( Tko.NodeId, c.ast->children[argFirst + nparams - 1] ) )
+        if argCount = nparams then tvSpread = IsWholeArrayArg_( c, cast( Tko.NodeId, c.ast->ChildSlot( argFirst + nparams - 1 ) ) )
         if tvSpread = false then
             tvAt = nparams - 1
             slots = nparams
@@ -485,7 +485,7 @@ private function LowerCallPartsBody_ _
         '' says the two are one rule and not two.
         dim as Tko.NodeId argNode = Tko.NODE_NONE
         if i < argCount then
-            argNode = cast( Tko.NodeId, c.ast->children[argFirst + i] )
+            argNode = cast( Tko.NodeId, c.ast->ChildSlot( argFirst + i ) )
             if c.ast->Kind( argNode ) = Tko.N_ELIDED then argNode = Tko.NODE_NONE
         end if
         if argNode = Tko.NODE_NONE then argNode = CallDefaultAt_( c, callee, ptrDecl, viaPointer, i + pbase )

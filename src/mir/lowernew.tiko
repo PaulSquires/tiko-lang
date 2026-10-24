@@ -58,7 +58,7 @@ private function LowerNewArray_ _
 
     '' THE COUNT, once: it is an expression and may have a side effect -- the corpus
     '' writes 'new ClassUDT[sidefx( )]' precisely to check that it runs once.
-    dim as Tko.NodeId cntE = cast( Tko.NodeId, c.ast->children[cntAt] )
+    dim as Tko.NodeId cntE = cast( Tko.NodeId, c.ast->ChildSlot( cntAt ) )
     dim as MirValue cnt0 = LowerExpr( c, cntE )
     if cnt0.kind = cast( uint8, MV_NONE ) then return false
     dim as MirValue cnt = CoerceTy( c, cnt0, zt, c.info->TypeOf_( cntE ) )
@@ -121,7 +121,7 @@ private function LowerNewArray_ _
 
     dim as MirValue raw
     if isPlace then
-        dim as Tko.NodeId pe = cast( Tko.NodeId, c.ast->children[np->first] )
+        dim as Tko.NodeId pe = cast( Tko.NodeId, c.ast->ChildSlot( np->first ) )
         raw = LowerExpr( c, pe )
         if raw.kind = cast( uint8, MV_NONE ) then return false
         raw = Coerce( c, raw, MT_PTR, true )
@@ -308,7 +308,7 @@ private function ScalarFieldList_ _
         if fmt = MT_VOID then return false
         '' A record field needs an argument of exactly its type (LowerBaseFieldInit_).
         if fmt = MT_AGG then
-            dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[first_ + i] )
+            dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->ChildSlot( first_ + i ) )
             if c.types->Unqualify( c.info->TypeOf_( a ) ) <> _
                c.types->Unqualify( cast( Tko.TypeId, lTy[i] ) ) then return false
         end if
@@ -336,7 +336,7 @@ private sub BaseLeafWalk_ _
         dim as boolean isBase = (c.vts <> nullptr) andalso (c.types->Kind( ft ) = Tko.TK_UDT)
         if isBase then isBase = (fld->name = c.vts->baseName) andalso (c.types->NameOf( ft ) <> c.names->GetString( "object" ))
         if isBase then
-            dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[first_ + ai] )
+            dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->ChildSlot( first_ + ai ) )
             if c.types->Unqualify( c.info->TypeOf_( a ) ) <> ft then
                 BaseLeafWalk_( c, ft, off + fld->offset, first_, n, ai, lOff, lTy )
                 continue for
@@ -396,7 +396,7 @@ function LowerNew_ _
     dim as MirValue raw
     if isPlace then
         if argCount < 1 then return false
-        dim as Tko.NodeId pe = cast( Tko.NodeId, c.ast->children[argFirst] )
+        dim as Tko.NodeId pe = cast( Tko.NodeId, c.ast->ChildSlot( argFirst ) )
         argFirst += 1
         argCount -= 1
         raw = LowerExpr( c, pe )
@@ -477,7 +477,7 @@ function LowerNew_ _
     '' elements stand in for the arguments -- for a type with NO constructor only, where
     '' that is exactly 'new T( 123 )'; a constructed T would also need the copy.
     if (argCount = 1) andalso (c.types->Kind( el ) = Tko.TK_UDT) then
-        dim as Tko.NodeId tla = cast( Tko.NodeId, c.ast->children[argFirst] )
+        dim as Tko.NodeId tla = cast( Tko.NodeId, c.ast->ChildSlot( argFirst ) )
         if c.ast->Kind( tla ) = Tko.N_TUPLE then
             if (c.ast->Flags( tla ) and Tko.NF_TYPE_LITERAL) <> 0 then
                 dim as Tko.ListPayload ptr tlp = _
@@ -497,7 +497,7 @@ function LowerNew_ _
         dim as containers.Array( of uint32 ) ctArgT
         dim as boolean ctTyped = true
         for i as int32 = 0 to argCount - 1
-            dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[argFirst + i] )
+            dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->ChildSlot( argFirst + i ) )
             dim as Tko.TypeId at3 = CtorArgTypeOf_( c, an )   '' a concatenation is its widest term
             if at3 = Tko.TYPE_NONE then
                 ctTyped = false
@@ -554,7 +554,7 @@ function LowerNew_ _
     '' ...PLACEMENT TOO: 'new( p ) t2( x4 )' over a t4 x4 is the same slice into p (structs/udt-upcast-3.bas).
     if cbool( ctor = Tko.SYMBOL_NONE ) andalso cbool( argCount = 1 ) andalso _
        cbool( c.types->Kind( el ) = Tko.TK_UDT ) then
-        dim as Tko.NodeId csn = cast( Tko.NodeId, c.ast->children[argFirst] )
+        dim as Tko.NodeId csn = cast( Tko.NodeId, c.ast->ChildSlot( argFirst ) )
         dim as Tko.TypeId cst = c.types->Unqualify( c.info->TypeOf_( csn ) )
         if c.types->Kind( cst ) = Tko.TK_REFERENCE then
             cst = c.types->Unqualify( c.types->Inner( cst ) )
@@ -667,12 +667,12 @@ function LowerNew_ _
         elseif scalarInit andalso IsStringType( c, el ) then
             '' calloc zeroed the descriptor, so it is a valid empty string to assign into;
             '' placement storage is zeroed first, as nothing else did it.
-            dim as Tko.NodeId sve = cast( Tko.NodeId, c.ast->children[argFirst] )
+            dim as Tko.NodeId sve = cast( Tko.NodeId, c.ast->ChildSlot( argFirst ) )
             if isPlace then ZeroStrDescriptor( c, pv )
             if LowerStringAssignTo( c, pv, Tko.NODE_NONE, sve, _
                     iif( IsUStringType( c, el ), 1, 0 ) ) = false then return false
         elseif scalarInit then
-            dim as Tko.NodeId ive = cast( Tko.NodeId, c.ast->children[argFirst] )
+            dim as Tko.NodeId ive = cast( Tko.NodeId, c.ast->ChildSlot( argFirst ) )
             dim as MirValue iv
             if IsUdtValue_( c, ive ) then
                 iv = LowerNumArg_( c, ive, LowerType( el, *c.types ) )   '' 'new long( m )': its numeric cast

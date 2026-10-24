@@ -144,7 +144,7 @@ sub CheckConstOutput_ ( byref c as Ctx, byval id as NodeId )
             if (sp->extra and 1) = 0 then CheckGetElemThroughCall_( c, c.ast->ChildAt( sp->first, gi ) )
         case KW_LSET, KW_RSET
             if sp->count < 1 then return
-            dim as NodeId t0 = cast( NodeId, c.ast->children[sp->first] )
+            dim as NodeId t0 = cast( NodeId, c.ast->ChildSlot( sp->first ) )
             '' A USTRING SOURCE -- TKO0980, fbc's 24. Lowering had no entry point for it and
             '' stopped on TKO0994 (the ustring variant of rosetta Align_columns).
             if c.ast->Kind( t0 ) = N_BINARY then
@@ -174,7 +174,7 @@ sub CheckConstOutput_ ( byref c as Ctx, byval id as NodeId )
     '' CLEAR is the runtime's and has no symbol: its first argument is the memory it fills.
     if (callee = nullptr) andalso (sp->a <> NODE_NONE) then
         if lcase( SpellOf_( c, sp->a ) ) = "clear" then
-            dim as NodeId a0 = cast( NodeId, c.ast->children[sp->first] )
+            dim as NodeId a0 = cast( NodeId, c.ast->ChildSlot( sp->first ) )
             if (c.ast->Kind( a0 ) = N_IDENT) andalso ConstOut_( c, a0 ) then
                 c.diags->Report( TKO0699, PointRange( c.ast->Loc( a0 ) ) )
             end if

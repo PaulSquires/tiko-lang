@@ -70,7 +70,7 @@ end function
 private function CheckTypeNameArgs_ ( byref c as Ctx, byval first as int32, _
                                       byval count as int32 ) as boolean
     for i as int32 = 0 to count - 1
-        dim as NodeId an = cast( NodeId, c.ast->children[first + i] )
+        dim as NodeId an = cast( NodeId, c.ast->ChildSlot( first + i ) )
         if IsTypeNameValue_( c, an ) then ReportTypeNameValue_( c, an ) : return true
     next
     return false

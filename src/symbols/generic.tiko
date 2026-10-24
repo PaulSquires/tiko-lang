@@ -122,7 +122,7 @@ function InstantiateGeneric_ _
     dim as string key = c.names->Spelling( gname ) & "<"
     dim as containers.Array( of uint32 ) argTypes
     for i as int32 = 0 to spCount - 1
-        dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[spFirst + i] )
+        dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->ChildSlot( spFirst + i ) )
         dim as Tko.TypeId at = ResolveTypeRef( c, an, scope_ )
         if at = Tko.TYPE_NONE then return Tko.TYPE_NONE
         argTypes.Push( cast( uint32, at ) )
@@ -182,7 +182,7 @@ function InstantiateGeneric_ _
     '' The parameters bind for as long as the fields are being resolved.
     dim as int32 gmark = c.gparamName.Count
     for i as int32 = 0 to spCount - 1
-        dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[plFirst + i] )
+        dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->ChildSlot( plFirst + i ) )
         if c.ast->Kind( pn ) <> Tko.N_IDENT then continue for
         dim as Tko.IdentPayload ptr pip = _
             c.ast->IdentOf( pn )
@@ -193,7 +193,7 @@ function InstantiateGeneric_ _
     dim as int32 tfr = InstFrameFor_( c, id, gname, argTypes, 0 ) : c.diags->EnterInst( tfr )
     c.instDepth += 1 : c.instChain += 1  '' a field's type is one deeper -- InstDepthOk_
     for i as int32 = 0 to gpCount - 1
-        dim as Tko.NodeId m = cast( Tko.NodeId, c.ast->children[gpFirst + i] )
+        dim as Tko.NodeId m = cast( Tko.NodeId, c.ast->ChildSlot( gpFirst + i ) )
         if c.ast->Kind( m ) <> Tko.N_FIELD then continue for
         dim as Tko.StmtPayload ptr fp = StmtOf( c, m )
         if fp->name = 0 then continue for
@@ -705,7 +705,7 @@ function InstantiateGenericProc_ _
     dim as containers.Array( of uint32 ) argTypes
     if written then
         for i as int32 = 0 to taCount - 1
-            dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[taFirst + i] )
+            dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->ChildSlot( taFirst + i ) )
             dim as Tko.TypeId at = ResolveTypeRef( c, an, scope_ )
             if at = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
             argTypes.Push( cast( uint32, at ) )
@@ -1061,7 +1061,7 @@ sub WalkBlock_ _
     dim as int32 lfirst = lp->first
     dim as int32 lcount = lp->count
     for i as int32 = 0 to lcount - 1
-        WalkStmt( c, cast( Tko.NodeId, c.ast->children[lfirst + i] ), here )
+        WalkStmt( c, cast( Tko.NodeId, c.ast->ChildSlot( lfirst + i ) ), here )
     next
 end sub
 

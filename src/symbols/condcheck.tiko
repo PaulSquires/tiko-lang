@@ -76,6 +76,6 @@ private sub CheckConditions_ ( byref c as Ctx, byval id as NodeId, byval k as No
         if c.ast->Kind( lp->target ) <> N_IDENT then return
         if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
         if Text.LowerAscii( c.names->Spelling( c.ast->IdentOf( lp->target )->name ) ) <> "iif" then return
-        CheckCond_( c, cast( NodeId, c.ast->children[lp->first] ) )
+        CheckCond_( c, cast( NodeId, c.ast->ChildSlot( lp->first ) ) )
     end select
 end sub

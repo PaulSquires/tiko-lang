@@ -452,7 +452,7 @@ function LowerRestore( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     dim as int32 target = c.dataHead
 
     if sp->count >= 1 then
-        dim as Tko.NodeId lbl = cast( Tko.NodeId, c.ast->children[sp->first] )
+        dim as Tko.NodeId lbl = cast( Tko.NodeId, c.ast->ChildSlot( sp->first ) )
         if c.ast->Kind( lbl ) <> Tko.N_IDENT then return false
         dim as Tko.IdentPayload ptr ip = _
             c.ast->IdentOf( lbl )

@@ -52,8 +52,8 @@ private function SpIdent_ _
       byval loc as Tko.SourceLoc ) as Tko.NodeId
     dim as Tko.IdentPayload ip
     ip.name = nm
-    p.ast->idents.Push( ip )
-    return NewNodeAt( p, Tko.N_IDENT, loc, p.ast->idents.Count - 1 )
+    p.ast->PushIdent( ip )
+    return NewNodeAt( p, Tko.N_IDENT, loc, p.ast->IdentPoolCount( ) - 1 )
 end function
 
 '' ...and a TYPEREF naming one, optionally a POINTER to it. A pointer typeref is an
@@ -87,16 +87,16 @@ private function SpMember_ _
     dim as Tko.UnaryPayload dp
     dp.op = cast( uint16, Tko.TK_STAR )
     dp.operand = SpIdent_( p, baseNm, loc )
-    p.ast->unaries.Push( dp )
-    dim as Tko.NodeId der = NewNodeAt( p, Tko.N_DEREF, loc, p.ast->unaries.Count - 1 )
+    p.ast->PushUnary( dp )
+    dim as Tko.NodeId der = NewNodeAt( p, Tko.N_DEREF, loc, p.ast->UnaryPoolCount( ) - 1 )
 
     dim as Tko.BinaryPayload mb
     mb.op = cast( uint16, Tko.TK_DOT )
     mb.lhs = der
     mb.rhs = SpIdent_( p, fieldNm, loc )
-    p.ast->binaries.Push( mb )
+    p.ast->PushBinary( mb )
     dim as Tko.NodeId mem = _
-        NewNodeAt( p, Tko.N_BINARY, loc, p.ast->binaries.Count - 1 )
+        NewNodeAt( p, Tko.N_BINARY, loc, p.ast->BinaryPoolCount( ) - 1 )
     p.ast->SetKind( mem, cast( uint16, Tko.N_MEMBER ) )
     return mem
 end function
@@ -157,9 +157,9 @@ function MakeSpawn_ _
     dim as Tko.NodeId viN = MakeStmt( p, Tko.N_VAR_ITEM, t.loc, vi )
     dim as Tko.StmtPayload vs
     vs.op = cast( uint16, Tko.KW_DIM )
-    vs.first = p.ast->children.Count
+    vs.first = p.ast->ChildPoolCount( )
     vs.count = 1
-    p.ast->children.Push( cast( uint32, viN ) )
+    p.ast->PushChild( cast( uint32, viN ) )
     body.Push( cast( uint32, MakeStmt( p, Tko.N_VAR, t.loc, vs ) ) )
 
     '' 'f( (*__tko_sf).__ARG_0, ... )' -- THE ORIGINAL CALLEE NODE IS REUSED. It is an
@@ -201,9 +201,9 @@ function MakeSpawn_ _
     fp.name = fnNm
     fp.rawName = fnNm
     fp.op = cast( uint16, Tko.KW_SUB )
-    fp.first = p.ast->children.Count
+    fp.first = p.ast->ChildPoolCount( )
     fp.count = 1
-    p.ast->children.Push( cast( uint32, prm ) )
+    p.ast->PushChild( cast( uint32, prm ) )
     fp.b = MakeList( p, Tko.N_BLOCK, t.loc, Tko.NODE_NONE, body )
     dim as Tko.NodeId fn = MakeStmt( p, Tko.N_PROC, t.loc, fp )
     p.lambdas.Push( cast( uint32, fn ) )
@@ -244,16 +244,16 @@ function MakeSpawn_ _
     dim as Tko.NodeId sitemN = MakeStmt( p, Tko.N_VAR_ITEM, t.loc, si )
     dim as Tko.StmtPayload sv
     sv.op = cast( uint16, Tko.KW_DIM )
-    sv.first = p.ast->children.Count
+    sv.first = p.ast->ChildPoolCount( )
     sv.count = 1
-    p.ast->children.Push( cast( uint32, sitemN ) )
+    p.ast->PushChild( cast( uint32, sitemN ) )
     site.Push( cast( uint32, MakeStmt( p, Tko.N_VAR, t.loc, sv ) ) )
 
     '' One assignment per argument, in the order they were written.
     for k as int32 = 0 to argc - 1
         dim as Tko.StmtPayload asn
         asn.a = SpMember_( p, sfvNm, SpawnArgFieldName( *p.names, k ), t.loc )
-        asn.b = cast( Tko.NodeId, p.ast->children[argFirst + k] )
+        asn.b = cast( Tko.NodeId, p.ast->ChildSlot( argFirst + k ) )
         asn.op = cast( uint16, Tko.TK_EQ )
         site.Push( cast( uint32, MakeStmt( p, Tko.N_AMBIGUOUS, t.loc, asn ) ) )
     next
@@ -265,18 +265,18 @@ function MakeSpawn_ _
     qb.lhs = SpIdent_( p, p.names->Fold( p.names->GetString( TasksNs( p ) ) ), t.loc )
     TasksQual( p, qb.lhs, 0 )
     qb.rhs = SpIdent_( p, p.names->Fold( p.names->GetString( "spawn" ) ), t.loc )
-    p.ast->binaries.Push( qb )
+    p.ast->PushBinary( qb )
     dim as Tko.NodeId qn = _
-        NewNodeAt( p, Tko.N_BINARY, t.loc, p.ast->binaries.Count - 1 )
+        NewNodeAt( p, Tko.N_BINARY, t.loc, p.ast->BinaryPoolCount( ) - 1 )
     p.ast->SetKind( qn, cast( uint16, Tko.N_MEMBER ) )
 
     dim as Tko.UnaryPayload ap
     ap.op = cast( uint16, Tko.TK_AT )
     ap.operand = SpIdent_( p, fnNm, t.loc )
     MarkCallTarget_( p, ap.operand )        '' '@thunk' is addressed, not a paren-less read
-    p.ast->unaries.Push( ap )
+    p.ast->PushUnary( ap )
     dim as Tko.NodeId adr = _
-        NewNodeAt( p, Tko.N_ADDROF, t.loc, p.ast->unaries.Count - 1 )
+        NewNodeAt( p, Tko.N_ADDROF, t.loc, p.ast->UnaryPoolCount( ) - 1 )
 
     dim as Tko.NodeIdVec sargs
     sargs.Push( cast( uint32, adr ) )
