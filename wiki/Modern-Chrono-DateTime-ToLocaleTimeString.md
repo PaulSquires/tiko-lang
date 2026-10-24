@@ -7,14 +7,14 @@ Returns the time of day as the machine's locale writes it, for display only.
 ## Syntax
 
 ```freebasic
-ToLocaleTimeString( byval style as int32 = lsShort ) as string
+ToLocaleTimeString( byval style as int32 = lsShort ) as ustring
 ```
 
 ## Notes
 
 - Locale dependent, like every `ToLocale*` member: for display only, never for storage.
 - The time half of `ToLocaleString`; `ToLocaleDateString` is the date half.
-- A ustring form, `ToLocaleTimeUString`, exists for call sites already working in ustring.
+- A ustring, so a non-ASCII locale's text prints and displays intact.
 
 ## Examples
 

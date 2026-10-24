@@ -91,7 +91,6 @@ Modern-Chrono-LocalTime-ToIsoString	LocalTime.ToIsoString	-	totext	std/chrono	-	
 Modern-Chrono-LocalTime-ToString	LocalTime.ToString	-	totext	std/chrono	-	Returns the time of day as ISO 8601 text, the same as ToIsoString.
 Modern-Chrono-TimeSpan-ToIsoString	TimeSpan.ToIsoString	-	totext	std/chrono	-	Returns the duration as ISO 8601 text, such as PT1H30M.
 Modern-Chrono-TimeSpan-ToString	TimeSpan.ToString	-	totext	std/chrono	-	Returns the duration as ISO 8601 text, the same as ToIsoString.
-Modern-Chrono-TimeSpan-ToIsoUString	TimeSpan.ToIsoUString	-	totext	std/chrono	-	Returns the duration as ISO 8601 text in a ustring.
 Datevalue	DateValue	-	fromtext	datetime.bi	-	Returns the date serial for text written in the system's date format.
 Timevalue	TimeValue	-	fromtext	datetime.bi	-	Returns the date serial of a time written like 23:59:59 or 11:59:59PM.
 Isdate	IsDate	-	fromtext	datetime.bi	-	Returns true if the text can be read as a date in the system's date format.
@@ -120,9 +119,7 @@ Modern-Chrono-LocalDate-Quarter	LocalDate.Quarter	-	week	std/chrono	-	Returns th
 Monthname	MonthName	-	names	datetime.bi	-	Returns the name of a month number in the system's language, or its abbreviation.
 Weekdayname	WeekdayName	-	names	datetime.bi	-	Returns the name of a weekday number in the system's language, or its abbreviation.
 Modern-Chrono-DateTime-MonthName	DateTime.MonthName	-	names	std/chrono	-	Returns a month's name in the user's language, or its abbreviation.
-Modern-Chrono-DateTime-MonthUName	DateTime.MonthUName	-	names	std/chrono	-	Returns a month's name in the user's language, or its abbreviation, as a ustring.
 Modern-Chrono-DateTime-WeekdayName	DateTime.WeekdayName	-	names	std/chrono	-	Returns a weekday's name in the user's language, 1 being Monday, or its abbreviation.
-Modern-Chrono-DateTime-WeekdayUName	DateTime.WeekdayUName	-	names	std/chrono	-	Returns a weekday's name in the user's language, 1 being Monday, as a ustring.
 Modern-Chrono-DateTime-StartOfDay	DateTime.StartOfDay	-	period	std/chrono	-	Returns midnight at the start of the same day, keeping the offset.
 Modern-Chrono-DateTime-EndOfDay	DateTime.EndOfDay	-	period	std/chrono	-	Returns the last tick of the same day, 23:59:59.9999999.
 Modern-Chrono-DateTime-StartOfWeek	DateTime.StartOfWeek	-	period	std/chrono	-	Returns midnight on the first day of the week, Monday unless told otherwise.
@@ -186,9 +183,6 @@ Modern-Chrono-DateTime-FromInstant	DateTime.FromInstant	-	offset	std/chrono	-	Re
 Modern-Chrono-DateTime-ToLocaleDateString	DateTime.ToLocaleDateString	-	locale	std/chrono	-	Returns the date as the machine's locale writes it, for display only.
 Modern-Chrono-DateTime-ToLocaleTimeString	DateTime.ToLocaleTimeString	-	locale	std/chrono	-	Returns the time of day as the machine's locale writes it, for display only.
 Modern-Chrono-DateTime-ToLocaleString	DateTime.ToLocaleString	-	locale	std/chrono	-	Returns the date and time as the machine's locale writes them, for display only.
-Modern-Chrono-DateTime-ToLocaleDateUString	DateTime.ToLocaleDateUString	-	locale	std/chrono	-	Returns the date in the machine's locale format as a ustring, for display only.
-Modern-Chrono-DateTime-ToLocaleTimeUString	DateTime.ToLocaleTimeUString	-	locale	std/chrono	-	Returns the time in the machine's locale format as a ustring, for display only.
-Modern-Chrono-DateTime-ToLocaleUString	DateTime.ToLocaleUString	-	locale	std/chrono	-	Returns the date and time in the machine's locale format as a ustring.
 Modern-Chrono-Instant-FromUnixSeconds	Instant.FromUnixSeconds	-	convert	std/chrono	-	Returns the moment a number of seconds after 1970-01-01 UTC; negative is earlier.
 Modern-Chrono-Instant-FromUnixMilliseconds	Instant.FromUnixMilliseconds	-	convert	std/chrono	-	Returns the moment a number of milliseconds after 1970-01-01 UTC.
 Modern-Chrono-Instant-FromUnixMicroseconds	Instant.FromUnixMicroseconds	-	convert	std/chrono	-	Returns the moment a number of microseconds after 1970-01-01 UTC.

@@ -165,9 +165,8 @@ TimeSpan( d, h, mi, s, ms )
 .DivideBy( other )                            float64; NaN on zero or Invalid
 .CompareTo( other )                           -1 0 1, or -2
 
-.ToIsoString / .ToString                      P1DT2H3M4.5S
+.ToIsoString / .ToString                      P1DT2H3M4.5S, a ustring
 .TryParseIso( s, result ) / .ParseIso( s )
-.ToIsoUString                                 the USTRING form
 
 operators: + - (binary and unary) * / = <> < > <= >=
            'double * span' as well as 'span * double'
@@ -203,7 +202,7 @@ LocalDate( y, mo, d )
 .CompareTo
 
 .ToIsoString / .ToString                      2025-03-04
-.TryParseIso / .ParseIso  (+ USTRING overloads, .ToIsoUString)
+.TryParseIso / .ParseIso  (+ USTRING overloads)
 
 operators: - (gives a LONG day count) = <> < > <= >=
 ```
@@ -220,7 +219,7 @@ LocalTime( h, mi, s, ms )
 .CompareTo
 
 .ToIsoString / .ToString                      14:30:05.1234567
-.TryParseIso / .ParseIso  (+ USTRING overloads, .ToIsoUString)
+.TryParseIso / .ParseIso  (+ USTRING overloads)
 
 operators: - (gives a TimeSpan) = <> < > <= >=
 ```
@@ -237,7 +236,7 @@ Instant( ) / Instant( ticks )
 .UnixSeconds / .UnixMilliseconds / .UnixMicroseconds
 
 .ToIsoString / .ToString                      2025-03-04T14:30:05.1234567Z
-.TryParseIso / .ParseIso  (+ USTRING overloads, .ToIsoUString)
+.TryParseIso / .ParseIso  (+ USTRING overloads)
 
 operators: instant + span, instant - span, instant - instant -> TimeSpan,
            = <> < > <= >=
@@ -308,9 +307,8 @@ text
 .ToLocaleDateString / ToLocaleTimeString / ToLocaleString( style )
 .MonthName( mo [, abbrev] ) .WeekdayName( dow [, abbrev] )
 
-USTRING: .ToIsoUString, .ToString( ustring ), .TryFormat, .TryParseIso,
-.TryParse, .ParseIso, .TryParseExact, .ParseExact, .ToLocaleDateUString,
-.ToLocaleTimeUString, .ToLocaleUString, .MonthUName, .WeekdayUName
+USTRING overloads: .ToString( ustring ), .TryFormat, .TryParseIso,
+.TryParse, .ParseIso, .TryParseExact, .ParseExact
 
 operators: datetime + span, datetime - span, datetime - datetime ->
            TimeSpan, = <> < > <= >=
@@ -602,22 +600,24 @@ THIS IS THE ONLY PART OF THE LIBRARY WHOSE OUTPUT IS NOT REPRODUCIBLE, and it is
 
 Its tests assert non-emptiness, valid UTF-8, ordering and distinctness, and nothing more -- exact-string assertions there would be either locale-pinned or dishonest.
 
-Locale output is also the only part of the library that is routinely non-ASCII, and so the only part where the USTRING overloads genuinely earn their place.
+Locale output is also the only part of the library that is routinely non-ASCII. It comes back as a ustring, so a name like "miércoles" reaches `print` and a Windows message box intact on any console code page.
 
-## Strings: String Core, Ustring Overloads
+## Strings: Ustring Out, Either Type In
 
-The core is STRING, holding UTF-8. USTRING overloads are layered on top, following the same rule std/strings uses: THE INPUT TYPE DECIDES THE OUTPUT TYPE, and a function cannot return the type it was handed.
+TEXT THAT TAKES NO TEXT IN COMES BACK AS A USTRING: ToIsoString, ToString( ), the locale family and the zone names. There is one name for each, and no string twin to choose between.
 
-So anything TAKING text overloads on ustring and returns ustring, and anything taking NO text cannot overload on return type alone -- which is why those carry a U in the name:
+Anything TAKING text overloads on its type: a string pattern or input gives a string back, a ustring one a ustring.
 
 ```freebasic
+d.ToIsoString( )                  -> ustring
+d.ToString( )                     -> ustring
+DateTime.MonthName( 3 )           -> ustring
+TimeZoneInfo.StandardName( )      -> ustring
 d.ToString( "yyyy-MM-dd" )        pattern is a string  -> string
 d.ToString( uPattern )            pattern is a ustring -> ustring
-d.ToIsoString( )                  -> string
-d.ToIsoUString( )                 -> ustring
-DateTime.MonthName( 3 )           -> string
-DateTime.MonthUName( 3 )          -> ustring
 ```
+
+A ustring assigns to a string as UTF-8, so `dim as string s = d.ToIsoString( )` still works.
 
 Parsing is byte-oriented ASCII throughout; the ustring parse overloads convert to UTF-8 and run the same C parser, which is exact for every input the parser accepts.
 
@@ -913,7 +913,6 @@ Every entry, grouped by task. [Dates and times](Functions-Dates) lists them besi
 | [LocalTime.ToString](Modern-Chrono-LocalTime-ToString) | Returns the time of day as ISO 8601 text, the same as ToIsoString. | `std/chrono` |
 | [TimeSpan.ToIsoString](Modern-Chrono-TimeSpan-ToIsoString) | Returns the duration as ISO 8601 text, such as PT1H30M. | `std/chrono` |
 | [TimeSpan.ToString](Modern-Chrono-TimeSpan-ToString) | Returns the duration as ISO 8601 text, the same as ToIsoString. | `std/chrono` |
-| [TimeSpan.ToIsoUString](Modern-Chrono-TimeSpan-ToIsoUString) | Returns the duration as ISO 8601 text in a ustring. | `std/chrono` |
 
 ### Read dates and durations from text
 
@@ -951,9 +950,7 @@ Every entry, grouped by task. [Dates and times](Functions-Dates) lists them besi
 | Function | What it does | From |
 |---|---|---|
 | [DateTime.MonthName](Modern-Chrono-DateTime-MonthName) | Returns a month's name in the user's language, or its abbreviation. | `std/chrono` |
-| [DateTime.MonthUName](Modern-Chrono-DateTime-MonthUName) | Returns a month's name in the user's language, or its abbreviation, as a ustring. | `std/chrono` |
 | [DateTime.WeekdayName](Modern-Chrono-DateTime-WeekdayName) | Returns a weekday's name in the user's language, 1 being Monday, or its abbreviation. | `std/chrono` |
-| [DateTime.WeekdayUName](Modern-Chrono-DateTime-WeekdayUName) | Returns a weekday's name in the user's language, 1 being Monday, as a ustring. | `std/chrono` |
 
 ### Jump to the start or end of a day, week, month or year
 
@@ -1058,9 +1055,6 @@ Every entry, grouped by task. [Dates and times](Functions-Dates) lists them besi
 | [DateTime.ToLocaleDateString](Modern-Chrono-DateTime-ToLocaleDateString) | Returns the date as the machine's locale writes it, for display only. | `std/chrono` |
 | [DateTime.ToLocaleTimeString](Modern-Chrono-DateTime-ToLocaleTimeString) | Returns the time of day as the machine's locale writes it, for display only. | `std/chrono` |
 | [DateTime.ToLocaleString](Modern-Chrono-DateTime-ToLocaleString) | Returns the date and time as the machine's locale writes them, for display only. | `std/chrono` |
-| [DateTime.ToLocaleDateUString](Modern-Chrono-DateTime-ToLocaleDateUString) | Returns the date in the machine's locale format as a ustring, for display only. | `std/chrono` |
-| [DateTime.ToLocaleTimeUString](Modern-Chrono-DateTime-ToLocaleTimeUString) | Returns the time in the machine's locale format as a ustring, for display only. | `std/chrono` |
-| [DateTime.ToLocaleUString](Modern-Chrono-DateTime-ToLocaleUString) | Returns the date and time in the machine's locale format as a ustring. | `std/chrono` |
 
 ### Convert to Unix time, FILETIME and other numbers
 

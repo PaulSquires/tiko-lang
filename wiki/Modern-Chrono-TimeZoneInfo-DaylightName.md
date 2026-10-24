@@ -7,7 +7,7 @@ Returns the OS's name for the local zone's daylight saving time.
 ## Syntax
 
 ```freebasic
-TimeZoneInfo.DaylightName( ) as string
+TimeZoneInfo.DaylightName( ) as ustring
 ```
 
 ## Notes

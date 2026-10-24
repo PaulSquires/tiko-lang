@@ -28,7 +28,7 @@ for i as int32 = 0 to ubound( tries )
     if len( why ) > 0 then
         print "refused: "; why
     else
-        print t.day.ToIsoUString( ); " "; t.payee; _
+        print t.day.ToIsoString( ); " "; t.payee; _
               " ("; t.category; ")"; ui.MoneyCell( t.amount, 9 )
     end if
 next

@@ -14,16 +14,21 @@ dim inputs( ... ) as ustring = { _
 
 for i as int32 = 0 to ubound( inputs )
     dim d as chrono.DateTime
-    var ok = chrono.DateTime.TryParseIso( inputs( i ), d )
-    print left( inputs( i ) & space( 27 ), 27 ); _
-          iif( ok, d.ToIsoString( ), "refused" )
+    '' ToIsoString is a ustring, so the fallback text is one too.
+    dim shown as ustring = "refused"
+    if chrono.DateTime.TryParseIso( inputs( i ), d ) then
+        shown = d.ToIsoString( )
+    end if
+    print left( inputs( i ) & space( 27 ), 27 ); shown
 next
 
 '' Durations have an ISO form too. A month is not a fixed length.
 dim spans( ... ) as ustring = { "PT90M", "P1W", "P1DT0.5S", "P1M" }
 for i as int32 = 0 to ubound( spans )
     dim s as chrono.TimeSpan
-    var ok = chrono.TimeSpan.TryParseIso( spans( i ), s )
-    print left( spans( i ) & space( 10 ), 10 ); _
-          iif( ok, s.ToIsoString( ), "refused" )
+    dim shown as ustring = "refused"
+    if chrono.TimeSpan.TryParseIso( spans( i ), s ) then
+        shown = s.ToIsoString( )
+    end if
+    print left( spans( i ) & space( 10 ), 10 ); shown
 next

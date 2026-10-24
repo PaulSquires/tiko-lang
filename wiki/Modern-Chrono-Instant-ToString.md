@@ -20,8 +20,8 @@ using chrono
 dim as DateTime d = DateTime( 2026, 8, 13, 14, 30, 5, 123 )
 print d.ToString( )          '' 2026-08-13T14:30:05.1230000
 
-'' The no-argument form is ToIsoString. The one-argument form takes a
-'' PATTERN and returns a ustring.
+'' The no-argument form is ToIsoString, a ustring. The one-argument form
+'' takes a PATTERN and returns text of the pattern's type.
 print d.ToString( "yyyy-MM-dd" )         '' 2026-08-13
 print d.ToString( "HH:mm:ss" )           '' 14:30:05
 ```

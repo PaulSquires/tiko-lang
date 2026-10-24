@@ -7,7 +7,7 @@ Returns the date and time as the machine's locale writes them, for display only.
 ## Syntax
 
 ```freebasic
-ToLocaleString( byval style as int32 = lsShort ) as string
+ToLocaleString( byval style as int32 = lsShort ) as ustring
 ```
 
 ## Notes

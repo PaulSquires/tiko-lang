@@ -191,7 +191,7 @@ function Insert( byref t as Txn ) as ustring
                        "amount ) values( ?, ?, ?, ? )", st )
     if len( why ) > 0 then return why
     defer sqlite3_finalize( st )
-    sqlite3_bind_text( st, 1, t.day.ToIsoUString( ), -1, _
+    sqlite3_bind_text( st, 1, t.day.ToIsoString( ), -1, _
                        SQLITE_TRANSIENT )
     sqlite3_bind_text( st, 2, t.payee, -1, SQLITE_TRANSIENT )
     sqlite3_bind_text( st, 3, t.category, -1, SQLITE_TRANSIENT )
@@ -328,7 +328,7 @@ end function
 public sub SumByMonth( byref txns as containers.Array( of Txn ), _
                        byref months as MonthMap )
     for each t in txns
-        var key = left( t.day.ToIsoUString( ), 7 )
+        var key = left( t.day.ToIsoString( ), 7 )
         if t.amount.IsNegative( ) then
             months[ key ].spending = months[ key ].spending + t.amount
         else

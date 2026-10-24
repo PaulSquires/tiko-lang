@@ -15,7 +15,8 @@ functions on `DateTime`.
 ```
 
 `DayOfWeek` numbers the days the ISO 8601 way, **1 for Monday** through 7 for
-Sunday, and `DateTime.WeekdayName( n )` turns the number into its English name.
+Sunday, and `DateTime.WeekdayName( n )` turns the number into its name in the
+user's language, as a `ustring` (English on the machine that made this output).
 `DayOfYear`, `Quarter`, `IsoWeek` and `IsoWeekYear` complete the set.
 
 A date with an out-of-range part is not rolled into the next month. The

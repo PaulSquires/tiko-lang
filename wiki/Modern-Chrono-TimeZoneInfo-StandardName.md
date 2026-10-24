@@ -7,7 +7,7 @@ Returns the OS's name for the local zone's standard time.
 ## Syntax
 
 ```freebasic
-TimeZoneInfo.StandardName( ) as string
+TimeZoneInfo.StandardName( ) as ustring
 ```
 
 ## Notes

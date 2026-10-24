@@ -145,7 +145,6 @@ Jump to: [Get the current date and time](#get-the-current-date-and-time) · [Tim
 | [LocalTime.ToString](Modern-Chrono-LocalTime-ToString) | Returns the time of day as ISO 8601 text, the same as ToIsoString. | `std/chrono` |
 | [TimeSpan.ToIsoString](Modern-Chrono-TimeSpan-ToIsoString) | Returns the duration as ISO 8601 text, such as PT1H30M. | `std/chrono` |
 | [TimeSpan.ToString](Modern-Chrono-TimeSpan-ToString) | Returns the duration as ISO 8601 text, the same as ToIsoString. | `std/chrono` |
-| [TimeSpan.ToIsoUString](Modern-Chrono-TimeSpan-ToIsoUString) | Returns the duration as ISO 8601 text in a ustring. | `std/chrono` |
 
 ## Read dates and durations from text
 
@@ -189,9 +188,7 @@ Jump to: [Get the current date and time](#get-the-current-date-and-time) · [Tim
 | [MonthName](Monthname) | Returns the name of a month number in the system's language, or its abbreviation. | `datetime.bi` |
 | [WeekdayName](Weekdayname) | Returns the name of a weekday number in the system's language, or its abbreviation. | `datetime.bi` |
 | [DateTime.MonthName](Modern-Chrono-DateTime-MonthName) | Returns a month's name in the user's language, or its abbreviation. | `std/chrono` |
-| [DateTime.MonthUName](Modern-Chrono-DateTime-MonthUName) | Returns a month's name in the user's language, or its abbreviation, as a ustring. | `std/chrono` |
 | [DateTime.WeekdayName](Modern-Chrono-DateTime-WeekdayName) | Returns a weekday's name in the user's language, 1 being Monday, or its abbreviation. | `std/chrono` |
-| [DateTime.WeekdayUName](Modern-Chrono-DateTime-WeekdayUName) | Returns a weekday's name in the user's language, 1 being Monday, as a ustring. | `std/chrono` |
 
 ## Jump to the start or end of a day, week, month or year
 
@@ -296,9 +293,6 @@ Jump to: [Get the current date and time](#get-the-current-date-and-time) · [Tim
 | [DateTime.ToLocaleDateString](Modern-Chrono-DateTime-ToLocaleDateString) | Returns the date as the machine's locale writes it, for display only. | `std/chrono` |
 | [DateTime.ToLocaleTimeString](Modern-Chrono-DateTime-ToLocaleTimeString) | Returns the time of day as the machine's locale writes it, for display only. | `std/chrono` |
 | [DateTime.ToLocaleString](Modern-Chrono-DateTime-ToLocaleString) | Returns the date and time as the machine's locale writes them, for display only. | `std/chrono` |
-| [DateTime.ToLocaleDateUString](Modern-Chrono-DateTime-ToLocaleDateUString) | Returns the date in the machine's locale format as a ustring, for display only. | `std/chrono` |
-| [DateTime.ToLocaleTimeUString](Modern-Chrono-DateTime-ToLocaleTimeUString) | Returns the time in the machine's locale format as a ustring, for display only. | `std/chrono` |
-| [DateTime.ToLocaleUString](Modern-Chrono-DateTime-ToLocaleUString) | Returns the date and time in the machine's locale format as a ustring. | `std/chrono` |
 
 ## Convert to Unix time, FILETIME and other numbers
 

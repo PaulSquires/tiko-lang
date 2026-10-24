@@ -437,7 +437,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [DateTime.Minute](Modern-Chrono-DateTime-Minute) | Returns the minute, 0 to 59. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.Month](Modern-Chrono-DateTime-Month) | Returns the month, 1 to 12. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.MonthName](Modern-Chrono-DateTime-MonthName) | Returns a month's name in the user's language, or its abbreviation. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [DateTime.MonthUName](Modern-Chrono-DateTime-MonthUName) | Returns a month's name in the user's language, or its abbreviation, as a ustring. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.NextWeekday](Modern-Chrono-DateTime-NextWeekday) | Returns the same time on the next given weekday, always strictly later. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.OffsetMinutes](Modern-Chrono-DateTime-OffsetMinutes) | Returns the UTC offset in minutes; check HasOffset first, as no offset reads 32767. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.OleDate](Modern-Chrono-DateTime-OleDate) | Returns the date-time as an OLE automation date, the number Excel and ADO use. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
@@ -454,17 +453,13 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [DateTime.ToInstant](Modern-Chrono-DateTime-ToInstant) | Returns the moment the date-time names, or Invalid if it has no offset. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.ToLocal](Modern-Chrono-DateTime-ToLocal) | Returns the same moment shown at the machine's local UTC offset. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.ToLocaleDateString](Modern-Chrono-DateTime-ToLocaleDateString) | Returns the date as the machine's locale writes it, for display only. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [DateTime.ToLocaleDateUString](Modern-Chrono-DateTime-ToLocaleDateUString) | Returns the date in the machine's locale format as a ustring, for display only. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.ToLocaleString](Modern-Chrono-DateTime-ToLocaleString) | Returns the date and time as the machine's locale writes them, for display only. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.ToLocaleTimeString](Modern-Chrono-DateTime-ToLocaleTimeString) | Returns the time of day as the machine's locale writes it, for display only. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [DateTime.ToLocaleTimeUString](Modern-Chrono-DateTime-ToLocaleTimeUString) | Returns the time in the machine's locale format as a ustring, for display only. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [DateTime.ToLocaleUString](Modern-Chrono-DateTime-ToLocaleUString) | Returns the date and time in the machine's locale format as a ustring. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.ToOffset](Modern-Chrono-DateTime-ToOffset) | Converts to another UTC offset, keeping the moment and changing the clock reading. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.TryFormat](Modern-Chrono-DateTime-TryFormat) | Formats the date-time with a pattern into a variable; returns false if the pattern is bad. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.TryParse](Modern-Chrono-DateTime-TryParse) | Reads ISO 8601 text into a date-time, the same as TryParseIso. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.TryParseExact](Modern-Chrono-DateTime-TryParseExact) | Reads text laid out by a pattern into a date-time; returns false if it does not match. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.WeekdayName](Modern-Chrono-DateTime-WeekdayName) | Returns a weekday's name in the user's language, 1 being Monday, or its abbreviation. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [DateTime.WeekdayUName](Modern-Chrono-DateTime-WeekdayUName) | Returns a weekday's name in the user's language, 1 being Monday, as a ustring. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.WeeksInYear](Modern-Chrono-DateTime-WeeksInYear) | Returns 52 or 53, the number of ISO weeks in a year. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.WithOffset](Modern-Chrono-DateTime-WithOffset) | Attaches a UTC offset in minutes, keeping the clock reading and changing the moment. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [DateTime.Year](Modern-Chrono-DateTime-Year) | Returns the year, 1 to 9999. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
@@ -1516,7 +1511,6 @@ Every page in this wiki, A–Z. marks an tiko-lang addition.
 | [TimeSpan.Ticks](Modern-Chrono-TimeSpan-Ticks) | Returns the duration as a count of 100 ns ticks. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [TimeSpan.TimeSpan](Modern-Chrono-TimeSpan-TimeSpan) | Creates a duration from ticks, or from hours, minutes and seconds, with or without days. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [TimeSpan.ToIsoString](Modern-Chrono-TimeSpan-ToIsoString) | Returns the duration as ISO 8601 text, such as PT1H30M. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
-| [TimeSpan.ToIsoUString](Modern-Chrono-TimeSpan-ToIsoUString) | Returns the duration as ISO 8601 text in a ustring. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [TimeSpan.ToString](Modern-Chrono-TimeSpan-ToString) | Returns the duration as ISO 8601 text, the same as ToIsoString. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [TimeSpan.TotalDays](Modern-Chrono-TimeSpan-TotalDays) | Returns the whole duration in days, with a fraction. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |
 | [TimeSpan.TotalHours](Modern-Chrono-TimeSpan-TotalHours) | Returns the whole duration in hours, with a fraction. | [Date and Time (Chrono)](Category-Date-and-Time-Chrono) |

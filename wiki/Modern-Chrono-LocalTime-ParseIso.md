@@ -7,7 +7,7 @@ Reads ISO text such as 14:30:05 into a time of day, or Invalid on failure.
 ## Syntax
 
 ```freebasic
-LocalTime.ParseIso(+ USTRING overloads, .ToIsoUString)
+LocalTime.ParseIso( text )        '' text: a string or a ustring
 ```
 
 ## Examples

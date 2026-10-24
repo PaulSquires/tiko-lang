@@ -7,7 +7,7 @@ Reads ISO text such as 2026-08-13 into a date, or Invalid on failure.
 ## Syntax
 
 ```freebasic
-LocalDate.ParseIso(+ USTRING overloads, .ToIsoUString)
+LocalDate.ParseIso( text )        '' text: a string or a ustring
 ```
 
 ## Examples

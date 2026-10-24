@@ -178,7 +178,7 @@ sub ViewList( byref app as LedgerApp, byref f as tui.TuiFrame, _
     t.widths.Push( tui.TuiLength( 13 ) )
     for each x in app.txns
         dim as tui.TuiRow r
-        r.cells.Push( x.day.ToIsoUString( ) )
+        r.cells.Push( x.day.ToIsoString( ) )
         r.cells.Push( x.payee )
         r.cells.Push( " " & x.category )
         r.cells.Push( MoneyCell( x.amount, 13 ) )

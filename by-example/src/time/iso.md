@@ -2,7 +2,7 @@
 
 ISO 8601 is the date format that sorts as text and means the same thing
 everywhere: `2025-03-04T14:30:05+01:00`. Every chrono type writes it with
-`ToIsoString( )` and reads it with `TryParseIso`.
+`ToIsoString( )`, which returns a `ustring`, and reads it with `TryParseIso`.
 
 ```tiko
 {{#include ../../examples/time/iso.tiko}}

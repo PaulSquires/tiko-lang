@@ -39,7 +39,7 @@ print "debug:   " & Setting( cfg, "debug" ).AsBool( ).ValueOr( true )
 print "wait:    " & Setting( cfg, "server.wait" ).AsInt( ).ValueOr( 30 )
 
 dim started as config.TomlValue = Setting( cfg, "server.started" )
-print "started: " & started.AsDateTime( ).Value( ).ToIsoUString( )
+print "started: " & started.AsDateTime( ).Value( ).ToIsoString( )
 
 '' [[users]] is an array of tables: index it, or walk it with Count.
 dim users as config.TomlValue = Setting( cfg, "users" )

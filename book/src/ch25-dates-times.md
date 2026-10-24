@@ -201,6 +201,11 @@ For text a person will read on their own machine, `ToLocaleDateString`, `ToLocal
 `ToLocaleString` ask the operating system, in the user's language and order. Their output differs
 from machine to machine, so never write it to a file or compare it.
 
+Every chrono member that produces text without taking any — `ToIsoString`, `ToString( )`, the
+locale family, `MonthName`, `WeekdayName` and the zone names — returns a `ustring`. A Spanish
+"miércoles" therefore prints intact whatever the console's code page, and assigning the result to
+a `string` still works, as UTF-8.
+
 ## Calendar arithmetic
 
 ```tiko

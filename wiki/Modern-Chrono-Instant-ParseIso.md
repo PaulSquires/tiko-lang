@@ -7,8 +7,7 @@ Reads ISO 8601 text into a date-time, or Invalid if it is not ISO 8601.
 ## Syntax
 
 ```freebasic
-Instant.ParseIso(+ USTRING overloads, .ToIsoUString)
-Instant.ParseIso
+Instant.ParseIso( text )        '' text: a string or a ustring
 ```
 
 ## Examples

@@ -94,7 +94,7 @@ case "--list"
     dim txns as ui.TxnArray
     ledger.ListTxns( txns )
     for each t in txns
-        print t.day.ToIsoUString( ); "  "; ui.LeftIn( t.payee, 28 ); _
+        print t.day.ToIsoString( ); "  "; ui.LeftIn( t.payee, 28 ); _
               ui.LeftIn( t.category, 12 ); ui.MoneyCell( t.amount, 15 )
     next
 case "--report"
