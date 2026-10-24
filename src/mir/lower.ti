@@ -110,9 +110,9 @@ namespace Tko.Mir
     end type
 
     '' WHAT LOWERING READS OF ONE UNIT, as one value (review ARCH-05, LATER-PLAN G step 3): it
-    '' was fifteen parameters, and every new input was a sixteenth at both ends. The front end's
-    '' products (the tree, its symbols, types and semantic info, the layouts and vtables) by
-    '' pointer, and the unit's own facts by value.
+    '' was fifteen parameters, and every new input was a sixteenth at both ends. The unit as
+    '' the front end saw it (Tko.FrontUnit, resolve.ti), what lowering adds to it (the layouts
+    '' and vtables, by pointer), and the unit's own facts by value.
     ''
     '' isMainModule: does this module's top-level code become 'main', or a module
     '' CONSTRUCTOR? Exactly one module in a program may answer true; the rest emit
@@ -120,19 +120,11 @@ namespace Tko.Mir
     '' errFlags is Options.errFlags, fbc's bitmask: 8 array bounds, 16 null pointers,
     '' 256 the error's location, 1024 array dimensions decide what is emitted.
     type LowerInput
-        as Tko.AstArena ptr      ast
-        as Tko.NodeId            root
-        as Tko.SymbolTable ptr   syms
-        as Tko.TypeContext ptr   types
-        as Tko.Interner ptr      names
-        as Tko.SemanticInfo ptr  info
-        as Tko.SourceManager ptr src
+        as Tko.FrontUnit         fe
         as Tko.UdtLayouts ptr    udts
         as Tko.VTables ptr       vts
         as boolean               isMainModule = true
         as string                moduleName
-        as int32                  errFlags
-        as any ptr               diags          '' a Tko.DiagnosticEngine, or nullptr
         as int32                  moduleFile = -1
     end type
     declare function Lower _

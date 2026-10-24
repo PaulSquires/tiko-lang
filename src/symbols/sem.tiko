@@ -16,27 +16,23 @@ namespace Tko.Sem
 #include once "symbols/visctx.ti"
 #include once "symbols/semcalls.ti"
 
-sub Run _
-    ( byref ast as AstArena, byval root as NodeId, byref syms as SymbolTable, _
-      byref types as TypeContext, byref names as Interner, _
-      byref diags as DiagnosticEngine, byref info as SemanticInfo, _
-      byval src as SourceManager ptr, byval errFlags as int32 )
+sub Run( byref u as FrontUnit )
 
     dim as Ctx c
-    c.srcMgr = src
-    c.errFlags = errFlags
+    c.srcMgr = u.src
+    c.errFlags = u.errFlags
     VisRunGen_( true )
-    c.ast = @ast
-    c.syms = @syms
-    c.types = @types
-    c.names = @names
-    c.diags = @diags
-    c.info = @info
-    c.baseName = names.GetString( "base" )
-    c.root = root
+    c.ast = u.ast
+    c.syms = u.syms
+    c.types = u.types
+    c.names = u.names
+    c.diags = u.diags
+    c.info = u.info
+    c.baseName = c.names->GetString( "base" )
+    c.root = u.root
     RecordFirstRedims_( c )
     RecordChosenOverloads_( c )
-    Walk_( c, root, TYPE_NONE )
+    Walk_( c, u.root, TYPE_NONE )
     WalkGenericInstances_( c )     '' not in the tree -- visinst.tiko
     '' The OTHER thing that needs Check to have finished: half the shapes are 'var', and
     '' an inferred type does not exist until Check has run.

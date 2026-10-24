@@ -1448,33 +1448,29 @@ end sub
 #include once "symbols/resolvemodalias.tiko"
 
 sub Run _
-    ( byref ast as Tko.AstArena, byval root as Tko.NodeId, _
-      byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
-      byref names as Tko.Interner, byref diags as Tko.DiagnosticEngine, _
-      byref src as Tko.SourceManager, _
-      byref info as Tko.SemanticInfo, byref st as Stats, _
+    ( byref u as Tko.FrontUnit, byref st as Stats, _
       byval parser as any ptr, byval maxInstDepth as int32 )
 
     dim as Ctx c
     c.parser = parser
-    c.srcMgr = @src
-    c.ast = @ast
-    c.syms = @syms
-    c.types = @types
-    c.names = @names
-    c.diags = @diags
-    c.info = @info
+    c.srcMgr = u.src
+    c.ast = u.ast
+    c.syms = u.syms
+    c.types = u.types
+    c.names = u.names
+    c.diags = u.diags
+    c.info = u.info
     c.st = @st
     c.currentProc = Tko.SYMBOL_NONE : c.maxInstDepth = maxInstDepth
 
-    info.Resize( ast.Count( ) )
+    c.info->Resize( c.ast->Count( ) )
 
     '' Before discovery AND after it -- see ModuleTypedefsFirst_.
-    if (syms.modFileCount > 0) orelse (syms.importNs.Count > 0) then ModuleTypedefsFirst_( c )
-    DiscoverInstantiations_( c, ast, root, diags, info )
-    if (syms.modFileCount > 0) orelse (syms.importNs.Count > 0) then ModuleTypedefsFirst_( c )
-    WalkStmt( c, root, Tko.SCOPE_GLOBAL )
-    syms.usePos = Tko.USEPOS_LATEST
+    if (c.syms->modFileCount > 0) orelse (c.syms->importNs.Count > 0) then ModuleTypedefsFirst_( c )
+    DiscoverInstantiations_( c, *c.ast, u.root, *c.diags, *c.info )
+    if (c.syms->modFileCount > 0) orelse (c.syms->importNs.Count > 0) then ModuleTypedefsFirst_( c )
+    WalkStmt( c, u.root, Tko.SCOPE_GLOBAL )
+    c.syms->usePos = Tko.USEPOS_LATEST
     InstantiatePending_( c )
     InstantiatePendingProcs_( c )
     BackpatchTypedefs( c )

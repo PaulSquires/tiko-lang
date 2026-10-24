@@ -124,8 +124,11 @@ function VerifyLayout _
     syms.Attach( @ctx.names )
     dim as Tko.SemanticInfo info
     Tko.Collect.Run( ast, root, syms, ctx.names, ctx.types, ctx.diags, info, @ctx.sources )
+    dim as Tko.FrontUnit fu
+    fu.ast = @ast : fu.root = root : fu.syms = @syms : fu.types = @ctx.types : fu.names = @ctx.names
+    fu.diags = @ctx.diags : fu.src = @ctx.sources : fu.info = @info : fu.errFlags = ctx.options.errFlags
     dim as Tko.Resolve.Stats rst
-    Tko.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, ctx.sources, info, rst, @ps )
+    Tko.Resolve.Run( fu, rst, @ps )
     if ctx.diags.ErrorCount( ) > errs0 then return false
     dim as Tko.UdtLayouts store
     Tko.ComputeUdtLayouts( syms, ctx.types, store )

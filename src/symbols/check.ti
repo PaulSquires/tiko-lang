@@ -351,11 +351,7 @@ namespace Tko.Check
         ( byval op as Tko.TokenKind, byval lhs as Tko.TypeId, byval rhs as Tko.TypeId, _
           byref types as Tko.TypeContext ) as Tko.TypeId
 
-    declare function Run _
-        ( byref ast as Tko.AstArena, byval root as Tko.NodeId, _
-          byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
-          byref names as Tko.Interner, byref diags as Tko.DiagnosticEngine, _
-          byref info as Tko.SemanticInfo, byref st as Stats ) as int32
+    declare function Run( byref u as Tko.FrontUnit, byref st as Stats ) as int32
 
     '' A LITERAL FORMAT STRING passed to std/strings' Format -- or any procedure taking a
     '' strings.FormatString and a typed variadic of strings.FormatArg -- checked against its

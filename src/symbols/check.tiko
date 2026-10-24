@@ -1465,19 +1465,15 @@ end function
 
 #include once "symbols/checkwalk.tiko"
 
-function Run _
-    ( byref ast as Tko.AstArena, byval root as Tko.NodeId, _
-      byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
-      byref names as Tko.Interner, byref diags as Tko.DiagnosticEngine, _
-      byref info as Tko.SemanticInfo, byref st as Stats ) as int32
+function Run( byref u as Tko.FrontUnit, byref st as Stats ) as int32
 
     dim as Ctx c
-    c.ast = @ast
-    c.syms = @syms
-    c.types = @types
-    c.names = @names
-    c.diags = @diags
-    c.info = @info
+    c.ast = u.ast
+    c.syms = u.syms
+    c.types = u.types
+    c.names = u.names
+    c.diags = u.diags
+    c.info = u.info
     c.st = @st
     '' TWICE, AND THE FIRST ONE IS THE POINT. A variable declared 'as typeof( EXPR )'
     '' gets its type here and nowhere else -- Resolve handles only the bare-name form --

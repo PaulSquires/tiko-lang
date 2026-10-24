@@ -663,11 +663,13 @@ sub RunUnit _
       byref pr as Tko.PpResult, byref macros as Tko.MacroInfoVec )
 
     '' THE FRONT END, exactly as the build runs it up to types -- and no further.
+    dim as Tko.FrontUnit fu
+    fu.ast = @ast : fu.root = root : fu.syms = @syms : fu.types = @ctx.types : fu.names = @ctx.names
+    fu.diags = @ctx.diags : fu.src = @ctx.sources : fu.info = @info : fu.errFlags = ctx.options.errFlags
     dim as Tko.Resolve.Stats rst
-    Tko.Resolve.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, _
-                     ctx.sources, info, rst, @p, ctx.options.maxInstDepth )
+    Tko.Resolve.Run( fu, rst, @p, ctx.options.maxInstDepth )
     dim as Tko.Check.Stats cst
-    Tko.Check.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, info, cst )
+    Tko.Check.Run( fu, cst )
     if pr.langRefused = false then
         Tko.Check.ReportUndeclared( ast, ctx.names, ctx.sources, ctx.diags, _
                                     info, rst, pr.reservedNames, syms, @Tko.Driver.IsRtlName )

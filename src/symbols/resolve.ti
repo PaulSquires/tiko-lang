@@ -74,6 +74,22 @@ namespace Tko
         declare function DecisionOf( byval n as NodeId ) as SymbolId
     end type
 
+    '' ONE UNIT AS THE FRONT END'S PASSES SEE IT (review ARCH-05, LATER-PLAN G step 3): Resolve,
+    '' Check, Sem and lowering each took the same seven to nine of these as parameters, filled
+    '' at every call. The driver fills one per unit after the parse and hands it to all four.
+    '' Everything by pointer -- the unit owns none of it -- except errFlags, Options.errFlags.
+    type FrontUnit
+        as AstArena ptr         ast
+        as NodeId               root
+        as SymbolTable ptr      syms
+        as TypeContext ptr      types
+        as Interner ptr         names
+        as DiagnosticEngine ptr diags
+        as SourceManager ptr    src
+        as SemanticInfo ptr     info
+        as int32                errFlags
+    end type
+
 end namespace
 
 namespace Tko.Resolve
@@ -102,11 +118,7 @@ namespace Tko.Resolve
     end type
 
     declare sub Run _
-        ( byref ast as Tko.AstArena, byval root as Tko.NodeId, _
-          byref syms as Tko.SymbolTable, byref types as Tko.TypeContext, _
-          byref names as Tko.Interner, byref diags as Tko.DiagnosticEngine, _
-          byref src as Tko.SourceManager, _
-          byref info as Tko.SemanticInfo, byref st as Stats, _
+        ( byref u as Tko.FrontUnit, byref st as Stats, _
           byval parser as any ptr = nullptr, byval maxInstDepth as int32 = 64 )
 
     declare function Dump _

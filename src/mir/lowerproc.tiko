@@ -1440,29 +1440,29 @@ end sub
 function Lower _
     ( byref inp as LowerInput, byref m as MirModule, byref st as LowerStats ) as int32
 
-    dim as Tko.NodeId root = inp.root
+    dim as Tko.NodeId root = inp.fe.root
     dim as boolean isMainModule = inp.isMainModule
     dim as string moduleName = inp.moduleName
     dim as Ctx c
-    c.srcMgr = inp.src
-    c.diags = inp.diags : c.moduleFile = inp.moduleFile
+    c.srcMgr = inp.fe.src
+    c.diags = inp.fe.diags : c.moduleFile = inp.moduleFile
     c.udts = inp.udts
     c.vts = inp.vts
-    c.ast = inp.ast
-    c.syms = inp.syms
-    c.types = inp.types
-    c.names = inp.names
-    c.info = inp.info
+    c.ast = inp.fe.ast
+    c.syms = inp.fe.syms
+    c.types = inp.fe.types
+    c.names = inp.fe.names
+    c.info = inp.fe.info
     c.m = @m
     c.st = @st
     c.curBlock = -1
-    c.errFlags = inp.errFlags : c.testDeclineLine = valint( environ( "TKO_TEST_DECLINE_LINE" ) )   '' lower.tiko LowerStmt
+    c.errFlags = inp.fe.errFlags : c.testDeclineLine = valint( environ( "TKO_TEST_DECLINE_LINE" ) )   '' lower.tiko LowerStmt
     '' THE FILE NAME THE ERROR MESSAGES CARRY. fbc puts the module's own path
     '' into every bounds-check call so the abort can say which file the bad
     '' index came from. Taken once here rather than decoded at each access.
     c.errModName = moduleName
     '' THE MODULE SCOPE, recorded once -- see the field's comment.
-    c.modScope = inp.info->ScopeOf( root )
+    c.modScope = c.info->ScopeOf( root )
     if c.modScope = Tko.SCOPE_NONE then c.modScope = Tko.SCOPE_GLOBAL
 
     '' DATA FIRST, before anything is lowered. Two reasons, and both are measured:
@@ -1476,8 +1476,8 @@ function Lower _
     '' were created after the unit's root block was closed, so nothing reaches them
     '' from root -- they would be collected, resolved and typed, and then silently not
     '' emitted, which reads at a call site as a call into a name with no code.
-    for i as int32 = 0 to inp.ast->extraTopLevel.Count - 1
-        WalkTop( c, cast( Tko.NodeId, inp.ast->extraTopLevel[i] ) )
+    for i as int32 = 0 to c.ast->extraTopLevel.Count - 1
+        WalkTop( c, cast( Tko.NodeId, c.ast->extraTopLevel[i] ) )
     next
     LowerMainModule( c, root, isMainModule, moduleName )
     '' THE SYNTHESISED STRUCTORS, after every written one exists to be called by them
