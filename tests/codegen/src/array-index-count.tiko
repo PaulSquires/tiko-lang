@@ -1,0 +1,9 @@
+'' An index between Count and Capacity names a slot nothing constructed: runtime error 6.
+#import "std/containers"
+dim a as containers.Array( of long )
+a.Reserve( 16 )
+a.Push( 7 )
+print a[ 0 ]
+print a.Capacity( ) >= 16
+print a[ 1 ]
+print "not reached"

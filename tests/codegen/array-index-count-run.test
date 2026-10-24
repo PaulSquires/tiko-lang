@@ -1,0 +1,12 @@
+'' containers.Array checks an index against Count, not against the storage it reserved:
+'' 'a[ 1 ]' after one Push into a 16-slot array read an unconstructed slot, and -exx caught
+'' only an index past the capacity (review LIB-01). It is runtime error 6.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/array-index-count.tiko -o tests/codegen/arrayindexcount.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/arrayindexcount.exe
+'' EXPECT-RUN-EXIT: 6
+'' EXPECT-RUN-OUT:  7
+'' EXPECT-RUN-OUT: -1
+'' EXPECT-RUN-OUT: runtime error 6

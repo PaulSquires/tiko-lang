@@ -1,4 +1,5 @@
 #module "containers"
+#include once "fberror.bi"
 '' std/containers: array -- containers.Array( of T ), a growable array
 ''
 '' RFC-0004 §2 (there called Vector).  Replaces the 'redim preserve' append
@@ -145,11 +146,17 @@ sub Array( of T ).Shrink( )
     this.cap_ = this.num
 end sub
 
+'' AN INDEX IS CHECKED AGAINST Count, NOT AGAINST THE STORAGE: 'a[ Count ]' named a slot
+'' Reserve had allocated and nothing had constructed, and even '-exx' only caught an
+'' index past the CAPACITY, under a range nobody wrote (review LIB-01). One unsigned
+'' compare, so a negative index is caught by the same test. Runtime error 6.
 operator Array( of T ).[] ( byval i as long ) byref as T
+    if( cast( ulong, i ) >= cast( ulong, this.num ) ) then error( FB.FB_RTERROR_OUTOFBOUNDS )
     return this.items( i )
 end operator
 
 function Array( of T ).At( byval i as long ) byref as T
+    if( cast( ulong, i ) >= cast( ulong, this.num ) ) then error( FB.FB_RTERROR_OUTOFBOUNDS )
     return this.items( i )
 end function
 
