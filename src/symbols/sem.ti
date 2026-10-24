@@ -1,4 +1,5 @@
-'' visibility.ti -- 'private:' and 'protected:' inside a TYPE, checked at the USE SITE.
+'' sem.ti -- the post-Check pass's entry point, Tko.Sem.Run (sem.tiko; visibility.ti and Tko.Vis
+'' until 2026-10-24). It began as 'private:' and 'protected:' inside a TYPE, checked at the USE SITE.
 ''
 '' fbc error 202, "Illegal member access". A PRIVATE member may be named only from inside
 '' its own type's procedures; a PROTECTED one from those and from a DERIVED type's.
@@ -8,8 +9,8 @@
 '' nothing until its base has a type -- and WHICH PROCEDURE ENCLOSES THE USE, which Check
 '' does not track and Resolve cannot answer for a field.
 
-#ifndef TKO_VISIBILITY_BI
-#define TKO_VISIBILITY_BI
+#ifndef TKO_SEM_BI
+#define TKO_SEM_BI
 
 #include once "ast/nodes.ti"
 #include once "symbols/symbol.ti"
@@ -17,7 +18,7 @@
 #include once "types/type.ti"
 #include once "diag/engine.ti"
 
-namespace Tko.Vis
+namespace Tko.Sem
 
     declare sub Run _
         ( byref ast as AstArena, byval root as NodeId, byref syms as SymbolTable, _

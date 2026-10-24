@@ -1,4 +1,7 @@
-'' visibility.tiko -- 'private:' AND 'protected:' INSIDE A TYPE.
+'' semwalk.tiko -- THE TREE WALK of the post-Check pass, and 'private:' AND 'protected:' INSIDE A TYPE.
+''
+'' visibility.tiko until 2026-10-24 (LATER-PLAN E, review ARCH-01), when its 51 fragments became
+'' the sem*.tiko units and its entry point, Run, sem.tiko.
 ''
 '' fbc error 202, "Illegal member access". A PRIVATE member may be named only from inside
 '' its own type's procedures; a PROTECTED one from those and from a DERIVED type's.
@@ -18,7 +21,7 @@
 '' procedure is visible to its whole file, and a private MEMBER only inside its own type.
 
 #import "std/containers"
-#include once "symbols/visibility.ti"
+#include once "symbols/sem.ti"
 #include once "diag/diagids.ti"
 '' ConversionCost, for the constructor pick in latechecks.tiko -- see CtorChosenBy_.
 '' Declarations only; check.tiko is its own compilation unit.
@@ -26,7 +29,7 @@
 #include once "symbols/modsym.ti"
 #include once "types/udtlayout.ti"
 
-namespace Tko.Vis
+namespace Tko.Sem
 
 #include once "symbols/visctx.ti"
 #include once "symbols/semcalls.ti"
@@ -111,7 +114,7 @@ end function
 '' spawn -- because lowering reads the callee's binding and walks the chain from it, so
 '' replacing the head with the winner loses the other overloads. A map local to this
 '' pass cannot reach lowering at all.
-private sub RecordChosenOverloads_( byref c as Ctx )
+sub RecordChosenOverloads_( byref c as Ctx )
     for i as int32 = 1 to c.ast->Count( )
         dim as NodeId n = cast( NodeId, i )
         if c.ast->Kind( n ) <> N_CALL then continue for
@@ -415,7 +418,7 @@ function RecordedRank_ ( byref c as Ctx, byval sid as SymbolId ) as int32
 end function
 
 '' Source-order sweep, before the walk: the first redim of each rank-0 dynamic array.
-private sub RecordFirstRedims_( byref c as Ctx )
+sub RecordFirstRedims_( byref c as Ctx )
     for n as int32 = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_VAR then continue for
@@ -1098,7 +1101,7 @@ private sub CheckDelete_ ( byref c as Ctx, byval id as NodeId, byval here as Typ
 end sub
 
 
-private sub Walk_ _
+sub Walk_ _
     ( byref c as Ctx, byval id as NodeId, byval here as TypeId, _
       byval byrefResult as boolean = false, byval constMethod as boolean = false, _
       byval withThis as boolean = false, byval resultType as TypeId = TYPE_NONE )
@@ -1356,7 +1359,7 @@ end function
 ''
 '' A QUALIFIED NAME IS ALWAYS STATIC STORAGE: it defines a type's static member or a
 '' namespace's variable, and neither is a local.
-private sub CheckQualifiedStringInits_( byref c as Ctx )
+sub CheckQualifiedStringInits_( byref c as Ctx )
     for n as int32 = 0 to c.ast->Count( ) - 1
         dim as NodeId id = cast( NodeId, n )
         if c.ast->Kind( id ) <> N_VAR_ITEM then continue for
@@ -1397,7 +1400,7 @@ private sub CheckQualifiedStringInits_( byref c as Ctx )
     next
 end sub
 
-private sub CheckStaticStringInits( byref c as Ctx )
+sub CheckStaticStringInits( byref c as Ctx )
     for i as int32 = 0 to c.syms->symbols.Count - 1
         dim as Symbol ptr s = @c.syms->symbols[i]
         if s->kind <> cast( uint8, SYM_VARIABLE ) then continue for
@@ -1433,59 +1436,6 @@ private sub CheckStaticStringInits( byref c as Ctx )
 end sub
 
 #include once "symbols/visinst.tiko"
-sub Run _
-    ( byref ast as AstArena, byval root as NodeId, byref syms as SymbolTable, _
-      byref types as TypeContext, byref names as Interner, _
-      byref diags as DiagnosticEngine, byref info as SemanticInfo, _
-      byval src as SourceManager ptr, byval errFlags as int32 )
-
-    dim as Ctx c
-    c.srcMgr = src
-    c.errFlags = errFlags
-    VisRunGen_( true )
-    c.ast = @ast
-    c.syms = @syms
-    c.types = @types
-    c.names = @names
-    c.diags = @diags
-    c.info = @info
-    c.baseName = names.GetString( "base" )
-    c.root = root
-    RecordFirstRedims_( c )
-    RecordChosenOverloads_( c )
-    Walk_( c, root, TYPE_NONE )
-    WalkGenericInstances_( c )     '' not in the tree -- visinst.tiko
-    '' The OTHER thing that needs Check to have finished: half the shapes are 'var', and
-    '' an inferred type does not exist until Check has run.
-    CheckStaticStringInits( c )
-    CheckQualifiedStringInits_( c )
-    CheckImplicitStructors_( c )
-    CheckFixLenParams_( c )
-    CheckNestedStatics_( c )
-    CheckSharedInits_( c )
-    CheckQualifiedInits_( c )
-    CheckOutsideNamespace_( c ) : DefineQualifiedExterns_( c )
-    CheckStructorOutsideNamespace_( c )
-    CheckConstBounds_( c )
-    CheckReturnStyles_( c ) : CheckSubReturnValue_( c )
-    CheckByrefResultSet_( c )
-    CheckAliasAgrees_( c )
-    CheckDuplicateOverloads_( c )
-    CheckBitfieldWidths_( c )
-    CheckArrayDeclShapes_( c )
-    CheckRedimRank_( c )
-    CheckUnionInitGroups_( c )
-    CheckStaticInitFromVar_( c )
-    CheckSharedInBlock_( c )
-    RunLateSweeps2_( c )
-    CheckByrefBinding_( c )
-    CheckConstDeclTypes_( c )
-    CheckBaseHasDefaultCtor_( c )
-    CheckPrivateBaseStructor_( c )
-    CheckExternInitAndDefaultCtor_( c )
-    CheckUnionMembers_( c )
-    CheckVirtualNeedsObject_( c )
-end sub
 
 
 end namespace

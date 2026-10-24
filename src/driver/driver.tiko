@@ -16,7 +16,7 @@
 #include once "symbols/resolve.ti"
 #include once "symbols/mangle.ti"
 #include once "symbols/check.ti"
-#include once "symbols/visibility.ti"
+#include once "symbols/sem.ti"
 #include once "mir/lower.ti"
 #include once "mir/dump.ti"
 #include once "mir/verify.ti"

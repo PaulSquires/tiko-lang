@@ -226,4 +226,13 @@ declare sub ScanReturnStyles_ _
     ( byref c as Ctx, byval id as NodeId, byref sawReturn as boolean, _
       byref sawAssign as boolean, byval valRet as NodeId ptr = nullptr )
 declare function TypeScopeOf_ ( byref c as Ctx, byval path as InternId ) as ScopeId
+declare sub RecordChosenOverloads_( byref c as Ctx )
+declare sub RecordFirstRedims_( byref c as Ctx )
+declare sub Walk_ _
+    ( byref c as Ctx, byval id as NodeId, byval here as TypeId, _
+      byval byrefResult as boolean = false, byval constMethod as boolean = false, _
+      byval withThis as boolean = false, byval resultType as TypeId = TYPE_NONE )
+declare sub CheckQualifiedStringInits_( byref c as Ctx )
+declare sub CheckStaticStringInits( byref c as Ctx )
+declare sub WalkGenericInstances_ ( byref c as Ctx )
 '' (end of declares)

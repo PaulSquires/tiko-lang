@@ -10,7 +10,7 @@
 '' fbc-modern 1.20, 2026-09-25. tiko reported the same comparison in plain code (TKO0720)
 '' and, inside the instance, dropped the statement in silence. The TEMPLATE is still
 '' walked from the root, where its operands have no types and nothing is concluded.
-private sub WalkGenericInstances_ ( byref c as Ctx )
+sub WalkGenericInstances_ ( byref c as Ctx )
     '' c.ast->extraTopLevel is where an instantiation puts its re-parsed body, and the
     '' lambdas hoisted out of it (generic.tiko); the instance's SYMBOL points at the body only
     '' later, so the list is what to walk.

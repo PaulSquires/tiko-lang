@@ -18,7 +18,7 @@
 #include once "symbols/resolve.ti"
 #include once "symbols/mangle.ti"
 #include once "symbols/check.ti"
-#include once "symbols/visibility.ti"
+#include once "symbols/sem.ti"
 #include once "mir/lower.ti"
 #include once "mir/dump.ti"
 #include once "mir/verify.ti"
@@ -385,7 +385,7 @@ function CompileUnit _
         tPh = timer
         '' AFTER Check: a member access needs its symbol, and only Check binds
         '' one -- a field means nothing until its base has a type.
-        Tko.Vis.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, info, @ctx.sources, _
+        Tko.Sem.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, info, @ctx.sources, _
                      ctx.options.errFlags )
         '' A MODULE'S PUBLIC DECLARATIONS NAME ONLY WHAT AN IMPORTER CAN (TKO0868).
         if ctx.modFileCount > 0 then Tko.ModSym.CheckPublicTypes( syms, ctx.types, ctx.diags )

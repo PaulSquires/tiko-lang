@@ -35,7 +35,8 @@ src/symbols/check.tiko
 src/symbols/structpick.tiko
 src/symbols/formatcheck.tiko
 src/symbols/castpick.tiko
-src/symbols/visibility.tiko
+src/symbols/semwalk.tiko
+src/symbols/sem.tiko
 src/symbols/semsweep.tiko
 src/symbols/semlate.tiko
 src/symbols/semdecl.tiko

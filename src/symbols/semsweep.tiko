@@ -5,13 +5,13 @@
 '' in another Vis unit, and what another calls here, is declared in semcalls.ti.
 
 #import "std/containers"
-#include once "symbols/visibility.ti"
+#include once "symbols/sem.ti"
 #include once "diag/diagids.ti"
 #include once "symbols/check.ti"
 #include once "symbols/modsym.ti"
 #include once "types/udtlayout.ti"
 
-namespace Tko.Vis
+namespace Tko.Sem
 
 #include once "symbols/visctx.ti"
 #include once "symbols/semcalls.ti"

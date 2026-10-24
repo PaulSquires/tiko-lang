@@ -1,0 +1,73 @@
+'' sem.tiko -- THE POST-CHECK PASS, Tko.Sem.Run: the tree walk and the sweeps, in their order.
+''
+'' Run alone (LATER-PLAN E step 3, review ARCH-01). The walk and the member-access checks are in
+'' semwalk.tiko; the sweeps in semassign, semproc, semdecl, semsweep and semlate; what each
+'' calls in another is declared in semcalls.ti. Tko.Vis until 2026-10-24.
+
+#import "std/containers"
+#include once "symbols/sem.ti"
+#include once "diag/diagids.ti"
+#include once "symbols/check.ti"
+#include once "symbols/modsym.ti"
+#include once "types/udtlayout.ti"
+
+namespace Tko.Sem
+
+#include once "symbols/visctx.ti"
+#include once "symbols/semcalls.ti"
+
+sub Run _
+    ( byref ast as AstArena, byval root as NodeId, byref syms as SymbolTable, _
+      byref types as TypeContext, byref names as Interner, _
+      byref diags as DiagnosticEngine, byref info as SemanticInfo, _
+      byval src as SourceManager ptr, byval errFlags as int32 )
+
+    dim as Ctx c
+    c.srcMgr = src
+    c.errFlags = errFlags
+    VisRunGen_( true )
+    c.ast = @ast
+    c.syms = @syms
+    c.types = @types
+    c.names = @names
+    c.diags = @diags
+    c.info = @info
+    c.baseName = names.GetString( "base" )
+    c.root = root
+    RecordFirstRedims_( c )
+    RecordChosenOverloads_( c )
+    Walk_( c, root, TYPE_NONE )
+    WalkGenericInstances_( c )     '' not in the tree -- visinst.tiko
+    '' The OTHER thing that needs Check to have finished: half the shapes are 'var', and
+    '' an inferred type does not exist until Check has run.
+    CheckStaticStringInits( c )
+    CheckQualifiedStringInits_( c )
+    CheckImplicitStructors_( c )
+    CheckFixLenParams_( c )
+    CheckNestedStatics_( c )
+    CheckSharedInits_( c )
+    CheckQualifiedInits_( c )
+    CheckOutsideNamespace_( c ) : DefineQualifiedExterns_( c )
+    CheckStructorOutsideNamespace_( c )
+    CheckConstBounds_( c )
+    CheckReturnStyles_( c ) : CheckSubReturnValue_( c )
+    CheckByrefResultSet_( c )
+    CheckAliasAgrees_( c )
+    CheckDuplicateOverloads_( c )
+    CheckBitfieldWidths_( c )
+    CheckArrayDeclShapes_( c )
+    CheckRedimRank_( c )
+    CheckUnionInitGroups_( c )
+    CheckStaticInitFromVar_( c )
+    CheckSharedInBlock_( c )
+    RunLateSweeps2_( c )
+    CheckByrefBinding_( c )
+    CheckConstDeclTypes_( c )
+    CheckBaseHasDefaultCtor_( c )
+    CheckPrivateBaseStructor_( c )
+    CheckExternInitAndDefaultCtor_( c )
+    CheckUnionMembers_( c )
+    CheckVirtualNeedsObject_( c )
+end sub
+
+end namespace
