@@ -39,8 +39,8 @@ CASES = [
 
 def one_target() -> int:
     if not FBC.exists():
-        print(f"array-truth: {LABEL}: fbc not found at {FBC}", file=sys.stderr)
-        return 3
+        print(f"array-truth: {LABEL}: SKIPPED -- no oracle fbc at {FBC} (set TKO_ORACLE_FBC)")
+        return tkotargets.SKIP
     WORK.mkdir(parents=True, exist_ok=True)
     src = WORK / "arr.bas"
     body = "sub P( )\n" + "".join(f"    {d}\n" for _, d in CASES) + "end sub\n"
@@ -80,9 +80,16 @@ def main() -> int:
     """Every target, into its own expectations file."""
     global FBC, OUT, WORK, LABEL
     rc = 0
+    skipped = 0
     for LABEL, FBC, OUT, WORK in tkotargets.truth_targets(OUT, WORK):
-        if one_target() != 0:
+        r = one_target()
+        if r == tkotargets.SKIP:
+            skipped += 1
+        elif r != 0:
             rc = 1
+    # ALL SKIPPED is a skip; a failure anywhere is a failure.
+    if rc == 0 and skipped:
+        return tkotargets.SKIP
     return rc
 
 

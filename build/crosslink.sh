@@ -23,7 +23,8 @@
 set -e
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-FBC=${FBC:-${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}}
+. "$(dirname "$0")/toolchain.sh"    # TKO_ORACLE_FBC, TKO_ORACLE_ROOT, TKO_CLANG (BLD-12)
+FBC=${FBC:-$TKO_ORACLE_FBC}
 TIKO=${TIKO:-"$ROOT/bin/tiko.exe"}
 TC="$ROOT/toolchains/tiko-windows"
 LIBS="-p $TC/lib/win64 -p $TC/lib/win64-fb"

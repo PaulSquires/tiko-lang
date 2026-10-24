@@ -1,5 +1,5 @@
-import itertools, subprocess, re, sys
-FBC='C:/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe'
+import itertools, os, subprocess, re, sys
+FBC=os.environ.get('TKO_ORACLE_FBC','C:/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe')
 bins=["^","*","/","\\","mod","+","-","shl","shr","=","<>","<",">","<=",">=","and","or","xor","eqv","imp","andalso","orelse"]
 uns=["-","not"]
 A,B,C="6","3","2"

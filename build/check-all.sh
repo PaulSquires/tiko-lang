@@ -27,7 +27,11 @@ sweeppid=$!
 fail=0
 bad=0
 for g in tools/gen/check-*.sh ; do
-    if ! sh "$g" >/dev/null 2>&1 ; then
+    grc=0
+    sh "$g" >/dev/null 2>&1 || grc=$?
+    if [ "$grc" = "77" ]; then
+        echo "check-all: gate SKIPPED (no oracle fbc): $g"
+    elif [ "$grc" != "0" ]; then
         echo "check-all: GATE NONZERO: $g"
         fail=$((fail + 1))
         case "$g" in

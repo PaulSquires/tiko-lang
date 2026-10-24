@@ -18,7 +18,8 @@
 
 set -e
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-FBC64=${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
+. "$(dirname "$0")/../../build/toolchain.sh"    # TKO_ORACLE_FBC, TKO_ORACLE_ROOT, TKO_CLANG (BLD-12)
+FBC64=$TKO_ORACLE_FBC
 FBC32=${TKO_FBC32:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc32.exe}
 # IN THE REPO, not mktemp -d. Git Bash puts /tmp under the user's AppData, which
 # is not on the C: mount WSL sees -- so the Linux half below was handed a path

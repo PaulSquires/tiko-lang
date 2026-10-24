@@ -49,7 +49,8 @@
 set -u
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
-FBC=${FBC:-${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}}
+. build/toolchain.sh    # TKO_ORACLE_FBC, TKO_ORACLE_ROOT, TKO_CLANG (BLD-12)
+FBC=${FBC:-$TKO_ORACLE_FBC}
 TKO=${TKO:-$ROOT/bin/tiko.exe}
 WK=${TMPDIR:-/tmp}/goldenrun.$$
 mkdir -p "$WK"

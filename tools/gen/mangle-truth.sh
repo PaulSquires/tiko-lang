@@ -13,7 +13,8 @@
 # names carry the C emitter's own decoration, which is not what the linker sees.
 set -e
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-FBC=${TKO_FBC:-${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}}
+. "$(dirname "$0")/../../build/toolchain.sh"    # TKO_ORACLE_FBC, TKO_ORACLE_ROOT, TKO_CLANG (BLD-12)
+FBC=${TKO_FBC:-$TKO_ORACLE_FBC}
 SRC="$ROOT/tests/mangle/src/probe.bas"
 OUT="$ROOT/tests/mangle/expected/fbc-mangle.txt"
 WORK="$ROOT/build/.mg"

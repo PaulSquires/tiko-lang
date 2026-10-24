@@ -16,6 +16,7 @@ pin an answer to a question neither compiler is being asked. They are the single
 largest escape in the corpus, 2120 occurrences, and they are an OPEN GAP, not a
 covered one.
 """
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -23,7 +24,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "tests/types/expected/fbc-escape.txt"
 WORK = ROOT / "build/.esc"
-FBC = Path("C:/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe")
+FBC = Path(os.environ.get("TKO_ORACLE_FBC", "C:/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe"))
 
 BS = chr(92)
 Q = chr(34)

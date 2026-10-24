@@ -59,9 +59,9 @@ else
     TIKO=${TKOGFX_TIKO:-"$GFX_ROOT/../../bin/tiko.exe"}
     [ -x "$TIKO" ] || die "no tiko at $TIKO -- build the compiler first (build/build.sh), or set TKOGFX_TIKO"
 fi
-CLANG=${CLANG:-"C:/Program Files/LLVM/bin/clang.exe"}
+CLANG=${CLANG:-${TKO_CLANG:-"C:/Program Files/LLVM/bin/clang.exe"}}
 [ -x "$CLANG" ] || die "no clang at $CLANG (set CLANG)"
-AR=${TKOGFX_AR:-"C:/Program Files/LLVM/bin/llvm-ar.exe"}
+AR=${TKOGFX_AR:-${TKO_AR:-"C:/Program Files/LLVM/bin/llvm-ar.exe"}}
 [ -x "$AR" ] || die "no llvm-ar at $AR (set TKOGFX_AR)"
 
 # -z msvc, or nothing -- the fbc path only. Probed rather than assumed.

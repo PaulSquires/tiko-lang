@@ -28,8 +28,9 @@ fi
 # target-prefixed <target>-clang.exe that does not exist: one clang serves every
 # target through --target. Absolute, and with .exe on Windows. This is the same
 # workaround gate-win.sh in fbc-modern uses, for the same reason.
+# TKO_CLANG FIRST, as build/toolchain.sh reads it: this was the one place it was ignored.
 if [ -z "${CLANG:-}" ]; then
-    CLANG=$(command -v clang 2>/dev/null || echo "/c/Program Files/LLVM/bin/clang.exe")
+    CLANG=${TKO_CLANG:-$(command -v clang 2>/dev/null || echo "/c/Program Files/LLVM/bin/clang.exe")}
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
             case $CLANG in *.exe) ;; *) CLANG="$CLANG.exe" ;; esac ;;
@@ -39,10 +40,10 @@ export CLANG
 
 # llvm-ar. D13: the toolchain is 100% LLVM -- llvm-ar, not the MinGW ar.
 if [ -z "${TKORT_AR:-}" ]; then
-    TKORT_AR=$(command -v llvm-ar 2>/dev/null || echo "/c/Program Files/LLVM/bin/llvm-ar.exe")
+    TKORT_AR=${TKO_AR:-$(command -v llvm-ar 2>/dev/null || echo "/c/Program Files/LLVM/bin/llvm-ar.exe")}
 fi
 if [ -z "${TKORT_NM:-}" ]; then
-    TKORT_NM=$(command -v llvm-nm 2>/dev/null || echo "/c/Program Files/LLVM/bin/llvm-nm.exe")
+    TKORT_NM=${TKO_NM:-$(command -v llvm-nm 2>/dev/null || echo "/c/Program Files/LLVM/bin/llvm-nm.exe")}
 fi
 
 # ------------------------------------------------------------------ targets

@@ -20,7 +20,8 @@ ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$ROOT"
 
 # fbc-modern, the same toolchain every other gate measures against. TKO_FBC overrides.
-FBC=${TKO_FBC:-${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}}
+. "$ROOT/build/toolchain.sh"    # TKO_ORACLE_FBC, TKO_ORACLE_ROOT, TKO_CLANG (BLD-12)
+FBC=${TKO_FBC:-$TKO_ORACLE_FBC}
 [ -x "$FBC" ] || { echo "parse-gap: SKIPPED -- no oracle fbc at $FBC (TKO_ORACLE_FBC)"; exit 0; }
 CORPUS=tests/vendor/fbc-tests
 [ -d "$CORPUS" ] || { echo "parse-gap: corpus not vendored" >&2; exit 3; }
@@ -36,7 +37,7 @@ fi
 # tiko-lang ships no headers, so its default include directory does not exist in a source tree.
 # Without a header set 144 files fail at their first line and this comparison measures
 # that instead of the parser. Same harness fact as mirsweep's.
-TKOINC=${TKO_INCLUDE:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/inc}
+TKOINC=${TKO_INCLUDE:-$TKO_ORACLE_ROOT/inc}
 if [ -d "$TKOINC" ]; then
     TKO_INCLUDE="$TKOINC"
     export TKO_INCLUDE

@@ -35,7 +35,8 @@ FBCUNIT=""
 [ -d "$CORPUS_ROOT/fbcunit/inc" ] && FBCUNIT="-i $CORPUS_ROOT/fbcunit/inc"
 
 # The headers the corpus expects -- fbgfx.bi and the rest. icescan.sh does the same.
-TKOINC=${TKO_INCLUDE:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/inc}
+. build/toolchain.sh    # TKO_ORACLE_FBC, TKO_ORACLE_ROOT, TKO_CLANG (BLD-12)
+TKOINC=${TKO_INCLUDE:-$TKO_ORACLE_ROOT/inc}
 if [ -d "$TKOINC" ]; then TKO_INCLUDE="$TKOINC"; export TKO_INCLUDE; fi
 
 # THE DEV TREE HAS NO lib/<target>: the import libraries are a package step, not a build
@@ -43,7 +44,7 @@ if [ -d "$TKOINC" ]; then TKO_INCLUDE="$TKOINC"; export TKO_INCLUDE; fi
 LIBP=""
 [ -d toolchains/tiko-windows/lib/windows-x86_64 ] && LIBP="-p toolchains/tiko-windows/lib/windows-x86_64"
 
-FBC=${TKO_FBC:-${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}}
+FBC=${TKO_FBC:-$TKO_ORACLE_FBC}
 
 WORK=build/.perf
 rm -rf "$WORK" 2>/dev/null || true

@@ -23,7 +23,8 @@ case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) EXT=".exe" ;;
     *) echo "difflane: Windows only for now" >&2; exit 3 ;;
 esac
-FBC=${TKO_ORACLE_FBC:-/c/dev/fbc-modern/toolchains/fbc-modern-windows/fbc64.exe}
+. "$(dirname "$0")/toolchain.sh"    # TKO_ORACLE_FBC, TKO_ORACLE_ROOT, TKO_CLANG (BLD-12)
+FBC=$TKO_ORACLE_FBC
 TKO="$ROOT/bin/tiko$EXT"
 [ -x "$FBC" ] || { echo "difflane: SKIPPED -- no oracle fbc at $FBC (TKO_ORACLE_FBC)"; exit 0; }
 [ -x "$TKO" ] || { echo "difflane: build tiko first (build/build.sh)" >&2; exit 3; }
