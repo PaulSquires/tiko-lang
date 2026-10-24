@@ -142,8 +142,10 @@ public type ChannelIterator( of T )
 end type
 
 public type Channel( of T )
+    private:
     as any ptr st
 
+    public:
     declare constructor( )
     declare constructor( byval bufcap as long )
     declare constructor( byref rhs as Channel( of T ) )
@@ -164,6 +166,9 @@ public type Channel( of T )
     declare function Capacity( ) as long
 
     declare function GetIterator( ) as ChannelIterator( of T )
+    '' The shared state, opaque, for SELECT and the channel helpers: read-only, because
+    '' the field is private (review LIB-04). NULL for a nil channel.
+    declare function Handle( ) as any ptr
 
     '' NEVER CALL THIS.  It exists so that generated code can SPELL the element
     '' type, as 'typeof( *ch.ElemPtr( ) )'.  A generic instantiation prints as a
@@ -386,6 +391,10 @@ operator Channel( of T ).let( byref rhs as Channel( of T ) )
 end operator
 
 '' ------------------------------------------------------------------ queries
+
+function Channel( of T ).Handle( ) as any ptr
+    return this.st
+end function
 
 function Channel( of T ).IsNil( ) as boolean
     return this.st = nullptr
@@ -857,7 +866,7 @@ end sub
 function ChanCommitRecvLocked( of T ) _
     ( byref ch as Channel( of T ), byval dst as T ptr ) as boolean
 
-    dim as ChanState( of T ) ptr s = cptr( ChanState( of T ) ptr, ch.st )
+    dim as ChanState( of T ) ptr s = cptr( ChanState( of T ) ptr, ch.Handle( ) )
 
     if( s->core.num > 0 ) then
         *dst = s->buf( s->core.head )
@@ -898,7 +907,7 @@ end function
 function ChanCommitSendLocked( of T ) _
     ( byref ch as Channel( of T ), byval src as T ptr ) as boolean
 
-    dim as ChanState( of T ) ptr s = cptr( ChanState( of T ) ptr, ch.st )
+    dim as ChanState( of T ) ptr s = cptr( ChanState( of T ) ptr, ch.Handle( ) )
 
     if( s->core.isclosed ) then
         MutexUnlock( s->core.lok )
@@ -949,8 +958,10 @@ end function
 '' boundary where it is written down.
 
 public type SendChan( of T )
+    private:
     as Channel( of T ) ch
 
+    public:
     declare constructor( )
     declare constructor( byref c as Channel( of T ) )
 
@@ -993,8 +1004,10 @@ function SendChan( of T ).Capacity( ) as long
 end function
 
 public type RecvChan( of T )
+    private:
     as Channel( of T ) ch
 
+    public:
     declare constructor( )
     declare constructor( byref c as Channel( of T ) )
 

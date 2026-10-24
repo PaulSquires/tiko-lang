@@ -207,8 +207,10 @@ public type SharedPtr( of T )
 end type
 
 public type WeakPtr( of T )
+    private:
     as SpCtl ptr ctl
 
+    public:
     declare constructor( )
     declare constructor( byref rhs as SharedPtr( of T ) )
     declare constructor( byref rhs as WeakPtr( of T ) )

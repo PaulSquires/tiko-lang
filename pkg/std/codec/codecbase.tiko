@@ -160,7 +160,7 @@ function EncDecodeRadix( byref text as const ustring, byref out_ as Array( of ub
     dim as ulongint acc = 0
     dim as long have = 0
     for i as long = 0 to m - 1
-        acc = ( acc shl bits ) or vals.items( i )
+        acc = ( acc shl bits ) or vals.Data( )[ i ]
         have += bits
         if( have >= 8 ) then
             have -= 8
@@ -171,14 +171,14 @@ function EncDecodeRadix( byref text as const ustring, byref out_ as Array( of ub
     if( acc <> 0 ) then
         return EncFail( of longint )( ENC_TRAILING_BITS, lastData, op )
     end if
-    return Ok( of longint, EncodingError )( clngint( out_.num ) )
+    return Ok( of longint, EncodingError )( clngint( out_.Count( ) ) )
 end function
 
 '' -------------------------------------------------------------- base64
 
 public function Base64Encode overload ( byref buf as Array( of ubyte ), byval v as Base64Variant = B64_STANDARD, _
                                         byval pad as boolean = TRUE ) as ustring
-    return EncEncodeRadix( EncArrayPtr( buf ), buf.num, 6, iif( v = B64_URL, ENC_B64_URL, ENC_B64_STD ), pad )
+    return EncEncodeRadix( EncArrayPtr( buf ), buf.Count( ), 6, iif( v = B64_URL, ENC_B64_URL, ENC_B64_STD ), pad )
 end function
 
 public function Base64Encode overload ( byref s as const ustring, byval v as Base64Variant = B64_STANDARD, _
@@ -208,14 +208,14 @@ public function Base64DecodeText( byref text as const ustring, byval v as Base64
     if( r.IsOk( ) = FALSE ) then
         return Fail( of ustring, EncodingError )( r.Failure( ) )
     end if
-    return EncBytesToText( EncArrayPtr( b ), b.num, "Base64DecodeText" )
+    return EncBytesToText( EncArrayPtr( b ), b.Count( ), "Base64DecodeText" )
 end function
 
 '' -------------------------------------------------------------- base32
 
 public function Base32Encode overload ( byref buf as Array( of ubyte ), byval v as Base32Variant = B32_STANDARD, _
                                         byval pad as boolean = TRUE ) as ustring
-    return EncEncodeRadix( EncArrayPtr( buf ), buf.num, 5, iif( v = B32_HEX, ENC_B32_HEX, ENC_B32_STD ), pad )
+    return EncEncodeRadix( EncArrayPtr( buf ), buf.Count( ), 5, iif( v = B32_HEX, ENC_B32_HEX, ENC_B32_STD ), pad )
 end function
 
 public function Base32Encode overload ( byref s as const ustring, byval v as Base32Variant = B32_STANDARD, _
@@ -243,7 +243,7 @@ public function Base32DecodeText( byref text as const ustring, byval v as Base32
     if( r.IsOk( ) = FALSE ) then
         return Fail( of ustring, EncodingError )( r.Failure( ) )
     end if
-    return EncBytesToText( EncArrayPtr( b ), b.num, "Base32DecodeText" )
+    return EncBytesToText( EncArrayPtr( b ), b.Count( ), "Base32DecodeText" )
 end function
 
 '' -------------------------------------------------------------- hex
@@ -264,7 +264,7 @@ function EncHexOf( byval p as const ubyte ptr, byval n as long, byval upper as b
 end function
 
 public function HexEncode overload ( byref buf as Array( of ubyte ), byval upper as boolean = FALSE ) as ustring
-    return EncHexOf( EncArrayPtr( buf ), buf.num, upper )
+    return EncHexOf( EncArrayPtr( buf ), buf.Count( ), upper )
 end function
 
 public function HexEncode overload ( byref s as const ustring, byval upper as boolean = FALSE ) as ustring
@@ -310,7 +310,7 @@ function EncHexDecodeOp( byref text as const ustring, byref out_ as Array( of ub
     if( hi >= 0 ) then
         return EncFail( of longint )( ENC_INVALID_LENGTH, 0, op )
     end if
-    return Ok( of longint, EncodingError )( clngint( out_.num ) )
+    return Ok( of longint, EncodingError )( clngint( out_.Count( ) ) )
 end function
 
 public function HexDecode( byref text as const ustring, byref out_ as Array( of ubyte ), _
@@ -324,5 +324,5 @@ public function HexDecodeText( byref text as const ustring, byval opts as long =
     if( r.IsOk( ) = FALSE ) then
         return Fail( of ustring, EncodingError )( r.Failure( ) )
     end if
-    return EncBytesToText( EncArrayPtr( b ), b.num, "HexDecodeText" )
+    return EncBytesToText( EncArrayPtr( b ), b.Count( ), "HexDecodeText" )
 end function

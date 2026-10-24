@@ -69,8 +69,10 @@ norm( ) {
 # A FAILING ASSERT'S SITE, compared without its directory or line: the port lives in
 # tests/std rather than tests/vendor/fbc-tests, and its rewritten imports move its lines.
 site( ) {
-    # ...and a runtime error in the library names its file, which was fb/x.bi and is x.tiko.
-    sed -E 's|tests/(vendor/fbc-tests\|std)/[A-Za-z0-9_]+/([A-Za-z0-9_.-]+\.bas)\([0-9]+(,[0-9]+)?\)|\2(L)|g; s|of ([A-Za-z0-9_]+)\.(bi\|tiko)\(|of \1(|g'
+    # ...and a runtime error in the library names its file, which was fb/x.bi and is x.tiko --
+    # and its LINE, which is the library's, not the test's: x.tiko is not x.bi line for line,
+    # and any edit above the aborting procedure moved it (review LIB-04 added two lines).
+    sed -E 's|tests/(vendor/fbc-tests\|std)/[A-Za-z0-9_]+/([A-Za-z0-9_.-]+\.bas)\([0-9]+(,[0-9]+)?\)|\2(L)|g; s|of ([A-Za-z0-9_]+)\.(bi\|tiko)\(|of \1(|g; s|at line [0-9]+ of ([A-Za-z0-9_]+)\(|at line L of \1(|g'
 }
 
 n=0; nbad=0

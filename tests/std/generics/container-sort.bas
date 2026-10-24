@@ -115,7 +115,7 @@ end operator
 '' Walk a list forwards into an Array.
 function ListForward( byref l as LinkedList( of long ) ) as Array( of long )
 	dim as Array( of long ) r
-	dim as LinkedNode( of long ) ptr p = l.head
+	dim as LinkedNode( of long ) ptr p = l.FirstNode( )
 	while( p <> 0 )
 		r.Push( p->value )
 		p = p->nxt
@@ -128,7 +128,7 @@ end function
 '' this is not the same assertion twice.
 function ListBackward( byref l as LinkedList( of long ) ) as Array( of long )
 	dim as Array( of long ) r
-	dim as LinkedNode( of long ) ptr p = l.tail
+	dim as LinkedNode( of long ) ptr p = l.LastNode( )
 	while( p <> 0 )
 		r.Push( p->value )
 		p = p->prv
@@ -690,10 +690,10 @@ scope
 			'' head->prv and tail->nxt must be null, or a later PushFront /
 			'' PushBack corrupts the chain.
 			if( n > 0 ) then
-				assert_( l.head <> 0 )
-				assert_( l.tail <> 0 )
-				assert_( l.head->prv = 0 )
-				assert_( l.tail->nxt = 0 )
+				assert_( l.FirstNode( ) <> 0 )
+				assert_( l.LastNode( ) <> 0 )
+				assert_( l.FirstNode( )->prv = 0 )
+				assert_( l.LastNode( )->nxt = 0 )
 				assert_( l.Front( ) = fwd[ 0 ] )
 				assert_( l.Back( ) = fwd[ n-1 ] )
 			end if
@@ -736,25 +736,25 @@ scope
 	dim as LinkedList( of long ) e
 	SortList( e )
 	assert_( e.Count( ) = 0 )
-	assert_( e.head = 0 )
-	assert_( e.tail = 0 )
+	assert_( e.FirstNode( ) = 0 )
+	assert_( e.LastNode( ) = 0 )
 
 	dim as LinkedList( of long ) one
 	one.PushBack( 5 )
 	SortList( one )
 	assert_( one.Count( ) = 1 )
 	assert_( one.Front( ) = 5 )
-	assert_( one.head = one.tail )
-	assert_( one.head->prv = 0 )
-	assert_( one.tail->nxt = 0 )
+	assert_( one.FirstNode( ) = one.LastNode( ) )
+	assert_( one.FirstNode( )->prv = 0 )
+	assert_( one.LastNode( )->nxt = 0 )
 
 	dim as LinkedList( of long ) two
 	two.PushBack( 2 ) : two.PushBack( 1 )
 	SortList( two )
 	assert_( two.Front( ) = 1 )
 	assert_( two.Back( ) = 2 )
-	assert_( two.head->nxt = two.tail )
-	assert_( two.tail->prv = two.head )
+	assert_( two.FirstNode( )->nxt = two.LastNode( ) )
+	assert_( two.LastNode( )->prv = two.FirstNode( ) )
 end scope
 
 scope
@@ -792,7 +792,7 @@ scope
 
 	assert_( l.Count( ) = 200 )
 	dim as boolean ok = true
-	dim as LinkedNode( of Rec ) ptr p = l.head
+	dim as LinkedNode( of Rec ) ptr p = l.FirstNode( )
 	dim as long prevKey = -1, prevTag = -1
 	while( p <> 0 )
 		if( p->value.key < prevKey ) then ok = false
@@ -825,7 +825,7 @@ scope
 	assert_( liveCounted = liveBefore )
 
 	dim as boolean ok = true
-	dim as LinkedNode( of Counted ) ptr p = l.head
+	dim as LinkedNode( of Counted ) ptr p = l.FirstNode( )
 	dim as long expect = 0
 	while( p <> 0 )
 		if( p->value.v <> expect ) then ok = false

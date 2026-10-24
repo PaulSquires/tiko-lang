@@ -146,10 +146,10 @@ public function SelectAddRecv( of T ) _
     '' A nil channel is permanently not-ready, which is how a case is
     '' disabled (RFC-0002 section 7).  It is registered with a NULL core and
     '' simply never polled or enqueued.
-    if( ch.st = nullptr ) then
+    if( ch.Handle( ) = nullptr ) then
         sc.cases( idx ).core = nullptr
     else
-        sc.cases( idx ).core = @cptr( ChanState( of T ) ptr, ch.st )->core
+        sc.cases( idx ).core = @cptr( ChanState( of T ) ptr, ch.Handle( ) )->core
     end if
 
     if( idx >= sc.n ) then sc.n = idx + 1
@@ -181,10 +181,10 @@ public function SelectAddSend( of T ) _
     sc.cases( idx ).kind     = SELKIND_SEND
     sc.cases( idx ).enqueued = FALSE
 
-    if( ch.st = nullptr ) then
+    if( ch.Handle( ) = nullptr ) then
         sc.cases( idx ).core = nullptr
     else
-        sc.cases( idx ).core = @cptr( ChanState( of T ) ptr, ch.st )->core
+        sc.cases( idx ).core = @cptr( ChanState( of T ) ptr, ch.Handle( ) )->core
     end if
 
     if( idx >= sc.n ) then sc.n = idx + 1

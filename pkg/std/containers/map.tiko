@@ -71,6 +71,7 @@ public type MapIterator( of TK, TV )
 end type
 
 public type Map( of TK, TV )
+    private:
     as TK keys_( any )
     as TV vals_( any )
     as ubyte state( any )
@@ -78,6 +79,7 @@ public type Map( of TK, TV )
     as long used                        '' live + tombstones, for the load factor
     as long cap_                        '' slots allocated -- see Capacity( )
 
+    public:
     declare function Count( ) as long
     declare function IsEmpty( ) as boolean
     declare function Capacity( ) as long
@@ -96,6 +98,11 @@ public type Map( of TK, TV )
     declare function Keys( ) as Array( of TK )
     declare function Values( ) as Array( of TV )
     declare function GetIterator( ) as MapIterator( of TK, TV )
+    '' THE SLOT PROTOCOL MapIterator walks: slots 0 to Capacity( ) - 1, of which the used
+    '' ones hold pairs. Public only because an iterator is another type; use 'for each'.
+    declare function SlotUsed( byval slot as long ) as boolean
+    declare function SlotKey( byval slot as long ) byref as TK
+    declare function SlotValue( byval slot as long ) byref as TV
     declare function Pairs( ) as MapPairView( of TK, TV )
 end type
 
@@ -138,6 +145,18 @@ end function
 '' 7.9 s, and TryGet + Put counting 28% faster.
 function Map( of TK, TV ).Capacity( ) as long
     return this.cap_
+end function
+
+function Map( of TK, TV ).SlotUsed( byval slot as long ) as boolean
+    return this.state( slot ) = MAP_USED
+end function
+
+function Map( of TK, TV ).SlotKey( byval slot as long ) byref as TK
+    return this.keys_( slot )
+end function
+
+function Map( of TK, TV ).SlotValue( byval slot as long ) byref as TV
+    return this.vals_( slot )
 end function
 
 '' The slot holding k, or -1.
@@ -431,8 +450,8 @@ end function
 function MapIterator( of TK, TV ).Value( ) as KeyValuePair( of TK, TV )
     dim as Map( of TK, TV ) ptr m = cptr( Map( of TK, TV ) ptr, this.src )
     dim r as KeyValuePair( of TK, TV )
-    r.key = m->keys_( this.slot )
-    r.value = m->vals_( this.slot )
+    r.key = m->SlotKey( this.slot )
+    r.value = m->SlotValue( this.slot )
     return r
 end function
 
@@ -441,7 +460,7 @@ sub MapIterator( of TK, TV ).MoveNext( )
     dim as long cap = m->Capacity( )
 
     this.slot += 1
-    while( (this.slot < cap) andalso (m->state( this.slot ) <> MAP_USED) )
+    while( (this.slot < cap) andalso (m->SlotUsed( this.slot ) = false) )
         this.slot += 1
     wend
 end sub

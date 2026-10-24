@@ -1,0 +1,7 @@
+'' 'private:' on a generic's field reaches its instance, as on a plain type's: 'b.v = 5' on
+'' a Box( of long ) compiled while 'p.v = 6' on a Plain did not. fbc-modern 1.20 rejects both.
+'' TEST: cli
+'' ARGS: check tests/diagnostics/src/generic-private-field.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: generic-private-field.bas(21,2): error TKO0625: 'v' is not accessible here
+'' EXPECT-OUT: generic-private-field.bas(23,2): error TKO0625: 'v' is not accessible here

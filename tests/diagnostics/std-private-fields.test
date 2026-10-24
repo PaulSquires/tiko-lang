@@ -1,0 +1,9 @@
+'' A std container's and an outcome's fields are private, and private reaches an INSTANCE of
+'' a generic: 'a.num = 50' compiled against every std container, because the instance's
+'' fields were declared without the template's access (fbc-modern 1.20: error 202). Review
+'' LIB-04.
+'' TEST: cli
+'' ARGS: check tests/diagnostics/src/std-private-fields.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: std-private-fields.bas(5,2): error TKO0625: 'num' is not accessible here
+'' EXPECT-OUT: std-private-fields.bas(7,2): error TKO0625: 'ok' is not accessible here

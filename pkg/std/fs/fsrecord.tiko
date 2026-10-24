@@ -225,6 +225,7 @@ public type RecordFile( of T )
 
     declare function GetIterator( ) as RecordIterator( of T )
 
+    private:
     as File m_file
     as long m_len
 end type

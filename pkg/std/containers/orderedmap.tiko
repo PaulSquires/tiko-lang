@@ -109,9 +109,11 @@ public type OrderedMapPairView( of TK, TV )
 end type
 
 public type OrderedMap( of TK, TV )
+    private:
     as RBMapNode( of TK, TV ) ptr root
     as long num
 
+    public:
     declare constructor( )
     declare constructor( byref rhs as OrderedMap( of TK, TV ) )
     declare destructor( )

@@ -56,14 +56,23 @@
 using FB
 
 public type Optional( of T )
+    private:
     as T v
     as boolean has
 
+    public:
     declare function HasValue( ) as boolean
     declare function Value( ) byref as T
     declare function ValueOr( byref dflt as T ) byref as T
     declare sub Clear( )
+    '' Holds v from now on -- what Some( v ) builds. The fields are private (review LIB-04).
+    declare sub Assign( byref v as T )
 end type
+
+sub Optional( of T ).Assign( byref v as T )
+    this.v = v
+    this.has = TRUE
+end sub
 
 function Optional( of T ).HasValue( ) as boolean
     return this.has
@@ -125,8 +134,7 @@ end sub
 '' 'Some( 3L )', exactly as IndexOf( nums, 3L ) already has to be written.
 public function Some( of T )( byref v as T ) as Optional( of T )
     dim as Optional( of T ) r
-    r.v = v
-    r.has = TRUE
+    r.Assign( v )
     return r
 end function
 

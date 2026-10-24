@@ -123,11 +123,11 @@ sub SortInsertionBy( of T, TCmp )( byref a as Array( of T ), byval lo as long, b
             '' Hoisted into a BOOLEAN local so that a comparer returning
             '' LONG rather than BOOLEAN still tests correctly, and so that
             '' no ANDALSO ever mixes a boolean with a non-boolean.
-            dim as boolean lt = less( a.items( j ), a.items( j-1 ) )
+            dim as boolean lt = less( a.Data( )[ j ], a.Data( )[ j-1 ] )
             if( lt = false ) then
                 exit do
             end if
-            swap a.items( j ), a.items( j-1 )
+            swap a.Data( )[ j ], a.Data( )[ j-1 ]
             j -= 1
         loop
     next
@@ -144,18 +144,18 @@ sub SortSiftDownBy( of T, TCmp )( byref a as Array( of T ), byval lo as long, by
         end if
 
         if( child+1 < n ) then
-            dim as boolean rightIsBigger = less( a.items( lo+child ), a.items( lo+child+1 ) )
+            dim as boolean rightIsBigger = less( a.Data( )[ lo+child ], a.Data( )[ lo+child+1 ] )
             if( rightIsBigger ) then
                 child += 1
             end if
         end if
 
-        dim as boolean childIsBigger = less( a.items( lo+root ), a.items( lo+child ) )
+        dim as boolean childIsBigger = less( a.Data( )[ lo+root ], a.Data( )[ lo+child ] )
         if( childIsBigger = false ) then
             exit do
         end if
 
-        swap a.items( lo+root ), a.items( lo+child )
+        swap a.Data( )[ lo+root ], a.Data( )[ lo+child ]
         root = child
     loop
 end sub
@@ -175,7 +175,7 @@ sub SortHeapBy( of T, TCmp )( byref a as Array( of T ), byval lo as long, byval 
     next
 
     for i as long = n-1 to 1 step -1
-        swap a.items( lo ), a.items( lo+i )
+        swap a.Data( )[ lo ], a.Data( )[ lo+i ]
         SortSiftDownBy( a, lo, i, 0, less )
     next
 end sub
@@ -196,22 +196,22 @@ end sub
 function SortPartitionBy( of T, TCmp )( byref a as Array( of T ), byval lo as long, byval hi as long, byref less as TCmp ) as long
     dim as long mid_ = lo + (hi - lo) \ 2
 
-    dim as boolean sw = less( a.items( mid_ ), a.items( lo ) )
+    dim as boolean sw = less( a.Data( )[ mid_ ], a.Data( )[ lo ] )
     if( sw ) then
-        swap a.items( mid_ ), a.items( lo )
+        swap a.Data( )[ mid_ ], a.Data( )[ lo ]
     end if
-    sw = less( a.items( hi ), a.items( lo ) )
+    sw = less( a.Data( )[ hi ], a.Data( )[ lo ] )
     if( sw ) then
-        swap a.items( hi ), a.items( lo )
+        swap a.Data( )[ hi ], a.Data( )[ lo ]
     end if
-    sw = less( a.items( hi ), a.items( mid_ ) )
+    sw = less( a.Data( )[ hi ], a.Data( )[ mid_ ] )
     if( sw ) then
-        swap a.items( hi ), a.items( mid_ )
+        swap a.Data( )[ hi ], a.Data( )[ mid_ ]
     end if
 
     '' a.items( lo ) <= a.items( mid_ ) <= a.items( hi ).  Move the median to
     '' lo, where it stays put for the duration of the scan.
-    swap a.items( lo ), a.items( mid_ )
+    swap a.Data( )[ lo ], a.Data( )[ mid_ ]
 
     dim as long i = lo
     dim as long j = hi + 1
@@ -228,7 +228,7 @@ function SortPartitionBy( of T, TCmp )( byref a as Array( of T ), byval lo as lo
             if( i > hi ) then
                 exit do
             end if
-            dim as boolean lt = less( a.items( i ), a.items( lo ) )
+            dim as boolean lt = less( a.Data( )[ i ], a.Data( )[ lo ] )
             if( lt = false ) then
                 exit do
             end if
@@ -241,7 +241,7 @@ function SortPartitionBy( of T, TCmp )( byref a as Array( of T ), byval lo as lo
             if( j <= lo ) then
                 exit do
             end if
-            dim as boolean gt = less( a.items( lo ), a.items( j ) )
+            dim as boolean gt = less( a.Data( )[ lo ], a.Data( )[ j ] )
             if( gt = false ) then
                 exit do
             end if
@@ -251,12 +251,12 @@ function SortPartitionBy( of T, TCmp )( byref a as Array( of T ), byval lo as lo
             exit do
         end if
 
-        swap a.items( i ), a.items( j )
+        swap a.Data( )[ i ], a.Data( )[ j ]
     loop
 
     '' j is the last index holding something not-greater than the pivot, so the
     '' pivot belongs there.
-    swap a.items( lo ), a.items( j )
+    swap a.Data( )[ lo ], a.Data( )[ j ]
     return j
 end function
 
@@ -303,7 +303,7 @@ end sub
 '' just accumulates whatever the array slots used to hold.
 sub SortMergeBy( of T, TCmp )( byref a as Array( of T ), buf( ) as T, byval lo as long, byval mid_ as long, byval hi as long, byref less as TCmp )
     for x as long = lo to mid_
-        swap buf( x ), a.items( x )
+        swap buf( x ), a.Data( )[ x ]
     next
 
     dim as long i = lo
@@ -314,19 +314,19 @@ sub SortMergeBy( of T, TCmp )( byref a as Array( of T ), buf( ) as T, byval lo a
         '' STRICT '<' on the RIGHT element is the whole of the stability
         '' guarantee: on a tie this is false, the left element goes first, and
         '' the original relative order survives.
-        dim as boolean takeRight = less( a.items( j ), buf( i ) )
+        dim as boolean takeRight = less( a.Data( )[ j ], buf( i ) )
         if( takeRight ) then
-            swap a.items( k ), a.items( j )
+            swap a.Data( )[ k ], a.Data( )[ j ]
             j += 1
         else
-            swap a.items( k ), buf( i )
+            swap a.Data( )[ k ], buf( i )
             i += 1
         end if
         k += 1
     wend
 
     while( i <= mid_ )
-        swap a.items( k ), buf( i )
+        swap a.Data( )[ k ], buf( i )
         i += 1
         k += 1
     wend
@@ -342,7 +342,7 @@ end sub
 '' O(n log n) worst case, O(n log n) average, O(log n) stack, no allocation.
 '' NOT stable -- use StableSortBy when equal elements must keep their order.
 public sub SortBy( of T, TCmp )( byref a as Array( of T ), byref less as TCmp )
-    dim as long n = a.num
+    dim as long n = a.Count( )
     if( n < 2 ) then
         exit sub
     end if
@@ -381,7 +381,7 @@ end sub
 '' initial runs are built by insertion sort at the same sixteen-element cutoff
 '' the introsort uses, which skips the first four merge passes outright.
 public sub StableSortBy( of T, TCmp )( byref a as Array( of T ), byref less as TCmp )
-    dim as long n = a.num
+    dim as long n = a.Count( )
     if( n < 2 ) then
         exit sub
     end if
@@ -436,8 +436,8 @@ end sub
 '' Here because it is the assertion every test of the above wants to make, and
 '' writing it once beats writing the loop in every caller.
 public function IsSortedBy( of T, TCmp )( byref a as Array( of T ), byref less as TCmp ) as boolean
-    for i as long = 1 to a.num-1
-        dim as boolean outOfOrder = less( a.items( i ), a.items( i-1 ) )
+    for i as long = 1 to a.Count( )-1
+        dim as boolean outOfOrder = less( a.Data( )[ i ], a.Data( )[ i-1 ] )
         if( outOfOrder ) then
             return false
         end if
@@ -473,11 +473,11 @@ end function
 '' merge is the last one.  The 'prv' pointers are rewritten as the chain is
 '' relinked, which is the only difference from the singly-linked version.
 public sub SortListBy( of T, TCmp )( byref l as LinkedList( of T ), byref less as TCmp )
-    if( l.num < 2 ) then
+    if( l.Count( ) < 2 ) then
         exit sub
     end if
 
-    dim as LinkedNode( of T ) ptr head = l.head
+    dim as LinkedNode( of T ) ptr head = l.FirstNode( )
     dim as LinkedNode( of T ) ptr tail = nullptr
     dim as long runw = 1
 
@@ -547,8 +547,7 @@ public sub SortListBy( of T, TCmp )( byref l as LinkedList( of T ), byref less a
         runw *= 2
     loop
 
-    l.head = head
-    l.tail = tail
+    l.Relink( head, tail )
 end sub
 
 '' Stable merge sort of a LinkedList, ascending, by T's own '<'.

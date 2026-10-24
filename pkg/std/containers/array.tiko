@@ -59,16 +59,27 @@ public type ArrayIterator( of T )
 end type
 
 public type Array( of T )
+    private:
     as T items( any )
     as long num
     as long cap_                        '' slots allocated -- see Capacity( )
 
+    public:
     declare function Count( ) as long
     declare function Capacity( ) as long
     declare function IsEmpty( ) as boolean
 
     declare operator [] ( byval i as long ) byref as T
     declare function At( byval i as long ) byref as T
+    '' THE RAW ACCESSOR: the storage's first slot, NULL when nothing is reserved. For C and
+    '' for loops that index without the Count check -- including the reserved slots past
+    '' Count, which a producer fills and then commits with SetCount. Valid until the next
+    '' call that changes the capacity.
+    declare function Data( ) as T ptr
+    '' COUNT BECOMES n, 0 to Capacity( ): the slots it takes in are whatever Reserve put
+    '' there or was written through Data( ); the ones it gives up are released, as Clear
+    '' releases them. Anything else is runtime error 6.
+    declare sub SetCount( byval n as long )
 
     declare sub Push( byref v as T )
     declare function Pop( ) as T
@@ -83,12 +94,12 @@ end type
 
 function ArrayIterator( of T ).IsValid( ) as boolean
     dim as Array( of T ) ptr a = cptr( Array( of T ) ptr, this.src )
-    return this.idx < a->num
+    return this.idx < a->Count( )
 end function
 
 function ArrayIterator( of T ).Value( ) byref as T
     dim as Array( of T ) ptr a = cptr( Array( of T ) ptr, this.src )
-    return a->items( this.idx )
+    return a->Data( )[ this.idx ]
 end function
 
 sub ArrayIterator( of T ).MoveNext( )
@@ -159,6 +170,20 @@ function Array( of T ).At( byval i as long ) byref as T
     if( cast( ulong, i ) >= cast( ulong, this.num ) ) then error( FB.FB_RTERROR_OUTOFBOUNDS )
     return this.items( i )
 end function
+
+function Array( of T ).Data( ) as T ptr
+    if( this.cap_ = 0 ) then return nullptr
+    return @this.items( 0 )
+end function
+
+sub Array( of T ).SetCount( byval n as long )
+    if( cast( ulong, n ) > cast( ulong, this.cap_ ) ) then error( FB.FB_RTERROR_OUTOFBOUNDS )
+    dim as T blank
+    for k as long = n to this.num - 1
+        this.items( k ) = blank
+    next
+    this.num = n
+end sub
 
 '' v may refer INTO this array -- 'a.Push( a[ 0 ] )' -- and a growing Reserve
 '' reallocates the storage it refers to, so on growth v is copied FIRST, as
@@ -272,8 +297,8 @@ end sub
 '' Requires '=' on T.  Returns -1 when absent, which is why the result is signed
 '' and why Contains( ) exists for the common case.
 public function IndexOf( of T )( byref a as Array( of T ), byref v as T ) as long
-    for k as long = 0 to a.num-1
-        if( a.items( k ) = v ) then
+    for k as long = 0 to a.Count( )-1
+        if( a.Data( )[ k ] = v ) then
             return k
         end if
     next
@@ -304,8 +329,8 @@ end function
 '' -- and a non-capturing lambda or a plain '@proc' still work, because calling
 '' through a generic parameter is just 'f( x )' either way.
 public sub ForEach( of T, F )( byref a as Array( of T ), byref f as F )
-    for i as long = 0 to a.num-1
-        f( a.items( i ) )
+    for i as long = 0 to a.Count( )-1
+        f( a.Data( )[ i ] )
     next
 end sub
 

@@ -26,10 +26,10 @@
 '' First index i with not( a[ i ] < v ): where v would be inserted to keep a
 '' sorted, before any equal elements.  Count( ) when every element is less.
 public function LowerBoundBy( of T, TCmp )( byref a as Array( of T ), byref v as T, byref less as TCmp ) as long
-    dim as long lo = 0, hi = a.num
+    dim as long lo = 0, hi = a.Count( )
     while( lo < hi )
         dim as long m = lo + ( hi - lo ) \ 2
-        if( less( a.items( m ), v ) ) then
+        if( less( a.Data( )[ m ], v ) ) then
             lo = m + 1
         else
             hi = m
@@ -48,10 +48,10 @@ end function
 
 '' First index i with v < a[ i ]: insertion after any equal elements.
 public function UpperBoundBy( of T, TCmp )( byref a as Array( of T ), byref v as T, byref less as TCmp ) as long
-    dim as long lo = 0, hi = a.num
+    dim as long lo = 0, hi = a.Count( )
     while( lo < hi )
         dim as long m = lo + ( hi - lo ) \ 2
-        if( less( v, a.items( m ) ) ) then
+        if( less( v, a.Data( )[ m ] ) ) then
             hi = m
         else
             lo = m + 1
@@ -74,8 +74,8 @@ end function
 '' -( result + 1 ), so a miss still says where v belongs (Java and C#).
 public function BinarySearchBy( of T, TCmp )( byref a as Array( of T ), byref v as T, byref less as TCmp ) as long
     dim as long i = LowerBoundBy( a, v, less )
-    if( i < a.num ) then
-        if( less( v, a.items( i ) ) = FALSE ) then
+    if( i < a.Count( ) ) then
+        if( less( v, a.Data( )[ i ] ) = FALSE ) then
             return i
         end if
     end if
@@ -94,10 +94,10 @@ end function
 '' comes before every element for which it is FALSE -- the index of the first
 '' FALSE one, Count( ) when there is none.  'pred( x )' returns boolean.
 public function PartitionPoint( of T, TPred )( byref a as Array( of T ), byref pred as TPred ) as long
-    dim as long lo = 0, hi = a.num
+    dim as long lo = 0, hi = a.Count( )
     while( lo < hi )
         dim as long m = lo + ( hi - lo ) \ 2
-        if( pred( a.items( m ) ) ) then
+        if( pred( a.Data( )[ m ] ) ) then
             lo = m + 1
         else
             hi = m
@@ -110,12 +110,12 @@ end function
 
 '' The index of the first smallest element; -1 when a is empty.
 public function MinIndexBy( of T, TCmp )( byref a as Array( of T ), byref less as TCmp ) as long
-    if( a.num = 0 ) then
+    if( a.Count( ) = 0 ) then
         return -1
     end if
     dim as long b = 0
-    for i as long = 1 to a.num - 1
-        if( less( a.items( i ), a.items( b ) ) ) then
+    for i as long = 1 to a.Count( ) - 1
+        if( less( a.Data( )[ i ], a.Data( )[ b ] ) ) then
             b = i
         end if
     next
@@ -132,12 +132,12 @@ end function
 
 '' The index of the first largest element; -1 when a is empty.
 public function MaxIndexBy( of T, TCmp )( byref a as Array( of T ), byref less as TCmp ) as long
-    if( a.num = 0 ) then
+    if( a.Count( ) = 0 ) then
         return -1
     end if
     dim as long b = 0
-    for i as long = 1 to a.num - 1
-        if( less( a.items( b ), a.items( i ) ) ) then
+    for i as long = 1 to a.Count( ) - 1
+        if( less( a.Data( )[ b ], a.Data( )[ i ] ) ) then
             b = i
         end if
     next
@@ -160,9 +160,9 @@ end function
 '' numeric.Rotate exist, and a program 'using' both modules would find the bare
 '' name ambiguous (TKO0919) -- the reason SortList is not another Sort.
 public sub ReverseArray( of T )( byref a as Array( of T ) )
-    dim as long i = 0, j = a.num - 1
+    dim as long i = 0, j = a.Count( ) - 1
     while( i < j )
-        swap a.items( i ), a.items( j )
+        swap a.Data( )[ i ], a.Data( )[ j ]
         i += 1
         j -= 1
     wend
@@ -170,7 +170,7 @@ end sub
 
 sub AlgoReverseRange( of T )( byref a as Array( of T ), byval i as long, byval j as long )
     while( i < j )
-        swap a.items( i ), a.items( j )
+        swap a.Data( )[ i ], a.Data( )[ j ]
         i += 1
         j -= 1
     wend
@@ -179,7 +179,7 @@ end sub
 '' Rotates left by k: the element at index k becomes the first.  Any k --
 '' negative rotates right, and k is taken modulo Count( ).  Three reversals.
 public sub RotateArray( of T )( byref a as Array( of T ), byval k as long )
-    dim as long n = a.num
+    dim as long n = a.Count( )
     if( n < 2 ) then
         exit sub
     end if
@@ -199,21 +199,21 @@ end sub
 '' Vec::dedup, C++'s unique + erase).  Sort first to remove all duplicates.
 '' Returns the number removed.
 public function DedupBy( of T, TEq )( byref a as Array( of T ), byref same as TEq ) as long
-    dim as long n = a.num
+    dim as long n = a.Count( )
     if( n < 2 ) then
         return 0
     end if
     dim as long w = 1
     for r as long = 1 to n - 1
-        if( same( a.items( r ), a.items( w - 1 ) ) = FALSE ) then
+        if( same( a.Data( )[ r ], a.Data( )[ w - 1 ] ) = FALSE ) then
             if( w <> r ) then
-                swap a.items( w ), a.items( r )
+                swap a.Data( )[ w ], a.Data( )[ r ]
             end if
             w += 1
         end if
     next
     dim as long removed = n - w
-    while( a.num > w )
+    while( a.Count( ) > w )
         a.Pop( )
     wend
     return removed
@@ -238,13 +238,13 @@ end function
 ''
 '' visits every distinct permutation once, duplicates included only once.
 public function NextPermutationBy( of T, TCmp )( byref a as Array( of T ), byref less as TCmp ) as boolean
-    dim as long n = a.num
+    dim as long n = a.Count( )
     if( n < 2 ) then
         return FALSE
     end if
     dim as long i = n - 2
     while( i >= 0 )
-        if( less( a.items( i ), a.items( i + 1 ) ) ) then
+        if( less( a.Data( )[ i ], a.Data( )[ i + 1 ] ) ) then
             exit while
         end if
         i -= 1
@@ -254,10 +254,10 @@ public function NextPermutationBy( of T, TCmp )( byref a as Array( of T ), byref
         return FALSE
     end if
     dim as long j = n - 1
-    while( less( a.items( i ), a.items( j ) ) = FALSE )
+    while( less( a.Data( )[ i ], a.Data( )[ j ] ) = FALSE )
         j -= 1
     wend
-    swap a.items( i ), a.items( j )
+    swap a.Data( )[ i ], a.Data( )[ j ]
     AlgoReverseRange( a, i + 1, n - 1 )
     return TRUE
 end function
@@ -277,21 +277,21 @@ end function
 '' less, a[ p ] in its sorted place.
 function AlgoPartitionBy( of T, TCmp )( byref a as Array( of T ), byval lo as long, byval hi as long, byref less as TCmp ) as long
     dim as long m = lo + ( hi - lo ) \ 2
-    if( less( a.items( m ), a.items( lo ) ) ) then swap a.items( m ), a.items( lo )
-    if( less( a.items( hi ), a.items( lo ) ) ) then swap a.items( hi ), a.items( lo )
-    if( less( a.items( hi ), a.items( m ) ) ) then swap a.items( hi ), a.items( m )
+    if( less( a.Data( )[ m ], a.Data( )[ lo ] ) ) then swap a.Data( )[ m ], a.Data( )[ lo ]
+    if( less( a.Data( )[ hi ], a.Data( )[ lo ] ) ) then swap a.Data( )[ hi ], a.Data( )[ lo ]
+    if( less( a.Data( )[ hi ], a.Data( )[ m ] ) ) then swap a.Data( )[ hi ], a.Data( )[ m ]
     '' the median is at m; park it at hi and partition lo .. hi-1 (Lomuto)
-    swap a.items( m ), a.items( hi )
+    swap a.Data( )[ m ], a.Data( )[ hi ]
     dim as long s = lo
     for i as long = lo to hi - 1
-        if( less( a.items( i ), a.items( hi ) ) ) then
+        if( less( a.Data( )[ i ], a.Data( )[ hi ] ) ) then
             if( i <> s ) then
-                swap a.items( i ), a.items( s )
+                swap a.Data( )[ i ], a.Data( )[ s ]
             end if
             s += 1
         end if
     next
-    swap a.items( s ), a.items( hi )
+    swap a.Data( )[ s ], a.Data( )[ hi ]
     return s
 end function
 
@@ -301,12 +301,12 @@ end function
 '' the worst case is O(n log n), not O(n^2).  k outside 0 .. Count( )-1 does
 '' nothing.
 public sub NthElementBy( of T, TCmp )( byref a as Array( of T ), byval k as long, byref less as TCmp )
-    if( ( k < 0 ) orelse ( k >= a.num ) ) then
+    if( ( k < 0 ) orelse ( k >= a.Count( ) ) ) then
         exit sub
     end if
-    dim as long lo = 0, hi = a.num - 1
+    dim as long lo = 0, hi = a.Count( ) - 1
     dim as long budget = 0
-    dim as long m = a.num
+    dim as long m = a.Count( )
     while( m > 1 )
         m \= 2
         budget += 2
@@ -349,14 +349,14 @@ sub AlgoSiftDownMaxBy( of T, TCmp )( byref a as Array( of T ), byval i as long, 
         dim as long m = l
         dim as long r = l + 1
         if( r < n ) then
-            if( less( a.items( l ), a.items( r ) ) ) then
+            if( less( a.Data( )[ l ], a.Data( )[ r ] ) ) then
                 m = r
             end if
         end if
-        if( less( a.items( i ), a.items( m ) ) = FALSE ) then
+        if( less( a.Data( )[ i ], a.Data( )[ m ] ) = FALSE ) then
             exit do
         end if
-        swap a.items( i ), a.items( m )
+        swap a.Data( )[ i ], a.Data( )[ m ]
         i = m
     loop
 end sub
@@ -365,7 +365,7 @@ end sub
 '' order of the rest is unspecified.  k >= Count( ) sorts everything.  A
 '' max-heap of the k smallest seen so far: O(n log k).
 public sub PartialSortBy( of T, TCmp )( byref a as Array( of T ), byval k as long, byref less as TCmp )
-    dim as long n = a.num
+    dim as long n = a.Count( )
     if( k <= 0 ) then
         exit sub
     end if
@@ -378,14 +378,14 @@ public sub PartialSortBy( of T, TCmp )( byref a as Array( of T ), byval k as lon
         AlgoSiftDownMaxBy( a, i, k, less )
     next
     for i as long = k to n - 1
-        if( less( a.items( i ), a.items( 0 ) ) ) then
-            swap a.items( i ), a.items( 0 )
+        if( less( a.Data( )[ i ], a.Data( )[ 0 ] ) ) then
+            swap a.Data( )[ i ], a.Data( )[ 0 ]
             AlgoSiftDownMaxBy( a, 0, k, less )
         end if
     next
     '' heap-sort the prefix in place: move the largest to the end each time
     for e as long = k - 1 to 1 step -1
-        swap a.items( 0 ), a.items( e )
+        swap a.Data( )[ 0 ], a.Data( )[ e ]
         AlgoSiftDownMaxBy( a, 0, e, less )
     next
 end sub

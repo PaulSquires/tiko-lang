@@ -37,10 +37,12 @@ public type LinkedListIterator( of T )
 end type
 
 public type LinkedList( of T )
+    private:
     as LinkedNode( of T ) ptr head
     as LinkedNode( of T ) ptr tail
     as long num
 
+    public:
     declare constructor( )
     declare constructor( byref rhs as LinkedList( of T ) )
     declare destructor( )
@@ -48,6 +50,12 @@ public type LinkedList( of T )
 
     declare function Count( ) as long
     declare function IsEmpty( ) as boolean
+
+    '' THE NODE CHAIN, for an algorithm that relinks it in place (SortListBy). The nodes
+    '' stay the list's: Relink takes the same nodes in a new order, so Count( ) holds.
+    declare function FirstNode( ) as LinkedNode( of T ) ptr
+    declare function LastNode( ) as LinkedNode( of T ) ptr
+    declare sub Relink( byval first as LinkedNode( of T ) ptr, byval last as LinkedNode( of T ) ptr )
 
     declare sub PushFront( byref v as T )
     declare sub PushBack( byref v as T )
@@ -100,6 +108,19 @@ end sub
 function LinkedList( of T ).Count( ) as long
     return this.num
 end function
+
+function LinkedList( of T ).FirstNode( ) as LinkedNode( of T ) ptr
+    return this.head
+end function
+
+function LinkedList( of T ).LastNode( ) as LinkedNode( of T ) ptr
+    return this.tail
+end function
+
+sub LinkedList( of T ).Relink( byval first as LinkedNode( of T ) ptr, byval last as LinkedNode( of T ) ptr )
+    this.head = first
+    this.tail = last
+end sub
 
 function LinkedList( of T ).IsEmpty( ) as boolean
     return this.num = 0

@@ -152,10 +152,10 @@ function EncBytesToString( byval p as const ubyte ptr, byval n as long ) as stri
 end function
 
 function EncArrayPtr( byref a as Array( of ubyte ) ) as const ubyte ptr
-    if( a.num = 0 ) then
+    if( a.Count( ) = 0 ) then
         return nullptr
     end if
-    return @a.items( 0 )
+    return a.Data( )
 end function
 
 '' 0 when p[0 .. n-1] is well-formed UTF-8 (no overlongs, no surrogates, nothing

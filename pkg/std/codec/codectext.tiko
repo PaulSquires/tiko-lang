@@ -203,8 +203,8 @@ sub EncTSetBytes( byref buf as Array( of ubyte ), byval p as const ubyte ptr, by
     buf.Clear( )
     if( n <= 0 ) then exit sub
     buf.Reserve( n )
-    enct_memcpy( @buf.items( 0 ), p, n )
-    buf.num = n
+    enct_memcpy( buf.Data( ), p, n )
+    buf.SetCount( n )
 end sub
 
 '' Code pages no conversion here will take: UTF-16 and UTF-32 by number (they have
@@ -327,9 +327,9 @@ function EncTEncodeTable( byref s as const ustring, byval cp as ulong, byref buf
             exact = FALSE
             b = 63
         end if
-        buf.items( i ) = b
+        buf.Data( )[ i ] = b
     next
-    buf.num = n
+    buf.SetCount( n )
     return Ok( of boolean, EncodingError )( exact )
 end function
 
@@ -383,10 +383,10 @@ function EncTEncodeWin( byref s as const ustring, byval cp as ulong, byref buf a
             if( need <= 0 ) then return EncFail( of boolean )( ENC_UNSUPPORTED, 0, op )
         end if
         buf.Reserve( need )
-        if( enct_WideCharToMultiByte( cp, fl, w, n, @buf.items( 0 ), need, nullptr, nullptr ) <> need ) then
+        if( enct_WideCharToMultiByte( cp, fl, w, n, buf.Data( ), need, nullptr, nullptr ) <> need ) then
             return EncFail( of boolean )( ENC_UNSUPPORTED, 0, op )
         end if
-        buf.num = need
+        buf.SetCount( need )
         return Ok( of boolean, EncodingError )( exact )
     end if
 
@@ -396,12 +396,12 @@ function EncTEncodeWin( byref s as const ustring, byval cp as ulong, byref buf a
     if( strict andalso ( used <> 0 ) ) then return EncFail( of boolean )( ENC_UNMAPPABLE, 0, op )
     buf.Reserve( need )
     used = 0
-    if( enct_WideCharToMultiByte( cp, ENCT_WC_NO_BEST_FIT_CHARS, w, n, @buf.items( 0 ), need, nullptr, @used ) <> need ) then
+    if( enct_WideCharToMultiByte( cp, ENCT_WC_NO_BEST_FIT_CHARS, w, n, buf.Data( ), need, nullptr, @used ) <> need ) then
         buf.Clear( )
         return EncFail( of boolean )( ENC_UNSUPPORTED, 0, op )
     end if
     if( strict andalso ( used <> 0 ) ) then return EncFail( of boolean )( ENC_UNMAPPABLE, 0, op )
-    buf.num = need
+    buf.SetCount( need )
     return Ok( of boolean, EncodingError )( used = 0 )
 end function
 #endif
@@ -470,7 +470,7 @@ end function
 
 public function DecodeText overload ( byref buf as Array( of ubyte ), byval enc as TextEncoding, _
         byval strict as boolean = FALSE ) as EncResultText
-    return DecodeText( EncArrayPtr( buf ), buf.num, enc, strict )
+    return DecodeText( EncArrayPtr( buf ), buf.Count( ), enc, strict )
 end function
 
 '' -------------------------------------------------------------- EncodeText
@@ -501,10 +501,10 @@ public function EncodeText overload ( byref s as const ustring, byval enc as Tex
         if( m + start > 0 ) then
             buf.Reserve( m + start )
             if( start > 0 ) then
-                buf.items( 0 ) = &hEF : buf.items( 1 ) = &hBB : buf.items( 2 ) = &hBF
+                buf.Data( )[ 0 ] = &hEF : buf.Data( )[ 1 ] = &hBB : buf.Data( )[ 2 ] = &hBF
             end if
-            if( m > 0 ) then enct_memcpy( @buf.items( start ), strptr( b ), m )
-            buf.num = m + start
+            if( m > 0 ) then enct_memcpy( @buf.Data( )[ start ], strptr( b ), m )
+            buf.SetCount( m + start )
         end if
         return Ok( of boolean, EncodingError )( EncTHasLoneSurrogate( s ) = FALSE )
 
@@ -515,17 +515,17 @@ public function EncodeText overload ( byref s as const ustring, byval enc as Tex
         if( n * 2 + start > 0 ) then
             buf.Reserve( n * 2 + start )
             if( start > 0 ) then
-                buf.items( 0 ) = iif( be, &hFE, &hFF )
-                buf.items( 1 ) = iif( be, &hFF, &hFE )
+                buf.Data( )[ 0 ] = iif( be, &hFE, &hFF )
+                buf.Data( )[ 1 ] = iif( be, &hFF, &hFE )
             end if
             for i as long = 0 to n - 1
                 dim as ulong u = s[i]
                 dim as ubyte lo = u and &hFF, hi = ( u shr 8 ) and &hFF
                 if( be ) then swap lo, hi
-                buf.items( start + i * 2 ) = lo
-                buf.items( start + i * 2 + 1 ) = hi
+                buf.Data( )[ start + i * 2 ] = lo
+                buf.Data( )[ start + i * 2 + 1 ] = hi
             next
-            buf.num = n * 2 + start
+            buf.SetCount( n * 2 + start )
         end if
         return Ok( of boolean, EncodingError )( TRUE )
 
@@ -544,9 +544,9 @@ public function EncodeText overload ( byref s as const ustring, byval enc as Tex
                 exact = FALSE
                 u = 63
             end if
-            buf.items( i ) = u
+            buf.Data( )[ i ] = u
         next
-        buf.num = n
+        buf.SetCount( n )
         return Ok( of boolean, EncodingError )( exact )
 
     case TEXT_CODEPAGE
@@ -655,7 +655,7 @@ public function DetectEncoding overload ( byval p as const ubyte ptr, byval n as
 end function
 
 public function DetectEncoding overload ( byref buf as Array( of ubyte ), byref opts as const TextDetect ) as EncResultEncoding
-    return DetectEncoding( EncArrayPtr( buf ), buf.num, opts, TRUE )
+    return DetectEncoding( EncArrayPtr( buf ), buf.Count( ), opts, TRUE )
 end function
 
 '' ----------------------------------------------------------- CodePageTable

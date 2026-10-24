@@ -33,7 +33,7 @@ using outcome
 '' -------------------------------------------------------------- internal
 
 function EncGetRaw( byref b as Array( of ubyte ), byval off as long, byval w as long, byval be as boolean ) as ulongint
-    if( ( off < 0 ) orelse ( off + w > b.num ) ) then
+    if( ( off < 0 ) orelse ( off + w > b.Count( ) ) ) then
         error 6
         return 0
     end if
@@ -43,7 +43,7 @@ function EncGetRaw( byref b as Array( of ubyte ), byval off as long, byval w as 
         if( be ) then
             idx = off + k
         end if
-        v = ( v shl 8 ) or b.items( idx )
+        v = ( v shl 8 ) or b.Data( )[ idx ]
     next
     return v
 end function
@@ -53,19 +53,19 @@ sub EncPutRaw( byref b as Array( of ubyte ), byval off as long, byval w as long,
         error 6
         exit sub
     end if
-    if( off + w > b.num ) then
+    if( off + w > b.Count( ) ) then
         b.Reserve( off + w )
-        for k as long = b.num to off + w - 1
-            b.items( k ) = 0
+        for k as long = b.Count( ) to off + w - 1
+            b.Data( )[ k ] = 0
         next
-        b.num = off + w
+        b.SetCount( off + w )
     end if
     for k as long = 0 to w - 1
         dim as long idx = off + k
         if( be ) then
             idx = off + w - 1 - k
         end if
-        b.items( idx ) = cubyte( v and &hFF )
+        b.Data( )[ idx ] = cubyte( v and &hFF )
         v shr= 8
     next
 end sub
@@ -109,10 +109,10 @@ public function ReadUVarint( byref b as Array( of ubyte ), byref off as long ) a
     dim as ulongint v = 0
     dim as long i = off
     for k as long = 0 to 9
-        if( ( i < 0 ) orelse ( i >= b.num ) ) then
+        if( ( i < 0 ) orelse ( i >= b.Count( ) ) ) then
             return EncFail( of ulongint )( ENC_TRUNCATED, 0, "ReadUVarint" )
         end if
-        dim as ulongint g = b.items( i )
+        dim as ulongint g = b.Data( )[ i ]
         i += 1
         if( k = 9 ) then
             if( g > 1 ) then
@@ -158,7 +158,7 @@ public sub PutU16LE( byref b as Array( of ubyte ), byval off as long, byval v as
 end sub
 
 public sub AppendU16LE( byref b as Array( of ubyte ), byval v as ushort )
-    PutU16LE( b, b.num, v )
+    PutU16LE( b, b.Count( ), v )
 end sub
 
 public function GetU16BE( byref b as Array( of ubyte ), byval off as long ) as ushort
@@ -170,7 +170,7 @@ public sub PutU16BE( byref b as Array( of ubyte ), byval off as long, byval v as
 end sub
 
 public sub AppendU16BE( byref b as Array( of ubyte ), byval v as ushort )
-    PutU16BE( b, b.num, v )
+    PutU16BE( b, b.Count( ), v )
 end sub
 
 public function GetU32LE( byref b as Array( of ubyte ), byval off as long ) as ulong
@@ -182,7 +182,7 @@ public sub PutU32LE( byref b as Array( of ubyte ), byval off as long, byval v as
 end sub
 
 public sub AppendU32LE( byref b as Array( of ubyte ), byval v as ulong )
-    PutU32LE( b, b.num, v )
+    PutU32LE( b, b.Count( ), v )
 end sub
 
 public function GetU32BE( byref b as Array( of ubyte ), byval off as long ) as ulong
@@ -194,7 +194,7 @@ public sub PutU32BE( byref b as Array( of ubyte ), byval off as long, byval v as
 end sub
 
 public sub AppendU32BE( byref b as Array( of ubyte ), byval v as ulong )
-    PutU32BE( b, b.num, v )
+    PutU32BE( b, b.Count( ), v )
 end sub
 
 public function GetU64LE( byref b as Array( of ubyte ), byval off as long ) as ulongint
@@ -206,7 +206,7 @@ public sub PutU64LE( byref b as Array( of ubyte ), byval off as long, byval v as
 end sub
 
 public sub AppendU64LE( byref b as Array( of ubyte ), byval v as ulongint )
-    PutU64LE( b, b.num, v )
+    PutU64LE( b, b.Count( ), v )
 end sub
 
 public function GetU64BE( byref b as Array( of ubyte ), byval off as long ) as ulongint
@@ -218,7 +218,7 @@ public sub PutU64BE( byref b as Array( of ubyte ), byval off as long, byval v as
 end sub
 
 public sub AppendU64BE( byref b as Array( of ubyte ), byval v as ulongint )
-    PutU64BE( b, b.num, v )
+    PutU64BE( b, b.Count( ), v )
 end sub
 
 public function GetI16LE( byref b as Array( of ubyte ), byval off as long ) as short
@@ -230,7 +230,7 @@ public sub PutI16LE( byref b as Array( of ubyte ), byval off as long, byval v as
 end sub
 
 public sub AppendI16LE( byref b as Array( of ubyte ), byval v as short )
-    PutI16LE( b, b.num, v )
+    PutI16LE( b, b.Count( ), v )
 end sub
 
 public function GetI16BE( byref b as Array( of ubyte ), byval off as long ) as short
@@ -242,7 +242,7 @@ public sub PutI16BE( byref b as Array( of ubyte ), byval off as long, byval v as
 end sub
 
 public sub AppendI16BE( byref b as Array( of ubyte ), byval v as short )
-    PutI16BE( b, b.num, v )
+    PutI16BE( b, b.Count( ), v )
 end sub
 
 public function GetI32LE( byref b as Array( of ubyte ), byval off as long ) as long
@@ -254,7 +254,7 @@ public sub PutI32LE( byref b as Array( of ubyte ), byval off as long, byval v as
 end sub
 
 public sub AppendI32LE( byref b as Array( of ubyte ), byval v as long )
-    PutI32LE( b, b.num, v )
+    PutI32LE( b, b.Count( ), v )
 end sub
 
 public function GetI32BE( byref b as Array( of ubyte ), byval off as long ) as long
@@ -266,7 +266,7 @@ public sub PutI32BE( byref b as Array( of ubyte ), byval off as long, byval v as
 end sub
 
 public sub AppendI32BE( byref b as Array( of ubyte ), byval v as long )
-    PutI32BE( b, b.num, v )
+    PutI32BE( b, b.Count( ), v )
 end sub
 
 public function GetI64LE( byref b as Array( of ubyte ), byval off as long ) as longint
@@ -278,7 +278,7 @@ public sub PutI64LE( byref b as Array( of ubyte ), byval off as long, byval v as
 end sub
 
 public sub AppendI64LE( byref b as Array( of ubyte ), byval v as longint )
-    PutI64LE( b, b.num, v )
+    PutI64LE( b, b.Count( ), v )
 end sub
 
 public function GetI64BE( byref b as Array( of ubyte ), byval off as long ) as longint
@@ -290,7 +290,7 @@ public sub PutI64BE( byref b as Array( of ubyte ), byval off as long, byval v as
 end sub
 
 public sub AppendI64BE( byref b as Array( of ubyte ), byval v as longint )
-    PutI64BE( b, b.num, v )
+    PutI64BE( b, b.Count( ), v )
 end sub
 
 public function GetF32LE( byref b as Array( of ubyte ), byval off as long ) as single
@@ -304,7 +304,7 @@ public sub PutF32LE( byref b as Array( of ubyte ), byval off as long, byval v as
 end sub
 
 public sub AppendF32LE( byref b as Array( of ubyte ), byval v as single )
-    PutF32LE( b, b.num, v )
+    PutF32LE( b, b.Count( ), v )
 end sub
 
 public function GetF32BE( byref b as Array( of ubyte ), byval off as long ) as single
@@ -318,7 +318,7 @@ public sub PutF32BE( byref b as Array( of ubyte ), byval off as long, byval v as
 end sub
 
 public sub AppendF32BE( byref b as Array( of ubyte ), byval v as single )
-    PutF32BE( b, b.num, v )
+    PutF32BE( b, b.Count( ), v )
 end sub
 
 public function GetF64LE( byref b as Array( of ubyte ), byval off as long ) as double
@@ -332,7 +332,7 @@ public sub PutF64LE( byref b as Array( of ubyte ), byval off as long, byval v as
 end sub
 
 public sub AppendF64LE( byref b as Array( of ubyte ), byval v as double )
-    PutF64LE( b, b.num, v )
+    PutF64LE( b, b.Count( ), v )
 end sub
 
 public function GetF64BE( byref b as Array( of ubyte ), byval off as long ) as double
@@ -346,5 +346,5 @@ public sub PutF64BE( byref b as Array( of ubyte ), byval off as long, byval v as
 end sub
 
 public sub AppendF64BE( byref b as Array( of ubyte ), byval v as double )
-    PutF64BE( b, b.num, v )
+    PutF64BE( b, b.Count( ), v )
 end sub

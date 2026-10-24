@@ -798,13 +798,13 @@ function TextWriter.Write( byref s as const ustring ) as FsResultBool
                 dim as Array( of ubyte ) bom
                 codec.EncodeText( "", this.m_enc, bom )
                 if( bom.Count( ) > 0 ) then
-                    dim as FsResultBool w = this.m_inner->WriteAll( @bom.items( 0 ), bom.Count( ) )
+                    dim as FsResultBool w = this.m_inner->WriteAll( bom.Data( ), bom.Count( ) )
                     if( w.IsOk( ) = FALSE ) then return w
                 end if
             end if
         end if
         if( b.Count( ) > 0 ) then
-            dim as FsResultBool w = this.m_inner->WriteAll( @b.items( 0 ), b.Count( ) )
+            dim as FsResultBool w = this.m_inner->WriteAll( b.Data( ), b.Count( ) )
             if( w.IsOk( ) = FALSE ) then return w
         end if
         return Ok( of boolean, FsError )( e.Value( ) )

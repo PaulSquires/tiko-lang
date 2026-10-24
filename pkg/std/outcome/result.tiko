@@ -57,6 +57,7 @@
 using FB
 
 public type Result( of T, E )
+    private:
     '' The failure slot is named 'f', not the obvious 'e'.  FreeBASIC
     '' identifiers are case-insensitive, so a field 'e' IS the type parameter
     '' 'E', and the instantiation fails with a misleading
@@ -65,11 +66,26 @@ public type Result( of T, E )
     as E f
     as boolean ok
 
+    public:
     declare function IsOk( ) as boolean
     declare function Value( ) byref as T
     declare function Failure( ) byref as E
     declare function ValueOr( byref dflt as T ) byref as T
+    '' Becomes a success holding v, or a failure holding f -- what Ok( ) and Fail( )
+    '' build. The fields are private (review LIB-04), so the flag always matches the slot.
+    declare sub AssignOk( byref v as T )
+    declare sub AssignFail( byref f as E )
 end type
+
+sub Result( of T, E ).AssignOk( byref v as T )
+    this.v = v
+    this.ok = TRUE
+end sub
+
+sub Result( of T, E ).AssignFail( byref f as E )
+    this.f = f
+    this.ok = FALSE
+end sub
 
 function Result( of T, E ).IsOk( ) as boolean
     return this.ok
@@ -149,15 +165,13 @@ end function
 ''     type ParseResult as Result( of long, string )
 public function Ok( of T, E )( byref v as T ) as Result( of T, E )
     dim as Result( of T, E ) r
-    r.v = v
-    r.ok = TRUE
+    r.AssignOk( v )
     return r
 end function
 
 public function Fail( of T, E )( byref f as E ) as Result( of T, E )
     dim as Result( of T, E ) r
-    r.f = f
-    r.ok = FALSE
+    r.AssignFail( f )
     return r
 end function
 

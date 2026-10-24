@@ -55,9 +55,11 @@ public type OrderedSetIterator( of T )
 end type
 
 public type OrderedSet( of T )
+    private:
     as RBSetNode( of T ) ptr root
     as long num
 
+    public:
     declare constructor( )
     declare constructor( byref rhs as OrderedSet( of T ) )
     declare destructor( )

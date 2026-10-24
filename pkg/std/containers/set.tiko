@@ -43,12 +43,14 @@ public type SetIterator( of T )
 end type
 
 public type Set( of T )
+    private:
     as T elems( any )
     as ubyte state( any )
     as long num                         '' live elements
     as long used                        '' live + tombstones, for the load factor
     as long cap_                        '' slots allocated -- see Capacity( )
 
+    public:
     declare function Count( ) as long
     declare function IsEmpty( ) as boolean
     declare function Capacity( ) as long
@@ -67,6 +69,11 @@ public type Set( of T )
 
     declare function Items( ) as Array( of T )
     declare function GetIterator( ) as SetIterator( of T )
+    '' THE SLOT PROTOCOL SetIterator walks: slots 0 to Capacity( ) - 1, of which the used
+    '' ones hold elements. 'for each' is the way to use it; it is public only because an
+    '' iterator is another type and cannot see this one's private fields.
+    declare function SlotUsed( byval slot as long ) as boolean
+    declare function SlotValue( byval slot as long ) byref as T
 end type
 
 function Set( of T ).Count( ) as long
@@ -82,6 +89,14 @@ end function
 '' fb_ArrayLBound) -- two calls on every lookup, four on an Add.
 function Set( of T ).Capacity( ) as long
     return this.cap_
+end function
+
+function Set( of T ).SlotUsed( byval slot as long ) as boolean
+    return this.state( slot ) = SET_USED
+end function
+
+function Set( of T ).SlotValue( byval slot as long ) byref as T
+    return this.elems( slot )
 end function
 
 '' The slot holding v, or -1.  Probing stops at the first EMPTY slot; a
@@ -339,7 +354,7 @@ end function
 '' again.  Remove and re-Add instead.
 function SetIterator( of T ).Value( ) byref as T
     dim as Set( of T ) ptr s = cptr( Set( of T ) ptr, this.src )
-    return s->elems( this.slot )
+    return s->SlotValue( this.slot )
 end function
 
 sub SetIterator( of T ).MoveNext( )
@@ -347,7 +362,7 @@ sub SetIterator( of T ).MoveNext( )
     dim as long cap = s->Capacity( )
 
     this.slot += 1
-    while( (this.slot < cap) andalso (s->state( this.slot ) <> SET_USED) )
+    while( (this.slot < cap) andalso (s->SlotUsed( this.slot ) = false) )
         this.slot += 1
     wend
 end sub

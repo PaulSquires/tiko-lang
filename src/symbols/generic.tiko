@@ -207,7 +207,14 @@ function InstantiateGeneric_ _
         dim as Tko.SymbolId fsid = c.syms->DeclareSym( iin, fnm, Tko.SYM_FIELD, _
             c.ast->Loc( m ), fdup )
         dim as Tko.Symbol ptr fs = c.syms->SymbolAt( fsid )
-        if fs <> nullptr then fs->type_ = ft
+        if fs <> nullptr then
+            fs->type_ = ft
+            '' 'private:' / 'protected:' ON AN INSTANCE'S FIELD TOO, as Collect puts them on a
+            '' plain type's: without them 'a.num = 50' compiled against every std container
+            '' (fbc: error 202; review LIB-04).
+            if (fp->extra and Tko.PF_MEMB_PRIVATE) <> 0 then fs->flags or= Tko.SYMF_MEMB_PRIVATE
+            if (fp->extra and Tko.PF_MEMB_PROTECTED) <> 0 then fs->flags or= Tko.SYMF_MEMB_PROTECTED
+        end if
     next
     c.instDepth -= 1 : c.instChain -= 1 : c.diags->LeaveInst( tfr )
 

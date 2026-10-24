@@ -48,8 +48,8 @@
 sub HeapSiftUpBy( of T, TCmp )( byref a as Array( of T ), byval i as long, byref less as TCmp )
     while( i > 0 )
         dim as long p = ( i - 1 ) \ 2
-        if( less( a.items( i ), a.items( p ) ) ) then
-            swap a.items( i ), a.items( p )
+        if( less( a.Data( )[ i ], a.Data( )[ p ] ) ) then
+            swap a.Data( )[ i ], a.Data( )[ p ]
             i = p
         else
             exit while
@@ -66,28 +66,28 @@ sub HeapSiftDownBy( of T, TCmp )( byref a as Array( of T ), byval i as long, byv
         dim as long m = l
         dim as long r = l + 1
         if( r < n ) then
-            if( less( a.items( r ), a.items( l ) ) ) then
+            if( less( a.Data( )[ r ], a.Data( )[ l ] ) ) then
                 m = r
             end if
         end if
-        if( less( a.items( m ), a.items( i ) ) = FALSE ) then
+        if( less( a.Data( )[ m ], a.Data( )[ i ] ) = FALSE ) then
             exit do
         end if
-        swap a.items( i ), a.items( m )
+        swap a.Data( )[ i ], a.Data( )[ m ]
         i = m
     loop
 end sub
 
 '' Removes the root into 'outv'.  The caller has checked that a is not empty.
 sub HeapPopInto( of T, TCmp )( byref a as Array( of T ), byref outv as T, byref less as TCmp )
-    dim as long n = a.num - 1
-    swap a.items( 0 ), a.items( n )
-    swap outv, a.items( n )
+    dim as long n = a.Count( ) - 1
+    swap a.Data( )[ 0 ], a.Data( )[ n ]
+    swap outv, a.Data( )[ n ]
     '' the slot now holds whatever outv held before: release it now, not when the
     '' slot is next written (TryPop into a variable that already has a value)
     dim as T blank
-    swap a.items( n ), blank
-    a.num = n
+    swap a.Data( )[ n ], blank
+    a.Pop( )                                     '' drops the blanked slot: Count( ) is n
     HeapSiftDownBy( a, 0, n, less )
 end sub
 
@@ -101,8 +101,10 @@ end sub
 '' -------------------------------------------------------------- PriorityQueue
 
 public type PriorityQueue( of T )
+    private:
     as Array( of T ) heap_
 
+    public:
     declare sub Push( byref v as T )
     declare function Pop( ) as T
     declare function TryPop( byref outv as T ) as boolean
@@ -113,7 +115,18 @@ public type PriorityQueue( of T )
     declare sub Reserve( byval n as long )
     declare function ToSortedArray( ) as Array( of T )
     declare function GetIterator( ) as ArrayIterator( of T )
+    '' The queue becomes a's elements, heap-ordered in O(n) -- what MakeHeap builds on.
+    declare sub Assign( byref a as Array( of T ) )
 end type
+
+sub PriorityQueue( of T ).Assign( byref a as Array( of T ) )
+    dim as function( byref as T, byref as T ) as boolean less = _
+        function( byref x as T, byref y as T ) as boolean
+            return x < y
+        end function
+    this.heap_ = a
+    HeapifyBy( this.heap_, this.heap_.Count( ), less )
+end sub
 
 sub PriorityQueue( of T ).Push( byref v as T )
     dim as function( byref as T, byref as T ) as boolean less = _
@@ -121,7 +134,7 @@ sub PriorityQueue( of T ).Push( byref v as T )
             return x < y
         end function
     this.heap_.Push( v )
-    HeapSiftUpBy( this.heap_, this.heap_.num - 1, less )
+    HeapSiftUpBy( this.heap_, this.heap_.Count( ) - 1, less )
 end sub
 
 function PriorityQueue( of T ).Pop( ) as T
@@ -131,7 +144,7 @@ function PriorityQueue( of T ).Pop( ) as T
 end function
 
 function PriorityQueue( of T ).TryPop( byref outv as T ) as boolean
-    if( this.heap_.num = 0 ) then
+    if( this.heap_.Count( ) = 0 ) then
         return FALSE
     end if
     dim as function( byref as T, byref as T ) as boolean less = _
@@ -145,18 +158,18 @@ end function
 '' The next element to leave.  Unspecified on an empty queue (see the banner).
 '' Do not keep the reference across a Push or Pop: both move elements.
 function PriorityQueue( of T ).Peek( ) byref as T
-    if( this.heap_.num = 0 ) then
+    if( this.heap_.Count( ) = 0 ) then
         this.heap_.Reserve( 1 )
     end if
-    return this.heap_.items( 0 )
+    return this.heap_.Data( )[ 0 ]
 end function
 
 function PriorityQueue( of T ).Count( ) as long
-    return this.heap_.num
+    return this.heap_.Count( )
 end function
 
 function PriorityQueue( of T ).IsEmpty( ) as boolean
-    return this.heap_.num = 0
+    return this.heap_.Count( ) = 0
 end function
 
 sub PriorityQueue( of T ).Clear( )
@@ -184,17 +197,18 @@ public function MakeHeap( of T )( byref a as Array( of T ) ) as PriorityQueue( o
             return x < y
         end function
     dim as PriorityQueue( of T ) q
-    q.heap_ = a
-    HeapifyBy( q.heap_, q.heap_.num, less )
+    q.Assign( a )
     return q
 end function
 
 '' -------------------------------------------------------------- PriorityQueueBy
 
 public type PriorityQueueBy( of T, TLess )
+    private:
     as Array( of T ) heap_
     as TLess less_
 
+    public:
     declare constructor( byref less as TLess )
     declare sub Push( byref v as T )
     declare function Pop( ) as T
@@ -214,7 +228,7 @@ end constructor
 
 sub PriorityQueueBy( of T, TLess ).Push( byref v as T )
     this.heap_.Push( v )
-    HeapSiftUpBy( this.heap_, this.heap_.num - 1, this.less_ )
+    HeapSiftUpBy( this.heap_, this.heap_.Count( ) - 1, this.less_ )
 end sub
 
 function PriorityQueueBy( of T, TLess ).Pop( ) as T
@@ -224,7 +238,7 @@ function PriorityQueueBy( of T, TLess ).Pop( ) as T
 end function
 
 function PriorityQueueBy( of T, TLess ).TryPop( byref outv as T ) as boolean
-    if( this.heap_.num = 0 ) then
+    if( this.heap_.Count( ) = 0 ) then
         return FALSE
     end if
     HeapPopInto( this.heap_, outv, this.less_ )
@@ -232,18 +246,18 @@ function PriorityQueueBy( of T, TLess ).TryPop( byref outv as T ) as boolean
 end function
 
 function PriorityQueueBy( of T, TLess ).Peek( ) byref as T
-    if( this.heap_.num = 0 ) then
+    if( this.heap_.Count( ) = 0 ) then
         this.heap_.Reserve( 1 )
     end if
-    return this.heap_.items( 0 )
+    return this.heap_.Data( )[ 0 ]
 end function
 
 function PriorityQueueBy( of T, TLess ).Count( ) as long
-    return this.heap_.num
+    return this.heap_.Count( )
 end function
 
 function PriorityQueueBy( of T, TLess ).IsEmpty( ) as boolean
-    return this.heap_.num = 0
+    return this.heap_.Count( ) = 0
 end function
 
 sub PriorityQueueBy( of T, TLess ).Clear( )

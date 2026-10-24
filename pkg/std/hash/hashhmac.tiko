@@ -21,9 +21,11 @@ using containers
 '' and that something is not a MAC.
 
 public type Hmac( of H ) extends Hasher
+    private:
     as H inner_
     as H outer_
     as ubyte ipad_( 0 to 127 )
+    public:
     declare constructor( byref key as Array( of ubyte ) )
     declare constructor( byref key as const ustring )
     declare sub Keyed_( byval k as const ubyte ptr, byval n as long )

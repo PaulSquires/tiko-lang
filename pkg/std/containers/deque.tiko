@@ -44,11 +44,13 @@ public type DequeIterator( of T )
 end type
 
 public type Deque( of T )
+    private:
     as T items( any )
     as long head_       '' slot of the front element
     as long num
     as long cap_        '' slots allocated -- see Capacity( )
 
+    public:
     declare sub PushBack( byref v as T )
     declare sub PushFront( byref v as T )
     declare function PopBack( ) as T
@@ -69,7 +71,7 @@ end type
 
 function DequeIterator( of T ).IsValid( ) as boolean
     dim as Deque( of T ) ptr d = cptr( Deque( of T ) ptr, this.src )
-    return this.idx < d->num
+    return this.idx < d->Count( )
 end function
 
 function DequeIterator( of T ).Value( ) byref as T
