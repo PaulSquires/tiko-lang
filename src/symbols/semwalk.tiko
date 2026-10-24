@@ -121,7 +121,7 @@ sub RecordChosenOverloads_( byref c as Ctx )
         dim as SymbolId chosen = c.info->RefOf( n )
         if chosen = SYMBOL_NONE then continue for
         dim as ListPayload ptr lp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+            c.ast->ListOf( n )
         if lp->target = NODE_NONE then continue for
         select case c.ast->Kind( lp->target )
         case N_MEMBER, N_IDENT
@@ -198,7 +198,7 @@ function IsThisBase_ ( byref c as Ctx, byval n as NodeId ) as boolean
     if n = NODE_NONE then return false
     if c.ast->Kind( n ) <> N_IDENT then return false
     dim as InternId nm = _
-        c.ast->idents[cast( int32, c.ast->nodes[cast( int32, n )].data )].name
+        c.ast->IdentOf( n )->name
     return c.names->Fold( nm ) = c.names->Fold( c.names->GetString( "this" ) )
 end function
 
@@ -208,7 +208,7 @@ end function
 '' nothing to read.
 private sub CheckMemberIsValue_ ( byref c as Ctx, byval id as NodeId )
     dim as BinaryPayload ptr mp = _
-        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->BinaryOf( id )
     if (mp->lhs = NODE_NONE) orelse (mp->rhs = NODE_NONE) then return
     '' THE BASE MUST BE AN INSTANCE. A type NAME carries the type too -- 'T.TIn.z' and
     '' 'Outer.Inner' both resolve their left side to a UDT symbol -- so the symbol the
@@ -239,7 +239,7 @@ end sub
 
 private sub CheckDeref_ ( byref c as Ctx, byval id as NodeId )
     dim as BinaryPayload ptr mp = _
-        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->BinaryOf( id )
     dim as TokenKind op = cast( TokenKind, mp->op )
     if (op <> TK_DOT) andalso (op <> TK_ARROW) then return
     '' THE FLAG SAYS WHICH WAS WRITTEN, NOT THE OPERATOR. REDIM builds 'p->items( 0 to n )'
@@ -247,7 +247,7 @@ private sub CheckDeref_ ( byref c as Ctx, byval id as NodeId )
     '' reader of a member access keys on the flag -- so this one reported TKO0630 against
     '' a statement that wrote the arrow. Measured 2026-09-14: fb/channel.bi and tracks'
     '' PsPopupMenu both 'redim' through a pointer, and fbc accepts both.
-    if (c.ast->nodes[cast( int32, id )].flags and NF_ARROW) <> 0 then op = TK_ARROW
+    if (c.ast->Flags( id ) and NF_ARROW) <> 0 then op = TK_ARROW
     if mp->lhs = NODE_NONE then return
     dim as TypeId bt = c.info->TypeOf_( mp->lhs )
     '' UNTYPED IS NOT AN ERROR: a namespace-qualified name has no type at all, and an
@@ -339,13 +339,13 @@ function RequiredParams_ ( byref c as Ctx, byval decl as NodeId ) as int32
     if decl = NODE_NONE then return -1
     if c.ast->Kind( decl ) <> N_PROC then return -1
     dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, decl )].data )]
+        c.ast->StmtOf( decl )
     dim as int32 n = 0
     for i as int32 = 0 to sp->count - 1
-        dim as NodeId prm = cast( NodeId, c.ast->children[sp->first + i] )
+        dim as NodeId prm = c.ast->ChildAt( sp->first, i )
         if c.ast->Kind( prm ) <> N_PARAM then continue for
         dim as StmtPayload ptr psp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )]
+            c.ast->StmtOf( prm )
         if psp->op = cast( uint16, TK_ELLIPSIS ) then continue for
         if psp->b <> NODE_NONE then continue for
         n += 1
@@ -359,10 +359,10 @@ function ParamCount_ ( byref c as Ctx, byval decl as NodeId ) as int32
     if decl = NODE_NONE then return -1
     if c.ast->Kind( decl ) <> N_PROC then return -1
     dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, decl )].data )]
+        c.ast->StmtOf( decl )
     dim as int32 n = 0
     for i as int32 = 0 to sp->count - 1
-        if c.ast->Kind( cast( NodeId, c.ast->children[sp->first + i] ) ) = N_PARAM then
+        if c.ast->Kind( c.ast->ChildAt( sp->first, i ) ) = N_PARAM then
             n += 1
         end if
     next
@@ -426,7 +426,7 @@ sub RecordFirstRedims_( byref c as Ctx )
             @c.ast->stmts[cast( int32, c.ast->nodes[n].data )]
         if sp->op <> cast( uint16, KW_REDIM ) then continue for
         for i as int32 = 0 to sp->count - 1
-            dim as NodeId item = cast( NodeId, c.ast->children[sp->first + i] )
+            dim as NodeId item = c.ast->ChildAt( sp->first, i )
             '' The item's rank and target are redimrank.tiko's, which overload resolution
             '' shares.
             dim as SymbolId sid
@@ -457,7 +457,7 @@ end sub
 '' a pointer may face a number here is not measured, so it is not asked.
 private sub CheckIifArms_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if lp->count <> 3 then return
     if lp->target = NODE_NONE then return
     if c.ast->Kind( lp->target ) <> N_IDENT then return
@@ -465,7 +465,7 @@ private sub CheckIifArms_ ( byref c as Ctx, byval id as NodeId )
     '' intrinsics needed, and for the same reason.
     if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
     dim as InternId nm = _
-        c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name
+        c.ast->IdentOf( lp->target )->name
     if c.names->Fold( nm ) <> c.names->Fold( c.names->GetString( "iif" ) ) then return
 
     dim as TypeId ta = c.info->TypeOf_( cast( NodeId, c.ast->children[lp->first + 1] ) )
@@ -512,7 +512,7 @@ end sub
 ''     const a = "a" : swap a, s           error 119   Cannot modify a constant
 private sub CheckSwapOperands_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->StmtOf( id )
     if cast( TokenKind, sp->op ) <> KW_SWAP then return
     '' THE TWO OPERANDS ARE 'a' AND 'b', not a child list: 'swap' takes exactly two and
     '' the parser writes them into the payload's own slots.
@@ -571,7 +571,7 @@ private function WholeArraySpelling_ ( byref c as Ctx, byval n as NodeId ) as bo
     dim as NodeKind k = c.ast->Kind( n )
     if (k <> N_CALL) andalso (k <> N_INDEX) then return false
     dim as ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+        c.ast->ListOf( n )
     if lp->count <> 0 then return false
     dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
     if ts = nullptr then return false
@@ -583,7 +583,7 @@ end function
 private sub CheckBydescArgs_ _
     ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     dim as ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if lp->target = NODE_NONE then return
     dim as Symbol ptr callee = c.syms->SymbolAt( c.info->RefOf( id ) )
     if callee = nullptr then callee = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
@@ -596,18 +596,18 @@ private sub CheckBydescArgs_ _
     if decl = NODE_NONE then return
     if c.ast->Kind( decl ) <> N_PROC then return
     dim as StmtPayload ptr pp = _
-        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, decl )].data )]
+        c.ast->StmtOf( decl )
     dim as int32 ai = 0
     for i as int32 = 0 to pp->count - 1
-        dim as NodeId prm = cast( NodeId, c.ast->children[pp->first + i] )
+        dim as NodeId prm = c.ast->ChildAt( pp->first, i )
         if c.ast->Kind( prm ) <> N_PARAM then continue for
         if ai >= lp->count then exit for
-        dim as NodeId arg = cast( NodeId, c.ast->children[lp->first + ai] )
+        dim as NodeId arg = c.ast->ChildAt( lp->first, ai )
         ai += 1
         '' PASSING A UDT BYVAL CALLS ITS COPY CONSTRUCTOR, so a private one is out of
         '' reach at the call site too -- fbc error 205. Only when 'byval' is WRITTEN:
         '' for a UDT the FreeBASIC default is byref, and byref copies nothing.
-        if (c.ast->nodes[cast( int32, prm )].flags and NF_BYVAL_WRITTEN) <> 0 then
+        if (c.ast->Flags( prm ) and NF_BYVAL_WRITTEN) <> 0 then
             dim as TypeId ut = c.info->TypeOf_( arg )
             if ut <> TYPE_NONE then
                 dim as TypeId uu = c.types->Unqualify( ut )
@@ -616,10 +616,10 @@ private sub CheckBydescArgs_ _
                 end if
             end if
         end if
-        if (c.ast->nodes[cast( int32, prm )].flags and NF_ARRAY) = 0 then continue for
+        if (c.ast->Flags( prm ) and NF_ARRAY) = 0 then continue for
         '' A TYPED VARIADIC IS JUDGED HERE ONLY WHEN SPREAD -- one argument, a whole array.
         '' Packed arguments are elements, and ResolveCall_ (overloadvar.tiko) judged them.
-        if (c.ast->nodes[cast( int32, prm )].flags and NF_VARIADIC) <> 0 then
+        if (c.ast->Flags( prm ) and NF_VARIADIC) <> 0 then
             dim as boolean spreadArg = (lp->count = ai) andalso WholeArraySpelling_( c, arg )
             if (spreadArg = false) andalso (lp->count = ai) andalso (c.info->TypeOf_( arg ) <> TYPE_NONE) then
                 spreadArg = (c.types->Kind( c.types->Unqualify( c.info->TypeOf_( arg ) ) ) = TK_ARRAY)
@@ -637,10 +637,10 @@ private sub CheckBydescArgs_ _
             '' descriptor. Only two UDT element types are compared; a builtin pair may
             '' convert, and is not measured here.
             dim as ListPayload ptr wl = _
-                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, arg )].data )]
+                c.ast->ListOf( arg )
             dim as Symbol ptr av = c.syms->SymbolAt( c.info->RefOf( wl->target ) )
             dim as StmtPayload ptr prp = _
-                @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )]
+                c.ast->StmtOf( prm )
             if (av <> nullptr) andalso (prp->a <> NODE_NONE) then
                 '' Through WholeArrayType_, so a forwarded PARAMETER is held to the same
                 '' element rule: fbc gives error 58 for 'a() as P1' passed on to
@@ -702,29 +702,29 @@ private sub CheckAutoRef_ ( byref c as Ctx, byval id as NodeId )
     select case k
     case N_BINARY
         dim as BinaryPayload ptr bp = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->BinaryOf( id )
         CheckAutoRef_( c, bp->lhs )
         CheckAutoRef_( c, bp->rhs )
     case N_UNARY, N_ADDROF, N_DEREF
         dim as UnaryPayload ptr up = _
-            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->UnaryOf( id )
         CheckAutoRef_( c, up->operand )
     case N_PAREN, N_CALL, N_INDEX, N_TUPLE, N_INITIALIZER
         dim as ListPayload ptr lp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         '' THE TARGET TOO: 'locali( 0 )' over a local ARRAY reads as a call whose
         '' target is the array, and only the arguments were walked -- so a default
         '' naming a local array element (fbc error 272) went through.
         CheckAutoRef_( c, lp->target )
         for i as int32 = 0 to lp->count - 1
-            CheckAutoRef_( c, cast( NodeId, c.ast->children[lp->first + i] ) )
+            CheckAutoRef_( c, c.ast->ChildAt( lp->first, i ) )
         next
     end select
 end sub
 
 private sub CheckParamDefault_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->StmtOf( id )
     if sp->b = NODE_NONE then return
     CheckAutoRef_( c, sp->b )
 
@@ -745,7 +745,7 @@ private sub CheckParamDefault_ ( byref c as Ctx, byval id as NodeId )
     '' leaves it as an ident, so it resolved to nothing and read as undeclared --
     '' warnings/suffix-fb.bas writes it, and fbc compiles that file.
     dim as InternId dnm = _
-        c.ast->idents[cast( int32, c.ast->nodes[cast( int32, sp->b )].data )].name
+        c.ast->IdentOf( sp->b )->name
     if c.names->Fold( dnm ) = c.names->Fold( c.names->GetString( "any" ) ) then return
     c.diags->Report( TKO0675, PointRange( c.ast->Loc( sp->b ) ), _
                      c.names->Spelling( dnm ) )
@@ -759,7 +759,7 @@ end sub
 '' for its rank and is not asked, because its shape is whatever the last redim made it.
 private sub CheckSubscriptCount_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if lp->count = 0 then return
     if lp->target = NODE_NONE then return
     dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
@@ -805,7 +805,7 @@ end sub
 '' array to a 'bydesc' parameter -- 'f( a( ) )' -- is exactly how one is passed.
 private sub CheckArraySubscript_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if lp->target = NODE_NONE then return
     dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
     if ts = nullptr then return
@@ -816,7 +816,7 @@ private sub CheckArraySubscript_ ( byref c as Ctx, byval id as NodeId )
     if ts->type_ = TYPE_NONE then return
     if c.types->Kind( c.types->Unqualify( ts->type_ ) ) <> TK_ARRAY then return
     for i as int32 = 0 to lp->count - 1
-        dim as NodeId a2 = cast( NodeId, c.ast->children[lp->first + i] )
+        dim as NodeId a2 = c.ast->ChildAt( lp->first, i )
         dim as TypeId at2 = c.info->TypeOf_( a2 )
         if at2 = TYPE_NONE then continue for
         if c.types->Kind( c.types->Unqualify( at2 ) ) <> TK_ARRAY then continue for
@@ -843,7 +843,7 @@ private sub CheckConstThisWrite_ _
 
     if constMethod = false then return
     dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->StmtOf( id )
     if sp->op = 0 then return
     if sp->a = NODE_NONE then return
     '' 'this = x' WRITES THE WHOLE OBJECT, which is the same refusal for the same reason
@@ -864,7 +864,7 @@ private sub CheckConstThisWrite_ _
         throughThis = true
     case N_MEMBER
         dim as BinaryPayload ptr amp = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, sp->a )].data )]
+            c.ast->BinaryOf( sp->a )
         if amp->lhs = NODE_NONE then
             throughThis = withThis
         else
@@ -895,7 +895,7 @@ private sub CheckConstThisCall_ _
     if constMethod = false then return
     if here = TYPE_NONE then return
     dim as ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if lp->target = NODE_NONE then return
 
     '' THE CALLEE MUST BE NAMED BARE, or through 'this'. Anything else is another object.
@@ -904,7 +904,7 @@ private sub CheckConstThisCall_ _
     case N_IDENT
     case N_MEMBER
         dim as BinaryPayload ptr mp = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, callee )].data )]
+            c.ast->BinaryOf( callee )
         if mp->lhs = NODE_NONE then return
         if IsThisBase_( c, mp->lhs ) = false then return
     case else
@@ -919,7 +919,7 @@ private sub CheckConstThisCall_ _
     if decl = NODE_NONE then return
     if c.ast->Kind( decl ) <> N_PROC then return
     dim as StmtPayload ptr dp = _
-        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, decl )].data )]
+        c.ast->StmtOf( decl )
     '' A STATIC METHOD HAS NO 'this' at all, so its constness is not a question.
     if (dp->extra and PF_STATIC) <> 0 then return
     if (dp->extra and PF_CONST) <> 0 then return
@@ -936,12 +936,12 @@ end sub
 '' exactly as the dot does.
 private sub CheckExplicitStructor_ ( byref c as Ctx, byval id as NodeId )
     dim as BinaryPayload ptr mp = _
-        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->BinaryOf( id )
     if mp->lhs = NODE_NONE then return
     if mp->rhs = NODE_NONE then return
     if c.ast->Kind( mp->rhs ) <> N_IDENT then return
     dim as string nm = c.names->Spelling( _
-        c.ast->idents[cast( int32, c.ast->nodes[cast( int32, mp->rhs )].data )].name )
+        c.ast->IdentOf( mp->rhs )->name )
     dim as string want = ""
     if nm = "constructor" then want = "__ctor"
     if nm = "destructor" then want = "__dtor"
@@ -1004,7 +1004,7 @@ end sub
 '' 's &= "a"' is the ordinary use and 'i += 1' is a different operator entirely.
 private sub CheckConcatAssign_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->StmtOf( id )
     if cast( TokenKind, sp->op ) <> TK_AMPEQ then return
     if sp->a = NODE_NONE then return
     dim as TypeId t = c.info->TypeOf_( sp->a )
@@ -1047,7 +1047,7 @@ end function
 
 private sub CheckProcPtrArith_ ( byref c as Ctx, byval id as NodeId )
     dim as BinaryPayload ptr bp = _
-        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->BinaryOf( id )
     dim as TokenKind op = cast( TokenKind, bp->op )
     '' ARITHMETIC ONLY. A comparison between two procedure pointers is ordinary and fbc
     '' accepts it -- that is how a callback is tested against null.
@@ -1065,7 +1065,7 @@ end sub
 
 private sub CheckProcPtrDeref_ ( byref c as Ctx, byval id as NodeId )
     dim as UnaryPayload ptr up = _
-        @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->UnaryOf( id )
     if IsProcPtr_( c, c.info->TypeOf_( up->operand ) ) then
         c.diags->Report( TKO0634, PointRange( c.ast->Loc( id ) ) )
     end if
@@ -1078,7 +1078,7 @@ end sub
 '' counted as not-lowered and says nothing, so 'delete a' over an integer compiled clean.
 private sub CheckDelete_ ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->StmtOf( id )
     if sp->a = NODE_NONE then return
     dim as TypeId t = c.info->TypeOf_( sp->a )
     '' UNTYPED IS NOT AN ERROR: something earlier declined, and reporting would blame
@@ -1124,13 +1124,13 @@ sub Walk_ _
     dim as TypeId innerResult = resultType
     if k = N_WITH then
         dim as StmtPayload ptr wp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->StmtOf( id )
         innerWith = IsThisBase_( c, wp->a )
     end if
     if k = N_PROC then innerWith = false
     if k = N_PROC then
         dim as StmtPayload ptr rpp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->StmtOf( id )
         innerResult = ArrProcResult_( c, id )   '' arrresult.tiko
     end if
     if k = N_PROC then
@@ -1141,7 +1141,7 @@ sub Walk_ _
         '' method looked ordinary. Resolve bound the definition to its declaration; that
         '' symbol's declaration node is the one that carries the modifier.
         dim as StmtPayload ptr cpp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->StmtOf( id )
         innerConst = ((cpp->extra and PF_CONST) <> 0)
         if innerConst = false then
             dim as Symbol ptr dsym = c.syms->SymbolAt( c.info->RefOf( id ) )
@@ -1150,7 +1150,7 @@ sub Walk_ _
                 if (ddecl <> NODE_NONE) andalso (ddecl <> id) then
                     if c.ast->Kind( ddecl ) = N_PROC then
                         dim as StmtPayload ptr dpp = _
-                            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, ddecl )].data )]
+                            c.ast->StmtOf( ddecl )
                         innerConst = ((dpp->extra and PF_CONST) <> 0)
                     end if
                 end if
@@ -1158,7 +1158,7 @@ sub Walk_ _
         end if
         '' A BYREF RESULT changes what its body may return, and the flag is on the
         '' PROCEDURE node -- so it is carried down rather than looked up at each return.
-        innerByref = ((c.ast->nodes[cast( int32, id )].flags and NF_BYREF) <> 0)
+        innerByref = ((c.ast->Flags( id ) and NF_BYREF) <> 0)
     end if
     if k = N_AMBIGUOUS then CheckByrefResultValue_( c, id, innerByref ) : CheckEqParsedAsArg_( c, id ) : CheckByvalResultTarget_( c, id )
     if k = N_AMBIGUOUS then CheckByrefResultType_( c, id, innerByref, innerResult )
@@ -1247,20 +1247,20 @@ sub Walk_ _
         select case k
         case N_BINARY
             dim as BinaryPayload ptr bp = _
-                @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+                c.ast->BinaryOf( id )
             Walk_( c, bp->lhs, inner, innerByref, innerConst, innerWith, innerResult )
             Walk_( c, bp->rhs, inner, innerByref, innerConst, innerWith, innerResult )
             return
         case N_MEMBER
             dim as BinaryPayload ptr mp = _
-                @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+                c.ast->BinaryOf( id )
             '' ONLY THE BASE. The right-hand side is the member NAME, and Check bound it
             '' to the same symbol -- walking it would report the same access twice.
             Walk_( c, mp->lhs, inner, innerByref, innerConst, innerWith, innerResult )
             return
         case N_UNARY, N_ADDROF, N_DEREF
             dim as UnaryPayload ptr up = _
-                @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+                c.ast->UnaryOf( id )
             Walk_( c, up->operand, inner, innerByref, innerConst, innerWith, innerResult )
             return
         '' THE LIST KINDS, SPELLED OUT. 'data' is an index into ONE OF FOUR POOLS and
@@ -1272,10 +1272,10 @@ sub Walk_ _
         '' element count, constructor arguments -- are expressions ('new B( w.sptr( ) )').
         case N_CALL, N_INDEX, N_PAREN, N_TUPLE, N_INITIALIZER, N_STRCAT, N_NEW
             dim as ListPayload ptr lp = _
-                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+                c.ast->ListOf( id )
             if k <> N_NEW then Walk_( c, lp->target, inner, innerByref, innerConst, innerWith, innerResult )
             for i as int32 = 0 to lp->count - 1
-                Walk_( c, cast( NodeId, c.ast->children[lp->first + i] ), inner, innerByref, innerConst, innerWith, innerResult )
+                Walk_( c, c.ast->ChildAt( lp->first, i ), inner, innerByref, innerConst, innerWith, innerResult )
             next
             return
         case else
@@ -1289,21 +1289,21 @@ sub Walk_ _
 
     if (k = N_MODULE) orelse (k = N_BLOCK) then
         dim as ListPayload ptr lp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         for i as int32 = 0 to lp->count - 1
-            Walk_( c, cast( NodeId, c.ast->children[lp->first + i] ), inner, innerByref, innerConst, innerWith, innerResult )
+            Walk_( c, c.ast->ChildAt( lp->first, i ), inner, innerByref, innerConst, innerWith, innerResult )
         next
         return
     end if
 
     dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->StmtOf( id )
     Walk_( c, sp->a, inner, innerByref, innerConst, innerWith, innerResult )
     Walk_( c, sp->b, inner, innerByref, innerConst, innerWith, innerResult )
     Walk_( c, sp->c, inner, innerByref, innerConst, innerWith, innerResult )
     if k = N_VAR_ITEM then Walk_( c, CollInitOf( *c.ast, id ), inner, innerByref, innerConst, innerWith, innerResult )  '' collinit.tiko
     for i as int32 = 0 to sp->count - 1
-        Walk_( c, cast( NodeId, c.ast->children[sp->first + i] ), inner, innerByref, innerConst, innerWith, innerResult )
+        Walk_( c, c.ast->ChildAt( sp->first, i ), inner, innerByref, innerConst, innerWith, innerResult )
     next
 end sub
 
@@ -1428,7 +1428,7 @@ sub CheckStaticStringInits( byref c as Ctx )
         dim as NodeId item = cast( NodeId, s->payload )
         if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
         dim as StmtPayload ptr ip = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, item )].data )]
+            c.ast->StmtOf( item )
         if ip->b = NODE_NONE then continue for
         c.diags->Report( TKO0628, PointRange( c.ast->Loc( item ) ), _
                          c.names->Spelling( s->name ) )

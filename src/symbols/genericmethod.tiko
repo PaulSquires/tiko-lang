@@ -19,7 +19,7 @@ private function GenericMethodHead_ _
     ( byref c as Ctx, byval mn as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.SymbolId
 
     dim as Tko.BinaryPayload ptr qbp = _
-        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, mn )].data )]
+        c.ast->BinaryOf( mn )
     if c.ast->Kind( qbp->rhs ) <> Tko.N_IDENT then return Tko.SYMBOL_NONE
     dim as Tko.TypeId bt = InferArgType_( c, qbp->lhs, scope_ )
     '' ...or a TYPE, for a static one: 'NS.Box.Size( of short )( )'. Resolve has bound the
@@ -33,7 +33,7 @@ private function GenericMethodHead_ _
     if bt = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
     '' 'pb->Put_( of T )( r )' reaches through the pointer, and so does 'this.Put_( ... )':
     '' THIS is a pointer that is written with a dot.
-    dim as boolean viaPtr = ((c.ast->nodes[cast( int32, mn )].flags and Tko.NF_ARROW) <> 0)
+    dim as boolean viaPtr = ((c.ast->Flags( mn ) and Tko.NF_ARROW) <> 0)
     if (viaPtr = false) andalso (c.ast->Kind( qbp->lhs ) = Tko.N_IDENT) then
         viaPtr = (IdentNameOf( c, qbp->lhs ) = c.names->Fold( c.names->GetString( "this" ) ))
     end if

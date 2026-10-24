@@ -48,7 +48,7 @@ function LowerWrite( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     '' (audit F-73, RT-19). A trailing comma still ends nothing.
     dim as boolean prevSep = true
     for i as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        dim as Tko.NodeId it = c.ast->ChildAt( sp->first, i )
         if c.ast->Kind( it ) = Tko.N_PRINT_SEP then
             if prevSep then
                 dim as containers.Array( of uint32 ) ea
@@ -66,7 +66,7 @@ function LowerWrite( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         '' whether or not anything comes after it.
         dim as int32 mask = 1
         if i + 1 < sp->count then
-            if c.ast->Kind( cast( Tko.NodeId, c.ast->children[sp->first + i + 1] ) ) = _
+            if c.ast->Kind( c.ast->ChildAt( sp->first, i + 1 ) ) = _
                Tko.N_PRINT_SEP then
                 mask = 2
             end if

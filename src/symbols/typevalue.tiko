@@ -51,7 +51,7 @@ end function
 
 private sub ReportTypeNameValue_ ( byref c as Ctx, byval n as NodeId )
     dim as IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+        c.ast->IdentOf( n )
     c.diags->Report( TKO0971, PointRange( c.ast->Loc( n ) ), c.names->Spelling( ip->name ) )
 end sub
 
@@ -81,7 +81,7 @@ sub CheckTypeNameValue_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKin
     select case k
     case N_AMBIGUOUS
         dim as StmtPayload ptr sp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->StmtOf( id )
         if IsTypeNameValue_( c, sp->a, (c.info->AmbiguousOf( id ) = AMB_ASSIGN) ) then ReportTypeNameValue_( c, sp->a ) : return
         if IsTypeNameValue_( c, sp->b ) then ReportTypeNameValue_( c, sp->b ) : return
         '' 'Foo hInstance': a parenless call's arguments are the statement's children.
@@ -91,7 +91,7 @@ sub CheckTypeNameValue_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKin
         CheckTypeNameArgs_( c, sp->first, sp->count )
     case N_CALL
         dim as ListPayload ptr lp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         if lp->count = 0 then return
         dim as SymbolId head = c.info->RefOf( id )
         if (head = SYMBOL_NONE) andalso (lp->target <> NODE_NONE) then head = c.info->RefOf( lp->target )
@@ -99,21 +99,21 @@ sub CheckTypeNameValue_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKin
         CheckTypeNameArgs_( c, lp->first, lp->count )
     case N_BINARY
         dim as BinaryPayload ptr bp = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->BinaryOf( id )
         if cast( TokenKind, bp->op ) = KW_IS then return
         if IsTypeNameValue_( c, bp->lhs ) then ReportTypeNameValue_( c, bp->lhs ) : return
         if IsTypeNameValue_( c, bp->rhs ) then ReportTypeNameValue_( c, bp->rhs )
     case N_INTRINSIC
         dim as StmtPayload ptr sp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->StmtOf( id )
         if cast( TokenKind, sp->op ) <> KW_PRINT then return
         for i as int32 = 0 to sp->count - 1
-            dim as NodeId a2 = cast( NodeId, c.ast->children[sp->first + i] )
+            dim as NodeId a2 = c.ast->ChildAt( sp->first, i )
             if IsTypeNameValue_( c, a2 ) then ReportTypeNameValue_( c, a2 ) : return
         next
     case N_VAR_ITEM
         dim as StmtPayload ptr sp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->StmtOf( id )
         if IsTypeNameValue_( c, sp->b ) then ReportTypeNameValue_( c, sp->b )
     end select
 end sub

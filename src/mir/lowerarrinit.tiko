@@ -46,9 +46,9 @@ sub FlattenInitLeaves_ _
       byref outv as containers.Array( of uint32 ) )
 
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
+        c.ast->ListOf( init )
     for i as int32 = 0 to lp->count - 1
-        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        dim as Tko.NodeId e = c.ast->ChildAt( lp->first, i )
         if c.ast->Kind( e ) = Tko.N_INITIALIZER then
             FlattenInitLeaves_( c, e, outv )
         else
@@ -64,10 +64,10 @@ private function ArrayLeafWalk_ _
       byval ext as int32 ptr, byval strd as int32 ptr, byval base_ as int32, _
       byref leaves as containers.Array( of uint32 ), byref idx as containers.Array( of uint32 ) ) as boolean
     if c.ast->Kind( lst ) <> Tko.N_INITIALIZER then return false
-    dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, lst )].data )]
+    dim as Tko.ListPayload ptr lp = c.ast->ListOf( lst )
     if lp->count > ext[d] then return false
     for j as int32 = 0 to lp->count - 1
-        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + j] )
+        dim as Tko.NodeId e = c.ast->ChildAt( lp->first, j )
         if d < rank - 1 then
             if ArrayLeafWalk_( c, e, d + 1, rank, ext, strd, base_ + j * strd[d], leaves, idx ) = false then return false
         else
@@ -110,7 +110,7 @@ sub ArrayInitLeaves_ _
     if rank > 1 then
         FlattenInitLeaves_( c, init, leaves )
     else
-        dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
+        dim as Tko.ListPayload ptr lp = c.ast->ListOf( init )
         for i as int32 = 0 to lp->count - 1
             leaves.Push( c.ast->children[lp->first + i] )
         next
@@ -128,9 +128,9 @@ function FlatInitCount_( byref c as Ctx, byval init as Tko.NodeId ) as int32
     if init = Tko.NODE_NONE then return 0
     if c.ast->Kind( init ) <> Tko.N_INITIALIZER then return 0
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
+        c.ast->ListOf( init )
     for i as int32 = 0 to lp->count - 1
-        if c.ast->Kind( cast( Tko.NodeId, c.ast->children[lp->first + i] ) ) = Tko.N_INITIALIZER then return 0
+        if c.ast->Kind( c.ast->ChildAt( lp->first, i ) ) = Tko.N_INITIALIZER then return 0
     next
     return lp->count
 end function
@@ -600,7 +600,7 @@ function LowerUdtArrayInit_ _
     if esz <= 0 then return false
     dim as int32 total = c.types->ElemCount( t )
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
+        c.ast->ListOf( init )
 
     dim as MirValue base_
     if selfv <> nullptr then
@@ -639,7 +639,7 @@ function LowerUdtArrayInit_ _
 
     for i as int32 = 0 to lp->count - 1
         if (total > 0) andalso (i >= total) then exit for
-        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        dim as Tko.NodeId e = c.ast->ChildAt( lp->first, i )
         dim as MirInst fa
         fa.op = cast( uint16, M_FIELD_ADDR )
         fa.ty = cast( uint8, MT_PTR )

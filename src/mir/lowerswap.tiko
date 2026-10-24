@@ -31,12 +31,12 @@ private function StrCallOperand_ _
     if e = Tko.NODE_NONE then return e
     if c.ast->Kind( e ) <> Tko.N_CALL then return e
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+        c.ast->ListOf( e )
     if cp->count <> 1 then return e
     if cp->target = Tko.NODE_NONE then return e
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return e
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     if LowerSpelling_( c.ix, *c.names, ip->name ) <> "str" then return e
     return cast( Tko.NodeId, c.ast->children[cp->first] )
 end function
@@ -50,7 +50,7 @@ private function SwapOperandType_ _
     if c.ast->Kind( e ) <> Tko.N_INDEX then return Tko.TYPE_NONE
 
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+        c.ast->ListOf( e )
     if lp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
     dim as Tko.TypeId pt = c.info->TypeOf_( lp->target )
     if pt = Tko.TYPE_NONE then return Tko.TYPE_NONE
@@ -346,7 +346,7 @@ function LowerTypeCtorExpr_ _
     dim as Tko.TypeId t = TypeCtorTypeOf_( c, id )
     if t = Tko.TYPE_NONE then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
 
     dim as int32 slot = NewTempLocal( c, MT_AGG, SizeOfType( c, t ) )
     if slot < 0 then return false
@@ -385,7 +385,7 @@ function LowerUdtIndexOp_ _
     outByref = false
     if c.ast->Kind( id ) <> Tko.N_INDEX then return false
     dim as Tko.ListPayload ptr sp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if sp->count <> 1 then return false
     if sp->target = Tko.NODE_NONE then return false
     dim as Tko.TypeId pt = c.info->TypeOf_( sp->target )
@@ -465,7 +465,7 @@ function LowerUdtIndexOp_ _
     if ixsym = nullptr then return false
     dim as Tko.NodeId ixpn = cast( Tko.NodeId, ixsym->payload )
     if ixpn <> Tko.NODE_NONE then
-        if (c.ast->nodes[cast( int32, ixpn )].flags and Tko.NF_BYREF) <> 0 then
+        if (c.ast->Flags( ixpn ) and Tko.NF_BYREF) <> 0 then
             outByref = true
         end if
     end if
@@ -507,7 +507,7 @@ function LowerTypeCtorTempAddr_ _
     dim as Tko.TypeId t = TypeCtorTypeOf_( c, id )
     if t = Tko.TYPE_NONE then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
 
     dim as int32 slot = NewTempLocal( c, MT_AGG, SizeOfType( c, t ) )
     if slot < 0 then return false
@@ -535,7 +535,7 @@ end function
 function TypeCtorTypeOf_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
     if c.ast->Kind( id ) <> Tko.N_CALL then return Tko.TYPE_NONE
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if cp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( cp->target ) )
     if s = nullptr then return Tko.TYPE_NONE
@@ -590,14 +590,14 @@ private function PushPropIndexArgs_ _
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
     dim as int32 seen = 0
     for i as int32 = 0 to pp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if seen >= idxCount then exit for
         dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[idxFirst + seen] )
         dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
         dim as MirValue av
         dim as boolean byref_ = _
-            ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0)
+            ((c.ast->Flags( prm ) and Tko.NF_BYREF) <> 0)
         '' A BYREF STRING PARAMETER TAKES A DESCRIPTOR, and a literal has none --
         '' measured, fbc materialises one and passes its address:
         '' '_ZN3FOO10BAR__set__ER8FBSTRINGu7INTEGER( &F$0, &TMP$3$0, 5678ll )'.
@@ -654,7 +654,7 @@ private function PropIndexCost_ _
     dim as int32 total = 0
     dim as int32 seen = 0
     for i as int32 = 0 to pp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if seen >= idxCount then exit for
         dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
@@ -677,7 +677,7 @@ private function PropIndexCost_ _
         dim as int32 at2 = 0
         dim as Tko.TypeId vpt = Tko.TYPE_NONE
         for i as int32 = 0 to pp->count - 1
-            dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+            dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
             if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
             if at2 = idxCount then
                 vpt = c.info->TypeOf_( StmtOf( c, prm )->a )
@@ -742,7 +742,7 @@ function PropertyAt_ _
     dim as int32 idxCount = 0
     if c.ast->Kind( node ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr ip2 = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, node )].data )]
+            c.ast->ListOf( node )
         if ip2->target = Tko.NODE_NONE then return Tko.SYMBOL_NONE
         if (c.ast->Kind( ip2->target ) <> Tko.N_MEMBER) andalso (ImplicitThisProp_( c, ip2->target ) = false) then return Tko.SYMBOL_NONE
         member = ip2->target
@@ -808,7 +808,7 @@ function PropertyAt_ _
                     dim as int32 np = 0
                     for i as int32 = 0 to pp->count - 1
                         dim as Tko.NodeId prm = _
-                            cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                            c.ast->ChildAt( pp->first, i )
                         if c.ast->Kind( prm ) = Tko.N_PARAM then np += 1
                     next
                     '' WHICH ACCESSOR IT IS COMES FROM THE RESULT TYPE, not from the
@@ -855,7 +855,7 @@ function PropertyAt_ _
     '' The RECEIVER is the member's base, by address -- 'p.V' through a pointer takes
     '' the pointer's value instead, exactly as a field access does.
     dim as Tko.BinaryPayload ptr mp = _
-        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, member )].data )]
+        c.ast->BinaryOf( member )
     dim as Tko.TypeId bt = c.info->TypeOf_( mp->lhs )
     '' A PAREN-LESS PROCEDURE AS THE BASE IS A CALL: 'TS.Big.Ticks' over 'static
     '' function Big( ) as TS' reads the getter off Big's RESULT -- fbc prints 77, and
@@ -909,11 +909,11 @@ function LowerUserBinaryOp_ _
     dim as containers.Array( of uint32 ) ptypes
     dim as containers.Array( of uint32 ) prefs
     for i as int32 = 0 to pp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         ptypes.Push( cast( uint32, c.info->TypeOf_( StmtOf( c, prm )->a ) ) )
         dim as uint32 isRef = 0
-        if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0 then isRef = 1
+        if (c.ast->Flags( prm ) and Tko.NF_BYREF) <> 0 then isRef = 1
         prefs.Push( isRef )
     next
     if (ptypes.Count <> 1) andalso (ptypes.Count <> 2) then return false
@@ -921,7 +921,7 @@ function LowerUserBinaryOp_ _
     dim as MirType rmt = mt
     if os->type_ <> Tko.TYPE_NONE then rmt = LowerType( os->type_, *c.types )
     if IsStringType( c, os->type_ ) then rmt = MT_PTR
-    if (c.ast->nodes[cast( int32, pn )].flags and Tko.NF_BYREF) <> 0 then rmt = MT_PTR
+    if (c.ast->Flags( pn ) and Tko.NF_BYREF) <> 0 then rmt = MT_PTR
 
     '' A UDT RESULT TRAVELS THROUGH A HIDDEN POINTER, and the caller provides the
     '' landing place: a temporary passed as ARGUMENT 0, before the operands. fbc emits
@@ -1031,18 +1031,18 @@ function LowerCompoundUserOp_ _
     dim as Tko.NodeId pn = cast( Tko.NodeId, os->payload )
     if pn = Tko.NODE_NONE then return false
     if c.ast->Kind( pn ) <> Tko.N_PROC then return false
-    if (c.ast->nodes[cast( int32, pn )].flags and Tko.NF_BYREF) <> 0 then return false
+    if (c.ast->Flags( pn ) and Tko.NF_BYREF) <> 0 then return false
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
     if pp->op <> cast( uint16, Tko.KW_OPERATOR ) then return false
 
     dim as containers.Array( of uint32 ) ptypes
     dim as containers.Array( of uint32 ) prefs
     for i as int32 = 0 to pp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         ptypes.Push( cast( uint32, c.info->TypeOf_( StmtOf( c, prm )->a ) ) )
         dim as uint32 isRef = 0
-        if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0 then isRef = 1
+        if (c.ast->Flags( prm ) and Tko.NF_BYREF) <> 0 then isRef = 1
         prefs.Push( isRef )
     next
     if (ptypes.Count <> 1) andalso (ptypes.Count <> 2) then return false
@@ -1174,11 +1174,11 @@ function LowerUserUnaryOpSym_ _
     dim as boolean isRef = false
     dim as int32 np = 0
     for i as int32 = 0 to pp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if np = 0 then
             pt = c.info->TypeOf_( StmtOf( c, prm )->a )
-            isRef = ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0)
+            isRef = ((c.ast->Flags( prm ) and Tko.NF_BYREF) <> 0)
         end if
         np += 1
     next
@@ -1192,7 +1192,7 @@ function LowerUserUnaryOpSym_ _
     '' A BYREF RETURN IS A POINTER, which is what the DECLARATION says too. Reading it
     '' as the referent's own MIR type put an i32 result on a function declared to return
     '' a pointer -- 'operator *' over a smart pointer is byref by construction.
-    if (c.ast->nodes[cast( int32, pn )].flags and Tko.NF_BYREF) <> 0 then rmt = MT_PTR
+    if (c.ast->Flags( pn ) and Tko.NF_BYREF) <> 0 then rmt = MT_PTR
 
     if np = 0 then
         dim as MirValue self_ = LowerAddr( c, operand )
@@ -1210,7 +1210,7 @@ function LowerUserUnaryOpSym_ _
     '' '_ZngR1H( &TMP, &H )'. A byref result is a pointer and takes none.
     dim as MirValue sretTmp
     dim as boolean usesSret = false
-    if (os->type_ <> Tko.TYPE_NONE) andalso ((c.ast->nodes[cast( int32, pn )].flags and Tko.NF_BYREF) = 0) then
+    if (os->type_ <> Tko.TYPE_NONE) andalso ((c.ast->Flags( pn ) and Tko.NF_BYREF) = 0) then
         if UsesSretReturn( c, os->type_ ) then
             '' ...or the variable a declaration is building -- SretInPlaceInit_. Destroyed at
             '' the end of the statement like a call's: measured, fbc destroys the '-x' in
@@ -1358,7 +1358,7 @@ private function PropertyVSlot_ _
     ( byref c as Ctx, byval node as Tko.NodeId, byval acc as Tko.SymbolId ) as int32
     dim as Tko.NodeId member = node
     if c.ast->Kind( node ) = Tko.N_CALL then
-        member = c.ast->lists[cast( int32, c.ast->nodes[cast( int32, node )].data )].target
+        member = c.ast->ListOf( node )->target
     end if
     if member = Tko.NODE_NONE then return -1
     return VirtualSlotOf_( c, member, acc )
@@ -1399,7 +1399,7 @@ function LowerPropertyGet_ _
     '' address itself. The getter's NF_BYREF is lowerproc.tiko's own test.
     dim as boolean gByref = false
     dim as Tko.NodeId gpn = cast( Tko.NodeId, gs->payload )
-    if (gpn <> Tko.NODE_NONE) andalso (c.ast->Kind( gpn ) = Tko.N_PROC) then gByref = ((c.ast->nodes[cast( int32, gpn )].flags and Tko.NF_BYREF) <> 0)
+    if (gpn <> Tko.NODE_NONE) andalso (c.ast->Kind( gpn ) = Tko.N_PROC) then gByref = ((c.ast->Flags( gpn ) and Tko.NF_BYREF) <> 0)
     if gByref andalso (IsStringType( c, gs->type_ ) = false) then
         dim as MirValue gp = EmitMemberCallArgs_( c, g, self_, MT_PTR, @gargs, PropertyVSlot_( c, node, g ) )
         if gp.kind = cast( uint8, MV_NONE ) then return false

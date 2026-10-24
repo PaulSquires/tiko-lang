@@ -17,7 +17,7 @@ private sub RecursiveTypeRef_ _
     ( byref c as Ctx, byval self_ as NodeId, byval ta as NodeId, byref selfName as string )
     if (ta < 1) orelse (ta > c.ast->Count( )) then return
     if c.ast->Kind( ta ) <> N_TYPEREF then return
-    if (c.ast->nodes[cast( int32, ta )].flags and (NF_PTR or NF_PROC_TYPE)) <> 0 then return
+    if (c.ast->Flags( ta ) and (NF_PTR or NF_PROC_TYPE)) <> 0 then return
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( ta ) )
     if s = nullptr then return
     if s->kind <> cast( uint8, SYM_UDT ) then return
@@ -33,7 +33,7 @@ private sub RecursiveMembers_ _
     for i as int32 = first to first + count - 1
         dim as NodeId m = cast( NodeId, c.ast->children[i] )
         if (m < 1) orelse (m > c.ast->Count( )) then continue for
-        dim as StmtPayload ptr mp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, m )].data )]
+        dim as StmtPayload ptr mp = c.ast->StmtOf( m )
         select case c.ast->Kind( m )
         case N_TYPE
             '' ONLY A NAMED ONE. Through an ANONYMOUS aggregate fbc takes it -- 'union UU : a as
@@ -46,16 +46,16 @@ private sub RecursiveMembers_ _
         case N_VAR
             if mp->op <> cast( uint16, KW_REDIM ) then continue for
             for j as int32 = 0 to mp->count - 1
-                dim as NodeId it = cast( NodeId, c.ast->children[mp->first + j] )
+                dim as NodeId it = c.ast->ChildAt( mp->first, j )
                 if (it < 1) orelse (c.ast->Kind( it ) <> N_VAR_ITEM) then continue for
-                RecursiveTypeRef_( c, self_, c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, it )].data )].a, selfName )
+                RecursiveTypeRef_( c, self_, c.ast->StmtOf( it )->a, selfName )
             next
         end select
     next
 end sub
 
 sub CheckRecursiveType_ ( byref c as Ctx, byval id as NodeId )
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as StmtPayload ptr sp = c.ast->StmtOf( id )
     if sp->name = 0 then return
     dim as string nm = c.names->Spelling( sp->name )
     RecursiveMembers_( c, id, sp->first, sp->count, nm )

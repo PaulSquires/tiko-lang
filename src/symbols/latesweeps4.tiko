@@ -9,7 +9,7 @@ function Unparen3_ ( byref c as Ctx, byval id as NodeId ) as NodeId
         if id = NODE_NONE then return id
         if c.ast->Kind( id ) <> N_PAREN then return id
         dim as ListPayload ptr pp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         if pp->count <> 1 then return id
         id = cast( NodeId, c.ast->children[pp->first] )
     next
@@ -46,7 +46,7 @@ private function ExprHasStrKind_ _
     if bt <> TY_STRING then return false
     if c.ast->Kind( id ) <> N_BINARY then return false
     dim as BinaryPayload ptr bp = _
-        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->BinaryOf( id )
     dim as TokenKind op = cast( TokenKind, bp->op )
     if (op <> TK_AMP) andalso (op <> TK_PLUS) then return false
     if ExprHasStrKind_( c, bp->lhs, wide ) then return true
@@ -70,13 +70,13 @@ private function ExprIsConstNum_ ( byref c as Ctx, byval id as NodeId ) as boole
         return true
     case N_UNARY
         dim as UnaryPayload ptr up = _
-            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->UnaryOf( id )
         dim as TokenKind uop = cast( TokenKind, up->op )
         if (uop <> TK_MINUS) andalso (uop <> TK_PLUS) andalso (uop <> KW_NOT) then return false
         return ExprIsConstNum_( c, up->operand )
     case N_BINARY
         dim as BinaryPayload ptr bp = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->BinaryOf( id )
         if cast( TokenKind, bp->op ) = TK_AMP then return false
         if ExprIsConstNum_( c, bp->lhs ) = false then return false
         return ExprIsConstNum_( c, bp->rhs )
@@ -91,13 +91,13 @@ private function ExprIsConstNum_ ( byref c as Ctx, byval id as NodeId ) as boole
         return true
     case N_CALL
         dim as ListPayload ptr cp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         if cp->target = NODE_NONE then return false
         if c.ast->Kind( cp->target ) <> N_IDENT then return false
         if c.info->RefOf( cp->target ) <> SYMBOL_NONE then return false
         if cp->count <> 1 then return false
         select case lcase( c.names->Spelling( _
-            c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )].name ) )
+            c.ast->IdentOf( cp->target )->name ) )
         case "asc", "len"
             return ExprIsConstStr_( c, cast( NodeId, c.ast->children[cp->first] ) )
         end select
@@ -126,7 +126,7 @@ function ExprIsConstStr_ ( byref c as Ctx, byval id as NodeId ) as boolean
         return true
     case N_BINARY
         dim as BinaryPayload ptr bp = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->BinaryOf( id )
         dim as TokenKind op = cast( TokenKind, bp->op )
         if op = TK_AMP then
             dim as boolean lk = ExprIsConstStr_( c, bp->lhs ) orelse ExprIsConstNum_( c, bp->lhs )
@@ -147,16 +147,16 @@ function ExprIsConstStr_ ( byref c as Ctx, byval id as NodeId ) as boolean
         end select
     case N_CALL
         dim as ListPayload ptr cp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         if cp->target = NODE_NONE then return false
         if c.ast->Kind( cp->target ) <> N_IDENT then return false
         if c.info->RefOf( cp->target ) <> SYMBOL_NONE then return false
         if cp->count < 1 then return false
         select case lcase( c.names->Spelling( _
-            c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )].name ) )
+            c.ast->IdentOf( cp->target )->name ) )
         case "chr"
             for i as int32 = 0 to cp->count - 1
-                if ExprIsConstNum_( c, cast( NodeId, c.ast->children[cp->first + i] ) ) = false then return false
+                if ExprIsConstNum_( c, c.ast->ChildAt( cp->first, i ) ) = false then return false
             next
             return true
         case "str"
@@ -291,7 +291,7 @@ function CheckCastPtrPair_ _
     '' was refused: tests/mir/base-slice-assign is exactly that line.
     if c.ast->Kind( op ) = N_IDENT then
         dim as InternId tnm = c.names->Fold( c.names->GetString( "this" ) )
-        if c.ast->idents[cast( int32, c.ast->nodes[cast( int32, op )].data )].name = tnm then
+        if c.ast->IdentOf( op )->name = tnm then
             if c.types->Kind( ot ) = TK_POINTER then ot = c.types->Unqualify( c.types->Inner( ot ) )
         end if
     end if
@@ -370,18 +370,18 @@ end function
 '' one wide character -- and the rest printed nothing. A UDT and an operand with no type are
 '' not judged, and neither is an escaped literal, which a '\u' escape can make wide.
 private sub CheckStrRepeatArg_ ( byref c as Ctx, byval id as NodeId )
-    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as ListPayload ptr lp = c.ast->ListOf( id )
     if (lp->count <> 2) orelse (lp->target = NODE_NONE) then return
     if c.ast->Kind( lp->target ) <> N_IDENT then return
     if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
     dim as string nm = lcase( c.names->Spelling( _
-        c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name ) )
+        c.ast->IdentOf( lp->target )->name ) )
     if (nm <> "string") andalso (nm <> "wstring") then return
     dim as NodeId x = Unparen3_( c, cast( NodeId, c.ast->children[lp->first + 1] ) )
     if x = NODE_NONE then return
     dim as boolean isLit = (c.ast->Kind( x ) = N_STRING_LIT)
     if isLit then
-        dim as LiteralPayload ptr xlp = @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, x )].data )]
+        dim as LiteralPayload ptr xlp = c.ast->LiteralOf( x )
         if xlp->strKind = cast( uint8, STRK_ESCAPED ) then return
     else
         dim as TypeId xt = c.info->TypeOf_( x )
@@ -446,12 +446,12 @@ private function AssertIntrinsic_ _
       byref isType as boolean ) as boolean
     n = Unparen3_( c, n )
     if (n = NODE_NONE) orelse (c.ast->Kind( n ) <> N_CALL) then return false
-    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+    dim as ListPayload ptr lp = c.ast->ListOf( n )
     if (lp->count <> 1) orelse (lp->target = NODE_NONE) then return false
     if c.ast->Kind( lp->target ) <> N_IDENT then return false
     if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return false
     nm = lcase( c.names->Spelling( _
-        c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name ) )
+        c.ast->IdentOf( lp->target )->name ) )
     if (nm <> "typeof") andalso (nm <> "sizeof") andalso (nm <> "len") then return false
     dim as NodeId a = Unparen3_( c, cast( NodeId, c.ast->children[lp->first] ) )
     '' A NAMED CONSTANT IS NOT READ: 'const s = "a"' is 'zstring * 2' to fbc's typeof and
@@ -541,7 +541,7 @@ private function AssertEval_ _
     dim as boolean isType
     select case c.ast->Kind( n )
     case N_INT_LIT
-        v = c.ast->literals[cast( int32, c.ast->nodes[cast( int32, n )].data )].intValue
+        v = c.ast->LiteralOf( n )->intValue
         return true
     case N_CALL
         if AssertOffsetOf_( c, n, v ) then typed = true : return true
@@ -552,7 +552,7 @@ private function AssertEval_ _
         typed = true
         return true
     case N_UNARY
-        dim as UnaryPayload ptr up = @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+        dim as UnaryPayload ptr up = c.ast->UnaryOf( n )
         dim as int64 uv
         if AssertEval_( c, up->operand, uv, typed, depth + 1 ) = false then return false
         select case cast( TokenKind, up->op )
@@ -563,7 +563,7 @@ private function AssertEval_ _
         end select
         return true
     case N_BINARY
-        dim as BinaryPayload ptr bp = @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+        dim as BinaryPayload ptr bp = c.ast->BinaryOf( n )
         dim as TokenKind op = cast( TokenKind, bp->op )
         '' TWO TYPES COMPARED: the same type, exactly, or not.
         if (op = TK_EQ) orelse (op = TK_NE) then
@@ -613,7 +613,7 @@ private function AssertEval_ _
 end function
 
 private sub CheckAssertTypes_ ( byref c as Ctx, byval id as NodeId )
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as StmtPayload ptr sp = c.ast->StmtOf( id )
     if sp->a = NODE_NONE then return
     dim as int64 v
     dim as boolean typed = false
@@ -687,9 +687,9 @@ private function Unprintable_ ( byref c as Ctx, byval e as NodeId ) as TypeId
     '' that is not a procedure -- 'P( 3 )( 1 )' -- is TKO0772, each typed as the UDT it names.
     select case c.ast->Kind( e )
     case N_IDENT
-        if lcase( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, e )].data )].name ) ) = "base" then return TYPE_NONE
+        if lcase( c.names->Spelling( c.ast->IdentOf( e )->name ) ) = "base" then return TYPE_NONE
     case N_CALL
-        dim as ListPayload ptr clp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+        dim as ListPayload ptr clp = c.ast->ListOf( e )
         if clp->target = NODE_NONE then return TYPE_NONE
         dim as Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( clp->target ) )
         if cs = nullptr then cs = c.syms->SymbolAt( c.info->RefOf( e ) )
@@ -698,7 +698,7 @@ private function Unprintable_ ( byref c as Ctx, byval e as NodeId ) as TypeId
         '' ...an ELEMENT of an array, and 'iif( c, a, b )', an intrinsic bound to nothing.
         if cs = nullptr then
             if c.ast->Kind( clp->target ) <> N_IDENT then return TYPE_NONE
-            if lcase( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, clp->target )].data )].name ) ) <> "iif" then return TYPE_NONE
+            if lcase( c.names->Spelling( c.ast->IdentOf( clp->target )->name ) ) <> "iif" then return TYPE_NONE
         elseif cs->kind = cast( uint8, SYM_UDT ) then
             '' NAMED, not reached through another call: 'P( 3 )( 1 )' is TKO0772's.
             if c.ast->Kind( clp->target ) = N_CALL then return TYPE_NONE
@@ -729,7 +729,7 @@ private function UnprintableName_ ( byref c as Ctx, byval t as TypeId ) as strin
 end function
 
 private sub CheckUnprintable_ ( byref c as Ctx, byval id as NodeId )
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as StmtPayload ptr sp = c.ast->StmtOf( id )
     dim as string what
     select case cast( TokenKind, sp->op )
     case KW_PRINT : what = "print"
@@ -738,10 +738,10 @@ private sub CheckUnprintable_ ( byref c as Ctx, byval id as NodeId )
     end select
     if sp->extra <> 0 then return   '' PRINT USING has its own grammar
     for i as int32 = 0 to sp->count - 1
-        dim as NodeId it = cast( NodeId, c.ast->children[sp->first + i] )
+        dim as NodeId it = c.ast->ChildAt( sp->first, i )
         if c.ast->Kind( it ) = N_PRINT_SEP then
             '' 'print using' may also be written after a plain item.
-            if c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, it )].data )].op = cast( uint16, KW_USING ) then return
+            if c.ast->StmtOf( it )->op = cast( uint16, KW_USING ) then return
             continue for
         end if
         dim as TypeId bt = Unprintable_( c, it )
@@ -754,12 +754,12 @@ end sub
 
 '' ...and 'str( t )', 'wstr( t )' over one.
 private sub CheckUnprintableStr_ ( byref c as Ctx, byval id as NodeId )
-    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as ListPayload ptr lp = c.ast->ListOf( id )
     if (lp->count <> 1) orelse (lp->target = NODE_NONE) then return
     if c.ast->Kind( lp->target ) <> N_IDENT then return
     if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
     dim as string nm = lcase( c.names->Spelling( _
-        c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name ) )
+        c.ast->IdentOf( lp->target )->name ) )
     if (nm <> "str") andalso (nm <> "wstr") then return
     dim as NodeId a = cast( NodeId, c.ast->children[lp->first] )
     dim as TypeId bt = Unprintable_( c, a )
@@ -779,7 +779,7 @@ sub TupleMemberBad_ ( byref c as Ctx, byval t as TypeId, byval lhs as NodeId, by
     '' written by anyone: the arity is TKO0825's, and 'for each''s TKO0611. A '$' name is
     '' the parser's.
     if (lhs <> NODE_NONE) andalso (c.ast->Kind( lhs ) = N_IDENT) then
-        if left( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lhs )].data )].name ), 1 ) = "$" then return
+        if left( c.names->Spelling( c.ast->IdentOf( lhs )->name ), 1 ) = "$" then return
     end if
     dim as InternId tn = c.types->NameOf( t )
     if tn = 0 then return
@@ -800,7 +800,7 @@ sub TupleMemberBad_ ( byref c as Ctx, byval t as TypeId, byval lhs as NodeId, by
         cur = f->nextInScope
     next
     if n = 0 then return
-    dim as string nm = c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, rhs )].data )].name )
+    dim as string nm = c.names->Spelling( c.ast->IdentOf( rhs )->name )
     if (len( nm ) >= 2) andalso (left( nm, 1 ) = "_") then
         dim as string dg = mid( nm, 2 )
         dim as boolean digits = true
@@ -864,7 +864,7 @@ end function
 
 private sub CheckSubAsValue_ ( byref c as Ctx, byval id as NodeId )
     if StmtCall_( c, id ) then return
-    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as ListPayload ptr lp = c.ast->ListOf( id )
     dim as NodeId tgt = lp->target
     if tgt = NODE_NONE then return
     if (c.ast->Kind( tgt ) <> N_IDENT) andalso (c.ast->Kind( tgt ) <> N_MEMBER) then return
@@ -876,7 +876,7 @@ private sub CheckSubAsValue_ ( byref c as Ctx, byval id as NodeId )
     case SYM_PROC
         dim as NodeId pn = cast( NodeId, s->payload )
         if (pn = NODE_NONE) orelse (c.ast->Kind( pn ) <> N_PROC) then return
-        isSub = (c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )].op = cast( uint16, KW_SUB ))
+        isSub = (c.ast->StmtOf( pn )->op = cast( uint16, KW_SUB ))
     case SYM_VARIABLE, SYM_PARAMETER, SYM_FIELD
         dim as TypeId pt = c.types->Unqualify( s->type_ )
         if c.types->Kind( pt ) = TK_REFERENCE then pt = c.types->Unqualify( c.types->Inner( pt ) )
@@ -958,17 +958,17 @@ private function CtorsRefuseUStrZptr_ _
         if decl = NODE_NONE then return false
         if c.ast->Kind( decl ) <> N_PROC then return false
         dim as StmtPayload ptr dp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, decl )].data )]
+            c.ast->StmtOf( decl )
         dim as NodeIdVec prms
         for i as int32 = 0 to dp->count - 1
-            dim as NodeId prm = cast( NodeId, c.ast->children[dp->first + i] )
+            dim as NodeId prm = c.ast->ChildAt( dp->first, i )
             if c.ast->Kind( prm ) = N_PARAM then prms.Push( cast( uint32, prm ) )
         next
         '' A LONGER list ALL of whose extras are defaulted is unsettled -- no report; one with an
         '' undefaulted extra never fits ('T( u )' beside '( wstring ptr, long )' is still 99).
         dim as boolean extraDefaulted = (prms.Count > args.Count)
         for i as int32 = args.Count to prms.Count - 1
-            if c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, cast( NodeId, prms[i] ) )].data )].b = NODE_NONE then extraDefaulted = false
+            if c.ast->StmtOf( cast( NodeId, prms[i] ) )->b = NODE_NONE then extraDefaulted = false
         next
         if extraDefaulted then return false
         if prms.Count = args.Count then
@@ -978,7 +978,7 @@ private function CtorsRefuseUStrZptr_ _
                 dim as NodeId a = cast( NodeId, args[i] )
                 dim as NodeId pn = cast( NodeId, prms[i] )
                 dim as StmtPayload ptr pp = _
-                    @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
+                    c.ast->StmtOf( pn )
                 dim as TypeId pt = c.info->TypeOf_( pp->a )
                 if PlainConvType_( c, pt ) = false then return false
                 dim as boolean isU = UStrArgNode_( c, a )
@@ -1000,7 +1000,7 @@ end function
 '' 'T( u )' -- a call whose callee is the TYPE. See CtorsRefuseUStrZptr_.
 private sub CheckUStrCtorCall_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if lp->target = NODE_NONE then return
     dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
     if ts = nullptr then return
@@ -1027,7 +1027,7 @@ private sub CheckUStrCtorInits_ ( byref c as Ctx )
         dim as NodeId item = cast( NodeId, s->payload )
         if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
         dim as StmtPayload ptr ip = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, item )].data )]
+            c.ast->StmtOf( item )
         if ip->a = NODE_NONE then continue for
         if ip->b = NODE_NONE then continue for
         dim as TypeId udt = c.types->Unqualify( s->type_ )
@@ -1061,13 +1061,13 @@ private function TypeRefNames4_ _
     if t = NODE_NONE then return 0
     if depth > 32 then return -1
     if c.ast->Kind( t ) <> N_TYPEREF then return -1
-    if (c.ast->nodes[cast( int32, t )].flags and NF_PROC_TYPE) <> 0 then return -1
-    dim as StmtPayload ptr tp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, t )].data )]
+    if (c.ast->Flags( t ) and NF_PROC_TYPE) <> 0 then return -1
+    dim as StmtPayload ptr tp = c.ast->StmtOf( t )
     if tp->name = want then return 1
     dim as int32 r = TypeRefNames4_( c, tp->a, want, depth + 1 )
     if r <> 0 then return r
     for j as int32 = 0 to tp->count - 1
-        r = TypeRefNames4_( c, cast( NodeId, c.ast->children[tp->first + j] ), want, depth + 1 )
+        r = TypeRefNames4_( c, c.ast->ChildAt( tp->first, j ), want, depth + 1 )
         if r <> 0 then return r
     next
     return 0
@@ -1078,7 +1078,7 @@ private function GenericProcOf4_ ( byref c as Ctx, byval tgt as NodeId ) as Node
     if tgt = NODE_NONE then return NODE_NONE
     dim as NodeId n = tgt
     if c.ast->Kind( n ) = N_MEMBER then
-        n = c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, n )].data )].rhs
+        n = c.ast->BinaryOf( n )->rhs
     end if
     if (n = NODE_NONE) orelse (c.ast->Kind( n ) <> N_IDENT) then return NODE_NONE
     dim as SymbolId sid = c.info->RefOf( n )
@@ -1089,7 +1089,7 @@ private function GenericProcOf4_ ( byref c as Ctx, byval tgt as NodeId ) as Node
     dim as NodeId decl = cast( NodeId, sy->payload )
     if decl = NODE_NONE then return NODE_NONE
     if c.ast->Kind( decl ) <> N_PROC then return NODE_NONE
-    dim as StmtPayload ptr dp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, decl )].data )]
+    dim as StmtPayload ptr dp = c.ast->StmtOf( decl )
     if (dp->extra and PF_GENERIC_PROC) = 0 then return NODE_NONE
     if dp->c = NODE_NONE then return NODE_NONE
     return decl
@@ -1097,18 +1097,18 @@ end function
 
 '' Is a type parameter of the generic at gn named by NONE of its parameters?
 private function UninferableTypeParam4_ ( byref c as Ctx, byval gn as NodeId ) as boolean
-    dim as StmtPayload ptr gp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, gn )].data )]
+    dim as StmtPayload ptr gp = c.ast->StmtOf( gn )
     if c.ast->Kind( gp->c ) <> N_BLOCK then return false
-    dim as ListPayload ptr gl = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, gp->c )].data )]
+    dim as ListPayload ptr gl = c.ast->ListOf( gp->c )
     for g as int32 = 0 to gl->count - 1
-        dim as NodeId gnm = cast( NodeId, c.ast->children[gl->first + g] )
+        dim as NodeId gnm = c.ast->ChildAt( gl->first, g )
         if c.ast->Kind( gnm ) <> N_IDENT then return false
-        dim as InternId want = c.ast->idents[cast( int32, c.ast->nodes[cast( int32, gnm )].data )].name
+        dim as InternId want = c.ast->IdentOf( gnm )->name
         dim as boolean named = false
         for k as int32 = 0 to gp->count - 1
-            dim as NodeId prm = cast( NodeId, c.ast->children[gp->first + k] )
+            dim as NodeId prm = c.ast->ChildAt( gp->first, k )
             if c.ast->Kind( prm ) <> N_PARAM then continue for
-            dim as int32 r = TypeRefNames4_( c, c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )].a, want, 0 )
+            dim as int32 r = TypeRefNames4_( c, c.ast->StmtOf( prm )->a, want, 0 )
             if r < 0 then return false
             if r > 0 then
                 named = true
@@ -1136,11 +1136,11 @@ private function ArgInTemplate4_ ( byref c as Ctx, byval a as NodeId ) as boolea
         if a = NODE_NONE then return false
         select case c.ast->Kind( a )
         case N_BINARY, N_MEMBER
-            a = c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, a )].data )].lhs
+            a = c.ast->BinaryOf( a )->lhs
         case N_UNARY, N_ADDROF, N_DEREF
-            a = c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, a )].data )].operand
+            a = c.ast->UnaryOf( a )->operand
         case N_CALL, N_INDEX
-            a = c.ast->lists[cast( int32, c.ast->nodes[cast( int32, a )].data )].target
+            a = c.ast->ListOf( a )->target
         case N_IDENT
             exit for
         case else
@@ -1160,7 +1160,7 @@ private function ArgInTemplate4_ ( byref c as Ctx, byval a as NodeId ) as boolea
             if (os->flags and SYMF_GENERIC_INST) <> 0 then return false
             dim as NodeId dn = cast( NodeId, os->payload )
             if (dn > 0) andalso (cast( int32, dn ) <= c.ast->Count( )) then
-                dim as StmtPayload ptr op = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, dn )].data )]
+                dim as StmtPayload ptr op = c.ast->StmtOf( dn )
                 if (c.ast->Kind( dn ) = N_TYPE) andalso (os->kind = cast( uint8, SYM_UDT )) then
                     if op->b <> NODE_NONE then return true
                 elseif (c.ast->Kind( dn ) = N_PROC) andalso (os->kind = cast( uint8, SYM_PROC )) then
@@ -1180,11 +1180,11 @@ private function InferMissed4_ ( byref c as Ctx, byval id as NodeId ) as boolean
     if cs->kind <> cast( uint8, SYM_PROC ) then return false
     dim as NodeId cdn = cast( NodeId, cs->payload )
     if (cdn = NODE_NONE) orelse (c.ast->Kind( cdn ) <> N_PROC) then return false
-    if (c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, cdn )].data )].extra and PF_GENERIC_PROC) = 0 then return false
-    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    if (c.ast->StmtOf( cdn )->extra and PF_GENERIC_PROC) = 0 then return false
+    dim as ListPayload ptr lp = c.ast->ListOf( id )
     if lp->count = 0 then return false
     for i as int32 = 0 to lp->count - 1
-        dim as NodeId a = cast( NodeId, c.ast->children[lp->first + i] )
+        dim as NodeId a = c.ast->ChildAt( lp->first, i )
         if c.ast->Kind( a ) = N_ELIDED then return false
         if ArgInTemplate4_( c, a ) then return false
         dim as TypeId at = c.info->TypeOf_( a )
@@ -1200,7 +1200,7 @@ private sub CheckGenericInfer_ ( byref c as Ctx, byval id as NodeId, byval k as 
     if k = N_AMBIGUOUS then
         '' A STATEMENT CALL WITHOUT PARENTHESES: its callee is a bare name, where the
         '' parenthesised form's is a call node.
-        dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        dim as StmtPayload ptr sp = c.ast->StmtOf( id )
         if sp->op <> 0 then return
         if sp->a = NODE_NONE then return
         select case c.ast->Kind( sp->a )
@@ -1214,7 +1214,7 @@ private sub CheckGenericInfer_ ( byref c as Ctx, byval id as NodeId, byval k as 
     elseif k = N_CALL then
         dim as int32 taFirst, taCount
         if c.ast->CallTypeArgsOf( id, taFirst, taCount ) then return
-        callee = c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )].target
+        callee = c.ast->ListOf( id )->target
         gn = GenericProcOf4_( c, callee )
         if gn = NODE_NONE then return
         if UninferableTypeParam4_( c, gn ) = false then
@@ -1229,9 +1229,9 @@ private sub CheckGenericInfer_ ( byref c as Ctx, byval id as NodeId, byval k as 
         if c.diags->pending[i].range.first = c.ast->Loc( id ) then return
     next
     dim as NodeId nmN = callee
-    if c.ast->Kind( nmN ) = N_MEMBER then nmN = c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, nmN )].data )].rhs
+    if c.ast->Kind( nmN ) = N_MEMBER then nmN = c.ast->BinaryOf( nmN )->rhs
     c.diags->Report( TKO0809, PointRange( c.ast->Loc( id ) ), _
-                     c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, nmN )].data )].name ) )
+                     c.names->Spelling( c.ast->IdentOf( nmN )->name ) )
 end sub
 
 '' AN INCOMPLETE TYPE USED AS AN OBJECT -- fbc's error 71, "Incomplete type". 'type X as
@@ -1256,7 +1256,7 @@ private sub MarkTypeRefTree4_ ( byref c as Ctx, byval t as NodeId, byref mark as
         if (n < 1) orelse (cast( int32, n ) >= mark.Count) then continue while
         if c.ast->Kind( n ) <> N_TYPEREF then continue while
         mark[cast( int32, n )] = 1
-        dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+        dim as StmtPayload ptr sp = c.ast->StmtOf( n )
         if sp->a <> NODE_NONE then stack.Push( cast( uint32, sp->a ) )
         for j as int32 = 0 to sp->count - 1
             stack.Push( c.ast->children[sp->first + j] )
@@ -1303,8 +1303,8 @@ function CompletedBelow4_ ( byref c as Ctx, byval use as NodeId, byval at_ as No
             '' Collect's SameTypeRef_ compares it that way.
             dim as NodeId ta = cast( NodeId, sy->payload )
             if (ta = NODE_NONE) orelse (c.ast->Kind( ta ) <> N_TYPEREF) then return ""
-            if (c.ast->nodes[cast( int32, ta )].flags and (NF_PTR or NF_ARRAY or NF_PROC_TYPE)) <> 0 then return ""
-            dim as StmtPayload ptr tap = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, ta )].data )]
+            if (c.ast->Flags( ta ) and (NF_PTR or NF_ARRAY or NF_PROC_TYPE)) <> 0 then return ""
+            dim as StmtPayload ptr tap = c.ast->StmtOf( ta )
             if (tap->ownerName <> 0) orelse (tap->count <> 0) then return ""
             '' The backpatch types a typedef's target without BINDING it, so the name is
             '' looked up again, from the scope the typedef is declared in.
@@ -1372,10 +1372,10 @@ private sub CheckIncompleteObjects_ ( byref c as Ctx )
         if decl = false then continue for
         dim as StmtPayload ptr pp = @c.ast->stmts[cast( int32, c.ast->nodes[i].data )]
         for j as int32 = 0 to pp->count - 1
-            dim as NodeId ch = cast( NodeId, c.ast->children[pp->first + j] )
+            dim as NodeId ch = c.ast->ChildAt( pp->first, j )
             if (ch < 1) orelse (c.ast->Kind( ch ) <> N_PARAM) then continue for
-            if (c.ast->nodes[cast( int32, ch )].flags and NF_BYVAL_WRITTEN) <> 0 then continue for
-            dim as NodeId pta = c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, ch )].data )].a
+            if (c.ast->Flags( ch ) and NF_BYVAL_WRITTEN) <> 0 then continue for
+            dim as NodeId pta = c.ast->StmtOf( ch )->a
             if pta <> NODE_NONE then MarkTypeRefTree4_( c, pta, mark )
         next
     next
@@ -1412,7 +1412,7 @@ private sub CheckIncompleteObjects_ ( byref c as Ctx )
         if (lp->count <> 1) orelse (lp->target = NODE_NONE) then continue for
         if c.ast->Kind( lp->target ) <> N_IDENT then continue for
         if c.info->RefOf( lp->target ) <> SYMBOL_NONE then continue for
-        dim as string fnm = lcase( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name ) )
+        dim as string fnm = lcase( c.names->Spelling( c.ast->IdentOf( lp->target )->name ) )
         if (fnm <> "sizeof") andalso (fnm <> "len") then continue for
         dim as NodeId an = cast( NodeId, c.ast->children[lp->first] )
         dim as TypeId t = TYPE_NONE

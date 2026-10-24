@@ -193,16 +193,16 @@ private function SretCopyResult_ _
         dim as Tko.TypeId irt = c.types->Unqualify( rt )
         dim as boolean inPlace = (TypeCtorTypeOf_( c, valueE ) = irt)
         if (inPlace = false) andalso (c.ast->Kind( valueE ) = Tko.N_TUPLE) then
-            if (c.ast->nodes[cast( int32, valueE )].flags and Tko.NF_TYPE_LITERAL) <> 0 then
+            if (c.ast->Flags( valueE ) and Tko.NF_TYPE_LITERAL) <> 0 then
                 inPlace = (c.types->Unqualify( c.info->TypeOf_( valueE ) ) = irt)
             end if
         end if
         if inPlace then
             dim as Tko.ListPayload ptr icp = _
-                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, valueE )].data )]
+                c.ast->ListOf( valueE )
             dim as containers.Array( of uint32 ) iT
             for i as int32 = 0 to icp->count - 1
-                iT.Push( cast( uint32, c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[icp->first + i] ) ) ) )
+                iT.Push( cast( uint32, c.info->TypeOf_( c.ast->ChildAt( icp->first, i ) ) ) )
             next
             if PickCtor( c, StructorOf( c, irt, "__ctor" ), iT ) <> Tko.SYMBOL_NONE then
                 dim as MirValue isa
@@ -419,9 +419,9 @@ function BodyAssignsResult_ _
     if Tko.NodeKindCategory( k ) = Tko.NCAT_TYPE then return false
     if (k = Tko.N_MODULE) orelse (k = Tko.N_BLOCK) then
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         for i as int32 = 0 to lp->count - 1
-            if BodyAssignsResult_( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ), _
+            if BodyAssignsResult_( c, c.ast->ChildAt( lp->first, i ), _
                                    depth + 1 ) then return true
         next
         return false
@@ -431,7 +431,7 @@ function BodyAssignsResult_ _
     if BodyAssignsResult_( c, sp->b, depth + 1 ) then return true
     if BodyAssignsResult_( c, sp->c, depth + 1 ) then return true
     for i as int32 = 0 to sp->count - 1
-        if BodyAssignsResult_( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ), _
+        if BodyAssignsResult_( c, c.ast->ChildAt( sp->first, i ), _
                                depth + 1 ) then return true
     next
     return false
@@ -452,9 +452,9 @@ function BodyReturnsValue_ _
     if Tko.NodeKindCategory( k ) = Tko.NCAT_TYPE then return false
     if (k = Tko.N_MODULE) orelse (k = Tko.N_BLOCK) then
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         for i as int32 = 0 to lp->count - 1
-            if BodyReturnsValue_( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ), _
+            if BodyReturnsValue_( c, c.ast->ChildAt( lp->first, i ), _
                                   depth + 1 ) then return true
         next
         return false
@@ -464,7 +464,7 @@ function BodyReturnsValue_ _
     if BodyReturnsValue_( c, sp->b, depth + 1 ) then return true
     if BodyReturnsValue_( c, sp->c, depth + 1 ) then return true
     for i as int32 = 0 to sp->count - 1
-        if BodyReturnsValue_( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ), _
+        if BodyReturnsValue_( c, c.ast->ChildAt( sp->first, i ), _
                               depth + 1 ) then return true
     next
     return false
@@ -548,7 +548,7 @@ function DeclForName_( byref c as Ctx, byval id as Tko.NodeId, byval s as Tko.Sy
     if (dn = Tko.NODE_NONE) orelse (dn = id) orelse (c.ast->Kind( dn ) <> Tko.N_PROC) then return id
     dim as Tko.StmtPayload ptr dp = StmtOf( c, dn )
     for k as int32 = 0 to dp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[dp->first + k] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( dp->first, k )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         dim as Tko.TypeId pt = c.types->Unqualify( c.info->TypeOf_( StmtOf( c, prm )->a ) )
         if c.types->Kind( pt ) = Tko.TK_REFERENCE then pt = c.types->Unqualify( c.types->Inner( pt ) )

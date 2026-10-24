@@ -74,12 +74,12 @@ function LowerWstrOf _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if lp->count <> 1 then return false
     if lp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
+        c.ast->IdentOf( lp->target )
     if LowerSpelling_( c.ix, *c.names, ip->name ) <> "wstr" then return false
 
     dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[lp->first] )
@@ -346,7 +346,7 @@ function WideConstLitNode_( byref c as Ctx, byval e as Tko.NodeId, byval viaWstr
     select case c.ast->Kind( e )
     case Tko.N_CALL
         if IsWstrCall_( c, e ) = false then return Tko.NODE_NONE
-        dim as Tko.ListPayload ptr wl = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+        dim as Tko.ListPayload ptr wl = c.ast->ListOf( e )
         if wl->count <> 1 then return Tko.NODE_NONE
         return WideConstLitNode_( c, cast( Tko.NodeId, c.ast->children[wl->first] ), true )
     case Tko.N_STRING_LIT
@@ -376,7 +376,7 @@ end function
 function Utf8WideLit_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     e = Unparen_( c, e )
     if (e = Tko.NODE_NONE) orelse (c.ast->Kind( e ) <> Tko.N_STRING_LIT) then return false
-    dim as Tko.LiteralPayload ptr lp = @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+    dim as Tko.LiteralPayload ptr lp = c.ast->LiteralOf( e )
     dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( cast( Tko.FileId, lp->strFile ) )
     if (f = nullptr) orelse (f->encoding = Tko.Text.ENC_BYTES) then return false
     if (lp->strOffset < 0) orelse (lp->strOffset + lp->strLength > f->text.Count) then return false

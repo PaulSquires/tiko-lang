@@ -240,7 +240,7 @@ function StructorWithArity _
             dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
             dim as int32 np = 0
             for i as int32 = 0 to pp->count - 1
-                dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
                 if c.ast->Kind( prm ) = Tko.N_PARAM then np += 1
             next
             if np = want then return cur
@@ -257,7 +257,7 @@ function StructorWithArity _
                 dim as int32 seen = 0
                 dim as boolean allDef = true
                 for i as int32 = 0 to pp->count - 1
-                    dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                    dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
                     if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
                     if seen >= want then
                         if StmtOf( c, prm )->b = Tko.NODE_NONE then allDef = false
@@ -501,7 +501,7 @@ function ReceiverOf _
     '' dot on a pointer too, and '(*p).M( )' is a value whose address is the pointer.
     '' A pointer base is ALREADY an address; anything else needs one taking.
     dim as Tko.BinaryPayload ptr mb = _
-        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, target )].data )]
+        c.ast->BinaryOf( target )
     dim as Tko.TypeId bt = c.info->TypeOf_( mb->lhs )
     if bt <> Tko.TYPE_NONE then
         if c.types->Kind( bt ) = Tko.TK_POINTER then return LowerExpr( c, mb->lhs )
@@ -514,7 +514,7 @@ function ReceiverOf _
     '' method called through a smart pointer ran against the wrong object. It lowered,
     '' it verified, and the mangled name said the method was found.
     dim as Tko.TypeId ubt = c.types->Unqualify( bt )
-    if ((c.ast->nodes[cast( int32, target )].flags and Tko.NF_ARROW) <> 0) andalso _
+    if ((c.ast->Flags( target ) and Tko.NF_ARROW) <> 0) andalso _
        (c.types->Kind( ubt ) = Tko.TK_UDT) then
         dim as Tko.SymbolId aop = Tko.Check.ArrowOperatorFor( _
             *c.types, *c.syms, *c.names, *c.ast, *c.info, ubt )
@@ -549,7 +549,7 @@ function ReceiverOf _
                     dim as Tko.NodeId apn = cast( Tko.NodeId, aos->payload )
                     dim as boolean aByref = false
                     if apn <> Tko.NODE_NONE then
-                        aByref = ((c.ast->nodes[cast( int32, apn )].flags and _
+                        aByref = ((c.ast->Flags( apn ) and _
                                    Tko.NF_BYREF) <> 0)
                     end if
                     if (aByref = false) andalso (aort <> Tko.TYPE_NONE) then
@@ -590,7 +590,7 @@ function ReceiverOf _
             if ls->kind = cast( uint8, Tko.SYM_PROC ) then
                 dim as Tko.NodeId lpn = cast( Tko.NodeId, ls->payload )
                 if (lpn <> Tko.NODE_NONE) andalso (c.ast->Kind( lpn ) = Tko.N_PROC) then
-                    if (c.ast->nodes[cast( int32, lpn )].flags and Tko.NF_BYREF) <> 0 then
+                    if (c.ast->Flags( lpn ) and Tko.NF_BYREF) <> 0 then
                         dim as MirValue brv = LowerCallParts( c, mb->lhs, c.info->RefOf( mb->lhs ), _
                                                               0, 0, MT_PTR, true )
                         if brv.kind <> cast( uint8, MV_NONE ) then return brv
@@ -656,18 +656,18 @@ function AddrWordOf_ _
     '' 'procptr( f )' IS '@f' here as it is in GlobalRelocInit_ (fbc-examples r2ice08, fbsound).
     if c.ast->Kind( e ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr pcp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+            c.ast->ListOf( e )
         if (pcp->count <> 1) orelse (pcp->target = Tko.NODE_NONE) then return false
         if c.ast->Kind( pcp->target ) <> Tko.N_IDENT then return false
         dim as Tko.IdentPayload ptr pip = _
-            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, pcp->target )].data )]
+            c.ast->IdentOf( pcp->target )
         if LowerSpelling_( c.ix, *c.names, pip->name ) <> "procptr" then return false
         opnd = Unparen_( c, cast( Tko.NodeId, c.ast->children[pcp->first] ) )
         if c.ast->Kind( opnd ) = Tko.N_STRING_LIT then return false
     else
         if c.ast->Kind( e ) <> Tko.N_ADDROF then return false
         dim as Tko.UnaryPayload ptr up = _
-            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+            c.ast->UnaryOf( e )
         opnd = Unparen_( c, up->operand )
     end if
     dim as int32 ctg = ConstTextGlobal_( c, opnd )
@@ -842,11 +842,11 @@ private function GlobalRelocInit_ _
     while unwrapN < 8
         if c.ast->Kind( init ) <> Tko.N_CALL then exit while
         dim as Tko.ListPayload ptr wcp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
+            c.ast->ListOf( init )
         if wcp->target = Tko.NODE_NONE then exit while
         if c.ast->Kind( wcp->target ) <> Tko.N_IDENT then exit while
         dim as Tko.IdentPayload ptr wip = _
-            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, wcp->target )].data )]
+            c.ast->IdentOf( wcp->target )
         dim as string wnm2 = LowerSpelling_( c.ix, *c.names, wip->name )
         if ((wnm2 = "cptr") orelse (wnm2 = "cast")) andalso (wcp->count = 2) then
             init = cast( Tko.NodeId, c.ast->children[wcp->first + 1] )
@@ -862,7 +862,7 @@ private function GlobalRelocInit_ _
     wend
     if c.ast->Kind( init ) <> Tko.N_ADDROF then return false
     dim as Tko.UnaryPayload ptr up = _
-        @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, init )].data )]
+        c.ast->UnaryOf( init )
     dim as Tko.NodeId a = up->operand
     if a = Tko.NODE_NONE then return false
     '' '@<constant text>' IS THE LITERAL'S OWN GLOBAL, as in AddrWordOf_ (fbc-examples r2ice02, r3ice01/02).
@@ -878,7 +878,7 @@ private function GlobalRelocInit_ _
     dim as int64 off = 0
     if c.ast->Kind( a ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr acp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, a )].data )]
+            c.ast->ListOf( a )
         if acp->count <> 1 then return false
         if acp->target = Tko.NODE_NONE then return false
         dim as Tko.TypeId aat = c.info->TypeOf_( acp->target )
@@ -1051,7 +1051,7 @@ sub InitSharedGlobal _
     if (g < 0) orelse (init = Tko.NODE_NONE) then return
     '' '= ANY' IS NO INITIALISER, zeroed storage as any static has (fbc-examples r2ice04).
     if c.ast->Kind( init ) = Tko.N_IDENT then
-        if LowerSpelling_( c.ix, *c.names, c.ast->idents[cast( int32, c.ast->nodes[cast( int32, init )].data )].name ) = "any" then return
+        if LowerSpelling_( c.ix, *c.names, c.ast->IdentOf( init )->name ) = "any" then return
     end if
 
     '' A FLOATING initialiser first, because the integer folder cannot carry one:
@@ -1094,7 +1094,7 @@ sub InitSharedGlobal _
     dim as Tko.NodeId flit = init
     if c.ast->Kind( flit ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr wlp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, flit )].data )]
+            c.ast->ListOf( flit )
         if (wlp->count = 1) andalso IsWstrCall_( c, flit ) then
             dim as Tko.NodeId wa = cast( Tko.NodeId, c.ast->children[wlp->first] )
             if c.ast->Kind( wa ) = Tko.N_STRING_LIT then flit = wa
@@ -1223,10 +1223,10 @@ sub InitSharedGlobal _
     if cv.known = false then
         dim as Tko.NodeId fe = init
         if c.ast->Kind( fe ) = Tko.N_CALL then
-            dim as Tko.ListPayload ptr fcp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, fe )].data )]
+            dim as Tko.ListPayload ptr fcp = c.ast->ListOf( fe )
             if (fcp->count = 2) andalso (fcp->target <> Tko.NODE_NONE) then
                 if c.ast->Kind( fcp->target ) = Tko.N_IDENT then
-                    dim as string fcn = lcase( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, fcp->target )].data )].name ) )
+                    dim as string fcn = lcase( c.names->Spelling( c.ast->IdentOf( fcp->target )->name ) )
                     dim as MirType ftt = LowerType( c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[fcp->first] ) ), *c.types )
                     if (fcn = "cast") andalso (ftt <> MT_VOID) andalso (ftt <> MT_AGG) andalso (IsFloatTy( ftt ) = false) then
                         fe = cast( Tko.NodeId, c.ast->children[fcp->first + 1] )
@@ -1286,7 +1286,7 @@ function ParamCountOf( byref c as Ctx, byval callee as Tko.SymbolId ) as int32
     dim as Tko.StmtPayload ptr psp = StmtOf( c, pn )
     dim as int32 n = 0
     for i as int32 = 0 to psp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[psp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( psp->first, i )
         if c.ast->Kind( prm ) = Tko.N_PARAM then n += 1
     next
     return n
@@ -1306,7 +1306,7 @@ function IsVariadicProc( byref c as Ctx, byval callee as Tko.SymbolId ) as boole
     '' time.
     dim as Tko.StmtPayload ptr psp = StmtOf( c, pn )
     for i as int32 = 0 to psp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[psp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( psp->first, i )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if StmtOf( c, prm )->op = cast( uint16, Tko.TK_ELLIPSIS ) then return true
     next

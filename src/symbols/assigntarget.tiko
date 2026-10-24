@@ -18,7 +18,7 @@
 '' let( ) list.
 sub CheckAssignTarget_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->StmtOf( id )
     if sp->op = 0 then return
     if sp->a = NODE_NONE then return
     select case c.ast->Kind( sp->a )
@@ -59,12 +59,12 @@ sub CheckAssignTarget_ ( byref c as Ctx, byval id as NodeId )
         '' intrinsic is judged; an indexing expression has the same shape and is an
         '' lvalue.
         dim as ListPayload ptr cl = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sp->a )].data )]
+            c.ast->ListOf( sp->a )
         if cl->target = NODE_NONE then return
         if c.ast->Kind( cl->target ) <> N_IDENT then return
         if c.info->RefOf( cl->target ) <> SYMBOL_NONE then return
         dim as InternId cn = _
-            c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cl->target )].data )].name
+            c.ast->IdentOf( cl->target )->name
         if c.names->Fold( cn ) <> c.names->Fold( c.names->GetString( "iif" ) ) then return
         c.diags->Report( TKO0652, PointRange( c.ast->Loc( sp->a ) ) )
         return
@@ -102,9 +102,9 @@ sub CheckAssignTarget_ ( byref c as Ctx, byval id as NodeId )
         '' 'let( 0 ) = x' is fbc error 24 and 'let( K ) = x' over a constant is 119.
         '' The tuple is a list node; each element is judged the way a bare target is.
         dim as ListPayload ptr tl = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sp->a )].data )]
+            c.ast->ListOf( sp->a )
         for i as int32 = 0 to tl->count - 1
-            dim as NodeId el = cast( NodeId, c.ast->children[tl->first + i] )
+            dim as NodeId el = c.ast->ChildAt( tl->first, i )
             if el = NODE_NONE then continue for
             select case c.ast->Kind( el )
             case N_INT_LIT, N_FLOAT_LIT, N_STRING_LIT, N_STRCAT

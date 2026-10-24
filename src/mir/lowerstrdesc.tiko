@@ -154,7 +154,7 @@ function StrDescriptorOf_ _
     if c.ast->Kind( id ) = Tko.N_CALL then
         if IsStringType( c, c.info->TypeOf_( id ) ) then
             dim as Tko.ListPayload ptr scp = _
-                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+                c.ast->ListOf( id )
             dim as Tko.SymbolId scallee = c.info->RefOf( id )
             if scallee = Tko.SYMBOL_NONE then scallee = c.info->RefOf( scp->target )
             if scallee <> Tko.SYMBOL_NONE then

@@ -49,7 +49,7 @@ private function GfxArg _
     ( byref c as Ctx, byval sp as Tko.StmtPayload ptr, byval i as int32 ) as Tko.NodeId
 
     if (i < 0) orelse (i >= sp->count) then return Tko.NODE_NONE
-    dim as Tko.NodeId n = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+    dim as Tko.NodeId n = c.ast->ChildAt( sp->first, i )
     if n = Tko.NODE_NONE then return Tko.NODE_NONE
     if c.ast->Kind( n ) = Tko.N_ELIDED then return Tko.NODE_NONE
     return n
@@ -940,11 +940,11 @@ function LowerGfxExprCall_ _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
 
     dim as Tko.StmtPayload lp

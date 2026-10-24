@@ -28,7 +28,7 @@ private function SameTypeLet_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.Sy
     if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then return lt
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
     for k as int32 = 0 to pp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + k] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, k )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         dim as Tko.TypeId pt = c.types->Unqualify( c.info->TypeOf_( StmtOf( c, prm )->a ) )
         if pt = Tko.TYPE_NONE then return lt
@@ -128,7 +128,7 @@ private function LowerTupleListAssign_ _
 
     if value = Tko.NODE_NONE then return false
     if c.ast->Kind( value ) <> Tko.N_TUPLE then return false
-    if (c.ast->nodes[cast( int32, value )].flags and Tko.NF_TYPE_LITERAL) <> 0 then
+    if (c.ast->Flags( value ) and Tko.NF_TYPE_LITERAL) <> 0 then
         return false
     end if
     '' A TUPLE TARGET is destructuring -- 'let (a, b) = e' -- and is handled ahead
@@ -187,7 +187,7 @@ private function LowerBareTypeLiteralAssign_ _
 
     if value = Tko.NODE_NONE then return false
     if c.ast->Kind( value ) <> Tko.N_TUPLE then return false
-    if (c.ast->nodes[cast( int32, value )].flags and Tko.NF_TYPE_LITERAL) = 0 then
+    if (c.ast->Flags( value ) and Tko.NF_TYPE_LITERAL) = 0 then
         return false
     end if
     '' A TYPE LITERAL THAT DID GET A TYPE is still one, as long as the type is the
@@ -259,7 +259,7 @@ end function
 private function IsSpawnFrameField_ ( byref c as Ctx, byval target as Tko.NodeId ) as boolean
     if c.ast->Kind( target ) <> Tko.N_MEMBER then return false
     dim as Tko.BinaryPayload ptr bp = _
-        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, target )].data )]
+        c.ast->BinaryOf( target )
     dim as Tko.TypeId ft = c.info->TypeOf_( bp->lhs )
     if ft = Tko.TYPE_NONE then return false
     ft = c.types->Unqualify( ft )
@@ -625,7 +625,7 @@ private sub LowerAssign _
     if c.ast->Kind( target ) = Tko.N_IDENT then
         if c.types->Kind( c.types->Unqualify( atl ) ) = Tko.TK_POINTER then
             dim as Tko.IdentPayload ptr tip = _
-                @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, target )].data )]
+                c.ast->IdentOf( target )
             if tip->name = c.names->Fold( c.names->GetString( "this" ) ) then
                 dim as Tko.TypeId pin2 = c.types->Inner( c.types->Unqualify( atl ) )
                 if pin2 <> Tko.TYPE_NONE then
@@ -682,7 +682,7 @@ private sub LowerAssign _
     if (atl <> Tko.TYPE_NONE) andalso (c.ast->Kind( value ) = Tko.N_CALL) then
         if c.types->Kind( atl ) = Tko.TK_UDT then
             dim as Tko.ListPayload ptr vlp = _
-                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, value )].data )]
+                c.ast->ListOf( value )
             dim as Tko.TypeId vat = Tko.TYPE_NONE
             if (vlp->count = 0) andalso (vlp->target <> Tko.NODE_NONE) then
                 vat = c.info->TypeOf_( vlp->target )

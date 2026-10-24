@@ -60,11 +60,11 @@ function LowerClosureAddr_ _
     end if
 
     for k as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId cn = cast( Tko.NodeId, c.ast->children[sp->first + k] )
+        dim as Tko.NodeId cn = c.ast->ChildAt( sp->first, k )
         if c.ast->Kind( cn ) <> Tko.N_IDENT then return false
         dim as Tko.InternId fnm = c.names->Fold( c.names->GetString( _
             "__CAP_" & c.names->Spelling( _
-                c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cn )].data )].name ) ) )
+                c.ast->IdentOf( cn )->name ) ) )
         dim as boolean found = false
         dim as int32 off = c.udts->FieldOffset( cu, fnm, found )
         if found = false then return false
@@ -77,7 +77,7 @@ function LowerClosureAddr_ _
         dim as MirValue dst = Emit( c, fa )
 
         dim as MirValue v
-        if (c.ast->nodes[cast( int32, cn )].flags and Tko.NF_BYREF) <> 0 then
+        if (c.ast->Flags( cn ) and Tko.NF_BYREF) <> 0 then
             '' A BYREF CAPTURE STORES THE ADDRESS TAKEN AT CREATION -- fbc writes
             '' '*(int32**)&TMP = &ACC' and does nothing about lifetime.
             v = LowerAddr( c, cn )

@@ -25,28 +25,28 @@ private function ReadsLater_ _
         return n
     case N_MEMBER
         dim as BinaryPayload ptr mp = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+            c.ast->BinaryOf( n )
         return ReadsLater_( c, mp->lhs, item, depth + 1 )
     case N_BINARY
         dim as BinaryPayload ptr bp = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+            c.ast->BinaryOf( n )
         dim as NodeId l = ReadsLater_( c, bp->lhs, item, depth + 1 )
         if l <> NODE_NONE then return l
         return ReadsLater_( c, bp->rhs, item, depth + 1 )
     case N_UNARY
         dim as UnaryPayload ptr up = _
-            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+            c.ast->UnaryOf( n )
         return ReadsLater_( c, up->operand, item, depth + 1 )
     case N_CALL, N_PAREN, N_TUPLE, N_INITIALIZER
         dim as ListPayload ptr lp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+            c.ast->ListOf( n )
         if c.ast->Kind( n ) = N_CALL then
             dim as NodeId t = ReadsLater_( c, lp->target, item, depth + 1 )
             if t <> NODE_NONE then return t
         end if
         for i as int32 = 0 to lp->count - 1
             dim as NodeId e = ReadsLater_( c, _
-                cast( NodeId, c.ast->children[lp->first + i] ), item, depth + 1 )
+                c.ast->ChildAt( lp->first, i ), item, depth + 1 )
             if e <> NODE_NONE then return e
         next
     end select
@@ -64,7 +64,7 @@ private sub CheckInitOrder_( byref c as Ctx )
         dim as NodeId item = cast( NodeId, s->payload )
         if c.ast->Kind( item ) <> N_VAR_ITEM then continue for
         dim as StmtPayload ptr ip = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, item )].data )]
+            c.ast->StmtOf( item )
         if ip->b = NODE_NONE then continue for
         dim as NodeId leaf = ReadsLater_( c, ip->b, item, 0 )
         if leaf = NODE_NONE then continue for
@@ -87,7 +87,7 @@ private sub ConstRefs_ _
     case N_IDENT
         dim as SymbolId sid = c.info->RefOf( n )
         if sid = SYMBOL_NONE then
-            sid = c.syms->Lookup( scope_, c.ast->idents[cast( int32, c.ast->nodes[cast( int32, n )].data )].name )
+            sid = c.syms->Lookup( scope_, c.ast->IdentOf( n )->name )
         end if
         dim as Symbol ptr s = c.syms->SymbolAt( sid )
         if s = nullptr then return
@@ -97,18 +97,18 @@ private sub ConstRefs_ _
         outv.Push( cast( uint32, n ) )
     case N_BINARY
         dim as BinaryPayload ptr bp = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+            c.ast->BinaryOf( n )
         ConstRefs_( c, bp->lhs, scope_, outv, depth + 1 )
         ConstRefs_( c, bp->rhs, scope_, outv, depth + 1 )
     case N_UNARY
         dim as UnaryPayload ptr up = _
-            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+            c.ast->UnaryOf( n )
         ConstRefs_( c, up->operand, scope_, outv, depth + 1 )
     case N_CALL, N_PAREN, N_TUPLE
         dim as ListPayload ptr lp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+            c.ast->ListOf( n )
         for i as int32 = 0 to lp->count - 1
-            ConstRefs_( c, cast( NodeId, c.ast->children[lp->first + i] ), scope_, outv, depth + 1 )
+            ConstRefs_( c, c.ast->ChildAt( lp->first, i ), scope_, outv, depth + 1 )
         next
     end select
 end sub
@@ -119,7 +119,7 @@ private function ConstInit_( byref c as Ctx, byval sid as SymbolId ) as NodeId
     if s->payload = 0 then return NODE_NONE
     dim as NodeId item = cast( NodeId, s->payload )
     if c.ast->Kind( item ) <> N_VAR_ITEM then return NODE_NONE
-    return c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, item )].data )].b
+    return c.ast->StmtOf( item )->b
 end function
 
 private sub ConstVisit_ _

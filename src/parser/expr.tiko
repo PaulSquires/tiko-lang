@@ -128,8 +128,10 @@ end function
 
 private function NewNode _
     ( byref a as AstArena, byval kind as NodeKind, byval loc as SourceLoc, _
-      byval payload as uint32 ) as NodeId
+      byval payload as uint32, byval pool as AstPool = POOL_NONE ) as NodeId
 
+    dim as uint8 kp = a.kindPool(kind)   '' for AstArena's -g pool check (ast/nodes.ti)
+    if (pool <> POOL_NONE) andalso (kp <> pool) then a.kindPool(kind) = iif( kp = POOL_NONE, pool, POOL_MIXED )
     dim as AstNode n
     n.kind = cast( uint16, kind )
     n.flags = 0
@@ -241,7 +243,7 @@ private function MakeLiteral _
         lp.radix = src->radix
     end if
     p.ast->literals.Push( lp )
-    return Tko.NewNode( *p.ast, kind, t.loc, p.ast->literals.Count - 1 )
+    return Tko.NewNode( *p.ast, kind, t.loc, p.ast->literals.Count - 1, Tko.POOL_LITERAL )
 end function
 
 '' One token as the node it IS -- a literal for a literal, an identifier otherwise.
@@ -366,7 +368,7 @@ private function MakeUnary _
     up.operand = operand
     if kind = Tko.N_ADDROF then MarkCallTarget_( p, operand )
     p.ast->unaries.Push( up )
-    return Tko.NewNode( *p.ast, kind, loc, p.ast->unaries.Count - 1 )
+    return Tko.NewNode( *p.ast, kind, loc, p.ast->unaries.Count - 1, Tko.POOL_UNARY )
 end function
 
 '' '@name' built from an interned NAME rather than from a token. The hoisted-lambda
@@ -382,7 +384,7 @@ function MakeAddrOfName _
     ip.spellLength = spellLen
     p.ast->idents.Push( ip )
     dim as Tko.NodeId lid = _
-        NewNode( *p.ast, Tko.N_IDENT, loc, p.ast->idents.Count - 1 )
+        NewNode( *p.ast, Tko.N_IDENT, loc, p.ast->idents.Count - 1, Tko.POOL_IDENT )
     return MakeUnary( p, Tko.TK_AT, loc, lid, Tko.N_ADDROF )
 end function
 
@@ -395,7 +397,7 @@ private function MakeBinary _
     bp.lhs = lhs
     bp.rhs = rhs
     p.ast->binaries.Push( bp )
-    return Tko.NewNode( *p.ast, Tko.N_BINARY, loc, p.ast->binaries.Count - 1 )
+    return Tko.NewNode( *p.ast, Tko.N_BINARY, loc, p.ast->binaries.Count - 1, Tko.POOL_BINARY )
 end function
 
 '' Children are appended to the shared pool, so a list node allocates nothing of
@@ -417,7 +419,7 @@ function MakeList _
         MarkCallTarget_( p, target )
         MarkSymbolArgs_( p, target, items )     '' 'procptr( f )' ... -- parserend.tiko
     end if
-    return Tko.NewNode( *p.ast, kind, loc, p.ast->lists.Count - 1 )
+    return Tko.NewNode( *p.ast, kind, loc, p.ast->lists.Count - 1, Tko.POOL_LIST )
 end function
 
 '' A general statement/declaration node.
@@ -426,7 +428,7 @@ function MakeStmt _
       byref sp as Tko.StmtPayload ) as Tko.NodeId
 
     p.ast->stmts.Push( sp )
-    return Tko.NewNode( *p.ast, kind, loc, p.ast->stmts.Count - 1 )
+    return Tko.NewNode( *p.ast, kind, loc, p.ast->stmts.Count - 1, Tko.POOL_STMT )
 end function
 
 function NewNodeAt _

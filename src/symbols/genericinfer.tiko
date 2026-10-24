@@ -53,11 +53,11 @@ function ProcPtrTypeOfName_ _
     end if
     dim as Tko.TypeIdVec2 ps
     for i as int32 = 0 to pp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         dim as Tko.TypeId pt = ResolveTypeRef( c, StmtOf( c, prm )->a, psc )
         if pt = Tko.TYPE_NONE then return Tko.TYPE_NONE
-        if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0 then
+        if (c.ast->Flags( prm ) and Tko.NF_BYREF) <> 0 then
             pt = c.types->Reference( pt )
         end if
         ps.Push( cast( uint32, pt ) )
@@ -162,7 +162,7 @@ private function InferArgType_ _
         dim as boolean cqual = false
         if c.ast->Kind( ctgt ) = Tko.N_MEMBER then
             dim as Tko.BinaryPayload ptr cqb = _
-                @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, ctgt )].data )]
+                c.ast->BinaryOf( ctgt )
             dim as Tko.Symbol ptr cnss = nullptr
             if c.ast->Kind( cqb->lhs ) = Tko.N_IDENT then
                 dim as Tko.SymbolId cnsid = c.info->RefOf( cqb->lhs )
@@ -325,7 +325,7 @@ private function InferArgType_ _
                         dim as Tko.NodeId p0 = Tko.NODE_NONE
                         for oi as int32 = 0 to opp->count - 1
                             dim as Tko.NodeId oprm = _
-                                cast( Tko.NodeId, c.ast->children[opp->first + oi] )
+                                c.ast->ChildAt( opp->first, oi )
                             if c.ast->Kind( oprm ) = Tko.N_PARAM then
                                 p0 = oprm
                                 exit for
@@ -370,7 +370,7 @@ private function InferArgType_ _
         '' 'Some( x \ 2 )' -- inferred nothing and the whole statement declined,
         '' while the same call over a NAME one line up instantiated.
         dim as Tko.BinaryPayload ptr bip = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, a )].data )]
+            c.ast->BinaryOf( a )
         dim as Tko.TypeId blt = InferArgType_( c, bip->lhs, scope_ )
         if blt = Tko.TYPE_NONE then return Tko.TYPE_NONE
         dim as Tko.TypeId brt = InferArgType_( c, bip->rhs, scope_ )
@@ -419,7 +419,7 @@ private function InferArgType_ _
         '' 'GENTAKE'. tracks sorts every grid through a SortVector's private field, so none of
         '' them was sorted. The base's type, through a reference or a pointer, names the UDT.
         dim as Tko.BinaryPayload ptr mbp = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, a )].data )]
+            c.ast->BinaryOf( a )
         if c.ast->Kind( mbp->rhs ) <> Tko.N_IDENT then return Tko.TYPE_NONE
         dim as Tko.TypeId mbt = InferArgType_( c, mbp->lhs, scope_ )
         if mbt = Tko.TYPE_NONE then return Tko.TYPE_NONE
@@ -437,7 +437,7 @@ private function InferArgType_ _
     case Tko.N_DEREF
         '' '*p' over a POINTER is its target -- the same question one level down.
         dim as Tko.UnaryPayload ptr dup_ = _
-            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, a )].data )]
+            c.ast->UnaryOf( a )
         dim as Tko.TypeId dpt = InferArgType_( c, dup_->operand, scope_ )
         if dpt = Tko.TYPE_NONE then return Tko.TYPE_NONE
         dpt = c.types->Unqualify( dpt )
@@ -459,13 +459,13 @@ private function InferArgType_ _
         '' clang refused the whole module.
         '' ...BY THE LITERAL MODEL, unsuffixed too: 'Show( 3000000000 )' is Show( of uinteger ).
         dim as Tko.LiteralPayload ptr ilp = _
-            @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, a )].data )]
+            c.ast->LiteralOf( a )
         return Tko.Check.LitClassBuiltin( *c.types, Tko.LiteralClassOf( ilp->suffix, ilp->radix, ilp->intValue, false, c.types->target.pointerBits = 64 ) )
     case Tko.N_FLOAT_LIT
         '' ...AND FOR A FLOAT: '1.5f' is SINGLE, as Check's LiteralType_ says. 'Show( 1.5f )'
         '' instantiated Show( of double ) where fbc-modern makes T SINGLE (audit F-55).
         dim as Tko.LiteralPayload ptr flp = _
-            @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, a )].data )]
+            c.ast->LiteralOf( a )
         return Tko.Check.LitClassBuiltin( *c.types, Tko.LiteralClassOf( flp->suffix, flp->radix, 0, true, true ) )
     case Tko.N_STRING_LIT
         return c.types->Builtin( Tko.TY_STRING )
@@ -492,7 +492,7 @@ private function InferArgType_ _
         '' the integer width unsigned. Neither is BinaryResult over (t,t): 'uq - uq'
         '' is UINTEGER where '-uq' is INTEGER.
         dim as Tko.UnaryPayload ptr uup = _
-            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, a )].data )]
+            c.ast->UnaryOf( a )
         dim as Tko.TokenKind uop = cast( Tko.TokenKind, uup->op )
         dim as boolean isSign = (uop = Tko.TK_MINUS) orelse (uop = Tko.TK_PLUS)
         if (isSign = false) andalso (uop <> Tko.KW_NOT) then return Tko.TYPE_NONE
@@ -535,7 +535,7 @@ private function InferArgType_ _
         '' declares the comparer as a type PARAMETER precisely so any callable
         '' fits.
         dim as Tko.UnaryPayload ptr aup = _
-            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, a )].data )]
+            c.ast->UnaryOf( a )
         dim as Tko.TypeId pp2 = ProcPtrTypeOfName_( c, aup->operand, scope_ )
         if pp2 <> Tko.TYPE_NONE then return pp2
         '' ...AND '@v' OVER A VARIABLE IS A POINTER TO ITS TYPE, which is how every
@@ -572,7 +572,7 @@ private function InferPtrInst_ _
     dim as Tko.StmtPayload ptr ip = StmtOf( c, tp->a )
     dim as int32 at_ = -1
     for j as int32 = 0 to ip->count - 1
-        dim as Tko.NodeId an2 = cast( Tko.NodeId, c.ast->children[ip->first + j] )
+        dim as Tko.NodeId an2 = c.ast->ChildAt( ip->first, j )
         if c.ast->Kind( an2 ) <> Tko.N_TYPEREF then continue for
         if StmtOf( c, an2 )->name = want then at_ = j : exit for
     next

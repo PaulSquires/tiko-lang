@@ -215,7 +215,7 @@ function EmitStrTerm _
             '' descriptor pointer would come back sign-extended and bitcast. The
             '' FUNCTION returns a pointer -- that is what its own declaration says.
             dim as Tko.ListPayload ptr scp = _
-                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, term )].data )]
+                c.ast->ListOf( term )
             dim as Tko.SymbolId scallee = c.info->RefOf( term )
             if scallee = Tko.SYMBOL_NONE then scallee = c.info->RefOf( scp->target )
             dim as MirValue scv = LowerCallParts( c, scp->target, scallee, _
@@ -380,12 +380,12 @@ function IsWstrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     if CallsUserProcNamedLikeBuiltin( c, id ) then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if lp->count < 1 then return false
     if lp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
+        c.ast->IdentOf( lp->target )
     '' ...and the WIDE RADIX FAMILY, which is wide by the same rule and for the same
     '' reason: Check computes no type for the call, so only the NAME says so.
     select case LowerSpelling_( c.ix, *c.names, ip->name )
@@ -414,12 +414,12 @@ function IsStrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     if CallsUserProcNamedLikeBuiltin( c, id ) then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if lp->count <> 1 then return false
     if lp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
+        c.ast->IdentOf( lp->target )
     return (LowerSpelling_( c.ix, *c.names, ip->name ) = "str")
 end function
 
@@ -1305,12 +1305,12 @@ function LowerStrOperandOp_ _
 
     if c.ast->Kind( id ) = Tko.N_UNARY then
         dim as Tko.UnaryPayload ptr uop = _
-            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->UnaryOf( id )
         return LowerUserUnaryOp_( c, id, uop, MT_PTR, outv )
     end if
     if c.ast->Kind( id ) = Tko.N_BINARY then
         dim as Tko.BinaryPayload ptr bop = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->BinaryOf( id )
         return LowerUserBinaryOp_( c, id, bop, MT_PTR, outv )
     end if
     return false
@@ -1325,11 +1325,11 @@ function StrCatText_ _
     if id = Tko.NODE_NONE then return false
     if c.ast->Kind( id ) <> Tko.N_STRCAT then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if lp->count <= 0 then return false
     outv = ""
     for i as int32 = 0 to lp->count - 1
-        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        dim as Tko.NodeId e = c.ast->ChildAt( lp->first, i )
         if c.ast->Kind( e ) = Tko.N_STRING_LIT then
             outv &= StringLitText_( c, e )
         else
@@ -1384,7 +1384,7 @@ function PlainUtf8Text_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     select case c.ast->Kind( id )
     case Tko.N_STRING_LIT
         dim as Tko.LiteralPayload ptr lp = _
-            @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->LiteralOf( id )
         if lp->strLength < 0 then return false
         if lp->strKind = cast( uint8, Tko.STRK_ESCAPED ) then return false
         dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( cast( Tko.FileId, lp->strFile ) )
@@ -1392,10 +1392,10 @@ function PlainUtf8Text_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         return (f->encoding <> Tko.Text.ENC_BYTES)
     case Tko.N_STRCAT
         dim as Tko.ListPayload ptr sp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         if sp->count <= 0 then return false
         for i as int32 = 0 to sp->count - 1
-            if PlainUtf8Text_( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ) ) = false then
+            if PlainUtf8Text_( c, c.ast->ChildAt( sp->first, i ) ) = false then
                 return false
             end if
         next

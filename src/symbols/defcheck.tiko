@@ -37,7 +37,7 @@
 '' (SetProcResult), and a name not yet resolved to a type. Those answer 'the same'.
 
 private function DefStmt_ ( byref c as Ctx, byval id as NodeId ) as StmtPayload ptr
-    return @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    return c.ast->StmtOf( id )
 end function
 
 '' Can a TypeId be compared by IDENTITY? Pointers and references down to a builtin, a
@@ -72,8 +72,8 @@ private function DefSameSpelling_ _
         if (a = NODE_NONE) orelse (b = NODE_NONE) then return (a = b)
         if (c.ast->Kind( a ) <> N_TYPEREF) orelse (c.ast->Kind( b ) <> N_TYPEREF) then return false
         dim as uint16 mask = NF_PTR or NF_CONST or NF_PROC_TYPE
-        dim as uint16 af = c.ast->nodes[cast( int32, a )].flags and mask
-        if af <> (c.ast->nodes[cast( int32, b )].flags and mask) then return false
+        dim as uint16 af = c.ast->Flags( a ) and mask
+        if af <> (c.ast->Flags( b ) and mask) then return false
         if (af and NF_PROC_TYPE) <> 0 then return false
         dim as StmtPayload ptr ap = DefStmt_( c, a )
         dim as StmtPayload ptr bp = DefStmt_( c, b )
@@ -115,7 +115,7 @@ private function DefParamCount_ _
     variadic = false
     dim as int32 n = 0
     for i as int32 = 0 to sp->count - 1
-        dim as NodeId prm = cast( NodeId, c.ast->children[sp->first + i] )
+        dim as NodeId prm = c.ast->ChildAt( sp->first, i )
         if c.ast->Kind( prm ) <> N_PARAM then continue for
         if DefStmt_( c, prm )->op = cast( uint16, TK_ELLIPSIS ) then variadic = true
         n += 1
@@ -128,7 +128,7 @@ private function DefParamAt_ _
 
     dim as int32 seen = 0
     for i as int32 = 0 to sp->count - 1
-        dim as NodeId prm = cast( NodeId, c.ast->children[sp->first + i] )
+        dim as NodeId prm = c.ast->ChildAt( sp->first, i )
         if c.ast->Kind( prm ) <> N_PARAM then continue for
         if seen = idx then return prm
         seen += 1
@@ -143,8 +143,8 @@ private function DefParamDiffers_ _
     ( byref c as Ctx, byval a as NodeId, byval b as NodeId ) as int32
 
     if (a = NODE_NONE) orelse (b = NODE_NONE) then return 1
-    dim as uint16 af = c.ast->nodes[cast( int32, a )].flags
-    dim as uint16 bf = c.ast->nodes[cast( int32, b )].flags
+    dim as uint16 af = c.ast->Flags( a )
+    dim as uint16 bf = c.ast->Flags( b )
     if (af and NF_ARRAY) <> (bf and NF_ARRAY) then return 1
     '' 'byref p as ANY' in the DECLARATION takes any type in the definition -- the corpus's
     '' functions/void_param defines three that way -- but not any MODE: 'byval p as long'
@@ -204,7 +204,7 @@ end function
 ''   'operator T.cast( ) as T ptr' (or 'as T') -- 140, a cast to the type it is a member of.
 private sub CheckDefinitionShape_ ( byref c as Ctx, byval id as NodeId, byval sp as StmtPayload ptr )
     for i as int32 = 0 to sp->count - 1
-        dim as NodeId prm = cast( NodeId, c.ast->children[sp->first + i] )
+        dim as NodeId prm = c.ast->ChildAt( sp->first, i )
         if c.ast->Kind( prm ) <> N_PARAM then continue for
         dim as NodeId pt = DefStmt_( c, prm )->a
         if pt = NODE_NONE then continue for
@@ -345,8 +345,8 @@ sub CheckDefinitionAgrees_ ( byref c as Ctx, byval id as NodeId )
 
     dim as StmtPayload ptr dp = DefStmt_( c, decl )
     '' A BYREF RESULT that differs has its own error (TKO0651); one per statement.
-    dim as uint16 rd = c.ast->nodes[cast( int32, decl )].flags and NF_BYREF
-    dim as uint16 rf = c.ast->nodes[cast( int32, id )].flags and NF_BYREF
+    dim as uint16 rd = c.ast->Flags( decl ) and NF_BYREF
+    dim as uint16 rf = c.ast->Flags( id ) and NF_BYREF
     if rd <> rf then return
     if (DefSameType_( c, dp->a, sp->a ) = false) orelse (((dp->extra xor sp->extra) and PF_ARRAY_RESULT) <> 0) then   '' 'as T( )' on one and not the other
         c.diags->Report( TKO0793, PointRange( c.ast->Loc( id ) ), _
@@ -373,7 +373,7 @@ sub CheckDefinitionAgrees_ ( byref c as Ctx, byval id as NodeId )
         '' it is (it mangles alike), but a call packs only through the declaration that says so.
         dim as NodeId vpa = DefParamAt_( c, dp, i ), vpb = DefParamAt_( c, sp, i )
         if (vpa <> NODE_NONE) andalso (vpb <> NODE_NONE) then
-            if ((c.ast->nodes[cast( int32, vpa )].flags xor c.ast->nodes[cast( int32, vpb )].flags) and NF_VARIADIC) <> 0 then
+            if ((c.ast->Flags( vpa ) xor c.ast->Flags( vpb )) and NF_VARIADIC) <> 0 then
                 c.diags->Report( TKO0975, PointRange( c.ast->Loc( id ) ), DefName_( c, sp ) )
                 c.diags->AddNote( TKO0901, PointRange( c.ast->Loc( decl ) ) )
                 return

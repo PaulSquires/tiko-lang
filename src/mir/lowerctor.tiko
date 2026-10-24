@@ -311,7 +311,7 @@ function LowerConvCtorInit_ _
     dim as Tko.TypeId it = c.info->TypeOf_( init_ )
     if fromArray then
         dim as Tko.ListPayload ptr alp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init_ )].data )]
+            c.ast->ListOf( init_ )
         it = c.info->TypeOf_( alp->target )
     end if
     '' AN 'iif' HAS NO TYPE AT ALL -- Check computes none for one, deliberately,
@@ -361,10 +361,10 @@ function LowerConvCtorInit_ _
     dim as boolean ptByref = false
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
     for i as int32 = 0 to pp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         pt = c.info->TypeOf_( StmtOf( c, prm )->a )
-        ptByref = ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0)
+        ptByref = ((c.ast->Flags( prm ) and Tko.NF_BYREF) <> 0)
         exit for
     next
 
@@ -516,10 +516,10 @@ function LowerUserLetConv_ _
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
     if pp = nullptr then return false
     for i as int32 = 0 to pp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         pt = c.info->TypeOf_( StmtOf( c, prm )->a )
-        ulByref = ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0)
+        ulByref = ((c.ast->Flags( prm ) and Tko.NF_BYREF) <> 0)
         exit for
     next
 
@@ -672,7 +672,7 @@ function LowerCtorInit _
     '' '_ZN7CTORUDTC1Ei( @a, @$tmp2 )' where 123 belonged. It lowered and it verified.
     dim as boolean isLiteral = false
     if c.ast->Kind( init_ ) = Tko.N_TUPLE then
-        if (c.ast->nodes[cast( int32, init_ )].flags and Tko.NF_TYPE_LITERAL) = 0 then
+        if (c.ast->Flags( init_ ) and Tko.NF_TYPE_LITERAL) = 0 then
             return false
         end if
         isLiteral = true
@@ -681,7 +681,7 @@ function LowerCtorInit _
     end if
 
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init_ )].data )]
+        c.ast->ListOf( init_ )
     if isLiteral = false then
         if cp->target = Tko.NODE_NONE then return false
         '' A QUALIFIED CALLEE -- 'dim as N.T x = N.T( args )' -- is the same constructor
@@ -695,7 +695,7 @@ function LowerCtorInit _
             if TypeCtorTypeOf_( c, init_ ) <> c.types->Unqualify( t ) then return false
         else
             dim as Tko.IdentPayload ptr ip = _
-                @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+                c.ast->IdentOf( cp->target )
             '' A GENERIC IS NAMED BY ITS TEMPLATE AT THE CALL AND BY ITS INSTANTIATION
             '' IN THE TYPE: 'Box( of long )( 7 )' spells the callee 'Box' while the
             '' declared type is 'Box<6>', so a name comparison alone said no and the
@@ -728,7 +728,7 @@ function LowerCtorInit _
     scope
         dim as containers.Array( of uint32 ) preT
         for i as int32 = 0 to cp->count - 1
-            preT.Push( cast( uint32, CtorArgTypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first + i] ) ) ) )
+            preT.Push( cast( uint32, CtorArgTypeOf_( c, c.ast->ChildAt( cp->first, i ) ) ) )
         next
         dim as Tko.SymbolId pre = PickCtor( c, ctors, preT )
         '' A TYPED VARIADIC CONSTRUCTOR packs its arguments -- CtorInitVariadic_ (lowercall.tiko).
@@ -739,7 +739,7 @@ function LowerCtorInit _
         if pre <> Tko.SYMBOL_NONE then
             for i as int32 = 0 to cp->count - 1
                 if ParamIsByref( c, pre, i ) then
-                    dim as Tko.NodeId pa = cast( Tko.NodeId, c.ast->children[cp->first + i] )
+                    dim as Tko.NodeId pa = c.ast->ChildAt( cp->first, i )
                     if ByrefConvNeeded_( c, pa, ParamTypeAt( c, pre, i ) ) then return false
                 end if
             next
@@ -770,7 +770,7 @@ function LowerCtorInit _
     '' argument again once the overload is known: see the temporary below.
     dim as containers.Array( of uint32 ) argNode
     for i as int32 = 0 to cp->count - 1
-        dim as Tko.NodeId a = cast( Tko.NodeId, c.ast->children[cp->first + i] )
+        dim as Tko.NodeId a = c.ast->ChildAt( cp->first, i )
         argNode.Push( cast( uint32, a ) )
         dim as MirValue adv
         if ArrayDescArg_( c, a, true, adv ) then
@@ -819,7 +819,7 @@ function LowerCtorInit _
     dim as containers.Array( of uint32 ) backN, backS   '' byref copy-backs owed -- FlushStrCopyBacks
     dim as int32 ai2 = 0
     for i as int32 = 0 to cpp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[cpp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( cpp->first, i )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if ai2 >= argT.Count then exit for
         if argDesc[ai2] <> 0 then
@@ -986,7 +986,7 @@ function LowerCtorInit _
     '' call would go out one argument short and the callee would read the slot.
     dim as int32 dseen = 0
     for i as int32 = 0 to cpp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[cpp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( cpp->first, i )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if dseen >= argT.Count then
             dim as Tko.StmtPayload ptr dsp = StmtOf( c, prm )
@@ -1002,7 +1002,7 @@ function LowerCtorInit _
             '' take, so this LOADED it: 'byref x1 as UDT1 = UDT1( 456 )' emitted
             '' 'load [8 x i8]' and passed the aggregate. CtorByrefArgAddr_ gives an
             '' rvalue a temporary -- functions/paraminit.bas, TEST_GROUP ctors1.
-            if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0 then
+            if (c.ast->Flags( prm ) and Tko.NF_BYREF) <> 0 then
                 if c.types->Kind( c.types->Unqualify( dt ) ) = Tko.TK_UDT then
                     dref = CtorByrefArgAddr_( c, dsp->b, dt, dv )
                 end if
@@ -1108,7 +1108,7 @@ function EmitTypeCtorInto_ _
             dim as containers.Array( of uint32 ) ctArgT
             dim as boolean ctTyped = true
             for i as int32 = 0 to cp->count - 1
-                dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[cp->first + i] )
+                dim as Tko.NodeId an = c.ast->ChildAt( cp->first, i )
                 dim as Tko.TypeId at3 = c.info->TypeOf_( an )
                 if at3 = Tko.TYPE_NONE then
                     ctTyped = false
@@ -1227,11 +1227,11 @@ function PushCtorArgs_ _
         dim as boolean ptByref = false
         dim as int32 seen = 0
         for k as int32 = 0 to pp->count - 1
-            dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + k] )
+            dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, k )
             if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
             if seen = pi then
                 pt = c.info->TypeOf_( StmtOf( c, prm )->a )
-                ptByref = ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0)
+                ptByref = ((c.ast->Flags( prm ) and Tko.NF_BYREF) <> 0)
                 exit for
             end if
             seen += 1
@@ -1264,12 +1264,12 @@ function PushCtorArgs_ _
     '' SHORT, which the callee then read off the stack.
     dim as int32 seen2 = 0
     for k as int32 = 0 to pp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + k] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, k )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if seen2 >= pi then
             dim as Tko.StmtPayload ptr dp = StmtOf( c, prm )
             '' ...and a typed variadic no argument reached is the EMPTY pack.
-            if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_VARIADIC) <> 0 then
+            if (c.ast->Flags( prm ) and Tko.NF_VARIADIC) <> 0 then
                 dim as MirValue tve
                 if PackTypedVariadic_( c, ctor, seen2, 0, 0, tve ) = false then return false
                 args.Push( cast( uint32, tve.kind ) ) : args.Push( cast( uint32, tve.id ) )
@@ -1282,7 +1282,7 @@ function PushCtorArgs_ _
             dim as boolean dref2 = false
             '' A BYREF DEFAULT IS AN ADDRESS here too -- see the other half of this
             '' same rule above.
-            if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0 then
+            if (c.ast->Flags( prm ) and Tko.NF_BYREF) <> 0 then
                 if dt <> Tko.TYPE_NONE then
                     if c.types->Kind( c.types->Unqualify( dt ) ) = Tko.TK_UDT then
                         '' ...AND AN RVALUE DEFAULT GETS A TEMPORARY -- CtorByrefArgAddr_.
@@ -1328,11 +1328,11 @@ function LowerBaseCtorCall_ _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr tip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     '' 'base( ... )' AND 'constructor( ... )' ARE THE SAME STATEMENT WITH A DIFFERENT
     '' RECEIVER: one initialises the base subobject, the other DELEGATES to another
     '' constructor of this same type over the whole of 'this'. Measured on fbc, which
@@ -1399,7 +1399,7 @@ function LowerBaseCtorCall_ _
     '' without lowering anything.
     dim as containers.Array( of uint32 ) argT
     for i as int32 = 0 to cp->count - 1
-        argT.Push( cast( uint32, CtorArgTypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first + i] ) ) ) )
+        argT.Push( cast( uint32, CtorArgTypeOf_( c, c.ast->ChildAt( cp->first, i ) ) ) )
     next
     dim as Tko.SymbolId pick = PickCtor( c, ctors, argT )
     if pick = Tko.SYMBOL_NONE then return false

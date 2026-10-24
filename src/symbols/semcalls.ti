@@ -1,9 +1,9 @@
-'' semcalls.ti -- the procedures one Vis unit calls in another (LATER-PLAN E, review ARCH-01).
+'' semcalls.ti -- the procedures one Tko.Sem unit calls in another (LATER-PLAN E, review ARCH-01).
 ''
 '' The post-Check sweeps were ONE unit, visibility.tiko and the 51 fragments it included, and
 '' the fragments shared private procedures by textual position. Cut into units, each
 '' procedure called across a unit boundary is declared here, in the namespace and over the
-'' Ctx of visctx.ti, which every Vis unit includes first. Written by a script from the
+'' Ctx of visctx.ti, which every sem*.tiko unit includes first. Written by a script from the
 '' definitions (their headers, verbatim), so a signature change is made at the definition
 '' and copied here -- the compiler refuses a declare that disagrees with its body.
 #pragma once

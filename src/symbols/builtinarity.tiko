@@ -90,7 +90,7 @@ end function
 private function UnboundName_ ( byref c as Ctx, byval n as NodeId ) as string
     if (n = NODE_NONE) orelse (c.ast->Kind( n ) <> N_IDENT) then return ""
     if c.info->RefOf( n ) <> SYMBOL_NONE then return ""
-    return lcase( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, n )].data )].name ) )
+    return lcase( c.names->Spelling( c.ast->IdentOf( n )->name ) )
 end function
 
 '' 'wait 1', 'stop 1, 2', 'hex': a statement whose callee is an unbound builtin's spelling, with
@@ -101,7 +101,7 @@ private sub CheckBuiltinStmt_ ( byref c as Ctx, byval id as NodeId )
     case else
         return
     end select
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as StmtPayload ptr sp = c.ast->StmtOf( id )
     if sp->b <> NODE_NONE then return
     dim as string nm = UnboundName_( c, sp->a )
     if len( nm ) = 0 then return
@@ -116,12 +116,12 @@ private sub CheckBuiltinStmt_ ( byref c as Ctx, byval id as NodeId )
 end sub
 
 private sub CheckBuiltinArity_ ( byref c as Ctx, byval id as NodeId )
-    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as ListPayload ptr lp = c.ast->ListOf( id )
     if (lp->target = NODE_NONE) orelse (c.ast->Kind( lp->target ) <> N_IDENT) then return
     if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
     if c.info->RefOf( id ) <> SYMBOL_NONE then return
     dim as string nm = lcase( c.names->Spelling( _
-        c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name ) )
+        c.ast->IdentOf( lp->target )->name ) )
     dim as int32 lo, hi
     if BuiltinArity_( nm, lo, hi ) = false then
         if RtlBuiltinArity_( nm, lo, hi ) = false then return
@@ -142,7 +142,7 @@ private function IsOffsetofField_ ( byref c as Ctx, byval id as NodeId ) as bool
         if cast( NodeId, c.ast->children[lp->first + 1] ) <> id then continue for
         if (lp->target = NODE_NONE) orelse (c.ast->Kind( lp->target ) <> N_IDENT) then continue for
         dim as string cn = lcase( c.names->Spelling( _
-            c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name ) )
+            c.ast->IdentOf( lp->target )->name ) )
         return (cn = "offsetof")
     next
     return false
@@ -150,9 +150,9 @@ end function
 
 '' ...and the bare name, 'print len': a name no call owns (NF_CALL_TARGET marks one that is).
 private sub CheckBareBuiltin_ ( byref c as Ctx, byval id as NodeId )
-    if (c.ast->nodes[cast( int32, id )].flags and NF_CALL_TARGET) <> 0 then return
+    if (c.ast->Flags( id ) and NF_CALL_TARGET) <> 0 then return
     if c.info->RefOf( id ) <> SYMBOL_NONE then return
-    dim as string nm = lcase( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, id )].data )].name ) )
+    dim as string nm = lcase( c.names->Spelling( c.ast->IdentOf( id )->name ) )
     dim as int32 lo, hi
     if BuiltinArity_( nm, lo, hi ) = false then return
     if IsOffsetofField_( c, id ) then return

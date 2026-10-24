@@ -102,7 +102,7 @@ private function CvaOperands_ _
         return 1
     end if
     dim as ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, only_ )].data )]
+        c.ast->ListOf( only_ )
     outFirst = lp->first
     return lp->count
 end function
@@ -180,12 +180,12 @@ function LowerCvaArg _
 
     if c.ast->Kind( id ) <> N_CALL then return false
     dim as ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if lp->count <> 2 then return false
     if lp->target = NODE_NONE then return false
     if c.ast->Kind( lp->target ) <> N_IDENT then return false
     dim as IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
+        c.ast->IdentOf( lp->target )
     if Text.LowerAscii( c.names->Spelling( ip->name ) ) <> "cva_arg" then return false
 
     '' The RESULT TYPE is the second argument, read as a type. Check types the call the

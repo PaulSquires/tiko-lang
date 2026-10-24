@@ -158,10 +158,10 @@ function ArrayCtorList_ _
     if c.types->Kind( el ) <> Tko.TK_UDT then return false
     if StructorOf( c, el, "__ctor" ) = Tko.SYMBOL_NONE then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
+        c.ast->ListOf( init )
     if (lp->count <= 0) orelse (lp->count > c.types->ElemCount( at )) then return false
     for k as int32 = 0 to lp->count - 1
-        select case c.ast->Kind( cast( Tko.NodeId, c.ast->children[lp->first + k] ) )
+        select case c.ast->Kind( c.ast->ChildAt( lp->first, k ) )
         case Tko.N_TUPLE, Tko.N_PAREN, Tko.N_INITIALIZER
             return false
         end select
@@ -176,7 +176,7 @@ sub EmitArrayCtorList_ _
     dim as Tko.TypeId el = c.types->Unqualify( c.types->Inner( at ) )
     dim as int32 esz = SizeOfType( c, el )
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
+        c.ast->ListOf( init )
     for k as int32 = 0 to lp->count - 1
         dim as MirInst fa
         fa.op = cast( uint16, M_FIELD_ADDR )
@@ -187,7 +187,7 @@ sub EmitArrayCtorList_ _
         '' Each call's temporaries die after it, since no statement end follows.
         dim as int32 sm = c.strTemps.Count, wm = c.wstrTemps.Count, um = c.udtTemps.Count
         dim as boolean ok = (ea.kind <> cast( uint8, MV_NONE ))
-        if ok then ok = LowerUdtElemInit_( c, ea, el, cast( Tko.NodeId, c.ast->children[lp->first + k] ) )
+        if ok then ok = LowerUdtElemInit_( c, ea, el, c.ast->ChildAt( lp->first, k ) )
         ReleaseUdtTemps_( c, um ) : ReleaseWstrTemps_( c, wm ) : ReleaseStrTemps_( c, sm )
         if ok = false then SkipHere( c )
     next

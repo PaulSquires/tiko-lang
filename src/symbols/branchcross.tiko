@@ -68,7 +68,7 @@ end function
 '' Does this item, which declares its own variable, need constructing?
 private function BxNeedsCtor_ _
     ( byref c as Ctx, byval item as NodeId, byval s as Symbol ptr ) as boolean
-    if (c.ast->nodes[cast( int32, item )].flags and NF_ARRAY) <> 0 then return true
+    if (c.ast->Flags( item ) and NF_ARRAY) <> 0 then return true
     if (s->flags and SYMF_REDIM) <> 0 then return true
     dim as TypeId t = c.types->Unqualify( s->type_ )
     if t = TYPE_NONE then return false
@@ -162,7 +162,7 @@ private sub CheckBranchCross_ ( byref c as Ctx, byval id as NodeId )
         forAst = c.ast : forCount = n : forGen = VisRunGen_( )
     end if
 
-    dim as StmtPayload ptr gp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as StmtPayload ptr gp = c.ast->StmtOf( id )
     if gp->name = 0 then return
     dim as ScopeId gproc = BxProcScope_( c, c.info->ScopeOf( id ) )
     '' The label: FORWARD, in the same procedure.
@@ -194,9 +194,9 @@ private sub CheckBranchCross_ ( byref c as Ctx, byval id as NodeId )
         if BxHolds_( c, vscope, lscope ) = false then continue for
         dim as StmtPayload ptr vp = @c.ast->stmts[cast( int32, c.ast->nodes[vid].data )]
         for j as int32 = 0 to vp->count - 1
-            dim as NodeId it = cast( NodeId, c.ast->children[vp->first + j] )
+            dim as NodeId it = c.ast->ChildAt( vp->first, j )
             if (it < 1) orelse (c.ast->Kind( it ) <> N_VAR_ITEM) then continue for
-            dim as StmtPayload ptr ip = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, it )].data )]
+            dim as StmtPayload ptr ip = c.ast->StmtOf( it )
             dim as Symbol ptr s = c.syms->SymbolAt( c.syms->LookupLocal( vscope, ip->name ) )
             if s = nullptr then continue for
             '' ONLY A DEFINITION: a REDIM of an array declared earlier defines nothing here.
@@ -230,7 +230,7 @@ private sub CheckBranchCross_ ( byref c as Ctx, byval id as NodeId )
         if TcNeedsCtor_( c, ct, 0 ) = false then continue for
         if (tp->c <> NODE_NONE) andalso (c.ast->Kind( head ) = N_IDENT) then
             c.diags->Report( TKO0880, PointRange( c.ast->Loc( id ) ), gname, _
-                c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, head )].data )].name ) )
+                c.names->Spelling( c.ast->IdentOf( head )->name ) )
         end if
         c.diags->Report( TKO0881, PointRange( c.ast->Loc( id ) ), gname, "the FOR's end value" )
         if tp->count >= 3 then

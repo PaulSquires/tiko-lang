@@ -292,7 +292,7 @@ private function ThreadCalleeOf_ _
     if it = Tko.NODE_NONE then return Tko.SYMBOL_NONE
     if c.ast->Kind( it ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, it )].data )]
+            c.ast->ListOf( it )
         if lp->target = Tko.NODE_NONE then return Tko.SYMBOL_NONE
         outFirst = lp->first
         outCount = lp->count
@@ -347,7 +347,7 @@ private function ThreadCalleeOf_ _
     '' receiver.
     if c.ast->Kind( it ) = Tko.N_MEMBER then
         dim as Tko.BinaryPayload ptr mb = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, it )].data )]
+            c.ast->BinaryOf( it )
         dim as Tko.Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( mb->lhs ) )
         if bs = nullptr then return Tko.SYMBOL_NONE
         if bs->kind <> cast( uint8, Tko.SYM_NAMESPACE ) then return Tko.SYMBOL_NONE
@@ -470,7 +470,7 @@ function LowerThreadCall_ _
         dim as boolean forcedByval = false
         if c.ast->Kind( ae ) = Tko.N_UNARY then
             dim as Tko.UnaryPayload ptr tup = _
-                @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, ae )].data )]
+                c.ast->UnaryOf( ae )
             if cast( Tko.TokenKind, tup->op ) = Tko.KW_BYVAL then
                 forcedByval = true
                 ae = tup->operand

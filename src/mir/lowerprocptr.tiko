@@ -45,10 +45,10 @@ function ProcAddrForWanted_ _
     dim as Tko.NodeId fnE = Tko.NODE_NONE
     select case c.ast->Kind( id )
     case Tko.N_ADDROF
-        fnE = c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )].operand
+        fnE = c.ast->UnaryOf( id )->operand
     case Tko.N_CALL
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         if (lp->count <> 1) orelse (lp->target = Tko.NODE_NONE) then return false
         fnE = cast( Tko.NodeId, c.ast->children[lp->first] )
     end select
@@ -195,14 +195,14 @@ function LowerProcPtr _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     '' 'procptr( T.constructor, sub( byval as integer ) )' WRITES A SECOND ARGUMENT to
     '' pick between overloads, so one is not the only legal count.
     if (lp->count <> 1) andalso (lp->count <> 2) then return false
     if lp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
+        c.ast->IdentOf( lp->target )
     if LowerSpelling_( c.ix, *c.names, ip->name ) <> "procptr" then return false
 
     '' The operand names a PROCEDURE. Anything else -- an overload set nothing chose
@@ -224,7 +224,7 @@ function LowerProcPtr _
         if IsVirtualArg_( c, va ) then
             if c.ast->Kind( fnE ) <> Tko.N_MEMBER then return false
             dim as Tko.BinaryPayload ptr vmb = _
-                @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, fnE )].data )]
+                c.ast->BinaryOf( fnE )
             dim as Tko.TypeId vot = c.types->Unqualify( c.info->TypeOf_( vmb->lhs ) )
             if vot = Tko.TYPE_NONE then
                 '' 'T.m' names the TYPE, not a value, so the base carries no type of
@@ -301,7 +301,7 @@ function LowerProcPtr _
     '' always bound by Resolve, and a bare 'val' then read as the runtime's.
     dim as Tko.SymbolId usid = c.info->RefOf( fnE )
     if (usid = Tko.SYMBOL_NONE) andalso (c.ast->Kind( fnE ) = Tko.N_IDENT) then
-        usid = c.syms->Lookup( c.info->ScopeOf( fnE ), c.ast->idents[cast( int32, c.ast->nodes[cast( int32, fnE )].data )].name )
+        usid = c.syms->Lookup( c.info->ScopeOf( fnE ), c.ast->IdentOf( fnE )->name )
     end if
     dim as boolean userBound = false
     dim as Tko.Symbol ptr ubs = c.syms->SymbolAt( usid )
@@ -316,7 +316,7 @@ function LowerProcPtr _
     end if
     if (c.ast->Kind( fnE ) = Tko.N_IDENT) andalso (userBound = false) then
         dim as Tko.IdentPayload ptr rip = _
-            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, fnE )].data )]
+            c.ast->IdentOf( fnE )
         dim as RtlId rr = RtlByName( c.names->Spelling( rip->name ) )
         '' ...AND AN INTRINSIC NAMES ONE TOO. 'procptr( cls )' is '&fb_Cls' --
         '' measured, for sixty spellings -- so the keyword resolves to the same

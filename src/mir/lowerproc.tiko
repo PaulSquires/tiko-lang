@@ -66,19 +66,19 @@ private function BodyCallsStructorWord_ _
     if body = Tko.NODE_NONE then return false
     if c.ast->Kind( body ) <> Tko.N_BLOCK then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, body )].data )]
+        c.ast->ListOf( body )
     for i as int32 = 0 to lp->count - 1
-        dim as Tko.NodeId st = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        dim as Tko.NodeId st = c.ast->ChildAt( lp->first, i )
         if c.ast->Kind( st ) <> Tko.N_AMBIGUOUS then continue for
         dim as Tko.NodeId e = StmtOf( c, st )->a
         if e = Tko.NODE_NONE then continue for
         if c.ast->Kind( e ) <> Tko.N_CALL then continue for
         dim as Tko.ListPayload ptr cp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+            c.ast->ListOf( e )
         if cp->target = Tko.NODE_NONE then continue for
         if c.ast->Kind( cp->target ) <> Tko.N_IDENT then continue for
         dim as Tko.IdentPayload ptr tip = _
-            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+            c.ast->IdentOf( cp->target )
         if LowerSpelling_( c.ix, *c.names, tip->name ) = want then return true
     next
     return false
@@ -149,7 +149,7 @@ sub LowerProc _
         '' Declared 'agg', the function returned the object by the hidden-pointer
         '' convention while every CALL to it read a pointer -- and 'operator ->', which
         '' is byref by construction, is the shape that made it visible.
-        if (c.ast->nodes[cast( int32, id )].flags and Tko.NF_BYREF) <> 0 then
+        if (c.ast->Flags( id ) and Tko.NF_BYREF) <> 0 then
             declRet = MT_PTR
         end if
     end if
@@ -353,7 +353,7 @@ sub LowerProc _
     '' STRING or ZSTRING result had no slot at all and declined instead -- which is
     '' every 'function = *strptr( s )' in functions/temp-strings.bas.
     dim as boolean byrefDecl = _
-        ((c.ast->nodes[cast( int32, id )].flags and Tko.NF_BYREF) <> 0)
+        ((c.ast->Flags( id ) and Tko.NF_BYREF) <> 0)
     c.byrefResult = byrefDecl andalso (rt <> Tko.TYPE_NONE)
     if c.byrefResult then
         scalarResult = false
@@ -589,7 +589,7 @@ sub LowerProc _
         pidx += 1
     end if
     for i as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( sp->first, i )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         dim as Tko.StmtPayload ptr pp = StmtOf( c, prm )
         '' ...and is not one here either -- see SignatureFromProc below. It used to be
@@ -966,7 +966,7 @@ function LowerSretResult _
     '' and run, the function returns 123.
     dim as boolean bareLit = (c.ast->Kind( valueE ) = Tko.N_TUPLE)
     if bareLit then
-        bareLit = ((c.ast->nodes[cast( int32, valueE )].flags and _
+        bareLit = ((c.ast->Flags( valueE ) and _
                     Tko.NF_TYPE_LITERAL) <> 0)
     end if
     '' THE NAMED FORM IS A LITERAL TOO. 'type<T>( )' carries its own type, so the
@@ -990,7 +990,7 @@ function LowerSretResult _
     dim as boolean tupleLit = false
     if (bareLit = false) andalso (namedLit = false) then
         if c.ast->Kind( valueE ) = Tko.N_TUPLE then
-            if (c.ast->nodes[cast( int32, valueE )].flags and _
+            if (c.ast->Flags( valueE ) and _
                 Tko.NF_TYPE_LITERAL) = 0 then
                 if c.resultType <> Tko.TYPE_NONE then
                     tupleLit = IsTupleType_( c, c.types->Unqualify( c.resultType ) )
@@ -1292,14 +1292,14 @@ sub LowerMainModule _
     '' LIST node, so handing it to a routine that reads a statement payload would read
     '' the wrong pool -- the mistake this file has made three times already.
     dim as Tko.ListPayload ptr mp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, root )].data )]
+        c.ast->ListOf( root )
     c.labelBase = scopeDepthIn + 1
     for i as int32 = 0 to mp->count - 1
-        ScanLabels( c, cast( Tko.NodeId, c.ast->children[mp->first + i] ), _
+        ScanLabels( c, c.ast->ChildAt( mp->first, i ), _
                     scopeDepthIn + 1 )
     next
     for i as int32 = 0 to mp->count - 1
-        LowerStmt( c, cast( Tko.NodeId, c.ast->children[mp->first + i] ) )
+        LowerStmt( c, c.ast->ChildAt( mp->first, i ) )
     next
     CloseScope( c )
     if c.scopeMark.Count <> scopeDepthIn then
@@ -1397,7 +1397,7 @@ private function TopItemIsCode_( byref c as Ctx, byval id as Tko.NodeId ) as boo
         '' Its BODY decides, exactly as WalkTop below descends into one.
         dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
         for i as int32 = 0 to sp->count - 1
-            if TopItemIsCode_( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ) ) then
+            if TopItemIsCode_( c, c.ast->ChildAt( sp->first, i ) ) then
                 return true
             end if
         next
@@ -1409,9 +1409,9 @@ end function
 function ModuleHasCode( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if id = Tko.NODE_NONE then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     for i as int32 = 0 to lp->count - 1
-        if TopItemIsCode_( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ) ) then
+        if TopItemIsCode_( c, c.ast->ChildAt( lp->first, i ) ) then
             return true
         end if
     next
@@ -1423,14 +1423,14 @@ private sub WalkTop( byref c as Ctx, byval id as Tko.NodeId )
     select case c.ast->Kind( id )
     case Tko.N_MODULE, Tko.N_BLOCK
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         for i as int32 = 0 to lp->count - 1
-            WalkTop( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ) )
+            WalkTop( c, c.ast->ChildAt( lp->first, i ) )
         next
     case Tko.N_NAMESPACE, Tko.N_EXTERN_BLOCK
         dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
         for i as int32 = 0 to sp->count - 1
-            WalkTop( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ) )
+            WalkTop( c, c.ast->ChildAt( sp->first, i ) )
         next
     case Tko.N_PROC
         LowerProc( c, id )

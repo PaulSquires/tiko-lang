@@ -18,14 +18,14 @@
 '' The member a procedure node defines, when it has no object: 'static', or operator
 '' new / new[] / delete / delete[]. The modifier is on the DECLARATION inside the type.
 private function StaticMemberProc_ ( byref c as Ctx, byval pn as NodeId ) as Symbol ptr
-    dim as StmtPayload ptr pp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
+    dim as StmtPayload ptr pp = c.ast->StmtOf( pn )
     dim as Symbol ptr ds = c.syms->SymbolAt( c.info->RefOf( pn ) )
     if ds = nullptr then return nullptr
     if ds->kind <> cast( uint8, SYM_PROC ) then return nullptr
     dim as boolean isStatic = ((pp->extra and PF_STATIC) <> 0)
     dim as NodeId dn = cast( NodeId, ds->payload )
     if (dn <> NODE_NONE) andalso (c.ast->Kind( dn ) = N_PROC) then
-        if (c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, dn )].data )].extra and PF_STATIC) <> 0 then isStatic = true
+        if (c.ast->StmtOf( dn )->extra and PF_STATIC) <> 0 then isStatic = true
     end if
     if pp->op = cast( uint16, KW_OPERATOR ) then
         select case lcase( c.names->Spelling( ds->name ) )
@@ -72,7 +72,7 @@ private sub StaticThisList_ _
             dim as Symbol ptr sm = StaticMemberProc_( c, ch )
             if sm <> nullptr then StaticThisRange_( c, prev + 1, cast( int32, ch ), sm, memberRhs )
         case N_NAMESPACE, N_EXTERN_BLOCK
-            dim as StmtPayload ptr np = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, ch )].data )]
+            dim as StmtPayload ptr np = c.ast->StmtOf( ch )
             StaticThisList_( c, np->first, np->count, prev, memberRhs )
         end select
         if cast( int32, ch ) > prev then prev = cast( int32, ch )
@@ -93,7 +93,7 @@ sub CheckStaticThis_ ( byref c as Ctx )
         if (r > 0) andalso (cast( int32, r ) < total) then memberRhs[cast( int32, r )] = 1
     next
     if c.ast->Kind( c.root ) <> N_MODULE then return
-    dim as ListPayload ptr ml = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, c.root )].data )]
+    dim as ListPayload ptr ml = c.ast->ListOf( c.root )
     dim as int32 prev = 0
     StaticThisList_( c, ml->first, ml->count, prev, memberRhs )
 end sub

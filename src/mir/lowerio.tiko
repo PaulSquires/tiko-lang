@@ -67,12 +67,12 @@ function LowerBitOp _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if cp->count <> 2 then return false
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr tip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     dim as string nm = LowerSpelling_( c.ix, *c.names, tip->name )
     dim as int32 which = 0
     select case nm
@@ -170,7 +170,7 @@ function LowerLrset( byref c as Ctx, byval id as Tko.NodeId, byval isRight as bo
     dim as Tko.NodeId asn = cast( Tko.NodeId, c.ast->children[sp->first] )
     if c.ast->Kind( asn ) <> Tko.N_BINARY then return false
     dim as Tko.BinaryPayload ptr bp = _
-        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, asn )].data )]
+        c.ast->BinaryOf( asn )
     if cast( Tko.TokenKind, bp->op ) <> Tko.TK_EQ then return false
     dim as Tko.NodeId dstE = bp->lhs
     dim as Tko.NodeId srcE = bp->rhs
@@ -380,7 +380,7 @@ function PrintOne _
     if t = Tko.TYPE_NONE then
         if c.ast->Kind( it ) = Tko.N_BINARY then
             dim as Tko.BinaryPayload ptr cbp = _
-                @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, it )].data )]
+                c.ast->BinaryOf( it )
             dim as Tko.TokenKind cbop = cast( Tko.TokenKind, cbp->op )
             if (cbop = Tko.TK_PLUS) orelse (cbop = Tko.TK_AMP) then
                 t = c.info->TypeOf_( cbp->lhs )
@@ -395,7 +395,7 @@ function PrintOne _
     if IsStringType( c, t ) = false then
         if StrIdentityConvOperand_( c, it ) <> Tko.NODE_NONE then
             dim as Tko.ListPayload ptr scp = _
-                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, it )].data )]
+                c.ast->ListOf( it )
             dim as Tko.NodeId stn = cast( Tko.NodeId, c.ast->children[scp->first] )
             if c.ast->Kind( stn ) = Tko.N_TYPEREF then
                 t = c.types->Unqualify( c.info->TypeOf_( stn ) )
@@ -765,7 +765,7 @@ private function OpenDeviceRtl_ _
     select case c.ast->Kind( a )
     case Tko.N_IDENT
         dim as Tko.IdentPayload ptr ip = _
-            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, a )].data )]
+            c.ast->IdentOf( a )
         dw = LowerSpelling_( c.ix, *c.names, ip->name )
         '' ERR IS ASKED BEFORE THE BINDING TEST, and that order is the fix rather than
         '' a detail. tiko's prelude declares 'err' as an alias for fb_ErrorGetNum, so
@@ -998,7 +998,7 @@ function LowerLineInput( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     end if
     if dstIdx >= sp->count then return false
 
-    dim as Tko.NodeId dst = cast( Tko.NodeId, c.ast->children[sp->first + dstIdx] )
+    dim as Tko.NodeId dst = c.ast->ChildAt( sp->first, dstIdx )
     dim as Tko.TypeId dt = c.info->TypeOf_( dst )
     dim as int64 dlen
     dim as int32 dk = StrSwapKind_( c, dt, dlen )
@@ -1028,7 +1028,7 @@ function LowerLineInput( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     '' The explicit maximum, when one was written.
     dim as MirValue mx
     if dstIdx + 1 < sp->count then
-        dim as Tko.NodeId mn = cast( Tko.NodeId, c.ast->children[sp->first + dstIdx + 1] )
+        dim as Tko.NodeId mn = c.ast->ChildAt( sp->first, dstIdx + 1 )
         mx = LowerExpr( c, mn )
         if mx.kind = cast( uint8, MV_NONE ) then return false
         mx = Coerce( c, mx, iif( c.types->target.pointerBits = 32, MT_I32, MT_I64 ), false )
@@ -1228,7 +1228,7 @@ function LowerInput _
     '' on the third variable would leave the program prompting for input it never
     '' reads.
     for i as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId d = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        dim as Tko.NodeId d = c.ast->ChildAt( sp->first, i )
         dim as int64 dn2
         if InputRtlFor( c, c.info->TypeOf_( d ), dn2 ) = RTL_NONE then return false
     next
@@ -1247,7 +1247,7 @@ function LowerInput _
     end if
 
     for i as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId d = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        dim as Tko.NodeId d = c.ast->ChildAt( sp->first, i )
         dim as int64 dn3
         dim as RtlId r = InputRtlFor( c, c.info->TypeOf_( d ), dn3 )
         dim as MirValue da2 = LowerAddr( c, d )

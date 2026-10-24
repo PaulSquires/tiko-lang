@@ -37,7 +37,7 @@ private function SameWrittenRef_ _
         if (a = Tko.NODE_NONE) orelse (b = Tko.NODE_NONE) then return a = b
         if c.ast->Kind( a ) <> c.ast->Kind( b ) then return false
         if c.ast->Kind( a ) <> Tko.N_TYPEREF then return true
-        if ((c.ast->nodes[cast( int32, a )].flags xor c.ast->nodes[cast( int32, b )].flags) _
+        if ((c.ast->Flags( a ) xor c.ast->Flags( b )) _
             and Tko.NF_CONST) <> 0 then return false
         dim as Tko.StmtPayload ptr ap = StmtOf( c, a )
         dim as Tko.StmtPayload ptr bp = StmtOf( c, b )
@@ -46,8 +46,8 @@ private function SameWrittenRef_ _
         if ap->ownerName <> bp->ownerName then return false
         if ap->count <> bp->count then return false
         for k as int32 = 0 to ap->count - 1
-            if SameWrittenRef_( c, cast( Tko.NodeId, c.ast->children[ap->first + k] ), _
-                                   cast( Tko.NodeId, c.ast->children[bp->first + k] ) ) = false then
+            if SameWrittenRef_( c, c.ast->ChildAt( ap->first, k ), _
+                                   c.ast->ChildAt( bp->first, k ) ) = false then
                 return false
             end if
         next
@@ -62,7 +62,7 @@ private sub ProcParams_ _
     ( byref c as Ctx, byval pn as Tko.NodeId, byref outp as containers.Array( of uint32 ) )
     dim as Tko.StmtPayload ptr sp = StmtOf( c, pn )
     for i as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( sp->first, i )
         if c.ast->Kind( prm ) = Tko.N_PARAM then outp.Push( cast( uint32, prm ) )
     next
 end sub

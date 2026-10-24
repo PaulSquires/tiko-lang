@@ -74,7 +74,7 @@ private function InferForEachVarTypes_( byref c as Ctx ) as int32
         dim as Tko.NodeId n = cast( Tko.NodeId, i )
         if c.ast->Kind( n ) <> Tko.N_FOREACH then continue for
         dim as Tko.StmtPayload ptr sp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+            c.ast->StmtOf( n )
         if sp->a = Tko.NODE_NONE then continue for
         if sp->count <> 1 then continue for
         dim as Tko.Symbol ptr vsym = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
@@ -232,12 +232,12 @@ private function DestructureArity_( byref c as Ctx, byval body as Tko.NodeId ) a
     if body = Tko.NODE_NONE then return -1
     if c.ast->Kind( body ) <> Tko.N_BLOCK then return -1
     dim as Tko.ListPayload ptr bl = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, body )].data )]
+        c.ast->ListOf( body )
     if bl->count < 1 then return -1
     dim as Tko.NodeId first_ = cast( Tko.NodeId, c.ast->children[bl->first] )
     if c.ast->Kind( first_ ) <> Tko.N_VAR then return -1
     dim as Tko.StmtPayload ptr vp = _
-        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, first_ )].data )]
+        c.ast->StmtOf( first_ )
     return vp->count
 end function
 
@@ -281,21 +281,21 @@ private sub CheckDestructure_( byref c as Ctx )
         dim as Tko.NodeId n = cast( Tko.NodeId, i )
         dim as Tko.NodeKind k = c.ast->Kind( n )
         if (k <> Tko.N_AMBIGUOUS) andalso (k <> Tko.N_VAR) then continue for
-        dim as Tko.StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+        dim as Tko.StmtPayload ptr sp = c.ast->StmtOf( n )
         if k = Tko.N_AMBIGUOUS then
             if sp->op <> cast( uint16, Tko.TK_EQ ) then continue for
             if (sp->a = Tko.NODE_NONE) orelse (sp->b = Tko.NODE_NONE) then continue for
             if c.ast->Kind( sp->a ) <> Tko.N_TUPLE then continue for
             '' 'let ( a, b ) = udt' assigns FIELDS in order, and is not this -- NF_LET_LIST.
-            if (c.ast->nodes[cast( int32, sp->a )].flags and Tko.NF_LET_LIST) <> 0 then continue for
-            dim as int32 cnt = c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sp->a )].data )].count
+            if (c.ast->Flags( sp->a ) and Tko.NF_LET_LIST) <> 0 then continue for
+            dim as int32 cnt = c.ast->ListOf( sp->a )->count
             DestructureJudge_( c, n, TypeOf_( c, sp->b ), cnt )
         else
             '' 'var (a) = x' is the parser's TKO0821 -- a single name is not judged twice.
             if sp->count < 3 then continue for
             dim as Tko.NodeId first_ = cast( Tko.NodeId, c.ast->children[sp->first] )
             if c.ast->Kind( first_ ) <> Tko.N_VAR_ITEM then continue for
-            dim as Tko.StmtPayload ptr fp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, first_ )].data )]
+            dim as Tko.StmtPayload ptr fp = c.ast->StmtOf( first_ )
             if left( c.names->Spelling( fp->name ), 3 ) <> "$dt" then continue for
             if fp->b = Tko.NODE_NONE then continue for
             DestructureJudge_( c, n, TypeOf_( c, fp->b ), sp->count - 1 )
@@ -308,7 +308,7 @@ sub CheckForEach_( byref c as Ctx )
         dim as Tko.NodeId n = cast( Tko.NodeId, i )
         if c.ast->Kind( n ) <> Tko.N_FOREACH then continue for
         dim as Tko.StmtPayload ptr sp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+            c.ast->StmtOf( n )
         if sp->count <> 1 then continue for
 
         dim as Tko.NodeId seqE = cast( Tko.NodeId, c.ast->children[sp->first] )
@@ -376,7 +376,7 @@ sub CheckForEach_( byref c as Ctx )
                     if (vo <> nullptr) andalso (sp->op = cast( uint16, Tko.KW_BYREF )) then
                         dim as Tko.NodeId vpn = cast( Tko.NodeId, vo->payload )
                         if (vpn <> Tko.NODE_NONE) andalso (c.ast->Kind( vpn ) = Tko.N_PROC) then
-                            if (c.ast->nodes[cast( int32, vpn )].flags and Tko.NF_BYREF) = 0 then
+                            if (c.ast->Flags( vpn ) and Tko.NF_BYREF) = 0 then
                                 c.diags->Report( Tko.TKO0818, r, c.types->Name( itT ) )
                                 ok = false
                             end if
@@ -401,7 +401,7 @@ sub CheckForEach_( byref c as Ctx )
         '' does not match would otherwise surface as a missing '_3' on a type nobody
         '' wrote, in a body the source does not contain.
         if ok = false then continue for
-        if (c.ast->nodes[cast( int32, n )].flags and Tko.NF_DESTRUCTURE) = 0 then
+        if (c.ast->Flags( n ) and Tko.NF_DESTRUCTURE) = 0 then
             continue for
         end if
         dim as int32 want = DestructureArity_( c, sp->b )

@@ -65,7 +65,7 @@ function ConstStringTextOf_ _
 
     case Tko.N_PAREN
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         if lp->count <> 1 then return false
         return ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->children[lp->first] ), _
                                    outText, depth + 1, scope_ )
@@ -74,9 +74,9 @@ function ConstStringTextOf_ _
         '' 'type<string>( "13" )' IS ITS TEXT: over a narrow string type the literal converts
         '' to nothing new. fbc's dim/global-init.bas initialises a shared 'zstring * 32' and
         '' 'wstring * 32' that way, and both declined.
-        if (c.ast->nodes[cast( int32, id )].flags and Tko.NF_TYPE_LITERAL) = 0 then return false
+        if (c.ast->Flags( id ) and Tko.NF_TYPE_LITERAL) = 0 then return false
         dim as Tko.ListPayload ptr tp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         if (tp->count <> 1) orelse (tp->target = Tko.NODE_NONE) then return false
         dim as Tko.TypeId tt = c.types->Unqualify( c.info->TypeOf_( id ) )
         if c.types->Kind( tt ) <> Tko.TK_BUILTIN then return false
@@ -90,7 +90,7 @@ function ConstStringTextOf_ _
 
     case Tko.N_BINARY
         dim as Tko.BinaryPayload ptr bp = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->BinaryOf( id )
         dim as Tko.TokenKind op = cast( Tko.TokenKind, bp->op )
         if (op <> Tko.TK_AMP) andalso (op <> Tko.TK_PLUS) then return false
         dim as string lt, rt
@@ -106,7 +106,7 @@ function ConstStringTextOf_ _
         '' Without this a wide constant had no text at all, so 'w = S' and
         '' 'asc( S, 1 )' both declined.
         dim as Tko.ListPayload ptr wp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         '' NO ARITY GUARD HERE. Each name below checks its own, and a blanket 'exactly
         '' one argument' at the top silently excluded every two-argument form -- which
         '' is the only form of lcase and ucase that fbc folds at all.
@@ -114,7 +114,7 @@ function ConstStringTextOf_ _
         if wp->target = Tko.NODE_NONE then return false
         if c.ast->Kind( wp->target ) <> Tko.N_IDENT then return false
         dim as Tko.IdentPayload ptr wip = _
-            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, wp->target )].data )]
+            c.ast->IdentOf( wp->target )
         dim as string wnm = LowerSpelling_( c.ix, *c.names, wip->name )
 
         '' 'const S = str( 16 )' AND 'const C = chr( 65 )' -- THE TWO STRING INTRINSICS
@@ -152,7 +152,7 @@ function ConstStringTextOf_ _
         if (wnm = "chr") orelse (wnm = "wchr") then
             dim as string ct
             for i as int32 = 0 to wp->count - 1
-                dim as Tko.NodeId cArg = cast( Tko.NodeId, c.ast->children[wp->first + i] )
+                dim as Tko.NodeId cArg = c.ast->ChildAt( wp->first, i )
                 dim as Tko.Check.ConstVal cv = Tko.Check.ConstOf( _
                     *c.ast, cArg, *c.srcMgr, *c.names, c.types->target.pointerBits, _
                     c.syms, scope_ )
@@ -293,22 +293,22 @@ function LitOnlyChain_( byref c as Ctx, byval id as Tko.NodeId, byval depth as i
     case Tko.N_STRING_LIT
         return true
     case Tko.N_PAREN, Tko.N_STRCAT
-        dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        dim as Tko.ListPayload ptr lp = c.ast->ListOf( id )
         if lp->count < 1 then return false
         for i as int32 = 0 to lp->count - 1
-            if LitOnlyChain_( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ), depth + 1 ) = false then return false
+            if LitOnlyChain_( c, c.ast->ChildAt( lp->first, i ), depth + 1 ) = false then return false
         next
         return true
     case Tko.N_BINARY
-        dim as Tko.BinaryPayload ptr bp = @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        dim as Tko.BinaryPayload ptr bp = c.ast->BinaryOf( id )
         if LitOnlyChain_( c, bp->lhs, depth + 1 ) = false then return false
         return LitOnlyChain_( c, bp->rhs, depth + 1 )
     case Tko.N_CALL
         '' 'wstr( literal )' is the literal, widened -- fbc folds it the same way.
-        dim as Tko.ListPayload ptr wlp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        dim as Tko.ListPayload ptr wlp = c.ast->ListOf( id )
         if (wlp->count <> 1) orelse (wlp->target = Tko.NODE_NONE) then return false
         if c.ast->Kind( wlp->target ) <> Tko.N_IDENT then return false
-        if LowerSpelling_( c.ix, *c.names, c.ast->idents[cast( int32, c.ast->nodes[cast( int32, wlp->target )].data )].name ) <> "wstr" then return false
+        if LowerSpelling_( c.ix, *c.names, c.ast->IdentOf( wlp->target )->name ) <> "wstr" then return false
         return LitOnlyChain_( c, cast( Tko.NodeId, c.ast->children[wlp->first] ), depth + 1 )
     case Tko.N_IDENT, Tko.N_MEMBER
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( c.info->RefOf( id ) )
@@ -329,7 +329,7 @@ function ConstTextGlobal_( byref c as Ctx, byval opnd as Tko.NodeId ) as int32
     opnd = Unparen_( c, opnd )
     dim as string txt
     if IsWstrCall_( c, opnd ) then
-        dim as Tko.ListPayload ptr wlp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, opnd )].data )]
+        dim as Tko.ListPayload ptr wlp = c.ast->ListOf( opnd )
         if wlp->count <> 1 then return -1
         if ConstStringTextOf_( c, cast( Tko.NodeId, c.ast->children[wlp->first] ), txt ) = false then return -1
         return c.m->AddWideStringLiteral( txt, *c.names )

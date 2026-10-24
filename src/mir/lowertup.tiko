@@ -152,7 +152,7 @@ private function TupleUdtCmpOp_ _
                     dim as boolean bothMine = true
                     for i as int32 = 0 to pp->count - 1
                         dim as Tko.NodeId prm = _
-                            cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                            c.ast->ChildAt( pp->first, i )
                         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
                         dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
                         if c.types->Unqualify( pt ) <> ut then bothMine = false
@@ -398,10 +398,10 @@ function LowerDestructure _
     '' ...or a 'let( x )' of ONE name, an N_PAREN the parser marked NF_LET_LIST: the first field.
     if c.ast->Kind( target ) <> Tko.N_TUPLE then
         if c.ast->Kind( target ) <> Tko.N_PAREN then return false
-        if (c.ast->nodes[cast( int32, target )].flags and Tko.NF_LET_LIST) = 0 then return false
+        if (c.ast->Flags( target ) and Tko.NF_LET_LIST) = 0 then return false
     end if
     dim as Tko.ListPayload ptr tl = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, target )].data )]
+        c.ast->ListOf( target )
     if tl->count <= 0 then return false
 
     '' THE ELEMENTS OF THE SOURCE, top level only: 'let ((a,b),c) = n' names three
@@ -444,7 +444,7 @@ function LowerDestructure _
     StoreThrough( c, pdst, src )
 
     for i as int32 = 0 to tl->count - 1
-        dim as Tko.NodeId nm = cast( Tko.NodeId, c.ast->children[tl->first + i] )
+        dim as Tko.NodeId nm = c.ast->ChildAt( tl->first, i )
         '' AN ELIDED SLOT IS SKIPPED AND STILL COUNTS. 'let( a, , b ) = f( )' takes
         '' the FIRST and THIRD elements -- measured, fbc writes
         '' 'A = *(int32*)TMP; B = *(int32*)((uint8*)TMP + 8)' -- so the position

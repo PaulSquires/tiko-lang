@@ -69,7 +69,7 @@ function ArrayDescArg_ _
     dim as Tko.NodeId nameNode = argNode
     if c.ast->Kind( argNode ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, argNode )].data )]
+            c.ast->ListOf( argNode )
         if lp->count <> 0 then return false
         if lp->target = Tko.NODE_NONE then return false
         nameNode = lp->target
@@ -98,7 +98,7 @@ function IsWholeArrayArg_( byref c as Ctx, byval argNode as Tko.NodeId ) as bool
     end if
     if c.ast->Kind( argNode ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, argNode )].data )]
+        c.ast->ListOf( argNode )
     if (lp->count <> 0) orelse (lp->target = Tko.NODE_NONE) then return false
     dim as Tko.TypeId at = c.info->TypeOf_( lp->target )
     if at = Tko.TYPE_NONE then return false
@@ -187,7 +187,7 @@ private function PathEntryCallee_( byref c as Ctx, byval callee as Tko.SymbolId 
     if pn = Tko.NODE_NONE then return false
     if c.ast->Kind( pn ) <> Tko.N_PROC then return false
     dim as Tko.StmtPayload ptr sp = _
-        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
+        c.ast->StmtOf( pn )
     if sp->aliasName = 0 then return false
     select case LowerSpelling_( c.ix, *c.names, sp->aliasName )
     case "fb_filekill", "fb_mkdir", "fb_rmdir", "fb_chdir", "fb_dir", "fb_dir64", _
@@ -395,7 +395,7 @@ private function LowerCallPartsBody_ _
     if cs <> nullptr then
         dim as Tko.NodeId cpn = cast( Tko.NodeId, cs->payload )
         if cpn <> Tko.NODE_NONE then
-            if (c.ast->nodes[cast( int32, cpn )].flags and Tko.NF_BYREF) <> 0 then
+            if (c.ast->Flags( cpn ) and Tko.NF_BYREF) <> 0 then
                 calleeByrefRet = true
             end if
         end if
@@ -496,7 +496,7 @@ private function LowerCallPartsBody_ _
         if argNode <> Tko.NODE_NONE then
             if c.ast->Kind( argNode ) = Tko.N_UNARY then
                 dim as Tko.UnaryPayload ptr bup = _
-                    @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, argNode )].data )]
+                    c.ast->UnaryOf( argNode )
                 if cast( Tko.TokenKind, bup->op ) = Tko.KW_BYVAL then
                     forcedByval = true
                     argNode = bup->operand
@@ -1084,7 +1084,7 @@ private function LowerCallPartsBody_ _
             dim as Tko.NodeId cpn = cast( Tko.NodeId, cs->payload )
             if cpn <> Tko.NODE_NONE then
                 if c.ast->Kind( cpn ) = Tko.N_PROC then
-                    byrefRet = ((c.ast->nodes[cast( int32, cpn )].flags and _
+                    byrefRet = ((c.ast->Flags( cpn ) and _
                                  Tko.NF_BYREF) <> 0)
                 end if
             end if

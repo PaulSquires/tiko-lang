@@ -44,7 +44,7 @@ private function ReadCallAssignAsCall_ _
     if c.ast->Kind( sp->a ) <> Tko.N_CALL then return false
     '' Only a plain '=': '+=' and its family are never a comparison, and neither is '=>'.
     if cast( Tko.TokenKind, sp->op ) <> Tko.TK_EQ then return false
-    if (c.ast->nodes[cast( int32, id )].flags and Tko.NF_FAT_ARROW) <> 0 then return false
+    if (c.ast->Flags( id ) and Tko.NF_FAT_ARROW) <> 0 then return false
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     '' A MEMBER CALL HAS NOT BOUND YET. Resolve runs before Check, so
     '' 'a.At( 2 ) = 88' has no RefOf on its member node and 'sid' falls back to the
@@ -63,7 +63,7 @@ private function ReadCallAssignAsCall_ _
             dim as Tko.NodeId cal2 = ListOf( c, sp->a )->target
             if c.ast->Kind( cal2 ) = Tko.N_MEMBER then
                 dim as Tko.BinaryPayload ptr mb2 = _
-                    @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, cal2 )].data )]
+                    c.ast->BinaryOf( cal2 )
                 '' THE BASE VARIABLE'S DECLARED TYPE, not the expression's. Resolve
                 '' runs before Check, so TypeOf_ on the base is TYPE_NONE here --
                 '' measured -- while the symbol the base bound to already carries it.
@@ -186,7 +186,7 @@ private function ReadDotArgAsCall_ _
     if c.ast->Kind( mnode ) <> Tko.N_MEMBER then return false
 
     dim as Tko.BinaryPayload ptr mb = _
-        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, mnode )].data )]
+        c.ast->BinaryOf( mnode )
     dim as Tko.NodeId base_ = mb->lhs
     if base_ = Tko.NODE_NONE then return false
 
@@ -206,7 +206,7 @@ private function ReadDotArgAsCall_ _
         '' absent, or '..x', whose base is the global-scope marker. 'a.b.c' over a real
         '' variable is none of this and is left exactly as it parsed.
         dim as Tko.BinaryPayload ptr bb = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, base_ )].data )]
+            c.ast->BinaryOf( base_ )
         dim as boolean leadingDot = (bb->lhs = Tko.NODE_NONE)
         if leadingDot = false then
             leadingDot = (c.ast->Kind( bb->lhs ) = Tko.N_GLOBALSCOPE)
@@ -226,7 +226,7 @@ private function ReadDotArgAsCall_ _
     if (bs = nullptr) andalso (c.ast->Kind( base_ ) = Tko.N_IDENT) then
         dim as boolean rtlOverloadable
         rtlBase = RtlProcName_( Tko.Text.LowerAscii( c.names->Spelling( _
-            c.ast->idents[cast( int32, c.ast->nodes[cast( int32, base_ )].data )].name ) ), rtlOverloadable )
+            c.ast->IdentOf( base_ )->name ) ), rtlOverloadable )
     end if
     if rtlBase = false then
         if bs = nullptr then return false
@@ -352,7 +352,7 @@ private function PropertyNameSym_ _
     if tsy->inner = Tko.SCOPE_NONE then return headSid
 
     dim as Tko.BinaryPayload ptr mb = _
-        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, callee )].data )]
+        c.ast->BinaryOf( callee )
     dim as Tko.SymbolId mm = c.syms->LookupLocal( tsy->inner, IdentNameOf( c, mb->rhs ) )
     if mm = Tko.SYMBOL_NONE then return headSid
     return mm
@@ -392,7 +392,7 @@ private sub ResolveAmbiguous _
     WalkExpr( c, sp->a, scope_ )
     WalkExpr( c, sp->b, scope_ )
     for i as int32 = 0 to sp->count - 1
-        WalkExpr( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ), scope_ )
+        WalkExpr( c, c.ast->ChildAt( sp->first, i ), scope_ )
     next
 
     dim as boolean isAssign = (sp->op <> 0)
@@ -418,7 +418,7 @@ private sub ResolveAmbiguous _
         guard += 1
         dim as Tko.NodeKind hk = c.ast->Kind( head )
         if hk = Tko.N_MEMBER then
-            head = c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, head )].data )].lhs
+            head = c.ast->BinaryOf( head )->lhs
         elseif (hk = Tko.N_CALL) orelse (hk = Tko.N_INDEX) then
             head = ListOf( c, head )->target
         else

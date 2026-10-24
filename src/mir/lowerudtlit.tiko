@@ -34,9 +34,9 @@ private function FlattenInitValues_ _
 
     if depth > 8 then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     for i as int32 = 0 to lp->count - 1
-        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        dim as Tko.NodeId e = c.ast->ChildAt( lp->first, i )
         select case c.ast->Kind( e )
         case Tko.N_TUPLE, Tko.N_INITIALIZER
             '' A nested field list, or the '{ ... }' an ARRAY FIELD takes.
@@ -72,7 +72,7 @@ function UdtLiteralSlot_ _
 
     if c.ast->Kind( id ) <> Tko.N_TUPLE then return -1
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     '' A TARGET IS THE WRITTEN FORM -- 'type<P>( 5, 6 )'. A BARE '( 1, 2 )' is the
     '' tuple feature, and it reaches here too now that Check gives one the synthetic UDT
     '' its elements key: fbc builds exactly the same temporary for it, field by field,
@@ -376,7 +376,7 @@ function LowerUdtParenInit_ _
     '' meant storing a whole Decimal into its first FIELD, which is a type error the
     '' void-result rule then declined; before that rule it would have stored something.
     dim as Tko.ListPayload ptr pl0 = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
+        c.ast->ListOf( init )
 
     '' A LITERAL OF A DERIVED TYPE IS ITS OWN TEMPORARY, sliced into this base. Measured,
     '' 'dim as t1 u1 = type<t2>( type<t3>( type<t4>( 1, 2, 3, 4 ) ) )' is a T4, a T3 and a T2
@@ -384,7 +384,7 @@ function LowerUdtParenInit_ _
     '' (structs/udt-upcast-4.bas). Read as a field list of t1 the outer 'type<t2>' vanished and
     '' its temporary with it: 3 2 2 1.
     if (c.ast->Kind( init ) = Tko.N_TUPLE) andalso _
-       ((c.ast->nodes[cast( int32, init )].flags and Tko.NF_TYPE_LITERAL) <> 0) then
+       ((c.ast->Flags( init ) and Tko.NF_TYPE_LITERAL) <> 0) then
         dim as Tko.TypeId litT = c.types->Unqualify( c.info->TypeOf_( init ) )
         if (litT <> Tko.TYPE_NONE) andalso (litT <> t) andalso (c.types->BaseDistance( litT, t ) > 0) then
             dim as int32 dsz = SizeOfType( c, t )
@@ -435,7 +435,7 @@ function LowerUdtParenInit_ _
                 '' parenthesised spellings structs/anon-param writes beside it. The
                 '' guard below is for a BARE '( expr )' -- punctuation around an
                 '' operator, which fb/fintvm.bi needs -- and that one still declines.
-                if (c.ast->nodes[cast( int32, init )].flags and _
+                if (c.ast->Flags( init ) and _
                     Tko.NF_TYPE_LITERAL) <> 0 then
                     dim as MirValue cdst = self_
                     '' The whole overload chain -- see CopyCtorOf_.
@@ -447,7 +447,7 @@ function LowerUdtParenInit_ _
                     '' measured, 'type<C>( type<C>( 5 ) )' is one constructor and one copy.
                     dim as Tko.NodeId inLit = Unparen_( c, only_ )
                     if (lcc = Tko.SYMBOL_NONE) andalso (c.ast->Kind( inLit ) = Tko.N_TUPLE) then
-                        if (c.ast->nodes[cast( int32, inLit )].flags and Tko.NF_TYPE_LITERAL) <> 0 then
+                        if (c.ast->Flags( inLit ) and Tko.NF_TYPE_LITERAL) <> 0 then
                             return LowerUdtParenInit_( c, slot, t, inLit, selfv )
                         end if
                     end if
@@ -492,7 +492,7 @@ function LowerUdtParenInit_ _
                 '' Without the type-literal flag this is a bare '( expr )' again --
                 '' punctuation, not an initialiser -- so it declines with the
                 '' same-type case above.
-                if (c.ast->nodes[cast( int32, init )].flags and _
+                if (c.ast->Flags( init ) and _
                     Tko.NF_TYPE_LITERAL) = 0 then return false
                 dim as int32 dsz = SizeOfType( c, t )
                 if dsz <= 0 then return false
@@ -512,7 +512,7 @@ function LowerUdtParenInit_ _
                 '' the single '_ZN2T2D1Ev( &V$1 )' at the end of the scope.
                 dim as boolean srcIsLit = false
                 if c.ast->Kind( only_ ) = Tko.N_TUPLE then
-                    srcIsLit = ((c.ast->nodes[cast( int32, only_ )].flags and _
+                    srcIsLit = ((c.ast->Flags( only_ ) and _
                                  Tko.NF_TYPE_LITERAL) <> 0)
                 end if
                 '' REGISTERED IN UdtLiteralSlot_ NOW, for every tuple literal rather
@@ -577,7 +577,7 @@ function LowerUdtParenInit_ _
         dim as containers.Array( of uint32 ) lcArgT
         dim as boolean allTyped = true
         for i as int32 = 0 to pl0->count - 1
-            dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[pl0->first + i] )
+            dim as Tko.NodeId an = c.ast->ChildAt( pl0->first, i )
             dim as Tko.TypeId at = c.info->TypeOf_( an )
             if at = Tko.TYPE_NONE then
                 allTyped = false
@@ -1151,7 +1151,7 @@ function IsUnionType_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     dim as Tko.NodeId n = cast( Tko.NodeId, s->payload )
     if n = Tko.NODE_NONE then return false
     if c.ast->Kind( n ) <> Tko.N_TYPE then return false
-    return ((c.ast->nodes[cast( int32, n )].flags and Tko.NF_IS_UNION) <> 0)
+    return ((c.ast->Flags( n ) and Tko.NF_IS_UNION) <> 0)
 end function
 
 

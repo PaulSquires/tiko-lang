@@ -23,7 +23,7 @@ private function ExplicitArgBad_ ( byref c as Ctx, byval pt as TypeId, byval arg
     if at = TYPE_NONE then return false
     if c.ast->Kind( arg ) = N_UNARY then
         dim as UnaryPayload ptr aup = _
-            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, arg )].data )]
+            c.ast->UnaryOf( arg )
         if cast( TokenKind, aup->op ) = KW_BYVAL then return false
     end if
     dim as TypeId pv = c.types->Unqualify( pt )
@@ -92,7 +92,7 @@ private sub CheckCtorArgsOf_ _
     if (s->nextOverload <> SYMBOL_NONE) orelse ((s->flags and SYMF_OVERLOAD) <> 0) then return
     dim as NodeId decl = cast( NodeId, s->payload )
     if (decl = NODE_NONE) orelse (c.ast->Kind( decl ) <> N_PROC) then return
-    if (c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, decl )].data )].extra and PF_GENERIC_PROC) <> 0 then return
+    if (c.ast->StmtOf( decl )->extra and PF_GENERIC_PROC) <> 0 then return
 
     if argCount = 1 then
         dim as TypeId a0 = c.types->Unqualify( c.info->TypeOf_( cast( NodeId, c.ast->children[argFirst] ) ) )
@@ -105,12 +105,12 @@ private sub CheckCtorArgsOf_ _
         if c.ast->Kind( warg ) = N_ELIDED then continue for
         dim as NodeId prm = ProcDeclParam_( c.ast, decl, i )
         if prm = NODE_NONE then exit for
-        if (c.ast->nodes[cast( int32, prm )].flags and NF_ARRAY) <> 0 then continue for
-        dim as NodeId pref = c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )].a
+        if (c.ast->Flags( prm ) and NF_ARRAY) <> 0 then continue for
+        dim as NodeId pref = c.ast->StmtOf( prm )->a
         if pref = NODE_NONE then continue for
         dim as TypeId pt = c.info->TypeOf_( pref )
         if pt = TYPE_NONE then continue for
-        if (c.ast->nodes[cast( int32, prm )].flags and NF_BYREF) <> 0 then pt = c.types->Reference( pt )
+        if (c.ast->Flags( prm ) and NF_BYREF) <> 0 then pt = c.types->Reference( pt )
         if ProcPtrArgBad_( c, pt, warg ) orelse ExplicitArgBad_( c, pt, warg ) then
             c.diags->Report( TKO0698, PointRange( c.ast->Loc( warg ) ) )
             return
@@ -157,16 +157,16 @@ private function CheckCtorArity_ _
         if cs->kind <> cast( uint8, SYM_PROC ) then return false
         dim as NodeId decl = cast( NodeId, cs->payload )
         if (decl = NODE_NONE) orelse (c.ast->Kind( decl ) <> N_PROC) then return false
-        dim as StmtPayload ptr pp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, decl )].data )]
+        dim as StmtPayload ptr pp = c.ast->StmtOf( decl )
         if (pp->extra and PF_GENERIC_PROC) <> 0 then return false
         dim as int32 need = 0, np = 0
         dim as boolean variadic = false
         for i as int32 = 0 to pp->count - 1
-            dim as NodeId prm = cast( NodeId, c.ast->children[pp->first + i] )
+            dim as NodeId prm = c.ast->ChildAt( pp->first, i )
             if c.ast->Kind( prm ) <> N_PARAM then continue for
-            dim as StmtPayload ptr psp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )]
+            dim as StmtPayload ptr psp = c.ast->StmtOf( prm )
             '' ...a TYPED variadic ('args( ) as T ...') takes any count, none included.
-            if (psp->op = cast( uint16, TK_ELLIPSIS )) orelse ((c.ast->nodes[cast( int32, prm )].flags and NF_VARIADIC) <> 0) then
+            if (psp->op = cast( uint16, TK_ELLIPSIS )) orelse ((c.ast->Flags( prm ) and NF_VARIADIC) <> 0) then
                 variadic = true
                 continue for
             end if
@@ -244,12 +244,12 @@ end function
 private function InitArgFit_ _
     ( byref c as Ctx, byval t as TypeId, byval prm as NodeId, byval arg as NodeId ) as int32
 
-    if (c.ast->nodes[cast( int32, prm )].flags and (NF_ARRAY or NF_VARIADIC)) <> 0 then return -1
-    dim as NodeId pref = c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )].a
+    if (c.ast->Flags( prm ) and (NF_ARRAY or NF_VARIADIC)) <> 0 then return -1
+    dim as NodeId pref = c.ast->StmtOf( prm )->a
     if pref = NODE_NONE then return -1
     dim as TypeId pt = c.info->TypeOf_( pref )
     if pt = TYPE_NONE then return -1
-    dim as boolean isRef = ((c.ast->nodes[cast( int32, prm )].flags and NF_BYREF) <> 0)
+    dim as boolean isRef = ((c.ast->Flags( prm ) and NF_BYREF) <> 0)
     if isRef then pt = c.types->Reference( pt )
     dim as TypeId pv = c.types->Unqualify( pt )
     if c.types->Kind( pv ) = TK_REFERENCE then pv = c.types->Unqualify( c.types->Inner( pv ) )
@@ -330,15 +330,15 @@ private function StructorChainFit_ _
         if s->kind <> cast( uint8, SYM_PROC ) then return -1
         dim as NodeId decl = cast( NodeId, s->payload )
         if (decl = NODE_NONE) orelse (c.ast->Kind( decl ) <> N_PROC) then return -1
-        dim as StmtPayload ptr pp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, decl )].data )]
+        dim as StmtPayload ptr pp = c.ast->StmtOf( decl )
         if (pp->extra and PF_GENERIC_PROC) <> 0 then return -1
         '' One argument: a first parameter, every other one defaulted.
         dim as NodeId first_ = NODE_NONE
         dim as boolean oneArg = true
         for i as int32 = 0 to pp->count - 1
-            dim as NodeId prm = cast( NodeId, c.ast->children[pp->first + i] )
+            dim as NodeId prm = c.ast->ChildAt( pp->first, i )
             if c.ast->Kind( prm ) <> N_PARAM then continue for
-            dim as StmtPayload ptr psp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )]
+            dim as StmtPayload ptr psp = c.ast->StmtOf( prm )
             if psp->op = cast( uint16, TK_ELLIPSIS ) then return -1
             if first_ = NODE_NONE then
                 first_ = prm
@@ -390,7 +390,7 @@ end function
 private sub CheckCtorInitList_ _
     ( byref c as Ctx, byval n as NodeId, byval elemT as TypeId, byval depth as int32 )
     if depth > 16 then return
-    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+    dim as ListPayload ptr lp = c.ast->ListOf( n )
     dim as int32 first_ = lp->first
     dim as int32 count_ = lp->count
     for i as int32 = 0 to count_ - 1
@@ -434,7 +434,7 @@ sub CheckFieldCtorInits_ ( byref c as Ctx )
         dim as NodeId fn = cast( NodeId, s->payload )
         if c.ast->Kind( fn ) <> N_FIELD then continue for
         '' The initialiser is in 'c': on an N_FIELD 'b' is a bitfield's width.
-        dim as NodeId iv = c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, fn )].data )].c
+        dim as NodeId iv = c.ast->StmtOf( fn )->c
         if iv = NODE_NONE then continue for
         if fk = TK_ARRAY then
             CheckCtorArrayInit_( c, s->type_, iv )
@@ -446,7 +446,7 @@ end sub
 
 '' 'T( ... )' naming the type, and 'new T( ... )'.
 sub CheckCtorCallArgs_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
-    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as ListPayload ptr lp = c.ast->ListOf( id )
     if lp->target = NODE_NONE then return
     if k = N_NEW then
         dim as int32 first, count
@@ -465,7 +465,7 @@ sub CheckCtorCallArgs_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind
     if (c.ast->Kind( tg ) <> N_IDENT) andalso (c.ast->Kind( tg ) <> N_MEMBER) then return
     dim as SymbolId tsid = c.info->RefOf( tg )
     if (tsid = SYMBOL_NONE) andalso (c.ast->Kind( tg ) = N_MEMBER) then
-        tsid = c.info->RefOf( c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, tg )].data )].rhs )
+        tsid = c.info->RefOf( c.ast->BinaryOf( tg )->rhs )
     end if
     dim as Symbol ptr ts = c.syms->SymbolAt( tsid )
     if ts = nullptr then return

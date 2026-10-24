@@ -245,7 +245,7 @@ private function IsVirtualKeyword_( byref c as Ctx, byval a as Tko.NodeId ) as b
     if a = Tko.NODE_NONE then return false
     if c.ast->Kind( a ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, a )].data )]
+        c.ast->IdentOf( a )
     return (Tko.Text.LowerAscii( c.names->Spelling( ip->name ) ) = "virtual")
 end function
 
@@ -321,7 +321,7 @@ private function ArgBuiltin_ _
     as Tko.BuiltinType
 
     if (i < 0) orelse (i >= cp->count) then return Tko.TY_NONE
-    dim as Tko.TypeId at = TypeOf_( c, cast( Tko.NodeId, c.ast->children[cp->first + i] ) )
+    dim as Tko.TypeId at = TypeOf_( c, c.ast->ChildAt( cp->first, i ) )
     if at = Tko.TYPE_NONE then return Tko.TY_NONE
     dim as Tko.TypeId fs = FixedStringElem( at, *c.types )
     if fs <> Tko.TYPE_NONE then return c.types->BuiltinOf( fs )
@@ -779,19 +779,19 @@ private sub NoteUntypedName_( byref c as Ctx, byval id as Tko.NodeId )
     dim as Tko.NodeId n = id
     if c.ast->Kind( n ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr cp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+            c.ast->ListOf( n )
         n = cp->target
     end if
     if n = Tko.NODE_NONE then return
     if c.ast->Kind( n ) = Tko.N_MEMBER then
         dim as Tko.BinaryPayload ptr mb = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+            c.ast->BinaryOf( n )
         n = mb->rhs
     end if
     if n = Tko.NODE_NONE then return
     if c.ast->Kind( n ) <> Tko.N_IDENT then return
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+        c.ast->IdentOf( n )
     c.st->argUntypedNames.Push( cast( uint32, ip->name ) )
 end sub
 
@@ -809,18 +809,18 @@ private function UntypedLeaf_ _
         select case c.ast->Kind( cur )
         case Tko.N_PAREN
             dim as Tko.ListPayload ptr lp = _
-                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, cur )].data )]
+                c.ast->ListOf( cur )
             if lp->count <> 1 then return cur
             cur = cast( Tko.NodeId, c.ast->children[lp->first] )
         case Tko.N_UNARY
             dim as Tko.UnaryPayload ptr up = _
-                @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, cur )].data )]
+                c.ast->UnaryOf( cur )
             cur = up->operand
         case Tko.N_BINARY
             '' Whichever side is the untyped one; if both are, the left is reported and
             '' the right will be counted on its own the next time round.
             dim as Tko.BinaryPayload ptr bp = _
-                @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, cur )].data )]
+                c.ast->BinaryOf( cur )
             if TypeOf_( c, bp->lhs ) = Tko.TYPE_NONE then
                 cur = bp->lhs
             elseif TypeOf_( c, bp->rhs ) = Tko.TYPE_NONE then
@@ -867,10 +867,10 @@ private function MemberProcPtr_ _
 
     if c.ast->Kind( fnE ) <> Tko.N_MEMBER then return Tko.SYMBOL_NONE
     dim as Tko.BinaryPayload ptr mp = _
-        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, fnE )].data )]
+        c.ast->BinaryOf( fnE )
     if c.ast->Kind( mp->rhs ) <> Tko.N_IDENT then return Tko.SYMBOL_NONE
     dim as Tko.IdentPayload ptr rip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, mp->rhs )].data )]
+        c.ast->IdentOf( mp->rhs )
     dim as string mname = Tko.Text.LowerAscii( c.names->Spelling( rip->name ) )
 
     '' The TYPE the member belongs to: the left side names it.
@@ -926,7 +926,7 @@ function ProcPtrPickOverload_ _
     '' rather than given a case of its own further down.
     if c.ast->Kind( sigN ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr tlp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sigN )].data )]
+            c.ast->ListOf( sigN )
         dim as boolean isTypeof = false
         if (tlp->count = 1) andalso (tlp->target <> Tko.NODE_NONE) then
             if c.ast->Kind( tlp->target ) = Tko.N_IDENT then
@@ -976,14 +976,14 @@ function ProcPtrPickOverload_ _
             dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
             dim as int32 have = 0
             for i as int32 = 0 to pp->count - 1
-                dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
                 if c.ast->Kind( prm ) = Tko.N_PARAM then have += 1
             next
             if have = want then
                 dim as boolean same = true
                 dim as int32 seen = 0
                 for i as int32 = 0 to pp->count - 1
-                    dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                    dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
                     if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
                     dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
                     dim as Tko.TypeId wt = Tko.TYPE_NONE
@@ -1053,12 +1053,12 @@ private function ProcTypeOfSymbol_ _
 
     dim as boolean typedVar = false
     for i as int32 = 0 to pp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         dim as Tko.StmtPayload ptr sp2 = StmtOf( c, prm )
         dim as Tko.TypeId pt = c.info->TypeOf_( sp2->a )
         if pt = Tko.TYPE_NONE then return Tko.TYPE_NONE
-        dim as uint16 pfl = c.ast->nodes[cast( int32, prm )].flags  '' an ARRAY parameter, as ProcTypeParamType_
+        dim as uint16 pfl = c.ast->Flags( prm )  '' an ARRAY parameter, as ProcTypeParamType_
         typedVar = ((pfl and Tko.NF_VARIADIC) <> 0)
         if (pfl and Tko.NF_ARRAY) <> 0 then pt = c.types->Reference( c.types->DynArrayOf( pt, cast( int32, sp2->extra ) ) ) else if (pfl and Tko.NF_BYREF) <> 0 then pt = c.types->Reference( pt )
         ps.Push( cast( uint32, pt ) )
@@ -1073,7 +1073,7 @@ private function IsThisIdent_( byref c as Ctx, byval n as Tko.NodeId ) as boolea
     if n = Tko.NODE_NONE then return false
     if c.ast->Kind( n ) <> Tko.N_IDENT then return false
     dim as Tko.InternId nm = _
-        c.ast->idents[cast( int32, c.ast->nodes[cast( int32, n )].data )].name
+        c.ast->IdentOf( n )->name
     if c.names->Fold( nm ) <> c.names->Fold( c.names->GetString( "this" ) ) then
         return false
     end if
@@ -1103,12 +1103,12 @@ private function PeekTypeArg_ _
     '' answer either way.
     if c.ast->Kind( n ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr tp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+            c.ast->ListOf( n )
         if tp->count <> 1 then return Tko.TYPE_NONE
         if tp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
         if c.ast->Kind( tp->target ) <> Tko.N_IDENT then return Tko.TYPE_NONE
         dim as Tko.IdentPayload ptr tnp = _
-            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, tp->target )].data )]
+            c.ast->IdentOf( tp->target )
         if Tko.Text.LowerAscii( c.names->Spelling( tnp->name ) ) <> "typeof" then
             return Tko.TYPE_NONE
         end if
@@ -1116,7 +1116,7 @@ private function PeekTypeArg_ _
     end if
     if c.ast->Kind( n ) <> Tko.N_IDENT then return Tko.TYPE_NONE
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+        c.ast->IdentOf( n )
     select case Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
     case "byte"     : return c.types->Builtin( Tko.TY_BYTE )
     case "ubyte"    : return c.types->Builtin( Tko.TY_UBYTE )

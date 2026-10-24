@@ -115,11 +115,11 @@ private function TcLetTakes_ ( byref c as Ctx, byval eu as TypeId, byval vu as T
         if ls = nullptr then exit for
         dim as NodeId pn = cast( NodeId, ls->payload )
         if (pn <> NODE_NONE) andalso (c.ast->Kind( pn ) = N_PROC) then
-            dim as StmtPayload ptr pp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
+            dim as StmtPayload ptr pp = c.ast->StmtOf( pn )
             for i as int32 = 0 to pp->count - 1
-                dim as NodeId prm = cast( NodeId, c.ast->children[pp->first + i] )
+                dim as NodeId prm = c.ast->ChildAt( pp->first, i )
                 if c.ast->Kind( prm ) <> N_PARAM then continue for
-                dim as StmtPayload ptr qp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )]
+                dim as StmtPayload ptr qp = c.ast->StmtOf( prm )
                 if TcParamTakes_( c, c.info->TypeOf_( qp->a ), vu ) then return true
                 exit for
             next
@@ -232,13 +232,13 @@ private function TypeLitTextBad_ _
     ( byref c as Ctx, byval dest as TypeId, byval rn as NodeId, byval isDim as boolean ) as boolean
     if (rn = NODE_NONE) orelse (dest = TYPE_NONE) then return false
     while c.ast->Kind( rn ) = N_PAREN
-        dim as ListPayload ptr pl = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, rn )].data )]
+        dim as ListPayload ptr pl = c.ast->ListOf( rn )
         if pl->count <> 1 then exit while
         rn = cast( NodeId, c.ast->children[pl->first] )
     wend
     if c.ast->Kind( rn ) <> N_TUPLE then return false
-    if (c.ast->nodes[cast( int32, rn )].flags and NF_TYPE_LITERAL) = 0 then return false
-    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, rn )].data )]
+    if (c.ast->Flags( rn ) and NF_TYPE_LITERAL) = 0 then return false
+    dim as ListPayload ptr lp = c.ast->ListOf( rn )
     if (lp->count = 0) orelse (lp->target <> NODE_NONE) then return false
     if TcTuple_( c, c.info->TypeOf_( rn ) ) = false then return false
     dim as Symbol ptr f = TlTextField_( c, dest, 0, true )
@@ -255,15 +255,15 @@ private function TupleConvBad_ _
     if (rn = NODE_NONE) orelse (depth > 8) then return false
     '' '( ( 1, 2 ) )' is the literal inside.
     while c.ast->Kind( rn ) = N_PAREN
-        dim as ListPayload ptr pl = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, rn )].data )]
+        dim as ListPayload ptr pl = c.ast->ListOf( rn )
         if pl->count <> 1 then exit while
         rn = cast( NodeId, c.ast->children[pl->first] )
     wend
     if c.ast->Kind( rn ) <> N_TUPLE then return TupleValueBad_( c, t, rn )
-    if (c.ast->nodes[cast( int32, rn )].flags and NF_TYPE_LITERAL) <> 0 then return false
+    if (c.ast->Flags( rn ) and NF_TYPE_LITERAL) <> 0 then return false
     t = c.types->Unqualify( t )
     if TcTuple_( c, t ) = false then return false
-    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, rn )].data )]
+    dim as ListPayload ptr lp = c.ast->ListOf( rn )
     if lp->target <> NODE_NONE then return false
     '' The element types, in order, off the tuple's own scope.
     dim as InternId tn = c.types->NameOf( t )
@@ -287,7 +287,7 @@ private function TupleConvBad_ _
     '' A count that does not match is the arity rule's (TKO0825), not this one.
     if ets.Count <> lp->count then return false
     for i as int32 = 0 to lp->count - 1
-        dim as NodeId e = cast( NodeId, c.ast->children[lp->first + i] )
+        dim as NodeId e = c.ast->ChildAt( lp->first, i )
         dim as TypeId et = cast( TypeId, ets[i] )
         if c.ast->Kind( e ) = N_TUPLE then
             if TupleConvBad_( c, et, e, depth + 1 ) then return true

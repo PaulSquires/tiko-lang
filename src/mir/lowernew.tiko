@@ -34,7 +34,7 @@ private function LowerNewArray_ _
 
     '' PLACEMENT: the pointer is child 0 and the COUNT follows it.
     dim as boolean isPlace = _
-        ((c.ast->nodes[cast( int32, id )].flags and Tko.NF_PLACEMENT) <> 0)
+        ((c.ast->Flags( id ) and Tko.NF_PLACEMENT) <> 0)
     dim as int32 cntAt = np->first
     if isPlace then
         if np->count <> 2 then return false
@@ -113,7 +113,7 @@ private function LowerNewArray_ _
     '' 'new T[n] { any }' CHANGES ANYTHING ONLY OVER AN ELEMENT NOTHING CONSTRUCTS; over
     '' one with a constructor fbc warns (19) that it has no effect. Measured: 'new V[3]
     '' {any}' is malloc( 24 ) with no memset, and its placement form drops the memset.
-    dim as boolean noInit = ((c.ast->nodes[cast( int32, id )].flags and Tko.NF_NOINIT) <> 0)
+    dim as boolean noInit = ((c.ast->Flags( id ) and Tko.NF_NOINIT) <> 0)
     if noInit then noInit = (CtorOf_( c, el, 0 ) = Tko.SYMBOL_NONE)
     if noInit then
         if c.types->Kind( el ) = Tko.TK_UDT then noInit = (TypeNeedsInit_( c, el ) = false)
@@ -360,9 +360,9 @@ function LowerNew_ _
 
     if c.ast->Kind( id ) <> Tko.N_NEW then return false
     dim as Tko.ListPayload ptr np = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if np->target = Tko.NODE_NONE then return false
-    if (c.ast->nodes[cast( int32, id )].flags and Tko.NF_ARRAY) <> 0 then
+    if (c.ast->Flags( id ) and Tko.NF_ARRAY) <> 0 then
         return LowerNewArray_( c, id, np, outv )
     end if
 
@@ -388,9 +388,9 @@ function LowerNew_ _
     ''     __builtin_memset( TMP$2$0, 0, 8ull );
     ''     label$10:;
     dim as boolean isPlace = _
-        ((c.ast->nodes[cast( int32, id )].flags and Tko.NF_PLACEMENT) <> 0)
+        ((c.ast->Flags( id ) and Tko.NF_PLACEMENT) <> 0)
     '' 'new T( any )' -- allocated and NOT initialised: no constructor, no zeroing.
-    dim as boolean noInit = ((c.ast->nodes[cast( int32, id )].flags and Tko.NF_NOINIT) <> 0)
+    dim as boolean noInit = ((c.ast->Flags( id ) and Tko.NF_NOINIT) <> 0)
     dim as int32 argFirst = np->first
     dim as int32 argCount = np->count
     dim as MirValue raw
@@ -479,9 +479,9 @@ function LowerNew_ _
     if (argCount = 1) andalso (c.types->Kind( el ) = Tko.TK_UDT) then
         dim as Tko.NodeId tla = cast( Tko.NodeId, c.ast->children[argFirst] )
         if c.ast->Kind( tla ) = Tko.N_TUPLE then
-            if (c.ast->nodes[cast( int32, tla )].flags and Tko.NF_TYPE_LITERAL) <> 0 then
+            if (c.ast->Flags( tla ) and Tko.NF_TYPE_LITERAL) <> 0 then
                 dim as Tko.ListPayload ptr tlp = _
-                    @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, tla )].data )]
+                    c.ast->ListOf( tla )
                 if (tlp->target = Tko.NODE_NONE) andalso (tlp->count >= 1) then
                     if StructorOf( c, el, "__ctor" ) = Tko.SYMBOL_NONE then
                         argFirst = tlp->first

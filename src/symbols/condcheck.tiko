@@ -58,24 +58,24 @@ end sub
 private sub CheckConditions_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
     select case k
     case N_IF_BRANCH, N_WHILE
-        CheckCond_( c, c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )].a )
+        CheckCond_( c, c.ast->StmtOf( id )->a )
     case N_DO
-        dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        dim as StmtPayload ptr sp = c.ast->StmtOf( id )
         CheckCond_( c, sp->a )
         CheckCond_( c, sp->c )
     case N_BINARY
-        dim as BinaryPayload ptr bp = @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        dim as BinaryPayload ptr bp = c.ast->BinaryOf( id )
         select case cast( TokenKind, bp->op )
         case KW_ANDALSO, KW_ORELSE
             CheckCond_( c, bp->lhs )
             CheckCond_( c, bp->rhs )
         end select
     case N_CALL
-        dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        dim as ListPayload ptr lp = c.ast->ListOf( id )
         if (lp->target = NODE_NONE) orelse (lp->count <> 3) then return
         if c.ast->Kind( lp->target ) <> N_IDENT then return
         if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
-        if Text.LowerAscii( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name ) ) <> "iif" then return
+        if Text.LowerAscii( c.names->Spelling( c.ast->IdentOf( lp->target )->name ) ) <> "iif" then return
         CheckCond_( c, cast( NodeId, c.ast->children[lp->first] ) )
     end select
 end sub

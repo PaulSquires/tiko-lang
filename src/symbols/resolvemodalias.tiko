@@ -55,7 +55,7 @@ private function ParamTypes_ _
     if (pn = Tko.NODE_NONE) orelse (c.ast->Kind( pn ) <> Tko.N_PROC) then return false
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
     for i as int32 = 0 to pp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         dim as Tko.StmtPayload ptr ps = StmtOf( c, prm )
         if ps->op = cast( uint16, Tko.TK_ELLIPSIS ) then return false

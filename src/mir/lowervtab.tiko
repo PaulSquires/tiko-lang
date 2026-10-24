@@ -268,7 +268,7 @@ function VirtualSlotOf_ _
 
     if c.ast->Kind( target ) = Tko.N_MEMBER then
         dim as Tko.BinaryPayload ptr mb = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, target )].data )]
+            c.ast->BinaryOf( target )
 
         '' 'base.v( )' IS NEVER VIRTUAL. It is the one spelling that means "the base's
         '' version of this, whatever I am" -- fbc emits a direct '_ZN1A1VEv( (struct
@@ -280,7 +280,7 @@ function VirtualSlotOf_ _
         '' at all. BASE is a keyword, so no user identifier can reach here.
         if c.ast->Kind( mb->lhs ) = Tko.N_IDENT then
             dim as Tko.IdentPayload ptr ip = _
-                @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, mb->lhs )].data )]
+                c.ast->IdentOf( mb->lhs )
             if ip->name = c.vts->baseName then return -1
         end if
 
@@ -294,7 +294,7 @@ function VirtualSlotOf_ _
         '' call fell out of the virtual path entirely. Every virtual method reached
         '' through a smart pointer -- which is what fb/comptr.bi exists for -- is this.
         dim as Tko.TypeId urt = c.types->Unqualify( rt )
-        if ((c.ast->nodes[cast( int32, target )].flags and Tko.NF_ARROW) <> 0) andalso _
+        if ((c.ast->Flags( target ) and Tko.NF_ARROW) <> 0) andalso _
            (c.types->Kind( urt ) = Tko.TK_UDT) then
             dim as Tko.SymbolId vaop = Tko.Check.ArrowOperatorFor( _
                 *c.types, *c.syms, *c.names, *c.ast, *c.info, urt )

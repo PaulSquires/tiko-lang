@@ -55,7 +55,7 @@ private function RepairTypeofRef_ _
     if depth > 8 then return Tko.TYPE_NONE
     if c.ast->Kind( tr ) <> Tko.N_TYPEREF then return Tko.TYPE_NONE
     dim as Tko.StmtPayload ptr tp = StmtOf( c, tr )
-    if (c.ast->nodes[cast( int32, tr )].flags and Tko.NF_PTR) <> 0 then
+    if (c.ast->Flags( tr ) and Tko.NF_PTR) <> 0 then
         dim as Tko.TypeId inner = RepairTypeofRef_( c, tp->a, depth + 1 )
         if inner = Tko.TYPE_NONE then return Tko.TYPE_NONE
         return c.types->Pointer_( inner )
@@ -110,10 +110,10 @@ private function CompleteClosureFields_( byref c as Ctx ) as int32
         if ts = nullptr then continue for
         if ts->inner = Tko.SCOPE_NONE then continue for
         for k as int32 = 0 to sp->count - 1
-            dim as Tko.NodeId cn = cast( Tko.NodeId, c.ast->children[sp->first + k] )
+            dim as Tko.NodeId cn = c.ast->ChildAt( sp->first, k )
             if c.ast->Kind( cn ) <> Tko.N_IDENT then continue for
             dim as Tko.InternId cnm = _
-                c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cn )].data )].name
+                c.ast->IdentOf( cn )->name
             dim as Tko.InternId fnm = c.names->Fold( c.names->GetString( _
                 "__CAP_" & c.names->Spelling( cnm ) ) )
             dim as Tko.Symbol ptr fs = c.syms->SymbolAt( _
@@ -126,7 +126,7 @@ private function CompleteClosureFields_( byref c as Ctx ) as int32
             if ct = Tko.TYPE_NONE then continue for
             if c.types->Kind( ct ) = Tko.TK_REFERENCE then ct = c.types->Inner( ct )
             c.info->SetType( cn, ct )
-            if (c.ast->nodes[cast( int32, cn )].flags and Tko.NF_BYREF) <> 0 then
+            if (c.ast->Flags( cn ) and Tko.NF_BYREF) <> 0 then
                 ct = c.types->Pointer_( ct )
             end if
             fs->type_ = ct

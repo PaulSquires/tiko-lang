@@ -274,7 +274,7 @@ private sub InitTooMany_ _
     if isList = false then return
 
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
+        c.ast->ListOf( init )
 
     '' 'type<child>( 4, 5 )' fills a CHILD and upcasts. Its type ref is the target.
     dim as Tko.TypeId lt = t

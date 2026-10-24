@@ -71,7 +71,7 @@ private function ExactOverloadFor_ _
             dim as boolean same = true
             for i as int32 = 0 to cp->count - 1
                 dim as Tko.TypeId at = BareArgType_( c, _
-                    c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[cp->first + i] ) ) )
+                    c.info->TypeOf_( c.ast->ChildAt( cp->first, i ) ) )
                 if at = Tko.TYPE_NONE then same = false : exit for
                 if at <> BareArgType_( c, ProcParamTypeAt_( c, sid, i ) ) then same = false : exit for
             next
@@ -128,7 +128,7 @@ private function ProcIsOperator_( byref c as Ctx, byval s as Tko.Symbol ptr ) as
     dim as Tko.NodeId decl = cast( Tko.NodeId, s->payload )
     if decl = Tko.NODE_NONE then return false
     if c.ast->Kind( decl ) <> Tko.N_PROC then return false
-    return (c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, decl )].data )].op = _
+    return (c.ast->StmtOf( decl )->op = _
             cast( uint16, Tko.KW_OPERATOR ))
 end function
 
@@ -185,7 +185,7 @@ private function IntrinsicCallType_ _
     if cp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return Tko.TYPE_NONE
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     dim as string nm = Tko.Text.LowerAscii( c.names->Spelling( ip->name ) )
     if IsTypedIntrinsicName( nm ) = false then return Tko.TYPE_NONE
 

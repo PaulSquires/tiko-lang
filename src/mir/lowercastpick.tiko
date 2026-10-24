@@ -269,10 +269,10 @@ end function
 '' the wstring one. 0 for any other call, or when the pick is not clean (Check reported it).
 function IntrCastForce_( byref c as Ctx, byval id as Tko.NodeId ) as int32
     if c.ast->Kind( id ) <> Tko.N_CALL then return 0
-    dim as Tko.ListPayload ptr cp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as Tko.ListPayload ptr cp = c.ast->ListOf( id )
     if (cp->count < 1) orelse (cp->target = Tko.NODE_NONE) then return 0
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return 0
-    dim as string nm = LowerSpelling_( c.ix, *c.names, c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )].name )
+    dim as string nm = LowerSpelling_( c.ix, *c.names, c.ast->IdentOf( cp->target )->name )
     if instr( " left right val valint vallng valuint valulng ", " " & nm & " " ) = 0 then return 0
     if CallsUserProcNamedLikeBuiltin( c, id ) then return 0
     dim as Tko.TypeId at = c.types->Unqualify( c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[cp->first] ) ) )

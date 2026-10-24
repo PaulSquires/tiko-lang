@@ -34,12 +34,12 @@ end function
 '' user procedure of the name, a field the layout does not hold -- is false, unknown.
 function AssertOffsetOf_ ( byref c as Ctx, byval n as NodeId, byref v as int64 ) as boolean
     if c.ast->Kind( n ) <> N_CALL then return false
-    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+    dim as ListPayload ptr lp = c.ast->ListOf( n )
     if (lp->count <> 2) orelse (lp->target = NODE_NONE) then return false
     if c.ast->Kind( lp->target ) <> N_IDENT then return false
     if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return false
     if lcase( c.names->Spelling( _
-        c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name ) ) <> "offsetof" then return false
+        c.ast->IdentOf( lp->target )->name ) ) <> "offsetof" then return false
     dim as NodeId tn = Unparen3_( c, cast( NodeId, c.ast->children[lp->first] ) )
     dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( tn ) )
     if ts = nullptr then return false
@@ -47,7 +47,7 @@ function AssertOffsetOf_ ( byref c as Ctx, byval n as NodeId, byref v as int64 )
     dim as NodeId fn = cast( NodeId, c.ast->children[lp->first + 1] )
     dim as containers.Array( of uint32 ) path
     while c.ast->Kind( fn ) = N_MEMBER
-        dim as BinaryPayload ptr mbp = @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, fn )].data )]
+        dim as BinaryPayload ptr mbp = c.ast->BinaryOf( fn )
         if c.ast->Kind( mbp->rhs ) <> N_IDENT then return false
         path.Push( cast( uint32, mbp->rhs ) )
         fn = mbp->lhs

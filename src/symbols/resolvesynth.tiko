@@ -66,9 +66,9 @@ private function SpawnByrefParam_ _
     if c.ast->Kind( pn ) <> Tko.N_PROC then return false
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
     for i as int32 = 0 to pp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
-        if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) = 0 then continue for
+        if (c.ast->Flags( prm ) and Tko.NF_BYREF) = 0 then continue for
         c.diags->Report( Tko.TKO0812, Tko.PointRange( c.ast->Loc( id ) ), _
                          c.names->Spelling( hs->name ), _
                          c.names->Spelling( StmtOf( c, prm )->name ) )
@@ -124,7 +124,7 @@ private sub BuildSpawnFrame_ _
                 dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
                 dim as int32 np = 0
                 for i as int32 = 0 to pp->count - 1
-                    dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                    dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
                     if c.ast->Kind( prm ) = Tko.N_PARAM then np += 1
                 next
                 if np = cast( int32, sp->extra ) then
@@ -142,12 +142,12 @@ private sub BuildSpawnFrame_ _
     dim as Tko.StmtPayload ptr pp2 = StmtOf( c, pnode )
     dim as containers.Array( of uint32 ) fTy
     for i as int32 = 0 to pp2->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp2->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( pp2->first, i )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         '' A BYREF PARAMETER WOULD MAKE THE FRAME HOLD AN ADDRESS into a stack
         '' frame the goroutine outlives. fbc has no such case in the corpus and
         '' inventing one here would be inventing a lifetime.
-        if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0 then return
+        if (c.ast->Flags( prm ) and Tko.NF_BYREF) <> 0 then return
         dim as Tko.TypeId pt = c.info->TypeOf_( StmtOf( c, prm )->a )
         if pt = Tko.TYPE_NONE then return
         if c.types->Kind( pt ) = Tko.TK_REFERENCE then return
@@ -195,7 +195,7 @@ private sub BuildClosureType_ _
     '' clang refused the module.
     dim as containers.Array( of uint32 ) fTy
     for k as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId cn = cast( Tko.NodeId, c.ast->children[sp->first + k] )
+        dim as Tko.NodeId cn = c.ast->ChildAt( sp->first, k )
         if c.ast->Kind( cn ) <> Tko.N_IDENT then return
         dim as Tko.SymbolId csid = c.syms->LookupTyped( scope_, IdentNameOf( c, cn ), false )
         dim as Tko.Symbol ptr cs = c.syms->SymbolAt( csid )
@@ -216,7 +216,7 @@ private sub BuildClosureType_ _
         end if
         if c.types->Kind( ct ) = Tko.TK_REFERENCE then ct = c.types->Inner( ct )
         c.info->SetType( cn, ct )
-        if (c.ast->nodes[cast( int32, cn )].flags and Tko.NF_BYREF) <> 0 then
+        if (c.ast->Flags( cn ) and Tko.NF_BYREF) <> 0 then
             ct = c.types->Pointer_( ct )
         end if
         fTy.Push( cast( uint32, ct ) )
@@ -233,7 +233,7 @@ private sub BuildClosureType_ _
     ts->inner = tin
     ts->type_ = c.types->NamedType( Tko.TK_UDT, sp->name, cast( uint32, Tko.SCOPE_GLOBAL ) )
     for k as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId cn = cast( Tko.NodeId, c.ast->children[sp->first + k] )
+        dim as Tko.NodeId cn = c.ast->ChildAt( sp->first, k )
         dim as Tko.InternId fnm = c.names->Fold( c.names->GetString( _
             "__CAP_" & c.names->Spelling( IdentNameOf( c, cn ) ) ) )
         dim as boolean fdup = false

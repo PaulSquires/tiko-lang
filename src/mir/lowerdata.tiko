@@ -56,7 +56,7 @@ function CollectDataBlocks( byref c as Ctx, byval root as Tko.NodeId ) as int32
     if root = Tko.NODE_NONE then return -1
     if c.ast->Kind( root ) <> Tko.N_MODULE then return -1
     dim as Tko.ListPayload ptr mp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, root )].data )]
+        c.ast->ListOf( root )
 
     '' Two passes over the children: the blocks are built first so that the label map
     '' can point at them, and chained afterwards so each terminator knows its successor.
@@ -64,7 +64,7 @@ function CollectDataBlocks( byref c as Ctx, byval root as Tko.NodeId ) as int32
     dim as containers.Array( of uint32 ) pendingLabels   '' labels seen since the last block
 
     for i as int32 = 0 to mp->count - 1
-        dim as Tko.NodeId n = cast( Tko.NodeId, c.ast->children[mp->first + i] )
+        dim as Tko.NodeId n = c.ast->ChildAt( mp->first, i )
         if c.ast->Kind( n ) = Tko.N_LABEL then
             pendingLabels.Push( cast( uint32, StmtOf( c, n )->name ) )
             continue for
@@ -113,7 +113,7 @@ private function BuildDataBlock_( byref c as Ctx, byval id as Tko.NodeId ) as in
     dim as containers.Array( of int32 ) types
     dim as containers.Array( of int32 ) refs
     for i as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        dim as Tko.NodeId e = c.ast->ChildAt( sp->first, i )
         dim as boolean isWide = false
         dim as string txt
         '' '@"foo"' -- THE DATUM IS AN ADDRESS, and its tag is -2 rather than a
@@ -123,7 +123,7 @@ private function BuildDataBlock_( byref c as Ctx, byval id as Tko.NodeId ) as in
         dim as Tko.NodeId ae = Unparen_( c, e )
         if c.ast->Kind( ae ) = Tko.N_ADDROF then
             dim as Tko.UnaryPayload ptr aup = _
-                @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, ae )].data )]
+                c.ast->UnaryOf( ae )
             dim as Tko.NodeId ao = Unparen_( c, aup->operand )
             if c.ast->Kind( ao ) = Tko.N_STRING_LIT then
                 types.Push( -2 )
@@ -236,7 +236,7 @@ private function DataItemText_ _
     '' rather than approximated.
     if c.ast->Kind( e ) = Tko.N_FLOAT_LIT then
         dim as Tko.LiteralPayload ptr flp = _
-            @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+            c.ast->LiteralOf( e )
         outp = Tko.Text.StrOfDouble( flp->fltValue )
         return true
     end if
@@ -245,10 +245,10 @@ private function DataItemText_ _
     '' the sign matters -- fbc renders -0.0 as "-0", not "0".
     if c.ast->Kind( e ) = Tko.N_UNARY then
         dim as Tko.UnaryPayload ptr up = _
-            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+            c.ast->UnaryOf( e )
         if c.ast->Kind( up->operand ) = Tko.N_FLOAT_LIT then
             dim as Tko.LiteralPayload ptr flp2 = _
-                @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, up->operand )].data )]
+                c.ast->LiteralOf( up->operand )
             dim as float64 fv = flp2->fltValue
             select case cast( Tko.TokenKind, up->op )
             case Tko.TK_MINUS : outp = Tko.Text.StrOfDouble( -fv )
@@ -348,7 +348,7 @@ function LowerRead( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if sp->count < 1 then return false
 
     for i as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId dst = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        dim as Tko.NodeId dst = c.ast->ChildAt( sp->first, i )
         dim as Tko.TypeId t = c.info->TypeOf_( dst )
         dim as RtlId r = DataReadRtlFor_( c, t )
         if r = RTL_NONE then return false
@@ -455,7 +455,7 @@ function LowerRestore( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         dim as Tko.NodeId lbl = cast( Tko.NodeId, c.ast->children[sp->first] )
         if c.ast->Kind( lbl ) <> Tko.N_IDENT then return false
         dim as Tko.IdentPayload ptr ip = _
-            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lbl )].data )]
+            c.ast->IdentOf( lbl )
         target = -1
         dim as int32 at = c.ix.dataLabelAt.Find( cast( uint32, ip->name ) + 1 )
         if at >= 0 then target = cast( int32, c.dataLabelBlock[at] )

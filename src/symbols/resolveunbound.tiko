@@ -29,7 +29,7 @@ private function BareMacroAtGlobal_( byref c as Ctx, byval scope_ as Tko.ScopeId
                 dim as Tko.NodeId dn = cast( Tko.NodeId, os->payload )
                 if (dn > 0) andalso (cast( int32, dn ) <= c.ast->Count( )) then
                     if c.ast->Kind( dn ) = Tko.N_PROC then
-                        if (c.ast->nodes[cast( int32, dn )].flags and Tko.NF_QUALIFIED) <> 0 then return false
+                        if (c.ast->Flags( dn ) and Tko.NF_QUALIFIED) <> 0 then return false
                     end if
                 end if
             end if

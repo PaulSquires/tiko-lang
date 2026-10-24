@@ -76,7 +76,7 @@ function BitfieldParts _
     if (fs->flags and Tko.SYMF_BITFIELD) = 0 then return false
 
     dim as Tko.BinaryPayload ptr mp = _
-        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->BinaryOf( id )
     dim as Tko.TypeId bt = c.info->TypeOf_( mp->lhs )
     dim as MirValue base_
     if bt <> Tko.TYPE_NONE then

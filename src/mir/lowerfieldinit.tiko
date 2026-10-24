@@ -39,7 +39,7 @@ private function FieldNodeIn_( byref c as Ctx, byval tn as Tko.NodeId, byval nm 
     if c.ast->Kind( tn ) <> Tko.N_TYPE then return Tko.NODE_NONE
     dim as Tko.StmtPayload ptr tp = StmtOf( c, tn )
     for i as int32 = 0 to tp->count - 1
-        dim as Tko.NodeId ch = cast( Tko.NodeId, c.ast->children[tp->first + i] )
+        dim as Tko.NodeId ch = c.ast->ChildAt( tp->first, i )
         if (c.ast->Kind( ch ) = Tko.N_FIELD) andalso (StmtOf( c, ch )->name = nm) then return ch
         if (c.ast->Kind( ch ) = Tko.N_TYPE) andalso (StmtOf( c, ch )->name = 0) then
             dim as Tko.NodeId r = FieldNodeIn_( c, ch, nm, depth + 1 )
@@ -93,7 +93,7 @@ function FieldInitIsAny_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if id = Tko.NODE_NONE then return false
     if c.ast->Kind( id ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->IdentOf( id )
     return (LowerSpelling_( c.ix, *c.names, ip->name ) = "any")
 end function
 
@@ -186,7 +186,7 @@ private function CtorArgsOnAddr_ _
     dim as int32 ai = 0
     dim as containers.Array( of uint32 ) cargs
     for i as int32 = 0 to pp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if ai >= argT.Count then exit for
         dim as MirValue av
@@ -245,7 +245,7 @@ private function CtorArgsOnAddr_ _
         '' the parameter's MIR type instead -- which for a UDT is the AGGREGATE, so the
         '' loaded value went out where the address belongs. See ByrefAggTempOf_ for the
         '' IR and for what the copy costs.
-        if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0 then
+        if (c.ast->Flags( prm ) and Tko.NF_BYREF) <> 0 then
             dim as MirValue ba
             if ByrefAggTempOf_( c, av, pt, ba ) then
                 cargs.Push( cast( uint32, ba.kind ) ) : cargs.Push( cast( uint32, ba.id ) )
@@ -284,7 +284,7 @@ function CtorCallOnAddr_ _
     if ctors = Tko.SYMBOL_NONE then return false
 
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
+        c.ast->ListOf( init )
     '' ...ONLY A CALL OF THE TYPE ITSELF. A FUNCTION returning it -- 'dim shared as Q g = mk( 5 )' --
     '' had its ARGUMENTS handed to Q's constructors: g was Q( 5 ) where fbc copies mk( 5 )'s result,
     '' and it verified (found beside fbc-examples r3ice08).

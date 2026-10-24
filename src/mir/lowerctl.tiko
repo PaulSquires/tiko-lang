@@ -66,16 +66,16 @@ private function NonMacroNode_( byref c as Ctx, byval n0 as uint32 ) as uint32
         select case c.ast->Kind( n )
         case Tko.N_PAREN, Tko.N_CALL, Tko.N_INDEX, Tko.N_TUPLE
             dim as Tko.ListPayload ptr lp = _
-                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+                c.ast->ListOf( n )
             if lp->count < 1 then return cast( uint32, n )
             n = cast( Tko.NodeId, c.ast->children[lp->first] )
         case Tko.N_BINARY
             dim as Tko.BinaryPayload ptr bp = _
-                @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+                c.ast->BinaryOf( n )
             n = bp->lhs
         case Tko.N_UNARY
             dim as Tko.UnaryPayload ptr up = _
-                @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+                c.ast->UnaryOf( n )
             n = up->operand
         case else
             return cast( uint32, n )
@@ -168,7 +168,7 @@ sub CountUnlowredCall( byref c as Ctx, byval call_ as Tko.NodeId )
     dim as boolean bound = false
     if c.ast->Kind( call_ ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr cp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, call_ )].data )]
+            c.ast->ListOf( call_ )
         target = cp->target
         bound = (c.info->RefOf( call_ ) <> Tko.SYMBOL_NONE)
     else
@@ -194,7 +194,7 @@ sub CountUnlowredCall( byref c as Ctx, byval call_ as Tko.NodeId )
     '' "no type to look in".
     if c.ast->Kind( target ) = Tko.N_MEMBER then
         dim as Tko.BinaryPayload ptr mb = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, target )].data )]
+            c.ast->BinaryOf( target )
         if c.info->TypeOf_( mb->lhs ) = Tko.TYPE_NONE then
             c.st->ambMemberBaseUntyped += 1
         else
@@ -203,7 +203,7 @@ sub CountUnlowredCall( byref c as Ctx, byval call_ as Tko.NodeId )
         if c.ast->Kind( mb->rhs ) <> Tko.N_IDENT then return
         if c.st->ambMemberNames.Count >= 200000 then return
         dim as Tko.IdentPayload ptr mp = _
-            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, mb->rhs )].data )]
+            c.ast->IdentOf( mb->rhs )
         c.st->ambMemberNames.Push( cast( uint32, mp->name ) )
         return
     end if
@@ -213,7 +213,7 @@ sub CountUnlowredCall( byref c as Ctx, byval call_ as Tko.NodeId )
     '' An N_IDENT's payload is an IDENT, not a statement. Reading it through StmtOf
     '' indexes a different pool -- the mistake this project has made six times.
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, target )].data )]
+        c.ast->IdentOf( target )
     c.st->ambUnboundNames.Push( cast( uint32, ip->name ) )
 end sub
 
@@ -573,7 +573,7 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
     end if
 
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sp->b )].data )]
+        c.ast->ListOf( sp->b )
     dim as int32 joinB = NewBlock( c, "sel.join" )
     '' A SELECT is a break TARGET: 'exit select' leaves it. It pushes no continue
     '' target -- 'continue select' does not exist -- so -1 marks the slot as one that
@@ -592,7 +592,7 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
     end if
 
     for i as int32 = 0 to iif( switched, -1, lp->count - 1 )
-        dim as Tko.NodeId cs = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        dim as Tko.NodeId cs = c.ast->ChildAt( lp->first, i )
         if c.ast->Kind( cs ) <> Tko.N_CASE then continue for
         dim as Tko.StmtPayload ptr cp = StmtOf( c, cs )
         dim as int32 bodyB = NewBlock( c, "sel.body" )
@@ -601,7 +601,7 @@ sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
         '' Several values in one CASE are alternatives: any match enters the body, so
         '' each failed test falls through to the next value rather than to the body.
         for v as int32 = 0 to cp->count - 1
-            dim as Tko.NodeId val = cast( Tko.NodeId, c.ast->children[cp->first + v] )
+            dim as Tko.NodeId val = c.ast->ChildAt( cp->first, v )
             dim as int32 moreB = nextB
             if v < cp->count - 1 then moreB = NewBlock( c, "sel.alt" )
             '' A CASE VALUE'S TEMPORARIES DIE BEFORE ITS BRANCH, on both edges. fbc puts the
@@ -1131,13 +1131,13 @@ sub LowerOnGoto( byref c as Ctx, byval id as Tko.NodeId )
     '' are known -- the same rule LowerGoto applies to its single label.
     dim as containers.Array( of uint32 ) blocks
     for i as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId ln = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        dim as Tko.NodeId ln = c.ast->ChildAt( sp->first, i )
         if c.ast->Kind( ln ) <> Tko.N_IDENT then
             SkipHere( c )
             return
         end if
         dim as Tko.IdentPayload ptr lip = _
-            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, ln )].data )]
+            c.ast->IdentOf( ln )
         dim as int32 slot = LabelSlot( c, lip->name )
         dim as int32 d = c.labelDepth[slot]
         if (d < 0) orelse (d = LABEL_AMBIGUOUS) then
@@ -1219,7 +1219,7 @@ end sub
 
 sub LowerDo( byref c as Ctx, byval id as Tko.NodeId )
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
-    dim as uint16 flags = c.ast->nodes[cast( int32, id )].flags
+    dim as uint16 flags = c.ast->Flags( id )
     dim as boolean postCond = ((flags and Tko.NF_POST_COND) <> 0)
     dim as boolean isUntil = ((flags and Tko.NF_UNTIL) <> 0)
 
@@ -1296,11 +1296,11 @@ sub LowerIf _
         return
     end if
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, branches )].data )]
+        c.ast->ListOf( branches )
 
     dim as int32 joinB = NewBlock( c, "if.join" )
     for i as int32 = 0 to lp->count - 1
-        dim as Tko.NodeId br = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        dim as Tko.NodeId br = c.ast->ChildAt( lp->first, i )
         if c.ast->Kind( br ) <> Tko.N_IF_BRANCH then continue for
         dim as Tko.StmtPayload ptr bp = StmtOf( c, br )
         dim as int32 thenB = NewBlock( c, "if.then" )

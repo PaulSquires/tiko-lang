@@ -70,7 +70,7 @@ end sub
 private sub BrTuple_ ( byref c as Ctx, byval n as NodeId, byval t as TypeId )
     dim as NodeKind k = c.ast->Kind( n )
     if (k <> N_TUPLE) andalso (k <> N_PAREN) then return
-    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+    dim as ListPayload ptr lp = c.ast->ListOf( n )
     dim as int32 first_ = lp->first
     dim as int32 count_ = lp->count
     '' NO TYPE TO JUDGE BY -- 'function = type( { 123 } )', whose type is the destination's
@@ -93,7 +93,7 @@ end sub
 private sub BrArrayList_ _
     ( byref c as Ctx, byval n as NodeId, byval depth as int32, byval dims as int32, _
       byval elemT as TypeId )
-    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+    dim as ListPayload ptr lp = c.ast->ListOf( n )
     dim as int32 first_ = lp->first
     dim as int32 count_ = lp->count
     for i as int32 = 0 to count_ - 1
@@ -169,7 +169,7 @@ private sub BrWalk_ _
         BrReportList_( c, id )
         return
     case N_VAR_ITEM
-        dim as StmtPayload ptr ip = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        dim as StmtPayload ptr ip = c.ast->StmtOf( id )
         dim as NodeId init = ip->b
         dim as NodeId bnds = ip->c
         dim as InternId nm = ip->name
@@ -178,7 +178,7 @@ private sub BrWalk_ _
         if s <> nullptr then t = s->type_
         dim as int32 declDims = 0
         if bnds <> NODE_NONE then
-            if c.ast->Kind( bnds ) = N_BLOCK then declDims = c.ast->lists[cast( int32, c.ast->nodes[cast( int32, bnds )].data )].count
+            if c.ast->Kind( bnds ) = N_BLOCK then declDims = c.ast->ListOf( bnds )->count
         end if
         if (s <> nullptr) orelse isVar then BrDeclInit_( c, init, t, nm, isVar, declDims )
         '' ...AND AN ORDINARY INITIALIZER IS AN EXPRESSION like any other: 'f( { 1 } )'.
@@ -194,12 +194,12 @@ private sub BrWalk_ _
     case N_FIELD
         dim as Symbol ptr fs = BrSymOf_( c, map, id )
         if fs = nullptr then return
-        dim as StmtPayload ptr fp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        dim as StmtPayload ptr fp = c.ast->StmtOf( id )
         BrDeclInit_( c, fp->c, fs->type_, fp->name, false )
         return
     case N_PARAM
         '' NO PARAMETER TAKES ONE: an array parameter has no default at all.
-        dim as StmtPayload ptr pp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        dim as StmtPayload ptr pp = c.ast->StmtOf( id )
         if pp->b <> NODE_NONE then
             if c.ast->Kind( pp->b ) = N_INITIALIZER then
                 c.diags->Report( TKO0845, PointRange( c.ast->Loc( pp->b ) ), c.names->Spelling( pp->name ) )
@@ -209,17 +209,17 @@ private sub BrWalk_ _
     case N_PROC
         arrRes = BrArrayType_( c, ArrProcResult_( c, id ) )     '' arrresult.tiko
     case N_VAR
-        isVar = (c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )].op = cast( uint16, KW_VAR ))
+        isVar = (c.ast->StmtOf( id )->op = cast( uint16, KW_VAR ))
     case N_CONST
         return                                '' TKO0748 judges a constant's type
     case N_RETURN
-        dim as NodeId rv = c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )].a
+        dim as NodeId rv = c.ast->StmtOf( id )->a
         if (rv <> NODE_NONE) andalso arrRes then
             if c.ast->Kind( rv ) = N_INITIALIZER then return    '' an array result
         end if
     case N_AMBIGUOUS
         '' 'function = { ... }' and 'f = { ... }' in an array-result procedure.
-        dim as StmtPayload ptr ap = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        dim as StmtPayload ptr ap = c.ast->StmtOf( id )
         if (ap->op = cast( uint16, TK_EQ )) andalso (ap->b <> NODE_NONE) andalso (ap->a <> NODE_NONE) then
             if arrRes andalso (c.ast->Kind( ap->b ) = N_INITIALIZER) then
                 dim as boolean toResult = (c.ast->Kind( ap->a ) = N_FUNCRESULT)
@@ -237,15 +237,15 @@ private sub BrWalk_ _
     case NCAT_EXPR
         select case k
         case N_BINARY, N_MEMBER
-            dim as BinaryPayload ptr bp = @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            dim as BinaryPayload ptr bp = c.ast->BinaryOf( id )
             dim as NodeId lhs = bp->lhs
             dim as NodeId rhs = bp->rhs
             BrWalk_( c, map, lhs, arrRes, false )
             if k = N_BINARY then BrWalk_( c, map, rhs, arrRes, false )
         case N_UNARY, N_ADDROF, N_DEREF
-            BrWalk_( c, map, c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )].operand, arrRes, false )
+            BrWalk_( c, map, c.ast->UnaryOf( id )->operand, arrRes, false )
         case N_CALL, N_INDEX, N_PAREN, N_TUPLE, N_STRCAT
-            dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            dim as ListPayload ptr lp = c.ast->ListOf( id )
             dim as NodeId tgt = lp->target
             dim as int32 first_ = lp->first
             dim as int32 count_ = lp->count
@@ -267,7 +267,7 @@ private sub BrWalk_ _
     end select
 
     if (k = N_MODULE) orelse (k = N_BLOCK) then
-        dim as ListPayload ptr bl = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        dim as ListPayload ptr bl = c.ast->ListOf( id )
         dim as int32 first_ = bl->first
         dim as int32 count_ = bl->count
         for i as int32 = 0 to count_ - 1
@@ -276,7 +276,7 @@ private sub BrWalk_ _
         return
     end if
 
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as StmtPayload ptr sp = c.ast->StmtOf( id )
     dim as NodeId a = sp->a
     dim as NodeId b = sp->b
     dim as NodeId cc = sp->c

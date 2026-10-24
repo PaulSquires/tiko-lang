@@ -57,11 +57,11 @@ private function IifUdtCopyable_ ( byref c as Ctx, byval t as TypeId ) as boolea
         if (cd = NODE_NONE) orelse (c.ast->Kind( cd ) <> N_PROC) then return true
         if RequiredParams_( c, cd ) = 0 then return true
         '' A COPY constructor: one parameter, of this type.
-        dim as StmtPayload ptr cp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, cd )].data )]
+        dim as StmtPayload ptr cp = c.ast->StmtOf( cd )
         dim as int32 np = 0
         dim as NodeId p0 = NODE_NONE
         for i as int32 = 0 to cp->count - 1
-            dim as NodeId pn = cast( NodeId, c.ast->children[cp->first + i] )
+            dim as NodeId pn = c.ast->ChildAt( cp->first, i )
             if c.ast->Kind( pn ) <> N_PARAM then continue for
             np += 1
             if np = 1 then p0 = pn
@@ -69,7 +69,7 @@ private function IifUdtCopyable_ ( byref c as Ctx, byval t as TypeId ) as boolea
         '' ...WHATEVER FOLLOWS IT DEFAULTED: structs/temp-var-dtors.bas's B has 'constructor( byref
         '' rhs as B, byref x as A = type<A>( 123 ) )', and fbc copies with it.
         if (np >= 1) andalso (p0 <> NODE_NONE) andalso (RequiredParams_( c, cd ) <= 1) then
-            dim as NodeId pta = c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, p0 )].data )].a
+            dim as NodeId pta = c.ast->StmtOf( p0 )->a
             if pta <> NODE_NONE then
                 dim as TypeId pt = c.types->Unqualify( c.info->TypeOf_( pta ) )
                 if c.types->Kind( pt ) = TK_REFERENCE then pt = c.types->Unqualify( c.types->Inner( pt ) )
@@ -105,7 +105,7 @@ private function IifStringKind_ ( byref c as Ctx, byval n as NodeId ) as string
         '' types every '&' STRING, so 'iif( c, u & "x", u )' was refused as a mix.
         dim as NodeId b = Unparen3_( c, n )
         if c.ast->Kind( b ) = N_BINARY then
-            dim as BinaryPayload ptr bp = @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, b )].data )]
+            dim as BinaryPayload ptr bp = c.ast->BinaryOf( b )
             if (cast( TokenKind, bp->op ) = TK_AMP) orelse (cast( TokenKind, bp->op ) = TK_PLUS) then
                 if IifStringKind_( c, bp->lhs ) = "ustring" then return "ustring"
                 if IifStringKind_( c, bp->rhs ) = "ustring" then return "ustring"
@@ -130,9 +130,9 @@ private function IifCondConst_ ( byref c as Ctx, byval n as NodeId, byval depth 
     case N_INT_LIT, N_FLOAT_LIT
         return true
     case N_UNARY
-        return IifCondConst_( c, c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, n )].data )].operand, depth + 1 )
+        return IifCondConst_( c, c.ast->UnaryOf( n )->operand, depth + 1 )
     case N_BINARY
-        dim as BinaryPayload ptr bp = @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+        dim as BinaryPayload ptr bp = c.ast->BinaryOf( n )
         dim as NodeId l = bp->lhs, r = bp->rhs
         return IifCondConst_( c, l, depth + 1 ) andalso IifCondConst_( c, r, depth + 1 )
     case N_IDENT
@@ -146,7 +146,7 @@ private function IifCondConst_ ( byref c as Ctx, byval n as NodeId, byval depth 
 end function
 
 sub CheckIifUdt_ ( byref c as Ctx, byval id as NodeId )
-    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as ListPayload ptr lp = c.ast->ListOf( id )
     if (lp->target = NODE_NONE) orelse (lp->count <> 3) then return
     if c.ast->Kind( lp->target ) <> N_IDENT then return
     if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
@@ -168,14 +168,14 @@ sub CheckIifUdt_ ( byref c as Ctx, byval id as NodeId )
         '' ONLY AN OPERAND THAT HAS TO BE COPIED -- a variable, a field, an element, a deref.
         '' 'iif( c, CtorUdt( 123 ), CtorUdt( 456 ) )' picks one of two TEMPORARIES, and fbc
         '' takes it (expressions/iif.bas) whatever constructors the type has.
-        dim as NodeId opn = Unparen3_( c, cast( NodeId, c.ast->children[lp->first + k] ) )
+        dim as NodeId opn = Unparen3_( c, c.ast->ChildAt( lp->first, k ) )
         dim as boolean lv = false
         select case c.ast->Kind( opn )
         case N_MEMBER, N_INDEX, N_DEREF
             lv = true
         case N_IDENT, N_CALL
             dim as NodeId tg = opn
-            if c.ast->Kind( opn ) = N_CALL then tg = c.ast->lists[cast( int32, c.ast->nodes[cast( int32, opn )].data )].target
+            if c.ast->Kind( opn ) = N_CALL then tg = c.ast->ListOf( opn )->target
             if tg <> NODE_NONE then
                 dim as Symbol ptr vs = c.syms->SymbolAt( c.info->RefOf( tg ) )
                 if vs <> nullptr then
@@ -186,7 +186,7 @@ sub CheckIifUdt_ ( byref c as Ctx, byval id as NodeId )
             end if
         end select
         if lv = false then continue for
-        dim as TypeId t = c.info->TypeOf_( cast( NodeId, c.ast->children[lp->first + k] ) )
+        dim as TypeId t = c.info->TypeOf_( c.ast->ChildAt( lp->first, k ) )
         if t = TYPE_NONE then continue for
         t = c.types->Unqualify( t )
         if c.types->Kind( t ) = TK_REFERENCE then t = c.types->Unqualify( c.types->Inner( t ) )

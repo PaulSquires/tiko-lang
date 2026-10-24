@@ -466,7 +466,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
             dim as boolean deliberateNoOp = false
             if c.ast->Kind( sp->a ) = Tko.N_CALL then
                 dim as Tko.ListPayload ptr np = _
-                    @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sp->a )].data )]
+                    c.ast->ListOf( sp->a )
                 if np->target <> Tko.NODE_NONE then
                     if c.ast->Kind( np->target ) = Tko.N_IDENT then
                         dim as Tko.IdentPayload ptr nip = _
@@ -892,7 +892,7 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
         '' error 96), so every other child is a declaration the module walk owns.
         dim as Tko.StmtPayload ptr nsp = StmtOf( c, id )
         for i as int32 = 0 to nsp->count - 1
-            dim as Tko.NodeId nch = cast( Tko.NodeId, c.ast->children[nsp->first + i] )
+            dim as Tko.NodeId nch = c.ast->ChildAt( nsp->first, i )
             select case c.ast->Kind( nch )
             case Tko.N_VAR, Tko.N_NAMESPACE, Tko.N_EXTERN_BLOCK
                 LowerStmt( c, nch )

@@ -84,7 +84,7 @@ function LowerColorCall_ _
     if calleeNode = Tko.NODE_NONE then return false
     if c.ast->Kind( calleeNode ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, calleeNode )].data )]
+        c.ast->IdentOf( calleeNode )
     if LowerSpelling_( c.ix, *c.names, ip->name ) <> "color" then
         return false
     end if
@@ -175,7 +175,7 @@ private function LowerWidthStmt_( byref c as Ctx, byval id as Tko.NodeId ) as bo
     dim as containers.Array( of uint32 ) args
     for k as int32 = 0 to 1
         dim as Tko.NodeId e = Tko.NODE_NONE
-        if k < sp->count then e = cast( Tko.NodeId, c.ast->children[sp->first + k] )
+        if k < sp->count then e = c.ast->ChildAt( sp->first, k )
         if e <> Tko.NODE_NONE then
             if c.ast->Kind( e ) = Tko.N_ELIDED then e = Tko.NODE_NONE
         end if
@@ -202,8 +202,8 @@ private function LowerColorStmt_( byref c as Ctx, byval id as Tko.NodeId ) as bo
     if sp->count = 1 then
         dim as Tko.NodeId t1 = cast( Tko.NodeId, c.ast->children[sp->first] )
         if (c.ast->Kind( t1 ) = Tko.N_TUPLE) andalso _
-           ((c.ast->nodes[cast( int32, t1 )].flags and Tko.NF_TYPE_LITERAL) = 0) then
-            dim as Tko.ListPayload ptr tl = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, t1 )].data )]
+           ((c.ast->Flags( t1 ) and Tko.NF_TYPE_LITERAL) = 0) then
+            dim as Tko.ListPayload ptr tl = c.ast->ListOf( t1 )
             return LowerColorArgs_( c, tl->first, tl->count, cv )
         end if
     end if
@@ -319,12 +319,12 @@ private function LowerNameFn_ _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if cp->count <> 2 then return false
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     if LowerSpelling_( c.ix, *c.names, ip->name ) <> "name" then return false
 
     return EmitRename_( c, cast( Tko.NodeId, c.ast->children[cp->first] ), _
@@ -350,11 +350,11 @@ private function LowerScreenFn_ _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     if LowerSpelling_( c.ix, *c.names, ip->name ) <> "screen" then return false
     if (cp->count < 2) orelse (cp->count > 3) then return false
 

@@ -131,7 +131,7 @@ sub RtlNameClash_ ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.Sc
     case Tko.N_VAR, Tko.N_CONST
         if RtlGlobalChain_( c, here ) = false then return
         for i as int32 = 0 to sp->count - 1
-            dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+            dim as Tko.NodeId it = c.ast->ChildAt( sp->first, i )
             if c.ast->Kind( it ) <> Tko.N_VAR_ITEM then continue for
             '' 'dim shared as integer NS.U.val' DEFINES a static member: qualified, not new.
             if StmtOf( c, it )->ownerName <> 0 then continue for
@@ -153,7 +153,7 @@ sub RtlNameClash_ ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.Sc
             if hs->kind = cast( uint8, Tko.SCOPEK_PROC ) then outer = hs->parent
         end if
         '' A METHOD DEFINITION 'sub T.Run' is a member and so not this, nor its parameters.
-        if (c.ast->nodes[cast( int32, id )].flags and Tko.NF_QUALIFIED) = 0 then
+        if (c.ast->Flags( id ) and Tko.NF_QUALIFIED) = 0 then
             select case cast( Tko.TokenKind, sp->op )
             case Tko.KW_SUB, Tko.KW_FUNCTION
                 if RtlGlobalChain_( c, outer ) andalso RtlNameAt_( c, sp->name, true ) then
@@ -164,7 +164,7 @@ sub RtlNameClash_ ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.Sc
         if isDef = false then return
         if RtlGlobalChain_( c, here ) = false then return
         for i as int32 = 0 to sp->count - 1
-            dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+            dim as Tko.NodeId prm = c.ast->ChildAt( sp->first, i )
             if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
             dim as Tko.InternId pnm = StmtOf( c, prm )->name
             if RtlNameAt_( c, pnm, false ) then RtlReport_( c, prm, pnm )

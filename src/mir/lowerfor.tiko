@@ -231,7 +231,7 @@ private function LowerForUdt_ _
     if nxs <> nullptr then nxn = cast( Tko.NodeId, nxs->payload )
     if (nxn <> Tko.NODE_NONE) andalso (c.ast->Kind( nxn ) = Tko.N_PROC) then
         nextByref = ((StmtOf( c, nxn )->extra and Tko.PF_BYREF_RESULT) <> 0) orelse _
-                    ((c.ast->nodes[cast( int32, nxn )].flags and Tko.NF_BYREF) <> 0)   '' lowerproc.tiko's own test
+                    ((c.ast->Flags( nxn ) and Tko.NF_BYREF) <> 0)   '' lowerproc.tiko's own test
     end if
     if (nextByref = false) andalso (nxs <> nullptr) then nextByref = (c.types->Kind( nxs->type_ ) = Tko.TK_REFERENCE)
     dim as MirValue more = _

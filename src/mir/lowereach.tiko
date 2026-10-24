@@ -172,7 +172,7 @@ function LowerForEachIter _
     dim as boolean vByref = false
     dim as Tko.NodeId vpn = cast( Tko.NodeId, vs2->payload )
     if vpn <> Tko.NODE_NONE then
-        vByref = ((c.ast->nodes[cast( int32, vpn )].flags and Tko.NF_BYREF) <> 0)
+        vByref = ((c.ast->Flags( vpn ) and Tko.NF_BYREF) <> 0)
     end if
     '' A BYREF LOOP VARIABLE BINDS WHAT Value( ) HANDED BACK. Its type is a
     '' REFERENCE, so its slot holds an ADDRESS and the body reads and writes

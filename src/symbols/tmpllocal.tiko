@@ -28,7 +28,7 @@ private function LocalInTemplate_ ( byref c as Ctx, byval s as Symbol ptr ) as b
             end if
             dim as NodeId dn = cast( NodeId, os->payload )
             if (dn > 0) andalso (cast( int32, dn ) <= c.ast->Count( )) then
-                dim as StmtPayload ptr op = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, dn )].data )]
+                dim as StmtPayload ptr op = c.ast->StmtOf( dn )
                 if (c.ast->Kind( dn ) = N_TYPE) andalso (os->kind = cast( uint8, SYM_UDT )) then
                     if op->b <> NODE_NONE then return true
                 elseif (c.ast->Kind( dn ) = N_PROC) andalso (os->kind = cast( uint8, SYM_PROC )) then

@@ -251,7 +251,7 @@ function UsesSretReturn( byref c as Ctx, byval t as Tko.TypeId ) as boolean
                 dim as int32 np = 0
                 dim as Tko.TypeId only = Tko.TYPE_NONE
                 for i as int32 = 0 to psp->count - 1
-                    dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[psp->first + i] )
+                    dim as Tko.NodeId prm = c.ast->ChildAt( psp->first, i )
                     if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
                     np += 1
                     only = c.info->TypeOf_( prm )
@@ -298,7 +298,7 @@ function LowerErase( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if sp->count < 1 then return false
 
     for i as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        dim as Tko.NodeId it = c.ast->ChildAt( sp->first, i )
         if EraseOne_( c, it ) = false then return false
     next
     return true
@@ -615,10 +615,10 @@ function LowerRedim _
       byval sp as Tko.StmtPayload ptr ) as boolean
 
     dim as boolean presv = _
-        ((c.ast->nodes[cast( int32, id )].flags and Tko.NF_PRESERVE) <> 0)
+        ((c.ast->Flags( id ) and Tko.NF_PRESERVE) <> 0)
 
     for i as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId item = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        dim as Tko.NodeId item = c.ast->ChildAt( sp->first, i )
         if c.ast->Kind( item ) <> Tko.N_VAR_ITEM then continue for
         '' A REDIM THAT DECLARES A STATIC LOCAL -- 'redim a( 1 to 2 ) as integer' in a 'sub ... static'
         '' -- sizes it on the FIRST pass only; re-run on every call it undid a later REDIM
@@ -808,13 +808,13 @@ function AnyDimCount _
     if ip->c = Tko.NODE_NONE then return 0
     if c.ast->Kind( ip->c ) <> Tko.N_BLOCK then return 0
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, ip->c )].data )]
+        c.ast->ListOf( ip->c )
     dim as int32 n = 0
     for d as int32 = 0 to lp->count - 1
-        dim as Tko.NodeId adn = cast( Tko.NodeId, c.ast->children[lp->first + d] )
+        dim as Tko.NodeId adn = c.ast->ChildAt( lp->first, d )
         if c.ast->Kind( adn ) <> Tko.N_IDENT then continue for
         dim as Tko.IdentPayload ptr aip = _
-            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, adn )].data )]
+            c.ast->IdentOf( adn )
         '' EVERY 'any', not just the leading run: 'dim a( 0 to 0, any )' is the MIXED
         '' form, and counting only from the front called it zero and half-lowered it.
         if LowerSpelling_( c.ix, *c.names, aip->name ) <> "any" then continue for
@@ -935,7 +935,7 @@ function EmitArrayBounds _
     if ip->c = Tko.NODE_NONE then return false
     if c.ast->Kind( ip->c ) <> Tko.N_BLOCK then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, ip->c )].data )]
+        c.ast->ListOf( ip->c )
 
     '' 'redim z(any) as long' IS A DECLARATION AND NOTHING ELSE. Measured: fbc emits no
     '' runtime call at all for it -- byte for byte the same descriptor setup 'dim z(any)'
@@ -974,7 +974,7 @@ function EmitArrayBounds _
     dim as containers.Array( of uint32 ) bk
     dim as containers.Array( of uint32 ) bi
     for d as int32 = 0 to lp->count - 1
-        dim as Tko.NodeId dn = cast( Tko.NodeId, c.ast->children[lp->first + d] )
+        dim as Tko.NodeId dn = c.ast->ChildAt( lp->first, d )
         dim as Tko.NodeId loN = Tko.NODE_NONE
         dim as Tko.NodeId hiN = dn
         if c.ast->Kind( dn ) = Tko.N_CASE_RANGE then
@@ -1033,7 +1033,7 @@ function LowerDynArrayIndex _
 
     dim as MirValue acc
     for k as int32 = 0 to rank - 1
-        dim as Tko.NodeId ix = cast( Tko.NodeId, c.ast->children[sp->first + k] )
+        dim as Tko.NodeId ix = c.ast->ChildAt( sp->first, k )
         dim as MirValue iv = LowerExprN_( c, ix )
         if iv.kind = cast( uint8, MV_NONE ) then return none_
         iv = CoerceTy( c, iv, offTy, NumSrcType_( c, ix ))
@@ -1200,12 +1200,12 @@ function LowerArrayBoundCall _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     if (cp->count < 1) orelse (cp->count > 2) then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
 
     dim as RtlId r = RTL_NONE
@@ -1338,15 +1338,15 @@ sub RedimFieldInit_( byref c as Ctx, byref fa as MirValue, byval f as Tko.Symbol
     if sp->count < 2 then return
     '' 'redim g( any )' is declared, not sized: nothing to do.
     for i as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        dim as Tko.NodeId an = c.ast->ChildAt( sp->first, i )
         if c.ast->Kind( an ) = Tko.N_IDENT then
-            if LowerSpelling_( c.ix, *c.names, c.ast->idents[cast( int32, c.ast->nodes[cast( int32, an )].data )].name ) = "any" then return
+            if LowerSpelling_( c.ix, *c.names, c.ast->IdentOf( an )->name ) = "any" then return
         end if
     next
     dim as MirType zt = DescIntTy_( c )
     dim as containers.Array( of uint32 ) bk, bi
     for i as int32 = 0 to (sp->count \ 2) * 2 - 1
-        dim as Tko.NodeId bn = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        dim as Tko.NodeId bn = c.ast->ChildAt( sp->first, i )
         if bn = Tko.NODE_NONE then   '' 'redim f( 3 )': the lower bound is 0
             dim as MirValue zv = ConstInt( c, 0, zt )
             bk.Push( cast( uint32, zv.kind ) ) : bi.Push( cast( uint32, zv.id ) )

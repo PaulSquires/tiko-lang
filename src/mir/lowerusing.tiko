@@ -52,12 +52,12 @@ declare function UsingOne_ _
 private function IsPrintPos_( byref c as Ctx, byval it as Tko.NodeId ) as boolean
     if c.ast->Kind( it ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, it )].data )]
+        c.ast->ListOf( it )
     if cp->count <> 1 then return false
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
     return (nm = "spc") orelse (nm = "tab")
 end function
@@ -204,7 +204,7 @@ function LowerPrintUsing _
     '' leave the runtime holding a format string with no End to close it.
     dim as containers.Array( of uint32 ) itemNode
     for i as int32 = fromIdx to sp->count - 1
-        dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        dim as Tko.NodeId it = c.ast->ChildAt( sp->first, i )
         if c.ast->Kind( it ) = Tko.N_PRINT_SEP then continue for
         '' SPC AND TAB ARE POSITIONING ITEMS, and they appear INSIDE a using run:
         '' measured, 'print using "&&"; "a"; tab(10); "b"' emits the ordinary
@@ -536,12 +536,12 @@ function LowerPrintPos _
 
     if c.ast->Kind( it ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, it )].data )]
+        c.ast->ListOf( it )
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     if cp->count <> 1 then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
 
     dim as RtlId r = RTL_NONE

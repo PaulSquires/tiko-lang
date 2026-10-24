@@ -236,7 +236,7 @@ private function CollInit_ _
     '' initialiser of their own to give.
     dim as Tko.Symbol ptr vs = c.syms->SymbolAt( c.syms->LookupLocal( here, ip->name ) )
     dim as boolean elsewhere = _
-        ((c.ast->nodes[cast( int32, item )].flags and Tko.NF_QUALIFIED) <> 0)
+        ((c.ast->Flags( item ) and Tko.NF_QUALIFIED) <> 0)
     if vs <> nullptr then
         if (vs->flags and (Tko.SYMF_EXTERN or Tko.SYMF_COMMON)) <> 0 then elsewhere = true
     end if

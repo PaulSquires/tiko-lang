@@ -255,7 +255,7 @@ function LowerFileGetPut _
     dim as boolean isEmptyCall = false
     if c.ast->Kind( varN ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr avp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, varN )].data )]
+            c.ast->ListOf( varN )
         isEmptyCall = (avp->count = 0) andalso (avp->target <> Tko.NODE_NONE)
     end if
     dim as boolean isArrName = (c.types->Kind( vt ) = Tko.TK_ARRAY)
@@ -266,7 +266,7 @@ function LowerFileGetPut _
             dim as Tko.TypeId aet = c.info->TypeOf_( varN )
             if c.ast->Kind( varN ) = Tko.N_CALL then
                 dim as Tko.ListPayload ptr avp2 = _
-                    @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, varN )].data )]
+                    c.ast->ListOf( varN )
                 aet = c.info->TypeOf_( avp2->target )
             end if
             '' A DYNAMIC ARRAY TOO: its slot IS the descriptor fbc passes, '&DYN$0'. It was

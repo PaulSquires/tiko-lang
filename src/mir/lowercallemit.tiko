@@ -154,7 +154,7 @@ function EmitMemberCallArgs_ _
     '' against a definition taking the result pointer too, and handed clang a
     '' zero-sized aggregate. At module level the definition already existed.
     if (fidx < 0) andalso (s->type_ <> Tko.TYPE_NONE) then
-        dim as boolean isByrefRet = ((c.ast->nodes[cast( int32, pn )].flags and Tko.NF_BYREF) <> 0)
+        dim as boolean isByrefRet = ((c.ast->Flags( pn ) and Tko.NF_BYREF) <> 0)
         dim as boolean isCastOp = (StmtOf( c, pn )->name = c.names->Fold( c.names->GetString( "cast" ) ))
         if (isByrefRet = false) andalso (isCastOp = false) then
             if LowerType( s->type_, *c.types ) = MT_AGG then useSret = UsesSretReturn( c, s->type_ )
@@ -308,7 +308,7 @@ private function SoleGetter_( byref c as Ctx, byval member as Tko.NodeId ) as Tk
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
     if (pp->op <> cast( uint16, Tko.KW_PROPERTY )) orelse (pp->a = Tko.NODE_NONE) then return Tko.SYMBOL_NONE
     for i as int32 = 0 to pp->count - 1
-        if c.ast->Kind( cast( Tko.NodeId, c.ast->children[pp->first + i] ) ) = Tko.N_PARAM then return Tko.SYMBOL_NONE
+        if c.ast->Kind( c.ast->ChildAt( pp->first, i ) ) = Tko.N_PARAM then return Tko.SYMBOL_NONE
     next
     return sid
 end function
@@ -348,7 +348,7 @@ function SretInPlaceInit_ _
     case Tko.N_CALL
         '' The binding LowerAddr's call arm reads; a TYPE's constructor is not one.
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+            c.ast->ListOf( e )
         if lp->target = Tko.NODE_NONE then return false
         select case c.ast->Kind( lp->target )
         case Tko.N_IDENT, Tko.N_MEMBER
@@ -395,7 +395,7 @@ function SretInPlaceInit_ _
     dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
     if pn = Tko.NODE_NONE then return false
     if c.ast->Kind( pn ) <> Tko.N_PROC then return false
-    if (c.ast->nodes[cast( int32, pn )].flags and Tko.NF_BYREF) <> 0 then return false
+    if (c.ast->Flags( pn ) and Tko.NF_BYREF) <> 0 then return false
     if isOp then
         if StmtOf( c, pn )->op <> cast( uint16, Tko.KW_OPERATOR ) then return false
     end if
@@ -500,7 +500,7 @@ function UntypedCallResult_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.Type
     if e = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( e ) <> Tko.N_CALL then return Tko.TYPE_NONE
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+        c.ast->ListOf( e )
     if lp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return Tko.TYPE_NONE
     if TypeCtorTypeOf_( c, e ) <> Tko.TYPE_NONE then return Tko.TYPE_NONE
@@ -513,7 +513,7 @@ function UntypedCallResult_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.Type
     dim as Tko.NodeId pn = cast( Tko.NodeId, cs->payload )
     if pn = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( pn ) <> Tko.N_PROC then return Tko.TYPE_NONE
-    if (c.ast->nodes[cast( int32, pn )].flags and Tko.NF_BYREF) <> 0 then return Tko.TYPE_NONE
+    if (c.ast->Flags( pn ) and Tko.NF_BYREF) <> 0 then return Tko.TYPE_NONE
     return cs->type_
 end function
 

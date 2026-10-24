@@ -77,7 +77,7 @@ private function UdtCatAssignViaLet_ _
                     if c.types->Kind( pz ) = Tko.TK_BUILTIN then
                         if c.types->BuiltinOf( pz ) = Tko.TY_ZSTRING then pick = cur : viaZ = true
                     end if
-                elseif (c.ast->Kind( prm ) = Tko.N_PARAM) andalso ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0) then
+                elseif (c.ast->Kind( prm ) = Tko.N_PARAM) andalso ((c.ast->Flags( prm ) and Tko.NF_BYREF) <> 0) then
                     if c.types->Kind( pu ) = Tko.TK_BUILTIN then
                         if c.types->BuiltinOf( pu ) = Tko.TY_ZSTRING then pick = cur : viaZ = true
                         if c.types->BuiltinOf( pu ) = Tko.TY_STRING then pick = cur
@@ -340,7 +340,7 @@ sub FlattenConcat _
     dim as Tko.NodeId inner = id
     while c.ast->Kind( inner ) = Tko.N_PAREN
         dim as Tko.ListPayload ptr pp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, inner )].data )]
+            c.ast->ListOf( inner )
         if pp->count <> 1 then exit while
         inner = cast( Tko.NodeId, c.ast->children[pp->first] )
     wend
@@ -349,7 +349,7 @@ sub FlattenConcat _
     parenBin = parenBin andalso (c.ast->Kind( inner ) = Tko.N_BINARY)
     if parenBin andalso builtinOp then
         dim as Tko.BinaryPayload ptr ibp = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, inner )].data )]
+            c.ast->BinaryOf( inner )
         dim as Tko.TokenKind iop = cast( Tko.TokenKind, ibp->op )
         dim as Tko.TypeId it = c.info->TypeOf_( inner )
         dim as boolean strPlus = IsStringType( c, it ) orelse IsWideString_( c, it )
@@ -362,7 +362,7 @@ sub FlattenConcat _
     end if
     if c.ast->Kind( id ) = Tko.N_BINARY then
         dim as Tko.BinaryPayload ptr bp = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->BinaryOf( id )
         '' '&' AND '+' ARE THE SAME OPERATION on strings -- measured: fbc emits
         '' fb_StrAssign followed by fb_StrConcatAssign for both, instruction for
         '' instruction. Only '+' was flattened, so 'b = a & p' declined outright while
@@ -490,7 +490,7 @@ function TermReadsLValue_ _
         dim as Tko.ListPayload ptr lp = @c.ast->lists[cast( int32, d )]
         if TermReadsLValue_( c, target, lp->target ) then return true
         for i as int32 = 0 to lp->count - 1
-            if TermReadsLValue_( c, target, cast( Tko.NodeId, c.ast->children[lp->first + i] ) ) then return true
+            if TermReadsLValue_( c, target, c.ast->ChildAt( lp->first, i ) ) then return true
         next
     end select
     return false
@@ -535,12 +535,12 @@ function LowerOffsetOf _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if lp->count <> 2 then return false
     if lp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
+        c.ast->IdentOf( lp->target )
     if LowerSpelling_( c.ix, *c.names, ip->name ) <> "offsetof" then return false
 
     '' THE TYPE. Written as a bare name, so Resolve bound it to the UDT's own symbol
@@ -575,7 +575,7 @@ function LowerOffsetOf _
     dim as containers.Array( of uint32 ) path
     while c.ast->Kind( fn ) = Tko.N_MEMBER
         dim as Tko.BinaryPayload ptr mbp = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, fn )].data )]
+            c.ast->BinaryOf( fn )
         if c.ast->Kind( mbp->rhs ) <> Tko.N_IDENT then return false
         path.Push( cast( uint32, mbp->rhs ) )
         fn = mbp->lhs

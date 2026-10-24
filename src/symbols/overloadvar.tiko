@@ -20,9 +20,9 @@ private function TypedVariadicParam_ _
     ( byref c as Ctx, byval pp as Tko.StmtPayload ptr ) as Tko.NodeId
 
     for i as int32 = pp->count - 1 to 0 step -1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
-        if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_VARIADIC) <> 0 then return prm
+        if (c.ast->Flags( prm ) and Tko.NF_VARIADIC) <> 0 then return prm
         return Tko.NODE_NONE
     next
     return Tko.NODE_NONE

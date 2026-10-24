@@ -131,9 +131,9 @@ sub ScanLabels _
 
     case Tko.N_BLOCK
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         for i as int32 = 0 to lp->count - 1
-            ScanLabels( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ), depth )
+            ScanLabels( c, c.ast->ChildAt( lp->first, i ), depth )
         next
         return
 
@@ -171,9 +171,9 @@ sub ScanLabels _
         c.scanPath.Push( cast( uint32, id ) or SCOPE_KEY_OPT )
         if sp->b <> Tko.NODE_NONE then
             dim as Tko.ListPayload ptr lp = _
-                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sp->b )].data )]
+                c.ast->ListOf( sp->b )
             for i as int32 = 0 to lp->count - 1
-                dim as Tko.NodeId cs = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+                dim as Tko.NodeId cs = c.ast->ChildAt( lp->first, i )
                 if c.ast->Kind( cs ) = Tko.N_CASE then
                     ScanScoped_( c, StmtOf( c, cs )->b, depth + 1, cast( uint32, StmtOf( c, cs )->b ) )
                 end if
@@ -192,9 +192,9 @@ sub ScanLabels _
         dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
         if sp->b <> Tko.NODE_NONE then
             dim as Tko.ListPayload ptr bl = _
-                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sp->b )].data )]
+                c.ast->ListOf( sp->b )
             for i as int32 = 0 to bl->count - 1
-                dim as Tko.NodeId br = cast( Tko.NodeId, c.ast->children[bl->first + i] )
+                dim as Tko.NodeId br = c.ast->ChildAt( bl->first, i )
                 if c.ast->Kind( br ) = Tko.N_IF_BRANCH then
                     ScanScoped_( c, StmtOf( c, br )->b, depth + 1, cast( uint32, StmtOf( c, br )->b ) )
                 end if

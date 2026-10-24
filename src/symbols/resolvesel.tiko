@@ -70,13 +70,13 @@ private sub ConstBoundCheck_ _
     if ip->b = Tko.NODE_NONE then return
     if c.ast->Kind( ip->b ) <> Tko.N_CALL then return
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, ip->b )].data )]
+        c.ast->ListOf( ip->b )
     if lp->target = Tko.NODE_NONE then return
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return
     '' A USER SYMBOL OF THAT NAME IS NOT THE INTRINSIC.
     if c.info->RefOf( lp->target ) <> Tko.SYMBOL_NONE then return
     dim as Tko.InternId nm = _
-        c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name
+        c.ast->IdentOf( lp->target )->name
     dim as string spell = c.names->Spelling( nm )
     if (spell <> "lbound") andalso (spell <> "ubound") then return
     if lp->count < 1 then return
@@ -113,7 +113,7 @@ private sub DivByConstZero_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval here as Tko.ScopeId )
 
     dim as Tko.BinaryPayload ptr bp = _
-        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->BinaryOf( id )
     select case cast( Tko.TokenKind, bp->op )
     case Tko.TK_BACKSLASH, Tko.KW_MOD
     case else
@@ -136,7 +136,7 @@ private sub SelectConstCheck_ _
     if sp->b = Tko.NODE_NONE then return
 
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sp->b )].data )]
+        c.ast->ListOf( sp->b )
 
     dim as boolean seen = false
     dim as int64 lo = 0, hi = 0
@@ -152,13 +152,13 @@ private sub SelectConstCheck_ _
     dim as int32 nPoints = 0
 
     for i as int32 = 0 to lp->count - 1
-        dim as Tko.NodeId cs = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        dim as Tko.NodeId cs = c.ast->ChildAt( lp->first, i )
         if c.ast->Kind( cs ) <> Tko.N_CASE then continue for
         dim as Tko.StmtPayload ptr csp = StmtOf( c, cs )
         if csp = nullptr then continue for
 
         for j as int32 = 0 to csp->count - 1
-            dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[csp->first + j] )
+            dim as Tko.NodeId pn = c.ast->ChildAt( csp->first, j )
             if pn = Tko.NODE_NONE then continue for
 
             dim as int64 a = 0, b = 0

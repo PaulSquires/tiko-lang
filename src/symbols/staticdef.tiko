@@ -16,12 +16,12 @@
 '' the definition's own type. Only a SCALAR member is judged: an array's element type is
 '' what its definition writes, and its bounds are TKO0751's.
 sub CheckStaticMemberDef_ ( byref c as Ctx, byval id as NodeId )
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as StmtPayload ptr sp = c.ast->StmtOf( id )
     for k as int32 = 0 to sp->count - 1
-        dim as NodeId item = cast( NodeId, c.ast->children[sp->first + k] )
+        dim as NodeId item = c.ast->ChildAt( sp->first, k )
         if (item = NODE_NONE) orelse (c.ast->Kind( item ) <> N_VAR_ITEM) then continue for
-        if (c.ast->nodes[cast( int32, item )].flags and NF_QUALIFIED) = 0 then continue for
-        dim as StmtPayload ptr ip = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, item )].data )]
+        if (c.ast->Flags( item ) and NF_QUALIFIED) = 0 then continue for
+        dim as StmtPayload ptr ip = c.ast->StmtOf( item )
         if (ip->ownerName = 0) orelse (ip->c <> NODE_NONE) then continue for
         if instr( c.names->Spelling( ip->ownerName ), "." ) > 0 then continue for
         dim as Symbol ptr os = c.syms->SymbolAt( c.syms->LookupTyped( c.info->ScopeOf( id ), ip->ownerName, true ) )
@@ -41,7 +41,7 @@ sub CheckStaticMemberDef_ ( byref c as Ctx, byval id as NodeId )
         if (ms->flags and SYMF_STATIC) = 0 then continue for
         if ms->type_ = TYPE_NONE then continue for
         dim as boolean declByref = ((ms->flags and SYMF_BYREF) <> 0) orelse (c.types->Kind( ms->type_ ) = TK_REFERENCE)
-        dim as boolean defByref = (((c.ast->nodes[cast( int32, id )].flags or c.ast->nodes[cast( int32, item )].flags) and NF_BYREF) <> 0)
+        dim as boolean defByref = (((c.ast->Flags( id ) or c.ast->Flags( item )) and NF_BYREF) <> 0)
         '' 'dim byref T.ri as integer', with nothing to bind: fbc's 320 is HERE, and the
         '' declaration in the type needs none (ByrefNeedsInit_, fieldctor.tiko).
         if declByref andalso defByref andalso (ip->b = NODE_NONE) then
@@ -186,7 +186,7 @@ private sub CheckMathIntrinsic_ _
     dim as int32 want = iif( nm = "atan2", 2, 1 )
     if lp->count <> want then return
     for i as int32 = 0 to want - 1
-        dim as TypeId at = c.info->TypeOf_( cast( NodeId, c.ast->children[lp->first + i] ) )
+        dim as TypeId at = c.info->TypeOf_( c.ast->ChildAt( lp->first, i ) )
         if MathArgIsNumber_( c, c.info->RefOf( lp->target ), c.info->ScopeOf( id ), nm, at ) = false then
             c.diags->Report( TKO0928, PointRange( c.ast->Loc( id ) ), nm, c.types->Name( c.types->Unqualify( at ) ) )
             return
@@ -298,7 +298,7 @@ private sub CheckUdtExactCast_ _
 end sub
 
 sub CheckConvIntrinsic_ ( byref c as Ctx, byval id as NodeId )
-    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as ListPayload ptr lp = c.ast->ListOf( id )
     if (lp->target = NODE_NONE) orelse (lp->count < 1) then return
     if c.ast->Kind( lp->target ) <> N_IDENT then return
     dim as string nm = lcase( SpellOf_( c, lp->target ) )
@@ -397,10 +397,10 @@ sub CheckByrefResultCalls_ ( byref c as Ctx, byval total as int32 )
         if (ps = nullptr) orelse (ps->kind <> cast( uint8, SYM_PROC )) then continue for
         dim as NodeId pd = cast( NodeId, ps->payload )
         if (pd = NODE_NONE) orelse (c.ast->Kind( pd ) <> N_PROC) then continue for
-        dim as StmtPayload ptr pdp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pd )].data )]
-        if (((c.ast->nodes[cast( int32, pd )].flags and NF_BYREF) <> 0) orelse ((pdp->extra and PF_BYREF_RESULT) <> 0)) = false then continue for
+        dim as StmtPayload ptr pdp = c.ast->StmtOf( pd )
+        if (((c.ast->Flags( pd ) and NF_BYREF) <> 0) orelse ((pdp->extra and PF_BYREF_RESULT) <> 0)) = false then continue for
         if (pdp->a = NODE_NONE) orelse (c.ast->Kind( pdp->a ) <> N_TYPEREF) then continue for
-        if (c.ast->nodes[cast( int32, pdp->a )].flags and (NF_PTR or NF_PROC_TYPE)) <> 0 then continue for
+        if (c.ast->Flags( pdp->a ) and (NF_PTR or NF_PROC_TYPE)) <> 0 then continue for
         dim as TypeId rt = c.info->TypeOf_( pdp->a )
         if rt = TYPE_NONE then continue for
         rt = c.types->Unqualify( rt )

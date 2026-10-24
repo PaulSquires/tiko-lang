@@ -39,7 +39,7 @@ private function ConvCtorFor_ _
             dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
             dim as int32 np = 0
             for i as int32 = 0 to pp->count - 1
-                dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
                 if c.ast->Kind( prm ) = Tko.N_PARAM then np += 1
             next
             if np = 1 then
@@ -106,7 +106,7 @@ private function BareTypeLiteralArg_ _
     '' the field-list initialiser, which has its own path and its own rules about
     '' which constructors it may skip.
     dim as boolean bareLit = _
-        ((c.ast->nodes[cast( int32, argNode )].flags and Tko.NF_TYPE_LITERAL) <> 0)
+        ((c.ast->Flags( argNode ) and Tko.NF_TYPE_LITERAL) <> 0)
     if bareLit then
         if c.info->TypeOf_( argNode ) <> Tko.TYPE_NONE then return false
     else
@@ -245,7 +245,7 @@ function UdtByrefCast_ _
     if csy = nullptr then return Tko.SYMBOL_NONE
     dim as Tko.NodeId cpn = cast( Tko.NodeId, csy->payload )
     if (cpn = Tko.NODE_NONE) orelse (c.ast->Kind( cpn ) <> Tko.N_PROC) then return Tko.SYMBOL_NONE
-    if (c.ast->nodes[cast( int32, cpn )].flags and Tko.NF_BYREF) = 0 then return Tko.SYMBOL_NONE
+    if (c.ast->Flags( cpn ) and Tko.NF_BYREF) = 0 then return Tko.SYMBOL_NONE
     return cs
 end function
 
@@ -977,7 +977,7 @@ private function ArgNeedsUdtConv_ _
     '' the right SIZE and filled it with the wrong values: 'takesDD( (4, 5) )'
     '' stored two integer bit patterns into two doubles.
     if c.ast->Kind( argNode ) = Tko.N_TUPLE then
-        if (c.ast->nodes[cast( int32, argNode )].flags and Tko.NF_TYPE_LITERAL) = 0 then
+        if (c.ast->Flags( argNode ) and Tko.NF_TYPE_LITERAL) = 0 then
             if IsTupleType_( c, pt ) then return false
         end if
     end if
@@ -1125,7 +1125,7 @@ function ByvalUdtCopyArg_ _   '' not private: an operator's operand takes it too
     dim as Tko.TypeId upt = c.types->Unqualify( pt )
     dim as boolean ctorArg = (TypeCtorTypeOf_( c, argNode ) = upt)
     if (ctorArg = false) andalso (c.ast->Kind( argNode ) = Tko.N_TUPLE) then
-        ctorArg = ((c.ast->nodes[cast( int32, argNode )].flags and Tko.NF_TYPE_LITERAL) <> 0) _
+        ctorArg = ((c.ast->Flags( argNode ) and Tko.NF_TYPE_LITERAL) <> 0) _
                   andalso (c.types->Unqualify( c.info->TypeOf_( argNode ) ) = upt)
     end if
     if ctorArg andalso (StructorOf( c, upt, "__ctor" ) <> Tko.SYMBOL_NONE) then
@@ -1338,7 +1338,7 @@ private function LetParamType_( byref c as Ctx, byval sym as Tko.SymbolId ) as T
     if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
         dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
         for k as int32 = 0 to pp->count - 1
-            dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + k] )
+            dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, k )
             if c.ast->Kind( prm ) = Tko.N_PARAM then pt = c.types->Unqualify( c.info->TypeOf_( StmtOf( c, prm )->a ) ) : exit for
         next
     end if

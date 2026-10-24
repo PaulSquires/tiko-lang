@@ -25,10 +25,10 @@ function LowerPropertySet_ _
     dim as int32 np2 = 0
     dim as boolean ptByref = false
     for i as int32 = 0 to pp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
         if c.ast->Kind( prm ) = Tko.N_PARAM then
             pt = c.info->TypeOf_( StmtOf( c, prm )->a )
-            ptByref = ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0)
+            ptByref = ((c.ast->Flags( prm ) and Tko.NF_BYREF) <> 0)
             np2 += 1
         end if
     next

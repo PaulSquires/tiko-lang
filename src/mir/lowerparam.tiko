@@ -21,7 +21,7 @@ private function ParamNodeAt_ _
     if same = false then
         c.ix.paramNodes.Clear( )
         for i as int32 = 0 to psp->count - 1
-            dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[psp->first + i] )
+            dim as Tko.NodeId prm = c.ast->ChildAt( psp->first, i )
             if c.ast->Kind( prm ) = Tko.N_PARAM then c.ix.paramNodes.Push( cast( uint32, prm ) )
         next
         c.ix.paramProc = cast( uint32, pn )
@@ -106,7 +106,7 @@ function ParamIsByref _
     '' the list did not start at child zero. ParamNodeAt_ counts.
     dim as Tko.NodeId prm = ParamNodeAt_( c, pn, idx )
     if prm = Tko.NODE_NONE then return false
-    return ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0)
+    return ((c.ast->Flags( prm ) and Tko.NF_BYREF) <> 0)
 end function
 
 '' Is parameter 'idx' declared as an ARRAY -- 'sub Q( a( ) as long )'? Its TYPE is the
@@ -124,7 +124,7 @@ function ParamIsVariadic_ _
     if c.ast->Kind( pn ) <> Tko.N_PROC then return false
     dim as Tko.NodeId prm = ParamNodeAt_( c, pn, idx )
     if prm = Tko.NODE_NONE then return false
-    return ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_VARIADIC) <> 0)
+    return ((c.ast->Flags( prm ) and Tko.NF_VARIADIC) <> 0)
 end function
 
 function ParamIsArray _
@@ -137,7 +137,7 @@ function ParamIsArray _
     if c.ast->Kind( pn ) <> Tko.N_PROC then return false
     dim as Tko.NodeId prm = ParamNodeAt_( c, pn, idx )
     if prm = Tko.NODE_NONE then return false
-    return ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_ARRAY) <> 0)
+    return ((c.ast->Flags( prm ) and Tko.NF_ARRAY) <> 0)
 end function
 
 

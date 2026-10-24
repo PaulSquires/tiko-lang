@@ -51,3 +51,17 @@ function SideTableFind _
 end function
 
 end namespace
+
+'' THE -g POOL CHECK'S FAULT (ast/nodes.ti AstArena.StmtOf and its siblings): a node read from a
+'' pool its kind was not built in. Here rather than in parser/expr.tiko, which is at the cap.
+namespace Tko
+sub AstPoolFault( byval id as NodeId, byval kind as NodeKind, byval want as AstPool, _
+                  byval got as AstPool )
+    dim as int32 eh = freefile
+    open err for output as #eh
+    print #eh, "tiko-lang: ICE: node " & id & " (" & NodeKindName( kind ) & ") read from pool " & _
+               want & ", built in pool " & got & " -- ast/nodes.ti AstPool"
+    close #eh
+    end 70
+end sub
+end namespace

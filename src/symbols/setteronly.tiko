@@ -24,7 +24,7 @@ private function SetterOnly_ ( byref c as Ctx, byval sid as SymbolId ) as boolea
         if os->kind = cast( uint8, SYM_PROC ) then
             dim as NodeId pn = cast( NodeId, os->payload )
             if (pn = NODE_NONE) orelse (c.ast->Kind( pn ) <> N_PROC) then return false
-            if c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )].op <> cast( uint16, KW_PROPERTY ) then return false
+            if c.ast->StmtOf( pn )->op <> cast( uint16, KW_PROPERTY ) then return false
             if os->type_ <> TYPE_NONE then return false
             anyProp = true
         end if
@@ -46,7 +46,7 @@ sub CheckSetterOnlyReads_ ( byref c as Ctx )
         if (a <= 0) orelse (cast( int32, a ) >= total) then continue for
         isTarget[cast( int32, a )] = 1
         if c.ast->Kind( a ) = N_CALL then
-            dim as NodeId ct = c.ast->lists[cast( int32, c.ast->nodes[cast( int32, a )].data )].target
+            dim as NodeId ct = c.ast->ListOf( a )->target
             if (ct > 0) andalso (cast( int32, ct ) < total) then isTarget[cast( int32, ct )] = 1
         end if
     next

@@ -24,13 +24,13 @@ sub CollInitSharedRefs_ ( byref c as Ctx, byval s as Symbol ptr )
         if sc <> nullptr then inModule = (sc->kind = cast( uint8, SCOPEK_NAMESPACE ))
     end if
     if inModule = false then return
-    dim as ListPayload ptr bl = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, blk )].data )]
+    dim as ListPayload ptr bl = c.ast->ListOf( blk )
     dim as int32 first_ = bl->first
     dim as int32 count_ = bl->count
     for k as int32 = 0 to count_ - 1
         dim as NodeId st = cast( NodeId, c.ast->children[first_ + k] )
         '' The statement's call: CheckSharedRef_ walks its ARGUMENTS and not its callee,
         '' which is 'x.Push' -- the variable itself.
-        CheckSharedRef_( c, c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, st )].data )].a, s->name )
+        CheckSharedRef_( c, c.ast->StmtOf( st )->a, s->name )
     next
 end sub

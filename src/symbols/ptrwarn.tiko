@@ -125,13 +125,13 @@ private function PwZero_ ( byref c as Ctx, byval n as NodeId, byval depth as int
     if (n = NODE_NONE) orelse (depth > 16) then return false
     select case c.ast->Kind( n )
     case N_INT_LIT
-        return (c.ast->literals[cast( int32, c.ast->nodes[cast( int32, n )].data )].intValue = 0)
+        return (c.ast->LiteralOf( n )->intValue = 0)
     case N_PAREN
-        dim as ListPayload ptr pp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+        dim as ListPayload ptr pp = c.ast->ListOf( n )
         if pp->count <> 1 then return false
         return PwZero_( c, cast( NodeId, c.ast->children[pp->first] ), depth + 1 )
     case N_UNARY
-        dim as UnaryPayload ptr up = @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+        dim as UnaryPayload ptr up = c.ast->UnaryOf( n )
         dim as TokenKind uop = cast( TokenKind, up->op )
         if (uop <> TK_MINUS) andalso (uop <> TK_PLUS) then return false
         return PwZero_( c, up->operand, depth + 1 )
@@ -142,15 +142,15 @@ private function PwZero_ ( byref c as Ctx, byval n as NodeId, byval depth as int
         dim as NodeId item = cast( NodeId, sy->payload )
         if item = NODE_NONE then return false
         if c.ast->Kind( item ) <> N_VAR_ITEM then return false
-        return PwZero_( c, c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, item )].data )].b, depth + 1 )
+        return PwZero_( c, c.ast->StmtOf( item )->b, depth + 1 )
     case N_CALL
         '' A CONVERSION OF ZERO folds to zero: 'p = cbyte( 0 )', 'p = cast( long, 0 )' --
         '' numbers/cast-nullptr.bas writes every one and fbc warns about none.
-        dim as ListPayload ptr cp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+        dim as ListPayload ptr cp = c.ast->ListOf( n )
         if cp->target = NODE_NONE then return false
         if c.ast->Kind( cp->target ) <> N_IDENT then return false
         if c.info->RefOf( cp->target ) <> SYMBOL_NONE then return false
-        dim as string fn = lcase( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )].name ) )
+        dim as string fn = lcase( c.names->Spelling( c.ast->IdentOf( cp->target )->name ) )
         select case fn
         case "cbyte", "cubyte", "cshort", "cushort", "clng", "culng", "cint", "cuint", _
              "clngint", "culngint", "cbool"
@@ -171,20 +171,20 @@ private function PwOverloadedAddr_ ( byref c as Ctx, byval n as NodeId ) as bool
     for guard as int32 = 0 to 15
         if n = NODE_NONE then return false
         if c.ast->Kind( n ) <> N_PAREN then exit for
-        dim as ListPayload ptr pp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+        dim as ListPayload ptr pp = c.ast->ListOf( n )
         if pp->count <> 1 then return false
         n = cast( NodeId, c.ast->children[pp->first] )
     next
     if n = NODE_NONE then return false
     dim as NodeId o = NODE_NONE
     if c.ast->Kind( n ) = N_ADDROF then
-        o = c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, n )].data )].operand
+        o = c.ast->UnaryOf( n )->operand
     elseif c.ast->Kind( n ) = N_CALL then
         '' 'procptr( f )' is the same question as '@f'.
-        dim as ListPayload ptr cp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+        dim as ListPayload ptr cp = c.ast->ListOf( n )
         if (cp->target = NODE_NONE) orelse (cp->count <> 1) then return false
         if c.ast->Kind( cp->target ) <> N_IDENT then return false
-        if lcase( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )].name ) ) <> "procptr" then return false
+        if lcase( c.names->Spelling( c.ast->IdentOf( cp->target )->name ) ) <> "procptr" then return false
         o = cast( NodeId, c.ast->children[cp->first] )
     end if
     if o = NODE_NONE then return false
@@ -235,13 +235,13 @@ private function PwAddrOfCall_ ( byref c as Ctx, byval n as NodeId ) as boolean
     for guard as int32 = 0 to 15
         if n = NODE_NONE then return false
         if c.ast->Kind( n ) <> N_PAREN then exit for
-        dim as ListPayload ptr pp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+        dim as ListPayload ptr pp = c.ast->ListOf( n )
         if pp->count <> 1 then return false
         n = cast( NodeId, c.ast->children[pp->first] )
     next
     if n = NODE_NONE then return false
     if c.ast->Kind( n ) <> N_ADDROF then return false
-    dim as NodeId o = c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, n )].data )].operand
+    dim as NodeId o = c.ast->UnaryOf( n )->operand
     if o = NODE_NONE then return false
     return (c.ast->Kind( o ) = N_INDEX) orelse (c.ast->Kind( o ) = N_CALL)
 end function
@@ -348,7 +348,7 @@ private sub PtrArgWarn_ ( byref c as Ctx, byval arg as NodeId, byval pt as TypeI
     '' An explicit 'byval' on the argument hands the value over as the address, and fbc says
     '' nothing: 'f2( byval p )' in its own warnings/param-byref-as-any-suspicious-temp-var.bas.
     if c.ast->Kind( arg ) = N_UNARY then
-        if cast( TokenKind, c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, arg )].data )].op ) = KW_BYVAL then return
+        if cast( TokenKind, c.ast->UnaryOf( arg )->op ) = KW_BYVAL then return
     end if
     dim as TypeId au = c.types->Unqualify( at )
     if c.types->Kind( au ) = TK_REFERENCE then au = c.types->Unqualify( c.types->Inner( au ) )
@@ -367,7 +367,7 @@ end sub
 private sub ScalarArgWarn_ ( byref c as Ctx, byval arg as NodeId, byval pt as TypeId, byval at as TypeId )
     if (pt = TYPE_NONE) orelse (at = TYPE_NONE) then return
     if c.ast->Kind( arg ) = N_UNARY then
-        if cast( TokenKind, c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, arg )].data )].op ) = KW_BYVAL then return
+        if cast( TokenKind, c.ast->UnaryOf( arg )->op ) = KW_BYVAL then return
     end if
     dim as TypeId pu = c.types->Unqualify( pt ), au = c.types->Unqualify( at )
     if c.types->Kind( pu ) = TK_REFERENCE then pu = c.types->Unqualify( c.types->Inner( pu ) )
@@ -388,7 +388,7 @@ end sub
 sub CheckPtrReturn_ ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId, byval byrefResult as boolean = false )
     if resultType = TYPE_NONE then return
     if c.types->Kind( resultType ) = TK_REFERENCE then return
-    dim as NodeId e = c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )].a
+    dim as NodeId e = c.ast->StmtOf( id )->a
     if e = NODE_NONE then return
     if TypeLitTextBad_( c, resultType, e, false ) then return  '' tupleconv.tiko (T30)
     if TupleConvBad_( c, resultType, e, 0 ) then return  '' tupleconv.tiko

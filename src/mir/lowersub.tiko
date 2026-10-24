@@ -49,12 +49,12 @@ function LowerStrRvalueB_ _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     if (cp->count < 1) orelse (cp->count > 3) then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
 
     '' The FIRST argument decides. These names are overloaded on wide strings too, and
@@ -78,7 +78,7 @@ function LowerStrRvalueB_ _
         a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
         if c.ast->Kind( a1 ) = Tko.N_UNARY then
             dim as Tko.UnaryPayload ptr up = _
-                @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, a1 )].data )]
+                c.ast->UnaryOf( a1 )
             if cast( Tko.TokenKind, up->op ) = Tko.KW_ANY then
                 isAny = true
                 a1 = up->operand
@@ -208,11 +208,11 @@ function LowerStrOf_ _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
 
     '' CHR first: same family, but variadic and with a COUNT in front.
@@ -221,7 +221,7 @@ function LowerStrOf_ _
         dim as containers.Array( of uint32 ) ca
         ca.Push( cast( uint32, MV_CONST_INT ) ) : ca.Push( cast( uint32, cp->count ) )
         for i as int32 = 0 to cp->count - 1
-            dim as Tko.NodeId ai = cast( Tko.NodeId, c.ast->children[cp->first + i] )
+            dim as Tko.NodeId ai = c.ast->ChildAt( cp->first, i )
             dim as MirValue av = LowerNumArg_( c, ai, MT_I64 )
             if av.kind = cast( uint8, MV_NONE ) then return false
             ca.Push( cast( uint32, av.kind ) ) : ca.Push( cast( uint32, av.id ) )
@@ -407,12 +407,12 @@ function LowerStrNumCallB_ _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     if (cp->count < 1) orelse (cp->count > 3) then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
 
     dim as RtlId vr = RTL_NONE
@@ -622,7 +622,7 @@ function LowerStrNumCallB_ _
     dim as boolean isAny = false
     if c.ast->Kind( tE ) = Tko.N_UNARY then
         dim as Tko.UnaryPayload ptr up = _
-            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, tE )].data )]
+            c.ast->UnaryOf( tE )
         if cast( Tko.TokenKind, up->op ) = Tko.KW_ANY then
             isAny = true
             tE = up->operand
@@ -1042,7 +1042,7 @@ function CastYieldsPtr_( byref c as Ctx, byval sym as Tko.SymbolId ) as boolean
     if (s = nullptr) orelse (s->type_ = Tko.TYPE_NONE) then return false
     dim as Tko.NodeId pn = cast( Tko.NodeId, s->payload )
     if (pn <> Tko.NODE_NONE) andalso (c.ast->Kind( pn ) = Tko.N_PROC) then
-        if (c.ast->nodes[cast( int32, pn )].flags and Tko.NF_BYREF) <> 0 then return false
+        if (c.ast->Flags( pn ) and Tko.NF_BYREF) <> 0 then return false
     end if
     return (c.types->Kind( c.types->Unqualify( s->type_ ) ) = Tko.TK_POINTER)
 end function

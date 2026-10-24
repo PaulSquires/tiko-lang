@@ -22,20 +22,20 @@ function ByrefInitIsValue_ ( byref c as Ctx, byval e as NodeId ) as boolean
         if e = NODE_NONE then return false
         select case c.ast->Kind( e )
         case N_PAREN
-            dim as ListPayload ptr pp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+            dim as ListPayload ptr pp = c.ast->ListOf( e )
             if pp->count <> 1 then return false
             e = cast( NodeId, c.ast->children[pp->first] )
         case N_ADDROF, N_UNARY, N_BINARY
             return true
         case N_CALL
-            dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+            dim as ListPayload ptr lp = c.ast->ListOf( e )
             '' A BUILTIN has no symbol; a program's own 'iif' or 'cast' is not this question.
             if lp->target = NODE_NONE then return false
             if c.ast->Kind( lp->target ) <> N_IDENT then return false
             if c.syms->SymbolAt( c.info->RefOf( lp->target ) ) <> nullptr then return false
             if c.syms->SymbolAt( c.info->RefOf( e ) ) <> nullptr then return false
             dim as string bn = Tko.Text.LowerAscii( c.names->Spelling( _
-                c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name ) )
+                c.ast->IdentOf( lp->target )->name ) )
             select case bn
             case "varptr", "strptr", "sadd", "procptr", "iif"
                 return true

@@ -29,14 +29,14 @@ sub LowerVarDecl_( byref c as Ctx, byval id as Tko.NodeId )
     '' silently ALIASED NOTHING -- 'rb = 5' then 'print a' gives 5 under fbc and
     '' would have given 1 here.
     dim as boolean isByrefLocal = _
-        ((c.ast->nodes[cast( int32, id )].flags and Tko.NF_BYREF) <> 0)
+        ((c.ast->Flags( id ) and Tko.NF_BYREF) <> 0)
     '' EACH DECLARATOR IS A STATEMENT OF ITS OWN for its temporaries. Measured, fbc's
     '' 'dim as long x1 = takeR( mkH( 6 ) ), y1 = cnt( )' has destroyed the first
     '' declarator's temporary before the second one's initialiser runs.
     dim as int32 vmark = c.udtTemps.Count
     for i as int32 = 0 to sp->count - 1
         ReleaseUdtTemps_( c, vmark )
-        dim as Tko.NodeId item = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        dim as Tko.NodeId item = c.ast->ChildAt( sp->first, i )
         LowerVarItem_( c, id, item, isByrefLocal )
         LowerCollInit_( c, id, item )   '' 'dim a as Array( of integer ) = { 1, 2 }'
     next
@@ -59,12 +59,12 @@ sub LowerVarItem_ _
     end if
     '' The VARIABLE, not a type name that happens to share the spelling.
     dim as Tko.SymbolId sid = Tko.SYMBOL_NONE
-    if (c.ast->nodes[cast( int32, item )].flags and Tko.NF_QUALIFIED) = 0 then
+    if (c.ast->Flags( item ) and Tko.NF_QUALIFIED) = 0 then
         sid = c.syms->LookupLocalTyped( c.info->ScopeOf( id ), ip->name, false )
     end if
     '' 'dim shared T.x as integer = 2' DEFINES a static member, looked up
     '' through its OWNER. See StaticMemberSym_.
-    if (c.ast->nodes[cast( int32, item )].flags and Tko.NF_QUALIFIED) <> 0 then
+    if (c.ast->Flags( item ) and Tko.NF_QUALIFIED) <> 0 then
         sid = StaticMemberSym_( c, id, item )
     end if
     if sid = Tko.SYMBOL_NONE then
@@ -289,7 +289,7 @@ sub LowerVarItem_ _
         if ip->b <> Tko.NODE_NONE then
             if c.ast->Kind( ip->b ) = Tko.N_TUPLE then
                 initIsLiteral = _
-                    ((c.ast->nodes[cast( int32, ip->b )].flags and _
+                    ((c.ast->Flags( ip->b ) and _
                       Tko.NF_TYPE_LITERAL) <> 0)
             elseif c.ast->Kind( ip->b ) = Tko.N_CALL then
                 initIsLiteral = _
@@ -734,7 +734,7 @@ sub LowerCollInitCalls_( byref c as Ctx, byval item as Tko.NodeId )
     dim as Tko.NodeId blk = Tko.CollInitOf( *c.ast, item )
     if blk = Tko.NODE_NONE then return
     dim as Tko.ListPayload ptr bl = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, blk )].data )]
+        c.ast->ListOf( blk )
     dim as int32 first_ = bl->first
     dim as int32 count_ = bl->count
     dim as uint32 savedPos = c.syms->usePos

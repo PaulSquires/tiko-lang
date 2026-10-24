@@ -23,7 +23,7 @@ private function ValueIsArray_ ( byref c as Ctx, byval vs as Symbol ptr, byval t
     if (vs->flags and SYMF_REDIM) <> 0 then return true
     dim as NodeId dn = cast( NodeId, vs->payload )
     if (dn > 0) andalso (dn <= c.ast->Count( )) then
-        if (c.ast->nodes[cast( int32, dn )].flags and NF_ARRAY) <> 0 then return true
+        if (c.ast->Flags( dn ) and NF_ARRAY) <> 0 then return true
     end if
     for pass as int32 = 0 to 1
         dim as TypeId vt = iif( pass = 0, vs->type_, c.info->TypeOf_( tgt ) )
@@ -49,7 +49,7 @@ private sub CheckValueStmt_ ( byref c as Ctx, byval id as NodeId )
     case else
         return
     end select
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as StmtPayload ptr sp = c.ast->StmtOf( id )
     '' 'Foo 1, 2' has arguments, and a value with arguments is some other error.
     if (sp->count > 0) orelse (sp->b <> NODE_NONE) then return
     dim as NodeId a = sp->a
@@ -66,7 +66,7 @@ private sub CheckValueStmt_ ( byref c as Ctx, byval id as NodeId )
             bad = true
         end select
     case N_CALL
-        dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, a )].data )]
+        dim as ListPayload ptr lp = c.ast->ListOf( a )
         dim as NodeId tgt = lp->target
         if tgt = NODE_NONE then return
         if (c.ast->Kind( tgt ) <> N_IDENT) andalso (c.ast->Kind( tgt ) <> N_MEMBER) then return
@@ -94,12 +94,12 @@ end sub
 '' 'vv.P', 'vv.P = 4', 'vv.Q( 1 )', 'vv.Q( 1 ) = 5' and 'vv.W( 6 )'.
 private sub CheckEmptyPropCall_ ( byref c as Ctx, byval id as NodeId )
     if c.info->AmbiguousOf( id ) = AMB_ERROR then return
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as StmtPayload ptr sp = c.ast->StmtOf( id )
     if sp->count > 0 then return
     dim as NodeId a = sp->a
     if a = NODE_NONE then return
     if c.ast->Kind( a ) <> N_CALL then return
-    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, a )].data )]
+    dim as ListPayload ptr lp = c.ast->ListOf( a )
     if lp->count <> 0 then return
     dim as NodeId tgt = lp->target
     if tgt = NODE_NONE then return
@@ -110,6 +110,6 @@ private sub CheckEmptyPropCall_ ( byref c as Ctx, byval id as NodeId )
     if s->kind <> cast( uint8, SYM_PROC ) then return
     dim as NodeId pn = cast( NodeId, s->payload )
     if (pn = NODE_NONE) orelse (c.ast->Kind( pn ) <> N_PROC) then return
-    if c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )].op <> cast( uint16, KW_PROPERTY ) then return
+    if c.ast->StmtOf( pn )->op <> cast( uint16, KW_PROPERTY ) then return
     c.diags->Report( TKO0875, PointRange( c.ast->Loc( id ) ), c.names->Spelling( s->name ) )
 end sub

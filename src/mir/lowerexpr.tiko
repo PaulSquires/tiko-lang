@@ -214,13 +214,13 @@ function LowerExpr _
 
     case Tko.N_INT_LIT
         dim as Tko.LiteralPayload ptr lp = _
-            @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->LiteralOf( id )
         if mt = MT_VOID then mt = MT_I64
         return ConstInt( c, cast( int64, lp->intValue ), mt )
 
     case Tko.N_FLOAT_LIT
         dim as Tko.LiteralPayload ptr lp = _
-            @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->LiteralOf( id )
         if mt = MT_VOID then mt = MT_F64
         return ConstFloat( c, lp->fltValue, mt )
 
@@ -239,7 +239,7 @@ function LowerExpr _
 
     case Tko.N_PAREN
         dim as Tko.ListPayload ptr pp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         if pp->count <> 1 then return v
         return LowerExpr( c, cast( Tko.NodeId, c.ast->children[pp->first] ) )
 
@@ -341,7 +341,7 @@ function LowerExpr _
         '' wrote through whatever the stack held. Silent, because a DIM initialiser
         '' that would not lower skipped its store without counting it.
         dim as Tko.UnaryPayload ptr ap = _
-            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->UnaryOf( id )
         '' '@this' IS THE OBJECT'S ADDRESS, which is the slot's VALUE and not the
         '' slot. The receiver is held as a POINTER -- IsThisPointerIdent_ exists
         '' because several sites need to know it -- so LowerAddr answers with the
@@ -446,7 +446,7 @@ function LowerExpr _
         dim as Tko.NodeId inA = Unparen_( c, ap->operand )
         if c.ast->Kind( inA ) = Tko.N_ADDROF then
             dim as Tko.UnaryPayload ptr ap2 = _
-                @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, inA )].data )]
+                c.ast->UnaryOf( inA )
             dim as Tko.NodeId nmA = Unparen_( c, ap2->operand )
             if c.ast->Kind( nmA ) = Tko.N_IDENT then
                 dim as Tko.Symbol ptr syA = c.syms->SymbolAt( c.info->RefOf( nmA ) )
@@ -500,7 +500,7 @@ function LowerExpr _
         if LowerUdtIndexOp_( c, id, ixv, ixByref ) then
             if ixByref = false then return ixv
             dim as Tko.ListPayload ptr xp0 = _
-                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+                c.ast->ListOf( id )
             dim as Tko.TypeId xt0 = c.info->TypeOf_( xp0->target )
             dim as Tko.SymbolId ixs0 = UdtMemberNamed_( c, xt0, "[]" )
             dim as Tko.Symbol ptr ixsy0 = c.syms->SymbolAt( ixs0 )
@@ -526,7 +526,7 @@ function LowerExpr _
         dim as MirType imt = mt
         if imt = MT_VOID then
             dim as Tko.ListPayload ptr xp = _
-                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+                c.ast->ListOf( id )
             dim as Tko.TypeId xt = c.info->TypeOf_( xp->target )
             if xt <> Tko.TYPE_NONE then
                 '' A STRING SUBSCRIPTED IS ITS CHARACTER -- one byte narrow, TWO wide,
@@ -584,7 +584,7 @@ function LowerExpr _
             dim as Tko.TypeId iet = c.info->TypeOf_( id )
             if iet = Tko.TYPE_NONE then
                 dim as Tko.ListPayload ptr xp2 = _
-                    @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+                    c.ast->ListOf( id )
                 dim as Tko.TypeId xt2 = c.info->TypeOf_( xp2->target )
                 if xt2 <> Tko.TYPE_NONE then
                     dim as Tko.TypeId bt2 = c.types->Unqualify( xt2 )
@@ -627,13 +627,13 @@ function LowerExpr _
                 dim as Tko.NodeId don = cast( Tko.NodeId, dos->payload )
                 if don <> Tko.NODE_NONE then
                     if c.ast->Kind( don ) = Tko.N_PROC then
-                        byrefRes = ((c.ast->nodes[cast( int32, don )].flags and _
+                        byrefRes = ((c.ast->Flags( don ) and _
                                      Tko.NF_BYREF) <> 0)
                     end if
                 end if
                 if byrefRes = false then
                     dim as Tko.UnaryPayload ptr dvp = _
-                        @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+                        c.ast->UnaryOf( id )
                     dim as MirValue dvv
                     if LowerUserUnaryOp_( c, id, dvp, mt, dvv ) then return dvv
                 end if
@@ -669,7 +669,7 @@ function LowerExpr _
 
     case Tko.N_UNARY
         dim as Tko.UnaryPayload ptr up = _
-            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->UnaryOf( id )
 
         '' A user-defined unary operator is a call, as the binary one is.
         dim as MirValue uuv
@@ -740,7 +740,7 @@ function LowerExpr _
 
     case Tko.N_BINARY
         dim as Tko.BinaryPayload ptr bp = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->BinaryOf( id )
         dim as Tko.TokenKind tk = cast( Tko.TokenKind, bp->op )
 
         '' 'a IS T' -- the RTTI type test, and not an arithmetic operator at all.

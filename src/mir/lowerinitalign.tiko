@@ -27,11 +27,11 @@ private function IsBracketed_( byref c as Ctx, byval v as Tko.NodeId ) as boolea
 end function
 
 private function ListCount_( byref c as Ctx, byval lst as Tko.NodeId ) as int32
-    return c.ast->lists[cast( int32, c.ast->nodes[cast( int32, lst )].data )].count
+    return c.ast->ListOf( lst )->count
 end function
 
 private function ListAt_( byref c as Ctx, byval lst as Tko.NodeId, byval i as int32 ) as Tko.NodeId
-    return cast( Tko.NodeId, c.ast->children[c.ast->lists[cast( int32, c.ast->nodes[cast( int32, lst )].data )].first + i] )
+    return cast( Tko.NodeId, c.ast->children[c.ast->ListOf( lst )->first + i] )
 end function
 
 '' ONE UDT-TYPED SLOT -- a field or an element -- at leaf 'start', from list position ci.

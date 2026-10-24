@@ -51,7 +51,7 @@ end function
 function IsUStrIntrinCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     if cp->count < 1 then return false
@@ -59,7 +59,7 @@ function IsUStrIntrinCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         if c.syms->SymbolAt( c.info->RefOf( cp->target ) )->kind = cast( uint8, Tko.SYM_PROC ) then return false
     end if
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     select case LowerSpelling_( c.ix, *c.names, ip->name )
     case "trim", "ltrim", "rtrim", "left", "right", "mid", "ucase", "lcase"
     case else
@@ -76,12 +76,12 @@ function LowerUStrIntrinB_ _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     if (cp->count < 1) orelse (cp->count > 3) then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
 
     '' THE FIRST ARGUMENT DECIDES, exactly as it does for the wide family.
@@ -156,7 +156,7 @@ function LowerUStrIntrinB_ _
         dim as boolean anyForm = (c.ast->Kind( a1 ) = Tko.N_UNARY)
         if anyForm then
             dim as Tko.UnaryPayload ptr aup = _
-                @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, a1 )].data )]
+                c.ast->UnaryOf( a1 )
             anyForm = (cast( Tko.TokenKind, aup->op ) = Tko.KW_ANY)
             if anyForm then anyChars = aup->operand
         end if

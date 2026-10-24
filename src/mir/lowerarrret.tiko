@@ -35,7 +35,7 @@ private function ArrResultFromList_ _
       byval init as Tko.NodeId ) as boolean
 
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, init )].data )]
+        c.ast->ListOf( init )
     dim as int32 n = lp->count
     EmitEraseDynAt_( c, dst, rt )
     if n = 0 then return true
@@ -107,7 +107,7 @@ private function IsArrayResultCall_ _
     outT = c.types->Unqualify( c.info->TypeOf_( e ) )
     if c.types->IsDynArray( outT ) = false then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+        c.ast->ListOf( e )
     dim as Tko.SymbolId callee = c.info->RefOf( e )
     if (callee = Tko.SYMBOL_NONE) andalso (cp->target <> Tko.NODE_NONE) then
         callee = c.info->RefOf( cp->target )
@@ -192,7 +192,7 @@ function LowerArrayResult_ _
         return ArrResultFromLocal_( c, dst, rt, e )
     case Tko.N_CALL
         dim as Tko.ListPayload ptr cp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+            c.ast->ListOf( e )
         dim as MirValue dst = LowerExprLoad( c, sa, MT_PTR )
         if dst.kind = cast( uint8, MV_NONE ) then return false
         '' 'return a( )' is the array's NAME with an empty subscript, as a call argument spells it.

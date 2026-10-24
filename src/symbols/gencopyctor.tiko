@@ -27,25 +27,25 @@ function GenericCopyCtorHidden_ _
     if (s = nullptr) orelse (s->payload = 0) then return -1
     dim as NodeId gn = cast( NodeId, s->payload )
     if c.ast->Kind( gn ) <> N_TYPE then return -1
-    dim as StmtPayload ptr gp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, gn )].data )]
+    dim as StmtPayload ptr gp = c.ast->StmtOf( gn )
     if gp->b = NODE_NONE then return -1        '' no parameter list: not a template
     dim as InternId gname = gp->name
 
     dim as int32 seen = 0, hidden = 0
     for i as int32 = 0 to gp->count - 1
-        dim as NodeId m = cast( NodeId, c.ast->children[gp->first + i] )
+        dim as NodeId m = c.ast->ChildAt( gp->first, i )
         if (m = NODE_NONE) orelse (c.ast->Kind( m ) <> N_PROC) then continue for
-        dim as StmtPayload ptr mp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, m )].data )]
+        dim as StmtPayload ptr mp = c.ast->StmtOf( m )
         if mp->op <> cast( uint16, KW_CONSTRUCTOR ) then continue for
         if RequiredParams_( c, m ) <> 1 then continue for
         '' The one required parameter names the template itself: 'Box( of T )' or 'Box'.
         dim as boolean copyCtor = false
         for k as int32 = 0 to mp->count - 1
-            dim as NodeId prm = cast( NodeId, c.ast->children[mp->first + k] )
+            dim as NodeId prm = c.ast->ChildAt( mp->first, k )
             if c.ast->Kind( prm ) <> N_PARAM then continue for
-            dim as NodeId tr = c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )].a
+            dim as NodeId tr = c.ast->StmtOf( prm )->a
             if (tr = NODE_NONE) orelse (c.ast->Kind( tr ) <> N_TYPEREF) then exit for
-            dim as StmtPayload ptr trp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, tr )].data )]
+            dim as StmtPayload ptr trp = c.ast->StmtOf( tr )
             copyCtor = (trp->op = cast( uint16, TK_IDENT )) andalso (trp->name = gname)
             exit for
         next

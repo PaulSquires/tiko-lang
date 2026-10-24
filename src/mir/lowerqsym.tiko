@@ -104,12 +104,12 @@ function LowerQuerySymbol_ _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if cp->count <> 2 then return false
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     if LowerSpelling_( c.ix, *c.names, ip->name ) <> "__fb_query_symbol__" then
         return false
     end if
@@ -129,7 +129,7 @@ function LowerQuerySymbol_ _
     '' LABEL for it (fbc-int/query-symbol.bas). So one is looked for by that key.
     if (sy = nullptr) andalso (c.ast->Kind( sn ) = Tko.N_IDENT) then
         dim as Tko.InternId lk = c.names->GetString( "$label:" & _
-            c.names->Spelling( c.names->Fold( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, sn )].data )].name ) ) )
+            c.names->Spelling( c.names->Fold( c.ast->IdentOf( sn )->name ) ) )
         for i as int32 = 0 to c.syms->symbols.Count - 1
             if (c.syms->symbols[i].kind = cast( uint8, Tko.SYM_LABEL )) andalso _
                (c.syms->symbols[i].name = lk) then
@@ -142,7 +142,7 @@ function LowerQuerySymbol_ _
     '' A NAME '#pragma reserve' TOOK has no symbol and is a class of its own: fbc answers
     '' FB_SYMBCLASS_RESERVED (fbc-int/query-symbol.bas). It was 0.
     if (sy = nullptr) andalso (q = QSYM_SYMBCLASS) andalso (c.ast->Kind( sn ) = Tko.N_IDENT) then
-        dim as uint32 rn = cast( uint32, c.names->Fold( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, sn )].data )].name ) )
+        dim as uint32 rn = cast( uint32, c.names->Fold( c.ast->IdentOf( sn )->name ) )
         for each r as uint32 in c.syms->reservedNames
             if r = rn then
                 outv = ConstInt( c, QSYMCLASS_RESERVED, MT_I64 )
@@ -155,7 +155,7 @@ function LowerQuerySymbol_ _
     '' FORWARD-referenced ('type FWDREF as SYM_FWDREF'): fbc answers KEYWORD and FWDREF
     '' (fbc-int/query-symbol.bas). Both have no symbol here and answered 0.
     if (sy = nullptr) andalso (q = QSYM_SYMBCLASS) andalso (c.ast->Kind( sn ) = Tko.N_IDENT) then
-        dim as Tko.InternId qn2 = c.ast->idents[cast( int32, c.ast->nodes[cast( int32, sn )].data )].name
+        dim as Tko.InternId qn2 = c.ast->IdentOf( sn )->name
         dim as string qup = ucase( c.names->Spelling( qn2 ) )
         for k as int32 = Tko.TK_KW_FIRST + 1 to Tko.TK_KW_LAST - 1
             if Tko.TokenKindText( cast( Tko.TokenKind, k ) ) = qup then

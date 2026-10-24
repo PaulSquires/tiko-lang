@@ -68,12 +68,12 @@ private function FieldWrittenDynamic_ ( byref c as Ctx, byval f as Symbol ptr ) 
     if (f->payload = 0) orelse (c.ast->Kind( fn ) <> N_FIELD) then
         return c.types->IsDynArray( c.types->Unqualify( f->type_ ) )
     end if
-    dim as StmtPayload ptr fp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, fn )].data )]
+    dim as StmtPayload ptr fp = c.ast->StmtOf( fn )
     '' The bounds are lo/hi pairs, and 'any' may stand in either place.
     for k as int32 = 0 to fp->count - 1
-        dim as NodeId bk = cast( NodeId, c.ast->children[fp->first + k] )
+        dim as NodeId bk = c.ast->ChildAt( fp->first, k )
         if c.ast->Kind( bk ) <> N_IDENT then continue for
-        dim as InternId bn = c.ast->idents[cast( int32, c.ast->nodes[cast( int32, bk )].data )].name
+        dim as InternId bn = c.ast->IdentOf( bk )->name
         if Text.LowerAscii( c.names->Spelling( bn ) ) = "any" then return true
     next
     return false
@@ -117,7 +117,7 @@ private function UnionStructorNeed_ ( byref c as Ctx, byval t as TypeId, byval d
         if f->payload <> 0 then
             dim as NodeId fn = cast( NodeId, f->payload )
             if c.ast->Kind( fn ) = N_FIELD then
-                dim as StmtPayload ptr fp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, fn )].data )]
+                dim as StmtPayload ptr fp = c.ast->StmtOf( fn )
                 if fp->c <> NODE_NONE then return 1
                 if (fp->b <> NODE_NONE) andalso ((f->flags and SYMF_BITFIELD) = 0) then return 1
             end if

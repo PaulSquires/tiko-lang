@@ -45,12 +45,12 @@ private function HasCopyCtor_ ( byref c as Ctx, byval t as TypeId, byval wantCon
         if ct = nullptr then exit for
         dim as NodeId cd = cast( NodeId, ct->payload )
         if (cd = NODE_NONE) orelse (c.ast->Kind( cd ) <> N_PROC) then return (nm = "__ctor")
-        dim as StmtPayload ptr cp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, cd )].data )]
+        dim as StmtPayload ptr cp = c.ast->StmtOf( cd )
         if RequiredParams_( c, cd ) = 1 then
             for i as int32 = 0 to cp->count - 1
-                dim as NodeId pn = cast( NodeId, c.ast->children[cp->first + i] )
+                dim as NodeId pn = c.ast->ChildAt( cp->first, i )
                 if c.ast->Kind( pn ) <> N_PARAM then continue for
-                dim as NodeId pta = c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )].a
+                dim as NodeId pta = c.ast->StmtOf( pn )->a
                 if pta = NODE_NONE then exit for
                 dim as TypeId pt = c.info->TypeOf_( pta )
                 if c.types->Kind( c.types->Unqualify( pt ) ) = TK_REFERENCE then pt = c.types->Inner( c.types->Unqualify( pt ) )
@@ -69,20 +69,20 @@ end function
 private function CtorCallsBase_ ( byref c as Ctx, byval body as NodeId ) as boolean
     if (body = NODE_NONE) orelse (c.ast->Kind( body ) <> N_BLOCK) then return true
     dim as InternId ctorNm = c.names->Fold( c.names->GetString( "constructor" ) )
-    dim as ListPayload ptr bp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, body )].data )]
+    dim as ListPayload ptr bp = c.ast->ListOf( body )
     for i as int32 = 0 to bp->count - 1
-        dim as NodeId st = cast( NodeId, c.ast->children[bp->first + i] )
+        dim as NodeId st = c.ast->ChildAt( bp->first, i )
         if st = NODE_NONE then continue for
         dim as NodeId call_ = st
         if c.ast->Kind( st ) = N_AMBIGUOUS then
-            dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, st )].data )]
+            dim as StmtPayload ptr sp = c.ast->StmtOf( st )
             if sp->op <> 0 then return false
             call_ = sp->a
         end if
         if (call_ = NODE_NONE) orelse (c.ast->Kind( call_ ) <> N_CALL) then return false
-        dim as NodeId tg = c.ast->lists[cast( int32, c.ast->nodes[cast( int32, call_ )].data )].target
+        dim as NodeId tg = c.ast->ListOf( call_ )->target
         if (tg = NODE_NONE) orelse (c.ast->Kind( tg ) <> N_IDENT) then return false
-        dim as InternId nm = c.names->Fold( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, tg )].data )].name )
+        dim as InternId nm = c.names->Fold( c.ast->IdentOf( tg )->name )
         return (nm = c.names->Fold( c.baseName )) orelse (nm = ctorNm)
     next
     return false

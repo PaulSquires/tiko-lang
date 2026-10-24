@@ -7,8 +7,8 @@
 sub ExternPair_ ( byref c as Ctx, byval df as NodeId, byval op as uint32, _
                           byval erank as int32, elo( ) as int64, ehi( ) as int64, byval isString as boolean )
     dim as StmtPayload ptr dp = _
-        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, df )].data )]
-    if (c.ast->nodes[cast( int32, df )].flags and NF_QUALIFIED) <> 0 then return
+        c.ast->StmtOf( df )
+    if (c.ast->Flags( df ) and NF_QUALIFIED) <> 0 then return
     if op = cast( uint32, KW_REDIM ) then
         if (dp->a <> NODE_NONE) andalso (erank > 0) then
             c.diags->Report( TKO0723, PointRange( c.ast->Loc( df ) ) )

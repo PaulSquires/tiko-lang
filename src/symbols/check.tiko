@@ -459,7 +459,7 @@ private function FieldOf_ _
     if gnode = Tko.NODE_NONE then return Tko.SYMBOL_NONE
     if c.ast->Kind( gnode ) <> Tko.N_TYPE then return Tko.SYMBOL_NONE
     dim as Tko.StmtPayload ptr gp = _
-        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, gnode )].data )]
+        c.ast->StmtOf( gnode )
     if gp->b = Tko.NODE_NONE then return Tko.SYMBOL_NONE      '' not a generic
     if gp->name = 0 then return Tko.SYMBOL_NONE
     if gp->name = tn then return Tko.SYMBOL_NONE              '' it IS the generic
@@ -474,7 +474,7 @@ end function
 
 private function StmtOf _
     ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.StmtPayload ptr
-    return @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    return c.ast->StmtOf( id )
 end function
 
 #include once "symbols/tuplenames.tiko"
@@ -552,7 +552,7 @@ private function LiteralType_ _
     select case c.ast->Kind( id )
     case Tko.N_INT_LIT
         dim as Tko.LiteralPayload ptr lp = _
-            @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->LiteralOf( id )
         '' THE LITERAL MODEL (lexer/littype.tiko) -- suffix first, then by magnitude and radix, as
         '' fbc's lexer types it. Typed INTEGER always, 's < 3000000000' over 'dim s as integer =
         '' -1' was TRUE and '3000000000 \ -2' negative, where fbc reads the literal unsigned.
@@ -564,7 +564,7 @@ private function LiteralType_ _
         '' double' for 'u( 1.0f ), u( 1.0! ), u( 1.0 )' and tiko answered double
         '' three times. The lexer already records NSUF_SINGLE; nothing read it.
         dim as Tko.LiteralPayload ptr fp = _
-            @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->LiteralOf( id )
         return LitClassBuiltin( *c.types, Tko.LiteralClassOf( fp->suffix, fp->radix, 0, true, true ) )
     case Tko.N_STRING_LIT, Tko.N_STRCAT
         return c.types->Builtin( Tko.TY_STRING )
@@ -760,7 +760,7 @@ private function TypeOfUncached_ _
         '' tuple has no target and is left alone here, so the tuple feature is
         '' untouched.
         dim as Tko.ListPayload ptr tl = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         if tl->target <> Tko.NODE_NONE then
             if c.ast->Kind( tl->target ) = Tko.N_TYPEREF then
                 t = c.info->TypeOf_( tl->target )
@@ -782,7 +782,7 @@ private function TypeOfUncached_ _
             dim as boolean allTyped = true
             for i as int32 = 0 to tl->count - 1
                 dim as Tko.TypeId et = _
-                    TypeOf_( c, cast( Tko.NodeId, c.ast->children[tl->first + i] ) )
+                    TypeOf_( c, c.ast->ChildAt( tl->first, i ) )
                 if et = Tko.TYPE_NONE then
                     allTyped = false
                     exit for
@@ -801,14 +801,14 @@ private function TypeOfUncached_ _
         '' pool indexes a different array entirely, which is a segfault, not a
         '' wrong answer.
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         if lp->count > 0 then
             t = TypeOf_( c, cast( Tko.NodeId, c.ast->children[lp->first] ) )
         end if
 
     case Tko.N_UNARY
         dim as Tko.UnaryPayload ptr up = _
-            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->UnaryOf( id )
         dim as Tko.TypeId inner = TypeOf_( c, up->operand )
         dim as Tko.TokenKind op = cast( Tko.TokenKind, up->op )
 
@@ -889,7 +889,7 @@ private function TypeOfUncached_ _
 
     case Tko.N_BINARY
         dim as Tko.BinaryPayload ptr bp = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->BinaryOf( id )
         dim as Tko.TypeId lt = TypeOf_( c, bp->lhs )
         dim as Tko.TypeId rt = TypeOf_( c, bp->rhs )
         dim as Tko.TokenKind op = cast( Tko.TokenKind, bp->op )
@@ -1004,7 +1004,7 @@ private function TypeOfUncached_ _
         end if
 
         dim as Tko.BinaryPayload ptr mp = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->BinaryOf( id )
         dim as Tko.TypeId bt = TypeOf_( c, mp->lhs )
         '' 'p->f' and 'p.f' on a pointer both reach through it, and CONST is
         '' transparent on the way: 'byref x as const T' and 'byval p as const T ptr'
@@ -1028,12 +1028,12 @@ private function TypeOfUncached_ _
         ''
         '' Only when the base has no field of that name itself: a UDT may declare both.
         if (bt <> Tko.TYPE_NONE) andalso _
-           ((c.ast->nodes[cast( int32, id )].flags and Tko.NF_ARROW) <> 0) then
+           ((c.ast->Flags( id ) and Tko.NF_ARROW) <> 0) then
             if c.types->Kind( bt ) = Tko.TK_UDT then
                 dim as boolean haveOwn = false
                 if c.ast->Kind( mp->rhs ) = Tko.N_IDENT then
                     dim as Tko.IdentPayload ptr ap0 = _
-                        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, mp->rhs )].data )]
+                        c.ast->IdentOf( mp->rhs )
                     haveOwn = (FieldOf_( c, bt, ap0->name ) <> Tko.SYMBOL_NONE)
                 end if
                 if haveOwn = false then
@@ -1059,7 +1059,7 @@ private function TypeOfUncached_ _
         if (bt <> Tko.TYPE_NONE) andalso (c.ast->Kind( mp->rhs ) = Tko.N_IDENT) then
             if c.types->Kind( bt ) = Tko.TK_ENUM then
                 dim as Tko.IdentPayload ptr eip = _
-                    @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, mp->rhs )].data )]
+                    c.ast->IdentOf( mp->rhs )
                 dim as Tko.ScopeId eds = cast( Tko.ScopeId, c.types->DeclScopeOf( bt ) )
                 dim as Tko.InternId etn = c.types->NameOf( bt )
                 dim as Tko.SymbolId ets = c.syms->LookupLocalTyped( eds, etn, true )
@@ -1085,7 +1085,7 @@ private function TypeOfUncached_ _
 
         if (bt <> Tko.TYPE_NONE) andalso (c.ast->Kind( mp->rhs ) = Tko.N_IDENT) andalso (GenericMethodInst_( c, id ) = false) then
             dim as Tko.IdentPayload ptr ip = _
-                @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, mp->rhs )].data )]
+                c.ast->IdentOf( mp->rhs )
             dim as Tko.SymbolId fs = FieldOf_( c, bt, ip->name )
             if fs = Tko.SYMBOL_NONE then fs = TupleNamedField_( c, bt, mp->lhs, mp->rhs )   '' 'r.tl' -- tuplenames.tiko
             '' A PROPERTY OVERLOAD SET'S HEAD MAY BE THE SETTER, and a setter has no
@@ -1148,7 +1148,7 @@ private function TypeOfUncached_ _
         '' chain. Score every candidate against the arguments and take the unique
         '' cheapest -- a tie is an ambiguous call, not a silent pick.
         dim as Tko.ListPayload ptr cp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         '' Indexing and calling share a spelling, so the callee's TYPE decides which
         '' this is. An array subscript yields the ELEMENT type; without this the whole
         '' expression is untyped and every use of a(i) falls back to nothing.
@@ -1265,7 +1265,7 @@ private function TypeOfUncached_ _
         '' 'new T' IS A POINTER TO T, whatever else it is. Resolve typed the target as
         '' a type reference; this turns it into the pointer the expression yields.
         dim as Tko.ListPayload ptr np = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         if np->target <> Tko.NODE_NONE then
             dim as Tko.TypeId nt = c.info->TypeOf_( np->target )
             '' 'new typeof( *pd )': Resolve could not answer a typeof (ice04, manual cast2).
@@ -1281,7 +1281,7 @@ private function TypeOfUncached_ _
         ''
         '' In -lang fb '[ ]' is only ever pointer indexing, so the type is the pointee.
         dim as Tko.ListPayload ptr xp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         if xp->target <> Tko.NODE_NONE then
             dim as Tko.TypeId pt = TypeOf_( c, xp->target )
             if pt <> Tko.TYPE_NONE then
@@ -1376,7 +1376,7 @@ private function TypeOfUncached_ _
     case Tko.N_DEREF
         '' Built by MakeUnary, so the payload is a UNARY, not a statement.
         dim as Tko.UnaryPayload ptr dp = _
-            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->UnaryOf( id )
         dim as Tko.TypeId inner = TypeOf_( c, dp->operand )
         if inner <> Tko.TYPE_NONE then
             if c.types->Kind( inner ) = Tko.TK_POINTER then t = c.types->Inner( inner )
@@ -1402,7 +1402,7 @@ private function TypeOfUncached_ _
 
     case Tko.N_ADDROF
         dim as Tko.UnaryPayload ptr ap = _
-            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->UnaryOf( id )
         '' '@mysub' AND '@myfunc' -- A PROCEDURE has no type of its own on its
         '' symbol: that slot holds its RETURN type. So the operand of '@f' came
         '' back typed LONG and 'var v = @f' inferred 'long ptr', while '@s' over a

@@ -82,7 +82,7 @@ sub SignatureFromProc _
     if sp = nullptr then return
 
     for i as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( sp->first, i )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         '' THE ELLIPSIS IS AN N_PARAM and is not a parameter: it carries no type and
         '' contributes no argument. LLVM spells it in the signature's tail instead.
@@ -111,8 +111,8 @@ sub SignatureFromProc _
         '' parameter SLOTS, where an array slot is already a pointer, so this only
         '' shows when the CALL is lowered before the callee's body -- which is what a
         '' generic calling a generic does. The same call from module scope was right.
-        dim as boolean isArr = ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_ARRAY) <> 0)
-        if isArr orelse ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0) then
+        dim as boolean isArr = ((c.ast->Flags( prm ) and Tko.NF_ARRAY) <> 0)
+        if isArr orelse ((c.ast->Flags( prm ) and Tko.NF_BYREF) <> 0) then
             f->AddParam( MT_PTR )
         else
             '' The SIZE only where it is genuinely an aggregate -- see the definition

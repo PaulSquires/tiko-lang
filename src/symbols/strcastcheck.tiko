@@ -13,13 +13,13 @@ end function
 
 '' PRINT of a UDT that prints through a cast (PrintsViaCast_ -- Unprintable_ reports the rest).
 sub CheckPrintStrCast_ ( byref c as Ctx, byval id as NodeId )
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as StmtPayload ptr sp = c.ast->StmtOf( id )
     if cast( TokenKind, sp->op ) <> KW_PRINT then return
     if sp->extra <> 0 then return   '' PRINT USING has its own grammar
     for i as int32 = 0 to sp->count - 1
-        dim as NodeId it = cast( NodeId, c.ast->children[sp->first + i] )
+        dim as NodeId it = c.ast->ChildAt( sp->first, i )
         if c.ast->Kind( it ) = N_PRINT_SEP then
-            if c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, it )].data )].op = cast( uint16, KW_USING ) then return
+            if c.ast->StmtOf( it )->op = cast( uint16, KW_USING ) then return
             continue for
         end if
         dim as TypeId u = ValueType_( c, c.info->TypeOf_( it ) )
@@ -67,7 +67,7 @@ end function
 '' only half its bytes -- a defect, not a format -- so tiko refuses it plainly (TKO0992) instead of
 '' copying it or failing as an unlowered statement. Convert to 'string' (or use 'wstring * N').
 sub CheckGetPutUStr_ ( byref c as Ctx, byval id as NodeId )
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as StmtPayload ptr sp = c.ast->StmtOf( id )
     select case cast( TokenKind, sp->op )
     case KW_GET, KW_PUT
     case else : return

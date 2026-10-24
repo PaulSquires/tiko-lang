@@ -23,7 +23,7 @@ private function QualifiedStaticPath_ _
     while (c.ast->Kind( cur ) = Tko.N_MEMBER) andalso (guard < 64)
         path_(guard) = cur
         guard += 1
-        cur = c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, cur )].data )].lhs
+        cur = c.ast->BinaryOf( cur )->lhs
     wend
     if cur = id then return false
     if c.ast->Kind( cur ) <> Tko.N_IDENT then return false

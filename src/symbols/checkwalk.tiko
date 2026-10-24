@@ -31,7 +31,7 @@ private function CompoundBinOp_( byval op as Tko.TokenKind, byref selfNm as stri
 end function
 
 private sub CompoundUserOp_( byref c as Ctx, byval n as Tko.NodeId )
-    dim as Tko.StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+    dim as Tko.StmtPayload ptr sp = c.ast->StmtOf( n )
     if (sp->a = Tko.NODE_NONE) orelse (sp->b = Tko.NODE_NONE) then return
     dim as string selfNm = ""
     dim as Tko.TokenKind bop = CompoundBinOp_( cast( Tko.TokenKind, sp->op ), selfNm )
@@ -93,7 +93,7 @@ private sub WalkAll( byref c as Ctx )
             '' are STATEMENTS: PRINT has no type and never will, and asking would
             '' count eighteen of them as 'untyped' in a file that has none.
             dim as Tko.StmtPayload ptr wsp = _
-                @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+                c.ast->StmtOf( n )
             select case cast( Tko.TokenKind, wsp->op )
             case Tko.KW_CLOSE, Tko.KW_OPEN, Tko.KW_GET, Tko.KW_PUT, _
                  Tko.KW_INPUT, Tko.KW_WINPUT, Tko.KW_THREADCALL
@@ -112,7 +112,7 @@ private sub WalkAll( byref c as Ctx )
             '' LowerStmtCall reads it from.
             if c.info->AmbiguousOf( n ) = Tko.AMB_CALL then
                 dim as Tko.StmtPayload ptr asp = _
-                    @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+                    c.ast->StmtOf( n )
                 '' AN N_MEMBER CALLEE IS THE SAME STATEMENT. 'f.bar 1' over an
                 '' overloaded member costed nothing either, and its binding lives on the
                 '' MEMBER node -- which is where LowerStmtCall reads it from, so

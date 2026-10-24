@@ -38,12 +38,12 @@ private function TemplateTypeParam_ _
                 if plist <> Tko.NODE_NONE then
                     if c.ast->Kind( plist ) = Tko.N_BLOCK then
                         dim as Tko.ListPayload ptr pl = _
-                            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, plist )].data )]
+                            c.ast->ListOf( plist )
                         for k as int32 = 0 to pl->count - 1
-                            dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[pl->first + k] )
+                            dim as Tko.NodeId pn = c.ast->ChildAt( pl->first, k )
                             if c.ast->Kind( pn ) <> Tko.N_IDENT then continue for
                             dim as Tko.IdentPayload ptr pip = _
-                                @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
+                                c.ast->IdentOf( pn )
                             if pip->name = nm then return true
                         next
                     end if
@@ -64,7 +64,7 @@ private function TypeLitTargetType_ _
 
     if e = Tko.NODE_NONE then return false
     if c.ast->Kind( e ) <> Tko.N_TUPLE then return false
-    if (c.ast->nodes[cast( int32, e )].flags and Tko.NF_TYPE_LITERAL) = 0 then
+    if (c.ast->Flags( e ) and Tko.NF_TYPE_LITERAL) = 0 then
         return false
     end if
     dim as Tko.NodeId tgt = ListOf( c, e )->target
@@ -210,7 +210,7 @@ function ProcTypeParamType_ _
     '' these N_PARAMs belong to a TYPEREF and it never reaches them, so
     '' 'sub( as UDT1 )' came out taking a UDT BY VALUE. Measured -- fbc
     '' mangles it '_Z2G1PFvR4UDT1E', with the R.
-    dim as uint16 pfl = c.ast->nodes[cast( int32, prm )].flags
+    dim as uint16 pfl = c.ast->Flags( prm )
     dim as boolean pRef = ((pfl and Tko.NF_BYREF) <> 0)
     dim as boolean pWritten = pRef
     if pWritten = false then pWritten = ((pfl and Tko.NF_BYVAL_WRITTEN) <> 0)
@@ -298,14 +298,14 @@ end sub
 private function TypeofLitType_( byref c as Ctx, byval e as Tko.NodeId, byref outT as Tko.TypeId ) as boolean
     dim as boolean wide = false
     if c.ast->Kind( e ) = Tko.N_CALL then
-        dim as Tko.ListPayload ptr cl = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+        dim as Tko.ListPayload ptr cl = c.ast->ListOf( e )
         if (cl->count <> 1) orelse (cl->target = Tko.NODE_NONE) orelse (c.ast->Kind( cl->target ) <> Tko.N_IDENT) then return false
-        if lcase( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cl->target )].data )].name ) ) <> "wstr" then return false
+        if lcase( c.names->Spelling( c.ast->IdentOf( cl->target )->name ) ) <> "wstr" then return false
         e = cast( Tko.NodeId, c.ast->children[cl->first] )
         wide = true
     end if
     if c.ast->Kind( e ) <> Tko.N_STRING_LIT then return false
-    dim as Tko.LiteralPayload ptr lp = @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+    dim as Tko.LiteralPayload ptr lp = c.ast->LiteralOf( e )
     dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( cast( Tko.FileId, lp->strFile ) )
     if f = nullptr then return false
     if (lp->strOffset < 0) orelse (lp->strOffset + lp->strLength > f->text.Count) then return false
@@ -343,7 +343,7 @@ declare function ResolveTypeRefAt_ _
 private function AddrOfProcVarType_ _
     ( byref c as Ctx, byval iv as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
     if c.ast->Kind( iv ) <> Tko.N_ADDROF then return Tko.TYPE_NONE
-    dim as Tko.NodeId opnd = c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, iv )].data )].operand
+    dim as Tko.NodeId opnd = c.ast->UnaryOf( iv )->operand
     if (opnd = Tko.NODE_NONE) orelse (c.ast->Kind( opnd ) <> Tko.N_IDENT) then return Tko.TYPE_NONE
     dim as Tko.SymbolId sid = c.syms->Lookup( scope_, IdentNameOf( c, opnd ) )
     dim as Tko.SymbolId bound = c.info->RefOf( opnd )
@@ -358,10 +358,10 @@ private function AddrOfProcVarType_ _
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
     if (pp->extra and Tko.PF_BYREF_RESULT) <> 0 then return Tko.TYPE_NONE
     for i as int32 = 0 to pp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if StmtOf( c, prm )->op = cast( uint16, Tko.TK_ELLIPSIS ) then return Tko.TYPE_NONE
-        if (c.ast->nodes[cast( int32, prm )].flags and (Tko.NF_ARRAY or Tko.NF_VARIADIC)) <> 0 then return Tko.TYPE_NONE
+        if (c.ast->Flags( prm ) and (Tko.NF_ARRAY or Tko.NF_VARIADIC)) <> 0 then return Tko.TYPE_NONE
     next
     return ProcPtrTypeOfName_( c, opnd, scope_ )
 end function
@@ -421,7 +421,7 @@ function ResolveTypeRefAt_ _
         dim as boolean pTyped = false   '' a typed variadic last parameter -- TF_TYPED_VARIADIC
         dim as boolean pAnyNone = false
         for i as int32 = 0 to sp->count - 1
-            dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+            dim as Tko.NodeId prm = c.ast->ChildAt( sp->first, i )
             if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
             '' THE ELLIPSIS IS AN N_PARAM AND IS NOT A PARAMETER. It carries no type
             '' and contributes no argument, but it IS part of the procedure type:
@@ -439,7 +439,7 @@ function ResolveTypeRefAt_ _
             if pp->b <> Tko.NODE_NONE then WalkExpr( c, pp->b, scope_ )
             dim as Tko.TypeId pt = ProcTypeParamType_( c, prm, scope_ )
             if pt = Tko.TYPE_NONE then pAnyNone = true
-            pTyped = ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_VARIADIC) <> 0)
+            pTyped = ((c.ast->Flags( prm ) and Tko.NF_VARIADIC) <> 0)
             ps.Push( cast( uint32, pt ) )
         next
         dim as Tko.TypeId pf = _
@@ -499,7 +499,7 @@ function ResolveTypeRefAt_ _
         dim as string key = "$tup"
         dim as containers.Array( of uint32 ) elemTypes
         for i as int32 = 0 to sp->count - 1
-            dim as Tko.NodeId e = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+            dim as Tko.NodeId e = c.ast->ChildAt( sp->first, i )
             dim as Tko.TypeId et = ResolveTypeRef( c, e, scope_ )
             if et = Tko.TYPE_NONE then
                 '' An element that does not resolve yet: no type rather than a wrong
@@ -960,7 +960,7 @@ function BindParamType_ _
     '' array, because bounds set by the caller are exactly what a bydesc parameter
     '' does not know.
     if (t <> Tko.TYPE_NONE) andalso _
-       ((c.ast->nodes[cast( int32, id )].flags and Tko.NF_ARRAY) <> 0) then
+       ((c.ast->Flags( id ) and Tko.NF_ARRAY) <> 0) then
         '' THE RANK THE PARAMETER WAS WRITTEN WITH, which the parser now
         '' records on the N_PARAM's unused 'count'. Hard-coded 1, every
         '' 'a( any, any )' parameter was a ONE-dimensional array and the
@@ -991,7 +991,7 @@ function BindParamType_ _
     '' An ARRAY parameter is exempt: byval and byref are both ILLEGAL on one, so
     '' the passing mode never enters into it and a descriptor crosses either way.
     if t <> Tko.TYPE_NONE then
-        dim as uint16 pflags = c.ast->nodes[cast( int32, id )].flags
+        dim as uint16 pflags = c.ast->Flags( id )
         dim as boolean written = ((pflags and Tko.NF_BYREF) <> 0)
         written = written orelse ((pflags and Tko.NF_BYVAL_WRITTEN) <> 0)
         written = written orelse ((pflags and Tko.NF_ARRAY) <> 0)
@@ -1037,7 +1037,7 @@ function BindParamType_ _
     end if
 
     if (t <> Tko.TYPE_NONE) andalso _
-       ((c.ast->nodes[cast( int32, id )].flags and Tko.NF_BYREF) <> 0) then
+       ((c.ast->Flags( id ) and Tko.NF_BYREF) <> 0) then
         t = c.types->Reference( t )
     end if
     BindDeclType( c, here, sp->name, t, false )

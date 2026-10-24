@@ -86,7 +86,7 @@ private function ConvName_ _
     if cp->target = Tko.NODE_NONE then return ""
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return ""
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
     select case nm
     case "cbyte", "cubyte", "cshort", "cushort", "clng", "culng", "cint", "cuint", _
@@ -101,7 +101,7 @@ function IsConvIntrinsic _
     ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
 
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     return len( ConvName_( c, cp ) ) > 0
 end function
 
@@ -120,7 +120,7 @@ function StrIdentityConvOperand_ _
     if id = Tko.NODE_NONE then return Tko.NODE_NONE
     if c.ast->Kind( id ) <> Tko.N_CALL then return Tko.NODE_NONE
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     dim as string nm = ConvName_( c, cp )
     if (nm <> "cast") andalso (nm <> "cptr") then return Tko.NODE_NONE
     if cp->count <> 2 then return Tko.NODE_NONE
@@ -221,7 +221,7 @@ function LowerConvIntrinsic _
 
     dim as MirValue v
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     dim as string nm = ConvName_( c, cp )
     if len( nm ) = 0 then return v
 
@@ -234,7 +234,7 @@ function LowerConvIntrinsic _
         if cp->count <> 1 then return v
     end if
 
-    dim as Tko.NodeId arg = cast( Tko.NodeId, c.ast->children[cp->first + vi] )
+    dim as Tko.NodeId arg = c.ast->ChildAt( cp->first, vi )
 
     '' 'cast( parent, c )' OVER A DERIVED VALUE IS AN UPCAST, and only the base
     '' subobject crosses. Everything below this coerces a SCALAR; an aggregate fell

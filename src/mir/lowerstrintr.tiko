@@ -31,12 +31,12 @@ function LowerMidAssign _
 
     if c.ast->Kind( target ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, target )].data )]
+        c.ast->ListOf( target )
     if (cp->count < 2) orelse (cp->count > 3) then return false
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr tip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     if LowerSpelling_( c.ix, *c.names, tip->name ) <> "mid" then return false
     '' A NAME THE SOURCE DECLARED IS NOT THE INTRINSIC.
     if c.info->RefOf( cp->target ) <> Tko.SYMBOL_NONE then return false
@@ -238,7 +238,7 @@ function LowerDir _
     '' (TKO0994; three Rosetta directory walkers, 'f = dir' in a loop).
     if c.ast->Kind( id ) = Tko.N_IDENT then
         if c.info->RefOf( id ) <> Tko.SYMBOL_NONE then return false
-        dim as Tko.IdentPayload ptr dip = @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        dim as Tko.IdentPayload ptr dip = c.ast->IdentOf( id )
         if LowerSpelling_( c.ix, *c.names, dip->name ) <> "dir" then return false
         dim as containers.Array( of uint32 ) dargs
         dargs.Push( cast( uint32, MV_CONST_INT ) ) : dargs.Push( 0 )
@@ -247,12 +247,12 @@ function LowerDir _
     end if
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if cp->count > 3 then return false
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr tip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     if LowerSpelling_( c.ix, *c.names, tip->name ) <> "dir" then return false
     '' A NAME THE SOURCE DECLARED IS NOT THE INTRINSIC.
     if c.info->RefOf( cp->target ) <> Tko.SYMBOL_NONE then return false

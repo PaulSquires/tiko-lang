@@ -630,7 +630,7 @@ private sub WalkExpr _
             if nt <> Tko.TYPE_NONE then c.info->SetType( np->target, nt )
         end if
         for i as int32 = 0 to np->count - 1
-            WalkExpr( c, cast( Tko.NodeId, c.ast->children[np->first + i] ), scope_ )
+            WalkExpr( c, c.ast->ChildAt( np->first, i ), scope_ )
         next
         return
 
@@ -650,7 +650,7 @@ private sub WalkExpr _
         '' expression-form gap rather than a missing walk.
         if ip->c <> Tko.NODE_NONE then WalkExpr( c, ip->c, scope_ )
         for i as int32 = 0 to ip->count - 1
-            dim as Tko.NodeId arg = cast( Tko.NodeId, c.ast->children[ip->first + i] )
+            dim as Tko.NodeId arg = c.ast->ChildAt( ip->first, i )
             if c.ast->Kind( arg ) <> Tko.N_ELIDED then WalkExpr( c, arg, scope_ )
         next
         return
@@ -677,7 +677,7 @@ private sub WalkExpr _
         '' The target is a VARIABLE here, and that is exactly what says the call is
         '' indirect.
         for i as int32 = 0 to lp->count - 1
-            dim as Tko.NodeId arg = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+            dim as Tko.NodeId arg = c.ast->ChildAt( lp->first, i )
             '' 'cast( long, x )' and 'cptr( any ptr, x )' put a TYPE in argument
             '' position. WalkExpr has nothing to say about one, and leaving it
             '' unresolved left every cast untyped -- the type argument IS the result.
@@ -819,7 +819,7 @@ sub WalkStmt _
         dim as Tko.StmtPayload ptr usp = StmtOf( c, id )
         for u as int32 = -1 to usp->count - 1
             dim as Tko.NodeId un = id
-            if u >= 0 then un = cast( Tko.NodeId, c.ast->children[usp->first + u] )
+            if u >= 0 then un = c.ast->ChildAt( usp->first, u )
             dim as Tko.InternId unm = StmtOf( c, un )->name
             if unm = 0 then continue for
             c.info->SetScope( un, here )
@@ -857,7 +857,7 @@ sub WalkStmt _
         '' was written, which makes it a tuple instead.
         while c.ast->Kind( wsp->a ) = Tko.N_PAREN
             dim as Tko.ListPayload ptr pl2 = _
-                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, wsp->a )].data )]
+                c.ast->ListOf( wsp->a )
             if pl2->count <> 1 then exit while
             wsp->a = cast( Tko.NodeId, c.ast->children[pl2->first] )
         wend
@@ -948,7 +948,7 @@ sub WalkStmt _
         end if
         dim as int64 enumNext = 0
         for i as int32 = 0 to esp->count - 1
-            dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[esp->first + i] )
+            dim as Tko.NodeId it = c.ast->ChildAt( esp->first, i )
             if c.ast->Kind( it ) <> Tko.N_ENUM_ITEM then continue for
             dim as Tko.StmtPayload ptr ip = StmtOf( c, it )
             if ip->b <> Tko.NODE_NONE then
@@ -1013,7 +1013,7 @@ sub WalkStmt _
             '' point of the form is that they are set at run time.
             dim as boolean declares = false
             for i as int32 = 0 to sp->count - 1
-                dim as Tko.NodeId it3 = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+                dim as Tko.NodeId it3 = c.ast->ChildAt( sp->first, i )
                 if c.ast->Kind( it3 ) <> Tko.N_VAR_ITEM then continue for
                 dim as Tko.StmtPayload ptr ip3 = StmtOf( c, it3 )
                 if ip3->a = Tko.NODE_NONE then continue for
@@ -1044,7 +1044,7 @@ sub WalkStmt _
             '' whole statement declined. Only a redim to CONSTANT bounds worked, which
             '' is the least interesting kind.
             for i as int32 = 0 to sp->count - 1
-                dim as Tko.NodeId item = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+                dim as Tko.NodeId item = c.ast->ChildAt( sp->first, i )
                 if c.ast->Kind( item ) <> Tko.N_VAR_ITEM then continue for
                 dim as Tko.StmtPayload ptr rp = StmtOf( c, item )
                 '' 'redim x.array( 0 to 9 )' and 'redim ( a )( 0 to 9 )' name their
@@ -1065,15 +1065,15 @@ sub WalkStmt _
                 if rp->c = Tko.NODE_NONE then continue for
                 if c.ast->Kind( rp->c ) <> Tko.N_BLOCK then continue for
                 dim as Tko.ListPayload ptr rl = _
-                    @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, rp->c )].data )]
+                    c.ast->ListOf( rp->c )
                 for d as int32 = 0 to rl->count - 1
-                    WalkStmt( c, cast( Tko.NodeId, c.ast->children[rl->first + d] ), here )
+                    WalkStmt( c, c.ast->ChildAt( rl->first, d ), here )
                 next
             next
             return
         end if
         for i as int32 = 0 to sp->count - 1
-            dim as Tko.NodeId item = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+            dim as Tko.NodeId item = c.ast->ChildAt( sp->first, i )
             if c.ast->Kind( item ) <> Tko.N_VAR_ITEM then continue for
             dim as Tko.StmtPayload ptr ip = StmtOf( c, item )
             dim as Tko.TypeId t = ResolveTypeRef( c, ip->a, here )
@@ -1085,7 +1085,7 @@ sub WalkStmt _
             if c.ast->Kind( id ) = Tko.N_CONST then
                 ConstBoundCheck_( c, item, scope_ )
             end if
-            if (c.ast->nodes[cast( int32, item )].flags and Tko.NF_QUALIFIED) <> 0 then
+            if (c.ast->Flags( item ) and Tko.NF_QUALIFIED) <> 0 then
                 CheckStaticMemberVar_( c, scope_, item, ip->ownerName, ip->name )
             end if
             '' 'dim BYREF rb as integer = a' ALIASES a. Its type is a REFERENCE, which
@@ -1097,8 +1097,8 @@ sub WalkStmt _
             '' declaration and sits on the N_VAR; one written again after a comma
             '' belongs to that item alone and sits on the item.
             dim as uint16 brf = _
-                (c.ast->nodes[cast( int32, id )].flags or _
-                 c.ast->nodes[cast( int32, item )].flags)
+                (c.ast->Flags( id ) or _
+                 c.ast->Flags( item ))
             if (brf and Tko.NF_BYREF) <> 0 then
                 if t <> Tko.TYPE_NONE then t = c.types->Reference( t )
             end if
@@ -1202,7 +1202,7 @@ sub WalkStmt _
         end if
         '' The extra names of 'type as integer a, b'.
         for i as int32 = 0 to tsp->count - 1
-            WalkStmt( c, cast( Tko.NodeId, c.ast->children[tsp->first + i] ), here )
+            WalkStmt( c, c.ast->ChildAt( tsp->first, i ), here )
         next
         return
 
@@ -1323,13 +1323,13 @@ sub WalkStmt _
             if (sp->a <> Tko.NODE_NONE) andalso _
                (c.ast->Kind( sp->a ) = Tko.N_IDENT) then
                 dim as Tko.IdentPayload ptr ip = _
-                    @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, sp->a )].data )]
+                    c.ast->IdentOf( sp->a )
                 BindDeclType( c, here, ip->name, t, false )
             end if
         end if
         '' The SEQUENCE first, so its type is known before the variable is bound.
         for i as int32 = 0 to sp->count - 1
-            WalkStmt( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ), here )
+            WalkStmt( c, c.ast->ChildAt( sp->first, i ), here )
         next
 
         '' FOR EACH WITH NO 'as' CLAUSE takes the sequence's ELEMENT type. Without
@@ -1443,7 +1443,7 @@ sub WalkStmt _
     WalkStmt( c, sp->b, here )
     WalkStmt( c, sp->c, here )
     for i as int32 = 0 to sp->count - 1
-        WalkStmt( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ), here )
+        WalkStmt( c, c.ast->ChildAt( sp->first, i ), here )
     next
 end sub
 

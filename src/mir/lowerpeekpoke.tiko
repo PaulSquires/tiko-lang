@@ -29,7 +29,7 @@ private function PeekPokeType_ _
     dim as Tko.TypeId tt = c.info->TypeOf_( tn )
     if (tt = Tko.TYPE_NONE) andalso (c.ast->Kind( tn ) = Tko.N_CALL) then
         dim as Tko.ListPayload ptr tlp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, tn )].data )]
+            c.ast->ListOf( tn )
         if tlp->count = 1 then
             tt = c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[tlp->first] ) )
         end if
@@ -45,7 +45,7 @@ private function PeekPokeType_ _
                 '' Resolve bound the VARIABLE of that spelling; the TYPE that shadows
                 '' it lives in the same scope.
                 dim as Tko.IdentPayload ptr tnip = _
-                    @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, tn )].data )]
+                    c.ast->IdentOf( tn )
                 dim as Tko.SymbolId tt2 = c.syms->LookupTyped( _
                     tsy->parent, tnip->name, true )
                 dim as Tko.Symbol ptr tsy2 = c.syms->SymbolAt( tt2 )
@@ -164,12 +164,12 @@ function LowerPeek _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if (cp->count < 1) orelse (cp->count > 2) then return false
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr tip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     if LowerSpelling_( c.ix, *c.names, tip->name ) <> "peek" then return false
     '' ...AND NOT A PROCEDURE OF THE PROGRAM'S OWN that happens to be spelled PEEK --
     '' see IntrinsicCallType_, which types the call by the same rule.
@@ -195,7 +195,7 @@ function LowerPeek _
             dim as Tko.TypeId tt = c.info->TypeOf_( tn )
             if (tt = Tko.TYPE_NONE) andalso (c.ast->Kind( tn ) = Tko.N_CALL) then
                 dim as Tko.ListPayload ptr tlp = _
-                    @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, tn )].data )]
+                    c.ast->ListOf( tn )
                 if tlp->count = 1 then
                     tt = c.info->TypeOf_( _
                         cast( Tko.NodeId, c.ast->children[tlp->first] ) )
@@ -214,7 +214,7 @@ function LowerPeek _
                         '' Resolve bound the VARIABLE of that spelling; the TYPE that
                         '' shadows it lives in the same scope.
                         dim as Tko.IdentPayload ptr tnip = _
-                            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, tn )].data )]
+                            c.ast->IdentOf( tn )
                         dim as Tko.SymbolId tt2 = c.syms->LookupTyped( _
                             tsy->parent, tnip->name, true )
                         dim as Tko.Symbol ptr tsy2 = c.syms->SymbolAt( tt2 )
@@ -257,7 +257,7 @@ private function PokeTypeName_ _
 
     if c.ast->Kind( n ) <> Tko.N_IDENT then return Tko.TY_NONE
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+        c.ast->IdentOf( n )
     select case LowerSpelling_( c.ix, *c.names, ip->name )
     case "byte"     : return Tko.TY_BYTE
     case "ubyte"    : return Tko.TY_UBYTE

@@ -49,7 +49,7 @@ function ForwardTypedefTarget_ _
     dim as Tko.NodeId an = tsp->a
     if an = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( an ) <> Tko.N_TYPEREF then return Tko.TYPE_NONE
-    dim as uint16 afl = c.ast->nodes[cast( int32, an )].flags
+    dim as uint16 afl = c.ast->Flags( an )
     if (afl and (Tko.NF_PTR or Tko.NF_ARRAY or Tko.NF_PROC_TYPE)) <> 0 then
         return Tko.TYPE_NONE
     end if
@@ -116,7 +116,7 @@ function ChaseTypedef_( byref c as Ctx, byval s as Tko.Symbol ptr ) as boolean
     dim as Tko.NodeId an = StmtOf( c, tdn )->a
     if an = Tko.NODE_NONE then return false
     if c.ast->Kind( an ) <> Tko.N_TYPEREF then return false
-    dim as uint16 afl = c.ast->nodes[cast( int32, an )].flags
+    dim as uint16 afl = c.ast->Flags( an )
     if (afl and (Tko.NF_PTR or Tko.NF_ARRAY or Tko.NF_PROC_TYPE)) <> 0 then return false
     if StmtOf( c, an )->count <> 0 then return false
     dim as Tko.ScopeId here = cast( Tko.ScopeId, s->parent )
@@ -239,7 +239,7 @@ sub BackpatchTypedefs( byref c as Ctx )
         dim as Tko.StmtPayload ptr psp3 = StmtOf( c, ptn3 )
         dim as int32 slot = 0
         for k as int32 = 0 to psp3->count - 1
-            dim as Tko.NodeId prm3 = cast( Tko.NodeId, c.ast->children[psp3->first + k] )
+            dim as Tko.NodeId prm3 = c.ast->ChildAt( psp3->first, k )
             if c.ast->Kind( prm3 ) <> Tko.N_PARAM then continue for
             if StmtOf( c, prm3 )->op = cast( uint16, Tko.TK_ELLIPSIS ) then continue for
             if slot >= c.types->ProcParamCount( pty ) then exit for
@@ -276,10 +276,10 @@ function ArrayFromBoundsNode _
     if id = Tko.NODE_NONE then return base_
     if c.ast->Kind( id ) <> Tko.N_BLOCK then return base_
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     dim as containers.Array( of uint32 ) los, his
     for i as int32 = 0 to lp->count - 1
-        dim as Tko.NodeId d = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        dim as Tko.NodeId d = c.ast->ChildAt( lp->first, i )
         if c.ast->Kind( d ) = Tko.N_CASE_RANGE then
             '' 'a(0 to 9)' -- both bounds written out.
             dim as Tko.StmtPayload ptr dp = StmtOf( c, d )
@@ -331,18 +331,18 @@ private sub ResolveBoundTypeRefs_ _
     select case k
     case Tko.N_BINARY
         dim as Tko.BinaryPayload ptr bp = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->BinaryOf( id )
         ResolveBoundTypeRefs_( c, bp->lhs, scope_, depth + 1 )
         ResolveBoundTypeRefs_( c, bp->rhs, scope_, depth + 1 )
     case Tko.N_UNARY
         dim as Tko.UnaryPayload ptr up = _
-            @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->UnaryOf( id )
         ResolveBoundTypeRefs_( c, up->operand, scope_, depth + 1 )
     case Tko.N_CALL, Tko.N_PAREN, Tko.N_INDEX, Tko.N_TUPLE
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         for i as int32 = 0 to lp->count - 1
-            ResolveBoundTypeRefs_( c, cast( Tko.NodeId, c.ast->children[lp->first + i] ), _
+            ResolveBoundTypeRefs_( c, c.ast->ChildAt( lp->first, i ), _
                                    scope_, depth + 1 )
         next
     end select

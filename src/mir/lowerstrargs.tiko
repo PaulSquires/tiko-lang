@@ -82,7 +82,7 @@ private function RuntimeEntryCallee_ _
     if pn = Tko.NODE_NONE then return false
     if c.ast->Kind( pn ) <> Tko.N_PROC then return false
     dim as Tko.StmtPayload ptr sp = _
-        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
+        c.ast->StmtOf( pn )
     if sp->aliasName = 0 then return false
     '' ...AND DECLARED IN THE PRELUDE, which is what stands in for fbc's own runtime
     '' table. A HEADER's declaration is an ordinary procedure to fbc whatever its alias
@@ -605,14 +605,14 @@ function UStrResultArgTemp_ _
         '' fb/map.bi's Reserve loaded the 24 bytes where a pointer belongs. A declared
         '' procedure, or a built-in the resolver bound to nothing ('ucase( u )').
         dim as Tko.ListPayload ptr ucp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, an )].data )]
+            c.ast->ListOf( an )
         if ucp->target = Tko.NODE_NONE then return false
         '' THE STRING INTRINSICS are spelled as calls and decided by their FIRST ARGUMENT,
         '' as LowerUStrIntrin_ decides them -- not by whatever the name binds to.
         dim as boolean intrin = false
         if (c.ast->Kind( ucp->target ) = Tko.N_IDENT) andalso (ucp->count >= 1) then
             dim as Tko.IdentPayload ptr uip = _
-                @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, ucp->target )].data )]
+                c.ast->IdentOf( ucp->target )
             select case LowerSpelling_( c.ix, *c.names, uip->name )
             case "ucase", "lcase", "trim", "ltrim", "rtrim", "left", "right", "mid"
                 dim as Tko.NodeId ua0 = cast( Tko.NodeId, c.ast->children[ucp->first] )

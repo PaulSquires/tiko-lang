@@ -89,18 +89,18 @@ function LowerSelectSwitch _
     if IsBooleanType( c, subjT ) then return false
 
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, sp->b )].data )]
+        c.ast->ListOf( sp->b )
 
     '' EVERYTHING IS CHECKED BEFORE ANYTHING IS EMITTED, so a refusal leaves the block as
     '' the chain expects to find it.
     dim as int64 entries = 0
     for i as int32 = 0 to lp->count - 1
-        dim as Tko.NodeId cs = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        dim as Tko.NodeId cs = c.ast->ChildAt( lp->first, i )
         if c.ast->Kind( cs ) <> Tko.N_CASE then continue for
         dim as Tko.StmtPayload ptr cp = StmtOf( c, cs )
         if (cp = nullptr) orelse (cp->count = 0) then return false
         for v as int32 = 0 to cp->count - 1
-            dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[cp->first + v] )
+            dim as Tko.NodeId pn = c.ast->ChildAt( cp->first, v )
             dim as int64 a = 0, b = 0
             if c.ast->Kind( pn ) = Tko.N_CASE_RANGE then
                 dim as Tko.StmtPayload ptr rp = StmtOf( c, pn )
@@ -139,13 +139,13 @@ function LowerSelectSwitch _
 
     dim as containers.Map( of int64, int32 ) taken
     for i as int32 = 0 to lp->count - 1
-        dim as Tko.NodeId cs = cast( Tko.NodeId, c.ast->children[lp->first + i] )
+        dim as Tko.NodeId cs = c.ast->ChildAt( lp->first, i )
         if c.ast->Kind( cs ) <> Tko.N_CASE then continue for
         dim as Tko.StmtPayload ptr cp = StmtOf( c, cs )
         dim as int32 bodyB = NewBlock( c, "sel.body" )
 
         for v as int32 = 0 to cp->count - 1
-            dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[cp->first + v] )
+            dim as Tko.NodeId pn = c.ast->ChildAt( cp->first, v )
             dim as int64 a = 0, b = 0
             if c.ast->Kind( pn ) = Tko.N_CASE_RANGE then
                 dim as Tko.StmtPayload ptr rp = StmtOf( c, pn )

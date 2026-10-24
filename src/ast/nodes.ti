@@ -541,6 +541,10 @@ namespace Tko
         as NodeSideIndex callTypeArgAt
         as NodeSideIndex collInitAt
 
+        '' WHICH PAYLOAD POOL EACH NODE KIND WAS BUILT IN, as the parser's constructors saw it:
+        '' AstPool, POOL_MIXED for a kind built in two. Read only by the -g pool check below.
+        as uint8       kindPool(0 to N_KIND_COUNT - 1)
+
         declare constructor( )
         declare sub RecordTokens _
             ( byval id as NodeId, byval firstTok as int32, byval lastTok as int32 )
@@ -556,7 +560,81 @@ namespace Tko
         declare function Kind( byval id as NodeId ) as NodeKind
         declare function Loc( byval id as NodeId ) as SourceLoc
         declare function Count( ) as int32
+
+        '' TYPED PAYLOAD ACCESS (review ARCH-11, LATER-PLAN F). A node's 'data' indexes ONE of
+        '' the pools above, chosen by how it was built, and nothing but the reader's memory said
+        '' which: a list node's index read as a statement index is a valid-looking record from
+        '' the wrong pool (latesweeps4.tiko records that abort). Each of these reads one pool,
+        '' and in a -g build of the compiler checks the pool the node's kind was built in and
+        '' stops at the first wrong read (AstPoolFault). One index each: they inline.
+        declare function StmtOf( byval id as NodeId ) as StmtPayload ptr
+        declare function IdentOf( byval id as NodeId ) as IdentPayload ptr
+        declare function ListOf( byval id as NodeId ) as ListPayload ptr
+        declare function UnaryOf( byval id as NodeId ) as UnaryPayload ptr
+        declare function BinaryOf( byval id as NodeId ) as BinaryPayload ptr
+        declare function LiteralOf( byval id as NodeId ) as LiteralPayload ptr
+        '' Child 'i' of a list or statement whose children start at 'first' in the shared pool.
+        declare function ChildAt( byval first as int32, byval i as int32 ) as NodeId
+        declare function Flags( byval id as NodeId ) as uint16
     end type
+
+    enum AstPool
+        POOL_NONE = 0
+        POOL_UNARY
+        POOL_BINARY
+        POOL_LITERAL
+        POOL_IDENT
+        POOL_LIST
+        POOL_STMT
+        POOL_MIXED = 255
+    end enum
+
+    '' A -g build's pool check failed: says which node, kind and pools, and ends the process.
+    declare sub AstPoolFault( byval id as NodeId, byval kind as NodeKind, byval want as AstPool, _
+                              byval got as AstPool )
+
+    #macro AST_POOL_CHECK_( want_ )
+        #if __FB_DEBUG__
+            scope
+                dim as NodeKind k__ = cast( NodeKind, this.nodes[cast( int32, id )].kind )
+                dim as uint8 got__ = this.kindPool(k__)
+                if (got__ <> POOL_NONE) andalso (got__ <> POOL_MIXED) andalso (got__ <> (want_)) then
+                    AstPoolFault( id, k__, want_, cast( AstPool, got__ ) )
+                end if
+            end scope
+        #endif
+    #endmacro
+
+    private function AstArena.StmtOf( byval id as NodeId ) as StmtPayload ptr
+        AST_POOL_CHECK_( POOL_STMT )
+        return @this.stmts[cast( int32, this.nodes[cast( int32, id )].data )]
+    end function
+    private function AstArena.IdentOf( byval id as NodeId ) as IdentPayload ptr
+        AST_POOL_CHECK_( POOL_IDENT )
+        return @this.idents[cast( int32, this.nodes[cast( int32, id )].data )]
+    end function
+    private function AstArena.ListOf( byval id as NodeId ) as ListPayload ptr
+        AST_POOL_CHECK_( POOL_LIST )
+        return @this.lists[cast( int32, this.nodes[cast( int32, id )].data )]
+    end function
+    private function AstArena.UnaryOf( byval id as NodeId ) as UnaryPayload ptr
+        AST_POOL_CHECK_( POOL_UNARY )
+        return @this.unaries[cast( int32, this.nodes[cast( int32, id )].data )]
+    end function
+    private function AstArena.BinaryOf( byval id as NodeId ) as BinaryPayload ptr
+        AST_POOL_CHECK_( POOL_BINARY )
+        return @this.binaries[cast( int32, this.nodes[cast( int32, id )].data )]
+    end function
+    private function AstArena.LiteralOf( byval id as NodeId ) as LiteralPayload ptr
+        AST_POOL_CHECK_( POOL_LITERAL )
+        return @this.literals[cast( int32, this.nodes[cast( int32, id )].data )]
+    end function
+    private function AstArena.ChildAt( byval first as int32, byval i as int32 ) as NodeId
+        return cast( NodeId, this.children[first + i] )
+    end function
+    private function AstArena.Flags( byval id as NodeId ) as uint16
+        return this.nodes[cast( int32, id )].flags
+    end function
 
     declare function NodeKindName( byval k as NodeKind ) as string
 

@@ -81,7 +81,7 @@ private function AddrOfType_ _
             if lo = Tko.NODE_NONE then exit for
             if c.ast->Kind( lo ) <> Tko.N_PAREN then exit for
             dim as Tko.ListPayload ptr pp = _
-                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, lo )].data )]
+                c.ast->ListOf( lo )
             if pp->count <> 1 then exit for
             lo = cast( Tko.NodeId, c.ast->children[pp->first] )
         next
@@ -192,7 +192,7 @@ private function ParenlessMethodOf_ _
     ( byref c as Ctx, byval sid as Tko.SymbolId, byval id as Tko.NodeId ) as Tko.SymbolId
 
     if sid = Tko.SYMBOL_NONE then return sid
-    if (c.ast->nodes[cast( int32, id )].flags and Tko.NF_CALL_TARGET) <> 0 then return sid
+    if (c.ast->Flags( id ) and Tko.NF_CALL_TARGET) <> 0 then return sid
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
     if s = nullptr then return sid
     if s->kind <> cast( uint8, Tko.SYM_PROC ) then return sid
@@ -210,7 +210,7 @@ private function ParenlessMethodOf_ _
         if pn = Tko.NODE_NONE then return sid
         if c.ast->Kind( pn ) <> Tko.N_PROC then return sid
         dim as Tko.StmtPayload ptr pp = _
-            @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
+            c.ast->StmtOf( pn )
         '' A SUB OR A FUNCTION; a property already has PropertyReadAccessor_.
         select case cast( Tko.TokenKind, pp->op )
         case Tko.KW_SUB, Tko.KW_FUNCTION
@@ -219,10 +219,10 @@ private function ParenlessMethodOf_ _
         end select
         dim as boolean callable = true
         for i as int32 = 0 to pp->count - 1
-            dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+            dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
             if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
             dim as Tko.StmtPayload ptr prp = _
-                @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )]
+                c.ast->StmtOf( prm )
             if prp->op = cast( uint16, Tko.TK_ELLIPSIS ) then continue for
             if prp->b = Tko.NODE_NONE then
                 callable = false
@@ -239,7 +239,7 @@ private function ParenlessMethodOf_ _
     if pick = sid then return sid
     c.info->SetRef( id, pick )
     if c.ast->Kind( id ) = Tko.N_MEMBER then
-        c.info->SetRef( c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, id )].data )].rhs, pick )
+        c.info->SetRef( c.ast->BinaryOf( id )->rhs, pick )
     end if
     return pick
 end function
@@ -334,11 +334,11 @@ private function UdtArgInert_ _
         if cs = nullptr then exit for
         dim as Tko.NodeId cn = cast( Tko.NodeId, cs->payload )
         if (cn = Tko.NODE_NONE) orelse (c.ast->Kind( cn ) <> Tko.N_PROC) then return false
-        dim as Tko.StmtPayload ptr cp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, cn )].data )]
+        dim as Tko.StmtPayload ptr cp = c.ast->StmtOf( cn )
         for i as int32 = 0 to cp->count - 1
-            dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[cp->first + i] )
+            dim as Tko.NodeId pn = c.ast->ChildAt( cp->first, i )
             if c.ast->Kind( pn ) <> Tko.N_PARAM then continue for
-            dim as Tko.NodeId pa = c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )].a
+            dim as Tko.NodeId pa = c.ast->StmtOf( pn )->a
             if pa = Tko.NODE_NONE then return false
             dim as Tko.TypeId pt = c.types->Unqualify( c.info->TypeOf_( pa ) )
             if c.types->Kind( pt ) = Tko.TK_REFERENCE then pt = c.types->Unqualify( c.types->Inner( pt ) )
@@ -434,7 +434,7 @@ function UdtCastTie_( byref c as Ctx, byref argT as containers.Array( of uint32 
                 end select
                 dim as Tko.NodeId cpn = cast( Tko.NodeId, s->payload )   '' 'byref as zstring' is spelled as a pointer
                 if (cpn = Tko.NODE_NONE) orelse (c.ast->Kind( cpn ) <> Tko.N_PROC) then return false
-                if (c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, cpn )].data )].extra and Tko.PF_BYREF_RESULT) <> 0 then return false
+                if (c.ast->StmtOf( cpn )->extra and Tko.PF_BYREF_RESULT) <> 0 then return false
             end if
             any_ = true
         case else
@@ -451,6 +451,6 @@ private function ByrefPropOperand_ _
     if c.ast->Kind( operand ) <> Tko.N_MEMBER then return false
     dim as Tko.NodeId ppn = cast( Tko.NodeId, psym->payload )
     if (ppn = Tko.NODE_NONE) orelse (c.ast->Kind( ppn ) <> Tko.N_PROC) then return false
-    if c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, ppn )].data )].op <> cast( uint16, Tko.KW_PROPERTY ) then return false
-    return ((c.ast->nodes[cast( int32, ppn )].flags and Tko.NF_BYREF) <> 0)
+    if c.ast->StmtOf( ppn )->op <> cast( uint16, Tko.KW_PROPERTY ) then return false
+    return ((c.ast->Flags( ppn ) and Tko.NF_BYREF) <> 0)
 end function

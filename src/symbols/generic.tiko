@@ -90,7 +90,7 @@ function InstantiateGeneric_ _
     if gp->b = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( gp->b ) <> Tko.N_BLOCK then return Tko.TYPE_NONE
     dim as Tko.ListPayload ptr plist = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, gp->b )].data )]
+        c.ast->ListOf( gp->b )
     if plist->count <> spCount then return Tko.TYPE_NONE
 
     '' THE REST READ NOW, like spCount: 'gs' points into the SYMBOL TABLE, 'gp' and
@@ -162,7 +162,7 @@ function InstantiateGeneric_ _
     '' declaration's NF_IS_UNION and the layout pass reads SYMF_UNION_KIND off the
     '' symbol; nothing set it here, so 'union Pun( of T )' laid out as a STRUCT --
     '' fields that must overlap did not and sizeof came out double, with no diagnostic.
-    if (c.ast->nodes[cast( int32, gn )].flags and Tko.NF_IS_UNION) <> 0 then
+    if (c.ast->Flags( gn ) and Tko.NF_IS_UNION) <> 0 then
         isym->flags or= Tko.SYMF_UNION_KIND
     end if
     dim as Tko.ScopeId iin = c.syms->OpenScope( Tko.SCOPEK_TYPE, ghome, isid )
@@ -185,7 +185,7 @@ function InstantiateGeneric_ _
         dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[plFirst + i] )
         if c.ast->Kind( pn ) <> Tko.N_IDENT then continue for
         dim as Tko.IdentPayload ptr pip = _
-            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
+            c.ast->IdentOf( pn )
         c.gparamName.Push( cast( uint32, pip->name ) )
         c.gparamType.Push( argTypes[i] )
     next
@@ -433,13 +433,13 @@ private function InferProcTypeArgs_ _
     if gp->c = Tko.NODE_NONE then return false
     if c.ast->Kind( gp->c ) <> Tko.N_BLOCK then return false
     dim as Tko.ListPayload ptr gl = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, gp->c )].data )]
+        c.ast->ListOf( gp->c )
     if gl->count <= 0 then return false
 
     dim as Tko.ListPayload ptr cl = ListOf( c, callId )
 
     for g as int32 = 0 to gl->count - 1
-        dim as Tko.NodeId gnm = cast( Tko.NodeId, c.ast->children[gl->first + g] )
+        dim as Tko.NodeId gnm = c.ast->ChildAt( gl->first, g )
         if c.ast->Kind( gnm ) <> Tko.N_IDENT then return false
         dim as Tko.InternId want = IdentNameOf( c, gnm )
         if want = 0 then return false
@@ -447,7 +447,7 @@ private function InferProcTypeArgs_ _
         dim as Tko.TypeId got = Tko.TYPE_NONE
         for k as int32 = 0 to gp->count - 1
             if k >= cl->count then exit for
-            dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[gp->first + k] )
+            dim as Tko.NodeId prm = c.ast->ChildAt( gp->first, k )
             if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
             dim as Tko.StmtPayload ptr pp = StmtOf( c, prm )
             if pp->a = Tko.NODE_NONE then continue for
@@ -473,7 +473,7 @@ private function InferProcTypeArgs_ _
                 end if
             end if
             if isPtrParam andalso (ptrName = want) then
-                dim as Tko.NodeId aNode = cast( Tko.NodeId, c.ast->children[cl->first + k] )
+                dim as Tko.NodeId aNode = c.ast->ChildAt( cl->first, k )
                 dim as Tko.TypeId aT = InferArgType_( c, aNode, scope_ )
                 if aT = Tko.TYPE_NONE then continue for
                 dim as Tko.TypeId aU = c.types->Unqualify( aT )
@@ -487,7 +487,7 @@ private function InferProcTypeArgs_ _
                 continue for
             end if
             if isPtrParam then
-                dim as int32 pi_ = InferPtrInst_( c, tp, want, cast( Tko.NodeId, c.ast->children[cl->first + k] ), scope_, got )
+                dim as int32 pi_ = InferPtrInst_( c, tp, want, c.ast->ChildAt( cl->first, k ), scope_, got )
                 if pi_ < 0 then return false
                 if pi_ > 0 then continue for
             end if
@@ -501,7 +501,7 @@ private function InferProcTypeArgs_ _
                 if tp->count <= 0 then continue for
                 dim as int32 at_ = -1
                 for j as int32 = 0 to tp->count - 1
-                    dim as Tko.NodeId an2 = cast( Tko.NodeId, c.ast->children[tp->first + j] )
+                    dim as Tko.NodeId an2 = c.ast->ChildAt( tp->first, j )
                     if c.ast->Kind( an2 ) <> Tko.N_TYPEREF then continue for
                     if StmtOf( c, an2 )->name = want then
                         at_ = j
@@ -510,7 +510,7 @@ private function InferProcTypeArgs_ _
                 next
                 if at_ < 0 then continue for
                 dim as Tko.TypeId argT = InferArgType_( c, _
-                    cast( Tko.NodeId, c.ast->children[cl->first + k] ), scope_ )
+                    c.ast->ChildAt( cl->first, k ), scope_ )
                 '' ...AND SO DOES AN ARGUMENT THIS CANNOT TYPE. Skipping it is the same
                 '' guess one step removed: 'FB.Contains( row.AsText( ), "x" )' -- a METHOD
                 '' call, which InferArgType_ does not type -- inferred T from the literal
@@ -538,7 +538,7 @@ private function InferProcTypeArgs_ _
                 continue for
             end if
             dim as Tko.TypeId cand = InferArgType_( c, _
-                cast( Tko.NodeId, c.ast->children[cl->first + k] ), scope_ )
+                c.ast->ChildAt( cl->first, k ), scope_ )
             if MergeInferred_( c, got, cand ) = false then return false
         next
         if got = Tko.TYPE_NONE then return false
@@ -602,14 +602,14 @@ function InstantiateGenericProc_ _
     dim as Tko.SymbolId methodHead = Tko.SYMBOL_NONE
     if c.ast->Kind( tgt ) = Tko.N_MEMBER then
         dim as Tko.BinaryPayload ptr qbp = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, tgt )].data )]
+            c.ast->BinaryOf( tgt )
         '' ...AND A METHOD CALL IS ONE TOO, when the method is generic -- genericmethod.tiko.
         methodHead = GenericMethodHead_( c, tgt, scope_ )
         if methodHead <> Tko.SYMBOL_NONE then tgt = qbp->rhs
     end if
     if (methodHead = Tko.SYMBOL_NONE) andalso (c.ast->Kind( tgt ) = Tko.N_MEMBER) then
         dim as Tko.BinaryPayload ptr qbp = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, tgt )].data )]
+            c.ast->BinaryOf( tgt )
         if c.ast->Kind( qbp->lhs ) <> Tko.N_IDENT then return Tko.SYMBOL_NONE
         '' THE NAMESPACE'S OWN BINDING, which Resolve has already made -- and its
         '' member scope is 'inner', not 'payload'.
@@ -685,7 +685,7 @@ function InstantiateGenericProc_ _
     if gp->c = Tko.NODE_NONE then return Tko.SYMBOL_NONE
     if c.ast->Kind( gp->c ) <> Tko.N_BLOCK then return Tko.SYMBOL_NONE
     dim as Tko.ListPayload ptr pl = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, gp->c )].data )]
+        c.ast->ListOf( gp->c )
     '' ...WRITTEN WITH THE WRONG NUMBER is fbc's 336: 'Mk( of long, long )( 1 )' over
     '' 'Mk( of T )' dropped its statement in silence. See GenericArgsCheck_ for the type half.
     if written andalso (pl->count <> taCount) then
@@ -850,13 +850,13 @@ sub InstantiatePendingProcs_( byref c as Ctx )
         if gp->c <> Tko.NODE_NONE then
             if c.ast->Kind( gp->c ) = Tko.N_BLOCK then
                 dim as Tko.ListPayload ptr pl = _
-                    @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, gp->c )].data )]
+                    c.ast->ListOf( gp->c )
                 for k as int32 = 0 to argCount - 1
                     if k >= pl->count then exit for
-                    dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[pl->first + k] )
+                    dim as Tko.NodeId pn = c.ast->ChildAt( pl->first, k )
                     if c.ast->Kind( pn ) <> Tko.N_IDENT then continue for
                     dim as Tko.IdentPayload ptr pip = _
-                        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
+                        c.ast->IdentOf( pn )
                     c.gparamName.Push( cast( uint32, pip->name ) )
                     c.gparamType.Push( c.pendProcArgs[argFirst + k] )
                 next
@@ -1166,13 +1166,13 @@ private sub InstantiateGlobalOpsFor_ _
         if dp->c = Tko.NODE_NONE then continue for
         if c.ast->Kind( dp->c ) <> Tko.N_BLOCK then continue for
         dim as Tko.ListPayload ptr tl = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, dp->c )].data )]
+            c.ast->ListOf( dp->c )
         if tl->count <> argCount then continue for
 
         '' ...and a first parameter that names THIS generic.
         dim as boolean overThis = false
         for k as int32 = 0 to dp->count - 1
-            dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[dp->first + k] )
+            dim as Tko.NodeId prm = c.ast->ChildAt( dp->first, k )
             if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
             dim as Tko.NodeId tn = StmtOf( c, prm )->a
             if tn <> Tko.NODE_NONE then
@@ -1279,7 +1279,7 @@ private function TypeBodyProcMods_ _
     if c.ast->Kind( gnode ) <> Tko.N_TYPE then return 0
     dim as Tko.StmtPayload ptr tp = StmtOf( c, gnode )
     for i as int32 = 0 to tp->count - 1
-        dim as Tko.NodeId m = cast( Tko.NodeId, c.ast->children[tp->first + i] )
+        dim as Tko.NodeId m = c.ast->ChildAt( tp->first, i )
         if c.ast->Kind( m ) <> Tko.N_PROC then continue for
         dim as Tko.StmtPayload ptr mp = StmtOf( c, m )
         if mp->name <> mname then continue for
@@ -1309,13 +1309,13 @@ private sub InstantiateMembers_ _
     if gp->b <> Tko.NODE_NONE then
         if c.ast->Kind( gp->b ) = Tko.N_BLOCK then
             dim as Tko.ListPayload ptr pl = _
-                @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, gp->b )].data )]
+                c.ast->ListOf( gp->b )
             for i as int32 = 0 to argCount - 1
                 if i >= pl->count then exit for
-                dim as Tko.NodeId pn = cast( Tko.NodeId, c.ast->children[pl->first + i] )
+                dim as Tko.NodeId pn = c.ast->ChildAt( pl->first, i )
                 if c.ast->Kind( pn ) <> Tko.N_IDENT then continue for
                 dim as Tko.IdentPayload ptr pip = _
-                    @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
+                    c.ast->IdentOf( pn )
                 c.gparamName.Push( cast( uint32, pip->name ) )
                 c.gparamType.Push( c.pendInstArgs[argFirst + i] )
             next

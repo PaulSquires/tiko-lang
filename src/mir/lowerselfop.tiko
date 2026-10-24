@@ -49,7 +49,7 @@ private function ParamCountOf_ _
     dim as Tko.StmtPayload ptr pp = StmtOf( c, pn )
     dim as int32 np = 0
     for i as int32 = 0 to pp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
         if c.ast->Kind( prm ) = Tko.N_PARAM then np += 1
     next
     return np
@@ -73,7 +73,7 @@ private function ArrayArgElem_ _
     dim as Tko.NodeId nameNode = argNode
     if c.ast->Kind( argNode ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, argNode )].data )]
+            c.ast->ListOf( argNode )
         if lp->count <> 0 then return Tko.TYPE_NONE
         if lp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
         nameNode = lp->target
@@ -392,11 +392,11 @@ function LowerRgbCall_ _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
     dim as int32 want = 0
     if nm = "rgb" then
@@ -412,7 +412,7 @@ function LowerRgbCall_ _
     '' output amount to.
     dim as MirValue parts( 0 to 3 )
     for i as int32 = 0 to want - 1
-        dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->children[cp->first + i] )
+        dim as Tko.NodeId an = c.ast->ChildAt( cp->first, i )
         dim as MirValue v = LowerNumArg_( c, an, MT_I64 )
         if v.kind = cast( uint8, MV_NONE ) then return false
         dim as MirInst m

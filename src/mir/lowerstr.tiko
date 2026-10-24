@@ -297,7 +297,7 @@ function StringLitText_ _
 
     if c.ast->Kind( id ) <> Tko.N_STRING_LIT then return ""
     dim as Tko.LiteralPayload ptr lp = _
-        @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->LiteralOf( id )
     if lp->strLength <= 0 then return ""
     '' The literal's OWN file, not the node's loc: a literal built by macro expansion is
     '' repointed at the use site for diagnostics, and its text does not live there.
@@ -783,7 +783,7 @@ function LowerPrint( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     '' tabbed field, and the file lowered clean with the statement missing.
     dim as int32 usedSep = -1
     for i as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        dim as Tko.NodeId it = c.ast->ChildAt( sp->first, i )
         if c.ast->Kind( it ) = Tko.N_PRINT_SEP then
             '' 'print x; using f; a' -- A USING THAT STARTS PART WAY THROUGH. What
             '' precedes it has just been printed plainly; everything after it belongs
@@ -810,7 +810,7 @@ function LowerPrint( byref c as Ctx, byval id as Tko.NodeId ) as boolean
         '' else -- including running out of children -- ends the line.
         dim as int32 mask = 1
         if i + 1 < sp->count then
-            dim as Tko.NodeId nx = cast( Tko.NodeId, c.ast->children[sp->first + i + 1] )
+            dim as Tko.NodeId nx = c.ast->ChildAt( sp->first, i + 1 )
             if c.ast->Kind( nx ) = Tko.N_PRINT_SEP then
                 dim as Tko.StmtPayload ptr np = StmtOf( c, nx )
                 if np->op = cast( uint16, Tko.TK_COMMA ) then
@@ -943,12 +943,12 @@ function LowerLen _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if lp->count <> 1 then return false
     if lp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
+        c.ast->IdentOf( lp->target )
     dim as string lenNm = LowerSpelling_( c.ix, *c.names, ip->name )
     '' SIZEOF IS NOT LEN. It is ALWAYS the type's size and never a runtime call:
     '' measured, 'sizeof( s )' over a var-length string is 24 and 'sizeof( z )' over a
@@ -973,7 +973,7 @@ function LowerLen _
                 dim as boolean uop = false
                 if udecl <> Tko.NODE_NONE then
                     if c.ast->Kind( udecl ) = Tko.N_PROC then
-                        uop = (c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, udecl )].data )].op _
+                        uop = (c.ast->StmtOf( udecl )->op _
                                = cast( uint16, Tko.KW_OPERATOR ))
                     end if
                 end if
@@ -1040,7 +1040,7 @@ function LowerLen _
     '' 24 of the literal's STRING type. Narrow only, and not an escaped literal ('\u' stays raw).
     dim as Tko.NodeId sza = Unparen_( c, a )
     dim as boolean szEsc = false
-    if c.ast->Kind( sza ) = Tko.N_STRING_LIT then szEsc = (c.ast->literals[cast( int32, c.ast->nodes[cast( int32, sza )].data )].strKind = cast( uint8, Tko.STRK_ESCAPED ))
+    if c.ast->Kind( sza ) = Tko.N_STRING_LIT then szEsc = (c.ast->LiteralOf( sza )->strKind = cast( uint8, Tko.STRK_ESCAPED ))
     dim as string szt
     if szEsc then szEsc = LitHasUnicodeEscape_( c, sza )   '' only a '\u' keeps it raw; '!"p\0q"' is 4 bytes
     if isSizeof andalso (szEsc = false) andalso (TermIsWide_( c, a ) = false) andalso ConstStringTextOf_( c, a, szt, 1 ) then outv = ConstInt( c, len( szt ) + 1, MT_I64 ) : return (outv.kind <> cast( uint8, MV_NONE ))
@@ -1083,7 +1083,7 @@ function LowerLen _
     if c.ast->Kind( a ) = Tko.N_IDENT then
         if c.types->Kind( c.types->Unqualify( at ) ) = Tko.TK_POINTER then
             dim as Tko.IdentPayload ptr lip = _
-                @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, a )].data )]
+                c.ast->IdentOf( a )
             if lip->name = c.names->Fold( c.names->GetString( "this" ) ) then
                 dim as Tko.TypeId pin = c.types->Inner( c.types->Unqualify( at ) )
                 if pin <> Tko.TYPE_NONE then at = pin
@@ -1256,18 +1256,18 @@ end function
 function IifArmType_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
     if c.ast->Kind( id ) <> Tko.N_CALL then return Tko.TYPE_NONE
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if lp->count <> 3 then return Tko.TYPE_NONE
     if lp->target = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return Tko.TYPE_NONE
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
+        c.ast->IdentOf( lp->target )
     if LowerSpelling_( c.ix, *c.names, ip->name ) <> "iif" then
         return Tko.TYPE_NONE
     end if
     for k as int32 = 1 to 2
         dim as Tko.TypeId at = _
-            c.info->TypeOf_( cast( Tko.NodeId, c.ast->children[lp->first + k] ) )
+            c.info->TypeOf_( c.ast->ChildAt( lp->first, k ) )
         if at <> Tko.TYPE_NONE then return at
     next
     return Tko.TYPE_NONE
@@ -1280,12 +1280,12 @@ function IsIifCall_ _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if lp->count <> 3 then return false
     if lp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
+        c.ast->IdentOf( lp->target )
     if LowerSpelling_( c.ix, *c.names, ip->name ) <> "iif" then return false
     condE = cast( Tko.NodeId, c.ast->children[lp->first] )
     thenE = cast( Tko.NodeId, c.ast->children[lp->first + 1] )
@@ -1302,16 +1302,16 @@ end function
 function IsStringIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if lp->count <> 3 then return false
     if lp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
+        c.ast->IdentOf( lp->target )
     if LowerSpelling_( c.ix, *c.names, ip->name ) <> "iif" then return false
 
     for k as int32 = 1 to 2
-        dim as Tko.NodeId arm = cast( Tko.NodeId, c.ast->children[lp->first + k] )
+        dim as Tko.NodeId arm = c.ast->ChildAt( lp->first, k )
         if c.ast->Kind( arm ) = Tko.N_STRING_LIT then return true
         if IsStringType( c, c.info->TypeOf_( arm ) ) then return true
     next

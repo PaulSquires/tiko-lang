@@ -15,7 +15,7 @@ function InitCountAt _
         if n = Tko.NODE_NONE then return -1
         if c.ast->Kind( n ) <> Tko.N_INITIALIZER then return -1
         dim as Tko.ListPayload ptr lp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+            c.ast->ListOf( n )
         if level = depth then return lp->count
         if lp->count = 0 then return -1
         n = cast( Tko.NodeId, c.ast->children[lp->first] )
@@ -53,15 +53,15 @@ function FieldArrayType_ _
     end if
     '' 'redim g( any )' is a plain dynamic field, unsized: ArrayFromBounds already answers that.
     for i as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId bn = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        dim as Tko.NodeId bn = c.ast->ChildAt( sp->first, i )
         if c.ast->Kind( bn ) = Tko.N_IDENT then
-            if Tko.Text.LowerAscii( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, bn )].data )].name ) ) = "any" then
+            if Tko.Text.LowerAscii( c.names->Spelling( c.ast->IdentOf( bn )->name ) ) = "any" then
                 return ArrayFromBounds( c, t, sp->first, sp->count, here )
             end if
         end if
     next
     for i as int32 = 0 to sp->count - 1
-        WalkExpr( c, cast( Tko.NodeId, c.ast->children[sp->first + i] ), here )
+        WalkExpr( c, c.ast->ChildAt( sp->first, i ), here )
     next
     return c.types->DynArrayOf( t, sp->count \ 2 )
 end function

@@ -91,12 +91,12 @@ private function UdtHasTextClassCast_ ( byref c as Ctx, byval t as TypeId ) as b
 end function
 
 sub CheckUdtStrIntrinsic_ ( byref c as Ctx, byval id as NodeId )
-    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as ListPayload ptr lp = c.ast->ListOf( id )
     if (lp->count < 1) orelse (lp->target = NODE_NONE) then return
     if c.ast->Kind( lp->target ) <> N_IDENT then return
     if c.info->RefOf( lp->target ) <> SYMBOL_NONE then return
     dim as string nm = lcase( c.names->Spelling( _
-        c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name ) )
+        c.ast->IdentOf( lp->target )->name ) )
     dim as NodeId a = cast( NodeId, c.ast->children[lp->first] )
     dim as TypeId at = c.info->TypeOf_( a )
     if at = TYPE_NONE then return
@@ -124,12 +124,12 @@ sub CheckUdtStrIntrinsic_ ( byref c as Ctx, byval id as NodeId )
 end sub
 
 sub CheckUdtPrintUsing_ ( byref c as Ctx, byval id as NodeId )
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as StmtPayload ptr sp = c.ast->StmtOf( id )
     if cast( TokenKind, sp->op ) <> KW_PRINT then return
     if sp->extra = 0 then return
     '' The format is not one of the children; every child is an item or a separator.
     for i as int32 = 0 to sp->count - 1
-        dim as NodeId it = cast( NodeId, c.ast->children[sp->first + i] )
+        dim as NodeId it = c.ast->ChildAt( sp->first, i )
         if c.ast->Kind( it ) = N_PRINT_SEP then continue for
         dim as TypeId at = c.info->TypeOf_( it )
         if at = TYPE_NONE then continue for

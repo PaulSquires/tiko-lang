@@ -34,7 +34,7 @@ function LowerClose( byref c as Ctx, byval id as Tko.NodeId ) as boolean
     end if
 
     for i as int32 = 0 to sp->count - 1
-        dim as Tko.NodeId it = cast( Tko.NodeId, c.ast->children[sp->first + i] )
+        dim as Tko.NodeId it = c.ast->ChildAt( sp->first, i )
         '' An ELIDED slot is 'close ,' -- the corpus reaches it through a variadic
         '' macro invoked with an empty argument. fbc closes nothing for it.
         if c.ast->Kind( it ) = Tko.N_ELIDED then continue for
@@ -847,12 +847,12 @@ function LowerIif _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if lp->count <> 3 then return false
     if lp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
+        c.ast->IdentOf( lp->target )
     if LowerSpelling_( c.ix, *c.names, ip->name ) <> "iif" then return false
 
     '' The result type is the one the surrounding expression asked for; an aggregate
@@ -993,7 +993,7 @@ private function IsVirtualArg_( byref c as Ctx, byval a as Tko.NodeId ) as boole
     if a = Tko.NODE_NONE then return false
     if c.ast->Kind( a ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, a )].data )]
+        c.ast->IdentOf( a )
     return (LowerSpelling_( c.ix, *c.names, ip->name ) = "virtual")
 end function
 
@@ -1261,12 +1261,12 @@ function LowerVarPtrCall_ _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if cp->count <> 1 then return false
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
     if nm <> "varptr" then return false
 
@@ -1280,12 +1280,12 @@ function LowerStrPtrCall_ _
 
     if c.ast->Kind( id ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->ListOf( id )
     if cp->count <> 1 then return false
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     '' SADD IS THE SAME THING BY ANOTHER NAME. Measured: 'sadd( s )' emits
     '' '*(char**)&S$0' -- the descriptor's DATA POINTER -- byte for byte what
     '' 'strptr( s )' emits, and over a fixed string both give the buffer's address.

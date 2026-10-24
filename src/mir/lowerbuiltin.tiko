@@ -139,7 +139,7 @@ function LowerBuiltinProc _
     if calleeNode = Tko.NODE_NONE then return false
     if c.ast->Kind( calleeNode ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, calleeNode )].data )]
+        c.ast->IdentOf( calleeNode )
     dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
 
     '' ASSERT AND ASSERTWARN EMIT NOTHING, and their argument is NOT EVALUATED.
@@ -252,7 +252,7 @@ function LowerBuiltinProc _
         dim as boolean forcedByval = false
         if c.ast->Kind( a ) = Tko.N_UNARY then
             dim as Tko.UnaryPayload ptr bup = _
-                @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, a )].data )]
+                c.ast->UnaryOf( a )
             if cast( Tko.TokenKind, bup->op ) = Tko.KW_BYVAL then
                 forcedByval = true
                 a = bup->operand

@@ -35,7 +35,7 @@ end function
 private sub CheckConstSubscript_ ( byref c as Ctx, byval id as NodeId )
     if (c.errFlags and 8) = 0 then return
     if c.srcMgr = nullptr then return
-    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as ListPayload ptr lp = c.ast->ListOf( id )
     if lp->target = NODE_NONE then return
     dim as TypeId at = c.info->TypeOf_( lp->target )
     if at = TYPE_NONE then return
@@ -56,7 +56,7 @@ private sub CheckConstSubscript_ ( byref c as Ctx, byval id as NodeId )
         dim as int64 lo = c.types->ArrayBound( at, k, false, lk )
         dim as int64 hi = c.types->ArrayBound( at, k, true, hk )
         if (lk = false) orelse (hk = false) then return
-        dim as NodeId ix = cast( NodeId, c.ast->children[lp->first + k] )
+        dim as NodeId ix = c.ast->ChildAt( lp->first, k )
         dim as Check.ConstVal cv = Check.ConstOf( *c.ast, ix, *c.srcMgr, *c.names, 64, _
             c.syms, UseScope_( c, ix, id, lp->target ), 0, c.types, c.info )
         if cv.known = false then continue for

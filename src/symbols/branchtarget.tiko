@@ -42,7 +42,7 @@ end function
 private sub BtExit_ _
     ( byref c as Ctx, byval id as NodeId, byval procKw as TokenKind, _
       byval nFor as int32, byval nDo as int32, byval nWhile as int32, byval nSel as int32 )
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as StmtPayload ptr sp = c.ast->StmtOf( id )
     dim as TokenKind kw = cast( TokenKind, sp->op )
     dim as string what = BtBlockName_( kw )
     if len( what ) = 0 then return
@@ -72,19 +72,19 @@ private sub BtLabels_ ( byref c as Ctx, byval id as NodeId, byref labels as cont
     if (NodeKindCategory( k ) = NCAT_EXPR) orelse (NodeKindCategory( k ) = NCAT_TYPE) then return
     if k = N_PROC then return
     if (k = N_MODULE) orelse (k = N_BLOCK) then
-        dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        dim as ListPayload ptr lp = c.ast->ListOf( id )
         for i as int32 = 0 to lp->count - 1
-            BtLabels_( c, cast( NodeId, c.ast->children[lp->first + i] ), labels )
+            BtLabels_( c, c.ast->ChildAt( lp->first, i ), labels )
         next
         return
     end if
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as StmtPayload ptr sp = c.ast->StmtOf( id )
     if k = N_LABEL then labels.Push( cast( uint32, sp->name ) ) : return
     BtLabels_( c, sp->a, labels )
     BtLabels_( c, sp->b, labels )
     BtLabels_( c, sp->c, labels )
     for i as int32 = 0 to sp->count - 1
-        BtLabels_( c, cast( NodeId, c.ast->children[sp->first + i] ), labels )
+        BtLabels_( c, c.ast->ChildAt( sp->first, i ), labels )
     next
 end sub
 
@@ -114,14 +114,14 @@ private sub BtWalk_ _
         return
     end select
     if (k = N_MODULE) orelse (k = N_BLOCK) then
-        dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        dim as ListPayload ptr lp = c.ast->ListOf( id )
         for i as int32 = 0 to lp->count - 1
-            BtWalk_( c, cast( NodeId, c.ast->children[lp->first + i] ), procKw, _
+            BtWalk_( c, c.ast->ChildAt( lp->first, i ), procKw, _
                      nFor, nDo, nWhile, nSel, labels )
         next
         return
     end if
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as StmtPayload ptr sp = c.ast->StmtOf( id )
     if k = N_GOTO then
         if sp->name = 0 then return
         if labels.Contains( cast( uint32, sp->name ) ) then return
@@ -132,7 +132,7 @@ private sub BtWalk_ _
     BtWalk_( c, sp->b, procKw, nFor, nDo, nWhile, nSel, labels )
     BtWalk_( c, sp->c, procKw, nFor, nDo, nWhile, nSel, labels )
     for i as int32 = 0 to sp->count - 1
-        BtWalk_( c, cast( NodeId, c.ast->children[sp->first + i] ), procKw, _
+        BtWalk_( c, c.ast->ChildAt( sp->first, i ), procKw, _
                  nFor, nDo, nWhile, nSel, labels )
     next
 end sub

@@ -51,11 +51,11 @@ private function ThroughCall_ ( byref c as Ctx, byval n as NodeId ) as boolean
         case N_PAREN
             n = Unparen3_( c, n )
         case N_MEMBER
-            n = c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, n )].data )].lhs
+            n = c.ast->BinaryOf( n )->lhs
         case N_DEREF
-            n = c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, n )].data )].operand
+            n = c.ast->UnaryOf( n )->operand
         case N_CALL
-            dim as NodeId tg = c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )].target
+            dim as NodeId tg = c.ast->ListOf( n )->target
             if tg = NODE_NONE then return false
             dim as Symbol ptr ts = c.syms->SymbolAt( c.info->RefOf( n ) )
             if ts = nullptr then ts = c.syms->SymbolAt( c.info->RefOf( tg ) )
@@ -73,12 +73,12 @@ end function
 private sub CheckGetElemThroughCall_ ( byref c as Ctx, byval n as NodeId )
     '' THE ELEMENT: an indexing call over a field or variable -- not a call's own result.
     if (n = NODE_NONE) orelse (c.ast->Kind( n ) <> N_CALL) then return
-    dim as NodeId tg = c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )].target
+    dim as NodeId tg = c.ast->ListOf( n )->target
     if (tg = NODE_NONE) orelse (c.ast->Kind( tg ) <> N_MEMBER) then return
     dim as Symbol ptr fs = c.syms->SymbolAt( c.info->RefOf( tg ) )
     if fs = nullptr then return
     if fs->kind <> cast( uint8, SYM_FIELD ) then return
-    if ThroughCall_( c, c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, tg )].data )].lhs ) = false then return
+    if ThroughCall_( c, c.ast->BinaryOf( tg )->lhs ) = false then return
     c.diags->Report( TKO0883, PointRange( c.ast->Loc( n ) ) )
 end sub
 
@@ -107,18 +107,18 @@ private sub ConstOutReport_ ( byref c as Ctx, byval n as NodeId )
 end sub
 
 sub CheckConstOutput_ ( byref c as Ctx, byval id as NodeId )
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as StmtPayload ptr sp = c.ast->StmtOf( id )
     if c.ast->Kind( id ) = N_INTRINSIC then
         select case cast( TokenKind, sp->op )
         case KW_INPUT, KW_READ
             for i as int32 = 0 to sp->count - 1
-                ConstOutReport_( c, cast( NodeId, c.ast->children[sp->first + i] ) )
+                ConstOutReport_( c, c.ast->ChildAt( sp->first, i ) )
             next
         case KW_LINE
             '' LINE INPUT only (bit 1 of 'extra'); the graphics LINE writes nothing.
             if (sp->extra and 1) = 0 then return
             for i as int32 = 0 to sp->count - 1
-                ConstOutReport_( c, cast( NodeId, c.ast->children[sp->first + i] ) )
+                ConstOutReport_( c, c.ast->ChildAt( sp->first, i ) )
             next
             '' THE DESTINATION -- TKO0967 -- by LowerLineInput's own rule: the first child, or
             '' the second when a console form's prompt was parsed as a child ('line input ps, s').
@@ -127,7 +127,7 @@ sub CheckConstOutput_ ( byref c as Ctx, byval id as NodeId )
             dim as boolean promptKid = (sp->a = NODE_NONE) andalso (sp->c = NODE_NONE)
             if promptKid andalso (sp->count >= 2) then ldi = 1
             if ldi < sp->count then
-                dim as NodeId ld = cast( NodeId, c.ast->children[sp->first + ldi] )
+                dim as NodeId ld = c.ast->ChildAt( sp->first, ldi )
                 dim as TypeId lt = c.info->TypeOf_( ld )
                 if LineInputDst_( c, lt ) = false then
                     c.diags->Report( TKO0967, PointRange( c.ast->Loc( ld ) ), c.types->Name( lt ) )
@@ -139,16 +139,16 @@ sub CheckConstOutput_ ( byref c as Ctx, byval id as NodeId )
             if sp->count < 1 then return
             dim as int32 gi = sp->count - 1
             if ((sp->extra and 1) <> 0) andalso (sp->count >= 2) then gi = 1
-            ConstOutReport_( c, cast( NodeId, c.ast->children[sp->first + gi] ) )
+            ConstOutReport_( c, c.ast->ChildAt( sp->first, gi ) )
             '' Bit 1 of 'extra' is the FILE form; the graphics one alone refuses a call's element.
-            if (sp->extra and 1) = 0 then CheckGetElemThroughCall_( c, cast( NodeId, c.ast->children[sp->first + gi] ) )
+            if (sp->extra and 1) = 0 then CheckGetElemThroughCall_( c, c.ast->ChildAt( sp->first, gi ) )
         case KW_LSET, KW_RSET
             if sp->count < 1 then return
             dim as NodeId t0 = cast( NodeId, c.ast->children[sp->first] )
             '' A USTRING SOURCE -- TKO0980, fbc's 24. Lowering had no entry point for it and
             '' stopped on TKO0994 (the ustring variant of rosetta Align_columns).
             if c.ast->Kind( t0 ) = N_BINARY then
-                dim as NodeId ls = c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, t0 )].data )].rhs
+                dim as NodeId ls = c.ast->BinaryOf( t0 )->rhs
                 dim as TypeId lt = c.types->Unqualify( c.info->TypeOf_( ls ) )
                 if c.types->Kind( lt ) = TK_REFERENCE then lt = c.types->Unqualify( c.types->Inner( lt ) )
                 if c.types->Kind( lt ) = TK_ARRAY then lt = c.types->Unqualify( c.types->Inner( lt ) )
@@ -160,7 +160,7 @@ sub CheckConstOutput_ ( byref c as Ctx, byval id as NodeId )
                     end if
                 end if
             end if
-            if c.ast->Kind( t0 ) = N_BINARY then t0 = c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, t0 )].data )].lhs
+            if c.ast->Kind( t0 ) = N_BINARY then t0 = c.ast->BinaryOf( t0 )->lhs
             ConstOutReport_( c, t0 )
         end select
         return
@@ -185,17 +185,17 @@ sub CheckConstOutput_ ( byref c as Ctx, byval id as NodeId )
     if callee->kind <> cast( uint8, SYM_PROC ) then return
     dim as NodeId decl = cast( NodeId, callee->payload )
     if (decl = NODE_NONE) orelse (c.ast->Kind( decl ) <> N_PROC) then return
-    dim as StmtPayload ptr pp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, decl )].data )]
+    dim as StmtPayload ptr pp = c.ast->StmtOf( decl )
     dim as int32 ai = 0
     for i as int32 = 0 to pp->count - 1
-        dim as NodeId prm = cast( NodeId, c.ast->children[pp->first + i] )
+        dim as NodeId prm = c.ast->ChildAt( pp->first, i )
         if c.ast->Kind( prm ) <> N_PARAM then continue for
         if ai >= sp->count then exit for
-        dim as NodeId arg = cast( NodeId, c.ast->children[sp->first + ai] )
+        dim as NodeId arg = c.ast->ChildAt( sp->first, ai )
         ai += 1
-        if (c.ast->nodes[cast( int32, prm )].flags and NF_BYREF) = 0 then continue for
+        if (c.ast->Flags( prm ) and NF_BYREF) = 0 then continue for
         if c.ast->Kind( arg ) <> N_IDENT then continue for
-        dim as StmtPayload ptr prp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )]
+        dim as StmtPayload ptr prp = c.ast->StmtOf( prm )
         if prp->a <> NODE_NONE then
             dim as TypeId pt = c.info->TypeOf_( prp->a )
             if (pt <> TYPE_NONE) andalso c.types->IsConst( pt ) then continue for

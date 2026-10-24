@@ -25,7 +25,7 @@
 '' the wrapped type on its SYMBOL and not on its written typeref, whose recorded type is T.
 function ArrProcResult_ ( byref c as Ctx, byval id as NodeId ) as TypeId
     dim as StmtPayload ptr pp = _
-        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->StmtOf( id )
     if (pp->extra and PF_ARRAY_RESULT) <> 0 then
         dim as Symbol ptr ps = c.syms->SymbolAt( c.info->RefOf( id ) )
         if ps <> nullptr then return ps->type_
@@ -60,7 +60,7 @@ private sub ArrCheckNamed_ _
     if isLocal then return
     dim as string nm = ""
     if c.ast->Kind( n ) = N_IDENT then
-        nm = c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, n )].data )].name )
+        nm = c.names->Spelling( c.ast->IdentOf( n )->name )
     end if
     c.diags->Report( TKO0840, PointRange( c.ast->Loc( at_ ) ), nm )
 end sub
@@ -73,16 +73,16 @@ private sub ArrCheckSource_ _
     for guard as int32 = 0 to 15
         if e = NODE_NONE then return
         if c.ast->Kind( e ) <> N_PAREN then exit for
-        dim as ListPayload ptr pl = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+        dim as ListPayload ptr pl = c.ast->ListOf( e )
         if pl->count <> 1 then exit for
         e = cast( NodeId, c.ast->children[pl->first] )
     next
 
     select case c.ast->Kind( e )
     case N_INITIALIZER
-        dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+        dim as ListPayload ptr lp = c.ast->ListOf( e )
         for i as int32 = 0 to lp->count - 1
-            dim as NodeId el = cast( NodeId, c.ast->children[lp->first + i] )
+            dim as NodeId el = c.ast->ChildAt( lp->first, i )
             if c.ast->Kind( el ) = N_INITIALIZER then
                 c.diags->Report( TKO0839, PointRange( c.ast->Loc( el ) ) )
                 return
@@ -91,7 +91,7 @@ private sub ArrCheckSource_ _
     case N_IDENT
         ArrCheckNamed_( c, at_, rt, e )
     case N_CALL
-        dim as ListPayload ptr cp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+        dim as ListPayload ptr cp = c.ast->ListOf( e )
         dim as SymbolId callee = c.info->RefOf( e )
         if (callee = SYMBOL_NONE) andalso (cp->target <> NODE_NONE) then callee = c.info->RefOf( cp->target )
         dim as Symbol ptr cs = c.syms->SymbolAt( callee )
@@ -122,14 +122,14 @@ private function ArrIsResultCall_ ( byref c as Ctx, byval e0 as NodeId ) as bool
     for guard as int32 = 0 to 15
         if e = NODE_NONE then return false
         if c.ast->Kind( e ) <> N_PAREN then exit for
-        dim as ListPayload ptr pl = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+        dim as ListPayload ptr pl = c.ast->ListOf( e )
         if pl->count <> 1 then return false
         e = cast( NodeId, c.ast->children[pl->first] )
     next
     if e = NODE_NONE then return false
     if c.ast->Kind( e ) <> N_CALL then return false
     if c.types->IsDynArray( c.types->Unqualify( c.info->TypeOf_( e ) ) ) = false then return false
-    dim as ListPayload ptr cp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+    dim as ListPayload ptr cp = c.ast->ListOf( e )
     dim as SymbolId callee = c.info->RefOf( e )
     if (callee = SYMBOL_NONE) andalso (cp->target <> NODE_NONE) then callee = c.info->RefOf( cp->target )
     dim as Symbol ptr cs = c.syms->SymbolAt( callee )
@@ -140,7 +140,7 @@ end function
 '' AN ARRAY RESULT'S VALUE IS AN ARRAY, and converts to nothing else. It gave no error and
 '' stored a zero: 'dim x as integer = f( )' compiled and x held nothing.
 sub CheckArrayReturn_ ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId )
-    dim as NodeId e = c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )].a
+    dim as NodeId e = c.ast->StmtOf( id )->a
     if c.types->IsDynArray( resultType ) = false then
         if ArrIsResultCall_( c, e ) then c.diags->Report( TKO0842, PointRange( c.ast->Loc( id ) ) )
         return
@@ -159,7 +159,7 @@ private function WholeArray_ ( byref c as Ctx, byval n as NodeId, byref wt as Ty
     wt = TYPE_NONE
     if n = NODE_NONE then return false
     if c.ast->Kind( n ) = N_CALL then
-        dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, n )].data )]
+        dim as ListPayload ptr lp = c.ast->ListOf( n )
         if (lp->count <> 0) orelse (lp->target = NODE_NONE) then return false
         n = lp->target
     end if
@@ -176,7 +176,7 @@ end function
 '' ...AND NO 'swap' OPERAND (T22): fbc's 73 for 'swap a, c', measured. tiko swapped two arrays
 '' of one size and silently dropped the statement for two of different sizes.
 sub CheckArraySwap_ ( byref c as Ctx, byval id as NodeId )
-    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as StmtPayload ptr sp = c.ast->StmtOf( id )
     if cast( TokenKind, sp->op ) <> KW_SWAP then return
     dim as TypeId wt
     if WholeArray_( c, sp->a, wt ) then
@@ -188,7 +188,7 @@ end sub
 
 sub CheckArrayAssign_ ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId )
     dim as StmtPayload ptr sp = _
-        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->StmtOf( id )
     if (sp->a = NODE_NONE) orelse (sp->b = NODE_NONE) then return
     dim as boolean isRes = (c.ast->Kind( sp->a ) = N_FUNCRESULT)
     '' A WHOLE ARRAY IS NO ASSIGNMENT TARGET (T22) -- fbc's error 73, "Array access, index
@@ -224,11 +224,11 @@ end sub
 '' error 75 for any initialised dynamic array, and a 'var' takes the array's type.
 sub CheckArrayInit_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr ip = _
-        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->StmtOf( id )
     if (ip->a = NODE_NONE) orelse (ip->b = NODE_NONE) then return
     if ArrIsResultCall_( c, ip->b ) = false then return
     '' AN ARRAY DECLARATION IS TKO0612'S -- the item carries NF_ARRAY, its type node only the element.
-    if (c.ast->nodes[cast( int32, id )].flags and NF_ARRAY) <> 0 then return
+    if (c.ast->Flags( id ) and NF_ARRAY) <> 0 then return
     if c.info->TypeOf_( ip->a ) = TYPE_NONE then return
     c.diags->Report( TKO0842, PointRange( c.ast->Loc( ip->b ) ) )
 end sub
@@ -238,7 +238,7 @@ end sub
 '' compiled to nothing. fbc lets a procedure without parameters be called bare; for an array
 '' result that would be a second way to write a call, so it is refused.
 sub CheckArrayResultName_ ( byref c as Ctx, byval id as NodeId )
-    if (c.ast->nodes[cast( int32, id )].flags and NF_CALL_TARGET) <> 0 then return
+    if (c.ast->Flags( id ) and NF_CALL_TARGET) <> 0 then return
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
     if s = nullptr then return
     if s->kind <> cast( uint8, SYM_PROC ) then return
@@ -250,7 +250,7 @@ end sub
 '' left untyped and the statement around it dropped with nothing said: 'print TakesInt( f( ) )'
 '' printed nothing. Refused when no procedure of the name has an array parameter in that place.
 sub CheckArrayArgs_ ( byref c as Ctx, byval id as NodeId )
-    dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    dim as ListPayload ptr lp = c.ast->ListOf( id )
     if lp->count = 0 then return
     dim as SymbolId head = c.info->RefOf( id )
     if (head = SYMBOL_NONE) andalso (lp->target <> NODE_NONE) then head = c.info->RefOf( lp->target )
@@ -258,7 +258,7 @@ sub CheckArrayArgs_ ( byref c as Ctx, byval id as NodeId )
     if hs = nullptr then return
     if hs->kind <> cast( uint8, SYM_PROC ) then return
     for ai as int32 = 0 to lp->count - 1
-        dim as NodeId an = cast( NodeId, c.ast->children[lp->first + ai] )
+        dim as NodeId an = c.ast->ChildAt( lp->first, ai )
         if ArrIsResultCall_( c, an ) = false then continue for
         dim as boolean taken = false
         dim as SymbolId cur = head
@@ -268,13 +268,13 @@ sub CheckArrayArgs_ ( byref c as Ctx, byval id as NodeId )
             if cs = nullptr then exit for
             dim as NodeId pn = cast( NodeId, cs->payload )
             if (pn <> NODE_NONE) andalso (c.ast->Kind( pn ) = N_PROC) then
-                dim as StmtPayload ptr pp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
+                dim as StmtPayload ptr pp = c.ast->StmtOf( pn )
                 dim as int32 seen = 0
                 for i as int32 = 0 to pp->count - 1
-                    dim as NodeId prm = cast( NodeId, c.ast->children[pp->first + i] )
+                    dim as NodeId prm = c.ast->ChildAt( pp->first, i )
                     if c.ast->Kind( prm ) <> N_PARAM then continue for
                     if seen = ai then
-                        if (c.ast->nodes[cast( int32, prm )].flags and NF_ARRAY) <> 0 then taken = true
+                        if (c.ast->Flags( prm ) and NF_ARRAY) <> 0 then taken = true
                         exit for
                     end if
                     seen += 1

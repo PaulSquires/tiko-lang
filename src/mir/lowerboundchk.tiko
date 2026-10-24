@@ -35,7 +35,7 @@ private function ArrayNameOf_( byref c as Ctx, byval target as Tko.NodeId ) as s
     if target = Tko.NODE_NONE then return ""
     if c.ast->Kind( target ) <> Tko.N_IDENT then return ""
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, target )].data )]
+        c.ast->IdentOf( target )
     return ucase( c.names->Spelling( ip->name ) )
 end function
 

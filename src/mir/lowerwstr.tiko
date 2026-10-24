@@ -147,7 +147,7 @@ function LowerWideAssignTo_ _
     end if
     if (c.ast->Kind( value ) = Tko.N_BINARY) andalso (uchain = false) andalso (n > 0) then
         dim as Tko.BinaryPayload ptr vb = _
-            @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, value )].data )]
+            c.ast->BinaryOf( value )
         dim as Tko.TokenKind vop = cast( Tko.TokenKind, vb->op )
         if (vop = Tko.TK_AMP) orelse (vop = Tko.TK_PLUS) then
             if LowerWideAssignTo( c, dst, n, vb->lhs ) then
@@ -590,7 +590,7 @@ function LitHasUnicodeEscape_( byref c as Ctx, byval e as Tko.NodeId ) as boolea
     end if
     if c.ast->Kind( e ) <> Tko.N_STRING_LIT then return false
     dim as Tko.LiteralPayload ptr lp = _
-        @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+        c.ast->LiteralOf( e )
     if lp->strKind <> cast( uint8, Tko.STRK_ESCAPED ) then return false
     if lp->strLength < 2 then return false
     dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( cast( Tko.FileId, lp->strFile ) )
@@ -662,7 +662,7 @@ function ConcatHasWideTerm_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     '' (tests/mir/src/zstring-deref-arith.bas) already says the narrow case was
     '' fixed and its wide twin was not.
     dim as Tko.BinaryPayload ptr cbp = _
-        @c.ast->binaries[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+        c.ast->BinaryOf( e )
     if cast( Tko.TokenKind, cbp->op ) = Tko.TK_PLUS then
         '' A '+' CHECK TYPED AS A NUMBER is arithmetic: 'w + 1' over a 'byref as wstring' cast is its
         '' first character plus one (structpick.tiko CharRefCastPick), not a concatenation.
@@ -710,12 +710,12 @@ function IntrinOverWideConcat_( byref c as Ctx, byval e as Tko.NodeId ) as boole
     if c.ast->Kind( e ) <> Tko.N_CALL then return false
     if CallsUserProcNamedLikeBuiltin( c, e ) then return false
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+        c.ast->ListOf( e )
     if lp->count < 1 then return false
     if lp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( lp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )]
+        c.ast->IdentOf( lp->target )
     select case LowerSpelling_( c.ix, *c.names, ip->name )
     case "ucase", "lcase", "trim", "ltrim", "rtrim", "left", "right", "mid"
     case else
@@ -1030,18 +1030,18 @@ private function WideLitUnits_ _
     '' it. wstring/wchr.bas is two of those.
     if c.ast->Kind( id ) = Tko.N_CALL then
         dim as Tko.ListPayload ptr wcp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         if wcp->target = Tko.NODE_NONE then return false
         if c.ast->Kind( wcp->target ) <> Tko.N_IDENT then return false
         dim as Tko.IdentPayload ptr wip = _
-            @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, wcp->target )].data )]
+            c.ast->IdentOf( wcp->target )
         if LowerSpelling_( c.ix, *c.names, wip->name ) <> "wchr" then
             return false
         end if
         if wcp->count < 1 then return false
         dim as string wkey = ""
         for i as int32 = 0 to wcp->count - 1
-            dim as Tko.NodeId wa = cast( Tko.NodeId, c.ast->children[wcp->first + i] )
+            dim as Tko.NodeId wa = c.ast->ChildAt( wcp->first, i )
             dim as Tko.Check.ConstVal wv = Tko.Check.ConstOf( _
                 *c.ast, wa, *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms, iif( c.info->ScopeOf( id ) <> Tko.SCOPE_NONE, c.info->ScopeOf( id ), Tko.SCOPE_GLOBAL ) )
             if wv.known = false then return false
@@ -1064,7 +1064,7 @@ private function WideLitUnits_ _
 
     if c.ast->Kind( id ) <> Tko.N_STRING_LIT then return false
     dim as Tko.LiteralPayload ptr lp = _
-        @c.ast->literals[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+        c.ast->LiteralOf( id )
     if lp->strLength < 0 then return false
     dim as Tko.SourceFile ptr f = c.srcMgr->FileAt( cast( Tko.FileId, lp->strFile ) )
     if f = nullptr then return false
@@ -1267,7 +1267,7 @@ function WideOperand_ _
     '' above never saw it -- it asks about the call's own type.
     if IsStrCall_( c, id ) then
         dim as Tko.ListPayload ptr sclp = _
-            @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+            c.ast->ListOf( id )
         if sclp->count = 1 then
             dim as Tko.NodeId sca = cast( Tko.NodeId, c.ast->children[sclp->first] )
             if UserCastToWide_( c, sca, outv ) then return true
@@ -1301,11 +1301,11 @@ function LowerWideRvalueB_ _
 
     if c.ast->Kind( value ) <> Tko.N_CALL then return false
     dim as Tko.ListPayload ptr cp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, value )].data )]
+        c.ast->ListOf( value )
     if cp->target = Tko.NODE_NONE then return false
     if c.ast->Kind( cp->target ) <> Tko.N_IDENT then return false
     dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, cp->target )].data )]
+        c.ast->IdentOf( cp->target )
     dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
     if cp->count < 1 then return false
 
@@ -1331,7 +1331,7 @@ function LowerWideRvalueB_ _
         dim as containers.Array( of uint32 ) wca
         wca.Push( cast( uint32, MV_CONST_INT ) ) : wca.Push( cast( uint32, cp->count ) )
         for i as int32 = 0 to cp->count - 1
-            dim as Tko.NodeId ai = cast( Tko.NodeId, c.ast->children[cp->first + i] )
+            dim as Tko.NodeId ai = c.ast->ChildAt( cp->first, i )
             dim as MirValue av = LowerNumArg_( c, ai, MT_I64 )
             if av.kind = cast( uint8, MV_NONE ) then return false
             wca.Push( cast( uint32, av.kind ) ) : wca.Push( cast( uint32, av.id ) )
@@ -1376,7 +1376,7 @@ function LowerWideRvalueB_ _
         a1 = cast( Tko.NodeId, c.ast->children[cp->first + 1] )
         if c.ast->Kind( a1 ) = Tko.N_UNARY then
             dim as Tko.UnaryPayload ptr up = _
-                @c.ast->unaries[cast( int32, c.ast->nodes[cast( int32, a1 )].data )]
+                c.ast->UnaryOf( a1 )
             if cast( Tko.TokenKind, up->op ) = Tko.KW_ANY then
                 isAny = true
                 a1 = up->operand

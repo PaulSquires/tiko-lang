@@ -60,8 +60,8 @@ private sub GenericMemberList_ ( byref c as Ctx, byval id as Tko.NodeId, byval h
     dim as boolean same = (dl->count = gl->count)
     if same then
         for i as int32 = 0 to gl->count - 1
-            if IdentNameOf( c, cast( Tko.NodeId, c.ast->children[dl->first + i] ) ) <> _
-               IdentNameOf( c, cast( Tko.NodeId, c.ast->children[gl->first + i] ) ) then
+            if IdentNameOf( c, c.ast->ChildAt( dl->first, i ) ) <> _
+               IdentNameOf( c, c.ast->ChildAt( gl->first, i ) ) then
                 same = false
             end if
         next
@@ -74,7 +74,7 @@ private sub GenericMemberList_ ( byref c as Ctx, byval id as Tko.NodeId, byval h
     dim as string want
     for i as int32 = 0 to gl->count - 1
         if i > 0 then want &= ", "
-        want &= c.names->Spelling( IdentNameOf( c, cast( Tko.NodeId, c.ast->children[gl->first + i] ) ) )
+        want &= c.names->Spelling( IdentNameOf( c, c.ast->ChildAt( gl->first, i ) ) )
     next
     c.diags->Report( Tko.TKO0817, Tko.PointRange( c.ast->Loc( id ) ), _
                      c.names->Spelling( gs->name ) & "." & c.names->Spelling( sp->name ), want )

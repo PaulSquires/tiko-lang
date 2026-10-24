@@ -24,14 +24,14 @@ private function ProcParamTypeAt_ _
     if pn = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( pn ) <> Tko.N_PROC then return Tko.TYPE_NONE
     dim as Tko.StmtPayload ptr pp = _
-        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
+        c.ast->StmtOf( pn )
     dim as int32 seen = 0
     for i as int32 = 0 to pp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
         if seen = idx then
             dim as Tko.StmtPayload ptr ps = _
-                @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )]
+                c.ast->StmtOf( prm )
             return c.info->TypeOf_( ps->a )
         end if
         seen += 1
@@ -49,10 +49,10 @@ private function ProcParamCount_ _
     if pn = Tko.NODE_NONE then return -1
     if c.ast->Kind( pn ) <> Tko.N_PROC then return -1
     dim as Tko.StmtPayload ptr pp = _
-        @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, pn )].data )]
+        c.ast->StmtOf( pn )
     dim as int32 np = 0
     for i as int32 = 0 to pp->count - 1
-        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+        dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
         if c.ast->Kind( prm ) = Tko.N_PARAM then np += 1
     next
     return np
@@ -265,7 +265,7 @@ private function IsArrayArgShape_ _
     if c.ast->Kind( e ) <> Tko.N_CALL then return false
     if c.types->IsDynArray( c.types->Unqualify( c.info->TypeOf_( e ) ) ) then return true   '' 'f( )' that RETURNS an array
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+        c.ast->ListOf( e )
     if lp->count <> 0 then return false
     if lp->target = Tko.NODE_NONE then return false
     dim as Tko.TypeId tt = c.info->TypeOf_( lp->target )
@@ -281,7 +281,7 @@ private function ArgArrayRank_ _
     ( byref c as Ctx, byval e as Tko.NodeId ) as int32
 
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, e )].data )]
+        c.ast->ListOf( e )
     dim as Tko.TypeId u = c.types->Unqualify( c.info->TypeOf_( lp->target ) )
     if c.types->IsDynArray( u ) = false then return c.types->types[cast( int32, u )].dims
     dim as int32 r = c.types->DynRank( u )
@@ -542,7 +542,7 @@ private function UserBinaryOp_ _
                     dim as Tko.TypeId p0 = Tko.TYPE_NONE
                     dim as Tko.TypeId p1 = Tko.TYPE_NONE
                     for i as int32 = 0 to pp->count - 1
-                        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                        dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
                         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
                         if np = 0 then
                             p0 = c.info->TypeOf_( StmtOf( c, prm )->a )
@@ -663,7 +663,7 @@ function UserUnaryOp_ _
                     dim as int32 np = 0
                     dim as Tko.TypeId p0 = Tko.TYPE_NONE
                     for i as int32 = 0 to pp->count - 1
-                        dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                        dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
                         if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
                         if np = 0 then p0 = c.info->TypeOf_( StmtOf( c, prm )->a )
                         np += 1
@@ -731,11 +731,11 @@ private function BareTypeLiteral_ _
 
     if a = Tko.NODE_NONE then return false
     if c.ast->Kind( a ) <> Tko.N_TUPLE then return false
-    if (c.ast->nodes[cast( int32, a )].flags and Tko.NF_TYPE_LITERAL) = 0 then
+    if (c.ast->Flags( a ) and Tko.NF_TYPE_LITERAL) = 0 then
         return false
     end if
     dim as Tko.ListPayload ptr lp = _
-        @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, a )].data )]
+        c.ast->ListOf( a )
     return (lp->target = Tko.NODE_NONE)
 end function
 
@@ -852,7 +852,7 @@ private function ResolveCall_ _
             dim as int32 np = 0
             dim as boolean variadic = false
             for i as int32 = 0 to pp->count - 1
-                dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
                 if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
                 if StmtOf( c, prm )->op = cast( uint16, Tko.TK_ELLIPSIS ) then
                     variadic = true
@@ -875,7 +875,7 @@ private function ResolveCall_ _
                 arityOk = true
                 dim as int32 seen = 0
                 for i as int32 = 0 to pp->count - 1
-                    dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                    dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
                     if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
                     if expandTV andalso (prm = tvPrm) then exit for
                     if seen >= argT.Count then
@@ -892,7 +892,7 @@ private function ResolveCall_ _
                 dim as int32 ai = 0
                 dim as boolean viable = true
                 for i as int32 = 0 to pp->count - 1
-                    dim as Tko.NodeId prm = cast( Tko.NodeId, c.ast->children[pp->first + i] )
+                    dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
                     if c.ast->Kind( prm ) <> Tko.N_PARAM then continue for
                     dim as Tko.StmtPayload ptr sp2 = StmtOf( c, prm )
                     if sp2->op = cast( uint16, Tko.TK_ELLIPSIS ) then continue for
@@ -945,7 +945,7 @@ private function ResolveCall_ _
                         end if
                     end if
                     if argIsByval andalso (prm <> Tko.NODE_NONE) then
-                        if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0 then
+                        if (c.ast->Flags( prm ) and Tko.NF_BYREF) <> 0 then
                             '' A POINTER OR A POINTER-WIDE INTEGER and nothing else:
                             '' the value stands in for an ADDRESS, so a float or a
                             '' string is still not viable.
@@ -966,7 +966,7 @@ private function ResolveCall_ _
                     end if
 
                     if (prm <> Tko.NODE_NONE) andalso (pt <> Tko.TYPE_NONE) then
-                        if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) <> 0 then
+                        if (c.ast->Flags( prm ) and Tko.NF_BYREF) <> 0 then
                             '' A CONST ARGUMENT DOES NOT REACH A NON-CONST BYREF
                             '' PARAMETER. Measured, and the same for a UDT and a plain
                             '' integer: fbc error 181, "Invalid assignment/conversion".
@@ -1015,7 +1015,7 @@ private function ResolveCall_ _
                     '' the initialiser it fed simply had no value and declined.
                     dim as boolean anyArrayParam = false
                     if (prm <> Tko.NODE_NONE) andalso (pt <> Tko.TYPE_NONE) then
-                        if (c.ast->nodes[cast( int32, prm )].flags and Tko.NF_ARRAY) <> 0 then
+                        if (c.ast->Flags( prm ) and Tko.NF_ARRAY) <> 0 then
                             if c.types->Kind( pt ) = Tko.TK_BUILTIN then
                                 anyArrayParam = _
                                     (c.types->BuiltinOf( pt ) = Tko.TY_ANY)
@@ -1043,7 +1043,7 @@ private function ResolveCall_ _
                     '' type is an array, which is what tells the two apart here.
                     if (prm <> Tko.NODE_NONE) andalso (ai < argCount) then
                         dim as boolean prmArray = _
-                            ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_ARRAY) <> 0)
+                            ((c.ast->Flags( prm ) and Tko.NF_ARRAY) <> 0)
                         dim as Tko.NodeId an4 = _
                             cast( Tko.NodeId, c.ast->children[argFirst + ai] )
                         dim as boolean argArray = IsArrayArgShape_( c, an4 )
@@ -1059,7 +1059,7 @@ private function ResolveCall_ _
                         '' where the redim is what gives the argument its rank.
                         if prmArray andalso argArray then
                             dim as int32 pr = cast( int32, _
-                                c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, prm )].data )].extra )
+                                c.ast->StmtOf( prm )->extra )
                             if pr > 0 then
                                 dim as int32 ar = ArgArrayRank_( c, an4 )
                                 if (ar > 0) andalso (ar <> pr) then
@@ -1118,7 +1118,7 @@ private function ResolveCall_ _
                     if constCopy then constCopy = IsVarStrType_( c, at2 )
                     if constCopy then constCopy = IsVarStrType_( c, pt )
                     if constCopy then
-                        constCopy = ((c.ast->nodes[cast( int32, prm )].flags and Tko.NF_BYREF) = 0)
+                        constCopy = ((c.ast->Flags( prm ) and Tko.NF_BYREF) = 0)
                     end if
                     if constCopy then constCopy = c.types->IsConst( at2 )
                     if constCopy then constCopy = (c.types->IsConst( pt ) = false)
@@ -1210,7 +1210,7 @@ private function ResolveCall_ _
                     if (cpp->extra and Tko.PF_GENERIC_PROC) <> 0 then scorable = false
                     for i as int32 = 0 to cpp->count - 1
                         dim as Tko.NodeId prm2 = _
-                            cast( Tko.NodeId, c.ast->children[cpp->first + i] )
+                            c.ast->ChildAt( cpp->first, i )
                         if c.ast->Kind( prm2 ) <> Tko.N_PARAM then continue for
                         dim as Tko.StmtPayload ptr psp = StmtOf( c, prm2 )
                         if psp->op = cast( uint16, Tko.TK_ELLIPSIS ) then continue for
