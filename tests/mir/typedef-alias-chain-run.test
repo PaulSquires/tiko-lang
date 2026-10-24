@@ -6,7 +6,7 @@
 '' with fbc-modern 1.20 (2026-10-07).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/mir/src/typedef-alias-chain-run.bas -o tests/mir/typedefaliaschainrun.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/mir/typedefaliaschainrun.exe
 '' RUN: tests/mir/typedefaliaschainrun.exe

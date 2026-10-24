@@ -5,7 +5,7 @@
 '' through std/logs, hung the program. Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/qualified-ctor-init.bas -o tests/codegen/qualifiedctorinit.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/qualifiedctorinit.exe
 '' RUN: tests/codegen/qualifiedctorinit.exe

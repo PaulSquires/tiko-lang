@@ -2,7 +2,7 @@
 '' link step, not inside it -- which an unchanged program's build may skip -- so a second
 '' build of the same project puts the DLL back beside the program, and copy_to copies it again.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' ENV: TKO_PKG=build/.vcu/pkg
 '' ENV: TKO_MODCACHE=build/.vcu/mc
 '' CLEAN: build/.vcu

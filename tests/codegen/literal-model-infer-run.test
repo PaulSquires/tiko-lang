@@ -3,7 +3,7 @@
 '' suffix decides first. Expected output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/literal-model-infer.bas -o tests/codegen/literalmodelinfer.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/literalmodelinfer.exe
 '' EXPECT-RUN-EXIT: 0

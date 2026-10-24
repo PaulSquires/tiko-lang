@@ -1,7 +1,7 @@
 '' THE CACHE KEYS THE MODE (RFC-0002 V6): alpha built 'link static', then the same program
 '' 'link dynamic' over the same module cache -- a miss naming the new define, not a hit.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' ENV: TKO_PKG=build/.vlk/pkg
 '' ENV: TKO_MODCACHE=build/.vlk/mc
 '' CLEAN: build/.vlk

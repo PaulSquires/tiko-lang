@@ -3,7 +3,7 @@
 '' violation (fbc's functions/fixstr_arg.bas). Expected output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/procptr-user-over-rtl.bas -o tests/codegen/procptruseroverrtl.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/procptruseroverrtl.exe
 '' EXPECT-RUN-EXIT: 0

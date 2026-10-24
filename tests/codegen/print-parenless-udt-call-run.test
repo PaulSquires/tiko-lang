@@ -4,7 +4,7 @@
 '' pass has not run" (rosetta Arithmetic_Complex; fbc-examples repro ice25).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/print-parenless-udt-call.bas -o tests/codegen/printparenlessudtcall.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/printparenlessudtcall.exe
 '' RUN: tests/codegen/printparenlessudtcall.exe

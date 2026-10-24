@@ -7,7 +7,7 @@
 '' procedure taking an enum takes a number through its cast (s2). Output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/numcast-set.bas -o tests/codegen/numcastset.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/numcastset.exe
 '' EXPECT-RUN-EXIT: 0

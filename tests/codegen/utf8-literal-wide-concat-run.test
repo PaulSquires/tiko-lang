@@ -2,7 +2,7 @@
 '' characters: the second term's BYTES were appended as characters (wstring/utf8.bas).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/utf8-literal-wide-concat.bas -o tests/codegen/utf8literalwideconcat.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/utf8literalwideconcat.exe
 '' EXPECT-RUN-EXIT: 0

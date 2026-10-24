@@ -2,7 +2,7 @@
 '' 'source' key line; b.tiko hits; the program prints a's new text.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.ucb/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.ucb
 '' COPY: tests/driver/src/unitcache => build/.ucb/src
 '' STEP: build -target windows-x86_64 build/.ucb/src/a.tiko build/.ucb/src/b.tiko -o build/.ucb/app.exe

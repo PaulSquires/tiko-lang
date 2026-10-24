@@ -3,7 +3,7 @@
 '' (C:\dev\docs\tiko-stdlib\RFC-0001 sections 5 and 7).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/std-codec-uuid-p2.tiko -o tests/codegen/stdcodecp2.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/stdcodecp2.exe
 '' RUN: tests/codegen/stdcodecp2.exe

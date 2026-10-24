@@ -2,7 +2,7 @@
 '' TKO0809 on selectaddrecv, where the same channel declared with 'dim' worked.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stdtasks-mt/selectvar.bas -o tests/modules/stdselectvar.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/stdselectvar.exe
 '' EXPECT-RUN-OUT: got 3

@@ -3,7 +3,7 @@
 '' dim/union-init.bas, 272 failing asserts before). Expected output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/union-init-fields.bas -o tests/codegen/unioninitfields.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/unioninitfields.exe
 '' EXPECT-RUN-EXIT: 0

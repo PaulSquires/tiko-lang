@@ -3,7 +3,7 @@
 '' PRINT dropped it), arithmetic and conditions by the value met. Expected output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/udtops-multicast.bas -o tests/codegen/udtopsmulticast.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/udtopsmulticast.exe
 '' EXPECT-RUN-EXIT: 0

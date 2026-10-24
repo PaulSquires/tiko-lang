@@ -2,7 +2,7 @@
 '' address -- fbc stores L"also good". tiko stored the narrow bytes (functions/return-byref.bas f8).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/byref-wstr-literal-result.bas -o tests/codegen/byrefwstrliteralresult.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/byrefwstrliteralresult.exe
 '' EXPECT-RUN-EXIT: 0

@@ -4,7 +4,7 @@
 '' inside WITH, read as 'deallocate.p' (r2ice09). Expected output measured with fbc-modern.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/stmt-shapes-r2.bas -o tests/codegen/stmtshapesr2.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: TKO0994
 '' EXPECT-FILE: tests/codegen/stmtshapesr2.exe

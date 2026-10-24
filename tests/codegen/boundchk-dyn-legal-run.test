@@ -2,7 +2,7 @@
 '' lbound, two dimensions, and an array shrunk by REDIM PRESERVE, read at its new ubound.
 '' TEST: cli
 '' ARGS: -exx -target windows-x86_64 tests/codegen/src/boundchk-dyn-legal.bas -o tests/codegen/boundchkdynlegal.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/boundchkdynlegal.exe
 '' RUN: tests/codegen/boundchkdynlegal.exe

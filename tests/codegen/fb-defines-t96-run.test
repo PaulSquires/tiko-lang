@@ -5,7 +5,7 @@
 '' TEST: cli
 '' RUN-LANE: no      -- __FB_OPTIMIZE__ prints the -O level
 '' ARGS: -target windows-x86_64 tests/codegen/src/fb-defines-t96.bas -o tests/codegen/fbdefinest96.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/fbdefinest96.exe
 '' EXPECT-RUN-EXIT: 0

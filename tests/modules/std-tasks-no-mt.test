@@ -2,6 +2,6 @@
 '' and the program then crashed or hung -- the headers' own guard can never fire.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stdtasks-mt/nomt.bas -o tests/modules/stdtasksnomt.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: error TKO0309: #error: "std/tasks needs the multithreaded runtime: build with -mt"

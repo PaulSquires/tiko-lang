@@ -6,7 +6,7 @@
 '' (fbc: 0 and -1). Every line is fbc-modern's output; '|' ends each.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/dynbound-inline.bas -o tests/codegen/dynboundinline.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/dynboundinline.exe
 '' EXPECT-RUN-EXIT: 0

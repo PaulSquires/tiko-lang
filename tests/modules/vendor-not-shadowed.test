@@ -1,7 +1,7 @@
 '' 'vendor' IS NOT SHADOWABLE (RFC-0002 V3): -i and TKO_PATH both name a directory holding a
 '' package called vendor whose alpha says SHADOWED; the program still gets the toolchain's.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' ENV: TKO_PKG=build/.vlsh/pkg
 '' ENV: TKO_MODCACHE=build/.vlsh/mc
 '' CLEAN: build/.vlsh

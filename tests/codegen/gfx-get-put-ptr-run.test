@@ -4,7 +4,7 @@
 '' fbc-modern's, on a GFX_NULL screen.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/gfx-get-put-ptr.bas -o tests/codegen/gfxgetputptr.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/gfxgetputptr.exe

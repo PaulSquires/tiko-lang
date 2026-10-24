@@ -4,7 +4,7 @@
 '' '#libpath's make a 36,000-character line here; it links, and the program runs. (A Linux
 '' host has no such limit and keeps the line; '-v' says when a response file is used.)
 '' TEST: cli
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.lrf
 '' ARGS: -target windows-x86_64 tests/driver/src/long-link-line.bas -o build/.lrf/long.exe
 '' EXPECT-EXIT: 0

@@ -7,7 +7,7 @@
 '' before it faults -- the thousand-iteration loop at the end is what shows a double free.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/array-result.bas -o tests/driver/arrayresult.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/arrayresult.exe
 '' RUN: tests/driver/arrayresult.exe

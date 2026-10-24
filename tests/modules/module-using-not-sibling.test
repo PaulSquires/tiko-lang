@@ -4,6 +4,6 @@
 '' while b.tiko's 'util.Foo' was already TKO0743.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/modules/src/usingfile/leak.tiko -o tests/modules/usingfile-leak.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: leak/b.tiko(3,12): error TKO0743: 'foo' is not declared

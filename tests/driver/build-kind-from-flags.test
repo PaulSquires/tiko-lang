@@ -3,7 +3,7 @@
 '' nothing of its kind. It was out/debug/tool.exe holding a DLL.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.bkf/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.bkf
 '' COPY: tests/driver/src/build-pkg => build/.bkf/pkg
 '' ARGS: build tool -target windows-x86_64 --manifest build/.bkf/pkg --options "-dll" --message-format json

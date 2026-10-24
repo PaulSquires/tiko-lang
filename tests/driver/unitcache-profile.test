@@ -2,7 +2,7 @@
 '' the key; the debug entries are still there afterwards.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.ucp/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.ucp
 '' COPY: tests/driver/src/unitcache => build/.ucp/src
 '' STEP: build -target windows-x86_64 build/.ucp/src/a.tiko build/.ucp/src/b.tiko -o build/.ucp/app.exe --profile debug

@@ -2,7 +2,7 @@
 '' scalar arm and the statement declined (fbc's expressions/iif.bas). Expected output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/iif-zstr-deref.bas -o tests/codegen/iifzstrderef.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/iifzstrderef.exe
 '' EXPECT-RUN-EXIT: 0

@@ -2,7 +2,7 @@
 '' 8 + 16 + 32 + 64 + 128 + 256 + 512 + 1024 = 2040; -edebug makes __FB_DEBUG__ -1.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -earray -enullptr -eassert -edebuginfo -edebug -elocation -eunwind -earraydims tests/codegen/src/errparts/show.bas -o tests/codegen/errparts.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/errparts.exe
 '' EXPECT-RUN-OUT:  2040-1

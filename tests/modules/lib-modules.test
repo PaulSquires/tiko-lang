@@ -7,7 +7,7 @@
 '' constructor among it.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.mct-lib/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.mct-lib
 '' STEP: -v -target windows-x86_64 -i toolchains/tiko-windows/inc -lib tests/modules/src/libout/api.bas -o tests/modules/libmodules.a
 '' STEP-OUT: module std.strings: miss

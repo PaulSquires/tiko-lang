@@ -1,7 +1,7 @@
 '' arrays: a short initialiser list zeroes the tail (dim/udt-init.bas padding1)
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/array-init-short-tail.bas -o tests/codegen/arrayinitshorttail.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/arrayinitshorttail.exe
 '' EXPECT-RUN-EXIT: 0

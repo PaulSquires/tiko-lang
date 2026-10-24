@@ -2,7 +2,7 @@
 '' one set, which is TKO0677 as it would be in one file (RFC-0001 F4).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i tests/modules/src/ovjoin/libs tests/modules/src/ovjoin/app/twomods.tiko -o tests/modules/ovjoin-twomods.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' ENV: TKO_INCLUDE=toolchains/tiko-windows/inc
 '' EXPECT-EXIT: 1
 '' EXPECT-MAX-DIAG: 1

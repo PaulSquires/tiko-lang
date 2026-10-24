@@ -5,7 +5,7 @@
 '' them (TKO0698). See UdtArgBuilds_ in symbols/assigncheck.tiko.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/udt-derived-ctor-arg.bas -o tests/codegen/udtderivedctorarg.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/udtderivedctorarg.exe
 '' RUN: tests/codegen/udtderivedctorarg.exe

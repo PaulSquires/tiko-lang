@@ -19,7 +19,7 @@
 '' so the test says exactly which libraries it means.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -dll tests/codegen/src/export.bas -o tests/driver/tmpdll.dll
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 
 '' EXPECT-FILE: tests/driver/tmpdll.dll

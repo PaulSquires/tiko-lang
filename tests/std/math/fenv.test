@@ -2,7 +2,7 @@
 '' Expected: what tests/std/baseline/math/fenv.txt recorded for the original.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/math/fenv.bas -o tests/std/math/fenv.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/math/fenv.exe
 '' EXPECT-RUN-OUT: 46        46         0  fbc_tests.math.fenv                            4

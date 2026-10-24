@@ -4,7 +4,7 @@
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/tempobj/a.bas -o tests/driver/src/tempobj/fake.exe
 '' ENV: TKO_CLANG=C:/Program Files/Git/usr/bin/true.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 5
 '' EXPECT-OUT: error TKO0962: clang reported success but wrote no object
 '' EXPECT-NO-FILE: tests/driver/src/tempobj/fake.exe

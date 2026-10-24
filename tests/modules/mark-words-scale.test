@@ -7,7 +7,7 @@
 '' (sizes and offsets measured with fbc-modern) must come through unchanged.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i tests/modules/src/markscale/libs tests/modules/src/markscale/main.bas -o tests/modules/markscale.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/markscale.exe
 '' EXPECT-RUN-OUT:  5

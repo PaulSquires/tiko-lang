@@ -2,6 +2,6 @@
 '' called 'fbgfx?'. See the source's header.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/inclib-fbgfx.bas -o tests/driver/inclibfbgfx.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/inclibfbgfx.exe

@@ -4,7 +4,7 @@
 '' carry hashes no test can spell.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.mct-off/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.mct-off
 '' COPY: tests/driver/src/modcache => build/.mct-off
 '' STEP: --no-module-cache -v -target windows-x86_64 -i build/.mct-off/libs build/.mct-off/app/main.bas -o build/.mct-off/app.exe

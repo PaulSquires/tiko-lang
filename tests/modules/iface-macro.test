@@ -4,7 +4,7 @@
 '' the module's. With expansion, the interface declared Broken_ and the build failed.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -d Add_=Broken_ -i tests/modules/src/iface/libs tests/modules/src/iface/app/main.bas -o tests/modules/ifacemacro.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/ifacemacro.exe
 '' EXPECT-RUN-OUT:  42

@@ -11,6 +11,6 @@
 '' '-s gui', the same three answers fbc gives.
 '' TEST: cli
 '' ARGS: -s gui -target windows-x86_64 tests/source/plain.bas -o tests/driver/subsysgui.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/subsysgui.exe

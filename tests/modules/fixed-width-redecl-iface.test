@@ -5,7 +5,7 @@
 '' meaning and nothing is said (symbols/resolveunbound.tiko SameFixedWidth_).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc -i tests/modules/src/fwredecl/libs tests/modules/src/fwredecl/app/main.tiko -o tests/modules/fwredecl.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: TKO0784
 '' EXPECT-FILE: tests/modules/fwredecl.exe

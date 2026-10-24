@@ -5,7 +5,7 @@
 '' fbc prints 42 (fbc-modern 1.20, 2026-09-29).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/implicit-let-converting.bas -o tests/driver/implicitletconv.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/driver/implicitletconv.exe
 '' EXPECT-RUN-OUT:  42

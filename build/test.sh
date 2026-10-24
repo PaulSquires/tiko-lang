@@ -121,5 +121,46 @@ else
     echo "build: tiko-lang [$CFG] up to date"
 fi
 
+# THE RUNTIME UNDER TEST IS THE TREE'S (review BLD-01, 2026-10-24). Every RUN test linked the
+# gitignored, hand-packaged toolchains/ runtime, so a lib/rt change was invisible to the suite
+# until a repackage -- and nothing asserted the two were the same. The tests now name
+# build/obj/rtlib/<target>: the packaged directory (its import libraries, fbcunit, libtkogfx),
+# with libfb.a and libfbmt.a built from lib/rt over it. Rebuilt when lib/rt changes.
+# TKO_TEST_PACKAGED_RT=1 tests the packaged runtime instead, as before.
+rt_overlay( ) {
+    _t=$1 _host=$2
+    _pkg="$ROOT/toolchains/tiko-$_host/lib/$_t"
+    _ovl="$ROOT/build/obj/rtlib/$_t"
+    if [ ! -d "$_pkg" ]; then
+        echo "test: no packaged $_pkg -- RUN tests that link will fail (seed/fetch-seed.sh, then lay it out)" >&2
+        return 0
+    fi
+    if [ "${TKO_TEST_PACKAGED_RT:-0}" = "1" ]; then
+        rm -rf "$_ovl" && mkdir -p "$_ovl" && cp -r "$_pkg/." "$_ovl/"
+        echo "test: runtime -- the PACKAGED one (TKO_TEST_PACKAGED_RT=1)"
+        return 0
+    fi
+    if [ -f "$_ovl/.tree-rt" ] && ! newer_than "$_ovl/.tree-rt" "$ROOT/lib/rt/src" "$ROOT/lib/rt/build" "$_pkg"; then
+        echo "test: runtime -- the tree's lib/rt [$_t], up to date"
+        return 0
+    fi
+    echo "test: runtime -- building the tree's lib/rt [$_t]"
+    TKORT_TIKO="$TIKO" bash "$ROOT/lib/rt/build/build.sh" Release "$_t" > "$ROOT/build/obj/rtlib.log" 2>&1 || {
+        tail -5 "$ROOT/build/obj/rtlib.log" >&2
+        echo "test: lib/rt did not build for $_t (build/obj/rtlib.log)" >&2
+        exit 4
+    }
+    rm -rf "$_ovl" && mkdir -p "$_ovl" && cp -r "$_pkg/." "$_ovl/"
+    for _a in "$ROOT/lib/rt/lib/$_t"/libfb*.a "$ROOT/lib/rt/lib/$_t"/fbrt0*.o; do
+        [ -f "$_a" ] && cp -f "$_a" "$_ovl/"
+    done
+    : > "$_ovl/.tree-rt"
+}
+mkdir -p "$ROOT/build/obj"
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) rt_overlay windows-x86_64 windows ;;
+    Linux)                rt_overlay linux-x86_64 linux ;;
+esac
+
 cd "$ROOT"
 exec "./bin/tiko-test$EXT" $ARGS

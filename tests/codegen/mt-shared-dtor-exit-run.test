@@ -3,7 +3,7 @@
 '' PACKAGED runtime, so it fails until the toolchain is repackaged with that fix.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt tests/codegen/src/mt-shared-dtor-exit.tiko -o tests/codegen/mtshareddtorexit.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/mtshareddtorexit.exe
 '' RUN: tests/codegen/mtshareddtorexit.exe

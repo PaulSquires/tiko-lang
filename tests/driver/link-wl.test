@@ -5,7 +5,7 @@
 '' the same option carries '-rpath,$ORIGIN' (book work item T99).
 '' TEST: cli
 '' ARGS: -v -target windows-x86_64 tests/driver/src/link-wl.bas -o tests/driver/linkwl.exe -Wl /STACK:8388608,/NXCOMPAT -Wl /DYNAMICBASE
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: -Xlinker /INCLUDE:tkort_msvc_init_ -Xlinker "/STACK:8388608" -Xlinker "/NXCOMPAT" -Xlinker "/DYNAMICBASE"
 '' EXPECT-FILE: tests/driver/linkwl.exe

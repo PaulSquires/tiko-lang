@@ -6,7 +6,7 @@
 '' it to narrow under a USTRING type. Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/strfn-udt-ustr-cast.bas -o tests/codegen/strfnudtustrcast.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/strfnudtustrcast.exe
 '' RUN: tests/codegen/strfnudtustrcast.exe

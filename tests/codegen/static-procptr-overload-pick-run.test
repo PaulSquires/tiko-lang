@@ -2,7 +2,7 @@
 '' its type names, as a local does -- it took the first (overload/addressof.bas).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/static-procptr-overload-pick.bas -o tests/codegen/staticprocptroverloadpick.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/staticprocptroverloadpick.exe
 '' EXPECT-RUN-EXIT: 0

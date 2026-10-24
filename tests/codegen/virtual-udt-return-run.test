@@ -4,7 +4,7 @@
 '' and the assignment invalid IR. Expected: fbc's output for the same program, lifetimes included.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/virtual-udt-return.tiko -o tests/codegen/virtualudtreturn.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/virtualudtreturn.exe
 '' RUN: tests/codegen/virtualudtreturn.exe

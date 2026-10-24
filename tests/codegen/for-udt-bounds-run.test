@@ -2,7 +2,7 @@
 '' lowered the UDT itself: 'for i = a to a + 1' started at 0. Expected output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/for-udt-bounds.bas -o tests/codegen/forudtbounds.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/forudtbounds.exe
 '' EXPECT-RUN-EXIT: 0

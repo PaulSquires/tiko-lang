@@ -1,7 +1,7 @@
 '' AN EXPLICIT 'link' BEATS AN OMITTED ONE (RFC-0002 V5): two roots import alpha, one with
 '' 'link static' and one without; alpha is linked statically for both.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' ENV: TKO_PKG=build/.vlx/pkg
 '' ENV: TKO_MODCACHE=build/.vlx/mc
 '' CLEAN: build/.vlx

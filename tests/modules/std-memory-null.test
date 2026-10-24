@@ -3,7 +3,7 @@
 '' site named the interface itself, 'std.memory.tki', with sharedptr.tiko's line number.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/memorynull.bas -o tests/modules/stdmemorynull.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/stdmemorynull.exe
 '' EXPECT-RUN-EXIT: 1

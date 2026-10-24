@@ -2,7 +2,7 @@
 '' well: the root's header is read for '#cmdline' before any import is built.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stdtasks-mt/cmdline.bas -o tests/modules/stdtaskscmdline.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/stdtaskscmdline.exe
 '' EXPECT-RUN-OUT:  14

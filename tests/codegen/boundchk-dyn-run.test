@@ -4,7 +4,7 @@
 '' and a print would race it.
 '' TEST: cli
 '' ARGS: -exx -target windows-x86_64 tests/codegen/src/boundchk-dyn-run.bas -o tests/codegen/boundchkdynrun.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/boundchkdynrun.exe
 '' RUN: tests/codegen/boundchkdynrun.exe

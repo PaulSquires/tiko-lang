@@ -2,7 +2,7 @@
 '' initialiser and a dereference -- see the source. It was TKO0632 / TKO0634 / TKO0994.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/addrof-index-op.bas -o tests/codegen/addrofindexop.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/addrofindexop.exe
 '' EXPECT-RUN-EXIT: 0

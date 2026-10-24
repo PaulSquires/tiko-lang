@@ -6,7 +6,7 @@
 '' [dependencies.mylib.defines] overrides mylib's own LIB_LEVEL, 1, with 3.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/modules/src/pkg/proj/main.bas -o tests/modules/packagelink.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/packagelink.exe
 '' EXPECT-RUN-OUT:  1

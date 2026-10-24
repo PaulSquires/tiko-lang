@@ -2,6 +2,6 @@
 '' source's header; fbc-modern prints zzllo-1108 and tiko's build prints the same.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/driver/src/wmem-shims.bas -o tests/driver/wmemshims.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/wmemshims.exe

@@ -3,7 +3,7 @@
 '' assignment declined (TKO0994; manual casting/cast2; fbc-examples repro ice04).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/new-typeof.bas -o tests/codegen/newtypeof.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/newtypeof.exe
 '' RUN: tests/codegen/newtypeof.exe

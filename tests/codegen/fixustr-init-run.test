@@ -3,7 +3,7 @@
 '' or the wrong text. Expected output is fbc-modern 1.20's, byte for byte.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/fixustr-init.tiko -o tests/codegen/fixustrinit.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/fixustrinit.exe
 '' RUN: tests/codegen/fixustrinit.exe

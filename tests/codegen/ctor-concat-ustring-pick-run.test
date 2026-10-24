@@ -4,7 +4,7 @@
 '' constructor pick ran the string constructor. CtorArgTypeOf_ and DecideCtorCall_ widen it.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/ctor-concat-ustring-pick.bas -o tests/codegen/ctorconcatustringpick.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/ctorconcatustringpick.exe
 '' RUN: tests/codegen/ctorconcatustringpick.exe

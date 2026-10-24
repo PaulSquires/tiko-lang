@@ -5,7 +5,7 @@
 '' DetectEncoding.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/codec-text.tiko -o tests/codegen/codectext.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/codectext.exe
 '' RUN: tests/codegen/codectext.exe

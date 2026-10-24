@@ -4,7 +4,7 @@
 '' and the expression operands that also hold a type keyword stay expressions.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/sizeof-tuple-type.bas -o tests/codegen/sizeoftupletype.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/sizeoftupletype.exe
 '' EXPECT-RUN-EXIT: 0

@@ -2,7 +2,7 @@
 '' converts through a temporary and COPIES IT BACK, as fbc does: [MOD] where tiko kept [zz].
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/selfop-fixstr-copyback.bas -o tests/codegen/selfopfixstrcopyback.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/selfopfixstrcopyback.exe
 '' EXPECT-RUN-EXIT: 0

@@ -1,7 +1,7 @@
 '' T66, RUN: a text file read into ustrings.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/ustr-input.bas -o tests/codegen/ustrinput.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ustrinput.exe
 '' EXPECT-RUN-OUT: [tiko] [lang] [more] 4 4

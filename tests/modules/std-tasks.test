@@ -4,7 +4,7 @@
 '' when the unit imported it (Parse.TasksNs), with no header included at all.
 '' TEST: cli
 '' ARGS: -mt -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/tasks.bas -o tests/modules/stdtasks.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/stdtasks.exe
 '' EXPECT-RUN-OUT: 42 0 -1

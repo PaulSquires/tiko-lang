@@ -6,7 +6,7 @@
 '' (2026-10-11); fbc warns 5 (implicit conversion) at PD, tiko does not.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/mir/src/enum-const-byref-run.bas -o tests/mir/enumconstbyrefrun.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/mir/enumconstbyrefrun.exe
 '' RUN: tests/mir/enumconstbyrefrun.exe

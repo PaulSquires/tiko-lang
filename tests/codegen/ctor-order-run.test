@@ -4,7 +4,7 @@
 '' the top-level code last in the unit's list, so each platform ran the pair reversed.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/ctor-order/main.bas tests/codegen/src/ctor-order/other.bas -o tests/codegen/ctororder.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ctororder.exe
 '' EXPECT-RUN-EXIT: 0

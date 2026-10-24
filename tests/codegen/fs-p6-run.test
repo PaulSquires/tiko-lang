@@ -5,7 +5,7 @@
 '' CanonicalPath with a missing tail and through a link; CreateDirAll with a mode.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/fs-p6.tiko -o tests/codegen/fsp6.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/fsp6.exe
 '' RUN: tests/codegen/fsp6.exe

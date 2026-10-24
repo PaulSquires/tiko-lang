@@ -3,6 +3,6 @@
 '' the source's header for fbc's output; build/goldenrun.sh runs it beside fbc's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/ctor-byte-default.bas -o tests/driver/ctorbytedefault.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/ctorbytedefault.exe

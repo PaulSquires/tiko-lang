@@ -5,7 +5,7 @@
 '' for Linux and run there by hand; Windows' CTRL_BREAK case needs std/process (P5).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt tests/codegen/src/std-os-p4.tiko -o tests/codegen/stdosp4.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/stdosp4.exe
 '' RUN: tests/codegen/stdosp4.exe

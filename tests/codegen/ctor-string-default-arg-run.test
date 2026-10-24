@@ -3,7 +3,7 @@
 '' declined (TKO0994) and 'dim as T v = x' read a garbage length. fbc-modern prints the same.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/ctor-string-default-arg.tiko -o tests/codegen/ctorstringdefaultarg.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ctorstringdefaultarg.exe
 '' EXPECT-RUN-EXIT: 0

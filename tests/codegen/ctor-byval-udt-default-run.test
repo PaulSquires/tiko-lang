@@ -4,7 +4,7 @@
 '' constructs that temporary and prints 0 for q -- see ByvalIndirectRetemp_ in lowerbyref.tiko.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/ctor-byval-udt-default.tiko -o tests/codegen/ctorbyvaludtdefault.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ctorbyvaludtdefault.exe
 '' EXPECT-RUN-EXIT: 0

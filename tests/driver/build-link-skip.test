@@ -4,7 +4,7 @@
 '' The program still runs.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.blkc/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.blkc
 '' CLEAN: build/.blk
 '' COPY: tests/driver/src/unitcache => build/.blk/src

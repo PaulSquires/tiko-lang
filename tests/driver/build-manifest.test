@@ -5,7 +5,7 @@
 '' package: the fixture is copied under build/ so out/ lands there.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.bmf/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.bmf
 '' COPY: tests/driver/src/build-pkg => build/.bmf/pkg
 '' ARGS: build -target windows-x86_64 --manifest build/.bmf/pkg --message-format json

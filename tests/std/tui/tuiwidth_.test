@@ -2,7 +2,7 @@
 '' Expected: what tests/std/baseline/tui/tuiwidth_.txt recorded for the original.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/tui/tuiwidth_.bas -o tests/std/tui/tuiwidth_.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/tui/tuiwidth_.exe
 '' EXPECT-RUN-OUT: 346       346         0  fbc_tests.tui.tuiwidth_                       11

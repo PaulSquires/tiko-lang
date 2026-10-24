@@ -7,7 +7,7 @@
 '' fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/print-udt-ustr-cast.bas -o tests/codegen/printudtustrcast.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/printudtustrcast.exe
 '' RUN: tests/codegen/printudtustrcast.exe

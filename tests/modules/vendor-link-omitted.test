@@ -1,7 +1,7 @@
 '' NO 'link' (RFC-0002 V5): no TIKO_LINK_* anywhere, and the package's own '#else' decides --
 '' alpha's is dynamic. Its header, re-read by the importer, sees no mode either.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' ENV: TKO_PKG=build/.vlo/pkg
 '' ENV: TKO_MODCACHE=build/.vlo/mc
 '' CLEAN: build/.vlo

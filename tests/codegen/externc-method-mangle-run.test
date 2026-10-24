@@ -1,7 +1,7 @@
 '' A METHOD OF A TYPE DECLARED IN 'extern "c"' is mangled with its written case, as fbc does (_ZN2G11A3fooEu7INTEGER); tiko named every such method plain 'foo', and two namespaces' methods collided (fbc's virtual/virtual.bas). Expected output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/externc-method-mangle.bas -o tests/codegen/externcmethodmangle.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/externcmethodmangle.exe
 '' EXPECT-RUN-EXIT: 0

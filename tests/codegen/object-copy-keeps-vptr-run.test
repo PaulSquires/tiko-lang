@@ -2,7 +2,7 @@
 '' runtime's _ZN10fb_Object$C1ERKS_, so its vptr stays object's (virtual/byval-copy.bas).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/object-copy-keeps-vptr.bas -o tests/codegen/objectcopykeepsvptr.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/objectcopykeepsvptr.exe
 '' EXPECT-RUN-EXIT: 0

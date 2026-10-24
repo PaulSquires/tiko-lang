@@ -6,7 +6,7 @@
 '' (error 24), so there is no differential.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/const-ustring-out.bas -o tests/driver/constustrout.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/constustrout.exe
 '' RUN: tests/driver/constustrout.exe

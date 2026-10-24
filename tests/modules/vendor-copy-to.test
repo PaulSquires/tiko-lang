@@ -2,7 +2,7 @@
 '' dist/ and, with it, the DLL the link step put beside the artefact -- reported as a
 '' runtime-lib event -- so the copy in dist/ starts.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' ENV: TKO_PKG=build/.vct/pkg
 '' ENV: TKO_MODCACHE=build/.vct/mc
 '' CLEAN: build/.vct

@@ -1,7 +1,7 @@
 '' A '#cmdline "-x ..."' in the source names the program, over the command line's -x -- fbc's
 '' rule for every option, measured for -x on fbc-modern 1.20.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.xcmd
 '' ARGS: -target windows-x86_64 tests/driver/src/cmdline-x.tiko -x build/.xcmd/fromcli.exe
 '' EXPECT-EXIT: 0

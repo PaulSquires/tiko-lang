@@ -1,7 +1,7 @@
 '' 'link dynamic' (RFC-0002 V4-V7, V13): the DLL is linked and copied beside the program,
 '' under the name it gives itself, so the program starts (alpha_id 2).
 '' TEST: cli
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' ENV: TKO_PKG=build/.vld/pkg
 '' ENV: TKO_MODCACHE=build/.vld/mc
 '' CLEAN: build/.vld

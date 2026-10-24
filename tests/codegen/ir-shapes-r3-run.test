@@ -5,7 +5,7 @@
 '' Expected output, constructor and destructor counts included, measured with fbc-modern.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/ir-shapes-r3.bas -o tests/codegen/irshapesr3.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/irshapesr3.exe
 '' RUN: tests/codegen/irshapesr3.exe

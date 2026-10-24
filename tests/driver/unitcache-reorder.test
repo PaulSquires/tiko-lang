@@ -3,7 +3,7 @@
 '' mains, or none -- and the program now runs a's code first.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.ucr/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.ucr
 '' COPY: tests/driver/src/unitcache => build/.ucr/src
 '' STEP: build -target windows-x86_64 build/.ucr/src/a.tiko build/.ucr/src/b.tiko -o build/.ucr/app.exe

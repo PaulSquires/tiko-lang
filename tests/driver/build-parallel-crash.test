@@ -3,7 +3,7 @@
 '' unit is not compiled again here, and nothing is linked.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.bpc/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' ENV: TKO_TEST_CHILD_EXIT=99
 '' CLEAN: build/.bpc
 '' COPY: tests/driver/src/unitcache => build/.bpc/src

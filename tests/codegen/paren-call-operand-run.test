@@ -3,7 +3,7 @@
 '' tiko printed 5, 5, 2. Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/paren-call-operand.bas -o tests/codegen/parencalloperand.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/parencalloperand.exe
 '' EXPECT-RUN-EXIT: 0

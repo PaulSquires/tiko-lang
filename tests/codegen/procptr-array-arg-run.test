@@ -4,7 +4,7 @@
 '' the call declined (TKO0994); the signature answers. Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/procptr-array-arg.bas -o tests/codegen/procptrarrayarg.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/procptrarrayarg.exe
 '' RUN: tests/codegen/procptrarrayarg.exe

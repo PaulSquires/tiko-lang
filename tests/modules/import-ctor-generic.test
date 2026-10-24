@@ -5,7 +5,7 @@
 '' verifier's 'calls CM::TT::TT with 1 arguments, which declares 0' (std/tui, 2026-10-10).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/importctor/main.bas -o tests/modules/importctor.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/importctor.exe
 '' EXPECT-RUN-OUT: 1 7 7

@@ -1,7 +1,7 @@
 '' structs: a same-type literal inside type<T>() is the object itself; each layer of an upcast chain is a temporary (structs/udt-upcast-4.bas)
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/udt-literal-nesting.bas -o tests/codegen/udtliteralnesting.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/udtliteralnesting.exe
 '' EXPECT-RUN-EXIT: 0

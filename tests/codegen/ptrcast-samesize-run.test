@@ -8,7 +8,7 @@
 '' A tie inside ONE overload of a set only takes that overload out (the last two lines).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/ptrcast-samesize.bas -o tests/codegen/ptrcastsamesize.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ptrcastsamesize.exe
 '' EXPECT-RUN-EXIT: 0

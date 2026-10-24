@@ -2,7 +2,7 @@
 '' the runner kills it after TKO_TEST_TIMEOUT seconds and reports exit 124.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/runner-timeout.bas -o tests/driver/runnertimeout.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' ENV: TKO_TEST_TIMEOUT=3
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/runnertimeout.exe

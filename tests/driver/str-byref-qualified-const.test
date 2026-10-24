@@ -7,7 +7,7 @@
 '' RUN, because the IR verifies either way.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/str-byref-qualified-const.bas -o tests/driver/strbyrefqconst.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/strbyrefqconst.exe
 '' RUN: tests/driver/strbyrefqconst.exe

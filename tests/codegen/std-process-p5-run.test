@@ -10,7 +10,7 @@
 '' exit code.  The same source runs on Linux in WSL (SIGKILL, SIGTERM -> INT_TERMINATE).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/std-process-p5.tiko -o tests/codegen/stdprocp5.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/stdprocp5.exe
 '' RUN: tests/codegen/stdprocp5.exe

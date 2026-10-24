@@ -3,7 +3,7 @@
 '' constant and its C function bare, as if it had #cinclude'd the header itself.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 --no-module-cache -ccachedir build/.cpub -i tests/modules/src/cpub/libs tests/modules/src/cpub/app/main.bas -o tests/modules/cincludepublic.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.cpub
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/cincludepublic.exe

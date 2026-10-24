@@ -4,7 +4,7 @@
 '' diagnostic, and the prelude's is back outside (docs/tiko-nullptr RFC §5.1, Q4).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -w all tests/codegen/src/nullptr-shadow.tiko -o tests/codegen/nullptrshadow.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: warning
 '' EXPECT-NOT: error

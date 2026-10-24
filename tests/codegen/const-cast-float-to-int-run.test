@@ -4,7 +4,7 @@
 '' win32/d3d9_primitives), and a const of one had none. Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/const-cast-float-to-int.bas -o tests/codegen/constcastfloattoint.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: TKO0994
 '' EXPECT-FILE: tests/codegen/constcastfloattoint.exe

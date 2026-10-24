@@ -4,7 +4,7 @@
 '' Now the variable's address, or a temporary's. Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/propset-byref-scalar.bas -o tests/codegen/propsetbyrefscalar.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/propsetbyrefscalar.exe
 '' RUN: tests/codegen/propsetbyrefscalar.exe

@@ -3,7 +3,7 @@
 '' before it became std/tui. In the global namespace it is still TKO0813 (rtl-name-clash).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/modules/src/rtlname/main.bas -o tests/modules/rtlname.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/rtlname.exe
 '' EXPECT-RUN-OUT: 3

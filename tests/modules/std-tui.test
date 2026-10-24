@@ -3,7 +3,7 @@
 '' #define, now a public constant -- bare under 'using tui'. Nothing touches the terminal.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/tui.bas -o tests/modules/stdtui.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/stdtui.exe
 '' EXPECT-RUN-OUT: 12 3 -1

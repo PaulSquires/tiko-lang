@@ -4,7 +4,7 @@
 '' with no clock beside it still stores and hits, so the cache itself is on.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.mct-clock/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.mct-clock
 '' COPY: tests/modules/src/clock => build/.mct-clock
 '' STEP: -v -target windows-x86_64 -i build/.mct-clock/libs build/.mct-clock/app/main.bas -o build/.mct-clock/app.exe

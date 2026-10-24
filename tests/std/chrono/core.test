@@ -2,7 +2,7 @@
 '' Expected: what tests/std/baseline/chrono/core.txt recorded for the original.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/chrono/core.bas -o tests/std/chrono/core.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/chrono/core.exe
 '' EXPECT-RUN-OUT: 141621    141621         0  fbc_tests.chrono.core                         17

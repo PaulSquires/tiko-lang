@@ -3,6 +3,6 @@
 '' header; fbc-modern builds the same program and prints -1.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/lib-dll-suffix.bas -o tests/driver/libdllsuffix.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/libdllsuffix.exe

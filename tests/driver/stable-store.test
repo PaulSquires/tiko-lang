@@ -8,7 +8,7 @@
 '' an address taken early is the same address, holding the same bytes, 20,000 appends later.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/stable-store.tiko src/support/stablevec.tiko -i src -o tests/driver/stablestore.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/driver/stablestore.exe
 '' EXPECT-RUN-OUT: records 20000 chunks 5

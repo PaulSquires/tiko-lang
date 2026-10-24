@@ -2,7 +2,7 @@
 '' 7, as fbc reports it. tiko segfaulted. Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -exx -target windows-x86_64 tests/codegen/src/nullchk-arrow-write.bas -o tests/codegen/nullchkarrowwrite.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/nullchkarrowwrite.exe
 '' RUN: tests/codegen/nullchkarrowwrite.exe

@@ -2,7 +2,7 @@
 '' list (fbc's pointers/new-delete.bas); tiko declined it. Expected output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/new-typelit-arg.bas -o tests/codegen/newtypelitarg.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/newtypelitarg.exe
 '' EXPECT-RUN-EXIT: 0

@@ -2,7 +2,7 @@
 '' Expected: what tests/std/baseline/finance/tvm.txt recorded for the original.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/finance/tvm.bas -o tests/std/finance/tvm.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/finance/tvm.exe
 '' EXPECT-RUN-OUT: 495       495         0  fbc_tests.finance.tvm                          8

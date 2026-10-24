@@ -3,7 +3,7 @@
 '' fbc manual proguide multithreading criticalsectionfaq17; fbc-examples repro ice09).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/string-literal-index.bas -o tests/codegen/stringliteralindex.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/stringliteralindex.exe
 '' RUN: tests/codegen/stringliteralindex.exe

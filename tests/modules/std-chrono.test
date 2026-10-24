@@ -4,7 +4,7 @@
 '' constants, public now.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/chrono.bas -o tests/modules/stdchrono.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/stdchrono.exe
 '' EXPECT-RUN-OUT: 2026 9 28 1

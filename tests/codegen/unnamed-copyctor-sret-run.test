@@ -2,7 +2,7 @@
 '' makes the type's results hidden-pointer returns, copy-constructed (structs/ctor_byval.bas).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/unnamed-copyctor-sret.bas -o tests/codegen/unnamedcopyctorsret.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/unnamedcopyctorsret.exe
 '' EXPECT-RUN-EXIT: 0

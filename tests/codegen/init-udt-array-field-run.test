@@ -3,7 +3,7 @@
 '' fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/init-udt-array-field.bas -o tests/codegen/initudtarrayfield.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/initudtarrayfield.exe
 '' EXPECT-RUN-EXIT: 0

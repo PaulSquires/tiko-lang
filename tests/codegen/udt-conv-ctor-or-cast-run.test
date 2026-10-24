@@ -5,7 +5,7 @@
 '' rest, copied A's own bytes into the B2 (overload re-pick refactor, Phase 3).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/udt-conv-ctor-or-cast.bas -o tests/codegen/udtconvctororcast.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/udtconvctororcast.exe
 '' EXPECT-RUN-EXIT: 0

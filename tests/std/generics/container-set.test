@@ -2,6 +2,6 @@
 '' Expected: what tests/std/baseline/generics/container-set.txt recorded for the original.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/std/generics/container-set.bas -o tests/std/generics/container-set.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/generics/container-set.exe

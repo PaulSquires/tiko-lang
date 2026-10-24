@@ -2,7 +2,7 @@
 '' constructed, then bit-copied -- expressions/iif.bas counts the constructor.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/iif-udt-default-ctor-temp.bas -o tests/codegen/iifudtdefaultctortemp.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/iifudtdefaultctortemp.exe
 '' EXPECT-RUN-EXIT: 0

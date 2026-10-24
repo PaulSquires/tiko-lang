@@ -5,7 +5,7 @@
 '' none. Called from an importer and from the module itself.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc -i tests/modules/src/gendef/libs tests/modules/src/gendef/app/main.tiko -o tests/modules/gendeflink.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/modules/gendeflink.exe
 '' RUN: tests/modules/gendeflink.exe

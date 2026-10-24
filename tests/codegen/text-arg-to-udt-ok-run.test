@@ -2,7 +2,7 @@
 '' argument, byref and byval, with the value fbc-modern 1.20 prints.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/text-arg-to-udt-ok.tiko -o tests/codegen/textargudtok.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/textargudtok.exe
 '' RUN: tests/codegen/textargudtok.exe

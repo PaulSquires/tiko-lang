@@ -5,7 +5,7 @@
 '' 'as Array( of string )' after 'using FB').
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/modules/src/tkiusing/main.bas -o tests/modules/tkiusing.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/tkiusing.exe
 '' EXPECT-RUN-OUT: 42

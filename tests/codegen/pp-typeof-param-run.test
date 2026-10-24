@@ -2,7 +2,7 @@
 '' only module-level variables and refused it. Expected output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/pp-typeof-param.bas -o tests/codegen/pptypeofparam.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/pptypeofparam.exe
 '' EXPECT-RUN-EXIT: 0

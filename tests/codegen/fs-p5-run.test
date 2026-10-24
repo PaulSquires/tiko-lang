@@ -4,7 +4,7 @@
 '' and owner: FS_UNSUPPORTED Chown/LChown and no owner on Windows.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/fs-p5.tiko -o tests/codegen/fsp5.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/fsp5.exe
 '' RUN: tests/codegen/fsp5.exe

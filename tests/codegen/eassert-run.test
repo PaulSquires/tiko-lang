@@ -1,7 +1,7 @@
 '' T64, RUN: -eassert alone enables assert, without the rest of -g.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -eassert tests/codegen/src/errparts/assert.bas -o tests/codegen/eassert.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/eassert.exe
 '' EXPECT-RUN-EXIT: 1

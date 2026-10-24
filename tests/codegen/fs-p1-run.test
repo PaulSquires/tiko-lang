@@ -6,7 +6,7 @@
 '' passes only once the toolchain is repackaged (it links the packaged libfb.a).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/fs-p1.tiko -o tests/codegen/fsp1.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/fsp1.exe
 '' RUN: tests/codegen/fsp1.exe

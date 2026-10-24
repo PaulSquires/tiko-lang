@@ -3,7 +3,7 @@
 '' does not exist: the link fails and nothing is written there.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/inclib-injection.bas -o tests/driver/inclibinjection.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 5
 '' EXPECT-NO-FILE: tests/driver/inclibinjected.exe
 '' EXPECT-NO-FILE: tests/driver/inclibinjection.exe

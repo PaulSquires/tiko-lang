@@ -2,6 +2,6 @@
 '' Expected: what tests/std/baseline/generics/fail-container-noequals.txt recorded for the original.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/std/generics/fail-container-noequals.bas -o tests/std/generics/fail-container-noequals.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: error TKO0720

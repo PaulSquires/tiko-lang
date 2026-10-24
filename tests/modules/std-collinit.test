@@ -2,7 +2,7 @@
 '' containers.Array( of integer ) = { 10, 20, 30 }', and LinkedList and Map (nested braces).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/collinit.bas -o tests/modules/stdcollinit.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/stdcollinit.exe
 '' EXPECT-RUN-EXIT: 0

@@ -5,7 +5,7 @@
 '' 'operator let' for both and prints 2.5 and 3.5 (fbc-modern 1.20, 2026-09-29).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/this-assign-let.bas -o tests/driver/thisassignlet.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/driver/thisassignlet.exe
 '' EXPECT-RUN-OUT:  2.5 3.5

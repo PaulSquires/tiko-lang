@@ -2,7 +2,7 @@
 '' default-constructed temporary, wherever it appears (structs/inherit-type-child-1.bas).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/type-name-as-value-temp.bas -o tests/codegen/typenameasvaluetemp.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/typenameasvaluetemp.exe
 '' EXPECT-RUN-EXIT: 0

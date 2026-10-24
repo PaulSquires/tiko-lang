@@ -3,7 +3,7 @@
 '' skips it; an edited root misses and is checked. Nothing is stored by the check.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.bcc/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.bcc
 '' COPY: tests/driver/src/unitcache => build/.bcc/src
 '' STEP: build -target windows-x86_64 build/.bcc/src/a.tiko build/.bcc/src/b.tiko -o build/.bcc/app.exe

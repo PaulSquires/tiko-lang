@@ -10,7 +10,7 @@
 '' outputs are byte-identical (measured 2026-10-10).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/cast-ctor-chain-accepted.bas -o tests/driver/castctorchain.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/castctorchain.exe
 '' RUN: tests/driver/castctorchain.exe

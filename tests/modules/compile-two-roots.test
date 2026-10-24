@@ -3,7 +3,7 @@
 '' root's code (RFC-0006), and other -- not main -- sees d initialised.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.mct-c2/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.mct-c2
 '' CLEAN: build/.mct-c2/obj
 '' STEP: -c -m main -target windows-x86_64 -i tests/modules/src/init/libs tests/modules/src/init/app/main.bas -o build/.mct-c2/obj/main.o

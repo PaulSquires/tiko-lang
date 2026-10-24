@@ -3,7 +3,7 @@
 '' the import is refused, at the '#import'.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -d UNICODE -i tests/modules/src/vpub/libs tests/modules/src/vpub/app/main.tiko -o tests/modules/vendorpub0370.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: main.tiko(1,1): error TKO0370: 'unicode' is defined as '-1' here, but module 'vp.geo' read
 '' EXPECT-OUT: with it undefined

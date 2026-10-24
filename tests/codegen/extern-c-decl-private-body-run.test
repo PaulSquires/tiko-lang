@@ -5,7 +5,7 @@
 '' Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/extern-c-decl-private-body.bas -o tests/codegen/externcdeclprivatebody.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: undefined symbol
 '' EXPECT-FILE: tests/codegen/externcdeclprivatebody.exe

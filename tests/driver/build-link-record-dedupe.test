@@ -5,7 +5,7 @@
 '' in the module cache, named by a hash of the exe's path -- not beside the exe.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.lrd/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.lrd
 '' ARGS: build -target windows-x86_64 tests/driver/src/link-record-libs.tiko -o build/.lrd/app.exe
 '' EXPECT-EXIT: 0

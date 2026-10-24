@@ -4,7 +4,7 @@
 '' segfaulted. Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -exx -target windows-x86_64 tests/codegen/src/nullchk-index.bas -o tests/codegen/nullchkindex.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/nullchkindex.exe
 '' RUN: tests/codegen/nullchkindex.exe

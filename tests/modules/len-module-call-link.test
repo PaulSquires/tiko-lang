@@ -5,7 +5,7 @@
 '' 'Num( ) as short' sits beside the module's long one to show which is measured.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i tests/modules/src/lenmod/libs tests/modules/src/lenmod/app/main.tiko -o tests/modules/lenmodlink.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/modules/lenmodlink.exe
 '' RUN: tests/modules/lenmodlink.exe

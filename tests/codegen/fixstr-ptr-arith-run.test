@@ -2,7 +2,7 @@
 '' character, as fbc does. See the source.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/fixstr-ptr-arith.bas -o tests/codegen/fixstrptr.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/fixstrptr.exe
 '' EXPECT-RUN-OUT:  3

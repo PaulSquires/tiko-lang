@@ -7,7 +7,7 @@
 '' subject holds and fbc compares in the promoted type.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -O2 tests/codegen/src/select-const-switch.bas -o tests/codegen/selectconstswitch.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/selectconstswitch.exe
 '' EXPECT-RUN-EXIT: 0

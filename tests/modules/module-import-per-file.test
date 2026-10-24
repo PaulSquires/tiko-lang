@@ -2,7 +2,7 @@
 '' for itself, and use it in a body and a parameter type.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/modules/src/perfile/main.bas -o tests/modules/perfile.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/perfile.exe
 '' EXPECT-RUN-OUT:  6 10

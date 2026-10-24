@@ -2,6 +2,6 @@
 '' takes the temporary's address, not its loaded bytes. See tests/mir/src/udt-named-like-intrinsic.bas.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/mir/src/udt-named-like-intrinsic.bas -o tests/driver/udtnamedintrinsic.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/udtnamedintrinsic.exe

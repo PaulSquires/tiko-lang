@@ -5,7 +5,7 @@
 '' fbc-examples repros ice01 and ice10.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/color-paren-and-bare.bas -o tests/codegen/colorparenandbare.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: TKO0994
 '' EXPECT-FILE: tests/codegen/colorparenandbare.exe

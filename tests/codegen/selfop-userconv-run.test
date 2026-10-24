@@ -2,7 +2,7 @@
 '' constructor. See the source.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/selfop-userconv.bas -o tests/codegen/selfopuconv.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/selfopuconv.exe
 '' EXPECT-RUN-OUT:  14

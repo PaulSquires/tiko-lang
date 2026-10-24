@@ -2,7 +2,7 @@
 '' directory: dist/app.ini stays.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.bcc/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.bcc
 '' COPY: tests/driver/src/build-copyto => build/.bcc/pkg
 '' STEP: build -target windows-x86_64 --manifest build/.bcc/pkg

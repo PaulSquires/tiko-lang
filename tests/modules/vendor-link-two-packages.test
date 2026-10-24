@@ -2,7 +2,7 @@
 '' program. Each carried header is re-read with ITS module's TIKO_LINK_* defined around it
 '' and undefined after, so neither sees the other's.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' ENV: TKO_PKG=build/.vlm/pkg
 '' ENV: TKO_MODCACHE=build/.vlm/mc
 '' CLEAN: build/.vlm

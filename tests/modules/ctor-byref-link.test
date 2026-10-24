@@ -5,7 +5,7 @@
 '' the module. pkg/sys's CGraphCtx (sys/win/gui) is the shape: a byref wstring with a default.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc -i tests/modules/src/ctorbyref/libs tests/modules/src/ctorbyref/app/main.tiko -o tests/modules/ctorbyreflink.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: void type only allowed
 '' EXPECT-FILE: tests/modules/ctorbyreflink.exe

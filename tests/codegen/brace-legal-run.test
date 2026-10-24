@@ -2,7 +2,7 @@
 '' fbc accepts every line but the array result, a tiko extension.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/brace-legal.bas -o tests/codegen/bracelegal.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/bracelegal.exe
 '' RUN: tests/codegen/bracelegal.exe

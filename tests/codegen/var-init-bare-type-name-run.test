@@ -2,7 +2,7 @@
 '' 'foo' as a variable and stored it over the constructed object.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/var-init-bare-type-name.bas -o tests/codegen/varinitbaretypename.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/varinitbaretypename.exe
 '' EXPECT-RUN-EXIT: 0

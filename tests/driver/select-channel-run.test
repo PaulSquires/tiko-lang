@@ -4,7 +4,7 @@
 '' beside fbc and compares the bytes; the source's header is fbc's output, measured.
 '' TEST: cli
 '' ARGS: -mt -target windows-x86_64 -i toolchains/tiko-windows/inc tests/driver/src/select-channel-run.bas -o tests/driver/selchanrun.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/selchanrun.exe
 '' EXPECT-NOT: undefined symbol

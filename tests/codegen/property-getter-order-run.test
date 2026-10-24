@@ -3,7 +3,7 @@
 '' now, and a property call's overload walk starts at the chain head (overload re-pick refactor).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/property-getter-order.bas -o tests/codegen/propertygetterorder.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/propertygetterorder.exe
 '' EXPECT-RUN-EXIT: 0

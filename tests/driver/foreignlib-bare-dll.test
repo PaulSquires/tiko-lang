@@ -5,7 +5,7 @@
 '' built by the first step; its import library, libgreet.dll.a, is not a name '#foreignlib'
 '' tries for "greet" (no 'lib' prefix is added), so the .dll is what it finds.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.dlb
 '' COPY: tests/driver/src/dllbare => build/.dlb/src
 '' STEP: -target windows-x86_64 -dll build/.dlb/src/greet.bas -o build/.dlb/src/greet.dll

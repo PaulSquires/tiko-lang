@@ -1,7 +1,7 @@
 '' '@cut[ 0 ]' over containers.Array into an overload set -- see the source. It was TKO0994.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/addrof-index-op-array.tiko -o tests/codegen/addrofindexoparray.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/addrofindexoparray.exe
 '' EXPECT-RUN-EXIT: 0

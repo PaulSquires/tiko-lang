@@ -4,6 +4,6 @@
 '' links -- tests/mir/float-to-narrow-int.test asserts its shape.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/float-to-narrow-int.bas -o tests/driver/floatnarrowint.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/floatnarrowint.exe

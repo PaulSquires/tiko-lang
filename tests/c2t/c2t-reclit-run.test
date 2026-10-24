@@ -1,6 +1,6 @@
 '' The record constants c2t writes for reclit.h's compound literals are values a program uses.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.c2t/reclit-run
 '' STEP-EXIT: 2
 '' STEP: c2t tests/c2t/src/reclit.h -o build/.c2t/reclit-run/reclit.ti

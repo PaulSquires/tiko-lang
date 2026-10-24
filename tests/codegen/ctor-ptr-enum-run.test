@@ -3,7 +3,7 @@
 '' stopped on TKO0994. Expected output is fbc-modern 1.20's, byte for byte.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/ctor-ptr-enum.tiko -o tests/codegen/ctorptrenum.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/ctorptrenum.exe
 '' RUN: tests/codegen/ctorptrenum.exe

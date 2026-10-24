@@ -2,7 +2,7 @@
 '' kept and the directory -c wrote the module objects to was removed (RFC-0005 §6).
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.mct-gone/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.mct-gone
 '' CLEAN: build/.mct-gone/obj
 '' STEP: -c -m main -target windows-x86_64 -i tests/modules/src/iface/libs tests/modules/src/iface/app/main.bas -o build/.mct-gone/obj/main.o

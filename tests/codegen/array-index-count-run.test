@@ -3,7 +3,7 @@
 '' only an index past the capacity (review LIB-01). It is runtime error 6.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/array-index-count.tiko -o tests/codegen/arrayindexcount.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/arrayindexcount.exe
 '' EXPECT-RUN-EXIT: 6

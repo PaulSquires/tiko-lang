@@ -4,7 +4,7 @@
 '' (tasks-win-using-ambiguous).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/modules/src/taskswin/own-wins.tiko -o tests/modules/taskswinownwins.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: TKO0919
 '' EXPECT-FILE: tests/modules/taskswinownwins.exe

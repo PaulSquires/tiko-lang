@@ -2,7 +2,7 @@
 '' 'public #cinclude' re-exports them (book work item T101, cinclude-public.test).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 --no-module-cache -ccachedir build/.cprv -i tests/modules/src/cpub/libs tests/modules/src/cpub/app/priv.bas -o tests/modules/cincludeprivate.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.cprv
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: error TKO0743: 'geo_max' is not declared

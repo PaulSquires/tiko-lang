@@ -17,6 +17,6 @@
 '' source is a goldenrun.sh differential too.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/driver/src/iif-in-concat.bas -o tests/driver/iifinconcat.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/iifinconcat.exe

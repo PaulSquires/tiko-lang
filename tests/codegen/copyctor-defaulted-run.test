@@ -3,7 +3,7 @@
 '' counts only a one-parameter one, so the type stays trivial. Expected output is fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/copyctor-defaulted.bas -o tests/codegen/copyctordefaulted.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/copyctordefaulted.exe
 '' EXPECT-RUN-EXIT: 0

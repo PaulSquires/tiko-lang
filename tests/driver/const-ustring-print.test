@@ -7,7 +7,7 @@
 '' there is no differential; the expected text is the constant itself.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/const-ustring-print.bas -o tests/driver/constustrprint.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/constustrprint.exe
 '' RUN: tests/driver/constustrprint.exe

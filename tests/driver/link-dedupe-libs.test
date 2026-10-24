@@ -5,7 +5,7 @@
 '' as the '-lx' it becomes -- go.
 '' TEST: cli
 '' ARGS: -v -target windows-x86_64 tests/driver/src/link-dedupe-libs.bas -o tests/driver/linkdedupelibs.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: "-lshlwapi" "-lcomctl32" "
 '' EXPECT-NOT: "-lSHLWAPI"

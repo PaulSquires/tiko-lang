@@ -3,7 +3,7 @@
 '' Linux, run there by hand) and leaves the process locale alone, so ToString is unchanged.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/std-numeric-locale.tiko -o tests/codegen/stdnumlocale.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/stdnumlocale.exe
 '' RUN: tests/codegen/stdnumlocale.exe

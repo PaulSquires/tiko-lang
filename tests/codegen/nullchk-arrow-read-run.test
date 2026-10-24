@@ -3,7 +3,7 @@
 '' '(*p).y' but not the arrow, so the program segfaulted. Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -exx -target windows-x86_64 tests/codegen/src/nullchk-arrow-read.bas -o tests/codegen/nullchkarrowread.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/nullchkarrowread.exe
 '' RUN: tests/codegen/nullchkarrowread.exe

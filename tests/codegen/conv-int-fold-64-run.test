@@ -4,7 +4,7 @@
 '' even. Expected output is fbc-modern 1.20's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/conv-int-fold-64.bas -o tests/codegen/convintfold64.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/convintfold64.exe
 '' EXPECT-RUN-EXIT: 0

@@ -4,7 +4,7 @@
 '' Optional result the interface had to qualify in every expansion of the macro.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/numeric.bas -o tests/modules/stdnumeric.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/modules/stdnumeric.exe
 '' EXPECT-RUN-OUT: 5 5 106

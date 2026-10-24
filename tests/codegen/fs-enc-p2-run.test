@@ -5,7 +5,7 @@
 '' encoding; the append BOM check; BINARY over all 256 bytes; and the failures.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/fs-enc-p2.tiko -o tests/codegen/fsencp2.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/fsencp2.exe
 '' RUN: tests/codegen/fsencp2.exe

@@ -2,6 +2,6 @@
 '' runs the result beside fbc's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/numeric-suffixes.bas -o tests/driver/numericsuffixes.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/numericsuffixes.exe

@@ -2,7 +2,7 @@
 '' unsigned counterpart: 'longint ptr' takes 'integer ptr' over 'ulongint ptr' (overload/pointers.bas).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/ptr-overload-signedness-first.bas -o tests/codegen/ptroverloadsignednessfirst.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ptroverloadsignednessfirst.exe
 '' EXPECT-RUN-EXIT: 0

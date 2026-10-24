@@ -3,7 +3,7 @@
 '' literal and the call declined (TKO0994; manual variadic_arguments/cva_3; fbc-examples repro ice13).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/addr-of-scalar-type-literal.bas -o tests/codegen/addrofscalartypeliteral.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/addrofscalartypeliteral.exe
 '' RUN: tests/codegen/addrofscalartypeliteral.exe

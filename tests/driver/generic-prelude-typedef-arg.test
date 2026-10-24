@@ -1,7 +1,7 @@
 '' A generic instantiated with a prelude typedef (int32, int64). See the source's header.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/driver/src/generic-prelude-typedef-arg.bas -o tests/driver/genpreludetd.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/genpreludetd.exe
 '' RUN: tests/driver/genpreludetd.exe

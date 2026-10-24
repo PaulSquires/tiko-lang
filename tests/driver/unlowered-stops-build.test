@@ -4,7 +4,7 @@
 '' this test needs another declining shape, not a new expectation.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/unlowered-stops-build.bas -o tests/driver/unloweredstops.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 4
 '' EXPECT-OUT: unlowered-stops-build.bas(5,1): error TKO0994
 '' EXPECT-NO-FILE: tests/driver/unloweredstops.exe

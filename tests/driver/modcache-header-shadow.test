@@ -4,7 +4,7 @@
 '' and missed is an ABSENT dependency in deps.txt, and its appearing is a miss.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.mct-shadow/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.mct-shadow
 '' COPY: tests/driver/src/modcache => build/.mct-shadow
 '' WRITE: build/.mct-shadow/libs/acme/leaf/leaf.bas :: #module "leaf"\n#include once "leafcfg.bi"\npublic function Seed( ) as long\n    return LEAF_BASE\nend function\n

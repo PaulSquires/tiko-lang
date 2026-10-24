@@ -3,7 +3,7 @@
 '' is now flattened only when Check typed it a string. Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/concat-arith.bas -o tests/codegen/concatarith.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/concatarith.exe
 '' EXPECT-RUN-EXIT: 0

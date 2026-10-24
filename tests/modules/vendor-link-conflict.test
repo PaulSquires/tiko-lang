@@ -1,7 +1,7 @@
 '' ONE PROGRAM, ONE LINK MODE PER MODULE (RFC-0002 V4): two roots ask for alpha static and
 '' dynamic -- TKO0157 at the second, with a note at the first.
 '' TEST: cli
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' ENV: TKO_PKG=build/.vlc/pkg
 '' ENV: TKO_MODCACHE=build/.vlc/mc
 '' CLEAN: build/.vlc

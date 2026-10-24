@@ -2,7 +2,7 @@
 '' Expected: what tests/std/baseline/math/integer.txt recorded for the original.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/math/integer.bas -o tests/std/math/integer.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/math/integer.exe
 '' EXPECT-RUN-OUT: 75690     75690         0  fbc_tests.math.intmath                         8

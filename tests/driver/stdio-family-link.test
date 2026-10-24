@@ -3,6 +3,6 @@
 '' the one THIS TREE built (lib/rt/lib/windows-x86_64), ahead of the packaged toolchain's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc -p lib/rt/lib/windows-x86_64 tests/driver/src/stdio-family.bas -o tests/driver/stdiofamily.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/stdiofamily.exe

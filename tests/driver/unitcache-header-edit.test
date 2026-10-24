@@ -2,7 +2,7 @@
 '' in a.tiko's, so b misses on "a file it read changed" and a hits; b prints the new value.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.uce/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.uce
 '' COPY: tests/driver/src/unitcache => build/.uce/src
 '' STEP: build -target windows-x86_64 build/.uce/src/a.tiko build/.uce/src/b.tiko -o build/.uce/app.exe

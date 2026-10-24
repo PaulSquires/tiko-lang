@@ -6,7 +6,7 @@
 '' variable read in from its interface, which is such an extern (ADR 0017).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/externonce/a.bas tests/driver/src/externonce/b.bas -o tests/driver/externonce.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/driver/externonce.exe
 '' EXPECT-RUN-OUT: b sees set1, constructed 1 time(s)

@@ -2,7 +2,7 @@
 '' Expected: what tests/std/baseline/tui/tuiapp_.txt recorded for the original.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -mt -i toolchains/tiko-windows/inc tests/vendor/fbc-tests/fbcunit/tests/tests.bas tests/std/tui/tuiapp_.bas -o tests/std/tui/tuiapp_.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/tui/tuiapp_.exe
 '' EXPECT-RUN-OUT: 82        82         0  fbc_tests.tui.tuiapp_                         10

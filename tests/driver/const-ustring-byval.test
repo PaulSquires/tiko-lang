@@ -5,7 +5,7 @@
 '' fbc-modern 1.20 has no 'const as ustring' (error 24), so there is no differential.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/const-ustring-byval.bas -o tests/driver/constustrbyval.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/constustrbyval.exe
 '' RUN: tests/driver/constustrbyval.exe

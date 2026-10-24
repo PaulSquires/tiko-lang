@@ -1,6 +1,6 @@
 '' A UDT's any-ptr cast into a single procedure types the call, so a RETURN of it links. See the source's header.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/driver/src/anyptr-cast-single-proc.bas -o tests/driver/anyptrcastsingle.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/anyptrcastsingle.exe

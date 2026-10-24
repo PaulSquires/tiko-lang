@@ -8,7 +8,7 @@
 '' and a 'zstring ptr' cast into 'byval as const zstring ptr' (was TKO0698).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/udt-text-cast-ctor-pick.bas -o tests/codegen/udttextcastctorpick.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/udttextcastctorpick.exe
 '' RUN: tests/codegen/udttextcastctorpick.exe

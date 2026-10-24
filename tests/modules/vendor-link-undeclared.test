@@ -1,6 +1,6 @@
 '' A MODE THE PACKAGE DOES NOT SHIP (RFC-0002 V7): beta lists only "static".
 '' TEST: cli
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' ENV: TKO_PKG=build/.vlu/pkg
 '' ENV: TKO_MODCACHE=build/.vlu/mc
 '' CLEAN: build/.vlu

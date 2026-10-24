@@ -2,7 +2,7 @@
 '' measured with fbc-modern 1.20 (2026-10-19).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/mir/src/ustring-chain-intrin-temp.bas -o tests/mir/ustrchainintrintemp.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/mir/ustrchainintrintemp.exe
 '' RUN: tests/mir/ustrchainintrintemp.exe

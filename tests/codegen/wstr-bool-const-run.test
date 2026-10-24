@@ -2,7 +2,7 @@
 '' See the source's header.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/wstr-bool-const.bas -o tests/codegen/wstrboolconst.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/wstrboolconst.exe
 '' EXPECT-RUN-EXIT: 0

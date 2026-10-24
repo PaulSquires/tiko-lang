@@ -2,7 +2,7 @@
 '' into the argument's temporary -- one destructor call, as fbc's (structs/byval-copy.bas).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/byval-fieldlist-arg-in-place.bas -o tests/codegen/byvalfieldlistarginplace.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/byvalfieldlistarginplace.exe
 '' EXPECT-RUN-EXIT: 0

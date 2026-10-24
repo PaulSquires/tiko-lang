@@ -5,7 +5,7 @@
 '' same, and a short row leaves its rest empty. Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/string-array-init-rows.bas -o tests/codegen/stringarrayinitrows.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/stringarrayinitrows.exe
 '' RUN: tests/codegen/stringarrayinitrows.exe

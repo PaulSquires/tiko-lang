@@ -3,7 +3,7 @@
 '' Built and run (symbols/latesweeps4.tiko CompletedBelow4_).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/codegen/src/fixed-width-alias-windows.tiko -o tests/codegen/fixed-width-alias-windows.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: TKO0811
 '' EXPECT-FILE: tests/codegen/fixed-width-alias-windows.exe

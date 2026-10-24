@@ -2,7 +2,7 @@
 '' '--' -- one with a space in it arrives whole -- and exits with the program's code.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.brn/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.brn
 '' ARGS: run -target windows-x86_64 tests/driver/src/build-run.tiko -o build/.brn/r.exe -- hello "two words"
 '' EXPECT-EXIT: 7

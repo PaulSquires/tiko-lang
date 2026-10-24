@@ -3,7 +3,7 @@
 '' now; TryParseIso is the form that answers false.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/chrono-parse-asserts.tiko -o tests/codegen/chronoparseasserts.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/chronoparseasserts.exe
 '' EXPECT-RUN-EXIT: 1

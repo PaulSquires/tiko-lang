@@ -4,7 +4,7 @@
 '' clang-compiled C twin of the same records (x86_64-pc-windows-msvc).
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/bitfield-c-layout.bas -o tests/codegen/bitfieldclayout.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/bitfieldclayout.exe
 '' EXPECT-RUN-EXIT: 0

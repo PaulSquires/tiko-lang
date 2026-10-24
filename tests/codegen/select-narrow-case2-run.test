@@ -2,7 +2,7 @@
 '' against ulong values, 'is', 'to' and a variable. Output identical to fbc-modern's.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/select-narrow-case2.bas -o tests/codegen/selectnarrowcase2.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/selectnarrowcase2.exe
 '' EXPECT-RUN-EXIT: 0

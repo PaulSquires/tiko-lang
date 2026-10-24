@@ -1,7 +1,7 @@
 '' pp: __FB_ARG_EXTRACT__'s re-split honours backslash escapes inside a !"..." string (pp/macro-arg-extract.bas)
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/pp-argextract-escaped.bas -o tests/codegen/ppargextractescaped.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ppargextractescaped.exe
 '' EXPECT-RUN-EXIT: 0

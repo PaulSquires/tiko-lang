@@ -3,7 +3,7 @@
 '' still runs. -v says hit or miss per module.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.mct-hit/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.mct-hit
 '' COPY: tests/driver/src/modcache => build/.mct-hit
 '' STEP: -v -target windows-x86_64 -i build/.mct-hit/libs build/.mct-hit/app/main.bas -o build/.mct-hit/app.exe

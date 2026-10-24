@@ -4,7 +4,7 @@
 '' M outlived a( ), and b( )'s '#define M 2' was TKO0305, "macro 'm' is already defined".
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/macro-scope-procptr.bas -o tests/driver/macroscopeprocptr.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/driver/macroscopeprocptr.exe
 '' EXPECT-RUN-OUT: 1

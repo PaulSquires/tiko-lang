@@ -1,7 +1,7 @@
 '' file: 'open pipe( cmd for input as #n )' as an expression keeps its device (file/pipe.bas)
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/open-pipe-function-form.bas -o tests/codegen/openpipefunctionform.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/openpipefunctionform.exe
 '' EXPECT-RUN-EXIT: 0

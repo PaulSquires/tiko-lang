@@ -6,7 +6,7 @@
 '' ('dim .. = T( .. )', 'new', a temporary's member, the empty and the spread forms); procedure pointers; generics.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -exx tests/codegen/src/typed-variadic.tiko -o tests/codegen/typedvariadic.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/codegen/typedvariadic.exe
 '' RUN: tests/codegen/typedvariadic.exe

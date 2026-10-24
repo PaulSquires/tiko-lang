@@ -2,7 +2,7 @@
 '' channel error 1, each reaching its handler -- fbc's rtlErrorCheck. They carried on.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -e tests/codegen/src/io-e-check.bas -o tests/codegen/ioecheck.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/ioecheck.exe
 '' EXPECT-RUN-OUT: close: 1

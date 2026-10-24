@@ -4,7 +4,7 @@
 '' 'v &= x' with no 'operator &=' is 'v = v & x', as fbc lowers it.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/extends-zstring-concat.bas -o tests/codegen/extendszstringconcat.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: TKO0994
 '' EXPECT-FILE: tests/codegen/extendszstringconcat.exe

@@ -3,7 +3,7 @@
 '' twin: every line prints 'same'.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/cast-ustring-numeric.tiko -o tests/codegen/castustrnum.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: verify:
 '' EXPECT-FILE: tests/codegen/castustrnum.exe

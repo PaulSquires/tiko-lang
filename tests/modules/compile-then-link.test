@@ -5,7 +5,7 @@
 '' leaves their objects where the records say.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.mct-cl/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.mct-cl
 '' CLEAN: build/.mct-cl/obj
 '' STEP: -v -c -m main -target windows-x86_64 -i tests/modules/src/iface/libs tests/modules/src/iface/app/main.bas -o build/.mct-cl/obj/main.o

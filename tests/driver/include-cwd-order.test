@@ -6,7 +6,7 @@
 '' the -i directory's. See PpInclude in src/pp/directive.bas.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/driver/src/inc-order/main.bas -i tests/driver/src/inc-order/idir -o tests/driver/incorder.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-FILE: tests/driver/incorder.exe
 '' RUN: tests/driver/incorder.exe

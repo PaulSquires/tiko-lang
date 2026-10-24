@@ -1,7 +1,7 @@
 '' T64, RUN: -earraydims alone checks that an array is dimensioned: runtime error 18.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -earraydims tests/codegen/src/errparts/dims.bas -o tests/codegen/earraydims.exe
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/codegen/earraydims.exe
 '' EXPECT-RUN-EXIT: 18

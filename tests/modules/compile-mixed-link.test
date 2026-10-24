@@ -6,7 +6,7 @@
 '' This is tiko-editor-tiko's build: modules with '-c', then the main file and the objects.
 '' TEST: cli
 '' ENV: TKO_MODCACHE=build/.mct-mix/cache
-'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' CLEAN: build/.mct-mix
 '' CLEAN: build/.mct-mix/one
 '' CLEAN: build/.mct-mix/two
