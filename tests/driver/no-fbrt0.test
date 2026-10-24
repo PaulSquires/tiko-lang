@@ -1,0 +1,10 @@
+'' A non-MSVC target whose library paths hold no fbrt0.o is an error, not a link without
+'' it: the program linked, and under '-mt' deadlocked at its first lock (review RT-03). The
+'' Mach-O targets take the same branch. tests/driver has no fbrt0.o, so it stands in for a
+'' library path that lacks one.
+'' TEST: cli
+'' ARGS: -target linux-x86_64 tests/driver/src/no-fbrt0.bas -o tests/driver/nofbrt0.out
+'' ENV: TKO_LIBPATH=tests/driver
+'' EXPECT-EXIT: 5
+'' EXPECT-OUT: error TKO0111: no usable toolchain: the runtime's startup object (fbrt0.o) is on no library path
+'' EXPECT-NO-FILE: tests/driver/nofbrt0.out

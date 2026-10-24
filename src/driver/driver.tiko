@@ -701,6 +701,10 @@ private function LinkAll _
 
     tools.noRpath = ctx.options.noRpath
     dim as int32 rc = Tko.Codegen.LinkExe( tools, td, objs, ctx.options.outputPath )
+    if rc = Tko.Codegen.LINK_NO_RT0 then
+        return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0111, _
+            "the runtime's startup object (fbrt0.o) is on no library path -- add one with -p" )
+    end if
     if rc <> 0 then
         return ToolFail_( ctx, Tko.EXIT_TOOL_FAILED, Tko.TKO0116, str( rc ) )
     end if
