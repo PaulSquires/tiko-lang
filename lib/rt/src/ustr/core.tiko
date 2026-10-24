@@ -37,6 +37,7 @@
 
 #include once "inc/descriptors.ti"
 #include once "inc/list.ti"
+#include once "inc/sysbind.ti"
 
 #ifdef ENABLE_MT
 	extern "rtlib"
@@ -53,6 +54,7 @@
 '' The wide pool. Same capacity as the narrow one and a SEPARATE table.
 dim shared as FB_USTR_TMPDESC tkort_utmpTable( 0 to FB_STR_TMPDESCRIPTORS - 1 )
 dim shared as FB_LIST         tkort_utmpList
+dim shared as integer         tkort_utmpWarned    '' exhaustion reported once
 
 '' ROUND TO 16 CODE UNITS -- which is 32 BYTES, matching the narrow allocator's
 '' 32-byte granule. Rounding to 32 units would silently double the granularity
@@ -104,7 +106,13 @@ function tkort_hUStrAllocTempDesc alias "fb_hUStrAllocTempDesc" ( ) as FBUSTRING
 	hPoolEnsure( )
 
 	dim as FB_LISTELEM ptr e = fb_hListAllocElem( @tkort_utmpList )
-	if( e = nullptr ) then return nullptr          '' pool exhausted -- 256 is the cap
+	if( e = nullptr ) then                          '' pool exhausted -- 256 is the cap
+		if( tkort_utmpWarned = 0 ) then
+			tkort_utmpWarned = 1
+			fprintf( stderr, !"tiko-rt: the ustring temporary pool is exhausted; ustring results will be empty\n" )
+		end if
+		return nullptr
+	end if
 
 	dim as FB_USTR_TMPDESC ptr t = cptr( FB_USTR_TMPDESC ptr, e )
 	t->desc.data = nullptr

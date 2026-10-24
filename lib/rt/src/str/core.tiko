@@ -55,6 +55,7 @@
 
 #include once "inc/descriptors.ti"
 #include once "inc/list.ti"
+#include once "inc/sysbind.ti"
 
 '' fb_StrLock / fb_StrUnlock are FBCALL and remain fbc's. Under a
 '' single-threaded build fb.h defines FB_STRLOCK() to nothing, and so do we:
@@ -76,6 +77,7 @@
 dim shared as FB_STR_TMPDESC tkort_tmpTable( 0 to FB_STR_TMPDESCRIPTORS - 1 )
 dim shared as FB_LIST        tkort_tmpList
 dim shared as integer        tkort_tmpReady
+dim shared as integer        tkort_tmpWarned     '' exhaustion reported once -- see hPoolAlloc
 
 '' ALLOCATE, NOT CALLOCATE.
 ''
@@ -145,7 +147,16 @@ end function
 private function hPoolAlloc( ) as FBSTRING ptr
 	hPoolEnsure( )
 	dim as FB_LISTELEM ptr e = fb_hListAllocElem( @tkort_tmpList )
-	if( e = nullptr ) then return nullptr              '' pool exhausted -- see the header
+	if( e = nullptr ) then
+		'' POOL EXHAUSTED: every caller then answers an EMPTY string, which is how a
+		'' temporary leak, or a DLL's results never handed back, used to look -- a
+		'' wrong value with nothing said. Said once, on stderr, and the run goes on.
+		if( tkort_tmpWarned = 0 ) then
+			tkort_tmpWarned = 1
+			fprintf( stderr, !"tiko-rt: the string temporary pool is exhausted; string results will be empty\n" )
+		end if
+		return nullptr
+	end if
 	dim as FB_STR_TMPDESC ptr t = cptr( FB_STR_TMPDESC ptr, e )
 	t->desc.data = nullptr
 	t->desc.len  = 0
