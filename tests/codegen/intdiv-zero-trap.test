@@ -1,0 +1,15 @@
+'' An integer '\' or 'mod' whose divisor is not a non-zero constant is guarded: LLVM makes
+'' a zero divisor undefined, and once inlining made '7 mod 0' constant the -O2 program
+'' printed garbage and exited 0 where both fbc backends trap. On x86-64 a zero branches to a
+'' real 'div' by zero -- the #DE fbc's idiv raises, which '-e' turns into error 11
+'' (init-signals.test); the constant '\ 3' is not guarded.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 --emit-ir tests/codegen/src/intdiv-zero-trap.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT-SEQ: = icmp eq i64
+'' EXPECT-OUT-SEQ: call void asm sideeffect "xorl %ecx, %ecx\0Adivl %ecx"
+'' EXPECT-OUT-SEQ: .d = select i1
+'' EXPECT-OUT-SEQ: = sdiv i64
+'' EXPECT-OUT-SEQ: = srem i64
+'' EXPECT-OUT: = sdiv i64 %t6, 3
+'' EXPECT-NOT: @llvm.trap

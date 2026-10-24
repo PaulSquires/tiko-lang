@@ -645,8 +645,22 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         case M_SREM : o = "srem"
         case M_UREM : o = "urem"
         end select
+        '' AN INTEGER DIVISOR OF ZERO FAULTS (#DE, SIGFPE -- '-e' makes it error 11), as fbc's idiv
+        '' does. LLVM makes it UB: '7 mod 0' inlined printed garbage at -O2. Non-constants guarded.
+        dim as string dv = ValStr( e, ins.b )
+        if (op <> M_FDIV) andalso ((IsIntegerText_( dv ) = false) orelse (vallng( dv ) = 0)) then
+            Line( e, res & ".z = icmp eq " & ty & " " & dv & ", 0" )
+            Line( e, "br i1 " & res & ".z, label %" & mid( res, 2 ) & ".dz, label %" & mid( res, 2 ) & ".nz" )
+            e.outp += mid( res, 2 ) & ".dz:" & chr( 10 )
+            Line( e, iif( left( e.tgt->triple, 7 ) = "x86_64-", _
+                "call void asm sideeffect ""xorl %ecx, %ecx\0Adivl %ecx"", ""~{eax},~{ecx},~{edx},~{flags}""()", _
+                "call void @llvm.trap()" ) )
+            Line( e, "br label %" & mid( res, 2 ) & ".nz" )    '' not 'unreachable': LLVM folds it away
+            e.outp += mid( res, 2 ) & ".nz:" & chr( 10 )
+            Line( e, res & ".d = select i1 " & res & ".z, " & ty & " 1, " & ty & " " & dv ) : dv = res & ".d"
+        end if
         Line( e, res & " = " & o & " " & ty & " " & ValStr( e, ins.a ) & _
-                 ", " & ValStr( e, ins.b ) )
+                 ", " & dv )
 
     case M_AND, M_OR, M_XOR, M_SHL, M_LSHR, M_ASHR
         dim as string o = "and"
@@ -1342,6 +1356,7 @@ private function IntrinsicDecls _
     if Called_( called, "llvm.va_copy" ) then
         r += "declare void @llvm.va_copy(ptr, ptr) nounwind" & chr( 10 )
     end if
+    if Called_( called, "llvm.trap" ) then r += "declare void @llvm.trap() cold noreturn nounwind" & chr( 10 )
 
     '' The four libm functions with no intrinsic. Declared with their real signatures
     '' so that LLVM does not invent one from the call.
