@@ -145,7 +145,10 @@ sub SkipAt _
     if c.st->skipLocs.Count < 20 then
         dim as uint32 locAt = c.stmt.curStmtNode
         if c.stmt.blameNode <> 0 then locAt = NonMacroNode_( c, c.stmt.blameNode )
-        if locAt <> 0 then c.st->skipLocs.Push( cast( uint32, c.ast->Loc( cast( Tko.NodeId, locAt ) ) ) )
+        if locAt <> 0 then
+            c.st->skipLocs.Push( cast( uint32, c.ast->Loc( cast( Tko.NodeId, locAt ) ) ) )
+            c.st->skipKinds.Push( cast( uint32, c.stmt.curStmtKind ) )
+        end if
     end if
     '' CONSUMED. A blame set for one decline must not be reported for the next.
     c.stmt.blameNode = 0

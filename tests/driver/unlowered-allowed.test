@@ -5,6 +5,7 @@
 '' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: unlowered-stops-build.bas(5,1): warning TKO0995
+'' EXPECT-OUT: this N_INTRINSIC was not compiled
 '' RUN: tests/driver/unloweredallowed.exe
 '' EXPECT-RUN-EXIT: 0
 '' EXPECT-RUN-OUT: before

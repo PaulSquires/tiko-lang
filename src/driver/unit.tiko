@@ -545,9 +545,10 @@ function CompileUnit _
                 dim as int32 sbefore = ctx.diags.ErrorCount( )
                 for k as int32 = 0 to lst.skipLocs.Count - 1
                     ctx.diags.Report( sid, _
-                        Tko.PointRange( cast( Tko.SourceLoc, lst.skipLocs[k] ) ), str( lst.skipped ) )
+                        Tko.PointRange( cast( Tko.SourceLoc, lst.skipLocs[k] ) ), str( lst.skipped ), _
+                        Tko.NodeKindName( cast( Tko.NodeKind, lst.skipKinds[k] ) ) )
                 next
-                if lst.skipLocs.Count = 0 then ctx.diags.ReportGlobal( sid, str( lst.skipped ) )
+                if lst.skipLocs.Count = 0 then ctx.diags.ReportGlobal( sid, str( lst.skipped ), "statement" )
                 dim as int32 sadded = ctx.diags.ErrorCount( ) - sbefore
                 ctx.diags.Flush( )
                 if sadded > 0 then

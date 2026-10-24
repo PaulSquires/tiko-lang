@@ -34,6 +34,9 @@ namespace Tko.Mir
         as int32 skipped        '' statements this slice does not lower yet
         '' WHERE the first of them are, as SourceLocs -- what a build reports (TKO0994).
         as containers.Array( of uint32 ) skipLocs
+        '' ...and the KIND of each one's statement (a NodeKind), beside it: TKO0994 names the
+        '' construct it gave up on, so a report says what to write (LATER-PLAN D step 5).
+        as containers.Array( of uint32 ) skipKinds
         '' Non-zero means the label pre-scan disagreed with the depth actually open at
         '' the label. Always zero unless ScanLabels has drifted from the lowering.
         as int32 labelDepthMismatch
