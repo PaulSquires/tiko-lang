@@ -26,7 +26,7 @@
 namespace Tko.Modules
 
 private function InUnit_( byref ctx as Tko.CompilerContext, byval f as Tko.FileId ) as boolean
-    for each m as uint32 in ctx.modFiles
+    for each m as uint32 in ctx.unit.modFiles
         if m = cast( uint32, f ) then return true
     next
     return false
@@ -40,8 +40,8 @@ function ImportIndex( byref ctx as Tko.CompilerContext, byref rec as Tko.PpImpor
     dim as string pn, pr
     RootPackage( ctx, pn, pr )
     if InUnit_( ctx, f ) then
-        pn = ctx.modPkgName
-        pr = ctx.modPkgRoot
+        pn = ctx.unit.modPkgName
+        pr = ctx.unit.modPkgRoot
     end if
     dim as ModWhere w
     if ResolveImport( ctx, rec, fromDir, pn, pr, w ) = false then return -1
@@ -350,8 +350,8 @@ sub BindImports _
     dim as containers.Array( of uint32 ) aliasSym, aliasMod, aliasRec
     '' ...and, in a unit of several files, the file each one is written in (M22).
     dim as Tko.FileIdVec lo, hi
-    if ctx.modFileCount > 1 then
-        for each f as uint32 in ctx.modFiles
+    if ctx.unit.modFileCount > 1 then
+        for each f as uint32 in ctx.unit.modFiles
             dim as Tko.FileId fid = cast( Tko.FileId, f )
             dim as Tko.SourceFile ptr sf = ctx.sources.FileAt( fid )
             if sf = nullptr then continue for
@@ -413,8 +413,8 @@ end sub
 sub InitOrder( byref ctx as Tko.CompilerContext, byref outv as Tko.StrVec )
     outv.Clear( )
     dim as int32 self_ = -1
-    if ctx.modFileCount > 0 then
-        self_ = ChainIndex( ctx, ctx.modChain )
+    if ctx.unit.modFileCount > 0 then
+        self_ = ChainIndex( ctx, ctx.unit.modChain )
         if self_ < 0 then return
     end if
     '' What self_ imports directly, marked by module: an edge scan per module in the order.
@@ -440,7 +440,7 @@ sub PublishInterface _
       byref ast as Tko.AstArena, byref syms as Tko.SymbolTable, _
       byref info as Tko.SemanticInfo )
 
-    dim as int32 self_ = ChainIndex( ctx, ctx.modChain )
+    dim as int32 self_ = ChainIndex( ctx, ctx.unit.modChain )
     if self_ < 0 then return
     '' The namespaces of the module's own imports, for the names its interface spells
     '' through their aliases.

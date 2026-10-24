@@ -1114,7 +1114,7 @@ function Run _
         '' and reading it each time round would compile every header as a unit.
         dim as int32 srcCount = ctx.sources.Count( )
         '' A MODULE UNIT IS ONE UNIT, however many files it has: the engine reads them all.
-        if ctx.modFileCount > 0 then srcCount = 1
+        if ctx.unit.modFileCount > 0 then srcCount = 1
         '' THE MODULES THE ROOTS IMPORT ARE BUILT FIRST, dependencies first (ADR 0017), into
         '' objects that join the link. ...AND FOR A DUMP TOO, which needs their INTERFACES and
         '' names no objects: '--dump-ir' of a root that imports std/containers was TKO0992 and
@@ -1123,7 +1123,7 @@ function Run _
         '' The objects go to the cache as a build's would; nothing links them. NOT for the
         '' editor's scan, which reads the interfaces its own way (scan.tiko) and must not print
         '' a module unit's symbols among the program's.
-        dim as boolean builds = (ctx.modFileCount = 0) andalso (ctx.options.dumpScan = false)
+        dim as boolean builds = (ctx.unit.modFileCount = 0) andalso (ctx.options.dumpScan = false)
         '' ...WITH THE ROOT'S '#cmdline' OPTIONS (T75). The unit's own pass restarts on a
         '' '#cmdline', but the modules it imports are built before that pass, so
         '' '#cmdline "-mt"' reached the program and never std/tasks. The root's header
@@ -1180,7 +1180,7 @@ function Run _
         end if
         '' ...AND FOR A SCAN, front end only: each module is harvested, and its interface lets
         '' the root's '#import' bind. Whatever goes wrong in one, the scan carries on.
-        if scanning andalso (ctx.modFileCount = 0) then
+        if scanning andalso (ctx.unit.modFileCount = 0) then
             cast( Tko.Scan.ScanResult ptr, ctx.scan )->importing = true
             Tko.Modules.BuildImports( ctx, srcCount, linkObjs, tempObjs, toolExit, true )
             cast( Tko.Scan.ScanResult ptr, ctx.scan )->importing = false

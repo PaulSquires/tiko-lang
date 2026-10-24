@@ -62,7 +62,7 @@ declare function RootPackage _
 declare sub PackageDefines( byref ctx as Tko.CompilerContext, byref name_ as string, byref outv as Tko.StrVec )
 '' A module's [vendor.<module>] links, "|static|dynamic|", or "" (RFC-0002 V7).
 declare function LinkModesOf( byref ctx as Tko.CompilerContext, byref name_ as string, byref chain as string ) as string
-'' PackageDefines of ctx.modPkgName, and the TIKO_LINK_* of ctx.modLinkMode (RFC-0002 V6).
+'' PackageDefines of ctx.unit.modPkgName, and the TIKO_LINK_* of ctx.unit.modLinkMode (RFC-0002 V6).
 declare sub ModuleDefines( byref ctx as Tko.CompilerContext, byref outv as Tko.StrVec )
 '' The linked vendor packages' .dll / .so copied beside 'outPath' (RFC-0002 V13); false, with
 '' the pair that failed, when a copy did.

@@ -23,6 +23,41 @@
 
 namespace Tko
 
+    '' THE UNIT BEING COMPILED (review ARCH-05, LATER-PLAN G step 1). CompilerContext holds
+    '' three kinds of state, and only these fields are the CURRENT UNIT's -- written as a unit
+    '' starts, read while it compiles, and meaningless between units:
+    ''
+    ''   process  names, sources, diags, options (as parsed), keywords, types, toolErrors,
+    ''            the build graph (iface*, pkg*, modObjPaths, importsBuilt), scan, build,
+    ''            timing, objq, cinclude
+    ''   caches   ppLits + ppLexed (the lexed headers every unit shares), ifaceIndex /
+    ''            ifaceAdjFirst / ifaceAdjTo (the graph's index, rebuilt with it)
+    ''   unit     this type, ctx.unit
+    ''
+    '' 'options.threadSafe' is written after the parse (unit.tiko, modbuild.tiko) and is NOT a
+    '' unit field: one unit making a thread makes the whole LINK threaded and defines
+    '' __FB_MT__ for every unit -- fbc-modern 1.20 does the same, in both orders of two
+    '' modules (measured 2026-10-24), so it is process state that a unit discovers.
+    type UnitState
+        '' A MODULE UNIT BEING COMPILED (ADR 0017): its chain ('acme.net.http'), its name
+        '' ('http'), and its files in order. modFileCount = 0 for a classic compile.
+        as string                 modChain
+        as string                 modName
+        as int32                   modFileCount
+        as FileIdVec              modFiles
+        '' ...and its PACKAGE: the name, and the root its relative imports stay inside.
+        as string                 modPkgName
+        as string                 modPkgRoot
+        '' ...and the link mode the program's '#import ... link' chose for it (RFC-0002 V4-V6):
+        '' 0 none, else Tko.PP_LINK_STATIC / PP_LINK_DYNAMIC -- TIKO_LINK_STATIC or
+        '' TIKO_LINK_DYNAMIC in its unit, and a line of its cache key.
+        as int32                  modLinkMode
+        as FileIdVec              unitFilesRead
+        as StrVec                 unitProbesMissed   '' include candidates that were absent
+        as boolean                unitThreadRtl
+        as boolean                unitUsesClock      '' expanded __DATE__ / __TIME__: never stored
+    end type
+
     '' One per tiko-lang process invocation. Nothing in the compiler is global; everything
     '' hangs off this, which is what makes parallel compilation possible later and
     '' in-process fuzzing possible now.
@@ -51,32 +86,16 @@ namespace Tko
         '' '#cinclude's session -- libclang and this run's bindings (cinclude.tiko), made
         '' at the first #cinclude and freed with the context.
         as any ptr                cinclude
-        '' A MODULE UNIT BEING COMPILED (ADR 0017): its chain ('acme.net.http'), its name
-        '' ('http'), and its files in order. modFileCount = 0 for a classic compile.
-        as string                 modChain
-        as string                 modName
-        as int32                   modFileCount
-        as FileIdVec              modFiles
-        '' ...and its PACKAGE: the name, and the root its relative imports stay inside.
-        as string                 modPkgName
-        as string                 modPkgRoot
-        '' ...and the link mode the program's '#import ... link' chose for it (RFC-0002 V4-V6):
-        '' 0 none, else Tko.PP_LINK_STATIC / PP_LINK_DYNAMIC -- TIKO_LINK_STATIC or
-        '' TIKO_LINK_DYNAMIC in its unit, and a line of its cache key.
-        as int32                  modLinkMode
+        as UnitState              unit         '' the unit being compiled -- UnitState above
         '' THE MODULES OF THE BUILD (src/driver/modiface.tiko), by graph node: each one's
         '' chain, its interface once it has been compiled (FILE_NONE until then), and the
         '' import edges between them; and the roots' package root, where a root's import is
         '' resolved from.
         as StrVec                 ifaceChains
         as StrVec                 ifaceDirs
-        '' ...each one's interface text, and what its compile read and whether it needs
-        '' the thread-safe runtime -- what its cache entry records (modcache.tiko).
+        '' ...each one's interface text -- what its cache entry records (modcache.tiko), with
+        '' the unit's own read files and thread use (UnitState).
         as StrVec                 ifaceTexts
-        as FileIdVec              unitFilesRead
-        as StrVec                 unitProbesMissed   '' include candidates that were absent
-        as boolean                unitThreadRtl
-        as boolean                unitUsesClock      '' expanded __DATE__ / __TIME__: never stored
         as FileIdVec              ifaceFiles
         '' ...and its public headers apart, '<chain>.pub.tki', or FILE_NONE: read only where
         '' the import, a 'public' re-export or another interface's '' uses wants them.

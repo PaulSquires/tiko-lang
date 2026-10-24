@@ -507,7 +507,7 @@ private function MacroBody_ _
     dim as int32 first_ = cast( int32, pr.expBodyFirst[k] )
     dim as int32 count_ = cast( int32, pr.expBodyCount[k] )
     dim as Tko.ScopeId modScope = Tko.ModSym.ModuleScope( *w.syms )
-    dim as string ns = InterfaceNamespace( w.ctx->modChain )
+    dim as string ns = InterfaceNamespace( w.ctx->unit.modChain )
     dim as int32 prev = -1
     for i as int32 = first_ to first_ + count_ - 1
         dim as Tko.Token ptr t = @pr.expBody[i]
@@ -569,7 +569,7 @@ private function ExportedMacros_( byref w as TkiWriter_, byref pr as Tko.PpResul
     dim as string r = ""
     for k as int32 = 0 to pr.expName.Count - 1
         dim as uint32 fl = pr.expFlags[k]
-        dim as string head = Tko.PpModMacroName( w.ctx->modChain, pr.expName[k] )
+        dim as string head = Tko.PpModMacroName( w.ctx->unit.modChain, pr.expName[k] )
         if (fl and 1) <> 0 then
             head &= "("
             dim as int32 pc = cast( int32, pr.expParamCount[k] )
@@ -914,7 +914,7 @@ private function RequiredHeaders_ _
         next
     end if
     dim as string root = ""
-    if len( w.ctx->modPkgRoot ) > 0 then root = Tko.Text.LowerAscii( AbsPath( w.ctx->modPkgRoot ) )
+    if len( w.ctx->unit.modPkgRoot ) > 0 then root = Tko.Text.LowerAscii( AbsPath( w.ctx->unit.modPkgRoot ) )
     if (len( root ) > 0) andalso (right( root, 1 ) <> "/") then root &= "/"
     dim as string res = ""
     for k as int32 = 0 to headers.Count - 1
@@ -941,7 +941,7 @@ private function RequiredHeaders_ _
             next
         end if
         if len( req ) > 0 then
-            res &= "#tki require """ & w.ctx->modChain & """ """ & headers[k] & """" & !"\n" & req
+            res &= "#tki require """ & w.ctx->unit.modChain & """ """ & headers[k] & """" & !"\n" & req
         end if
         res &= "#include once """ & headers[k] & """" & !"\n"
         if len( req ) > 0 then res &= "#tki end" & !"\n"
@@ -1006,7 +1006,7 @@ function WriteInterface _
     w.aliases = @aliases : w.spaces = @spaces
     w.atLineStart = true
     w.prevTok = -1
-    for each m as uint32 in ctx.modFiles
+    for each m as uint32 in ctx.unit.modFiles
         while cast( uint32, w.modMark.Count ) <= m
             w.modMark.Push( 0 )
         wend
@@ -1083,13 +1083,13 @@ function WriteInterface _
     dim as string macros = ""
     if pr <> nullptr then macros = ExportedMacros_( w, *pr )
     '' The declarations first: which headers travel depends on what they wrote.
-    w.text = "namespace " & InterfaceNamespace( ctx.modChain ) & !"\n"
+    w.text = "namespace " & InterfaceNamespace( ctx.unit.modChain ) & !"\n"
     w.lineFile = 0
     dim as int32 i = 0
     Level_( w, i, Tko.ModSym.ModuleScope( syms ), 0 )
     w.text &= "end namespace" & !"\n"
     dim as string req = RequiredHeaders_( w, headers, pr, len( macros ) > 0 )
-    return "'' tiko-interface 1" & !"\n" & "'' module " & ctx.modChain & !"\n" & _
+    return "'' tiko-interface 1" & !"\n" & "'' module " & ctx.unit.modChain & !"\n" & _
            w.uses & Joins_( w ) & req & macros & w.text
 end function
 

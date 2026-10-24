@@ -243,7 +243,7 @@ private function AddRec_ _
         rec.name = folded
     end if
     if len( nm ) > 0 then rec.name = nm
-    if h.r->importing then rec.chain = h.ctx->modChain
+    if h.r->importing then rec.chain = h.ctx->unit.modChain
     h.r->syms.Push( rec )
     return h.r->syms.Count - 1
 end function
@@ -675,7 +675,7 @@ sub RunUnit _
     '' A MODULE THE ROOT IMPORTS leaves its interface, so the root's '#import' binds. Even
     '' with errors in it: an editor scans half-written code, and an interface with a gap
     '' serves the root better than none.
-    if (ctx.modFileCount > 0) andalso ctx.importsBuilt then
+    if (ctx.unit.modFileCount > 0) andalso ctx.importsBuilt then
         Tko.Modules.PublishInterface( ctx, pr, ast, syms, info )
     end if
     Harvest_Unit( ctx, ast, syms, info, macros, pr )

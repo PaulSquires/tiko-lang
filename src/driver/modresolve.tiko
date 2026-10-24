@@ -371,9 +371,9 @@ end function
 '' TIKO_LINK_STATIC or TIKO_LINK_DYNAMIC when the program chose a link mode for it
 '' (tiko-vendor RFC-0002 V6) -- bodied "1", as TIKO_OS_WINDOWS is.
 sub ModuleDefines( byref ctx as Tko.CompilerContext, byref outv as Tko.StrVec )
-    PackageDefines( ctx, ctx.modPkgName, outv )
-    if ctx.modLinkMode = Tko.PP_LINK_STATIC then outv.Push( "TIKO_LINK_STATIC=1" )
-    if ctx.modLinkMode = Tko.PP_LINK_DYNAMIC then outv.Push( "TIKO_LINK_DYNAMIC=1" )
+    PackageDefines( ctx, ctx.unit.modPkgName, outv )
+    if ctx.unit.modLinkMode = Tko.PP_LINK_STATIC then outv.Push( "TIKO_LINK_STATIC=1" )
+    if ctx.unit.modLinkMode = Tko.PP_LINK_DYNAMIC then outv.Push( "TIKO_LINK_DYNAMIC=1" )
 end sub
 
 sub PackageDefines( byref ctx as Tko.CompilerContext, byref name_ as string, byref outv as Tko.StrVec )

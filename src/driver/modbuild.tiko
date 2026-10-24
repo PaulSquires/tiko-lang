@@ -28,7 +28,7 @@
 namespace Tko.Modules
 
 function ArchiveMemberPath( byref ctx as Tko.CompilerContext ) as string
-    return JoinPath( DirOfFile( ctx.options.outputPath ), ctx.modChain & ".o" )
+    return JoinPath( DirOfFile( ctx.options.outputPath ), ctx.unit.modChain & ".o" )
 end function
 
 '' What a unit added to the link since the counts were taken, as a cache entry's libs.txt.
@@ -45,7 +45,7 @@ function LibsSince _
     for k as int32 = files0 to ctx.options.pragmaLibFiles.Count - 1
         libs &= "libfile" & chr( 9 ) & ctx.options.pragmaLibFiles[k] & chr( 10 )
     next
-    if ctx.unitThreadRtl then libs &= "mt" & chr( 9 ) & "1" & chr( 10 )
+    if ctx.unit.unitThreadRtl then libs &= "mt" & chr( 9 ) & "1" & chr( 10 )
     return libs
 end function
 
@@ -154,23 +154,23 @@ function BuildImports _
     dim as Tko.StrVec storeKeys, storeObjs, storeIfaces, storeLibs, storeChains, storeDeps
 
     for each n as uint32 in g.order
-        ctx.modChain = g.chains[n]
-        ctx.modPkgName = g.pkgNames[n]
-        ctx.modPkgRoot = g.pkgRoots[n]
-        ctx.modLinkMode = cast( int32, g.linkMode[n] )
-        ctx.modName = mid( ctx.modChain, instrrev( ctx.modChain, "." ) + 1 )
-        ctx.modFiles.Clear( )
+        ctx.unit.modChain = g.chains[n]
+        ctx.unit.modPkgName = g.pkgNames[n]
+        ctx.unit.modPkgRoot = g.pkgRoots[n]
+        ctx.unit.modLinkMode = cast( int32, g.linkMode[n] )
+        ctx.unit.modName = mid( ctx.unit.modChain, instrrev( ctx.unit.modChain, "." ) + 1 )
+        ctx.unit.modFiles.Clear( )
         for k as int32 = 0 to g.fileCount[n] - 1
-            ctx.modFiles.Push( g.fileIds[g.fileFirst[n] + k] )
+            ctx.unit.modFiles.Push( g.fileIds[g.fileFirst[n] + k] )
         next
-        ctx.modFileCount = ctx.modFiles.Count
-        if ctx.modFileCount = 0 then continue for
+        ctx.unit.modFileCount = ctx.unit.modFiles.Count
+        if ctx.unit.modFileCount = 0 then continue for
 
         '' THE SCAN: the front end, the interface, the harvest -- and on to the next module
         '' whatever this one's errors, because the code being scanned is being written.
         if scanOnly then
             dim as Tko.StrVec noRestart
-            Tko.Driver.CompileUnit( ctx, cast( int32, ctx.modFiles[0] ), 1, 1, false, _
+            Tko.Driver.CompileUnit( ctx, cast( int32, ctx.unit.modFiles[0] ), 1, 1, false, _
                                     linkObjs, tempObjs, toolExit, noRestart )
             continue for
         end if
@@ -181,8 +181,8 @@ function BuildImports _
         if Tko.DiskCache.CompilerStamp( ) = "" then cacheRoot = ""
         if len( cacheRoot ) > 0 then key = ModuleKey( ctx, n )
         if ModuleCacheLookup( ctx, cacheRoot, key, hitObj, hitIface, hitLibs ) then
-            if ctx.options.verbose then print "module " & ctx.modChain & ": hit"
-            Tko.Build.OnUnit( ctx.build, "module", ctx.modChain, "hit" )
+            if ctx.options.verbose then print "module " & ctx.unit.modChain & ": hit"
+            Tko.Build.OnUnit( ctx.build, "module", ctx.unit.modChain, "hit" )
             '' An ARCHIVE keeps the member's name: not the entry's 'obj.o', the chain's. '-c'
             '' leaves the object beside the output, for the roots' records to name.
             if ctx.options.compileOnly then
@@ -202,7 +202,7 @@ function BuildImports _
             continue for
         end if
         if ctx.options.verbose andalso (len( cacheRoot ) > 0) then
-            print "module " & ctx.modChain & ": miss (" & MissReason( cacheRoot, ctx.modChain, key ) & ")"
+            print "module " & ctx.unit.modChain & ": miss (" & MissReason( cacheRoot, ctx.unit.modChain, key ) & ")"
         end if
 
         '' WHAT THIS MODULE ADDS TO THE LINK is what its compile appends, and is recorded.
@@ -212,10 +212,10 @@ function BuildImports _
         dim as int32 objs0 = linkObjs.Count
         dim as Tko.StrVec restartArgs
         '' A module cannot '#cmdline' (TKO0366), so this never asks for a restart.
-        Tko.Driver.CompileUnit( ctx, cast( int32, ctx.modFiles[0] ), 1, 1, true, _
+        Tko.Driver.CompileUnit( ctx, cast( int32, ctx.unit.modFiles[0] ), 1, 1, true, _
                                 linkObjs, tempObjs, toolExit, restartArgs )
         if (toolExit <> Tko.EXIT_OK) orelse Tko.Driver.FrontendFailed_( ctx ) then exit for
-        Tko.Build.OnUnit( ctx.build, "module", ctx.modChain, "miss" )
+        Tko.Build.OnUnit( ctx.build, "module", ctx.unit.modChain, "miss" )
         if ctx.options.compileOnly andalso (linkObjs.Count > objs0) then
             ctx.modObjPaths.Push( AbsPath( linkObjs[linkObjs.Count - 1] ) )
         end if
@@ -224,14 +224,14 @@ function BuildImports _
             dim as string dl
             '' A MODULE THAT READ THE CLOCK IS NOT STORED: a hit would link the first build's
             '' __DATE__ / __TIME__ into every later one (tiko-build B0, 2026-10-11).
-            if ctx.unitUsesClock then
+            if ctx.unit.unitUsesClock then
                 if ctx.options.verbose then
-                    print "module " & ctx.modChain & ": not stored (it expands __DATE__, __DATE_ISO__ or __TIME__)"
+                    print "module " & ctx.unit.modChain & ": not stored (it expands __DATE__, __DATE_ISO__ or __TIME__)"
                 end if
             elseif ModuleCacheDeps( ctx, dl ) then
                 storeKeys.Push( key ) : storeObjs.Push( linkObjs[linkObjs.Count - 1] )
                 storeIfaces.Push( ctx.ifaceTexts[n] ) : storeLibs.Push( libs )
-                storeChains.Push( ctx.modChain ) : storeDeps.Push( dl )
+                storeChains.Push( ctx.unit.modChain ) : storeDeps.Push( dl )
             end if
         end if
     next
@@ -245,11 +245,11 @@ function BuildImports _
             next
         end if
     end if
-    ctx.modChain = ""
-    ctx.modName = ""
-    ctx.modLinkMode = 0
-    ctx.modFiles.Clear( )
-    ctx.modFileCount = 0
+    ctx.unit.modChain = ""
+    ctx.unit.modName = ""
+    ctx.unit.modLinkMode = 0
+    ctx.unit.modFiles.Clear( )
+    ctx.unit.modFileCount = 0
     if len( privDir ) > 0 then
         ctx.options.outputPath = ""
         fs.RemoveDirAll( privDir )

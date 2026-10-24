@@ -292,7 +292,7 @@ function ModuleKey( byref ctx as Tko.CompilerContext, byval n as int32 ) as stri
     k &= "module " & ctx.ifaceChains[n] & nl
     k &= "dir " & KeyPath_( ctx.ifaceDirs[n] ) & nl
     '' Its sources, in the order the unit reads them -- sorted already (ModuleFiles).
-    for each f as uint32 in ctx.modFiles
+    for each f as uint32 in ctx.unit.modFiles
         dim as string p = ctx.sources.AbsPathOf( cast( Tko.FileId, f ) )
         dim as string text_
         Tko.DiskCache.ReadAll( p, text_ )
@@ -434,11 +434,11 @@ function ModuleCacheDeps( byref ctx as Tko.CompilerContext, byref dl as string )
     '' SETS, not lists: every file read was checked against every module file and every path
     '' already written -- files x files for a unit that reads a windows.bi-sized tree.
     dim as containers.Set( of uint32 ) own_
-    for each m as uint32 in ctx.modFiles
+    for each m as uint32 in ctx.unit.modFiles
         own_.Add( m )
     next
     dim as containers.Set( of string ) done_
-    for each f as uint32 in ctx.unitFilesRead
+    for each f as uint32 in ctx.unit.unitFilesRead
         if own_.Contains( f ) then continue for
         dim as Tko.SourceFile ptr sf = ctx.sources.FileAt( cast( Tko.FileId, f ) )
         if sf = nullptr then continue for
@@ -449,7 +449,7 @@ function ModuleCacheDeps( byref ctx as Tko.CompilerContext, byref dl as string )
         if len( st ) = 0 then return false
         dl &= st & chr( 9 ) & p & Nl_( )
     next
-    for each m_ as string in ctx.unitProbesMissed
+    for each m_ as string in ctx.unit.unitProbesMissed
         dim as string ap_ = AbsPath( m_ )
         if done_.Add( "-" & ap_ ) = false then continue for
         dl &= "-" & chr( 9 ) & "-" & chr( 9 ) & ap_ & Nl_( )

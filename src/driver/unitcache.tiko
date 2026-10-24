@@ -128,7 +128,7 @@ function After _
         why = "it has errors"
     elseif ctx.diags.WarningCount( ) <> m.warns0 then
         why = "it has warnings, which a cached object would not report again"
-    elseif ctx.unitUsesClock then
+    elseif ctx.unit.unitUsesClock then
         why = "it expands __DATE__, __DATE_ISO__ or __TIME__"
     elseif linkObjs.Count <= m.objs0 then
         why = "it made no object"

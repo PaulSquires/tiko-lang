@@ -30,19 +30,19 @@ function PrepareModuleUnit _
         return false
     end if
     srcInputs.Clear( )
-    ctx.modFiles.Clear( )
+    ctx.unit.modFiles.Clear( )
     for each nm as string in files
         srcInputs.Push( JoinPath( w.dir_, nm ) )
         '' Loaded first, before anything else: FileIds 1..n.
-        ctx.modFiles.Push( cast( uint32, srcInputs.Count ) )
+        ctx.unit.modFiles.Push( cast( uint32, srcInputs.Count ) )
     next
-    ctx.modChain = w.chain
-    ctx.modName = mid( w.chain, instrrev( w.chain, "." ) + 1 )
-    ctx.modFileCount = files.Count
-    ctx.modPkgName = w.pkgName
-    ctx.modPkgRoot = w.pkgRoot
+    ctx.unit.modChain = w.chain
+    ctx.unit.modName = mid( w.chain, instrrev( w.chain, "." ) + 1 )
+    ctx.unit.modFileCount = files.Count
+    ctx.unit.modPkgName = w.pkgName
+    ctx.unit.modPkgRoot = w.pkgRoot
     '' 'tiko -c <dir>' has no importer to choose a link mode: the module's source decides (V5).
-    ctx.modLinkMode = 0
+    ctx.unit.modLinkMode = 0
     return true
 end function
 
@@ -51,11 +51,11 @@ sub ModuleUnitConfig _
       byref files as Tko.IdVec, byref noDefines as Tko.StrVec )
 
     files.Clear( )
-    for each f as uint32 in ctx.modFiles
+    for each f as uint32 in ctx.unit.modFiles
         files.Push( f )
     next
     cfg.moduleFiles = @files
-    cfg.moduleChain = ctx.modChain
+    cfg.moduleChain = ctx.unit.modChain
     '' No -d: a module never sees its importer's macros. Its PACKAGE's [defines] it does
     '' see (RFC-0007 §2).
     ModuleDefines( ctx, noDefines )

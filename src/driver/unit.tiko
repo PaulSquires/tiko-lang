@@ -86,7 +86,7 @@ end function
 function IsMainUnit_ _
     ( byref ctx as Tko.CompilerContext, byval id as Tko.FileId, byval i as int32 ) as boolean
     dim as string modName = ModuleStem( ctx.sources.PathOf( id ) )
-    if ctx.modFileCount > 0 then modName = ctx.modName
+    if ctx.unit.modFileCount > 0 then modName = ctx.unit.modName
     dim as boolean isMain = false
     if len( ctx.options.mainModule ) > 0 then
         isMain = (Tko.Text.LowerAscii( modName ) = _
@@ -114,7 +114,7 @@ function IsMainUnit_ _
         isMain = (i = 1)
     end if
     '' A MODULE IS NEVER MAIN: its top-level code is its initialiser (RFC-0006).
-    if ctx.modFileCount > 0 then isMain = false
+    if ctx.unit.modFileCount > 0 then isMain = false
     return isMain
 end function
 
@@ -149,7 +149,7 @@ function CompileUnit _
     '' A MODULE UNIT: every file of the module in this one engine, with the hermetic seed.
     dim as Tko.IdVec modFiles
     dim as Tko.StrVec noDefines
-    if ctx.modFileCount > 0 then Tko.Modules.ModuleUnitConfig( ctx, cfg, modFiles, noDefines )
+    if ctx.unit.modFileCount > 0 then Tko.Modules.ModuleUnitConfig( ctx, cfg, modFiles, noDefines )
     if ctx.importsBuilt then Tko.Modules.InstallImports( ctx, cfg )
     dim as float64 tPh = timer
     dim as Tko.PpStream st
@@ -166,7 +166,7 @@ function CompileUnit _
     p.names = @ctx.names
     p.diags = @ctx.diags
     p.pos = 0
-    p.recordDecls = (ctx.modFileCount > 0)
+    p.recordDecls = (ctx.unit.modFileCount > 0)
     p.ifaceChains = @ctx.ifaceChains
     '' The target's default convention, which the '...' rule needs. See
     '' ParserState.fbcallConv.
@@ -239,29 +239,29 @@ function CompileUnit _
         ctx.options.pragmaLibFiles.Push( pr.foreignLibFiles[k] )
     next
     '' What a module's cache entry depends on (modcache.tiko).
-    ctx.unitFilesRead.Clear( )
+    ctx.unit.unitFilesRead.Clear( )
     for each f as uint32 in pr.filesRead
-        ctx.unitFilesRead.Push( f )
+        ctx.unit.unitFilesRead.Push( f )
     next
-    ctx.unitProbesMissed.Clear( )
+    ctx.unit.unitProbesMissed.Clear( )
     for each m_ as string in pr.probesMissed
-        ctx.unitProbesMissed.Push( m_ )
+        ctx.unit.unitProbesMissed.Push( m_ )
     next
-    ctx.unitThreadRtl = false
-    ctx.unitUsesClock = pr.usesClock
+    ctx.unit.unitThreadRtl = false
+    ctx.unit.unitUsesClock = pr.usesClock
 
     dim as Tko.SymbolTable syms
     syms.Attach( @ctx.names )
     dim as Tko.SemanticInfo info
     '' A MODULE UNIT, before Collect: its out-of-line members wait for their types.
-    if ctx.modFileCount > 0 then Tko.ModSym.Begin( syms, ctx.modFiles, ctx.modChain )
+    if ctx.unit.modFileCount > 0 then Tko.ModSym.Begin( syms, ctx.unit.modFiles, ctx.unit.modChain )
     tPh = timer
     Tko.Collect.Run( ast, root, syms, ctx.names, ctx.types, ctx.diags, _
                      info, @ctx.sources )
     ctx.timing.Add( Tko.PH_COLLECT, tPh )
     '' MODULE CODE, and what it lets out (ADR 0017): before Resolve, whose generic
     '' instances copy their generic's marks.
-    if ctx.modFileCount > 0 then Tko.ModSym.Mark( ast, syms, info, ctx.sources, ctx.diags )
+    if ctx.unit.modFileCount > 0 then Tko.ModSym.Mark( ast, syms, info, ctx.sources, ctx.diags )
     if ctx.importsBuilt then Tko.Modules.BindImports( ctx, ast, syms, info, pr.imports, pr.importRead )
 
     '' '#pragma reserve NAME' TAKES A NAME OUT OF CIRCULATION -- fbc error 4 for
@@ -388,7 +388,7 @@ function CompileUnit _
         Tko.Sem.Run( ast, root, syms, ctx.types, ctx.names, ctx.diags, info, @ctx.sources, _
                      ctx.options.errFlags )
         '' A MODULE'S PUBLIC DECLARATIONS NAME ONLY WHAT AN IMPORTER CAN (TKO0868).
-        if ctx.modFileCount > 0 then Tko.ModSym.CheckPublicTypes( syms, ctx.types, ctx.diags )
+        if ctx.unit.modFileCount > 0 then Tko.ModSym.CheckPublicTypes( syms, ctx.types, ctx.diags )
         dim as Tko.Mir.MirModule mm
         dim as Tko.Mir.LowerStats lst
         dim as Tko.UdtLayouts udts
@@ -411,7 +411,7 @@ function CompileUnit _
         '' (symbols/constsubscript.tiko, builtinarity.tiko) so that none is lost by stopping here.
         if FrontendFailed_( ctx ) then return false
         '' A MODULE OF THE BUILD LEAVES ITS INTERFACE for what imports it (modiface.tiko).
-        dim as boolean publishes = (ctx.modFileCount > 0) andalso ctx.importsBuilt
+        dim as boolean publishes = (ctx.unit.modFileCount > 0) andalso ctx.importsBuilt
         if publishes then publishes = (FrontendFailed_( ctx ) = false)
         if publishes then Tko.Modules.PublishInterface( ctx, pr, ast, syms, info )
         ctx.timing.Add( Tko.PH_SEMA, tPh )
@@ -435,7 +435,7 @@ function CompileUnit _
         '' in every object and collide at the link, which is the bug '-m'
         '' exists to prevent.
         dim as string modName = ModuleStem( ctx.sources.PathOf( id ) )
-        if ctx.modFileCount > 0 then modName = ctx.modName
+        if ctx.unit.modFileCount > 0 then modName = ctx.unit.modName
         dim as boolean isMain = IsMainUnit_( ctx, id, i )
         tPh = timer
         Tko.Mir.Lower( ast, root, syms, ctx.types, ctx.names, info, _
@@ -455,12 +455,12 @@ function CompileUnit _
         if Tko.Mir.UsesThreadRtl( mm, ctx.names, _
                 ctx.types.target.pointerBits = 32 ) then
             ctx.options.threadSafe = true
-            ctx.unitThreadRtl = true
+            ctx.unit.unitThreadRtl = true
         end if
         if ctx.types.target.wcharBytes <> 2 then mm.SplitUtf16Literals( ctx.names )
         '' WHO INITIALISES WHAT (RFC-0006): a module unit, its direct imports, in build
         '' order; a root of a build with modules, every module, in build order.
-        if ctx.modFileCount > 0 then mm.modChain = ctx.modChain
+        if ctx.unit.modFileCount > 0 then mm.modChain = ctx.unit.modChain
         if ctx.importsBuilt then Tko.Modules.InitOrder( ctx, mm.modInits )
         '' THE ABI PASS, between lowering and emission (docs/plan/10 section
         '' 3). It rewrites signatures and call sites so the emitted IR carries
@@ -622,7 +622,7 @@ function CompileUnit _
                             objPath = StripExt_( ctx.sources.PathOf( id ) ) & ".o"
                             '' ...AND A MODULE'S AFTER ITS CHAIN, beside the archive: its source
                             '' may be in the toolchain's pkg/, which is nobody's to write in.
-                            if ctx.modFileCount > 0 then objPath = Tko.Modules.ArchiveMemberPath( ctx )
+                            if ctx.unit.modFileCount > 0 then objPath = Tko.Modules.ArchiveMemberPath( ctx )
                         end if
                         tempObjs.Push( objPath )
                     elseif len( objPath ) = 0 then
@@ -634,18 +634,18 @@ function CompileUnit _
                         '' wrong one only from the compiler's point of view.
                         objPath = StripExt_( ctx.sources.PathOf( id ) ) & ".o"
                         '' A MODULE'S OBJECT IS NAMED FOR THE MODULE, in the current directory.
-                        if ctx.modFileCount > 0 then objPath = ctx.modName & ".o"
+                        if ctx.unit.modFileCount > 0 then objPath = ctx.unit.modName & ".o"
                     end if
                     '' '-c' OF A PROGRAM THAT IMPORTS: a module's object is its chain's,
                     '' beside the output, as for an archive -- not the root's -o.
                     dim as boolean modC = ctx.importsBuilt andalso ctx.options.compileOnly
-                    if modC andalso (ctx.modFileCount > 0) then objPath = Tko.Modules.ArchiveMemberPath( ctx )
+                    if modC andalso (ctx.unit.modFileCount > 0) then objPath = Tko.Modules.ArchiveMemberPath( ctx )
                     '' AN OBJECT KEPT FOR ANOTHER LINK SAYS WHAT IT NEEDS, in the
                     '' '.fbctinf' section fbc writes -- see codegen/objinfo.ti. A root's names
                     '' the objects of the modules it imports, which that link adds.
                     if ctx.options.compileOnly then
                         dim as Tko.StrVec noMods
-                        dim as boolean records = modC andalso (ctx.modFileCount = 0)
+                        dim as boolean records = modC andalso (ctx.unit.modFileCount = 0)
                         er.tail += Tko.Codegen.ObjInfoIr( ctx.options.libs, _
                             ctx.options.pragmaLibs, ctx.options.libPaths, _
                             ctx.options.pragmaLibPaths, _
