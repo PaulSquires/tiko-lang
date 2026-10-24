@@ -1,0 +1,87 @@
+# ci.yml -- the first second machine (review BLD-13, 2026-10-24).
+#
+# Windows and Linux: fetch the pinned seed, build Debug with the test runner, lint, run the
+# suite. The fbc gates (crosslink, check-*.sh) need fbc-modern and stay a local or
+# self-hosted job: without an oracle they exit 77, SKIPPED.
+#
+# THE SUITE STILL LINKS toolchains/tiko-<host>/lib (review BLD-01), which is gitignored. The
+# seed IS a packaged toolchain, so its lib/ and inc/ are laid out there for the tests. When
+# the suite builds lib/rt for itself this step goes.
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TKO_EDITOR_DIR: /c/nonexistent
+      TKO_TEST_TIMEOUT: "300"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the pinned seed
+        run: sh seed/fetch-seed.sh --host windows
+      - name: Lay out the seed's toolchain where the tests link it
+        run: |
+          mkdir -p toolchains
+          cp -r seed/cache/windows/tiko-windows toolchains/tiko-windows || cp -r seed/cache/windows toolchains/tiko-windows
+          ls toolchains/tiko-windows/lib
+      - name: clang
+        run: |
+          command -v clang || echo "C:/Program Files/LLVM/bin" >> "$GITHUB_PATH"
+      - name: Build (Debug, test runner)
+        run: bash build/build.sh Debug --no-dll --test-runner
+      - name: Lint
+        run: |
+          bash build/lint.sh
+          bash lib/rt/build/lint.sh
+      - name: Suite
+        run: bash build/test.sh --no-build
+
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TKO_EDITOR_DIR: /nonexistent
+      TKO_TEST_TIMEOUT: "300"
+    steps:
+      - uses: actions/checkout@v4
+      - name: LLVM 18
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 lld-18 llvm-18
+          echo "TKO_CLANG=/usr/bin/clang-18" >> "$GITHUB_ENV"
+          echo "TKO_AR=/usr/bin/llvm-ar-18" >> "$GITHUB_ENV"
+          echo "TKO_NM=/usr/bin/llvm-nm-18" >> "$GITHUB_ENV"
+      - name: Fetch the pinned seed
+        run: sh seed/fetch-seed.sh --host linux
+      - name: Lay out the seed's toolchain where the tests link it
+        run: |
+          mkdir -p toolchains
+          cp -r seed/cache/linux/tiko-linux toolchains/tiko-linux || cp -r seed/cache/linux toolchains/tiko-linux
+          ls toolchains/tiko-linux/lib
+      - name: Build (Debug, test runner)
+        run: bash build/build.sh Debug --no-dll --test-runner
+      - name: Lint
+        run: |
+          bash build/lint.sh
+          bash lib/rt/build/lint.sh
+      - name: Suite
+        run: bash build/test.sh --no-build
