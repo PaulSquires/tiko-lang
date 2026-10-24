@@ -1,0 +1,12 @@
+'' A PROGRAM THAT NEVER EXITS FAILS ITS TEST instead of hanging the suite (review BLD-09):
+'' the runner kills it after TKO_TEST_TIMEOUT seconds and reports exit 124.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/driver/src/runner-timeout.bas -o tests/driver/runnertimeout.exe
+'' ENV: TKO_LIBPATH=toolchains/tiko-windows/lib/windows-x86_64
+'' ENV: TKO_TEST_TIMEOUT=3
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/runnertimeout.exe
+'' RUN: tests/driver/runnertimeout.exe
+'' EXPECT-RUN-EXIT: 124
+'' EXPECT-RUN-OUT: started
+'' EXPECT-RUN-OUT: tiko-test: TIMEOUT after 3s, killed

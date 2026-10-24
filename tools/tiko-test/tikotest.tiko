@@ -111,6 +111,10 @@ type TestCase
     '' EXPECT-EXIT[<target>]: '<target>' & tab & '<n>', overriding expectExit for that target.
     as containers.Array( of string ) expectExitFor
     as string golden          '' relative to dir_, or "" for none
+    '' What --accept wrote to a SHARED golden for an earlier target of this run: a later
+    '' target that disagrees is refused rather than silently winning (review BLD-09).
+    as string acceptedShared
+    as boolean acceptedSet
     as containers.Array( of string ) targets   '' from <dir>TARGETS, else just win64
     as int32   maxDiag
     as boolean haveMaxDiag
@@ -476,6 +480,15 @@ function NativePath( byval p as string ) as string
     return r
 end function
 
+'' A TEST THAT HANGS IS A FAILURE, not a suite that never finishes (review BLD-09): every
+'' child is killed after TKO_TEST_TIMEOUT seconds, default 600, and reports exit 124 -- the
+'' code coreutils' 'timeout' uses. 0 turns it off.
+function TestTimeoutSecs_( ) as int32
+    dim as string v = environ( "TKO_TEST_TIMEOUT" )
+    if len( v ) = 0 then return 600
+    return valint( v )
+end function
+
 #ifdef __FB_WIN32__
 '' STARTED DIRECTLY, READ THROUGH A PIPE -- Windows only. 'shell( )' is cmd.exe, then tiko,
 '' then a temp file written, read back and deleted: 654 MIR compiles took 15.0s that way
@@ -508,6 +521,8 @@ extern "Windows" lib "kernel32"
     declare function TtWait_ alias "WaitForSingleObject" ( byval h as any ptr, byval ms as uint32 ) as uint32
     declare function TtExitCode_ alias "GetExitCodeProcess" ( byval h as any ptr, byval code as uint32 ptr ) as int32
     declare function TtStdHandle_ alias "GetStdHandle" ( byval n as uint32 ) as any ptr
+    declare function TtPeek_ alias "PeekNamedPipe" ( byval h as any ptr, byval buf as any ptr, byval n as uint32, byval got as uint32 ptr, byval avail as uint32 ptr, byval rest as uint32 ptr ) as int32
+    declare function TtTerminate_ alias "TerminateProcess" ( byval h as any ptr, byval code as uint32 ) as int32
 end extern
 
 '' ONE SPAWN AT A TIME. The pipe's write end has to be inheritable, and a child another
@@ -546,15 +561,35 @@ private function RunCaptureWin_( byval cmdLine as string, byref outText as strin
         return -1
     end if
     dim as string chunk = space( 65536 )
-    dim as uint32 got
-    while TtReadFile_( rd, strptr( chunk ), 65536, @got, nullptr ) <> 0
-        if got = 0 then exit while
-        outText &= left( chunk, got )
-    wend
+    dim as uint32 got, avail
+    '' POLLED, so a child that never exits can be killed: read what is there, else wait
+    '' 20 ms on the process, and past the deadline terminate it. Once it has exited the
+    '' rest is drained as before.
+    dim as int32 limit = TestTimeoutSecs_( )
+    dim as double t0 = timer
+    dim as boolean killed = false
+    do
+        avail = 0
+        if TtPeek_( rd, nullptr, 0, nullptr, @avail, nullptr ) = 0 then exit do
+        if avail > 0 then
+            if TtReadFile_( rd, strptr( chunk ), iif( avail > 65536, 65536, avail ), @got, nullptr ) = 0 then exit do
+            outText &= left( chunk, got )
+        elseif TtWait_( pi.hProcess, 20 ) = 0 then
+            while TtReadFile_( rd, strptr( chunk ), 65536, @got, nullptr ) <> 0
+                if got = 0 then exit while
+                outText &= left( chunk, got )
+            wend
+            exit do
+        elseif (limit > 0) andalso (timer - t0 > limit) then
+            TtTerminate_( pi.hProcess, 124 )
+            killed = true
+        end if
+    loop
     TtCloseHandle_( rd )
     TtWait_( pi.hProcess, &hFFFFFFFF )
     dim as uint32 code
     TtExitCode_( pi.hProcess, @code )
+    if killed then outText &= !"\ntiko-test: TIMEOUT after " & limit & "s, killed"
     TtCloseHandle_( pi.hThread )
     TtCloseHandle_( pi.hProcess )
     '' THROUGH A USTRING, as ReadAllText reads the temp file: an invalid UTF-8 byte becomes
@@ -579,6 +614,13 @@ function ColorFirst_( byval args as string ) as string
     return "--color=never " & args
 end function
 
+'' 'timeout -s KILL N ' off Windows, where the child is started through the shell.
+function TimeoutPrefix_( ) as string
+    dim as int32 limit = TestTimeoutSecs_( )
+    if limit <= 0 then return ""
+    return "timeout -s KILL " & limit & " "
+end function
+
 function RunTko _
     ( byval tikoPath as string, byval args as string, byref outText as string, _
       byval slotId as int32 ) as int32
@@ -593,7 +635,7 @@ function RunTko _
     dim as string tmp = "build/.tikotest." & slotId & ".out"
     '' --color=never goes FIRST: appended last, a trailing value-taking option in
     '' the test's own ARGS would swallow it as its value.
-    dim as string cmd = NativePath( tikoPath ) & " " & ColorFirst_( args ) & _
+    dim as string cmd = TimeoutPrefix_( ) & NativePath( tikoPath ) & " " & ColorFirst_( args ) & _
                         " > " & NativePath( tmp ) & " 2>&1"
     dim as int32 rc = shell( cmd )
     outText = NormalizeEol( ReadTextFile( tmp ) )
@@ -783,10 +825,17 @@ function CheckRun_ _
         why = "RUN: no program at " & tc.runExe
         return false
     end if
-    dim as string tmp = "build/.tikotest." & slotId & ".run"
-    dim as int32 rc = shell( NativePath( tc.runExe ) & " > " & NativePath( tmp ) & " 2>&1" )
-    dim as string outp = NormalizeEol( ReadTextFile( tmp ) )
-    Kill( tmp )
+    '' THE PROGRAM IS WHAT HANGS, when anything does -- so it runs under the same deadline.
+    dim as string outp
+    #ifdef __FB_WIN32__
+        dim as int32 rc = RunCaptureWin_( NativePath( tc.runExe ), outp )
+    #else
+        dim as string tmp = "build/.tikotest." & slotId & ".run"
+        dim as int32 rc = shell( TimeoutPrefix_( ) & NativePath( tc.runExe ) & " > " & NativePath( tmp ) & " 2>&1" )
+        outp = NormalizeEol( ReadTextFile( tmp ) )
+        Kill( tmp )
+        if rc = 137 then rc = 124                    '' killed by 'timeout -s KILL'
+    #endif
     if rc <> tc.runExit then
         why = "RUN: " & tc.runExe & " exited " & rc & ", expected " & tc.runExit
         return false
@@ -908,6 +957,7 @@ function RunOne _
       byval slotId as int32 ) as boolean
 
     why = ""
+    tc.acceptedSet = false
 
     if tc.kind = "skip" then return true
 
@@ -1149,6 +1199,15 @@ function CheckOne_ _
         if len( tg ) > 0 then rel = tg
         dim as string gpath = tc.dir_ & rel
         if opts.accept then
+            if len( tg ) = 0 then
+                if tc.acceptedSet andalso (tc.acceptedShared <> outText) then
+                    why = "--accept: targets disagree on the shared golden " & gpath & _
+                          " -- give each target its own (" & tc.golden & ".<target>)"
+                    return false
+                end if
+                tc.acceptedShared = outText
+                tc.acceptedSet = true
+            end if
             WriteTextFile( gpath, outText )
         else
             dim as string want = NormalizeEol( ReadTextFile( gpath ) )
