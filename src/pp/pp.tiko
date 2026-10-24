@@ -485,8 +485,7 @@ end function
 '' fbc, and only TRUE self-recursion is refused: '#define f(x) f(x)' and '#define A A+1'
 '' are both 'error 89: Recursive DEFINE not allowed'.
 ''
-'' Nothing is hidden now, and runaway expansion is caught where it always was -- the
-'' frame cap, PP_MAX_FRAMES, which reports TKO0304 and stops. The 'hides' field stays
+'' Nothing is hidden: runaway expansion stops at a cap (pp.ti). The 'hides' field stays
 '' on the frame because the dump reads it.
 private function IsHidden( byref e as PpEngine, byval id as InternId ) as boolean
     return false
@@ -982,6 +981,11 @@ private sub EmitTok( byref e as PpEngine, byref t as Token )
     if e.eatNextEol andalso (Tk( t ) = TK_EOL) andalso ((t.flags and TF_COLON) = 0) then
         e.eatNextEol = false
         return
+    end if
+    dim as int32 capT = iif( e.cfg->maxTokens > 0, e.cfg->maxTokens, PP_MAX_TOKENS )
+    if e.outp->tokens.Count >= capT then
+        if e.stopped = false then Report( e, TKO0372, t.loc, str( capT ) )
+        e.stopped = true : return
     end if
     e.outp->tokens.Push( t )
 end sub

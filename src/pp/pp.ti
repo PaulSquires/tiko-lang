@@ -11,10 +11,11 @@
 ''
 '' Invariants:
 ''   - The output always ends in exactly one TK_EOF.
-''   - Tokens produced by macro expansion carry TF_FROM_MACRO and the loc of the USE
-''     site, so a diagnostic points where the user wrote something.
-''   - Expansion is bounded: a macro is never expanded inside its own expansion (hide
-''     sets), and the frame stack has a hard depth cap. Neither can hang.
+''   - Tokens produced by macro expansion carry TF_FROM_MACRO and keep the loc of the
+''     macro's DEFINITION; there is no use-site chain yet (review FE-01).
+''   - Expansion is bounded by caps, not hide sets -- fbc has none, and IsHidden returns
+''     false: frame depth (PP_MAX_FRAMES, TKO0304) and output volume (PP_MAX_TOKENS,
+''     TKO0372). A runaway macro stops with an error rather than hanging.
 ''   - A file is lexed at most once per compilation, whatever it costs to include.
 
 #ifndef __TKO_PP_BI__
@@ -30,6 +31,9 @@ namespace Tko
 
     const PP_MAX_FRAMES     as int32 = 256    '' expansion + include depth
     const PP_MAX_CONDS      as int32 = 128    '' #if nesting
+    '' OUTPUT VOLUME, not depth: a 30-level doubling macro is 620 bytes and never nests
+    '' past 30, yet ran past 1 GB in 20 s. 16M tokens is 256 MB; no real unit comes close.
+    const PP_MAX_TOKENS     as int32 = 16777216
 
     '' Builtin macros that are more than a value: they manipulate their argument
     '' tokens and cannot be expressed as a #define.
@@ -169,6 +173,7 @@ namespace Tko
         as containers.Array( of any ptr ) ptr sharedLexed
         as StrVec ptr defines        '' -d name[=value]
         as boolean    reportUnsupported
+        as int32      maxTokens      '' 0 = PP_MAX_TOKENS; TKO_PP_MAX_TOKENS lowers it for a test
         '' '#cmdline' IS ONLY HONOURED IN THE FIRST SOURCE FILE, and this says which
         '' module this is. fbc's rule, measured 2026-09-16: 'fbc a.bas b.bas' with the
         '' directive in a.bas restarts and never compiles b.bas on the first pass,

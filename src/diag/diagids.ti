@@ -223,6 +223,8 @@
     '' A MODULE'S PUBLIC HEADER, re-read by its importer with a macro its conditionals consulted
     '' set otherwise than in the module (tiko-vendor RFC-0002 V12; src/pp/ppmodhdr.tiko).
     DIAG( TKO0370, SEV_ERROR,   "%0 here, but %1" )
+    '' The unit's preprocessed output passed PP_MAX_TOKENS -- runaway expansion (src/pp/pp.ti).
+    DIAG( TKO0372, SEV_ERROR,   "the preprocessed program exceeded %0 tokens; a macro is expanding without bound" )
 
     '' -------------------------------------------------------------------- parser
     DIAG( TKO0400, SEV_ERROR,   "expected an expression" )

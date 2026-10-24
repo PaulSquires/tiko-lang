@@ -1,0 +1,9 @@
+'' A doubling macro thirty levels deep nests only thirty frames and expands to 2^30 tokens:
+'' it ran past 1 GB in 20 s. The preprocessor stops at its token-volume cap with TKO0372.
+'' The cap is PP_MAX_TOKENS (16M, about 37 s to reach under Debug); TKO_PP_MAX_TOKENS lowers
+'' it so the same code path runs in a fraction of a second.
+'' TEST: cli
+'' ARGS: --check tests/diagnostics/src/macro-volume-cap.bas
+'' ENV: TKO_PP_MAX_TOKENS=100000
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0372: the preprocessed program exceeded 100000 tokens; a macro is expanding without bound

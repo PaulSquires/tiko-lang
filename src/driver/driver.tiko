@@ -280,6 +280,7 @@ function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfig
     cfg.reportUnsupported = true
     cfg.sharedLits = @ctx.ppLits
     cfg.sharedLexed = @ctx.ppLexed
+    cfg.maxTokens = valint( environ( "TKO_PP_MAX_TOKENS" ) )
     cfg.importsBuilt = ctx.importsBuilt
     Tko.CImportDriver.ConfigureHook( cfg, ctx )
     return cfg
