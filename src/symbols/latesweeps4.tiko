@@ -817,6 +817,7 @@ sub TupleMemberBad_ ( byref c as Ctx, byval t as TypeId, byval lhs as NodeId, by
 end sub
 
 #include once "symbols/builtinarity.tiko"
+#include once "symbols/constsubscript.tiko"
 
 '' A SUB CALLED WHERE A VALUE IS WANTED. Measured on fbc-modern 1.20, 2026-09-28 -- error 17 for
 '' each, over a 'sub Sb( )' and a 'sub( )' pointer pf:

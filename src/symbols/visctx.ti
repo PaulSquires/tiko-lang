@@ -60,4 +60,7 @@ type Ctx
     '' For Check.ConstOf, which reads literals' text: nullptr from a caller that has no
     '' sources, and the checks that fold a constant then stay silent.
     as SourceManager ptr     srcMgr
+    '' THE -e FLAGS (Options.errFlags: 8 = array bounds): TKO0960 is an error only under
+    '' -exx / -earray, as fbc's 92 is (constsubscript.tiko).
+    as int32                 errFlags
 end type

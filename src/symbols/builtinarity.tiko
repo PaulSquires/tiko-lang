@@ -1,5 +1,6 @@
 '' builtinarity.tiko -- A BUILTIN WITH THE WRONG NUMBER OF ARGUMENTS, OR NONE: CheckBuiltinArity_,
-'' asked of every N_CALL, and CheckBareBuiltin_, of every N_IDENT.
+'' asked of every N_CALL, CheckBuiltinStmt_, of every N_AMBIGUOUS, and CheckBareBuiltin_, of
+'' every N_IDENT.
 ''
 '' Included from latesweeps4.tiko, in the same namespace and over the same Ctx; moved out of it
 '' 2026-10-10, when it reached the line cap.
@@ -36,6 +37,84 @@ private function BuiltinArity_ ( byref nm as string, byref lo as int32, byref hi
     return true
 end function
 
+'' THE RUNTIME BUILTINS LOWERING CLAIMS BY SPELLING (lowerbuiltin.tiko BuiltinProcRtl), by
+'' argument count. Lowering reported TKO0801 when one of these declined in a statement it then
+'' dropped; the count is the part a sweep can judge, so it is judged here (review MIR-04,
+'' LATER-PLAN D step 1). Measured on fbc-modern 1.20, 2026-10-24: each name as a statement and
+'' as a call with 0 to 4 integer arguments, and with a string first argument where it takes one.
+'' Too few or too many is fbc's error 1 (99 for bsave, dylibsymbol and reset's second). Left
+'' out: width and seek, whose statement and function forms take different counts, and end,
+'' which is a statement keyword.
+private function RtlBuiltinArity_ ( byref nm as string, byref lo as int32, byref hi as int32 ) as boolean
+    select case nm
+    case "mutexcreate", "getkey"
+        lo = 0 : hi = 0
+    case "allocate", "deallocate", "mutexdestroy", "mutexlock", "mutexunlock", "chain", _
+         "dylibload", "dylibfree", "setdate", "settime", "pointcoord"
+        lo = 1 : hi = 1
+    case "stop", "reset", "screenlist"
+        lo = 0 : hi = 1
+    case "pcopy"
+        lo = 0 : hi = 2
+    case "callocate", "run"
+        lo = 1 : hi = 2
+    case "bload"
+        lo = 1 : hi = 3
+    case "reallocate", "dylibsymbol", "out", "pmap"
+        lo = 2 : hi = 2
+    case "wait"
+        lo = 2 : hi = 3
+    case "bsave"
+        lo = 2 : hi = 4
+    case "clear"
+        lo = 3 : hi = 3
+    case else
+        return false
+    end select
+    return true
+end function
+
+'' ...AND THE LIBRARY FUNCTIONS WRITTEN AS A STATEMENT WITH NOTHING AFTER THEM: 'hex' alone on a
+'' line. fbc: error 99 for hex, oct, bin and their w-forms, left, right and the val family, 1 for
+'' space and wspace (measured with the table above). With an argument each is a value used as a
+'' statement -- another rule's business (valuestmt.tiko).
+private function NeedsArguments_ ( byref nm as string ) as boolean
+    select case nm
+    case "hex", "oct", "bin", "whex", "woct", "wbin", "space", "wspace", "left", "right", _
+         "val", "valint", "vallng", "valuint", "valulng"
+        return true
+    end select
+    return false
+end function
+
+private function UnboundName_ ( byref c as Ctx, byval n as NodeId ) as string
+    if (n = NODE_NONE) orelse (c.ast->Kind( n ) <> N_IDENT) then return ""
+    if c.info->RefOf( n ) <> SYMBOL_NONE then return ""
+    return lcase( c.names->Spelling( c.ast->idents[cast( int32, c.ast->nodes[cast( int32, n )].data )].name ) )
+end function
+
+'' 'wait 1', 'stop 1, 2', 'hex': a statement whose callee is an unbound builtin's spelling, with
+'' arguments no form of it takes. Reported at the callee, where lowering reported it.
+private sub CheckBuiltinStmt_ ( byref c as Ctx, byval id as NodeId )
+    select case c.info->AmbiguousOf( id )
+    case AMB_CALL, AMB_UNRESOLVED
+    case else
+        return
+    end select
+    dim as StmtPayload ptr sp = @c.ast->stmts[cast( int32, c.ast->nodes[cast( int32, id )].data )]
+    if sp->b <> NODE_NONE then return
+    dim as string nm = UnboundName_( c, sp->a )
+    if len( nm ) = 0 then return
+    dim as int32 lo, hi
+    dim as boolean bad = false
+    if RtlBuiltinArity_( nm, lo, hi ) then
+        bad = (sp->count < lo) orelse (sp->count > hi)
+    elseif sp->count = 0 then
+        bad = NeedsArguments_( nm )
+    end if
+    if bad then c.diags->Report( TKO0801, PointRange( c.ast->Loc( sp->a ) ), nm )
+end sub
+
 private sub CheckBuiltinArity_ ( byref c as Ctx, byval id as NodeId )
     dim as ListPayload ptr lp = @c.ast->lists[cast( int32, c.ast->nodes[cast( int32, id )].data )]
     if (lp->target = NODE_NONE) orelse (c.ast->Kind( lp->target ) <> N_IDENT) then return
@@ -44,7 +123,9 @@ private sub CheckBuiltinArity_ ( byref c as Ctx, byval id as NodeId )
     dim as string nm = lcase( c.names->Spelling( _
         c.ast->idents[cast( int32, c.ast->nodes[cast( int32, lp->target )].data )].name ) )
     dim as int32 lo, hi
-    if BuiltinArity_( nm, lo, hi ) = false then return
+    if BuiltinArity_( nm, lo, hi ) = false then
+        if RtlBuiltinArity_( nm, lo, hi ) = false then return
+    end if
     if (lp->count >= lo) andalso (lp->count <= hi) then return
     c.diags->Report( TKO0801, PointRange( c.ast->Loc( id ) ), nm )
 end sub

@@ -1,0 +1,8 @@
+'' TKO0801: a runtime builtin with the wrong number of arguments, as a call and as a statement,
+'' judged by the sweeps (symbols/builtinarity.tiko RtlBuiltinArity_). See the source.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/builtin-rtl-arity.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: builtin-rtl-arity.bas(4,29): error TKO0801: 'callocate' does not take these arguments
+'' EXPECT-OUT: builtin-rtl-arity.bas(5,1): error TKO0801: 'reallocate' does not take these arguments
+'' EXPECT-MAX-DIAG: 2

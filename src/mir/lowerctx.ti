@@ -65,9 +65,6 @@ type StmtState
     '' The statement being lowered, so a decline can name the SOURCE LINE it came
     '' from. Bucketing by the diagnostic hides what bucketing by the line shows.
     as uint32                curStmtNode
-    '' A BUILTIN'S CALLEE whose call declined in this statement -- reported as TKO0801
-    '' only if the statement is then dropped (SkipAt). See NoteBuiltinDecline.
-    as uint32                badBuiltinNode
     '' The sub-expression to BLAME for the next decline, when something narrower than
     '' the statement is known to be at fault. A statement written inside a MACRO reports
     '' the macro's own line, so 'CU_ASSERT( x )' attributed every failure in the corpus

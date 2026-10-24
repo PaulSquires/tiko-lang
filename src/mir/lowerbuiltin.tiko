@@ -125,59 +125,9 @@ private function BuiltinProcRtl _
     return RTL_NONE
 end function
 
-'' A BUILTIN THAT DECLINED IS AN ERROR, NOT A DROPPED STATEMENT. Called where an
-'' UNBOUND callee has run out of ways to lower. A name nothing declares is Check's
-'' TKO0743, but a builtin's spelling is let through (symbols/undeclared.tiko) because
-'' lowering claims it -- so when lowering then declines, the call is simply gone:
-'' 'wait 1', 'stop 1, 2', 'pcopy 1, 2, 3', 'hex' and 'space' built and ran without
-'' the line. fbc's errors 1 and 99, measured, for every one of them.
-''
-'' NOTED HERE, REPORTED ONLY IF THE STATEMENT IS DROPPED. This path is also tried
-'' SPECULATIVELY: 'hex 5' and 'hex( 5 )' reach it before the intrinsic path lowers
-'' them, and reporting at once made every one of those an error. SkipAt is where a
-'' statement is actually given up on, and it calls ReportBuiltinDecline.
-sub NoteBuiltinDecline( byref c as Ctx, byval calleeNode as Tko.NodeId )
-    if c.diags = nullptr then exit sub
-    if calleeNode = Tko.NODE_NONE then exit sub
-    if c.ast->Kind( calleeNode ) <> Tko.N_IDENT then exit sub
-    if c.info->RefOf( calleeNode ) <> Tko.SYMBOL_NONE then exit sub
-    dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, calleeNode )].data )]
-    if cast( int32, ip->name ) <= TKO_KEYWORD_COUNT then exit sub
-    dim as string nm = LowerSpelling_( c.ix, *c.names, ip->name )
-    dim as int32 argc = 0
-    dim as MirType ty = MT_VOID
-    dim as boolean known = Tko.Check.IsTypedIntrinsicName( nm )
-    if BuiltinProcRtl( nm, argc, ty, true ) <> RTL_NONE then known = true
-    if known = false then exit sub
-    c.stmt.badBuiltinNode = cast( uint32, calleeNode )
-end sub
-
-sub ReportBuiltinDecline( byref c as Ctx )
-    dim as Tko.NodeId callee = cast( Tko.NodeId, c.stmt.badBuiltinNode )
-    c.stmt.badBuiltinNode = 0
-    if (callee = Tko.NODE_NONE) orelse (c.diags = nullptr) then exit sub
-    for each seen as uint32 in c.st->badBuiltinCalls
-        if seen = cast( uint32, callee ) then exit sub
-    next
-    c.st->badBuiltinCalls.Push( cast( uint32, callee ) )
-    '' NOT ON A LINE THAT ALREADY HAS AN ERROR. The builtin's call is not always why the
-    '' statement was dropped: in 'tmp$ = space( 4 )' it was the undeclared tmp$, already
-    '' TKO0743, and blaming 'space' as well was a false second error on the line.
-    dim as Tko.DiagnosticEngine ptr de = cast( Tko.DiagnosticEngine ptr, c.diags )
-    if c.srcMgr <> nullptr then
-        dim as Tko.DecodedLoc bl = c.srcMgr->Decode( c.ast->Loc( callee ) )
-        for i as int32 = 0 to de->pending.Count - 1
-            if (de->pending[i].sev <> Tko.SEV_ERROR) orelse (de->pending[i].hasLocation = false) then continue for
-            dim as Tko.DecodedLoc dl = c.srcMgr->Decode( de->pending[i].range.first )
-            if (dl.file = bl.file) andalso (dl.physLine = bl.physLine) then exit sub
-        next
-    end if
-    dim as Tko.IdentPayload ptr ip = _
-        @c.ast->idents[cast( int32, c.ast->nodes[cast( int32, callee )].data )]
-    de->Report( Tko.TKO0801, _
-        Tko.PointRange( c.ast->Loc( callee ) ), c.names->Spelling( ip->name ) )
-end sub
+'' A BUILTIN WITH ARGUMENTS NO FORM OF IT TAKES is TKO0801, reported by the sweeps since
+'' 2026-10-24 (symbols/builtinarity.tiko): lowering noted the callee here and reported it
+'' when the statement was dropped, the one user error lowering raised besides TKO0960.
 
 '' Lower a call to one of them. Returns false when the callee is not a built-in, so an
 '' ordinary unbound callee still declines as it did.

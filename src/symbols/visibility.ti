@@ -23,7 +23,7 @@ namespace Tko.Vis
         ( byref ast as AstArena, byval root as NodeId, byref syms as SymbolTable, _
           byref types as TypeContext, byref names as Interner, _
           byref diags as DiagnosticEngine, byref info as SemanticInfo, _
-          byval src as SourceManager ptr = nullptr )
+          byval src as SourceManager ptr = nullptr, byval errFlags as int32 = 0 )
 
 end namespace
 

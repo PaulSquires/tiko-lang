@@ -1,0 +1,9 @@
+'' Under -exx a constant subscript outside a fixed array's bounds is TKO0960 when it is a CONST
+'' name or folds to one, as fbc's 92 is -- not only when it is a literal. See the source.
+'' TEST: cli
+'' ARGS: -exx --dump-ir tests/diagnostics/src/const-oob-folded.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: const-oob-folded.bas(7,8): error TKO0960: the subscript 5 is outside the array's bounds, 1 to 3
+'' EXPECT-OUT: const-oob-folded.bas(8,8): error TKO0960: the subscript 4
+'' EXPECT-OUT: const-oob-folded.bas(13,12): error TKO0960: the subscript 9 is outside the array's bounds, 0 to 1
+'' EXPECT-MAX-DIAG: 3

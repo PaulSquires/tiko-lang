@@ -123,7 +123,6 @@ sub LowerStmtAt_( byref c as Ctx, byval id as Tko.NodeId )
     dim as uint32 savedNode = c.stmt.curStmtNode
     c.stmt.curStmtKind = cast( uint16, c.ast->Kind( id ) )
     c.stmt.curStmtNode = cast( uint32, id )
-    c.stmt.badBuiltinNode = 0  '' a decline is this statement's to report -- NoteBuiltinDecline
 
     '' STATEMENT-LIFETIME STRING TEMPORARIES. A string 'iif' builds its result in a
     '' temporary descriptor that must be released once the statement that consumes it
@@ -153,7 +152,6 @@ sub LowerStmtAt_( byref c as Ctx, byval id as Tko.NodeId )
 
     c.stmt.curStmtKind = savedKind
     c.stmt.curStmtNode = savedNode
-    c.stmt.badBuiltinNode = 0
 end sub
 
 private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )

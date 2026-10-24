@@ -77,8 +77,6 @@ declare function PtrArithElem_ _
         ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval argFirst as int32, _
           byval argCount as int32, byref outv as MirValue, _
           byval unboundOnly as boolean = false ) as boolean
-    declare sub NoteBuiltinDecline( byref c as Ctx, byval calleeNode as Tko.NodeId )
-    declare sub ReportBuiltinDecline( byref c as Ctx )
     declare function IsTupleType_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     declare function LowerDestructure _
         ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
