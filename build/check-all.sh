@@ -11,8 +11,9 @@
 # seventeen minutes of waiting into about nine.
 #
 # TWO GATES EXIT NONZERO AT BASELINE -- check-ptr and check-intrin -- and that was
-# established by rebuilding HEAD and re-running them, not assumed. The count is reported
-# rather than the run failed, so a THIRD one is visible immediately.
+# established by rebuilding HEAD and re-running them, not assumed. Those two are named and
+# allowed; ANY OTHER nonzero gate, a nonzero sweep, the rt lint or crosslink FAILS THE RUN.
+# This script used to count and echo, and exit 0 whatever it found.
 set -e
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
@@ -24,26 +25,46 @@ bash build/mirsweep.sh > build/.sweep.log 2>&1 &
 sweeppid=$!
 
 fail=0
+bad=0
 for g in tools/gen/check-*.sh ; do
     if ! sh "$g" >/dev/null 2>&1 ; then
         echo "check-all: GATE NONZERO: $g"
         fail=$((fail + 1))
+        case "$g" in
+            */check-ptr.sh|*/check-intrin.sh) ;;
+            *) bad=$((bad + 1)) ;;
+        esac
     fi
 done
 echo "check-all: gates nonzero: $fail (baseline is 2 -- check-ptr and check-intrin)"
 
-wait $sweeppid || true
+if ! wait $sweeppid ; then
+    echo "check-all: FAILED: build/mirsweep.sh (build/.sweep.log)"
+    bad=$((bad + 1))
+fi
 grep -E "statements not lowered|verify failures|scope imbalance" build/.sweep.log || true
 
 bash build/build.sh Release
 bash build/build.sh RelWithDebInfo
 bash build/lint.sh
+# THE RUNTIME'S OWN LINT, which nothing ran: it was red on master and nobody saw it.
+if ! bash lib/rt/build/lint.sh ; then
+    echo "check-all: FAILED: lib/rt/build/lint.sh"
+    bad=$((bad + 1))
+fi
 
 # THE CROSSLINK SUITE. fbc's object and tiko-lang's, linked together and run --
 # the one check here that is not tiko-lang talking to itself. It skips when the
 # toolchain has not been packaged, because that is an environment gap rather than
 # a regression, and a gate that fails for the wrong reason gets ignored.
-bash build/crosslink.sh
+crc=0
+bash build/crosslink.sh || crc=$?
+if [ "$crc" = "77" ]; then
+    echo "check-all: crosslink SKIPPED -- that is not a pass"
+elif [ "$crc" != "0" ]; then
+    echo "check-all: FAILED: build/crosslink.sh"
+    bad=$((bad + 1))
+fi
 
 # THE MICROSOFT-ABI GATE, and it was missing from here entirely -- windows-x86_64 is the
 # DEFAULT Windows target, so the one configuration most users get was the one nothing
@@ -77,8 +98,13 @@ bash build/crosslink.sh
 if [ "${TKO_GATE_MSVC:-0}" = "1" ] ; then
     if ! TKORT_GATE_OPTIONAL=1 bash lib/rt/build/gatemsvc.sh Release ; then
         echo "check-all: GATE NONZERO: lib/rt/build/gatemsvc.sh"
+        bad=$((bad + 1))
     fi
 else
     echo "check-all: msvc gate not run (TKO_GATE_MSVC=1 to include it)"
+fi
+if [ "$bad" -gt 0 ]; then
+    echo "check-all: FAILED -- $bad step(s) beyond the baseline"
+    exit 1
 fi
 echo "check-all: done"

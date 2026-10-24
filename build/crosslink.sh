@@ -31,14 +31,22 @@ LIBS="-p $TC/lib/win64 -p $TC/lib/win64-fb"
 die( ) { echo "crosslink: $*" >&2; exit 1; }
 note( ) { echo "crosslink: $*"; }
 
-[ -x "$FBC" ]  || { echo "crosslink: SKIPPED -- no oracle fbc at $FBC (TKO_ORACLE_FBC, or FBC)"; exit 0; }
+[ -x "$FBC" ]  || { echo "crosslink: SKIPPED -- no oracle fbc at $FBC (TKO_ORACLE_FBC, or FBC)"; exit 77; }
 [ -x "$TIKO" ] || die "no tiko at $TIKO (set TIKO)"
-# A MISSING PACKAGED RUNTIME IS A SKIP, NOT A FAILURE. This needs the win64 tree
-# that build/package.sh assembles, and a fresh clone has not run it. Failing the
-# whole gate for an environment gap would teach people to ignore the gate.
+# THE PACKAGED win64 TREE FIRST, THEN THE ONE THIS CHECKOUT BUILT. package.sh stopped
+# packaging win64 on 2026-10-10, and from then this script skipped on every run while
+# check-all reported it as passing. lib/rt/build/build.sh still builds tiko-rt for win64,
+# and the MinGW CRT objects win64-fb carried are the oracle fbc's own lib/win64.
 if [ ! -d "$TC/lib/win64" ]; then
-    note "skipped -- no packaged win64 runtime (run build/package.sh)"
-    exit 0
+    FBCLIB="$(dirname "$FBC")/lib/win64"
+    if [ -f "$ROOT/lib/rt/lib/win64/libfb.a" ] && [ -d "$FBCLIB" ]; then
+        LIBS="-p $ROOT/lib/rt/lib/win64 -p $FBCLIB"
+        note "no packaged win64 runtime -- using lib/rt/lib/win64 and $FBCLIB"
+    else
+        # Still a skip, but one check-all can see: exit 77, the automake SKIP code.
+        echo "crosslink: SKIPPED -- no win64 runtime (lib/rt/build/build.sh Release win64)"
+        exit 77
+    fi
 fi
 
 WORK=$(mktemp -d)
