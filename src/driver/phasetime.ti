@@ -35,6 +35,10 @@ namespace Tko
     type PhaseTimes
         as float64 secs(0 to PH_COUNT - 1)
         as int32   hits(0 to PH_COUNT - 1)
+        '' THE PROCESS'S PEAK MEMORY when the phase last ended (Platform.PeakMemory). The peak
+        '' only rises, so each row's rise over the row above is what that phase added on top.
+        '' 'peak_rss' in build/perf.sh measures the whole run from outside; this says WHERE.
+        as ulongint peak(0 to PH_COUNT - 1)
         '' THE MODULE BUILD (ADR 0017) as one wall-clock span: its units' phases are ALSO in
         '' the rows above, so it is reported as 'of which', never added to them.
         as float64 importSecs

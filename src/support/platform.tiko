@@ -20,6 +20,9 @@
         declare function WideCharToMultiByte( byval cp as uint32, byval flags as uint32, _
             byval src as wstring ptr, byval srcLen as int32, byval dst as zstring ptr, _
             byval dstLen as int32, byval def_ as zstring ptr, byval usedDef as int32 ptr ) as int32
+        '' kernel32's own copy of psapi's entry point (Windows 7 on), so nothing more links.
+        declare function K32GetProcessMemoryInfo( byval hProc as any ptr, byval pmc as any ptr, _
+                                                  byval cb as uint32 ) as int32
     end extern
 
     const WIN_STD_OUTPUT_HANDLE as uint32 = &hFFFFFFF5    '' (DWORD)-11
@@ -29,6 +32,7 @@
 #else
     extern "c"
         declare function isatty( byval fd as int32 ) as int32
+        declare function getrusage( byval who as int32, byval usage as any ptr ) as int32
         declare function readlink( byval path_ as zstring ptr, byval buf as zstring ptr, _
                                    byval size as uinteger ) as integer
     end extern
@@ -73,6 +77,28 @@ function SelfPath( ) as string
     dim as integer n = readlink( "/proc/self/exe", @buf, 4096 )
     if n <= 0 then return ""
     return left( buf, n )
+#endif
+end function
+
+function PeakMemory( ) as ulongint
+#ifdef __FB_WIN32__
+    '' PROCESS_MEMORY_COUNTERS: two DWORDs, then eight SIZE_Ts; PeakPagefileUsage is the last.
+    dim as uinteger pmc(0 to 8)
+    dim as uint32 ptr hdr = cast( uint32 ptr, @pmc(0) )
+    hdr[0] = 9 * sizeof( uinteger )
+    '' GetCurrentProcess( ) is the pseudo-handle -1, by definition.
+    if K32GetProcessMemoryInfo( cast( any ptr, -1 ), @pmc(0), hdr[0] ) = 0 then return 0
+    return pmc(8)
+#else
+    '' struct rusage: two timevals (32 bytes on a 64-bit host), then ru_maxrss -- kilobytes on
+    '' Linux, bytes on macOS. 18 longs is its whole size.
+    dim as integer ru(0 to 17)
+    if getrusage( 0, @ru(0) ) <> 0 then return 0
+    #ifdef __FB_DARWIN__
+        return ru(4)
+    #else
+        return cast( ulongint, ru(4) ) * 1024
+    #endif
 #endif
 end function
 

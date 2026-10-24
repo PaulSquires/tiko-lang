@@ -33,6 +33,11 @@ namespace Tko.Platform
     '' file, so every cache key carried an empty compiler stamp (audit F-38).
     declare function SelfPath( ) as string
 
+    '' THE PROCESS'S PEAK MEMORY SO FAR, in bytes: peak commit (private bytes) on Windows, peak
+    '' RSS elsewhere. Monotonic, so the phase after which it jumps is the one that set it --
+    '' '--time-passes' prints it per phase (driver/phasetime.ti). 0 when the OS will not say.
+    declare function PeakMemory( ) as ulongint
+
 end namespace
 
 #endif
