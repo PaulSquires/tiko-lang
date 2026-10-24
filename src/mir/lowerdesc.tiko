@@ -21,6 +21,9 @@
 
 #import "std/containers"
 #include once "lowerctx.ti"
+#include once "lowercall.ti"
+#include once "lowerstruct.ti"
+#include once "lowerstore.ti"
 
 namespace Tko.Mir
 

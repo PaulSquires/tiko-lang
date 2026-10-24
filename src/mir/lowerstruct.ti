@@ -1,0 +1,203 @@
+'' lowerstruct.ti -- lowering's UDTs: constructors, destructors, descriptors, members, vtables, UDT literals.
+''
+'' One of the cluster headers split out of lowerctx.ti (review ARCH-04): the procedures
+'' these files define that fewer than ten mir units call. A unit includes lowerctx.ti
+'' and then the cluster headers whose procedures it calls.
+
+#ifndef __TKO_LOWERSTRUCT_BI__
+#define __TKO_LOWERSTRUCT_BI__
+
+#include once "mir/lowerctx.ti"
+
+namespace Tko.Mir
+
+declare function IsBaseOf_ _
+    ( byref c as Ctx, byval baseT as Tko.TypeId, byval derivedT as Tko.TypeId ) as boolean
+    declare function LowerBaseCtorCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerIsTypeOf_ _
+        ( byref c as Ctx, byval lhs as Tko.NodeId, byval rhs as Tko.NodeId, _
+          byref outv as MirValue ) as boolean
+    '' lowerdesc.tiko
+    '' How many elements a FIXED array holds, across every dimension; 0 when the
+    '' shape is dynamic or its bounds do not read.
+    declare function FixedArrayElems _
+        ( byref c as Ctx, byval t as TypeId ) as int64
+    declare function SynthFixedArrayDesc _
+        ( byref c as Ctx, byref arrAddr as MirValue, byval t as Tko.TypeId, _
+          byref outv as MirValue ) as boolean
+    '' Whether a UDT return travels through an explicit hidden pointer. Measured:
+    '' the type has a DESTRUCTOR or a COPY CONSTRUCTOR. Size plays no part.
+    declare function UsesSretReturn( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function LowerErase( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function DescBytesFor( byref c as Ctx, byval rank as int32 ) as int32
+    declare sub EmitEraseDynLocal( byref c as Ctx, byval slot as int32 )
+    '' The same for a descriptor whose ADDRESS is in hand -- 'erase this.items', where
+    '' the descriptor is a FIELD and has no slot of its own.
+    declare sub EmitEraseDynAt_ _
+        ( byref c as Ctx, byref d as MirValue, byval t as Tko.TypeId )
+    '' lowerctor.tiko
+    declare function LowerConvCtorInit_ _
+        ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
+          byval init_ as Tko.NodeId, byval selfv as MirValue ptr = nullptr ) as boolean
+    '' A CONVERTING 'operator let' -- 'x = 5' over a UDT. See lowerctor.tiko.
+    declare function LowerUserLetConv_ _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval t as Tko.TypeId, _
+          byval value as Tko.NodeId, byval sretSlot as int32 = -1, _
+          byval slotIsObject as boolean = false ) as boolean
+    declare function LowerCtorInit _
+        ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
+          byval init_ as Tko.NodeId, byval selfv as MirValue ptr = nullptr ) as boolean
+    declare function LowerDynArrayIndex _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval sp as Tko.ListPayload ptr, _
+          byval at as Tko.TypeId ) as MirValue
+    declare function LowerArrayBoundCall _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerRedim _
+        ( byref c as Ctx, byval id as Tko.NodeId, _
+          byval sp as Tko.StmtPayload ptr ) as boolean
+    declare function AnyDimCount _
+        ( byref c as Ctx, byval ip as Tko.StmtPayload ptr ) as int32
+    '' lowerarrret.tiko -- the array result, a TIKO EXTENSION
+    declare function EmitRedimConst_ _
+        ( byref c as Ctx, byref desc as MirValue, byval aty as Tko.TypeId, _
+          byval n as int64 ) as boolean
+    declare sub RedimFieldInit_( byref c as Ctx, byref fa as MirValue, byval f as Tko.Symbol ptr )
+    declare function EmitArrayBounds _
+        ( byref c as Ctx, byref desc as MirValue, byval aty as Tko.TypeId, _
+          byval ip as Tko.StmtPayload ptr, byval presv as boolean ) as boolean
+    declare sub InitDynArrayDesc _
+        ( byref c as Ctx, byref desc as MirValue, byval t as Tko.TypeId )
+    declare function DynArrayDataPtr _
+        ( byref c as Ctx, byref desc as MirValue ) as MirValue
+    '' lowerctor.tiko: a type with no constructor filled from an argument list, field by
+    '' field -- 'base( 1, 2 )', and 'new T( 1, 2 )' (T32).
+    declare function LowerBaseFieldInit_ _
+        ( byref c as Ctx, byval selfAddr as MirValue, byval bt as Tko.TypeId, _
+          byval first_ as int32, byval count as int32 ) as boolean
+    '' lowerinit.tiko -- the two CHARACTER predicates. Declared here rather than in
+    '' lower.tiko alone because lowerwstr.tiko is its OWN compilation unit and could
+    '' not see them: the wide concatenation test needs the same 'a character plus a
+    '' number is arithmetic' rule the narrow one has.
+    '' lowermember.tiko -- one field's initialisation, for the synthesised structors.
+    declare sub InitMember_ _
+        ( byref c as Ctx, byref addr as MirValue, byval ft as Tko.TypeId )
+    declare function UnionMemberSkip_( byref c as Ctx, byval t as Tko.TypeId, byval i as int32, byref thisPtr as MirValue ) as boolean
+    declare function EmitAllocCall_( byref c as Ctx, byval r as RtlId, byref args as containers.Array( of uint32 ) ) as MirValue
+    declare function FoldAggInit_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, _
+          byval size_ as int32, byref outBytes as string, _
+          byval vscope as Tko.ScopeId = Tko.SCOPE_NONE, _
+          byval relocs as containers.Array( of uint32 ) ptr = nullptr ) as boolean
+    '' 'type<T>( ... )' as a value or an address -- lowersub.tiko.
+    '' An UPCAST initialiser: the base subobject of a derived value, sized to the
+    '' destination. False when this is not an upcast, which is every ordinary one.
+    declare function UpcastAggInit_ _
+        ( byref c as Ctx, byval srcNode as Tko.NodeId, byval dstT as Tko.TypeId, _
+          byref outv as MirValue ) as boolean
+    declare function LowerUdtLiteralValue_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerUdtLiteralAddr_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerUdtParenInit_ _
+        ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
+          byval init as Tko.NodeId, byval selfv as MirValue ptr = nullptr ) as boolean
+    declare function IsUnionType_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function EmitTypeCtorInto_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byval slot as int32, _
+          byval cp as Tko.ListPayload ptr, byval callId as Tko.NodeId ) as boolean
+    declare function LowerPropertySet_ _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    declare function CharPtrCtorInit_ _
+        ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
+          byval init_ as Tko.NodeId, byval selfv as MirValue ptr = nullptr ) as boolean
+    declare function LowerNew_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function BaseLeafSlots_( byref c as Ctx, byval t as Tko.TypeId, byval first_ as int32, byval n as int32, byref lOff as containers.Array( of uint32 ), byref lTy as containers.Array( of uint32 ) ) as boolean
+    '' '__FB_QUERY_SYMBOL__( q, sym )' -- fbc's compile-time symbol query, folded.
+    '' The low 'n' bits set, for a bitfield mask.
+    declare function BitMask_( byval n as int32 ) as int64
+    '' lowerustr.tiko -- the USTRING intrinsic family, the third beside the narrow set
+    '' in lowersub.tiko and the wide one in lowerwstr.tiko.
+    '' The ADDRESS of a SYNTHESISED structor -- kind_ 1 for the constructor, 0 for
+    '' the destructor. FuncAddrOf names a WRITTEN procedure through its symbol; an
+    '' implicit one has only the name its body will be emitted under.
+    declare function ImplStructorAddr_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byval kind_ as int32 ) as MirValue
+    declare function PushCtorArgs_ _
+        ( byref c as Ctx, byval ctor as Tko.SymbolId, byval first_ as int32, _
+          byval count as int32, byref args as containers.Array( of uint32 ) ) as boolean
+    '' lowerfieldinit.tiko -- 'a as integer = 123' inside a TYPE. The value is run by
+    '' the constructor, so lowerimpl.tiko is what calls both of these.
+    declare function FieldInitOf_ _
+        ( byref c as Ctx, byval f as Tko.Symbol ptr ) as Tko.NodeId
+    declare sub EmitFieldInit_ _
+        ( byref c as Ctx, byref addr as MirValue, byval ft as Tko.TypeId, _
+          byval init as Tko.NodeId )
+    '' ...and whether that initialiser is the word ANY, which suppresses the field's
+    '' zero fill and its member constructor as well as the store.
+    declare function FieldInitIsAny_ _
+        ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    '' 'T( args )' constructed ON AN ADDRESS -- a field's, or a shared global's. The
+    '' chosen constructor, its arguments coerced to that overload's parameters, and no
+    '' temporary of T anywhere.
+    declare function CtorCallOnAddr_ _
+        ( byref c as Ctx, byref addr as MirValue, byval ft as Tko.TypeId, _
+          byval init as Tko.NodeId ) as boolean
+    '' ...and the converting constructor a bare '= value' picks for a UDT field, or
+    '' SYMBOL_NONE. Types only: the prologue asks before it default-constructs.
+    declare function FieldConvCtorPick_ _
+        ( byref c as Ctx, byval ft as Tko.TypeId, byval init as Tko.NodeId ) as Tko.SymbolId
+    '' lowerimpl.tiko -- the structors fbc writes for you.
+    declare function UdtSymOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    declare function NeedsCtorBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    '' ...and whether a constructor that ALREADY EXISTS has a prologue. Not the same
+    '' question: see the comment on the definition.
+    declare function CtorPrologueWork_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function NeedsDtorBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare sub EmitCtorPrologue_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byref thisPtr as MirValue, _
+          byval skipBase as boolean = false )
+    declare sub EmitDtorEpilogue_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byref thisPtr as MirValue )
+    declare function ImplicitCtorName_( byref c as Ctx, byval t as Tko.TypeId ) as string
+    declare function ImplicitDtorName_( byref c as Ctx, byval t as Tko.TypeId ) as string
+    declare sub CallImplicitDtor_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byref selfv as MirValue )
+    declare function HasDynArrayMember_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function ImplicitLetName_( byref c as Ctx, byval t as Tko.TypeId ) as string
+    declare function ImplicitCopyName_( byref c as Ctx, byval t as Tko.TypeId ) as string
+    declare sub EmitLetBody_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byref dst as MirValue, byref src as MirValue )
+    declare sub CallImplicitLet_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byref dst as MirValue, byref src as MirValue )
+    declare sub WantImplicit_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byval k as int32 )
+    declare function ArrayElemNeedsInit_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function ArrayElemNeedsDtor_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare sub EmitArrayElems_ _
+        ( byref c as Ctx, byval slot as int32, byval at as Tko.TypeId, byval isCtor as boolean, _
+          byval skip as int32 = 0 )
+    declare sub EmitArrayElemsAt_ _
+        ( byref c as Ctx, byref base_ as MirValue, byval at as Tko.TypeId, _
+          byval isCtor as boolean, byval skip as int32 = 0 )
+    declare sub EmitImplicitStructors( byref c as Ctx )
+    '' lowervtab.tiko -- virtual method tables.
+    declare sub EmitVTableGlobals( byref c as Ctx )
+    declare function VtableGlobalOf_( byref c as Ctx, byval t as Tko.TypeId ) as int32
+    declare function RttiGlobalOf_( byref c as Ctx, byval t as Tko.TypeId ) as int32
+    declare function StoreVptr_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byref thisAddr as MirValue ) as boolean
+    declare function VirtualSlotOf_ _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval callee as Tko.SymbolId ) as int32
+    declare function VirtualCalleeOf_ _
+        ( byref c as Ctx, byref self_ as MirValue, byval slot as int32 ) as MirValue
+    declare sub WantVirtualImplicitDtors_( byref c as Ctx )
+    declare function EmitVirtualMember_( byref c as Ctx, byval sym as Tko.SymbolId, byval el as Tko.TypeId, byref selfp as MirValue, byval args as containers.Array( of uint32 ) ptr ) as boolean
+    declare function EmitVirtualDtor_ _
+        ( byref c as Ctx, byval el as Tko.TypeId, byval dtor as Tko.SymbolId, _
+          byref p as MirValue ) as boolean
+
+end namespace
+
+#endif

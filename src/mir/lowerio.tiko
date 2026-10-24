@@ -7,7 +7,7 @@
 '' and nothing about them changed in the move.
 
 #import "std/containers"
-#include once "lowerctx.ti"
+#include once "lowerall.ti"
 
 namespace Tko.Mir
 

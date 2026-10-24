@@ -15,6 +15,10 @@
 
 #import "std/containers"
 #include once "mir/lowerctx.ti"
+#include once "mir/lowercall.ti"
+#include once "mir/lowerstruct.ti"
+#include once "mir/lowerctl.ti"
+#include once "mir/lowerexpr.ti"
 
 '' Defined in lowerterm.tiko and declared per unit, the way every other caller of it
 '' does: a fixed-length string is an ARRAY of the element builtin and only this

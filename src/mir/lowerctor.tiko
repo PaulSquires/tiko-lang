@@ -3,7 +3,7 @@
 '' Split out of lower.tiko, which is at its size limit.
 
 #import "std/containers"
-#include once "lowerctx.ti"
+#include once "lowerall.ti"
 
 namespace Tko.Mir
 

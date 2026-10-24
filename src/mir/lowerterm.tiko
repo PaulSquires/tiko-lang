@@ -10,7 +10,7 @@
 '' Split out of lowerstr.tiko at the 1500-line cap. Nothing moved with it changed.
 
 #import "std/containers"
-#include once "lowerctx.ti"
+#include once "lowerall.ti"
 
 namespace Tko.Mir
 

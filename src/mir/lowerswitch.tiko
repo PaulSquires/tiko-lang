@@ -23,6 +23,9 @@
 
 #import "std/containers"
 #include once "mir/lowerctx.ti"
+#include once "mir/lowerctl.ti"
+#include once "mir/lowerexpr.ti"
+#include once "mir/lowerstore.ti"
 #include once "lexer/keywords.ti"
 
 namespace Tko.Mir

@@ -25,6 +25,10 @@
 
 #import "std/containers"
 #include once "lowerctx.ti"
+#include once "lowerstr.ti"
+#include once "lowerctl.ti"
+#include once "lowerstore.ti"
+#include once "lowerio.ti"
 #include once "support/fbstr.ti"
 
 namespace Tko.Mir

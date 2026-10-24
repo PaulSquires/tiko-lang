@@ -4,7 +4,7 @@
 '' code because its string forms are most of its complexity, not because it is one.
 
 #import "std/containers"
-#include once "lowerctx.ti"
+#include once "lowerall.ti"
 
 namespace Tko.Mir
 

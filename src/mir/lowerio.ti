@@ -1,0 +1,54 @@
+'' lowerio.ti -- lowering's runtime statements: file and console I/O, graphics, DATA, PEEK/POKE, threads.
+''
+'' One of the cluster headers split out of lowerctx.ti (review ARCH-04): the procedures
+'' these files define that fewer than ten mir units call. A unit includes lowerctx.ti
+'' and then the cluster headers whose procedures it calls.
+
+#ifndef __TKO_LOWERIO_BI__
+#define __TKO_LOWERIO_BI__
+
+#include once "mir/lowerctx.ti"
+
+namespace Tko.Mir
+
+    '' lowerio.tiko
+    declare function LowerWrite( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerPeek _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, byval wantAddr as boolean = false ) as boolean
+    declare function LowerBitOp _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerPoke( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerLrset _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval isRight as boolean ) as boolean
+    '' lowerdata.tiko
+    declare function CollectDataBlocks( byref c as Ctx, byval root as Tko.NodeId ) as int32
+    declare function LowerRead( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerRestore( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare sub EmitImplicitRestore( byref c as Ctx )
+    '' lowerthread.tiko
+    declare function LowerThreadCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerLineInput( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerInput _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval isLine as boolean ) as boolean
+    '' File GET and PUT -- lowerio.tiko.
+    declare function LowerFileGetPut _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval isPut as boolean, _
+          byref outv as MirValue ) as boolean
+    declare function LowerOpen_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerOpenCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerColorCall_ _
+        ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval argFirst as int32, _
+          byval argCount as int32, byref outv as MirValue ) as boolean
+    declare function PrintOne _
+        ( byref c as Ctx, byval it as Tko.NodeId, byval mask as int32, _
+          byref chan as MirValue ) as boolean
+    declare function LowerGfxStmt( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerGfxScreen( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerGfxExprCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+end namespace
+
+#endif

@@ -1,0 +1,97 @@
+'' lowerctl.ti -- lowering's control flow: blocks and terminators, FOR / FOR EACH / SELECT, labels, scope cleanups.
+''
+'' One of the cluster headers split out of lowerctx.ti (review ARCH-04): the procedures
+'' these files define that fewer than ten mir units call. A unit includes lowerctx.ti
+'' and then the cluster headers whose procedures it calls.
+
+#ifndef __TKO_LOWERCTL_BI__
+#define __TKO_LOWERCTL_BI__
+
+#include once "mir/lowerctx.ti"
+
+namespace Tko.Mir
+
+declare sub CallTempsInSourceOrder_ _
+    ( byref c as Ctx, byval headMark as int32, byval argMark as int32, _
+      byval recvMark as int32, byref segFrom as containers.Array( of uint32 ) )
+declare sub ReleaseWstrTemps_( byref c as Ctx, byval mark as int32 )
+declare sub ForgetUdtTemp_( byref c as Ctx, byval slot as int32 )
+    '' lowerctl.tiko -- control flow.
+    declare sub LowerSelect( byref c as Ctx, byval id as Tko.NodeId )
+    declare sub LowerExitLike _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval isExit as boolean )
+    declare sub LowerEndStmt( byref c as Ctx, byval id as Tko.NodeId )
+    declare sub LowerLabel( byref c as Ctx, byval id as Tko.NodeId )
+    declare sub LowerOnGoto( byref c as Ctx, byval id as Tko.NodeId )
+    declare sub LowerGoto( byref c as Ctx, byval id as Tko.NodeId )
+    declare sub ScanLabels _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval depth as int32 )
+    declare sub ClearLabels( byref c as Ctx, byval base_ as int32 )
+    '' lowerfor.tiko -- a UDT object in SLOT destroyed as a scope cleanup.
+    declare sub RegisterForUdtDtor_( byref c as Ctx, byval ct as Tko.TypeId, byval slot as int32 )
+    declare sub PushScope( byref c as Ctx, byval key as uint32 = 0 )
+    declare sub CloseScope( byref c as Ctx )
+    declare sub EmitCleanupsTo( byref c as Ctx, byval outermost as int32 )
+    declare sub EmitCleanupsFrom( byref c as Ctx, byval firstEntry as int32 )
+    '' ...and the size LEN and SIZEOF report for it, which for an array is its
+    '' ELEMENT's -- mir/lowerterm.tiko says why, and what fbc answers.
+    declare function MeasuredSizeOfType_( byref c as Ctx, byval t as Tko.TypeId ) as int32
+    declare function LowerForEachArray( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerForEachIter _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval sp as Tko.StmtPayload ptr, _
+          byval seqE as Tko.NodeId, byval at as Tko.TypeId ) as boolean
+    '' lowerfor.tiko
+    declare sub LowerFor( byref c as Ctx, byval id as Tko.NodeId )
+    declare sub LowerDo( byref c as Ctx, byval id as Tko.NodeId )
+    declare function IsWstrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function IsStrCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function ZstrDataOf_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare sub LowerIf _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval sp as Tko.StmtPayload ptr )
+    declare function WideAppendToU_ _
+        ( byref c as Ctx, byref dst as MirValue, byval value as Tko.NodeId ) as boolean
+    declare function LowerStrOperandOp_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function StrCatText_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as string ) as boolean
+    declare function StrTermFlavour_( byref c as Ctx, byval term as Tko.NodeId ) as int32
+    '' A NUMBER rendered into a string chain: NARROW, never neutral. lowerterm.tiko.
+    declare function IsRenderedNumberTerm_( byref c as Ctx, byval term as Tko.NodeId ) as boolean
+    '' A UDT's 'operator cast' to zstring or string, else SYMBOL_NONE. lowerterm.tiko.
+    declare function NarrowCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    declare function ChainHasRenderedNumber_ _
+        ( byref c as Ctx, byref terms as containers.Array( of uint32 ) ) as boolean
+    declare function IsUStrChain_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function UStrCmpOperand_ _
+        ( byref c as Ctx, byref args as containers.Array( of uint32 ), _
+          byval term as Tko.NodeId ) as boolean
+    declare function WideTermAsUStr_ _
+        ( byref c as Ctx, byval term as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function IsUStringDest_( byref c as Ctx, byref dst as MirValue ) as boolean
+    declare function LowerStrConvertTerm _
+        ( byref c as Ctx, byref dst as MirValue, byval dstIsU as boolean, _
+          byval term as Tko.NodeId, byval isInit as boolean ) as boolean
+    declare function LowerNarrowChainToU_ _
+        ( byref c as Ctx, byref dst as MirValue, _
+          byref terms as containers.Array( of uint32 ), byval isInit as boolean ) as boolean
+    declare function LowerUStrChain _
+        ( byref c as Ctx, byref dst as MirValue, byval dstIsU as boolean, _
+          byref terms as containers.Array( of uint32 ), byval isInit as boolean ) as boolean
+    declare function StrChainNeedsConvert _
+        ( byref c as Ctx, byval dstIsU as boolean, _
+          byref terms as containers.Array( of uint32 ) ) as boolean
+    '' A UTF-8 source literal widened by CHARACTER, not by byte -- lowerterm.tiko.
+    declare sub PushSourceUnit_ _
+        ( byref c as Ctx, byval u8 as boolean, byref body as string, byref i as int32, _
+          byref units as containers.Array( of uint32 ) )
+    declare function PlainUtf8Text_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function WideFoldedText_ _
+        ( byref c as Ctx, byval site as Tko.NodeId, byref txt as string, byref outChars as int32 ) as int32
+    '' Which half of a declined call statement is at fault, and the callee's name.
+    declare sub CountUnlowredCall( byref c as Ctx, byval call_ as Tko.NodeId )
+    declare sub SkipStmt( byref c as Ctx, byval id as Tko.NodeId )
+
+end namespace
+
+#endif

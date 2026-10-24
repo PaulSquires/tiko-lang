@@ -1,0 +1,205 @@
+'' lowerstr.ti -- lowering's strings: narrow, wide and UTF-8 temporaries, descriptors, concatenation, string arguments.
+''
+'' One of the cluster headers split out of lowerctx.ti (review ARCH-04): the procedures
+'' these files define that fewer than ten mir units call. A unit includes lowerctx.ti
+'' and then the cluster headers whose procedures it calls.
+
+#ifndef __TKO_LOWERSTR_BI__
+#define __TKO_LOWERSTR_BI__
+
+#include once "mir/lowerctx.ti"
+
+namespace Tko.Mir
+
+declare sub FlushStrCopyBacks( byref c as Ctx, byval mark as int32 )
+declare sub CopyBackStrArgs( byref c as Ctx, byref nodes as containers.Array( of uint32 ), byref slots as containers.Array( of uint32 ) )
+declare function SameLValue _
+    ( byref c as Ctx, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean
+declare function TermReadsLValue_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval e as Tko.NodeId ) as boolean
+declare function WideAssignViaTemp_ _
+    ( byref c as Ctx, byref dst as MirValue, byval n as int32, _
+      byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+declare function IsFixedStrArray_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+declare function LowerStringAssign _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    '' 'str( u )' over a ustring operand: the narrow temporary fbc converts it into.
+    '' False when no term is a ustring. lowerstrargs.tiko.
+    declare function UStrOperandToNarrow_ _
+        ( byref c as Ctx, byval sa as Tko.NodeId, byref outv as MirValue ) as boolean
+    '' A narrow argument for a 'byref as ustring' parameter outside the ordinary call path:
+    '' the ustring temporary fbc builds first. False when neither applies. lowerstrargs.tiko.
+    declare function UStrParamArgTemp_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outv as MirValue ) as boolean
+          declare function UStrRefArg_( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, byref outv as MirValue, byref temps as containers.Array( of uint32 ), byref tempTypes as containers.Array( of uint32 ), byref backN as containers.Array( of uint32 ), byref backS as containers.Array( of uint32 ) ) as boolean
+    '' ...and its narrow twin, for a 'byref as string' parameter. lowerstrargs.tiko.
+    declare function NarrowParamArgTemp_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outv as MirValue ) as boolean
+          declare function NarrowRefStrArg_( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, byref outv as MirValue, byref temps as containers.Array( of uint32 ), byref tempTypes as containers.Array( of uint32 ), byref backN as containers.Array( of uint32 ), byref backS as containers.Array( of uint32 ) ) as boolean
+          declare sub StrBackPushNarrow_( byref c as Ctx, byval e as Tko.NodeId, byval slot as int32, byref backN as containers.Array( of uint32 ), byref backS as containers.Array( of uint32 ) )
+          declare function LowerStringInit_( byref c as Ctx, byval slot as int32, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    declare function LowerPrint( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerMidAssign _
+        ( byref c as Ctx, byval target as Tko.NodeId, _
+          byval value as Tko.NodeId ) as boolean
+    declare function LowerDir _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare sub PushConst( byref args as containers.Array( of uint32 ), byval v as int32 )
+    declare function WideStringElems( byref c as Ctx, byval t as Tko.TypeId ) as int32
+        declare function LitOnlyChain_( byref c as Ctx, byval id as Tko.NodeId, byval depth as int32 ) as boolean
+    declare function LowerStringAssignToSlot _
+        ( byref c as Ctx, byval slot as int32, byval value as Tko.NodeId ) as boolean
+          declare function LowerStringAssignTo_( byref c as Ctx, byref dst as MirValue, byval target as Tko.NodeId, byval value as Tko.NodeId, byval dstFlavour as int32 ) as boolean
+    declare function ConcatTermsToTempDesc_ _
+        ( byref c as Ctx, byref terms as containers.Array( of uint32 ), _
+          byref outv as MirValue ) as boolean
+    declare function ConcatToTempDesc_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function IntrinOverWideConcat_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function IsWideChain_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    '' Must a 'byref as string' constructor parameter build a temporary for this
+    '' argument? See NarrowStrCtorParamConverts_.
+    declare function NarrowStrCtorParamConverts_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId ) as boolean
+    declare function NarrowStrArg_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function ConcatHasUStrTerm_( byref c as Ctx, byval e as Tko.NodeId ) as boolean   '' lowerstrargs.tiko
+    declare function RuntimeEntryCallee_ _
+        ( byref c as Ctx, byval callee as Tko.SymbolId ) as boolean
+    declare function StrArgOwnDescriptor_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId ) as boolean
+    declare function WideToNarrowTemp_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    '' A number or a boolean rendered WIDE, into a statement-lifetime temporary.
+    declare function NumberToWideTemp_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function FixStrWideTemp_ _
+        ( byref c as Ctx, byval a as Tko.NodeId, byval zn as int64, byref outv as MirValue ) as boolean
+    declare function NarrowToWideTemp_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LitHasUnicodeEscape_ _
+        ( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function WideLitChars_( byref c as Ctx, byval id as Tko.NodeId ) as int32
+    declare function WideConstChars_( byref c as Ctx, byval e as Tko.NodeId ) as int32
+    declare function Utf8WideLit_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function ConcatHasUtf8Lit_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function WideConstLitNode_( byref c as Ctx, byval e as Tko.NodeId, byval viaWstr as boolean = false ) as Tko.NodeId
+    declare function WideLitUnitAt_( byref c as Ctx, byval id as Tko.NodeId, byval k as int64 ) as int32
+    declare function WideLitGlobal_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outChars as int32 ) as int32
+    declare function IsConstNameRef_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerConcatAssignStmt _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
+          byval op as Tko.TokenKind ) as boolean
+    declare function LowerWideConcatAssign _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval n as int32, _
+          byval value as Tko.NodeId ) as boolean
+    declare function LowerWstrOf _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerLen _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerWideAssign _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    declare function ConcatTermsAreU_ _
+        ( byref c as Ctx, byref terms as containers.Array( of uint32 ) ) as boolean
+    declare function UStrRtl_( byval narrow as RtlId ) as RtlId
+    declare function StrRtlFor_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byval narrow as RtlId ) as RtlId
+    '' A USTRING operand of the VAL family as the narrow temporary fb_VAL wants
+    '' (fb_UStrToStr), or false for anything that is not a ustring. lowerstrkind.tiko.
+    declare function UStrValOperand_ _
+        ( byref c as Ctx, byval v0 as Tko.NodeId, byval v0t as Tko.TypeId, _
+          byref sd as MirValue ) as boolean
+    declare sub PushUStrLiteralArg _
+        ( byref c as Ctx, byref args as containers.Array( of uint32 ), byval gidx as int32, _
+          byval nchars as int32 )
+    declare function LowerWideToNarrow _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    declare function LowerWideToNarrowSlot _
+        ( byref c as Ctx, byval slot as int32, byval dt as Tko.TypeId, _
+          byval value as Tko.NodeId, byval isInit as boolean = false, _
+          byval selfv as MirValue ptr = nullptr ) as boolean
+    declare function IsStringIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function NamesProc_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function IifArmType_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
+          declare function LowerWideAssignTo_( byref c as Ctx, byref dst as MirValue, byval n as int32, byval value as Tko.NodeId ) as boolean
+    declare function LowerWideConcatAssignTo _
+        ( byref c as Ctx, byref dst as MirValue, byval n as int32, _
+          byval value as Tko.NodeId ) as boolean
+    declare function PrintRtlFor( byref c as Ctx, byval t as Tko.TypeId ) as RtlId
+    '' A WIDE CONCATENATION built into a temporary the caller owns. fb_WstrConcat gives
+    '' back an allocation released with fb_WstrDelete at the end of the statement.
+    declare function WideConcatToTemp_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    '' The LENGTH ARGUMENT a 'string * N' is passed as, which is not N: measured,
+    '' '&h8000000000000000 or N' on win64 and '&h80000000 or N' on win32, the SIGN BIT
+    '' being the tag that says "N space-padded bytes".
+    declare function FixedStrLenArg_( byref c as Ctx, byval n as int64 ) as int64
+    declare function LowerOffsetOf _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function UStrIntrinArgIsU_( byref c as Ctx, byval a0 as Tko.NodeId ) as boolean
+    declare function IsUStrIntrinCall_( byref c as Ctx, byval id as Tko.NodeId ) as boolean   '' lowerustr.tiko
+    '' A ustring destination built in place, each rendered number converted. lowerconcat.tiko.
+    declare function LowerUStrInPlaceWithNumbers_ _
+        ( byref c as Ctx, byref dst as MirValue, byref terms as containers.Array( of uint32 ) ) as boolean
+    declare sub PushStrLiteralArg _
+        ( byref args as containers.Array( of uint32 ), byval gidx as int32, byval nbytes as int32 )
+    '' An 'iif' call and its three arms, WITHOUT asking what the arms are. Used where
+    '' the context already knows the result is a string -- a term of a string
+    '' assignment, an arm of another string iif -- because the arm types cannot answer
+    '' it: Check computes no type for an intrinsic call, so 'iif( c, hex( 1 ),
+    '' hex( 2 ) )' looks like an iif over nothing.
+    declare function IsIifCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref condE as Tko.NodeId, _
+          byref thenE as Tko.NodeId, byref elseE as Tko.NodeId ) as boolean
+    declare function LowerStrCompare _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
+          byval tk as Tko.TokenKind ) as MirValue
+    '' The address of a string literal's bytes, as a module global.
+    declare function LowerStringLitAddr _
+        ( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
+    declare function LowerTextAddr _
+        ( byref c as Ctx, byref text as string ) as MirValue
+    declare function ByvalStrTemp_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outa as MirValue, byref outSlot as int32 ) as boolean
+    declare function WideUdtStrArgTemp_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outa as MirValue, byref temps as containers.Array( of uint32 ), _
+          byref tempTypes as containers.Array( of uint32 ) ) as boolean
+    declare function UStrOutOperand_ _
+        ( byref c as Ctx, byval it as Tko.NodeId, byref outv as MirValue, _
+          byref outSlot as int32 ) as boolean
+    declare sub ReleaseUStrOut_( byref c as Ctx, byval slot as int32 )
+    declare sub RuntimeUStrNarrowArg_ _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval argNode as Tko.NodeId, _
+          byval pt as Tko.TypeId, byref outa as MirValue )
+    declare function UStrToStrAny_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function NarrowOperandAny_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function UStrZstrData_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function UStrResultArgTemp_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outa as MirValue, byref outSlot as int32, _
+          byval anyChain as boolean = false ) as boolean
+    declare function WideArgOperand_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byref outa as MirValue, _
+          byref temps as containers.Array( of uint32 ), byref tempTypes as containers.Array( of uint32 ) ) as boolean
+          declare function UdtWideArg_( byref c as Ctx, byval argNode as Tko.NodeId, byref outa as MirValue, byref temps as containers.Array( of uint32 ), byref tempTypes as containers.Array( of uint32 ) ) as boolean
+          declare function PtrStrArg_( byref c as Ctx, byval e as Tko.NodeId, byval ppt as Tko.TypeId, byval vararg as boolean, byref outv as MirValue, byref temps as containers.Array( of uint32 ), byref tempTypes as containers.Array( of uint32 ), byref backN as containers.Array( of uint32 ), byref backS as containers.Array( of uint32 ) ) as int32
+          declare function PropPtrStrArg_( byref c as Ctx, byval e as Tko.NodeId, byval ppt as Tko.TypeId, byref outv as MirValue ) as int32
+    declare function ParamWantsWideRef_ _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval sigT as Tko.TypeId, _
+          byval idx as int32 ) as boolean
+    declare function IsNarrowStrArg_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function IifArmsScalar_ _
+        ( byref c as Ctx, byval thenE as Tko.NodeId, byval elseE as Tko.NodeId ) as boolean
+    declare function StrIifAbandon_ _
+        ( byref c as Ctx, byval joinB as int32, byval elseB as int32 ) as boolean
+    '' TRUE, FALSE and __FUNCTION__: predeclared names that are values, not storage.
+    declare function LowerPredeclared _
+        ( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
+
+end namespace
+
+#endif

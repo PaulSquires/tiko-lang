@@ -1,0 +1,172 @@
+'' lowerstore.ti -- lowering's storage: stores and swaps, arrays and their bounds, initialisers, globals, module init.
+''
+'' One of the cluster headers split out of lowerctx.ti (review ARCH-04): the procedures
+'' these files define that fewer than ten mir units call. A unit includes lowerctx.ti
+'' and then the cluster headers whose procedures it calls.
+
+#ifndef __TKO_LOWERSTORE_BI__
+#define __TKO_LOWERSTORE_BI__
+
+#include once "mir/lowerctx.ti"
+
+namespace Tko.Mir
+
+'' An expression lowered as a CONDITION: the same lowering, with the top-level
+'' comparison left un-negated because a branch only asks whether it is nonzero.
+declare function LowerCondition( byref c as Ctx, byval e as Tko.NodeId ) as MirValue
+'' The operand of a conversion-free cast used as an lvalue, or NODE_NONE. lowerarr.tiko.
+declare function NoConvOperand_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
+'' A collection initialiser's calls, for one declarator. mir/lowervarinit.tiko.
+declare sub LowerCollInitCalls_( byref c as Ctx, byval item as Tko.NodeId )
+    '' lowerboundchk.tiko -- the -exx array bounds check, one dimension at a time.
+declare sub EmitNullCheck_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref pv as MirValue )
+declare sub EmitBoundsCheck_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval target as Tko.NodeId, _
+      byval at as Tko.TypeId, byval k as int32, byref iv as MirValue, _
+      byval offTy as MirType )
+declare sub EmitBoundsCheckRange_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval target as Tko.NodeId, _
+      byref iv as MirValue, byref lov as MirValue, byref hiv as MirValue )
+declare sub EmitDimensionCheck_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval target as Tko.NodeId, _
+      byref desc as MirValue, byval count as int32 )
+    '' lower.tiko -- shared by the other lowering files.
+    '' lowerboundchk.tiko -- the indirect jump a failed -e check hands back, and the
+    '' pass that gives it its destinations once the procedure's handlers are known.
+    declare sub EmitErrorJump_( byref c as Ctx, byref r as MirValue )
+    '' ...and, under -e, a runtime STATEMENT's error code thrown when it is not 0 (T68).
+    declare sub EmitRtlErrorCheck_( byref c as Ctx, byval id as Tko.NodeId, byref rc as MirValue )
+    declare sub ResolveErrorJumps_( byref c as Ctx )
+    declare function LoadResult( byref c as Ctx ) as MirValue
+    declare sub LowerBlock( byref c as Ctx, byval id as Tko.NodeId )
+    declare sub ZeroStrTempAtEntry_( byref c as Ctx, byref dst as MirValue )
+    '' The operand of 'type<string>( e )' when that converts. lowerinit.tiko.
+    declare function NarrowingTypeLitOperand_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
+    '' lowerstore.tiko -- frame slot vs module storage.
+    declare function LocalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as int32
+    declare function ParamMirType _
+        ( byref c as Ctx, byval t as Tko.TypeId ) as MirType
+    declare function IsSharedVar( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
+    declare function IsStaticLocal( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
+    declare function GlobalFor( byref c as Ctx, byval sid as Tko.SymbolId ) as int32
+    declare function BindAliasStorage _
+        ( byref c as Ctx, byval sid as Tko.SymbolId, byval init_ as Tko.NodeId, _
+          byval inModule as boolean ) as boolean
+    declare function AddrOfVar( byref c as Ctx, byval sid as Tko.SymbolId ) as MirValue
+    declare function AddrOfThisField _
+        ( byref c as Ctx, byval fsid as Tko.SymbolId ) as MirValue
+    '' A UDT parameter reached through that UDT's own constructor -- lowerctor.tiko.
+    declare function CtorUserConvCost_ _
+        ( byref c as Ctx, byval at as Tko.TypeId, byval pt as Tko.TypeId ) as int32
+    '' A STATIC LOCAL that needs constructing: the guard flag, the constructor and the
+    '' atexit thunk fbc emits for one.
+    declare function LowerStaticLocalInit_ _
+        ( byref c as Ctx, byval sid as Tko.SymbolId, byval init_ as Tko.NodeId ) as boolean
+    declare function LowerArrayResult_ _
+        ( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
+    declare function ArrayCallArg_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function AssignArrayResult_ _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    declare function LowerSwap( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function CharLvalueTy_( byref c as Ctx, byval id as Tko.NodeId ) as MirType
+    declare function NumericTerm_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function StaticDynBoundsOnce_( byref c as Ctx, byval sid as Tko.SymbolId, byval ip as Tko.StmtPayload ptr ) as boolean
+    declare function StaticOnceBegin_( byref c as Ctx, byval g as int32, byval suffix as string ) as int32
+    declare sub StaticOnceEnd_( byref c as Ctx, byval skipB as int32 )
+    '' USTRING -- the UTF-16 string flavour, lowerstr.tiko.
+    '' 'T( args )' as an addressable temporary -- lowerswap.tiko.
+    '' 'a[ i ]' over a UDT with 'operator []', in the shape the operator declares.
+    declare function LowerUdtIndexOp_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
+          byref outByref as boolean ) as boolean
+    declare function LowerTypeCtorTempAddr_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    '' A static aggregate's initial value, as the bytes of its storage -- lowerudtlit.tiko.
+    '' lowerstore.tiko -- the address an initialiser leaf names, as a pointer-table entry.
+    declare function AddrWordOf_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byref kind as int32, byref ref as uint32, _
+          byval onlyStatic as boolean = true ) as boolean
+    declare function IsAggIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    '' A brace initialiser over an array of UDT. 'selfv' is the destination when there
+    '' is no slot -- a STATIC local's storage is a global.
+    declare function LowerUdtArrayInit_ _
+        ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
+          byval init as Tko.NodeId, byval selfv as MirValue ptr = nullptr ) as boolean
+    declare function LowerTypeCtorExpr_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function TypeCtorTypeOf_( byref c as Ctx, byval id as Tko.NodeId ) as Tko.TypeId
+    declare function LowerUserUnaryOp_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval up as Tko.UnaryPayload ptr, _
+          byval mt as MirType, byref outv as MirValue ) as boolean
+    declare function LowerUserUnaryOpSym_ _
+        ( byref c as Ctx, byval op as Tko.SymbolId, byval operand as Tko.NodeId, _
+          byval mt as MirType, byref outv as MirValue ) as boolean
+    declare function LowerUserBinaryOp_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
+          byval mt as MirType, byref outv as MirValue ) as boolean
+    declare function LowerCompoundUserOp_ _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    declare function LowerPropertyGet_ _
+        ( byref c as Ctx, byval node as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare sub ArrayInitLeaves_( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId, byref leaves as containers.Array( of uint32 ), byref idx as containers.Array( of uint32 ) )
+    declare function LowerArrayInit _
+        ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
+          byval init as Tko.NodeId, byval selfv as MirValue ptr = nullptr ) as boolean
+    '' 1 for a narrow string type, 2 for a wide one, 0 for anything else. Both the
+    '' SIZED spelling ('zstring * 8', an array of the builtin) and the UNSIZED one
+    '' (the bare builtin, which a 'zstring ptr' points at) count.
+    declare function CharElemSize_( byref c as Ctx, byval t as Tko.TypeId ) as int32
+    declare function IsStrIif_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function ParamCountOf( byref c as Ctx, byval callee as Tko.SymbolId ) as int32
+    declare function IsVariadicProc( byref c as Ctx, byval callee as Tko.SymbolId ) as boolean
+    declare function PackedElemsInit_( byref c as Ctx, byref base_ as MirValue, byval el as Tko.TypeId, byval first as int32, byval n as int32 ) as boolean
+    '' lowerarr.tiko -- array indexing.
+    '' Is this node 'this' -- the receiver, held in the ABI as a POINTER?
+    declare function IsThisPointerIdent_ _
+        ( byref c as Ctx, byval n as Tko.NodeId ) as boolean
+    declare function InitSourceType_( byref c as Ctx, byval n as Tko.NodeId ) as Tko.TypeId
+    declare function InitSourceAddr_( byref c as Ctx, byval n as Tko.NodeId ) as MirValue
+    declare function IsArrayIndex( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerArrayIndex( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
+    declare sub EmitDtorCall _
+        ( byref c as Ctx, byval sym as Tko.SymbolId, byval slot as int32 )
+    '' The paren-less call statement: 'W 1, 2'.
+    declare function LowerStmtCall _
+        ( byref c as Ctx, byval id as Tko.NodeId ) as MirValue
+    '' A byval UDT parameter that fbc passes as a POINTER to a caller-built copy.
+    declare function ByvalUdtIndirect_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function ParamIsIndirectUdt_ _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as int32, _
+          byval sigT as Tko.TypeId = Tko.TYPE_NONE ) as boolean
+    '' ...and a byval var-length STRING parameter, which is the same shape with the
+    '' string runtime doing the copying.
+    declare function ByvalStrIndirect_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function ParamIsIndirectStr_ _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as int32, _
+          byval sigT as Tko.TypeId = Tko.TYPE_NONE ) as boolean
+    declare function InitCopyCtorOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    declare function InitCopyReturn_( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
+    declare function IsCallResult_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function CallReturnsByref_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function LowerUdtElemInit_ _
+        ( byref c as Ctx, byref dst as MirValue, byval et as Tko.TypeId, _
+          byval e as Tko.NodeId ) as boolean
+    declare function ArrayCtorList_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byval init as Tko.NodeId ) as boolean
+    declare sub EmitArrayCtorList_ _
+        ( byref c as Ctx, byref ga as MirValue, byval t as Tko.TypeId, byval init as Tko.NodeId )
+    declare sub EmitModuleInit_( byref c as Ctx )
+    declare function FlatInitCount_( byref c as Ctx, byval init as Tko.NodeId ) as int32
+    declare function StructorPrioOf_( byref c as Ctx, byval id as Tko.NodeId ) as int32
+    declare function ReceiverOf _
+        ( byref c as Ctx, byval target as Tko.NodeId, _
+          byval callee as Tko.SymbolId ) as MirValue
+    '' A DIM SHARED / STATIC initialiser: a compile-time value, not a store on entry.
+    declare sub InitSharedGlobal _
+        ( byref c as Ctx, byval sid as Tko.SymbolId, byval init as Tko.NodeId )
+
+end namespace
+
+#endif

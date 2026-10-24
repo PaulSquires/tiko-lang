@@ -7,7 +7,7 @@
 '' exit code, and a function's is what 'function = expr' writes to.
 
 #import "std/containers"
-#include once "mir/lowerctx.ti"
+#include once "mir/lowerall.ti"
 namespace Tko.Mir
 declare function SretCopyResult_ _
     ( byref c as Ctx, byval valueE as Tko.NodeId, byval rt as Tko.TypeId ) as boolean

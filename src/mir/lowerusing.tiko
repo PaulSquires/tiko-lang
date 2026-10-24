@@ -5,6 +5,9 @@
 
 #import "std/containers"
 #include once "lowerctx.ti"
+#include once "lowerstr.ti"
+#include once "lowercall.ti"
+#include once "lowerexpr.ti"
 
 namespace Tko.Mir
 

@@ -9,6 +9,9 @@
 
 #import "std/containers"
 #include once "lowerctx.ti"
+#include once "lowerstruct.ti"
+#include once "lowerexpr.ti"
+#include once "lowerstore.ti"
 
 namespace Tko.Mir
 

@@ -3,7 +3,7 @@
 '' Split out of lowersub.tiko at the 1500-line cap. Nothing about it changed in the move.
 
 #import "std/containers"
-#include once "mir/lowerctx.ti"
+#include once "mir/lowerall.ti"
 
 namespace Tko.Mir
 

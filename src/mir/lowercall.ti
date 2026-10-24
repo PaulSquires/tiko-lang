@@ -1,0 +1,236 @@
+'' lowercall.ti -- lowering's calls: arguments, BYREF, results, procedure pointers, signatures, substrings.
+''
+'' One of the cluster headers split out of lowerctx.ti (review ARCH-04): the procedures
+'' these files define that fewer than ten mir units call. A unit includes lowerctx.ti
+'' and then the cluster headers whose procedures it calls.
+
+#ifndef __TKO_LOWERCALL_BI__
+#define __TKO_LOWERCALL_BI__
+
+#include once "mir/lowerctx.ti"
+
+namespace Tko.Mir
+
+declare sub SretResultSlotAfter_( byref c as Ctx, byval t as Tko.TypeId, byval slot as int32 )
+declare function UStrToStrTemp_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+declare function CtorArgLowersLate_( byref c as Ctx, byval a as Tko.NodeId ) as boolean
+    declare function EmitImpEqv_ _
+        ( byref c as Ctx, byval tk as Tko.TokenKind, byval ty as MirType, _
+          byref l as MirValue, byref r as MirValue, byval isBool as boolean = false ) as MirValue
+    '' 'str( e )' and 'type<string>( e )' over a wide or UTF-16 e: the narrow conversion.
+    '' 'isConv' false when e needed none. lowersub.tiko.
+    declare function NarrowConvOf_ _
+        ( byref c as Ctx, byval sa as Tko.NodeId, byref outv as MirValue, _
+          byref isConv as boolean ) as boolean
+    declare function ProcIsStatic_ _
+        ( byref c as Ctx, byval defn as Tko.NodeId, byval sid as Tko.SymbolId ) as boolean
+    declare function ProcCallConv_ _
+        ( byref c as Ctx, byval pn as Tko.NodeId ) as uint8
+    '' A call to a pascal procedure, named or through a pascal procedure type.
+    declare function CallIsPascal_ _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval viaPointer as boolean, _
+          byval sigT as Tko.TypeId ) as boolean
+    '' TKO_PX_* for a parameter of this type -- see lowerstore.tiko.
+    declare function ParamExtClass_ _
+        ( byref c as Ctx, byval t as Tko.TypeId ) as uint8
+    '' Fills a function's signature from the procedure it declares -- see lowerproc.tiko.
+    declare sub SignatureFromProc _
+        ( byref c as Ctx, byval f as MirFunction ptr, byval pn as Tko.NodeId, _
+          byval withSret as boolean, byval withThis as boolean )
+    '' A procedure POINTER's signature, as a declaration a call names by index -- lowersig.tiko.
+    declare function PtrCallSigIndex_( byref c as Ctx, byval sigT as Tko.TypeId ) as int32
+    '' A hidden result's storage: the declared variable on offer, or a temporary; and the
+    '' declaration that offers it. lowercallemit.tiko.
+    declare function SretResultSlot_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byval registerDtor as boolean, _
+          byval sym as Tko.SymbolId ) as int32
+    declare function SretInPlaceInit_ _
+        ( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, _
+          byval e as Tko.NodeId ) as boolean
+    '' An untyped call's result: the result of the procedure its binding names.
+    declare function UntypedCallResult_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
+    '' Another type into a UDT result held in its own slot. lowerprocret.tiko.
+    declare function UdtConvResult_ _
+        ( byref c as Ctx, byval valueE as Tko.NodeId, byval isReturn as boolean ) as boolean
+    declare function FuncAddrOf( byref c as Ctx, byval fsid as Tko.SymbolId, byval structor as boolean = false ) as MirValue
+    declare function EmitDirectCall_ _
+        ( byref c as Ctx, byval sym as Tko.SymbolId, byval rt as MirType, _
+          byref args as containers.Array( of uint32 ), _
+          byval withSret as boolean = false ) as MirValue
+    declare function MemberCallRetTy_ _
+        ( byref c as Ctx, byval sym as Tko.SymbolId ) as MirType
+    declare function EmitMemberCallArgs_ _
+        ( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue, _
+          byval rt as MirType, byval args as containers.Array( of uint32 ) ptr, _
+          byval vslot as int32 = -1 ) as MirValue
+    declare function UserConvToScalar_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval dstT as Tko.TypeId, _
+          byref outv as MirValue, byval asArg as boolean = false ) as boolean
+    declare function UserCastNumOverload_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byval want as Tko.TypeId = Tko.TYPE_NONE, byval asArg as boolean = false ) as Tko.SymbolId
+    '' lowercallarg.tiko -- 'operator cast( ) as <that UDT>' on the SOURCE's type, and
+    '' whether it can be taken. Every position that converts one UDT into another asks
+    '' the same pair, so none of them can disagree about when the operator runs.
+    declare function UdtCastValue_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byval dstT as Tko.TypeId, _
+          byref outv as MirValue, byval constructing as boolean = true ) as boolean
+    declare function UdtCastToUdt_ _
+        ( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as Tko.SymbolId
+    declare function UdtCastArgOk_ _
+        ( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as boolean
+        declare function UdtByrefCast_( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId ) as Tko.SymbolId
+        declare function UdtPtrCast_( byref c as Ctx, byval au as Tko.TypeId, byval pt as Tko.TypeId, byref isRef as boolean ) as Tko.SymbolId
+        declare function ByrefCastInit_( byref c as Ctx, byval slot as int32, byval t as Tko.TypeId, byval init_ as Tko.NodeId, byval selfv as MirValue ptr ) as boolean
+    declare function UserCastCharRef_( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function UserCastToNum_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
+          byval want as Tko.TypeId = Tko.TYPE_NONE, byval asArg as boolean = false ) as boolean
+          declare function UserCastIsBool_( byref c as Ctx, byval id as Tko.NodeId, byval want as Tko.TypeId, byval asArg as boolean = false ) as boolean
+    declare function UserCastToPtr_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
+          byval want as Tko.TypeId = Tko.TYPE_NONE ) as boolean
+    declare function UdtSelfAddr_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function UdtMemberNamed_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byref nm as string ) as Tko.SymbolId
+    declare function LowerStringReturn( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
+    declare function BodyAssignsResult_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval depth as int32 = 0 ) as boolean
+    declare function BodyReturnsValue_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval depth as int32 = 0 ) as boolean
+    '' The result zeroed or default-constructed at entry, where fbc does it.
+    declare sub InitResultAtEntry_ _
+        ( byref c as Ctx, byval rt as Tko.TypeId, byref dst as MirValue, _
+          byval body as Tko.NodeId, byval zeroTrivial as boolean )
+    declare function SretAssignResult_ _
+        ( byref c as Ctx, byval valueE as Tko.NodeId, byval rt as Tko.TypeId ) as boolean
+    '' The type a constructor ARGUMENT is chosen by -- see lowercallarg.tiko.
+    declare function CtorArgTypeOf_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
+    declare function LetViaCast_( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, byval atl as Tko.TypeId, byval avt as Tko.TypeId, byval dstp as MirValue ptr = nullptr ) as boolean
+    declare function BareTypeNameTemp_( byref c as Ctx, byval e as Tko.NodeId, byref outa as MirValue ) as boolean
+    declare function NumberToStrDesc_ _
+        ( byref c as Ctx, byval a0 as Tko.NodeId, byref outv as MirValue ) as boolean
+    '' THE VARARG CURSOR -- lowercva.tiko.
+    declare function LowerCvaStart( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerCvaCopy( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerCvaEnd( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerCvaArg _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerZstrAssignTo _
+        ( byref c as Ctx, byref dst as MirValue, byval n as int64, _
+          byval value as Tko.NodeId, byval isInit as boolean, _
+          byval isU as boolean = false ) as boolean
+    declare function ConcatToTemp_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerStrOf_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    '' A byval non-trivial UDT argument's copy, and the lowering that precedes it
+    '' -- lowerbyref.tiko.
+    declare sub ByvalIndirectRetemp_ _
+        ( byref c as Ctx, byref rv as MirValue, byval pty as Tko.TypeId )
+    declare function ByvalDefaultArg_ _
+        ( byref c as Ctx, byval dv as Tko.NodeId, byval pty as Tko.TypeId ) as MirValue
+    '' An address for a byref parameter whose argument is already lowered
+    '' -- lowerbyref.tiko.
+    declare function ByrefAggTempOf_ _
+        ( byref c as Ctx, byref rv as MirValue, byval pty as Tko.TypeId, _
+          byref outv as MirValue ) as boolean
+    '' The address a byref CONSTRUCTOR argument passes, its own or a temporary's
+    '' -- lowerbyref.tiko.
+    declare function CtorByrefArgAddr_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pty as Tko.TypeId, _
+          byref outv as MirValue ) as boolean
+    '' A CONSTRUCTOR's byref parameter given an rvalue -- lowerbyref.tiko.
+    declare function CtorByrefRvalue_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval refT as Tko.TypeId, _
+          byref outv as MirValue ) as boolean
+    '' A temporary holding an argument that must be passed BYREF and has no address of
+    '' its own -- lowercall.tiko.
+    declare function ByrefTemp_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId ) as MirValue
+    '' A 'byref as [const] wstring' constructor argument's wide characters -- lowerbyref.tiko.
+    declare function WideRefCtorArg_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outv as MirValue ) as boolean
+    '' A wide string argument for a UDT with a 'wstring ptr' constructor -- lowerbyref.tiko --
+    '' and that constructor run into a slot or an address -- lowerctor.tiko.
+    declare function WideArgCharPtrCtor_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId ) as boolean
+    '' Whether UDT 'pt' has a one-parameter converting constructor for an 'at' --
+    '' lowerbyref.tiko.
+    declare function HasUdtConvCtor_ _
+        ( byref c as Ctx, byval pt as Tko.TypeId, byval at as Tko.TypeId ) as boolean
+    '' The wide-character member of a one-argument 'let' or '+=' family -- lowerbyref.tiko.
+    declare function WideCharOverload_ _
+        ( byref c as Ctx, byval first_ as Tko.SymbolId ) as Tko.SymbolId
+    '' A wide value that is not itself a UDT -- lowercallarg.tiko.
+    declare function WideValueForCharMember_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    declare function CtorLitArgIsWide_ _
+        ( byref c as Ctx, byval ctors as Tko.SymbolId, byval first_ as int32, _
+          byval count as int32, byval idx as int32 ) as boolean
+    declare function ByrefTempOf_ _
+        ( byref c as Ctx, byref rv as MirValue, byval pt as Tko.TypeId ) as MirValue
+    '' A byref UDT parameter's argument of another type, converted -- lowerbyref.tiko.
+    declare function ByrefConvNeeded_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId ) as boolean
+    declare function ByrefConvArg_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outa as MirValue ) as boolean
+          declare function SetterUdtArg_( byref c as Ctx, byval sset as Tko.SymbolId, byval idx as int32, byval valNode as Tko.NodeId, byref outv as MirValue ) as boolean
+          declare function CtorIndirectUdtArg_( byref c as Ctx, byval ctor as Tko.SymbolId, byval idx as int32, byval argNode as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerProcPtr _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function CastYieldsPtr_( byref c as Ctx, byval sym as Tko.SymbolId ) as boolean
+    declare function LowerExprN_( byref c as Ctx, byval e as Tko.NodeId ) as MirValue
+    declare function NumSrcType_( byref c as Ctx, byval e as Tko.NodeId ) as Tko.TypeId
+    declare function LowerBareProcCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType, _
+          byref outv as MirValue ) as boolean
+    declare function CtorInitVariadic_( byref c as Ctx, byval ctor as Tko.SymbolId, byval slot as int32, byval selfv as MirValue ptr, byval cp as Tko.ListPayload ptr ) as boolean
+    declare function VariadicOnlyCtor_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    declare function ParamIsVariadic_( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as int32 ) as boolean
+    declare function IsWholeArrayArg_( byref c as Ctx, byval argNode as Tko.NodeId ) as boolean
+    declare function PackTypedVariadic_( byref c as Ctx, byval callee as Tko.SymbolId, byval pidx as int32, byval first as int32, byval n as int32, byref outv as MirValue, byval elWant as Tko.TypeId = Tko.TYPE_NONE ) as boolean   '' typed variadics: lowerparam / lowerarrinit / lowercall
+    declare function ParamDefaultAt _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as int32 ) as Tko.NodeId
+    declare function PtrCallDecl_ _
+        ( byref c as Ctx, byval viaPointer as boolean, byval sigT as Tko.TypeId, _
+          byval calleeNode as Tko.NodeId, byref nparams as int32 ) as Tko.NodeId
+    declare function CallDefaultAt_ _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval ptrDecl as Tko.NodeId, _
+          byval viaPointer as boolean, byval idx as int32 ) as Tko.NodeId
+    declare function UserConvOperand_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outa as MirValue, byref outSlot as int32, byref outType as Tko.TypeId ) as boolean
+    declare function ArrayDescArg_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, _
+          byval isArrayParam as boolean, byref outv as MirValue ) as boolean
+    declare function ParamIsArray _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as int32 ) as boolean
+    declare function ParamIsByref _
+        ( byref c as Ctx, byval callee as Tko.SymbolId, byval idx as int32 ) as boolean
+    declare function DeclIndexFor_ _
+        ( byref c as Ctx, byval cnm as Tko.InternId, byval callTy as MirType, _
+          byval cs as Tko.Symbol ptr, byval withSret as boolean, _
+          byval withThis as boolean ) as int32
+    declare function SretCallType_ _
+        ( byref c as Ctx, byval cs as Tko.Symbol ptr, byval viaPointer as boolean, _
+          byval sigT as Tko.TypeId ) as Tko.TypeId
+    declare function SretOrResult_ _
+        ( byref c as Ctx, byref sretTmp as MirValue, byref iv as MirValue, _
+          byval mt as MirType ) as MirValue
+    declare function ThisByvalArg_ _
+        ( byref c as Ctx, byval argNode as Tko.NodeId, byval pt as Tko.TypeId, _
+          byref outa as MirValue ) as boolean
+    declare function UStrDataArg_( byref c as Ctx, byval e as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerExprWant_ _
+        ( byref c as Ctx, byval e as Tko.NodeId, byval t as Tko.TypeId ) as MirValue
+    declare function ProcAddrForWanted_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function DeclForName_( byref c as Ctx, byval id as Tko.NodeId, byval s as Tko.Symbol ptr ) as Tko.NodeId
+    declare function ParamIsAny_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function MemberVSlot_( byref c as Ctx, byval sym as Tko.SymbolId ) as int32
+
+end namespace
+
+#endif

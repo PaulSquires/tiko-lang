@@ -14,7 +14,7 @@
 '' bias of 1*16 + 1*4 = 20.
 
 #import "std/containers"
-#include once "mir/lowerctx.ti"
+#include once "mir/lowerall.ti"
 
 namespace Tko.Mir
 declare function UserOpTempAddr_ _

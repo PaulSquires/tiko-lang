@@ -6,6 +6,7 @@
 
 #import "std/containers"
 #include once "mir/lowerctx.ti"
+#include once "mir/lowerctl.ti"
 
 namespace Tko.Mir
 

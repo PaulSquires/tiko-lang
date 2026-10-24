@@ -5,7 +5,7 @@
 '' pointer, argument passing, and the choice between a direct and an indirect call.
 
 #import "std/containers"
-#include once "lowerctx.ti"
+#include once "lowerall.ti"
 
 namespace Tko.Mir
 declare function CallFailed_( byref c as Ctx, byref v as MirValue, byval ln as int32 = 0 ) as MirValue : declare sub UStrBackPush_( byref c as Ctx, byval e as Tko.NodeId, byval slot as int32, byref nodes as containers.Array( of uint32 ), byref slots as containers.Array( of uint32 ) )

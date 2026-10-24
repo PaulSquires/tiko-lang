@@ -1,0 +1,144 @@
+'' lowerexpr.ti -- lowering's expressions: conversions, casts, operators, intrinsics and builtins.
+''
+'' One of the cluster headers split out of lowerctx.ti (review ARCH-04): the procedures
+'' these files define that fewer than ten mir units call. A unit includes lowerctx.ti
+'' and then the cluster headers whose procedures it calls.
+
+#ifndef __TKO_LOWEREXPR_BI__
+#define __TKO_LOWEREXPR_BI__
+
+#include once "mir/lowerctx.ti"
+
+namespace Tko.Mir
+
+declare function PtrArithElem_ _
+    ( byref c as Ctx, byval t as Tko.TypeId ) as int32
+    declare function IsBooleanType _
+        ( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function BinOpFor _
+        ( byval tk as Tko.TokenKind, byval t as MirType, _
+          byval isUnsigned as boolean ) as MirOp
+    '' A float ADD/SUB/MUL chain with constants in it, regrouped as fbc regroups it.
+    '' False, before anything is lowered, when the chain is not one. lowerreassoc.tiko.
+    declare function LowerFloatChain _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType, _
+          byref outv as MirValue ) as boolean
+    declare function LowerStringInit _
+        ( byref c as Ctx, byval slot as int32, byval target as Tko.NodeId, _
+          byval value as Tko.NodeId ) as boolean
+    declare function LowerCloseCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function FuncAddrOfRtl( byref c as Ctx, byval r as RtlId ) as MirValue
+    '' lowerselfop.tiko
+    declare function SelfOpMemberCall_ _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
+          byval op as Tko.TokenKind, byval tt as Tko.TypeId ) as boolean
+    declare function HasNarrowStrCast_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function UdtTermWide_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function ScoredStrTerm_( byref c as Ctx, byval t as Tko.TypeId, byref sym as Tko.SymbolId ) as int32   '' lowercastpick.tiko
+    declare function UserCastToWstr_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    '' 'dstFlavour' -1 derives the destination's flavour (the target's type, else the slot);
+    '' 0 says narrow and 1 USTRING, for an address -- a FIELD -- that carries neither.
+    declare function LowerStringAssignTo _
+        ( byref c as Ctx, byref dst as MirValue, byval target as Tko.NodeId, _
+          byval value as Tko.NodeId, byval dstFlavour as int32 = -1 ) as boolean
+    declare function WideCastOverload_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
+    declare function LowerAggIif_ _
+        ( byref c as Ctx, byval condE as Tko.NodeId, byval thenE as Tko.NodeId, _
+          byval elseE as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerStrRvalue _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerMathCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function UserCastToStr_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
+          byref raw as boolean ) as boolean
+    declare function UdtCastIsUStr_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function UserCastToWide_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerStrNumCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerRadixCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue, _
+          byval wantWide as boolean = false ) as boolean
+    declare function LowerWideRvalue _
+        ( byref c as Ctx, byval value as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerWideAssignTo _
+        ( byref c as Ctx, byref dst as MirValue, byval n as int32, _
+          byval value as Tko.NodeId ) as boolean
+    '' lowerintr.tiko
+    declare function LowerClose( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerError( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function CtorOf_ _
+        ( byref c as Ctx, byval t as Tko.TypeId, byval want as int32 ) as Tko.SymbolId
+    declare function LowerDelete( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function LowerBuiltinProc _
+        ( byref c as Ctx, byval calleeNode as Tko.NodeId, byval argFirst as int32, _
+          byval argCount as int32, byref outv as MirValue, _
+          byval unboundOnly as boolean = false ) as boolean
+    declare sub NoteBuiltinDecline( byref c as Ctx, byval calleeNode as Tko.NodeId )
+    declare sub ReportBuiltinDecline( byref c as Ctx )
+    declare function IsTupleType_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    declare function LowerDestructure _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    declare function LowerTupleCompare _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _
+          byval tk as Tko.TokenKind, byref outv as MirValue ) as boolean
+    '' 'x.a op= v' over a BITFIELD: a read, the operator and a masked write.
+    declare function BitfieldCompound_ _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
+          byval bop as Tko.TokenKind ) as boolean
+    declare function LowerUStrIntrin_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerWideIif_ _
+        ( byref c as Ctx, byval condE as Tko.NodeId, byval thenE as Tko.NodeId, _
+          byval elseE as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerStringIif_ _
+        ( byref c as Ctx, byval condE as Tko.NodeId, byval thenE as Tko.NodeId, _
+          byval elseE as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function StrInitFrom_ _
+        ( byref c as Ctx, byref dst as MirValue, byval e as Tko.NodeId ) as boolean
+    declare function LowerIif _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType, _
+          byref outv as MirValue ) as boolean
+    declare function LowerBitfieldRead _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerBitfieldStoreValue_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref val as MirValue ) as boolean
+    declare function BitfieldSwapOnce_( byref c as Ctx, byval a as Tko.NodeId, byval b as Tko.NodeId ) as boolean
+    declare function BitfieldMemberInit_( byref c as Ctx, byref thisPtr as MirValue, byval t as Tko.TypeId, byval f as Tko.Symbol ptr, byval init as Tko.NodeId ) as boolean
+    declare function BitfieldFieldStore_ _
+        ( byref c as Ctx, byref base_ as MirValue, byval fi as int32, byref val as MirValue ) as boolean
+    declare function LowerBitfieldStore _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    '' 'a andalso b' from its PIECES, so the compound form can reach it too.
+    declare function LowerShortCircuitParts_ _
+        ( byref c as Ctx, byval lhsE as Tko.NodeId, byval rhsE as Tko.NodeId, _
+          byval isAnd as boolean, byval mt as MirType ) as MirValue
+    declare function LowerCompoundAssign _
+        ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
+          byval op as Tko.TokenKind ) as boolean
+    '' The conversion intrinsics -- CBYTE, CBOOL, CAST, CPTR and the rest.
+    declare function IsConvIntrinsic _
+        ( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    '' The operand of a string-to-string 'cast'/'cptr' -- see the definition.
+    declare function StrIdentityConvOperand_ _
+        ( byref c as Ctx, byval id as Tko.NodeId ) as Tko.NodeId
+    declare function LowerConvIntrinsic _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType ) as MirValue
+    '' The implicit THIS for 'obj.M( )' / 'p->M( )', or MV_NONE when there is none.
+    '' lowergfx.tiko -- the graphics statements.
+    declare function LowerCallExpr_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byval mt as MirType ) as MirValue
+    declare function LowerRgbCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerVarPtrCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerStrPtrCall_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    declare function LowerIntrinsicStmt( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+
+end namespace
+
+#endif
