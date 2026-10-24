@@ -636,6 +636,9 @@ namespace Tko.Mir
 
     type MirModule
         as InternId ptr names
+        '' Set by Codegen.LowerModule. The emitter refuses a module the ABI pass did not
+        '' rewrite, rather than inferring it from the first MT_AGG it meets (review MIR-07).
+        as boolean abiLowered
         as MirFunctionVec functions
         as MirGlobalVec globals
         '' The DATA blocks' entries, pooled: FB.Array by value inside a struct that

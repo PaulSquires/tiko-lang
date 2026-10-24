@@ -44,6 +44,7 @@ src/mir/mir.tiko
 src/mir/rtl.tiko
 src/mir/dump.tiko
 src/mir/verify.tiko
+src/mir/verifytest.tiko
 src/mir/lower.tiko
 src/mir/lowerstr.tiko
 src/mir/lowerwstrof.tiko

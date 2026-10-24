@@ -220,8 +220,13 @@ function Verify _
                 '' the DECLARATION and this is a real check.
                 ''
                 '' A VARIADIC callee is checked as a MINIMUM: the tail is what it is.
-                if (op = M_CALL) orelse (op = M_CALL_RTL) then
+                '' ...AND AN INDIRECT CALL whose signature lowering knew, recorded in
+                '' 'callee' PLUS ONE (zero is function 0): the emitter types the call by it,
+                '' so a count that disagrees is IR clang refuses (review MIR-02).
+                if (op = M_CALL) orelse (op = M_CALL_RTL) orelse _
+                   ((op = M_CALL_IND) andalso (ins->callee > 0)) then
                     dim as int32 ci = cast( int32, ins->callee )
+                    if op = M_CALL_IND then ci -= 1
                     if (ci >= 0) andalso (ci < m.functions.Count) then
                         dim as MirFunction ptr cf = m.functions[ci]
                         if cf <> nullptr then
@@ -277,6 +282,27 @@ function Verify _
                                      " slot" )
                     end if
                 end if
+
+                '' Rule 11: A BINARY OPERATION'S OPERANDS SHARE ONE TYPE -- and an arithmetic
+                '' one's result is that type. MIR has no implicit conversions, so 'add i64
+                '' %a, %b' over an i32 %b is a lowering fault the emitter would print and clang
+                '' would refuse (review MIR-02). A typeless operand (void, an aggregate, an
+                '' untyped constant) is not judged.
+                select case op
+                case M_ADD, M_SUB, M_MUL, M_SDIV, M_UDIV, M_FDIV, M_SREM, M_UREM, _
+                     M_AND, M_OR, M_XOR, M_SHL, M_LSHR, M_ASHR, _
+                     M_ICMP_EQ, M_ICMP_NE, M_ICMP_SLT, M_ICMP_SGT, M_ICMP_SLE, M_ICMP_SGE, _
+                     M_ICMP_ULT, M_ICMP_UGT, M_ICMP_ULE, M_ICMP_UGE, _
+                     M_FCMP_EQ, M_FCMP_NE, M_FCMP_LT, M_FCMP_GT, M_FCMP_LE, M_FCMP_GE
+                    dim as int32 at_ = cast( int32, ins->a.ty ), bt_ = cast( int32, ins->b.ty )
+                    dim as boolean typed = (at_ <> cast( int32, MT_VOID )) andalso _
+                        (bt_ <> cast( int32, MT_VOID )) andalso _
+                        (at_ <> cast( int32, MT_AGG )) andalso (bt_ <> cast( int32, MT_AGG ))
+                    if typed andalso (at_ <> bt_) then
+                        Fail( r, IW_( bn, i, op ), "operands of two types, " & _
+                            TypeName( cast( MirType, at_ ) ) & " and " & TypeName( cast( MirType, bt_ ) ) )
+                    end if
+                end select
 
                 '' A void value can be produced but never consumed.
                 if OpHasResult( op ) andalso (ins->ty = cast( uint8, MT_VOID )) then

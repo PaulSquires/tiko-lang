@@ -463,6 +463,25 @@ function CompileUnit _
         dim as Tko.Codegen.AbiStats abist
         dim as Tko.Codegen.TargetDescription abitgt = _
             Tko.Codegen.TargetFor( ctx.options.target )
+        '' THE FRONTEND'S MIR, verified and dumpable before the ABI pass rewrites it
+        '' (review MIR-07): a fault there used to surface as an ABI ICE or a clang error.
+        '' Verified in a Debug build of the compiler only -- it is a second walk.
+        #if __FB_DEBUG__
+            scope
+                dim as Tko.Mir.VerifyResult pvr = Tko.Mir.Verify( mm, ctx.names )
+                if (pvr.failures > 0) andalso (FrontendFailed_( ctx ) = false) then
+                    dim as int32 peh = freefile
+                    open err for output as #peh
+                    print #peh, "verify (pre-abi): " & str( pvr.failures ) & " FAILURES"
+                    print #peh, pvr.report;
+                    close #peh
+                end if
+            end scope
+        #endif
+        if ctx.options.dumpIrPreAbi andalso (FrontendFailed_( ctx ) = false) then
+            print Tko.Mir.DumpModule( mm, ctx.names );
+            print "-- pre-abi --"
+        end if
         tPh = timer
         Tko.Codegen.LowerModule( mm, ctx.names, abitgt, abist )
         ctx.timing.Add( Tko.PH_ABI, tPh )

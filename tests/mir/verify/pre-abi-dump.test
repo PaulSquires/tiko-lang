@@ -1,0 +1,9 @@
+'' '--dump-ir-pre-abi' shows the MIR the frontend made, then the ABI pass's (review MIR-07): a
+'' UDT passed by value is an aggregate parameter before the pass and a pointer after it.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 --dump-ir-pre-abi tests/mir/verify/src/pre-abi.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT-SEQ: func i32 F(agg:20[M] $0) {
+'' EXPECT-OUT-SEQ: -- pre-abi --
+'' EXPECT-OUT-SEQ: func i32 F(ptr $0) {
+'' EXPECT-OUT-SEQ: verify: ok

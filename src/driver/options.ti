@@ -159,6 +159,8 @@ namespace Tko
     OPT( OPT_PARSEEXPR, "--parse-expr",   OPTK_FLAG, OPTCAT_DEVEL, "",        "parse each line as one expression and dump it" )
     OPT( OPT_PARSEONLY, "--parse-only",   OPTK_FLAG, OPTCAT_DEVEL, "",        "parse every input and report counts; the corpus gate" )
     OPT( OPT_DUMPIR,    "--dump-ir",      OPTK_FLAG, OPTCAT_DEVEL, "",        "dump MIR" )
+    OPT( OPT_DUMPIR_PREABI, "--dump-ir-pre-abi", OPTK_FLAG, OPTCAT_DEVEL, "", "dump MIR as the frontend made it, before the ABI pass" )
+    OPT( OPT_VERIFY_SELFTEST, "--verify-selftest", OPTK_FLAG, OPTCAT_DEVEL, "", "run the MIR verifier over modules built to fail it" )
     OPT( OPT_EMITIR,    "--emit-ir",      OPTK_FLAG, OPTCAT_DEVEL, "",        "write LLVM IR and stop" )
     OPT( OPT_EMITASM,   "--emit-asm",     OPTK_FLAG, OPTCAT_DEVEL, "",        "write assembly and stop" )
     OPT( OPT_KEEPTEMPS, "--keep-temps",   OPTK_FLAG, OPTCAT_DEVEL, "",        "retain intermediate files" )
@@ -335,6 +337,8 @@ namespace Tko
         as boolean dumpVtable
         as boolean dumpRtl
         as boolean dumpIr
+        as boolean dumpIrPreAbi     '' --dump-ir-pre-abi: the MIR the frontend made
+        as boolean verifySelfTest   '' --verify-selftest: the verifier's own fixtures
         as boolean allowUnlowered
         as boolean emitIr
         as boolean emitAsm

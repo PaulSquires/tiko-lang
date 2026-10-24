@@ -1,0 +1,14 @@
+'' THE VERIFIER REJECTS WHAT IT IS FOR (review MIR-02, BLD-11). Every other golden says
+'' 'verify: ok'; these are modules built to break one rule each (mir/verifytest.tiko), each
+'' rejected for its own reason, and a valid control that must pass.
+'' TEST: cli
+'' ARGS: --verify-selftest
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: control (valid add): ok
+'' EXPECT-OUT: binary operands of two types: rejected
+'' EXPECT-OUT: call with the wrong arity: rejected
+'' EXPECT-OUT: indirect call with the wrong arity: rejected
+'' EXPECT-OUT: store wider than its slot: rejected --  bad_store:0:1 store: stores i64 into a i32 slot
+'' EXPECT-OUT: use of a temp nothing defined: rejected
+'' EXPECT-OUT: void function returning a value: rejected
+'' EXPECT-OUT: 6 of 6 faults rejected, all as expected

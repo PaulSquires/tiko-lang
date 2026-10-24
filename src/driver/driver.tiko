@@ -220,6 +220,7 @@ end function
 '' emitting objects and linking them.
 private function AnotherModeWasAsked_( byref o as Tko.DriverOptions ) as boolean
     if o.dumpTypes orelse o.dumpSource orelse o.lexOnly orelse o.dumpRtl then return true
+    if o.verifySelfTest then return true
     if o.dumpSymbols orelse o.resolveOnly orelse o.dumpMangle orelse o.checkOnly then return true
     if o.dumpScan then return true
     if o.dumpIr orelse o.emitIr orelse o.emitAsm orelse o.dumpUdt then return true
@@ -820,6 +821,14 @@ function Run _
     if Tko.CImportDriver.Asked( ctx.options ) then
         dim as Tko.Codegen.ToolPaths ptl = Tools_( ctx )
         return Tko.DiagOut.Finish( ctx, Tko.CImportDriver.Run( ctx, ptl.clangExe ) )
+    end if
+
+    '' THE VERIFIER'S FIXTURES take no input (mir/verifytest.tiko): EXIT_ICE unless every
+    '' one was judged as expected.
+    if ctx.options.verifySelfTest then
+        dim as string vst = Tko.Mir.VerifySelfTest( ctx.names )
+        print vst;
+        return iif( instr( vst, "all as expected" ) > 0, Tko.EXIT_OK, Tko.EXIT_ICE )
     end if
 
     if ctx.options.inputs.IsEmpty( ) then

@@ -1,0 +1,162 @@
+'' verifytest.tiko -- the verifier's own fixtures: modules it MUST reject.
+''
+'' Every golden under tests/ says 'verify: ok', and until 2026-10-24 none asserted that
+'' the verifier rejects anything (review MIR-02, BLD-11) -- a rule could be deleted and
+'' the suite stayed green. MIR has no text form to write a broken module in, so each
+'' fixture is built here, one fault per module, and 'tiko --verify-selftest' reports
+'' which were caught. A VALID control module must verify clean, or the rules have gone
+'' too far. tests/mir/verify/selftest.test holds the expected report.
+
+#import "std/containers"
+#include once "mir/verify.ti"
+
+namespace Tko.Mir
+
+private function Val_( byval k as MirValueKind, byval id as uint32, byval t as MirType ) as MirValue
+    dim as MirValue v
+    v.kind = cast( uint8, k )
+    v.id = id
+    v.ty = cast( uint8, t )
+    return v
+end function
+
+'' A defined function of 'params' parameters, one block, returning 'ret'.
+private function Fn_ _
+    ( byref m as MirModule, byref names as Tko.Interner, byref nm as string, _
+      byval retTy as MirType, byval p0 as MirType, byval p1 as MirType ) as MirFunction ptr
+    dim as MirFunction ptr f = m.AddFunction( names.GetString( nm ), retTy )
+    f->isDefinition = true
+    if p0 <> MT_VOID then f->AddParam( p0 )
+    if p1 <> MT_VOID then f->AddParam( p1 )
+    dim as MirBlock b
+    b.label = names.GetString( "entry" )
+    b.term = cast( uint8, MTERM_RET )
+    f->blocks.Push( b )
+    return f
+end function
+
+private function Inst_( byval op as MirOp, byval ty as MirType ) as MirInst
+    dim as MirInst ins
+    ins.op = cast( uint16, op )
+    ins.ty = cast( uint8, ty )
+    return ins
+end function
+
+'' One fixture: verify m, and say whether it was rejected FOR THE RIGHT REASON -- 'want' is
+'' the text the report must hold. A module rejected for something else is not a pass.
+private function Judge_ _
+    ( byref m as MirModule, byref names as Tko.Interner, byref label as string, _
+      byval wantFail as boolean, byref bad as int32, byref want as string = "" ) as string
+    dim as VerifyResult vr = Verify( m, names )
+    dim as string first_ = vr.report
+    dim as int32 nl = instr( first_, chr( 10 ) )
+    if nl > 0 then first_ = left( first_, nl - 1 )
+    if wantFail then
+        if (vr.failures > 0) andalso (instr( vr.report, want ) > 0) then
+            return "verify-selftest: " & label & ": rejected --" & first_ & chr( 10 )
+        end if
+        bad += 1
+        if vr.failures > 0 then return "verify-selftest: " & label & ": REJECTED FOR ANOTHER REASON --" & first_ & chr( 10 )
+        return "verify-selftest: " & label & ": NOT REJECTED" & chr( 10 )
+    end if
+    if vr.failures = 0 then return "verify-selftest: " & label & ": ok" & chr( 10 )
+    bad += 1
+    return "verify-selftest: " & label & ": REJECTED A VALID MODULE --" & first_ & chr( 10 )
+end function
+
+function VerifySelfTest( byref names as Tko.Interner ) as string
+    dim as string r = ""
+    dim as int32 bad = 0, n = 0
+
+    '' control: i32 add of two i32 parameters, returned
+    scope
+        dim as MirModule m
+        dim as MirFunction ptr f = Fn_( m, names, "ok_add", MT_I32, MT_I32, MT_I32 )
+        dim as MirInst a = Inst_( M_ADD, MT_I32 )
+        a.result = 1 : f->nextTemp = 2
+        a.a = Val_( MV_PARAM, 0, MT_I32 ) : a.b = Val_( MV_PARAM, 1, MT_I32 )
+        f->blocks[0].insts.Push( a )
+        f->blocks[0].cond = Val_( MV_TEMP, 1, MT_I32 )
+        r += Judge_( m, names, "control (valid add)", false, bad )
+    end scope
+
+    '' rule 11: operands of two types
+    scope
+        dim as MirModule m
+        dim as MirFunction ptr f = Fn_( m, names, "bad_binop", MT_I32, MT_I32, MT_I64 )
+        dim as MirInst a = Inst_( M_ADD, MT_I32 )
+        a.result = 1 : f->nextTemp = 2
+        a.a = Val_( MV_PARAM, 0, MT_I32 ) : a.b = Val_( MV_PARAM, 1, MT_I64 )
+        f->blocks[0].insts.Push( a )
+        f->blocks[0].cond = Val_( MV_TEMP, 1, MT_I32 )
+        r += Judge_( m, names, "binary operands of two types", true, bad, "operands of two types" ) : n += 1
+    end scope
+
+    '' rule 9b: a direct call with the wrong number of arguments
+    scope
+        dim as MirModule m
+        dim as MirFunction ptr g = m.AddFunction( names.GetString( "two_args" ), MT_VOID )
+        g->AddParam( MT_I32 ) : g->AddParam( MT_I32 )
+        dim as MirFunction ptr f = Fn_( m, names, "bad_arity", MT_VOID, MT_I32, MT_VOID )
+        dim as MirInst c = Inst_( M_CALL, MT_VOID )
+        c.callee = 0
+        c.first = m.argPool.Count \ 2 : c.count = 1
+        m.argPool.Push( cast( uint32, MV_PARAM ) ) : m.argPool.Push( 0 )
+        f->blocks[0].insts.Push( c )
+        r += Judge_( m, names, "call with the wrong arity", true, bad, "which declares 2" ) : n += 1
+    end scope
+
+    '' rule 9b, indirect: a signature known to lowering, the wrong count
+    scope
+        dim as MirModule m
+        dim as MirFunction ptr g = m.AddFunction( names.GetString( "sig_two" ), MT_VOID )
+        g->AddParam( MT_I32 ) : g->AddParam( MT_I32 )
+        dim as MirFunction ptr f = Fn_( m, names, "bad_ind_arity", MT_VOID, MT_PTR, MT_I32 )
+        dim as MirInst c = Inst_( M_CALL_IND, MT_VOID )
+        c.a = Val_( MV_PARAM, 0, MT_PTR )
+        c.callee = 1                                  '' function 0, plus one
+        c.first = m.argPool.Count \ 2 : c.count = 1
+        m.argPool.Push( cast( uint32, MV_PARAM ) ) : m.argPool.Push( 1 )
+        f->blocks[0].insts.Push( c )
+        r += Judge_( m, names, "indirect call with the wrong arity", true, bad, "which declares 2" ) : n += 1
+    end scope
+
+    '' rule 10: a 64-bit value stored into a 32-bit local
+    scope
+        dim as MirModule m
+        dim as MirFunction ptr f = Fn_( m, names, "bad_store", MT_VOID, MT_I64, MT_VOID )
+        dim as MirLocal l
+        l.name = names.GetString( "x" ) : l.ty = cast( uint8, MT_I32 ) : l.size = 4
+        f->locals.Push( l )
+        dim as MirInst al = Inst_( M_ALLOCA, MT_PTR )
+        al.imm = 0 : al.result = 1 : f->nextTemp = 2
+        f->blocks[0].insts.Push( al )
+        dim as MirInst s = Inst_( M_STORE, MT_VOID )
+        s.a = Val_( MV_LOCAL, 0, MT_PTR ) : s.b = Val_( MV_PARAM, 0, MT_I64 )
+        f->blocks[0].insts.Push( s )
+        r += Judge_( m, names, "store wider than its slot", true, bad, "stores i64 into a i32 slot" ) : n += 1
+    end scope
+
+    '' a temp used that nothing produced
+    scope
+        dim as MirModule m
+        dim as MirFunction ptr f = Fn_( m, names, "bad_use", MT_I32, MT_VOID, MT_VOID )
+        f->nextTemp = 4
+        f->blocks[0].cond = Val_( MV_TEMP, 3, MT_I32 )
+        r += Judge_( m, names, "use of a temp nothing defined", true, bad, "before it is defined" ) : n += 1
+    end scope
+
+    '' a value returned from a function returning void
+    scope
+        dim as MirModule m
+        dim as MirFunction ptr f = Fn_( m, names, "bad_ret", MT_VOID, MT_I32, MT_VOID )
+        f->blocks[0].cond = Val_( MV_PARAM, 0, MT_I32 )
+        r += Judge_( m, names, "void function returning a value", true, bad, "returning void returns a value" ) : n += 1
+    end scope
+
+    r += "verify-selftest: " & str( n - iif( bad > 0, bad, 0 ) ) & " of " & str( n ) & _
+         " faults rejected, " & iif( bad = 0, "all as expected", str( bad ) & " WRONG" ) & chr( 10 )
+    return r
+end function
+
+end namespace

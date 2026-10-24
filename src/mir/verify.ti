@@ -24,6 +24,10 @@ namespace Tko.Mir
         ( byref m as MirModule, byref names as Tko.Interner, _
           byval strict as boolean = false ) as VerifyResult
 
+    '' Modules built to break one rule each, verified; the report 'tiko --verify-selftest'
+    '' prints. mir/verifytest.tiko.
+    declare function VerifySelfTest( byref names as Tko.Interner ) as string
+
 end namespace
 
 #endif

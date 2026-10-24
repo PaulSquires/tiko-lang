@@ -1390,6 +1390,7 @@ sub LowerModule _
         r.tgt = @target
         WalkBody( r, names )
     next
+    m.abiLowered = true
 end sub
 
 end namespace

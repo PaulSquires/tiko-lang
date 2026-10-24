@@ -645,8 +645,7 @@ private sub EmitInst( byref e as EmitCtx, byref ins as MirInst )
         case M_SREM : o = "srem"
         case M_UREM : o = "urem"
         end select
-        '' AN INTEGER DIVISOR OF ZERO FAULTS (#DE, SIGFPE -- '-e' makes it error 11), as fbc's idiv
-        '' does. LLVM makes it UB: '7 mod 0' inlined printed garbage at -O2. Non-constants guarded.
+        '' A ZERO DIVISOR FAULTS as fbc's idiv does (#DE; '-e': error 11); LLVM would make it UB.
         dim as string dv = ValStr( e, ins.b )
         if (op <> M_FDIV) andalso ((IsIntegerText_( dv ) = false) orelse (vallng( dv ) = 0)) then
             Line( e, res & ".z = icmp eq " & ty & " " & dv & ", 0" )
@@ -1415,6 +1414,7 @@ function EmitLlvm _
     e.m = @m
     e.names = @names
     e.tgt = @target
+    if m.abiLowered = false then Ice( e, "the module reached the emitter without the ABI pass" )
     dim as DebugInfo dbg
     if debugInfo then
         DbgBegin( dbg, sm, mainPath, dfe )
