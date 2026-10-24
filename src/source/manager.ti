@@ -96,6 +96,9 @@ namespace Tko
         '' the line's start, so a caller wanting only the offset paid O(line) per call: a
         '' 10,000-term 'a + a + ...' line took 6.4 s to parse (audit F-46).
         declare function LocOffset( byval loc as SourceLoc, byref fileOut as FileId ) as int32
+        '' The file and PHYSICAL line alone -- two binary searches, no column scan. Lowering
+        '' asks this once per statement: through Decode a 512 KB one-line file took 3.28 s.
+        declare function FileLineOf( byval loc as SourceLoc, byref physLine as int32 ) as FileId
 
         declare function LineCount( byval id as FileId ) as int32
 

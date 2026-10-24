@@ -264,6 +264,26 @@ function SourceManager.LocOffset( byval loc as SourceLoc, byref fileOut as FileI
     return 0
 end function
 
+function SourceManager.FileLineOf( byval loc as SourceLoc, byref physLine as int32 ) as FileId
+    physLine = 0
+    dim as FileId fid
+    dim as int32 off = this.LocOffset( loc, fid )
+    if fid = FILE_NONE then return FILE_NONE
+    dim as SourceFile ptr f = this.files[cast( int32, fid ) - 1]
+    dim as int32 lo = 0, hi = f->lineStarts.Count - 1, lineIdx = 0
+    while lo <= hi
+        dim as int32 midIdx = (lo + hi) \ 2
+        if f->lineStarts[midIdx] <= off then
+            lineIdx = midIdx
+            lo = midIdx + 1
+        else
+            hi = midIdx - 1
+        end if
+    wend
+    physLine = lineIdx + 1
+    return fid
+end function
+
 function SourceManager.Decode( byval loc as SourceLoc ) as DecodedLoc
     dim as DecodedLoc d
     d.file = FILE_NONE

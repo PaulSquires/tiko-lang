@@ -201,9 +201,9 @@ sub LowerProc _
     dim as Tko.SymbolId savedSym = c.curProcSym
     c.f = f
     if c.srcMgr <> nullptr then
-        dim as Tko.DecodedLoc dbgAt = c.srcMgr->Decode( c.ast->Loc( id ) )
-        f->dbgFile = cast( uint32, dbgAt.file ) + 1
-        f->dbgLine = dbgAt.physLine
+        dim as int32 dbgPl
+        f->dbgFile = cast( uint32, c.srcMgr->FileLineOf( c.ast->Loc( id ), dbgPl ) ) + 1
+        f->dbgLine = dbgPl
     end if
     c.curProcSym = sid : f->procSym = cast( uint32, sid )
     c.st->functions += 1

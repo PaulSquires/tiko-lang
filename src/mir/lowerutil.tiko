@@ -118,9 +118,10 @@ function Emit( byref c as Ctx, byref ins as MirInst ) as MirValue
         c.dbgFn = c.f
         c.dbgLine = 0
         if (c.curStmtNode <> 0) andalso (c.srcMgr <> nullptr) andalso (c.f->dbgFile > 0) then
-            dim as Tko.DecodedLoc dl = _
-                c.srcMgr->Decode( c.ast->Loc( cast( Tko.NodeId, c.curStmtNode ) ) )
-            if cast( uint32, dl.file ) + 1 = c.f->dbgFile then c.dbgLine = dl.physLine
+            dim as int32 pl
+            dim as Tko.FileId fl = _
+                c.srcMgr->FileLineOf( c.ast->Loc( cast( Tko.NodeId, c.curStmtNode ) ), pl )
+            if cast( uint32, fl ) + 1 = c.f->dbgFile then c.dbgLine = pl
         end if
     end if
     ins.dbgLine = c.dbgLine
