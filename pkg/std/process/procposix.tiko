@@ -104,8 +104,8 @@ private function hResolve( byref c as Command, byref full as ustring ) as boolea
     dim as ustring path_ = ProcChildVar( c, "PATH" )
     if( len( path_ ) = 0 ) then path_ = "/usr/local/bin:/usr/bin:/bin"
     dim as Array( of ustring ) dirs = ProcPathDirs( path_, 58 )
-    for i as long = 0 to dirs.num - 1
-        dim as ustring f = fs.PathJoin( dirs.items( i ), p )
+    for i as long = 0 to dirs.Count( ) - 1
+        dim as ustring f = fs.PathJoin( dirs.Data( )[ i ], p )
         if( hExecutable( f ) ) then
             full = f
             return TRUE
@@ -171,26 +171,26 @@ function ProcStart( byref c as Command, byref k as Child, byval dIn as long, byv
     else
         keep.Push( hZ( c.hProgram ) )
     end if
-    for i as long = 0 to c.hArgs.num - 1
-        keep.Push( hZ( c.hArgs.items( i ) ) )
+    for i as long = 0 to c.hArgs.Count( ) - 1
+        keep.Push( hZ( c.hArgs.Data( )[ i ] ) )
     next
-    dim as long nargv = keep.num - 1
+    dim as long nargv = keep.Count( ) - 1
     dim as Array( of ustring ) ek, ev
     dim as boolean ownEnv = ProcChildEnv( c, ek, ev )
     if( ownEnv ) then
-        for i as long = 0 to ek.num - 1
-            keep.Push( hZ( ek.items( i ) & "=" & ev.items( i ) ) )
+        for i as long = 0 to ek.Count( ) - 1
+            keep.Push( hZ( ek.Data( )[ i ] & "=" & ev.Data( )[ i ] ) )
         next
     end if
     dim as zstring ptr ptr argv = callocate( nargv + 1, sizeof( zstring ptr ) )
     for i as long = 0 to nargv - 1
-        argv[i] = strptr( keep.items( i + 1 ) )
+        argv[i] = strptr( keep.Data( )[ i + 1 ] )
     next
     dim as zstring ptr ptr envp = hEnviron( )
     if( ownEnv ) then
-        envp = callocate( ek.num + 1, sizeof( zstring ptr ) )
-        for i as long = 0 to ek.num - 1
-            envp[i] = strptr( keep.items( nargv + 1 + i ) )
+        envp = callocate( ek.Count( ) + 1, sizeof( zstring ptr ) )
+        for i as long = 0 to ek.Count( ) - 1
+            envp[i] = strptr( keep.Data( )[ nargv + 1 + i ] )
         next
     end if
     dim as string zcwd = hZ( c.hCwd )
@@ -245,7 +245,7 @@ function ProcStart( byref c as Command, byref k as Child, byval dIn as long, byv
     dim as pid_t pid = 0
     dim as long e = perr
     if( perr = 0 ) then
-        e = tkp_posix_spawn( @pid, strptr( keep.items( 0 ) ), @fa, @attr, argv, envp )
+        e = tkp_posix_spawn( @pid, strptr( keep.Data( )[ 0 ] ), @fa, @attr, argv, envp )
     end if
     tkp_attr_destroy( @attr )
     tkp_fa_destroy( @fa )
@@ -395,13 +395,13 @@ end sub
 function ProcOutput( byref c as Command, byref stdinData as Array( of ubyte ) ) as ProcResultOutput
     dim as Child k
     dim as ProcError f
-    dim as long dIn = iif( stdinData.num > 0, STDIO_PIPE, STDIO_NULL )
+    dim as long dIn = iif( stdinData.Count( ) > 0, STDIO_PIPE, STDIO_NULL )
     if( ProcStart( c, k, dIn, STDIO_PIPE, STDIO_PIPE, "Output", f ) = FALSE ) then
         return Fail( of ProcessOutput, ProcError )( f )
     end if
 
     dim as ProcessOutput po
-    if( stdinData.num = 0 ) then k.hIn.Close( )
+    if( stdinData.Count( ) = 0 ) then k.hIn.Close( )
     if( k.hIn.IsOpen( ) ) then
         dim as long fl = tkp_fcntl( cast( long, k.hIn.hFd ), F_GETFL )
         tkp_fcntl( cast( long, k.hIn.hFd ), F_SETFL, fl or O_NONBLOCK )
@@ -426,15 +426,15 @@ function ProcOutput( byref c as Command, byref stdinData as Array( of ubyte ) ) 
             if( pf(j).revents = 0 ) then continue for
             dim as long w = which(j)
             if( w = 2 ) then
-                dim as long n = stdinData.num - sent
+                dim as long n = stdinData.Count( ) - sent
                 if( n > TKP_CHUNK ) then n = TKP_CHUNK
                 for q as long = 0 to n - 1
-                    buf[q] = stdinData.items( sent + q )
+                    buf[q] = stdinData.Data( )[ sent + q ]
                 next
                 dim as integer got = tkp_write( pf(j).fd, buf, n )
                 if( got > 0 ) then
                     sent += got
-                    if( sent >= stdinData.num ) then k.hIn.Close( )
+                    if( sent >= stdinData.Count( ) ) then k.hIn.Close( )
                 elseif( got < 0 ) then
                     dim as long en = hErrno( )
                     if( en = EPIPE ) then

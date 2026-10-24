@@ -172,12 +172,12 @@ end function
 
 public function IpFromBytes( byref b as Array( of ubyte ) ) as NetResultIp
     dim as IpAddress r
-    if( ( b.num <> 4 ) andalso ( b.num <> 16 ) ) then
-        return NetFail( of IpAddress )( NET_INVALID_ADDRESS, 0, "IpFromBytes", str( b.num ) & " bytes" )
+    if( ( b.Count( ) <> 4 ) andalso ( b.Count( ) <> 16 ) ) then
+        return NetFail( of IpAddress )( NET_INVALID_ADDRESS, 0, "IpFromBytes", str( b.Count( ) ) & " bytes" )
     end if
-    r.hV6 = ( b.num = 16 )
-    for i as long = 0 to b.num - 1
-        r.hB( i ) = b.items( i )
+    r.hV6 = ( b.Count( ) = 16 )
+    for i as long = 0 to b.Count( ) - 1
+        r.hB( i ) = b.Data( )[ i ]
     next
     return Ok( of IpAddress, NetError )( r )
 end function

@@ -25,8 +25,8 @@ end sub
 
 '' ---- arguments
 dim as Array( of ustring ) a = os.Args( )
-Check( a.num >= 1, "args count" )
-if( a.num >= 1 ) then Check( len( a.items( 0 ) ) > 0, "argv0" )
+Check( a.Count( ) >= 1, "args count" )
+if( a.Count( ) >= 1 ) then Check( len( a[ 0 ] ) > 0, "argv0" )
 
 '' ---- environment
 Check( os.GetEnv( "TKOS_P4_NOPE" ).HasValue( ) = FALSE, "unset" )

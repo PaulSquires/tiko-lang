@@ -37,8 +37,8 @@ public type Hmac( of H ) extends Hasher
 end type
 
 constructor Hmac( of H )( byref key as Array( of ubyte ) )
-    if( key.num > 0 ) then
-        this.Keyed_( @key.items( 0 ), key.num )
+    if( key.Count( ) > 0 ) then
+        this.Keyed_( @key.Data( )[ 0 ], key.Count( ) )
     else
         this.Keyed_( nullptr, 0 )
     end if

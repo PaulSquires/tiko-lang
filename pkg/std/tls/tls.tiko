@@ -231,9 +231,9 @@ function TlsPemBlocks( byref pem as const string, byref label as const string, _
         dim as ustring uclean = clean
         dim as codec.EncResultI64 r = codec.Base64Decode( uclean, bytes )
         if( r.IsOk( ) = FALSE ) then return FALSE
-        dim as string der = space( bytes.num )
-        for i as long = 0 to bytes.num - 1
-            der[i] = bytes.items( i )
+        dim as string der = space( bytes.Count( ) )
+        for i as long = 0 to bytes.Count( ) - 1
+            der[i] = bytes.Data( )[ i ]
         next
         ders.Push( der )
         dim as string whole = mid( pem, a, b + len( tail ) - a ) & !"\n"
@@ -251,11 +251,11 @@ end constructor
 function TlsConfig.AddRootPem( byref pem as const ustring ) as TlsResultBool
     dim as string s = pem
     dim as Array( of string ) ders, texts
-    if( ( TlsPemBlocks( s, "CERTIFICATE", ders, texts ) = FALSE ) orelse ( ders.num = 0 ) ) then
+    if( ( TlsPemBlocks( s, "CERTIFICATE", ders, texts ) = FALSE ) orelse ( ders.Count( ) = 0 ) ) then
         return TlsFail( TLS_BAD_PEM, 0, "AddRootPem", "" )
     end if
-    for i as long = 0 to texts.num - 1
-        this.hRoots.Push( texts.items( i ) )
+    for i as long = 0 to texts.Count( ) - 1
+        this.hRoots.Push( texts.Data( )[ i ] )
     next
     return TlsOk( )
 end function
@@ -281,18 +281,18 @@ end function
 function TlsConfig.SetIdentityPem( byref certPem as const ustring, byref keyPem as const ustring ) as TlsResultBool
     dim as string c = certPem, k = keyPem
     dim as Array( of string ) ders, texts, kders, ktexts
-    if( ( TlsPemBlocks( c, "CERTIFICATE", ders, texts ) = FALSE ) orelse ( ders.num = 0 ) ) then
+    if( ( TlsPemBlocks( c, "CERTIFICATE", ders, texts ) = FALSE ) orelse ( ders.Count( ) = 0 ) ) then
         return TlsFail( TLS_BAD_PEM, 0, "SetIdentityPem", "certificate" )
     end if
-    if( ( TlsPemBlocks( k, "PRIVATE KEY", kders, ktexts ) = FALSE ) orelse ( kders.num <> 1 ) ) then
+    if( ( TlsPemBlocks( k, "PRIVATE KEY", kders, ktexts ) = FALSE ) orelse ( kders.Count( ) <> 1 ) ) then
         return TlsFail( TLS_BAD_PEM, 0, "SetIdentityPem", "PKCS#8 private key" )
     end if
     dim as string chain
-    for i as long = 0 to texts.num - 1
-        chain &= texts.items( i )
+    for i as long = 0 to texts.Count( ) - 1
+        chain &= texts.Data( )[ i ]
     next
     this.hCertPem = chain
-    this.hKeyPem = ktexts.items( 0 )
+    this.hKeyPem = ktexts.Data( )[ 0 ]
     return TlsOk( )
 end function
 
@@ -310,7 +310,7 @@ function TlsConfig.SetIdentityFiles( byref certPath as const ustring, byref keyP
 end function
 
 const function TlsConfig.RootCount( ) as long
-    return this.hRoots.num
+    return this.hRoots.Count( )
 end function
 
 const function TlsConfig.HasIdentity( ) as boolean

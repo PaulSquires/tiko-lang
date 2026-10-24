@@ -588,8 +588,8 @@ public function Resolve( byref host as const ustring, byval port as ushort = 0, 
             dim as SocketAddress a = hFromSockaddr( p->ai_addr )
             a.Port = port
             dim as boolean seen = FALSE
-            for i as long = 0 to r.num - 1
-                if( r.items( i ).Equals( a ) ) then seen = TRUE
+            for i as long = 0 to r.Count( ) - 1
+                if( r.Data( )[ i ].Equals( a ) ) then seen = TRUE
             next
             if( seen = FALSE ) then r.Push( a )
         end if
@@ -602,7 +602,7 @@ public function Resolve( byref host as const ustring, byval port as ushort = 0, 
 #else
     #error "net/netsock: no backend for this target"
 #endif
-    if( r.num = 0 ) then return NetFail( of NetAddrList )( NET_HOST_NOT_FOUND, 0, "Resolve", host )
+    if( r.Count( ) = 0 ) then return NetFail( of NetAddrList )( NET_HOST_NOT_FOUND, 0, "Resolve", host )
     return Ok( of NetAddrList, NetError )( r )
 end function
 
@@ -669,22 +669,22 @@ function TcpStream.ConnectHost( byref host as const ustring, byval port as ushor
     dim as NetResultAddrs rr = Resolve( host, port )
     if( rr.IsOk( ) = FALSE ) then return Fail( of boolean, NetError )( rr.Failure( ) )
     dim as NetAddrList all = rr.Value( ), v6, v4, order
-    for i as long = 0 to all.num - 1
-        if( all.items( i ).Ip.IsV6( ) ) then v6.Push( all.items( i ) ) else v4.Push( all.items( i ) )
+    for i as long = 0 to all.Count( ) - 1
+        if( all.Data( )[ i ].Ip.IsV6( ) ) then v6.Push( all.Data( )[ i ] ) else v4.Push( all.Data( )[ i ] )
     next
-    for i as long = 0 to iif( v6.num > v4.num, v6.num, v4.num ) - 1
-        if( i < v6.num ) then order.Push( v6.items( i ) )
-        if( i < v4.num ) then order.Push( v4.items( i ) )
+    for i as long = 0 to iif( v6.Count( ) > v4.Count( ), v6.Count( ), v4.Count( ) ) - 1
+        if( i < v6.Count( ) ) then order.Push( v6.Data( )[ i ] )
+        if( i < v4.Count( ) ) then order.Push( v4.Data( )[ i ] )
     next
     dim as double deadline = timer + timeoutMs / 1000
     dim as NetResultBool last
-    for i as long = 0 to order.num - 1
+    for i as long = 0 to order.Count( ) - 1
         dim as long ms = -1
         if( timeoutMs >= 0 ) then
             ms = clng( fix( ( deadline - timer ) * 1000 ) )
             if( ms <= 0 ) then return NetFail( of boolean )( NET_TIMED_OUT, 0, "ConnectHost", host )
         end if
-        last = this.Connect( order.items( i ), ms )
+        last = this.Connect( order.Data( )[ i ], ms )
         if( last.IsOk( ) ) then return last
     next
     return last

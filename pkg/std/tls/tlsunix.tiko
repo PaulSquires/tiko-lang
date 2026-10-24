@@ -195,7 +195,7 @@ private function hPemObjects( byref pem as const string, byval reader as TkoFnPP
     loop
     tko_BIO_free( b )
     tko_ERR_clear_error( )                '' the last read's "no start line"
-    return ( objs.num > 0 )
+    return ( objs.Count( ) > 0 )
 end function
 
 private function hMapVerify( byval v as integer ) as TlsErrorCode
@@ -227,20 +227,20 @@ private function hContext( byref s as TlsStream, byval e as TkoEng ptr, byref cf
         if( hPemObjects( cfg.hCertPem, tko_PEM_read_bio_X509, certs ) = FALSE ) then
             return TlsFail( TLS_BAD_PEM, 0, op, "certificate" )
         end if
-        if( tko_SSL_CTX_use_certificate( e->ctx, certs.items( 0 ) ) <> 1 ) then
-            for i as long = 0 to certs.num - 1 : tko_X509_free( certs.items( i ) ) : next
+        if( tko_SSL_CTX_use_certificate( e->ctx, certs.Data( )[ 0 ] ) <> 1 ) then
+            for i as long = 0 to certs.Count( ) - 1 : tko_X509_free( certs.Data( )[ i ] ) : next
             dim as ustring t = hErrText( code )
             return TlsFail( TLS_BAD_PEM, code, op, "certificate", t )
         end if
-        tko_X509_free( certs.items( 0 ) )
-        for i as long = 1 to certs.num - 1
-            tko_SSL_CTX_ctrl( e->ctx, 14, 0, certs.items( i ) )       '' SSL_CTX_add_extra_chain_cert: takes it
+        tko_X509_free( certs.Data( )[ 0 ] )
+        for i as long = 1 to certs.Count( ) - 1
+            tko_SSL_CTX_ctrl( e->ctx, 14, 0, certs.Data( )[ i ] )       '' SSL_CTX_add_extra_chain_cert: takes it
         next
         if( hPemObjects( cfg.hKeyPem, tko_PEM_read_bio_PrivateKey, keys ) = FALSE ) then
             return TlsFail( TLS_BAD_KEY, 0, op, "" )
         end if
-        dim as long rc = tko_SSL_CTX_use_PrivateKey( e->ctx, keys.items( 0 ) )
-        tko_EVP_PKEY_free( keys.items( 0 ) )
+        dim as long rc = tko_SSL_CTX_use_PrivateKey( e->ctx, keys.Data( )[ 0 ] )
+        tko_EVP_PKEY_free( keys.Data( )[ 0 ] )
         if( ( rc <> 1 ) orelse ( tko_SSL_CTX_check_private_key( e->ctx ) <> 1 ) ) then
             dim as ustring t = hErrText( code )
             return TlsFail( TLS_BAD_KEY, code, op, "", t )
@@ -252,12 +252,12 @@ private function hContext( byref s as TlsStream, byval e as TkoEng ptr, byref cf
             tko_SSL_CTX_set_verify( e->ctx, 1, nullptr )               '' SSL_VERIFY_PEER
             tko_SSL_CTX_set_default_verify_paths( e->ctx )
             dim as any ptr st = tko_SSL_CTX_get_cert_store( e->ctx )
-            for i as long = 0 to cfg.hRoots.num - 1
+            for i as long = 0 to cfg.hRoots.Count( ) - 1
                 dim as Array( of any ptr ) certs
-                hPemObjects( cfg.hRoots.items( i ), tko_PEM_read_bio_X509, certs )
-                for j as long = 0 to certs.num - 1
-                    tko_X509_STORE_add_cert( st, certs.items( j ) )    '' takes a reference
-                    tko_X509_free( certs.items( j ) )
+                hPemObjects( cfg.hRoots.Data( )[ i ], tko_PEM_read_bio_X509, certs )
+                for j as long = 0 to certs.Count( ) - 1
+                    tko_X509_STORE_add_cert( st, certs.Data( )[ j ] )    '' takes a reference
+                    tko_X509_free( certs.Data( )[ j ] )
                 next
             next
             tko_ERR_clear_error( )                                     '' a root already in the store

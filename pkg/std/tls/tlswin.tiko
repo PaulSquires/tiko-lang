@@ -265,11 +265,11 @@ end function
 private function hStoreFromPem( byref pems as Array( of string ) ) as any ptr
     dim as any ptr st = tkt_CertOpenStore( cptr( any ptr, 2 ), 0, nullptr, 0, nullptr )    '' CERT_STORE_PROV_MEMORY
     if( st = nullptr ) then return nullptr
-    for i as long = 0 to pems.num - 1
+    for i as long = 0 to pems.Count( ) - 1
         dim as Array( of string ) ders, texts
-        TlsPemBlocks( pems.items( i ), "CERTIFICATE", ders, texts )
-        for j as long = 0 to ders.num - 1
-            tkt_CertAddEncodedCertificateToStore( st, TKT_ENC, hDerPtr( ders.items( j ) ), len( ders.items( j ) ), 4, nullptr )
+        TlsPemBlocks( pems.Data( )[ i ], "CERTIFICATE", ders, texts )
+        for j as long = 0 to ders.Count( ) - 1
+            tkt_CertAddEncodedCertificateToStore( st, TKT_ENC, hDerPtr( ders.Data( )[ j ] ), len( ders.Data( )[ j ] ), 4, nullptr )
         next
     next
     return st
@@ -333,7 +333,7 @@ private function hVerify( byref s as TlsStream, byval e as TktEng ptr, byref cfg
     dim as long st = tkt_QueryContextAttributesW( @e->ctx, &h53, @leaf )     '' SECPKG_ATTR_REMOTE_CERT_CONTEXT
     if( ( st <> 0 ) orelse ( leaf = nullptr ) ) then return TlsFail( TLS_CERT_INVALID, st, op, s.hName )
     dim as ulong rc = hPolicy( nullptr, leaf, leaf->hCertStore, s.hName )
-    if( ( hMapPolicy( rc ) = TLS_CERT_UNTRUSTED ) andalso ( rc <> 0 ) andalso ( cfg.hRoots.num > 0 ) ) then
+    if( ( hMapPolicy( rc ) = TLS_CERT_UNTRUSTED ) andalso ( rc <> 0 ) andalso ( cfg.hRoots.Count( ) > 0 ) ) then
         dim as any ptr roots = hStoreFromPem( cfg.hRoots )
         if( roots <> nullptr ) then
             dim as any ptr extras( 0 to 0 ) = { leaf->hCertStore }
@@ -361,14 +361,14 @@ private function hIdentity( byval e as TktEng ptr, byref cfg as const TlsConfig,
     dim as Array( of string ) ders, texts, kders, ktexts
     TlsPemBlocks( cfg.hCertPem, "CERTIFICATE", ders, texts )
     TlsPemBlocks( cfg.hKeyPem, "PRIVATE KEY", kders, ktexts )
-    if( ( ders.num = 0 ) orelse ( kders.num = 0 ) ) then return TlsFail( TLS_NO_IDENTITY, 0, op, "" )
+    if( ( ders.Count( ) = 0 ) orelse ( kders.Count( ) = 0 ) ) then return TlsFail( TLS_NO_IDENTITY, 0, op, "" )
     e->store = tkt_CertOpenStore( cptr( any ptr, 2 ), 0, nullptr, 0, nullptr )
     if( e->store = nullptr ) then return TlsFail( TLS_UNKNOWN, 0, op, "" )
-    for j as long = ders.num - 1 to 0 step -1
+    for j as long = ders.Count( ) - 1 to 0 step -1
         dim as any ptr c = nullptr
         dim as any ptr ptr pc = nullptr
         if( j = 0 ) then pc = @c
-        if( tkt_CertAddEncodedCertificateToStore( e->store, TKT_ENC, hDerPtr( ders.items( j ) ), len( ders.items( j ) ), 4, pc ) = 0 ) then
+        if( tkt_CertAddEncodedCertificateToStore( e->store, TKT_ENC, hDerPtr( ders.Data( )[ j ] ), len( ders.Data( )[ j ] ), 4, pc ) = 0 ) then
             return TlsFail( TLS_BAD_PEM, 0, op, "certificate" )
         end if
         if( j = 0 ) then e->cert = c
@@ -391,7 +391,7 @@ private function hIdentity( byval e as TktEng ptr, byref cfg as const TlsConfig,
     nd.pBuffers = @nb
     dim as ustring blob = hW( "PKCS8_PRIVATEKEY" )
     st = tkt_NCryptImportKey( prov, 0, cptr( const ushort ptr, strptr( blob ) ), @nd, @e->key, _
-                              hDerPtr( kders.items( 0 ) ), len( kders.items( 0 ) ), &h400 )  '' NCRYPT_DO_NOT_FINALIZE_FLAG
+                              hDerPtr( kders.Data( )[ 0 ] ), len( kders.Data( )[ 0 ] ), &h400 )  '' NCRYPT_DO_NOT_FINALIZE_FLAG
     tkt_NCryptFreeObject( prov )
     if( st <> 0 ) then
         e->key = 0

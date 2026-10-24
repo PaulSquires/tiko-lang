@@ -128,8 +128,8 @@ end function
 
 '' An idle connection for `key`, or nullptr.
 private function hTakeIdle( byref cl as Client, byref key as const ustring ) as HttpConn ptr
-    for i as long = cl.hIdle.num - 1 to 0 step -1
-        dim as HttpConn ptr c = cptr( HttpConn ptr, cl.hIdle.items( i ) )
+    for i as long = cl.hIdle.Count( ) - 1 to 0 step -1
+        dim as HttpConn ptr c = cptr( HttpConn ptr, cl.hIdle.Data( )[ i ] )
         if( c->key = key ) then
             cl.hIdle.Remove( i )
             return c
@@ -143,8 +143,8 @@ private sub hGiveBack( byref cl as Client, byval c as HttpConn ptr )
         hConnFree( c )                                   '' bytes past the body: the peer is confused
         exit sub
     end if
-    while( cl.hIdle.num >= cl.MaxIdle )
-        hConnFree( cptr( HttpConn ptr, cl.hIdle.items( 0 ) ) )
+    while( cl.hIdle.Count( ) >= cl.MaxIdle )
+        hConnFree( cptr( HttpConn ptr, cl.hIdle.Data( )[ 0 ] ) )
         cl.hIdle.Remove( 0 )
     wend
     c->bpos = 0
@@ -204,8 +204,8 @@ private function hHead( byref cl as Client, byref req as const Request, byref u 
     h.Remove( "Content-Length" )
     h.Remove( "Transfer-Encoding" )
     dim as ustring m = ucase( req.Method )
-    if( ( req.Body.num > 0 ) orelse ( m = "POST" ) orelse ( m = "PUT" ) orelse ( m = "PATCH" ) ) then
-        h.Add( "Content-Length", str( req.Body.num ) )
+    if( ( req.Body.Count( ) > 0 ) orelse ( m = "POST" ) orelse ( m = "PUT" ) orelse ( m = "PATCH" ) ) then
+        h.Add( "Content-Length", str( req.Body.Count( ) ) )
     end if
     if( cl.KeepAlive = FALSE ) then h.SetValue( "Connection", "close" )
     dim as ustring t = req.Method & " " & target & !" HTTP/1.1\r\nHost: " & host & !"\r\n"
@@ -233,8 +233,8 @@ end function
 '' TRUE when the comma-separated header list holds `token` (ASCII case ignored).
 private function hHasToken( byref h as const Headers, byref nm as const ustring, byref token as const ustring ) as boolean
     dim as Array( of ustring ) vs = h.GetAll( nm )
-    for i as long = 0 to vs.num - 1
-        dim as string v = lcase( vs.items( i ) )
+    for i as long = 0 to vs.Count( ) - 1
+        dim as string v = lcase( vs.Data( )[ i ] )
         dim as long p = 1
         do
             dim as long q = instr( p, v, "," )
@@ -250,8 +250,8 @@ end function
 '' The last transfer coding, lower case; "" when none.
 private function hLastCoding( byref h as const Headers ) as string
     dim as Array( of ustring ) vs = h.GetAll( "Transfer-Encoding" )
-    if( vs.num = 0 ) then return ""
-    dim as string v = lcase( vs.items( vs.num - 1 ) )
+    if( vs.Count( ) = 0 ) then return ""
+    dim as string v = lcase( vs.Data( )[ vs.Count( ) - 1 ] )
     dim as long q = instrrev( v, "," )
     return hTrim( iif( q = 0, v, mid( v, q + 1 ) ) )
 end function
@@ -324,7 +324,7 @@ private function hReadHead( byval c as HttpConn ptr, byref rs as ResponseStream,
             dim as long last = rs.Header.Count( ) - 1
             dim as string folded = hTrim( ln )
             dim as ustring uf = folded
-            rs.Header.hVals.items( last ) &= " " & uf
+            rs.Header.hVals.Data( )[ last ] &= " " & uf
             continue do
         end if
         dim as long colon = instr( ln, ":" )
@@ -369,10 +369,10 @@ private function hFraming( byref rs as ResponseStream, byref method_ as const us
         return TRUE
     end if
     dim as Array( of ustring ) cls = rs.Header.GetAll( "Content-Length" )
-    if( cls.num > 0 ) then
+    if( cls.Count( ) > 0 ) then
         dim as longint n = -1
-        for i as long = 0 to cls.num - 1
-            dim as string v = hTrim( cls.items( i ) )
+        for i as long = 0 to cls.Count( ) - 1
+            dim as string v = hTrim( cls.Data( )[ i ] )
             dim as boolean digits = ( len( v ) > 0 ) andalso ( len( v ) <= 18 )
             for j as long = 0 to len( v ) - 1
                 if( ( v[j] < 48 ) orelse ( v[j] > 57 ) ) then digits = FALSE
@@ -559,7 +559,7 @@ private function hExchange( byref cl as Client, byref req as const Request, byre
         end if
         dim as fs.Stream ptr st = hStream( c )
         dim as fs.FsResultBool w = st->WriteAll( cptr( const ubyte ptr, strptr( head ) ), len( head ) )
-        if( w.IsOk( ) andalso ( req.Body.num > 0 ) ) then w = st->WriteAll( @req.Body.items( 0 ), req.Body.num )
+        if( w.IsOk( ) andalso ( req.Body.Count( ) > 0 ) ) then w = st->WriteAll( @req.Body.Data( )[ 0 ], req.Body.Count( ) )
         if( w.IsOk( ) = FALSE ) then
             hConnFree( c )
             if( reused ) then continue for
@@ -677,14 +677,14 @@ destructor Client( )
 end destructor
 
 sub Client.CloseIdle( )
-    for i as long = 0 to this.hIdle.num - 1
-        hConnFree( cptr( HttpConn ptr, this.hIdle.items( i ) ) )
+    for i as long = 0 to this.hIdle.Count( ) - 1
+        hConnFree( cptr( HttpConn ptr, this.hIdle.Data( )[ i ] ) )
     next
     this.hIdle.Clear( )
 end sub
 
 const function Client.IdleCount( ) as long
-    return this.hIdle.num
+    return this.hIdle.Count( )
 end function
 
 function Client.Open( byref req as const Request, byref resp as ResponseStream ) as HttpResultBool
@@ -722,7 +722,7 @@ function Client.Send( byref req as const Request ) as HttpResultResponse
             return hIoFail( of Response )( fe, "Send", res.Url )
         end if
         if( g.Value( ) = 0 ) then exit do
-        if( res.Body.num + g.Value( ) > this.MaxBodyBytes ) then
+        if( res.Body.Count( ) + g.Value( ) > this.MaxBodyBytes ) then
             deallocate( chunk )
             rs.Close( )
             return HttpFail( of Response )( HTTP_BODY_TOO_LARGE, 0, "Send", res.Url )

@@ -213,7 +213,7 @@ sub Main_( )
         Same( "len body", v.Text( ), "hello" )
         Check( "len success", v.IsSuccess( ) )
         Same( "len header", v.Header.Get( "CONTENT-type" ).ValueOr( "" ), "text/plain" )
-        Check( "len multi", v.Header.GetAll( "x-multi" ).num = 2 )
+        Check( "len multi", v.Header.GetAll( "x-multi" ).Count( ) = 2 )
         Check( "len has", v.Header.Has( "content-length" ) andalso ( v.Header.Has( "nope" ) = false ) )
         Same( "len url", v.Url, base_ & "/len" )
     end if
@@ -245,7 +245,7 @@ sub Main_( )
 
     '' HEAD: a length and no body
     r = cl.Head( base_ & "/head" )
-    Check( "head", r.IsOk( ) andalso r.Value( ).StatusCode = 200 andalso r.Value( ).Body.num = 0 )
+    Check( "head", r.IsOk( ) andalso r.Value( ).StatusCode = 200 andalso r.Value( ).Body.Count( ) = 0 )
     Same( "after head", cl.Fetch( base_ & "/len" ).Value( ).Text( ), "hello" )
 
     '' 100 and 103 skipped
@@ -307,7 +307,7 @@ sub Main_( )
     Check( "Open status", rs.StatusCode = 200 )
     dim as Array( of ubyte ) all_
     Check( "ReadToEnd", rs.ReadToEnd( all_ ).IsOk( ) )
-    Check( "ReadToEnd bytes", all_.num = 300000 )
+    Check( "ReadToEnd bytes", all_.Count( ) = 300000 )
     Check( "stream Close", rs.Close( ).IsOk( ) )
     Check( "stream closed", rs.Close( ).Failure( ).Code( ) = http.HTTP_CLOSED )
     dim as ubyte one

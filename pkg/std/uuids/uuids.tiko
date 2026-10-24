@@ -284,12 +284,12 @@ public function NewV7( ) as Uuid
 end function
 
 public function FromBytes( byref a as Array( of ubyte ) ) as Result( of Uuid, UuidError )
-    if( a.num <> 16 ) then
+    if( a.Count( ) <> 16 ) then
         return Fail( of Uuid, UuidError )( UuidError( UUID_INVALID_LENGTH, 0 ) )
     end if
     dim as Uuid u
     for i as long = 0 to 15
-        u.b( i ) = a.items( i )
+        u.b( i ) = a.Data( )[ i ]
     next
     return Ok( of Uuid, UuidError )( u )
 end function

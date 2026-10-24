@@ -145,8 +145,8 @@ private function hTryExts( byref bas as const ustring, byref exts as Array( of u
             return TRUE
         end if
     end if
-    for i as long = 0 to exts.num - 1
-        dim as ustring f = bas & exts.items( i )
+    for i as long = 0 to exts.Count( ) - 1
+        dim as ustring f = bas & exts.Data( )[ i ]
         if( fs.IsFile( f ) ) then
             full = f
             return TRUE
@@ -177,8 +177,8 @@ private function hResolve( byref c as Command, byref full as ustring ) as boolea
         return hTryExts( a.Value( ), exts, full )
     end if
     dim as Array( of ustring ) dirs = ProcPathDirs( ProcChildVar( c, "PATH" ), 59 )
-    for i as long = 0 to dirs.num - 1
-        if( hTryExts( fs.PathJoin( dirs.items( i ), p ), exts, full ) ) then return TRUE
+    for i as long = 0 to dirs.Count( ) - 1
+        if( hTryExts( fs.PathJoin( dirs.Data( )[ i ], p ), exts, full ) ) then return TRUE
     next
     return FALSE
 end function
@@ -283,7 +283,7 @@ function ProcStart( byref c as Command, byref k as Child, byval dIn as long, byv
     dim as ustring app, line_
     if( c.hRaw ) then
         app = hCmdExe( )
-        line_ = "cmd.exe /d /s /c """ & c.hArgs.items( 0 ) & """"
+        line_ = "cmd.exe /d /s /c """ & c.hArgs.Data( )[ 0 ] & """"
     else
         if( hResolve( c, app ) = FALSE ) then
             failure = ProcError( PROC_NOT_FOUND, 0, op, c.hProgram )
@@ -291,19 +291,19 @@ function ProcStart( byref c as Command, byref k as Child, byval dIn as long, byv
         end if
         if( hIsBatch( app ) ) then
             line_ = "cmd.exe /d /e:ON /v:OFF /s /c """"" & app & """"
-            for i as long = 0 to c.hArgs.num - 1
-                if( ProcCmdSafe( c.hArgs.items( i ) ) = FALSE ) then
-                    failure = ProcError( PROC_UNSAFE_ARGUMENT, 0, op, c.hArgs.items( i ) )
+            for i as long = 0 to c.hArgs.Count( ) - 1
+                if( ProcCmdSafe( c.hArgs.Data( )[ i ] ) = FALSE ) then
+                    failure = ProcError( PROC_UNSAFE_ARGUMENT, 0, op, c.hArgs.Data( )[ i ] )
                     return FALSE
                 end if
-                line_ &= " " & ProcQuoteCmd( c.hArgs.items( i ) )
+                line_ &= " " & ProcQuoteCmd( c.hArgs.Data( )[ i ] )
             next
             line_ &= """"
             app = hCmdExe( )
         else
             line_ = ProcQuoteWinProgram( c.hProgram )
-            for i as long = 0 to c.hArgs.num - 1
-                line_ &= " " & ProcQuoteWin( c.hArgs.items( i ) )
+            for i as long = 0 to c.hArgs.Count( ) - 1
+                line_ &= " " & ProcQuoteWin( c.hArgs.Data( )[ i ] )
             next
         end if
     end if
@@ -313,13 +313,13 @@ function ProcStart( byref c as Command, byref k as Child, byval dIn as long, byv
     dim as Array( of ustring ) ek, ev
     if( ProcChildEnv( c, ek, ev ) ) then
         dim as long total = 2
-        for i as long = 0 to ek.num - 1
-            total += len( ek.items( i ) ) + len( ev.items( i ) ) + 2
+        for i as long = 0 to ek.Count( ) - 1
+            total += len( ek.Data( )[ i ] ) + len( ev.Data( )[ i ] ) + 2
         next
         envBlk = callocate( total, 2 )  '' zeroed: every NUL, and the two at the end
         dim as long at = 0
-        for i as long = 0 to ek.num - 1
-            dim as ustring kv = ek.items( i ) & "=" & ev.items( i )
+        for i as long = 0 to ek.Count( ) - 1
+            dim as ustring kv = ek.Data( )[ i ] & "=" & ev.Data( )[ i ]
             for j as long = 0 to len( kv ) - 1
                 envBlk[at + j] = kv[j]
             next
@@ -590,10 +590,10 @@ private function hIssue( byref o as TkpOp, byval i as long, byref stdinData as A
     tkp_ResetEvent( o.s->hEvent )
     dim as long ok_
     if( i = 2 ) then
-        dim as long n = stdinData.num - o.sent
+        dim as long n = stdinData.Count( ) - o.sent
         if( n > TKP_CHUNK ) then n = TKP_CHUNK
         for j as long = 0 to n - 1
-            o.buf[j] = stdinData.items( o.sent + j )
+            o.buf[j] = stdinData.Data( )[ o.sent + j ]
         next
         ok_ = tkp_WriteFile( h, o.buf, n, nullptr, @o.ov )
     else
@@ -618,7 +618,7 @@ end function
 function ProcOutput( byref c as Command, byref stdinData as Array( of ubyte ) ) as ProcResultOutput
     dim as Child k
     dim as ProcError f
-    dim as long dIn = iif( stdinData.num > 0, STDIO_PIPE, STDIO_NULL )
+    dim as long dIn = iif( stdinData.Count( ) > 0, STDIO_PIPE, STDIO_NULL )
     if( ProcStart( c, k, dIn, STDIO_PIPE, STDIO_PIPE, "Output", f ) = FALSE ) then
         return Fail( of ProcessOutput, ProcError )( f )
     end if
@@ -632,7 +632,7 @@ function ProcOutput( byref c as Command, byref stdinData as Array( of ubyte ) ) 
     dim as boolean failed = FALSE
     for i as long = 0 to 2
         ops(i).active = ops(i).s->IsOpen( )
-        if( ( i = 2 ) andalso ( stdinData.num = 0 ) ) then
+        if( ( i = 2 ) andalso ( stdinData.Count( ) = 0 ) ) then
             ops(i).active = FALSE
             k.hIn.Close( )
         end if
@@ -675,7 +675,7 @@ function ProcOutput( byref c as Command, byref stdinData as Array( of ubyte ) ) 
         end if
         if( i = 2 ) then
             ops(i).sent += got
-            if( ops(i).sent >= stdinData.num ) then
+            if( ops(i).sent >= stdinData.Count( ) ) then
                 ops(i).active = FALSE
                 k.hIn.Close( )               '' the child sees the end of its input
                 continue do

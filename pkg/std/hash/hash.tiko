@@ -65,8 +65,8 @@ destructor Hasher( )
 end destructor
 
 sub Hasher.UpdateBytes( byref b as Array( of ubyte ) )
-    if( b.num > 0 ) then
-        this.Update( @b.items( 0 ), b.num )
+    if( b.Count( ) > 0 ) then
+        this.Update( @b.Data( )[ 0 ], b.Count( ) )
     end if
 end sub
 
@@ -269,12 +269,12 @@ end function
 '' differs -- for comparing a MAC or a token with the one expected.  Different
 '' lengths return FALSE at once: the length is not the secret.
 public function ConstantTimeEquals( byref a as Array( of ubyte ), byref b as Array( of ubyte ) ) as boolean
-    if( a.num <> b.num ) then
+    if( a.Count( ) <> b.Count( ) ) then
         return FALSE
     end if
     dim as ulong diff = 0
-    for i as long = 0 to a.num - 1
-        diff or= ( a.items( i ) xor b.items( i ) )
+    for i as long = 0 to a.Count( ) - 1
+        diff or= ( a.Data( )[ i ] xor b.Data( )[ i ] )
     next
     return diff = 0
 end function

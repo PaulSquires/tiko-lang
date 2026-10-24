@@ -199,23 +199,23 @@ private function hSameName( byref a as const ustring, byref b as const ustring )
 end function
 
 const function Headers.Get( byref nm as const ustring ) as Optional( of ustring )
-    for i as long = 0 to this.hNames.num - 1
-        if( hSameName( this.hNames.items( i ), nm ) ) then return Some( of ustring )( this.hVals.items( i ) )
+    for i as long = 0 to this.hNames.Count( ) - 1
+        if( hSameName( this.hNames.Data( )[ i ], nm ) ) then return Some( of ustring )( this.hVals.Data( )[ i ] )
     next
     return None( of ustring )( )
 end function
 
 const function Headers.GetAll( byref nm as const ustring ) as Array( of ustring )
     dim as Array( of ustring ) r
-    for i as long = 0 to this.hNames.num - 1
-        if( hSameName( this.hNames.items( i ), nm ) ) then r.Push( this.hVals.items( i ) )
+    for i as long = 0 to this.hNames.Count( ) - 1
+        if( hSameName( this.hNames.Data( )[ i ], nm ) ) then r.Push( this.hVals.Data( )[ i ] )
     next
     return r
 end function
 
 const function Headers.Has( byref nm as const ustring ) as boolean
-    for i as long = 0 to this.hNames.num - 1
-        if( hSameName( this.hNames.items( i ), nm ) ) then return TRUE
+    for i as long = 0 to this.hNames.Count( ) - 1
+        if( hSameName( this.hNames.Data( )[ i ], nm ) ) then return TRUE
     next
     return FALSE
 end function
@@ -229,11 +229,11 @@ end sub
 sub Headers.SetValue( byref nm as const ustring, byref v as const ustring )
     dim as long at_ = -1
     dim as long i = 0
-    while( i < this.hNames.num )
-        if( hSameName( this.hNames.items( i ), nm ) ) then
+    while( i < this.hNames.Count( ) )
+        if( hSameName( this.hNames.Data( )[ i ], nm ) ) then
             if( at_ < 0 ) then
                 at_ = i
-                this.hVals.items( i ) = v
+                this.hVals.Data( )[ i ] = v
                 i += 1
             else
                 this.hNames.Remove( i )
@@ -248,8 +248,8 @@ end sub
 
 sub Headers.Remove( byref nm as const ustring )
     dim as long i = 0
-    while( i < this.hNames.num )
-        if( hSameName( this.hNames.items( i ), nm ) ) then
+    while( i < this.hNames.Count( ) )
+        if( hSameName( this.hNames.Data( )[ i ], nm ) ) then
             this.hNames.Remove( i )
             this.hVals.Remove( i )
         else
@@ -264,17 +264,17 @@ sub Headers.Clear( )
 end sub
 
 const function Headers.Count( ) as long
-    return this.hNames.num
+    return this.hNames.Count( )
 end function
 
 const function Headers.NameAt( byval i as long ) as ustring
-    if( ( i < 0 ) orelse ( i >= this.hNames.num ) ) then return ""
-    return this.hNames.items( i )
+    if( ( i < 0 ) orelse ( i >= this.hNames.Count( ) ) ) then return ""
+    return this.hNames.Data( )[ i ]
 end function
 
 const function Headers.ValueAt( byval i as long ) as ustring
-    if( ( i < 0 ) orelse ( i >= this.hVals.num ) ) then return ""
-    return this.hVals.items( i )
+    if( ( i < 0 ) orelse ( i >= this.hVals.Count( ) ) ) then return ""
+    return this.hVals.Data( )[ i ]
 end function
 
 '' -------------------------------------------------------------- request and response
@@ -338,10 +338,10 @@ constructor Response( )
 end constructor
 
 const function Response.Text( ) as ustring
-    if( this.Body.num = 0 ) then return ""
-    dim as string b = space( this.Body.num )
-    for i as long = 0 to this.Body.num - 1
-        b[i] = this.Body.items( i )
+    if( this.Body.Count( ) = 0 ) then return ""
+    dim as string b = space( this.Body.Count( ) )
+    for i as long = 0 to this.Body.Count( ) - 1
+        b[i] = this.Body.Data( )[ i ]
     next
     dim as ustring u = b
     return u

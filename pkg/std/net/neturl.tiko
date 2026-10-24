@@ -142,23 +142,23 @@ end type
 public type NetResultQuery as Result( of QueryValues, NetError )
 
 function QueryValues.Get( byref k as const ustring ) as Optional( of ustring )
-    for i as long = 0 to this.hKeys.num - 1
-        if( this.hKeys.items( i ) = k ) then return Some( of ustring )( this.hVals.items( i ) )
+    for i as long = 0 to this.hKeys.Count( ) - 1
+        if( this.hKeys.Data( )[ i ] = k ) then return Some( of ustring )( this.hVals.Data( )[ i ] )
     next
     return None( of ustring )( )
 end function
 
 function QueryValues.GetAll( byref k as const ustring ) as Array( of ustring )
     dim as Array( of ustring ) r
-    for i as long = 0 to this.hKeys.num - 1
-        if( this.hKeys.items( i ) = k ) then r.Push( this.hVals.items( i ) )
+    for i as long = 0 to this.hKeys.Count( ) - 1
+        if( this.hKeys.Data( )[ i ] = k ) then r.Push( this.hVals.Data( )[ i ] )
     next
     return r
 end function
 
 function QueryValues.Has( byref k as const ustring ) as boolean
-    for i as long = 0 to this.hKeys.num - 1
-        if( this.hKeys.items( i ) = k ) then return TRUE
+    for i as long = 0 to this.hKeys.Count( ) - 1
+        if( this.hKeys.Data( )[ i ] = k ) then return TRUE
     next
     return FALSE
 end function
@@ -173,11 +173,11 @@ end sub
 sub QueryValues.SetValue( byref k as const ustring, byref v as const ustring )
     dim as long at = -1
     dim as long i = 0
-    while( i < this.hKeys.num )
-        if( this.hKeys.items( i ) = k ) then
+    while( i < this.hKeys.Count( ) )
+        if( this.hKeys.Data( )[ i ] = k ) then
             if( at < 0 ) then
                 at = i
-                this.hVals.items( i ) = v
+                this.hVals.Data( )[ i ] = v
                 i += 1
             else
                 this.hKeys.Remove( i )
@@ -192,8 +192,8 @@ end sub
 
 sub QueryValues.Remove( byref k as const ustring )
     dim as long i = 0
-    while( i < this.hKeys.num )
-        if( this.hKeys.items( i ) = k ) then
+    while( i < this.hKeys.Count( ) )
+        if( this.hKeys.Data( )[ i ] = k ) then
             this.hKeys.Remove( i )
             this.hVals.Remove( i )
         else
@@ -203,22 +203,22 @@ sub QueryValues.Remove( byref k as const ustring )
 end sub
 
 function QueryValues.Count( ) as long
-    return this.hKeys.num
+    return this.hKeys.Count( )
 end function
 
 function QueryValues.KeyAt( byval i as long ) as ustring
-    return this.hKeys.items( i )
+    return this.hKeys.Data( )[ i ]
 end function
 
 function QueryValues.ValueAt( byval i as long ) as ustring
-    return this.hVals.items( i )
+    return this.hVals.Data( )[ i ]
 end function
 
 function QueryValues.Encode( ) as ustring
     dim as ustring r
-    for i as long = 0 to this.hKeys.num - 1
+    for i as long = 0 to this.hKeys.Count( ) - 1
         if( i > 0 ) then r &= "&"
-        r &= codec.PercentEncode( this.hKeys.items( i ), codec.PCT_QUERY ) & "=" & codec.PercentEncode( this.hVals.items( i ), codec.PCT_QUERY )
+        r &= codec.PercentEncode( this.hKeys.Data( )[ i ], codec.PCT_QUERY ) & "=" & codec.PercentEncode( this.hVals.Data( )[ i ], codec.PCT_QUERY )
     next
     return r
 end function

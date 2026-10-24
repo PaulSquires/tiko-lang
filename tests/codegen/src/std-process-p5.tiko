@@ -116,7 +116,7 @@ end function
 #endif
 
 sub ChildMain( byref a as Array( of ustring ) )
-    dim as ustring mode = a.items( 1 )
+    dim as ustring mode = a[ 1 ]
     select case mode
     case "argv"
 #ifdef __FB_WIN32__
@@ -124,23 +124,23 @@ sub ChildMain( byref a as Array( of ustring ) )
 #else
         dim as Array( of ustring ) o = a           '' /proc/self/cmdline is the kernel's argv
 #endif
-        RawLine( "n " & a.num & " " & o.num )
-        for i as long = 2 to a.num - 1
+        RawLine( "n " & a.Count( ) & " " & o.Count( ) )
+        for i as long = 2 to a.Count( ) - 1
             dim as ustring oi = ""
-            if( i < o.num ) then oi = o.items( i )
-            RawLine( Hex16( a.items( i ) ) & " " & Hex16( oi ) )
+            if( i < o.Count( ) ) then oi = o[ i ]
+            RawLine( Hex16( a[ i ] ) & " " & Hex16( oi ) )
         next
     case "env"
-        dim as Optional( of ustring ) v = os.GetEnv( a.items( 2 ) )
+        dim as Optional( of ustring ) v = os.GetEnv( a[ 2 ] )
         if( v.HasValue( ) ) then RawLine( "=" & Hex16( v.Value( ) ) ) else RawLine( "unset" )
     case "cwd"
         RawLine( Hex16( fs.CurrentDir( ).ValueOr( "" ) ) )
     case "exit"
-        os.ExitWith( valint( a.items( 2 ) ) )
+        os.ExitWith( valint( a[ 2 ] ) )
     case "sleep"
-        sleep valint( a.items( 2 ) ), 1
+        sleep valint( a[ 2 ] ), 1
     case "spew"
-        dim as long n = valint( a.items( 2 ) ), done = 0
+        dim as long n = valint( a[ 2 ] ), done = 0
         dim as ubyte bo( 0 to 4095 ), be( 0 to 4095 )
         while( done < n )
             dim as long k = n - done
@@ -163,7 +163,7 @@ sub ChildMain( byref a as Array( of ustring ) )
     case "handle"
         '' a handle value from the parent: exit 1 if it names the parent's file here
 #ifdef __FB_WIN32__
-        dim as any ptr h = cptr( any ptr, valulng( a.items( 2 ) ) )
+        dim as any ptr h = cptr( any ptr, valulng( a[ 2 ] ) )
         if( t_GetFileType( h ) = 1 ) then
             dim as ushort buf( 0 to 1023 )
             dim as ulong n = t_GetFinalPathNameByHandleW( h, @buf(0), 1024, 0 )
@@ -205,8 +205,8 @@ end function
 function Lines( byref po as process.ProcessOutput ) as Array( of string )
     dim as Array( of string ) r
     dim as string cur = ""
-    for i as long = 0 to po.Stdout.num - 1
-        dim as ubyte b = po.Stdout.items( i )
+    for i as long = 0 to po.Stdout.Count( ) - 1
+        dim as ubyte b = po.Stdout[ i ]
         if( b = 10 ) then
             r.Push( cur )
             cur = ""
@@ -232,8 +232,8 @@ end function
 function FirstLine( byref c as process.Command ) as string
     dim as process.ProcessOutput po = OutOf( c )
     dim as Array( of string ) l = Lines( po )
-    if( l.num = 0 ) then return ""
-    return l.items( 0 )
+    if( l.Count( ) = 0 ) then return ""
+    return l[ 0 ]
 end function
 
 function CodeOf( byref r as process.ProcResultStatus ) as long
@@ -256,12 +256,12 @@ sub ParentMain( )
     dim as process.Command ca = Me( "argv" )
     ca.Args( av )
     dim as Array( of string ) al = Lines( OutOf( ca ) )
-    Check( al.num = av.num + 1, "argv line count" )
-    if( al.num = av.num + 1 ) then
-        Check( al.items( 0 ) = "n " & ( av.num + 2 ) & " " & ( av.num + 2 ), "argv counts agree with the oracle" )
-        for i as long = 0 to av.num - 1
-            dim as string want = Hex16( av.items( i ) )
-            Check( al.items( i + 1 ) = want & " " & want, "argv " & i & ": " & al.items( i + 1 ) )
+    Check( al.Count( ) = av.Count( ) + 1, "argv line count" )
+    if( al.Count( ) = av.Count( ) + 1 ) then
+        Check( al[ 0 ] = "n " & ( av.Count( ) + 2 ) & " " & ( av.Count( ) + 2 ), "argv counts agree with the oracle" )
+        for i as long = 0 to av.Count( ) - 1
+            dim as string want = Hex16( av[ i ] )
+            Check( al[ i + 1 ] = want & " " & want, "argv " & i & ": " & al[ i + 1 ] )
         next
     end if
 
@@ -282,18 +282,18 @@ sub ParentMain( )
 
     '' ---- Capture: 1 MiB on both pipes at once cannot deadlock
     dim as process.ProcessOutput big = OutOf( Me( "spew" ).Arg( "1048576" ) )
-    Check( big.Stdout.num = 1048576, "spew stdout size " & big.Stdout.num )
-    Check( big.Stderr.num = 1048576, "spew stderr size " & big.Stderr.num )
-    dim as boolean same = ( big.Stdout.num = 1048576 ) andalso ( big.Stderr.num = 1048576 )
+    Check( big.Stdout.Count( ) = 1048576, "spew stdout size " & big.Stdout.Count( ) )
+    Check( big.Stderr.Count( ) = 1048576, "spew stderr size " & big.Stderr.Count( ) )
+    dim as boolean same = ( big.Stdout.Count( ) = 1048576 ) andalso ( big.Stderr.Count( ) = 1048576 )
     if( same ) then
         for i as long = 0 to 1048575 step 4093
-            if( ( big.Stdout.items( i ) <> 65 + ( i mod 26 ) ) orelse ( big.Stderr.items( i ) <> 97 + ( i mod 26 ) ) ) then same = FALSE
+            if( ( big.Stdout[ i ] <> 65 + ( i mod 26 ) ) orelse ( big.Stderr[ i ] <> 97 + ( i mod 26 ) ) ) then same = FALSE
         next
     end if
     Check( same, "spew bytes" )
     Check( big.Status.Code( ) = 0, "spew status" )
     dim as process.ProcessOutput merged = OutOf( Me( "spew" ).Arg( "1000" ).StderrToStdout( ) )
-    Check( ( merged.Stdout.num = 2000 ) andalso ( merged.Stderr.num = 0 ), "StderrToStdout" )
+    Check( ( merged.Stdout.Count( ) = 2000 ) andalso ( merged.Stderr.Count( ) = 0 ), "StderrToStdout" )
 
     '' ---- stdinData: 300000 bytes in, the same out
     dim as Array( of ubyte ) inData
@@ -303,10 +303,10 @@ sub ParentMain( )
     dim as process.ProcResultOutput er = process.Capture( Me( "echo" ), inData )
     Check( er.IsOk( ), "echo ok" )
     if( er.IsOk( ) ) then
-        dim as boolean eq = ( er.Value( ).Stdout.num = 300000 )
+        dim as boolean eq = ( er.Value( ).Stdout.Count( ) = 300000 )
         if( eq ) then
             for i as long = 0 to 299999
-                if( er.Value( ).Stdout.items( i ) <> inData.items( i ) ) then eq = FALSE : exit for
+                if( er.Value( ).Stdout[ i ] <> inData[ i ] ) then eq = FALSE : exit for
             next
         end if
         Check( eq, "echo bytes" )
@@ -321,7 +321,7 @@ sub ParentMain( )
     kp.Stdin( ).Close( )
     dim as Array( of ubyte ) got
     Check( kp.Stdout( ).ReadToEnd( got ).IsOk( ), "pipe read" )
-    Check( ( got.num = 6 ) andalso ( got.items( 1 ) = &hC3 ) andalso ( got.items( 2 ) = &hA9 ), "pipe bytes" )
+    Check( ( got.Count( ) = 6 ) andalso ( got[ 1 ] = &hC3 ) andalso ( got[ 2 ] = &hA9 ), "pipe bytes" )
     Check( CodeOf( kp.Wait( ) ) = 0, "pipe wait" )
 
     '' ---- environment
@@ -442,7 +442,7 @@ sub ParentMain( )
 end sub
 
 dim as Array( of ustring ) a = os.Args( )
-if( a.num >= 2 ) then
+if( a.Count( ) >= 2 ) then
     ChildMain( a )
 else
     ParentMain( )

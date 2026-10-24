@@ -68,7 +68,7 @@ public function Args( ) as Array( of ustring )
                 st = i + 1
             end if
         next
-        if( r.num > 0 ) then return r
+        if( r.Count( ) > 0 ) then return r
     end if
     '' no /proc: the runtime's COMMAND( ), which cannot show an empty argument
     dim as long i = 0

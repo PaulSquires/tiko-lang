@@ -187,11 +187,11 @@ end type
 
 '' The ustring conversion of a string is UTF-8 with U+FFFD replacement -- ReadAllText's.
 function ProcBytesText( byref b as Array( of ubyte ) ) as ustring
-    dim as long n = b.num
+    dim as long n = b.Count( )
     if( n = 0 ) then return ""
     dim as string s = space( n )
     for i as long = 0 to n - 1
-        s[i] = b.items( i )
+        s[i] = b.Data( )[ i ]
     next
     dim as ustring u = s
     return u
@@ -265,8 +265,8 @@ function Command.Arg( byref a as const ustring ) byref as Command
 end function
 
 function Command.Args( byref a as Array( of ustring ) ) byref as Command
-    for i as long = 0 to a.num - 1
-        this.hArgs.Push( a.items( i ) )
+    for i as long = 0 to a.Count( ) - 1
+        this.hArgs.Push( a.Data( )[ i ] )
     next
     return this
 end function
@@ -467,16 +467,16 @@ function ProcCheck( byref c as Command, byref bad as ustring ) as boolean
 #ifdef __FB_WIN32__
     if( instr( c.hProgram, """" ) > 0 ) then return FALSE
 #endif
-    for i as long = 0 to c.hArgs.num - 1
-        bad = c.hArgs.items( i )
+    for i as long = 0 to c.hArgs.Count( ) - 1
+        bad = c.hArgs.Data( )[ i ]
         if( hHasNul( bad ) ) then return FALSE
     next
     bad = c.hCwd
     if( hHasNul( bad ) ) then return FALSE
-    for i as long = 0 to c.hEnvKeys.num - 1
-        bad = c.hEnvKeys.items( i )
+    for i as long = 0 to c.hEnvKeys.Count( ) - 1
+        bad = c.hEnvKeys.Data( )[ i ]
         if( ( len( bad ) = 0 ) orelse hHasNul( bad ) orelse ( instr( bad, "=" ) > 0 ) ) then return FALSE
-        if( hHasNul( c.hEnvVals.items( i ) ) ) then return FALSE
+        if( hHasNul( c.hEnvVals.Data( )[ i ] ) ) then return FALSE
     next
     bad = ""
     return TRUE
@@ -484,16 +484,16 @@ end function
 
 function Command.ToString( ) as ustring
 #ifdef __FB_WIN32__
-    if( this.hRaw ) then return "cmd.exe /d /s /c """ & this.hArgs.items( 0 ) & """"
+    if( this.hRaw ) then return "cmd.exe /d /s /c """ & this.hArgs.Data( )[ 0 ] & """"
     dim as ustring r = ProcQuoteWinProgram( this.hProgram )
-    for i as long = 0 to this.hArgs.num - 1
-        r &= " " & ProcQuoteWin( this.hArgs.items( i ) )
+    for i as long = 0 to this.hArgs.Count( ) - 1
+        r &= " " & ProcQuoteWin( this.hArgs.Data( )[ i ] )
     next
 #else
-    if( this.hRaw ) then return "/bin/sh -c " & ProcQuoteSh( this.hArgs.items( 0 ) )
+    if( this.hRaw ) then return "/bin/sh -c " & ProcQuoteSh( this.hArgs.Data( )[ 0 ] )
     dim as ustring r = ProcQuoteSh( this.hProgram )
-    for i as long = 0 to this.hArgs.num - 1
-        r &= " " & ProcQuoteSh( this.hArgs.items( i ) )
+    for i as long = 0 to this.hArgs.Count( ) - 1
+        r &= " " & ProcQuoteSh( this.hArgs.Data( )[ i ] )
     next
 #endif
     return r
@@ -517,31 +517,31 @@ end function
 '' TRUE when the Command changes the environment at all; keys/vals are then the
 '' child's whole environment.
 function ProcChildEnv( byref c as Command, byref keys as Array( of ustring ), byref vals as Array( of ustring ) ) as boolean
-    if( ( c.hEnvClear = FALSE ) andalso ( c.hEnvKeys.num = 0 ) ) then return FALSE
+    if( ( c.hEnvClear = FALSE ) andalso ( c.hEnvKeys.Count( ) = 0 ) ) then return FALSE
     if( c.hEnvClear = FALSE ) then
         dim as OrderedMap( of ustring, ustring ) m = ProcParentEnv( )
         keys = m.Keys( )
         vals = m.Values( )
     end if
-    for j as long = 0 to c.hEnvKeys.num - 1
-        dim as ustring k = c.hEnvKeys.items( j )
+    for j as long = 0 to c.hEnvKeys.Count( ) - 1
+        dim as ustring k = c.hEnvKeys.Data( )[ j ]
         dim as long at = -1
-        for i as long = 0 to keys.num - 1
-            if( ProcSameName( keys.items( i ), k ) ) then
+        for i as long = 0 to keys.Count( ) - 1
+            if( ProcSameName( keys.Data( )[ i ], k ) ) then
                 at = i
                 exit for
             end if
         next
-        if( c.hEnvDel.items( j ) <> 0 ) then
+        if( c.hEnvDel.Data( )[ j ] <> 0 ) then
             if( at >= 0 ) then
                 keys.Remove( at )
                 vals.Remove( at )
             end if
         elseif( at >= 0 ) then
-            vals.items( at ) = c.hEnvVals.items( j )
+            vals.Data( )[ at ] = c.hEnvVals.Data( )[ j ]
         else
             keys.Push( k )
-            vals.Push( c.hEnvVals.items( j ) )
+            vals.Push( c.hEnvVals.Data( )[ j ] )
         end if
     next
     return TRUE
@@ -551,8 +551,8 @@ end function
 function ProcChildVar( byref c as Command, byref n as const ustring ) as ustring
     dim as Array( of ustring ) keys, vals
     if( ProcChildEnv( c, keys, vals ) ) then
-        for i as long = 0 to keys.num - 1
-            if( ProcSameName( keys.items( i ), n ) ) then return vals.items( i )
+        for i as long = 0 to keys.Count( ) - 1
+            if( ProcSameName( keys.Data( )[ i ], n ) ) then return vals.Data( )[ i ]
         next
         return ""
     end if

@@ -113,8 +113,8 @@ dim m as net.IpAddress = IpOf( "::ffff:10.0.0.7" )
 Check( "mapped", m.IsV4Mapped( ) andalso m.IsV6( ) )
 Check( "unmap", m.Unmap( ).IsV4( ) andalso ( m.Unmap( ).ToString( ) = "10.0.0.7" ) )
 Check( "unmap other", IpOf( "::1" ).Unmap( ).IsV6( ) )
-Check( "bytes v4", IpOf( "1.2.3.4" ).Bytes( ).num = 4 )
-Check( "bytes v6", IpOf( "::1" ).Bytes( ).num = 16 )
+Check( "bytes v4", IpOf( "1.2.3.4" ).Bytes( ).Count( ) = 4 )
+Check( "bytes v6", IpOf( "::1" ).Bytes( ).Count( ) = 16 )
 dim bb as Array( of ubyte ) = IpOf( "2001:db8::7" ).Bytes( )
 Check( "from bytes", net.IpFromBytes( bb ).Value( ).Equals( IpOf( "2001:db8::7" ) ) )
 bb.Push( 1 )
@@ -141,9 +141,9 @@ Check( "sa equals", net.ParseSocketAddress( "[::1]:5" ).Value( ).Equals( net.Soc
 '' ---------------------------------------------------------------- Resolve
 
 dim rl as net.NetResultAddrs = net.Resolve( "10.1.2.3", 99 )
-Check( "resolve literal", rl.IsOk( ) andalso ( rl.Value( ).num = 1 ) andalso ( rl.Value( ).items( 0 ).ToString( ) = "10.1.2.3:99" ) )
+Check( "resolve literal", rl.IsOk( ) andalso ( rl.Value( ).Count( ) = 1 ) andalso ( rl.Value( ).At( 0 ).ToString( ) = "10.1.2.3:99" ) )
 rl = net.Resolve( "[::1]", 7 )
-Check( "resolve bracketed", rl.IsOk( ) andalso ( rl.Value( ).items( 0 ).ToString( ) = "[::1]:7" ) )
+Check( "resolve bracketed", rl.IsOk( ) andalso ( rl.Value( ).At( 0 ).ToString( ) = "[::1]:7" ) )
 rl = net.Resolve( "10.1.2.3", 1, net.AF_IPV6 )
 Check( "resolve wrong family", ( rl.IsOk( ) = false ) andalso ( rl.Failure( ).Code( ) = net.NET_INVALID_ADDRESS ) )
 rl = net.Resolve( "" )
@@ -151,22 +151,22 @@ Check( "resolve empty", rl.IsOk( ) = false )
 rl = net.Resolve( "localhost", 80 )
 dim as boolean sawLoop = false
 if rl.IsOk( ) then
-    for i as long = 0 to rl.Value( ).num - 1
-        if rl.Value( ).items( i ).Ip.IsLoopback( ) andalso ( rl.Value( ).items( i ).Port = 80 ) then sawLoop = true
+    for i as long = 0 to rl.Value( ).Count( ) - 1
+        if rl.Value( ).At( i ).Ip.IsLoopback( ) andalso ( rl.Value( ).At( i ).Port = 80 ) then sawLoop = true
     next
 else
     print "resolve localhost: "; rl.Failure( ).Message( )
 end if
 Check( "resolve localhost", sawLoop )
 rl = net.Resolve( "localhost", 80, net.AF_IPV4 )
-Check( "resolve localhost v4", rl.IsOk( ) andalso rl.Value( ).items( 0 ).Ip.IsV4( ) )
+Check( "resolve localhost v4", rl.IsOk( ) andalso rl.Value( ).At( 0 ).Ip.IsV4( ) )
 
 '' ---------------------------------------------------------------- TCP
 
 function Text( byref b as Array( of ubyte ) ) as string
-    dim as string s = space( b.num )
-    for i as long = 0 to b.num - 1
-        s[i] = b.items( i )
+    dim as string s = space( b.Count( ) )
+    for i as long = 0 to b.Count( ) - 1
+        s[i] = b[ i ]
     next
     return s
 end function
