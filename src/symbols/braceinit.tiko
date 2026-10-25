@@ -90,18 +90,27 @@ end sub
 
 '' A brace list that IS an array's initializer: one level of nesting per dimension, and
 '' the element level holds values or, for a UDT element, paren lists.
+''
+'' MORE VALUES THAN THE DIMENSION HOLDS is fbc's 65 ("Expected '}'"), reported as the paren
+'' list's TKO0618. tiko used to store them anyway, a row's extras spilling into the next.
 private sub BrArrayList_ _
     ( byref c as Ctx, byval n as NodeId, byval depth as int32, byval dims as int32, _
-      byval elemT as TypeId )
+      byval elemT as TypeId, byval arrT as TypeId, byval nm as InternId )
     dim as ListPayload ptr lp = c.ast->ListOf( n )
     dim as int32 first_ = lp->first
     dim as int32 count_ = lp->count
+    dim as boolean knownLo, knownHi
+    dim as int64 lo = c.types->ArrayBound( arrT, depth, false, knownLo )
+    dim as int64 hi = c.types->ArrayBound( arrT, depth, true, knownHi )
+    if knownLo andalso knownHi andalso (hi >= lo) andalso (count_ > hi - lo + 1) then
+        c.diags->Report( TKO0618, PointRange( c.ast->Loc( n ) ), c.names->Spelling( nm ) )
+    end if
     for i as int32 = 0 to count_ - 1
         dim as NodeId el = cast( NodeId, c.ast->ChildSlot( first_ + i ) )
         select case c.ast->Kind( el )
         case N_INITIALIZER
             if depth + 1 < dims then
-                BrArrayList_( c, el, depth + 1, dims, elemT )
+                BrArrayList_( c, el, depth + 1, dims, elemT, arrT, nm )
             else
                 BrReportList_( c, el )
             end if
@@ -136,7 +145,7 @@ private sub BrDeclInit_ _
         '' extern's rank, so its nested list is not reported a second time.
         if declDims > dims then dims = declDims
         if dims < 1 then dims = 1
-        BrArrayList_( c, init, 0, dims, c.types->Unqualify( c.types->Inner( u ) ) )
+        BrArrayList_( c, init, 0, dims, c.types->Unqualify( c.types->Inner( u ) ), u, nm )
         return
     end if
     if TcNeedsCtor_( c, u, 0 ) then return           '' collinit.tiko, TKO0757

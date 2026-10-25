@@ -1,0 +1,10 @@
+'' TKO0618, fbc's 65: more brace values than an array dimension (or a nested row) holds,
+'' for a variable and a field. See BrArrayList_ in symbols/braceinit.tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/init-array-too-many.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: init-array-too-many.bas(4,27): error TKO0618: too many expressions in the initializer for 'a'
+'' EXPECT-OUT: init-array-too-many.bas(5,37): error TKO0618
+'' EXPECT-OUT: init-array-too-many.bas(6,35): error TKO0618
+'' EXPECT-OUT: init-array-too-many.bas(11,27): error TKO0618
+'' EXPECT-MAX-DIAG: 4
