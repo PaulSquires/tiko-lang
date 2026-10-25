@@ -55,6 +55,23 @@ private sub ReportTypeNameValue_ ( byref c as Ctx, byval n as NodeId )
     c.diags->Report( TKO0971, PointRange( c.ast->Loc( n ) ), c.names->Spelling( ip->name ) )
 end sub
 
+'' A SUB'S BARE NAME WHERE A VALUE IS NEEDED -- 'print Report', and '__FUNCTION_NQ__' inside a
+'' sub, which is its name. fbc's 17 for both (fbc-modern 1.20, 2026-10-25); CheckSubAsValue_
+'' sees only the parenthesised call, so tiko lowered nothing and stopped on TKO0994. Only the
+'' VALUE sites: a binary operand, a PRINT item, an initialiser and an assignment's source --
+'' never a statement's head, which is the sub's own call.
+private function SubIdentValue_ ( byref c as Ctx, byval n as NodeId ) as boolean
+    if n = NODE_NONE then return false
+    if c.ast->Kind( n ) <> N_IDENT then return false
+    dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
+    if (s = nullptr) orelse (s->kind <> cast( uint8, SYM_PROC )) then return false
+    dim as NodeId pn = cast( NodeId, s->payload )
+    if (pn = NODE_NONE) orelse (c.ast->Kind( pn ) <> N_PROC) then return false
+    if c.ast->StmtOf( pn )->op <> cast( uint16, KW_SUB ) then return false
+    c.diags->Report( TKO0873, PointRange( c.ast->Loc( n ) ), c.names->Spelling( s->name ) )
+    return true
+end function
+
 '' Whether a call's head is the program's: a procedure, or a value that is called or indexed.
 private function IsProgramCallHead_ ( byref c as Ctx, byval sid as SymbolId ) as boolean
     dim as Symbol ptr s = c.syms->SymbolAt( sid )
@@ -84,6 +101,9 @@ sub CheckTypeNameValue_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKin
             c.ast->StmtOf( id )
         if IsTypeNameValue_( c, sp->a, (c.info->AmbiguousOf( id ) = AMB_ASSIGN) ) then ReportTypeNameValue_( c, sp->a ) : return
         if IsTypeNameValue_( c, sp->b ) then ReportTypeNameValue_( c, sp->b ) : return
+        if c.info->AmbiguousOf( id ) = AMB_ASSIGN then
+            if SubIdentValue_( c, sp->b ) then return
+        end if
         '' 'Foo hInstance': a parenless call's arguments are the statement's children.
         if c.info->AmbiguousOf( id ) <> AMB_CALL then return
         if sp->a = NODE_NONE then return
@@ -102,7 +122,9 @@ sub CheckTypeNameValue_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKin
             c.ast->BinaryOf( id )
         if cast( TokenKind, bp->op ) = KW_IS then return
         if IsTypeNameValue_( c, bp->lhs ) then ReportTypeNameValue_( c, bp->lhs ) : return
-        if IsTypeNameValue_( c, bp->rhs ) then ReportTypeNameValue_( c, bp->rhs )
+        if IsTypeNameValue_( c, bp->rhs ) then ReportTypeNameValue_( c, bp->rhs ) : return
+        if SubIdentValue_( c, bp->lhs ) then return
+        SubIdentValue_( c, bp->rhs )
     case N_INTRINSIC
         dim as StmtPayload ptr sp = _
             c.ast->StmtOf( id )
@@ -110,10 +132,12 @@ sub CheckTypeNameValue_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKin
         for i as int32 = 0 to sp->count - 1
             dim as NodeId a2 = c.ast->ChildAt( sp->first, i )
             if IsTypeNameValue_( c, a2 ) then ReportTypeNameValue_( c, a2 ) : return
+            if SubIdentValue_( c, a2 ) then return
         next
     case N_VAR_ITEM
         dim as StmtPayload ptr sp = _
             c.ast->StmtOf( id )
-        if IsTypeNameValue_( c, sp->b ) then ReportTypeNameValue_( c, sp->b )
+        if IsTypeNameValue_( c, sp->b ) then ReportTypeNameValue_( c, sp->b ) : return
+        SubIdentValue_( c, sp->b )
     end select
 end sub

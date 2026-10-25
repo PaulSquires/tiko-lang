@@ -1,0 +1,12 @@
+'' TKO0873 for a sub's bare name in a value position -- a PRINT item, an initialiser, an
+'' assignment's source, a binary operand -- which reached lowering untyped (TKO0994,
+'' by-example BUG-preprocessor-1). See SubIdentValue_ in symbols/typevalue.tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/sub-name-value.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: sub-name-value.bas(9,7): error TKO0873: 'report' is a sub and has no value
+'' EXPECT-OUT: sub-name-value.bas(10,17): error TKO0873
+'' EXPECT-OUT: sub-name-value.bas(11,5): error TKO0873
+'' EXPECT-OUT: sub-name-value.bas(12,9): error TKO0873
+'' EXPECT-OUT: sub-name-value.bas(14,11): error TKO0873: 'r2' is a sub
+'' EXPECT-MAX-DIAG: 5
