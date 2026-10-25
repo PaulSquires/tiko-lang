@@ -1,5 +1,11 @@
 '' The committed vendor/SDL3 headers, as an importer reads them: no library needed.
 #include once "../../../../pkg/vendor/SDL3/SDL.ti"
+'' SDL_CreateThread is a macro that passes the CRT's thread entry points on Windows: they must
+'' go as addresses, or the bare names are calls with no arguments.
+function HdrThread cdecl( byval pData as any ptr ) as long
+    return 0
+end function
+
 dim as SDL_Window ptr win
 dim as SDL_Renderer ptr renderer
 dim as SDL_Event e
@@ -14,6 +20,8 @@ if SDL_Init( SDL_INIT_VIDEO ) then
         SDL_DestroyRenderer( renderer )
         SDL_DestroyWindow( win )
     end if
+    dim as SDL_Thread ptr th = SDL_CreateThread( @HdrThread, "t", NULL )
+    if th then SDL_WaitThread( th, NULL )
     SDL_Quit( )
 end if
 print SDL_GetVersion( ), SDL_BYTEORDER = SDL_LIL_ENDIAN

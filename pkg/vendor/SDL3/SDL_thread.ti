@@ -42,10 +42,10 @@ type SDL_ThreadFunction as function(byval data as any ptr) as long
 #ifndef SDL_WIKI_DOCUMENTATION_SECTION
  #if defined(SDL_PLATFORM_WINDOWS)
   #ifndef SDL_BeginThreadFunction
-   #define SDL_BeginThreadFunction _beginthreadex
+   #define SDL_BeginThreadFunction @_beginthreadex
   #endif
   #ifndef SDL_EndThreadFunction
-   #define SDL_EndThreadFunction _endthreadex
+   #define SDL_EndThreadFunction @_endthreadex
   #endif
  #endif
 #endif
