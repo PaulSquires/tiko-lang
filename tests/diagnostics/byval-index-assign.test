@@ -1,0 +1,8 @@
+'' TKO0932 for an assignment through a by-value 'operator []', which lowered to a place with no
+'' address (TKO0994, by-example BUG-objects-1). See CheckByvalResultTarget_ in
+'' symbols/byrefcheck.tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/byval-index-assign.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: byval-index-assign.bas(18,3): error TKO0932: 'operator []' returns its result by value
+'' EXPECT-MAX-DIAG: 1

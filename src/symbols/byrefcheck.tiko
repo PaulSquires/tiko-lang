@@ -470,6 +470,17 @@ sub CheckByvalResultTarget_ ( byref c as Ctx, byval id as NodeId )
     if c.info->AmbiguousOf( id ) <> AMB_ASSIGN then return
     dim as StmtPayload ptr sp = c.ast->StmtOf( id )
     if sp->a = NODE_NONE then return
+    '' 'v[ i ] = x' over a BY-VALUE 'operator []' is the same: fbc's 3, measured. tiko lowered
+    '' an assignment to a place that has no address (TKO0994).
+    if c.ast->Kind( sp->a ) = N_INDEX then
+        dim as Symbol ptr os = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
+        if (os = nullptr) orelse (os->kind <> cast( uint8, SYM_PROC )) then return
+        dim as NodeId opn = cast( NodeId, os->payload )
+        if (opn = NODE_NONE) orelse (c.ast->Kind( opn ) <> N_PROC) then return
+        if (c.ast->Flags( opn ) and NF_BYREF) <> 0 then return
+        c.diags->Report( TKO0932, PointRange( c.ast->Loc( sp->a ) ), "operator []" )
+        return
+    end if
     if c.ast->Kind( sp->a ) <> N_CALL then return
     if c.info->AmbiguousOf( sp->a ) = AMB_PROPERTY_SET then return
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( sp->a ) )
