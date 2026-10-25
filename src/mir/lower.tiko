@@ -708,6 +708,8 @@ private sub LowerStmtInner( byref c as Ctx, byval id as Tko.NodeId )
                 dim as boolean wideBuilt = false
                 if InitCopyReturn_( c, sp->a ) then
                     wideBuilt = true                    '' copy-constructed in -- lowerinit.tiko
+                elseif CastCtorReturn_( c, sp->a ) then
+                    wideBuilt = true                    '' constructed from it, through a cast -- lowerinit.tiko
                 elseif ThisObjectAddr_( c, sp->a, uthT, uthA ) then
                     dim as int32 uthSz = SizeOfType( c, uthT )
                     if uthSz > 0 then uval = LowerExprLoad( c, uthA, MT_AGG, uthSz )

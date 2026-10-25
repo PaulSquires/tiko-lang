@@ -336,8 +336,17 @@ function LowerConvCtorInit_ _
         if it2 <> Tko.TYPE_NONE then it = it2
     end if
     '' The same type is a COPY, which the caller has already handled -- and a paren
-    '' initialiser list is field stores, not a conversion.
-    if c.types->Unqualify( it ) = c.types->Unqualify( t ) then return false
+    '' initialiser list is field stores, not a conversion. ...UNLESS THE TYPE HAS NO COPY: no
+    '' copy constructor and nothing an implicit one would be made for. Then fbc resolves the
+    '' constructors with the value as their argument, and one reached through an 'operator
+    '' cast' wins over the bitwise copy -- measured on fbc-modern 1.20, 'dim as V r = p' over
+    '' 'constructor( byval as integer )' and 'operator cast( ) as double' prints cast, ctor 2
+    '' for a p of 1 (cast returning x + 0.5), where tiko copied it: 1.
+    dim as boolean sameT = (c.types->Unqualify( it ) = c.types->Unqualify( t ))
+    if sameT then
+        if c.ast->Kind( init_ ) = Tko.N_TUPLE then return false
+        if (InitCopyCtorOf_( c, t ) <> Tko.SYMBOL_NONE) orelse NeedsLetBody_( c, t ) then return false
+    end if
 
     dim as Tko.SymbolId ctors = StructorOf( c, t, "__ctor" )
     if ctors = Tko.SYMBOL_NONE then return false
@@ -349,6 +358,7 @@ function LowerConvCtorInit_ _
     '' constructor while 'chr( 12 )' beside it did. Same answer as the untyped case
     '' above, and the same code.
     if pick = Tko.SYMBOL_NONE then
+        if sameT then return false   '' no constructor takes it: the bitwise copy stands
         return CharPtrCtorInit_( c, slot, t, init_, selfv )
     end if
     dim as Tko.Symbol ptr ps = c.syms->SymbolAt( pick )

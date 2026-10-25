@@ -301,6 +301,37 @@ function CtorCallOnAddr_ _
     return CtorArgsOnAddr_( c, addr, ctors, args )
 end function
 
+'' A TYPE WITH NO COPY: no copy constructor (one with defaulted trailing parameters counts, as an
+'' initialiser resolves the overload) and nothing an implicit one would be made for. A value of
+'' such a type initialises another through a CONSTRUCTOR when one takes it -- see
+'' lowerctor.tiko LowerConvCtorInit_ for the measurement.
+function NoCopyRoute_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
+    if InitCopyCtorOf_( c, t ) <> Tko.SYMBOL_NONE then return false
+    return (NeedsLetBody_( c, t ) = false)
+end function
+
+'' A FIELD INITIALISED FROM A VALUE OF ITS OWN TYPE -- 'as P q = pp', 'as V v = mk( 5 )' -- which
+'' is constructed ONCE, by the copy or the constructor that takes it, and never default-built
+'' first (EmitCtorPrologue_ asks). A paren or tuple list is field stores, and 'T( args )' a call
+'' CtorCallOnAddr_ answers.
+function FieldSameTypeInit_ _
+    ( byref c as Ctx, byval ft as Tko.TypeId, byval init as Tko.NodeId ) as boolean
+    if init = Tko.NODE_NONE then return false
+    if FieldInitIsAny_( c, init ) then return false
+    dim as Tko.TypeId ut = c.types->Unqualify( ft )
+    if c.types->Kind( ut ) <> Tko.TK_UDT then return false
+    select case c.ast->Kind( init )
+    case Tko.N_TUPLE, Tko.N_PAREN
+        return false
+    case Tko.N_CALL
+        if IsCallResult_( c, init ) = false then return false
+        if TypeCtorTypeOf_( c, init ) <> Tko.TYPE_NONE then return false
+    end select
+    dim as Tko.TypeId at = c.info->TypeOf_( init )
+    if at = Tko.TYPE_NONE then return false
+    return (c.types->Unqualify( at ) = ut)
+end function
+
 '' A FUNCTION RETURNING THE TYPE, as a shared or field initialiser: 'dim shared as __float128 M_PIq =
 '' strtoflt128( "3.14...Q", 0 )', 'as Q f = mk( 5 )'. The global declined, with no source line
 '' (fbc-examples r3ice08, BigFloat quadmath), and the FIELD was silently Q( 5 ) -- CtorCallOnAddr_
@@ -308,13 +339,17 @@ end function
 '' as a local declaration does: it COPIES the result -- the copy constructor, the implicit deep copy
 '' of a string field, else the bytes -- and then destroys the temporary (2 constructions and 2
 '' destructions over a type with only a destructor).
+'' ...AND ANY OTHER VALUE OF THE TYPE -- 'as P q = pp' -- the same copy, from its address. It had no
+'' path at all and declined (TKO0994) for every UDT, a plain one of two integers included.
 function CopyCallResultOnAddr_ _
     ( byref c as Ctx, byref addr as MirValue, byval t as Tko.TypeId, _
       byval init as Tko.NodeId ) as boolean
 
-    if IsCallResult_( c, init ) = false then return false
-    if CallReturnsByref_( c, init ) then return false
-    if c.types->Unqualify( c.info->TypeOf_( init ) ) <> c.types->Unqualify( t ) then return false
+    if FieldSameTypeInit_( c, t, init ) = false then return false
+    if IsCallResult_( c, init ) andalso CallReturnsByref_( c, init ) then return false
+    '' A type with no copy is constructed from the value instead, when a constructor takes it.
+    if NoCopyRoute_( c, c.types->Unqualify( t ) ) andalso _
+       (FieldConvCtorPick_( c, t, init ) <> Tko.SYMBOL_NONE) then return false
     dim as int32 sm = c.strTemps.Count, wm = c.wstrTemps.Count, um = c.udtTemps.Count
     dim as MirValue ra = LowerAddr( c, init )
     dim as int32 sz = SizeOfType( c, t )
@@ -349,7 +384,10 @@ end function
 ''
 '' NOT TAKEN HERE, each left to the path it already had: a paren or tuple list
 '' (LowerUdtParenInit_), a call (CtorCallOnAddr_), and a value of the field's own type,
-'' which is a copy rather than a conversion.
+'' which is a copy rather than a conversion -- unless the type has NO copy (NoCopyRoute_):
+'' then a value of it, a call's result included, takes the constructor fbc's overload
+'' resolution finds for it, through an 'operator cast' (fbc-modern: 'as V v = mk( 5 )'
+'' prints ctor 5, cast, ctor 6).
 function FieldConvCtorPick_ _
     ( byref c as Ctx, byval ft as Tko.TypeId, byval init as Tko.NodeId ) as Tko.SymbolId
 
@@ -357,14 +395,18 @@ function FieldConvCtorPick_ _
     if FieldInitIsAny_( c, init ) then return Tko.SYMBOL_NONE
     dim as Tko.TypeId ut = c.types->Unqualify( ft )
     if c.types->Kind( ut ) <> Tko.TK_UDT then return Tko.SYMBOL_NONE
-    select case c.ast->Kind( init )
-    case Tko.N_CALL, Tko.N_TUPLE, Tko.N_PAREN
-        return Tko.SYMBOL_NONE
-    end select
+    dim as boolean same = FieldSameTypeInit_( c, ft, init )
+    if same then
+        if NoCopyRoute_( c, ut ) = false then return Tko.SYMBOL_NONE
+    else
+        select case c.ast->Kind( init )
+        case Tko.N_CALL, Tko.N_TUPLE, Tko.N_PAREN
+            return Tko.SYMBOL_NONE
+        end select
+    end if
 
     dim as Tko.TypeId at = c.info->TypeOf_( init )
     if at = Tko.TYPE_NONE then return Tko.SYMBOL_NONE
-    if c.types->Unqualify( at ) = ut then return Tko.SYMBOL_NONE
 
     dim as Tko.SymbolId ctors = StructorOf( c, ut, "__ctor" )
     if ctors = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
@@ -378,6 +420,11 @@ private function ConvCtorOnAddr_ _
       byval init as Tko.NodeId ) as boolean
 
     if FieldConvCtorPick_( c, ft, init ) = Tko.SYMBOL_NONE then return false
+    '' A VALUE OF THE TYPE ITSELF reaches its constructor through an 'operator cast', which the
+    '' declaration path converts (lowerctor.tiko LowerConvCtorInit_, onto the field's address).
+    if FieldSameTypeInit_( c, ft, init ) then
+        return LowerConvCtorInit_( c, -1, c.types->Unqualify( ft ), init, @addr )
+    end if
     dim as containers.Array( of uint32 ) args
     args.Push( cast( uint32, init ) )
     return CtorArgsOnAddr_( c, addr, StructorOf( c, c.types->Unqualify( ft ), "__ctor" ), args )

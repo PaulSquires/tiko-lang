@@ -325,28 +325,34 @@ func i32 main(i32 $0, ptr $1) {
   local agg a size 128
   local agg b size 128
   local agg $tmp3 size 24
+  local agg $tmp4 size 128
   local agg c size 128
-  local agg $tmp5 size 24
+  local agg $tmp6 size 24
+  local agg $tmp7 size 128
   local agg d size 128
+  local agg $tmp9 size 128
   local agg g size 128
+  local agg $tmp11 size 128
   local agg e size 128
+  local agg $tmp13 size 128
   local agg f size 128
+  local agg $tmp15 size 128
   local agg ad size 128
   local agg h size 128
-  local agg $tmp12 size 24
-  local agg $abi13 size 128
-  local agg $abi14 size 128
-  local agg $abi15 size 128
-  local agg $abi16 size 128
-  local agg $abi17 size 128
-  local agg $abi18 size 128
+  local agg $tmp18 size 24
+  local agg $abi19 size 128
+  local agg $abi20 size 128
+  local agg $abi21 size 128
+  local agg $abi22 size 128
+  local agg $abi23 size 128
+  local agg $abi24 size 128
   entry0:
-    %70 = alloca ptr $abi13
-    %71 = alloca ptr $abi14
-    %72 = alloca ptr $abi15
-    %73 = alloca ptr $abi16
-    %74 = alloca ptr $abi17
-    %75 = alloca ptr $abi18
+    %84 = alloca ptr $abi19
+    %85 = alloca ptr $abi20
+    %86 = alloca ptr $abi21
+    %87 = alloca ptr $abi22
+    %88 = alloca ptr $abi23
+    %89 = alloca ptr $abi24
     %1 = alloca ptr $tmp0
     %2 = const i32 0
     store @$tmp0, %2
@@ -357,7 +363,6 @@ func i32 main(i32 $0, ptr $1) {
     %5 = field.addr @a, 0
     %6 = call.rtl ptr fb_WstrAssign(%5, 64, @@$wstr9)
     %7 = alloca ptr b
-    call void _ZN2WSC1Ev(@b)
     %8 = alloca ptr $tmp3
     %9 = field.addr @$tmp3, 0
     store %9, 0
@@ -366,116 +371,131 @@ func i32 main(i32 $0, ptr $1) {
     %11 = field.addr @$tmp3, 16
     store %11, 0
     %12 = call.rtl ptr fb_StrAssign(@$tmp3, -1, @@$str10, 6, 0)
-    call void _Zv23catR2WSR8FBSTRING(@$abi13, @a, @$tmp3)
-    %13 = load @$abi13
-    store @b, %13
+    call void _Zv23catR2WSR8FBSTRING(@$abi19, @a, @$tmp3)
+    %13 = load @$abi19
+    %14 = alloca ptr $tmp4
+    store @$tmp4, %13
+    %15 = call ptr _ZN2WScvwEv(@$tmp4)
+    call void _ZN2WSC1ERw(@b, %15)
     call.rtl void fb_StrDelete(@$tmp3)
-    %14 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str11, 3)
-    call.rtl void fb_PrintString(0, %14, 0)
-    %15 = field.addr @b, 0
-    %16 = call.rtl ptr fb_WstrToStr(%15)
-    call.rtl void fb_PrintString(0, %16, 1)
-    %17 = alloca ptr c
-    call void _ZN2WSC1Ev(@c)
-    %18 = alloca ptr $tmp5
-    %19 = field.addr @$tmp5, 0
-    store %19, 0
-    %20 = field.addr @$tmp5, 8
-    store %20, 0
-    %21 = field.addr @$tmp5, 16
-    store %21, 0
-    %22 = call.rtl ptr fb_StrAssign(@$tmp5, -1, @@$str12, 6, 0)
-    call void VIARETURN(@$abi14, @a, @$tmp5)
-    %23 = load @$abi14
-    call.rtl void fb_StrDelete(@$tmp5)
-    store @c, %23
-    %24 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str13, 3)
-    call.rtl void fb_PrintString(0, %24, 0)
-    %25 = field.addr @c, 0
-    %26 = call.rtl ptr fb_WstrToStr(%25)
-    call.rtl void fb_PrintString(0, %26, 1)
-    %27 = alloca ptr d
-    call void _ZN2WSC1Ev(@d)
-    call void VIAASSIGN(@$abi15, @a)
-    %28 = load @$abi15
-    store @d, %28
-    %29 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str14, 3)
+    %16 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str11, 3)
+    call.rtl void fb_PrintString(0, %16, 0)
+    %17 = field.addr @b, 0
+    %18 = call.rtl ptr fb_WstrToStr(%17)
+    call.rtl void fb_PrintString(0, %18, 1)
+    %19 = alloca ptr c
+    %20 = call ptr _ZN2WScvwEv(@a)
+    %21 = alloca ptr $tmp6
+    %22 = field.addr @$tmp6, 0
+    store %22, 0
+    %23 = field.addr @$tmp6, 8
+    store %23, 0
+    %24 = field.addr @$tmp6, 16
+    store %24, 0
+    %25 = call.rtl ptr fb_StrAssign(@$tmp6, -1, @@$str12, 6, 0)
+    call void VIARETURN(@$abi20, @a, @$tmp6)
+    %26 = load @$abi20
+    call.rtl void fb_StrDelete(@$tmp6)
+    %27 = alloca ptr $tmp7
+    store @$tmp7, %26
+    %28 = call ptr _ZN2WScvwEv(@$tmp7)
+    call void _ZN2WSC1ERw(@c, %28)
+    %29 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str13, 3)
     call.rtl void fb_PrintString(0, %29, 0)
-    %30 = field.addr @d, 0
+    %30 = field.addr @c, 0
     %31 = call.rtl ptr fb_WstrToStr(%30)
     call.rtl void fb_PrintString(0, %31, 1)
-    %32 = alloca ptr g
-    call void _ZN2WSC1Ev(@g)
-    call void RETLIT(@$abi16)
-    %33 = load @$abi16
-    store @g, %33
-    %34 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str15, 3)
-    call.rtl void fb_PrintString(0, %34, 0)
-    %35 = field.addr @g, 0
-    %36 = call.rtl ptr fb_WstrToStr(%35)
-    call.rtl void fb_PrintString(0, %36, 1)
-    %37 = alloca ptr e
-    call void _ZN2WSC1Ev(@e)
-    call void RETVAR(@$abi17)
-    %38 = load @$abi17
-    store @e, %38
-    %39 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str16, 3)
-    call.rtl void fb_PrintString(0, %39, 0)
-    %40 = field.addr @e, 0
-    %41 = call.rtl ptr fb_WstrToStr(%40)
-    call.rtl void fb_PrintString(0, %41, 1)
-    %42 = alloca ptr f
-    call void _ZN2WSC1Ev(@f)
-    call void ASGVAR(@$abi18)
-    %43 = load @$abi18
-    store @f, %43
-    %44 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str17, 3)
+    %32 = alloca ptr d
+    %33 = call ptr _ZN2WScvwEv(@a)
+    call void VIAASSIGN(@$abi21, @a)
+    %34 = load @$abi21
+    %35 = alloca ptr $tmp9
+    store @$tmp9, %34
+    %36 = call ptr _ZN2WScvwEv(@$tmp9)
+    call void _ZN2WSC1ERw(@d, %36)
+    %37 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str14, 3)
+    call.rtl void fb_PrintString(0, %37, 0)
+    %38 = field.addr @d, 0
+    %39 = call.rtl ptr fb_WstrToStr(%38)
+    call.rtl void fb_PrintString(0, %39, 1)
+    %40 = alloca ptr g
+    call void RETLIT(@$abi22)
+    %41 = load @$abi22
+    %42 = alloca ptr $tmp11
+    store @$tmp11, %41
+    %43 = call ptr _ZN2WScvwEv(@$tmp11)
+    call void _ZN2WSC1ERw(@g, %43)
+    %44 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str15, 3)
     call.rtl void fb_PrintString(0, %44, 0)
-    %45 = field.addr @f, 0
+    %45 = field.addr @g, 0
     %46 = call.rtl ptr fb_WstrToStr(%45)
     call.rtl void fb_PrintString(0, %46, 1)
-    %47 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str18, 8)
-    call.rtl void fb_PrintString(0, %47, 0)
-    %48 = load @@nctor
-    call.rtl void fb_PrintInt(0, %48, 0)
-    %49 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str19, 5)
-    call.rtl void fb_PrintString(0, %49, 0)
-    %50 = load @@nlet
-    call.rtl void fb_PrintInt(0, %50, 1)
-    %51 = alloca ptr ad
-    call void _ZN2WDC1Ev(@ad)
-    %52 = field.addr @ad, 0
-    %53 = call.rtl ptr fb_WstrAssign(%52, 64, @@$wstr9)
-    %54 = alloca ptr h
-    %55 = alloca ptr $tmp12
-    %56 = field.addr @$tmp12, 0
-    store %56, 0
-    %57 = field.addr @$tmp12, 8
-    store %57, 0
-    %58 = field.addr @$tmp12, 16
-    store %58, 0
-    %59 = call.rtl ptr fb_StrAssign(@$tmp12, -1, @@$str20, 6, 0)
-    %60 = call ptr VIARETURND(@h, @ad, @$tmp12)
-    call.rtl void fb_StrDelete(@$tmp12)
-    %61 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str21, 3)
+    %47 = alloca ptr e
+    call void RETVAR(@$abi23)
+    %48 = load @$abi23
+    %49 = alloca ptr $tmp13
+    store @$tmp13, %48
+    %50 = call ptr _ZN2WScvwEv(@$tmp13)
+    call void _ZN2WSC1ERw(@e, %50)
+    %51 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str16, 3)
+    call.rtl void fb_PrintString(0, %51, 0)
+    %52 = field.addr @e, 0
+    %53 = call.rtl ptr fb_WstrToStr(%52)
+    call.rtl void fb_PrintString(0, %53, 1)
+    %54 = alloca ptr f
+    call void ASGVAR(@$abi24)
+    %55 = load @$abi24
+    %56 = alloca ptr $tmp15
+    store @$tmp15, %55
+    %57 = call ptr _ZN2WScvwEv(@$tmp15)
+    call void _ZN2WSC1ERw(@f, %57)
+    %58 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str17, 3)
+    call.rtl void fb_PrintString(0, %58, 0)
+    %59 = field.addr @f, 0
+    %60 = call.rtl ptr fb_WstrToStr(%59)
+    call.rtl void fb_PrintString(0, %60, 1)
+    %61 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str18, 8)
     call.rtl void fb_PrintString(0, %61, 0)
-    %62 = field.addr @h, 0
-    %63 = call.rtl ptr fb_WstrToStr(%62)
-    call.rtl void fb_PrintString(0, %63, 1)
-    %64 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str22, 8)
-    call.rtl void fb_PrintString(0, %64, 0)
-    %65 = load @@dctor
-    call.rtl void fb_PrintInt(0, %65, 0)
-    %66 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str19, 5)
-    call.rtl void fb_PrintString(0, %66, 0)
-    %67 = load @@dlet
-    call.rtl void fb_PrintInt(0, %67, 1)
+    %62 = load @@nctor
+    call.rtl void fb_PrintInt(0, %62, 0)
+    %63 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str19, 5)
+    call.rtl void fb_PrintString(0, %63, 0)
+    %64 = load @@nlet
+    call.rtl void fb_PrintInt(0, %64, 1)
+    %65 = alloca ptr ad
+    call void _ZN2WDC1Ev(@ad)
+    %66 = field.addr @ad, 0
+    %67 = call.rtl ptr fb_WstrAssign(%66, 64, @@$wstr9)
+    %68 = alloca ptr h
+    %69 = alloca ptr $tmp18
+    %70 = field.addr @$tmp18, 0
+    store %70, 0
+    %71 = field.addr @$tmp18, 8
+    store %71, 0
+    %72 = field.addr @$tmp18, 16
+    store %72, 0
+    %73 = call.rtl ptr fb_StrAssign(@$tmp18, -1, @@$str20, 6, 0)
+    %74 = call ptr VIARETURND(@h, @ad, @$tmp18)
+    call.rtl void fb_StrDelete(@$tmp18)
+    %75 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str21, 3)
+    call.rtl void fb_PrintString(0, %75, 0)
+    %76 = field.addr @h, 0
+    %77 = call.rtl ptr fb_WstrToStr(%76)
+    call.rtl void fb_PrintString(0, %77, 1)
+    %78 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str22, 8)
+    call.rtl void fb_PrintString(0, %78, 0)
+    %79 = load @@dctor
+    call.rtl void fb_PrintInt(0, %79, 0)
+    %80 = call.rtl ptr fb_StrAllocTempDescZEx(@@$str19, 5)
+    call.rtl void fb_PrintString(0, %80, 0)
+    %81 = load @@dlet
+    call.rtl void fb_PrintInt(0, %81, 1)
     call void _ZN2WDD1Ev(@h)
     call void _ZN2WDD1Ev(@ad)
-    %68 = const i32 0
-    call.rtl void fb_End(%68)
-    %69 = load @$tmp0
-    ret %69
+    %82 = const i32 0
+    call.rtl void fb_End(%82)
+    %83 = load @$tmp0
+    ret %83
 }
 declare void fb_Init(i32 $0, ptr $1, i32 $2)
 declare ptr fb_StrAssign(ptr $0, i64 $1, ptr $2, i64 $3, i32 $4)
@@ -486,4 +506,4 @@ declare ptr fb_WstrToStr(ptr $0)
 declare void fb_PrintInt(i32 $0, i32 $1, i32 $2)
 declare void fb_End(i32 $0)
 verify: ok
-lowered: 17 functions, 17 blocks, 312 insts, 0 statements not lowered, 0 scope imbalance
+lowered: 17 functions, 17 blocks, 326 insts, 0 statements not lowered, 0 scope imbalance

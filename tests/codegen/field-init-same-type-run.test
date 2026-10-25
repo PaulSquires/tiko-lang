@@ -1,0 +1,13 @@
+'' A UDT FIELD INITIALISED FROM A VALUE OF ITS OWN TYPE ('as P q = pp') declined (TKO0994) for
+'' every UDT; fbc copies it -- bytes, a string field's deep copy, or the copy constructor -- and
+'' builds the field once, not default-constructed first. fbc-modern 1.20's output; see the source.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/field-init-same-type.bas -o tests/codegen/fieldinitsame.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/fieldinitsame.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: R copy
+'' EXPECT-RUN-OUT: 3 4 5 6
+'' EXPECT-RUN-OUT: hi
+'' EXPECT-RUN-OUT: 9

@@ -148,6 +148,10 @@ declare function IsBaseOf_ _
     '' SYMBOL_NONE. Types only: the prologue asks before it default-constructs.
     declare function FieldConvCtorPick_ _
         ( byref c as Ctx, byval ft as Tko.TypeId, byval init as Tko.NodeId ) as Tko.SymbolId
+    '' ...a value of the field's own type, constructed once; and a type with no copy at all.
+    declare function FieldSameTypeInit_ _
+        ( byref c as Ctx, byval ft as Tko.TypeId, byval init as Tko.NodeId ) as boolean
+    declare function NoCopyRoute_( byref c as Ctx, byval t as Tko.TypeId ) as boolean
     '' lowerimpl.tiko -- the structors fbc writes for you.
     declare function UdtSymOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
     declare function NeedsCtorBody_( byref c as Ctx, byval t as Tko.TypeId ) as boolean

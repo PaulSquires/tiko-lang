@@ -55,6 +55,26 @@ function InitCopyReturn_( byref c as Ctx, byval valueE as Tko.NodeId ) as boolea
     return true
 end function
 
+'' 'return v' OVER A RESULT TYPE WITH NO COPY (lowerfieldinit.tiko NoCopyRoute_) whose constructor
+'' takes v through an 'operator cast': fbc resolves the result's constructors with v as the
+'' argument, as for 'dim as V r = v' (lowerctor.tiko LowerConvCtorInit_). Measured on fbc-modern
+'' 1.20 for a variable, a local and a call alike -- 'return mk( 3 )' prints ctor 3, cast, ctor 4,
+'' where tiko copied the 3 out. 'return T( args )' is LowerCtorReturn_'s, and another type is
+'' UdtConvResult_'s.
+function CastCtorReturn_( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
+    if (c.resultSlot < 0) orelse (valueE = Tko.NODE_NONE) then return false
+    dim as Tko.TypeId rt = c.types->Unqualify( c.resultType )
+    if c.types->Kind( rt ) <> Tko.TK_UDT then return false
+    if TypeCtorTypeOf_( c, valueE ) <> Tko.TYPE_NONE then return false
+    dim as Tko.TypeId vt = c.info->TypeOf_( valueE )
+    if vt = Tko.TYPE_NONE then return false
+    vt = c.types->Unqualify( vt )
+    if c.types->Kind( vt ) = Tko.TK_REFERENCE then vt = c.types->Unqualify( c.types->Inner( vt ) )
+    if vt <> rt then return false
+    if NoCopyRoute_( c, rt ) = false then return false
+    return LowerConvCtorInit_( c, c.resultSlot, rt, valueE, nullptr )
+end function
+
 '' Is E a call's RESULT -- an N_CALL that is NOT A SUBSCRIPT? FreeBASIC spells both
 '' the same, and a subscript names an object that stays alive: 'dim as T x = a( k )'
 '' over a T holding a dynamic array was treated as a result and MOVED with a plain

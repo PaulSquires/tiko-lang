@@ -1,0 +1,24 @@
+'' 'dim as V r = p + q' OVER A V WITH NO COPY: fbc casts the value and constructs r from the
+'' cast ('operator cast as double', 'constructor( byval as integer )'), measured on fbc-modern
+'' 1.20 -- for a variable, an operator's and a call's result, 'var', a 'return', a shared and a
+'' field initialiser. tiko copied each (3 for 1 + 2 where fbc prints 4), and the shared one
+'' declined (TKO0994). A copy constructor or a string field keeps the copy. See the source.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/cast-ctor-init.bas -o tests/codegen/castctorinit.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/castctorinit.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: shared 2
+'' EXPECT-RUN-OUT: r1 4
+'' EXPECT-RUN-OUT: r2 2
+'' EXPECT-RUN-OUT: r3 8
+'' EXPECT-RUN-OUT: r4 4
+'' EXPECT-RUN-OUT: r5 2
+'' EXPECT-RUN-OUT: r6 5
+'' EXPECT-RUN-OUT: w 6
+'' EXPECT-RUN-OUT: D( 4)
+'' EXPECT-RUN-OUT: d2 4
+'' EXPECT-RUN-OUT: C copy
+'' EXPECT-RUN-OUT: c2 3
+'' EXPECT-RUN-OUT: s2 3

@@ -545,6 +545,8 @@ sub EmitCtorPrologue_ _
                 if fiIsCtorCall = false then
                     fiIsCtorCall = (FieldConvCtorPick_( c, f->type_, fi ) <> Tko.SYMBOL_NONE)
                 end if
+                '' ...and a value of the field's own type, copied or constructed once.
+                if fiIsCtorCall = false then fiIsCtorCall = FieldSameTypeInit_( c, f->type_, fi )
             end if
         end if
         if needsInit andalso (fiIsCtorCall = false) then InitMember_( c, fa, f->type_ )

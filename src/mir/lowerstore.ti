@@ -148,6 +148,7 @@ declare sub EmitDimensionCheck_ _
           byval sigT as Tko.TypeId = Tko.TYPE_NONE ) as boolean
     declare function InitCopyCtorOf_( byref c as Ctx, byval t as Tko.TypeId ) as Tko.SymbolId
     declare function InitCopyReturn_( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
+    declare function CastCtorReturn_( byref c as Ctx, byval valueE as Tko.NodeId ) as boolean
     declare function IsCallResult_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     declare function CallReturnsByref_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
     declare function LowerUdtElemInit_ _
