@@ -418,26 +418,31 @@ end function
 '' Bounded "a/b" join into a fixed buffer. Truncation is silent and harmless
 '' here -- the result is only ever used to add a watch or to name an event, and
 '' a truncated name simply fails to resolve.
+''
+'' BYTES, THROUGH uint8 ptrs. 'dst[n] = a[i]' on zstring ptrs is a STRING
+'' assignment that copies the whole rest of a, past cap (TS-003; fs/ops.tiko
+'' hParentNarrow).
 private sub hJoin( byval dst as zstring ptr, byval cap as int32, _
                    byval a as zstring ptr, byval b as zstring ptr )
+	dim as uint8 ptr d = cptr( uint8 ptr, dst ), pa = cptr( uint8 ptr, a ), pb = cptr( uint8 ptr, b )
 	dim as int32 n = 0, i = any
 
 	i = 0
-	while( (a[i] <> 0) andalso (n < cap - 1) )
-		dst[n] = a[i] : n += 1 : i += 1
+	while( (pa[i] <> 0) andalso (n < cap - 1) )
+		d[n] = pa[i] : n += 1 : i += 1
 	wend
 
-	if( b <> nullptr ) then
-		if( (n > 0) andalso (n < cap - 1) andalso (dst[n - 1] <> 47) ) then
-			dst[n] = 47 : n += 1
+	if( pb <> nullptr ) then
+		if( (n > 0) andalso (n < cap - 1) andalso (d[n - 1] <> 47) ) then
+			d[n] = 47 : n += 1
 		end if
 		i = 0
-		while( (b[i] <> 0) andalso (n < cap - 1) )
-			dst[n] = b[i] : n += 1 : i += 1
+		while( (pb[i] <> 0) andalso (n < cap - 1) )
+			d[n] = pb[i] : n += 1 : i += 1
 		wend
 	end if
 
-	dst[n] = 0
+	d[n] = 0
 end sub
 
 private sub hPushChange( byval q as FB_FSWATCHQ ptr, byval kind as int32, byval full as zstring ptr )

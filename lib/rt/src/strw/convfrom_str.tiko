@@ -70,9 +70,9 @@ private function hFromUtf8 _
 	w_MultiByteToWideChar( CP_UTF8_, 0, src, -1, t, units )
 	dim as integer n = dst_chars
 	if( (n > 0) andalso (t[n - 1] >= &hD800) andalso (t[n - 1] <= &hDBFF) ) then n -= 1
-	for i as integer = 0 to n - 1
-		dst[i] = t[i]
-	next
+	'' memcpy, not 'dst[i] = t[i]': on wstring ptrs that is a STRING assignment
+	'' of the whole rest of t, past dst_chars (TS-003).
+	memcpy( dst, t, n * sizeof( wstring ) )
 	dst[n] = 0
 	deallocate( t )
 	return n

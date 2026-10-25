@@ -1,0 +1,11 @@
+'' RUN: fb_DtZoneStandardName into a 4-byte buffer truncates and writes nothing past it. The
+'' POSIX copy was a zstring STRING assignment per byte (TS-003's pattern); run the same
+'' source on Linux in WSL for that side -- the packaged runtime before this commit overwrites
+'' 8 guard bytes there.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/zone-name-trunc.tiko -o tests/codegen/zonenametrunc.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/zonenametrunc.exe
+'' RUN: tests/codegen/zonenametrunc.exe
+'' EXPECT-RUN-OUT: ok

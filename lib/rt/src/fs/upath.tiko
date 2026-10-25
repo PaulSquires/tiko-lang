@@ -118,12 +118,15 @@ function tkort_WideToUtf8 alias "fb_hWideToUtf8" ( byval w as const wstring ptr 
 	return s
 end function
 
-'' fopen's mode, "rb" / "w+b", is ASCII: widened in place.
+'' fopen's mode, "rb" / "w+b", is ASCII: widened in place. Read through a uint8
+'' ptr: 'wm[i] = m[i]' would be a wstring-from-zstring ASSIGNMENT of the whole
+'' rest of m (TS-003); a number stored into wm[i] is one code unit.
 private sub hWideMode( byval m as const zstring ptr, byval wm as wstring ptr, byval cap as integer )
+	dim as const uint8 ptr mb = cptr( const uint8 ptr, m )
 	dim as integer i = 0
-	if( m <> nullptr ) then
-		while( (m[i] <> 0) andalso (i < cap - 1) )
-			wm[i] = m[i]
+	if( mb <> nullptr ) then
+		while( (mb[i] <> 0) andalso (i < cap - 1) )
+			wm[i] = mb[i]
 			i += 1
 		wend
 	end if

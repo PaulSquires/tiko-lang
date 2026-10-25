@@ -366,19 +366,22 @@ private function hTicksToTimeT( byval utcTicks as int64 ) as time_t
 	return cast( time_t, (utcTicks - FB_DT_TICKS_TO_UNIX_EPOCH) \ FB_DT_TICKS_PER_SECOND )
 end function
 
+'' Bytes, through uint8 ptrs: 'buf[n] = s[n]' on zstring ptrs is a STRING
+'' assignment that copies the whole rest of s, past buflen (TS-003).
 private function hCopyStr( byval s as zstring ptr, byval buf as zstring ptr, byval buflen as int32 ) as int32
+	dim as uint8 ptr ps = cptr( uint8 ptr, s ), d = cptr( uint8 ptr, buf )
 	dim as int32 n = 0
-	if( buf = nullptr ) then return 0
+	if( d = nullptr ) then return 0
 	if( buflen < 2 ) then return 0
-	if( s = nullptr ) then
-		buf[0] = 0
+	if( ps = nullptr ) then
+		d[0] = 0
 		return 0
 	end if
-	while( (s[n] <> 0) andalso (n < buflen - 1) )
-		buf[n] = s[n]
+	while( (ps[n] <> 0) andalso (n < buflen - 1) )
+		d[n] = ps[n]
 		n += 1
 	wend
-	buf[n] = 0
+	d[n] = 0
 	return n
 end function
 

@@ -1,0 +1,22 @@
+'' A STRING holding non-ASCII UTF-8, assigned to a WSTRING * 4 field: the runtime decodes it
+'' through a temporary and copies the first 3 units back. That copy was 'dst[i] = t[i]' on
+'' wstring ptrs, a STRING assignment of the rest of t at every i, so it wrote past the field
+'' into the next one (TS-003's pattern). The guard after the field must stay zero.
+type T
+    w as wstring * 4
+    guard(0 to 15) as ushort
+end type
+
+dim as T x
+dim as string s = "h" & chr( &hC3, &hA9 ) & "llo world"
+x.w = s
+
+dim as integer bad = 0
+for i as integer = 0 to 15
+    if x.guard(i) <> 0 then bad += 1
+next
+
+if bad <> 0 then print "FAIL guard"; bad
+if len( x.w ) <> 3 then print "FAIL len"; len( x.w )
+if x.w[0] <> 104 orelse x.w[1] <> &hE9 orelse x.w[2] <> 108 then print "FAIL units"
+if bad = 0 andalso len( x.w ) = 3 then print "ok"

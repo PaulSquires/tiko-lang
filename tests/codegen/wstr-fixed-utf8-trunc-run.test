@@ -1,0 +1,10 @@
+'' RUN: a non-ASCII UTF-8 STRING truncated into a WSTRING * 4 field leaves the next field alone
+'' (fb_wstr_ConvFromA's truncating copy was a wstring STRING assignment per unit; TS-003's
+'' pattern). The packaged runtime before this commit overwrites 7 guard units.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/wstr-fixed-utf8-trunc.tiko -o tests/codegen/wstrfixtrunc.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/wstrfixtrunc.exe
+'' RUN: tests/codegen/wstrfixtrunc.exe
+'' EXPECT-RUN-OUT: ok

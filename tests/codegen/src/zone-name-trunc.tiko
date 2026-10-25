@@ -1,0 +1,33 @@
+'' The zone's standard name into a 4-byte buffer: truncated, and nothing past the buffer
+'' written. On POSIX the copy was 'buf[n] = s[n]' on zstring ptrs, a STRING assignment of
+'' the rest of the name at every n (TS-003's pattern), so a long TZ abbreviation wrote past
+'' the buffer into the next field. Windows' names are long already; Linux gets a long one
+'' from TZ.
+extern "rtlib"
+    declare function ZoneStdName alias "fb_DtZoneStandardName" ( byval buf as zstring ptr, byval buflen as long ) as long
+end extern
+
+#ifdef __FB_LINUX__
+extern "c"
+    declare function c_setenv alias "setenv" ( byval n as zstring ptr, byval v as zstring ptr, byval o as long ) as long
+end extern
+c_setenv( "TZ", "ABCDEFGHIJKL+3", 1 )
+#endif
+
+type NameBuf
+    buf as zstring * 4
+    guard(0 to 15) as ubyte
+end type
+
+dim as NameBuf x
+dim as long n = ZoneStdName( @x.buf, 4 )
+
+dim as integer bad = 0
+for i as integer = 0 to 15
+    if x.guard(i) <> 0 then bad += 1
+next
+
+if bad <> 0 then print "FAIL guard"; bad
+if len( x.buf ) > 3 then print "FAIL len"; len( x.buf )
+if n < 0 orelse n > 3 then print "FAIL count"; n
+if bad = 0 andalso len( x.buf ) <= 3 andalso n >= 0 andalso n <= 3 then print "ok"
