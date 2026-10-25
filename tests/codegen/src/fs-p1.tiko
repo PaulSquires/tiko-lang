@@ -87,6 +87,25 @@ end if
 Check( "trailing separator", fs.WriteAtomic( work & fs.PathSeparator( ), "z" ).IsOk( ) = false )
 Check( "still one entry", Entries( work ) = 1 )
 
+'' -- a long name under a long folder (TS-003). On POSIX the replace syncs the parent
+'' folder, and the copy that cut the parent out of the path wrote the WHOLE rest of the
+'' path past a parent-sized block: the longer the name, the further. Heap corruption,
+'' so glibc aborts in a later free; Windows never took that path. Under 260 in all.
+dim as ustring deep = fs.PathJoin( work, string( 40, "d" ) )
+Check( "long dir", fs.CreateDir( deep ).IsOk( ) )
+dim as ustring longf = fs.PathJoin( deep, string( 120, "f" ) & ".toml" )
+for k as integer = 1 to 20
+    Check( "atomic long " & k, fs.WriteAtomic( longf, "v" & k ).IsOk( ) )
+next
+Check( "long content", fs.ReadAllText( longf ).ValueOr( "" ) = "v20" )
+Check( "long no temp", Entries( deep ) = 1 )
+'' and the temp-name builder, which had the same copy, with a long prefix
+dim as ustring ltf = fs.CreateTempFile( string( 100, "p" ) ).ValueOr( "" )
+Check( "long prefix", left( fs.PathFileName( ltf ), 100 ) = string( 100, "p" ) )
+Check( "long prefix len", len( fs.PathFileName( ltf ) ) = 116 )
+fs.RemoveFile( ltf )
+fs.RemoveDirAll( deep )
+
 #ifdef __FB_LINUX__
     '' -- the target's permission bits survive the replace
     Check( "chmod 600", fs.SetPosixMode( cfg, &o600 ).IsOk( ) )

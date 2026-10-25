@@ -1,7 +1,9 @@
 '' RUN: std/fs phase P1 -- the nine error codes appended after FS_UNKNOWN and their
 '' messages; WriteAtomic over the runtime's durable kernel (the caller's Rnd untouched, no
 '' temporary left on success or failure, the bytes overload); MoveFile refusing an existing
-'' destination with both files intact; ReplaceFile; TryExists; the "tiko" temp prefix.
+'' destination with both files intact; ReplaceFile; TryExists; the "tiko" temp prefix; and a
+'' long path through WriteAtomic and a long temp prefix (TS-003: a heap overflow on Linux only,
+'' so the case that would have caught it is the same source run in WSL).
 '' Needs the runtime of this commit (fb_UStrFsWriteAtomic, fb_UStrFsWriteAtomicText), so it
 '' passes only once the toolchain is repackaged (it links the packaged libfb.a).
 '' TEST: cli
