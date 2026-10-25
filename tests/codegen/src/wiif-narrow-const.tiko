@@ -1,0 +1,20 @@
+'' TE-014: 'iif( cond, A, B )' whose arms are NARROW string constants, assigned to a
+'' 'wstring * N', ignored the condition and yielded A. Local and namespaced constants, a
+'' narrow variable arm and a literal arm, under both values of the condition.
+namespace NS
+    const SHORTN = "Tiko", LONGN = "Tiko Editor"
+end namespace
+const LS = "Tiko", LL2 = "Tiko Editor"
+dim as wstring * 260 w
+dim as string sv = "narrow var"
+dim as ustring u
+for n as long = 0 to 1
+    w = iif( n, LS, LL2 )
+    u = w : print n; " local  ["; u; "]"
+    w = iif( n, NS.SHORTN, NS.LONGN )
+    u = w : print n; " member ["; u; "]"
+    w = iif( n, sv, LS )
+    u = w : print n; " var    ["; u; "]"
+    w = iif( n, "lit", LL2 )
+    u = w : print n; " lit    ["; u; "]"
+next

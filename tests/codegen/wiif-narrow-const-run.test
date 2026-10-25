@@ -1,0 +1,17 @@
+'' TE-014, RUN: 'iif' over NARROW string constants (local and namespaced), a narrow variable and
+'' a literal, assigned to a 'wstring * 260', took the then-arm whatever the condition said.
+'' Expected output is fbc-modern 1.20's, byte for byte.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/wiif-narrow-const.tiko -o tests/codegen/wiifnarrowconst.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/wiifnarrowconst.exe
+'' RUN: tests/codegen/wiifnarrowconst.exe
+'' EXPECT-RUN-OUT:  0 local  [Tiko Editor]
+'' EXPECT-RUN-OUT:  0 member [Tiko Editor]
+'' EXPECT-RUN-OUT:  0 var    [Tiko]
+'' EXPECT-RUN-OUT:  0 lit    [Tiko Editor]
+'' EXPECT-RUN-OUT:  1 local  [Tiko]
+'' EXPECT-RUN-OUT:  1 member [Tiko]
+'' EXPECT-RUN-OUT:  1 var    [narrow var]
+'' EXPECT-RUN-OUT:  1 lit    [lit]

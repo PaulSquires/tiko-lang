@@ -87,8 +87,15 @@ end function
 private function WideIifArm_ _
     ( byref c as Ctx, byref slotAddr as MirValue, byval e as Tko.NodeId ) as boolean
 
+    '' A NARROW ARM IS WIDENED rather than declined -- a constant at compile time, anything
+    '' else at run time: by now the condition has branched, and a false here left the
+    '' statement half-built, so 'iif( n, LS, LL )' always yielded LS (TE-014).
     dim as MirValue src
-    if WideOperand_( c, e, src ) = false then return false
+    if WideOperand_( c, e, src ) = false then
+        if NarrowConstAsWide_( c, e, src ) = false then
+            if NarrowToWideTemp_( c, e, src ) = false then return false
+        end if
+    end if
 
     dim as containers.Array( of uint32 ) la
     la.Push( cast( uint32, src.kind ) ) : la.Push( cast( uint32, src.id ) )

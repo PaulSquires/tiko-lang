@@ -89,6 +89,8 @@ declare function LowerStringAssign _
     declare function WideLitGlobal_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outChars as int32 ) as int32
     declare function IsConstNameRef_( byref c as Ctx, byval id as Tko.NodeId ) as boolean
+    declare function NarrowConstAsWide_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function LowerConcatAssignStmt _
         ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
           byval op as Tko.TokenKind ) as boolean

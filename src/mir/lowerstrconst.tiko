@@ -348,4 +348,24 @@ function ConstTextGlobal_( byref c as Ctx, byval opnd as Tko.NodeId ) as int32
     return c.m->AddStringLiteral( txt, *c.names )
 end function
 
+'' A NARROW STRING CONSTANT AS A WIDE LITERAL -- its text folded and widened at compile
+'' time, for a wide operand. 'w = iif( n, LS, LL )' into a 'wstring * 260' declined on
+'' both arms after the iif had branched, so the then-arm's text reached the target
+'' whatever the condition said (TE-014). A constant only: a variable is still storage.
+function NarrowConstAsWide_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+
+    if IsConstNameRef_( c, id ) = false then return false
+    dim as Tko.Symbol ptr ncs = c.syms->SymbolAt( c.info->RefOf( id ) )
+    if ncs = nullptr then return false
+    if ncs->kind <> cast( uint8, Tko.SYM_CONSTANT ) then return false
+    dim as string nct
+    if ConstStringTextOf_( c, id, nct ) = false then return false
+    outv.kind = cast( uint8, MV_GLOBAL )
+    outv.ty = cast( uint8, MT_PTR )
+    dim as int32 ncc = 0
+    outv.id = WideFoldedText_( c, id, nct, ncc )
+    return true
+end function
+
 end namespace
