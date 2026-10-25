@@ -1,0 +1,17 @@
+'' TE-011: a PARENTHESISED concatenation with a 'wstring * N' element in it, passed to a
+'' 'byval as ustring' parameter, was an internal compiler error (TKO0994); unparenthesised
+'' it compiled. Both spellings, a narrow and a ustring parameter, and a doubled paren.
+dim shared as wstring * 260 A(0 to 3)
+sub S( byval w as ustring )
+    print "[" & w & "] "; len( w )
+end sub
+sub N( byval z as string )
+    print "{" & z & "}"
+end sub
+A(1) = "one" : A(2) = "two"
+S( (A(1) & ":") )
+S( A(1) & ":" )
+S( ((A(2) & "-" & A(1))) )
+dim as ustring u = "u"
+S( (u & A(2)) )
+N( (A(1) & "!") )

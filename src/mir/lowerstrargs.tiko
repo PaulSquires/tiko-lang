@@ -365,6 +365,10 @@ function ByvalStrTemp_ _
     '' A STRING-TO-STRING 'cast' IS THE IDENTITY -- see StrIdentityConvOperand_.
     dim as Tko.NodeId sica = StrIdentityConvOperand_( c, argNode )
     if sica <> Tko.NODE_NONE then argNode = sica
+    '' PARENTHESES CHANGE NOTHING about a byval copy, and every arm below asked about the
+    '' node itself: 'S( (A(1) & ":") )' over a 'wstring * 260' element and a byval ustring
+    '' was no concatenation to the wide arm, and the statement was dropped (TKO0994, TE-011).
+    argNode = Unparen_( c, argNode )
     '' A UTF-16 CONCATENATION FOR A USTRING PARAMETER is built as one, into the copy:
     '' 'bv( a & a )' over 'byval u as ustring' went through fb_UStrAssignToA and the
     '' callee read a NARROW descriptor as UTF-16 -- mojibake, and an over-read of 2 x len.
