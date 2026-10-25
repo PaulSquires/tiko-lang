@@ -151,6 +151,33 @@ function LowerConcatAssignStmt _
         if isU then
             dim as containers.Array( of uint32 ) vterms
             FlattenConcat( c, value, vterms )
+            '' ...UNLESS NO TERM READS THE TARGET. Then the terms build alone, into a zeroed
+            '' temporary, and ONE fb_UStrConcatAssign appends it -- amortised, where the fold
+            '' copies the whole target on every append: 's &= "item" & i & ";"' took 33 s for
+            '' 80k iterations (fbc-modern 1.20, which folds, 35 s). Same bytes (B-strings-2).
+            dim as boolean vreads = false
+            for i as int32 = 0 to vterms.Count - 1
+                if TermReadsLValue_( c, target, cast( Tko.NodeId, vterms[i] ) ) then vreads = true
+            next
+            if (vterms.Count >= 2) andalso (vreads = false) then
+                dim as int32 rslot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+                if rslot < 0 then return false
+                dim as MirValue rdst
+                rdst.kind = cast( uint8, MV_LOCAL ) : rdst.ty = cast( uint8, MT_PTR ) : rdst.id = rslot
+                ZeroStrDescriptor( c, rdst )
+                '' An ALL-NARROW chain is LowerUStrChain's to refuse: it folds narrow and transcodes once.
+                if LowerUStrChain( c, rdst, true, vterms, false ) = false then
+                    if LowerNarrowChainToU_( c, rdst, vterms, false ) = false then return false
+                end if
+                c.f->locals[rslot].frontendType = c.types->Unqualify( tt )
+                c.strTemps.Push( cast( uint32, rslot ) )
+                dim as containers.Array( of uint32 ) rargs
+                PushStrArg( rargs, dst )
+                PushStrArg( rargs, rdst )
+                rargs.Push( cast( uint32, MV_CONST_INT ) ) : rargs.Push( 0 )
+                EmitRtl( c, RTL_USTR_CONCAT_ASSIGN, rargs )
+                return true
+            end if
             if vterms.Count >= 2 then
                 dim as containers.Array( of uint32 ) chain
                 chain.Push( cast( uint32, target ) )

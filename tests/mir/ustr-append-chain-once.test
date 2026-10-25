@@ -1,0 +1,13 @@
+'' B-strings-2: 's &= "item" & i & ";"' on a ustring builds the chain ALONE, into a temporary,
+'' and appends it with ONE fb_UStrConcatAssign -- amortised. It folded the target into the
+'' chain and fb_UStrAssign'ed the whole result back, copying all of s on every append: 33 s
+'' for 80k appends (fbc-modern 1.20, which folds the same way, 35 s), now 12 ms.
+'' TEST: cli
+'' ARGS: --dump-ir tests/mir/src/ustr-append-chain-once.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: verify: ok
+'' EXPECT-OUT: 0 statements not lowered
+'' EXPECT-OUT: fb_StrConcat(@$tmp4, @@$str0, 5, %21, -1)
+'' EXPECT-OUT: fb_UStrAssignFromA(@$tmp3, -1, %22, -1, 0, 0)
+'' EXPECT-OUT: fb_UStrConcatAssign(@s, -1, @$tmp3, -1, 0)
+'' EXPECT-OUT: call.rtl void fb_UStrDelete(@$tmp3)

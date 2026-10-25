@@ -1,0 +1,17 @@
+'' B-strings-2, RUN: 'u &= <chain>' on a ustring, every flavour of chain -- all narrow, a narrow
+'' variable, UTF-16 and narrow, wide, numbers, and one that reads the target (still folded) --
+'' after it stopped folding the target into the chain. Expected output is fbc-modern 1.20's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/ustr-append-chain.tiko -o tests/codegen/ustrappendchain.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/ustrappendchain.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: [item1;item2;item3;]  18
+'' EXPECT-RUN-OUT: [nx]
+'' EXPECT-RUN-OUT: [éxn]  3
+'' EXPECT-RUN-OUT: [w=w|U]
+'' EXPECT-RUN-OUT: [1.5:42]
+'' EXPECT-RUN-OUT: [abb|ab]
+'' EXPECT-RUN-OUT: [qU+n]
+'' EXPECT-RUN-OUT:  188894 ;item20000;
