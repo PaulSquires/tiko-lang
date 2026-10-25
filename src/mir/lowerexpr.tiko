@@ -404,7 +404,14 @@ function LowerExpr _
             dim as Tko.NodeId ftg = c.ast->ListOf( litOp )->target
             if (fsid = Tko.SYMBOL_NONE) andalso (ftg <> Tko.NODE_NONE) then fsid = c.info->RefOf( ftg )
             dim as Tko.Symbol ptr fsy = c.syms->SymbolAt( fsid )
-            if (fsy <> nullptr) andalso (fsy->kind = cast( uint8, Tko.SYM_PROC )) then
+            '' ...EXCEPT OVER A BYREF RESULT, where '@(f( ))' is the referent's address
+            '' (tests/mir/byref-fnptr-var: '@(f( )) = @gi').
+            dim as boolean fbyref = false
+            if fsy <> nullptr then
+                dim as Tko.NodeId fpn = cast( Tko.NodeId, fsy->payload )
+                if (fpn <> Tko.NODE_NONE) andalso (c.ast->Kind( fpn ) = Tko.N_PROC) then fbyref = ((c.ast->Flags( fpn ) and Tko.NF_BYREF) <> 0)
+            end if
+            if (fsy <> nullptr) andalso (fsy->kind = cast( uint8, Tko.SYM_PROC )) andalso (fbyref = false) then
                 dim as MirValue fav = FuncAddrOf( c, fsid )
                 if fav.kind <> cast( uint8, MV_NONE ) then return fav
             end if
