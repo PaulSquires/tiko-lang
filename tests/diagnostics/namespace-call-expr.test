@@ -1,0 +1,8 @@
+'' TKO0602 for an expression call bound to a namespace, which reached lowering with nothing
+'' callable (TKO0994, by-example BUG-testing-1). See CheckNamespaceCall_ in
+'' symbols/builtinarity.tiko; the statement form is resolveamb.tiko's.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/namespace-call-expr.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: namespace-call-expr.bas(6,15): error TKO0602: 'clamp' is a namespace, not a procedure
+'' EXPECT-MAX-DIAG: 1

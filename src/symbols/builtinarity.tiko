@@ -122,12 +122,32 @@ private sub CheckBuiltinArity_ ( byref c as Ctx, byval id as NodeId )
     if c.info->RefOf( id ) <> SYMBOL_NONE then return
     dim as string nm = lcase( c.names->Spelling( _
         c.ast->IdentOf( lp->target )->name ) )
+    '' LSET and RSET ARE STATEMENTS ONLY: 'print rset( "abc", 6 )' is fbc's 3, "Expected
+    '' End-of-Line, found 'rset'" (fbc-modern 1.20, 2026-10-25). As a value it has no form to
+    '' check against, and lowering knew it only as a statement (TKO0994).
+    if (nm = "rset") orelse (nm = "lset") then
+        c.diags->Report( TKO0420, PointRange( c.ast->Loc( lp->target ) ) )
+        return
+    end if
     dim as int32 lo, hi
     if BuiltinArity_( nm, lo, hi ) = false then
         if RtlBuiltinArity_( nm, lo, hi ) = false then return
     end if
     if (lp->count >= lo) andalso (lp->count <= hi) then return
     c.diags->Report( TKO0801, PointRange( c.ast->Loc( id ) ), nm )
+end sub
+
+'' A CALL WHOSE HEAD IS A NAMESPACE, in an expression: inside 'namespace tests.clamp',
+'' 'Clamp( 3 )' finds the namespace before the outer function. fbc's 120, "Expected period"
+'' (and its 4 at the namespace when the function came first). The statement form is
+'' resolveamb.tiko's TKO0602; this one reached lowering bound to nothing callable (TKO0994).
+private sub CheckNamespaceCall_ ( byref c as Ctx, byval id as NodeId )
+    dim as ListPayload ptr lp = c.ast->ListOf( id )
+    if (lp->target = NODE_NONE) orelse (c.ast->Kind( lp->target ) <> N_IDENT) then return
+    dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( lp->target ) )
+    if (s = nullptr) orelse (s->kind <> cast( uint8, SYM_NAMESPACE )) then return
+    c.diags->Report( TKO0602, PointRange( c.ast->Loc( lp->target ) ), c.names->Spelling( s->name ), _
+                     SymbolKindName( SYM_NAMESPACE ) )
 end sub
 
 '' Is 'id' the FIELD of an 'offsetof( T, field )'? Then it names a field and no builtin:

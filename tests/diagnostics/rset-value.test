@@ -1,0 +1,9 @@
+'' TKO0420 for 'rset( ... )' / 'lset( ... )' used as a value, which lowering knew only as a
+'' statement (TKO0994, by-example's minor rset item). See CheckBuiltinArity_ in
+'' symbols/builtinarity.tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/rset-value.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: rset-value.bas(5,7): error TKO0420
+'' EXPECT-OUT: rset-value.bas(6,5): error TKO0420
+'' EXPECT-MAX-DIAG: 2
