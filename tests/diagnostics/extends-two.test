@@ -1,0 +1,7 @@
+'' TKO0427, fbc's 17: a type extends one base. See the EXTENDS clause in
+'' parser/decltype.tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/extends-two.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: extends-two.bas(10,17): error TKO0427
+'' EXPECT-MAX-DIAG: 1

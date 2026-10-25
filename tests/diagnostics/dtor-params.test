@@ -1,0 +1,8 @@
+'' TKO0426, fbc's 159: a destructor takes no parameters. See ProcParams_ in
+'' parser/declparam.tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/dtor-params.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: dtor-params.bas(5,25): error TKO0426
+'' EXPECT-OUT: dtor-params.bas(7,15): error TKO0426
+'' EXPECT-MAX-DIAG: 2

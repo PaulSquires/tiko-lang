@@ -95,6 +95,12 @@ private function ParseParam( byref p as Tko.ParserState ) as Tko.NodeId
         Expect( p, Tko.TK_RPAREN, ")" )
         flags or= Tko.NF_ARRAY
         if anyInside then sp.extra = cast( uint16, acommas + 1 )
+        '' fbc's 59 for BYVAL and BYREF alike: an array goes by descriptor and nothing else.
+        if ((flags and (Tko.NF_BYVAL_WRITTEN or Tko.NF_BYREF)) <> 0) andalso (p.silent = false) then
+            p.diags->Report( Tko.TKO0425, Tko.PointRange( t.loc ), _
+                             iif( (flags and Tko.NF_BYREF) <> 0, "byref", "byval" ), _
+                             iif( sp.name <> 0, p.names->Spelling( sp.name ), "" ) )
+        end if
     end if
 
     if Accept( p, Tko.KW_AS ) then sp.a = TypeRef( p )
@@ -279,6 +285,14 @@ private sub ProcParams_ _
     if checkNames then p.bodyParams += 1
     ParseParamList( p, sp )
     if checkNames then p.bodyParams -= 1
+    if (kw = Tko.KW_DESTRUCTOR) andalso (p.silent = false) then
+        for i as int32 = 0 to sp.count - 1
+            dim as Tko.NodeId pn = p.ast->ChildAt( sp.first, i )
+            if p.ast->Kind( pn ) <> Tko.N_PARAM then continue for
+            p.diags->Report( Tko.TKO0426, Tko.PointRange( p.ast->Loc( pn ) ) )
+            exit for
+        next
+    end if
     CheckVarargConv_( p, sp, Tko.CallConvOf( sp.extra ), _
                       (kw = Tko.KW_CONSTRUCTOR) orelse (kw = Tko.KW_DESTRUCTOR), _
                       declareOnly andalso (p.aggDepth > 0) )

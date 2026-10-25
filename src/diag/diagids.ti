@@ -264,6 +264,16 @@
     '' A TYPED VARIADIC IS AN ARRAY PARAMETER -- docs/tiko-params/RFC-0001 -- so 'x as T ...'
     '' without the '( )' is refused rather than read as a C ellipsis after a parameter.
     DIAG( TKO0424, SEV_ERROR,   "a typed variadic parameter is an array parameter: write '%0( ) as T ...'" )
+    '' fbc's error 59, "Illegal specification": BYVAL or BYREF written on an array parameter,
+    '' in a definition, a DECLARE and a procedure type alike (fbc-modern 1.20, 2026-10-25).
+    '' tiko accepted 'byval a( )' and passed the descriptor anyway.
+    DIAG( TKO0425, SEV_ERROR,   "'%0' cannot be written on the array parameter '%1': an array is always passed by descriptor" )
+    '' fbc's error 159, "A destructor should not have any parameters", on the DECLARE and the
+    '' definition both. tiko accepted one and never ran it.
+    DIAG( TKO0426, SEV_ERROR,   "a destructor takes no parameters" )
+    '' fbc's error 17, "Syntax error, found ','": a TYPE extends ONE base. tiko read the base
+    '' and silently dropped the rest of the line.
+    DIAG( TKO0427, SEV_ERROR,   "a type extends one base type" )
 
     '' ------------------------------------------------------------------ semantic
     DIAG( TKO0600, SEV_ERROR,   "'%0' is already declared in this scope" )

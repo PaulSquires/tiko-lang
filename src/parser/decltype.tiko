@@ -214,6 +214,13 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
             p.diags->Report( Tko.TKO0824, Tko.PointRange( Cur( p ).loc ) )
         end if
         sp.c = TypeRef( p )
+        '' 'extends A, B' is fbc's 17; the member loop used to eat ', B' without a word.
+        if Peek( p ) = Tko.TK_COMMA then
+            if p.silent = false then p.diags->Report( Tko.TKO0427, Tko.PointRange( Cur( p ).loc ) )
+            while (AtEnd( p ) = false) andalso (Peek( p ) <> Tko.TK_EOL)
+                Advance( p )
+            wend
+        end if
     end if
 
     dim as boolean isGeneric = (sp.b <> Tko.NODE_NONE)
