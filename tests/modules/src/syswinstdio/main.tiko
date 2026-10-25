@@ -1,0 +1,18 @@
+'' TE-002: crt's stdio.bi (pulled in by windows.bi) defines stdin / stdout / stderr as macros, and
+'' macros are case-blind, so with sys/win imported 'k.Stdin( )' expanded into
+'' '.(__acrt_iob_func( 0 ))( )'. sys/win undefines all three.
+#import "sys/win"
+#import "std/process"
+#import "std/fs"
+
+dim as process.Command c = process.Command( "cmd.exe" )
+c.Arg( "/c" ).Arg( "echo hi" ).StdoutTo( process.STDIO_PIPE ).HideWindow( )
+dim as process.Child k
+if k.Spawn( c ).IsOk( ) then
+    dim as ubyte buf( 0 to 63 )
+    k.Stdin( ).Close( )
+    dim as fs.FsResultI64 n = k.Stdout( ).Read( @buf( 0 ), 64 )
+    k.Stderr( )
+    print n.IsOk( )
+    k.Wait( )
+end if

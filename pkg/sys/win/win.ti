@@ -24,6 +24,14 @@
 #include once "win/ocidl.bi"
 #include once "win/propvarutil.bi"
 
+' crt/win32/stdio.bi (which windows.bi pulls in) defines stdin, stdout and stderr as
+' object-like macros, and macros are case-blind: they would reach every importer and swallow
+' members such as std/process's Child.Stdin( ) / Child.Stdout( ). Nothing in sys/win uses them;
+' a program that wants crt's FILE pointers calls __acrt_iob_func( ) itself.
+#undef stdin
+#undef stdout
+#undef stderr
+
 
 #ifndef WBSTR
    #define WBSTR WSTRING PTR
