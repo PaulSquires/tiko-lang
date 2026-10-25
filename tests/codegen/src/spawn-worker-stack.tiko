@@ -1,0 +1,23 @@
+'' A goroutine runs on a scheduler worker, and a worker's stack was whatever fb_ThreadCreate
+'' gives for 0: the exe's 1 MiB on Windows, but PTHREAD_STACK_MIN -- 16 KiB -- on Linux. 64 KiB
+'' of locals, or one std/http exchange (hExchange -> fb_UIntToStr -> sprintf), ran off it and
+'' the process died with SIGSEGV, exit 139 (tiko-studio TS-006). The scheduler now asks for
+'' 1 MiB on POSIX (lib/rt/src/thread/sched.tiko FB_SCHED_WORKER_STACK_).
+
+#import "std/tasks"
+using tasks
+
+sub Deep( byval done as SendChan( of long ) )
+    dim as ubyte big( 0 to 65535 )
+    for i as long = 0 to 65535 : big( i ) = i and 255 : next
+    '' A RUNTIME CALL WITH A C FRAME UNDER IT, from the bottom of that frame -- what the
+    '' std/http crash was.
+    dim as string s = str( big( 4096 ) + big( 65535 ) )
+    done.Send( valint( s ) )
+end sub
+
+dim done as Channel( of long ) = Channel( of long )( 1 )
+spawn Deep( done )
+dim as long r
+done.Receive( r )
+print "goroutine survived: " & r

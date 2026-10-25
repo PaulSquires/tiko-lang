@@ -92,6 +92,18 @@ const FB_SCHED_STARVE_TICKS_ = 2
 '' everything hits this rather than exhausting the machine.
 const FB_SCHED_MAX_WORKERS_  = 256
 
+'' A WORKER'S STACK, ASKED FOR, not left to fb_ThreadCreate. Its 0 means the
+'' exe's default on Windows (1 MiB, or what -t set) but PTHREAD_STACK_MIN on
+'' POSIX -- 16 KiB on glibc, which one std/http exchange or 64 KiB of locals
+'' overruns (TS-006). fb_ThreadCreate keeps clamping 0 up to that minimum,
+'' because fbc's THREADCREATE does; it is the scheduler that must not ask for
+'' it. 1 MiB on POSIX so a goroutine has the same stack on both targets.
+#ifdef __FB_WIN32__
+const FB_SCHED_WORKER_STACK_ = 0
+#else
+const FB_SCHED_WORKER_STACK_ = 1024 * 1024
+#endif
+
 '' fb_thread.h declares `typedef void (FBCALL *FB_SPAWNPROC)( void *ctx )`, and
 '' FBCALL IS NOT A FreeBASIC KEYWORD -- it is a C macro that expands to
 '' __stdcall on 32-bit Windows and to nothing everywhere else. `extern "rtlib"`
@@ -305,7 +317,7 @@ private sub tkort_hAddWorker( )
 	dim as FBWORKER_ ptr w = cast( FBWORKER_ ptr, calloc( 1, sizeof( FBWORKER_ ) ) )
 	if( w = nullptr ) then exit sub
 
-	dim as FBTHREAD ptr t = tkrt_ThreadCreate( @tkort_hWorkerProc, w, 0 )
+	dim as FBTHREAD ptr t = tkrt_ThreadCreate( @tkort_hWorkerProc, w, FB_SCHED_WORKER_STACK_ )
 	if( t = nullptr ) then
 		free( w )
 		exit sub

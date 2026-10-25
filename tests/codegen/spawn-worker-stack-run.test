@@ -1,0 +1,13 @@
+'' A goroutine with 64 KiB of locals and a runtime call under them survives (tiko-studio
+'' TS-006). The defect was Linux only -- a worker's 16 KiB PTHREAD_STACK_MIN stack, exit 139
+'' -- and the suite runs RUN tests on Windows only, so here this guards the Windows side and
+'' the shared scheduler path; the Linux A/B is the same source with -target linux-x86_64,
+'' linked and run under WSL.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -mt tests/codegen/src/spawn-worker-stack.tiko -o tests/codegen/spawnworkerstack.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/spawnworkerstack.exe
+'' RUN: tests/codegen/spawnworkerstack.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: goroutine survived: 255
