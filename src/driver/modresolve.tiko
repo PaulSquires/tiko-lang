@@ -174,7 +174,7 @@ function CopyVendorLibs _
     dim as string outDir = DirOfFile( AbsPath( outPath ) )
     '' ...and as the output is spelled, for what the build observer is told.
     dim as string outSpelled = DirOfFile( outPath )
-    for each lf as string in ctx.options.pragmaLibFiles
+    for each lf as string in ctx.link.pragmaLibFiles
         dim as string src = NormPath( AbsPath( lf ) )
         if SamePath_( left( src, len( vdir ) ), vdir ) = false then continue for
         dim as string low = Tko.Text.LowerAscii( src )

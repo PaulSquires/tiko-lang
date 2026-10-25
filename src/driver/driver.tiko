@@ -243,8 +243,8 @@ private function AssembledLibPaths_( byref ctx as Tko.CompilerContext ) as Tko.S
     for i as int32 = 0 to ctx.options.libPaths.Count - 1
         r.Push( ctx.options.libPaths[i] )
     next
-    for i as int32 = 0 to ctx.options.pragmaLibPaths.Count - 1
-        r.Push( ctx.options.pragmaLibPaths[i] )
+    for i as int32 = 0 to ctx.link.pragmaLibPaths.Count - 1
+        r.Push( ctx.link.pragmaLibPaths[i] )
     next
     for i as int32 = 0 to ctx.options.defaultLibPaths.Count - 1
         r.Push( ctx.options.defaultLibPaths[i] )
@@ -271,7 +271,7 @@ function MakePpConfig( byref ctx as Tko.CompilerContext ) as Tko.PpConfig
     cfg.targetOs = Tko.TargetOs( ctx.options.target )
     cfg.targetArch = Tko.TargetArch( ctx.options.target )
     cfg.targetIsMsvc = Tko.TargetLayoutFor( ctx.options.target ).isMsvc
-    cfg.threadSafe = ctx.options.threadSafe
+    cfg.threadSafe = Tko.LinkThreadSafe( ctx )
     cfg.errFlags = ctx.options.errFlags
     cfg.debugInfo = ctx.options.debugInfo
     cfg.outKind = iif( ctx.options.compileOnly, 3, _
@@ -638,15 +638,15 @@ private function LinkAll _
     for i as int32 = 0 to ctx.options.libs.Count - 1
         tools.libs.Push( ctx.options.libs[i] )
     next
-    for i as int32 = 0 to ctx.options.pragmaLibs.Count - 1
-        tools.libs.Push( ctx.options.pragmaLibs[i] )
+    for i as int32 = 0 to ctx.link.pragmaLibs.Count - 1
+        tools.libs.Push( ctx.link.pragmaLibs[i] )
     next
     '' A '.dll' THAT '#foreignlib' FOUND WITHOUT AN IMPORT LIBRARY (T98). lld-link refuses
     '' a DLL -- 'bad file type' -- so on windows-x86_64 the import library is made here,
     '' from the DLL's own export table, beside the output like the objects, and deleted
     '' with them. The MinGW target keeps the file: GNU-style links take a DLL as it is.
-    for i as int32 = 0 to ctx.options.pragmaLibFiles.Count - 1
-        dim as string lf = ctx.options.pragmaLibFiles[i]
+    for i as int32 = 0 to ctx.link.pragmaLibFiles.Count - 1
+        dim as string lf = ctx.link.pragmaLibFiles[i]
         if Tko.TargetLayoutFor( ctx.options.target ).isMsvc andalso _
            (len( lf ) > 4) andalso (lcase( right( lf, 4 ) ) = ".dll") then
             dim as string why
@@ -682,7 +682,7 @@ private function LinkAll _
     '' first effect '-g' has ever had -- OPT_DEBUG set a field that nothing read.
     '' It does NOT yet make the compiler emit debug information; that is Phase 11.
     tools.stripSymbols = (ctx.options.debugInfo = false)
-    tools.threadSafe = ctx.options.threadSafe
+    tools.threadSafe = Tko.LinkThreadSafe( ctx )
     tools.guiSubsystem = ctx.options.guiSubsystem
 
     '' THE IMPORT LIBRARY'S NAME FOLLOWS THE OUTPUT, not the source. Measured:
@@ -1065,9 +1065,9 @@ function Run _
             '' ...AND WHAT IT ASKS THE LINK FOR -- its '.fbctinf', as fbc reads it. See
             '' codegen/objinfo.ti; ApexWealth's network object named winhttp only there.
             dim as Tko.StrVec named
-            Tko.Codegen.ReadObjInfo( objInputs[i], ctx.options.pragmaLibs, _
-                                     ctx.options.pragmaLibPaths, _
-                                     ctx.options.pragmaLibFiles, ctx.options.threadSafe, named )
+            Tko.Codegen.ReadObjInfo( objInputs[i], ctx.link.pragmaLibs, _
+                                     ctx.link.pragmaLibPaths, _
+                                     ctx.link.pragmaLibFiles, ctx.link.threadSafe, named )
             for each mo as string in named
                 if modObjChains.Add( RecordChain_( mo ) ) = false then continue for
                 modObjs.Push( mo )

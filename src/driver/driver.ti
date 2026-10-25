@@ -34,7 +34,7 @@ namespace Tko
     ''            ifaceAdjFirst / ifaceAdjTo (the graph's index, rebuilt with it)
     ''   unit     this type, ctx.unit
     ''
-    '' 'options.threadSafe' is written after the parse (unit.tiko, modbuild.tiko) and is NOT a
+    '' 'link.threadSafe' (LinkState, below) is written as units compile, and is NOT a
     '' unit field: one unit making a thread makes the whole LINK threaded, and __FB_MT__ is -1
     '' from that call on and in every unit compiled AFTER it -- fbc-modern 1.20 does exactly that
     '' (measured 2026-10-24, 'print __FB_MT__': 'fbc a.bas b.bas' with the thread in a gives a
@@ -60,6 +60,23 @@ namespace Tko
         as boolean                unitUsesClock      '' expanded __DATE__ / __TIME__: never stored
     end type
 
+    '' WHAT THE UNITS ASK OF THE LINK (review ARCH-05, LATER-PLAN G step 2): process state the
+    '' units DISCOVER as they compile, gathered for the one link -- not options, which are what
+    '' the command line said and are not written once it is parsed. fbc gathers the same way:
+    '' every unit's '#inclib' reaches the link, and one unit's thread call makes it threaded.
+    type LinkState
+        '' '#libpath', in source order -- the SECOND of options' three search lists.
+        as StrVec  pragmaLibPaths
+        as StrVec  pragmaLibs        '' '#inclib', and 'declare ... lib "name"'
+        '' '#foreignlib', already resolved to exact files. Named as FILES on the
+        '' link line rather than through '-l', which is the point of the feature:
+        '' the binding said which file, so the linker does no searching of its own.
+        as StrVec  pragmaLibFiles
+        '' A unit made a thread (PpNoteThreaded, Mir.UsesThreadRtl), or an input object or a
+        '' cached module asked for -mt. LinkThreadSafe( ctx ) adds the command line's '-mt'.
+        as boolean threadSafe
+    end type
+
     '' One per tiko-lang process invocation. Nothing in the compiler is global; everything
     '' hangs off this, which is what makes parallel compilation possible later and
     '' in-process fuzzing possible now.
@@ -68,6 +85,7 @@ namespace Tko
         as SourceManager     sources
         as DiagnosticEngine  diags
         as DriverOptions     options
+        as LinkState         link
         as KeywordMap        keywords
         as TypeContext       types
         '' How many of diags' errors are TOOLCHAIN failures (driver.tiko, ToolFail_). The
@@ -156,6 +174,11 @@ namespace Tko
         declare constructor( )
         declare destructor( )
     end type
+
+    '' Does the link take the thread-safe runtime -- and is __FB_MT__ -1 for the next unit?
+    private function LinkThreadSafe( byref ctx as CompilerContext ) as boolean
+        return ctx.options.threadSafe orelse ctx.link.threadSafe
+    end function
 
 end namespace
 

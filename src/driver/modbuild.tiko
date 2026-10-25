@@ -36,14 +36,14 @@ function LibsSince _
     ( byref ctx as Tko.CompilerContext, byval libs0 as int32, byval paths0 as int32, _
       byval files0 as int32 ) as string
     dim as string libs = ""
-    for k as int32 = libs0 to ctx.options.pragmaLibs.Count - 1
-        libs &= "lib" & chr( 9 ) & ctx.options.pragmaLibs[k] & chr( 10 )
+    for k as int32 = libs0 to ctx.link.pragmaLibs.Count - 1
+        libs &= "lib" & chr( 9 ) & ctx.link.pragmaLibs[k] & chr( 10 )
     next
-    for k as int32 = paths0 to ctx.options.pragmaLibPaths.Count - 1
-        libs &= "libpath" & chr( 9 ) & ctx.options.pragmaLibPaths[k] & chr( 10 )
+    for k as int32 = paths0 to ctx.link.pragmaLibPaths.Count - 1
+        libs &= "libpath" & chr( 9 ) & ctx.link.pragmaLibPaths[k] & chr( 10 )
     next
-    for k as int32 = files0 to ctx.options.pragmaLibFiles.Count - 1
-        libs &= "libfile" & chr( 9 ) & ctx.options.pragmaLibFiles[k] & chr( 10 )
+    for k as int32 = files0 to ctx.link.pragmaLibFiles.Count - 1
+        libs &= "libfile" & chr( 9 ) & ctx.link.pragmaLibFiles[k] & chr( 10 )
     next
     if ctx.unit.unitThreadRtl then libs &= "mt" & chr( 9 ) & "1" & chr( 10 )
     return libs
@@ -61,10 +61,10 @@ sub ReplayLibs( byref ctx as Tko.CompilerContext, byref libs as string )
         if t = 0 then continue while
         dim as string v = mid( ln, t + 1 )
         select case left( ln, t - 1 )
-        case "lib"     : ctx.options.pragmaLibs.Push( v )
-        case "libpath" : ctx.options.pragmaLibPaths.Push( v )
-        case "libfile" : ctx.options.pragmaLibFiles.Push( v )
-        case "mt"      : ctx.options.threadSafe = true
+        case "lib"     : ctx.link.pragmaLibs.Push( v )
+        case "libpath" : ctx.link.pragmaLibPaths.Push( v )
+        case "libfile" : ctx.link.pragmaLibFiles.Push( v )
+        case "mt"      : ctx.link.threadSafe = true
         end select
     wend
 end sub
@@ -206,9 +206,9 @@ function BuildImports _
         end if
 
         '' WHAT THIS MODULE ADDS TO THE LINK is what its compile appends, and is recorded.
-        dim as int32 libs0 = ctx.options.pragmaLibs.Count
-        dim as int32 paths0 = ctx.options.pragmaLibPaths.Count
-        dim as int32 files0 = ctx.options.pragmaLibFiles.Count
+        dim as int32 libs0 = ctx.link.pragmaLibs.Count
+        dim as int32 paths0 = ctx.link.pragmaLibPaths.Count
+        dim as int32 files0 = ctx.link.pragmaLibFiles.Count
         dim as int32 objs0 = linkObjs.Count
         dim as Tko.StrVec restartArgs
         '' A module cannot '#cmdline' (TKO0366), so this never asks for a restart.

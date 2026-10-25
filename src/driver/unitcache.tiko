@@ -109,9 +109,9 @@ function TryHit _
 end function
 
 sub Before( byref ctx as Tko.CompilerContext, byref linkObjs as Tko.StrVec, byref m as Mark )
-    m.libs0 = ctx.options.pragmaLibs.Count
-    m.paths0 = ctx.options.pragmaLibPaths.Count
-    m.files0 = ctx.options.pragmaLibFiles.Count
+    m.libs0 = ctx.link.pragmaLibs.Count
+    m.paths0 = ctx.link.pragmaLibPaths.Count
+    m.files0 = ctx.link.pragmaLibFiles.Count
     m.objs0 = linkObjs.Count
     m.errs0 = ctx.diags.ErrorCount( )
     m.warns0 = ctx.diags.WarningCount( )
@@ -336,16 +336,16 @@ function LinkSignature _
     next
     dim as boolean coff = (Tko.Codegen.TargetFor( ctx.options.target ).objFormat = Tko.Codegen.OBJ_COFF)
     dim as containers.Set( of string ) seen
-    for each l as string in ctx.options.pragmaLibs
+    for each l as string in ctx.link.pragmaLibs
         if FirstTime_( seen, "lib " & LibKey_( l, coff ) ) then sig &= "lib " & l & nl
     next
-    for each l as string in ctx.options.pragmaLibPaths
+    for each l as string in ctx.link.pragmaLibPaths
         if FirstTime_( seen, "libpath " & l ) then sig &= "libpath " & l & nl
     next
-    for each l as string in ctx.options.pragmaLibFiles
+    for each l as string in ctx.link.pragmaLibFiles
         if FirstTime_( seen, "libfile " & l ) then sig &= "libfile " & Tko.DiskCache.Stamp( l ) & chr( 9 ) & l & nl
     next
-    sig &= "mt " & iif( ctx.options.threadSafe, 1, 0 ) & nl
+    sig &= "mt " & iif( Tko.LinkThreadSafe( ctx ), 1, 0 ) & nl
     return sig
 end function
 
