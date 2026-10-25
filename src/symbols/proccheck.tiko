@@ -969,7 +969,8 @@ sub CheckUdtCompound_ ( byref c as Ctx, byval id as NodeId )
 end sub
 
 '' '*i' OVER A NUMBER and '@5' OVER A LITERAL -- fbc's 28 and 24. A string is left to
-'' the rules that already judge it.
+'' the rules that already judge it -- except a USTRING, which no rule judged: '*u' (the
+'' old DWSTRING buffer operator) reached lowering untyped and stopped on TKO0994.
 sub CheckDerefAddrOperand_ ( byref c as Ctx, byval id as NodeId, byval k as NodeKind )
     dim as UnaryPayload ptr up = c.ast->UnaryOf( id )
     dim as NodeId opnd = up->operand
@@ -990,7 +991,7 @@ sub CheckDerefAddrOperand_ ( byref c as Ctx, byval id as NodeId, byval k as Node
     case TK_ENUM
     case TK_BUILTIN
         select case c.types->BuiltinOf( t )
-        case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_USTRING, TY_FIXSTR, TY_FIXUSTR, TY_ANY
+        case TY_STRING, TY_ZSTRING, TY_WSTRING, TY_FIXSTR, TY_ANY
             return
         end select
     case else

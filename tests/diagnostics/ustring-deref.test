@@ -1,0 +1,7 @@
+'' TKO0950 over a ustring operand, which CheckDerefAddrOperand_ (symbols/proccheck.tiko) used
+'' to leave alone; lowering then stopped on TKO0994 (tiko-editor TE-001).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/ustring-deref.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: ustring-deref.bas(6,8): error TKO0950
+'' EXPECT-MAX-DIAG: 1
