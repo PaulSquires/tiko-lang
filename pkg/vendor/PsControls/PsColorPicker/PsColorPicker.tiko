@@ -818,7 +818,7 @@ end function
 ' for essentially no colour a user picks. Threshold 140 rather than 128 because white-on-mid is
 ' harder to read than black-on-mid.
 ' ========================================================================================
-function PsColorPicker_ContrastColor( byval clr as COLORREF ) as COLORREF
+public function PsColorPicker_ContrastColor( byval clr as COLORREF ) as COLORREF
     dim as long nR = clng(clr) and &hFF
     dim as long nG = (clng(clr) shr 8) and &hFF
     dim as long nB = (clng(clr) shr 16) and &hFF

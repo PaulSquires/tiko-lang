@@ -470,6 +470,9 @@ public declare sub      PsListTree_InvalidateRowSpan( byval pList as PSLISTTREE_
 public declare sub      PsListTree_CaptureTopRow( byval pList as PSLISTTREE_STATE ptr )
 public declare function PsListTree_ItemsPerPage( byval pList as PSLISTTREE_STATE ptr ) as integer
 public declare function PsListTree_PositionWindows( byval hwnd as HWND ) as LRESULT
+' --- accessor (public, as PsCalendar's GetCalendarPointer is: a host or self-test can read the
+' per-instance state directly) ---
+public declare function GetListTreePointer( byval hListControl as HWND ) as PSLISTTREE_STATE ptr
 
 ' The one-row back buffer (EnsureCache / FreeCache and its five fields) is GONE. It existed
 ' solely so WM_DRAWITEM would not create and destroy a compatible DC and bitmap for every
@@ -1311,7 +1314,7 @@ public declare sub      PsListTree_SetExpandCollapseCallback( byval hListControl
 ' needs no import of its own for it.
 
 
-function GetListTreePointer( byval hListControl as HWND ) as PSLISTTREE_STATE ptr
+public function GetListTreePointer( byval hListControl as HWND ) as PSLISTTREE_STATE ptr
     ' hListBox is actually the overall parent form (ListBox is the child)
     dim pWindow as CWindow ptr = CWindowPtr(hListControl)
     dim as PSLISTTREE_STATE ptr pList = null
