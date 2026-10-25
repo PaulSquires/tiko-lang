@@ -1,0 +1,24 @@
+'' TS-004: a ustring returned through a PROCEDURE POINTER, passed to a 'byref as const ustring'
+'' and a 'byval as ustring' parameter. The callee was handed the result's pool temporary and
+'' read len 0. A procedure-pointer FIELD and a direct call are the controls.
+type PickProc as function( byval kind as long, byref suggest as const ustring ) as ustring
+function Picker( byval kind as long, byref suggest as const ustring ) as ustring
+    return "C:\some\folder" & kind
+end function
+sub UseRef( byref d as const ustring )
+    print "R [" & d & "] len=" & len( d )
+end sub
+sub UseVal( byval d as ustring )
+    print "V [" & d & "] len=" & len( d )
+end sub
+type Holder
+    as PickProc fp
+end type
+dim as PickProc pp = @Picker
+UseRef( pp( 2, "" ) )
+UseVal( pp( 3, "" ) )
+UseRef( Picker( 4, "" ) )
+dim as Holder h
+h.fp = @Picker
+UseRef( h.fp( 5, "" ) )
+UseVal( h.fp( 6, "" ) )

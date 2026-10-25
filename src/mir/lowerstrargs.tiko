@@ -626,9 +626,20 @@ function UStrResultArgTemp_ _
             if LowerStrRvalue( c, an, rv ) = false then return false
         else
             if isU = false then return false
+            if IsArrayIndex( c, an ) then return false
+            '' A CALL THROUGH A PROCEDURE POINTER is a call too: 'Use( pp( 2, "" ) )' handed
+            '' the result's pool temporary itself to a 'byref as const ustring', and the
+            '' callee read len 0 where fbc-modern 1.20 prints the folder (TS-004).
             dim as Tko.Symbol ptr ucs = c.syms->SymbolAt( c.info->RefOf( ucp->target ) )
-            if ucs = nullptr then return false
-            if ucs->kind <> cast( uint8, Tko.SYM_PROC ) then return false
+            dim as boolean isProc = false
+            if ucs <> nullptr then isProc = (ucs->kind = cast( uint8, Tko.SYM_PROC ))
+            if isProc = false then
+                dim as Tko.TypeId uct = c.info->TypeOf_( ucp->target )
+                if uct = Tko.TYPE_NONE then return false
+                uct = c.types->Unqualify( uct )
+                if c.types->Kind( uct ) = Tko.TK_POINTER then uct = c.types->Unqualify( c.types->Inner( uct ) )
+                if c.types->Kind( uct ) <> Tko.TK_PROC then return false
+            end if
             rv = LowerExpr( c, an )
         end if
     '' A PAREN-LESS CALL IS A CALL. 'TakeU( o.GetU )', 'TakeU( FreeU )' and a property

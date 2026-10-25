@@ -1,0 +1,14 @@
+'' TS-004, RUN: a ustring result of a call through a procedure pointer (a variable and a field),
+'' passed to a 'byref as const ustring' and a 'byval as ustring' parameter, reached the callee
+'' as len 0. Expected output is fbc-modern 1.20's, byte for byte.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/ustr-procptr-result-arg.tiko -o tests/codegen/ustrppres.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/ustrppres.exe
+'' RUN: tests/codegen/ustrppres.exe
+'' EXPECT-RUN-OUT: R [C:\some\folder2] len=15
+'' EXPECT-RUN-OUT: V [C:\some\folder3] len=15
+'' EXPECT-RUN-OUT: R [C:\some\folder4] len=15
+'' EXPECT-RUN-OUT: R [C:\some\folder5] len=15
+'' EXPECT-RUN-OUT: V [C:\some\folder6] len=15
