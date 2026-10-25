@@ -284,9 +284,14 @@ sub CheckProcShape_ ( byref c as Ctx, byval id as NodeId )
             if (ca = NODE_NONE) orelse (c.ast->Kind( ca ) <> N_CALL) then continue for
             dim as NodeId ct = c.ast->ListOf( ca )->target
             if (ct = NODE_NONE) orelse (c.ast->Kind( ct ) <> N_IDENT) then continue for
-            if lcase( SpellOf_( c, ct ) ) <> "constructor" then continue for
+            dim as string cw = lcase( SpellOf_( c, ct ) )
+            if (cw <> "constructor") andalso (cw <> "base") then continue for
             if cast( NodeId, i ) = first_ then continue for
-            c.diags->Report( TKO0908, PointRange( c.ast->Loc( cast( NodeId, i ) ) ) )
+            if cw = "base" then
+                c.diags->Report( TKO0982, PointRange( c.ast->Loc( cast( NodeId, i ) ) ) )
+            else
+                c.diags->Report( TKO0908, PointRange( c.ast->Loc( cast( NodeId, i ) ) ) )
+            end if
         next
     case KW_OPERATOR
         if (sp->extra and PF_GENERIC_PROC) <> 0 then return

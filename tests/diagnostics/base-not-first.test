@@ -1,0 +1,10 @@
+'' TKO0982, fbc's 170: 'base( )' anywhere but first in a constructor, with and without a
+'' default constructor in the base. See CheckProcShape_ in symbols/declshape.tiko and
+'' CtorCallsBase_ in symbols/basector.tiko (no second TKO0927 for B2).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/base-not-first.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: base-not-first.bas(22,5): error TKO0982
+'' EXPECT-OUT: base-not-first.bas(42,5): error TKO0982
+'' EXPECT-OUT: base-not-first.bas(36,1): error TKO0926
+'' EXPECT-MAX-DIAG: 3

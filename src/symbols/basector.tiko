@@ -64,12 +64,22 @@ private function HasCopyCtor_ ( byref c as Ctx, byval t as TypeId, byval wantCon
 end function
 
 '' Does this constructor body OPEN with 'base( ... )', or delegate with 'constructor( ... )'?
-'' Only its first statement counts: a later 'base( 2 )' is fbc's 170, "not at top of
-'' constructor", which tiko reports as this same missing initializer.
+'' Only its first statement initializes the base; a later 'base( 2 )' is fbc's 170, which
+'' CheckProcShape_ reports as TKO0982 -- so a constructor that has one anywhere at its top
+'' level is answered there, and not a second time here as a missing initializer.
 private function CtorCallsBase_ ( byref c as Ctx, byval body as NodeId ) as boolean
     if (body = NODE_NONE) orelse (c.ast->Kind( body ) <> N_BLOCK) then return true
     dim as InternId ctorNm = c.names->Fold( c.names->GetString( "constructor" ) )
     dim as ListPayload ptr bp = c.ast->ListOf( body )
+    for i as int32 = 1 to bp->count - 1
+        dim as NodeId st = c.ast->ChildAt( bp->first, i )
+        if (st = NODE_NONE) orelse (c.ast->Kind( st ) <> N_AMBIGUOUS) then continue for
+        dim as NodeId call_ = c.ast->StmtOf( st )->a
+        if (call_ = NODE_NONE) orelse (c.ast->Kind( call_ ) <> N_CALL) then continue for
+        dim as NodeId tg = c.ast->ListOf( call_ )->target
+        if (tg = NODE_NONE) orelse (c.ast->Kind( tg ) <> N_IDENT) then continue for
+        if c.names->Fold( c.ast->IdentOf( tg )->name ) = c.names->Fold( c.baseName ) then return true
+    next
     for i as int32 = 0 to bp->count - 1
         dim as NodeId st = c.ast->ChildAt( bp->first, i )
         if st = NODE_NONE then continue for
