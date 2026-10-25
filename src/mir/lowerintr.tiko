@@ -405,6 +405,7 @@ function LowerCompoundAssign _
     '' through an address. The plain path asked LowerAddr for one and declined.
     '' Measured -- fbc emits the whole read-modify-write in one line.
     if BitfieldCompound_( c, target, value, bop ) then return true
+    dim as int32 pcr = PropertyCompound_( c, target, value, bop ) : if pcr >= 0 then return (pcr = 1)   '' a property: get, op, set
 
     '' THE ARITHMETIC RUNS IN WHAT 'target op value' WOULD BE, by Check's table: the target's
     '' type rounded a float operand first ('i += 0.5' printed 1, fbc 2) and worked '\' and

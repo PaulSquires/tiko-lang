@@ -3,6 +3,19 @@
 '' Split out of lowerswap.tiko at the 1500-line cap and INCLUDED from it, inside the
 '' same namespace. Nothing moved here changed in the move.
 
+'' The setter call itself, its arguments built. A VIRTUAL SETTER DISPATCHES TOO (T49); a
+'' plain one is called by name, as before.
+private sub EmitPropSetCall_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval sset as Tko.SymbolId, _
+      byref self_ as MirValue, byref args as containers.Array( of uint32 ) )
+    dim as int32 svs = PropertyVSlot_( c, target, sset )
+    if svs >= 0 then
+        dim as MirValue sr = EmitMemberCallArgs_( c, sset, self_, MT_VOID, @args, svs )
+        exit sub
+    end if
+    EmitStructorCall( c, sset, -1, @self_, @args )
+end sub
+
 '' 't.V = x': the SETTER, called with the value after the receiver.
 function LowerPropertySet_ _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
@@ -140,12 +153,160 @@ function LowerPropertySet_ _
         end if
     end if
     args.Push( cast( uint32, v.kind ) ) : args.Push( cast( uint32, v.id ) )
-    '' A VIRTUAL SETTER DISPATCHES TOO (T49); a plain one is called by name, as before.
-    dim as int32 svs = PropertyVSlot_( c, target, sset )
-    if svs >= 0 then
-        dim as MirValue sr = EmitMemberCallArgs_( c, sset, self_, MT_VOID, @args, svs )
-        return true
-    end if
-    EmitStructorCall( c, sset, -1, @self_, @args )
+    EmitPropSetCall_( c, target, sset, self_, args )
     return true
+end function
+
+'' The value parameter of a setter -- its LAST parameter -- and whether it is byref.
+private function SetterValueParam_ _
+    ( byref c as Ctx, byval sset as Tko.SymbolId, byref byref_ as boolean ) as Tko.TypeId
+    dim as Tko.Symbol ptr ss = c.syms->SymbolAt( sset )
+    if (ss = nullptr) orelse (ss->payload = 0) then return Tko.TYPE_NONE
+    dim as Tko.StmtPayload ptr pp = StmtOf( c, cast( Tko.NodeId, ss->payload ) )
+    dim as Tko.TypeId pt = Tko.TYPE_NONE
+    for i as int32 = 0 to pp->count - 1
+        dim as Tko.NodeId prm = c.ast->ChildAt( pp->first, i )
+        if c.ast->Kind( prm ) = Tko.N_PARAM then
+            pt = c.info->TypeOf_( StmtOf( c, prm )->a )
+            byref_ = ((c.ast->Flags( prm ) and Tko.NF_BYREF) <> 0)
+        end if
+    next
+    return pt
+end function
+
+'' Whether two accessors' first n parameters -- an indexed property's indices -- have one
+'' type each, so the indices lowered once for the getter serve the setter too.
+private function PropIndexTypesMatch_ _
+    ( byref c as Ctx, byval a as Tko.SymbolId, byval b as Tko.SymbolId, byval n as int32 ) as boolean
+    if n = 0 then return true
+    dim as Tko.Symbol ptr sa = c.syms->SymbolAt( a )
+    dim as Tko.Symbol ptr sb = c.syms->SymbolAt( b )
+    if (sa = nullptr) orelse (sb = nullptr) then return false
+    dim as Tko.StmtPayload ptr pa = StmtOf( c, cast( Tko.NodeId, sa->payload ) )
+    dim as Tko.StmtPayload ptr pb = StmtOf( c, cast( Tko.NodeId, sb->payload ) )
+    if (pa->count < n) orelse (pb->count < n) then return false
+    for i as int32 = 0 to n - 1
+        dim as Tko.NodeId qa = c.ast->ChildAt( pa->first, i )
+        dim as Tko.NodeId qb = c.ast->ChildAt( pb->first, i )
+        if (c.ast->Kind( qa ) <> Tko.N_PARAM) orelse (c.ast->Kind( qb ) <> Tko.N_PARAM) then return false
+        if c.ast->Flags( qa ) <> c.ast->Flags( qb ) then return false
+        dim as Tko.TypeId ta = c.types->Unqualify( c.info->TypeOf_( StmtOf( c, qa )->a ) )
+        if ta <> c.types->Unqualify( c.info->TypeOf_( StmtOf( c, qb )->a ) ) then return false
+    next
+    return true
+end function
+
+'' 'b.Size += 2' OVER A PROPERTY: the getter, the operator, the setter. LowerCompoundAssign
+'' took LowerAddr of the property, which is the GETTER'S CODE ADDRESS, and wrote the sum over
+'' it -- a segfault (B-objects-2). fbc-modern 1.20 refuses the statement (error 9, 'Expected
+'' expression'); tiko lowers it as 'b.Size = b.Size + 2' with the receiver and any indices
+'' lowered ONCE, for both calls. A numeric property only.
+'' -1: not a property, the caller carries on. 0: a member procedure this cannot do -- decline,
+'' never store through it. 1: done.
+function PropertyCompound_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
+      byval bop as Tko.TokenKind ) as int32
+
+    dim as MirValue self_
+    dim as int32 gFirst, gCount, sFirst, sCount
+    dim as Tko.SymbolId g = PropertyAt_( c, target, 0, self_, gFirst, gCount, Tko.NODE_NONE, true )
+    if g = Tko.SYMBOL_NONE then
+        '' A MEMBER NAMING A PROCEDURE is never storage -- declining beats the getter's
+        '' code -- unless its result is BYREF: 'w.Value( ) += 1' is the referent.
+        dim as Tko.NodeId mem = target
+        if c.ast->Kind( mem ) = Tko.N_CALL then mem = c.ast->ListOf( mem )->target
+        if (mem = Tko.NODE_NONE) orelse (c.ast->Kind( mem ) <> Tko.N_MEMBER) then return -1
+        dim as Tko.Symbol ptr ms = c.syms->SymbolAt( c.info->RefOf( mem ) )
+        if ms = nullptr then return -1
+        if ms->kind <> cast( uint8, Tko.SYM_PROC ) then return -1
+        dim as Tko.NodeId mpn = cast( Tko.NodeId, ms->payload )
+        if (mpn <> Tko.NODE_NONE) andalso (c.ast->Kind( mpn ) = Tko.N_PROC) then
+            if (c.ast->Flags( mpn ) and Tko.NF_BYREF) <> 0 then return -1
+        end if
+        return 0
+    end if
+    dim as Tko.Symbol ptr gs = c.syms->SymbolAt( g )
+    if gs = nullptr then return 0
+    dim as Tko.TypeId pty = gs->type_
+    dim as MirType gmt = LowerType( pty, *c.types )
+    if (gmt = MT_VOID) orelse (gmt = MT_AGG) orelse (gmt = MT_PTR) then return 0
+    if IsStringType( c, pty ) then return 0
+    '' The setter, chosen by the property's own type -- the value it will be handed.
+    dim as Tko.SymbolId sset = PropertyAt_( c, target, 1, self_, sFirst, sCount, target )
+    if sset = Tko.SYMBOL_NONE then return 0
+    if (sCount <> gCount) orelse (PropIndexTypesMatch_( c, g, sset, gCount ) = false) then return 0
+    dim as boolean sByref = false
+    dim as Tko.TypeId spt = SetterValueParam_( c, sset, sByref )
+    if spt = Tko.TYPE_NONE then return 0
+    dim as MirType smt = LowerType( c.types->Unqualify( spt ), *c.types )
+    if (smt = MT_VOID) orelse (smt = MT_AGG) orelse (smt = MT_PTR) then return 0
+
+    dim as containers.Array( of uint32 ) gargs
+    if PushPropIndexArgs_( c, g, gFirst, gCount, gargs ) = false then return 0
+    dim as containers.Array( of uint32 ) sargs
+    for i as int32 = 0 to gargs.Count - 1
+        sargs.Push( gargs[i] )
+    next
+
+    '' THE GETTER -- a byref one returns the address of its answer (LowerPropertyGet_).
+    dim as boolean gByref = false
+    dim as Tko.NodeId gpn = cast( Tko.NodeId, gs->payload )
+    if (gpn <> Tko.NODE_NONE) andalso (c.ast->Kind( gpn ) = Tko.N_PROC) then gByref = ((c.ast->Flags( gpn ) and Tko.NF_BYREF) <> 0)
+    dim as MirValue cur
+    if gByref then
+        dim as MirValue gp = EmitMemberCallArgs_( c, g, self_, MT_PTR, @gargs, PropertyVSlot_( c, target, g ) )
+        if gp.kind = cast( uint8, MV_NONE ) then return 0
+        cur = LowerExprLoad( c, gp, gmt )
+    else
+        cur = EmitMemberCallArgs_( c, g, self_, gmt, @gargs, PropertyVSlot_( c, target, g ) )
+    end if
+    if cur.kind = cast( uint8, MV_NONE ) then return 0
+
+    '' THE OPERATOR, in what 'b.Size op value' would be -- LowerCompoundAssign's rule.
+    dim as Tko.TypeId rt = Tko.Check.BinaryResult( bop, pty, c.info->TypeOf_( value ), *c.types )
+    dim as MirType wt = MT_VOID
+    if rt <> Tko.TYPE_NONE then wt = LowerType( rt, *c.types )
+    if (wt = MT_VOID) orelse (wt = MT_AGG) orelse (wt = MT_PTR) then
+        rt = pty
+        wt = gmt
+        if bop = Tko.TK_SLASH then wt = iif( gmt = MT_F32, MT_F32, MT_F64 )
+        if bop = Tko.TK_CARET then wt = MT_F64
+    end if
+    cur = CoerceTy( c, cur, wt, pty )
+    dim as MirValue rhs : if UserConvToScalar_( c, value, rt, rhs ) = false then rhs = LowerExpr( c, value )
+    if rhs.kind = cast( uint8, MV_NONE ) then return 0
+    rhs = CoerceTy( c, rhs, wt, c.info->TypeOf_( value ) )
+    dim as MirValue res
+    if bop = Tko.TK_CARET then
+        dim as containers.Array( of uint32 ) pa
+        pa.Push( cast( uint32, cur.kind ) ) : pa.Push( cast( uint32, cur.id ) )
+        pa.Push( cast( uint32, rhs.kind ) ) : pa.Push( cast( uint32, rhs.id ) )
+        res = EmitRtl( c, RTL_POW, pa )
+    elseif (bop = Tko.KW_IMP) orelse (bop = Tko.KW_EQV) then
+        res = EmitImpEqv_( c, bop, wt, cur, rhs )
+    else
+        dim as MirOp mop = BinOpFor( bop, wt, IsUnsignedType( c, rt ) )
+        if mop = M_NONE then return 0
+        dim as MirInst bi
+        bi.op = cast( uint16, mop ) : bi.ty = cast( uint8, wt ) : bi.a = cur : bi.b = rhs
+        res = Emit( c, bi )
+    end if
+    if res.kind = cast( uint8, MV_NONE ) then return 0
+    dim as MirValue sv = res
+    if IsBooleanType( c, rt ) = false then sv = CoerceTy( c, res, gmt, rt, pty )
+    sv = CoerceTy( c, sv, smt, pty, spt )
+    if sv.kind = cast( uint8, MV_NONE ) then return 0
+
+    '' THE SETTER, with the same receiver and indices; a byref value parameter gets a temporary.
+    if sByref then
+        dim as int32 bslot = NewTempLocal( c, smt, SizeOfType( c, c.types->Unqualify( spt ) ) )
+        if bslot < 0 then return 0
+        dim as MirValue ba
+        ba.kind = cast( uint8, MV_LOCAL ) : ba.ty = cast( uint8, MT_PTR ) : ba.id = bslot
+        StoreThrough( c, ba, sv )
+        sv = ba
+    end if
+    sargs.Push( cast( uint32, sv.kind ) ) : sargs.Push( cast( uint32, sv.id ) )
+    EmitPropSetCall_( c, target, sset, self_, sargs )
+    return 1
 end function

@@ -1,0 +1,26 @@
+'' B-objects-2, RUN: '+=', '*=', '\=', 'shl=', '^=' and the rest over get/set properties --
+'' plain, double, indexed, a byref setter, an implicit-this one inside a method, and a
+'' receiver with a side effect. 'b.Size += 2' segfaulted. fbc-modern 1.20 refuses the
+'' statement (error 9); the expected output is fbc-modern's for the same program written
+'' 'p->Size = p->Size + 10', with the receiver and the index evaluated once into locals.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/propset-compound.tiko -o tests/codegen/propsetcompound.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/propsetcompound.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: set get set
+'' EXPECT-RUN-OUT: get  7
+'' EXPECT-RUN-OUT: get set get set get set get set get set
+'' EXPECT-RUN-OUT: get  21
+'' EXPECT-RUN-OUT: pick get set
+'' EXPECT-RUN-OUT: get  31
+'' EXPECT-RUN-OUT:  5.0625
+'' EXPECT-RUN-OUT: set get set
+'' EXPECT-RUN-OUT: get  4
+'' EXPECT-RUN-OUT: idx  42
+'' EXPECT-RUN-OUT: set get set
+'' EXPECT-RUN-OUT: get  2
+'' EXPECT-RUN-OUT:  7
+'' EXPECT-RUN-OUT: get set
+'' EXPECT-RUN-OUT: get  107

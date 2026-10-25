@@ -1,0 +1,78 @@
+'' B-objects-2: a COMPOUND ASSIGNMENT to a get/set property -- 'b.Size += 2' -- took the
+'' getter's code address as the target and segfaulted. Lowered as get, operate, set, with
+'' the receiver and the indices evaluated ONCE. fbc-modern refuses the statement (error 9).
+type Box
+    private:
+    s as long
+    f as double
+    a(0 to 2) as integer
+    public:
+    declare property Size( ) as long
+    declare property Size( byval v as long )
+    declare property D( ) as double
+    declare property D( byval v as double )
+    declare property Item( byval i as long ) as integer
+    declare property Item( byval i as long, byval v as integer )
+    declare property R( ) as long
+    declare property R( byref v as long )
+    declare sub Bump( )
+end type
+property Box.Size( ) as long
+    print "get ";
+    return s
+end property
+property Box.Size( byval v as long )
+    print "set ";
+    s = v
+end property
+property Box.D( ) as double
+    return f
+end property
+property Box.D( byval v as double )
+    f = v
+end property
+property Box.Item( byval i as long ) as integer
+    return a(i)
+end property
+property Box.Item( byval i as long, byval v as integer )
+    a(i) = v
+end property
+property Box.R( ) as long
+    return s
+end property
+property Box.R( byref v as long )
+    s = v
+end property
+sub Box.Bump( )
+    Size += 100
+end sub
+dim shared as Box b
+function Pick( ) as Box ptr
+    print "pick ";
+    return @b
+end function
+function Idx( ) as long
+    print "idx ";
+    return 1
+end function
+b.Size = 5
+b.Size += 2
+print : print b.Size
+b.Size *= 3 : b.Size -= 1 : b.Size \= 4 : b.Size shl= 2 : b.Size or= 1
+print : print b.Size
+Pick()->Size += 10
+print : print b.Size
+b.D = 1.5
+b.D *= 3 : b.D /= 2 : b.D ^= 2
+print b.D
+b.Size = 7 : b.Size /= 2
+print : print b.Size
+b.Item( 1 ) = 40
+b.Item( Idx() ) += 2
+print b.Item( 1 )
+b.Size = 1 : b.Size += 0.6
+print : print b.Size
+b.R += 5
+print b.R
+b.Bump( )
+print : print b.Size

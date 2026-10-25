@@ -731,7 +731,8 @@ function PropertyAt_ _
     ( byref c as Ctx, byval node as Tko.NodeId, byval want as int32, _
       byref self_ as MirValue, byref outIdxFirst as int32, _
       byref outIdxCount as int32, _
-      byval valNode as Tko.NodeId = Tko.NODE_NONE ) as Tko.SymbolId
+      byval valNode as Tko.NodeId = Tko.NODE_NONE, _
+      byval noSelf as boolean = false ) as Tko.SymbolId
 
     '' AN INDEXED PROPERTY IS SPELLED LIKE A CALL. 'f.bar( 0 )' is an N_CALL whose
     '' TARGET is the member, and this refused anything that was not a bare member on its
@@ -838,6 +839,9 @@ function PropertyAt_ _
     wend
     if want_ = Tko.SYMBOL_NONE then return Tko.SYMBOL_NONE
     if ties > 0 then return Tko.SYMBOL_NONE
+    '' THE ACCESSOR ALONE, receiver not lowered: a compound assignment lowers it once,
+    '' for the setter, and hands the same value to the getter (PropertyCompound_).
+    if noSelf then return want_
 
     '' ...AND A BARE NAME IN A METHOD IS 'this.V', the receiver THIS's value (ImplicitThisProp_).
     if implicitThis then
