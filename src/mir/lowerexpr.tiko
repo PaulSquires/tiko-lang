@@ -396,6 +396,19 @@ function LowerExpr _
         '' "a": every COM option compared one character. '@"a" "b"' and '@("a" "b")'
         '' declined (TKO0994). fbc prints all three in full; each is the literal pool.
         dim as Tko.NodeId litOp = Unparen_( c, ap->operand )
+        '' '@F( )' OVER A PROCEDURE IS '@F': fbc-modern 1.20 gives the same address for both
+        '' ('@G( ) = @G' prints -1, 2026-10-25), and Check types it as the procedure. Lowering
+        '' asked for the address of a call and declined (TKO0994) -- for a ustring result too.
+        if (c.ast->Kind( litOp ) = Tko.N_CALL) andalso (c.ast->ListOf( litOp )->count = 0) then
+            dim as Tko.SymbolId fsid = c.info->RefOf( litOp )
+            dim as Tko.NodeId ftg = c.ast->ListOf( litOp )->target
+            if (fsid = Tko.SYMBOL_NONE) andalso (ftg <> Tko.NODE_NONE) then fsid = c.info->RefOf( ftg )
+            dim as Tko.Symbol ptr fsy = c.syms->SymbolAt( fsid )
+            if (fsy <> nullptr) andalso (fsy->kind = cast( uint8, Tko.SYM_PROC )) then
+                dim as MirValue fav = FuncAddrOf( c, fsid )
+                if fav.kind <> cast( uint8, MV_NONE ) then return fav
+            end if
+        end if
         if c.ast->Kind( litOp ) = Tko.N_STRING_LIT then
             return LowerStringLitAddr( c, litOp )
         end if
