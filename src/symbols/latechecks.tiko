@@ -177,6 +177,10 @@ end sub
 '' corpus asserts.
 private function IsBareArray_ ( byref c as Ctx, byval n as NodeId ) as boolean
     if n = NODE_NONE then return false
+    '' ...SPELLED 'a( )' TOO, the whole-array argument form: 'Largest( nums( ) ) = 0' is re-read
+    '' as the call 'Largest( nums( ) = 0 )' (TKO0931), and its comparison has no value either.
+    if (c.ast->Kind( n ) = N_CALL) andalso (c.ast->ListOf( n )->count = 0) then n = c.ast->ListOf( n )->target
+    if n = NODE_NONE then return false
     if c.ast->Kind( n ) <> N_IDENT then return false
     dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( n ) )
     if s = nullptr then return false

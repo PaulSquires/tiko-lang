@@ -1,0 +1,9 @@
+'' TKO0649 for a whole array spelled 'a( )' as a comparison operand: the byref-result
+'' assignment re-read as a call (TKO0931) used to reach lowering untyped (TKO0994,
+'' by-example BUG-memory-1). See IsBareArray_ in symbols/latechecks.tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/bare-array-call-form.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: bare-array-call-form.bas(8,1): warning TKO0931
+'' EXPECT-OUT: bare-array-call-form.bas(8,14): error TKO0649
+'' EXPECT-MAX-DIAG: 1
