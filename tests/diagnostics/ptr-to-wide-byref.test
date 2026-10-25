@@ -1,0 +1,10 @@
+'' TKO0698, fbc's 58: a pointer argument for a byref ustring / wstring parameter. See AmBadPair_
+'' in symbols/argmismatch.tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/ptr-to-wide-byref.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: ptr-to-wide-byref.bas(9,5): error TKO0698
+'' EXPECT-OUT: ptr-to-wide-byref.bas(10,5): error TKO0698
+'' EXPECT-OUT: ptr-to-wide-byref.bas(11,5): error TKO0698
+'' EXPECT-OUT: ptr-to-wide-byref.bas(12,5): error TKO0698
+'' EXPECT-MAX-DIAG: 4

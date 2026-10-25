@@ -330,6 +330,10 @@ private function AmBadPair_ _
         end if
         if AmPlainUdt_( c, pt, "__ctor", "let" ) then return true
         if AmString_( c, pt ) andalso (c.types->BuiltinOf( pt ) = Tko.TY_ZSTRING) then return byref_
+        '' ...and a BYREF WIDE or fixed-length string: 'Q( @w )' over 'byref s as const wstring' is
+        '' fbc's 58 (fbc-modern 1.20, 2026-10-25), and a ustring the same. A 'string' parameter is
+        '' assigncheck.tiko's already; these found no conversion, said nothing and hit TKO0994.
+        if AmText_( c, pt ) andalso (AmString_( c, pt ) = false) then return byref_
         return false
     end if
 
