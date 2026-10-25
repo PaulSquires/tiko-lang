@@ -135,7 +135,10 @@ sub EncStringToBytes( byref s as const string, byref out_ as Array( of ubyte ) )
     out_.Reserve( n )
     dim as const ubyte ptr p = cptr( const ubyte ptr, strptr( s ) )
     for i as long = 0 to n - 1
-        out_.Push( p[i] )
+        '' Through a local: 'p[i]' is a CONST ubyte and Push takes 'byref v as T' -- fbc's 181
+        '' (TKO0699), which tiko-lang let through for an indexed argument until TS-001's fix.
+        dim as ubyte b = p[i]
+        out_.Push( b )
     next
 end sub
 

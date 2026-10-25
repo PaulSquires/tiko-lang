@@ -1,0 +1,18 @@
+'' A CONST REACHED THROUGH A POINTER, OFFERED A NON-CONST BYREF PARAMETER: '*p' over a 'const
+'' zstring ptr' given 'byref as string' or 'byref as zstring', '*pc' over a 'const integer ptr'
+'' given 'byref as integer'. fbc-modern 1.20 refuses each with error 181 (2026-10-25). tiko-lang
+'' judged only a NAMED argument: the call was left unviable and unreported, and lowering then
+'' failed -- TKO0993 "returns no value" in a RETURN, TKO0994 "was not compiled" elsewhere
+'' (tiko-studio TS-001). Line 38 is fbc's and compiles: a non-const pointee, a 'byref as const'
+'' parameter, a byval one, a literal.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/const-deref-byref.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-MAX-DIAG: 7
+'' EXPECT-OUT: const-deref-byref.bas(20,19): error TKO0699: a const value cannot be passed to a non-const byref parameter
+'' EXPECT-OUT: const-deref-byref.bas(23,24): error TKO0699: a const value cannot be passed to a non-const byref parameter
+'' EXPECT-OUT: const-deref-byref.bas(26,19): error TKO0699: a const value cannot be passed to a non-const byref parameter
+'' EXPECT-OUT: const-deref-byref.bas(29,23): error TKO0699: a const value cannot be passed to a non-const byref parameter
+'' EXPECT-OUT: const-deref-byref.bas(32,18): error TKO0699: a const value cannot be passed to a non-const byref parameter
+'' EXPECT-OUT: const-deref-byref.bas(33,28): error TKO0699: a const value cannot be passed to a non-const byref parameter
+'' EXPECT-OUT: const-deref-byref.bas(34,18): error TKO0699: a const value cannot be passed to a non-const byref parameter

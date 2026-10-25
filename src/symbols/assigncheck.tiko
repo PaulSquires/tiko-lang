@@ -563,9 +563,21 @@ sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
         '' A CONST VALUE CANNOT BIND TO A NON-CONST BYREF -- fbc error 181. Measured over
         '' a UDT and an integer: 'byref x as T' given a 'const T' is refused, while
         '' 'byref x as const T' takes it and so does 'byval'. A LITERAL binds to a
-        '' temporary and is fine, so only a NAMED argument is judged.
+        '' temporary and is fine, so only an LVALUE argument is judged.
+        ''
+        '' EVERY LVALUE SHAPE, not only a name -- the same four overload.tiko's viability rule
+        '' (IsLvalueShape_) refuses. Judging only N_IDENT left '*p' over a 'const zstring ptr'
+        '' unviable, unbound AND unreported, and the unbound call reached lowering: TKO0993 "a
+        '' function returning ptr returns no value" in a RETURN, TKO0994 "was not compiled"
+        '' anywhere else (tiko-studio TS-001). Measured on fbc-modern 1.20, 2026-10-25, each
+        '' error 181: 'TakeZ( *p )' over 'byref as zstring', 'Open_( *p, n )' over 'byref as
+        '' string', 'TakeI( *pc )' over 'byref as integer' with a 'const integer ptr'.
         dim as TypeId pu = c.types->Unqualify( pt )
-        if (byvalWritten = false) andalso (c.ast->Kind( arg ) = N_IDENT) then
+        dim as boolean lvalueArg = false
+        select case c.ast->Kind( arg )
+        case N_IDENT, N_MEMBER, N_INDEX, N_DEREF : lvalueArg = true
+        end select
+        if (byvalWritten = false) andalso lvalueArg then
             if c.types->IsConst( at ) andalso (c.types->IsConst( pt ) = false) then
                 '' A POINTER COUNTS TOO: 'f( r )' over 'byref l as any ptr' with an 'any
                 '' const ptr' argument binds the reference to a const pointer and drops
