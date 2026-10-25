@@ -25,7 +25,7 @@ func i32 main(i32 $0, ptr $1) {
     %30 = alloca ptr $tmp4
     %56 = alloca ptr d
     %99 = alloca ptr w
-    %106 = alloca ptr $tmp7
+    %105 = alloca ptr $tmp7
     %134 = alloca ptr u
     %137 = alloca ptr $tmp9
     br for.head1
@@ -156,18 +156,18 @@ func i32 main(i32 $0, ptr $1) {
     %102 = const i64 0
     %103 = call.rtl i64 fb_ArrayLBound(@d, 1)
     %104 = call.rtl i64 fb_ArrayUBound(@d, 1)
-    %105 = load @d
     store @$tmp7, %103
     br each.head9
   each.head9:
-    %107 = load @$tmp7
-    %108 = icmp.sle %107, %104
-    condbr %108, each.body10, each.exit12
+    %106 = load @$tmp7
+    %107 = icmp.sle %106, %104
+    condbr %107, each.body10, each.exit12
   each.body10:
-    %109 = load @$tmp7
+    %108 = load @$tmp7
+    %109 = load @d
     %110 = const i64 4
-    %111 = mul %109, %110
-    %112 = ptr.add %105, %111
+    %111 = mul %108, %110
+    %112 = ptr.add %109, %111
     store @w, %112
     %113 = load @w
     %114 = load %113

@@ -48,7 +48,7 @@ end function
 
 '' One word of DIMTB[k]: 0 = ELEMENTS, 1 = LBOUND, 2 = UBOUND. The table starts after
 '' the six header words, three words to a dimension.
-private function DescDimField_ _
+function DescDimField_ _
     ( byref c as Ctx, byref desc as MirValue, byval k as int32, byval which as int32, _
       byval ty as MirType ) as MirValue
 

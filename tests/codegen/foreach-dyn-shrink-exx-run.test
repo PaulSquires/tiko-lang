@@ -1,0 +1,13 @@
+'' B-iterators-2, RUN: under -exx, a REDIM PRESERVE that shrinks the array inside FOR EACH
+'' stops with runtime error 6 and exit 6 on the next element, checked against the
+'' descriptor's live bounds. It read freed memory and exited 0. Nothing is printed first:
+'' the abort goes to stderr unbuffered and a print would race it (boundchk-dyn-run).
+'' TEST: cli
+'' ARGS: -exx -target windows-x86_64 tests/codegen/src/foreach-dyn-shrink-exx.bas -o tests/codegen/foreachdynshrink.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/foreachdynshrink.exe
+'' RUN: tests/codegen/foreachdynshrink.exe
+'' EXPECT-RUN-EXIT: 6
+'' EXPECT-RUN-OUT: runtime error 6 (out of bounds array access) at line 6 of
+'' EXPECT-RUN-OUT: 'Q' accessed with invalid index = 1, must be between 0 and 0

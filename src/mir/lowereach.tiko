@@ -449,6 +449,12 @@ type EachSeq
     as boolean      elIsStr
     as boolean      elIsU
     as boolean      elIsAgg
+    '' A DYNAMIC ARRAY: its descriptor, re-read every iteration (LowerForEachArray), and
+    '' the statement and the array for an -exx bounds check's message.
+    as boolean      isDyn
+    as MirValue     desc
+    as Tko.NodeId   stmtId
+    as Tko.NodeId   seqE
 end type
 
 '' The counted loop itself, for every sequence that has a base and two bounds.
@@ -503,6 +509,17 @@ private function EachEmit_ _
     '' THE ELEMENT'S ADDRESS, at the top of the body.
     c.curBlock = bodyB
     dim as MirValue ix2 = LowerExprLoad( c, iaddr, offTy )
+    dim as MirValue ebase = sq.base_
+    if sq.isDyn then
+        '' -exx: CHECKED against the LIVE bounds, which the body may have moved.
+        if (c.errFlags and 8) <> 0 then
+            dim as MirValue lov = DescDimField_( c, sq.desc, 0, 1, offTy )
+            dim as MirValue hiv = DescDimField_( c, sq.desc, 0, 2, offTy )
+            EmitBoundsCheckRange_( c, sq.stmtId, sq.seqE, ix2, lov, hiv )
+        end if
+        ebase = DynArrayDataPtr( c, sq.desc )
+        if ebase.kind = cast( uint8, MV_NONE ) then return false
+    end if
     dim as MirValue off = ix2
     if sq.esz <> 1 then
         dim as MirInst mul
@@ -515,7 +532,7 @@ private function EachEmit_ _
     dim as MirInst pa
     pa.op = cast( uint16, M_PTR_ADD )
     pa.ty = cast( uint8, MT_PTR )
-    pa.a = sq.base_
+    pa.a = ebase
     pa.b = off
     dim as MirValue ea = Emit( c, pa )
     if ea.kind = cast( uint8, MV_NONE ) then return false
@@ -750,7 +767,10 @@ end function
 '' the ordinary subscript path already does.
 ''
 '' A DYNAMIC array's bounds are read from its descriptor with fb_ArrayLBound /
-'' fb_ArrayUBound, ONCE before the loop, which is what fbc does.
+'' fb_ArrayUBound, ONCE before the loop, which is what fbc does. Its DATA POINTER is
+'' re-read every iteration: a 'redim preserve' in the body moves the block, and the
+'' cached pointer read freed memory that -exx never caught (B-iterators-2). Under -exx
+'' each element is bounds-checked against the descriptor's live bounds.
 ''
 '' An AGGREGATE element -- a UDT or a tuple -- is copy-constructed and destroyed once
 '' per iteration through the element type's own operators, which is a different binding
@@ -858,8 +878,10 @@ function LowerForEachArray _
            (sq.limitV.kind = cast( uint8, MV_NONE )) then
             return false
         end if
-        sq.base_ = DynArrayDataPtr( c, seqAddr )
-        if sq.base_.kind = cast( uint8, MV_NONE ) then return false
+        sq.isDyn = true
+        sq.desc = seqAddr
+        sq.stmtId = id
+        sq.seqE = seqE
         sq.cmpOp = cast( int32, M_ICMP_SLE )
     end if
 

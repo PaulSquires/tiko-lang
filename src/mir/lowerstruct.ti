@@ -68,6 +68,9 @@ declare function IsBaseOf_ _
           byval ip as Tko.StmtPayload ptr, byval presv as boolean ) as boolean
     declare sub InitDynArrayDesc _
         ( byref c as Ctx, byref desc as MirValue, byval t as Tko.TypeId )
+    declare function DescDimField_ _
+        ( byref c as Ctx, byref desc as MirValue, byval k as int32, byval which as int32, _
+          byval ty as MirType ) as MirValue
     declare function DynArrayDataPtr _
         ( byref c as Ctx, byref desc as MirValue ) as MirValue
     '' lowerctor.tiko: a type with no constructor filled from an argument list, field by

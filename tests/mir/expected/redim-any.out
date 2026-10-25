@@ -43,7 +43,7 @@ func void S1() {
     %29 = alloca ptr $tmp2
     %39 = alloca ptr t
     %42 = alloca ptr v
-    %48 = alloca ptr $tmp5
+    %47 = alloca ptr $tmp5
     %66 = alloca ptr w
     %90 = alloca ptr $tmp7
     %100 = alloca ptr $tmp8
@@ -95,18 +95,18 @@ func void S1() {
     %44 = const i64 0
     %45 = call.rtl i64 fb_ArrayLBound(@z, 1)
     %46 = call.rtl i64 fb_ArrayUBound(@z, 1)
-    %47 = load @z
     store @$tmp5, %45
     br each.head9
   each.head9:
-    %49 = load @$tmp5
-    %50 = icmp.sle %49, %46
-    condbr %50, each.body10, each.exit12
+    %48 = load @$tmp5
+    %49 = icmp.sle %48, %46
+    condbr %49, each.body10, each.exit12
   each.body10:
-    %51 = load @$tmp5
+    %50 = load @$tmp5
+    %51 = load @z
     %52 = const i64 4
-    %53 = mul %51, %52
-    %54 = ptr.add %47, %53
+    %53 = mul %50, %52
+    %54 = ptr.add %51, %53
     %55 = load %54
     store @v, %55
     %56 = load @t

@@ -1,0 +1,25 @@
+'' B-iterators-2: FOR EACH over a DYNAMIC array whose body REDIM PRESERVEs it. The data
+'' pointer was read once, before the loop, so after the block moved every element came
+'' from freed memory. It is re-read each iteration; the bounds are still read once.
+dim q( ) as long
+redim q( 0 to 2 )
+q( 0 ) = 1 : q( 1 ) = 2 : q( 2 ) = 3
+dim as long n = 0
+for each v in q
+    print v
+    if n = 0 then
+        redim preserve q( 0 to 99999 )
+        q( 1 ) = 20 : q( 2 ) = 30
+    end if
+    n += 1
+next
+print n; ubound( q )
+'' A STRING ELEMENT, the same way.
+dim t( ) as string
+redim t( 1 to 2 )
+t( 1 ) = "a" : t( 2 ) = "b"
+for each e in t
+    print e
+    redim preserve t( 1 to 50000 )
+    t( 2 ) = "moved"
+next

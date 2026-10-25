@@ -1,0 +1,16 @@
+'' B-iterators-2, RUN: FOR EACH over a dynamic array (long and string elements) whose body
+'' REDIM PRESERVEs it larger, moving the block: the cached data pointer printed the old
+'' block's values ('2', '3') and garbage. Expected output is fbc-modern 1.20's for the
+'' same loop written as a counted FOR over the bounds read once.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/foreach-dyn-redim.tiko -o tests/codegen/foreachdynredim.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/foreachdynredim.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  1
+'' EXPECT-RUN-OUT:  20
+'' EXPECT-RUN-OUT:  30
+'' EXPECT-RUN-OUT:  3 99999
+'' EXPECT-RUN-OUT: a
+'' EXPECT-RUN-OUT: moved
