@@ -1,0 +1,25 @@
+'' B-compat-1 / TB-002: a brace initialiser of PARENTHESISED field lists over an array of a
+'' UDT with a string or ustring field segfaulted -- the element was never constructed before
+'' its fields were assigned. Module level, a local array, a static local and a short list.
+type Q
+    as ustring t
+end type
+type R
+    as long n
+    as string s
+    as double d
+end type
+dim qs( 0 to 1 ) as Q = { ( "a" ), ( "b" ) }
+print qs( 0 ).t; qs( 1 ).t
+dim rs( 0 to 2 ) as R = { ( 1, "one", 1.5 ), ( 2, "two", 2.5 ) }
+for i as long = 0 to 2
+    print rs( i ).n; " ["; rs( i ).s; "]"; rs( i ).d
+next
+sub Local_( )
+    dim ls( 1 to 2 ) as R = { ( 7, "seven", 0.5 ), ( 8, "eight", 0.25 ) }
+    static ss( 0 to 1 ) as Q = { ( "s0" ), ( "s1" ) }
+    print ls( 1 ).s; ls( 2 ).s; ls( 2 ).n; " "; ss( 0 ).t; ss( 1 ).t
+    ss( 0 ).t &= "+"
+end sub
+Local_( )
+Local_( )

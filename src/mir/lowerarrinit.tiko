@@ -562,8 +562,16 @@ function LowerUdtElemInit_ _
     '' eight bytes past its end and into the NEXT one. It verified, it declined
     '' nothing, and every field but the first held the wrong value. fbc prints
     '' ' 7  8  9'.
+    ''
+    '' ...ONTO CONSTRUCTED STORAGE. The element was never zeroed, so over a string or
+    '' ustring field '{ ( "a" ), ( "b" ) }' assigned into a garbage descriptor and
+    '' segfaulted (B-compat-1, TB-002); fbc-modern 1.20 prints 'ab'. The implicit
+    '' constructor first, as every other paren-list path does.
     select case c.ast->Kind( e )
     case Tko.N_TUPLE, Tko.N_PAREN
+        if TypeNeedsInit_( c, et ) andalso (StructorOf( c, et, "__ctor" ) = Tko.SYMBOL_NONE) then
+            CallImplicitCtor_( c, et, dst )
+        end if
         if LowerUdtParenInit_( c, -1, et, e, @dst ) then return true
     end select
 

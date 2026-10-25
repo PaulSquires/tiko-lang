@@ -1,0 +1,16 @@
+'' B-compat-1 / TB-002, RUN: '{ ( "a" ), ( "b" ) }' over an array of a UDT with a string or
+'' ustring field segfaulted. fbc-modern 1.20 refuses the declaration (error 24); tiko supports
+'' it (author's decision), so the expected output is fbc-modern's for the same program with the
+'' fields declared 'zstring * 8'.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/init-udt-array-paren-str.tiko -o tests/codegen/initudtparenstr.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/initudtparenstr.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: ab
+'' EXPECT-RUN-OUT:  1 [one] 1.5
+'' EXPECT-RUN-OUT:  2 [two] 2.5
+'' EXPECT-RUN-OUT:  0 [] 0
+'' EXPECT-RUN-OUT: seveneight 8 s0s1
+'' EXPECT-RUN-OUT: seveneight 8 s0+s1
