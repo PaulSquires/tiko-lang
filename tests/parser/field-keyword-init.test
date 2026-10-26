@@ -1,0 +1,13 @@
+'' A FIELD NAMED BY A KEYWORD, WITH AN INITIALISER: 'Open as boolean = true'. The keyword-named
+'' branch of a TYPE body read the name, the bounds, a width and the type, but not the '= value'
+'' (or '=> value') the name-first branch reads, so the '=' was TKO0420 "expected the end of the
+'' statement" (tkEdit TK-002). MEASURED, fbc-modern 1.20: all thirty statement keywords probed
+'' (Open Close Name Line Input Print Get Put Seek Lock Write Read Data Color Width Error Erase
+'' Screen Draw Swap Lset Rset Poke Paint Pset Circle Palette Window ...) take an initialiser,
+'' and this program prints the line below.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/parser/src/field-keyword-init.bas -o tests/parser/field-keyword-init.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/parser/field-keyword-init.exe
+'' EXPECT-RUN-OUT: true            7            nm             2             3

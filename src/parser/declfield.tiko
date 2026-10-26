@@ -2,7 +2,7 @@
 '' one, and whether the declaration stopped where it should have.
 ''
 '' Split out of decl.tiko at the 1500-line lint cap and included from it, inside its
-'' own namespace. IsFieldNamedByKeyword moved unchanged; the two checks below are new.
+'' own namespace. IsFieldNamedByKeyword moved unchanged; the checks and FieldInit_ below are new.
 
 
 '' A FIELD whose NAME is a keyword. MEASURED against fbc, one keyword at a time over
@@ -131,4 +131,17 @@ private sub NameExpectedHere_( byref p as Tko.ParserState )
     if p.silent then return
     p.diags->Report( Tko.TKO0406, Tko.PointRange( Cur( p ).loc ) )
     p.silent = true
+end sub
+
+'' A FIELD'S '= value' (or '=> value') after its type, into 'c' -- 'b' is the bitfield width.
+'' 'i as integer = 123' is THE SAME '= value' THE TYPE-FIRST FORM READS: fbc accepts both
+'' spellings and prints 123 for either, and the name-first one once dropped the clause on the
+'' floor, so the field kept whatever the storage held. And THE KEYWORD-NAMED field -- 'Open as
+'' boolean = true', 'Line as long = 7': fbc-modern 1.20 accepts it for every keyword it takes
+'' as a field name (thirty measured), and that branch read no initializer, so the '=' was
+'' TKO0420 (tkEdit TK-002).
+private sub FieldInit_( byref p as Tko.ParserState, byref fp as Tko.StmtPayload )
+    dim as boolean eq = Accept( p, Tko.TK_EQ )
+    if eq = false then eq = Accept( p, Tko.TK_FATARROW )
+    if eq then fp.c = Expression( p )
 end sub
