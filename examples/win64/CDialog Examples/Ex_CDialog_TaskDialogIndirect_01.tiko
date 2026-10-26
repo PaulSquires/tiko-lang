@@ -1,0 +1,126 @@
+' ########################################################################################
+' Microsoft Windows
+' Contents: Windows controls - Tasl dialog indirect
+' Compiler: tiko-lang
+' Copyright (c) 2026 José Roca. Freeware. Use at your own risk.
+' THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+' EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
+' MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+' ########################################################################################
+
+#import "sys/win"
+#import "sys/win/gui"
+using win, gui
+
+' // TaskDialogIndirect needs a nanifest
+#cmdline "Resource.rc"
+
+' // Forward declarations
+DECLARE FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+DECLARE FUNCTION TaskDialogIndirectCallbackProc(BYVAL hwnd AS HWND, BYVAL uNotification AS UINT, BYVAL wParam AS WPARAM, _
+        BYVAL lParam AS LPARAM, BYVAL dwRefData AS LONG_PTR) AS HRESULT
+
+' ========================================================================================
+' Main
+' ========================================================================================
+FUNCTION main (BYVAL nCmdShow AS LONG = SW_SHOW) AS LONG
+
+   ' // Set process DPI aware
+   SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)
+
+   ' // Create a new dialog using dialog units
+   DIM pDlg AS CDialog
+   pDlg.DialogNew(0, "CDialog - Task Dialog", , , 285, 120, WS_OVERLAPPEDWINDOW OR DS_CENTER)
+
+   ' // Add buttons
+   pDlg.ControlAdd("Button", IDOK, "&Click me", 140, 90, 50, 14)
+   pDlg.ControlAdd("Button", IDCANCEL, "&Close", 210, 90, 50, 14)
+
+   ' // Anchor the controls
+   pDlg.ControlAnchor(IDOK, ANCHOR_BOTTOM_RIGHT)
+   pDlg.ControlAnchor(IDCANCEL, ANCHOR_BOTTOM_RIGHT)
+
+   ' // Display and activate the dialog as modal
+   pDlg.DialogShowModal(@DlgProc)
+
+   RETURN pDlg.DialogEndResult
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Dialog callback procedure
+' ========================================================================================
+FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+
+   ' // Pointer to the dialog class
+   STATIC pDlg AS CDialog PTR
+   
+   SELECT CASE uMsg
+
+      CASE WM_INITDIALOG
+         ' // Get a pointer to the CDialog class
+         pDlg = cast(CDialog PTR, lParam)
+         RETURN TRUE
+
+      CASE WM_COMMAND
+         SELECT CASE CBCTL(wParam, lParam)
+            CASE IDCANCEL
+               ' // If ESC key pressed, close the application by sending an WM_CLOSE message
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN
+                  pDlg->DialogSend(WM_CLOSE, 0, 0)
+               END IF
+            ' // Launch the Pick icon dialog
+            CASE IDOK
+               ' // Display the message
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN
+                  DIM TaskConfig AS TASKDIALOGCONFIG
+                  WITH TaskConfig
+                     .cbSize = SIZEOF(TASKDIALOGCONFIG)
+                     .hwndParent = hDlg
+                     .dwFlags = TDF_ENABLE_HYPERLINKS
+                     .pszWindowTitle = @WSTR("CDialog")
+                     .pszMainIcon = TD_INFORMATION_ICON
+                     .dwCommonButtons = TDCBF_OK_BUTTON OR TDCBF_CANCEL_BUTTON
+                     .pszMainInstruction = @WSTR("CDialog")
+                     .pszContent = @WSTR("An update for the CDialog framework has just been released. Click the hyperlink if you want to download it.")
+                     .pszFooter = @WSTR("Hyperlink: <A HREF=" & CHR(34) & "https://github.com/JoseRoca/AfxNova/tree/main" & CHR(34) & ">Download link</A>")
+                     .pszFooterIcon = TD_WARNING_ICON
+                     .nDefaultButton = IDOK
+                     .pfCallback = @TaskDialogIndirectCallbackProc
+                  END WITH
+                  DIM nClickedButton AS LONG
+                  DIM hr AS HRESULT = TaskDialogIndirect(@TaskConfig, @nClickedButton, NULL, NULL)
+               END IF
+         END SELECT
+
+      CASE WM_CLOSE
+         ' // End the application
+         pDlg->DialogEnd(0)
+
+   END SELECT
+
+   RETURN FALSE
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Callback for TaskDialogIndirect.
+' ========================================================================================
+FUNCTION TaskDialogIndirectCallbackProc(BYVAL hwnd AS HWND, BYVAL uNotification AS UINT, BYVAL wParam AS WPARAM, _
+                                        BYVAL lParam AS LPARAM, BYVAL dwRefData AS LONG_PTR) AS HRESULT
+   SELECT CASE uNotification
+      CASE TDN_HYPERLINK_CLICKED
+         ' // The lParam parameter of this message contains the url
+         DIM hInstance AS HINSTANCE = ShellExecuteW(NULL, "open", cast(WSTRING PTR, lParam), NULL, NULL, SW_SHOW)
+         IF hInstance <= 32 THEN FUNCTION = cast(HRESULT, (cast(LONG_PTR, hInstance))) ELSE FUNCTION = S_OK
+   END SELECT
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' // Call main() and return the error code to the OS
+' ========================================================================================
+END main()
+' ========================================================================================

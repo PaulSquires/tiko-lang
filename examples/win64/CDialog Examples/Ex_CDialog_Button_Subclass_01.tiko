@@ -1,0 +1,133 @@
+' ########################################################################################
+' Microsoft Windows
+' Contents: Windows controls - Subclassed Button
+' Compiler: tiko-lang
+' Copyright (c) 2026 José Roca. Freeware. Use at your own risk.
+' THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+' EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
+' MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+' ########################################################################################
+
+#import "sys/win"
+#import "sys/win/gui"
+using win, gui
+
+' // Forward declarations
+DECLARE FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+DECLARE FUNCTION Button_SubclassProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM, _
+   BYVAL lParam AS LPARAM, BYVAL uIdSubclass AS UINT_PTR, BYVAL dwRefData AS DWORD_PTR) AS LRESULT
+
+CONST IDC_BUTTON = 1001
+
+' ========================================================================================
+' Main
+' ========================================================================================
+FUNCTION main (BYVAL nCmdShow AS LONG = SW_SHOW) AS LONG
+
+   ' // Set process DPI aware
+   SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)
+   ' // Enable visual styles without including a manifest file
+   EnableVisualStyles
+
+   ' // Create a new dialog using dialog units
+   DIM pDlg AS CDialog
+   pDlg.DialogNew(0, "CDialog with a subclassed button",50, 50, 175, 65, WS_OVERLAPPEDWINDOW OR DS_CENTER)
+
+   ' // Add a button to the dialog
+   pDlg.ControlAdd("Button", IDC_BUTTON, "&Click me", 105, 40, 50, 12)
+   ' // Subclass the button (instead of passing IDC_BUTTON in the fourth parameter you
+   ' // can pass any other identifier, and instead of hDlg in the fifth parameter, you
+   ' // you can pass custom data, even pointers, that must be cast to a DWORD_PTR.
+   SetWindowSubclass(pDlg.hDialog, cast(SUBCLASSPROC, @Button_SubclassProc), IDC_BUTTON, cast(DWORD_PTR, pDlg.hDialog))
+
+   ' // Anchor the button to the bottom and the right side of the dialog
+   pDlg.ControlAnchor(IDC_BUTTON, ANCHOR_BOTTOM_RIGHT)
+
+   ' // Display and activate the dialog as modal
+   pDlg.DialogShowModal(@DlgProc)
+
+   RETURN pDlg.DialogEndResult
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Dialog callback procedure
+' ========================================================================================
+FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+
+   ' // Pointer to the dialog class
+   STATIC pDlg AS CDialog PTR
+   
+   SELECT CASE uMsg
+
+      CASE WM_INITDIALOG
+         ' // Get a pointer to the CDialog class
+         pDlg = cast(CDialog PTR, lParam)
+         RETURN TRUE
+
+      CASE WM_COMMAND
+         SELECT CASE CBCTL(wParam, lParam)
+            CASE IDCANCEL
+               ' // If ESC key pressed, close the application by sending an WM_CLOSE message
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN
+                  pDlg->DialogSend(WM_CLOSE, 0, 0)
+               END IF
+            CASE IDC_BUTTON
+               MessageBoxW(hDlg, "Button pressed", "Message", MB_OK)
+         END SELECT
+
+      CASE WM_CLOSE
+         ' // End the application
+         pDlg->DialogEnd(0)
+
+   END SELECT
+
+   RETURN FALSE
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Processes messages for the subclassed Button window.
+' ========================================================================================
+FUNCTION Button_SubclassProc ( _
+   BYVAL hwnd AS HWND, _                   ' // Button window handle
+   BYVAL uMsg AS UINT, _                   ' // Type of message
+   BYVAL wParam AS WPARAM, _               ' // First message parameter
+   BYVAL lParam AS LPARAM, _               ' // Second message parameter
+   BYVAL uIdSubclass AS UINT_PTR, _        ' // The subclass ID
+   BYVAL dwRefData AS DWORD_PTR _          ' // Pointer to reference data
+   ) AS LRESULT
+
+   SELECT CASE uMsg
+
+      CASE WM_GETDLGCODE
+         ' // All keyboard input
+         RETURN DLGC_WANTALLKEYS
+
+      CASE WM_KEYDOWN
+         SELECT CASE CBCTL(wParam, lParam)
+            CASE VK_ESCAPE
+               SendMessageW(GetParent(hwnd), WM_CLOSE, 0, 0)
+            CASE VK_LBUTTON   ' // Left mouse button
+               MessageBoxW(GetParent(hwnd), "Click", "Message", MB_OK)
+         END SELECT
+
+      CASE WM_DESTROY
+         ' // REQUIRED: Remove control subclassing
+         RemoveWindowSubclass hwnd, @Button_SubclassProc, uIdSubclass
+
+   END SELECT
+
+   ' // Default processing of Windows messages
+   RETURN DefSubclassProc(hwnd, uMsg, wParam, lParam)
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' // Call main() and return the error code to the OS
+' ========================================================================================
+END main()
+' ========================================================================================

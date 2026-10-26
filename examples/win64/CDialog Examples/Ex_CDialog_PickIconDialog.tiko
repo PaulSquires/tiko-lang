@@ -1,0 +1,113 @@
+' ########################################################################################
+' Microsoft Windows
+' Contents: Windows controls - PickIconDlg
+' Compiler: tiko-lang
+' Copyright (c) 2026 José Roca. Freeware. Use at your own risk.
+' THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+' EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
+' MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+' ########################################################################################
+
+#import "sys/win"
+#import "sys/win/gui"
+using win, gui
+
+' // Forward declaration
+DECLARE FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+
+CONST IDC_PICKDLG = 1001
+
+' ========================================================================================
+' Main
+' ========================================================================================
+FUNCTION main (BYVAL nCmdShow AS LONG = SW_SHOW) AS LONG
+
+   ' // Set process DPI aware
+   SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)
+   ' // Enable visual styles without including a manifest file
+   EnableVisualStyles
+
+   ' // Create a new dialog using dialog units
+   DIM pDlg AS CDialog
+   pDlg.DialogNew(0, "CDialog - Pick Icon Dialog", , , 285, 120, WS_OVERLAPPEDWINDOW OR DS_CENTER)
+
+   ' // Add buttons
+   pDlg.ControlAdd("Button", IDC_PICKDLG, "&Pick", 140, 90, 50, 14)
+   pDlg.ControlAdd("Button", IDCANCEL, "&Close", 210, 90, 50, 14)
+
+   ' // Anchor the controls
+   pDlg.ControlAnchor(IDC_PICKDLG, ANCHOR_BOTTOM_RIGHT)
+   pDlg.ControlAnchor(IDCANCEL, ANCHOR_BOTTOM_RIGHT)
+
+   ' // Display and activate the dialog as modal
+   pDlg.DialogShowModal(@DlgProc)
+
+   RETURN pDlg.DialogEndResult
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Dialog callback procedure
+' ========================================================================================
+FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+
+   STATIC wszIconPath AS WSTRING * MAX_PATH   ' // Path of the resource file containing the icons
+   STATIC nIconIndex AS LONG                  ' // Icon index
+   STATIC hIcon AS HICON                      ' // Icon handle
+   
+   ' // Pointer to the dialog class
+   STATIC pDlg AS CDialog PTR
+   
+   SELECT CASE uMsg
+
+      CASE WM_INITDIALOG
+         ' // Get a pointer to the CDialog class
+         pDlg = cast(CDialog PTR, lParam)
+         RETURN TRUE
+
+      CASE WM_COMMAND
+         SELECT CASE CBCTL(wParam, lParam)
+            CASE IDCANCEL
+               ' // If ESC key pressed, close the application by sending an WM_CLOSE message
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN
+                  pDlg->DialogSend(WM_CLOSE, 0, 0)
+               END IF
+            ' // Launch the Pick icon dialog
+            CASE IDC_PICKDLG
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN
+                  IF LEN(wszIconPath) = 0 THEN wszIconPath = GetSystemDllPath("Shell32.dll")
+                  IF LEN(wszIconPath) = 0 THEN RETURN FALSE
+                  ' // Activate the Pick Icon Common Dialog Box
+                  DIM hr AS LONG = PickIconDlg(hDlg, wszIconPath, SIZEOF(wszIconPath)\2, @nIconIndex)
+                  ' // If an icon has been selected...
+                  IF hr = 1 THEN
+                     ' // Destroy previously loaded icon, if any
+                     IF hIcon THEN DestroyIcon(hIcon)
+                     ' // Get the handle of the new selected icon
+                     hIcon = ExtractIconW(GetModuleHandle(NULL), wszIconPath, nIconIndex)
+                     ' // Replace the application icons
+                     IF hIcon THEN pDlg->DialogSetIconEx(hIcon, hIcon)
+                  END IF
+                  EXIT FUNCTION
+               END IF
+         END SELECT
+
+      CASE WM_CLOSE
+         ' // Destroy the icon
+         IF hIcon THEN DestroyIcon(hIcon)
+         ' // End the application
+         pDlg->DialogEnd(0)
+
+   END SELECT
+
+   RETURN FALSE
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' // Call main() and return the error code to the OS
+' ========================================================================================
+END main()
+' ========================================================================================

@@ -1,0 +1,141 @@
+' ########################################################################################
+' Microsoft Windows
+' Contents: Windows controls - Menu with icons
+' Compiler: tiko-lang
+' Copyright (c) 2026 José Roca. Freeware. Use at your own risk.
+' THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+' EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
+' MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+' ########################################################################################
+
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+using win, gui, gdiplus
+
+#cmdline "Ex_CDialog_MenuWithIcons_01.rc"
+
+' // Forward declaration
+DECLARE FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+
+' // Menu identifiers
+ENUM
+   IDM_UNDO = 1001   ' Undo
+   IDM_REDO          ' Redo
+   IDM_HOME          ' Home
+   IDM_SAVE          ' Save
+   IDM_EXIT          ' Exit
+END ENUM
+
+CONST IDC_CLOSE = 1100
+
+' ========================================================================================
+' Build the menu
+' ========================================================================================
+FUNCTION BuildMenu () AS HMENU
+
+   DIM hMenu AS HMENU
+   DIM hPopUpMenu AS HMENU
+
+   hMenu = CreateMenu
+   hPopUpMenu = CreatePopUpMenu
+      AppendMenuW hMenu, MF_POPUP OR MF_ENABLED, CAST(UINT_PTR, hPopUpMenu), "&File"
+         AppendMenuW hPopUpMenu, MF_ENABLED, IDM_UNDO, "&Undo" & CHR(9) & "Ctrl+U"
+         AppendMenuW hPopUpMenu, MF_ENABLED, IDM_REDO, "&Redo" & CHR(9) & "Ctrl+R"
+         AppendMenuW hPopUpMenu, MF_ENABLED, IDM_HOME, "&Home" & CHR(9) & "Ctrl+H"
+         AppendMenuW hPopUpMenu, MF_ENABLED, IDM_SAVE, "&Save" & CHR(9) & "Ctrl+S"
+         AppendMenuW hPopUpMenu, MF_ENABLED, IDM_EXIT, "E&xit" & CHR(9) & "Alt+F4"
+   FUNCTION = hMenu
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Main
+' ========================================================================================
+FUNCTION main (BYVAL nCmdShow AS LONG = SW_SHOW) AS LONG
+
+   ' // Create a new dialog using dialog units
+   DIM pDlg AS CDialog
+   pDlg.DialogNew(NULL, "CDIalog - Menu with icons",50, 50, 175, 75, WS_OVERLAPPEDWINDOW OR DS_CENTER)
+
+   ' // Creates the menu
+   DIM hMenu AS HMENU = BuildMenu
+   SetMenu pDlg.hDialog, hMenu
+
+   ' // Create a keyboard accelerator table
+   pDlg.AddAccelerator FVIRTKEY OR FCONTROL, "U", IDM_UNDO  ' // Ctrl+U - Undo
+   pDlg.AddAccelerator FVIRTKEY OR FCONTROL, "R", IDM_REDO  ' // Ctrl+R - Redo
+   pDlg.AddAccelerator FVIRTKEY OR FCONTROL, "H", IDM_HOME  ' // Ctrl+H - Home
+   pDlg.AddAccelerator FVIRTKEY OR FCONTROL, "S", IDM_SAVE  ' // Ctrl+S - Save
+   pDlg.CreateAccelTable
+
+   ' // Add icons to the items of the File menu
+   DIM hInstance AS HINSTANCE = GetModuleHandleW(NULL)
+   DIM hSubMenu AS HMENU = GetSubMenu(hMenu, 0)
+   Menu.AddIconToItem(hSubMenu, 0, TRUE, IconFromRes(hInstance, "IDI_ARROW_LEFT_32"))
+   Menu.AddIconToItem(hSubMenu, 1, TRUE, IconFromRes(hInstance, "IDI_ARROW_RIGHT_32"))
+   Menu.AddIconToItem(hSubMenu, 2, TRUE, IconFromRes(hInstance, "IDI_HOME_32"))
+   Menu.AddIconToItem(hSubMenu, 3, TRUE, IconFromRes(hInstance, "IDI_SAVE_32"))
+
+   pDlg.ControlAdd("Button", IDC_CLOSE, "&Close", 80, 40, 50, 12, BS_DEFPUSHBUTTON)
+   pDlg.ControlAnchor(IDC_CLOSE, ANCHOR_BOTTOM_RIGHT)
+
+   ' // Display and activate the dialog as modal
+   pDlg.DialogShowModal(@DlgProc)
+
+   RETURN pDlg.DialogEndResult
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Dialog callback procedure
+' ========================================================================================
+FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+   
+   ' // Pointer to the dialog class
+   STATIC pDlg AS CDialog PTR
+   
+   SELECT CASE uMsg
+
+      CASE WM_INITDIALOG
+         ' // Get a pointer to the CDialog class
+         pDlg = cast(CDialog PTR, lParam)
+         RETURN TRUE
+
+      CASE WM_COMMAND
+         SELECT CASE CBCTL(wParam, lParam)
+            CASE IDCANCEL
+               ' // If ESC key pressed, close the application by sending an WM_CLOSE message
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN
+                  pDlg->DialogSend(WM_CLOSE, 0, 0)
+               END IF
+            CASE IDC_ClOSE, IDM_EXIT
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN
+                  pDlg->DialogSend(WM_CLOSE, 0, 0)
+               END IF
+            CASE IDM_UNDO TO IDM_SAVE
+               MessageBoxW(hDlg, "WM_COMMAND received from a menu item!", "Message", MB_OK)
+         END SELECT
+
+      CASE WM_CLOSE
+         ' // Destroy the menu and the bitmaps
+         DIM hMenu AS HMENU = GetMenu(hDlg)
+         Menu.DestroyBitmaps(hMenu)
+         DestroyMenu(hMenu)              
+         ' // End the application
+         pDlg->DialogEnd(0)
+
+   END SELECT
+
+   RETURN FALSE
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' // Call main() and return the error code to the OS
+' ========================================================================================
+END main()
+' ========================================================================================

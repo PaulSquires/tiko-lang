@@ -1,0 +1,182 @@
+' ########################################################################################
+' Microsoft Windows
+' Contents: Windows controls - Treeview
+' Compiler: tiko-lang
+' Copyright (c) 2026 José Roca. Freeware. Use at your own risk.
+' THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+' EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
+' MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+' ########################################################################################
+
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+using win, gui, gdiplus
+' // REsource file
+#cmdline "Ex_CDialog_TreeView_01.rc"
+
+' // Forward declaration
+DECLARE FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+
+CONST IDC_TREEVIEW = 1001
+
+' ========================================================================================
+' Main
+' ========================================================================================
+FUNCTION main (BYVAL nCmdShow AS LONG = SW_SHOW) AS LONG
+
+   ' // Create a new dialog using dialog units
+   DIM pDlg AS CDialog
+   pDlg.DialogNew(0, "DDT Dialog with a TreeView", , , 190, 175, WS_OVERLAPPEDWINDOW OR DS_CENTER)
+
+   ' // Add a TreeView
+   DIM hTreeView AS HWND = pDlg.ControlAdd("TreeView", IDC_TREEVIEW, "", 5, 5, 180, 150)
+
+   ' // Calculate the size of the icon according the DPI
+   DIM cx AS LONG = 16 * GetDpiForSystem \ 96
+
+   ' // Create an image list for the treeview
+   DIM hInstance AS HINSTANCE = GetModuleHandleW(NULL)
+   DIM hImageList AS HIMAGELIST
+   hImageList = ImageList_Create(cx, cx, ILC_COLOR32 OR ILC_MASK, 3, 0)
+   IF hImageList THEN
+      AddIconFromRes(hImageList, hInstance, "IDI_FOLDER_CLOSED")
+      AddIconFromRes(hImageList, hInstance, "IDI_FOLDER_OPEN")
+      AddIconFromRes(hImageList, hInstance, "IDI_ARROW_RIGHT")
+      ' // Set the image list
+      TreeView.SetImageList(hTreeView, hImageList)
+   END IF
+
+   ' // Add items to the TreeView
+   DIM AS HTREEITEM hRoot, hNode, hItem
+   ' // Create the root node
+   hRoot = TreeView.AddRootItem(hTreeView, "Root", 0, 0, 2)
+   ' // Create a node
+   hNode = TreeView.AppendItem(hTreeView, hRoot, "Node 1", 0, 0, 2)
+   ' // Insert items in the node
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 1 Item 1", 0, 0, 2)
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 1 Item 2", 0, 0, 2)
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 1 Item 3", 0, 0, 2)
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 1 Item 4", 0, 0, 2)
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 1 Item 5", 0, 0, 2)
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 1 Item 6", 0, 0, 2)
+   ' // Expand the node
+   TreeView.Expand(hTreeView, hNode, TVM_EXPAND)
+   ' // Create another node
+   hNode = TreeView.AppendItem(hTreeView, hRoot, "Node 2", 0, 0, 2)
+   ' // Insert items in the node
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 2 Item 1", 0, 0, 2)
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 2 Item 2", 0, 0, 2)
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 2 Item 3", 0, 0, 2)
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 2 Item 4", 0, 0, 2)
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 2 Item 5", 0, 0, 2)
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 2 Item 6", 0, 0, 2)
+   ' // Expand the node
+   TreeView.Expand(hTreeView, hNode, TVM_EXPAND)
+   ' // Create another node
+   hNode = TreeView.AppendItem(hTreeView, hRoot, "Node 3", 0, 0, 2)
+   ' // Insert items in the node
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 3 Item 1", 0, 0, 2)
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 3 Item 2", 0, 0, 2)
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 3 Item 3", 0, 0, 2)
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 3 Item 4", 0, 0, 2)
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 3 Item 5", 0, 0, 2)
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 3 Item 6", 0, 0, 2)
+   ' // Expand the node
+   TreeView.Expand(hTreeView, hNode, TVM_EXPAND)
+   ' // Create another node
+   hNode = TreeView.AppendItem(hTreeView, hRoot, "Node 4", 0, 0, 2)
+   ' // Insert items in the node
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 4 Item 1", 0, 0, 2)
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 4 Item 2", 0, 0, 2)
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 4 Item 3", 0, 0, 2)
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 4 Item 4", 0, 0, 2)
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 4 Item 5", 0, 0, 2)
+   hItem = TreeView.AppendItem(hTreeView, hNode, "Node 4 Item 6", 0, 0, 2)
+   ' // Expand the node
+   TreeView.Expand(hTreeView, hNode, TVM_EXPAND)
+
+   ' // Expand the root node
+   TreeView.Expand(hTreeView, hRoot, TVE_EXPAND)
+
+   ' // Add a cancel button
+   pDlg.ControlAdd("Button", IDCANCEL, "&Close", 135, 160, 50, 12)
+
+   ' // Anchor the controls
+   pDlg.ControlAnchor(IDC_TREEVIEW, ANCHOR_HEIGHT_WIDTH)
+   pDlg.ControlAnchor(IDCANCEL, ANCHOR_BOTTOM_RIGHT)
+
+   ' // Display and activate the dialog as modal
+   pDlg.DialogShowModal(@DlgProc)
+
+   RETURN pDlg.DialogEndResult
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Dialog callback procedure
+' ========================================================================================
+FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+      
+   STATIC pDlg AS CDialog PTR   ' // Pointer to the dialog class
+   STATIC hTreeView AS HWND     ' // Handle of the Treeview control
+   
+   SELECT CASE uMsg
+
+      CASE WM_INITDIALOG
+         ' // Get a pointer to the CDialog class
+         pDlg = cast(CDialog PTR, lParam)
+         hTreeView = GetDlgItem(hDlg, IDC_TREEVIEW)
+         RETURN TRUE
+
+      CASE WM_COMMAND
+         SELECT CASE CBCTL(wParam, lParam)
+            CASE IDCANCEL
+               ' // If ESC key pressed, close the application by sending an WM_CLOSE message
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN
+                  pDlg->DialogSend(WM_CLOSE, 0, 0)
+               END IF
+         END SELECT
+
+      CASE WM_NOTIFY
+         DIM tv AS NMTREEVIEWW
+         CBNMTYPESET(tv, wParam, lParam)
+         IF tv.hdr.idFrom = IDC_TREEVIEW THEN
+            SELECT CASE tv.hdr.code
+               CASE NM_DBLCLK
+                  DIM hItem AS HTREEITEM = TreeView.GetSelection(hTreeView)
+                  ' // Retrieve the text of the selected item
+                  DIM ustrText AS USTRING = TreeView.GetItemText(hTreeView, hItem)
+                  MessageBoxW(hDlg, ustrText, "Message", MB_OK)
+                  RETURN TRUE
+               CASE TVN_ITEMEXPANDEDW
+                  DIM tvi AS TVITEMW = tv.itemNew
+                  IF (tv.itemNew.state AND TVIS_EXPANDED) THEN tvi.iImage = 1 ELSE tvi.iImage = 0
+                  ' // Set the item's new attributes
+                  TreeView.SetItem(hTreeView, tvi)
+                  RETURN TRUE
+            END SELECT
+         END IF
+
+      CASE WM_CLOSE
+         ' // End the application
+         pDlg->DialogEnd(0)
+
+    	CASE WM_DESTROY
+          ' // Destroy the image list
+         ImageList_Destroy(TreeView.SetImageList(hTreeView, NULL))
+         RETURN TRUE
+
+   END SELECT
+
+   RETURN FALSE
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' // Call main() and return the error code to the OS
+' ========================================================================================
+END main()
+' ========================================================================================

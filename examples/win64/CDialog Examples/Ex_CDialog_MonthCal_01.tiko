@@ -1,0 +1,105 @@
+' ########################################################################################
+' Microsoft Windows
+' Contents: Windows controls - Month calendar
+' Compiler: tiko-lang
+' Copyright (c) 2026 José Roca. Freeware. Use at your own risk.
+' THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+' EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
+' MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+' ########################################################################################
+
+#import "sys/win"
+#import "sys/win/gui"
+using win, gui
+
+DECLARE FUNCTION wWinMain (BYVAL hInstance AS HINSTANCE, _
+                           BYVAL hPrevInstance AS HINSTANCE, _
+                           BYVAL pwszCmdLine AS WSTRING PTR, _
+                           BYVAL nCmdShow AS LONG) AS LONG
+   END wWinMain(GetModuleHandleW(NULL), NULL, wCommand(), SW_NORMAL)
+
+DECLARE FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+
+
+CONST IDC_MONTHCAL = 1001
+
+' ========================================================================================
+' Main
+' ========================================================================================
+FUNCTION wWinMain (BYVAL hInstance AS HINSTANCE, _
+                   BYVAL hPrevInstance AS HINSTANCE, _
+                   BYVAL pwszCmdLine AS WSTRING PTR, _
+                   BYVAL nCmdShow AS LONG) AS LONG
+
+   ' // Set process DPI aware
+   SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)
+   ' // Enable visual styles without including a manifest file
+   EnableVisualStyles
+
+   ' // Create a new dialog using dialog units
+   DIM pDlg AS CDialog
+   DIM hDlg AS HWND = pDlg.DialogNew(NULL, "DDT Dialog - Month Calendar", , , , , WS_OVERLAPPEDWINDOW)
+   pDlg.DialogSetClient(230, 120)
+   PDlg.DialogCenter
+
+   ' // Add a date time month calendar control to the dialog
+   pDlg.ControlAdd("MonthCalendar", IDC_MONTHCAL, "", 0, 0, _
+      pDlg.DialogGetClientWidth, pDlg.DialogGetClientHeight)
+
+   ' // Anchor the controls
+   pDlg.ControlAnchor(IDC_MONTHCAL, ANCHOR_HEIGHT_WIDTH)
+
+   ' // Display and activate the dialog as modal
+   pDlg.DialogShowModal(@DlgProc)
+
+   RETURN pDlg.DialogEndResult
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Dialog callback procedure
+' ========================================================================================
+FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+   
+   ' // Pointer to the dialog class
+   STATIC pDlg AS CDialog PTR
+   
+   SELECT CASE uMsg
+
+      CASE WM_INITDIALOG
+         ' // Get a pointer to the CDialog class
+         pDlg = cast(CDialog PTR, lParam)
+         RETURN TRUE
+
+      CASE WM_COMMAND
+         SELECT CASE gui.CBCTL(wParam, lParam)
+            CASE IDCANCEL
+               ' // If ESC key pressed, close the application by sending an WM_CLOSE message
+               IF gui.CBCTLMSG(wParam, lParam) = BN_CLICKED THEN
+                  pDlg->DialogSend(WM_CLOSE, 0, 0)
+               END IF
+         END SELECT
+         
+      CASE WM_NOTIFY
+         ' // Notification messages
+         DIM dst AS NMSELCHANGE
+         gui.CBNMTYPESET(dst, wParam, lParam)
+         IF dst.nmhdr.idfrom = IDC_MONTHCAL THEN
+            IF dst.nmhdr.code = MCN_SELCHANGE THEN
+               ' // Get the selected date
+               DIM wszDate AS WSTRING * 260
+               GetDateFormatW LOCALE_USER_DEFAULT, DATE_LONGDATE, @dst.stSelStart, NULL, wszDate, SIZEOF(wszDate)\2
+               pDlg->DialogSetText(wszDate)
+            END IF
+         END IF
+
+      CASE WM_CLOSE
+         ' // End the application
+         pDlg->DialogEnd(0)
+
+   END SELECT
+
+   RETURN FALSE
+
+END FUNCTION

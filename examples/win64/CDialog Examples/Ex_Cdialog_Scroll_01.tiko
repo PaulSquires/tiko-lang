@@ -1,0 +1,110 @@
+' ########################################################################################
+' Microsoft Windows
+' Contents: Scrollable window
+' Compiler: tiko-lang - Windows 64 bit
+' Copyright (c) 2026 José Roca. Freeware. Use at your own risk.
+' THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+' EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
+' MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+' ########################################################################################
+
+#import "sys/win"
+#import "sys/win/gui"
+using win, gui
+
+#define IDC_LISTBOX 1001
+
+' // Forward declaration
+DECLARE FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+
+' ========================================================================================
+' Main
+' ========================================================================================
+FUNCTION main (BYVAL nCmdShow AS LONG = SW_SHOW) AS LONG
+
+   ' // Set process DPI aware
+   SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)
+   ' // Enable visual styles
+   EnableVisualStyles
+
+   ' // Create a new dialog
+   DIM pDlg AS CDialog
+   pDlg.DialogNewPixels(NULL, "CDialog - Scrollable window",,, 320, 335, WS_OVERLAPPEDWINDOW)
+
+   ' // Add a listbox
+   DIM hListBox AS HWND = pDlg.ControlAdd("ListBox", IDC_LISTBOX, "", 8, 8, 300, 280)
+
+   ' // Fill the list box
+   DIM ustrText AS USTRING
+   FOR i AS LONG = 1 TO 50
+      ustrText = "Item " & RIGHT("00" & WSTR(i), 2)
+      ListBox.AddString(hListBox, ustrText)
+   NEXT
+
+   ' // Add a cancel button
+   pDlg.ControlAdd("Button", IDCANCEL, "&Cancel", 233, 298, 75, 23)
+
+   ' // Make the dialog scrollable
+   pDlg.DialogSetViewPort(250, 260)
+
+   ' // Center the window (must be done after shrinking the client size)
+   pDlg.DialogCenter
+
+   ' // Display and activate the dialog as modal
+'   pDlg.DialogShowModal(@DlgProc)
+
+   ' // Display and activate the dialog as modeless
+   pDlg.DialogShowModeless(@DlgProc)
+
+   ' // Message handler loop
+   DO
+      pDlg.DialogDoEvents
+   LOOP WHILE IsWindow(pDlg.hDialog)
+
+   RETURN pDlg.DialogEndResult
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Dialog callback procedure
+' ========================================================================================
+FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+   
+   ' // Pointer to the dialog class
+   STATIC pDlg AS CDialog PTR
+   
+   SELECT CASE uMsg
+
+      CASE WM_INITDIALOG
+         ' // Get a pointer to the CDialog class
+         pDlg = cast(CDialog PTR, lParam)
+         RETURN TRUE
+
+      CASE WM_COMMAND
+         SELECT CASE CBCTL(wParam, lParam)
+            CASE IDCANCEL
+               ' // If ESC key pressed, close the application by sending an WM_CLOSE message
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN
+                  pDlg->DialogSend(WM_CLOSE, 0, 0)
+               END IF
+            CASE IDC_LISTBOX
+               ' // Do something with the ListBox
+         END SELECT
+
+      CASE WM_CLOSE
+         ' // End the application
+         pDlg->DialogEnd(0)
+
+   END SELECT
+
+   RETURN FALSE
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' // Call main() and return the error code to the OS
+' ========================================================================================
+END main()
+' ========================================================================================

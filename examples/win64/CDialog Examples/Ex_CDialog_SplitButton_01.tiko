@@ -1,0 +1,154 @@
+' ########################################################################################
+' Microsoft Windows
+' Contents: Windows controls - Split button
+' Compiler: tiko-lang
+' Copyright (c) 2026 José Roca. Freeware. Use at your own risk.
+' THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+' EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
+' MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+' ########################################################################################
+
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+using win, gui, gdiplus
+' // Resource file
+#cmdline "Ex_CDialog_SplitButton_01.rc"
+
+' // Forward declaration
+DECLARE FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+
+CONST IDC_SPLITBUTTON = 1001
+CONST IDC_MENUCOMMAND1 = 28000
+CONST IDC_MENUCOMMAND2 = 28001
+CONST IDC_MENUCOMMAND3 = 28002
+
+' ========================================================================================
+' Main
+' ========================================================================================
+FUNCTION main (BYVAL nCmdShow AS LONG = SW_SHOW) AS LONG
+
+   ' // Set process DPI aware
+   SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)
+   ' // Enable visual styles without including a manifest file
+   EnableVisualStyles
+
+   ' // Create a new dialog using dialog units
+   DIM pDlg AS CDialog
+   pDlg.DialogNew(0, "CDialog - Split button", 50, 50, 190, 85, WS_OVERLAPPEDWINDOW OR DS_CENTER)
+
+   ' // Add an edit control
+   DIM hSplitButton AS HWND = pDlg.ControlAdd("Button", IDC_SPLITBUTTON, "&Shutdown", 60, 30, 60, 12, BS_SPLITBUTTON)
+
+'   ' // Calculate an appropriate icon size
+   ' // Calculate an appropriate icon size
+   DIM cx AS LONG = 16 * GetDpiForSystem \ 96
+   ' // Create an image list for the button
+   DIM hImageList AS HIMAGELIST = ImageList_Create(cx, cx, ILC_COLOR32 OR ILC_MASK, 1, 0)
+   ' // --> Remember to change the path and name of the icon
+   DIM hInstance AS HINSTANCE = GetModuleHandleW(NULL)
+   AddIconFromRes(hImageList, hInstance, "IDI_SHUTDOWN_48")
+   ' // Fill a BUTTON_IMAGELIST structure and set the image list
+   DIM bi AS BUTTON_IMAGELIST = (hImageList, (3, 3, 3, 3), BUTTON_IMAGELIST_ALIGN_LEFT)
+   Button.SetImageList(hSplitButton, @bi)
+
+   ' // Anchor the button
+   pDlg.ControlAnchor(IDC_SPLITBUTTON, ANCHOR_CENTER)
+
+   ' // Display and activate the dialog as modal
+   pDlg.DialogShowModal(@DlgProc)
+
+   RETURN pDlg.DialogEndResult
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Dialog callback procedure
+' ========================================================================================
+FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+   
+   STATIC pDlg AS CDialog PTR
+   
+   SELECT CASE uMsg
+
+      CASE WM_INITDIALOG
+         ' // Get a pointer to the CDialog class
+         pDlg = cast(CDialog PTR, lParam)
+         RETURN TRUE
+
+      CASE WM_COMMAND
+         SELECT CASE CBCTL(wParam, lParam)
+            CASE IDCANCEL
+               ' // If ESC key pressed, close the application by sending an WM_CLOSE message
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN
+                  pDlg->DialogSend(WM_CLOSE, 0, 0)
+               END IF
+            CASE IDC_SPLITBUTTON
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN
+                  MessageBoxW(hDlg, "Button clicked", "Message", MB_OK)
+               END IF
+         END SELECT
+
+      CASE WM_NOTIFY
+         ' // Processs notify messages sent by the split button
+         DIM tDropDown AS NMBCDROPDOWN
+         CBNMTYPESET(tDropDown, wParam, lParam)
+         IF tDropDown.hdr.idFrom = IDC_SPLITBUTTON THEN
+            IF tDropDown.hdr.code = BCN_DROPDOWN THEN
+               ' // Get the screen coordinates of the button
+               DIM pt AS POINT = (tDropdown.rcButton.left, tDropDown.rcButton.bottom)
+               ClientToScreen(tDropDown.hdr.hwndFrom, @pt)
+               ' // Create a menu and add items
+               DIM hSplitMenu AS HMENU = CreatePopupMenu
+               AppendMenuW(hSplitMenu, MF_BYPOSITION, IDC_MENUCOMMAND1, "Menu item 1")
+               AppendMenuW(hSplitMenu, MF_BYPOSITION, IDC_MENUCOMMAND2, "Menu item 2")
+               AppendMenuW(hSplitMenu, MF_BYPOSITION, IDC_MENUCOMMAND3, "Menu item 3")
+               ' // Display the menu
+               DIM flags AS DWORD = TPM_LEFTBUTTON OR TPM_NONOTIFY OR TPM_RETURNCMD OR TPM_NOANIMATION
+               DIM id AS LONG = TrackPopupMenu(hSplitMenu, flags, pt.x, pt.y, 0, hDlg, NULL)
+               SELECT CASE id
+                  CASE IDC_MENUCOMMAND1
+                     MessageBoxW(hDlg, "You clicked item 1", "Message", MB_OK)
+                  CASE IDC_MENUCOMMAND2
+                     MessageBoxW(hDlg, "You clicked item 2", "Message", MB_OK)
+                  CASE IDC_MENUCOMMAND3
+                     MessageBoxW(hDlg, "You clicked item 3", "Message", MB_OK)
+               END SELECT
+               DestroyMenu hSplitMenu
+            ELSEIF tDropDown.hdr.code = BCN_HOTITEMCHANGE THEN
+               DIM tHotItem AS NMBCHOTITEM
+               CBNMTYPESET(tHotItem, wParam, lParam)
+               IF (tHotItem.dwFlags AND HICF_ENTERING) THEN
+                  pDlg->DialogSetText("Mouse entering the button")
+               ELSEIF (tHotItem.dwFlags AND HICF_LEAVING) THEN
+                  pDlg->DialogSetText("Mouse leaving the button")
+               END IF
+            END IF
+         END IF
+         RETURN TRUE
+
+      CASE WM_CLOSE
+         ' // End the application
+         pDlg->DialogEnd(0)
+
+      CASE WM_DESTROY
+         ' // Destroy the image list
+         DIM hSplitButton AS HWND = pDlg->ControlHandle(IDC_SPLITBUTTON)
+         DIM bi AS BUTTON_IMAGELIST
+         IF Button.GetImageList(hSplitButton, @bi) THEN
+            ImageList_Destroy bi.hIml
+         END IF
+
+   END SELECT
+
+   RETURN FALSE
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' // Call main() and return the error code to the OS
+' ========================================================================================
+END main()
+' ========================================================================================

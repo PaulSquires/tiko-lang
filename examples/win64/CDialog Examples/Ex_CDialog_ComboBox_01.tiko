@@ -1,0 +1,104 @@
+' ########################################################################################
+' Microsoft Windows
+' Contents: Windows controls - ComboBox
+' Compiler: tiko-lang
+' Copyright (c) 2026 José Roca. Freeware. Use at your own risk.
+' THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+' EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
+' MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+' ########################################################################################
+
+#import "sys/win"
+#import "sys/win/gui"
+using win, gui
+
+' // Forward declaration
+DECLARE FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+
+CONST IDC_COMBOBOX = 1001
+
+' ========================================================================================
+' Main
+' ========================================================================================
+FUNCTION main (BYVAL nCmdShow AS LONG = SW_SHOW) AS LONG
+
+   ' // Set process DPI aware
+   SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)
+   ' // Enable visual styles without including a manifest file
+   EnableVisualStyles
+
+   ' // Create a new dialog using dialog units
+   DIM pDlg AS CDialog
+   pDlg.DialogNew(NULL, "CDialog with a ComboBox", 50, 50, 190, 80, WS_OVERLAPPEDWINDOW OR DS_CENTER)
+
+   ' // Add a check button to the dialog
+   DIM hCombo AS HWND = pDlg.ControlAdd("ComboBox", IDC_COMBOBOX, "", 50, 20, 85, 12)
+
+   ' // Fill the comboxbox with some data
+   DIM ustrText AS USTRING
+   FOR i AS LONG = 1 TO 10
+      ustrText = "Item " & RIGHT("00" & WSTR(i), 2)
+      Combo.AddString(hCombo, ustrText)
+   NEXT
+
+   ' // Select the second item
+   Combo.SetCurSel hCombo, 1
+
+   ' // Anchor the button to the bottom and the right side of the dialog
+   pDlg.ControlAnchor(IDC_COMBOBOX, ANCHOR_WIDTH)
+
+   ' // Display and activate the dialog as modal
+   pDlg.DialogShowModal(@DlgProc)
+
+   RETURN pDlg.DialogEndResult
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Dialog callback procedure
+' ========================================================================================
+FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+   
+   ' // Pointer to the dialog class
+   STATIC pDlg AS CDialog PTR
+   
+   SELECT CASE uMsg
+
+      CASE WM_INITDIALOG
+         ' // Get a pointer to the CDialog class
+         pDlg = cast(CDialog PTR, lParam)
+         RETURN TRUE
+
+      CASE WM_COMMAND
+         SELECT CASE CBCTL(wParam, lParam)
+            CASE IDCANCEL
+               ' // If ESC key pressed, close the application by sending an WM_CLOSE message
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN
+                  pDlg->DialogSend(WM_CLOSE, 0, 0)
+               END IF
+            CASE IDC_COMBOBOX
+               IF CBCTLMSG(wParam, lParam) = LBN_SELCHANGE THEN
+                  DIM hCombo AS HWND = GetDlgItem(hDlg, IDC_COMBOBOX)
+                  DIM item AS LONG = Combo.GetCurSel(hCombo)
+                  DIM ustrText AS USTRING = Combo.GetText(hCombo, item)
+                  MessageBoxW(hDlg, ustrText, "Message", MB_OK)
+               END IF
+         END SELECT
+
+      CASE WM_CLOSE
+         ' // End the application
+         pDlg->DialogEnd
+
+   END SELECT
+
+   RETURN FALSE
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' // Call main() and return the error code to the OS
+' ========================================================================================
+END main()
+' ========================================================================================

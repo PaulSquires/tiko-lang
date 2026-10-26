@@ -1,0 +1,120 @@
+' ########################################################################################
+' Microsoft Windows
+' Contents: Windows controls - Status bar
+' Compiler: tiko-lang
+' Copyright (c) 2026 José Roca. Freeware. Use at your own risk.
+' THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+' EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
+' MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+' ########################################################################################
+
+#import "sys/win"
+#import "sys/win/gui"
+using win, gui
+
+' // Forward declaration
+DECLARE FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+
+CONST IDC_START = 1001
+CONST IDC_STATUSBAR = 1002
+CONST IDC_PROGRESSBAR = 1003
+
+' ========================================================================================
+' Main
+' ========================================================================================
+FUNCTION main (BYVAL nCmdShow AS LONG = SW_SHOW) AS LONG
+
+   ' // Set process DPI aware
+   SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)
+   ' // Enable visual styles without including a manifest file
+   EnableVisualStyles
+
+   ' // Create a new dialog using dialog units
+   DIM pDlg AS CDialog
+   pDlg.DialogNew(0, "DDT Dialog - StatusBar", 50, 50, 190, 85, WS_OVERLAPPEDWINDOW OR DS_CENTER)
+
+   ' // Add a status bar
+   DIM hStatusBar AS HWND = pDlg.ControlAdd("StatusBar", IDC_STATUSBAR)
+   ' // Set the parts
+   StatusBar.SetParts(hStatusBar, "90, -1")
+
+   ' // Add a progress bar
+   DIM hProgBar AS HWND = pDlg.ControlAdd("ProgressBar", IDC_PROGRESSBAR, "", 0, 74, 89, 11)
+   ' // Disable theme for the control when using dialog units;
+   ' // otherwise it does not work properly.
+   SetWindowTheme(hProgBar, "", "")
+   ' // Set the range
+   ProgBar.SetRange(hProgBar, 0, 100)
+   ' // Set the initial position
+   ProgBar.SetPos(hProgBar, 0)
+
+   ' // Add a start button
+   pDlg.ControlAdd("Button", IDC_START, "&Start", 10, 30, 50, 12)
+
+   ' // Anchor the controls
+   pDlg.ControlAnchor(IDC_START, ANCHOR_NONE)
+   pDlg.ControlAnchor(IDC_STATUSBAR, ANCHOR_BOTTOM_WIDTH)
+   pDlg.ControlAnchor(IDC_PROGRESSBAR, ANCHOR_BOTTOM)
+
+   ' // Display and activate the dialog as modal
+   pDlg.DialogShowModal(@DlgProc)
+
+   RETURN pDlg.DialogEndResult
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Dialog callback procedure
+' ========================================================================================
+FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+   
+   ' // Pointer to the dialog class
+   STATIC pDlg AS CDialog PTR
+   
+   SELECT CASE uMsg
+
+      CASE WM_INITDIALOG
+         ' // Get a pointer to the CDialog class
+         pDlg = cast(CDialog PTR, lParam)
+         RETURN TRUE
+
+      CASE WM_COMMAND
+         SELECT CASE CBCTL(wParam, lParam)
+            CASE IDCANCEL
+               ' // If ESC key pressed, close the application by sending an WM_CLOSE message
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN
+                  pDlg->DialogSend(WM_CLOSE, 0, 0)
+               END IF
+            CASE IDC_START
+               ' *** Test code ***
+               ' // Sets the step increment
+               DIM hProgBar AS HWND = GetDlgItem(hdlg, IDC_PROGRESSBAR)
+               ProgBar.SetStep(hProgBar, 1)
+               ' // Draws the bar
+               FOR i AS LONG = 1 TO 100
+                  ' // Advances the current position for a progress bar by the step
+                  ' // increment and redraws the bar to reflect the new position
+                  ProgBar.StepIt(hProgBar)
+                  SLEEP 10
+               NEXT
+               ' // Clears the bar by reseting its position to 0
+               ProgBar.SetPos(hProgBar, 0)
+         END SELECT
+
+      CASE WM_CLOSE
+         ' // End the application
+         pDlg->DialogEnd(0)
+
+   END SELECT
+
+   RETURN FALSE
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' // Call main() and return the error code to the OS
+' ========================================================================================
+END main()
+' ========================================================================================

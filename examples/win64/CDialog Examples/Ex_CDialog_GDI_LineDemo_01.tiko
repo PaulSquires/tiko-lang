@@ -1,0 +1,102 @@
+' ########################################################################################
+' Microsoft Windows
+' Contents: Windows GDI - Line
+' Compiler: tiko-lang
+' Copyright (c) 2026 José Roca. Freeware. Use at your own risk.
+' THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+' EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
+' MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+' ########################################################################################
+
+#import "sys/win"
+#import "sys/win/gui"
+using win, gui
+
+' // Forward declaration
+DECLARE FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+
+CONST IDC_OK = 1001
+
+' ========================================================================================
+' Main
+' ========================================================================================
+FUNCTION main (BYVAL nCmdShow AS LONG = SW_SHOW) AS LONG
+
+   ' // Set process DPI aware
+   SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)
+
+   ' // Create a new dialog using dialog units
+   DIM pDlg AS CDialog
+   pDlg.DialogNewPixels(NULL, "CDialog - GDI Line Demo", 0, 0, 400, 220, WS_POPUP OR WS_CAPTION OR WS_SYSMENU OR DS_CENTER)
+   ' // Set the dialog's backgroung color
+   pDlg.DialogSetColor(-1, RGB_WHITE)
+
+   ' // Display and activate the dialog as modal
+   pDlg.DialogShowModal(@DlgProc)
+
+   RETURN pDlg.DialogEndResult
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Dialog callback procedure
+' ========================================================================================
+FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+
+   STATIC cxClient AS LONG, cyClient AS LONG
+   ' // Pointer to the dialog class
+   STATIC pDlg AS CDialog PTR
+   
+   SELECT CASE uMsg
+
+      CASE WM_INITDIALOG
+         ' // Get a pointer to the CDialog class
+         pDlg = cast(CDialog PTR, lParam)
+         RETURN TRUE
+
+      CASE WM_COMMAND
+         SELECT CASE CBCTL(wParam, lParam)
+            CASE IDCANCEL
+               ' // If ESC key pressed, close the application by sending an WM_CLOSE message
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN
+                  pDlg->DialogSend(WM_CLOSE, 0, 0)
+               END IF
+            CASE IDC_OK
+               MessageBoxW(hDlg, "OK button pressed", "Message", MB_OK)
+         END SELECT
+
+      CASE WM_PAINT
+         DIM ps AS PAINTSTRUCT
+         DIM hdc AS HDC = BeginPaint(hDlg, @ps)
+         Rectangle hdc, cxClient / 8, cyClient / 8, 7 * cxClient / 8, 7 * cyClient / 8
+         MoveToEx hdc, 0, 0, NULL
+         LineTo hdc, cxClient, cyClient
+         MoveToEx hdc, 0, cyClient, NULL
+         LineTo hdc, cxClient, 0
+         Ellipse hdc, cxClient / 8, cyClient / 8, 7 * cxClient / 8, 7 * cyClient / 8
+         RoundRect hdc, cxClient / 4, cyClient / 4, 3 * cxClient / 4, 3 * cyClient / 4, cxClient / 4, cyClient / 4
+         EndPaint hDlg, @ps
+         RETURN TRUE
+
+      CASE WM_SIZE
+         cxClient = LOWORD(lParam)
+         cyClient = HIWORD(lParam)
+         RETURN TRUE
+
+      CASE WM_CLOSE
+         ' // End the application
+         pDlg->DialogEnd
+
+   END SELECT
+
+   RETURN FALSE
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' // Call main() and return the error code to the OS
+' ========================================================================================
+END main()
+' ========================================================================================

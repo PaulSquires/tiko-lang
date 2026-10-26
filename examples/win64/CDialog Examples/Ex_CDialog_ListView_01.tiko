@@ -1,0 +1,136 @@
+' ########################################################################################
+' Microsoft Windows
+' Contents: Windows controls - ListView
+' Compiler: tiko-lang
+' Copyright (c) 2026 José Roca. Freeware. Use at your own risk.
+' THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+' EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
+' MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+' ########################################################################################
+
+#import "sys/win"
+#import "sys/win/gui"
+using win, gui
+
+' // Forward declaration
+DECLARE FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+
+#define IDC_LISTVIEW 1001
+#define IDC_TEST 1002
+#define IDC_OK 1003
+
+' ========================================================================================
+' Main
+' ========================================================================================
+FUNCTION main (BYVAL nCmdShow AS LONG = SW_SHOW) AS LONG
+
+   ' // Set process DPI aware
+   SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)
+   ' // Enable visual styles without including a manifest file
+   EnableVisualStyles
+
+   ' // Create dialog using dialog units
+   DIM pDlg AS CDialog
+   pDlg.DialogNew(NULL, "ListView Demo",,, 440, 195, WS_OVERLAPPEDWINDOW OR DS_CENTER)
+
+   ' // Add controls
+   DIM hListView AS HWND = pDlg.ControlAdd("ListView", IDC_LISTVIEW, "", 5, 5, 430, 165, WS_VISIBLE OR WS_TABSTOP OR LVS_REPORT OR LVS_SHOWSELALWAYS OR LVS_SHAREIMAGELISTS OR LVS_AUTOARRANGE OR LVS_EDITLABELS OR LVS_ALIGNTOP)
+   pDlg.ControlAdd("Button", IDC_TEST, "&Test", 5, 176, 50, 12)
+   pDlg.ControlAdd("Button", IDC_OK, "&Ok", 60, 176, 50, 12, BS_DEFPUSHBUTTON)
+
+   ' // Add some extended styles
+   DIM dwExStyle AS DWORD = ListView.GetExtendedStyle(hListView)
+   dwExStyle OR= LVS_EX_FULLROWSELECT OR LVS_EX_GRIDLINES
+   ListView.SetExtendedStyle(hListView, dwExStyle)
+
+   ' // Set the text color of the ListView
+   pDlg.ControlSend(IDC_LISTVIEW, LVM_SETTEXTCOLOR, 0, RGB_BLUE)
+
+   ' // Add the header's column names
+   DIM lvc AS LVCOLUMNW
+   lvc.mask = LVCF_FMT OR LVCF_WIDTH OR LVCF_TEXT OR LVCF_SUBITEM
+   DIM ustrText AS USTRING
+   FOR i AS LONG = 0 TO 9
+      ustrText = "Column " & WSTR(i)
+      ListView.InsertColumn(hListView, i, ustrText, pDlg.ScaleX(70))
+   NEXT
+
+   ' // Populate the ListView with some data
+   FOR i AS LONG = 0 to 29
+      ustrText = "Column 1 Row " + WSTR(i)
+      ListView.InsertItem(hListView, i, 0, ustrText)
+      FOR x AS LONG = 0 TO 9
+         ustrText = "Column " & WSTR(x) & " Row " + WSTR(i)
+         ListView.SetItemText(hListView, i, x, ustrText)
+      NEXT
+   NEXT
+
+   ' // Anchor the controls for automatic resizing or reposition
+   pDlg.ControlAnchor(IDC_LISTVIEW, ANCHOR_HEIGHT_WIDTH)
+   pDlg.ControlAnchor(IDC_TEST, ANCHOR_BOTTOM)
+   pDlg.ControlAnchor(IDC_OK, ANCHOR_BOTTOM)
+
+   ' // Set the focus in the listview control
+   pDlg.ControlSetFocus(IDC_LISTVIEW)
+
+   ' // Display and activate the dialog as modal
+'   pDlg.DialogShowModal(@DlgProc)
+
+   ' // Display and activate the dialog as modeless
+   pDlg.DialogShowModeless(@DlgProc)
+
+   ' // Message handler loop
+   DO
+      pDlg.DialogDoEvents
+   LOOP WHILE IsWindow(pDlg.hDialog)
+
+   RETURN pDlg.DialogEndResult
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Dialog callback procedure
+' ========================================================================================
+FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+   
+   ' // Pointer to the dialog class
+   STATIC pDlg AS CDialog PTR
+   
+   SELECT CASE uMsg
+
+      CASE WM_INITDIALOG
+         ' // Get a pointer to the CDialog class
+         pDlg = cast(CDialog PTR, lParam)
+         RETURN TRUE
+
+      CASE WM_COMMAND
+         SELECT CASE CBCTL(wParam, lParam)
+            CASE IDCANCEL
+               ' // If ESC key pressed, close the application by sending an WM_CLOSE message
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN
+                  pDlg->DialogSend(WM_CLOSE, 0, 0)
+               END IF
+            CASE IDC_OK
+               MessageBoxW(hDlg, "Ok", "Message", MB_OK)
+            CASE IDC_TEST
+               ' Reserved to add code to test ListView functions
+
+         END SELECT
+
+      CASE WM_CLOSE
+         ' // End the application
+         pDlg->DialogEnd(0)
+
+   END SELECT
+
+   RETURN FALSE
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' // Call main() and return the error code to the OS
+' ========================================================================================
+END main()
+' ========================================================================================

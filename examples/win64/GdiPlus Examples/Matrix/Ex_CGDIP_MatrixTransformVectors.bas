@@ -1,0 +1,149 @@
+' ########################################################################################
+' Microsoft Windows
+' Contents: GDI+ - MatrixTransformVectors example
+' Compiler: tiko-lang
+' Copyright (c) 2026 José Roca. Freeware. Use at your own risk.
+' THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+' EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
+' MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+' ########################################################################################
+
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+using win, gui, gdiplus
+
+CONST IDC_GRCTX = 1001
+
+' // Forward declaration
+DECLARE FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM, BYVAL lParam AS LPARAM) AS LRESULT
+
+' ========================================================================================
+' The following example creates a vector and a point. The tip of the vector and the point
+' are at the same location: (100, 50). The code creates a Matrix object and initializes its
+' elements so that it represents a clockwise rotation followed by a translation 100 units
+' to the right. The code calls the TransformPoints Methods method of the matrix to transform
+' the point and calls the Matrix.TransformVectors method of the matrix to transform the
+' vector. The entire transformation (rotation followed by translation) is performed on the
+' point, but only the rotation part of the transformation is performed on the vector. The
+' elements of the matrix that represent translation are ignored by the Matrix.TransformVectors method.
+' ========================================================================================
+SUB Example_TransformVectors (BYVAL hdc AS HDC)
+
+   ' // Create a graphics object from the window device context
+   DIM graphics AS CGpGraphics = hdc
+   ' // Get the DPI scaling ratios
+   DIM rxRatio AS SINGLE = graphics.GetDpiX / 96
+   DIM ryRatio AS SINGLE = graphics.GetDpiY / 96
+   ' // Set the scale transform
+   graphics.ScaleTransform(rxRatio, ryRatio)
+
+   ' // Create a pen
+   DIM myPen AS CGpPen = CGpPen(ARGB_RED, rxRatio)
+   myPen.SetEndCap(LineCapArrowAnchor)
+   DIM myBrush AS CGpSolidBrush = ARGB_RED
+
+   ' // A point and a vector, same representation but different behavior
+   DIM pt AS GpPointF = (100.0, 50.0)
+   DIM vector AS GpPointF = (100.0, 50.0)
+
+   ' // Draw the original point and vector in blue
+   graphics.FillEllipse(@myBrush, pt.X - 5.0, pt.Y - 5.0, 10.0, 10.0)
+   graphics.DrawLine(@MyPen, 0, 0, vector.x, vector.y)
+
+   ' // Transform
+   DIM matrix AS CGpMatrix = CGpMatrix(0.8, 0.6, -0.6, 0.8, 100.0, 0.0)
+   matrix.TransformPoints(@pt)
+   matrix.TransformVectors(@vector)
+
+   ' // Draw the transformed point and vector in red.
+   myPen.SetColor(ARGB_RED)
+   myBrush.SetColor(ARGB_RED)
+   graphics.FillEllipse(@myBrush, pt.X - 5.0, pt.Y - 5.0, 10.0, 10.0)
+   graphics.DrawLine(@MyPen, 0, 0, vector.x, vector.y)
+
+END SUB
+' ========================================================================================
+
+' ========================================================================================
+' Main
+' ========================================================================================
+FUNCTION main (BYVAL nCmdShow AS LONG = SW_SHOW) AS LONG
+
+   ' // Set process DPI aware
+   SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)
+   ' // Enable visual styles without including a manifest file
+   EnableVisualStyles
+
+   ' // Create the main window
+   DIM pWindow AS CWindow = "MyClassName"
+   pWindow.Create(NULL, "GDI+ MatrixTransformVectors", @WndProc)
+   ' // Size it by setting the wanted width and height of its client area
+   pWindow.SetClientSize(400, 250)
+   ' // Center the window
+   pWindow.Center
+
+   ' // Add a graphic control
+   DIM pGraphCtx AS CGraphCtx = CGraphCtx(@pWindow, IDC_GRCTX, "", 0, 0, pWindow.ClientWidth, pWindow.ClientHeight)
+   pGraphCtx.Clear RGB_WHITE
+   ' // Anchor the control
+   pWindow.AnchorControl(pGraphCtx.hWindow, ANCHOR_HEIGHT_WIDTH)
+
+   ' // Get the memory device context of the graphic control
+   DIM hdc AS HDC = pGraphCtx.GetMemDc
+   ' // Draw the graphics
+   Example_TransformVectors(hdc)
+
+   ' // Displays the window and dispatches the Windows messages
+   FUNCTION = pWindow.DoEvents(nCmdShow)
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Main window procedure
+' ========================================================================================
+FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM, BYVAL lParam AS LPARAM) AS LRESULT
+
+   SELECT CASE uMsg
+
+      ' // If an application processes this message, it should return zero to continue
+      ' // creation of the window. If the application returns –1, the window is destroyed
+      ' // and the CreateWindowExW function returns a NULL handle.
+      CASE WM_CREATE
+         EnableDarkModeForWindow(hwnd)
+         RETURN 0
+
+      ' // Theme has changed
+      CASE WM_THEMECHANGED
+         EnableDarkModeForWindow(hwnd)
+         RETURN 0
+
+      CASE WM_COMMAND
+         SELECT CASE CBCTL(wParam, lParam)
+            CASE IDCANCEL
+               ' // If ESC key pressed, close the application by sending an WM_CLOSE message
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN
+                  SendMessageW hwnd, WM_CLOSE, 0, 0
+                  RETURN 0
+               END IF
+         END SELECT
+
+    	CASE WM_DESTROY
+         ' // Ends the application by sending a WM_QUIT message
+         PostQuitMessage(0)
+         RETURN 0
+
+   END SELECT
+
+   ' // Default processing of Windows messages
+   FUNCTION = DefWindowProcW(hwnd, uMsg, wParam, lParam)
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' // Call main() and return the error code to the OS
+' ========================================================================================
+END main()
+' ========================================================================================

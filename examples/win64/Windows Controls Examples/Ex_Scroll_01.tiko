@@ -1,0 +1,105 @@
+' ########################################################################################
+' Microsoft Windows
+' Contents: Scrollable window with a ListBox
+' Compiler: tiko-lang
+' Copyright (c) 2026 José Roca. Freeware. Use at your own risk.
+' THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+' EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
+' MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+' ########################################################################################
+
+#import "sys/win"
+#import "sys/win/gui"
+using win, gui
+
+' // Forward declaration
+DECLARE FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM, BYVAL lParam AS LPARAM) AS LRESULT
+
+#define IDC_LISTBOX 1001
+
+' ========================================================================================
+' Main
+' ========================================================================================
+FUNCTION main (BYVAL nCmdShow AS LONG = SW_NORMAL) AS LONG
+
+   ' // Set process DPI aware
+   SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)
+   ' // Enable visual styles without including a manifest file
+   EnableVisualStyles
+
+   ' // Create the main window
+   DIM pWindow AS CWindow = "MyClassName"   ' Use the name you wish
+   DIM hWin AS HWND = pWindow.Create(NULL, "CWindow - Scrollable window", @WndProc)
+   ' // Size it by setting the wanted width and height of its client area
+   pWindow.SetClientSize(318, 335)
+   ' // Make the window scrollable
+   pWindow.SetViewPort(252, 260)
+   ' // Center the window
+   pWindow.Center
+
+   ' // Add a ListBox
+   DIM hListBox AS HWND = pWindow.AddControl("ListBox", hWin, IDC_LISTBOX, "", 8, 8, 300, 280)
+
+   ' // Fill the list box
+   DIM ustrText AS USTRING
+   FOR i AS LONG = 1 TO 50
+      ustrText = "Item " & RIGHT("00" & WSTR(i), 2)
+      ListBox.AddString(hListBox, ustrText)
+   NEXT
+
+   ' // Add a cancel button
+   pWindow.AddControl("Button", hWin, IDCANCEL, "&Cancel",  233, 298, 75, 23)
+
+   ' // Displays the window and dispatches the Windows messages
+   FUNCTION = pWindow.DoEvents(nCmdShow)
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Main window procedure
+' ========================================================================================
+FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM, BYVAL lParam AS LPARAM) AS LRESULT
+
+   SELECT CASE uMsg
+
+      ' // If an application processes this message, it should return zero to continue
+      ' // creation of the window. If the application returns –1, the window is destroyed
+      ' // and the CreateWindowExW function returns a NULL handle.
+      CASE WM_CREATE
+         EnableDarkModeForWindow(hwnd)
+         RETURN 0
+
+      ' // Theme has changed
+      CASE WM_THEMECHANGED
+         EnableDarkModeForWindow(hwnd)
+         RETURN 0
+
+      ' // Sent when the user selects a command item from a menu, when a control sends a
+      ' // notification message to its parent window, or when an accelerator keystroke is translated.
+      CASE WM_COMMAND
+         SELECT CASE CBCTL(wParam, lParam)
+            CASE IDCANCEL
+               ' // If ESC key pressed, close the application by sending an WM_CLOSE message
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN SendMessageW(hwnd, WM_CLOSE, 0, 0)
+         END SELECT
+         RETURN 0
+
+      CASE WM_DESTROY
+         ' // End the application by sending an WM_QUIT message
+         PostQuitMessage(0)
+         RETURN 0
+
+   END SELECT
+
+   ' // Default processing of Windows messages
+   FUNCTION = DefWindowProcW(hwnd, uMsg, wParam, lParam)
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' // Call main() and return the error code to the OS
+' ========================================================================================
+END main()
+' ========================================================================================

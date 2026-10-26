@@ -1,0 +1,150 @@
+' ########################################################################################
+' Microsoft Windows
+' Contents: ListView control
+' Compiler: tiko-lang
+' Copyright (c) 2026 José Roca. Freeware. Use at your own risk.
+' THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+' EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
+' MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+' ########################################################################################
+
+#import "sys/win"
+#import "sys/win/gui"
+using win, gui
+
+' // Forward declaration
+DECLARE FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM, BYVAL lParam AS LPARAM) AS LRESULT
+
+#define IDC_LISTVIEW 1001
+
+' ========================================================================================
+' Main
+' ========================================================================================
+FUNCTION main (BYVAL nCmdShow AS LONG = SW_NORMAL) AS LONG
+
+   ' // Set process DPI aware
+   SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)
+   ' // Enable visual styles without including a manifest file
+   EnableVisualStyles
+
+   ' // Create the main window
+   DIM pWindow AS CWindow = "MyClassName"   ' Use the name you wish
+   DIM hWin AS HWND = pWindow.Create(NULL, "CWindow - ListView control", @WndProc)
+   ' // Size it by setting the wanted width and height of its client area
+   pWindow.SetClientSize(280, 280)
+   ' // Center the window
+   pWindow.Center
+
+   ' // Adds a listview
+   DIM hListView AS HWND = pWindow.AddControl("ListView", hWin, IDC_LISTVIEW, "", 10, 10, 260, 260)
+   Listview.AddColumn(hListview, 0, "Common Controls", pWindow.ScaleX(227), LVCFMT_LEFT)
+   Listview.AddItem(hListview, 0, 0, "Buttons")
+   Listview.AddItem(hListview, 1, 0, "Checkboxes")
+   Listview.AddItem(hListview, 2, 0, "Comboboxes")
+   Listview.AddItem(hListview, 3, 0, "Custom Controls")
+   Listview.AddItem(hListview, 4, 0, "Frames")
+   Listview.AddItem(hListview, 5, 0, "Graphics")
+   Listview.AddItem(hListview, 6, 0, "Labels")
+   Listview.AddItem(hListview, 7, 0, "Listboxes")
+   Listview.AddItem(hListview, 8, 0, "Listviews")
+   Listview.AddItem(hListview, 9, 0, "Radio Buttons")
+   Listview.AddItem(hListview, 10, 0, "Textboxes")
+   DIM LV_Style AS DWORD = Listview.GetExtendedStyle(hListView)
+   Listview.SetExtendedStyle(hListView, LV_Style XOR LVS_EX_CHECKBOXES OR LVS_EX_INFOTIP)
+
+   ' // Set the text color of the ListView
+   Listview.SetTextColor(hListView, RGB_BLUE)
+   
+   ' // Anchor the ListView
+   pWindow.AnchorControl(IDC_LISTVIEW, ANCHOR_HEIGHT_WIDTH)
+
+   ' // Optinal: Set the font of the tooltips
+   DIM hTooltipFont AS HFONT = pWindow.CreateFont("Times New Roman", 10, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET)
+   DIM hwndTooltip AS HWND = Listview.GetToolTips(hListview)
+   IF hwndTooltip THEN SetWindowFont(hwndTooltip, hTooltipFont, TRUE)
+
+   ' // Select the fist item (ListView items are zero based)
+   Listview.SelectItem(hListView, 0)
+   ' // Set the focus in the ListView
+   SetFocus hListView
+
+   ' // Displays the window and dispatches the Windows messages
+   FUNCTION = pWindow.DoEvents(nCmdShow)
+
+   ' // Delete the tooltip font
+   IF hTooltipFont THEN DeleteObject hTooltipFont
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Main window procedure
+' ========================================================================================
+FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM, BYVAL lParam AS LPARAM) AS LRESULT
+
+   SELECT CASE uMsg
+
+      ' // If an application processes this message, it should return zero to continue
+      ' // creation of the window. If the application returns –1, the window is destroyed
+      ' // and the CreateWindowExW function returns a NULL handle.
+      CASE WM_CREATE
+         EnableDarkModeForWindow(hwnd)
+         RETURN 0
+
+      ' // Theme has changed
+      CASE WM_THEMECHANGED
+         EnableDarkModeForWindow(hwnd)
+         RETURN 0
+
+      ' // Sent when the user selects a command item from a menu, when a control sends a
+      ' // notification message to its parent window, or when an accelerator keystroke is translated.
+      CASE WM_COMMAND
+         SELECT CASE CBCTL(wParam, lParam)
+            CASE IDCANCEL
+               ' // If ESC key pressed, close the application by sending an WM_CLOSE message
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN SendMessageW(hwnd, WM_CLOSE, 0, 0)
+         END SELECT
+         RETURN 0
+
+      CASE WM_NOTIFY
+         ' // Listview Tooltips
+         DIM wszText AS WSTRING * 80
+         DIM infoTip AS NMLVGETINFOTIPW
+         infotip.cchTextMax = 80
+         CBNMTypeset(infoTip, wParam, lParam)
+         IF infoTip.hdr.code = LVN_GETINFOTIPW AND infoTip.hdr.idFrom = IDC_LISTVIEW THEN
+            SELECT CASE infoTip.iItem
+               CASE  0 : wszText = "Add Buttons"
+               CASE  1 : wszText = "Add Checkbox Controls"
+               CASE  2 : wszText = "Add Combobox Controls"
+               CASE  3 : wszText = "Add Custom Controls"
+               CASE  4 : wszText = "Add Frame Controls"
+               CASE  5 : wszText = "Add Graphic Controls"
+               CASE  6 : wszText = "Add Label Controls"
+               CASE  7 : wszText = "Add Listbox Controls"
+               CASE  8 : wszText = "Add Listview Controls"
+               CASE  9 : wszText = "Add Radio Button Controls"
+               CASE 10 : wszText = "Add Textbox Controls"
+            END SELECT
+            ' // Assign the tooltip text to the tooltip buffer
+            IF LEN(wszText) THEN *infoTip.pszText = wszText
+         END IF
+
+      CASE WM_DESTROY
+         ' // End the application by sending an WM_QUIT message
+         PostQuitMessage(0)
+         RETURN 0
+
+   END SELECT
+
+   ' // Default processing of Windows messages
+   FUNCTION = DefWindowProcW(hwnd, uMsg, wParam, lParam)
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' // Call main() and return the error code to the OS
+' ========================================================================================
+END main()
+' ========================================================================================

@@ -1,0 +1,249 @@
+' ########################################################################################
+' Microsoft Windows
+' Contents: CWindow Rich Edit example
+' Compiler: tiko-lang
+' Copyright (c) 2026 José Roca. Freeware. Use at your own risk.
+' THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+' EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
+' MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+' ########################################################################################
+
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/richedit"
+using win, gui, richedit
+
+CONST IDC_RICHEDIT = 1001
+CONST IDC_TEST = 1002
+
+' // Forward declaration
+DECLARE FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM, BYVAL lParam AS LPARAM) AS LRESULT
+
+' ========================================================================================
+' Main
+' ========================================================================================
+FUNCTION main (BYVAL nCmdShow AS LONG = SW_SHOW) AS LONG
+
+   ' // Set process DPI aware
+   SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)
+   ' // Enable visual styles without including a manifest file
+   EnableVisualStyles
+
+   DIM pWindow AS CWindow
+   DIM hWin AS HWND = pWindow.Create(NULL, "Rich Edit Control", @WndProc)
+   pWindow.SetClientSize(800, 450)
+   pWindow.Center
+
+   ' // Add a rich edit control
+   DIM pRichEdit AS CRichEditCtx = CRichEditCtx(@pWindow, IDC_RICHEDIT, "", 10, 10, _
+      pWindow.ClientWidth - 20, pWindow.ClientHeight - 60, -1, 0)
+
+   ' // Change the default font
+   'pRichEdit.SetFont("Times New Roman", 12)
+   SetFocus pRichEdit.hRichEdit
+   
+   ' // Add buttons
+   pWindow.AddControl("Button", hWin, IDC_TEST, "&Test", pWindow.ClientWidth - 195, pWindow.ClientHeight - 35, 75, 23)
+   pWindow.AddControl("Button", hWin, IDCANCEL, "&Close", pWindow.ClientWidth - 95, pWindow.ClientHeight - 35, 75, 23)
+  
+   ' // Anchor the controls
+   pWindow.AnchorControl(IDC_RICHEDIT, ANCHOR_HEIGHT_WIDTH)
+   pWindow.AnchorControl(IDC_TEST, ANCHOR_BOTTOM_RIGHT)
+   pWindow.AnchorControl(IDCANCEL, ANCHOR_BOTTOM_RIGHT)
+
+   ' // Set a pointer to the rich edit ole callback
+   DIM pRichEditOleCallback AS CRichEditOleCallback = CRichEditOleCallback
+   pRichEdit.SetOleCallback(@pRichEditOleCallback)
+   ' // Enable word wrap
+   pRichEdit.EnableWordWrap
+   ' // Set margins
+   pRichEdit.LeftMargin = 60_
+   pRichEdit.RightMargin = 60
+   ' // Set advanced typography options
+   pRichEdit.TypographyOptions(TO_ADVANCEDTYPOGRAPHY OR TO_SIMPLELINEBREAK) = TO_ADVANCEDTYPOGRAPHY OR TO_SIMPLELINEBREAK
+   ' // Set Wysiwyg ("what you see is what you get")
+   ' pRichEdit.SetWysiwygPrint("Microsoft Print to PDF")
+   ' // Accept the tab key
+   pRichEdit.AcceptTab = FALSE
+   ' // Load a file
+   DIM uDoc AS USTRING = GetExePath & "\" & "Test_01.rtf"                ' RTF file
+'   DIM uDoc AS USTRING = GetExePath & "\" & "Test_01_ansi.txt"          ' ansi file
+'   DIM uDoc AS USTRING = GetExePath & "\" & "Test_01_utf16_LE.txt"      ' utf16 little endian file
+'   DIM uDoc AS USTRING = GetExePath & "\" & "Test_01_utf8_bom.txt"      ' utf8 file (with bom)
+'   DIM uDoc AS USTRING = GetExePath & "\" & "Test_01_utf8_no_bom.txt"   ' utf8 file (without bom)
+   pRichEdit.OpenDoc(uDoc)
+   ' // Set the zoom
+   pRichEdit.SetZoom(120, 100)
+
+   ' // Dispatch Windows messages
+   FUNCTION = pWindow.DoEvents(nCmdShow)
+
+' // Not needed because the program is ending
+'   pRichEditOleCallback.Release
+
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Main window callback procedure
+' ========================================================================================
+FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM, BYVAL lParam AS LPARAM) AS LRESULT
+
+   STATIC hFocus AS HWND
+
+   SELECT CASE uMsg
+
+      ' // If an application processes this message, it should return zero to continue
+      ' // creation of the window. If the application returns –1, the window is destroyed
+      ' // and the CreateWindowExW function returns a NULL handle.
+      CASE WM_CREATE
+         EnableDarkModeForWindow(hwnd)
+         RETURN 0
+
+      ' // Theme has changed
+      CASE WM_THEMECHANGED
+         EnableDarkModeForWindow(hwnd)
+         RETURN 0
+
+      CASE WM_NCACTIVATE
+         ' // Save the handle of the control that has the focus
+         IF wParam = 0 THEN hFocus = GetFocus
+         ' // Note: Don't use EXIT FUNCTION
+
+      CASE WM_SETFOCUS
+         ' // Post a message to set the focus later, since some
+         ' // Windows actions can steal it if we set it here
+         IF hFocus THEN
+            PostMessage hWnd, WM_USER + 999, cast(WPARAM, hFocus), 0
+            hFocus = 0
+         END IF
+
+      CASE WM_USER + 999
+         ' // Set the focus and show the line an column in the status bar
+         IF wParam THEN SetFocus(cast(HWND, wParam))
+         EXIT FUNCTION
+
+      CASE WM_SYSCOMMAND
+         ' // Capture this message and send a WM_CLOSE message
+         IF (wParam AND &HFFF0) = SC_CLOSE THEN
+            SendMessage hwnd, WM_CLOSE, 0, 0
+            EXIT FUNCTION
+         END IF
+
+      CASE WM_COMMAND
+         
+         SELECT CASE GET_WM_COMMAND_ID(wParam, lParam)
+
+            ' // If ESC key pressed, close the application sending an WM_CLOSE message
+            CASE IDCANCEL
+               IF CBCTL(wParam, lParam) = BN_CLICKED THEN
+                  SendMessageW hwnd, WM_CLOSE, 0, 0
+                  EXIT FUNCTION
+               END IF
+
+            ' // For testing purposes
+            CASE IDC_TEST
+               DIM hRichEdit AS HWND = GetDlgItem(hwnd, IDC_RICHEDIT)
+               DIM pRichEdit AS CRichEditCtx PTR = CRichEditCtxPtr(hRichEdit) 
+               IF pRichEdit = NULL THEN EXIT FUNCTION
+               ' // Put here your testing code
+               ' // -------------------------------------------------------------
+               ' // * Insert an image
+               ' // -------------------------------------------------------------
+'               pRichEdit->InsertImage(GetExePath & $"\0001.jpg")
+'               pRichEdit->InsertObject(GetExePath & $"\0001.bmp")
+               ' // -------------------------------------------------------------
+               ' // * Get rtf text
+               ' // -------------------------------------------------------------
+'               DIM s AS STRING
+'               s = pRichEdit->GetRtf
+'               print s
+               ' // -------------------------------------------------------------
+               ' // * Save rtf contents to a file
+               ' // -------------------------------------------------------------
+               'DIM uDoc AS USTRING = GetExePath & "\" & "TestRtf.rtf"
+               'pRichEdit->SaveDoc(uDoc, tomCreateAlways OR tomRTF)
+               ' * // -------------------------------------------------------------
+'               DIM uDoc AS USTRING = GetExePath & "\" & "TestRtf.rtf"
+'               pRichEdit->SaveRtf(uDoc, TRUE)
+               ' * // -------------------------------------------------------------
+'               DIM uDoc AS USTRING = GetExePath & "\" & "TestRtf.rtf"
+'               pRichEdit->SaveRtfNoObjs(uDoc, TRUE)
+               ' * // -------------------------------------------------------------
+'               DIM uDoc AS USTRING = GetExePath & "\" & "TestRtf.rtf"
+'               pRichEdit->SaveSelRtf(uDoc, TRUE)
+               ' // -------------------------------------------------------------
+               ' // * Save text as unicode
+               ' // -------------------------------------------------------------
+'               DIM uDoc AS USTRING = GetExePath & "\" & "TestUnicode.txt"
+'               pRichEdit->SaveDoc(uDoc, tomCreateAlways OR tomText, 1200)
+               ' // -------------------------------------------------------------
+               ' // * Append text from file
+               ' // -------------------------------------------------------------
+'               pRichEdit->AppendDocFile(GetExePath & "\" & "Test_01_ansi.txt")
+               ' // -------------------------------------------------------------
+               ' // * Insert utf8 text from file at position 50
+               ' // -------------------------------------------------------------
+'               pRichEdit->InsertDocFile(GetExePath & "\" & "Test_01_utf8_bom.txt", 50, cp_utf8)
+               ' // -------------------------------------------------------------
+               ' // * Change te font - The document font pointer also changes
+               ' // -------------------------------------------------------------
+'               pRichEdit->SetFont("Times New Roman", 12)
+               ' // -------------------------------------------------------------
+               ' // * Check some font properties
+               ' // -------------------------------------------------------------
+'               SCOPE
+'                  DIM pFont AS CTextFont2 = CTextFont2(pRichEdit->DocumentFont)
+'                  MessageBoxW(hwnd, "Width: " & WSTR(pFont.GetWeight), "Message", MB_OK)
+'                  MessageBoxW(hwnd, "Size: " & WSTR(pFont.GetSize), "Message", MB_OK)
+'                  MessageBoxW(hwnd, "Name: " & pFont.GetName, "Message", MB_OK)
+'               END SCOPE
+               ' // -------------------------------------------------------------
+               ' // * Save raw text
+               ' // -------------------------------------------------------------
+'               pRichEdit->SaveRawText(GetExePath & "\" & "Test_01_raw.txt", TRUE)
+               ' // -------------------------------------------------------------
+               ' * // -------------------------------------------------------------
+'               SCOPE
+'                  DIM pRange AS CTextRange2 = pRichEdit->Range(100, 250)
+'                  DIM pFont AS CTextFont2 = pRange.GetFont
+'                  pFont.SetAllCaps(tomTrue)
+'                  pFont.SetSize(14)
+'               END SCOPE
+               ' // -------------------------------------------------------------
+               ' // * Get the text of the spicified range
+               ' // -------------------------------------------------------------
+'               SCOPE
+'                  DIM pRange AS CTextRange2 = pRichEdit->Range(100, 250)
+'                  DIM ustrText AS USTRING = pRange.GetText(tomUseCRLF)
+'                  MessageBoxW(hwnd, ustrText, "Message", MB_OK)
+'               END SCOPE
+               ' // -------------------------------------------------------------
+               ' // * Set the text of the spicified range
+               ' // -------------------------------------------------------------
+'               SCOPE
+'                  DIM pRange AS CTextRange2 = pRichEdit->Range(70, 81)
+'                  pRange.SetText("New text")
+'               END SCOPE
+
+         END SELECT
+
+    	CASE WM_DESTROY
+         ' // End the application by sending an WM_QUIT message
+         PostQuitMessage(0)
+         EXIT FUNCTION
+
+   END SELECT
+
+   ' // Default processing of Windows messages
+   FUNCTION = DefWindowProcW(hWnd, uMsg, wParam, lParam)
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' // Call main() and return the error code to the OS
+' ========================================================================================
+END main()
+' ========================================================================================

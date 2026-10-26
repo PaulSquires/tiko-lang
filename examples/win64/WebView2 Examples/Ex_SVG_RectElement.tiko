@@ -1,0 +1,131 @@
+' ########################################################################################
+' Microsoft Windows
+' Contents: WebView2 example
+' Compiler: tiko-lang
+' Copyright (c) 2026 José Roca. Freeware. Use at your own risk.
+' THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+' EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
+' MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+' ########################################################################################
+
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/webview2"
+using win, gui, webview2
+
+' // Forward declaration
+DECLARE FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM, BYVAL lParam AS LPARAM) AS LRESULT
+
+' ========================================================================================
+' Main
+' ========================================================================================
+FUNCTION main (BYVAL nCmdShow AS LONG = SW_SHOW) AS LONG
+
+   ' // Set process DPI aware
+   SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)
+   ' // Enable visual styles without including a manifest file
+   EnableVisualStyles
+
+   ' // Create the main window
+   DIM pWindow AS CWindow
+   DIM hWin AS HWND = pWindow.Create(NULL, "WebView2 - SVG Rect element", @WndProc)
+   ' // Set its client size
+   pWindow.SetClientSize(400, 250)
+   ' // Center the window
+   pWindow.Center
+
+   ' // Use the same folder for the WebView2 files
+   ' // Here we are using a subfolder in the temporary folder
+   DIM ustrUserDataFolder AS USTRING = GetTempPath & "tkWebView2"
+
+   ' // Create an instance of WebView
+   DIM pWebView2 AS CWebView2 = CWebView2(hWin, ustrUserDataFolder)
+
+   ' // Wait until is ready
+   IF pWebView2.IsReady THEN
+
+      ' // Build the script
+      DIM s AS USTRING
+
+      s =  "<!DOCTYPE html>"
+      s += "<html>"
+      s += "<body>"
+      s += "<h2>SVG rect Element</h2>"
+      s += "<svg width='300' height='130' xmlns='http://www.w3.org/2000/svg'>"
+      s += "   <rect width='200' height='100' x='10' y='10' rx='20' ry='20' fill='blue' />"
+      s += "   Sorry, your browser does not support inline SVG.  "
+      s += "</svg>"
+      s += "</body>"
+      s += "</html>"
+
+      ' // Navigate to the string
+      pWebView2.NavigateToString(s)
+
+   END IF
+
+   ' // Dispatch Windows messages
+   FUNCTION = pWindow.DoEvents(nCmdShow)
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Main window callback procedure
+' ========================================================================================
+FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM, BYVAL lParam AS LPARAM) AS LRESULT
+
+   STATIC hFocus AS HWND
+
+   SELECT CASE uMsg
+
+      ' // If an application processes this message, it should return zero to continue
+      ' // creation of the window. If the application returns –1, the window is destroyed
+      ' // and the CreateWindowExW function returns a NULL handle.
+      CASE WM_CREATE
+         EnableDarkModeForWindow(hwnd)
+         RETURN 0
+
+      ' // Theme has changed
+      CASE WM_THEMECHANGED
+         EnableDarkModeForWindow(hwnd)
+         RETURN 0
+
+      CASE WM_COMMAND
+         
+         SELECT CASE CBCTL(wParam, lParam)
+            ' // If ESC key pressed, close the application sending an WM_CLOSE message
+            CASE IDCANCEL
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN
+                  SendMessageW hwnd, WM_CLOSE, 0, 0
+                  EXIT FUNCTION
+               END IF
+         END SELECT
+
+      CASE WM_SIZE
+         ' // Resize the WebView
+         DIM pWebView2 AS CWebView2 PTR = CWebView2Ptr(hWnd)
+         IF pWebView2 THEN
+            DIM rc AS RECT
+            IF GetClientRect(hWnd, @rc) THEN
+               pWebView2->SetBounds(rc)
+            ENDIF
+         END IF
+
+    	CASE WM_DESTROY
+         ' // End the application by sending an WM_QUIT message
+         PostQuitMessage(0)
+         EXIT FUNCTION
+
+   END SELECT
+
+   ' // Default processing of Windows messages
+   FUNCTION = DefWindowProcW(hWnd, uMsg, wParam, lParam)
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' // Call main() and return the error code to the OS
+' ========================================================================================
+END main()
+' ========================================================================================

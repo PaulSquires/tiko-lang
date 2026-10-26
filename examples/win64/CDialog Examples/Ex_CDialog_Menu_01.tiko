@@ -1,0 +1,170 @@
+' ########################################################################################
+' Microsoft Windows
+' Contents: Windows controls - Menu
+' Compiler: tiko-lang
+' Copyright (c) 2026 José Roca. Freeware. Use at your own risk.
+' THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+' EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
+' MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+' ########################################################################################
+
+#import "sys/win"
+#import "sys/win/gui"
+using win, gui
+
+' // Forward declaration
+DECLARE FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+
+' // Menu identifiers
+ENUM
+   IDM_NEW = 1001     ' New file
+   IDM_OPEN           ' Open file...
+   IDM_SAVE           ' Save file
+   IDM_SAVEAS         ' Save file as...
+   IDM_EXIT           ' Exit
+
+   IDM_UNDO = 2001    ' Undo
+   IDM_CUT            ' Cut
+   IDM_COPY           ' Copy
+   IDM_PASTE          ' Paste
+
+   IDM_TILEH = 3001   ' Tile hosizontal
+   IDM_TILEV          ' Tile vertical
+   IDM_CASCADE        ' Cascade
+   IDM_ARRANGE        ' Arrange icons
+   IDM_CLOSE          ' Close
+   IDM_CLOSEALL       ' Close all
+END ENUM
+
+' ========================================================================================
+' Build the menu
+' ========================================================================================
+FUNCTION BuildMenu () AS HMENU
+
+   DIM hMenu AS HMENU
+   DIM hPopUpMenu AS HMENU
+
+   hMenu = CreateMenu
+   hPopUpMenu = CreatePopUpMenu
+      AppendMenuW hMenu, MF_POPUP OR MF_ENABLED, CAST(UINT_PTR, hPopUpMenu), "&File"
+         AppendMenuW hPopUpMenu, MF_ENABLED, IDM_NEW, "&New" & CHR(9) & "Ctrl+N"
+         AppendMenuW hPopUpMenu, MF_ENABLED, IDM_OPEN, "&Open..." & CHR(9) & "Ctrl+O"
+         AppendMenuW hPopUpMenu, MF_SEPARATOR, 0, ""
+         AppendMenuW hPopUpMenu, MF_ENABLED, IDM_SAVE, "&Save" & CHR(9) & "Ctrl+S"
+         AppendMenuW hPopUpMenu, MF_ENABLED, IDM_SAVEAS, "Save &As..."
+         AppendMenuW hPopUpMenu, MF_SEPARATOR, 0, ""
+         AppendMenuW hPopUpMenu, MF_ENABLED, IDM_EXIT, "E&xit" & CHR(9) & "Alt+F4"
+   hPopUpMenu = CreatePopUpMenu
+      AppendMenuW hMenu, MF_POPUP OR MF_ENABLED, CAST(UINT_PTR, hPopUpMenu), "&Edit"
+         AppendMenuW hPopUpMenu, MF_ENABLED, IDM_UNDO, "&Undo" & CHR(9) & "Ctrl+Z"
+         AppendMenuW hPopUpMenu, MF_SEPARATOR, 0, ""
+         AppendMenuW hPopUpMenu, MF_ENABLED, IDM_CUT, "Cu&t" & CHR(9) & "Ctrl+X"
+         AppendMenuW hPopUpMenu, MF_ENABLED, IDM_COPY, "&Copy" & CHR(9) & "Ctrl+C"
+         AppendMenuW hPopUpMenu, MF_ENABLED, IDM_PASTE, "&Paste" & CHR(9) & "Ctrl+V"
+   hPopUpMenu = CreatePopUpMenu
+      AppendMenuW hMenu, MF_POPUP OR MF_ENABLED, CAST(UINT_PTR, hPopUpMenu), "&Window"
+         AppendMenuW hPopUpMenu, MF_ENABLED, IDM_TILEH, "&Tile Horizontal"
+         AppendMenuW hPopUpMenu, MF_ENABLED, IDM_TILEV, "Tile &Vertical"
+         AppendMenuW hPopUpMenu, MF_ENABLED, IDM_CASCADE, "Ca&scade"
+         AppendMenuW hPopUpMenu, MF_ENABLED, IDM_ARRANGE, "&Arrange &Icons"
+         AppendMenuW hPopUpMenu, MF_SEPARATOR, 0, ""
+         AppendMenuW hPopUpMenu, MF_ENABLED, IDM_CLOSE, "&Close" & CHR(9) & "Ctrl+F4"
+         AppendMenuW hPopUpMenu, MF_ENABLED, IDM_CLOSEALL, "Close &All"
+   FUNCTION = hMenu
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Main
+' ========================================================================================
+FUNCTION main (BYVAL nCmdShow AS LONG = SW_SHOW) AS LONG
+
+   ' // Set process DPI aware
+   SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)
+   ' // Enable visual styles without including a manifest file
+   EnableVisualStyles
+
+   ' // Create a new dialog using dialog units
+   DIM pDlg AS CDialog
+   pDlg.DialogNew(NULL, "CDialog - Menu Demo",50, 50, 175, 75, WS_OVERLAPPEDWINDOW OR DS_CENTER)
+
+   ' // Add controls to the dialog
+   pDlg.ControlAdd("GroupBox", 101, "Just a simple question", 5, 5, 160, 55)
+   pDlg.ControlAdd("Label", 102, "What's your name?", 10, 20, 80, 10)
+   pDlg.ControlAdd("Edit", 103, "", 90, 19, 70, 12)
+   pDlg.ControlAdd("Button", 104, "&Ok", 80, 40, 50, 12, BS_DEFPUSHBUTTON)
+
+   ' // Creates the menu
+   DIM hMenu AS HMENU = BuildMenu
+   SetMenu pDlg.hDialog, hMenu
+
+   ' // Create a keyboard accelerator table
+   pDlg.AddAccelerator FVIRTKEY OR FCONTROL, "O", IDM_NEW   ' // Ctrl+N - New
+   pDlg.AddAccelerator FVIRTKEY OR FCONTROL, "O", IDM_OPEN  ' // Ctrl+O - Open
+   pDlg.AddAccelerator FVIRTKEY OR FCONTROL, "S", IDM_SAVE  ' // Ctrl+S - Save
+   pDlg.AddAccelerator FVIRTKEY OR FCONTROL, "E", IDM_EXIT  ' // Ctrl+E - Exit
+   pDlg.CreateAccelTable
+
+   ' // Display and activate the dialog as modal
+   pDlg.DialogShowModal(@DlgProc)
+
+'   ' // Display and activate the dialog as modeless
+'   pDlg.DialogShowModeless(@DlgProc)
+
+'   ' // Message handler loop
+'   DO
+'      pDlg.DialogDoEvents
+'   LOOP WHILE IsWindow(pDlg.hDialog)
+
+   RETURN pDlg.DialogEndResult
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Dialog callback procedure
+' ========================================================================================
+FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+   
+   ' // Pointer to the dialog class
+   STATIC pDlg AS CDialog PTR
+   
+   SELECT CASE uMsg
+
+      CASE WM_INITDIALOG
+         ' // Get a pointer to the CDialog class
+         pDlg = cast(CDialog PTR, lParam)
+         RETURN TRUE
+
+      CASE WM_COMMAND
+         SELECT CASE CBCTL(wParam, lParam)
+            CASE IDCANCEL
+               ' // If ESC key pressed, close the application by sending an WM_CLOSE message
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN
+                  pDlg->DialogSend(WM_CLOSE, 0, 0)
+               END IF
+            CASE 104 'IDOK
+               DIM ustr AS USTRING = GetWindowText(GetDlgItem(hDlg, 103))
+               IF LEN(ustr) THEN MessageBoxW(hDlg, "Your name is " & ustr, "Answer", MB_ICONINFORMATION OR MB_TASKMODAL)
+               IF LEN(ustr) = 0 THEN MessageBoxW(hDlg, "Hmm ...", "No answer", MB_ICONEXCLAMATION OR MB_TASKMODAL)
+           CASE IDM_NEW TO IDM_CLOSEALL
+               MessageBoxW(hDlg, "WM_COMMAND received from a menu item!", "Test menu", MB_TASKMODAL)
+         END SELECT
+
+      CASE WM_CLOSE
+         ' // End the application
+         pDlg->DialogEnd(0)
+
+   END SELECT
+
+   RETURN FALSE
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' // Call main() and return the error code to the OS
+' ========================================================================================
+END main()
+' ========================================================================================

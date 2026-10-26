@@ -1,0 +1,159 @@
+' ########################################################################################
+' Microsoft Windows
+' Contents: Windows controls - Toolbar
+' Compiler: tiko-lang
+' Copyright (c) 2026 José Roca. Freeware. Use at your own risk.
+' THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+' EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
+' MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+' ########################################################################################
+
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+using win, gui, gdiplus
+' // Resource file
+#cmdline "Ex_CDialog_Toolbar_64px.rc"
+
+' // Forward declaration
+DECLARE FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+
+' // Control identifiers
+CONST IDC_TOOLBAR = 1001
+enum
+   IDM_LEFTARROW = 2000
+   IDM_RIGHTARROW
+   IDM_HOME
+   IDM_SAVEFILE
+end enum
+
+' ========================================================================================
+' Main
+' ========================================================================================
+FUNCTION main (BYVAL nCmdShow AS LONG = SW_SHOW) AS LONG
+
+   ' // Set process DPI aware
+   SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)
+   ' // Enable visual styles without including a manifest file
+   EnableVisualStyles
+
+   ' // Create a new dialog using dialog units
+   DIM pDlg AS CDialog
+   pDlg.DialogNew(0, "CDialog with a Toolbar", , , 200, 85, WS_OVERLAPPEDWINDOW OR DS_CENTER)
+
+   ' // Add a toolbar
+   DIM hToolbar AS HWND = pDlg.ControlAdd("Toolbar", IDC_TOOLBAR)
+
+   ' // Creates an image list for the toolbar
+   DIM hInstance AS HINSTANCE = GetModuleHandleW(NULL)
+   DIM hNormalImageList AS HIMAGELIST
+   hNormalImageList = ImageList_Create(64, 64, ILC_COLOR32 OR ILC_MASK, 4, 0)
+   IF hNormalImageList THEN
+      AddIconFromRes(hNormalImageList, hInstance, "IDI_ARROW_LEFT")
+      AddIconFromRes(hNormalImageList, hInstance, "IDI_ARROW_RIGHT")
+      AddIconFromRes(hNormalImageList, hInstance, "IDI_HOME")
+      AddIconFromRes(hNormalImageList, hInstance, "IDI_SAVE")
+      ' // Set the normal image list
+      Toolbar.SetImageList hToolBar, hNormalImageList
+      ' // Set the hot image list with the same images than the normal one
+      Toolbar.SetHotImageList hToolBar, hNormalImageList
+   END IF
+
+   ' // Create an image list for the toolbar
+   DIM hImageList AS HIMAGELIST = ImageList_Create(64, 64, ILC_COLOR32 OR ILC_MASK, 4, 0)
+   IF hImageList THEN
+      AddIconFromRes(hImageList, hInstance, "IDI_ARROW_LEFT")
+      AddIconFromRes(hImageList, hInstance, "IDI_ARROW_RIGHT")
+      AddIconFromRes(hImageList, hInstance, "IDI_HOME")
+      AddIconFromRes(hImageList, hInstance, "IDI_SAVE")
+      ToolBar.SetImageList(hToolbar, hImageList)
+   END IF
+
+   ' // Creates a disabled image list for the toolbar
+   DIM hDisabledImageList AS HIMAGELIST
+   hDisabledImageList = ImageList_Create(64, 64, ILC_COLOR32 OR ILC_MASK, 4, 0)
+   IF hDisabledImageList THEN
+      AddIconFromRes(hDisabledImageList, hInstance, "IDI_ARROW_LEFT", 60, TRUE)
+      AddIconFromRes(hDisabledImageList, hInstance, "IDI_ARROW_RIGHT", 60, TRUE)
+      AddIconFromRes(hDisabledImageList, hInstance, "IDI_HOME", 60, TRUE)
+      AddIconFromRes(hDisabledImageList, hInstance, "IDI_SAVE", 60, TRUE)
+      ' // Set the disabled image list
+      Toolbar.SetDisabledImageList hToolBar, hDisabledImageList
+   END IF
+
+   ' // Add buttons to the toolbar
+   Toolbar.AddButton hToolBar, 0, IDM_LEFTARROW, 0, 0, 0, "Back"
+   Toolbar.AddButton hToolBar, 1, IDM_RIGHTARROW, 0, 0, 0, "Forward"
+   Toolbar.AddButton hToolBar, 2, IDM_HOME, 0, 0, 0, "Home"
+   Toolbar.AddSeparator hToolBar, 2
+   Toolbar.AddButton hToolBar, 3, IDM_SAVEFILE, 0, 0, 0, "Save"
+
+   ' // Disable the IDM_SAVEFILE button
+   Toolbar.DisableButton hToolBar, IDM_SAVEFILE
+
+   ' // Sizes the toolbar
+   Toolbar.AutoSize hToolBar
+
+   ' // Add a cancel button
+   pDlg.ControlAdd("Button", IDCANCEL, "&Close", 120, 60, 50, 12)
+
+   ' // Anchor the controls
+   pDlg.ControlAnchor(IDC_TOOLBAR, ANCHOR_WIDTH)
+   pDlg.ControlAnchor(IDCANCEL, ANCHOR_BOTTOM_RIGHT)
+
+   ' // Display and activate the dialog as modal
+   pDlg.DialogShowModal(@DlgProc)
+
+   RETURN pDlg.DialogEndResult
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' Dialog callback procedure
+' ========================================================================================
+FUNCTION DlgProc (BYVAL hDlg AS HWND, BYVAL uMsg AS DWORD, BYVAL wParam AS DWORD, BYVAL lParam AS LPARAM) AS INT_PTR
+   
+   ' // Pointer to the dialog class
+   STATIC pDlg AS CDialog PTR
+   
+   SELECT CASE uMsg
+
+      CASE WM_INITDIALOG
+         ' // Get a pointer to the CDialog class
+         pDlg = cast(CDialog PTR, lParam)
+         RETURN TRUE
+
+      CASE WM_COMMAND
+         SELECT CASE CBCTL(wParam, lParam)
+            CASE IDCANCEL
+               ' // If ESC key pressed, close the application by sending an WM_CLOSE message
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN
+                  SendMessageW hDlg, WM_CLOSE, 0, 0
+               END IF
+            CASE IDM_LEFTARROW
+               MessageBoxW(hDlg, "You have clicked the left arrow button", "Message", MB_OK)
+            CASE IDM_RIGHTARROW
+               MessageBoxW(hDlg, "You have clicked the right arrow button", "Message", MB_OK)
+            CASE IDM_HOME
+               MessageBoxW(hDlg, "You have clicked the home button", "Message", MB_OK)
+            CASE IDM_SAVEFILE
+               MessageBoxW(hDlg, "You have clicked the save button", "Message", MB_OK)
+         END SELECT
+
+      CASE WM_CLOSE
+         ' // End the application
+         pDlg->DialogEnd(0)
+
+   END SELECT
+
+   RETURN FALSE
+
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' // Call main() and return the error code to the OS
+' ========================================================================================
+END main()
+' ========================================================================================
