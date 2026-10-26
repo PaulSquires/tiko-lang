@@ -843,6 +843,16 @@ private sub CollectNsNamed_ ( byref c as Ctx, byval ns as ScopeId, byval nm as I
                               byref got as containers.Array( of uint32 ), byval depth as int32 )
     if (ns = SCOPE_NONE) orelse (depth > 8) then return
     dim as SymbolId sid = c.syms->LookupLocal( ns, nm )
+    '' ...NOT A MODULE'S PRIVATE NAME: the interface carries it, imported and not public, so the
+    '' module's own code can link, but a lookup does not see it (Lookup's PublicOnly). Counted
+    '' here, it made a bare call TKO0919 'ambiguous' beside another module's public one
+    '' (tiko-editor TE-012).
+    if sid <> SYMBOL_NONE then
+        dim as Symbol ptr ps_ = c.syms->SymbolAt( sid )
+        if (ps_ <> nullptr) andalso (c.syms->privileged = false) then
+            if (ps_->flags and (SYMF_IMPORTED or SYMF_PUBLIC)) = SYMF_IMPORTED then sid = SYMBOL_NONE
+        end if
+    end if
     if sid <> SYMBOL_NONE then
         dim as boolean seen = false
         for i as int32 = 0 to got.Count - 1

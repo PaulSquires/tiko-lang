@@ -1,0 +1,10 @@
+'' A MODULE-PRIVATE NAME TAKES NO PART IN 'using' AMBIGUITY: priv's private Helper beside pub's
+'' public one made a bare call TKO0919 'ambiguous' (tiko-editor TE-012). See CollectNsNamed_
+'' (symbols/declshape.tiko).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/privusing/main.tiko -o tests/modules/privusing.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0919
+'' RUN: tests/modules/privusing.exe
+'' EXPECT-RUN-OUT:  2 11

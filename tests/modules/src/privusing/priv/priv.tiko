@@ -1,0 +1,7 @@
+#module "priv"
+private function Helper( ) as long
+    return 1
+end function
+public function UsesHelper( ) as long
+    return Helper( ) + 10
+end function

@@ -1,0 +1,4 @@
+#module "pub"
+public function Helper( ) as long
+    return 2
+end function

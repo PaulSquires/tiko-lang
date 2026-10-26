@@ -1,0 +1,5 @@
+#import "./priv"
+#import "./pub"
+using priv
+using pub
+print Helper( ); UsesHelper( )
