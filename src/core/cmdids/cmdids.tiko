@@ -25,6 +25,7 @@ public enum Cmd explicit
     ' File
     FileNew
     FileOpen
+    FileRecent
     FileClose
     FileCloseAll
     FileSave
@@ -224,6 +225,7 @@ constructor CommandTable( )
     dim as MenuGroup g = MenuGroup.File
     this.Def( Cmd.FileNew, "FileNew", g, "New", "Primary+N" )
     this.Def( Cmd.FileOpen, "FileOpen", g, "Open...", "Primary+O" )
+    this.Def( Cmd.FileRecent, "FileRecent", g, "Open Recent...", "Primary+Shift+O" )
     this.Def( Cmd.FileClose, "FileClose", g, "Close", "Primary+W" )
     this.Def( Cmd.FileCloseAll, "FileCloseAll", g, "Close All", "Primary+Shift+W" )
     this.Def( Cmd.FileSave, "FileSave", g, "Save", "Primary+S", true )

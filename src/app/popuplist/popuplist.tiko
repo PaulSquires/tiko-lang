@@ -1,0 +1,238 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' popuplist -- THE popup list every chooser in tkEdit is (PLAN.md, Popups): the buffers, the MRU
+' switcher, the encodings and line endings, the build configurations; Search Symbol and the
+' functions list in P5. A tkHost popup over the main window holding an optional query box and a
+' multi-column tkListTree. Typing in the box filters the rows fuzzily (tkc/fuzzy, best first);
+' Up / Down / PgUp / PgDn move; Tab and Shift+Tab move too (the Ctrl+Tab switcher); Enter picks;
+' Esc, or the focus leaving, closes it with no pick. With AcceptOnCtrlUp, letting go of Ctrl picks
+' (the Ctrl+Tab switcher): a key-up bubbles from the focused list to the popup's frame widget.
+'
+' The picker is not modal: Open returns at once and the pick arrives through OnPick, from inside
+' the popup's own event, after the popup has closed.
+#module "popuplist"
+
+#import "std/containers"
+#import "tkc/fuzzy"
+#import "tkControls/tkHost"
+#import "tkControls/tkListTree"
+#import "tkControls/tkTextBox"
+using containers
+using tkHost
+using tkListTree
+using tkTextBox
+
+public const ROW_CY = 22                 ' one list row, unscaled
+const ID_QUERY = 1
+const ID_LIST = 2
+
+public type PickRow
+    Cells as Array( of ustring )         ' one per column
+    Key   as ustring                     ' what the query matches; "" = the first cell
+    Tag   as long                        ' the caller's: handed back by OnPick
+end type
+
+public type PickedProc as sub( byval payload as any ptr, byval tag as long )
+
+public type Picker
+    ' ---- set before Open
+    Columns  as Array( of long )         ' column widths, unscaled; the last one fills
+    Filter   as boolean = true           ' show the query box
+    MaxRows  as long = 12
+    AcceptOnCtrlUp as boolean
+    OnPick   as PickedProc
+    Payload  as any ptr
+
+    ' ---- while open
+    Pop   as TK_HOST ptr
+    Frame as TK_WIDGET ptr                ' holds the box and the list; hears their key-ups
+    Query as TK_WIDGET ptr
+    List  as TK_WIDGET ptr
+    Rows  as Array( of PickRow )
+    Shown as Array( of long )            ' list row -> Rows index
+
+    declare function Open( byval owner as TK_HOST ptr, byref rows_ as const Array( of PickRow ), _
+                           byval x as long, byval y as long, byval w as long, byval sel as long = 0 ) as boolean
+    declare sub Close( )
+    declare function IsOpen( ) as boolean
+    declare sub Move( byval delta as long )
+    declare sub Accept( )
+    declare function SelectedTag( ) as long        ' -1 = none
+    declare function ShownCount( ) as long
+    declare sub SetQuery( byref q as const ustring )
+    declare sub Refilter( )
+end type
+
+private function PickerOf( byval h as TK_HOST ptr ) as Picker ptr
+    if h = 0 then return 0
+    return h->pUser
+end function
+
+' The frame: a key-up of Ctrl, bubbled from the list, picks when the switcher asked for that.
+private function FrameProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    if m->msg <> TKM_KEYUP then return false
+    dim as Picker ptr p = w->pData
+    if (p = 0) orelse (p->AcceptOnCtrlUp = false) then return false
+    if (m->key = SDLK_LCTRL) orelse (m->key = SDLK_RCTRL) orelse (m->key = SDLK_LGUI) orelse (m->key = SDLK_RGUI) then
+        p->Accept( )
+        return true
+    end if
+    return false
+end function
+
+' The rows that match the query, best first; all of them, in order, for an empty query.
+sub Picker.Refilter( )
+    if List = 0 then exit sub
+    dim as ustring q = ""
+    if Query then q = tkTextBox_GetText( Query )
+    Shown.Clear( )
+    if len( q ) = 0 then
+        for i as long = 0 to Rows.Count( ) - 1
+            Shown.Push( i )
+        next
+    else
+        dim as Array( of double ) scores
+        for i as long = 0 to Rows.Count( ) - 1
+            dim as ustring k = Rows[i].Key
+            if len( k ) = 0 then k = Rows[i].Cells[0]
+            if fuzzy.HasMatch( q, k ) = false then continue for
+            dim as double s = fuzzy.Score( q, k )
+            ' a stable insertion: the better score first, the table's order among equals
+            dim as long at = Shown.Count( )
+            while (at > 0) andalso (scores[at - 1] < s)
+                at -= 1
+            wend
+            Shown.Insert( at, i )
+            scores.Insert( at, s )
+        next
+    end if
+    tkListTree_BeginUpdate( List )
+    tkListTree_Clear( List )
+    for each ix as long in Shown
+        dim as PickRow r = Rows[ix]
+        dim as long row = tkListTree_AddString( List, r.Cells[0], ix )
+        for c as long = 1 to r.Cells.Count( ) - 1
+            tkListTree_SetCellText( List, row, c, r.Cells[c] )
+        next
+    next
+    tkListTree_EndUpdate( List )
+    if Shown.Count( ) > 0 then tkListTree_SetCurSel( List, 0 )
+end sub
+
+function Picker.Open( byval owner as TK_HOST ptr, byref rows_ as const Array( of PickRow ), _
+                      byval x as long, byval y as long, byval w as long, byval sel as long ) as boolean
+    if this.IsOpen( ) then this.Close( )
+    if owner = 0 then return false
+    Rows = rows_
+    dim as long rowH = tkHost_Scale( owner, ROW_CY )
+    dim as long n = Rows.Count( )
+    if n > MaxRows then n = MaxRows
+    if n < 1 then n = 1
+    dim as long qh = 0
+    if Filter then qh = tkHost_Scale( owner, 26 )
+    dim as long pad = tkHost_Scale( owner, 2 )
+    dim as long h = qh + n * rowH + 2 * pad
+    Pop = tkHost_CreatePopup( owner, x, y, w, h )
+    if Pop = 0 then return false
+    Pop->pUser = @this
+    Pop->OnClosed = sub( byval h as TK_HOST ptr )
+        dim as Picker ptr p = PickerOf( h )
+        if p = 0 then exit sub
+        p->Pop = 0
+        p->Frame = 0
+        p->Query = 0
+        p->List = 0
+    end sub
+    ' the popup's own keys, before its focused widget: moving, picking, leaving
+    Pop->OnPreKey = function( byval h as TK_HOST ptr, byval m as TK_MSG ptr ) as boolean
+        dim as Picker ptr p = PickerOf( h )
+        if (p = 0) orelse (m->msg <> TKM_KEYDOWN) then return false
+        dim as boolean shift_ = (m->mods and SDL_KMOD_SHIFT) <> 0
+        select case m->key
+        case SDLK_ESCAPE : p->Close( ) : return true
+        case SDLK_RETURN, SDLK_KP_ENTER : p->Accept( ) : return true
+        case SDLK_UP : p->Move( -1 ) : return true
+        case SDLK_DOWN : p->Move( 1 ) : return true
+        case SDLK_PAGEUP : p->Move( -p->MaxRows ) : return true
+        case SDLK_PAGEDOWN : p->Move( p->MaxRows ) : return true
+        case SDLK_TAB
+            if shift_ then p->Move( -1 ) else p->Move( 1 )
+            return true
+        end select
+        return false
+    end function
+
+    Frame = tkWidget_Create( Pop, 0, @FrameProc, @this )
+    tkWidget_SetPos( Frame, 0, 0, w, h )
+    if Filter then
+        Query = tkTextBox_Create( Frame, ID_QUERY )
+        tkWidget_SetPos( Query, pad, pad, w - 2 * pad, qh - pad )
+        tkTextBox_SetChangeCallback( Query, sub( byval hTb as TK_WIDGET ptr )
+            dim as Picker ptr p = PickerOf( hTb->pHost )
+            if p then p->Refilter( )
+        end sub )
+    end if
+    List = tkListTree_Create( Frame, ID_LIST )
+    tkWidget_SetPos( List, pad, qh + pad, w - 2 * pad, n * rowH )
+    for c as long = 0 to Columns.Count( ) - 1
+        tkListTree_AddColumn( List, "", tkHost_Scale( owner, Columns[c] ) )
+    next
+    if Columns.Count( ) = 0 then tkListTree_AddColumn( List, "", w )
+    tkListTree_SetFillColumn( List, tkListTree_GetColumnCount( List ) - 1 )
+    tkListTree_ShowHeader( List, false )
+    tkListTree_SetActivateCallback( List, sub( byval hL as TK_WIDGET ptr, byval row as integer )
+        dim as Picker ptr p = PickerOf( hL->pHost )
+        if p then p->Accept( )
+    end sub )
+    this.Refilter( )
+    if (sel > 0) andalso (sel < Shown.Count( )) then tkListTree_SetCurSel( List, sel )
+    tkHost_Show( Pop )
+    if Query then tkHost_SetFocus( Pop, Query ) else tkHost_SetFocus( Pop, List )
+    return true
+end function
+
+sub Picker.Close( )
+    if Pop then tkHost_Close( Pop )         ' OnClosed clears the handles
+end sub
+
+function Picker.IsOpen( ) as boolean
+    return (Pop <> 0) andalso tkHost_IsOpen( Pop )
+end function
+
+function Picker.ShownCount( ) as long
+    return Shown.Count( )
+end function
+
+' Moves the selection, clamped at both ends.
+sub Picker.Move( byval delta as long )
+    if (List = 0) orelse (Shown.Count( ) = 0) then exit sub
+    dim as long i = tkListTree_GetCurSel( List ) + delta
+    if i < 0 then i = 0
+    if i >= Shown.Count( ) then i = Shown.Count( ) - 1
+    tkListTree_SetCurSel( List, i )
+end sub
+
+function Picker.SelectedTag( ) as long
+    if (List = 0) orelse (Shown.Count( ) = 0) then return -1
+    dim as long i = tkListTree_GetCurSel( List )
+    if (i < 0) orelse (i >= Shown.Count( )) then return -1
+    return Rows[Shown[i]].Tag
+end function
+
+' Closes, then hands the pick over (the popup is gone when OnPick runs).
+sub Picker.Accept( )
+    dim as long tag = this.SelectedTag( )
+    this.Close( )
+    if (tag >= 0) andalso (OnPick <> 0) then OnPick( Payload, tag )
+end sub
+
+sub Picker.SetQuery( byref q as const ustring )
+    if Query = 0 then exit sub
+    tkTextBox_SetText( Query, q )
+    this.Refilter( )
+end sub

@@ -1,0 +1,87 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+' sessionsuite -- tkc/session: a state written and read back field for field, stored paths
+' relative inside the base and absolute outside it, a missing file as an empty session, a bad
+' split ratio kept at its default, the recent list.
+#module "sessionsuite"
+
+#import "std/containers"
+#import "std/fs"
+#import "std/config"
+#import "tkc/session"
+#import "../tally"
+using containers
+
+public sub Run( byref c as tally.Checker )
+    c.Begin( "session" )
+    dim as session.SessionState st
+    st.Active = "src/main.tiko"
+    st.Split = session.SplitMode.Horizontal
+    st.SplitRatio = 0.25
+    st.Pane2 = "src/util.tiko"
+    st.Build = "Release"
+    dim as session.FileState f
+    f.Path = "src/main.tiko"
+    f.Open = true
+    f.FirstLine = 17
+    f.Position = 294
+    f.Bookmarks.Push( 12 )
+    f.Bookmarks.Push( 40 )
+    st.Files.Push( f )
+    dim as session.FileState g
+    g.Path = "C:/elsewhere/x.tiko"
+    g.Open = false
+    st.Files.Push( g )
+    st.Recent.Push( "C:/a.tiko" )
+    st.Recent.Push( "C:/b.tiko" )
+
+    dim as config.ConfigResultText t = session.SessionText( st )
+    c.Check( t.IsOk( ), "SessionText" )
+    if t.IsOk( ) = false then exit sub
+    dim as session.SessionResult r = session.ParseSession( t.Value( ) )
+    c.Check( r.IsOk( ), "and it parses" )
+    if r.IsOk( ) = false then exit sub
+    dim as session.SessionState b = r.Value( )
+    c.Same( b.Active, "src/main.tiko", "active" )
+    c.Check( b.Split = session.SplitMode.Horizontal, "split" )
+    c.Check( abs( b.SplitRatio - 0.25 ) < 0.0001, "split ratio" )
+    c.Same( b.Pane2, "src/util.tiko", "pane 2" )
+    c.Same( b.Build, "Release", "build" )
+    c.SameNum( b.Files.Count( ), 2, "two files" )
+    if b.Files.Count( ) = 2 then
+        c.Check( b.Files[0].Open andalso (b.Files[0].FirstLine = 17) andalso (b.Files[0].Position = 294), "first line, position, open" )
+        c.Check( (b.Files[0].Bookmarks.Count( ) = 2) andalso (b.Files[0].Bookmarks[1] = 40), "bookmarks" )
+        c.Check( b.Files[1].Open = false, "a closed file stays closed" )
+    end if
+    c.Check( (b.Recent.Count( ) = 2) andalso (b.Recent[0] = "C:/a.tiko"), "the recent list, newest first" )
+
+    dim as ustring nl = wchr( 10 )
+    dim as session.SessionResult odd = session.ParseSession( "[session]" & nl & "split = 'diagonal'" & nl & _
+        "split_ratio = 3.0" & nl & "[[files]]" & nl & "open = true" & nl & "[[files]]" & nl & "path = 'k.tiko'" & nl )
+    c.Check( odd.IsOk( ), "odd values parse" )
+    if odd.IsOk( ) then
+        c.Check( odd.Value( ).Split = session.SplitMode.None, "an unknown split is none" )
+        c.Check( abs( odd.Value( ).SplitRatio - 0.5 ) < 0.0001, "an impossible ratio keeps 0.5" )
+        c.SameNum( odd.Value( ).Files.Count( ), 1, "a file with no path is skipped" )
+        if odd.Value( ).Files.Count( ) = 1 then c.Check( odd.Value( ).Files[0].Open, "open defaults to true" )
+    end if
+    c.Check( session.ParseSession( "[session" ).IsOk( ) = false, "not TOML fails" )
+
+    dim as fs.FsResultUStr tmp = fs.CreateTempDir( "sessionsuite" )
+    c.Check( tmp.IsOk( ), "a temp folder" )
+    if tmp.IsOk( ) = false then exit sub
+    dim as ustring base_ = tmp.Value( )
+    dim as ustring inside = fs.PathJoin( base_, "src", "main.tiko" )
+    c.Same( session.StoredPath( base_, inside ), "src/main.tiko", "inside the base: relative, with /" )
+    c.Same( session.FullPath( base_, "src/main.tiko" ), fs.PathToNative( inside ), "and back" )
+    dim as ustring outside = fs.PathJoin( fs.PathParent( base_ ), "other.tiko" )
+    c.Same( session.StoredPath( base_, outside ), outside, "outside it: as given" )
+    dim as ustring p = fs.PathJoin( base_, "cfg", session.SESSION_FILE )
+    c.Check( session.SaveSession( p, st ).IsOk( ), "SaveSession creates the folder" )
+    dim as session.SessionResult l = session.LoadSession( p )
+    c.Check( l.IsOk( ) andalso (l.Value( ).Files.Count( ) = 2), "LoadSession reads it back" )
+    dim as session.SessionResult none_ = session.LoadSession( fs.PathJoin( base_, "none.toml" ) )
+    c.Check( none_.IsOk( ) andalso (none_.Value( ).Files.Count( ) = 0), "a missing file is an empty session" )
+    fs.RemoveDirAll( base_ )
+end sub

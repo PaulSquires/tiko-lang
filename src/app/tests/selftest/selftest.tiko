@@ -16,19 +16,31 @@
 #import "tkc/appinfo"
 #import "tkc/cmdids"
 #import "tkc/keybind"
+#import "tkc/session"
 #import "tkc/settings"
+#import "tka/documents"
 #import "tka/editor"
 #import "tka/mainwin"
 #import "tkControls/tkApp"
 #import "tkControls/tkTest"
 #import "tkControls/tkMenuBar"
+#import "tkControls/tkPaint"
 #import "tkControls/tkPopupMenu"
+#import "tkControls/tkMessageBox"
+#import "tkControls/tkStatusBar"
+#import "std/containers"
+using containers
 using cmdids
 using tkApp
 using tkHost
 using tkTest
 using tkMenuBar
+using tkPaint
 using tkPopupMenu
+using tkMessageBox
+using tkStatusBar
+
+private type DocRef as documents.Document ptr
 
 ' The self-test's score. Each failing check prints one FAIL line.
 public type Tally
@@ -85,11 +97,11 @@ public sub Pass( byref t as Tally, byval sc as single )
     t.Check( strings.EndsWith( tkForm_RoleFile( mw.form, TKFONT_MONO ), mainwin.FONT_MONO ), P( sc, "mono font is Cascadia Mono" ) )
     t.Check( strings.EndsWith( tkApp_GlyphFace( ), mainwin.FONT_GLYPH ), P( sc, "glyph font is '" & tkApp_GlyphFace( ) & "'" ) )
     dim as ustring title = *SDL_GetWindowTitle( h->win )
-    t.Check( title = appinfo.WindowTitle( ), P( sc, "title is '" & title & "'" ) )
+    t.Check( title = appinfo.WindowTitle( "untitled1" ), P( sc, "title is '" & title & "'" ) )
     t.Check( tkApp_Theme( ).IsDark, P( sc, "the dark theme reached the controls" ) )
 
     ' ---- the layout: the view fills all but one status row (no menu, no tabs, no panel)
-    dim as TK_WIDGET ptr v = mw.Code.Widget( )
+    dim as TK_WIDGET ptr v = mw.View( ).Widget( )
     dim as long sh = tkForm_Scale( mw.form, mainwin.STATUS_CY )
     t.Check( mw.StatusHeight( ) = sh, P( sc, strings.Format( "status row {} px", mw.StatusHeight( ) ) ) )
     t.Check( (v->x = 0) andalso (v->y = 0) andalso (v->cw = cx) andalso (v->ch = cy - sh), _
@@ -100,7 +112,7 @@ public sub Pass( byref t as Tally, byval sc as single )
     t.Check( tkHost_GetFocus( h ) = v, P( sc, "the view has the focus" ) )
 
     ' ---- the status panels
-    t.Check( mw.StatusText( mainwin.StatusPanel.Buffer ) = "untitled", P( sc, "buffer panel: " & mw.StatusText( mainwin.StatusPanel.Buffer ) ) )
+    t.Check( mw.StatusText( mainwin.StatusPanel.Buffer ) = "untitled1", P( sc, "buffer panel: " & mw.StatusText( mainwin.StatusPanel.Buffer ) ) )
     t.Check( mw.StatusText( mainwin.StatusPanel.Position ) = "Ln 1, Col 1", P( sc, "position panel: " & mw.StatusText( mainwin.StatusPanel.Position ) ) )
     t.Check( mw.StatusText( mainwin.StatusPanel.Encoding ) = "UTF-8", P( sc, "encoding panel: " & mw.StatusText( mainwin.StatusPanel.Encoding ) ) )
     t.Check( mw.StatusText( mainwin.StatusPanel.Build ) = "Debug", P( sc, "build panel: " & mw.StatusText( mainwin.StatusPanel.Build ) ) )
@@ -111,13 +123,13 @@ public sub Pass( byref t as Tally, byval sc as single )
     ' ---- typing reaches the view and moves the caret panel
     tkTest_PushText( h, "dim x as long" )
     tkTest_PumpFor( h, 50 )
-    t.Check( mw.Code.Text( ) = "dim x as long", P( sc, "typed text: '" & mw.Code.Text( ) & "'" ) )
+    t.Check( mw.View( ).Text( ) = "dim x as long", P( sc, "typed text: '" & mw.View( ).Text( ) & "'" ) )
     t.Check( mw.StatusText( mainwin.StatusPanel.Position ) = "Ln 1, Col 14", P( sc, "position after typing: " & mw.StatusText( mainwin.StatusPanel.Position ) ) )
     Chord( h, SDLK_RETURN, SDL_SCANCODE_RETURN, 0 )
-    t.Check( mw.Code.LineCount( ) = 2, P( sc, strings.Format( "Enter made line 2 ({} lines)", mw.Code.LineCount( ) ) ) )
+    t.Check( mw.View( ).LineCount( ) = 2, P( sc, strings.Format( "Enter made line 2 ({} lines)", mw.View( ).LineCount( ) ) ) )
     t.Check( mw.StatusText( mainwin.StatusPanel.Position ) = "Ln 2, Col 1", P( sc, "position after Enter: " & mw.StatusText( mainwin.StatusPanel.Position ) ) )
-    t.Check( mw.Code.IsModified( ), P( sc, "the buffer is modified" ) )
-    t.Check( mw.StatusText( mainwin.StatusPanel.Buffer ) = "untitled *", P( sc, "the buffer panel marks it: " & mw.StatusText( mainwin.StatusPanel.Buffer ) ) )
+    t.Check( mw.View( ).IsModified( ), P( sc, "the buffer is modified" ) )
+    t.Check( mw.StatusText( mainwin.StatusPanel.Buffer ) = "untitled1 *", P( sc, "the buffer panel marks it: " & mw.StatusText( mainwin.StatusPanel.Buffer ) ) )
 
     ' ---- the hidden menu bar: Ctrl+Shift+M shows it above the view, File open; Esc hides it
     Chord( h, SDLK_M, SDL_SCANCODE_M, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
@@ -127,7 +139,7 @@ public sub Pass( byref t as Tally, byval sc as single )
              P( sc, strings.Format( "menu bar at {} {}x{}, want 0 {}x{}", mw.menuBar->y, mw.menuBar->cw, mw.menuBar->ch, cx, mh ) ) )
     t.Check( (v->y = mh) andalso (v->ch = cy - sh - mh), P( sc, strings.Format( "the view moved down: y {} h {}", v->y, v->ch ) ) )
     t.Check( tkMenuBar_IsMenuOpen( mw.menuBar ) andalso (tkMenuBar_GetActiveIndex( mw.menuBar ) = 0), P( sc, "the File menu is open" ) )
-    t.Check( mw.Code.Text( ) = "dim x as long" & mw.Code.EolText( ), P( sc, "the menu key typed nothing" ) )
+    t.Check( mw.View( ).Text( ) = "dim x as long" & mw.View( ).EolText( ), P( sc, "the menu key typed nothing" ) )
     dim as TK_MENU ptr fileMenu = tkMenuBar_GetDropDown( mw.menuBar, 0 )
     if tkPopupMenu_IsOpen( fileMenu ) then
         Chord( tkPopupMenu_Surface( fileMenu ), SDLK_ESCAPE, SDL_SCANCODE_ESCAPE, 0 )
@@ -163,9 +175,10 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     t.Check( tkMenuBar_GetItemCount( mw.menuBar ) = 6, P( sc, strings.Format( "six menus ({})", tkMenuBar_GetItemCount( mw.menuBar ) ) ) )
     t.Check( tkMenuBar_GetItemText( mw.menuBar, 5 ) = "Build", P( sc, "the last menu is Build" ) )
     dim as TK_MENU ptr fileMenu = tkMenuBar_GetDropDown( mw.menuBar, 0 )
-    t.Check( tkPopupMenu_GetItemCount( fileMenu ) = 14, P( sc, strings.Format( "File: 11 commands + 3 separators ({})", tkPopupMenu_GetItemCount( fileMenu ) ) ) )
+    t.Check( tkPopupMenu_GetItemCount( fileMenu ) = 15, P( sc, strings.Format( "File: 12 commands + 3 separators ({})", tkPopupMenu_GetItemCount( fileMenu ) ) ) )
     t.Check( tkPopupMenu_GetItemEnabled( fileMenu, Cmd.FileSave ), P( sc, "File > Save enabled" ) )
-    t.Check( tkPopupMenu_GetItemEnabled( fileMenu, Cmd.FileNew ) = false, P( sc, "File > New greyed (P2)" ) )
+    t.Check( tkPopupMenu_GetItemEnabled( fileMenu, Cmd.FileNew ), P( sc, "File > New enabled (P2)" ) )
+    t.Check( tkPopupMenu_GetItemEnabled( tkMenuBar_GetDropDown( mw.menuBar, 3 ), Cmd.FunctionList ) = false, P( sc, "View > Functions greyed (P5)" ) )
     t.Check( mw.ShortcutText( Cmd.FileSave ) = "Ctrl+S", P( sc, "Save shows " & mw.ShortcutText( Cmd.FileSave ) ) )
     t.Check( mw.ShortcutText( Cmd.SplitLeftRight ) = "Ctrl+\", P( sc, "Split shows " & mw.ShortcutText( Cmd.SplitLeftRight ) ) )
 
@@ -173,64 +186,343 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     tkTest_PushText( h, "abc" )
     tkTest_PumpFor( h, 30 )
     Chord( h, SDLK_D, SDL_SCANCODE_D, SDL_KMOD_CTRL )
-    t.Check( mw.Code.LineCount( ) = 2, P( sc, strings.Format( "Ctrl+D duplicated the line ({} lines)", mw.Code.LineCount( ) ) ) )
-    Chord( h, SDLK_N, SDL_SCANCODE_N, SDL_KMOD_CTRL )
-    t.Check( instr( mw.Message, "not available yet" ) > 0, P( sc, "Ctrl+N says it is not there yet: " & mw.Message ) )
-    t.Check( mw.Code.Text( ) = "abc" & mw.Code.EolText( ) & "abc", P( sc, "and typed nothing" ) )
-    mw.Code.SetText( "" )                                     ' unmodified: the config files may open
+    t.Check( mw.View( ).LineCount( ) = 2, P( sc, strings.Format( "Ctrl+D duplicated the line ({} lines)", mw.View( ).LineCount( ) ) ) )
+    Chord( h, SDLK_G, SDL_SCANCODE_G, SDL_KMOD_CTRL )
+    t.Check( instr( mw.Message, "not available yet" ) > 0, P( sc, "Ctrl+G says it is not there yet: " & mw.Message ) )
+    t.Check( mw.View( ).Text( ) = "abc" & mw.View( ).EolText( ) & "abc", P( sc, "and typed nothing" ) )
+    mw.View( ).SetText( "" )                                     ' unmodified: closing it asks nothing
 
     ' ---- settings.toml: Ctrl+Comma opens it; saving applies it
     Chord( h, SDLK_COMMA, SDL_SCANCODE_COMMA, SDL_KMOD_CTRL )
-    t.Check( lcase( mw.DocPath ) = lcase( sf ), P( sc, "Ctrl+Comma opened settings.toml: " & mw.DocPath ) )
-    t.Check( left( mw.Code.Text( ), 17 ) = "# tkEdit settings", P( sc, "its text is in the view" ) )
+    t.Check( lcase( mw.ActivePath( ) ) = lcase( sf ), P( sc, "Ctrl+Comma opened settings.toml: " & mw.ActivePath( ) ) )
+    t.Check( left( mw.View( ).Text( ), 17 ) = "# tkEdit settings", P( sc, "its text is in the view" ) )
     t.Check( mw.StatusText( mainwin.StatusPanel.Buffer ) = settings.SETTINGS_FILE, P( sc, "the buffer panel names it" ) )
-    mw.Code.SetText( "version = 1" & nl & "[editor]" & nl & "tab_size = 2" & nl & "line_numbers = false" & nl & _
+    mw.View( ).SetText( "version = 1" & nl & "[editor]" & nl & "tab_size = 2" & nl & "line_numbers = false" & nl & _
                      "[ui]" & nl & "theme = 'light'" & nl )
     Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
     t.Check( instr( fs.ReadAllText( sf ).ValueOr( "" ), "tab_size = 2" ) > 0, P( sc, "Ctrl+S wrote settings.toml" ) )
     t.Check( mw.Prefs.TabSize = 2, P( sc, strings.Format( "tab_size applied ({})", mw.Prefs.TabSize ) ) )
-    t.Check( (mw.Look.LineNumbers = false) andalso (mw.Code.MarginWidth( 0 ) = 0), P( sc, "line numbers off in the view" ) )
+    t.Check( (mw.Look.LineNumbers = false) andalso (mw.View( ).MarginWidth( 0 ) = 0), P( sc, "line numbers off in the view" ) )
     t.Check( (mw.Theme.Name = "light") andalso (tkApp_Theme( ).IsDark = false), P( sc, "theme 'light' applied to the controls" ) )
     t.Check( mw.Look.Text.Back = &hFFFFFF, P( sc, "and to the view's background" ) )
     t.Check( mw.Message = "", P( sc, "no message: " & mw.Message ) )
 
     ' a broken file changes nothing and says where
-    mw.Code.SetText( "[editor" & nl & "tab_size = 8" & nl )
+    mw.View( ).SetText( "[editor" & nl & "tab_size = 8" & nl )
     Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
     t.Check( instr( mw.Message, settings.SETTINGS_FILE & ":1:" ) = 1, P( sc, "a parse error names file and line: " & mw.Message ) )
     t.Check( mw.StatusText( mainwin.StatusPanel.Message ) = mw.Message, P( sc, "in the message panel" ) )
     t.Check( (mw.Prefs.TabSize = 2) andalso (mw.Theme.Name = "light"), P( sc, "and the previous settings stay" ) )
 
     ' ---- keybindings.toml: Ctrl+K; a rebinding is live at once, the menu shows it
-    mw.Code.SetText( "version = 1" & nl & "[ui]" & nl & "theme = 'light'" & nl )
+    mw.View( ).SetText( "version = 1" & nl & "[ui]" & nl & "theme = 'light'" & nl )
     Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
     Chord( h, SDLK_K, SDL_SCANCODE_K, SDL_KMOD_CTRL )
-    t.Check( lcase( mw.DocPath ) = lcase( kf ), P( sc, "Ctrl+K opened keybindings.toml" ) )
-    mw.Code.SetText( "format = 1" & nl & "[bindings]" & nl & "DuplicateLine = 'Primary+Shift+D'" & nl & _
+    t.Check( lcase( mw.ActivePath( ) ) = lcase( kf ), P( sc, "Ctrl+K opened keybindings.toml" ) )
+    mw.View( ).SetText( "format = 1" & nl & "[bindings]" & nl & "DuplicateLine = 'Primary+Shift+D'" & nl & _
                      "DeleteLine = 'Primary+S'" & nl )
     Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
     t.Check( mw.Keys.Effective( Cmd.DuplicateLine ) = "Primary+Shift+D", P( sc, "the rebinding applied" ) )
     t.Check( instr( mw.Message, "FileSave and DeleteLine share Primary+S" ) > 0, P( sc, "a shared chord is reported: " & mw.Message ) )
     t.Check( mw.ShortcutText( Cmd.DuplicateLine ) = "Ctrl+Shift+D", P( sc, "the menus show the new chord" ) )
-    dim as long before = mw.Code.LineCount( )
+    dim as long before = mw.View( ).LineCount( )
     Chord( h, SDLK_D, SDL_SCANCODE_D, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
-    t.Check( mw.Code.LineCount( ) = before + 1, P( sc, strings.Format( "Ctrl+Shift+D duplicates now ({} -> {})", before, mw.Code.LineCount( ) ) ) )
+    t.Check( mw.View( ).LineCount( ) = before + 1, P( sc, strings.Format( "Ctrl+Shift+D duplicates now ({} -> {})", before, mw.View( ).LineCount( ) ) ) )
     Chord( h, SDLK_D, SDL_SCANCODE_D, SDL_KMOD_CTRL )
-    t.Check( mw.Code.LineCount( ) = before + 1, P( sc, "and Ctrl+D does not" ) )
+    t.Check( mw.View( ).LineCount( ) = before + 1, P( sc, "and Ctrl+D does not" ) )
     ' FileSave and DeleteLine share Ctrl+S: the first in the table wins, so Save still saves
-    mw.Code.SetText( "format = 1" & nl & "[bindings]" & nl )
+    mw.View( ).SetText( "format = 1" & nl & "[bindings]" & nl )
     Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
     t.Check( mw.Keys.Effective( Cmd.DuplicateLine ) = "Primary+D", P( sc, "an emptied file restores the defaults" ) )
 
     ' ---- the theme file: Ctrl+Shift+T copies the shipped one into the config folder; saving applies it
     Chord( h, SDLK_T, SDL_SCANCODE_T, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
     dim as ustring tf = fs.PathJoin( cfg, "themes", "light.toml" )
-    t.Check( lcase( mw.DocPath ) = lcase( tf ), P( sc, "Ctrl+Shift+T opened the user's light.toml: " & mw.DocPath ) )
-    t.Check( instr( mw.Code.Text( ), "name = ""light""" ) > 0, P( sc, "a copy of the shipped theme" ) )
-    mw.Code.SetText( "[editor]" & nl & "bg = '#fafafa'" & nl & "[ui]" & nl & "bg = '#fdfdfd'" & nl )
+    t.Check( lcase( mw.ActivePath( ) ) = lcase( tf ), P( sc, "Ctrl+Shift+T opened the user's light.toml: " & mw.ActivePath( ) ) )
+    t.Check( instr( mw.View( ).Text( ), "name = ""light""" ) > 0, P( sc, "a copy of the shipped theme" ) )
+    mw.View( ).SetText( "[editor]" & nl & "bg = '#fafafa'" & nl & "[ui]" & nl & "bg = '#fdfdfd'" & nl )
     Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
     t.Check( mw.Look.Text.Back = &hFAFAFA, P( sc, "the saved theme applied (&h" & hex( mw.Look.Text.Back ) & ")" ) )
     t.Check( lcase( mw.Theme.Path ) = lcase( tf ), P( sc, "the user's copy wins" ) )
 
     mw.Destroy( )
+end sub
+
+' ================================================================ P2: buffers
+
+' The person, scripted: Ask answers from this queue (MBX_IDOK when empty), Pick from its own.
+dim shared as long gAnswers( 0 to 15 )
+dim shared as long gAnswerCount, gAsked
+dim shared as ustring gPickPath
+
+private function ScriptedAsk( byval f as TK_FORM ptr, byref text as const ustring, byval buttons as long ) as long
+    gAsked += 1
+    if gAnswerCount = 0 then return MBX_IDOK
+    dim as long a = gAnswers( 0 )
+    for i as long = 1 to gAnswerCount - 1
+        gAnswers( i - 1 ) = gAnswers( i )
+    next
+    gAnswerCount -= 1
+    return a
+end function
+
+private sub Answer( byval a as long )
+    gAnswers( gAnswerCount ) = a
+    gAnswerCount += 1
+end sub
+
+private function ScriptedPick( byval f as TK_FORM ptr, byval kind as long, byref suggest as const ustring ) as ustring
+    dim as ustring got = gPickPath
+    gPickPath = ""
+    return got
+end function
+
+private function Files( ) as ustring
+    dim as ustring res = platform.ResourceDir( ).ValueOr( platform.ExeDir( ) )
+    dim as ustring d = fs.PathJoin( res, "out", "selftest", "files" )
+    fs.RemoveDirAll( d )
+    fs.CreateDirAll( d )
+    return d
+end function
+
+private sub WriteBytes( byref path as const ustring, byref s as const string )
+    dim as Array( of ubyte ) b
+    for i as long = 0 to len( s ) - 1
+        b.Push( s[i] )
+    next
+    fs.WriteAllBytes( path, b )
+end sub
+
+private function ReadBytes( byref path as const ustring ) as string
+    dim as Array( of ubyte ) b
+    fs.ReadAllBytes( path, b )
+    dim as string s
+    for each c as ubyte in b
+        s &= chr( c )
+    next
+    return s
+end function
+
+' The status panel's middle, in the window's pixels.
+private sub ClickPanel( byref mw as mainwin.Window, byval panel as mainwin.StatusPanel )
+    dim as TKRECT rc
+    tkStatusBar_GetPanelRect( mw.status, panel, rc )
+    dim as TK_HOST ptr h = tkForm_Host( mw.form )
+    tkTest_Click( h, mw.status->x + (rc.left + rc.right) \ 2, mw.status->y + (rc.top + rc.bottom) \ 2 )
+    tkTest_PumpFor( h, 60 )
+end sub
+
+private sub PopKey( byref mw as mainwin.Window, byval key as long, byval sc as long, byval mods as long = 0 )
+    if mw.Chooser.Pop = 0 then exit sub
+    Chord( mw.Chooser.Pop, key, sc, mods )
+    tkTest_PumpFor( tkForm_Host( mw.form ), 40 )
+end sub
+
+' Lets go of Ctrl on the switcher.
+private sub CtrlUp( byref mw as mainwin.Window )
+    if mw.Chooser.Pop = 0 then exit sub
+    tkTest_PushKey( mw.Chooser.Pop, SDLK_LCTRL, 0, false, SDL_SCANCODE_LCTRL )
+    tkTest_PumpFor( tkForm_Host( mw.form ), 60 )
+end sub
+
+public sub BufferPass( byref t as Tally, byval sc as single )
+    dim as mainwin.Window mw
+    mw.ConfigDir = FreshConfig( )
+    mw.Ask = @ScriptedAsk
+    mw.Pick = @ScriptedPick
+    gAnswerCount = 0
+    t.Check( mw.Create( sc ), P( sc, "buffers: main window created" ) )
+    if mw.form = 0 then exit sub
+    mw.Show( )
+    dim as TK_HOST ptr h = tkForm_Host( mw.form )
+    tkTest_PumpFor( h, 150 )
+    dim as ustring dir_ = Files( )
+    dim as ustring pathA = fs.PathJoin( dir_, "a.tiko" ), pathB = fs.PathJoin( dir_, "b.tiko" ), pathC = fs.PathJoin( dir_, "c.txt" )
+    WriteBytes( pathA, "dim a as long" & chr( 10 ) )
+    WriteBytes( pathB, "dim b as long" & chr( 13, 10 ) )
+    WriteBytes( pathC, "caf" & chr( &hE9 ) & chr( 10 ) )             ' not UTF-8: ANSI
+
+    ' ---- opening: the untitled buffer gives way; encoding and line ending detected
+    t.Check( mw.Docs.Count( ) = 1, P( sc, "one untitled buffer at the start" ) )
+    t.Check( mw.OpenFile( pathA ), P( sc, "open a.tiko" ) )
+    t.Check( mw.Docs.Count( ) = 1, P( sc, strings.Format( "the empty untitled buffer gave way ({} buffers)", mw.Docs.Count( ) ) ) )
+    t.Check( mw.StatusText( mainwin.StatusPanel.Buffer ) = "a.tiko", P( sc, "buffer panel: " & mw.StatusText( mainwin.StatusPanel.Buffer ) ) )
+    t.Check( mw.StatusText( mainwin.StatusPanel.LineEnding ) = "LF", P( sc, "a.tiko is LF" ) )
+    dim as ustring title = *SDL_GetWindowTitle( h->win )
+    t.Check( title = "a.tiko - tkEdit", P( sc, "title: " & title ) )
+    mw.OpenFile( pathB )
+    t.Check( mw.StatusText( mainwin.StatusPanel.LineEnding ) = "CRLF", P( sc, "b.tiko is CRLF" ) )
+    mw.OpenFile( pathA )
+    t.Check( (mw.Docs.Count( ) = 2) andalso (lcase( mw.ActivePath( ) ) = lcase( pathA )), P( sc, "opening a.tiko again shows its buffer" ) )
+    mw.OpenFile( pathC )
+    t.Check( mw.StatusText( mainwin.StatusPanel.Encoding ) = "ANSI", P( sc, "c.txt is ANSI: " & mw.StatusText( mainwin.StatusPanel.Encoding ) ) )
+    t.Check( mw.View( ).Text( ) = "caf" & wchr( &hE9 ) & chr( 10 ), P( sc, "and decoded" ) )
+    t.Check( (mw.Mru.Count( ) = 3) andalso (mw.Mru[0] = mw.Active( )), P( sc, "the most recent first" ) )
+    t.Check( mw.Recent.Count( ) = 3, P( sc, strings.Format( "three recent files ({})", mw.Recent.Count( ) ) ) )
+
+    ' ---- Ctrl+E: the buffer list, filtered by typing, Enter picks
+    Chord( h, SDLK_E, SDL_SCANCODE_E, SDL_KMOD_CTRL )
+    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Buffers), P( sc, "Ctrl+E opened the buffer list" ) )
+    t.Check( mw.Chooser.ShownCount( ) = 3, P( sc, strings.Format( "three rows ({})", mw.Chooser.ShownCount( ) ) ) )
+    if mw.Chooser.Pop then
+        tkTest_PushText( mw.Chooser.Pop, "b.t" )
+        tkTest_PumpFor( h, 40 )
+    end if
+    t.Check( mw.Chooser.ShownCount( ) = 1, P( sc, strings.Format( "'b.t' leaves one row ({})", mw.Chooser.ShownCount( ) ) ) )
+    PopKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
+    t.Check( (mw.Chooser.IsOpen( ) = false) andalso (lcase( mw.ActivePath( ) ) = lcase( pathB )), P( sc, "Enter showed b.tiko: " & mw.ActivePath( ) ) )
+    t.Check( tkHost_GetFocus( h ) = mw.View( ).Widget( ), P( sc, "and the view has the focus" ) )
+
+    ' ---- Ctrl+Tab: the MRU switcher, the previous buffer selected, letting go of Ctrl picks
+    Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL )
+    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Switcher), P( sc, "Ctrl+Tab opened the switcher" ) )
+    t.Check( mw.Chooser.Query = 0, P( sc, "with no query box" ) )
+    CtrlUp( mw )
+    t.Check( lcase( mw.ActivePath( ) ) = lcase( pathC ), P( sc, "releasing Ctrl showed the previous buffer: " & mw.ActivePath( ) ) )
+    Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL )
+    PopKey( mw, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL )             ' Tab again, Ctrl still held
+    CtrlUp( mw )
+    t.Check( lcase( mw.ActivePath( ) ) = lcase( pathA ), P( sc, "Ctrl+Tab Tab reached the third: " & mw.ActivePath( ) ) )
+
+    ' ---- the status panels: encoding, line ending, build
+    ClickPanel( mw, mainwin.StatusPanel.Encoding )
+    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Encoding), P( sc, "the encoding panel opens a chooser" ) )
+    PopKey( mw, SDLK_DOWN, SDL_SCANCODE_DOWN )
+    PopKey( mw, SDLK_DOWN, SDL_SCANCODE_DOWN )
+    PopKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
+    t.Check( mw.StatusText( mainwin.StatusPanel.Encoding ) = "UTF-8 (BOM)", P( sc, "UTF-8 (BOM) chosen: " & mw.StatusText( mainwin.StatusPanel.Encoding ) ) )
+    ClickPanel( mw, mainwin.StatusPanel.LineEnding )
+    PopKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )                     ' the first row: CRLF
+    t.Check( mw.StatusText( mainwin.StatusPanel.LineEnding ) = "CRLF", P( sc, "converted to CRLF" ) )
+    t.Check( mw.View( ).Text( ) = "dim a as long" & chr( 13, 10 ), P( sc, "the line break converted in the text" ) )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    t.Check( ReadBytes( pathA ) = chr( &hEF, &hBB, &hBF ) & "dim a as long" & chr( 13, 10 ), P( sc, "saved with a BOM and CRLF" ) )
+    ClickPanel( mw, mainwin.StatusPanel.Build )
+    PopKey( mw, SDLK_DOWN, SDL_SCANCODE_DOWN )
+    PopKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
+    t.Check( mw.StatusText( mainwin.StatusPanel.Build ) = "Release", P( sc, "the build panel picked Release" ) )
+    ClickPanel( mw, mainwin.StatusPanel.Buffer )
+    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Buffers), P( sc, "the buffer panel opens the buffer list" ) )
+    PopKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
+    t.Check( mw.Chooser.IsOpen( ) = false, P( sc, "Esc closes it" ) )
+
+    ' ---- split: one buffer in both panes, the focus moves, then another buffer in pane 2
+    dim as long cx = h->root->cw, cy = h->root->ch
+    dim as long sh = mw.StatusHeight( ), bar = tkForm_Scale( mw.form, mainwin.SPLIT_BAR )
+    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL )
+    t.Check( (mw.Split = session.SplitMode.Vertical) andalso (mw.Pane2 = mw.Pane1), P( sc, "Ctrl+\ split the active buffer left/right" ) )
+    if mw.Pane2 = 0 then exit sub
+    dim as TK_WIDGET ptr v1 = mw.Pane1->Main.Widget( ), v2 = mw.Pane2->Other.Widget( )
+    dim as long w1 = cint( (cx - bar) * 0.5 )
+    t.Check( (v1->x = 0) andalso (v1->cw = w1) andalso (v1->ch = cy - sh), P( sc, strings.Format( "pane 1 at {} {}x{}", v1->x, v1->cw, v1->ch ) ) )
+    t.Check( (v2->x = w1 + bar) andalso (v2->cw = cx - w1 - bar) andalso tkWidget_IsVisible( v2 ), P( sc, strings.Format( "pane 2 at {} {}x{}", v2->x, v2->cw, v2->ch ) ) )
+    t.Check( (mw.splitBar <> 0) andalso (mw.splitBar->x = w1) andalso (mw.splitBar->cw = bar), P( sc, "the bar between them" ) )
+    Chord( h, SDLK_GRAVE, SDL_SCANCODE_GRAVE, SDL_KMOD_CTRL )
+    t.Check( mw.InPane2 andalso (tkHost_GetFocus( h ) = v2), P( sc, "Ctrl+Tilde moved the focus to pane 2" ) )
+    tkTest_PushText( h, "zz" )
+    tkTest_PumpFor( h, 40 )
+    t.Check( left( mw.Pane1->Main.Text( ), 2 ) = "zz", P( sc, "typing in pane 2 edits the one document" ) )
+    mw.ShowDoc( mw.FindOpen( pathB ) )
+    t.Check( (mw.Pane2 = mw.FindOpen( pathB )) andalso (lcase( mw.Pane1->Path ) = lcase( pathA )), P( sc, "pane 2 shows b.tiko, pane 1 still a.tiko" ) )
+    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    v1 = mw.Pane1->Main.Widget( )
+    v2 = mw.Pane2->Other.Widget( )
+    dim as long h1 = cint( (cy - sh - bar) * 0.5 )
+    t.Check( (mw.Split = session.SplitMode.Horizontal) andalso (v1->y = 0) andalso (v1->ch = h1) andalso (v2->y = h1 + bar) _
+             andalso (v1->cw = cx), P( sc, strings.Format( "Ctrl+Shift+\ switched to top/bottom: {} {} / {}", v1->y, v1->ch, v2->y ) ) )
+    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    t.Check( (mw.Split = session.SplitMode.None) andalso (mw.Pane2 = 0), P( sc, "the same key again unsplit" ) )
+    dim as TK_WIDGET ptr vv = mw.View( ).Widget( )
+    t.Check( (vv->x = 0) andalso (vv->y = 0) andalso (vv->cw = cx) andalso (vv->ch = cy - sh), P( sc, "one pane fills the window again" ) )
+    t.Check( lcase( mw.ActivePath( ) ) = lcase( pathB ), P( sc, "keeping the buffer that had the focus: " & mw.ActivePath( ) ) )
+
+    ' ---- new, save as, close with and without saving
+    Chord( h, SDLK_N, SDL_SCANCODE_N, SDL_KMOD_CTRL )
+    t.Check( (mw.Docs.Count( ) = 4) andalso mw.Active( )->IsNew( ), P( sc, "Ctrl+N: an untitled buffer" ) )
+    tkTest_PushText( h, "print 1" )
+    tkTest_PumpFor( h, 30 )
+    dim as ustring pathD = fs.PathJoin( dir_, "d.tiko" )
+    gPickPath = pathD
+    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    t.Check( (lcase( mw.ActivePath( ) ) = lcase( pathD )) andalso (fs.ReadAllText( pathD ).ValueOr( "" ) = "print 1"), P( sc, "Ctrl+S on an untitled buffer saved it as d.tiko" ) )
+    tkTest_PushText( h, "!" )
+    tkTest_PumpFor( h, 30 )
+    gAsked = 0
+    Answer( MBX_IDCANCEL )
+    Chord( h, SDLK_W, SDL_SCANCODE_W, SDL_KMOD_CTRL )
+    t.Check( (gAsked = 1) andalso (mw.FindOpen( pathD ) <> 0), P( sc, "Ctrl+W on a modified buffer asked; Cancel kept it" ) )
+    Answer( MBX_IDNO )
+    Chord( h, SDLK_W, SDL_SCANCODE_W, SDL_KMOD_CTRL )
+    t.Check( (mw.FindOpen( pathD ) = 0) andalso (fs.ReadAllText( pathD ).ValueOr( "" ) = "print 1"), P( sc, "Don't Save closed it, the file untouched" ) )
+    t.Check( mw.Docs.Count( ) = 3, P( sc, strings.Format( "three buffers again ({})", mw.Docs.Count( ) ) ) )
+
+    ' ---- another program writes: an unmodified buffer reloads, a modified one asks
+    dim as DocRef db = mw.FindOpen( pathB )
+    WriteBytes( pathB, "dim changed as long" & chr( 13, 10, 13, 10 ) )
+    db->Stamp.Size = 0                                                   ' the clock may not tick
+    mw.CheckDisk( )
+    t.Check( db->Main.Text( ) = "dim changed as long" & chr( 13, 10, 13, 10 ), P( sc, "the unmodified buffer reloaded" ) )
+    dim as DocRef da = mw.FindOpen( pathA )
+    WriteBytes( pathA, "new a" & chr( 10 ) )
+    da->Stamp.Size = 0
+    gAsked = 0
+    Answer( MBX_IDNO )
+    mw.CheckDisk( )
+    t.Check( (gAsked = 1) andalso (left( da->Main.Text( ), 2 ) = "zz"), P( sc, "the modified buffer asked; No kept the edits" ) )
+    mw.CheckDisk( )
+    t.Check( gAsked = 1, P( sc, "and is not asked about the same change again" ) )
+
+    ' ---- Ctrl+Shift+O: the recent files
+    Chord( h, SDLK_O, SDL_SCANCODE_O, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Recent) andalso (mw.Chooser.ShownCount( ) = 4), _
+             P( sc, strings.Format( "Ctrl+Shift+O lists the recent files ({})", mw.Chooser.ShownCount( ) ) ) )
+    PopKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
+
+    mw.Destroy( )
+end sub
+
+' P2: session.toml -- the buffers, the active one, the split and the pane-2 buffer, the build,
+' the caret, the recent files -- written by one window and restored by the next.
+public sub SessionPass( byref t as Tally, byval sc as single )
+    dim as ustring cfg = FreshConfig( )
+    dim as ustring dir_ = Files( )
+    dim as ustring pathA = fs.PathJoin( dir_, "a.tiko" ), pathB = fs.PathJoin( dir_, "b.tiko" )
+    WriteBytes( pathA, "line 1" & chr( 10 ) & "line 2" & chr( 10 ) & "line 3" & chr( 10 ) )
+    WriteBytes( pathB, "dim b as long" & chr( 10 ) )
+    scope
+        dim as mainwin.Window mw
+        mw.ConfigDir = cfg
+        mw.Ask = @ScriptedAsk
+        mw.Pick = @ScriptedPick
+        t.Check( mw.Create( sc ), P( sc, "session: first window" ) )
+        if mw.form = 0 then exit sub
+        mw.Show( )
+        mw.OpenFile( pathB )
+        mw.OpenFile( pathA )
+        mw.View( ).GoToLine( 2 )
+        mw.ToggleSplit( session.SplitMode.Vertical )
+        mw.FocusPane( true )
+        mw.ShowDoc( mw.FindOpen( pathB ) )
+        mw.FocusPane( false )
+        mw.CurrentBuild = "Release"
+        mw.SaveSession( )
+        mw.Destroy( )
+    end scope
+    t.Check( fs.IsFile( fs.PathJoin( cfg, session.SESSION_FILE ) ), P( sc, "session.toml written" ) )
+    dim as mainwin.Window mw2
+    mw2.ConfigDir = cfg
+    mw2.Ask = @ScriptedAsk
+    mw2.Pick = @ScriptedPick
+    t.Check( mw2.Create( sc ), P( sc, "session: second window" ) )
+    if mw2.form = 0 then exit sub
+    mw2.Show( )
+    mw2.RestoreSession( )
+    tkTest_PumpFor( tkForm_Host( mw2.form ), 100 )
+    t.Check( mw2.Docs.Count( ) = 2, P( sc, strings.Format( "two buffers restored ({})", mw2.Docs.Count( ) ) ) )
+    t.Check( (mw2.Pane1 <> 0) andalso (lcase( mw2.Pane1->Path ) = lcase( pathA )), P( sc, "pane 1 shows a.tiko" ) )
+    t.Check( (mw2.Split = session.SplitMode.Vertical) andalso (mw2.Pane2 <> 0) andalso (mw2.Pane2 = mw2.FindOpen( pathB )), P( sc, "split, b.tiko in pane 2" ) )
+    t.Check( (mw2.Pane1 <> 0) andalso (mw2.Pane1->Main.CaretLine( ) = 3), P( sc, "the caret is back on line 3" ) )
+    t.Check( mw2.CurrentBuild = "Release", P( sc, "the build configuration restored" ) )
+    t.Check( mw2.Recent.Count( ) = 2, P( sc, strings.Format( "the recent files restored ({})", mw2.Recent.Count( ) ) ) )
+    mw2.Destroy( )
 end sub

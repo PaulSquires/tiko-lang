@@ -36,8 +36,12 @@ the name `tiko-studio` → `tkEdit` (incl. `platform.APP_NAME` and the run-scrip
 | `src/svc/parser` | `src/svc/parser` | — |
 | `src/svc/runner` | `src/svc/runner` | — |
 | `src/app/editor` | `src/app/editor` | `ViewLook` (settings + .theme) replaced by a resolved `Look`/`Style` and `DefaultLook`; breakpoints, debug line, `KeywordFore`, `DefaultBackColor` removed (no debugger, D6); whitespace/wrap applied from the look; `Indent`/`Unindent`/`NewLineBelow` added; Scintilla's own letter chords (Ctrl+D, Ctrl+L, Ctrl+U ...) cleared |
+| `src/app/documents` | `src/app/documents` | `SplitMode` / `Split` dropped (the panes own the split); `Other` is the buffer's view in pane 2 |
+| `src/app/popuplist` | — | new: the one chooser popup (query box + tkListTree, fuzzy filter, Ctrl-release accept) |
+| `src/core/session` | `src/core/projstate` (shape) | new: session.toml / the `.tkedit` tables, `StoredPath`/`FullPath` from projstate |
+| `src/core/tests/sessionsuite` | — | new |
 | `src/app/chrome` | `src/app/chrome` | rewritten for TOML themes: `PaletteOf`, `LookOf` |
-| `src/app/mainwin/mainwin.tiko` | — | new; `AppOptions` and `WordsOf`/`LoadKeywords` from `mainwin.StudioOptions` / `chrome.LoadKeywords` |
+| `src/app/mainwin/mainwin.tiko` | — | new; `AppOptions`, `WordsOf`/`LoadKeywords`, `AskPerson`/`PickPerson`, and the buffer flow (`FindOpen`, `SaveDoc`, `CloseDoc`, `CheckDisk`) after tiko-studio's `mainwin` |
 | `tools/test-win.sh`, `tools/test-linux.sh`, `tools/idiom.sh` | `tools/` | tkEdit's paths, exe and build folder (`$HOME/tebuild`); tikoParser copied only when present |
 | `fonts/` | `fonts/` | README points at `mainwin.AppOptions` |
 | `keywords/tiko.txt`, `keywords/extra.txt` | `settings/keywords/freebasic_keywords.txt`, `extra_keywords.txt` | renamed |
