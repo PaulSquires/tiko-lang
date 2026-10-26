@@ -1,0 +1,8 @@
+'' TKO0983, fbc's 255: a bare enum member two named enums declare. tiko used the first enum's
+'' (by-example BUG-custom-types-3). Marked in collect.tiko, reported by CheckEnumAmbig_
+'' (symbols/builtinarity.tiko).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/enum-member-ambiguous.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: enum-member-ambiguous.bas(9,7): error TKO0983: 'red' is ambiguous
+'' EXPECT-MAX-DIAG: 1

@@ -150,6 +150,15 @@ private sub CheckNamespaceCall_ ( byref c as Ctx, byval id as NodeId )
                      SymbolKindName( SYM_NAMESPACE ) )
 end sub
 
+'' A BARE ENUM MEMBER TWO NAMED ENUMS DECLARE -- see SYMF_ENUM_AMBIG. 'E1.Red' binds the
+'' enum's own member and is never this.
+private sub CheckEnumAmbig_ ( byref c as Ctx, byval id as NodeId )
+    dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( id ) )
+    if (s = nullptr) orelse (s->kind <> cast( uint8, SYM_ENUMCONST )) then return
+    if (s->flags and SYMF_ENUM_AMBIG) = 0 then return
+    c.diags->Report( TKO0983, PointRange( c.ast->Loc( id ) ), c.names->Spelling( s->name ) )
+end sub
+
 '' Is 'id' the FIELD of an 'offsetof( T, field )'? Then it names a field and no builtin:
 '' 'offsetof( FBSTRING, len )' over tiko-rt's descriptor was TKO0872, "'len' needs an
 '' argument list" (fbc accepts it). Asked only when about to report, so the scan over

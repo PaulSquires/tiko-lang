@@ -782,7 +782,17 @@ sub WalkNode _
         '' An ANONYMOUS enum has no scope of its own, so it publishes regardless --
         '' it has no other spelling. That is LC_ALL and every CLSCTX_*.
         if w.enumExplicit andalso (w.enumScope <> Tko.SCOPE_NONE) then return
-        if w.syms->LookupLocal( scope_, sp->name ) <> Tko.SYMBOL_NONE then return
+        scope
+            dim as Tko.Symbol ptr prevE = w.syms->SymbolAt( w.syms->LookupLocal( scope_, sp->name ) )
+            if prevE <> nullptr then
+                '' ...BUT TWO NAMED ENUMS' MEMBER is fbc's 255 at a bare use, measured: 'Red' from
+                '' E1 and E2 printed E1's. Marked here, reported at the use (builtinarity.tiko).
+                if (prevE->kind = cast( uint8, Tko.SYM_ENUMCONST )) andalso (w.enumScope <> Tko.SCOPE_NONE) then
+                    prevE->flags or= Tko.SYMF_ENUM_AMBIG
+                end if
+                return
+            end if
+        end scope
         dim as Tko.SymbolId eoid = _
             Declare_( w, scope_, sp->name, Tko.SYM_ENUMCONST, w.ast->Loc( id ) )
         NoteDeclAt_( w, eoid, id )

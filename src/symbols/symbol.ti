@@ -184,6 +184,9 @@ namespace Tko
     '' spreads to every declaration of the name once one has it (it decides the mangling),
     '' so the node no longer says who wrote it; RFC-0001 F4's join rule needs to know.
     const SYMF_OVL_WRITTEN    as uint32 = &h10000000
+    '' SYM_ENUMCONST: the bare name of a member that ANOTHER NAMED ENUM declares too. The first
+    '' keeps the bare spelling (collect.tiko); a bare use is fbc's 255, ambiguous (TKO0983).
+    const SYMF_ENUM_AMBIG     as uint32 = &h20000000
 
     type Symbol
         as uint8     kind

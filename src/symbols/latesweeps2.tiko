@@ -1411,7 +1411,7 @@ sub WalkExtra_ _
     if k = N_AMBIGUOUS then CheckConstWriteTarget_( c, id ) : CheckValueStmt_( c, id ) : CheckEmptyPropCall_( c, id ) : CheckBuiltinStmt_( c, id )
     if k = N_INTRINSIC then CheckSwapConst_( c, id ) : CheckUnprintable_( c, id ) : CheckUdtPrintUsing_( c, id ) : CheckPrintStrCast_( c, id ) : CheckGetPutUStr_( c, id )
     if k = N_CALL then CheckUnprintableStr_( c, id ) : CheckBuiltinArity_( c, id ) : CheckSubAsValue_( c, id ) : CheckUdtStrIntrinsic_( c, id ) : CheckNamespaceCall_( c, id )
-    if k = N_IDENT then CheckBareBuiltin_( c, id )
+    if k = N_IDENT then CheckBareBuiltin_( c, id ) : CheckEnumAmbig_( c, id )
     if k = N_INTRINSIC then CheckSwapTypes_( c, id )
     if k = N_INTRINSIC then CheckThreadCall_( c, id )
     if k = N_BINARY then CheckIsTest_( c, id )
