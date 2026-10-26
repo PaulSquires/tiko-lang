@@ -1411,6 +1411,14 @@ sub CheckImplicitStructors_( byref c as Ctx )
                     select case c.ast->Kind( ip2->b )
                     case N_IDENT, N_MEMBER, N_DEREF
                         fromName = true
+                    case N_CALL
+                        '' ...AND A FUNCTION'S RESULT, 'var a = T.Factory( 3 )': no constructor of
+                        '' T is named, so the default one is not the question. Asked as one, a
+                        '' private default constructor refused the factory idiom (TKO0633);
+                        '' fbc-modern compiles it (by-example BUG-objects-3).
+                        dim as Symbol ptr fcs = c.syms->SymbolAt( c.info->RefOf( ip2->b ) )
+                        if fcs = nullptr then fcs = c.syms->SymbolAt( c.info->RefOf( c.ast->ListOf( ip2->b )->target ) )
+                        if fcs <> nullptr then fromName = (fcs->kind = cast( uint8, SYM_PROC ))
                     end select
                 end if
                 if fromName then

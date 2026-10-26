@@ -1,0 +1,11 @@
+'' RUN: a declaration initialised from a FUNCTION's result asks for the copy constructor, not
+'' the default one (CheckImplicitStructors_, symbols/latechecks.tiko). Output identical to
+'' fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/factory-private-ctor.bas -o tests/codegen/factoryprivatector.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/factoryprivatector.exe
+'' RUN: tests/codegen/factoryprivatector.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  3
