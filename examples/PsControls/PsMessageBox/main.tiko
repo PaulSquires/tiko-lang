@@ -82,16 +82,6 @@ function WinMain( _
     ' Initialize the COM library
     CoInitialize(null)
 
-    ' Load the Segoe Fluent Icons ttf file that supplies the demo's glyphs, when it is there.
-    ' The CONTROL has no opinion about which font its glyphs come from -- it just draws the
-    ' string it is given with the HFONT it is handed -- so this is the demo's business, not the
-    ' control's. A missing file is not fatal: SYMBOLFONT asks PsBufferPaint_GlyphFace, which
-    ' takes Segoe Fluent Icons when installed (Windows 11) or loaded here, else Segoe MDL2 Assets
-    ' (Windows 10), which carries the same codepoints.
-    dim as ustring wszFontFile
-    wszFontFile = "..\SegoeFluentIcons.ttf"
-    if AddFontResourceEx(wszFontFile, FR_PRIVATE, NULL) = 0 then wszFontFile = ""
-
     ' Initialize GDI+ (PsBufferPaint draws all geometry through it). Must be running before the
     ' first WM_PAINT builds a buffer, and must outlive every one of them, so it brackets
     ' frmMain_Show.
@@ -99,10 +89,6 @@ function WinMain( _
 
     ' Show the main form
     function = frmMain_Show( 0 )
-
-    ' Unload the font file. Must mirror the AddFontResourceEx call above, flags included --
-    ' plain RemoveFontResource does not match an FR_PRIVATE registration and leaks it.
-    if len(wszFontFile) then RemoveFontResourceEx( wszFontFile, FR_PRIVATE, NULL )
 
     ' Every window is destroyed and every PsBufferPaint has run its destructor by here, so no
     ' CGp* object can still be alive. Precedes CoUninitialize: GDI+ leans on COM.

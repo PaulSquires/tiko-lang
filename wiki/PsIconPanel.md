@@ -750,20 +750,10 @@ end enum
 
 ## Running the demo
 
-The demo is in the toolchain's `examples/PsControls/PsIconPanel/`. It loads **Segoe Fluent
-Icons** at startup via `AddFontResourceEx` from `examples/PsControls/SegoeFluentIcons.ttf` — one
-copy shared by every demo — and **aborts if the font is absent**: the control family draws its
-glyphs from it.
-
-The font ships with Windows 11 but is Microsoft's, not ours, so it is not
-redistributed here. Copy it in once, from `examples/PsControls/`, before building:
-
-```bash
-copy C:\Windows\Fonts\SegoeIcons.ttf SegoeFluentIcons.ttf
-```
-
-Note the rename: Windows stores the file as `SegoeIcons.ttf`, while the family
-name is "Segoe Fluent Icons". On Windows 10 the font is not present at all.
+The demo is in the toolchain's `examples/PsControls/PsIconPanel/`. It draws its glyphs with
+**Segoe Fluent Icons**, installed on Windows 11, and **falls back to Segoe MDL2 Assets** where
+it is absent (Windows 10) — the same codepoints, drawn in Windows 10's style. There is no font
+file to copy.
 
 ## Licence
 

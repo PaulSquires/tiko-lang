@@ -34,7 +34,7 @@ using PsTooltip
 
 #DEFINE GUIFONT          wstr("Segoe UI")
 
-' NO SegoeFluentIcons.ttf IN THIS REPO. The title glyph is a paint-time font the HOST supplies,
+' NO ICON FONT. The title glyph is a paint-time font the HOST supplies,
 ' so the control imposes no icon font of its own -- and this demo deliberately uses plain
 ' Unicode characters that render in any text font, so it works on a machine that does not have
 ' the icon font installed. (PsCheckBox's self-test learned this the hard way: with a missing

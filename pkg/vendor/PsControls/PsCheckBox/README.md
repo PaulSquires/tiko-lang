@@ -675,21 +675,9 @@ cursor wander off and come back.
 
 ## Running the demo
 
-The demo loads **Segoe Fluent Icons** at startup via `AddFontResourceEx`, and
-**falls back to Segoe MDL2 Assets if it is absent** — the same codepoints, drawn in
-Windows 10's style.
-
-The font ships with Windows 11 but is Microsoft's, not ours, so it is not
-redistributed here. The demo reads one shared copy, `examples/PsControls/SegoeFluentIcons.ttf`,
-one level above its own folder. Copy it there once, from `examples/PsControls`:
-
-```bash
-copy C:\Windows\Fonts\SegoeIcons.ttf SegoeFluentIcons.ttf
-```
-
-Note the rename: Windows stores the file as `SegoeIcons.ttf`, while the family
-name is "Segoe Fluent Icons". Windows 10 has no such file to copy; there the demo draws
-with Segoe MDL2 Assets, which Windows 10 installs.
+The demo draws its glyphs with **Segoe Fluent Icons**, installed on Windows 11, and **falls
+back to Segoe MDL2 Assets** where it is absent (Windows 10) — the same codepoints, drawn in
+Windows 10's style. There is no font file to copy.
 
 ## Licence
 

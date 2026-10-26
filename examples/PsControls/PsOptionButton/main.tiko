@@ -32,10 +32,9 @@ using PsTooltip
 
 #DEFINE GUIFONT          wstr("Segoe UI")
 
-' NO SYMBOLFONT, AND NO SegoeFluentIcons.ttf IN THIS REPO. PsCheckBox needs an icon font because
-' its box is a composite GLYPH; this control draws its circle as geometry through GDI+, so there
-' is no font to load, no AddFontResourceEx to mirror on exit, and no missing-glyph failure mode
-' on a machine that lacks the font.
+' NO SYMBOLFONT. PsCheckBox needs an icon font because its box is a composite GLYPH; this control
+' draws its circle as geometry through GDI+, so there is no icon font and no missing-glyph
+' failure mode on a machine that lacks one.
 #DEFINE GUIFONT_9        0
 #DEFINE GUIFONT_10       1
 #DEFINE GUIFONTBOLD_10   2

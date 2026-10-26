@@ -33,18 +33,9 @@ main.exe
 
 ## The icon font
 
-Eight demos — `PsButton`, `PsCheckBox`, `PsIconPanel`, `PsListTree`, `PsMessageBox`,
-`PsStatusBar`, `PsTabBar`, `PsToolbar` — load **Segoe Fluent Icons** at start-up from this folder
-(`examples/PsControls/SegoeFluentIcons.ttf`, one copy for all of them). The font belongs to
-Microsoft and is not included. Windows 11 has it; copy it in once, renaming it on the way:
-
-```
-copy C:\Windows\Fonts\SegoeIcons.ttf SegoeFluentIcons.ttf
-```
-
-Windows stores the file as `SegoeIcons.ttf`; the family name is "Segoe Fluent Icons". Without
-the file a demo still runs: it uses the installed Segoe Fluent Icons (Windows 11), else Segoe
-MDL2 Assets (Windows 10), which carries the same codepoints.
+The demos that draw icons use **Segoe Fluent Icons**, installed on Windows 11, and fall back to
+**Segoe MDL2 Assets** on Windows 10, which carries the same codepoints. There is no font file to
+copy.
 
 ## Self-tests
 

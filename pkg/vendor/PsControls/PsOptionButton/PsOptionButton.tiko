@@ -371,8 +371,8 @@ public type PSOPTIONBUTTON_STATE
     ' identifier, found 'HFONT'". See C:\dev\Learnings.md.
     '
     ' ONE font, not two. PsCheckBox needs a second (icon) font because its box is a glyph; this
-    ' control draws the circle as geometry, so there is no glyph font, no SegoeFluentIcons.ttf
-    ' in this repo, and no missing-glyph failure mode.
+    ' control draws the circle as geometry, so there is no glyph font and no missing-glyph
+    ' failure mode.
     hTextFont         as HFONT
     ' --- Layout inputs. All pixels; DPI-scaled once at Create EXCEPT the two pens. ---
     nBoxAlign         as long = OPT_BOXALIGN_LEFT

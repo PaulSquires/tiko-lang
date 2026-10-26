@@ -198,16 +198,6 @@ function WinMain( byval hInstance as HINSTANCE, byval hPrevInstance as HINSTANCE
 
     CoInitialize( null )
 
-    ' Load the Segoe Fluent Icons ttf file that supplies the demo's glyphs, when it is there.
-    ' The CONTROL has no opinion about which font its glyphs come from -- it just draws the
-    ' string it is given with the HFONT it is handed -- so this is the demo's business, not the
-    ' control's. A missing file is not fatal: SYMBOLFONT asks PsBufferPaint_GlyphFace, which
-    ' takes Segoe Fluent Icons when installed (Windows 11) or loaded here, else Segoe MDL2 Assets
-    ' (Windows 10), which carries the same codepoints.
-    dim as ustring wszFontFile
-    wszFontFile = "..\SegoeFluentIcons.ttf"
-    if AddFontResourceEx(wszFontFile, FR_PRIVATE, NULL) = 0 then wszFontFile = ""
-
     ' GDI+ must be running before the first WM_PAINT builds a buffer and outlive them all.
     dim as ULONG_PTR gdipToken = gdiplus.Init()
 
@@ -291,9 +281,6 @@ function WinMain( byval hInstance as HINSTANCE, byval hPrevInstance as HINSTANCE
         end if
     loop
 
-    ' Unload the font file. Must mirror the AddFontResourceEx call above, flags included --
-    ' plain RemoveFontResource does not match an FR_PRIVATE registration and leaks it.
-    if len(wszFontFile) then RemoveFontResourceEx( wszFontFile, FR_PRIVATE, NULL )
     gdiplus.Uninit( gdipToken )
     CoUninitialize()
     function = uMsg.wParam
