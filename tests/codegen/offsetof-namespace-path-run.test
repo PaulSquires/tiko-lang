@@ -1,0 +1,8 @@
+'' RUN: an offsetof member path is fields, not a namespace lookup (CheckNamespaceMember_,
+'' symbols/latesweeps2.tiko). fbc-modern 1.20 prints 12.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/mir/src/offsetof-namespace-path.bas -o tests/codegen/offsetofns.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/offsetofns.exe
+'' EXPECT-RUN-OUT:  12

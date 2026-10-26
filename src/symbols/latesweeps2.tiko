@@ -444,6 +444,7 @@ end function
 '' itself and found nothing either: a name Check declined to bind for a reason of its own
 '' is not evidence.
 declare sub TupleMemberBad_ ( byref c as Ctx, byval t as TypeId, byval lhs as NodeId, byval rhs as NodeId )  '' latesweeps4.tiko
+declare function IsOffsetofField_ ( byref c as Ctx, byval id as NodeId ) as boolean  '' builtinarity.tiko
 
 #include once "symbols/hiddenns.tiko"
 private sub CheckMemberExists_ ( byref c as Ctx, byval id as NodeId )
@@ -1054,6 +1055,7 @@ private sub CheckNamespaceMember_ ( byref c as Ctx, byval id as NodeId )
     dim as Symbol ptr bs = c.syms->SymbolAt( c.info->RefOf( mp->lhs ) )
     if bs = nullptr then return
     if bs->kind <> cast( uint8, SYM_NAMESPACE ) then return
+    if IsOffsetofField_( c, id ) then return   '' 'offsetof( T, a.b )' names fields, whatever 'a' is in scope (TE-006)
     if bs->inner = SCOPE_NONE then return
     dim as InternId want = c.names->Fold( _
         c.ast->IdentOf( mp->rhs )->name )
