@@ -334,7 +334,8 @@ private function hVerify( byref s as TlsStream, byval e as TktEng ptr, byref cfg
     if( ( st <> 0 ) orelse ( leaf = nullptr ) ) then return TlsFail( TLS_CERT_INVALID, st, op, s.hName )
     dim as ulong rc = hPolicy( nullptr, leaf, leaf->hCertStore, s.hName )
     if( ( hMapPolicy( rc ) = TLS_CERT_UNTRUSTED ) andalso ( rc <> 0 ) andalso ( cfg.hRoots.Count( ) > 0 ) ) then
-        dim as any ptr roots = hStoreFromPem( cfg.hRoots )
+        dim as Array( of string ) pems_ = cfg.hRoots   '' a copy: cfg is const, the parameter byref
+        dim as any ptr roots = hStoreFromPem( pems_ )
         if( roots <> nullptr ) then
             dim as any ptr extras( 0 to 0 ) = { leaf->hCertStore }
             dim as TktChainEngineConfig ec
