@@ -516,7 +516,7 @@ private sub PushFrame _
         e.stopped = true
         return
     end if
-    if (file = FILE_NONE) andalso (hides <> 0) then NoteMacroExpansion_( e, toks, hides, useLoc )   '' TE-005
+    if (file = FILE_NONE) andalso (hides <> 0) then NoteMacroExpansion_( e, MacroFor( e, hides ), useLoc )   '' TE-005
 
     dim as PpFrame f
     f.toks = toks

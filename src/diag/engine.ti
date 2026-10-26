@@ -67,17 +67,18 @@ namespace Tko
         as containers.Array( of int32 ) instActive
         '' MACRO EXPANSIONS (tiko-editor TE-005). A token of a macro's body keeps its #define's
         '' location, so an error in an expansion named the definition and never the line that
-        '' used it. The preprocessor records, per body location, up to three use sites, and
-        '' Flush renders them as TKO0986 notes. A body location is shared by every expansion of
-        '' the macro, so the note lists the uses that location had, not the one that failed.
-        as containers.Map( of uint32, int32 ) muFirst
+        '' used it. The preprocessor records each expansion as the RANGE of its body's locations
+        '' and its use site -- one entry, so a header-heavy unit pays almost nothing -- and Flush
+        '' renders up to three use sites whose range holds the error as TKO0986 notes. The body
+        '' is shared by every expansion, so they are the uses that body had, not the one that failed.
+        as containers.Array( of uint32 ) muLo
+        as containers.Array( of uint32 ) muHi
         as containers.Array( of uint32 ) muUse
-        as containers.Array( of int32 ) muNext
         as containers.Array( of string ) muName
 
         declare constructor( )
         declare sub Attach( byval src as SourceManager ptr )
-        declare sub NoteMacroUse( byval bodyLoc as SourceLoc, byval useLoc as SourceLoc, byref nm as string )
+        declare sub NoteMacroUse( byval lo as SourceLoc, byval hi as SourceLoc, byval useLoc as SourceLoc, byref nm as string )
 
         declare sub Report _
             ( byval id as DiagId, byval rng as SourceRange, _

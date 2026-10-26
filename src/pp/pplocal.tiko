@@ -77,9 +77,18 @@ end function
 '' takes it for __LINE__ -- and the engine renders that site as a note (TKO0986). Here
 '' because pp.tiko is at the line cap.
 private sub NoteMacroExpansion_ _
-    ( byref e as PpEngine, byval toks as TokenVec ptr, byval nm as InternId, byval useLoc as SourceLoc )
+    ( byref e as PpEngine, byval m as PpMacro ptr, byval useLoc as SourceLoc )
 
-    if (toks = nullptr) orelse (e.diags = nullptr) orelse (useLoc = LOC_NONE) then return
+    if (m = nullptr) orelse (e.diags = nullptr) orelse (useLoc = LOC_NONE) then return
+    '' THE BODY'S RANGE, from the #define itself: one file, and no argument's tokens in it.
+    dim as SourceLoc lo = LOC_NONE, hi = LOC_NONE
+    for i as int32 = 0 to m->body.Count - 1
+        dim as SourceLoc tl = m->body[i].loc
+        if tl = LOC_NONE then continue for
+        if (lo = LOC_NONE) orelse (tl < lo) then lo = tl
+        if (hi = LOC_NONE) orelse (tl > hi) then hi = tl
+    next
+    if lo = LOC_NONE then return
     dim as SourceLoc site = useLoc
     for i as int32 = e.frames.Count - 1 to 0 step -1
         if e.frames[i].file <> FILE_NONE then
@@ -89,8 +98,5 @@ private sub NoteMacroExpansion_ _
             exit for
         end if
     next
-    dim as string spelled = e.names->Spelling( nm )
-    for i as int32 = 0 to toks->Count - 1
-        e.diags->NoteMacroUse( (*toks)[i].loc, site, spelled )
-    next
+    e.diags->NoteMacroUse( lo, hi, site, e.names->Spelling( m->name ) )
 end sub
