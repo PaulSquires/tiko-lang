@@ -993,6 +993,8 @@
     DIAG( TKO0900, SEV_NOTE,    "%0" )
     DIAG( TKO0901, SEV_NOTE,    "declared here" )
     DIAG( TKO0903, SEV_NOTE,    "in instantiation of '%0'" )
+    '' Where a macro whose body holds the error was used (engine.tiko AppendMacroNotes_).
+    DIAG( TKO0986, SEV_NOTE,    "in expansion of '%0' here" )
     DIAG( TKO0905, SEV_NOTE,    "unclosed '%0' opened here" )
     DIAG( TKO0906, SEV_NOTE,    "imported here" )
     '' Beside TKO0660 when 'nullptr' is what ties: see NullptrTieNote_ in symbols/argmismatch.tiko.

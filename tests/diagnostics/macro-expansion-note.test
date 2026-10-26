@@ -1,0 +1,8 @@
+'' TKO0986: where a macro whose body holds an error was used. The preprocessor records each
+'' expansion's use site (pp/ppmacrouse.tiko), Flush adds the notes (diag/engine.tiko).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/macro-expansion-note.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: macro-expansion-note.bi(1,21): error TKO0743: 'undeclared_thing' is not declared
+'' EXPECT-OUT: macro-expansion-note.bas(5,7): note: in expansion of 'badm' here
+'' EXPECT-MAX-DIAG: 1

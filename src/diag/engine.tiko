@@ -205,6 +205,39 @@ private sub AppendInstNotes_ _
     wend
 end sub
 
+sub DiagnosticEngine.NoteMacroUse _
+    ( byval bodyLoc as SourceLoc, byval useLoc as SourceLoc, byref nm as string )
+    if (bodyLoc = LOC_NONE) orelse (useLoc = LOC_NONE) orelse (bodyLoc = useLoc) then return
+    dim as int32 head = -1, seen = 0
+    if this.muFirst.TryGet( cast( uint32, bodyLoc ), head ) = false then head = -1
+    dim as int32 k = head
+    while k >= 0
+        if this.muUse[k] = cast( uint32, useLoc ) then return
+        seen += 1
+        k = this.muNext[k]
+    wend
+    if seen >= 3 then return
+    this.muUse.Push( cast( uint32, useLoc ) )
+    this.muNext.Push( head )
+    this.muName.Push( nm )
+    this.muFirst.Put( cast( uint32, bodyLoc ), this.muUse.Count - 1 )
+end sub
+
+'' The use sites of the macro whose body holds the diagnostic's location, as notes.
+private sub AppendMacroNotes_( byref e as DiagnosticEngine, byref d as Diagnostic )
+    if (d.hasLocation = false) orelse e.muUse.IsEmpty( ) then return
+    dim as int32 k = -1
+    if e.muFirst.TryGet( cast( uint32, d.range.first ), k ) = false then return
+    while k >= 0
+        dim as DiagNote n
+        n.id = TKO0986
+        n.range = PointRange( cast( SourceLoc, e.muUse[k] ) )
+        n.text = FormatDiag( *DiagInfoOf( TKO0986 )->format, e.muName[k], "", "" )
+        d.notes.Push( n )
+        k = e.muNext[k]
+    wend
+end sub
+
 sub DiagnosticEngine.Report _
     ( byval id as DiagId, byval rng as SourceRange, _
       byval a0 as string = "", byval a1 as string = "", byval a2 as string = "" )
@@ -251,6 +284,7 @@ sub DiagnosticEngine.Flush( )
 
     '' The instantiation chain goes on LAST, after every AddNote -- see Diagnostic.
     for i as int32 = 0 to this.pending.Count - 1
+        AppendMacroNotes_( this, this.pending[i] )
         if this.pending[i].instFrame > 0 then AppendInstNotes_( this.instFrames, this.pending[i] )
     next
 

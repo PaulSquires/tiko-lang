@@ -516,14 +516,13 @@ private sub PushFrame _
         e.stopped = true
         return
     end if
+    if (file = FILE_NONE) andalso (hides <> 0) then NoteMacroExpansion_( e, toks, hides, useLoc )   '' TE-005
 
     dim as PpFrame f
     f.toks = toks
-    f.pos = 0
-    f.joinTried = -1
+    f.pos = 0 : f.joinTried = -1
     f.hides = hides
-    f.file = file
-    f.owned = owned
+    f.file = file : f.owned = owned
     f.useLoc = useLoc
     f.lineLoc = iif( lineLoc <> LOC_NONE, lineLoc, useLoc )
     if e.frames.Count > 0 then f.inImport = e.frames[e.frames.Count - 1].inImport

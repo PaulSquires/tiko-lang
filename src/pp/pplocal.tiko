@@ -1,6 +1,6 @@
 '' pplocal.tiko -- '#if' over a procedure's own declarations: PpProcEnter / PpProcLeave and the
-'' local notes they undo. #included by pp.tiko at the 1500-line cap; PpNoteConst's local branch
-'' writes the same log.
+'' local notes they undo, and NoteMacroExpansion_ (TE-005). #included by pp.tiko at the 1500-line
+'' cap; PpNoteConst's local branch writes the same log.
 
 sub PpProcEnter( byref st as PpStream )
     if st.engine = nullptr then return
@@ -69,3 +69,28 @@ function PpConstStrValue( byref e as PpEngine, byval nm as InternId, byref outs 
     outs = mid( e.constStr[ix], 2 )
     return true
 end function
+
+'' WHERE A MACRO WAS USED, for a diagnostic inside its expansion (tiko-editor TE-005). A token of
+'' a macro's body keeps the location of its #define, so an error the parser or a later pass
+'' found in an expansion pointed only at the header. PushFrame hands each expansion's tokens to
+'' the diagnostic engine with the OUTERMOST use site -- the line in a file, as UseSiteLoc_
+'' takes it for __LINE__ -- and the engine renders that site as a note (TKO0986). Here
+'' because pp.tiko is at the line cap.
+private sub NoteMacroExpansion_ _
+    ( byref e as PpEngine, byval toks as TokenVec ptr, byval nm as InternId, byval useLoc as SourceLoc )
+
+    if (toks = nullptr) orelse (e.diags = nullptr) orelse (useLoc = LOC_NONE) then return
+    dim as SourceLoc site = useLoc
+    for i as int32 = e.frames.Count - 1 to 0 step -1
+        if e.frames[i].file <> FILE_NONE then
+            for k as int32 = i + 1 to e.frames.Count - 1
+                if e.frames[k].useLoc <> LOC_NONE then site = e.frames[k].useLoc : exit for
+            next
+            exit for
+        end if
+    next
+    dim as string spelled = e.names->Spelling( nm )
+    for i as int32 = 0 to toks->Count - 1
+        e.diags->NoteMacroUse( (*toks)[i].loc, site, spelled )
+    next
+end sub
