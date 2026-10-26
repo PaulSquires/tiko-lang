@@ -183,6 +183,11 @@ public type Database
                               byref file as const ustring = "", byval ln as long = 0 ) as ustring
     declare function TypeNames( byref prefix as const ustring ) as Array( of ustring )
     declare function EnclosingProc( byval setNo as long, byref file as const ustring, byval ln as long ) as long
+    ' tkEdit's lists (F4, Ctrl+P): every definition once, however many sets hold it
+    declare function Procedures( byref file as const ustring ) as Array( of SymRef )   ' with a body, by line
+    declare function Definitions( ) as Array( of SymRef )   ' procedures with a body, types, enums
+    declare function QualifiedName( byref r as const SymRef ) as ustring              ' "Point.Area"
+    declare function HasFile( byref file as const ustring ) as boolean                ' a set mentions it
     m_sets as Array( of SymbolSet )
 end type
 
@@ -472,7 +477,7 @@ end function
 function Database.CallTip( byref name_ as const ustring, byref qualifier as const ustring, _
                            byref file as const ustring, byval ln as long ) as ustring
     dim as SymRef r = this.Definition( name_, file, ln, qualifier )
-    if r.IsValid( ) = false then return ""
+    if (r.SetNo < 0) orelse (r.Index < 0) then return ""
     dim byref as Sym pr = this.Item( r )
     if (pr.Kind <> SymKind.SubProc) andalso (pr.Kind <> SymKind.FunctionProc) then return ""
     dim as ustring tip = pr.Name & "("
@@ -499,3 +504,91 @@ function Database.CallTip( byref name_ as const ustring, byref qualifier as cons
     if (pr.Kind = SymKind.FunctionProc) andalso (len( pr.TypeText ) > 0) then tip &= " as " & pr.TypeText
     return tip
 end function
+
+' ---------------------------------------------------------------- tkEdit's lists
+
+private function IsListed( byref y as const Sym ) as boolean
+    select case y.Kind
+    case SymKind.SubProc, SymKind.FunctionProc
+        return y.BodyLine > 0                        ' a declaration alone is not where to go
+    case SymKind.TypeDef, SymKind.UnionDef, SymKind.EnumDef
+        return y.LineNo > 0
+    end select
+    return false
+end function
+
+' A definition is the same one in two sets when its file, line and name agree.
+private function KeyOf( byref y as const Sym ) as ustring
+    dim as long ln = y.BodyLine
+    if ln <= 0 then ln = y.LineNo
+    return ucase( y.File ) & "|" & ln & "|" & lcase( y.Name )
+end function
+
+function Database.Definitions( ) as Array( of SymRef )
+    dim as Array( of SymRef ) out_
+    dim as Map( of ustring, boolean ) seen
+    for k as long = 0 to m_sets.Count( ) - 1
+        for i as long = 0 to m_sets[k].Syms.Count( ) - 1
+            dim byref as Sym y = m_sets[k].Syms[i]
+            if IsListed( y ) = false then continue for
+            dim as ustring key = KeyOf( y )
+            if seen.Contains( key ) then continue for
+            seen.Put( key, true )
+            dim as SymRef r
+            r.SetNo = k
+            r.Index = i
+            out_.Push( r )
+        next
+    next
+    return out_
+end function
+
+function Database.Procedures( byref file as const ustring ) as Array( of SymRef )
+    dim as ustring want = ucase( file )
+    dim as Array( of SymRef ) out_
+    dim as Array( of long ) lines
+    for each r as SymRef in this.Definitions( )
+        dim byref as Sym y = this.Item( r )
+        if (y.Kind <> SymKind.SubProc) andalso (y.Kind <> SymKind.FunctionProc) then continue for
+        if ucase( y.File ) <> want then continue for
+        ' by line: an insertion keeps the source order
+        dim as long at = out_.Count( )
+        while (at > 0) andalso (lines[at - 1] > y.BodyLine)
+            at -= 1
+        wend
+        out_.Insert( at, r )
+        lines.Insert( at, y.BodyLine )
+    next
+    return out_
+end function
+
+' The name with the type or namespace it belongs to: "Point.Area"; a plain name otherwise.
+function Database.QualifiedName( byref r as const SymRef ) as ustring
+    if (r.SetNo < 0) orelse (r.Index < 0) then return ""
+    dim byref as SymbolSet st = m_sets[r.SetNo]
+    dim as ustring nm = st.Syms[r.Index].Name
+    dim as long p = st.Syms[r.Index].Parent, guard = 0
+    while (p >= 0) andalso (p < st.Syms.Count( )) andalso (guard < 16)
+        guard += 1
+        select case st.Syms[p].Kind
+        case SymKind.TypeDef, SymKind.UnionDef, SymKind.NamespaceDef
+            nm = st.Syms[p].Name & "." & nm
+        case else
+            exit while
+        end select
+        p = st.Syms[p].Parent
+    wend
+    return nm
+end function
+
+function Database.HasFile( byref file as const ustring ) as boolean
+    dim as ustring want = ucase( file )
+    for k as long = 0 to m_sets.Count( ) - 1
+        if m_sets[k].Root = want then return true
+        for each y as Sym in m_sets[k].Syms
+            if ucase( y.File ) = want then return true
+        next
+    next
+    return false
+end function
+

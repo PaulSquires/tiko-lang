@@ -20,10 +20,12 @@
 #import "std/containers"
 #import "tkc/fuzzy"
 #import "tkControls/tkHost"
+#import "tkControls/tkKeys"
 #import "tkControls/tkListTree"
 #import "tkControls/tkTextBox"
 using containers
 using tkHost
+using tkKeys
 using tkListTree
 using tkTextBox
 
@@ -45,6 +47,9 @@ public type Picker
     Filter   as boolean = true           ' show the query box
     MaxRows  as long = 12
     AcceptOnCtrlUp as boolean
+    Toggle   as TK_CHORD                 ' a chord that calls OnToggle instead (F4 again); key 0 = none
+    OnToggle as PickedProc               ' tag = 0
+    SeedQuery as ustring                 ' the query box's text when it opens
     OnPick   as PickedProc
     Payload  as any ptr
 
@@ -65,6 +70,7 @@ public type Picker
     declare function SelectedTag( ) as long        ' -1 = none
     declare function ShownCount( ) as long
     declare sub SetQuery( byref q as const ustring )
+    declare function QueryText( ) as ustring
     declare sub Refilter( )
 end type
 
@@ -153,6 +159,13 @@ function Picker.Open( byval owner as TK_HOST ptr, byref rows_ as const Array( of
         dim as Picker ptr p = PickerOf( h )
         if (p = 0) orelse (m->msg <> TKM_KEYDOWN) then return false
         dim as boolean shift_ = (m->mods and SDL_KMOD_SHIFT) <> 0
+        if (p->Toggle.key <> 0) andalso (p->OnToggle <> 0) then
+            dim as TK_CHORD c = tkKeys_FromMsg( m )
+            if (c.key = p->Toggle.key) andalso (c.mods = p->Toggle.mods) then
+                p->OnToggle( p->Payload, 0 )
+                return true
+            end if
+        end if
         select case m->key
         case SDLK_ESCAPE : p->Close( ) : return true
         case SDLK_RETURN, SDLK_KP_ENTER : p->Accept( ) : return true
@@ -189,6 +202,10 @@ function Picker.Open( byval owner as TK_HOST ptr, byref rows_ as const Array( of
         dim as Picker ptr p = PickerOf( hL->pHost )
         if p then p->Accept( )
     end sub )
+    if (Query <> 0) andalso (len( SeedQuery ) > 0) then
+        tkTextBox_SetText( Query, SeedQuery )
+        tkTextBox_SetSel( Query, len( SeedQuery ), len( SeedQuery ) )
+    end if
     this.Refilter( )
     if (sel > 0) andalso (sel < Shown.Count( )) then tkListTree_SetCurSel( List, sel )
     tkHost_Show( Pop )
@@ -222,6 +239,12 @@ function Picker.SelectedTag( ) as long
     dim as long i = tkListTree_GetCurSel( List )
     if (i < 0) orelse (i >= Shown.Count( )) then return -1
     return Rows[Shown[i]].Tag
+end function
+
+' The query box's text ("" when there is none).
+function Picker.QueryText( ) as ustring
+    if Query = 0 then return ""
+    return tkTextBox_GetText( Query )
 end function
 
 ' Closes, then hands the pick over (the popup is gone when OnPick runs).

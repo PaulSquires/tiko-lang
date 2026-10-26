@@ -33,9 +33,12 @@
 #import "tkc/docencoding"
 #import "tkc/keybind"
 #import "tkc/mru"
+#import "tkc/navhistory"
+#import "tkc/outline"
 #import "tkc/project"
 #import "tkc/session"
 #import "tkc/settings"
+#import "tkc/symboldb"
 #import "tkc/textstream"
 #import "tkc/themes"
 #import "tka/chrome"
@@ -44,6 +47,7 @@
 #import "tka/findstrip"
 #import "tka/outputpane"
 #import "tka/popuplist"
+#import "tks/parser"
 #import "tks/runner"
 #import "tkControls/tkApp"
 #import "tkControls/tkCodeEdit"
@@ -110,7 +114,18 @@ public enum PickKind explicit
     LineEnding
     Build
     Bookmarks
+    Symbols             ' Ctrl+P: files and definitions
+    Functions           ' F4: the procedures of the buffer, or of every open buffer
 end enum
+
+' A row of Search Symbol or the functions list: where it goes.
+public type SymHit
+    Name as ustring
+    Kind as ustring                     ' "function", "sub", "type", "enum", "file"
+    Path as ustring
+    Line as long                        ' 0-based; -1 = a file
+    Doc  as documents.Document ptr      ' the buffer it came from, when it did
+end type
 
 ' One bookmark the Bookmarks list shows.
 public type BookmarkHit
@@ -257,6 +272,20 @@ public type Window
     Progress as build.BuildProgress
     RunArgs as ustring                  ' Run's arguments with no project open
 
+    ' ---- code intelligence (P5)
+    NoParser as boolean                 ' set before Create: the outline only (the self-test)
+    Scanner as parser.Scanner
+    Db as symboldb.Database
+    Nav as navhistory.History
+    scanTimer as long
+    scanGen as long
+    scanDirty as boolean
+    lastEditTicks as ulongint
+    ScansInstalled as long
+    LastScanError as ustring
+    FuncsAll as boolean                 ' F4: every open buffer's procedures
+    Hits as Array( of SymHit )          ' the chooser's rows, for Symbols and Functions
+
     form as TK_FORM ptr
     status as TK_WIDGET ptr
     menuBar as TK_WIDGET ptr
@@ -349,6 +378,20 @@ public type Window
     declare sub CaptureState( byref st as session.SessionState, byref base_ as const ustring )
     declare sub ApplyState( byref st as const session.SessionState, byref base_ as const ustring )
 
+    ' ---- code intelligence
+    declare function PkgDir( ) as ustring
+    declare function StartScanner( ) as boolean
+    declare sub QueueScan( byval d as DocRef )
+    declare sub PollScans( )
+    declare function ProcsOf( byval d as DocRef ) as Array( of SymHit )
+    declare function Here( ) as navhistory.NavEntry
+    declare sub GoHistory( byval forward as boolean )
+    declare function ScannedFile( byref upper as const ustring ) as ustring
+    declare function GoToDefinition( ) as boolean
+    declare sub GoFunction( byval forward as boolean )
+    declare sub CodeTips( byval hEdit as TK_WIDGET ptr, byval ch as long )
+    declare sub ShowCompletionsAt( byval v as editor.CodeView ptr, byval d as DocRef, byval minLen as long )
+
     ' ---- the chooser popup
     declare sub OpenChooser( byval kind as PickKind )
     declare sub Chosen( byval tag as long )
@@ -430,6 +473,7 @@ function Window.Create( byval forcedScale as single ) as boolean
     this.ReloadSettings( )                      ' the theme and the look with it
     this.ReloadKeys( )                          ' the accelerators and the menus with them
     CurrentBuild = Prefs.DefaultBuild( )
+    if NoParser = false then this.StartScanner( )
 
     dim as DocRef d = this.NewDocument( )
     if d = 0 then return false
@@ -495,6 +539,9 @@ sub Window.Destroy( )
     if buildTimer then tkApp_KillTimer( buildTimer )
     buildTimer = 0
     Job.Finish( )
+    if scanTimer then tkApp_KillTimer( scanTimer )
+    scanTimer = 0
+    Scanner.Stop( )
     Chooser.Close( )
     for each d as DocRef in Docs
         d->DestroyViews( )
@@ -654,6 +701,9 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
          Cmd.SplitTopBottom, Cmd.CycleFocus, Cmd.ZoomIn, Cmd.ZoomOut, Cmd.ZoomReset, Cmd.FoldToggle, _
          Cmd.FoldBelow, Cmd.FoldAll, Cmd.UnfoldAll, Cmd.BuildConfig
         return true
+    case Cmd.CompleteWord, Cmd.GoToDefinition, Cmd.GoBack, Cmd.GoForward, Cmd.GoToNextFunction, _
+         Cmd.GoToPrevFunction, Cmd.SearchSymbol, Cmd.FunctionList
+        return true
     case Cmd.OutputPane, Cmd.BuildExecute, Cmd.Compile, Cmd.RebuildAll, Cmd.CompileModule, Cmd.QuickRun, _
          Cmd.RunExe, Cmd.NextDiagnostic, Cmd.PrevDiagnostic, Cmd.ProjectNew, Cmd.ProjectOpen, Cmd.ProjectSave, _
          Cmd.ProjectClose, Cmd.ProjectFilesAdd
@@ -703,6 +753,16 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.SplitLeftRight : this.ToggleSplit( session.SplitMode.Vertical )
     case Cmd.SplitTopBottom : this.ToggleSplit( session.SplitMode.Horizontal )
     case Cmd.CycleFocus : this.CycleFocus( )
+    case Cmd.CompleteWord : this.ShowCompletionsAt( v, this.Active( ), 0 )
+    case Cmd.GoToDefinition : this.GoToDefinition( )
+    case Cmd.GoBack : this.GoHistory( false )
+    case Cmd.GoForward : this.GoHistory( true )
+    case Cmd.GoToNextFunction : this.GoFunction( true )
+    case Cmd.GoToPrevFunction : this.GoFunction( false )
+    case Cmd.SearchSymbol : this.OpenChooser( PickKind.Symbols )
+    case Cmd.FunctionList
+        FuncsAll = false
+        this.OpenChooser( PickKind.Functions )
     case Cmd.OutputPane : this.ShowOutput( OutputShown = false )
     case Cmd.Compile : this.StartBuild( build.BuildAction.Compile )
     case Cmd.BuildExecute : this.StartBuild( build.BuildAction.BuildExecute )
@@ -1006,7 +1066,14 @@ function Window.NewView( byref v as editor.CodeView ) as boolean
         if mw = 0 then exit sub
         select case n->code
         case SCN_UPDATEUI : mw->ShowStatus( )
-        case SCN_CHARADDED : mw->OnCharAdded( h, n->ch )
+        case SCN_CHARADDED
+            mw->OnCharAdded( h, n->ch )
+            mw->CodeTips( h, n->ch )
+        case SCN_MODIFIED
+            if (n->modificationType and (SC_MOD_INSERTTEXT or SC_MOD_DELETETEXT)) then
+                mw->scanDirty = true
+                mw->lastEditTicks = SDL_GetTicks( )
+            end if
         case SCN_MARGINCLICK : mw->OnMarginClick( h, n->margin, n->position )
         end select
     end sub )
@@ -1106,6 +1173,7 @@ function Window.OpenFile( byref path as const ustring ) as boolean
     end if
     Recent.Add( path )
     this.ShowDoc( d )
+    this.QueueScan( d )
     if cur andalso cur->IsNew( ) andalso (cur->IsModified( ) = false) andalso (cur->Main.Length( ) = 0) _
        andalso (cur <> Pane1) andalso (cur <> Pane2) then
         this.CloseDoc( cur )
@@ -1140,6 +1208,7 @@ function Window.SaveDoc( byval d as DocRef, byval newName as boolean ) as boolea
     Recent.Add( path )
     Message = ""
     this.AfterSave( d )
+    this.QueueScan( d )
     this.ShowTitle( )
     this.ShowStatus( )
     return true
@@ -1419,16 +1488,121 @@ end function
 ' The one popup list, anchored at the bottom of the panes: what kind decides the rows and what a
 ' pick does (Chosen).
 sub Window.OpenChooser( byval kind as PickKind )
-    Chooser.Close( )
     dim as Array( of popuplist.PickRow ) rows
     dim as long sel = 0
+    dim as ustring keep = ""
+    if (kind = PickKind.Functions) andalso (Choosing = PickKind.Functions) then keep = Chooser.QueryText( )
+    Chooser.Close( )
     Chooser.Filter = true
     Chooser.AcceptOnCtrlUp = false
+    Chooser.SeedQuery = keep
+    Chooser.MaxRows = 12
+    Chooser.Toggle.key = 0
     Chooser.Columns.Clear( )
     Chooser.Columns.Push( 18 )
     Chooser.Columns.Push( 220 )
     Chooser.Columns.Push( 200 )
+    dim as long popW = 460
     select case kind
+    case PickKind.Symbols
+        ' the project's files and the open buffers, then every definition in them
+        Hits.Clear( )
+        Chooser.Columns.Clear( )
+        Chooser.Columns.Push( 64 )
+        Chooser.Columns.Push( 300 )
+        Chooser.Columns.Push( 240 )
+        Chooser.MaxRows = 14
+        popW = 620
+        dim as Map( of ustring, boolean ) mine
+        dim as Array( of ustring ) paths
+        if ProjOpen then
+            for i as long = 0 to Proj.FileCount( ) - 1
+                paths.Push( Proj.FilePath( i ) )
+            next
+        end if
+        for each d as DocRef in Docs
+            if len( d->Path ) then paths.Push( d->Path )
+        next
+        for each pth as ustring in paths
+            if mine.Contains( ucase( pth ) ) then continue for
+            mine.Put( ucase( pth ), true )
+            dim as SymHit hh
+            hh.Name = fs.PathFileName( pth )
+            hh.Kind = "file"
+            hh.Path = pth
+            hh.Line = -1
+            Hits.Push( hh )
+        next
+        dim as Map( of ustring, boolean ) scanned
+        for each r as symboldb.SymRef in Db.Definitions( )
+            dim byref as symboldb.Sym y = Db.Item( r )
+            if mine.Contains( ucase( y.File ) ) = false then continue for     ' the user's files only
+            scanned.Put( ucase( y.File ), true )
+            dim as SymHit hh
+            hh.Name = Db.QualifiedName( r )
+            select case y.Kind
+            case symboldb.SymKind.FunctionProc : hh.Kind = "function"
+            case symboldb.SymKind.SubProc : hh.Kind = "sub"
+            case symboldb.SymKind.EnumDef : hh.Kind = "enum"
+            case else : hh.Kind = "type"
+            end select
+            hh.Path = this.ScannedFile( y.File )
+            hh.Line = y.LineNo - 1
+            if y.BodyLine > 0 then hh.Line = y.BodyLine - 1
+            Hits.Push( hh )
+        next
+        for each d as DocRef in Docs                    ' unscanned buffers: the outline
+            if (len( d->Path ) > 0) andalso scanned.Contains( ucase( d->Path ) ) then continue for
+            for each hh as SymHit in this.ProcsOf( d )
+                Hits.Push( hh )
+            next
+        next
+        for i as long = 0 to Hits.Count( ) - 1
+            dim as ustring where_ = fs.PathFileName( Hits[i].Path )
+            if Hits[i].Line >= 0 then where_ &= ":" & (Hits[i].Line + 1)
+            if Hits[i].Kind = "file" then where_ = fs.PathParent( Hits[i].Path )
+            rows.Push( Row( Hits[i].Kind, Hits[i].Name, where_, i ) )
+        next
+    case PickKind.Functions
+        ' F4: the active buffer's procedures; F4 again (inside the list) every open buffer's
+        Hits.Clear( )
+        Chooser.Columns.Clear( )
+        Chooser.Columns.Push( 260 )
+        Chooser.Columns.Push( 80 )
+        Chooser.Columns.Push( 60 )
+        if FuncsAll then
+            Chooser.Columns.Push( 180 )
+            popW = 600
+            for each d as DocRef in Mru
+                for each hh as SymHit in this.ProcsOf( d )
+                    Hits.Push( hh )
+                next
+            next
+        else
+            popW = 420
+            Hits = this.ProcsOf( this.Active( ) )
+        end if
+        for i as long = 0 to Hits.Count( ) - 1
+            dim as popuplist.PickRow r
+            r.Cells.Push( Hits[i].Name )
+            r.Cells.Push( Hits[i].Kind )
+            r.Cells.Push( str( Hits[i].Line + 1 ) )
+            if FuncsAll then
+                dim as ustring fname = "untitled"
+                if Hits[i].Doc then fname = Hits[i].Doc->DisplayName( )
+                r.Cells.Push( fname )
+            end if
+            r.Tag = i
+            rows.Push( r )
+        next
+        dim as TK_CHORD tc
+        dim as string fk = Keys.Effective( Cmd.FunctionList )
+        if len( fk ) andalso tkKeys_Parse( fk, tc ) then Chooser.Toggle = tc
+        Chooser.OnToggle = sub( byval payload as any ptr, byval tag as long )
+            dim as Window ptr mw = payload
+            mw->FuncsAll = (mw->FuncsAll = false)
+            mw->OpenChooser( PickKind.Functions )
+        end sub
     case PickKind.Buffers, PickKind.Switcher
         for i as long = 0 to Mru.Count( ) - 1
             dim as DocRef d = Mru[i]
@@ -1478,7 +1652,7 @@ sub Window.OpenChooser( byval kind as PickKind )
             rows.Push( Row( mark, Prefs.Builds[i].Name, Prefs.Builds[i].Options, i ) )
         next
     end select
-    if rows.Count( ) = 0 then
+    if (rows.Count( ) = 0) andalso (kind <> PickKind.Functions) then
         this.SetMessage( "nothing to choose from" )
         exit sub
     end if
@@ -1487,9 +1661,10 @@ sub Window.OpenChooser( byval kind as PickKind )
         cast( Window ptr, payload )->Chosen( tag )
     end sub
     Chooser.Payload = @this
-    ' at the bottom left of the panes, over the status line's buffer panel
+    ' the lists of names at the top, centred over the panes; the others at the bottom left, over
+    ' the status line's panels
     dim as TK_HOST ptr h = tkForm_Host( form )
-    dim as long w = tkForm_Scale( form, 460 )
+    dim as long w = tkForm_Scale( form, popW )
     dim as long n = rows.Count( )
     if n > Chooser.MaxRows then n = Chooser.MaxRows
     dim as long ph = n * tkForm_Scale( form, popuplist.ROW_CY ) + tkForm_Scale( form, 4 )
@@ -1498,7 +1673,13 @@ sub Window.OpenChooser( byval kind as PickKind )
     tkWidget_AbsRect( status, a )
     dim as long wx = 0, wy = 0
     SDL_GetWindowPosition( h->win, @wx, @wy )
-    Chooser.Open( h, rows, wx + a.left, wy + a.top - ph, w, sel )
+    if (kind = PickKind.Symbols) orelse (kind = PickKind.Functions) then
+        dim as long cx = tkForm_Widget( form )->cw
+        if w > cx then w = cx
+        Chooser.Open( h, rows, wx + (cx - w) \ 2, wy + this.MenuHeight( ) + tkForm_Scale( form, 32 ), w, sel )
+    else
+        Chooser.Open( h, rows, wx + a.left, wy + a.top - ph, w, sel )
+    end if
 end sub
 
 sub Window.Chosen( byval tag as long )
@@ -1514,6 +1695,16 @@ sub Window.Chosen( byval tag as long )
     case PickKind.LineEnding : this.SetLineEnding( cast( docencoding.LineEnd, tag ) )
     case PickKind.Build
         if (tag >= 0) andalso (tag < Prefs.Builds.Count( )) then CurrentBuild = Prefs.Builds[tag].Name
+    case PickKind.Symbols, PickKind.Functions
+        if (tag >= 0) andalso (tag < Hits.Count( )) then
+            dim as SymHit hh = Hits[tag]
+            if len( hh.Path ) then
+                this.JumpTo( hh.Path, iif( hh.Line < 0, 0, hh.Line ), 0, 0 )
+            elseif hh.Doc then
+                this.ShowDoc( hh.Doc )
+                this.View( ).GoToLine( hh.Line )
+            end if
+        end if
     case PickKind.Bookmarks
         if (tag >= 0) andalso (tag < Marks.Count( )) then
             dim as BookmarkHit bh = Marks[tag]
@@ -2073,6 +2264,7 @@ end sub
 ' The file shown (opened when it is not), the caret at line ln, character column col (0-based),
 ' selChars characters selected.
 sub Window.JumpTo( byref file as const ustring, byval ln as long, byval col as long, byval selChars as long )
+    Nav.RecordJump( this.Here( ) )
     dim as DocRef d = this.FindOpen( file )
     if d then
         this.ShowDoc( d )
@@ -2081,6 +2273,7 @@ sub Window.JumpTo( byref file as const ustring, byval ln as long, byval col as l
     end if
     this.View( ).GoToLine( ln, col, selChars )
     this.View( ).Focus( )
+    Nav.NoteArrival( this.Here( ) )
 end sub
 
 ' Run: a GUI program directly; a console one in a terminal of its own that waits for a key
@@ -2148,3 +2341,309 @@ function Window.OutputHasFocus( ) as boolean
     wend
     return false
 end function
+
+' ================================================================ code intelligence (P5)
+
+private function IsIdentCharU( byval c as ulong ) as boolean
+    return ((c >= 48) andalso (c <= 57)) orelse ((c >= 65) andalso (c <= 90)) orelse _
+           ((c >= 97) andalso (c <= 122)) orelse (c = 95)
+end function
+
+' "a.b.word" before the caret -> word "word", qualifier "b".
+private sub SplitQualified( byref before as const ustring, byref word as ustring, byref qualifier as ustring )
+    dim as long i = len( before )
+    while (i > 0) andalso IsIdentCharU( before[i - 1] )
+        i -= 1
+    wend
+    word = mid( before, i + 1 )
+    qualifier = ""
+    if (i > 0) andalso (before[i - 1] = 46) then            ' "."
+        dim as long j = i - 1
+        while (j > 0) andalso IsIdentCharU( before[j - 1] )
+            j -= 1
+        wend
+        qualifier = mid( before, j + 1, i - 1 - j )
+    end if
+end sub
+
+' Sorted case-blind, each name once.
+private function SortNames( byref names as const Array( of ustring ) ) as Array( of ustring )
+    dim as Array( of ustring ) keys, out_
+    for each n as ustring in names
+        dim as ustring k = lcase( n )
+        dim as long at = keys.Count( )
+        while (at > 0) andalso (keys[at - 1] > k)
+            at -= 1
+        wend
+        if (at > 0) andalso (keys[at - 1] = k) then continue for
+        keys.Insert( at, k )
+        out_.Insert( at, n )
+    next
+    return out_
+end function
+
+' The toolchain's pkg folder beside the compiler: #import "std/..." resolves there.
+function Window.PkgDir( ) as ustring
+    dim as ustring c = this.CompilerPath( )
+    if len( c ) = 0 then return ""
+    dim as ustring d = fs.PathParent( c )
+    if fs.IsDir( fs.PathJoin( d, "pkg" ) ) then return fs.PathJoin( d, "pkg" )
+    if fs.IsDir( fs.PathJoin( fs.PathParent( d ), "pkg" ) ) then return fs.PathJoin( fs.PathParent( d ), "pkg" )
+    return ""
+end function
+
+' Loads tikoParser from beside the program and starts its worker. FALSE = code intelligence
+' runs on the line-based outline only (the reason is in the Log).
+function Window.StartScanner( ) as boolean
+    if Scanner.running then return true
+    if Scanner.Start( platform.ExeDir( ) ) = false then
+        LogText &= "code intelligence: " & Scanner.Lib.LastError( ) & chr( 10 )
+        Out.SetLog( LogText )
+        return false
+    end if
+    scanTimer = tkApp_SetTimer( 150, sub( byval id as long, byval payload as any ptr )
+        cast( Window ptr, payload )->PollScans( )
+    end sub, @this )
+    return true
+end function
+
+' A buffer's scan: its unsaved text when modified, else the file. Untitled buffers are not scanned.
+sub Window.QueueScan( byval d as DocRef )
+    if (d = 0) orelse (Scanner.running = false) orelse (len( d->Path ) = 0) then exit sub
+    dim as parser.ScanOptions o
+    for each inc as ustring in Prefs.Includes
+        o.Includes.Push( inc )
+    next
+    o.PkgDir = this.PkgDir( )
+    scanGen += 1
+    Scanner.Queue( d->Path, d->Text( ), d->IsModified( ), o, scanGen )
+end sub
+
+' Installs what came back; rescans the active buffer 0.7 s after typing stops.
+sub Window.PollScans( )
+    dim as Array( of parser.Finished ) done
+    if Scanner.Poll( done ) then
+        for each f as parser.Finished in done
+            if f.Ok then
+                Db.Install( f.Set )
+                ScansInstalled += 1
+            else
+                LastScanError = f.Error
+            end if
+        next
+    end if
+    if scanDirty andalso (SDL_GetTicks( ) - lastEditTicks > 700) andalso (Scanner.Pending( ) = 0) then
+        scanDirty = false
+        this.QueueScan( this.Active( ) )
+    end if
+end sub
+
+' A buffer's procedures, by line: tikoParser's when it has scanned the file, else the outline's.
+function Window.ProcsOf( byval d as DocRef ) as Array( of SymHit )
+    dim as Array( of SymHit ) out_
+    if d = 0 then return out_
+    if (len( d->Path ) > 0) andalso Db.HasFile( d->Path ) then
+        for each r as symboldb.SymRef in Db.Procedures( d->Path )
+            dim byref as symboldb.Sym y = Db.Item( r )
+            dim as SymHit hh
+            hh.Name = Db.QualifiedName( r )
+            hh.Kind = "sub"
+            if y.Kind = symboldb.SymKind.FunctionProc then hh.Kind = "function"
+            hh.Path = d->Path
+            hh.Line = y.BodyLine - 1
+            hh.Doc = d
+            out_.Push( hh )
+        next
+        return out_
+    end if
+    for each y as outline.Symbol in outline.Scan( d->Text( ) )
+        if outline.IsProcedure( y.Kind ) = false then continue for
+        dim as SymHit hh
+        hh.Name = y.Name
+        hh.Kind = outline.KindWord( y.Kind )
+        hh.Path = d->Path
+        hh.Line = y.Line
+        hh.Doc = d
+        out_.Push( hh )
+    next
+    return out_
+end function
+
+' Where the caret is, for the jump history.
+function Window.Here( ) as navhistory.NavEntry
+    dim as DocRef d = this.Active( )
+    dim as navhistory.NavEntry none_
+    if (d = 0) orelse (len( d->Path ) = 0) then return none_
+    dim as editor.CodeView ptr v = @this.View( )
+    return navhistory.MakeEntry( d->Path, v->CaretLine( ) - 1, v->Position( ), v->Length( ), v->FirstLine( ) )
+end function
+
+' Alt+Left / Alt+Right.
+sub Window.GoHistory( byval forward as boolean )
+    dim as navhistory.NavEntry e
+    if forward then
+        e = Nav.Forward( this.Here( ) )
+    else
+        e = Nav.Back( this.Here( ) )
+    end if
+    if len( e.File ) = 0 then exit sub
+    Nav.Suppress( )
+    dim as DocRef d = this.FindOpen( e.File )
+    if d then
+        this.ShowDoc( d )
+    elseif this.OpenFile( e.File ) = false then
+        Nav.Unsuppress( )
+        exit sub
+    end if
+    dim as editor.CodeView ptr v = @this.View( )
+    if navhistory.UseExactPosition( e, v->Length( ) ) then
+        v->SetPosition( e.Position )
+    else
+        v->GoToLine( e.Line )
+    end if
+    v->SetFirstLine( e.FirstLine )
+    Nav.Unsuppress( )
+    this.ShowStatus( )
+end sub
+
+' The parser's uppercased path back to the open buffer's or the project's spelling, else the disk's.
+function Window.ScannedFile( byref upper as const ustring ) as ustring
+    for each d as DocRef in Docs
+        if ucase( d->Path ) = ucase( upper ) then return d->Path
+    next
+    if ProjOpen then
+        for i as long = 0 to Proj.FileCount( ) - 1
+            if ucase( Proj.FilePath( i ) ) = ucase( upper ) then return Proj.FilePath( i )
+        next
+    end if
+    return symboldb.RealPath( upper )
+end function
+
+' F12: the definition of the word under the caret (qualified by what stands before a ".").
+function Window.GoToDefinition( ) as boolean
+    dim as editor.CodeView ptr v = @this.View( )
+    dim as DocRef d = this.Active( )
+    if d = 0 then return false
+    dim as ustring word = v->WordAtCaret( )
+    if len( word ) = 0 then return false
+    dim as ustring lineText = v->LineTextAt( v->CaretLine( ) - 1 )
+    dim as long at = instr( lineText, word )
+    dim as long caretCol = v->CaretColumn( )
+    while (at > 0) andalso (at + len( word ) < caretCol)        ' the occurrence that holds the caret
+        dim as long nx = instr( at + 1, lineText, word )
+        if nx = 0 then exit while
+        at = nx
+    wend
+    dim as ustring w2, qual
+    SplitQualified( left( lineText, at - 1 + len( word ) ), w2, qual )
+    dim as symboldb.SymRef r = Db.Definition( word, d->Path, v->CaretLine( ), qual )
+    if r.IsValid( ) = false then
+        ' no scan: the outline of the open buffers
+        for each b as DocRef in Docs
+            for each hh as SymHit in this.ProcsOf( b )
+                if lcase( hh.Name ) = lcase( word ) then
+                    this.JumpTo( b->Path, hh.Line, 0, 0 )
+                    return true
+                end if
+            next
+        next
+        this.SetMessage( "no definition found for " & word )
+        return false
+    end if
+    dim as symboldb.Sym y = Db.Item( r )
+    dim as ustring target = this.ScannedFile( y.File )
+    if len( target ) = 0 then return false
+    dim as long ln = y.LineNo
+    if y.BodyLine > 0 then ln = y.BodyLine
+    this.JumpTo( target, ln - 1, 0, 0 )
+    return true
+end function
+
+' Ctrl+PgDn / Ctrl+PgUp: the nearest procedure below (above) the caret's line.
+sub Window.GoFunction( byval forward as boolean )
+    dim as DocRef d = this.Active( )
+    if d = 0 then exit sub
+    dim as editor.CodeView ptr v = @this.View( )
+    dim as long cur = v->CaretLine( ) - 1, best = -1
+    for each hh as SymHit in this.ProcsOf( d )
+        if forward then
+            if (hh.Line > cur) andalso ((best < 0) orelse (hh.Line < best)) then best = hh.Line
+        elseif (hh.Line < cur) andalso (hh.Line > best) then
+            best = hh.Line
+        end if
+    next
+    if best < 0 then exit sub
+    Nav.RecordJump( this.Here( ) )
+    v->GoToLine( best )
+    Nav.NoteArrival( this.Here( ) )
+    this.ShowStatus( )
+end sub
+
+' Completion and calltips while typing (settings codetips): "(" the calltip, ")" gone, "." the
+' members, a third identifier character the names that start so (types after "as ").
+sub Window.CodeTips( byval hEdit as TK_WIDGET ptr, byval ch as long )
+    if Prefs.CodeTips = false then exit sub
+    dim as DocRef d = this.DocOfWidget( hEdit )
+    if d = 0 then exit sub
+    dim as editor.CodeView ptr v = @d->Main
+    if d->Other.Exists( ) andalso (d->Other.Widget( ) = hEdit) then v = @d->Other
+    dim as long ln = v->CaretLine( )
+    if ch = 40 then
+        dim as ustring before = v->TextBeforeCaret( )
+        dim as ustring word, qual
+        SplitQualified( left( before, len( before ) - 1 ), word, qual )
+        if len( word ) then
+            dim as ustring tip = Db.CallTip( word, qual, d->Path, ln )
+            if len( tip ) then v->ShowCallTip( tip )
+        end if
+        exit sub
+    end if
+    if ch = 41 then
+        v->CancelCallTip( )
+        exit sub
+    end if
+    if ch = 46 then
+        dim as ustring before = v->TextBeforeCaret( )
+        dim as ustring word, qual
+        SplitQualified( left( before, len( before ) - 1 ), word, qual )
+        if len( word ) then
+            dim as Array( of ustring ) items = Db.MemberNames( word, d->Path, ln )
+            if items.Count( ) then v->ShowCompletions( 0, items )
+        end if
+        exit sub
+    end if
+    if IsIdentCharU( ch ) = false then exit sub
+    if v->CompletionsShown( ) then exit sub                     ' Scintilla filters as typing goes on
+    this.ShowCompletionsAt( v, d, 3 )
+end sub
+
+' The names that start like the word before the caret: the scan's, the outline's procedures,
+' the keywords. minLen: how much must be typed first (Ctrl+Space: 0).
+sub Window.ShowCompletionsAt( byval v as editor.CodeView ptr, byval d as DocRef, byval minLen as long )
+    dim as ustring before = v->TextBeforeCaret( )
+    dim as ustring word, qual
+    SplitQualified( before, word, qual )
+    if len( word ) < minLen then exit sub
+    dim as Array( of ustring ) items
+    if len( qual ) then
+        items = Db.MemberNames( qual, d->Path, v->CaretLine( ) )
+    elseif instr( lcase( right( before, len( word ) + 4 ) ), "as " ) = 1 then
+        items = Db.TypeNames( word )
+    else
+        items = Db.Completions( word, d->Path, v->CaretLine( ) )
+        if Db.HasFile( d->Path ) = false then
+            for each hh as SymHit in this.ProcsOf( d )
+                if lcase( left( hh.Name, len( word ) ) ) = lcase( word ) then items.Push( hh.Name )
+            next
+        end if
+        dim as ustring lw = lcase( word )
+        for each k as ustring in strings.Split( Look.Words.Words1, " " )
+            if left( k, len( lw ) ) = lw then items.Push( k )
+            if items.Count( ) > 300 then exit for
+        next
+    end if
+    items = SortNames( items )
+    if items.Count( ) = 0 then exit sub
+    if (items.Count( ) = 1) andalso (lcase( items[0] ) = lcase( word )) andalso (minLen > 0) then exit sub
+    v->ShowCompletions( len( word ), items )
+end sub

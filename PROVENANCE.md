@@ -19,7 +19,7 @@ the name `tiko-studio` → `tkEdit` (incl. `platform.APP_NAME` and the run-scrip
 | `src/core/navhistory` | `src/core/navhistory` | — |
 | `src/core/outline` | `src/core/outline` | — |
 | `src/core/safewrite` | `src/core/safewrite` | — |
-| `src/core/symboldb` | `src/core/symboldb` | — |
+| `src/core/symboldb` | `src/core/symboldb` | `Definitions`, `Procedures`, `QualifiedName`, `HasFile` added (tkEdit's F4 / Ctrl+P lists) |
 | `src/core/text` | `src/core/text` | — |
 | `src/core/textsearch` | `src/core/textsearch` | — |
 | `src/core/textstream` | `src/core/textstream` | — |
@@ -45,7 +45,7 @@ the name `tiko-studio` → `tkEdit` (incl. `platform.APP_NAME` and the run-scrip
 | `src/core/tests/projectsuite` | — | new |
 | `src/app/outputpane` | `src/app/outputpane` | Results and Log only |
 | `src/app/chrome` | `src/app/chrome` | rewritten for TOML themes: `PaletteOf`, `LookOf` |
-| `src/app/mainwin/mainwin.tiko` | — | new; `AppOptions`, `WordsOf`/`LoadKeywords`, `AskPerson`/`PickPerson`, the buffer flow (`FindOpen`, `SaveDoc`, `CloseDoc`, `CheckDisk`) and the build flow (`StartBuild`, `PollBuild`, `FinishBuild`, `ShowDiagnostics`, `OpenDiagnostic`, `RunProgram`, `LaunchProgram`) after tiko-studio's `mainwin` |
+| `src/app/mainwin/mainwin.tiko` | — | new; `AppOptions`, `WordsOf`/`LoadKeywords`, `AskPerson`/`PickPerson`, the buffer flow (`FindOpen`, `SaveDoc`, `CloseDoc`, `CheckDisk`) and the build flow (`StartBuild`, `PollBuild`, `FinishBuild`, `ShowDiagnostics`, `OpenDiagnostic`, `RunProgram`, `LaunchProgram`) and code intelligence (`StartScanner`, `QueueScan`, `PollScans`, `GoToDefinition`, `GoHistory`, `GoFunction`, the `OnCharAdded` codetips, `SplitQualified`, `SortNames`, `PkgDir`) after tiko-studio's `mainwin` |
 | `tools/test-win.sh`, `tools/test-linux.sh`, `tools/idiom.sh` | `tools/` | tkEdit's paths, exe and build folder (`$HOME/tebuild`); tikoParser copied only when present |
 | `fonts/` | `fonts/` | README points at `mainwin.AppOptions` |
 | `keywords/tiko.txt`, `keywords/extra.txt` | `settings/keywords/freebasic_keywords.txt`, `extra_keywords.txt` | renamed |

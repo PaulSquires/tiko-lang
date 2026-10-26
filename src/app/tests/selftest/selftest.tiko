@@ -26,6 +26,7 @@
 #import "tka/editor"
 #import "tka/findstrip"
 #import "tka/outputpane"
+#import "tks/parser"
 #import "tka/mainwin"
 #import "tkControls/tkApp"
 #import "tkControls/tkTest"
@@ -130,7 +131,8 @@ public sub Pass( byref t as Tally, byval sc as single )
     dim as ustring eol = mw.StatusText( mainwin.StatusPanel.LineEnding )
     t.Check( (eol = "CRLF") orelse (eol = "LF"), P( sc, "line-ending panel: " & eol ) )
 
-    ' ---- typing reaches the view and moves the caret panel
+    ' ---- typing reaches the view and moves the caret panel (no completion list: P5's own pass)
+    mw.Prefs.CodeTips = false
     tkTest_PushText( h, "dim x as long" )
     tkTest_PumpFor( h, 50 )
     t.Check( mw.View( ).Text( ) = "dim x as long", P( sc, "typed text: '" & mw.View( ).Text( ) & "'" ) )
@@ -188,7 +190,7 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     t.Check( tkPopupMenu_GetItemCount( fileMenu ) = 15, P( sc, strings.Format( "File: 12 commands + 3 separators ({})", tkPopupMenu_GetItemCount( fileMenu ) ) ) )
     t.Check( tkPopupMenu_GetItemEnabled( fileMenu, Cmd.FileSave ), P( sc, "File > Save enabled" ) )
     t.Check( tkPopupMenu_GetItemEnabled( fileMenu, Cmd.FileNew ), P( sc, "File > New enabled (P2)" ) )
-    t.Check( tkPopupMenu_GetItemEnabled( tkMenuBar_GetDropDown( mw.menuBar, 3 ), Cmd.FunctionList ) = false, P( sc, "View > Functions greyed (P5)" ) )
+    t.Check( tkPopupMenu_GetItemEnabled( tkMenuBar_GetDropDown( mw.menuBar, 1 ), Cmd.FormatDocument ) = false, P( sc, "Edit > Format Document greyed (P6)" ) )
     t.Check( mw.ShortcutText( Cmd.FileSave ) = "Ctrl+S", P( sc, "Save shows " & mw.ShortcutText( Cmd.FileSave ) ) )
     t.Check( mw.ShortcutText( Cmd.SplitLeftRight ) = "Ctrl+\", P( sc, "Split shows " & mw.ShortcutText( Cmd.SplitLeftRight ) ) )
 
@@ -197,8 +199,8 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     tkTest_PumpFor( h, 30 )
     Chord( h, SDLK_D, SDL_SCANCODE_D, SDL_KMOD_CTRL )
     t.Check( mw.View( ).LineCount( ) = 2, P( sc, strings.Format( "Ctrl+D duplicated the line ({} lines)", mw.View( ).LineCount( ) ) ) )
-    Chord( h, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL )
-    t.Check( instr( mw.Message, "not available yet" ) > 0, P( sc, "Ctrl+P says it is not there yet: " & mw.Message ) )
+    Chord( h, SDLK_F, SDL_SCANCODE_F, SDL_KMOD_ALT or SDL_KMOD_SHIFT )
+    t.Check( instr( mw.Message, "not available yet" ) > 0, P( sc, "Alt+Shift+F says it is not there yet: " & mw.Message ) )
     t.Check( mw.View( ).Text( ) = "abc" & mw.View( ).EolText( ) & "abc", P( sc, "and typed nothing" ) )
     mw.View( ).SetText( "" )                                     ' unmodified: closing it asks nothing
 
@@ -865,4 +867,170 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     t.Check( pr.IsOk( ) andalso (pr.Value( ).FileCount( ) = 2), P( sc, "the project file lists both" ) )
 
     mw.Destroy( )
+end sub
+
+' ================================================================ P5: code intelligence
+
+private function WaitScans( byref mw as mainwin.Window, byval atLeast as long ) as boolean
+    dim as double t0 = timer
+    do while (mw.ScansInstalled < atLeast) orelse (mw.Scanner.Pending( ) > 0)
+        tkApp_Pump( )
+        SDL_Delay( 20 )
+        if timer - t0 > 60 then return false
+    loop
+    return true
+end function
+
+' The list's cell texts of row i, "|"-joined.
+private function RowCells( byref mw as mainwin.Window, byval i as long ) as ustring
+    if mw.Chooser.List = 0 then return "!"
+    dim as ustring s
+    for c as long = 0 to mw.Chooser.Columns.Count( ) - 1
+        if c then s &= "|"
+        s &= tkListTree_GetCellText( mw.Chooser.List, i, c )
+    next
+    return s
+end function
+
+private sub IntelFiles( byref dir_ as const ustring, byref mainF as ustring, byref utilF as ustring )
+    dim as ustring nl = chr( 10 )
+    mainF = fs.PathJoin( dir_, "main.tiko" )
+    utilF = fs.PathJoin( dir_, "util.tiko" )
+    fs.WriteAllText( mainF, "type Point" & nl & "    x as long" & nl & "    y as long" & nl & "end type" & nl & nl & _
+        "function Twice( byval n as long ) as long" & nl & "    return n * 2" & nl & "end function" & nl & nl & _
+        "sub Show( byref p as Point )" & nl & "    print p.x" & nl & "end sub" & nl & nl & _
+        "dim as Point pt" & nl & "pt.x = Twice( 3 )" & nl & "Show( pt )" & nl )
+    fs.WriteAllText( utilF, "function Helper( ) as long" & nl & "    return 7" & nl & "end function" & nl )
+end sub
+
+public sub IntelPass( byref t as Tally, byval sc as single )
+    dim as ustring dir_ = fs.PathJoin( Files( ), "intel" )
+    fs.CreateDirAll( dir_ )
+    dim as ustring mainF, utilF
+    IntelFiles( dir_, mainF, utilF )
+    dim as mainwin.Window mw
+    mw.ConfigDir = FreshConfig( )
+    mw.Ask = @ScriptedAsk
+    mw.Pick = @ScriptedPick
+    mw.Launch = @ScriptedLaunch
+    t.Check( mw.Create( sc ), P( sc, "intel: main window created" ) )
+    if mw.form = 0 then exit sub
+    mw.Show( )
+    dim as TK_HOST ptr h = tkForm_Host( mw.form )
+    mw.Prefs.Tiko = TestCompiler( )
+    t.Check( mw.Scanner.running, P( sc, "tikoParser loaded: " & mw.Scanner.Lib.LastError( ) ) )
+    if mw.Scanner.running = false then
+        mw.Destroy( )
+        exit sub
+    end if
+    t.Check( mw.Scanner.Lib.Version( ) = parser.TKP_VERSION, P( sc, strings.Format( "its version is {}", mw.Scanner.Lib.Version( ) ) ) )
+    mw.OpenFile( utilF )
+    mw.OpenFile( mainF )
+    t.Check( WaitScans( mw, 2 ), P( sc, strings.Format( "the scans came back ({}): {}", mw.ScansInstalled, mw.LastScanError ) ) )
+    t.Check( mw.Db.HasFile( mainF ) andalso mw.Db.HasFile( utilF ), P( sc, "both files are scanned" ) )
+
+    ' ---- F4: this buffer's procedures; F4 again: every open buffer's, with the file
+    Chord( h, SDLK_F4, SDL_SCANCODE_F4, 0 )
+    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Functions), P( sc, "F4 opened the functions list" ) )
+    t.Check( mw.Chooser.ShownCount( ) = 2, P( sc, strings.Format( "two in main.tiko ({})", mw.Chooser.ShownCount( ) ) ) )
+    t.Check( RowCells( mw, 0 ) = "Twice|function|6", P( sc, "Name | Kind | Line: " & RowCells( mw, 0 ) ) )
+    t.Check( RowCells( mw, 1 ) = "Show|sub|10", P( sc, "in source order: " & RowCells( mw, 1 ) ) )
+    PopKey( mw, SDLK_F4, SDL_SCANCODE_F4 )
+    t.Check( mw.Chooser.IsOpen( ) andalso mw.FuncsAll andalso (mw.Chooser.ShownCount( ) = 3), _
+             P( sc, strings.Format( "F4 again: every open buffer ({})", mw.Chooser.ShownCount( ) ) ) )
+    t.Check( mw.Chooser.Columns.Count( ) = 4, P( sc, "with a File column" ) )
+    if mw.Chooser.Pop then
+        tkTest_PushText( mw.Chooser.Pop, "help" )
+        tkTest_PumpFor( h, 40 )
+    end if
+    t.Check( (mw.Chooser.ShownCount( ) = 1) andalso (RowCells( mw, 0 ) = "Helper|function|1|util.tiko"), P( sc, "'help' leaves Helper: " & RowCells( mw, 0 ) ) )
+    PopKey( mw, SDLK_F4, SDL_SCANCODE_F4 )
+    t.Check( (mw.FuncsAll = false) andalso (mw.Chooser.QueryText( ) = "help") andalso (mw.Chooser.ShownCount( ) = 0), _
+             P( sc, "F4 once more: back to this buffer, the query kept" ) )
+    PopKey( mw, SDLK_F4, SDL_SCANCODE_F4 )
+    PopKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
+    t.Check( (lcase( mw.ActivePath( ) ) = lcase( utilF )) andalso (mw.View( ).CaretLine( ) = 1), P( sc, "Enter opened util.tiko at Helper" ) )
+
+    ' ---- Ctrl+P: files and definitions, fuzzy
+    Chord( h, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL )
+    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Symbols), P( sc, "Ctrl+P opened Search Symbol" ) )
+    t.Check( mw.Chooser.ShownCount( ) = 6, P( sc, strings.Format( "2 files + Point, Twice, Show, Helper ({})", mw.Chooser.ShownCount( ) ) ) )
+    if mw.Chooser.Pop then
+        tkTest_PushText( mw.Chooser.Pop, "twi" )
+        tkTest_PumpFor( h, 40 )
+    end if
+    t.Check( left( RowCells( mw, 0 ), 15 ) = "function|Twice|", P( sc, "'twi': Twice first: " & RowCells( mw, 0 ) ) )
+    PopKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
+    t.Check( (lcase( mw.ActivePath( ) ) = lcase( mainF )) andalso (mw.View( ).CaretLine( ) = 6), _
+             P( sc, strings.Format( "Enter went to Twice, line {}", mw.View( ).CaretLine( ) ) ) )
+
+    ' ---- F12, then back and forward
+    dim as editor.CodeView ptr v = @mw.View( )
+    v->GoToLine( 14, 9 )                                          ' "pt.x = Twice( 3 )", in Twice
+    Chord( h, SDLK_F12, SDL_SCANCODE_F12, 0 )
+    t.Check( mw.View( ).CaretLine( ) = 6, P( sc, strings.Format( "F12 went to Twice's definition, line {}", mw.View( ).CaretLine( ) ) ) )
+    Chord( h, SDLK_LEFT, SDL_SCANCODE_LEFT, SDL_KMOD_ALT )
+    t.Check( mw.View( ).CaretLine( ) = 15, P( sc, strings.Format( "Alt+Left came back, line {}", mw.View( ).CaretLine( ) ) ) )
+    Chord( h, SDLK_RIGHT, SDL_SCANCODE_RIGHT, SDL_KMOD_ALT )
+    t.Check( mw.View( ).CaretLine( ) = 6, P( sc, "Alt+Right went forward again" ) )
+    mw.View( ).GoToLine( 14, 4 )                                  ' "pt.x|": the member x of a Point
+    Chord( h, SDLK_F12, SDL_SCANCODE_F12, 0 )
+    t.Check( mw.View( ).CaretLine( ) = 2, P( sc, strings.Format( "F12 on pt.x: the field, line {}", mw.View( ).CaretLine( ) ) ) )
+
+    ' ---- Ctrl+PgDn / Ctrl+PgUp
+    mw.View( ).GoToLine( 0 )
+    Chord( h, SDLK_PAGEDOWN, SDL_SCANCODE_PAGEDOWN, SDL_KMOD_CTRL )
+    t.Check( mw.View( ).CaretLine( ) = 6, P( sc, "Ctrl+PgDn: the next function" ) )
+    Chord( h, SDLK_PAGEDOWN, SDL_SCANCODE_PAGEDOWN, SDL_KMOD_CTRL )
+    t.Check( mw.View( ).CaretLine( ) = 10, P( sc, "and the next" ) )
+    Chord( h, SDLK_PAGEUP, SDL_SCANCODE_PAGEUP, SDL_KMOD_CTRL )
+    t.Check( mw.View( ).CaretLine( ) = 6, P( sc, "Ctrl+PgUp: the previous" ) )
+
+    ' ---- typing: members after ".", names after three letters, the calltip after "("
+    v = @mw.View( )
+    v->SetPosition( v->Length( ) )
+    tkTest_PushText( h, "pt." )
+    tkTest_PumpFor( h, 40 )
+    t.Check( v->CompletionsShown( ), P( sc, "'pt.' lists Point's members" ) )
+    t.Check( lcase( v->CompletionSelected( ) ) = "x", P( sc, "x first: " & v->CompletionSelected( ) ) )
+    v->CancelCompletions( )
+    tkTest_PushText( h, "y = Twi" )
+    tkTest_PumpFor( h, 40 )
+    t.Check( v->CompletionsShown( ) andalso (v->CompletionSelected( ) = "Twice"), P( sc, "'Twi' offers Twice: " & v->CompletionSelected( ) ) )
+    v->CancelCompletions( )
+    tkTest_PushText( h, "ce(" )
+    tkTest_PumpFor( h, 40 )
+    t.Check( v->CallTipShown( ), P( sc, "'Twice(' shows the calltip" ) )
+    tkTest_PushText( h, "1)" )
+    tkTest_PumpFor( h, 40 )
+    t.Check( v->CallTipShown( ) = false, P( sc, "')' closes it" ) )
+    tkTest_PushText( h, " + Sh" )
+    tkTest_PumpFor( h, 40 )
+    t.Check( v->CompletionsShown( ) = false, P( sc, "two letters list nothing" ) )
+    Chord( h, SDLK_SPACE, SDL_SCANCODE_SPACE, SDL_KMOD_CTRL )
+    t.Check( v->CompletionsShown( ) andalso (v->CompletionSelected( ) = "Show"), P( sc, "Ctrl+Space does: " & v->CompletionSelected( ) ) )
+    v->CancelCompletions( )
+    v->SetSavePoint( )
+    mw.Destroy( )
+
+    ' ---- no tikoParser: the outline still feeds F4, Ctrl+P and F12
+    dim as mainwin.Window m2
+    m2.ConfigDir = FreshConfig( )
+    m2.Ask = @ScriptedAsk
+    m2.Pick = @ScriptedPick
+    m2.NoParser = true
+    t.Check( m2.Create( sc ), P( sc, "outline: a window without tikoParser" ) )
+    if m2.form = 0 then exit sub
+    m2.Show( )
+    dim as TK_HOST ptr h2 = tkForm_Host( m2.form )
+    m2.OpenFile( utilF )
+    m2.OpenFile( mainF )
+    t.Check( m2.Scanner.running = false, P( sc, "outline: no scanner" ) )
+    Chord( h2, SDLK_F4, SDL_SCANCODE_F4, 0 )
+    t.Check( m2.Chooser.IsOpen( ) andalso (m2.Chooser.ShownCount( ) = 2), P( sc, strings.Format( "outline: F4 lists two ({})", m2.Chooser.ShownCount( ) ) ) )
+    PopKey( m2, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
+    m2.View( ).GoToLine( 15, 2 )                                  ' "Show( pt )"
+    Chord( h2, SDLK_F12, SDL_SCANCODE_F12, 0 )
+    t.Check( m2.View( ).CaretLine( ) = 10, P( sc, strings.Format( "outline: F12 found Show, line {}", m2.View( ).CaretLine( ) ) ) )
+    m2.Destroy( )
 end sub

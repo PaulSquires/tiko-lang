@@ -70,6 +70,28 @@ public sub Run( byref c as tally.Checker )
     c.Same( db.CallTip( "Draw" ), "Draw(byref p as Point)", "a sub's calltip" )
     c.Same( db.CallTip( "LIMIT" ), "", "a constant has no calltip" )
     c.Same( symboldb.BaseTypeName( "const Node ptr" ), "Node", "BaseTypeName" )
+
+    ' tkEdit's lists: definitions once each, procedures by line, qualified names
+    dim as Array( of symboldb.SymRef ) defs = db.Definitions( )
+    dim as ustring dn
+    for each dr as symboldb.SymRef in defs
+        if len( dn ) then dn &= "|"
+        dn &= db.Item( dr ).Name
+    next
+    c.Same( dn, "Point|Point3|Draw|Twice", "Definitions: types and procedures with a body" )
+    dim as Array( of symboldb.SymRef ) procs = db.Procedures( "c:\p\main.tiko" )
+    c.Check( (procs.Count( ) = 2) andalso (db.Item( procs[0] ).Name = "Draw") andalso (db.Item( procs[1] ).Name = "Twice"), "Procedures: by line" )
+    c.SameNum( db.Procedures( "c:\other.tiko" ).Count( ), 0, "another file has none" )
+    dim as symboldb.SymRef lr
+    lr.SetNo = 0
+    lr.Index = 3
+    c.Same( db.QualifiedName( lr ), "Point.Len", "a method's qualified name" )
+    c.Check( db.HasFile( "c:\p\main.tiko" ) andalso (db.HasFile( "c:\q.tiko" ) = false), "HasFile" )
+    dim as symboldb.SymbolSet twin = st
+    twin.Root = "c:\p\other-root.tiko"
+    db.Install( twin )
+    c.SameNum( db.Definitions( ).Count( ), 4, "two sets holding one file: each definition once" )
+    db.Remove( "c:\p\other-root.tiko" )
     db.Install( st )
     c.SameNum( db.SetCount( ), 1, "installing the same root replaces it" )
     db.Remove( "C:\P\MAIN.TIKO" )
