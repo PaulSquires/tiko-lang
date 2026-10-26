@@ -1,0 +1,2 @@
+#cmdline "-d MSG=""hello world"" -d N=5"
+print MSG; N

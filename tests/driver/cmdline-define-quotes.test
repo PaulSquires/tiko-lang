@@ -1,0 +1,10 @@
+'' '#cmdline "-d MSG=""hello world"""' defines MSG as the STRING "hello world": the doubled
+'' quotes are the literal's, the define keeps them and they group the space. fbc-modern 1.20
+'' prints 'hello world 5'. tiko dropped them and read 'hello' as a name (by-example
+'' BUG-preprocessor-2). See UndoubleQuotes_ / SplitCmdlineWords_ in pp/directive.tiko.
+'' TEST: cli
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ARGS: -target windows-x86_64 tests/driver/src/cmdline-define-quotes.tiko -o tests/driver/cmdlinedq.exe
+'' EXPECT-EXIT: 0
+'' RUN: tests/driver/cmdlinedq.exe
+'' EXPECT-RUN-OUT: hello world 5

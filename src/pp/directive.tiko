@@ -363,6 +363,19 @@ end sub
 ''
 '' Blanks around and between words are skipped rather than making empty arguments.
 '' Measured against fbc 1.20.0: '#cmdline "   -d   FOO   "' defines FOO.
+'' The literal's TEXT: its raw spelling between the outer quotes has every '"' doubled.
+private function UndoubleQuotes_( byref s as string ) as string
+    dim as string r = ""
+    dim as int32 i = 1
+    while i <= len( s )
+        dim as string ch = mid( s, i, 1 )
+        r &= ch
+        if (ch = chr( 34 )) andalso (mid( s, i + 1, 1 ) = chr( 34 )) then i += 1
+        i += 1
+    wend
+    return r
+end function
+
 private sub SplitCmdlineWords_( byref s as string, byref outv as StrVec )
     dim as int32 n = len( s )
     dim as int32 i = 1
@@ -387,6 +400,10 @@ private sub SplitCmdlineWords_( byref s as string, byref outv as StrVec )
             dim as string ch2 = mid( s, i, 1 )
             if ch2 = """" then
                 quoted = not quoted
+                '' ...AND KEPT IN A DEFINE'S VALUE: '-d MSG="hello world"' through #cmdline defines MSG
+                '' as the string 'hello world' (fbc-modern 1.20, measured 2026-10-25); the quotes were
+                '' dropped and 'Acme' read as a name (by-example BUG-preprocessor-2).
+                if instr( w, "=" ) > 0 then w &= ch2
             else
                 dim as boolean isSp2 = (ch2 = " ")
                 dim as boolean isTab2 = (ch2 = chr( 9 ))
@@ -984,7 +1001,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
             dim as int32 clA = instr( clSp, """" )
             dim as int32 clB = instrrev( clSp, """" )
             if (clA > 0) andalso (clB > clA) then
-                SplitCmdlineWords_( mid( clSp, clA + 1, clB - clA - 1 ), _
+                SplitCmdlineWords_( UndoubleQuotes_( mid( clSp, clA + 1, clB - clA - 1 ) ), _
                                     e.outp->cmdlineArgs )
             end if
         end if
