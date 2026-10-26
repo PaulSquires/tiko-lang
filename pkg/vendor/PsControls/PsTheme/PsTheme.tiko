@@ -11,7 +11,8 @@
 #module "PsTheme"
 
 #import "sys/win"
-
+#import "sys/win/gui"
+ 
 ' A theme is a set of semantic ROLES, not a colour per control field. Every control has an
 ' adapter, Ps<X>_ThemeColors( t ), that derives its own colour set from the roles, and
 ' Ps<X>_ApplyTheme( h, t ) that applies it -- unless the program set that control's colours
