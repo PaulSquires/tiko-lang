@@ -1,0 +1,3 @@
+#module "m"
+public dim shared A( any ) as wstring * 260
+public dim shared N( any ) as long

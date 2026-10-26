@@ -1,0 +1,15 @@
+#module "u"
+#import "../m"
+using m
+'' A and N are m's: the AS type agrees, so the redim resizes them.
+public sub Fill( )
+    redim A( 3 ) as wstring * 260
+    A( 2 ) = "two"
+    redim N( 4 ) as long
+    N( 4 ) = 44
+end sub
+'' ...and a different element type declares a LOCAL, as fbc does.
+public function Other( ) as long
+    redim N( 9 ) as double
+    return ubound( N )
+end function

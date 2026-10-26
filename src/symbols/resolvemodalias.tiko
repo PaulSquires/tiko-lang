@@ -45,6 +45,35 @@ private sub ModuleTypedefsFirst_( byref c as Ctx )
     next
 end sub
 
+'' 'redim A( 3 ) as T' WHERE A IS ANOTHER MODULE'S SHARED DYNAMIC ARRAY, reached through a
+'' 'using'. Collect decides between resizing and declaring before any using is in effect (and
+'' before an imported module's namespace exists), so it declared a provisional local, and the
+'' module's A stayed unallocated: 'A( 2 ) = x' then crashed (tiko-editor TE-013). fbc resizes
+'' an outer array whose element type agrees and declares a local when it does not. With the
+'' usings in effect now, an outer dynamic array of the same element type wins: the redim is
+'' bound to it -- lowering takes that binding first -- and the local is retired, so every later
+'' use finds the outer array through the ordinary lookup.
+function RedimReachesOuter_ _
+    ( byref c as Ctx, byval here as Tko.ScopeId, byval item as Tko.NodeId, _
+      byval nm as Tko.InternId, byval et as Tko.TypeId ) as boolean
+    dim as Tko.SymbolId lsid = c.syms->LookupLocal( here, nm )
+    dim as Tko.Symbol ptr ls = c.syms->SymbolAt( lsid )
+    if (ls = nullptr) orelse ((ls->flags and Tko.SYMF_REDIM) = 0) then return false
+    if ls->type_ <> Tko.TYPE_NONE then return false                 '' already settled
+    dim as Tko.SymScope ptr hs = c.syms->ScopeAt( here )
+    if (hs = nullptr) orelse (hs->parent = Tko.SCOPE_NONE) then return false
+    dim as Tko.SymbolId osid = c.syms->LookupTyped( hs->parent, nm, false )
+    dim as Tko.Symbol ptr os = c.syms->SymbolAt( osid )
+    if (os = nullptr) orelse (osid = lsid) then return false
+    if (os->kind <> cast( uint8, Tko.SYM_VARIABLE )) orelse (os->type_ = Tko.TYPE_NONE) then return false
+    dim as Tko.TypeId ot = c.types->Unqualify( os->type_ )
+    if c.types->IsDynArray( ot ) = false then return false
+    if c.types->Unqualify( c.types->Inner( ot ) ) <> c.types->Unqualify( et ) then return false
+    c.info->SetRef( item, osid )
+    c.syms->UndefSym( here, nm, 1 )   '' retired as an #undef retires a name, so every lookup honours it
+    return true
+end function
+
 '' The written parameter types of procedure symbol sid, or false when one is not known.
 private function ParamTypes_ _
     ( byref c as Ctx, byval sid as Tko.SymbolId, byref outv as containers.Array( of uint32 ) ) as boolean

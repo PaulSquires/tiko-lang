@@ -1,0 +1,12 @@
+'' 'redim A( n ) as T' OF ANOTHER MODULE'S SHARED ARRAY, reached through 'using': Collect had
+'' declared a shadow local (no using is in effect then), and m's A stayed unallocated -- the
+'' next index crashed (tiko-editor TE-013). With the element type agreeing it now resizes m's
+'' array; a different element type still declares a local. See RedimReachesOuter_
+'' (symbols/resolvemodalias.tiko).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/redimusing/main.tiko -o tests/modules/redimusing.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/redimusing.exe
+'' EXPECT-RUN-OUT:  3 two 4 44
+'' EXPECT-RUN-OUT:  9 4

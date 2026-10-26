@@ -1,0 +1,8 @@
+#import "./m"
+#import "./u"
+using m
+using u
+Fill( )
+dim as ustring s = A( 2 )
+print ubound( A ); " "; s; ubound( N ); N( 4 )
+print Other( ); ubound( N )
