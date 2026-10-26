@@ -130,11 +130,14 @@ private function Classify_ _
             continue for
         end if
         dim as boolean known = false
+        '' CASE-BLIND, as the manifest is: '[target.ApexWealth2026]' is stored lowercased, and
+        '' 'tiko build ApexWealth2026' was TKO0160 'no target named' (ApexWealth AW-001).
+        dim as string wl = lcase( w )
         for each t as string in m.targetNames
-            if t = w then known = true
+            if lcase( t ) = wl then known = true : wl = t
         next
         if known then
-            targets.Push( w )
+            targets.Push( wl )
         else
             dim as string list_ = ""
             for each t as string in m.targetNames

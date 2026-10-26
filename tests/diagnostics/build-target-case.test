@@ -1,0 +1,9 @@
+'' A TARGET WORD IS CASE-BLIND, as the manifest is: '[target.ApexWealth2026]' is stored
+'' lowercased, and 'tiko build ApexWealth2026' was TKO0160 'no target named' (ApexWealth
+'' AW-001). Here 'MISSING' reaches target 'missing', whose own error follows. See Classify_ in
+'' build/subcmd.tiko and ProfileExists in build/plan.tiko.
+'' TEST: cli
+'' ARGS: build --manifest tests/diagnostics/src/build-bad MISSING
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: error TKO0162: target 'missing'
+'' EXPECT-NOT: TKO0160

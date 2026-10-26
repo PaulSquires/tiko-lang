@@ -104,7 +104,7 @@ end function
 function ProfileExists( byref m as Tko.Modules.Manifest, byref name_ as string ) as boolean
     if Builtin_( name_ ) then return true
     for each x as string in m.profileNames
-        if x = name_ then return true
+        if lcase( x ) = lcase( name_ ) then return true   '' case-blind, as the manifest is (AW-001)
     next
     return false
 end function
