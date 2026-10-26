@@ -1,0 +1,4 @@
+#module "build"
+public type BuildConfig
+    Name as ustring
+end type

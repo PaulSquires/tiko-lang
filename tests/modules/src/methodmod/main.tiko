@@ -1,0 +1,16 @@
+#import "std/containers"
+#import "./build"
+using containers
+type Dlg
+    n as long
+    declare sub Build( byval k as long )
+end type
+sub Dlg.Build( byval k as long )
+    dim as Array( of build.BuildConfig ) bl
+    dim as build.BuildConfig c
+    c.Name = "x"
+    bl.Push( c )
+    print bl[0].Name; bl.Count
+end sub
+dim as Dlg d
+d.Build( 1 )

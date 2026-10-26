@@ -1,0 +1,10 @@
+'' A METHOD NAMED LIKE AN IMPORTED MODULE, qualifying a type through it: 'build.BuildConfig'
+'' inside 'sub Dlg.Build'. The qualifier's lookup found the method, left the type unbound and
+'' said nothing, and lowering stopped on TKO0994 (tiko-studio TS-005). A procedure is now
+'' looked past, as a field already was (ResolveTypeRefAt_, symbols/resolvetype.tiko).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/methodmod/main.tiko -o tests/modules/methodmod.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/methodmod.exe
+'' EXPECT-RUN-OUT: x 1

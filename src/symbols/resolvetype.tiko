@@ -766,6 +766,17 @@ function ResolveTypeRefAt_ _
                                 dim as Tko.SymbolId outer = c.syms->Lookup( fsc->parent, cid )
                                 if outer <> Tko.SYMBOL_NONE then qsid = outer
                             end if
+                        '' ...NOR DOES A PROCEDURE: inside 'sub Dlg.Build', 'build.BuildConfig' found
+                        '' the method and left the type unbound and unreported (TKO0994, tiko-studio
+                        '' TS-005). Looked past to a namespace or a type of the same name outside it.
+                        elseif fs_->kind = cast( uint8, Tko.SYM_PROC ) then
+                            dim as Tko.SymScope ptr psc = c.syms->ScopeAt( fs_->parent )
+                            if psc <> nullptr then
+                                dim as Tko.Symbol ptr os_ = c.syms->SymbolAt( c.syms->Lookup( psc->parent, cid ) )
+                                if os_ <> nullptr then
+                                    if (os_->kind = cast( uint8, Tko.SYM_NAMESPACE )) orelse (os_->kind = cast( uint8, Tko.SYM_UDT )) then qsid = c.syms->Lookup( psc->parent, cid )
+                                end if
+                            end if
                         end if
                     end if
                 else
