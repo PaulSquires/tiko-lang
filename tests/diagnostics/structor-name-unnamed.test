@@ -1,0 +1,8 @@
+'' TKO0633's subject when no variable is declared (a byval copy, a 'new', a 'delete'): the
+'' type, not '' (by-example BUG-memory-2). See CheckOneStructor_ (semwalk.tiko) and
+'' CheckCopyStructor_ (latechecks.tiko).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/structor-name-unnamed.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: structor-name-unnamed.bas(14,21): error TKO0633: 'nc' needs a constructor or destructor
+'' EXPECT-NOT: error TKO0633: ''

@@ -407,7 +407,8 @@ sub CheckOneStructor_ _
         walk = c.syms->SymbolAt( walk->nextOverload )
     wend
     if sawDefault = false then return
-    c.diags->Report( TKO0633, PointRange( at ), c.names->Spelling( vnm ) )
+    '' No variable -- a byval copy, a 'new', a 'delete' -- names the TYPE, not '' (BUG-memory-2).
+    c.diags->Report( TKO0633, PointRange( at ), iif( vnm <> 0, c.names->Spelling( vnm ), c.types->Name( udt ) ) )
 end sub
 '' The rank the FIRST redim gave a rank-0 dynamic array, or 0.
 function RecordedRank_ ( byref c as Ctx, byval sid as SymbolId ) as int32
