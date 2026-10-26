@@ -42,7 +42,7 @@ end enum
 
 public type FileState
     Path      as ustring
-    Open      as boolean           ' TK-002: no '= true' here; FromToml and SaveSession set it
+    Open      as boolean = true
     FirstLine as long
     Position  as longint
     Bookmarks as Array( of long )
