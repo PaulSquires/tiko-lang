@@ -53,6 +53,18 @@ sub MarkInstBody_ _
     if frame <= 0 then return
     c.info->Resize( c.ast->Count( ) )
     c.info->SetInstFrame( fresh, frame )
+    '' ...AND EVERY NODE OF THE BODY, which the re-parse appended just below the N_PROC: Check
+    '' types expressions in id order and never meets the N_PROC first, so an error it found
+    '' inside the body had no frame and no 'in instantiation of' note (by-example
+    '' BUG-generics-1). The run stops at the previous declaration or a node already marked.
+    for i as int32 = cast( int32, fresh ) - 1 to 1 step -1
+        select case c.ast->Kind( cast( Tko.NodeId, i ) )
+        case Tko.N_PROC, Tko.N_TYPE, Tko.N_MODULE
+            exit for
+        end select
+        if c.info->InstFrameOf( cast( Tko.NodeId, i ) ) <> 0 then exit for
+        c.info->SetInstFrame( cast( Tko.NodeId, i ), frame )
+    next
     for li as int32 = 0 to q.lambdas.Count - 1
         c.info->SetInstFrame( cast( Tko.NodeId, q.lambdas[li] ), frame )
     next

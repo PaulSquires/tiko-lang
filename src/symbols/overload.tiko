@@ -1232,8 +1232,14 @@ private function ResolveCall_ _
             '' setter; LowerPropertySet_ does the binding, with the value in hand.
             dim as boolean propSetTarget = _
                 (c.info->AmbiguousOf( id ) = Tko.AMB_PROPERTY_SET)
+            '' ONCE PER CALL: the inference pre-pass and WalkAll retry an untyped node, and each
+            '' retry judged it again -- three reports of one call (by-example BUG-generics-1).
+            dim as boolean seen0632 = false
+            for pi_ as int32 = 0 to c.diags->pending.Count - 1
+                if (c.diags->pending[pi_].id = Tko.TKO0632) andalso (c.diags->pending[pi_].range.first = c.ast->Loc( id )) then seen0632 = true
+            next
             if allTyped andalso scorable andalso cbool( argT.Count > 0 ) andalso _
-               (propSetTarget = false) then
+               (propSetTarget = false) andalso (seen0632 = false) then
                 c.diags->Report( Tko.TKO0632, Tko.PointRange( c.ast->Loc( id ) ), _
                                  c.names->Spelling( c.syms->SymbolAt( callee )->name ) )
             end if

@@ -1,0 +1,9 @@
+'' TKO0903 notes for errors Check finds in a re-parsed generic body: MarkInstBody_
+'' (instframe.tiko) marks the body's nodes, WalkAll and the inference pre-pass enter the
+'' frame, and an unviable call is reported once (overload.tiko).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/module-generic-note.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0632: no overload of 'hashof' matches these arguments
+'' EXPECT-OUT: module-generic-note.bas(11,16): note: in instantiation of 'map( of cell, ustring )'
+'' EXPECT-MAX-DIAG: 3

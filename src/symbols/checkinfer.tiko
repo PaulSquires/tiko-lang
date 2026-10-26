@@ -212,7 +212,12 @@ private sub InferUnusedVarTypes_( byref c as Ctx )
 
         '' Inferred only. A 'dim as T x' whose T did not resolve stays untyped.
         if ip->b = Tko.NODE_NONE then continue for
+        '' Inside its instantiation's frame, as WalkAll is (instframe.tiko): the first report of an
+        '' error in a generic's initialiser comes from here.
+        dim as int32 ifr = c.info->InstFrameOf( item )
+        if ifr > 0 then c.diags->EnterInst( ifr )
         dim as Tko.TypeId vt = TypeOf_( c, ip->b )
+        if ifr > 0 then c.diags->LeaveInst( ifr )
         '' A STRING LITERAL INFERS A STRING -- UNLESS THE VAR IS AN ALIAS, and then it
         '' infers a ZSTRING. Measured, in one file so the two cannot drift:
         ''
