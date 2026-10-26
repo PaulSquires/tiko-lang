@@ -1,0 +1,77 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+' projectsuite -- tkc/project: a new project and its main file, Add / Remove / IndexOf, a file
+' written and read back field for field (its session tables too), a wrong format refused, and
+' SplitArgs over tiko's quoting rule.
+#module "projectsuite"
+
+#import "std/containers"
+#import "std/fs"
+#import "std/config"
+#import "tkc/project"
+#import "tkc/session"
+#import "../tally"
+using containers
+
+private function Joined( byref a as const Array( of ustring ) ) as ustring
+    dim as ustring s
+    for each x as ustring in a
+        s &= "[" & x & "]"
+    next
+    return s
+end function
+
+public sub Run( byref c as tally.Checker )
+    c.Begin( "project" )
+    dim as fs.FsResultUStr tmp = fs.CreateTempDir( "projectsuite" )
+    c.Check( tmp.IsOk( ), "a temp folder" )
+    if tmp.IsOk( ) = false then exit sub
+    dim as ustring d = tmp.Value( )
+    dim as ustring mainF = fs.PathJoin( d, "src", "main.tiko" )
+    dim as project.ProjectFile p = project.NewProject( fs.PathJoin( d, "demo" ), mainF )
+    c.Check( project.IsProjectFile( p.Path ) andalso (p.Name( ) = "demo"), ".tkedit added to the name: " & p.Path )
+    c.Same( p.Main, "src/main.tiko", "main stored relative" )
+    c.Same( p.MainPath( ), fs.PathToNative( mainF ), "MainPath is full" )
+    c.SameNum( p.FileCount( ), 1, "the main file is in the list" )
+    dim as ustring util = fs.PathJoin( d, "src", "util.tiko" )
+    c.Check( p.Add( util ), "Add" )
+    c.Check( p.Add( util ) = false, "twice is once" )
+    c.SameNum( p.IndexOf( util ), 1, "IndexOf" )
+    p.Target = "demo"
+    p.Build = "Release"
+    p.Options = "-w all"
+    p.CommandLine = "one ""two words"""
+    p.State.Files[0].Open = true
+    p.State.Files[0].Position = 12
+    p.State.Active = "src/main.tiko"
+    p.State.Split = session.SplitMode.Vertical
+    c.Check( project.SaveProject( p ).IsOk( ), "SaveProject" )
+    dim as project.ProjectResult r = project.LoadProject( p.Path )
+    c.Check( r.IsOk( ), "LoadProject" )
+    if r.IsOk( ) then
+        dim as project.ProjectFile q = r.Value( )
+        c.Check( (q.Main = "src/main.tiko") andalso (q.Target = "demo") andalso (q.Build = "Release") _
+                 andalso (q.Options = "-w all") andalso (q.CommandLine = "one ""two words"""), "every [project] key back" )
+        c.SameNum( q.FileCount( ), 2, "both files" )
+        if q.FileCount( ) = 2 then
+            c.Check( q.State.Files[0].Open andalso (q.State.Files[0].Position = 12) andalso (q.State.Files[1].Open = false), "their state" )
+        end if
+        c.Check( (q.State.Active = "src/main.tiko") andalso (q.State.Split = session.SplitMode.Vertical), "the session tables" )
+        c.Check( q.Remove( util ) andalso (q.FileCount( ) = 1), "Remove" )
+    end if
+    dim as ustring nl = wchr( 10 )
+    c.Check( project.ParseProject( "format = 2" & nl, "x.tkedit" ).IsOk( ) = false, "another format is refused" )
+    c.Check( project.ParseProject( "[project" & nl, "x.tkedit" ).IsOk( ) = false, "not TOML is refused" )
+    dim as project.ProjectResult e = project.ParseProject( "", fs.PathJoin( d, "e.tkedit" ) )
+    c.Check( e.IsOk( ) andalso (e.Value( ).FileCount( ) = 0) andalso (len( e.Value( ).Main ) = 0), "an empty file is an empty project" )
+    c.Check( project.LoadProject( fs.PathJoin( d, "none.tkedit" ) ).IsOk( ) = false, "a missing file fails" )
+    fs.RemoveDirAll( d )
+
+    c.Begin( "splitargs" )
+    c.Same( Joined( project.SplitArgs( "a  b" & chr( 9 ) & "c" ) ), "[a][b][c]", "blanks separate" )
+    c.Same( Joined( project.SplitArgs( "one ""two words"" three" ) ), "[one][two words][three]", "quotes group" )
+    c.Same( Joined( project.SplitArgs( "C:\a\b ""c\""d""" ) ), "[C:\a\b][c""d]", "a backslash is literal; before a quote it escapes" )
+    c.Same( Joined( project.SplitArgs( "x\\""y z""" ) ), "[x\y z]", "two backslashes before a quote: one, and the quote groups" )
+    c.Same( Joined( project.SplitArgs( "" ) ), "", "nothing" )
+end sub

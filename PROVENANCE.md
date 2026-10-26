@@ -41,8 +41,11 @@ the name `tiko-studio` → `tkEdit` (incl. `platform.APP_NAME` and the run-scrip
 | `src/app/popuplist` | — | new: the one chooser popup (query box + tkListTree, fuzzy filter, Ctrl-release accept) |
 | `src/core/session` | `src/core/projstate` (shape) | new: session.toml / the `.tkedit` tables, `StoredPath`/`FullPath` from projstate |
 | `src/core/tests/sessionsuite` | — | new |
+| `src/core/project` | — | new: the `.tkedit` file; `SplitArgs` from tiko-studio's `tsc/manifest` |
+| `src/core/tests/projectsuite` | — | new |
+| `src/app/outputpane` | `src/app/outputpane` | Results and Log only |
 | `src/app/chrome` | `src/app/chrome` | rewritten for TOML themes: `PaletteOf`, `LookOf` |
-| `src/app/mainwin/mainwin.tiko` | — | new; `AppOptions`, `WordsOf`/`LoadKeywords`, `AskPerson`/`PickPerson`, and the buffer flow (`FindOpen`, `SaveDoc`, `CloseDoc`, `CheckDisk`) after tiko-studio's `mainwin` |
+| `src/app/mainwin/mainwin.tiko` | — | new; `AppOptions`, `WordsOf`/`LoadKeywords`, `AskPerson`/`PickPerson`, the buffer flow (`FindOpen`, `SaveDoc`, `CloseDoc`, `CheckDisk`) and the build flow (`StartBuild`, `PollBuild`, `FinishBuild`, `ShowDiagnostics`, `OpenDiagnostic`, `RunProgram`, `LaunchProgram`) after tiko-studio's `mainwin` |
 | `tools/test-win.sh`, `tools/test-linux.sh`, `tools/idiom.sh` | `tools/` | tkEdit's paths, exe and build folder (`$HOME/tebuild`); tikoParser copied only when present |
 | `fonts/` | `fonts/` | README points at `mainwin.AppOptions` |
 | `keywords/tiko.txt`, `keywords/extra.txt` | `settings/keywords/freebasic_keywords.txt`, `extra_keywords.txt` | renamed |

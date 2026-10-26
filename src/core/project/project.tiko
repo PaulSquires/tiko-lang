@@ -1,0 +1,223 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' project -- a .tkedit project file (PLAN.md D8, docs/tkEdit/CONFIG.md): ONE file, like tiko-editor's
+' .tkproj, that names what is built and how, and keeps the project's session beside it.
+'
+'     format = 1
+'     [project]   main, target, build, options, command_line
+'     [session]   ... and [[files]]: tkc/session's tables -- the project's files, open or not
+'
+' Paths are stored relative to the .tkedit file's folder with "/" separators. With `target` set the
+' build is `tiko build <target> --manifest <the project folder>` (its tiko.toml); without it,
+' `tiko build <main>`. tkEdit writes this file whenever the project is saved, through std/config,
+' so comments in it do not survive.
+#module "project"
+
+#import "std/fs"
+#import "std/config"
+#import "std/containers"
+#import "std/outcome"
+#import "tkp/platform"
+#import "tkc/session"
+#import "tkc/tomlget"
+#import "tkc/safewrite"
+using containers
+using outcome
+
+public const PROJECT_FORMAT = 1
+public const PROJECT_EXT = ".tkedit"
+
+public type ProjectFile
+    Path        as ustring                 ' the .tkedit file, full
+    Main        as ustring                 ' stored: relative to Dir( )
+    Target      as ustring                 ' a tiko.toml target; "" = build Main
+    Build       as ustring                 ' a [[builds]] name; "" = the settings' default
+    Options     as ustring                 ' extra compiler switches
+    CommandLine as ustring                 ' Run's arguments
+    State       as session.SessionState    ' its files (stored paths) and its session
+
+    declare function Dir_( ) as ustring
+    declare function Name( ) as ustring
+    declare function MainPath( ) as ustring           ' full; "" = none
+    declare function FileCount( ) as long
+    declare function FilePath( byval i as long ) as ustring    ' full
+    declare function IndexOf( byref path as const ustring ) as long
+    declare function Add( byref path as const ustring ) as boolean       ' FALSE = already in it
+    declare function Remove( byref path as const ustring ) as boolean
+end type
+
+public type ProjectResult as Result( of ProjectFile, ustring )
+
+function ProjectFile.Dir_( ) as ustring
+    return fs.PathParent( Path )
+end function
+
+' The file's name without .tkedit.
+function ProjectFile.Name( ) as ustring
+    return fs.PathStem( Path )
+end function
+
+function ProjectFile.MainPath( ) as ustring
+    if len( Main ) = 0 then return ""
+    return session.FullPath( this.Dir_( ), Main )
+end function
+
+function ProjectFile.FileCount( ) as long
+    return State.Files.Count( )
+end function
+
+function ProjectFile.FilePath( byval i as long ) as ustring
+    if (i < 0) orelse (i >= State.Files.Count( )) then return ""
+    return session.FullPath( this.Dir_( ), State.Files[i].Path )
+end function
+
+' By full path; the comparison is case-blind except on Linux.
+function ProjectFile.IndexOf( byref path as const ustring ) as long
+    dim as ustring want = session.StoredPath( this.Dir_( ), path )
+    for i as long = 0 to State.Files.Count( ) - 1
+        if platform.CurrentOs( ) = platform.Os.Linux then
+            if State.Files[i].Path = want then return i
+        elseif lcase( State.Files[i].Path ) = lcase( want ) then
+            return i
+        end if
+    next
+    return -1
+end function
+
+function ProjectFile.Add( byref path as const ustring ) as boolean
+    if this.IndexOf( path ) >= 0 then return false
+    dim as session.FileState f
+    f.Path = session.StoredPath( this.Dir_( ), path )
+    f.Open = false
+    State.Files.Push( f )
+    return true
+end function
+
+function ProjectFile.Remove( byref path as const ustring ) as boolean
+    dim as long i = this.IndexOf( path )
+    if i < 0 then return false
+    State.Files.Remove( i )
+    return true
+end function
+
+public function ParseProject( byref text as const ustring, byref path as const ustring ) as ProjectResult
+    dim as config.ConfigResultToml r = config.ParseToml( text )
+    if r.IsOk( ) = false then return Fail( of ProjectFile, ustring )( fs.PathFileName( path ) & ": " & r.Failure( ).Message( ) )
+    dim as config.TomlValue root = r.Value( )
+    dim as longint fmt = tomlget.GetInt( root, "format", PROJECT_FORMAT )
+    if fmt <> PROJECT_FORMAT then return Fail( of ProjectFile, ustring )( fs.PathFileName( path ) & ": format " & fmt & " is not " & PROJECT_FORMAT )
+    dim as ProjectFile p
+    p.Path = path
+    dim as config.TomlValue t = tomlget.Table( root, "project" )
+    p.Main = tomlget.GetStr( t, "main" )
+    p.Target = tomlget.GetStr( t, "target" )
+    p.Build = tomlget.GetStr( t, "build" )
+    p.Options = tomlget.GetStr( t, "options" )
+    p.CommandLine = tomlget.GetStr( t, "command_line" )
+    p.State = session.FromToml( root )
+    p.State.Recent.Clear( )                      ' a project keeps none
+    return Ok( of ProjectFile, ustring )( p )
+end function
+
+public function LoadProject( byref path as const ustring ) as ProjectResult
+    dim as fs.FsResultUStr r = fs.ReadAllText( path )
+    if r.IsOk( ) = false then return Fail( of ProjectFile, ustring )( r.Failure( ).Message( ) )
+    return ParseProject( r.Value( ), path )
+end function
+
+public function ProjectText( byref p as ProjectFile ) as config.ConfigResultText
+    dim as config.TomlValue root = config.TomlValue.NewTable( )
+    tomlget.SetInt( root, "format", PROJECT_FORMAT )
+    dim as config.TomlValue t = config.TomlValue.NewTable( )
+    tomlget.SetStr( t, "main", p.Main )
+    tomlget.SetStr( t, "target", p.Target )
+    tomlget.SetStr( t, "build", p.Build )
+    tomlget.SetStr( t, "options", p.Options )
+    tomlget.SetStr( t, "command_line", p.CommandLine )
+    root.SetKey( "project", t )
+    dim as session.SessionState st = p.State
+    st.Recent.Clear( )
+    session.IntoToml( root, st )
+    return config.ToTomlText( root )
+end function
+
+' Writes atomically, creating the folder.
+public function SaveProject( byref p as ProjectFile ) as fs.FsResultBool
+    dim as config.ConfigResultText t = ProjectText( p )
+    if t.IsOk( ) = false then return fs.FsFail( of boolean )( fs.FS_INVALID_DATA, "SaveProject", p.Path )
+    dim as ustring dir_ = fs.PathParent( p.Path )
+    if ( len( dir_ ) > 0 ) andalso ( fs.IsDir( dir_ ) = false ) then
+        dim as fs.FsResultBool mk = fs.CreateDirAll( dir_ )
+        if mk.IsOk( ) = false then return mk
+    end if
+    return safewrite.WriteText( p.Path, t.Value( ) )   ' TS-003
+end function
+
+' A new project at path (".tkedit" added when missing), its main file mainFile ("" = none yet),
+' that file in its list. Not written.
+public function NewProject( byref path as const ustring, byref mainFile as const ustring ) as ProjectFile
+    dim as ProjectFile p
+    p.Path = path
+    if lcase( right( p.Path, len( PROJECT_EXT ) ) ) <> PROJECT_EXT then p.Path &= PROJECT_EXT
+    if len( mainFile ) then
+        p.Main = session.StoredPath( p.Dir_( ), mainFile )
+        p.Add( mainFile )
+    end if
+    return p
+end function
+
+public function IsProjectFile( byref path as const ustring ) as boolean
+    return lcase( right( path, len( PROJECT_EXT ) ) ) = PROJECT_EXT
+end function
+
+' A command line split as tiko splits --options (CommandLineToArgvW's rule on every OS): blanks
+' separate; "..." groups; backslashes are literal except before a quote, where 2n give n and
+' 2n+1 give n and a literal quote. From tiko-studio's tsc/manifest SplitArgs (PROVENANCE.md).
+public function SplitArgs( byref cmdline as const ustring ) as Array( of ustring )
+    dim as Array( of ustring ) out_
+    dim as long i = 0, n = len( cmdline )
+    while i < n
+        while ( i < n ) andalso ( ( cmdline[i] = 32 ) orelse ( cmdline[i] = 9 ) )
+            i += 1
+        wend
+        if i >= n then exit while
+        dim as ustring arg
+        dim as boolean quoted = false
+        while i < n
+            dim as long ch = cmdline[i]
+            dim as boolean blank = ( ch = 32 ) orelse ( ch = 9 )
+            if blank andalso ( quoted = false ) then exit while
+            if ch = 92 then
+                dim as long bs = 0
+                while ( i < n ) andalso ( cmdline[i] = 92 )
+                    bs += 1
+                    i += 1
+                wend
+                dim as boolean beforeQuote = false
+                if i < n then beforeQuote = ( cmdline[i] = 34 )
+                if beforeQuote then
+                    arg &= string( bs \ 2, 92 )
+                    if ( bs and 1 ) <> 0 then
+                        arg &= wchr( 34 )
+                        i += 1
+                    end if
+                else
+                    arg &= string( bs, 92 )
+                end if
+            elseif ch = 34 then
+                quoted = ( quoted = false )
+                i += 1
+            else
+                arg &= wchr( ch )
+                i += 1
+            end if
+        wend
+        out_.Push( arg )
+    wend
+    return out_
+end function

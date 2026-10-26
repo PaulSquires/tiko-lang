@@ -12,7 +12,8 @@
 ' it is written through std/config (which drops comments).
 '
 '     version = 1
-'     [session]   active, split (none | vertical | horizontal), split_ratio, pane2, build
+'     [session]   active, split (none | vertical | horizontal), split_ratio, pane2, build,
+'                 project (session.toml: the .tkedit that was open)
 '     [[files]]   path, open, first_line, position, bookmarks = [...], folds = [...]
 '     [recent]    files = [...]   newest first; session.toml only (a project keeps none)
 '
@@ -56,6 +57,7 @@ public type SessionState
     Build      as ustring              ' the build configuration's name, "" = the default
     Files      as Array( of FileState )
     Recent     as Array( of ustring )  ' recently opened files, newest first, full paths
+    Project    as ustring              ' session.toml: the project that was open, full path
 end type
 
 public type SessionResult as Result( of SessionState, config.ConfigError )
@@ -105,6 +107,7 @@ public function FromToml( byref root as config.TomlValue ) as SessionState
     end if
     st.Pane2 = tomlget.GetStr( s, "pane2" )
     st.Build = tomlget.GetStr( s, "build" )
+    st.Project = tomlget.GetStr( s, "project" )
     for each t as config.TomlValue in tomlget.Tables( root, "files" )
         dim as FileState f
         f.Path = tomlget.GetStr( t, "path" )
@@ -128,6 +131,7 @@ public sub IntoToml( byref root as config.TomlValue, byref st as SessionState )
     s.SetKey( "split_ratio", config.TomlValue.FromFloat( st.SplitRatio ) )
     tomlget.SetStr( s, "pane2", st.Pane2 )
     tomlget.SetStr( s, "build", st.Build )
+    if len( st.Project ) then tomlget.SetStr( s, "project", st.Project )
     root.SetKey( "session", s )
     if st.Recent.Count( ) > 0 then
         dim as config.TomlValue r = config.TomlValue.NewTable( )

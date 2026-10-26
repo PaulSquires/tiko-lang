@@ -23,14 +23,17 @@
 #import "std/containers"
 #import "std/fs"
 #import "std/outcome"
+#import "std/process"
 #import "std/strings"
 #import "tkp/platform"
 #import "tkc/appinfo"
 #import "tkc/autoinsert"
+#import "tkc/build"
 #import "tkc/cmdids"
 #import "tkc/docencoding"
 #import "tkc/keybind"
 #import "tkc/mru"
+#import "tkc/project"
 #import "tkc/session"
 #import "tkc/settings"
 #import "tkc/textstream"
@@ -39,11 +42,14 @@
 #import "tka/documents"
 #import "tka/editor"
 #import "tka/findstrip"
+#import "tka/outputpane"
 #import "tka/popuplist"
+#import "tks/runner"
 #import "tkControls/tkApp"
 #import "tkControls/tkCodeEdit"
 #import "tkControls/tkFileDialog"
 #import "tkControls/tkKeys"
+#import "tkControls/tkListTree"
 #import "tkControls/tkMenuBar"
 #import "tkControls/tkMessageBox"
 #import "tkControls/tkPaint"
@@ -58,6 +64,7 @@ using tkHost
 using tkCodeEdit
 using tkFileDialog
 using tkKeys
+using tkListTree
 using tkMenuBar
 using tkMessageBox
 using tkPaint
@@ -78,6 +85,8 @@ const ID_STATUS = 101
 const ID_MENUBAR = 102
 const ID_SPLIT = 103
 const ID_FINDSTRIP = 104
+const ID_OUTPUT = 105
+const BUILD_POLL_MS = 40
 const ID_VIEW = 200                      ' views are ID_VIEW + n
 const DISK_CHECK_MS = 1000
 
@@ -114,6 +123,8 @@ end type
 public type AskProc as function( byval f as TK_FORM ptr, byref text as const ustring, byval buttons as long ) as long
 public type PickProc as function( byval f as TK_FORM ptr, byval kind as long, byref suggest as const ustring ) as ustring
 public type DocRef as documents.Document ptr
+' Starting a program (Run): argv[0] is the program. The self-test records instead.
+public type LaunchProc as function( byref argv as const Array( of ustring ), byref workDir as const ustring ) as boolean
 
 ' tkApp's fonts: the bundled ones in <resources>/fonts (D16). The UI font size is read from the
 ' user's settings.toml here, before any window exists, so it applies from the next start.
@@ -171,6 +182,17 @@ private function AskPerson( byval f as TK_FORM ptr, byref text as const ustring,
     return tkMessageBox_Show( tkForm_Widget( f ), text, platform.APP_NAME, icon, buttons )
 end function
 
+private function LaunchProgram( byref argv as const Array( of ustring ), byref workDir as const ustring ) as boolean
+    if argv.Count( ) = 0 then return false
+    dim as process.Command c = process.Command( argv[0] )
+    for i as long = 1 to argv.Count( ) - 1
+        c.Arg( argv[i] )
+    next
+    if len( workDir ) then c.Cwd( workDir )
+    dim as process.Child ptr ch = new process.Child         ' left to run; the OS reaps it
+    return ch->Spawn( c ).IsOk( )
+end function
+
 private function PickPerson( byval f as TK_FORM ptr, byval kind as long, byref suggest as const ustring ) as ustring
     dim as string filters = "tiko source|tiko;ti;bas;bi;inc|TOML|toml|All files|*"
     dim as ustring where = suggest
@@ -183,6 +205,7 @@ public type Window
     ConfigDir as ustring                ' settings.toml, keybindings.toml, session.toml, themes/
     Ask as AskProc
     Pick as PickProc
+    Launch as LaunchProc
 
     ' ---- the App state
     ResourceDir as ustring
@@ -209,6 +232,31 @@ public type Window
     FindHi as longint
     Marks as Array( of BookmarkHit )    ' the Bookmarks list's rows
 
+    ' ---- the project (D8) and the build (P4)
+    Proj as project.ProjectFile
+    ProjOpen as boolean
+    Out as outputpane.Pane
+    OutputShown as boolean
+    Job as runner.Job
+    buildTimer as long
+    Diags as Array( of build.Diagnostic )
+    DiagAt as long = -1
+    BuildAct as build.BuildAction
+    BuildMain as ustring
+    BuildFlags as ustring
+    BuildDiagFile as ustring
+    BuildProgram as ustring
+    BuildDir as ustring
+    BuildRaw as ustring
+    LogText as ustring
+    QuickRunFile as ustring
+    LastExe as ustring
+    PendingArgs as Array( of ustring )
+    Cleaning as boolean
+    BuildSucceeded as boolean
+    Progress as build.BuildProgress
+    RunArgs as ustring                  ' Run's arguments with no project open
+
     form as TK_FORM ptr
     status as TK_WIDGET ptr
     menuBar as TK_WIDGET ptr
@@ -228,6 +276,7 @@ public type Window
     declare function StatusText( byval p as StatusPanel ) as ustring
     declare function StatusHeight( ) as long
     declare function BottomHeight( ) as long                   ' the status line, or the strip
+    declare function OutputHeight( ) as long                   ' 0 when the pane is hidden
     declare function MenuHeight( ) as long
     declare sub SetMessage( byref s as const ustring )
 
@@ -276,6 +325,30 @@ public type Window
     declare sub OnCharAdded( byval hEdit as TK_WIDGET ptr, byval ch as long )
     declare sub OnMarginClick( byval hEdit as TK_WIDGET ptr, byval margin as long, byval position as longint )
 
+    ' ---- projects and builds
+    declare function OpenProject( byref path as const ustring ) as boolean
+    declare function NewProject( ) as boolean
+    declare function SaveProject( ) as boolean
+    declare function CloseProject( ) as boolean
+    declare sub AddToProject( )
+    declare function CompilerPath( ) as ustring
+    declare function ActiveBuildConfig( ) as build.BuildConfig
+    declare function IsBuilding( ) as boolean
+    declare function StartBuild( byval action as build.BuildAction, byval rebuild as boolean = false ) as boolean
+    declare sub PollBuild( )
+    declare sub FinishBuild( )
+    declare sub ClearDiagnostics( )
+    declare sub ShowDiagnostics( byref counts as const build.ResultCounts )
+    declare sub OpenDiagnostic( byval i as long )
+    declare sub StepDiagnostic( byval forward as boolean )
+    declare sub RunProgram( byref exe as const ustring )
+    declare sub ShowOutput( byval visible as boolean )
+    declare sub CycleFocus( )
+    declare function OutputHasFocus( ) as boolean
+    declare sub JumpTo( byref file as const ustring, byval ln as long, byval col as long, byval selChars as long )
+    declare sub CaptureState( byref st as session.SessionState, byref base_ as const ustring )
+    declare sub ApplyState( byref st as const session.SessionState, byref base_ as const ustring )
+
     ' ---- the chooser popup
     declare sub OpenChooser( byval kind as PickKind )
     declare sub Chosen( byval tag as long )
@@ -306,6 +379,7 @@ end function
 function Window.Create( byval forcedScale as single ) as boolean
     if Ask = 0 then Ask = @AskPerson
     if Pick = 0 then Pick = @PickPerson
+    if Launch = 0 then Launch = @LaunchProgram
     ResourceDir = platform.ResourceDir( ).ValueOr( platform.ExeDir( ) )
     if len( ConfigDir ) = 0 then ConfigDir = platform.ConfigDir( ).ValueOr( fs.PathJoin( ResourceDir, "config" ) )
     Words = LoadKeywords( ResourceDir )
@@ -344,6 +418,10 @@ function Window.Create( byval forcedScale as single ) as boolean
         if mw then mw->Execute( cast( Cmd, id ) )
     end sub )
 
+    Out.Create( root, ID_OUTPUT, @this )
+    Out.OnActivate = sub( byval owner as any ptr, byval itemIndex as long )
+        cast( Window ptr, owner )->OpenDiagnostic( itemIndex )
+    end sub
     Finder.Create( root, ID_FINDSTRIP, @this )
     Finder.OnAction = sub( byval owner as any ptr, byval a as findstrip.FindAction )
         cast( Window ptr, owner )->OnFind( a )
@@ -369,6 +447,7 @@ function Window.Create( byval forcedScale as single ) as boolean
     tkForm_OnClose( form, function( byval f as TK_FORM ptr ) as boolean
         dim as Window ptr mw = f->Tag
         mw->SaveSession( )
+        if mw->ProjOpen then mw->SaveProject( )
         return mw->CloseAll( )
     end function )
     dim as TK_HOST ptr h = tkForm_Host( form )
@@ -413,6 +492,9 @@ end sub
 sub Window.Destroy( )
     if diskTimer then tkApp_KillTimer( diskTimer )
     diskTimer = 0
+    if buildTimer then tkApp_KillTimer( buildTimer )
+    buildTimer = 0
+    Job.Finish( )
     Chooser.Close( )
     for each d as DocRef in Docs
         d->DestroyViews( )
@@ -437,6 +519,11 @@ function Window.BottomHeight( ) as long
     return this.StatusHeight( )
 end function
 
+function Window.OutputHeight( ) as long
+    if OutputShown = false then return 0
+    return tkForm_Scale( form, outputpane.PANE_CY )
+end function
+
 function Window.MenuHeight( ) as long
     if MenuShown = false then return 0
     return tkForm_Scale( form, MENUBAR_CY )
@@ -458,7 +545,13 @@ sub Window.Layout( )
         tkWidget_Show( status, true )
         tkWidget_SetPos( status, 0, cy - sh, cx, sh )
     end if
-    dim as long top = mh, ah = cy - sh - mh
+    dim as long oh = 0
+    if OutputShown then
+        oh = tkForm_Scale( form, outputpane.PANE_CY )
+        tkWidget_SetPos( Out.frame, 0, cy - sh - oh, cx, oh )
+    end if
+    tkWidget_Show( Out.frame, OutputShown )
+    dim as long top = mh, ah = cy - sh - mh - oh
     dim as TK_WIDGET ptr v1 = 0, v2 = 0
     if Pane1 then v1 = Pane1->Main.Widget( )
     if (Split <> session.SplitMode.None) andalso (Pane2 <> 0) then v2 = Pane2->Other.Widget( )
@@ -522,7 +615,11 @@ sub Window.ShowTitle( )
     if form = 0 then exit sub
     dim as DocRef d = this.Active( )
     dim as ustring title = appinfo.WindowTitle( )
-    if d then title = appinfo.WindowTitle( d->DisplayName( ) )
+    if d then
+        dim as ustring nm = d->DisplayName( )
+        if ProjOpen then nm &= " [" & Proj.Name( ) & "]"
+        title = appinfo.WindowTitle( nm )
+    end if
     dim as string t8 = title
     SDL_SetWindowTitle( tkForm_Host( form )->win, strptr( t8 ) )
 end sub
@@ -556,6 +653,10 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
     case Cmd.ShowMenu, Cmd.BufferList, Cmd.BufferNext, Cmd.BufferPrev, Cmd.SplitLeftRight, _
          Cmd.SplitTopBottom, Cmd.CycleFocus, Cmd.ZoomIn, Cmd.ZoomOut, Cmd.ZoomReset, Cmd.FoldToggle, _
          Cmd.FoldBelow, Cmd.FoldAll, Cmd.UnfoldAll, Cmd.BuildConfig
+        return true
+    case Cmd.OutputPane, Cmd.BuildExecute, Cmd.Compile, Cmd.RebuildAll, Cmd.CompileModule, Cmd.QuickRun, _
+         Cmd.RunExe, Cmd.NextDiagnostic, Cmd.PrevDiagnostic, Cmd.ProjectNew, Cmd.ProjectOpen, Cmd.ProjectSave, _
+         Cmd.ProjectClose, Cmd.ProjectFilesAdd
         return true
     case Cmd.Find, Cmd.Replace, Cmd.FindNext, Cmd.FindPrev, Cmd.ReplaceOne, Cmd.GoToLine, _
          Cmd.BookmarkToggle, Cmd.BookmarkNext, Cmd.BookmarkPrev, Cmd.BookmarkClearAll, Cmd.BookmarksList
@@ -601,7 +702,27 @@ function Window.Execute( byval id as Cmd ) as boolean
         if id = Cmd.BufferPrev then Chooser.Move( Mru.Count( ) )      ' to the oldest
     case Cmd.SplitLeftRight : this.ToggleSplit( session.SplitMode.Vertical )
     case Cmd.SplitTopBottom : this.ToggleSplit( session.SplitMode.Horizontal )
-    case Cmd.CycleFocus : this.FocusPane( InPane2 = false )
+    case Cmd.CycleFocus : this.CycleFocus( )
+    case Cmd.OutputPane : this.ShowOutput( OutputShown = false )
+    case Cmd.Compile : this.StartBuild( build.BuildAction.Compile )
+    case Cmd.BuildExecute : this.StartBuild( build.BuildAction.BuildExecute )
+    case Cmd.RebuildAll : this.StartBuild( build.BuildAction.Compile, true )
+    case Cmd.CompileModule : this.StartBuild( build.BuildAction.CompileModule )
+    case Cmd.QuickRun : this.StartBuild( build.BuildAction.QuickRun )
+    case Cmd.RunExe
+        if len( LastExe ) = 0 then LastExe = build.OutputFile( this.ActivePath( ), "", platform.CurrentOs( ) )
+        this.RunProgram( LastExe )
+    case Cmd.NextDiagnostic : this.StepDiagnostic( true )
+    case Cmd.PrevDiagnostic : this.StepDiagnostic( false )
+    case Cmd.ProjectNew : this.NewProject( )
+    case Cmd.ProjectOpen
+        dim as ustring dir_ = ""
+        if len( this.ActivePath( ) ) then dir_ = fs.PathParent( this.ActivePath( ) )
+        dim as ustring pp = Pick( form, TKFD_OPEN, dir_ )
+        if len( pp ) then this.OpenProject( pp )
+    case Cmd.ProjectSave : this.SaveProject( )
+    case Cmd.ProjectClose : this.CloseProject( )
+    case Cmd.ProjectFilesAdd : this.AddToProject( )
     case Cmd.BuildConfig : this.OpenChooser( PickKind.Build )
     case Cmd.Find : this.OpenStrip( findstrip.StripMode.Find )
     case Cmd.Replace : this.OpenStrip( findstrip.StripMode.Replace )
@@ -965,6 +1086,7 @@ end sub
 ' Opens path in the focused pane, or shows the buffer it is already in. An untitled, empty,
 ' unmodified buffer in that pane gives way to it.
 function Window.OpenFile( byref path as const ustring ) as boolean
+    if project.IsProjectFile( path ) then return this.OpenProject( path )
     dim as DocRef have = this.FindOpen( path )
     if have then
         this.ShowDoc( have )
@@ -1123,7 +1245,7 @@ sub Window.ToggleSplit( byval mode as session.SplitMode )
             if mw->Split = session.SplitMode.Vertical then
                 if root->cw > bar then mw->SplitRatio = newPos / (root->cw - bar)
             else
-                dim as long ah = root->ch - mw->BottomHeight( ) - mw->MenuHeight( )
+                dim as long ah = root->ch - mw->BottomHeight( ) - mw->MenuHeight( ) - mw->OutputHeight( )
                 if ah > bar then mw->SplitRatio = (newPos - mw->MenuHeight( )) / (ah - bar)
             end if
             mw->Layout( )
@@ -1188,22 +1310,80 @@ sub Window.SetLineEnding( byval e as docencoding.LineEnd )
 end sub
 
 ' session.toml: the buffers with a path, their places, the split, the build, the recent files.
-sub Window.SaveSession( )
-    dim as session.SessionState st
+' What is open, where, into st: paths stored under base_ ("" = absolute). The files st already
+' lists (a project's) keep their place and become closed unless a buffer shows them; every other
+' buffer with a path is added.
+sub Window.CaptureState( byref st as session.SessionState, byref base_ as const ustring )
+    for i as long = 0 to st.Files.Count( ) - 1
+        st.Files[i].Open = false
+    next
     for each d as DocRef in Docs
         if len( d->Path ) = 0 then continue for
-        dim as session.FileState f
-        f.Path = d->Path
-        f.Open = true
-        f.FirstLine = d->Main.FirstLine( )
-        f.Position = d->Main.Position( )
-        f.Bookmarks = d->Main.Bookmarks( )
-        st.Files.Push( f )
+        dim as ustring stored = session.StoredPath( base_, d->Path )
+        dim as long at = -1
+        for i as long = 0 to st.Files.Count( ) - 1
+            if lcase( st.Files[i].Path ) = lcase( stored ) then at = i
+        next
+        if at < 0 then
+            dim as session.FileState nf
+            nf.Path = stored
+            st.Files.Push( nf )
+            at = st.Files.Count( ) - 1
+        end if
+        st.Files[at].Open = true
+        st.Files[at].FirstLine = d->Main.FirstLine( )
+        st.Files[at].Position = d->Main.Position( )
+        st.Files[at].Bookmarks = d->Main.Bookmarks( )
     next
-    if Pane1 then st.Active = Pane1->Path
+    st.Active = ""
+    st.Pane2 = ""
+    if Pane1 andalso len( Pane1->Path ) then st.Active = session.StoredPath( base_, Pane1->Path )
     st.Split = Split
     st.SplitRatio = SplitRatio
-    if Pane2 then st.Pane2 = Pane2->Path
+    if Pane2 andalso len( Pane2->Path ) then st.Pane2 = session.StoredPath( base_, Pane2->Path )
+    st.Build = CurrentBuild
+end sub
+
+' Opens st's open files (stored under base_), their places, the active one, the split.
+sub Window.ApplyState( byref st as const session.SessionState, byref base_ as const ustring )
+    if len( st.Build ) then
+        for each b as settings.BuildConfig in Prefs.Builds
+            if b.Name = st.Build then CurrentBuild = st.Build
+        next
+    end if
+    for each f as session.FileState in st.Files
+        dim as ustring full = session.FullPath( base_, f.Path )
+        if (f.Open = false) orelse (fs.IsFile( full ) = false) then continue for
+        if this.OpenFile( full ) = false then continue for
+        dim as DocRef d = this.Active( )
+        d->Main.SetBookmarks( f.Bookmarks )
+        d->Main.SetPosition( f.Position )
+        d->Main.SetFirstLine( f.FirstLine )
+    next
+    dim as DocRef a = 0
+    if len( st.Active ) then a = this.FindOpen( session.FullPath( base_, st.Active ) )
+    if a then this.ShowDoc( a )
+    if (st.Split <> session.SplitMode.None) andalso (Pane1 <> 0) then
+        SplitRatio = st.SplitRatio
+        this.ToggleSplit( st.Split )
+        dim as DocRef b = 0
+        if len( st.Pane2 ) then b = this.FindOpen( session.FullPath( base_, st.Pane2 ) )
+        if b then
+            InPane2 = true
+            this.ShowDoc( b )
+            this.FocusPane( false )
+        end if
+    end if
+end sub
+
+' session.toml: what is open outside a project, the recent files, the project that was open.
+sub Window.SaveSession( )
+    dim as session.SessionState st
+    if ProjOpen then
+        st.Project = Proj.Path                  ' its own files are the project's to keep
+    else
+        this.CaptureState( st, "" )
+    end if
     st.Build = CurrentBuild
     st.Recent = Recent.Items( )
     session.SaveSession( this.SessionFile( ), st )
@@ -1213,33 +1393,10 @@ sub Window.RestoreSession( )
     dim as session.SessionResult r = session.LoadSession( this.SessionFile( ) )
     if r.IsOk( ) = false then exit sub
     dim as session.SessionState st = r.Value( )
-    Recent.Assign( st.Recent )
-    if len( st.Build ) then
-        for each b as settings.BuildConfig in Prefs.Builds
-            if b.Name = st.Build then CurrentBuild = st.Build
-        next
-    end if
-    for each f as session.FileState in st.Files
-        if (f.Open = false) orelse (fs.IsFile( f.Path ) = false) then continue for
-        if this.OpenFile( f.Path ) = false then continue for
-        dim as DocRef d = this.Active( )
-        d->Main.SetBookmarks( f.Bookmarks )
-        d->Main.SetPosition( f.Position )
-        d->Main.SetFirstLine( f.FirstLine )
-    next
-    dim as DocRef a = 0
-    if len( st.Active ) then a = this.FindOpen( st.Active )
-    if a then this.ShowDoc( a )
-    if (st.Split <> session.SplitMode.None) andalso (Pane1 <> 0) then
-        SplitRatio = st.SplitRatio
-        this.ToggleSplit( st.Split )
-        dim as DocRef b = 0
-        if len( st.Pane2 ) then b = this.FindOpen( st.Pane2 )
-        if b then
-            InPane2 = true
-            this.ShowDoc( b )
-            this.FocusPane( false )
-        end if
+    if len( st.Project ) andalso fs.IsFile( st.Project ) then
+        this.OpenProject( st.Project )
+    else
+        this.ApplyState( st, "" )
     end if
     Recent.Assign( st.Recent )                  ' opening the files reordered it
     Message = ""
@@ -1519,3 +1676,475 @@ sub Window.OnMarginClick( byval hEdit as TK_WIDGET ptr, byval margin as long, by
         v->FoldLineAt( ln )
     end if
 end sub
+
+' ================================================================ projects
+
+' Opens a .tkedit project: the buffers open now are closed first (asking for unsaved ones), then
+' the project's open files come back where they were.
+function Window.OpenProject( byref path as const ustring ) as boolean
+    dim as project.ProjectResult r = project.LoadProject( path )
+    if r.IsOk( ) = false then
+        this.SetMessage( r.Failure( ) )
+        return false
+    end if
+    if ProjOpen then
+        if this.CloseProject( ) = false then return false
+    else
+        this.SaveSession( )
+        if this.CloseAll( ) = false then return false
+    end if
+    Proj = r.Value( )
+    dim as ustring full = fs.AbsolutePath( Proj.Path ).ValueOr( Proj.Path )
+    Proj.Path = full
+    ProjOpen = true
+    if len( Proj.Build ) then Proj.State.Build = Proj.Build
+    this.ApplyState( Proj.State, Proj.Dir_( ) )
+    if (Docs.Count( ) = 1) andalso Docs[0]->IsNew( ) andalso (len( Proj.MainPath( ) ) > 0) andalso fs.IsFile( Proj.MainPath( ) ) then
+        this.OpenFile( Proj.MainPath( ) )
+    end if
+    Recent.Add( full )
+    LastExe = ""
+    this.SetMessage( "project " & Proj.Name( ) )
+    this.ShowTitle( )
+    return true
+end function
+
+' A new project file (asked for) whose main file is the active buffer.
+function Window.NewProject( ) as boolean
+    dim as DocRef d = this.Active( )
+    if (d <> 0) andalso d->IsNew( ) then
+        if this.SaveDoc( d, false ) = false then return false
+    end if
+    dim as ustring mainF = ""
+    if d then mainF = d->Path
+    dim as ustring suggest = "project" & project.PROJECT_EXT
+    if len( mainF ) then suggest = fs.PathJoin( fs.PathParent( mainF ), fs.PathStem( mainF ) & project.PROJECT_EXT )
+    dim as ustring path = Pick( form, TKFD_SAVE, suggest )
+    if len( path ) = 0 then return false
+    if ProjOpen then this.SaveProject( )
+    Proj = project.NewProject( path, mainF )
+    Proj.Build = CurrentBuild
+    ProjOpen = true
+    if this.SaveProject( ) = false then
+        ProjOpen = false
+        return false
+    end if
+    Recent.Add( Proj.Path )
+    this.SetMessage( "project " & Proj.Name( ) & " created" )
+    this.ShowTitle( )
+    return true
+end function
+
+' The project file, with what is open now.
+function Window.SaveProject( ) as boolean
+    if ProjOpen = false then
+        this.SetMessage( "no project is open" )
+        return false
+    end if
+    this.CaptureState( Proj.State, Proj.Dir_( ) )
+    Proj.Build = CurrentBuild
+    dim as fs.FsResultBool w = project.SaveProject( Proj )
+    if w.IsOk( ) = false then
+        this.SetMessage( fs.PathFileName( Proj.Path ) & ": " & w.Failure( ).Message( ) )
+        return false
+    end if
+    return true
+end function
+
+' Saves the project, then closes its buffers (asking for unsaved ones). FALSE = cancelled.
+function Window.CloseProject( ) as boolean
+    if ProjOpen = false then return true
+    this.SaveProject( )
+    if this.CloseAll( ) = false then return false
+    ProjOpen = false
+    dim as project.ProjectFile none_
+    Proj = none_
+    LastExe = ""
+    this.ClearDiagnostics( )
+    this.ShowTitle( )
+    this.ShowStatus( )
+    return true
+end function
+
+' Ctrl+F11: the active buffer joins the project; when it is already in it, a file is asked for.
+sub Window.AddToProject( )
+    if ProjOpen = false then
+        this.SetMessage( "no project is open" )
+        exit sub
+    end if
+    dim as ustring p = this.ActivePath( )
+    if (len( p ) = 0) orelse (Proj.IndexOf( p ) >= 0) then
+        p = Pick( form, TKFD_OPEN, Proj.Dir_( ) )
+        if len( p ) = 0 then exit sub
+    end if
+    if Proj.Add( p ) then
+        this.SaveProject( )
+        this.SetMessage( fs.PathFileName( p ) & " added to " & Proj.Name( ) )
+    else
+        this.SetMessage( fs.PathFileName( p ) & " is already in " & Proj.Name( ) )
+    end if
+    if this.FindOpen( p ) = 0 then this.OpenFile( p )
+end sub
+
+' ================================================================ the build (P4)
+
+function Window.CompilerPath( ) as ustring
+    if len( Prefs.Tiko ) andalso fs.IsFile( Prefs.Tiko ) then return Prefs.Tiko
+    dim as ustring nm = "tiko"
+    if platform.CurrentOs( ) = platform.Os.Windows then nm = "tiko.exe"
+    return platform.FindOnPath( nm )
+end function
+
+' The configuration the build panel shows, as tkc/build wants it.
+function Window.ActiveBuildConfig( ) as build.BuildConfig
+    dim as build.BuildConfig c
+    for each b as settings.BuildConfig in Prefs.Builds
+        if b.Name = CurrentBuild then
+            c.Name = b.Name
+            c.Options = b.Options
+            return c
+        end if
+    next
+    if Prefs.Builds.Count( ) > 0 then
+        c.Name = Prefs.Builds[0].Name
+        c.Options = Prefs.Builds[0].Options
+    end if
+    return c
+end function
+
+function Window.IsBuilding( ) as boolean
+    return Job.IsRunning( ) orelse (buildTimer <> 0)
+end function
+
+' What is built: the project's tiko.toml target, else its main file, else the active buffer (a
+' Quick Run: a copy of it; Compile Module: 'tiko check' of it). Modified buffers with a path are
+' saved first (settings save_before_build). The output arrives through PollBuild.
+function Window.StartBuild( byval action as build.BuildAction, byval rebuild as boolean ) as boolean
+    if this.IsBuilding( ) then
+        this.SetMessage( "a build is running" )
+        return false
+    end if
+    dim as ustring tiko = this.CompilerPath( )
+    if len( tiko ) = 0 then
+        this.SetMessage( "tiko not found: set [compiler] tiko in settings.toml, or put it on the PATH" )
+        return false
+    end if
+    dim as DocRef d = this.Active( )
+    dim as boolean single_ = (action = build.BuildAction.CompileModule) orelse (action = build.BuildAction.QuickRun)
+    dim as boolean useTarget = ProjOpen andalso (len( Proj.Target ) > 0) andalso (single_ = false)
+    dim as boolean useMain = ProjOpen andalso (len( Proj.Target ) = 0) andalso (len( Proj.Main ) > 0) andalso (single_ = false)
+    if (useTarget = false) andalso (useMain = false) andalso (action <> build.BuildAction.QuickRun) then
+        if d = 0 then return false
+        if len( d->Path ) = 0 then
+            if this.SaveDoc( d, false ) = false then return false
+        end if
+    end if
+    if Prefs.SaveBeforeBuild andalso (action <> build.BuildAction.QuickRun) then
+        for each x as DocRef in Docs
+            if x->IsModified( ) andalso (len( x->Path ) > 0) then this.SaveDoc( x, false )
+        next
+    end if
+    dim as Array( of build.Subsystem ) directives
+    dim as ustring projOpts = ""
+    if ProjOpen then projOpts = Proj.Options
+    BuildFlags = build.ComposeFlags( this.ActiveBuildConfig( ), action, projOpts, strings.Join( Prefs.Includes, ";" ), directives )
+    BuildDiagFile = fs.PathJoin( ConfigDir, "build.diagnostics" )
+    fs.CreateDirAll( ConfigDir )
+    fs.RemoveFile( BuildDiagFile )
+    dim as platform.Os os_ = platform.CurrentOs( )
+    dim as Array( of ustring ) args, none_
+    dim as ustring workDir
+    QuickRunFile = ""
+    if useTarget then
+        args = build.TargetArgs( Proj.Target, Proj.Dir_( ), BuildFlags, none_, BuildDiagFile, os_ )
+        ' --profile editor is tiko-editor's managed profile; tiko refuses an unknown one (TKO0163)
+        dim as ustring toml = fs.ReadAllText( fs.PathJoin( Proj.Dir_( ), "tiko.toml" ) ).ValueOr( "" )
+        if instr( toml, "[profile.editor]" ) = 0 then
+            for i as long = 0 to args.Count( ) - 2
+                if (args[i] = "--profile") andalso (args[i + 1] = "editor") then
+                    args.Remove( i )
+                    args.Remove( i )
+                    exit for
+                end if
+            next
+        end if
+        workDir = Proj.Dir_( )
+        BuildMain = Proj.MainPath( )
+    elseif action = build.BuildAction.CompileModule then
+        args = build.CheckArgs( d->Path, BuildFlags, BuildDiagFile, os_ )
+        workDir = fs.PathParent( d->Path )
+        BuildMain = d->Path
+    else
+        dim as ustring src
+        if useMain then
+            src = Proj.MainPath( )
+        else
+            src = d->Path
+        end if
+        BuildMain = src
+        if action = build.BuildAction.QuickRun then
+            dim as ustring dir_ = ConfigDir
+            if len( d->Path ) then dir_ = fs.PathParent( d->Path )
+            QuickRunFile = fs.PathJoin( dir_, build.QUICKRUN_FILE )
+            fs.WriteAllText( QuickRunFile, d->Text( ) )
+            src = QuickRunFile
+            BuildMain = QuickRunFile
+        end if
+        args = build.BuildArgs( src, none_, none_, "", BuildFlags, BuildDiagFile, os_ )
+        workDir = fs.PathParent( src )
+    end if
+    if rebuild then
+        ' Rebuild All: 'tiko clean' first, then this build (FinishBuild starts it)
+        PendingArgs = args
+        args.Clear( )
+        args.Push( "clean" )
+        if useTarget then
+            args.Push( Proj.Target )
+            args.Push( "--manifest" )
+            args.Push( Proj.Dir_( ) )
+        else
+            args.Push( BuildMain )
+        end if
+        Cleaning = true
+    end if
+    BuildAct = action
+    BuildProgram = tiko
+    BuildDir = workDir
+    BuildRaw = ""
+    dim as build.BuildProgress fresh
+    Progress = fresh
+    LogText = build.CommandLine( tiko, args ) & chr( 10 )
+    Out.SetLog( LogText )
+    this.ClearDiagnostics( )
+    dim as Result( of boolean, ustring ) st = Job.Start( tiko, args, workDir )
+    if st.IsOk( ) = false then
+        LogText &= st.Failure( ) & chr( 10 )
+        Out.SetLog( LogText )
+        this.SetMessage( "the build could not start: " & st.Failure( ) )
+        return false
+    end if
+    this.SetMessage( "building..." )
+    buildTimer = tkApp_SetTimer( BUILD_POLL_MS, sub( byval id as long, byval payload as any ptr )
+        cast( Window ptr, payload )->PollBuild( )
+    end sub, @this )
+    return true
+end function
+
+sub Window.PollBuild( )
+    dim as Array( of ustring ) got
+    dim as boolean ended = Job.Poll( got )
+    if got.Count( ) then
+        for each ln as ustring in got
+            BuildRaw &= ln & chr( 10 )
+            if Progress.Feed( ln ) then
+                this.SetMessage( strings.Format( "building... {}/{}", Progress.Done, Progress.Total ) )
+            elseif build.IsEventLine( ln ) = false then
+                LogText &= ln & chr( 10 )
+            end if
+        next
+        Out.SetLog( LogText )
+    end if
+    if ended then this.FinishBuild( )
+end sub
+
+' The build ended: Results and squiggles from the diagnostics file, the message, the output pane
+' with the first error on a failure, the program run when the action asked for it.
+sub Window.FinishBuild( )
+    if buildTimer then tkApp_KillTimer( buildTimer )
+    buildTimer = 0
+    if Cleaning then
+        Cleaning = false
+        LogText &= build.CommandLine( BuildProgram, PendingArgs ) & chr( 10 )
+        Out.SetLog( LogText )
+        if Job.Start( BuildProgram, PendingArgs, BuildDir ).IsOk( ) then
+            buildTimer = tkApp_SetTimer( BUILD_POLL_MS, sub( byval id as long, byval payload as any ptr )
+                cast( Window ptr, payload )->PollBuild( )
+            end sub, @this )
+            exit sub
+        end if
+    end if
+    dim as long code = Job.exitCode
+    dim as build.DiagResult dr = build.ReadDiagnostics( BuildDiagFile )
+    dim as build.DiagReport rep
+    if dr.IsOk( ) then
+        rep = dr.Value( )
+        if len( QuickRunFile ) andalso (this.Active( ) <> 0) then rep.RenameFile( QuickRunFile, this.Active( )->Path )
+    end if
+    Diags = rep.Records
+    dim as build.ResultCounts counts = build.CountResults( rep, dr.IsOk( ), false, code )
+    this.ShowDiagnostics( counts )
+    if BuildAct <> build.BuildAction.CompileModule then
+        LastExe = build.EventRunPath( BuildRaw )
+        if len( LastExe ) = 0 then LastExe = build.OutputFile( BuildMain, BuildFlags, platform.CurrentOs( ) )
+        if len( LastExe ) then LastExe = fs.PathToNative( LastExe )      ' tiko's events write /
+    end if
+    if len( QuickRunFile ) then fs.RemoveFile( QuickRunFile )
+    dim as boolean ok = (code = 0) andalso (counts.Errors = 0)
+    BuildSucceeded = ok
+    dim as ustring msg = "Build OK"
+    if ok = false then msg = "Build failed"
+    this.SetMessage( strings.Format( "{}  {} errors, {} warnings", msg, counts.Errors, counts.Warnings ) )
+    if ok = false then
+        this.ShowOutput( true )
+        if counts.ShowLog then
+            Out.ShowTab( outputpane.OutputTab.CompilerLog )
+        else
+            Out.ShowTab( outputpane.OutputTab.Results )
+            if counts.FirstError >= 0 then this.OpenDiagnostic( counts.FirstError )
+        end if
+    elseif build.RunsAfterBuild( BuildAct ) then
+        this.RunProgram( LastExe )
+    end if
+end sub
+
+sub Window.ClearDiagnostics( )
+    Diags.Clear( )
+    DiagAt = -1
+    for each d as DocRef in Docs
+        d->Main.ClearSquiggles( )
+    next
+    tkListTree_Clear( Out.results )
+end sub
+
+' Results: a header row per file, a row per record; squiggles in the open buffers.
+sub Window.ShowDiagnostics( byref counts as const build.ResultCounts )
+    tkListTree_BeginUpdate( Out.results )
+    tkListTree_Clear( Out.results )
+    dim as ustring lastFile = chr( 1 )
+    for i as long = 0 to Diags.Count( ) - 1
+        dim as build.Diagnostic dg = Diags[i]
+        if dg.File <> lastFile then
+            lastFile = dg.File
+            dim as ustring hdr = fs.PathFileName( dg.File )
+            if len( hdr ) = 0 then hdr = "tiko"
+            tkListTree_AddHeader( Out.results, hdr, i )
+        end if
+        dim as ustring where = ""
+        if dg.Line > 0 then where = "(" & dg.Line & "," & dg.Col & ")  "
+        tkListTree_InsertString( Out.results, tkListTree_GetCount( Out.results ), where & build.RowText( dg ), i )
+        if (dg.Line > 0) andalso ((dg.Kind = build.DiagKind.Error) orelse (dg.Kind = build.DiagKind.Warning)) then
+            dim as DocRef t = this.FindOpen( dg.File )
+            if t then t->Main.AddSquiggle( dg.Line, dg.Col, dg.EndLine, dg.EndCol, dg.Kind = build.DiagKind.Error )
+        end if
+    next
+    if counts.ExitFailure then
+        tkListTree_AddString( Out.results, "Build failed (exit code " & Job.exitCode & ")", -1 )
+    end if
+    tkListTree_EndUpdate( Out.results )
+end sub
+
+sub Window.OpenDiagnostic( byval i as long )
+    if (i < 0) orelse (i >= Diags.Count( )) then exit sub
+    dim as build.Diagnostic dg = Diags[i]
+    if (len( dg.File ) = 0) orelse (dg.Line <= 0) then exit sub
+    DiagAt = i
+    dim as long selChars = 0
+    if (dg.EndLine = dg.Line) andalso (dg.EndCol > dg.Col) then selChars = dg.EndCol - dg.Col
+    dim as long col = 0
+    if dg.Col > 0 then col = dg.Col - 1
+    this.JumpTo( dg.File, dg.Line - 1, col, selChars )
+    this.SetMessage( build.RowText( dg ) )
+end sub
+
+' Alt+PgDn / Alt+PgUp: the next / previous error or warning with a place, wrapping.
+sub Window.StepDiagnostic( byval forward as boolean )
+    dim as long n = Diags.Count( )
+    if n = 0 then
+        this.SetMessage( "no diagnostics" )
+        exit sub
+    end if
+    dim as long i = DiagAt
+    for k as long = 1 to n
+        if forward then
+            i += 1
+            if i >= n then i = 0
+        else
+            i -= 1
+            if i < 0 then i = n - 1
+        end if
+        dim as build.Diagnostic dg = Diags[i]
+        if (dg.Line > 0) andalso ((dg.Kind = build.DiagKind.Error) orelse (dg.Kind = build.DiagKind.Warning)) then
+            this.OpenDiagnostic( i )
+            exit sub
+        end if
+    next
+end sub
+
+' The file shown (opened when it is not), the caret at line ln, character column col (0-based),
+' selChars characters selected.
+sub Window.JumpTo( byref file as const ustring, byval ln as long, byval col as long, byval selChars as long )
+    dim as DocRef d = this.FindOpen( file )
+    if d then
+        this.ShowDoc( d )
+    elseif this.OpenFile( file ) = false then
+        exit sub
+    end if
+    this.View( ).GoToLine( ln, col, selChars )
+    this.View( ).Focus( )
+end sub
+
+' Run: a GUI program directly; a console one in a terminal of its own that waits for a key
+' (platform.TerminalArgv), with the project's command line.
+sub Window.RunProgram( byref exe as const ustring )
+    if (len( exe ) = 0) orelse (fs.IsFile( exe ) = false) then
+        this.SetMessage( "nothing to run: build it first (" & exe & ")" )
+        exit sub
+    end if
+    dim as ustring cmdline = RunArgs
+    if ProjOpen then cmdline = Proj.CommandLine
+    dim as Array( of ustring ) args = project.SplitArgs( cmdline )
+    dim as ustring dir_ = fs.PathParent( exe )
+    dim as boolean gui = instr( " " & lcase( BuildFlags ) & " ", " -s gui " ) > 0
+    dim as Array( of ustring ) argv
+    if gui andalso (Prefs.RunInTerminal = false) then
+        dim as ustring program = exe
+        argv.Push( program )
+        for each a as ustring in args
+            argv.Push( a )
+        next
+    else
+        argv = platform.TerminalArgv( exe, args, dir_, fs.PathJoin( ConfigDir, "run" ) )
+        if argv.Count( ) = 0 then
+            this.SetMessage( "no terminal program was found to run it in: set $TERMINAL" )
+            exit sub
+        end if
+    end if
+    if Launch( argv, dir_ ) then
+        this.SetMessage( "running " & fs.PathFileName( exe ) )
+    else
+        this.SetMessage( "could not start " & fs.PathFileName( exe ) )
+    end if
+end sub
+
+sub Window.ShowOutput( byval visible as boolean )
+    if OutputShown = visible then exit sub
+    OutputShown = visible
+    this.Layout( )
+    if visible = false then this.View( ).Focus( )
+end sub
+
+' Ctrl+Tilde: pane 1, pane 2 (when split), the output pane (when shown), round again.
+sub Window.CycleFocus( )
+    dim as boolean inOut = this.OutputHasFocus( )
+    dim as boolean split_ = (Split <> session.SplitMode.None) andalso (Pane2 <> 0)
+    if inOut then
+        this.FocusPane( false )
+    elseif split_ andalso (InPane2 = false) then
+        this.FocusPane( true )
+    elseif OutputShown then
+        Out.Focus( )
+    else
+        this.FocusPane( false )
+    end if
+end sub
+
+' The keyboard focus is somewhere inside the output pane (a list's own surface widget included).
+function Window.OutputHasFocus( ) as boolean
+    if OutputShown = false then return false
+    dim as TK_WIDGET ptr f = tkHost_GetFocus( tkForm_Host( form ) )
+    while f
+        if f = Out.frame then return true
+        f = f->pParent
+    wend
+    return false
+end function

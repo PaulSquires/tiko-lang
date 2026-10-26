@@ -11,17 +11,21 @@
 #module "selftest"
 
 #import "std/fs"
+#import "std/process"
 #import "std/strings"
 #import "tkp/platform"
 #import "tkc/appinfo"
+#import "tkc/build"
 #import "tkc/cmdids"
 #import "tkc/docencoding"
 #import "tkc/keybind"
+#import "tkc/project"
 #import "tkc/session"
 #import "tkc/settings"
 #import "tka/documents"
 #import "tka/editor"
 #import "tka/findstrip"
+#import "tka/outputpane"
 #import "tka/mainwin"
 #import "tkControls/tkApp"
 #import "tkControls/tkTest"
@@ -31,6 +35,7 @@
 #import "tkControls/tkMessageBox"
 #import "tkControls/tkStatusBar"
 #import "tkControls/tkTextBox"
+#import "tkControls/tkListTree"
 #import "std/containers"
 using containers
 using cmdids
@@ -43,6 +48,7 @@ using tkPopupMenu
 using tkMessageBox
 using tkStatusBar
 using tkTextBox
+using tkListTree
 
 private type DocRef as documents.Document ptr
 
@@ -675,5 +681,188 @@ public sub FindPass( byref t as Tally, byval sc as single )
     StripKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
 
     mw.View( ).SetSavePoint( )
+    mw.Destroy( )
+end sub
+
+' ================================================================ P4: projects and builds
+
+dim shared as Array( of ustring ) gLaunched
+dim shared as string gTerminalEnv           ' putenv keeps the pointer: it must outlive the call
+
+private function ScriptedLaunch( byref argv as const Array( of ustring ), byref workDir as const ustring ) as boolean
+    dim as ustring s
+    for i as long = 0 to argv.Count( ) - 1
+        if i then s &= "|"
+        s &= argv[i]
+    next
+    gLaunched.Push( s )
+    return true
+end function
+
+' The tiko the test builds with: $TKEDIT_TIKO, else the workspace's toolchain.
+private function TestCompiler( ) as ustring
+    dim as ustring tk = environ( "TKEDIT_TIKO" )
+    if len( tk ) andalso fs.IsFile( tk ) then return tk
+    if platform.CurrentOs( ) = platform.Os.Windows then
+        tk = "C:\dev\tiko-lang\toolchains\tiko-windows\tiko.exe"
+    else
+        tk = "/mnt/c/dev/tiko-lang/toolchains/tiko-linux/bin/tiko"
+    end if
+    if fs.IsFile( tk ) then return tk
+    return ""
+end function
+
+private function WaitBuild( byref mw as mainwin.Window ) as boolean
+    dim as double t0 = timer
+    do while mw.IsBuilding( )
+        tkApp_Pump( )
+        SDL_Delay( 20 )
+        if timer - t0 > 240 then return false
+    loop
+    return true
+end function
+
+public sub BuildPass( byref t as Tally, byval sc as single )
+    dim as ustring tk = TestCompiler( )
+    t.Check( len( tk ) > 0, "build: a tiko compiler to build with ($TKEDIT_TIKO)" )
+    if len( tk ) = 0 then exit sub
+    dim as ustring cfg = FreshConfig( )
+    dim as ustring dir_ = fs.PathJoin( Files( ), "hello" )
+    fs.CreateDirAll( dir_ )
+    dim as ustring nl = chr( 10 )
+    dim as ustring mainF = fs.PathJoin( dir_, "main.tiko" )
+    dim as ustring good = "print ""hello from tkEdit""" & nl
+    fs.WriteAllText( mainF, good )
+
+    dim as mainwin.Window mw
+    mw.ConfigDir = cfg
+    mw.Ask = @ScriptedAsk
+    mw.Pick = @ScriptedPick
+    mw.Launch = @ScriptedLaunch
+    t.Check( mw.Create( sc ), P( sc, "build: main window created" ) )
+    if mw.form = 0 then exit sub
+    mw.Show( )
+    dim as TK_HOST ptr h = tkForm_Host( mw.form )
+    tkTest_PumpFor( h, 100 )
+    mw.Prefs.Tiko = tk
+    if platform.CurrentOs( ) <> platform.Os.Windows then
+        ' no terminal emulator is guaranteed (WSL has none): name one that exists and does nothing
+        gTerminalEnv = "TERMINAL=/bin/true"
+        setenviron gTerminalEnv
+    end if
+    t.Check( mw.CompilerPath( ) = tk, P( sc, "the compiler: " & mw.CompilerPath( ) ) )
+
+    ' ---- a project from the active file
+    mw.OpenFile( mainF )
+    gPickPath = fs.PathJoin( dir_, "hello" )
+    t.Check( mw.NewProject( ), P( sc, "a new project" ) )
+    dim as ustring pf = fs.PathJoin( dir_, "hello.tkedit" )
+    t.Check( mw.ProjOpen andalso fs.IsFile( pf ) andalso (mw.Proj.Main = "main.tiko"), P( sc, "hello.tkedit, main.tiko its main: " & mw.Proj.Main ) )
+    dim as ustring title = *SDL_GetWindowTitle( h->win )
+    t.Check( instr( title, "[hello]" ) > 0, P( sc, "the title names the project: " & title ) )
+
+    ' ---- Ctrl+F5: a build that works; the pane stays hidden
+    Chord( h, SDLK_F5, SDL_SCANCODE_F5, SDL_KMOD_CTRL )
+    t.Check( mw.IsBuilding( ), P( sc, "Ctrl+F5 started a build" ) )
+    t.Check( WaitBuild( mw ), P( sc, "the build ended" ) )
+    t.Check( mw.BuildSucceeded, P( sc, "built: " & mw.Message ) )
+    t.Check( left( mw.Message, 8 ) = "Build OK", P( sc, "the message says so" ) )
+    t.Check( mw.OutputShown = false, P( sc, "the output pane stays hidden" ) )
+    t.Check( fs.IsFile( mw.LastExe ), P( sc, "the program: " & mw.LastExe ) )
+    t.Check( (instr( mw.Out.LogText( ), "build" ) > 0) andalso (instr( mw.Out.LogText( ), "{""event""" ) = 0), P( sc, "the log: the command line, no JSON events" ) )
+    if fs.IsFile( mw.LastExe ) then
+        dim as process.ProcResultOutput po = process.Capture( process.Command( mw.LastExe ) )
+        t.Check( po.IsOk( ) andalso (instr( po.Value( ).StdoutText( ), "hello from tkEdit" ) > 0), P( sc, "the program runs" ) )
+    end if
+
+    ' ---- Shift+F5: Run, in a terminal, with the project's command line
+    mw.Proj.CommandLine = "one ""two words"""
+    gLaunched.Clear( )
+    Chord( h, SDLK_F5, SDL_SCANCODE_F5, SDL_KMOD_SHIFT )
+    t.Check( gLaunched.Count( ) = 1, P( sc, strings.Format( "Run launched once ({})", gLaunched.Count( ) ) ) )
+    if gLaunched.Count( ) then
+        if platform.CurrentOs( ) = platform.Os.Windows then
+            t.Check( strings.EndsWith( gLaunched[0], "tkEdit-run.cmd" ), P( sc, "through a .cmd: " & gLaunched[0] ) )
+            dim as ustring body = fs.ReadAllText( gLaunched[0] ).ValueOr( "" )
+            t.Check( instr( body, """one"" ""two words""" ) > 0, P( sc, "with the command line's arguments" ) )
+        else
+            t.Check( (left( gLaunched[0], 13 ) = "/bin/true|-e|") andalso strings.EndsWith( gLaunched[0], "tkEdit-run.sh" ), _
+                     P( sc, "in the terminal: " & gLaunched[0] ) )
+        end if
+    end if
+
+    ' ---- a build that fails: the pane, Results, the first error, a squiggle
+    dim as editor.CodeView ptr v = @mw.View( )
+    v->ReplaceAllText( "print ""a""" & nl & "NoSuchThing( 1 )" & nl & "print undefinedvariable" & nl )   ' an edit: SetText would be a save point
+    Chord( h, SDLK_F5, SDL_SCANCODE_F5, SDL_KMOD_CTRL )
+    t.Check( WaitBuild( mw ), P( sc, "the failing build ended" ) )
+    t.Check( mw.BuildSucceeded = false, P( sc, "it failed: " & mw.Message ) )
+    t.Check( left( mw.Message, 12 ) = "Build failed" orelse (left( mw.Message, 6 ) = "error "), P( sc, "the message says so: " & mw.Message ) )
+    t.Check( fs.ReadAllText( mainF ).ValueOr( "" ) <> good, P( sc, "the buffer was saved before the build" ) )
+    t.Check( mw.OutputShown andalso (mw.Out.current = outputpane.OutputTab.Results), P( sc, "the output pane opened on Results" ) )
+    t.Check( mw.Diags.Count( ) >= 2, P( sc, strings.Format( "the diagnostics ({})", mw.Diags.Count( ) ) ) )
+    t.Check( tkListTree_GetCount( mw.Out.results ) >= 2, P( sc, strings.Format( "Results rows ({})", tkListTree_GetCount( mw.Out.results ) ) ) )
+    v = @mw.View( )
+    t.Check( v->CaretLine( ) = 2, P( sc, strings.Format( "the caret went to the first error, line {}", v->CaretLine( ) ) ) )
+    t.Check( v->SquiggleAt( v->SelectionStart( ) ) <> 0, P( sc, "a squiggle under it" ) )
+    dim as long cy = h->root->cw * 0 + h->root->ch
+    dim as long oh = tkForm_Scale( mw.form, outputpane.PANE_CY ), sh = mw.StatusHeight( )
+    t.Check( (mw.Out.frame->y = cy - sh - oh) andalso (mw.Out.frame->ch = oh), P( sc, strings.Format( "the pane above the status line: {} {}", mw.Out.frame->y, mw.Out.frame->ch ) ) )
+    t.Check( v->Widget( )->ch = cy - sh - oh, P( sc, "the view ends above the pane" ) )
+    Chord( h, SDLK_PAGEDOWN, SDL_SCANCODE_PAGEDOWN, SDL_KMOD_ALT )
+    t.Check( mw.View( ).CaretLine( ) = 3, P( sc, strings.Format( "Alt+PgDn: the next diagnostic, line {}", mw.View( ).CaretLine( ) ) ) )
+    Chord( h, SDLK_PAGEDOWN, SDL_SCANCODE_PAGEDOWN, SDL_KMOD_ALT )
+    t.Check( mw.View( ).CaretLine( ) = 2, P( sc, "and it wraps" ) )
+    Chord( h, SDLK_PAGEUP, SDL_SCANCODE_PAGEUP, SDL_KMOD_ALT )
+    t.Check( mw.View( ).CaretLine( ) = 3, P( sc, "Alt+PgUp: the previous" ) )
+    Chord( h, SDLK_GRAVE, SDL_SCANCODE_GRAVE, SDL_KMOD_CTRL )
+    t.Check( mw.OutputHasFocus( ), P( sc, "Ctrl+Tilde reaches the output pane" ) )
+    Chord( h, SDLK_GRAVE, SDL_SCANCODE_GRAVE, SDL_KMOD_CTRL )
+    t.Check( tkHost_GetFocus( h ) = mw.View( ).Widget( ), P( sc, "and back to the editor" ) )
+    Chord( h, SDLK_F9, SDL_SCANCODE_F9, SDL_KMOD_CTRL )
+    t.Check( (mw.OutputShown = false) andalso (mw.View( ).Widget( )->ch = cy - sh), P( sc, "Ctrl+F9 hides the pane" ) )
+
+    ' ---- F5: fixed, built and run
+    mw.View( ).ReplaceAllText( good )
+    gLaunched.Clear( )
+    Chord( h, SDLK_F5, SDL_SCANCODE_F5, 0 )
+    t.Check( WaitBuild( mw ) andalso mw.BuildSucceeded, P( sc, "F5 built the fixed program: " & mw.Message ) )
+    t.Check( gLaunched.Count( ) = 1, P( sc, "and ran it" ) )
+    t.Check( (mw.Diags.Count( ) = 0) andalso (mw.View( ).SquiggleAt( 0 ) = 0), P( sc, "the squiggles and rows are gone" ) )
+
+    ' ---- Ctrl+F7: tiko check of the module; Ctrl+Alt+F5: clean, then build
+    Chord( h, SDLK_F7, SDL_SCANCODE_F7, SDL_KMOD_CTRL )
+    t.Check( WaitBuild( mw ) andalso mw.BuildSucceeded andalso (instr( mw.Out.LogText( ), " check " ) > 0), P( sc, "Ctrl+F7 checked the module" ) )
+    Chord( h, SDLK_F5, SDL_SCANCODE_F5, SDL_KMOD_CTRL or SDL_KMOD_ALT )
+    t.Check( WaitBuild( mw ) andalso mw.BuildSucceeded, P( sc, "Ctrl+Alt+F5 rebuilt: " & mw.Message ) )
+    t.Check( (instr( mw.Out.LogText( ), " clean " ) > 0) andalso (instr( mw.Out.LogText( ), " build " ) > 0), P( sc, "clean, then build, in the log" ) )
+
+    ' ---- Ctrl+Shift+F5: Quick Run of an untitled buffer
+    Chord( h, SDLK_N, SDL_SCANCODE_N, SDL_KMOD_CTRL )
+    tkTest_PushText( h, "print 42" )
+    tkTest_PumpFor( h, 30 )
+    gLaunched.Clear( )
+    Chord( h, SDLK_F5, SDL_SCANCODE_F5, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    t.Check( WaitBuild( mw ) andalso mw.BuildSucceeded, P( sc, "Ctrl+Shift+F5 quick-ran an untitled buffer: " & mw.Message ) )
+    t.Check( gLaunched.Count( ) = 1, P( sc, "and launched it" ) )
+    t.Check( fs.IsFile( fs.PathJoin( cfg, build.QUICKRUN_FILE ) ) = false, P( sc, "its temporary copy is gone" ) )
+    mw.View( ).SetSavePoint( )
+    Chord( h, SDLK_W, SDL_SCANCODE_W, SDL_KMOD_CTRL )
+
+    ' ---- the project: saved, closed, opened again as it was
+    mw.View( ).GoToLine( 0 )
+    t.Check( mw.SaveProject( ), P( sc, "Save Project" ) )
+    t.Check( mw.CloseProject( ) andalso (mw.ProjOpen = false), P( sc, "Close Project" ) )
+    t.Check( (mw.Docs.Count( ) = 1) andalso mw.Docs[0]->IsNew( ), P( sc, "its buffers closed" ) )
+    t.Check( mw.OpenFile( pf ), P( sc, "opening hello.tkedit opens the project" ) )
+    t.Check( mw.ProjOpen andalso (lcase( mw.ActivePath( ) ) = lcase( mainF )), P( sc, "main.tiko is back: " & mw.ActivePath( ) ) )
+    dim as ustring other = fs.PathJoin( dir_, "util.tiko" )
+    fs.WriteAllText( other, "' util" & nl )
+    gPickPath = other
+    Chord( h, SDLK_F11, SDL_SCANCODE_F11, SDL_KMOD_CTRL )
+    t.Check( (mw.Proj.IndexOf( other ) >= 0) andalso (lcase( mw.ActivePath( ) ) = lcase( other )), P( sc, "Ctrl+F11 added and opened util.tiko" ) )
+    dim as project.ProjectResult pr = project.LoadProject( pf )
+    t.Check( pr.IsOk( ) andalso (pr.Value( ).FileCount( ) = 2), P( sc, "the project file lists both" ) )
+
     mw.Destroy( )
 end sub
