@@ -1,0 +1,47 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+' fuzzysuite -- tkc/fuzzy: matching, the ordering fzy promises, positions. Exact scores against
+' tiko-editor-tiko's edc/fuzzy are the oracle's job (tools/oracle/run-fuzzy.sh).
+#module "fuzzysuite"
+
+#import "std/containers"
+#import "tkc/fuzzy"
+#import "../tally"
+using containers
+
+private function Pos( byref needle as const ustring, byref haystack as const ustring ) as ustring
+    dim as Array( of long ) p
+    fuzzy.ScorePositions( needle, haystack, p )
+    dim as ustring o
+    for each x as long in p
+        if len( o ) then o &= ","
+        o &= str( x )
+    next
+    return o
+end function
+
+public sub Run( byref c as tally.Checker )
+    c.Begin( "fuzzy" )
+    c.Check( fuzzy.HasMatch( "fb", "FooBar" ), "HasMatch: in order, any case" )
+    c.Check( fuzzy.HasMatch( "", "x" ), "HasMatch: the empty needle matches" )
+    c.Check( fuzzy.HasMatch( "bf", "FooBar" ) = false, "HasMatch: out of order" )
+    c.Check( fuzzy.HasMatch( "foo", "fo" ) = false, "HasMatch: longer than the haystack" )
+    c.Check( fuzzy.HasMatch( "aa", "a" ) = false, "HasMatch: each haystack character used once" )
+
+    c.Check( fuzzy.Score( "", "abc" ) = fuzzy.SCORE_MIN, "Score: empty needle is SCORE_MIN" )
+    c.Check( fuzzy.Score( "abcd", "abc" ) = fuzzy.SCORE_MIN, "Score: needle longer than haystack is SCORE_MIN" )
+    c.Check( fuzzy.Score( "ABC", "abc" ) = fuzzy.SCORE_MAX, "Score: same text, other case, is SCORE_MAX" )
+    c.Check( fuzzy.Score( "mo", "xmox" ) > fuzzy.Score( "mo", "xmxo" ), "consecutive matches beat a gap" )
+    c.Check( fuzzy.Score( "a", "a" & "b" ) > fuzzy.Score( "a", "b" & "a" ), "a leading match beats a later one" )
+    c.Check( fuzzy.Score( "gr", "debug/gr" ) > fuzzy.Score( "gr", "debugger" ), "a match after / scores the slash bonus" )
+    c.Check( fuzzy.Score( "fb", "fooBar" ) > fuzzy.Score( "fb", "foobar" ), "a camel-case capital scores the capital bonus" )
+    c.Check( fuzzy.Score( "md", "main.dlg" ) > fuzzy.Score( "md", "maindlg" ), "a match after . scores the dot bonus" )
+    c.Check( fuzzy.Score( "ab", "x_ab" ) = fuzzy.Score( "ab", "x-ab" ), "_ and - are the same word bonus" )
+
+    c.Same( Pos( "fb", "foo/bar" ), "0,4", "positions: f at 0, b after the slash" )
+    c.Same( Pos( "amo", "app/models/order" ), "0,4,5", "positions: the slash bonus, then the consecutive o" )
+    c.Same( Pos( "abc", "ABC" ), "0,1,2", "positions: the SCORE_MAX case" )
+    c.Same( Pos( "", "abc" ), "", "positions: none for the empty needle" )
+    c.Same( Pos( "xyz", "xy" ), "", "positions: none for a needle that is too long" )
+end sub

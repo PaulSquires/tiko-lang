@@ -1,0 +1,501 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' symboldb -- what tikoParser's scans found, indexed for the editor's questions (the old
+' eda/symboldb, D3): where is this name defined, what members has this type, which names start
+' with this prefix, what does this procedure take. Headless: tks/parser turns a scan's records
+' into a SymbolSet, the app installs one set per scanned root (a project's main file, an open
+' document), and asks. A record's meaning follows tiko-lang's src/api/tikoparser.ti.
+#module "symboldb"
+
+#import "std/containers"
+#import "std/fs"
+#import "std/outcome"
+#import "std/strings"
+using containers
+using outcome
+
+' tikoparser.ti's TKP_KIND, same values.
+public enum SymKind explicit
+    None = 0
+    SubProc = 1
+    FunctionProc
+    Param
+    TypeDef
+    UnionDef
+    Field
+    EnumDef
+    EnumValue
+    Variable
+    ConstDef
+    TypeAlias
+    Define
+    NamespaceDef
+end enum
+
+' TKP_SYMBFLAG_*
+public const FLAG_BYREF = &h0001
+public const FLAG_SHARED = &h0002
+public const FLAG_STATIC = &h0004
+public const FLAG_UDTTYPE = &h0008
+public const FLAG_ENUMTYPE = &h0010
+public const FLAG_LOCAL = &h0020
+public const FLAG_INSTANCE = &h0040
+public const FLAG_OPTIONAL = &h0080
+public const FLAG_ARRAY = &h0100
+
+public type Sym
+    Kind        as SymKind
+    Flags       as long
+    Name        as ustring
+    TypeText    as ustring        ' "Widget ptr"; a TYPE: what it extends; "" = none
+    Parent      as long = -1      ' index in the same set
+    File        as ustring        ' as the parser gives it: absolute, UPPERCASED
+    LineNo      as long           ' 1-based; 0 = unknown
+    Col         as long
+    BodyLine    as long           ' a procedure with a body: its header line
+    BodyEndLine as long
+end type
+
+' One scan.
+public type SymbolSet
+    Root  as ustring              ' the file that was scanned, uppercased
+    Syms  as Array( of Sym )
+    declare sub Index( )
+    declare function First( byref name_ as const ustring ) as long      ' -1 = none
+    declare function NextSame( byval i as long ) as long
+    declare function FirstChild( byval i as long ) as long
+    declare function NextSibling( byval i as long ) as long
+    m_head as Map( of ustring, long )
+    m_next as Array( of long )
+    m_child as Array( of long )
+    m_sibling as Array( of long )
+end type
+
+' Where a symbol is: which set, which record.
+public type SymRef
+    SetNo as long = -1
+    Index as long = -1
+    declare function IsValid( ) as boolean
+end type
+
+function SymRef.IsValid( ) as boolean
+    return (SetNo >= 0) andalso (Index >= 0)
+end function
+
+' A name is looked up case-insensitively, as tiko compares them.
+private function Key( byref s as const ustring ) as ustring
+    return lcase( s )
+end function
+
+sub SymbolSet.Index( )
+    m_head.Clear( )
+    dim as long n = Syms.Count( )
+    m_next.Clear( ) : m_child.Clear( ) : m_sibling.Clear( )
+    for i as long = 0 to n - 1
+        m_next.Push( -1 ) : m_child.Push( -1 ) : m_sibling.Push( -1 )
+    next
+    ' build back to front so each chain runs in record order
+    for i as long = n - 1 to 0 step -1
+        dim as ustring k = Key( Syms[i].Name )
+        dim as long h
+        if m_head.TryGet( k, h ) then m_next[i] = h
+        m_head.Put( k, i )
+        dim as long p = Syms[i].Parent
+        if (p >= 0) andalso (p < n) then
+            m_sibling[i] = m_child[p]
+            m_child[p] = i
+        end if
+    next
+end sub
+
+function SymbolSet.First( byref name_ as const ustring ) as long
+    dim as long h
+    if m_head.TryGet( Key( name_ ), h ) then return h
+    return -1
+end function
+
+function SymbolSet.NextSame( byval i as long ) as long
+    if (i < 0) orelse (i >= m_next.Count( )) then return -1
+    return m_next[i]
+end function
+
+function SymbolSet.FirstChild( byval i as long ) as long
+    if (i < 0) orelse (i >= m_child.Count( )) then return -1
+    return m_child[i]
+end function
+
+function SymbolSet.NextSibling( byval i as long ) as long
+    if (i < 0) orelse (i >= m_sibling.Count( )) then return -1
+    return m_sibling[i]
+end function
+
+' The bare type name of a type text: "const Node ptr" -> "Node", "string * 20" -> "string".
+public function BaseTypeName( byref typeText as const ustring ) as ustring
+    dim as Array( of ustring ) words = strings.Split( trim( typeText ), " " )
+    for each w as ustring in words
+        dim as ustring l = lcase( w )
+        if (len( w ) > 0) andalso (l <> "const") andalso (l <> "byref") then return w
+    next
+    return ""
+end function
+
+' What the parser's uppercased path is on disk: on a case-sensitive file system each part is
+' matched against the folder's entries, case-insensitively. "" when nothing matches.
+public function RealPath( byref upper as const ustring ) as ustring
+    if fs.Exists( upper ) then return upper
+    dim as ustring p = strings.Replace( upper, "\", "/" )
+    dim as Array( of ustring ) parts = strings.Split( p, "/" )
+    dim as ustring cur = "/"
+    if (parts.Count( ) > 0) andalso (len( parts[0] ) > 0) then cur = parts[0]   ' a drive
+    for i as long = 1 to parts.Count( ) - 1
+        if len( parts[i] ) = 0 then continue for
+        dim as ustring want = lcase( parts[i] ), found
+        for each r in fs.ReadDir( cur )
+            if r.IsOk( ) andalso (lcase( r.Value( ).Name( ) ) = want) then
+                found = r.Value( ).Name( )
+                exit for
+            end if
+        next
+        if len( found ) = 0 then return ""
+        cur = fs.PathJoin( cur, found )
+    next
+    return cur
+end function
+
+public type Database
+    declare sub Install( byref s as SymbolSet )       ' replaces a set with the same Root
+    declare sub Remove( byref root as const ustring )
+    declare sub Clear( )
+    declare function SetCount( ) as long
+    declare function Item( byref r as const SymRef ) byref as Sym
+    declare function Definition( byref name_ as const ustring, byref file as const ustring, _
+                                 byval ln as long, byref qualifier as const ustring = "" ) as SymRef
+    declare function TypeRefOf( byref name_ as const ustring, byref file as const ustring, byval ln as long ) as SymRef
+    declare function Members( byref typeRef as const SymRef ) as Array( of SymRef )
+    declare function Completions( byref prefix as const ustring, byref file as const ustring, byval ln as long ) as Array( of ustring )
+    declare function MemberNames( byref qualifier as const ustring, byref file as const ustring, byval ln as long ) as Array( of ustring )
+    declare function CallTip( byref name_ as const ustring, byref qualifier as const ustring = "", _
+                              byref file as const ustring = "", byval ln as long = 0 ) as ustring
+    declare function TypeNames( byref prefix as const ustring ) as Array( of ustring )
+    declare function EnclosingProc( byval setNo as long, byref file as const ustring, byval ln as long ) as long
+    m_sets as Array( of SymbolSet )
+end type
+
+sub Database.Install( byref s as SymbolSet )
+    dim as SymbolSet copy_ = s
+    copy_.Root = ucase( copy_.Root )
+    copy_.Index( )
+    for i as long = 0 to m_sets.Count( ) - 1
+        if m_sets[i].Root = copy_.Root then
+            m_sets[i] = copy_
+            m_sets[i].Index( )               ' the copy's maps were copied; rebuild in place
+            exit sub
+        end if
+    next
+    m_sets.Push( copy_ )
+    m_sets[m_sets.Count( ) - 1].Index( )
+end sub
+
+sub Database.Remove( byref root as const ustring )
+    for i as long = 0 to m_sets.Count( ) - 1
+        if m_sets[i].Root = ucase( root ) then
+            m_sets.Remove( i )
+            exit sub
+        end if
+    next
+end sub
+
+sub Database.Clear( )
+    m_sets.Clear( )
+end sub
+
+function Database.SetCount( ) as long
+    return m_sets.Count( )
+end function
+
+function Database.Item( byref r as const SymRef ) byref as Sym
+    return m_sets[r.SetNo].Syms[r.Index]
+end function
+
+' The procedure whose body holds (file, ln), in set k; -1 = none.
+function Database.EnclosingProc( byval setNo as long, byref file as const ustring, byval ln as long ) as long
+    dim byref as SymbolSet s = m_sets[setNo]
+    dim as ustring f = ucase( file )
+    dim as long best = -1
+    for i as long = 0 to s.Syms.Count( ) - 1
+        dim byref as Sym y = s.Syms[i]
+        if ((y.Kind = SymKind.SubProc) orelse (y.Kind = SymKind.FunctionProc)) andalso (y.BodyLine > 0) _
+           andalso (y.BodyLine <= ln) andalso (y.BodyEndLine >= ln) andalso (y.File = f) then
+            ' the innermost: the latest-starting body that still holds the line
+            if (best < 0) orelse (y.BodyLine > s.Syms[best].BodyLine) then best = i
+        end if
+    next
+    return best
+end function
+
+private function IsGlobalKind( byval k as SymKind ) as boolean
+    select case k
+    case SymKind.SubProc, SymKind.FunctionProc, SymKind.TypeDef, SymKind.UnionDef, SymKind.EnumDef, _
+         SymKind.Variable, SymKind.ConstDef, SymKind.TypeAlias, SymKind.Define, SymKind.NamespaceDef, SymKind.EnumValue
+        return true
+    end select
+    return false
+end function
+
+' A procedure's record at its body beats its declaration; a symbol in the asking file beats
+' one elsewhere.
+private function Better( byref a as const Sym, byref b as const Sym, byref f as const ustring ) as boolean
+    dim as long sa = 0, sb = 0
+    if a.BodyLine > 0 then sa += 2
+    if b.BodyLine > 0 then sb += 2
+    if a.File = f then sa += 1
+    if b.File = f then sb += 1
+    return sa > sb
+end function
+
+' The declaration name_ refers to at (file, ln): a local or parameter of the enclosing
+' procedure first, then a member of the qualifier's type ("p" in "p.x"), then a global.
+function Database.Definition( byref name_ as const ustring, byref file as const ustring, _
+                              byval ln as long, byref qualifier as const ustring ) as SymRef
+    dim as SymRef best
+    dim as ustring f = ucase( file )
+    if len( qualifier ) then
+        dim as SymRef t = this.TypeRefOf( qualifier, file, ln )
+        if t.IsValid( ) then
+            for each m as SymRef in this.Members( t )
+                if Key( this.Item( m ).Name ) = Key( name_ ) then return m
+            next
+        end if
+        ' a namespace / module alias: its child of that name
+        for k as long = 0 to m_sets.Count( ) - 1
+            dim as long i = m_sets[k].First( qualifier )
+            while i >= 0
+                if m_sets[k].Syms[i].Kind = SymKind.NamespaceDef then
+                    dim as long c = m_sets[k].FirstChild( i )
+                    while c >= 0
+                        if Key( m_sets[k].Syms[c].Name ) = Key( name_ ) then
+                            best.SetNo = k : best.Index = c
+                            return best
+                        end if
+                        c = m_sets[k].NextSibling( c )
+                    wend
+                end if
+                i = m_sets[k].NextSame( i )
+            wend
+        next
+        return best
+    end if
+    ' locals and parameters
+    for k as long = 0 to m_sets.Count( ) - 1
+        dim as long p = this.EnclosingProc( k, file, ln )
+        if p < 0 then continue for
+        dim as long c = m_sets[k].FirstChild( p )
+        while c >= 0
+            if Key( m_sets[k].Syms[c].Name ) = Key( name_ ) then
+                best.SetNo = k : best.Index = c
+                return best
+            end if
+            c = m_sets[k].NextSibling( c )
+        wend
+    next
+    ' globals
+    for k as long = 0 to m_sets.Count( ) - 1
+        dim as long i = m_sets[k].First( name_ )
+        while i >= 0
+            dim byref as Sym y = m_sets[k].Syms[i]
+            if IsGlobalKind( y.Kind ) andalso ((y.Flags and FLAG_LOCAL) = 0) then
+                if (best.IsValid( ) = false) orelse Better( y, this.Item( best ), f ) then
+                    best.SetNo = k : best.Index = i
+                end if
+            end if
+            i = m_sets[k].NextSame( i )
+        wend
+    next
+    return best
+end function
+
+' The TYPE / UNION a variable, parameter or field is declared as; invalid when it is none.
+function Database.TypeRefOf( byref name_ as const ustring, byref file as const ustring, byval ln as long ) as SymRef
+    dim as SymRef none_
+    dim as SymRef v = this.Definition( name_, file, ln )
+    if v.IsValid( ) = false then return none_
+    dim byref as Sym y = this.Item( v )
+    if (y.Kind = SymKind.TypeDef) orelse (y.Kind = SymKind.UnionDef) then return v
+    dim as ustring tn = BaseTypeName( y.TypeText )
+    if len( tn ) = 0 then return none_
+    for k as long = 0 to m_sets.Count( ) - 1
+        dim as long i = m_sets[k].First( tn )
+        while i >= 0
+            dim as SymKind kk = m_sets[k].Syms[i].Kind
+            if (kk = SymKind.TypeDef) orelse (kk = SymKind.UnionDef) then
+                none_.SetNo = k : none_.Index = i
+                return none_
+            end if
+            i = m_sets[k].NextSame( i )
+        wend
+    next
+    return none_
+end function
+
+' A type's fields and methods, then its base's (EXTENDS), deepest last; ten levels at most.
+function Database.Members( byref typeRef as const SymRef ) as Array( of SymRef )
+    dim as Array( of SymRef ) out_
+    dim as SymRef t = typeRef
+    for depth as long = 1 to 10
+        if t.IsValid( ) = false then exit for
+        dim as long c = m_sets[t.SetNo].FirstChild( t.Index )
+        while c >= 0
+            dim as Sym y = m_sets[t.SetNo].Syms[c]
+            if (y.Flags and FLAG_INSTANCE) = 0 then
+                dim as SymRef r
+                r.SetNo = t.SetNo : r.Index = c
+                out_.Push( r )
+            end if
+            c = m_sets[t.SetNo].NextSibling( c )
+        wend
+        ' methods defined outside the TYPE block are children too; the base comes next
+        dim as ustring base_ = BaseTypeName( this.Item( t ).TypeText )
+        dim as SymRef nextT
+        if len( base_ ) andalso (lcase( base_ ) <> "object") then
+            for k as long = 0 to m_sets.Count( ) - 1
+                dim as long i = m_sets[k].First( base_ )
+                while i >= 0
+                    if m_sets[k].Syms[i].Kind = SymKind.TypeDef then
+                        nextT.SetNo = k : nextT.Index = i
+                        exit for
+                    end if
+                    i = m_sets[k].NextSame( i )
+                wend
+            next
+        end if
+        t = nextT
+    next
+    return out_
+end function
+
+' Names out of a list, once each, sorted case-insensitively.
+private function Sorted( byref names as Array( of ustring ) ) as Array( of ustring )
+    dim as Map( of ustring, ustring ) seen
+    dim as Array( of ustring ) keys
+    for each n as ustring in names
+        dim as ustring k = lcase( n )
+        if seen.Contains( k ) = false then
+            seen.Put( k, n )
+            ' insertion sort: completion lists are short
+            dim as long at = keys.Count( )
+            while (at > 0) andalso (keys[at - 1] > k)
+                at -= 1
+            wend
+            keys.Insert( at, k )
+        end if
+    next
+    dim as Array( of ustring ) out_
+    for each k as ustring in keys
+        out_.Push( seen[k] )
+    next
+    return out_
+end function
+
+' The names an identifier starting with prefix could be at (file, ln): locals and parameters of
+' the enclosing procedure, then every global. Case-insensitive prefix; sorted, once each.
+function Database.Completions( byref prefix as const ustring, byref file as const ustring, byval ln as long ) as Array( of ustring )
+    dim as Array( of ustring ) found
+    dim as ustring pre = lcase( prefix )
+    dim as long n = len( pre )
+    for k as long = 0 to m_sets.Count( ) - 1
+        dim as long p = this.EnclosingProc( k, file, ln )
+        if p >= 0 then
+            dim as long c = m_sets[k].FirstChild( p )
+            while c >= 0
+                dim as Sym y = m_sets[k].Syms[c]
+                if ((y.Flags and FLAG_INSTANCE) = 0) andalso (lcase( left( y.Name, n ) ) = pre) then found.Push( y.Name )
+                c = m_sets[k].NextSibling( c )
+            wend
+        end if
+        for i as long = 0 to m_sets[k].Syms.Count( ) - 1
+            dim byref as Sym y = m_sets[k].Syms[i]
+            if IsGlobalKind( y.Kind ) andalso ((y.Flags and FLAG_LOCAL) = 0) andalso (y.Parent < 0) _
+               andalso (lcase( left( y.Name, n ) ) = pre) then found.Push( y.Name )
+        next
+    next
+    return Sorted( found )
+end function
+
+' What follows "qualifier." : the members of its type, or a namespace's children.
+function Database.MemberNames( byref qualifier as const ustring, byref file as const ustring, byval ln as long ) as Array( of ustring )
+    dim as Array( of ustring ) found
+    dim as SymRef t = this.TypeRefOf( qualifier, file, ln )
+    if t.IsValid( ) then
+        for each m as SymRef in this.Members( t )
+            found.Push( this.Item( m ).Name )
+        next
+        return Sorted( found )
+    end if
+    for k as long = 0 to m_sets.Count( ) - 1
+        dim as long i = m_sets[k].First( qualifier )
+        while i >= 0
+            if m_sets[k].Syms[i].Kind = SymKind.NamespaceDef then
+                dim as long c = m_sets[k].FirstChild( i )
+                while c >= 0
+                    found.Push( m_sets[k].Syms[c].Name )
+                    c = m_sets[k].NextSibling( c )
+                wend
+            end if
+            i = m_sets[k].NextSame( i )
+        wend
+    next
+    return Sorted( found )
+end function
+
+' The TYPE / UNION / ENUM / alias names starting with prefix (what follows "as ").
+function Database.TypeNames( byref prefix as const ustring ) as Array( of ustring )
+    dim as Array( of ustring ) found
+    dim as ustring pre = lcase( prefix )
+    for k as long = 0 to m_sets.Count( ) - 1
+        for i as long = 0 to m_sets[k].Syms.Count( ) - 1
+            dim byref as Sym y = m_sets[k].Syms[i]
+            select case y.Kind
+            case SymKind.TypeDef, SymKind.UnionDef, SymKind.EnumDef, SymKind.TypeAlias
+                if lcase( left( y.Name, len( pre ) ) ) = pre then found.Push( y.Name )
+            end select
+        next
+    next
+    return Sorted( found )
+end function
+
+' The old BuildCalltip: "Name(a as long, byref s as string, [n as long]) as long".
+function Database.CallTip( byref name_ as const ustring, byref qualifier as const ustring, _
+                           byref file as const ustring, byval ln as long ) as ustring
+    dim as SymRef r = this.Definition( name_, file, ln, qualifier )
+    if r.IsValid( ) = false then return ""
+    dim byref as Sym pr = this.Item( r )
+    if (pr.Kind <> SymKind.SubProc) andalso (pr.Kind <> SymKind.FunctionProc) then return ""
+    dim as ustring tip = pr.Name & "("
+    dim as long n = 0
+    ' parameters are children in declaration order
+    dim as SymbolSet ptr s = @m_sets[r.SetNo]
+    dim as long c = s->FirstChild( r.Index )
+    while c >= 0
+        dim as Sym y = s->Syms[c]
+        if (y.Kind = SymKind.Param) andalso ((y.Flags and FLAG_INSTANCE) = 0) then
+            dim as ustring p
+            if y.Flags and FLAG_BYREF then p = "byref "
+            p &= y.Name
+            if y.Flags and FLAG_ARRAY then p &= "()"
+            if len( y.TypeText ) then p &= " as " & y.TypeText
+            if y.Flags and FLAG_OPTIONAL then p = "[" & p & "]"
+            if n > 0 then tip &= ", "
+            tip &= p
+            n += 1
+        end if
+        c = s->NextSibling( c )
+    wend
+    tip &= ")"
+    if (pr.Kind = SymKind.FunctionProc) andalso (len( pr.TypeText ) > 0) then tip &= " as " & pr.TypeText
+    return tip
+end function

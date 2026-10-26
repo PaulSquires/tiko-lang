@@ -1,0 +1,38 @@
+# Provenance
+
+tkEdit copies and trims tiko-studio's GUI-free modules (PLAN.md D7) instead of depending on them.
+Every copied file is listed here with its source, so a fix in either editor can be carried across
+by hand. Source commit for everything below: **tiko-studio `2c83fca`** (2026-10-26).
+
+Common edits to every copied file: package prefixes `tsp/ tsc/ tss/ tsa/` → `tkp/ tkc/ tks/ tka/`,
+the name `tiko-studio` → `tkEdit` (incl. `platform.APP_NAME` and the run-script names).
+
+| tkEdit | From tiko-studio | Changes beyond the common ones |
+| --- | --- | --- |
+| `src/platform/platform` | `src/platform/platform` | — |
+| `src/core/appinfo` | `src/core/appinfo` | — |
+| `src/core/autoinsert` | `src/core/autoinsert` | — |
+| `src/core/build` | `src/core/build` | — |
+| `src/core/docencoding` | `src/core/docencoding` | — |
+| `src/core/fuzzy` | `src/core/fuzzy` | — |
+| `src/core/mru` | `src/core/mru` | — |
+| `src/core/navhistory` | `src/core/navhistory` | — |
+| `src/core/outline` | `src/core/outline` | — |
+| `src/core/safewrite` | `src/core/safewrite` | — |
+| `src/core/symboldb` | `src/core/symboldb` | — |
+| `src/core/text` | `src/core/text` | — |
+| `src/core/textsearch` | `src/core/textsearch` | — |
+| `src/core/textstream` | `src/core/textstream` | — |
+| `src/core/tomlget` | `src/core/tomlget` | — |
+| `src/core/tests/{tally,fuzzysuite,textsuite,buildsuite,mrusuite,navsuite,encsuite}` | same | — |
+| `src/core/tests/outlinesuite` | same | `ProjectRun` (tsc/projects) dropped |
+| `src/core/tests/intelsuite` | `src/core/tests/p8suite` | renamed |
+| `src/core/tests/coreall.tiko` | same | only the suites above; tkEdit's names |
+| `src/svc/parser` | `src/svc/parser` | — |
+| `src/svc/runner` | `src/svc/runner` | — |
+| `src/app/editor` | `src/app/editor` | `ViewLook` (settings + .theme) replaced by a resolved `Look`/`Style` and `DefaultLook`; breakpoints, debug line, `KeywordFore`, `DefaultBackColor` removed (no debugger, D6); whitespace/wrap applied from the look |
+| `src/app/mainwin/mainwin.tiko` | — | new; `AppOptions` and `WordsOf`/`LoadKeywords` from `mainwin.StudioOptions` / `chrome.LoadKeywords` |
+| `tools/test-win.sh`, `tools/test-linux.sh`, `tools/idiom.sh` | `tools/` | tkEdit's paths, exe and build folder (`$HOME/tebuild`); tikoParser copied only when present |
+| `fonts/` | `fonts/` | README points at `mainwin.AppOptions` |
+| `keywords/tiko.txt`, `keywords/extra.txt` | `settings/keywords/freebasic_keywords.txt`, `extra_keywords.txt` | renamed |
+| `.gitattributes`, `.gitignore` | same | — |

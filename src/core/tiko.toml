@@ -1,0 +1,16 @@
+# tkEdit core: everything with no window, no SDL and no tk control -- console-testable.
+# Imported as "tkc/<module>".
+[package]
+name = "tkc"
+version = "0.1.0"
+
+[dependencies]
+tkp = { path = "../platform" }
+
+[profile.debug]
+options = ["-w", "all"]
+
+# The package gate: imports every tkc and tkp module and runs the headless suites.
+[target.coreall]
+main = "tests/coreall.tiko"
+output = "tests/bin/coreall.exe"

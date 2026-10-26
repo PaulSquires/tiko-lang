@@ -1,0 +1,52 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' safewrite -- replace a file so a reader sees the old content or the new, never a partial one:
+' write a sibling temporary file, then rename it over the target (rename(2) / MoveFileExW).
+'
+' TS-003: this stands in for std/fs WriteAtomic, whose POSIX ReplaceFile overflows the heap --
+' lib/rt's hParentNarrow copies with "d[i] = tp[i]" on a zstring ptr, which is a STRING
+' assignment (fbc's fb_StrAssign too), so every Linux WriteAtomic writes the rest of the path past
+' a malloc'd block. Once tiko-lang is fixed and repackaged, callers go back to fs.WriteAtomic and
+' this module goes. What is lost meanwhile: the directory fsync after the rename on POSIX and
+' ReplaceFileW's kept attributes on Windows.
+#module "safewrite"
+
+#import "std/fs"
+#import "std/containers"
+#import "std/outcome"
+using containers
+using outcome
+
+private function TempNameFor( byref path as const ustring ) as ustring
+    return path & ".tsc-tmp"
+end function
+
+private function Finish( byref tmp as const ustring, byref path as const ustring, byref w as fs.FsResultBool ) as fs.FsResultBool
+    if w.IsOk( ) = false then
+        fs.RemoveFile( tmp )
+        return w
+    end if
+    dim as fs.FsResultBool m = fs.MoveFile( tmp, path, true )
+    if m.IsOk( ) = false then fs.RemoveFile( tmp )
+    return m
+end function
+
+' ' TS-003: fs.WriteAtomic( path, s, enc )
+public function WriteText( byref path as const ustring, byref s as const ustring, _
+                           byval enc as fs.TextEncoding = fs.Utf8( ) ) as fs.FsResultBool
+    dim as ustring tmp = TempNameFor( path )
+    dim as fs.FsResultBool w = fs.WriteAllText( tmp, s, enc )
+    return Finish( tmp, path, w )
+end function
+
+' ' TS-003: fs.WriteAtomic( path, bytes )
+public function WriteBytes( byref path as const ustring, byref bytes as Array( of ubyte ) ) as fs.FsResultBool
+    dim as ustring tmp = TempNameFor( path )
+    dim as fs.FsResultBool w = fs.WriteAllBytes( tmp, bytes )
+    return Finish( tmp, path, w )
+end function

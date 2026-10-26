@@ -1,0 +1,310 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' docencoding -- a document's file encoding and line ending: what a file's bytes are on load, and
+' what bytes a save writes. Ported from tiko-editor-tiko's eda/docencoding (the old modEncoding.inc:
+' isUTF8encoded, Doc_EncodeForDisk, Doc_EncodingName, the lossy-save rule of Doc_ConfirmLossySave
+' and ConvertTextBuffer) and the two decisions that lived elsewhere: the load detection of
+' routines' GetFileToString and the line-ending detection of clsDocument.AssignTextBuffer. No
+' message box, no Scintilla: the app asks the questions this module answers.
+'
+' THE FOUR ENCODINGS, with the old FILE_ENCODING_* numbers (an importer reads them from .tkproj):
+'   Ansi      the system's legacy code page (Windows' ANSI code page; see LegacyCodec)
+'   Utf8      UTF-8 without a BOM
+'   Utf8Bom   UTF-8 with EF BB BF
+'   Utf16Bom  UTF-16LE with FF FE (a FE FF big-endian file loads as this too, and saves LE)
+'
+' LOAD (DecodeFile), the old order exactly: EF BB BF -> Utf8Bom; FF FE -> Utf16Bom; FE FF ->
+' Utf16Bom, big-endian; else bytes that are well-formed UTF-8 -> Utf8; else Ansi. An EMPTY file is
+' Ansi (the old isUTF8encoded said FALSE for ""); pure ASCII is Utf8 (deliberately, as before). A
+' UTF-16 odd last byte is dropped. One BOM is consumed; a second one is text (U+FEFF).
+'
+' WHAT CHANGED, AND WHY: the old editor kept a document as BYTES in Scintilla -- ANSI files as ANSI
+' bytes in code page 0, everything else as UTF-8 -- and converted only on save. tkEdit keeps
+' every document as text (ustring) and gives Scintilla UTF-8, so DecodeFile converts at load:
+'   * Ansi decodes through the legacy code page; on Windows that is MultiByteToWideChar( CP_ACP ),
+'     byte for byte what the old save path computed.
+'   * A UTF-16 lone surrogate becomes U+FFFD at load -- what the old load's WideToUtf8 gave
+'     Scintilla, so the text is identical.
+'   * MALFORMED UTF-8 after a UTF-8 BOM (the one way a "UTF-8" label holds invalid bytes) decodes
+'     through std/codec, which writes U+FFFD per the Unicode "maximal subpart" practice (what
+'     every browser does): a lead byte whose next byte is out of range (E0 80, ED A0, F0 8F,
+'     F4 90 ...) is TWO U+FFFD, where Windows' MultiByteToWideChar -- the old save path -- writes
+'     ONE. DECIDED: keep std/codec. It is the same on every OS (Linux has no MultiByteToWideChar),
+'     it is the standard, and the case is a corrupt file's first save either way. The old editor
+'     showed those bytes raw and replaced them on save, so both lose them; only the count of
+'     U+FFFD differs. tools/oracle/run-enc.sh counts that class separately and proves it is the
+'     only difference.
+'
+' SAVE (EncodeForDisk): the text in the target encoding, BOM included. Only Ansi can lose a
+' character (it becomes the code page's default character, never a best-fit look-alike); Lossy
+' says so, and EncodingState.PlanSave turns it into the old once-per-document question.
+#module "docencoding"
+
+#import "std/containers"
+#import "std/outcome"
+#import "std/codec"
+#import "std/fs"
+#import "tkc/safewrite"
+using containers
+using outcome
+
+public enum FileEncoding explicit
+    Ansi = 0
+    Utf8 = 1
+    Utf8Bom = 2
+    Utf16Bom = 3
+end enum
+
+' The values are Scintilla's SC_EOL_*, so the app hands them over as they are.
+public enum LineEnd explicit
+    CrLf = 0
+    Cr = 1
+    Lf = 2
+end enum
+
+' What a change of a document's encoding means (PlanChange). The text is always held as Unicode,
+' so every change is a relabel; RelabelLossy says the next save in the new encoding will replace
+' characters (the old "Convert to ANSI" warning).
+public enum EncodingChange explicit
+    Unchanged
+    Relabel
+    RelabelLossy
+end enum
+
+public type LoadedText
+    Encoding  as FileEncoding
+    Text      as ustring
+    BigEndian as boolean        ' a FE FF file (Utf16Bom); it saves little-endian
+end type
+
+public type EncodedText
+    Bytes as Array( of ubyte )
+    Lossy as boolean            ' some character became the code page's default character
+end type
+
+' A save, decided: the bytes, and whether the user must be asked first.
+public type SavePlan
+    Bytes       as Array( of ubyte )
+    Lossy       as boolean
+    MustConfirm as boolean      ' Lossy, and this document's owner has not accepted the loss yet
+end type
+
+' The display name -- one source for the status bar, its popup and the Options combo. Not
+' localized (the encodings' own names). An unknown value is "ANSI", as the old case else was.
+public function EncodingName( byval e as FileEncoding ) as ustring
+    select case e
+    case FileEncoding.Utf8     : return "UTF-8"
+    case FileEncoding.Utf8Bom  : return "UTF-8 (BOM)"
+    case FileEncoding.Utf16Bom : return "UTF-16 (BOM)"
+    end select
+    return "ANSI"
+end function
+
+' An old FILE_ENCODING_* number (.tkproj, settings.ini); anything else is Ansi.
+public function EncodingFromNumber( byval n as long ) as FileEncoding
+    select case n
+    case 1 : return FileEncoding.Utf8
+    case 2 : return FileEncoding.Utf8Bom
+    case 3 : return FileEncoding.Utf16Bom
+    end select
+    return FileEncoding.Ansi
+end function
+
+' THE LEGACY CODE PAGE "ANSI" means: Windows' ANSI code page where there is one; elsewhere (no
+' such thing on Linux or macOS) windows-1252, the code page of the files the Windows editor wrote
+' in the west. Probed, not asked of the OS: codec.Ansi( ) fails with ENC_UNSUPPORTED where it
+' does not exist.
+public function LegacyCodec( ) as codec.TextEncoding
+    dim as Array( of ubyte ) probe
+    dim as codec.EncResultBool r = codec.EncodeText( "A", codec.Ansi( ), probe, false )
+    if r.IsOk( ) = false then
+        if r.Failure( ).Code( ) = codec.ENC_UNSUPPORTED then return codec.CodePage( 1252 )
+    end if
+    return codec.Ansi( )
+end function
+
+private function Starts3( byref b as Array( of ubyte ), byval x as ubyte, byval y as ubyte, byval z as ubyte ) as boolean
+    if b.Count( ) < 3 then return false
+    return ( b[0] = x ) andalso ( b[1] = y ) andalso ( b[2] = z )
+end function
+
+private function Starts2( byref b as Array( of ubyte ), byval x as ubyte, byval y as ubyte ) as boolean
+    if b.Count( ) < 2 then return false
+    return ( b[0] = x ) andalso ( b[1] = y )
+end function
+
+' The old isUTF8encoded: FALSE for no bytes; TRUE for a UTF-8 BOM (whatever follows it) or for
+' well-formed UTF-8.
+public function IsUtf8Encoded( byref b as Array( of ubyte ) ) as boolean
+    if b.Count( ) = 0 then return false
+    if Starts3( b, &hEF, &hBB, &hBF ) then return true
+    return codec.DecodeText( b, codec.Utf8( ), true ).IsOk( )
+end function
+
+' Every unpaired surrogate as U+FFFD: what the text becomes once Scintilla holds it as UTF-8.
+private function NoLoneSurrogates( byref s as const ustring ) as ustring
+    dim as ustring o = s
+    dim as long n = len( o )
+    dim as long i = 0
+    while i < n
+        dim as long u = o[i]
+        if ( u >= &hD800 ) andalso ( u <= &hDBFF ) then
+            dim as boolean paired = false
+            if i + 1 < n then paired = ( o[i + 1] >= &hDC00 ) andalso ( o[i + 1] <= &hDFFF )
+            if paired then
+                i += 2
+                continue while
+            end if
+            o[i] = &hFFFD
+        elseif ( u >= &hDC00 ) andalso ( u <= &hDFFF ) then
+            o[i] = &hFFFD
+        end if
+        i += 1
+    wend
+    return o
+end function
+
+private function Decoded( byref b as Array( of ubyte ), byval enc as codec.TextEncoding ) as ustring
+    dim as codec.EncResultText r = codec.DecodeText( b, enc, false )
+    if r.IsOk( ) = false then return ""
+    return r.Value( )
+end function
+
+' A file's bytes -> its encoding and its text (see LOAD above).
+public function DecodeFile( byref b as Array( of ubyte ) ) as LoadedText
+    dim as LoadedText t
+    if Starts3( b, &hEF, &hBB, &hBF ) then
+        t.Encoding = FileEncoding.Utf8Bom
+        t.Text = Decoded( b, codec.Utf8( ) )              ' consumes the one BOM
+    elseif Starts2( b, &hFF, &hFE ) then
+        t.Encoding = FileEncoding.Utf16Bom
+        t.Text = NoLoneSurrogates( Decoded( b, codec.Utf16LE( ) ) )
+    elseif Starts2( b, &hFE, &hFF ) then
+        t.Encoding = FileEncoding.Utf16Bom
+        t.BigEndian = true
+        t.Text = NoLoneSurrogates( Decoded( b, codec.Utf16BE( ) ) )
+    elseif IsUtf8Encoded( b ) then
+        t.Encoding = FileEncoding.Utf8
+        t.Text = Decoded( b, codec.Utf8( ) )
+    else
+        t.Encoding = FileEncoding.Ansi
+        t.Text = Decoded( b, LegacyCodec( ) )
+    end if
+    return t
+end function
+
+' Reads and decodes a file.
+public function LoadFile( byref path as const ustring ) as Result( of LoadedText, fs.FsError )
+    dim as Array( of ubyte ) b
+    dim as fs.FsResultI64 r = fs.ReadAllBytes( path, b )
+    if r.IsOk( ) = false then return Fail( of LoadedText, fs.FsError )( r.Failure( ) )
+    dim as LoadedText t = DecodeFile( b )
+    return Ok( of LoadedText, fs.FsError )( t )
+end function
+
+' The text in an encoding, BOM included (the old Doc_EncodeForDisk; an unknown value is UTF-8,
+' as its case else was).
+public function EncodeForDisk( byref text as const ustring, byval e as FileEncoding ) as EncodedText
+    dim as EncodedText o
+    select case e
+    case FileEncoding.Ansi
+        dim as codec.EncResultBool r = codec.EncodeText( text, LegacyCodec( ), o.Bytes, false )
+        if r.IsOk( ) then o.Lossy = ( r.Value( ) = false )
+    case FileEncoding.Utf8Bom
+        codec.EncodeText( text, codec.Utf8( true ), o.Bytes, false )
+    case FileEncoding.Utf16Bom
+        codec.EncodeText( text, codec.Utf16LE( true ), o.Bytes, false )
+    case else
+        codec.EncodeText( text, codec.Utf8( ), o.Bytes, false )
+    end select
+    return o
+end function
+
+' Can every character of text be saved in e? Only Ansi can say no.
+public function CanRepresent( byref text as const ustring, byval e as FileEncoding ) as boolean
+    if e <> FileEncoding.Ansi then return true
+    return EncodeForDisk( text, e ).Lossy = false
+end function
+
+' The line ending text already uses: CRLF if it holds one anywhere, else LF, else CR (the old
+' AssignTextBuffer order); nothing when it has no line break at all.
+public function DetectLineEnd( byref text as const ustring ) as Optional( of LineEnd )
+    if instr( text, wchr( 13, 10 ) ) > 0 then return Some( of LineEnd )( LineEnd.CrLf )
+    if instr( text, wchr( 10 ) ) > 0 then return Some( of LineEnd )( LineEnd.Lf )
+    if instr( text, wchr( 13 ) ) > 0 then return Some( of LineEnd )( LineEnd.Cr )
+    return None( of LineEnd )( )
+end function
+
+' The line ending a document gets: its own; else, for a File > New document, the newFile setting;
+' else (an existing one-line file) the editor's default -- Scintilla's CRLF on Windows, as before.
+public function ChooseLineEnd( byref text as const ustring, byval isNew as boolean, byval newFile as LineEnd, _
+                               byval otherwise as LineEnd ) as LineEnd
+    dim as Optional( of LineEnd ) d = DetectLineEnd( text )
+    if d.HasValue( ) then return d.Value( )
+    if isNew then return newFile
+    return otherwise
+end function
+
+' Writes a save's bytes atomically (std/fs: a sibling temporary, flushed, renamed over the file),
+' so a failed save leaves the old file as it was. A sharing violation is RETRIED, ten times 25 ms
+' apart, as the old Doc_WriteToDisk measured it must be: a scan worker or a virus scanner briefly
+' holding the file is the common cause, and it heals. Any other failure returns at once.
+public function WriteFile( byref path as const ustring, byref bytes as Array( of ubyte ) ) as fs.FsResultBool
+    dim as fs.FsResultBool r
+    for attempt as long = 1 to 10
+        r = safewrite.WriteBytes( path, bytes )   ' TS-003
+        if r.IsOk( ) then return r
+        dim as fs.FsErrorCode code_ = r.Failure( ).Code( )
+        if ( code_ <> fs.FS_IN_USE ) andalso ( code_ <> fs.FS_ACCESS_DENIED ) then return r
+        if attempt < 10 then sleep 25, 1
+    next
+    return r
+end function
+
+' ---------------------------------------------------------------- a document's encoding state
+
+public type EncodingState
+    Encoding      as FileEncoding
+    LineEnding    as LineEnd
+    LossyAccepted as boolean      ' the user said yes to losing characters in THIS encoding
+
+    ' The bytes a save writes, and whether to ask first (the old Doc_ConfirmLossySave: asked once
+    ' per document; a "no" saves nothing).
+    declare function PlanSave( byref text as const ustring ) as SavePlan
+    ' The user agreed to the loss: not asked again until the encoding changes.
+    declare sub AcceptLossy( )
+    ' What changing to e would mean for this text.
+    declare function PlanChange( byval e as FileEncoding, byref text as const ustring ) as EncodingChange
+    ' Relabels; a deliberate change forgets an earlier "yes, lose them" (it was about another
+    ' encoding).
+    declare sub ApplyChange( byval e as FileEncoding )
+end type
+
+function EncodingState.PlanSave( byref text as const ustring ) as SavePlan
+    dim as SavePlan p
+    dim as EncodedText t = EncodeForDisk( text, this.Encoding )
+    p.Bytes = t.Bytes
+    p.Lossy = t.Lossy
+    p.MustConfirm = t.Lossy andalso ( this.LossyAccepted = false )
+    return p
+end function
+
+sub EncodingState.AcceptLossy( )
+    this.LossyAccepted = true
+end sub
+
+function EncodingState.PlanChange( byval e as FileEncoding, byref text as const ustring ) as EncodingChange
+    if e = this.Encoding then return EncodingChange.Unchanged
+    if CanRepresent( text, e ) = false then return EncodingChange.RelabelLossy
+    return EncodingChange.Relabel
+end function
+
+sub EncodingState.ApplyChange( byval e as FileEncoding )
+    this.Encoding = e
+    this.LossyAccepted = false
+end sub

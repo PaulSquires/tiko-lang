@@ -1,0 +1,12 @@
+# tkEdit services: work that runs beside the window -- processes, readers, workers. No widgets.
+# Imported as "tks/<module>". Needs -mt (std/tasks), which the app's target gives it.
+[package]
+name = "tks"
+version = "0.1.0"
+
+[dependencies]
+tkp = { path = "../platform" }
+tkc = { path = "../core" }
+
+[profile.debug]
+options = ["-w", "all"]

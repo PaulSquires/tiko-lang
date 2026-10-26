@@ -1,0 +1,128 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' runner -- one child process whose output the window shows as it comes (the old
+' CreatePipe + ThreadCreate + PostMessage, PLAN.md deficiency 14). A goroutine reads the
+' child's merged stdout/stderr and sends each line down a channel, then the exit code; the UI
+' drains both from a timer (Poll), so nothing here touches a widget. The reader blocks in a pipe
+' read, which holds a pool thread, as std/tasks says it may.
+#module "runner"
+
+#import "std/containers"
+#import "std/fs"
+#import "std/outcome"
+#import "std/process"
+#import "std/tasks"
+using containers
+using outcome
+using tasks
+
+public type Job
+    Lines as Channel( of ustring ) = Channel( of ustring )( 4096 )
+    Exit_ as Channel( of long ) = Channel( of long )( 1 )
+    child as process.Child
+    running as boolean
+    finished as boolean
+    exitCode as long = -1
+    pending as string                    ' bytes after the last line break
+
+    declare function Start( byref program as const ustring, byref args as const Array( of ustring ), _
+                            byref workDir as const ustring ) as Result( of boolean, ustring )
+    declare function Poll( byref got as Array( of ustring ) ) as boolean    ' TRUE once it has ended
+    declare sub Cancel( )
+    declare sub Finish( )                 ' kill if running, and wait for the reader to let go
+    declare function IsRunning( ) as boolean
+end type
+
+' The reader: lines out, then the code. One per Job, started by Start.
+sub ReadAll( byval j as Job ptr )
+    dim as ubyte buf( 0 to 4095 )
+    dim as string carry
+    do
+        dim as fs.FsResultI64 r = j->child.Stdout( ).Read( @buf( 0 ), 4096 )
+        if (r.IsOk( ) = false) orelse (r.Value( ) <= 0) then exit do
+        dim as long n = r.Value( )
+        dim as string chunk = space( n )
+        for i as long = 0 to n - 1
+            chunk[i] = buf( i )
+        next
+        carry &= chunk
+        do
+            dim as long e = instr( carry, chr( 10 ) )
+            if e = 0 then exit do
+            dim as string one = left( carry, e - 1 )
+            if right( one, 1 ) = chr( 13 ) then one = left( one, len( one ) - 1 )
+            carry = mid( carry, e + 1 )
+            dim as ustring u = *cast( zstring ptr, strptr( one ) )   ' UTF-8, as tiko prints
+            j->Lines.Send( u )
+        loop
+    loop
+    if len( carry ) then
+        dim as ustring u = *cast( zstring ptr, strptr( carry ) )
+        j->Lines.Send( u )
+    end if
+    dim as long code = -1
+    dim as process.ProcResultStatus st = j->child.Wait( )
+    if st.IsOk( ) then code = st.Value( ).Code( )
+    j->Exit_.Send( code )
+end sub
+
+function Job.Start( byref program as const ustring, byref args as const Array( of ustring ), _
+                    byref workDir as const ustring ) as Result( of boolean, ustring )
+    if running then return Fail( of boolean, ustring )( "already running" )
+    dim as process.Command cmd = process.Command( program )
+    dim as Array( of ustring ) a = args
+    cmd.Args( a )
+    if len( workDir ) then cmd.Cwd( workDir )
+    cmd.StdinFrom( process.STDIO_NULL ).StdoutTo( process.STDIO_PIPE ).StderrToStdout( ).HideWindow( )
+    dim as process.ProcResultBool r = child.Spawn( cmd )
+    if r.IsOk( ) = false then return Fail( of boolean, ustring )( r.Failure( ).Message( ) )
+    running = true
+    finished = false
+    exitCode = -1
+    dim as Job ptr me_ = @this
+    spawn ReadAll( me_ )
+    return Ok( of boolean, ustring )( true )
+end function
+
+' Whatever lines arrived since the last call; TRUE (with exitCode set) once the process has
+' ended and every line was handed over.
+function Job.Poll( byref got as Array( of ustring ) ) as boolean
+    if running = false then return finished
+    dim as ustring ln
+    while Lines.TryReceive( ln )
+        got.Push( ln )
+    wend
+    dim as long code
+    if Exit_.TryReceive( code ) then
+        while Lines.TryReceive( ln )                  ' the last lines, sent before the code
+            got.Push( ln )
+        wend
+        exitCode = code
+        running = false
+        finished = true
+    end if
+    return finished
+end function
+
+sub Job.Cancel( )
+    if running then child.Kill( )
+end sub
+
+' Before the Job goes away: the reader holds a pointer to it.
+sub Job.Finish( )
+    if running = false then exit sub
+    child.Kill( )
+    dim as long code
+    if Exit_.ReceiveFor( code, 5000 ) then exitCode = code
+    running = false
+    finished = true
+end sub
+
+function Job.IsRunning( ) as boolean
+    return running
+end function

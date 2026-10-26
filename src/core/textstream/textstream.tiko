@@ -1,0 +1,96 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' textstream -- whole text files in whichever encoding they carry, and the old editor's line rules.
+' Ported from tiko-editor-tiko's edc/textstream, which re-created AfxNova's CTextStream (the
+' Scripting.FileSystemObject) on std/fs. tkEdit writes only UTF-8, so what is left is what
+' the importers and the .lang / .theme readers need:
+'
+'   ReadText     the encoding is found, not assumed: a BOM decides (UTF-8, UTF-16LE, UTF-16BE);
+'                without one, well-formed UTF-8 is UTF-8 and anything else is the ANSI code page
+'                -- windows-1252 where the OS has no ANSI code page, because every such file
+'                came from the Windows editor.
+'   SplitLines   FSO's ReadLine, measured by the old tsoracle: a line ends at LF, ONE CR right
+'                before that LF is dropped, a bare CR is text, and a final newline does not start
+'                an extra empty line.
+'   WriteText    atomic, UTF-8 without a BOM unless told otherwise.
+'
+' Gone: HRESULTs, Open/Close streams, ANSI writes, the cut at the first NUL (a BSTR artefact).
+#module "textstream"
+
+#import "std/fs"
+#import "std/codec"
+#import "std/containers"
+#import "std/outcome"
+#import "tkc/safewrite"
+using containers
+using outcome
+
+public type TextFile
+    Text     as ustring
+    Encoding as codec.TextEncoding     ' as found; Encoding.Bom says whether a BOM was there
+end type
+
+public type TextFileResult as Result( of TextFile, fs.FsError )
+
+' The encoding that bytes without a BOM and without well-formed UTF-8 are read in.
+private function AnsiOrWestern( ) as codec.TextEncoding
+    dim as Array( of ubyte ) probe
+    probe.Push( &h41 )
+    if codec.DecodeText( probe, codec.Ansi( ) ).IsOk( ) then return codec.Ansi( )
+    return codec.CodePage( 1252 )
+end function
+
+' Bytes -> text by the rules above.
+public function DecodeBytes( byref b as Array( of ubyte ) ) as Result( of TextFile, ustring )
+    dim as codec.TextDetect opts = codec.TextDetect( AnsiOrWestern( ) )
+    dim as codec.EncResultEncoding e = codec.DetectEncoding( b, opts )
+    if e.IsOk( ) = false then return Fail( of TextFile, ustring )( e.Failure( ).Message( ) )
+    dim as codec.EncResultText t = codec.DecodeText( b, e.Value( ) )
+    if t.IsOk( ) = false then return Fail( of TextFile, ustring )( t.Failure( ).Message( ) )
+    dim as TextFile f
+    f.Text = t.Value( )
+    f.Encoding = e.Value( )
+    return Ok( of TextFile, ustring )( f )
+end function
+
+public function ReadText( byref path as const ustring ) as TextFileResult
+    dim as Array( of ubyte ) b
+    dim as fs.FsResultI64 r = fs.ReadAllBytes( path, b )
+    if r.IsOk( ) = false then return Fail( of TextFile, fs.FsError )( r.Failure( ) )
+    dim as Result( of TextFile, ustring ) d = DecodeBytes( b )
+    if d.IsOk( ) = false then return fs.FsFail( of TextFile )( fs.FS_INVALID_DATA, "ReadText", path )
+    return Ok( of TextFile, fs.FsError )( d.Value( ) )
+end function
+
+public function SplitLines( byref s as const ustring ) as Array( of ustring )
+    dim as Array( of ustring ) lines
+    dim as long n = len( s ), start = 0
+    while start < n
+        dim as long i = start
+        while ( i < n ) andalso ( s[i] <> 10 )
+            i += 1
+        wend
+        dim as long stop_ = i
+        if ( i < n ) andalso ( stop_ > start ) andalso ( s[stop_ - 1] = 13 ) then stop_ -= 1
+        lines.Push( mid( s, start + 1, stop_ - start ) )
+        start = i + 1
+    wend
+    return lines
+end function
+
+' ReadText then SplitLines.
+public function ReadLines( byref path as const ustring ) as Result( of Array( of ustring ), fs.FsError )
+    dim as TextFileResult r = ReadText( path )
+    if r.IsOk( ) = false then return Fail( of Array( of ustring ), fs.FsError )( r.Failure( ) )
+    return Ok( of Array( of ustring ), fs.FsError )( SplitLines( r.Value( ).Text ) )
+end function
+
+public function WriteText( byref path as const ustring, byref s as const ustring, _
+                           byval enc as codec.TextEncoding = codec.Utf8( ) ) as fs.FsResultBool
+    return safewrite.WriteText( path, s, enc )   ' TS-003
+end function

@@ -1,0 +1,5 @@
+# tiko build caches and test programs
+out/
+/src/core/tests/bin/
+# bin/ is the run folder: the built program and the SDL libraries the build copies beside it
+/bin/

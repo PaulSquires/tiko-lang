@@ -1,0 +1,76 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' coreall -- the headless gate: imports every tkp and tkc module and runs every console suite.
+'   coreall [suite...]   only the named suites (platform, fuzzy, ...); none = all of them
+'   exit code = number of failures; last line "coreall [os] selftest: N passed, M failed"
+#import "std/fs"
+#import "std/strings"
+#import "tkp/platform"
+#import "tkc/appinfo"
+#import "tkc/tomlget"
+#import "tkc/safewrite"
+#import "./tally"
+#import "./fuzzysuite"
+#import "./textsuite"
+#import "./buildsuite"
+#import "./mrusuite"
+#import "./navsuite"
+#import "./encsuite"
+#import "./outlinesuite"
+#import "./intelsuite"
+
+' Is suite `name` wanted on this command line?
+function Wanted( byref name_ as const ustring ) as boolean
+    if len( command( 1 ) ) = 0 then return true
+    dim as long i = 1
+    while len( command( i ) ) > 0
+        if lcase( command( i ) ) = name_ then return true
+        i += 1
+    wend
+    return false
+end function
+
+sub PlatformSuite( byref c as tally.Checker )
+    c.Begin( "platform" )
+    dim as platform.Os os_ = platform.CurrentOs( )
+#if defined( TIKO_OS_WINDOWS )
+    c.Check( os_ = platform.Os.Windows, "CurrentOs is Windows" )
+    c.Check( platform.SharedLibraryFile( "tikoParser" ) = "tikoParser.dll", "SharedLibraryFile .dll" )
+#elseif defined( TIKO_OS_LINUX )
+    c.Check( os_ = platform.Os.Linux, "CurrentOs is Linux" )
+    c.Check( platform.SharedLibraryFile( "tikoParser" ) = "tikoParser.so", "SharedLibraryFile .so" )
+#endif
+    c.Check( platform.PrimaryModifierName( ) = "Ctrl", "Primary is Ctrl off macOS" )
+    c.Check( fs.IsDir( platform.ExeDir( ) ), "ExeDir is a folder" )
+    c.Check( fs.IsFile( fs.PathJoin( platform.ExeDir( ), fs.PathFileName( command( 0 ) ) ) ) _
+             orelse fs.IsFile( fs.PathJoin( platform.ExeDir( ), fs.PathFileName( command( 0 ) ) & ".exe" ) ), _
+             "ExeDir holds this program" )
+    dim as fs.FsResultUStr cfg = platform.ConfigDir( )
+    c.Check( cfg.IsOk( ), "ConfigDir resolves" )
+    if cfg.IsOk( ) then c.Check( strings.EndsWith( cfg.Value( ), "tkEdit" ), "ConfigDir ends in tkEdit" )
+    c.Check( platform.SystemFontDirs( ).Count( ) >= 1, "SystemFontDirs not empty" )
+
+    c.Begin( "appinfo" )
+    c.Check( appinfo.VersionText( ) = "0.1.0", "VersionText" )
+    c.Check( appinfo.WindowTitle( ) = "tkEdit 0.1.0", "WindowTitle, no document" )
+    c.Check( appinfo.WindowTitle( "a.tiko" ) = "a.tiko - tkEdit", "WindowTitle with a document" )
+end sub
+
+dim as tally.Checker c
+if Wanted( "platform" ) then PlatformSuite( c )
+if Wanted( "fuzzy" ) then fuzzysuite.Run( c )
+if Wanted( "text" ) then textsuite.Run( c )
+if Wanted( "build" ) then buildsuite.Run( c )
+if Wanted( "mru" ) then mrusuite.Run( c )
+if Wanted( "nav" ) then navsuite.Run( c )
+if Wanted( "encoding" ) then encsuite.Run( c )
+if Wanted( "outline" ) then outlinesuite.Run( c )
+if Wanted( "intel" ) then intelsuite.Run( c )
+
+print strings.Format( "coreall [{}] selftest: {} passed, {} failed", platform.OsName( ), c.Passed, c.Failed )
+end c.Failed

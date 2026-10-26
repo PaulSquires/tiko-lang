@@ -1,0 +1,251 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' navhistory -- browser-style Go Back / Go Forward: the model only. Ported from tiko-editor-tiko's
+' eda/navhistory (the old modNavHistory.inc). The editor calls nothing here with a window: the
+' app captures "where the caret is" into a NavEntry and feeds it in, and Back / Forward hand back
+' the entry to go to, which the app opens and positions.
+'
+' MODEL: one list plus a cursor. Entry( Cursor ) is WHERE WE ARE NOW. A new navigation truncates
+' everything after the cursor and appends -- what a browser, Visual Studio and VS Code do. An
+' empty list has Cursor = -1.
+'
+' IDENTITY: an entry keys on the file's path (fs.PathEquals: case-insensitive on Windows, as the
+' old ucase( ) compare was), never on a document object, so Back can reopen a file the user has
+' since closed. A position with no path (an unsaved document) is never recorded.
+'
+' DURABILITY: the caret's byte offset is exact only while the document is unchanged, so every
+' entry also carries its line and the document's length at capture. UseExactPosition decides on
+' the way back: same length => the offset, else the line (not marker-tracked, so a line is itself
+' approximate once text was inserted above it).
+'
+' SUPPRESSION: opening a document and switching tabs are themselves recording sites, so the app
+' brackets every navigation it performs FOR the history (and every bulk load: a session or
+' project open) in Suppress / Unsuppress. Without that a Back records its own destination and the
+' cursor never moves. The old module tested the app's loading flags itself; here the app owns
+' them and says so through the same bracket.
+'
+' EDIT TRACKING: an edit stamps a PENDING location; a run of typing on one line is one entry,
+' appended when the caret leaves that line or another document is edited (CheckPendingEdit).
+#module "navhistory"
+
+#import "std/containers"
+#import "std/fs"
+using containers
+
+' Deepest history kept; past it the OLDEST entry is dropped.
+public const MAX_ENTRIES = 50
+
+public type NavEntry
+    File      as ustring    ' the document's path -- the identity; "" = no position
+    Position  as long       ' caret byte offset at capture (exact, but perishable)
+    Line      as long       ' the caret's line (0-based) -- the fallback
+    FirstLine as long       ' first visible line, so the scroll is restored too
+    DocLength as long       ' document length in bytes at capture -- the staleness test
+end type
+
+' An entry with every field given (what the app's capture builds).
+public function MakeEntry( byref file as const ustring, byval line_ as long, byval position as long = 0, _
+                           byval docLength as long = 0, byval firstLine as long = 0 ) as NavEntry
+    dim as NavEntry e
+    e.File = file
+    e.Line = line_
+    e.Position = position
+    e.DocLength = docLength
+    e.FirstLine = firstLine
+    return e
+end function
+
+' Is the stored offset still meaningful in a document now docLength long? Only while the length
+' is what it was at capture; otherwise the LINE is the better answer.
+public function UseExactPosition( byref e as const NavEntry, byval docLength as long ) as boolean
+    return e.DocLength = docLength
+end function
+
+public type History
+    ' Empties the history and drops a pending edit (a project load: the entries would point
+    ' into the workspace the user just left).
+    declare sub Clear( )
+    declare function Count( ) as long
+    declare function Cursor( ) as long                         ' -1 when empty
+    declare function Entry( byval i as long ) as NavEntry      ' an empty entry out of range
+    declare function CanBack( ) as boolean
+    declare function CanForward( ) as boolean
+
+    ' The rules every producer shares: an entry with no file is refused; the forward trail is
+    ' truncated; the same file AND line as the current entry refreshes it in place; the list is
+    ' capped from the front. TRUE when the list grew.
+    declare function Append( byref e as const NavEntry ) as boolean
+
+    declare sub Suppress( )
+    declare sub Unsuppress( )
+    declare function IsRecordingAllowed( ) as boolean
+
+    ' Before a navigation: here = the position being LEFT (File "" when there is none). Flushes a
+    ' pending edit first, so it lands ahead of the jump.
+    declare sub RecordJump( byref here as const NavEntry )
+    ' After a navigation: here = the position ARRIVED at.
+    declare sub NoteArrival( byref here as const NavEntry )
+    ' Brings the current entry up to the live caret -- only when it is the same file, and
+    ' without touching the forward trail.
+    declare sub RefreshCurrent( byref here as const NavEntry )
+
+    ' An edit at here (a modification notification): stamps the pending location, flushing the
+    ' previous one when the file or line differs.
+    declare sub NoteEdit( byref here as const NavEntry )
+    ' The caret moved in file to line: once it has left the edited line, the pending location
+    ' is history.
+    declare sub CheckPendingEdit( byref file as const ustring, byval line_ as long )
+    declare sub FlushPendingEdit( )
+    declare function HasPendingEdit( ) as boolean
+
+    ' Go Back / Go Forward from the live position here (File "" when there is none). The result
+    ' is the entry to navigate to -- empty when the step is not possible. The app opens it
+    ' inside Suppress / Unsuppress and positions it by UseExactPosition.
+    declare function Back( byref here as const NavEntry ) as NavEntry
+    declare function Forward( byref here as const NavEntry ) as NavEntry
+private:
+    declare static function SameFile( byref a as const ustring, byref b as const ustring ) as boolean
+    as Array( of NavEntry ) m_entries
+    as long m_cursor = -1
+    as long m_suppress
+    as NavEntry m_pending
+    as boolean m_pendingActive
+end type
+
+function History.SameFile( byref a as const ustring, byref b as const ustring ) as boolean
+    return fs.PathEquals( a, b )
+end function
+
+sub History.Clear( )
+    this.m_entries.Clear( )
+    this.m_cursor = -1
+    this.m_pendingActive = false
+end sub
+
+function History.Count( ) as long
+    return this.m_entries.Count( )
+end function
+
+function History.Cursor( ) as long
+    return this.m_cursor
+end function
+
+function History.Entry( byval i as long ) as NavEntry
+    dim as NavEntry e
+    if ( i < 0 ) orelse ( i >= this.m_entries.Count( ) ) then return e
+    return this.m_entries[i]
+end function
+
+function History.CanBack( ) as boolean
+    return this.m_cursor > 0
+end function
+
+function History.CanForward( ) as boolean
+    return ( this.m_cursor >= 0 ) andalso ( this.m_cursor < this.m_entries.Count( ) - 1 )
+end function
+
+function History.Append( byref e as const NavEntry ) as boolean
+    if len( e.File ) = 0 then return false
+
+    ' A new navigation kills whatever we could have gone Forward to.
+    while this.m_entries.Count( ) - 1 > this.m_cursor
+        this.m_entries.Remove( this.m_entries.Count( ) - 1 )
+    wend
+
+    ' Same file AND line as where we are: refresh in place (repeated Find Next, three edits on
+    ' one line).
+    if this.m_cursor >= 0 then
+        dim as boolean same = SameFile( this.m_entries[this.m_cursor].File, e.File )
+        if same andalso ( this.m_entries[this.m_cursor].Line = e.Line ) then
+            this.m_entries[this.m_cursor] = e
+            return false
+        end if
+    end if
+
+    dim as NavEntry copy_ = e
+    this.m_entries.Push( copy_ )
+    if this.m_entries.Count( ) > MAX_ENTRIES then this.m_entries.Remove( 0 )
+    this.m_cursor = this.m_entries.Count( ) - 1
+    return true
+end function
+
+sub History.Suppress( )
+    this.m_suppress += 1
+end sub
+
+sub History.Unsuppress( )
+    if this.m_suppress > 0 then this.m_suppress -= 1
+end sub
+
+function History.IsRecordingAllowed( ) as boolean
+    return this.m_suppress = 0
+end function
+
+sub History.RecordJump( byref here as const NavEntry )
+    if this.IsRecordingAllowed( ) = false then exit sub
+    this.FlushPendingEdit( )
+    this.Append( here )
+end sub
+
+sub History.NoteArrival( byref here as const NavEntry )
+    if this.IsRecordingAllowed( ) = false then exit sub
+    this.Append( here )
+end sub
+
+sub History.RefreshCurrent( byref here as const NavEntry )
+    if this.m_cursor < 0 then exit sub
+    if len( here.File ) = 0 then exit sub
+    if SameFile( this.m_entries[this.m_cursor].File, here.File ) then this.m_entries[this.m_cursor] = here
+end sub
+
+sub History.NoteEdit( byref here as const NavEntry )
+    if this.IsRecordingAllowed( ) = false then exit sub
+    if len( here.File ) = 0 then exit sub
+    if this.m_pendingActive then
+        dim as boolean same = SameFile( this.m_pending.File, here.File )
+        if ( same = false ) orelse ( this.m_pending.Line <> here.Line ) then this.FlushPendingEdit( )
+    end if
+    this.m_pending = here
+    this.m_pendingActive = true
+end sub
+
+sub History.CheckPendingEdit( byref file as const ustring, byval line_ as long )
+    if this.m_pendingActive = false then exit sub
+    if this.IsRecordingAllowed( ) = false then exit sub
+    dim as boolean same = SameFile( this.m_pending.File, file )
+    if ( same = false ) orelse ( this.m_pending.Line <> line_ ) then this.FlushPendingEdit( )
+end sub
+
+sub History.FlushPendingEdit( )
+    if this.m_pendingActive = false then exit sub
+    this.m_pendingActive = false
+    this.Append( this.m_pending )
+end sub
+
+function History.HasPendingEdit( ) as boolean
+    return this.m_pendingActive
+end function
+
+function History.Back( byref here as const NavEntry ) as NavEntry
+    dim as NavEntry none_
+    ' Flush BEFORE the test: an unflushed edit location is still "where we are", and with one
+    ' entry plus a pending edit further down, testing first would refuse a legitimate Back.
+    this.FlushPendingEdit( )
+    if this.CanBack( ) = false then return none_
+    this.RefreshCurrent( here )
+    this.m_cursor -= 1
+    return this.m_entries[this.m_cursor]
+end function
+
+function History.Forward( byref here as const NavEntry ) as NavEntry
+    dim as NavEntry none_
+    if this.CanForward( ) = false then return none_
+    this.RefreshCurrent( here )
+    this.m_cursor += 1
+    return this.m_entries[this.m_cursor]
+end function

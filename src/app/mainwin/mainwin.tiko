@@ -1,0 +1,188 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' mainwin -- the main window and the App state it owns. One editor fills the window; the status
+' line sits at the bottom (PLAN.md, Window). P0: the frame only -- one view, the status panels,
+' the bundled fonts and the tiko keyword lists. Commands, buffers and config arrive in P1-P2.
+#module "mainwin"
+
+#import "std/fs"
+#import "std/outcome"
+#import "std/strings"
+#import "tkp/platform"
+#import "tkc/appinfo"
+#import "tkc/docencoding"
+#import "tkc/textstream"
+#import "tka/editor"
+#import "tkControls/tkApp"
+#import "tkControls/tkCodeEdit"
+#import "tkControls/tkStatusBar"
+using outcome
+using tkApp
+using tkHost
+using tkCodeEdit
+using tkStatusBar
+
+public const FONT_UI = "Inter-Regular.ttf"
+public const FONT_UI_BOLD = "Inter-Bold.ttf"
+public const FONT_MONO = "CascadiaMono.ttf"
+public const FONT_GLYPH = "PsIcons.ttf"
+public const DEFAULT_CX = 960
+public const DEFAULT_CY = 640
+public const STATUS_CY = 24              ' one status row, unscaled
+const ID_VIEW = 100
+const ID_STATUS = 101
+
+' The status line's panels, left to right (PLAN.md, Window).
+public enum StatusPanel explicit
+    Buffer = 0          ' the active file's name; a click lists the open buffers (P2)
+    Message             ' stretches: build results, config errors
+    Position            ' Ln, Col
+    Build               ' the build configuration (P4)
+    Encoding
+    LineEnding
+end enum
+
+' tkApp's fonts: the bundled ones in <resources>/fonts (D16).
+public function AppOptions( ) as TKAPP_OPTIONS
+    dim as TKAPP_OPTIONS opts
+    dim as Optional( of ustring ) res = platform.ResourceDir( )
+    if res.HasValue( ) then
+        opts.FontDir = fs.PathJoin( res.Value( ), "fonts" ) & "/"     ' tkApp appends the file name
+        opts.FontUIFile = FONT_UI
+        opts.FontUIBoldFile = FONT_UI_BOLD
+        opts.FontMonoFile = FONT_MONO
+        opts.GlyphFontFile = FONT_GLYPH
+    end if
+    opts.ThemeMode = TKAPP_THEME_DARK          ' the shipped default theme is dark (P1 maps themes)
+    return opts
+end function
+
+' A keyword file's words, lower case, one space apart (LexTiko's list format).
+private function WordsOf( byref path as const ustring ) as ustring
+    dim as textstream.TextFileResult r = textstream.ReadText( path )
+    if r.IsOk( ) = false then return ""
+    dim as ustring s = lcase( r.Value( ).Text )
+    dim as ustring o
+    dim as boolean gap = true
+    for i as long = 0 to len( s ) - 1
+        dim as ulong ch = s[i]
+        if (ch = 32) orelse (ch = 9) orelse (ch = 10) orelse (ch = 13) then
+            gap = true
+        else
+            if gap andalso (len( o ) > 0) then o &= " "
+            gap = false
+            o &= wchr( ch )
+        end if
+    next
+    return o
+end function
+
+' <resources>/keywords: tiko.txt (the language), extra.txt (the user's own words).
+public function LoadKeywords( byref resourceDir as const ustring ) as editor.Keywords
+    dim as editor.Keywords k
+    dim as ustring d = fs.PathJoin( resourceDir, "keywords" )
+    k.Words1 = WordsOf( fs.PathJoin( d, "tiko.txt" ) )
+    k.Words3 = WordsOf( fs.PathJoin( d, "extra.txt" ) )
+    return k
+end function
+
+public type Window
+    ResourceDir as ustring
+    Look as editor.Look
+    Code as editor.CodeView
+    form as TK_FORM ptr
+    status as TK_WIDGET ptr
+
+    declare function Create( byval forcedScale as single = 0 ) as boolean
+    declare sub Show( )
+    declare sub Destroy( )
+    declare sub Layout( )
+    declare sub ShowStatus( )
+    declare function StatusText( byval p as StatusPanel ) as ustring
+    declare function StatusHeight( ) as long
+end type
+
+function Window.Create( byval forcedScale as single ) as boolean
+    ResourceDir = platform.ResourceDir( ).ValueOr( platform.ExeDir( ) )
+    Look = editor.DefaultLook( )
+    Look.Words = LoadKeywords( ResourceDir )
+    Look.FontFile = fs.PathJoin( ResourceDir, "fonts", FONT_MONO )
+
+    form = tkApp_NewForm( appinfo.WindowTitle( ), DEFAULT_CX, DEFAULT_CY, 0, forcedScale )
+    if form = 0 then return false
+    form->Tag = @this
+    dim as TK_WIDGET ptr root = tkForm_Widget( form )
+    if Code.Create( root, ID_VIEW ) = false then return false
+    Code.ApplyLook( Look )
+    tkCodeEdit_SetNotifyCallback( Code.Widget( ), sub( byval h as TK_WIDGET ptr, byval n as const TKCE_NOTIFICATION ptr )
+        if n->code = SCN_UPDATEUI then cast( Window ptr, tkForm_FromWidget( h )->Tag )->ShowStatus( )
+    end sub )
+
+    status = tkStatusBar_Create( root, ID_STATUS )
+    for i as long = StatusPanel.Buffer to StatusPanel.LineEnding
+        tkStatusBar_AddPanel( status, "" )
+    next
+    tkStatusBar_SetExpandPanel( status, StatusPanel.Message )
+
+    tkForm_OnSize( form, sub( byval f as TK_FORM ptr, byval cx as long, byval cy as long )
+        cast( Window ptr, f->Tag )->Layout( )
+    end sub )
+    tkForm_OnScaleChanged( form, sub( byval f as TK_FORM ptr, byval fOld as single, byval fNew as single )
+        dim as Window ptr mw = f->Tag
+        mw->Code.ApplyLook( mw->Look )               ' margins are pixels
+        mw->Layout( )
+    end sub )
+    this.Layout( )
+    this.ShowStatus( )
+    return true
+end function
+
+sub Window.Show( )
+    if form = 0 then exit sub
+    tkForm_Show( form )
+    Code.Focus( )
+end sub
+
+sub Window.Destroy( )
+    if form then tkForm_Destroy( form )
+    form = 0
+end sub
+
+function Window.StatusHeight( ) as long
+    return tkForm_Scale( form, STATUS_CY )
+end function
+
+' The editor takes everything above the status line.
+sub Window.Layout( )
+    if form = 0 then exit sub
+    dim as TK_WIDGET ptr root = tkForm_Widget( form )
+    dim as long cx = root->cw, cy = root->ch
+    dim as long sh = this.StatusHeight( )
+    tkWidget_SetPos( Code.Widget( ), 0, 0, cx, cy - sh )
+    tkWidget_SetPos( status, 0, cy - sh, cx, sh )
+end sub
+
+sub Window.ShowStatus( )
+    if status = 0 then exit sub
+    tkStatusBar_SetText( status, StatusPanel.Buffer, "untitled" )
+    tkStatusBar_SetText( status, StatusPanel.Position, _
+                         strings.Format( "Ln {}, Col {}", Code.CaretLine( ), Code.CaretColumn( ) ) )
+    tkStatusBar_SetText( status, StatusPanel.Build, "Debug" )
+    tkStatusBar_SetText( status, StatusPanel.Encoding, docencoding.EncodingName( docencoding.FileEncoding.Utf8 ) )
+    dim as ustring eol = "CRLF"
+    select case Code.LineEnding( )
+    case docencoding.LineEnd.Lf : eol = "LF"
+    case docencoding.LineEnd.Cr : eol = "CR"
+    end select
+    tkStatusBar_SetText( status, StatusPanel.LineEnding, eol )
+end sub
+
+function Window.StatusText( byval p as StatusPanel ) as ustring
+    if status = 0 then return ""
+    return tkStatusBar_GetText( status, p )
+end function

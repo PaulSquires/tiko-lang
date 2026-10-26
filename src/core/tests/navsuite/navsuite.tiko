@@ -1,0 +1,162 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+' navsuite -- tkc/navhistory: the old TIKO_NAVHISTORY_SELFTEST, every group, plus what the old one
+' could not reach without a window: Back / Forward themselves, the refresh on stepping away, the
+' pending-edit debounce, and the suppression bracket around the app's own navigation.
+#module "navsuite"
+
+#import "std/fs"
+#import "tkc/navhistory"
+#import "../tally"
+
+private function Ent( byref f as const ustring, byval ln as long, byval pos_ as long = 0, byval docLen as long = 1000 ) as navhistory.NavEntry
+    return navhistory.MakeEntry( f, ln, pos_, docLen )
+end function
+
+public sub Run( byref c as tally.Checker )
+    c.Begin( "nav" )
+    dim as navhistory.History h
+    dim as navhistory.NavEntry none_
+
+    ' --- the empty state
+    c.SameNum( h.Count( ), 0, "empty: count is 0" )
+    c.SameNum( h.Cursor( ), -1, "empty: cursor is -1" )
+    c.Check( h.CanBack( ) = false, "empty: cannot go back" )
+    c.Check( h.CanForward( ) = false, "empty: cannot go forward" )
+
+    ' --- growing the list: ONE entry is where we are, nothing to go back to
+    c.Check( h.Append( Ent( "a.bas", 10 ) ), "append A reports growth" )
+    c.SameNum( h.Count( ), 1, "one entry: count is 1" )
+    c.SameNum( h.Cursor( ), 0, "one entry: cursor is 0" )
+    c.Check( h.CanBack( ) = false, "one entry: cannot go back" )
+    c.Check( h.CanForward( ) = false, "one entry: cannot go forward" )
+    h.Append( Ent( "b.bas", 20 ) )
+    c.SameNum( h.Count( ), 2, "two entries: count is 2" )
+    c.SameNum( h.Cursor( ), 1, "two entries: cursor is 1" )
+    c.Check( h.CanBack( ), "two entries: can go back" )
+    c.Check( h.CanForward( ) = false, "two entries: still cannot go forward" )
+    h.Append( Ent( "c.bas", 30 ) )
+    c.SameNum( h.Cursor( ), 2, "three entries: cursor tracks the end" )
+
+    ' --- Back and Forward step the cursor and hand back the destination
+    dim as navhistory.NavEntry d = h.Back( none_ )
+    c.Same( d.File, "b.bas", "back from c lands on b" )
+    c.SameNum( h.Cursor( ), 1, "back: cursor 1" )
+    d = h.Back( none_ )
+    c.Same( d.File, "a.bas", "back again lands on a" )
+    c.Check( h.CanBack( ) = false, "cursor at the start: cannot go back" )
+    c.Check( h.CanForward( ), "cursor at the start: CAN go forward" )
+    c.Same( h.Back( none_ ).File, "", "back at the start gives no destination" )
+    c.SameNum( h.Cursor( ), 0, "a refused back leaves the cursor" )
+    d = h.Forward( none_ )
+    c.Same( d.File, "b.bas", "forward lands on b" )
+    d = h.Forward( none_ )
+    c.Same( d.File, "c.bas", "forward lands on c" )
+    c.Check( h.CanForward( ) = false, "cursor at the end: cannot go forward" )
+    c.Same( h.Forward( none_ ).File, "", "forward at the end gives no destination" )
+
+    ' --- stepping away refreshes the current entry from the live caret, same file only
+    d = h.Back( Ent( "c.bas", 30, 777 ) )
+    c.SameNum( h.Entry( 2 ).Position, 777, "back refreshed c from the live caret" )
+    d = h.Forward( Ent( "zzz.bas", 5, 1 ) )
+    c.SameNum( h.Entry( 1 ).Line, 20, "a live caret in ANOTHER file does not refresh the entry" )
+
+    ' --- a new navigation truncates the forward trail
+    h.Back( none_ ) : h.Back( none_ )
+    c.SameNum( h.Cursor( ), 0, "back to the start" )
+    h.Append( Ent( "d.bas", 40 ) )
+    c.SameNum( h.Count( ), 2, "truncate: count drops to 2" )
+    c.SameNum( h.Cursor( ), 1, "truncate: cursor is the new entry" )
+    c.Same( h.Entry( 0 ).File, "a.bas", "truncate: the surviving entry is the one at the cursor" )
+    c.Check( h.CanForward( ) = false, "truncate: forward is gone" )
+
+    ' --- dedup: BOTH file and line must match
+    c.Check( h.Append( Ent( "d.bas", 40, 999 ) ) = false, "dedup: same file and line does not grow" )
+    c.SameNum( h.Count( ), 2, "dedup: count unchanged" )
+    c.SameNum( h.Entry( 1 ).Position, 999, "dedup: the entry was refreshed in place" )
+    c.Check( h.Append( Ent( "d.bas", 41 ) ), "dedup: same file, DIFFERENT line grows" )
+    c.Check( h.Append( Ent( "e.bas", 41 ) ), "dedup: different file, same line grows" )
+    c.Check( h.Append( Ent( "E.BAS", 41 ) ) = fs.PathIsCaseSensitive( ), "dedup: filename compare follows the file system's case rule" )
+
+    ' --- an entry with no filename is refused
+    dim as long nBefore = h.Count( )
+    c.Check( h.Append( Ent( "", 5 ) ) = false, "no filename: refused" )
+    c.SameNum( h.Count( ), nBefore, "no filename: count unchanged" )
+
+    ' --- the cap trims from the FRONT
+    h.Clear( )
+    for i as long = 1 to navhistory.MAX_ENTRIES + 10
+        h.Append( Ent( "f" & i & ".bas", i ) )
+    next
+    c.SameNum( h.Count( ), navhistory.MAX_ENTRIES, "cap: count stops at the maximum" )
+    c.SameNum( h.Cursor( ), navhistory.MAX_ENTRIES - 1, "cap: cursor still points at the end" )
+    c.SameNum( h.Entry( h.Cursor( ) ).Line, navhistory.MAX_ENTRIES + 10, "cap: the newest entry survived" )
+    c.SameNum( h.Entry( 0 ).Line, 11, "cap: the oldest entries were dropped from the front" )
+
+    ' --- exact position vs fall back to the line
+    dim as navhistory.NavEntry g = Ent( "g.bas", 12, 500, 8000 )
+    c.Check( navhistory.UseExactPosition( g, 8000 ), "position: same length uses the exact offset" )
+    c.Check( navhistory.UseExactPosition( g, 8001 ) = false, "position: a longer document falls back to the line" )
+    c.Check( navhistory.UseExactPosition( g, 7999 ) = false, "position: a shorter document falls back to the line" )
+
+    ' --- Clear really clears, the pending edit included
+    h.NoteEdit( Ent( "p.bas", 3 ) )
+    c.Check( h.HasPendingEdit( ), "an edit is pending" )
+    h.Clear( )
+    c.SameNum( h.Count( ), 0, "clear: count is 0" )
+    c.SameNum( h.Cursor( ), -1, "clear: cursor is -1" )
+    c.Check( h.HasPendingEdit( ) = false, "clear: the pending edit is dropped too" )
+
+    ' --- the pending edit: a run of typing on one line is ONE entry
+    h.Append( Ent( "a.bas", 1 ) )
+    h.NoteEdit( Ent( "a.bas", 9, 100 ) )
+    h.NoteEdit( Ent( "a.bas", 9, 105 ) )
+    h.NoteEdit( Ent( "a.bas", 9, 110 ) )
+    c.SameNum( h.Count( ), 1, "edits on one line append nothing yet" )
+    h.CheckPendingEdit( "a.bas", 9 )
+    c.Check( h.HasPendingEdit( ), "the caret still on the edited line keeps it pending" )
+    h.CheckPendingEdit( "a.bas", 10 )
+    c.Check( h.HasPendingEdit( ) = false, "the caret leaving the line flushes it" )
+    c.SameNum( h.Count( ), 2, "the flushed edit is one entry" )
+    c.SameNum( h.Entry( 1 ).Position, 110, "the entry is the LAST edit on the line" )
+    h.NoteEdit( Ent( "a.bas", 20 ) )
+    h.NoteEdit( Ent( "b.bas", 20 ) )
+    c.SameNum( h.Count( ), 3, "an edit in another file flushes the pending one" )
+    ' an unflushed edit is still "where we are": Back flushes it first, then steps
+    d = h.Back( none_ )
+    c.SameNum( h.Count( ), 4, "back flushed the pending edit" )
+    c.Same( d.File, "a.bas", "back from the flushed b edit lands on a:20" )
+    c.SameNum( d.Line, 20, "back lands on line 20" )
+
+    ' RecordJump flushes the pending edit AHEAD of the jump's departure point
+    h.Clear( )
+    h.Append( Ent( "a.bas", 1 ) )
+    h.NoteEdit( Ent( "a.bas", 5 ) )
+    h.RecordJump( Ent( "a.bas", 7 ) )
+    c.SameNum( h.Count( ), 3, "record jump: pending edit, then the departure" )
+    c.SameNum( h.Entry( 1 ).Line, 5, "record jump: the edit is entry 1" )
+    c.SameNum( h.Entry( 2 ).Line, 7, "record jump: the departure is entry 2" )
+    h.NoteArrival( Ent( "z.bas", 3 ) )
+    c.SameNum( h.Count( ), 4, "note arrival appends the destination" )
+
+    ' --- the suppression bracket (the old witness across Goto, now the app's contract)
+    c.Check( h.IsRecordingAllowed( ), "PRECONDITION: recording is allowed at this point" )
+    h.NoteEdit( Ent( "q.bas", 77 ) )
+    dim as long nCount = h.Count( )
+    h.Suppress( )
+    c.Check( h.IsRecordingAllowed( ) = false, "suppress: recording is refused while set" )
+    h.RecordJump( Ent( "r.bas", 1 ) )
+    h.NoteArrival( Ent( "s.bas", 1 ) )
+    h.CheckPendingEdit( "s.bas", 1 )
+    c.Check( h.HasPendingEdit( ), "suppressed: the pending edit was NOT flushed" )
+    c.SameNum( h.Count( ), nCount, "suppressed: no entry was appended during the navigation" )
+    h.Suppress( ) : h.Unsuppress( )
+    c.Check( h.IsRecordingAllowed( ) = false, "suppress nests" )
+    h.Unsuppress( )
+    c.Check( h.IsRecordingAllowed( ), "suppress: recording is allowed again once cleared" )
+    h.Unsuppress( )
+    c.Check( h.IsRecordingAllowed( ), "an extra Unsuppress does not go negative" )
+    c.Same( h.Entry( -1 ).File, "", "an out-of-range entry is empty" )
+    c.Same( h.Entry( 99 ).File, "", "an out-of-range entry is empty (high)" )
+end sub

@@ -1,0 +1,93 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' selftest -- tkEdit --selftest: the real main window, driven by SDL events, at a pinned scale.
+' Geometry is asserted, not eyeballed (PLAN.md, Verification).
+#module "selftest"
+
+#import "std/strings"
+#import "tkc/appinfo"
+#import "tka/editor"
+#import "tka/mainwin"
+#import "tkControls/tkApp"
+#import "tkControls/tkTest"
+using tkApp
+using tkHost
+using tkTest
+
+' The self-test's score. Each failing check prints one FAIL line.
+public type Tally
+    passed as long
+    failed as long
+    declare sub Check( byval ok as boolean, byref what as const ustring )
+end type
+
+sub Tally.Check( byval ok as boolean, byref what as const ustring )
+    if ok then
+        passed += 1
+    else
+        failed += 1
+        print "FAIL "; what
+    end if
+end sub
+
+private function P( byval sc as single, byref what as const ustring ) as ustring
+    return strings.Format( "[{}] {}", sc, what )
+end function
+
+' P0: the frame. Window size, fonts, the editor above one status row, the panels' text, and
+' typing reaching the view and moving the caret panel.
+public sub Pass( byref t as Tally, byval sc as single )
+    dim as mainwin.Window mw
+    t.Check( mw.Create( sc ), P( sc, "main window created" ) )
+    if mw.form = 0 then exit sub
+    mw.Show( )
+    dim as TK_HOST ptr h = tkForm_Host( mw.form )
+    tkTest_PumpFor( h, 200 )
+
+    ' ---- the window
+    t.Check( h->fScale = sc, P( sc, "scale pinned" ) )
+    dim as long cx = tkForm_Scale( mw.form, mainwin.DEFAULT_CX ), cy = tkForm_Scale( mw.form, mainwin.DEFAULT_CY )
+    t.Check( (h->root->cw = cx) andalso (h->root->ch = cy), _
+             P( sc, strings.Format( "client {}x{}, want {}x{}", h->root->cw, h->root->ch, cx, cy ) ) )
+    t.Check( strings.EndsWith( tkForm_RoleFile( mw.form, TKFONT_UI ), mainwin.FONT_UI ), P( sc, "UI font is Inter" ) )
+    t.Check( strings.EndsWith( tkForm_RoleFile( mw.form, TKFONT_MONO ), mainwin.FONT_MONO ), P( sc, "mono font is Cascadia Mono" ) )
+    t.Check( strings.EndsWith( tkApp_GlyphFace( ), mainwin.FONT_GLYPH ), P( sc, "glyph font is '" & tkApp_GlyphFace( ) & "'" ) )
+    dim as ustring title = *SDL_GetWindowTitle( h->win )
+    t.Check( title = appinfo.WindowTitle( ), P( sc, "title is '" & title & "'" ) )
+
+    ' ---- the layout: the view fills all but one status row (no menu, no tabs, no panel)
+    dim as TK_WIDGET ptr v = mw.Code.Widget( )
+    dim as long sh = tkForm_Scale( mw.form, mainwin.STATUS_CY )
+    t.Check( mw.StatusHeight( ) = sh, P( sc, strings.Format( "status row {} px", mw.StatusHeight( ) ) ) )
+    t.Check( (v->x = 0) andalso (v->y = 0) andalso (v->cw = cx) andalso (v->ch = cy - sh), _
+             P( sc, strings.Format( "view at {},{} {}x{}, want 0,0 {}x{}", v->x, v->y, v->cw, v->ch, cx, cy - sh ) ) )
+    t.Check( (mw.status->x = 0) andalso (mw.status->y = cy - sh) andalso (mw.status->cw = cx) andalso (mw.status->ch = sh), _
+             P( sc, strings.Format( "status at {},{} {}x{}", mw.status->x, mw.status->y, mw.status->cw, mw.status->ch ) ) )
+    t.Check( tkHost_GetFocus( h ) = v, P( sc, "the view has the focus" ) )
+
+    ' ---- the status panels
+    t.Check( mw.StatusText( mainwin.StatusPanel.Buffer ) = "untitled", P( sc, "buffer panel: " & mw.StatusText( mainwin.StatusPanel.Buffer ) ) )
+    t.Check( mw.StatusText( mainwin.StatusPanel.Position ) = "Ln 1, Col 1", P( sc, "position panel: " & mw.StatusText( mainwin.StatusPanel.Position ) ) )
+    t.Check( mw.StatusText( mainwin.StatusPanel.Encoding ) = "UTF-8", P( sc, "encoding panel: " & mw.StatusText( mainwin.StatusPanel.Encoding ) ) )
+    dim as ustring eol = mw.StatusText( mainwin.StatusPanel.LineEnding )
+    t.Check( (eol = "CRLF") orelse (eol = "LF"), P( sc, "line-ending panel: " & eol ) )
+
+    ' ---- typing reaches the view and moves the caret panel
+    tkTest_PushText( h, "dim x as long" )
+    tkTest_PumpFor( h, 50 )
+    t.Check( mw.Code.Text( ) = "dim x as long", P( sc, "typed text: '" & mw.Code.Text( ) & "'" ) )
+    t.Check( mw.StatusText( mainwin.StatusPanel.Position ) = "Ln 1, Col 14", P( sc, "position after typing: " & mw.StatusText( mainwin.StatusPanel.Position ) ) )
+    tkTest_PushKey( h, SDLK_RETURN, 0, true, SDL_SCANCODE_RETURN )
+    tkTest_PushKey( h, SDLK_RETURN, 0, false, SDL_SCANCODE_RETURN )
+    tkTest_PumpFor( h, 50 )
+    t.Check( mw.Code.LineCount( ) = 2, P( sc, strings.Format( "Enter made line 2 ({} lines)", mw.Code.LineCount( ) ) ) )
+    t.Check( mw.StatusText( mainwin.StatusPanel.Position ) = "Ln 2, Col 1", P( sc, "position after Enter: " & mw.StatusText( mainwin.StatusPanel.Position ) ) )
+    t.Check( mw.Code.IsModified( ), P( sc, "the buffer is modified" ) )
+
+    mw.Destroy( )
+end sub

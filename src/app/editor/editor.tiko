@@ -1,0 +1,1223 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' editor -- CodeView, one Scintilla view (a tkCodeEdit) with typed methods. The ONLY module that
+' sends SCI_ messages (tools/idiom.sh): everything else asks a CodeView. Text in and out is a
+' ustring; Scintilla holds it as UTF-8 (SC_CP_UTF8), positions are Scintilla's byte positions.
+' Two views of one document (split view) share Scintilla's document object (ShareDocument).
+#module "editor"
+
+#import "std/containers"
+#import "std/strings"
+#import "tkc/docencoding"
+#import "tkc/textsearch"
+#import "tkControls/tkCodeEdit"
+using containers
+using tkCodeEdit
+using tkHost
+
+' The marker and indicators every view defines (the old editor's numbers).
+public const MARKER_BOOKMARK = 0
+public const INDIC_COMPILE_ERROR = 10
+public const INDIC_COMPILE_WARNING = 11
+const INDIC_BRACE = 9
+public const INDIC_FIND = 12             ' every match of the find bar's phrase
+public const INDIC_OCCURRENCE = 13       ' the other places of the word under the caret
+const SC_STATUS_WARN_REGEX = 1001        ' Scintilla.h: the regular expression was refused
+const SCFIND_CXX11REGEX = &h00800000     ' Scintilla 5's std::regex flavour (not in tkSciConst)
+
+' What the find bar asks for.
+public type FindOptions
+    MatchCase as boolean
+    WholeWord as boolean
+    Regex     as boolean
+end type
+
+' The three keyword lists LexTiko colours (tiko keywords, API words, the user's extras).
+public type Keywords
+    Words1 as ustring
+    Words2 as ustring
+    Words3 as ustring
+end type
+
+' One Scintilla style. Colours are &hRRGGBB; -1 = the default style's colour.
+public type Style
+    Fore   as long = -1
+    Back   as long = -1
+    Bold   as boolean
+    Italic as boolean
+end type
+
+' What a view looks like, already resolved: the editor knows neither settings.toml nor a theme
+' file. DefaultLook is the shipped dark theme, so a view works before any config is read.
+public type Look
+    FontFile     as ustring
+    FontSize     as long = 11
+    TabSize      as long = 4
+    UseTabs      as boolean
+    LineNumbers  as boolean = true
+    Whitespace   as boolean
+    Wrap         as boolean
+    CaretLine    as boolean = true
+    IndentGuides as boolean = true
+    FoldMargin   as boolean = true
+    Words        as Keywords
+    ' the tiko lexer's styles (SCE_B_*); Text is STYLE_DEFAULT too
+    Text         as Style
+    Comments     as Style
+    Numbers      as Style
+    Keyword1     as Style
+    Keyword2     as Style
+    Keyword3     as Style
+    Keyword4     as Style
+    Strings      as Style
+    Preprocessor as Style
+    Operators    as Style
+    Identifiers  as Style
+    Gutter       as Style            ' line numbers: Fore = the digits, Back = the margins
+    ' single colours, &hRRGGBB
+    Caret         as long
+    CaretLineBack as long
+    Selection     as long
+    FoldBack      as long
+    IndentGuide   as long
+    Brace         as long
+    FindMatch     as long
+    ErrorColor    as long
+    WarningColor  as long
+    Bookmark      as long
+end type
+
+
+public type CodeView
+    w as TK_WIDGET ptr
+    declare function Create( byval parent as TK_WIDGET ptr, byval id as long ) as boolean
+    declare sub Destroy( )
+    declare function Widget( ) as TK_WIDGET ptr
+    declare function Exists( ) as boolean
+
+    ' ---- text
+    declare function Text( ) as ustring
+    declare sub SetText( byref s as const ustring )       ' replaces, forgets undo, at a save point
+    declare function Length( ) as longint
+    declare function LineCount( ) as long
+    declare function IsModified( ) as boolean
+    declare sub SetSavePoint( )
+    declare function LineEnding( ) as docencoding.LineEnd
+    declare sub SetLineEnding( byval e as docencoding.LineEnd, byval convert as boolean )
+    declare sub ShareDocument( byref other as CodeView )  ' show other's document here (split view)
+
+    ' ---- caret and scrolling
+    declare function Position( ) as longint
+    declare sub SetPosition( byval p as longint )         ' moves the caret and shows it
+    declare function CaretLine( ) as long                 ' 1-based, as the status bar shows it
+    declare function CaretColumn( ) as long               ' 1-based
+    declare function SelectionLength( ) as longint        ' bytes; 0 = no selection
+    declare function FirstLine( ) as long
+    declare sub SetFirstLine( byval ln as long )
+    declare sub Focus( )
+
+    ' ---- the Edit and View menus
+    declare sub Undo( )
+    declare sub Redo( )
+    declare sub Cut( )
+    declare sub Copy( )
+    declare sub Paste( )
+    declare sub SelectAll( )
+    declare sub SelectLine( )
+    declare sub DeleteLine( )
+    declare sub DuplicateLine( )
+    declare sub MoveLinesUp( )
+    declare sub MoveLinesDown( )
+    declare sub CommentLines( byval add as boolean )
+    declare sub ZoomIn( )
+    declare sub ZoomOut( )
+    declare sub ZoomReset( )
+    declare function Zoom( ) as long
+    declare sub FoldToggle( byval withChildren as boolean )
+    declare sub FoldAll( byval fold as boolean )
+
+    ' ---- lines, bookmarks
+    declare function LineOf( byval p as longint ) as long             ' 0-based
+    declare function LineTextAt( byval ln as long ) as ustring        ' without its break
+    declare sub GoToLine( byval ln as long, byval charCol as long = 0, byval selChars as long = 0 )
+    declare sub ToggleBookmark( byval ln as long )
+    declare function HasBookmark( byval ln as long ) as boolean
+    declare function Bookmarks( ) as Array( of long )
+    declare sub SetBookmarks( byref lines as const Array( of long ) )
+    declare sub ClearBookmarks( )
+    declare function NextBookmark( byval forward as boolean ) as boolean   ' wraps; FALSE = none
+
+    ' ---- find and replace (Scintilla's search: plain, word, case, regex)
+    declare function Find( byref phrase as const ustring, byref o as const FindOptions, byval forward as boolean ) as boolean
+    declare function CountMatches( byref phrase as const ustring, byref o as const FindOptions ) as long
+    declare function MatchIndex( byref phrase as const ustring, byref o as const FindOptions ) as long   ' 1-based; 0 = not on one
+    declare sub MarkMatches( byref phrase as const ustring, byref o as const FindOptions )
+    declare function ReplaceCurrent( byref phrase as const ustring, byref replacement as const ustring, byref o as const FindOptions ) as boolean
+    declare function ReplaceAll( byref phrase as const ustring, byref replacement as const ustring, byref o as const FindOptions ) as long
+    declare function SelectedText( ) as ustring
+
+    ' ---- the build's diagnostics
+    declare sub AddSquiggle( byval ln as long, byval col as long, byval endLine as long, byval endCol as long, _
+                             byval isError as boolean )
+    declare sub ClearSquiggles( )
+    declare function SquiggleAt( byval p as longint ) as long
+    declare function PositionOf( byval ln as long, byval col as long ) as longint
+    declare function WordAtCaret( ) as ustring
+
+    ' ---- code intelligence: the autocompletion list, codetips, auto-insert
+    declare sub ShowCompletions( byval lenEntered as long, byref items as const Array( of ustring ) )
+    declare function CompletionsShown( ) as boolean
+    declare sub CancelCompletions( )
+    declare function CompletionSelected( ) as ustring
+    declare sub ShowCallTip( byref tip as const ustring )
+    declare function CallTipShown( ) as boolean
+    declare sub CancelCallTip( )
+    declare function EolText( ) as ustring
+    declare sub SetIndentText( byval ln as long, byref indent_ as const ustring )
+    declare sub InsertLineAfter( byval ln as long, byref lineText as const ustring )
+    declare function TextBeforeCaret( ) as ustring
+    declare function WordUnderCaret( ) as ustring
+
+    ' ---- the formatter's edits: one undo step each, the view kept where it was
+    declare sub ReplaceAllText( byref s as const ustring )
+    declare sub ReplaceLines( byval l1 as long, byval l2 as long, byref s as const ustring )
+    declare sub SelectedLines( byref l1 as long, byref l2 as long )
+    declare function LinesText( byval l1 as long, byval l2 as long ) as ustring
+    declare function MarginWidth( byval margin as long ) as long
+
+    ' ---- what is under the mouse
+    declare function WordAt( byval p as longint ) as ustring
+    declare sub ShowCallTipAt( byval p as longint, byref tip as const ustring )
+
+    ' ---- P11: the Edit menu's conversions, brace matching, occurrences
+    declare sub UpperCaseSelection( )
+    declare sub LowerCaseSelection( )
+    declare sub MixedCaseSelection( )
+    declare function TabsToSpaces( byval tabSize as long ) as long     ' how many tabs went
+    declare sub UpdateBraces( byval enabled as boolean )
+    declare function BraceAt( ) as long                                ' the matched brace's position, -1
+    declare sub MarkOccurrences( byval enabled as boolean )
+    declare function OccurrenceCount( ) as long
+
+    ' ---- Find in Project over a scratch view: the find bar's matching (regex too), as characters
+    declare function MatchesOf( byref phrase as const ustring, byref o as const FindOptions, byval limit as long, _
+                                byref bad as boolean ) as Array( of textsearch.TextMatch )
+
+    ' ---- looks
+    declare sub ApplyLook( byref k as const Look )
+end type
+
+' Scintilla takes &h00BBGGRR; a theme holds &hRRGGBB.
+private function Bgr( byval c as long ) as integer
+    return ((c and &hFF) shl 16) or (c and &hFF00) or ((c shr 16) and &hFF)
+end function
+
+private function B( byval v as boolean ) as integer
+    if v then return 1
+    return 0
+end function
+
+function CodeView.Create( byval parent as TK_WIDGET ptr, byval id as long ) as boolean
+    w = tkCodeEdit_Create( parent, id )
+    if w = 0 then return false
+    tkCodeEdit_Send( w, SCI_SETCODEPAGE, SC_CP_UTF8 )
+    tkCodeEdit_Send( w, SCI_USEPOPUP, 0 )               ' tkCodeEdit has its own context menu
+    tkCodeEdit_SetLexer( w, "tiko" )
+    return true
+end function
+
+sub CodeView.Destroy( )
+    if w then tkWidget_Destroy( w )
+    w = 0
+end sub
+
+function CodeView.Widget( ) as TK_WIDGET ptr
+    return w
+end function
+
+function CodeView.Exists( ) as boolean
+    return w <> 0
+end function
+
+function CodeView.Text( ) as ustring
+    if w = 0 then return ""
+    return tkCodeEdit_GetText( w )
+end function
+
+sub CodeView.SetText( byref s as const ustring )
+    if w = 0 then exit sub
+    dim as ustring t = s
+    tkCodeEdit_SetText( w, t )
+    tkCodeEdit_Send( w, SCI_EMPTYUNDOBUFFER )
+    tkCodeEdit_Send( w, SCI_SETSAVEPOINT )
+    tkCodeEdit_Send( w, SCI_GOTOPOS, 0 )
+end sub
+
+function CodeView.Length( ) as longint
+    if w = 0 then return 0
+    return tkCodeEdit_Send( w, SCI_GETLENGTH )
+end function
+
+function CodeView.LineCount( ) as long
+    if w = 0 then return 0
+    return tkCodeEdit_Send( w, SCI_GETLINECOUNT )
+end function
+
+function CodeView.IsModified( ) as boolean
+    if w = 0 then return false
+    return tkCodeEdit_Send( w, SCI_GETMODIFY ) <> 0
+end function
+
+sub CodeView.SetSavePoint( )
+    if w then tkCodeEdit_Send( w, SCI_SETSAVEPOINT )
+end sub
+
+function CodeView.LineEnding( ) as docencoding.LineEnd
+    if w = 0 then return docencoding.LineEnd.CrLf
+    return cast( docencoding.LineEnd, tkCodeEdit_Send( w, SCI_GETEOLMODE ) )
+end function
+
+' The LineEnd values are SC_EOL_*; convert = rewrite the line breaks already there.
+sub CodeView.SetLineEnding( byval e as docencoding.LineEnd, byval convert as boolean )
+    if w = 0 then exit sub
+    tkCodeEdit_Send( w, SCI_SETEOLMODE, cast( long, e ) )
+    if convert then tkCodeEdit_Send( w, SCI_CONVERTEOLS, cast( long, e ) )
+end sub
+
+' SETDOCPOINTER takes its own reference, so the document lives until both views let it go.
+sub CodeView.ShareDocument( byref other as CodeView )
+    if (w = 0) orelse (other.w = 0) then exit sub
+    dim as integer doc = tkCodeEdit_Send( other.w, SCI_GETDOCPOINTER )
+    tkCodeEdit_Send( w, SCI_SETDOCPOINTER, 0, doc )
+end sub
+
+function CodeView.Position( ) as longint
+    if w = 0 then return 0
+    return tkCodeEdit_Send( w, SCI_GETCURRENTPOS )
+end function
+
+sub CodeView.SetPosition( byval p as longint )
+    if w = 0 then exit sub
+    tkCodeEdit_Send( w, SCI_GOTOPOS, p )
+end sub
+
+function CodeView.CaretLine( ) as long
+    if w = 0 then return 1
+    return tkCodeEdit_Send( w, SCI_LINEFROMPOSITION, this.Position( ) ) + 1
+end function
+
+function CodeView.CaretColumn( ) as long
+    if w = 0 then return 1
+    return tkCodeEdit_Send( w, SCI_GETCOLUMN, this.Position( ) ) + 1
+end function
+
+function CodeView.SelectionLength( ) as longint
+    if w = 0 then return 0
+    return tkCodeEdit_Send( w, SCI_GETSELECTIONEND ) - tkCodeEdit_Send( w, SCI_GETSELECTIONSTART )
+end function
+
+function CodeView.FirstLine( ) as long
+    if w = 0 then return 0
+    return tkCodeEdit_Send( w, SCI_GETFIRSTVISIBLELINE )
+end function
+
+sub CodeView.SetFirstLine( byval ln as long )
+    if w then tkCodeEdit_Send( w, SCI_SETFIRSTVISIBLELINE, ln )
+end sub
+
+sub CodeView.Focus( )
+    if w = 0 then exit sub
+    tkHost_SetFocus( w->pHost, w )
+end sub
+
+sub CodeView.Undo( ) : if w then tkCodeEdit_Send( w, SCI_UNDO )
+end sub
+sub CodeView.Redo( ) : if w then tkCodeEdit_Send( w, SCI_REDO )
+end sub
+sub CodeView.Cut( ) : if w then tkCodeEdit_Send( w, SCI_CUT )
+end sub
+sub CodeView.Copy( ) : if w then tkCodeEdit_Send( w, SCI_COPY )
+end sub
+sub CodeView.Paste( ) : if w then tkCodeEdit_Send( w, SCI_PASTE )
+end sub
+sub CodeView.SelectAll( ) : if w then tkCodeEdit_Send( w, SCI_SELECTALL )
+end sub
+sub CodeView.DeleteLine( ) : if w then tkCodeEdit_Send( w, SCI_LINEDELETE )
+end sub
+sub CodeView.DuplicateLine( ) : if w then tkCodeEdit_Send( w, SCI_LINEDUPLICATE )
+end sub
+sub CodeView.MoveLinesUp( ) : if w then tkCodeEdit_Send( w, SCI_MOVESELECTEDLINESUP )
+end sub
+sub CodeView.MoveLinesDown( ) : if w then tkCodeEdit_Send( w, SCI_MOVESELECTEDLINESDOWN )
+end sub
+sub CodeView.ZoomIn( ) : if w then tkCodeEdit_Send( w, SCI_ZOOMIN )
+end sub
+sub CodeView.ZoomOut( ) : if w then tkCodeEdit_Send( w, SCI_ZOOMOUT )
+end sub
+sub CodeView.ZoomReset( ) : if w then tkCodeEdit_Send( w, SCI_SETZOOM, 0 )
+end sub
+
+function CodeView.Zoom( ) as long
+    if w = 0 then return 0
+    return tkCodeEdit_Send( w, SCI_GETZOOM )
+end function
+
+' The caret's line, start to end of line including the break.
+sub CodeView.SelectLine( )
+    if w = 0 then exit sub
+    dim as integer ln = tkCodeEdit_Send( w, SCI_LINEFROMPOSITION, this.Position( ) )
+    dim as integer a = tkCodeEdit_Send( w, SCI_POSITIONFROMLINE, ln )
+    dim as integer z = tkCodeEdit_Send( w, SCI_POSITIONFROMLINE, ln + 1 )
+    if z < a then z = tkCodeEdit_Send( w, SCI_GETLENGTH )
+    tkCodeEdit_Send( w, SCI_SETSEL, a, z )
+end sub
+
+' Comment Block / UnComment Block: a "' " at the start of each selected line's text, or that
+' mark taken away -- one undo step.
+sub CodeView.CommentLines( byval add as boolean )
+    if w = 0 then exit sub
+    dim as integer a = tkCodeEdit_Send( w, SCI_GETSELECTIONSTART )
+    dim as integer z = tkCodeEdit_Send( w, SCI_GETSELECTIONEND )
+    dim as integer l1 = tkCodeEdit_Send( w, SCI_LINEFROMPOSITION, a )
+    dim as integer l2 = tkCodeEdit_Send( w, SCI_LINEFROMPOSITION, z )
+    ' a selection ending at the very start of a line does not take that line
+    if (l2 > l1) andalso (tkCodeEdit_Send( w, SCI_POSITIONFROMLINE, l2 ) = z) then l2 -= 1
+    tkCodeEdit_Send( w, SCI_BEGINUNDOACTION )
+    for ln as integer = l1 to l2
+        dim as integer p = tkCodeEdit_Send( w, SCI_GETLINEINDENTPOSITION, ln )
+        if add then
+            tkCodeEdit_SendText( w, SCI_INSERTTEXT, p, "' " )
+        elseif tkCodeEdit_Send( w, SCI_GETCHARAT, p ) = asc( "'" ) then
+            dim as integer n = 1
+            if tkCodeEdit_Send( w, SCI_GETCHARAT, p + 1 ) = asc( " " ) then n = 2
+            tkCodeEdit_Send( w, SCI_DELETERANGE, p, n )
+        end if
+    next
+    tkCodeEdit_Send( w, SCI_ENDUNDOACTION )
+end sub
+
+' Toggle Current Fold Point (withChildren: and every fold below it).
+sub CodeView.FoldToggle( byval withChildren as boolean )
+    if w = 0 then exit sub
+    dim as integer ln = tkCodeEdit_Send( w, SCI_LINEFROMPOSITION, this.Position( ) )
+    if (tkCodeEdit_Send( w, SCI_GETFOLDLEVEL, ln ) and SC_FOLDLEVELHEADERFLAG) = 0 then
+        ln = tkCodeEdit_Send( w, SCI_GETFOLDPARENT, ln )
+        if ln < 0 then exit sub
+    end if
+    if withChildren then
+        dim as integer act = SC_FOLDACTION_CONTRACT
+        if tkCodeEdit_Send( w, SCI_GETFOLDEXPANDED, ln ) = 0 then act = SC_FOLDACTION_EXPAND
+        tkCodeEdit_Send( w, SCI_FOLDCHILDREN, ln, act )
+    else
+        tkCodeEdit_Send( w, SCI_TOGGLEFOLD, ln )
+    end if
+end sub
+
+sub CodeView.FoldAll( byval fold as boolean )
+    if w = 0 then exit sub
+    tkCodeEdit_Send( w, SCI_COLOURISE, 0, -1 )          ' fold levels exist only once lexed
+    if fold then
+        tkCodeEdit_Send( w, SCI_FOLDALL, SC_FOLDACTION_CONTRACT )
+    else
+        tkCodeEdit_Send( w, SCI_FOLDALL, SC_FOLDACTION_EXPAND )
+    end if
+end sub
+
+function CodeView.LineOf( byval p as longint ) as long
+    if w = 0 then return 0
+    return tkCodeEdit_Send( w, SCI_LINEFROMPOSITION, p )
+end function
+
+' The UTF-8 length of s: Scintilla's positions are bytes, ours are characters.
+private function U8Len( byref s as const ustring ) as long
+    dim as string raw = s
+    return len( raw )
+end function
+
+' Bytes [a, z) of the document as a ustring.
+private function TextRange( byval w as TK_WIDGET ptr, byval a as integer, byval z as integer ) as ustring
+    if z <= a then return ""
+    dim as string raw = space( z - a )
+    for i as integer = 0 to z - a - 1
+        raw[i] = tkCodeEdit_Send( w, SCI_GETCHARAT, a + i )
+    next
+    return *cast( zstring ptr, strptr( raw ) )
+end function
+
+function CodeView.LineTextAt( byval ln as long ) as ustring
+    if w = 0 then return ""
+    dim as integer a = tkCodeEdit_Send( w, SCI_POSITIONFROMLINE, ln )
+    if a < 0 then return ""
+    return TextRange( w, a, tkCodeEdit_Send( w, SCI_GETLINEENDPOSITION, ln ) )
+end function
+
+' Shows line ln (0-based) in the middle of the view, the caret at character charCol and selChars
+' selected after it.
+sub CodeView.GoToLine( byval ln as long, byval charCol as long, byval selChars as long )
+    if w = 0 then exit sub
+    dim as integer n = tkCodeEdit_Send( w, SCI_GETLINECOUNT )
+    if ln >= n then ln = n - 1
+    if ln < 0 then ln = 0
+    tkCodeEdit_Send( w, SCI_ENSUREVISIBLEENFORCEPOLICY, ln )
+    dim as integer a = tkCodeEdit_Send( w, SCI_POSITIONFROMLINE, ln )
+    dim as ustring t = this.LineTextAt( ln )
+    dim as integer p0 = a + U8Len( left( t, charCol ) )
+    dim as integer p1 = a + U8Len( left( t, charCol + selChars ) )
+    tkCodeEdit_Send( w, SCI_GOTOPOS, p0 )
+    if p1 > p0 then tkCodeEdit_Send( w, SCI_SETSEL, p0, p1 )
+    tkCodeEdit_Send( w, SCI_VERTICALCENTRECARET )
+end sub
+
+sub CodeView.ToggleBookmark( byval ln as long )
+    if w = 0 then exit sub
+    if this.HasBookmark( ln ) then
+        tkCodeEdit_Send( w, SCI_MARKERDELETE, ln, MARKER_BOOKMARK )
+    else
+        tkCodeEdit_Send( w, SCI_MARKERADD, ln, MARKER_BOOKMARK )
+    end if
+end sub
+
+function CodeView.HasBookmark( byval ln as long ) as boolean
+    if w = 0 then return false
+    return (tkCodeEdit_Send( w, SCI_MARKERGET, ln ) and (1 shl MARKER_BOOKMARK)) <> 0
+end function
+
+' The bookmarked lines, top to bottom.
+function CodeView.Bookmarks( ) as Array( of long )
+    dim as Array( of long ) a
+    if w = 0 then return a
+    dim as long ln = tkCodeEdit_Send( w, SCI_MARKERNEXT, 0, 1 shl MARKER_BOOKMARK )
+    while ln >= 0
+        a.Push( ln )
+        ln = tkCodeEdit_Send( w, SCI_MARKERNEXT, ln + 1, 1 shl MARKER_BOOKMARK )
+    wend
+    return a
+end function
+
+sub CodeView.SetBookmarks( byref lines as const Array( of long ) )
+    if w = 0 then exit sub
+    tkCodeEdit_Send( w, SCI_MARKERDELETEALL, MARKER_BOOKMARK )
+    for each ln as long in lines
+        tkCodeEdit_Send( w, SCI_MARKERADD, ln, MARKER_BOOKMARK )
+    next
+end sub
+
+sub CodeView.ClearBookmarks( )
+    if w then tkCodeEdit_Send( w, SCI_MARKERDELETEALL, MARKER_BOOKMARK )
+end sub
+
+' To the next (previous) bookmark after the caret's line, wrapping. FALSE = there is none.
+function CodeView.NextBookmark( byval forward as boolean ) as boolean
+    if w = 0 then return false
+    dim as integer cur = this.LineOf( this.Position( ) ), ln
+    dim as integer mask = 1 shl MARKER_BOOKMARK
+    if forward then
+        ln = tkCodeEdit_Send( w, SCI_MARKERNEXT, cur + 1, mask )
+        if ln < 0 then ln = tkCodeEdit_Send( w, SCI_MARKERNEXT, 0, mask )
+    else
+        ln = -1
+        if cur > 0 then ln = tkCodeEdit_Send( w, SCI_MARKERPREVIOUS, cur - 1, mask )
+        if ln < 0 then ln = tkCodeEdit_Send( w, SCI_MARKERPREVIOUS, this.LineCount( ), mask )
+    end if
+    if ln < 0 then return false
+    this.GoToLine( ln )
+    return true
+end function
+
+private function SearchFlags( byref o as const FindOptions ) as integer
+    dim as integer f = 0
+    if o.MatchCase then f or= SCFIND_MATCHCASE
+    if o.WholeWord then f or= SCFIND_WHOLEWORD
+    if o.Regex then f or= SCFIND_REGEXP or SCFIND_CXX11REGEX
+    return f
+end function
+
+' Search [a, z) (z < a searches backwards); a match becomes the target. -1 = none.
+private function SearchRange( byval w as TK_WIDGET ptr, byref phrase as const ustring, byref o as const FindOptions, _
+                              byval a as integer, byval z as integer ) as integer
+    dim as string p8 = phrase
+    tkCodeEdit_Send( w, SCI_SETSEARCHFLAGS, SearchFlags( o ) )
+    tkCodeEdit_Send( w, SCI_SETTARGETSTART, a )
+    tkCodeEdit_Send( w, SCI_SETTARGETEND, z )
+    return tkCodeEdit_SendText( w, SCI_SEARCHINTARGET, len( p8 ), p8 )
+end function
+
+' The next (previous) match from the selection, wrapping once; selected and shown.
+function CodeView.Find( byref phrase as const ustring, byref o as const FindOptions, byval forward as boolean ) as boolean
+    if (w = 0) orelse (len( phrase ) = 0) then return false
+    dim as integer n = tkCodeEdit_Send( w, SCI_GETLENGTH ), r
+    if forward then
+        dim as integer from = tkCodeEdit_Send( w, SCI_GETSELECTIONEND )
+        r = SearchRange( w, phrase, o, from, n )
+        if r < 0 then r = SearchRange( w, phrase, o, 0, from )
+    else
+        dim as integer from = tkCodeEdit_Send( w, SCI_GETSELECTIONSTART )
+        r = SearchRange( w, phrase, o, from, 0 )
+        if r < 0 then r = SearchRange( w, phrase, o, n, from )
+    end if
+    if r < 0 then return false
+    dim as integer a = tkCodeEdit_Send( w, SCI_GETTARGETSTART ), z = tkCodeEdit_Send( w, SCI_GETTARGETEND )
+    tkCodeEdit_Send( w, SCI_ENSUREVISIBLEENFORCEPOLICY, this.LineOf( a ) )
+    tkCodeEdit_Send( w, SCI_SETSEL, a, z )
+    tkCodeEdit_Send( w, SCI_SCROLLCARET )
+    return true
+end function
+
+function CodeView.CountMatches( byref phrase as const ustring, byref o as const FindOptions ) as long
+    if (w = 0) orelse (len( phrase ) = 0) then return 0
+    dim as integer n = tkCodeEdit_Send( w, SCI_GETLENGTH ), from = 0
+    dim as long count = 0
+    while from < n
+        if SearchRange( w, phrase, o, from, n ) < 0 then exit while
+        count += 1
+        dim as integer z = tkCodeEdit_Send( w, SCI_GETTARGETEND )
+        if z <= from then z = from + 1                      ' an empty regex match
+        from = z
+    wend
+    return count
+end function
+
+' Which match the selection is (1 = the first); 0 when the selection is not exactly one.
+function CodeView.MatchIndex( byref phrase as const ustring, byref o as const FindOptions ) as long
+    if (w = 0) orelse (len( phrase ) = 0) then return 0
+    dim as integer sa = tkCodeEdit_Send( w, SCI_GETSELECTIONSTART ), sz = tkCodeEdit_Send( w, SCI_GETSELECTIONEND )
+    dim as integer n = tkCodeEdit_Send( w, SCI_GETLENGTH ), from = 0
+    dim as long i = 0
+    while from < n
+        if SearchRange( w, phrase, o, from, n ) < 0 then exit while
+        i += 1
+        dim as integer a = tkCodeEdit_Send( w, SCI_GETTARGETSTART ), z = tkCodeEdit_Send( w, SCI_GETTARGETEND )
+        if (a = sa) andalso (z = sz) then return i
+        if a > sa then exit while
+        if z <= from then z = from + 1
+        from = z
+    wend
+    return 0
+end function
+
+' Every match under INDIC_FIND; an empty phrase clears them.
+sub CodeView.MarkMatches( byref phrase as const ustring, byref o as const FindOptions )
+    if w = 0 then exit sub
+    dim as integer n = tkCodeEdit_Send( w, SCI_GETLENGTH ), from = 0
+    tkCodeEdit_Send( w, SCI_SETINDICATORCURRENT, INDIC_FIND )
+    tkCodeEdit_Send( w, SCI_INDICATORCLEARRANGE, 0, n )
+    if len( phrase ) = 0 then exit sub
+    while from < n
+        if SearchRange( w, phrase, o, from, n ) < 0 then exit while
+        dim as integer a = tkCodeEdit_Send( w, SCI_GETTARGETSTART ), z = tkCodeEdit_Send( w, SCI_GETTARGETEND )
+        tkCodeEdit_Send( w, SCI_SETINDICATORCURRENT, INDIC_FIND )
+        if z > a then tkCodeEdit_Send( w, SCI_INDICATORFILLRANGE, a, z - a )
+        if z <= from then z = from + 1
+        from = z
+    wend
+end sub
+
+function CodeView.SelectedText( ) as ustring
+    if w = 0 then return ""
+    return TextRange( w, tkCodeEdit_Send( w, SCI_GETSELECTIONSTART ), tkCodeEdit_Send( w, SCI_GETSELECTIONEND ) )
+end function
+
+' Replace the selection when it is a match, then find the next. FALSE = no match left.
+function CodeView.ReplaceCurrent( byref phrase as const ustring, byref replacement as const ustring, byref o as const FindOptions ) as boolean
+    if (w = 0) orelse (len( phrase ) = 0) then return false
+    dim as integer sa = tkCodeEdit_Send( w, SCI_GETSELECTIONSTART ), sz = tkCodeEdit_Send( w, SCI_GETSELECTIONEND )
+    if (sz > sa) andalso (SearchRange( w, phrase, o, sa, sz ) = sa) then
+        if tkCodeEdit_Send( w, SCI_GETTARGETEND ) = sz then
+            dim as string r8 = replacement
+            if o.Regex then
+                tkCodeEdit_SendText( w, SCI_REPLACETARGETRE, len( r8 ), r8 )
+            else
+                tkCodeEdit_SendText( w, SCI_REPLACETARGET, len( r8 ), r8 )
+            end if
+            dim as integer e = tkCodeEdit_Send( w, SCI_GETTARGETEND )
+            tkCodeEdit_Send( w, SCI_SETSEL, e, e )
+        end if
+    end if
+    return this.Find( phrase, o, true )
+end function
+
+' Every match replaced in one undo step; how many.
+function CodeView.ReplaceAll( byref phrase as const ustring, byref replacement as const ustring, byref o as const FindOptions ) as long
+    if (w = 0) orelse (len( phrase ) = 0) then return 0
+    dim as string r8 = replacement
+    dim as long count = 0
+    dim as integer from = 0
+    tkCodeEdit_Send( w, SCI_BEGINUNDOACTION )
+    do
+        dim as integer n = tkCodeEdit_Send( w, SCI_GETLENGTH )
+        if from > n then exit do
+        if SearchRange( w, phrase, o, from, n ) < 0 then exit do
+        dim as integer a = tkCodeEdit_Send( w, SCI_GETTARGETSTART )
+        if o.Regex then
+            tkCodeEdit_SendText( w, SCI_REPLACETARGETRE, len( r8 ), r8 )
+        else
+            tkCodeEdit_SendText( w, SCI_REPLACETARGET, len( r8 ), r8 )
+        end if
+        count += 1
+        from = tkCodeEdit_Send( w, SCI_GETTARGETEND )
+        if from <= a then from = a + 1                       ' an empty match
+    loop
+    tkCodeEdit_Send( w, SCI_ENDUNDOACTION )
+    return count
+end function
+
+' A compile error (warning) squiggle from (line, col) to (endLine, endCol): 1-based, character
+' columns, end exclusive, as the diagnostics file has them. A zero end marks the rest of the line.
+sub CodeView.AddSquiggle( byval ln as long, byval col as long, byval endLine as long, byval endCol as long, _
+                          byval isError as boolean )
+    if (w = 0) orelse (ln <= 0) then exit sub
+    dim as integer a = tkCodeEdit_Send( w, SCI_POSITIONFROMLINE, ln - 1 )
+    if a < 0 then exit sub
+    dim as integer p0 = a + U8Len( left( this.LineTextAt( ln - 1 ), iif( col > 0, col - 1, 0 ) ) )
+    dim as integer p1
+    if (endLine <= 0) orelse (endCol <= 0) then
+        p1 = tkCodeEdit_Send( w, SCI_GETLINEENDPOSITION, ln - 1 )
+    else
+        dim as integer b = tkCodeEdit_Send( w, SCI_POSITIONFROMLINE, endLine - 1 )
+        p1 = b + U8Len( left( this.LineTextAt( endLine - 1 ), endCol - 1 ) )
+    end if
+    if p1 <= p0 then p1 = p0 + 1
+    if isError then
+        tkCodeEdit_Send( w, SCI_SETINDICATORCURRENT, INDIC_COMPILE_ERROR )
+    else
+        tkCodeEdit_Send( w, SCI_SETINDICATORCURRENT, INDIC_COMPILE_WARNING )
+    end if
+    tkCodeEdit_Send( w, SCI_INDICATORFILLRANGE, p0, p1 - p0 )
+end sub
+
+sub CodeView.ClearSquiggles( )
+    if w = 0 then exit sub
+    dim as integer n = tkCodeEdit_Send( w, SCI_GETLENGTH )
+    tkCodeEdit_Send( w, SCI_SETINDICATORCURRENT, INDIC_COMPILE_ERROR )
+    tkCodeEdit_Send( w, SCI_INDICATORCLEARRANGE, 0, n )
+    tkCodeEdit_Send( w, SCI_SETINDICATORCURRENT, INDIC_COMPILE_WARNING )
+    tkCodeEdit_Send( w, SCI_INDICATORCLEARRANGE, 0, n )
+end sub
+
+' Is position p (bytes) under a squiggle? 1 error, 2 warning, 0 none.
+function CodeView.SquiggleAt( byval p as longint ) as long
+    if w = 0 then return 0
+    if tkCodeEdit_Send( w, SCI_INDICATORVALUEAT, INDIC_COMPILE_ERROR, p ) then return 1
+    if tkCodeEdit_Send( w, SCI_INDICATORVALUEAT, INDIC_COMPILE_WARNING, p ) then return 2
+    return 0
+end function
+
+' The position of (line, col), 1-based character column.
+function CodeView.PositionOf( byval ln as long, byval col as long ) as longint
+    if w = 0 then return 0
+    dim as integer a = tkCodeEdit_Send( w, SCI_POSITIONFROMLINE, ln - 1 )
+    if a < 0 then return 0
+    return a + U8Len( left( this.LineTextAt( ln - 1 ), iif( col > 0, col - 1, 0 ) ) )
+end function
+
+' The word around the caret (letters, digits, '_'), for a user tool's <W>.
+function CodeView.WordAtCaret( ) as ustring
+    if w = 0 then return ""
+    dim as integer p = this.Position( )
+    dim as integer a = tkCodeEdit_Send( w, SCI_WORDSTARTPOSITION, p, 1 )
+    dim as integer z = tkCodeEdit_Send( w, SCI_WORDENDPOSITION, p, 1 )
+    return TextRange( w, a, z )
+end function
+
+' Scintilla's autocompletion list: lenEntered characters before the caret are the typed part,
+' items are shown in the order given (sorted, any case) and matched ignoring case.
+sub CodeView.ShowCompletions( byval lenEntered as long, byref items as const Array( of ustring ) )
+    if (w = 0) orelse (items.Count( ) = 0) then exit sub
+    dim as ustring list_
+    for i as long = 0 to items.Count( ) - 1
+        if i then list_ &= " "
+        list_ &= items[i]
+    next
+    tkCodeEdit_Send( w, SCI_AUTOCSETIGNORECASE, 1 )
+    tkCodeEdit_Send( w, SCI_AUTOCSETSEPARATOR, 32 )
+    tkCodeEdit_Send( w, SCI_AUTOCSETMAXHEIGHT, 12 )
+    dim as string l8 = list_
+    tkCodeEdit_SendText( w, SCI_AUTOCSHOW, lenEntered, l8 )
+end sub
+
+function CodeView.CompletionsShown( ) as boolean
+    if w = 0 then return false
+    return tkCodeEdit_Send( w, SCI_AUTOCACTIVE ) <> 0
+end function
+
+sub CodeView.CancelCompletions( )
+    if w then tkCodeEdit_Send( w, SCI_AUTOCCANCEL )
+end sub
+
+' The list's selected item, as Scintilla would insert it.
+function CodeView.CompletionSelected( ) as ustring
+    if (w = 0) orelse (this.CompletionsShown( ) = false) then return ""
+    dim as integer n = tkCodeEdit_Send( w, SCI_AUTOCGETCURRENTTEXT, 0, 0 )
+    if n <= 0 then return ""
+    dim as string b = space( n + 1 )
+    tkCodeEdit_Send( w, SCI_AUTOCGETCURRENTTEXT, 0, cast( integer, strptr( b ) ) )
+    return *cast( zstring ptr, strptr( b ) )
+end function
+
+' A codetip at the caret.
+sub CodeView.ShowCallTip( byref tip as const ustring )
+    if (w = 0) orelse (len( tip ) = 0) then exit sub
+    dim as string t8 = tip
+    tkCodeEdit_SendText( w, SCI_CALLTIPSHOW, this.Position( ), t8 )
+end sub
+
+function CodeView.CallTipShown( ) as boolean
+    if w = 0 then return false
+    return tkCodeEdit_Send( w, SCI_CALLTIPACTIVE ) <> 0
+end function
+
+sub CodeView.CancelCallTip( )
+    if w then tkCodeEdit_Send( w, SCI_CALLTIPCANCEL )
+end sub
+
+' The line break the document uses, as text.
+function CodeView.EolText( ) as ustring
+    select case this.LineEnding( )
+    case docencoding.LineEnd.CrLf : return chr( 13, 10 )
+    case docencoding.LineEnd.Cr : return chr( 13 )
+    end select
+    return chr( 10 )
+end function
+
+' Line ln's leading blanks replaced by indent_; the caret, when it was on that line, after it.
+sub CodeView.SetIndentText( byval ln as long, byref indent_ as const ustring )
+    if w = 0 then exit sub
+    dim as integer a = tkCodeEdit_Send( w, SCI_POSITIONFROMLINE, ln )
+    dim as integer z = tkCodeEdit_Send( w, SCI_GETLINEINDENTPOSITION, ln )
+    dim as string i8 = indent_
+    tkCodeEdit_Send( w, SCI_SETTARGETSTART, a )
+    tkCodeEdit_Send( w, SCI_SETTARGETEND, z )
+    tkCodeEdit_SendText( w, SCI_REPLACETARGET, len( i8 ), i8 )
+    tkCodeEdit_Send( w, SCI_GOTOPOS, a + len( i8 ) )
+end sub
+
+' lineText as a new line after line ln (the caret stays where it is).
+sub CodeView.InsertLineAfter( byval ln as long, byref lineText as const ustring )
+    if w = 0 then exit sub
+    dim as integer e = tkCodeEdit_Send( w, SCI_GETLINEENDPOSITION, ln )
+    dim as string t8 = this.EolText( ) & lineText
+    tkCodeEdit_SendText( w, SCI_INSERTTEXT, e, t8 )
+end sub
+
+' The text of the caret's line up to the caret.
+function CodeView.TextBeforeCaret( ) as ustring
+    if w = 0 then return ""
+    dim as integer p = this.Position( )
+    dim as integer a = tkCodeEdit_Send( w, SCI_POSITIONFROMLINE, tkCodeEdit_Send( w, SCI_LINEFROMPOSITION, p ) )
+    return TextRange( w, a, p )
+end function
+
+' The whole of the word under the caret (the caret may sit at its end).
+function CodeView.WordUnderCaret( ) as ustring
+    return this.WordAtCaret( )
+end function
+
+sub CodeView.ReplaceAllText( byref s as const ustring )
+    if w = 0 then exit sub
+    dim as long first = this.FirstLine( ), ln = this.CaretLine( ) - 1
+    dim as string s8 = s
+    tkCodeEdit_Send( w, SCI_BEGINUNDOACTION )
+    tkCodeEdit_Send( w, SCI_SETTARGETSTART, 0 )
+    tkCodeEdit_Send( w, SCI_SETTARGETEND, tkCodeEdit_Send( w, SCI_GETLENGTH ) )
+    tkCodeEdit_SendText( w, SCI_REPLACETARGET, len( s8 ), s8 )
+    tkCodeEdit_Send( w, SCI_ENDUNDOACTION )
+    this.GoToLine( ln )
+    this.SetFirstLine( first )
+end sub
+
+' Lines l1 .. l2 (0-based, with their breaks) replaced by s.
+sub CodeView.ReplaceLines( byval l1 as long, byval l2 as long, byref s as const ustring )
+    if w = 0 then exit sub
+    dim as integer a = tkCodeEdit_Send( w, SCI_POSITIONFROMLINE, l1 )
+    dim as integer z = tkCodeEdit_Send( w, SCI_POSITIONFROMLINE, l2 + 1 )
+    if z < 0 then z = tkCodeEdit_Send( w, SCI_GETLENGTH )
+    dim as string s8 = s
+    tkCodeEdit_Send( w, SCI_BEGINUNDOACTION )
+    tkCodeEdit_Send( w, SCI_SETTARGETSTART, a )
+    tkCodeEdit_Send( w, SCI_SETTARGETEND, z )
+    tkCodeEdit_SendText( w, SCI_REPLACETARGET, len( s8 ), s8 )
+    tkCodeEdit_Send( w, SCI_ENDUNDOACTION )
+end sub
+
+' The lines the selection covers (a selection ending at a line's start does not take it).
+sub CodeView.SelectedLines( byref l1 as long, byref l2 as long )
+    l1 = 0 : l2 = 0
+    if w = 0 then exit sub
+    dim as integer a = tkCodeEdit_Send( w, SCI_GETSELECTIONSTART ), z = tkCodeEdit_Send( w, SCI_GETSELECTIONEND )
+    l1 = tkCodeEdit_Send( w, SCI_LINEFROMPOSITION, a )
+    l2 = tkCodeEdit_Send( w, SCI_LINEFROMPOSITION, z )
+    if (l2 > l1) andalso (tkCodeEdit_Send( w, SCI_POSITIONFROMLINE, l2 ) = z) then l2 -= 1
+end sub
+
+' Lines l1 .. l2 with their breaks.
+function CodeView.LinesText( byval l1 as long, byval l2 as long ) as ustring
+    if w = 0 then return ""
+    dim as integer a = tkCodeEdit_Send( w, SCI_POSITIONFROMLINE, l1 )
+    dim as integer z = tkCodeEdit_Send( w, SCI_POSITIONFROMLINE, l2 + 1 )
+    if z < 0 then z = tkCodeEdit_Send( w, SCI_GETLENGTH )
+    return TextRange( w, a, z )
+end function
+
+function CodeView.MarginWidth( byval margin as long ) as long
+    if w = 0 then return 0
+    return tkCodeEdit_Send( w, SCI_GETMARGINWIDTHN, margin )
+end function
+
+' The identifier at byte position p ("" between words).
+function CodeView.WordAt( byval p as longint ) as ustring
+    if (w = 0) orelse (p < 0) then return ""
+    dim as integer a = tkCodeEdit_Send( w, SCI_WORDSTARTPOSITION, p, 1 )
+    dim as integer z = tkCodeEdit_Send( w, SCI_WORDENDPOSITION, p, 1 )
+    return TextRange( w, a, z )
+end function
+
+sub CodeView.ShowCallTipAt( byval p as longint, byref tip as const ustring )
+    if (w = 0) orelse (len( tip ) = 0) then exit sub
+    dim as string t8 = tip
+    tkCodeEdit_SendText( w, SCI_CALLTIPSHOW, p, t8 )
+end sub
+
+sub CodeView.UpperCaseSelection( )
+    if w then tkCodeEdit_Send( w, SCI_UPPERCASE )
+end sub
+
+sub CodeView.LowerCaseSelection( )
+    if w then tkCodeEdit_Send( w, SCI_LOWERCASE )
+end sub
+
+' Mixed Case (the old ToMixedCase): each word's first letter up, the rest down.
+sub CodeView.MixedCaseSelection( )
+    if w = 0 then exit sub
+    dim as integer a = tkCodeEdit_Send( w, SCI_GETSELECTIONSTART ), z = tkCodeEdit_Send( w, SCI_GETSELECTIONEND )
+    if z <= a then exit sub
+    dim as ustring t = lcase( TextRange( w, a, z ) )
+    dim as boolean startWord = true
+    dim as ustring o
+    for i as long = 1 to len( t )
+        dim as ustring ch = mid( t, i, 1 )
+        dim as ulong c = t[i - 1]
+        dim as boolean letter = ((c >= 97) andalso (c <= 122)) orelse (c >= 128)
+        if startWord andalso letter then ch = ucase( ch )
+        startWord = (letter = false) andalso ((c < 48) orelse (c > 57)) andalso (c <> 95)
+        o &= ch
+    next
+    dim as string o8 = o
+    tkCodeEdit_Send( w, SCI_BEGINUNDOACTION )
+    tkCodeEdit_Send( w, SCI_SETTARGETSTART, a )
+    tkCodeEdit_Send( w, SCI_SETTARGETEND, z )
+    tkCodeEdit_SendText( w, SCI_REPLACETARGET, len( o8 ), o8 )
+    tkCodeEdit_Send( w, SCI_ENDUNDOACTION )
+    tkCodeEdit_Send( w, SCI_SETSEL, a, a + len( o8 ) )
+end sub
+
+' Every tab out to the next multiple of tabSize, column-true, in one undo step.
+function CodeView.TabsToSpaces( byval tabSize as long ) as long
+    if (w = 0) orelse (tabSize < 1) then return 0
+    dim as ustring t = this.Text( )
+    if instr( t, chr( 9 ) ) = 0 then return 0
+    dim as ustring o
+    dim as long col = 0, n = 0
+    for i as long = 0 to len( t ) - 1
+        dim as ulong c = t[i]
+        if c = 9 then
+            dim as long k = tabSize - (col mod tabSize)
+            o &= space( k )
+            col += k
+            n += 1
+        else
+            o &= wchr( c )
+            if (c = 10) orelse (c = 13) then col = 0 else col += 1
+        end if
+    next
+    this.ReplaceAllText( o )
+    return n
+end function
+
+' The brace at (or just before) the caret and its partner lit; a brace with none, bad.
+sub CodeView.UpdateBraces( byval enabled as boolean )
+    if w = 0 then exit sub
+    if enabled = false then
+        tkCodeEdit_Send( w, SCI_BRACEHIGHLIGHT, -1, -1 )
+        exit sub
+    end if
+    dim as integer p = this.Position( ), at = -1
+    dim as integer probes( 0 to 1 ) = { p, p - 1 }
+    for each q as integer in probes
+        if q < 0 then continue for
+        select case tkCodeEdit_Send( w, SCI_GETCHARAT, q )
+        case 40, 41, 91, 93, 123, 125
+            at = q
+            exit for
+        end select
+    next
+    if at < 0 then
+        tkCodeEdit_Send( w, SCI_BRACEHIGHLIGHT, -1, -1 )
+        exit sub
+    end if
+    dim as integer m = tkCodeEdit_Send( w, SCI_BRACEMATCH, at, 0 )
+    if m < 0 then
+        tkCodeEdit_Send( w, SCI_BRACEBADLIGHT, at )
+    else
+        tkCodeEdit_Send( w, SCI_BRACEHIGHLIGHT, at, m )
+    end if
+end sub
+
+function CodeView.BraceAt( ) as long
+    if w = 0 then return -1
+    dim as integer p = this.Position( )
+    dim as integer probes( 0 to 1 ) = { p, p - 1 }
+    for each q as integer in probes
+        if q < 0 then continue for
+        select case tkCodeEdit_Send( w, SCI_GETCHARAT, q )
+        case 40, 41, 91, 93, 123, 125
+            return tkCodeEdit_Send( w, SCI_BRACEMATCH, q, 0 )
+        end select
+    next
+    return -1
+end function
+
+' Every other place of the identifier under the caret (whole word, any case), marked.
+sub CodeView.MarkOccurrences( byval enabled as boolean )
+    if w = 0 then exit sub
+    dim as integer n = tkCodeEdit_Send( w, SCI_GETLENGTH )
+    tkCodeEdit_Send( w, SCI_SETINDICATORCURRENT, INDIC_OCCURRENCE )
+    tkCodeEdit_Send( w, SCI_INDICATORCLEARRANGE, 0, n )
+    if enabled = false then exit sub
+    dim as ustring word = this.WordAtCaret( )
+    if len( word ) < 2 then exit sub
+    dim as FindOptions o
+    o.WholeWord = true
+    dim as integer from = 0
+    while from < n
+        if SearchRange( w, word, o, from, n ) < 0 then exit while
+        dim as integer a = tkCodeEdit_Send( w, SCI_GETTARGETSTART ), z = tkCodeEdit_Send( w, SCI_GETTARGETEND )
+        tkCodeEdit_Send( w, SCI_SETINDICATORCURRENT, INDIC_OCCURRENCE )
+        if z > a then tkCodeEdit_Send( w, SCI_INDICATORFILLRANGE, a, z - a )
+        if z <= from then z = from + 1
+        from = z
+    wend
+end sub
+
+' Every match of phrase in the document, left to right, as character positions (textsearch's
+' shape), at most limit. Empty matches (a regex like ^) are passed over. bad = the regular
+' expression was refused.
+function CodeView.MatchesOf( byref phrase as const ustring, byref o as const FindOptions, byval limit as long, _
+                             byref bad as boolean ) as Array( of textsearch.TextMatch )
+    dim as Array( of textsearch.TextMatch ) found
+    bad = false
+    if (w = 0) orelse (len( phrase ) = 0) then return found
+    dim as integer n = tkCodeEdit_Send( w, SCI_GETLENGTH ), from = 0
+    dim as integer lastAt = 0, lastChars = 0          ' a running character count: no rescans
+    tkCodeEdit_Send( w, SCI_SETSTATUS, 0 )
+    while (from <= n) andalso (found.Count( ) < limit)
+        dim as integer r = SearchRange( w, phrase, o, from, n )
+        if r < 0 then
+            ' a refused regex is a warning status, not a return value (SC_STATUS_WARN_REGEX)
+            bad = (r = -2) orelse (tkCodeEdit_Send( w, SCI_GETSTATUS ) = SC_STATUS_WARN_REGEX)
+            tkCodeEdit_Send( w, SCI_SETSTATUS, 0 )
+            exit while
+        end if
+        dim as integer a = tkCodeEdit_Send( w, SCI_GETTARGETSTART ), z = tkCodeEdit_Send( w, SCI_GETTARGETEND )
+        if z > a then
+            dim as integer ln = tkCodeEdit_Send( w, SCI_LINEFROMPOSITION, a )
+            dim as integer ls = tkCodeEdit_Send( w, SCI_POSITIONFROMLINE, ln )
+            lastChars += tkCodeEdit_Send( w, SCI_COUNTCHARACTERS, lastAt, a )
+            lastAt = a
+            dim as textsearch.TextMatch m
+            m.Start = lastChars
+            m.Length = tkCodeEdit_Send( w, SCI_COUNTCHARACTERS, a, z )
+            m.Line = ln
+            m.Column = tkCodeEdit_Send( w, SCI_COUNTCHARACTERS, ls, a )
+            found.Push( m )
+            from = z
+        else
+            from = a + 1
+        end if
+    wend
+    return found
+end function
+
+function CodeView.OccurrenceCount( ) as long
+    if w = 0 then return 0
+    dim as integer n = tkCodeEdit_Send( w, SCI_GETLENGTH ), p = 0
+    dim as long count = 0
+    while p < n
+        dim as integer e = tkCodeEdit_Send( w, SCI_INDICATOREND, INDIC_OCCURRENCE, p )
+        if tkCodeEdit_Send( w, SCI_INDICATORVALUEAT, INDIC_OCCURRENCE, p ) then count += 1
+        if e <= p then exit while
+        p = e
+    wend
+    return count
+end function
+
+' The shipped dark theme (themes/dark.toml), for a view before any config is read.
+public function DefaultLook( ) as Look
+    dim as Look k
+    k.Text.Fore = &hD4D4D4 : k.Text.Back = &h1E1E1E
+    k.Comments.Fore = &h6A9955 : k.Comments.Italic = true
+    k.Numbers.Fore = &hB5CEA8
+    k.Keyword1.Fore = &h569CD6
+    k.Keyword2.Fore = &h4EC9B0
+    k.Keyword3.Fore = &hDCDCAA
+    k.Keyword4.Fore = &h9CDCFE
+    k.Strings.Fore = &hCE9178
+    k.Preprocessor.Fore = &hC586C0
+    k.Operators.Fore = &hD4D4D4
+    k.Identifiers.Fore = &hD4D4D4
+    k.Gutter.Fore = &h858585 : k.Gutter.Back = &h1E1E1E
+    k.Caret = &hAEAFAD
+    k.CaretLineBack = &h2A2D2E
+    k.Selection = &h264F78
+    k.FoldBack = &h1E1E1E
+    k.IndentGuide = &h404040
+    k.Brace = &h515C6A
+    k.FindMatch = &h623315
+    k.ErrorColor = &hF14C4C
+    k.WarningColor = &hCCA700
+    k.Bookmark = &h0E639C
+    return k
+end function
+
+' One style over the default's colours: fore, back, bold, italic.
+private sub StyleSet( byval w as TK_WIDGET ptr, byval st as long, byref s as const Style, byref def as const Style )
+    dim as long fore = s.Fore, back = s.Back
+    if fore < 0 then fore = def.Fore
+    if back < 0 then back = def.Back
+    tkCodeEdit_Send( w, SCI_STYLESETFORE, st, Bgr( fore ) )
+    tkCodeEdit_Send( w, SCI_STYLESETBACK, st, Bgr( back ) )
+    tkCodeEdit_Send( w, SCI_STYLESETBOLD, st, B( s.Bold ) )
+    tkCodeEdit_Send( w, SCI_STYLESETITALIC, st, B( s.Italic ) )
+end sub
+
+private sub MarkerSet( byval w as TK_WIDGET ptr, byval m as long, byval shape as long, byval fore as long, byval back as long )
+    tkCodeEdit_Send( w, SCI_MARKERDEFINE, m, shape )
+    tkCodeEdit_Send( w, SCI_MARKERSETFORE, m, Bgr( fore ) )
+    tkCodeEdit_Send( w, SCI_MARKERSETBACK, m, Bgr( back ) )
+end sub
+
+' The look becomes Scintilla styles, markers and margins. Applying twice is harmless, so a
+' settings or theme change re-applies to every view.
+sub CodeView.ApplyLook( byref k as const Look )
+    if w = 0 then exit sub
+    dim as single sc = w->pHost->fScale
+
+    if len( k.FontFile ) then tkCodeEdit_SetFont( w, k.FontFile, k.FontSize )
+    StyleSet( w, STYLE_DEFAULT, k.Text, k.Text )
+    tkCodeEdit_Send( w, SCI_STYLECLEARALL )             ' every style starts as the default
+
+    ' keywords (LexTiko's lists) and the colouring
+    dim as string k1 = k.Words.Words1, k2 = k.Words.Words2, k3 = k.Words.Words3
+    tkCodeEdit_SendText( w, SCI_SETKEYWORDS, 0, k1 )
+    tkCodeEdit_SendText( w, SCI_SETKEYWORDS, 1, k2 )
+    tkCodeEdit_SendText( w, SCI_SETKEYWORDS, 2, k3 )
+    StyleSet( w, SCE_B_DEFAULT, k.Text, k.Text )
+    StyleSet( w, SCE_B_COMMENT, k.Comments, k.Text )
+    StyleSet( w, SCE_B_MULTILINECOMMENT, k.Comments, k.Text )
+    StyleSet( w, SCE_B_KEYWORD, k.Keyword1, k.Text )
+    StyleSet( w, SCE_B_KEYWORD2, k.Keyword2, k.Text )
+    StyleSet( w, SCE_B_KEYWORD3, k.Keyword3, k.Text )
+    StyleSet( w, SCE_B_KEYWORD4, k.Keyword4, k.Text )
+    StyleSet( w, SCE_B_NUMBER, k.Numbers, k.Text )
+    StyleSet( w, SCE_B_HEXNUMBER, k.Numbers, k.Text )
+    StyleSet( w, SCE_B_BINNUMBER, k.Numbers, k.Text )
+    StyleSet( w, SCE_B_OPERATOR, k.Operators, k.Text )
+    StyleSet( w, SCE_B_PREPROCESSOR, k.Preprocessor, k.Text )
+    StyleSet( w, SCE_B_STRING, k.Strings, k.Text )
+    StyleSet( w, SCE_B_STRINGEOL, k.Strings, k.Text )
+    StyleSet( w, SCE_B_IDENTIFIER, k.Identifiers, k.Text )
+
+    ' margins: 0 line numbers, 1 bookmarks, 2 folding, 3 a thin gap
+    StyleSet( w, STYLE_LINENUMBER, k.Gutter, k.Text )   ' STYLECLEARALL does not reach the margin
+    tkCodeEdit_Send( w, SCI_SETMARGINTYPEN, 0, SC_MARGIN_NUMBER )
+    dim as integer numW = 0
+    if k.LineNumbers then numW = tkCodeEdit_SendText( w, SCI_TEXTWIDTH, STYLE_LINENUMBER, "_99999" )
+    tkCodeEdit_Send( w, SCI_SETMARGINWIDTHN, 0, numW )
+    tkCodeEdit_Send( w, SCI_SETMARGINTYPEN, 1, SC_MARGIN_SYMBOL )
+    tkCodeEdit_Send( w, SCI_SETMARGINMASKN, 1, 1 shl MARKER_BOOKMARK )
+    tkCodeEdit_Send( w, SCI_SETMARGINSENSITIVEN, 1, 1 )
+    tkCodeEdit_Send( w, SCI_SETMARGINWIDTHN, 1, cint( 12 * sc ) )
+    tkCodeEdit_Send( w, SCI_SETMARGINTYPEN, 2, SC_MARGIN_SYMBOL )
+    tkCodeEdit_Send( w, SCI_SETMARGINMASKN, 2, SC_MASK_FOLDERS )
+    tkCodeEdit_Send( w, SCI_SETMARGINSENSITIVEN, 2, 1 )
+    tkCodeEdit_Send( w, SCI_SETFOLDMARGINCOLOUR, 1, Bgr( k.FoldBack ) )
+    tkCodeEdit_Send( w, SCI_SETFOLDMARGINHICOLOUR, 1, Bgr( k.FoldBack ) )
+    dim as integer foldW = 0
+    if k.FoldMargin then foldW = cint( 14 * sc )
+    tkCodeEdit_Send( w, SCI_SETMARGINWIDTHN, 2, foldW )
+    tkCodeEdit_Send( w, SCI_SETMARGINTYPEN, 3, SC_MARGIN_BACK )
+    tkCodeEdit_Send( w, SCI_SETMARGINWIDTHN, 3, cint( 4 * sc ) )
+
+    MarkerSet( w, MARKER_BOOKMARK, SC_MARK_VERTICALBOOKMARK, k.Bookmark, k.Bookmark )
+    tkCodeEdit_Send( w, SCI_INDICSETSTYLE, INDIC_COMPILE_ERROR, INDIC_SQUIGGLEPIXMAP )
+    tkCodeEdit_Send( w, SCI_INDICSETFORE, INDIC_COMPILE_ERROR, Bgr( k.ErrorColor ) )
+    tkCodeEdit_Send( w, SCI_INDICSETSTYLE, INDIC_COMPILE_WARNING, INDIC_SQUIGGLEPIXMAP )
+    tkCodeEdit_Send( w, SCI_INDICSETFORE, INDIC_COMPILE_WARNING, Bgr( k.WarningColor ) )
+    tkCodeEdit_Send( w, SCI_INDICSETSTYLE, INDIC_OCCURRENCE, INDIC_ROUNDBOX )
+    tkCodeEdit_Send( w, SCI_INDICSETFORE, INDIC_OCCURRENCE, Bgr( k.FindMatch ) )
+    tkCodeEdit_Send( w, SCI_INDICSETALPHA, INDIC_OCCURRENCE, 50 )
+    tkCodeEdit_Send( w, SCI_INDICSETSTYLE, INDIC_FIND, INDIC_ROUNDBOX )
+    tkCodeEdit_Send( w, SCI_INDICSETFORE, INDIC_FIND, Bgr( k.FindMatch ) )
+    tkCodeEdit_Send( w, SCI_INDICSETALPHA, INDIC_FIND, 80 )
+    tkCodeEdit_Send( w, SCI_INDICSETSTYLE, INDIC_BRACE, INDIC_BOX )
+    tkCodeEdit_Send( w, SCI_INDICSETFORE, INDIC_BRACE, Bgr( k.Brace ) )
+    tkCodeEdit_Send( w, SCI_BRACEHIGHLIGHTINDICATOR, 1, INDIC_BRACE )
+    tkCodeEdit_Send( w, SCI_BRACEBADLIGHTINDICATOR, 1, INDIC_BRACE )
+
+    ' folding
+    if k.FoldMargin then
+        tkCodeEdit_SendText( w, SCI_SETPROPERTY, cast( uinteger, @"fold" ), "1" )
+        dim as long marks( 0 to 6 ) = { SC_MARKNUM_FOLDEROPEN, SC_MARKNUM_FOLDER, SC_MARKNUM_FOLDERSUB, _
+            SC_MARKNUM_FOLDERTAIL, SC_MARKNUM_FOLDEREND, SC_MARKNUM_FOLDEROPENMID, SC_MARKNUM_FOLDERMIDTAIL }
+        dim as long shapes( 0 to 6 ) = { SC_MARK_BOXMINUS, SC_MARK_BOXPLUS, SC_MARK_VLINE, SC_MARK_LCORNER, _
+            SC_MARK_BOXPLUSCONNECTED, SC_MARK_BOXMINUSCONNECTED, SC_MARK_TCORNER }
+        for i as long = 0 to 6
+            ' a fold box is drawn in the marker's BACK colour, its sign in the FORE
+            MarkerSet( w, marks( i ), shapes( i ), k.FoldBack, k.Gutter.Fore )
+        next
+        tkCodeEdit_Send( w, SCI_SETFOLDFLAGS, 16 )
+        tkCodeEdit_Send( w, SCI_MARKERENABLEHIGHLIGHT, 0 )
+    else
+        tkCodeEdit_SendText( w, SCI_SETPROPERTY, cast( uinteger, @"fold" ), "0" )
+    end if
+
+    ' caret, selection, whitespace, wrap
+    tkCodeEdit_Send( w, SCI_SETCARETFORE, Bgr( k.Caret ) )
+    tkCodeEdit_Send( w, SCI_SETCARETWIDTH, 2 )
+    tkCodeEdit_Send( w, SCI_SETCARETLINEVISIBLE, B( k.CaretLine ) )
+    tkCodeEdit_Send( w, SCI_SETCARETLINEBACK, Bgr( k.CaretLineBack ) )
+    tkCodeEdit_Send( w, SCI_SETCARETLINEVISIBLEALWAYS, 1 )
+    tkCodeEdit_Send( w, SCI_SETSELBACK, 1, Bgr( k.Selection ) )
+    tkCodeEdit_Send( w, SCI_SETSELEOLFILLED, 1 )
+    tkCodeEdit_Send( w, SCI_SETADDITIONALSELBACK, Bgr( k.Selection ) )
+    tkCodeEdit_Send( w, SCI_SETADDITIONALCARETFORE, Bgr( k.Caret ) )
+    tkCodeEdit_Send( w, SCI_SETMULTIPLESELECTION, 1 )
+    tkCodeEdit_Send( w, SCI_SETADDITIONALSELECTIONTYPING, 1 )
+    if k.Whitespace then
+        tkCodeEdit_Send( w, SCI_SETVIEWWS, SCWS_VISIBLEALWAYS )
+    else
+        tkCodeEdit_Send( w, SCI_SETVIEWWS, SCWS_INVISIBLE )
+    end if
+    tkCodeEdit_Send( w, SCI_SETWHITESPACEFORE, 1, Bgr( k.IndentGuide ) )
+    if k.Wrap then
+        tkCodeEdit_Send( w, SCI_SETWRAPMODE, SC_WRAP_WORD )
+    else
+        tkCodeEdit_Send( w, SCI_SETWRAPMODE, SC_WRAP_NONE )
+    end if
+    dim as Style guide
+    guide.Fore = k.IndentGuide
+    StyleSet( w, STYLE_INDENTGUIDE, guide, k.Text )
+    tkCodeEdit_Send( w, SCI_SETINDENTATIONGUIDES, B( k.IndentGuides ) * SC_IV_LOOKBOTH )
+    tkCodeEdit_Send( w, SCI_SETEDGEMODE, EDGE_NONE )
+    tkCodeEdit_Send( w, SCI_SETVIRTUALSPACEOPTIONS, SCVS_RECTANGULARSELECTION )
+
+    ' indentation
+    tkCodeEdit_Send( w, SCI_SETUSETABS, B( k.UseTabs ) )
+    tkCodeEdit_Send( w, SCI_SETTABWIDTH, k.TabSize )
+    tkCodeEdit_Send( w, SCI_SETINDENT, k.TabSize )
+    tkCodeEdit_SendText( w, SCI_SETWORDCHARS, 0, "~_\abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" )
+end sub

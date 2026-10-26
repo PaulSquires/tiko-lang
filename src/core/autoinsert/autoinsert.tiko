@@ -1,0 +1,226 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' autoinsert -- what Enter does after a block's first line (the old eda/autoinsert, its pure
+' half): the new line is indented one level in, and, when nothing below already closes the
+' block, its END ("end sub", "next", "loop" ...) is put on the line after, at the opener's
+' indent. ELSE / ELSEIF / CASE lines indent the line after them too. The app applies Plan's
+' answer to the document; nothing here touches one.
+#module "autoinsert"
+
+#import "std/containers"
+using containers
+
+public enum LineKind explicit
+    Blank
+    Plain
+    Opener
+    Closer
+    Middle          ' ELSE, ELSEIF
+    CaseLine
+end enum
+
+type BlockDef
+    Opener  as string     ' first word, upper case
+    EndText as string     ' what is inserted
+    CloseW2 as string     ' "END <w2>" closes it
+    CloseW1 as string     ' a one-word closer ("NEXT"), or ""
+end type
+
+private function Blocks( ) as Array( of BlockDef )
+    dim as Array( of BlockDef ) a
+    dim as string t( 0 to 16, 0 to 3 ) = { _
+        { "IF", "end if", "IF", "ENDIF" }, { "FOR", "next", "", "NEXT" }, _
+        { "SELECT", "end select", "SELECT", "" }, { "WHILE", "wend", "", "WEND" }, _
+        { "DO", "loop", "", "LOOP" }, { "FUNCTION", "end function", "FUNCTION", "" }, _
+        { "SUB", "end sub", "SUB", "" }, { "PROPERTY", "end property", "PROPERTY", "" }, _
+        { "OPERATOR", "end operator", "OPERATOR", "" }, { "TYPE", "end type", "TYPE", "" }, _
+        { "WITH", "end with", "WITH", "" }, { "ENUM", "end enum", "ENUM", "" }, _
+        { "UNION", "end union", "UNION", "" }, { "CONSTRUCTOR", "end constructor", "CONSTRUCTOR", "" }, _
+        { "DESTRUCTOR", "end destructor", "DESTRUCTOR", "" }, { "SCOPE", "end scope", "SCOPE", "" }, _
+        { "NAMESPACE", "end namespace", "NAMESPACE", "" } }
+    for i as long = 0 to 16
+        dim as BlockDef b
+        b.Opener = t( i, 0 ) : b.EndText = t( i, 1 ) : b.CloseW2 = t( i, 2 ) : b.CloseW1 = t( i, 3 )
+        a.Push( b )
+    next
+    return a
+end function
+
+' The line without its comment ('  or REM), strings kept whole.
+private function StripComment( byref s as const string ) as string
+    dim as boolean quoted = false
+    for i as long = 0 to len( s ) - 1
+        if s[i] = 34 then
+            quoted = not quoted
+        elseif (quoted = false) andalso (s[i] = 39) then
+            return left( s, i )
+        end if
+    next
+    dim as string t = ucase( ltrim( s, any !" \t" ) )
+    if (left( t, 4 ) = "REM ") orelse (t = "REM") then return ""
+    return s
+end function
+
+private function IsWordChar( byval c as ulong ) as boolean
+    return ((c >= 65) andalso (c <= 90)) orelse ((c >= 48) andalso (c <= 57)) orelse (c = 95) orelse (c = 36)
+end function
+
+' What a line is, and (for an opener or closer) which block.
+public function Classify( byref lineText as const ustring, byref blockIndex as long ) as LineKind
+    blockIndex = -1
+    dim as string raw = lineText
+    dim as string stmt = ucase( trim( StripComment( raw ), any !" \t" ) )
+    if len( stmt ) = 0 then return LineKind.Blank
+    if stmt[0] = 35 then return LineKind.Plain               ' # directives
+    dim as string w1, w2, w3, wLast
+    dim as long words = 0, i = 0, n = len( stmt )
+    while i < n
+        if IsWordChar( stmt[i] ) = false then
+            i += 1
+            continue while
+        end if
+        dim as long st = i
+        while (i < n) andalso IsWordChar( stmt[i] )
+            i += 1
+        wend
+        dim as string w = mid( stmt, st + 1, i - st )
+        words += 1
+        if words = 1 then w1 = w
+        if words = 2 then w2 = w
+        if words = 3 then w3 = w
+        wLast = w
+    wend
+    if words = 0 then return LineKind.Plain
+    select case w1
+    case "DECLARE", "EXIT", "CONTINUE", "GOTO", "GOSUB", "RETURN"
+        return LineKind.Plain
+    end select
+    dim as Array( of BlockDef ) bs = Blocks( )
+    for k as long = 0 to bs.Count( ) - 1
+        if ((w1 = "END") andalso (len( bs[k].CloseW2 ) > 0) andalso (w2 = bs[k].CloseW2)) orelse _
+           ((len( bs[k].CloseW1 ) > 0) andalso (w1 = bs[k].CloseW1)) then
+            blockIndex = k
+            return LineKind.Closer
+        end if
+    next
+    if w1 = "END" then return LineKind.Plain
+    if (w1 = "ELSE") orelse (w1 = "ELSEIF") then return LineKind.Middle
+    if w1 = "CASE" then return LineKind.CaseLine
+    dim as string opener = w1, third = w3
+    select case w1
+    case "PUBLIC", "PRIVATE", "STATIC"
+        select case w2
+        case "SUB", "FUNCTION", "PROPERTY", "OPERATOR", "CONSTRUCTOR", "DESTRUCTOR", "TYPE", "ENUM", "UNION"
+            opener = w2
+            third = ""
+            if (w2 = "TYPE") orelse (w2 = "UNION") then
+                ' "public type T as long" is an alias
+                dim as long asAt = instr( stmt, " AS " )
+                if asAt > 0 then return LineKind.Plain
+            end if
+        case else
+            return LineKind.Plain
+        end select
+    end select
+    for k as long = 0 to bs.Count( ) - 1
+        if bs[k].Opener = opener then
+            select case opener
+            case "IF"
+                if wLast <> "THEN" then return LineKind.Plain     ' a one-line IF
+            case "TYPE", "UNION"
+                if third = "AS" then return LineKind.Plain        ' type T as long
+                if instr( stmt, "<" ) > 0 andalso words <= 2 then return LineKind.Plain   ' type<T>( ... )
+            case "FUNCTION"
+                dim as string head = stmt
+                dim as long p = instr( head, "(" )
+                if p > 0 then head = left( head, p - 1 )
+                if instr( head, "=" ) > 0 then return LineKind.Plain   ' function = value
+            case "DO", "WHILE", "FOR", "SELECT", "WITH", "SCOPE"
+            end select
+            blockIndex = k
+            return LineKind.Opener
+        end if
+    next
+    return LineKind.Plain
+end function
+
+' The END a block's opener needs.
+public function EndText( byval blockIndex as long ) as ustring
+    dim as Array( of BlockDef ) bs = Blocks( )
+    if (blockIndex < 0) orelse (blockIndex >= bs.Count( )) then return ""
+    return bs[blockIndex].EndText
+end function
+
+' Does the block opened on lines[openLine] still need its end? The lines after it are walked
+' with a stack: a closer of an inner block pops it; the first closer of this block that nothing
+' inner claims means it is closed already. Reaching the end, or a closer of an OUTER block,
+' means it needs one.
+public function NeedsEnd( byref lines as const Array( of ustring ), byval openLine as long, byval blockIndex as long ) as boolean
+    dim as Array( of long ) stack
+    for i as long = openLine + 1 to lines.Count( ) - 1
+        dim as long b
+        dim as LineKind k = Classify( lines[i], b )
+        if k = LineKind.Opener then
+            stack.Push( b )
+        elseif k = LineKind.Closer then
+            dim as boolean popped = false
+            for j as long = stack.Count( ) - 1 to 0 step -1
+                if stack[j] = b then
+                    while stack.Count( ) > j
+                        stack.Pop( )
+                    wend
+                    popped = true
+                    exit for
+                end if
+            next
+            if popped = false then
+                if b = blockIndex then return false
+                return true
+            end if
+        end if
+    next
+    return true
+end function
+
+' A line's indent as text ("    ", a tab).
+public function IndentOf( byref lineText as const ustring ) as ustring
+    dim as long i = 0
+    while (i < len( lineText )) andalso ((lineText[i] = 32) orelse (lineText[i] = 9))
+        i += 1
+    wend
+    return left( lineText, i )
+end function
+
+' What Enter on the end of line lines[ln] should leave:
+'   NewIndent  the indent of the new line (the caret goes after it)
+'   EndLine    a line to put after the new one ("" = none): the block's end, at the opener's indent
+public type EnterPlan
+    NewIndent as ustring
+    EndLine   as ustring
+end type
+
+public function Plan( byref lines as const Array( of ustring ), byval ln as long, byref oneLevel as const ustring, _
+                      byval autoIndent as boolean, byval autoEnd as boolean ) as EnterPlan
+    dim as EnterPlan p
+    if (ln < 0) orelse (ln >= lines.Count( )) then return p
+    dim as ustring outer = IndentOf( lines[ln] )
+    dim as long b
+    dim as LineKind k = Classify( lines[ln], b )
+    if autoIndent then
+        p.NewIndent = outer
+        if (k = LineKind.Opener) orelse (k = LineKind.Middle) orelse (k = LineKind.CaseLine) then p.NewIndent = outer & oneLevel
+    end if
+    if autoEnd andalso (k = LineKind.Opener) andalso NeedsEnd( lines, ln, b ) then
+        if autoIndent then
+            p.EndLine = outer & EndText( b )
+        else
+            p.EndLine = EndText( b )
+        end if
+    end if
+    return p
+end function

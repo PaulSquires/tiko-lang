@@ -1,0 +1,110 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+' mrusuite -- tkc/mru: the old UpdateMRUList rules (newest first, an existing entry promoted rather
+' than duplicated, the oldest dropping off at ten, Clear) plus remove, remove-missing (on real
+' files in a temp folder), cap changes and the settings round trip.
+#module "mrusuite"
+
+#import "std/containers"
+#import "std/fs"
+#import "tkc/mru"
+#import "../tally"
+#import "tkc/safewrite"
+using containers
+
+' The list as "a|b|c", newest first.
+private function Joined( byref r as mru.RecentList ) as ustring
+    dim as ustring s
+    for i as long = 0 to r.Count( ) - 1
+        if i > 0 then s &= "|"
+        s &= r.Item( i )
+    next
+    return s
+end function
+
+public sub Run( byref c as tally.Checker )
+    c.Begin( "mru" )
+    dim as mru.RecentList r
+    c.SameNum( r.Cap( ), 10, "the default cap is the old ten" )
+    c.SameNum( r.Count( ), 0, "a new list is empty" )
+    c.Same( r.Item( 0 ), "", "item 0 of an empty list is empty" )
+
+    c.Check( r.Add( "a" ), "add a changes the list" )
+    r.Add( "b" ) : r.Add( "c" )
+    c.Same( Joined( r ), "c|b|a", "newest first" )
+    c.Check( r.Add( "a" ), "re-adding a changes the order" )
+    c.Same( Joined( r ), "a|c|b", "an existing entry is promoted, not duplicated" )
+    c.Check( r.Add( "a" ) = false, "adding the first entry again changes nothing" )
+    c.Check( r.Add( "" ) = false, "an empty path is ignored" )
+    c.SameNum( r.Count( ), 3, "three entries" )
+
+    ' case: one entry where the file system ignores case (Windows, as the old ucase compare)
+    r.Add( "B" )
+    if fs.PathIsCaseSensitive( ) then
+        c.Same( Joined( r ), "B|a|c|b", "case-sensitive file system: B and b are two entries" )
+        r.Remove( "B" ) : r.Add( "b" )
+    else
+        c.Same( Joined( r ), "B|a|c", "case-insensitive file system: B promotes b, new spelling kept" )
+        r.Add( "b" )
+    end if
+    c.Same( Joined( r ), "b|a|c", "back to b|a|c" )
+
+    ' the cap: the OLDEST falls off
+    for i as long = 1 to 12
+        r.Add( "f" & i )
+    next
+    c.SameNum( r.Count( ), 10, "the list stops at ten" )
+    c.Same( r.Item( 0 ), "f12", "the newest is first" )
+    c.Same( r.Item( 9 ), "f3", "the oldest kept is f3" )
+    c.SameNum( r.IndexOf( "a" ), -1, "the old entries fell off" )
+    r.Add( "f5" )
+    c.Same( Joined( r ), "f5|f12|f11|f10|f9|f8|f7|f6|f4|f3", "promoting from the middle keeps the rest in order" )
+
+    ' remove, cap changes
+    c.Check( r.Remove( "f9" ), "remove f9" )
+    c.Check( r.Remove( "f9" ) = false, "remove f9 again: not there" )
+    c.SameNum( r.Count( ), 9, "nine left" )
+    r.SetCap( 3 )
+    c.Same( Joined( r ), "f5|f12|f11", "a smaller cap drops from the old end" )
+    r.SetCap( 0 )
+    c.SameNum( r.Cap( ), 1, "the cap is at least one" )
+    c.Same( Joined( r ), "f5", "cap 1 keeps the newest" )
+    r.Clear( )
+    c.SameNum( r.Count( ), 0, "clear empties it" )
+
+    ' the settings round trip: empties and later duplicates go, the cap holds
+    scope
+        dim as Array( of ustring ) saved
+        saved.Push( "x" ) : saved.Push( "" ) : saved.Push( "y" ) : saved.Push( "x" ) : saved.Push( "z" )
+        dim as mru.RecentList s = mru.RecentList( 2 )
+        s.Assign( saved )
+        c.Same( Joined( s ), "x|y", "assign: empty and duplicate skipped, cut to the cap" )
+        dim as Array( of ustring ) back = s.Items( )
+        c.SameNum( back.Count( ), 2, "items gives the entries back" )
+        c.Same( back[0] & "|" & back[1], "x|y", "items keeps the order" )
+    end scope
+
+    ' remove-missing, on real files and a real folder
+    scope
+        dim as fs.FsResultUStr td = fs.CreateTempDir( "mrusuite" )
+        c.Check( td.IsOk( ), "a temp folder" )
+        if td.IsOk( ) then
+            dim as ustring dir_ = td.Value( )
+            dim as ustring f1 = fs.PathJoin( dir_, "one.tiko" ), f2 = fs.PathJoin( dir_, "two.tiko" )
+            safewrite.WriteText( f1, "1" ).IsOk( )   ' TS-003
+            safewrite.WriteText( f2, "2" ).IsOk( )   ' TS-003
+            dim as mru.RecentList m
+            m.Add( fs.PathJoin( dir_, "gone.tiko" ) )
+            m.Add( f1 )
+            m.Add( fs.PathJoin( dir_, "gone2.tiko" ) )
+            m.Add( dir_ )
+            m.Add( f2 )
+            c.SameNum( m.RemoveMissing( ), 2, "two entries were missing" )
+            c.SameNum( m.Count( ), 3, "the two files and the folder stay" )
+            c.Check( ( m.Item( 0 ) = f2 ) andalso ( m.Item( 1 ) = dir_ ) andalso ( m.Item( 2 ) = f1 ), "in their order" )
+            c.SameNum( m.RemoveMissing( ), 0, "nothing more is missing" )
+            fs.RemoveFile( f1 ).IsOk( ) : fs.RemoveFile( f2 ).IsOk( ) : fs.RemoveDir( dir_ ).IsOk( )
+        end if
+    end scope
+end sub

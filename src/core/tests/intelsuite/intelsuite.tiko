@@ -1,0 +1,110 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+' intelsuite -- tkc/symboldb over a hand-built set (what tks/parser makes of a scan), and
+' tkc/autoinsert: which lines open and close blocks, when an end is still owed, what Enter does.
+#module "intelsuite"
+
+#import "std/containers"
+#import "tkc/autoinsert"
+#import "tkc/symboldb"
+#import "../tally"
+using containers
+
+private function Mk( byval k as symboldb.SymKind, byref nm as const ustring, byref ty as const ustring, byval parent as long, _
+                    byval ln as long, byval body as long = 0, byval bodyEnd as long = 0, byval flags as long = 0 ) as symboldb.Sym
+    dim as symboldb.Sym y
+    y.Kind = k : y.Name = nm : y.TypeText = ty : y.Parent = parent : y.LineNo = ln
+    y.BodyLine = body : y.BodyEndLine = bodyEnd : y.Flags = flags : y.File = "C:\P\MAIN.TIKO"
+    return y
+end function
+
+private function Joined( byref a as const Array( of ustring ) ) as ustring
+    dim as ustring s
+    for i as long = 0 to a.Count( ) - 1
+        if i then s &= "|"
+        s &= a[i]
+    next
+    return s
+end function
+
+public sub Run( byref c as tally.Checker )
+    c.Begin( "symboldb" )
+    ' type Point (x, y, Len), type Point3 extends Point (z), sub Draw( byref p as Point ) with a
+    ' local q as Point3, function Twice( n as long, [k as long] ) as long, const LIMIT
+    dim as symboldb.SymbolSet st
+    st.Root = "c:\p\main.tiko"
+    st.Syms.Push( Mk( symboldb.SymKind.TypeDef, "Point", "", -1, 1 ) )                         ' 0
+    st.Syms.Push( Mk( symboldb.SymKind.Field, "x", "long", 0, 2 ) )                            ' 1
+    st.Syms.Push( Mk( symboldb.SymKind.Field, "y", "long", 0, 3 ) )                            ' 2
+    st.Syms.Push( Mk( symboldb.SymKind.FunctionProc, "Len", "double", 0, 4 ) )                 ' 3
+    st.Syms.Push( Mk( symboldb.SymKind.TypeDef, "Point3", "Point", -1, 6 ) )                   ' 4
+    st.Syms.Push( Mk( symboldb.SymKind.Field, "z", "long", 4, 7 ) )                            ' 5
+    st.Syms.Push( Mk( symboldb.SymKind.SubProc, "Draw", "", -1, 10, 10, 14 ) )                 ' 6
+    st.Syms.Push( Mk( symboldb.SymKind.Param, "p", "Point", 6, 10, 0, 0, symboldb.FLAG_BYREF ) ) ' 7
+    st.Syms.Push( Mk( symboldb.SymKind.Variable, "q", "Point3", 6, 11, 0, 0, symboldb.FLAG_LOCAL ) ) ' 8
+    st.Syms.Push( Mk( symboldb.SymKind.FunctionProc, "Twice", "long", -1, 16, 16, 18 ) )       ' 9
+    st.Syms.Push( Mk( symboldb.SymKind.Param, "n", "long", 9, 16 ) )                           ' 10
+    st.Syms.Push( Mk( symboldb.SymKind.Param, "k", "long", 9, 16, 0, 0, symboldb.FLAG_OPTIONAL ) ) ' 11
+    st.Syms.Push( Mk( symboldb.SymKind.ConstDef, "LIMIT", "long", -1, 20 ) )                   ' 12
+    st.Syms.Push( Mk( symboldb.SymKind.FunctionProc, "Twice", "long", -1, 30 ) )               ' 13: a declaration
+    dim as symboldb.Database db
+    db.Install( st )
+    c.SameNum( db.SetCount( ), 1, "one set" )
+    dim as symboldb.SymRef r = db.Definition( "twice", "C:\P\MAIN.TIKO", 1 )
+    c.Check( r.IsValid( ) andalso (r.Index = 9), "Twice: the record at its body, any case" )
+    r = db.Definition( "p", "c:\p\main.tiko", 12 )
+    c.Check( r.IsValid( ) andalso (r.Index = 7), "a parameter inside its procedure" )
+    r = db.Definition( "q", "c:\p\main.tiko", 25 )
+    c.Check( r.IsValid( ) = false, "a local is not seen outside its procedure" )
+    r = db.Definition( "y", "c:\p\main.tiko", 12, "p" )
+    c.Check( r.IsValid( ) andalso (r.Index = 2), "p.y: the member of p's type" )
+    r = db.Definition( "x", "c:\p\main.tiko", 12, "q" )
+    c.Check( r.IsValid( ) andalso (r.Index = 1), "q.x: through EXTENDS" )
+    c.Same( Joined( db.MemberNames( "q", "c:\p\main.tiko", 12 ) ), "Len|x|y|z", "q.: own and inherited members, sorted" )
+    c.Same( Joined( db.Completions( "p", "c:\p\main.tiko", 12 ) ), "p|Point|Point3", "completions: a parameter, then the globals" )
+    c.Same( Joined( db.Completions( "q", "c:\p\main.tiko", 12 ) ), "q", "a local completes inside" )
+    c.Same( Joined( db.Completions( "q", "c:\p\main.tiko", 25 ) ), "", "...and not outside" )
+    c.Same( Joined( db.TypeNames( "po" ) ), "Point|Point3", "type names" )
+    c.Same( db.CallTip( "Twice" ), "Twice(n as long, [k as long]) as long", "the calltip" )
+    c.Same( db.CallTip( "Draw" ), "Draw(byref p as Point)", "a sub's calltip" )
+    c.Same( db.CallTip( "LIMIT" ), "", "a constant has no calltip" )
+    c.Same( symboldb.BaseTypeName( "const Node ptr" ), "Node", "BaseTypeName" )
+    db.Install( st )
+    c.SameNum( db.SetCount( ), 1, "installing the same root replaces it" )
+    db.Remove( "C:\P\MAIN.TIKO" )
+    c.SameNum( db.SetCount( ), 0, "remove" )
+
+    c.Begin( "autoinsert" )
+    dim as long b
+    c.Check( (autoinsert.Classify( "    public sub Foo( )", b ) = autoinsert.LineKind.Opener) andalso (autoinsert.EndText( b ) = "end sub"), "public sub opens" )
+    c.Check( autoinsert.Classify( "if x then", b ) = autoinsert.LineKind.Opener, "if ... then opens" )
+    c.Check( autoinsert.Classify( "if x then y = 1", b ) = autoinsert.LineKind.Plain, "a one-line if does not" )
+    c.Check( autoinsert.Classify( "type T as long", b ) = autoinsert.LineKind.Plain, "an alias does not" )
+    c.Check( autoinsert.Classify( "declare sub Foo( )", b ) = autoinsert.LineKind.Plain, "a declaration does not" )
+    c.Check( autoinsert.Classify( "function = 1", b ) = autoinsert.LineKind.Plain, "function = value does not" )
+    c.Check( (autoinsert.Classify( "for i as long = 1 to 3 ' count", b ) = autoinsert.LineKind.Opener) andalso (autoinsert.EndText( b ) = "next"), "for opens; the comment ignored" )
+    c.Check( autoinsert.Classify( "  End Sub", b ) = autoinsert.LineKind.Closer, "end sub closes, any case" )
+    c.Check( autoinsert.Classify( "else", b ) = autoinsert.LineKind.Middle, "else is a middle" )
+    c.Check( autoinsert.Classify( "print ""sub x""", b ) = autoinsert.LineKind.Plain, "a word in a string is not one" )
+    dim as Array( of ustring ) ls
+    ls.Push( "sub A( )" ) : ls.Push( "" ) : ls.Push( "sub B( )" ) : ls.Push( "end sub" )
+    c.Check( autoinsert.NeedsEnd( ls, 0, 6 ), "A needs its end: B's end is B's" )
+    dim as Array( of ustring ) ls2
+    ls2.Push( "sub A( )" ) : ls2.Push( "    if x then" ) : ls2.Push( "    end if" ) : ls2.Push( "end sub" )
+    c.Check( autoinsert.NeedsEnd( ls2, 0, 6 ) = false, "A is closed already" )
+    c.Check( autoinsert.NeedsEnd( ls2, 1, 0 ) = false, "the if is closed already" )
+    dim as Array( of ustring ) ls3
+    ls3.Push( "    for i = 1 to 3" ) : ls3.Push( "" )
+    dim as autoinsert.EnterPlan p = autoinsert.Plan( ls3, 0, "    ", true, true )
+    c.Same( p.NewIndent, "        ", "Enter after for: one level in" )
+    c.Same( p.EndLine, "    next", "and its next, at the for's indent" )
+    p = autoinsert.Plan( ls3, 0, "    ", false, true )
+    c.Same( p.NewIndent & "|" & p.EndLine, "|next", "no auto-indent: no indent, the end at column 1" )
+    p = autoinsert.Plan( ls3, 0, "    ", true, false )
+    c.Same( p.EndLine, "", "no auto-end: nothing inserted" )
+    dim as Array( of ustring ) ls4
+    ls4.Push( "  x = 1" )
+    p = autoinsert.Plan( ls4, 0, "    ", true, true )
+    c.Same( p.NewIndent & "|" & p.EndLine, "  |", "a plain line keeps its indent" )
+end sub

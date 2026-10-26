@@ -1,0 +1,330 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+' buildsuite -- tkc/build: the old editor's own self-tests (TIKO_DIAGFILE_SELFTEST and the pure
+' half of TIKO_COMPILECMD_SELFTEST) on the ported functions, plus the flag composition, the
+' per-OS names and the Results counts, which the old code only exercised through a real build.
+' The oracle over real compiler output is tools/oracle/run-diag.sh.
+#module "buildsuite"
+
+#import "std/containers"
+#import "std/outcome"
+#import "std/fs"
+#import "std/codec"
+#import "tkp/platform"
+#import "tkc/build"
+#import "../tally"
+using containers
+using outcome
+
+private function Bytes( byref s as const string ) as Array( of ubyte )
+    dim as Array( of ubyte ) b
+    for i as long = 0 to len( s ) - 1
+        b.Push( s[i] )
+    next
+    return b
+end function
+
+private function Parse( byref s as const string ) as build.DiagResult
+    dim as Array( of ubyte ) b = Bytes( s )
+    return build.ParseDiagnostics( b )
+end function
+
+private function StateOf( byref r as build.DiagResult ) as build.DiagState
+    if r.IsOk( ) then return r.Value( ).State
+    return r.Failure( ).State
+end function
+
+private function Joined( byref a as Array( of ustring ) ) as ustring
+    dim as ustring s
+    for each x as ustring in a
+        s &= "[" & x & "]"
+    next
+    return s
+end function
+
+private sub DiagFileTests( byref c as tally.Checker )
+    dim as string T = chr( 9 ), NL = chr( 10 )
+    dim as ustring SEP = fs.PathSeparator( fs.FB_PATH_NATIVE )
+
+    ' 1. a well-formed file, every kind
+    dim as string good = _
+        "tiko-diagnostics" & T & "1" & NL & _
+        "note" & T & "TKO0315" & T & "C:/proj/main.bas" & T & "2" & T & "1" & T & "2" & T & "7" & T & "#print building DEBUG x64" & NL & _
+        "warning" & T & "TKO0201" & T & "C:\proj\main.bas" & T & "3" & T & "7" & T & "3" & T & "20" & T & "missing closing quote" & NL & _
+        "error" & T & "TKO0405" & T & "C:\proj\main.bas" & T & "9" & T & "1" & T & "9" & T & "2" & T & "expected 'end if'" & NL & _
+        "related" & T & "TKO0905" & T & "C:\proj\main.bas" & T & "5" & T & "1" & T & "5" & T & "3" & T & "unclosed 'if' opened here" & NL & _
+        "error" & T & "TKO0116" & T & "" & T & "0" & T & "0" & T & "0" & T & "0" & T & "link failed (exit 1)" & NL & _
+        "end" & T & "2" & T & "1" & T & "5" & NL
+    dim as build.DiagResult r = Parse( good )
+    c.Check( StateOf( r ) = build.DiagState.Complete, "well-formed file is Complete" )
+    if r.IsOk( ) then
+        dim as build.DiagReport rep = r.Value( )
+        c.SameNum( rep.Records.Count( ), 5, "5 records" )
+        c.SameNum( rep.Version, 1, "version 1" )
+        if rep.Records.Count( ) = 5 then
+            c.Check( rep.Records[0].Kind = build.DiagKind.Note, "record 0 is a note" )
+            c.Same( rep.Records[0].File, "C:" & SEP & "proj" & SEP & "main.bas", "forward slashes become the host's" )
+            c.Check( rep.Records[1].Kind = build.DiagKind.Warning, "record 1 is a warning" )
+            c.Check( ( rep.Records[1].Line = 3 ) andalso ( rep.Records[1].Col = 7 ), "warning position" )
+            c.Check( ( rep.Records[1].EndLine = 3 ) andalso ( rep.Records[1].EndCol = 20 ), "warning end position" )
+            c.Check( rep.Records[2].Kind = build.DiagKind.Error, "record 2 is an error" )
+            c.Same( rep.Records[2].Code, "TKO0405", "record 2 code" )
+            c.Same( rep.Records[2].Message, "expected 'end if'", "record 2 message" )
+            c.Check( rep.Records[3].Kind = build.DiagKind.Related, "record 3 is related" )
+            c.SameNum( rep.Records[3].Parent, 2, "related points at its parent" )
+            c.SameNum( rep.Records[2].Parent, -1, "a diagnostic has no parent" )
+            c.Check( ( rep.Records[4].Line = 0 ) andalso ( len( rep.Records[4].File ) = 0 ), "location-less record has no location" )
+            c.Same( rep.Records[4].Message, "link failed (exit 1)", "location-less message" )
+            c.Same( build.RowText( rep.Records[2] ), "error TKO0405: expected 'end if'", "row text of an error" )
+            c.Same( build.RowText( rep.Records[3] ), "    note: unclosed 'if' opened here", "row text of a related note" )
+        end if
+        c.Check( ( rep.Errors = 2 ) andalso ( rep.Warnings = 1 ) andalso ( rep.ExitCode = 5 ), "end record counts" )
+
+        ' the Results counts: the end totals win; the first located error is row 2
+        dim as build.ResultCounts rc = build.CountResults( rep, true, false, 1 )
+        c.Check( ( rc.Errors = 2 ) andalso ( rc.Warnings = 1 ) andalso ( rc.Notes = 2 ), "counts from a complete file" )
+        c.SameNum( rc.FirstError, 2, "first located error" )
+        c.Check( ( rc.ExitFailure = false ) andalso ( rc.ShowLog = false ), "a located error shows Results" )
+
+        ' Quick Run: the temporary copy's records move to the document
+        rep.RenameFile( "C:\PROJ\main.bas", "C:\doc.tiko" )
+        dim as ustring want = "C:\proj\main.bas"
+        if platform.CurrentOs( ) = platform.Os.Windows then want = "C:\doc.tiko"
+        c.Same( rep.Records[1].File, want, "RenameFile matches as the host compares paths" )
+        c.Same( rep.Records[4].File, "", "RenameFile leaves a location-less record alone" )
+    end if
+
+    ' 2. CRLF parses identically
+    dim as string crlf
+    for i as long = 0 to len( good ) - 1
+        if good[i] = 10 then crlf &= chr( 13 )
+        crlf &= chr( good[i] )
+    next
+    r = Parse( crlf )
+    c.Check( StateOf( r ) = build.DiagState.Complete, "CRLF file is Complete" )
+    if r.IsOk( ) then
+        c.SameNum( r.Value( ).Records.Count( ), 5, "CRLF file: 5 records" )
+        if r.Value( ).Records.Count( ) = 5 then c.Same( r.Value( ).Records[4].Message, "link failed (exit 1)", "CRLF left no CR in the last field" )
+    end if
+
+    ' 3. no 'end' record: the compiler did not finish
+    r = Parse( left( good, instr( good, NL & "end" ) ) )
+    c.Check( StateOf( r ) = build.DiagState.Incomplete, "missing end is Incomplete" )
+    if r.IsOk( ) then
+        c.SameNum( r.Value( ).Records.Count( ), 5, "Incomplete keeps its records" )
+        c.SameNum( r.Value( ).ExitCode, -1, "Incomplete has no exit code" )
+    end if
+    ' ...and a damaged 'end' is no end
+    r = Parse( "tiko-diagnostics" & T & "1" & NL & "end" & T & "1" & T & "x" & T & "1" & NL )
+    c.Check( StateOf( r ) = build.DiagState.Incomplete, "a damaged end record is Incomplete" )
+    r = Parse( "tiko-diagnostics" & T & "1" & NL & "end" & T & "1" & T & "0" & NL )
+    c.Check( StateOf( r ) = build.DiagState.Incomplete, "a short end record is Incomplete" )
+
+    ' 4. unknown kind, and extra trailing fields: both ignored
+    r = Parse( "tiko-diagnostics" & T & "1" & NL & _
+        "hint" & T & "TKO9999" & T & "C:\a.bas" & T & "1" & T & "1" & T & "1" & T & "2" & T & "future" & NL & _
+        "error" & T & "TKO0001" & T & "C:\a.bas" & T & "4" & T & "2" & T & "4" & T & "3" & T & "msg" & T & "extra" & T & "more" & NL & _
+        "end" & T & "1" & T & "0" & T & "1" & NL )
+    c.Check( StateOf( r ) = build.DiagState.Complete, "extra-field file is Complete" )
+    if r.IsOk( ) then
+        c.SameNum( r.Value( ).Records.Count( ), 1, "unknown kind skipped" )
+        if r.Value( ).Records.Count( ) = 1 then c.Same( r.Value( ).Records[0].Message, "msg", "extra field stays out of the message" )
+    end if
+    ' a record with fewer than eight fields is skipped
+    r = Parse( "tiko-diagnostics" & T & "1" & NL & "error" & T & "TKO0001" & T & "C:\a.bas" & T & "4" & NL )
+    c.Check( r.IsOk( ) andalso ( r.Value( ).Records.Count( ) = 0 ), "a short record is skipped" )
+
+    ' 5. a newer version is refused, not half-read
+    r = Parse( "tiko-diagnostics" & T & "2" & NL & "error" & T & "TKO0001" & T & "" & T & "0" & T & "0" & T & "0" & T & "0" & T & "x" & NL )
+    c.Check( StateOf( r ) = build.DiagState.Newer, "version 2 is Newer" )
+    if r.IsOk( ) = false then c.SameNum( r.Failure( ).Version, 2, "Newer says which version" )
+
+    ' 6. empty, not ours, a bad version
+    c.Check( StateOf( Parse( "" ) ) = build.DiagState.Unreadable, "empty is Unreadable" )
+    c.Check( StateOf( Parse( "C:\a.bas(3,1): error TKO0001: x" & NL ) ) = build.DiagState.Unreadable, "console text is Unreadable" )
+    c.Check( StateOf( Parse( "tiko-diagnostics" & T & "1x" & NL ) ) = build.DiagState.Unreadable, "a damaged version is Unreadable" )
+    c.Check( StateOf( Parse( NL & NL & "tiko-diagnostics" & T & "1" & NL ) ) = build.DiagState.Incomplete, "blank lines before the header are skipped" )
+
+    ' 7. a damaged position keeps the diagnostic, without a location
+    r = Parse( "tiko-diagnostics" & T & "1" & NL & "error" & T & "TKO0001" & T & "C:\a.bas" & T & "x9" & T & "1" & T & "1" & T & "2" & T & "bad line" & NL )
+    c.Check( StateOf( r ) = build.DiagState.Incomplete, "damaged-position state" )
+    if r.IsOk( ) andalso ( r.Value( ).Records.Count( ) = 1 ) then
+        c.Check( ( r.Value( ).Records[0].Line = 0 ) andalso ( len( r.Value( ).Records[0].File ) = 0 ), "damaged position keeps no location" )
+    else
+        c.Check( false, "damaged record kept" )
+    end if
+    r = Parse( "tiko-diagnostics" & T & "1" & NL & "error" & T & "TKO0001" & T & "C:\a.bas" & T & "1234567890" & T & "1" & T & "1" & T & "2" & T & "ten digits" & NL )
+    c.Check( r.IsOk( ) andalso ( r.Value( ).Records[0].Line = 0 ), "a ten-digit number is damaged" )
+
+    ' 8. UTF-8 in a message and a path; a BOM-led field keeps U+FEFF
+    dim as string eacute = chr( &hC3, &hA9 )
+    r = Parse( "tiko-diagnostics" & T & "1" & NL & _
+        "warning" & T & "TKO0003" & T & "C:\caf" & eacute & ".bas" & T & "1" & T & "1" & T & "1" & T & "2" & T & eacute & NL )
+    if r.IsOk( ) andalso ( r.Value( ).Records.Count( ) = 1 ) then
+        c.Same( r.Value( ).Records[0].Message, wchr( &hE9 ), "UTF-8 message is U+00E9" )
+        c.Same( r.Value( ).Records[0].File, "C:\caf" & wchr( &hE9 ) & ".bas", "UTF-8 path" )
+    else
+        c.Check( false, "UTF-8 record" )
+    end if
+    r = Parse( "tiko-diagnostics" & T & "1" & NL & _
+        "note" & T & "TKO0315" & T & "" & T & "0" & T & "0" & T & "0" & T & "0" & T & chr( &hEF, &hBB, &hBF ) & "x" & NL )
+    c.Check( r.IsOk( ) andalso ( r.Value( ).Records[0].Message = wchr( &hFEFF ) & "x" ), "a BOM-led field keeps U+FEFF" )
+    ' a byte that is not UTF-8 (a source line kept verbatim): the ANSI page on Windows
+    r = Parse( "tiko-diagnostics" & T & "1" & NL & _
+        "note" & T & "TKO0315" & T & "" & T & "0" & T & "0" & T & "0" & T & "0" & T & "caf" & chr( &hE9 ) & NL )
+    c.Check( r.IsOk( ) andalso ( len( r.Value( ).Records[0].Message ) = 4 ), "a non-UTF-8 field is one character per byte" )
+
+    ' 9. a related record with nothing before it is kept, parentless
+    r = Parse( "tiko-diagnostics" & T & "1" & NL & _
+        "related" & T & "TKO0905" & T & "C:\a.bas" & T & "1" & T & "1" & T & "1" & T & "2" & T & "orphan" & NL )
+    c.Check( r.IsOk( ) andalso ( r.Value( ).Records.Count( ) = 1 ) andalso ( r.Value( ).Records[0].Parent = -1 ), "orphan note has no parent" )
+
+    ' 10. the disk: missing, then a round trip
+    dim as ustring tmp = fs.PathJoin( platform.ExeDir( ), "buildsuite_diag.tsv" )
+    fs.RemoveFile( tmp ).IsOk( )
+    c.Check( StateOf( build.ReadDiagnostics( tmp ) ) = build.DiagState.Missing, "a missing file is Missing" )
+    c.Check( StateOf( build.ReadDiagnostics( "" ) ) = build.DiagState.Missing, "no path is Missing" )
+    dim as Array( of ubyte ) gb = Bytes( good )
+    if fs.WriteAllBytes( tmp, gb ).IsOk( ) then
+        r = build.ReadDiagnostics( tmp )
+        c.Check( StateOf( r ) = build.DiagState.Complete, "disk round trip is Complete" )
+        c.Check( r.IsOk( ) andalso ( r.Value( ).Records.Count( ) = 5 ), "disk round trip: 5 records" )
+        dim as Array( of ubyte ) none
+        fs.WriteAllBytes( tmp, none ).IsOk( )
+        c.Check( StateOf( build.ReadDiagnostics( tmp ) ) = build.DiagState.Unreadable, "an empty file is Unreadable" )
+        fs.RemoveFile( tmp ).IsOk( )
+    else
+        c.Check( false, "could not write " & tmp )
+    end if
+
+    ' 11. the counts when the records are missing
+    dim as build.DiagReport empty_
+    dim as build.ResultCounts rc = build.CountResults( empty_, false, false, 7 )
+    c.Check( ( rc.Errors = 1 ) andalso rc.ExitFailure andalso rc.ShowLog, "a failed exit with no records is one error, log shown" )
+    rc = build.CountResults( empty_, false, false, 0 )
+    c.Check( ( rc.Errors = 0 ) andalso ( rc.ExitFailure = false ) andalso ( rc.ShowLog = false ), "a clean build has nothing to show" )
+    rc = build.CountResults( empty_, false, true, 1 )
+    c.Check( rc.ShowLog andalso ( rc.Errors = 1 ), "no --diagnostics-file and a failure: the log" )
+    r = Parse( "tiko-diagnostics" & T & "1" & NL & "error" & T & "TKO0116" & T & "" & T & "0" & T & "0" & T & "0" & T & "0" & T & "link failed" & NL )
+    if r.IsOk( ) then
+        rc = build.CountResults( r.Value( ), true, false, 5 )
+        c.Check( ( rc.Errors = 1 ) andalso ( rc.FirstError = -1 ) andalso rc.ShowLog andalso ( rc.ExitFailure = false ), "a location-less error: the log, no extra row" )
+    end if
+end sub
+
+private sub CommandTests( byref c as tally.Checker )
+    dim as platform.Os W = platform.Os.Windows, L = platform.Os.Linux, M = platform.Os.MacOS
+
+    ' QuoteArg: the CommandLineToArgvW rule (the oracle checks it against the real splitter)
+    c.Same( build.QuoteArg( "plain" ), "plain", "a plain word is bare" )
+    c.Same( build.QuoteArg( "" ), """""", "an empty argument is a pair of quotes" )
+    c.Same( build.QuoteArg( "C:\Program Files\x.tiko" ), """C:\Program Files\x.tiko""", "a spaced path is quoted" )
+    c.Same( build.QuoteArg( "C:\trailing slash\" ), """C:\trailing slash\\""", "a trailing backslash is doubled" )
+    c.Same( build.QuoteArg( "say ""hi"" there" ), """say \""hi\"" there""", "a quote is escaped" )
+    c.Same( build.QuoteArg( "a\\""b c" ), """a\\\\\""b c""", "backslashes before a quote double" )
+    c.Same( build.QuoteArg( "-i ""C:\My Inc"" -g" ), """-i \""C:\My Inc\"" -g""", "a flag string is one argument" )
+
+    ' 'tiko build' of the implicit target
+    dim as Array( of ustring ) mods, links, none
+    mods.Push( "C:\p q\mod.tiko" )
+    links.Push( "C:\lib\x.o" )
+    dim as Array( of ustring ) a = build.BuildArgs( "C:\p q\main.tiko", mods, links, "C:\p q\app.rc", _
+        " -s gui -i ""C:\My Inc"" -g ", "C:\Temp Dir\tiko_diag_1.tsv", W )
+    c.Same( Joined( a ), "[build][C:\p q\main.tiko][C:\p q\mod.tiko][C:\lib\x.o][C:\p q\app.rc][--message-format][json]" & _
+        "[-target][windows-x86_64][--options][-s gui -i ""C:\My Inc"" -g][--diagnostics-file][C:\Temp Dir\tiko_diag_1.tsv]", _
+        "BuildArgs: roots in order, events, target, one --options, diagnostics last" )
+    a = build.BuildArgs( "m.tiko", none, none, "", "  ", "", L )
+    c.Same( Joined( a ), "[build][m.tiko][--message-format][json][-target][linux-x86_64]", "no flags: no --options; the Linux target" )
+    c.Same( build.CommandLine( "C:\t\tiko.exe", a ), """C:\t\tiko.exe"" build m.tiko --message-format json -target linux-x86_64", _
+        "CommandLine: the program quoted as argv[0]" )
+    a = build.BuildArgs( "C:\p q\main.tiko", mods, none, "", "-O2", "", W )
+    c.Same( build.CommandLine( "C:\Program Files\tiko\tiko.exe", a ), _
+        """C:\Program Files\tiko\tiko.exe"" build ""C:\p q\main.tiko"" ""C:\p q\mod.tiko"" --message-format json -target windows-x86_64 --options -O2", _
+        "CommandLine quotes what needs it" )
+    dim as Array( of ustring ) e0
+    c.Same( build.CommandLine( "C:\fb\x.exe", e0 ), """C:\fb\x.exe""", "CommandLine with no arguments" )
+
+    ' 'tiko check'
+    a = build.CheckArgs( "C:\p q\mod.tiko", " -i ""C:\My Inc"" -g ", "", W )
+    c.Same( Joined( a ), "[check][C:\p q\mod.tiko][--message-format][json][-target][windows-x86_64][--options][-i ""C:\My Inc"" -g]", "CheckArgs" )
+    c.Same( Joined( build.CheckArgs( "m.tiko", " ", "d.tsv", M ) ), "[check][m.tiko][--message-format][json][-target][macos-arm64][--diagnostics-file][d.tsv]", _
+        "CheckArgs, no flags, the macOS target" )
+
+    ' a target of tiko.toml: the trailing separator goes, the extra inputs join the flags
+    dim as Array( of ustring ) extra
+    extra.Push( "C:\lib\x.o" )
+    a = build.TargetArgs( "my-app", "C:\p q\", " -s gui -O2 ", extra, "", W )
+    c.Same( Joined( a ), "[build][my-app][--manifest][C:\p q][--profile][editor][--message-format][json][-target][windows-x86_64]" & _
+        "[--options][-s gui -O2 ""C:\lib\x.o""]", "TargetArgs" )
+    c.Same( Joined( build.TargetArgs( "app", "/home/p/", "", none, "", L ) ), _
+        "[build][app][--manifest][/home/p][--profile][editor][--message-format][json][-target][linux-x86_64]", "TargetArgs, no flags, a POSIX folder" )
+    c.Same( Joined( build.TargetArgs( "app", "C:\p", "", extra, "", W ) ), _
+        "[build][app][--manifest][C:\p][--profile][editor][--message-format][json][-target][windows-x86_64][--options][""C:\lib\x.o""]", _
+        "TargetArgs, extra inputs only" )
+
+    ' output names, per OS (tiko's own rule)
+    dim as ustring S = fs.PathSeparator( fs.FB_PATH_NATIVE )
+    c.Same( build.TargetOutputFile( "C:\p\", "app", " -O2 ", W ), fs.PathJoin( "C:\p\", "out", "editor", "app.exe" ), "a target's exe" )
+    c.Same( fs.PathFileName( build.TargetOutputFile( "C:\p", "app", " -dll ", W ) ), "app.dll", "a -dll target" )
+    c.Same( fs.PathFileName( build.TargetOutputFile( "C:\p", "app", "-lib", W ) ), "libapp.a", "a -lib target" )
+    c.Same( fs.PathFileName( build.TargetOutputFile( "C:\p", "app", "-dllx", W ) ), "app.exe", "a target's switch must be a whole word" )
+    c.Same( fs.PathFileName( build.TargetOutputFile( "p", "app", "-dll", L ) ), "libapp.so", "a Linux -dll target" )
+    c.Same( fs.PathFileName( build.TargetOutputFile( "p", "app", "", L ) ), "app", "a Linux program has no suffix" )
+    c.Same( fs.PathFileName( build.TargetOutputFile( "p", "app", "-DYLIB", M ) ), "libapp.dylib", "a macOS -dylib target" )
+    c.Same( build.OutputFile( "C:" & S & "p" & S & "main.tiko", "-s gui", W ), fs.PathJoin( "C:" & S & "p", "main.exe" ), "the implicit target's exe" )
+    c.Same( fs.PathFileName( build.OutputFile( "main.tiko", "-dllx", W ) ), "main.dll", "the implicit target's switch is a prefix match" )
+    c.Same( fs.PathFileName( build.OutputFile( "main.tiko", "-dll -lib", W ) ), "libmain.a", "-lib wins over -dll" )
+    c.Same( fs.PathFileName( build.OutputFile( "main.tiko", "-Lib", L ) ), "libmain.a", "a Linux static library" )
+    c.Same( fs.PathFileName( build.OutputFile( "a.b.tiko", "", L ) ), "a.b", "only the last extension goes" )
+
+    ' the flags
+    dim as build.BuildConfig cfg
+    cfg.Options = "-s gui -O2"
+    dim as Array( of build.Subsystem ) dirs
+    c.Same( build.ComposeFlags( cfg, build.BuildAction.Compile, "", "", dirs ), "-s gui -O2  ", "flags: the configuration's options" )
+    c.Same( build.ComposeFlags( cfg, build.BuildAction.StartDebugging, "-mt", "C:\My Inc ;;D:\x", dirs ), _
+        "-s gui -g -exx  -mt  -i ""C:\My Inc"" -i ""D:\x""", "flags: debugging drops -O, adds -g -exx; project options; include paths" )
+    cfg.Options = " -O1 -O3 -S GUI "
+    dirs.Push( build.Subsystem.Console )
+    c.Same( build.ComposeFlags( cfg, build.BuildAction.StartDebugging, "", "", dirs ), " -g -exx    -s console ", _
+        "flags: #CONSOLE removes ' -S GUI '" )
+    cfg.Options = "-s gui"
+    c.Same( build.ComposeFlags( cfg, build.BuildAction.Compile, "", "", dirs ), "-s gui   -s console ", _
+        "flags: the old case-sensitive removal leaves '-s gui'; the last -s wins" )
+    dirs.Clear( )
+    dirs.Push( build.Subsystem.Gui )
+    cfg.Options = "x -S CONSOLE y"
+    c.Same( build.ComposeFlags( cfg, build.BuildAction.Compile, "", "", dirs ), "xy   -s gui ", "flags: #GUI removes ' -S CONSOLE '" )
+    c.Check( build.RunsAfterBuild( build.BuildAction.QuickRun ) andalso build.RunsAfterBuild( build.BuildAction.BuildExecute ) _
+             andalso ( build.RunsAfterBuild( build.BuildAction.Compile ) = false ), "RunsAfterBuild" )
+
+    ' the JSON events (tiko's JsonStr: a backslash doubled, UTF-8 already decoded)
+    dim as ustring art = "{""event"":""artifact"",""kind"":""exe"",""path"":""C:\\p q\\" & wchr( &hE9 ) & "t.exe""}"
+    c.Same( build.EventStr( art, "event" ), "artifact", "the event name" )
+    c.Same( build.EventStr( art, "path" ), "C:\p q\" & wchr( &hE9 ) & "t.exe", "a path through JSON" )
+    c.Same( build.EventStr( "{""event"":""x"",""m"":""a\tb\u0041\n""}", "m" ), "a" & wchr( 9 ) & "bA" & wchr( 10 ), "JSON escapes" )
+    c.SameNum( build.EventNum( "{""event"":""plan"",""units"":12}", "units" ), 12, "a number field" )
+    c.SameNum( build.EventNum( "{""event"":""plan""}", "units" ), -1, "a missing number field" )
+    c.Same( build.EventStr( art, "nosuchkey" ), "", "a missing key" )
+    dim as ustring NLu = wchr( 10 )
+    dim as ustring lg = "{""event"":""plan"",""units"":1}" & NLu & "x.bas(3,1): error TKO0743: 'y' is not declared" & NLu & "{""event"":""build-end"",""errors"":1}" & NLu
+    c.Same( build.StripEvents( lg ), "x.bas(3,1): error TKO0743: 'y' is not declared" & NLu, "StripEvents keeps the diagnostics" )
+    c.Same( build.EventRunPath( art & NLu & "{""event"":""build-end""}" & NLu ), build.EventStr( art, "path" ), "Run starts the artefact" )
+    dim as ustring copies = "{""event"":""artifact"",""path"":""out/a.exe""}" & NLu & "{""event"":""copy"",""path"":""dist/a.exe""}" & NLu & _
+                            "{""event"":""copy"",""path"":""other/a.exe""}" & NLu
+    c.Same( build.EventRunPath( copies ), "dist/a.exe", "Run starts the first copy_to copy" )
+    c.Same( build.EventRunPath( "x" & NLu ), "", "no artefact, nothing to run" )
+    dim as build.BuildProgress pr
+    pr.Feed( "{""event"":""plan"",""units"":2}" )
+    c.Check( pr.Feed( "{""event"":""unit"",""unit"":""src/a.tiko""}" ), "a unit is counted" )
+    c.Check( pr.Feed( "not an event" ) = false, "a console line is not" )
+    pr.Feed( "{""event"":""unit"",""unit"":""b.tiko""}" )
+    c.Check( ( pr.Done = 2 ) andalso ( pr.Total = 2 ) andalso ( pr.LastUnit = "b.tiko" ), "progress 2/2, last b.tiko" )
+end sub
+
+public sub Run( byref c as tally.Checker )
+    c.Begin( "build" )
+    DiagFileTests( c )
+    CommandTests( c )
+end sub
