@@ -18,11 +18,11 @@ tests/diagnostics/src/member-visibility.bas(51,25): error TKO0625: 'hidden_' is 
      |
   51 |     dim as integer e = T.Hidden_.ONE
      |                         ^
-tests/diagnostics/src/member-visibility.bas(154,17): error TKO0633: '' needs a constructor or destructor that is not accessible here
+tests/diagnostics/src/member-visibility.bas(154,17): error TKO0633: 'nocopy' needs a constructor or destructor that is not accessible here
      |
  154 |     takesByval( src_ )
      |                 ^
-tests/diagnostics/src/member-visibility.bas(156,5): error TKO0633: '' needs a constructor or destructor that is not accessible here
+tests/diagnostics/src/member-visibility.bas(156,5): error TKO0633: 'privdtor' needs a constructor or destructor that is not accessible here
      |
  156 |     delete p
      |     ^

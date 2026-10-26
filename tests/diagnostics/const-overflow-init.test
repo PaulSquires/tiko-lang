@@ -11,3 +11,10 @@
 '' EXPECT-OUT: const-overflow-init.bas(16,21): warning TKO0984
 '' EXPECT-OUT: const-overflow-init.bas(19,5): warning TKO0984
 '' EXPECT-OUT: const-overflow-init.bas(20,9): warning TKO0984
+'' EXPECT-OUT: const-overflow-init.bas(28,18): warning TKO0984
+'' EXPECT-OUT: const-overflow-init.bas(29,21): warning TKO0984
+'' EXPECT-OUT: const-overflow-init.bas(30,18): warning TKO0984
+'' EXPECT-NOT: const-overflow-init.bas(23,
+'' EXPECT-NOT: const-overflow-init.bas(24,
+'' EXPECT-NOT: const-overflow-init.bas(25,
+'' EXPECT-NOT: const-overflow-init.bas(26,

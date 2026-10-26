@@ -26,15 +26,15 @@ tests/diagnostics/src/operator-visibility.bas(118,1): error TKO0746: the operato
      |
  118 | for i as Counter = ct to ct step ct
      | ^
-tests/diagnostics/src/operator-visibility.bas(120,28): error TKO0633: '' needs a constructor or destructor that is not accessible here
+tests/diagnostics/src/operator-visibility.bas(120,28): error TKO0633: 'hiddenctor' needs a constructor or destructor that is not accessible here
      |
  120 | dim as HiddenCtor ptr hp = new HiddenCtor
      |                            ^
-tests/diagnostics/src/operator-visibility.bas(121,28): error TKO0633: '' needs a constructor or destructor that is not accessible here
+tests/diagnostics/src/operator-visibility.bas(121,28): error TKO0633: 'hiddenctor' needs a constructor or destructor that is not accessible here
      |
  121 | dim as HiddenCtor ptr hv = new HiddenCtor[5]
      |                            ^
-tests/diagnostics/src/operator-visibility.bas(123,28): error TKO0633: '' needs a constructor or destructor that is not accessible here
+tests/diagnostics/src/operator-visibility.bas(123,28): error TKO0633: 'hiddencopy' needs a constructor or destructor that is not accessible here
      |
  123 | dim as HiddenCopy ptr cp = new HiddenCopy( hc )
      |                            ^
