@@ -42,8 +42,9 @@ Microsoft and is not included. Windows 11 has it; copy it in once, renaming it o
 copy C:\Windows\Fonts\SegoeIcons.ttf SegoeFluentIcons.ttf
 ```
 
-Windows stores the file as `SegoeIcons.ttf`; the family name is "Segoe Fluent Icons". A demo that
-cannot find it says so and exits.
+Windows stores the file as `SegoeIcons.ttf`; the family name is "Segoe Fluent Icons". Without
+the file a demo still runs: it uses the installed Segoe Fluent Icons (Windows 11), else Segoe
+MDL2 Assets (Windows 10), which carries the same codepoints.
 
 ## Self-tests
 

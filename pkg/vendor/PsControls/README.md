@@ -110,6 +110,8 @@ dependency (`PSTIP_MODE_PS` is PsTipHost's, for instance), import that module to
   `gdiplus.Init()` / `gdiplus.Uninit( token )` around the message loop.
 - **Segoe Fluent Icons** for the glyphs most controls draw. It ships with Windows 11 as
   `C:\Windows\Fonts\SegoeIcons.ttf` but belongs to Microsoft and is not redistributed here.
+  Windows 10 lacks it but has **Segoe MDL2 Assets**, which carries every codepoint the family
+  uses. `PsBufferPaint_GlyphFace()` names whichever of the two this process can see.
 
 ## Licence
 

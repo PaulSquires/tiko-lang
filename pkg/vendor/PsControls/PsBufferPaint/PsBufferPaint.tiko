@@ -54,6 +54,7 @@ using gdiplus
 public declare function isMouseOverRECT( byval hWin as HWND, byval rc as RECT ) as boolean
 public declare function isMouseOverWindow( byval hChild as HWND ) as boolean
 public declare function PaintRect( byval hDC as HDC, byval rc as RECT ptr, byval clr as COLORREF ) as long
+public declare function PsBufferPaint_GlyphFace() as ustring
 
 ' How PaintImage places a bitmap in the destination rect.
 '   ASPECT  - scale to FIT inside the rect, aspect preserved, then centre (letterbox).
@@ -410,6 +411,32 @@ public function PaintRect( byval hDC as HDC, byval rc as RECT ptr, byval clr as 
     ExtTextOut( hDC, 0, 0, ETO_OPAQUE, rc, "", 0, 0)
     SetBkColor( hDC, oldclr )
     function = 0
+end function
+
+' ========================================================================================
+' The icon face the family's glyphs draw with: "Segoe Fluent Icons" when this process can see
+' it (installed on Windows 11, or loaded privately with AddFontResourceEx), else "Segoe MDL2
+' Assets" (Windows 10 and 11), which carries every codepoint the family uses. Decided by the
+' font, never the OS version. The font mapper substitutes a missing face, so the face a DC
+' actually selected is the answer.
+' ========================================================================================
+public function PsBufferPaint_GlyphFace() as ustring
+    dim as LOGFONTW lf
+    lf.lfHeight = -12
+    lf.lfCharSet = DEFAULT_CHARSET
+    dim as wstring * LF_FACESIZE wszFace = "Segoe Fluent Icons"
+    lf.lfFaceName = wszFace
+    dim as HFONT hf = CreateFontIndirectW( @lf )
+    if hf = 0 then return "Segoe MDL2 Assets"
+    dim as HDC hdc = GetDC( null )
+    dim as HGDIOBJ hOld = SelectObject( hdc, hf )
+    dim as wstring * LF_FACESIZE wszGot
+    GetTextFaceW( hdc, LF_FACESIZE, @wszGot )
+    SelectObject( hdc, hOld )
+    ReleaseDC( null, hdc )
+    DeleteObject( hf )
+    if lcase( wszGot ) = lcase( wszFace ) then return wszFace
+    return "Segoe MDL2 Assets"
 end function
 
 

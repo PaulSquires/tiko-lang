@@ -1364,8 +1364,8 @@ list.
 
 The demos are in the toolchain's `examples/PsControls/PsListTree/`. Both load **Segoe Fluent
 Icons** at startup via `AddFontResourceEx` from `examples/PsControls/SegoeFluentIcons.ttf` — one
-copy shared by every demo — and **abort if the font is absent**: the control family draws its
-glyphs from it.
+copy shared by every demo — and **fall back to Segoe MDL2 Assets if it is absent**: the same
+codepoints, drawn in Windows 10's style.
 
 The font ships with Windows 11 but is Microsoft's, not ours, so it is not
 redistributed here. Copy it in once, from `examples/PsControls/`, before building:
@@ -1375,7 +1375,8 @@ copy C:\Windows\Fonts\SegoeIcons.ttf SegoeFluentIcons.ttf
 ```
 
 Note the rename: Windows stores the file as `SegoeIcons.ttf`, while the family
-name is "Segoe Fluent Icons". On Windows 10 the font is not present at all.
+name is "Segoe Fluent Icons". Windows 10 has no such file to copy; there the demo draws
+with Segoe MDL2 Assets, which Windows 10 installs.
 
 ## Licence
 

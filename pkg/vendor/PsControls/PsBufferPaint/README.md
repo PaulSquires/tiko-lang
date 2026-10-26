@@ -396,6 +396,7 @@ Not members; they need no buffer.
 | `isMouseOverRECT( hWin, rc ) as boolean` | TRUE when the cursor is inside `rc`, which is given in `hWin`'s **client** coordinates. The rect is taken by value, so yours is not modified. Purely positional: it does not consider which window is actually on top, so a rect covered by another window still tests TRUE. |
 | `isMouseOverWindow( hChild ) as boolean` | TRUE when `hChild` is exactly the window under the cursor. Unlike the above this *is* a hit test against the real window stack, so a child window sitting on top makes it FALSE. |
 | `PaintRect( hDC, rc, clr ) as long` | Fills `rc` with `clr` on **any** DC, via `ExtTextOut`/`ETO_OPAQUE`. Nothing to do with a buffer's state — use it when you have a bare DC and no `PsPaintBuffer`. Distinct from the same-named method, which takes only a rect and uses the buffer's back colour. |
+| `PsBufferPaint_GlyphFace() as ustring` | The icon face to create glyph fonts with: `"Segoe Fluent Icons"` when this process can see it — installed (Windows 11) or loaded privately with `AddFontResourceEx` — else `"Segoe MDL2 Assets"` (Windows 10), which carries every codepoint the family uses. Decided by testing the font, never the OS version. Creates and selects a throwaway font, so call it when creating fonts, not per paint. |
 
 ---
 

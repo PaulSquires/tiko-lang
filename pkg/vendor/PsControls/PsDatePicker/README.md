@@ -314,7 +314,7 @@ Every size below is in **raw pixels** — scale for DPI yourself.
 | `PsDatePicker_GetFont( hCtrl ) as HFONT` | The text font, or 0. |
 | `PsDatePicker_SetFont( hCtrl, hFont )` | **Caller-owned**; never deleted by the control. Used by the field *and* the calendar. Re-lays out and repaints. |
 | `PsDatePicker_GetIconFont( hCtrl ) as HFONT` | The host-supplied glyph font, or 0 when the control's own default is in use. |
-| `PsDatePicker_SetIconFont( hCtrl, hFont )` | Caller-owned. Pass **0 to restore** the control's default (Segoe Fluent Icons, created at Create and deleted with the control). |
+| `PsDatePicker_SetIconFont( hCtrl, hFont )` | Caller-owned. Pass **0 to restore** the control's default (Segoe Fluent Icons, or Segoe MDL2 Assets where it is missing, created at Create and deleted with the control). |
 | `PsDatePicker_GetIconGlyph( hCtrl ) as ustring` | The current glyph string. |
 | `PsDatePicker_SetIconGlyph( hCtrl, sGlyph )` | Any string — it is drawn with the icon font. Default is `&hE787` ("Calendar"). |
 | `PsDatePicker_GetIconWidth( hCtrl ) as long` | Width of the icon cell. |

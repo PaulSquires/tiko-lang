@@ -835,7 +835,8 @@ The demo is in the toolchain's `examples/PsControls/PsToolbar/`. Build it there 
 `tiko build` (debug, `-g -exx`) or `tiko build --profile release`.
 
 It loads **Segoe Fluent Icons** at startup via `AddFontResourceEx`, and
-**aborts if the font is absent** — the control family draws its glyphs from it.
+**falls back to Segoe MDL2 Assets if it is absent** — the same codepoints, drawn in
+Windows 10's style.
 
 The font ships with Windows 11 but is Microsoft's, not ours, so it is not
 redistributed here. The demos share one copy, `examples/PsControls/SegoeFluentIcons.ttf`;
@@ -846,7 +847,8 @@ copy C:\Windows\Fonts\SegoeIcons.ttf SegoeFluentIcons.ttf
 ```
 
 Note the rename: Windows stores the file as `SegoeIcons.ttf`, while the family
-name is "Segoe Fluent Icons". On Windows 10 the font is not present at all.
+name is "Segoe Fluent Icons". Windows 10 has no such file to copy; there the demo draws
+with Segoe MDL2 Assets, which Windows 10 installs.
 
 ## Licence
 

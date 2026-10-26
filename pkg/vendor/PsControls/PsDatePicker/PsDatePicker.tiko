@@ -2294,13 +2294,15 @@ public function PsDatePicker_Create( byval hWndParent as HWND, byval CtrlID as l
     pCtrl->nVertPadding   = pWindow->ScaleY( CDTP_DEFAULT_VERTPAD )
     pCtrl->nCornerRadius  = pWindow->ScaleX( CDTP_DEFAULT_CORNERRADIUS )
 
-    ' Default icon font (control-owned, deleted at destroy). Segoe Fluent Icons carries the
-    ' calendar glyph; a host can replace it with SetIconFont. This is a control-created glyph
-    ' font with clear ownership -- not one of the host's text fonts.
+    ' Default icon font (control-owned, deleted at destroy). Segoe Fluent Icons, or Segoe MDL2
+    ' Assets where it is missing (Windows 10), carries the calendar glyph; a host can replace it
+    ' with SetIconFont. This is a control-created glyph font with clear ownership -- not one of
+    ' the host's text fonts.
     dim as long fontPx = pWindow->ScaleY( CDTP_DEFAULT_ICONFONTPT * 96 \ 72 )
+    dim as wstring * LF_FACESIZE wszGlyphFace = PsBufferPaint_GlyphFace()
     pCtrl->hIconFontDefault = CreateFontW( -fontPx, 0, 0, 0, FW_NORMAL, 0, 0, 0, _
             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, _
-            DEFAULT_PITCH or FF_DONTCARE, @wstr("Segoe Fluent Icons") )
+            DEFAULT_PITCH or FF_DONTCARE, @wszGlyphFace )
 
     SetWindowLongPtr( hCtrl, GWLP_ID, CtrlID )
 
@@ -2838,9 +2840,10 @@ public sub PsDatePicker_Rescale( byval hCtrl as HWND, byval oldDpi as long, byva
     if pWindow then
         pWindow->DPI = newDpi
         dim as long fontPx = pWindow->ScaleY( CDTP_DEFAULT_ICONFONTPT * 96 \ 72 )
+        dim as wstring * LF_FACESIZE wszGlyphFace = PsBufferPaint_GlyphFace()
         dim as HFONT hNew = CreateFontW( -fontPx, 0, 0, 0, FW_NORMAL, 0, 0, 0, _
                 DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, _
-                DEFAULT_PITCH or FF_DONTCARE, @wstr("Segoe Fluent Icons") )
+                DEFAULT_PITCH or FF_DONTCARE, @wszGlyphFace )
         if hNew then
             if pCtrl->hIconFontDefault then DeleteObject( pCtrl->hIconFontDefault )
             pCtrl->hIconFontDefault = hNew
