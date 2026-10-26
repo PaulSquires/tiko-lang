@@ -312,6 +312,31 @@ end sub
 '' and fine: 'cast( UDT, x ).i = 5', and 'cx.q->i = 5' through a pointer field of a const
 '' object -- the pointee is not const. tiko judged only a const variable's own '.', so the
 '' chain is walked one FIELD at a time: a '.' asks its object, a '->' its pointee.
+'' Does member chain 'm' REACH A CONST OBJECT -- 't.a' over 'byref t as const T', 'pc->a' over a
+'' const pointee, 'x.k' over a const field? Check types 't.a' as the field's own type, so the
+'' object's const never shows on the member: the const-byref rule below asks this instead.
+private function MemberOfConst_ ( byref c as Ctx, byval m as NodeId ) as boolean
+    for guard as int32 = 0 to 31
+        if (m = NODE_NONE) orelse (c.ast->Kind( m ) <> N_MEMBER) then return false
+        dim as Symbol ptr fs = c.syms->SymbolAt( c.info->RefOf( m ) )
+        if (fs = nullptr) orelse (fs->kind <> cast( uint8, SYM_FIELD )) then return false
+        if (fs->flags and SYMF_STATIC) <> 0 then return false
+        if c.types->IsConst( fs->type_ ) then return true
+        dim as NodeId lhs = c.ast->BinaryOf( m )->lhs
+        if lhs = NODE_NONE then return false
+        dim as TypeId lt = c.info->TypeOf_( lhs )
+        if lt = TYPE_NONE then return false
+        if c.types->Kind( c.types->Unqualify( lt ) ) = TK_REFERENCE then lt = c.types->Inner( c.types->Unqualify( lt ) )
+        if (c.ast->Flags( m ) and NF_ARROW) <> 0 then
+            if c.types->Kind( c.types->Unqualify( lt ) ) <> TK_POINTER then return false
+            return c.types->IsConst( c.types->Inner( c.types->Unqualify( lt ) ) )
+        end if
+        if c.types->IsConst( lt ) then return true
+        m = lhs
+    next
+    return false
+end function
+
 sub CheckConstUdtField_ ( byref c as Ctx, byval id as NodeId )
     dim as StmtPayload ptr sp = _
         c.ast->StmtOf( id )
@@ -578,7 +603,11 @@ sub CheckArgConversions_ ( byref c as Ctx, byval id as NodeId )
         case N_IDENT, N_MEMBER, N_INDEX, N_DEREF : lvalueArg = true
         end select
         if (byvalWritten = false) andalso lvalueArg then
-            if c.types->IsConst( at ) andalso (c.types->IsConst( pt ) = false) then
+            '' ...A MEMBER OF A CONST OBJECT TOO, 'F( t.a )' over 'byref t as const T': fbc's 181
+            '' (fbc-modern 1.20, 2026-10-25); tiko compiled it and wrote through (TS-001's gap).
+            dim as boolean constArg = c.types->IsConst( at )
+            if (constArg = false) andalso (c.ast->Kind( arg ) = N_MEMBER) then constArg = MemberOfConst_( c, arg )
+            if constArg andalso (c.types->IsConst( pt ) = false) then
                 '' A POINTER COUNTS TOO: 'f( r )' over 'byref l as any ptr' with an 'any
                 '' const ptr' argument binds the reference to a const pointer and drops
                 '' its const -- fbc's 181, measured.

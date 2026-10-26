@@ -1,0 +1,10 @@
+'' TKO0699, fbc's 181: a field of a const object -- through a const byref parameter, a nested
+'' field, a const pointee -- for a non-const byref parameter. Check types 't.a' as the field's
+'' own type, so the rule asks MemberOfConst_ (symbols/assigncheck.tiko).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/const-member-byref.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: const-member-byref.bas(17,9): error TKO0699
+'' EXPECT-OUT: const-member-byref.bas(17,22): error TKO0699
+'' EXPECT-OUT: const-member-byref.bas(17,34): error TKO0699
+'' EXPECT-MAX-DIAG: 3

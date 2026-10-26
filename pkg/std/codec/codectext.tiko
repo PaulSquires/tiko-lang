@@ -651,7 +651,9 @@ public function DetectEncoding overload ( byval p as const ubyte ptr, byval n as
         return Fail( of TextEncoding, EncodingError )( EncodingError( ENC_INVALID_LENGTH, 0, op ) )
     end if
     if( EncTUtf8Prefix( p, clng( n ), complete ) ) then return Ok( of TextEncoding, EncodingError )( Utf8( FALSE ) )
-    return Ok( of TextEncoding, EncodingError )( opts.Fallback )
+    '' A COPY: 'opts' is const, and Ok takes its value byref -- fbc's 181 for the field itself.
+    dim as TextEncoding fallback_ = opts.Fallback
+    return Ok( of TextEncoding, EncodingError )( fallback_ )
 end function
 
 public function DetectEncoding overload ( byref buf as Array( of ubyte ), byref opts as const TextDetect ) as EncResultEncoding
