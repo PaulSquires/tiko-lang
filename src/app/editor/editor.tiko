@@ -30,11 +30,14 @@ public const INDIC_OCCURRENCE = 13       ' the other places of the word under th
 const SC_STATUS_WARN_REGEX = 1001        ' Scintilla.h: the regular expression was refused
 const SCFIND_CXX11REGEX = &h00800000     ' Scintilla 5's std::regex flavour (not in tkSciConst)
 
-' What the find bar asks for.
+' What the find strip asks for. InSelection limits every search to [RangeStart, RangeEnd).
 public type FindOptions
-    MatchCase as boolean
-    WholeWord as boolean
-    Regex     as boolean
+    MatchCase   as boolean
+    WholeWord   as boolean
+    Regex       as boolean
+    InSelection as boolean
+    RangeStart  as longint
+    RangeEnd    as longint
 end type
 
 ' The three keyword lists LexTiko colours (tiko keywords, API words, the user's extras).
@@ -143,6 +146,7 @@ public type CodeView
     declare function Zoom( ) as long
     declare sub FoldToggle( byval withChildren as boolean )
     declare sub FoldAll( byval fold as boolean )
+    declare sub FoldLineAt( byval ln as long )            ' a fold header's line: toggle it
 
     ' ---- lines, bookmarks
     declare function LineOf( byval p as longint ) as long             ' 0-based
@@ -163,6 +167,9 @@ public type CodeView
     declare function ReplaceCurrent( byref phrase as const ustring, byref replacement as const ustring, byref o as const FindOptions ) as boolean
     declare function ReplaceAll( byref phrase as const ustring, byref replacement as const ustring, byref o as const FindOptions ) as long
     declare function SelectedText( ) as ustring
+    declare function SelectionStart( ) as longint
+    declare function SelectionEnd( ) as longint
+    declare sub SetSelection( byval a as longint, byval z as longint )
 
     ' ---- the build's diagnostics
     declare sub AddSquiggle( byval ln as long, byval col as long, byval endLine as long, byval endCol as long, _
@@ -427,6 +434,11 @@ sub CodeView.CommentLines( byval add as boolean )
 end sub
 
 ' Toggle Current Fold Point (withChildren: and every fold below it).
+sub CodeView.FoldLineAt( byval ln as long )
+    if w = 0 then exit sub
+    if (tkCodeEdit_Send( w, SCI_GETFOLDLEVEL, ln ) and SC_FOLDLEVELHEADERFLAG) <> 0 then tkCodeEdit_Send( w, SCI_TOGGLEFOLD, ln )
+end sub
+
 sub CodeView.FoldToggle( byval withChildren as boolean )
     if w = 0 then exit sub
     dim as integer ln = tkCodeEdit_Send( w, SCI_LINEFROMPOSITION, this.Position( ) )
@@ -572,17 +584,31 @@ private function SearchRange( byval w as TK_WIDGET ptr, byref phrase as const us
     return tkCodeEdit_SendText( w, SCI_SEARCHINTARGET, len( p8 ), p8 )
 end function
 
-' The next (previous) match from the selection, wrapping once; selected and shown.
+' The text a search covers: all of it, or [RangeStart, RangeEnd) with InSelection.
+private sub Bounds( byval w as TK_WIDGET ptr, byref o as const FindOptions, byref a as integer, byref z as integer )
+    a = 0
+    z = tkCodeEdit_Send( w, SCI_GETLENGTH )
+    if o.InSelection andalso (o.RangeEnd > o.RangeStart) then
+        if o.RangeStart > a then a = o.RangeStart
+        if o.RangeEnd < z then z = o.RangeEnd
+    end if
+end sub
+
+' The next (previous) match from the selection, wrapping once inside the bounds; selected and
+' shown.
 function CodeView.Find( byref phrase as const ustring, byref o as const FindOptions, byval forward as boolean ) as boolean
     if (w = 0) orelse (len( phrase ) = 0) then return false
-    dim as integer n = tkCodeEdit_Send( w, SCI_GETLENGTH ), r
+    dim as integer lo, n, r
+    Bounds( w, o, lo, n )
     if forward then
         dim as integer from = tkCodeEdit_Send( w, SCI_GETSELECTIONEND )
+        if (from < lo) orelse (from > n) then from = lo
         r = SearchRange( w, phrase, o, from, n )
-        if r < 0 then r = SearchRange( w, phrase, o, 0, from )
+        if r < 0 then r = SearchRange( w, phrase, o, lo, from )
     else
         dim as integer from = tkCodeEdit_Send( w, SCI_GETSELECTIONSTART )
-        r = SearchRange( w, phrase, o, from, 0 )
+        if (from < lo) orelse (from > n) then from = n
+        r = SearchRange( w, phrase, o, from, lo )
         if r < 0 then r = SearchRange( w, phrase, o, n, from )
     end if
     if r < 0 then return false
@@ -595,7 +621,8 @@ end function
 
 function CodeView.CountMatches( byref phrase as const ustring, byref o as const FindOptions ) as long
     if (w = 0) orelse (len( phrase ) = 0) then return 0
-    dim as integer n = tkCodeEdit_Send( w, SCI_GETLENGTH ), from = 0
+    dim as integer from, n
+    Bounds( w, o, from, n )
     dim as long count = 0
     while from < n
         if SearchRange( w, phrase, o, from, n ) < 0 then exit while
@@ -611,7 +638,8 @@ end function
 function CodeView.MatchIndex( byref phrase as const ustring, byref o as const FindOptions ) as long
     if (w = 0) orelse (len( phrase ) = 0) then return 0
     dim as integer sa = tkCodeEdit_Send( w, SCI_GETSELECTIONSTART ), sz = tkCodeEdit_Send( w, SCI_GETSELECTIONEND )
-    dim as integer n = tkCodeEdit_Send( w, SCI_GETLENGTH ), from = 0
+    dim as integer from, n
+    Bounds( w, o, from, n )
     dim as long i = 0
     while from < n
         if SearchRange( w, phrase, o, from, n ) < 0 then exit while
@@ -628,9 +656,10 @@ end function
 ' Every match under INDIC_FIND; an empty phrase clears them.
 sub CodeView.MarkMatches( byref phrase as const ustring, byref o as const FindOptions )
     if w = 0 then exit sub
-    dim as integer n = tkCodeEdit_Send( w, SCI_GETLENGTH ), from = 0
+    dim as integer from, n
     tkCodeEdit_Send( w, SCI_SETINDICATORCURRENT, INDIC_FIND )
-    tkCodeEdit_Send( w, SCI_INDICATORCLEARRANGE, 0, n )
+    tkCodeEdit_Send( w, SCI_INDICATORCLEARRANGE, 0, tkCodeEdit_Send( w, SCI_GETLENGTH ) )
+    Bounds( w, o, from, n )
     if len( phrase ) = 0 then exit sub
     while from < n
         if SearchRange( w, phrase, o, from, n ) < 0 then exit while
@@ -646,6 +675,20 @@ function CodeView.SelectedText( ) as ustring
     if w = 0 then return ""
     return TextRange( w, tkCodeEdit_Send( w, SCI_GETSELECTIONSTART ), tkCodeEdit_Send( w, SCI_GETSELECTIONEND ) )
 end function
+
+function CodeView.SelectionStart( ) as longint
+    if w = 0 then return 0
+    return tkCodeEdit_Send( w, SCI_GETSELECTIONSTART )
+end function
+
+function CodeView.SelectionEnd( ) as longint
+    if w = 0 then return 0
+    return tkCodeEdit_Send( w, SCI_GETSELECTIONEND )
+end function
+
+sub CodeView.SetSelection( byval a as longint, byval z as longint )
+    if w then tkCodeEdit_Send( w, SCI_SETSEL, a, z )
+end sub
 
 ' Replace the selection when it is a match, then find the next. FALSE = no match left.
 function CodeView.ReplaceCurrent( byref phrase as const ustring, byref replacement as const ustring, byref o as const FindOptions ) as boolean
@@ -666,24 +709,27 @@ function CodeView.ReplaceCurrent( byref phrase as const ustring, byref replaceme
     return this.Find( phrase, o, true )
 end function
 
-' Every match replaced in one undo step; how many.
+' Every match (inside the bounds) replaced in one undo step; how many. The bounds' end follows
+' the text as replacements change its length.
 function CodeView.ReplaceAll( byref phrase as const ustring, byref replacement as const ustring, byref o as const FindOptions ) as long
     if (w = 0) orelse (len( phrase ) = 0) then return 0
     dim as string r8 = replacement
     dim as long count = 0
-    dim as integer from = 0
+    dim as integer from, n
+    Bounds( w, o, from, n )
     tkCodeEdit_Send( w, SCI_BEGINUNDOACTION )
     do
-        dim as integer n = tkCodeEdit_Send( w, SCI_GETLENGTH )
         if from > n then exit do
         if SearchRange( w, phrase, o, from, n ) < 0 then exit do
         dim as integer a = tkCodeEdit_Send( w, SCI_GETTARGETSTART )
+        dim as integer len0 = tkCodeEdit_Send( w, SCI_GETLENGTH )
         if o.Regex then
             tkCodeEdit_SendText( w, SCI_REPLACETARGETRE, len( r8 ), r8 )
         else
             tkCodeEdit_SendText( w, SCI_REPLACETARGET, len( r8 ), r8 )
         end if
         count += 1
+        n += tkCodeEdit_Send( w, SCI_GETLENGTH ) - len0
         from = tkCodeEdit_Send( w, SCI_GETTARGETEND )
         if from <= a then from = a + 1                       ' an empty match
     loop

@@ -35,8 +35,9 @@ the name `tiko-studio` → `tkEdit` (incl. `platform.APP_NAME` and the run-scrip
 | `src/core/tests/coreall.tiko` | same | only the suites above; tkEdit's names |
 | `src/svc/parser` | `src/svc/parser` | — |
 | `src/svc/runner` | `src/svc/runner` | — |
-| `src/app/editor` | `src/app/editor` | `ViewLook` (settings + .theme) replaced by a resolved `Look`/`Style` and `DefaultLook`; breakpoints, debug line, `KeywordFore`, `DefaultBackColor` removed (no debugger, D6); whitespace/wrap applied from the look; `Indent`/`Unindent`/`NewLineBelow` added; Scintilla's own letter chords (Ctrl+D, Ctrl+L, Ctrl+U ...) cleared |
+| `src/app/editor` | `src/app/editor` | `ViewLook` (settings + .theme) replaced by a resolved `Look`/`Style` and `DefaultLook`; breakpoints, debug line, `KeywordFore`, `DefaultBackColor` removed (no debugger, D6); whitespace/wrap applied from the look; `Indent`/`Unindent`/`NewLineBelow` added; Scintilla's own letter chords (Ctrl+D, Ctrl+L, Ctrl+U ...) cleared; `FindOptions` range (`InSelection`), `SetSelection`/`SelectionStart`/`SelectionEnd`, `FoldLineAt` |
 | `src/app/documents` | `src/app/documents` | `SplitMode` / `Split` dropped (the panes own the split); `Other` is the buffer's view in pane 2 |
+| `src/app/findstrip` | `src/app/findbar` | rows of the status line's height in its place, labels, a `Sel` toggle, a Go to Line mode, Ctrl+Alt+Enter, Enter's text swallowed |
 | `src/app/popuplist` | — | new: the one chooser popup (query box + tkListTree, fuzzy filter, Ctrl-release accept) |
 | `src/core/session` | `src/core/projstate` (shape) | new: session.toml / the `.tkedit` tables, `StoredPath`/`FullPath` from projstate |
 | `src/core/tests/sessionsuite` | — | new |

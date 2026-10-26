@@ -15,11 +15,13 @@
 #import "tkp/platform"
 #import "tkc/appinfo"
 #import "tkc/cmdids"
+#import "tkc/docencoding"
 #import "tkc/keybind"
 #import "tkc/session"
 #import "tkc/settings"
 #import "tka/documents"
 #import "tka/editor"
+#import "tka/findstrip"
 #import "tka/mainwin"
 #import "tkControls/tkApp"
 #import "tkControls/tkTest"
@@ -28,6 +30,7 @@
 #import "tkControls/tkPopupMenu"
 #import "tkControls/tkMessageBox"
 #import "tkControls/tkStatusBar"
+#import "tkControls/tkTextBox"
 #import "std/containers"
 using containers
 using cmdids
@@ -39,6 +42,7 @@ using tkPaint
 using tkPopupMenu
 using tkMessageBox
 using tkStatusBar
+using tkTextBox
 
 private type DocRef as documents.Document ptr
 
@@ -187,8 +191,8 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     tkTest_PumpFor( h, 30 )
     Chord( h, SDLK_D, SDL_SCANCODE_D, SDL_KMOD_CTRL )
     t.Check( mw.View( ).LineCount( ) = 2, P( sc, strings.Format( "Ctrl+D duplicated the line ({} lines)", mw.View( ).LineCount( ) ) ) )
-    Chord( h, SDLK_G, SDL_SCANCODE_G, SDL_KMOD_CTRL )
-    t.Check( instr( mw.Message, "not available yet" ) > 0, P( sc, "Ctrl+G says it is not there yet: " & mw.Message ) )
+    Chord( h, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL )
+    t.Check( instr( mw.Message, "not available yet" ) > 0, P( sc, "Ctrl+P says it is not there yet: " & mw.Message ) )
     t.Check( mw.View( ).Text( ) = "abc" & mw.View( ).EolText( ) & "abc", P( sc, "and typed nothing" ) )
     mw.View( ).SetText( "" )                                     ' unmodified: closing it asks nothing
 
@@ -525,4 +529,151 @@ public sub SessionPass( byref t as Tally, byval sc as single )
     t.Check( mw2.CurrentBuild = "Release", P( sc, "the build configuration restored" ) )
     t.Check( mw2.Recent.Count( ) = 2, P( sc, strings.Format( "the recent files restored ({})", mw2.Recent.Count( ) ) ) )
     mw2.Destroy( )
+end sub
+
+' ================================================================ P3: find, go to line, bookmarks, typing
+
+private sub StripKey( byref mw as mainwin.Window, byval key as long, byval sc as long, byval mods as long = 0 )
+    Chord( tkForm_Host( mw.form ), key, sc, mods )
+end sub
+
+public sub FindPass( byref t as Tally, byval sc as single )
+    dim as mainwin.Window mw
+    mw.ConfigDir = FreshConfig( )
+    mw.Ask = @ScriptedAsk
+    mw.Pick = @ScriptedPick
+    t.Check( mw.Create( sc ), P( sc, "find: main window created" ) )
+    if mw.form = 0 then exit sub
+    mw.Show( )
+    dim as TK_HOST ptr h = tkForm_Host( mw.form )
+    tkTest_PumpFor( h, 150 )
+    dim as ustring nl = chr( 10 )
+    mw.View( ).SetLineEnding( docencoding.LineEnd.Lf, false )
+    mw.View( ).SetText( "alpha beta alpha" & nl & "ALPHA gamma" & nl & "alpha" & nl )
+    dim as long cx = h->root->cw, cy = h->root->ch
+    dim as long rowH = tkForm_Scale( mw.form, findstrip.ROW_CY )
+
+    ' ---- Ctrl+F: the strip in the status line's place, typing finds as it goes
+    Chord( h, SDLK_F, SDL_SCANCODE_F, SDL_KMOD_CTRL )
+    t.Check( mw.Finder.isOpen andalso (mw.Finder.Mode = findstrip.StripMode.Find), P( sc, "Ctrl+F opened the find strip" ) )
+    t.Check( tkWidget_IsVisible( mw.status ) = false, P( sc, "the status line is gone" ) )
+    dim as TK_WIDGET ptr fr = mw.Finder.frame
+    t.Check( (fr->y = cy - rowH) andalso (fr->ch = rowH) andalso (fr->cw = cx), P( sc, strings.Format( "one row in its place: {} {}x{}", fr->y, fr->cw, fr->ch ) ) )
+    t.Check( mw.View( ).Widget( )->ch = cy - rowH, P( sc, "the view ends above it" ) )
+    t.Check( tkHost_GetFocus( h ) = mw.Finder.findBox, P( sc, "the find box has the focus" ) )
+    tkTest_PushText( h, "alpha" )
+    tkTest_PumpFor( h, 40 )
+    t.Check( mw.Finder.status = "1 of 4", P( sc, "typing found the first of four: " & mw.Finder.status ) )
+    t.Check( mw.View( ).SelectedText( ) = "alpha", P( sc, "and selected it" ) )
+    StripKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
+    t.Check( mw.Finder.status = "2 of 4", P( sc, "Enter: the next: " & mw.Finder.status ) )
+    t.Check( mw.Finder.findBox <> 0 andalso (tkTextBox_GetText( mw.Finder.findBox ) = "alpha"), P( sc, "Enter typed nothing into the box" ) )
+    StripKey( mw, SDLK_F3, SDL_SCANCODE_F3 )
+    t.Check( mw.Finder.status = "3 of 4", P( sc, "F3: the next: " & mw.Finder.status ) )
+    StripKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN, SDL_KMOD_SHIFT )
+    t.Check( mw.Finder.status = "2 of 4", P( sc, "Shift+Enter: the previous: " & mw.Finder.status ) )
+    dim as editor.FindOptions o = mw.Finder.Options( )
+    o.MatchCase = true
+    mw.Finder.SetOptions( o )
+    mw.OnFind( findstrip.FindAction.Changed )
+    t.Check( instr( mw.Finder.status, "of 3" ) > 0, P( sc, "Match Case: three: " & mw.Finder.status ) )
+    o.MatchCase = false
+    mw.Finder.SetOptions( o )
+    mw.Finder.SetPhrase( "zzz" )                      ' a setter is silent: say what typing would
+    mw.OnFind( findstrip.FindAction.Changed )
+    t.Check( mw.Finder.status = "No matches", P( sc, "no match says so: " & mw.Finder.status ) )
+    mw.Finder.SetPhrase( "alpha" )
+    StripKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
+    t.Check( (mw.Finder.isOpen = false) andalso tkWidget_IsVisible( mw.status ), P( sc, "Esc: the status line is back" ) )
+    t.Check( tkHost_GetFocus( h ) = mw.View( ).Widget( ), P( sc, "and the view has the focus" ) )
+    mw.View( ).SetPosition( mw.View( ).Length( ) )
+    Chord( h, SDLK_F3, SDL_SCANCODE_F3, 0 )
+    t.Check( (mw.View( ).SelectedText( ) = "alpha") andalso (mw.View( ).SelectionStart( ) = 0), _
+             P( sc, "F3 with the strip closed finds the last phrase, wrapping to the top" ) )
+
+    ' ---- Ctrl+H: two rows; Replace one, Replace All in one undo step
+    mw.View( ).SetPosition( 0 )
+    Chord( h, SDLK_H, SDL_SCANCODE_H, SDL_KMOD_CTRL )
+    t.Check( mw.Finder.isOpen andalso (mw.Finder.Mode = findstrip.StripMode.Replace) andalso (fr->ch = rowH * 2) _
+             andalso (fr->y = cy - rowH * 2), P( sc, strings.Format( "Ctrl+H: two rows ({} at {})", fr->ch, fr->y ) ) )
+    mw.Finder.SetReplacement( "omega" )
+    mw.Finder.SetPhrase( "alpha" )
+    mw.OnFind( findstrip.FindAction.Changed )         ' the first match selected, as typing does
+    Chord( h, SDLK_R, SDL_SCANCODE_R, SDL_KMOD_CTRL )
+    t.Check( left( mw.View( ).Text( ), 5 ) = "omega", P( sc, "Ctrl+R replaced one: " & left( mw.View( ).Text( ), 16 ) ) )
+    StripKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN, SDL_KMOD_CTRL or SDL_KMOD_ALT )
+    t.Check( mw.Finder.status = "3 replaced", P( sc, "Ctrl+Alt+Enter replaced the rest: " & mw.Finder.status ) )
+    t.Check( mw.View( ).Text( ) = "omega beta omega" & nl & "omega gamma" & nl & "omega" & nl, P( sc, "every alpha is omega" ) )
+    mw.View( ).Undo( )
+    t.Check( mw.View( ).Text( ) = "omega beta alpha" & nl & "ALPHA gamma" & nl & "alpha" & nl, P( sc, "one Undo takes Replace All back" ) )
+    StripKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
+
+    ' ---- "Sel": a multi-line selection limits Replace All to it
+    mw.View( ).SetText( "x x" & nl & "x x" & nl & "x x" & nl )
+    mw.View( ).SetSelection( 0, 8 )                                    ' lines 1-2
+    Chord( h, SDLK_H, SDL_SCANCODE_H, SDL_KMOD_CTRL )
+    t.Check( mw.Finder.Options( ).InSelection, P( sc, "a multi-line selection turns Sel on" ) )
+    mw.Finder.SetPhrase( "x" )
+    mw.Finder.SetReplacement( "yy" )
+    tkTest_PumpFor( h, 30 )
+    mw.OnFind( findstrip.FindAction.ReplaceEvery )
+    t.Check( mw.View( ).Text( ) = "yy yy" & nl & "yy yy" & nl & "x x" & nl, P( sc, "only inside the selection: " & mw.View( ).Text( ) ) )
+    StripKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
+
+    ' ---- Ctrl+G: go to line, and to line:column
+    mw.View( ).SetText( "one" & nl & "two" & nl & "three" & nl & "four" & nl )
+    Chord( h, SDLK_G, SDL_SCANCODE_G, SDL_KMOD_CTRL )
+    t.Check( mw.Finder.isOpen andalso (mw.Finder.Mode = findstrip.StripMode.GoTo) andalso (fr->ch = rowH), P( sc, "Ctrl+G: one row, Go to Line" ) )
+    t.Check( mw.Finder.status = "1 - 5", P( sc, "it says the range: " & mw.Finder.status ) )
+    tkTest_PushText( h, "9" )
+    tkTest_PumpFor( h, 30 )
+    StripKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
+    t.Check( mw.Finder.isOpen andalso (instr( mw.Finder.status, "no line" ) > 0), P( sc, "a line past the end is refused: " & mw.Finder.status ) )
+    mw.Finder.SetPhrase( "3:3" )
+    StripKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
+    t.Check( (mw.Finder.isOpen = false) andalso (mw.View( ).CaretLine( ) = 3) andalso (mw.View( ).CaretColumn( ) = 3), _
+             P( sc, strings.Format( "3:3 went to Ln {}, Col {}", mw.View( ).CaretLine( ), mw.View( ).CaretColumn( ) ) ) )
+
+    ' ---- bookmarks: toggle, next, previous, the list, clear
+    mw.View( ).GoToLine( 0 )
+    Chord( h, SDLK_F2, SDL_SCANCODE_F2, SDL_KMOD_CTRL )
+    mw.View( ).GoToLine( 3 )
+    Chord( h, SDLK_F2, SDL_SCANCODE_F2, SDL_KMOD_CTRL )
+    t.Check( mw.View( ).Bookmarks( ).Count( ) = 2, P( sc, "Ctrl+F2 twice: two bookmarks" ) )
+    mw.View( ).GoToLine( 1 )
+    Chord( h, SDLK_F2, SDL_SCANCODE_F2, 0 )
+    t.Check( mw.View( ).CaretLine( ) = 4, P( sc, strings.Format( "F2: the next bookmark, line {}", mw.View( ).CaretLine( ) ) ) )
+    Chord( h, SDLK_F2, SDL_SCANCODE_F2, 0 )
+    t.Check( mw.View( ).CaretLine( ) = 1, P( sc, "F2 again wraps to line 1" ) )
+    Chord( h, SDLK_F2, SDL_SCANCODE_F2, SDL_KMOD_SHIFT )
+    t.Check( mw.View( ).CaretLine( ) = 4, P( sc, "Shift+F2: the previous" ) )
+    Chord( h, SDLK_F4, SDL_SCANCODE_F4, SDL_KMOD_SHIFT )
+    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Bookmarks) andalso (mw.Chooser.ShownCount( ) = 2), _
+             P( sc, strings.Format( "Shift+F4 lists them ({})", mw.Chooser.ShownCount( ) ) ) )
+    PopKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
+    t.Check( mw.View( ).CaretLine( ) = 1, P( sc, "picking one goes there" ) )
+    Chord( h, SDLK_F2, SDL_SCANCODE_F2, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    t.Check( mw.View( ).Bookmarks( ).Count( ) = 0, P( sc, "Ctrl+Shift+F2 cleared them" ) )
+
+    ' ---- typing: Enter indents, and closes the block it opened
+    mw.View( ).SetText( "" )
+    tkTest_PushText( h, "sub f( )" )
+    tkTest_PumpFor( h, 30 )
+    Chord( h, SDLK_RETURN, SDL_SCANCODE_RETURN, 0 )
+    dim as ustring tx = mw.View( ).Text( )
+    t.Check( tx = "sub f( )" & mw.View( ).EolText( ) & "    " & mw.View( ).EolText( ) & "end sub", _
+             P( sc, "Enter after 'sub f( )': indented, 'end sub' below: [" & tx & "]" ) )
+    t.Check( (mw.View( ).CaretLine( ) = 2) andalso (mw.View( ).CaretColumn( ) = 5), P( sc, "the caret on the indented line" ) )
+
+    ' ---- the Edit keys belong to the strip's box while it has the focus
+    Chord( h, SDLK_F, SDL_SCANCODE_F, SDL_KMOD_CTRL )
+    tkTest_PushText( h, "abc" )
+    tkTest_PumpFor( h, 30 )
+    dim as long lines0 = mw.View( ).LineCount( )
+    Chord( h, SDLK_D, SDL_SCANCODE_D, SDL_KMOD_CTRL )
+    t.Check( mw.View( ).LineCount( ) = lines0, P( sc, "Ctrl+D in the find box did not duplicate an editor line" ) )
+    StripKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
+
+    mw.View( ).SetSavePoint( )
+    mw.Destroy( )
 end sub

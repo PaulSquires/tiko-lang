@@ -35,6 +35,8 @@ if command( 1 ) = "--selftest" then
     selftest.ConfigPass( t, 1.0 )
     selftest.BufferPass( t, 1.0 )
     selftest.SessionPass( t, 1.0 )
+    selftest.FindPass( t, 1.0 )
+    selftest.FindPass( t, 1.75 )
     tkApp_Shutdown( )
     print strings.Format( "tkEdit [{}] selftest: {} passed, {} failed", platform.OsName( ), t.passed, t.failed )
     end t.failed

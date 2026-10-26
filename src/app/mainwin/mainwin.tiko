@@ -26,6 +26,7 @@
 #import "std/strings"
 #import "tkp/platform"
 #import "tkc/appinfo"
+#import "tkc/autoinsert"
 #import "tkc/cmdids"
 #import "tkc/docencoding"
 #import "tkc/keybind"
@@ -37,6 +38,7 @@
 #import "tka/chrome"
 #import "tka/documents"
 #import "tka/editor"
+#import "tka/findstrip"
 #import "tka/popuplist"
 #import "tkControls/tkApp"
 #import "tkControls/tkCodeEdit"
@@ -75,6 +77,7 @@ public const SPLIT_BAR = 5               ' the bar between the two panes, unscal
 const ID_STATUS = 101
 const ID_MENUBAR = 102
 const ID_SPLIT = 103
+const ID_FINDSTRIP = 104
 const ID_VIEW = 200                      ' views are ID_VIEW + n
 const DISK_CHECK_MS = 1000
 
@@ -97,7 +100,14 @@ public enum PickKind explicit
     Encoding
     LineEnding
     Build
+    Bookmarks
 end enum
+
+' One bookmark the Bookmarks list shows.
+public type BookmarkHit
+    Doc  as documents.Document ptr
+    Line as long                        ' 0-based
+end type
 
 ' The person, as the window asks them things: a message box, a file dialog. The self-test
 ' answers from a script instead.
@@ -194,6 +204,10 @@ public type Window
     MenuShown as boolean
     Chooser as popuplist.Picker
     Choosing as PickKind
+    Finder as findstrip.Strip
+    FindLo as longint                   ' "Sel": the selection the strip opened over
+    FindHi as longint
+    Marks as Array( of BookmarkHit )    ' the Bookmarks list's rows
 
     form as TK_FORM ptr
     status as TK_WIDGET ptr
@@ -213,6 +227,7 @@ public type Window
     declare sub ShowTitle( )
     declare function StatusText( byval p as StatusPanel ) as ustring
     declare function StatusHeight( ) as long
+    declare function BottomHeight( ) as long                   ' the status line, or the strip
     declare function MenuHeight( ) as long
     declare sub SetMessage( byref s as const ustring )
 
@@ -252,6 +267,14 @@ public type Window
     declare sub SetLineEnding( byval e as docencoding.LineEnd )
     declare sub SaveSession( )
     declare sub RestoreSession( )
+
+    ' ---- find, replace, go to line, bookmarks, typing
+    declare sub OpenStrip( byval m as findstrip.StripMode )
+    declare sub OnFind( byval a as findstrip.FindAction )
+    declare sub ShowFindStatus( )
+    declare function FindOptionsNow( ) as editor.FindOptions
+    declare sub OnCharAdded( byval hEdit as TK_WIDGET ptr, byval ch as long )
+    declare sub OnMarginClick( byval hEdit as TK_WIDGET ptr, byval margin as long, byval position as longint )
 
     ' ---- the chooser popup
     declare sub OpenChooser( byval kind as PickKind )
@@ -321,6 +344,11 @@ function Window.Create( byval forcedScale as single ) as boolean
         if mw then mw->Execute( cast( Cmd, id ) )
     end sub )
 
+    Finder.Create( root, ID_FINDSTRIP, @this )
+    Finder.OnAction = sub( byval owner as any ptr, byval a as findstrip.FindAction )
+        cast( Window ptr, owner )->OnFind( a )
+    end sub
+
     this.ReloadSettings( )                      ' the theme and the look with it
     this.ReloadKeys( )                          ' the accelerators and the menus with them
     CurrentBuild = Prefs.DefaultBuild( )
@@ -352,9 +380,10 @@ function Window.Create( byval forcedScale as single ) as boolean
         select case id
         case Cmd.IndentBlock, Cmd.UnindentBlock
             return false                        ' Scintilla's own Tab and Shift+Tab
-        case Cmd.Undo, Cmd.Redo, Cmd.Cut, Cmd.Copy, Cmd.Paste, Cmd.SelectAll
-            if mw->DocOfWidget( tkHost_GetFocus( h ) ) = 0 then return false   ' a text field's own
         end select
+        ' the Edit menu's keys belong to a text field when one has the focus (the find strip)
+        if (mw->DocOfWidget( tkHost_GetFocus( h ) ) = 0) andalso _
+           (mw->Keys.Commands( ).Info( id ).Group = MenuGroup.Edit) then return false
         mw->Execute( id )
         return true
     end function
@@ -403,6 +432,11 @@ function Window.StatusHeight( ) as long
     return tkForm_Scale( form, STATUS_CY )
 end function
 
+function Window.BottomHeight( ) as long
+    if Finder.isOpen then return Finder.Height( )
+    return this.StatusHeight( )
+end function
+
 function Window.MenuHeight( ) as long
     if MenuShown = false then return 0
     return tkForm_Scale( form, MENUBAR_CY )
@@ -416,7 +450,14 @@ sub Window.Layout( )
     dim as long cx = root->cw, cy = root->ch
     dim as long sh = this.StatusHeight( ), mh = this.MenuHeight( )
     if mh > 0 then tkWidget_SetPos( menuBar, 0, 0, cx, mh )
-    tkWidget_SetPos( status, 0, cy - sh, cx, sh )
+    if Finder.isOpen then
+        sh = Finder.Height( )                    ' the strip takes the status line's place (D10)
+        tkWidget_Show( status, false )
+        tkWidget_SetPos( Finder.frame, 0, cy - sh, cx, sh )
+    else
+        tkWidget_Show( status, true )
+        tkWidget_SetPos( status, 0, cy - sh, cx, sh )
+    end if
     dim as long top = mh, ah = cy - sh - mh
     dim as TK_WIDGET ptr v1 = 0, v2 = 0
     if Pane1 then v1 = Pane1->Main.Widget( )
@@ -516,6 +557,9 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
          Cmd.SplitTopBottom, Cmd.CycleFocus, Cmd.ZoomIn, Cmd.ZoomOut, Cmd.ZoomReset, Cmd.FoldToggle, _
          Cmd.FoldBelow, Cmd.FoldAll, Cmd.UnfoldAll, Cmd.BuildConfig
         return true
+    case Cmd.Find, Cmd.Replace, Cmd.FindNext, Cmd.FindPrev, Cmd.ReplaceOne, Cmd.GoToLine, _
+         Cmd.BookmarkToggle, Cmd.BookmarkNext, Cmd.BookmarkPrev, Cmd.BookmarkClearAll, Cmd.BookmarksList
+        return true
     end select
     return false
 end function
@@ -559,6 +603,18 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.SplitTopBottom : this.ToggleSplit( session.SplitMode.Horizontal )
     case Cmd.CycleFocus : this.FocusPane( InPane2 = false )
     case Cmd.BuildConfig : this.OpenChooser( PickKind.Build )
+    case Cmd.Find : this.OpenStrip( findstrip.StripMode.Find )
+    case Cmd.Replace : this.OpenStrip( findstrip.StripMode.Replace )
+    case Cmd.GoToLine : this.OpenStrip( findstrip.StripMode.GoTo )
+    case Cmd.FindNext : this.OnFind( findstrip.FindAction.NextMatch )
+    case Cmd.FindPrev : this.OnFind( findstrip.FindAction.PrevMatch )
+    case Cmd.ReplaceOne
+        if Finder.isOpen andalso (Finder.Mode = findstrip.StripMode.Replace) then this.OnFind( findstrip.FindAction.ReplaceOne )
+    case Cmd.BookmarkToggle : v->ToggleBookmark( v->CaretLine( ) - 1 )
+    case Cmd.BookmarkNext : v->NextBookmark( true )
+    case Cmd.BookmarkPrev : v->NextBookmark( false )
+    case Cmd.BookmarkClearAll : v->ClearBookmarks( )
+    case Cmd.BookmarksList : this.OpenChooser( PickKind.Bookmarks )
     case Cmd.Undo : v->Undo( )
     case Cmd.Redo : v->Redo( )
     case Cmd.Cut : v->Cut( )
@@ -825,9 +881,13 @@ function Window.NewView( byref v as editor.CodeView ) as boolean
     if v.Create( tkForm_Widget( form ), ID_VIEW + viewIds ) = false then return false
     v.ApplyLook( Look )
     tkCodeEdit_SetNotifyCallback( v.Widget( ), sub( byval h as TK_WIDGET ptr, byval n as const TKCE_NOTIFICATION ptr )
-        if n->code <> SCN_UPDATEUI then exit sub
         dim as Window ptr mw = WindowOfWidget( h )
-        if mw then mw->ShowStatus( )
+        if mw = 0 then exit sub
+        select case n->code
+        case SCN_UPDATEUI : mw->ShowStatus( )
+        case SCN_CHARADDED : mw->OnCharAdded( h, n->ch )
+        case SCN_MARGINCLICK : mw->OnMarginClick( h, n->margin, n->position )
+        end select
     end sub )
     tkWidget_Show( v.Widget( ), false )
     return true
@@ -1063,7 +1123,7 @@ sub Window.ToggleSplit( byval mode as session.SplitMode )
             if mw->Split = session.SplitMode.Vertical then
                 if root->cw > bar then mw->SplitRatio = newPos / (root->cw - bar)
             else
-                dim as long ah = root->ch - mw->StatusHeight( ) - mw->MenuHeight( )
+                dim as long ah = root->ch - mw->BottomHeight( ) - mw->MenuHeight( )
                 if ah > bar then mw->SplitRatio = (newPos - mw->MenuHeight( )) / (ah - bar)
             end if
             mw->Layout( )
@@ -1242,6 +1302,17 @@ sub Window.OpenChooser( byval kind as PickKind )
         rows.Push( Row( " ", "CRLF", "Windows", clng( docencoding.LineEnd.CrLf ) ) )
         rows.Push( Row( " ", "LF", "Linux, macOS", clng( docencoding.LineEnd.Lf ) ) )
         rows.Push( Row( " ", "CR", "classic Mac", clng( docencoding.LineEnd.Cr ) ) )
+    case PickKind.Bookmarks
+        Marks.Clear( )
+        for each d as DocRef in Mru
+            for each ln as long in d->Main.Bookmarks( )
+                dim as BookmarkHit bh
+                bh.Doc = d
+                bh.Line = ln
+                Marks.Push( bh )
+                rows.Push( Row( " ", d->DisplayName( ) & ":" & (ln + 1), trim( d->Main.LineTextAt( ln ) ), Marks.Count( ) - 1 ) )
+            next
+        next
     case PickKind.Build
         Chooser.Filter = false
         for i as long = 0 to Prefs.Builds.Count( ) - 1
@@ -1286,7 +1357,165 @@ sub Window.Chosen( byval tag as long )
     case PickKind.LineEnding : this.SetLineEnding( cast( docencoding.LineEnd, tag ) )
     case PickKind.Build
         if (tag >= 0) andalso (tag < Prefs.Builds.Count( )) then CurrentBuild = Prefs.Builds[tag].Name
+    case PickKind.Bookmarks
+        if (tag >= 0) andalso (tag < Marks.Count( )) then
+            dim as BookmarkHit bh = Marks[tag]
+            this.ShowDoc( bh.Doc )
+            this.View( ).GoToLine( bh.Line )
+        end if
     end select
     this.View( ).Focus( )
     this.ShowStatus( )
+end sub
+
+' ================================================================ find, replace, go to line
+
+' The strip's toggles, and the range "Sel" limits a search to.
+function Window.FindOptionsNow( ) as editor.FindOptions
+    dim as editor.FindOptions o = Finder.Options( )
+    o.RangeStart = FindLo
+    o.RangeEnd = FindHi
+    return o
+end function
+
+' The strip in the status line's place, the phrase seeded from a one-line selection; a multi-line
+' selection is remembered for "Sel".
+sub Window.OpenStrip( byval m as findstrip.StripMode )
+    dim as editor.CodeView ptr v = @this.View( )
+    dim as ustring seed = v->SelectedText( )
+    dim as boolean multi = (instr( seed, chr( 10 ) ) > 0)
+    if multi then
+        FindLo = v->SelectionStart( )
+        FindHi = v->SelectionEnd( )
+    else
+        FindLo = 0
+        FindHi = 0
+    end if
+    Finder.Open( m, seed, multi )
+    this.Layout( )
+    if m = findstrip.StripMode.GoTo then
+        Finder.SetStatus( strings.Format( "1 - {}", v->LineCount( ) ) )
+    else
+        this.ShowFindStatus( )
+    end if
+end sub
+
+' "3 of 10" or "No matches", and every match highlighted.
+sub Window.ShowFindStatus( )
+    if (Finder.isOpen = false) orelse (Finder.Mode = findstrip.StripMode.GoTo) then exit sub
+    dim as editor.CodeView ptr v = @this.View( )
+    dim as ustring p = Finder.Phrase( )
+    dim as editor.FindOptions o = this.FindOptionsNow( )
+    v->MarkMatches( p, o )
+    if len( p ) = 0 then
+        Finder.SetStatus( "" )
+        exit sub
+    end if
+    dim as long n = v->CountMatches( p, o )
+    if n = 0 then
+        Finder.SetStatus( "No matches" )
+    else
+        Finder.SetStatus( strings.Format( "{} of {}", v->MatchIndex( p, o ), n ) )
+    end if
+end sub
+
+sub Window.OnFind( byval a as findstrip.FindAction )
+    dim as editor.CodeView ptr v = @this.View( )
+    dim as ustring p = Finder.Phrase( )
+    dim as editor.FindOptions o = this.FindOptionsNow( )
+    select case a
+    case findstrip.FindAction.Changed
+        ' incremental: from where the current match starts, so typing extends it in place
+        v->SetPosition( v->Position( ) - v->SelectionLength( ) )
+        v->Find( p, o, true )
+    case findstrip.FindAction.NextMatch
+        if len( p ) = 0 then
+            if Finder.isOpen = false then this.OpenStrip( findstrip.StripMode.Find )
+            exit sub
+        end if
+        v->Find( p, o, true )
+    case findstrip.FindAction.PrevMatch
+        if len( p ) = 0 then exit sub
+        v->Find( p, o, false )
+    case findstrip.FindAction.ReplaceOne
+        dim as longint n0 = v->Length( )
+        v->ReplaceCurrent( p, Finder.Replacement( ), o )
+        if o.InSelection then FindHi += v->Length( ) - n0
+    case findstrip.FindAction.ReplaceEvery
+        dim as longint n0 = v->Length( )
+        dim as long k = v->ReplaceAll( p, Finder.Replacement( ), o )
+        if o.InSelection then FindHi += v->Length( ) - n0
+        this.ShowFindStatus( )
+        Finder.SetStatus( strings.Format( "{} replaced", k ) )
+        this.ShowStatus( )
+        exit sub
+    case findstrip.FindAction.GoToLine
+        ' "42" or "42:7" (line:column, 1-based)
+        dim as ustring t = trim( p )
+        dim as long colon = instr( t, ":" ), col = 0
+        dim as long ln = valint( t )
+        if colon > 0 then col = valint( mid( t, colon + 1 ) )
+        if (ln >= 1) andalso (ln <= v->LineCount( )) then
+            Finder.Close( )
+            this.Layout( )
+            if col > 0 then col -= 1
+            v->GoToLine( ln - 1, col )
+            v->Focus( )
+            this.ShowStatus( )
+        else
+            Finder.SetStatus( strings.Format( "1 - {}: no line '{}'", v->LineCount( ), t ) )
+        end if
+        exit sub
+    case findstrip.FindAction.CloseStrip
+        v->MarkMatches( "", o )
+        Finder.Close( )
+        this.Layout( )
+        v->Focus( )
+        this.ShowStatus( )
+        exit sub
+    end select
+    this.ShowFindStatus( )
+    this.ShowStatus( )
+end sub
+
+' Enter: the new line indented like the one above (deeper after a block opener), and the block's
+' 'end ...' line inserted below when it is owed (tkc/autoinsert; settings auto_indent, auto_end).
+sub Window.OnCharAdded( byval hEdit as TK_WIDGET ptr, byval ch as long )
+    dim as DocRef d = this.DocOfWidget( hEdit )
+    if d = 0 then exit sub
+    dim as editor.CodeView ptr v = @d->Main
+    if d->Other.Exists( ) andalso (d->Other.Widget( ) = hEdit) then v = @d->Other
+    dim as boolean isNewLine = (ch = 10) orelse ((ch = 13) andalso (v->LineEnding( ) = docencoding.LineEnd.Cr))
+    if isNewLine = false then exit sub
+    if (Prefs.AutoIndent = false) andalso (Prefs.AutoEnd = false) then exit sub
+    dim as long ln = v->CaretLine( )                    ' 1-based: the new line
+    dim as Array( of ustring ) lines
+    dim as long last = v->LineCount( ) - 1
+    if last > ln + 400 then last = ln + 400             ' the block's end is near, or owed
+    for i as long = 0 to last
+        if i < ln - 2 then
+            lines.Push( "" )                            ' only from the line above on matters
+        else
+            lines.Push( v->LineTextAt( i ) )
+        end if
+    next
+    dim as ustring one = space( Prefs.TabSize )
+    if Prefs.UseTabs then one = chr( 9 )
+    dim as autoinsert.EnterPlan pl = autoinsert.Plan( lines, ln - 2, one, Prefs.AutoIndent, Prefs.AutoEnd )
+    if Prefs.AutoIndent then v->SetIndentText( ln - 1, pl.NewIndent )
+    if len( pl.EndLine ) then v->InsertLineAfter( ln - 1, pl.EndLine )
+end sub
+
+' A click in the bookmark margin toggles the line's bookmark; one in the fold margin folds.
+sub Window.OnMarginClick( byval hEdit as TK_WIDGET ptr, byval margin as long, byval position as longint )
+    dim as DocRef d = this.DocOfWidget( hEdit )
+    if d = 0 then exit sub
+    dim as editor.CodeView ptr v = @d->Main
+    if d->Other.Exists( ) andalso (d->Other.Widget( ) = hEdit) then v = @d->Other
+    dim as long ln = v->LineOf( position )
+    if margin = 1 then
+        v->ToggleBookmark( ln )
+    elseif margin = 2 then
+        v->FoldLineAt( ln )
+    end if
 end sub
