@@ -274,6 +274,13 @@ rm -rf "$OUT/examples"
 cp -r "$ROOT/examples" "$OUT/examples"
 find "$OUT/examples" -type f \( -name '*.exe' -o -name '*.dll' -o -name '*.so' -o -name '*.o' \
     -o -name '*.pdb' -o -name '*.a' -o ! -name '*.*' \) -delete
+# ...but a DLL the tree TRACKS is part of an example, not a build product: the WebView2 examples
+# do not start without WebView2Loader.dll beside them, and nothing builds it. Put those back.
+( cd "$ROOT" && git -c core.quotePath=false ls-files -- 'examples/*.dll' 2>/dev/null ) |
+while IFS= read -r f; do
+    mkdir -p "$OUT/$( dirname "$f" )"
+    cp "$ROOT/$f" "$OUT/$f"
+done
 # The PsControls demos load Segoe Fluent Icons from examples/PsControls/. It is Microsoft's and
 # is not ours to ship: a copy placed there locally stays out of the package.
 rm -f "$OUT/examples/PsControls/SegoeFluentIcons.ttf"
