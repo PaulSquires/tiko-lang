@@ -1438,7 +1438,11 @@ sub WalkStmt _
     dim as Tko.StmtPayload ptr sp = StmtOf( c, id )
     if sp = nullptr then return
     WalkStmt( c, sp->a, here )
-    WalkStmt( c, sp->b, here )
+    '' ...BUT A TYPE'S '( of T, E )' LIST DECLARES ITS PARAMETERS, as undeclared.tiko already
+    '' knows: walked as expressions, each name bound to whatever the scope had -- a module's
+    '' private 'function E' -- and std's Result( of T, E ) failed inside result.tiko with
+    '' TKO0776 'argument 1 of e is left out' (tiko-studio TS-002).
+    if c.ast->Kind( id ) <> Tko.N_TYPE then WalkStmt( c, sp->b, here )
     WalkStmt( c, sp->c, here )
     for i as int32 = 0 to sp->count - 1
         WalkStmt( c, c.ast->ChildAt( sp->first, i ), here )

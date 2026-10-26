@@ -1,0 +1,9 @@
+#module "me"
+#import "std/fs"
+'' A private 'E' beside std's Result( of T, E ), reached through fs.IsFile.
+private function E( byval x as long ) as long
+    return x
+end function
+public function Chk( ) as boolean
+    return fs.IsFile( "no-such-file.txt" )
+end function

@@ -1,0 +1,11 @@
+'' A MODULE-PRIVATE PROCEDURE NAMED LIKE A STD GENERIC'S TYPE PARAMETER -- 'E' beside
+'' Result( of T, E ), 'T' beside Array( of T ). Resolve walked a type's '( of ... )' list as
+'' expressions, so each parameter bound to the module's procedure and the instance failed
+'' inside std with TKO0776 (tiko-studio TS-002). A type parameter is the innermost name.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/tparamcap/main.tiko -o tests/modules/tparamcap.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/tparamcap.exe
+'' EXPECT-RUN-OUT: false
+'' EXPECT-RUN-OUT:  1

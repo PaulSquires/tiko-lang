@@ -1,0 +1,11 @@
+#module "mt"
+#import "std/containers"
+'' A private 'T' beside std's Array( of T ).
+private function T( byval x as long ) as long
+    return x
+end function
+public function Cnt( ) as long
+    dim as containers.Array( of long ) a
+    a.Push( 3 )
+    return a.Count + T( 0 )
+end function
