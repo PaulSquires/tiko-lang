@@ -969,7 +969,39 @@ function TypeContext.Name( byval t as TypeId ) as string
     case TK_UDT, TK_ENUM, TK_TYPEDEF, TK_FORWARD
         dim as InternId nm = this.types[cast( int32, t )].name
         if (this.names <> nullptr) andalso (nm <> INTERN_NONE) then
-            return prefix & this.names->Spelling( nm )
+            '' A GENERIC INSTANCE IS NAMED BY ITS KEY, 'orderedmapiterator<6,6>' -- the argument
+            '' type ids (symbols/generic.tiko). Spelled as the source writes it, '( of long, long )',
+            '' with '#' back to '.'; a key that is not all ids is shown as it is (BUG-iterators-1).
+            dim as string ks = this.names->Spelling( nm )
+            dim as integer lt = instr( ks, "<" )
+            if (lt > 1) andalso (right( ks, 1 ) = ">") then
+                dim as string args = mid( ks, lt + 1, len( ks ) - lt - 1 ) & ","
+                dim as string shown = ""
+                dim as boolean ok = (len( args ) > 1)
+                dim as integer at = 1
+                while ok andalso (at <= len( args ))
+                    dim as integer cm = instr( at, args, "," )
+                    dim as string one = mid( args, at, cm - at )
+                    ok = (len( one ) > 0) andalso (len( one ) < 10)
+                    for k as integer = 1 to len( one )
+                        if (asc( one, k ) < 48) orelse (asc( one, k ) > 57) then ok = false
+                    next
+                    if ok then
+                        dim as int32 ai = valint( one )
+                        ok = (ai > 0) andalso (ai <= this.Count( ))
+                        if ok then shown &= iif( len( shown ) > 0, ", ", "" ) & this.Name( cast( TypeId, ai ) )
+                    end if
+                    at = cm + 1
+                wend
+                if ok then
+                    dim as string bn = left( ks, lt - 1 )
+                    for k as integer = 1 to len( bn )
+                        if mid( bn, k, 1 ) = "#" then mid( bn, k, 1 ) = "."
+                    next
+                    return prefix & bn & "( of " & shown & " )"
+                end if
+            end if
+            return prefix & ks
         end if
         return prefix & "<udt>"
     case else

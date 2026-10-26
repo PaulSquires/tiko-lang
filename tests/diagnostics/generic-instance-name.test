@@ -1,0 +1,7 @@
+'' TypeContext.Name (types/type.tiko) decodes a generic instance's key into '( of ... )'
+'' for every diagnostic (by-example BUG-iterators-1).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/generic-instance-name.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: generic-instance-name.bas(6,1): error TKO0818: 'for each byref' needs a byref Value( ), and 'orderedmapiterator( of long, long ).Value( )' returns by value
+'' EXPECT-MAX-DIAG: 1
