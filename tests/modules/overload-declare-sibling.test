@@ -1,0 +1,10 @@
+'' AN OVERLOAD WITHOUT ITS OWN DECLARE IS EXPORTED beside a sibling that has one: the interface
+'' writer matched a definition to a declaration by RESULT type, took 'F( a )' for the
+'' definition of 'declare F( a, b )' and left it out -- 'm.F( 1 )' was TKO0776 (ApexWealth
+'' AW-003). It now matches by mangled signature (driver/tkiemit.tiko).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/ovlexport/main.tiko -o tests/modules/ovlexport.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/ovlexport.exe
+'' EXPECT-RUN-OUT:  2 5

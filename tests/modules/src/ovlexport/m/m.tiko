@@ -1,0 +1,8 @@
+#module "m"
+public declare function F overload ( byval a as long, byval b as long ) as long
+public function F overload ( byval a as long ) as long
+    return F( a, 1 )
+end function
+public function F overload ( byval a as long, byval b as long ) as long
+    return a + b
+end function

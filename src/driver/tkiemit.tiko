@@ -1058,6 +1058,10 @@ function WriteInterface _
         if w.firstSight[pn] = 0 then continue for
         if ast.Kind( cast( Tko.NodeId, pn ) ) <> Tko.N_PROC then continue for
         if ast.StmtOf( pn )->b = Tko.NODE_NONE then continue for
+        '' ...OF THE SAME SIGNATURE, by mangled name: 'type_' is only the RESULT, so a
+        '' definition-only overload 'F( a )' beside 'declare F( a, b )' -- both long -- was taken
+        '' for that declaration's definition and left out (ApexWealth AW-003).
+        dim as string pmn = Tko.Mangle.ProcName( ast, cast( Tko.NodeId, pn ), syms, ctx.names, ctx.types, info )
         dim as Tko.SymbolId oid = syms.LookupLocal( ps->parent, ps->name )
         dim as int32 guard = 0
         while (oid <> Tko.SYMBOL_NONE) andalso (guard < 1000)
@@ -1073,7 +1077,8 @@ function WriteInterface _
                 dim as int32 on_ = cast( int32, os->payload )
                 if (on_ > 0) andalso (on_ <= ast.Count( )) then
                     if ast.Kind( cast( Tko.NodeId, on_ ) ) = Tko.N_PROC then
-                        if ast.StmtOf( on_ )->b = Tko.NODE_NONE then
+                        if (ast.StmtOf( on_ )->b = Tko.NODE_NONE) andalso _
+                           (Tko.Mangle.ProcName( ast, cast( Tko.NodeId, on_ ), syms, ctx.names, ctx.types, info ) = pmn) then
                             w.firstSight[pn] = 0
                             exit while
                         end if
