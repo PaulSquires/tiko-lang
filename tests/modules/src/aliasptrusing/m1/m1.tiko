@@ -1,0 +1,4 @@
+#module "m1"
+public type REC
+    x as long
+end type

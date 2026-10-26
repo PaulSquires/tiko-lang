@@ -1,0 +1,6 @@
+#module "m2"
+#import "std/containers"
+#import "../m1"
+using m1
+public type RECQ as containers.Array( of REC ptr )
+public dim shared gQ as RECQ

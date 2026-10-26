@@ -125,6 +125,17 @@ function InstantiateGeneric_ _
         dim as Tko.NodeId an = cast( Tko.NodeId, c.ast->ChildSlot( spFirst + i ) )
         dim as Tko.TypeId at = ResolveTypeRef( c, an, scope_ )
         if at = Tko.TYPE_NONE then return Tko.TYPE_NONE
+        '' ...AND SO IS A POINTER TO NOTHING: 'REC ptr' before the walk met 'using m1' (a module's
+        '' alias) built an instance whose methods failed in std's array.tiko, TKO0808 (TE-009).
+        scope
+            dim as Tko.TypeId pe = at
+            for pg as int32 = 0 to 15
+                dim as Tko.TypeKind pk = c.types->Kind( c.types->Unqualify( pe ) )
+                if (pk <> Tko.TK_POINTER) andalso (pk <> Tko.TK_REFERENCE) then exit for
+                pe = c.types->Inner( c.types->Unqualify( pe ) )
+                if pe = Tko.TYPE_NONE then return Tko.TYPE_NONE
+            next
+        end scope
         argTypes.Push( cast( uint32, at ) )
         if i > 0 then key += ","
         key += str( cast( int32, at ) )

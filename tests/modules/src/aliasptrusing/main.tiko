@@ -1,0 +1,7 @@
+#import "./m2"
+#import "./m1"
+using m2
+dim as m1.REC r
+r.x = 7
+gQ.Push( @r )
+print gQ.Count; gQ[0]->x

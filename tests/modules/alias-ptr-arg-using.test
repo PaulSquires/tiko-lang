@@ -1,0 +1,11 @@
+'' A MODULE'S ALIAS OF AN INSTANCE OVER 'X ptr', X reached through 'using m1': the alias pass
+'' runs before the walk meets the using, 'REC ptr' came back a pointer to nothing, and an
+'' instance was built over it -- its methods failed inside std's array.tiko with TKO0808
+'' (tiko-editor TE-009). A pointer to no type now declines the instance until it resolves
+'' (InstantiateGeneric_, symbols/generic.tiko).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/aliasptrusing/main.tiko -o tests/modules/aliasptrusing.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/aliasptrusing.exe
+'' EXPECT-RUN-OUT:  1 7
