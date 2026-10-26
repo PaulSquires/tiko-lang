@@ -1,0 +1,15 @@
+'' RUN: 'this' as the operand of a user binary or unary operator is the object it points at,
+'' byref and byval. Check asks ThisArgType_ (symbols/check.tiko) and lowering passes the
+'' pointer's value or loads the object (OperandValue_, mir/lowerswap.tiko). Output identical
+'' to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/this-operand.bas -o tests/codegen/thisoperand.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/thisoperand.exe
+'' RUN: tests/codegen/thisoperand.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  3
+'' EXPECT-RUN-OUT:  5
+'' EXPECT-RUN-OUT: -5
+'' EXPECT-RUN-OUT:  15

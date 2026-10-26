@@ -815,7 +815,7 @@ private function TypeOfUncached_ _
         '' A USER-DEFINED UNARY OPERATOR, for the same reason the binary one comes
         '' first: '-d' over a UDT is a call, and the fallback below hands back the
         '' operand's own type as if the minus were free.
-        dim as Tko.SymbolId uuop = UserUnaryOp_( c, op, inner )
+        dim as Tko.SymbolId uuop = UserUnaryOp_( c, op, ThisArgType_( c, up->operand, inner ) )   '' '-this': the object
         if uuop <> Tko.SYMBOL_NONE then
             dim as Tko.Symbol ptr uus = c.syms->SymbolAt( uuop )
             if uus <> nullptr then
@@ -913,7 +913,7 @@ private function TypeOfUncached_ _
         '' emitting code, verifying, and never calling the operator that was written.
         dim as Tko.SymbolId uop = Tko.SYMBOL_NONE : dim as int32 uopSeen = 0
         if IsUdtOperand_( c, lt ) orelse IsUdtOperand_( c, rt ) then
-            uop = UserBinaryOp_( c, op, lt, rt, uopSeen )
+            uop = UserBinaryOp_( c, op, ThisArgType_( c, bp->lhs, lt ), ThisArgType_( c, bp->rhs, rt ), uopSeen )   '' 'this + o': the object
             if uop <> Tko.SYMBOL_NONE then
                 dim as Tko.Symbol ptr us = c.syms->SymbolAt( uop )
                 if us <> nullptr then

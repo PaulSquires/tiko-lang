@@ -1270,6 +1270,15 @@ private function OperandValue_ _
     end if
 
     if byref_ then
+        '' 'this' IS THE OBJECT, and its address is the pointer's VALUE -- as a call's argument
+        '' (ByrefUdtArg_). Check now types 'this + o' as the operator over the object; lowering
+        '' passed the pointer's own slot and 'this = this + o' added garbage (by-example BUG-objects-4).
+        if IsThisPointerIdent_( c, e ) then
+            v = InitSourceAddr_( c, e )
+            if v.kind = cast( uint8, MV_NONE ) then return false
+            args.Push( cast( uint32, v.kind ) ) : args.Push( cast( uint32, v.id ) )
+            return true
+        end if
         '' A 'byref as string' OPERAND THAT DOES NOT OWN ITS DESCRIPTOR IS COPIED FIRST, as
         '' at a call -- see StrArgOwnDescriptor_. 'dws & " 2026"' over AfxNova's 'operator &
         '' ( byref dws as DWSTRING, byref s as STRING )' stored the LITERAL'S BYTES in a
@@ -1342,9 +1351,16 @@ private function OperandValue_ _
             args.Push( cast( uint32, v.kind ) ) : args.Push( cast( uint32, v.id ) )
             return true
         end if
-        v = LowerExpr( c, e )
-        if v.kind = cast( uint8, MV_NONE ) then return false
         dim as MirType pmt = LowerType( pt, *c.types )
+        '' ...AND A BYVAL 'this' IS THE OBJECT'S VALUE, loaded through the pointer the slot holds.
+        if IsThisPointerIdent_( c, e ) then
+            dim as MirValue tpa = InitSourceAddr_( c, e )
+            if tpa.kind = cast( uint8, MV_NONE ) then return false
+            v = LowerExprLoad( c, tpa, pmt, iif( pmt = MT_AGG, SizeOfType( c, pt ), 0 ) )
+        else
+            v = LowerExpr( c, e )
+        end if
+        if v.kind = cast( uint8, MV_NONE ) then return false
         if (pmt <> MT_VOID) andalso (pmt <> MT_AGG) then
             v = CoerceTy( c, v, pmt, pt)
         end if
