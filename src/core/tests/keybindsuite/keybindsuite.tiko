@@ -1,0 +1,260 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+' keybindsuite -- tkc/keybind: the key-name vocabulary (the old self-test's assertions, pinned by
+' name), chord parse/format in both spellings, the binding list and conflict lookup,
+' keybindings.toml (every command listed, defaults commented) round trips and warnings. Vocabulary
+' and chord checks are tiko-studio's (PROVENANCE.md); the map and TOML checks are tkEdit's.
+#module "keybindsuite"
+
+#import "std/containers"
+#import "std/outcome"
+#import "std/fs"
+#import "std/strings"
+#import "tkp/platform"
+#import "tkc/cmdids"
+#import "tkc/keybind"
+#import "../tally"
+using containers
+using outcome
+
+' The canonical text of a chord, or "!" when it does not parse.
+private function Norm( byref v as keybind.Vocabulary, byref text as const ustring, _
+                       byval sp as keybind.ChordSpelling = keybind.ChordSpelling.Current ) as ustring
+    dim as keybind.TextResult r = v.Normalize( text, sp )
+    if r.IsOk( ) then return r.Value( )
+    return "!"
+end function
+
+private function Canon( byref v as keybind.Vocabulary, byref name_ as const ustring ) as ustring
+    dim as Optional( of ustring ) o = v.Canonical( name_ )
+    if o.HasValue( ) then return o.Value( )
+    return "!"
+end function
+
+private sub VocabularyChecks( byref c as tally.Checker )
+    dim as keybind.Vocabulary v
+    dim as Array( of ustring ) names = v.Names( )
+    c.SameNum( names.Count( ), 89, "89 key names (the old gKeyNames)" )
+    c.Same( names[0], "Backspace", "the pick list starts with Backspace" )
+    c.Same( names[15], "0", "digits follow INS" )
+    c.Same( names[50], "Z", "letters end at index 50" )
+    c.Same( names[88], "]", "the pick list ends with ]" )
+    c.SameNum( v.Aliases( ).Count( ), 25, "25 aliases" )
+
+    ' every name is its own canonical spelling, in any case; no two names collide (old TEST 1/2)
+    dim as boolean selfCanon = true, anyCase = true
+    dim as Map( of ustring, boolean ) seen
+    for each n as ustring in names
+        if Canon( v, n ) <> n then selfCanon = false
+        if Canon( v, lcase( n ) ) <> n then anyCase = false
+        seen.Put( ucase( n ), true )
+    next
+    c.Check( selfCanon, "every name is canonical for itself" )
+    c.Check( anyCase, "names are case-insensitive" )
+    c.SameNum( seen.Count( ), 89, "no two names differ only in case" )
+    dim as boolean aliasOk = true
+    for each a as ustring in v.Aliases( )
+        dim as ustring k = Canon( v, a )
+        if ( k = "!" ) orelse ( ucase( k ) = ucase( a ) ) then aliasOk = false
+    next
+    c.Check( aliasOk, "every alias maps to a different, canonical name" )
+
+    ' the canonical spellings, pinned (old TEST 4)
+    c.Same( Canon( v, "pgup" ), "PgUp", "PgUp" )
+    c.Same( Canon( v, "TAB" ), "Tab", "TAB -> Tab" )
+    c.Same( Canon( v, "del" ), "DEL", "del -> DEL" )
+    c.Same( Canon( v, "+" ), "Plus", "+ -> Plus" )
+    c.Same( Canon( v, "Numpad+" ), "Numpad+", "Numpad+ stays" )
+    c.Same( Canon( v, "~" ), "Tilde", "~ -> Tilde" )
+    c.Same( Canon( v, "BACKTICK" ), "Tilde", "Backtick -> Tilde" )
+    c.Same( Canon( v, "?" ), "/", "? -> /" )
+    c.Same( Canon( v, "colon" ), "SemiColon", "Colon -> SemiColon" )
+    c.Same( Canon( v, "|" ), "\", "| -> \" )
+    c.Same( Canon( v, "{" ), "[", "{ -> [" )
+    c.Same( Canon( v, "}" ), "]", "} -> ]" )
+    c.Same( Canon( v, wchr( 34 ) ), "SingleQuote", "a double quote -> SingleQuote" )
+    c.Same( Canon( v, "a" ), "A", "a -> A" )
+    c.Same( Canon( v, "f12" ), "F12", "f12 -> F12" )
+    ' not keys (old TEST 3 and 7): the "None" affordance, stale and unoffered names, F13
+    c.Same( Canon( v, "None" ), "!", "None is not a key" )
+    c.Same( Canon( v, "PageUp" ), "!", "PageUp is not a key (the old A-Z trap made it P)" )
+    c.Same( Canon( v, "Insert" ), "!", "Insert is not a key" )
+    c.Same( Canon( v, "F13" ), "!", "F13 is not a key" )
+    c.Same( Canon( v, "" ), "!", "the empty name is not a key" )
+    c.Same( Canon( v, " A" ), "!", "names are not trimmed" )
+end sub
+
+private sub ChordChecks( byref c as tally.Checker )
+    dim as keybind.Vocabulary v
+    c.Same( Norm( v, "Primary+S" ), "Primary+S", "Primary+S" )
+    c.Same( Norm( v, "shift+alt+primary+f5" ), "Primary+Alt+Shift+F5", "canonical order Primary, Alt, Shift" )
+    c.Same( Norm( v, "Primary+Primary+s" ), "Primary+S", "a repeated modifier is one" )
+    c.Same( Norm( v, "F7" ), "F7", "a bare key" )
+    c.Same( Norm( v, "Shift+TAB" ), "Shift+Tab", "the key spelled canonically" )
+    c.Same( Norm( v, "Primary++" ), "Primary+Plus", "a trailing + is the key" )
+    c.Same( Norm( v, "Primary+Numpad+" ), "Primary+Numpad+", "Numpad+ with a modifier" )
+    c.Same( Norm( v, "Numpad+" ), "Numpad+", "Numpad+ alone" )
+    c.Same( Norm( v, "+" ), "Plus", "+ alone" )
+    c.Same( Norm( v, "Alt+Shift+?" ), "Alt+Shift+/", "an alias key" )
+    c.Same( Norm( v, "Ctrl+S" ), "!", "Ctrl is the old spelling" )
+    c.Same( Norm( v, "Ctrl+Shift+S", keybind.ChordSpelling.Old ), "Primary+Shift+S", "old spelling: Ctrl -> Primary" )
+    c.Same( Norm( v, "Primary+S", keybind.ChordSpelling.Old ), "!", "old spelling has no Primary" )
+    c.Same( Norm( v, "" ), "!", "empty" )
+    c.Same( Norm( v, "Primary+" ), "!", "no key" )
+    c.Same( Norm( v, "Primary++S" ), "!", "an empty part" )
+    c.Same( Norm( v, "Shft+S" ), "!", "an unknown modifier is an error, not dropped" )
+    c.Same( Norm( v, "Primary+Shift" ), "!", "a modifier is not a key" )
+    c.Same( Norm( v, "Primary + S" ), "!", "no spaces" )
+    c.Same( Norm( v, "Primary+PageUp" ), "!", "a stale name" )
+    dim as keybind.ChordResult r = v.ParseChord( "Alt+Primary+X" )
+    c.Check( r.IsOk( ) andalso r.Value( ).Primary andalso r.Value( ).Alt andalso ( r.Value( ).Shift = false ), "ParseChord flags" )
+    if r.IsOk( ) then
+        c.Same( r.Value( ).KeyName, "X", "ParseChord key" )
+        c.Same( r.Value( ).ToDisplay( ), platform.PrimaryModifierName( ) & "+Alt+X", "ToDisplay names the platform modifier" )
+    end if
+    c.Check( instr( v.ParseChord( "Foo+S" ).Failure( ), "Foo" ) > 0, "the error names the bad part" )
+end sub
+
+private sub MapChecks( byref c as tally.Checker )
+    dim as keybind.KeyMap m
+    c.SameNum( m.Count( ), 83, "one binding per command" )
+    c.Check( m.Item( 0 ).Id = cmdids.Cmd.FileNew, "table order" )
+    ' every shipped default parses and is canonical, and none collide
+    dim as cmdids.CommandTable t
+    dim as boolean allParse = true, unique = true
+    dim as Map( of ustring, boolean ) defaults
+    dim as long withKeys = 0
+    dim as ustring odd
+    for i as long = 0 to m.Count( ) - 1
+        dim as ustring d = t.Info( m.Item( i ).Id ).DefaultKeys
+        if len( d ) = 0 then continue for
+        withKeys += 1
+        if Norm( m.Vocab( ), d ) <> d then
+            allParse = false
+            odd &= " " & d & "->" & Norm( m.Vocab( ), d )
+        end if
+        if defaults.Contains( m.Item( i ).DefaultKeys ) then unique = false
+        defaults.Put( m.Item( i ).DefaultKeys, true )
+    next
+    c.Check( allParse, "every default chord parses and is written canonically:" & odd )
+    c.Check( unique, "no two defaults share a chord" )
+    c.SameNum( withKeys, 78, "78 defaults" )
+    c.Same( m.Effective( cmdids.Cmd.IndentBlock ), "Tab", "the default Tab is held canonically" )
+    c.Same( m.Effective( cmdids.Cmd.FileSave ), "Primary+S", "FileSave default" )
+    c.Same( m.Effective( cmdids.Cmd.ShowMenu ), "Primary+Shift+M", "the menu key (D2)" )
+    c.Same( m.Effective( cmdids.Cmd.GoToMain ), "Primary+Alt+M", "Go to Main moved off the menu key" )
+    c.Same( m.Effective( cmdids.Cmd.SplitLeftRight ), "Primary+\", "a chord with a backslash" )
+
+    ' conflict lookup
+    dim as Optional( of cmdids.Cmd ) o = m.OwnerOf( "primary+s" )
+    c.Check( o.HasValue( ) andalso ( o.Value( ) = cmdids.Cmd.FileSave ), "OwnerOf Primary+S is FileSave" )
+    c.Check( m.OwnerOf( "Primary+S", cmdids.Cmd.FileSave ).HasValue( ) = false, "OwnerOf skips the excepted command" )
+    c.Check( m.OwnerOf( "Primary+Alt+Shift+Q" ).HasValue( ) = false, "a free chord has no owner" )
+    c.Check( m.OwnerOf( "garbage" ).HasValue( ) = false, "an unparseable chord has no owner" )
+    m.SetDefaultDisabled( cmdids.Cmd.FileSave, true )
+    c.Same( m.Effective( cmdids.Cmd.FileSave ), "", "a disabled default is no binding" )
+    c.Check( m.OwnerOf( "Primary+S" ).HasValue( ) = false, "a disabled default clashes with nothing" )
+    dim as keybind.TextResult s = m.SetUserKeys( cmdids.Cmd.FileSave, "shift+primary+s" )
+    c.Check( s.IsOk( ), "SetUserKeys accepts a chord" )
+    c.Same( m.Effective( cmdids.Cmd.FileSave ), "Primary+Shift+S", "user keys override a disabled default" )
+    o = m.OwnerOf( "Primary+Shift+S" )
+    c.Check( o.HasValue( ) andalso ( o.Value( ) = cmdids.Cmd.FileSave ), "OwnerOf: FileSave now shares FileSaveAll's chord, the first wins" )
+    c.Check( m.SetUserKeys( cmdids.Cmd.Find, "Primary+Nope" ).IsOk( ) = false, "SetUserKeys refuses a bad chord" )
+    c.Same( m.Effective( cmdids.Cmd.Find ), "Primary+F", "and changes nothing" )
+    m.Reset( cmdids.Cmd.FileSave )
+    c.Same( m.Effective( cmdids.Cmd.FileSave ), "Primary+S", "Reset restores the default" )
+end sub
+
+' The lines of s after the [bindings] header that are not comments or blank.
+private function LiveLines( byref s as const ustring ) as ustring
+    dim as ustring o
+    dim as long p = instr( s, "[bindings]" )
+    if p = 0 then return "!"
+    dim as Array( of ustring ) lines = strings.Split( mid( s, p ), wchr( 10 ) )
+    for i as long = 1 to lines.Count( ) - 1
+        dim as ustring ln = lines[i]
+        if (len( ln ) = 0) orelse (left( ln, 1 ) = "#") then continue for
+        o &= ln & "|"
+    next
+    return o
+end function
+
+private sub TomlChecks( byref c as tally.Checker )
+    dim as keybind.KeyMap m
+    dim as keybind.TextResult t = m.ToToml( )
+    c.Check( t.IsOk( ), "ToToml of the defaults" )
+    c.Same( LiveLines( t.Value( ) ), "", "the defaults write only comments under [bindings]" )
+    c.Check( instr( t.Value( ), "# FileSave = 'Primary+S'" & wchr( 10 ) ) > 0, "a default is listed, commented" )
+    c.Check( instr( t.Value( ), "# SplitLeftRight = 'Primary+\'" & wchr( 10 ) ) > 0, "a backslash chord in a literal string" )
+    c.Check( instr( t.Value( ), "# ---- Build" & wchr( 10 ) ) > 0, "the menu groups head their commands" )
+    c.Check( instr( t.Value( ), "# FileSaveAs = ''" & wchr( 10 ) ) > 0, "a command with no default is listed too" )
+    dim as keybind.KeyMap fresh
+    dim as keybind.WarningsResult w0 = fresh.ApplyToml( t.Value( ) )
+    c.Check( w0.IsOk( ) andalso ( w0.Value( ).Count( ) = 0 ), "the defaults' file reads back" )
+    dim as boolean allDefault = true
+    for i as long = 0 to fresh.Count( ) - 1
+        if fresh.Item( i ).Effective( ) <> fresh.Item( i ).DefaultKeys then allDefault = false
+    next
+    c.Check( allDefault, "and changes nothing" )
+
+    m.SetUserKeys( cmdids.Cmd.Compile, "Primary+Shift+B" )
+    m.SetDefaultDisabled( cmdids.Cmd.DuplicateLine, true )
+    m.SetUserKeys( cmdids.Cmd.FileSaveAs, "Primary+Alt+S" )                 ' no default
+    m.SetUserKeys( cmdids.Cmd.Undo, "Primary+Z" )                           ' = its default
+    m.SetUserKeys( cmdids.Cmd.CycleFocus, "Primary+Shift+\" )
+    t = m.ToToml( )
+    c.Same( LiveLines( t.Value( ) ), "FileSaveAs = 'Primary+Alt+S'|DuplicateLine = ''|CycleFocus = 'Primary+Shift+\'|Compile = 'Primary+Shift+B'|", _
+            "the deviations, live, in table order" )
+
+    dim as keybind.KeyMap back
+    back.SetUserKeys( cmdids.Cmd.Find, "Primary+Q" )                        ' ApplyToml starts from defaults
+    dim as keybind.WarningsResult w = back.ApplyToml( t.Value( ) )
+    c.Check( w.IsOk( ) andalso ( w.Value( ).Count( ) = 0 ), "the written file reads back without warnings" )
+    dim as boolean same = true
+    for i as long = 0 to m.Count( ) - 1
+        if m.Item( i ).Effective( ) <> back.Item( i ).Effective( ) then same = false
+    next
+    c.Check( same, "every effective binding survives the round trip" )
+
+    dim as ustring nl = wchr( 10 )
+    w = back.ApplyToml( "format = 1" & nl & "colour = 3" & nl & "[bindings]" & nl & _
+                        "NoSuchThing = ""Primary+1""" & nl & _
+                        "Find = 5" & nl & "Replace = ""Ctrl+H""" & nl & "Copy = ""Primary+Shift+C""" & nl )
+    c.Check( w.IsOk( ), "warnings are not fatal" )
+    if w.IsOk( ) then
+        c.SameNum( w.Value( ).Count( ), 4, "four warnings: key, name, type, chord" )
+        if w.Value( ).Count( ) >= 4 then c.Check( instr( w.Value( )[3], "Ctrl" ) > 0, "the chord warning quotes it" )
+    end if
+    c.Same( back.Effective( cmdids.Cmd.Copy ), "Primary+Shift+C", "the good line still applies" )
+    c.Same( back.Effective( cmdids.Cmd.Replace ), "Primary+H", "a bad chord leaves the default" )
+    c.Check( back.ApplyToml( "format = 2" ).IsOk( ) = false, "another format fails" )
+    c.Check( back.ApplyToml( "[bindings" ).IsOk( ) = false, "not TOML fails" )
+    c.Check( back.ApplyToml( "" ).IsOk( ), "an empty file is all defaults" )
+
+    ' a real file: Save creates the folder, Load reads it back, a missing file is the defaults
+    dim as fs.FsResultUStr tmp = fs.CreateTempDir( "kbsuite" )
+    c.Check( tmp.IsOk( ), "a temp folder" )
+    if tmp.IsOk( ) = false then exit sub
+    dim as ustring p = fs.PathJoin( tmp.Value( ), "sub", keybind.KEYBINDINGS_FILE )
+    c.Check( m.Save( p ).IsOk( ), "Save" )
+    dim as keybind.KeyMap again
+    w = again.Load( p )
+    c.Check( w.IsOk( ) andalso ( w.Value( ).Count( ) = 0 ), "Load" )
+    c.Same( again.Effective( cmdids.Cmd.Compile ), "Primary+Shift+B", "Load applied the file" )
+    w = again.Load( fs.PathJoin( tmp.Value( ), "missing.toml" ) )
+    c.Check( w.IsOk( ), "a missing file loads" )
+    c.Same( again.Effective( cmdids.Cmd.Compile ), "Primary+F5", "as the defaults" )
+    fs.RemoveDirAll( tmp.Value( ) )
+
+    dim as keybind.TextResult u = keybind.UserFile( )
+    c.Check( u.IsOk( ) andalso strings.EndsWith( u.Value( ), keybind.KEYBINDINGS_FILE ), "UserFile is in ConfigDir" )
+end sub
+
+public sub Run( byref c as tally.Checker )
+    c.Begin( "keybind" )
+    VocabularyChecks( c )
+    ChordChecks( c )
+    MapChecks( c )
+    TomlChecks( c )
+end sub

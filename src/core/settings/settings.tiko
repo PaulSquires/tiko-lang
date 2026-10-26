@@ -1,0 +1,260 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' settings -- settings.toml (docs/tkEdit/CONFIG.md), UTF-8 TOML in platform.ConfigDir( ). Every key
+' is optional: a missing or mistyped one reads as its default. tkEdit never rewrites this file
+' (std/config's writer drops comments); it writes it only once, on first run, as Template( ): every
+' key commented out at its default, so the file is also the reference.
+'
+'     version = 1
+'     [editor]   font, font_size, tab_size, use_tabs, line_numbers, whitespace, wrap, caret_line,
+'                indent_guides, fold_margin, auto_indent, auto_end, codetips
+'     [ui]       theme, font_size
+'     [files]    new_eol (native | crlf | lf), new_encoding (utf8 | utf8bom | utf16 | ansi),
+'                save_before_build, trim_trailing
+'     [compiler] tiko, includes = [...], run_in_terminal
+'     [[builds]] name, options, default
+#module "settings"
+
+#import "std/fs"
+#import "std/config"
+#import "std/containers"
+#import "std/outcome"
+#import "tkp/platform"
+#import "tkc/docencoding"
+#import "tkc/tomlget"
+#import "tkc/safewrite"
+using containers
+using outcome
+
+public const SETTINGS_VERSION = 1
+public const SETTINGS_FILE = "settings.toml"
+
+' The new-file line ending: the platform's, or a fixed one.
+public enum NewEol explicit
+    Native = 0
+    CrLf
+    Lf
+end enum
+
+' One build configuration (D13): its name and the compiler switches it adds.
+public type BuildConfig
+    Name      as ustring
+    Options   as ustring
+    IsDefault as boolean
+end type
+
+public type EditorSettings
+    ' [editor]
+    Font         as ustring              ' "" = the bundled Cascadia Mono; else a .ttf path
+    FontSize     as long = 11
+    TabSize      as long = 4
+    UseTabs      as boolean
+    LineNumbers  as boolean = true
+    Whitespace   as boolean
+    Wrap         as boolean
+    CaretLine    as boolean = true
+    IndentGuides as boolean = true
+    FoldMargin   as boolean = true
+    AutoIndent   as boolean = true
+    AutoEnd      as boolean = true
+    CodeTips     as boolean = true
+    ' [ui]
+    Theme        as ustring = "dark"
+    UiFontSize   as long = 10
+    ' [files]
+    NewLineEnd   as NewEol
+    NewEncoding  as docencoding.FileEncoding = docencoding.FileEncoding.Utf8
+    SaveBeforeBuild as boolean = true
+    TrimTrailing as boolean
+    ' [compiler]
+    Tiko         as ustring              ' "" = tiko on PATH
+    Includes     as Array( of ustring )
+    RunInTerminal as boolean = true
+    ' [[builds]]
+    Builds       as Array( of BuildConfig )
+    declare function DefaultBuild( ) as ustring   ' the default build's name, else the first's
+end type
+
+public type SettingsResult as Result( of EditorSettings, config.ConfigError )
+
+' The shipped builds: Debug (the default) and Release.
+public function DefaultBuilds( ) as Array( of BuildConfig )
+    dim as Array( of BuildConfig ) a
+    dim as BuildConfig d
+    d.Name = "Debug" : d.Options = "-g -exx" : d.IsDefault = true
+    a.Push( d )
+    dim as BuildConfig r
+    r.Name = "Release" : r.Options = "-O2"
+    a.Push( r )
+    return a
+end function
+
+public function DefaultSettings( ) as EditorSettings
+    dim as EditorSettings s
+    s.Builds = DefaultBuilds( )
+    return s
+end function
+
+function EditorSettings.DefaultBuild( ) as ustring
+    for each b as BuildConfig in this.Builds
+        if b.IsDefault then return b.Name
+    next
+    if this.Builds.Count( ) > 0 then return this.Builds[0].Name
+    return ""
+end function
+
+private function Clamp( byval v as longint, byval lo as long, byval hi as long ) as long
+    if v < lo then return lo
+    if v > hi then return hi
+    return v
+end function
+
+private function EolOf( byref s as const ustring, byval dflt as NewEol ) as NewEol
+    select case lcase( s )
+    case "native" : return NewEol.Native
+    case "crlf" : return NewEol.CrLf
+    case "lf" : return NewEol.Lf
+    end select
+    return dflt
+end function
+
+private function EncodingOf( byref s as const ustring, byval dflt as docencoding.FileEncoding ) as docencoding.FileEncoding
+    select case lcase( s )
+    case "utf8" : return docencoding.FileEncoding.Utf8
+    case "utf8bom" : return docencoding.FileEncoding.Utf8Bom
+    case "utf16" : return docencoding.FileEncoding.Utf16Bom
+    case "ansi" : return docencoding.FileEncoding.Ansi
+    end select
+    return dflt
+end function
+
+' A parsed file over the defaults.
+public function FromToml( byref root as config.TomlValue ) as EditorSettings
+    dim as EditorSettings s = DefaultSettings( )
+    dim as config.TomlValue e = tomlget.Table( root, "editor" )
+    s.Font = tomlget.GetStr( e, "font", s.Font )
+    s.FontSize = Clamp( tomlget.GetInt( e, "font_size", s.FontSize ), 6, 72 )
+    s.TabSize = Clamp( tomlget.GetInt( e, "tab_size", s.TabSize ), 1, 16 )
+    s.UseTabs = tomlget.GetBool( e, "use_tabs", s.UseTabs )
+    s.LineNumbers = tomlget.GetBool( e, "line_numbers", s.LineNumbers )
+    s.Whitespace = tomlget.GetBool( e, "whitespace", s.Whitespace )
+    s.Wrap = tomlget.GetBool( e, "wrap", s.Wrap )
+    s.CaretLine = tomlget.GetBool( e, "caret_line", s.CaretLine )
+    s.IndentGuides = tomlget.GetBool( e, "indent_guides", s.IndentGuides )
+    s.FoldMargin = tomlget.GetBool( e, "fold_margin", s.FoldMargin )
+    s.AutoIndent = tomlget.GetBool( e, "auto_indent", s.AutoIndent )
+    s.AutoEnd = tomlget.GetBool( e, "auto_end", s.AutoEnd )
+    s.CodeTips = tomlget.GetBool( e, "codetips", s.CodeTips )
+    dim as config.TomlValue u = tomlget.Table( root, "ui" )
+    s.Theme = tomlget.GetStr( u, "theme", s.Theme )
+    s.UiFontSize = Clamp( tomlget.GetInt( u, "font_size", s.UiFontSize ), 6, 32 )
+    dim as config.TomlValue f = tomlget.Table( root, "files" )
+    s.NewLineEnd = EolOf( tomlget.GetStr( f, "new_eol" ), s.NewLineEnd )
+    s.NewEncoding = EncodingOf( tomlget.GetStr( f, "new_encoding" ), s.NewEncoding )
+    s.SaveBeforeBuild = tomlget.GetBool( f, "save_before_build", s.SaveBeforeBuild )
+    s.TrimTrailing = tomlget.GetBool( f, "trim_trailing", s.TrimTrailing )
+    dim as config.TomlValue c = tomlget.Table( root, "compiler" )
+    s.Tiko = tomlget.GetStr( c, "tiko", s.Tiko )
+    s.Includes = tomlget.GetStrings( c, "includes" )
+    s.RunInTerminal = tomlget.GetBool( c, "run_in_terminal", s.RunInTerminal )
+    dim as Array( of config.TomlValue ) bs = tomlget.Tables( root, "builds" )
+    if bs.Count( ) > 0 then
+        s.Builds.Clear( )
+        for each b as config.TomlValue in bs
+            dim as BuildConfig k
+            k.Name = tomlget.GetStr( b, "name" )
+            if len( k.Name ) = 0 then continue for
+            k.Options = tomlget.GetStr( b, "options" )
+            k.IsDefault = tomlget.GetBool( b, "default", false )
+            s.Builds.Push( k )
+        next
+        if s.Builds.Count( ) = 0 then s.Builds = DefaultBuilds( )
+    end if
+    return s
+end function
+
+public function ParseSettings( byref text as const ustring ) as SettingsResult
+    dim as config.ConfigResultToml r = config.ParseToml( text )
+    if r.IsOk( ) = false then return Fail( of EditorSettings, config.ConfigError )( r.Failure( ) )
+    return Ok( of EditorSettings, config.ConfigError )( FromToml( r.Value( ) ) )
+end function
+
+' No file = the defaults. A file that is not TOML fails (the caller keeps what it had).
+public function LoadSettings( byref path as const ustring ) as SettingsResult
+    if fs.Exists( path ) = false then return Ok( of EditorSettings, config.ConfigError )( DefaultSettings( ) )
+    dim as config.ConfigResultToml r = config.LoadToml( path )
+    if r.IsOk( ) = false then return Fail( of EditorSettings, config.ConfigError )( r.Failure( ) )
+    return Ok( of EditorSettings, config.ConfigError )( FromToml( r.Value( ) ) )
+end function
+
+' The first-run file: every key commented at its default (CONFIG.md).
+public function Template( ) as ustring
+    dim as ustring nl = wchr( 10 )
+    return _
+        "# tkEdit settings. Every key is optional; a commented line shows its default." & nl & _
+        "# Uncomment and change a line to use it. Saving this file in tkEdit applies it at once." & nl & _
+        nl & _
+        "version = 1" & nl & _
+        nl & _
+        "[editor]" & nl & _
+        "# font = ''              # '' = the bundled Cascadia Mono; else a .ttf path" & nl & _
+        "# font_size = 11" & nl & _
+        "# tab_size = 4" & nl & _
+        "# use_tabs = false" & nl & _
+        "# line_numbers = true" & nl & _
+        "# whitespace = false" & nl & _
+        "# wrap = false" & nl & _
+        "# caret_line = true" & nl & _
+        "# indent_guides = true" & nl & _
+        "# fold_margin = true" & nl & _
+        "# auto_indent = true" & nl & _
+        "# auto_end = true        # Enter after 'sub f()' inserts 'end sub'" & nl & _
+        "# codetips = true        # completion and calltips" & nl & _
+        nl & _
+        "[ui]" & nl & _
+        "# theme = 'dark'         # themes/<name>.toml: beside the program, or in this folder" & nl & _
+        "# font_size = 10" & nl & _
+        nl & _
+        "[files]" & nl & _
+        "# new_eol = 'native'     # native | crlf | lf" & nl & _
+        "# new_encoding = 'utf8'  # utf8 | utf8bom | utf16 | ansi" & nl & _
+        "# save_before_build = true" & nl & _
+        "# trim_trailing = false" & nl & _
+        nl & _
+        "[compiler]" & nl & _
+        "# tiko = ''              # '' = tiko on PATH" & nl & _
+        "# includes = []" & nl & _
+        "# run_in_terminal = true" & nl & _
+        nl & _
+        "# Build configurations. Listing any replaces both of these defaults." & nl & _
+        "# [[builds]]" & nl & _
+        "# name = 'Debug'" & nl & _
+        "# options = '-g -exx'" & nl & _
+        "# default = true" & nl & _
+        "#" & nl & _
+        "# [[builds]]" & nl & _
+        "# name = 'Release'" & nl & _
+        "# options = '-O2'" & nl
+end function
+
+' Writes Template( ) when the file does not exist, creating the folder. TRUE = it was written.
+public function EnsureFile( byref path as const ustring ) as boolean
+    if fs.Exists( path ) then return false
+    dim as ustring dir_ = fs.PathParent( path )
+    if ( len( dir_ ) > 0 ) andalso ( fs.IsDir( dir_ ) = false ) then
+        if fs.CreateDirAll( dir_ ).IsOk( ) = false then return false
+    end if
+    return safewrite.WriteText( path, Template( ) ).IsOk( )   ' TS-003
+end function
+
+' Where settings.toml lives: platform.ConfigDir( )/settings.toml.
+public function SettingsPath( ) as fs.FsResultUStr
+    dim as fs.FsResultUStr d = platform.ConfigDir( )
+    if d.IsOk( ) = false then return d
+    return Ok( of ustring, fs.FsError )( fs.PathJoin( d.Value( ), SETTINGS_FILE ) )
+end function

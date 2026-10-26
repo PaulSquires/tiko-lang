@@ -134,6 +134,9 @@ public type CodeView
     declare sub MoveLinesUp( )
     declare sub MoveLinesDown( )
     declare sub CommentLines( byval add as boolean )
+    declare sub Indent( )                                 ' Scintilla's Tab / Shift+Tab
+    declare sub Unindent( )
+    declare sub NewLineBelow( )                           ' a new line under the caret's, caret on it
     declare sub ZoomIn( )
     declare sub ZoomOut( )
     declare sub ZoomReset( )
@@ -228,6 +231,16 @@ function CodeView.Create( byval parent as TK_WIDGET ptr, byval id as long ) as b
     tkCodeEdit_Send( w, SCI_SETCODEPAGE, SC_CP_UTF8 )
     tkCodeEdit_Send( w, SCI_USEPOPUP, 0 )               ' tkCodeEdit has its own context menu
     tkCodeEdit_SetLexer( w, "tiko" )
+    ' keybindings.toml is the only keymap (D15): Scintilla's own letter chords would still fire a
+    ' command the user moved or removed (Ctrl+D duplicate, Ctrl+L line cut, Ctrl+U lower case ...)
+    dim as long keys( 0 to 13 ) = { asc( "Z" ), asc( "Z" ), asc( "Y" ), asc( "X" ), asc( "C" ), asc( "V" ), _
+        asc( "A" ), asc( "L" ), asc( "L" ), asc( "T" ), asc( "T" ), asc( "D" ), asc( "U" ), asc( "U" ) }
+    dim as long mods( 0 to 13 ) = { SCMOD_CTRL, SCMOD_CTRL or SCMOD_SHIFT, SCMOD_CTRL, SCMOD_CTRL, SCMOD_CTRL, _
+        SCMOD_CTRL, SCMOD_CTRL, SCMOD_CTRL, SCMOD_CTRL or SCMOD_SHIFT, SCMOD_CTRL, SCMOD_CTRL or SCMOD_SHIFT, _
+        SCMOD_CTRL, SCMOD_CTRL, SCMOD_CTRL or SCMOD_SHIFT }
+    for i as long = 0 to 13
+        tkCodeEdit_Send( w, SCI_CLEARCMDKEY, keys( i ) + (mods( i ) shl 16) )
+    next
     return true
 end function
 
@@ -368,6 +381,18 @@ function CodeView.Zoom( ) as long
 end function
 
 ' The caret's line, start to end of line including the break.
+sub CodeView.Indent( ) : if w then tkCodeEdit_Send( w, SCI_TAB )
+end sub
+
+sub CodeView.Unindent( ) : if w then tkCodeEdit_Send( w, SCI_BACKTAB )
+end sub
+
+sub CodeView.NewLineBelow( )
+    if w = 0 then exit sub
+    tkCodeEdit_Send( w, SCI_LINEEND )
+    tkCodeEdit_Send( w, SCI_NEWLINE )
+end sub
+
 sub CodeView.SelectLine( )
     if w = 0 then exit sub
     dim as integer ln = tkCodeEdit_Send( w, SCI_LINEFROMPOSITION, this.Position( ) )

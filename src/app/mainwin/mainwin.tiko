@@ -6,25 +6,45 @@
 '    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 '
 ' mainwin -- the main window and the App state it owns. One editor fills the window; the status
-' line sits at the bottom (PLAN.md, Window). P0: the frame only -- one view, the status panels,
-' the bundled fonts and the tiko keyword lists. Commands, buffers and config arrive in P1-P2.
+' line sits at the bottom; the menu bar exists but shows only while ShowMenu (Ctrl+Shift+M) has
+' it open (PLAN.md, Window). Every command goes through Execute( Cmd ).
+'
+' Configuration is files only (D15): settings.toml, keybindings.toml and the theme are opened in
+' the editor like any text, and saving one re-applies it at once. A file that does not parse
+' leaves the previous values in force and says why in the status line's message panel.
+'
+' P1 holds ONE document (DocPath); buffers, Open and Save As arrive in P2.
 #module "mainwin"
 
+#import "std/containers"
 #import "std/fs"
 #import "std/outcome"
 #import "std/strings"
 #import "tkp/platform"
 #import "tkc/appinfo"
+#import "tkc/cmdids"
 #import "tkc/docencoding"
+#import "tkc/keybind"
+#import "tkc/settings"
 #import "tkc/textstream"
+#import "tkc/themes"
+#import "tka/chrome"
 #import "tka/editor"
 #import "tkControls/tkApp"
 #import "tkControls/tkCodeEdit"
+#import "tkControls/tkKeys"
+#import "tkControls/tkMenuBar"
+#import "tkControls/tkPopupMenu"
 #import "tkControls/tkStatusBar"
+using containers
 using outcome
+using cmdids
 using tkApp
 using tkHost
 using tkCodeEdit
+using tkKeys
+using tkMenuBar
+using tkPopupMenu
 using tkStatusBar
 
 public const FONT_UI = "Inter-Regular.ttf"
@@ -34,8 +54,10 @@ public const FONT_GLYPH = "PsIcons.ttf"
 public const DEFAULT_CX = 960
 public const DEFAULT_CY = 640
 public const STATUS_CY = 24              ' one status row, unscaled
+public const MENUBAR_CY = 26             ' the menu bar while it shows, unscaled
 const ID_VIEW = 100
 const ID_STATUS = 101
+const ID_MENUBAR = 102
 
 ' The status line's panels, left to right (PLAN.md, Window).
 public enum StatusPanel explicit
@@ -47,7 +69,8 @@ public enum StatusPanel explicit
     LineEnding
 end enum
 
-' tkApp's fonts: the bundled ones in <resources>/fonts (D16).
+' tkApp's fonts: the bundled ones in <resources>/fonts (D16). The UI font size is read from the
+' user's settings.toml here, before any window exists, so it applies from the next start.
 public function AppOptions( ) as TKAPP_OPTIONS
     dim as TKAPP_OPTIONS opts
     dim as Optional( of ustring ) res = platform.ResourceDir( )
@@ -58,7 +81,12 @@ public function AppOptions( ) as TKAPP_OPTIONS
         opts.FontMonoFile = FONT_MONO
         opts.GlyphFontFile = FONT_GLYPH
     end if
-    opts.ThemeMode = TKAPP_THEME_DARK          ' the shipped default theme is dark (P1 maps themes)
+    dim as fs.FsResultUStr sp = settings.SettingsPath( )
+    if sp.IsOk( ) then
+        dim as settings.SettingsResult s = settings.LoadSettings( sp.Value( ) )
+        if s.IsOk( ) then opts.FontUISize = s.Value( ).UiFontSize
+    end if
+    opts.ThemeMode = TKAPP_THEME_NONE          ' the theme file decides (Window.ReloadTheme)
     return opts
 end function
 
@@ -92,11 +120,26 @@ public function LoadKeywords( byref resourceDir as const ustring ) as editor.Key
 end function
 
 public type Window
+    ' ---- set before Create (the self-test points it elsewhere)
+    ConfigDir as ustring                ' settings.toml, keybindings.toml, themes/
+
+    ' ---- the App state
     ResourceDir as ustring
+    Prefs as settings.EditorSettings
+    Keys as keybind.KeyMap
+    Theme as themes.Theme
+    Words as editor.Keywords
     Look as editor.Look
     Code as editor.CodeView
+    DocPath as ustring                  ' "" = untitled
+    DocEnc as docencoding.FileEncoding = docencoding.FileEncoding.Utf8   ' TK-001: not DocEncoding
+    Message as ustring                  ' the message panel's text
+    MenuShown as boolean
+
     form as TK_FORM ptr
     status as TK_WIDGET ptr
+    menuBar as TK_WIDGET ptr
+    accel as TK_KEYMAP ptr
 
     declare function Create( byval forcedScale as single = 0 ) as boolean
     declare sub Show( )
@@ -105,20 +148,58 @@ public type Window
     declare sub ShowStatus( )
     declare function StatusText( byval p as StatusPanel ) as ustring
     declare function StatusHeight( ) as long
+    declare function MenuHeight( ) as long
+    declare sub SetMessage( byref s as const ustring )
+
+    ' ---- commands
+    declare function Execute( byval id as Cmd ) as boolean       ' FALSE = not available (yet)
+    declare function IsImplemented( byval id as Cmd ) as boolean
+    declare function ShortcutText( byval id as Cmd ) as ustring  ' "Ctrl+S", "" = none
+    declare sub ShowMenuBar( )
+    declare sub HideMenuBar( )
+
+    ' ---- configuration
+    declare function SettingsFile( ) as ustring
+    declare function KeysFile( ) as ustring
+    declare sub ReloadSettings( )
+    declare sub ReloadKeys( )
+    declare sub ReloadTheme( )
+    declare sub ApplyLook( )
+    declare function EditableThemeFile( ) as ustring
+
+    ' ---- the one document (P1)
+    declare function OpenFile( byref path as const ustring ) as boolean
+    declare function SaveFile( ) as boolean
+
+  private:
+    declare sub BuildMenus( )
+    declare sub RebuildAccelerators( )
+    declare sub AfterSave( )
+    declare function FontFile( ) as ustring
 end type
+
+private function WindowOfHost( byval h as TK_HOST ptr ) as Window ptr
+    dim as TK_FORM ptr f = tkForm_FromHost( h )
+    if f = 0 then return 0
+    return f->Tag
+end function
 
 function Window.Create( byval forcedScale as single ) as boolean
     ResourceDir = platform.ResourceDir( ).ValueOr( platform.ExeDir( ) )
-    Look = editor.DefaultLook( )
-    Look.Words = LoadKeywords( ResourceDir )
-    Look.FontFile = fs.PathJoin( ResourceDir, "fonts", FONT_MONO )
+    if len( ConfigDir ) = 0 then ConfigDir = platform.ConfigDir( ).ValueOr( fs.PathJoin( ResourceDir, "config" ) )
+    Words = LoadKeywords( ResourceDir )
+
+    ' first run: the commented references (D15); never overwritten
+    settings.EnsureFile( this.SettingsFile( ) )
+    if fs.Exists( this.KeysFile( ) ) = false then Keys.Save( this.KeysFile( ) )
+    Prefs = settings.DefaultSettings( )
+    Theme = themes.DarkTheme( )
 
     form = tkApp_NewForm( appinfo.WindowTitle( ), DEFAULT_CX, DEFAULT_CY, 0, forcedScale )
     if form = 0 then return false
     form->Tag = @this
     dim as TK_WIDGET ptr root = tkForm_Widget( form )
     if Code.Create( root, ID_VIEW ) = false then return false
-    Code.ApplyLook( Look )
     tkCodeEdit_SetNotifyCallback( Code.Widget( ), sub( byval h as TK_WIDGET ptr, byval n as const TKCE_NOTIFICATION ptr )
         if n->code = SCN_UPDATEUI then cast( Window ptr, tkForm_FromWidget( h )->Tag )->ShowStatus( )
     end sub )
@@ -129,14 +210,38 @@ function Window.Create( byval forcedScale as single ) as boolean
     next
     tkStatusBar_SetExpandPanel( status, StatusPanel.Message )
 
+    menuBar = tkMenuBar_Create( root, ID_MENUBAR )
+    tkWidget_Show( menuBar, false )
+    tkMenuBar_SetCommandCallback( menuBar, sub( byval hBar as TK_WIDGET ptr, byval id as long )
+        cast( Window ptr, tkForm_FromWidget( hBar )->Tag )->Execute( cast( Cmd, id ) )
+    end sub )
+
+    this.ReloadSettings( )                      ' the theme and the look with it
+    this.ReloadKeys( )                          ' the accelerators and the menus with them
+
     tkForm_OnSize( form, sub( byval f as TK_FORM ptr, byval cx as long, byval cy as long )
         cast( Window ptr, f->Tag )->Layout( )
     end sub )
     tkForm_OnScaleChanged( form, sub( byval f as TK_FORM ptr, byval fOld as single, byval fNew as single )
         dim as Window ptr mw = f->Tag
-        mw->Code.ApplyLook( mw->Look )               ' margins are pixels
+        mw->ApplyLook( )                         ' margins are pixels
         mw->Layout( )
     end sub )
+    dim as TK_HOST ptr h = tkForm_Host( form )
+    h->OnPreKey = function( byval h as TK_HOST ptr, byval m as TK_MSG ptr ) as boolean
+        dim as Window ptr mw = WindowOfHost( h )
+        if (mw = 0) orelse (mw->accel = 0) then return false
+        dim as Cmd id = cast( Cmd, tkKeys_Lookup( mw->accel, tkKeys_FromMsg( m ) ) )
+        if id = Cmd.None then return false
+        select case id
+        case Cmd.IndentBlock, Cmd.UnindentBlock
+            return false                        ' Scintilla's own Tab and Shift+Tab
+        case Cmd.Undo, Cmd.Redo, Cmd.Cut, Cmd.Copy, Cmd.Paste, Cmd.SelectAll
+            if tkHost_GetFocus( h ) <> mw->Code.Widget( ) then return false   ' a text field's own
+        end select
+        mw->Execute( id )
+        return true
+    end function
     this.Layout( )
     this.ShowStatus( )
     return true
@@ -149,6 +254,8 @@ sub Window.Show( )
 end sub
 
 sub Window.Destroy( )
+    if accel then tkKeys_MapDestroy( accel )
+    accel = 0
     if form then tkForm_Destroy( form )
     form = 0
 end sub
@@ -157,23 +264,38 @@ function Window.StatusHeight( ) as long
     return tkForm_Scale( form, STATUS_CY )
 end function
 
-' The editor takes everything above the status line.
+function Window.MenuHeight( ) as long
+    if MenuShown = false then return 0
+    return tkForm_Scale( form, MENUBAR_CY )
+end function
+
+' The menu bar (while shown) on top, the editor, one status row at the bottom.
 sub Window.Layout( )
     if form = 0 then exit sub
     dim as TK_WIDGET ptr root = tkForm_Widget( form )
     dim as long cx = root->cw, cy = root->ch
-    dim as long sh = this.StatusHeight( )
-    tkWidget_SetPos( Code.Widget( ), 0, 0, cx, cy - sh )
+    dim as long sh = this.StatusHeight( ), mh = this.MenuHeight( )
+    if mh > 0 then tkWidget_SetPos( menuBar, 0, 0, cx, mh )
+    tkWidget_SetPos( Code.Widget( ), 0, mh, cx, cy - sh - mh )
     tkWidget_SetPos( status, 0, cy - sh, cx, sh )
+end sub
+
+sub Window.SetMessage( byref s as const ustring )
+    Message = s
+    this.ShowStatus( )
 end sub
 
 sub Window.ShowStatus( )
     if status = 0 then exit sub
-    tkStatusBar_SetText( status, StatusPanel.Buffer, "untitled" )
+    dim as ustring name_ = "untitled"
+    if len( DocPath ) then name_ = fs.PathFileName( DocPath )
+    if Code.IsModified( ) then name_ &= " *"
+    tkStatusBar_SetText( status, StatusPanel.Buffer, name_ )
+    tkStatusBar_SetText( status, StatusPanel.Message, Message )
     tkStatusBar_SetText( status, StatusPanel.Position, _
                          strings.Format( "Ln {}, Col {}", Code.CaretLine( ), Code.CaretColumn( ) ) )
-    tkStatusBar_SetText( status, StatusPanel.Build, "Debug" )
-    tkStatusBar_SetText( status, StatusPanel.Encoding, docencoding.EncodingName( docencoding.FileEncoding.Utf8 ) )
+    tkStatusBar_SetText( status, StatusPanel.Build, Prefs.DefaultBuild( ) )
+    tkStatusBar_SetText( status, StatusPanel.Encoding, docencoding.EncodingName( DocEnc ) )
     dim as ustring eol = "CRLF"
     select case Code.LineEnding( )
     case docencoding.LineEnd.Lf : eol = "LF"
@@ -186,3 +308,302 @@ function Window.StatusText( byval p as StatusPanel ) as ustring
     if status = 0 then return ""
     return tkStatusBar_GetText( status, p )
 end function
+
+' ================================================================ commands
+
+function Window.ShortcutText( byval id as Cmd ) as ustring
+    dim as ustring t = Keys.Effective( id )
+    if len( t ) = 0 then return ""
+    dim as keybind.ChordResult r = Keys.Vocab( ).ParseChord( t )
+    if r.IsOk( ) = false then return ""
+    return r.Value( ).ToDisplay( )
+end function
+
+' What P1 can do; the rest is greyed in the menus and says so when its key is pressed.
+function Window.IsImplemented( byval id as Cmd ) as boolean
+    select case id
+    case Cmd.FileSave, Cmd.Settings, Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit
+        return true
+    case Cmd.Undo, Cmd.Redo, Cmd.Cut, Cmd.Copy, Cmd.Paste, Cmd.SelectAll, Cmd.SelectLine, _
+         Cmd.DeleteLine, Cmd.DuplicateLine, Cmd.MoveLineUp, Cmd.MoveLineDown, Cmd.NewLineBelowCurrent, _
+         Cmd.CommentBlock, Cmd.UncommentBlock, Cmd.IndentBlock, Cmd.UnindentBlock, _
+         Cmd.ToUpperCase, Cmd.ToLowerCase, Cmd.ToMixedCase
+        return true
+    case Cmd.ShowMenu, Cmd.ZoomIn, Cmd.ZoomOut, Cmd.ZoomReset, Cmd.FoldToggle, Cmd.FoldBelow, _
+         Cmd.FoldAll, Cmd.UnfoldAll
+        return true
+    end select
+    return false
+end function
+
+function Window.Execute( byval id as Cmd ) as boolean
+    if this.IsImplemented( id ) = false then
+        dim as cmdids.CommandInfo ci = Keys.Commands( ).Info( id )
+        this.SetMessage( ci.Description & ": not available yet" )
+        return false
+    end if
+    select case id
+    case Cmd.FileSave : this.SaveFile( )
+    case Cmd.Settings : this.OpenFile( this.SettingsFile( ) )
+    case Cmd.KeyboardShortcuts : this.OpenFile( this.KeysFile( ) )
+    case Cmd.ThemeFile
+        dim as ustring f = this.EditableThemeFile( )
+        if len( f ) then this.OpenFile( f )
+    case Cmd.AppExit : tkForm_Close( form )
+    case Cmd.ShowMenu : this.ShowMenuBar( )
+    case Cmd.Undo : Code.Undo( )
+    case Cmd.Redo : Code.Redo( )
+    case Cmd.Cut : Code.Cut( )
+    case Cmd.Copy : Code.Copy( )
+    case Cmd.Paste : Code.Paste( )
+    case Cmd.SelectAll : Code.SelectAll( )
+    case Cmd.SelectLine : Code.SelectLine( )
+    case Cmd.DeleteLine : Code.DeleteLine( )
+    case Cmd.DuplicateLine : Code.DuplicateLine( )
+    case Cmd.MoveLineUp : Code.MoveLinesUp( )
+    case Cmd.MoveLineDown : Code.MoveLinesDown( )
+    case Cmd.NewLineBelowCurrent : Code.NewLineBelow( )
+    case Cmd.CommentBlock : Code.CommentLines( true )
+    case Cmd.UncommentBlock : Code.CommentLines( false )
+    case Cmd.IndentBlock : Code.Indent( )
+    case Cmd.UnindentBlock : Code.Unindent( )
+    case Cmd.ToUpperCase : Code.UpperCaseSelection( )
+    case Cmd.ToLowerCase : Code.LowerCaseSelection( )
+    case Cmd.ToMixedCase : Code.MixedCaseSelection( )
+    case Cmd.ZoomIn : Code.ZoomIn( )
+    case Cmd.ZoomOut : Code.ZoomOut( )
+    case Cmd.ZoomReset : Code.ZoomReset( )
+    case Cmd.FoldToggle : Code.FoldToggle( false )
+    case Cmd.FoldBelow : Code.FoldToggle( true )
+    case Cmd.FoldAll : Code.FoldAll( true )
+    case Cmd.UnfoldAll : Code.FoldAll( false )
+    end select
+    this.ShowStatus( )
+    return true
+end function
+
+' ================================================================ the hidden menu bar
+
+' One menu per group, rows in table order, the current shortcut beside each, the commands P1
+' cannot do greyed. Rebuilt whenever keybindings.toml changes.
+sub Window.BuildMenus( )
+    dim as TK_HOST ptr h = tkForm_Host( form )
+    dim as cmdids.CommandTable t
+    dim as boolean fresh = (tkMenuBar_GetItemCount( menuBar ) = 0)
+    for g as long = 0 to clng( MenuGroup.Count_ ) - 1
+        dim as TK_MENU ptr m
+        if fresh then
+            dim as long i = tkMenuBar_AddItem( menuBar, GroupName( cast( MenuGroup, g ) ), 0 )
+            m = tkPopupMenu_Create( h )
+            tkMenuBar_SetDropDown( menuBar, i, m )
+            ' a dropdown closes on a command, on Esc, on a click outside, and also when Left / Right
+            ' moves to the next menu: look once the event is over, and hide only if none is open
+            tkPopupMenu_SetClosedCallback( m, sub( byval hPopup as TK_MENU ptr, byval nReason as long )
+                tkApp_RunOnUI( sub( byval payload as any ptr )
+                    dim as Window ptr mw = payload
+                    if mw->MenuShown andalso (tkMenuBar_IsMenuOpen( mw->menuBar ) = false) then mw->HideMenuBar( )
+                end sub, WindowOfHost( hPopup->pOwner ) )
+            end sub )
+        else
+            m = tkMenuBar_GetDropDown( menuBar, g )
+            tkPopupMenu_Clear( m )
+        end if
+        for each id as Cmd in t.InGroup( cast( MenuGroup, g ) )
+            dim as cmdids.CommandInfo ci = t.Info( id )
+            if ci.SepBefore andalso (tkPopupMenu_GetItemCount( m ) > 0) then tkPopupMenu_AddSeparator( m )
+            tkPopupMenu_AddItem( m, clng( id ), ci.Description, this.ShortcutText( id ), this.IsImplemented( id ) = false )
+        next
+    next
+end sub
+
+sub Window.ShowMenuBar( )
+    if MenuShown then exit sub
+    MenuShown = true
+    tkWidget_Show( menuBar, true )
+    this.Layout( )
+    tkMenuBar_OpenMenu( menuBar, 0, true )
+end sub
+
+sub Window.HideMenuBar( )
+    if MenuShown = false then exit sub
+    MenuShown = false
+    tkMenuBar_CloseMenu( menuBar )
+    tkWidget_Show( menuBar, false )
+    this.Layout( )
+    Code.Focus( )
+end sub
+
+sub Window.RebuildAccelerators( )
+    if accel = 0 then accel = tkKeys_MapCreate( )
+    tkKeys_Clear( accel )
+    for i as long = 0 to Keys.Count( ) - 1
+        dim as ustring eff = Keys.Item( i ).Effective( )
+        if len( eff ) = 0 then continue for
+        ' two commands on one chord: the first in the table keeps it (keybind.OwnerOf's rule)
+        dim as string t = eff
+        dim as TK_CHORD c
+        if tkKeys_Parse( t, c ) andalso (tkKeys_Lookup( accel, c ) = 0) then tkKeys_Bind( accel, c, Keys.Item( i ).Id )
+    next
+end sub
+
+' ================================================================ configuration
+
+function Window.SettingsFile( ) as ustring
+    return fs.PathJoin( ConfigDir, settings.SETTINGS_FILE )
+end function
+
+function Window.KeysFile( ) as ustring
+    return fs.PathJoin( ConfigDir, keybind.KEYBINDINGS_FILE )
+end function
+
+function Window.FontFile( ) as ustring
+    if (len( Prefs.Font ) > 0) andalso fs.IsFile( Prefs.Font ) then return Prefs.Font
+    return fs.PathJoin( ResourceDir, "fonts", FONT_MONO )
+end function
+
+sub Window.ApplyLook( )
+    Look = chrome.LookOf( Theme, Prefs, Words, this.FontFile( ) )
+    Code.ApplyLook( Look )
+end sub
+
+' settings.toml, then the theme it names. A file that does not parse changes nothing.
+sub Window.ReloadSettings( )
+    dim as settings.SettingsResult r = settings.LoadSettings( this.SettingsFile( ) )
+    if r.IsOk( ) then
+        Prefs = r.Value( )
+        Message = ""
+    else
+        Message = strings.Format( "{}:{}: {}", settings.SETTINGS_FILE, r.Failure( ).Line( ), r.Failure( ).Detail( ) )
+    end if
+    this.ReloadTheme( )
+    this.ShowStatus( )
+end sub
+
+' keybindings.toml: the key map, the accelerators, the menus' shortcut text; warnings and chords
+' two commands share go to the message panel.
+sub Window.ReloadKeys( )
+    dim as keybind.WarningsResult r = Keys.Load( this.KeysFile( ) )
+    dim as Array( of ustring ) notes
+    if r.IsOk( ) = false then
+        notes.Push( r.Failure( ) )
+    else
+        notes = r.Value( )
+    end if
+    for i as long = 0 to Keys.Count( ) - 1
+        dim as ustring eff = Keys.Item( i ).Effective( )
+        if len( eff ) = 0 then continue for
+        dim as Optional( of Cmd ) o = Keys.OwnerOf( eff, Keys.Item( i ).Id )
+        if o.HasValue( ) andalso (clng( o.Value( ) ) < clng( Keys.Item( i ).Id )) then
+            notes.Push( strings.Format( "{} and {} share {}", Keys.Commands( ).Info( o.Value( ) ).Name, Keys.Item( i ).Name, eff ) )
+        end if
+    next
+    this.RebuildAccelerators( )
+    this.BuildMenus( )
+    if notes.Count( ) = 0 then
+        Message = ""
+    elseif notes.Count( ) = 1 then
+        Message = keybind.KEYBINDINGS_FILE & ": " & notes[0]
+    else
+        Message = strings.Format( "{}: {} (+{} more)", keybind.KEYBINDINGS_FILE, notes[0], notes.Count( ) - 1 )
+    end if
+    this.ShowStatus( )
+end sub
+
+' The theme settings.toml names: the user's copy, else the shipped one, else the built-in dark.
+sub Window.ReloadTheme( )
+    dim as ustring path = themes.FindTheme( Prefs.Theme, ConfigDir, ResourceDir )
+    if len( path ) = 0 then
+        Theme = themes.DarkTheme( )
+        if lcase( Prefs.Theme ) <> themes.DEFAULT_THEME then Message = "theme '" & Prefs.Theme & "' not found; using dark"
+    else
+        dim as themes.ThemeResult r = themes.LoadTheme( path, Prefs.Theme )
+        if r.IsOk( ) then
+            Theme = r.Value( )
+            if Theme.Warnings.Count( ) > 0 then
+                Message = strings.Format( "{}.toml: {}", Prefs.Theme, Theme.Warnings[0] )
+            end if
+        else
+            Message = r.Failure( )
+        end if
+    end if
+    tkApp_SetTheme( chrome.PaletteOf( Theme ) )
+    this.ApplyLook( )
+    tkForm_Invalidate( form )
+end sub
+
+' The active theme as a file the user may edit: <config>/themes/<name>.toml, copied from the
+' shipped one (or written from the built-in dark) the first time.
+function Window.EditableThemeFile( ) as ustring
+    dim as ustring dir_ = fs.PathJoin( ConfigDir, themes.THEME_DIR )
+    dim as ustring mine = fs.PathJoin( dir_, Prefs.Theme & ".toml" )
+    if fs.IsFile( mine ) then return mine
+    dim as ustring shipped = themes.FindTheme( Prefs.Theme, "", ResourceDir )
+    if len( shipped ) = 0 then shipped = themes.FindTheme( themes.DEFAULT_THEME, "", ResourceDir )
+    if len( shipped ) = 0 then
+        this.SetMessage( "no theme file to copy" )
+        return ""
+    end if
+    fs.CreateDirAll( dir_ )
+    if fs.CopyFile( shipped, mine ).IsOk( ) = false then
+        this.SetMessage( "cannot write " & mine )
+        return ""
+    end if
+    return mine
+end function
+
+' ================================================================ the one document (P1)
+
+function Window.OpenFile( byref path as const ustring ) as boolean
+    if (path = DocPath) andalso (len( path ) > 0) then return true
+    if Code.IsModified( ) then
+        this.SetMessage( "save the current file first (one buffer until P2)" )
+        return false
+    end if
+    dim as Result( of docencoding.LoadedText, fs.FsError ) r = docencoding.LoadFile( path )
+    if r.IsOk( ) = false then
+        this.SetMessage( r.Failure( ).Message( ) )
+        return false
+    end if
+    DocPath = path
+    DocEnc = r.Value( ).Encoding
+    Code.SetText( r.Value( ).Text )
+    dim as Optional( of docencoding.LineEnd ) e = docencoding.DetectLineEnd( r.Value( ).Text )
+    if e.HasValue( ) then Code.SetLineEnding( e.Value( ), false )
+    dim as ustring title = appinfo.WindowTitle( fs.PathFileName( path ) )
+    dim as string t8 = title
+    SDL_SetWindowTitle( tkForm_Host( form )->win, strptr( t8 ) )
+    Message = ""
+    this.ShowStatus( )
+    return true
+end function
+
+function Window.SaveFile( ) as boolean
+    if len( DocPath ) = 0 then
+        this.SetMessage( "Save As arrives in P2" )
+        return false
+    end if
+    dim as docencoding.EncodedText b = docencoding.EncodeForDisk( Code.Text( ), DocEnc )
+    dim as fs.FsResultBool w = docencoding.WriteFile( DocPath, b.Bytes )
+    if w.IsOk( ) = false then
+        this.SetMessage( w.Failure( ).Message( ) )
+        return false
+    end if
+    Code.SetSavePoint( )
+    Message = ""
+    this.AfterSave( )
+    this.ShowStatus( )
+    return true
+end function
+
+' A saved config file is applied at once (D15).
+sub Window.AfterSave( )
+    dim as ustring p = lcase( DocPath )
+    if p = lcase( this.SettingsFile( ) ) then
+        this.ReloadSettings( )
+    elseif p = lcase( this.KeysFile( ) ) then
+        this.ReloadKeys( )
+    elseif (p = lcase( Theme.Path )) orelse _
+           (p = lcase( fs.PathJoin( ConfigDir, themes.THEME_DIR, Prefs.Theme & ".toml" ) )) then
+        this.ReloadTheme( )                     ' the active theme, or the user's new copy of it
+    end if
+end sub

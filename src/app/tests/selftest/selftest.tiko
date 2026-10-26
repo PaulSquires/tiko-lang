@@ -6,18 +6,29 @@
 '    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 '
 ' selftest -- tkEdit --selftest: the real main window, driven by SDL events, at a pinned scale.
-' Geometry is asserted, not eyeballed (PLAN.md, Verification).
+' Its config folder lives in <resources>/out/selftest, never the user's. Geometry is asserted, not
+' eyeballed (PLAN.md, Verification).
 #module "selftest"
 
+#import "std/fs"
 #import "std/strings"
+#import "tkp/platform"
 #import "tkc/appinfo"
+#import "tkc/cmdids"
+#import "tkc/keybind"
+#import "tkc/settings"
 #import "tka/editor"
 #import "tka/mainwin"
 #import "tkControls/tkApp"
 #import "tkControls/tkTest"
+#import "tkControls/tkMenuBar"
+#import "tkControls/tkPopupMenu"
+using cmdids
 using tkApp
 using tkHost
 using tkTest
+using tkMenuBar
+using tkPopupMenu
 
 ' The self-test's score. Each failing check prints one FAIL line.
 public type Tally
@@ -39,10 +50,26 @@ private function P( byval sc as single, byref what as const ustring ) as ustring
     return strings.Format( "[{}] {}", sc, what )
 end function
 
+' A fresh, empty config folder for one pass.
+private function FreshConfig( ) as ustring
+    dim as ustring res = platform.ResourceDir( ).ValueOr( platform.ExeDir( ) )
+    dim as ustring cfg = fs.PathJoin( res, "out", "selftest", "config" )
+    fs.RemoveDirAll( cfg )
+    fs.CreateDirAll( cfg )
+    return cfg
+end function
+
+private sub Chord( byval h as TK_HOST ptr, byval key as long, byval sc as long, byval mods as long )
+    tkTest_PushKey( h, key, mods, true, sc )
+    tkTest_PushKey( h, key, mods, false, sc )
+    tkTest_PumpFor( h, 30 )
+end sub
+
 ' P0: the frame. Window size, fonts, the editor above one status row, the panels' text, and
-' typing reaching the view and moving the caret panel.
+' typing reaching the view and moving the caret panel. P1: the hidden menu bar's geometry.
 public sub Pass( byref t as Tally, byval sc as single )
     dim as mainwin.Window mw
+    mw.ConfigDir = FreshConfig( )
     t.Check( mw.Create( sc ), P( sc, "main window created" ) )
     if mw.form = 0 then exit sub
     mw.Show( )
@@ -59,6 +86,7 @@ public sub Pass( byref t as Tally, byval sc as single )
     t.Check( strings.EndsWith( tkApp_GlyphFace( ), mainwin.FONT_GLYPH ), P( sc, "glyph font is '" & tkApp_GlyphFace( ) & "'" ) )
     dim as ustring title = *SDL_GetWindowTitle( h->win )
     t.Check( title = appinfo.WindowTitle( ), P( sc, "title is '" & title & "'" ) )
+    t.Check( tkApp_Theme( ).IsDark, P( sc, "the dark theme reached the controls" ) )
 
     ' ---- the layout: the view fills all but one status row (no menu, no tabs, no panel)
     dim as TK_WIDGET ptr v = mw.Code.Widget( )
@@ -68,12 +96,15 @@ public sub Pass( byref t as Tally, byval sc as single )
              P( sc, strings.Format( "view at {},{} {}x{}, want 0,0 {}x{}", v->x, v->y, v->cw, v->ch, cx, cy - sh ) ) )
     t.Check( (mw.status->x = 0) andalso (mw.status->y = cy - sh) andalso (mw.status->cw = cx) andalso (mw.status->ch = sh), _
              P( sc, strings.Format( "status at {},{} {}x{}", mw.status->x, mw.status->y, mw.status->cw, mw.status->ch ) ) )
+    t.Check( tkWidget_IsVisible( mw.menuBar ) = false, P( sc, "the menu bar is hidden" ) )
     t.Check( tkHost_GetFocus( h ) = v, P( sc, "the view has the focus" ) )
 
     ' ---- the status panels
     t.Check( mw.StatusText( mainwin.StatusPanel.Buffer ) = "untitled", P( sc, "buffer panel: " & mw.StatusText( mainwin.StatusPanel.Buffer ) ) )
     t.Check( mw.StatusText( mainwin.StatusPanel.Position ) = "Ln 1, Col 1", P( sc, "position panel: " & mw.StatusText( mainwin.StatusPanel.Position ) ) )
     t.Check( mw.StatusText( mainwin.StatusPanel.Encoding ) = "UTF-8", P( sc, "encoding panel: " & mw.StatusText( mainwin.StatusPanel.Encoding ) ) )
+    t.Check( mw.StatusText( mainwin.StatusPanel.Build ) = "Debug", P( sc, "build panel: " & mw.StatusText( mainwin.StatusPanel.Build ) ) )
+    t.Check( mw.StatusText( mainwin.StatusPanel.Message ) = "", P( sc, "no message: '" & mw.StatusText( mainwin.StatusPanel.Message ) & "'" ) )
     dim as ustring eol = mw.StatusText( mainwin.StatusPanel.LineEnding )
     t.Check( (eol = "CRLF") orelse (eol = "LF"), P( sc, "line-ending panel: " & eol ) )
 
@@ -82,12 +113,124 @@ public sub Pass( byref t as Tally, byval sc as single )
     tkTest_PumpFor( h, 50 )
     t.Check( mw.Code.Text( ) = "dim x as long", P( sc, "typed text: '" & mw.Code.Text( ) & "'" ) )
     t.Check( mw.StatusText( mainwin.StatusPanel.Position ) = "Ln 1, Col 14", P( sc, "position after typing: " & mw.StatusText( mainwin.StatusPanel.Position ) ) )
-    tkTest_PushKey( h, SDLK_RETURN, 0, true, SDL_SCANCODE_RETURN )
-    tkTest_PushKey( h, SDLK_RETURN, 0, false, SDL_SCANCODE_RETURN )
-    tkTest_PumpFor( h, 50 )
+    Chord( h, SDLK_RETURN, SDL_SCANCODE_RETURN, 0 )
     t.Check( mw.Code.LineCount( ) = 2, P( sc, strings.Format( "Enter made line 2 ({} lines)", mw.Code.LineCount( ) ) ) )
     t.Check( mw.StatusText( mainwin.StatusPanel.Position ) = "Ln 2, Col 1", P( sc, "position after Enter: " & mw.StatusText( mainwin.StatusPanel.Position ) ) )
     t.Check( mw.Code.IsModified( ), P( sc, "the buffer is modified" ) )
+    t.Check( mw.StatusText( mainwin.StatusPanel.Buffer ) = "untitled *", P( sc, "the buffer panel marks it: " & mw.StatusText( mainwin.StatusPanel.Buffer ) ) )
+
+    ' ---- the hidden menu bar: Ctrl+Shift+M shows it above the view, File open; Esc hides it
+    Chord( h, SDLK_M, SDL_SCANCODE_M, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    dim as long mh = tkForm_Scale( mw.form, mainwin.MENUBAR_CY )
+    t.Check( mw.MenuShown andalso tkWidget_IsVisible( mw.menuBar ), P( sc, "Ctrl+Shift+M shows the menu bar" ) )
+    t.Check( (mw.menuBar->y = 0) andalso (mw.menuBar->ch = mh) andalso (mw.menuBar->cw = cx), _
+             P( sc, strings.Format( "menu bar at {} {}x{}, want 0 {}x{}", mw.menuBar->y, mw.menuBar->cw, mw.menuBar->ch, cx, mh ) ) )
+    t.Check( (v->y = mh) andalso (v->ch = cy - sh - mh), P( sc, strings.Format( "the view moved down: y {} h {}", v->y, v->ch ) ) )
+    t.Check( tkMenuBar_IsMenuOpen( mw.menuBar ) andalso (tkMenuBar_GetActiveIndex( mw.menuBar ) = 0), P( sc, "the File menu is open" ) )
+    t.Check( mw.Code.Text( ) = "dim x as long" & mw.Code.EolText( ), P( sc, "the menu key typed nothing" ) )
+    dim as TK_MENU ptr fileMenu = tkMenuBar_GetDropDown( mw.menuBar, 0 )
+    if tkPopupMenu_IsOpen( fileMenu ) then
+        Chord( tkPopupMenu_Surface( fileMenu ), SDLK_ESCAPE, SDL_SCANCODE_ESCAPE, 0 )
+    end if
+    tkTest_PumpFor( h, 100 )
+    t.Check( (mw.MenuShown = false) andalso (tkWidget_IsVisible( mw.menuBar ) = false), P( sc, "Esc hides the menu bar" ) )
+    t.Check( (v->y = 0) andalso (v->ch = cy - sh), P( sc, strings.Format( "the view is back: y {} h {}", v->y, v->ch ) ) )
+    t.Check( tkHost_GetFocus( h ) = v, P( sc, "the view has the focus back" ) )
+
+    mw.Destroy( )
+end sub
+
+' P1: the menus from the command table, key dispatch, first-run files, live reload of
+' settings.toml, keybindings.toml and the theme file, and a broken file changing nothing.
+public sub ConfigPass( byref t as Tally, byval sc as single )
+    dim as mainwin.Window mw
+    dim as ustring cfg = FreshConfig( )
+    mw.ConfigDir = cfg
+    t.Check( mw.Create( sc ), P( sc, "config: main window created" ) )
+    if mw.form = 0 then exit sub
+    mw.Show( )
+    dim as TK_HOST ptr h = tkForm_Host( mw.form )
+    tkTest_PumpFor( h, 150 )
+    dim as ustring nl = wchr( 10 )
+
+    ' ---- first run: both files written, commented
+    dim as ustring sf = fs.PathJoin( cfg, settings.SETTINGS_FILE ), kf = fs.PathJoin( cfg, keybind.KEYBINDINGS_FILE )
+    dim as ustring st = fs.ReadAllText( sf ).ValueOr( "" ), kt = fs.ReadAllText( kf ).ValueOr( "" )
+    t.Check( instr( st, "# tab_size = 4" ) > 0, P( sc, "first run wrote settings.toml, commented" ) )
+    t.Check( instr( kt, "# FileSave = 'Primary+S'" ) > 0, P( sc, "first run wrote keybindings.toml, commented" ) )
+
+    ' ---- the menus: six, rows from the table, shortcuts shown, P1's commands enabled
+    t.Check( tkMenuBar_GetItemCount( mw.menuBar ) = 6, P( sc, strings.Format( "six menus ({})", tkMenuBar_GetItemCount( mw.menuBar ) ) ) )
+    t.Check( tkMenuBar_GetItemText( mw.menuBar, 5 ) = "Build", P( sc, "the last menu is Build" ) )
+    dim as TK_MENU ptr fileMenu = tkMenuBar_GetDropDown( mw.menuBar, 0 )
+    t.Check( tkPopupMenu_GetItemCount( fileMenu ) = 14, P( sc, strings.Format( "File: 11 commands + 3 separators ({})", tkPopupMenu_GetItemCount( fileMenu ) ) ) )
+    t.Check( tkPopupMenu_GetItemEnabled( fileMenu, Cmd.FileSave ), P( sc, "File > Save enabled" ) )
+    t.Check( tkPopupMenu_GetItemEnabled( fileMenu, Cmd.FileNew ) = false, P( sc, "File > New greyed (P2)" ) )
+    t.Check( mw.ShortcutText( Cmd.FileSave ) = "Ctrl+S", P( sc, "Save shows " & mw.ShortcutText( Cmd.FileSave ) ) )
+    t.Check( mw.ShortcutText( Cmd.SplitLeftRight ) = "Ctrl+\", P( sc, "Split shows " & mw.ShortcutText( Cmd.SplitLeftRight ) ) )
+
+    ' ---- keys: an edit command, and one P1 cannot do yet
+    tkTest_PushText( h, "abc" )
+    tkTest_PumpFor( h, 30 )
+    Chord( h, SDLK_D, SDL_SCANCODE_D, SDL_KMOD_CTRL )
+    t.Check( mw.Code.LineCount( ) = 2, P( sc, strings.Format( "Ctrl+D duplicated the line ({} lines)", mw.Code.LineCount( ) ) ) )
+    Chord( h, SDLK_N, SDL_SCANCODE_N, SDL_KMOD_CTRL )
+    t.Check( instr( mw.Message, "not available yet" ) > 0, P( sc, "Ctrl+N says it is not there yet: " & mw.Message ) )
+    t.Check( mw.Code.Text( ) = "abc" & mw.Code.EolText( ) & "abc", P( sc, "and typed nothing" ) )
+    mw.Code.SetText( "" )                                     ' unmodified: the config files may open
+
+    ' ---- settings.toml: Ctrl+Comma opens it; saving applies it
+    Chord( h, SDLK_COMMA, SDL_SCANCODE_COMMA, SDL_KMOD_CTRL )
+    t.Check( lcase( mw.DocPath ) = lcase( sf ), P( sc, "Ctrl+Comma opened settings.toml: " & mw.DocPath ) )
+    t.Check( left( mw.Code.Text( ), 17 ) = "# tkEdit settings", P( sc, "its text is in the view" ) )
+    t.Check( mw.StatusText( mainwin.StatusPanel.Buffer ) = settings.SETTINGS_FILE, P( sc, "the buffer panel names it" ) )
+    mw.Code.SetText( "version = 1" & nl & "[editor]" & nl & "tab_size = 2" & nl & "line_numbers = false" & nl & _
+                     "[ui]" & nl & "theme = 'light'" & nl )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    t.Check( instr( fs.ReadAllText( sf ).ValueOr( "" ), "tab_size = 2" ) > 0, P( sc, "Ctrl+S wrote settings.toml" ) )
+    t.Check( mw.Prefs.TabSize = 2, P( sc, strings.Format( "tab_size applied ({})", mw.Prefs.TabSize ) ) )
+    t.Check( (mw.Look.LineNumbers = false) andalso (mw.Code.MarginWidth( 0 ) = 0), P( sc, "line numbers off in the view" ) )
+    t.Check( (mw.Theme.Name = "light") andalso (tkApp_Theme( ).IsDark = false), P( sc, "theme 'light' applied to the controls" ) )
+    t.Check( mw.Look.Text.Back = &hFFFFFF, P( sc, "and to the view's background" ) )
+    t.Check( mw.Message = "", P( sc, "no message: " & mw.Message ) )
+
+    ' a broken file changes nothing and says where
+    mw.Code.SetText( "[editor" & nl & "tab_size = 8" & nl )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    t.Check( instr( mw.Message, settings.SETTINGS_FILE & ":1:" ) = 1, P( sc, "a parse error names file and line: " & mw.Message ) )
+    t.Check( mw.StatusText( mainwin.StatusPanel.Message ) = mw.Message, P( sc, "in the message panel" ) )
+    t.Check( (mw.Prefs.TabSize = 2) andalso (mw.Theme.Name = "light"), P( sc, "and the previous settings stay" ) )
+
+    ' ---- keybindings.toml: Ctrl+K; a rebinding is live at once, the menu shows it
+    mw.Code.SetText( "version = 1" & nl & "[ui]" & nl & "theme = 'light'" & nl )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    Chord( h, SDLK_K, SDL_SCANCODE_K, SDL_KMOD_CTRL )
+    t.Check( lcase( mw.DocPath ) = lcase( kf ), P( sc, "Ctrl+K opened keybindings.toml" ) )
+    mw.Code.SetText( "format = 1" & nl & "[bindings]" & nl & "DuplicateLine = 'Primary+Shift+D'" & nl & _
+                     "DeleteLine = 'Primary+S'" & nl )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    t.Check( mw.Keys.Effective( Cmd.DuplicateLine ) = "Primary+Shift+D", P( sc, "the rebinding applied" ) )
+    t.Check( instr( mw.Message, "FileSave and DeleteLine share Primary+S" ) > 0, P( sc, "a shared chord is reported: " & mw.Message ) )
+    t.Check( mw.ShortcutText( Cmd.DuplicateLine ) = "Ctrl+Shift+D", P( sc, "the menus show the new chord" ) )
+    dim as long before = mw.Code.LineCount( )
+    Chord( h, SDLK_D, SDL_SCANCODE_D, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    t.Check( mw.Code.LineCount( ) = before + 1, P( sc, strings.Format( "Ctrl+Shift+D duplicates now ({} -> {})", before, mw.Code.LineCount( ) ) ) )
+    Chord( h, SDLK_D, SDL_SCANCODE_D, SDL_KMOD_CTRL )
+    t.Check( mw.Code.LineCount( ) = before + 1, P( sc, "and Ctrl+D does not" ) )
+    ' FileSave and DeleteLine share Ctrl+S: the first in the table wins, so Save still saves
+    mw.Code.SetText( "format = 1" & nl & "[bindings]" & nl )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    t.Check( mw.Keys.Effective( Cmd.DuplicateLine ) = "Primary+D", P( sc, "an emptied file restores the defaults" ) )
+
+    ' ---- the theme file: Ctrl+Shift+T copies the shipped one into the config folder; saving applies it
+    Chord( h, SDLK_T, SDL_SCANCODE_T, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    dim as ustring tf = fs.PathJoin( cfg, "themes", "light.toml" )
+    t.Check( lcase( mw.DocPath ) = lcase( tf ), P( sc, "Ctrl+Shift+T opened the user's light.toml: " & mw.DocPath ) )
+    t.Check( instr( mw.Code.Text( ), "name = ""light""" ) > 0, P( sc, "a copy of the shipped theme" ) )
+    mw.Code.SetText( "[editor]" & nl & "bg = '#fafafa'" & nl & "[ui]" & nl & "bg = '#fdfdfd'" & nl )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    t.Check( mw.Look.Text.Back = &hFAFAFA, P( sc, "the saved theme applied (&h" & hex( mw.Look.Text.Back ) & ")" ) )
+    t.Check( lcase( mw.Theme.Path ) = lcase( tf ), P( sc, "the user's copy wins" ) )
 
     mw.Destroy( )
 end sub

@@ -24,13 +24,19 @@ the name `tiko-studio` → `tkEdit` (incl. `platform.APP_NAME` and the run-scrip
 | `src/core/textsearch` | `src/core/textsearch` | — |
 | `src/core/textstream` | `src/core/textstream` | — |
 | `src/core/tomlget` | `src/core/tomlget` | — |
+| `src/core/keybind` | `src/core/keybind` | importer of the old keybindings.ini dropped; `ToToml` writes every command, defaults commented, as literal strings |
+| `src/core/cmdids` | — | new: tkEdit's 83 commands (shape of tiko-studio's `CommandTable`, no OldName, `MenuGroup`, `SepBefore`, `InGroup`) |
+| `src/core/settings` | — | new, trimmed schema; `Template`/`EnsureFile` |
+| `src/core/themes` | — | new: TOML themes (not tiko-studio's `.theme`) |
 | `src/core/tests/{tally,fuzzysuite,textsuite,buildsuite,mrusuite,navsuite,encsuite}` | same | — |
 | `src/core/tests/outlinesuite` | same | `ProjectRun` (tsc/projects) dropped |
 | `src/core/tests/intelsuite` | `src/core/tests/p8suite` | renamed |
+| `src/core/tests/keybindsuite` | same | vocabulary and chord checks kept; map and TOML checks rewritten for tkEdit's table; importer checks dropped |
 | `src/core/tests/coreall.tiko` | same | only the suites above; tkEdit's names |
 | `src/svc/parser` | `src/svc/parser` | — |
 | `src/svc/runner` | `src/svc/runner` | — |
-| `src/app/editor` | `src/app/editor` | `ViewLook` (settings + .theme) replaced by a resolved `Look`/`Style` and `DefaultLook`; breakpoints, debug line, `KeywordFore`, `DefaultBackColor` removed (no debugger, D6); whitespace/wrap applied from the look |
+| `src/app/editor` | `src/app/editor` | `ViewLook` (settings + .theme) replaced by a resolved `Look`/`Style` and `DefaultLook`; breakpoints, debug line, `KeywordFore`, `DefaultBackColor` removed (no debugger, D6); whitespace/wrap applied from the look; `Indent`/`Unindent`/`NewLineBelow` added; Scintilla's own letter chords (Ctrl+D, Ctrl+L, Ctrl+U ...) cleared |
+| `src/app/chrome` | `src/app/chrome` | rewritten for TOML themes: `PaletteOf`, `LookOf` |
 | `src/app/mainwin/mainwin.tiko` | — | new; `AppOptions` and `WordsOf`/`LoadKeywords` from `mainwin.StudioOptions` / `chrome.LoadKeywords` |
 | `tools/test-win.sh`, `tools/test-linux.sh`, `tools/idiom.sh` | `tools/` | tkEdit's paths, exe and build folder (`$HOME/tebuild`); tikoParser copied only when present |
 | `fonts/` | `fonts/` | README points at `mainwin.AppOptions` |

@@ -1,0 +1,546 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' keybind -- the keyboard shortcut MODEL: the key-name vocabulary, chords as text, the binding list
+' (default keys, user keys, disabled-default flag, effective keys), conflict lookup,
+' keybindings.toml. Copied from tiko-studio's tsc/keybind (PROVENANCE.md) minus its importer of the
+' old keybindings.ini; tiko-studio's oracle holds the vocabulary and the chord parser to the old
+' editor's answers.
+'
+' A CHORD IS TEXT: "Primary+Alt+Shift+F5". Primary is the platform's command key -- Ctrl on Windows
+' and Linux, Cmd on macOS (tkp/platform.PrimaryModifierName) -- so one keybindings.toml serves every
+' OS. The canonical modifier ORDER is the old one (Ctrl, Alt, Shift) with Primary in Ctrl's place,
+' and the key is spelled with its canonical name. The old files said "Ctrl"; ChordSpelling.Old reads
+' that spelling (the importer, the old defaults) and maps it to Primary. There is no separate Ctrl
+' modifier: on macOS the Control key is not bindable (the old editor had no Cmd key either).
+'
+' GRAMMAR: zero or more modifiers, each followed by "+", then ONE key name. A "+" that is the last
+' character is part of the key, so "Primary+Numpad+" and "Primary++" (= Primary+Plus) parse. The old
+' parser split on every "+" and so could never fire either; that, the lexicographic "A" to "Z" trap
+' and silently dropped unknown modifiers are the three places this parser is deliberately stricter
+' or wider than the old one (run-keybind.sh counts each). Names and modifiers are case-insensitive;
+' nothing is trimmed (callers that read a file trim the line, as the old reader did).
+'
+' THE KEY-NAME VOCABULARY (Vocabulary.Names, the pick list, in the old order -- the order is also
+' what made one spelling canonical when several meant the same key). Platform-neutral names for
+' PHYSICAL US-layout keys; tkKeys maps them to SDL keycodes. The intended mapping:
+'     Backspace BACKSPACE   Tab TAB   Enter RETURN   Escape ESCAPE   Spacebar SPACE
+'     PgUp PAGEUP   PgDn PAGEDOWN   End END   Home HOME   Left Right Up Down (arrows)
+'     DEL DELETE   INS INSERT   0..9 SDLK_0..9   A..Z SDLK_a..z (unshifted)
+'     Numpad0..Numpad9 KP_0..KP_9   Numpad* KP_MULTIPLY   Numpad+ KP_PLUS   Numpad- KP_MINUS
+'     Numpad. KP_PERIOD   Numpad/ KP_DIVIDE   F1..F12
+'     Tilde GRAVE (the `~ key)   Plus EQUALS (the =+ key)   Comma COMMA   Minus MINUS
+'     Period PERIOD   SingleQuote APOSTROPHE (the '" key)   SemiColon SEMICOLON (the ;: key)
+'     / SLASH (the /? key)   \ BACKSLASH (the \| key)   [ LEFTBRACKET ([{)   ] RIGHTBRACKET (]})
+' ALIASES (Vocabulary.Aliases: accepted, never written): + , - . for Plus Comma Minus Period;
+' ; : Colon for SemiColon; ForwardSlash ? QuestionMark for /; ` Backtick ~ for Tilde;
+' { OpenSquareBracket OpenCurlyBrace for [; Backslash | Pipe for \; } CloseSquareBracket
+' CloseCurlyBrace for ]; ' " DoubleQuote for SingleQuote. These are every spelling the old
+' AccelKeyToValue accepted (the shifted characters meant the same physical key there).
+'
+' KEYBINDINGS.TOML (PLAN.md D15) is UTF-8 in platform.ConfigDir( ), by command NAME (tkc/cmdids).
+' ToToml writes every command, the ones at their default commented out:
+'     format = 1
+'     [bindings]
+'     # FileSave = 'Primary+S'        a default: the line is only a reference
+'     Compile = 'Primary+Shift+B'     this chord instead of the default
+'     DuplicateLine = ''              the default removed, nothing in its place
+' A command not listed (or commented) has its default. Unknown names, unbindable commands, values that are not
+' strings and chords that do not parse are reported (warnings) and skipped, never fatal; a file
+' that is not TOML, or has another format number, fails. The old (DISABLED) flag survives only
+' where it mattered: a disabled default with user keys behaves exactly like the user keys alone.
+#module "keybind"
+
+#import "std/containers"
+#import "std/outcome"
+#import "std/fs"
+#import "std/codec"
+#import "std/config"
+#import "tkp/platform"
+#import "tkc/cmdids"
+#import "tkc/safewrite"
+using containers
+using outcome
+
+public const KEYBINDINGS_FILE = "keybindings.toml"
+public const KEYBINDINGS_FORMAT = 1
+
+' Which word means the command modifier in the text being read.
+public enum ChordSpelling explicit
+    Current         ' "Primary" -- keybindings.toml, cmdids default keys
+    Old             ' "Ctrl" -- keybindings.ini and the old defaults table; read as Primary
+end enum
+
+' One shortcut. Empty KeyName = no chord.
+public type Chord
+    Primary as boolean
+    Alt     as boolean
+    Shift   as boolean
+    KeyName as ustring      ' canonical
+    declare function IsEmpty( ) as boolean
+    declare function ToText( ) as ustring       ' "Primary+Alt+Shift+F5": what files store
+    declare function ToDisplay( ) as ustring    ' "Ctrl+Alt+Shift+F5" / "Cmd+...": what menus show
+end type
+
+public type ChordResult as Result( of Chord, ustring )
+public type TextResult as Result( of ustring, ustring )
+public type WarningsResult as Result( of Array( of ustring ), ustring )
+
+' The key names, their aliases, and the chord parser. Building one is cheap; KeyMap owns one.
+public type Vocabulary
+    declare constructor( )
+    declare function Names( ) as Array( of ustring )        ' the pick list, canonical, in order
+    declare function Aliases( ) as Array( of ustring )      ' every other accepted spelling
+    declare function Canonical( byref name_ as const ustring ) as Optional( of ustring )
+    declare function ParseChord( byref text as const ustring, _
+                                 byval spelling as ChordSpelling = ChordSpelling.Current ) as ChordResult
+    ' The canonical text of a chord ("shift+primary+tab" -> "Primary+Shift+Tab").
+    declare function Normalize( byref text as const ustring, _
+                                byval spelling as ChordSpelling = ChordSpelling.Current ) as TextResult
+  private:
+    declare sub AddKey( byref canon as const ustring )
+    declare sub AddAlias( byref canon as const ustring, byref alias_ as const ustring )
+    m_names   as Array( of ustring )
+    m_aliases as Array( of ustring )
+    m_lookup  as Map( of ustring, long )        ' UCASE spelling -> index in m_names
+end type
+
+' One bindable command. DefaultKeys and UserKeys are canonical chord text ("" = none).
+public type KeyBinding
+    Id              as cmdids.Cmd
+    Name            as ustring          ' "FileSave": what keybindings.toml says
+    DefaultKeys     as ustring
+    UserKeys        as ustring          ' overrides the default when not empty
+    DefaultDisabled as boolean          ' the default is suppressed (matters only without UserKeys)
+    declare function Effective( ) as ustring
+end type
+
+' The binding list: one row per bindable command, in the Keyboard Shortcuts dialog's order.
+public type KeyMap
+    declare constructor( )
+    declare function Count( ) as long
+    declare function Item( byval i as long ) byref as KeyBinding      ' 0 .. Count - 1
+    declare function Has( byval id as cmdids.Cmd ) as boolean
+    declare function Effective( byval id as cmdids.Cmd ) as ustring
+    ' Programmatic edits. A chord in any case/order; "" clears the user keys. Fails on a chord
+    ' that does not parse or a command that is not bindable, and changes nothing then.
+    declare function SetUserKeys( byval id as cmdids.Cmd, byref keys as const ustring ) as TextResult
+    declare sub SetDefaultDisabled( byval id as cmdids.Cmd, byval disabled as boolean )
+    declare sub Reset( byval id as cmdids.Cmd )
+    declare sub ResetAll( )
+    ' Which command's EFFECTIVE binding is this chord? A disabled default clashes with nothing.
+    ' except: the command being edited, so it does not conflict with itself.
+    declare function OwnerOf( byref keys as const ustring, _
+                              byval except as cmdids.Cmd = cmdids.Cmd.None ) as Optional( of cmdids.Cmd )
+    declare function Vocab( ) byref as Vocabulary
+    declare function Commands( ) byref as cmdids.CommandTable
+    ' keybindings.toml. Apply/Load start from the defaults; Ok carries the warnings.
+    declare function ToToml( ) as TextResult
+    declare function ApplyToml( byref text as const ustring ) as WarningsResult
+    declare function Load( byref path as const ustring ) as WarningsResult   ' no file = defaults
+    declare function Save( byref path as const ustring ) as TextResult       ' Ok = the text written
+  private:
+    declare function IndexOf( byval id as cmdids.Cmd ) as long
+    m_vocab as Vocabulary
+    m_table as cmdids.CommandTable
+    m_items as Array( of KeyBinding )
+    m_byId  as Map( of long, long )
+end type
+
+' ---------------------------------------------------------------------------------- Chord
+
+function Chord.IsEmpty( ) as boolean
+    return len( this.KeyName ) = 0
+end function
+
+function Chord.ToText( ) as ustring
+    if len( this.KeyName ) = 0 then return ""
+    dim as ustring s
+    if this.Primary then s &= "Primary+"
+    if this.Alt then s &= "Alt+"
+    if this.Shift then s &= "Shift+"
+    return s & this.KeyName
+end function
+
+function Chord.ToDisplay( ) as ustring
+    if len( this.KeyName ) = 0 then return ""
+    dim as ustring s
+    if this.Primary then s &= platform.PrimaryModifierName( ) & "+"
+    if this.Alt then s &= "Alt+"
+    if this.Shift then s &= "Shift+"
+    return s & this.KeyName
+end function
+
+' ----------------------------------------------------------------------------- Vocabulary
+
+sub Vocabulary.AddKey( byref canon as const ustring )
+    dim as ustring c = canon
+    m_lookup.Put( ucase( c ), m_names.Count( ) )
+    m_names.Push( c )
+end sub
+
+sub Vocabulary.AddAlias( byref canon as const ustring, byref alias_ as const ustring )
+    dim as long i = -1
+    m_lookup.TryGet( ucase( canon ), i )
+    dim as ustring a = alias_
+    m_lookup.Put( ucase( a ), i )
+    m_aliases.Push( a )
+end sub
+
+' The old gKeyNames order, then the old AccelKeyToValue's other spellings.
+constructor Vocabulary( )
+    this.AddKey( "Backspace" )
+    this.AddKey( "Tab" )
+    this.AddKey( "Enter" )
+    this.AddKey( "Escape" )
+    this.AddKey( "Spacebar" )
+    this.AddKey( "PgUp" )
+    this.AddKey( "PgDn" )
+    this.AddKey( "End" )
+    this.AddKey( "Home" )
+    this.AddKey( "Left" )
+    this.AddKey( "Right" )
+    this.AddKey( "Up" )
+    this.AddKey( "Down" )
+    this.AddKey( "DEL" )
+    this.AddKey( "INS" )
+    for c as long = asc( "0" ) to asc( "9" )
+        this.AddKey( wchr( c ) )
+    next
+    for c as long = asc( "A" ) to asc( "Z" )
+        this.AddKey( wchr( c ) )
+    next
+    for d as long = 0 to 9
+        this.AddKey( "Numpad" & d )
+    next
+    this.AddKey( "Numpad*" )
+    this.AddKey( "Numpad+" )
+    this.AddKey( "Numpad-" )
+    this.AddKey( "Numpad." )
+    this.AddKey( "Numpad/" )
+    for f as long = 1 to 12
+        this.AddKey( "F" & f )
+    next
+    this.AddKey( "Tilde" )
+    this.AddKey( "Plus" )
+    this.AddKey( "Comma" )
+    this.AddKey( "Minus" )
+    this.AddKey( "Period" )
+    this.AddKey( "SingleQuote" )
+    this.AddKey( "SemiColon" )
+    this.AddKey( "/" )
+    this.AddKey( "\" )
+    this.AddKey( "[" )
+    this.AddKey( "]" )
+
+    this.AddAlias( "Plus", "+" )
+    this.AddAlias( "Comma", "," )
+    this.AddAlias( "Minus", "-" )
+    this.AddAlias( "Period", "." )
+    this.AddAlias( "SemiColon", ";" )
+    this.AddAlias( "SemiColon", ":" )
+    this.AddAlias( "SemiColon", "Colon" )
+    this.AddAlias( "/", "ForwardSlash" )
+    this.AddAlias( "/", "?" )
+    this.AddAlias( "/", "QuestionMark" )
+    this.AddAlias( "Tilde", "`" )
+    this.AddAlias( "Tilde", "Backtick" )
+    this.AddAlias( "Tilde", "~" )
+    this.AddAlias( "[", "OpenSquareBracket" )
+    this.AddAlias( "[", "{" )
+    this.AddAlias( "[", "OpenCurlyBrace" )
+    this.AddAlias( "\", "Backslash" )
+    this.AddAlias( "\", "|" )
+    this.AddAlias( "\", "Pipe" )
+    this.AddAlias( "]", "CloseSquareBracket" )
+    this.AddAlias( "]", "}" )
+    this.AddAlias( "]", "CloseCurlyBrace" )
+    this.AddAlias( "SingleQuote", "'" )
+    this.AddAlias( "SingleQuote", wchr( 34 ) )
+    this.AddAlias( "SingleQuote", "DoubleQuote" )
+end constructor
+
+function Vocabulary.Names( ) as Array( of ustring )
+    return m_names
+end function
+
+function Vocabulary.Aliases( ) as Array( of ustring )
+    return m_aliases
+end function
+
+function Vocabulary.Canonical( byref name_ as const ustring ) as Optional( of ustring )
+    dim as long i
+    if len( name_ ) > 0 andalso m_lookup.TryGet( ucase( name_ ), i ) then
+        return Some( of ustring )( m_names[i] )
+    end if
+    return None( of ustring )( )
+end function
+
+function Vocabulary.ParseChord( byref text as const ustring, byval spelling as ChordSpelling ) as ChordResult
+    dim as Chord c
+    if len( text ) = 0 then return Fail( of Chord, ustring )( "no key" )
+    dim as ustring primaryWord = "PRIMARY"
+    if spelling = ChordSpelling.Old then primaryWord = "CTRL"
+    dim as ustring rest = text
+    do
+        dim as long p = instr( rest, "+" )
+        ' no "+" left, or only as the last character (a key named "+" or "Numpad+"): the key
+        if ( p = 0 ) orelse ( p = len( rest ) ) then exit do
+        dim as ustring part = ucase( left( rest, p - 1 ) )
+        if part = primaryWord then
+            c.Primary = true
+        elseif part = "ALT" then
+            c.Alt = true
+        elseif part = "SHIFT" then
+            c.Shift = true
+        elseif len( part ) = 0 then
+            return Fail( of Chord, ustring )( "an empty part in """ & text & """" )
+        else
+            return Fail( of Chord, ustring )( "unknown modifier """ & left( rest, p - 1 ) & """ in """ & text & """" )
+        end if
+        rest = mid( rest, p + 1 )
+    loop
+    dim as Optional( of ustring ) k = this.Canonical( rest )
+    if k.HasValue( ) = false then
+        return Fail( of Chord, ustring )( "unknown key """ & rest & """ in """ & text & """" )
+    end if
+    c.KeyName = k.Value( )
+    return Ok( of Chord, ustring )( c )
+end function
+
+function Vocabulary.Normalize( byref text as const ustring, byval spelling as ChordSpelling ) as TextResult
+    dim as ChordResult r = this.ParseChord( text, spelling )
+    if r.IsOk( ) = false then return Fail( of ustring, ustring )( r.Failure( ) )
+    return Ok( of ustring, ustring )( r.Value( ).ToText( ) )
+end function
+
+' ----------------------------------------------------------------------------- KeyBinding
+
+function KeyBinding.Effective( ) as ustring
+    if len( this.UserKeys ) > 0 then return this.UserKeys
+    if this.DefaultDisabled then return ""
+    return this.DefaultKeys
+end function
+
+' --------------------------------------------------------------------------------- KeyMap
+
+' One row per bindable command, default keys canonical. A default that would not parse is kept as
+' written (keybindsuite asserts every default parses).
+constructor KeyMap( )
+    for each id as cmdids.Cmd in m_table.Bindable( )
+        dim as cmdids.CommandInfo ci = m_table.Info( id )
+        dim as KeyBinding b
+        b.Id = id
+        b.Name = ci.Name
+        b.DefaultKeys = ci.DefaultKeys
+        if len( ci.DefaultKeys ) > 0 then
+            dim as TextResult t = m_vocab.Normalize( ci.DefaultKeys )
+            if t.IsOk( ) then b.DefaultKeys = t.Value( )
+        end if
+        m_byId.Put( clng( id ), m_items.Count( ) )
+        m_items.Push( b )
+    next
+end constructor
+
+function KeyMap.IndexOf( byval id as cmdids.Cmd ) as long
+    dim as long i = -1
+    m_byId.TryGet( clng( id ), i )
+    return i
+end function
+
+function KeyMap.Count( ) as long
+    return m_items.Count( )
+end function
+
+function KeyMap.Item( byval i as long ) byref as KeyBinding
+    return m_items[i]
+end function
+
+function KeyMap.Has( byval id as cmdids.Cmd ) as boolean
+    return this.IndexOf( id ) >= 0
+end function
+
+function KeyMap.Effective( byval id as cmdids.Cmd ) as ustring
+    dim as long i = this.IndexOf( id )
+    if i < 0 then return ""
+    return m_items[i].Effective( )
+end function
+
+function KeyMap.SetUserKeys( byval id as cmdids.Cmd, byref keys as const ustring ) as TextResult
+    dim as long i = this.IndexOf( id )
+    if i < 0 then return Fail( of ustring, ustring )( m_table.Info( id ).Name & " has no shortcut" )
+    if len( keys ) = 0 then
+        m_items[i].UserKeys = ""
+        return Ok( of ustring, ustring )( "" )
+    end if
+    dim as TextResult t = m_vocab.Normalize( keys )
+    if t.IsOk( ) then m_items[i].UserKeys = t.Value( )
+    return t
+end function
+
+sub KeyMap.SetDefaultDisabled( byval id as cmdids.Cmd, byval disabled as boolean )
+    dim as long i = this.IndexOf( id )
+    if i >= 0 then m_items[i].DefaultDisabled = disabled
+end sub
+
+sub KeyMap.Reset( byval id as cmdids.Cmd )
+    dim as long i = this.IndexOf( id )
+    if i < 0 then exit sub
+    m_items[i].UserKeys = ""
+    m_items[i].DefaultDisabled = false
+end sub
+
+sub KeyMap.ResetAll( )
+    for i as long = 0 to m_items.Count( ) - 1
+        m_items[i].UserKeys = ""
+        m_items[i].DefaultDisabled = false
+    next
+end sub
+
+function KeyMap.OwnerOf( byref keys as const ustring, byval except as cmdids.Cmd ) as Optional( of cmdids.Cmd )
+    dim as TextResult t = m_vocab.Normalize( keys )
+    if t.IsOk( ) = false then return None( of cmdids.Cmd )( )
+    dim as ustring want = t.Value( )
+    for each b as KeyBinding in m_items
+        if b.Id = except then continue for
+        if b.Effective( ) = want then return Some( of cmdids.Cmd )( b.Id )
+    next
+    return None( of cmdids.Cmd )( )
+end function
+
+function KeyMap.Vocab( ) byref as Vocabulary
+    return m_vocab
+end function
+
+function KeyMap.Commands( ) byref as cmdids.CommandTable
+    return m_table
+end function
+
+' ---------------------------------------------------------------------- keybindings.toml
+
+private function ToTomlHead( ) as ustring
+    dim as ustring nl = wchr( 10 )
+    return "# tkEdit keyboard shortcuts. Every command is listed; a commented line is its default." & nl & _
+           "# Uncomment and change a line to rebind it; Command = '' removes the default." & nl & _
+           "# Primary is Ctrl (Cmd on macOS). Saving this file in tkEdit applies it at once." & nl
+end function
+
+' The whole file: every command once, in table order, under its menu's comment. A command at its
+' default is written commented, so the file is also the reference. Literal strings: a chord may
+' hold a backslash ("Primary+") and never an apostrophe (that key is "SingleQuote").
+function KeyMap.ToToml( ) as TextResult
+    dim as ustring nl = wchr( 10 )
+    dim as ustring s = ToTomlHead( ) & nl & "format = " & KEYBINDINGS_FORMAT & nl & nl & "[bindings]" & nl
+    dim as ustring grp = ""
+    for each b as KeyBinding in m_items
+        dim as ustring cat = m_table.Info( b.Id ).Category
+        if cat <> grp then
+            s &= nl & "# ---- " & cat & nl
+            grp = cat
+        end if
+        dim as ustring eff = b.Effective( )
+        if eff = b.DefaultKeys then
+            s &= "# " & b.Name & " = '" & b.DefaultKeys & "'" & nl
+        else
+            s &= b.Name & " = '" & eff & "'" & nl
+        end if
+    next
+    return Ok( of ustring, ustring )( s )
+end function
+
+function KeyMap.ApplyToml( byref text as const ustring ) as WarningsResult
+    dim as Array( of ustring ) warn
+    this.ResetAll( )
+    dim as config.ConfigResultToml r = config.ParseToml( text )
+    if r.IsOk( ) = false then return Fail( of Array( of ustring ), ustring )( r.Failure( ).Message( ) )
+    dim as config.TomlValue root = r.Value( )
+    for i as long = 0 to root.Count( ) - 1
+        dim as ustring k = root.KeyAt( i )
+        if k = "format" then
+            dim as Optional( of longint ) f = root.Item( i ).AsInt( )
+            if ( f.HasValue( ) = false ) orelse ( f.Value( ) <> KEYBINDINGS_FORMAT ) then
+                return Fail( of Array( of ustring ), ustring )( "format is not " & KEYBINDINGS_FORMAT )
+            end if
+        elseif k <> "bindings" then
+            warn.Push( "unknown key """ & k & """ ignored" )
+        end if
+    next
+    dim as Optional( of config.TomlValue ) bo = root.Get( "bindings" )
+    if bo.HasValue( ) = false then return Ok( of Array( of ustring ), ustring )( warn )
+    dim as config.TomlValue tbl = bo.Value( )
+    if tbl.Kind( ) <> config.TOML_TABLE then
+        warn.Push( "bindings is not a table; ignored" )
+        return Ok( of Array( of ustring ), ustring )( warn )
+    end if
+    for i as long = 0 to tbl.Count( ) - 1
+        dim as ustring name_ = tbl.KeyAt( i )
+        dim as Optional( of cmdids.Cmd ) id = m_table.Find( name_ )
+        if id.HasValue( ) = false then
+            warn.Push( name_ & ": no such command; ignored" )
+            continue for
+        end if
+        dim as long ix = this.IndexOf( id.Value( ) )
+        if ix < 0 then
+            warn.Push( name_ & ": this command takes no shortcut; ignored" )
+            continue for
+        end if
+        dim as Optional( of ustring ) v = tbl.Item( i ).AsString( )
+        if v.HasValue( ) = false then
+            warn.Push( name_ & ": the value is not a string; ignored" )
+            continue for
+        end if
+        if len( v.Value( ) ) = 0 then
+            m_items[ix].UserKeys = ""
+            m_items[ix].DefaultDisabled = true
+        else
+            dim as TextResult t = m_vocab.Normalize( v.Value( ) )
+            if t.IsOk( ) then
+                m_items[ix].UserKeys = t.Value( )
+                m_items[ix].DefaultDisabled = false
+            else
+                warn.Push( name_ & ": " & t.Failure( ) & "; ignored" )
+            end if
+        end if
+    next
+    return Ok( of Array( of ustring ), ustring )( warn )
+end function
+
+function KeyMap.Load( byref path as const ustring ) as WarningsResult
+    if fs.IsFile( path ) = false then
+        this.ResetAll( )
+        dim as Array( of ustring ) none_
+        return Ok( of Array( of ustring ), ustring )( none_ )
+    end if
+    dim as Array( of ubyte ) b
+    dim as fs.FsResultI64 rr = fs.ReadAllBytes( path, b )
+    if rr.IsOk( ) = false then return Fail( of Array( of ustring ), ustring )( rr.Failure( ).Message( ) )
+    dim as codec.EncResultText t = codec.DecodeText( b, codec.Utf8( ) )
+    if t.IsOk( ) = false then return Fail( of Array( of ustring ), ustring )( path & ": not UTF-8" )
+    return this.ApplyToml( t.Value( ) )
+end function
+
+function KeyMap.Save( byref path as const ustring ) as TextResult
+    dim as TextResult t = this.ToToml( )
+    if t.IsOk( ) = false then return t
+    dim as ustring parent = fs.PathParent( path )
+    if ( len( parent ) > 0 ) andalso ( fs.IsDir( parent ) = false ) then
+        dim as fs.FsResultBool mk = fs.CreateDirAll( parent )
+        if mk.IsOk( ) = false then return Fail( of ustring, ustring )( mk.Failure( ).Message( ) )
+    end if
+    dim as Array( of ubyte ) b
+    codec.EncodeText( t.Value( ), codec.Utf8( ), b )
+    dim as fs.FsResultBool w = safewrite.WriteBytes( path, b )   ' TS-003
+    if w.IsOk( ) = false then return Fail( of ustring, ustring )( w.Failure( ).Message( ) )
+    return t
+end function
+
+' Where keybindings.toml lives: platform.ConfigDir( )/keybindings.toml.
+public function UserFile( ) as TextResult
+    dim as fs.FsResultUStr d = platform.ConfigDir( )
+    if d.IsOk( ) = false then return Fail( of ustring, ustring )( d.Failure( ).Message( ) )
+    return Ok( of ustring, ustring )( fs.PathJoin( d.Value( ), KEYBINDINGS_FILE ) )
+end function

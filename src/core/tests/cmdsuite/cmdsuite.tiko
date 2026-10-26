@@ -1,0 +1,47 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+' cmdsuite -- tkc/cmdids: every Cmd is in the table once, names are unique and found in any case,
+' every row has a menu and a description, the groups split the table.
+#module "cmdsuite"
+
+#import "std/containers"
+#import "std/outcome"
+#import "tkc/cmdids"
+#import "../tally"
+using containers
+using outcome
+
+public sub Run( byref c as tally.Checker )
+    c.Begin( "cmdids" )
+    dim as cmdids.CommandTable t
+    dim as long n = clng( cmdids.Cmd.Last_ ) - 1
+    c.SameNum( t.Count( ), n, "one row per Cmd" )
+    dim as boolean every = true, named = true
+    for i as long = 1 to n
+        dim as cmdids.CommandInfo ci = t.Info( cast( cmdids.Cmd, i ) )
+        if ci.Id <> cast( cmdids.Cmd, i ) then every = false
+        if (len( ci.Name ) = 0) orelse (len( ci.Description ) = 0) orelse (len( ci.Category ) = 0) then named = false
+    next
+    c.Check( every, "every Cmd has its row" )
+    c.Check( named, "every row has a name, a description and a menu" )
+    dim as Map( of ustring, boolean ) seen
+    dim as boolean unique = true
+    for i as long = 0 to t.Count( ) - 1
+        if seen.Contains( lcase( t.Item( i ).Name ) ) then unique = false
+        seen.Put( lcase( t.Item( i ).Name ), true )
+    next
+    c.Check( unique, "names are unique, ignoring case" )
+    dim as Optional( of cmdids.Cmd ) f = t.Find( "filesave" )
+    c.Check( f.HasValue( ) andalso (f.Value( ) = cmdids.Cmd.FileSave), "Find is case-blind" )
+    c.Check( t.Find( "NoSuchCommand" ).HasValue( ) = false, "an unknown name is not found" )
+    dim as long total = 0
+    for g as long = 0 to clng( cmdids.MenuGroup.Count_ ) - 1
+        dim as Array( of cmdids.Cmd ) a = t.InGroup( cast( cmdids.MenuGroup, g ) )
+        c.Check( a.Count( ) > 0, "menu " & cmdids.GroupName( cast( cmdids.MenuGroup, g ) ) & " is not empty" )
+        total += a.Count( )
+    next
+    c.SameNum( total, n, "the six menus hold every command" )
+    c.Same( cmdids.GroupName( t.Info( cmdids.Cmd.ShowMenu ).Group ), "View", "ShowMenu is in View" )
+    c.Check( t.Info( cmdids.Cmd.FileSave ).SepBefore, "a separator above Save" )
+end sub

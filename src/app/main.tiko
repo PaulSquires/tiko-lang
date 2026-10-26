@@ -29,6 +29,7 @@ if command( 1 ) = "--selftest" then
     dim as selftest.Tally t
     selftest.Pass( t, 1.0 )
     selftest.Pass( t, 1.75 )
+    selftest.ConfigPass( t, 1.0 )
     tkApp_Shutdown( )
     print strings.Format( "tkEdit [{}] selftest: {} passed, {} failed", platform.OsName( ), t.passed, t.failed )
     end t.failed
