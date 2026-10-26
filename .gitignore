@@ -104,6 +104,8 @@ tests/vendor/**/*.o
 /examples/**/*.dll
 /examples/**/*.so
 /examples/**/*.so.*
+# ...except the WebView2 loader the WebView2 examples need to start, which is not built
+!/examples/win64/WebView2 Examples/WebView2Loader.dll
 
 # the PsControls demos: Microsoft's icon font, copied in locally and never redistributed; the
 # images two demos write at run time; tiko build's link record
