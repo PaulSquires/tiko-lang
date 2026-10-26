@@ -1,0 +1,4 @@
+#module "m"
+public redim shared A( any ) as long
+public redim shared R( 1 to 5 ) as long
+public dim shared B( any ) as long

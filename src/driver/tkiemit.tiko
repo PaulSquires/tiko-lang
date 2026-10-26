@@ -337,8 +337,22 @@ private sub SharedVar_( byref w as TkiWriter_, byval s as int32, byval kw as int
         end if
         if isItem then
             dim as int32 nameTok = i
-            '' ...after its dimensions, if it has them: 'x( 0 to 3 ) alias "..."'.
-            if Kind_( w, i + 1 ) = Tko.TK_LPAREN then
+            '' ...after its dimensions, if it has them: 'x( 0 to 3 ) alias "..."'. A REDIM's are
+            '' run-time sizes of a DYNAMIC array, exported as '( any [, any] )'.
+            if (Kind_( w, i + 1 ) = Tko.TK_LPAREN) andalso (Kind_( w, kw ) = Tko.KW_REDIM) then
+                dim as int32 rd = 0, rcomma = 0
+                do
+                    i += 1
+                    if Kind_( w, i ) = Tko.TK_LPAREN then rd += 1
+                    if Kind_( w, i ) = Tko.TK_RPAREN then rd -= 1
+                    if (rd = 1) andalso (Kind_( w, i ) = Tko.TK_COMMA) then rcomma += 1
+                loop until (rd = 0) orelse (i >= stop_ - 1)
+                dim as string anyDims = "(any"
+                for q as int32 = 1 to rcomma
+                    anyDims &= ", any"
+                next
+                Word_( w, anyDims & ")" )
+            elseif Kind_( w, i + 1 ) = Tko.TK_LPAREN then
                 dim as int32 pd = 0
                 do
                     i += 1
@@ -423,7 +437,9 @@ private sub Declaration_( byref w as TkiWriter_, byval s as int32, byval e as in
     case Tko.KW_TYPE, Tko.KW_UNION, Tko.KW_ENUM, Tko.KW_CONST
         if AtLevel_( w, n, sc ) then Chunk_( w, s, e )
 
-    case Tko.KW_DIM, Tko.KW_STATIC
+    case Tko.KW_DIM, Tko.KW_STATIC, Tko.KW_REDIM
+        '' ...AND 'public redim shared A( any )', which is a dim shared of a dynamic array: it was
+        '' never written, and an importer's 'A' was TKO0743 (tiko-editor TE-003).
         if Kind_( w, kw + 1 ) <> Tko.KW_SHARED then return
         if w.ast->Kind( n ) <> Tko.N_VAR then return
         if AtLevel_( w, n, sc ) = false then return

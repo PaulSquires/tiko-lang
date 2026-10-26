@@ -1,0 +1,6 @@
+#import "./m"
+using m
+print ubound( A ); ubound( R ); lbound( R ); ubound( B )
+redim A( 2 )
+A( 2 ) = 7
+print ubound( A ); A( 2 )
