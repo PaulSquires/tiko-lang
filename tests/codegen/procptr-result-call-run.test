@@ -1,0 +1,15 @@
+'' RUN: a call through the procedure pointer a call returned is typed as THAT pointer's result,
+'' not the outer callee's (Check's N_CALL case, ProcValueCall_ in symbols/checkbase.tiko).
+'' Output identical to fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/procptr-result-call.bas -o tests/codegen/procptrresultcall.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0968
+'' EXPECT-FILE: tests/codegen/procptrresultcall.exe
+'' RUN: tests/codegen/procptrresultcall.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  7 6
+'' EXPECT-RUN-OUT:  6
+'' EXPECT-RUN-OUT: -6
+'' EXPECT-RUN-OUT:  12

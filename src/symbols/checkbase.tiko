@@ -149,6 +149,18 @@ end function
 '' it picked the pointer one. Measured, fbc-modern: 'ovl( this )' calls the byref T
 '' overload and 'ovl( @this )' the pointer one, and 'f( this )' against a lone
 '' 'byval as T ptr' is error 58. Anything that is not 'this' keeps the type it has.
+'' 'Pick( 1 )( 5 )' CALLS WHAT Pick RETURNS: the inner call's copied binding is Pick itself, and
+'' resolving '( 5 )' against Pick typed the whole thing as Pick's procedure-pointer result --
+'' ' 76' for 'print 7; Pick( 1 )( 5 )', TKO0968 and TKO0820 (by-example BUG-procedures-1).
+private function ProcValueCall_ _
+    ( byref c as Ctx, byval tg as Tko.NodeId, byval ct as Tko.TypeId ) as boolean
+    if (tg = Tko.NODE_NONE) orelse (c.ast->Kind( tg ) <> Tko.N_CALL) then return false
+    if ct = Tko.TYPE_NONE then return false
+    dim as Tko.TypeId u = c.types->Unqualify( ct )
+    if c.types->Kind( u ) = Tko.TK_POINTER then u = c.types->Unqualify( c.types->Inner( u ) )
+    return (c.types->Kind( u ) = Tko.TK_PROC)
+end function
+
 private function ThisArgType_ _
     ( byref c as Ctx, byval a as Tko.NodeId, byval at as Tko.TypeId ) as Tko.TypeId
 
