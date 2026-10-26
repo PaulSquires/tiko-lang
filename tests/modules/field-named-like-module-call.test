@@ -1,0 +1,11 @@
+'' A FIELD NAMED LIKE AN IMPORTED MODULE, the module reached through it: 'enc.KindName( Enc )'
+'' inside a method of a type with a field 'Enc', 'enc.Kind.B' in that field's initializer, in a
+'' case and as a generic's type argument. The base bound to the field (names fold case), nothing
+'' was said, and lowering stopped on TKO0994 (tkEdit TK-001). A field whose type is not a UDT is
+'' now looked past for a module alias (fbc has none to compare with), as a method is (TS-005).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/fieldcall/main.tiko -o tests/modules/fieldcall.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/fieldcall.exe
+'' EXPECT-RUN-OUT: B B

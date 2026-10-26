@@ -1,0 +1,9 @@
+#module "enc"
+public enum Kind explicit
+    A = 0
+    B = 1
+end enum
+public function KindName( byval k as Kind ) as ustring
+    if k = Kind.B then return "B"
+    return "A"
+end function

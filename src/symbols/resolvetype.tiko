@@ -328,6 +328,24 @@ private function TypeofLitType_( byref c as Ctx, byval e as Tko.NodeId, byref ou
     return true
 end function
 
+'' A MODULE AS A NAMESPACE: an imported module's own namespace, or an '#import' alias -- a view of
+'' one, its own SYM_NAMESPACE sharing that scope (driver/modiface BindView_). fbc has no form of
+'' either, so where tiko looks past a field to one (tkEdit TK-001) no fbc rule is broken.
+private function ModuleView_( byref c as Ctx, byval sid as Tko.SymbolId ) as boolean
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = nullptr then return false
+    if s->kind <> cast( uint8, Tko.SYM_NAMESPACE ) then return false
+    if c.syms->IsImportNs( sid ) then return true
+    if s->inner = Tko.SCOPE_NONE then return false
+    for k as int32 = 0 to c.syms->importNs.Count - 1
+        dim as Tko.Symbol ptr m = c.syms->SymbolAt( cast( Tko.SymbolId, c.syms->importNs[k] ) )
+        if m <> nullptr then
+            if m->inner = s->inner then return true
+        end if
+    next
+    return false
+end function
+
 declare function ResolveTypeRefAt_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
 
@@ -765,6 +783,15 @@ function ResolveTypeRefAt_ _
                             if fsc <> nullptr then
                                 dim as Tko.SymbolId outer = c.syms->Lookup( fsc->parent, cid )
                                 if outer <> Tko.SYMBOL_NONE then qsid = outer
+                            end if
+                        '' ...AND FROM A METHOD BODY ONLY TO A MODULE: fbc reads the field there (the
+                        '' comment above), but has no '#import'; 'as Optional( of enc.Kind )' beside a
+                        '' field 'Enc' left the type unbound (TKO0994, tkEdit TK-001).
+                        elseif fs_->kind = cast( uint8, Tko.SYM_FIELD ) then
+                            dim as Tko.SymScope ptr usc = c.syms->ScopeAt( fs_->parent )
+                            if usc <> nullptr then
+                                dim as Tko.SymbolId om = c.syms->Lookup( usc->parent, cid )
+                                if ModuleView_( c, om ) then qsid = om
                             end if
                         '' ...NOR DOES A PROCEDURE: inside 'sub Dlg.Build', 'build.BuildConfig' found
                         '' the method and left the type unbound and unreported (TKO0994, tiko-studio
