@@ -31,6 +31,7 @@
 #import "tkc/build"
 #import "tkc/cmdids"
 #import "tkc/docencoding"
+#import "tkc/format"
 #import "tkc/keybind"
 #import "tkc/mru"
 #import "tkc/navhistory"
@@ -39,6 +40,7 @@
 #import "tkc/session"
 #import "tkc/settings"
 #import "tkc/symboldb"
+#import "tkc/textsearch"
 #import "tkc/textstream"
 #import "tkc/themes"
 #import "tka/chrome"
@@ -91,6 +93,8 @@ const ID_SPLIT = 103
 const ID_FINDSTRIP = 104
 const ID_OUTPUT = 105
 const BUILD_POLL_MS = 40
+const ID_SCRATCH = 106
+const SEARCH_LIMIT = 5000              ' Find in Project stops counting there
 const ID_VIEW = 200                      ' views are ID_VIEW + n
 const DISK_CHECK_MS = 1000
 
@@ -117,6 +121,14 @@ public enum PickKind explicit
     Symbols             ' Ctrl+P: files and definitions
     Functions           ' F4: the procedures of the buffer, or of every open buffer
 end enum
+
+' One Find in Project match.
+public type SearchHit
+    Path   as ustring
+    Line   as long                      ' 0-based
+    Column as long                      ' character index in the line
+    Length as long                      ' characters
+end type
 
 ' A row of Search Symbol or the functions list: where it goes.
 public type SymHit
@@ -286,6 +298,12 @@ public type Window
     FuncsAll as boolean                 ' F4: every open buffer's procedures
     Hits as Array( of SymHit )          ' the chooser's rows, for Symbols and Functions
 
+    ' ---- P6
+    Fmt as format.Formatter
+    FormatterReady as boolean
+    scratch as editor.CodeView          ' hidden: Find in Project matches each file's text in it
+    Found as Array( of SearchHit )      ' the Search tab's rows
+
     form as TK_FORM ptr
     status as TK_WIDGET ptr
     menuBar as TK_WIDGET ptr
@@ -392,6 +410,12 @@ public type Window
     declare sub CodeTips( byval hEdit as TK_WIDGET ptr, byval ch as long )
     declare sub ShowCompletionsAt( byval v as editor.CodeView ptr, byval d as DocRef, byval minLen as long )
 
+    ' ---- P6: the formatter, Find in Project
+    declare function FormatDocument( ) as boolean
+    declare function RunProjectSearch( ) as long
+    declare sub OpenSearchHit( byval i as long )
+    declare sub GoToCompanion( byval header as boolean )
+
     ' ---- the chooser popup
     declare sub OpenChooser( byval kind as PickKind )
     declare sub Chosen( byval tag as long )
@@ -462,8 +486,13 @@ function Window.Create( byval forcedScale as single ) as boolean
     end sub )
 
     Out.Create( root, ID_OUTPUT, @this )
-    Out.OnActivate = sub( byval owner as any ptr, byval itemIndex as long )
-        cast( Window ptr, owner )->OpenDiagnostic( itemIndex )
+    Out.OnActivate = sub( byval owner as any ptr, byval tab_ as outputpane.OutputTab, byval itemIndex as long )
+        dim as Window ptr mw = owner
+        if tab_ = outputpane.OutputTab.Search then
+            mw->OpenSearchHit( itemIndex )
+        else
+            mw->OpenDiagnostic( itemIndex )
+        end if
     end sub
     Finder.Create( root, ID_FINDSTRIP, @this )
     Finder.OnAction = sub( byval owner as any ptr, byval a as findstrip.FindAction )
@@ -701,6 +730,8 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
          Cmd.SplitTopBottom, Cmd.CycleFocus, Cmd.ZoomIn, Cmd.ZoomOut, Cmd.ZoomReset, Cmd.FoldToggle, _
          Cmd.FoldBelow, Cmd.FoldAll, Cmd.UnfoldAll, Cmd.BuildConfig
         return true
+    case Cmd.FormatDocument, Cmd.FindInProject, Cmd.GoToHeader, Cmd.GoToSource, Cmd.GoToMain
+        return true
     case Cmd.CompleteWord, Cmd.GoToDefinition, Cmd.GoBack, Cmd.GoForward, Cmd.GoToNextFunction, _
          Cmd.GoToPrevFunction, Cmd.SearchSymbol, Cmd.FunctionList
         return true
@@ -753,6 +784,16 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.SplitLeftRight : this.ToggleSplit( session.SplitMode.Vertical )
     case Cmd.SplitTopBottom : this.ToggleSplit( session.SplitMode.Horizontal )
     case Cmd.CycleFocus : this.CycleFocus( )
+    case Cmd.FormatDocument : this.FormatDocument( )
+    case Cmd.GoToHeader : this.GoToCompanion( true )
+    case Cmd.GoToSource : this.GoToCompanion( false )
+    case Cmd.GoToMain
+        if ProjOpen andalso (len( Proj.MainPath( ) ) > 0) then
+            this.JumpTo( Proj.MainPath( ), -1, 0, 0 )
+        else
+            this.SetMessage( "no project main file" )
+        end if
+    case Cmd.FindInProject : this.OpenStrip( findstrip.StripMode.Project )
     case Cmd.CompleteWord : this.ShowCompletionsAt( v, this.Active( ), 0 )
     case Cmd.GoToDefinition : this.GoToDefinition( )
     case Cmd.GoBack : this.GoHistory( false )
@@ -1743,6 +1784,12 @@ sub Window.OpenStrip( byval m as findstrip.StripMode )
     this.Layout( )
     if m = findstrip.StripMode.GoTo then
         Finder.SetStatus( strings.Format( "1 - {}", v->LineCount( ) ) )
+    elseif m = findstrip.StripMode.Project then
+        if ProjOpen then
+            Finder.SetStatus( "Enter searches the project's files" )
+        else
+            Finder.SetStatus( "Enter searches the open buffers" )
+        end if
     else
         this.ShowFindStatus( )
     end if
@@ -1750,7 +1797,7 @@ end sub
 
 ' "3 of 10" or "No matches", and every match highlighted.
 sub Window.ShowFindStatus( )
-    if (Finder.isOpen = false) orelse (Finder.Mode = findstrip.StripMode.GoTo) then exit sub
+    if (Finder.isOpen = false) orelse (Finder.Mode = findstrip.StripMode.GoTo) orelse (Finder.Mode = findstrip.StripMode.Project) then exit sub
     dim as editor.CodeView ptr v = @this.View( )
     dim as ustring p = Finder.Phrase( )
     dim as editor.FindOptions o = this.FindOptionsNow( )
@@ -1796,6 +1843,9 @@ sub Window.OnFind( byval a as findstrip.FindAction )
         this.ShowFindStatus( )
         Finder.SetStatus( strings.Format( "{} replaced", k ) )
         this.ShowStatus( )
+        exit sub
+    case findstrip.FindAction.SearchFiles
+        this.RunProjectSearch( )
         exit sub
     case findstrip.FindAction.GoToLine
         ' "42" or "42:7" (line:column, 1-based)
@@ -2271,7 +2321,7 @@ sub Window.JumpTo( byref file as const ustring, byval ln as long, byval col as l
     elseif this.OpenFile( file ) = false then
         exit sub
     end if
-    this.View( ).GoToLine( ln, col, selChars )
+    if ln >= 0 then this.View( ).GoToLine( ln, col, selChars )      ' -1: where it was
     this.View( ).Focus( )
     Nav.NoteArrival( this.Here( ) )
 end sub
@@ -2647,3 +2697,137 @@ sub Window.ShowCompletionsAt( byval v as editor.CodeView ptr, byval d as DocRef,
     if (items.Count( ) = 1) andalso (lcase( items[0] ) = lcase( word )) andalso (minLen > 0) then exit sub
     v->ShowCompletions( len( word ), items )
 end sub
+
+' ================================================================ P6: the formatter, Find in Project
+
+' Alt+Shift+F: the active buffer through tkc/format (its default rules, the settings' tab size),
+' in one undo step, the view kept where it was.
+function Window.FormatDocument( ) as boolean
+    if FormatterReady = false then
+        Fmt.SetKeywords( Look.Words.Words1, Look.Words.Words2, Look.Words.Words3 )
+        FormatterReady = true
+    end if
+    dim as editor.CodeView ptr v = @this.View( )
+    dim as format.FormatResult r = Fmt.FormatText( v->Text( ), format.DefaultRules( ), Prefs.TabSize, Prefs.UseTabs )
+    if r.Changed = false then
+        this.SetMessage( "already formatted" )
+        return false
+    end if
+    v->ReplaceAllText( r.Text )
+    this.SetMessage( "formatted" )
+    return true
+end function
+
+' Every file of the project (with no project: every open buffer) searched for the strip's phrase
+' with its Aa / W / .* -- in a hidden view, so the matching is Find's own. An open buffer's text is
+' searched as it stands, unsaved edits included. The Search tab gets a header per file and a row
+' per match; the count is the return.
+function Window.RunProjectSearch( ) as long
+    dim as ustring p = Finder.Phrase( )
+    if len( p ) = 0 then return 0
+    dim as editor.FindOptions o = Finder.Options( )
+    o.InSelection = false
+    if scratch.Exists( ) = false then
+        if scratch.Create( tkForm_Widget( form ), ID_SCRATCH ) = false then return 0
+        tkWidget_Show( scratch.Widget( ), false )
+    end if
+    ' the files: the project's, then any open buffer not among them
+    dim as Array( of ustring ) paths
+    dim as Map( of ustring, boolean ) seen
+    if ProjOpen then
+        for i as long = 0 to Proj.FileCount( ) - 1
+            dim as ustring f = Proj.FilePath( i )
+            if seen.Contains( ucase( f ) ) then continue for
+            seen.Put( ucase( f ), true )
+            paths.Push( f )
+        next
+    end if
+    for each d as DocRef in Docs
+        if (len( d->Path ) = 0) orelse seen.Contains( ucase( d->Path ) ) then continue for
+        seen.Put( ucase( d->Path ), true )
+        paths.Push( d->Path )
+    next
+    Found.Clear( )
+    dim as TK_WIDGET ptr list = Out.search
+    tkListTree_BeginUpdate( list )
+    tkListTree_Clear( list )
+    dim as long files_ = 0
+    for each f as ustring in paths
+        dim as ustring text
+        dim as DocRef d = this.FindOpen( f )
+        if d then
+            text = d->Text( )
+        else
+            dim as Result( of docencoding.LoadedText, fs.FsError ) lt = docencoding.LoadFile( f )
+            if lt.IsOk( ) = false then continue for
+            text = lt.Value( ).Text
+        end if
+        scratch.SetText( text )
+        dim as boolean bad = false
+        dim as Array( of textsearch.TextMatch ) ms = scratch.MatchesOf( p, o, SEARCH_LIMIT - Found.Count( ), bad )
+        if bad then
+            tkListTree_EndUpdate( list )
+            Finder.SetStatus( "not a valid regular expression" )
+            return 0
+        end if
+        if ms.Count( ) = 0 then continue for
+        files_ += 1
+        tkListTree_AddHeader( list, strings.Format( "{}  ({})", fs.PathFileName( f ), ms.Count( ) ), -1 )
+        for each m as textsearch.TextMatch in ms
+            dim as SearchHit hh
+            hh.Path = f
+            hh.Line = m.Line
+            hh.Column = m.Column
+            hh.Length = m.Length
+            Found.Push( hh )
+            tkListTree_InsertString( list, tkListTree_GetCount( list ), _
+                                     (m.Line + 1) & ": " & trim( scratch.LineTextAt( m.Line ) ), Found.Count( ) - 1 )
+        next
+        if Found.Count( ) >= SEARCH_LIMIT then exit for
+    next
+    tkListTree_EndUpdate( list )
+    scratch.SetText( "" )
+    dim as ustring msg = strings.Format( "{} matches in {} files", Found.Count( ), files_ )
+    if Found.Count( ) >= SEARCH_LIMIT then msg &= " (stopped at the limit)"
+    if Found.Count( ) = 0 then
+        Finder.SetStatus( "No matches" )
+        return 0
+    end if
+    Finder.Close( )
+    this.ShowOutput( true )
+    Out.ShowTab( outputpane.OutputTab.Search )
+    this.Layout( )
+    this.SetMessage( msg )
+    this.OpenSearchHit( 0 )
+    return Found.Count( )
+end function
+
+sub Window.OpenSearchHit( byval i as long )
+    if (i < 0) orelse (i >= Found.Count( )) then exit sub
+    dim as SearchHit hh = Found[i]
+    this.JumpTo( hh.Path, hh.Line, hh.Column, hh.Length )
+end sub
+
+' Ctrl+Shift+H / Ctrl+Shift+C: the header beside a source file (x.tiko -> x.ti, x.bas -> x.bi) or
+' the source beside a header, opened when it exists.
+sub Window.GoToCompanion( byval header as boolean )
+    dim as ustring p = this.ActivePath( )
+    if len( p ) = 0 then exit sub
+    dim as ustring stem = fs.PathJoin( fs.PathParent( p ), fs.PathStem( p ) )
+    dim as Array( of ustring ) tries
+    if header then
+        tries.Push( stem & ".ti" )
+        tries.Push( stem & ".bi" )
+    else
+        tries.Push( stem & ".tiko" )
+        tries.Push( stem & ".bas" )
+    end if
+    for each f as ustring in tries
+        if fs.IsFile( f ) then
+            this.JumpTo( f, -1, 0, 0 )
+            exit sub
+        end if
+    next
+    this.SetMessage( "no " & fs.PathFileName( tries[0] ) )
+end sub
+

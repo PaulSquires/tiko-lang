@@ -14,3 +14,8 @@ options = ["-w", "all"]
 [target.coreall]
 main = "tests/coreall.tiko"
 output = "tests/bin/coreall.exe"
+
+# docs/tkEdit/KEYS.md from the command table: tests/bin/keysdoc.exe <out.md>
+[target.keysdoc]
+main = "tests/keysdoc.tiko"
+output = "tests/bin/keysdoc.exe"

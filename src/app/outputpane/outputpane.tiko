@@ -6,11 +6,12 @@
 '    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 '
 ' outputpane -- the toggleable pane under the editors (D4): hidden until Ctrl+F9 or a failed build,
-' two tabs:
+' three tabs:
 '   Results   the build's diagnostics, a header row per file; Enter or a double click goes there
 '   Log       what tiko printed, less its JSON events
+'   Search    Find in Project's matches, a header row per file; Enter or a double click goes there
 ' Rows carry an index the owner gives; what activating one means is the owner's (OnActivate).
-' After tiko-studio's tsa/outputpane, its first two tabs (PROVENANCE.md).
+' After tiko-studio's tsa/outputpane: its Results, Compiler Log and Search Results (PROVENANCE.md).
 #module "outputpane"
 
 #import "std/containers"
@@ -30,15 +31,17 @@ using tkTextBox
 public enum OutputTab explicit
     Results = 0
     CompilerLog = 1
+    Search = 2
 end enum
 
-public type OutputActivateSub as sub( byval owner as any ptr, byval itemIndex as long )
+public type OutputActivateSub as sub( byval owner as any ptr, byval tab_ as OutputTab, byval itemIndex as long )
 
 public const TAB_CY = 26
 public const PANE_CY = 170               ' the pane's height, unscaled
 const ID_TABS = 1
 const ID_RESULTS = 10
 const ID_LOG = 11
+const ID_SEARCH = 12
 
 public type Pane
     owner as any ptr
@@ -47,6 +50,7 @@ public type Pane
     tabs as TK_WIDGET ptr
     results as TK_WIDGET ptr
     logBox as TK_WIDGET ptr
+    search as TK_WIDGET ptr
     current as OutputTab
 
     declare sub Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ as any ptr )
@@ -90,8 +94,10 @@ sub Pane.Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ a
     tabs = tkTabBar_Create( frame, ID_TABS )
     tkTabBar_AddTab( tabs, "Results" )
     tkTabBar_AddTab( tabs, "Log" )
-    tkTabBar_SetClosable( tabs, 0, false )
-    tkTabBar_SetClosable( tabs, 1, false )
+    tkTabBar_AddTab( tabs, "Search" )
+    for i as long = 0 to 2
+        tkTabBar_SetClosable( tabs, i, false )
+    next
     tkTabBar_SetSelChangeCallback( tabs, sub( byval h as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long )
         dim as Pane ptr p = PaneOf( h )
         if p then p->ShowTab( cast( OutputTab, idxNew ) )
@@ -101,11 +107,16 @@ sub Pane.Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ a
     tkTextBox_SetReadOnly( logBox, true )
     dim as TK_FORM ptr f = tkForm_FromWidget( frame )
     if f then tkTextBox_SetFont( logBox, tkForm_Font( f, TKFONT_MONO ) )
-    tkListTree_SetActivateCallback( results, sub( byval h as TK_WIDGET ptr, byval row as integer )
+    search = tkListTree_Create( frame, ID_SEARCH )
+    dim as LT_ActivateCallbackSub act = sub( byval h as TK_WIDGET ptr, byval row as integer )
         dim as Pane ptr p = PaneOf( h )
         if (p = 0) orelse (p->OnActivate = 0) then exit sub
-        p->OnActivate( p->owner, tkListTree_GetItemData( h, row ) )
-    end sub )
+        dim as OutputTab t = OutputTab.Results
+        if h->ctrlId = ID_SEARCH then t = OutputTab.Search
+        p->OnActivate( p->owner, t, tkListTree_GetItemData( h, row ) )
+    end sub
+    tkListTree_SetActivateCallback( results, act )
+    tkListTree_SetActivateCallback( search, act )
     this.ShowTab( OutputTab.Results )
     tkWidget_Show( frame, false )
 end sub
@@ -116,17 +127,20 @@ sub Pane.Layout( )
     tkWidget_SetPos( tabs, 0, 0, frame->cw, th )
     tkWidget_SetPos( results, 0, th, frame->cw, frame->ch - th )
     tkWidget_SetPos( logBox, 0, th, frame->cw, frame->ch - th )
+    tkWidget_SetPos( search, 0, th, frame->cw, frame->ch - th )
 end sub
 
 sub Pane.ShowTab( byval t as OutputTab )
     current = t
     tkWidget_Show( results, t = OutputTab.Results )
     tkWidget_Show( logBox, t = OutputTab.CompilerLog )
+    tkWidget_Show( search, t = OutputTab.Search )
     if tkTabBar_GetCurSel( tabs ) <> cast( long, t ) then tkTabBar_SetCurSel( tabs, t )
 end sub
 
 function Pane.Content( byval t as OutputTab ) as TK_WIDGET ptr
     if t = OutputTab.CompilerLog then return logBox
+    if t = OutputTab.Search then return search
     return results
 end function
 

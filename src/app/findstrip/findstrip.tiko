@@ -13,6 +13,8 @@
 '
 '     Line:     [42.................]  1 - 380
 '
+'     In files: [phrase.............]  Aa  W  .*        (Find in Project: Enter searches)
+'
 ' Esc closes it; Enter finds the next match (Shift+Enter the previous), in the replace box it
 ' replaces one; Ctrl+Alt+Enter replaces all; Tab moves between the boxes. The strip only holds the
 ' phrase and the options -- the owner searches (CodeView.Find & co.) when told, through OnAction.
@@ -36,6 +38,7 @@ public enum StripMode explicit
     Find = 0
     Replace
     GoTo
+    Project               ' Find in Project: the phrase searched in every file on Enter
 end enum
 
 public enum FindAction explicit
@@ -45,13 +48,14 @@ public enum FindAction explicit
     ReplaceOne
     ReplaceEvery
     GoToLine              ' Enter in Go to Line
+    SearchFiles           ' Enter in Find in Project
     CloseStrip
 end enum
 
 public type FindActionSub as sub( byval owner as any ptr, byval a as FindAction )
 
 public const ROW_CY = 26                 ' one row, unscaled
-const LABEL_CX = 64
+const LABEL_CX = 76
 const BOX_CX = 280
 const ID_FIND = 1
 const ID_REPLACE = 2
@@ -121,6 +125,7 @@ private function FrameProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as
         tkRect_Set( lb, pad, 0, tkHost_Scale( w->pHost, LABEL_CX ), rowH )
         dim as ustring first = "Find:"
         if st->Mode = StripMode.GoTo then first = "Line:"
+        if st->Mode = StripMode.Project then first = "In files:"
         m->pPaint->PaintText( first, @lb, TK_DT_LEFT or TK_DT_VCENTER )
         if st->Mode = StripMode.Replace then
             tkRect_Set( lb, pad, rowH, tkHost_Scale( w->pHost, LABEL_CX ), rowH * 2 )
@@ -160,6 +165,8 @@ private function BoxKeys( byval m as TKTEXTBOX_MESSAGEINFO ptr ) as boolean
         dim as boolean ctrlAlt = ((m->mods and SDL_KMOD_CTRL) <> 0) andalso ((m->mods and SDL_KMOD_ALT) <> 0)
         if st->Mode = StripMode.GoTo then
             st->Fire( FindAction.GoToLine )
+        elseif st->Mode = StripMode.Project then
+            st->Fire( FindAction.SearchFiles )
         elseif ctrlAlt then
             if st->Mode = StripMode.Replace then st->Fire( FindAction.ReplaceEvery )
         elseif m->hTextBox = st->replaceBox then
@@ -182,7 +189,7 @@ sub Strip.Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ 
     tkTextBox_SetSelectOnFocus( findBox, true )
     tkTextBox_SetChangeCallback( findBox, sub( byval h as TK_WIDGET ptr )
         dim as Strip ptr st = StripOf( h )
-        if st andalso (st->Mode <> StripMode.GoTo) then st->Fire( FindAction.Changed )
+        if st andalso (st->Mode <> StripMode.GoTo) andalso (st->Mode <> StripMode.Project) then st->Fire( FindAction.Changed )
     end sub )
     tkTextBox_SetMessageCallback( findBox, @BoxKeys )
     tkTextBox_SetMessageCallback( replaceBox, @BoxKeys )
@@ -239,8 +246,8 @@ sub Strip.Open( byval m as StripMode, byref seed as const ustring, byval canSele
         if was = StripMode.GoTo then tkTextBox_SetText( findBox, "" )
         if (len( seed ) > 0) andalso (instr( seed, chr( 10 ) ) = 0) then tkTextBox_SetText( findBox, seed )
         dim as long sel = tkToolbar_FindItemByID( tools, TB_SEL )
-        tkToolbar_SetEnabled( tools, sel, canSelect )
-        tkToolbar_SetSelected( tools, sel, canSelect )
+        tkToolbar_SetEnabled( tools, sel, canSelect andalso (m <> StripMode.Project) )
+        tkToolbar_SetSelected( tools, sel, canSelect andalso (m <> StripMode.Project) )
     end if
     status = ""
     tkWidget_Show( frame, true )

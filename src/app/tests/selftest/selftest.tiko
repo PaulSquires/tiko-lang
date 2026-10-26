@@ -190,7 +190,11 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     t.Check( tkPopupMenu_GetItemCount( fileMenu ) = 15, P( sc, strings.Format( "File: 12 commands + 3 separators ({})", tkPopupMenu_GetItemCount( fileMenu ) ) ) )
     t.Check( tkPopupMenu_GetItemEnabled( fileMenu, Cmd.FileSave ), P( sc, "File > Save enabled" ) )
     t.Check( tkPopupMenu_GetItemEnabled( fileMenu, Cmd.FileNew ), P( sc, "File > New enabled (P2)" ) )
-    t.Check( tkPopupMenu_GetItemEnabled( tkMenuBar_GetDropDown( mw.menuBar, 1 ), Cmd.FormatDocument ) = false, P( sc, "Edit > Format Document greyed (P6)" ) )
+    dim as long greyed = 0
+    for i as long = 1 to clng( Cmd.Last_ ) - 1
+        if mw.IsImplemented( cast( Cmd, i ) ) = false then greyed += 1
+    next
+    t.Check( greyed = 0, P( sc, strings.Format( "every command is implemented ({} not)", greyed ) ) )
     t.Check( mw.ShortcutText( Cmd.FileSave ) = "Ctrl+S", P( sc, "Save shows " & mw.ShortcutText( Cmd.FileSave ) ) )
     t.Check( mw.ShortcutText( Cmd.SplitLeftRight ) = "Ctrl+\", P( sc, "Split shows " & mw.ShortcutText( Cmd.SplitLeftRight ) ) )
 
@@ -200,8 +204,7 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     Chord( h, SDLK_D, SDL_SCANCODE_D, SDL_KMOD_CTRL )
     t.Check( mw.View( ).LineCount( ) = 2, P( sc, strings.Format( "Ctrl+D duplicated the line ({} lines)", mw.View( ).LineCount( ) ) ) )
     Chord( h, SDLK_F, SDL_SCANCODE_F, SDL_KMOD_ALT or SDL_KMOD_SHIFT )
-    t.Check( instr( mw.Message, "not available yet" ) > 0, P( sc, "Alt+Shift+F says it is not there yet: " & mw.Message ) )
-    t.Check( mw.View( ).Text( ) = "abc" & mw.View( ).EolText( ) & "abc", P( sc, "and typed nothing" ) )
+    t.Check( mw.View( ).Text( ) = "abc" & mw.View( ).EolText( ) & "abc", P( sc, "Alt+Shift+F typed nothing" ) )
     mw.View( ).SetText( "" )                                     ' unmodified: closing it asks nothing
 
     ' ---- settings.toml: Ctrl+Comma opens it; saving applies it
@@ -1033,4 +1036,92 @@ public sub IntelPass( byref t as Tally, byval sc as single )
     Chord( h2, SDLK_F12, SDL_SCANCODE_F12, 0 )
     t.Check( m2.View( ).CaretLine( ) = 10, P( sc, strings.Format( "outline: F12 found Show, line {}", m2.View( ).CaretLine( ) ) ) )
     m2.Destroy( )
+end sub
+
+' ================================================================ P6: formatter, Find in Project, companions
+
+public sub PolishPass( byref t as Tally, byval sc as single )
+    dim as ustring dir_ = fs.PathJoin( Files( ), "polish" )
+    fs.CreateDirAll( dir_ )
+    dim as ustring nl = chr( 10 )
+    dim as ustring mainF = fs.PathJoin( dir_, "main.tiko" ), libF = fs.PathJoin( dir_, "lib.tiko" )
+    dim as ustring hdrF = fs.PathJoin( dir_, "lib.ti" )
+    fs.WriteAllText( mainF, "#include ""lib.ti""" & nl & "print Needle( )" & nl )
+    fs.WriteAllText( libF, "function Needle( ) as long" & nl & "    return 1 ' needle" & nl & "end function" & nl )
+    fs.WriteAllText( hdrF, "declare function Needle( ) as long" & nl )
+    dim as mainwin.Window mw
+    mw.ConfigDir = FreshConfig( )
+    mw.Ask = @ScriptedAsk
+    mw.Pick = @ScriptedPick
+    mw.Launch = @ScriptedLaunch
+    mw.NoParser = true
+    t.Check( mw.Create( sc ), P( sc, "polish: main window created" ) )
+    if mw.form = 0 then exit sub
+    mw.Show( )
+    dim as TK_HOST ptr h = tkForm_Host( mw.form )
+
+    ' ---- Alt+Shift+F: the formatter, one undo step
+    mw.View( ).SetLineEnding( docencoding.LineEnd.Lf, false )
+    mw.View( ).SetText( "sub f( )" & nl & "if x then" & nl & "print 1" & nl & "end if" & nl & "end sub" & nl )
+    mw.Prefs.CodeTips = false
+    Chord( h, SDLK_F, SDL_SCANCODE_F, SDL_KMOD_ALT or SDL_KMOD_SHIFT )
+    t.Check( mw.View( ).Text( ) = "sub f( )" & nl & "    if x then" & nl & "        print 1" & nl & "    end if" & nl & "end sub" & nl, _
+             P( sc, "Alt+Shift+F indented the blocks: [" & mw.View( ).Text( ) & "]" ) )
+    t.Check( mw.Message = "formatted", P( sc, "and said so" ) )
+    Chord( h, SDLK_F, SDL_SCANCODE_F, SDL_KMOD_ALT or SDL_KMOD_SHIFT )
+    t.Check( mw.Message = "already formatted", P( sc, "twice: nothing to do" ) )
+    mw.View( ).Undo( )
+    t.Check( left( mw.View( ).Text( ), 18 ) = "sub f( )" & nl & "if x then", P( sc, "one Undo takes it back" ) )
+    mw.View( ).SetSavePoint( )
+
+    ' ---- Ctrl+Shift+F: every project file, unopened ones and unsaved edits too
+    mw.OpenFile( mainF )
+    gPickPath = fs.PathJoin( dir_, "polish" )
+    mw.NewProject( )
+    mw.Proj.Add( libF )
+    mw.Proj.Add( hdrF )
+    mw.View( ).ReplaceAllText( "#include ""lib.ti""" & nl & "print Needle( ) + Needle( )" & nl )   ' unsaved
+    Chord( h, SDLK_F, SDL_SCANCODE_F, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    t.Check( mw.Finder.isOpen andalso (mw.Finder.Mode = findstrip.StripMode.Project), P( sc, "Ctrl+Shift+F: the strip, In files" ) )
+    mw.Finder.SetPhrase( "needle" )
+    StripKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
+    t.Check( mw.Found.Count( ) = 5, P( sc, strings.Format( "five matches: two unsaved, two in lib.tiko, one in lib.ti ({})", mw.Found.Count( ) ) ) )
+    t.Check( (mw.Finder.isOpen = false) andalso mw.OutputShown andalso (mw.Out.current = outputpane.OutputTab.Search), _
+             P( sc, "the Search tab shows them" ) )
+    t.Check( tkListTree_GetCount( mw.Out.search ) = 8, P( sc, strings.Format( "three headers + five rows ({})", tkListTree_GetCount( mw.Out.search ) ) ) )
+    t.Check( instr( mw.Message, "5 matches in 3 files" ) = 1, P( sc, "the message: " & mw.Message ) )
+    t.Check( (lcase( mw.ActivePath( ) ) = lcase( mainF )) andalso (mw.View( ).SelectedText( ) = "Needle"), P( sc, "the first match selected" ) )
+    mw.OpenSearchHit( 2 )
+    t.Check( (lcase( mw.ActivePath( ) ) = lcase( libF )) andalso (mw.View( ).CaretLine( ) = 1), P( sc, "a match in an unopened file opens it there" ) )
+    Chord( h, SDLK_F, SDL_SCANCODE_F, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    dim as editor.FindOptions o = mw.Finder.Options( )
+    o.MatchCase = true
+    mw.Finder.SetOptions( o )
+    mw.Finder.SetPhrase( "needle" )
+    StripKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
+    t.Check( mw.Found.Count( ) = 1, P( sc, strings.Format( "Match Case: only the comment ({})", mw.Found.Count( ) ) ) )
+    Chord( h, SDLK_F, SDL_SCANCODE_F, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    o.MatchCase = false
+    o.Regex = true
+    mw.Finder.SetOptions( o )
+    mw.Finder.SetPhrase( "Need(le" )
+    StripKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
+    t.Check( mw.Finder.isOpen andalso (mw.Finder.status = "not a valid regular expression"), P( sc, "a bad regex says so: " & mw.Finder.status ) )
+    mw.Finder.SetPhrase( "Need[l]e\(" )
+    StripKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
+    t.Check( mw.Found.Count( ) = 4, P( sc, strings.Format( "a regex: the four calls and declarations ({})", mw.Found.Count( ) ) ) )
+
+    ' ---- header and source, the main file
+    mw.JumpTo( libF, 0, 0, 0 )
+    Chord( h, SDLK_H, SDL_SCANCODE_H, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    t.Check( lcase( mw.ActivePath( ) ) = lcase( hdrF ), P( sc, "Ctrl+Shift+H: lib.ti" ) )
+    Chord( h, SDLK_C, SDL_SCANCODE_C, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    t.Check( lcase( mw.ActivePath( ) ) = lcase( libF ), P( sc, "Ctrl+Shift+C: back to lib.tiko" ) )
+    Chord( h, SDLK_M, SDL_SCANCODE_M, SDL_KMOD_CTRL or SDL_KMOD_ALT )
+    t.Check( lcase( mw.ActivePath( ) ) = lcase( mainF ), P( sc, "Ctrl+Alt+M: the project's main file" ) )
+
+    for each d as DocRef in mw.Docs
+        d->Main.SetSavePoint( )
+    next
+    mw.Destroy( )
 end sub
