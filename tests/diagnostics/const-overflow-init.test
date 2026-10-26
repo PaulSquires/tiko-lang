@@ -1,0 +1,13 @@
+'' TKO0984, fbc's warning 25: ConstFitWarn_ (symbols/assigncheck.tiko) at a dim, a const and
+'' an '='. The program still compiles.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/const-overflow-init.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: const-overflow-init.bas(4,18): warning TKO0984: overflow in constant conversion: 256 does not fit in a 'ubyte'
+'' EXPECT-OUT: const-overflow-init.bas(6,18): warning TKO0984
+'' EXPECT-OUT: const-overflow-init.bas(8,17): warning TKO0984
+'' EXPECT-OUT: const-overflow-init.bas(10,19): warning TKO0984
+'' EXPECT-OUT: const-overflow-init.bas(12,18): warning TKO0984
+'' EXPECT-OUT: const-overflow-init.bas(16,21): warning TKO0984
+'' EXPECT-OUT: const-overflow-init.bas(19,5): warning TKO0984
+'' EXPECT-OUT: const-overflow-init.bas(20,9): warning TKO0984

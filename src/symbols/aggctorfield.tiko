@@ -25,3 +25,34 @@ function UdtHasCtorField_ ( byref c as Ctx, byval t as TypeId, byval depth as in
     next
     return nullptr
 end function
+
+'' ...AND A FIELD WITH A DEFAULT VALUE, at any depth: 'b as long = 9' gives the type an implicit
+'' constructor too, and fbc-modern 1.20 refuses 'dim as R r = ( 5 )' (error 24) and '( 5, 6 )' (7)
+'' alike, measured 2026-10-25 -- '= any' too. tiko filled 'a' and zeroed 'b' (by-example
+'' BUG-custom-types-2). A bitfield's payload is its width, not an initialiser.
+function UdtHasDefaultField_ ( byref c as Ctx, byval t as TypeId, byval depth as int32 ) as Symbol ptr
+    if depth > 8 then return nullptr
+    dim as TypeId u = ValueType_( c, t )
+    if (u = TYPE_NONE) orelse (c.types->Kind( u ) <> TK_UDT) then return nullptr
+    if TupleLike_( c, u ) then return nullptr
+    dim as Symbol ptr ts = UdtSymbolOf_( c, u )
+    if (ts = nullptr) orelse (ts->inner = SCOPE_NONE) then return nullptr
+    for i as int32 = 0 to c.syms->symbols.Count - 1
+        dim as Symbol ptr f = @c.syms->symbols[i]
+        if f->parent <> ts->inner then continue for
+        if f->kind <> cast( uint8, SYM_FIELD ) then continue for
+        if ((f->flags and SYMF_BITFIELD) = 0) andalso (f->payload <> 0) then
+            dim as NodeId fn_ = cast( NodeId, f->payload )
+            if c.ast->Kind( fn_ ) = N_FIELD then
+                if c.ast->StmtOf( fn_ )->c <> NODE_NONE then return f
+            end if
+        end if
+        if f->type_ = TYPE_NONE then continue for
+        dim as TypeId ft = c.types->Unqualify( f->type_ )
+        if c.types->Kind( ft ) = TK_ARRAY then ft = c.types->Unqualify( c.types->Inner( ft ) )
+        if c.types->Kind( ft ) <> TK_UDT then continue for
+        if TupleLike_( c, ft ) orelse DeclaresAnywhere_( c, ft, "__ctor" ) then continue for
+        if UdtHasDefaultField_( c, ft, depth + 1 ) <> nullptr then return f
+    next
+    return nullptr
+end function

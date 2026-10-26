@@ -909,6 +909,10 @@
     '' fbc's error 255, "Ambiguous symbol access, explicit scope resolution required": a bare
     '' member name two named enums declare (fbc-modern 1.20). tiko took the first enum's.
     DIAG( TKO0983, SEV_ERROR,   "'%0' is ambiguous: more than one enum declares it; qualify it" )
+    '' fbc's warning 25 at a declaration or an assignment: see ConstFitWarn_ (assigncheck.tiko).
+    DIAG( TKO0984, SEV_WARNING, "overflow in constant conversion: %0 does not fit in a '%1'" )
+    '' fbc's 24 (one value) or 7 (more): see UdtHasDefaultField_ (aggctorfield.tiko).
+    DIAG( TKO0985, SEV_ERROR,   "'%0' has a field with a default value, which an initializer list cannot fill" )
     DIAG( TKO0965, SEV_ERROR,   "'%0' has a field with a constructor, which an initializer list cannot fill" )
     DIAG( TKO0955, SEV_ERROR,   "'end %0' closes no '%0' block" )
     DIAG( TKO0956, SEV_ERROR,   "a second 'case else' -- a select has one, and it comes last" )

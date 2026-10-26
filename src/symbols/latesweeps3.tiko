@@ -1168,6 +1168,9 @@ private sub CheckAggregateInitFields_( byref c as Ctx )
         if (c.ast->Kind( ip->b ) <> N_INITIALIZER) andalso (UdtHasCtorField_( c, s->type_, 0 ) <> nullptr) then
             c.diags->Report( TKO0965, PointRange( c.ast->Loc( item ) ), c.names->Spelling( s->name ) )
             continue for
+        elseif (c.ast->Kind( ip->b ) <> N_INITIALIZER) andalso (UdtHasDefaultField_( c, s->type_, 0 ) <> nullptr) then
+            c.diags->Report( TKO0985, PointRange( c.ast->Loc( item ) ), c.names->Spelling( s->name ) )
+            continue for
         end if
         '' THE BITFIELD HALF IS STATIC-STORAGE ONLY -- 'shared', 'static', 'extern', 'common'.
         '' A plain module-level 'dim' is NOT: measured on fbc-modern, 'dim as T z = ( 1, 6 )'

@@ -402,6 +402,7 @@ private function FbcWarnLevel_( byval d as Tko.DiagId ) as int32
     case Tko.TKO0206 : return 1      '' warning 44, suffix ignored
     case Tko.TKO0201 : return 1      '' warning 12, missing closing quote
     case Tko.TKO0931 : return 1      '' warning 34, '=' parsed as equality in an argument
+    case Tko.TKO0984 : return 1      '' warning 25, overflow in constant conversion
     end select
     return -1
 end function

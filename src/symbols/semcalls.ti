@@ -112,6 +112,7 @@ declare sub CheckOneStructor_ _
 declare function IsProcPtr_ ( byref c as Ctx, byval t as TypeId ) as boolean
 declare function ProcOwner_ ( byref c as Ctx, byval id as NodeId ) as TypeId
 declare function UdtHasCtorField_ ( byref c as Ctx, byval t as TypeId, byval depth as int32 ) as Symbol ptr
+declare function UdtHasDefaultField_ ( byref c as Ctx, byval t as TypeId, byval depth as int32 ) as Symbol ptr
 declare function AssertOffsetOf_ ( byref c as Ctx, byval n as NodeId, byref v as int64 ) as boolean
 declare function AssertUdtSize_ ( byref c as Ctx, byval u as TypeId ) as int64
 declare sub CheckBraceLists_ ( byref c as Ctx )

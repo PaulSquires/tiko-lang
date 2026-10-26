@@ -125,6 +125,49 @@ private function ThisObjectTarget_( byref c as Ctx, byval n as NodeId ) as boole
     return c.types->Kind( c.types->Unqualify( c.types->Inner( t ) ) ) = TK_UDT
 end function
 
+'' A CONSTANT THAT DOES NOT FIT ITS INTEGER TARGET -- fbc's warning 25, "Overflow in constant
+'' conversion", at a 'dim', a 'const' and an '=' (fbc-modern 1.20, 2026-10-25). fbc's measure
+'' is the target's WIDTH, signed or not: 'byte = 128', 'short = 40000', 'ubyte = -1' and
+'' 'long = 3000000000' are silent, 'ubyte = 256', '&h1FF', 'byte = -129', 'ushort = 65536' and
+'' 'ulong = 4294967296' warn. tiko said nothing (by-example BUG-primitives-2). Not the case
+'' value's rule (proccheck.tiko CaseValueRange_), which is the type's own range.
+private sub ConstFitWarn_ ( byref c as Ctx, byval lt as TypeId, byval v as NodeId )
+    if (v = NODE_NONE) orelse (c.srcMgr = nullptr) then return
+    dim as TypeId tu = c.types->Unqualify( lt )
+    if c.types->Kind( tu ) <> TK_BUILTIN then return
+    dim as int32 w = 0
+    select case c.types->BuiltinOf( tu )
+    case TY_BYTE, TY_UBYTE   : w = 8
+    case TY_SHORT, TY_USHORT : w = 16
+    case TY_LONG, TY_ULONG   : w = 32
+    case TY_INTEGER, TY_UINTEGER
+        if c.types->target.pointerBits = 32 then w = 32
+    end select
+    if w = 0 then return
+    dim as TypeId vu = c.types->Unqualify( c.info->TypeOf_( v ) )
+    if (vu = TYPE_NONE) orelse (c.types->Kind( vu ) <> TK_BUILTIN) then return
+    dim as boolean vUns = false
+    select case c.types->BuiltinOf( vu )
+    case TY_UBYTE, TY_USHORT, TY_ULONG, TY_UINTEGER, TY_ULONGINT : vUns = true
+    case TY_BYTE, TY_SHORT, TY_LONG, TY_INTEGER, TY_LONGINT
+    case else
+        return                                      '' a float, a boolean, a string: not this
+    end select
+    dim as Check.ConstVal cv = Check.ConstOf( _
+        *c.ast, v, *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms, c.info->ScopeOf( v ) )
+    if cv.known = false then return
+    dim as int64 x = cv.value
+    dim as boolean fits
+    if vUns andalso (x < 0) then
+        fits = false                                '' 2^63 or more
+    else
+        fits = (x >= -(1ll shl (w - 1))) andalso (x <= (1ll shl w) - 1)
+    end if
+    if fits then return
+    c.diags->Report( TKO0984, PointRange( c.ast->Loc( v ) ), _
+                     iif( vUns andalso (x < 0), str( cast( ulongint, x ) ), str( x ) ), c.types->Name( tu ) )
+end sub
+
 sub CheckPtrAssign_ _
     ( byref c as Ctx, byval id as NodeId, byval resultType as TypeId = TYPE_NONE, _
       byval byrefResult as boolean = false )
@@ -168,6 +211,7 @@ sub CheckPtrAssign_ _
     end if
     '' Only a plain '=': 'p += 1' is pointer arithmetic, not a conversion.
     if sp->op = cast( uint16, TK_EQ ) then PtrWarn_( c, id, lt, rt, sp->b )
+    if sp->op = cast( uint16, TK_EQ ) then ConstFitWarn_( c, lt, sp->b )   '' fbc's 25 at 'u = 256'
     '' ...but 'n += p' and 'n -= p' store a pointer too (ptrwarn.tiko IntFromPtrWarn_). A
     '' BYREF result takes an address: 'function = @a' (functions/return-byref.bas).
     if byrefResult andalso (c.ast->Kind( sp->a ) = N_FUNCRESULT) then return
@@ -196,6 +240,7 @@ sub CheckPtrInit_ ( byref c as Ctx, byval id as NodeId )
     end if
     PtrWarn_( c, id, lt, rt, ip->b )
     IntFromPtrWarn_( c, id, lt, rt, ip->b )
+    ConstFitWarn_( c, lt, ip->b )
 end sub
 
 sub CheckPtrFloatAssign_ ( byref c as Ctx, byval id as NodeId )

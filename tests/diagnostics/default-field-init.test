@@ -1,0 +1,11 @@
+'' TKO0985 for a paren initialiser over a type with a defaulted field, at any depth, '= any'
+'' included (UdtHasDefaultField_, symbols/aggctorfield.tiko). tiko filled the list and zeroed
+'' the defaulted field (by-example BUG-custom-types-2).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/default-field-init.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: default-field-init.bas(14,10): error TKO0985
+'' EXPECT-OUT: default-field-init.bas(15,10): error TKO0985
+'' EXPECT-OUT: default-field-init.bas(16,10): error TKO0985
+'' EXPECT-OUT: default-field-init.bas(18,11): error TKO0985
+'' EXPECT-MAX-DIAG: 4
