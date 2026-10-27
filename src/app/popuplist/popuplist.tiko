@@ -9,9 +9,9 @@
 ' files, the build configurations, the bookmarks; Search Symbol and the functions list in P5. A
 ' tkHost popup over the main window holding an optional query box and a multi-column tkListTree.
 ' Typing in the box filters the rows fuzzily (tkc/fuzzy, best first); Up / Down / PgUp / PgDn
-' move; Tab and Shift+Tab move too; Enter picks; Esc, or the focus leaving, closes it with no
-' pick. With AcceptOnCtrlUp, letting go of Ctrl picks: a key-up bubbles from the focused list to
-' the popup's frame widget.
+' move; Tab and Shift+Tab move too; Enter or one click picks; Esc, or the focus leaving, closes it
+' with no pick. With AcceptOnCtrlUp, letting go of Ctrl picks: a key-up bubbles from the focused
+' list to the popup's frame widget.
 '
 ' The picker is not modal: Open returns at once and the pick arrives through OnPick, from inside
 ' the popup's own event, after the popup has closed.
@@ -23,11 +23,17 @@
 #import "tkControls/tkKeys"
 #import "tkControls/tkListTree"
 #import "tkControls/tkTextBox"
+#import "tkControls/tkPopupMenu"
+#import "tkControls/tkTheme"
+#import "tkControls/tkPaint"
 using containers
 using tkHost
 using tkKeys
 using tkListTree
 using tkTextBox
+using tkPopupMenu
+using tkTheme
+using tkPaint
 
 public const ROW_CY = 22                 ' one list row, unscaled
 const ID_QUERY = 1
@@ -55,6 +61,7 @@ public type Picker
     OnCancel as PickedProc               ' closed with no pick (Esc, the focus leaving): tag = -1
     Payload  as any ptr
     picked   as boolean                  ' Accept is closing it
+    pressed  as boolean                  ' the button went down on a row of this list
 
     ' ---- while open
     Pop   as TK_HOST ptr
@@ -82,8 +89,19 @@ private function PickerOf( byval h as TK_HOST ptr ) as Picker ptr
     return h->pUser
 end function
 
-' The frame: a key-up of Ctrl, bubbled from the list, picks when the switcher asked for that.
+' The frame: the right-click menu's background and border (tkPopupMenu's colours), and a key-up
+' of Ctrl, bubbled from the list, picks when the switcher asked for that.
 private function FrameProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    if m->msg = TKM_PAINT then
+        dim as TKPOPUPMENU_COLORS mc = tkPopupMenu_ThemeColors( tkTheme_Get( ) )
+        dim as TKRECT rc
+        tkRect_Set( rc, 0, 0, w->cw, w->ch )
+        m->pPaint->SetBackColor( mc.BackColor )
+        m->pPaint->PaintRect( @rc )
+        m->pPaint->SetPenColor( mc.BorderColor )
+        m->pPaint->PaintRoundOutline( @rc, 0, 1 )
+        return true
+    end if
     if m->msg <> TKM_KEYUP then return false
     dim as Picker ptr p = w->pData
     if (p = 0) orelse (p->AcceptOnCtrlUp = false) then return false
@@ -93,6 +111,26 @@ private function FrameProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as
     end if
     return false
 end function
+
+' A row in the right-click menu's colours: its background and text, its highlight for the
+' selected row (tkListTree_PaintRowDefault's layout).
+private sub PaintPickRow( byval pi as TKLISTTREE_PAINTINFO ptr )
+    dim as TK_PAINT ptr b = pi->b
+    dim as TKPOPUPMENU_COLORS mc = tkPopupMenu_ThemeColors( tkTheme_Get( ) )
+    dim as ulong back_ = mc.BackColor, fore = mc.ForeColor
+    if pi->isSelected then
+        back_ = mc.BackColorHot : fore = mc.ForeColorHot
+    end if
+    b->SetBackColor( back_ )
+    b->PaintRect( @pi->rc )
+    b->SetForeColor( fore )
+    dim as long pad = tkHost_Scale( pi->hList->pHost, 6 )
+    for c as integer = 0 to pi->columnCount - 1
+        dim as TKRECT rt = pi->cells[c].rc
+        rt.left += pad : rt.right -= pad
+        b->PaintText( pi->cells[c].wszText, @rt, TK_DT_LEFT or TK_DT_ELLIPSIS )
+    next
+end sub
 
 ' The rows that match the query, best first; all of them, in order, for an empty query.
 sub Picker.Refilter( )
@@ -149,6 +187,8 @@ function Picker.Open( byval owner as TK_HOST ptr, byref rows_ as const Array( of
     Pop = tkHost_CreatePopup( owner, x, y, w, h )
     if Pop = 0 then return false
     Pop->pUser = @this
+    dim as TKPOPUPMENU_COLORS mc = tkPopupMenu_ThemeColors( tkTheme_Get( ) )
+    Pop->clrBack = mc.BackColor
     Pop->OnClosed = sub( byval h as TK_HOST ptr )
         dim as Picker ptr p = PickerOf( h )
         if p = 0 then exit sub
@@ -190,6 +230,11 @@ function Picker.Open( byval owner as TK_HOST ptr, byref rows_ as const Array( of
     tkWidget_SetPos( Frame, 0, 0, w, h )
     if Filter then
         Query = tkTextBox_Create( Frame, ID_QUERY )
+        dim as TKTEXTBOX_COLORS qc = tkTextBox_ThemeColors( tkTheme_Get( ) )
+        qc.BackColor = mc.BackColor
+        qc.OuterBackColor = mc.BackColor
+        qc.ForeColor = mc.ForeColor
+        tkTextBox_SetColors( Query, @qc )
         tkWidget_SetPos( Query, pad, pad, w - 2 * pad, qh - pad )
         tkTextBox_SetChangeCallback( Query, sub( byval hTb as TK_WIDGET ptr )
             dim as Picker ptr p = PickerOf( hTb->pHost )
@@ -204,11 +249,30 @@ function Picker.Open( byval owner as TK_HOST ptr, byref rows_ as const Array( of
     if Columns.Count( ) = 0 then tkListTree_AddColumn( List, "", w )
     tkListTree_SetFillColumn( List, tkListTree_GetColumnCount( List ) - 1 )
     tkListTree_ShowHeader( List, false )
-    tkListTree_SetPaintCallback( List, @tkListTree_PaintRowDefault )   ' a tkListTree draws no row by itself
+    tkListTree_SetPaintCallback( List, @PaintPickRow )   ' a tkListTree draws no row by itself
+    tkListTree_SetBackColor( List, mc.BackColor )
     tkListTree_SetActivateCallback( List, sub( byval hL as TK_WIDGET ptr, byval row as integer )
         dim as Picker ptr p = PickerOf( hL->pHost )
         if p then p->Accept( )
     end sub )
+    ' one click picks: a press on a row, then its release over a row. The release of the click that
+    ' opened the list (on the status line) can reach it too, and is not a pick.
+    pressed = false
+    tkListTree_SetMessageCallback( List, function( byval mi as TKLISTTREE_MESSAGEINFO ptr ) as boolean
+        dim as Picker ptr p = PickerOf( mi->hList->pHost )
+        if p = 0 then return false
+        if mi->msg = TKM_LBUTTONDOWN then
+            p->pressed = (mi->idx >= 0)
+            return false
+        end if
+        if mi->msg <> TKM_LBUTTONUP then return false
+        dim as boolean wasPressed = p->pressed
+        p->pressed = false
+        if (mi->idx < 0) orelse (wasPressed = false) then return false
+        tkListTree_SetCurSel( mi->hList, mi->idx )
+        p->Accept( )
+        return true
+    end function )
     if (Query <> 0) andalso (len( SeedQuery ) > 0) then
         tkTextBox_SetText( Query, SeedQuery )
         tkTextBox_SetSel( Query, len( SeedQuery ), len( SeedQuery ) )

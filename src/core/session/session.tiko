@@ -6,7 +6,8 @@
 '    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 '
 ' session -- what was open and where (docs/tkEdit/CONFIG.md): the buffers, each one's caret,
-' first line, bookmarks and folds, the active buffer, the split and the build configuration.
+' first line, bookmarks and folds, the active buffer, the split and the build configuration; in
+' session.toml also the main window's place ([window], in SDL's window coordinates).
 ' session.toml (in the config folder) holds it when no project is open; a .tkedit project file
 ' (P4) holds the same tables beside its [project]. The app writes this file; nobody edits it, so
 ' it is written through std/config (which drops comments).
@@ -57,6 +58,11 @@ public type SessionState
     Files      as Array( of FileState )
     Recent     as Array( of ustring )  ' recently opened files, newest first, full paths
     Project    as ustring              ' session.toml: the project that was open, full path
+    WinX       as long                 ' session.toml: the window's normal (not maximized) place
+    WinY       as long
+    WinW       as long                 ' 0 = none kept: the default size, centred
+    WinH       as long
+    WinMax     as boolean              ' it was maximized
 end type
 
 public type SessionResult as Result( of SessionState, config.ConfigError )
@@ -119,6 +125,13 @@ public function FromToml( byref root as config.TomlValue ) as SessionState
         st.Files.Push( f )
     next
     st.Recent = tomlget.GetStrings( tomlget.Table( root, "recent" ), "files" )
+    dim as config.TomlValue w = tomlget.Table( root, "window" )
+    st.WinX = tomlget.GetInt( w, "x", 0 )
+    st.WinY = tomlget.GetInt( w, "y", 0 )
+    st.WinW = tomlget.GetInt( w, "width", 0 )
+    st.WinH = tomlget.GetInt( w, "height", 0 )
+    st.WinMax = tomlget.GetBool( w, "maximized", false )
+    if (st.WinW < 200) orelse (st.WinH < 150) then st.WinW = 0 : st.WinH = 0
     return st
 end function
 
@@ -136,6 +149,15 @@ public sub IntoToml( byref root as config.TomlValue, byref st as SessionState )
         dim as config.TomlValue r = config.TomlValue.NewTable( )
         tomlget.SetStrings( r, "files", st.Recent )
         root.SetKey( "recent", r )
+    end if
+    if st.WinW > 0 then
+        dim as config.TomlValue w = config.TomlValue.NewTable( )
+        tomlget.SetInt( w, "x", st.WinX )
+        tomlget.SetInt( w, "y", st.WinY )
+        tomlget.SetInt( w, "width", st.WinW )
+        tomlget.SetInt( w, "height", st.WinH )
+        tomlget.SetBool( w, "maximized", st.WinMax )
+        root.SetKey( "window", w )
     end if
     if st.Files.Count( ) = 0 then exit sub
     dim as config.TomlValue a = config.TomlValue.NewArray( )

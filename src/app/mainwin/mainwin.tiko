@@ -63,6 +63,7 @@
 #import "tkControls/tkPopupMenu"
 #import "tkControls/tkSplitter"
 #import "tkControls/tkStatusBar"
+#import "tkControls/tkTheme"
 using containers
 using outcome
 using cmdids
@@ -77,6 +78,7 @@ using tkPaint
 using tkPopupMenu
 using tkSplitter
 using tkStatusBar
+using tkTheme
 
 public const FONT_UI = "Inter-Regular.ttf"
 public const FONT_UI_BOLD = "Inter-Bold.ttf"
@@ -101,7 +103,9 @@ public enum StatusPanel explicit
     Buffer = 0          ' the active buffer's name, its full path the tooltip; a click lists the buffers
     Message             ' stretches: build results, config errors; a click shows or hides the output pane
     Position            ' Ln, Col; a click opens Go to Line, or closes it
-    Build               ' the build configuration; a click picks one
+    Settings            ' "Settings": a click opens settings.toml
+    Keys                ' "Keys": a click opens keybindings.toml
+    Build               ' the build configuration; a click picks one, and makes it settings.toml's default
     Encoding            ' a click picks one
     LineEnding          ' a click converts
 end enum
@@ -304,12 +308,16 @@ public type Window
     form as TK_FORM ptr
     status as TK_WIDGET ptr
     splitBar as TK_WIDGET ptr
+    NormalX as long                     ' the window's last place while neither maximized nor minimized
+    NormalY as long
+    NormalW as long
+    NormalH as long
+    StartMax as boolean                 ' Show maximizes it (session.toml said so)
     editMenu as TK_MENU ptr             ' a view's right-click menu
     accel as TK_KEYMAP ptr
     diskTimer as long
     untitled as long
     viewIds as long
-    asking as boolean                   ' a disk-change question is up
 
     declare function Create( byval forcedScale as single = 0 ) as boolean
     declare sub Show( )
@@ -336,6 +344,7 @@ public type Window
     declare sub ReloadSettings( )
     declare sub SyncSettingsFile( )
     declare sub SyncKeysFile( )
+    declare sub SetDefaultBuild( byref name_ as const ustring )
     declare sub ReloadKeys( )
     declare sub ReloadTheme( )
     declare sub ApplyLook( )
@@ -361,6 +370,7 @@ public type Window
     declare sub SetLineEnding( byval e as docencoding.LineEnd )
     declare sub SaveSession( )
     declare sub RestoreSession( )
+    declare sub KeepNormalPlace( )
 
     ' ---- find, replace, go to line, bookmarks, typing
     declare sub OpenStrip( byval m as findstrip.StripMode )
@@ -482,6 +492,8 @@ function Window.Create( byval forcedScale as single ) as boolean
             else
                 mw->Execute( Cmd.GoToLine )
             end if
+        case StatusPanel.Settings : mw->Execute( Cmd.Settings )
+        case StatusPanel.Keys : mw->Execute( Cmd.KeyboardShortcuts )
         case StatusPanel.Build : mw->OpenChooser( PickKind.Build )
         case StatusPanel.Encoding : mw->OpenChooser( PickKind.Encoding )
         case StatusPanel.LineEnding : mw->OpenChooser( PickKind.LineEnding )
@@ -541,6 +553,7 @@ function Window.Create( byval forcedScale as single ) as boolean
     this.Touch( d )
 
     tkForm_OnSize( form, sub( byval f as TK_FORM ptr, byval cx as long, byval cy as long )
+        cast( Window ptr, f->Tag )->KeepNormalPlace( )
         cast( Window ptr, f->Tag )->Layout( )
     end sub )
     tkForm_OnScaleChanged( form, sub( byval f as TK_FORM ptr, byval fOld as single, byval fNew as single )
@@ -599,6 +612,7 @@ end function
 sub Window.Show( )
     if form = 0 then exit sub
     tkForm_Show( form )
+    if StartMax then SDL_MaximizeWindow( tkForm_Host( form )->win )
     this.View( ).Focus( )
 end sub
 
@@ -711,6 +725,8 @@ sub Window.ShowStatus( )
     tkStatusBar_SetText( status, StatusPanel.Message, Message )
     tkStatusBar_SetText( status, StatusPanel.Position, _
                          strings.Format( "Ln {}, Col {}", v->CaretLine( ), v->CaretColumn( ) ) )
+    tkStatusBar_SetText( status, StatusPanel.Settings, "Settings" )
+    tkStatusBar_SetText( status, StatusPanel.Keys, "Keys" )
     tkStatusBar_SetText( status, StatusPanel.Build, CurrentBuild )
     tkStatusBar_SetText( status, StatusPanel.Encoding, docencoding.EncodingName( d->Enc.Encoding ) )
     dim as ustring eol = "CRLF"
@@ -979,6 +995,29 @@ sub Window.SyncSettingsFile( )
     if r.IsOk( ) then settings.WriteFile( this.SettingsFile( ), r.Value( ) )
 end sub
 
+' The build configuration name_ is used now and is settings.toml's default from now on: the file
+' is rewritten, and the buffer showing it, if one does, reloaded. A file that does not parse is
+' the person's to fix: the choice holds for this run only.
+sub Window.SetDefaultBuild( byref name_ as const ustring )
+    CurrentBuild = name_
+    dim as settings.SettingsResult r = settings.LoadSettings( this.SettingsFile( ) )
+    if r.IsOk( ) = false then
+        this.SetMessage( settings.SETTINGS_FILE & " does not parse: " & name_ & " is not saved as the default" )
+        exit sub
+    end if
+    dim as settings.EditorSettings st = r.Value( )
+    for i as long = 0 to st.Builds.Count( ) - 1
+        st.Builds[i].IsDefault = (st.Builds[i].Name = name_)
+    next
+    for i as long = 0 to Prefs.Builds.Count( ) - 1
+        Prefs.Builds[i].IsDefault = (Prefs.Builds[i].Name = name_)
+    next
+    if settings.WriteFile( this.SettingsFile( ), st ) then
+        dim as DocRef d = this.FindOpen( this.SettingsFile( ) )
+        if d then d->Reload( )
+    end if
+end sub
+
 ' keybindings.toml rewritten to list every command at the chord in force, unless it does already
 ' (first run: written). A file that does not load is the person's to fix, and is left alone.
 sub Window.SyncKeysFile( )
@@ -1037,6 +1076,11 @@ sub Window.ReloadTheme( )
         end if
     end if
     tkApp_SetTheme( chrome.PaletteOf( Theme ) )
+    ' the status line's background is the right-click menu's (tkPopupMenu's Popup colour)
+    dim as TKTHEME_COLORS tc = tkApp_Theme( )
+    dim as TKSTATUSBAR_COLORS sbc = tkStatusBar_ThemeColors( tc )
+    sbc.BackColor = tc.Popup
+    tkStatusBar_SetColors( status, @sbc )
     this.ApplyLook( )
     tkForm_Invalidate( form )
 end sub
@@ -1423,25 +1467,17 @@ sub Window.FocusPane( byval second as boolean )
     this.ShowStatus( )
 end sub
 
-' Another program wrote (or removed) an open file: an unmodified buffer reloads, a modified one
-' asks first. A removed file keeps its text and is not asked about again.
+' Another program wrote (or removed) an open file: its buffer reloads, modified or not, with no
+' message (the author's rule, 2026-10-27). A removed file's buffer keeps its text.
 sub Window.CheckDisk( )
-    if asking then exit sub
-    asking = true
     for each d as DocRef in Docs
         if d->ChangedOnDisk( ) = false then continue for
-        if fs.IsFile( d->Path ) = false then
-            d->Ignored = documents.StampOf( d->Path )
-        elseif d->IsModified( ) = false then
-            d->Reload( )
-        elseif Ask( form, d->DisplayName( ) & ": changed by another program. Reload it and lose your changes?", _
-                    MBX_BTN_YESNO ) = MBX_IDYES then
+        if fs.IsFile( d->Path ) then
             d->Reload( )
         else
             d->Ignored = documents.StampOf( d->Path )
         end if
     next
-    asking = false
     this.ShowStatus( )
 end sub
 
@@ -1534,7 +1570,8 @@ sub Window.ApplyState( byref st as const session.SessionState, byref base_ as co
     end if
 end sub
 
-' session.toml: what is open outside a project, the recent files, the project that was open.
+' session.toml: what is open outside a project, the recent files, the project that was open, the
+' window's place.
 sub Window.SaveSession( )
     dim as session.SessionState st
     if ProjOpen then
@@ -1544,13 +1581,57 @@ sub Window.SaveSession( )
     end if
     st.Build = CurrentBuild
     st.Recent = Recent.Items( )
+    this.KeepNormalPlace( )
+    st.WinX = NormalX
+    st.WinY = NormalY
+    st.WinW = NormalW
+    st.WinH = NormalH
+    st.WinMax = (SDL_GetWindowFlags( tkForm_Host( form )->win ) and SDL_WINDOW_MAXIMIZED) <> 0
     session.SaveSession( this.SessionFile( ), st )
 end sub
+
+' The window's place, unless it is maximized, minimized or full screen (that place is not the one to
+' come back to).
+sub Window.KeepNormalPlace( )
+    if form = 0 then exit sub
+    dim as SDL_Window ptr win = tkForm_Host( form )->win
+    if (SDL_GetWindowFlags( win ) and (SDL_WINDOW_MAXIMIZED or SDL_WINDOW_MINIMIZED or SDL_WINDOW_FULLSCREEN)) <> 0 then exit sub
+    dim as long x, y, w, h
+    SDL_GetWindowPosition( win, @x, @y )
+    SDL_GetWindowSize( win, @w, @h )
+    if (w < 200) orelse (h < 150) then exit sub
+    NormalX = x : NormalY = y : NormalW = w : NormalH = h
+end sub
+
+' Is the middle of a window's top edge at x, y (width w) on a display? A place kept from a monitor
+' since unplugged is not used.
+private function OnADisplay( byval x as long, byval y as long, byval w as long ) as boolean
+    dim as long n = 0
+    dim as SDL_DisplayID ptr ids = SDL_GetDisplays( @n )
+    if ids = 0 then return false
+    dim as boolean found = false
+    dim as long mx = x + w \ 2
+    for i as long = 0 to n - 1
+        dim as SDL_Rect r
+        if SDL_GetDisplayUsableBounds( ids[i], @r ) then
+            if (mx >= r.x) andalso (mx < r.x + r.w) andalso (y >= r.y) andalso (y < r.y + r.h) then found = true
+        end if
+    next
+    SDL_free( ids )
+    return found
+end function
 
 sub Window.RestoreSession( )
     dim as session.SessionResult r = session.LoadSession( this.SessionFile( ) )
     if r.IsOk( ) = false then exit sub
     dim as session.SessionState st = r.Value( )
+    if (st.WinW > 0) andalso (form <> 0) then
+        dim as SDL_Window ptr win = tkForm_Host( form )->win
+        SDL_SetWindowSize( win, st.WinW, st.WinH )
+        if OnADisplay( st.WinX, st.WinY, st.WinW ) then SDL_SetWindowPosition( win, st.WinX, st.WinY )
+        NormalX = st.WinX : NormalY = st.WinY : NormalW = st.WinW : NormalH = st.WinH
+        StartMax = st.WinMax
+    end if
     if len( st.Project ) andalso fs.IsFile( st.Project ) then
         this.OpenProject( st.Project )
     else
@@ -1574,8 +1655,6 @@ private function Row( byval a as ustring, byval b as ustring, byval c as ustring
     return r
 end function
 
-' The one popup list, anchored at the bottom of the panes: what kind decides the rows and what a
-' pick does (Chosen).
 ' The short lists over the right-hand status panels: a name and a note, no wider than they need.
 private sub Narrow( byref c as popuplist.Picker, byref popW as long )
     c.Columns.Clear( )
@@ -1585,6 +1664,8 @@ private sub Narrow( byref c as popuplist.Picker, byref popW as long )
     popW = 280
 end sub
 
+' The one popup list, anchored at the bottom of the panes: what kind decides the rows and what a
+' pick does (Chosen).
 sub Window.OpenChooser( byval kind as PickKind )
     dim as Array( of popuplist.PickRow ) rows
     dim as long sel = 0
@@ -1798,7 +1879,7 @@ sub Window.Chosen( byval tag as long )
     case PickKind.Encoding : this.SetEncoding( cast( docencoding.FileEncoding, tag ) )
     case PickKind.LineEnding : this.SetLineEnding( cast( docencoding.LineEnd, tag ) )
     case PickKind.Build
-        if (tag >= 0) andalso (tag < Prefs.Builds.Count( )) then CurrentBuild = Prefs.Builds[tag].Name
+        if (tag >= 0) andalso (tag < Prefs.Builds.Count( )) then this.SetDefaultBuild( Prefs.Builds[tag].Name )
     case PickKind.Symbols, PickKind.Functions
         if (tag >= 0) andalso (tag < Hits.Count( )) then
             dim as SymHit hh = Hits[tag]
