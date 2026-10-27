@@ -211,10 +211,52 @@ public function LoadKeywords( byref resourceDir as const ustring ) as editor.Key
     return k
 end function
 
-private function AskPerson( byval f as TK_FORM ptr, byref text as const ustring, byval buttons as long ) as long
+' A question box for text with the preset's buttons, in the interface's language (vendor's
+' tkMessageBox_AddPreset says them in English): the same ids, default and cancel as the preset.
+' Not shown: DoModal shows it, tkMessageBox_Destroy frees one that never was.
+public function NewAskBox( byval parent as TK_WIDGET ptr, byref text as const ustring, byval buttons as long ) as TK_WIDGET ptr
+    dim as TK_WIDGET ptr box = tkMessageBox_Create( parent )
+    if box = 0 then return 0
+    tkMessageBox_SetCaption( box, platform.APP_NAME )
+    tkMessageBox_SetText( box, text )
     dim as long icon = MBX_ICON_QUESTION
     if buttons = MBX_BTN_OK then icon = MBX_ICON_INFO
-    return tkMessageBox_Show( tkForm_Widget( f ), text, platform.APP_NAME, icon, buttons )
+    tkMessageBox_SetIconKind( box, icon )
+    dim as ustring ok_ = i18n.Tr( "button.ok", "OK" ), cancel_ = i18n.Tr( "button.cancel", "Cancel" )
+    dim as ustring yes_ = i18n.Tr( "button.yes", "Yes" ), no_ = i18n.Tr( "button.no", "No" )
+    dim as long cancelId = MBX_IDCANCEL
+    select case buttons
+    case MBX_BTN_OKCANCEL
+        tkMessageBox_AddButton( box, ok_, MBX_IDOK )
+        tkMessageBox_AddButton( box, cancel_, MBX_IDCANCEL )
+    case MBX_BTN_YESNO
+        tkMessageBox_AddButton( box, yes_, MBX_IDYES )
+        tkMessageBox_AddButton( box, no_, MBX_IDNO )
+        cancelId = MBX_IDNO                           ' the safe half of yes/no
+    case MBX_BTN_YESNOCANCEL
+        tkMessageBox_AddButton( box, yes_, MBX_IDYES )
+        tkMessageBox_AddButton( box, no_, MBX_IDNO )
+        tkMessageBox_AddButton( box, cancel_, MBX_IDCANCEL )
+    case MBX_BTN_RETRYCANCEL
+        tkMessageBox_AddButton( box, i18n.Tr( "button.retry", "Retry" ), MBX_IDRETRY )
+        tkMessageBox_AddButton( box, cancel_, MBX_IDCANCEL )
+    case MBX_BTN_SAVE_DONTSAVE_CANCEL
+        tkMessageBox_AddButton( box, i18n.Tr( "button.save", "Save" ), MBX_IDYES )
+        tkMessageBox_AddButton( box, i18n.Tr( "button.dont_save", "Don't Save" ), MBX_IDNO )
+        tkMessageBox_AddButton( box, cancel_, MBX_IDCANCEL )
+    case else
+        tkMessageBox_AddButton( box, ok_, MBX_IDOK )
+        cancelId = MBX_IDOK                           ' Esc must not be a silent no-op
+    end select
+    tkMessageBox_SetDefaultButton( box, 0 )
+    tkMessageBox_SetCancelID( box, cancelId )
+    return box
+end function
+
+private function AskPerson( byval f as TK_FORM ptr, byref text as const ustring, byval buttons as long ) as long
+    dim as TK_WIDGET ptr box = NewAskBox( tkForm_Widget( f ), text, buttons )
+    if box = 0 then return 0
+    return tkMessageBox_DoModal( box )
 end function
 
 private function LaunchProgram( byref argv as const Array( of ustring ), byref workDir as const ustring ) as boolean

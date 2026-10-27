@@ -95,6 +95,15 @@ filter_projects = "Projets tkEdit"
 filter_all = "Tous les fichiers"
 filter_compiler = "Compilateur tiko"
 
+[button]
+ok = "OK"
+cancel = "Annuler"
+yes = "Oui"
+no = "Non"
+retry = "Réessayer"
+save = "Enregistrer"
+dont_save = "Ne pas enregistrer"
+
 [ask]
 save_changes = "{} : enregistrer les modifications ?"
 save_lossy = "{0} : certains caractères ne peuvent pas être écrits en {1} et seront remplacés. Enregistrer quand même ?"

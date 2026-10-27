@@ -25,6 +25,7 @@
 #import "tkc/i18n"
 #import "tka/editor"
 #import "vendor/tkControls/tkApp"
+#import "vendor/tkControls/tkPaint"
 #import "vendor/tkControls/tkTextBox"
 #import "vendor/tkControls/tkToolbar"
 using containers
@@ -82,6 +83,7 @@ public type Strip
     replaceBox as TK_WIDGET ptr
     tools as TK_WIDGET ptr
     rtools as TK_WIDGET ptr
+    labelW as long                       ' the label column, pixels: its widest label (Layout)
     status as ustring                    ' "3 of 10", "No matches", "1 - 380"
     Mode as StripMode
     isOpen as boolean
@@ -114,6 +116,17 @@ end function
 
 ' The toolbars sit on the strip's Surface, not their own default Window back colour. Pinned, so a
 ' theme change repaints them only through here.
+' The label left of row 1 in mode m, or of row 2 (the replacement), in the interface's language.
+public function LabelText( byval m as StripMode, byval row2 as boolean = false ) as ustring
+    if row2 then return i18n.Tr( "find.label_replace", "Replace:" )
+    select case m
+    case StripMode.GoTo : return i18n.Tr( "find.label_line", "Line:" )
+    case StripMode.Project : return i18n.Tr( "find.label_files", "In files:" )
+    case StripMode.Args : return i18n.Tr( "find.label_arguments", "Arguments:" )
+    end select
+    return i18n.Tr( "find.label_find", "Find:" )
+end function
+
 private sub MatchTools( byval st as Strip ptr )
     dim as TKTOOLBAR_COLORS c = tkToolbar_ThemeColors( tkTheme_Get( ) )
     c.BackColor = tkTheme_Get( ).Surface
@@ -135,15 +148,12 @@ private function FrameProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as
         m->pPaint->SetForeColor( tkTheme_Get( ).TextDim )
         ' the labels
         dim as TKRECT lb
-        tkRect_Set( lb, pad, 0, tkHost_Scale( w->pHost, LABEL_CX ), rowH )
-        dim as ustring first = i18n.Tr( "find.label_find", "Find:" )
-        if st->Mode = StripMode.GoTo then first = i18n.Tr( "find.label_line", "Line:" )
-        if st->Mode = StripMode.Project then first = i18n.Tr( "find.label_files", "In files:" )
-        if st->Mode = StripMode.Args then first = i18n.Tr( "find.label_arguments", "Arguments:" )
-        m->pPaint->PaintText( first, @lb, TK_DT_LEFT or TK_DT_VCENTER )
+        dim as long labelR = pad + st->labelW
+        tkRect_Set( lb, pad, 0, labelR, rowH )
+        m->pPaint->PaintText( LabelText( st->Mode ), @lb, TK_DT_LEFT or TK_DT_VCENTER )
         if st->Mode = StripMode.Replace then
-            tkRect_Set( lb, pad, rowH, tkHost_Scale( w->pHost, LABEL_CX ), rowH * 2 )
-            m->pPaint->PaintText( i18n.Tr( "find.label_replace", "Replace:" ), @lb, TK_DT_LEFT or TK_DT_VCENTER )
+            tkRect_Set( lb, pad, rowH, labelR, rowH * 2 )
+            m->pPaint->PaintText( LabelText( st->Mode, true ), @lb, TK_DT_LEFT or TK_DT_VCENTER )
         end if
         ' the count, right of the tools (of the box in Go to Line)
         dim as long sx = st->findBox->x + st->findBox->cw + pad
@@ -312,14 +322,30 @@ sub Strip.Layout( )
     if frame = 0 then exit sub
     dim as TK_HOST ptr h = frame->pHost
     dim as long rowH = tkHost_Scale( h, ROW_CY ), pad = tkHost_Scale( h, 3 )
-    dim as long lx = tkHost_Scale( h, LABEL_CX ) + tkHost_Scale( h, 6 )
+    ' the label column: LABEL_CX, or the widest label in this language (French "In files" is wider)
+    labelW = tkHost_Scale( h, LABEL_CX )
+    dim as TK_FORM ptr f = tkForm_FromWidget( frame )
+    dim as TTF_Font ptr fnt = 0
+    if f then fnt = tkForm_Font( f, TKFONT_UI )
+    if fnt then
+        dim as StripMode modes( 0 to 3 ) = { StripMode.Find, StripMode.GoTo, StripMode.Project, StripMode.Args }
+        for i as long = 0 to 4
+            dim as long tw
+            if i = 4 then tw = tkText_Width( fnt, LabelText( StripMode.Replace, true ) ) else tw = tkText_Width( fnt, LabelText( modes( i ) ) )
+            if tw > labelW then labelW = tw
+        next
+    end if
+    dim as long lx = labelW + tkHost_Scale( h, 6 )
     dim as long boxW = tkHost_Scale( h, BOX_CX ), boxH = rowH - 2 * pad
-    dim as long toolW = tkHost_Scale( h, 8 * 30 )
+    ' the tools: their fixed widths, or wider when a language's words need it
+    dim as long toolW = tkHost_Scale( h, 8 * 30 ), rtoolW = tkHost_Scale( h, 160 )
+    if tkToolbar_GetIdealWidth( tools ) > toolW then toolW = tkToolbar_GetIdealWidth( tools )
+    if tkToolbar_GetIdealWidth( rtools ) > rtoolW then rtoolW = tkToolbar_GetIdealWidth( rtools )
     if boxW > frame->cw / 2 then boxW = frame->cw / 2
     tkWidget_SetPos( findBox, lx, pad, boxW, boxH )
     tkWidget_SetPos( tools, lx + boxW + pad * 2, 0, toolW, rowH )
     tkWidget_SetPos( replaceBox, lx, rowH + pad, boxW, boxH )
-    tkWidget_SetPos( rtools, lx + boxW + pad * 2, rowH, tkHost_Scale( h, 160 ), rowH )
+    tkWidget_SetPos( rtools, lx + boxW + pad * 2, rowH, rtoolW, rowH )
 end sub
 
 function Strip.Phrase( ) as ustring

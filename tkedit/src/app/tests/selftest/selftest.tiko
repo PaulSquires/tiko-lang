@@ -35,6 +35,7 @@
 #import "vendor/tkControls/tkTest"
 #import "vendor/tkControls/tkPaint"
 #import "vendor/tkControls/tkPopupMenu"
+#import "vendor/tkControls/tkButton"
 #import "vendor/tkControls/tkMessageBox"
 #import "vendor/tkControls/tkStatusBar"
 #import "vendor/tkControls/tkTextBox"
@@ -49,6 +50,7 @@ using tkHost
 using tkTest
 using tkPaint
 using tkPopupMenu
+using tkButton
 using tkMessageBox
 using tkStatusBar
 using tkTextBox
@@ -448,6 +450,57 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     t.Check( (mw.StatusText( mainwin.StatusPanel.Project ) = "Projet") andalso (tkTabBar_GetText( mw.Out.tabs, 0 ) = "R" & wchr( &hE9 ) & "sultats"), _
              P( sc, "in French: " & mw.StatusText( mainwin.StatusPanel.Project ) & ", " & tkTabBar_GetText( mw.Out.tabs, 0 ) ) )
     t.Check( len( mw.Message ) = 0, P( sc, "the shipped catalog loads without a warning: " & mw.Message ) )
+    ' French has the widest words: the find strip's label column and its tools grow to them
+    mw.Execute( Cmd.Find )
+    scope
+        dim as TTF_Font ptr fnt = tkForm_Font( mw.form, TKFONT_UI )
+        dim as findstrip.StripMode ms( 0 to 3 ) = { findstrip.StripMode.Find, findstrip.StripMode.GoTo, _
+                                                    findstrip.StripMode.Project, findstrip.StripMode.Args }
+        dim as long widest = tkText_Width( fnt, findstrip.LabelText( findstrip.StripMode.Replace, true ) )
+        for i as long = 0 to 3
+            dim as long tw = tkText_Width( fnt, findstrip.LabelText( ms( i ) ) )
+            if tw > widest then widest = tw
+        next
+        dim as long fixedW = tkHost_Scale( tkForm_Host( mw.form ), 84 )
+        t.Check( mw.Finder.isOpen andalso (widest > fixedW), P( sc, strings.Format( "a French label is wider than the old column ({} > {})", widest, fixedW ) ) )
+        t.Check( (widest <= mw.Finder.labelW) andalso (mw.Finder.findBox->x > mw.Finder.labelW), _
+                 P( sc, strings.Format( "the labels fit: widest {} in a column of {}, the box at {}", widest, mw.Finder.labelW, mw.Finder.findBox->x ) ) )
+        t.Check( (tkToolbar_GetIdealWidth( mw.Finder.tools ) <= mw.Finder.tools->cw) andalso _
+                 (tkToolbar_GetIdealWidth( mw.Finder.rtools ) <= mw.Finder.rtools->cw), _
+                 P( sc, strings.Format( "the tools hold their words: {}/{}, {}/{}", tkToolbar_GetIdealWidth( mw.Finder.tools ), mw.Finder.tools->cw, _
+                                        tkToolbar_GetIdealWidth( mw.Finder.rtools ), mw.Finder.rtools->cw ) ) )
+    end scope
+    mw.OnFind( findstrip.FindAction.CloseStrip )
+    ' the question box's buttons in French, each as wide as its words, none overlapping, inside the box
+    scope
+        dim as TK_WIDGET ptr box = mainwin.NewAskBox( tkForm_Widget( mw.form ), "x", MBX_BTN_SAVE_DONTSAVE_CANCEL )
+        t.Check( (tkMessageBox_GetButtonCount( box ) = 3) andalso _
+                 (tkButton_GetText( tkMessageBox_GetButtonHandle( box, 0 ) ) = "Enregistrer") andalso _
+                 (tkButton_GetText( tkMessageBox_GetButtonHandle( box, 1 ) ) = "Ne pas enregistrer") andalso _
+                 (tkButton_GetText( tkMessageBox_GetButtonHandle( box, 2 ) ) = "Annuler"), _
+                 P( sc, "Save / Don't Save / Cancel in French" ) )
+        t.Check( (tkMessageBox_GetDefaultButton( box ) = 0) andalso (tkMessageBox_GetCancelID( box ) = MBX_IDCANCEL), _
+                 P( sc, "the preset's default and cancel kept" ) )
+        tkMessageBox_LayoutForTest( box )
+        dim as long bw, bh
+        tkMessageBox_GetIdealSize( box, bw, bh )
+        dim as TKRECT r( 0 to 2 )
+        dim as boolean fits = true
+        for i as long = 0 to 2
+            tkMessageBox_GetButtonRect( box, i, r( i ) )
+            dim as long iw, ih
+            tkButton_GetIdealSize( tkMessageBox_GetButtonHandle( box, i ), iw, ih )
+            if (r( i ).left < 0) orelse (r( i ).right > bw) orelse (r( i ).right - r( i ).left < iw) then fits = false
+        next
+        for i as long = 0 to 1
+            for j as long = i + 1 to 2
+                if (r( i ).right > r( j ).left) andalso (r( j ).right > r( i ).left) then fits = false
+            next
+        next
+        t.Check( fits, P( sc, strings.Format( "the buttons fit the box ({} wide): {}-{} {}-{} {}-{}", bw, r( 0 ).left, r( 0 ).right, _
+                                              r( 1 ).left, r( 1 ).right, r( 2 ).left, r( 2 ).right ) ) )
+        tkMessageBox_Destroy( box )
+    end scope
     mw.View( ).SetText( "version = 1" & nl & "[ui]" & nl & "theme = 'light'" & nl & "language = 'xx'" & nl )
     Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
     t.Check( mw.StatusText( mainwin.StatusPanel.Project ) = "Project", P( sc, "a code with no catalog is English" ) )
