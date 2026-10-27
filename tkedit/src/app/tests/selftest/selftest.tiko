@@ -38,6 +38,7 @@
 #import "vendor/tkControls/tkMessageBox"
 #import "vendor/tkControls/tkStatusBar"
 #import "vendor/tkControls/tkTextBox"
+#import "vendor/tkControls/tkTabBar"
 #import "vendor/tkControls/tkToolbar"
 #import "vendor/tkControls/tkListTree"
 #import "std/containers"
@@ -52,6 +53,7 @@ using tkMessageBox
 using tkStatusBar
 using tkTextBox
 using tkListTree
+using tkTabBar
 using tkToolbar
 using tkTheme
 
@@ -414,7 +416,9 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     fs.CreateDirAll( ld )
     dim as ustring lf = fs.PathJoin( ld, "de.toml" )
     fs.WriteAtomic( lf, "format = 1" & nl & "name = 'Deutsch'" & nl & "[status]" & nl & "project = 'Projekt'" & nl & _
-                        "position = 'Z {0}, Sp {1}'" & nl & "[menu]" & nl & "Cut = 'Ausschneiden'" & nl )
+                        "position = 'Z {0}, Sp {1}'" & nl & "[menu]" & nl & "Cut = 'Ausschneiden'" & nl & _
+                        "[output]" & nl & "tab_results = 'Ergebnisse'" & nl & "[find]" & nl & "tool_replace = 'Ersetzen'" & nl & _
+                        "[cue]" & nl & "buffer = 'Puffer w" & wchr( &hE4 ) & "hlen'" & nl )
     mw.View( ).SetText( "version = 1" & nl & "[ui]" & nl & "theme = 'light'" & nl & "language = 'de'" & nl )
     Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
     t.Check( lcase( mw.LangPath ) = lcase( lf ), P( sc, "language = 'de' found the config folder's de.toml: " & mw.LangPath ) )
@@ -423,6 +427,12 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     t.Check( mw.StatusText( mainwin.StatusPanel.Keys ) = "Keys", P( sc, "a text the catalog lacks is English" ) )
     t.Check( i18n.Tr( "menu.Cut", "Cut" ) = "Ausschneiden", P( sc, "the right-click menu's catalog is German" ) )
     t.Check( len( mw.Message ) = 0, P( sc, "no message for a good catalog: " & mw.Message ) )
+    t.Check( tkTabBar_GetText( mw.Out.tabs, 0 ) = "Ergebnisse", P( sc, "the output pane's tab relabelled: " & tkTabBar_GetText( mw.Out.tabs, 0 ) ) )
+    t.Check( tkTabBar_GetText( mw.Out.tabs, 1 ) = "Log", P( sc, "a tab the catalog lacks is English" ) )
+    t.Check( tkToolbar_GetText( mw.Finder.rtools, 0 ) = "Ersetzen", P( sc, "the find strip's Replace relabelled: " & tkToolbar_GetText( mw.Finder.rtools, 0 ) ) )
+    mw.OpenChooser( mainwin.PickKind.Buffers )
+    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Chooser.Cue = "Puffer w" & wchr( &hE4 ) & "hlen"), P( sc, "a picker's cue in German, read as UTF-8: " & mw.Chooser.Cue ) )
+    mw.Chooser.Close( )
     t.Check( mw.OpenFile( lf ), P( sc, "open de.toml" ) )
     mw.View( ).SetText( "[status]" & nl & "project = 'Vorhaben'" & nl )
     Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
@@ -440,6 +450,8 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     t.Check( tkStatusBar_GetPanelVisible( mw.status, mainwin.StatusPanel.Project ) andalso tkStatusBar_GetPanelVisible( mw.status, mainwin.StatusPanel.Keys ), _
              P( sc, "the keys gone: shown again" ) )
     t.Check( (mw.StatusText( mainwin.StatusPanel.Project ) = "Project") andalso (i18n.CurrentCode( ) = "en"), P( sc, "the language gone: English" ) )
+    t.Check( (tkTabBar_GetText( mw.Out.tabs, 0 ) = "Results") andalso (tkToolbar_GetText( mw.Finder.rtools, 0 ) = "Replace"), _
+             P( sc, "and the tab and the tool back in English" ) )
     Chord( h, SDLK_K, SDL_SCANCODE_K, SDL_KMOD_CTRL )                    ' back to keybindings.toml, as before
 
     ' ---- the Settings and Keys panels open their files

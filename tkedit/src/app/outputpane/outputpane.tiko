@@ -15,6 +15,7 @@
 #module "outputpane"
 
 #import "std/containers"
+#import "tkc/i18n"
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkTabBar"
 #import "vendor/tkControls/tkListTree"
@@ -62,6 +63,7 @@ public type Pane
     declare function LogText( ) as ustring
     declare sub Focus( )
     declare sub ApplyColors( )                  ' after a theme change
+    declare sub Relabel( )                      ' the tabs' text in the interface's language
 end type
 
 private function PaneOf( byval w as TK_WIDGET ptr ) as Pane ptr
@@ -94,9 +96,10 @@ sub Pane.Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ a
     owner = owner_
     frame = tkWidget_CreateChild( parent, -id, @FrameProc, @this )
     tabs = tkTabBar_Create( frame, ID_TABS )
-    tkTabBar_AddTab( tabs, "Results" )
-    tkTabBar_AddTab( tabs, "Log" )
-    tkTabBar_AddTab( tabs, "Search" )
+    tkTabBar_AddTab( tabs, "" )                 ' the tabs' text: Relabel
+    tkTabBar_AddTab( tabs, "" )
+    tkTabBar_AddTab( tabs, "" )
+    this.Relabel( )
     for i as long = 0 to 2
         tkTabBar_SetClosable( tabs, i, false )
     next
@@ -186,4 +189,10 @@ sub Pane.ApplyColors( )
     c.BackColor = t.Window
     c.OuterBackColor = t.Window
     tkTextBox_SetColors( logBox, @c )
+end sub
+
+sub Pane.Relabel( )
+    tkTabBar_SetText( tabs, OutputTab.Results, i18n.Tr( "output.tab_results", "Results" ) )
+    tkTabBar_SetText( tabs, OutputTab.CompilerLog, i18n.Tr( "output.tab_log", "Log" ) )
+    tkTabBar_SetText( tabs, OutputTab.Search, i18n.Tr( "output.tab_search", "Search" ) )
 end sub

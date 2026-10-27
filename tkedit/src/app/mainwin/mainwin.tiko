@@ -229,14 +229,16 @@ private function LaunchProgram( byref argv as const Array( of ustring ), byref w
 end function
 
 private function PickPerson( byval f as TK_FORM ptr, byval kind as long, byref suggest as const ustring ) as ustring
-    dim as string filters = "tiko sources and projects|tiko;ti;bas;bi;inc;tkedit|tiko sources|tiko;ti;bas;bi;inc|" & _
-                            "tkEdit projects|tkedit|TOML|toml|All files|*"
+    dim as string filters = i18n.Tr( "dialog.filter_sources_projects", "tiko sources and projects" ) & "|tiko;ti;bas;bi;inc;tkedit|" & _
+                            i18n.Tr( "dialog.filter_sources", "tiko sources" ) & "|tiko;ti;bas;bi;inc|" & _
+                            i18n.Tr( "dialog.filter_projects", "tkEdit projects" ) & "|tkedit|TOML|toml|" & _
+                            i18n.Tr( "dialog.filter_all", "All files" ) & "|*"
     dim as ustring where = suggest
     if kind = TKFD_SAVE then return tkFileDialog_SaveFile( tkForm_Host( f ), filters, where )
     if kind = PICK_COMPILER then
         ' tiko.exe on Windows; elsewhere the compiler has no extension, so no filter (author)
         dim as string cf = ""
-        if platform.CurrentOs( ) = platform.Os.Windows then cf = "tiko compiler|exe"
+        if platform.CurrentOs( ) = platform.Os.Windows then cf = i18n.Tr( "dialog.filter_compiler", "tiko compiler" ) & "|exe"
         return tkFileDialog_OpenFile( tkForm_Host( f ), cf, where )
     end if
     if kind = PICK_OPEN_MANY then
@@ -1147,6 +1149,8 @@ sub Window.ReloadLanguage( )
     i18n.Use( cat )
     if (len( note ) > 0) andalso (len( Message ) = 0) then Message = note
     this.LabelEditMenu( )
+    Finder.Relabel( )
+    Out.Relabel( )
 end sub
 
 ' The right-click menu's rows in the interface's language: menu.<command name>.
@@ -1195,7 +1199,7 @@ sub Window.SetCompiler( byref path as const ustring )
     if r.IsOk( ) then
         st = r.Value( )
     elseif fs.IsFile( this.SettingsFile( ) ) then
-        this.SetMessage( settings.SETTINGS_FILE & " does not parse: the compiler is used but not saved" )
+        this.SetMessage( strings.Format( i18n.Tr( "message.compiler_not_saved", "{} does not parse: the compiler is used but not saved" ), settings.SETTINGS_FILE ) )
         exit sub
     end if
     st.Tiko = path
@@ -1209,7 +1213,7 @@ sub Window.SetDefaultBuild( byref name_ as const ustring )
     CurrentBuild = name_
     dim as settings.SettingsResult r = settings.LoadSettings( this.SettingsFile( ) )
     if r.IsOk( ) = false then
-        this.SetMessage( settings.SETTINGS_FILE & " does not parse: " & name_ & " is not saved as the default" )
+        this.SetMessage( strings.Format( i18n.Tr( "message.build_not_saved", "{0} does not parse: {1} is not saved as the default" ), settings.SETTINGS_FILE, name_ ) )
         exit sub
     end if
     dim as settings.EditorSettings st = r.Value( )
@@ -1251,7 +1255,7 @@ sub Window.ReloadKeys( )
         if len( eff ) = 0 then continue for
         dim as Optional( of Cmd ) o = Keys.OwnerOf( eff, Keys.Item( i ).Id )
         if o.HasValue( ) andalso (clng( o.Value( ) ) < clng( Keys.Item( i ).Id )) then
-            notes.Push( strings.Format( "{} and {} share {}", Keys.Commands( ).Info( o.Value( ) ).Name, Keys.Item( i ).Name, eff ) )
+            notes.Push( strings.Format( i18n.Tr( "message.keys_shared", "{0} and {1} share {2}" ), Keys.Commands( ).Info( o.Value( ) ).Name, Keys.Item( i ).Name, eff ) )
         end if
     next
     this.RebuildAccelerators( )
@@ -1260,7 +1264,7 @@ sub Window.ReloadKeys( )
     elseif notes.Count( ) = 1 then
         Message = keybind.KEYBINDINGS_FILE & ": " & notes[0]
     else
-        Message = strings.Format( "{}: {} (+{} more)", keybind.KEYBINDINGS_FILE, notes[0], notes.Count( ) - 1 )
+        Message = strings.Format( i18n.Tr( "message.notes_more", "{0}: {1} (+{2} more)" ), keybind.KEYBINDINGS_FILE, notes[0], notes.Count( ) - 1 )
     end if
     this.ShowStatus( )
 end sub
@@ -1270,7 +1274,7 @@ sub Window.ReloadTheme( )
     dim as ustring path = themes.FindTheme( Prefs.Theme, ConfigDir, ResourceDir )
     if len( path ) = 0 then
         Theme = themes.DarkTheme( )
-        if lcase( Prefs.Theme ) <> themes.DEFAULT_THEME then Message = "theme '" & Prefs.Theme & "' not found; using dark"
+        if lcase( Prefs.Theme ) <> themes.DEFAULT_THEME then Message = strings.Format( i18n.Tr( "message.theme_not_found", "theme '{}' not found; using dark" ), Prefs.Theme )
     else
         dim as themes.ThemeResult r = themes.LoadTheme( path, Prefs.Theme )
         if r.IsOk( ) then
@@ -1304,12 +1308,12 @@ function Window.EditableThemeFile( ) as ustring
     dim as ustring shipped = themes.FindTheme( Prefs.Theme, "", ResourceDir )
     if len( shipped ) = 0 then shipped = themes.FindTheme( themes.DEFAULT_THEME, "", ResourceDir )
     if len( shipped ) = 0 then
-        this.SetMessage( "no theme file to copy" )
+        this.SetMessage( i18n.Tr( "message.no_theme_file", "no theme file to copy" ) )
         return ""
     end if
     fs.CreateDirAll( dir_ )
     if fs.CopyFile( shipped, mine ).IsOk( ) = false then
-        this.SetMessage( "cannot write " & mine )
+        this.SetMessage( strings.Format( i18n.Tr( "message.cannot_write", "cannot write {}" ), mine ) )
         return ""
     end if
     return mine
@@ -1444,7 +1448,7 @@ function Window.NewDocument( ) as DocRef
         return 0
     end if
     untitled += 1
-    d->Untitled = "untitled" & untitled
+    d->Untitled = i18n.Tr( "file.untitled", "untitled" ) & untitled
     d->Enc.Encoding = Prefs.NewEncoding
     dim as docencoding.LineEnd e = docencoding.LineEnd.Lf
     select case Prefs.NewLineEnd
@@ -1570,8 +1574,8 @@ function Window.SaveDoc( byval d as DocRef, byval newName as boolean ) as boolea
     end if
     dim as boolean accept_ = false
     if d->MustConfirmLoss( ) then
-        if Ask( form, d->DisplayName( ) & ": some characters cannot be written as " & _
-                docencoding.EncodingName( d->Enc.Encoding ) & " and will be replaced. Save anyway?", _
+        if Ask( form, strings.Format( i18n.Tr( "ask.save_lossy", "{0}: some characters cannot be written as {1} and will be replaced. Save anyway?" ), _
+                d->DisplayName( ), docencoding.EncodingName( d->Enc.Encoding ) ), _
                 MBX_BTN_OKCANCEL ) <> MBX_IDOK then return false
         accept_ = true
     end if
@@ -1604,7 +1608,7 @@ end function
 function Window.CloseDoc( byval d as DocRef ) as boolean
     if d = 0 then return true
     if d->IsModified( ) then
-        select case Ask( form, d->DisplayName( ) & ": save the changes?", MBX_BTN_SAVE_DONTSAVE_CANCEL )
+        select case Ask( form, strings.Format( i18n.Tr( "ask.save_changes", "{}: save the changes?" ), d->DisplayName( ) ), MBX_BTN_SAVE_DONTSAVE_CANCEL )
         case MBX_IDYES
             if this.SaveDoc( d, false ) = false then return false
         case MBX_IDNO
@@ -1765,8 +1769,8 @@ sub Window.SetEncoding( byval e as docencoding.FileEncoding )
     dim as DocRef d = this.Active( )
     if d = 0 then exit sub
     if d->Enc.PlanChange( e, d->Text( ) ) = docencoding.EncodingChange.RelabelLossy then
-        if Ask( form, d->DisplayName( ) & ": some characters cannot be written as " & _
-                docencoding.EncodingName( e ) & ". Change anyway?", MBX_BTN_OKCANCEL ) <> MBX_IDOK then exit sub
+        if Ask( form, strings.Format( i18n.Tr( "ask.change_lossy", "{0}: some characters cannot be written as {1}. Change anyway?" ), _
+                d->DisplayName( ), docencoding.EncodingName( e ) ), MBX_BTN_OKCANCEL ) <> MBX_IDOK then exit sub
     end if
     d->Enc.ApplyChange( e )
     this.ShowStatus( )
@@ -1967,7 +1971,7 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
     dim as long popW = 460
     select case kind
     case PickKind.Symbols
-        Chooser.Cue = "Search for symbol or file"
+        Chooser.Cue = i18n.Tr( "cue.symbol", "Search for symbol or file" )
         this.CloseOnOwnKey( Cmd.SearchSymbol )
         ' the project's files and the open buffers, then every definition in them
         Hits.Clear( )
@@ -2023,11 +2027,13 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
             dim as ustring where_ = fs.PathFileName( Hits[i].Path )
             if Hits[i].Line >= 0 then where_ &= ":" & (Hits[i].Line + 1)
             if Hits[i].Kind = "file" then where_ = fs.PathParent( Hits[i].Path )
-            rows.Push( Row( Hits[i].Kind, Hits[i].Name, where_, i ) )
+            dim as ustring kindText = Hits[i].Kind      ' tiko's own words, but "file"
+            if kindText = "file" then kindText = i18n.Tr( "picker.kind_file", "file" )
+            rows.Push( Row( kindText, Hits[i].Name, where_, i ) )
         next
     case PickKind.Functions
-        Chooser.Cue = "Go to function in this file"
-        if FuncsAll then Chooser.Cue = "Go to function in any open file"
+        Chooser.Cue = i18n.Tr( "cue.function", "Go to function in this file" )
+        if FuncsAll then Chooser.Cue = i18n.Tr( "cue.function_all", "Go to function in any open file" )
         ' F4: the active buffer's procedures; F4 again (inside the list) every open buffer's
         Hits.Clear( )
         Chooser.Columns.Clear( )
@@ -2052,7 +2058,7 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
             r.Cells.Push( Hits[i].Kind )
             r.Cells.Push( str( Hits[i].Line + 1 ) )
             if FuncsAll then
-                dim as ustring fname = "untitled"
+                dim as ustring fname = i18n.Tr( "file.untitled", "untitled" )
                 if Hits[i].Doc then fname = Hits[i].Doc->DisplayName( )
                 r.Cells.Push( fname )
             end if
@@ -2069,7 +2075,7 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
             mw->OpenChooser( PickKind.Functions )
         end sub
     case PickKind.Buffers
-        Chooser.Cue = "Select edit buffer"
+        Chooser.Cue = i18n.Tr( "cue.buffer", "Select edit buffer" )
         for i as long = 0 to Mru.Count( ) - 1
             dim as DocRef d = Mru[i]
             dim as ustring mark = " "
@@ -2079,17 +2085,17 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
             rows.Push( Row( mark, d->DisplayName( ), dir_, i ) )
         next
     case PickKind.Recent
-        Chooser.Cue = "Open recent file"
+        Chooser.Cue = i18n.Tr( "cue.recent", "Open recent file" )
         ' a file that is not on disk is not offered; it stays in the list, so it is back if the file
         ' (a drive, a share) is (author 2026-10-27)
         for i as long = 0 to Recent.Count( ) - 1
             if fs.IsFile( Recent.Item( i ) ) = false then continue for
             dim as ustring nm = fs.PathFileName( Recent.Item( i ) )
-            if project.IsManifest( Recent.Item( i ) ) then nm &= "  [project]"
+            if project.IsManifest( Recent.Item( i ) ) then nm &= "  [" & i18n.Tr( "picker.project", "project" ) & "]"
             rows.Push( Row( " ", nm, fs.PathParent( Recent.Item( i ) ), i ) )
         next
     case PickKind.Encoding
-        Chooser.Cue = "Select file encoding"
+        Chooser.Cue = i18n.Tr( "cue.encoding", "Select file encoding" )
         Narrow( Chooser, popW )
         for e as long = docencoding.FileEncoding.Ansi to docencoding.FileEncoding.Utf16Bom
             dim as ustring mark = " "
@@ -2100,12 +2106,12 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
             rows.Push( Row( mark, docencoding.EncodingName( cast( docencoding.FileEncoding, e ) ), "", e ) )
         next
     case PickKind.LineEnding
-        Chooser.Cue = "Select line ending"
+        Chooser.Cue = i18n.Tr( "cue.line_ending", "Select line ending" )
         Narrow( Chooser, popW )
         dim as docencoding.LineEnd now_ = this.View( ).LineEnding( )
         dim as docencoding.LineEnd ends( 0 to 2 ) = { docencoding.LineEnd.CrLf, docencoding.LineEnd.Lf, docencoding.LineEnd.Cr }
         dim as ustring names( 0 to 2 ) = { "CRLF", "LF", "CR" }
-        dim as ustring notes( 0 to 2 ) = { "Windows", "Linux, macOS", "classic Mac" }
+        dim as ustring notes( 0 to 2 ) = { "Windows", "Linux, macOS", i18n.Tr( "picker.classic_mac", "classic Mac" ) }
         for k as long = 0 to 2
             dim as ustring mark = " "
             if ends( k ) = now_ then
@@ -2115,7 +2121,7 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
             rows.Push( Row( mark, names( k ), notes( k ), clng( ends( k ) ) ) )
         next
     case PickKind.Bookmarks
-        Chooser.Cue = "Go to bookmark"
+        Chooser.Cue = i18n.Tr( "cue.bookmark", "Go to bookmark" )
         Marks.Clear( )
         for each d as DocRef in Mru
             for each ln as long in d->Main.Bookmarks( )
@@ -2127,7 +2133,7 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
             next
         next
     case PickKind.Build
-        Chooser.Cue = "Select build configuration"
+        Chooser.Cue = i18n.Tr( "cue.build", "Select build configuration" )
         Narrow( Chooser, popW )
         for i as long = 0 to Prefs.Builds.Count( ) - 1
             dim as ustring mark = " "
@@ -2139,7 +2145,7 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
         next
     end select
     if (rows.Count( ) = 0) andalso (kind <> PickKind.Functions) then
-        this.SetMessage( "nothing to choose from" )
+        this.SetMessage( i18n.Tr( "message.nothing_to_choose", "nothing to choose from" ) )
         exit sub
     end if
     Choosing = kind
@@ -2254,15 +2260,15 @@ sub Window.OpenStrip( byval m as findstrip.StripMode )
         Finder.SetStatus( strings.Format( "1 - {}", v->LineCount( ) ) )
     elseif m = findstrip.StripMode.Args then
         if ProjOpen then
-            Finder.SetStatus( "Enter sets " & Proj.Name( ) & "'s command line; empty clears it" )
+            Finder.SetStatus( strings.Format( i18n.Tr( "find.args_project", "Enter sets {}'s command line; empty clears it" ), Proj.Name( ) ) )
         else
-            Finder.SetStatus( "Enter sets the arguments of this file; empty clears them" )
+            Finder.SetStatus( i18n.Tr( "find.args_file", "Enter sets the arguments of this file; empty clears them" ) )
         end if
     elseif m = findstrip.StripMode.Project then
         if ProjOpen then
-            Finder.SetStatus( "Enter searches the project's files" )
+            Finder.SetStatus( i18n.Tr( "find.search_project", "Enter searches the project's files" ) )
         else
-            Finder.SetStatus( "Enter searches the open buffers" )
+            Finder.SetStatus( i18n.Tr( "find.search_buffers", "Enter searches the open buffers" ) )
         end if
     else
         this.ShowFindStatus( )
@@ -2282,9 +2288,9 @@ sub Window.ShowFindStatus( )
     end if
     dim as long n = v->CountMatches( p, o )
     if n = 0 then
-        Finder.SetStatus( "No matches" )
+        Finder.SetStatus( i18n.Tr( "find.no_matches", "No matches" ) )
     else
-        Finder.SetStatus( strings.Format( "{} of {}", v->MatchIndex( p, o ), n ) )
+        Finder.SetStatus( strings.Format( i18n.Tr( "find.count", "{0} of {1}" ), v->MatchIndex( p, o ), n ) )
     end if
 end sub
 
@@ -2315,7 +2321,7 @@ sub Window.OnFind( byval a as findstrip.FindAction )
         dim as long k = v->ReplaceAll( p, Finder.Replacement( ), o )
         if o.InSelection then FindHi += v->Length( ) - n0
         this.ShowFindStatus( )
-        Finder.SetStatus( strings.Format( "{} replaced", k ) )
+        Finder.SetStatus( strings.Format( i18n.Tr( "find.replaced", "{} replaced" ), k ) )
         this.ShowStatus( )
         exit sub
     case findstrip.FindAction.SearchFiles
@@ -2327,9 +2333,9 @@ sub Window.OnFind( byval a as findstrip.FindAction )
         this.Layout( )
         v->Focus( )
         if len( trim( p ) ) then
-            this.SetMessage( "arguments: " & trim( p ) )
+            this.SetMessage( strings.Format( i18n.Tr( "message.arguments", "arguments: {}" ), trim( p ) ) )
         else
-            this.SetMessage( "arguments cleared" )
+            this.SetMessage( i18n.Tr( "message.arguments_cleared", "arguments cleared" ) )
         end if
         exit sub
     case findstrip.FindAction.GoToLine
@@ -2346,7 +2352,7 @@ sub Window.OnFind( byval a as findstrip.FindAction )
             v->Focus( )
             this.ShowStatus( )
         else
-            Finder.SetStatus( strings.Format( "1 - {}: no line '{}'", v->LineCount( ), t ) )
+            Finder.SetStatus( strings.Format( i18n.Tr( "find.no_line", "1 - {0}: no line '{1}'" ), v->LineCount( ), t ) )
         end if
         exit sub
     case findstrip.FindAction.CloseStrip
@@ -2437,7 +2443,7 @@ function Window.OpenProject( byref path as const ustring ) as boolean
     end if
     Recent.Add( Proj.Path )
     LastExe = ""
-    this.SetMessage( "project " & Proj.Name( ) )
+    this.SetMessage( strings.Format( i18n.Tr( "message.project", "project {}" ), Proj.Name( ) ) )
     this.ShowTitle( )
     return true
 end function
@@ -2448,7 +2454,7 @@ end function
 function Window.NewProject( ) as boolean
     dim as DocRef d = this.SourceDoc( )
     if d = 0 then
-        this.SetMessage( "no source file to make a project of" )
+        this.SetMessage( i18n.Tr( "message.no_project_source", "no source file to make a project of" ) )
         return false
     end if
     if d->IsNew( ) then
@@ -2459,7 +2465,7 @@ function Window.NewProject( ) as boolean
     if fs.IsFile( mf ) = false then
         dim as ustring text = project.NewManifestText( fs.PathFileName( dir_ ), fs.PathStem( d->Path ), fs.PathFileName( d->Path ) )
         if fs.WriteAtomic( mf, text ).IsOk( ) = false then
-            this.SetMessage( "could not write " & mf )
+            this.SetMessage( strings.Format( i18n.Tr( "message.could_not_write", "could not write {}" ), mf ) )
             return false
         end if
     end if
@@ -2469,7 +2475,7 @@ end function
 ' The project file, with what is open now.
 function Window.SaveProject( ) as boolean
     if ProjOpen = false then
-        this.SetMessage( "no project is open" )
+        this.SetMessage( i18n.Tr( "message.no_project", "no project is open" ) )
         return false
     end if
     dim as session.SessionState st
@@ -2479,7 +2485,7 @@ function Window.SaveProject( ) as boolean
     this.WriteProjectOptions( )
     dim as fs.FsResultBool w = session.SaveSession( project.SessionPath( ConfigDir, Proj.Path ), st )
     if w.IsOk( ) = false then
-        this.SetMessage( "the project's session: " & w.Failure( ).Message( ) )
+        this.SetMessage( strings.Format( i18n.Tr( "message.project_session", "the project's session: {}" ), w.Failure( ).Message( ) ) )
         return false
     end if
     return true
@@ -2560,7 +2566,7 @@ sub Window.SetRunArgs( byref a as const ustring )
     end if
     dim as DocRef d = this.SourceDoc( )
     if (d = 0) orelse (len( d->Path ) = 0) then
-        this.SetMessage( "Run Arguments: save the file first" )
+        this.SetMessage( i18n.Tr( "message.args_save_first", "Run Arguments: save the file first" ) )
         exit sub
     end if
     RunStore.Set( d->Path, a )
@@ -2626,16 +2632,16 @@ function Window.EnsureCompiler( ) as boolean
     if len( this.CompilerPath( ) ) then return true
     dim as ustring nm = "tiko"
     if platform.CurrentOs( ) = platform.Os.Windows then nm = "tiko.exe"
-    Ask( form, "No tiko compiler was found: none is set in " & settings.SETTINGS_FILE & _
-               ", there is none on the PATH and no toolchain beside tkEdit." & wchr( 10 ) & wchr( 10 ) & _
-               "Choose the compiler (" & nm & ") next. tkEdit keeps it in " & settings.SETTINGS_FILE & ".", MBX_BTN_OK )
+    Ask( form, strings.Format( i18n.Tr( "ask.no_compiler", "No tiko compiler was found: none is set in {}, there is none on the PATH and no toolchain beside tkEdit." ), _
+                               settings.SETTINGS_FILE ) & wchr( 10 ) & wchr( 10 ) & _
+               strings.Format( i18n.Tr( "ask.choose_compiler", "Choose the compiler ({0}) next. tkEdit keeps it in {1}." ), nm, settings.SETTINGS_FILE ), MBX_BTN_OK )
     dim as ustring f = Pick( form, PICK_COMPILER, "" )
     if (len( f ) = 0) orelse (fs.IsFile( f ) = false) then
-        this.SetMessage( "no tiko compiler: set [compiler] tiko in " & settings.SETTINGS_FILE )
+        this.SetMessage( strings.Format( i18n.Tr( "message.no_compiler", "no tiko compiler: set [compiler] tiko in {}" ), settings.SETTINGS_FILE ) )
         return false
     end if
     this.SetCompiler( f )
-    this.SetMessage( "the tiko compiler: " & f )
+    this.SetMessage( strings.Format( i18n.Tr( "message.compiler", "the tiko compiler: {}" ), f ) )
     return true
 end function
 
@@ -2676,12 +2682,12 @@ end function
 ' save_before_build). The output arrives through PollBuild.
 function Window.StartBuild( byval action as build.BuildAction, byval rebuild as boolean ) as boolean
     if this.IsBuilding( ) then
-        this.SetBuildMessage( "a build is running" )
+        this.SetBuildMessage( i18n.Tr( "build.running", "a build is running" ) )
         return false
     end if
     dim as ustring tiko = this.CompilerPath( )
     if len( tiko ) = 0 then
-        this.SetBuildMessage( "tiko not found: set [compiler] tiko in settings.toml, or put it on the PATH" )
+        this.SetBuildMessage( i18n.Tr( "build.no_tiko", "tiko not found: set [compiler] tiko in settings.toml, or put it on the PATH" ) )
         return false
     end if
     ' settings.toml, keybindings.toml, a theme or a text file is never built (author 2026-10-27)
@@ -2689,11 +2695,11 @@ function Window.StartBuild( byval action as build.BuildAction, byval rebuild as 
     dim as boolean useTarget = ProjOpen
     dim as ustring target = this.ProjectTarget( )
     if useTarget andalso (len( target ) = 0) then
-        this.SetBuildMessage( "tiko.toml has no [target.*] to build" )
+        this.SetBuildMessage( i18n.Tr( "build.no_target", "tiko.toml has no [target.*] to build" ) )
         return false
     end if
     if (d = 0) andalso (useTarget = false) then
-        this.SetBuildMessage( "nothing to build: no source file is open" )
+        this.SetBuildMessage( i18n.Tr( "build.nothing", "nothing to build: no source file is open" ) )
         return false
     end if
     if useTarget = false then
@@ -2765,10 +2771,10 @@ function Window.StartBuild( byval action as build.BuildAction, byval rebuild as 
     if st.IsOk( ) = false then
         LogText &= st.Failure( ) & chr( 10 )
         Out.SetLog( LogText )
-        this.SetBuildMessage( "the build could not start: " & st.Failure( ) )
+        this.SetBuildMessage( strings.Format( i18n.Tr( "build.not_started", "the build could not start: {}" ), st.Failure( ) ) )
         return false
     end if
-    this.SetBuildMessage( "building..." )
+    this.SetBuildMessage( i18n.Tr( "build.building", "building..." ) )
     buildTimer = tkApp_SetTimer( BUILD_POLL_MS, sub( byval id as long, byval payload as any ptr )
         cast( Window ptr, payload )->PollBuild( )
     end sub, @this )
@@ -2782,7 +2788,7 @@ sub Window.PollBuild( )
         for each ln as ustring in got
             BuildRaw &= ln & chr( 10 )
             if Progress.Feed( ln ) then
-                this.SetBuildMessage( strings.Format( "building... {}/{}", Progress.Done, Progress.Total ) )
+                this.SetBuildMessage( strings.Format( i18n.Tr( "build.progress", "building... {0}/{1}" ), Progress.Done, Progress.Total ) )
             elseif build.IsEventLine( ln ) = false then
                 LogText &= ln & chr( 10 )
             end if
@@ -2831,9 +2837,9 @@ sub Window.FinishBuild( )
     LogText = build.LogSummary( ok, counts.Errors, counts.Warnings, fs.PathToNative( BuildMain ), LastExe, exeBytes, _
                                 clng( SDL_GetTicks( ) - BuildTicks ), text.DateTimeStamp( ) ) & LogText
     Out.SetLog( LogText )
-    dim as ustring msg = "Build OK"
-    if ok = false then msg = "Build failed"
-    msg = strings.Format( "{}  {} errors, {} warnings", msg, counts.Errors, counts.Warnings )
+    dim as ustring msg = i18n.Tr( "build.ok", "Build OK" )
+    if ok = false then msg = i18n.Tr( "build.failed", "Build failed" )
+    msg = strings.Format( i18n.Tr( "build.summary", "{0}  {1} errors, {2} warnings" ), msg, counts.Errors, counts.Warnings )
     if exeBytes >= 0 then msg &= " [" & build.SizeText( fs.PathFileName( LastExe ), exeBytes ) & "]"
     this.SetBuildMessage( msg )
     if ok = false then
@@ -2880,7 +2886,7 @@ sub Window.ShowDiagnostics( byref counts as const build.ResultCounts )
         end if
     next
     if counts.ExitFailure then
-        tkListTree_AddString( Out.results, "Build failed (exit code " & Job.exitCode & ")", -1 )
+        tkListTree_AddString( Out.results, strings.Format( i18n.Tr( "build.failed_exit", "Build failed (exit code {})" ), Job.exitCode ), -1 )
     end if
     tkListTree_EndUpdate( Out.results )
 end sub
@@ -2902,7 +2908,7 @@ end sub
 sub Window.StepDiagnostic( byval forward as boolean )
     dim as long n = Diags.Count( )
     if n = 0 then
-        this.SetBuildMessage( "no diagnostics" )
+        this.SetBuildMessage( i18n.Tr( "build.no_diagnostics", "no diagnostics" ) )
         exit sub
     end if
     dim as long i = DiagAt
@@ -2941,7 +2947,7 @@ end sub
 ' (platform.TerminalArgv), with the project's command line.
 sub Window.RunProgram( byref exe as const ustring )
     if (len( exe ) = 0) orelse (fs.IsFile( exe ) = false) then
-        this.SetBuildMessage( "nothing to run: build it first (" & exe & ")" )
+        this.SetBuildMessage( strings.Format( i18n.Tr( "build.nothing_to_run", "nothing to run: build it first ({})" ), exe ) )
         exit sub
     end if
     dim as ustring cmdline = this.RunArgsNow( )
@@ -2958,12 +2964,12 @@ sub Window.RunProgram( byref exe as const ustring )
     else
         argv = platform.TerminalArgv( exe, args, dir_, fs.PathJoin( ConfigDir, "run" ) )
         if argv.Count( ) = 0 then
-            this.SetBuildMessage( "no terminal program was found to run it in: set $TERMINAL" )
+            this.SetBuildMessage( i18n.Tr( "build.no_terminal", "no terminal program was found to run it in: set $TERMINAL" ) )
             exit sub
         end if
     end if
     ' started: the build's result stays in the status line (author 2026-10-27)
-    if Launch( argv, dir_ ) = false then this.SetBuildMessage( "could not start " & fs.PathFileName( exe ) )
+    if Launch( argv, dir_ ) = false then this.SetBuildMessage( strings.Format( i18n.Tr( "build.not_run", "could not start {}" ), fs.PathFileName( exe ) ) )
 end sub
 
 sub Window.ShowOutput( byval visible as boolean )
@@ -3054,7 +3060,7 @@ end function
 function Window.StartScanner( ) as boolean
     if Scanner.running then return true
     if Scanner.Start( platform.ExeDir( ) ) = false then
-        LogText &= "code intelligence: " & Scanner.Lib.LastError( ) & chr( 10 )
+        LogText &= strings.Format( i18n.Tr( "log.code_intel", "code intelligence: {}" ), Scanner.Lib.LastError( ) ) & chr( 10 )
         Out.SetLog( LogText )
         return false
     end if
@@ -3202,7 +3208,7 @@ function Window.GoToDefinition( ) as boolean
                 end if
             next
         next
-        this.SetMessage( "no definition found for " & word )
+        this.SetMessage( strings.Format( i18n.Tr( "message.no_definition", "no definition found for {}" ), word ) )
         return false
     end if
     dim as symboldb.Sym y = Db.Item( r )
@@ -3353,7 +3359,7 @@ function Window.RunProjectSearch( ) as long
         dim as Array( of textsearch.TextMatch ) ms = scratch.MatchesOf( p, o, SEARCH_LIMIT - Found.Count( ), bad )
         if bad then
             tkListTree_EndUpdate( list )
-            Finder.SetStatus( "not a valid regular expression" )
+            Finder.SetStatus( i18n.Tr( "find.bad_regex", "not a valid regular expression" ) )
             return 0
         end if
         if ms.Count( ) = 0 then continue for
@@ -3373,10 +3379,10 @@ function Window.RunProjectSearch( ) as long
     next
     tkListTree_EndUpdate( list )
     scratch.SetText( "" )
-    dim as ustring msg = strings.Format( "{} matches in {} files", Found.Count( ), files_ )
-    if Found.Count( ) >= SEARCH_LIMIT then msg &= " (stopped at the limit)"
+    dim as ustring msg = strings.Format( i18n.Tr( "find.matches_in_files", "{0} matches in {1} files" ), Found.Count( ), files_ )
+    if Found.Count( ) >= SEARCH_LIMIT then msg &= " " & i18n.Tr( "find.at_limit", "(stopped at the limit)" )
     if Found.Count( ) = 0 then
-        Finder.SetStatus( "No matches" )
+        Finder.SetStatus( i18n.Tr( "find.no_matches", "No matches" ) )
         return 0
     end if
     Finder.Close( )

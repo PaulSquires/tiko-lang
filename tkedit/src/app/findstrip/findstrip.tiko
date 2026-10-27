@@ -22,6 +22,7 @@
 #module "findstrip"
 
 #import "std/containers"
+#import "tkc/i18n"
 #import "tka/editor"
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkTextBox"
@@ -100,6 +101,7 @@ public type Strip
     declare sub Fire( byval a as FindAction )
     declare function HasFocus( ) as boolean
     declare sub FocusFind( )
+    declare sub Relabel( )                                 ' the tools' text in the interface's language
 end type
 
 private function StripOf( byval w as TK_WIDGET ptr ) as Strip ptr
@@ -134,14 +136,14 @@ private function FrameProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as
         ' the labels
         dim as TKRECT lb
         tkRect_Set( lb, pad, 0, tkHost_Scale( w->pHost, LABEL_CX ), rowH )
-        dim as ustring first = "Find:"
-        if st->Mode = StripMode.GoTo then first = "Line:"
-        if st->Mode = StripMode.Project then first = "In files:"
-        if st->Mode = StripMode.Args then first = "Arguments:"
+        dim as ustring first = i18n.Tr( "find.label_find", "Find:" )
+        if st->Mode = StripMode.GoTo then first = i18n.Tr( "find.label_line", "Line:" )
+        if st->Mode = StripMode.Project then first = i18n.Tr( "find.label_files", "In files:" )
+        if st->Mode = StripMode.Args then first = i18n.Tr( "find.label_arguments", "Arguments:" )
         m->pPaint->PaintText( first, @lb, TK_DT_LEFT or TK_DT_VCENTER )
         if st->Mode = StripMode.Replace then
             tkRect_Set( lb, pad, rowH, tkHost_Scale( w->pHost, LABEL_CX ), rowH * 2 )
-            m->pPaint->PaintText( "Replace:", @lb, TK_DT_LEFT or TK_DT_VCENTER )
+            m->pPaint->PaintText( i18n.Tr( "find.label_replace", "Replace:" ), @lb, TK_DT_LEFT or TK_DT_VCENTER )
         end if
         ' the count, right of the tools (of the box in Go to Line)
         dim as long sx = st->findBox->x + st->findBox->cw + pad
@@ -235,6 +237,7 @@ sub Strip.Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ 
     tkToolbar_SetClickCallback( tools, onClick )
     tkToolbar_SetClickCallback( rtools, onClick )
     MatchTools( @this )
+    this.Relabel( )
     ' the prev / next / close glyphs are PsIcons codepoints: without this the toolbar draws them in
     ' the UI font, as boxes
     dim as TK_FORM ptr fm = tkForm_FromWidget( frame )
@@ -283,6 +286,15 @@ end sub
 sub Strip.FocusFind( )
     tkHost_SetFocus( frame->pHost, findBox )
     tkTextBox_SelectAll( findBox )
+end sub
+
+' The tools that are words; Aa, W and .* are symbols. The labels are painted, so they follow anyway.
+sub Strip.Relabel( )
+    tkToolbar_SetText( tools, 3, i18n.Tr( "find.tool_sel", "Sel" ) )
+    tkToolbar_SetText( rtools, 0, i18n.Tr( "find.tool_replace", "Replace" ) )
+    tkToolbar_SetText( rtools, 1, i18n.Tr( "find.tool_all", "All" ) )
+    if isOpen then this.Layout( )
+    tkWidget_Invalidate( frame )
 end sub
 
 sub Strip.Close( )
