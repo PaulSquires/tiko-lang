@@ -27,7 +27,6 @@
 #import "std/containers"
 #import "std/outcome"
 #import "tkc/tomlget"
-#import "tkc/safewrite"
 using containers
 using outcome
 
@@ -186,5 +185,5 @@ public function SaveSession( byref path as const ustring, byref st as SessionSta
         dim as fs.FsResultBool mk = fs.CreateDirAll( dir_ )
         if mk.IsOk( ) = false then return mk
     end if
-    return safewrite.WriteText( path, t.Value( ) )   ' TS-003
+    return fs.WriteAtomic( path, t.Value( ) )
 end function

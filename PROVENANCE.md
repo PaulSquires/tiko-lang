@@ -18,7 +18,6 @@ the name `tiko-studio` → `tkEdit` (incl. `platform.APP_NAME` and the run-scrip
 | `src/core/mru` | `src/core/mru` | — |
 | `src/core/navhistory` | `src/core/navhistory` | — |
 | `src/core/outline` | `src/core/outline` | — |
-| `src/core/safewrite` | `src/core/safewrite` | — |
 | `src/core/symboldb` | `src/core/symboldb` | `Definitions`, `Procedures`, `QualifiedName`, `HasFile` added (tkEdit's F4 / Ctrl+P lists) |
 | `src/core/text` | `src/core/text` | — |
 | `src/core/textsearch` | `src/core/textsearch` | — |

@@ -12,7 +12,6 @@
 #import "std/strings"
 #import "tkc/cmdids"
 #import "tkc/keybind"
-#import "tkc/safewrite"
 using cmdids
 
 ' The commands whose default is not tiko-editor's, or that tiko-editor does not have.
@@ -70,7 +69,7 @@ s &= nl & "## Fixed keys (not rebindable)" & nl & nl & _
     "## Reserved" & nl & nl & _
     "F6, F9, F10, F11, Ctrl+F6, Ctrl+F10, Shift+F6, Shift+F11 and Ctrl+Shift+F9 are left unbound for a" & nl & _
     "later debugger (D6)." & nl
-if safewrite.WriteText( outPath, s ).IsOk( ) = false then
+if fs.WriteAtomic( outPath, s ).IsOk( ) = false then
     print "keysdoc: cannot write " & outPath
     end 1
 end if

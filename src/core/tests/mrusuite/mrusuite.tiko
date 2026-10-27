@@ -10,7 +10,6 @@
 #import "std/fs"
 #import "tkc/mru"
 #import "../tally"
-#import "tkc/safewrite"
 using containers
 
 ' The list as "a|b|c", newest first.
@@ -92,8 +91,8 @@ public sub Run( byref c as tally.Checker )
         if td.IsOk( ) then
             dim as ustring dir_ = td.Value( )
             dim as ustring f1 = fs.PathJoin( dir_, "one.tiko" ), f2 = fs.PathJoin( dir_, "two.tiko" )
-            safewrite.WriteText( f1, "1" ).IsOk( )   ' TS-003
-            safewrite.WriteText( f2, "2" ).IsOk( )   ' TS-003
+            fs.WriteAtomic( f1, "1" ).IsOk( )
+            fs.WriteAtomic( f2, "2" ).IsOk( )
             dim as mru.RecentList m
             m.Add( fs.PathJoin( dir_, "gone.tiko" ) )
             m.Add( f1 )

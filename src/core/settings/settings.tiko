@@ -27,7 +27,6 @@
 #import "tkp/platform"
 #import "tkc/docencoding"
 #import "tkc/tomlget"
-#import "tkc/safewrite"
 using containers
 using outcome
 
@@ -249,7 +248,7 @@ public function EnsureFile( byref path as const ustring ) as boolean
     if ( len( dir_ ) > 0 ) andalso ( fs.IsDir( dir_ ) = false ) then
         if fs.CreateDirAll( dir_ ).IsOk( ) = false then return false
     end if
-    return safewrite.WriteText( path, Template( ) ).IsOk( )   ' TS-003
+    return fs.WriteAtomic( path, Template( ) ).IsOk( )
 end function
 
 ' Where settings.toml lives: platform.ConfigDir( )/settings.toml.

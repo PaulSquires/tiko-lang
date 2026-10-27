@@ -62,7 +62,6 @@
 #import "std/config"
 #import "tkp/platform"
 #import "tkc/cmdids"
-#import "tkc/safewrite"
 using containers
 using outcome
 
@@ -533,7 +532,7 @@ function KeyMap.Save( byref path as const ustring ) as TextResult
     end if
     dim as Array( of ubyte ) b
     codec.EncodeText( t.Value( ), codec.Utf8( ), b )
-    dim as fs.FsResultBool w = safewrite.WriteBytes( path, b )   ' TS-003
+    dim as fs.FsResultBool w = fs.WriteAtomic( path, b )
     if w.IsOk( ) = false then return Fail( of ustring, ustring )( w.Failure( ).Message( ) )
     return t
 end function

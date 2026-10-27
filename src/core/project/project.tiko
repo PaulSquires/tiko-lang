@@ -25,7 +25,6 @@
 #import "tkp/platform"
 #import "tkc/session"
 #import "tkc/tomlget"
-#import "tkc/safewrite"
 using containers
 using outcome
 
@@ -155,7 +154,7 @@ public function SaveProject( byref p as ProjectFile ) as fs.FsResultBool
         dim as fs.FsResultBool mk = fs.CreateDirAll( dir_ )
         if mk.IsOk( ) = false then return mk
     end if
-    return safewrite.WriteText( p.Path, t.Value( ) )   ' TS-003
+    return fs.WriteAtomic( p.Path, t.Value( ) )
 end function
 
 ' A new project at path (".tkedit" added when missing), its main file mainFile ("" = none yet),

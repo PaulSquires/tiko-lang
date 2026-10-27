@@ -26,7 +26,6 @@
 #import "std/codec"
 #import "std/containers"
 #import "std/outcome"
-#import "tkc/safewrite"
 using containers
 using outcome
 
@@ -92,5 +91,5 @@ end function
 
 public function WriteText( byref path as const ustring, byref s as const ustring, _
                            byval enc as codec.TextEncoding = codec.Utf8( ) ) as fs.FsResultBool
-    return safewrite.WriteText( path, s, enc )   ' TS-003
+    return fs.WriteAtomic( path, s, enc )
 end function

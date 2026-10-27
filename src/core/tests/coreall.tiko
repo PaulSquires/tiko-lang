@@ -13,7 +13,6 @@
 #import "tkp/platform"
 #import "tkc/appinfo"
 #import "tkc/tomlget"
-#import "tkc/safewrite"
 #import "./tally"
 #import "./fuzzysuite"
 #import "./textsuite"

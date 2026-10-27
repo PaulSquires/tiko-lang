@@ -49,7 +49,6 @@
 #import "std/outcome"
 #import "std/codec"
 #import "std/fs"
-#import "tkc/safewrite"
 using containers
 using outcome
 
@@ -257,7 +256,7 @@ end function
 public function WriteFile( byref path as const ustring, byref bytes as Array( of ubyte ) ) as fs.FsResultBool
     dim as fs.FsResultBool r
     for attempt as long = 1 to 10
-        r = safewrite.WriteBytes( path, bytes )   ' TS-003
+        r = fs.WriteAtomic( path, bytes )
         if r.IsOk( ) then return r
         dim as fs.FsErrorCode code_ = r.Failure( ).Code( )
         if ( code_ <> fs.FS_IN_USE ) andalso ( code_ <> fs.FS_ACCESS_DENIED ) then return r
