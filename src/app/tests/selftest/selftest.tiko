@@ -554,15 +554,14 @@ public sub BufferPass( byref t as Tally, byval sc as single )
         t.Check( (c1 = (mc.BackColorHot and &hFFFFFFul)) andalso (c2 = (mc.BackColor and &hFFFFFFul)), _
                  P( sc, strings.Format( "rows in the menu's colours (&h{} &h{})", hex( c1 ), hex( c2 ) ) ) )
     end scope
-    dim as TKRECT pr
-    tkStatusBar_GetPanelRect( mw.status, mainwin.StatusPanel.Buffer, pr )
+    ' Ctrl+E opens it where Search Symbol opens: centred at the top of the panes
     dim as long popX = 0, popY = 0
     SDL_GetWindowPosition( mw.Chooser.Pop->win, @popX, @popY )
     dim as long popW = 0, popH = 0
     SDL_GetWindowSize( mw.Chooser.Pop->win, @popW, @popH )
     dim as single dd = h->fDensity
-    t.Check( (abs( popX * dd - (mw.status->x + pr.left) ) <= 2) andalso (abs( (popY + popH) * dd - mw.status->y ) <= 2), _
-             P( sc, strings.Format( "the list sits on the filename panel: {},{} {}x{} (status at y {})", popX, popY, popW, popH, mw.status->y ) ) )
+    t.Check( (abs( popX * dd - (h->root->cw - popW * dd) / 2 ) <= 2) andalso (abs( popY * dd - tkForm_Scale( mw.form, 32 ) ) <= 2), _
+             P( sc, strings.Format( "Ctrl+E: centred at the top, like Search Symbol: {},{} {}x{}", popX, popY, popW, popH ) ) )
     if mw.Chooser.Pop then
         tkTest_PushText( mw.Chooser.Pop, "b.t" )
         tkTest_PumpFor( h, 40 )
@@ -639,6 +638,15 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     ClickPanel( mw, mainwin.StatusPanel.Buffer )
     t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Buffers) andalso (mw.Chooser.ShownCount( ) = 3), _
              P( sc, strings.Format( "the buffer panel lists the open files ({})", mw.Chooser.ShownCount( ) ) ) )
+    scope   ' a click on the panel opens it on the panel
+        dim as TKRECT pr
+        tkStatusBar_GetPanelRect( mw.status, mainwin.StatusPanel.Buffer, pr )
+        dim as long qx = 0, qy = 0, qw = 0, qh = 0
+        SDL_GetWindowPosition( mw.Chooser.Pop->win, @qx, @qy )
+        SDL_GetWindowSize( mw.Chooser.Pop->win, @qw, @qh )
+        t.Check( (abs( qx * h->fDensity - (mw.status->x + pr.left) ) <= 2) andalso (abs( (qy + qh) * h->fDensity - mw.status->y ) <= 2), _
+                 P( sc, strings.Format( "and sits on the filename panel: {},{} {}x{} (status at y {})", qx, qy, qw, qh, mw.status->y ) ) )
+    end scope
     PopKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
     t.Check( mw.Chooser.IsOpen( ) = false, P( sc, "Esc closes it" ) )
 

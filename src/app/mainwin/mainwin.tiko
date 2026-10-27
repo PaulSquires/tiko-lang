@@ -451,7 +451,7 @@ public type Window
     declare sub OpenSearchHit( byval i as long )
 
     ' ---- the chooser popup
-    declare sub OpenChooser( byval kind as PickKind )
+    declare sub OpenChooser( byval kind as PickKind, byval atTop as boolean = false )   ' atTop: where Ctrl+P opens
     declare sub CloseOnOwnKey( byval id as Cmd )
     declare sub Chosen( byval tag as long )
     declare function DocOfWidget( byval w as TK_WIDGET ptr ) as DocRef
@@ -947,7 +947,7 @@ function Window.Execute( byval id as Cmd ) as boolean
         dim as ustring f = this.EditableThemeFile( )
         if len( f ) then this.OpenFile( f )
     case Cmd.AppExit : tkForm_Close( form )
-    case Cmd.BufferList : this.OpenChooser( PickKind.Buffers )
+    case Cmd.BufferList : this.OpenChooser( PickKind.Buffers, true )   ' Ctrl+E: where Ctrl+P opens (author)
     case Cmd.BufferNext : this.CycleBuffer( true )
     case Cmd.BufferPrev : this.CycleBuffer( false )
     case Cmd.SplitLeftRight : this.ToggleSplit( session.SplitMode.Vertical )
@@ -1857,7 +1857,7 @@ end sub
 
 ' The one popup list, anchored at the bottom of the panes: what kind decides the rows and what a
 ' pick does (Chosen).
-sub Window.OpenChooser( byval kind as PickKind )
+sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
     dim as Array( of popuplist.PickRow ) rows
     dim as long sel = 0
     dim as ustring keep = ""
@@ -2059,7 +2059,7 @@ sub Window.OpenChooser( byval kind as PickKind )
     if n > Chooser.MaxRows then n = Chooser.MaxRows
     dim as long ph = n * tkForm_Scale( form, popuplist.ROW_CY ) + tkForm_Scale( form, 4 )
     if Chooser.Filter then ph += tkForm_Scale( form, 26 )
-    if (kind = PickKind.Symbols) orelse (kind = PickKind.Functions) then
+    if (kind = PickKind.Symbols) orelse (kind = PickKind.Functions) orelse atTop then
         Chooser.Open( h, rows, (cx - w) \ 2, tkForm_Scale( form, 32 ), w, sel )
     else
         dim as StatusPanel anchor = StatusPanel.Buffer
