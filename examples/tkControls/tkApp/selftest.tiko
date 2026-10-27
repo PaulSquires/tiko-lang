@@ -182,6 +182,8 @@ sub RunPass( byval fScale as single )
     gAllowClose = true
     tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_CLOSE_REQUESTED )
     tkTest_Check( "OnClose TRUE closes it", h->bQuit )
+    ' a real close button would also queue a QUIT that a modal box in OnClose takes (FINDINGS)
+    tkTest_Check( "the close button queues no QUIT behind OnClose", SDL_GetHintBoolean( SDL_HINT_QUIT_ON_LAST_WINDOW_CLOSE, true ) = false )
 
     ' ---- G: rescale ----------------------------------------------------------------------
     gScaleCalls = 0

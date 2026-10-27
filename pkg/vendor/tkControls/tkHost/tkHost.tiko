@@ -437,6 +437,11 @@ public function tkHost_Create( byref title as ustring, byval w as long, byval hg
     dim as TK_HOST ptr h = new TK_HOST
     h->kind = TK_SURF_MAIN
     h->fScaleForced = forcedScale
+    ' The close button is OnCloseRequest's alone (DispatchTo: not vetoed = bQuit). By default SDL
+    ' also queues a QUIT behind its last window's close request; a modal box opened from the veto
+    ' ("save the changes?") then takes that QUIT in tkHost_RunModal, ends as 0 and re-posts it, and
+    ' the app quits past the veto (tkEdit, 2026-10-27). SDL reads the hint when a close is requested.
+    SDL_SetHint( SDL_HINT_QUIT_ON_LAST_WINDOW_CLOSE, "0" )
     dim as string t8 = title
     h->win = SDL_CreateWindow( strptr( t8 ), w, hgt, SDL_WINDOW_HIGH_PIXEL_DENSITY or SDL_WINDOW_RESIZABLE or SDL_WINDOW_HIDDEN )
     if h->win = 0 then delete h : return 0

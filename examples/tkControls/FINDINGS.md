@@ -254,3 +254,14 @@ passed on both drivers rerun alone. Same class: pointer and popup timing, only u
 - `tkStatusBar_SetPanelVisible` / `GetPanelVisible`: a hidden panel is laid out at width 0 (the
   paint loop already skips an empty rect, divider included; HitTest never lands on it). tkEdit's
   settings.toml [statusbar] switches use it. tkStatusBar selftest 242/0 Windows, X11, Wayland.
+
+## The close button and SDL's QUIT (2026-10-27, for tkEdit)
+
+- Clicking the X of SDL's LAST window queues SDL_EVENT_WINDOW_CLOSE_REQUESTED and then SDL_EVENT_QUIT
+  (SDL_HINT_QUIT_ON_LAST_WINDOW_CLOSE, on by default). A form whose OnClose opens a modal box
+  ("save the changes?") lost: tkHost_RunModal took the queued QUIT, ended the box as 0 (Cancel) and
+  re-posted it, and the main loop quit past the veto -- the box flashed, unsaved work was gone.
+- tkHost_Create turns the hint off: the close button reaches OnCloseRequest only, and an unvetoed
+  close still ends the loop through bQuit. A QUIT from elsewhere (session end, SDL_Quit) is unchanged.
+- tkApp selftest asserts the hint. A PUSHED close request never brings the QUIT (SDL sends it only for
+  an OS close), so no self-test can replay the race; the X button itself is a hand check.
