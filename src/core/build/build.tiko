@@ -46,12 +46,11 @@ public type BuildConfig
     Keys           as ustring   ' the shortcut as a chord string "Primary+Shift+F5", "" = none
 end type
 
-' What a build was asked for: the old IDM_COMPILE, IDM_BUILDEXECUTE, IDM_QUICKRUN,
+' What a build was asked for: the old IDM_COMPILE, IDM_BUILDEXECUTE,
 ' IDM_DEBUG_STARTDEBUGGING.
 public enum BuildAction explicit
     Compile          ' build only
     BuildExecute     ' build, then run
-    QuickRun         ' build a temporary copy of the active document, then run it
     StartDebugging   ' build with -g -exx and no optimisation, then debug
 end enum
 
@@ -61,12 +60,10 @@ public enum Subsystem explicit
     Gui
 end enum
 
-' The old QUICKRUNBAS: the temporary copy a Quick Run builds, beside the document.
-public const QUICKRUN_FILE = "_tiko_quickrun.bas"
 
 ' Does this action start the program once it is built? (The old RunAfterCompile.)
 public function RunsAfterBuild( byval action as BuildAction ) as boolean
-    return ( action = BuildAction.BuildExecute ) orelse ( action = BuildAction.QuickRun )
+    return action = BuildAction.BuildExecute
 end function
 
 ' ================================================================ the compiler's flags
@@ -443,8 +440,6 @@ public type DiagReport
     Warnings as long
     ExitCode as long = -1
     Records  as Array( of Diagnostic )
-    ' Quick Run compiles a copy: its records name the temporary file, and belong on the document.
-    declare sub RenameFile( byref fromFile as const ustring, byref toFile as const ustring )
 end type
 
 ' Why there is no report: Missing, Unreadable or Newer (Version = the file's, for Newer).
@@ -454,12 +449,6 @@ public type DiagError
 end type
 
 public type DiagResult as Result( of DiagReport, DiagError )
-
-sub DiagReport.RenameFile( byref fromFile as const ustring, byref toFile as const ustring )
-    for i as long = 0 to this.Records.Count( ) - 1
-        if fs.PathEquals( this.Records[i].File, fromFile ) then this.Records[i].File = toFile
-    next
-end sub
 
 ' A non-negative decimal integer of at most nine digits, and nothing else: "12abc" and "" are
 ' damaged, not 12 and 0 (0 means "no location").

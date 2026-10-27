@@ -87,12 +87,6 @@ private sub DiagFileTests( byref c as tally.Checker )
         c.SameNum( rc.FirstError, 2, "first located error" )
         c.Check( ( rc.ExitFailure = false ) andalso ( rc.ShowLog = false ), "a located error shows Results" )
 
-        ' Quick Run: the temporary copy's records move to the document
-        rep.RenameFile( "C:\PROJ\main.bas", "C:\doc.tiko" )
-        dim as ustring want = "C:\proj\main.bas"
-        if platform.CurrentOs( ) = platform.Os.Windows then want = "C:\doc.tiko"
-        c.Same( rep.Records[1].File, want, "RenameFile matches as the host compares paths" )
-        c.Same( rep.Records[4].File, "", "RenameFile leaves a location-less record alone" )
     end if
 
     ' 2. CRLF parses identically
@@ -290,8 +284,7 @@ private sub CommandTests( byref c as tally.Checker )
     dirs.Push( build.Subsystem.Gui )
     cfg.Options = "x -S CONSOLE y"
     c.Same( build.ComposeFlags( cfg, build.BuildAction.Compile, "", "", dirs ), "xy   -s gui ", "flags: #GUI removes ' -S CONSOLE '" )
-    c.Check( build.RunsAfterBuild( build.BuildAction.QuickRun ) andalso build.RunsAfterBuild( build.BuildAction.BuildExecute ) _
-             andalso ( build.RunsAfterBuild( build.BuildAction.Compile ) = false ), "RunsAfterBuild" )
+    c.Check( build.RunsAfterBuild( build.BuildAction.BuildExecute ) andalso ( build.RunsAfterBuild( build.BuildAction.Compile ) = false ), "RunsAfterBuild" )
 
     ' the JSON events (tiko's JsonStr: a backslash doubled, UTF-8 already decoded)
     dim as ustring art = "{""event"":""artifact"",""kind"":""exe"",""path"":""C:\\p q\\" & wchr( &hE9 ) & "t.exe""}"

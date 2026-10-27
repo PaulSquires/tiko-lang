@@ -99,7 +99,6 @@ public enum Cmd explicit
     BuildExecute
     Compile
     RebuildAll
-    QuickRun
     RunExe
     BuildConfig
     NextDiagnostic
@@ -296,7 +295,6 @@ constructor CommandTable( )
     this.Def( Cmd.BuildExecute, "BuildExecute", g, "Build and Run", "F5" )
     this.Def( Cmd.Compile, "Compile", g, "Compile", "Primary+F5" )
     this.Def( Cmd.RebuildAll, "RebuildAll", g, "Rebuild All", "Primary+Alt+F5" )
-    this.Def( Cmd.QuickRun, "QuickRun", g, "Quick Run", "Primary+Shift+F5", true )
     this.Def( Cmd.RunExe, "RunExe", g, "Run", "Shift+F5" )
     this.Def( Cmd.BuildConfig, "BuildConfig", g, "Build Configuration...", "F7", true )
     this.Def( Cmd.NextDiagnostic, "NextDiagnostic", g, "Next Diagnostic", "Alt+PgDn" )

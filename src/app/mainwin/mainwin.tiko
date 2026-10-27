@@ -292,7 +292,6 @@ public type Window
     BuildDir as ustring
     BuildRaw as ustring
     LogText as ustring
-    QuickRunFile as ustring
     LastExe as ustring
     PendingArgs as Array( of ustring )
     Cleaning as boolean
@@ -884,7 +883,7 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
     case Cmd.CompleteWord, Cmd.GoToDefinition, Cmd.GoBack, Cmd.GoForward, Cmd.GoToNextFunction, _
          Cmd.GoToPrevFunction, Cmd.SearchSymbol, Cmd.FunctionList
         return true
-    case Cmd.OutputPane, Cmd.BuildExecute, Cmd.Compile, Cmd.RebuildAll, Cmd.QuickRun, _
+    case Cmd.OutputPane, Cmd.BuildExecute, Cmd.Compile, Cmd.RebuildAll, _
          Cmd.RunExe, Cmd.NextDiagnostic, Cmd.PrevDiagnostic, Cmd.ProjectNew, _
          Cmd.ProjectClose, Cmd.ProjectFilesAdd
         return true
@@ -966,7 +965,6 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.Compile : this.StartBuild( build.BuildAction.Compile )
     case Cmd.BuildExecute : this.StartBuild( build.BuildAction.BuildExecute )
     case Cmd.RebuildAll : this.StartBuild( build.BuildAction.Compile, true )
-    case Cmd.QuickRun : this.StartBuild( build.BuildAction.QuickRun )
     case Cmd.RunExe
         if len( LastExe ) = 0 then LastExe = build.OutputFile( this.ActivePath( ), "", platform.CurrentOs( ) )
         this.RunProgram( LastExe )
@@ -2432,9 +2430,9 @@ function Window.IsBuilding( ) as boolean
     return Job.IsRunning( ) orelse (buildTimer <> 0)
 end function
 
-' What is built: the project's tiko.toml target, else its main file, else the active buffer (a
-' Quick Run: a copy of it; Compile Module: 'tiko check' of it). Modified buffers with a path are
-' saved first (settings save_before_build). The output arrives through PollBuild.
+' What is built: the project's tiko.toml target, else its main file, else the source buffer in
+' front (SourceDoc). Modified source buffers with a path are saved first (settings
+' save_before_build). The output arrives through PollBuild.
 function Window.StartBuild( byval action as build.BuildAction, byval rebuild as boolean ) as boolean
     if this.IsBuilding( ) then
         this.SetBuildMessage( "a build is running" )
@@ -2447,20 +2445,19 @@ function Window.StartBuild( byval action as build.BuildAction, byval rebuild as 
     end if
     ' settings.toml, keybindings.toml, a theme or a text file is never built (author 2026-10-27)
     dim as DocRef d = this.SourceDoc( )
-    dim as boolean single_ = (action = build.BuildAction.QuickRun)
-    dim as boolean useTarget = ProjOpen andalso (len( Proj.Target ) > 0) andalso (single_ = false)
-    dim as boolean useMain = ProjOpen andalso (len( Proj.Target ) = 0) andalso (len( Proj.Main ) > 0) andalso (single_ = false)
+    dim as boolean useTarget = ProjOpen andalso (len( Proj.Target ) > 0)
+    dim as boolean useMain = ProjOpen andalso (len( Proj.Target ) = 0) andalso (len( Proj.Main ) > 0)
     if (d = 0) andalso (useTarget = false) andalso (useMain = false) then
         this.SetBuildMessage( "nothing to build: no source file is open" )
         return false
     end if
-    if (useTarget = false) andalso (useMain = false) andalso (action <> build.BuildAction.QuickRun) then
+    if (useTarget = false) andalso (useMain = false) then
         if d = 0 then return false
         if len( d->Path ) = 0 then
             if this.SaveDoc( d, false ) = false then return false
         end if
     end if
-    if Prefs.SaveBeforeBuild andalso (action <> build.BuildAction.QuickRun) then
+    if Prefs.SaveBeforeBuild then
         for each x as DocRef in Docs
             ' source files only: saving settings.toml or keybindings.toml would apply them
             if x->IsModified( ) andalso (len( x->Path ) > 0) andalso documents.IsSourceFile( x->Path ) then this.SaveDoc( x, false )
@@ -2476,7 +2473,6 @@ function Window.StartBuild( byval action as build.BuildAction, byval rebuild as 
     dim as platform.Os os_ = platform.CurrentOs( )
     dim as Array( of ustring ) args, none_
     dim as ustring workDir
-    QuickRunFile = ""
     if useTarget then
         args = build.TargetArgs( Proj.Target, Proj.Dir_( ), BuildFlags, none_, BuildDiagFile, os_ )
         ' --profile editor is tiko-editor's managed profile; tiko refuses an unknown one (TKO0163)
@@ -2500,14 +2496,6 @@ function Window.StartBuild( byval action as build.BuildAction, byval rebuild as 
             src = d->Path
         end if
         BuildMain = src
-        if action = build.BuildAction.QuickRun then
-            dim as ustring dir_ = ConfigDir
-            if len( d->Path ) then dir_ = fs.PathParent( d->Path )
-            QuickRunFile = fs.PathJoin( dir_, build.QUICKRUN_FILE )
-            fs.WriteAllText( QuickRunFile, d->Text( ) )
-            src = QuickRunFile
-            BuildMain = QuickRunFile
-        end if
         args = build.BuildArgs( src, none_, none_, "", BuildFlags, BuildDiagFile, os_ )
         workDir = fs.PathParent( src )
     end if
@@ -2584,17 +2572,13 @@ sub Window.FinishBuild( )
     dim as long code = Job.exitCode
     dim as build.DiagResult dr = build.ReadDiagnostics( BuildDiagFile )
     dim as build.DiagReport rep
-    if dr.IsOk( ) then
-        rep = dr.Value( )
-        if len( QuickRunFile ) andalso (this.Active( ) <> 0) then rep.RenameFile( QuickRunFile, this.Active( )->Path )
-    end if
+    if dr.IsOk( ) then rep = dr.Value( )
     Diags = rep.Records
     dim as build.ResultCounts counts = build.CountResults( rep, dr.IsOk( ), false, code )
     this.ShowDiagnostics( counts )
     LastExe = build.EventRunPath( BuildRaw )
     if len( LastExe ) = 0 then LastExe = build.OutputFile( BuildMain, BuildFlags, platform.CurrentOs( ) )
     if len( LastExe ) then LastExe = fs.PathToNative( LastExe )          ' tiko's events write /
-    if len( QuickRunFile ) then fs.RemoveFile( QuickRunFile )
     dim as boolean ok = (code = 0) andalso (counts.Errors = 0)
     BuildSucceeded = ok
     dim as ustring msg = "Build OK"
@@ -2727,11 +2711,8 @@ sub Window.RunProgram( byref exe as const ustring )
             exit sub
         end if
     end if
-    if Launch( argv, dir_ ) then
-        this.SetBuildMessage( "running " & fs.PathFileName( exe ) )
-    else
-        this.SetBuildMessage( "could not start " & fs.PathFileName( exe ) )
-    end if
+    ' started: the build's result stays in the status line (author 2026-10-27)
+    if Launch( argv, dir_ ) = false then this.SetBuildMessage( "could not start " & fs.PathFileName( exe ) )
 end sub
 
 sub Window.ShowOutput( byval visible as boolean )

@@ -1188,24 +1188,13 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     Chord( h, SDLK_F5, SDL_SCANCODE_F5, 0 )
     t.Check( WaitBuild( mw ) andalso mw.BuildSucceeded, P( sc, "F5 built the fixed program: " & mw.Message ) )
     t.Check( gLaunched.Count( ) = 1, P( sc, "and ran it" ) )
+    t.Check( left( mw.Message, 8 ) = "Build OK", P( sc, "the status line keeps the build's result, not 'running': " & mw.Message ) )
     t.Check( (mw.Diags.Count( ) = 0) andalso (mw.View( ).SquiggleAt( 0 ) = 0), P( sc, "the squiggles and rows are gone" ) )
 
     ' ---- Ctrl+Alt+F5: clean, then build
     Chord( h, SDLK_F5, SDL_SCANCODE_F5, SDL_KMOD_CTRL or SDL_KMOD_ALT )
     t.Check( WaitBuild( mw ) andalso mw.BuildSucceeded, P( sc, "Ctrl+Alt+F5 rebuilt: " & mw.Message ) )
     t.Check( (instr( mw.Out.LogText( ), " clean " ) > 0) andalso (instr( mw.Out.LogText( ), " build " ) > 0), P( sc, "clean, then build, in the log" ) )
-
-    ' ---- Ctrl+Shift+F5: Quick Run of an untitled buffer
-    Chord( h, SDLK_N, SDL_SCANCODE_N, SDL_KMOD_CTRL )
-    tkTest_PushText( h, "print 42" )
-    tkTest_PumpFor( h, 30 )
-    gLaunched.Clear( )
-    Chord( h, SDLK_F5, SDL_SCANCODE_F5, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
-    t.Check( WaitBuild( mw ) andalso mw.BuildSucceeded, P( sc, "Ctrl+Shift+F5 quick-ran an untitled buffer: " & mw.Message ) )
-    t.Check( gLaunched.Count( ) = 1, P( sc, "and launched it" ) )
-    t.Check( fs.IsFile( fs.PathJoin( cfg, build.QUICKRUN_FILE ) ) = false, P( sc, "its temporary copy is gone" ) )
-    mw.View( ).SetSavePoint( )
-    Chord( h, SDLK_W, SDL_SCANCODE_W, SDL_KMOD_CTRL )
 
     ' ---- the project: saved, closed, opened again as it was
     mw.View( ).GoToLine( 0 )
