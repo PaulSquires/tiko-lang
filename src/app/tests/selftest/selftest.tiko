@@ -29,6 +29,7 @@
 #import "tka/outputpane"
 #import "tks/parser"
 #import "tka/mainwin"
+#import "tka/chrome"
 #import "tkControls/tkApp"
 #import "tkControls/tkTest"
 #import "tkControls/tkPaint"
@@ -544,6 +545,10 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Buffers), P( sc, "Ctrl+E opened the buffer list" ) )
     t.Check( (mw.Chooser.Query <> 0) andalso (tkTextBox_GetCueBannerText( mw.Chooser.Query ) = "Select edit buffer") andalso _
              tkTextBox_ShowsCue( mw.Chooser.Query ), P( sc, "its query box's cue: Select edit buffer" ) )
+    scope   ' the cue is dimmer than the status line's text, which is dimmer than typed text
+        dim as ulong cue = tkTextBox_GetCueBannerColor( mw.Chooser.Query ), st = chrome.StatusText( mw.Theme )
+        t.Check( ((cue shr 8) and &hFF) < ((st shr 8) and &hFF), P( sc, strings.Format( "the cue (&h{}) is dimmer than the status text (&h{})", hex( cue and &hFFFFFFul ), hex( st and &hFFFFFFul ) ) ) )
+    end scope
     t.Check( mw.Chooser.ShownCount( ) = 3, P( sc, strings.Format( "three rows ({})", mw.Chooser.ShownCount( ) ) ) )
     t.Check( RowsDrawn( mw.Chooser.Pop, mw.Chooser.List ), P( sc, "and draws them" ) )
     scope   ' in the right-click menu's colours: the selected first row, a plain second one
@@ -1199,6 +1204,9 @@ public sub BuildPass( byref t as Tally, byval sc as single )
         dim as ulong lc = tkTest_PixelAt( h, la.right - 6, la.bottom - 6 ) and &hFFFFFFul
         dim as ulong rc_ = tkListTree_GetBackColor( mw.Out.results ) and &hFFFFFFul
         t.Check( lc = rc_, P( sc, strings.Format( "the Log's background is Results' (&h{} vs &h{})", hex( lc ), hex( rc_ ) ) ) )
+        ' no frame: its top row, under the tabs, is the background too
+        dim as ulong tc_ = tkTest_PixelAt( h, (la.left + la.right) \ 2, la.top ) and &hFFFFFFul
+        t.Check( (tkTextBox_GetBorderWidth( mw.Out.logBox ) = 0) andalso (tc_ = rc_), P( sc, strings.Format( "no line under the Log tab (&h{})", hex( tc_ ) ) ) )
     end scope
     mw.Out.ShowTab( outputpane.OutputTab.Results )
     t.Check( mw.Diags.Count( ) >= 2, P( sc, strings.Format( "the diagnostics ({})", mw.Diags.Count( ) ) ) )

@@ -47,6 +47,16 @@ end type
 
 public type PickedProc as sub( byval payload as any ptr, byval tag as long )
 
+' a + (b - a) * t, per channel; alpha opaque
+private function Toward( byval a as ulong, byval b as ulong, byval t as single ) as ulong
+    dim as ulong o = &hFF000000ul
+    for sh as long = 0 to 16 step 8
+        dim as long x = (a shr sh) and &hFF, y = (b shr sh) and &hFF
+        o or= culng( cint( x + (y - x) * t ) and &hFF ) shl sh
+    next
+    return o
+end function
+
 public type Picker
     ' ---- set before Open
     Columns  as Array( of long )         ' column widths, unscaled; the last one fills
@@ -235,6 +245,9 @@ function Picker.Open( byval owner as TK_HOST ptr, byref rows_ as const Array( of
         qc.BackColor = mc.BackColor
         qc.OuterBackColor = mc.BackColor
         qc.ForeColor = mc.ForeColor
+        ' the cue: the dim text nearly half way to the background, below the status line's
+        ' (a quarter of the way) so it never reads as typed text (author 2026-10-27)
+        qc.CueColor = Toward( tkTheme_Get( ).TextDim, mc.BackColor, 0.45 )
         tkTextBox_SetColors( Query, @qc )
         tkWidget_SetPos( Query, pad, pad, w - 2 * pad, qh - pad )
         tkTextBox_SetCueBannerText( Query, Cue )

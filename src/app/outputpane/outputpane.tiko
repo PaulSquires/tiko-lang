@@ -107,6 +107,7 @@ sub Pane.Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ a
     results = tkListTree_Create( frame, ID_RESULTS )
     logBox = tkTextBox_Create( frame, ID_LOG, true )
     tkTextBox_SetReadOnly( logBox, true )
+    tkTextBox_SetBorderWidth( logBox, 0 )   ' no frame: Results and Search have none (author 2026-10-27)
     dim as TK_FORM ptr f = tkForm_FromWidget( frame )
     if f then tkTextBox_SetFont( logBox, tkForm_Font( f, TKFONT_MONO ) )
     this.ApplyColors( )
