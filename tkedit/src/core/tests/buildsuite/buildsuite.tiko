@@ -324,9 +324,46 @@ private sub SummaryTests( byref c as tally.Checker )
             "Compile Time: 0.9 seconds (2026-10-27 05:55:10)" & nl & nl, "LogSummary: a failed build names no target" )
 end sub
 
+' A toolchain beside a packaged tkEdit (author 2026-10-27).
+private sub SiblingTests( byref c as tally.Checker )
+    dim as fs.FsResultUStr tmp = fs.CreateTempDir( "siblings" )
+    c.Check( tmp.IsOk( ), "siblings: a temp folder" )
+    if tmp.IsOk( ) = false then exit sub
+    dim as ustring root = tmp.Value( )
+    dim as ustring ed = fs.PathJoin( root, "tkedit" )
+    fs.CreateDirAll( fs.PathJoin( ed, "fonts" ) )
+    dim as platform.Os win = platform.Os.Windows, lnx = platform.Os.Linux
+    c.Same( build.SiblingCompiler( ed, win ), "", "SiblingCompiler: nothing beside it" )
+    ' tkEdit's own folder is never looked in
+    fs.WriteAllText( fs.PathJoin( ed, "tiko.exe" ), "" )
+    c.Same( build.SiblingCompiler( ed, win ), "", "SiblingCompiler: not in tkEdit's own folder" )
+    ' a folder not named tiko* is looked in too, but after the tiko* ones
+    fs.CreateDirAll( fs.PathJoin( root, "aaa" ) )
+    fs.WriteAllText( fs.PathJoin( root, "aaa", "tiko.exe" ), "" )
+    c.Same( build.SiblingCompiler( ed, win ), fs.PathJoin( root, "aaa", "tiko.exe" ), "SiblingCompiler: any folder beside it" )
+    fs.CreateDirAll( fs.PathJoin( root, "tiko-windows" ) )
+    fs.WriteAllText( fs.PathJoin( root, "tiko-windows", "tiko.exe" ), "" )
+    c.Same( build.SiblingCompiler( ed, win ), fs.PathJoin( root, "tiko-windows", "tiko.exe" ), "SiblingCompiler: tiko-windows/tiko.exe first" )
+    c.Same( build.SiblingCompiler( ed & "/", win ), fs.PathJoin( root, "tiko-windows", "tiko.exe" ), "SiblingCompiler: a trailing separator" )
+    ' one folder down, no .exe off Windows: tiko-linux/bin/tiko
+    c.Same( build.SiblingCompiler( ed, lnx ), "", "SiblingCompiler: tiko.exe is not Linux's compiler" )
+    fs.CreateDirAll( fs.PathJoin( root, "tiko-linux", "bin" ) )
+    fs.WriteAllText( fs.PathJoin( root, "tiko-linux", "bin", "tiko" ), "" )
+    c.Same( build.SiblingCompiler( ed, lnx ), fs.PathJoin( root, "tiko-linux", "bin", "tiko" ), "SiblingCompiler: tiko-linux/bin/tiko" )
+    ' two folders down is too far
+    fs.RemoveDirAll( fs.PathJoin( root, "aaa" ) )
+    fs.RemoveDirAll( fs.PathJoin( root, "tiko-windows" ) )
+    dim as ustring deep = fs.PathJoin( fs.PathJoin( root, "tools", "x" ), "y" )
+    fs.CreateDirAll( deep )
+    fs.WriteAllText( fs.PathJoin( deep, "tiko.exe" ), "" )
+    c.Same( build.SiblingCompiler( ed, win ), "", "SiblingCompiler: not two folders down" )
+    fs.RemoveDirAll( root )
+end sub
+
 public sub Run( byref c as tally.Checker )
     c.Begin( "build" )
     DiagFileTests( c )
     CommandTests( c )
     SummaryTests( c )
+    SiblingTests( c )
 end sub

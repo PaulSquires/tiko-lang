@@ -69,4 +69,5 @@ for each f as ustring in named
     if project.IsManifest( f ) = false then theWindow.OpenFile( f )
 next
 theWindow.Show( )
+theWindow.EnsureCompilerSoon( )          ' no compiler found: ask for one (author 2026-10-27)
 end tkApp_Run( theWindow.form )

@@ -699,3 +699,66 @@ public function LogSummary( byval ok as boolean, byval errors as long, byval war
     s &= strings.Format( "Compile Time: {}.{} seconds ({})", ms \ 1000, (ms mod 1000) \ 100, stamp ) & nl & nl
     return s
 end function
+
+' ================================================================ the compiler beside tkEdit
+
+' names in place, ignoring case
+private sub SortNames( byref a as Array( of ustring ) )
+    for i as long = 1 to a.Count( ) - 1
+        dim as ustring x = a[i]
+        dim as long j = i - 1
+        while (j >= 0) andalso (lcase( a[j] ) > lcase( x ))
+            a[j + 1] = a[j]
+            j -= 1
+        wend
+        a[j + 1] = x
+    next
+end sub
+
+' the folders in dir_, sorted; skip (a name) left out
+private function SubFolders( byref dir_ as const ustring, byref skip as const ustring, byval os_ as platform.Os ) as Array( of ustring )
+    dim as Array( of ustring ) names
+    for each r in fs.ReadDir( dir_ )
+        if r.IsOk( ) = false then continue for
+        dim as fs.DirEntry e = r.Value( )
+        if e.IsDirectory( ) = false then continue for
+        dim as boolean same = (e.Name( ) = skip)
+        if os_ <> platform.Os.Linux then same = (lcase( e.Name( ) ) = lcase( skip ))
+        if same = false then names.Push( e.Name( ) )
+    next
+    SortNames( names )
+    return names
+end function
+
+' The compiler of a toolchain unpacked beside tkEdit (author 2026-10-27): a release archive holds
+' tiko-windows/ (or tiko-linux/) and tkedit/ side by side. editorRoot is the folder tkEdit loads
+' its fonts/ from; every other folder beside it is looked in -- those named tiko* first, each group
+' in name order -- for tiko (tiko.exe on Windows) in it or one folder down (tiko-linux/bin/tiko).
+' "" when there is none.
+public function SiblingCompiler( byref editorRoot as const ustring, byval os_ as platform.Os ) as ustring
+    dim as ustring exe = "tiko"
+    if os_ = platform.Os.Windows then exe = "tiko.exe"
+    dim as ustring root = editorRoot
+    while (len( root ) > 1) andalso ((right( root, 1 ) = "/") orelse (right( root, 1 ) = "\"))
+        root = left( root, len( root ) - 1 )
+    wend
+    dim as ustring parent = fs.PathParent( root )
+    if (len( parent ) = 0) orelse (fs.IsDir( parent ) = false) then return ""
+    dim as Array( of ustring ) all_ = SubFolders( parent, fs.PathFileName( root ), os_ )
+    dim as Array( of ustring ) order
+    for each nm as ustring in all_
+        if lcase( left( nm, 4 ) ) = "tiko" then order.Push( nm )
+    next
+    for each nm as ustring in all_
+        if lcase( left( nm, 4 ) ) <> "tiko" then order.Push( nm )
+    next
+    for each nm as ustring in order
+        dim as ustring sib = fs.PathJoin( parent, nm )
+        if fs.IsFile( fs.PathJoin( sib, exe ) ) then return fs.PathJoin( sib, exe )
+        for each sub_ as ustring in SubFolders( sib, "", os_ )
+            dim as ustring c = fs.PathJoin( sib, sub_, exe )
+            if fs.IsFile( c ) then return c
+        next
+    next
+    return ""
+end function

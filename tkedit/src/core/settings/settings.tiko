@@ -76,7 +76,7 @@ public type EditorSettings
     SaveBeforeBuild as boolean = true
     TrimTrailing as boolean
     ' [compiler]
-    Tiko         as ustring              ' "" = tiko on PATH
+    Tiko         as ustring              ' "" = tiko on PATH, else beside tkEdit (build.SiblingCompiler)
     Includes     as Array( of ustring )
     RunInTerminal as boolean = true
     ' [[builds]]
@@ -277,7 +277,7 @@ public function ToToml( byref s as const EditorSettings ) as ustring
         KeyLine( "trim_trailing", BoolText( s.TrimTrailing ) ) & _
         nl & _
         "[compiler]" & nl & _
-        KeyLine( "tiko", tomlget.Quoted( s.Tiko ), "'' = tiko on PATH" ) & _
+        KeyLine( "tiko", tomlget.Quoted( s.Tiko ), "'' = tiko on PATH, else a toolchain beside tkEdit" ) & _
         KeyLine( "includes", "[" & incl & "]" ) & _
         KeyLine( "run_in_terminal", BoolText( s.RunInTerminal ) )
     for each b as BuildConfig in s.Builds

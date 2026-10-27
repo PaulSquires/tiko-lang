@@ -155,6 +155,7 @@ end type
 public type AskProc as function( byval f as TK_FORM ptr, byref text as const ustring, byval buttons as long ) as long
 public type PickProc as function( byval f as TK_FORM ptr, byval kind as long, byref suggest as const ustring ) as ustring
 public const PICK_OPEN_MANY = 100        ' a Pick kind: open several files; the paths one per line
+public const PICK_COMPILER = 101         ' a Pick kind: the tiko compiler (tiko.exe on Windows)
 public type DocRef as documents.Document ptr
 ' Starting a program (Run): argv[0] is the program. The self-test records instead.
 public type LaunchProc as function( byref argv as const Array( of ustring ), byref workDir as const ustring ) as boolean
@@ -231,6 +232,12 @@ private function PickPerson( byval f as TK_FORM ptr, byval kind as long, byref s
                             "tkEdit projects|tkedit|TOML|toml|All files|*"
     dim as ustring where = suggest
     if kind = TKFD_SAVE then return tkFileDialog_SaveFile( tkForm_Host( f ), filters, where )
+    if kind = PICK_COMPILER then
+        ' tiko.exe on Windows; elsewhere the compiler has no extension, so no filter (author)
+        dim as string cf = ""
+        if platform.CurrentOs( ) = platform.Os.Windows then cf = "tiko compiler|exe"
+        return tkFileDialog_OpenFile( tkForm_Host( f ), cf, where )
+    end if
     if kind = PICK_OPEN_MANY then
         dim as Array( of ustring ) paths
         if tkFileDialog_Wait( TKFD_OPEN, tkForm_Host( f ), filters, where, true, paths ) = false then return ""
@@ -287,6 +294,7 @@ public type Window
     OutputShown as boolean
     Job as runner.Job
     buildTimer as long
+    compilerTimer as long
     Diags as Array( of build.Diagnostic )
     DiagAt as long = -1
     BuildAct as build.BuildAction
@@ -367,6 +375,9 @@ public type Window
     declare sub ApplyStatusPanels( )
     declare sub SyncKeysFile( )
     declare sub SetDefaultBuild( byref name_ as const ustring )
+    declare sub SetCompiler( byref path as const ustring )
+    declare function EnsureCompiler( ) as boolean
+    declare sub EnsureCompilerSoon( )
     declare sub ReloadKeys( )
     declare sub ReloadTheme( )
     declare sub ApplyLook( )
@@ -634,6 +645,8 @@ end sub
 sub Window.Destroy( )
     if diskTimer then tkApp_KillTimer( diskTimer )
     diskTimer = 0
+    if compilerTimer then tkApp_KillTimer( compilerTimer )
+    compilerTimer = 0
     if buildTimer then tkApp_KillTimer( buildTimer )
     buildTimer = 0
     Job.Finish( )
@@ -1125,6 +1138,25 @@ end sub
 ' The build configuration name_ is used now and is settings.toml's default from now on: the file
 ' is rewritten, and the buffer showing it, if one does, reloaded. A file that does not parse is
 ' the person's to fix: the choice holds for this run only.
+' The compiler the person chose: in use now, and kept in settings.toml as [compiler] tiko (an open
+' copy reloads). A settings.toml that does not parse is left alone.
+sub Window.SetCompiler( byref path as const ustring )
+    Prefs.Tiko = path
+    dim as settings.EditorSettings st
+    dim as settings.SettingsResult r = settings.LoadSettings( this.SettingsFile( ) )
+    if r.IsOk( ) then
+        st = r.Value( )
+    elseif fs.IsFile( this.SettingsFile( ) ) then
+        this.SetMessage( settings.SETTINGS_FILE & " does not parse: the compiler is used but not saved" )
+        exit sub
+    end if
+    st.Tiko = path
+    if settings.WriteFile( this.SettingsFile( ), st ) then
+        dim as DocRef d = this.FindOpen( this.SettingsFile( ) )
+        if d then d->Reload( )
+    end if
+end sub
+
 sub Window.SetDefaultBuild( byref name_ as const ustring )
     CurrentBuild = name_
     dim as settings.SettingsResult r = settings.LoadSettings( this.SettingsFile( ) )
@@ -2524,12 +2556,46 @@ end sub
 
 ' ================================================================ the build (P4)
 
+' settings.toml's [compiler] tiko, else tiko on the PATH, else a toolchain unpacked beside tkEdit
+' (build.SiblingCompiler; author 2026-10-27). "" = none: EnsureCompiler asks at start.
 function Window.CompilerPath( ) as ustring
     if len( Prefs.Tiko ) andalso fs.IsFile( Prefs.Tiko ) then return Prefs.Tiko
     dim as ustring nm = "tiko"
     if platform.CurrentOs( ) = platform.Os.Windows then nm = "tiko.exe"
-    return platform.FindOnPath( nm )
+    dim as ustring onPath = platform.FindOnPath( nm )
+    if len( onPath ) then return onPath
+    return build.SiblingCompiler( ResourceDir, platform.CurrentOs( ) )
 end function
+
+' No compiler anywhere CompilerPath looks: say so, then the Open dialog for one; the file chosen
+' goes into settings.toml (SetCompiler). Cancel leaves settings.toml alone. TRUE = a compiler now.
+function Window.EnsureCompiler( ) as boolean
+    if len( this.CompilerPath( ) ) then return true
+    dim as ustring nm = "tiko"
+    if platform.CurrentOs( ) = platform.Os.Windows then nm = "tiko.exe"
+    Ask( form, "No tiko compiler was found: none is set in " & settings.SETTINGS_FILE & _
+               ", there is none on the PATH and no toolchain beside tkEdit." & wchr( 10 ) & wchr( 10 ) & _
+               "Choose the compiler (" & nm & ") next. tkEdit keeps it in " & settings.SETTINGS_FILE & ".", MBX_BTN_OK )
+    dim as ustring f = Pick( form, PICK_COMPILER, "" )
+    if (len( f ) = 0) orelse (fs.IsFile( f ) = false) then
+        this.SetMessage( "no tiko compiler: set [compiler] tiko in " & settings.SETTINGS_FILE )
+        return false
+    end if
+    this.SetCompiler( f )
+    this.SetMessage( "the tiko compiler: " & f )
+    return true
+end function
+
+' EnsureCompiler once the main loop runs (main.tiko, after Show; never in --selftest): a dialog
+' needs the window up and its events flowing.
+sub Window.EnsureCompilerSoon( )
+    compilerTimer = tkApp_SetTimer( 1, sub( byval id as long, byval payload as any ptr )
+        dim as Window ptr mw = payload
+        tkApp_KillTimer( id )
+        mw->compilerTimer = 0
+        mw->EnsureCompiler( )
+    end sub, @this )
+end sub
 
 ' The configuration the build panel shows, as tkc/build wants it.
 function Window.ActiveBuildConfig( ) as build.BuildConfig

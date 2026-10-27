@@ -1042,6 +1042,7 @@ end sub
 
 dim shared as Array( of ustring ) gLaunched
 dim shared as string gTerminalEnv           ' putenv keeps the pointer: it must outlive the call
+dim shared as string gPathEnv, gPathKeep
 
 private function ScriptedLaunch( byref argv as const Array( of ustring ), byref workDir as const ustring ) as boolean
     dim as ustring s
@@ -1316,6 +1317,40 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     t.Check( (fs.IsFile( project.OptionsPath( cfg, stale.Manifest ) ) = false) andalso (fs.IsFile( project.SessionPath( cfg, stale.Manifest ) ) = false), _
              P( sc, "the gone project's options and session were pruned" ) )
     t.Check( fs.IsFile( optF ) andalso fs.IsFile( project.SessionPath( cfg, pf ) ), P( sc, "the live project's stayed" ) )
+
+    ' ---- the compiler: settings.toml, the PATH, a toolchain beside tkEdit; none = asked for once,
+    ' the answer kept in settings.toml (author 2026-10-27). The PATH is emptied around the calls.
+    if mw4.form then
+        dim as ustring pkg = fs.PathJoin( Files( ), "pkg" )
+        dim as ustring ed = fs.PathJoin( pkg, "tkedit" )
+        fs.CreateDirAll( fs.PathJoin( ed, "fonts" ) )
+        dim as ustring exe = "tiko"
+        if platform.CurrentOs( ) = platform.Os.Windows then exe = "tiko.exe"
+        dim as ustring sib = fs.PathJoin( pkg, "tiko-host", "bin", exe )
+        fs.CreateDirAll( fs.PathParent( sib ) )
+        fs.WriteAllText( sib, "" )
+        dim as ustring keepRes = mw4.ResourceDir
+        mw4.ResourceDir = ed
+        mw4.Prefs.Tiko = ""
+        gPathKeep = "PATH=" & environ( "PATH" )
+        gPathEnv = "PATH="
+        setenviron gPathEnv
+        t.Check( mw4.CompilerPath( ) = sib, P( sc, "no setting, nothing on the PATH: the toolchain beside tkEdit: " & mw4.CompilerPath( ) ) )
+        dim as long asked0 = gAsked
+        t.Check( mw4.EnsureCompiler( ) andalso (gAsked = asked0), P( sc, "and nothing is asked" ) )
+        fs.RemoveDirAll( fs.PathJoin( pkg, "tiko-host" ) )
+        gPickPath = ""
+        t.Check( (mw4.EnsureCompiler( ) = false) andalso (gAsked = asked0 + 1), P( sc, "none anywhere: the person is told, then asked; cancelled" ) )
+        t.Check( settings.LoadSettings( mw4.SettingsFile( ) ).Value( ).Tiko = "", P( sc, "a cancel writes nothing" ) )
+        dim as ustring chosen = fs.PathJoin( Files( ), "chosen-" & exe )
+        fs.WriteAllText( chosen, "" )
+        gPickPath = chosen
+        t.Check( mw4.EnsureCompiler( ) andalso (mw4.Prefs.Tiko = chosen) andalso (mw4.CompilerPath( ) = chosen), _
+                 P( sc, "the file chosen is the compiler: " & mw4.CompilerPath( ) ) )
+        t.Check( settings.LoadSettings( mw4.SettingsFile( ) ).Value( ).Tiko = chosen, P( sc, "and settings.toml keeps it as [compiler] tiko" ) )
+        setenviron gPathKeep
+        mw4.ResourceDir = keepRes
+    end if
     if mw4.form then mw4.Destroy( )
 end sub
 
