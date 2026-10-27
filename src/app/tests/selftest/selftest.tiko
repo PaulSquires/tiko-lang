@@ -36,6 +36,7 @@
 #import "tkControls/tkMessageBox"
 #import "tkControls/tkStatusBar"
 #import "tkControls/tkTextBox"
+#import "tkControls/tkToolbar"
 #import "tkControls/tkListTree"
 #import "std/containers"
 using containers
@@ -50,6 +51,8 @@ using tkMessageBox
 using tkStatusBar
 using tkTextBox
 using tkListTree
+using tkToolbar
+using tkTheme
 
 private type DocRef as documents.Document ptr
 
@@ -71,6 +74,14 @@ end sub
 
 private function P( byval sc as single, byref what as const ustring ) as ustring
     return strings.Format( "[{}] {}", sc, what )
+end function
+
+' Both find-strip toolbars paint the theme's Surface, the strip's own back colour.
+private function StripToolsMatch( byref mw as mainwin.Window ) as boolean
+    dim as TKTOOLBAR_COLORS a, b
+    tkToolbar_GetColors( mw.Finder.tools, @a )
+    tkToolbar_GetColors( mw.Finder.rtools, @b )
+    return (a.BackColor = tkTheme_Get( ).Surface) andalso (b.BackColor = tkTheme_Get( ).Surface)
 end function
 
 ' A fresh, empty config folder for one pass.
@@ -219,6 +230,7 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     t.Check( mw.Prefs.TabSize = 2, P( sc, strings.Format( "tab_size applied ({})", mw.Prefs.TabSize ) ) )
     t.Check( (mw.Look.LineNumbers = false) andalso (mw.View( ).MarginWidth( 0 ) = 0), P( sc, "line numbers off in the view" ) )
     t.Check( (mw.Theme.Name = "light") andalso (tkApp_Theme( ).IsDark = false), P( sc, "theme 'light' applied to the controls" ) )
+    t.Check( StripToolsMatch( mw ), P( sc, "and the find strip's buttons follow its new back colour" ) )
     t.Check( mw.Look.Text.Back = &hFFFFFF, P( sc, "and to the view's background" ) )
     t.Check( mw.Message = "", P( sc, "no message: " & mw.Message ) )
 
@@ -572,6 +584,7 @@ public sub FindPass( byref t as Tally, byval sc as single )
     dim as TK_WIDGET ptr fr = mw.Finder.frame
     t.Check( (fr->y = cy - sh - rowH) andalso (fr->ch = rowH) andalso (fr->cw = cx), P( sc, strings.Format( "one row above it: {} {}x{}", fr->y, fr->cw, fr->ch ) ) )
     t.Check( mw.View( ).Widget( )->ch = cy - sh - rowH, P( sc, "the view ends above the strip" ) )
+    t.Check( StripToolsMatch( mw ), P( sc, "the buttons share the strip's back colour" ) )
     t.Check( tkHost_GetFocus( h ) = mw.Finder.findBox, P( sc, "the find box has the focus" ) )
     tkTest_PushText( h, "alpha" )
     tkTest_PumpFor( h, 40 )

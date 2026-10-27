@@ -108,6 +108,15 @@ private function StripOf( byval w as TK_WIDGET ptr ) as Strip ptr
     return 0
 end function
 
+' The toolbars sit on the strip's Surface, not their own default Window back colour. Pinned, so a
+' theme change repaints them only through here.
+private sub MatchTools( byval st as Strip ptr )
+    dim as TKTOOLBAR_COLORS c = tkToolbar_ThemeColors( tkTheme_Get( ) )
+    c.BackColor = tkTheme_Get( ).Surface
+    tkToolbar_SetColors( st->tools, @c )
+    tkToolbar_SetColors( st->rtools, @c )
+end sub
+
 private function FrameProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
     select case m->msg
     case TKM_PAINT
@@ -142,6 +151,7 @@ private function FrameProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as
         cast( Strip ptr, w->pData )->Layout( )
         return true
     case TKM_THEMECHANGED
+        MatchTools( w->pData )
         tkWidget_Invalidate( w )
         return true
     end select
@@ -219,6 +229,7 @@ sub Strip.Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ 
     end sub
     tkToolbar_SetClickCallback( tools, onClick )
     tkToolbar_SetClickCallback( rtools, onClick )
+    MatchTools( @this )
     tkWidget_Show( frame, false )
 end sub
 
