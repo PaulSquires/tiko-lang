@@ -17,5 +17,8 @@ options = ["-w", "all"]
 main      = "main.tiko"
 subsystem = "gui"
 options   = ["-mt"]
-resources = ["res/tkEdit.rc"]
 copy_to   = ["../../bin"]
+
+# the exe's icon: a .rc is Windows-only, and a Linux build refuses one (TK-003)
+[target.tkEdit.windows]
+resources = ["res/tkEdit.rc"]

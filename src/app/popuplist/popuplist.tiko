@@ -51,7 +51,10 @@ public type Picker
     OnToggle as PickedProc               ' tag = 0
     SeedQuery as ustring                 ' the query box's text when it opens
     OnPick   as PickedProc
+    OnMove   as PickedProc               ' the selection moved (Move): tag = the selected row's
+    OnCancel as PickedProc               ' closed with no pick (Esc, the focus leaving): tag = -1
     Payload  as any ptr
+    picked   as boolean                  ' Accept is closing it
 
     ' ---- while open
     Pop   as TK_HOST ptr
@@ -153,6 +156,9 @@ function Picker.Open( byval owner as TK_HOST ptr, byref rows_ as const Array( of
         p->Frame = 0
         p->Query = 0
         p->List = 0
+        dim as boolean cancelled = (p->picked = false)
+        p->picked = false
+        if cancelled andalso (p->OnCancel <> 0) then p->OnCancel( p->Payload, -1 )
     end sub
     ' the popup's own keys, before its focused widget: moving, picking, leaving
     Pop->OnPreKey = function( byval h as TK_HOST ptr, byval m as TK_MSG ptr ) as boolean
@@ -232,6 +238,7 @@ sub Picker.Move( byval delta as long )
     if i < 0 then i = 0
     if i >= Shown.Count( ) then i = Shown.Count( ) - 1
     tkListTree_SetCurSel( List, i )
+    if OnMove then OnMove( Payload, this.SelectedTag( ) )
 end sub
 
 function Picker.SelectedTag( ) as long
@@ -250,6 +257,7 @@ end function
 ' Closes, then hands the pick over (the popup is gone when OnPick runs).
 sub Picker.Accept( )
     dim as long tag = this.SelectedTag( )
+    picked = true
     this.Close( )
     if (tag >= 0) andalso (OnPick <> 0) then OnPick( Payload, tag )
 end sub

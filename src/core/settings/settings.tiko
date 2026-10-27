@@ -49,7 +49,7 @@ end type
 
 public type EditorSettings
     ' [editor]
-    Font         as ustring              ' "" = the bundled Cascadia Mono; else a .ttf path
+    Font         as ustring              ' "" = the bundled JetBrains Mono; else a .ttf path
     FontSize     as long = 11
     TabSize      as long = 4
     UseTabs      as boolean
@@ -201,7 +201,7 @@ public function Template( ) as ustring
         "version = 1" & nl & _
         nl & _
         "[editor]" & nl & _
-        "# font = ''              # '' = the bundled Cascadia Mono; else a .ttf path" & nl & _
+        "# font = ''              # '' = the bundled JetBrains Mono; else a .ttf path" & nl & _
         "# font_size = 11" & nl & _
         "# tab_size = 4" & nl & _
         "# use_tabs = false" & nl & _

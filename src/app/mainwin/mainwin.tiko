@@ -80,7 +80,7 @@ using tkStatusBar
 
 public const FONT_UI = "Inter-Regular.ttf"
 public const FONT_UI_BOLD = "Inter-Bold.ttf"
-public const FONT_MONO = "CascadiaMono.ttf"
+public const FONT_MONO = "JetBrainsMono-Regular.ttf"
 public const FONT_GLYPH = "PsIcons.ttf"
 public const DEFAULT_CX = 960
 public const DEFAULT_CY = 640
@@ -236,6 +236,8 @@ public type Window
 
     ' ---- the App state
     ResourceDir as ustring
+    Previewing as boolean                                      ' the Ctrl+Tab switcher is showing buffers
+    SwitchFrom as DocRef                                       ' and Esc goes back to this one
     HasIcon as boolean                                         ' icons/tkedit.png set as the window icon
     Prefs as settings.EditorSettings
     Keys as keybind.KeyMap
@@ -572,6 +574,8 @@ sub Window.Show( )
 end sub
 
 sub Window.Destroy( )
+    Chooser.OnCancel = 0                         ' a switcher closed by the teardown goes nowhere
+    Chooser.OnMove = 0
     if diskTimer then tkApp_KillTimer( diskTimer )
     diskTimer = 0
     if buildTimer then tkApp_KillTimer( buildTimer )
@@ -785,9 +789,15 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.ShowMenu : this.ShowMenuBar( )
     case Cmd.BufferList : this.OpenChooser( PickKind.Buffers )
     case Cmd.BufferNext, Cmd.BufferPrev
+        ' on the key-down: the buffer it selects is shown at once, and each Tab after it shows
+        ' the next; letting go of Ctrl keeps the one shown, Esc goes back
         Chooser.Close( )
         this.OpenChooser( PickKind.Switcher )
-        if id = Cmd.BufferPrev then Chooser.Move( Mru.Count( ) )      ' to the oldest
+        if id = Cmd.BufferPrev then
+            Chooser.Move( Mru.Count( ) )                                ' to the oldest
+        elseif Chooser.SelectedTag( ) >= 0 then
+            this.ShowDoc( Mru[Chooser.SelectedTag( )] )
+        end if
     case Cmd.SplitLeftRight : this.ToggleSplit( session.SplitMode.Vertical )
     case Cmd.SplitTopBottom : this.ToggleSplit( session.SplitMode.Horizontal )
     case Cmd.CycleFocus : this.CycleFocus( )
@@ -1129,8 +1139,10 @@ function Window.NewView( byref v as editor.CodeView ) as boolean
     return true
 end function
 
-' d is the most recently shown buffer now.
+' d is the most recently shown buffer now. Not while the switcher previews: its rows are the
+' MRU order, which must hold still while Tab walks them.
 sub Window.Touch( byval d as DocRef )
+    if Previewing then exit sub
     for i as long = 0 to Mru.Count( ) - 1
         if Mru[i] = d then
             Mru.Remove( i )
@@ -1193,7 +1205,7 @@ sub Window.ShowDoc( byval d as DocRef )
     end if
     this.Touch( d )
     this.Layout( )
-    this.View( ).Focus( )
+    if Previewing = false then this.View( ).Focus( )          ' the switcher keeps the keyboard
     this.ShowTitle( )
     this.ShowStatus( )
 end sub
@@ -1543,6 +1555,8 @@ sub Window.OpenChooser( byval kind as PickKind )
     Chooser.Close( )
     Chooser.Filter = true
     Chooser.AcceptOnCtrlUp = false
+    Chooser.OnMove = 0
+    Chooser.OnCancel = 0
     Chooser.SeedQuery = keep
     Chooser.MaxRows = 12
     Chooser.Toggle.key = 0
@@ -1664,6 +1678,17 @@ sub Window.OpenChooser( byval kind as PickKind )
             Chooser.Filter = false
             Chooser.AcceptOnCtrlUp = true
             if Mru.Count( ) > 1 then sel = 1
+            SwitchFrom = this.Active( )
+            Previewing = true
+            Chooser.OnMove = sub( byval payload as any ptr, byval tag as long )
+                dim as Window ptr mw = payload
+                if (tag >= 0) andalso (tag < mw->Mru.Count( )) then mw->ShowDoc( mw->Mru[tag] )
+            end sub
+            Chooser.OnCancel = sub( byval payload as any ptr, byval tag as long )
+                dim as Window ptr mw = payload
+                mw->Previewing = false
+                if mw->SwitchFrom then mw->ShowDoc( mw->SwitchFrom )
+            end sub
         end if
     case PickKind.Recent
         for i as long = 0 to Recent.Count( ) - 1
@@ -1735,6 +1760,7 @@ sub Window.Chosen( byval tag as long )
     Choosing = PickKind.None
     select case kind
     case PickKind.Buffers, PickKind.Switcher
+        Previewing = false
         if (tag >= 0) andalso (tag < Mru.Count( )) then this.ShowDoc( Mru[tag] )
     case PickKind.Recent
         dim as ustring p = Recent.Item( tag )

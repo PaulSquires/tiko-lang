@@ -127,7 +127,7 @@ public sub Pass( byref t as Tally, byval sc as single )
     dim as const zstring ptr vd = SDL_GetCurrentVideoDriver( )
     if (vd = 0) orelse (*vd <> "wayland") then t.Check( mw.HasIcon, P( sc, "the window icon is icons/tkedit.png" ) )
     t.Check( strings.EndsWith( tkForm_RoleFile( mw.form, TKFONT_UI ), mainwin.FONT_UI ), P( sc, "UI font is Inter" ) )
-    t.Check( strings.EndsWith( tkForm_RoleFile( mw.form, TKFONT_MONO ), mainwin.FONT_MONO ), P( sc, "mono font is Cascadia Mono" ) )
+    t.Check( strings.EndsWith( tkForm_RoleFile( mw.form, TKFONT_MONO ), mainwin.FONT_MONO ), P( sc, "mono font is JetBrains Mono" ) )
     t.Check( strings.EndsWith( tkApp_GlyphFace( ), mainwin.FONT_GLYPH ), P( sc, "glyph font is '" & tkApp_GlyphFace( ) & "'" ) )
     dim as ustring title = *SDL_GetWindowTitle( h->win )
     t.Check( title = appinfo.WindowTitle( "untitled1" ), P( sc, "title is '" & title & "'" ) )
@@ -356,6 +356,18 @@ private sub PopKey( byref mw as mainwin.Window, byval key as long, byval sc as l
     tkTest_PumpFor( tkForm_Host( mw.form ), 40 )
 end sub
 
+' The popup's focus is its list, or the list's own surface inside it.
+private function InList( byref mw as mainwin.Window ) as boolean
+    if mw.Chooser.Pop = 0 then return false
+    dim as TK_WIDGET ptr w = tkHost_GetFocus( mw.Chooser.Pop )
+    while w
+        if w = mw.Chooser.List then return true
+        w = w->pParent
+    wend
+    if tkHost_GetFocus( mw.Chooser.Pop ) = 0 then print "  switcher focus: none" else print "  switcher focus: elsewhere"
+    return false
+end function
+
 ' Lets go of Ctrl on the switcher.
 private sub CtrlUp( byref mw as mainwin.Window )
     if mw.Chooser.Pop = 0 then exit sub
@@ -411,16 +423,32 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     t.Check( (mw.Chooser.IsOpen( ) = false) andalso (lcase( mw.ActivePath( ) ) = lcase( pathB )), P( sc, "Enter showed b.tiko: " & mw.ActivePath( ) ) )
     t.Check( tkHost_GetFocus( h ) = mw.View( ).Widget( ), P( sc, "and the view has the focus" ) )
 
-    ' ---- Ctrl+Tab: the MRU switcher, the previous buffer selected, letting go of Ctrl picks
+    ' ---- Ctrl+Tab: the MRU switcher. The key-down shows the previous buffer at once, each Tab the
+    ' next; letting go of Ctrl keeps it, Esc goes back. The MRU order holds still meanwhile.
     Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL )
     t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Switcher), P( sc, "Ctrl+Tab opened the switcher" ) )
     t.Check( mw.Chooser.Query = 0, P( sc, "with no query box" ) )
+    t.Check( lcase( mw.ActivePath( ) ) = lcase( pathC ), P( sc, "and showed the previous buffer before Ctrl is let go: " & mw.ActivePath( ) ) )
+    t.Check( InList( mw ), P( sc, "the switcher keeps the keyboard" ) )
     CtrlUp( mw )
-    t.Check( lcase( mw.ActivePath( ) ) = lcase( pathC ), P( sc, "releasing Ctrl showed the previous buffer: " & mw.ActivePath( ) ) )
+    t.Check( (mw.Chooser.IsOpen( ) = false) andalso (lcase( mw.ActivePath( ) ) = lcase( pathC )), P( sc, "releasing Ctrl kept it: " & mw.ActivePath( ) ) )
+    t.Check( tkHost_GetFocus( h ) = mw.View( ).Widget( ), P( sc, "and the view has the focus" ) )
     Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL )
+    t.Check( lcase( mw.ActivePath( ) ) = lcase( pathB ), P( sc, "Ctrl+Tab again: back to b at once: " & mw.ActivePath( ) ) )
     PopKey( mw, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL )             ' Tab again, Ctrl still held
+    t.Check( mw.Chooser.IsOpen( ) andalso (lcase( mw.ActivePath( ) ) = lcase( pathA )), P( sc, "Tab showed the third at once: " & mw.ActivePath( ) ) )
     CtrlUp( mw )
     t.Check( lcase( mw.ActivePath( ) ) = lcase( pathA ), P( sc, "Ctrl+Tab Tab reached the third: " & mw.ActivePath( ) ) )
+    Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL )
+    t.Check( lcase( mw.ActivePath( ) ) = lcase( pathC ), P( sc, "the MRU order moved with the pick: c is next: " & mw.ActivePath( ) ) )
+    PopKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE, SDL_KMOD_CTRL )
+    t.Check( (mw.Chooser.IsOpen( ) = false) andalso (lcase( mw.ActivePath( ) ) = lcase( pathA )), P( sc, "Esc went back to a: " & mw.ActivePath( ) ) )
+    Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    t.Check( lcase( mw.ActivePath( ) ) = lcase( pathB ), P( sc, "Ctrl+Shift+Tab showed the oldest at once: " & mw.ActivePath( ) ) )
+    CtrlUp( mw )
+    Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL )
+    CtrlUp( mw )
+    t.Check( lcase( mw.ActivePath( ) ) = lcase( pathA ), P( sc, "and Esc had left the order alone: " & mw.ActivePath( ) ) )
 
     ' ---- the status panels: encoding, line ending, build
     ClickPanel( mw, mainwin.StatusPanel.Encoding )

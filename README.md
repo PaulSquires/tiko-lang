@@ -11,7 +11,7 @@ Spec and records: `C:\dev\docs\tkEdit` (PLAN.md, KEYS.md, CONFIG.md, FINDINGS.md
 tkEdit [files...]        restores the last session (or project), then opens the files
 ```
 
-- **Buffers:** Ctrl+E lists them, Ctrl+Tab switches to the last one (keep Ctrl down and press Tab
+- **Buffers:** Ctrl+E lists them, Ctrl+Tab switches to the last one at once (keep Ctrl down and press Tab
   again for older ones), the status line's file name lists them too. Ctrl+\ and Ctrl+Shift+\
   split the window; Ctrl+Tilde moves between the panes and the output pane.
 - **Finding:** Ctrl+F / Ctrl+H open a strip above the status line; Ctrl+G goes to a line;
@@ -50,6 +50,9 @@ MSYS_NO_PATHCONV=1 wsl.exe -e bash /mnt/c/dev/tkEdit/tools/test-linux.sh
 ```bash
 bash tools/idiom.sh
 ```
+
+`src/app/tiko.toml` puts the icon's `.rc` in a `[target.tkEdit.windows]` table, which needs a toolchain with
+tiko-lang's TK-003 fix; until one is packaged, point `TIKO=` at one that has it.
 
 A release build (the test scripts build debug) writes `bin/tkedit.exe` too, from `src/app`:
 
