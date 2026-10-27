@@ -542,6 +542,8 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     ' ---- Ctrl+E: the buffer list, filtered by typing, Enter picks
     Chord( h, SDLK_E, SDL_SCANCODE_E, SDL_KMOD_CTRL )
     t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Buffers), P( sc, "Ctrl+E opened the buffer list" ) )
+    t.Check( (mw.Chooser.Query <> 0) andalso (tkTextBox_GetCueBannerText( mw.Chooser.Query ) = "Select edit buffer") andalso _
+             tkTextBox_ShowsCue( mw.Chooser.Query ), P( sc, "its query box's cue: Select edit buffer" ) )
     t.Check( mw.Chooser.ShownCount( ) = 3, P( sc, strings.Format( "three rows ({})", mw.Chooser.ShownCount( ) ) ) )
     t.Check( RowsDrawn( mw.Chooser.Pop, mw.Chooser.List ), P( sc, "and draws them" ) )
     scope   ' in the right-click menu's colours: the selected first row, a plain second one
@@ -602,6 +604,8 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     ClickPanel( mw, mainwin.StatusPanel.Encoding )
     t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Encoding), P( sc, "the encoding panel opens a chooser" ) )
     t.Check( mw.Chooser.SelectedTag( ) = clng( docencoding.FileEncoding.Utf8 ), P( sc, "on the current encoding, UTF-8" ) )
+    t.Check( (mw.Chooser.Query <> 0) andalso (tkTextBox_GetCueBannerText( mw.Chooser.Query ) = "Select file encoding"), _
+             P( sc, "a query box with its cue: Select file encoding" ) )
     PopKey( mw, SDLK_DOWN, SDL_SCANCODE_DOWN )
     PopKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
     t.Check( mw.StatusText( mainwin.StatusPanel.Encoding ) = "UTF-8 (BOM)", P( sc, "UTF-8 (BOM) chosen: " & mw.StatusText( mainwin.StatusPanel.Encoding ) ) )
@@ -755,6 +759,7 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     Chord( h, SDLK_O, SDL_SCANCODE_O, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
     t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Recent) andalso (mw.Chooser.ShownCount( ) = 7), _
              P( sc, strings.Format( "Ctrl+Shift+O lists the recent files ({})", mw.Chooser.ShownCount( ) ) ) )
+    t.Check( (mw.Chooser.Query <> 0) andalso (tkTextBox_GetCueBannerText( mw.Chooser.Query ) = "Open recent file"), P( sc, "cue: Open recent file" ) )
     scope   ' where Search Symbol opens: centred at the top of the panes
         dim as long rx = 0, ry = 0, rw = 0, rh = 0
         SDL_GetWindowPosition( mw.Chooser.Pop->win, @rx, @ry )

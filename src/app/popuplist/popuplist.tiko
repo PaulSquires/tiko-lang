@@ -56,6 +56,7 @@ public type Picker
     Toggle   as TK_CHORD                 ' a chord that calls OnToggle instead (F4 again); key 0 = none
     OnToggle as PickedProc               ' tag = 0
     SeedQuery as ustring                 ' the query box's text when it opens
+    Cue      as ustring                  ' the query box's cue banner: what is asked for
     OnPick   as PickedProc
     OnMove   as PickedProc               ' the selection moved (Move): tag = the selected row's
     OnCancel as PickedProc               ' closed with no pick (Esc, the focus leaving): tag = -1
@@ -236,6 +237,7 @@ function Picker.Open( byval owner as TK_HOST ptr, byref rows_ as const Array( of
         qc.ForeColor = mc.ForeColor
         tkTextBox_SetColors( Query, @qc )
         tkWidget_SetPos( Query, pad, pad, w - 2 * pad, qh - pad )
+        tkTextBox_SetCueBannerText( Query, Cue )
         tkTextBox_SetChangeCallback( Query, sub( byval hTb as TK_WIDGET ptr )
             dim as Picker ptr p = PickerOf( hTb->pHost )
             if p then p->Refilter( )

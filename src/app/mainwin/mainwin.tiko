@@ -1863,7 +1863,9 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
     dim as ustring keep = ""
     if (kind = PickKind.Functions) andalso (Choosing = PickKind.Functions) then keep = Chooser.QueryText( )
     Chooser.Close( )
+    ' every list has the query box, its cue saying what is asked for (author 2026-10-27)
     Chooser.Filter = true
+    Chooser.Cue = ""
     Chooser.SeedQuery = keep
     Chooser.MaxRows = 12
     Chooser.Toggle.key = 0
@@ -1874,6 +1876,7 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
     dim as long popW = 460
     select case kind
     case PickKind.Symbols
+        Chooser.Cue = "Search for symbol or file"
         this.CloseOnOwnKey( Cmd.SearchSymbol )
         ' the project's files and the open buffers, then every definition in them
         Hits.Clear( )
@@ -1932,6 +1935,8 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
             rows.Push( Row( Hits[i].Kind, Hits[i].Name, where_, i ) )
         next
     case PickKind.Functions
+        Chooser.Cue = "Go to function in this file"
+        if FuncsAll then Chooser.Cue = "Go to function in any open file"
         ' F4: the active buffer's procedures; F4 again (inside the list) every open buffer's
         Hits.Clear( )
         Chooser.Columns.Clear( )
@@ -1973,6 +1978,7 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
             mw->OpenChooser( PickKind.Functions )
         end sub
     case PickKind.Buffers
+        Chooser.Cue = "Select edit buffer"
         for i as long = 0 to Mru.Count( ) - 1
             dim as DocRef d = Mru[i]
             dim as ustring mark = " "
@@ -1982,6 +1988,7 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
             rows.Push( Row( mark, d->DisplayName( ), dir_, i ) )
         next
     case PickKind.Recent
+        Chooser.Cue = "Open recent file"
         ' a file that is not on disk is not offered; it stays in the list, so it is back if the file
         ' (a drive, a share) is (author 2026-10-27)
         for i as long = 0 to Recent.Count( ) - 1
@@ -1991,7 +1998,7 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
             rows.Push( Row( " ", nm, fs.PathParent( Recent.Item( i ) ), i ) )
         next
     case PickKind.Encoding
-        Chooser.Filter = false
+        Chooser.Cue = "Select file encoding"
         Narrow( Chooser, popW )
         for e as long = docencoding.FileEncoding.Ansi to docencoding.FileEncoding.Utf16Bom
             dim as ustring mark = " "
@@ -2002,7 +2009,7 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
             rows.Push( Row( mark, docencoding.EncodingName( cast( docencoding.FileEncoding, e ) ), "", e ) )
         next
     case PickKind.LineEnding
-        Chooser.Filter = false
+        Chooser.Cue = "Select line ending"
         Narrow( Chooser, popW )
         dim as docencoding.LineEnd now_ = this.View( ).LineEnding( )
         dim as docencoding.LineEnd ends( 0 to 2 ) = { docencoding.LineEnd.CrLf, docencoding.LineEnd.Lf, docencoding.LineEnd.Cr }
@@ -2017,6 +2024,7 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
             rows.Push( Row( mark, names( k ), notes( k ), clng( ends( k ) ) ) )
         next
     case PickKind.Bookmarks
+        Chooser.Cue = "Go to bookmark"
         Marks.Clear( )
         for each d as DocRef in Mru
             for each ln as long in d->Main.Bookmarks( )
@@ -2028,7 +2036,7 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
             next
         next
     case PickKind.Build
-        Chooser.Filter = false
+        Chooser.Cue = "Select build configuration"
         Narrow( Chooser, popW )
         for i as long = 0 to Prefs.Builds.Count( ) - 1
             dim as ustring mark = " "
