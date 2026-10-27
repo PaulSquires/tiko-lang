@@ -2,7 +2,7 @@
 # release.sh -- archive, hash, smoke-test and (only when asked) publish a toolchain release.
 #
 #   bash build/release.sh --notes <notes.md> [--sha <commit>] [--prev <dir>]
-#                         [--editor <dir>] [--publish [--latest]]
+#                         [--editor <dir>] [--no-tkedit] [--publish [--latest]]
 #
 # THE RECIPE THAT LIVED IN MEMORY NOTES (review BLD-06, 2026-10-24), as one script. It does
 # not package: run build/package.sh --verify for each host first (Windows here, Linux under
@@ -14,9 +14,11 @@
 #      and checks the result is a zip;
 #   3. tars toolchains/tiko-linux under WSL from a copy in ~/tkrel-<sha>, 644 for files and
 #      755 for bin/tiko, owner 0 (tarring from /mnt/c gives every file 777);
+#      both archives carry the editor beside the toolchain: toolchains/tkedit-<host> (made by
+#      package.sh) as tkedit/, so each unpacks to tiko-<host>/ and tkedit/ (--no-tkedit: not);
 #   4. writes SHA256SUMS and appends the hashes to a copy of the notes;
 #   5. smoke-tests each archive extracted into an empty directory with no TKO_* variable:
-#      hello.tiko compiled and run;
+#      hello.tiko compiled and run, and tkedit/ holds the program at its root with fonts/;
 #   6. with --prev <dir> holding the previous release's two archives, prints the files each
 #      archive gained and lost;
 #   7. with --editor <dir>, mirrors tiko-windows into <dir> (the editor's toolchain copy);
@@ -27,7 +29,7 @@
 set -o pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT" || exit 2
-NOTES="" SHA="" PREV="" EDITOR="" PUBLISH=0 LATEST=0
+NOTES="" SHA="" PREV="" EDITOR="" PUBLISH=0 LATEST=0 TKEDIT=1
 while [ $# -gt 0 ]; do
     case "$1" in
         --notes)   shift; NOTES=$1 ;;
@@ -36,7 +38,8 @@ while [ $# -gt 0 ]; do
         --editor)  shift; EDITOR=$1 ;;
         --publish) PUBLISH=1 ;;
         --latest)  LATEST=1 ;;
-        -h|--help) sed -n '2,29p' "$0"; exit 0 ;;
+        --no-tkedit) TKEDIT=0 ;;
+        -h|--help) sed -n '2,28p' "$0"; exit 0 ;;
         *) echo "release: unknown argument '$1'" >&2; exit 2 ;;
     esac
     shift
@@ -49,6 +52,8 @@ SHA=$(git rev-parse "${SHA:-HEAD}") || die "no such commit"
 SHORT=${SHA:0:8}
 WIN=toolchains/tiko-windows
 LNX=toolchains/tiko-linux
+TKWIN=toolchains/tkedit-windows
+TKLNX=toolchains/tkedit-linux
 OUT=build/.release/$SHORT
 mkdir -p "$OUT"
 
@@ -59,28 +64,42 @@ for t in "$WIN" "$LNX"; do
     grep -q " FAIL" "$t/MANIFEST.txt" && die "$t/MANIFEST.txt records a FAIL -- read its verification section"
 done
 note "both MANIFESTs name $SHORT"
+if [ "$TKEDIT" = "1" ]; then
+    [ -f "$TKWIN/tkedit.exe" ] || die "no $TKWIN/tkedit.exe -- package.sh packages it (or pass --no-tkedit)"
+    [ -f "$TKLNX/tkedit" ] || die "no $TKLNX/tkedit -- package.sh under WSL packages it (or pass --no-tkedit)"
+    grep -q "^tkedit  *\.\./tkedit-windows" "$WIN/MANIFEST.txt" || die "$WIN/MANIFEST.txt has no tkedit line: $TKWIN is not from this packaging"
+    grep -q "^tkedit  *\.\./tkedit-linux" "$LNX/MANIFEST.txt" || die "$LNX/MANIFEST.txt has no tkedit line: $TKLNX is not from this packaging"
+fi
 
 # 2. the Windows zip
 ZIP=$OUT/tiko-windows-x86_64-$SHORT.zip
 BSDTAR=/c/Windows/System32/tar.exe
 [ -x "$BSDTAR" ] || die "no $BSDTAR (bsdtar) -- the GNU tar in Git Bash cannot write a zip"
 rm -f "$ZIP"
-( cd toolchains && "$BSDTAR" -a -cf "$ROOT/$ZIP" tiko-windows ) || die "zip failed"
+if [ "$TKEDIT" = "1" ]; then
+    ( cd toolchains && "$BSDTAR" -a -cf "$ROOT/$ZIP" -s ',^tkedit-windows,tkedit,' tiko-windows tkedit-windows ) || die "zip failed"
+else
+    ( cd toolchains && "$BSDTAR" -a -cf "$ROOT/$ZIP" tiko-windows ) || die "zip failed"
+fi
 file "$ZIP" | grep -q "Zip archive" || die "$ZIP is not a zip archive"
 note "zip $(du -h "$ZIP" | cut -f1)"
 
 # 3. the Linux tar.gz, under WSL
 TGZ=$OUT/tiko-linux-x86_64-$SHORT.tar.gz
 WSLSH=$OUT/tar-linux.sh
+TKDIRS=""
+[ "$TKEDIT" = "1" ] && TKDIRS="tkedit"
 cat > "$WSLSH" <<EOF
 set -e
 rm -rf ~/tkrel-$SHORT && mkdir -p ~/tkrel-$SHORT
 cp -r "/mnt/c${ROOT#/c}/$LNX" ~/tkrel-$SHORT/tiko-linux
+[ -z "$TKDIRS" ] || cp -a "/mnt/c${ROOT#/c}/$TKLNX" ~/tkrel-$SHORT/tkedit
 cd ~/tkrel-$SHORT
-find tiko-linux -type f -exec chmod 644 {} +
-find tiko-linux -type d -exec chmod 755 {} +
+find tiko-linux $TKDIRS -type f -exec chmod 644 {} +
+find tiko-linux $TKDIRS -type d -exec chmod 755 {} +
 chmod 755 tiko-linux/bin/tiko
-tar -czf "/mnt/c${ROOT#/c}/$TGZ" --owner=0 --group=0 tiko-linux
+[ -z "$TKDIRS" ] || chmod 755 tkedit/tkedit
+tar -czf "/mnt/c${ROOT#/c}/$TGZ" --owner=0 --group=0 tiko-linux $TKDIRS
 EOF
 MSYS_NO_PATHCONV=1 wsl.exe -e sh "/mnt/c${ROOT#/c}/$WSLSH" || die "WSL tar failed"
 [ -s "$TGZ" ] || die "no $TGZ"
@@ -99,11 +118,16 @@ printf 'print "hello from tiko"\n' > "$SMOKE/hello.tiko"
 got=$( cd "$SMOKE" && env -u TKO_INCLUDE -u TKO_LIBPATH -u TKO_PKG \
        win/tiko-windows/tiko.exe hello.tiko -o hello.exe && ./hello.exe ) || die "Windows smoke: $got"
 [ "$got" = "hello from tiko" ] || die "Windows smoke printed '$got'"
+if [ "$TKEDIT" = "1" ]; then
+    [ -f "$SMOKE/win/tkedit/tkedit.exe" ] && [ -d "$SMOKE/win/tkedit/fonts" ] && [ ! -d "$SMOKE/win/tkedit/bin" ] \
+        || die "Windows smoke: no tkedit/tkedit.exe with fonts/ (and no bin/) in the zip"
+fi
 note "smoke windows-x86_64: ok"
 cat > "$OUT/smoke-linux.sh" <<EOF
 set -e
 rm -rf ~/tksmoke-$SHORT && mkdir -p ~/tksmoke-$SHORT && cd ~/tksmoke-$SHORT
 tar -xzf "/mnt/c${ROOT#/c}/$TGZ"
+[ -z "$TKDIRS" ] || { test -x tkedit/tkedit && test -d tkedit/fonts && test ! -d tkedit/bin; }
 printf 'print "hello from tiko"\n' > hello.tiko
 env -u TKO_INCLUDE -u TKO_LIBPATH -u TKO_PKG tiko-linux/bin/tiko hello.tiko -o hello
 ./hello

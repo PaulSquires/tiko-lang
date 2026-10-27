@@ -11,10 +11,12 @@
 #   build/package.sh --verify               compile and RUN a program per target
 #   build/package.sh --third-party-inc DIR  third-party bindings (default: the seed's inc/)
 #   build/package.sh --out DIR              somewhere other than toolchains/
+#   build/package.sh --no-tkedit            leave the editor out (see "the editor")
 #
 # The output is toolchains/tiko-windows or toolchains/tiko-linux: what an end user
 # unpacks, as opposed to bin/tiko, which is what build/build.sh produces for
-# developing the compiler.
+# developing the compiler. Beside it, toolchains/tkedit-<host>: the editor, ready to
+# run, which a release archive carries as tkedit/.
 #
 # ---------------------------------------------------------------- what it is NOT
 #
@@ -59,6 +61,7 @@ DO_BUILD=1
 DO_INC=1
 DO_CLEAN=0
 DO_VERIFY=0
+DO_TKEDIT=1
 T0=$(date +%s)
 TPINC=${TKO_THIRDPARTY_INC:-}
 OUT=
@@ -86,6 +89,7 @@ while [ $# -gt 0 ]; do
         --no-inc)    DO_INC=0;    shift ;;
         --clean)     DO_CLEAN=1;  shift ;;
         --verify)    DO_VERIFY=1; shift ;;
+        --no-tkedit) DO_TKEDIT=0; shift ;;
         # Both retired 2026-10-10, refused by name rather than as 'unknown'.
         --fbc-tree)  die "--fbc-tree is gone: nothing reads fbc now (--third-party-inc for bindings)" ;;
         --implibs)   die "--implibs is gone: the import libraries are built from lib/implib/ on every run" ;;
@@ -837,6 +841,102 @@ else
   not run -- pass --verify to compile and run a program per target"
 fi
 
+# ---------------------------------------------------------------- the editor
+#
+# TKEDIT SHIPS BESIDE THE TOOLCHAIN (the author's order, 2026-10-27): a release archive
+# unpacks to tiko-<host>/ and tkedit/ side by side, and tkedit finds the compiler there by
+# itself (tkedit/src/core/build: SiblingCompiler). Both hosts package into one toolchains/,
+# so the folder is tkedit-<host> here; build/release.sh names it tkedit/ in the archive.
+#
+# RELEASE BINARIES AND WHAT THEY LOAD, NOTHING ELSE: the program and its shared libraries in
+# the folder's ROOT (no bin/: the author's order) beside fonts/ icons/ keywords/ themes/,
+# and licences/. No source, no README, and not vendor/tkControls' own fonts, which its
+# runtime copies beside every program but tkedit never loads (it has its own in fonts/).
+#
+# BUILT BY THE TOOLCHAIN JUST PACKAGED, so this is one more check that it works. A failure
+# is recorded as FAIL rather than ending the run: the toolchain itself is good, and
+# build/release.sh refuses a MANIFEST with a FAIL in it.
+
+TKEDIT_STATE="not packaged (--no-tkedit)"
+if [ "$DO_TKEDIT" = "1" ]; then
+    TKD="$(dirname "$OUT")/tkedit-$HOST"
+    TKSRC="$ROOT/tkedit"
+    _tklog="$ROOT/lib/rt/obj/package-tkedit.log"
+    mkdir -p "$ROOT/lib/rt/obj"; : > "$_tklog"
+    _tkfail=""
+    # the editor's scanner, tikoParser: build.sh --dll builds it ALONE (bin/ keeps the
+    # compiler), and would copy it into tiko-editor-tiko when that folder exists -- not here
+    note "building tikoParser for tkedit"
+    if ! TKO_EDITOR_DIR=/nonexistent sh "$ROOT/build/build.sh" Release --dll >>"$_tklog" 2>&1; then
+        _tkfail="tikoParser did not build"
+    fi
+    _tkp="$ROOT/bin/tikoParser.dll"
+    [ "$HOST" = "windows" ] || _tkp="$ROOT/bin/tikoParser.so"
+    [ -n "$_tkfail" ] || [ -f "$_tkp" ] || _tkfail="no $_tkp after the build"
+    # Linux has no SDL3 of its own and the toolchain ships none: tkControls' build-linux-libs.sh
+    # builds one, kept (gitignored) in examples/tkControls/linux-lib, linked against and shipped.
+    _tkopts=""
+    if [ "$HOST" = "linux" ]; then
+        _tklib=${TK_LINUX_LIB:-$ROOT/examples/tkControls/linux-lib}
+        [ -f "$_tklib/libSDL3.so" ] || die "no SDL3 for tkedit at $_tklib -- run examples/tkControls/tools/build-linux-libs.sh, or set TK_LINUX_LIB (or pass --no-tkedit)"
+        _tkopts="-p $_tklib"
+    fi
+    if [ -z "$_tkfail" ]; then
+        note "building tkedit with the packaged compiler"
+        rm -rf "$TKSRC/src/app/out/release"
+        if ! ( cd "$TKSRC/src/app" && TKO_MODCACHE="$TKSRC/out/modcache-package" \
+                 "$OUT/${BINSUB}tiko$EXT" build --profile release ${_tkopts:+--options "$_tkopts"} ) >>"$_tklog" 2>&1; then
+            _tkfail="the build failed -- lib/rt/obj/package-tkedit.log"
+        fi
+    fi
+    _tkrel="$TKSRC/src/app/out/release"
+    [ -n "$_tkfail" ] || [ -f "$_tkrel/tkedit$EXT" ] || _tkfail="no $_tkrel/tkedit$EXT"
+    if [ -z "$_tkfail" ]; then
+        rm -rf "$TKD"; mkdir -p "$TKD/licences"
+        cp -f "$_tkrel/tkedit$EXT" "$TKD/"
+        for f in "$_tkrel"/*.dll "$_tkrel"/*.so "$_tkrel"/*.so.*; do
+            [ -f "$f" ] && cp -f "$f" "$TKD/"
+        done
+        cp -f "$_tkp" "$TKD/"
+        [ "$HOST" = "linux" ] && cp -a "$_tklib"/lib*.so* "$TKD/"
+        for d in fonts icons keywords themes; do
+            cp -r "$TKSRC/$d" "$TKD/$d"
+        done
+        rm -f "$TKD/fonts/README.md"
+        cp -f "$ROOT/pkg/vendor/SDL3/LICENSE" "$TKD/licences/SDL3.txt"
+        cp -f "$ROOT/pkg/vendor/tkControls/LICENSE" "$TKD/licences/MPL-2.0.txt"
+        cp -f "$ROOT/pkg/vendor/tkControls/tkCodeEdit/scintk/vendor/scintilla/License.txt" "$TKD/licences/Scintilla.txt"
+        cp -f "$ROOT/pkg/vendor/tkControls/tkCodeEdit/scintk/vendor/lexilla/License.txt" "$TKD/licences/Lexilla.txt"
+        note "tkedit -> $TKD"
+        TKEDIT_STATE="../tkedit-$HOST, built by this compiler (the archive's tkedit/)"
+        # --verify: its self-test, compiling with this toolchain. It writes scratch files under
+        # <its folder>/out/, removed after. Off Windows it needs a display (WSLg has one).
+        if [ "$DO_VERIFY" = "1" ]; then
+            if [ "$HOST" = "windows" ] || [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
+                note "verifying tkedit: its self-test"
+                _tkres=$( cd "$TKD" && TKEDIT_TIKO="$OUT/${BINSUB}tiko$EXT" SDL_VIDEO_DRIVER=${SDL_VIDEO_DRIVER:-} \
+                          timeout 600 "./tkedit$EXT" --selftest 2>&1 | grep ' selftest: ' | tail -1 )
+                rm -rf "$TKD/out"
+                if echo "$_tkres" | grep -q ' 0 failed'; then
+                    TKEDIT_STATE="$TKEDIT_STATE; self-test: ${_tkres#*selftest: }"
+                    VERIFY_LINES="$VERIFY_LINES
+  tkedit  self-test ok -- ${_tkres#*selftest: }"
+                else
+                    _tkfail="self-test: ${_tkres:-no summary line}"
+                fi
+            else
+                TKEDIT_STATE="$TKEDIT_STATE; self-test not run (no display)"
+            fi
+        fi
+    fi
+    if [ -n "$_tkfail" ]; then
+        note "WARNING: tkedit FAIL -- $_tkfail"
+        TKEDIT_STATE="FAIL -- $_tkfail"
+        VERIFY_LINES="$VERIFY_LINES
+  tkedit  FAIL -- $_tkfail"
+    fi
+fi
+
 # ---------------------------------------------------------------- the manifest
 #
 # A packaged toolchain is a pile of copied binaries with nothing in it that says
@@ -915,6 +1015,8 @@ SIZE=$( du -sh "$OUT" | cut -f1 )
     say "graphics:$GFX_STATE"
     say
     say "fbcunit (the unit-test library; source in src/fbcunit):$FBCU_STATE"
+    say
+    say "tkedit         $TKEDIT_STATE"
     say
     say "-- verification --------------------------------------------------------"
     say "Each target below was checked by compiling AND RUNNING a program with"
