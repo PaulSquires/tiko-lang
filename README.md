@@ -51,8 +51,7 @@ MSYS_NO_PATHCONV=1 wsl.exe -e bash /mnt/c/dev/tkEdit/tools/test-linux.sh
 bash tools/idiom.sh
 ```
 
-`src/app/tiko.toml` puts the icon's `.rc` in a `[target.tkEdit.windows]` table, which needs a toolchain with
-tiko-lang's TK-003 fix; until one is packaged, point `TIKO=` at one that has it.
+`src/app/tiko.toml` puts the icon's `.rc` in a `[target.tkEdit.windows]` table (tiko-lang f9e6575ab or later).
 
 A release build (the test scripts build debug) writes `bin/tkedit.exe` too, from `src/app`:
 

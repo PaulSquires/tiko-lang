@@ -144,6 +144,8 @@ public type CodeView
     declare sub ZoomOut( )
     declare sub ZoomReset( )
     declare function Zoom( ) as long
+    declare function FontSize( ) as long                  ' the default style's points
+    declare function LineHeight( ) as long                ' pixels, as drawn
     declare sub FoldToggle( byval withChildren as boolean )
     declare sub FoldAll( byval fold as boolean )
     declare sub FoldLineAt( byval ln as long )            ' a fold header's line: toggle it
@@ -385,6 +387,16 @@ end sub
 function CodeView.Zoom( ) as long
     if w = 0 then return 0
     return tkCodeEdit_Send( w, SCI_GETZOOM )
+end function
+
+function CodeView.FontSize( ) as long
+    if w = 0 then return 0
+    return tkCodeEdit_Send( w, SCI_STYLEGETSIZE, STYLE_DEFAULT )
+end function
+
+function CodeView.LineHeight( ) as long
+    if w = 0 then return 0
+    return tkCodeEdit_Send( w, SCI_TEXTHEIGHT, 0 )
 end function
 
 ' The caret's line, start to end of line including the break.
