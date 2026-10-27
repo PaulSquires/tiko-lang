@@ -13,7 +13,7 @@
 '     version = 1
 '     [editor]   font, font_size, tab_size, use_tabs, line_numbers, whitespace, wrap, caret_line,
 '                indent_guides, fold_margin, auto_indent, auto_end, codetips
-'     [ui]       theme, font_size
+'     [ui]       theme, font_size, language (en | es | fr | de; docs/tkEdit/I18N.md)
 '     [statusbar] show_project, show_settings, show_keys
 '     [files]    new_eol (native | crlf | lf), new_encoding (utf8 | utf8bom | utf16 | ansi),
 '                save_before_build, trim_trailing
@@ -66,6 +66,7 @@ public type EditorSettings
     ' [ui]
     Theme        as ustring = "dark"
     UiFontSize   as long = 10
+    Language     as ustring = "en"      ' lang/<code>.toml; "en" = built in
     ' [statusbar]: the Project, Settings and Keys panels shown (author 2026-10-27)
     ShowProjectPanel  as boolean = true
     ShowSettingsPanel as boolean = true
@@ -157,6 +158,8 @@ public function FromToml( byref root as config.TomlValue ) as EditorSettings
     dim as config.TomlValue u = tomlget.Table( root, "ui" )
     s.Theme = tomlget.GetStr( u, "theme", s.Theme )
     s.UiFontSize = Clamp( tomlget.GetInt( u, "font_size", s.UiFontSize ), 6, 32 )
+    s.Language = lcase( trim( tomlget.GetStr( u, "language", s.Language ) ) )
+    if len( s.Language ) = 0 then s.Language = "en"
     dim as config.TomlValue sb = tomlget.Table( root, "statusbar" )
     s.ShowProjectPanel = tomlget.GetBool( sb, "show_project", s.ShowProjectPanel )
     s.ShowSettingsPanel = tomlget.GetBool( sb, "show_settings", s.ShowSettingsPanel )
@@ -264,6 +267,7 @@ public function ToToml( byref s as const EditorSettings ) as ustring
         "[ui]" & nl & _
         KeyLine( "theme", tomlget.Quoted( s.Theme ), "themes/<name>.toml: beside the program, or in this folder" ) & _
         KeyLine( "font_size", str( s.UiFontSize ) ) & _
+        KeyLine( "language", tomlget.Quoted( s.Language ), "en | es | fr | de: lang/<code>.toml beside the program, or in this folder" ) & _
         nl & _
         "[statusbar]" & nl & _
         KeyLine( "show_project", BoolText( s.ShowProjectPanel ), "the Project panel" ) & _

@@ -1,0 +1,121 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' i18n -- the interface's language (docs/tkEdit/I18N.md). English is built in: every call site
+' says its English, Tr( "status.project", "Project" ), and that is what shows unless the catalog in
+' use has the key. A catalog is lang/<code>.toml: top-level tables of strings, a text's key being
+' "table.key". It is looked up like a theme: <config>/lang/<code>.toml first, then
+' <resources>/lang/<code>.toml. "en" needs no file.
+'
+' One catalog is the program's (Use); every module reads it through Tr, because the app's text is
+' spread over modules that do not hold the Window.
+#module "i18n"
+
+#import "std/fs"
+#import "std/config"
+#import "std/containers"
+#import "std/outcome"
+using containers
+using outcome
+
+public const LANG_DIR = "lang"
+public const DEFAULT_LANGUAGE = "en"
+public const CATALOG_FORMAT = 1
+
+public type Catalog
+    Code as ustring = DEFAULT_LANGUAGE   ' "de"; "en" = the built-in English
+    Name as ustring                      ' its name = "Deutsch"; "" = not given
+    Path as ustring                      ' the file it came from; "" = built in
+    Texts as Map( of ustring, ustring )  ' "status.project" -> "Projekt"
+    ' what the parse ignored (a non-string, an unknown key); never fatal
+    Warnings as Array( of ustring )
+    declare function Tr( byref key as const ustring, byref english as const ustring ) as ustring
+    declare function Count( ) as long
+end type
+
+public type CatalogResult as Result( of Catalog, ustring )
+
+function Catalog.Tr( byref key as const ustring, byref english as const ustring ) as ustring
+    dim as ustring k = key, s             ' TryGet takes a non-const key
+    if this.Texts.TryGet( k, s ) then return s
+    return english
+end function
+
+function Catalog.Count( ) as long
+    return this.Texts.Count( )
+end function
+
+' Text as a catalog for code. Fails only when it is not TOML.
+public function ParseCatalog( byref text as const ustring, byref code as const ustring ) as CatalogResult
+    dim as config.ConfigResultToml r = config.ParseToml( text )
+    if r.IsOk( ) = false then return Fail( of Catalog, ustring )( r.Failure( ).Message( ) )
+    dim as config.TomlValue root = r.Value( )
+    dim as Catalog c
+    c.Code = code
+    for i as long = 0 to root.Count( ) - 1
+        dim as ustring tk = root.KeyAt( i )
+        dim as config.TomlValue v = root.Item( i )
+        select case tk
+        case "format"
+            if v.AsInt( ).ValueOr( 0 ) <> CATALOG_FORMAT then c.Warnings.Push( "format: not " & CATALOG_FORMAT & "; read anyway" )
+        case "name"
+            c.Name = v.AsString( ).ValueOr( "" )
+        case else
+            if v.Kind( ) <> config.TOML_TABLE then
+                c.Warnings.Push( tk & ": not a table; ignored" )
+                continue for
+            end if
+            for j as long = 0 to v.Count( ) - 1
+                dim as Optional( of ustring ) s = v.Item( j ).AsString( )
+                if s.HasValue( ) then
+                    c.Texts.Put( tk & "." & v.KeyAt( j ), s.Value( ) )
+                else
+                    c.Warnings.Push( tk & "." & v.KeyAt( j ) & ": not a string; ignored" )
+                end if
+            next
+        end select
+    next
+    return Ok( of Catalog, ustring )( c )
+end function
+
+public function LoadCatalog( byref path as const ustring, byref code as const ustring ) as CatalogResult
+    dim as fs.FsResultUStr r = fs.ReadAllText( path )
+    if r.IsOk( ) = false then return Fail( of Catalog, ustring )( r.Failure( ).Message( ) )
+    dim as CatalogResult c = ParseCatalog( r.Value( ), code )
+    if c.IsOk( ) = false then return Fail( of Catalog, ustring )( path & ": " & c.Failure( ) )
+    dim as Catalog v = c.Value( )
+    v.Path = path
+    return Ok( of Catalog, ustring )( v )
+end function
+
+' The file a language code means: the user's copy wins over the shipped one; "" = neither exists.
+public function FindCatalog( byref code as const ustring, byref configDir as const ustring, _
+                             byref resourceDir as const ustring ) as ustring
+    dim as ustring f = lcase( code ) & ".toml"
+    dim as ustring u = fs.PathJoin( configDir, LANG_DIR, f )
+    if (len( configDir ) > 0) andalso fs.IsFile( u ) then return u
+    dim as ustring s = fs.PathJoin( resourceDir, LANG_DIR, f )
+    if fs.IsFile( s ) then return s
+    return ""
+end function
+
+dim shared as Catalog active
+
+' c becomes the program's catalog.
+public sub Use( byref c as const Catalog )
+    active = c
+end sub
+
+' The program's catalog's code: "en" until Use says otherwise.
+public function CurrentCode( ) as ustring
+    return active.Code
+end function
+
+' key's text in the program's catalog, else english.
+public function Tr( byref key as const ustring, byref english as const ustring ) as ustring
+    return active.Tr( key, english )
+end function

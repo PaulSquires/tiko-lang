@@ -18,6 +18,7 @@
 #import "tkc/build"
 #import "tkc/cmdids"
 #import "tkc/docencoding"
+#import "tkc/i18n"
 #import "tkc/keybind"
 #import "tkc/project"
 #import "tkc/runargs"
@@ -406,10 +407,39 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
         t.Check( (rpj.right = rpj.left) andalso (rky.right = rky.left) andalso (rst.right > rst.left), _
                  P( sc, strings.Format( "Project and Keys hidden, Settings shown: {} {} {}", rpj.right - rpj.left, rst.right - rst.left, rky.right - rky.left ) ) )
     end scope
+
+    ' ---- [ui] language (I18N.md): a catalog in the config folder, applied on save; a key it lacks
+    ' is English; a code with no catalog is English and says so; saving the catalog applies it
+    dim as ustring ld = fs.PathJoin( cfg, "lang" )
+    fs.CreateDirAll( ld )
+    dim as ustring lf = fs.PathJoin( ld, "de.toml" )
+    fs.WriteAtomic( lf, "format = 1" & nl & "name = 'Deutsch'" & nl & "[status]" & nl & "project = 'Projekt'" & nl & _
+                        "position = 'Z {0}, Sp {1}'" & nl & "[menu]" & nl & "Cut = 'Ausschneiden'" & nl )
+    mw.View( ).SetText( "version = 1" & nl & "[ui]" & nl & "theme = 'light'" & nl & "language = 'de'" & nl )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    t.Check( lcase( mw.LangPath ) = lcase( lf ), P( sc, "language = 'de' found the config folder's de.toml: " & mw.LangPath ) )
+    t.Check( mw.StatusText( mainwin.StatusPanel.Project ) = "Projekt", P( sc, "the Project panel in German: " & mw.StatusText( mainwin.StatusPanel.Project ) ) )
+    t.Check( left( mw.StatusText( mainwin.StatusPanel.Position ), 2 ) = "Z ", P( sc, "the position in German: " & mw.StatusText( mainwin.StatusPanel.Position ) ) )
+    t.Check( mw.StatusText( mainwin.StatusPanel.Keys ) = "Keys", P( sc, "a text the catalog lacks is English" ) )
+    t.Check( i18n.Tr( "menu.Cut", "Cut" ) = "Ausschneiden", P( sc, "the right-click menu's catalog is German" ) )
+    t.Check( len( mw.Message ) = 0, P( sc, "no message for a good catalog: " & mw.Message ) )
+    t.Check( mw.OpenFile( lf ), P( sc, "open de.toml" ) )
+    mw.View( ).SetText( "[status]" & nl & "project = 'Vorhaben'" & nl )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    t.Check( mw.StatusText( mainwin.StatusPanel.Project ) = "Vorhaben", P( sc, "saving the catalog applies it: " & mw.StatusText( mainwin.StatusPanel.Project ) ) )
+    t.Check( left( mw.StatusText( mainwin.StatusPanel.Position ), 3 ) = "Ln ", P( sc, "a key taken out of it is English again" ) )
+    mw.Execute( Cmd.FileClose )
+    Chord( h, SDLK_COMMA, SDL_SCANCODE_COMMA, SDL_KMOD_CTRL )
+    t.Check( lcase( mw.ActivePath( ) ) = lcase( sf ), P( sc, "back on settings.toml" ) )
+    mw.View( ).SetText( "version = 1" & nl & "[ui]" & nl & "theme = 'light'" & nl & "language = 'xx'" & nl )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    t.Check( mw.StatusText( mainwin.StatusPanel.Project ) = "Project", P( sc, "a code with no catalog is English" ) )
+    t.Check( instr( mw.Message, "no lang/xx.toml; English" ) > 0, P( sc, "and says so: " & mw.Message ) )
     mw.View( ).SetText( "version = 1" & nl & "[ui]" & nl & "theme = 'light'" & nl )
     Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
     t.Check( tkStatusBar_GetPanelVisible( mw.status, mainwin.StatusPanel.Project ) andalso tkStatusBar_GetPanelVisible( mw.status, mainwin.StatusPanel.Keys ), _
              P( sc, "the keys gone: shown again" ) )
+    t.Check( (mw.StatusText( mainwin.StatusPanel.Project ) = "Project") andalso (i18n.CurrentCode( ) = "en"), P( sc, "the language gone: English" ) )
     Chord( h, SDLK_K, SDL_SCANCODE_K, SDL_KMOD_CTRL )                    ' back to keybindings.toml, as before
 
     ' ---- the Settings and Keys panels open their files

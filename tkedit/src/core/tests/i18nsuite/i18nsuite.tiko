@@ -1,0 +1,87 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+' i18nsuite -- tkc/i18n: English with no catalog, a parsed catalog's keys and warnings, a file read
+' as UTF-8, FindCatalog's order, Use and Tr switching the program's language and back.
+#module "i18nsuite"
+
+#import "std/containers"
+#import "std/outcome"
+#import "std/fs"
+#import "tkc/i18n"
+#import "../tally"
+using containers
+using outcome
+
+public sub Run( byref c as tally.Checker )
+    c.Begin( "i18n" )
+    dim as i18n.Catalog none
+    c.Same( none.Code, "en", "a new catalog is English" )
+    c.Same( none.Tr( "status.project", "Project" ), "Project", "no catalog: the English" )
+    c.Same( i18n.Tr( "status.project", "Project" ), "Project", "the program starts in English" )
+
+    dim as ustring nl = wchr( 10 )
+    dim as ustring text = _
+        "format = 1" & nl & _
+        "name = ""Deutsch""" & nl & _
+        "loose = ""x""" & nl & _
+        "[status]" & nl & _
+        "project = ""Projekt""" & nl & _
+        "position = ""Z {0}, Sp {1}""" & nl & _
+        "bad = 3" & nl & _
+        "[menu]" & nl & _
+        "FileClose = ""Schlie" & chr( 92 ) & "u00dfen""" & nl
+    dim as i18n.CatalogResult r = i18n.ParseCatalog( text, "de" )
+    c.Check( r.IsOk( ), "a catalog parses" )
+    if r.IsOk( ) = false then exit sub
+    dim as i18n.Catalog de = r.Value( )
+    c.Same( de.Code, "de", "Code" )
+    c.Same( de.Name, "Deutsch", "name" )
+    c.SameNum( de.Count( ), 3, "three texts: the non-string and the loose key are not" )
+    c.Same( de.Tr( "status.project", "Project" ), "Projekt", "table.key found" )
+    c.Same( de.Tr( "status.position", "Ln {0}, Col {1}" ), "Z {0}, Sp {1}", "placeholders kept as written" )
+    c.Same( de.Tr( "menu.FileClose", "Close" ), "Schlie" & wchr( &hDF ) & "en", "a TOML escape reads as the character" )
+    c.Same( de.Tr( "status.keys", "Keys" ), "Keys", "a missing key: the English" )
+    c.Same( de.Tr( "Project", "Project" ), "Project", "a key without its table is not found" )
+    c.SameNum( de.Warnings.Count( ), 2, "two warnings" )
+    if de.Warnings.Count( ) = 2 then
+        c.Same( de.Warnings[1], "status.bad: not a string; ignored", "a non-string warns" )
+        c.Same( de.Warnings[0], "loose: not a table; ignored", "a top-level string warns" )
+    end if
+    dim as i18n.CatalogResult f2 = i18n.ParseCatalog( "format = 2" & nl, "xx" )
+    c.Check( f2.IsOk( ) andalso (f2.Value( ).Warnings.Count( ) = 1), "another format warns, and reads" )
+    c.Check( i18n.ParseCatalog( "[status" & nl, "xx" ).IsOk( ) = false, "not TOML fails" )
+
+    ' Use switches the program's text; a catalog of "en" switches it back
+    i18n.Use( de )
+    c.Same( i18n.CurrentCode( ), "de", "Use: CurrentCode" )
+    c.Same( i18n.Tr( "status.project", "Project" ), "Projekt", "Use: Tr reads the catalog" )
+    c.Same( i18n.Tr( "status.keys", "Keys" ), "Keys", "Use: a missing key is English" )
+    i18n.Use( none )
+    c.Same( i18n.Tr( "status.project", "Project" ), "Project", "back to English" )
+
+    ' a file is UTF-8; the config folder's copy wins over the shipped one
+    dim as fs.FsResultUStr tmp = fs.CreateTempDir( "i18nsuite" )
+    c.Check( tmp.IsOk( ), "a temp folder" )
+    if tmp.IsOk( ) = false then exit sub
+    dim as ustring cfg = fs.PathJoin( tmp.Value( ), "cfg" )
+    dim as ustring res = fs.PathJoin( tmp.Value( ), "res" )
+    fs.CreateDirAll( fs.PathJoin( cfg, i18n.LANG_DIR ) )
+    fs.CreateDirAll( fs.PathJoin( res, i18n.LANG_DIR ) )
+    dim as ustring shipped = fs.PathJoin( res, i18n.LANG_DIR, "fr.toml" )
+    fs.WriteAtomic( shipped, "[status]" & nl & "project = ""Projet""" & nl )
+    c.Same( i18n.FindCatalog( "fr", cfg, res ), shipped, "the shipped catalog" )
+    c.Same( i18n.FindCatalog( "FR", cfg, res ), shipped, "the code in any case" )
+    c.Same( i18n.FindCatalog( "es", cfg, res ), "", "no file: none" )
+    dim as ustring mine = fs.PathJoin( cfg, i18n.LANG_DIR, "fr.toml" )
+    fs.WriteAtomic( mine, "[status]" & nl & "project = ""Mon projet " & wchr( &hE9 ) & """" & nl )
+    c.Same( i18n.FindCatalog( "fr", cfg, res ), mine, "the config folder's catalog wins" )
+    dim as i18n.CatalogResult lr = i18n.LoadCatalog( mine, "fr" )
+    c.Check( lr.IsOk( ), "LoadCatalog" )
+    if lr.IsOk( ) then
+        c.Same( lr.Value( ).Path, mine, "LoadCatalog keeps the path" )
+        c.Same( lr.Value( ).Tr( "status.project", "Project" ), "Mon projet " & wchr( &hE9 ), "the file reads as UTF-8" )
+    end if
+    c.Check( i18n.LoadCatalog( fs.PathJoin( res, "none.toml" ), "xx" ).IsOk( ) = false, "a missing file fails" )
+    fs.RemoveDirAll( tmp.Value( ) )
+end sub

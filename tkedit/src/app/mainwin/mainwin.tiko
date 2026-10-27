@@ -33,6 +33,7 @@
 #import "tkc/build"
 #import "tkc/cmdids"
 #import "tkc/docencoding"
+#import "tkc/i18n"
 #import "tkc/keybind"
 #import "tkc/mru"
 #import "tkc/navhistory"
@@ -264,6 +265,7 @@ public type Window
     Prefs as settings.EditorSettings
     Keys as keybind.KeyMap
     Theme as themes.Theme
+    LangPath as ustring                 ' the catalog settings.toml's language read; "" = English
     Words as editor.Keywords
     Look as editor.Look
     Docs as Array( of DocRef )          ' open order
@@ -371,6 +373,8 @@ public type Window
     declare function KeysFile( ) as ustring
     declare function SessionFile( ) as ustring
     declare sub ReloadSettings( )
+    declare sub ReloadLanguage( )
+    declare sub LabelEditMenu( )
     declare sub SyncSettingsFile( )
     declare sub ApplyStatusPanels( )
     declare sub SyncKeysFile( )
@@ -530,20 +534,21 @@ function Window.Create( byval forcedScale as single ) as boolean
 
     ' a view's right-click menu: commands by id, through Execute like their keys
     editMenu = tkPopupMenu_Create( tkForm_Host( form ) )
-    tkPopupMenu_AddItem( editMenu, clng( Cmd.Undo ), "Undo" )
-    tkPopupMenu_AddItem( editMenu, clng( Cmd.Redo ), "Redo" )
+    ' (its rows' text: LabelEditMenu, from ReloadSettings, in the interface's language)
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.Undo ), "" )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.Redo ), "" )
     tkPopupMenu_AddSeparator( editMenu )
-    tkPopupMenu_AddItem( editMenu, clng( Cmd.Cut ), "Cut" )
-    tkPopupMenu_AddItem( editMenu, clng( Cmd.Copy ), "Copy" )
-    tkPopupMenu_AddItem( editMenu, clng( Cmd.Paste ), "Paste" )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.Cut ), "" )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.Copy ), "" )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.Paste ), "" )
     tkPopupMenu_AddSeparator( editMenu )
-    tkPopupMenu_AddItem( editMenu, clng( Cmd.IndentBlock ), "Indent Block" )
-    tkPopupMenu_AddItem( editMenu, clng( Cmd.UnindentBlock ), "UnIndent Block" )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.IndentBlock ), "" )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.UnindentBlock ), "" )
     tkPopupMenu_AddSeparator( editMenu )
-    tkPopupMenu_AddItem( editMenu, clng( Cmd.CommentBlock ), "Comment Block" )
-    tkPopupMenu_AddItem( editMenu, clng( Cmd.UncommentBlock ), "UnComment Block" )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.CommentBlock ), "" )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.UncommentBlock ), "" )
     tkPopupMenu_AddSeparator( editMenu )
-    tkPopupMenu_AddItem( editMenu, clng( Cmd.SelectAll ), "Select All" )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.SelectAll ), "" )
     tkPopupMenu_SetSelectCallback( editMenu, sub( byval hPopup as TK_MENU ptr, byval id as long )
         dim as Window ptr mw = WindowOfHost( hPopup->pOwner )
         if mw then mw->Execute( cast( Cmd, id ) )
@@ -778,16 +783,16 @@ sub Window.FillStatus( byval bar as TK_WIDGET ptr, byval d as DocRef, byval focu
     dim as ustring name_ = d->DisplayName( )
     if d->IsModified( ) then name_ &= " *"
     ' how many other buffers are open, Ctrl+E's list (author 2026-10-27)
-    if Docs.Count( ) > 1 then name_ &= strings.Format( " (+{} more)", Docs.Count( ) - 1 )
+    if Docs.Count( ) > 1 then name_ &= " " & strings.Format( i18n.Tr( "status.more", "(+{} more)" ), Docs.Count( ) - 1 )
     tkStatusBar_SetText( bar, StatusPanel.Buffer, name_ )
     dim as ustring msg = ""
     if focused then msg = Message
     tkStatusBar_SetText( bar, StatusPanel.Message, msg )
     tkStatusBar_SetText( bar, StatusPanel.Position, _
-                         strings.Format( "Ln {}, Col {}", v->CaretLine( ), v->CaretColumn( ) ) )
-    tkStatusBar_SetText( bar, StatusPanel.Project, "Project" )
-    tkStatusBar_SetText( bar, StatusPanel.Settings, "Settings" )
-    tkStatusBar_SetText( bar, StatusPanel.Keys, "Keys" )
+                         strings.Format( i18n.Tr( "status.position", "Ln {0}, Col {1}" ), v->CaretLine( ), v->CaretColumn( ) ) )
+    tkStatusBar_SetText( bar, StatusPanel.Project, i18n.Tr( "status.project", "Project" ) )
+    tkStatusBar_SetText( bar, StatusPanel.Settings, i18n.Tr( "status.settings", "Settings" ) )
+    tkStatusBar_SetText( bar, StatusPanel.Keys, i18n.Tr( "status.keys", "Keys" ) )
     tkStatusBar_SetText( bar, StatusPanel.Build, CurrentBuild )
     tkStatusBar_SetText( bar, StatusPanel.Encoding, docencoding.EncodingName( d->Enc.Encoding ) )
     dim as ustring eol = "CRLF"
@@ -824,7 +829,7 @@ end function
 function Window.StatusTip( byval p as StatusPanel, byval second as boolean ) as ustring
     if p = StatusPanel.Project then
         if ProjOpen then return Proj.Path
-        return "no project: a click makes one"
+        return i18n.Tr( "status.no_project", "no project: a click makes one" )
     end if
     if p = StatusPanel.Settings then return this.ShortcutText( Cmd.Settings )
     if p = StatusPanel.Keys then return this.ShortcutText( Cmd.KeyboardShortcuts )
@@ -929,7 +934,8 @@ end function
 function Window.Execute( byval id as Cmd ) as boolean
     if this.IsImplemented( id ) = false then
         dim as cmdids.CommandInfo ci = Keys.Commands( ).Info( id )
-        this.SetMessage( ci.Description & ": not available yet" )
+        this.SetMessage( strings.Format( i18n.Tr( "message.not_available", "{}: not available yet" ), _
+                                         i18n.Tr( "commands." & ci.Name, ci.Description ) ) )
         return false
     end if
     this.SyncFocus( )
@@ -1111,9 +1117,51 @@ sub Window.ReloadSettings( )
         if b.Name = CurrentBuild then known = true
     next
     if known = false then CurrentBuild = Prefs.DefaultBuild( )
+    this.ReloadLanguage( )
     this.ApplyStatusPanels( )
     this.ReloadTheme( )
     this.ShowStatus( )
+end sub
+
+' settings.toml's language: its catalog becomes the program's and the window's text follows. A code
+' with no catalog, or one that is not TOML, is English, and the message says so (I18N.md); a
+' settings.toml error keeps the message. The caller refreshes the status lines.
+sub Window.ReloadLanguage( )
+    dim as i18n.Catalog cat                     ' English
+    dim as ustring note = ""
+    LangPath = ""
+    if Prefs.Language <> i18n.DEFAULT_LANGUAGE then
+        LangPath = i18n.FindCatalog( Prefs.Language, ConfigDir, ResourceDir )
+        if len( LangPath ) = 0 then
+            note = strings.Format( "{}: no {}/{}.toml; English", settings.SETTINGS_FILE, i18n.LANG_DIR, Prefs.Language )
+        else
+            dim as i18n.CatalogResult r = i18n.LoadCatalog( LangPath, Prefs.Language )
+            if r.IsOk( ) then
+                cat = r.Value( )
+                if cat.Warnings.Count( ) > 0 then note = fs.PathFileName( LangPath ) & ": " & cat.Warnings[0]
+            else
+                note = r.Failure( ) & "; English"
+            end if
+        end if
+    end if
+    i18n.Use( cat )
+    if (len( note ) > 0) andalso (len( Message ) = 0) then Message = note
+    this.LabelEditMenu( )
+end sub
+
+' The right-click menu's rows in the interface's language: menu.<command name>.
+sub Window.LabelEditMenu( )
+    if editMenu = 0 then exit sub
+    tkPopupMenu_SetItemText( editMenu, clng( Cmd.Undo ), i18n.Tr( "menu.Undo", "Undo" ) )
+    tkPopupMenu_SetItemText( editMenu, clng( Cmd.Redo ), i18n.Tr( "menu.Redo", "Redo" ) )
+    tkPopupMenu_SetItemText( editMenu, clng( Cmd.Cut ), i18n.Tr( "menu.Cut", "Cut" ) )
+    tkPopupMenu_SetItemText( editMenu, clng( Cmd.Copy ), i18n.Tr( "menu.Copy", "Copy" ) )
+    tkPopupMenu_SetItemText( editMenu, clng( Cmd.Paste ), i18n.Tr( "menu.Paste", "Paste" ) )
+    tkPopupMenu_SetItemText( editMenu, clng( Cmd.IndentBlock ), i18n.Tr( "menu.IndentBlock", "Indent Block" ) )
+    tkPopupMenu_SetItemText( editMenu, clng( Cmd.UnindentBlock ), i18n.Tr( "menu.UnindentBlock", "UnIndent Block" ) )
+    tkPopupMenu_SetItemText( editMenu, clng( Cmd.CommentBlock ), i18n.Tr( "menu.CommentBlock", "Comment Block" ) )
+    tkPopupMenu_SetItemText( editMenu, clng( Cmd.UncommentBlock ), i18n.Tr( "menu.UncommentBlock", "UnComment Block" ) )
+    tkPopupMenu_SetItemText( editMenu, clng( Cmd.SelectAll ), i18n.Tr( "menu.SelectAll", "Select All" ) )
 end sub
 
 ' settings.toml's [statusbar] switches: the Project, Settings and Keys panels on both status lines.
@@ -1277,6 +1325,11 @@ sub Window.AfterSave( byval d as DocRef )
     elseif (p = lcase( Theme.Path )) orelse _
            (p = lcase( fs.PathJoin( ConfigDir, themes.THEME_DIR, Prefs.Theme & ".toml" ) )) then
         this.ReloadTheme( )                     ' the active theme, or the user's new copy of it
+    elseif (len( p ) > 0) andalso ((p = lcase( LangPath )) orelse _
+           (p = lcase( fs.PathJoin( ConfigDir, i18n.LANG_DIR, Prefs.Language & ".toml" ) ))) then
+        Message = ""
+        this.ReloadLanguage( )                  ' the language's catalog, or the user's new copy of it
+        this.ShowStatus( )
     elseif ProjOpen andalso (p = lcase( project.OptionsPath( ConfigDir, Proj.Path ) )) then
         ' the project's options, edited by hand: what they say now holds
         dim as project.OptionsResult r = project.LoadOptions( d->Path )
