@@ -84,6 +84,13 @@ private function StripToolsMatch( byref mw as mainwin.Window ) as boolean
     return (a.BackColor = tkTheme_Get( ).Surface) andalso (b.BackColor = tkTheme_Get( ).Surface)
 end function
 
+' The find strip's prev / next / close are drawn from a glyph font that has them (PsIcons).
+private function StripGlyphsDrawn( byref mw as mainwin.Window ) as boolean
+    dim as TTF_Font ptr g = tkToolbar_GetGlyphFont( mw.Finder.tools )
+    if g = 0 then return false
+    return TTF_FontHasGlyph( g, &hE70E ) andalso TTF_FontHasGlyph( g, &hE70D ) andalso TTF_FontHasGlyph( g, &hE711 )
+end function
+
 ' A fresh, empty config folder for one pass.
 private function FreshConfig( ) as ustring
     dim as ustring res = platform.ResourceDir( ).ValueOr( platform.ExeDir( ) )
@@ -585,6 +592,7 @@ public sub FindPass( byref t as Tally, byval sc as single )
     t.Check( (fr->y = cy - sh - rowH) andalso (fr->ch = rowH) andalso (fr->cw = cx), P( sc, strings.Format( "one row above it: {} {}x{}", fr->y, fr->cw, fr->ch ) ) )
     t.Check( mw.View( ).Widget( )->ch = cy - sh - rowH, P( sc, "the view ends above the strip" ) )
     t.Check( StripToolsMatch( mw ), P( sc, "the buttons share the strip's back colour" ) )
+    t.Check( StripGlyphsDrawn( mw ), P( sc, "prev / next / close are in the toolbar's glyph font" ) )
     t.Check( tkHost_GetFocus( h ) = mw.Finder.findBox, P( sc, "the find box has the focus" ) )
     tkTest_PushText( h, "alpha" )
     tkTest_PumpFor( h, 40 )

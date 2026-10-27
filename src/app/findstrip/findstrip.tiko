@@ -230,6 +230,10 @@ sub Strip.Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ 
     tkToolbar_SetClickCallback( tools, onClick )
     tkToolbar_SetClickCallback( rtools, onClick )
     MatchTools( @this )
+    ' the prev / next / close glyphs are PsIcons codepoints: without this the toolbar draws them in
+    ' the UI font, as boxes
+    dim as TK_FORM ptr fm = tkForm_FromWidget( frame )
+    if fm then tkToolbar_SetGlyphFont( tools, tkForm_Font( fm, TKFONT_GLYPH ) )
     tkWidget_Show( frame, false )
 end sub
 
