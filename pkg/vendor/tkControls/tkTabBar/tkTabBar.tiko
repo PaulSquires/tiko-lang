@@ -445,7 +445,7 @@ private sub PaintTabDefault( byval pBar as TKTABBAR_STATE ptr, byval p as TKTABB
         b->SetColors( iif( p->isHotClose, pBar->colors.CloseColorHot, pBar->colors.CloseColor ), backclr )
         if fGlyph then
             b->SetFont( fGlyph )
-            b->PaintText( wchr( &hE8BB ), @p->rcClose, TK_DT_CENTER )       ' ChromeClose
+            b->PaintText( wchr( TK_ICON_CLOSE ), @p->rcClose, TK_DT_CENTER )       ' ChromeClose
         else
             b->SetFont( fText )
             b->PaintText( wchr( &hD7 ), @p->rcClose, TK_DT_CENTER )         ' multiplication sign

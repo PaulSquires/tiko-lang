@@ -69,9 +69,9 @@ end sub
 
 sub RunPass( byval fScale as single )
     tkTest_Begin( "scale " & fScale )
-    dim as TK_HOST ptr h = tkHost_Create( "tkColumnHeader selftest", 640, 360, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkColumnHeader selftest", 640, 360, tkHost_FontDir() & TK_FONT_UI, fScale )
     if h = 0 then tkTest_Check( "host", false, *SDL_GetError() ) : exit sub
-    dim as TTF_Font ptr f = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeuib.ttf", 9 )
+    dim as TTF_Font ptr f = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI_BOLD, 9 )
     tkHost_Show( h )
     tkTest_PumpFor( h, 300 )
     dim as long S_ = cint( fScale * 100 )

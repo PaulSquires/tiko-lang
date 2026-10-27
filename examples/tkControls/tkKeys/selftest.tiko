@@ -96,7 +96,7 @@ sub Maps()
     tkTest_Check( "rebinding a chord replaces it", (tkKeys_Lookup( km, c ) = 105) andalso (tkKeys_Count( km ) = 3) )
 
     ' a real surface: the map is asked before the focused widget
-    dim as TK_HOST ptr h = tkHost_Create( "tkKeys selftest", 300, 200, TK_TEST_FONTDIR & "segoeui.ttf", 1.0 )
+    dim as TK_HOST ptr h = tkHost_Create( "tkKeys selftest", 300, 200, tkHost_FontDir() & TK_FONT_UI, 1.0 )
     dim as TK_WIDGET ptr w = tkWidget_Create( h, 1, @KeyProc, 0 )
     w->isFocusable = true
     tkWidget_SetPos( w, 0, 0, 100, 100 )

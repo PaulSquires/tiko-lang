@@ -59,9 +59,9 @@ end sub
 
 sub RunPass( byval fScale as single )
     tkTest_Begin( "scale " & fScale )
-    dim as TK_HOST ptr h = tkHost_Create( "tkPopupMenu selftest", 600, 420, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkPopupMenu selftest", 600, 420, tkHost_FontDir() & TK_FONT_UI, fScale )
     if h = 0 then tkTest_Check( "host", false ) : exit sub
-    dim as TTF_Font ptr f = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 9 )
+    dim as TTF_Font ptr f = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 9 )
     dim as TK_WIDGET ptr target = tkWidget_Create( h, 1, @TargetProc, 0 )
     tkWidget_SetPos( target, tkHost_Scale( h, 400 ), tkHost_Scale( h, 300 ), tkHost_Scale( h, 100 ), tkHost_Scale( h, 60 ) )
     tkHost_Show( h )

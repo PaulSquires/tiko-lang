@@ -46,17 +46,17 @@ end function
 ' ==========================================================================================
 sub RunPass( byval fScale as single )
     tkTest_Begin( "scale " & fScale )
-    dim as TK_HOST ptr h = tkHost_Create( "tkButton selftest", 640, 480, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkButton selftest", 640, 480, tkHost_FontDir() & TK_FONT_UI, fScale )
     if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
     tkTest_Check( "scale pinned", h->fScale = fScale, "" & h->fScale )
-    dim as TTF_Font ptr fText = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 10 )
-    dim as TTF_Font ptr fGlyph = tkHost_OpenFont( h, TK_TEST_FONTDIR & "SegoeIcons.ttf", 10 )
+    dim as TTF_Font ptr fText = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
+    dim as TTF_Font ptr fGlyph = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_ICONS, 10 )
     tkTest_Check( "fonts opened", (fText <> 0) andalso (fGlyph <> 0) )
 
     ' ---- A: layout before sizing, then the README formula ------------------------------
     dim as TK_WIDGET ptr a = tkButton_Create( tkHost_Root( h ), 101 )
     tkButton_SetFont( a, fText ) : tkButton_SetGlyphFont( a, fGlyph )
-    tkButton_SetText( a, "Save" ) : tkButton_SetGlyphLeft( a, wchr( &hE74E ) )
+    tkButton_SetText( a, "Save" ) : tkButton_SetGlyphLeft( a, wchr( TK_ICON_SAVE ) )
     tkButton_SetClickCallback( a, @OnClick )
     dim as long iw, ih
     tkButton_GetIdealSize( a, iw, ih )
@@ -95,7 +95,7 @@ sub RunPass( byval fScale as single )
 
     ' ---- B: icon only charges no gap; height drops to the icon -------------------------
     dim as TK_WIDGET ptr bI = tkButton_Create( tkHost_Root( h ), 102 )
-    tkButton_SetGlyphFont( bI, fGlyph ) : tkButton_SetGlyphLeft( bI, wchr( &hE713 ) )
+    tkButton_SetGlyphFont( bI, fGlyph ) : tkButton_SetGlyphLeft( bI, wchr( TK_ICON_SETTINGS ) )
     tkButton_GetIdealSize( bI, iw, ih )
     tkTest_Check( "icon-only idealW has no gap", iw = 2 * rp + pl + icw + pr, "" & iw )
     tkTest_Check( "icon-only idealH from icon", ih = 2 * rp + pt + ich + pb, "" & ih )
@@ -236,7 +236,7 @@ sub RunPass( byval fScale as single )
     ' ellipsis: a starved caption never paints past its span
     dim as TK_WIDGET ptr el = tkButton_Create( tkHost_Root( h ), 104 )
     tkButton_SetFont( el, fText ) : tkButton_SetGlyphFont( el, fGlyph )
-    tkButton_SetText( el, "Save Configuration As..." ) : tkButton_SetGlyphLeft( el, wchr( &hE74E ) )
+    tkButton_SetText( el, "Save Configuration As..." ) : tkButton_SetGlyphLeft( el, wchr( TK_ICON_SAVE ) )
     tkButton_GetIdealSize( el, iw, ih )
     tkWidget_SetPos( el, tkHost_Scale( h, 20 ), tkHost_Scale( h, 200 ), (iw * 55) \ 100, ih )
     tkButton_GetTextRect( el, rt )
@@ -274,7 +274,7 @@ sub RunPass( byval fScale as single )
     ' mouse during this check can still race it.
     tkTest_PumpFor( h, 400 )
     dim as TK_WIDGET ptr tp = tkButton_Create( tkHost_Root( h ), 105 )
-    tkButton_SetGlyphFont( tp, fGlyph ) : tkButton_SetGlyphLeft( tp, wchr( &hE946 ) )
+    tkButton_SetGlyphFont( tp, fGlyph ) : tkButton_SetGlyphLeft( tp, wchr( TK_ICON_INFO ) )
     tkButton_SetTooltipCallback( tp, @OnTip )
     tkButton_SetHoverTime( tp, 200 )
     tkButton_GetIdealSize( tp, iw, ih )
@@ -295,7 +295,7 @@ sub RunPass( byval fScale as single )
     tkButton_GetColors( a, @cc )
     tkTest_Check( "unpin hands it back to the current theme", cc.BackColor = tkTheme_Light().Surface )
     tkTheme_Apply( tkTheme_Dark() )
-    dim as TTF_Font ptr fBig = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 16 )
+    dim as TTF_Font ptr fBig = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 16 )
     dim as long wSmall, wBig, hh2
     tkButton_GetIdealSize( tp, wSmall, hh2 )
     tkButton_SetText( tp, "Caption" )

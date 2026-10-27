@@ -1558,8 +1558,8 @@ end function
 public function tkListTree_Create( byval hParent as TK_WIDGET ptr, byval CtrlID as long ) as TK_WIDGET ptr
     if hParent = 0 then return 0
     dim as TKLISTTREE_STATE ptr p = new TKLISTTREE_STATE
-    p->wszGlyphExpanded = wchr( &hE70D )
-    p->wszGlyphCollapsed = wchr( &hE76C )
+    p->wszGlyphExpanded = wchr( TK_ICON_CHEVRON_DOWN )
+    p->wszGlyphCollapsed = wchr( TK_ICON_CHEVRON_RIGHT )
     dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @tkListTree_Proc, p )
     p->hWin = w
     p->wSurf = tkWidget_CreateChild( w, CtrlID, @LtSurfaceProc, 0 )

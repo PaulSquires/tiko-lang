@@ -11,12 +11,6 @@ using tkTooltip
 using tkHost
 using tkPaint
 
-#ifdef TIKO_OS_LINUX
-    const FONTDIR = "/mnt/c/Windows/Fonts/"
-#else
-    const FONTDIR = "C:\Windows\Fonts\"
-#endif
-
 const as long BUTTON_COUNT = 12
 const as long ROW_HEIGHT = 50, ROW_TOP = 14, ROW_MARGIN = 22
 const as long IDC_FIRST = 1000
@@ -158,15 +152,15 @@ if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() 
 if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
 
 dim as single forced = val( ArgValue( "--scale" ) )
-gHost = tkHost_Create( "tkButton on SDL3", 760, 690, FONTDIR & "segoeui.ttf", forced )
+gHost = tkHost_Create( "tkButton on SDL3", 760, 690, tkHost_FontDir() & TK_FONT_UI, forced )
 if gHost = 0 then print "host: " & *SDL_GetError() : end 1
 gHost->clrBack = T_BACK
 print "video driver: " & *SDL_GetCurrentVideoDriver() & "  renderer: " & *SDL_GetRendererName( gHost->renderer ) & _
       "  scale=" & gHost->fScale & "  density=" & gHost->fDensity
 
-gFont9   = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 9 )
-gFont10  = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 10 )
-gGlyph10 = tkHost_OpenFont( gHost, FONTDIR & "SegoeIcons.ttf", 10 )
+gFont9   = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 9 )
+gFont10  = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 10 )
+gGlyph10 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_ICONS, 10 )
 if (gFont10 = 0) orelse (gGlyph10 = 0) then print "fonts: " & *SDL_GetError() : end 1
 tkTooltip_SetDefaultFonts( gFont9 )
 
@@ -194,32 +188,32 @@ for i as long = 0 to BUTTON_COUNT - 1
 next
 
 tkButton_SetText( gBtn(0), "Save Changes" )
-tkButton_SetText( gBtn(1), "Save" ) : tkButton_SetGlyphLeft( gBtn(1), wchr( &hE74E ) )
-tkButton_SetText( gBtn(2), "Next" ) : tkButton_SetGlyphRight( gBtn(2), wchr( &hE76C ) )
+tkButton_SetText( gBtn(1), "Save" ) : tkButton_SetGlyphLeft( gBtn(1), wchr( TK_ICON_SAVE ) )
+tkButton_SetText( gBtn(2), "Next" ) : tkButton_SetGlyphRight( gBtn(2), wchr( TK_ICON_CHEVRON_RIGHT ) )
 if tkButton_SetImageLeft( gBtn(2), iconPath ) = 0 then print "image load failed: " & *SDL_GetError()
 tkButton_SetText( gBtn(3), "Refresh" )
-tkButton_SetGlyphLeft( gBtn(3), wchr( &hE72C ) ) : tkButton_SetGlyphRight( gBtn(3), wchr( &hE76C ) )
-tkButton_SetGlyphLeft( gBtn(4), wchr( &hE713 ) )
+tkButton_SetGlyphLeft( gBtn(3), wchr( TK_ICON_REFRESH ) ) : tkButton_SetGlyphRight( gBtn(3), wchr( TK_ICON_CHEVRON_RIGHT ) )
+tkButton_SetGlyphLeft( gBtn(4), wchr( TK_ICON_SETTINGS ) )
 tkButton_SetText( gBtn(BUTTON_ALIGNL), "Open Project" )
-tkButton_SetGlyphLeft( gBtn(BUTTON_ALIGNL), wchr( &hE838 ) )
+tkButton_SetGlyphLeft( gBtn(BUTTON_ALIGNL), wchr( TK_ICON_FOLDER_OPEN ) )
 tkButton_SetTextAlign( gBtn(BUTTON_ALIGNL), BTN_ALIGN_LEFT )
 tkButton_SetText( gBtn(BUTTON_ALIGNR), "Run" )
-tkButton_SetGlyphRight( gBtn(BUTTON_ALIGNR), wchr( &hE768 ) )
+tkButton_SetGlyphRight( gBtn(BUTTON_ALIGNR), wchr( TK_ICON_PLAY ) )
 tkButton_SetTextAlign( gBtn(BUTTON_ALIGNR), BTN_ALIGN_RIGHT )
 tkButton_SetText( gBtn(BUTTON_DISABLED), "Delete" )
-tkButton_SetGlyphLeft( gBtn(BUTTON_DISABLED), wchr( &hE74D ) )
+tkButton_SetGlyphLeft( gBtn(BUTTON_DISABLED), wchr( TK_ICON_DELETE ) )
 tkButton_SetEnabled( gBtn(BUTTON_DISABLED), false )
 tkButton_SetText( gBtn(BUTTON_DEFAULT), "OK" )
-tkButton_SetGlyphLeft( gBtn(BUTTON_DEFAULT), wchr( &hE73E ) )
+tkButton_SetGlyphLeft( gBtn(BUTTON_DEFAULT), wchr( TK_ICON_CHECKMARK ) )
 tkButton_SetDefault( gBtn(BUTTON_DEFAULT), true )
 tkButton_SetText( gBtn(BUTTON_CUSTOM), "Custom painter" )
 tkButton_SetCornerCurvature( gBtn(BUTTON_CUSTOM), 0 )
 tkButton_SetPaintCallback( gBtn(BUTTON_CUSTOM), @Demo_Paint )
 tkButton_SetMessageCallback( gBtn(BUTTON_CUSTOM), @Demo_Message )
-tkButton_SetGlyphLeft( gBtn(BUTTON_TOOLTIP), wchr( &hE946 ) )
+tkButton_SetGlyphLeft( gBtn(BUTTON_TOOLTIP), wchr( TK_ICON_INFO ) )
 tkButton_SetTooltipCallback( gBtn(BUTTON_TOOLTIP), @Demo_Tooltip )
 tkButton_SetText( gBtn(BUTTON_ELLIPSIS), "Save Configuration As..." )
-tkButton_SetGlyphLeft( gBtn(BUTTON_ELLIPSIS), wchr( &hE74E ) )
+tkButton_SetGlyphLeft( gBtn(BUTTON_ELLIPSIS), wchr( TK_ICON_SAVE ) )
 
 dim as long iw, ih
 tkButton_GetIdealSize( gBtn(0), iw, ih ) : print "row 0 ideal size (text only): " & iw & "x" & ih

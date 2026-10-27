@@ -214,10 +214,10 @@ end sub
 ' ==========================================================================================
 sub RunPass( byval fScale as single )
     tkTest_Begin( "scale " & fScale )
-    dim as TK_HOST ptr h = tkHost_Create( "tkColorPicker selftest", 900, 700, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkColorPicker selftest", 900, 700, tkHost_FontDir() & TK_FONT_UI, fScale )
     if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
     gOwner = h
-    dim as TTF_Font ptr fText = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 10 )
+    dim as TTF_Font ptr fText = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
     tkTest_Check( "font opened", fText <> 0 )
 
     ' ---- A: created, not shown -- the ideal size and the geometry before any run -----------------

@@ -123,10 +123,10 @@ sub RunPass( byval fScale as single )
     tkTest_Begin( "scale " & fScale )
     gDownCount = 0 : gUpCount = 0 : gRDownCount = 0 : gRUpCount = 0 : gLeaveCount = 0
     gHoverCount = 0 : gClickCount = 0 : gPaintCalls = 0
-    dim as TK_HOST ptr h = tkHost_Create( "tkStatusBar selftest", 800, 400, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkStatusBar selftest", 800, 400, tkHost_FontDir() & TK_FONT_UI, fScale )
     if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
     tkTest_Check( "scale pinned", h->fScale = fScale, "" & h->fScale )
-    dim as TTF_Font ptr fText = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 10 )
+    dim as TTF_Font ptr fText = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
     tkTest_Check( "font opened", fText <> 0 )
     dim as long pw, ph
     tkHost_PixelSize( h, pw, ph )
@@ -468,7 +468,7 @@ sub RunPass( byval fScale as single )
     WaitTip( h, b2, false, 500 )
 
     ' ApplyFonts re-measures
-    dim as TTF_Font ptr fBig = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 16 )
+    dim as TTF_Font ptr fBig = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 16 )
     dim as long wSmall = PanelW( b2, 0 )
     tkStatusBar_ApplyFonts( b2, fBig, 0 )
     tkTest_Check( "ApplyFonts re-measures", PanelW( b2, 0 ) > wSmall andalso LayoutMatches( b2, fBig, d ), wSmall & " -> " & PanelW( b2, 0 ) )

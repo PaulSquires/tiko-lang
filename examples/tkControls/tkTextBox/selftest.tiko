@@ -73,10 +73,10 @@ end function
 ' ==========================================================================================
 sub RunPass( byval fScale as single )
     tkTest_Begin( "scale " & fScale )
-    dim as TK_HOST ptr h = tkHost_Create( "tkTextBox selftest", 640, 520, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkTextBox selftest", 640, 520, tkHost_FontDir() & TK_FONT_UI, fScale )
     if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
-    dim as TTF_Font ptr f10 = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 10 )
-    dim as TTF_Font ptr f9i = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeuii.ttf", 9 )
+    dim as TTF_Font ptr f10 = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
+    dim as TTF_Font ptr f9i = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI_ITALIC, 9 )
     tkTest_Check( "fonts opened", (f10 <> 0) andalso (f9i <> 0) )
     tkHost_Show( h )
     tkTest_PumpFor( h, 300 )

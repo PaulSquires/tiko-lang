@@ -90,17 +90,17 @@ end enum
 
 sub BuildToolbar( byval h as TK_HOST ptr, byval p as TK_WIDGET ptr )
     dim as long idx
-    idx = tkIconPanel_AddItem( p, IP_KIND_COMMAND, wchr( &hE74E ), 11 ) : tkIconPanel_SetTooltipText( p, idx, "Save" )
-    idx = tkIconPanel_AddItem( p, IP_KIND_COMMAND, wchr( &hE72C ), 12 ) : tkIconPanel_SetTooltipText( p, idx, "Refresh" )
+    idx = tkIconPanel_AddItem( p, IP_KIND_COMMAND, wchr( TK_ICON_SAVE ), 11 ) : tkIconPanel_SetTooltipText( p, idx, "Save" )
+    idx = tkIconPanel_AddItem( p, IP_KIND_COMMAND, wchr( TK_ICON_REFRESH ), 12 ) : tkIconPanel_SetTooltipText( p, idx, "Refresh" )
     tkIconPanel_SetItemForeColor( p, idx, tkRGB( 126, 190, 126 ) )
     tkIconPanel_AddSeparator( p )
-    idx = tkIconPanel_AddItem( p, IP_KIND_TOGGLE, wchr( &hE734 ), 21 ) : tkIconPanel_SetTooltipText( p, idx, "Favourite" )
-    idx = tkIconPanel_AddItem( p, IP_KIND_TOGGLE, wchr( &hE72E ), 22 ) : tkIconPanel_SetTooltipText( p, idx, "Read only" )
-    idx = tkIconPanel_AddItem( p, IP_KIND_TOGGLE, wchr( &hE721 ), 23 ) : tkIconPanel_SetTooltipText( p, idx, "Find panel" )
+    idx = tkIconPanel_AddItem( p, IP_KIND_TOGGLE, wchr( TK_ICON_STAR ), 21 ) : tkIconPanel_SetTooltipText( p, idx, "Favourite" )
+    idx = tkIconPanel_AddItem( p, IP_KIND_TOGGLE, wchr( TK_ICON_LOCK ), 22 ) : tkIconPanel_SetTooltipText( p, idx, "Read only" )
+    idx = tkIconPanel_AddItem( p, IP_KIND_TOGGLE, wchr( TK_ICON_SEARCH ), 23 ) : tkIconPanel_SetTooltipText( p, idx, "Find panel" )
     tkIconPanel_AddSeparator( p )
-    idx = tkIconPanel_AddItem( p, IP_KIND_COMMAND, wchr( &hE74D ), 31 )
+    idx = tkIconPanel_AddItem( p, IP_KIND_COMMAND, wchr( TK_ICON_DELETE ), 31 )
     tkIconPanel_SetEnabled( p, idx, false )
-    idx = tkIconPanel_AddItem( p, IP_KIND_COMMAND, wchr( &hE713 ), 41 )
+    idx = tkIconPanel_AddItem( p, IP_KIND_COMMAND, wchr( TK_ICON_SETTINGS ), 41 )
     tkIconPanel_SetItemIconSize( p, idx, tkHost_Scale( h, 30 ), tkHost_Scale( h, 30 ) )
     tkIconPanel_SetItemPadding( p, idx, tkHost_Scale( h, 14 ), tkHost_Scale( h, 14 ) )
 end sub
@@ -108,10 +108,10 @@ end sub
 ' ==========================================================================================
 sub RunPass( byval fScale as single )
     tkTest_Begin( "scale " & fScale )
-    dim as TK_HOST ptr h = tkHost_Create( "tkIconPanel selftest", 640, 400, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkIconPanel selftest", 640, 400, tkHost_FontDir() & TK_FONT_UI, fScale )
     if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
     tkTest_Check( "scale pinned", h->fScale = fScale, "" & h->fScale )
-    dim as TTF_Font ptr fGlyph = tkHost_OpenFont( h, TK_TEST_FONTDIR & "SegoeIcons.ttf", 12 )
+    dim as TTF_Font ptr fGlyph = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_ICONS, 12 )
     tkTest_Check( "glyph font opened", fGlyph <> 0 )
     tkTheme_Apply( tkTheme_Dark() )
 
@@ -263,7 +263,7 @@ sub RunPass( byval fScale as single )
     tkTest_Check( "SetSelected refuses a command / separator", tkIconPanel_SetSelected( p, I_SAVE, true ) = false andalso tkIconPanel_SetSelected( p, I_SEP1, true ) = false )
     tkIconPanel_SelectExclusive( p, I_FIND )
     tkTest_Check( "SelectExclusive: one toggle latched", tkIconPanel_GetSelected( p, I_FIND ) andalso tkIconPanel_GetSelected( p, I_RO ) = false andalso tkIconPanel_GetSelected( p, I_FAV ) = false )
-    tkIconPanel_SetGlyph( p, I_SAVE, wchr( &hE74E ) ) : tkIconPanel_SetEnabled( p, I_REFRESH, false ) : tkIconPanel_SetEnabled( p, I_REFRESH, true )
+    tkIconPanel_SetGlyph( p, I_SAVE, wchr( TK_ICON_SAVE ) ) : tkIconPanel_SetEnabled( p, I_REFRESH, false ) : tkIconPanel_SetEnabled( p, I_REFRESH, true )
     tkTest_Check( "setters are silent", gClicks = 0 andalso gSelChanges = 0 )
     tkTest_Check( "set calls on a bad index return FALSE", tkIconPanel_SetGlyph( p, 99, "x" ) = false andalso tkIconPanel_SetItemID( p, -1, 1 ) = false )
     tkTest_Check( "ItemID / ItemData round-trip", tkIconPanel_SetItemData( p, I_SAVE, 777 ) andalso tkIconPanel_GetItemData( p, I_SAVE ) = 777 andalso tkIconPanel_GetItemID( p, I_SAVE ) = 11 )
@@ -282,12 +282,16 @@ sub RunPass( byval fScale as single )
     tkIconPanel_GetItemIconRect( p, I_SAVE, rci )
     dim as ulong c0
     tkTest_Check( "pixel: the glyph is drawn (> 2 tones)", tkTest_TonesIn( h, p->x + rci.left, p->y + rci.top, rci.right - rci.left, rci.bottom - rci.top, c0 ) > 2 )
-    ' per-item fore colour only on the idle rung: the glyph of REFRESH contains it
+    ' per-item fore colour only on the idle rung: the glyph of REFRESH is tinted by it. Fluent's
+    ' strokes are a pixel wide, so no pixel need reach tkRGB( 126, 190, 126 ) exactly: look for
+    ' green standing 24 levels clear of red and blue on the grey cell
     tkIconPanel_GetItemIconRect( p, I_REFRESH, rci )
     dim as boolean bGreen = false
     for yy as long = rci.top to rci.bottom - 1
         for xx as long = rci.left to rci.right - 1
-            if tkTest_PixelAt( h, p->x + xx, p->y + yy ) = tkRGB( 126, 190, 126 ) then bGreen = true : exit for
+            dim as ulong px = tkTest_PixelAt( h, p->x + xx, p->y + yy )
+            dim as long pr = (px shr 16) and 255, pg = (px shr 8) and 255, pb = px and 255
+            if (pg > pr + 24) andalso (pg > pb + 24) then bGreen = true : exit for
         next
         if bGreen then exit for
     next
@@ -308,9 +312,9 @@ sub RunPass( byval fScale as single )
     ' ---- E: the column mode (PsPlatform) ----------------------------------------------
     dim as TK_WIDGET ptr v = tkIconPanel_Create( tkHost_Root( h ), 102 )
     tkIconPanel_SetVertical( v, true )
-    tkIconPanel_AddItem( v, IP_KIND_TOGGLE, wchr( &hE8A5 ), 1 )
+    tkIconPanel_AddItem( v, IP_KIND_TOGGLE, wchr( TK_ICON_DOCUMENT ), 1 )
     tkIconPanel_AddSeparator( v )
-    tkIconPanel_AddItem( v, IP_KIND_TOGGLE, wchr( &hE721 ), 2 )
+    tkIconPanel_AddItem( v, IP_KIND_TOGGLE, wchr( TK_ICON_SEARCH ), 2 )
     tkTest_Check( "column: ideal height = summed cells", tkIconPanel_GetIdealHeight( v ) = 2 * cellN + cellS, "" & tkIconPanel_GetIdealHeight( v ) )
     tkTest_Check( "column: ideal width = the icon", tkIconPanel_GetIdealWidth( v ) = iw, "" & tkIconPanel_GetIdealWidth( v ) )
     dim as long vw = tkHost_Scale( h, 48 ), vh = tkHost_Scale( h, 200 )
@@ -342,7 +346,7 @@ sub RunPass( byval fScale as single )
     dim as ulong pc = tkTest_PixelAt( h, p->x + rci.left + 2, p->y + rci.top + 2 )
     tkTest_Check( "pixel: the image is drawn in rcIcon", pc = &hFF3399EEul, hex( pc ) )
     tkTest_Check( "SetImage of a missing file: FALSE", tkIconPanel_SetImage( p, I_REFRESH, exepath() & "/no-such.png" ) = false )
-    tkTest_Check( "SetGlyph frees the image", tkIconPanel_SetGlyph( p, I_SAVE, wchr( &hE74E ) ) )
+    tkTest_Check( "SetGlyph frees the image", tkIconPanel_SetGlyph( p, I_SAVE, wchr( TK_ICON_SAVE ) ) )
     tkHost_RenderTo( h, false )
     pc = tkTest_PixelAt( h, p->x + rci.left + 2, p->y + rci.top + 2 )
     tkTest_Check( "pixel: glyph back, image gone", pc <> &hFF3399EEul, hex( pc ) )

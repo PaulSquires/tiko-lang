@@ -147,10 +147,10 @@ end sub
 ' ==========================================================================================
 sub RunPass( byval fScale as single )
     tkTest_Begin( "scale " & fScale )
-    dim as TK_HOST ptr h = tkHost_Create( "tkChart selftest", 900, 700, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkChart selftest", 900, 700, tkHost_FontDir() & TK_FONT_UI, fScale )
     if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
-    dim as TTF_Font ptr fText = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 9 )
-    dim as TTF_Font ptr fBig = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeuib.ttf", 14 )
+    dim as TTF_Font ptr fText = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 9 )
+    dim as TTF_Font ptr fBig = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI_BOLD, 14 )
     tkTest_Check( "fonts opened", (fText <> 0) andalso (fBig <> 0) )
     tkTooltip_SetDefaultFonts( fText )
     tkHost_Show( h )
@@ -277,7 +277,12 @@ sub RunPass( byval fScale as single )
     tkChart_SetValueLabelCallback( c, 0 )
     tkChart_SetValueFormat( c, 2, true )
     tkChart_GetAxisYRect( c, ay1 )
-    tkTest_Check( "two fixed decimals widen the gutter", tkRect_Width( ay1 ) = tkText_Width( fText, "80.00" ) + TICK, tkRect_Width( ay1 ) & "" )
+    ' the widest of the four labels, 20.00 .. 80.00: Inter's digits are not all one width
+    dim as long w2 = 0
+    for v as long = 20 to 80 step 20
+        if tkText_Width( fText, v & ".00" ) > w2 then w2 = tkText_Width( fText, v & ".00" )
+    next
+    tkTest_Check( "two fixed decimals widen the gutter", tkRect_Width( ay1 ) = w2 + TICK, tkRect_Width( ay1 ) & " vs " & (w2 + TICK) )
     tkChart_SetValueFormat( c, TKCHART_DECIMALS_AUTO, true )
 
     ' hiding a series: out of the range, empty rects, hot cleared

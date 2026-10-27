@@ -35,6 +35,13 @@ sha256 = "9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e"
 from = "extras/ttf/Inter-Bold.ttf"
 to = "fonts/Inter-Bold.ttf"
 
+[windows.9]
+kind = "copy"
+url = "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip"
+sha256 = "9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e"
+from = "extras/ttf/Inter-Italic.ttf"
+to = "fonts/Inter-Italic.ttf"
+
 [windows.4]
 kind = "copy"
 url = "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip"
@@ -86,6 +93,13 @@ url = "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip"
 sha256 = "9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e"
 from = "extras/ttf/Inter-Bold.ttf"
 to = "fonts/Inter-Bold.ttf"
+
+[linux.9]
+kind = "copy"
+url = "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip"
+sha256 = "9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e"
+from = "extras/ttf/Inter-Italic.ttf"
+to = "fonts/Inter-Italic.ttf"
 
 [linux.4]
 kind = "copy"

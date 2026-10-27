@@ -18,12 +18,6 @@ using tkButton
 using tkHost
 using tkPaint
 
-#ifdef TIKO_OS_LINUX
-    const FONTDIR = "/mnt/c/Windows/Fonts/"
-#else
-    const FONTDIR = "C:\Windows\Fonts\"
-#endif
-
 const as long PAGE_INSET = 20, PAGE_MARGIN = 16, ROW_INDENT = 14, ROW_HEIGHT = 24, ROW_GAP = 10
 const as long HDR_HEIGHT = 22, HDR_RULE_GAP = 4, HDR_AFTER = 12, SECTION_GAP = 18
 const as long CTL_WIDTH = 170, CHECK_SIZE = 60
@@ -216,12 +210,12 @@ if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() 
 if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
 
 dim as single forced = val( ArgValue( "--scale" ) )
-gHost = tkHost_Create( "tkScrollPanel on SDL3", 720, 620, FONTDIR & "segoeui.ttf", forced )
+gHost = tkHost_Create( "tkScrollPanel on SDL3", 720, 620, tkHost_FontDir() & TK_FONT_UI, forced )
 if gHost = 0 then print "host: " & *SDL_GetError() : end 1
 gHost->clrBack = T_PANEL
-gFont9 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 9 )
-gFont10b = tkHost_OpenFont( gHost, FONTDIR & "segoeuib.ttf", 10 )
-if gFont10b = 0 then gFont10b = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 10 )
+gFont9 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 9 )
+gFont10b = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI_BOLD, 10 )
+if gFont10b = 0 then gFont10b = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 10 )
 if gFont9 = 0 then print "fonts: " & *SDL_GetError() : end 1
 
 gScp = tkScrollPanel_Create( tkHost_Root( gHost ), 100 )

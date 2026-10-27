@@ -14,8 +14,8 @@
 ' valid before the control is sized, the rect queries and the two render probes.
 '
 ' WHAT CHANGED: the box is drawn as VECTORS by default (PsPlatform's polygon tick, in the one box
-' colour) -- the Segoe Fluent Icons glyph pair is still there, one SetBoxStyle away. A font that
-' only Windows ships cannot be the default on a cross-platform control.
+' colour) -- the glyph pair (TK_FONT_ICONS, vendor's was Segoe Fluent Icons) is still there,
+' one SetBoxStyle away.
 '
 ' WHAT IS GONE, because the HWND is gone: WM_SETTEXT/GETTEXT, WM_GETDLGCODE, the WM_CHAR swallow,
 ' the 100 ms hover poll, the comctl32 tooltip backend, PsRegistry.
@@ -56,12 +56,13 @@ end enum
 ' ADDED (PORT.md): how the built-in painter draws the box.
 public enum
     CHK_BOXSTYLE_VECTOR = 0      ' rounded square + polygon tick, no font needed (default)
-    CHK_BOXSTYLE_GLYPH           ' vendor's: one font glyph per state (Segoe Fluent Icons)
+    CHK_BOXSTYLE_GLYPH           ' vendor's: one font glyph per state (TK_FONT_ICONS)
 end enum
 
-' The Segoe Fluent Icons pair vendor draws: E739 Checkbox, E73A CheckboxComposite.
-public const TKCHECKBOX_GLYPH_UNCHECKED = !"\uE739"
-public const TKCHECKBOX_GLYPH_CHECKED = !"\uE73A"
+' The glyph pair of the bundled icon font (TK_FONT_ICONS): TK_ICON_CHECKBOX and
+' TK_ICON_CHECKBOX_CHECKED, where vendor drew Segoe Fluent Icons' E739 / E73A.
+public const TKCHECKBOX_GLYPH_UNCHECKED = !"\uF291"
+public const TKCHECKBOX_GLYPH_CHECKED = !"\uF28D"
 
 public const as long TKCHECKBOX_DEFAULT_PADLEFT    = 4
 public const as long TKCHECKBOX_DEFAULT_PADTOP     = 2

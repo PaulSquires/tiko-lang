@@ -10,12 +10,6 @@ using tkTooltip
 using tkHost
 using tkPaint
 
-#ifdef TIKO_OS_LINUX
-    const FONTDIR = "/mnt/c/Windows/Fonts/"
-#else
-    const FONTDIR = "C:\Windows\Fonts\"
-#endif
-
 const as long IDC_OUTPUT = 1000, IDC_TRACKS = 1001, IDC_CUSTOM = 1002
 const as long IDP_COMPILER_RESULTS = 100, IDP_COMPILER_LOG = 101, IDP_SEARCH_RESULTS = 102
 const as long IDP_TODO = 103, IDP_NOTES = 104
@@ -124,14 +118,14 @@ if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() 
 if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
 
 dim as single forced = val( ArgValue( "--scale" ) )
-gHost = tkHost_Create( "tkSelectBar on SDL3", 900, 330, FONTDIR & "segoeui.ttf", forced )
+gHost = tkHost_Create( "tkSelectBar on SDL3", 900, 330, tkHost_FontDir() & TK_FONT_UI, forced )
 if gHost = 0 then print "host: " & *SDL_GetError() : end 1
 gHost->clrBack = T_BACKPANEL
 print "video driver: " & *SDL_GetCurrentVideoDriver() & "  renderer: " & *SDL_GetRendererName( gHost->renderer ) & _
       "  scale=" & gHost->fScale & "  density=" & gHost->fDensity
 
-gFont10 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 10 )
-dim as TTF_Font ptr gFont9 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 9 )
+gFont10 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 10 )
+dim as TTF_Font ptr gFont9 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 9 )
 if gFont10 = 0 then print "fonts: " & *SDL_GetError() : end 1
 tkTooltip_SetDefaultFonts( gFont9 )
 

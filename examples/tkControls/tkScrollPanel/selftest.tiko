@@ -96,12 +96,12 @@ end function
 ' ==========================================================================================
 sub RunPass( byval fScale as single )
     tkTest_Begin( "scale " & fScale )
-    gH = tkHost_Create( "tkScrollPanel selftest", 640, 480, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    gH = tkHost_Create( "tkScrollPanel selftest", 640, 480, tkHost_FontDir() & TK_FONT_UI, fScale )
     dim as TK_HOST ptr h = gH
     if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
     tkTest_Check( "scale pinned", h->fScale = fScale, "" & h->fScale )
     tkTheme_Apply( tkTheme_Dark() )
-    dim as TTF_Font ptr fText = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 9 )
+    dim as TTF_Font ptr fText = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 9 )
 
     ' ---- A: three widgets and the layout pass ---------------------------------------------
     dim as TK_WIDGET ptr s = tkScrollPanel_Create( tkHost_Root( h ), 100 )

@@ -13,12 +13,6 @@ using tkTheme
 using tkHost
 using tkPaint
 
-#ifdef TIKO_OS_LINUX
-    const FONTDIR = "/mnt/c/Windows/Fonts/"
-#else
-    const FONTDIR = "C:\Windows\Fonts\"
-#endif
-
 const as long DEMO_LEFT = 20, DEMO_BOX_HEIGHT = 32, DEMO_MULTI_HEIGHT = 110
 const as long DEMO_BOX1_TOP = 46, DEMO_BOX2_TOP = 122, DEMO_BOX3_TOP = 198
 const as long DEMO_BOX4_TOP = 274, DEMO_BOX5_TOP = 416
@@ -138,12 +132,12 @@ if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() 
 if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
 
 dim as single forced = val( ArgValue( "--scale" ) )
-gHost = tkHost_Create( "tkTextBox on SDL3", 640, 580, FONTDIR & "segoeui.ttf", forced )
+gHost = tkHost_Create( "tkTextBox on SDL3", 640, 580, tkHost_FontDir() & TK_FONT_UI, forced )
 if gHost = 0 then print "host: " & *SDL_GetError() : end 1
 gHost->clrBack = tkTheme_Get().Window
-gFont9 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 9 )
-gFont10 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 10 )
-gCue10 = tkHost_OpenFont( gHost, FONTDIR & "segoeuii.ttf", 10 )
+gFont9 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 9 )
+gFont10 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 10 )
+gCue10 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI_ITALIC, 10 )
 if (gFont10 = 0) orelse (gCue10 = 0) then print "fonts: " & *SDL_GetError() : end 1
 
 dim as TK_WIDGET ptr root = tkHost_Root( gHost )

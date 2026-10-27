@@ -90,8 +90,8 @@ end function
 
 sub RunPass( byval fScale as single )
     tkTest_Begin( "scale " & fScale )
-    dim as TK_HOST ptr h = tkHost_Create( "tkCodeEdit selftest", 800, 600, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
-    dim as string sMono = TK_TEST_FONTDIR & "CascadiaMono.ttf"
+    dim as TK_HOST ptr h = tkHost_Create( "tkCodeEdit selftest", 800, 600, tkHost_FontDir() & TK_FONT_UI, fScale )
+    dim as string sMono = tkHost_FontDir() & TK_FONT_MONO
     dim as TK_WIDGET ptr ed = tkCodeEdit_Create( tkHost_Root( h ), 100 )
     tkTest_Check( "scintk loads", ed <> 0, tkCodeEdit_LibraryError() )
     if ed = 0 then tkHost_Destroy( h ) : exit sub

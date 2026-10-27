@@ -125,7 +125,7 @@ end sub
 sub RunPass( byval fScale as single )
     tkTest_Begin( "scale " & fScale )
     tkTheme_Apply( tkTheme_Dark() )
-    dim as TK_HOST ptr h = tkHost_Create( "tkSplitter selftest", 640, 480, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkSplitter selftest", 640, 480, tkHost_FontDir() & TK_FONT_UI, fScale )
     if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
     tkTest_Check( "scale pinned", h->fScale = fScale, "" & h->fScale )
     dim as long pw, ph

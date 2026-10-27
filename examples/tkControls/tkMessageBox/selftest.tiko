@@ -96,7 +96,7 @@ end function
 ' ==========================================================================================
 sub RunPure()
     tkTest_Begin( "pure" )
-    tkTest_Check( "glyphs by kind", tkMessageBox_ResolveGlyph( MBX_ICON_WARNING ) = wchr( &hE7BA ) andalso tkMessageBox_ResolveGlyph( MBX_ICON_ERROR ) = wchr( &hEA39 ) )
+    tkTest_Check( "glyphs by kind", tkMessageBox_ResolveGlyph( MBX_ICON_WARNING ) = wchr( TK_ICON_WARNING ) andalso tkMessageBox_ResolveGlyph( MBX_ICON_ERROR ) = wchr( TK_ICON_ERROR ) )
     tkTest_Check( "NONE and junk resolve to no glyph", tkMessageBox_ResolveGlyph( MBX_ICON_NONE ) = "" andalso tkMessageBox_ResolveGlyph( 99 ) = "" )
     dim as MBX_COLORS c
     tkTest_Check( "icon colour by kind", tkMessageBox_ResolveIconColor( MBX_ICON_WARNING, @c ) = c.IconColorWarning andalso tkMessageBox_ResolveIconColor( MBX_ICON_ERROR, @c ) = c.IconColorError )
@@ -107,11 +107,11 @@ end sub
 ' ==========================================================================================
 sub RunPass( byval fScale as single )
     tkTest_Begin( "scale " & fScale )
-    dim as TK_HOST ptr h = tkHost_Create( "tkMessageBox selftest", 700, 500, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkMessageBox selftest", 700, 500, tkHost_FontDir() & TK_FONT_UI, fScale )
     if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
-    gText = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 10 )
-    gGlyph = tkHost_OpenFont( h, TK_TEST_FONTDIR & "SegoeIcons.ttf", 20 )
-    gClose = tkHost_OpenFont( h, TK_TEST_FONTDIR & "SegoeIcons.ttf", 10 )
+    gText = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
+    gGlyph = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_ICONS, 20 )
+    gClose = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_ICONS, 10 )
     tkTest_Check( "fonts opened", (gText <> 0) andalso (gGlyph <> 0) andalso (gClose <> 0) )
 
     ' ---- A: the ideal size, BEFORE the window is sized ------------------------------------------
@@ -148,7 +148,7 @@ sub RunPass( byval fScale as single )
     dim as long iwN, ihN
     tkMessageBox_GetIdealSize( b, iwN, ihN )
     tkTest_Check( "MBX_ICON_NONE charges no icon block", iwN = iw orelse iwN = iw - icW - icGap orelse iwN = minW )
-    tkMessageBox_SetGlyph( b, wchr( &hE946 ) )
+    tkMessageBox_SetGlyph( b, wchr( TK_ICON_INFO ) )
     tkTest_Check( "a glyph override turns the icon on even at NONE", tkMessageBox_GetIconKind( b ) = MBX_ICON_NONE )
     tkMessageBox_SetGlyph( b, "" )
     tkMessageBox_SetIconKind( b, MBX_ICON_QUESTION )

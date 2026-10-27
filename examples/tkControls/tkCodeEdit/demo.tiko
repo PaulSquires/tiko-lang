@@ -36,11 +36,11 @@ const FONTDIR = "/mnt/c/Windows/Fonts/"
 #else
 const FONTDIR = "C:\Windows\Fonts\"
 #endif
-gHost = tkHost_Create( "tkCodeEdit demo", 760, 420, FONTDIR & "segoeui.ttf", forced )
+gHost = tkHost_Create( "tkCodeEdit demo", 760, 420, tkHost_FontDir() & TK_FONT_UI, forced )
 gHost->clrBack = &hFF1E1F22ul
 gEd = tkCodeEdit_Create( tkHost_Root( gHost ), 100 )
 if gEd = 0 then print "tkCodeEdit: " & tkCodeEdit_LibraryError() : end 1
-tkCodeEdit_SetFont( gEd, FONTDIR & "CascadiaMono.ttf", 10 )
+tkCodeEdit_SetFont( gEd, tkHost_FontDir() & TK_FONT_MONO, 10 )
 tkCodeEdit_Send( gEd, SCI_STYLESETFORE, STYLE_DEFAULT, Bgr( &hD4D4D4 ) )
 tkCodeEdit_Send( gEd, SCI_STYLESETBACK, STYLE_DEFAULT, Bgr( &h1E1F22 ) )
 tkCodeEdit_Send( gEd, SCI_STYLECLEARALL )
@@ -79,7 +79,7 @@ dim as ustring src = _
     "dim as ustring greeting = ""héllo, wörld — 日本""" & chr( 10 ) & _
     "print greeting; Sum( { 1, 2, 3 } )" & chr( 10 )
 tkCodeEdit_SetFallbackFonts( FONTDIR & "msgothic.ttc|MS Gothic" )
-tkCodeEdit_SetFont( gEd, FONTDIR & "CascadiaMono.ttf", 10 )
+tkCodeEdit_SetFont( gEd, tkHost_FontDir() & TK_FONT_MONO, 10 )
 tkCodeEdit_Send( gEd, SCI_STYLESETFORE, STYLE_DEFAULT, Bgr( &hD4D4D4 ) )
 tkCodeEdit_Send( gEd, SCI_STYLESETBACK, STYLE_DEFAULT, Bgr( &h1E1F22 ) )
 tkCodeEdit_Send( gEd, SCI_STYLECLEARALL )

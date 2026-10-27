@@ -79,11 +79,11 @@ end function
 ' ==========================================================================================
 sub RunPass( byval fScale as single )
     tkTest_Begin( "scale " & fScale )
-    dim as TK_HOST ptr h = tkHost_Create( "tkCheckBox selftest", 700, 520, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkCheckBox selftest", 700, 520, tkHost_FontDir() & TK_FONT_UI, fScale )
     if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
     tkTest_Check( "scale pinned", h->fScale = fScale, "" & h->fScale )
-    dim as TTF_Font ptr fText = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 10 )
-    dim as TTF_Font ptr fGlyph = tkHost_OpenFont( h, TK_TEST_FONTDIR & "SegoeIcons.ttf", 12 )
+    dim as TTF_Font ptr fText = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
+    dim as TTF_Font ptr fGlyph = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_ICONS, 12 )
     tkTest_Check( "fonts opened", (fText <> 0) andalso (fGlyph <> 0) )
 
     ' ---- A: layout before sizing, then the README formula ------------------------------
@@ -92,7 +92,7 @@ sub RunPass( byval fScale as single )
     tkCheckBox_SetText( a, "Enable dark mode" )
     tkCheckBox_SetCheckChangedCallback( a, @OnChanged )
     tkTest_Check( "created unchecked, enabled, id = ctrlId", tkCheckBox_GetChecked( a ) = false andalso tkCheckBox_GetEnabled( a ) andalso tkCheckBox_GetID( a ) = 101 )
-    tkTest_Check( "default glyphs E739 / E73A", tkCheckBox_GetGlyphUnchecked( a ) = wchr( &hE739 ) andalso tkCheckBox_GetGlyphChecked( a ) = wchr( &hE73A ) )
+    tkTest_Check( "default glyphs E739 / E73A", tkCheckBox_GetGlyphUnchecked( a ) = wchr( TK_ICON_CHECKBOX ) andalso tkCheckBox_GetGlyphChecked( a ) = wchr( TK_ICON_CHECKBOX_CHECKED ) )
     tkTest_Check( "default box style VECTOR", tkCheckBox_GetBoxStyle( a ) = CHK_BOXSTYLE_VECTOR )
     dim as long iw, ih
     tkCheckBox_GetIdealSize( a, iw, ih )
@@ -161,7 +161,7 @@ sub RunPass( byval fScale as single )
     tkTest_Check( "no caption: rcText EMPTY, query still TRUE", tkCheckBox_GetTextRect( nc, rt ) andalso tkRect_IsEmpty( rt ) )
     tkCheckBox_SetCheckChangedCallback( nc, @OnChanged )
 
-    tkCheckBox_SetGlyphChecked( nc, wchr( &hE73E ) ) : tkCheckBox_SetBoxStyle( nc, CHK_BOXSTYLE_GLYPH )
+    tkCheckBox_SetGlyphChecked( nc, wchr( TK_ICON_CHECKMARK ) ) : tkCheckBox_SetBoxStyle( nc, CHK_BOXSTYLE_GLYPH )
     dim as long iw3, ih3
     tkCheckBox_GetIdealSize( nc, iw3, ih3 )
     tkTest_Check( "glyph / style setters never move the ideal size", iw3 = iw2 andalso ih3 = ih2 )
@@ -417,7 +417,7 @@ sub RunPass( byval fScale as single )
     tkCheckBox_SetBoxStyle( nc, CHK_BOXSTYLE_GLYPH )
     dim as ulong gOn = tkCheckBox_HashRenderedPart( nc, CHK_PART_BOX )
     tkTest_Check( "glyph style paints the font glyph (>1 tone)", tkCheckBox_CountRenderedTones( nc, CHK_PART_BOX ) > 1 )
-    tkCheckBox_SetGlyphChecked( nc, wchr( &hE73E ) )
+    tkCheckBox_SetGlyphChecked( nc, wchr( TK_ICON_CHECKMARK ) )
     dim as ulong gOn2 = tkCheckBox_HashRenderedPart( nc, CHK_PART_BOX )
     tkTest_Check( "glyph swap reaches the pixels (flat colours)", gOn <> gOn2 )
     tkCheckBox_SetBoxStyle( nc, CHK_BOXSTYLE_VECTOR )
@@ -494,7 +494,7 @@ sub RunPass( byval fScale as single )
     tkCheckBox_GetColors( nc, @cc )
     tkTest_Check( "unpinned follows the next theme", cc.BoxColorChecked = tkTheme_Dark().Accent )
 
-    dim as TTF_Font ptr fBig = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 16 )
+    dim as TTF_Font ptr fBig = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 16 )
     dim as long wSmall, wBig, hh2
     tkCheckBox_SetFont( tp, fText ) : tkCheckBox_SetText( tp, "Caption" )
     tkCheckBox_GetIdealSize( tp, wSmall, hh2 )

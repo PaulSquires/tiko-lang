@@ -123,10 +123,10 @@ end sub
 ' ==========================================================================================
 sub RunPass( byval fScale as single )
     tkTest_Begin( "scale " & fScale )
-    dim as TK_HOST ptr h = tkHost_Create( "tkCalendar selftest", 900, 640, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkCalendar selftest", 900, 640, tkHost_FontDir() & TK_FONT_UI, fScale )
     if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
-    dim as TTF_Font ptr fText = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 10 )
-    dim as TTF_Font ptr fBold = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeuib.ttf", 11 )
+    dim as TTF_Font ptr fText = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
+    dim as TTF_Font ptr fBold = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI_BOLD, 11 )
     tkTest_Check( "fonts opened", (fText <> 0) andalso (fBold <> 0) )
     dim as TKDATE today = D( 2026, 3, 15 )
 

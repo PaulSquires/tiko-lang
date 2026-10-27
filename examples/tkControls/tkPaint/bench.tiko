@@ -39,8 +39,8 @@ function Bench( byval h as TK_HOST ptr, byval scroll_ as long, byval frames as l
 end function
 
 if tkTest_Init() = false then end 99
-dim as TK_HOST ptr h = tkHost_Create( "tkPaint bench", 980, 820, TK_TEST_FONTDIR & "segoeui.ttf", 1.0 )
-gFont = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 9 )
+dim as TK_HOST ptr h = tkHost_Create( "tkPaint bench", 980, 820, tkHost_FontDir() & TK_FONT_UI, 1.0 )
+gFont = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 9 )
 h->OnPaint = @BenchPaint
 tkHost_Show( h )
 tkHost_Pump( h )

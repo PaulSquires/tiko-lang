@@ -15,12 +15,6 @@ using tkTheme
 using tkHost
 using tkPaint
 
-#ifdef TIKO_OS_LINUX
-    const FONTDIR = "/mnt/c/Windows/Fonts/"
-#else
-    const FONTDIR = "C:\Windows\Fonts\"
-#endif
-
 const as long COMBO_COUNT = 8, ROW_HEIGHT = 50, ROW_TOP = 14, ROW_MARGIN = 22
 const as long COMBO_MUTABLE = 4, COMBO_PAINTED = 5, COMBO_WHENSEL = 6, COMBO_LONG = 7
 const as ulong T_FORE = &hFFBEC4CEul, T_FOREDIS = &hFF5A606Aul, T_BACK = &hFF21252Bul
@@ -153,11 +147,11 @@ if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() 
 if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
 
 dim as single forced = val( ArgValue( "--scale" ) )
-gHost = tkHost_Create( "tkComboBox on SDL3", 640, 470, FONTDIR & "segoeui.ttf", forced )
+gHost = tkHost_Create( "tkComboBox on SDL3", 640, 470, tkHost_FontDir() & TK_FONT_UI, forced )
 if gHost = 0 then print "host: " & *SDL_GetError() : end 1
 gHost->clrBack = T_BACK
-gFont9 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 9 )
-gFont10 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 10 )
+gFont9 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 9 )
+gFont10 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 10 )
 if gFont10 = 0 then print "fonts: " & *SDL_GetError() : end 1
 
 gLabel(0) = "The reference screenshot" : gNote(0) = "two items, the longer one selected"

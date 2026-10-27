@@ -54,12 +54,13 @@ public const TKMESSAGEBOX_DEFAULT_MINWIDTH = 300
 public const TKMESSAGEBOX_DEFAULT_BORDERTHICK = 1    ' never scaled
 public const TKMESSAGEBOX_DEFAULT_DIVIDERTHICK = 1   ' never scaled
 
-' Segoe Fluent Icons codepoints, named so a host shipping another icon font can remap them.
-public const TKMESSAGEBOX_GLYPH_INFO = &hE946
-public const TKMESSAGEBOX_GLYPH_WARNING = &hE7BA
-public const TKMESSAGEBOX_GLYPH_ERROR = &hEA39
-public const TKMESSAGEBOX_GLYPH_QUESTION = &hE9CE
-public const TKMESSAGEBOX_GLYPH_CLOSE = &hE8BB
+' Glyphs of the bundled icon font (TK_FONT_ICONS), named so a host shipping another icon font
+' can remap them.
+public const TKMESSAGEBOX_GLYPH_INFO = TK_ICON_INFO
+public const TKMESSAGEBOX_GLYPH_WARNING = TK_ICON_WARNING
+public const TKMESSAGEBOX_GLYPH_ERROR = TK_ICON_ERROR
+public const TKMESSAGEBOX_GLYPH_QUESTION = TK_ICON_QUESTION
+public const TKMESSAGEBOX_GLYPH_CLOSE = TK_ICON_CLOSE
 
 ' Win32's dialog ids, value for value, under names that cannot collide with a host's sys/win.
 public const MBX_IDOK = 1

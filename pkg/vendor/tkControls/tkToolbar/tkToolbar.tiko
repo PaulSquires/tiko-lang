@@ -1299,8 +1299,8 @@ public function tkToolbar_Create( byval hParent as TK_WIDGET ptr, byval CtrlID a
     pTB->nChevronWidth = tkHost_Scale( pHost, TKTOOLBAR_DEFAULT_CHEVRONWIDTH )
     pTB->nChevronGap = tkHost_Scale( pHost, TKTOOLBAR_DEFAULT_CHEVRONGAP )
     pTB->nCurvature = tkHost_Scale( pHost, TKTOOLBAR_DEFAULT_CURVATURE )
-    pTB->wszChevron = wchr( &hE70D )            ' Segoe Fluent ChevronDown
-    pTB->wszOverflow = wchr( &hE712 )           ' Segoe Fluent More
+    pTB->wszChevron = wchr( TK_ICON_CHEVRON_DOWN )
+    pTB->wszOverflow = wchr( TK_ICON_MORE )
     dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @tkToolbar_Proc, pTB )
     pTB->hWin = w
     pTB->colors = tkToolbar_ThemeColors( tkTheme_Get() )

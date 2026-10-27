@@ -107,7 +107,7 @@ end function
 
 sub RunPass( byval fScale as single )
     tkTest_Begin( "scale " & fScale )
-    dim as TK_HOST ptr h = tkHost_Create( "tkHost selftest", 640, 480, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkHost selftest", 640, 480, tkHost_FontDir() & TK_FONT_UI, fScale )
     if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
     dim as TK_WIDGET ptr root = tkHost_Root( h )
 
@@ -414,7 +414,7 @@ end sub
 
 sub DropPass( byval fScale as single )
     tkTest_Begin( "drop " & fScale )
-    dim as TK_HOST ptr h = tkHost_Create( "tkHost drops", 400, 300, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkHost drops", 400, 300, tkHost_FontDir() & TK_FONT_UI, fScale )
     dim as TK_WIDGET ptr outer = tkWidget_Create( h, 1, @DropProc, 0 )
     tkWidget_SetPos( outer, tkHost_Scale( h, 10 ), tkHost_Scale( h, 10 ), tkHost_Scale( h, 200 ), tkHost_Scale( h, 200 ) )
     dim as TK_WIDGET ptr inner = tkWidget_CreateChild( outer, 2, @DropProc, 0 )

@@ -80,11 +80,11 @@ end function
 ' ==========================================================================================
 sub RunPass( byval fScale as single )
     tkTest_Begin( "scale " & fScale )
-    dim as TK_HOST ptr h = tkHost_Create( "tkTabBar selftest", 800, 400, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkTabBar selftest", 800, 400, tkHost_FontDir() & TK_FONT_UI, fScale )
     if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
     tkTest_Check( "scale pinned", h->fScale = fScale, "" & h->fScale )
-    dim as TTF_Font ptr fText = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 10 )
-    dim as TTF_Font ptr fGlyph = tkHost_OpenFont( h, TK_TEST_FONTDIR & "SegoeIcons.ttf", 9 )
+    dim as TTF_Font ptr fText = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
+    dim as TTF_Font ptr fGlyph = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_ICONS, 9 )
     tkTest_Check( "fonts opened", (fText <> 0) andalso (fGlyph <> 0) )
     tkTheme_Apply( tkTheme_Dark() )
     for i as long = 0 to 15
@@ -198,11 +198,11 @@ sub RunPass( byval fScale as single )
     tkTest_PushButton( h, false, TabCX( b, 3 ), TabCY( b, 3 ) )
     tkTest_Check( "press X, slide to the body, release: no close", gCloses = 1 )
     tkTest_Check( "...and no drag either (the X is not a handle)", gReorders = 0 andalso tkTabBar_IsDragging( b ) = false )
-    ' middle click anywhere on the tab
-    tkTest_Click( h, TabCX( b, 5 ), TabCY( b, 5 ), SDL_BUTTON_MIDDLE )
-    tkTest_Check( "matched middle-click: close request", gCloses = 2 andalso gCloseIdx = 5 )
-    tkTest_PushButton( h, true, TabCX( b, 5 ), TabCY( b, 5 ), SDL_BUTTON_MIDDLE )
-    tkTest_PushButton( h, false, TabCX( b, 6 ), TabCY( b, 6 ), SDL_BUTTON_MIDDLE )
+    ' middle click anywhere on the tab (tab 4: wholly inside the bar in any UI font)
+    tkTest_Click( h, TabCX( b, 4 ), TabCY( b, 4 ), SDL_BUTTON_MIDDLE )
+    tkTest_Check( "matched middle-click: close request", gCloses = 2 andalso gCloseIdx = 4, gCloses & " " & gCloseIdx )
+    tkTest_PushButton( h, true, TabCX( b, 4 ), TabCY( b, 4 ), SDL_BUTTON_MIDDLE )
+    tkTest_PushButton( h, false, TabCX( b, 2 ), TabCY( b, 2 ), SDL_BUTTON_MIDDLE )
     tkTest_Check( "middle press, release on another tab: nothing", gCloses = 2 andalso tkHost_GetCapture( h ) = 0 )
     ' a non-closable tab (PsPlatform)
     tkTabBar_SetClosable( b, 3, false )
@@ -213,7 +213,7 @@ sub RunPass( byval fScale as single )
     tkTabBar_SetClosable( b, 3, true )
     ' the host deletes from inside its close handler
     gDeleteOnClose = true
-    tkTabBar_SetCurSel( b, 6 )
+    tkTabBar_SetCurSel( b, 6 ) : tkTabBar_SetFirstVisible( b, 0 )   ' tab 2's X on screen
     tkTest_Click( h, XCX( b, 2 ), XCY( b, 2 ) )
     tkTest_Check( "DeleteTab from the close handler: an earlier tab keeps selection on the same tab", tkTabBar_GetCount( b ) = 8 andalso tkTabBar_GetCurSel( b ) = 5 andalso tkTabBar_GetItemData( b, 5 ) = 1007 )
     gDeleteOnClose = false
@@ -322,7 +322,7 @@ sub RunPass( byval fScale as single )
     for i as long = 0 to 3
         tkTabBar_AddTab( k, names(i), i )
     next
-    tkTabBar_SetGlyph( k, 0, wchr( &hE8A5 ) )
+    tkTabBar_SetGlyph( k, 0, wchr( TK_ICON_DOCUMENT ) )
     tkWidget_SetPos( k, 0, tkHost_Scale( h, 100 ), barW, barH )
     tkTabBar_SetCurSel( k, 0 )
     tkTest_Check( "not focusable by default (vendor)", k->isFocusable = false )

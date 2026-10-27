@@ -181,10 +181,10 @@ end function
 ' ==========================================================================================
 sub RunPass( byval fScale as single )
     tkTest_Begin( "scale " & fScale )
-    dim as TK_HOST ptr h = tkHost_Create( "tkOptionButton selftest", 700, 560, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkOptionButton selftest", 700, 560, tkHost_FontDir() & TK_FONT_UI, fScale )
     if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
     tkTest_Check( "scale pinned", h->fScale = fScale, "" & h->fScale )
-    dim as TTF_Font ptr fText = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 10 )
+    dim as TTF_Font ptr fText = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
     tkTest_Check( "font opened", fText <> 0 )
     dim as TK_WIDGET ptr root = tkHost_Root( h )
 
@@ -715,7 +715,7 @@ sub RunPass( byval fScale as single )
     tkOptionButton_GetColors( pxo, @cc )
     tkTest_Check( "unpinned follows the next theme", cc.RingColorChecked = tkTheme_Dark().Accent )
 
-    dim as TTF_Font ptr fBig = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 16 )
+    dim as TTF_Font ptr fBig = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 16 )
     dim as long wSmall, wBig, hh2
     tkOptionButton_SetText( tp, "Caption" )
     tkOptionButton_GetIdealSize( tp, wSmall, hh2 )

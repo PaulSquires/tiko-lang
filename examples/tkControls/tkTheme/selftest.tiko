@@ -62,7 +62,7 @@ sub Themes()
     dim as boolean b = tkTheme_SystemIsDark()
     tkTest_Check( "system preference answers", (b = true) orelse (b = false) )
 
-    dim as TK_HOST ptr h = tkHost_Create( "tkTheme selftest", 320, 200, TK_TEST_FONTDIR & "segoeui.ttf", 1 )
+    dim as TK_HOST ptr h = tkHost_Create( "tkTheme selftest", 320, 200, tkHost_FontDir() & TK_FONT_UI, 1 )
     dim as TK_WIDGET ptr w0 = tkWidget_Create( h, 0, @Probe, 0 )
     dim as TK_WIDGET ptr w1 = tkWidget_CreateChild( w0, 1, @Probe, 0 )
     tkHost_Show( h )
@@ -96,7 +96,7 @@ sub Images()
     tkTest_Check( "a failed load clears the image", img2.Load( "no-such-file.png" ) = 0 andalso img2.IsValid() = 0 )
     kill path
 
-    dim as TK_HOST ptr h = tkHost_Create( "tkImage selftest", 400, 300, TK_TEST_FONTDIR & "segoeui.ttf", 1 )
+    dim as TK_HOST ptr h = tkHost_Create( "tkImage selftest", 400, 300, tkHost_FontDir() & TK_FONT_UI, 1 )
     dim as TK_WIDGET ptr cv = tkWidget_Create( h, 3, @Probe, 0 )
     tkWidget_SetPos( cv, 10, 10, 200, 50 )            ' wider than the image's 2:1
     tkHost_Show( h )

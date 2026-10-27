@@ -85,7 +85,7 @@ end sub
 if tkTest_Init() = false then end 99
 tkTest_Begin( "dialogs" )
 gUiThread = SDL_GetCurrentThreadID()
-dim as TK_HOST ptr h = tkHost_Create( "tkFileDialog selftest", 300, 200, TK_TEST_FONTDIR & "segoeui.ttf", 1.0 )
+dim as TK_HOST ptr h = tkHost_Create( "tkFileDialog selftest", 300, 200, tkHost_FontDir() & TK_FONT_UI, 1.0 )
 tkHost_Show( h )
 tkHost_Pump( h )
 tkFileDialog_SetDriver( @Driver )

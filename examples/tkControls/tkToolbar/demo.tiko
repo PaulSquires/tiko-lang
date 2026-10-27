@@ -19,12 +19,6 @@ using tkImage
 using tkHost
 using tkPaint
 
-#ifdef TIKO_OS_LINUX
-    const FONTDIR = "/mnt/c/Windows/Fonts/"
-#else
-    const FONTDIR = "C:\Windows\Fonts\"
-#endif
-
 enum
     IDM_NEW = 1001, IDM_OPEN, IDM_SAVE, IDM_BUILD, IDM_RUN, IDM_STOP, IDM_WORDWRAP, IDM_HELP, IDM_SETTINGS
     IDM_RUN_DEBUG = 1101, IDM_RUN_RELEASE, IDM_RUN_PROFILE, IDM_HELP_INDEX, IDM_HELP_ABOUT
@@ -129,7 +123,7 @@ sub CustomPaint( byval p as TKTOOLBAR_PAINTINFO ptr )
     end if
     if tkRect_IsEmpty( p->rcChevron ) = false then
         b->SetFont( gGlyph9 )
-        b->PaintText( wchr( &hE70D ), @p->rcChevron, TK_DT_CENTER )
+        b->PaintText( wchr( TK_ICON_CHEVRON_DOWN ), @p->rcChevron, TK_DT_CENTER )
     end if
 end sub
 
@@ -148,22 +142,22 @@ end sub
 
 sub BuildMainToolbar( byval t as TK_WIDGET ptr, byref iconPath as string )
     dim as long idx
-    tkToolbar_AddItem( t, TBR_KIND_COMMAND, wchr( &hE8A5 ), "New", IDM_NEW )
-    tkToolbar_AddItem( t, TBR_KIND_COMMAND, wchr( &hE8E5 ), "Open", IDM_OPEN )
-    tkToolbar_AddItem( t, TBR_KIND_COMMAND, wchr( &hE74E ), "Save", IDM_SAVE )
+    tkToolbar_AddItem( t, TBR_KIND_COMMAND, wchr( TK_ICON_DOCUMENT ), "New", IDM_NEW )
+    tkToolbar_AddItem( t, TBR_KIND_COMMAND, wchr( TK_ICON_OPEN ), "Open", IDM_OPEN )
+    tkToolbar_AddItem( t, TBR_KIND_COMMAND, wchr( TK_ICON_SAVE ), "Save", IDM_SAVE )
     idx = tkToolbar_AddItem( t, TBR_KIND_COMMAND, "", "Image", IDM_OPEN )
     tkToolbar_SetItemImage( t, idx, iconPath )
     tkToolbar_SetTooltipText( t, idx, "An image icon" )
     tkToolbar_AddSeparator( t )
-    idx = tkToolbar_AddItem( t, TBR_KIND_COMMAND, wchr( &hE90F ), "", IDM_BUILD )
+    idx = tkToolbar_AddItem( t, TBR_KIND_COMMAND, wchr( TK_ICON_WRENCH ), "", IDM_BUILD )
     tkToolbar_SetTooltipText( t, idx, "Build the project" )
-    idx = tkToolbar_AddItem( t, TBR_KIND_SPLIT, wchr( &hE768 ), "Run", IDM_RUN )
+    idx = tkToolbar_AddItem( t, TBR_KIND_SPLIT, wchr( TK_ICON_PLAY ), "Run", IDM_RUN )
     tkToolbar_SetTooltipText( t, idx, "Run (click the chevron for options)" )
     tkToolbar_SetItemForeColor( t, idx, tkRGB( 120, 200, 120 ) )
-    idx = tkToolbar_AddItem( t, TBR_KIND_COMMAND, wchr( &hE71A ), "Stop", IDM_STOP )
+    idx = tkToolbar_AddItem( t, TBR_KIND_COMMAND, wchr( TK_ICON_STOP ), "Stop", IDM_STOP )
     tkToolbar_SetEnabled( t, idx, false )
     tkToolbar_AddSeparator( t )
-    idx = tkToolbar_AddItem( t, TBR_KIND_TOGGLE, wchr( &hE751 ), "Wrap", IDM_WORDWRAP )
+    idx = tkToolbar_AddItem( t, TBR_KIND_TOGGLE, wchr( TK_ICON_WRAP ), "Wrap", IDM_WORDWRAP )
     tkToolbar_SetSelected( t, idx, true )
     ' a CONTROL cell: a widget created as a CHILD OF THE TOOLBAR
     gSearch = tkButton_Create( t, 2001 )
@@ -172,24 +166,24 @@ sub BuildMainToolbar( byval t as TK_WIDGET ptr, byref iconPath as string )
     tkButton_SetTextAlign( gSearch, BTN_ALIGN_LEFT )
     tkButton_SetClickCallback( gSearch, @OnSearch )
     tkToolbar_AddControl( t, gSearch, tkHost_Scale( gHost, 150 ), tkHost_Scale( gHost, 26 ) )
-    idx = tkToolbar_AddItem( t, TBR_KIND_DROPDOWN, wchr( &hE897 ), "Help", IDM_HELP )
+    idx = tkToolbar_AddItem( t, TBR_KIND_DROPDOWN, wchr( TK_ICON_HELP ), "Help", IDM_HELP )
     tkToolbar_SetItemGravity( t, idx, TBR_GRAVITY_RIGHT )
-    idx = tkToolbar_AddItem( t, TBR_KIND_COMMAND, wchr( &hE713 ), "", IDM_SETTINGS )
+    idx = tkToolbar_AddItem( t, TBR_KIND_COMMAND, wchr( TK_ICON_SETTINGS ), "", IDM_SETTINGS )
     tkToolbar_SetItemGravity( t, idx, TBR_GRAVITY_RIGHT )
     tkToolbar_SetTooltipText( t, idx, "Settings" )
 end sub
 
 sub BuildCustomToolbar( byval t as TK_WIDGET ptr )
     dim as long idx
-    idx = tkToolbar_AddItem( t, TBR_KIND_TOGGLE, wchr( &hE8E4 ), "Left", IDM_ALIGNLEFT )
+    idx = tkToolbar_AddItem( t, TBR_KIND_TOGGLE, wchr( TK_ICON_ALIGN_LEFT ), "Left", IDM_ALIGNLEFT )
     tkToolbar_SetItemGroupID( t, idx, GROUP_ALIGN )
     tkToolbar_SetSelected( t, idx, true )
-    idx = tkToolbar_AddItem( t, TBR_KIND_TOGGLE, wchr( &hE8E3 ), "Center", IDM_ALIGNCENTER )
+    idx = tkToolbar_AddItem( t, TBR_KIND_TOGGLE, wchr( TK_ICON_ALIGN_CENTER ), "Center", IDM_ALIGNCENTER )
     tkToolbar_SetItemGroupID( t, idx, GROUP_ALIGN )
-    idx = tkToolbar_AddItem( t, TBR_KIND_TOGGLE, wchr( &hE8E2 ), "Right", IDM_ALIGNRIGHT )
+    idx = tkToolbar_AddItem( t, TBR_KIND_TOGGLE, wchr( TK_ICON_ALIGN_RIGHT ), "Right", IDM_ALIGNRIGHT )
     tkToolbar_SetItemGroupID( t, idx, GROUP_ALIGN )
     tkToolbar_AddSeparator( t )
-    tkToolbar_AddItem( t, TBR_KIND_TOGGLE, wchr( &hE8DD ), "Bold", IDM_BOLD )
+    tkToolbar_AddItem( t, TBR_KIND_TOGGLE, wchr( TK_ICON_BOLD ), "Bold", IDM_BOLD )
 end sub
 
 sub Form_Size( byval h as TK_HOST ptr )
@@ -232,12 +226,12 @@ if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() 
 if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
 
 dim as single forced = val( ArgValue( "--scale" ) )
-gHost = tkHost_Create( "tkToolbar on SDL3", 980, 320, FONTDIR & "segoeui.ttf", forced )
+gHost = tkHost_Create( "tkToolbar on SDL3", 980, 320, tkHost_FontDir() & TK_FONT_UI, forced )
 if gHost = 0 then print "host: " & *SDL_GetError() : end 1
 gHost->clrBack = T_PANEL
-gFont10 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 10 )
-gGlyph12 = tkHost_OpenFont( gHost, FONTDIR & "SegoeIcons.ttf", 12 )
-gGlyph9 = tkHost_OpenFont( gHost, FONTDIR & "SegoeIcons.ttf", 9 )
+gFont10 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 10 )
+gGlyph12 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_ICONS, 12 )
+gGlyph9 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_ICONS, 9 )
 if (gFont10 = 0) orelse (gGlyph12 = 0) then print "fonts: " & *SDL_GetError() : end 1
 tkTooltip_SetDefaultFonts( gFont10 )
 

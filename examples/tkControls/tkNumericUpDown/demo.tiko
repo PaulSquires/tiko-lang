@@ -11,12 +11,6 @@ using tkTheme
 using tkHost
 using tkPaint
 
-#ifdef TIKO_OS_LINUX
-    const FONTDIR = "/mnt/c/Windows/Fonts/"
-#else
-    const FONTDIR = "C:\Windows\Fonts\"
-#endif
-
 const as long SPIN_COUNT = 6, ROW_HEIGHT = 48, ROW_TOP = 14, ROW_MARGIN = 22
 const as ulong T_FORE = &hFFBEC4CEul, T_FOREDIS = &hFF5A606Aul, T_BACK = &hFF21252Bul
 const as ulong T_BACKHOT = &hFF2C313Aul, T_SELECT = &hFF264F78ul, T_FOCUS = &hFF569CD6ul
@@ -117,10 +111,10 @@ if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() 
 if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
 
 dim as single forced = val( ArgValue( "--scale" ) )
-gHost = tkHost_Create( "tkNumericUpDown on SDL3", 660, 380, FONTDIR & "segoeui.ttf", forced )
+gHost = tkHost_Create( "tkNumericUpDown on SDL3", 660, 380, tkHost_FontDir() & TK_FONT_UI, forced )
 if gHost = 0 then print "host: " & *SDL_GetError() : end 1
 gHost->clrBack = T_BACK
-gFont10 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 10 )
+gFont10 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 10 )
 if gFont10 = 0 then print "fonts: " & *SDL_GetError() : end 1
 
 gLabel(0) = "Font size   (integers, 6..72)"

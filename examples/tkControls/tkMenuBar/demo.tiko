@@ -13,12 +13,6 @@ using tkPopupMenu
 using tkHost
 using tkPaint
 
-#ifdef TIKO_OS_LINUX
-    const FONTDIR = "/mnt/c/Windows/Fonts/"
-#else
-    const FONTDIR = "C:\Windows\Fonts\"
-#endif
-
 enum
     IDM_FILE_NEW = 1001, IDM_FILE_OPEN, IDM_FILE_RECENT, IDM_FILE_WORDWRAP, IDM_FILE_DISABLED, IDM_FILE_EXIT
     IDM_EDIT_UNDO = 1101, IDM_EDIT_REDO, IDM_EDIT_CUT, IDM_EDIT_COPY, IDM_EDIT_PASTE
@@ -95,7 +89,7 @@ end sub
 function NewMenu() as TK_MENU ptr
     dim as TK_MENU ptr m = tkPopupMenu_Create( gHost )
     tkPopupMenu_SetFonts( m, gFont10, gGlyph9 )
-    tkPopupMenu_SetGlyphs( m, wchr( &hE73E ), wchr( &hE76C ) )     ' Fluent CheckMark / ChevronRight
+    tkPopupMenu_SetGlyphs( m, wchr( TK_ICON_CHECKMARK ), wchr( TK_ICON_CHEVRON_RIGHT ) )     ' Fluent CheckMark / ChevronRight
     return m
 end function
 
@@ -266,11 +260,11 @@ if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() 
 if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
 
 dim as single forced = val( ArgValue( "--scale" ) )
-gHost = tkHost_Create( "tkMenuBar on SDL3", 700, 420, FONTDIR & "segoeui.ttf", forced )
+gHost = tkHost_Create( "tkMenuBar on SDL3", 700, 420, tkHost_FontDir() & TK_FONT_UI, forced )
 if gHost = 0 then print "host: " & *SDL_GetError() : end 1
 gHost->clrBack = T_PANEL
-gFont10 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 10 )
-gGlyph9 = tkHost_OpenFont( gHost, FONTDIR & "SegoeIcons.ttf", 9 )
+gFont10 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 10 )
+gGlyph9 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_ICONS, 9 )
 if (gFont10 = 0) orelse (gGlyph9 = 0) then print "fonts: " & *SDL_GetError() : end 1
 
 gCanvas = tkWidget_Create( gHost, 50, @Canvas_Proc, 0 )

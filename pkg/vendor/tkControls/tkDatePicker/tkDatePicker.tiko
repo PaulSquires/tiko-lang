@@ -21,8 +21,8 @@
 ' Wayland fixes a popup's position at creation -- and re-seeded from the control every time.
 '
 ' THE ICON is drawn from rectangles until the host hands over a glyph font (PsPlatform's
-' decision: Segoe Fluent Icons is a Windows 11 font). SetIconFont / ApplyFonts' glyph font
-' switch to vendor's glyph, U+E787 by default.
+' decision). SetIconFont / ApplyFonts' glyph font switch to a glyph, TK_ICON_CALENDAR by
+' default (the bundled TK_FONT_ICONS; vendor drew Segoe Fluent Icons' U+E787).
 '
 ' GONE with the HWND: FilterMessage (the host routes Escape to the popup, applies the dismissal
 ' rule and closes the popup when focus leaves the application), the foreground poll, the
@@ -61,7 +61,7 @@ public const CDTP_DEFAULT_VERTPAD = 5
 public const CDTP_DEFAULT_CORNERRADIUS = 6
 public const CDTP_DEFAULT_BORDERTHICK = 1      ' never scaled: a hairline
 public const CDTP_DEFAULT_DIVIDERTHICK = 1     ' never scaled
-public const CDTP_DEFAULT_ICONGLYPH = &hE787   ' Segoe Fluent Icons "Calendar"
+public const CDTP_DEFAULT_ICONGLYPH = TK_ICON_CALENDAR
 public const CDTP_CAL_BORDERTHICK = 1          ' the popup's outline; never scaled
 public const CDTP_CAL_FOOTERH = 30             ' the Today band
 

@@ -35,6 +35,7 @@ using tkPaint
 ' is a file that is there.
 public const TK_FONT_UI = "Inter-Regular.ttf"
 public const TK_FONT_UI_BOLD = "Inter-Bold.ttf"
+public const TK_FONT_UI_ITALIC = "Inter-Italic.ttf"
 public const TK_FONT_MONO = "CascadiaMono-Regular.ttf"
 public const TK_FONT_ICONS = "FluentSystemIcons-Regular.ttf"
 

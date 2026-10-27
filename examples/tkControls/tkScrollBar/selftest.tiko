@@ -30,7 +30,7 @@ end function
 
 sub RunPass( byval fScale as single )
     tkTest_Begin( "scale " & fScale )
-    dim as TK_HOST ptr h = tkHost_Create( "tkScrollBar selftest", 500, 400, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkScrollBar selftest", 500, 400, tkHost_FontDir() & TK_FONT_UI, fScale )
     if h = 0 then tkTest_Check( "host", false ) : exit sub
     dim as TK_WIDGET ptr parent = tkWidget_Create( h, 9, @ParentProc, 0 )
     tkWidget_SetPos( parent, 0, 0, tkHost_Scale( h, 500 ), tkHost_Scale( h, 400 ) )

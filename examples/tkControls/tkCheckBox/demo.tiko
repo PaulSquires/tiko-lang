@@ -10,12 +10,6 @@ using tkTooltip
 using tkHost
 using tkPaint
 
-#ifdef TIKO_OS_LINUX
-    const FONTDIR = "/mnt/c/Windows/Fonts/"
-#else
-    const FONTDIR = "C:\Windows\Fonts\"
-#endif
-
 const as long CHECKBOX_COUNT = 14
 const as long ROW_HEIGHT = 46, ROW_TOP = 12, ROW_MARGIN = 22
 const as long WIDE_ROW_W = 320, ROW_SLACK = 120
@@ -147,16 +141,16 @@ if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() 
 if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
 
 dim as single forced = val( ArgValue( "--scale" ) )
-gHost = tkHost_Create( "tkCheckBox on SDL3", 900, 680, FONTDIR & "segoeui.ttf", forced )
+gHost = tkHost_Create( "tkCheckBox on SDL3", 900, 680, tkHost_FontDir() & TK_FONT_UI, forced )
 if gHost = 0 then print "host: " & *SDL_GetError() : end 1
 gHost->clrBack = T_BACK
 print "video driver: " & *SDL_GetCurrentVideoDriver() & "  renderer: " & *SDL_GetRendererName( gHost->renderer ) & _
       "  scale=" & gHost->fScale & "  density=" & gHost->fDensity
 
-gFont9      = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 9 )
-gFont10     = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 10 )
-gFontBold10 = tkHost_OpenFont( gHost, FONTDIR & "segoeuib.ttf", 10 )
-gGlyph12    = tkHost_OpenFont( gHost, FONTDIR & "SegoeIcons.ttf", 12 )
+gFont9      = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 9 )
+gFont10     = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 10 )
+gFontBold10 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI_BOLD, 10 )
+gGlyph12    = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_ICONS, 12 )
 if (gFont10 = 0) orelse (gGlyph12 = 0) then print "fonts: " & *SDL_GetError() : end 1
 if gFontBold10 = 0 then gFontBold10 = gFont10
 tkTooltip_SetDefaultFonts( gFont9 )
@@ -213,8 +207,8 @@ tkCheckBox_SetTooltipCallback( gChk(ROW_TOOLTIP), @Demo_Tooltip )
 tkCheckBox_SetText( gChk(ROW_ELLIPSIS), "Automatically restore the previous session" )
 tkCheckBox_SetText( gChk(ROW_GLYPHS), "Bare tick instead of a box" )
 tkCheckBox_SetBoxStyle( gChk(ROW_GLYPHS), CHK_BOXSTYLE_GLYPH )
-tkCheckBox_SetGlyphUnchecked( gChk(ROW_GLYPHS), wchr( &hE739 ) )
-tkCheckBox_SetGlyphChecked( gChk(ROW_GLYPHS), wchr( &hE73E ) )
+tkCheckBox_SetGlyphUnchecked( gChk(ROW_GLYPHS), wchr( TK_ICON_CHECKBOX ) )
+tkCheckBox_SetGlyphChecked( gChk(ROW_GLYPHS), wchr( TK_ICON_CHECKMARK ) )
 tkCheckBox_SetChecked( gChk(ROW_GLYPHS), true )
 
 dim as long iw, ih

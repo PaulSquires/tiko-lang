@@ -52,9 +52,9 @@ end sub
 
 sub RunPass( byval fScale as single )
     tkTest_Begin( "scale " & fScale )
-    dim as TK_HOST ptr h = tkHost_Create( "tkComboBox selftest", 640, 480, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkComboBox selftest", 640, 480, tkHost_FontDir() & TK_FONT_UI, fScale )
     if h = 0 then tkTest_Check( "host", false, *SDL_GetError() ) : exit sub
-    dim as TTF_Font ptr f10 = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 10 )
+    dim as TTF_Font ptr f10 = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
     tkHost_Show( h )
     tkTest_PumpFor( h, 300 )
 
@@ -367,8 +367,8 @@ end sub
 
 sub EditablePass( byval fScale as single )
     tkTest_Begin( "editable " & fScale )
-    dim as TK_HOST ptr h = tkHost_Create( "tkComboBox editable", 640, 480, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
-    dim as TTF_Font ptr f10 = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 10 )
+    dim as TK_HOST ptr h = tkHost_Create( "tkComboBox editable", 640, 480, tkHost_FontDir() & TK_FONT_UI, fScale )
+    dim as TTF_Font ptr f10 = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
     tkHost_Show( h )
     tkTest_PumpFor( h, 300 )
     dim as TK_WIDGET ptr c = tkComboBox_Create( tkHost_Root( h ), 300 )

@@ -10,8 +10,8 @@
 '
 ' WHAT MAPS:
 '   * font ROLES per form (UI, small, bold, large, glyph, glyph large, mono), opened from font
-'     FILES at the form's scale -- SDL_ttf has no face lookup, so the options name files and the
-'     glyph / mono roles fall back down a candidate list, as vendor falls back down faces;
+'     FILES at the form's scale -- SDL_ttf has no face lookup, so the options name files: by
+'     default the fonts tkControls bundles (tkHost's TK_FONT_*), beside the program;
 '   * the THEME MODE: SYSTEM follows SDL_EVENT_SYSTEM_THEME_CHANGED live, LIGHT / DARK fix it;
 '     every unpinned control restyles (tkTheme_Apply's broadcast) and OnThemeChanged fires;
 '   * RunOnUI from any thread (SDL_PushEvent is thread-safe, and the queue keeps call order),
@@ -58,12 +58,12 @@ public const TKAPP_IDOK = 1
 public const TKAPP_IDCANCEL = 2
 
 public type TKAPP_OPTIONS
-    FontDir        as ustring            ' "" = the platform default (see tkApp_DefaultFontDir)
-    FontUIFile     as ustring = "segoeui.ttf"
-    FontUIBoldFile as ustring = "segoeuib.ttf"
+    FontDir        as ustring            ' "" = the bundled fonts' (see tkApp_DefaultFontDir)
+    FontUIFile     as ustring = TK_FONT_UI
+    FontUIBoldFile as ustring = TK_FONT_UI_BOLD
     FontUISize     as single = 10
-    GlyphFontFile  as ustring            ' tried FIRST when set; then SegoeIcons, segmdl2
-    FontMonoFile   as ustring = "CascadiaMono.ttf"   ' then consola.ttf, then the UI file
+    GlyphFontFile  as ustring            ' tried FIRST when set; then TK_FONT_ICONS
+    FontMonoFile   as ustring = TK_FONT_MONO   ' then an installed mono family, then the UI file
     ThemeMode      as long = TKAPP_THEME_SYSTEM
 end type
 
@@ -126,17 +126,10 @@ public declare sub tkForm_Destroy( byval f as TK_FORM ptr )
 ' ==========================================================================================
 ' Fonts
 ' ==========================================================================================
+' The bundled fonts' directory: the program's own (tkHost_FontDir), where tiko copies them. A
+' file the options name that is not there falls back to an installed family (FallbackFont).
 public function tkApp_DefaultFontDir() as ustring
-#ifdef TIKO_OS_LINUX
-    ' a WSL machine reaches the Windows fonts; a Linux one has its own, and the Segoe file names
-    ' the options default to are not there -- Init then picks installed families (FallbackFont)
-    if SDL_GetPathInfo( "/mnt/c/Windows/Fonts", 0 ) then return "/mnt/c/Windows/Fonts/"
-    return "/usr/share/fonts/"
-#else
-    dim as string w = environ( "WINDIR" )
-    if len( w ) = 0 then w = "C:\Windows"
-    return w & "\Fonts\"
-#endif
+    return tkHost_FontDir()
 end function
 
 private function FontDir() as ustring
@@ -164,8 +157,8 @@ private function FirstThere( byref a as ustring, byref b as ustring, byref c as 
     return ""
 end function
 
-' AN INSTALLED FONT BY FAMILY, for a machine without the files the options name (Segoe on
-' Windows; a Linux or macOS machine has none of them). The first family of the list that is
+' AN INSTALLED FONT BY FAMILY, for a program without the files the options name (the bundled
+' fonts not copied beside it, or a FontDir that lacks them). The first family of the list that is
 ' installed, through tkFontList (scanned once, on first need). A .ttc face is skipped: the role
 ' fonts open files. "" when none is installed.
 dim shared as boolean gFontsScanned
@@ -175,7 +168,7 @@ public function tkApp_FallbackFont( byval bMono as boolean, byval bBold as boole
     if bMono then
         fams = "Cascadia Mono|Consolas|DejaVu Sans Mono|Noto Sans Mono|Ubuntu Mono|Liberation Mono|Menlo|Courier New"
     else
-        fams = "Segoe UI|Noto Sans|DejaVu Sans|Ubuntu|Liberation Sans|Cantarell|Arial|Helvetica"
+        fams = "Inter|Segoe UI|Noto Sans|DejaVu Sans|Ubuntu|Liberation Sans|Cantarell|Arial|Helvetica"
     end if
     while len( fams )
         dim as long bar = instr( fams, "|" )
@@ -194,7 +187,7 @@ public function tkApp_FallbackFont( byval bMono as boolean, byval bBold as boole
     return ""
 end function
 
-' The glyph font file Init chose: GlyphFontFile, then Segoe Fluent Icons, then Segoe MDL2.
+' The glyph font file Init chose: GlyphFontFile, then the bundled TK_FONT_ICONS.
 public function tkApp_GlyphFace() as ustring
     return gGlyphFile
 end function
@@ -276,8 +269,8 @@ public function tkApp_Init( byref opts as TKAPP_OPTIONS = TKAPP_OPTIONS() ) as b
         dim as ustring fbb = tkApp_FallbackFont( false, true )
         if len( fbb ) then gOpts.FontUIBoldFile = fbb else gOpts.FontUIBoldFile = gOpts.FontUIFile
     end if
-    gGlyphFile = FirstThere( gOpts.GlyphFontFile, "SegoeIcons.ttf", "segmdl2.ttf" )
-    gMonoFile = FirstThere( gOpts.FontMonoFile, "consola.ttf", "" )
+    gGlyphFile = FirstThere( gOpts.GlyphFontFile, TK_FONT_ICONS, "" )
+    gMonoFile = FirstThere( gOpts.FontMonoFile, "", "" )
     if len( gMonoFile ) = 0 then gMonoFile = tkApp_FallbackFont( true )
     if len( gMonoFile ) = 0 then gMonoFile = Resolve( gOpts.FontUIFile )
     tkHost_SetEventHook( @AppEventHook )

@@ -63,11 +63,11 @@ end sub
 ' ==========================================================================================
 sub RunPass( byval fScale as single )
     tkTest_Begin( "scale " & fScale )
-    dim as TK_HOST ptr h = tkHost_Create( "tkMenuBar selftest", 700, 420, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkMenuBar selftest", 700, 420, tkHost_FontDir() & TK_FONT_UI, fScale )
     if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
     tkTest_Check( "scale pinned", h->fScale = fScale )
     tkTheme_Apply( tkTheme_Dark() )
-    dim as TTF_Font ptr f = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 10 )
+    dim as TTF_Font ptr f = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
 
     ' ---- the bar and its dropdowns --------------------------------------------------------
     dim as TK_WIDGET ptr b = tkMenuBar_Create( tkHost_Root( h ), 100 )

@@ -110,7 +110,7 @@ sub RunPass( byval fScale as single )
     tkTest_Check( "Show focuses the first tab stop", h->pFocus = tb )
     tkTest_Check( "the surface default font IS the UI role", h->pDefaultFont = tkForm_Font( f, TKFONT_UI ) )
     tkTest_Check( "role sizes: small 9, ui 10, large 12", (tkForm_RolePoints( f, TKFONT_UI_SMALL ) = 9) andalso (tkForm_RolePoints( f, TKFONT_UI ) = 10) andalso (tkForm_RolePoints( f, TKFONT_UI_LARGE ) = 12) )
-    tkTest_Check( "the bold role is its own file", lcase( right( tkForm_RoleFile( f, TKFONT_UI_BOLD ), 12 ) ) = "segoeuib.ttf" )
+    tkTest_Check( "the bold role is its own file", right( tkForm_RoleFile( f, TKFONT_UI_BOLD ), len( TK_FONT_UI_BOLD ) ) = TK_FONT_UI_BOLD )
     tkTest_Check( "the glyph role is the glyph face", (len( tkApp_GlyphFace() ) > 0) andalso (tkForm_RoleFile( f, TKFONT_GLYPH ) = tkApp_GlyphFace()) andalso (tkForm_Font( f, TKFONT_GLYPH ) <> 0) )
     tkTest_Check( "the mono role opened", tkForm_Font( f, TKFONT_MONO ) <> 0, tkForm_RoleFile( f, TKFONT_MONO ) )
     tkTest_Check( "FromWidget finds the form", tkForm_FromWidget( tb ) = f )
@@ -195,7 +195,6 @@ end sub
 
 if tkTest_Init() = false then end 99
 dim as TKAPP_OPTIONS opts
-opts.FontDir = TK_TEST_FONTDIR
 opts.ThemeMode = TKAPP_THEME_DARK
 if tkApp_Init( opts ) = false then print "tkApp_Init failed: " & *SDL_GetError() : end 98
 tkTest_Begin( "init" )

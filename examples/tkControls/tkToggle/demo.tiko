@@ -9,12 +9,6 @@ using tkToggle
 using tkHost
 using tkPaint
 
-#ifdef TIKO_OS_LINUX
-    const FONTDIR = "/mnt/c/Windows/Fonts/"
-#else
-    const FONTDIR = "C:\Windows\Fonts\"
-#endif
-
 const as long TOGGLE_COUNT = 8
 const as long ROW_HEIGHT = 52, ROW_TOP = 14, ROW_MARGIN = 22, CELL_WIDTH = 240
 const as long IDC_FIRST = 1000
@@ -134,13 +128,13 @@ if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() 
 if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
 
 dim as single forced = val( ArgValue( "--scale" ) )
-gHost = tkHost_Create( "tkToggle on SDL3", 620, 460, FONTDIR & "segoeui.ttf", forced )
+gHost = tkHost_Create( "tkToggle on SDL3", 620, 460, tkHost_FontDir() & TK_FONT_UI, forced )
 if gHost = 0 then print "host: " & *SDL_GetError() : end 1
 gHost->clrBack = T_BACK
 print "video driver: " & *SDL_GetCurrentVideoDriver() & "  renderer: " & *SDL_GetRendererName( gHost->renderer ) & _
       "  scale=" & gHost->fScale & "  density=" & gHost->fDensity
 
-gFont10 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 10 )
+gFont10 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 10 )
 if gFont10 = 0 then print "fonts: " & *SDL_GetError() : end 1
 
 gLabel(0) = "Word wrap"

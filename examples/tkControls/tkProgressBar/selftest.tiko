@@ -200,10 +200,10 @@ end sub
 ' ==========================================================================================
 sub RunPass( byval fScale as single )
     tkTest_Begin( "scale " & fScale )
-    gH = tkHost_Create( "tkProgressBar selftest", 640, 520, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    gH = tkHost_Create( "tkProgressBar selftest", 640, 520, tkHost_FontDir() & TK_FONT_UI, fScale )
     if gH = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
     tkTest_Check( "scale pinned", gH->fScale = fScale, "" & gH->fScale )
-    dim as TTF_Font ptr fText = tkHost_OpenFont( gH, TK_TEST_FONTDIR & "segoeuib.ttf", 12 )
+    dim as TTF_Font ptr fText = tkHost_OpenFont( gH, tkHost_FontDir() & TK_FONT_UI_BOLD, 12 )
     tkTest_Check( "font opened", fText <> 0 )
     dim as TK_WIDGET ptr root = tkHost_Root( gH )
     dim as TKRECT rt, rf, rb, rc
