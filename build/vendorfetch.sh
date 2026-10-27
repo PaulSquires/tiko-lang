@@ -10,7 +10,9 @@
 # entries, downloads the pinned archive, checks its SHA-256, and either copies a file out of
 # it ('copy': where upstream publishes the binary) or compiles C sources with clang into a
 # static archive and/or a shared library ('cbuild': where it does not). A host makes its own
-# binaries, as package.sh makes its own toolchain.
+# binaries, as package.sh makes its own toolchain. A 'copy' whose url is a single file, not an
+# archive, copies that file. 'script' needs no download: it runs a build script committed in
+# the package (vendor/tkControls' scintk) and copies what it made.
 #
 #   TKO_VENDOR_CACHE    where downloads are kept (default build/.vendorfetch); one already
 #                       there with the right SHA-256 is not downloaded again
@@ -18,6 +20,8 @@
 #                       the archives are mirrored as; upstream is the fallback
 #   TKO_CLANG, TKO_AR   the compiler and archiver ('cbuild'); default the LLVM install on
 #                       Windows, clang / llvm-ar (else ar) on Linux
+#   CXX                 the C++ compiler a 'script' entry's script uses; default clang++
+#                       beside TKO_CLANG on Windows, the script's own choice on Linux
 #
 # An entry whose outputs are newer than its fetch.toml is skipped, so a rerun does nothing.
 set -e
@@ -30,7 +34,7 @@ while [ $# -gt 0 ]; do
     case $1 in
         --out)    OUT=$2;  shift 2 ;;
         --module) ONLY=$2; shift 2 ;;
-        -h|--help) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) die "unknown option '$1'" ;;
     esac
 done
@@ -38,7 +42,8 @@ case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         HOST=windows; TRIPLE=x86_64-pc-windows-msvc
         CLANG=${TKO_CLANG:-"C:/Program Files/LLVM/bin/clang.exe"}
-        AR=${TKO_AR:-"$(dirname "$CLANG")/llvm-ar.exe"} ;;
+        AR=${TKO_AR:-"$(dirname "$CLANG")/llvm-ar.exe"}
+        [ -n "$CXX" ] || CXX="$(dirname "$CLANG")/clang++.exe"; export CXX ;;
     Linux)
         HOST=linux; TRIPLE=x86_64-pc-linux-gnu
         CLANG=${TKO_CLANG:-${CLANG:-clang}}
@@ -63,9 +68,15 @@ toml( ) {
 
 sha_of( ) { sha256sum "$1" | cut -d' ' -f1; }
 
-# fetch <url> <sha256>: the archive, in the cache, verified; its path printed.
+# is_archive <url>: true for what unpack opens.
+is_archive( ) { case "$1" in *.zip|*.tar.gz|*.tgz) return 0 ;; *) return 1 ;; esac; }
+
+# fetch <url> <sha256>: the archive, in the cache, verified; its path printed. A single file is
+# kept under its SHA-256's first 12 digits as well as its name: two packages' LICENSE files
+# must not take each other's place.
 fetch( ) {
     _f="$CACHE/${1##*/}"
+    is_archive "$1" || _f="$CACHE/$(printf '%.12s' "$2")-${1##*/}"
     if [ ! -f "$_f" ] || [ "$(sha_of "$_f")" != "$2" ]; then
         rm -f "$_f"
         if [ -n "$TKO_VENDOR_MIRROR" ]; then
@@ -93,19 +104,39 @@ entry( ) {
     _mod=$1; _mdir=$2; _toml=$3; _tab=$4
     _get( ) { toml "$_toml" | awk -F'\t' -v t="$_tab" -v k="$1" '$1 == t && $2 == k { print $3; exit }'; }
     _kind=$(_get kind); _url=$(_get url); _sha=$(_get sha256)
+    if [ "$_kind" = script ]; then
+        # THE SCRIPT IS RUN EVERY TIME: it is incremental itself, and the freshness test below
+        # sees only fetch.toml, not the sources the script compiles.
+        _scr="$ROOT/pkg/vendor/$_mod/$(_get script)"; _from="$ROOT/pkg/vendor/$_mod/$(_get from)"; _to=$(_get to)
+        [ -f "$_scr" ] && [ -n "$_to" ] || die "$_mod [$_tab]: 'script' needs script, from and to"
+        bash "$_scr" >/dev/null || die "$_mod [$_tab]: $(_get script) failed"
+        [ -f "$_from" ] || die "$_mod [$_tab]: $(_get script) made no $(_get from)"
+        mkdir -p "$(dirname "$_mdir/$_to")"
+        cp -f "$_from" "$_mdir/$_to"
+        note "$_mod [$_tab]: $_to"
+        return
+    fi
     [ -n "$_url" ] && [ -n "$_sha" ] || die "$_mod [$_tab]: needs url and sha256"
     _outs=
     case $_kind in
         copy)   _outs=$(_get to) ;;
         cbuild) _outs="$(_get static) $(_get shared)" ;;
-        *) die "$_mod [$_tab]: kind is 'copy' or 'cbuild', not '$_kind'" ;;
+        *) die "$_mod [$_tab]: kind is 'copy', 'cbuild' or 'script', not '$_kind'" ;;
     esac
     _fresh=1
     for _o in $_outs; do
         if [ ! -f "$_mdir/$_o" ] || [ "$_toml" -nt "$_mdir/$_o" ]; then _fresh=0; fi
     done
     if [ "$_fresh" = 1 ]; then note "$_mod [$_tab]: up to date"; return; fi
-    _x=$(unpack "$(fetch "$_url" "$_sha")")
+    _dl=$(fetch "$_url" "$_sha")
+    if [ "$_kind" = copy ] && ! is_archive "$_url"; then
+        _to=$(_get to)
+        mkdir -p "$(dirname "$_mdir/$_to")"
+        cp -f "$_dl" "$_mdir/$_to"
+        note "$_mod [$_tab]: $_to"
+        return
+    fi
+    _x=$(unpack "$_dl")
     case $_kind in
     copy)
         _from=$(_get from); _to=$(_get to)

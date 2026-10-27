@@ -38,13 +38,13 @@ for s in "${srcs[@]}"; do
     if [ ! -f "$o" ] || [ "$s" -nt "$o" ] || [ "$HERE/scintk.h" -nt "$o" ]; then
         # Vendor code compiles quiet (-w); ours must compile clean under -Wall.
         W=-w; case "$b" in PlatTk|ScintillaTk) W="-Wall -Wextra -Wno-unused-parameter" ;; esac
-        $CXX $FLAGS $W $INC -c "$s" -o "$o"
+        "$CXX" $FLAGS $W $INC -c "$s" -o "$o"
         n=$((n+1))
     fi
 done
 if [ "$OS" = windows ]; then
-    $CXX --target=x86_64-pc-windows-msvc -fms-runtime-lib=static -shared -fuse-ld=lld -o "$LIB" "${objs[@]}"
+    "$CXX" --target=x86_64-pc-windows-msvc -fms-runtime-lib=static -shared -fuse-ld=lld -o "$LIB" "${objs[@]}"
 else
-    $CXX -shared -o "$LIB" "${objs[@]}" -static-libstdc++ -static-libgcc -Wl,-z,noexecstack
+    "$CXX" -shared -o "$LIB" "${objs[@]}" -static-libstdc++ -static-libgcc -Wl,-z,noexecstack
 fi
 echo "scintk: $LIB ($n compiled)"
