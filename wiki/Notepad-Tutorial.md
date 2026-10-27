@@ -945,5 +945,6 @@ Its output:
 
 - [PsApp](PsApp)
 - [PsTextBox](PsTextBox), [PsStatusBar](PsStatusBar), [PsMenuBar](PsMenuBar), [PsMessageBox](PsMessageBox)
+- [tkControls](Category-tkControls): the toolchain's `examples/tkControls/tpad` is this program on tkControls, for Windows and Linux
 - [tiko build](Category-Tiko-Build)
 - [Filesystem](Category-Filesystem)

@@ -57,6 +57,7 @@
 - [Logging](Category-Logging)
 - [Terminal TUI Library](Category-Terminal-TUI-Library)
 - [PsControls](Category-PsControls)
+- [tkControls](Category-tkControls)
 - [Goroutines and Channels](Category-Goroutines-and-Channels)
 - [LLVM Backend](Category-LLVM-Backend)
 - [tiko build](Category-Tiko-Build)

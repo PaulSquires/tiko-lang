@@ -85,3 +85,41 @@ PsPopupMenu	PsPopupMenu	-	ctl-support	vendor/PsControls/PsPopupMenu	-	Shows a th
 PsColumnHeader	PsColumnHeader	-	ctl-support	vendor/PsControls/PsColumnHeader	-	Draws a band of resizable column headers above a list or grid.
 PsTipHost	PsTipHost	-	ctl-support	vendor/PsControls/PsTipHost	-	Switches the controls' tooltips between the system tooltip and PsTooltip.
 PsRegistry	PsRegistry	-	ctl-support	vendor/PsControls/PsRegistry	-	Keeps what each control needs from the message loop, the theme and DPI changes.
+tkApp	tkApp	-	ctl-app	vendor/tkControls/tkApp	-	Runs a tkControls program: start-up, the event loop, forms, fonts and the theme.
+tkTheme	tkTheme	-	ctl-app	vendor/tkControls/tkTheme	-	Keeps the shared light and dark theme every tkControls control takes its colours from.
+tkTextBox	tkTextBox	-	ctl-text	vendor/tkControls/tkTextBox	-	Draws an editable text box, single-line or word-wrapped multiline, with its own editor.
+tkNumericUpDown	tkNumericUpDown	-	ctl-text	vendor/tkControls/tkNumericUpDown	-	Draws a numeric spinner: a typed value between minus and plus buttons, kept in range.
+tkDatePicker	tkDatePicker	-	ctl-text	vendor/tkControls/tkDatePicker	-	Shows an editable date field with a calendar icon that drops down a month calendar.
+tkCalendar	tkCalendar	-	ctl-text	vendor/tkControls/tkCalendar	-	Draws a month calendar, one month or a grid of up to twelve, with drill-down to years.
+tkCodeEdit	tkCodeEdit	-	ctl-text	vendor/tkControls/tkCodeEdit	-	Embeds a Scintilla code editor as a tkControls widget, with lexing, folding and IME.
+tkButton	tkButton	-	ctl-button	vendor/tkControls/tkButton	-	Draws a momentary command button with an optional glyph or image on either side.
+tkCheckBox	tkCheckBox	-	ctl-button	vendor/tkControls/tkCheckBox	-	Draws a two-state checkbox with an optional caption on either side of the box.
+tkOptionButton	tkOptionButton	-	ctl-button	vendor/tkControls/tkOptionButton	-	Draws a radio button whose group allows at most one checked choice.
+tkToggle	tkToggle	-	ctl-button	vendor/tkControls/tkToggle	-	Draws an on/off switch: a rounded track and a knob that marks the state.
+tkListTree	tkListTree	-	ctl-list	vendor/tkControls/tkListTree	-	Shows a scrolling list of rows you paint that is also a tree, with columns and editing.
+tkComboBox	tkComboBox	-	ctl-list	vendor/tkControls/tkComboBox	-	Shows the current choice on a button that drops a scrolling list of the alternatives.
+tkSelectBar	tkSelectBar	-	ctl-list	vendor/tkControls/tkSelectBar	-	Draws a strip of text panels where exactly one is current, marked by a line beneath it.
+tkTabBar	tkTabBar	-	ctl-list	vendor/tkControls/tkTabBar	-	Draws a row of document tabs that scroll, close and reorder by drag.
+tkMenuBar	tkMenuBar	-	ctl-command	vendor/tkControls/tkMenuBar	-	Draws a window's menu bar, whose items drop down tkPopupMenu menus.
+tkToolbar	tkToolbar	-	ctl-command	vendor/tkControls/tkToolbar	-	Draws a toolbar of command, toggle, split and dropdown buttons that overflows to a menu.
+tkIconPanel	tkIconPanel	-	ctl-command	vendor/tkControls/tkIconPanel	-	Draws a row or column of icon-only buttons, toggles and separators.
+tkStatusBar	tkStatusBar	-	ctl-command	vendor/tkControls/tkStatusBar	-	Draws a status bar of text panels, one of which stretches to fill the leftover width.
+tkSplitter	tkSplitter	-	ctl-layout	vendor/tkControls/tkSplitter	-	Draws a draggable divider bar between two panes and reports where the user drags it.
+tkScrollPanel	tkScrollPanel	-	ctl-layout	vendor/tkControls/tkScrollPanel	-	Scrolls a page of ordinary child widgets that is taller than the space it is shown in.
+tkVScrollBar	tkVScrollBar	-	ctl-layout	vendor/tkControls/tkVScrollBar	-	Draws a vertical scrollbar that you size, feed a range, and listen to.
+tkHScrollBar	tkHScrollBar	-	ctl-layout	vendor/tkControls/tkHScrollBar	-	Draws a horizontal scrollbar that you size, feed a range, and listen to.
+tkMessageBox	tkMessageBox	-	ctl-popup	vendor/tkControls/tkMessageBox	-	Shows a themed modal message box and returns the id of the button that closed it.
+tkColorPicker	tkColorPicker	-	ctl-popup	vendor/tkControls/tkColorPicker	-	Shows a modal colour picker popup and returns the colour and alpha the user chose.
+tkFileDialog	tkFileDialog	-	ctl-popup	vendor/tkControls/tkFileDialog	-	Shows the system open, save and folder dialogs and returns the chosen paths.
+tkTooltip	tkTooltip	-	ctl-popup	vendor/tkControls/tkTooltip	-	Shows an owner-drawn tooltip for a widget after the mouse rests on it.
+tkProgressBar	tkProgressBar	-	ctl-progress	vendor/tkControls/tkProgressBar	-	Draws a horizontal or vertical progress bar, determinate or with a running marquee.
+tkChart	tkChart	-	ctl-progress	vendor/tkControls/tkChart	-	Draws line, column, HLOC and pie charts from series of labelled values.
+tkHost	tkHost	-	ctl-support	vendor/tkControls/tkHost	-	Runs every tkControls widget: SDL windows, the widget tree, input, timers and fonts.
+tkPaint	tkPaint	-	ctl-support	vendor/tkControls/tkPaint	-	Paints shapes, text and images for tkControls widgets on SDL_Renderer and SDL_ttf.
+tkKeys	tkKeys	-	ctl-support	vendor/tkControls/tkKeys	-	Parses, formats and dispatches keyboard shortcuts for tkControls surfaces.
+tkImage	tkImage	-	ctl-support	vendor/tkControls/tkImage	-	Loads an image file once and draws it in any tkControls window.
+tkPopupMenu	tkPopupMenu	-	ctl-support	vendor/tkControls/tkPopupMenu	-	Shows a popup menu of commands, separators, check marks and submenus.
+tkColumnHeader	tkColumnHeader	-	ctl-support	vendor/tkControls/tkColumnHeader	-	Draws a band of column headings with draggable dividers and one column taking the rest.
+tkScrollBar	tkScrollBar	-	ctl-support	vendor/tkControls/tkScrollBar	-	Runs the one scrollbar engine behind tkVScrollBar and tkHScrollBar.
+tkFontList	tkFontList	-	ctl-support	vendor/tkControls/tkFontList	-	Lists the fonts installed on the machine by family, style and file.
+tkTest	tkTest	-	ctl-support	vendor/tkControls/tkTest	-	Drives tkControls self-tests by pushing real SDL input events and checking the results.

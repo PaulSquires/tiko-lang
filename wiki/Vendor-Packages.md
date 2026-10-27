@@ -48,6 +48,8 @@ Every routine, type and constant of the library's C header is callable as the li
 
 **`vendor/PsControls/<control>`** is tiko source, not a C library: owner-drawn Win32 controls, one module each, with no library and so no `link`. See [PsControls](Category-PsControls).
 
+**`vendor/tkControls/<control>`** is tiko source as well: owner-drawn controls on SDL3 for Windows and Linux, one module each. It links no library of its own (`vendor/SDL3` does) but has runtime files: its fonts, copied beside every program that imports it, and the scintk library for `tkCodeEdit`. See [tkControls](Category-tkControls).
+
 **The SDL packages on linux-x86_64 link the system's libraries.** SDL publishes no Linux binaries, so the toolchain ships none: a program is linked with `-lSDL3` (and `-lSDL3_image`, `-lSDL3_ttf`, `-lSDL3_mixer` for those packages) and loads `libSDL3.so.0` and the others from the system's library folders, like any library the distribution installs. Install the distribution's development packages (`libsdl3-dev`, `libsdl3-image-dev`, `libsdl3-ttf-dev`, `libsdl3-mixer-dev` on Debian and Ubuntu; `SDL3-devel` and the like on Fedora) to build; without one the link fails with `cannot find -lSDL3`. Nothing is copied beside the program.
 
 `vendor/SDL3/image`, `vendor/SDL3/ttf` and `vendor/SDL3/mixer` -- modules inside `vendor/SDL3`, their libraries in its `lib/` -- each import `vendor/SDL3` publicly: one `#import` brings SDL's own names too, and links SDL3 as well.
@@ -139,3 +141,4 @@ A public header is read twice: once in the module, and again in every program th
 - [Foreign Library Linking](Category-Foreign-Library-Linking)
 - [SQLite Tutorial](SQLite-Tutorial)
 - [PsControls](Category-PsControls)
+- [tkControls](Category-tkControls)
