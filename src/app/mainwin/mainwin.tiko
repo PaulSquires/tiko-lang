@@ -805,12 +805,14 @@ function Window.StatusText( byval p as StatusPanel ) as ustring
 end function
 
 ' The buffer panel's tooltip: its pane's buffer's full path (its name while untitled); the Project
-' panel's: the project file.
+' panel's: the project file; Settings' and Keys': the key that does the same (author 2026-10-27).
 function Window.StatusTip( byval p as StatusPanel, byval second as boolean ) as ustring
     if p = StatusPanel.Project then
         if ProjOpen then return Proj.Path
         return "no project: a click makes one"
     end if
+    if p = StatusPanel.Settings then return this.ShortcutText( Cmd.Settings )
+    if p = StatusPanel.Keys then return this.ShortcutText( Cmd.KeyboardShortcuts )
     if p <> StatusPanel.Buffer then return ""
     dim as DocRef d = Pane1
     if second then d = Pane2

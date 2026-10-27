@@ -606,6 +606,8 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     ' ---- the status panels: the buffer's tooltip is its full path; encoding, line ending, build pick
     t.Check( lcase( mw.StatusTip( mainwin.StatusPanel.Buffer ) ) = lcase( pathA ), P( sc, "the buffer panel's tooltip: " & mw.StatusTip( mainwin.StatusPanel.Buffer ) ) )
     t.Check( mw.StatusTip( mainwin.StatusPanel.Encoding ) = "", P( sc, "no tooltip on the others" ) )
+    t.Check( (mw.StatusTip( mainwin.StatusPanel.Settings ) = "Ctrl+Comma") andalso (mw.StatusTip( mainwin.StatusPanel.Keys ) = "Ctrl+K"), _
+             P( sc, "Settings' and Keys' tooltips: their keys: " & mw.StatusTip( mainwin.StatusPanel.Settings ) & " / " & mw.StatusTip( mainwin.StatusPanel.Keys ) ) )
     ClickPanel( mw, mainwin.StatusPanel.Encoding )
     t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Encoding), P( sc, "the encoding panel opens a chooser" ) )
     t.Check( mw.Chooser.SelectedTag( ) = clng( docencoding.FileEncoding.Utf8 ), P( sc, "on the current encoding, UTF-8" ) )
