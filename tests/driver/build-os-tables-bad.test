@@ -1,0 +1,11 @@
+'' AN OS TABLE HOLDS ONLY THE ARRAY KEYS THAT ADD TO A TARGET (TK-003): 'copy_to' is the
+'' target's, not an OS's, and says which keys an OS table takes.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.bob/cache
+'' CLEAN: build/.bob
+'' COPY: tests/driver/src/build-os => build/.bob/pkg
+'' WRITE: build/.bob/pkg/tiko.toml :: [package]\nname = "osdemo"\n[target.app]\nmain = "src/main.tiko"\n[target.app.linux]\ncopy_to = ["bin"]\n
+'' ARGS: metadata -target linux-x86_64 --manifest build/.bob/pkg
+'' EXPECT-EXIT: 2
+'' EXPECT-OUT: TKO0144
+'' EXPECT-OUT: unknown key 'copy_to' in [target.app.linux]: an OS table holds sources, resources, libs, libpaths and options

@@ -296,6 +296,8 @@ A target takes these keys:
 | `subsystem` | `"gui"` or `"console"` — `-s` |
 | `output` | where to write the result, instead of `out/<profile>/<name>` |
 
+Keys that hold for one platform only go in a **`[target.greeter.windows]`**, **`[target.greeter.linux]`** or **`[target.greeter.macos]`** table. It takes `sources`, `resources`, `libs`, `libpaths` and `options`, which add to the target's own in a build for that platform and are skipped in any other. A program's icon is the usual case: its `.rc` file goes under `windows`, because a Linux build refuses a resource script, and the project then builds on both.
+
 **Every path in `tiko.toml` is relative to `tiko.toml`**, an `-i` or `-p` inside `options`
 included, so the project builds the same whatever directory the command is typed in.
 

@@ -105,7 +105,23 @@ main    = "src/main.tiko"
 copy_to = ["dist"]       # dist/ holds app.ini and sqlite3.dll
 ```
 
-`[target.<name>.defines]` holds `NAME = "value"` pairs, each a `-d NAME=value` for that target's files. A module directory is never a root: modules are reached through `#import` (`TKO0161`). Two targets writing one file is `TKO0165`.
+`[target.<name>.defines]` holds `NAME = "value"` pairs, each a `-d NAME=value` for that target's files.
+
+**`[target.<name>.windows]`, `[target.<name>.linux]` and `[target.<name>.macos]`** hold what is true of one platform only. They take `sources`, `resources`, `libs`, `libpaths` and `options`, which add to the target's own when the build is for that platform (the host's, or `-target`'s) and are not read otherwise. A `.rc` file belongs in the `windows` table: a build for Linux or macOS refuses one (`TKO0108`), so the same `tiko.toml` builds everywhere.
+
+```toml
+[target.app]
+main = "src/main.tiko"
+
+[target.app.windows]
+resources = ["res/app.rc"]   # the program's icon
+libs      = ["comctl32"]
+
+[target.app.linux]
+options = ["-d", "USE_GTK=1"]
+```
+
+A module directory is never a root: modules are reached through `#import` (`TKO0161`). Two targets writing one file is `TKO0165`.
 
 Targets build in the order the manifest declares them, so a `lib` that another target links goes first.
 

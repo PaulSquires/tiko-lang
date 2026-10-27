@@ -266,14 +266,23 @@ private function BuildName_( byref n as string ) as boolean
     return true
 end function
 
-'' [target.x], [target.x.defines], [profile.x]: "" when the header is one, else why not.
+'' The OS tables of a target: [target.x.windows], [target.x.linux], [target.x.macos] hold the
+'' array keys that are true of a build for that OS only -- a '.rc' that a Linux build refuses
+'' (TKO0108), a library one platform has. They add to the target's own; another OS's are dropped.
+private function OsTable_( byref s as string ) as boolean
+    return (s = "windows") orelse (s = "linux") orelse (s = "macos")
+end function
+
+'' [target.x], [target.x.defines], [target.x.<os>], [profile.x]: "" when the header is one,
+'' else why not.
 private function BuildTable_( byref m as Manifest, byref table_ as string ) as string
     dim as boolean isT = (left( table_, 7 ) = "target.")
     if (isT = false) andalso (left( table_, 8 ) <> "profile.") then return "unknown table [" & table_ & "]"
     dim as string rest = mid( table_, iif( isT, 8, 9 ) )
     dim as int32 dt = instr( rest, "." )
     if dt > 0 then
-        if (isT = false) orelse (mid( rest, dt + 1 ) <> "defines") then return "unknown table [" & table_ & "]"
+        dim as string sub_ = mid( rest, dt + 1 )
+        if (isT = false) orelse ((sub_ <> "defines") andalso (OsTable_( sub_ ) = false)) then return "unknown table [" & table_ & "]"
         rest = left( rest, dt - 1 )
     end if
     if BuildName_( rest ) = false then
@@ -298,7 +307,7 @@ private function OneOf_( byref v as string, byref allowed as string ) as boolean
     return instr( "|" & allowed & "|", "|" & v & "|" ) > 0
 end function
 
-'' One 'key = value' inside a [target.x] / [target.x.defines] / [profile.x] table.
+'' One 'key = value' inside a [target.x] / [target.x.defines] / [target.x.<os>] / [profile.x] table.
 private function BuildKey_ _
     ( byref m as Manifest, byref table_ as string, byref k as string, byref v as string, _
       byref kind as string ) as string
@@ -307,6 +316,18 @@ private function BuildKey_ _
     dim as string rest = mid( table_, iif( isT, 8, 9 ) )
     dim as int32 dt = instr( rest, "." )
     if dt > 0 then
+        dim as string sub_ = mid( rest, dt + 1 )
+        if OsTable_( sub_ ) then
+            select case k
+            case "sources", "resources", "libs", "libpaths", "options"
+            case else
+                return "unknown key '" & k & "' in [" & table_ & "]: an OS table holds sources, " & _
+                       "resources, libs, libpaths and options"
+            end select
+            if kind <> "a" then return "'" & k & "' in [" & table_ & "] is an array of strings"
+            m.tgtName.Push( left( rest, dt - 1 ) ) : m.tgtKey.Push( k & "@" & sub_ ) : m.tgtVal.Push( v )
+            return ""
+        end if
         if kind <> "s" then return "a define's value is a string"
         m.tgtName.Push( left( rest, dt - 1 ) ) : m.tgtKey.Push( "define" ) : m.tgtVal.Push( k & "=" & v )
         return ""
