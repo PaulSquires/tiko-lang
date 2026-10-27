@@ -762,6 +762,8 @@ sub Window.FillStatus( byval bar as TK_WIDGET ptr, byval d as DocRef, byval focu
     dim as editor.CodeView ptr v = @d->Main
     dim as ustring name_ = d->DisplayName( )
     if d->IsModified( ) then name_ &= " *"
+    ' how many other buffers are open, Ctrl+E's list (author 2026-10-27)
+    if Docs.Count( ) > 1 then name_ &= strings.Format( " (+{} more)", Docs.Count( ) - 1 )
     tkStatusBar_SetText( bar, StatusPanel.Buffer, name_ )
     dim as ustring msg = ""
     if focused then msg = Message
@@ -831,7 +833,7 @@ function Window.NewStatusBar( byval root as TK_WIDGET ptr, byval id as long ) as
         dim as boolean second = (hBar = mw->status2)
         if second <> mw->InPane2 then mw->FocusPane( second )
         select case idx
-        case StatusPanel.Buffer : mw->OpenChooser( PickKind.Buffers )
+        case StatusPanel.Buffer : mw->OpenChooser( PickKind.Buffers, true )   ' where Ctrl+E opens it (author)
         case StatusPanel.Message : mw->Execute( Cmd.OutputPane )
         case StatusPanel.Position
             if mw->Finder.isOpen andalso (mw->Finder.Mode = findstrip.StripMode.GoTo) then
