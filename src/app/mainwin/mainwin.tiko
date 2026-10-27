@@ -969,11 +969,11 @@ function Window.Execute( byval id as Cmd ) as boolean
         end if
     case Cmd.FunctionList
         if Chooser.IsOpen( ) andalso (Choosing = PickKind.Functions) then
-            Chooser.Close( )
+            FuncsAll = (FuncsAll = false)              ' again: this buffer / every open buffer
         else
             FuncsAll = false
-            this.OpenChooser( PickKind.Functions )
         end if
+        this.OpenChooser( PickKind.Functions )
     case Cmd.OutputPane : this.ShowOutput( OutputShown = false )
     case Cmd.Compile : this.StartBuild( build.BuildAction.Compile )
     case Cmd.BuildExecute : this.StartBuild( build.BuildAction.BuildExecute )
@@ -1867,7 +1867,6 @@ sub Window.OpenChooser( byval kind as PickKind )
     Chooser.SeedQuery = keep
     Chooser.MaxRows = 12
     Chooser.Toggle.key = 0
-    Chooser.OnTab = 0
     Chooser.Columns.Clear( )
     Chooser.Columns.Push( 18 )
     Chooser.Columns.Push( 220 )
@@ -1964,9 +1963,11 @@ sub Window.OpenChooser( byval kind as PickKind )
             r.Tag = i
             rows.Push( r )
         next
-        ' its own key again closes it (author 2026-10-27); Tab flips this buffer / every open buffer
-        this.CloseOnOwnKey( Cmd.FunctionList )
-        Chooser.OnTab = sub( byval payload as any ptr, byval tag as long )
+        ' its own key again flips this buffer / every open buffer (D11; the author kept it 2026-10-27)
+        dim as TK_CHORD tc
+        dim as string fk = Keys.Effective( Cmd.FunctionList )
+        if len( fk ) andalso tkKeys_Parse( fk, tc ) then Chooser.Toggle = tc
+        Chooser.OnToggle = sub( byval payload as any ptr, byval tag as long )
             dim as Window ptr mw = payload
             mw->FuncsAll = (mw->FuncsAll = false)
             mw->OpenChooser( PickKind.Functions )

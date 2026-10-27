@@ -1335,28 +1335,25 @@ public sub IntelPass( byref t as Tally, byval sc as single )
     t.Check( WaitScans( mw, 2 ), P( sc, strings.Format( "the scans came back ({}): {}", mw.ScansInstalled, mw.LastScanError ) ) )
     t.Check( mw.Db.HasFile( mainF ) andalso mw.Db.HasFile( utilF ), P( sc, "both files are scanned" ) )
 
-    ' ---- Ctrl+Shift+P: this buffer's procedures; Tab: every open buffer's, with the file; the same key closes it
+    ' ---- Ctrl+Shift+P: this buffer's procedures; again: every open buffer's, with the file
     Chord( h, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
     t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Functions), P( sc, "Ctrl+Shift+P opened the functions list" ) )
-    PopKey( mw, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
-    t.Check( mw.Chooser.IsOpen( ) = false, P( sc, "Ctrl+Shift+P again closed it" ) )
-    Chord( h, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
     t.Check( mw.Chooser.ShownCount( ) = 2, P( sc, strings.Format( "two in main.tiko ({})", mw.Chooser.ShownCount( ) ) ) )
     t.Check( RowCells( mw, 0 ) = "Twice|function|6", P( sc, "Name | Kind | Line: " & RowCells( mw, 0 ) ) )
     t.Check( RowCells( mw, 1 ) = "Show|sub|10", P( sc, "in source order: " & RowCells( mw, 1 ) ) )
-    PopKey( mw, SDLK_TAB, SDL_SCANCODE_TAB )
+    PopKey( mw, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
     t.Check( mw.Chooser.IsOpen( ) andalso mw.FuncsAll andalso (mw.Chooser.ShownCount( ) = 3), _
-             P( sc, strings.Format( "Tab: every open buffer ({})", mw.Chooser.ShownCount( ) ) ) )
+             P( sc, strings.Format( "Ctrl+Shift+P again: every open buffer ({})", mw.Chooser.ShownCount( ) ) ) )
     t.Check( mw.Chooser.Columns.Count( ) = 4, P( sc, "with a File column" ) )
     if mw.Chooser.Pop then
         tkTest_PushText( mw.Chooser.Pop, "help" )
         tkTest_PumpFor( h, 40 )
     end if
     t.Check( (mw.Chooser.ShownCount( ) = 1) andalso (RowCells( mw, 0 ) = "Helper|function|1|util.tiko"), P( sc, "'help' leaves Helper: " & RowCells( mw, 0 ) ) )
-    PopKey( mw, SDLK_TAB, SDL_SCANCODE_TAB )
+    PopKey( mw, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
     t.Check( (mw.FuncsAll = false) andalso (mw.Chooser.QueryText( ) = "help") andalso (mw.Chooser.ShownCount( ) = 0), _
-             P( sc, "Tab again: back to this buffer, the query kept" ) )
-    PopKey( mw, SDLK_TAB, SDL_SCANCODE_TAB )
+             P( sc, "once more: back to this buffer, the query kept" ) )
+    PopKey( mw, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
     PopKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
     t.Check( (lcase( mw.ActivePath( ) ) = lcase( utilF )) andalso (mw.View( ).CaretLine( ) = 1), P( sc, "Enter opened util.tiko at Helper" ) )
 
