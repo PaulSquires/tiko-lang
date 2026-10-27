@@ -71,6 +71,30 @@ public sub Run( byref c as tally.Checker )
             st = sp + 1
         wend
         c.Check( all_, "NewManifestText writes every table" )
+        ' the samples are TOML: every '# key = ' and '# [table]' line uncommented reads back, with the
+        ' fast profile and the target's defines
+        dim as ustring un = ""
+        dim as long st2 = 1, samples = 0
+        while st2 <= len( mt )
+            dim as long e2 = instr( st2, mt, nl )
+            if e2 = 0 then e2 = len( mt ) + 1
+            dim as ustring ln = mid( mt, st2, e2 - st2 )
+            st2 = e2 + 1
+            if left( ln, 2 ) = "# " then
+                dim as ustring body = mid( ln, 3 )
+                dim as long eq = instr( body, " = " ), sp = instr( body, " " )
+                if (left( body, 1 ) = "[") orelse ((eq > 1) andalso (eq = sp)) then
+                    ln = body
+                    samples += 1
+                end if
+            end if
+            un &= ln & nl
+        wend
+        dim as project.ManifestResult ur = project.ParseManifest( un, "tiko.toml" )
+        c.Check( (samples >= 25) andalso ur.IsOk( ) andalso (ur.Value( ).Targets.Count( ) = 1) andalso _
+                 (ur.Value( ).Targets[0].Main = "demo.tiko") andalso (instr( un, nl & "[profile.fast]" & nl ) > 0) andalso _
+                 (instr( un, nl & "[target.demo.defines]" & nl ) > 0), _
+                 "NewManifestText's samples, uncommented, read back (" & samples & " lines)" )
     end scope
 
     ' the options file: every key, round trip, written only when it changes

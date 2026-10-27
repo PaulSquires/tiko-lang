@@ -101,8 +101,9 @@ public function LoadManifest( byref path as const ustring ) as ManifestResult
 end function
 
 ' A new project's tiko.toml: a package and one target whose main is mainFile (a name in the folder),
-' with every other table tiko reads there empty, to be filled in (author 2026-10-27); tiko builds it
-' as it is (probed). [vendor.<module>] is left out: it has no name until there is a module.
+' with every other table tiko reads there, and each table's keys as commented samples to fill in
+' (author 2026-10-27). tiko builds it as it is, and with the samples uncommented (probed).
+' [vendor.<module>] is left out: it is what a vendor package ships, not an application's.
 ' The target's name keeps letters, digits, - and _ (a bare TOML key); anything else becomes '_'.
 public function NewManifestText( byref pkg as const ustring, byref target as const ustring, _
                                  byref mainFile as const ustring ) as ustring
@@ -115,20 +116,60 @@ public function NewManifestText( byref pkg as const ustring, byref target as con
         if ok then tn &= mid( target, i, 1 ) else tn &= "_"
     next
     if len( tn ) = 0 then tn = "main"
-    return "[package]" & nl & _
-           "name = " & tomlget.Quoted( pkg ) & nl & _
-           "version = '0.1.0'" & nl & _
-           nl & _
-           "[dependencies]" & nl & _
-           nl & _
-           "[defines]" & nl & _
-           nl & _
-           "[target." & tn & "]" & nl & _
-           "main = " & tomlget.Quoted( mainFile ) & nl & _
-           nl & _
-           "[profile.debug]" & nl & _
-           nl & _
-           "[profile.release]" & nl
+    dim as ustring exe = tn
+    if platform.CurrentOs( ) = platform.Os.Windows then exe &= ".exe"
+    dim as ustring t = ""
+    t &= "[package]" & nl
+    t &= "name = " & tomlget.Quoted( pkg ) & nl
+    t &= "version = '0.1.0'" & nl
+    t &= "# description = 'What the program does'" & nl
+    t &= "# license = 'MIT'" & nl
+    t &= "# authors = ['Your Name <you@example.com>']" & nl
+    t &= "# repository = 'https://github.com/you/" & tn & "'" & nl
+    t &= nl
+    t &= "[dependencies]" & nl
+    t &= "# another package's folder; its modules are then #import-ed by its name:" & nl
+    t &= "# ui = { path = '../ui' }" & nl
+    t &= nl
+    t &= "[defines]" & nl
+    t &= "# every module of this package sees these, as -d NAME=value:" & nl
+    t &= "# LOG_LEVEL = '2'" & nl
+    t &= nl
+    t &= "[target." & tn & "]" & nl
+    t &= "main = " & tomlget.Quoted( mainFile ) & nl
+    t &= "# sources = ['util.tiko']                 # more files, compiled along with main" & nl
+    t &= "# kind = 'exe'                            # 'exe', 'dll' or 'lib'" & nl
+    t &= "# subsystem = 'console'                   # 'console' or 'gui' (Windows)" & nl
+    t &= "# resources = ['" & tn & ".rc']" & space( 21 - len( tn ) ) & "# .rc files (Windows)" & nl
+    t &= "# libs = ['user32']                       # libraries to link (-l)" & nl
+    t &= "# libpaths = ['lib']                      # where to find them (-p)" & nl
+    t &= "# options = ['-w', 'all']                 # more compiler flags" & nl
+    t &= "# output = 'bin/" & exe & "'" & space( 25 - len( exe ) ) & "# instead of out/<profile>/" & exe & nl
+    t &= "# copy_to = ['dist']                      # copied here after each build" & nl
+    t &= nl
+    t &= "# this target's own defines (-d NAME=value):" & nl
+    t &= "# [target." & tn & ".defines]" & nl
+    t &= "# EDITION = '2'" & nl
+    t &= nl
+    t &= "[profile.debug]" & nl
+    t &= "# what tiko build uses by default; built in: -g -exx -O0" & nl
+    t &= "# opt = 0                                 # 0 to 3 (-O)" & nl
+    t &= "# errors = 'exx'                          # 'e', 'ex', 'exx' or '' for none" & nl
+    t &= "# debug = true                            # debug information (-g)" & nl
+    t &= "# options = ['-w', 'all']                 # more flags, after the above" & nl
+    t &= nl
+    t &= "[profile.release]" & nl
+    t &= "# tiko build --profile release; built in: -O2" & nl
+    t &= "# opt = 2" & nl
+    t &= "# errors = ''" & nl
+    t &= "# debug = false" & nl
+    t &= "# options = []" & nl
+    t &= nl
+    t &= "# a profile of your own, built with --profile fast:" & nl
+    t &= "# [profile.fast]" & nl
+    t &= "# inherits = 'release'" & nl
+    t &= "# options = ['-mt']" & nl
+    return t
 end function
 
 ' ---------------------------------------------------------------------- the editor's state
