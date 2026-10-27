@@ -597,7 +597,9 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     t.Check( (v2->x = w1 + bar) andalso (v2->cw = cx - w1 - bar) andalso (v2->ch = cy - sh) andalso tkWidget_IsVisible( v2 ), _
              P( sc, strings.Format( "pane 2 at {} {}x{}", v2->x, v2->cw, v2->ch ) ) )
     t.Check( (mw.splitBar <> 0) andalso (mw.splitBar->x = w1) andalso (mw.splitBar->cw = bar), P( sc, "the bar between them" ) )
-    t.Check( (mw.status->x = 0) andalso (mw.status->y = cy - sh) andalso (mw.status->cw = w1 + bar) andalso _
+    t.Check( (mw.splitBar->y = 0) andalso (mw.splitBar->ch = cy) andalso (mw.splitFoot <> 0) andalso (mw.splitFoot->x = w1) andalso _
+             (mw.splitFoot->y = cy - sh), P( sc, strings.Format( "the bar runs to the bottom: {} {}h", mw.splitBar->y, mw.splitBar->ch ) ) )
+    t.Check( (mw.status->x = 0) andalso (mw.status->y = cy - sh) andalso (mw.status->cw = w1) andalso _
              tkWidget_IsVisible( mw.status2 ) andalso (mw.status2->x = w1 + bar) andalso (mw.status2->y = cy - sh) andalso _
              (mw.status2->cw = cx - w1 - bar), P( sc, strings.Format( "a status line under each: {} {}w / {} {}w", _
              mw.status->x, mw.status->cw, mw.status2->x, mw.status2->cw ) ) )
@@ -711,6 +713,9 @@ public sub SessionPass( byref t as Tally, byval sc as single )
         SDL_SyncWindow( tkForm_Host( mw.form )->win )
         tkTest_PumpFor( tkForm_Host( mw.form ), 100 )
         mw.SaveSession( )
+        ' closing everything while split ends (it used to make untitled buffers for ever)
+        t.Check( mw.CloseAll( ) andalso (mw.Docs.Count( ) = 1) andalso (mw.Split = session.SplitMode.None), _
+                 P( sc, strings.Format( "closing all, split, ends with one buffer ({})", mw.Docs.Count( ) ) ) )
         mw.Destroy( )
     end scope
     t.Check( fs.IsFile( fs.PathJoin( cfg, session.SESSION_FILE ) ), P( sc, "session.toml written" ) )
@@ -1242,7 +1247,7 @@ public sub IntelPass( byref t as Tally, byval sc as single )
     m2.Destroy( )
 end sub
 
-' ================================================================ P6: formatter, Find in Project, companions
+' ================================================================ P6: formatter, Find in Project
 
 public sub PolishPass( byref t as Tally, byval sc as single )
     dim as ustring dir_ = fs.PathJoin( Files( ), "polish" )
@@ -1328,15 +1333,6 @@ public sub PolishPass( byref t as Tally, byval sc as single )
     mw.Finder.SetPhrase( "Need[l]e\(" )
     StripKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
     t.Check( mw.Found.Count( ) = 4, P( sc, strings.Format( "a regex: the four calls and declarations ({})", mw.Found.Count( ) ) ) )
-
-    ' ---- header and source, the main file
-    mw.JumpTo( libF, 0, 0, 0 )
-    Chord( h, SDLK_H, SDL_SCANCODE_H, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
-    t.Check( lcase( mw.ActivePath( ) ) = lcase( hdrF ), P( sc, "Ctrl+Shift+H: lib.ti" ) )
-    Chord( h, SDLK_C, SDL_SCANCODE_C, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
-    t.Check( lcase( mw.ActivePath( ) ) = lcase( libF ), P( sc, "Ctrl+Shift+C: back to lib.tiko" ) )
-    Chord( h, SDLK_M, SDL_SCANCODE_M, SDL_KMOD_CTRL or SDL_KMOD_ALT )
-    t.Check( lcase( mw.ActivePath( ) ) = lcase( mainF ), P( sc, "Ctrl+Alt+M: the project's main file" ) )
 
     for each d as DocRef in mw.Docs
         d->Main.SetSavePoint( )

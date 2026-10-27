@@ -71,9 +71,6 @@ public enum Cmd explicit
     GoForward
     GoToNextFunction
     GoToPrevFunction
-    GoToHeader
-    GoToSource
-    GoToMain
     BookmarkToggle
     BookmarkNext
     BookmarkPrev
@@ -272,9 +269,6 @@ constructor CommandTable( )
     this.Def( Cmd.GoForward, "GoForward", g, "Forward", "Alt+Right" )
     this.Def( Cmd.GoToNextFunction, "GoToNextFunction", g, "Next Function", "Primary+PgDn" )
     this.Def( Cmd.GoToPrevFunction, "GoToPrevFunction", g, "Previous Function", "Primary+PgUp" )
-    this.Def( Cmd.GoToHeader, "GoToHeader", g, "Go to Header", "Primary+Shift+H", true )
-    this.Def( Cmd.GoToSource, "GoToSource", g, "Go to Source", "Primary+Shift+C" )
-    this.Def( Cmd.GoToMain, "GoToMain", g, "Go to Main File", "Primary+Alt+M" )
     this.Def( Cmd.BookmarkToggle, "BookmarkToggle", g, "Toggle Bookmark", "Primary+F2", true )
     this.Def( Cmd.BookmarkNext, "BookmarkNext", g, "Next Bookmark", "F2" )
     this.Def( Cmd.BookmarkPrev, "BookmarkPrev", g, "Previous Bookmark", "Shift+F2" )

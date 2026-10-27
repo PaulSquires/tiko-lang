@@ -90,6 +90,7 @@ public const STATUS_CY = 24              ' one status row, unscaled
 public const SPLIT_BAR = 5               ' the bar between the two panes, unscaled
 const ID_STATUS = 101
 const ID_STATUS2 = 107
+const ID_SPLIT2 = 108
 const ID_SPLIT = 103
 const ID_FINDSTRIP = 104
 const ID_OUTPUT = 105
@@ -311,6 +312,7 @@ public type Window
     status2 as TK_WIDGET ptr            ' pane 2's, while split
     lastTitle as ustring
     splitBar as TK_WIDGET ptr
+    splitFoot as TK_WIDGET ptr          ' a left/right split's bar through the status row, between the two
     NormalX as long                     ' the window's last place while neither maximized nor minimized
     NormalY as long
     NormalW as long
@@ -425,7 +427,6 @@ public type Window
     declare function FormatDocument( ) as boolean
     declare function RunProjectSearch( ) as long
     declare sub OpenSearchHit( byval i as long )
-    declare sub GoToCompanion( byval header as boolean )
 
     ' ---- the chooser popup
     declare sub OpenChooser( byval kind as PickKind )
@@ -669,6 +670,7 @@ sub Window.Layout( )
     next
     tkWidget_Show( status2, split_ )
     if splitBar then tkWidget_Show( splitBar, split_ )
+    if splitFoot then tkWidget_Show( splitFoot, split_ andalso (Split = session.SplitMode.Vertical) )
     if v1 = 0 then exit sub
     tkWidget_Show( v1, true )
     if split_ = false then
@@ -683,9 +685,14 @@ sub Window.Layout( )
         tkWidget_SetPos( v1, 0, 0, w1, ah )
         tkWidget_SetPos( splitBar, w1, 0, bar, ah )
         tkWidget_SetPos( v2, w1 + bar, 0, cx - w1 - bar, ah )
-        tkWidget_SetPos( status, 0, bottom, w1 + bar, sh )
+        ' the bar goes on through the status row, between the two status lines (author 2026-10-27);
+        ' the output pane and the find strip, full width, sit over it
+        tkWidget_SetPos( status, 0, bottom, w1, sh )
+        tkWidget_SetPos( splitFoot, w1, bottom, bar, sh )
         tkWidget_SetPos( status2, w1 + bar, bottom, cx - w1 - bar, sh )
+        if (fh = 0) andalso (oh = 0) then tkWidget_SetPos( splitBar, w1, 0, bar, cy )   ' one piece, top to bottom
         tkSplitter_SetRange( splitBar, tkForm_Scale( form, 60 ), cx - bar - tkForm_Scale( form, 60 ) )
+        tkSplitter_SetRange( splitFoot, tkForm_Scale( form, 60 ), cx - bar - tkForm_Scale( form, 60 ) )
     else
         dim as long h1 = cint( (ah - sh - bar) * SplitRatio )
         tkWidget_SetPos( v1, 0, 0, cx, h1 )
@@ -839,7 +846,7 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
          Cmd.SplitTopBottom, Cmd.CycleFocus, Cmd.ZoomIn, Cmd.ZoomOut, Cmd.ZoomReset, Cmd.FoldToggle, _
          Cmd.FoldBelow, Cmd.FoldAll, Cmd.UnfoldAll, Cmd.BuildConfig
         return true
-    case Cmd.FormatDocument, Cmd.FindInProject, Cmd.GoToHeader, Cmd.GoToSource, Cmd.GoToMain
+    case Cmd.FormatDocument, Cmd.FindInProject
         return true
     case Cmd.CompleteWord, Cmd.GoToDefinition, Cmd.GoBack, Cmd.GoForward, Cmd.GoToNextFunction, _
          Cmd.GoToPrevFunction, Cmd.SearchSymbol, Cmd.FunctionList
@@ -895,14 +902,6 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.SplitTopBottom : this.ToggleSplit( session.SplitMode.Horizontal )
     case Cmd.CycleFocus : this.CycleFocus( )
     case Cmd.FormatDocument : this.FormatDocument( )
-    case Cmd.GoToHeader : this.GoToCompanion( true )
-    case Cmd.GoToSource : this.GoToCompanion( false )
-    case Cmd.GoToMain
-        if ProjOpen andalso (len( Proj.MainPath( ) ) > 0) then
-            this.JumpTo( Proj.MainPath( ), -1, 0, 0 )
-        else
-            this.SetMessage( "no project main file" )
-        end if
     case Cmd.FindInProject : this.OpenStrip( findstrip.StripMode.Project )
     case Cmd.CompleteWord : this.ShowCompletionsAt( v, this.Active( ), 0 )
     case Cmd.GoToDefinition : this.GoToDefinition( )
@@ -1129,6 +1128,7 @@ sub Window.ReloadTheme( )
     dim as TKTHEME_COLORS tc = tkApp_Theme( )
     dim as TKSTATUSBAR_COLORS sbc = tkStatusBar_ThemeColors( tc )
     sbc.BackColor = tc.Popup
+    sbc.ForeColor = chrome.StatusText( Theme )   ' dimmer than the theme's status text
     tkStatusBar_SetColors( status, @sbc )
     tkStatusBar_SetColors( status2, @sbc )
     this.ApplyLook( )
@@ -1410,7 +1410,8 @@ function Window.SaveAll( ) as boolean
 end function
 
 ' Close d, asking to save it when modified. A pane that showed it shows the most recent buffer the
-' other pane does not; with none, a new untitled one. FALSE = the person cancelled.
+' other pane does not; with none, the split closes; the last buffer closed leaves an untitled one.
+' FALSE = the person cancelled.
 function Window.CloseDoc( byval d as DocRef ) as boolean
     if d = 0 then return true
     if d->IsModified( ) then
@@ -1447,12 +1448,25 @@ function Window.CloseDoc( byval d as DocRef ) as boolean
             exit for
         end if
     next
-    if (nxt = 0) andalso ((d = Pane1) orelse (d = Pane2)) then
-        nxt = this.NewDocument( )
-        Mru.Push( nxt )
+    if (nxt = 0) andalso (keep <> 0) then
+        ' nothing else to show: the split closes and the other pane's buffer fills the window (a new
+        ' untitled one here would be closed next by CloseAll, which would make another -- for ever)
+        Pane1 = keep
+        Pane2 = 0
+        Split = session.SplitMode.None
+        InPane2 = false
+        if splitBar then tkWidget_Destroy( splitBar )
+        splitBar = 0
+        if splitFoot then tkWidget_Destroy( splitFoot )
+        splitFoot = 0
+    else
+        if (nxt = 0) andalso (d = Pane1) then
+            nxt = this.NewDocument( )
+            Mru.Push( nxt )
+        end if
+        if Pane1 = d then Pane1 = nxt
+        if Pane2 = d then Pane2 = nxt
     end if
-    if Pane1 = d then Pane1 = nxt
-    if Pane2 = d then Pane2 = nxt
     d->DestroyViews( )
     delete d
     this.Layout( )
@@ -1482,6 +1496,8 @@ sub Window.ToggleSplit( byval mode as session.SplitMode )
         Pane2 = 0
         if splitBar then tkWidget_Destroy( splitBar )
         splitBar = 0
+        if splitFoot then tkWidget_Destroy( splitFoot )
+        splitFoot = 0
     else
         if Split = session.SplitMode.None then
             dim as DocRef b = 0
@@ -1503,7 +1519,7 @@ sub Window.ToggleSplit( byval mode as session.SplitMode )
         dim as long orient = TKSPLITTER_VERTICAL
         if mode = session.SplitMode.Horizontal then orient = TKSPLITTER_HORIZONTAL
         splitBar = tkSplitter_Create( tkForm_Widget( form ), ID_SPLIT, orient )
-        tkSplitter_SetPosChangedCallback( splitBar, sub( byval h as TK_WIDGET ptr, byval newPos as long, byval nPhase as long )
+        dim as SPL_PosChangedCallbackSub moved = sub( byval h as TK_WIDGET ptr, byval newPos as long, byval nPhase as long )
             dim as Window ptr mw = WindowOfWidget( h )
             if mw = 0 then exit sub
             dim as TK_WIDGET ptr root = tkForm_Widget( mw->form )
@@ -1517,7 +1533,14 @@ sub Window.ToggleSplit( byval mode as session.SplitMode )
                 if ah > sh + bar then mw->SplitRatio = (newPos - sh) / (ah - sh - bar)
             end if
             mw->Layout( )
-        end sub )
+        end sub
+        tkSplitter_SetPosChangedCallback( splitBar, moved )
+        if splitFoot then tkWidget_Destroy( splitFoot )
+        splitFoot = 0
+        if mode = session.SplitMode.Vertical then
+            splitFoot = tkSplitter_Create( tkForm_Widget( form ), ID_SPLIT2, orient )
+            tkSplitter_SetPosChangedCallback( splitFoot, moved )
+        end if
     end if
     this.Layout( )
     this.View( ).Focus( )
@@ -3029,28 +3052,5 @@ sub Window.OpenSearchHit( byval i as long )
     if (i < 0) orelse (i >= Found.Count( )) then exit sub
     dim as SearchHit hh = Found[i]
     this.JumpTo( hh.Path, hh.Line, hh.Column, hh.Length )
-end sub
-
-' Ctrl+Shift+H / Ctrl+Shift+C: the header beside a source file (x.tiko -> x.ti, x.bas -> x.bi) or
-' the source beside a header, opened when it exists.
-sub Window.GoToCompanion( byval header as boolean )
-    dim as ustring p = this.ActivePath( )
-    if len( p ) = 0 then exit sub
-    dim as ustring stem = fs.PathJoin( fs.PathParent( p ), fs.PathStem( p ) )
-    dim as Array( of ustring ) tries
-    if header then
-        tries.Push( stem & ".ti" )
-        tries.Push( stem & ".bi" )
-    else
-        tries.Push( stem & ".tiko" )
-        tries.Push( stem & ".bas" )
-    end if
-    for each f as ustring in tries
-        if fs.IsFile( f ) then
-            this.JumpTo( f, -1, 0, 0 )
-            exit sub
-        end if
-    next
-    this.SetMessage( "no " & fs.PathFileName( tries[0] ) )
 end sub
 
