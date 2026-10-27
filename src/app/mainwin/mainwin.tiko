@@ -98,10 +98,10 @@ const DISK_CHECK_MS = 1000
 public enum StatusPanel explicit
     Buffer = 0          ' the active buffer's name, its full path the tooltip; a click lists the buffers
     Message             ' stretches: build results, config errors
-    Position            ' Ln, Col; a click goes to a line
-    Build               ' the build configuration; a click opens settings.toml
-    Encoding            ' a click opens settings.toml
-    LineEnding          ' a click opens settings.toml
+    Position            ' Ln, Col; a click opens Go to Line, or closes it
+    Build               ' the build configuration; a click picks one
+    Encoding            ' a click picks one
+    LineEnding          ' a click converts
 end enum
 
 ' What the one chooser popup is choosing.
@@ -109,6 +109,8 @@ public enum PickKind explicit
     None = 0
     Buffers
     Recent
+    Encoding
+    LineEnding
     Build
     Bookmarks
     Symbols             ' Ctrl+P: files and definitions
@@ -471,8 +473,15 @@ function Window.Create( byval forcedScale as single ) as boolean
         if mw = 0 then exit sub
         select case idx
         case StatusPanel.Buffer : mw->OpenChooser( PickKind.Buffers )
-        case StatusPanel.Position : mw->Execute( Cmd.GoToLine )
-        case StatusPanel.Build, StatusPanel.Encoding, StatusPanel.LineEnding : mw->Execute( Cmd.Settings )
+        case StatusPanel.Position
+            if mw->Finder.isOpen andalso (mw->Finder.Mode = findstrip.StripMode.GoTo) then
+                mw->OnFind( findstrip.FindAction.CloseStrip )
+            else
+                mw->Execute( Cmd.GoToLine )
+            end if
+        case StatusPanel.Build : mw->OpenChooser( PickKind.Build )
+        case StatusPanel.Encoding : mw->OpenChooser( PickKind.Encoding )
+        case StatusPanel.LineEnding : mw->OpenChooser( PickKind.LineEnding )
         end select
     end sub )
     tkStatusBar_SetTooltipCallback( status, function( byval hBar as TK_WIDGET ptr, byval idx as long ) as ustring
@@ -1633,6 +1642,18 @@ sub Window.OpenChooser( byval kind as PickKind )
         for i as long = 0 to Recent.Count( ) - 1
             rows.Push( Row( " ", fs.PathFileName( Recent.Item( i ) ), fs.PathParent( Recent.Item( i ) ), i ) )
         next
+    case PickKind.Encoding
+        Chooser.Filter = false
+        for e as long = docencoding.FileEncoding.Ansi to docencoding.FileEncoding.Utf16Bom
+            dim as ustring mark = " "
+            if (this.Active( ) <> 0) andalso (clng( this.Active( )->Enc.Encoding ) = e) then mark = "*"
+            rows.Push( Row( mark, docencoding.EncodingName( cast( docencoding.FileEncoding, e ) ), "", e ) )
+        next
+    case PickKind.LineEnding
+        Chooser.Filter = false
+        rows.Push( Row( " ", "CRLF", "Windows", clng( docencoding.LineEnd.CrLf ) ) )
+        rows.Push( Row( " ", "LF", "Linux, macOS", clng( docencoding.LineEnd.Lf ) ) )
+        rows.Push( Row( " ", "CR", "classic Mac", clng( docencoding.LineEnd.Cr ) ) )
     case PickKind.Bookmarks
         Marks.Clear( )
         for each d as DocRef in Mru
@@ -1691,6 +1712,8 @@ sub Window.Chosen( byval tag as long )
     case PickKind.Recent
         dim as ustring p = Recent.Item( tag )
         if len( p ) then this.OpenFile( p )
+    case PickKind.Encoding : this.SetEncoding( cast( docencoding.FileEncoding, tag ) )
+    case PickKind.LineEnding : this.SetLineEnding( cast( docencoding.LineEnd, tag ) )
     case PickKind.Build
         if (tag >= 0) andalso (tag < Prefs.Builds.Count( )) then CurrentBuild = Prefs.Builds[tag].Name
     case PickKind.Symbols, PickKind.Functions
