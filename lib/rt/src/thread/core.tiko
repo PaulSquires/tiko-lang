@@ -110,7 +110,9 @@ sub tkort_ThreadWait alias "fb_ThreadWait" ( byval thread as FBTHREAD ptr )
 	dim as FB_FBTHREADCTX ptr ctx = any
 
 	if( thread = nullptr ) then exit sub
-	if( (thread->flags and (FBTHREAD_MAIN or FBTHREAD_DETACHED)) <> 0 ) then exit sub
+	'' READ UNDER THE FLAG LOCK, as an OR of 0: the thread sets EXITED under it
+	'' while this runs (TK-005; thread/self.tiko).
+	if( (fb_AtomicSetThreadFlags( @thread->flags, 0 ) and (FBTHREAD_MAIN or FBTHREAD_DETACHED)) <> 0 ) then exit sub
 
 	ctx = TKORT_TLSGET_FBTHREAD()
 	if( ctx <> nullptr ) then
@@ -206,7 +208,9 @@ sub tkort_ThreadWait alias "fb_ThreadWait" ( byval thread as FBTHREAD ptr )
 	dim as FB_FBTHREADCTX ptr ctx = any
 
 	if( thread = nullptr ) then exit sub
-	if( (thread->flags and (FBTHREAD_MAIN or FBTHREAD_DETACHED)) <> 0 ) then exit sub
+	'' READ UNDER THE FLAG LOCK, as an OR of 0: the thread sets EXITED under it
+	'' while this runs (TK-005; thread/self.tiko).
+	if( (fb_AtomicSetThreadFlags( @thread->flags, 0 ) and (FBTHREAD_MAIN or FBTHREAD_DETACHED)) <> 0 ) then exit sub
 
 	ctx = TKORT_TLSGET_FBTHREAD()
 	if( ctx <> nullptr ) then

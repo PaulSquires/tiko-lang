@@ -25,10 +25,22 @@
 '' slot that was never set up says "not mine". Re-raising with the default
 '' handler restored is what makes the process die the way it would have.
 ''
-'' AND IT RE-RAISES INSIDE THE HANDLER, which is only safe because the handler
-'' for that signal is no longer this one -- signal() on Windows and on glibc
-'' resets to SIG_DFL before the handler runs. Without that this would recurse
-'' until the stack ran out.
+'' AND IT RE-RAISES INSIDE THE HANDLER, after putting SIG_DFL back itself. Windows'
+'' signal() resets to SIG_DFL before the handler runs; glibc's does NOT (BSD
+'' semantics: the handler stays installed), so a re-raise that relied on the reset
+'' would come straight back here.
+''
+'' NOTHING IN THE HANDLER MAY ALLOCATE (TK-004). glibc reports a corrupt heap by
+'' aborting inside malloc with the arena's lock held; a handler that then reaches
+'' calloc -- fb_ErrorThrowEx creating the thread's error context -- waits on that
+'' lock for ever, and so does a second signal (a TERM to end the hang) that comes
+'' through the same path. fbc does exactly that: measured, a multithreaded fbc program
+'' whose heap a library's destructor finds corrupt hangs until it is killed. So the
+'' thread's error context is PEEKED, never created: with none there is no ON ERROR
+'' handler either, and the die path runs without it. After fb_hRtExit (a library's
+'' clean-up, after the program's) the message goes straight to stderr and the
+'' process _exits with the error number (tkort_SigDie). A fatal signal while one is
+'' being handled takes the default action instead of coming back in.
 ''
 '' fb_End IS CALLED IF THE USER HANDLER RETURNS. An ON ERROR handler that does
 '' not RESUME cannot continue from a SIGSEGV -- the faulting instruction would
@@ -100,6 +112,24 @@ extern "rtlib"   '' FBCALL: fb_End is decorated, `_fb_End@4` on win32.
 	declare sub tkrt_End alias "fb_End" ( byval errlevel as int32 )
 end extern
 
+extern "c"   '' NON-FBCALL: tiko-rt internals (thread/ctx.tiko, err/throw.tiko).
+	declare function tkrt_TlsPeekCtx alias "tkort_TlsPeekCtx" ( byval index_ as int32 ) as any ptr
+	declare sub tkrt_SigDie alias "tkort_SigDie" ( byval err_num as int32, byval rtGone as int32 )
+	declare function tkrt_RtGone alias "tkort_RtGone" ( ) as int32   '' init/rtinit.tiko
+end extern
+
+const TKORT_TLSKEY_ERROR = 0             '' inc/thread.ti's FB_TLSKEY_ERROR
+
+'' A fatal signal is being handled: a second one takes the default action.
+dim shared as int32 tkort_sigBusy
+'
+'' The default action, for a signal this handler will not take: SIG_DFL put back first, because
+'' glibc's signal() left this handler installed.
+private sub tkort_sig_default( byval sig as int32 )
+	crt_signal( sig, cast( FB_SIGHANDLER_PROC, 0 ) )
+	crt_raise( sig )
+end sub
+
 #ifdef __FB_WIN32__
 
 	const EXCEPTION_ACCESS_VIOLATION_    = &hC0000005u
@@ -138,13 +168,33 @@ private sub tkort_gen_handler cdecl ( byval sig as int32 )
 	'' FB_RTERROR_OK is zero. Re-raise rather than handle.
 	if( (sig < 0) orelse (sig >= TKORT_NSIG) orelse _
 	    (tkort_sigTb(sig).errnum = FB_RTERROR_OK) ) then
-		'' SAFE ONLY BECAUSE signal() RESET THIS SIGNAL TO SIG_DFL before
-		'' calling us -- otherwise this recurses until the stack is gone.
-		crt_raise( sig )
+		tkort_sig_default( sig )
 		exit sub
 	end if
 
-	'' The user's ON ERROR handler, if the program installed one.
+	'' A SECOND FATAL SIGNAL WHILE THE FIRST IS HANDLED: the default action. The
+	'' first one's clean-up faulted again, or someone is ending a stuck process.
+	if( tkort_sigBusy <> 0 ) then
+		tkort_sig_default( sig )
+		exit sub
+	end if
+	tkort_sigBusy = 1
+
+	'' PEEKED, NOT CREATED -- see the file header. No context: no handler either.
+	'' And after fb_hRtExit began, nothing of the runtime is left to unwind.
+	dim as int32 gone = tkrt_RtGone( )
+	dim as FB_ERRORCTX ptr ectx = tkrt_TlsPeekCtx( TKORT_TLSKEY_ERROR )
+	if( (gone <> 0) orelse (ectx = nullptr) ) then
+		tkrt_SigDie( tkort_sigTb(sig).errnum, gone )
+		exit sub
+	end if
+
+	'' A HANDLER THAT RESUMES leaves this frame for good, so the guard is lowered
+	'' first; without one the guard stays up through the exit below.
+	if( ectx->handler <> nullptr ) then tkort_sigBusy = 0
+
+	'' The user's ON ERROR handler, if the program installed one. The context
+	'' exists, so fb_ErrorThrowEx allocates nothing.
 	dim as FB_ERRHANDLER handler = tkrt_ErrorThrowEx( tkort_sigTb(sig).errnum, -1, nullptr, nullptr, nullptr )
 	if( handler <> nullptr ) then handler( )
 
