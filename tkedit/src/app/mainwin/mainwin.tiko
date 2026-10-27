@@ -65,6 +65,7 @@
 #import "vendor/tkControls/tkPopupMenu"
 #import "vendor/tkControls/tkSplitter"
 #import "vendor/tkControls/tkStatusBar"
+#import "vendor/tkControls/tkTabBar"
 #import "vendor/tkControls/tkTheme"
 using containers
 using outcome
@@ -80,6 +81,7 @@ using tkPaint
 using tkPopupMenu
 using tkSplitter
 using tkStatusBar
+using tkTabBar
 using tkTheme
 
 public const FONT_UI = "Inter-Regular.ttf"
@@ -94,6 +96,8 @@ public const SPLIT_BAR = 5               ' the bar between the two panes, unscal
 const ID_STATUS = 101
 const ID_STATUS2 = 107
 const ID_SPLIT2 = 108
+const ID_TABS = 109
+const TABS_CY = 28                        ' the tab strip, unscaled
 const ID_SPLIT = 103
 const ID_FINDSTRIP = 104
 const ID_OUTPUT = 105
@@ -390,6 +394,7 @@ public type Window
     form as TK_FORM ptr
     status as TK_WIDGET ptr             ' pane 1's status line (the only one, unsplit)
     status2 as TK_WIDGET ptr            ' pane 2's, while split
+    tabs as TK_WIDGET ptr               ' [ui] tab_strip: a tab per buffer in open order, above the panes
     lastTitle as ustring
     splitBar as TK_WIDGET ptr
     splitFoot as TK_WIDGET ptr          ' a left/right split's bar through the status row, between the two
@@ -413,6 +418,9 @@ public type Window
     declare function StatusText( byval p as StatusPanel ) as ustring
     declare function StatusTip( byval p as StatusPanel, byval second as boolean = false ) as ustring   ' "" = none
     declare function StatusHeight( ) as long
+    declare function TabsHeight( ) as long                     ' 0 when [ui] tab_strip is off
+    declare sub SyncTabs( )
+    declare sub TabsReordered( )
     declare function BottomHeight( ) as long                   ' the status line, and the strip above it
     declare function OutputHeight( ) as long                   ' 0 when the pane is hidden
     declare sub SetMessage( byref s as const ustring )
@@ -603,6 +611,35 @@ function Window.Create( byval forcedScale as single ) as boolean
     status2 = this.NewStatusBar( root, ID_STATUS2 )
     tkWidget_Show( status2, false )
 
+    ' the tab strip ([ui] tab_strip, author 2026-10-27): a click shows that buffer in the focused
+    ' pane, as Ctrl+E does; the X (or a middle click) closes it, asking first if it is modified;
+    ' a drag reorders the buffers, which Ctrl+Tab then follows
+    tabs = tkTabBar_Create( root, ID_TABS )
+    tkTabBar_ApplyFonts( tabs, tkForm_Font( form, TKFONT_UI ), tkForm_Font( form, TKFONT_GLYPH ) )
+    tkTabBar_SetSelChangeCallback( tabs, sub( byval hBar as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long )
+        dim as Window ptr mw = WindowOfWidget( hBar )
+        if mw = 0 then exit sub
+        mw->ShowDoc( cast( DocRef, tkTabBar_GetItemData( hBar, idxNew ) ) )
+        mw->SyncTabs( )                          ' a pick of the other pane's buffer focuses that pane
+    end sub )
+    tkTabBar_SetCloseCallback( tabs, sub( byval hBar as TK_WIDGET ptr, byval idx as long )
+        dim as Window ptr mw = WindowOfWidget( hBar )
+        if mw = 0 then exit sub
+        mw->CloseDoc( cast( DocRef, tkTabBar_GetItemData( hBar, idx ) ) )
+        mw->ShowStatus( )                        ' the tabs follow, a cancel included
+    end sub )
+    tkTabBar_SetReorderCallback( tabs, sub( byval hBar as TK_WIDGET ptr, byval idxFrom as long, byval idxTo as long )
+        dim as Window ptr mw = WindowOfWidget( hBar )
+        if mw then mw->TabsReordered( )
+    end sub )
+    tkTabBar_SetTooltipCallback( tabs, function( byval hBar as TK_WIDGET ptr, byval idx as long ) as ustring
+        dim as DocRef d = cast( DocRef, tkTabBar_GetItemData( hBar, idx ) )
+        if d = 0 then return ""
+        if len( d->Path ) then return d->Path
+        return d->DisplayName( )
+    end function )
+    tkWidget_Show( tabs, false )
+
     ' a view's right-click menu: commands by id, through Execute like their keys
     editMenu = tkPopupMenu_Create( tkForm_Host( form ) )
     ' (its rows' text: LabelEditMenu, from ReloadSettings, in the interface's language)
@@ -780,7 +817,12 @@ sub Window.Layout( )
         tkWidget_SetPos( Out.frame, 0, bottom - fh - oh, cx, oh )
     end if
     tkWidget_Show( Out.frame, OutputShown )
-    dim as long ah = bottom - fh - oh            ' the panes' area
+    dim as long top = this.TabsHeight( )         ' the tab strip, above the panes
+    if tabs then
+        tkWidget_Show( tabs, top > 0 )
+        if top > 0 then tkWidget_SetPos( tabs, 0, 0, cx, top )
+    end if
+    dim as long ah = bottom - fh - oh - top      ' the panes' area, from y = top
     dim as boolean split_ = this.IsSplit( )
     dim as TK_WIDGET ptr v1 = 0, v2 = 0
     if Pane1 then v1 = Pane1->Main.Widget( )
@@ -795,7 +837,7 @@ sub Window.Layout( )
     if v1 = 0 then exit sub
     tkWidget_Show( v1, true )
     if split_ = false then
-        tkWidget_SetPos( v1, 0, 0, cx, ah )
+        tkWidget_SetPos( v1, 0, top, cx, ah )
         tkWidget_SetPos( status, 0, bottom, cx, sh )
         exit sub
     end if
@@ -803,25 +845,25 @@ sub Window.Layout( )
     tkWidget_Show( v2, true )
     if Split = session.SplitMode.Vertical then
         dim as long w1 = cint( (cx - bar) * SplitRatio )
-        tkWidget_SetPos( v1, 0, 0, w1, ah )
-        tkWidget_SetPos( splitBar, w1, 0, bar, ah )
-        tkWidget_SetPos( v2, w1 + bar, 0, cx - w1 - bar, ah )
+        tkWidget_SetPos( v1, 0, top, w1, ah )
+        tkWidget_SetPos( splitBar, w1, top, bar, ah )
+        tkWidget_SetPos( v2, w1 + bar, top, cx - w1 - bar, ah )
         ' the bar goes on through the status row, between the two status lines (author 2026-10-27);
         ' the output pane and the find strip, full width, sit over it
         tkWidget_SetPos( status, 0, bottom, w1, sh )
         tkWidget_SetPos( splitFoot, w1, bottom, bar, sh )
         tkWidget_SetPos( status2, w1 + bar, bottom, cx - w1 - bar, sh )
-        if (fh = 0) andalso (oh = 0) then tkWidget_SetPos( splitBar, w1, 0, bar, cy )   ' one piece, top to bottom
+        if (fh = 0) andalso (oh = 0) then tkWidget_SetPos( splitBar, w1, top, bar, cy - top )   ' one piece, to the bottom
         tkSplitter_SetRange( splitBar, tkForm_Scale( form, 60 ), cx - bar - tkForm_Scale( form, 60 ) )
         tkSplitter_SetRange( splitFoot, tkForm_Scale( form, 60 ), cx - bar - tkForm_Scale( form, 60 ) )
     else
         dim as long h1 = cint( (ah - sh - bar) * SplitRatio )
-        tkWidget_SetPos( v1, 0, 0, cx, h1 )
-        tkWidget_SetPos( status, 0, h1, cx, sh )
-        tkWidget_SetPos( splitBar, 0, h1 + sh, cx, bar )
-        tkWidget_SetPos( v2, 0, h1 + sh + bar, cx, ah - h1 - sh - bar )
+        tkWidget_SetPos( v1, 0, top, cx, h1 )
+        tkWidget_SetPos( status, 0, top + h1, cx, sh )
+        tkWidget_SetPos( splitBar, 0, top + h1 + sh, cx, bar )
+        tkWidget_SetPos( v2, 0, top + h1 + sh + bar, cx, ah - h1 - sh - bar )
         tkWidget_SetPos( status2, 0, bottom, cx, sh )
-        tkSplitter_SetRange( splitBar, sh + tkForm_Scale( form, 40 ), ah - bar - tkForm_Scale( form, 40 ) )
+        tkSplitter_SetRange( splitBar, top + sh + tkForm_Scale( form, 40 ), top + ah - bar - tkForm_Scale( form, 40 ) )
     end if
 end sub
 
@@ -845,6 +887,47 @@ sub Window.ShowStatus( )
     this.FillStatus( status, Pane1, (split_ = false) orelse (InPane2 = false) )
     if split_ then this.FillStatus( status2, Pane2, InPane2 )
     this.ShowTitle( )                            ' the caption names the focused pane's buffer
+    this.SyncTabs( )
+end sub
+
+function Window.TabsHeight( ) as long
+    if (tabs = 0) orelse (Prefs.TabStrip = false) then return 0
+    return tkForm_Scale( form, TABS_CY )
+end function
+
+' The tabs as the buffers are: one per buffer in open order, its name and " *" when modified,
+' the focused pane's selected. Rebuilt only when the buffers changed; silent (setters do not notify).
+sub Window.SyncTabs( )
+    if this.TabsHeight( ) = 0 then exit sub
+    dim as long n = Docs.Count( )
+    dim as boolean same = (tkTabBar_GetCount( tabs ) = n)
+    for i as long = 0 to n - 1
+        if same = false then exit for
+        if tkTabBar_GetItemData( tabs, i ) <> cast( integer, Docs[i] ) then same = false
+    next
+    if same = false then tkTabBar_Clear( tabs )
+    dim as long sel = -1
+    for i as long = 0 to n - 1
+        dim as DocRef d = Docs[i]
+        dim as ustring txt = d->DisplayName( )
+        if d->IsModified( ) then txt &= " *"
+        if same = false then
+            tkTabBar_AddTab( tabs, txt, cast( integer, d ) )
+        elseif tkTabBar_GetText( tabs, i ) <> txt then
+            tkTabBar_SetText( tabs, i, txt )
+        end if
+        if d = this.Active( ) then sel = i
+    next
+    if tkTabBar_GetCurSel( tabs ) <> sel then tkTabBar_SetCurSel( tabs, sel )
+end sub
+
+' A tab was dragged: the buffers take the tabs' order (open order: Ctrl+Tab, the tabs, the session).
+sub Window.TabsReordered( )
+    dim as Array( of DocRef ) order
+    for i as long = 0 to tkTabBar_GetCount( tabs ) - 1
+        order.Push( cast( DocRef, tkTabBar_GetItemData( tabs, i ) ) )
+    next
+    if order.Count( ) = Docs.Count( ) then Docs = order
 end sub
 
 ' bar's panels for d, the buffer of its pane; the message only on the focused pane's.
@@ -1191,6 +1274,7 @@ sub Window.ReloadSettings( )
     this.ReloadLanguage( )
     this.ApplyStatusPanels( )
     this.ReloadTheme( )
+    this.Layout( )                              ' [ui] tab_strip may have come or gone
     this.ShowStatus( )
 end sub
 
@@ -1792,8 +1876,9 @@ sub Window.ToggleSplit( byval mode as session.SplitMode )
             else
                 ' pane 1's status line sits between pane 1 and the bar
                 dim as long sh = mw->StatusHeight( )
-                dim as long ah = root->ch - mw->BottomHeight( ) - mw->OutputHeight( )
-                if ah > sh + bar then mw->SplitRatio = (newPos - sh) / (ah - sh - bar)
+                dim as long top = mw->TabsHeight( )
+                dim as long ah = root->ch - mw->BottomHeight( ) - mw->OutputHeight( ) - top
+                if ah > sh + bar then mw->SplitRatio = (newPos - top - sh) / (ah - sh - bar)
             end if
             mw->Layout( )
         end sub

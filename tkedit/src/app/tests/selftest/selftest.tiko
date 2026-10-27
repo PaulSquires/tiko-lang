@@ -911,6 +911,127 @@ end sub
 
 ' P2: session.toml -- the buffers, the active one, the split and the pane-2 buffer, the build,
 ' the caret, the recent files -- written by one window and restored by the next.
+' ================================================================ the tab strip ([ui] tab_strip)
+
+' Clicks the middle of tab idx's rect, or of its X when onClose, in window pixels.
+private sub ClickTab( byref mw as mainwin.Window, byval idx as long, byval onClose as boolean = false )
+    dim as TKRECT rp, rt, ri, rx
+    tkTabBar_GetTabParts( mw.tabs, idx, rp, rt, ri, rx )
+    if onClose then rp = rx
+    tkTest_Click( tkForm_Host( mw.form ), mw.tabs->x + (rp.left + rp.right) \ 2, mw.tabs->y + (rp.top + rp.bottom) \ 2 )
+    tkTest_PumpFor( tkForm_Host( mw.form ), 60 )
+end sub
+
+' Writes settings.toml with tab_strip on or off and applies it, as saving it in tkEdit does.
+private sub SetTabStrip( byref mw as mainwin.Window, byval onOff as boolean )
+    dim as ustring v = "false"
+    if onOff then v = "true"
+    fs.WriteAtomic( mw.SettingsFile( ), "version = 1" & chr( 10 ) & "[ui]" & chr( 10 ) & "tab_strip = " & v & chr( 10 ) )
+    mw.ReloadSettings( )
+    tkTest_PumpFor( tkForm_Host( mw.form ), 60 )
+end sub
+
+public sub TabsPass( byref t as Tally, byval sc as single )
+    dim as mainwin.Window mw
+    mw.ConfigDir = FreshConfig( )
+    mw.Ask = @ScriptedAsk
+    mw.Pick = @ScriptedPick
+    gAnswerCount = 0
+    t.Check( mw.Create( sc ), P( sc, "tabs: main window created" ) )
+    if mw.form = 0 then exit sub
+    mw.Show( )
+    dim as TK_HOST ptr h = tkForm_Host( mw.form )
+    tkTest_PumpFor( h, 150 )
+    dim as TK_WIDGET ptr root = tkForm_Widget( mw.form )
+    dim as long cx = root->cw, cy = root->ch, sh = mw.StatusHeight( )
+    dim as ustring dir_ = Files( )
+    dim as ustring pathA = fs.PathJoin( dir_, "a.tiko" ), pathB = fs.PathJoin( dir_, "b.tiko" ), pathC = fs.PathJoin( dir_, "c.tiko" )
+    WriteBytes( pathA, "dim a as long" & chr( 10 ) )
+    WriteBytes( pathB, "dim b as long" & chr( 10 ) )
+    WriteBytes( pathC, "dim c as long" & chr( 10 ) )
+    mw.OpenFile( pathA )
+    mw.OpenFile( pathB )
+    mw.OpenFile( pathC )
+
+    ' ---- off by default: no strip, the editor from the top as before
+    dim as TK_WIDGET ptr vv = mw.View( ).Widget( )
+    t.Check( (mw.TabsHeight( ) = 0) andalso (tkWidget_IsVisible( mw.tabs ) = false) andalso (vv->y = 0) andalso (vv->ch = cy - sh), _
+             P( sc, strings.Format( "tab_strip off by default: no strip, the editor at y {}", vv->y ) ) )
+
+    ' ---- on: the strip across the top, the editor below it, down to the status line
+    SetTabStrip( mw, true )
+    dim as long th = tkForm_Scale( mw.form, 28 )
+    vv = mw.View( ).Widget( )
+    t.Check( tkWidget_IsVisible( mw.tabs ) andalso (mw.tabs->x = 0) andalso (mw.tabs->y = 0) andalso (mw.tabs->cw = cx) andalso (mw.tabs->ch = th), _
+             P( sc, strings.Format( "tab_strip on: the strip at 0,0 {}x{}", mw.tabs->cw, mw.tabs->ch ) ) )
+    t.Check( (vv->y = th) andalso (vv->ch = cy - sh - th) andalso (mw.status->y = cy - sh), _
+             P( sc, strings.Format( "the editor below it: y {} height {}", vv->y, vv->ch ) ) )
+    t.Check( (tkTabBar_GetCount( mw.tabs ) = 3) andalso (tkTabBar_GetText( mw.tabs, 0 ) = "a.tiko") andalso _
+             (tkTabBar_GetText( mw.tabs, 2 ) = "c.tiko") andalso (tkTabBar_GetCurSel( mw.tabs ) = 2), _
+             P( sc, strings.Format( "a tab per buffer in open order, the active selected ({} tabs, sel {})", tkTabBar_GetCount( mw.tabs ), tkTabBar_GetCurSel( mw.tabs ) ) ) )
+    t.Check( (tkTabBar_GetClosable( mw.tabs, 0 ) = true) andalso (tkTabBar_GetGlyph( mw.tabs, 0 ) = ""), P( sc, "every tab has its X" ) )
+
+    ' ---- a click shows that buffer; an edit marks its tab
+    ClickTab( mw, 0 )
+    t.Check( (lcase( mw.ActivePath( ) ) = lcase( pathA )) andalso (tkTabBar_GetCurSel( mw.tabs ) = 0), P( sc, "a click on a.tiko's tab shows a.tiko: " & mw.ActivePath( ) ) )
+    tkTest_PushText( h, "x" )
+    tkTest_PumpFor( h, 30 )
+    t.Check( tkTabBar_GetText( mw.tabs, 0 ) = "a.tiko *", P( sc, "an edit marks the tab: " & tkTabBar_GetText( mw.tabs, 0 ) ) )
+    Chord( h, SDLK_N, SDL_SCANCODE_N, SDL_KMOD_CTRL )
+    t.Check( (tkTabBar_GetCount( mw.tabs ) = 4) andalso (tkTabBar_GetCurSel( mw.tabs ) = 3), P( sc, "Ctrl+N adds a tab, selected" ) )
+    mw.CloseDoc( mw.Active( ) )
+    t.Check( tkTabBar_GetCount( mw.tabs ) = 3, P( sc, "closing it some other way takes its tab" ) )
+
+    ' ---- the X: a modified buffer asks (Cancel keeps it), an unmodified one goes at once
+    gAsked = 0
+    Answer( MBX_IDCANCEL )
+    ClickTab( mw, 0, true )
+    t.Check( (gAsked = 1) andalso (mw.FindOpen( pathA ) <> 0) andalso (tkTabBar_GetCount( mw.tabs ) = 3), _
+             P( sc, strings.Format( "the X on a modified tab asks; Cancel keeps it ({} asked, {} tabs)", gAsked, tkTabBar_GetCount( mw.tabs ) ) ) )
+    gAsked = 0
+    ClickTab( mw, 1, true )
+    t.Check( (gAsked = 0) andalso (mw.FindOpen( pathB ) = 0) andalso (tkTabBar_GetCount( mw.tabs ) = 2) andalso _
+             (tkTabBar_GetText( mw.tabs, 1 ) = "c.tiko"), P( sc, "the X on an unmodified tab closes it without asking" ) )
+
+    ' ---- a drag reorders the buffers too
+    tkTabBar_MoveTab( mw.tabs, 0, 1 )
+    mw.TabsReordered( )
+    t.Check( (lcase( mw.Docs[0]->Path ) = lcase( pathC )) andalso (lcase( mw.Docs[1]->Path ) = lcase( pathA )), P( sc, "a moved tab moves its buffer in open order" ) )
+    mw.ShowStatus( )
+    t.Check( (tkTabBar_GetText( mw.tabs, 0 ) = "c.tiko") andalso (tkTabBar_GetCount( mw.tabs ) = 2), P( sc, "and the tabs stay as moved" ) )
+
+    ' ---- split: both panes and the bar start below the strip; a tab shows its buffer in the focused pane
+    mw.OpenFile( pathB )
+    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL )
+    dim as TK_WIDGET ptr v1 = mw.Pane1->Main.Widget( ), v2 = mw.Pane2->Main.Widget( )
+    t.Check( (mw.Split = session.SplitMode.Vertical) andalso (v1->y = th) andalso (v2->y = th) andalso (mw.splitBar->y = th) andalso _
+             (v1->ch = cy - sh - th), P( sc, strings.Format( "left/right: both panes below the strip ({} {} bar {})", v1->y, v2->y, mw.splitBar->y ) ) )
+    dim as long sel = -1
+    for i as long = 0 to mw.Docs.Count( ) - 1
+        if mw.Docs[i] = mw.Active( ) then sel = i
+    next
+    t.Check( tkTabBar_GetCurSel( mw.tabs ) = sel, P( sc, "the focused pane's buffer is the selected tab" ) )
+    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    v1 = mw.Pane1->Main.Widget( )
+    v2 = mw.Pane2->Main.Widget( )
+    dim as long bar = mw.splitBar->ch
+    dim as long h1 = cint( (cy - th - sh - sh - bar) * 0.5 )
+    t.Check( (mw.Split = session.SplitMode.Horizontal) andalso (v1->y = th) andalso (v1->ch = h1) andalso (mw.status->y = th + h1) andalso _
+             (v2->y = th + h1 + sh + bar) andalso (v2->y + v2->ch = cy - sh), _
+             P( sc, strings.Format( "top/bottom under the strip: {} {} / status {} / {} {}", v1->y, v1->ch, mw.status->y, v2->y, v2->ch ) ) )
+    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+
+    ' ---- off again: gone, the editor back at the top
+    SetTabStrip( mw, false )
+    vv = mw.View( ).Widget( )
+    t.Check( (tkWidget_IsVisible( mw.tabs ) = false) andalso (vv->y = 0) andalso (vv->ch = cy - sh), P( sc, "tab_strip off: the strip gone, the editor at the top" ) )
+
+    for each d as DocRef in mw.Docs
+        d->Main.SetSavePoint( )
+    next
+    mw.Destroy( )
+end sub
+
 public sub SessionPass( byref t as Tally, byval sc as single )
     dim as ustring cfg = FreshConfig( )
     dim as ustring dir_ = Files( )

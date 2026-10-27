@@ -35,6 +35,8 @@ if command( 1 ) = "--selftest" then
     selftest.Pass( t, 1.75 )
     selftest.ConfigPass( t, 1.0 )
     selftest.BufferPass( t, 1.0 )
+    selftest.TabsPass( t, 1.0 )
+    selftest.TabsPass( t, 1.75 )
     selftest.SessionPass( t, 1.0 )
     selftest.FindPass( t, 1.0 )
     selftest.FindPass( t, 1.75 )
