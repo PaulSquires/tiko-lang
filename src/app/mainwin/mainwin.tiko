@@ -29,6 +29,7 @@
 #import "tkc/appinfo"
 #import "tkc/autoinsert"
 #import "tkc/build"
+#import "tkc/commented"
 #import "tkc/cmdids"
 #import "tkc/docencoding"
 #import "tkc/format"
@@ -981,7 +982,9 @@ sub Window.ReloadSettings( )
     dim as settings.SettingsResult r = settings.LoadSettings( this.SettingsFile( ) )
     if r.IsOk( ) then
         Prefs = r.Value( )
-        Message = ""
+        ' a default edited but left commented out does nothing: say so
+        Message = commented.Warning( commented.EditedComments( _
+                      fs.ReadAllText( this.SettingsFile( ) ).ValueOr( "" ), settings.Template( ) ) )
     else
         Message = strings.Format( "{}:{}: {}", settings.SETTINGS_FILE, r.Failure( ).Line( ), r.Failure( ).Detail( ) )
     end if
@@ -1015,7 +1018,9 @@ sub Window.ReloadKeys( )
     this.RebuildAccelerators( )
     this.BuildMenus( )
     if notes.Count( ) = 0 then
-        Message = ""
+        dim as keybind.KeyMap defaults
+        Message = commented.Warning( commented.EditedComments( _
+                      fs.ReadAllText( this.KeysFile( ) ).ValueOr( "" ), defaults.ToToml( ).ValueOr( "" ) ) )
     elseif notes.Count( ) = 1 then
         Message = keybind.KEYBINDINGS_FILE & ": " & notes[0]
     else

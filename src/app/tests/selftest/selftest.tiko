@@ -247,6 +247,13 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     t.Check( StripToolsMatch( mw ), P( sc, "and the find strip's buttons follow its new back colour" ) )
     t.Check( mw.Look.Text.Back = &hFFFFFF, P( sc, "and to the view's background" ) )
     t.Check( mw.Message = "", P( sc, "no message: " & mw.Message ) )
+    ' a default changed but left commented out: the status line says so
+    mw.View( ).SetText( "version = 1" & nl & "[editor]" & nl & "tab_size = 2" & nl & "line_numbers = false" & nl & _
+                     "font_size = 20" & nl & "# wrap = true" & nl & "[ui]" & nl & "theme = 'light'" & nl )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    t.Check( mw.Message = "wrap is commented out: remove the # to use it", P( sc, "an edited commented-out key: " & mw.Message ) )
+    t.Check( mw.StatusText( mainwin.StatusPanel.Message ) = mw.Message, P( sc, "in the status line" ) )
+    t.Check( mw.Prefs.Wrap = false, P( sc, "and wrap stays off" ) )
 
     ' a broken file changes nothing and says where
     mw.View( ).SetText( "[editor" & nl & "tab_size = 8" & nl )
