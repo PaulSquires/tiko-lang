@@ -29,7 +29,7 @@ run() {      # run <name> <dir> <command...>
 }
 
 # the editor's Scintilla (tkControls' scintk, built by tkCodeEdit/scintk/build.sh) sits beside the exe
-SCINTK=${SCINTK:-$ROOT/../tkControls/tkCodeEdit/scintk/bin/windows/scintk.dll}
+SCINTK=${SCINTK:-$ROOT/../../tkControls/tkCodeEdit/scintk/bin/windows/scintk.dll}
 
 build src/core && run coreall "$ROOT/src/core" ./tests/bin/coreall.exe
 if [ "${1:-}" != core ] && build src/app; then

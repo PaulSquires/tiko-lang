@@ -7,7 +7,7 @@ version = "0.1.0"
 tkp = { path = "../platform" }
 tkc = { path = "../core" }
 tks = { path = "../svc" }
-tkControls = { path = "../../../tkControls" }
+tkControls = { path = "../../../../tkControls" }   # C:\dev	kControls, beside tiko-lang
 
 [profile.debug]
 options = ["-w", "all"]

@@ -31,7 +31,7 @@ tkEdit [files...]        restores the last session (or project), then opens the 
 | `src/platform` | `tkp` | the only code that tests `TIKO_OS_*` |
 | `src/core` | `tkc` | GUI-free modules, console-tested by `tests/coreall`; `tests/keysdoc` writes KEYS.md |
 | `src/svc` | `tks` | background work: the tikoParser scanner, the build runner |
-| `src/app` | `tka` | the window, on tkControls (path dependency `../tkControls`) |
+| `src/app` | `tka` | the window, on tkControls (path dependency `../../tkControls`: C:\dev	kControls) |
 | `fonts/`, `icons/`, `keywords/`, `themes/` | | resources found beside `bin/` |
 | `src/app/res` | | `tkEdit.rc` + `tkedit.ico`: the exe's icon (Windows); `tools/make-icon.py` draws both icons |
 
@@ -44,7 +44,7 @@ bash tools/test-win.sh
 ```
 
 ```bash
-MSYS_NO_PATHCONV=1 wsl.exe -e bash /mnt/c/dev/tkEdit/tools/test-linux.sh
+MSYS_NO_PATHCONV=1 wsl.exe -e bash /mnt/c/dev/tiko-lang/tkedit/tools/test-linux.sh
 ```
 
 ```bash
@@ -56,7 +56,7 @@ bash tools/idiom.sh
 A release build (the test scripts build debug) writes `bin/tkedit.exe` too, from `src/app`:
 
 ```bash
-TKO_MODCACHE=/c/dev/tkEdit/out/modcache /c/dev/tiko-lang/toolchains/tiko-windows/tiko.exe build --profile release
+TKO_MODCACHE=/c/dev/tiko-lang/tkedit/out/modcache /c/dev/tiko-lang/toolchains/tiko-windows/tiko.exe build --profile release
 ```
 
 `bin/` is the run folder (`bin/tkedit.exe` beside the SDL libraries, `scintk.dll` and
