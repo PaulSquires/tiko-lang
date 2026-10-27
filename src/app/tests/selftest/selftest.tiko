@@ -748,6 +748,16 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Recent) andalso (mw.Chooser.ShownCount( ) = 7), _
              P( sc, strings.Format( "Ctrl+Shift+O lists the recent files ({})", mw.Chooser.ShownCount( ) ) ) )
     PopKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
+    ' a recent file deleted from disk is not offered (still in the list)
+    fs.RemoveFile( pathE )
+    Chord( h, SDLK_O, SDL_SCANCODE_O, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    dim as boolean showsE = false
+    for k as long = 0 to mw.Chooser.Rows.Count( ) - 1
+        if mw.Chooser.Rows[k].Cells[1] = "e.tiko" then showsE = true
+    next
+    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Chooser.ShownCount( ) = 6) andalso (showsE = false) andalso (mw.Recent.Count( ) = 7), _
+             P( sc, strings.Format( "e.tiko, deleted, is not offered ({} shown, {} in the list)", mw.Chooser.ShownCount( ), mw.Recent.Count( ) ) ) )
+    PopKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
 
     mw.Destroy( )
 end sub

@@ -1981,7 +1981,10 @@ sub Window.OpenChooser( byval kind as PickKind )
             rows.Push( Row( mark, d->DisplayName( ), dir_, i ) )
         next
     case PickKind.Recent
+        ' a file that is not on disk is not offered; it stays in the list, so it is back if the file
+        ' (a drive, a share) is (author 2026-10-27)
         for i as long = 0 to Recent.Count( ) - 1
+            if fs.IsFile( Recent.Item( i ) ) = false then continue for
             dim as ustring nm = fs.PathFileName( Recent.Item( i ) )
             if project.IsManifest( Recent.Item( i ) ) then nm &= "  [project]"
             rows.Push( Row( " ", nm, fs.PathParent( Recent.Item( i ) ), i ) )
