@@ -12,7 +12,7 @@
 #import "tkc/settings"
 #import "tkc/themes"
 #import "tka/editor"
-#import "tkControls/tkTheme"
+#import "vendor/tkControls/tkTheme"
 using tkTheme
 
 public function Argb( byval c as long ) as ulong

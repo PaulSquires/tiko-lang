@@ -14,7 +14,7 @@
 #import "std/strings"
 #import "tkc/docencoding"
 #import "tkc/textsearch"
-#import "tkControls/tkCodeEdit"
+#import "vendor/tkControls/tkCodeEdit"
 using containers
 using tkCodeEdit
 using tkHost

@@ -31,7 +31,7 @@ tkEdit [files...]        restores the last session (or project), then opens the 
 | `src/platform` | `tkp` | the only code that tests `TIKO_OS_*` |
 | `src/core` | `tkc` | GUI-free modules, console-tested by `tests/coreall`; `tests/keysdoc` writes KEYS.md |
 | `src/svc` | `tks` | background work: the tikoParser scanner, the build runner |
-| `src/app` | `tka` | the window, on tkControls (path dependency `../../tkControls`: C:\dev	kControls) |
+| `src/app` | `tka` | the window, on tiko's `vendor/tkControls` (it comes with the toolchain) |
 | `fonts/`, `icons/`, `keywords/`, `themes/` | | resources found beside `bin/` |
 | `src/app/res` | | `tkEdit.rc` + `tkedit.ico`: the exe's icon (Windows); `tools/make-icon.py` draws both icons |
 
@@ -59,8 +59,8 @@ A release build (the test scripts build debug) writes `bin/tkedit.exe` too, from
 TKO_MODCACHE=/c/dev/tiko-lang/tkedit/out/modcache /c/dev/tiko-lang/toolchains/tiko-windows/tiko.exe build --profile release
 ```
 
-`bin/` is the run folder (`bin/tkedit.exe` beside the SDL libraries, `scintk.dll` and
-`tikoParser.dll`, which the test scripts copy in); it is not tracked. To regenerate the key
+`bin/` is the run folder (`bin/tkedit.exe` beside the SDL libraries and `scintk.dll`, which the
+build copies in, and `tikoParser.dll`, which the test scripts do); it is not tracked. To regenerate the key
 reference after changing `src/core/cmdids`:
 
 ```bash

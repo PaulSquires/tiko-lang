@@ -28,12 +28,9 @@ run() {      # run <name> <dir> <command...>
     [ $rc -eq 0 ] || bad=$((bad+1))
 }
 
-# the editor's Scintilla (tkControls' scintk, built by tkCodeEdit/scintk/build.sh) sits beside the exe
-SCINTK=${SCINTK:-$ROOT/../../tkControls/tkCodeEdit/scintk/bin/windows/scintk.dll}
-
 build src/core && run coreall "$ROOT/src/core" ./tests/bin/coreall.exe
 if [ "${1:-}" != core ] && build src/app; then
-    cp -f "$SCINTK" "$ROOT/bin/"
+    # scintk.dll: vendor/tkControls' runtime copies it beside the exe (pkg/vendor/tiko.toml)
     # code intelligence (P5): tikoParser.dll (tiko-lang build/build.sh Release --dll)
     TKP=${TIKOPARSER:-/c/dev/tiko-editor-tiko/tikoParser.dll}
     [ -f "$TKP" ] && cp -f "$TKP" "$ROOT/bin/"

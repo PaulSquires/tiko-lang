@@ -19,13 +19,13 @@
 
 #import "std/containers"
 #import "tkc/fuzzy"
-#import "tkControls/tkHost"
-#import "tkControls/tkKeys"
-#import "tkControls/tkListTree"
-#import "tkControls/tkTextBox"
-#import "tkControls/tkPopupMenu"
-#import "tkControls/tkTheme"
-#import "tkControls/tkPaint"
+#import "vendor/tkControls/tkHost"
+#import "vendor/tkControls/tkKeys"
+#import "vendor/tkControls/tkListTree"
+#import "vendor/tkControls/tkTextBox"
+#import "vendor/tkControls/tkPopupMenu"
+#import "vendor/tkControls/tkTheme"
+#import "vendor/tkControls/tkPaint"
 using containers
 using tkHost
 using tkKeys

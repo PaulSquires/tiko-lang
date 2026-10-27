@@ -1,4 +1,5 @@
-# tkEdit: the application package (GUI on tkControls). Imported modules: "tka/<module>".
+# tkEdit: the application package (GUI on tiko's vendor/tkControls, imported as
+# "vendor/tkControls/<module>": it comes with the toolchain). Imported modules: "tka/<module>".
 [package]
 name = "tka"
 version = "0.1.0"
@@ -7,12 +8,12 @@ version = "0.1.0"
 tkp = { path = "../platform" }
 tkc = { path = "../core" }
 tks = { path = "../svc" }
-tkControls = { path = "../../../../tkControls" }   # C:\dev	kControls, beside tiko-lang
 
 [profile.debug]
 options = ["-w", "all"]
 
-# bin/ holds the program beside its SDL libraries and finds fonts/ and themes/ in its parent.
+# bin/ holds the program beside its SDL libraries (and what vendor/tkControls copies there: scintk,
+# its own fonts) and finds tkEdit's fonts/ and themes/ in its parent.
 [target.tkEdit]
 main      = "main.tiko"
 subsystem = "gui"

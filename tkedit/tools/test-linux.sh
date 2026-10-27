@@ -3,26 +3,25 @@
 # Run from Windows Git Bash:
 #   MSYS_NO_PATHCONV=1 wsl.exe -e bash /mnt/c/dev/tiko-lang/tkedit/tools/test-linux.sh [core]
 # "core": only src/core's console suites (no app build, no window).
-# Copies this checkout AND tkControls (the app's path dependency, ../../tkControls) into
-# $HOME/tebuild/<hash of the checkout>/, keeping their relative layout: /mnt/c is slow, and the
-# Linux and Windows builds must not share out/ or bin/. Never run it while the Windows battery
+# Copies this checkout into $HOME/tebuild/<hash of the checkout>/: /mnt/c is slow, and the Linux
+# and Windows builds must not share out/ or bin/. tkControls is the toolchain's vendor/tkControls,
+# which copies libscintk.so beside the program. Never run it while the Windows battery
 # runs: WSLg windows take the Windows focus (tkControls FINDINGS).
 SRC=$(cd "$(dirname "$0")/.." && pwd)
-TK=${TK_SRC:-$(cd "$SRC/../../tkControls" && pwd)}
 TIKO=${TIKO:-/mnt/c/dev/tiko-lang/toolchains/tiko-linux/bin/tiko}
-# SDL3 for Linux: Ubuntu ships none; tkControls' tools/build-linux-libs.sh builds linux-lib/.
-LIB=${TK_LINUX_LIB:-/mnt/c/dev/tkControls/linux-lib}
+# SDL3 for Linux: Ubuntu ships none, nor does the toolchain; tiko-lang's
+# examples/tkControls/tools/build-linux-libs.sh builds them, kept (gitignored) in linux-lib/.
+LIB=${TK_LINUX_LIB:-$(cd "$SRC/../examples/tkControls/linux-lib" && pwd)}
 W=$HOME/tebuild/$(echo "$SRC" | md5sum | cut -c1-10)
-E=$W/tiko-lang/tkedit   # tkControls is two levels up from here, as on Windows
-rm -rf "$W"; mkdir -p "$E" "$W/tkControls"
-echo "source: $SRC + $TK  build: $W"
+E=$W/tkedit
+rm -rf "$W"; mkdir -p "$E"
+echo "source: $SRC  build: $W"
 copy() {     # copy <from> <to>
     ( cd "$1" && tar --exclude='./out' --exclude='*/out' --exclude='*.exe' --exclude='*.dll' \
           --exclude='*.bmp' --exclude='./linux-lib*' --exclude='./.git' --exclude='./bin' -cf - . ) \
         | ( cd "$2" && tar -xf - )
 }
 copy "$SRC" "$E"
-copy "$TK" "$W/tkControls"
 mkdir -p "$E/bin"
 export XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir EGL_LOG_LEVEL=fatal LD_LIBRARY_PATH=$LIB
 export TKO_MODCACHE=$W/modcache
@@ -51,8 +50,6 @@ if build src/core; then
     run coreall "$E/src/core" none ./tests/bin/coreall.exe
 fi
 if [ "${1:-}" != core ] && build src/app; then
-    # the editor's Scintilla (tkCodeEdit/scintk/build.sh, under WSL) sits beside the program
-    cp -f "$W/tkControls/tkCodeEdit/scintk/bin/linux/libscintk.so" "$E/bin/"
     # the self-test builds sample programs with this tiko (P4)
     export TKEDIT_TIKO=$TIKO
     # code intelligence (P5): tikoParser.so (tiko-lang build/build.sh --dll under Linux)

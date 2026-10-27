@@ -15,7 +15,7 @@
 #import "std/strings"
 #import "tkc/docencoding"
 #import "tka/editor"
-#import "tkControls/tkHost"
+#import "vendor/tkControls/tkHost"
 using outcome
 using tkHost
 

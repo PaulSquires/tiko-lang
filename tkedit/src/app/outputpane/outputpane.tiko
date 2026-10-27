@@ -15,10 +15,10 @@
 #module "outputpane"
 
 #import "std/containers"
-#import "tkControls/tkApp"
-#import "tkControls/tkTabBar"
-#import "tkControls/tkListTree"
-#import "tkControls/tkTextBox"
+#import "vendor/tkControls/tkApp"
+#import "vendor/tkControls/tkTabBar"
+#import "vendor/tkControls/tkListTree"
+#import "vendor/tkControls/tkTextBox"
 using containers
 using tkApp
 using tkHost

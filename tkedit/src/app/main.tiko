@@ -16,8 +16,8 @@
 #import "tkc/project"
 #import "tka/mainwin"
 #import "./tests/selftest"
-#import "tkControls/tkApp"
-#import "tkControls/tkCodeEdit"
+#import "vendor/tkControls/tkApp"
+#import "vendor/tkControls/tkCodeEdit"
 using containers
 using tkApp
 using tkHost
