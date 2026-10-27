@@ -126,8 +126,8 @@ Modern-Tui-TuiLength	TuiLength	-	layout	std/tui	-	Returns a constraint for exact
 Modern-Tui-TuiFill	TuiFill	-	layout	std/tui	-	Returns a constraint that shares the space left over, by weight.
 Modern-Tui-TuiPercent	TuiPercent	-	layout	std/tui	-	Returns a constraint for a percentage of the whole space being split.
 Modern-Tui-TuiRatio	TuiRatio	-	layout	std/tui	-	Returns a constraint for a fraction of the whole space, such as one third.
-Modern-Tui-TuiMin	TuiMin_	-	layout	std/tui	-	Returns a constraint for at least n cells, more if there is room.
-Modern-Tui-TuiMax	TuiMax_	-	layout	std/tui	-	Returns a constraint for at most n cells.
+Modern-Tui-TuiAtLeast	TuiAtLeast	-	layout	std/tui	-	Returns a constraint for at least n cells, more if there is room.
+Modern-Tui-TuiAtMost	TuiAtMost	-	layout	std/tui	-	Returns a constraint for at most n cells.
 Modern-Tui-TuiConstraint	TuiConstraint	-	layout	std/tui	-	Holds one sizing rule for a split, such as a fixed length or a share of the rest.
 Modern-Tui-TuiSolve	TuiSolve	-	layout	std/tui	-	Returns the sizes that constraints give a total, adding up to exactly that total.
 Modern-Tui-TuiCenter	TuiCenter	-	layout	std/tui	-	Returns a rectangle of a given size centred in another, as for a dialog.

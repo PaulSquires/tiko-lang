@@ -28,7 +28,7 @@ Isredirected	IsRedirected	-	misc	fbio.bi	-	Returns non-zero if standard output, 
 Category-OS#arguments	Args	-	args	std/os	-	Returns every command-line argument as Unicode text, the program first, empty ones kept.
 Category-Process#commands	Command	std/process	run	std/process	-	Holds a program and its arguments, passed exactly as given with no shell in between.
 Category-Process#running-to-completion	Run	std/process	run	std/process	-	Runs a Command with this program's console, waits, and returns its exit status.
-Category-Process#running-to-completion	Output_	-	run	std/process	-	Runs a Command, waits, and returns its exit status and all it wrote to stdout and stderr.
+Category-Process#running-to-completion	Capture	-	run	std/process	-	Runs a Command, waits, and returns its exit status and all it wrote to stdout and stderr.
 Category-Process#running-to-completion	Shell	std/process	run	std/process	-	Runs a command line through cmd.exe or /bin/sh, waits, and returns its exit status.
 Category-Process#commands	Command.Arg	-	cmd	std/process	-	Adds one argument and returns the Command, so calls chain.
 Category-Process#commands	Command.Args	-	cmd	std/process	-	Adds every string in an Array as an argument.
@@ -83,7 +83,7 @@ Category-OS#host-facts	CpuCount	-	host	std/os	-	Returns how many processors this
 Category-OS#host-facts	PageSize	-	host	std/os	-	Returns the memory page size in bytes.
 Category-OS#host-facts	TotalMemory	-	host	std/os	-	Returns the computer's physical memory in bytes, or 0 if it cannot be found.
 Category-OS#host-facts	IsTerminal	-	host	std/os	-	Returns true if stdin, stdout or stderr is an interactive terminal.
-Category-OS#exit	Exit_	-	end	std/os	-	Ends the program with an exit code, running module destructors and flushing files.
+Category-OS#exit	ExitWith	-	end	std/os	-	Ends the program with an exit code, running module destructors and flushing files.
 Category-OS#exit	Abort	-	end	std/os	-	Ends the program at once, with no cleanup at all.
 Category-OS#errors	OsError	-	oserr	std/os	-	Holds why a std/os call failed: a code, the system's error number and a message.
 Category-OS#errors	OsErrorMessage	-	oserr	std/os	-	Returns the message text for a std/os error code, such as "invalid argument".

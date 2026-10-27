@@ -9,7 +9,7 @@ Category-Net#ip-addresses	IpAddress.IsV4Mapped / Unmap	-	ip	std/net	-	Recognises
 Category-Net#ip-addresses	Ipv4	-	ip	std/net	-	Returns the IPv4 address made of four numbers.
 Category-Net#ip-addresses	IpFromBytes	-	ip	std/net	-	Returns the address held in 4 or 16 bytes.
 Category-Net#ip-addresses	Loopback	-	ip	std/net	-	Returns 127.0.0.1, or ::1 when asked for IPv6.
-Category-Net#ip-addresses	Any_	-	ip	std/net	-	Returns 0.0.0.0 or ::, the address that binds every interface.
+Category-Net#ip-addresses	AnyAddress	-	ip	std/net	-	Returns 0.0.0.0 or ::, the address that binds every interface.
 Category-Net#ip-addresses	SocketAddress	-	ip	std/net	-	Holds an IP address and a port, printed as 1.2.3.4:80 or [::1]:80.
 Category-Net#ip-addresses	ParseSocketAddress	-	ip	std/net	-	Parses an address and port, with brackets around IPv6.
 Category-Net#looking-up-host-names	Resolve	-	resolve	std/net	2	Looks up a host name and returns every address it has, each with the given port.
