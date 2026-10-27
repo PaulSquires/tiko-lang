@@ -122,4 +122,5 @@ tests/vendor/**/*.o
 /examples/tkControls/linux-lib/
 /examples/tkControls/**/*.bmp
 /examples/tkControls/**/*.ttf
+/examples/tkControls/**/*-LICENSE.txt
 /examples/tkControls/**/*.link

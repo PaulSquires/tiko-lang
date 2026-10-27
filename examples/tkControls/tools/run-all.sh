@@ -13,6 +13,10 @@ if [ -z "$TIKO" ]; then
     [ -x "$TIKO" ] || TIKO=tiko.exe     # a worktree has neither: set TIKO, or have it on PATH
 fi
 export TKO_PKG=${TKO_PKG:-$TREE/pkg}
+# a tree-built compiler links against the toolchain's libraries, which it does not find alone
+if [ -z "$TKO_LIBPATH" ] && [ -d "$TREE/toolchains/tiko-windows/lib/windows-x86_64" ]; then
+    export TKO_LIBPATH=$(cygpath -w "$TREE/toolchains/tiko-windows/lib/windows-x86_64")
+fi
 # One tiko module cache PER CHECKOUT: parallel sessions must not share the per-user default.
 export TKO_MODCACHE=${TKO_MODCACHE:-$ROOT/out/modcache}
 names=("$@")

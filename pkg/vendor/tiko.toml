@@ -38,3 +38,13 @@ links = ["static", "dynamic"]
 # mode is chosen on vendor/cJSON.
 [vendor.cJSON]
 links = ["static", "dynamic"]
+
+# vendor/tkControls (SDL3 controls in tiko, source only) links nothing of its own -- vendor/SDL3
+# does -- but needs files at run time, copied beside every program that imports the module:
+# tkHost's bundled fonts and their licences (every tk program imports tkHost), and the scintk
+# library tkCodeEdit loads. All are fetched or built by build/vendorfetch.sh (its fetch.toml).
+[vendor.tkControls.tkHost]
+runtime = ["../fonts/Inter-Regular.ttf", "../fonts/Inter-Bold.ttf", "../fonts/Inter-Italic.ttf", "../fonts/CascadiaMono-Regular.ttf", "../fonts/FluentSystemIcons-Regular.ttf", "../fonts/Inter-LICENSE.txt", "../fonts/CascadiaMono-LICENSE.txt", "../fonts/FluentSystemIcons-LICENSE.txt"]
+
+[vendor.tkControls.tkCodeEdit]
+runtime = ["../lib/scintk"]
