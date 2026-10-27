@@ -481,6 +481,11 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
                  P( sc, "Save / Don't Save / Cancel in French" ) )
         t.Check( (tkMessageBox_GetDefaultButton( box ) = 0) andalso (tkMessageBox_GetCancelID( box ) = MBX_IDCANCEL), _
                  P( sc, "the preset's default and cancel kept" ) )
+        ' the icon and the close X are PsIcons codepoints: the fonts they are drawn in must hold them
+        dim as TTF_Font ptr gIcon = tkMessageBox_GetGlyphFont( box ), gClose = tkMessageBox_GetCloseGlyphFont( box )
+        t.Check( (gIcon <> 0) andalso TTF_FontHasGlyph( gIcon, TKMESSAGEBOX_GLYPH_QUESTION ), P( sc, "the question icon's font has its glyph" ) )
+        t.Check( (gClose <> 0) andalso TTF_FontHasGlyph( gClose, TKMESSAGEBOX_GLYPH_CLOSE ), P( sc, "the close X's font has its glyph" ) )
+        t.Check( tkMessageBox_GetFont( box ) = tkForm_Font( mw.form, TKFONT_UI ), P( sc, "the text in the form's UI font" ) )
         tkMessageBox_LayoutForTest( box )
         dim as long bw, bh
         tkMessageBox_GetIdealSize( box, bw, bh )

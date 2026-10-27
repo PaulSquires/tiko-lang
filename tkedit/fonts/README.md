@@ -8,7 +8,7 @@ not for redistribution, so none of them ships here.
 | --- | --- | --- | --- |
 | `Inter-Regular.ttf`, `Inter-Bold.ttf` | UI, UI bold | SIL OFL 1.1 (`OFL-Inter.txt`) | rsms/inter v4.1 release zip, `extras/ttf/` (SHA-256 below) |
 | `JetBrainsMono-Regular.ttf` | editor / mono | SIL OFL 1.1 (`OFL-JetBrainsMono.txt`) | JetBrains/JetBrainsMono v2.304 release zip, `fonts/ttf/` (SHA-256 below) |
-| `PsIcons.ttf` | icons | MIT (`LICENSE-FluentSystemIcons.txt`) | PsPlatform `assets/fonts`: a subset of Fluent UI System Icons remapped onto tiko's Segoe codepoints by `build-psicons.py` there. New icons are added with that script. |
+| `PsIcons.ttf` | icons | MIT (`LICENSE-FluentSystemIcons.txt`) | PsPlatform `assets/fonts`: a subset of Fluent UI System Icons remapped onto tiko's Segoe codepoints by `build-psicons.py` there. New icons are added with that script; the glyphs vendor/tkControls draws at Fluent codepoints (the message box's question, info and close: U+F63D, U+F4A3, U+F369) with `tools/add-psicons.py`. |
 
 SHA-256:
 - Inter-Regular.ttf `40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82`

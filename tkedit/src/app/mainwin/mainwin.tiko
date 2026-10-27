@@ -213,10 +213,17 @@ end function
 
 ' A question box for text with the preset's buttons, in the interface's language (vendor's
 ' tkMessageBox_AddPreset says them in English): the same ids, default and cancel as the preset.
-' Not shown: DoModal shows it, tkMessageBox_Destroy frees one that never was.
+' Not shown: DoModal shows it, tkMessageBox_Destroy frees one that never was. The box draws in the
+' form's fonts: it has none of its own, and its icon and close X are PsIcons codepoints that the
+' text font draws as boxes.
 public function NewAskBox( byval parent as TK_WIDGET ptr, byref text as const ustring, byval buttons as long ) as TK_WIDGET ptr
     dim as TK_WIDGET ptr box = tkMessageBox_Create( parent )
     if box = 0 then return 0
+    dim as TK_FORM ptr f = tkForm_FromWidget( parent )
+    if f then
+        tkMessageBox_ApplyFonts( box, tkForm_Font( f, TKFONT_UI ), tkForm_Font( f, TKFONT_GLYPH_LARGE ) )
+        tkMessageBox_SetCloseGlyphFont( box, tkForm_Font( f, TKFONT_GLYPH ) )
+    end if
     tkMessageBox_SetCaption( box, platform.APP_NAME )
     tkMessageBox_SetText( box, text )
     dim as long icon = MBX_ICON_QUESTION
