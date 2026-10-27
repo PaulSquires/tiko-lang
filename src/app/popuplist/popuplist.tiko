@@ -5,13 +5,13 @@
 '    License, v. 2.0. If a copy of the MPL was not distributed with this
 '    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 '
-' popuplist -- THE popup list every chooser in tkEdit is (PLAN.md, Popups): the buffers, the MRU
-' switcher, the encodings and line endings, the build configurations; Search Symbol and the
-' functions list in P5. A tkHost popup over the main window holding an optional query box and a
-' multi-column tkListTree. Typing in the box filters the rows fuzzily (tkc/fuzzy, best first);
-' Up / Down / PgUp / PgDn move; Tab and Shift+Tab move too (the Ctrl+Tab switcher); Enter picks;
-' Esc, or the focus leaving, closes it with no pick. With AcceptOnCtrlUp, letting go of Ctrl picks
-' (the Ctrl+Tab switcher): a key-up bubbles from the focused list to the popup's frame widget.
+' popuplist -- THE popup list every chooser in tkEdit is (PLAN.md, Popups): the buffers, the recent
+' files, the build configurations, the bookmarks; Search Symbol and the functions list in P5. A
+' tkHost popup over the main window holding an optional query box and a multi-column tkListTree.
+' Typing in the box filters the rows fuzzily (tkc/fuzzy, best first); Up / Down / PgUp / PgDn
+' move; Tab and Shift+Tab move too; Enter picks; Esc, or the focus leaving, closes it with no
+' pick. With AcceptOnCtrlUp, letting go of Ctrl picks: a key-up bubbles from the focused list to
+' the popup's frame widget.
 '
 ' The picker is not modal: Open returns at once and the pick arrives through OnPick, from inside
 ' the popup's own event, after the popup has closed.

@@ -30,9 +30,7 @@
 #import "tka/mainwin"
 #import "tkControls/tkApp"
 #import "tkControls/tkTest"
-#import "tkControls/tkMenuBar"
 #import "tkControls/tkPaint"
-#import "tkControls/tkPopupMenu"
 #import "tkControls/tkMessageBox"
 #import "tkControls/tkStatusBar"
 #import "tkControls/tkTextBox"
@@ -44,9 +42,7 @@ using cmdids
 using tkApp
 using tkHost
 using tkTest
-using tkMenuBar
 using tkPaint
-using tkPopupMenu
 using tkMessageBox
 using tkStatusBar
 using tkTextBox
@@ -100,7 +96,7 @@ private function FreshConfig( ) as ustring
     return cfg
 end function
 
-' The key-down may close the popup h is (Esc on a menu); the pump then frees it, so the key-up
+' The key-down may close the popup h is (Esc on a chooser); the pump then frees it, so the key-up
 ' and the pump after it go only to a host that is still open (valgrind: a read of freed memory).
 private sub Chord( byval h as TK_HOST ptr, byval key as long, byval sc as long, byval mods as long )
     tkTest_PushKey( h, key, mods, true, sc )
@@ -109,8 +105,18 @@ private sub Chord( byval h as TK_HOST ptr, byval key as long, byval sc as long, 
     tkTest_PumpFor( h, 30 )
 end sub
 
+' The status panel's middle, in the window's pixels.
+private sub ClickPanel( byref mw as mainwin.Window, byval panel as mainwin.StatusPanel )
+    dim as TKRECT rc
+    tkStatusBar_GetPanelRect( mw.status, panel, rc )
+    dim as TK_HOST ptr h = tkForm_Host( mw.form )
+    tkTest_Click( h, mw.status->x + (rc.left + rc.right) \ 2, mw.status->y + (rc.top + rc.bottom) \ 2 )
+    tkTest_PumpFor( h, 60 )
+end sub
+
 ' P0: the frame. Window size, fonts, the editor above one status row, the panels' text, and
-' typing reaching the view and moving the caret panel. P1: the hidden menu bar's geometry.
+' typing reaching the view and moving the caret panel; the position panel's click, and Esc closing
+' the find strip from the box or the view.
 public sub Pass( byref t as Tally, byval sc as single )
     dim as mainwin.Window mw
     mw.ConfigDir = FreshConfig( )
@@ -144,7 +150,6 @@ public sub Pass( byref t as Tally, byval sc as single )
              P( sc, strings.Format( "view at {},{} {}x{}, want 0,0 {}x{}", v->x, v->y, v->cw, v->ch, cx, cy - sh ) ) )
     t.Check( (mw.status->x = 0) andalso (mw.status->y = cy - sh) andalso (mw.status->cw = cx) andalso (mw.status->ch = sh), _
              P( sc, strings.Format( "status at {},{} {}x{}", mw.status->x, mw.status->y, mw.status->cw, mw.status->ch ) ) )
-    t.Check( tkWidget_IsVisible( mw.menuBar ) = false, P( sc, "the menu bar is hidden" ) )
     t.Check( tkHost_GetFocus( h ) = v, P( sc, "the view has the focus" ) )
 
     ' ---- the status panels
@@ -168,29 +173,27 @@ public sub Pass( byref t as Tally, byval sc as single )
     t.Check( mw.View( ).IsModified( ), P( sc, "the buffer is modified" ) )
     t.Check( mw.StatusText( mainwin.StatusPanel.Buffer ) = "untitled1 *", P( sc, "the buffer panel marks it: " & mw.StatusText( mainwin.StatusPanel.Buffer ) ) )
 
-    ' ---- the hidden menu bar: Ctrl+Shift+M shows it above the view, File open; Esc hides it
-    Chord( h, SDLK_M, SDL_SCANCODE_M, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
-    dim as long mh = tkForm_Scale( mw.form, mainwin.MENUBAR_CY )
-    t.Check( mw.MenuShown andalso tkWidget_IsVisible( mw.menuBar ), P( sc, "Ctrl+Shift+M shows the menu bar" ) )
-    t.Check( (mw.menuBar->y = 0) andalso (mw.menuBar->ch = mh) andalso (mw.menuBar->cw = cx), _
-             P( sc, strings.Format( "menu bar at {} {}x{}, want 0 {}x{}", mw.menuBar->y, mw.menuBar->cw, mw.menuBar->ch, cx, mh ) ) )
-    t.Check( (v->y = mh) andalso (v->ch = cy - sh - mh), P( sc, strings.Format( "the view moved down: y {} h {}", v->y, v->ch ) ) )
-    t.Check( tkMenuBar_IsMenuOpen( mw.menuBar ) andalso (tkMenuBar_GetActiveIndex( mw.menuBar ) = 0), P( sc, "the File menu is open" ) )
-    t.Check( mw.View( ).Text( ) = "dim x as long" & mw.View( ).EolText( ), P( sc, "the menu key typed nothing" ) )
-    dim as TK_MENU ptr fileMenu = tkMenuBar_GetDropDown( mw.menuBar, 0 )
-    if tkPopupMenu_IsOpen( fileMenu ) then
-        Chord( tkPopupMenu_Surface( fileMenu ), SDLK_ESCAPE, SDL_SCANCODE_ESCAPE, 0 )
-    end if
-    tkTest_PumpFor( h, 100 )
-    t.Check( (mw.MenuShown = false) andalso (tkWidget_IsVisible( mw.menuBar ) = false), P( sc, "Esc hides the menu bar" ) )
+    ' ---- a click on the position panel is Go to Line; Esc closes the strip wherever the focus is
+    ClickPanel( mw, mainwin.StatusPanel.Position )
+    t.Check( mw.Finder.isOpen andalso (mw.Finder.Mode = findstrip.StripMode.GoTo), P( sc, "the position panel opened Go to Line" ) )
+    t.Check( mw.Finder.HasFocus( ), P( sc, "with the focus in its box" ) )
+    Chord( h, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE, 0 )
+    t.Check( mw.Finder.isOpen = false, P( sc, "Esc in the box closed it" ) )
+    Chord( h, SDLK_F, SDL_SCANCODE_F, SDL_KMOD_CTRL )
+    t.Check( mw.Finder.isOpen andalso (mw.Finder.Mode = findstrip.StripMode.Find), P( sc, "Ctrl+F opened Find" ) )
+    mw.View( ).Focus( )
+    tkTest_PumpFor( h, 30 )
+    t.Check( (tkHost_GetFocus( h ) = v) andalso mw.Finder.isOpen, P( sc, "the view has the focus, the strip still open" ) )
+    Chord( h, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE, 0 )
+    t.Check( mw.Finder.isOpen = false, P( sc, "Esc in the view closed it" ) )
     t.Check( (v->y = 0) andalso (v->ch = cy - sh), P( sc, strings.Format( "the view is back: y {} h {}", v->y, v->ch ) ) )
-    t.Check( tkHost_GetFocus( h ) = v, P( sc, "the view has the focus back" ) )
+    t.Check( mw.View( ).Text( ) = "dim x as long" & mw.View( ).EolText( ), P( sc, "Esc typed nothing" ) )
 
     mw.Destroy( )
 end sub
 
-' P1: the menus from the command table, key dispatch, first-run files, live reload of
-' settings.toml, keybindings.toml and the theme file, and a broken file changing nothing.
+' P1: the command table, key dispatch, first-run files, live reload of settings.toml,
+' keybindings.toml and the theme file, a broken file changing nothing, settings.toml rewritten.
 public sub ConfigPass( byref t as Tally, byval sc as single )
     dim as mainwin.Window mw
     dim as ustring cfg = FreshConfig( )
@@ -205,16 +208,11 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     ' ---- first run: both files written, commented
     dim as ustring sf = fs.PathJoin( cfg, settings.SETTINGS_FILE ), kf = fs.PathJoin( cfg, keybind.KEYBINDINGS_FILE )
     dim as ustring st = fs.ReadAllText( sf ).ValueOr( "" ), kt = fs.ReadAllText( kf ).ValueOr( "" )
-    t.Check( instr( st, "# tab_size = 4" ) > 0, P( sc, "first run wrote settings.toml, commented" ) )
+    t.Check( (instr( st, nl & "tab_size = 4" & nl ) > 0) andalso (instr( st, "# tab_size" ) = 0), _
+             P( sc, "first run wrote settings.toml, every key set" ) )
     t.Check( instr( kt, "# FileSave = 'Primary+S'" ) > 0, P( sc, "first run wrote keybindings.toml, commented" ) )
 
-    ' ---- the menus: six, rows from the table, shortcuts shown, P1's commands enabled
-    t.Check( tkMenuBar_GetItemCount( mw.menuBar ) = 6, P( sc, strings.Format( "six menus ({})", tkMenuBar_GetItemCount( mw.menuBar ) ) ) )
-    t.Check( tkMenuBar_GetItemText( mw.menuBar, 5 ) = "Build", P( sc, "the last menu is Build" ) )
-    dim as TK_MENU ptr fileMenu = tkMenuBar_GetDropDown( mw.menuBar, 0 )
-    t.Check( tkPopupMenu_GetItemCount( fileMenu ) = 15, P( sc, strings.Format( "File: 12 commands + 3 separators ({})", tkPopupMenu_GetItemCount( fileMenu ) ) ) )
-    t.Check( tkPopupMenu_GetItemEnabled( fileMenu, Cmd.FileSave ), P( sc, "File > Save enabled" ) )
-    t.Check( tkPopupMenu_GetItemEnabled( fileMenu, Cmd.FileNew ), P( sc, "File > New enabled (P2)" ) )
+    ' ---- every command implemented, its shortcut text from the key map
     dim as long greyed = 0
     for i as long = 1 to clng( Cmd.Last_ ) - 1
         if mw.IsImplemented( cast( Cmd, i ) ) = false then greyed += 1
@@ -250,14 +248,6 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     t.Check( StripToolsMatch( mw ), P( sc, "and the find strip's buttons follow its new back colour" ) )
     t.Check( mw.Look.Text.Back = &hFFFFFF, P( sc, "and to the view's background" ) )
     t.Check( mw.Message = "", P( sc, "no message: " & mw.Message ) )
-    ' a default changed but left commented out: the status line says so
-    mw.View( ).SetText( "version = 1" & nl & "[editor]" & nl & "tab_size = 2" & nl & "line_numbers = false" & nl & _
-                     "font_size = 20" & nl & "# wrap = true" & nl & "[ui]" & nl & "theme = 'light'" & nl )
-    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
-    t.Check( mw.Message = "wrap is commented out: remove the # to use it", P( sc, "an edited commented-out key: " & mw.Message ) )
-    t.Check( mw.StatusText( mainwin.StatusPanel.Message ) = mw.Message, P( sc, "in the status line" ) )
-    t.Check( mw.Prefs.Wrap = false, P( sc, "and wrap stays off" ) )
-
     ' a broken file changes nothing and says where
     mw.View( ).SetText( "[editor" & nl & "tab_size = 8" & nl )
     Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
@@ -265,9 +255,17 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     t.Check( mw.StatusText( mainwin.StatusPanel.Message ) = mw.Message, P( sc, "in the message panel" ) )
     t.Check( (mw.Prefs.TabSize = 2) andalso (mw.Theme.Name = "light"), P( sc, "and the previous settings stay" ) )
 
-    ' ---- keybindings.toml: Ctrl+K; a rebinding is live at once, the menu shows it
+    ' ---- keybindings.toml: Ctrl+K; a rebinding is live at once, its shortcut text follows
     mw.View( ).SetText( "version = 1" & nl & "[ui]" & nl & "theme = 'light'" & nl )
     Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    ' closed and opened again, it lists every key at the value in force
+    mw.Execute( Cmd.FileClose )
+    Chord( h, SDLK_COMMA, SDL_SCANCODE_COMMA, SDL_KMOD_CTRL )
+    dim as ustring st2 = mw.View( ).Text( )
+    t.Check( (lcase( mw.ActivePath( ) ) = lcase( sf )) andalso (instr( st2, "theme = 'light'" ) > 0) andalso _
+             (instr( st2, nl & "tab_size = 4" & nl ) > 0) andalso (instr( st2, nl & "[[builds]]" & nl ) > 0) andalso _
+             (instr( st2, "# tab_size" ) = 0), P( sc, "reopened, settings.toml sets every key at its value" ) )
+    t.Check( mw.View( ).IsModified( ) = false, P( sc, "and is unmodified" ) )
     Chord( h, SDLK_K, SDL_SCANCODE_K, SDL_KMOD_CTRL )
     t.Check( lcase( mw.ActivePath( ) ) = lcase( kf ), P( sc, "Ctrl+K opened keybindings.toml" ) )
     mw.View( ).SetText( "format = 1" & nl & "[bindings]" & nl & "DuplicateLine = 'Primary+Shift+D'" & nl & _
@@ -275,7 +273,7 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
     t.Check( mw.Keys.Effective( Cmd.DuplicateLine ) = "Primary+Shift+D", P( sc, "the rebinding applied" ) )
     t.Check( instr( mw.Message, "FileSave and DeleteLine share Primary+S" ) > 0, P( sc, "a shared chord is reported: " & mw.Message ) )
-    t.Check( mw.ShortcutText( Cmd.DuplicateLine ) = "Ctrl+Shift+D", P( sc, "the menus show the new chord" ) )
+    t.Check( mw.ShortcutText( Cmd.DuplicateLine ) = "Ctrl+Shift+D", P( sc, "the shortcut text shows the new chord" ) )
     dim as long before = mw.View( ).LineCount( )
     Chord( h, SDLK_D, SDL_SCANCODE_D, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
     t.Check( mw.View( ).LineCount( ) = before + 1, P( sc, strings.Format( "Ctrl+Shift+D duplicates now ({} -> {})", before, mw.View( ).LineCount( ) ) ) )
@@ -354,38 +352,10 @@ private function ReadBytes( byref path as const ustring ) as string
     return s
 end function
 
-' The status panel's middle, in the window's pixels.
-private sub ClickPanel( byref mw as mainwin.Window, byval panel as mainwin.StatusPanel )
-    dim as TKRECT rc
-    tkStatusBar_GetPanelRect( mw.status, panel, rc )
-    dim as TK_HOST ptr h = tkForm_Host( mw.form )
-    tkTest_Click( h, mw.status->x + (rc.left + rc.right) \ 2, mw.status->y + (rc.top + rc.bottom) \ 2 )
-    tkTest_PumpFor( h, 60 )
-end sub
-
 private sub PopKey( byref mw as mainwin.Window, byval key as long, byval sc as long, byval mods as long = 0 )
     if mw.Chooser.Pop = 0 then exit sub
     Chord( mw.Chooser.Pop, key, sc, mods )
     tkTest_PumpFor( tkForm_Host( mw.form ), 40 )
-end sub
-
-' The popup's focus is its list, or the list's own surface inside it.
-private function InList( byref mw as mainwin.Window ) as boolean
-    if mw.Chooser.Pop = 0 then return false
-    dim as TK_WIDGET ptr w = tkHost_GetFocus( mw.Chooser.Pop )
-    while w
-        if w = mw.Chooser.List then return true
-        w = w->pParent
-    wend
-    if tkHost_GetFocus( mw.Chooser.Pop ) = 0 then print "  switcher focus: none" else print "  switcher focus: elsewhere"
-    return false
-end function
-
-' Lets go of Ctrl on the switcher.
-private sub CtrlUp( byref mw as mainwin.Window )
-    if mw.Chooser.Pop = 0 then exit sub
-    tkTest_PushKey( mw.Chooser.Pop, SDLK_LCTRL, 0, false, SDL_SCANCODE_LCTRL )
-    tkTest_PumpFor( tkForm_Host( mw.form ), 60 )
 end sub
 
 public sub BufferPass( byref t as Tally, byval sc as single )
@@ -436,50 +406,45 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     t.Check( (mw.Chooser.IsOpen( ) = false) andalso (lcase( mw.ActivePath( ) ) = lcase( pathB )), P( sc, "Enter showed b.tiko: " & mw.ActivePath( ) ) )
     t.Check( tkHost_GetFocus( h ) = mw.View( ).Widget( ), P( sc, "and the view has the focus" ) )
 
-    ' ---- Ctrl+Tab: the MRU switcher. The key-down shows the previous buffer at once, each Tab the
-    ' next; letting go of Ctrl keeps it, Esc goes back. The MRU order holds still meanwhile.
+    ' ---- Ctrl+Tab: the next buffer in open order (a, b, c) at once, no popup, wrapping at the end;
+    ' Ctrl+Shift+Tab the one before, wrapping at the start
     Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL )
-    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Switcher), P( sc, "Ctrl+Tab opened the switcher" ) )
-    t.Check( mw.Chooser.Query = 0, P( sc, "with no query box" ) )
-    t.Check( lcase( mw.ActivePath( ) ) = lcase( pathC ), P( sc, "and showed the previous buffer before Ctrl is let go: " & mw.ActivePath( ) ) )
-    t.Check( InList( mw ), P( sc, "the switcher keeps the keyboard" ) )
-    CtrlUp( mw )
-    t.Check( (mw.Chooser.IsOpen( ) = false) andalso (lcase( mw.ActivePath( ) ) = lcase( pathC )), P( sc, "releasing Ctrl kept it: " & mw.ActivePath( ) ) )
+    t.Check( (mw.Chooser.IsOpen( ) = false) andalso (lcase( mw.ActivePath( ) ) = lcase( pathC )), P( sc, "Ctrl+Tab showed c: " & mw.ActivePath( ) ) )
     t.Check( tkHost_GetFocus( h ) = mw.View( ).Widget( ), P( sc, "and the view has the focus" ) )
     Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL )
-    t.Check( lcase( mw.ActivePath( ) ) = lcase( pathB ), P( sc, "Ctrl+Tab again: back to b at once: " & mw.ActivePath( ) ) )
-    PopKey( mw, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL )             ' Tab again, Ctrl still held
-    t.Check( mw.Chooser.IsOpen( ) andalso (lcase( mw.ActivePath( ) ) = lcase( pathA )), P( sc, "Tab showed the third at once: " & mw.ActivePath( ) ) )
-    CtrlUp( mw )
-    t.Check( lcase( mw.ActivePath( ) ) = lcase( pathA ), P( sc, "Ctrl+Tab Tab reached the third: " & mw.ActivePath( ) ) )
-    Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL )
-    t.Check( lcase( mw.ActivePath( ) ) = lcase( pathC ), P( sc, "the MRU order moved with the pick: c is next: " & mw.ActivePath( ) ) )
-    PopKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE, SDL_KMOD_CTRL )
-    t.Check( (mw.Chooser.IsOpen( ) = false) andalso (lcase( mw.ActivePath( ) ) = lcase( pathA )), P( sc, "Esc went back to a: " & mw.ActivePath( ) ) )
+    t.Check( lcase( mw.ActivePath( ) ) = lcase( pathA ), P( sc, "Ctrl+Tab on the last wrapped to a: " & mw.ActivePath( ) ) )
     Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
-    t.Check( lcase( mw.ActivePath( ) ) = lcase( pathB ), P( sc, "Ctrl+Shift+Tab showed the oldest at once: " & mw.ActivePath( ) ) )
-    CtrlUp( mw )
-    Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL )
-    CtrlUp( mw )
-    t.Check( lcase( mw.ActivePath( ) ) = lcase( pathA ), P( sc, "and Esc had left the order alone: " & mw.ActivePath( ) ) )
+    t.Check( lcase( mw.ActivePath( ) ) = lcase( pathC ), P( sc, "Ctrl+Shift+Tab on the first wrapped to c: " & mw.ActivePath( ) ) )
+    Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    t.Check( lcase( mw.ActivePath( ) ) = lcase( pathB ), P( sc, "Ctrl+Shift+Tab: b: " & mw.ActivePath( ) ) )
+    Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    t.Check( (mw.Chooser.IsOpen( ) = false) andalso (lcase( mw.ActivePath( ) ) = lcase( pathA )), P( sc, "Ctrl+Shift+Tab: a: " & mw.ActivePath( ) ) )
 
-    ' ---- the status panels: encoding, line ending, build
-    ClickPanel( mw, mainwin.StatusPanel.Encoding )
-    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Encoding), P( sc, "the encoding panel opens a chooser" ) )
-    PopKey( mw, SDLK_DOWN, SDL_SCANCODE_DOWN )
-    PopKey( mw, SDLK_DOWN, SDL_SCANCODE_DOWN )
-    PopKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
-    t.Check( mw.StatusText( mainwin.StatusPanel.Encoding ) = "UTF-8 (BOM)", P( sc, "UTF-8 (BOM) chosen: " & mw.StatusText( mainwin.StatusPanel.Encoding ) ) )
-    ClickPanel( mw, mainwin.StatusPanel.LineEnding )
-    PopKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )                     ' the first row: CRLF
+    ' ---- the status panels: the buffer's tooltip is its full path; encoding, line ending and build
+    ' open settings.toml; the encoding and the line ending still change through the Window
+    t.Check( lcase( mw.StatusTip( mainwin.StatusPanel.Buffer ) ) = lcase( pathA ), P( sc, "the buffer panel's tooltip: " & mw.StatusTip( mainwin.StatusPanel.Buffer ) ) )
+    t.Check( mw.StatusTip( mainwin.StatusPanel.Encoding ) = "", P( sc, "no tooltip on the others" ) )
+    dim as ustring sfile = fs.PathJoin( mw.ConfigDir, settings.SETTINGS_FILE )
+    for k as long = 0 to 2
+        dim as mainwin.StatusPanel pn = mainwin.StatusPanel.Encoding
+        if k = 1 then pn = mainwin.StatusPanel.LineEnding
+        if k = 2 then pn = mainwin.StatusPanel.Build
+        ClickPanel( mw, pn )
+        t.Check( lcase( mw.ActivePath( ) ) = lcase( sfile ), P( sc, strings.Format( "panel {} opened settings.toml: {}", clng( pn ), mw.ActivePath( ) ) ) )
+        mw.Execute( Cmd.FileClose )
+        t.Check( lcase( mw.ActivePath( ) ) = lcase( pathA ), P( sc, "closed, a is back: " & mw.ActivePath( ) ) )
+    next
+    mw.SetEncoding( docencoding.FileEncoding.Utf8Bom )
+    t.Check( mw.StatusText( mainwin.StatusPanel.Encoding ) = "UTF-8 (BOM)", P( sc, "UTF-8 (BOM) set: " & mw.StatusText( mainwin.StatusPanel.Encoding ) ) )
+    mw.SetLineEnding( docencoding.LineEnd.CrLf )
     t.Check( mw.StatusText( mainwin.StatusPanel.LineEnding ) = "CRLF", P( sc, "converted to CRLF" ) )
     t.Check( mw.View( ).Text( ) = "dim a as long" & chr( 13, 10 ), P( sc, "the line break converted in the text" ) )
     Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
     t.Check( ReadBytes( pathA ) = chr( &hEF, &hBB, &hBF ) & "dim a as long" & chr( 13, 10 ), P( sc, "saved with a BOM and CRLF" ) )
-    ClickPanel( mw, mainwin.StatusPanel.Build )
+    mw.Execute( Cmd.BuildConfig )
     PopKey( mw, SDLK_DOWN, SDL_SCANCODE_DOWN )
     PopKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
-    t.Check( mw.StatusText( mainwin.StatusPanel.Build ) = "Release", P( sc, "the build panel picked Release" ) )
+    t.Check( mw.StatusText( mainwin.StatusPanel.Build ) = "Release", P( sc, "the build configurations picked Release" ) )
     ClickPanel( mw, mainwin.StatusPanel.Buffer )
     t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Buffers), P( sc, "the buffer panel opens the buffer list" ) )
     PopKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
@@ -551,9 +516,9 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     mw.CheckDisk( )
     t.Check( gAsked = 1, P( sc, "and is not asked about the same change again" ) )
 
-    ' ---- Ctrl+Shift+O: the recent files
+    ' ---- Ctrl+Shift+O: the recent files (settings.toml among them: the status panels opened it)
     Chord( h, SDLK_O, SDL_SCANCODE_O, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
-    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Recent) andalso (mw.Chooser.ShownCount( ) = 4), _
+    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Recent) andalso (mw.Chooser.ShownCount( ) = 5), _
              P( sc, strings.Format( "Ctrl+Shift+O lists the recent files ({})", mw.Chooser.ShownCount( ) ) ) )
     PopKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
 

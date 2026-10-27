@@ -18,7 +18,7 @@ using cmdids
 private function Changed( byref name_ as const ustring ) as boolean
     select case name_
     case "FileRecent", "Settings", "KeyboardShortcuts", "ThemeFile", "ReplaceOne", "GoToLine", "GoToMain", _
-         "ShowMenu", "BufferList", "BufferNext", "BufferPrev", "CycleFocus", "BuildConfig", _
+         "BufferList", "BufferNext", "BufferPrev", "CycleFocus", "BuildConfig", _
          "NextDiagnostic", "PrevDiagnostic", "FormatDocument"
         return true
     end select

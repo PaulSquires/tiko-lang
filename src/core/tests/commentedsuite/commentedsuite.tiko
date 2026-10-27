@@ -2,15 +2,14 @@
 '    Copyright (C) 2026 Paul Squires, PlanetSquires Software
 '
 ' commentedsuite -- tkc/commented: an edited commented-out key found, an untouched one, a trailing
-' comment, a key also set for real, a commented-out [[table]], one name for two tables; and both
-' real templates (settings.toml, keybindings.toml) against themselves and with one line edited.
+' comment, a key also set for real, a commented-out [[table]], one name for two tables; and the
+' real keybindings.toml template against itself and with one line edited.
 #module "commentedsuite"
 
 #import "std/containers"
 #import "std/strings"
 #import "tkc/commented"
 #import "tkc/keybind"
-#import "tkc/settings"
 #import "../tally"
 using containers
 
@@ -51,12 +50,7 @@ public sub Run( byref c as tally.Checker )
     c.Same( commented.Warning( one ), "font_size is commented out: remove the # to use it", "one key's warning" )
     c.Same( commented.Warning( two ), "font_size and 1 more are commented out: remove the # to use them", "two keys' warning" )
 
-    ' the real templates
-    dim as ustring st = settings.Template( )
-    c.Same( Joined( commented.EditedComments( st, st ) ), "", "settings.toml's template: nothing" )
-    c.Check( instr( st, "# font_size = 11" ) > 0, "settings.toml's template has # font_size = 11" )
-    c.Same( Joined( commented.EditedComments( strings.Replace( st, "# font_size = 11", "# font_size = 16" ), st ) ), _
-            "font_size", "settings.toml with font_size edited and still commented" )
+    ' the real template
     dim as keybind.KeyMap km
     dim as ustring kt = km.ToToml( ).ValueOr( "" )
     c.Check( instr( kt, "# FindNext = 'F3'" ) > 0, "keybindings.toml's template has # FindNext = 'F3'" )

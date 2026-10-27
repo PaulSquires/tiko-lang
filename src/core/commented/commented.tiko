@@ -5,8 +5,8 @@
 '    License, v. 2.0. If a copy of the MPL was not distributed with this
 '    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 '
-' commented -- a key the user changed but left commented out. settings.toml and keybindings.toml
-' are written with every key commented at its default ("# font_size = 11"); editing the value and
+' commented -- a key the user changed but left commented out. keybindings.toml is written with
+' every key commented at its default ("# FindNext = 'F3'"); editing the value and
 ' not the '#' changes nothing, silently. EditedComments finds those lines by comparing the file
 ' with the template it was written from, so saving can say so (Warning).
 '

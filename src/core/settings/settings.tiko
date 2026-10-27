@@ -6,9 +6,9 @@
 '    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 '
 ' settings -- settings.toml (docs/tkEdit/CONFIG.md), UTF-8 TOML in platform.ConfigDir( ). Every key
-' is optional: a missing or mistyped one reads as its default. tkEdit never rewrites this file
-' (std/config's writer drops comments); it writes it only once, on first run, as Template( ): every
-' key commented out at its default, so the file is also the reference.
+' is optional: a missing or mistyped one reads as its default. The file always lists every key at
+' the value in force: tkEdit writes it as ToToml( ) on first run, and again (WriteFile) whenever it
+' parses but says something else -- a key missing, a comment of the user's -- before it is opened.
 '
 '     version = 1
 '     [editor]   font, font_size, tab_size, use_tabs, line_numbers, whitespace, wrap, caret_line,
@@ -191,64 +191,117 @@ public function LoadSettings( byref path as const ustring ) as SettingsResult
     return Ok( of EditorSettings, config.ConfigError )( FromToml( r.Value( ) ) )
 end function
 
-' The first-run file: every key commented at its default (CONFIG.md).
-public function Template( ) as ustring
-    dim as ustring nl = wchr( 10 )
-    return _
-        "# tkEdit settings. Every key is optional; a commented line shows its default." & nl & _
-        "# Uncomment and change a line to use it. Saving this file in tkEdit applies it at once." & nl & _
-        nl & _
-        "version = 1" & nl & _
-        nl & _
-        "[editor]" & nl & _
-        "# font = ''              # '' = the bundled JetBrains Mono; else a .ttf path" & nl & _
-        "# font_size = 11" & nl & _
-        "# tab_size = 4" & nl & _
-        "# use_tabs = false" & nl & _
-        "# line_numbers = true" & nl & _
-        "# whitespace = false" & nl & _
-        "# wrap = false" & nl & _
-        "# caret_line = true" & nl & _
-        "# indent_guides = true" & nl & _
-        "# fold_margin = true" & nl & _
-        "# auto_indent = true" & nl & _
-        "# auto_end = true        # Enter after 'sub f()' inserts 'end sub'" & nl & _
-        "# codetips = true        # completion and calltips" & nl & _
-        nl & _
-        "[ui]" & nl & _
-        "# theme = 'dark'         # themes/<name>.toml: beside the program, or in this folder" & nl & _
-        "# font_size = 10" & nl & _
-        nl & _
-        "[files]" & nl & _
-        "# new_eol = 'native'     # native | crlf | lf" & nl & _
-        "# new_encoding = 'utf8'  # utf8 | utf8bom | utf16 | ansi" & nl & _
-        "# save_before_build = true" & nl & _
-        "# trim_trailing = false" & nl & _
-        nl & _
-        "[compiler]" & nl & _
-        "# tiko = ''              # '' = tiko on PATH" & nl & _
-        "# includes = []" & nl & _
-        "# run_in_terminal = true" & nl & _
-        nl & _
-        "# Build configurations. Listing any replaces both of these defaults." & nl & _
-        "# [[builds]]" & nl & _
-        "# name = 'Debug'" & nl & _
-        "# options = '-g -exx'" & nl & _
-        "# default = true" & nl & _
-        "#" & nl & _
-        "# [[builds]]" & nl & _
-        "# name = 'Release'" & nl & _
-        "# options = '-O2'" & nl
+private function Quoted( byref v as const ustring ) as ustring
+    if (instr( v, "'" ) = 0) andalso (instr( v, chr( 10 ) ) = 0) then return "'" & v & "'"
+    dim as ustring o = ""
+    for i as long = 1 to len( v )
+        dim as ustring ch = mid( v, i, 1 )
+        select case ch
+        case "\", """" : o &= "\" & ch
+        case chr( 10 ) : o &= "\n"
+        case chr( 13 ) : o &= "\r"
+        case else : o &= ch
+        end select
+    next
+    return """" & o & """"
 end function
 
-' Writes Template( ) when the file does not exist, creating the folder. TRUE = it was written.
-public function EnsureFile( byref path as const ustring ) as boolean
-    if fs.Exists( path ) then return false
-    dim as ustring dir_ = fs.PathParent( path )
-    if ( len( dir_ ) > 0 ) andalso ( fs.IsDir( dir_ ) = false ) then
-        if fs.CreateDirAll( dir_ ).IsOk( ) = false then return false
+private function BoolText( byval b as boolean ) as ustring
+    if b then return "true"
+    return "false"
+end function
+
+private function EolText( byval e as NewEol ) as ustring
+    select case e
+    case NewEol.CrLf : return "crlf"
+    case NewEol.Lf : return "lf"
+    end select
+    return "native"
+end function
+
+private function EncodingText( byval e as docencoding.FileEncoding ) as ustring
+    select case e
+    case docencoding.FileEncoding.Utf8Bom : return "utf8bom"
+    case docencoding.FileEncoding.Utf16Bom : return "utf16"
+    case docencoding.FileEncoding.Ansi : return "ansi"
+    end select
+    return "utf8"
+end function
+
+' "key = value", the value's column fixed so the notes after it line up.
+private function KeyLine( byref k as const ustring, byref v as const ustring, byref note as const ustring = "" ) as ustring
+    dim as ustring s = k & " = " & v
+    if len( note ) then
+        if len( s ) < 24 then s &= space( 24 - len( s ) )
+        s &= " # " & note
     end if
-    return fs.WriteAtomic( path, Template( ) ).IsOk( )
+    return s & wchr( 10 )
+end function
+
+' The file for s: every key, uncommented, at s's value (CONFIG.md).
+public function ToToml( byref s as const EditorSettings ) as ustring
+    dim as ustring nl = wchr( 10 )
+    dim as ustring incl = ""
+    for each p as ustring in s.Includes
+        if len( incl ) then incl &= ", "
+        incl &= Quoted( p )
+    next
+    dim as ustring t = _
+        "# tkEdit settings. Saving this file in tkEdit applies it at once." & nl & _
+        nl & _
+        KeyLine( "version", str( SETTINGS_VERSION ) ) & _
+        nl & _
+        "[editor]" & nl & _
+        KeyLine( "font", Quoted( s.Font ), "'' = the bundled JetBrains Mono; else a .ttf path" ) & _
+        KeyLine( "font_size", str( s.FontSize ) ) & _
+        KeyLine( "tab_size", str( s.TabSize ) ) & _
+        KeyLine( "use_tabs", BoolText( s.UseTabs ) ) & _
+        KeyLine( "line_numbers", BoolText( s.LineNumbers ) ) & _
+        KeyLine( "whitespace", BoolText( s.Whitespace ) ) & _
+        KeyLine( "wrap", BoolText( s.Wrap ) ) & _
+        KeyLine( "caret_line", BoolText( s.CaretLine ) ) & _
+        KeyLine( "indent_guides", BoolText( s.IndentGuides ) ) & _
+        KeyLine( "fold_margin", BoolText( s.FoldMargin ) ) & _
+        KeyLine( "auto_indent", BoolText( s.AutoIndent ) ) & _
+        KeyLine( "auto_end", BoolText( s.AutoEnd ), "Enter after 'sub f()' inserts 'end sub'" ) & _
+        KeyLine( "codetips", BoolText( s.CodeTips ), "completion and calltips" ) & _
+        nl & _
+        "[ui]" & nl & _
+        KeyLine( "theme", Quoted( s.Theme ), "themes/<name>.toml: beside the program, or in this folder" ) & _
+        KeyLine( "font_size", str( s.UiFontSize ) ) & _
+        nl & _
+        "[files]" & nl & _
+        KeyLine( "new_eol", Quoted( EolText( s.NewLineEnd ) ), "native | crlf | lf" ) & _
+        KeyLine( "new_encoding", Quoted( EncodingText( s.NewEncoding ) ), "utf8 | utf8bom | utf16 | ansi" ) & _
+        KeyLine( "save_before_build", BoolText( s.SaveBeforeBuild ) ) & _
+        KeyLine( "trim_trailing", BoolText( s.TrimTrailing ) ) & _
+        nl & _
+        "[compiler]" & nl & _
+        KeyLine( "tiko", Quoted( s.Tiko ), "'' = tiko on PATH" ) & _
+        KeyLine( "includes", "[" & incl & "]" ) & _
+        KeyLine( "run_in_terminal", BoolText( s.RunInTerminal ) )
+    for each b as BuildConfig in s.Builds
+        t &= nl & "[[builds]]" & nl & _
+             KeyLine( "name", Quoted( b.Name ) ) & _
+             KeyLine( "options", Quoted( b.Options ) ) & _
+             KeyLine( "default", BoolText( b.IsDefault ) )
+    next
+    return t
+end function
+
+' Writes ToToml( s ) to path, creating the folder, unless the file already holds exactly that.
+' TRUE = it was written.
+public function WriteFile( byref path as const ustring, byref s as const EditorSettings ) as boolean
+    dim as ustring want = ToToml( s )
+    if fs.Exists( path ) then
+        if fs.ReadAllText( path ).ValueOr( "" ) = want then return false
+    else
+        dim as ustring dir_ = fs.PathParent( path )
+        if ( len( dir_ ) > 0 ) andalso ( fs.IsDir( dir_ ) = false ) then
+            if fs.CreateDirAll( dir_ ).IsOk( ) = false then return false
+        end if
+    end if
+    return fs.WriteAtomic( path, want ).IsOk( )
 end function
 
 ' Where settings.toml lives: platform.ConfigDir( )/settings.toml.

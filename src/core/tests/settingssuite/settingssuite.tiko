@@ -2,7 +2,7 @@
 '    Copyright (C) 2026 Paul Squires, PlanetSquires Software
 '
 ' settingssuite -- tkc/settings and tkc/theme: defaults, every key read, clamps and bad values,
-' the commented template reading back as the defaults, EnsureFile; themes parsed over the dark
+' ToToml with every key uncommented and reading back as what it wrote, WriteFile; themes parsed over the dark
 ' default, warnings, the shipped dark.toml equal to DarkTheme, light.toml light, FindTheme order.
 #module "settingssuite"
 
@@ -27,16 +27,22 @@ private sub SettingsChecks( byref c as tally.Checker )
     c.SameNum( d.Builds.Count( ), 2, "two default builds" )
     c.Same( d.DefaultBuild( ), "Debug", "Debug is the default build" )
 
-    ' the template is all comments: it reads back as the defaults
-    dim as settings.SettingsResult t = settings.ParseSettings( settings.Template( ) )
-    c.Check( t.IsOk( ), "the template is TOML" )
+    ' the defaults' file: every key set, none commented out; it reads back as the defaults
+    dim as ustring nl = wchr( 10 )
+    dim as ustring dt = settings.ToToml( d )
+    c.Check( (instr( dt, nl & "font_size = 11" & nl ) > 0) andalso (instr( dt, nl & "tab_size = 4" & nl ) > 0), _
+             "ToToml sets every key" )
+    c.Check( (instr( dt, "# font_size" ) = 0) andalso (instr( dt, "# [[builds]]" ) = 0) andalso (instr( dt, "# name" ) = 0), _
+             "and comments none out" )
+    dim as settings.SettingsResult t = settings.ParseSettings( dt )
+    c.Check( t.IsOk( ), "the defaults' file is TOML" )
     if t.IsOk( ) then
         dim as settings.EditorSettings v = t.Value( )
         c.Check( (v.FontSize = 11) andalso (v.Theme = "dark") andalso (v.Builds.Count( ) = 2) andalso v.AutoEnd, _
                  "and reads as the defaults" )
+        c.Same( settings.ToToml( v ), dt, "and writes the same file again" )
     end if
 
-    dim as ustring nl = wchr( 10 )
     dim as ustring txt = "version = 1" & nl & "[editor]" & nl & "font_size = 14" & nl & "tab_size = 99" & nl & _
         "use_tabs = true" & nl & "wrap = 'yes'" & nl & "[ui]" & nl & "theme = 'light'" & nl & _
         "[files]" & nl & "new_eol = 'lf'" & nl & "new_encoding = 'utf8bom'" & nl & _
@@ -59,6 +65,20 @@ private sub SettingsChecks( byref c as tally.Checker )
         c.SameNum( s.Includes.Count( ), 2, "includes read" )
         c.SameNum( s.Builds.Count( ), 2, "builds replace the defaults; a nameless one is skipped" )
         c.Same( s.DefaultBuild( ), "Dbg", "the build marked default" )
+        ' written as it is in force, read back the same: a quote and a backslash in a value too
+        s.Tiko = "C:\it's\tiko.exe"
+        dim as settings.SettingsResult rr = settings.ParseSettings( settings.ToToml( s ) )
+        c.Check( rr.IsOk( ), "ToToml of the full file parses" )
+        if rr.IsOk( ) then
+            dim as settings.EditorSettings w = rr.Value( )
+            c.Check( (w.FontSize = 14) andalso (w.TabSize = 16) andalso w.UseTabs andalso (w.Theme = "light") andalso _
+                     (w.NewLineEnd = settings.NewEol.Lf) andalso (w.NewEncoding = docencoding.FileEncoding.Utf8Bom), _
+                     "and reads back its values" )
+            c.Same( w.Tiko, s.Tiko, "a quote and backslashes survive" )
+            c.Check( (w.Includes.Count( ) = 2) andalso (w.Includes[1] = "b"), "includes survive" )
+            c.Check( (w.Builds.Count( ) = 2) andalso (w.DefaultBuild( ) = "Dbg") andalso (w.Builds[0].Options = "-O3"), _
+                     "builds survive" )
+        end if
     end if
     dim as settings.SettingsResult bad = settings.ParseSettings( "[editor" & nl & "x = 1" )
     c.Check( bad.IsOk( ) = false, "not TOML fails" )
@@ -68,10 +88,15 @@ private sub SettingsChecks( byref c as tally.Checker )
     c.Check( tmp.IsOk( ), "a temp folder" )
     if tmp.IsOk( ) = false then exit sub
     dim as ustring p = fs.PathJoin( tmp.Value( ), "cfg", settings.SETTINGS_FILE )
-    c.Check( settings.EnsureFile( p ), "EnsureFile writes the template" )
-    c.Check( settings.EnsureFile( p ) = false, "and never overwrites" )
+    c.Check( settings.WriteFile( p, d ), "WriteFile writes the file, and its folder" )
+    c.Check( settings.WriteFile( p, d ) = false, "and not again when it holds that already" )
     dim as settings.SettingsResult l = settings.LoadSettings( p )
     c.Check( l.IsOk( ) andalso (l.Value( ).TabSize = 4), "the written file loads" )
+    fs.WriteAtomic( p, "[editor]" & nl & "tab_size = 2" & nl )
+    dim as settings.EditorSettings e = settings.LoadSettings( p ).ValueOr( d )
+    c.Check( settings.WriteFile( p, e ), "a file missing keys is rewritten" )
+    dim as ustring et = fs.ReadAllText( p ).ValueOr( "" )
+    c.Check( (instr( et, "tab_size = 2" ) > 0) andalso (instr( et, "font_size = 11" ) > 0), "with its value and every other key" )
     c.Check( settings.LoadSettings( fs.PathJoin( tmp.Value( ), "none.toml" ) ).IsOk( ), "a missing file is the defaults" )
     fs.RemoveDirAll( tmp.Value( ) )
 end sub

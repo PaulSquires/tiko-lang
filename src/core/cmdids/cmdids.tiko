@@ -80,7 +80,6 @@ public enum Cmd explicit
     BookmarkClearAll
     BookmarksList
     ' View
-    ShowMenu
     FunctionList
     BufferList
     BufferNext
@@ -283,7 +282,6 @@ constructor CommandTable( )
     this.Def( Cmd.BookmarksList, "BookmarksList", g, "Bookmarks...", "Shift+F4" )
 
     g = MenuGroup.View
-    this.Def( Cmd.ShowMenu, "ShowMenu", g, "Menu Bar", "Primary+Shift+M" )
     this.Def( Cmd.FunctionList, "FunctionList", g, "Functions...", "F4", true )
     this.Def( Cmd.BufferList, "BufferList", g, "Buffers...", "Primary+E" )
     this.Def( Cmd.BufferNext, "BufferNext", g, "Next Buffer", "Primary+Tab" )

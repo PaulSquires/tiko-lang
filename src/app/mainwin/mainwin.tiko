@@ -6,18 +6,19 @@
 '    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 '
 ' mainwin -- the main window and the App state it owns (PLAN.md, Window). One editor pane fills
-' the window, or two after a split; the status line sits at the bottom; the menu bar exists but
-' shows only while ShowMenu (Ctrl+Shift+M) has it open. Every command goes through Execute( Cmd ).
+' the window, or two after a split; the status line sits at the bottom; there is no menu. Every
+' command goes through Execute( Cmd ).
 '
 ' BUFFERS (D3): every open file is a documents.Document with its own Scintilla view; there is no
 ' tab bar. Pane 1 shows one buffer through its Main view, pane 2 (after a split) one through its
 ' Other view -- a second view on the same Scintilla document, so both panes may show one buffer.
-' Views of buffers no pane shows are hidden. Mru holds the buffers most recently shown first:
-' the Ctrl+Tab switcher's order. There is always at least one buffer (an untitled one).
+' Views of buffers no pane shows are hidden. Docs is the open order, which Ctrl+Tab walks; Mru
+' holds the buffers most recently shown first. There is always at least one buffer (an untitled one).
 '
 ' Configuration is files only (D15): settings.toml, keybindings.toml and the theme are opened as
 ' buffers like any text, and saving one re-applies it at once. A file that does not parse leaves
-' the previous values in force and says why in the status line's message panel.
+' the previous values in force and says why in the status line's message panel. settings.toml is
+' rewritten to list every key at its value in force when tkEdit starts and before it is opened.
 #module "mainwin"
 
 #import "std/containers"
@@ -57,10 +58,8 @@
 #import "tkControls/tkFileDialog"
 #import "tkControls/tkKeys"
 #import "tkControls/tkListTree"
-#import "tkControls/tkMenuBar"
 #import "tkControls/tkMessageBox"
 #import "tkControls/tkPaint"
-#import "tkControls/tkPopupMenu"
 #import "tkControls/tkSplitter"
 #import "tkControls/tkStatusBar"
 using containers
@@ -72,10 +71,8 @@ using tkCodeEdit
 using tkFileDialog
 using tkKeys
 using tkListTree
-using tkMenuBar
 using tkMessageBox
 using tkPaint
-using tkPopupMenu
 using tkSplitter
 using tkStatusBar
 
@@ -86,10 +83,8 @@ public const FONT_GLYPH = "PsIcons.ttf"
 public const DEFAULT_CX = 960
 public const DEFAULT_CY = 640
 public const STATUS_CY = 24              ' one status row, unscaled
-public const MENUBAR_CY = 26             ' the menu bar while it shows, unscaled
 public const SPLIT_BAR = 5               ' the bar between the two panes, unscaled
 const ID_STATUS = 101
-const ID_MENUBAR = 102
 const ID_SPLIT = 103
 const ID_FINDSTRIP = 104
 const ID_OUTPUT = 105
@@ -101,22 +96,19 @@ const DISK_CHECK_MS = 1000
 
 ' The status line's panels, left to right (PLAN.md, Window).
 public enum StatusPanel explicit
-    Buffer = 0          ' the active buffer's name; a click lists the buffers
+    Buffer = 0          ' the active buffer's name, its full path the tooltip; a click lists the buffers
     Message             ' stretches: build results, config errors
-    Position            ' Ln, Col
-    Build               ' the build configuration; a click picks one
-    Encoding            ' a click picks one
-    LineEnding          ' a click converts
+    Position            ' Ln, Col; a click goes to a line
+    Build               ' the build configuration; a click opens settings.toml
+    Encoding            ' a click opens settings.toml
+    LineEnding          ' a click opens settings.toml
 end enum
 
 ' What the one chooser popup is choosing.
 public enum PickKind explicit
     None = 0
     Buffers
-    Switcher
     Recent
-    Encoding
-    LineEnding
     Build
     Bookmarks
     Symbols             ' Ctrl+P: files and definitions
@@ -237,8 +229,6 @@ public type Window
 
     ' ---- the App state
     ResourceDir as ustring
-    Previewing as boolean                                      ' the Ctrl+Tab switcher is showing buffers
-    SwitchFrom as DocRef                                       ' and Esc goes back to this one
     HasIcon as boolean                                         ' icons/tkedit.png set as the window icon
     Prefs as settings.EditorSettings
     Keys as keybind.KeyMap
@@ -255,7 +245,6 @@ public type Window
     Recent as mru.RecentList
     CurrentBuild as ustring             ' the build configuration's name
     Message as ustring                  ' the message panel's text
-    MenuShown as boolean
     Chooser as popuplist.Picker
     Choosing as PickKind
     Finder as findstrip.Strip
@@ -310,7 +299,6 @@ public type Window
 
     form as TK_FORM ptr
     status as TK_WIDGET ptr
-    menuBar as TK_WIDGET ptr
     splitBar as TK_WIDGET ptr
     accel as TK_KEYMAP ptr
     diskTimer as long
@@ -325,24 +313,23 @@ public type Window
     declare sub ShowStatus( )
     declare sub ShowTitle( )
     declare function StatusText( byval p as StatusPanel ) as ustring
+    declare function StatusTip( byval p as StatusPanel ) as ustring    ' "" = none
     declare function StatusHeight( ) as long
     declare function BottomHeight( ) as long                   ' the status line, and the strip above it
     declare function OutputHeight( ) as long                   ' 0 when the pane is hidden
-    declare function MenuHeight( ) as long
     declare sub SetMessage( byref s as const ustring )
 
     ' ---- commands
     declare function Execute( byval id as Cmd ) as boolean       ' FALSE = not available (yet)
     declare function IsImplemented( byval id as Cmd ) as boolean
     declare function ShortcutText( byval id as Cmd ) as ustring  ' "Ctrl+S", "" = none
-    declare sub ShowMenuBar( )
-    declare sub HideMenuBar( )
 
     ' ---- configuration
     declare function SettingsFile( ) as ustring
     declare function KeysFile( ) as ustring
     declare function SessionFile( ) as ustring
     declare sub ReloadSettings( )
+    declare sub SyncSettingsFile( )
     declare sub ReloadKeys( )
     declare sub ReloadTheme( )
     declare sub ApplyLook( )
@@ -356,6 +343,7 @@ public type Window
     declare function OpenFile( byref path as const ustring ) as boolean
     declare function FindOpen( byref path as const ustring ) as DocRef
     declare sub ShowDoc( byval d as DocRef )                     ' in the focused pane
+    declare sub CycleBuffer( byval forward as boolean )          ' the next in open order, wrapping
     declare function SaveDoc( byval d as DocRef, byval newName as boolean ) as boolean
     declare function CloseDoc( byval d as DocRef ) as boolean   ' FALSE = the person cancelled
     declare function CloseAll( ) as boolean
@@ -426,7 +414,6 @@ public type Window
     declare function DocOfWidget( byval w as TK_WIDGET ptr ) as DocRef
 
   private:
-    declare sub BuildMenus( )
     declare sub RebuildAccelerators( )
     declare sub AfterSave( byval d as DocRef )
     declare function FontFile( ) as ustring
@@ -455,8 +442,8 @@ function Window.Create( byval forcedScale as single ) as boolean
     if len( ConfigDir ) = 0 then ConfigDir = platform.ConfigDir( ).ValueOr( fs.PathJoin( ResourceDir, "config" ) )
     Words = LoadKeywords( ResourceDir )
 
-    ' first run: the commented references (D15); never overwritten
-    settings.EnsureFile( this.SettingsFile( ) )
+    ' first run: keybindings.toml as the commented reference (D15), never overwritten; settings.toml
+    ' is written below, once it has been read
     if fs.Exists( this.KeysFile( ) ) = false then Keys.Save( this.KeysFile( ) )
     Prefs = settings.DefaultSettings( )
     Theme = themes.DarkTheme( )
@@ -484,18 +471,15 @@ function Window.Create( byval forcedScale as single ) as boolean
         if mw = 0 then exit sub
         select case idx
         case StatusPanel.Buffer : mw->OpenChooser( PickKind.Buffers )
-        case StatusPanel.Build : mw->OpenChooser( PickKind.Build )
-        case StatusPanel.Encoding : mw->OpenChooser( PickKind.Encoding )
-        case StatusPanel.LineEnding : mw->OpenChooser( PickKind.LineEnding )
+        case StatusPanel.Position : mw->Execute( Cmd.GoToLine )
+        case StatusPanel.Build, StatusPanel.Encoding, StatusPanel.LineEnding : mw->Execute( Cmd.Settings )
         end select
     end sub )
-
-    menuBar = tkMenuBar_Create( root, ID_MENUBAR )
-    tkWidget_Show( menuBar, false )
-    tkMenuBar_SetCommandCallback( menuBar, sub( byval hBar as TK_WIDGET ptr, byval id as long )
+    tkStatusBar_SetTooltipCallback( status, function( byval hBar as TK_WIDGET ptr, byval idx as long ) as ustring
         dim as Window ptr mw = WindowOfWidget( hBar )
-        if mw then mw->Execute( cast( Cmd, id ) )
-    end sub )
+        if mw = 0 then return ""
+        return mw->StatusTip( cast( StatusPanel, idx ) )
+    end function )
 
     Out.Create( root, ID_OUTPUT, @this )
     Out.OnActivate = sub( byval owner as any ptr, byval tab_ as outputpane.OutputTab, byval itemIndex as long )
@@ -512,7 +496,8 @@ function Window.Create( byval forcedScale as single ) as boolean
     end sub
 
     this.ReloadSettings( )                      ' the theme and the look with it
-    this.ReloadKeys( )                          ' the accelerators and the menus with them
+    this.SyncSettingsFile( )
+    this.ReloadKeys( )                          ' the accelerators with them
     CurrentBuild = Prefs.DefaultBuild( )
     if NoParser = false then this.StartScanner( )
 
@@ -539,13 +524,22 @@ function Window.Create( byval forcedScale as single ) as boolean
     h->OnPreKey = function( byval h as TK_HOST ptr, byval m as TK_MSG ptr ) as boolean
         dim as Window ptr mw = WindowOfHost( h )
         if (mw = 0) orelse (mw->accel = 0) then return false
+        ' Esc closes the find strip wherever the focus is -- after a view's own completion list or
+        ' calltip, which Esc closes first
+        if (m->key = SDLK_ESCAPE) andalso mw->Finder.isOpen then
+            if mw->DocOfWidget( tkHost_GetFocus( h ) ) then
+                if mw->View( ).CompletionsShown( ) orelse mw->View( ).CallTipShown( ) then return false
+            end if
+            mw->OnFind( findstrip.FindAction.CloseStrip )
+            return true
+        end if
         dim as Cmd id = cast( Cmd, tkKeys_Lookup( mw->accel, tkKeys_FromMsg( m ) ) )
         if id = Cmd.None then return false
         select case id
         case Cmd.IndentBlock, Cmd.UnindentBlock
             return false                        ' Scintilla's own Tab and Shift+Tab
         end select
-        ' the Edit menu's keys belong to a text field when one has the focus (the find strip)
+        ' the Edit group's keys belong to a text field when one has the focus (the find strip)
         if (mw->DocOfWidget( tkHost_GetFocus( h ) ) = 0) andalso _
            (mw->Keys.Commands( ).Info( id ).Group = MenuGroup.Edit) then return false
         mw->Execute( id )
@@ -575,8 +569,6 @@ sub Window.Show( )
 end sub
 
 sub Window.Destroy( )
-    Chooser.OnCancel = 0                         ' a switcher closed by the teardown goes nowhere
-    Chooser.OnMove = 0
     if diskTimer then tkApp_KillTimer( diskTimer )
     diskTimer = 0
     if buildTimer then tkApp_KillTimer( buildTimer )
@@ -614,19 +606,13 @@ function Window.OutputHeight( ) as long
     return tkForm_Scale( form, outputpane.PANE_CY )
 end function
 
-function Window.MenuHeight( ) as long
-    if MenuShown = false then return 0
-    return tkForm_Scale( form, MENUBAR_CY )
-end function
-
-' The menu bar (while shown) on top, the pane(s), the output pane, the find strip (while open), one
-' status row at the bottom. Every view no pane shows is hidden.
+' The pane(s), the output pane, the find strip (while open), one status row at the bottom. Every
+' view no pane shows is hidden.
 sub Window.Layout( )
     if form = 0 then exit sub
     dim as TK_WIDGET ptr root = tkForm_Widget( form )
     dim as long cx = root->cw, cy = root->ch
-    dim as long sh = this.StatusHeight( ), mh = this.MenuHeight( )
-    if mh > 0 then tkWidget_SetPos( menuBar, 0, 0, cx, mh )
+    dim as long sh = this.StatusHeight( )
     tkWidget_SetPos( status, 0, cy - sh, cx, sh )
     if Finder.isOpen then
         dim as long fh = Finder.Height( )        ' the strip sits on top of the status line (D10)
@@ -639,7 +625,7 @@ sub Window.Layout( )
         tkWidget_SetPos( Out.frame, 0, cy - sh - oh, cx, oh )
     end if
     tkWidget_Show( Out.frame, OutputShown )
-    dim as long top = mh, ah = cy - sh - mh - oh
+    dim as long top = 0, ah = cy - sh - oh
     dim as TK_WIDGET ptr v1 = 0, v2 = 0
     if Pane1 then v1 = Pane1->Main.Widget( )
     if (Split <> session.SplitMode.None) andalso (Pane2 <> 0) then v2 = Pane2->Other.Widget( )
@@ -717,6 +703,15 @@ function Window.StatusText( byval p as StatusPanel ) as ustring
     return tkStatusBar_GetText( status, p )
 end function
 
+' The buffer panel's tooltip: the active buffer's full path (its name while untitled).
+function Window.StatusTip( byval p as StatusPanel ) as ustring
+    if p <> StatusPanel.Buffer then return ""
+    dim as DocRef d = this.Active( )
+    if d = 0 then return ""
+    if len( d->Path ) then return d->Path
+    return d->DisplayName( )
+end function
+
 ' ================================================================ commands
 
 function Window.ShortcutText( byval id as Cmd ) as ustring
@@ -727,7 +722,7 @@ function Window.ShortcutText( byval id as Cmd ) as ustring
     return r.Value( ).ToDisplay( )
 end function
 
-' What this phase can do; the rest is greyed in the menus and says so when its key is pressed.
+' What this phase can do; the rest says so when its key is pressed.
 function Window.IsImplemented( byval id as Cmd ) as boolean
     select case id
     case Cmd.FileNew, Cmd.FileOpen, Cmd.FileRecent, Cmd.FileClose, Cmd.FileCloseAll, Cmd.FileSave, _
@@ -738,7 +733,7 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
          Cmd.CommentBlock, Cmd.UncommentBlock, Cmd.IndentBlock, Cmd.UnindentBlock, _
          Cmd.ToUpperCase, Cmd.ToLowerCase, Cmd.ToMixedCase
         return true
-    case Cmd.ShowMenu, Cmd.BufferList, Cmd.BufferNext, Cmd.BufferPrev, Cmd.SplitLeftRight, _
+    case Cmd.BufferList, Cmd.BufferNext, Cmd.BufferPrev, Cmd.SplitLeftRight, _
          Cmd.SplitTopBottom, Cmd.CycleFocus, Cmd.ZoomIn, Cmd.ZoomOut, Cmd.ZoomReset, Cmd.FoldToggle, _
          Cmd.FoldBelow, Cmd.FoldAll, Cmd.UnfoldAll, Cmd.BuildConfig
         return true
@@ -781,24 +776,17 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.FileSave : this.SaveDoc( this.Active( ), false )
     case Cmd.FileSaveAs : this.SaveDoc( this.Active( ), true )
     case Cmd.FileSaveAll : this.SaveAll( )
-    case Cmd.Settings : this.OpenFile( this.SettingsFile( ) )
+    case Cmd.Settings
+        if this.FindOpen( this.SettingsFile( ) ) = 0 then this.SyncSettingsFile( )   ' never under an open buffer
+        this.OpenFile( this.SettingsFile( ) )
     case Cmd.KeyboardShortcuts : this.OpenFile( this.KeysFile( ) )
     case Cmd.ThemeFile
         dim as ustring f = this.EditableThemeFile( )
         if len( f ) then this.OpenFile( f )
     case Cmd.AppExit : tkForm_Close( form )
-    case Cmd.ShowMenu : this.ShowMenuBar( )
     case Cmd.BufferList : this.OpenChooser( PickKind.Buffers )
-    case Cmd.BufferNext, Cmd.BufferPrev
-        ' on the key-down: the buffer it selects is shown at once, and each Tab after it shows
-        ' the next; letting go of Ctrl keeps the one shown, Esc goes back
-        Chooser.Close( )
-        this.OpenChooser( PickKind.Switcher )
-        if id = Cmd.BufferPrev then
-            Chooser.Move( Mru.Count( ) )                                ' to the oldest
-        elseif Chooser.SelectedTag( ) >= 0 then
-            this.ShowDoc( Mru[Chooser.SelectedTag( )] )
-        end if
+    case Cmd.BufferNext : this.CycleBuffer( true )
+    case Cmd.BufferPrev : this.CycleBuffer( false )
     case Cmd.SplitLeftRight : this.ToggleSplit( session.SplitMode.Vertical )
     case Cmd.SplitTopBottom : this.ToggleSplit( session.SplitMode.Horizontal )
     case Cmd.CycleFocus : this.CycleFocus( )
@@ -886,56 +874,7 @@ function Window.Execute( byval id as Cmd ) as boolean
     return true
 end function
 
-' ================================================================ the hidden menu bar
-
-' One menu per group, rows in table order, the current shortcut beside each, the commands this
-' phase cannot do greyed. Rebuilt whenever keybindings.toml changes.
-sub Window.BuildMenus( )
-    dim as TK_HOST ptr h = tkForm_Host( form )
-    dim as cmdids.CommandTable t
-    dim as boolean fresh = (tkMenuBar_GetItemCount( menuBar ) = 0)
-    for g as long = 0 to clng( MenuGroup.Count_ ) - 1
-        dim as TK_MENU ptr m
-        if fresh then
-            dim as long i = tkMenuBar_AddItem( menuBar, GroupName( cast( MenuGroup, g ) ), 0 )
-            m = tkPopupMenu_Create( h )
-            tkMenuBar_SetDropDown( menuBar, i, m )
-            ' a dropdown closes on a command, on Esc, on a click outside, and also when Left / Right
-            ' moves to the next menu: look once the event is over, and hide only if none is open
-            tkPopupMenu_SetClosedCallback( m, sub( byval hPopup as TK_MENU ptr, byval nReason as long )
-                tkApp_RunOnUI( sub( byval payload as any ptr )
-                    dim as Window ptr mw = payload
-                    if mw->MenuShown andalso (tkMenuBar_IsMenuOpen( mw->menuBar ) = false) then mw->HideMenuBar( )
-                end sub, WindowOfHost( hPopup->pOwner ) )
-            end sub )
-        else
-            m = tkMenuBar_GetDropDown( menuBar, g )
-            tkPopupMenu_Clear( m )
-        end if
-        for each id as Cmd in t.InGroup( cast( MenuGroup, g ) )
-            dim as cmdids.CommandInfo ci = t.Info( id )
-            if ci.SepBefore andalso (tkPopupMenu_GetItemCount( m ) > 0) then tkPopupMenu_AddSeparator( m )
-            tkPopupMenu_AddItem( m, clng( id ), ci.Description, this.ShortcutText( id ), this.IsImplemented( id ) = false )
-        next
-    next
-end sub
-
-sub Window.ShowMenuBar( )
-    if MenuShown then exit sub
-    MenuShown = true
-    tkWidget_Show( menuBar, true )
-    this.Layout( )
-    tkMenuBar_OpenMenu( menuBar, 0, true )
-end sub
-
-sub Window.HideMenuBar( )
-    if MenuShown = false then exit sub
-    MenuShown = false
-    tkMenuBar_CloseMenu( menuBar )
-    tkWidget_Show( menuBar, false )
-    this.Layout( )
-    this.View( ).Focus( )
-end sub
+' ================================================================ accelerators
 
 sub Window.RebuildAccelerators( )
     if accel = 0 then accel = tkKeys_MapCreate( )
@@ -982,9 +921,7 @@ sub Window.ReloadSettings( )
     dim as settings.SettingsResult r = settings.LoadSettings( this.SettingsFile( ) )
     if r.IsOk( ) then
         Prefs = r.Value( )
-        ' a default edited but left commented out does nothing: say so
-        Message = commented.Warning( commented.EditedComments( _
-                      fs.ReadAllText( this.SettingsFile( ) ).ValueOr( "" ), settings.Template( ) ) )
+        Message = ""
     else
         Message = strings.Format( "{}:{}: {}", settings.SETTINGS_FILE, r.Failure( ).Line( ), r.Failure( ).Detail( ) )
     end if
@@ -997,7 +934,14 @@ sub Window.ReloadSettings( )
     this.ShowStatus( )
 end sub
 
-' keybindings.toml: the key map, the accelerators, the menus' shortcut text; warnings and chords
+' settings.toml rewritten to list every key at the value it reads as, unless it does already. A
+' file that does not parse is the person's to fix, and is left alone.
+sub Window.SyncSettingsFile( )
+    dim as settings.SettingsResult r = settings.LoadSettings( this.SettingsFile( ) )
+    if r.IsOk( ) then settings.WriteFile( this.SettingsFile( ), r.Value( ) )
+end sub
+
+' keybindings.toml: the key map and the accelerators; warnings and chords
 ' two commands share go to the message panel.
 sub Window.ReloadKeys( )
     dim as keybind.WarningsResult r = Keys.Load( this.KeysFile( ) )
@@ -1016,7 +960,6 @@ sub Window.ReloadKeys( )
         end if
     next
     this.RebuildAccelerators( )
-    this.BuildMenus( )
     if notes.Count( ) = 0 then
         dim as keybind.KeyMap defaults
         Message = commented.Warning( commented.EditedComments( _
@@ -1144,10 +1087,8 @@ function Window.NewView( byref v as editor.CodeView ) as boolean
     return true
 end function
 
-' d is the most recently shown buffer now. Not while the switcher previews: its rows are the
-' MRU order, which must hold still while Tab walks them.
+' d is the most recently shown buffer now.
 sub Window.Touch( byval d as DocRef )
-    if Previewing then exit sub
     for i as long = 0 to Mru.Count( ) - 1
         if Mru[i] = d then
             Mru.Remove( i )
@@ -1210,9 +1151,21 @@ sub Window.ShowDoc( byval d as DocRef )
     end if
     this.Touch( d )
     this.Layout( )
-    if Previewing = false then this.View( ).Focus( )          ' the switcher keeps the keyboard
+    this.View( ).Focus( )
     this.ShowTitle( )
     this.ShowStatus( )
+end sub
+
+' The buffer after (or before) the focused pane's in open order, wrapping at either end.
+sub Window.CycleBuffer( byval forward as boolean )
+    dim as long n = Docs.Count( )
+    if n < 2 then exit sub
+    dim as long i = 0
+    for k as long = 0 to n - 1
+        if Docs[k] = this.Active( ) then i = k
+    next
+    if forward then i = (i + 1) mod n else i = (i + n - 1) mod n
+    this.ShowDoc( Docs[i] )
 end sub
 
 ' Opens path in the focused pane, or shows the buffer it is already in. An untitled, empty,
@@ -1379,8 +1332,8 @@ sub Window.ToggleSplit( byval mode as session.SplitMode )
             if mw->Split = session.SplitMode.Vertical then
                 if root->cw > bar then mw->SplitRatio = newPos / (root->cw - bar)
             else
-                dim as long ah = root->ch - mw->BottomHeight( ) - mw->MenuHeight( ) - mw->OutputHeight( )
-                if ah > bar then mw->SplitRatio = (newPos - mw->MenuHeight( )) / (ah - bar)
+                dim as long ah = root->ch - mw->BottomHeight( ) - mw->OutputHeight( )
+                if ah > bar then mw->SplitRatio = newPos / (ah - bar)
             end if
             mw->Layout( )
         end sub )
@@ -1559,9 +1512,6 @@ sub Window.OpenChooser( byval kind as PickKind )
     if (kind = PickKind.Functions) andalso (Choosing = PickKind.Functions) then keep = Chooser.QueryText( )
     Chooser.Close( )
     Chooser.Filter = true
-    Chooser.AcceptOnCtrlUp = false
-    Chooser.OnMove = 0
-    Chooser.OnCancel = 0
     Chooser.SeedQuery = keep
     Chooser.MaxRows = 12
     Chooser.Toggle.key = 0
@@ -1670,7 +1620,7 @@ sub Window.OpenChooser( byval kind as PickKind )
             mw->FuncsAll = (mw->FuncsAll = false)
             mw->OpenChooser( PickKind.Functions )
         end sub
-    case PickKind.Buffers, PickKind.Switcher
+    case PickKind.Buffers
         for i as long = 0 to Mru.Count( ) - 1
             dim as DocRef d = Mru[i]
             dim as ustring mark = " "
@@ -1679,38 +1629,10 @@ sub Window.OpenChooser( byval kind as PickKind )
             if len( d->Path ) then dir_ = fs.PathParent( d->Path )
             rows.Push( Row( mark, d->DisplayName( ), dir_, i ) )
         next
-        if kind = PickKind.Switcher then
-            Chooser.Filter = false
-            Chooser.AcceptOnCtrlUp = true
-            if Mru.Count( ) > 1 then sel = 1
-            SwitchFrom = this.Active( )
-            Previewing = true
-            Chooser.OnMove = sub( byval payload as any ptr, byval tag as long )
-                dim as Window ptr mw = payload
-                if (tag >= 0) andalso (tag < mw->Mru.Count( )) then mw->ShowDoc( mw->Mru[tag] )
-            end sub
-            Chooser.OnCancel = sub( byval payload as any ptr, byval tag as long )
-                dim as Window ptr mw = payload
-                mw->Previewing = false
-                if mw->SwitchFrom then mw->ShowDoc( mw->SwitchFrom )
-            end sub
-        end if
     case PickKind.Recent
         for i as long = 0 to Recent.Count( ) - 1
             rows.Push( Row( " ", fs.PathFileName( Recent.Item( i ) ), fs.PathParent( Recent.Item( i ) ), i ) )
         next
-    case PickKind.Encoding
-        Chooser.Filter = false
-        for e as long = docencoding.FileEncoding.Ansi to docencoding.FileEncoding.Utf16Bom
-            dim as ustring mark = " "
-            if (this.Active( ) <> 0) andalso (clng( this.Active( )->Enc.Encoding ) = e) then mark = "*"
-            rows.Push( Row( mark, docencoding.EncodingName( cast( docencoding.FileEncoding, e ) ), "", e ) )
-        next
-    case PickKind.LineEnding
-        Chooser.Filter = false
-        rows.Push( Row( " ", "CRLF", "Windows", clng( docencoding.LineEnd.CrLf ) ) )
-        rows.Push( Row( " ", "LF", "Linux, macOS", clng( docencoding.LineEnd.Lf ) ) )
-        rows.Push( Row( " ", "CR", "classic Mac", clng( docencoding.LineEnd.Cr ) ) )
     case PickKind.Bookmarks
         Marks.Clear( )
         for each d as DocRef in Mru
@@ -1754,7 +1676,7 @@ sub Window.OpenChooser( byval kind as PickKind )
     if (kind = PickKind.Symbols) orelse (kind = PickKind.Functions) then
         dim as long cx = tkForm_Widget( form )->cw
         if w > cx then w = cx
-        Chooser.Open( h, rows, wx + (cx - w) \ 2, wy + this.MenuHeight( ) + tkForm_Scale( form, 32 ), w, sel )
+        Chooser.Open( h, rows, wx + (cx - w) \ 2, wy + tkForm_Scale( form, 32 ), w, sel )
     else
         Chooser.Open( h, rows, wx + a.left, wy + a.top - ph, w, sel )
     end if
@@ -1764,14 +1686,11 @@ sub Window.Chosen( byval tag as long )
     dim as PickKind kind = Choosing
     Choosing = PickKind.None
     select case kind
-    case PickKind.Buffers, PickKind.Switcher
-        Previewing = false
+    case PickKind.Buffers
         if (tag >= 0) andalso (tag < Mru.Count( )) then this.ShowDoc( Mru[tag] )
     case PickKind.Recent
         dim as ustring p = Recent.Item( tag )
         if len( p ) then this.OpenFile( p )
-    case PickKind.Encoding : this.SetEncoding( cast( docencoding.FileEncoding, tag ) )
-    case PickKind.LineEnding : this.SetLineEnding( cast( docencoding.LineEnd, tag ) )
     case PickKind.Build
         if (tag >= 0) andalso (tag < Prefs.Builds.Count( )) then CurrentBuild = Prefs.Builds[tag].Name
     case PickKind.Symbols, PickKind.Functions
