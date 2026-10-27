@@ -1,0 +1,484 @@
+' tkToolbar self-test. Real windows, real SDL event queue: every input claim is made by
+' PUSHING the SDL event a user would have produced and pumping the host -- at the bar, and at
+' its dropdown / overflow menus on their own popup surfaces. Two passes, 1.0 and 1.75.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkToolbar"
+#import "vendor/tkControls/tkButton"
+#import "vendor/tkControls/tkTest"
+using tkToolbar
+using tkPopupMenu
+using tkButton
+using tkTooltip
+using tkTheme
+using tkImage
+using tkTest
+using tkHost
+using tkPaint
+
+enum
+    I_NEW = 0, I_OPEN, I_SEP1, I_BOLD, I_ITALIC, I_SEP2, I_LEFT, I_CENTER, I_RIGHT, I_SEP3, I_RUN, I_BUILD, I_SEARCH, I_SETTINGS, I_HELP
+end enum
+
+dim shared as long gClicks, gLastIdx, gLastId, gSel, gMenuSel, gMenuId, gDrop, gDropIdx, gTipAsks
+dim shared as boolean gDropOpen, gCoherent, gRowsAtOpen
+dim shared as string gSelLog, gDropLog
+dim shared as TK_WIDGET ptr gTB
+dim shared as long gIdealW(0 to 1)
+
+sub OnClick( byval h as TK_WIDGET ptr, byval idx as long, byval id as long )
+    gClicks += 1 : gLastIdx = idx : gLastId = id
+end sub
+
+sub OnSel( byval h as TK_WIDGET ptr, byval idx as long, byval isSelected as boolean )
+    gSel += 1
+    gSelLog &= idx & iif( isSelected, "+", "-" ) & " "
+    ' both writes land before either callback: never two members of group 1 checked
+    dim as long n = 0
+    for i as long = I_LEFT to I_RIGHT
+        if tkToolbar_GetSelected( h, i ) then n += 1
+    next
+    if n > 1 then gCoherent = false
+end sub
+
+sub OnDrop( byval h as TK_WIDGET ptr, byval idx as long, byval m as TK_MENU ptr, byval isOpen as boolean )
+    gDrop += 1 : gDropIdx = idx : gDropOpen = isOpen
+    gDropLog &= idx & iif( isOpen, "o", "c" ) & " "
+    if isOpen andalso (idx >= 0) then gRowsAtOpen = (tkPopupMenu_GetItemCount( m ) = 0)
+    ' the just-in-time hook: an item menu's rows are built from the opening edge
+    if isOpen andalso (idx = I_BUILD) then
+        tkPopupMenu_Clear( m )
+        tkPopupMenu_AddItem( m, 5011, "Build" )
+        tkPopupMenu_AddItem( m, 5012, "Rebuild All" )
+    end if
+end sub
+
+sub OnMenuSel( byval m as TK_MENU ptr, byval id as long )
+    gMenuSel += 1 : gMenuId = id
+end sub
+
+function OnTip( byval h as TK_WIDGET ptr, byval idx as long ) as ustring
+    gTipAsks += 1
+    return "tip " & idx
+end function
+
+function DropOsFocusEvents( byval userdata as any ptr, byval e as SDL_Event ptr ) as boolean
+    select case e->type
+    case SDL_EVENT_WINDOW_FOCUS_LOST, SDL_EVENT_WINDOW_MOUSE_LEAVE
+        return false
+    end select
+    return true
+end function
+
+function WaitTip( byval h as TK_HOST ptr, byval tp as TK_TIP ptr, byval want as boolean, byval ms as long ) as boolean
+    dim as double t0 = timer
+    dim as SDL_Event e
+    while (timer - t0) * 1000 < ms
+        if SDL_WaitEventTimeout( @e, 20 ) then tkHost_Dispatch( h, @e )
+        if h->bDirty then tkHost_Render( h )
+        if tkTooltip_IsVisible( tp ) = want then return true
+    wend
+    return false
+end function
+
+function CX( byval idx as long ) as single
+    dim as TKRECT rc
+    tkToolbar_GetItemRect( gTB, idx, rc )
+    return gTB->x + (rc.left + rc.right) / 2
+end function
+function CY() as single
+    return gTB->y + gTB->ch / 2
+end function
+' A point in a SPLIT's action zone (left part) / chevron zone.
+function ActionX( byval idx as long ) as single
+    dim as TKRECT rc
+    tkToolbar_GetItemRect( gTB, idx, rc )
+    return gTB->x + rc.left + tkHost_Scale( gTB->pHost, 8 )
+end function
+function ChevX( byval idx as long ) as single
+    dim as TKRECT rc
+    tkToolbar_GetItemChevronRect( gTB, idx, rc )
+    return gTB->x + (rc.left + rc.right) / 2
+end function
+
+sub ClickRow( byval m as TK_MENU ptr, byval row as long )
+    dim as TKRECT rc
+    tkPopupMenu_GetItemRect( m, row, rc )
+    tkTest_Click( tkPopupMenu_Surface( m ), (rc.left + rc.right) / 2, (rc.top + rc.bottom) / 2 )
+end sub
+
+private sub MakeChecker( byref path as string )
+    dim as SDL_Surface ptr s = SDL_CreateSurface( 32, 32, SDL_PIXELFORMAT_ARGB8888 )
+    if s = 0 then exit sub
+    for y as long = 0 to 31
+        dim as ulong ptr row = cast( ulong ptr, cast( ubyte ptr, s->pixels ) + y * s->pitch )
+        for x as long = 0 to 31
+            row[x] = iif( (((x \ 8) + (y \ 8)) and 1), &hFFEE9933ul, &hFF3399EEul )
+        next
+    next
+    SDL_SaveBMP( s, strptr( path ) )
+    SDL_DestroySurface( s )
+end sub
+
+' ==========================================================================================
+sub PureChecks()
+    tkTest_Begin( "pure" )
+    tkTest_Check( "cell: icon only", tkToolbar_ComputeCellWidth( TBR_KIND_COMMAND, 16, 0, 6, 1, 0, 14, 4, 1, 6, 6 ) = 6 + 16 + 6 )
+    tkTest_Check( "cell: text only (no gap)", tkToolbar_ComputeCellWidth( TBR_KIND_COMMAND, 0, 40, 6, 1, 0, 14, 4, 1, 6, 6 ) = 6 + 40 + 6 )
+    tkTest_Check( "cell: icon + gap + text", tkToolbar_ComputeCellWidth( TBR_KIND_TOGGLE, 16, 40, 6, 1, 0, 14, 4, 1, 6, 6 ) = 6 + 16 + 6 + 40 + 6 )
+    tkTest_Check( "cell: SPLIT adds gap + divider + chevron", tkToolbar_ComputeCellWidth( TBR_KIND_SPLIT, 16, 0, 6, 1, 0, 14, 4, 1, 6, 6 ) = 6 + 16 + 4 + 1 + 14 + 6 )
+    tkTest_Check( "cell: a bare SPLIT is just its chevron", tkToolbar_ComputeCellWidth( TBR_KIND_SPLIT, 0, 0, 6, 1, 0, 14, 4, 1, 6, 6 ) = 6 + 14 + 6 )
+    tkTest_Check( "cell: DROPDOWN adds gap + chevron (no divider)", tkToolbar_ComputeCellWidth( TBR_KIND_DROPDOWN, 0, 40, 6, 1, 0, 14, 4, 1, 6, 6 ) = 6 + 40 + 4 + 14 + 6 )
+    tkTest_Check( "cell: SEPARATOR / CONTROL", tkToolbar_ComputeCellWidth( TBR_KIND_SEPARATOR, 16, 40, 6, 1, 0, 14, 4, 1, 6, 6 ) = 13 andalso tkToolbar_ComputeCellWidth( TBR_KIND_CONTROL, 16, 40, 6, 1, 120, 14, 4, 1, 6, 6 ) = 132 )
+    dim as long w(0 to 4) = { 50, 50, 50, 50, 50 }
+    dim as long g(0 to 4) = { TBR_GRAVITY_LEFT, TBR_GRAVITY_LEFT, TBR_GRAVITY_LEFT, TBR_GRAVITY_RIGHT, TBR_GRAVITY_RIGHT }
+    dim as long k(0 to 4) = { TBR_KIND_COMMAND, TBR_KIND_CONTROL, TBR_KIND_COMMAND, TBR_KIND_COMMAND, TBR_KIND_COMMAND }
+    dim as boolean o(0 to 4), bNeed
+    tkToolbar_ComputeOverflowSplit( w(), g(), k(), 5, 250, 20, o(), bNeed )
+    tkTest_Check( "split: it fits -> nothing, no button", bNeed = false andalso (o(0) orelse o(1) orelse o(2) orelse o(3) orelse o(4)) = false )
+    tkToolbar_ComputeOverflowSplit( w(), g(), k(), 5, 230, 20, o(), bNeed )
+    tkTest_Check( "split: the LEFT tail goes first", bNeed andalso o(2) andalso (o(0) = false) andalso (o(3) = false), o(0) & o(1) & o(2) & o(3) & o(4) )
+    tkToolbar_ComputeOverflowSplit( w(), g(), k(), 5, 120, 20, o(), bNeed )
+    tkTest_Check( "split: then the RIGHT run's FRONT; CONTROL never", o(0) andalso o(2) andalso o(3) andalso (o(1) = false) andalso (o(4) = false), o(0) & o(1) & o(2) & o(3) & o(4) )
+    tkTest_Check( "mood: disabled > pressed > hot > idle", tkToolbar_ResolveMood( false, true, true ) = TBR_MOOD_DISABLED andalso tkToolbar_ResolveMood( true, true, true ) = TBR_MOOD_PRESSED andalso _
+                  tkToolbar_ResolveMood( true, false, true ) = TBR_MOOD_HOT andalso tkToolbar_ResolveMood( true, false, false ) = TBR_MOOD_IDLE )
+end sub
+
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkToolbar selftest", 900, 300, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    tkTest_Check( "scale pinned", h->fScale = fScale )
+    tkTheme_Apply( tkTheme_Dark() )
+    dim as TTF_Font ptr fText = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 10 )
+    dim as TTF_Font ptr fGlyph = tkHost_OpenFont( h, TK_TEST_FONTDIR & "SegoeIcons.ttf", 11 )
+
+    ' ---- build ------------------------------------------------------------------------------
+    gTB = tkToolbar_Create( tkHost_Root( h ), 100 )
+    dim as TK_WIDGET ptr t = gTB
+    tkToolbar_SetTextFont( t, fText ) : tkToolbar_SetGlyphFont( t, fGlyph )
+    tkToolbar_SetClickCallback( t, @OnClick )
+    tkToolbar_SetSelChangeCallback( t, @OnSel )
+    tkToolbar_SetDropDownCallback( t, @OnDrop )
+    tkToolbar_SetTooltipCallback( t, @OnTip )
+    tkToolbar_AddItem( t, TBR_KIND_COMMAND, wchr( &hE7C3 ), "New", 101 )
+    tkToolbar_AddItem( t, TBR_KIND_COMMAND, wchr( &hE8E5 ), "Open", 102 )
+    tkToolbar_AddSeparator( t )
+    tkToolbar_AddItem( t, TBR_KIND_TOGGLE, wchr( &hE8DD ), "", 201 )
+    tkToolbar_AddItem( t, TBR_KIND_TOGGLE, wchr( &hE8DB ), "", 202 )
+    tkToolbar_AddSeparator( t )
+    for i as long = 0 to 2
+        tkToolbar_AddItem( t, TBR_KIND_TOGGLE, wchr( &hE8E4 + i ), "", 301 + i )
+        tkToolbar_SetItemGroupID( t, I_LEFT + i, 1 )
+    next
+    tkToolbar_SetSelected( t, I_LEFT, true )
+    tkToolbar_AddSeparator( t )
+    tkToolbar_AddItem( t, TBR_KIND_SPLIT, wchr( &hE768 ), "Run", 401 )
+    tkToolbar_AddItem( t, TBR_KIND_DROPDOWN, "", "Build", 501 )
+    dim as TK_WIDGET ptr child = tkButton_Create( t, 900 )
+    tkButton_SetFont( child, fText ) : tkButton_SetText( child, "Search" )
+    tkToolbar_AddControl( t, child, tkHost_Scale( h, 120 ), 0, 701 )
+    tkToolbar_AddItem( t, TBR_KIND_COMMAND, wchr( &hE713 ), "", 601 )
+    tkToolbar_SetItemGravity( t, I_SETTINGS, TBR_GRAVITY_RIGHT )
+    tkToolbar_SetTooltipText( t, I_SETTINGS, "Settings" )
+    tkToolbar_AddItem( t, TBR_KIND_COMMAND, wchr( &hE897 ), "", 602 )
+    tkToolbar_SetItemGravity( t, I_HELP, TBR_GRAVITY_RIGHT )
+    dim as TK_MENU ptr mRun = tkToolbar_GetItemMenu( t, I_RUN )
+    tkPopupMenu_AddItem( mRun, 4011, "Run in Debugger", "F5" )
+    tkPopupMenu_AddItem( mRun, 4012, "Run Release", "Ctrl+F5" )
+    tkPopupMenu_SetSelectCallback( mRun, @OnMenuSel )
+    tkPopupMenu_SetSelectCallback( tkToolbar_GetItemMenu( t, I_BUILD ), @OnMenuSel )
+    tkTest_Check( "15 items", tkToolbar_GetCount( t ) = 15 )
+    tkTest_Check( "GetItemMenu returns the same menu", tkToolbar_GetItemMenu( t, I_RUN ) = mRun )
+
+    ' ---- ideal size before sizing, the formula ----
+    dim as long iw, ih, pb, pa, ptp, pbt, gap, cw, cg
+    tkToolbar_GetIconSize( t, iw, ih )
+    tkToolbar_GetPadding( t, pb, pa, ptp, pbt )
+    gap = tkToolbar_GetTextGap( t )
+    tkToolbar_GetChevronSize( t, cw, cg )
+    dim as long sw = tkToolbar_GetSeparatorWidth( t ), dv = tkToolbar_GetDividerThickness( t )
+    tkTest_Check( "defaults scaled at create (divider not)", iw = cint( 16 * fScale ) andalso pb = cint( 6 * fScale ) andalso cw = cint( 14 * fScale ) andalso dv = 1, iw & " " & pb & " " & cw & " " & dv )
+    dim as long expW = 0
+    expW += tkToolbar_ComputeCellWidth( TBR_KIND_COMMAND, iw, tkText_Width( fText, "New" ), gap, sw, 0, cw, cg, dv, pb, pa )
+    expW += tkToolbar_ComputeCellWidth( TBR_KIND_COMMAND, iw, tkText_Width( fText, "Open" ), gap, sw, 0, cw, cg, dv, pb, pa )
+    expW += 3 * (pb + sw + pa)
+    expW += 5 * (pb + iw + pa)
+    expW += tkToolbar_ComputeCellWidth( TBR_KIND_SPLIT, iw, tkText_Width( fText, "Run" ), gap, sw, 0, cw, cg, dv, pb, pa )
+    expW += tkToolbar_ComputeCellWidth( TBR_KIND_DROPDOWN, 0, tkText_Width( fText, "Build" ), gap, sw, 0, cw, cg, dv, pb, pa )
+    expW += pb + tkHost_Scale( h, 120 ) + pa
+    expW += 2 * (pb + iw + pa)
+    dim as long idealW, idealH
+    tkToolbar_GetIdealSize( t, idealW, idealH )
+    dim as long th = tkText_Height( fText )
+    tkTest_Check( "ideal width valid before sizing = summed cells", idealW = expW, idealW & " vs " & expW )
+    tkTest_Check( "ideal height = padTop + max(text, icon) + padBottom", idealH = ptp + iif( th > ih, th, ih ) + pbt, idealH & "" )
+    gIdealW(iif( fScale > 1.5, 1, 0 )) = idealW
+
+    dim as long barW = tkHost_Scale( h, 880 )
+    tkWidget_SetPos( t, 0, tkHost_Scale( h, 10 ), barW, idealH )
+    dim as TKRECT r0, r1, rs, rh, rr, rb, ri, rx, rt
+    tkToolbar_GetItemRect( t, I_NEW, r0 ) : tkToolbar_GetItemRect( t, I_OPEN, r1 )
+    tkTest_Check( "left run packs from 0, contiguous, full height", r0.left = 0 andalso r1.left = r0.right andalso r0.top = 0 andalso r0.bottom = idealH )
+    tkToolbar_GetItemRect( t, I_HELP, rh ) : tkToolbar_GetItemRect( t, I_SETTINGS, rs )
+    tkTest_Check( "right gravity: the LAST right item hard against the edge", rh.right = barW andalso rs.right = rh.left, tkRect_Str( rs ) & " " & tkRect_Str( rh ) )
+    tkTest_Check( "no overflow while it fits", tkToolbar_GetOverflowRect( t, rx ) = false andalso tkToolbar_GetOverflowCount( t ) = 0 )
+    tkToolbar_GetItemRect( t, I_RUN, rr ) : tkToolbar_GetItemChevronRect( t, I_RUN, rx ) : tkToolbar_GetItemTextRect( t, I_RUN, rt )
+    tkTest_Check( "SPLIT: chevron pinned at the right padding", rx.right = rr.right - pa andalso (rx.right - rx.left) = cw, tkRect_Str( rx ) )
+    tkTest_Check( "SPLIT: caption span ends before gap + divider", rt.right = rx.left - dv - cg, tkRect_Str( rt ) )
+    tkToolbar_GetItemIconRect( t, I_RUN, ri )
+    tkTest_Check( "SPLIT: icon at padBefore, text after the gap", ri.left = rr.left + pb andalso rt.left = ri.right + gap )
+    tkToolbar_GetItemRect( t, I_BUILD, rb ) : tkToolbar_GetItemIconRect( t, I_BUILD, ri )
+    tkTest_Check( "a caption-only item charges no icon cell", tkRect_IsEmpty( ri ) )
+    tkToolbar_GetItemIconRect( t, I_SEP1, ri )
+    tkTest_Check( "separator rule: sepWidth wide, content-band tall", (ri.right - ri.left) = sw andalso (ri.bottom - ri.top) = iif( th > ih, th, ih ), tkRect_Str( ri ) )
+    dim as TKRECT rc
+    tkToolbar_GetItemRect( t, I_SEARCH, rc )
+    tkTest_Check( "CONTROL: the child widget placed in its cell", child->x = rc.left + pb andalso child->cw = tkHost_Scale( h, 120 ) andalso child->ch = idealH andalso child->isVisible, child->x & "," & child->cw & "x" & child->ch )
+    dim as long nZone
+    tkTest_Check( "HitTestEx: split action / chevron zones", tkToolbar_HitTestEx( t, cint( ActionX( I_RUN ) ), idealH \ 2, nZone ) = I_RUN andalso nZone = TBR_ZONE_ACTION andalso _
+                  tkToolbar_HitTestEx( t, cint( ChevX( I_RUN ) ), idealH \ 2, nZone ) = I_RUN andalso nZone = TBR_ZONE_CHEVRON )
+    tkTest_Check( "HitTest: separator and CONTROL are not targets", tkToolbar_HitTest( t, (r1.right + 1), idealH \ 2 ) = -1 andalso tkToolbar_HitTest( t, rc.left + 2, idealH \ 2 ) = -1 )
+
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 300 )
+
+    ' ---- the mouse: commands, toggles, radio ----
+    gClicks = 0
+    tkTest_PushMotion( h, CX( I_NEW ), CY() )
+    tkTest_Check( "hover: hot, action zone", tkToolbar_GetHotItem( t, nZone ) = I_NEW andalso nZone = TBR_ZONE_ACTION )
+    tkTest_Check( "hover: tip index follows", tkTooltip_GetToolIndex( tkToolbar_GetTooltipHandle( t ) ) = I_NEW )
+    tkTest_PushButton( h, true, CX( I_NEW ), CY() )
+    tkTest_Check( "action press takes capture, never focus", tkHost_GetCapture( h ) = t andalso tkToolbar_GetPressedItem( t ) = I_NEW andalso tkHost_GetFocus( h ) = 0 )
+    tkTest_PushButton( h, false, CX( I_NEW ), CY() )
+    tkTest_Check( "matched release: Click(idx, id)", gClicks = 1 andalso gLastIdx = I_NEW andalso gLastId = 101 andalso tkHost_GetCapture( h ) = 0 )
+    tkTest_PushButton( h, true, CX( I_OPEN ), CY() )
+    tkTest_PushMotion( h, CX( I_OPEN ), CY() + tkHost_Scale( h, 100 ) )
+    tkTest_PushButton( h, false, CX( I_OPEN ), CY() + tkHost_Scale( h, 100 ) )
+    tkTest_Check( "press, slide off, release: nothing", gClicks = 1 )
+    tkTest_PushButton( h, true, ActionX( I_RUN ), CY() )
+    tkTest_PushMotion( h, ChevX( I_RUN ), CY() )
+    tkTest_PushButton( h, false, ChevX( I_RUN ), CY() )
+    tkTest_Check( "action half to chevron half: a different zone, nothing", gClicks = 1 andalso tkToolbar_IsDroppedDown( t ) = false )
+    tkTest_Click( h, ActionX( I_RUN ), CY() )
+    tkTest_Check( "SPLIT action zone clicks", gClicks = 2 andalso gLastId = 401 )
+    gSel = 0 : gSelLog = ""
+    tkTest_Click( h, CX( I_BOLD ), CY() )
+    tkTest_Check( "TOGGLE latches and notifies", gSel = 1 andalso tkToolbar_GetSelected( t, I_BOLD ) andalso gSelLog = I_BOLD & "+ ", gSelLog )
+    tkTest_Click( h, CX( I_BOLD ), CY() )
+    tkTest_Check( "a second click unlatches (no double-click swallowing)", gSel = 2 andalso tkToolbar_GetSelected( t, I_BOLD ) = false )
+    gSel = 0 : gSelLog = "" : gCoherent = true
+    tkTest_Click( h, CX( I_CENTER ), CY() )
+    tkTest_Check( "radio: loser first, then winner", gSelLog = I_LEFT & "- " & I_CENTER & "+ ", gSelLog )
+    tkTest_Check( "radio: both writes before either callback", gCoherent )
+    tkTest_Check( "radio: FindCheckedInGroup", tkToolbar_FindCheckedInGroup( t, 1 ) = I_CENTER andalso tkToolbar_FindCheckedInGroup( t, 0 ) = -1 )
+    tkTest_Click( h, CX( I_CENTER ), CY() )
+    tkTest_Check( "radio: re-clicking the checked member is a silent no-op", gSel = 2 andalso tkToolbar_GetSelected( t, I_CENTER ) )
+    tkToolbar_SetSelected( t, I_RIGHT, true )
+    tkTest_Check( "SetSelected: silent, but enforces the group", gSel = 2 andalso tkToolbar_GetSelected( t, I_CENTER ) = false andalso tkToolbar_GetSelected( t, I_RIGHT ) )
+
+    ' ---- menus ----
+    gDrop = 0 : gDropLog = "" : gMenuSel = 0
+    tkTest_PushButton( h, true, ChevX( I_RUN ), CY() )
+    tkTest_PumpFor( h, 150 )
+    tkTest_Check( "chevron zone opens the menu on the DOWN, no capture", tkToolbar_IsDroppedDown( t ) andalso tkToolbar_GetDroppedItem( t ) = I_RUN andalso tkPopupMenu_IsOpen( mRun ) andalso tkHost_GetCapture( h ) <> t )
+    tkTest_PushButton( h, false, ChevX( I_RUN ), CY() )
+    tkTest_Check( "opening edge fired", gDropLog = I_RUN & "o ", gDropLog )
+    ClickRow( mRun, 1 )
+    tkTest_PumpFor( h, 100 )
+    tkTest_Check( "a row: the host's own select callback gets its id", gMenuSel = 1 andalso gMenuId = 4012 )
+    tkTest_Check( "...and the toolbar's drop state is cleared, closing edge fired", tkToolbar_IsDroppedDown( t ) = false andalso gDropLog = I_RUN & "o " & I_RUN & "c ", gDropLog )
+    gDropLog = ""
+    tkTest_Click( h, CX( I_BUILD ), CY() )
+    tkTest_PumpFor( h, 150 )
+    dim as TK_MENU ptr mBuild = tkToolbar_GetItemMenu( t, I_BUILD )
+    tkTest_Check( "DROPDOWN: the whole cell opens; rows built from the opening edge", tkPopupMenu_IsOpen( mBuild ) andalso tkPopupMenu_GetItemCount( mBuild ) = 2 andalso gRowsAtOpen )
+    tkTest_Click( h, CX( I_BUILD ), CY() )
+    tkTest_PumpFor( h, 100 )
+    tkTest_Check( "reopen guard: clicking the owning cell again CLOSES it", tkToolbar_IsDroppedDown( t ) = false andalso tkPopupMenu_IsOpen( mBuild ) = false )
+    tkTest_Click( h, CX( I_BUILD ), CY() )
+    tkTest_PumpFor( h, 150 )
+    gSel = 0
+    tkTest_Click( h, CX( I_BOLD ), CY() )
+    tkTest_PumpFor( h, 100 )
+    tkTest_Check( "a click on ANOTHER item closes the menu and presses that item", tkPopupMenu_IsOpen( mBuild ) = false andalso gSel = 1 andalso tkToolbar_GetSelected( t, I_BOLD ) )
+    tkTest_Check( "DropDown programmatic (fires the edges)", tkToolbar_DropDown( t, I_RUN ) andalso tkToolbar_IsDroppedDown( t ) )
+    tkTest_PumpFor( h, 100 )
+    tkToolbar_CloseUp( t )
+    tkTest_Check( "CloseUp closes and fires the closing edge", tkToolbar_IsDroppedDown( t ) = false andalso tkPopupMenu_IsOpen( mRun ) = false andalso gDropOpen = false )
+    tkTest_Check( "DropDown refuses a COMMAND", tkToolbar_DropDown( t, I_NEW ) = false )
+
+    ' ---- disabled, actions ----
+    tkToolbar_SetEnabled( t, I_OPEN, false )
+    gClicks = 0
+    tkTest_PushMotion( h, CX( I_OPEN ), CY() )
+    tkTest_Check( "disabled: never hot", tkToolbar_GetHotItem( t, nZone ) = -1 )
+    tkTest_Click( h, CX( I_OPEN ), CY() )
+    tkTest_Check( "disabled: swallows clicks; Click() refuses", gClicks = 0 andalso tkToolbar_Click( t, I_OPEN ) = false )
+    tkToolbar_SetEnabled( t, I_OPEN, true )
+    tkTest_PushButton( h, true, CX( I_OPEN ), CY() )
+    tkToolbar_SetEnabled( t, I_OPEN, false )
+    tkTest_PushButton( h, false, CX( I_OPEN ), CY() )
+    tkTest_Check( "disabling under a press cancels it", gClicks = 0 )
+    tkToolbar_SetEnabled( t, I_OPEN, true )
+    tkTest_Check( "Click(): an action that fires", tkToolbar_Click( t, I_NEW ) andalso gClicks = 1 andalso gLastId = 101 )
+    tkTest_Check( "Click() refuses separators and CONTROL cells", tkToolbar_Click( t, I_SEP1 ) = false andalso tkToolbar_Click( t, I_SEARCH ) = false )
+    gSel = 0
+    tkTest_Check( "Toggle(): fires; refuses a non-toggle", tkToolbar_Toggle( t, I_ITALIC ) andalso gSel = 1 andalso tkToolbar_Toggle( t, I_NEW ) = false )
+
+    ' ---- pixels and probes ----
+    dim as TKTOOLBAR_COLORS cc
+    tkToolbar_GetColors( t, @cc )
+    tkTest_PushMotion( h, CX( I_NEW ), CY() )
+    tkHost_RenderTo( h, false )
+    tkToolbar_GetItemRect( t, I_NEW, r0 )
+    dim as long midY = t->y + (r0.top + r0.bottom) \ 2
+    tkTest_Check( "pixel: a hot cell's pill", tkTest_PixelAt( h, t->x + r0.left + tkHost_Scale( h, 3 ), midY ) = cc.BackColorHot )
+    dim as TKRECT rbold
+    tkToolbar_GetItemRect( t, I_BOLD, rbold )
+    tkTest_Check( "pixel: a latched toggle's pill", tkTest_PixelAt( h, t->x + rbold.left + tkHost_Scale( h, 3 ), midY ) = cc.BackColorSelect )
+    tkToolbar_GetItemRect( t, I_SETTINGS, rs )
+    tkTest_Check( "pixel: the bar background in a gap", tkTest_PixelAt( h, t->x + (rs.left - tkHost_Scale( h, 10 )), midY ) = cc.BackColor )
+    tkToolbar_GetItemRect( t, I_RUN, rr )
+    tkTest_Check( "pixel: the split divider", tkTest_PixelAt( h, t->x + rx.left - 1, midY ) = cc.SplitDividerColor, hex( tkTest_PixelAt( h, t->x + rx.left - 1, midY ) ) )
+    tkTest_Check( "probe: the item renders > 2 tones", tkToolbar_CountRenderedTones( t, TBR_PART_ITEM, I_NEW ) > 2 )
+    dim as ulong hHot = tkToolbar_HashRenderedPart( t, TBR_PART_ITEM, I_NEW )
+    tkTest_PushMotion( h, CX( I_HELP ), CY() )
+    tkTest_Check( "probe: a state change reaches the pixels", tkToolbar_HashRenderedPart( t, TBR_PART_ITEM, I_NEW ) <> hHot )
+
+    ' ---- overflow ----
+    dim as long narrow = idealW - tkHost_Scale( h, 120 )
+    tkWidget_SetSize( t, narrow, idealH )
+    tkTest_Check( "overflow: the button appears", tkToolbar_GetOverflowRect( t, rx ) andalso tkToolbar_GetOverflowCount( t ) > 0 )
+    tkToolbar_GetItemRect( t, I_SETTINGS, rs ) : tkToolbar_GetItemRect( t, I_HELP, rh )
+    tkTest_Check( "overflow: the right run survives, the chevron inboard of it", tkToolbar_IsItemOverflowed( t, I_HELP ) = false andalso tkToolbar_IsItemOverflowed( t, I_SETTINGS ) = false andalso rx.right = rs.left, _
+                  tkRect_Str( rx ) & " " & tkRect_Str( rs ) )
+    tkTest_Check( "overflow: the LEFT tail goes first; CONTROL never", tkToolbar_IsItemOverflowed( t, I_BUILD ) andalso tkToolbar_IsItemOverflowed( t, I_NEW ) = false andalso tkToolbar_IsItemOverflowed( t, I_SEARCH ) = false )
+    tkToolbar_GetItemRect( t, I_BUILD, rb )
+    tkTest_Check( "an overflowed item has no rect", tkRect_IsEmpty( rb ) )
+    tkWidget_SetSize( t, tkHost_Scale( h, 330 ), idealH )
+    dim as long nOver = tkToolbar_GetOverflowCount( t )
+    tkTest_Check( "narrower: the CONTROL cell still never moves into the menu", tkToolbar_IsItemOverflowed( t, I_SEARCH ) = false andalso nOver >= 10, "" & nOver )
+    gDropLog = ""
+    tkToolbar_GetOverflowRect( t, rx )
+    tkTest_Click( h, t->x + (rx.left + rx.right) / 2, CY() )
+    tkTest_PumpFor( h, 150 )
+    dim as TK_MENU ptr mo = tkToolbar_GetOverflowMenu( t )
+    tkTest_Check( "the overflow menu opens (dropped item -1, IsDroppedDown TRUE)", tkPopupMenu_IsOpen( mo ) andalso tkToolbar_IsDroppedDown( t ) andalso tkToolbar_GetDroppedItem( t ) = -1 andalso gDropLog = "-1o ", gDropLog )
+    ' its rows: the overflowed items in order, separators collapsed, ids = index + 1
+    dim as long nRows = tkPopupMenu_GetItemCount( mo )
+    tkTest_Check( "rows: ids are index + 1, state mirrored", tkPopupMenu_GetItemEnabled( mo, I_OPEN + 1 ) andalso tkPopupMenu_GetItemChecked( mo, I_BOLD + 1 ) )
+    gClicks = 0
+    ' pick the row for "Open": the same commit path as a strip click
+    for i as long = 0 to nRows - 1
+        if mo->items(i).id = I_OPEN + 1 then ClickRow( mo, i ) : exit for
+    next
+    tkTest_PumpFor( h, 100 )
+    tkTest_Check( "an overflow pick runs Click like the strip", gClicks = 1 andalso gLastIdx = I_OPEN andalso gLastId = 102, gClicks & " " & gLastIdx )
+    tkTest_Check( "...and the overflow menu's closing edge fired", tkToolbar_IsDroppedDown( t ) = false )
+    dim as boolean bSepOk = true
+    tkToolbar_DropDown( t, -1 )
+    tkTest_PumpFor( h, 100 )
+    nRows = tkPopupMenu_GetItemCount( mo )
+    if nRows > 0 then
+        if mo->items(0).isSeparator orelse mo->items(nRows - 1).isSeparator then bSepOk = false
+        for i as long = 1 to nRows - 1
+            if mo->items(i).isSeparator andalso mo->items(i - 1).isSeparator then bSepOk = false
+        next
+    end if
+    tkTest_Check( "overflow separators: never leading, trailing or doubled", bSepOk andalso (nRows > 3) )
+    tkToolbar_CloseUp( t )
+    tkWidget_SetSize( t, barW, idealH )
+
+    ' ---- dynamic items, images (the vendor alias bug), visibility, gravity ----
+    dim as string imgPath = exepath() & "/selftest_tb.bmp"
+    MakeChecker( imgPath )
+    tkTest_Check( "SetItemImage loads, clears the glyph", tkToolbar_SetItemImage( t, I_OPEN, imgPath ) andalso tkToolbar_GetGlyph( t, I_OPEN ) = "" )
+    tkToolbar_GetItemIconRect( t, I_OPEN, ri )
+    tkTest_Check( "an image charges the icon cell like a glyph", (ri.right - ri.left) = iw )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "pixel: the image is drawn", tkTest_PixelAt( h, t->x + ri.left + 1, t->y + ri.top + 1 ) = &hFF3399EEul, hex( tkTest_PixelAt( h, t->x + ri.left + 1, t->y + ri.top + 1 ) ) )
+    tkTest_Check( "InsertItem before it", tkToolbar_InsertItem( t, I_OPEN, TBR_KIND_COMMAND, "", "Inserted", 999 ) = I_OPEN )
+    tkToolbar_GetItemIconRect( t, I_OPEN, ri )
+    tkTest_Check( "the inserted item does NOT alias the neighbour's image (vendor bug)", tkRect_IsEmpty( ri ) )
+    tkToolbar_GetItemIconRect( t, I_OPEN + 1, ri )
+    tkTest_Check( "...the image moved with its item", (ri.right - ri.left) = iw andalso tkToolbar_GetItemID( t, I_OPEN + 1 ) = 102 )
+    tkTest_Check( "DeleteItem compacts", tkToolbar_DeleteItem( t, I_OPEN ) andalso tkToolbar_GetItemID( t, I_OPEN ) = 102 andalso tkToolbar_GetCount( t ) = 15 )
+    tkTest_Check( "InsertItem past the end: -1", tkToolbar_InsertItem( t, 99, TBR_KIND_COMMAND, "", "x" ) = -1 )
+    tkToolbar_GetIdealSize( t, iw, ih )
+    dim as long wBefore = iw
+    tkToolbar_SetVisible( t, I_SEARCH, false )
+    tkToolbar_GetIdealSize( t, iw, ih )
+    tkTest_Check( "hiding removes the width and hides the child", iw < wBefore andalso child->isVisible = false )
+    tkToolbar_SetVisible( t, I_SEARCH, true )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "shown again: the child is back", child->isVisible )
+    tkToolbar_SetItemGravity( t, I_NEW, TBR_GRAVITY_RIGHT )
+    tkToolbar_GetItemRect( t, I_NEW, r0 ) : tkToolbar_GetItemRect( t, I_SETTINGS, rs )
+    tkTest_Check( "gravity moves an item to the right run (author order kept)", r0.right = rs.left, tkRect_Str( r0 ) & " " & tkRect_Str( rs ) )
+    tkToolbar_SetItemGravity( t, I_NEW, TBR_GRAVITY_LEFT )
+
+    ' ---- theme, pinning, menus themed from the bar ----
+    dim as TKPOPUPMENU_COLORS mc
+    tkPopupMenu_GetColors( mRun, @mc )
+    tkTest_Check( "menus are themed from the bar", mc.BackColor = cc.BackColor andalso mc.BorderColor = cc.ForeColorDisabled )
+    tkTheme_Apply( tkTheme_Light() )
+    tkToolbar_GetColors( t, @cc )
+    tkPopupMenu_GetColors( mRun, @mc )
+    tkTest_Check( "theme reaches the bar and its menus", cc.BackColor = tkTheme_Light().Window andalso mc.BackColor = tkTheme_Light().Window )
+    dim as TKPOPUPMENU_COLORS claim = mc
+    claim.BackColor = &hFF102030ul
+    tkToolbar_SetMenuColors( t, @claim )
+    tkTheme_Apply( tkTheme_Dark() )
+    tkPopupMenu_GetColors( mRun, @mc )
+    tkTest_Check( "SetMenuColors claims the menus (and pins)", mc.BackColor = &hFF102030ul )
+    tkToolbar_GetColors( t, @cc )
+    tkTest_Check( "...the bar stays pinned too", cc.BackColor = tkTheme_Light().Window )
+    tkToolbar_UnpinColors( t )
+    tkToolbar_GetColors( t, @cc )
+    tkTest_Check( "unpin: the bar follows the theme again", cc.BackColor = tkTheme_Dark().Window )
+
+    ' ---- tooltips ----
+    tkToolbar_SetHoverTime( t, 150 )
+    dim as TK_TIP ptr tp = tkToolbar_GetTooltipHandle( t )
+    gTipAsks = 0
+    tkTest_PushMotion( h, CX( I_SETTINGS ), CY() )
+    tkTest_Check( "own text: the tip appears", WaitTip( h, tp, true, 1500 ) andalso gTipAsks = 0 )
+    tkTest_PushMotion( h, CX( I_HELP ), CY() )
+    tkTest_Check( "a new item hides it at once", tkTooltip_IsVisible( tp ) = false )
+    tkTest_Check( "no text: the callback supplies one", WaitTip( h, tp, true, 1500 ) andalso gTipAsks > 0 )
+    tkTest_PushMotion( h, 2, h->root->ch - 2 )
+    tkTest_Check( "tip hides on leave", WaitTip( h, tp, false, 800 ) )
+
+    ' ---- rescale ----
+    dim as long iw0, ih0
+    tkToolbar_GetIconSize( t, iw0, ih0 )
+    dim as long cw120 = child->cw
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkToolbar_GetIconSize( t, iw, ih )
+    tkTest_Check( "rescale: icon x2, divider stays a hairline", iw = iw0 * 2 andalso tkToolbar_GetDividerThickness( t ) = 1, iw0 & " -> " & iw )
+    tkToolbar_GetItemRect( t, I_SEARCH, rc )
+    tkTest_Check( "rescale: a CONTROL cell's declared width x2", abs( child->cw - cw120 * 2 ) <= 1, cw120 & " -> " & child->cw )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+
+    tkToolbar_Clear( t )
+    tkTest_Check( "Clear: empty, the child hidden not destroyed", tkToolbar_GetCount( t ) = 0 andalso child->isVisible = false andalso child->pData <> 0 )
+    tkHost_Destroy( h )
+end sub
+
+
+' ==========================================================================================
+if tkTest_Init() = false then end 99
+SDL_SetEventFilter( @DropOsFocusEvents, 0 )
+
+PureChecks()
+RunPass( 1.0 )
+RunPass( 1.75 )
+
+tkTest_Begin( "cross-pass" )
+tkTest_Check( "ideal width scales with the scale", (gIdealW(0) > 0) andalso (gIdealW(1) > gIdealW(0) * 1.6) andalso (gIdealW(1) < gIdealW(0) * 1.9), gIdealW(0) & " -> " & gIdealW(1) )
+dim as long nFail = tkTest_Report( "tkToolbar" )
+tkTest_Quit()
+end nFail

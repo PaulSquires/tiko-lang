@@ -1,0 +1,735 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkMenuBar -- PsMenuBar on SDL3 + SDL_ttf, a port of pkg/vendor/PsControls/PsMenuBar/PsMenuBar.tiko
+' onto tkHost. The dropdowns are tkPopupMenu menus.
+'
+' WHAT IS UNCHANGED: measured items laid end to end from x = 0, full height; lazy layout and
+' GetIdealWidth = 0 until the bar has a height; hot vs active and their identical built-in
+' look; click to open, hover-switch while open, click the bar again to close, an item without
+' a dropdown does nothing; no capture for the mouse; Left at the root / Right on a row without
+' a submenu step to the previous / next item WITH a dropdown and open it with its first row
+' selected; Escape at the root drops back to the keyboard highlight; the highlight-only mode
+' (Left / Right step over ANY item, Down / Enter open, Escape clears, a click elsewhere
+' abandons it and still lands); the command reported after the chain closed and the highlight
+' cleared; silent setters; init-popup fired for every open; dropdowns owned and destroyed with
+' the bar.
+'
+' WHAT CHANGED, because there is no pump filter: the open-menu keys go through tkPopupMenu's
+' key hook (tkHost routes keys to the open popup). The highlight-only mode has no popup to
+' receive keys, so for its duration the bar takes the keyboard focus and the mouse capture --
+' what vendor's filter saw for free -- and gives both back (focus to whoever had it) when the
+' highlight ends. A press elsewhere during it is handed on to the widget under it.
+' See PORT.md.
+#module "tkMenuBar"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkPopupMenu" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkPopupMenu
+
+public const TKMENUBAR_DEFAULT_PADDING = 6
+
+public type TKMENUBAR_ITEM
+    id          as long                   ' stored, never read (vendor's contract)
+    wszText     as ustring
+    hDropDown   as TK_MENU ptr            ' OWNED once attached
+    ' the dropdown's own callbacks, chained behind the bar's while it is open
+    prevSelect  as PM_SelectCallbackSub
+    prevClosed  as PM_ClosedCallbackSub
+    prevKeyHook as PM_KeyHookFunc
+    ' --- derived ---
+    nWidth      as long
+    rc          as TKRECT
+end type
+
+public type TKMENUBAR_COLORS
+    BackColor    as ulong = &hFF21252Bul    ' bar + idle item
+    ForeColor    as ulong = &hFFC8CDD6ul
+    BackColorHot as ulong = &hFF373D48ul    ' hovered / active item
+    ForeColorHot as ulong = &hFFE2E6EEul
+end type
+
+public type TKMENUBAR_PAINTINFO
+    hMenuBar   as TK_WIDGET ptr
+    itemID     as long
+    b          as TK_PAINT ptr
+    rc         as TKRECT
+    isHot      as boolean
+    isActive   as boolean
+    wszCaption as ustring
+end type
+
+public type MB_CommandCallbackSub as sub( byval hMenuBar as TK_WIDGET ptr, byval id as long )
+public type MB_InitPopupCallbackSub as sub( byval hMenuBar as TK_WIDGET ptr, byval idx as long, byval hPopup as TK_MENU ptr )
+public type MB_PaintItemCallbackSub as sub( byval p as TKMENUBAR_PAINTINFO ptr )
+
+public type TKMENUBAR_STATE
+    hWin              as TK_WIDGET ptr
+    id                as long
+    bColorsPinned     as boolean
+    items(any)        as TKMENUBAR_ITEM
+    itemCount         as long
+    nHotIdx           as long = -1
+    nActiveIdx        as long = -1
+    bMenuOpen         as boolean
+    bHighlight        as boolean            ' the highlight-only mode holds focus + capture
+    pFocusBefore      as TK_WIDGET ptr      ' who had the focus before the highlight took it
+    bFocusSaved       as boolean
+    nDismissTicks     as Uint64             ' when an outside press last closed our chain
+    bDismissed        as boolean
+    colors            as TKMENUBAR_COLORS
+    pBarFont          as TTF_Font ptr       ' borrowed
+    nPadding          as long
+    bLayoutDirty      as boolean = true
+    CommandCallback   as MB_CommandCallbackSub
+    InitPopupCallback as MB_InitPopupCallbackSub
+    PaintItemCallback as MB_PaintItemCallbackSub
+
+    declare sub      LayoutItems()
+    declare function HitTest( byval x as single, byval y as single ) as long
+    declare function IsValidItem( byval idx as long ) as boolean
+    declare sub      Refresh()
+end type
+
+' The one bar whose dropdown chain is open (tkPopupMenu allows one chain per process).
+dim shared as TKMENUBAR_STATE ptr gOpenBar
+
+
+sub TKMENUBAR_STATE.LayoutItems()
+    this.bLayoutDirty = false
+    if (this.hWin = 0) orelse (this.itemCount = 0) then exit sub
+    if this.hWin->ch <= 0 then this.bLayoutDirty = true : exit sub   ' no geometry yet
+    dim as TTF_Font ptr f = this.pBarFont
+    if f = 0 then f = this.hWin->pHost->pDefaultFont
+    dim as long x = 0
+    for i as long = 0 to this.itemCount - 1
+        this.items(i).nWidth = tkText_Width( f, this.items(i).wszText ) + (this.nPadding * 2)
+        tkRect_Set( this.items(i).rc, x, 0, x + this.items(i).nWidth, this.hWin->ch )
+        x += this.items(i).nWidth
+    next
+end sub
+
+function TKMENUBAR_STATE.HitTest( byval x as single, byval y as single ) as long
+    if (x < 0) orelse (y < 0) orelse (x >= this.hWin->cw) orelse (y >= this.hWin->ch) then return -1
+    if this.bLayoutDirty then this.LayoutItems()
+    for i as long = 0 to this.itemCount - 1
+        if tkRect_Contains( this.items(i).rc, x, y ) then return i
+    next
+    return -1
+end function
+
+function TKMENUBAR_STATE.IsValidItem( byval idx as long ) as boolean
+    return (idx >= 0) andalso (idx < this.itemCount)
+end function
+
+sub TKMENUBAR_STATE.Refresh()
+    this.bLayoutDirty = true
+    tkWidget_Invalidate( this.hWin )
+end sub
+
+
+private function GetMenuBarPointer( byval hMenuBar as TK_WIDGET ptr ) as TKMENUBAR_STATE ptr
+    if hMenuBar = 0 then return 0
+    return cast( TKMENUBAR_STATE ptr, hMenuBar->pData )
+end function
+
+private sub SetActive( byval pBar as TKMENUBAR_STATE ptr, byval idx as long )
+    if idx = pBar->nActiveIdx then exit sub
+    pBar->nActiveIdx = idx
+    tkWidget_Invalidate( pBar->hWin )
+end sub
+
+' Is w still a live widget of the bar's surface? (A saved focus may have been destroyed.)
+private function InTree( byval root as TK_WIDGET ptr, byval w as TK_WIDGET ptr ) as boolean
+    dim as TK_WIDGET ptr c = root->pFirst
+    while c
+        if c = w then return true
+        if InTree( c, w ) then return true
+        c = c->pNext
+    wend
+    return false
+end function
+
+' ---- the highlight-only mode: focus + capture while it lasts ------------------------------
+private sub EnterHighlight( byval pBar as TKMENUBAR_STATE ptr )
+    dim as TK_HOST ptr h = pBar->hWin->pHost
+    if pBar->bHighlight = false then
+        pBar->bHighlight = true
+        if pBar->bFocusSaved = false then
+            pBar->pFocusBefore = tkHost_GetFocus( h )
+            pBar->bFocusSaved = true
+        end if
+    end if
+    tkHost_SetFocus( h, pBar->hWin )
+    tkHost_SetCapture( pBar->hWin )
+end sub
+
+' Release what the highlight took. bRestoreFocus: hand the focus back (not when a click is
+' about to put it somewhere else).
+private sub LeaveHighlight( byval pBar as TKMENUBAR_STATE ptr, byval bRestoreFocus as boolean )
+    dim as TK_HOST ptr h = pBar->hWin->pHost
+    if pBar->bHighlight then
+        pBar->bHighlight = false
+        if tkHost_GetCapture( h ) = pBar->hWin then tkHost_ReleaseCapture( h )
+    end if
+    if pBar->bFocusSaved then
+        pBar->bFocusSaved = false
+        if bRestoreFocus andalso (tkHost_GetFocus( h ) = pBar->hWin) then
+            dim as TK_WIDGET ptr f = pBar->pFocusBefore
+            if (f <> 0) andalso (InTree( h->root, f ) = false) then f = 0
+            tkHost_SetFocus( h, f )
+        end if
+        pBar->pFocusBefore = 0
+    end if
+end sub
+
+' Back to rest: no menu, no highlight.
+private sub GoIdle( byval pBar as TKMENUBAR_STATE ptr, byval bRestoreFocus as boolean = true )
+    pBar->bMenuOpen = false
+    if gOpenBar = pBar then gOpenBar = 0
+    LeaveHighlight( pBar, bRestoreFocus )
+    SetActive( pBar, -1 )
+end sub
+
+' The chain can close behind our back (another popup opened elsewhere closes it silently).
+private sub Resync( byval pBar as TKMENUBAR_STATE ptr )
+    if pBar->bMenuOpen = false then exit sub
+    dim as TK_MENU ptr d = 0
+    if pBar->IsValidItem( pBar->nActiveIdx ) then d = pBar->items(pBar->nActiveIdx).hDropDown
+    if (d = 0) orelse (tkPopupMenu_IsOpen( d ) = false) then GoIdle( pBar )
+end sub
+
+declare function OpenMenuAt( byval pBar as TKMENUBAR_STATE ptr, byval idx as long, byval bSelectFirst as boolean ) as boolean
+
+' The previous / next bar item WITH a dropdown, wrapping, opened with its first row selected.
+private sub OpenAdjacent( byval pBar as TKMENUBAR_STATE ptr, byval nDir as long )
+    if pBar->itemCount = 0 then exit sub
+    dim as long idx = pBar->nActiveIdx
+    for k as long = 1 to pBar->itemCount
+        idx += nDir
+        if idx < 0 then idx = pBar->itemCount - 1
+        if idx > pBar->itemCount - 1 then idx = 0
+        if pBar->items(idx).hDropDown then
+            OpenMenuAt( pBar, idx, true )
+            exit sub
+        end if
+    next
+end sub
+
+' The highlight steps over ANY item (vendor), wrapping.
+private sub MoveHighlight( byval pBar as TKMENUBAR_STATE ptr, byval nDir as long )
+    if pBar->itemCount = 0 then exit sub
+    dim as long idx = pBar->nActiveIdx + nDir
+    if idx < 0 then idx = pBar->itemCount - 1
+    if idx > pBar->itemCount - 1 then idx = 0
+    SetActive( pBar, idx )
+end sub
+
+' ---- the dropdowns report back through these (wired at open) -------------------------------
+private function ItemOfMenu( byval pBar as TKMENUBAR_STATE ptr, byval m as TK_MENU ptr ) as long
+    if pBar = 0 then return -1
+    for i as long = 0 to pBar->itemCount - 1
+        if pBar->items(i).hDropDown = m then return i
+    next
+    return -1
+end function
+
+' A command: the chain is already closed. Clear the highlight, then tell the host.
+private sub Bar_OnSelect( byval hPopup as TK_MENU ptr, byval id as long )
+    dim as TKMENUBAR_STATE ptr pBar = gOpenBar
+    dim as long idx = ItemOfMenu( pBar, hPopup )
+    if idx = -1 then exit sub
+    dim as PM_SelectCallbackSub prev = pBar->items(idx).prevSelect
+    GoIdle( pBar )
+    if prev then prev( hPopup, id )
+    if pBar->CommandCallback then pBar->CommandCallback( pBar->hWin, id )
+end sub
+
+' A user dismissal without a command. Escape at the root drops back to the keyboard highlight;
+' anything else (an outside press, the application losing focus) clears it.
+private sub Bar_OnClosed( byval hPopup as TK_MENU ptr, byval nReason as long )
+    dim as TKMENUBAR_STATE ptr pBar = gOpenBar
+    dim as long idx = ItemOfMenu( pBar, hPopup )
+    if idx = -1 then exit sub
+    dim as PM_ClosedCallbackSub prev = pBar->items(idx).prevClosed
+    pBar->bMenuOpen = false
+    gOpenBar = 0
+    if nReason = PM_CLOSED_ESCAPE then
+        EnterHighlight( pBar )
+    else
+        ' remember it: if this press lands on the bar it is the "click again closes" press
+        pBar->bDismissed = true
+        pBar->nDismissTicks = SDL_GetTicks()
+        GoIdle( pBar )
+    end if
+    tkWidget_Invalidate( pBar->hWin )
+    if prev then prev( hPopup, nReason )
+end sub
+
+' The bar-boundary keys: Left at the root, Right on a row without an enabled submenu -- the two
+' keys the menu itself treats as no-ops.
+private function Bar_KeyHook( byval hRoot as TK_MENU ptr, byval hInner as TK_MENU ptr, byval key as long ) as boolean
+    dim as TKMENUBAR_STATE ptr pBar = gOpenBar
+    dim as long idx = ItemOfMenu( pBar, hRoot )
+    if idx = -1 then return false
+    select case key
+    case SDLK_LEFT
+        if hInner = hRoot then OpenAdjacent( pBar, -1 ) : return true
+    case SDLK_RIGHT
+        dim as long nSel = tkPopupMenu_GetCurSel( hInner )
+        dim as boolean bHasSub = false
+        if (nSel >= 0) andalso (nSel < hInner->itemCount) then
+            bHasSub = (hInner->items(nSel).pSub <> 0) andalso (hInner->items(nSel).isDisabled = false)
+        end if
+        if bHasSub = false then OpenAdjacent( pBar, 1 ) : return true
+    end select
+    dim as PM_KeyHookFunc prev = pBar->items(idx).prevKeyHook
+    if prev then return prev( hRoot, hInner, key )
+    return false
+end function
+
+' Open item idx's dropdown under it: the bar's init-popup first, the bar wired into the
+' dropdown's callbacks, then the show (which closes any other chain silently -- a hover-switch
+' is just "open the other one").
+function OpenMenuAt( byval pBar as TKMENUBAR_STATE ptr, byval idx as long, byval bSelectFirst as boolean ) as boolean
+    if pBar->IsValidItem( idx ) = false then return false
+    dim as TK_MENU ptr d = pBar->items(idx).hDropDown
+    if d = 0 then return false
+    if pBar->bLayoutDirty then pBar->LayoutItems()
+    if pBar->bLayoutDirty then return false               ' nothing to anchor against yet
+    ' a menu takes the keyboard from the highlight; the saved focus waits for the close
+    if pBar->bHighlight then
+        pBar->bHighlight = false
+        if tkHost_GetCapture( pBar->hWin->pHost ) = pBar->hWin then tkHost_ReleaseCapture( pBar->hWin->pHost )
+    end if
+    if pBar->InitPopupCallback then pBar->InitPopupCallback( pBar->hWin, idx, d )
+    with pBar->items(idx)
+        if d->SelectCallback <> @Bar_OnSelect then .prevSelect = d->SelectCallback
+        if d->ClosedCallback <> @Bar_OnClosed then .prevClosed = d->ClosedCallback
+        if d->KeyHook <> @Bar_KeyHook then .prevKeyHook = d->KeyHook
+    end with
+    tkPopupMenu_SetSelectCallback( d, @Bar_OnSelect )
+    tkPopupMenu_SetClosedCallback( d, @Bar_OnClosed )
+    tkPopupMenu_SetKeyHook( d, @Bar_KeyHook )
+    ' the previous bar's chain (if any other) closes silently under this show
+    if (gOpenBar <> 0) andalso (gOpenBar <> pBar) then GoIdle( gOpenBar )
+    dim as TKRECT rcA
+    tkWidget_AbsRect( pBar->hWin, rcA )
+    dim as TKRECT rcAnchor = pBar->items(idx).rc
+    tkRect_Offset( rcAnchor, rcA.left, rcA.top )
+    if tkPopupMenu_ShowForRect( d, rcAnchor, PM_ALIGN_BELOW ) = false then
+        GoIdle( pBar )
+        return false
+    end if
+    if bSelectFirst then tkPopupMenu_SelectFirst( d )
+    SetActive( pBar, idx )
+    pBar->bMenuOpen = true
+    gOpenBar = pBar
+    return true
+end function
+
+private sub OnPaint( byval pBar as TKMENUBAR_STATE ptr, byval b as TK_PAINT ptr )
+    Resync( pBar )
+    if pBar->bLayoutDirty then pBar->LayoutItems()
+    dim as TKRECT rcC
+    tkRect_Set( rcC, 0, 0, pBar->hWin->cw, pBar->hWin->ch )
+    b->SetBackColor( pBar->colors.BackColor )
+    b->PaintRect( @rcC )
+    dim as TTF_Font ptr f = pBar->pBarFont
+    if f = 0 then f = pBar->hWin->pHost->pDefaultFont
+    dim as TKMENUBAR_PAINTINFO p
+    p.hMenuBar = pBar->hWin
+    p.b = b
+    for i as long = 0 to pBar->itemCount - 1
+        p.itemID = i
+        p.rc = pBar->items(i).rc
+        p.isHot = (i = pBar->nHotIdx)
+        p.isActive = (i = pBar->nActiveIdx)
+        p.wszCaption = pBar->items(i).wszText
+        if pBar->PaintItemCallback then
+            pBar->PaintItemCallback( @p )
+        else
+            ' hover and active render the SAME (two frames of one gesture)
+            dim as ulong backclr = pBar->colors.BackColor, foreclr = pBar->colors.ForeColor
+            if p.isActive orelse p.isHot then backclr = pBar->colors.BackColorHot : foreclr = pBar->colors.ForeColorHot
+            b->SetColors( foreclr, backclr )
+            b->PaintRect( @p.rc )
+            b->SetFont( f )
+            b->PaintText( p.wszCaption, @p.rc, TK_DT_CENTER )
+        end if
+    next
+end sub
+
+public declare sub tkMenuBar_ApplyTheme( byval hMenuBar as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+public declare function tkMenuBar_ThemeColors( byref t as TKTHEME_COLORS ) as TKMENUBAR_COLORS
+
+' A press elsewhere during the highlight: abandon it, and hand the press to whatever is under
+' it, as vendor's filter let it through.
+private sub PassPress( byval pBar as TKMENUBAR_STATE ptr, byval m as TK_MSG ptr )
+    dim as TK_HOST ptr h = pBar->hWin->pHost
+    LeaveHighlight( pBar, true )
+    SetActive( pBar, -1 )
+    dim as TKRECT a
+    tkWidget_AbsRect( pBar->hWin, a )
+    dim as single px = a.left + m->x, py = a.top + m->y
+    dim as TK_WIDGET ptr t = tkHost_HitTest( h, px, py )
+    if (t = 0) orelse (t = pBar->hWin) orelse (tkWidget_IsEnabled( t ) = false) then exit sub
+    dim as TKRECT at
+    tkWidget_AbsRect( t, at )
+    dim as TK_MSG mm = *m
+    mm.x = px - at.left : mm.y = py - at.top
+    tkWidget_Send( t, @mm )
+end sub
+
+private function tkMenuBar_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( w )
+    if pBar = 0 then return false
+
+    select case m->msg
+    case TKM_PAINT
+        OnPaint( pBar, m->pPaint )
+        return true
+
+    case TKM_SIZE
+        pBar->Refresh()
+        return true
+
+    case TKM_SCALECHANGED
+        if (m->fOld > 0) andalso (m->fNew > 0) then
+            pBar->nPadding = cint( pBar->nPadding * m->fNew / m->fOld )
+            pBar->Refresh()
+        end if
+        return true
+
+    case TKM_THEMECHANGED
+        tkMenuBar_ApplyTheme( w, tkTheme_Get() )
+        return true
+
+    case TKM_MOUSEMOVE
+        Resync( pBar )
+        pBar->bDismissed = false
+        dim as long idx = pBar->HitTest( m->x, m->y )
+        if idx <> pBar->nHotIdx then
+            pBar->nHotIdx = idx
+            tkWidget_Invalidate( w )
+        end if
+        ' hover-switch: onto another item that has a dropdown, while one is open
+        if pBar->bMenuOpen andalso pBar->IsValidItem( idx ) andalso (idx <> pBar->nActiveIdx) then
+            if pBar->items(idx).hDropDown then OpenMenuAt( pBar, idx, false )
+        end if
+        return true
+
+    case TKM_MOUSELEAVE
+        ' the hover only; the active item stays
+        if pBar->nHotIdx <> -1 then pBar->nHotIdx = -1 : tkWidget_Invalidate( w )
+        return true
+
+    case TKM_LBUTTONDOWN, TKM_RBUTTONDOWN, TKM_MBUTTONDOWN
+        ' (a clicks = 2 press is vendor's WM_LBUTTONDBLCLK: the same toggle)
+        Resync( pBar )
+        dim as long idx = pBar->HitTest( m->x, m->y )
+        ' during the highlight the bar holds the capture, so it sees every press: one outside
+        ' the bar abandons the highlight and still lands where it was aimed
+        dim as boolean bOutside = (m->x < 0) orelse (m->y < 0) orelse (m->x >= w->cw) orelse (m->y >= w->ch)
+        if pBar->bHighlight andalso bOutside then
+            PassPress( pBar, m )
+            return true
+        end if
+        if m->msg <> TKM_LBUTTONDOWN then return true
+        ' The host closed the open chain on this very press before we saw it (the popup lets
+        ' the press through): that is "click the bar again while open" -- close, do not reopen.
+        dim as boolean bJustClosed = pBar->bDismissed andalso (SDL_GetTicks() - pBar->nDismissTicks <= 250)
+        pBar->bDismissed = false
+        if pBar->bMenuOpen then
+            if pBar->IsValidItem( pBar->nActiveIdx ) andalso (pBar->items(pBar->nActiveIdx).hDropDown <> 0) then
+                tkPopupMenu_CloseChain( pBar->items(pBar->nActiveIdx).hDropDown )
+            end if
+            GoIdle( pBar )
+        elseif bJustClosed = false then
+            ' an item without a dropdown: nothing (vendor)
+            if pBar->IsValidItem( idx ) andalso (pBar->items(idx).hDropDown <> 0) then OpenMenuAt( pBar, idx, false )
+        end if
+        return true
+
+    case TKM_KEYDOWN
+        ' only reached in the highlight-only mode (the bar holds the focus then)
+        if pBar->bHighlight = false then return false
+        select case m->key
+        case SDLK_LEFT
+            MoveHighlight( pBar, -1 )
+        case SDLK_RIGHT
+            MoveHighlight( pBar, 1 )
+        case SDLK_DOWN, SDLK_RETURN, SDLK_KP_ENTER
+            OpenMenuAt( pBar, pBar->nActiveIdx, true )
+        case SDLK_ESCAPE
+            GoIdle( pBar )
+        case else
+            return false
+        end select
+        return true
+
+    case TKM_CAPTURECHANGED
+        ' something else took the capture (the window deactivated): the highlight is over
+        if pBar->bHighlight then
+            pBar->bHighlight = false
+            LeaveHighlight( pBar, true )
+            SetActive( pBar, -1 )
+        end if
+        return true
+
+    case TKM_KILLFOCUS
+        if pBar->bHighlight then GoIdle( pBar, false )
+        return true
+
+    case TKM_DESTROY
+        if gOpenBar = pBar then gOpenBar = 0
+        for i as long = 0 to pBar->itemCount - 1
+            if pBar->items(i).hDropDown then tkPopupMenu_Destroy( pBar->items(i).hDropDown ) : pBar->items(i).hDropDown = 0
+        next
+        delete pBar
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ========================================================================================
+' Public API
+' ========================================================================================
+' A child of hParent (or tkHost_Root( h )). Created zero-sized; never focusable (it takes the
+' focus only for the duration of a keyboard highlight).
+public function tkMenuBar_Create( byval hParent as TK_WIDGET ptr, byval CtrlID as long ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TKMENUBAR_STATE ptr pBar = new TKMENUBAR_STATE
+    pBar->id = CtrlID
+    pBar->nPadding = tkHost_Scale( hParent->pHost, TKMENUBAR_DEFAULT_PADDING )
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @tkMenuBar_Proc, pBar )
+    pBar->hWin = w
+    pBar->colors = tkMenuBar_ThemeColors( tkTheme_Get() )
+    return w
+end function
+
+' Append-only; returns the index. The id is stored and never read.
+public function tkMenuBar_AddItem( byval hMenuBar as TK_WIDGET ptr, byval Text as ustring, byval id as long ) as long
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if pBar = 0 then return -1
+    if pBar->itemCount > ubound( pBar->items ) then redim preserve pBar->items( 0 to iif( pBar->itemCount < 8, 7, pBar->itemCount * 2 - 1 ) )
+    dim as long idx = pBar->itemCount
+    with pBar->items(idx)
+        .id = id : .wszText = Text : .hDropDown = 0
+        .prevSelect = 0 : .prevClosed = 0 : .prevKeyHook = 0
+        .nWidth = 0 : tkRect_SetEmpty( .rc )
+    end with
+    pBar->itemCount += 1
+    pBar->Refresh()
+    return idx
+end function
+
+public function tkMenuBar_GetItemCount( byval hMenuBar as TK_WIDGET ptr ) as long
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if pBar = 0 then return 0
+    return pBar->itemCount
+end function
+
+public function tkMenuBar_GetItemText( byval hMenuBar as TK_WIDGET ptr, byval idx as long ) as ustring
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if (pBar = 0) orelse (pBar->IsValidItem( idx ) = false) then return ""
+    return pBar->items(idx).wszText
+end function
+
+public function tkMenuBar_SetItemText( byval hMenuBar as TK_WIDGET ptr, byval idx as long, byval Text as ustring ) as boolean
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if (pBar = 0) orelse (pBar->IsValidItem( idx ) = false) then return false
+    pBar->items(idx).wszText = Text
+    pBar->Refresh()
+    return true
+end function
+
+' OWNERSHIP TRANSFERS; attaching over one destroys the old; 0 detaches without destroying.
+public function tkMenuBar_SetDropDown( byval hMenuBar as TK_WIDGET ptr, byval idx as long, byval hPopup as TK_MENU ptr ) as boolean
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if (pBar = 0) orelse (pBar->IsValidItem( idx ) = false) then return false
+    with pBar->items(idx)
+        if (.hDropDown <> 0) andalso (.hDropDown <> hPopup) then
+            if pBar->bMenuOpen andalso (pBar->nActiveIdx = idx) then GoIdle( pBar )
+            tkPopupMenu_CloseChain( .hDropDown )
+            ' a detached menu gets its own callbacks back
+            if .hDropDown->SelectCallback = @Bar_OnSelect then .hDropDown->SelectCallback = .prevSelect
+            if .hDropDown->ClosedCallback = @Bar_OnClosed then .hDropDown->ClosedCallback = .prevClosed
+            if .hDropDown->KeyHook = @Bar_KeyHook then .hDropDown->KeyHook = .prevKeyHook
+            if hPopup <> 0 then tkPopupMenu_Destroy( .hDropDown )
+        end if
+        .hDropDown = hPopup
+        .prevSelect = 0 : .prevClosed = 0 : .prevKeyHook = 0
+    end with
+    return true
+end function
+
+public function tkMenuBar_GetDropDown( byval hMenuBar as TK_WIDGET ptr, byval idx as long ) as TK_MENU ptr
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if (pBar = 0) orelse (pBar->IsValidItem( idx ) = false) then return 0
+    return pBar->items(idx).hDropDown
+end function
+
+public function tkMenuBar_GetItemRect( byval hMenuBar as TK_WIDGET ptr, byval idx as long, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if (pBar = 0) orelse (pBar->IsValidItem( idx ) = false) then return false
+    if pBar->bLayoutDirty then pBar->LayoutItems()
+    rc = pBar->items(idx).rc
+    return true
+end function
+
+' The last item's right edge; 0 with no items or no height yet.
+public function tkMenuBar_GetIdealWidth( byval hMenuBar as TK_WIDGET ptr ) as long
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if (pBar = 0) orelse (pBar->itemCount = 0) then return 0
+    if pBar->bLayoutDirty then pBar->LayoutItems()
+    if pBar->bLayoutDirty then return 0
+    return pBar->items(pBar->itemCount - 1).rc.right
+end function
+
+public function tkMenuBar_GetPadding( byval hMenuBar as TK_WIDGET ptr ) as long
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if pBar = 0 then return 0
+    return pBar->nPadding
+end function
+
+public sub tkMenuBar_SetPadding( byval hMenuBar as TK_WIDGET ptr, byval nPadding as long )
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if pBar = 0 then exit sub
+    pBar->nPadding = iif( nPadding < 0, 0, nPadding )
+    pBar->Refresh()
+end sub
+
+' SILENT (fires the init-popups, as every open does). The door for an Alt+F accelerator.
+public function tkMenuBar_OpenMenu( byval hMenuBar as TK_WIDGET ptr, byval idx as long, byval bSelectFirst as boolean = false ) as boolean
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if pBar = 0 then return false
+    return OpenMenuAt( pBar, idx, bSelectFirst )
+end function
+
+' Closes any open chain AND clears the highlight. SILENT.
+public sub tkMenuBar_CloseMenu( byval hMenuBar as TK_WIDGET ptr )
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if pBar = 0 then exit sub
+    if pBar->bMenuOpen andalso pBar->IsValidItem( pBar->nActiveIdx ) then
+        dim as TK_MENU ptr d = pBar->items(pBar->nActiveIdx).hDropDown
+        if d then tkPopupMenu_CloseChain( d )
+    end if
+    GoIdle( pBar )
+end sub
+
+public function tkMenuBar_IsMenuOpen( byval hMenuBar as TK_WIDGET ptr ) as boolean
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if pBar = 0 then return false
+    Resync( pBar )
+    return pBar->bMenuOpen
+end function
+
+public function tkMenuBar_GetActiveIndex( byval hMenuBar as TK_WIDGET ptr ) as long
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if pBar = 0 then return -1
+    return pBar->nActiveIdx
+end function
+
+' The keyboard highlight WITHOUT opening a menu (-1 clears): what a bare Alt press would
+' call. SILENT. Enters the highlight-only mode (the bar takes focus + capture until it ends).
+public function tkMenuBar_SetActiveIndex( byval hMenuBar as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if pBar = 0 then return false
+    if (idx <> -1) andalso (pBar->IsValidItem( idx ) = false) then return false
+    if idx = -1 then
+        if pBar->bMenuOpen = false then GoIdle( pBar ) else SetActive( pBar, -1 )
+        return true
+    end if
+    SetActive( pBar, idx )
+    if pBar->bMenuOpen = false then EnterHighlight( pBar )
+    return true
+end function
+
+' The hovered item, -1 for none (tk addition).
+public function tkMenuBar_GetHotIndex( byval hMenuBar as TK_WIDGET ptr ) as long
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if pBar = 0 then return -1
+    return pBar->nHotIdx
+end function
+
+' Copies the struct and PINS it.
+public sub tkMenuBar_SetColors( byval hMenuBar as TK_WIDGET ptr, byval pColors as TKMENUBAR_COLORS ptr )
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if (pBar = 0) orelse (pColors = 0) then exit sub
+    pBar->colors = *pColors
+    pBar->bColorsPinned = true
+    tkWidget_Invalidate( hMenuBar )
+end sub
+
+' (tk addition: vendor has no GetColors)
+public sub tkMenuBar_GetColors( byval hMenuBar as TK_WIDGET ptr, byval pColors as TKMENUBAR_COLORS ptr )
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if (pBar = 0) orelse (pColors = 0) then exit sub
+    *pColors = pBar->colors
+end sub
+
+public function tkMenuBar_ThemeColors( byref t as TKTHEME_COLORS ) as TKMENUBAR_COLORS
+    dim as TKMENUBAR_COLORS c
+    c.BackColor = t.Window
+    c.ForeColor = t.Text
+    c.BackColorHot = t.SurfaceHot
+    c.ForeColorHot = t.TextHot
+    return c
+end function
+
+public sub tkMenuBar_ApplyTheme( byval hMenuBar as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if (pBar = 0) orelse pBar->bColorsPinned then exit sub
+    pBar->colors = tkMenuBar_ThemeColors( t )
+    tkWidget_Invalidate( hMenuBar )
+end sub
+
+public sub tkMenuBar_UnpinColors( byval hMenuBar as TK_WIDGET ptr )
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if pBar = 0 then exit sub
+    pBar->bColorsPinned = false
+    tkMenuBar_ApplyTheme( hMenuBar, tkTheme_Get() )
+end sub
+
+public sub tkMenuBar_ApplyFonts( byval hMenuBar as TK_WIDGET ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if (pBar = 0) orelse (fText = 0) then exit sub
+    pBar->pBarFont = fText
+    pBar->Refresh()
+end sub
+
+' Borrowed; also the measuring font, so this re-lays out.
+public sub tkMenuBar_SetFont( byval hMenuBar as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if pBar = 0 then exit sub
+    pBar->pBarFont = f
+    pBar->Refresh()
+end sub
+
+public sub tkMenuBar_SetCommandCallback( byval hMenuBar as TK_WIDGET ptr, byval usersub as MB_CommandCallbackSub )
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if pBar then pBar->CommandCallback = usersub
+end sub
+
+public sub tkMenuBar_SetInitPopupCallback( byval hMenuBar as TK_WIDGET ptr, byval usersub as MB_InitPopupCallbackSub )
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if pBar then pBar->InitPopupCallback = usersub
+end sub
+
+public sub tkMenuBar_SetPaintItemCallback( byval hMenuBar as TK_WIDGET ptr, byval usersub as MB_PaintItemCallbackSub )
+    dim as TKMENUBAR_STATE ptr pBar = GetMenuBarPointer( hMenuBar )
+    if pBar = 0 then exit sub
+    pBar->PaintItemCallback = usersub
+    tkWidget_Invalidate( hMenuBar )
+end sub

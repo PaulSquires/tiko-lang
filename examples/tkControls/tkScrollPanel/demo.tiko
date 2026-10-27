@@ -1,0 +1,259 @@
+' tkScrollPanel demo: the Win32 demo's settings page (tiko-lang/examples/PsControls/
+' PsScrollPanel/frmMain.tiko) -- five sections, 26 rows, longer than the window, the control
+' inset in the form. The Win32 page used STATIC / BUTTON / EDIT; tkControls has no label,
+' checkbox or text box in this batch, so the labels and section rules are drawn by the page's
+' paint callback (at the coordinates the layout pass recorded) and each row's control is a
+' tkButton: a check row toggles "On" / "Off", an edit row shows its value.
+'
+' Hover the page (or Tab into it) and the thumb appears; Tab past the bottom and the page
+' scrolls to the focused row (auto-scroll-to-focus).
+'
+'   demo                     interactive
+'   demo --shot out.bmp      render once, save the window, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkScrollPanel"
+#import "vendor/tkControls/tkButton"
+using tkScrollPanel
+using tkButton
+using tkHost
+using tkPaint
+
+#ifdef TIKO_OS_LINUX
+    const FONTDIR = "/mnt/c/Windows/Fonts/"
+#else
+    const FONTDIR = "C:\Windows\Fonts\"
+#endif
+
+const as long PAGE_INSET = 20, PAGE_MARGIN = 16, ROW_INDENT = 14, ROW_HEIGHT = 24, ROW_GAP = 10
+const as long HDR_HEIGHT = 22, HDR_RULE_GAP = 4, HDR_AFTER = 12, SECTION_GAP = 18
+const as long CTL_WIDTH = 170, CHECK_SIZE = 60
+
+' The Win32 demo's THEME_TYPE, value for value.
+const as ulong T_FORE = &hFFBEC4CEul, T_PANEL = &hFF1E2227ul, T_BOX = &hFF2C313Aul
+const as ulong T_RULER = &hFF464C58ul, T_SCROLL = &hFF5A606Aul, T_SCROLLHOT = &hFF7A808Aul, T_DIM = &hFF8A909Aul
+
+enum
+    ROWKIND_HEADER = 0, ROWKIND_CHECK, ROWKIND_EDIT
+end enum
+
+type DEMOROW
+    nKind  as long
+    sText  as ustring
+    hCtl   as TK_WIDGET ptr
+    bOn    as boolean
+    nY     as long
+    nRuleY as long
+    nLabX  as long
+    nLabW  as long
+end type
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gScp
+dim shared as DEMOROW gRows(0 to 63)
+dim shared as long gRowCount
+dim shared as TTF_Font ptr gFont9, gFont10b
+dim shared as ustring gStatus
+
+function S( byval v as long ) as long
+    return tkHost_Scale( gHost, v )
+end function
+
+sub Check_Click( byval hButton as TK_WIDGET ptr, byval id as long )
+    dim as long i = id - 2000
+    if (i < 0) orelse (i >= gRowCount) then exit sub
+    gRows(i).bOn = not gRows(i).bOn
+    tkButton_SetText( hButton, iif( gRows(i).bOn, "On", "Off" ) )
+    print "row " & i & " (" & gRows(i).sText & ") -> " & iif( gRows(i).bOn, "on", "off" )
+end sub
+
+sub AddRow( byval hPanel as TK_WIDGET ptr, byref sText as ustring, byval nKind as long, byref sValue as ustring = "" )
+    dim as long i = gRowCount
+    gRowCount += 1
+    gRows(i).nKind = nKind
+    gRows(i).sText = sText
+    if nKind = ROWKIND_HEADER then exit sub
+    gRows(i).hCtl = tkButton_Create( hPanel, 2000 + i )
+    tkButton_SetFont( gRows(i).hCtl, gFont9 )
+    if nKind = ROWKIND_CHECK then
+        gRows(i).bOn = ((i and 1) = 0)
+        tkButton_SetText( gRows(i).hCtl, iif( gRows(i).bOn, "On", "Off" ) )
+        tkButton_SetClickCallback( gRows(i).hCtl, @Check_Click )
+    else
+        tkButton_SetText( gRows(i).hCtl, sValue )
+        tkButton_SetTextAlign( gRows(i).hCtl, BTN_ALIGN_LEFT )
+    end if
+end sub
+
+sub BuildSettingsPage( byval hPanel as TK_WIDGET ptr )
+    AddRow( hPanel, "Appearance", ROWKIND_HEADER )
+    AddRow( hPanel, "Colour theme", ROWKIND_EDIT, "Dark+" )
+    AddRow( hPanel, "Editor font", ROWKIND_EDIT, "Cascadia Mono" )
+    AddRow( hPanel, "Show line numbers", ROWKIND_CHECK )
+    AddRow( hPanel, "Show indent guides", ROWKIND_CHECK )
+    AddRow( hPanel, "Highlight current line", ROWKIND_CHECK )
+    AddRow( hPanel, "Show whitespace", ROWKIND_CHECK )
+    AddRow( hPanel, "Editor", ROWKIND_HEADER )
+    AddRow( hPanel, "Tab width", ROWKIND_EDIT, "4" )
+    AddRow( hPanel, "Insert spaces for tabs", ROWKIND_CHECK )
+    AddRow( hPanel, "Word wrap", ROWKIND_CHECK )
+    AddRow( hPanel, "Auto-indent", ROWKIND_CHECK )
+    AddRow( hPanel, "Bracket matching", ROWKIND_CHECK )
+    AddRow( hPanel, "Right margin column", ROWKIND_EDIT, "100" )
+    AddRow( hPanel, "Files", ROWKIND_HEADER )
+    AddRow( hPanel, "Default encoding", ROWKIND_EDIT, "UTF-8" )
+    AddRow( hPanel, "Line endings", ROWKIND_EDIT, "CRLF" )
+    AddRow( hPanel, "Trim trailing whitespace", ROWKIND_CHECK )
+    AddRow( hPanel, "Save on focus loss", ROWKIND_CHECK )
+    AddRow( hPanel, "Reopen last session", ROWKIND_CHECK )
+    AddRow( hPanel, "Build", ROWKIND_HEADER )
+    AddRow( hPanel, "Compiler path", ROWKIND_EDIT, "tiko.exe" )
+    AddRow( hPanel, "Additional flags", ROWKIND_EDIT, "-w all" )
+    AddRow( hPanel, "Save all before building", ROWKIND_CHECK )
+    AddRow( hPanel, "Show compiler log", ROWKIND_CHECK )
+    AddRow( hPanel, "Advanced", ROWKIND_HEADER )
+    AddRow( hPanel, "Parser threads", ROWKIND_EDIT, "4" )
+    AddRow( hPanel, "Scan debounce (ms)", ROWKIND_EDIT, "300" )
+    AddRow( hPanel, "Verbose diagnostics", ROWKIND_CHECK )
+    AddRow( hPanel, "Experimental features", ROWKIND_CHECK )
+    AddRow( hPanel, "Telemetry", ROWKIND_CHECK )
+end sub
+
+' The layout callback: re-flow against the width HANDED in, return the page height. It never
+' touches the scroll position.
+function ScrollPanel_Layout( byval hPanel as TK_WIDGET ptr, byval cxPanel as long ) as long
+    dim as long nMargin = S( PAGE_MARGIN ), y = S( PAGE_MARGIN )
+    for i as long = 0 to gRowCount - 1
+        if gRows(i).nKind = ROWKIND_HEADER then
+            if i > 0 then y += S( SECTION_GAP )
+            gRows(i).nY = y
+            gRows(i).nLabX = nMargin
+            gRows(i).nLabW = cxPanel - nMargin * 2
+            y += S( HDR_HEIGHT ) + S( HDR_RULE_GAP )
+            gRows(i).nRuleY = y
+            y += S( HDR_AFTER )
+        else
+            gRows(i).nY = y
+            dim as long w = iif( gRows(i).nKind = ROWKIND_CHECK, S( CHECK_SIZE ), S( CTL_WIDTH ) )
+            dim as long xCtl = cxPanel - nMargin - w
+            gRows(i).nLabX = nMargin + S( ROW_INDENT )
+            gRows(i).nLabW = xCtl - S( 8 ) - gRows(i).nLabX
+            tkWidget_SetPos( gRows(i).hCtl, xCtl, y, w, S( ROW_HEIGHT ) )
+            y += S( ROW_HEIGHT ) + S( ROW_GAP )
+        end if
+    next
+    return y + S( PAGE_MARGIN )
+end function
+
+' The page's own paint: the background, the labels and the section rules, in PAGE coordinates.
+sub ScrollPanel_Paint( byval p as SCP_PAINTINFO ptr )
+    p->b->SetBackColor( T_BOX )
+    p->b->PaintRect( @p->rcClient )
+    for i as long = 0 to gRowCount - 1
+        dim as TKRECT rc
+        if gRows(i).nKind = ROWKIND_HEADER then
+            tkRect_Set( rc, gRows(i).nLabX, gRows(i).nY, gRows(i).nLabX + gRows(i).nLabW, gRows(i).nY + S( HDR_HEIGHT ) )
+            p->b->SetFont( gFont10b )
+            p->b->SetColors( T_FORE, T_BOX )
+            p->b->PaintText( gRows(i).sText, @rc, TK_DT_LEFT )
+            tkRect_Set( rc, S( PAGE_MARGIN ), gRows(i).nRuleY, p->rcClient.right - S( PAGE_MARGIN ), gRows(i).nRuleY + 1 )
+            p->b->SetBackColor( T_RULER )
+            p->b->PaintRect( @rc )
+        else
+            tkRect_Set( rc, gRows(i).nLabX, gRows(i).nY, gRows(i).nLabX + gRows(i).nLabW, gRows(i).nY + S( ROW_HEIGHT ) )
+            p->b->SetFont( gFont9 )
+            p->b->SetColors( T_FORE, T_BOX )
+            p->b->PaintText( gRows(i).sText, @rc, TK_DT_LEFT or TK_DT_ELLIPSIS )
+        end if
+    next
+end sub
+
+sub ScrollPanel_Scroll( byval hScp as TK_WIDGET ptr, byval newPos as long )
+    gStatus = "scroll -> pos=" & newPos & "  (content=" & tkScrollPanel_GetContentHeight( hScp ) & _
+              "  viewport=" & tkScrollPanel_GetViewportHeight( hScp ) & ")"
+    print gStatus
+    tkHost_Invalidate( gHost )
+end sub
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as TKRECT rc
+    tkRect_Set( rc, S( PAGE_INSET ), ph - S( PAGE_INSET ), pw - S( PAGE_INSET ), ph - S( 2 ) )
+    b->SetFont( gFont9 )
+    b->SetColors( T_DIM, T_PANEL )
+    b->PaintText( gStatus, @rc, TK_DT_LEFT )
+end sub
+
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long inset = S( PAGE_INSET )
+    tkWidget_SetPos( gScp, inset, inset, iif( pw - inset * 2 < 0, 0, pw - inset * 2 ), iif( ph - inset * 2 < 0, 0, ph - inset * 2 ) )
+end sub
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr sf = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if sf then
+        SDL_SaveBMP( sf, strptr( path ) )
+        print "shot: " & path & "  " & sf->w & "x" & sf->h & "  scale=" & gHost->fScale
+        SDL_DestroySurface( sf )
+    end if
+end sub
+
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkScrollPanel on SDL3", 720, 620, FONTDIR & "segoeui.ttf", forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = T_PANEL
+gFont9 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 9 )
+gFont10b = tkHost_OpenFont( gHost, FONTDIR & "segoeuib.ttf", 10 )
+if gFont10b = 0 then gFont10b = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 10 )
+if gFont9 = 0 then print "fonts: " & *SDL_GetError() : end 1
+
+gScp = tkScrollPanel_Create( tkHost_Root( gHost ), 100 )
+tkScrollPanel_SetColors( gScp, T_BOX, T_FORE )
+tkScrollPanel_SetScrollBarColors( gScp, T_BOX, T_SCROLL, T_SCROLLHOT )
+tkScrollPanel_SetPaintCallback( gScp, @ScrollPanel_Paint )
+tkScrollPanel_SetLayoutCallback( gScp, @ScrollPanel_Layout )
+tkScrollPanel_SetScrollCallback( gScp, @ScrollPanel_Scroll )
+tkScrollPanel_SetLineHeight( gScp, ROW_HEIGHT + ROW_GAP )      ' one notch ~ 3 rows
+BuildSettingsPage( tkScrollPanel_GetPanel( gScp ) )
+gStatus = "hover the page or Tab into it: the thumb appears; Tab past the bottom: the page follows the focus"
+
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkHost_Show( gHost )
+print "content=" & tkScrollPanel_GetContentHeight( gScp ) & "  viewport=" & tkScrollPanel_GetViewportHeight( gScp )
+
+dim as string shot = ArgValue( "--shot" )
+if len( shot ) then
+    ' focus a row near the bottom first, so the shot shows auto-scroll-to-focus and the thumb
+    tkHost_SetFocus( gHost, gRows(gRowCount - 4).hCtl )
+    dim as double t0 = timer
+    while timer - t0 < 0.35
+        tkHost_Pump( gHost )
+        SDL_Delay( 10 )
+    wend
+    SaveShot( shot )
+else
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

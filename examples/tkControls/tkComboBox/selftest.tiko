@@ -1,0 +1,434 @@
+' tkComboBox self-test: the ideal-size and layout formulas (widest item, placeholder never
+' measured, the text modes), item mutators and the selection fix-ups, silent setters vs user
+' picks, the closed-list keyboard, the dropdown as a real popup surface (open on the down, hover
+' highlight, click/Enter commit, Escape cancel, a press on the button closes it, scrolling past
+' the row cap), the callback order, auto-size, theme and the derived list colours, pixels,
+' rescale. Two passes, 1.0 and 1.75; every input is a pushed SDL event.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkComboBox"
+#import "vendor/tkControls/tkTest"
+using tkComboBox
+using tkPopupMenu
+using tkVScrollBar
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as string gLog
+dim shared as long gSelChanges, gOld, gNew, gRowsAtOpen
+dim shared as boolean gVetoDown
+dim shared as TK_WIDGET ptr gCombo
+
+sub OnSel( byval hCombo as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long )
+    gSelChanges += 1 : gOld = idxOld : gNew = idxNew
+    gLog &= "S" & idxNew & ";"
+end sub
+
+sub OnDrop( byval hCombo as TK_WIDGET ptr, byval isOpen as boolean )
+    gLog &= iif( isOpen, "O;", "C;" )
+    if isOpen then gRowsAtOpen = iif( tkComboBox_GetListHandle( hCombo ) <> 0, 1, 0 )
+end sub
+
+function OnMessage( byval m as TKCOMBOBOX_MESSAGEINFO ptr ) as boolean
+    if gVetoDown andalso (m->msg = TKM_LBUTTONDOWN) then return true
+    return false
+end function
+
+' Before an open: let any queued "did focus leave the application?" check run while NO popup is
+' up. tkHost posts one 150 ms after a focus loss, and when the test window is not the active
+' application (a user working elsewhere) it closes whatever popup is open by then.
+sub Settle( byval h as TK_HOST ptr )
+    tkTest_PumpFor( h, 200 )
+end sub
+
+' Window pixels (of the list's own surface) of row idx's centre.
+sub ListRowCentre( byval c as TK_WIDGET ptr, byval idx as long, byref x as single, byref y as single )
+    dim as TKRECT rc
+    tkComboBox_GetListItemRect( c, idx, rc )
+    x = (rc.left + rc.right) / 2 : y = (rc.top + rc.bottom) / 2
+end sub
+
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkComboBox selftest", 640, 480, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    if h = 0 then tkTest_Check( "host", false, *SDL_GetError() ) : exit sub
+    dim as TTF_Font ptr f10 = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 10 )
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 300 )
+
+    ' ---- A: the ideal size, before sizing -----------------------------------------------------
+    dim as TK_WIDGET ptr c = tkComboBox_Create( tkHost_Root( h ), 301 )
+    gCombo = c
+    tkComboBox_SetFont( c, f10 )
+    tkComboBox_SetSelChangeCallback( c, @OnSel )
+    tkComboBox_SetDropDownCallback( c, @OnDrop )
+    tkComboBox_SetMessageCallback( c, @OnMessage )
+    tkComboBox_AddItem( c, "Short", 10 )
+    tkComboBox_AddItem( c, "A much longer caption", 20 )
+    tkComboBox_AddItem( c, "Disabled one", 30 )
+    tkComboBox_AddItem( c, "Last", 40 )
+    tkComboBox_SetItemEnabled( c, 2, false )
+    tkTest_Check( "AddItem does not auto-select", tkComboBox_GetCurSel( c ) = -1 )
+    dim as long pl, pt, pr, pb, cw, chh, fg, ft, gap
+    tkComboBox_GetPadding( c, pl, pt, pr, pb )
+    tkComboBox_GetChevronSize( c, cw, chh )
+    tkComboBox_GetFocusRing( c, fg, ft )
+    gap = tkComboBox_GetTextGap( c )
+    tkTest_Check( "defaults scaled, hairlines not", pl = cint( 12 * fScale ) andalso cw = cint( 9 * fScale ) andalso fg = cint( 2 * fScale ) andalso ft = 1 andalso tkComboBox_GetBorderThickness( c ) = 1 )
+    dim as long rp = fg + ft
+    dim as long tw = tkText_Width( f10, "A much longer caption" )
+    dim as long th = tkText_Height( f10 )
+    dim as long contentH = iif( chh > th, chh, th )
+    dim as long iw, ih
+    tkComboBox_GetIdealSize( c, iw, ih )
+    tkTest_Check( "idealW: the WIDEST item", iw = 2 * rp + pl + tw + gap + cw + pr, iw & " vs " & (2 * rp + pl + tw + gap + cw + pr) )
+    tkTest_Check( "idealH formula", ih = 2 * rp + pt + contentH + pb, "" & ih )
+    tkComboBox_SetPlaceholderText( c, "A placeholder far, far longer than any of the items in the list" )
+    dim as long iw2, ih2
+    tkComboBox_GetIdealSize( c, iw2, ih2 )
+    tkTest_Check( "the placeholder is never measured", iw2 = iw )
+    dim as TKRECT rc
+    tkTest_Check( "rect query FALSE before sizing", tkComboBox_GetButtonRect( c, rc ) = false )
+    tkComboBox_SetTextMode( c, CBO_TEXT_NEVER )
+    tkComboBox_GetIdealSize( c, iw2, ih2 )
+    tkTest_Check( "arrow-only: no caption, no gap", iw2 = 2 * rp + pl + cw + pr, "" & iw2 )
+    tkComboBox_SetTextMode( c, 99 )
+    tkTest_Check( "an invalid text mode is ignored", tkComboBox_GetTextMode( c ) = CBO_TEXT_NEVER )
+    tkComboBox_SetTextMode( c, CBO_TEXT_WHENSELECTED )
+    tkTest_Check( "WHENSELECTED, nothing selected: no caption", tkComboBox_GetShowText( c ) = false )
+    tkComboBox_SetCurSel( c, 0 )
+    tkComboBox_GetIdealSize( c, iw2, ih2 )
+    tkTest_Check( "WHENSELECTED, selected: full width", tkComboBox_GetShowText( c ) andalso iw2 = iw )
+    tkComboBox_SetTextMode( c, CBO_TEXT_ALWAYS )
+
+    ' ---- B: the four rects ---------------------------------------------------------------
+    tkWidget_SetPos( c, tkHost_Scale( h, 20 ), tkHost_Scale( h, 20 ), iw, ih )
+    dim as TKRECT rB, rT, rCh, rV
+    tkTest_Check( "rect query TRUE once sized", tkComboBox_GetButtonRect( c, rB ) )
+    tkComboBox_GetTextRect( c, rT ) : tkComboBox_GetChevronRect( c, rCh ) : tkComboBox_GetVisualRect( c, rV )
+    tkTest_Check( "rcButton = client deflated by ringPad", rB.left = rp andalso rB.top = rp andalso rB.right = iw - rp andalso rB.bottom = ih - rp, tkRect_Str( rB ) )
+    tkTest_Check( "rcChevron right-aligned at padRight", rCh.right = rB.right - pr andalso rCh.right - rCh.left = cw andalso rCh.bottom - rCh.top = chh )
+    tkTest_Check( "rcText = padLeft .. chevron - gap, one text height", rT.left = rB.left + pl andalso rT.right = rCh.left - gap andalso rT.bottom - rT.top = th, tkRect_Str( rT ) )
+    tkTest_Check( "rcVisual = client", rV.left = 0 andalso rV.right = iw andalso rV.bottom = ih )
+    tkTest_Check( "caption span = widest item at ideal", rT.right - rT.left = tw )
+
+    ' ---- C: items and the selection fix-ups (all silent) --------------------------------------
+    gSelChanges = 0
+    tkComboBox_SetCurSel( c, 1 )
+    tkComboBox_InsertItem( c, 0, "First", 5 )
+    tkTest_Check( "insert before the selection moves it up", tkComboBox_GetCurSel( c ) = 2 )
+    tkComboBox_DeleteItem( c, 0 )
+    tkTest_Check( "delete before the selection moves it down", tkComboBox_GetCurSel( c ) = 1 )
+    tkTest_Check( "SetCurSel refuses a disabled item", tkComboBox_SetCurSel( c, 2 ) = false andalso tkComboBox_GetCurSel( c ) = 1 )
+    tkTest_Check( "SetCurSel refuses out of range, accepts -1", tkComboBox_SetCurSel( c, 9 ) = false andalso tkComboBox_SetCurSel( c, -1 ) andalso tkComboBox_GetCurSel( c ) = -1 )
+    tkTest_Check( "GetText = the placeholder when nothing is selected", tkComboBox_GetText( c ) = "A placeholder far, far longer than any of the items in the list" )
+    tkComboBox_SetCurSel( c, 3 )
+    tkComboBox_SetItemEnabled( c, 3, false )
+    tkTest_Check( "disabling the current item clears the selection", tkComboBox_GetCurSel( c ) = -1 )
+    tkComboBox_SetItemEnabled( c, 3, true )
+    tkComboBox_SetCurSel( c, 3 )
+    tkComboBox_DeleteItem( c, 3 )
+    tkTest_Check( "deleting the current item clears the selection", tkComboBox_GetCurSel( c ) = -1 )
+    tkComboBox_AddItem( c, "Last", 40 )
+    tkTest_Check( "FindItemByText is case-insensitive", tkComboBox_FindItemByText( c, "a MUCH longer CAPTION" ) = 1 )
+    tkTest_Check( "FindItemByID", tkComboBox_FindItemByID( c, 40 ) = 3 andalso tkComboBox_FindItemByID( c, 99 ) = -1 )
+    tkComboBox_SetItemData( c, 1, 12345 )
+    tkTest_Check( "item data round-trips", tkComboBox_GetItemData( c, 1 ) = 12345 andalso tkComboBox_GetItemID( c, 1 ) = 20 )
+    tkTest_Check( "every mutator was silent", gSelChanges = 0 )
+
+    ' ---- D: the closed-list keyboard ----------------------------------------------------------
+    tkComboBox_SetCurSel( c, 0 )
+    tkHost_SetFocus( h, c )
+    tkTest_Check( "focusable, focus ring state", tkComboBox_GetFocused( c ) )
+    gSelChanges = 0
+    tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_Check( "Down moves the selection and notifies", tkComboBox_GetCurSel( c ) = 1 andalso gSelChanges = 1 andalso gOld = 0 andalso gNew = 1 )
+    tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_Check( "Down skips the disabled item", tkComboBox_GetCurSel( c ) = 3 )
+    tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_Check( "Down at the last item clamps (no wrap, no callback)", tkComboBox_GetCurSel( c ) = 3 andalso gSelChanges = 2, gSelChanges & " " & tkComboBox_GetCurSel( c ) )
+    tkTest_PushKey( h, SDLK_HOME )
+    tkTest_Check( "Home", tkComboBox_GetCurSel( c ) = 0 )
+    tkTest_PushKey( h, SDLK_END )
+    tkTest_Check( "End", tkComboBox_GetCurSel( c ) = 3 )
+    tkComboBox_SetCurSel( c, -1 )
+    tkTest_PushKey( h, SDLK_UP )
+    tkTest_Check( "Up from nothing lands on the last selectable", tkComboBox_GetCurSel( c ) = 3 )
+    tkTest_Check( "keys did not open the list", tkComboBox_IsDroppedDown( c ) = false )
+    tkTest_PushWheel( h, tkTest_CX( c ), tkTest_CY( c ), 0, 1 )
+    tkTest_Check( "wheel on a focused closed combo steps", tkComboBox_GetCurSel( c ) = 1, "" & tkComboBox_GetCurSel( c ) )
+
+    ' ---- E: the dropdown: open on the down, hover, click commits --------------------------------
+    tkComboBox_SetCurSel( c, 0 )
+    gLog = "" : gSelChanges = 0 : gRowsAtOpen = -1
+    Settle( h )
+    tkTest_PushButton( h, true, tkTest_CX( c ), tkTest_CY( c ) )
+    tkTest_Check( "the list opens on the DOWN", tkComboBox_IsDroppedDown( c ) )
+    tkTest_Check( "DropDown(true) fired BEFORE the list existed", gLog = "O;" andalso gRowsAtOpen = 0, gLog & " " & gRowsAtOpen )
+    tkTest_Check( "no capture taken", tkHost_GetCapture( h ) = 0 )
+    tkTest_PushButton( h, false, tkTest_CX( c ), tkTest_CY( c ) )
+    tkHost_Pump( h )
+    dim as TK_HOST ptr lst = tkComboBox_GetListHandle( c )
+    tkTest_Check( "the list is a live popup surface", lst <> 0 andalso tkHost_IsOpen( lst ) andalso lst->kind = TK_SURF_POPUP )
+    tkTest_Check( "preselected at the current item", tkComboBox_GetListHot( c ) = 0 )
+    dim as TKRECT r0
+    tkComboBox_GetListItemRect( c, 0, r0 )
+    tkTest_Check( "row height", r0.bottom - r0.top = tkComboBox_GetListItemHeight( c ) )
+    if lst then tkTest_Check( "the list is at least the button's width", lst->root->cw >= rB.right - rB.left, lst->root->cw & "" )
+    dim as single lx, ly
+    if lst then
+        ListRowCentre( c, 2, lx, ly )
+        tkTest_PushMotion( lst, lx, ly )
+        tkTest_Check( "hover over a disabled row: no highlight", tkComboBox_GetListHot( c ) = 0 )
+        ListRowCentre( c, 3, lx, ly )
+        tkTest_PushMotion( lst, lx, ly )
+        tkTest_Check( "hover IS the highlight", tkComboBox_GetListHot( c ) = 3 )
+        tkTest_Check( "...and is provisional", tkComboBox_GetCurSel( c ) = 0 andalso gSelChanges = 0 )
+        tkTest_Click( lst, lx, ly )
+    end if
+    tkHost_Pump( h )
+    tkTest_Check( "a click commits and closes", tkComboBox_GetCurSel( c ) = 3 andalso tkComboBox_IsDroppedDown( c ) = false )
+    tkTest_Check( "closed FIRST, then the new value", gLog = "O;C;S3;", gLog )
+
+    ' ---- F: keyboard open, Escape cancels, Enter commits, the open list wraps ------------------
+    tkHost_SetFocus( h, c )
+    gLog = ""
+    Settle( h )
+    tkTest_PushKey( h, SDLK_F4 )
+    tkHost_Pump( h )
+    tkTest_Check( "F4 opens", tkComboBox_IsDroppedDown( c ) )
+    tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_Check( "Down in the open list wraps", tkComboBox_GetListHot( c ) = 0, "" & tkComboBox_GetListHot( c ) )
+    tkTest_PushKey( h, SDLK_ESCAPE )
+    tkHost_Pump( h )
+    tkTest_Check( "Escape closes without a change", tkComboBox_IsDroppedDown( c ) = false andalso tkComboBox_GetCurSel( c ) = 3 andalso gLog = "O;C;", gLog )
+    Settle( h )
+    tkTest_PushKey( h, SDLK_SPACE )
+    tkHost_Pump( h )
+    tkTest_PushKey( h, SDLK_UP )
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkHost_Pump( h )
+    tkTest_Check( "Space opens, Up skips the disabled row, Enter commits", tkComboBox_GetCurSel( c ) = 1 andalso tkComboBox_IsDroppedDown( c ) = false, "" & tkComboBox_GetCurSel( c ) )
+
+    ' ---- G: a press on the button while open closes it (consumed, not reopened) ---------------
+    Settle( h )
+    tkComboBox_DropDown( c )
+    tkHost_Pump( h )
+    tkTest_Check( "programmatic DropDown", tkComboBox_IsDroppedDown( c ) )
+    tkTest_Click( h, tkTest_CX( c ), tkTest_CY( c ) )
+    tkHost_Pump( h )
+    tkTest_Check( "a press on the button closes it, not reopens", tkComboBox_IsDroppedDown( c ) = false )
+    gVetoDown = true
+    tkTest_Click( h, tkTest_CX( c ), tkTest_CY( c ) )
+    tkTest_Check( "a vetoed down does not open", tkComboBox_IsDroppedDown( c ) = false )
+    gVetoDown = false
+    gLog = ""
+    tkComboBox_DropDown( c ) : tkHost_Pump( h )
+    tkComboBox_CloseUp( c ) : tkHost_Pump( h )
+    tkComboBox_CloseUp( c )
+    tkTest_Check( "programmatic open/close fire DropDown; a 2nd CloseUp is silent", gLog = "O;C;", gLog )
+
+    ' ---- H: an empty list, a disabled control ----------------------------------------------
+    dim as TK_WIDGET ptr e = tkComboBox_Create( tkHost_Root( h ), 302 )
+    tkComboBox_SetDropDownCallback( e, @OnDrop )
+    gLog = ""
+    tkTest_Check( "DropDown fails on an empty list", tkComboBox_DropDown( e ) = false )
+    tkTest_Check( "...with the open/close pairing kept", gLog = "O;C;", gLog )
+    tkComboBox_SetEnabled( c, false )
+    gLog = ""
+    tkTest_Check( "disabled: DropDown refused, no callback", tkComboBox_DropDown( c ) = false andalso gLog = "" )
+    tkTest_Click( h, tkTest_CX( c ), tkTest_CY( c ) )
+    tkTest_Check( "disabled: a click neither opens nor focuses", tkComboBox_IsDroppedDown( c ) = false andalso tkComboBox_GetFocused( c ) = false )
+    tkComboBox_SetEnabled( c, true )
+    tkComboBox_DropDown( c ) : tkHost_Pump( h )
+    tkComboBox_SetEnabled( c, false )
+    tkTest_Check( "disabling closes an open list", tkComboBox_IsDroppedDown( c ) = false )
+    tkComboBox_SetEnabled( c, true )
+
+    ' ---- I: the list scrolls past its row cap -------------------------------------------------
+    dim as TK_WIDGET ptr big = tkComboBox_Create( tkHost_Root( h ), 303 )
+    tkComboBox_SetFont( big, f10 )
+    for i as long = 0 to 29
+        tkComboBox_AddItem( big, "Item " & i, i )
+    next
+    tkComboBox_GetIdealSize( big, iw2, ih2 )
+    tkWidget_SetPos( big, tkHost_Scale( h, 300 ), tkHost_Scale( h, 20 ), iw2, ih2 )
+    tkComboBox_SetCurSel( big, 25 )
+    Settle( h )
+    tkComboBox_DropDown( big )
+    tkHost_Pump( h )
+    dim as TK_HOST ptr lb = tkComboBox_GetListHandle( big )
+    tkTest_Check( "a long list caps its rows", lb <> 0 andalso lb->root->ch = 2 + 12 * tkComboBox_GetListItemHeight( big ), iif( lb <> 0, lb->root->ch, -1 ) & "" )
+    tkTest_Check( "...and gets a scrollbar", tkComboBox_GetListScrollBar( big ) <> 0 )
+    tkTest_Check( "the current item is scrolled into view", tkComboBox_GetListTopIndex( big ) = 14, "" & tkComboBox_GetListTopIndex( big ) )
+    if lb then
+        tkTest_PushWheel( lb, lb->root->cw / 2, lb->root->ch / 2, 0, 2 )
+        tkTest_Check( "the wheel scrolls the list", tkComboBox_GetListTopIndex( big ) = 8, "" & tkComboBox_GetListTopIndex( big ) )
+        tkTest_Check( "the bar follows", tkVScrollBar_GetPos( tkComboBox_GetListScrollBar( big ) ) = 8 )
+        tkTest_PushKey( lb, SDLK_END )
+        tkTest_Check( "End: the last row, scrolled to", tkComboBox_GetListHot( big ) = 29 andalso tkComboBox_GetListTopIndex( big ) = 18 )
+        tkTest_PushKey( lb, SDLK_PAGEUP )
+        tkTest_Check( "PgUp moves a page", tkComboBox_GetListHot( big ) = 18, "" & tkComboBox_GetListHot( big ) )
+    end if
+    tkComboBox_CloseUp( big )
+    tkHost_Pump( h )
+
+    ' ---- J: pixels -----------------------------------------------------------------------
+    dim as TKCOMBOBOX_COLORS cc
+    tkComboBox_GetColors( c, @cc )
+    tkHost_SetFocus( h, 0 )
+    tkTest_PushMotion( h, tkTest_CX( c ), tkTest_CY( c ) )
+    tkTest_Check( "hot on hover", tkComboBox_GetHot( c ) )
+    tkHost_RenderTo( h, false )
+    dim as long sx = c->x + rB.left + tkHost_Scale( h, 6 ), sy = c->y + (rB.top + rB.bottom) \ 2
+    tkTest_Check( "hot chrome = BackColorHot", tkTest_PixelAt( h, sx, sy ) = cc.BackColorHot, hex( tkTest_PixelAt( h, sx, sy ) ) )
+    dim as ulong c0
+    tkTest_Check( "chevron drawn (> 2 tones)", tkTest_TonesIn( h, c->x + rCh.left, c->y + rCh.top, rCh.right - rCh.left, rCh.bottom - rCh.top, c0 ) > 2 )
+    Settle( h )
+    tkComboBox_DropDown( c )
+    tkHost_Pump( h )
+    lst = tkComboBox_GetListHandle( c )
+    if lst then
+        tkHost_RenderTo( lst, false )
+        dim as TKRECT rr
+        tkComboBox_GetListItemRect( c, tkComboBox_GetCurSel( c ), rr )
+        tkTest_Check( "the current row is highlighted", tkTest_PixelAt( lst, rr.right - 4, (rr.top + rr.bottom) \ 2 ) = cc.BackColorHot, hex( tkTest_PixelAt( lst, rr.right - 4, (rr.top + rr.bottom) \ 2 ) ) )
+        dim as long gutter = tkHost_Scale( h, TKCOMBOBOX_DEFAULT_LISTCHECKCOL )
+        tkTest_Check( "a checkmark in the left gutter", tkTest_TonesIn( lst, rr.left, rr.top, gutter, rr.bottom - rr.top, c0 ) > 2 )
+        tkComboBox_GetListItemRect( c, 0, rr )
+        dim as long nOther = tkTest_TonesIn( lst, rr.left, rr.top, gutter, rr.bottom - rr.top, c0 )
+        tkTest_Check( "no checkmark on another row", nOther = 1, nOther & " " & hex( c0 ) & " " & tkRect_Str( rr ) )
+    end if
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "open chrome = BackColorOpen (open beats hot)", tkTest_PixelAt( h, sx, sy ) = cc.BackColorOpen )
+    tkComboBox_CloseUp( c )
+    tkHost_Pump( h )
+
+    ' ---- K: auto-size --------------------------------------------------------------------
+    tkComboBox_SetAutoSize( c, true )
+    tkComboBox_SetItemText( c, 0, "An even longer caption than the long one" )
+    tkComboBox_GetIdealSize( c, iw2, ih2 )
+    tkTest_Check( "auto-size follows the widest item", c->cw = iw2 andalso iw2 > iw )
+    tkComboBox_SetAutoSize( c, false )
+
+    ' ---- L: theme, pinning, derived list colours -------------------------------------------------
+    dim as TKPOPUPMENU_COLORS lc
+    tkTheme_Apply( tkTheme_Light() )
+    tkComboBox_GetColors( c, @cc )
+    tkComboBox_GetListColors( c, @lc )
+    tkTest_Check( "theme reaches an unpinned combo", cc.BackColor = tkTheme_Light().Surface andalso cc.ForeColorOpen = tkTheme_Light().Accent )
+    tkTest_Check( "list colours derived (border from BorderColorHot)", lc.BackColor = cc.BackColor andalso lc.BorderColor = cc.BorderColorHot )
+    lc.BackColor = &hFF102030ul
+    tkComboBox_SetListColors( c, @lc )
+    tkTheme_Apply( tkTheme_Dark() )
+    tkComboBox_GetListColors( c, @lc )
+    tkTest_Check( "SetListColors claims them for good", lc.BackColor = &hFF102030ul )
+    tkComboBox_GetColors( c, @cc )
+    cc.BackColorHot = &hFF00FF00ul
+    tkComboBox_SetColors( c, @cc )
+    tkTheme_Apply( tkTheme_Light() )
+    tkComboBox_GetColors( c, @cc )
+    tkTest_Check( "SetColors pins", cc.BackColorHot = &hFF00FF00ul )
+    tkComboBox_UnpinColors( c )
+    tkComboBox_GetColors( c, @cc )
+    tkTest_Check( "unpin hands it back", cc.BackColorHot = tkTheme_Light().SurfaceHot )
+    tkTheme_Apply( tkTheme_Dark() )
+
+    ' ---- M: rescale ---------------------------------------------------------------------------
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    dim as long pl2, pt2, pr2, pb2
+    tkComboBox_GetPadding( c, pl2, pt2, pr2, pb2 )
+    tkTest_Check( "rescale: padding x2", pl2 = pl * 2 )
+    tkTest_Check( "rescale: border not scaled", tkComboBox_GetBorderThickness( c ) = 1 )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+
+    ' ---- N: too narrow: the caption collapses, the chevron survives ---------------------------
+    tkWidget_SetSize( c, 2 * rp + pl + cw + pr, ih )
+    tkComboBox_GetTextRect( c, rT ) : tkComboBox_GetChevronRect( c, rCh )
+    tkTest_Check( "too narrow: rcText empty, chevron intact", (rT.right - rT.left = 0) andalso (rCh.right - rCh.left = cw) )
+
+    tkHost_Destroy( h )
+end sub
+
+' ---- EDITABLE mode ---------------------------------------------------------------------------
+dim shared as long gEdits, gEnters
+
+sub OnEdit( byval hCombo as TK_WIDGET ptr )
+    gEdits += 1
+end sub
+
+sub OnEditEnter( byval hCombo as TK_WIDGET ptr )
+    gEnters += 1
+end sub
+
+sub EditablePass( byval fScale as single )
+    tkTest_Begin( "editable " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkComboBox editable", 640, 480, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    dim as TTF_Font ptr f10 = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 10 )
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 300 )
+    dim as TK_WIDGET ptr c = tkComboBox_Create( tkHost_Root( h ), 300 )
+    tkComboBox_SetFont( c, f10 )
+    tkComboBox_AddItem( c, "first" ) : tkComboBox_AddItem( c, "second" ) : tkComboBox_AddItem( c, "third" )
+    tkWidget_SetPos( c, tkHost_Scale( h, 20 ), tkHost_Scale( h, 20 ), tkHost_Scale( h, 220 ), tkHost_Scale( h, 30 ) )
+    tkComboBox_SetSelChangeCallback( c, @OnSel )
+    tkComboBox_SetEditChangeCallback( c, @OnEdit )
+    tkComboBox_SetEditEnterCallback( c, @OnEditEnter )
+    tkComboBox_SetEditable( c, true )
+    dim as TK_WIDGET ptr ed = tkComboBox_GetEditHandle( c )
+    tkTest_Check( "an edit appears", tkComboBox_GetEditable( c ) andalso (ed <> 0) )
+    dim as TKRECT rcT, rcE, rcC
+    tkComboBox_GetTextRect( c, rcT )
+    tkComboBox_GetChevronRect( c, rcC )
+    tkTest_Check( "it covers the text area", (ed->x = rcT.left) andalso (ed->cw = rcT.right - rcT.left) andalso (ed->ch > 0), _
+                  ed->x & "," & ed->cw & " vs " & rcT.left & "," & rcT.right )
+    tkTest_Check( "and stops short of the chevron", ed->x + ed->cw <= rcC.left )
+    ' focus goes on to the edit
+    tkHost_SetFocus( h, c )
+    tkTest_Check( "focusing the combo focuses its edit", tkHost_GetFocus( h ) = ed )
+    ' typing is the edit's, and notifies as the combo's
+    gEdits = 0 : gSelChanges = 0 : gEnters = 0
+    tkTest_PushText( h, "zeta" )
+    tkTest_Check( "typed text is the combo's text", tkComboBox_GetText( c ) = "zeta", tkComboBox_GetText( c ) )
+    tkTest_Check( "typing notifies EditChange", gEdits >= 1 )
+    tkTest_Check( "and changes no selection", (gSelChanges = 0) andalso (tkComboBox_GetCurSel( c ) = -1) )
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "Enter notifies EditEnter", gEnters = 1 )
+    ' Down in the edit steps the list, filling the edit
+    tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_Check( "Down picks the first item", (tkComboBox_GetCurSel( c ) = 0) andalso (tkComboBox_GetText( c ) = "first") andalso (gSelChanges = 1) )
+    ' the list: open from the chevron, pick a row
+    Settle( h )
+    dim as TKRECT a
+    tkWidget_AbsRect( c, a )
+    tkTest_Click( h, a.left + (rcC.left + rcC.right) / 2, a.top + (rcC.top + rcC.bottom) / 2 )
+    tkTest_Check( "the chevron drops the list", tkComboBox_IsDroppedDown( c ) )
+    if tkComboBox_IsDroppedDown( c ) then
+        dim as single lx, ly
+        ListRowCentre( c, 2, lx, ly )
+        tkTest_Click( tkComboBox_GetListHandle( c ), lx, ly )
+        tkHost_Pump( h )
+    end if
+    tkTest_Check( "a picked row fills the edit", (tkComboBox_GetCurSel( c ) = 2) andalso (tkComboBox_GetText( c ) = "third"), tkComboBox_GetText( c ) )
+    gEdits = 0
+    tkComboBox_SetEditText( c, "silent" )
+    tkTest_Check( "SetEditText is silent", (gEdits = 0) andalso (tkComboBox_GetText( c ) = "silent") )
+    ' the combo shows the ring while its edit has the keyboard
+    tkTest_Check( "the edit's focus is the combo's", tkComboBox_GetFocused( c ) )
+    tkComboBox_SetEditable( c, false )
+    tkTest_Check( "back to a plain combo", (tkComboBox_GetEditHandle( c ) = 0) andalso c->isFocusable andalso (tkComboBox_GetText( c ) = "third") )
+    tkHost_Destroy( h )
+end sub
+
+if tkTest_Init() = false then end 99
+RunPass( 1.0 )
+RunPass( 1.75 )
+EditablePass( 1.0 )
+EditablePass( 1.75 )
+dim as long nFail = tkTest_Report( "tkComboBox" )
+tkTest_Quit()
+end nFail

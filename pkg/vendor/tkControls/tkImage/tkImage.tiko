@@ -1,0 +1,165 @@
+' tkImage -- vendor PsImage for tkControls: one decoded image, drawable in ANY window.
+'
+' The decoded pixels live in an SDL_Surface (CPU). A texture is made from it lazily, once per
+' renderer that draws it, and cached -- so the same image can appear in the main window, a
+' popup menu and a tooltip, which a texture alone cannot (a texture belongs to one renderer).
+' When a renderer is destroyed tkHost calls the hook below and every cache drops its texture
+' for it, so a stale pointer is never drawn.
+'
+' Formats are SDL_image's: .png .bmp .jpg/.jpeg .gif .ico/.cur .tga .qoi (and more, per build).
+' Vendor's LoadFromBitmap / LoadFromIcon (HBITMAP / HICON) become LoadFromSurface and
+' LoadFromPixels; see PORT.md.
+#module "tkImage"
+
+#import "../tkHost" public
+using tkHost
+using tkPaint
+
+public type TKIMG_TEX
+    r   as SDL_Renderer ptr
+    tex as SDL_Texture ptr
+end type
+
+public type tkImageFile
+    ' Internal state: read it through the methods below. (Not `private:` -- the live list is
+    ' walked by the module's renderer hook, which a private member would lock out.)
+    pSurf      as SDL_Surface ptr
+    cache(0 to 7) as TKIMG_TEX
+    pNextLive  as tkImageFile ptr
+    pPrevLive  as tkImageFile ptr
+    declare sub DropTextures()
+    declare constructor()
+    declare destructor()
+    ' Decode a file. Non-zero on success; a failed load clears any image previously held.
+    declare function Load( byval path as ustring ) as long
+    ' Copy an existing surface (you keep ownership of it).
+    declare function LoadFromSurface( byval s as SDL_Surface ptr ) as long
+    ' Copy w x h ARGB pixels (&hAARRGGBB, row after row).
+    declare function LoadFromPixels( byval w as long, byval h as long, byval argb as ulong ptr ) as long
+    declare sub Dispose()
+    declare function IsValid() as long
+    declare function NaturalWidth() as long
+    declare function NaturalHeight() as long
+    ' The decoded surface (ARGB8888). Owned here -- do not destroy it.
+    declare function Surface() as SDL_Surface ptr
+    ' The texture for this renderer, made on first use and cached. Owned here.
+    declare function Texture( byval r as SDL_Renderer ptr ) as SDL_Texture ptr
+    declare sub PurgeRenderer( byval r as SDL_Renderer ptr )
+end type
+
+dim shared as tkImageFile ptr gLive
+dim shared as boolean gHooked
+
+private sub OnRendererGone( byval r as SDL_Renderer ptr )
+    dim as tkImageFile ptr p = gLive
+    while p
+        p->PurgeRenderer( r )
+        p = p->pNextLive
+    wend
+end sub
+
+constructor tkImageFile()
+    this.pNextLive = gLive
+    if gLive then gLive->pPrevLive = @this
+    gLive = @this
+    if gHooked = false then tkHost_SetRendererGoneHook( @OnRendererGone ) : gHooked = true
+end constructor
+
+destructor tkImageFile()
+    this.Dispose()
+    if this.pPrevLive then this.pPrevLive->pNextLive = this.pNextLive else gLive = this.pNextLive
+    if this.pNextLive then this.pNextLive->pPrevLive = this.pPrevLive
+end destructor
+
+sub tkImageFile.DropTextures()
+    for i as long = 0 to ubound( this.cache )
+        if this.cache(i).tex then SDL_DestroyTexture( this.cache(i).tex )
+        this.cache(i).tex = 0 : this.cache(i).r = 0
+    next
+end sub
+
+sub tkImageFile.PurgeRenderer( byval r as SDL_Renderer ptr )
+    for i as long = 0 to ubound( this.cache )
+        ' the renderer is about to destroy its textures itself: forget, do not destroy twice
+        if this.cache(i).r = r then this.cache(i).r = 0 : this.cache(i).tex = 0
+    next
+end sub
+
+sub tkImageFile.Dispose()
+    this.DropTextures()
+    if this.pSurf then SDL_DestroySurface( this.pSurf ) : this.pSurf = 0
+end sub
+
+function tkImageFile.Load( byval path as ustring ) as long
+    this.Dispose()
+    dim as string p8 = path
+    dim as SDL_Surface ptr s = IMG_Load( strptr( p8 ) )
+    if s = 0 then return 0
+    this.pSurf = SDL_ConvertSurface( s, SDL_PIXELFORMAT_ARGB8888 )
+    SDL_DestroySurface( s )
+    return iif( this.pSurf <> 0, -1, 0 )
+end function
+
+function tkImageFile.LoadFromSurface( byval s as SDL_Surface ptr ) as long
+    this.Dispose()
+    if s = 0 then return 0
+    this.pSurf = SDL_ConvertSurface( s, SDL_PIXELFORMAT_ARGB8888 )
+    return iif( this.pSurf <> 0, -1, 0 )
+end function
+
+function tkImageFile.LoadFromPixels( byval w as long, byval h as long, byval argb as ulong ptr ) as long
+    this.Dispose()
+    if (w <= 0) orelse (h <= 0) orelse (argb = 0) then return 0
+    this.pSurf = SDL_CreateSurface( w, h, SDL_PIXELFORMAT_ARGB8888 )
+    if this.pSurf = 0 then return 0
+    for y as long = 0 to h - 1
+        dim as ulong ptr row = cast( ulong ptr, cast( ubyte ptr, this.pSurf->pixels ) + y * this.pSurf->pitch )
+        for x as long = 0 to w - 1
+            row[x] = argb[y * w + x]
+        next
+    next
+    return -1
+end function
+
+function tkImageFile.IsValid() as long
+    return iif( this.pSurf <> 0, -1, 0 )
+end function
+
+function tkImageFile.NaturalWidth() as long
+    if this.pSurf = 0 then return 0
+    return this.pSurf->w
+end function
+
+function tkImageFile.NaturalHeight() as long
+    if this.pSurf = 0 then return 0
+    return this.pSurf->h
+end function
+
+function tkImageFile.Surface() as SDL_Surface ptr
+    return this.pSurf
+end function
+
+function tkImageFile.Texture( byval r as SDL_Renderer ptr ) as SDL_Texture ptr
+    if (this.pSurf = 0) orelse (r = 0) then return 0
+    for i as long = 0 to ubound( this.cache )
+        if this.cache(i).r = r then return this.cache(i).tex
+    next
+    dim as SDL_Texture ptr t = SDL_CreateTextureFromSurface( r, this.pSurf )
+    if t = 0 then return 0
+    SDL_SetTextureScaleMode( t, SDL_SCALEMODE_LINEAR )
+    for i as long = 0 to ubound( this.cache )
+        if this.cache(i).r = 0 then this.cache(i).r = r : this.cache(i).tex = t : return t
+    next
+    ' more renderers than slots: recycle the first
+    SDL_DestroyTexture( this.cache(0).tex )
+    this.cache(0).r = r : this.cache(0).tex = t
+    return t
+end function
+
+' vendor PsPaintBuffer.PaintImage( img.Image(), rc, nFit ), for a tk paint context.
+public sub tkImage_Paint( byval p as TK_PAINT ptr, byval img as tkImageFile ptr, byval rc as TKRECT ptr, _
+                          byval nFit as long = TK_IMGFIT_ASPECT )
+    if (p = 0) orelse (img = 0) then exit sub
+    if img->IsValid() = 0 then exit sub
+    p->PaintImage( img->Texture( p->renderer ), rc, nFit )
+end sub

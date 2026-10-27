@@ -1,0 +1,157 @@
+' tkVScrollBar + tkHScrollBar self-test: thumb geometry and clamping, silent SetPos vs
+' notifying user scrolls, track paging with auto-repeat until the thumb reaches the cursor,
+' thumb dragging, the wheel (sign per axis, sub-notch accumulation, the other axis bubbling),
+' theme and pinning, the divider, hot paint. Two passes, scale 1.0 and 1.75.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkVScrollBar"
+#import "vendor/tkControls/tkHScrollBar"
+#import "vendor/tkControls/tkTest"
+using tkVScrollBar
+using tkHScrollBar
+using tkScrollBar
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as long gNotes, gLastPos, gParentWheel
+
+sub OnScroll( byval hSB as TK_WIDGET ptr, byval newPos as integer )
+    gNotes += 1
+    gLastPos = newPos
+end sub
+
+' A parent that counts wheel messages that bubble up to it.
+function ParentProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    if m->msg = TKM_MOUSEWHEEL then gParentWheel += 1 : return true
+    return false
+end function
+
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkScrollBar selftest", 500, 400, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    if h = 0 then tkTest_Check( "host", false ) : exit sub
+    dim as TK_WIDGET ptr parent = tkWidget_Create( h, 9, @ParentProc, 0 )
+    tkWidget_SetPos( parent, 0, 0, tkHost_Scale( h, 500 ), tkHost_Scale( h, 400 ) )
+    dim as long bw = tkHost_Scale( h, TKVSCROLL_DEFAULT_WIDTH ), len_ = tkHost_Scale( h, 300 )
+    dim as TK_WIDGET ptr v = tkVScrollBar_Create( parent, 1 )
+    tkWidget_SetPos( v, tkHost_Scale( h, 20 ), tkHost_Scale( h, 20 ), bw, len_ )
+    dim as TK_WIDGET ptr hb = tkHScrollBar_Create( parent, 2 )
+    tkWidget_SetPos( hb, tkHost_Scale( h, 60 ), tkHost_Scale( h, 340 ), len_, bw )
+    tkVScrollBar_SetScrollCallback( v, @OnScroll )
+    tkHScrollBar_SetScrollCallback( hb, @OnScroll )
+
+    ' ---- geometry ----------------------------------------------------------------------------------
+    tkVScrollBar_SetRange( v, 100, 25, 0 )
+    dim as TKRECT t = tkVScrollBar_GetThumbRect( v )
+    tkTest_Check( "thumb length = page/total of the track", (t.bottom - t.top) = cint( 0.25 * len_ ) andalso t.top = 0, tkRect_Str( t ) )
+    tkVScrollBar_SetPos( v, 75 )
+    t = tkVScrollBar_GetThumbRect( v )
+    tkTest_Check( "at max the thumb touches the end", t.bottom = len_, tkRect_Str( t ) )
+    tkVScrollBar_SetPos( v, 500 )
+    tkTest_Check( "SetPos clamps to total - page", tkVScrollBar_GetPos( v ) = 75 )
+    tkVScrollBar_SetRange( v, 100, 25, -9 )
+    tkTest_Check( "SetRange clamps the position", tkVScrollBar_GetPos( v ) = 0 )
+    tkVScrollBar_SetRange( v, 100000, 10, 0 )
+    t = tkVScrollBar_GetThumbRect( v )
+    tkTest_Check( "minimum thumb length (DPI-scaled)", (t.bottom - t.top) = tkHost_Scale( h, TKVSCROLL_MIN_THUMB ) )
+    tkVScrollBar_SetRange( v, 20, 25, 0 )
+    tkTest_Check( "everything fits -> no thumb", (tkVScrollBar_NeedsThumb( v ) = false) andalso tkRect_IsEmpty( tkVScrollBar_GetThumbRect( v ) ) )
+    gNotes = 0
+    tkTest_Click( h, tkTest_CX( v ), tkTest_CY( v ) )
+    tkTest_Check( "nothing to scroll: a click does nothing, takes no capture", gNotes = 0 andalso tkHost_GetCapture( h ) = 0 )
+
+    ' ---- silent vs notifying --------------------------------------------------------------------------
+    tkVScrollBar_SetRange( v, 100, 10, 0 )
+    gNotes = 0
+    tkVScrollBar_SetPos( v, 30 )
+    tkTest_Check( "SetPos is SILENT", gNotes = 0 )
+    tkVScrollBar_SetPos( v, 0 )
+
+    ' ---- track paging + auto-repeat ------------------------------------------------------------------
+    dim as TKRECT a
+    tkWidget_AbsRect( v, a )
+    dim as single cx = tkTest_CX( v ), yLow = a.top + len_ * 0.8
+    gNotes = 0
+    tkTest_PushButton( h, true, cx, yLow )
+    tkTest_Check( "track click pages by exactly page", tkVScrollBar_GetPos( v ) = 10 andalso gNotes = 1 andalso gLastPos = 10 )
+    tkTest_Check( "...and holds capture for the repeat", tkHost_GetCapture( h ) = v andalso tkVScrollBar_IsDragging( v ) )
+    tkTest_PumpFor( h, 1200 )
+    dim as long pHeld = tkVScrollBar_GetPos( v )
+    t = tkVScrollBar_GetThumbRect( v )
+    tkTest_Check( "auto-repeat kept paging while held", pHeld > 20, "" & pHeld )
+    tkTest_Check( "...and stopped when the thumb reached the cursor", (a.top + t.top <= yLow) andalso (yLow < a.top + t.bottom + tkHost_Scale( h, 1 ) + (t.bottom - t.top)), tkRect_Str( t ) & " y=" & (yLow - a.top) )
+    tkTest_PushButton( h, false, cx, yLow )
+    tkTest_Check( "release ends it and frees capture", (tkHost_GetCapture( h ) = 0) andalso (tkVScrollBar_IsDragging( v ) = false) )
+
+    ' ---- thumb drag -------------------------------------------------------------------------------------
+    tkVScrollBar_SetPos( v, 0 )
+    t = tkVScrollBar_GetThumbRect( v )
+    dim as single ty = a.top + (t.top + t.bottom) / 2
+    gNotes = 0
+    tkTest_PushButton( h, true, cx, ty )
+    tkTest_Check( "press on the thumb starts a drag", tkVScrollBar_IsDragging( v ) andalso gNotes = 0 )
+    dim as long span = len_ - (t.bottom - t.top)
+    tkTest_PushMotion( h, cx, ty + span / 2 )
+    tkTest_Check( "drag half the span -> half the range", abs( tkVScrollBar_GetPos( v ) - 45 ) <= 1 andalso gNotes >= 1, "" & tkVScrollBar_GetPos( v ) )
+    tkTest_PushMotion( h, cx, ty + span * 4 )
+    tkTest_Check( "dragging past the end clamps", tkVScrollBar_GetPos( v ) = 90 )
+    tkTest_PushButton( h, false, cx, ty + span * 4 )
+    tkTest_Check( "release ends the drag", tkVScrollBar_IsDragging( v ) = false )
+
+    ' ---- wheel ----------------------------------------------------------------------------------------------
+    tkVScrollBar_SetPos( v, 50 )
+    tkTest_PushWheel( h, cx, tkTest_CY( v ), 0, 1 )
+    tkTest_Check( "V: wheel UP decreases by the system step (3)", tkVScrollBar_GetPos( v ) = 47, "" & tkVScrollBar_GetPos( v ) )
+    tkTest_PushWheel( h, cx, tkTest_CY( v ), 0, -1 )
+    tkTest_Check( "V: wheel DOWN increases", tkVScrollBar_GetPos( v ) = 50 )
+    tkVScrollBar_SetWheelStep( v, 2 )
+    tkTest_PushWheel( h, cx, tkTest_CY( v ), 0, -0.25 )
+    tkTest_Check( "sub-notch delta accumulates (not yet a unit)", tkVScrollBar_GetPos( v ) = 50 )
+    tkTest_PushWheel( h, cx, tkTest_CY( v ), 0, -0.25 )
+    tkTest_Check( "...and steps once it adds up", tkVScrollBar_GetPos( v ) = 51, "" & tkVScrollBar_GetPos( v ) )
+    gParentWheel = 0
+    tkTest_PushWheel( h, cx, tkTest_CY( v ), 1, 0 )
+    tkTest_Check( "V refuses the horizontal wheel: it bubbles", gParentWheel = 1 )
+    tkHScrollBar_SetRange( hb, 100, 10, 50 )
+    tkTest_PushWheel( h, tkTest_CX( hb ), tkTest_CY( hb ), 1, 0 )
+    tkTest_Check( "H: positive delta scrolls RIGHT (increases)", tkHScrollBar_GetPos( hb ) = 53, "" & tkHScrollBar_GetPos( hb ) )
+    gParentWheel = 0
+    tkTest_PushWheel( h, tkTest_CX( hb ), tkTest_CY( hb ), 0, 1 )
+    tkTest_Check( "H refuses the vertical wheel: it bubbles", gParentWheel = 1 andalso tkHScrollBar_GetPos( hb ) = 53 )
+
+    ' ---- H geometry mirrors V ------------------------------------------------------------------------------
+    tkHScrollBar_SetRange( hb, 100, 25, 75 )
+    t = tkHScrollBar_GetThumbRect( hb )
+    tkTest_Check( "H: thumb along x, at the end at max", t.right = len_ andalso (t.right - t.left) = cint( 0.25 * len_ ) andalso t.top = 0 andalso t.bottom = bw )
+
+    ' ---- paint: hot thumb, divider, theme ------------------------------------------------------------------
+    tkVScrollBar_SetRange( v, 100, 25, 0 )
+    tkVScrollBar_SetColors( v, &hFF000010ul, &hFF000020ul, &hFF000030ul )
+    tkTest_PushMotion( h, tkTest_CX( hb ), tkTest_CY( hb ) )     ' away
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "thumb painted in ForeColor", tkTest_PixelAt( h, a.left + 2, a.top + 2 ) = &hFF000020ul )
+    tkTest_Check( "track painted in BackColor", tkTest_PixelAt( h, a.left + 2, a.top + len_ - 2 ) = &hFF000010ul )
+    tkTest_PushMotion( h, a.left + 2, a.top + 2 )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "hovering the thumb paints it hot", tkTest_PixelAt( h, a.left + 2, a.top + 2 ) = &hFF000030ul )
+    tkVScrollBar_SetDividerColor( v, &hFFFF0000ul )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "divider: one pixel down the left edge", tkTest_PixelAt( h, a.left, a.top + len_ - 2 ) = &hFFFF0000ul andalso tkTest_PixelAt( h, a.left + 1, a.top + len_ - 2 ) = &hFF000010ul )
+    tkTheme_Apply( tkTheme_Light() )
+    tkTest_Check( "pinned colours survive a theme change", tkScrollBar_State( v )->ForeColor = &hFF000020ul )
+    tkTest_Check( "unpinned bars take the theme", tkScrollBar_State( hb )->BackColor = tkTheme_Light().Window andalso tkScrollBar_State( hb )->ForeColor = tkTheme_Light().Border )
+    tkVScrollBar_UnpinColors( v )
+    tkTest_Check( "unpin applies the current theme", tkScrollBar_State( v )->ForeColorHot = tkTheme_Light().TextDisabled )
+    tkTheme_Apply( tkTheme_Dark() )
+
+    tkHost_Destroy( h )
+end sub
+
+if tkTest_Init() = false then end 99
+RunPass( 1.0 )
+RunPass( 1.75 )
+dim as long nFail = tkTest_Report( "tkScrollBar" )
+tkTest_Quit()
+end nFail

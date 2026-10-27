@@ -1,0 +1,283 @@
+' tkListTree self-test. Real windows, real SDL event queue: every input claim is made by
+' PUSHING the SDL event a user would have produced and pumping the host. Two passes, scale
+' pinned at 1.0 and at 1.75.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkListTree"
+#import "vendor/tkControls/tkTest"
+using tkListTree
+using tkTextBox
+using tkColumnHeader
+using tkTooltip
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as long gSel, gLastSelRow, gAct, gLastAct, gFold, gDrops, gDropFirst, gDropCount, gPaints
+dim shared as boolean gRejectEdit
+dim shared as TK_WIDGET ptr gPaintList
+
+sub OnSel( byval h as TK_WIDGET ptr, byval row as integer )
+    gSel += 1 : gLastSelRow = row
+end sub
+sub OnAct( byval h as TK_WIDGET ptr, byval row as integer )
+    gAct += 1 : gLastAct = row
+end sub
+sub OnFold( byval h as TK_WIDGET ptr, byval row as integer, byval bExpanded as boolean )
+    gFold += 1
+end sub
+sub OnDrop( byval h as TK_WIDGET ptr, byval newFirst as integer, byval count as integer )
+    gDrops += 1 : gDropFirst = newFirst : gDropCount = count
+end sub
+function OnEndEdit( byval h as TK_WIDGET ptr, byval row as integer, byval newText as ustring ) as boolean
+    return gRejectEdit = false
+end function
+sub OnPaint( byval p as TKLISTTREE_PAINTINFO ptr )
+    gPaints += 1 : gPaintList = p->hList
+    tkListTree_PaintRowDefault( p )
+end sub
+
+' Window-pixel centre of visible row v (column x optional, surface-local).
+sub RowXY( byval c as TK_WIDGET ptr, byval v as long, byref x as single, byref y as single, byval lx as long = -1 )
+    dim as TK_WIDGET ptr s = tkListTree_GetSurface( c )
+    dim as TKRECT a
+    tkWidget_AbsRect( s, a )
+    dim as long ih = tkListTree_GetItemHeightPx( c )
+    x = a.left + iif( lx >= 0, lx, s->cw \ 2 )
+    y = a.top + v * ih + ih \ 2
+end sub
+
+sub ClickRow( byval h as TK_HOST ptr, byval c as TK_WIDGET ptr, byval v as long, byval clicks as long = 1, byval lx as long = -1 )
+    dim as single x, y
+    RowXY( c, v, x, y, lx )
+    tkTest_Click( h, x, y, SDL_BUTTON_LEFT, clicks )
+end sub
+
+sub ResetCounts()
+    gSel = 0 : gLastSelRow = -99 : gAct = 0 : gLastAct = -99 : gFold = 0 : gDrops = 0
+end sub
+
+' ==========================================================================================
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkListTree selftest", 520, 420, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    if h = 0 then tkTest_Check( "host", false, *SDL_GetError() ) : exit sub
+    dim as TTF_Font ptr f10 = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 10 )
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 300 )
+
+    dim as TK_WIDGET ptr c = tkListTree_Create( tkHost_Root( h ), 500 )
+    tkListTree_SetFont( c, f10 )
+    tkListTree_SetPaintCallback( c, @OnPaint )
+    tkListTree_SetSelChangeCallback( c, @OnSel )
+    tkListTree_SetActivateCallback( c, @OnAct )
+    tkListTree_SetExpandCollapseCallback( c, @OnFold )
+    tkListTree_SetDragDropCallback( c, @OnDrop )
+    dim as long ih = tkListTree_GetItemHeightPx( c )
+    tkTest_Check( "row height 22, scaled internally", (tkListTree_GetRowHeight( c ) = 22) andalso (ih = cint( 22 * fScale )) )
+    ' 10 rows tall exactly
+    tkWidget_SetPos( c, tkHost_Scale( h, 10 ), tkHost_Scale( h, 10 ), tkHost_Scale( h, 300 ), 10 * ih )
+
+    ' ---- A: the tree model ----------------------------------------------------------------
+    dim as integer proj = tkListTree_AddNode( c, -1, "proj" )          ' 0
+    dim as integer src = tkListTree_AddNode( c, proj, "src" )          ' 1
+    tkListTree_AddNode( c, src, "main.tiko" )                          ' 2
+    dim as integer eng = tkListTree_AddNode( c, src, "engine" )        ' 3
+    tkListTree_AddNode( c, eng, "render.tiko" )                        ' 4
+    dim as integer docs = tkListTree_AddNode( c, proj, "docs" )        ' 5
+    dim as integer ins = tkListTree_InsertNode( c, src, 0, "aaa.tiko" ) ' becomes 2
+    tkTest_Check( "AddNode appends after the subtree; InsertNode at child 0", (docs = 5) andalso (ins = 2) andalso (tkListTree_GetText( c, 3 ) = "main.tiko") )
+    tkTest_Check( "levels, parent, child counts", (tkListTree_GetLevel( c, 5 ) = 3) andalso (tkListTree_GetParent( c, 5 ) = 4) _
+        andalso (tkListTree_GetChildCount( c, 1 ) = 3) andalso (tkListTree_GetChildCount( c, 0 ) = 2) andalso tkListTree_HasChildren( c, 4 ) )
+    tkListTree_CollapseRow( c, src )
+    tkTest_Check( "collapsing hides the whole subtree, no renumbering", (tkListTree_GetVisibleCount( c ) = 3) andalso (tkListTree_GetCount( c ) = 7) andalso (tkListTree_GetText( c, 6 ) = "docs") )
+    tkTest_Check( "programmatic collapse is silent", gFold = 0 )
+    tkListTree_ExpandAll( c )
+    tkTest_Check( "ExpandAll", tkListTree_GetVisibleCount( c ) = 7 )
+    tkListTree_Clear( c )
+
+    ' ---- B: legacy groups and the clicks -----------------------------------------------------
+    tkListTree_BeginUpdate( c )
+    tkListTree_AddHeader( c, "Alpha" )                     ' 0
+    for i as long = 1 to 5 : tkListTree_AddString( c, "a" & i, 100 + i ) : next     ' 1..5
+    tkListTree_AddHeader( c, "Beta" )                      ' 6
+    for i as long = 1 to 20 : tkListTree_AddString( c, "b" & i, 200 + i ) : next    ' 7..26
+    tkListTree_EndUpdate( c )
+    tkTest_PumpFor( h, 30 )
+    tkTest_Check( "AddString after a header is its level-1 child", (tkListTree_GetLevel( c, 3 ) = 1) andalso (tkListTree_GetParent( c, 3 ) = 0) andalso (tkListTree_GetItemData( c, 3 ) = 103) )
+    tkTest_Check( "the scrollbar shows when rows overflow", tkWidget_IsVisible( tkListTree_GetScrollBar( c ) ) )
+    ResetCounts()
+    ClickRow( h, c, 2 )
+    tkTest_Check( "a click selects and notifies once", (tkListTree_GetCurSel( c ) = 2) andalso tkListTree_GetSel( c, 2 ) andalso (gSel = 1) andalso (gLastSelRow = 2) )
+    ClickRow( h, c, 2 )
+    tkTest_Check( "re-clicking the current row is silent", gSel = 1 )
+    tkTest_Check( "the rows took the focus", h->pFocus = tkListTree_GetSurface( c ) )
+    ClickRow( h, c, 0 )
+    tkTest_Check( "a header click folds it and leaves the selection", tkListTree_IsCollapsed( c, 0 ) andalso (tkListTree_GetCurSel( c ) = 2) andalso (gFold = 1) andalso (tkListTree_GetVisibleCount( c ) = 22) )
+    tkTest_Check( "a hidden row keeps its selection", tkListTree_GetSel( c, 2 ) andalso (tkListTree_GetSelCount( c ) = 1) )
+    ClickRow( h, c, 0 )
+
+    ' ---- C: extended selection (Shift / Ctrl) ---------------------------------------------
+    tkListTree_SetExtendedSelect( c, true )
+    ClickRow( h, c, 1 )
+    SDL_SetModState( SDL_KMOD_LSHIFT )
+    ClickRow( h, c, 4 )
+    SDL_SetModState( SDL_KMOD_NONE )
+    tkTest_Check( "Shift extends a range from the anchor", tkListTree_GetSelCount( c ) = 4 )
+    SDL_SetModState( SDL_KMOD_LCTRL )
+    ClickRow( h, c, 2 )
+    SDL_SetModState( SDL_KMOD_NONE )
+    dim as integer sel()
+    tkTest_Check( "Ctrl toggles one row", (tkListTree_GetSelItems( c, sel() ) = 3) andalso (sel(0) = 1) andalso (sel(1) = 3) )
+    tkListTree_SetMultiSelect( c, true )
+    ClickRow( h, c, 5 )
+    tkTest_Check( "multi mode toggles; enabling it cleared extended", tkListTree_GetSel( c, 5 ) andalso (tkListTree_GetSelCount( c ) = 4) )
+    tkListTree_SetMultiSelect( c, false )
+    tkListTree_SelectAll( c, false )
+
+    ' ---- D: the keyboard ------------------------------------------------------------------
+    ResetCounts()
+    tkListTree_SetCurSel( c, 1 )
+    tkTest_Check( "SetCurSel is silent", (gSel = 0) andalso (tkListTree_GetCurSel( c ) = 1) )
+    tkListTree_SetRowSelectable( c, 2, false )
+    tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_Check( "Down skips a non-selectable row", (tkListTree_GetCurSel( c ) = 3) andalso (gSel = 1) )
+    tkTest_Check( "a non-selectable row refuses SetCurSel", tkListTree_SetCurSel( c, 2 ) = -1 )
+    tkListTree_SetCurSel( c, 3 )
+    tkTest_PushKey( h, SDLK_LEFT )
+    tkTest_Check( "Left from an item jumps to its header", tkListTree_GetCurSel( c ) = 0 )
+    tkTest_PushKey( h, SDLK_LEFT )
+    tkTest_Check( "Left on an expanded header folds it", tkListTree_IsCollapsed( c, 0 ) andalso (gFold = 1) )
+    tkTest_PushKey( h, SDLK_RIGHT )
+    tkTest_PushKey( h, SDLK_RIGHT )
+    tkTest_Check( "Right expands, then steps to the first child", (tkListTree_IsCollapsed( c, 0 ) = false) andalso (tkListTree_GetCurSel( c ) = 1) )
+    tkTest_PushKey( h, SDLK_END )
+    tkTest_Check( "End: the last row, scrolled into view", (tkListTree_GetCurSel( c ) = 26) andalso (tkListTree_GetTopIndex( c ) = 17) )
+    tkTest_PushKey( h, SDLK_HOME )
+    tkTest_Check( "Home", (tkListTree_GetCurSel( c ) = 0) andalso (tkListTree_GetTopIndex( c ) = 0) )
+    tkTest_PushKey( h, SDLK_PAGEDOWN )
+    tkTest_Check( "PageDown moves a page", tkListTree_GetCurSel( c ) = 10 )
+    ResetCounts()
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "Enter activates the caret row", (gAct = 1) andalso (gLastAct = 10) )
+    tkListTree_SetRowSelectable( c, 2, true )
+
+    ' ---- E: scrolling ---------------------------------------------------------------------
+    tkTest_Check( "SetTopIndex clamps at the end", tkListTree_SetTopIndex( c, 25 ) = 17 )
+    tkListTree_SetTopIndex( c, 0 )
+    dim as single wx, wy
+    RowXY( c, 3, wx, wy )
+    tkTest_PushWheel( h, wx, wy, 0, -1 )
+    tkTest_Check( "one wheel notch scrolls 3 rows", tkListTree_GetTopIndex( c ) = 3 )
+    tkListTree_SetTopIndex( c, 0 )
+
+    ' ---- F: double-click activates; PreventDoubleClick does not -----------------------------
+    ResetCounts()
+    ClickRow( h, c, 4 )
+    ClickRow( h, c, 4, 2 )
+    tkTest_Check( "double-click activates", (gAct = 1) andalso (gLastAct = 4) )
+    tkListTree_PreventDoubleClick( c, true )
+    ClickRow( h, c, 4, 2 )
+    tkTest_Check( "PreventDoubleClick: no activation", gAct = 1 )
+    tkListTree_PreventDoubleClick( c, false )
+
+    ' ---- G: columns: cells, the column-0 alias, spanned rows -----------------------------------
+    tkListTree_AddColumn( c, "Name", tkHost_Scale( h, 120 ) )
+    tkListTree_AddColumn( c, "Size", tkHost_Scale( h, 60 ) )
+    tkListTree_SetCellText( c, 1, 1, "42" )
+    tkTest_Check( "col 0 is the row text, col 1 the cell", (tkListTree_GetCellText( c, 1, 0 ) = "a1") andalso (tkListTree_GetCellText( c, 1, 1 ) = "42") andalso (tkListTree_GetCellText( c, 1, 5 ) = "") )
+    tkListTree_SetRowSpanColumns( c, 3, true )
+    tkListTree_InsertColumn( c, 0, "Icon", tkHost_Scale( h, 30 ) )
+    tkTest_Check( "inserting column 0 shifts the text into column 1", (tkListTree_GetText( c, 1 ) = "") andalso (tkListTree_GetCellText( c, 1, 1 ) = "a1") andalso (tkListTree_GetCellText( c, 1, 2 ) = "42") )
+    tkTest_Check( "a spanned row keeps its text in column 0", tkListTree_GetText( c, 3 ) = "a3" )
+    tkListTree_DeleteColumn( c, 0 )
+    tkTest_Check( "deleting column 0 promotes column 1", (tkListTree_GetText( c, 1 ) = "a1") andalso (tkListTree_GetCellText( c, 1, 1 ) = "42") )
+    dim as TKRECT rc1
+    tkListTree_GetColumnRect( c, 1, rc1 )
+    tkTest_Check( "column rects in surface x", (rc1.left = tkHost_Scale( h, 120 )) andalso (rc1.right > rc1.left) )
+    tkListTree_ShowHeader( c, true )
+    tkTest_PumpFor( h, 30 )
+    dim as TK_WIDGET ptr surf = tkListTree_GetSurface( c )
+    tkTest_Check( "the header band pushes the rows down", tkListTree_IsHeaderVisible( c ) andalso (surf->y = tkHost_Scale( h, 24 )) )
+    tkListTree_ShowHeader( c, false )
+    tkListTree_ClearColumns( c )
+    tkTest_Check( "ClearColumns keeps the cell text", tkListTree_GetCellText( c, 1, 1 ) = "42" )
+
+    ' ---- H: in-place editing ---------------------------------------------------------------
+    tkListTree_EnableLabelEdit( c, true )
+    tkListTree_SetEndLabelEditCallback( c, @OnEndEdit )
+    tkListTree_SetCurSel( c, 4 )
+    tkHost_SetFocus( h, surf )
+    tkTest_PushKey( h, SDLK_F2 )
+    dim as TK_WIDGET ptr ed = tkListTree_GetEditor( c )
+    tkTest_Check( "F2 opens the editor on the caret row, text selected", tkListTree_IsEditing( c ) andalso (tkListTree_GetEditRow( c ) = 4) andalso (ed <> 0) andalso (h->pFocus = ed) )
+    tkTest_PushText( h, "renamed" )
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "Enter commits", (tkListTree_IsEditing( c ) = false) andalso (tkListTree_GetText( c, 4 ) = "renamed") andalso (h->pFocus = surf) )
+    tkTest_PushKey( h, SDLK_F2 )
+    tkTest_PushText( h, "zzz" )
+    tkTest_PushKey( h, SDLK_ESCAPE )
+    tkTest_Check( "Escape cancels", (tkListTree_IsEditing( c ) = false) andalso (tkListTree_GetText( c, 4 ) = "renamed") )
+    gRejectEdit = true
+    tkTest_PushKey( h, SDLK_F2 )
+    tkTest_PushText( h, "nope" )
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "EndLabelEdit can reject", tkListTree_GetText( c, 4 ) = "renamed" )
+    gRejectEdit = false
+    tkListTree_SetClickToEdit( c, true )
+    ClickRow( h, c, 4 )
+    tkTest_Check( "click-to-edit on the current row", tkListTree_IsEditing( c ) )
+    tkTest_PushText( h, "clicked" )
+    ClickRow( h, c, 5 )
+    tkTest_Check( "clicking away commits and selects", (tkListTree_IsEditing( c ) = false) andalso (tkListTree_GetCurSel( c ) = 5) andalso (tkListTree_GetText( c, 4 ) = "clicked"), tkListTree_GetText( c, 4 ) )
+    tkListTree_SetClickToEdit( c, false )
+    tkListTree_EnableLabelEdit( c, false )
+
+    ' ---- I: drag reorder -------------------------------------------------------------------
+    tkListTree_SetDragReorder( c, true )
+    ResetCounts()
+    dim as single x1, y1, x2, y2
+    RowXY( c, 1, x1, y1 )
+    RowXY( c, 4, x2, y2 )
+    tkTest_PushMotion( h, x1, y1 )
+    tkTest_PushButton( h, true, x1, y1 )
+    tkTest_PushMotion( h, x1, y1 + tkHost_Scale( h, 10 ) )
+    tkTest_Check( "past the threshold the drag starts, with capture", tkListTree_IsDragging( c ) andalso (tkHost_GetCapture( h ) = surf) )
+    tkTest_PushMotion( h, x2, y2 + ih \ 3 )
+    tkTest_PushButton( h, false, x2, y2 + ih \ 3 )
+    tkTest_Check( "the drop moves the row (a1 below a4) and notifies", (tkListTree_GetText( c, 4 ) = "a1") andalso (tkListTree_GetText( c, 1 ) = "a2") andalso (gDrops = 1) andalso (gDropFirst = 4) andalso (gDropCount = 1), tkListTree_GetText( c, 4 ) )
+    tkTest_Check( "capture is released", tkHost_GetCapture( h ) = 0 )
+    dim as integer src1(0 to 0) = { 4 }
+    tkListTree_MoveRows( c, src1(), 1 )
+    tkTest_Check( "MoveRows is silent and puts it back", (tkListTree_GetText( c, 1 ) = "a1") andalso (gDrops = 1) )
+    tkListTree_SetDragReorder( c, false )
+
+    ' ---- J: theme, pinning and pixels -------------------------------------------------------
+    gPaints = 0 : gPaintList = 0
+    tkListTree_SetCurSel( c, 1 )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "the painter runs per visible row and sees the control", (gPaints = 10) andalso (gPaintList = c), "n=" & gPaints )
+    dim as TKRECT a
+    tkWidget_AbsRect( surf, a )
+    dim as ulong pSel = tkTest_PixelAt( h, a.right - 3, a.top + 1 * ih + ih \ 2 ) and &hFFFFFFul
+    dim as ulong pRow = tkTest_PixelAt( h, a.right - 3, a.top + 2 * ih + ih \ 2 ) and &hFFFFFFul
+    dim as TKTHEME_COLORS t = tkTheme_Get()
+    tkTest_Check( "pixels: the selected row is Selected, the next is Window", (pSel = (t.Selected and &hFFFFFFul)) andalso (pRow = (t.Window and &hFFFFFFul)), hex( pSel ) & " " & hex( pRow ) )
+    tkListTree_ApplyTheme( c, tkTheme_Light() )
+    tkTest_Check( "ApplyTheme maps BackColor to Window", tkListTree_GetBackColor( c ) = tkTheme_Light().Window )
+    tkListTree_SetBackColor( c, &hFF102030ul )
+    tkListTree_ApplyTheme( c, tkTheme_Dark() )
+    tkTest_Check( "a colour setter pins", tkListTree_GetBackColor( c ) = &hFF102030ul )
+    tkListTree_UnpinColors( c )
+    tkTest_Check( "UnpinColors returns to the current theme", tkListTree_GetBackColor( c ) = tkTheme_Get().Window )
+
+    tkHost_Destroy( h )
+end sub
+
+if tkTest_Init() = false then end 99
+RunPass( 1.0 )
+RunPass( 1.75 )
+dim as long nFail = tkTest_Report( "tkListTree" )
+tkTest_Quit()
+end nFail

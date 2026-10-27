@@ -1,0 +1,470 @@
+' tkColorPicker self-test. Real windows, real SDL event queue. The modal runs are driven from
+' the picker's OpenCallback: the popup is on screen, the test pushes the events a user would
+' have produced at the POPUP's window and pumps -- the same dispatch the modal loop runs. Two
+' passes, scale pinned at 1.0 and at 1.75.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkColorPicker"
+#import "vendor/tkControls/tkButton"
+#import "vendor/tkControls/tkTest"
+using tkColorPicker
+using tkButton
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as long gScript, gNotify, gTabNotify, gBtnClicks
+dim shared as long gPhase(0 to 63)
+dim shared as ulong gNotifyClr(0 to 63)
+dim shared as TK_HOST ptr gOwner
+dim shared as TK_WIDGET ptr gPick
+dim shared as long gIdealW(0 to 1)
+' what a script measured inside the run, checked after it returns
+dim shared as long gR1, gR2, gR3, gR4
+dim shared as ulong gC1, gC2
+
+sub OnColor( byval hCtrl as TK_WIDGET ptr, byval clr as ulong, byval nAlpha as ubyte, byval nPhase as long )
+    if gNotify <= 63 then gPhase(gNotify) = nPhase : gNotifyClr(gNotify) = clr
+    gNotify += 1
+end sub
+
+sub OnTab( byval hCtrl as TK_WIDGET ptr, byval nTab as long )
+    gTabNotify += 1
+end sub
+
+sub OnBtn( byval hButton as TK_WIDGET ptr, byval id as long )
+    gBtnClicks += 1
+end sub
+
+sub FloodPaint( byval p as any ptr )
+    dim as TKCOLORPICKER_PAINTINFO ptr pinf = p
+    pinf->b->SetBackColor( &hFF336699ul )
+    pinf->b->PaintRect( @pinf->rcClient )
+end sub
+
+sub DecoratePaint( byval p as any ptr )
+    dim as TKCOLORPICKER_PAINTINFO ptr pinf = p
+    tkColorPicker_RenderInfo( p )
+    dim as TKRECT rc = pinf->rcBody
+    tkRect_Inflate( rc, 2, 2 )
+    pinf->b->SetPenColor( &hFFFF8800ul )
+    pinf->b->PaintRoundOutline( @rc, 6, 1 )
+end sub
+
+sub ResetNotify()
+    gNotify = 0 : gTabNotify = 0
+end sub
+
+function S( byval h as TK_HOST ptr, byval v as long ) as long
+    return tkHost_Scale( h, v )
+end function
+
+' Centre of a picker rect, in popup window pixels (the content sits at 0,0).
+function RX( byref rc as TKRECT ) as single
+    return (rc.left + rc.right) / 2
+end function
+function RY( byref rc as TKRECT ) as single
+    return (rc.top + rc.bottom) / 2
+end function
+
+sub PushDigits( byval pop as TK_HOST ptr, byref digits as string )
+    for i as long = 1 to len( digits )
+        tkTest_PushKey( pop, SDLK_0 + (asc( mid( digits, i, 1 ) ) - asc( "0" )) )
+    next
+end sub
+
+' ==========================================================================================
+' The scripts, run inside the modal with the popup on screen.
+' ==========================================================================================
+sub OnOpen( byval hCtrl as TK_WIDGET ptr, byval pop as TK_HOST ptr )
+    tkTest_PumpFor( pop, 150 )            ' the X11 settle (a mapping window gets real events)
+    dim as TKRECT rc, rcOK
+    tkColorPicker_GetPartRect( hCtrl, CLR_PART_OK, rcOK )
+    select case gScript
+    case 1
+        ' drag across the matrix: BEGIN, MOVE..., END; then OK (down + up inside) accepts
+        dim as TKRECT m
+        tkColorPicker_GetPartRect( hCtrl, CLR_PART_MATRIX, m )
+        dim as long cw, chh
+        tkColorPicker_GetCellSize( hCtrl, cw, chh )
+        dim as single y0 = m.top + chh * 2.5
+        tkTest_PushButton( pop, true, m.left + cw * 1.5, y0 )
+        tkTest_PushMotion( pop, m.left + cw * 2.5, y0 )
+        tkTest_PushMotion( pop, m.left + cw * 3.5, y0 )
+        tkTest_PushButton( pop, false, m.left + cw * 3.5, y0 )
+        gR1 = tkColorPicker_GetBodySel( hCtrl )
+        tkTest_Click( pop, RX( rcOK ), RY( rcOK ) )
+    case 2
+        ' the caret arrives in Red: type 128, Enter commits and STAYS; Tab to Green, 77, accept
+        gR1 = tkColorPicker_GetFocusField( hCtrl )
+        PushDigits( pop, "128" )
+        tkTest_PushKey( pop, SDLK_RETURN )
+        gR2 = tkColorPicker_GetFocusField( hCtrl )
+        gC1 = tkColorPicker_GetColor( hCtrl )
+        tkTest_PushKey( pop, SDLK_TAB )
+        PushDigits( pop, "77" )
+        gR3 = gNotify                       ' the half-typed 77 has not notified yet
+        tkColorPicker_EndModal( hCtrl, true )     ' the accept path that must commit it itself
+    case 3
+        ' Esc cancels from inside a field and does NOT commit it
+        PushDigits( pop, "5" )
+        tkTest_PushKey( pop, SDLK_ESCAPE )
+    case 4
+        ' Tab wraps both ways; 999 clamps to 255 and re-seeds; Backspace amends
+        tkTest_PushKey( pop, SDLK_TAB, SDL_KMOD_LSHIFT )
+        gR1 = tkColorPicker_GetFocusField( hCtrl )          ' R -> wraps to A
+        tkTest_PushKey( pop, SDLK_TAB )
+        gR2 = tkColorPicker_GetFocusField( hCtrl )          ' A -> wraps to R
+        PushDigits( pop, "999" )
+        tkTest_PushKey( pop, SDLK_RETURN )
+        gC1 = tkColorPicker_GetColor( hCtrl )
+        gR3 = iif( tkColorPicker_GetEditText( hCtrl ) = "255", 1, 0 )
+        tkTest_PushKey( pop, SDLK_BACKSPACE )
+        PushDigits( pop, "0" )
+        gR4 = iif( tkColorPicker_GetEditText( hCtrl ) = "250", 1, 0 )   ' amend, not replace
+        tkTest_PushKey( pop, SDLK_ESCAPE )
+    case 5
+        ' double-click a Web row: adopt it and accept
+        tkColorPicker_GetPartRect( hCtrl, CLR_PART_SWATCHES, rc )
+        dim as long rowH = S( pop, 22 )
+        dim as single yRow = rc.top + rowH * 2.5            ' the third visible row
+        tkTest_Click( pop, rc.left + S( pop, 60 ), yRow )
+        tkTest_Click( pop, rc.left + S( pop, 60 ), yRow, SDL_BUTTON_LEFT, 2 )
+    case 6
+        ' body keyboard: click a cell (takes the caret out of the field), arrows, Enter accepts
+        dim as TKRECT m
+        tkColorPicker_GetPartRect( hCtrl, CLR_PART_MATRIX, m )
+        dim as long cw, chh
+        tkColorPicker_GetCellSize( hCtrl, cw, chh )
+        tkTest_Click( pop, m.left + cw * 4.5, m.top + chh * 3.5 )        ' cell 3*16+4 = 52
+        gR1 = tkColorPicker_GetFocusField( hCtrl )
+        tkTest_PushKey( pop, SDLK_RIGHT )
+        tkTest_PushKey( pop, SDLK_DOWN )
+        gR2 = tkColorPicker_GetBodySel( hCtrl )                          ' 52 + 1 + 16 = 69
+        tkTest_PushKey( pop, SDLK_RETURN )
+    case 7
+        ' OK pressed, slid off, released: nothing. Click Initial: revert. A tab: TabChanged.
+        tkTest_PushButton( pop, true, RX( rcOK ), RY( rcOK ) )
+        tkTest_PushMotion( pop, RX( rcOK ) - S( pop, 200 ), RY( rcOK ) )
+        tkTest_PushButton( pop, false, RX( rcOK ) - S( pop, 200 ), RY( rcOK ) )
+        gR1 = iif( tkColorPicker_IsOpen( hCtrl ), 1, 0 )
+        dim as TKRECT m
+        tkColorPicker_GetPartRect( hCtrl, CLR_PART_MATRIX, m )
+        tkTest_Click( pop, m.left + 3, m.top + 3 )
+        gC1 = tkColorPicker_GetColor( hCtrl )
+        tkColorPicker_GetPartRect( hCtrl, CLR_PART_INITIAL, rc )
+        tkTest_Click( pop, RX( rc ), RY( rc ) )
+        gC2 = tkColorPicker_GetColor( hCtrl )
+        tkColorPicker_GetTabRect( hCtrl, CLR_TAB_SYSTEM, rc )
+        tkTest_Click( pop, RX( rc ), RY( rc ) )
+        tkTest_Click( pop, RX( rc ), RY( rc ), SDL_BUTTON_LEFT, 2 )        ' a double-click on a tab
+        gR2 = iif( tkColorPicker_IsOpen( hCtrl ), 1, 0 )                   ' ...cannot close it
+        gR3 = tkColorPicker_GetTab( hCtrl )
+        ' the live preview really shows the live value: read it back from the popup
+        tkHost_RenderTo( pop, false )
+        tkColorPicker_GetPartRect( hCtrl, CLR_PART_CURRENT, rc )
+        gR4 = iif( tkTest_PixelAt( pop, cint( RX( rc ) ), cint( RY( rc ) ) ) = (tkColorPicker_GetColor( hCtrl ) or &hFF000000ul), 1, 0 )
+        tkTest_PushKey( pop, SDLK_ESCAPE )
+    case 8
+        ' the Web list: the wheel scrolls the VIEW, never the selection
+        dim as long t0 = tkColorPicker_GetScrollTop( hCtrl ), s0 = tkColorPicker_GetBodySel( hCtrl )
+        tkColorPicker_GetPartRect( hCtrl, CLR_PART_SWATCHES, rc )
+        gR3 = iif( tkColorPicker_IsOpen( hCtrl ), 1, 0 )
+        gR4 = t0
+        tkTest_PushWheel( pop, RX( rc ), RY( rc ), 0, -2 )
+        gR1 = tkColorPicker_GetScrollTop( hCtrl ) - t0
+        gR2 = iif( tkColorPicker_GetBodySel( hCtrl ) = s0, 1, 0 )
+        tkColorPicker_EndModal( hCtrl, false )
+    end select
+end sub
+
+
+' ==========================================================================================
+sub RunPure()
+    tkTest_Begin( "pure" )
+    tkTest_Check( "HSL: pure red", tkColorPicker_HSLtoRGB( 0, 1, 0.5 ) = tkRGB( 255, 0, 0 ), hex( tkColorPicker_HSLtoRGB( 0, 1, 0.5 ) ) )
+    tkTest_Check( "HSL: pure green (the single-precision trap)", tkColorPicker_HSLtoRGB( 1 / 3, 1, 0.5 ) = tkRGB( 0, 255, 0 ) )
+    tkTest_Check( "HSL: pure blue", tkColorPicker_HSLtoRGB( 2 / 3, 1, 0.5 ) = tkRGB( 0, 0, 255 ) )
+    tkTest_Check( "HSL: clamps, not wraps", tkColorPicker_HSLtoRGB( 1.4, 1, 0.5 ) = tkColorPicker_HSLtoRGB( 1, 1, 0.5 ) )
+    tkTest_Check( "HSL: white / black", tkColorPicker_HSLtoRGB( 0, 0, 1 ) = tkRGB( 255, 255, 255 ) andalso tkColorPicker_HSLtoRGB( 0.5, 1, 0 ) = tkRGB( 0, 0, 0 ) )
+    tkTest_Check( "matrix: last column is grey", ((tkColorPicker_MatrixColorAt( 15, 5, 16, 14 ) shr 16) and 255) = (tkColorPicker_MatrixColorAt( 15, 5, 16, 14 ) and 255) )
+    tkTest_Check( "matrix: top row is a light tint", (tkColorPicker_MatrixColorAt( 0, 0, 16, 14 ) and 255) > 200 )
+    tkTest_Check( "matrix: indices clamp", tkColorPicker_MatrixColorAt( 99, -3, 16, 14 ) = tkColorPicker_MatrixColorAt( 15, 0, 16, 14 ) )
+    tkTest_Check( "matrix: IndexOf round trip", tkColorPicker_MatrixIndexOf( tkColorPicker_MatrixColorAt( 3, 4, 16, 14 ), 16, 14 ) = 4 * 16 + 3 )
+    tkTest_Check( "matrix: IndexOf a colour not in it = -1", tkColorPicker_MatrixIndexOf( tkRGB( 1, 2, 3 ), 16, 14 ) = -1 )
+    tkTest_Check( "hex format", tkColorPicker_FormatHex( tkRGB( 255, 128, 1 ) ) = "#FF8001", tkColorPicker_FormatHex( tkRGB( 255, 128, 1 ) ) )
+    dim as ulong c = &hFF123456ul
+    tkTest_Check( "hex parse, no #, lower case", tkColorPicker_ParseHex( "ff8001", c ) andalso c = tkRGB( 255, 128, 1 ) )
+    c = &hFF123456ul
+    tkTest_Check( "hex parse refuses junk, leaves clr", (tkColorPicker_ParseHex( "#12345", c ) = false) andalso (tkColorPicker_ParseHex( "#GG0000", c ) = false) andalso c = &hFF123456ul )
+    tkTest_Check( "hex round trip", tkColorPicker_ParseHex( tkColorPicker_FormatHex( tkRGB( 9, 200, 77 ) ), c ) andalso c = tkRGB( 9, 200, 77 ) )
+    tkTest_Check( "contrast: black on yellow, white on navy", tkColorPicker_ContrastColor( tkRGB( 255, 255, 0 ) ) = tkRGB( 0, 0, 0 ) andalso tkColorPicker_ContrastColor( tkRGB( 0, 0, 128 ) ) = tkRGB( 255, 255, 255 ) )
+    tkTest_Check( "fields take digits only", tkColorPicker_FieldAccepts( CLR_FIELD_R, asc( "7" ), 2 ) andalso (tkColorPicker_FieldAccepts( CLR_FIELD_G, asc( "x" ), 0 ) = false) andalso (tkColorPicker_FieldAccepts( 9, asc( "1" ), 0 ) = false) )
+    tkTest_Check( "field max length 3", tkColorPicker_FieldMaxLen( CLR_FIELD_A ) = 3 )
+    tkTest_Check( "tab names", tkColorPicker_TabName( CLR_TAB_SYSTEM ) = "System" andalso tkColorPicker_TabName( 7 ) = "" )
+    tkTest_Check( "web table: 137, Navy named", tkColorPicker_WebColorCount() = 137 andalso tkColorPicker_WebColorName( 108 ) = "Navy" andalso tkColorPicker_WebColorAt( 108 ) = tkRGB( 0, 0, 128 ), tkColorPicker_WebColorName( 108 ) )
+    tkTest_Check( "system table: 30, frozen Highlight", tkColorPicker_SystemColorCount() = 30 andalso tkColorPicker_SystemColorAt( 13 ) = tkRGB( 0, &h78, &hD7 ) )
+    tkColorPicker_SetSystemColor( 13, tkRGB( 1, 2, 3 ) )
+    tkTest_Check( "SetSystemColor overrides an entry", tkColorPicker_SystemColorAt( 13 ) = tkRGB( 1, 2, 3 ) )
+    tkColorPicker_SetSystemColor( 13, tkRGB( 0, &h78, &hD7 ) )
+    tkTest_Check( "out-of-range table reads are benign", tkColorPicker_WebColorAt( 999 ) = 0 andalso tkColorPicker_SystemColorName( -1 ) = "" )
+end sub
+
+' ==========================================================================================
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkColorPicker selftest", 900, 700, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    gOwner = h
+    dim as TTF_Font ptr fText = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 10 )
+    tkTest_Check( "font opened", fText <> 0 )
+
+    ' ---- A: created, not shown -- the ideal size and the geometry before any run -----------------
+    dim as TK_WIDGET ptr p = tkColorPicker_Create( tkHost_Root( h ), 10 )
+    gPick = p
+    tkColorPicker_SetFont( p, fText )
+    tkTest_Check( "the handle is hidden", p->isVisible = false andalso tkColorPicker_IsOpen( p ) = false )
+    dim as long iw, ih
+    tkColorPicker_GetIdealSize( p, iw, ih )
+    dim as long pad = S( h, 8 ), gap = S( h, 6 ), tabH = S( h, 24 ), cw, chh
+    tkColorPicker_GetCellSize( p, cw, chh )
+    tkTest_Check( "defaults scaled at create", cw = S( h, 18 ) andalso chh = S( h, 22 ), cw & "x" & chh )
+    dim as long bodyH = 14 * chh
+    if 14 * S( h, 22 ) > bodyH then bodyH = 14 * S( h, 22 )
+    dim as long fieldsH = 4 * S( h, 24 ) + 3 * gap
+    dim as long previewH = 2 * S( h, 22 ) + 2 * S( h, 46 )
+    dim as long bottomH = iif( fieldsH > previewH, fieldsH, previewH )
+    dim as long bottomW = S( h, 92 ) + gap + S( h, 52 ) + S( h, 58 ) + gap + S( h, 92 )
+    dim as long innerW = iif( 16 * cw > bottomW, 16 * cw, bottomW )
+    tkTest_Check( "idealW = formula", iw = 2 * pad + innerW, iw & " vs " & (2 * pad + innerW) )
+    tkTest_Check( "idealH = formula", ih = 2 * pad + tabH + gap + bodyH + gap + bottomH, ih & "" )
+    gIdealW(iif( fScale > 1.5, 1, 0 )) = iw
+    dim as TKRECT rcT0, rcT1, rcM, rcOK, rcA, rcB, rc
+    tkColorPicker_GetTabRect( p, 0, rcT0 ) : tkColorPicker_GetTabRect( p, 1, rcT1 )
+    tkTest_Check( "tabs left-aligned, as wide as caption + 2 pads", rcT0.left = pad andalso rcT1.left = rcT0.right andalso tkRect_Width( rcT0 ) = tkText_Width( fText, "Web" ) + 2 * S( h, 14 ), tkRect_Str( rcT0 ) )
+    tkTest_Check( "Custom is the default tab: matrix, no list", tkColorPicker_GetPartRect( p, CLR_PART_MATRIX, rcM ) andalso (tkColorPicker_GetPartRect( p, CLR_PART_SWATCHES, rc ) = false) )
+    tkTest_Check( "matrix rect = exactly the grid", tkRect_Width( rcM ) = 16 * cw andalso tkRect_Height( rcM ) = 14 * chh )
+    tkTest_Check( "hit test round-trips cell 37", tkColorPicker_HitTestBody( p, rcM.left + cw * 5 + 1, rcM.top + chh * 2 + 1 ) = 2 * 16 + 5 )
+    tkTest_Check( "hit test: outside the grid = -1", tkColorPicker_HitTestBody( p, rcM.left - 1, rcM.top ) = -1 )
+    tkColorPicker_GetPartRect( p, CLR_PART_OK, rcOK )
+    tkColorPicker_GetFieldRect( p, CLR_FIELD_A, rcA )
+    tkTest_Check( "OK bottom-aligned on the last field", rcOK.bottom = rcA.bottom andalso rcOK.right = iw - pad )
+    tkTest_Check( "hit test: a field", tkColorPicker_HitTestField( p, RX( rcA ), RY( rcA ) ) = CLR_FIELD_A )
+    tkColorPicker_ShowAlpha( p, false )
+    dim as long iw2, ih2
+    tkColorPicker_GetIdealSize( p, iw2, ih2 )
+    tkColorPicker_GetFieldRect( p, CLR_FIELD_B, rcB )
+    tkColorPicker_GetPartRect( p, CLR_PART_OK, rc )
+    tkTest_Check( "ShowAlpha(false) does NOT change the size", iw2 = iw andalso ih2 = ih )
+    tkTest_Check( "...removes the alpha part", tkColorPicker_GetPartRect( p, CLR_PART_ALPHA, rcA ) = false andalso tkColorPicker_HitTestField( p, RX( rcA ), RY( rcA ) ) = -1 )
+    tkTest_Check( "...and OK moves up onto Blue", rc.bottom = rcB.bottom )
+    tkColorPicker_ShowAlpha( p, true )
+    tkColorPicker_SetTab( p, CLR_TAB_WEB )
+    tkTest_Check( "Web: a list, no matrix", tkColorPicker_GetPartRect( p, CLR_PART_SWATCHES, rc ) andalso (tkColorPicker_GetPartRect( p, CLR_PART_MATRIX, rcM ) = false) )
+    tkTest_Check( "the scrollbar strip is reserved", rc.right = iw - pad - S( h, 14 ) )
+    tkTest_Check( "a list hit is a row", tkColorPicker_HitTestBody( p, rc.left + 5, rc.top + S( h, 22 ) * 3 + 2 ) = 3 )
+    tkTest_Check( "the body is the same height on every tab", tkRect_Height( rc ) = bodyH )
+
+    ' ---- B: silent setters; the selection follows the value --------------------------------------
+    tkColorPicker_SetColorChangedCallback( p, @OnColor )
+    tkColorPicker_SetTabChangedCallback( p, @OnTab )
+    ResetNotify()
+    tkColorPicker_SetColor( p, tkRGB( 255, 0, 0 ), 200 )
+    tkTest_Check( "SetColor is silent", gNotify = 0 )
+    tkTest_Check( "Red on Web selects row 16", tkColorPicker_GetBodySel( p ) = 16, "" & tkColorPicker_GetBodySel( p ) )
+    tkTest_Check( "value and alpha separate", tkColorPicker_GetColor( p ) = tkRGB( 255, 0, 0 ) andalso tkColorPicker_GetAlpha( p ) = 200 )
+    tkTest_Check( "SetColor sets the Initial baseline", tkColorPicker_GetInitial( p ) = tkRGB( 255, 0, 0 ) )
+    tkColorPicker_SetColor( p, tkRGB( 0, 0, 128 ), 255, true )
+    tkTest_Check( "bKeepInitial keeps it", tkColorPicker_GetInitial( p ) = tkRGB( 255, 0, 0 ) )
+    tkTest_Check( "Navy (row 108) is scrolled into view", tkColorPicker_GetScrollTop( p ) <= 108 andalso tkColorPicker_GetScrollTop( p ) > 108 - 14, "" & tkColorPicker_GetScrollTop( p ) )
+    tkColorPicker_SetTab( p, CLR_TAB_CUSTOM )
+    tkTest_Check( "SetTab is silent", gTabNotify = 0 )
+    tkTest_Check( "Navy IS a matrix colour (h 2/3, l 0.25): cell 10*16+10", tkColorPicker_GetBodySel( p ) = 170, "" & tkColorPicker_GetBodySel( p ) )
+    tkColorPicker_SetColor( p, tkRGB( 1, 2, 3 ), 255, true )
+    tkTest_Check( "a colour not on the tab selects nothing", tkColorPicker_GetBodySel( p ) = -1 )
+    tkColorPicker_SetColor( p, tkColorPicker_MatrixColorAt( 3, 4, 16, 14 ) )
+    tkTest_Check( "a matrix colour selects its cell", tkColorPicker_GetBodySel( p ) = 67 )
+    tkColorPicker_SetTab( p, 9 )
+    tkTest_Check( "SetTab refuses out of range", tkColorPicker_GetTab( p ) = CLR_TAB_CUSTOM )
+    tkColorPicker_SetInitial( p, tkRGB( 10, 20, 30 ), 99 )
+    ResetNotify()
+    tkColorPicker_RevertToInitial( p )
+    tkTest_Check( "RevertToInitial is an action: one END", gNotify = 1 andalso gPhase(0) = CLR_PHASE_END andalso tkColorPicker_GetColor( p ) = tkRGB( 10, 20, 30 ) andalso tkColorPicker_GetAlpha( p ) = 99 )
+
+    ' ---- C: placement ---------------------------------------------------------------------------
+    dim as TKRECT rcAnc, wk
+    tkRect_Set( rcAnc, S( h, 40 ), S( h, 40 ), S( h, 160 ), S( h, 70 ) )
+    tkColorPicker_PositionForRect( p, rcAnc )
+    dim as long qx, qy
+    tkColorPicker_GetPosition( p, qx, qy )
+    tkHost_WorkRect( h, wk )
+    tkTest_Check( "anchored: drops under the anchor", qx >= wk.left andalso qy = rcAnc.bottom orelse (qy < rcAnc.bottom andalso qy = wk.bottom - ih), qx & "," & qy )
+    tkRect_Set( rcAnc, S( h, 40 ), wk.bottom - S( h, 40 ), S( h, 160 ), wk.bottom - S( h, 10 ) )
+    tkColorPicker_PositionForRect( p, rcAnc )
+    tkColorPicker_GetPosition( p, qx, qy )
+    ' (Wayland reports no work area -- tkHost_WorkRect is +-1e6 there -- so this anchor sits at
+    ' that fake bottom and the same rule applies; a real anchor never gets near it.)
+    tkTest_Check( "no room below the work area: FLIPPED above the anchor", qy = rcAnc.top - ih, qy & " vs " & (rcAnc.top - ih) )
+    tkColorPicker_PositionCentered( p, 0 )
+
+    ' ---- D: probes, painting, theme ---------------------------------------------------------------
+    tkColorPicker_SetTab( p, CLR_TAB_CUSTOM )
+    dim as long nHealthy = tkColorPicker_CountRenderedTones( p, CLR_PART_MATRIX )
+    tkColorPicker_SetPaintCallback( p, @FloodPaint )
+    dim as long nFlood = tkColorPicker_CountRenderedTones( p, CLR_PART_MATRIX )
+    tkColorPicker_SetPaintCallback( p, @DecoratePaint )
+    dim as long nDecor = tkColorPicker_CountRenderedTones( p, CLR_PART_MATRIX )
+    tkColorPicker_SetPaintCallback( p, 0 )
+    tkTest_Check( "probe: a real matrix has many tones (> 40)", nHealthy > 40, "" & nHealthy )
+    tkTest_Check( "probe: a flooded part is ONE tone", nFlood = 1, "" & nFlood )
+    tkTest_Check( "RenderInfo decorates rather than replaces", nDecor > 40, "" & nDecor )
+    dim as ulong hashA = tkColorPicker_HashRenderedPart( p, CLR_PART_CURRENT )
+    tkColorPicker_SetColor( p, tkRGB( 0, 200, 0 ) )
+    dim as ulong hashB = tkColorPicker_HashRenderedPart( p, CLR_PART_CURRENT )
+    tkTest_Check( "a value change reaches the Current preview's pixels", (hashA <> 0) andalso (hashA <> hashB) )
+    tkTest_Check( "the preview is the colour (2 tones max: fill + frame)", tkColorPicker_CountRenderedTones( p, CLR_PART_CURRENT ) <= 2 )
+    dim as TKCOLORPICKER_COLORS cc
+    tkTheme_Apply( tkTheme_Light() )
+    tkColorPicker_GetColors( p, @cc )
+    tkTest_Check( "theme reaches an unpinned picker", cc.BackColor = tkTheme_Light().Popup andalso cc.FieldBorderColorSel = tkTheme_Light().FocusRing )
+    cc.BackColor = &hFF102030ul
+    tkColorPicker_SetColors( p, @cc )
+    tkTheme_Apply( tkTheme_Dark() )
+    tkColorPicker_GetColors( p, @cc )
+    tkTest_Check( "SetColors pins", cc.BackColor = &hFF102030ul )
+    tkColorPicker_UnpinColors( p )
+    tkColorPicker_GetColors( p, @cc )
+    tkTest_Check( "unpin hands it back to the theme", cc.BackColor = tkTheme_Dark().Popup )
+
+    ' ---- E: the modal runs ----------------------------------------------------------------------
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 400 )
+    tkColorPicker_SetOpenCallback( p, @OnOpen )
+
+    ' 1: a matrix drag then OK
+    tkColorPicker_SetColor( p, tkRGB( 0, 0, 0 ) )
+    ResetNotify()
+    gScript = 1
+    dim as boolean bOK = tkColorPicker_RunModal( p )
+    tkTest_Check( "1: OK accepts", bOK )
+    tkTest_Check( "1: the popup is gone, the handle remains", tkColorPicker_IsOpen( p ) = false andalso tkColorPicker_GetSurface( p ) = 0 )
+    tkTest_Check( "1: the drag ends on cell 2*16+3", gR1 = 35 andalso tkColorPicker_GetColor( p ) = tkColorPicker_MatrixColorAt( 3, 2, 16, 14 ), "" & gR1 )
+    tkTest_Check( "1: phases BEGIN, MOVE, MOVE, END", gNotify = 4 andalso gPhase(0) = CLR_PHASE_BEGIN andalso gPhase(1) = CLR_PHASE_MOVE andalso gPhase(3) = CLR_PHASE_END, "" & gNotify )
+
+    ' 2: fields
+    tkColorPicker_SetColor( p, tkRGB( 10, 20, 30 ) )
+    ResetNotify()
+    gScript = 2
+    bOK = tkColorPicker_RunModal( p )
+    tkTest_Check( "2: the caret arrives in Red", gR1 = CLR_FIELD_R )
+    tkTest_Check( "2: Enter commits and STAYS in the field", gR2 = CLR_FIELD_R andalso gC1 = tkRGB( 128, 20, 30 ), hex( gC1 ) )
+    tkTest_Check( "2: a typed field notifies once, on commit", gR3 = 1, "" & gR3 )
+    tkTest_Check( "2: accepting commits the half-typed field", bOK andalso tkColorPicker_GetColor( p ) = tkRGB( 128, 77, 30 ), hex( tkColorPicker_GetColor( p ) ) )
+
+    ' 3: Esc
+    gScript = 3
+    bOK = tkColorPicker_RunModal( p )
+    tkTest_Check( "3: Esc cancels", bOK = false )
+    tkTest_Check( "3: ...without committing the field", tkColorPicker_GetColor( p ) = tkRGB( 128, 77, 30 ) )
+    tkTest_Check( "3: ...and the cancelled typing is dropped, not carried into the next run", tkColorPicker_GetFocusField( p ) = -1 andalso tkColorPicker_GetEditText( p ) = "" )
+
+    ' 4: Tab wraps, clamp, amend
+    gScript = 4
+    tkColorPicker_RunModal( p )
+    tkTest_Check( "4: Shift+Tab from Red wraps to Alpha", gR1 = CLR_FIELD_A, "" & gR1 )
+    tkTest_Check( "4: Tab from Alpha wraps to Red", gR2 = CLR_FIELD_R, "" & gR2 )
+    tkTest_Check( "4: 999 clamps to 255 and re-seeds", ((gC1 shr 16) and 255) = 255 andalso gR3 = 1 )
+    tkTest_Check( "4: Backspace amends rather than replaces", gR4 = 1 )
+
+    ' 5: a double-click on a list row accepts it
+    tkColorPicker_SetTab( p, CLR_TAB_WEB )
+    tkColorPicker_SetColor( p, tkRGB( 0, 0, 0 ) )          ' Black: row 0, so the list starts at the top
+    gScript = 5
+    bOK = tkColorPicker_RunModal( p )
+    tkTest_Check( "5: double-click on a row accepts", bOK andalso tkColorPicker_GetColor( p ) = tkColorPicker_WebColorAt( 2 ), hex( tkColorPicker_GetColor( p ) ) )
+
+    ' 6: the body keyboard
+    tkColorPicker_SetTab( p, CLR_TAB_CUSTOM )
+    gScript = 6
+    bOK = tkColorPicker_RunModal( p )
+    tkTest_Check( "6: a body click takes the caret out of the field", gR1 = -1 )
+    tkTest_Check( "6: Right + Down move one cell and one row", gR2 = 69, "" & gR2 )
+    tkTest_Check( "6: Enter outside a field accepts", bOK andalso tkColorPicker_GetColor( p ) = tkColorPicker_MatrixColorAt( 5, 4, 16, 14 ), bOK & " " & hex( tkColorPicker_GetColor( p ) ) & " sel " & tkColorPicker_GetBodySel( p ) )
+
+    ' 7: OK slide-off, Initial reverts, tabs, the preview's pixels
+    tkColorPicker_SetColor( p, tkRGB( 40, 50, 60 ) )
+    ResetNotify()
+    gScript = 7
+    bOK = tkColorPicker_RunModal( p )
+    tkTest_Check( "7: OK pressed, slid off, released: still open", gR1 = 1 )
+    tkTest_Check( "7: clicking Initial reverts", gC1 <> tkRGB( 40, 50, 60 ) andalso gC2 = tkRGB( 40, 50, 60 ) )
+    tkTest_Check( "7: a tab click notifies; a double-click there does not close", gTabNotify = 1 andalso gR2 = 1 andalso gR3 = CLR_TAB_SYSTEM )
+    tkTest_Check( "7: the Current preview paints the live value", gR4 = 1 )
+    tkTest_Check( "7: Esc -> FALSE", bOK = false )
+
+    ' 8: the wheel on the list
+    tkColorPicker_SetTab( p, CLR_TAB_WEB )
+    tkColorPicker_SetColor( p, tkRGB( 0, 0, 0 ) )
+    gScript = 8
+    tkColorPicker_RunModal( p )
+    tkTest_Check( "8: the wheel scrolls the list", gR1 > 0, gR1 & " open " & gR3 & " t0 " & gR4 & " sel " & tkColorPicker_GetBodySel( p ) )
+    tkTest_Check( "8: ...and never the selection", gR2 = 1 )
+
+    ' ---- F: DoModal with events queued BEFORE the run (the popup does not exist yet) -------------
+    ' keys go to the top popup whatever window SDL names, so Esc queued at the owner cancels it
+    dim as ulong myClr = tkRGB( 1, 2, 3 )
+    dim as ubyte myA = 77
+    dim as SDL_Event k
+    k.type = SDL_EVENT_KEY_DOWN : k.key.windowID = h->winId : k.key.key = SDLK_ESCAPE : k.key.down = true
+    SDL_PushEvent( @k )
+    tkTest_Check( "DoModal: Esc -> FALSE", tkColorPicker_DoModal( tkHost_Root( h ), myClr, myA ) = false )
+    tkTest_Check( "DoModal: a cancel leaves BOTH variables untouched", myClr = tkRGB( 1, 2, 3 ) andalso myA = 77 )
+    ' an outside press cancels, and the press is CONSUMED: the button under it does not click
+    dim as TK_WIDGET ptr bt = tkButton_Create( tkHost_Root( h ), 5 )
+    tkButton_SetFont( bt, fText ) : tkButton_SetText( bt, "Behind" )
+    tkWidget_SetPos( bt, S( h, 4 ), S( h, 4 ), S( h, 60 ), S( h, 24 ) )
+    tkButton_SetClickCallback( bt, @OnBtn )
+    gBtnClicks = 0
+    dim as SDL_Event e1, e2
+    e1.type = SDL_EVENT_MOUSE_BUTTON_DOWN : e1.button.windowID = h->winId : e1.button.button = SDL_BUTTON_LEFT
+    e1.button.down = true : e1.button.clicks = 1
+    e1.button.x = tkTest_CX( bt ) / h->fDensity : e1.button.y = tkTest_CY( bt ) / h->fDensity
+    e2 = e1 : e2.type = SDL_EVENT_MOUSE_BUTTON_UP : e2.button.down = false
+    SDL_PushEvent( @e1 ) : SDL_PushEvent( @e2 )
+    dim as TKRECT rcBtn
+    tkWidget_AbsRect( bt, rcBtn )
+    rcBtn.top += S( h, 60 ) : rcBtn.bottom += S( h, 60 )
+    tkTest_Check( "DoModalForRect: an outside press cancels", tkColorPicker_DoModalForRect( tkHost_Root( h ), rcBtn, myClr, myA ) = false )
+    tkHost_Pump( h )
+    tkTest_Check( "...and the dismissing press is consumed", gBtnClicks = 0, "" & gBtnClicks )
+    tkTest_Check( "...variables untouched", myClr = tkRGB( 1, 2, 3 ) )
+
+    ' ---- G: rescale -------------------------------------------------------------------------------
+    dim as long w0, h0, w1, h1
+    tkColorPicker_GetIdealSize( p, w0, h0 )
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkColorPicker_GetIdealSize( p, w1, h1 )
+    tkTest_Check( "rescale: ideal height ~ x2", (h1 > h0 * 1.9) andalso (h1 < h0 * 2.1), h0 & " -> " & h1 )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+
+    tkColorPicker_Destroy( p )
+    tkHost_Pump( h )
+    tkHost_Destroy( h )
+end sub
+
+
+' ==========================================================================================
+if tkTest_Init() = false then end 99
+
+RunPure()
+RunPass( 1.0 )
+RunPass( 1.75 )
+
+tkTest_Begin( "cross-pass" )
+tkTest_Check( "ideal width scales with the scale", (gIdealW(0) > 0) andalso (gIdealW(1) > gIdealW(0) * 1.6) andalso (gIdealW(1) < gIdealW(0) * 1.9), gIdealW(0) & " -> " & gIdealW(1) )
+dim as long nFail = tkTest_Report( "tkColorPicker" )
+tkTest_Quit()
+end nFail

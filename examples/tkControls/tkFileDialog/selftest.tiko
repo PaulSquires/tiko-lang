@@ -1,0 +1,140 @@
+' tkFileDialog self-test. The native dialogs cannot be driven from a test, so a DRIVER stands in
+' for SDL_Show*Dialog: it records what SDL would have been given and answers through the very
+' callback SDL calls -- FROM ANOTHER THREAD, as SDL may. What is checked is the whole path from
+' that thread to the caller: filters, the copy, the event, delivery on the UI thread, the waiting
+' form, cancel and error.
+'
+'   selftest            exit code = number of failures
+#import "std/containers"
+#import "vendor/tkControls/tkFileDialog"
+#import "vendor/tkControls/tkTest"
+using tkFileDialog
+using tkTest
+using tkHost
+using containers
+
+' ---- the stand-in for SDL -----------------------------------------------------------------------
+dim shared as long gKind, gnFilters, gAnswerMode         ' 0 two paths, 1 cancel, 2 error
+dim shared as boolean gMany
+dim shared as string gNames, gPatterns, gDefault
+dim shared as SDL_Window ptr gWin
+dim shared as SDL_DialogFileCallback gCb
+dim shared as any ptr gUser
+' the answer, as SDL hands it over: C strings, NULL-terminated list
+dim shared as string gP1, gP2
+dim shared as zstring ptr gList( 0 to 2 )
+dim shared as SDL_ThreadID gUiThread, gCbThread, gAnswerThread
+
+function AnswerThread( byval data_ as any ptr ) as long
+    gAnswerThread = SDL_GetCurrentThreadID()
+    SDL_Delay( 20 )
+    select case gAnswerMode
+    case 0
+        gList(0) = strptr( gP1 ) : gList(1) = strptr( gP2 ) : gList(2) = 0
+        gCb( gUser, cast( const zstring const ptr ptr, @gList(0) ), 1 )
+    case 1
+        gList(0) = 0
+        gCb( gUser, cast( const zstring const ptr ptr, @gList(0) ), -1 )
+    case else
+        gCb( gUser, 0, -1 )
+    end select
+    return 0
+end function
+
+dim shared as SDL_Thread ptr gThread
+
+sub Driver( byval kind as long, byval cb as SDL_DialogFileCallback, byval userdata as any ptr, _
+            byval win as SDL_Window ptr, byval filters as const SDL_DialogFileFilter ptr, _
+            byval nFilters as long, byval defaultLocation as const zstring ptr, byval allowMany as boolean )
+    gKind = kind : gCb = cb : gUser = userdata : gWin = win : gnFilters = nFilters : gMany = allowMany
+    gNames = "" : gPatterns = ""
+    for i as long = 0 to nFilters - 1
+        gNames &= *filters[i].name & "|"
+        gPatterns &= *filters[i].pattern & "|"
+    next
+    gDefault = ""
+    if defaultLocation then gDefault = *defaultLocation
+    gThread = SDL_CreateThreadRuntime( @AnswerThread, "answer", 0, 0, 0 )
+end sub
+
+' ---- the caller's side -------------------------------------------------------------------------
+dim shared as long gCalls, gFilter
+dim shared as boolean gErr
+dim shared as ustring gGot
+
+sub OnResult( byval owner as TK_HOST ptr, byref paths as Array( of ustring ), byval filterIndex as long, _
+              byval bError as boolean, byval user as any ptr )
+    gCalls += 1
+    gCbThread = SDL_GetCurrentThreadID()
+    gFilter = filterIndex : gErr = bError
+    gGot = ""
+    for each p as ustring in paths
+        gGot &= p & "|"
+    next
+end sub
+
+sub WaitForCall( byval h as TK_HOST ptr, byval n as long )
+    for i as long = 1 to 200
+        if gCalls >= n then exit for
+        tkHost_Pump( h )
+        SDL_Delay( 5 )
+    next
+    if gThread then SDL_WaitThread( gThread, 0 ) : gThread = 0
+end sub
+
+if tkTest_Init() = false then end 99
+tkTest_Begin( "dialogs" )
+gUiThread = SDL_GetCurrentThreadID()
+dim as TK_HOST ptr h = tkHost_Create( "tkFileDialog selftest", 300, 200, TK_TEST_FONTDIR & "segoeui.ttf", 1.0 )
+tkHost_Show( h )
+tkHost_Pump( h )
+tkFileDialog_SetDriver( @Driver )
+dim as ustring uP2 = "C:/w" & wchr( &hF6 ) & "rld/" & wchr( &h65E5 ) & ".tiko"
+gP1 = "C:/src/a.tiko" : gP2 = uP2
+
+' the callback form: open, many, filters Win32-style
+gAnswerMode = 0
+tkFileDialog_Show( TKFD_OPEN, h, "Tiko source|*.tiko;*.ti|All files|*.*", "C:/src", true, @OnResult )
+tkTest_Check( "Show returns at once", gCalls = 0 )
+WaitForCall( h, 1 )
+tkTest_Check( "the answer arrives", gCalls = 1 )
+tkTest_Check( "on the UI thread, though SDL answered on another", (gCbThread = gUiThread) andalso (gAnswerThread <> gUiThread) )
+tkTest_Check( "both paths, UTF-8 decoded", gGot = "C:/src/a.tiko|" & uP2 & "|", gGot )
+tkTest_Check( "the chosen filter", (gFilter = 1) andalso (gErr = false) )
+tkTest_Check( "an open dialog for the owner window", (gKind = TKFD_OPEN) andalso (gWin = h->win) andalso gMany )
+tkTest_Check( "filters become SDL's", (gnFilters = 2) andalso (gNames = "Tiko source|All files|") andalso (gPatterns = "tiko;ti|*|"), gNames & " / " & gPatterns )
+tkTest_Check( "the default location", gDefault = "C:/src" )
+
+' cancel and error, through the callback form
+gAnswerMode = 1
+tkFileDialog_Show( TKFD_SAVE, h, "Text|*.txt", "", false, @OnResult )
+WaitForCall( h, 2 )
+tkTest_Check( "a cancel delivers no paths and no error", (gCalls = 2) andalso (gGot = "") andalso (gErr = false) )
+tkTest_Check( "a save dialog, no default", (gKind = TKFD_SAVE) andalso (gDefault = "") )
+gAnswerMode = 2
+tkFileDialog_Show( TKFD_OPEN, h, "", "", false, @OnResult )
+WaitForCall( h, 3 )
+tkTest_Check( "an error is reported as one", (gCalls = 3) andalso gErr andalso (gnFilters = 0) )
+
+' the waiting form
+gAnswerMode = 0
+dim as Array( of ustring ) got
+dim as boolean ok = tkFileDialog_Wait( TKFD_OPEN, h, "All|*", "", true, got )
+if gThread then SDL_WaitThread( gThread, 0 ) : gThread = 0
+tkTest_Check( "Wait returns the paths", ok andalso (got.Count() = 2) andalso (got.At( 1 ) = uP2) )
+tkTest_Check( "and no event is left to deliver", gCalls = 3 )
+tkHost_Pump( h )
+tkTest_Check( "even after a pump", gCalls = 3 )
+gAnswerMode = 1
+tkTest_Check( "a cancelled Wait is FALSE", tkFileDialog_Wait( TKFD_SAVE, h, "", "", false, got ) = false andalso (got.Count() = 0) )
+if gThread then SDL_WaitThread( gThread, 0 ) : gThread = 0
+gAnswerMode = 0
+tkTest_Check( "OpenFile gives the first path", tkFileDialog_OpenFile( h, "All|*" ) = "C:/src/a.tiko" )
+if gThread then SDL_WaitThread( gThread, 0 ) : gThread = 0
+tkTest_Check( "PickFolder asks for a folder, with no filters", (tkFileDialog_PickFolder( h, "C:/" ) = "C:/src/a.tiko") andalso (gKind = TKFD_FOLDER) andalso (gnFilters = 0) )
+if gThread then SDL_WaitThread( gThread, 0 ) : gThread = 0
+
+tkHost_Destroy( h )
+dim as long nFail = tkTest_Report( "tkFileDialog" )
+tkTest_Quit()
+end nFail

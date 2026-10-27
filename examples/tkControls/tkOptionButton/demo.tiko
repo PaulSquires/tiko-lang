@@ -1,0 +1,294 @@
+' tkOptionButton demo: the same fifteen rows in six groups as the Win32 demo
+' (tiko-lang/examples/PsControls/PsOptionButton/frmMain.tiko), plus its two plain buttons so the
+' Tab walk has somewhere to go that is not an option button. EIGHT tab stops: one per group, two
+' buttons.
+'
+'   demo                     interactive
+'   demo --shot out.bmp      render once (Balanced focused), save the window, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkOptionButton"
+#import "vendor/tkControls/tkButton"
+using tkOptionButton
+using tkButton
+using tkTooltip
+using tkHost
+using tkPaint
+
+#ifdef TIKO_OS_LINUX
+    const FONTDIR = "/mnt/c/Windows/Fonts/"
+#else
+    const FONTDIR = "C:\Windows\Fonts\"
+#endif
+
+const as long OPTION_COUNT = 15
+const as long ROW_HEIGHT = 42, ROW_TOP = 16, ROW_MARGIN = 24
+const as long WIDE_ROW_W = 340, ROW_SLACK = 140, BTN_BAR_H = 56, NOTE_COL_W = 470
+const as long IDC_FIRST = 1000, IDC_OK = 1900, IDC_CANCEL = 1901
+enum
+    GRP_QUALITY = 1, GRP_CHANNEL, GRP_UNITS, GRP_ALIGN, GRP_PAINT, GRP_ICON
+end enum
+
+' The Win32 demo's THEME_TYPE, value for value.
+const as ulong T_FORE = &hFFBEC4CEul, T_FOREDIS = &hFF5A606Aul, T_BACK = &hFF21252Bul
+const as ulong T_BACKHOT = &hFF2C313Aul, T_FOREHOT = &hFFFFFFFFul, T_FOCUS = &hFF569CD6ul, T_DIVIDER = &hFF373C45ul
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gOpt(0 to OPTION_COUNT - 1), gBtnOK, gBtnCancel
+dim shared as ustring gHeading(0 to OPTION_COUNT - 1), gNote(0 to OPTION_COUNT - 1)
+dim shared as long gGroup(0 to OPTION_COUNT - 1), gGroupChanges(0 to 8), gGroupWidth(0 to 8)
+dim shared as TTF_Font ptr gFont9, gFont10, gFontBold10
+
+private function RowTop( byval i as long ) as long
+    return tkHost_Scale( gHost, ROW_TOP ) + i * tkHost_Scale( gHost, ROW_HEIGHT )
+end function
+
+private function IsGroupStart( byval i as long ) as boolean
+    if i <= 0 then return true
+    return gGroup(i) <> gGroup(i - 1)
+end function
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long margin = tkHost_Scale( h, ROW_MARGIN ), noteW = tkHost_Scale( h, NOTE_COL_W )
+    for i as long = 0 to OPTION_COUNT - 1
+        dim as long t = RowTop( i )
+        dim as TKRECT rc
+        if IsGroupStart( i ) then
+            if i > 0 then
+                tkRect_Set( rc, margin, t, pw - margin, t + 1 )
+                b->SetBackColor( T_DIVIDER )
+                b->PaintRect( @rc )
+            end if
+            tkRect_Set( rc, margin, t + tkHost_Scale( h, 4 ), margin + noteW, t + tkHost_Scale( h, 22 ) )
+            b->SetColors( T_FORE, T_BACK )
+            b->SetFont( gFontBold10 )
+            b->PaintText( gHeading(i) & "   [changes: " & gGroupChanges( gGroup(i) ) & "]", @rc, TK_DT_LEFT )
+        end if
+        if len( gNote(i) ) then
+            tkRect_Set( rc, margin, t + tkHost_Scale( h, 20 ), margin + noteW, t + tkHost_Scale( h, 38 ) )
+            b->SetColors( T_FOREDIS, T_BACK )
+            b->SetFont( gFont9 )
+            b->PaintText( gNote(i), @rc, TK_DT_LEFT )
+        end if
+    next
+end sub
+
+' Every member of a group gets ONE shared width -- the widest in the group -- and so one shared
+' left edge, so a group's circles form a column (the Win32 demo's rule).
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long margin = tkHost_Scale( h, ROW_MARGIN ), rh = tkHost_Scale( h, ROW_HEIGHT )
+    for g as long = 0 to 8
+        gGroupWidth(g) = 0
+    next
+    for i as long = 0 to OPTION_COUNT - 1
+        dim as long iw, ih
+        tkOptionButton_GetIdealSize( gOpt(i), iw, ih )
+        select case gGroup(i)
+        case GRP_UNITS
+            iw = tkHost_Scale( h, WIDE_ROW_W )
+        case GRP_ALIGN
+            iw += tkHost_Scale( h, ROW_SLACK )
+        end select
+        if iw > gGroupWidth( gGroup(i) ) then gGroupWidth( gGroup(i) ) = iw
+    next
+    for i as long = 0 to OPTION_COUNT - 1
+        dim as long iw, ih
+        tkOptionButton_GetIdealSize( gOpt(i), iw, ih )
+        dim as long gw = gGroupWidth( gGroup(i) )
+        tkWidget_SetPos( gOpt(i), pw - margin - gw, RowTop( i ) + (rh - ih) \ 2, gw, ih )
+    next
+    dim as long bw = tkHost_Scale( h, 110 ), bh = tkHost_Scale( h, 30 ), bar = tkHost_Scale( h, BTN_BAR_H )
+    dim as long by = ph - bar + (bar - bh) \ 2
+    dim as long bx = pw - margin - bw
+    tkWidget_SetPos( gBtnCancel, bx, by, bw, bh )
+    bx -= bw + tkHost_Scale( h, 8 )
+    tkWidget_SetPos( gBtnOK, bx, by, bw, bh )
+end sub
+
+' BOTH edges arrive: the loser first, then the winner -- each group's counter climbs by two.
+sub Demo_Changed( byval hOpt as TK_WIDGET ptr, byval isChecked as boolean )
+    dim as long g = tkOptionButton_GetGroupID( hOpt )
+    if (g >= 0) andalso (g <= 8) then gGroupChanges(g) += 1
+    print "changed  group=" & g & "  id=" & tkOptionButton_GetID( hOpt ) & "  checked=" & isChecked & "  caption=" & tkOptionButton_GetText( hOpt )
+    print "         group now answers: id=" & tkOptionButton_FindCheckedID( tkHost_Root( gHost ), g )
+    tkHost_Invalidate( gHost )
+end sub
+
+function Demo_Message( byval m as TKOPTIONBUTTON_MESSAGEINFO ptr ) as boolean
+    if m->msg = TKM_LBUTTONDOWN then print "message  TKM_LBUTTONDOWN on id=" & tkOptionButton_GetID( m->hOptionButton )
+    return false
+end function
+
+function Demo_Tooltip( byval hOpt as TK_WIDGET ptr ) as ustring
+    return "Option id " & tkOptionButton_GetID( hOpt ) & " in group " & tkOptionButton_GetGroupID( hOpt )
+end function
+
+' A host renderer: a square swatch instead of a circle, in the font the control measured with.
+sub Demo_Paint( byval p as TKOPTIONBUTTON_PAINTINFO ptr )
+    dim as ulong clrSwatch = T_FOREDIS
+    if p->isChecked then clrSwatch = T_FOCUS
+    if p->isHot then clrSwatch = T_FOREHOT
+    p->b->SetBackColor( clrSwatch )
+    p->b->PaintRect( @p->rcCircle )
+    if tkRect_IsEmpty( p->rcText ) = false then
+        p->b->SetFont( tkOptionButton_GetFont( p->hOptionButton ) )
+        p->b->SetColors( T_FORE, T_BACK )
+        p->b->PaintText( p->wszText, @p->rcText, TK_DT_LEFT or TK_DT_ELLIPSIS )
+    end if
+    if p->isFocused then
+        p->b->SetPenColor( T_FOCUS )
+        p->b->PaintRoundOutline( @p->rcVisual, 4, 1 )
+    end if
+end sub
+
+sub Demo_Button( byval hButton as TK_WIDGET ptr, byval id as long )
+    dim as TK_WIDGET ptr r = tkHost_Root( gHost )
+    if id = IDC_OK then
+        print "Read groups -- quality=" & tkOptionButton_FindCheckedID( r, GRP_QUALITY ) & "  channel=" & tkOptionButton_FindCheckedID( r, GRP_CHANNEL ) _
+              & "  units=" & tkOptionButton_FindCheckedID( r, GRP_UNITS ) & "  align=" & tkOptionButton_FindCheckedID( r, GRP_ALIGN ) _
+              & "  paint=" & tkOptionButton_FindCheckedID( r, GRP_PAINT ) & "  icon=" & tkOptionButton_FindCheckedID( r, GRP_ICON )
+    else
+        print "Cancel clicked"
+    end if
+end sub
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+' Save the current back buffer -- read BEFORE present, which is when it is defined.
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr s = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if s then
+        SDL_SaveBMP( s, strptr( path ) )
+        print "shot: " & path & "  " & s->w & "x" & s->h & "  scale=" & gHost->fScale & "  density=" & gHost->fDensity
+        SDL_DestroySurface( s )
+    end if
+end sub
+
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkOptionButton on SDL3", 900, 760, FONTDIR & "segoeui.ttf", forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = T_BACK
+print "video driver: " & *SDL_GetCurrentVideoDriver() & "  renderer: " & *SDL_GetRendererName( gHost->renderer ) & _
+      "  scale=" & gHost->fScale & "  density=" & gHost->fDensity
+
+gFont9      = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 9 )
+gFont10     = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 10 )
+gFontBold10 = tkHost_OpenFont( gHost, FONTDIR & "segoeuib.ttf", 10 )
+if gFont10 = 0 then print "fonts: " & *SDL_GetError() : end 1
+if gFontBold10 = 0 then gFontBold10 = gFont10
+tkTooltip_SetDefaultFonts( gFont9 )
+
+dim as ustring captions(0 to OPTION_COUNT - 1)
+gHeading(0) = "Quality" : gNote(0) = "Three options. Arrows move AND check, wrapping at both ends."
+gGroup(0) = GRP_QUALITY : captions(0) = "Highest"
+gGroup(1) = GRP_QUALITY : captions(1) = "Balanced"
+gGroup(2) = GRP_QUALITY : captions(2) = "Smallest file"
+gNote(2) = "Balanced is checked at create -- so it holds the group's tab stop."
+gHeading(3) = "Update channel" : gNote(3) = "The middle option is DISABLED. Arrows step over it."
+gGroup(3) = GRP_CHANNEL : captions(3) = "Stable"
+gGroup(4) = GRP_CHANNEL : captions(4) = "Beta"
+gGroup(5) = GRP_CHANNEL : captions(5) = "Nightly"
+gNote(5) = "Nothing is checked here at start -- a legal state the user cannot reach."
+gHeading(6) = "Units" : gNote(6) = "BOXALIGN_RIGHT at a fixed row width, so the circles line up."
+gGroup(6) = GRP_UNITS : captions(6) = "Metric"
+gGroup(7) = GRP_UNITS : captions(7) = "Imperial"
+gHeading(8) = "Caption alignment" : gNote(8) = "TEXTALIGN within the SPAN, not the control. Given slack to show it."
+gGroup(8) = GRP_ALIGN : captions(8) = "Left"
+gGroup(9) = GRP_ALIGN : captions(9) = "Centre"
+gGroup(10) = GRP_ALIGN : captions(10) = "Right"
+gHeading(11) = "Paint callback" : gNote(11) = "A host renderer: square swatch instead of a circle."
+gGroup(11) = GRP_PAINT : captions(11) = "Custom painted"
+gGroup(12) = GRP_PAINT : captions(12) = "Also custom painted"
+gHeading(13) = "No caption + tooltip" : gNote(13) = "A 28px circle, no caption. Hover for the tooltip callback."
+gGroup(13) = GRP_ICON : captions(13) = ""
+gGroup(14) = GRP_ICON : captions(14) = ""
+
+for i as long = 0 to OPTION_COUNT - 1
+    gOpt(i) = tkOptionButton_Create( tkHost_Root( gHost ), IDC_FIRST + i, gGroup(i) )
+    tkOptionButton_SetFont( gOpt(i), gFont10 )
+    tkOptionButton_SetText( gOpt(i), captions(i) )
+    tkOptionButton_SetCheckChangedCallback( gOpt(i), @Demo_Changed )
+next
+
+' Quality: pre-checked, and a hover row highlight opted into with ONE colour field.
+tkOptionButton_SetChecked( gOpt(1), true )
+for i as long = 0 to 2
+    dim as TKOPTIONBUTTON_COLORS c
+    tkOptionButton_GetColors( gOpt(i), @c )
+    c.BackColorHot = T_BACKHOT
+    c.BackColorPressed = T_BACKHOT
+    tkOptionButton_SetColors( gOpt(i), @c )
+next
+' Channel: the middle one disabled, nothing checked.
+tkOptionButton_SetEnabled( gOpt(4), false )
+tkOptionButton_SetText( gOpt(4), "Beta  (disabled)" )
+' Units: box on the right.
+tkOptionButton_SetBoxAlign( gOpt(6), OPT_BOXALIGN_RIGHT )
+tkOptionButton_SetBoxAlign( gOpt(7), OPT_BOXALIGN_RIGHT )
+tkOptionButton_SetChecked( gOpt(6), true )
+' Alignment.
+tkOptionButton_SetTextAlign( gOpt(8), OPT_TEXTALIGN_LEFT )
+tkOptionButton_SetTextAlign( gOpt(9), OPT_TEXTALIGN_CENTER )
+tkOptionButton_SetTextAlign( gOpt(10), OPT_TEXTALIGN_RIGHT )
+tkOptionButton_SetChecked( gOpt(9), true )
+' Paint callback (bold font through SetFont, so it measures what it paints), message callback.
+tkOptionButton_SetFont( gOpt(11), gFontBold10 )
+tkOptionButton_SetFont( gOpt(12), gFontBold10 )
+tkOptionButton_SetPaintCallback( gOpt(11), @Demo_Paint )
+tkOptionButton_SetPaintCallback( gOpt(12), @Demo_Paint )
+tkOptionButton_SetMessageCallback( gOpt(11), @Demo_Message )
+tkOptionButton_SetChecked( gOpt(11), true )
+' Icon-sized: a 28px circle, no caption, tooltip callback; the dot scales with the box.
+for i as long = 13 to 14
+    tkOptionButton_SetBoxSize( gOpt(i), tkHost_Scale( gHost, 28 ), tkHost_Scale( gHost, 28 ) )
+    tkOptionButton_SetTooltipCallback( gOpt(i), @Demo_Tooltip )
+next
+tkOptionButton_SetChecked( gOpt(14), true )
+
+' Two plain buttons, so the Tab walk enters the groups AND leaves them again.
+gBtnOK = tkButton_Create( tkHost_Root( gHost ), IDC_OK )
+tkButton_SetText( gBtnOK, "Read groups" )
+tkButton_SetFont( gBtnOK, gFont10 )
+tkButton_SetClickCallback( gBtnOK, @Demo_Button )
+gBtnCancel = tkButton_Create( tkHost_Root( gHost ), IDC_CANCEL )
+tkButton_SetText( gBtnCancel, "Cancel" )
+tkButton_SetFont( gBtnCancel, gFont10 )
+tkButton_SetClickCallback( gBtnCancel, @Demo_Button )
+
+dim as long iw, ih
+tkOptionButton_GetIdealSize( gOpt(0), iw, ih ) : print "row 0 ideal size (circle + caption): " & iw & "x" & ih
+tkOptionButton_GetIdealSize( gOpt(13), iw, ih ) : print "row 13 ideal size (28px, no caption):  " & iw & "x" & ih
+
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkHost_SetFocus( gHost, gOpt(1) )
+tkHost_Show( gHost )
+
+dim as string shot = ArgValue( "--shot" )
+if len( shot ) then
+    tkHost_Pump( gHost )
+    SaveShot( shot )
+else
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

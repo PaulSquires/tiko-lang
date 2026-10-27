@@ -1,0 +1,431 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkScrollBar -- the engine behind tkVScrollBar and tkHScrollBar: vendor PsVScrollBar and
+' PsHScrollBar were the same control twice with x and y swapped, and PsPlatform's PsScrollBar
+' already made them one; this is that, with vendor's behaviour:
+'   * no arrow buttons -- the whole bar is track and thumb;
+'   * a track click pages by exactly `page` toward the click, then AUTO-REPEATS while held
+'     (400 ms, then every 80 ms), stopping when the thumb reaches the cursor or the end;
+'   * the thumb has a minimum length (20, DPI-scaled), so it stays grabbable;
+'   * positions are whole units clamped to [0, total - page]; programmatic SetPos is silent;
+'   * the wheel accumulates sub-notch deltas in 120ths and steps by the wheel step, or by the
+'     system's lines-per-notch when the step is 0 (SDL has no query for it: 3, Windows' default);
+'   * a vertical bar takes only the vertical wheel, a horizontal bar only the horizontal one --
+'     and a positive delta moves a V bar UP but an H bar RIGHT (vendor's sign trap, kept);
+'   * no focus, no keys, no enabled state, no tooltips.
+' Use the two public modules, not this one.
+#module "tkScrollBar"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+using tkHost
+using tkPaint
+using tkTheme
+
+public const TKSCROLL_REPEAT_DELAY = 400
+public const TKSCROLL_REPEAT_MS = 80
+public const TKSCROLL_MIN_THUMB = 20
+public const TKSCROLL_DEFAULT_THICKNESS = 12
+public const TKSCROLL_SYSTEM_WHEEL_LINES = 3
+
+' What a paint callback gets (both bars share the shape).
+public type TKSCROLLBAR_PAINTINFO
+    b          as TK_PAINT ptr
+    rcClient   as TKRECT
+    rcThumb    as TKRECT              ' empty when no thumb is needed
+    isHot      as boolean             ' the mouse is over the thumb
+    isDragging as boolean
+end type
+
+public type tkScrollPaintSub as sub( byval p as TKSCROLLBAR_PAINTINFO ptr )
+public type tkScrollNotifySub as sub( byval hSB as TK_WIDGET ptr, byval newPos as integer )
+
+public type TKSCROLLBAR_STATE
+    hWin          as TK_WIDGET ptr
+    bVertical     as boolean
+    bColorsPinned as boolean
+    nTotal        as integer
+    nPage         as integer
+    nPos          as integer
+    rcThumb       as TKRECT
+    thumbLen      as integer
+    isDragging    as boolean
+    dragOffset    as integer
+    isHot         as boolean
+    repeatOn      as boolean
+    repeatDir     as integer
+    nWheelAccum   as integer
+    nWheelStep    as integer          ' units per notch; 0 = the system setting
+    BackColor     as ulong = &hFF21252Bul    ' ( 33, 37, 43)
+    ForeColor     as ulong = &hFF353B45ul    ' ( 53, 59, 69)
+    ForeColorHot  as ulong = &hFF5A6270ul    ' ( 90, 98,112)
+    bHasDivider   as boolean
+    DividerColor  as ulong
+    lastX         as single
+    lastY         as single
+    PaintCallback  as tkScrollPaintSub
+    ScrollCallback as tkScrollNotifySub
+    declare function TrackLen() as integer
+    declare function MaxPos() as integer
+    declare function NeedsThumb() as boolean
+    declare sub      Recalc()
+    declare function PosFromThumb( byval thumbStart as integer ) as integer
+end type
+
+function TKSCROLLBAR_STATE.TrackLen() as integer
+    return iif( this.bVertical, this.hWin->ch, this.hWin->cw )
+end function
+
+function TKSCROLLBAR_STATE.MaxPos() as integer
+    dim as integer m = this.nTotal - this.nPage
+    return iif( m < 0, 0, m )
+end function
+
+' A RANGE question only: a bar that has never been sized is still "needed" when the range
+' says so, or it would never be shown and so never sized.
+function TKSCROLLBAR_STATE.NeedsThumb() as boolean
+    if (this.nTotal <= 0) orelse (this.nPage <= 0) then return false
+    return this.nTotal > this.nPage
+end function
+
+sub TKSCROLLBAR_STATE.Recalc()
+    tkRect_SetEmpty( this.rcThumb )
+    this.thumbLen = 0
+    if this.NeedsThumb() = false then exit sub
+    dim as integer track = this.TrackLen()
+    if track <= 0 then exit sub
+    dim as integer minThumb = tkHost_Scale( this.hWin->pHost, TKSCROLL_MIN_THUMB )
+    dim as integer th = cint( (this.nPage / this.nTotal) * track )
+    if th < minThumb then th = minThumb
+    if th > track then th = track
+    this.thumbLen = th
+    dim as integer span = track - th
+    dim as integer p0 = 0
+    if this.MaxPos() > 0 then p0 = cint( (this.nPos / this.MaxPos()) * span )
+    if p0 < 0 then p0 = 0
+    if p0 > span then p0 = span
+    if this.bVertical then
+        tkRect_Set( this.rcThumb, 0, p0, this.hWin->cw, p0 + th )
+    else
+        tkRect_Set( this.rcThumb, p0, 0, p0 + th, this.hWin->ch )
+    end if
+end sub
+
+function TKSCROLLBAR_STATE.PosFromThumb( byval thumbStart as integer ) as integer
+    dim as integer span = this.TrackLen() - this.thumbLen
+    if span <= 0 then return 0
+    if thumbStart < 0 then thumbStart = 0
+    if thumbStart > span then thumbStart = span
+    dim as integer p = cint( (thumbStart / span) * this.MaxPos() )
+    if p < 0 then p = 0
+    if p > this.MaxPos() then p = this.MaxPos()
+    return p
+end function
+
+private function SB( byval w as TK_WIDGET ptr ) as TKSCROLLBAR_STATE ptr
+    if w = 0 then return 0
+    return cast( TKSCROLLBAR_STATE ptr, w->pData )
+end function
+
+' A user step: moves, repaints, NOTIFIES. FALSE when there was nowhere to go.
+public function tkScrollBar_StepBy( byval pSB as TKSCROLLBAR_STATE ptr, byval nUnits as integer ) as boolean
+    if pSB = 0 then return false
+    dim as integer newPos = pSB->nPos + nUnits
+    if newPos < 0 then newPos = 0
+    if newPos > pSB->MaxPos() then newPos = pSB->MaxPos()
+    if newPos = pSB->nPos then return false
+    pSB->nPos = newPos
+    pSB->Recalc()
+    tkWidget_Invalidate( pSB->hWin )
+    if pSB->ScrollCallback then pSB->ScrollCallback( pSB->hWin, newPos )
+    return true
+end function
+
+' nDelta in 120ths of a notch, the platform sign of the bar's own axis (see the header).
+public function tkScrollBar_HandleWheelDelta( byval hSB as TK_WIDGET ptr, byval nDelta as integer ) as boolean
+    dim as TKSCROLLBAR_STATE ptr pSB = SB( hSB )
+    if (pSB = 0) orelse (nDelta = 0) then return false
+    pSB->nWheelAccum += nDelta
+    dim as integer nStep = pSB->nWheelStep
+    if nStep <= 0 then nStep = TKSCROLL_SYSTEM_WHEEL_LINES
+    if nStep <= 0 then nStep = 1
+    dim as integer nUnits = (pSB->nWheelAccum * nStep) \ 120
+    if nUnits = 0 then return false              ' not enough yet; the remainder is kept
+    pSB->nWheelAccum -= (nUnits * 120) \ nStep
+    return tkScrollBar_StepBy( pSB, iif( pSB->bVertical, -nUnits, nUnits ) )
+end function
+
+private sub StopRepeat( byval pSB as TKSCROLLBAR_STATE ptr )
+    if pSB->repeatOn then tkWidget_KillTimer( pSB->hWin, TK_TIMER_AUTOREPEAT )
+    pSB->repeatOn = false
+    pSB->repeatDir = 0
+end sub
+
+private function Along( byval pSB as TKSCROLLBAR_STATE ptr, byval x as single, byval y as single ) as integer
+    return cint( iif( pSB->bVertical, y, x ) )
+end function
+
+private function ThumbStart( byval pSB as TKSCROLLBAR_STATE ptr ) as integer
+    return iif( pSB->bVertical, pSB->rcThumb.top, pSB->rcThumb.left )
+end function
+
+private sub PaintBar( byval pSB as TKSCROLLBAR_STATE ptr, byval b as TK_PAINT ptr )
+    pSB->Recalc()
+    dim as TKSCROLLBAR_PAINTINFO p
+    p.b = b
+    tkRect_Set( p.rcClient, 0, 0, pSB->hWin->cw, pSB->hWin->ch )
+    p.rcThumb = pSB->rcThumb
+    p.isHot = pSB->isHot
+    p.isDragging = pSB->isDragging
+    if pSB->PaintCallback then pSB->PaintCallback( @p ) : exit sub
+    b->SetBackColor( pSB->BackColor )
+    b->PaintRect( @p.rcClient )
+    if tkRect_IsEmpty( pSB->rcThumb ) = false then
+        b->SetBackColor( iif( pSB->isHot orelse pSB->isDragging, pSB->ForeColorHot, pSB->ForeColor ) )
+        b->PaintRect( @pSB->rcThumb )
+    end if
+    if pSB->bHasDivider andalso pSB->bVertical then
+        b->SetPenColor( pSB->DividerColor )
+        b->PaintLine( 1, 0, 0, 0, p.rcClient.bottom )
+    end if
+end sub
+
+public declare sub tkScrollBar_ApplyTheme( byval hSB as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+
+private function Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKSCROLLBAR_STATE ptr pSB = SB( w )
+    if pSB = 0 then return false
+    select case m->msg
+    case TKM_PAINT
+        PaintBar( pSB, m->pPaint )
+        return true
+
+    case TKM_SIZE, TKM_SCALECHANGED
+        pSB->Recalc()
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_THEMECHANGED
+        tkScrollBar_ApplyTheme( w, tkTheme_Get() )
+        return true
+
+    case TKM_SHOW
+        if m->bFlag = false then
+            StopRepeat( pSB )
+            pSB->isDragging = false
+            pSB->isHot = false
+        end if
+        return true
+
+    case TKM_LBUTTONDOWN
+        if pSB->NeedsThumb() = false then return true      ' nothing to scroll: no capture
+        pSB->Recalc()
+        pSB->lastX = m->x : pSB->lastY = m->y
+        if tkRect_Contains( pSB->rcThumb, m->x, m->y ) then
+            pSB->isDragging = true
+            pSB->dragOffset = Along( pSB, m->x, m->y ) - ThumbStart( pSB )
+            tkHost_SetCapture( w )
+            tkWidget_Invalidate( w )
+        else
+            pSB->repeatDir = iif( Along( pSB, m->x, m->y ) < ThumbStart( pSB ), -1, 1 )
+            tkScrollBar_StepBy( pSB, pSB->repeatDir * pSB->nPage )
+            tkHost_SetCapture( w )
+            tkWidget_SetTimer( w, TK_TIMER_AUTOREPEAT, TKSCROLL_REPEAT_DELAY )
+            pSB->repeatOn = true
+        end if
+        return true
+
+    case TKM_MOUSEMOVE
+        pSB->lastX = m->x : pSB->lastY = m->y
+        if pSB->isDragging then
+            dim as integer newPos = pSB->PosFromThumb( Along( pSB, m->x, m->y ) - pSB->dragOffset )
+            if newPos <> pSB->nPos then
+                pSB->nPos = newPos
+                pSB->Recalc()
+                tkWidget_Invalidate( w )
+                if pSB->ScrollCallback then pSB->ScrollCallback( w, newPos )
+            end if
+        else
+            dim as boolean hot = false
+            if pSB->NeedsThumb() then
+                pSB->Recalc()
+                hot = tkRect_Contains( pSB->rcThumb, m->x, m->y )
+            end if
+            if hot <> pSB->isHot then pSB->isHot = hot : tkWidget_Invalidate( w )
+        end if
+        return true
+
+    case TKM_LBUTTONUP
+        ' Release whenever WE hold capture -- NOT only while a drag or repeat is live. Vendor's
+        ' `if isDragging orelse repeatTimerOn then ReleaseCapture()` misses the case where the
+        ' auto-repeat already stopped because the thumb reached the cursor: the button comes up
+        ' and the bar keeps the capture (found by this port's selftest; vendor has it too).
+        pSB->isDragging = false
+        StopRepeat( pSB )
+        if tkHost_GetCapture( w->pHost ) = w then tkHost_ReleaseCapture( w->pHost )
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_CAPTURECHANGED
+        pSB->isDragging = false
+        StopRepeat( pSB )
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_MOUSELEAVE
+        if pSB->isHot then pSB->isHot = false : tkWidget_Invalidate( w )
+        return true
+
+    case TKM_MOUSEWHEEL
+        ' only the bar's own axis; the other one is refused, so it bubbles to the parent
+        dim as single notches = iif( pSB->bVertical, m->wheelY, m->wheelX )
+        if notches = 0 then return false
+        tkScrollBar_HandleWheelDelta( w, cint( notches * 120 ) )
+        return true                                  ' owned, moved or not
+
+    case TKM_TIMER
+        if m->timerId = TK_TIMER_AUTOREPEAT then
+            tkWidget_SetTimer( w, TK_TIMER_AUTOREPEAT, TKSCROLL_REPEAT_MS )
+            pSB->Recalc()
+            ' the cursor position the last move reported (Win32 read GetCursorPos here)
+            if tkRect_Contains( pSB->rcThumb, pSB->lastX, pSB->lastY ) then
+                StopRepeat( pSB )
+            elseif tkScrollBar_StepBy( pSB, pSB->repeatDir * pSB->nPage ) = false then
+                StopRepeat( pSB )
+            end if
+            return true
+        end if
+
+    case TKM_DESTROY
+        StopRepeat( pSB )
+        delete pSB
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+' Created zero-sized; the host sizes and places it (it never moves or hides itself).
+public function tkScrollBar_Create( byval hParent as TK_WIDGET ptr, byval ctrlId as integer, byval bVertical as boolean ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TKSCROLLBAR_STATE ptr pSB = new TKSCROLLBAR_STATE
+    pSB->bVertical = bVertical
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, ctrlId, @Proc, pSB )
+    pSB->hWin = w
+    return w
+end function
+
+public function tkScrollBar_State( byval hSB as TK_WIDGET ptr ) as TKSCROLLBAR_STATE ptr
+    return SB( hSB )
+end function
+
+public sub tkScrollBar_SetRange( byval hSB as TK_WIDGET ptr, byval nTotal as integer, byval nPage as integer, byval nPosition as integer )
+    dim as TKSCROLLBAR_STATE ptr pSB = SB( hSB )
+    if pSB = 0 then exit sub
+    pSB->nTotal = iif( nTotal < 0, 0, nTotal )
+    pSB->nPage = iif( nPage < 0, 0, nPage )
+    if nPosition < 0 then nPosition = 0
+    if nPosition > pSB->MaxPos() then nPosition = pSB->MaxPos()
+    pSB->nPos = nPosition
+    pSB->Recalc()
+    tkWidget_Invalidate( hSB )
+end sub
+
+public function tkScrollBar_GetPos( byval hSB as TK_WIDGET ptr ) as integer
+    dim as TKSCROLLBAR_STATE ptr pSB = SB( hSB )
+    if pSB = 0 then return 0
+    return pSB->nPos
+end function
+
+' SILENT: a programmatic move does not fire the scroll callback.
+public sub tkScrollBar_SetPos( byval hSB as TK_WIDGET ptr, byval nPosition as integer )
+    dim as TKSCROLLBAR_STATE ptr pSB = SB( hSB )
+    if pSB = 0 then exit sub
+    if nPosition < 0 then nPosition = 0
+    if nPosition > pSB->MaxPos() then nPosition = pSB->MaxPos()
+    if nPosition = pSB->nPos then exit sub
+    pSB->nPos = nPosition
+    pSB->Recalc()
+    tkWidget_Invalidate( hSB )
+end sub
+
+public function tkScrollBar_NeedsThumb( byval hSB as TK_WIDGET ptr ) as boolean
+    dim as TKSCROLLBAR_STATE ptr pSB = SB( hSB )
+    return (pSB <> 0) andalso pSB->NeedsThumb()
+end function
+
+public function tkScrollBar_IsDragging( byval hSB as TK_WIDGET ptr ) as boolean
+    dim as TKSCROLLBAR_STATE ptr pSB = SB( hSB )
+    return (pSB <> 0) andalso (pSB->isDragging orelse pSB->repeatOn)
+end function
+
+public function tkScrollBar_GetThumbRect( byval hSB as TK_WIDGET ptr ) as TKRECT
+    dim as TKRECT rc
+    dim as TKSCROLLBAR_STATE ptr pSB = SB( hSB )
+    if pSB = 0 then return rc
+    pSB->Recalc()
+    return pSB->rcThumb
+end function
+
+public sub tkScrollBar_SetColors( byval hSB as TK_WIDGET ptr, byval backclr as ulong, byval foreclr as ulong, byval foreclrhot as ulong )
+    dim as TKSCROLLBAR_STATE ptr pSB = SB( hSB )
+    if pSB = 0 then exit sub
+    pSB->BackColor = backclr : pSB->ForeColor = foreclr : pSB->ForeColorHot = foreclrhot
+    pSB->bColorsPinned = true
+    tkWidget_Invalidate( hSB )
+end sub
+
+public sub tkScrollBar_SetDividerColor( byval hSB as TK_WIDGET ptr, byval clr as ulong, byval bShow as boolean = true )
+    dim as TKSCROLLBAR_STATE ptr pSB = SB( hSB )
+    if pSB = 0 then exit sub
+    pSB->DividerColor = clr : pSB->bHasDivider = bShow
+    pSB->bColorsPinned = true
+    tkWidget_Invalidate( hSB )
+end sub
+
+public sub tkScrollBar_ApplyTheme( byval hSB as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKSCROLLBAR_STATE ptr pSB = SB( hSB )
+    if (pSB = 0) orelse pSB->bColorsPinned then exit sub
+    tkScrollBar_SetColors( hSB, t.Window, t.Border, t.TextDisabled )
+    if pSB->bVertical then tkScrollBar_SetDividerColor( hSB, t.Divider, pSB->bHasDivider )
+    pSB->bColorsPinned = false
+end sub
+
+public sub tkScrollBar_UnpinColors( byval hSB as TK_WIDGET ptr )
+    dim as TKSCROLLBAR_STATE ptr pSB = SB( hSB )
+    if pSB = 0 then exit sub
+    pSB->bColorsPinned = false
+    tkScrollBar_ApplyTheme( hSB, tkTheme_Get() )
+end sub
+
+public sub tkScrollBar_SetPaintCallback( byval hSB as TK_WIDGET ptr, byval usersub as tkScrollPaintSub )
+    dim as TKSCROLLBAR_STATE ptr pSB = SB( hSB )
+    if pSB = 0 then exit sub
+    pSB->PaintCallback = usersub
+    tkWidget_Invalidate( hSB )
+end sub
+
+public sub tkScrollBar_SetScrollCallback( byval hSB as TK_WIDGET ptr, byval usersub as tkScrollNotifySub )
+    dim as TKSCROLLBAR_STATE ptr pSB = SB( hSB )
+    if pSB then pSB->ScrollCallback = usersub
+end sub
+
+' A no-op set keeps the accumulated remainder (vendor's SetWheelStep fix).
+public sub tkScrollBar_SetWheelStep( byval hSB as TK_WIDGET ptr, byval nUnitsPerNotch as integer )
+    dim as TKSCROLLBAR_STATE ptr pSB = SB( hSB )
+    if pSB = 0 then exit sub
+    if nUnitsPerNotch < 0 then nUnitsPerNotch = 0
+    if pSB->nWheelStep = nUnitsPerNotch then exit sub
+    pSB->nWheelStep = nUnitsPerNotch
+    pSB->nWheelAccum = 0
+end sub
+
+public function tkScrollBar_GetWheelStep( byval hSB as TK_WIDGET ptr ) as integer
+    dim as TKSCROLLBAR_STATE ptr pSB = SB( hSB )
+    if pSB = 0 then return 0
+    return pSB->nWheelStep
+end function

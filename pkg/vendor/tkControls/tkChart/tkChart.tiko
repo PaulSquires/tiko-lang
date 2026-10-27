@@ -1,0 +1,2676 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkChart -- PsChart on SDL3 + SDL_ttf, a port of pkg/vendor/PsControls/PsChart onto tkHost.
+' One display control, four charts fixed at create: LINE (smoothing, symbols, dash styles, area
+' fills, bands between two series), COLUMN (grouped or stacked), HLOC, and PIE / doughnut with
+' exploded slices and inside / outside / auto label placement on leader lines. Autoscaled
+' 1-2-5 ticks, a legend, title and subtitle, hit testing, a hot point, value-label and tooltip
+' callbacks, BeginUpdate / EndUpdate.
+'
+' WHAT IS UNCHANGED, by design: ResolveRange (column forces zero, line / HLOC do not, HLOC reads
+' low / high, stacked scales to separate positive and negative totals), CHT_NiceRange,
+' CHT_AutoDecimals, CHT_FormatNumber, LayoutChart / LayoutPoints / LayoutStackedColumns /
+' LayoutPieSlices, the one set of rects the renderer AND the hit test read, the render order
+' (bands, fills, lines, markers; wedges, then leaders, then labels), the palette, silent setters
+' with the hot point as the only notification, and the probes.
+'
+' WHAT IS GONE: the hot poll and TrackMouseEvent (the host guarantees the leave), WM_SETFONT /
+' GETFONT, WM_GETDLGCODE (the chart is not focusable), TTN_GETDISPINFOW and the comctl32 tip
+' backend, PsRegistry. See PORT.md.
+#module "tkChart"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkTooltip" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkTooltip
+
+public const TKCHART_DEFAULT_PADDING = 10
+public const TKCHART_DEFAULT_CHROMEGAP = 6
+public const TKCHART_DEFAULT_TICKLEN = 4
+public const TKCHART_DEFAULT_BARGAP = 1
+public const TKCHART_DEFAULT_GROUPGAPPCT = 25
+public const TKCHART_DEFAULT_HLOCTICK = 3
+public const TKCHART_DEFAULT_LINEWIDTH = 2
+public const TKCHART_DEFAULT_SYMBOLSIZE = 6
+public const TKCHART_DEFAULT_PIEGAP = 1          ' a hairline: never scaled
+public const TKCHART_DEFAULT_TICKHINT = 5
+public const TKCHART_DEFAULT_LABELGAP = 8
+public const TKCHART_DEFAULT_HITRADIUS = 8
+public const TKCHART_PALETTE_COUNT = 10
+public const TKCHART_DECIMALS_AUTO = -1
+public const TKCHART_SKIP_AUTO = 0
+
+public enum
+    TKCHART_TYPE_LINE = 0
+    TKCHART_TYPE_COLUMN
+    TKCHART_TYPE_HLOC
+    TKCHART_TYPE_PIE
+end enum
+
+public enum
+    CHT_SYM_NONE = 0
+    CHT_SYM_CIRCLE
+    CHT_SYM_SQUARE
+    CHT_SYM_DIAMOND
+    CHT_SYM_TRIANGLE
+end enum
+
+public enum
+    CHT_COL_GROUPED = 0
+    CHT_COL_STACKED
+end enum
+
+public enum
+    CHT_LINE_SOLID = 0
+    CHT_LINE_DASH
+    CHT_LINE_DOT
+    CHT_LINE_DASHDOT
+end enum
+
+public enum
+    CHT_LEGEND_BOTTOM = 0
+    CHT_LEGEND_TOP
+    CHT_LEGEND_LEFT
+    CHT_LEGEND_RIGHT
+end enum
+
+public enum
+    CHT_PIELABEL_NONE = 0
+    CHT_PIELABEL_VALUE
+    CHT_PIELABEL_PERCENT
+    CHT_PIELABEL_NAME
+    CHT_PIELABEL_NAME_PERCENT
+end enum
+
+public enum
+    CHT_PIEPLACE_INSIDE = 0
+    CHT_PIEPLACE_OUTSIDE
+    CHT_PIEPLACE_AUTO
+end enum
+
+public enum
+    CHT_FMT_AXIS = 0
+    CHT_FMT_PIELABEL
+    CHT_FMT_TOOLTIP
+end enum
+
+' Vendor's dark defaults (BGR(r,g,b) -> tkRGB(r,g,b)). Read-modify-write, no per-field setters.
+public type TKCHART_COLORS
+    BackColor          as ulong = &hFF21252Bul
+    PlotBackColor      as ulong = &hFF21252Bul
+    GridColor          as ulong = &hFF3E444Eul
+    AxisColor          as ulong = &hFF5A616Cul
+    LabelColor         as ulong = &hFF969CA6ul
+    TitleColor         as ulong = &hFFD7DAE0ul
+    SubtitleColor      as ulong = &hFF969CA6ul
+    LegendTextColor    as ulong = &hFFBEC4CEul
+    SliceLabelColor    as ulong = &hFFFFFFFFul
+    SliceLabelOutColor as ulong = &hFFBEC4CEul
+    LeaderColor        as ulong = &hFF787E88ul
+    SliceGapColor      as ulong = &hFF21252Bul
+    UpColor            as ulong = &hFF48970Dul
+    DownColor          as ulong = &hFFD05050ul
+    ForeColorDisabled  as ulong = &hFF6E737Dul
+end type
+
+public type TKCHART_POINT
+    Text       as ustring      ' only series 0's labels drive the X axis
+    Value      as double       ' line / column / pie; the close for HLOC
+    OpenVal    as double
+    HighVal    as double
+    LowVal     as double
+    CloseVal   as double
+    ItemData   as integer
+    bHasColor  as boolean
+    PointColor as ulong
+    nExplode   as long         ' pie only: raw px along the bisector
+    ' --- DERIVED by layout ---
+    rc         as TKRECT       ' column: the bar. HLOC: the column band. line: the hit box. pie: the label box.
+    ptPlot     as TKPOINT      ' line: the vertex. pie: the wedge's outer midpoint.
+    fStart     as single       ' pie: degrees, 0 = 3 o'clock, + = clockwise
+    fSweep     as single
+    bLabelOut  as boolean
+    bLabelHid  as boolean
+end type
+
+public type TKCHART_SERIES
+    SeriesName  as ustring
+    bHasColor   as boolean
+    SeriesColor as ulong
+    nLineWidth  as long = TKCHART_DEFAULT_LINEWIDTH
+    nLineStyle  as long = CHT_LINE_SOLID
+    nSymbol     as long = CHT_SYM_NONE
+    nSymbolSize as long = TKCHART_DEFAULT_SYMBOLSIZE
+    bSmooth     as boolean
+    bHasFill    as boolean
+    FillColor   as ulong
+    nFillAlpha  as long = 255
+    bVisible    as boolean = true
+    points(any) as TKCHART_POINT
+    pointCount  as long
+    declare sub EnsurePoints( byval n as long )
+end type
+
+sub TKCHART_SERIES.EnsurePoints( byval n as long )
+    if n <= 0 then exit sub
+    if ubound( this.points ) < n - 1 then
+        dim as long newcap = 16
+        do while newcap < n
+            newcap *= 2
+        loop
+        redim preserve this.points( 0 to newcap - 1 )
+    end if
+end sub
+
+public type TKCHART_BAND
+    iLo    as long = -1
+    iHi    as long = -1
+    clr    as ulong
+    nAlpha as long = 255
+end type
+
+' Every sentinel resolved. The callback is ALL-OR-NOTHING: the renderer does not run.
+public type TKCHART_PAINTINFO
+    hChart        as TK_WIDGET ptr
+    b             as TK_PAINT ptr
+    rcClient      as TKRECT
+    rcPlot        as TKRECT
+    rcTitle       as TKRECT
+    rcSubtitle    as TKRECT
+    rcLegend      as TKRECT
+    rcAxisX       as TKRECT
+    rcAxisY       as TKRECT
+    rcPie         as TKRECT
+    nChartType    as long
+    fMin          as double
+    fMax          as double
+    fStep         as double
+    nDecimals     as long
+    nOriginY      as long
+    nCatCount     as long
+    nLabelStride  as long
+    nHotSeries    as long
+    nHotPoint     as long
+    isEnabled     as boolean
+    wszTitle      as ustring
+    wszSubtitle   as ustring
+end type
+
+public type TKCHART_MESSAGEINFO
+    hChart   as TK_WIDGET ptr
+    msg      as long             ' TKM_*
+    x        as single
+    y        as single
+    key      as long
+    mods     as long
+    clicks   as long
+    iSeries  as long             ' the hot point, -1 when none
+    iPoint   as long
+end type
+
+public type CHT_PaintCallbackSub as sub( byval p as TKCHART_PAINTINFO ptr )
+' Offered every message but TKM_DESTROY; the result is IGNORED for TKM_LBUTTONUP.
+public type CHT_MessageCallbackFunc as function( byval m as TKCHART_MESSAGEINFO ptr ) as boolean
+public type CHT_TooltipCallbackFunc as function( byval hChart as TK_WIDGET ptr ) as ustring
+public type CHT_ValueLabelCallbackFunc as function( byval hChart as TK_WIDGET ptr, byval fValue as double, byval nContext as long ) as ustring
+public type CHT_HotChangeCallbackSub as sub( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long )
+
+
+public type TKCHART_STATE
+    hWin           as TK_WIDGET ptr
+    bColorsPinned  as boolean
+    nChartType     as long = TKCHART_TYPE_LINE
+    pLabelFont     as TTF_Font ptr        ' borrowed, all three
+    pTitleFont     as TTF_Font ptr
+    pSubtitleFont  as TTF_Font ptr
+    colors         as TKCHART_COLORS
+    palette(0 to TKCHART_PALETTE_COUNT - 1) as ulong
+    series(any)    as TKCHART_SERIES
+    seriesCount    as long
+    bands(any)     as TKCHART_BAND
+    bandCount      as long
+    updateDepth    as long
+    bLayoutDirty   as boolean = true
+    bEnabled       as boolean = true
+
+    wszTitle       as ustring
+    wszSubtitle    as ustring
+    bLegendVisible as boolean
+    nLegendPos     as long = CHT_LEGEND_BOTTOM
+    nPadding       as long
+    nChromeGap     as long
+
+    bAutoScale     as boolean = true
+    fUserMin       as double
+    fUserMax       as double
+    nTickHint      as long = TKCHART_DEFAULT_TICKHINT
+    bGridHorz      as boolean = true
+    bGridVert      as boolean
+    nDecimals      as long = TKCHART_DECIMALS_AUTO
+    bThousands     as boolean = true
+    nLabelSkip     as long = TKCHART_SKIP_AUTO
+    nAxisThick     as long = 1               ' never scaled
+    nGridThick     as long = 1               ' never scaled
+    nTickLen       as long
+
+    nBarGap        as long
+    nGroupGapPct   as long = TKCHART_DEFAULT_GROUPGAPPCT
+    nColumnMode    as long = CHT_COL_GROUPED
+    nHlocTick      as long
+    bHlocUpDown    as boolean
+    fDoughnutRatio as single
+    nPieLabelMode  as long = CHT_PIELABEL_VALUE
+    nPieLabelPlace as long = CHT_PIEPLACE_AUTO
+    fPieStartAngle as single = -90.0
+    nPieSliceGap   as long = TKCHART_DEFAULT_PIEGAP
+
+    rcClient       as TKRECT
+    rcPlot         as TKRECT
+    rcTitle        as TKRECT
+    rcSubtitle     as TKRECT
+    rcLegend       as TKRECT
+    rcAxisX        as TKRECT
+    rcAxisY        as TKRECT
+    rcPie          as TKRECT
+    fMin           as double
+    fMax           as double
+    fStep          as double
+    nResDecimals   as long
+    nOriginY       as long
+    nCatCount      as long
+    fSlotWidth     as single
+    nLabelStride   as long = 1
+    nLabelH        as long
+
+    nHotSeries     as long = -1
+    nHotPoint      as long = -1
+    nHitRadius     as long
+    tip            as TKTIPHOST_STATE
+    wszTipText     as ustring
+
+    PaintCallback      as CHT_PaintCallbackSub
+    MessageCallback    as CHT_MessageCallbackFunc
+    TooltipCallback    as CHT_TooltipCallbackFunc
+    ValueLabelCallback as CHT_ValueLabelCallbackFunc
+    HotChangeCallback  as CHT_HotChangeCallbackSub
+
+    declare sub      Refresh()
+    declare function IsValidSeries( byval idx as long ) as boolean
+    declare function GetSeries( byval idx as long ) as TKCHART_SERIES ptr
+    declare function IsValidPoint( byval iSer as long, byval iPt as long ) as boolean
+    declare function GetPoint( byval iSer as long, byval iPt as long ) as TKCHART_POINT ptr
+    declare function AddSeries() as long
+    declare function FindBand( byval a as long, byval b as long ) as long
+    declare sub      ClearAll()
+    declare function CategoryCount() as long
+    declare function VisibleSeriesCount() as long
+    declare function ResolveSeriesColor( byval idx as long ) as ulong
+    declare function LabelFont() as TTF_Font ptr
+    declare function ValueToY( byval fValue as double ) as long
+    declare function YToValue( byval y as long ) as double
+    declare function SlotCenterX( byval iCat as long ) as long
+    declare function FormatValue( byval fValue as double, byval nContext as long ) as ustring
+    declare sub      ResolveRange()
+    declare sub      LayoutChart()
+    declare sub      LayoutPoints()
+    declare sub      LayoutStackedColumns()
+    declare sub      LayoutPieSlices()
+    declare function PieLabelText( byval iPt as long ) as ustring
+    declare function PieTotal() as double
+end type
+
+
+' ========================================================================================
+' Pure helpers (vendor's, verbatim)
+' ========================================================================================
+' Snap a range to readable gridlines: a 1/2/5 x 10^n step, bounds floored / ceiled to it.
+public sub CHT_NiceRange( byval fRawMin as double, byval fRawMax as double, byval nTickHint as long, _
+                          byref fOutMin as double, byref fOutMax as double, byref fOutStep as double )
+    dim as long hint = nTickHint
+    if hint < 2 then hint = 2
+    if hint > 20 then hint = 20
+    dim as double lo = fRawMin, hi = fRawMax
+    if hi < lo then swap lo, hi
+    ' a flat series opens a synthetic window: +-10%, or +-1 around zero
+    if hi <= lo then
+        if abs( lo ) < 0.0000001 then
+            lo = -1.0 : hi = 1.0
+        else
+            dim as double m = abs( lo ) * 0.1
+            lo -= m : hi += m
+        end if
+    end if
+    dim as double span = hi - lo
+    dim as double rawStep = span / csng( hint )
+    dim as double mag = 10.0 ^ int( log( rawStep ) / log( 10.0 ) )
+    dim as double norm = rawStep / mag
+    dim as double nice
+    if norm <= 1.0 then
+        nice = 1.0
+    elseif norm <= 2.0 then
+        nice = 2.0
+    elseif norm <= 5.0 then
+        nice = 5.0
+    else
+        nice = 10.0
+    end if
+    dim as double stepv = nice * mag
+    if stepv <= 0.0 then stepv = 1.0
+    fOutStep = stepv
+    fOutMin = int( lo / stepv ) * stepv
+    fOutMax = -int( -hi / stepv ) * stepv
+    if fOutMax <= fOutMin then fOutMax = fOutMin + stepv
+end sub
+
+' Digits until the step becomes WHOLE: 0.25 needs two.
+public function CHT_AutoDecimals( byval fStep as double ) as long
+    if fStep <= 0.0 then return 0
+    dim as double s = abs( fStep )
+    dim as long d = 0
+    do while d < 8
+        if abs( s - int( s + 0.5 ) ) < 0.000000001 then exit do
+        s *= 10.0
+        d += 1
+    loop
+    return d
+end function
+
+' Fixed point, optional "," grouping, locale-independent. int() then cast: clngint already
+' rounds, so "+0.5 then cast" would round twice.
+public function CHT_FormatNumber( byval fValue as double, byval nDecimals as long, byval bThousands as boolean ) as ustring
+    dim as long d = nDecimals
+    if d < 0 then d = 0
+    if d > 8 then d = 8
+    dim as boolean bNeg = (fValue < 0.0)
+    dim as double v = abs( fValue )
+    dim as double scale = 10.0 ^ d
+    dim as longint scaled = clngint( int( v * scale + 0.5 ) )
+    dim as longint ipart = scaled \ clngint( scale )
+    dim as longint fpart = scaled mod clngint( scale )
+    dim as string si = str( ipart )
+    if bThousands andalso (len( si ) > 3) then
+        dim as string grouped
+        dim as long n = len( si )
+        for i as long = 0 to n - 1
+            if (i > 0) andalso (((n - i) mod 3) = 0) then grouped &= ","
+            grouped &= mid( si, i + 1, 1 )
+        next
+        si = grouped
+    end if
+    dim as string sOut = si
+    if d > 0 then
+        dim as string sf = str( fpart )
+        do while len( sf ) < d
+            sf = "0" & sf
+        loop
+        sOut &= "." & sf
+    end if
+    if bNeg andalso (scaled <> 0) then sOut = "-" & sOut
+    dim as ustring w = sOut
+    return w
+end function
+
+
+' ========================================================================================
+' Type methods
+' ========================================================================================
+sub TKCHART_STATE.Refresh()
+    this.bLayoutDirty = true
+    if this.updateDepth > 0 then exit sub
+    if this.hWin then tkWidget_Invalidate( this.hWin )
+end sub
+
+function TKCHART_STATE.IsValidSeries( byval idx as long ) as boolean
+    return (idx >= 0) andalso (idx < this.seriesCount)
+end function
+
+function TKCHART_STATE.GetSeries( byval idx as long ) as TKCHART_SERIES ptr
+    if this.IsValidSeries( idx ) = false then return 0
+    return @this.series(idx)
+end function
+
+function TKCHART_STATE.IsValidPoint( byval iSer as long, byval iPt as long ) as boolean
+    if this.IsValidSeries( iSer ) = false then return false
+    return (iPt >= 0) andalso (iPt < this.series(iSer).pointCount)
+end function
+
+function TKCHART_STATE.GetPoint( byval iSer as long, byval iPt as long ) as TKCHART_POINT ptr
+    if this.IsValidPoint( iSer, iPt ) = false then return 0
+    return @this.series(iSer).points(iPt)
+end function
+
+function TKCHART_STATE.FindBand( byval a as long, byval b as long ) as long
+    for k as long = 0 to this.bandCount - 1
+        dim as boolean bSame = (this.bands(k).iLo = a) andalso (this.bands(k).iHi = b)
+        dim as boolean bSwap = (this.bands(k).iLo = b) andalso (this.bands(k).iHi = a)
+        if bSame orelse bSwap then return k
+    next
+    return -1
+end function
+
+' The recycled slot is reset in full: a cleared-and-repopulated chart must not inherit a name.
+function TKCHART_STATE.AddSeries() as long
+    dim as long cap = ubound( this.series ) + 1
+    if this.seriesCount >= cap then
+        dim as long newcap = iif( cap = 0, 16, cap * 2 )
+        redim preserve this.series( 0 to newcap - 1 )
+    end if
+    with this.series(this.seriesCount)
+        .SeriesName = ""
+        .bHasColor = false
+        .SeriesColor = 0
+        .nLineWidth = TKCHART_DEFAULT_LINEWIDTH
+        .nLineStyle = CHT_LINE_SOLID
+        .nSymbol = CHT_SYM_NONE
+        .nSymbolSize = tkHost_Scale( this.hWin->pHost, TKCHART_DEFAULT_SYMBOLSIZE )
+        .bSmooth = false
+        .bHasFill = false
+        .FillColor = 0
+        .nFillAlpha = 255
+        .bVisible = true
+        .pointCount = 0
+    end with
+    this.seriesCount += 1
+    this.Refresh()
+    return this.seriesCount - 1
+end function
+
+sub TKCHART_STATE.ClearAll()
+    for i as long = 0 to this.seriesCount - 1
+        for j as long = 0 to this.series(i).pointCount - 1
+            this.series(i).points(j).Text = ""
+        next
+        this.series(i).pointCount = 0
+        this.series(i).SeriesName = ""
+    next
+    this.seriesCount = 0
+    this.bandCount = 0           ' a band names series by INDEX: it goes with them
+    this.nHotSeries = -1
+    this.nHotPoint = -1
+    this.Refresh()
+end sub
+
+' The LONGEST visible series, not series 0's count.
+function TKCHART_STATE.CategoryCount() as long
+    dim as long n = 0
+    for i as long = 0 to this.seriesCount - 1
+        if this.series(i).bVisible andalso (this.series(i).pointCount > n) then n = this.series(i).pointCount
+    next
+    return n
+end function
+
+function TKCHART_STATE.VisibleSeriesCount() as long
+    dim as long n = 0
+    for i as long = 0 to this.seriesCount - 1
+        if this.series(i).bVisible then n += 1
+    next
+    return n
+end function
+
+function TKCHART_STATE.ResolveSeriesColor( byval idx as long ) as ulong
+    if this.IsValidSeries( idx ) then
+        if this.series(idx).bHasColor then return this.series(idx).SeriesColor
+    end if
+    dim as long i = idx mod TKCHART_PALETTE_COUNT
+    if i < 0 then i = 0
+    return this.palette(i)
+end function
+
+function TKCHART_STATE.LabelFont() as TTF_Font ptr
+    if this.pLabelFont then return this.pLabelFont
+    return this.hWin->pHost->pDefaultFont
+end function
+
+' The axis minimum maps EXACTLY to rcPlot.bottom and the maximum to rcPlot.top.
+function TKCHART_STATE.ValueToY( byval fValue as double ) as long
+    dim as long h = this.rcPlot.bottom - this.rcPlot.top
+    if h <= 0 then return this.rcPlot.top
+    dim as double span = this.fMax - this.fMin
+    if span <= 0.0 then return this.rcPlot.bottom
+    dim as double t = (fValue - this.fMin) / span
+    return this.rcPlot.bottom - clng( int( t * h + 0.5 ) )
+end function
+
+function TKCHART_STATE.YToValue( byval y as long ) as double
+    dim as long h = this.rcPlot.bottom - this.rcPlot.top
+    if h <= 0 then return this.fMin
+    dim as double t = csng( this.rcPlot.bottom - y ) / csng( h )
+    return this.fMin + t * (this.fMax - this.fMin)
+end function
+
+function TKCHART_STATE.SlotCenterX( byval iCat as long ) as long
+    return this.rcPlot.left + clng( (iCat + 0.5) * this.fSlotWidth )
+end function
+
+' The host's formatter first; "" falls back to the control's.
+function TKCHART_STATE.FormatValue( byval fValue as double, byval nContext as long ) as ustring
+    if this.ValueLabelCallback then
+        dim as ustring wsz = this.ValueLabelCallback( this.hWin, fValue, nContext )
+        if len( wsz ) then return wsz
+    end if
+    return CHT_FormatNumber( fValue, this.nResDecimals, this.bThousands )
+end function
+
+private sub CHT_MeasureText( byval f as TTF_Font ptr, byref s as ustring, byref nW as long, byref nH as long )
+    nW = 0 : nH = 0
+    if f = 0 then exit sub
+    nH = tkText_Height( f )                ' the font's height, so digits and "Apples" share a baseline
+    if len( s ) then nW = tkText_Width( f, s )
+end sub
+
+' Vendor's ResolveRange, unchanged.
+sub TKCHART_STATE.ResolveRange()
+    if this.nChartType = TKCHART_TYPE_PIE then
+        this.fMin = 0.0 : this.fMax = 1.0 : this.fStep = 1.0
+        this.nResDecimals = iif( this.nDecimals = TKCHART_DECIMALS_AUTO, 0, this.nDecimals )
+        exit sub
+    end if
+    if this.bAutoScale = false then
+        this.fMin = this.fUserMin
+        this.fMax = this.fUserMax
+        if this.fMax <= this.fMin then this.fMax = this.fMin + 1.0
+        dim as double dummyMin, dummyMax, fS
+        CHT_NiceRange( this.fMin, this.fMax, this.nTickHint, dummyMin, dummyMax, fS )
+        this.fStep = fS
+        this.nResDecimals = iif( this.nDecimals = TKCHART_DECIMALS_AUTO, CHT_AutoDecimals( fS ), this.nDecimals )
+        exit sub
+    end if
+    dim as double rawMin = 0.0, rawMax = 0.0
+    dim as boolean bAny = false
+    ' STACKED: scaled by the totals, positives and negatives separately
+    if (this.nChartType = TKCHART_TYPE_COLUMN) andalso (this.nColumnMode = CHT_COL_STACKED) then
+        dim as long nCat = this.CategoryCount()
+        for j as long = 0 to nCat - 1
+            dim as double sumPos = 0.0, sumNeg = 0.0
+            for i as long = 0 to this.seriesCount - 1
+                if this.series(i).bVisible = false then continue for
+                if j >= this.series(i).pointCount then continue for
+                dim as double v = this.series(i).points(j).Value
+                if v >= 0.0 then sumPos += v else sumNeg += v
+            next
+            if bAny = false then
+                rawMin = sumNeg : rawMax = sumPos : bAny = true
+            else
+                if sumNeg < rawMin then rawMin = sumNeg
+                if sumPos > rawMax then rawMax = sumPos
+            end if
+        next
+        if rawMin > 0.0 then rawMin = 0.0
+        if rawMax < 0.0 then rawMax = 0.0
+        dim as double fLoS, fHiS, fSS
+        CHT_NiceRange( rawMin, rawMax, this.nTickHint, fLoS, fHiS, fSS )
+        this.fMin = fLoS : this.fMax = fHiS : this.fStep = fSS
+        this.nResDecimals = iif( this.nDecimals = TKCHART_DECIMALS_AUTO, CHT_AutoDecimals( fSS ), this.nDecimals )
+        exit sub
+    end if
+    for i as long = 0 to this.seriesCount - 1
+        if this.series(i).bVisible = false then continue for
+        for j as long = 0 to this.series(i).pointCount - 1
+            dim as double lo, hi
+            if this.nChartType = TKCHART_TYPE_HLOC then
+                lo = this.series(i).points(j).LowVal          ' low and high, NEVER the close
+                hi = this.series(i).points(j).HighVal
+                if hi < lo then swap lo, hi
+            else
+                lo = this.series(i).points(j).Value
+                hi = lo
+            end if
+            if bAny = false then
+                rawMin = lo : rawMax = hi : bAny = true
+            else
+                if lo < rawMin then rawMin = lo
+                if hi > rawMax then rawMax = hi
+            end if
+        next
+    next
+    if bAny = false then rawMin = 0.0 : rawMax = 1.0
+    ' a COLUMN chart always includes zero; line and HLOC do not
+    if this.nChartType = TKCHART_TYPE_COLUMN then
+        if rawMin > 0.0 then rawMin = 0.0
+        if rawMax < 0.0 then rawMax = 0.0
+    end if
+    dim as double fLo, fHi, fS
+    CHT_NiceRange( rawMin, rawMax, this.nTickHint, fLo, fHi, fS )
+    this.fMin = fLo : this.fMax = fHi : this.fStep = fS
+    this.nResDecimals = iif( this.nDecimals = TKCHART_DECIMALS_AUTO, CHT_AutoDecimals( fS ), this.nDecimals )
+end sub
+
+' Vendor's LayoutChart: title, subtitle, legend, then the pie's square or the axis gutters.
+sub TKCHART_STATE.LayoutChart()
+    if this.hWin = 0 then exit sub
+    dim as long cw = this.hWin->cw, ch = this.hWin->ch
+    tkRect_Set( this.rcClient, 0, 0, cw, ch )
+    if (cw <= 0) orelse (ch <= 0) then
+        this.bLayoutDirty = true
+        exit sub
+    end if
+    this.ResolveRange()
+    this.nCatCount = this.CategoryCount()
+    dim as TTF_Font ptr fLab = this.LabelFont()
+    dim as long nW, nH
+    CHT_MeasureText( fLab, "0123456789", nW, nH )
+    if nH <= 0 then
+        this.bLayoutDirty = true
+        exit sub
+    end if
+    this.nLabelH = nH
+
+    dim as TKRECT rc = this.rcClient
+    tkRect_Inflate( rc, -this.nPadding, -this.nPadding )
+    tkRect_SetEmpty( this.rcTitle )
+    tkRect_SetEmpty( this.rcSubtitle )
+    tkRect_SetEmpty( this.rcLegend )
+    tkRect_SetEmpty( this.rcAxisX )
+    tkRect_SetEmpty( this.rcAxisY )
+    tkRect_SetEmpty( this.rcPie )
+
+    if len( this.wszTitle ) then
+        dim as long tw, th
+        CHT_MeasureText( iif( this.pTitleFont <> 0, this.pTitleFont, fLab ), this.wszTitle, tw, th )
+        if th <= 0 then th = this.nLabelH
+        this.rcTitle = rc
+        this.rcTitle.bottom = rc.top + th
+        rc.top = this.rcTitle.bottom + this.nChromeGap
+    end if
+    if len( this.wszSubtitle ) then
+        dim as long tw, th
+        CHT_MeasureText( iif( this.pSubtitleFont <> 0, this.pSubtitleFont, fLab ), this.wszSubtitle, tw, th )
+        if th <= 0 then th = this.nLabelH
+        this.rcSubtitle = rc
+        this.rcSubtitle.bottom = rc.top + th
+        rc.top = this.rcSubtitle.bottom + this.nChromeGap
+    end if
+
+    ' the legend: series for the axis charts, series 0's POINTS for a pie
+    if this.bLegendVisible andalso (this.seriesCount > 0) then
+        dim as long nEntries = 0, widest = 0
+        if this.nChartType = TKCHART_TYPE_PIE then
+            nEntries = this.series(0).pointCount
+            for j as long = 0 to nEntries - 1
+                dim as long ew, eh
+                CHT_MeasureText( fLab, this.series(0).points(j).Text, ew, eh )
+                if ew > widest then widest = ew
+            next
+        else
+            for i as long = 0 to this.seriesCount - 1
+                if this.series(i).bVisible = false then continue for
+                nEntries += 1
+                dim as long ew, eh
+                CHT_MeasureText( fLab, this.series(i).SeriesName, ew, eh )
+                if ew > widest then widest = ew
+            next
+        end if
+        if nEntries > 0 then
+            dim as long swatch = this.nLabelH
+            select case this.nLegendPos
+            case CHT_LEGEND_LEFT, CHT_LEGEND_RIGHT
+                dim as long lw = swatch + this.nChromeGap + widest
+                if lw > (rc.right - rc.left) \ 2 then lw = (rc.right - rc.left) \ 2
+                this.rcLegend = rc
+                if this.nLegendPos = CHT_LEGEND_LEFT then
+                    this.rcLegend.right = rc.left + lw
+                    rc.left = this.rcLegend.right + this.nChromeGap
+                else
+                    this.rcLegend.left = rc.right - lw
+                    rc.right = this.rcLegend.left - this.nChromeGap
+                end if
+            case else
+                this.rcLegend = rc
+                if this.nLegendPos = CHT_LEGEND_TOP then
+                    this.rcLegend.bottom = rc.top + swatch
+                    rc.top = this.rcLegend.bottom + this.nChromeGap
+                else
+                    this.rcLegend.top = rc.bottom - swatch
+                    rc.bottom = this.rcLegend.top - this.nChromeGap
+                end if
+            end select
+        end if
+    end if
+
+    if this.nChartType = TKCHART_TYPE_PIE then
+        this.rcPlot = rc
+        this.nOriginY = rc.bottom
+        this.fSlotWidth = 0.0
+        this.nLabelStride = 1
+        dim as long pw = rc.right - rc.left, ph = rc.bottom - rc.top
+        if (pw <= 0) orelse (ph <= 0) then exit sub
+        ' room for whatever sits outside the rim, reserved BEFORE the square is cut
+        dim as long inset = 0
+        if this.seriesCount > 0 then
+            for j as long = 0 to this.series(0).pointCount - 1
+                if this.series(0).points(j).nExplode > inset then inset = this.series(0).points(j).nExplode
+            next
+        end if
+        if (this.nPieLabelMode <> CHT_PIELABEL_NONE) andalso (this.nPieLabelPlace <> CHT_PIEPLACE_INSIDE) then
+            dim as long lw = 0, lh = 0
+            CHT_MeasureText( fLab, "MMMMMMMM", lw, lh )
+            inset += lw \ 2 + this.nChromeGap * 2
+        end if
+        dim as long side = iif( pw < ph, pw, ph ) - inset * 2
+        if side < 20 then
+            side = iif( pw < ph, pw, ph )
+            if side < 8 then exit sub
+        end if
+        this.rcPie.left = rc.left + (pw - side) \ 2
+        this.rcPie.top = rc.top + (ph - side) \ 2
+        this.rcPie.right = this.rcPie.left + side
+        this.rcPie.bottom = this.rcPie.top + side
+        this.LayoutPieSlices()
+        exit sub
+    end if
+
+    ' the value gutter: as wide as the widest label it will draw
+    dim as long gutter = 0
+    if this.fStep > 0.0 then
+        dim as double v = this.fMin
+        dim as long guard = 0
+        do while (v <= this.fMax + this.fStep * 0.5) andalso (guard < 1000)
+            dim as ustring wsz = this.FormatValue( v, CHT_FMT_AXIS )
+            dim as long lw, lh
+            CHT_MeasureText( fLab, wsz, lw, lh )
+            if lw > gutter then gutter = lw
+            v += this.fStep
+            guard += 1
+        loop
+    end if
+    if gutter > 0 then gutter += this.nTickLen
+    this.rcAxisY = rc
+    this.rcAxisY.right = rc.left + gutter
+    rc.left = this.rcAxisY.right
+    this.rcAxisX = rc
+    this.rcAxisX.top = rc.bottom - (this.nLabelH + this.nTickLen)
+    rc.bottom = this.rcAxisX.top
+    this.rcPlot = rc
+    if (this.rcPlot.bottom - this.rcPlot.top) < 4 then
+        this.bLayoutDirty = true
+        exit sub
+    end if
+    this.rcAxisY.top = this.rcPlot.top
+    this.rcAxisY.bottom = this.rcPlot.bottom
+    ' value 0, CLAMPED into the plot
+    this.nOriginY = this.ValueToY( 0.0 )
+    if this.nOriginY > this.rcPlot.bottom then this.nOriginY = this.rcPlot.bottom
+    if this.nOriginY < this.rcPlot.top then this.nOriginY = this.rcPlot.top
+
+    dim as long plotW = this.rcPlot.right - this.rcPlot.left
+    this.fSlotWidth = iif( this.nCatCount > 0, csng( plotW ) / csng( this.nCatCount ), 0.0 )
+    this.nLabelStride = 1
+    if this.nLabelSkip > 0 then
+        this.nLabelStride = this.nLabelSkip
+    elseif this.nCatCount > 1 then
+        ' auto-skip by the WIDEST label: one long label in a run of short ones is what collides
+        dim as long widestCat = 0
+        if this.seriesCount > 0 then
+            for j as long = 0 to this.series(0).pointCount - 1
+                dim as long lw, lh
+                CHT_MeasureText( fLab, this.series(0).points(j).Text, lw, lh )
+                if lw > widestCat then widestCat = lw
+            next
+        end if
+        if (widestCat > 0) andalso (this.fSlotWidth > 0.0) then
+            dim as single need = csng( widestCat + tkHost_Scale( this.hWin->pHost, TKCHART_DEFAULT_LABELGAP ) )
+            dim as long stride = clng( need / this.fSlotWidth )
+            if stride * this.fSlotWidth < need then stride += 1
+            if stride < 1 then stride = 1
+            this.nLabelStride = stride
+        end if
+    end if
+    this.LayoutPoints()
+end sub
+
+' One bar per category, the visible series piled up it: category-outer, totals in VALUE space.
+sub TKCHART_STATE.LayoutStackedColumns()
+    for i as long = 0 to this.seriesCount - 1
+        if this.series(i).bVisible then continue for
+        for j as long = 0 to this.series(i).pointCount - 1
+            tkRect_SetEmpty( this.series(i).points(j).rc )
+            this.series(i).points(j).ptPlot.x = 0
+            this.series(i).points(j).ptPlot.y = 0
+        next
+    next
+    dim as long gap = this.nGroupGapPct
+    if gap < 0 then gap = 0
+    if gap > 90 then gap = 90
+    dim as single groupW = this.fSlotWidth * (1.0 - csng( gap ) / 100.0)
+    for j as long = 0 to this.nCatCount - 1
+        dim as long cx = this.SlotCenterX( j )
+        dim as long bl = clng( csng( cx ) - groupW / 2.0 )
+        dim as long br = clng( csng( cx ) + groupW / 2.0 )
+        if br <= bl then br = bl + 1
+        dim as double accPos = 0.0, accNeg = 0.0
+        for i as long = 0 to this.seriesCount - 1
+            if this.series(i).bVisible = false then continue for
+            if j >= this.series(i).pointCount then continue for
+            dim as TKCHART_POINT ptr p = @this.series(i).points(j)
+            dim as long yFrom, yTo
+            if p->Value >= 0.0 then
+                yFrom = this.ValueToY( accPos )
+                accPos += p->Value
+                yTo = this.ValueToY( accPos )
+            else
+                yFrom = this.ValueToY( accNeg )
+                accNeg += p->Value
+                yTo = this.ValueToY( accNeg )
+            end if
+            p->rc.left = bl
+            p->rc.right = br
+            if yTo <= yFrom then
+                p->rc.top = yTo : p->rc.bottom = yFrom
+            else
+                p->rc.top = yFrom : p->rc.bottom = yTo
+            end if
+            p->ptPlot.x = (bl + br) \ 2
+            p->ptPlot.y = yTo
+        next
+    next
+end sub
+
+sub TKCHART_STATE.LayoutPoints()
+    dim as long nVis = this.VisibleSeriesCount()
+    if (this.nChartType = TKCHART_TYPE_COLUMN) andalso (this.nColumnMode = CHT_COL_STACKED) then
+        this.LayoutStackedColumns()
+        exit sub
+    end if
+    dim as single groupW = 0.0, barW = 0.0
+    if (this.nChartType = TKCHART_TYPE_COLUMN) andalso (nVis > 0) then
+        dim as long gap = this.nGroupGapPct
+        if gap < 0 then gap = 0
+        if gap > 90 then gap = 90
+        groupW = this.fSlotWidth * (1.0 - csng( gap ) / 100.0)
+        barW = (groupW - csng( (nVis - 1) * this.nBarGap )) / csng( nVis )
+        if barW < 1.0 then barW = 1.0               ' a hairline says "too narrow"; nothing does not
+    end if
+    dim as long kVis = -1
+    for i as long = 0 to this.seriesCount - 1
+        if this.series(i).bVisible = false then
+            ' EMPTY rects, not stale ones: the hit test walks every point of every series
+            for j as long = 0 to this.series(i).pointCount - 1
+                tkRect_SetEmpty( this.series(i).points(j).rc )
+                this.series(i).points(j).ptPlot.x = 0
+                this.series(i).points(j).ptPlot.y = 0
+            next
+            continue for
+        end if
+        kVis += 1
+        for j as long = 0 to this.series(i).pointCount - 1
+            dim as TKCHART_POINT ptr p = @this.series(i).points(j)
+            dim as long cx = this.SlotCenterX( j )
+            select case this.nChartType
+            case TKCHART_TYPE_COLUMN
+                dim as single gLeft = csng( cx ) - groupW / 2.0
+                dim as long bl = clng( gLeft + csng( kVis ) * (barW + csng( this.nBarGap )) )
+                dim as long br = bl + clng( barW )
+                if br <= bl then br = bl + 1
+                dim as long yv = this.ValueToY( p->Value )
+                p->rc.left = bl
+                p->rc.right = br
+                if yv <= this.nOriginY then
+                    p->rc.top = yv : p->rc.bottom = this.nOriginY
+                else
+                    p->rc.top = this.nOriginY : p->rc.bottom = yv
+                end if
+                p->ptPlot.x = (bl + br) \ 2
+                p->ptPlot.y = yv
+            case TKCHART_TYPE_HLOC
+                dim as long yHi = this.ValueToY( p->HighVal )
+                dim as long yLo = this.ValueToY( p->LowVal )
+                if yHi > yLo then swap yHi, yLo
+                ' the hit band is the whole slot, not the wick
+                dim as long half = clng( this.fSlotWidth / 2.0 )
+                if half < 1 then half = 1
+                p->rc.left = cx - half
+                p->rc.right = cx + half
+                p->rc.top = yHi
+                p->rc.bottom = yLo
+                if p->rc.bottom <= p->rc.top then p->rc.bottom = p->rc.top + 1
+                p->ptPlot.x = cx
+                p->ptPlot.y = this.ValueToY( p->CloseVal )
+            case else
+                dim as long yv = this.ValueToY( p->Value )
+                p->ptPlot.x = cx
+                p->ptPlot.y = yv
+                dim as long hr = this.nHitRadius
+                if hr < 1 then hr = 1
+                p->rc.left = cx - hr : p->rc.right = cx + hr
+                p->rc.top = yv - hr : p->rc.bottom = yv + hr
+            end select
+        next
+    next
+end sub
+
+' The sum of ABSOLUTE values of series 0.
+function TKCHART_STATE.PieTotal() as double
+    if this.seriesCount <= 0 then return 0.0
+    dim as double t = 0.0
+    for j as long = 0 to this.series(0).pointCount - 1
+        t += abs( this.series(0).points(j).Value )
+    next
+    return t
+end function
+
+' What slice iPt says -- one function, so the string measured is the string drawn.
+function TKCHART_STATE.PieLabelText( byval iPt as long ) as ustring
+    if this.IsValidPoint( 0, iPt ) = false then return ""
+    dim as TKCHART_POINT ptr p = @this.series(0).points(iPt)
+    select case this.nPieLabelMode
+    case CHT_PIELABEL_NONE
+        return ""
+    case CHT_PIELABEL_NAME
+        return p->Text
+    case CHT_PIELABEL_PERCENT, CHT_PIELABEL_NAME_PERCENT
+        dim as double total = this.PieTotal()
+        dim as long pct = 0
+        if total > 0.0 then pct = clng( int( abs( p->Value ) / total * 100.0 + 0.5 ) )
+        dim as ustring wsz = str( pct ) & "%"
+        if (this.nPieLabelMode = CHT_PIELABEL_NAME_PERCENT) andalso (len( p->Text ) > 0) then wsz = p->Text & " " & wsz
+        return wsz
+    case else
+        return this.FormatValue( p->Value, CHT_FMT_PIELABEL )
+    end select
+end function
+
+' One sweep per point of series 0, each label's box and whether it fits. Degrees, 0 = 3 o'clock,
+' clockwise (screen y grows down), so plain cos / sin need no sign flip.
+sub TKCHART_STATE.LayoutPieSlices()
+    if (this.seriesCount <= 0) orelse tkRect_IsEmpty( this.rcPie ) then exit sub
+    const PI_ = 3.14159265358979323846
+    dim as TTF_Font ptr fLab = this.LabelFont()
+    dim as double total = this.PieTotal()
+    dim as single ang = this.fPieStartAngle
+    dim as long cx = (this.rcPie.left + this.rcPie.right) \ 2
+    dim as long cy = (this.rcPie.top + this.rcPie.bottom) \ 2
+    dim as single radius = csng( this.rcPie.right - this.rcPie.left ) / 2.0
+    for j as long = 0 to this.series(0).pointCount - 1
+        dim as TKCHART_POINT ptr p = @this.series(0).points(j)
+        p->fStart = ang
+        p->fSweep = iif( total > 0.0, csng( abs( p->Value ) / total * 360.0 ), 0.0 )
+        ang += p->fSweep
+        p->bLabelOut = false
+        p->bLabelHid = false
+        tkRect_SetEmpty( p->rc )
+        if p->fSweep <= 0.0 then continue for
+        dim as single midDeg = p->fStart + p->fSweep / 2.0
+        dim as double rad = csng( midDeg ) * PI_ / 180.0
+        dim as single ux = csng( cos( rad ) ), uy = csng( sin( rad ) )
+        ' everything from the SLICE's centre, shifted when exploded
+        dim as single scx = csng( cx ) + ux * csng( p->nExplode )
+        dim as single scy = csng( cy ) + uy * csng( p->nExplode )
+        p->ptPlot.x = clng( scx + ux * radius )
+        p->ptPlot.y = clng( scy + uy * radius )
+        dim as ustring wsz = this.PieLabelText( j )
+        if len( wsz ) = 0 then continue for
+        dim as long lw, lh
+        CHT_MeasureText( fLab, wsz, lw, lh )
+        if (lw <= 0) orelse (lh <= 0) then continue for
+        dim as single rIn = radius * 0.65
+        dim as single ilx = scx + ux * rIn, ily = scy + uy * rIn
+        ' fits when the wedge's chord at the label's radius holds the measured string
+        dim as double halfSweep = csng( p->fSweep ) / 2.0 * PI_ / 180.0
+        dim as single chord = csng( 2.0 * rIn * sin( halfSweep ) )
+        dim as boolean bFits = (chord >= csng( lw )) andalso (rIn >= csng( lh ))
+        dim as boolean bOutside = false
+        select case this.nPieLabelPlace
+        case CHT_PIEPLACE_OUTSIDE
+            bOutside = true
+        case CHT_PIEPLACE_INSIDE
+            if bFits = false then
+                p->bLabelHid = true
+                continue for
+            end if
+        case else
+            bOutside = (bFits = false)
+        end select
+        if bOutside then
+            dim as single olx = scx + ux * (radius + csng( this.nChromeGap ) * 2.0)
+            dim as single oly = scy + uy * (radius + csng( this.nChromeGap ) * 2.0)
+            p->bLabelOut = true
+            p->rc.top = clng( oly ) - lh \ 2
+            p->rc.bottom = p->rc.top + lh
+            if ux >= 0.0 then
+                p->rc.left = clng( olx )
+                p->rc.right = p->rc.left + lw
+            else
+                p->rc.right = clng( olx )
+                p->rc.left = p->rc.right - lw
+            end if
+        else
+            p->rc.left = clng( ilx ) - lw \ 2
+            p->rc.right = p->rc.left + lw
+            p->rc.top = clng( ily ) - lh \ 2
+            p->rc.bottom = p->rc.top + lh
+        end if
+    next
+end sub
+
+
+' ========================================================================================
+' Internals: hit test, tooltip text
+' ========================================================================================
+private function GetChartPointer( byval hChart as TK_WIDGET ptr ) as TKCHART_STATE ptr
+    if hChart = 0 then return 0
+    return cast( TKCHART_STATE ptr, hChart->pData )
+end function
+
+private sub CHT_EnsureLayout( byval pChart as TKCHART_STATE ptr )
+    if (pChart = 0) orelse (pChart->bLayoutDirty = false) then exit sub
+    pChart->bLayoutDirty = false
+    pChart->LayoutChart()
+end sub
+
+' The SAME rects the renderer draws.
+private function CHT_HitTest( byval pChart as TKCHART_STATE ptr, byval x as long, byval y as long, _
+                              byref iSeries as long, byref iPoint as long ) as boolean
+    iSeries = -1 : iPoint = -1
+    if pChart = 0 then return false
+    if pChart->nChartType = TKCHART_TYPE_PIE then
+        if (pChart->seriesCount <= 0) orelse tkRect_IsEmpty( pChart->rcPie ) then return false
+        const PI_ = 3.14159265358979323846
+        dim as long cx = (pChart->rcPie.left + pChart->rcPie.right) \ 2
+        dim as long cy = (pChart->rcPie.top + pChart->rcPie.bottom) \ 2
+        dim as single radius = csng( pChart->rcPie.right - pChart->rcPie.left ) / 2.0
+        if radius <= 0.0 then return false
+        dim as single rInner = radius * pChart->fDoughnutRatio
+        for j as long = 0 to pChart->series(0).pointCount - 1
+            dim as TKCHART_POINT ptr p = @pChart->series(0).points(j)
+            if p->fSweep <= 0.0 then continue for
+            ' from the SLICE's centre: an exploded wedge has moved
+            dim as double midRad = csng( p->fStart + p->fSweep / 2.0 ) * PI_ / 180.0
+            dim as single scx = csng( cx ) + csng( cos( midRad ) ) * csng( p->nExplode )
+            dim as single scy = csng( cy ) + csng( sin( midRad ) ) * csng( p->nExplode )
+            dim as single dx = csng( x ) - scx, dy = csng( y ) - scy
+            dim as single dist = sqr( dx * dx + dy * dy )
+            if (dist > radius) orelse (dist < rInner) then continue for     ' the hole is a hole
+            dim as double a = atan2( dy, dx ) * 180.0 / PI_
+            dim as double s = p->fStart
+            do while s < 0.0 : s += 360.0 : loop
+            do while s >= 360.0 : s -= 360.0 : loop
+            do while a < 0.0 : a += 360.0 : loop
+            dim as double rel = a - s
+            if rel < 0.0 then rel += 360.0
+            if rel <= p->fSweep then
+                iSeries = 0 : iPoint = j
+                return true
+            end if
+        next
+        return false
+    end if
+    ' later series first: the one drawn on top answers
+    for i as long = pChart->seriesCount - 1 to 0 step -1
+        if pChart->series(i).bVisible = false then continue for
+        for j as long = 0 to pChart->series(i).pointCount - 1
+            if tkRect_Contains( pChart->series(i).points(j).rc, x, y ) then
+                iSeries = i : iPoint = j
+                return true
+            end if
+        next
+    next
+    return false
+end function
+
+' Authored text, then the callback, then the hot point described. No caption fallback.
+private function CHT_ResolveTooltipText( byval pChart as TKCHART_STATE ptr ) as ustring
+    if pChart = 0 then return ""
+    if len( pChart->wszTipText ) then return pChart->wszTipText
+    if pChart->TooltipCallback then
+        dim as ustring wsz = pChart->TooltipCallback( pChart->hWin )
+        if len( wsz ) then return wsz
+    end if
+    dim as long iSer = pChart->nHotSeries, iPt = pChart->nHotPoint
+    if pChart->IsValidPoint( iSer, iPt ) = false then return ""
+    dim as TKCHART_POINT ptr p = @pChart->series(iSer).points(iPt)
+    dim as ustring wsz
+    if len( p->Text ) then wsz = p->Text
+    dim as ustring v
+    select case pChart->nChartType
+    case TKCHART_TYPE_HLOC
+        v = "O " & pChart->FormatValue( p->OpenVal, CHT_FMT_TOOLTIP ) & "  H " & pChart->FormatValue( p->HighVal, CHT_FMT_TOOLTIP ) & _
+            "  L " & pChart->FormatValue( p->LowVal, CHT_FMT_TOOLTIP ) & "  C " & pChart->FormatValue( p->CloseVal, CHT_FMT_TOOLTIP )
+    case TKCHART_TYPE_PIE
+        dim as double total = pChart->PieTotal()
+        v = pChart->FormatValue( p->Value, CHT_FMT_TOOLTIP )
+        if total > 0.0 then v &= " (" & str( clng( int( abs( p->Value ) / total * 100.0 + 0.5 ) ) ) & "%)"
+    case else
+        v = pChart->FormatValue( p->Value, CHT_FMT_TOOLTIP )
+        if (pChart->seriesCount > 1) andalso (len( pChart->series(iSer).SeriesName ) > 0) then v = pChart->series(iSer).SeriesName & " " & v
+    end select
+    if len( wsz ) then wsz &= ": " & v else wsz = v
+    return wsz
+end function
+
+private function CHT_TipText( byval t as TK_TIP ptr, byval a as TK_WIDGET ptr, byval idx as long ) as ustring
+    return CHT_ResolveTooltipText( GetChartPointer( a ) )
+end function
+
+
+' ========================================================================================
+' Rendering. Bands, fills, polylines, markers; wedges, leaders, labels.
+' ========================================================================================
+private sub CHT_RenderColumn( byval pChart as TKCHART_STATE ptr, byval b as TK_PAINT ptr )
+    for i as long = 0 to pChart->seriesCount - 1
+        if pChart->series(i).bVisible = false then continue for
+        dim as ulong clrSer = pChart->ResolveSeriesColor( i )
+        for j as long = 0 to pChart->series(i).pointCount - 1
+            dim as TKCHART_POINT ptr p = @pChart->series(i).points(j)
+            if p->rc.bottom <= p->rc.top then continue for     ' a zero bar draws nothing
+            b->SetBackColor( iif( p->bHasColor, p->PointColor, clrSer ) )
+            b->PaintRect( @p->rc )
+        next
+    next
+end sub
+
+private sub CHT_RenderSymbol( byval b as TK_PAINT ptr, byval nSymbol as long, byref ptc as TKPOINT, byval nSize as long )
+    dim as long rs = nSize \ 2
+    if rs < 1 then rs = 1
+    select case nSymbol
+    case CHT_SYM_CIRCLE
+        dim as TKRECT rc
+        tkRect_Set( rc, ptc.x - rs, ptc.y - rs, ptc.x + rs + 1, ptc.y + rs + 1 )
+        b->PaintEllipse( @rc )
+    case CHT_SYM_SQUARE
+        dim as TKRECT rc
+        tkRect_Set( rc, ptc.x - rs, ptc.y - rs, ptc.x + rs + 1, ptc.y + rs + 1 )
+        b->PaintRect( @rc )
+    case CHT_SYM_DIAMOND
+        dim as TKPOINT pts(0 to 3)
+        pts(0).x = ptc.x : pts(0).y = ptc.y - rs
+        pts(1).x = ptc.x + rs : pts(1).y = ptc.y
+        pts(2).x = ptc.x : pts(2).y = ptc.y + rs
+        pts(3).x = ptc.x - rs : pts(3).y = ptc.y
+        b->PaintPolygon( @pts(0), 4 )
+    case CHT_SYM_TRIANGLE
+        dim as TKPOINT pts(0 to 2)
+        pts(0).x = ptc.x : pts(0).y = ptc.y - rs
+        pts(1).x = ptc.x + rs : pts(1).y = ptc.y + rs
+        pts(2).x = ptc.x - rs : pts(2).y = ptc.y + rs
+        b->PaintPolygon( @pts(0), 3 )
+    end select
+end sub
+
+' The region between two edges: forward along hi, back along lo, each over its OWN count (vendor's
+' one GDI+ polygon). tkPaint ear-clips, which needs a SIMPLE polygon, so the region is cut into
+' runs wherever the edges touch or cross over their common prefix -- a forecast band of zero width
+' through the record would otherwise be clipped into a triangle across it. The union of the runs
+' is what GDI+'s alternate fill drew.
+private sub CHT_FillBetween( byval b as TK_PAINT ptr, hi() as TKPOINT, byval nHi as long, lo() as TKPOINT, byval nLo as long )
+    if (nHi < 2) orelse (nLo < 2) then exit sub
+    dim as long nCom = iif( nHi < nLo, nHi, nLo )
+    dim as TKPOINT pts(0 to nHi + nLo + 1)
+    dim as long r0 = 0                       ' the run starts at vertex r0
+    dim as boolean bHaveStart = false
+    dim as TKPOINT ptStart                   ' a crossing point that opens the run, when there is one
+    for j as long = 0 to nCom - 1
+        dim as long d = hi(j).y - lo(j).y
+        dim as boolean bTouch = (d = 0) andalso (hi(j).x = lo(j).x)
+        dim as boolean bCross = false
+        dim as TKPOINT ptX
+        if (j > 0) andalso (bTouch = false) then
+            dim as long d0 = hi(j - 1).y - lo(j - 1).y
+            if (d0 <> 0) andalso (sgn( d0 ) <> sgn( d )) then
+                bCross = true
+                dim as double t = csng( d0 ) / csng( d0 - d )
+                ptX.x = clng( hi(j - 1).x + (hi(j).x - hi(j - 1).x) * t )
+                ptX.y = clng( hi(j - 1).y + (hi(j).y - hi(j - 1).y) * t )
+            end if
+        end if
+        dim as boolean bLast = (j = nCom - 1)
+        if (bTouch orelse bCross orelse bLast) andalso (j > r0 orelse bHaveStart) then
+            ' close the run [r0 .. j]; the tail past the common prefix rides on the last run
+            dim as long n = 0
+            if bHaveStart then pts(n) = ptStart : n += 1
+            dim as long jHiEnd = iif( bCross, j - 1, iif( bLast, nHi - 1, j ) )
+            dim as long jLoEnd = iif( bCross, j - 1, iif( bLast, nLo - 1, j ) )
+            for q as long = r0 to jHiEnd : pts(n) = hi(q) : n += 1 : next
+            if bCross then pts(n) = ptX : n += 1
+            for q as long = jLoEnd to r0 step -1 : pts(n) = lo(q) : n += 1 : next
+            b->PaintPolygon( @pts(0), n, 0 )
+        end if
+        if bTouch then
+            r0 = j : bHaveStart = false
+        elseif bCross then
+            r0 = j : bHaveStart = true : ptStart = ptX
+        end if
+    next
+    ' a crossing in the LAST common segment leaves the tail from it still open
+    if bHaveStart andalso (r0 = nCom - 1) then
+        dim as long n = 0
+        pts(n) = ptStart : n += 1
+        for q as long = r0 to nHi - 1 : pts(n) = hi(q) : n += 1 : next
+        for q as long = nLo - 1 to r0 step -1 : pts(n) = lo(q) : n += 1 : next
+        b->PaintPolygon( @pts(0), n, 0 )
+    end if
+end sub
+
+' Bands FIRST, under the fills and every polyline. A band whose series is hidden or short is
+' carried, not drawn.
+private sub CHT_RenderBands( byval pChart as TKCHART_STATE ptr, byval b as TK_PAINT ptr )
+    for k as long = 0 to pChart->bandCount - 1
+        dim as TKCHART_SERIES ptr sLo = pChart->GetSeries( pChart->bands(k).iLo )
+        dim as TKCHART_SERIES ptr sHi = pChart->GetSeries( pChart->bands(k).iHi )
+        if (sLo = 0) orelse (sHi = 0) then continue for
+        if (sLo->bVisible = false) orelse (sHi->bVisible = false) then continue for
+        dim as long nHi = sHi->pointCount, nLo = sLo->pointCount
+        if (nHi < 2) orelse (nLo < 2) then continue for
+        dim as TKPOINT ph(0 to nHi - 1), pl(0 to nLo - 1)
+        for j as long = 0 to nHi - 1 : ph(j) = sHi->points(j).ptPlot : next
+        for j as long = 0 to nLo - 1 : pl(j) = sLo->points(j).ptPlot : next
+        b->SetBackColor( tkColor_WithAlpha( pChart->bands(k).clr, pChart->bands(k).nAlpha ) )
+        CHT_FillBetween( b, ph(), nHi, pl(), nLo )
+    next
+end sub
+
+' The polyline, down to the SAME baseline the bars stand on (nOriginY), and back.
+private sub CHT_RenderAreaFills( byval pChart as TKCHART_STATE ptr, byval b as TK_PAINT ptr )
+    for i as long = 0 to pChart->seriesCount - 1
+        if (pChart->series(i).bVisible = false) orelse (pChart->series(i).bHasFill = false) then continue for
+        dim as long n = pChart->series(i).pointCount
+        if n < 2 then continue for
+        dim as TKPOINT ph(0 to n - 1), pl(0 to n - 1)
+        for j as long = 0 to n - 1
+            ph(j) = pChart->series(i).points(j).ptPlot
+            pl(j).x = ph(j).x : pl(j).y = pChart->nOriginY
+        next
+        b->SetBackColor( tkColor_WithAlpha( pChart->series(i).FillColor, pChart->series(i).nFillAlpha ) )
+        CHT_FillBetween( b, ph(), n, pl(), n )
+    next
+end sub
+
+private function CHT_DashForLineStyle( byval nStyle as long ) as long
+    select case nStyle
+    case CHT_LINE_DASH    : return TK_PENDASH_DASH
+    case CHT_LINE_DOT     : return TK_PENDASH_DOT
+    case CHT_LINE_DASHDOT : return TK_PENDASH_DASHDOT
+    end select
+    return TK_PENDASH_SOLID
+end function
+
+private sub CHT_RenderLine( byval pChart as TKCHART_STATE ptr, byval b as TK_PAINT ptr )
+    for i as long = 0 to pChart->seriesCount - 1
+        if pChart->series(i).bVisible = false then continue for
+        dim as long n = pChart->series(i).pointCount
+        if n <= 0 then continue for
+        dim as ulong clrSer = pChart->ResolveSeriesColor( i )
+        dim as TKPOINT pts(0 to n - 1)
+        for j as long = 0 to n - 1
+            pts(j) = pChart->series(i).points(j).ptPlot
+        next
+        b->SetPenColor( clrSer )
+        ' set per series and put back at once: the pen state outlives this loop
+        b->SetPenDashStyle( CHT_DashForLineStyle( pChart->series(i).nLineStyle ) )
+        if pChart->series(i).bSmooth then
+            b->PaintCurve( @pts(0), n, pChart->series(i).nLineWidth )
+        else
+            b->PaintPolyline( @pts(0), n, pChart->series(i).nLineWidth )
+        end if
+        b->SetPenDashStyle( TK_PENDASH_SOLID )
+        if pChart->series(i).nSymbol <> CHT_SYM_NONE then
+            for j as long = 0 to n - 1
+                dim as TKCHART_POINT ptr p = @pChart->series(i).points(j)
+                b->SetBackColor( iif( p->bHasColor, p->PointColor, clrSer ) )
+                CHT_RenderSymbol( b, pChart->series(i).nSymbol, p->ptPlot, pChart->series(i).nSymbolSize )
+            next
+        end if
+    next
+end sub
+
+' A high-to-low wick, the open ticked LEFT and the close ticked RIGHT (not a candlestick).
+private sub CHT_RenderHloc( byval pChart as TKCHART_STATE ptr, byval b as TK_PAINT ptr )
+    for i as long = 0 to pChart->seriesCount - 1
+        if pChart->series(i).bVisible = false then continue for
+        dim as ulong clrSer = pChart->ResolveSeriesColor( i )
+        for j as long = 0 to pChart->series(i).pointCount - 1
+            dim as TKCHART_POINT ptr p = @pChart->series(i).points(j)
+            dim as ulong clr = clrSer
+            if p->bHasColor then
+                clr = p->PointColor
+            elseif pChart->bHlocUpDown then
+                clr = iif( p->CloseVal >= p->OpenVal, pChart->colors.UpColor, pChart->colors.DownColor )   ' against its OWN open
+            end if
+            b->SetPenColor( clr )
+            dim as long cx = p->ptPlot.x
+            dim as long yHi = pChart->ValueToY( p->HighVal ), yLo = pChart->ValueToY( p->LowVal )
+            if yHi > yLo then swap yHi, yLo
+            if yLo <= yHi then yLo = yHi + 1
+            b->PaintLine( 1, cx, yHi, cx, yLo )
+            dim as long tick = pChart->nHlocTick
+            if tick < 1 then tick = 1
+            dim as long yO = pChart->ValueToY( p->OpenVal ), yC = pChart->ValueToY( p->CloseVal )
+            b->PaintLine( 1, cx - tick, yO, cx + 1, yO )
+            b->PaintLine( 1, cx, yC, cx + tick + 1, yC )
+        next
+    next
+end sub
+
+private sub CHT_RenderPie( byval pChart as TKCHART_STATE ptr, byval b as TK_PAINT ptr )
+    if (pChart->seriesCount <= 0) orelse tkRect_IsEmpty( pChart->rcPie ) then exit sub
+    const PI_ = 3.14159265358979323846
+    for j as long = 0 to pChart->series(0).pointCount - 1
+        dim as TKCHART_POINT ptr p = @pChart->series(0).points(j)
+        if p->fSweep <= 0.0 then continue for
+        ' the palette enumerated PER SLICE
+        dim as ulong clr = iif( p->bHasColor, p->PointColor, pChart->palette( j mod TKCHART_PALETTE_COUNT ) )
+        dim as TKRECT rcSlice = pChart->rcPie
+        if p->nExplode <> 0 then
+            dim as double midRad = csng( p->fStart + p->fSweep / 2.0 ) * PI_ / 180.0
+            tkRect_Offset( rcSlice, clng( cos( midRad ) * p->nExplode ), clng( sin( midRad ) * p->nExplode ) )
+        end if
+        b->SetBackColor( clr )
+        b->SetPenColor( pChart->colors.SliceGapColor )
+        if pChart->fDoughnutRatio > 0.0 then
+            b->PaintPieRing( @rcSlice, pChart->fDoughnutRatio, p->fStart, p->fSweep, pChart->nPieSliceGap )
+        else
+            b->PaintPie( @rcSlice, p->fStart, p->fSweep, pChart->nPieSliceGap )
+        end if
+    next
+end sub
+
+' After every wedge, so a leader crossing a neighbour is not painted over: leaders, then text.
+private sub CHT_RenderPieLabels( byval pChart as TKCHART_STATE ptr, byval b as TK_PAINT ptr )
+    if (pChart->nPieLabelMode = CHT_PIELABEL_NONE) orelse (pChart->seriesCount <= 0) then exit sub
+    if pChart->nPieLabelPlace <> CHT_PIEPLACE_INSIDE then
+        b->SetPenColor( pChart->colors.LeaderColor )
+        for j as long = 0 to pChart->series(0).pointCount - 1
+            dim as TKCHART_POINT ptr p = @pChart->series(0).points(j)
+            if (p->bLabelOut = false) orelse tkRect_IsEmpty( p->rc ) then continue for
+            ' a diagonal stub from the rim, then a horizontal run into the text
+            dim as long ly = (p->rc.top + p->rc.bottom) \ 2
+            dim as long lx = iif( p->rc.left >= p->ptPlot.x, p->rc.left, p->rc.right )
+            b->PaintLine( 1, p->ptPlot.x, p->ptPlot.y, lx, ly )
+            b->PaintLine( 1, iif( lx < p->ptPlot.x, lx, p->ptPlot.x ), ly, iif( lx < p->ptPlot.x, p->ptPlot.x, lx ), ly )
+        next
+    end if
+    b->SetFont( pChart->LabelFont() )
+    for j as long = 0 to pChart->series(0).pointCount - 1
+        dim as TKCHART_POINT ptr p = @pChart->series(0).points(j)
+        if p->bLabelHid orelse tkRect_IsEmpty( p->rc ) then continue for
+        dim as ustring wsz = pChart->PieLabelText( j )
+        if len( wsz ) = 0 then continue for
+        b->SetForeColor( iif( p->bLabelOut, pChart->colors.SliceLabelOutColor, pChart->colors.SliceLabelColor ) )
+        b->PaintText( wsz, @p->rc, TK_DT_CENTER or TK_DT_NOCLIP )
+    next
+end sub
+
+private sub CHT_RenderGrid( byval pChart as TKCHART_STATE ptr, byval b as TK_PAINT ptr )
+    if pChart->bGridHorz andalso (pChart->fStep > 0.0) then
+        b->SetPenColor( pChart->colors.GridColor )
+        dim as double v = pChart->fMin
+        dim as long guard = 0
+        do while (v <= pChart->fMax + pChart->fStep * 0.5) andalso (guard < 1000)
+            dim as long y = pChart->ValueToY( v )
+            b->PaintLine( pChart->nGridThick, pChart->rcPlot.left, y, pChart->rcPlot.right, y )
+            v += pChart->fStep
+            guard += 1
+        loop
+    end if
+    if pChart->bGridVert andalso (pChart->nCatCount > 0) then
+        b->SetPenColor( pChart->colors.GridColor )
+        for i as long = 0 to pChart->nCatCount - 1
+            dim as long x = pChart->SlotCenterX( i )
+            b->PaintLine( pChart->nGridThick, x, pChart->rcPlot.top, x, pChart->rcPlot.bottom )
+        next
+    end if
+    ' the category rule over the gridlines; the zero rule only when zero is INSIDE the plot
+    b->SetPenColor( pChart->colors.AxisColor )
+    b->PaintLine( pChart->nAxisThick, pChart->rcPlot.left, pChart->rcPlot.bottom, pChart->rcPlot.right, pChart->rcPlot.bottom )
+    if (pChart->nOriginY > pChart->rcPlot.top) andalso (pChart->nOriginY < pChart->rcPlot.bottom) then
+        b->PaintLine( pChart->nAxisThick, pChart->rcPlot.left, pChart->nOriginY, pChart->rcPlot.right, pChart->nOriginY )
+    end if
+end sub
+
+private sub CHT_RenderAxisLabels( byval pChart as TKCHART_STATE ptr, byval b as TK_PAINT ptr )
+    b->SetFont( pChart->LabelFont() )
+    b->SetForeColor( pChart->colors.LabelColor )
+    if pChart->fStep > 0.0 then
+        dim as double v = pChart->fMin
+        dim as long guard = 0
+        do while (v <= pChart->fMax + pChart->fStep * 0.5) andalso (guard < 1000)
+            dim as long y = pChart->ValueToY( v )
+            dim as TKRECT rc
+            tkRect_Set( rc, pChart->rcAxisY.left, y - pChart->nLabelH \ 2, pChart->rcAxisY.right - pChart->nTickLen, y - pChart->nLabelH \ 2 + pChart->nLabelH )
+            dim as ustring sv = pChart->FormatValue( v, CHT_FMT_AXIS )
+            b->PaintText( sv, @rc, TK_DT_RIGHT or TK_DT_NOCLIP )
+            v += pChart->fStep
+            guard += 1
+        loop
+    end if
+    if (pChart->nCatCount > 0) andalso (pChart->seriesCount > 0) then
+        dim as long stride = iif( pChart->nLabelStride < 1, 1, pChart->nLabelStride )
+        dim as long slot = clng( pChart->fSlotWidth )
+        if slot < 1 then slot = 1
+        for i as long = 0 to pChart->series(0).pointCount - 1
+            if (i mod stride) <> 0 then continue for
+            dim as long cx = pChart->SlotCenterX( i )
+            ' the stride's worth of slots: the room the skip was calculated to give it
+            dim as TKRECT rc
+            tkRect_Set( rc, cx - (slot * stride) \ 2, pChart->rcAxisX.top + pChart->nTickLen, cx + (slot * stride) \ 2, pChart->rcAxisX.top + pChart->nTickLen + pChart->nLabelH )
+            b->PaintText( pChart->series(0).points(i).Text, @rc, TK_DT_CENTER )
+        next
+    end if
+end sub
+
+private sub CHT_RenderLegend( byval pChart as TKCHART_STATE ptr, byval b as TK_PAINT ptr )
+    if (pChart->bLegendVisible = false) orelse tkRect_IsEmpty( pChart->rcLegend ) orelse (pChart->seriesCount <= 0) then exit sub
+    dim as TTF_Font ptr fLab = pChart->LabelFont()
+    dim as long swatch = pChart->nLabelH
+    dim as boolean bVert = (pChart->nLegendPos = CHT_LEGEND_LEFT) orelse (pChart->nLegendPos = CHT_LEGEND_RIGHT)
+    dim as long x = pChart->rcLegend.left, y = pChart->rcLegend.top
+    dim as long nEntries = iif( pChart->nChartType = TKCHART_TYPE_PIE, pChart->series(0).pointCount, pChart->seriesCount )
+    for k as long = 0 to nEntries - 1
+        dim as ustring wsz
+        dim as ulong clr
+        if pChart->nChartType = TKCHART_TYPE_PIE then
+            dim as TKCHART_POINT ptr p = @pChart->series(0).points(k)
+            wsz = p->Text
+            clr = iif( p->bHasColor, p->PointColor, pChart->palette( k mod TKCHART_PALETTE_COUNT ) )
+        else
+            if pChart->series(k).bVisible = false then continue for
+            wsz = pChart->series(k).SeriesName
+            clr = pChart->ResolveSeriesColor( k )
+        end if
+        dim as long tw, th
+        CHT_MeasureText( fLab, wsz, tw, th )
+        dim as long entryW = swatch + pChart->nChromeGap + tw + pChart->nChromeGap * 2
+        ' ONE row: entries that do not fit are dropped, never drawn over the plot
+        if (bVert = false) andalso (x + entryW > pChart->rcLegend.right) andalso (x > pChart->rcLegend.left) then exit for
+        dim as TKRECT rcSw
+        tkRect_Set( rcSw, x, y, x + swatch, y + swatch )
+        b->SetBackColor( clr )
+        b->PaintRect( @rcSw )
+        dim as TKRECT rcTx
+        tkRect_Set( rcTx, rcSw.right + pChart->nChromeGap, y, rcSw.right + pChart->nChromeGap + tw, y + swatch )
+        b->SetFont( fLab )
+        b->SetForeColor( pChart->colors.LegendTextColor )
+        b->PaintText( wsz, @rcTx, TK_DT_LEFT or TK_DT_NOCLIP )
+        if bVert then
+            y += swatch + pChart->nChromeGap
+            if y >= pChart->rcLegend.bottom then exit for
+        else
+            x += entryW
+        end if
+    next
+end sub
+
+' The WHOLE render: TKM_PAINT and every probe drive this one function.
+private sub CHT_Render( byval pChart as TKCHART_STATE ptr, byval b as TK_PAINT ptr )
+    if (pChart = 0) orelse (b = 0) then exit sub
+    CHT_EnsureLayout( pChart )
+    b->SetBackColor( pChart->colors.BackColor )
+    b->PaintRect( @pChart->rcClient )
+    if pChart->PaintCallback then
+        dim as TKCHART_PAINTINFO p
+        p.hChart = pChart->hWin
+        p.b = b
+        p.rcClient = pChart->rcClient
+        p.rcPlot = pChart->rcPlot
+        p.rcTitle = pChart->rcTitle
+        p.rcSubtitle = pChart->rcSubtitle
+        p.rcLegend = pChart->rcLegend
+        p.rcAxisX = pChart->rcAxisX
+        p.rcAxisY = pChart->rcAxisY
+        p.rcPie = pChart->rcPie
+        p.nChartType = pChart->nChartType
+        p.fMin = pChart->fMin
+        p.fMax = pChart->fMax
+        p.fStep = pChart->fStep
+        p.nDecimals = pChart->nResDecimals
+        p.nOriginY = pChart->nOriginY
+        p.nCatCount = pChart->nCatCount
+        p.nLabelStride = pChart->nLabelStride
+        p.nHotSeries = pChart->nHotSeries
+        p.nHotPoint = pChart->nHotPoint
+        p.isEnabled = pChart->bEnabled
+        p.wszTitle = pChart->wszTitle
+        p.wszSubtitle = pChart->wszSubtitle
+        pChart->PaintCallback( @p )
+        exit sub
+    end if
+    if (tkRect_IsEmpty( pChart->rcPlot ) = false) andalso (pChart->colors.PlotBackColor <> pChart->colors.BackColor) then
+        b->SetBackColor( pChart->colors.PlotBackColor )
+        b->PaintRect( @pChart->rcPlot )
+    end if
+    if pChart->nChartType = TKCHART_TYPE_PIE then
+        CHT_RenderPie( pChart, b )
+        CHT_RenderPieLabels( pChart, b )
+    else
+        CHT_RenderGrid( pChart, b )
+        ' only the series are clipped
+        b->PushClip( @pChart->rcPlot )
+        select case pChart->nChartType
+        case TKCHART_TYPE_COLUMN : CHT_RenderColumn( pChart, b )
+        case TKCHART_TYPE_HLOC   : CHT_RenderHloc( pChart, b )
+        case else
+            CHT_RenderBands( pChart, b )
+            CHT_RenderAreaFills( pChart, b )
+            CHT_RenderLine( pChart, b )
+        end select
+        b->PopClip()
+        CHT_RenderAxisLabels( pChart, b )
+    end if
+    CHT_RenderLegend( pChart, b )
+    if len( pChart->wszTitle ) then
+        b->SetFont( iif( pChart->pTitleFont <> 0, pChart->pTitleFont, pChart->LabelFont() ) )
+        b->SetForeColor( pChart->colors.TitleColor )
+        b->PaintText( pChart->wszTitle, @pChart->rcTitle, TK_DT_LEFT or TK_DT_ELLIPSIS )
+    end if
+    if len( pChart->wszSubtitle ) then
+        b->SetFont( iif( pChart->pSubtitleFont <> 0, pChart->pSubtitleFont, pChart->LabelFont() ) )
+        b->SetForeColor( pChart->colors.SubtitleColor )
+        b->PaintText( pChart->wszSubtitle, @pChart->rcSubtitle, TK_DT_LEFT or TK_DT_ELLIPSIS )
+    end if
+end sub
+
+
+' ========================================================================================
+' Hot tracking and the widget proc
+' ========================================================================================
+' The tool index moves so a tip up for the previous point goes down and re-resolves. The hook
+' fires AFTER the state, so GetHotPoint inside it sees the new point.
+private sub CHT_SetHot( byval pChart as TKCHART_STATE ptr, byval iSer as long, byval iPt as long )
+    if (pChart->nHotSeries = iSer) andalso (pChart->nHotPoint = iPt) then exit sub
+    pChart->nHotSeries = iSer
+    pChart->nHotPoint = iPt
+    tkTipHost_SetToolIndex( @pChart->tip, iif( iPt >= 0, iSer * 65536 + iPt, -1 ) )
+    if pChart->HotChangeCallback then pChart->HotChangeCallback( pChart->hWin, iSer, iPt )
+end sub
+
+private function CHT_CallMessage( byval pChart as TKCHART_STATE ptr, byval m as TK_MSG ptr ) as boolean
+    if (pChart = 0) orelse (pChart->MessageCallback = 0) then return false
+    dim as TKCHART_MESSAGEINFO mi
+    mi.hChart = pChart->hWin
+    mi.msg = m->msg
+    mi.x = m->x : mi.y = m->y
+    mi.key = m->key : mi.mods = m->mods : mi.clicks = m->clicks
+    mi.iSeries = pChart->nHotSeries
+    mi.iPoint = pChart->nHotPoint
+    return pChart->MessageCallback( @mi )
+end function
+
+public declare sub tkChart_ApplyTheme( byval hChart as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+public declare function tkChart_ThemeColors( byref t as TKTHEME_COLORS ) as TKCHART_COLORS
+
+private sub CHT_Rescale( byval pChart as TKCHART_STATE ptr, byval fOld as single, byval fNew as single )
+    if (fOld <= 0) orelse (fNew <= 0) then exit sub
+    dim as single k = fNew / fOld
+    pChart->nPadding = cint( pChart->nPadding * k )
+    pChart->nChromeGap = cint( pChart->nChromeGap * k )
+    pChart->nTickLen = cint( pChart->nTickLen * k )
+    pChart->nBarGap = cint( pChart->nBarGap * k )
+    pChart->nHlocTick = cint( pChart->nHlocTick * k )
+    pChart->nHitRadius = cint( pChart->nHitRadius * k )
+    if pChart->nHlocTick < 1 then pChart->nHlocTick = 1
+    if pChart->nHitRadius < 1 then pChart->nHitRadius = 1
+    for i as long = 0 to pChart->seriesCount - 1
+        pChart->series(i).nSymbolSize = cint( pChart->series(i).nSymbolSize * k )
+        if pChart->series(i).nSymbolSize < 2 then pChart->series(i).nSymbolSize = 2
+        for j as long = 0 to pChart->series(i).pointCount - 1
+            pChart->series(i).points(j).nExplode = cint( pChart->series(i).points(j).nExplode * k )
+        next
+    next
+    pChart->Refresh()
+end sub
+
+' A DISPLAY control: no focus, no keyboard, no capture. Every message but DESTROY is offered
+' to the host first.
+private function tkChart_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( w )
+    if pChart = 0 then return false
+    if m->msg <> TKM_DESTROY then
+        dim as boolean bEat = CHT_CallMessage( pChart, m )
+        if bEat andalso (m->msg <> TKM_LBUTTONUP) then return true
+    end if
+    select case m->msg
+    case TKM_PAINT
+        CHT_Render( pChart, m->pPaint )
+        return true
+    case TKM_SIZE
+        pChart->Refresh()
+        return true
+    case TKM_SCALECHANGED
+        CHT_Rescale( pChart, m->fOld, m->fNew )
+        return true
+    case TKM_THEMECHANGED
+        tkChart_ApplyTheme( w, tkTheme_Get() )
+        return true
+    case TKM_MOUSEMOVE
+        if pChart->bEnabled = false then return true
+        CHT_EnsureLayout( pChart )
+        dim as long iSer, iPt
+        CHT_HitTest( pChart, cint( m->x ), cint( m->y ), iSer, iPt )
+        CHT_SetHot( pChart, iSer, iPt )
+        return true
+    case TKM_MOUSELEAVE
+        CHT_SetHot( pChart, -1, -1 )
+        return true
+    case TKM_ENABLE
+        pChart->bEnabled = m->bFlag
+        if pChart->bEnabled = false then
+            CHT_SetHot( pChart, -1, -1 )
+            tkTipHost_Pop( @pChart->tip )
+        end if
+        tkWidget_Invalidate( w )
+        return true
+    case TKM_LBUTTONDOWN, TKM_LBUTTONUP, TKM_RBUTTONDOWN, TKM_RBUTTONUP
+        return true
+    case TKM_DESTROY
+        tkTipHost_Destroy( @pChart->tip )
+        delete pChart
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ========================================================================================
+' Public API -- vendor's surface, HWND replaced by the widget pointer.
+' Every setter is SILENT; only the hot point under the cursor notifies.
+' ========================================================================================
+public function tkChart_Create( byval hParent as TK_WIDGET ptr, byval ctrlId as long, byval nChartType as long = TKCHART_TYPE_LINE ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TK_HOST ptr pHost = hParent->pHost
+    dim as TKCHART_STATE ptr pChart = new TKCHART_STATE
+    select case nChartType
+    case TKCHART_TYPE_COLUMN, TKCHART_TYPE_HLOC, TKCHART_TYPE_PIE
+        pChart->nChartType = nChartType
+    case else
+        pChart->nChartType = TKCHART_TYPE_LINE
+    end select
+    pChart->nPadding = tkHost_Scale( pHost, TKCHART_DEFAULT_PADDING )
+    pChart->nChromeGap = tkHost_Scale( pHost, TKCHART_DEFAULT_CHROMEGAP )
+    pChart->nTickLen = tkHost_Scale( pHost, TKCHART_DEFAULT_TICKLEN )
+    pChart->nBarGap = tkHost_Scale( pHost, TKCHART_DEFAULT_BARGAP )
+    pChart->nHlocTick = tkHost_Scale( pHost, TKCHART_DEFAULT_HLOCTICK )
+    pChart->nHitRadius = tkHost_Scale( pHost, TKCHART_DEFAULT_HITRADIUS )
+    if pChart->nBarGap < 1 then pChart->nBarGap = 1
+    pChart->palette(0) = tkRGB( 86, 156, 214 )      ' blue
+    pChart->palette(1) = tkRGB( 230, 159, 80 )      ' orange
+    pChart->palette(2) = tkRGB( 140, 196, 90 )      ' green
+    pChart->palette(3) = tkRGB( 197, 134, 192 )     ' magenta
+    pChart->palette(4) = tkRGB( 224, 196, 90 )      ' yellow
+    pChart->palette(5) = tkRGB( 120, 190, 190 )     ' teal
+    pChart->palette(6) = tkRGB( 224, 120, 120 )     ' red
+    pChart->palette(7) = tkRGB( 150, 160, 200 )     ' periwinkle
+    pChart->palette(8) = tkRGB( 190, 150, 110 )     ' tan
+    pChart->palette(9) = tkRGB( 150, 160, 170 )     ' grey
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, ctrlId, @tkChart_Proc, pChart )
+    pChart->hWin = w
+    pChart->colors = tkChart_ThemeColors( tkTheme_Get() )
+    tkTipHost_Ensure( @pChart->tip, w, @CHT_TipText )
+    return w
+end function
+
+public function tkChart_GetChartType( byval hChart as TK_WIDGET ptr ) as long
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return -1
+    return pChart->nChartType
+end function
+
+' --- series ------------------------------------------------------------------------------------
+public function tkChart_AddSeries( byval hChart as TK_WIDGET ptr, byval wszName as ustring = "" ) as long
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return -1
+    dim as long i = pChart->AddSeries()
+    pChart->series(i).SeriesName = wszName
+    return i
+end function
+
+public function tkChart_GetSeriesCount( byval hChart as TK_WIDGET ptr ) as long
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return 0
+    return pChart->seriesCount
+end function
+
+public function tkChart_SetSeriesName( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval wszName as ustring ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    dim as TKCHART_SERIES ptr s = pChart->GetSeries( iSeries )
+    if s = 0 then return false
+    s->SeriesName = wszName
+    pChart->Refresh()
+    return true
+end function
+
+public function tkChart_GetSeriesName( byval hChart as TK_WIDGET ptr, byval iSeries as long ) as ustring
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return ""
+    dim as TKCHART_SERIES ptr s = pChart->GetSeries( iSeries )
+    if s = 0 then return ""
+    return s->SeriesName
+end function
+
+public function tkChart_SetSeriesColor( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval clr as ulong ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    dim as TKCHART_SERIES ptr s = pChart->GetSeries( iSeries )
+    if s = 0 then return false
+    s->bHasColor = true
+    s->SeriesColor = clr
+    pChart->Refresh()
+    return true
+end function
+
+public function tkChart_ClearSeriesColor( byval hChart as TK_WIDGET ptr, byval iSeries as long ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    dim as TKCHART_SERIES ptr s = pChart->GetSeries( iSeries )
+    if s = 0 then return false
+    s->bHasColor = false
+    pChart->Refresh()
+    return true
+end function
+
+' Raw pixels, min 1. tkPaint grows a polyline's pen with the scale, as GDI+ did.
+public function tkChart_SetSeriesLineWidth( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval nWidth as long ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    dim as TKCHART_SERIES ptr s = pChart->GetSeries( iSeries )
+    if s = 0 then return false
+    s->nLineWidth = iif( nWidth < 1, 1, nWidth )
+    pChart->Refresh()
+    return true
+end function
+
+' Fill between a LINE series and the value baseline; alpha 0..255.
+public function tkChart_SetSeriesFill( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval clrFill as ulong, byval nAlpha as long ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    dim as TKCHART_SERIES ptr s = pChart->GetSeries( iSeries )
+    if s = 0 then return false
+    if nAlpha < 0 then nAlpha = 0
+    if nAlpha > 255 then nAlpha = 255
+    s->bHasFill = true
+    s->FillColor = clrFill
+    s->nFillAlpha = nAlpha
+    pChart->Refresh()
+    return true
+end function
+
+public function tkChart_ClearSeriesFill( byval hChart as TK_WIDGET ptr, byval iSeries as long ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    dim as TKCHART_SERIES ptr s = pChart->GetSeries( iSeries )
+    if s = 0 then return false
+    s->bHasFill = false
+    pChart->Refresh()
+    return true
+end function
+
+' Fill BETWEEN two line series. The pair is the identity (either order replaces).
+public function tkChart_SetSeriesBand( byval hChart as TK_WIDGET ptr, byval seriesLo as long, byval seriesHi as long, _
+                                       byval clrFill as ulong, byval nAlpha as long ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    if (pChart->IsValidSeries( seriesLo ) = false) orelse (pChart->IsValidSeries( seriesHi ) = false) then return false
+    if seriesLo = seriesHi then return false
+    if nAlpha < 0 then nAlpha = 0
+    if nAlpha > 255 then nAlpha = 255
+    dim as long k = pChart->FindBand( seriesLo, seriesHi )
+    if k < 0 then
+        dim as long cap = ubound( pChart->bands ) + 1
+        if pChart->bandCount >= cap then redim preserve pChart->bands( 0 to iif( cap = 0, 8, cap * 2 ) - 1 )
+        k = pChart->bandCount
+        pChart->bandCount += 1
+    end if
+    pChart->bands(k).iLo = seriesLo
+    pChart->bands(k).iHi = seriesHi
+    pChart->bands(k).clr = clrFill
+    pChart->bands(k).nAlpha = nAlpha
+    pChart->Refresh()
+    return true
+end function
+
+' Either order. FALSE when there was no band: a removal is told from a no-op.
+public function tkChart_ClearSeriesBand( byval hChart as TK_WIDGET ptr, byval seriesLo as long, byval seriesHi as long ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    dim as long k = pChart->FindBand( seriesLo, seriesHi )
+    if k < 0 then return false
+    if k <> pChart->bandCount - 1 then pChart->bands(k) = pChart->bands( pChart->bandCount - 1 )
+    pChart->bandCount -= 1
+    pChart->Refresh()
+    return true
+end function
+
+public function tkChart_GetBandCount( byval hChart as TK_WIDGET ptr ) as long
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return 0
+    return pChart->bandCount
+end function
+
+' An unrecognised style is STORED as solid: what reads back always draws.
+public function tkChart_SetSeriesLineStyle( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval nStyle as long ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    dim as TKCHART_SERIES ptr s = pChart->GetSeries( iSeries )
+    if s = 0 then return false
+    select case nStyle
+    case CHT_LINE_SOLID, CHT_LINE_DASH, CHT_LINE_DOT, CHT_LINE_DASHDOT
+        s->nLineStyle = nStyle
+    case else
+        s->nLineStyle = CHT_LINE_SOLID
+    end select
+    pChart->Refresh()
+    return true
+end function
+
+public function tkChart_GetSeriesLineStyle( byval hChart as TK_WIDGET ptr, byval iSeries as long ) as long
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return CHT_LINE_SOLID
+    dim as TKCHART_SERIES ptr s = pChart->GetSeries( iSeries )
+    if s = 0 then return CHT_LINE_SOLID
+    return s->nLineStyle
+end function
+
+' nSize raw pixels, min 2; -1 keeps the create-scaled default.
+public function tkChart_SetSeriesSymbol( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval nSymbol as long, byval nSize as long = -1 ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    dim as TKCHART_SERIES ptr s = pChart->GetSeries( iSeries )
+    if s = 0 then return false
+    s->nSymbol = nSymbol
+    if nSize >= 0 then s->nSymbolSize = iif( nSize < 2, 2, nSize )
+    pChart->Refresh()
+    return true
+end function
+
+public function tkChart_SetSeriesSmooth( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval bSmooth as boolean ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    dim as TKCHART_SERIES ptr s = pChart->GetSeries( iSeries )
+    if s = 0 then return false
+    s->bSmooth = bSmooth
+    pChart->Refresh()
+    return true
+end function
+
+' Hidden = out of the AXIS RANGE too; clears the hot point if it was in that series.
+public function tkChart_SetSeriesVisible( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval bVisible as boolean ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    dim as TKCHART_SERIES ptr s = pChart->GetSeries( iSeries )
+    if s = 0 then return false
+    s->bVisible = bVisible
+    if (bVisible = false) andalso (pChart->nHotSeries = iSeries) then pChart->nHotSeries = -1 : pChart->nHotPoint = -1
+    pChart->Refresh()
+    return true
+end function
+
+public function tkChart_IsSeriesVisible( byval hChart as TK_WIDGET ptr, byval iSeries as long ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    dim as TKCHART_SERIES ptr s = pChart->GetSeries( iSeries )
+    if s = 0 then return false
+    return s->bVisible
+end function
+
+' --- points ------------------------------------------------------------------------------------
+' The recycled slot is reset in FULL (colour flag, explode) so a second population inherits nothing.
+private function CHT_AppendPoint( byval pChart as TKCHART_STATE ptr, byval iSeries as long, byref wszLabel as ustring ) as TKCHART_POINT ptr
+    dim as TKCHART_SERIES ptr s = pChart->GetSeries( iSeries )
+    if s = 0 then return 0
+    s->EnsurePoints( s->pointCount + 1 )
+    dim as TKCHART_POINT ptr p = @s->points( s->pointCount )
+    with *p
+        .Text = wszLabel
+        .Value = 0.0 : .OpenVal = 0.0 : .HighVal = 0.0 : .LowVal = 0.0 : .CloseVal = 0.0
+        .ItemData = 0
+        .bHasColor = false : .PointColor = 0
+        .nExplode = 0
+        .fStart = 0.0 : .fSweep = 0.0
+        .bLabelOut = false : .bLabelHid = false
+        tkRect_SetEmpty( .rc )
+        .ptPlot.x = 0 : .ptPlot.y = 0
+    end with
+    s->pointCount += 1
+    return p
+end function
+
+public function tkChart_AddPoint( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval wszLabel as ustring, byval fValue as double ) as long
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return -1
+    dim as TKCHART_POINT ptr p = CHT_AppendPoint( pChart, iSeries, wszLabel )
+    if p = 0 then return -1
+    p->Value = fValue
+    pChart->Refresh()
+    return pChart->series(iSeries).pointCount - 1
+end function
+
+' A high below its low is swapped; Value carries the close.
+public function tkChart_AddHlocPoint( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval wszLabel as ustring, _
+                                      byval fOpenVal as double, byval fHighVal as double, byval fLowVal as double, byval fCloseVal as double ) as long
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return -1
+    dim as TKCHART_POINT ptr p = CHT_AppendPoint( pChart, iSeries, wszLabel )
+    if p = 0 then return -1
+    p->OpenVal = fOpenVal
+    p->HighVal = fHighVal
+    p->LowVal = fLowVal
+    p->CloseVal = fCloseVal
+    p->Value = fCloseVal
+    if p->HighVal < p->LowVal then swap p->HighVal, p->LowVal
+    pChart->Refresh()
+    return pChart->series(iSeries).pointCount - 1
+end function
+
+public function tkChart_GetPointCount( byval hChart as TK_WIDGET ptr, byval iSeries as long ) as long
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return 0
+    dim as TKCHART_SERIES ptr s = pChart->GetSeries( iSeries )
+    if s = 0 then return 0
+    return s->pointCount
+end function
+
+public function tkChart_SetPointValue( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long, byval fValue as double ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    dim as TKCHART_POINT ptr p = pChart->GetPoint( iSeries, iPoint )
+    if p = 0 then return false
+    p->Value = fValue
+    pChart->Refresh()
+    return true
+end function
+
+public function tkChart_GetPointValue( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long ) as double
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return 0
+    dim as TKCHART_POINT ptr p = pChart->GetPoint( iSeries, iPoint )
+    if p = 0 then return 0
+    return p->Value
+end function
+
+public function tkChart_SetPointLabel( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long, byval wszLabel as ustring ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    dim as TKCHART_POINT ptr p = pChart->GetPoint( iSeries, iPoint )
+    if p = 0 then return false
+    p->Text = wszLabel
+    pChart->Refresh()
+    return true
+end function
+
+public function tkChart_GetPointLabel( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long ) as ustring
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return ""
+    dim as TKCHART_POINT ptr p = pChart->GetPoint( iSeries, iPoint )
+    if p = 0 then return ""
+    return p->Text
+end function
+
+public function tkChart_SetPointColor( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long, byval clr as ulong ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    dim as TKCHART_POINT ptr p = pChart->GetPoint( iSeries, iPoint )
+    if p = 0 then return false
+    p->bHasColor = true
+    p->PointColor = clr
+    pChart->Refresh()
+    return true
+end function
+
+public function tkChart_ClearPointColor( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    dim as TKCHART_POINT ptr p = pChart->GetPoint( iSeries, iPoint )
+    if p = 0 then return false
+    p->bHasColor = false
+    pChart->Refresh()
+    return true
+end function
+
+' Storage only: no repaint.
+public function tkChart_SetPointItemData( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long, byval nData as integer ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    dim as TKCHART_POINT ptr p = pChart->GetPoint( iSeries, iPoint )
+    if p = 0 then return false
+    p->ItemData = nData
+    return true
+end function
+
+public function tkChart_GetPointItemData( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long ) as integer
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return 0
+    dim as TKCHART_POINT ptr p = pChart->GetPoint( iSeries, iPoint )
+    if p = 0 then return 0
+    return p->ItemData
+end function
+
+' Pie only, always series 0; raw px, clamped at 0.
+public function tkChart_SetPointExplode( byval hChart as TK_WIDGET ptr, byval iPoint as long, byval nOffset as long ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    dim as TKCHART_POINT ptr p = pChart->GetPoint( 0, iPoint )
+    if p = 0 then return false
+    p->nExplode = iif( nOffset < 0, 0, nOffset )
+    pChart->Refresh()
+    return true
+end function
+
+public function tkChart_ClearPoints( byval hChart as TK_WIDGET ptr, byval iSeries as long ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    dim as TKCHART_SERIES ptr s = pChart->GetSeries( iSeries )
+    if s = 0 then return false
+    for j as long = 0 to s->pointCount - 1
+        s->points(j).Text = ""
+    next
+    s->pointCount = 0
+    if pChart->nHotSeries = iSeries then pChart->nHotSeries = -1 : pChart->nHotPoint = -1
+    pChart->Refresh()
+    return true
+end function
+
+public sub tkChart_Clear( byval hChart as TK_WIDGET ptr )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart then pChart->ClearAll()
+end sub
+
+' NESTS: only the outermost EndUpdate repaints; extra EndUpdates are ignored.
+public sub tkChart_BeginUpdate( byval hChart as TK_WIDGET ptr )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart then pChart->updateDepth += 1
+end sub
+
+public sub tkChart_EndUpdate( byval hChart as TK_WIDGET ptr )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if (pChart = 0) orelse (pChart->updateDepth <= 0) then exit sub
+    pChart->updateDepth -= 1
+    if pChart->updateDepth = 0 then pChart->Refresh()
+end sub
+
+public function tkChart_GetUpdateDepth( byval hChart as TK_WIDGET ptr ) as long
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return 0
+    return pChart->updateDepth
+end function
+
+' --- value axis -------------------------------------------------------------------------------
+public sub tkChart_SetAutoScale( byval hChart as TK_WIDGET ptr, byval bAuto as boolean )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->bAutoScale = bAuto
+    pChart->Refresh()
+end sub
+
+public function tkChart_GetAutoScale( byval hChart as TK_WIDGET ptr ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    return pChart->bAutoScale
+end function
+
+' Turns autoscaling OFF as a side effect.
+public sub tkChart_SetValueRange( byval hChart as TK_WIDGET ptr, byval fLo as double, byval fHi as double )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->fUserMin = fLo
+    pChart->fUserMax = fHi
+    pChart->bAutoScale = false
+    pChart->Refresh()
+end sub
+
+' The RESOLVED range; forces a pending layout.
+public sub tkChart_GetValueRange( byval hChart as TK_WIDGET ptr, byref fLo as double, byref fHi as double )
+    fLo = 0.0 : fHi = 0.0
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    CHT_EnsureLayout( pChart )
+    fLo = pChart->fMin : fHi = pChart->fMax
+end sub
+
+public function tkChart_GetValueStep( byval hChart as TK_WIDGET ptr ) as double
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return 0
+    CHT_EnsureLayout( pChart )
+    return pChart->fStep
+end function
+
+public sub tkChart_SetTickCountHint( byval hChart as TK_WIDGET ptr, byval nTicks as long )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->nTickHint = nTicks
+    pChart->Refresh()
+end sub
+
+public sub tkChart_SetGridLines( byval hChart as TK_WIDGET ptr, byval bHorz as boolean, byval bVert as boolean )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->bGridHorz = bHorz
+    pChart->bGridVert = bVert
+    pChart->Refresh()
+end sub
+
+public sub tkChart_SetValueFormat( byval hChart as TK_WIDGET ptr, byval nDecimals as long, byval bThousands as boolean )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->nDecimals = nDecimals
+    pChart->bThousands = bThousands
+    pChart->Refresh()
+end sub
+
+public sub tkChart_SetAxisLabelSkip( byval hChart as TK_WIDGET ptr, byval nSkip as long )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->nLabelSkip = iif( nSkip < 0, 0, nSkip )
+    pChart->Refresh()
+end sub
+
+' The RESOLVED stride, never 0; forces a pending layout.
+public function tkChart_GetAxisLabelSkip( byval hChart as TK_WIDGET ptr ) as long
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return 1
+    CHT_EnsureLayout( pChart )
+    return pChart->nLabelStride
+end function
+
+public function tkChart_ValueToY( byval hChart as TK_WIDGET ptr, byval fValue as double ) as long
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return 0
+    CHT_EnsureLayout( pChart )
+    return pChart->ValueToY( fValue )
+end function
+
+public function tkChart_YToValue( byval hChart as TK_WIDGET ptr, byval y as long ) as double
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return 0
+    CHT_EnsureLayout( pChart )
+    return pChart->YToValue( y )
+end function
+
+' --- chrome --------------------------------------------------------------------------------------
+public sub tkChart_SetTitle( byval hChart as TK_WIDGET ptr, byval wszText as ustring )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->wszTitle = wszText
+    pChart->Refresh()
+end sub
+
+public function tkChart_GetTitle( byval hChart as TK_WIDGET ptr ) as ustring
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return ""
+    return pChart->wszTitle
+end function
+
+public sub tkChart_SetSubtitle( byval hChart as TK_WIDGET ptr, byval wszText as ustring )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->wszSubtitle = wszText
+    pChart->Refresh()
+end sub
+
+public function tkChart_GetSubtitle( byval hChart as TK_WIDGET ptr ) as ustring
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return ""
+    return pChart->wszSubtitle
+end function
+
+public sub tkChart_SetLegendVisible( byval hChart as TK_WIDGET ptr, byval bVisible as boolean )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->bLegendVisible = bVisible
+    pChart->Refresh()
+end sub
+
+public function tkChart_IsLegendVisible( byval hChart as TK_WIDGET ptr ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    return pChart->bLegendVisible
+end function
+
+' An unrecognised edge is ignored.
+public sub tkChart_SetLegendPosition( byval hChart as TK_WIDGET ptr, byval nPos as long )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    select case nPos
+    case CHT_LEGEND_BOTTOM, CHT_LEGEND_TOP, CHT_LEGEND_LEFT, CHT_LEGEND_RIGHT
+        pChart->nLegendPos = nPos
+        pChart->Refresh()
+    end select
+end sub
+
+public sub tkChart_SetPadding( byval hChart as TK_WIDGET ptr, byval nPadding as long )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->nPadding = iif( nPadding < 0, 0, nPadding )
+    pChart->Refresh()
+end sub
+
+public sub tkChart_SetFont( byval hChart as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->pLabelFont = f
+    pChart->Refresh()
+end sub
+
+public function tkChart_GetFont( byval hChart as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return 0
+    return pChart->pLabelFont
+end function
+
+public sub tkChart_SetTitleFont( byval hChart as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->pTitleFont = f
+    pChart->Refresh()
+end sub
+
+public sub tkChart_SetSubtitleFont( byval hChart as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->pSubtitleFont = f
+    pChart->Refresh()
+end sub
+
+' The form's fonts (tkApp). No glyph font.
+public sub tkChart_ApplyFonts( byval hChart as TK_WIDGET ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
+    if fText then tkChart_SetFont( hChart, fText )
+end sub
+
+' --- column, HLOC, pie ---------------------------------------------------------------------------
+public sub tkChart_SetBarGap( byval hChart as TK_WIDGET ptr, byval nGap as long )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->nBarGap = iif( nGap < 0, 0, nGap )
+    pChart->Refresh()
+end sub
+
+public sub tkChart_SetGroupGapPercent( byval hChart as TK_WIDGET ptr, byval nPct as long )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    if nPct < 0 then nPct = 0
+    if nPct > 90 then nPct = 90
+    pChart->nGroupGapPct = nPct
+    pChart->Refresh()
+end sub
+
+' Grouped or stacked; an unrecognised mode falls back to grouped.
+public function tkChart_SetColumnMode( byval hChart as TK_WIDGET ptr, byval nMode as long ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    pChart->nColumnMode = iif( nMode = CHT_COL_STACKED, CHT_COL_STACKED, CHT_COL_GROUPED )
+    pChart->Refresh()
+    return true
+end function
+
+public function tkChart_GetColumnMode( byval hChart as TK_WIDGET ptr ) as long
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return CHT_COL_GROUPED
+    return pChart->nColumnMode
+end function
+
+public sub tkChart_SetHlocTickWidth( byval hChart as TK_WIDGET ptr, byval nWidth as long )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->nHlocTick = iif( nWidth < 1, 1, nWidth )
+    pChart->Refresh()
+end sub
+
+public sub tkChart_SetHlocUpDownColors( byval hChart as TK_WIDGET ptr, byval bEnable as boolean )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->bHlocUpDown = bEnable
+    pChart->Refresh()
+end sub
+
+public sub tkChart_SetDoughnutRatio( byval hChart as TK_WIDGET ptr, byval fRatio as single )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    if fRatio < 0.0 then fRatio = 0.0
+    if fRatio > 0.9 then fRatio = 0.9
+    pChart->fDoughnutRatio = fRatio
+    pChart->Refresh()
+end sub
+
+public function tkChart_GetDoughnutRatio( byval hChart as TK_WIDGET ptr ) as single
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return 0
+    return pChart->fDoughnutRatio
+end function
+
+public sub tkChart_SetPieLabelMode( byval hChart as TK_WIDGET ptr, byval nMode as long )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->nPieLabelMode = nMode
+    pChart->Refresh()
+end sub
+
+public sub tkChart_SetPieLabelPlacement( byval hChart as TK_WIDGET ptr, byval nPlace as long )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->nPieLabelPlace = nPlace
+    pChart->Refresh()
+end sub
+
+public sub tkChart_SetPieStartAngle( byval hChart as TK_WIDGET ptr, byval fDegrees as single )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->fPieStartAngle = fDegrees
+    pChart->Refresh()
+end sub
+
+public sub tkChart_SetPieSliceGap( byval hChart as TK_WIDGET ptr, byval nGap as long )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->nPieSliceGap = iif( nGap < 0, 0, nGap )
+    pChart->Refresh()
+end sub
+
+' Pie: slice iPoint's geometry (degrees) and whether its label went outside / was dropped.
+public function tkChart_GetSliceInfo( byval hChart as TK_WIDGET ptr, byval iPoint as long, byref fStart as single, byref fSweep as single, _
+                                      byref bLabelOut as boolean, byref bLabelHid as boolean ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    CHT_EnsureLayout( pChart )
+    dim as TKCHART_POINT ptr p = pChart->GetPoint( 0, iPoint )
+    if p = 0 then return false
+    fStart = p->fStart : fSweep = p->fSweep : bLabelOut = p->bLabelOut : bLabelHid = p->bLabelHid
+    return true
+end function
+
+' --- colours ---------------------------------------------------------------------------------------
+public sub tkChart_GetColors( byval hChart as TK_WIDGET ptr, byval pColors as TKCHART_COLORS ptr )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if (pChart = 0) orelse (pColors = 0) then exit sub
+    *pColors = pChart->colors
+end sub
+
+' Copies and PINS.
+public sub tkChart_SetColors( byval hChart as TK_WIDGET ptr, byval pColors as TKCHART_COLORS ptr )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if (pChart = 0) orelse (pColors = 0) then exit sub
+    pChart->colors = *pColors
+    pChart->bColorsPinned = true
+    tkWidget_Invalidate( hChart )
+end sub
+
+' Vendor PsChart_ThemeColors, role for role. The palette and series colours are data, never themed.
+public function tkChart_ThemeColors( byref t as TKTHEME_COLORS ) as TKCHART_COLORS
+    dim as TKCHART_COLORS c
+    c.BackColor = t.Window
+    c.PlotBackColor = t.Window
+    c.GridColor = t.Divider
+    c.AxisColor = t.Border
+    c.LabelColor = t.TextDim
+    c.TitleColor = t.Text
+    c.SubtitleColor = t.TextDim
+    c.LegendTextColor = t.Text
+    c.SliceLabelColor = t.SelectedText
+    c.SliceLabelOutColor = t.Text
+    c.LeaderColor = t.TextDim
+    c.SliceGapColor = t.Window
+    c.UpColor = t.Success
+    c.DownColor = t.Error
+    c.ForeColorDisabled = t.TextDisabled
+    return c
+end function
+
+public sub tkChart_ApplyTheme( byval hChart as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if (pChart = 0) orelse pChart->bColorsPinned then exit sub
+    pChart->colors = tkChart_ThemeColors( t )
+    tkWidget_Invalidate( hChart )
+end sub
+
+public sub tkChart_UnpinColors( byval hChart as TK_WIDGET ptr )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->bColorsPinned = false
+    tkChart_ApplyTheme( hChart, tkTheme_Get() )
+end sub
+
+public sub tkChart_SetPaletteColor( byval hChart as TK_WIDGET ptr, byval idx as long, byval clr as ulong )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if (pChart = 0) orelse (idx < 0) orelse (idx >= TKCHART_PALETTE_COUNT) then exit sub
+    pChart->palette(idx) = clr
+    tkWidget_Invalidate( hChart )
+end sub
+
+public function tkChart_GetPaletteColor( byval hChart as TK_WIDGET ptr, byval idx as long ) as ulong
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if (pChart = 0) orelse (idx < 0) orelse (idx >= TKCHART_PALETTE_COUNT) then return 0
+    return pChart->palette(idx)
+end function
+
+' --- query -----------------------------------------------------------------------------------------
+public function tkChart_HitTest( byval hChart as TK_WIDGET ptr, byval x as long, byval y as long, byref iSeries as long, byref iPoint as long ) as boolean
+    iSeries = -1 : iPoint = -1
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    CHT_EnsureLayout( pChart )
+    return CHT_HitTest( pChart, x, y, iSeries, iPoint )
+end function
+
+private function CHT_Rect( byval hChart as TK_WIDGET ptr, byval nWhich as long, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    CHT_EnsureLayout( pChart )
+    select case nWhich
+    case 0 : rc = pChart->rcPlot
+    case 1 : rc = pChart->rcLegend
+    case 2 : rc = pChart->rcTitle
+    case 3 : rc = pChart->rcAxisY
+    case 4 : rc = pChart->rcAxisX
+    case 5 : rc = pChart->rcPie
+    case 6 : rc = pChart->rcSubtitle
+    end select
+    return true
+end function
+
+public function tkChart_GetPlotRect( byval hChart as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return CHT_Rect( hChart, 0, rc )
+end function
+public function tkChart_GetLegendRect( byval hChart as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return CHT_Rect( hChart, 1, rc )
+end function
+public function tkChart_GetTitleRect( byval hChart as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return CHT_Rect( hChart, 2, rc )
+end function
+public function tkChart_GetSubtitleRect( byval hChart as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return CHT_Rect( hChart, 6, rc )
+end function
+public function tkChart_GetAxisYRect( byval hChart as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return CHT_Rect( hChart, 3, rc )
+end function
+public function tkChart_GetAxisXRect( byval hChart as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return CHT_Rect( hChart, 4, rc )
+end function
+public function tkChart_GetPieRect( byval hChart as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return CHT_Rect( hChart, 5, rc )
+end function
+
+' The bar / HLOC band / line hit box / pie label box. Empty for a hidden series.
+public function tkChart_GetPointRect( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    CHT_EnsureLayout( pChart )
+    dim as TKCHART_POINT ptr p = pChart->GetPoint( iSeries, iPoint )
+    if p = 0 then return false
+    rc = p->rc
+    return true
+end function
+
+' The line vertex / bar top / pie rim midpoint.
+public function tkChart_GetPointAnchor( byval hChart as TK_WIDGET ptr, byval iSeries as long, byval iPoint as long, byref pt as TKPOINT ) as boolean
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    CHT_EnsureLayout( pChart )
+    dim as TKCHART_POINT ptr p = pChart->GetPoint( iSeries, iPoint )
+    if p = 0 then return false
+    pt = p->ptPlot
+    return true
+end function
+
+' State, not geometry: no layout forced.
+public function tkChart_GetHotPoint( byval hChart as TK_WIDGET ptr, byref iSeries as long, byref iPoint as long ) as boolean
+    iSeries = -1 : iPoint = -1
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return false
+    iSeries = pChart->nHotSeries : iPoint = pChart->nHotPoint
+    return (iPoint >= 0)
+end function
+
+' --- tooltips ----------------------------------------------------------------------------------------
+public sub tkChart_SetTooltipText( byval hChart as TK_WIDGET ptr, byval wszText as ustring )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart then pChart->wszTipText = wszText
+end sub
+
+public function tkChart_GetTooltipText( byval hChart as TK_WIDGET ptr ) as ustring
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return ""
+    return pChart->wszTipText
+end function
+
+' What the tip would say now (authored > callback > the hot point described).
+public function tkChart_ResolveTooltipText( byval hChart as TK_WIDGET ptr ) as ustring
+    return CHT_ResolveTooltipText( GetChartPointer( hChart ) )
+end function
+
+public function tkChart_GetTooltipHandle( byval hChart as TK_WIDGET ptr ) as TK_TIP ptr
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return 0
+    return tkTipHost_Tip( @pChart->tip )
+end function
+
+public sub tkChart_SetHoverTime( byval hChart as TK_WIDGET ptr, byval ms as long )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart then tkTipHost_SetDelay( @pChart->tip, TK_TIPDELAY_INITIAL, ms )
+end sub
+
+' --- callbacks: 0 removes ---------------------------------------------------------------------------
+public sub tkChart_SetPaintCallback( byval hChart as TK_WIDGET ptr, byval userfunc as CHT_PaintCallbackSub )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->PaintCallback = userfunc
+    tkWidget_Invalidate( hChart )
+end sub
+
+public sub tkChart_SetMessageCallback( byval hChart as TK_WIDGET ptr, byval userfunc as CHT_MessageCallbackFunc )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart then pChart->MessageCallback = userfunc
+end sub
+
+public sub tkChart_SetTooltipCallback( byval hChart as TK_WIDGET ptr, byval userfunc as CHT_TooltipCallbackFunc )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart then pChart->TooltipCallback = userfunc
+end sub
+
+public sub tkChart_SetValueLabelCallback( byval hChart as TK_WIDGET ptr, byval userfunc as CHT_ValueLabelCallbackFunc )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then exit sub
+    pChart->ValueLabelCallback = userfunc
+    pChart->Refresh()
+end sub
+
+public sub tkChart_SetHotChangeCallback( byval hChart as TK_WIDGET ptr, byval userfunc as CHT_HotChangeCallbackSub )
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart then pChart->HotChangeCallback = userfunc
+end sub
+
+
+' ========================================================================================
+' Probes: CHT_Render into the back buffer at the widget's place, read back before any present.
+' ========================================================================================
+private function CHT_RenderRead( byval hChart as TK_WIDGET ptr ) as SDL_Surface ptr
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if (pChart = 0) orelse (hChart->cw <= 0) orelse (hChart->ch <= 0) then return 0
+    dim as TK_HOST ptr h = hChart->pHost
+    dim as TKRECT a
+    tkWidget_AbsRect( hChart, a )
+    dim as TK_PAINT wp
+    wp.renderer = h->renderer
+    wp.engine = h->engine
+    wp.pFont = h->pDefaultFont
+    wp.fScale = h->fScale
+    wp.Begin( a.left, a.top, hChart->cw, hChart->ch )
+    CHT_Render( pChart, @wp )
+    SDL_SetRenderClipRect( h->renderer, 0 )
+    h->bDirty = true
+    dim as SDL_Rect sr
+    sr.x = a.left : sr.y = a.top : sr.w = hChart->cw : sr.h = hChart->ch
+    dim as SDL_Surface ptr s0 = SDL_RenderReadPixels( h->renderer, @sr )
+    if s0 = 0 then return 0
+    dim as SDL_Surface ptr s = SDL_ConvertSurface( s0, SDL_PIXELFORMAT_ARGB8888 )
+    SDL_DestroySurface( s0 )
+    return s
+end function
+
+private function CHT_Px( byval s as SDL_Surface ptr, byval x as long, byval y as long ) as ulong
+    return *cast( ulong ptr, cast( ubyte ptr, s->pixels ) + y * s->pitch + x * 4 ) or &hFF000000ul
+end function
+
+' Distinct colours on a fixed 32x32 sample grid over the client, capped at 64.
+public function tkChart_CountRenderedTones( byval hChart as TK_WIDGET ptr ) as long
+    dim as SDL_Surface ptr s = CHT_RenderRead( hChart )
+    if s = 0 then return 0
+    dim tones(0 to 63) as ulong
+    dim as long n = 0
+    for gy as long = 0 to 31
+        for gx as long = 0 to 31
+            dim as ulong c = CHT_Px( s, (gx * (s->w - 1)) \ 31, (gy * (s->h - 1)) \ 31 )
+            dim as boolean f = false
+            for t as long = 0 to n - 1
+                if tones(t) = c then f = true : exit for
+            next
+            if (f = false) andalso (n < 64) then tones(n) = c : n += 1
+        next
+    next
+    SDL_DestroySurface( s )
+    return n
+end function
+
+' FNV-1a over the same sample.
+public function tkChart_HashRenderedPart( byval hChart as TK_WIDGET ptr ) as ulong
+    dim as SDL_Surface ptr s = CHT_RenderRead( hChart )
+    if s = 0 then return 0
+    dim as ulong hv = &h811C9DC5ul
+    for gy as long = 0 to 31
+        for gx as long = 0 to 31
+            dim as ulong c = CHT_Px( s, (gx * (s->w - 1)) \ 31, (gy * (s->h - 1)) \ 31 )
+            hv = (hv xor (c and &hFF)) * &h01000193ul
+            hv = (hv xor ((c shr 8) and &hFF)) * &h01000193ul
+            hv = (hv xor ((c shr 16) and &hFF)) * &h01000193ul
+        next
+    next
+    SDL_DestroySurface( s )
+    return hv
+end function
+
+' One rendered pixel (client coordinates), opaque; 0 outside the client.
+public function tkChart_GetRenderedPixel( byval hChart as TK_WIDGET ptr, byval x as long, byval y as long ) as ulong
+    if (hChart = 0) orelse (x < 0) orelse (y < 0) orelse (x >= hChart->cw) orelse (y >= hChart->ch) then return 0
+    dim as SDL_Surface ptr s = CHT_RenderRead( hChart )
+    if s = 0 then return 0
+    dim as ulong c = CHT_Px( s, x, y )
+    SDL_DestroySurface( s )
+    return c
+end function
+
+' Every pixel of the plot rect that is NOT clrBack: the series' ink. A test probe.
+public function tkChart_CountPlotInkPixels( byval hChart as TK_WIDGET ptr, byval clrBack as ulong ) as long
+    dim as TKCHART_STATE ptr pChart = GetChartPointer( hChart )
+    if pChart = 0 then return 0
+    CHT_EnsureLayout( pChart )
+    dim as TKRECT rp = pChart->rcPlot
+    dim as SDL_Surface ptr s = CHT_RenderRead( hChart )
+    if s = 0 then return 0
+    clrBack or= &hFF000000ul
+    dim as long n = 0
+    for y as long = rp.top to rp.bottom - 1
+        if (y < 0) orelse (y >= s->h) then continue for
+        for x as long = rp.left to rp.right - 1
+            if (x < 0) orelse (x >= s->w) then continue for
+            if CHT_Px( s, x, y ) <> clrBack then n += 1
+        next
+    next
+    SDL_DestroySurface( s )
+    return n
+end function

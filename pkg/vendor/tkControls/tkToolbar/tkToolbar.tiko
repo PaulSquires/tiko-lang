@@ -1,0 +1,2188 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkToolbar -- PsToolbar on SDL3 + SDL_ttf, a port of pkg/vendor/PsControls/PsToolbar/PsToolbar.tiko
+' onto tkHost. Dropdown and overflow menus are tkPopupMenu menus; CONTROL cells hold child
+' WIDGETS of the toolbar.
+'
+' WHAT IS UNCHANGED: the six kinds; the cell-width formula with gaps charged only between two
+' things; measured captions (SDL_ttf); the ideal size valid before sizing; left / right gravity
+' with the overflow chevron inboard of the right run; the eviction ladder (left tail first, then
+' the right run's front; CONTROL cells never); separators trimmed at the edges of each run;
+' capture per ZONE (action zones take it, menu zones open on the down and take none); the
+' matched press / slide-off / release on the same item AND zone; radio groups (both writes
+' before either callback, losers first, re-clicking the checked member a no-op); the one commit
+' path shared by a strip click, an overflow pick and tkToolbar_Click; the overflow menu rebuilt
+' per open with ids = index + 1 and its separators collapsed; the reopen guard narrowed to the
+' zone that owns the open menu; menus themed from the bar unless claimed; silent setters; the
+' pure helpers and the render probes.
+'
+' WHAT CHANGED, because there is no pump filter: tkHost routes keys to the open popup and
+' closes it on an outside press (which still lands). The toolbar learns that a menu closed
+' through callbacks it installs on the menu when it opens it (the host's own select / closed
+' callbacks are kept and run behind them); the reopen guard is a dismissal remembered for
+' 250 ms. See PORT.md.
+#module "tkToolbar"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkTooltip" public
+#import "../tkImage" public
+#import "../tkPopupMenu" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkTooltip
+using tkImage
+using tkPopupMenu
+
+public const TKTOOLBAR_DEFAULT_ICONWIDTH = 16
+public const TKTOOLBAR_DEFAULT_ICONHEIGHT = 16
+public const TKTOOLBAR_DEFAULT_PADBEFORE = 6
+public const TKTOOLBAR_DEFAULT_PADAFTER = 6
+public const TKTOOLBAR_DEFAULT_PADTOP = 4
+public const TKTOOLBAR_DEFAULT_PADBOTTOM = 4
+public const TKTOOLBAR_DEFAULT_TEXTGAP = 6
+public const TKTOOLBAR_DEFAULT_SEPWIDTH = 1
+public const TKTOOLBAR_DEFAULT_CHEVRONWIDTH = 14
+public const TKTOOLBAR_DEFAULT_CHEVRONGAP = 4
+public const TKTOOLBAR_DEFAULT_DIVIDERTHICK = 1     ' NOT scaled: a hairline stays a hairline
+public const TKTOOLBAR_DEFAULT_CURVATURE = 4
+
+public enum
+    TBR_KIND_COMMAND = 0
+    TBR_KIND_TOGGLE
+    TBR_KIND_SEPARATOR
+    TBR_KIND_SPLIT
+    TBR_KIND_DROPDOWN
+    TBR_KIND_CONTROL
+end enum
+
+public enum
+    TBR_GRAVITY_LEFT = 0
+    TBR_GRAVITY_RIGHT
+end enum
+
+public enum
+    TBR_ZONE_NONE = 0
+    TBR_ZONE_ACTION
+    TBR_ZONE_CHEVRON
+    TBR_ZONE_OVERFLOW
+end enum
+
+public enum
+    TBR_PART_TOOLBAR = 0
+    TBR_PART_ITEM
+    TBR_PART_ICON
+    TBR_PART_TEXT
+    TBR_PART_CHEVRON
+end enum
+
+public enum
+    TBR_MOOD_IDLE = 0
+    TBR_MOOD_HOT
+    TBR_MOOD_PRESSED
+    TBR_MOOD_DISABLED
+end enum
+
+' Vendor's dark defaults, value for value.
+public type TKTOOLBAR_COLORS
+    BackColor         as ulong = &hFF21252Bul    ' ( 33, 37, 43)
+    ForeColor         as ulong = &hFFD7DAE0ul    ' (215,218,224)
+    BackColorHot      as ulong = &hFF2C313Aul    ' ( 44, 49, 58)
+    ForeColorHot      as ulong = &hFFFFFFFFul
+    BackColorSelect   as ulong = &hFF264F78ul    ' ( 38, 79,120)
+    ForeColorSelect   as ulong = &hFFFFFFFFul
+    ForeColorDisabled as ulong = &hFF6E737Dul    ' (110,115,125)
+    SeparatorColor    as ulong = &hFF464C58ul    ' ( 70, 76, 88)
+    SplitDividerColor as ulong = &hFF464C58ul
+end type
+
+public type TKTOOLBAR_ITEM
+    itemKind       as long = TBR_KIND_COMMAND
+    wszGlyph       as ustring
+    pImage         as tkImageFile ptr       ' OWNED; glyph OR image
+    wszText        as ustring
+    wszTooltip     as ustring
+    id             as long
+    itemData       as integer
+    isSelected     as boolean
+    isEnabled      as boolean = true
+    isVisible      as boolean = true
+    nGroupID       as long
+    nGravity       as long = TBR_GRAVITY_LEFT
+    hMenu          as TK_MENU ptr           ' OWNED, created on demand
+    prevSelect     as PM_SelectCallbackSub  ' the menu's own callbacks, chained behind ours
+    prevClosed     as PM_ClosedCallbackSub
+    hChild         as TK_WIDGET ptr         ' CONTROL: the host's widget, a child of the toolbar
+    nControlWidth  as long
+    nControlHeight as long
+    nPadBefore     as long = -1
+    nPadAfter      as long = -1
+    nIconWidth     as long = 0
+    nIconHeight    as long = 0
+    ForeColorItem  as ulong
+    bHasForeColor  as boolean
+    ' --- derived ---
+    nTextWidth     as long
+    nCellWidth     as long
+    bOverflowed    as boolean
+    bTrimmed       as boolean
+    rc             as TKRECT
+    rcIcon         as TKRECT
+    rcText         as TKRECT               ' the caption SPAN, not the ink
+    rcChevron      as TKRECT
+end type
+
+public type TKTOOLBAR_PAINTINFO
+    hToolbar     as TK_WIDGET ptr
+    itemID       as long                   ' -1 = the overflow button
+    b            as TK_PAINT ptr
+    itemKind     as long
+    rc           as TKRECT
+    rcIcon       as TKRECT
+    rcText       as TKRECT
+    rcChevron    as TKRECT
+    nMood        as long
+    isHot        as boolean
+    isSelected   as boolean
+    isPressed    as boolean
+    isEnabled    as boolean
+    isChevronHot as boolean
+    isDropped    as boolean
+    wszGlyph     as ustring
+    wszText      as ustring
+    pImage       as tkImageFile ptr        ' draw with tkImage_Paint INSTEAD OF the glyph
+end type
+
+public type TKTOOLBAR_MESSAGEINFO
+    hToolbar as TK_WIDGET ptr
+    msg      as long                       ' TKM_*
+    x        as single
+    y        as single
+    idx      as long
+    nZone    as long
+end type
+
+public type TBR_PaintItemCallbackSub as sub( byval p as TKTOOLBAR_PAINTINFO ptr )
+public type TBR_MessageCallbackFunc as function( byval m as TKTOOLBAR_MESSAGEINFO ptr ) as boolean
+public type TBR_TooltipCallbackFunc as function( byval hToolbar as TK_WIDGET ptr, byval idx as long ) as ustring
+public type TBR_ClickCallbackSub as sub( byval hToolbar as TK_WIDGET ptr, byval idx as long, byval id as long )
+public type TBR_SelChangeCallbackSub as sub( byval hToolbar as TK_WIDGET ptr, byval idx as long, byval isSelected as boolean )
+public type TBR_DropDownCallbackSub as sub( byval hToolbar as TK_WIDGET ptr, byval idx as long, byval hMenu as TK_MENU ptr, byval isOpen as boolean )
+
+
+' ==========================================================================================
+' Pure functions -- vendor's, unchanged.
+' ==========================================================================================
+'   SEPARATOR  padBefore + nSepWidth     + padAfter
+'   CONTROL    padBefore + nControlWidth + padAfter
+'   otherwise  padBefore + [ iconW ] [ gap + textW ] [ gap + divider + chevronW (SPLIT) ]
+'                                                    [ gap + chevronW (DROPDOWN) ] + padAfter
+' A gap is charged only when there is something on both sides of it.
+public function tkToolbar_ComputeCellWidth( byval nKind as long, byval nIconWidth as long, byval nTextWidth as long, _
+                                            byval nTextGap as long, byval nSepWidth as long, byval nControlWidth as long, _
+                                            byval nChevronWidth as long, byval nChevronGap as long, byval nDividerThick as long, _
+                                            byval nPadBefore as long, byval nPadAfter as long ) as long
+    dim as long core = 0
+    select case nKind
+    case TBR_KIND_SEPARATOR
+        core = nSepWidth
+    case TBR_KIND_CONTROL
+        core = nControlWidth
+    case else
+        dim as boolean bIcon = (nIconWidth > 0)
+        dim as boolean bText = (nTextWidth > 0)
+        if bIcon then core += nIconWidth
+        if bText then
+            if bIcon then core += nTextGap
+            core += nTextWidth
+        end if
+        dim as boolean bContent = bIcon orelse bText
+        select case nKind
+        case TBR_KIND_SPLIT
+            if bContent then core += nChevronGap + nDividerThick
+            core += nChevronWidth
+        case TBR_KIND_DROPDOWN
+            if bContent then core += nChevronGap
+            core += nChevronWidth
+        end select
+    end select
+    return nPadBefore + core + nPadAfter
+end function
+
+' Which visible items leave the strip: nothing when it all fits; otherwise reserve the chevron
+' cell and evict from the LEFT run's tail, then the RIGHT run's front. CONTROL cells never go.
+public sub tkToolbar_ComputeOverflowSplit( nCellW() as long, nGravity() as long, nKind() as long, byval nCount as long, _
+                                           byval nClientW as long, byval nOverflowCellW as long, bOverflow() as boolean, _
+                                           byref bNeedOverflow as boolean )
+    bNeedOverflow = false
+    if nCount <= 0 then exit sub
+    dim as long total = 0
+    for i as long = 0 to nCount - 1
+        bOverflow(i) = false
+        total += nCellW(i)
+    next
+    if total <= nClientW then exit sub
+    bNeedOverflow = true
+    dim as long avail = nClientW - nOverflowCellW
+    if avail < 0 then avail = 0
+    do while total > avail
+        dim as long cand = -1
+        for i as long = nCount - 1 to 0 step -1
+            if bOverflow(i) orelse (nKind(i) = TBR_KIND_CONTROL) orelse (nGravity(i) <> TBR_GRAVITY_LEFT) then continue for
+            cand = i
+            exit for
+        next
+        if cand = -1 then
+            for i as long = 0 to nCount - 1
+                if bOverflow(i) orelse (nKind(i) = TBR_KIND_CONTROL) orelse (nGravity(i) <> TBR_GRAVITY_RIGHT) then continue for
+                cand = i
+                exit for
+            next
+        end if
+        if cand = -1 then exit do               ' only pinned CONTROL cells left: the tail clips
+        bOverflow(cand) = true
+        total -= nCellW(cand)
+    loop
+end sub
+
+' disabled > pressed > hot > idle (isSelected is combined by the painter, not a mood).
+public function tkToolbar_ResolveMood( byval isEnabled as boolean, byval isPressed as boolean, byval isHot as boolean ) as long
+    if isEnabled = false then return TBR_MOOD_DISABLED
+    if isPressed then return TBR_MOOD_PRESSED
+    if isHot then return TBR_MOOD_HOT
+    return TBR_MOOD_IDLE
+end function
+
+
+public type TKTOOLBAR_STATE
+    hWin              as TK_WIDGET ptr
+    id                as long
+    bColorsPinned     as boolean
+    tip               as TKTIPHOST_STATE
+    items(any)        as TKTOOLBAR_ITEM
+    itemCount         as long
+    nLastHotIdx       as long = -1
+    nHotZone          as long = TBR_ZONE_NONE
+    nPressedIdx       as long = -1
+    nPressedZone      as long = TBR_ZONE_NONE
+    nDroppedIdx       as long = -1
+    bOverflowOpen     as boolean
+    bOverflowHot      as boolean
+    ' the reopen guard: which menu an outside press last dismissed (-2 = the overflow), and when
+    nDismissIdx       as long = -1
+    nDismissTicks     as Uint64
+    bDismissed        as boolean
+    colors            as TKTOOLBAR_COLORS
+    pTextFont         as TTF_Font ptr       ' borrowed; a LAYOUT input
+    pGlyphFont        as TTF_Font ptr       ' borrowed; paint-time only
+    nIconWidth        as long
+    nIconHeight       as long
+    nPadBefore        as long
+    nPadAfter         as long
+    nPadTop           as long
+    nPadBottom        as long
+    nTextGap          as long
+    nSepWidth         as long
+    nChevronWidth     as long
+    nChevronGap       as long
+    nDividerThick     as long = TKTOOLBAR_DEFAULT_DIVIDERTHICK
+    nCurvature        as long
+    nSepHeight        as long
+    wszChevron        as ustring
+    wszOverflow       as ustring
+    nTextHeight       as long
+    nTotalWidth       as long
+    nIdealHeight      as long
+    bNeedOverflow     as boolean
+    rcOverflow        as TKRECT
+    hOverflowMenu     as TK_MENU ptr
+    bMenuColorsCustom as boolean
+    menuColors        as TKPOPUPMENU_COLORS
+    bLayoutDirty      as boolean = true
+    PaintItemCallback as TBR_PaintItemCallbackSub
+    MessageCallback   as TBR_MessageCallbackFunc
+    TooltipCallback   as TBR_TooltipCallbackFunc
+    ClickCallback     as TBR_ClickCallbackSub
+    SelChangeCallback as TBR_SelChangeCallbackSub
+    DropDownCallback  as TBR_DropDownCallbackSub
+
+    declare sub      LayoutItems()
+    declare function AddItemSlot() as TKTOOLBAR_ITEM ptr
+    declare function InsertItemSlot( byval idx as long ) as TKTOOLBAR_ITEM ptr
+    declare function RemoveItemAt( byval idx as long ) as boolean
+    declare function GetItem( byval idx as long ) as TKTOOLBAR_ITEM ptr
+    declare function IsValidItem( byval idx as long ) as boolean
+    declare function HitTestZone( byval x as single, byval y as single, byref nZone as long ) as long
+    declare function IsInteractive( byval idx as long ) as boolean
+    declare sub      FixupIndices( byval idxRemoved as long )
+    declare sub      CancelPress()
+    declare sub      ClearAll()
+    declare sub      Refresh()
+end type
+
+' The one bar whose menu is open (tkPopupMenu allows one chain per process).
+dim shared as TKTOOLBAR_STATE ptr gOpenTB
+
+private function TextFontOf( byval pTB as TKTOOLBAR_STATE ptr ) as TTF_Font ptr
+    if pTB->pTextFont then return pTB->pTextFont
+    return pTB->hWin->pHost->pDefaultFont
+end function
+
+' The glyph font falls back to the TEXT font (a host that set one font has said which it means).
+private function GlyphFontOf( byval pTB as TKTOOLBAR_STATE ptr ) as TTF_Font ptr
+    if pTB->pGlyphFont then return pTB->pGlyphFont
+    return TextFontOf( pTB )
+end function
+
+private sub ResetItem( byref it as TKTOOLBAR_ITEM )
+    with it
+        .itemKind = TBR_KIND_COMMAND : .wszGlyph = "" : .pImage = 0 : .wszText = "" : .wszTooltip = ""
+        .id = 0 : .itemData = 0 : .isSelected = false : .isEnabled = true : .isVisible = true
+        .nGroupID = 0 : .nGravity = TBR_GRAVITY_LEFT : .hMenu = 0 : .prevSelect = 0 : .prevClosed = 0
+        .hChild = 0 : .nControlWidth = 0 : .nControlHeight = 0
+        .nPadBefore = -1 : .nPadAfter = -1 : .nIconWidth = 0 : .nIconHeight = 0
+        .ForeColorItem = 0 : .bHasForeColor = false
+        .nTextWidth = 0 : .nCellWidth = 0 : .bOverflowed = false : .bTrimmed = false
+        tkRect_SetEmpty( .rc ) : tkRect_SetEmpty( .rcIcon ) : tkRect_SetEmpty( .rcText ) : tkRect_SetEmpty( .rcChevron )
+    end with
+end sub
+
+private function HasIcon( byref it as TKTOOLBAR_ITEM ) as boolean
+    if len( it.wszGlyph ) > 0 then return true
+    return (it.pImage <> 0) andalso (it.pImage->IsValid() <> 0)
+end function
+
+' Vendor's LayoutItems, step for step: measure, cell widths and ideal height (valid before the
+' bar has a size), the overflow split, separator trimming per run, placement, sub-rects and the
+' CONTROL children.
+sub TKTOOLBAR_STATE.LayoutItems()
+    this.bLayoutDirty = false
+    this.nTotalWidth = 0
+    this.nIdealHeight = 0
+    this.bNeedOverflow = false
+    tkRect_SetEmpty( this.rcOverflow )
+    if (this.hWin = 0) orelse (this.itemCount = 0) then exit sub
+
+    ' ---- 1. measure ----
+    dim as TTF_Font ptr f = TextFontOf( @this )
+    this.nTextHeight = tkText_Height( f )
+    for i as long = 0 to this.itemCount - 1
+        with this.items(i)
+            .bOverflowed = false : .bTrimmed = false : .nTextWidth = 0
+            tkRect_SetEmpty( .rc ) : tkRect_SetEmpty( .rcIcon ) : tkRect_SetEmpty( .rcText ) : tkRect_SetEmpty( .rcChevron )
+            if .isVisible andalso (len( .wszText ) > 0) then .nTextWidth = tkText_Width( f, .wszText )
+        end with
+    next
+
+    ' ---- 2. cell widths, ideal height ----
+    dim padB( 0 to this.itemCount - 1 ) as long
+    dim padA( 0 to this.itemCount - 1 ) as long
+    dim iconW( 0 to this.itemCount - 1 ) as long
+    dim iconH( 0 to this.itemCount - 1 ) as long
+    dim as long contentH = 0, totalW = 0
+    dim as boolean bAnyText = false
+    for i as long = 0 to this.itemCount - 1
+        with this.items(i)
+            padB(i) = iif( .nPadBefore < 0, this.nPadBefore, .nPadBefore )
+            padA(i) = iif( .nPadAfter < 0, this.nPadAfter, .nPadAfter )
+            iconH(i) = iif( .nIconHeight = 0, this.nIconHeight, .nIconHeight )
+            dim as boolean bIcon = HasIcon( this.items(i) )
+            iconW(i) = iif( bIcon, iif( .nIconWidth = 0, this.nIconWidth, .nIconWidth ), 0 )
+            .nCellWidth = tkToolbar_ComputeCellWidth( .itemKind, iconW(i), .nTextWidth, this.nTextGap, this.nSepWidth, _
+                                                      .nControlWidth, this.nChevronWidth, this.nChevronGap, this.nDividerThick, _
+                                                      padB(i), padA(i) )
+            if .isVisible = false then continue for
+            totalW += .nCellWidth
+            if len( .wszText ) then bAnyText = true
+            select case .itemKind
+            case TBR_KIND_CONTROL
+                if .nControlHeight > contentH then contentH = .nControlHeight
+            case TBR_KIND_SEPARATOR
+            case else
+                dim as boolean bGlyphBox = bIcon orelse (.itemKind = TBR_KIND_SPLIT) orelse (.itemKind = TBR_KIND_DROPDOWN)
+                if bGlyphBox andalso (iconH(i) > contentH) then contentH = iconH(i)
+            end select
+        end with
+    next
+    if bAnyText andalso (this.nTextHeight > contentH) then contentH = this.nTextHeight
+    this.nTotalWidth = totalW
+    this.nIdealHeight = this.nPadTop + contentH + this.nPadBottom
+
+    dim as long clientW = this.hWin->cw, clientH = this.hWin->ch
+    if (clientW <= 0) orelse (clientH <= 0) then
+        this.bLayoutDirty = true
+        exit sub
+    end if
+
+    ' ---- 3. the overflow split, over the visible items ----
+    dim vmap( 0 to this.itemCount - 1 ) as long
+    dim vW( 0 to this.itemCount - 1 ) as long
+    dim vG( 0 to this.itemCount - 1 ) as long
+    dim vK( 0 to this.itemCount - 1 ) as long
+    dim vOvr( 0 to this.itemCount - 1 ) as boolean
+    dim as long vCount = 0
+    for i as long = 0 to this.itemCount - 1
+        if this.items(i).isVisible = false then continue for
+        vmap(vCount) = i : vW(vCount) = this.items(i).nCellWidth
+        vG(vCount) = this.items(i).nGravity : vK(vCount) = this.items(i).itemKind
+        vCount += 1
+    next
+    if vCount = 0 then exit sub
+    dim as long nOverflowCellW = this.nPadBefore + this.nChevronWidth + this.nPadAfter
+    dim as boolean bNeed = false
+    tkToolbar_ComputeOverflowSplit( vW(), vG(), vK(), vCount, clientW, nOverflowCellW, vOvr(), bNeed )
+    this.bNeedOverflow = bNeed
+    for v as long = 0 to vCount - 1
+        this.items(vmap(v)).bOverflowed = vOvr(v)
+    next
+
+    ' ---- 4. trim leading / trailing separators, per run ----
+    for g as long = TBR_GRAVITY_LEFT to TBR_GRAVITY_RIGHT
+        dim as long nFirst = -1, nLast = -1
+        for v as long = 0 to vCount - 1
+            dim as long i = vmap(v)
+            if this.items(i).bOverflowed orelse (this.items(i).nGravity <> g) then continue for
+            if nFirst = -1 then nFirst = i
+            nLast = i
+        next
+        if nFirst <> -1 then
+            if this.items(nFirst).itemKind = TBR_KIND_SEPARATOR then this.items(nFirst).bTrimmed = true
+            if this.items(nLast).itemKind = TBR_KIND_SEPARATOR then this.items(nLast).bTrimmed = true
+        end if
+    next
+
+    ' ---- 5. place: left run forward, right run backward, the chevron inboard of the right ----
+    dim as long x = 0
+    for v as long = 0 to vCount - 1
+        with this.items(vmap(v))
+            if .bOverflowed orelse .bTrimmed orelse (.nGravity <> TBR_GRAVITY_LEFT) then continue for
+            tkRect_Set( .rc, x, 0, x + .nCellWidth, clientH )
+            x += .nCellWidth
+        end with
+    next
+    dim as long xr = clientW
+    for v as long = vCount - 1 to 0 step -1
+        with this.items(vmap(v))
+            if .bOverflowed orelse .bTrimmed orelse (.nGravity <> TBR_GRAVITY_RIGHT) then continue for
+            xr -= .nCellWidth
+            tkRect_Set( .rc, xr, 0, xr + .nCellWidth, clientH )
+        end with
+    next
+    if this.bNeedOverflow then tkRect_Set( this.rcOverflow, xr - nOverflowCellW, 0, xr, clientH )
+
+    ' ---- 6. sub-rects and the CONTROL children ----
+    for i as long = 0 to this.itemCount - 1
+        with this.items(i)
+            if tkRect_IsEmpty( .rc ) then
+                ' a CONTROL child that cannot be placed is hidden, not left orphaned
+                if (.itemKind = TBR_KIND_CONTROL) andalso (.hChild <> 0) then tkWidget_Show( .hChild, false )
+                continue for
+            end if
+            dim as long cellH = .rc.bottom - .rc.top
+            dim as long xc = .rc.left + padB(i)
+            select case .itemKind
+            case TBR_KIND_SEPARATOR
+                dim as long sh = this.nSepHeight
+                if sh <= 0 then sh = contentH
+                if sh > cellH then sh = cellH
+                dim as long ys = .rc.top + ((cellH - sh) \ 2)
+                tkRect_Set( .rcIcon, xc, ys, xc + this.nSepWidth, ys + sh )
+            case TBR_KIND_CONTROL
+                dim as long chh = .nControlHeight
+                if (chh <= 0) orelse (chh > cellH) then chh = cellH
+                dim as long yc = .rc.top + ((cellH - chh) \ 2)
+                if .hChild then
+                    tkWidget_SetPos( .hChild, xc, yc, .nControlWidth, chh )
+                    tkWidget_Show( .hChild, true )
+                end if
+            case else
+                dim as long xTextRight = .rc.right - padA(i)
+                if (.itemKind = TBR_KIND_SPLIT) orelse (.itemKind = TBR_KIND_DROPDOWN) then
+                    dim as long xChev = .rc.right - padA(i) - this.nChevronWidth
+                    dim as long hChev = iif( iconH(i) > cellH, cellH, iconH(i) )
+                    dim as long yChev = .rc.top + ((cellH - hChev) \ 2)
+                    tkRect_Set( .rcChevron, xChev, yChev, xChev + this.nChevronWidth, yChev + hChev )
+                    xTextRight = xChev
+                    if (iconW(i) > 0) orelse (.nTextWidth > 0) then
+                        if .itemKind = TBR_KIND_SPLIT then
+                            xTextRight -= (this.nDividerThick + this.nChevronGap)
+                        else
+                            xTextRight -= this.nChevronGap
+                        end if
+                    end if
+                end if
+                if iconW(i) > 0 then
+                    dim as long ih = iif( iconH(i) > cellH, cellH, iconH(i) )
+                    dim as long yi = .rc.top + ((cellH - ih) \ 2)
+                    tkRect_Set( .rcIcon, xc, yi, xc + iconW(i), yi + ih )
+                    xc += iconW(i)
+                    if .nTextWidth > 0 then xc += this.nTextGap
+                end if
+                if .nTextWidth > 0 then
+                    dim as long yt = .rc.top + ((cellH - this.nTextHeight) \ 2)
+                    if xTextRight < xc then xTextRight = xc
+                    tkRect_Set( .rcText, xc, yt, xTextRight, yt + this.nTextHeight )
+                end if
+            end select
+        end with
+    next
+end sub
+
+function TKTOOLBAR_STATE.IsValidItem( byval idx as long ) as boolean
+    return (idx >= 0) andalso (idx < this.itemCount)
+end function
+
+function TKTOOLBAR_STATE.GetItem( byval idx as long ) as TKTOOLBAR_ITEM ptr
+    if this.IsValidItem( idx ) = false then return 0
+    return @this.items(idx)
+end function
+
+function TKTOOLBAR_STATE.IsInteractive( byval idx as long ) as boolean
+    if this.IsValidItem( idx ) = false then return false
+    with this.items(idx)
+        if (.itemKind = TBR_KIND_SEPARATOR) orelse (.itemKind = TBR_KIND_CONTROL) then return false
+        if (.isVisible = false) orelse .bOverflowed orelse .bTrimmed then return false
+    end with
+    return true
+end function
+
+' A SPLIT's chevron zone runs from rcChevron.left to the cell's right edge.
+function TKTOOLBAR_STATE.HitTestZone( byval x as single, byval y as single, byref nZone as long ) as long
+    nZone = TBR_ZONE_NONE
+    if this.bNeedOverflow andalso tkRect_Contains( this.rcOverflow, x, y ) then
+        nZone = TBR_ZONE_OVERFLOW
+        return -1
+    end if
+    for i as long = 0 to this.itemCount - 1
+        if this.IsInteractive( i ) = false then continue for
+        if tkRect_Contains( this.items(i).rc, x, y ) = false then continue for
+        nZone = TBR_ZONE_ACTION
+        if (this.items(i).itemKind = TBR_KIND_SPLIT) andalso (x >= this.items(i).rcChevron.left) then nZone = TBR_ZONE_CHEVRON
+        return i
+    next
+    return -1
+end function
+
+function TKTOOLBAR_STATE.AddItemSlot() as TKTOOLBAR_ITEM ptr
+    dim as long cap = ubound( this.items ) + 1
+    if this.itemCount >= cap then redim preserve this.items( 0 to iif( cap = 0, 16, cap * 2 ) - 1 )
+    dim as long idx = this.itemCount
+    ResetItem( this.items(idx) )
+    this.itemCount += 1
+    this.Refresh()
+    return @this.items(idx)
+end function
+
+' The vendor reset of the inserted slot missed pImage, so it aliased its neighbour's image
+' (fixed here: ResetItem clears every field).
+function TKTOOLBAR_STATE.InsertItemSlot( byval idx as long ) as TKTOOLBAR_ITEM ptr
+    if (idx < 0) orelse (idx > this.itemCount) then return 0
+    if idx = this.itemCount then return this.AddItemSlot()
+    this.AddItemSlot()
+    for i as long = this.itemCount - 1 to idx + 1 step -1
+        this.items(i) = this.items(i - 1)
+    next
+    ResetItem( this.items(idx) )
+    if this.nLastHotIdx >= idx then this.nLastHotIdx += 1
+    if this.nPressedIdx >= idx then this.nPressedIdx += 1
+    if this.nDroppedIdx >= idx then this.nDroppedIdx += 1
+    this.Refresh()
+    return @this.items(idx)
+end function
+
+' Compacts the tail down (author order IS layout order). The item's menu is destroyed; its child
+' widget is hidden and forgotten, never destroyed (the host's).
+function TKTOOLBAR_STATE.RemoveItemAt( byval idx as long ) as boolean
+    if this.IsValidItem( idx ) = false then return false
+    with this.items(idx)
+        if .hMenu then tkPopupMenu_Destroy( .hMenu ) : .hMenu = 0
+        if .hChild then tkWidget_Show( .hChild, false )
+        if .pImage then delete .pImage : .pImage = 0
+    end with
+    for i as long = idx to this.itemCount - 2
+        this.items(i) = this.items(i + 1)
+    next
+    with this.items(this.itemCount - 1)
+        .wszGlyph = "" : .wszText = "" : .wszTooltip = "" : .hMenu = 0 : .hChild = 0 : .pImage = 0
+    end with
+    this.itemCount -= 1
+    this.FixupIndices( idx )
+    this.Refresh()
+    return true
+end function
+
+sub TKTOOLBAR_STATE.FixupIndices( byval idxRemoved as long )
+    if this.nLastHotIdx = idxRemoved then
+        this.nLastHotIdx = -1 : this.nHotZone = TBR_ZONE_NONE
+    elseif this.nLastHotIdx > idxRemoved then
+        this.nLastHotIdx -= 1
+    end if
+    if this.nPressedIdx = idxRemoved then
+        this.nPressedIdx = -1 : this.nPressedZone = TBR_ZONE_NONE
+    elseif this.nPressedIdx > idxRemoved then
+        this.nPressedIdx -= 1
+    end if
+    if this.nDroppedIdx = idxRemoved then
+        this.nDroppedIdx = -1
+    elseif this.nDroppedIdx > idxRemoved then
+        this.nDroppedIdx -= 1
+    end if
+end sub
+
+sub TKTOOLBAR_STATE.CancelPress()
+    this.nPressedIdx = -1
+    this.nPressedZone = TBR_ZONE_NONE
+end sub
+
+sub TKTOOLBAR_STATE.ClearAll()
+    for i as long = 0 to this.itemCount - 1
+        with this.items(i)
+            if .hMenu then tkPopupMenu_Destroy( .hMenu ) : .hMenu = 0
+            if .hChild then tkWidget_Show( .hChild, false ) : .hChild = 0
+            if .pImage then delete .pImage : .pImage = 0
+            .wszGlyph = "" : .wszText = "" : .wszTooltip = ""
+        end with
+    next
+    this.itemCount = 0
+    this.nLastHotIdx = -1
+    this.nHotZone = TBR_ZONE_NONE
+    this.nDroppedIdx = -1
+    this.CancelPress()
+    this.Refresh()
+end sub
+
+sub TKTOOLBAR_STATE.Refresh()
+    this.bLayoutDirty = true
+    tkWidget_Invalidate( this.hWin )
+end sub
+
+
+private function GetToolbarPointer( byval hToolbar as TK_WIDGET ptr ) as TKTOOLBAR_STATE ptr
+    if hToolbar = 0 then return 0
+    return cast( TKTOOLBAR_STATE ptr, hToolbar->pData )
+end function
+
+private function EnsureLayout( byval pTB as TKTOOLBAR_STATE ptr ) as boolean
+    if pTB->bLayoutDirty then pTB->LayoutItems()
+    return pTB->bLayoutDirty = false
+end function
+
+' HOVER / CLICK: inside the client, interactive, enabled. The overflow button reports -1 + zone.
+private function HotItemAt( byval pTB as TKTOOLBAR_STATE ptr, byval x as single, byval y as single, byref nZone as long ) as long
+    nZone = TBR_ZONE_NONE
+    if (x < 0) orelse (y < 0) orelse (x >= pTB->hWin->cw) orelse (y >= pTB->hWin->ch) then return -1
+    if EnsureLayout( pTB ) = false then return -1
+    dim as long idx = pTB->HitTestZone( x, y, nZone )
+    if nZone = TBR_ZONE_OVERFLOW then return -1
+    if idx = -1 then return -1
+    if pTB->items(idx).isEnabled = false then nZone = TBR_ZONE_NONE : return -1
+    return idx
+end function
+
+private function ResolveTooltipText( byval pTB as TKTOOLBAR_STATE ptr, byval idx as long ) as ustring
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return ""
+    if len( pTB->items(idx).wszTooltip ) then return pTB->items(idx).wszTooltip
+    if pTB->TooltipCallback then return pTB->TooltipCallback( pTB->hWin, idx )
+    return ""
+end function
+
+private function TipText( byval t as TK_TIP ptr, byval a as TK_WIDGET ptr, byval idx as long ) as ustring
+    return ResolveTooltipText( GetToolbarPointer( a ), idx )
+end function
+
+' Enforce a radio group after idxWinner is already selected: every write, then every callback,
+' losers first.
+private sub ApplyRadio( byval pTB as TKTOOLBAR_STATE ptr, byval idxWinner as long, byval bNotify as boolean )
+    if pTB->IsValidItem( idxWinner ) = false then exit sub
+    dim as long nGroup = pTB->items(idxWinner).nGroupID
+    if nGroup = 0 then exit sub
+    dim losers( 0 to pTB->itemCount ) as long
+    dim as long nLosers = 0
+    for i as long = 0 to pTB->itemCount - 1
+        if i = idxWinner then continue for
+        if (pTB->items(i).nGroupID <> nGroup) orelse (pTB->items(i).isSelected = false) then continue for
+        pTB->items(i).isSelected = false
+        losers(nLosers) = i : nLosers += 1
+    next
+    tkWidget_Invalidate( pTB->hWin )
+    if (bNotify = false) orelse (pTB->SelChangeCallback = 0) then exit sub
+    for n as long = 0 to nLosers - 1
+        pTB->SelChangeCallback( pTB->hWin, losers(n), false )
+    next
+    pTB->SelChangeCallback( pTB->hWin, idxWinner, true )
+end sub
+
+private sub ToggleInternal( byval pTB as TKTOOLBAR_STATE ptr, byval idx as long, byval bNotify as boolean )
+    dim as TKTOOLBAR_ITEM ptr pItem = pTB->GetItem( idx )
+    if pItem = 0 then exit sub
+    if pItem->nGroupID <> 0 then
+        if pItem->isSelected then exit sub          ' re-clicking the checked member: a no-op
+        pItem->isSelected = true
+        tkWidget_Invalidate( pTB->hWin )
+        ApplyRadio( pTB, idx, bNotify )
+    else
+        dim as boolean bNewState = not pItem->isSelected
+        pItem->isSelected = bNewState
+        tkWidget_Invalidate( pTB->hWin )
+        if bNotify andalso (pTB->SelChangeCallback <> 0) then pTB->SelChangeCallback( pTB->hWin, idx, bNewState )
+    end if
+end sub
+
+declare function OpenMenu( byval pTB as TKTOOLBAR_STATE ptr, byval idx as long ) as boolean
+
+' THE ONE COMMIT PATH: a strip click, an overflow pick and tkToolbar_Click all land here.
+private sub ActivateItem( byval pTB as TKTOOLBAR_STATE ptr, byval idx as long )
+    dim as TKTOOLBAR_ITEM ptr pItem = pTB->GetItem( idx )
+    if (pItem = 0) orelse (pItem->isEnabled = false) then exit sub
+    select case pItem->itemKind
+    case TBR_KIND_TOGGLE
+        ToggleInternal( pTB, idx, true )
+    case TBR_KIND_DROPDOWN
+        OpenMenu( pTB, idx )
+    case TBR_KIND_COMMAND, TBR_KIND_SPLIT
+        ' a SPLIT's action latches when it carries a group id
+        if pItem->nGroupID <> 0 then
+            ToggleInternal( pTB, idx, true )
+        else
+            dim as long nId = pItem->id
+            if pTB->ClickCallback then pTB->ClickCallback( pTB->hWin, idx, nId )
+        end if
+    end select
+end sub
+
+' ---- menus ----------------------------------------------------------------------------------
+' A menu the toolbar creates is themed from the bar (BorderColor from ForeColorDisabled, so it
+' reads against any form behind it) unless the host claimed the menus' colours.
+private sub ApplyDerivedMenuColors( byval pTB as TKTOOLBAR_STATE ptr, byval hMenu as TK_MENU ptr )
+    if hMenu = 0 then exit sub
+    if pTB->bMenuColorsCustom then tkPopupMenu_SetColors( hMenu, @pTB->menuColors ) : exit sub
+    dim as TKPOPUPMENU_COLORS c
+    c.BackColor = pTB->colors.BackColor
+    c.ForeColor = pTB->colors.ForeColor
+    c.BackColorHot = pTB->colors.BackColorHot
+    c.ForeColorHot = pTB->colors.ForeColorHot
+    c.ForeColorDisabled = pTB->colors.ForeColorDisabled
+    c.BorderColor = pTB->colors.ForeColorDisabled
+    c.SeparatorColor = pTB->colors.SeparatorColor
+    tkPopupMenu_SetColors( hMenu, @c )
+end sub
+
+private sub ReapplyAllMenuColors( byval pTB as TKTOOLBAR_STATE ptr )
+    ApplyDerivedMenuColors( pTB, pTB->hOverflowMenu )
+    for i as long = 0 to pTB->itemCount - 1
+        ApplyDerivedMenuColors( pTB, pTB->items(i).hMenu )
+    next
+end sub
+
+private function EnsureItemMenu( byval pTB as TKTOOLBAR_STATE ptr, byval idx as long ) as TK_MENU ptr
+    dim as TKTOOLBAR_ITEM ptr pItem = pTB->GetItem( idx )
+    if pItem = 0 then return 0
+    if pItem->hMenu then return pItem->hMenu
+    dim as TK_MENU ptr m = tkPopupMenu_Create( pTB->hWin->pHost, pItem->id )
+    tkPopupMenu_SetFonts( m, pTB->pTextFont, pTB->pGlyphFont )
+    pItem->hMenu = m
+    ApplyDerivedMenuColors( pTB, m )
+    return m
+end function
+
+private function EnsureOverflowMenu( byval pTB as TKTOOLBAR_STATE ptr ) as TK_MENU ptr
+    if pTB->hOverflowMenu then return pTB->hOverflowMenu
+    dim as TK_MENU ptr m = tkPopupMenu_Create( pTB->hWin->pHost, 0 )
+    tkPopupMenu_SetFonts( m, pTB->pTextFont, pTB->pGlyphFont )
+    pTB->hOverflowMenu = m
+    ApplyDerivedMenuColors( pTB, m )
+    return m
+end function
+
+' Rebuilt per open from what did not fit: ids = index + 1; a separator only between two rows.
+private sub BuildOverflowMenu( byval pTB as TKTOOLBAR_STATE ptr )
+    dim as TK_MENU ptr m = EnsureOverflowMenu( pTB )
+    tkPopupMenu_Clear( m )
+    dim as boolean bPendingSep = false, bAnyRow = false
+    for i as long = 0 to pTB->itemCount - 1
+        with pTB->items(i)
+            if (.isVisible = false) orelse (.bOverflowed = false) orelse .bTrimmed then continue for
+            if .itemKind = TBR_KIND_SEPARATOR then
+                if bAnyRow then bPendingSep = true
+                continue for
+            end if
+            if .itemKind = TBR_KIND_CONTROL then continue for
+            if bPendingSep then tkPopupMenu_AddSeparator( m ) : bPendingSep = false
+            dim as ustring cap = .wszText
+            if len( cap ) = 0 then cap = .wszTooltip
+            if len( cap ) = 0 then cap = "#" & (i + 1)
+            tkPopupMenu_AddItem( m, i + 1, cap, "", (.isEnabled = false), .isSelected )
+            bAnyRow = true
+        end with
+    next
+end sub
+
+private sub NotifyDropDown( byval pTB as TKTOOLBAR_STATE ptr, byval idx as long, byval hMenu as TK_MENU ptr, byval bOpen as boolean )
+    if pTB->DropDownCallback then pTB->DropDownCallback( pTB->hWin, idx, hMenu, bOpen )
+end sub
+
+' Forget the open menu and fire its closing edge (state cleared BEFORE the callback).
+private sub ClearDropState( byval pTB as TKTOOLBAR_STATE ptr )
+    dim as long idxWas = pTB->nDroppedIdx
+    dim as boolean bWasOverflow = pTB->bOverflowOpen
+    if (idxWas = -1) andalso (bWasOverflow = false) then exit sub
+    dim as TK_MENU ptr hWas = 0
+    if bWasOverflow then
+        hWas = pTB->hOverflowMenu
+    elseif pTB->IsValidItem( idxWas ) then
+        hWas = pTB->items(idxWas).hMenu
+    end if
+    pTB->nDroppedIdx = -1
+    pTB->bOverflowOpen = false
+    if gOpenTB = pTB then gOpenTB = 0
+    tkWidget_Invalidate( pTB->hWin )
+    NotifyDropDown( pTB, iif( bWasOverflow, -1, idxWas ), hWas, false )
+end sub
+
+' Another chain opened elsewhere closes ours silently: notice it.
+private sub Resync( byval pTB as TKTOOLBAR_STATE ptr )
+    dim as TK_MENU ptr hOpen = 0
+    if pTB->bOverflowOpen then
+        hOpen = pTB->hOverflowMenu
+    elseif pTB->IsValidItem( pTB->nDroppedIdx ) then
+        hOpen = pTB->items(pTB->nDroppedIdx).hMenu
+    else
+        exit sub
+    end if
+    if (hOpen = 0) orelse (tkPopupMenu_IsOpen( hOpen ) = false) then ClearDropState( pTB )
+end sub
+
+private function ItemOfMenu( byval pTB as TKTOOLBAR_STATE ptr, byval m as TK_MENU ptr ) as long
+    if (pTB = 0) orelse (m = 0) then return -1
+    for i as long = 0 to pTB->itemCount - 1
+        if pTB->items(i).hMenu = m then return i
+    next
+    return -1
+end function
+
+' An item menu's row ran: the chain is closed; the host's own select callback gets the id.
+private sub TB_OnItemSelect( byval hMenu as TK_MENU ptr, byval id as long )
+    dim as TKTOOLBAR_STATE ptr pTB = gOpenTB
+    dim as long idx = ItemOfMenu( pTB, hMenu )
+    if idx = -1 then exit sub
+    dim as PM_SelectCallbackSub prev = pTB->items(idx).prevSelect
+    ClearDropState( pTB )
+    if prev then prev( hMenu, id )
+end sub
+
+private sub RememberDismissal( byval pTB as TKTOOLBAR_STATE ptr, byval idx as long )
+    pTB->bDismissed = true
+    pTB->nDismissIdx = idx
+    pTB->nDismissTicks = SDL_GetTicks()
+end sub
+
+private sub TB_OnItemClosed( byval hMenu as TK_MENU ptr, byval nReason as long )
+    dim as TKTOOLBAR_STATE ptr pTB = gOpenTB
+    dim as long idx = ItemOfMenu( pTB, hMenu )
+    if idx = -1 then exit sub
+    dim as PM_ClosedCallbackSub prev = pTB->items(idx).prevClosed
+    RememberDismissal( pTB, idx )
+    ClearDropState( pTB )
+    if prev then prev( hMenu, nReason )
+end sub
+
+' The overflow menu is the toolbar's own: a pick activates the item, exactly as a strip click.
+private sub TB_OnOverflowSelect( byval hMenu as TK_MENU ptr, byval id as long )
+    dim as TKTOOLBAR_STATE ptr pTB = gOpenTB
+    if (pTB = 0) orelse (hMenu <> pTB->hOverflowMenu) then exit sub
+    ClearDropState( pTB )
+    ActivateItem( pTB, id - 1 )
+end sub
+
+private sub TB_OnOverflowClosed( byval hMenu as TK_MENU ptr, byval nReason as long )
+    dim as TKTOOLBAR_STATE ptr pTB = gOpenTB
+    if (pTB = 0) orelse (hMenu <> pTB->hOverflowMenu) then exit sub
+    RememberDismissal( pTB, -2 )
+    ClearDropState( pTB )
+end sub
+
+' Open a menu (idx = -1: the overflow). Anything open loses and says so; an ITEM menu's opening
+' edge fires before a row is built (the just-in-time hook), the overflow's after; an empty menu
+' reports a balanced open/close and stays shut.
+function OpenMenu( byval pTB as TKTOOLBAR_STATE ptr, byval idx as long ) as boolean
+    if EnsureLayout( pTB ) = false then return false
+    dim as TK_MENU ptr m = 0
+    dim as TKRECT rcAnchor
+    if idx = -1 then
+        if pTB->bNeedOverflow = false then return false
+        m = EnsureOverflowMenu( pTB )
+        rcAnchor = pTB->rcOverflow
+    else
+        dim as TKTOOLBAR_ITEM ptr pItem = pTB->GetItem( idx )
+        if (pItem = 0) orelse (pItem->isEnabled = false) then return false
+        if (pItem->itemKind <> TBR_KIND_SPLIT) andalso (pItem->itemKind <> TBR_KIND_DROPDOWN) then return false
+        m = EnsureItemMenu( pTB, idx )
+        ' activated from the overflow menu: anchor against the button the user clicked
+        if pItem->bOverflowed then rcAnchor = pTB->rcOverflow else rcAnchor = pItem->rc
+    end if
+    if tkRect_IsEmpty( rcAnchor ) then return false
+
+    ClearDropState( pTB )
+    if (gOpenTB <> 0) andalso (gOpenTB <> pTB) then ClearDropState( gOpenTB )
+    if idx = -1 then
+        BuildOverflowMenu( pTB )
+        NotifyDropDown( pTB, -1, m, true )
+    else
+        NotifyDropDown( pTB, idx, m, true )
+    end if
+    if tkPopupMenu_GetItemCount( m ) = 0 then
+        NotifyDropDown( pTB, idx, m, false )
+        return false
+    end if
+
+    ' wire the toolbar in; an item menu keeps the host's own callbacks behind ours
+    if idx = -1 then
+        tkPopupMenu_SetSelectCallback( m, @TB_OnOverflowSelect )
+        tkPopupMenu_SetClosedCallback( m, @TB_OnOverflowClosed )
+    else
+        with pTB->items(idx)
+            if m->SelectCallback <> @TB_OnItemSelect then .prevSelect = m->SelectCallback
+            if m->ClosedCallback <> @TB_OnItemClosed then .prevClosed = m->ClosedCallback
+        end with
+        tkPopupMenu_SetSelectCallback( m, @TB_OnItemSelect )
+        tkPopupMenu_SetClosedCallback( m, @TB_OnItemClosed )
+    end if
+
+    dim as TKRECT a
+    tkWidget_AbsRect( pTB->hWin, a )
+    tkRect_Offset( rcAnchor, a.left, a.top )
+    if tkPopupMenu_ShowForRect( m, rcAnchor, PM_ALIGN_BELOW ) = false then
+        NotifyDropDown( pTB, idx, m, false )
+        return false
+    end if
+    if idx = -1 then pTB->bOverflowOpen = true else pTB->nDroppedIdx = idx
+    gOpenTB = pTB
+    tkWidget_Invalidate( pTB->hWin )
+    return true
+end function
+
+' ---- painting ---------------------------------------------------------------------------------
+' disabled > pressed > hot > idle, isSelected combined on top. The state fill is a ROUNDED rect
+' over the flat bar fill, so an item reads as a pill; on a SPLIT a hover lights only its half.
+private sub PaintItemDefault( byval pTB as TKTOOLBAR_STATE ptr, byval p as TKTOOLBAR_PAINTINFO ptr )
+    dim as TK_PAINT ptr b = p->b
+    b->SetBackColor( pTB->colors.BackColor )
+    b->PaintRect( @p->rc )
+    if p->itemKind = TBR_KIND_SEPARATOR then
+        b->SetBackColor( pTB->colors.SeparatorColor )
+        b->PaintRect( @p->rcIcon )
+        exit sub
+    end if
+    if p->itemKind = TBR_KIND_CONTROL then exit sub       ' a hole the child covers
+
+    dim as ulong backclr = pTB->colors.BackColor, foreclr = pTB->colors.ForeColor
+    dim as boolean bFillState = false
+    select case p->nMood
+    case TBR_MOOD_DISABLED
+        foreclr = pTB->colors.ForeColorDisabled
+        if p->isSelected then backclr = pTB->colors.BackColorSelect : bFillState = true
+    case TBR_MOOD_PRESSED
+        backclr = pTB->colors.BackColorSelect : foreclr = pTB->colors.ForeColorSelect : bFillState = true
+    case TBR_MOOD_HOT
+        backclr = pTB->colors.BackColorHot : foreclr = pTB->colors.ForeColorHot : bFillState = true
+    case else
+        if p->isSelected then
+            backclr = pTB->colors.BackColorSelect : foreclr = pTB->colors.ForeColorSelect : bFillState = true
+        elseif p->isDropped then
+            backclr = pTB->colors.BackColorHot : foreclr = pTB->colors.ForeColorHot : bFillState = true
+        elseif pTB->IsValidItem( p->itemID ) then
+            if pTB->items(p->itemID).bHasForeColor then foreclr = pTB->items(p->itemID).ForeColorItem
+        end if
+    end select
+
+    if bFillState then
+        dim as TKRECT rcFill = p->rc
+        if (p->itemKind = TBR_KIND_SPLIT) andalso (tkRect_IsEmpty( p->rcChevron ) = false) then
+            if (p->nMood = TBR_MOOD_HOT) orelse (p->nMood = TBR_MOOD_PRESSED) then
+                if p->isChevronHot then rcFill.left = p->rcChevron.left else rcFill.right = p->rcChevron.left
+            end if
+        end if
+        b->SetBackColor( backclr )
+        if pTB->nCurvature > 0 then b->PaintRoundRect( @rcFill, pTB->nCurvature ) else b->PaintRect( @rcFill )
+    end if
+
+    b->SetColors( foreclr, backclr )
+    if tkRect_IsEmpty( p->rcIcon ) = false then
+        if p->pImage then
+            tkImage_Paint( b, p->pImage, @p->rcIcon, TK_IMGFIT_ASPECT )
+        elseif len( p->wszGlyph ) then
+            b->SetFont( GlyphFontOf( pTB ) )
+            b->PaintText( p->wszGlyph, @p->rcIcon, TK_DT_CENTER )
+        end if
+    end if
+    if (len( p->wszText ) > 0) andalso (tkRect_IsEmpty( p->rcText ) = false) then
+        b->SetFont( TextFontOf( pTB ) )
+        b->PaintText( p->wszText, @p->rcText, TK_DT_LEFT or TK_DT_ELLIPSIS )
+    end if
+    if tkRect_IsEmpty( p->rcChevron ) = false then
+        if (p->itemKind = TBR_KIND_SPLIT) andalso (pTB->nDividerThick > 0) then
+            b->SetBackColor( pTB->colors.SplitDividerColor )
+            dim as TKRECT rd
+            tkRect_Set( rd, p->rcChevron.left - pTB->nDividerThick, p->rcChevron.top, p->rcChevron.left, p->rcChevron.bottom )
+            b->PaintRect( @rd )
+        end if
+        b->SetColors( foreclr, backclr )
+        b->SetFont( GlyphFontOf( pTB ) )
+        dim as ustring wszC = iif( p->itemID = -1, pTB->wszOverflow, pTB->wszChevron )
+        if len( wszC ) then b->PaintText( wszC, @p->rcChevron, TK_DT_CENTER )
+    end if
+end sub
+
+' idx = -1 builds the overflow button's, presented as a captionless DROPDOWN.
+private sub FillPaintInfo( byval pTB as TKTOOLBAR_STATE ptr, byval b as TK_PAINT ptr, byval idx as long, byval p as TKTOOLBAR_PAINTINFO ptr )
+    p->hToolbar = pTB->hWin
+    p->itemID = idx
+    p->b = b
+    if idx = -1 then
+        p->itemKind = TBR_KIND_DROPDOWN
+        p->rc = pTB->rcOverflow
+        tkRect_SetEmpty( p->rcIcon ) : tkRect_SetEmpty( p->rcText )
+        dim as long cellH = p->rc.bottom - p->rc.top
+        dim as long hG = iif( pTB->nIconHeight > cellH, cellH, pTB->nIconHeight )
+        dim as long yG = p->rc.top + ((cellH - hG) \ 2)
+        tkRect_Set( p->rcChevron, p->rc.left + pTB->nPadBefore, yG, p->rc.left + pTB->nPadBefore + pTB->nChevronWidth, yG + hG )
+        p->isHot = pTB->bOverflowHot
+        p->isSelected = false : p->isPressed = false : p->isEnabled = true : p->isChevronHot = false
+        p->isDropped = pTB->bOverflowOpen
+        p->nMood = tkToolbar_ResolveMood( true, false, pTB->bOverflowHot )
+        p->wszGlyph = "" : p->wszText = "" : p->pImage = 0
+        exit sub
+    end if
+    with pTB->items(idx)
+        p->itemKind = .itemKind
+        p->rc = .rc : p->rcIcon = .rcIcon : p->rcText = .rcText : p->rcChevron = .rcChevron
+        p->isHot = (idx = pTB->nLastHotIdx)
+        p->isPressed = (idx = pTB->nPressedIdx) andalso (pTB->nLastHotIdx = pTB->nPressedIdx)
+        p->isSelected = .isSelected
+        p->isEnabled = .isEnabled
+        p->isDropped = (idx = pTB->nDroppedIdx)
+        p->isChevronHot = false
+        if .itemKind = TBR_KIND_SPLIT then
+            if p->isPressed then
+                p->isChevronHot = (pTB->nPressedZone = TBR_ZONE_CHEVRON)
+            elseif p->isHot then
+                p->isChevronHot = (pTB->nHotZone = TBR_ZONE_CHEVRON)
+            end if
+        end if
+        p->nMood = tkToolbar_ResolveMood( .isEnabled, p->isPressed, p->isHot )
+        p->wszGlyph = .wszGlyph
+        p->wszText = .wszText
+        p->pImage = iif( (.pImage <> 0) andalso (.pImage->IsValid() <> 0), .pImage, cast( tkImageFile ptr, 0 ) )
+    end with
+end sub
+
+private sub RenderAll( byval pTB as TKTOOLBAR_STATE ptr, byval b as TK_PAINT ptr )
+    if pTB->bLayoutDirty then pTB->LayoutItems()
+    dim as TKRECT rcC
+    tkRect_Set( rcC, 0, 0, pTB->hWin->cw, pTB->hWin->ch )
+    b->SetBackColor( pTB->colors.BackColor )
+    b->PaintRect( @rcC )
+    dim as TKTOOLBAR_PAINTINFO p
+    for i as long = 0 to pTB->itemCount - 1
+        with pTB->items(i)
+            if (.isVisible = false) orelse .bOverflowed orelse .bTrimmed orelse tkRect_IsEmpty( .rc ) then continue for
+        end with
+        FillPaintInfo( pTB, b, i, @p )
+        if pTB->PaintItemCallback then pTB->PaintItemCallback( @p ) else PaintItemDefault( pTB, @p )
+    next
+    if pTB->bNeedOverflow then
+        FillPaintInfo( pTB, b, -1, @p )
+        if pTB->PaintItemCallback then pTB->PaintItemCallback( @p ) else PaintItemDefault( pTB, @p )
+    end if
+end sub
+
+private sub ClearHot( byval pTB as TKTOOLBAR_STATE ptr )
+    if (pTB->nLastHotIdx <> -1) orelse pTB->bOverflowHot then
+        pTB->nLastHotIdx = -1
+        pTB->nHotZone = TBR_ZONE_NONE
+        pTB->bOverflowHot = false
+        tkWidget_Invalidate( pTB->hWin )
+    end if
+    tkTipHost_SetToolIndex( @pTB->tip, -1 )
+end sub
+
+private function CallMessage( byval pTB as TKTOOLBAR_STATE ptr, byval m as TK_MSG ptr, byval idx as long, byval nZone as long ) as boolean
+    if pTB->MessageCallback = 0 then return false
+    dim as TKTOOLBAR_MESSAGEINFO mi
+    mi.hToolbar = pTB->hWin
+    mi.msg = m->msg
+    mi.x = m->x
+    mi.y = m->y
+    mi.idx = idx
+    mi.nZone = nZone
+    return pTB->MessageCallback( @mi )
+end function
+
+private sub Rescale( byval pTB as TKTOOLBAR_STATE ptr, byval fOld as single, byval fNew as single )
+    if (fOld <= 0) orelse (fNew <= 0) then exit sub
+    dim as single k = fNew / fOld
+    with *pTB
+        .nIconWidth = cint( .nIconWidth * k ) : .nIconHeight = cint( .nIconHeight * k )
+        .nPadBefore = cint( .nPadBefore * k ) : .nPadAfter = cint( .nPadAfter * k )
+        .nPadTop = cint( .nPadTop * k ) : .nPadBottom = cint( .nPadBottom * k )
+        .nTextGap = cint( .nTextGap * k ) : .nSepWidth = cint( .nSepWidth * k )
+        .nChevronWidth = cint( .nChevronWidth * k ) : .nChevronGap = cint( .nChevronGap * k )
+        .nCurvature = cint( .nCurvature * k ) : .nSepHeight = cint( .nSepHeight * k )
+    end with
+    for i as long = 0 to pTB->itemCount - 1
+        with pTB->items(i)
+            if .nPadBefore > 0 then .nPadBefore = cint( .nPadBefore * k )
+            if .nPadAfter > 0 then .nPadAfter = cint( .nPadAfter * k )
+            if .nIconWidth > 0 then .nIconWidth = cint( .nIconWidth * k )
+            if .nIconHeight > 0 then .nIconHeight = cint( .nIconHeight * k )
+            if .nControlWidth > 0 then .nControlWidth = cint( .nControlWidth * k )
+            if .nControlHeight > 0 then .nControlHeight = cint( .nControlHeight * k )
+        end with
+    next
+    pTB->Refresh()
+end sub
+
+public declare sub tkToolbar_ApplyTheme( byval hToolbar as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+public declare function tkToolbar_ThemeColors( byref t as TKTHEME_COLORS ) as TKTOOLBAR_COLORS
+
+' Capture is decided per ZONE: an action zone takes it (the press / slide-off / release gesture);
+' a menu zone opens on the down and takes none (the popup owns the interaction from there).
+private function tkToolbar_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( w )
+    if pTB = 0 then return false
+    dim as TK_HOST ptr h = w->pHost
+
+    select case m->msg
+    case TKM_PAINT
+        Resync( pTB )
+        RenderAll( pTB, m->pPaint )
+        return true
+
+    case TKM_SIZE
+        pTB->Refresh()
+        return true
+
+    case TKM_SCALECHANGED
+        Rescale( pTB, m->fOld, m->fNew )
+        return true
+
+    case TKM_THEMECHANGED
+        tkToolbar_ApplyTheme( w, tkTheme_Get() )
+        return true
+
+    case TKM_MOUSEMOVE
+        Resync( pTB )
+        pTB->bDismissed = false
+        dim as long nZone
+        dim as long idx = HotItemAt( pTB, m->x, m->y, nZone )
+        dim as boolean bOverHot = (nZone = TBR_ZONE_OVERFLOW)
+        dim as boolean bItemChanged = (idx <> pTB->nLastHotIdx)
+        dim as boolean bZoneChanged = (nZone <> pTB->nHotZone)
+        dim as boolean bOvrChanged = (bOverHot <> pTB->bOverflowHot)
+        if bItemChanged orelse bZoneChanged orelse bOvrChanged then
+            pTB->nLastHotIdx = idx
+            pTB->nHotZone = nZone
+            pTB->bOverflowHot = bOverHot
+            tkWidget_Invalidate( w )
+            if bItemChanged then tkTipHost_SetToolIndex( @pTB->tip, idx )
+        end if
+        CallMessage( pTB, m, idx, nZone )
+        return true
+
+    case TKM_MOUSELEAVE
+        ClearHot( pTB )
+        CallMessage( pTB, m, -1, TBR_ZONE_NONE )
+        return true
+
+    case TKM_LBUTTONDOWN
+        Resync( pTB )
+        ' The reopen guard, consumed by this press whatever happens: the host just closed the
+        ' menu this zone owns on this very press -- it must not reopen.
+        dim as boolean bRecent = pTB->bDismissed andalso (SDL_GetTicks() - pTB->nDismissTicks <= 250)
+        dim as long nDismissed = pTB->nDismissIdx
+        pTB->bDismissed = false
+        dim as long nZone
+        dim as long idx = HotItemAt( pTB, m->x, m->y, nZone )
+        if CallMessage( pTB, m, idx, nZone ) then return true
+        ' No focus, ever: a toolbar must not steal the caret from an editor.
+        tkTipHost_Pop( @pTB->tip )
+        if nZone = TBR_ZONE_OVERFLOW then
+            if (bRecent andalso (nDismissed = -2)) = false then OpenMenu( pTB, -1 )
+            return true
+        end if
+        if idx <> -1 then
+            dim as long nKind = pTB->items(idx).itemKind
+            dim as boolean bOpensMenu = (nKind = TBR_KIND_DROPDOWN) orelse ((nKind = TBR_KIND_SPLIT) andalso (nZone = TBR_ZONE_CHEVRON))
+            if bOpensMenu then
+                if (bRecent andalso (nDismissed = idx)) = false then OpenMenu( pTB, idx )
+            else
+                tkHost_SetCapture( w )
+                pTB->nPressedIdx = idx
+                pTB->nPressedZone = nZone
+                tkWidget_Invalidate( w )
+            end if
+        end if
+        return true
+
+    case TKM_LBUTTONUP
+        ' SNAPSHOT BEFORE RELEASING: CAPTURECHANGED cancels the press synchronously
+        dim as long idxPressed = pTB->nPressedIdx, nZonePressed = pTB->nPressedZone
+        if tkHost_GetCapture( h ) = w then tkHost_ReleaseCapture( h )
+        dim as long nZone
+        dim as long idx = HotItemAt( pTB, m->x, m->y, nZone )
+        pTB->CancelPress()
+        pTB->nLastHotIdx = idx : pTB->nHotZone = nZone
+        tkWidget_Invalidate( w )
+        CallMessage( pTB, m, idx, nZone )             ' result IGNORED
+        if (idxPressed <> -1) andalso (idx = idxPressed) andalso (nZone = nZonePressed) then ActivateItem( pTB, idxPressed )
+        return true
+
+    case TKM_CAPTURECHANGED
+        pTB->CancelPress()
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_RBUTTONDOWN, TKM_RBUTTONUP
+        dim as long nZone
+        dim as long idx = HotItemAt( pTB, m->x, m->y, nZone )
+        CallMessage( pTB, m, idx, nZone )
+        return true
+
+    case TKM_ENABLE
+        if m->bFlag = false then
+            pTB->CancelPress()
+            ClearHot( pTB )
+        end if
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_DESTROY
+        ' (the host's CONTROL widgets, being children, are already gone -- as Win32 children of
+        ' a destroyed window were)
+        if gOpenTB = pTB then gOpenTB = 0
+        for i as long = 0 to pTB->itemCount - 1
+            if pTB->items(i).hMenu then tkPopupMenu_Destroy( pTB->items(i).hMenu ) : pTB->items(i).hMenu = 0
+            if pTB->items(i).pImage then delete pTB->items(i).pImage : pTB->items(i).pImage = 0
+        next
+        if pTB->hOverflowMenu then tkPopupMenu_Destroy( pTB->hOverflowMenu ) : pTB->hOverflowMenu = 0
+        tkTipHost_Destroy( @pTB->tip )
+        delete pTB
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ========================================================================================
+' Public API
+' ========================================================================================
+' A child of hParent (or tkHost_Root( h )). Created zero-sized; no focus, no tab stop.
+public function tkToolbar_Create( byval hParent as TK_WIDGET ptr, byval CtrlID as long ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TK_HOST ptr pHost = hParent->pHost
+    dim as TKTOOLBAR_STATE ptr pTB = new TKTOOLBAR_STATE
+    pTB->id = CtrlID
+    pTB->nIconWidth = tkHost_Scale( pHost, TKTOOLBAR_DEFAULT_ICONWIDTH )
+    pTB->nIconHeight = tkHost_Scale( pHost, TKTOOLBAR_DEFAULT_ICONHEIGHT )
+    pTB->nPadBefore = tkHost_Scale( pHost, TKTOOLBAR_DEFAULT_PADBEFORE )
+    pTB->nPadAfter = tkHost_Scale( pHost, TKTOOLBAR_DEFAULT_PADAFTER )
+    pTB->nPadTop = tkHost_Scale( pHost, TKTOOLBAR_DEFAULT_PADTOP )
+    pTB->nPadBottom = tkHost_Scale( pHost, TKTOOLBAR_DEFAULT_PADBOTTOM )
+    pTB->nTextGap = tkHost_Scale( pHost, TKTOOLBAR_DEFAULT_TEXTGAP )
+    pTB->nSepWidth = tkHost_Scale( pHost, TKTOOLBAR_DEFAULT_SEPWIDTH )
+    pTB->nChevronWidth = tkHost_Scale( pHost, TKTOOLBAR_DEFAULT_CHEVRONWIDTH )
+    pTB->nChevronGap = tkHost_Scale( pHost, TKTOOLBAR_DEFAULT_CHEVRONGAP )
+    pTB->nCurvature = tkHost_Scale( pHost, TKTOOLBAR_DEFAULT_CURVATURE )
+    pTB->wszChevron = wchr( &hE70D )            ' Segoe Fluent ChevronDown
+    pTB->wszOverflow = wchr( &hE712 )           ' Segoe Fluent More
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @tkToolbar_Proc, pTB )
+    pTB->hWin = w
+    pTB->colors = tkToolbar_ThemeColors( tkTheme_Get() )
+    tkTipHost_Ensure( @pTB->tip, w, @TipText )
+    return w
+end function
+
+public function tkToolbar_AddItem( byval hToolbar as TK_WIDGET ptr, byval itemKind as long, byval Glyph as ustring, _
+                                   byval Text as ustring = "", byval id as long = 0, byval itemData as integer = 0 ) as long
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return -1
+    dim as TKTOOLBAR_ITEM ptr pItem = pTB->AddItemSlot()
+    pItem->itemKind = itemKind : pItem->wszGlyph = Glyph : pItem->wszText = Text
+    pItem->id = id : pItem->itemData = itemData
+    return pTB->itemCount - 1
+end function
+
+' idx = count appends; -1 past the end.
+public function tkToolbar_InsertItem( byval hToolbar as TK_WIDGET ptr, byval idx as long, byval itemKind as long, byval Glyph as ustring, _
+                                      byval Text as ustring = "", byval id as long = 0, byval itemData as integer = 0 ) as long
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return -1
+    dim as TKTOOLBAR_ITEM ptr pItem = pTB->InsertItemSlot( idx )
+    if pItem = 0 then return -1
+    pItem->itemKind = itemKind : pItem->wszGlyph = Glyph : pItem->wszText = Text
+    pItem->id = id : pItem->itemData = itemData
+    return idx
+end function
+
+public function tkToolbar_AddSeparator( byval hToolbar as TK_WIDGET ptr ) as long
+    return tkToolbar_AddItem( hToolbar, TBR_KIND_SEPARATOR, "", "", 0, 0 )
+end function
+
+' A cell holding a widget YOU created as a CHILD OF THE TOOLBAR (tkXxx_Create( hToolbar, ... )).
+' The toolbar positions and shows / hides it and never destroys it. nControlHeight = 0 fills.
+public function tkToolbar_AddControl( byval hToolbar as TK_WIDGET ptr, byval hChild as TK_WIDGET ptr, byval nControlWidth as long, _
+                                      byval nControlHeight as long = 0, byval id as long = 0 ) as long
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return -1
+    dim as TKTOOLBAR_ITEM ptr pItem = pTB->AddItemSlot()
+    pItem->itemKind = TBR_KIND_CONTROL
+    pItem->hChild = hChild
+    pItem->nControlWidth = nControlWidth
+    pItem->nControlHeight = nControlHeight
+    pItem->id = id
+    return pTB->itemCount - 1
+end function
+
+public function tkToolbar_DeleteItem( byval hToolbar as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return false
+    if pTB->nDroppedIdx = idx then tkPopupMenu_CloseChain( pTB->items(idx).hMenu ) : ClearDropState( pTB )
+    return pTB->RemoveItemAt( idx )
+end function
+
+public sub tkToolbar_Clear( byval hToolbar as TK_WIDGET ptr )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then exit sub
+    if (pTB->nDroppedIdx <> -1) orelse pTB->bOverflowOpen then
+        if pTB->bOverflowOpen then tkPopupMenu_CloseChain( pTB->hOverflowMenu ) else tkPopupMenu_CloseChain( pTB->items(pTB->nDroppedIdx).hMenu )
+        ClearDropState( pTB )
+    end if
+    pTB->ClearAll()
+end sub
+
+public sub tkToolbar_Refresh( byval hToolbar as TK_WIDGET ptr )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB then pTB->Refresh()
+end sub
+
+public function tkToolbar_GetCount( byval hToolbar as TK_WIDGET ptr ) as long
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return 0
+    return pTB->itemCount
+end function
+
+public function tkToolbar_IsValidItem( byval hToolbar as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return false
+    return pTB->IsValidItem( idx )
+end function
+
+public function tkToolbar_FindItemByID( byval hToolbar as TK_WIDGET ptr, byval id as long ) as long
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return -1
+    for i as long = 0 to pTB->itemCount - 1
+        if pTB->items(i).id = id then return i
+    next
+    return -1
+end function
+
+' Widget-local; separators, hidden and overflowed items excluded, disabled included.
+public function tkToolbar_HitTestEx( byval hToolbar as TK_WIDGET ptr, byval x as long, byval y as long, byref nZone as long ) as long
+    nZone = TBR_ZONE_NONE
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return -1
+    EnsureLayout( pTB )
+    return pTB->HitTestZone( x, y, nZone )
+end function
+
+public function tkToolbar_HitTest( byval hToolbar as TK_WIDGET ptr, byval x as long, byval y as long ) as long
+    dim as long nZone
+    return tkToolbar_HitTestEx( hToolbar, x, y, nZone )
+end function
+
+public function tkToolbar_GetItemKind( byval hToolbar as TK_WIDGET ptr, byval idx as long ) as long
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return -1
+    return pTB->items(idx).itemKind
+end function
+
+public function tkToolbar_GetGlyph( byval hToolbar as TK_WIDGET ptr, byval idx as long ) as ustring
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return ""
+    return pTB->items(idx).wszGlyph
+end function
+
+' A LAYOUT change: whether the icon cell and the text gap are charged. Frees any image.
+public function tkToolbar_SetGlyph( byval hToolbar as TK_WIDGET ptr, byval idx as long, byval Glyph as ustring ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return false
+    with pTB->items(idx)
+        .wszGlyph = Glyph
+        if (len( Glyph ) > 0) andalso (.pImage <> 0) then delete .pImage : .pImage = 0
+    end with
+    pTB->Refresh()
+    return true
+end function
+
+' .png/.bmp/.jpg/.ico (SDL_image) in the icon cell INSTEAD OF the glyph. TRUE for a load or "".
+public function tkToolbar_SetItemImage( byval hToolbar as TK_WIDGET ptr, byval idx as long, byval Path as ustring ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return false
+    dim as TKTOOLBAR_ITEM ptr pItem = @pTB->items(idx)
+    if len( Path ) = 0 then
+        if pItem->pImage then delete pItem->pImage : pItem->pImage = 0
+        pTB->Refresh()
+        return true
+    end if
+    if pItem->pImage = 0 then pItem->pImage = new tkImageFile
+    dim as long bOK = pItem->pImage->Load( Path )
+    if bOK = 0 then
+        delete pItem->pImage : pItem->pImage = 0
+    else
+        pItem->wszGlyph = ""
+    end if
+    pTB->Refresh()
+    return bOK <> 0
+end function
+
+public function tkToolbar_GetText( byval hToolbar as TK_WIDGET ptr, byval idx as long ) as ustring
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return ""
+    return pTB->items(idx).wszText
+end function
+
+public function tkToolbar_SetText( byval hToolbar as TK_WIDGET ptr, byval idx as long, byval Text as ustring ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return false
+    pTB->items(idx).wszText = Text
+    pTB->Refresh()
+    return true
+end function
+
+public function tkToolbar_GetItemID( byval hToolbar as TK_WIDGET ptr, byval idx as long ) as long
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return 0
+    return pTB->items(idx).id
+end function
+
+public function tkToolbar_SetItemID( byval hToolbar as TK_WIDGET ptr, byval idx as long, byval id as long ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return false
+    pTB->items(idx).id = id
+    return true
+end function
+
+public function tkToolbar_GetItemData( byval hToolbar as TK_WIDGET ptr, byval idx as long ) as integer
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return 0
+    return pTB->items(idx).itemData
+end function
+
+public function tkToolbar_SetItemData( byval hToolbar as TK_WIDGET ptr, byval idx as long, byval itemData as integer ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return false
+    pTB->items(idx).itemData = itemData
+    return true
+end function
+
+public function tkToolbar_GetSelected( byval hToolbar as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return false
+    return pTB->items(idx).isSelected
+end function
+
+' SILENT, but enforces the radio group.
+public function tkToolbar_SetSelected( byval hToolbar as TK_WIDGET ptr, byval idx as long, byval isSelected as boolean ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return false
+    if pTB->items(idx).isSelected = isSelected then return true
+    pTB->items(idx).isSelected = isSelected
+    tkWidget_Invalidate( hToolbar )
+    if isSelected then ApplyRadio( pTB, idx, false )
+    return true
+end function
+
+public function tkToolbar_GetEnabled( byval hToolbar as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return false
+    return pTB->items(idx).isEnabled
+end function
+
+' Disabling the item under a live press cancels the gesture.
+public function tkToolbar_SetEnabled( byval hToolbar as TK_WIDGET ptr, byval idx as long, byval isEnabled as boolean ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return false
+    pTB->items(idx).isEnabled = isEnabled
+    if isEnabled = false then
+        if pTB->nPressedIdx = idx then pTB->CancelPress()
+        if pTB->nLastHotIdx = idx then pTB->nLastHotIdx = -1 : pTB->nHotZone = TBR_ZONE_NONE
+    end if
+    tkWidget_Invalidate( hToolbar )
+    return true
+end function
+
+public function tkToolbar_GetVisible( byval hToolbar as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return false
+    return pTB->items(idx).isVisible
+end function
+
+' Hiding removes the item from layout, hit-testing and overflow (and hides a CONTROL's child).
+public function tkToolbar_SetVisible( byval hToolbar as TK_WIDGET ptr, byval idx as long, byval isVisible as boolean ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return false
+    with pTB->items(idx)
+        if .isVisible = isVisible then return true
+        .isVisible = isVisible
+        if (isVisible = false) andalso (.itemKind = TBR_KIND_CONTROL) andalso (.hChild <> 0) then tkWidget_Show( .hChild, false )
+    end with
+    if isVisible = false then
+        if pTB->nPressedIdx = idx then pTB->CancelPress()
+        if pTB->nLastHotIdx = idx then pTB->nLastHotIdx = -1 : pTB->nHotZone = TBR_ZONE_NONE
+    end if
+    pTB->Refresh()
+    return true
+end function
+
+public function tkToolbar_GetItemGroupID( byval hToolbar as TK_WIDGET ptr, byval idx as long ) as long
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return 0
+    return pTB->items(idx).nGroupID
+end function
+
+' Joining a group while checked enforces it at once, silently.
+public function tkToolbar_SetItemGroupID( byval hToolbar as TK_WIDGET ptr, byval idx as long, byval nGroupID as long ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return false
+    pTB->items(idx).nGroupID = nGroupID
+    if (nGroupID <> 0) andalso pTB->items(idx).isSelected then ApplyRadio( pTB, idx, false )
+    return true
+end function
+
+public function tkToolbar_FindCheckedInGroup( byval hToolbar as TK_WIDGET ptr, byval nGroupID as long ) as long
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (nGroupID = 0) then return -1
+    for i as long = 0 to pTB->itemCount - 1
+        if (pTB->items(i).nGroupID = nGroupID) andalso pTB->items(i).isSelected then return i
+    next
+    return -1
+end function
+
+public function tkToolbar_GetItemGravity( byval hToolbar as TK_WIDGET ptr, byval idx as long ) as long
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return TBR_GRAVITY_LEFT
+    return pTB->items(idx).nGravity
+end function
+
+public function tkToolbar_SetItemGravity( byval hToolbar as TK_WIDGET ptr, byval idx as long, byval nGravity as long ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return false
+    pTB->items(idx).nGravity = nGravity
+    pTB->Refresh()
+    return true
+end function
+
+public function tkToolbar_GetItemChild( byval hToolbar as TK_WIDGET ptr, byval idx as long ) as TK_WIDGET ptr
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return 0
+    return pTB->items(idx).hChild
+end function
+
+public function tkToolbar_FindItemByChild( byval hToolbar as TK_WIDGET ptr, byval hChild as TK_WIDGET ptr ) as long
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (hChild = 0) then return -1
+    for i as long = 0 to pTB->itemCount - 1
+        if pTB->items(i).hChild = hChild then return i
+    next
+    return -1
+end function
+
+' An ACTION: activates the item and fires its callback, as a user click would.
+public function tkToolbar_Click( byval hToolbar as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return false
+    with pTB->items(idx)
+        if (.isEnabled = false) orelse (.itemKind = TBR_KIND_SEPARATOR) orelse (.itemKind = TBR_KIND_CONTROL) then return false
+    end with
+    ActivateItem( pTB, idx )
+    return true
+end function
+
+' An ACTION: flips a toggle as a user click would (group enforced) and fires SelChange.
+public function tkToolbar_Toggle( byval hToolbar as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return false
+    if (pTB->items(idx).itemKind <> TBR_KIND_TOGGLE) orelse (pTB->items(idx).isEnabled = false) then return false
+    ToggleInternal( pTB, idx, true )
+    return true
+end function
+
+' ---- geometry: raw pixels; the Create-time defaults are the only scaled ones ----
+public sub tkToolbar_GetIconSize( byval hToolbar as TK_WIDGET ptr, byref nIconWidth as long, byref nIconHeight as long )
+    nIconWidth = 0 : nIconHeight = 0
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then exit sub
+    nIconWidth = pTB->nIconWidth : nIconHeight = pTB->nIconHeight
+end sub
+
+public sub tkToolbar_SetIconSize( byval hToolbar as TK_WIDGET ptr, byval nIconWidth as long, byval nIconHeight as long )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then exit sub
+    if nIconWidth > 0 then pTB->nIconWidth = nIconWidth
+    if nIconHeight > 0 then pTB->nIconHeight = nIconHeight
+    pTB->Refresh()
+end sub
+
+public sub tkToolbar_GetPadding( byval hToolbar as TK_WIDGET ptr, byref nPadBefore as long, byref nPadAfter as long, byref nPadTop as long, byref nPadBottom as long )
+    nPadBefore = 0 : nPadAfter = 0 : nPadTop = 0 : nPadBottom = 0
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then exit sub
+    nPadBefore = pTB->nPadBefore : nPadAfter = pTB->nPadAfter : nPadTop = pTB->nPadTop : nPadBottom = pTB->nPadBottom
+end sub
+
+' Negative values are ignored, so one can be set with -1 for the rest.
+public sub tkToolbar_SetPadding( byval hToolbar as TK_WIDGET ptr, byval nPadBefore as long, byval nPadAfter as long, byval nPadTop as long, byval nPadBottom as long )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then exit sub
+    if nPadBefore >= 0 then pTB->nPadBefore = nPadBefore
+    if nPadAfter >= 0 then pTB->nPadAfter = nPadAfter
+    if nPadTop >= 0 then pTB->nPadTop = nPadTop
+    if nPadBottom >= 0 then pTB->nPadBottom = nPadBottom
+    pTB->Refresh()
+end sub
+
+public function tkToolbar_GetTextGap( byval hToolbar as TK_WIDGET ptr ) as long
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return 0
+    return pTB->nTextGap
+end function
+
+public sub tkToolbar_SetTextGap( byval hToolbar as TK_WIDGET ptr, byval nTextGap as long )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then exit sub
+    if nTextGap >= 0 then pTB->nTextGap = nTextGap
+    pTB->Refresh()
+end sub
+
+public function tkToolbar_GetSeparatorWidth( byval hToolbar as TK_WIDGET ptr ) as long
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return 0
+    return pTB->nSepWidth
+end function
+
+public sub tkToolbar_SetSeparatorWidth( byval hToolbar as TK_WIDGET ptr, byval nSepWidth as long )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then exit sub
+    if nSepWidth >= 0 then pTB->nSepWidth = nSepWidth
+    pTB->Refresh()
+end sub
+
+public function tkToolbar_GetSeparatorHeight( byval hToolbar as TK_WIDGET ptr ) as long
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return 0
+    return pTB->nSepHeight
+end function
+
+' 0 derives the rule's height from the content band.
+public sub tkToolbar_SetSeparatorHeight( byval hToolbar as TK_WIDGET ptr, byval nSepHeight as long )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then exit sub
+    if nSepHeight >= 0 then pTB->nSepHeight = nSepHeight
+    pTB->Refresh()
+end sub
+
+public sub tkToolbar_GetChevronSize( byval hToolbar as TK_WIDGET ptr, byref nChevronWidth as long, byref nChevronGap as long )
+    nChevronWidth = 0 : nChevronGap = 0
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then exit sub
+    nChevronWidth = pTB->nChevronWidth : nChevronGap = pTB->nChevronGap
+end sub
+
+public sub tkToolbar_SetChevronSize( byval hToolbar as TK_WIDGET ptr, byval nChevronWidth as long, byval nChevronGap as long )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then exit sub
+    if nChevronWidth > 0 then pTB->nChevronWidth = nChevronWidth
+    if nChevronGap >= 0 then pTB->nChevronGap = nChevronGap
+    pTB->Refresh()
+end sub
+
+public function tkToolbar_GetDividerThickness( byval hToolbar as TK_WIDGET ptr ) as long
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return 0
+    return pTB->nDividerThick
+end function
+
+public sub tkToolbar_SetDividerThickness( byval hToolbar as TK_WIDGET ptr, byval nThickness as long )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then exit sub
+    if nThickness >= 0 then pTB->nDividerThick = nThickness
+    pTB->Refresh()
+end sub
+
+public function tkToolbar_GetCornerCurvature( byval hToolbar as TK_WIDGET ptr ) as long
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return 0
+    return pTB->nCurvature
+end function
+
+' Repaints without re-laying out. A DIAMETER, as every curvature in the family.
+public sub tkToolbar_SetCornerCurvature( byval hToolbar as TK_WIDGET ptr, byval nCurvature as long )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then exit sub
+    if nCurvature >= 0 then pTB->nCurvature = nCurvature
+    tkWidget_Invalidate( hToolbar )
+end sub
+
+' -1 goes back to inheriting.
+public function tkToolbar_SetItemPadding( byval hToolbar as TK_WIDGET ptr, byval idx as long, byval nPadBefore as long, byval nPadAfter as long ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return false
+    pTB->items(idx).nPadBefore = nPadBefore
+    pTB->items(idx).nPadAfter = nPadAfter
+    pTB->Refresh()
+    return true
+end function
+
+' 0 goes back to inheriting.
+public function tkToolbar_SetItemIconSize( byval hToolbar as TK_WIDGET ptr, byval idx as long, byval nIconWidth as long, byval nIconHeight as long ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return false
+    pTB->items(idx).nIconWidth = nIconWidth
+    pTB->items(idx).nIconHeight = nIconHeight
+    pTB->Refresh()
+    return true
+end function
+
+public function tkToolbar_SetItemControlSize( byval hToolbar as TK_WIDGET ptr, byval idx as long, byval nControlWidth as long, byval nControlHeight as long ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return false
+    if nControlWidth >= 0 then pTB->items(idx).nControlWidth = nControlWidth
+    if nControlHeight >= 0 then pTB->items(idx).nControlHeight = nControlHeight
+    pTB->Refresh()
+    return true
+end function
+
+private function ItemPart( byval hToolbar as TK_WIDGET ptr, byval idx as long, byval nPart as long, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return false
+    EnsureLayout( pTB )
+    if pTB->IsValidItem( idx ) = false then return false
+    select case nPart
+    case TBR_PART_ITEM : rc = pTB->items(idx).rc
+    case TBR_PART_ICON : rc = pTB->items(idx).rcIcon
+    case TBR_PART_TEXT : rc = pTB->items(idx).rcText
+    case TBR_PART_CHEVRON : rc = pTB->items(idx).rcChevron
+    end select
+    return true
+end function
+
+' The whole cell; empty for a hidden, overflowed or trimmed item.
+public function tkToolbar_GetItemRect( byval hToolbar as TK_WIDGET ptr, byval idx as long, byref rc as TKRECT ) as boolean
+    return ItemPart( hToolbar, idx, TBR_PART_ITEM, rc )
+end function
+public function tkToolbar_GetItemIconRect( byval hToolbar as TK_WIDGET ptr, byval idx as long, byref rc as TKRECT ) as boolean
+    return ItemPart( hToolbar, idx, TBR_PART_ICON, rc )
+end function
+public function tkToolbar_GetItemTextRect( byval hToolbar as TK_WIDGET ptr, byval idx as long, byref rc as TKRECT ) as boolean
+    return ItemPart( hToolbar, idx, TBR_PART_TEXT, rc )
+end function
+public function tkToolbar_GetItemChevronRect( byval hToolbar as TK_WIDGET ptr, byval idx as long, byref rc as TKRECT ) as boolean
+    return ItemPart( hToolbar, idx, TBR_PART_CHEVRON, rc )
+end function
+
+public function tkToolbar_GetOverflowRect( byval hToolbar as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return false
+    EnsureLayout( pTB )
+    if pTB->bNeedOverflow = false then return false
+    rc = pTB->rcOverflow
+    return true
+end function
+
+' Valid BEFORE the bar has been sized.
+public sub tkToolbar_GetIdealSize( byval hToolbar as TK_WIDGET ptr, byref nWidth as long, byref nHeight as long )
+    nWidth = 0 : nHeight = 0
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then exit sub
+    if pTB->bLayoutDirty then pTB->LayoutItems()
+    nWidth = pTB->nTotalWidth : nHeight = pTB->nIdealHeight
+end sub
+
+public function tkToolbar_GetIdealWidth( byval hToolbar as TK_WIDGET ptr ) as long
+    dim as long w, hh
+    tkToolbar_GetIdealSize( hToolbar, w, hh )
+    return w
+end function
+
+public function tkToolbar_IsItemOverflowed( byval hToolbar as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return false
+    EnsureLayout( pTB )
+    if pTB->IsValidItem( idx ) = false then return false
+    return pTB->items(idx).bOverflowed
+end function
+
+public function tkToolbar_GetOverflowCount( byval hToolbar as TK_WIDGET ptr ) as long
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return 0
+    EnsureLayout( pTB )
+    dim as long n = 0
+    for i as long = 0 to pTB->itemCount - 1
+        if pTB->items(i).isVisible andalso pTB->items(i).bOverflowed andalso (pTB->items(i).bTrimmed = false) then n += 1
+    next
+    return n
+end function
+
+' ---- appearance ----
+public sub tkToolbar_GetColors( byval hToolbar as TK_WIDGET ptr, byval pColors as TKTOOLBAR_COLORS ptr )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pColors = 0) then exit sub
+    *pColors = pTB->colors
+end sub
+
+' PINS; re-themes every owned menu too (unless the menus were claimed).
+public sub tkToolbar_SetColors( byval hToolbar as TK_WIDGET ptr, byval pColors as TKTOOLBAR_COLORS ptr )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pColors = 0) then exit sub
+    pTB->colors = *pColors
+    pTB->bColorsPinned = true
+    ReapplyAllMenuColors( pTB )
+    tkWidget_Invalidate( hToolbar )
+end sub
+
+public function tkToolbar_ThemeColors( byref t as TKTHEME_COLORS ) as TKTOOLBAR_COLORS
+    dim as TKTOOLBAR_COLORS c
+    c.BackColor = t.Window
+    c.ForeColor = t.Text
+    c.BackColorHot = t.SurfaceHot
+    c.ForeColorHot = t.TextHot
+    c.BackColorSelect = t.Selected
+    c.ForeColorSelect = t.SelectedText
+    c.ForeColorDisabled = t.TextDisabled
+    c.SeparatorColor = t.Divider
+    c.SplitDividerColor = t.Divider
+    return c
+end function
+
+public sub tkToolbar_ApplyTheme( byval hToolbar as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse pTB->bColorsPinned then exit sub
+    pTB->colors = tkToolbar_ThemeColors( t )
+    ReapplyAllMenuColors( pTB )
+    tkWidget_Invalidate( hToolbar )
+end sub
+
+public sub tkToolbar_UnpinColors( byval hToolbar as TK_WIDGET ptr )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then exit sub
+    pTB->bColorsPinned = false
+    tkToolbar_ApplyTheme( hToolbar, tkTheme_Get() )
+end sub
+
+public function tkToolbar_SetItemForeColor( byval hToolbar as TK_WIDGET ptr, byval idx as long, byval clr as ulong ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return false
+    pTB->items(idx).ForeColorItem = clr
+    pTB->items(idx).bHasForeColor = true
+    tkWidget_Invalidate( hToolbar )
+    return true
+end function
+
+public function tkToolbar_ClearItemForeColor( byval hToolbar as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return false
+    pTB->items(idx).bHasForeColor = false
+    tkWidget_Invalidate( hToolbar )
+    return true
+end function
+
+public function tkToolbar_GetTextFont( byval hToolbar as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return 0
+    return pTB->pTextFont
+end function
+
+' A LAYOUT input; re-applied to the owned menus.
+public function tkToolbar_SetTextFont( byval hToolbar as TK_WIDGET ptr, byval f as TTF_Font ptr ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return false
+    pTB->pTextFont = f
+    if pTB->hOverflowMenu then tkPopupMenu_SetFonts( pTB->hOverflowMenu, pTB->pTextFont, pTB->pGlyphFont )
+    for i as long = 0 to pTB->itemCount - 1
+        if pTB->items(i).hMenu then tkPopupMenu_SetFonts( pTB->items(i).hMenu, pTB->pTextFont, pTB->pGlyphFont )
+    next
+    pTB->Refresh()
+    return true
+end function
+
+public function tkToolbar_GetGlyphFont( byval hToolbar as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return 0
+    return pTB->pGlyphFont
+end function
+
+' Paint-time only: repaints, never re-lays out.
+public function tkToolbar_SetGlyphFont( byval hToolbar as TK_WIDGET ptr, byval f as TTF_Font ptr ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return false
+    pTB->pGlyphFont = f
+    tkWidget_Invalidate( hToolbar )
+    return true
+end function
+
+public sub tkToolbar_ApplyFonts( byval hToolbar as TK_WIDGET ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
+    if fText then tkToolbar_SetTextFont( hToolbar, fText )
+    if fGlyph then tkToolbar_SetGlyphFont( hToolbar, fGlyph )
+end sub
+
+public sub tkToolbar_GetGlyphs( byval hToolbar as TK_WIDGET ptr, byref wszChevron as ustring, byref wszOverflow as ustring )
+    wszChevron = "" : wszOverflow = ""
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then exit sub
+    wszChevron = pTB->wszChevron : wszOverflow = pTB->wszOverflow
+end sub
+
+public sub tkToolbar_SetGlyphs( byval hToolbar as TK_WIDGET ptr, byval wszChevron as ustring, byval wszOverflow as ustring )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then exit sub
+    pTB->wszChevron = wszChevron : pTB->wszOverflow = wszOverflow
+    tkWidget_Invalidate( hToolbar )
+end sub
+
+' ---- menus ----
+' Created on first call, owned by the toolbar. Handle its rows with tkPopupMenu_SetSelectCallback.
+public function tkToolbar_GetItemMenu( byval hToolbar as TK_WIDGET ptr, byval idx as long ) as TK_MENU ptr
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return 0
+    return EnsureItemMenu( pTB, idx )
+end function
+
+' For theming only: its rows are rebuilt per open.
+public function tkToolbar_GetOverflowMenu( byval hToolbar as TK_WIDGET ptr ) as TK_MENU ptr
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return 0
+    return EnsureOverflowMenu( pTB )
+end function
+
+' Claims the palette of every owned menu, present and future.
+public sub tkToolbar_SetMenuColors( byval hToolbar as TK_WIDGET ptr, byval pColors as TKPOPUPMENU_COLORS ptr )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pColors = 0) then exit sub
+    pTB->bMenuColorsCustom = true
+    pTB->menuColors = *pColors
+    pTB->bColorsPinned = true
+    ReapplyAllMenuColors( pTB )
+end sub
+
+public function tkToolbar_IsDroppedDown( byval hToolbar as TK_WIDGET ptr ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return false
+    Resync( pTB )
+    return (pTB->nDroppedIdx <> -1) orelse pTB->bOverflowOpen
+end function
+
+' -1 for the overflow menu OR for nothing (pair with IsDroppedDown).
+public function tkToolbar_GetDroppedItem( byval hToolbar as TK_WIDGET ptr ) as long
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return -1
+    Resync( pTB )
+    return pTB->nDroppedIdx
+end function
+
+' idx = -1 opens the overflow menu. Fires the DropDown callback.
+public function tkToolbar_DropDown( byval hToolbar as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return false
+    return OpenMenu( pTB, idx )
+end function
+
+' Closes whatever is open and fires the closing edge.
+public sub tkToolbar_CloseUp( byval hToolbar as TK_WIDGET ptr )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then exit sub
+    dim as TK_MENU ptr hOpen = 0
+    if pTB->bOverflowOpen then
+        hOpen = pTB->hOverflowMenu
+    elseif pTB->IsValidItem( pTB->nDroppedIdx ) then
+        hOpen = pTB->items(pTB->nDroppedIdx).hMenu
+    end if
+    if hOpen then tkPopupMenu_CloseChain( hOpen )
+    ClearDropState( pTB )
+end sub
+
+' ---- tooltips ----
+public function tkToolbar_GetTooltipText( byval hToolbar as TK_WIDGET ptr, byval idx as long ) as ustring
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return ""
+    return pTB->items(idx).wszTooltip
+end function
+
+public function tkToolbar_SetTooltipText( byval hToolbar as TK_WIDGET ptr, byval idx as long, byval Text as ustring ) as boolean
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if (pTB = 0) orelse (pTB->IsValidItem( idx ) = false) then return false
+    pTB->items(idx).wszTooltip = Text
+    return true
+end function
+
+public function tkToolbar_GetTooltipHandle( byval hToolbar as TK_WIDGET ptr ) as TK_TIP ptr
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return 0
+    return tkTipHost_Tip( @pTB->tip )
+end function
+
+public sub tkToolbar_SetHoverTime( byval hToolbar as TK_WIDGET ptr, byval milliseconds as long )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB then tkTipHost_SetDelay( @pTB->tip, TK_TIPDELAY_INITIAL, milliseconds )
+end sub
+
+public sub tkToolbar_SetAutoPopTime( byval hToolbar as TK_WIDGET ptr, byval milliseconds as long )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB then tkTipHost_SetDelay( @pTB->tip, TK_TIPDELAY_AUTOPOP, milliseconds )
+end sub
+
+public sub tkToolbar_SetReshowTime( byval hToolbar as TK_WIDGET ptr, byval milliseconds as long )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB then tkTipHost_SetDelay( @pTB->tip, TK_TIPDELAY_RESHOW, milliseconds )
+end sub
+
+' The hovered item (-1 for none, or over the overflow button) -- tk addition, for state queries.
+public function tkToolbar_GetHotItem( byval hToolbar as TK_WIDGET ptr, byref nZone as long ) as long
+    nZone = TBR_ZONE_NONE
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return -1
+    nZone = pTB->nHotZone
+    return pTB->nLastHotIdx
+end function
+
+public function tkToolbar_GetPressedItem( byval hToolbar as TK_WIDGET ptr ) as long
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return -1
+    return pTB->nPressedIdx
+end function
+
+' ---- callbacks (0 removes) ----
+public sub tkToolbar_SetPaintItemCallback( byval hToolbar as TK_WIDGET ptr, byval usersub as TBR_PaintItemCallbackSub )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then exit sub
+    pTB->PaintItemCallback = usersub
+    tkWidget_Invalidate( hToolbar )
+end sub
+
+public sub tkToolbar_SetMessageCallback( byval hToolbar as TK_WIDGET ptr, byval userfunc as TBR_MessageCallbackFunc )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB then pTB->MessageCallback = userfunc
+end sub
+
+public sub tkToolbar_SetTooltipCallback( byval hToolbar as TK_WIDGET ptr, byval userfunc as TBR_TooltipCallbackFunc )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB then pTB->TooltipCallback = userfunc
+end sub
+
+public sub tkToolbar_SetClickCallback( byval hToolbar as TK_WIDGET ptr, byval usersub as TBR_ClickCallbackSub )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB then pTB->ClickCallback = usersub
+end sub
+
+public sub tkToolbar_SetSelChangeCallback( byval hToolbar as TK_WIDGET ptr, byval usersub as TBR_SelChangeCallbackSub )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB then pTB->SelChangeCallback = usersub
+end sub
+
+public sub tkToolbar_SetDropDownCallback( byval hToolbar as TK_WIDGET ptr, byval usersub as TBR_DropDownCallbackSub )
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB then pTB->DropDownCallback = usersub
+end sub
+
+' ---- render probes: the WHOLE bar rendered through the paint path, one part read back ----
+private function PartRect( byval pTB as TKTOOLBAR_STATE ptr, byval nPart as long, byval idx as long ) as TKRECT
+    dim as TKRECT rc
+    if nPart = TBR_PART_TOOLBAR then tkRect_Set( rc, 0, 0, pTB->hWin->cw, pTB->hWin->ch ) : return rc
+    if idx = -1 then
+        if (nPart = TBR_PART_CHEVRON) orelse (nPart = TBR_PART_ITEM) then return pTB->rcOverflow
+        return rc
+    end if
+    if pTB->IsValidItem( idx ) = false then return rc
+    select case nPart
+    case TBR_PART_ITEM : rc = pTB->items(idx).rc
+    case TBR_PART_ICON : rc = pTB->items(idx).rcIcon
+    case TBR_PART_TEXT : rc = pTB->items(idx).rcText
+    case TBR_PART_CHEVRON : rc = pTB->items(idx).rcChevron
+    end select
+    return rc
+end function
+
+private function RenderPart( byval hToolbar as TK_WIDGET ptr, byval nPart as long, byval idx as long ) as SDL_Surface ptr
+    dim as TKTOOLBAR_STATE ptr pTB = GetToolbarPointer( hToolbar )
+    if pTB = 0 then return 0
+    if EnsureLayout( pTB ) = false then return 0
+    dim as TKRECT rc = PartRect( pTB, nPart, idx )
+    if rc.left < 0 then rc.left = 0
+    if rc.top < 0 then rc.top = 0
+    if rc.right > hToolbar->cw then rc.right = hToolbar->cw
+    if rc.bottom > hToolbar->ch then rc.bottom = hToolbar->ch
+    if tkRect_IsEmpty( rc ) then return 0
+    dim as TK_HOST ptr h = hToolbar->pHost
+    dim as TKRECT a
+    tkWidget_AbsRect( hToolbar, a )
+    dim as TK_PAINT wp
+    wp.renderer = h->renderer
+    wp.engine = h->engine
+    wp.pFont = h->pDefaultFont
+    wp.fScale = h->fScale
+    wp.Begin( a.left, a.top, hToolbar->cw, hToolbar->ch )
+    RenderAll( pTB, @wp )
+    SDL_SetRenderClipRect( h->renderer, 0 )
+    dim as SDL_Rect r
+    r.x = a.left + rc.left : r.y = a.top + rc.top : r.w = rc.right - rc.left : r.h = rc.bottom - rc.top
+    dim as SDL_Surface ptr s0 = SDL_RenderReadPixels( h->renderer, @r )
+    h->bDirty = true
+    if s0 = 0 then return 0
+    dim as SDL_Surface ptr s = SDL_ConvertSurface( s0, SDL_PIXELFORMAT_ARGB8888 )
+    SDL_DestroySurface( s0 )
+    return s
+end function
+
+' Distinct colours (capped at 256) inside one TBR_PART_* rect.
+public function tkToolbar_CountRenderedTones( byval hToolbar as TK_WIDGET ptr, byval nPart as long, byval idx as long ) as long
+    dim as SDL_Surface ptr s = RenderPart( hToolbar, nPart, idx )
+    if s = 0 then return 0
+    dim tones(0 to 255) as ulong
+    dim as long n = 0
+    for y as long = 0 to s->h - 1
+        dim as ulong ptr row = cast( ulong ptr, cast( ubyte ptr, s->pixels ) + y * s->pitch )
+        for x as long = 0 to s->w - 1
+            dim as ulong c = row[x] and &h00FFFFFFul
+            dim as boolean bFound = false
+            for t as long = 0 to n - 1
+                if tones(t) = c then bFound = true : exit for
+            next
+            if (bFound = false) andalso (n < 256) then tones(n) = c : n += 1
+        next
+    next
+    SDL_DestroySurface( s )
+    return n
+end function
+
+' FNV-1a of the same rect's RGB.
+public function tkToolbar_HashRenderedPart( byval hToolbar as TK_WIDGET ptr, byval nPart as long, byval idx as long ) as ulong
+    dim as SDL_Surface ptr s = RenderPart( hToolbar, nPart, idx )
+    if s = 0 then return 0
+    dim as ulong hv = &h811C9DC5ul
+    for y as long = 0 to s->h - 1
+        dim as ubyte ptr row = cast( ubyte ptr, s->pixels ) + y * s->pitch
+        for x as long = 0 to s->w * 4 - 1
+            if (x and 3) = 3 then continue for
+            hv = (hv xor row[x]) * &h01000193ul
+        next
+    next
+    SDL_DestroySurface( s )
+    return hv
+end function

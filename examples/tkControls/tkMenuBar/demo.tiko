@@ -1,0 +1,302 @@
+' tkMenuBar demo: the Win32 demo (tiko-lang/examples/PsControls/PsMenuBar/frmMain.tiko) -- File /
+' Edit / View / Help with accelerators, separators, a checkmark, a disabled row, the dynamic
+' "Open Recent" submenu rebuilt on every open with a depth-2 submenu, the bar hugging its items
+' with a host-drawn "Update available" label in the strip beside it, a right-click context menu,
+' and F2 for the keyboard highlight.
+'
+'   demo                     interactive
+'   demo --shot out.bmp      open File, render once (the dropdown composited in), save, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkMenuBar"
+using tkMenuBar
+using tkPopupMenu
+using tkHost
+using tkPaint
+
+#ifdef TIKO_OS_LINUX
+    const FONTDIR = "/mnt/c/Windows/Fonts/"
+#else
+    const FONTDIR = "C:\Windows\Fonts\"
+#endif
+
+enum
+    IDM_FILE_NEW = 1001, IDM_FILE_OPEN, IDM_FILE_RECENT, IDM_FILE_WORDWRAP, IDM_FILE_DISABLED, IDM_FILE_EXIT
+    IDM_EDIT_UNDO = 1101, IDM_EDIT_REDO, IDM_EDIT_CUT, IDM_EDIT_COPY, IDM_EDIT_PASTE
+    IDM_VIEW_EXPLORER = 1201, IDM_VIEW_OUTPUT, IDM_VIEW_FULLSCREEN
+    IDM_HELP_ABOUT = 1301
+    IDM_MRU_BASE = 1400, IDM_MRU_MORE = 1450, IDM_MRU_OLD_A, IDM_MRU_OLD_B
+    IDM_CTX_INSERT = 1501, IDM_CTX_DELETE, IDM_CTX_RENAME, IDM_CTX_ADVANCED, IDM_CTX_ADV_ONE, IDM_CTX_ADV_TWO
+end enum
+
+' The Win32 demo's THEME_TYPE, value for value.
+const as ulong T_FORE = &hFFBEC4CEul, T_BACK = &hFF21252Bul, T_PANEL = &hFF1E2227ul, T_FOREPANEL = &hFF8A909Aul
+const as ulong T_FOCUS = &hFF569CD6ul
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gBar, gCanvas
+dim shared as TK_MENU ptr gCtx
+dim shared as TTF_Font ptr gFont10, gGlyph9
+dim shared as TKRECT gUpdateRect
+dim shared as boolean gWordWrap = true, gExplorerVisible = true, gOutputVisible
+dim shared as long gMruBuildCount
+dim shared as ustring gStatus
+
+sub SetStatus( byref s as ustring )
+    gStatus = s
+    print s
+    tkHost_Invalidate( gHost )
+end sub
+
+sub Demo_Command( byval hMenuBar as TK_WIDGET ptr, byval id as long )
+    select case id
+    case IDM_FILE_WORDWRAP
+        gWordWrap = (gWordWrap = false)
+        tkPopupMenu_SetItemChecked( tkMenuBar_GetDropDown( hMenuBar, 0 ), IDM_FILE_WORDWRAP, gWordWrap )
+    case IDM_VIEW_EXPLORER
+        gExplorerVisible = (gExplorerVisible = false)
+    case IDM_VIEW_OUTPUT
+        gOutputVisible = (gOutputVisible = false)
+    case IDM_FILE_EXIT
+        gHost->bQuit = true
+    end select
+    SetStatus( "command id=" & id & "   (menu open inside the callback: " & tkMenuBar_IsMenuOpen( hMenuBar ) & ")" )
+end sub
+
+' Just-in-time state, the bar's hook: fired before the popup's own.
+sub Demo_InitPopup( byval hMenuBar as TK_WIDGET ptr, byval idx as long, byval hPopup as TK_MENU ptr )
+    if idx = 2 then
+        tkPopupMenu_SetItemChecked( hPopup, IDM_VIEW_EXPLORER, gExplorerVisible )
+        tkPopupMenu_SetItemChecked( hPopup, IDM_VIEW_OUTPUT, gOutputVisible )
+        tkPopupMenu_SetItemEnabled( hPopup, IDM_VIEW_FULLSCREEN, (gOutputVisible = false) )
+    end if
+end sub
+
+' "Open Recent": a full rebuild per open, including the depth-2 submenu Clear destroyed.
+declare function NewMenu() as TK_MENU ptr
+
+sub Demo_MruInitPopup( byval hPopup as TK_MENU ptr )
+    gMruBuildCount += 1
+    tkPopupMenu_Clear( hPopup )
+    for i as long = 1 to 3
+        tkPopupMenu_AddItem( hPopup, IDM_MRU_BASE + i, "recent_file_" & i & ".tiko  (rebuild #" & gMruBuildCount & ")" )
+    next
+    tkPopupMenu_AddSeparator( hPopup )
+    tkPopupMenu_AddItem( hPopup, IDM_MRU_MORE, "More Files" )
+    dim as TK_MENU ptr hMore = NewMenu()
+    tkPopupMenu_AddItem( hMore, IDM_MRU_OLD_A, "older_file_a.tiko" )
+    tkPopupMenu_AddItem( hMore, IDM_MRU_OLD_B, "older_file_b.tiko" )
+    tkPopupMenu_SetItemSubMenu( hPopup, IDM_MRU_MORE, hMore )
+end sub
+
+sub Demo_ContextSelect( byval hPopup as TK_MENU ptr, byval id as long )
+    SetStatus( "context menu id=" & id )
+end sub
+
+function NewMenu() as TK_MENU ptr
+    dim as TK_MENU ptr m = tkPopupMenu_Create( gHost )
+    tkPopupMenu_SetFonts( m, gFont10, gGlyph9 )
+    tkPopupMenu_SetGlyphs( m, wchr( &hE73E ), wchr( &hE76C ) )     ' Fluent CheckMark / ChevronRight
+    return m
+end function
+
+sub BuildMenus()
+    gBar = tkMenuBar_Create( tkHost_Root( gHost ), 100 )
+    tkMenuBar_SetFont( gBar, gFont10 )
+    tkMenuBar_SetCommandCallback( gBar, @Demo_Command )
+    tkMenuBar_SetInitPopupCallback( gBar, @Demo_InitPopup )
+    tkMenuBar_AddItem( gBar, "File", 1 )
+    tkMenuBar_AddItem( gBar, "Edit", 2 )
+    tkMenuBar_AddItem( gBar, "View", 3 )
+    tkMenuBar_AddItem( gBar, "Help", 4 )
+
+    dim as TK_MENU ptr hFile = NewMenu()
+    tkPopupMenu_AddItem( hFile, IDM_FILE_NEW, "New File", "Ctrl+N" )
+    tkPopupMenu_AddItem( hFile, IDM_FILE_OPEN, "Open File...", "Ctrl+O" )
+    tkPopupMenu_AddSeparator( hFile )
+    tkPopupMenu_AddItem( hFile, IDM_FILE_RECENT, "Open Recent" )
+    tkPopupMenu_AddSeparator( hFile )
+    tkPopupMenu_AddItem( hFile, IDM_FILE_WORDWRAP, "Word Wrap", "", false, gWordWrap )
+    tkPopupMenu_AddItem( hFile, IDM_FILE_DISABLED, "Disabled Item", "", true )
+    tkPopupMenu_AddSeparator( hFile )
+    tkPopupMenu_AddItem( hFile, IDM_FILE_EXIT, "Exit", "Alt+F4" )
+    dim as TK_MENU ptr hMru = NewMenu()
+    tkPopupMenu_SetInitPopupCallback( hMru, @Demo_MruInitPopup )
+    tkPopupMenu_AddItem( hMru, IDM_MRU_BASE + 1, "(filled on open)" )
+    tkPopupMenu_SetItemSubMenu( hFile, IDM_FILE_RECENT, hMru )
+    tkMenuBar_SetDropDown( gBar, 0, hFile )
+
+    dim as TK_MENU ptr hEdit = NewMenu()
+    tkPopupMenu_AddItem( hEdit, IDM_EDIT_UNDO, "Undo", "Ctrl+Z" )
+    tkPopupMenu_AddItem( hEdit, IDM_EDIT_REDO, "Redo", "Ctrl+Y", true )
+    tkPopupMenu_AddSeparator( hEdit )
+    tkPopupMenu_AddItem( hEdit, IDM_EDIT_CUT, "Cut", "Ctrl+X" )
+    tkPopupMenu_AddItem( hEdit, IDM_EDIT_COPY, "Copy", "Ctrl+C" )
+    tkPopupMenu_AddItem( hEdit, IDM_EDIT_PASTE, "Paste", "Ctrl+V" )
+    tkMenuBar_SetDropDown( gBar, 1, hEdit )
+
+    dim as TK_MENU ptr hView = NewMenu()
+    tkPopupMenu_AddItem( hView, IDM_VIEW_EXPLORER, "Explorer Panel" )
+    tkPopupMenu_AddItem( hView, IDM_VIEW_OUTPUT, "Output Panel" )
+    tkPopupMenu_AddSeparator( hView )
+    tkPopupMenu_AddItem( hView, IDM_VIEW_FULLSCREEN, "Full Screen", "F11" )
+    tkMenuBar_SetDropDown( gBar, 2, hView )
+
+    dim as TK_MENU ptr hHelp = NewMenu()
+    tkPopupMenu_AddItem( hHelp, IDM_HELP_ABOUT, "About tkMenuBar...", "F1" )
+    tkMenuBar_SetDropDown( gBar, 3, hHelp )
+
+    ' the standalone context menu: a chain the bar knows nothing about
+    gCtx = NewMenu()
+    tkPopupMenu_SetSelectCallback( gCtx, @Demo_ContextSelect )
+    tkPopupMenu_AddItem( gCtx, IDM_CTX_INSERT, "Insert Row" )
+    tkPopupMenu_AddItem( gCtx, IDM_CTX_DELETE, "Delete Row", "Del" )
+    tkPopupMenu_AddItem( gCtx, IDM_CTX_RENAME, "Rename...", "F2" )
+    tkPopupMenu_AddSeparator( gCtx )
+    tkPopupMenu_AddItem( gCtx, IDM_CTX_ADVANCED, "Advanced" )
+    dim as TK_MENU ptr hAdv = NewMenu()
+    tkPopupMenu_AddItem( hAdv, IDM_CTX_ADV_ONE, "Advanced Option One" )
+    tkPopupMenu_AddItem( hAdv, IDM_CTX_ADV_TWO, "Advanced Option Two" )
+    tkPopupMenu_SetItemSubMenu( gCtx, IDM_CTX_ADVANCED, hAdv )
+end sub
+
+' The form's own surface under the bar: the right-click menu, the update label's click and F2.
+function Canvas_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    select case m->msg
+    case TKM_RBUTTONUP
+        dim as TKRECT a
+        tkWidget_AbsRect( w, a )
+        tkPopupMenu_Show( gCtx, a.left + cint( m->x ), a.top + cint( m->y ) )
+        return true
+    case TKM_LBUTTONDOWN
+        tkHost_SetFocus( gHost, w )
+        return true
+    case TKM_KEYDOWN
+        if m->key = SDLK_F2 then
+            tkMenuBar_SetActiveIndex( gBar, 0 )
+            SetStatus( "keyboard highlight: Left / Right, Down or Enter opens, Esc clears" )
+            return true
+        end if
+    end select
+    return false
+end function
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    ' the top strip right of the bar is the HOST's: bar-coloured, with the update label
+    dim as TKRECT rcStrip = gUpdateRect
+    rcStrip.left = 0
+    b->SetBackColor( T_BACK )
+    b->PaintRect( @rcStrip )
+    b->SetFont( gFont10 )
+    b->SetColors( T_FOCUS, T_BACK )
+    b->PaintText( "Update available", @gUpdateRect, TK_DT_CENTER )
+    dim as long lineH = tkHost_Scale( h, 24 )
+    dim as TKRECT rc
+    tkRect_Set( rc, tkHost_Scale( h, 12 ), tkHost_Scale( h, 60 ), pw, tkHost_Scale( h, 60 ) + lineH )
+    b->SetColors( T_FOREPANEL, T_PANEL )
+    b->PaintText( "Click the menu bar; right-click here for a context menu.", @rc, TK_DT_LEFT )
+    tkRect_Offset( rc, 0, lineH )
+    b->PaintText( "F2 highlights the bar for keyboard navigation (arrows / Enter / Esc).", @rc, TK_DT_LEFT )
+    if len( gStatus ) then
+        tkRect_Offset( rc, 0, tkHost_Scale( h, 40 ) )
+        b->PaintText( gStatus, @rc, TK_DT_LEFT )
+    end if
+end sub
+
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long nBarHeight = tkHost_Scale( h, 30 )
+    ' geometry first (item rects need a height), then hug the items
+    tkWidget_SetPos( gBar, 0, 0, pw, nBarHeight )
+    dim as long nBarW = tkMenuBar_GetIdealWidth( gBar )
+    if nBarW > 0 then tkWidget_SetPos( gBar, 0, 0, nBarW, nBarHeight )
+    tkWidget_SetPos( gCanvas, 0, nBarHeight, pw, ph - nBarHeight )
+    dim as long nLabelW = tkHost_Scale( h, 140 )
+    tkRect_Set( gUpdateRect, pw - nLabelW, 0, pw, nBarHeight )
+end sub
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+' The main window with the open dropdown composited in at its anchor (a popup is its own
+' window, so a read of the main renderer alone would not show it).
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr s0 = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if s0 = 0 then exit sub
+    dim as SDL_Surface ptr s = SDL_ConvertSurface( s0, SDL_PIXELFORMAT_ARGB8888 )
+    SDL_DestroySurface( s0 )
+    dim as TK_MENU ptr d = tkMenuBar_GetDropDown( gBar, 0 )
+    dim as TK_HOST ptr ps = tkPopupMenu_Surface( d )
+    if ps then
+        tkHost_RenderTo( ps, false )
+        dim as SDL_Surface ptr p0 = SDL_RenderReadPixels( ps->renderer, 0 )
+        if p0 then
+            dim as TKRECT r0
+            tkMenuBar_GetItemRect( gBar, 0, r0 )
+            dim as SDL_Rect dst
+            dst.x = gBar->x + r0.left : dst.y = gBar->y + r0.bottom - 1 : dst.w = p0->w : dst.h = p0->h
+            SDL_BlitSurface( p0, 0, s, @dst )
+            SDL_DestroySurface( p0 )
+        end if
+    end if
+    SDL_SaveBMP( s, strptr( path ) )
+    print "shot: " & path & "  " & s->w & "x" & s->h & "  scale=" & gHost->fScale
+    SDL_DestroySurface( s )
+end sub
+
+
+' --shot only: a window started from a script is often not the foreground one, and the host
+' (rightly) dismisses popups when the application does not have the focus. Keep it open.
+function DropOsFocusEvents( byval userdata as any ptr, byval e as SDL_Event ptr ) as boolean
+    return (e->type <> SDL_EVENT_WINDOW_FOCUS_LOST)
+end function
+
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkMenuBar on SDL3", 700, 420, FONTDIR & "segoeui.ttf", forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = T_PANEL
+gFont10 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 10 )
+gGlyph9 = tkHost_OpenFont( gHost, FONTDIR & "SegoeIcons.ttf", 9 )
+if (gFont10 = 0) orelse (gGlyph9 = 0) then print "fonts: " & *SDL_GetError() : end 1
+
+gCanvas = tkWidget_Create( gHost, 50, @Canvas_Proc, 0 )
+gCanvas->isFocusable = true
+BuildMenus()
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkHost_SetFocus( gHost, gCanvas )
+tkHost_Show( gHost )
+
+dim as string shot = ArgValue( "--shot" )
+if len( shot ) then
+    SDL_SetEventFilter( @DropOsFocusEvents, 0 )
+    tkHost_Pump( gHost )
+    tkMenuBar_OpenMenu( gBar, 0, true )
+    dim as double t0 = timer
+    while timer - t0 < 0.3
+        tkHost_Pump( gHost )
+        SDL_Delay( 10 )
+    wend
+    SaveShot( shot )
+else
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

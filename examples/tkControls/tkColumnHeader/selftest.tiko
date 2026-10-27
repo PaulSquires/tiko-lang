@@ -1,0 +1,324 @@
+' tkColumnHeader self-test: the layout formula (fill column, minimums, overflow, XOffset), the
+' fill designation across inserts and deletes, hover and the divider gutters (right to left, the
+' fill's never), the matched click, the live divider drag (bLive, one final FALSE, ESC and
+' capture loss restoring, a re-anchor from SetColumnWidth), divider double-click auto-fit, the
+' message callback's ignored results, silent setters, tooltips, the built-in painter and a
+' paint callback, theme and pinning, rescale. Two passes, 1.0 and 1.75; real pushed events.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkColumnHeader"
+#import "vendor/tkControls/tkButton"
+#import "vendor/tkControls/tkTest"
+using tkColumnHeader
+using tkButton
+using tkTooltip
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as long gClicks, gLastClick, gLive, gFinal, gLastW, gAutoW, gTipIdx
+dim shared as string gWLog
+dim shared as boolean gVetoDown, gVetoUp, gMagenta
+dim shared as long gMsgIdx
+
+sub OnClick( byval hHdr as TK_WIDGET ptr, byval idx as integer )
+    gClicks += 1 : gLastClick = idx
+end sub
+
+sub OnWidth( byval hHdr as TK_WIDGET ptr, byval idx as integer, byval nWidth as integer, byval bLive as boolean )
+    if bLive then gLive += 1 else gFinal += 1
+    gLastW = nWidth
+end sub
+
+function OnAuto( byval hHdr as TK_WIDGET ptr, byval idx as integer ) as integer
+    return gAutoW
+end function
+
+function OnTip( byval hHdr as TK_WIDGET ptr, byval idx as integer ) as ustring
+    gTipIdx = idx
+    return "tip for column " & idx
+end function
+
+function OnMsg( byval m as TKCOLUMNHEADER_MESSAGEINFO ptr ) as boolean
+    gMsgIdx = m->idx
+    if gVetoDown andalso (m->msg = TKM_LBUTTONDOWN) then return true
+    if gVetoUp andalso (m->msg = TKM_LBUTTONUP) then return true
+    return false
+end function
+
+sub MagentaPaint( byval p as TKCOLUMNHEADER_PAINTINFO ptr )
+    p->b->SetBackColor( &hFFFF00FFul )
+    p->b->PaintRect( @p->rc )
+end sub
+
+function WaitTip( byval h as TK_HOST ptr, byval tp as TK_TIP ptr, byval want as boolean, byval ms as long ) as boolean
+    dim as double t0 = timer
+    dim as SDL_Event e
+    while (timer - t0) * 1000 < ms
+        if SDL_WaitEventTimeout( @e, 20 ) then tkHost_Dispatch( h, @e )
+        if h->bDirty then tkHost_Render( h )
+        if tkTooltip_IsVisible( tp ) = want then return true
+    wend
+    return false
+end function
+
+sub ResetLog()
+    gLive = 0 : gFinal = 0 : gLastW = -1 : gClicks = 0 : gLastClick = -1
+end sub
+
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkColumnHeader selftest", 640, 360, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    if h = 0 then tkTest_Check( "host", false, *SDL_GetError() ) : exit sub
+    dim as TTF_Font ptr f = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeuib.ttf", 9 )
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 300 )
+    dim as long S_ = cint( fScale * 100 )
+
+    ' ---- A: the model and the layout ------------------------------------------------------
+    dim as TK_WIDGET ptr hd = tkColumnHeader_Create( tkHost_Root( h ), 401 )
+    tkColumnHeader_SetFont( hd, f )
+    tkTest_Check( "padding scaled at create", tkColumnHeader_GetPadding( hd ) = cint( 8 * fScale ) )
+    dim as long w0 = tkHost_Scale( h, 160 ), w1 = tkHost_Scale( h, 70 )
+    tkTest_Check( "AddColumn returns the index", tkColumnHeader_AddColumn( hd, "Name", w0 ) = 0 andalso tkColumnHeader_AddColumn( hd, "Size", w1 ) = 1 )
+    tkColumnHeader_AddColumn( hd, "Type", 0 )
+    tkTest_Check( "a width <= 0 keeps the 100 default", tkColumnHeader_GetCount( hd ) = 3 andalso tkColumnHeader_GetColumnWidth( hd, 2 ) = 100 )
+    tkTest_Check( "fill = the last column by default", tkColumnHeader_GetFillColumn( hd ) = 2 )
+    dim as TKRECT rc
+    tkTest_Check( "a query before sizing gives a rect (layout stays stale)", tkColumnHeader_GetColumnRect( hd, 0, rc ) )
+    dim as long cw = tkHost_Scale( h, 500 ), chh = tkHost_Scale( h, 26 )
+    tkWidget_SetPos( hd, tkHost_Scale( h, 20 ), tkHost_Scale( h, 20 ), cw, chh )
+    dim as TKRECT r0, r1, r2
+    tkColumnHeader_GetColumnRect( hd, 0, r0 ) : tkColumnHeader_GetColumnRect( hd, 1, r1 ) : tkColumnHeader_GetColumnRect( hd, 2, r2 )
+    tkTest_Check( "col 0 at the left, full height", r0.left = 0 andalso r0.right = w0 andalso r0.top = 0 andalso r0.bottom = chh, tkRect_Str( r0 ) )
+    tkTest_Check( "contiguous", r1.left = w0 andalso r1.right = w0 + w1 )
+    tkTest_Check( "the fill takes the rest", r2.left = w0 + w1 andalso r2.right = cw, tkRect_Str( r2 ) )
+    tkTest_Check( "GetColumnWidth(fill) = its laid-out width", tkColumnHeader_GetColumnWidth( hd, 2 ) = cw - w0 - w1 )
+    dim as long minDef = tkHost_Scale( h, 16 )
+    tkColumnHeader_SetColumnWidth( hd, 1, 2 )
+    tkTest_Check( "SetColumnWidth clamps to the scaled default minimum", tkColumnHeader_GetColumnWidth( hd, 1 ) = minDef, "" & tkColumnHeader_GetColumnWidth( hd, 1 ) )
+    tkColumnHeader_SetColumnWidth( hd, 1, w1 )
+    tkColumnHeader_SetColumnMinWidth( hd, 0, w0 + 40 )
+    tkTest_Check( "a raised minimum shows at once in GetColumnWidth", tkColumnHeader_GetColumnWidth( hd, 0 ) = w0 + 40 andalso tkColumnHeader_GetColumnMinWidth( hd, 0 ) = w0 + 40 )
+    tkColumnHeader_SetColumnMinWidth( hd, 0, 0 )
+    tkColumnHeader_SetFillColumn( hd, CCOLHDR_FILL_NONE )
+    tkColumnHeader_GetColumnRect( hd, 2, r2 )
+    tkTest_Check( "FILL_NONE: columns end where their widths end", r2.right - r2.left = 100 andalso tkColumnHeader_GetFillColumn( hd ) = -1 )
+    tkTest_Check( "SetFillColumn refuses a bad index", tkColumnHeader_SetFillColumn( hd, 7 ) = false )
+    tkColumnHeader_SetFillColumn( hd, 1 )
+    tkColumnHeader_InsertColumn( hd, 0, "Icon", tkHost_Scale( h, 30 ) )
+    tkTest_Check( "a stored fill index shifts up on insert", tkColumnHeader_GetFillColumn( hd ) = 2 )
+    tkColumnHeader_DeleteColumn( hd, 0 )
+    tkTest_Check( "...and down on delete", tkColumnHeader_GetFillColumn( hd ) = 1 )
+    tkColumnHeader_DeleteColumn( hd, 1 )
+    tkTest_Check( "deleting the fill column falls back to FILL_LAST", tkColumnHeader_GetFillColumn( hd ) = 1 andalso tkColumnHeader_GetCount( hd ) = 2 )
+    tkColumnHeader_InsertColumn( hd, 1, "Size", w1 )
+    tkColumnHeader_SetColumnText( hd, 2, "Type" )
+    tkColumnHeader_SetFillColumn( hd, CCOLHDR_FILL_LAST )
+    ' overflow and XOffset
+    tkColumnHeader_SetColumnWidth( hd, 0, cw )
+    tkColumnHeader_GetColumnRect( hd, 1, r1 )
+    tkTest_Check( "overflow: rects run honestly past the edge", r1.left = cw andalso r1.right = cw + w1 )
+    tkColumnHeader_SetColumnWidth( hd, 0, w0 )
+    tkColumnHeader_SetXOffset( hd, tkHost_Scale( h, 25 ) )
+    tkColumnHeader_GetColumnRect( hd, 0, r0 )
+    tkTest_Check( "XOffset shifts every rect", r0.left = -tkHost_Scale( h, 25 ) )
+    tkColumnHeader_SetXOffset( hd, -5 )
+    tkTest_Check( "a negative XOffset becomes 0", tkColumnHeader_GetXOffset( hd ) = 0 )
+    tkColumnHeader_GetColumnRect( hd, 0, r0 ) : tkColumnHeader_GetColumnRect( hd, 1, r1 ) : tkColumnHeader_GetColumnRect( hd, 2, r2 )
+
+    tkColumnHeader_SetClickCallback( hd, @OnClick )
+    tkColumnHeader_SetWidthChangedCallback( hd, @OnWidth )
+    tkColumnHeader_SetAutoSizeCallback( hd, @OnAuto )
+    tkColumnHeader_SetMessageCallback( hd, @OnMsg )
+    dim as TKRECT a
+    tkWidget_AbsRect( hd, a )
+    dim as single yMid = a.top + chh / 2
+
+    ' ---- B: hover and the gutters ----------------------------------------------------------
+    dim as long gut = tkHost_Scale( h, 3 )
+    tkTest_Check( "HitTestDivider: col 0's right edge", tkColumnHeader_HitTestDivider( hd, r0.right + gut, chh \ 2 ) = 0 andalso tkColumnHeader_HitTestDivider( hd, r0.right - gut - 1, chh \ 2 ) = -1 )
+    tkTest_Check( "the fill's divider is never reported", tkColumnHeader_HitTestDivider( hd, r2.right - 1, chh \ 2 ) = -1 )
+    tkTest_PushMotion( h, a.left + r0.left + tkHost_Scale( h, 20 ), yMid )
+    tkTest_Check( "hover: the body is hot", tkColumnHeader_GetHotColumn( hd ) = 0 andalso tkColumnHeader_GetHotDivider( hd ) = -1 andalso hd->cursor = TK_CURSOR_ARROW )
+    tkTest_PushMotion( h, a.left + r0.right, yMid )
+    tkTest_Check( "hover a gutter: the divider, not the body; SIZEWE", tkColumnHeader_GetHotDivider( hd ) = 0 andalso tkColumnHeader_GetHotColumn( hd ) = -1 andalso hd->cursor = TK_CURSOR_SIZEWE )
+    tkTest_Check( "...and idx = -1 in the message callback", gMsgIdx = -1 )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+    tkTest_Check( "the leave clears hover", tkColumnHeader_GetHotDivider( hd ) = -1 andalso tkColumnHeader_GetHotColumn( hd ) = -1 )
+
+    ' ---- C: the matched click ---------------------------------------------------------------
+    dim as single x1 = a.left + (r1.left + r1.right) / 2, x0 = a.left + r0.left + tkHost_Scale( h, 20 )
+    ResetLog()
+    tkTest_Click( h, x1, yMid )
+    tkTest_Check( "press + release on a body clicks", gClicks = 1 andalso gLastClick = 1 )
+    tkTest_PushButton( h, true, x1, yMid )
+    tkTest_Check( "a body press takes capture and shows pressed", tkHost_GetCapture( h ) = hd andalso tkColumnHeader_GetPressedColumn( hd ) = 1 )
+    tkTest_PushMotion( h, x0, yMid )
+    tkTest_PushButton( h, false, x0, yMid )
+    tkTest_Check( "released over another column: no click", gClicks = 1 andalso tkHost_GetCapture( h ) = 0 )
+    tkTest_PushButton( h, true, x1, yMid )
+    tkTest_PushButton( h, false, x1, yMid + tkHost_Scale( h, 200 ) )
+    tkTest_Check( "released outside: no click", gClicks = 1 )
+    tkTest_Click( h, x1, yMid ) : tkTest_Click( h, x1, yMid, SDL_BUTTON_LEFT, 2 )
+    tkTest_Check( "a body double-click clicks twice", gClicks = 3, "" & gClicks )
+
+    ' ---- D: the divider drag -----------------------------------------------------------------
+    dim as single xd = a.left + r0.right
+    ResetLog()
+    tkTest_PushButton( h, true, xd, yMid )
+    tkTest_Check( "a gutter press arms the drag", tkColumnHeader_GetDragColumn( hd ) = 0 andalso tkColumnHeader_GetPressedColumn( hd ) = -1 )
+    tkTest_PushMotion( h, xd + 20, yMid ) : tkTest_PushMotion( h, xd + 40, yMid )
+    tkTest_Check( "live width", tkColumnHeader_GetColumnWidth( hd, 0 ) = w0 + 40 andalso gLive = 2 andalso gFinal = 0, gLive & " " & tkColumnHeader_GetColumnWidth( hd, 0 ) )
+    tkColumnHeader_GetColumnRect( hd, 1, r1 )
+    tkTest_Check( "the next column follows live", r1.left = w0 + 40 )
+    tkTest_PushMotion( h, xd - tkHost_Scale( h, 400 ), yMid )
+    tkTest_Check( "a drag never goes below the minimum", tkColumnHeader_GetColumnWidth( hd, 0 ) = minDef )
+    tkTest_PushMotion( h, xd + 30, yMid )
+    tkTest_PushButton( h, false, xd + 30, yMid )
+    tkTest_Check( "release commits with ONE final bLive = FALSE", gFinal = 1 andalso gLastW = w0 + 30 andalso tkColumnHeader_GetColumnWidth( hd, 0 ) = w0 + 30, gFinal & " " & gLastW )
+    tkTest_Check( "...and no click", gClicks = 0 )
+    dim as long nLiveBefore = gLive
+    tkColumnHeader_SetColumnWidth( hd, 0, w0 )
+    tkTest_Check( "SetColumnWidth is silent", gFinal = 1 andalso gLive = nLiveBefore )
+    ' ESC restores
+    ResetLog()
+    tkTest_PushButton( h, true, xd, yMid )
+    tkTest_PushMotion( h, xd + 50, yMid )
+    tkTest_PushKey( h, SDLK_ESCAPE )
+    tkTest_Check( "ESC restores the pre-drag width", tkColumnHeader_GetColumnWidth( hd, 0 ) = w0 andalso tkColumnHeader_GetDragColumn( hd ) = -1, "" & tkColumnHeader_GetColumnWidth( hd, 0 ) )
+    tkTest_Check( "...with the final bLive = FALSE carrying it", gFinal = 1 andalso gLastW = w0 )
+    tkTest_Check( "...and releases the capture", tkHost_GetCapture( h ) = 0 )
+    tkTest_PushButton( h, false, xd + 50, yMid )
+    tkTest_Check( "the trailing up does nothing", gFinal = 1 andalso tkColumnHeader_GetColumnWidth( hd, 0 ) = w0 )
+    ' capture loss restores
+    ResetLog()
+    tkTest_PushButton( h, true, xd, yMid )
+    tkTest_PushMotion( h, xd + 25, yMid )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_FOCUS_LOST )
+    tkTest_Check( "capture loss restores too", tkColumnHeader_GetColumnWidth( hd, 0 ) = w0 andalso gFinal = 1 andalso gLastW = w0 )
+    tkTest_PushButton( h, false, xd + 25, yMid )
+    ' SetColumnWidth mid-drag re-bases it
+    ResetLog()
+    tkTest_PushButton( h, true, xd, yMid )
+    tkTest_PushMotion( h, xd + 20, yMid )
+    tkColumnHeader_SetColumnWidth( hd, 0, w0 + 100 )
+    tkTest_PushMotion( h, xd + 30, yMid )
+    tkTest_Check( "SetColumnWidth mid-drag re-bases the drag", tkColumnHeader_GetColumnWidth( hd, 0 ) = w0 + 110, "" & tkColumnHeader_GetColumnWidth( hd, 0 ) )
+    tkTest_PushKey( h, SDLK_ESCAPE )
+    tkTest_Check( "...and ESC restores to the new base", tkColumnHeader_GetColumnWidth( hd, 0 ) = w0 + 100 )
+    tkTest_PushButton( h, false, xd + 30, yMid )
+    tkColumnHeader_SetColumnWidth( hd, 0, w0 )
+    ' an insert abandons a live drag silently
+    ResetLog()
+    tkTest_PushButton( h, true, xd, yMid )
+    tkTest_PushMotion( h, xd + 15, yMid )
+    gLive = 0
+    tkColumnHeader_InsertColumn( hd, 3, "Extra", 50 )
+    tkTest_Check( "an insert cancels the drag, silently", tkColumnHeader_GetDragColumn( hd ) = -1 andalso gFinal = 0 andalso tkHost_GetCapture( h ) = 0 )
+    tkTest_PushButton( h, false, xd + 15, yMid )
+    tkColumnHeader_DeleteColumn( hd, 3 )
+    tkColumnHeader_SetColumnWidth( hd, 0, w0 )
+    tkColumnHeader_GetColumnRect( hd, 0, r0 )
+
+    ' ---- E: divider double-click auto-fit -----------------------------------------------------
+    ResetLog()
+    gAutoW = tkHost_Scale( h, 222 )
+    tkTest_Click( h, xd, yMid ) : tkTest_Click( h, xd, yMid, SDL_BUTTON_LEFT, 2 )
+    tkTest_Check( "divider double-click applies the host's best fit", tkColumnHeader_GetColumnWidth( hd, 0 ) = gAutoW andalso gFinal >= 1 andalso gLastW = gAutoW, "" & tkColumnHeader_GetColumnWidth( hd, 0 ) )
+    gAutoW = 0
+    tkColumnHeader_SetColumnWidth( hd, 0, w0 )
+    ResetLog()
+    tkTest_Click( h, xd, yMid ) : tkTest_Click( h, xd, yMid, SDL_BUTTON_LEFT, 2 )
+    tkTest_Check( "a best fit <= 0 changes nothing", tkColumnHeader_GetColumnWidth( hd, 0 ) = w0 andalso gLastW = w0 )
+
+    ' ---- F: the message callback's ignored results -------------------------------------------
+    gVetoDown = true
+    ResetLog()
+    tkTest_PushButton( h, true, x1, yMid )
+    tkTest_Check( "a vetoed down: capture still taken, no press", tkHost_GetCapture( h ) = hd andalso tkColumnHeader_GetPressedColumn( hd ) = -1 )
+    tkTest_PushButton( h, false, x1, yMid )
+    tkTest_Check( "...released, no click", tkHost_GetCapture( h ) = 0 andalso gClicks = 0 )
+    gVetoDown = false
+    gVetoUp = true
+    tkTest_Click( h, x1, yMid )
+    tkTest_Check( "a vetoed UP is ignored: released and clicked", tkHost_GetCapture( h ) = 0 andalso gClicks = 1 )
+    gVetoUp = false
+
+    ' ---- G: never focusable ------------------------------------------------------------------
+    dim as TK_WIDGET ptr btn = tkButton_Create( tkHost_Root( h ), 499 )
+    tkWidget_SetPos( btn, tkHost_Scale( h, 20 ), tkHost_Scale( h, 200 ), tkHost_Scale( h, 80 ), tkHost_Scale( h, 30 ) )
+    tkHost_SetFocus( h, btn )
+    tkTest_Click( h, x1, yMid )
+    tkTest_Check( "a click on the header keeps the focus where it was", tkHost_GetFocus( h ) = btn )
+
+    ' ---- H: pixels -------------------------------------------------------------------------
+    dim as TKCOLUMNHEADER_COLORS cc
+    tkColumnHeader_GetColors( hd, @cc )
+    tkColumnHeader_GetColumnRect( hd, 0, r0 ) : tkColumnHeader_GetColumnRect( hd, 1, r1 ) : tkColumnHeader_GetColumnRect( hd, 2, r2 )
+    tkTest_PushMotion( h, x0, yMid )
+    tkHost_RenderTo( h, false )
+    dim as long hx = hd->x + r0.left + 2, hy = hd->y + 2
+    tkTest_Check( "built-in painter: hot body fill", tkTest_PixelAt( h, hx, hy ) = cc.BackColorHot, hex( tkTest_PixelAt( h, hx, hy ) ) )
+    dim as long dvx = hd->x + r1.right - 1, dvy = hd->y + chh \ 2
+    tkTest_Check( "divider tick in DividerColor", tkTest_PixelAt( h, dvx, dvy ) = cc.DividerColor, hex( tkTest_PixelAt( h, dvx, dvy ) ) )
+    tkTest_PushMotion( h, a.left + r1.right, yMid )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "a hot gutter accents its tick", tkTest_PixelAt( h, dvx, dvy ) = cc.DividerColorHot )
+    dim as ulong c0
+    dim as long pad = tkColumnHeader_GetPadding( hd ), s4 = tkHost_Scale( h, 4 )
+    dim as long sortX = hd->x + r1.right - pad - 2 * s4 - 1
+    dim as long nNoSort = tkTest_TonesIn( h, sortX, hd->y + s4, 2 * s4 + 2, chh - 2 * s4, c0 )
+    tkColumnHeader_SetSortColumn( hd, 1, HDR_SORT_DESC )
+    tkTest_PushMotion( h, 2, 2 )
+    tkHost_RenderTo( h, false )
+    dim as long nSort = tkTest_TonesIn( h, sortX, hd->y + s4, 2 * s4 + 2, chh - 2 * s4, c0 )
+    tkTest_Check( "the sort indicator is drawn", (tkColumnHeader_GetSortColumn( hd ) = 1) andalso (nSort > nNoSort), nNoSort & " -> " & nSort )
+    tkTest_Check( "the caption is drawn", tkTest_TonesIn( h, hd->x + r0.left + pad, hd->y, tkHost_Scale( h, 30 ), chh, c0 ) > 2 )
+    tkColumnHeader_SetPaintCallback( hd, @MagentaPaint )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "a paint callback replaces the painter", tkTest_PixelAt( h, hd->x + r0.left + 2, hd->y + 2 ) = &hFFFF00FFul )
+    tkColumnHeader_SetPaintCallback( hd, 0 )
+
+    ' ---- I: tooltips -------------------------------------------------------------------------
+    tkColumnHeader_SetTooltipCallback( hd, @OnTip )
+    tkColumnHeader_SetHoverTime( hd, 150 )
+    gTipIdx = -1
+    tkTest_PushMotion( h, x1, yMid )
+    dim as TK_TIP ptr tp = tkColumnHeader_GetTooltipHandle( hd )
+    tkTest_Check( "a column tip appears", WaitTip( h, tp, true, 1500 ) )
+    tkTest_Check( "...asked for the hot column", gTipIdx = 1, "" & gTipIdx )
+    tkTest_PushMotion( h, x0, yMid )
+    tkTest_Check( "a new column hides it (re-query)", WaitTip( h, tp, false, 400 ) )
+    tkTest_PushMotion( h, 2, 2 )
+
+    ' ---- J: theme, pinning --------------------------------------------------------------------
+    tkTheme_Apply( tkTheme_Light() )
+    tkColumnHeader_GetColors( hd, @cc )
+    tkTest_Check( "theme reaches an unpinned header", cc.BackColor = tkTheme_Light().Surface andalso cc.SortMarkColor = tkTheme_Light().Accent )
+    dim as ulong old = tkColumnHeader_SetBackColor( hd, &hFF123456ul )
+    tkTest_Check( "SetBackColor returns the previous", old = tkTheme_Light().Surface )
+    tkTheme_Apply( tkTheme_Dark() )
+    tkTest_Check( "...and pins", tkColumnHeader_GetBackColor( hd ) = &hFF123456ul )
+    tkColumnHeader_UnpinColors( hd )
+    tkTest_Check( "unpin hands it back", tkColumnHeader_GetBackColor( hd ) = tkTheme_Dark().Surface )
+
+    ' ---- K: rescale ---------------------------------------------------------------------------
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkTest_Check( "rescale: widths and padding x2", tkColumnHeader_GetColumnWidth( hd, 0 ) = w0 * 2 andalso tkColumnHeader_GetPadding( hd ) = pad * 2, tkColumnHeader_GetColumnWidth( hd, 0 ) & "" )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkColumnHeader_Clear( hd )
+    tkTest_Check( "Clear: no columns, FILL_LAST", tkColumnHeader_GetCount( hd ) = 0 andalso tkColumnHeader_GetFillColumn( hd ) = -1 andalso tkColumnHeader_SetFillColumn( hd, CCOLHDR_FILL_LAST ) )
+
+    tkHost_Destroy( h )
+end sub
+
+if tkTest_Init() = false then end 99
+RunPass( 1.0 )
+RunPass( 1.75 )
+dim as long nFail = tkTest_Report( "tkColumnHeader" )
+tkTest_Quit()
+end nFail

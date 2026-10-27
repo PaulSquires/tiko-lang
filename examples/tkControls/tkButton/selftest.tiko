@@ -1,0 +1,339 @@
+' tkButton self-test. Real windows, real SDL event queue: every input claim is made by
+' PUSHING the SDL event a user would have produced and pumping the host, so the dispatch path
+' under test is the one the demo runs. Two passes, scale pinned at 1.0 and at 1.75.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkButton"
+#import "vendor/tkControls/tkTest"
+using tkButton
+using tkTooltip
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as long gClicks, gLastId
+dim shared as boolean gSuppressDown
+dim shared as long gIdealW(0 to 1)
+
+
+sub OnClick( byval hButton as TK_WIDGET ptr, byval id as long )
+    gClicks += 1
+    gLastId = id
+end sub
+
+function OnMessage( byval m as TKBUTTON_MESSAGEINFO ptr ) as boolean
+    if gSuppressDown andalso (m->msg = TKM_LBUTTONDOWN) then return true
+    return false
+end function
+
+function OnTip( byval hButton as TK_WIDGET ptr ) as ustring
+    return "tip from callback"
+end function
+
+' Pump real time until cond_ or the deadline.
+function WaitTip( byval h as TK_HOST ptr, byval tp as TK_WIDGET ptr, byval want as boolean, byval ms as long ) as boolean
+    dim as double t0 = timer
+    dim as SDL_Event e
+    while (timer - t0) * 1000 < ms
+        if SDL_WaitEventTimeout( @e, 20 ) then tkHost_Dispatch( h, @e )
+        if h->bDirty then tkHost_Render( h )
+        if tkTooltip_IsVisible( tkButton_GetTooltipHandle( tp ) ) = want then return true
+    wend
+    return false
+end function
+
+' ==========================================================================================
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkButton selftest", 640, 480, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    tkTest_Check( "scale pinned", h->fScale = fScale, "" & h->fScale )
+    dim as TTF_Font ptr fText = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 10 )
+    dim as TTF_Font ptr fGlyph = tkHost_OpenFont( h, TK_TEST_FONTDIR & "SegoeIcons.ttf", 10 )
+    tkTest_Check( "fonts opened", (fText <> 0) andalso (fGlyph <> 0) )
+
+    ' ---- A: layout before sizing, then the README formula ------------------------------
+    dim as TK_WIDGET ptr a = tkButton_Create( tkHost_Root( h ), 101 )
+    tkButton_SetFont( a, fText ) : tkButton_SetGlyphFont( a, fGlyph )
+    tkButton_SetText( a, "Save" ) : tkButton_SetGlyphLeft( a, wchr( &hE74E ) )
+    tkButton_SetClickCallback( a, @OnClick )
+    dim as long iw, ih
+    tkButton_GetIdealSize( a, iw, ih )
+    tkTest_Check( "ideal size valid before sizing", (iw > 0) andalso (ih > 0), iw & "x" & ih )
+    dim as TKRECT rc
+    tkTest_Check( "rect query FALSE before sizing", tkButton_GetButtonRect( a, rc ) = false )
+
+    dim as long pl, pt, pr, pb, gap, icw, ich, fg, ft, tw, th
+    tkButton_GetPadding( a, pl, pt, pr, pb )
+    gap = tkButton_GetIconGap( a )
+    tkButton_GetIconSize( a, icw, ich )
+    tkButton_GetFocusRing( a, fg, ft )
+    tkButton_GetTextWidth( a, tw, th )
+    tkTest_Check( "defaults scaled at create", pl = cint( 12 * fScale ) andalso icw = cint( 16 * fScale ) andalso fg = cint( 2 * fScale ), _
+           pl & " " & icw & " " & fg )
+    tkTest_Check( "thickness NOT scaled", ft = 1 )
+    dim as long rp = fg + ft
+    dim as long expW = 2 * rp + pl + icw + gap + tw + pr
+    dim as long contentH = iif( th > ich, th, ich )
+    dim as long expH = 2 * rp + pt + contentH + pb
+    tkTest_Check( "idealW = formula", iw = expW, iw & " vs " & expW )
+    tkTest_Check( "idealH = formula", ih = expH, ih & " vs " & expH )
+    gIdealW(iif( fScale > 1.5, 1, 0 )) = iw
+
+    tkWidget_SetPos( a, tkHost_Scale( h, 20 ), tkHost_Scale( h, 20 ), iw, ih )
+    dim as TKRECT rb, rt, rl, rr, rv
+    tkTest_Check( "rect query TRUE once sized", tkButton_GetButtonRect( a, rb ) )
+    tkButton_GetTextRect( a, rt ) : tkButton_GetIconLeftRect( a, rl )
+    tkButton_GetIconRightRect( a, rr ) : tkButton_GetVisualRect( a, rv )
+    tkTest_Check( "rcButton = client deflated by ringPad", rb.left = rp andalso rb.top = rp andalso rb.right = iw - rp andalso rb.bottom = ih - rp, tkRect_Str( rb ) )
+    tkTest_Check( "rcIconLeft pinned at padLeft", rl.left = rp + pl andalso (rl.right - rl.left) = icw, tkRect_Str( rl ) )
+    tkTest_Check( "rcText starts after icon + gap", rt.left = rp + pl + icw + gap andalso rt.right = iw - rp - pr, tkRect_Str( rt ) )
+    tkTest_Check( "rcIconRight EMPTY with no right glyph", tkRect_IsEmpty( rr ) )
+    tkTest_Check( "rcVisual = full client", rv.left = 0 andalso rv.top = 0 andalso rv.right = iw andalso rv.bottom = ih, tkRect_Str( rv ) )
+    tkTest_Check( "caption span = caption width at ideal", (rt.right - rt.left) = tw, (rt.right - rt.left) & " vs " & tw )
+
+    ' ---- B: icon only charges no gap; height drops to the icon -------------------------
+    dim as TK_WIDGET ptr bI = tkButton_Create( tkHost_Root( h ), 102 )
+    tkButton_SetGlyphFont( bI, fGlyph ) : tkButton_SetGlyphLeft( bI, wchr( &hE713 ) )
+    tkButton_GetIdealSize( bI, iw, ih )
+    tkTest_Check( "icon-only idealW has no gap", iw = 2 * rp + pl + icw + pr, "" & iw )
+    tkTest_Check( "icon-only idealH from icon", ih = 2 * rp + pt + ich + pb, "" & ih )
+    tkWidget_SetPos( bI, tkHost_Scale( h, 20 ), tkHost_Scale( h, 80 ), iw, ih )
+    tkButton_SetClickCallback( bI, @OnClick )
+
+    ' ---- C: moods and colours, pure functions ------------------------------------------
+    tkTest_Check( "mood disabled wins", tkButton_ResolveMood( false, true, true ) = BTN_MOOD_DISABLED )
+    tkTest_Check( "mood pressed > hot", tkButton_ResolveMood( true, true, true ) = BTN_MOOD_PRESSED )
+    tkTest_Check( "mood hot", tkButton_ResolveMood( true, false, true ) = BTN_MOOD_HOT )
+    tkTest_Check( "mood idle", tkButton_ResolveMood( true, false, false ) = BTN_MOOD_IDLE )
+    dim as TKBUTTON_COLORS cols
+    dim as long nDef = 0
+    for md as long = BTN_MOOD_IDLE to BTN_MOOD_DISABLED
+        dim as ulong cb, cf, cbo, ci
+        tkButton_ResolveColors( @cols, md, true, cb, cf, cbo, ci )
+        if cbo = cols.DefaultBorderColor then nDef += 1
+    next
+    tkTest_Check( "default border overlays all four moods", nDef = 4, "" & nDef )
+
+    ' ---- D: input through the real dispatch --------------------------------------------
+    tkHost_Pump( h )
+    gClicks = 0
+    tkTest_PushMotion( h, tkTest_CX( a ), tkTest_CY( a ) )
+    tkTest_Check( "hot on enter", tkButton_GetHot( a ) )
+    tkTest_PushButton( h, true, tkTest_CX( a ), tkTest_CY( a ) )
+    tkTest_Check( "press takes capture", tkHost_GetCapture( h ) = a )
+    print "[scale " & fScale & "] SDL_CaptureMouse took: " & h->bCaptureOS
+    tkTest_Check( "press focuses", tkButton_GetFocused( a ) )
+    tkTest_PushButton( h, false, tkTest_CX( a ), tkTest_CY( a ) )
+    tkTest_Check( "click fires on release inside", gClicks = 1 andalso gLastId = 101, "" & gClicks )
+    tkTest_Check( "capture released", tkHost_GetCapture( h ) = 0 )
+
+    ' press, slide off, release: nothing
+    gClicks = 0
+    tkTest_PushButton( h, true, tkTest_CX( a ), tkTest_CY( a ) )
+    tkTest_PushMotion( h, a->x + a->cw + tkHost_Scale( h, 200 ), tkTest_CY( a ) )
+    tkTest_Check( "slide off: capture KEPT", tkHost_GetCapture( h ) = a )
+    tkTest_Check( "slide off: not hot (paints unpressed)", tkButton_GetHot( a ) = false )
+    tkTest_PushButton( h, false, a->x + a->cw + tkHost_Scale( h, 200 ), tkTest_CY( a ) )
+    tkTest_Check( "release outside: no click", gClicks = 0, "" & gClicks )
+
+    ' press, slide off, slide back, release: click
+    tkTest_PushButton( h, true, tkTest_CX( a ), tkTest_CY( a ) )
+    tkTest_PushMotion( h, a->x + a->cw + 50, tkTest_CY( a ) )
+    tkTest_PushMotion( h, tkTest_CX( a ), tkTest_CY( a ) )
+    tkTest_Check( "slide back: re-armed hot", tkButton_GetHot( a ) andalso tkButton_GetPressed( a ) )
+    tkTest_PushButton( h, false, tkTest_CX( a ), tkTest_CY( a ) )
+    tkTest_Check( "re-armed release clicks", gClicks = 1, "" & gClicks )
+
+    ' window-level leave clears hot (no 100 ms poll needed)
+    tkTest_PushMotion( h, tkTest_CX( a ), tkTest_CY( a ) )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+    tkTest_Check( "window leave clears hot", tkButton_GetHot( a ) = false )
+
+    ' capture lost to deactivation cancels the press
+    tkTest_PushButton( h, true, tkTest_CX( a ), tkTest_CY( a ) )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_FOCUS_LOST )
+    tkTest_Check( "focus lost: capture gone", tkHost_GetCapture( h ) = 0 )
+    tkTest_Check( "focus lost: press cancelled", tkButton_GetPressed( a ) = false )
+    gClicks = 0
+    tkTest_PushButton( h, false, tkTest_CX( a ), tkTest_CY( a ) )
+    tkTest_Check( "release after cancelled press: no click", gClicks = 0, "" & gClicks )
+
+    ' keyboard
+    gClicks = 0
+    tkHost_SetFocus( h, a )
+    tkTest_PushKey( h, SDLK_SPACE ) : tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "Space and Enter click", gClicks = 2, "" & gClicks )
+    tkTest_PushKey( h, SDLK_A )
+    tkTest_Check( "other keys do nothing", gClicks = 2 )
+
+    ' Tab order skips the disabled one
+    dim as TK_WIDGET ptr d = tkButton_Create( tkHost_Root( h ), 103 )
+    tkButton_SetFont( d, fText ) : tkButton_SetText( d, "Disabled" )
+    tkButton_SetClickCallback( d, @OnClick )
+    tkButton_GetIdealSize( d, iw, ih )
+    tkWidget_SetPos( d, tkHost_Scale( h, 20 ), tkHost_Scale( h, 140 ), iw, ih )
+    tkButton_SetEnabled( d, false )
+    tkHost_SetFocus( h, a )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "Tab a -> icon button", tkHost_GetFocus( h ) = bI )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "Tab skips disabled, wraps to a", tkHost_GetFocus( h ) = a )
+    tkTest_PushKey( h, SDLK_TAB, SDL_KMOD_LSHIFT )
+    tkTest_Check( "Shift+Tab back to icon button", tkHost_GetFocus( h ) = bI )
+
+    ' disabled swallows everything
+    gClicks = 0
+    tkTest_PushMotion( h, tkTest_CX( d ), tkTest_CY( d ) )
+    tkTest_PushButton( h, true, tkTest_CX( d ), tkTest_CY( d ) ) : tkTest_PushButton( h, false, tkTest_CX( d ), tkTest_CY( d ) )
+    tkButton_Click( d )
+    tkTest_Check( "disabled: no click by mouse or tkButton_Click", gClicks = 0, "" & gClicks )
+    tkTest_Check( "disabled: never hot", tkButton_GetHot( d ) = false )
+
+    ' setters are silent; tkButton_Click is the one notifying action
+    gClicks = 0
+    tkButton_SetText( a, "Save" ) : tkButton_SetDefault( a, true ) : tkButton_SetDefault( a, false )
+    tkButton_SetEnabled( a, false ) : tkButton_SetEnabled( a, true )
+    tkTest_Check( "setters are silent", gClicks = 0 )
+    tkButton_Click( a )
+    tkTest_Check( "tkButton_Click notifies", gClicks = 1 )
+
+    ' a message callback may suppress the press; focus still moves
+    gSuppressDown = true
+    tkButton_SetMessageCallback( bI, @OnMessage )
+    tkHost_SetFocus( h, a )
+    gClicks = 0
+    tkTest_PushButton( h, true, tkTest_CX( bI ), tkTest_CY( bI ) )
+    tkTest_Check( "suppressed press: no capture", tkHost_GetCapture( h ) = 0 )
+    tkTest_Check( "suppressed press: focus moved anyway", tkHost_GetFocus( h ) = bI )
+    tkTest_PushButton( h, false, tkTest_CX( bI ), tkTest_CY( bI ) )
+    tkTest_Check( "suppressed press: no click", gClicks = 0 )
+    gSuppressDown = false
+
+    ' ---- E: pixels -----------------------------------------------------------------------
+    tkTest_Check( "tones: chrome > 1", tkButton_CountRenderedTones( a, BTN_PART_BUTTON ) > 1 )
+    tkTest_Check( "tones: caption > 1", tkButton_CountRenderedTones( a, BTN_PART_TEXT ) > 1 )
+
+    ' AA: a visible border on the fill, then the top-left corner must hold colours that are
+    ' NEITHER the fill NOR the border -- the blended ones.
+    dim as TKBUTTON_COLORS c2
+    tkButton_GetColors( a, @c2 )
+    c2.BorderColor = &hFFFF0000ul : c2.BorderColorHot = &hFFFF0000ul
+    tkButton_SetColors( a, @c2 )
+    tkHost_SetFocus( h, 0 )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+    tkHost_RenderTo( h, false )
+    tkButton_GetButtonRect( a, rb )
+    dim as long cr = tkHost_Scale( h, 6 )
+    dim as ulong cdummy
+    dim as long nCorner = tkTest_TonesIn( h, a->x + rb.left, a->y + rb.top, cr, cr, cdummy )
+    tkTest_Check( "AA: rounded corner blends (> 2 tones)", nCorner > 2, "" & nCorner )
+    ' and a straight edge stays crisp: mid-top border row is ONE colour
+    dim as long nEdge = tkTest_TonesIn( h, a->x + rb.left + cr * 2, a->y + rb.top, tkHost_Scale( h, 10 ), 1, cdummy )
+    tkTest_Check( "AA: straight edge crisp (1 tone)", nEdge = 1, "" & nEdge )
+
+    ' ellipsis: a starved caption never paints past its span
+    dim as TK_WIDGET ptr el = tkButton_Create( tkHost_Root( h ), 104 )
+    tkButton_SetFont( el, fText ) : tkButton_SetGlyphFont( el, fGlyph )
+    tkButton_SetText( el, "Save Configuration As..." ) : tkButton_SetGlyphLeft( el, wchr( &hE74E ) )
+    tkButton_GetIdealSize( el, iw, ih )
+    tkWidget_SetPos( el, tkHost_Scale( h, 20 ), tkHost_Scale( h, 200 ), (iw * 55) \ 100, ih )
+    tkButton_GetTextRect( el, rt )
+    tkButton_GetButtonRect( el, rb )
+    tkHost_RenderTo( h, false )
+    dim as long nRight = tkTest_TonesIn( h, el->x + rt.right, el->y + rt.top, rb.right - rt.right, rt.bottom - rt.top, cdummy )
+    tkTest_Check( "ellipsis: nothing painted past the span", nRight = 1, "" & nRight )
+    tkTest_Check( "ellipsis: caption drawn", tkTest_TonesIn( h, el->x + rt.left, el->y + rt.top, rt.right - rt.left, rt.bottom - rt.top, cdummy ) > 2 )
+
+    ' AutoSize follows the caption
+    tkButton_SetAutoSize( el, true )
+    tkButton_SetText( el, "Go" )
+    tkButton_GetIdealSize( el, iw, ih )
+    tkTest_Check( "AutoSize resizes to ideal", el->cw = iw andalso el->ch = ih, el->cw & "x" & el->ch & " vs " & iw & "x" & ih )
+
+    ' ---- F: the per-monitor scale path: pin a new scale, send the event SDL would --------
+    dim as long w0, h0, tw0, th0
+    tkButton_GetIdealSize( a, w0, h0 )
+    tkButton_GetTextWidth( a, tw0, th0 )
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    dim as long w1, h1, tw1, th1
+    tkButton_GetIdealSize( a, w1, h1 )
+    tkButton_GetTextWidth( a, tw1, th1 )
+    tkTest_Check( "rescale: font re-sized (text height grew)", th1 > th0 * 1.8, th0 & " -> " & th1 )
+    tkTest_Check( "rescale: ideal width ~ x2", (w1 > w0 * 1.85) andalso (w1 < w0 * 2.15), w0 & " -> " & w1 )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+
+    ' ---- G: the tooltip is a real popup window ------------------------------------------
+    tkHost_Show( h )
+    ' SETTLE before hovering. On X11 the map delivers a REAL enter + a motion at wherever the
+    ' physical cursor is, which lands after a synthetic motion pushed too early and moves hot
+    ' off the button (measured under XWayland). Wayland sends none. A real user moving the
+    ' mouse during this check can still race it.
+    tkTest_PumpFor( h, 400 )
+    dim as TK_WIDGET ptr tp = tkButton_Create( tkHost_Root( h ), 105 )
+    tkButton_SetGlyphFont( tp, fGlyph ) : tkButton_SetGlyphLeft( tp, wchr( &hE946 ) )
+    tkButton_SetTooltipCallback( tp, @OnTip )
+    tkButton_SetHoverTime( tp, 200 )
+    tkButton_GetIdealSize( tp, iw, ih )
+    tkWidget_SetPos( tp, tkHost_Scale( h, 300 ), tkHost_Scale( h, 20 ), iw, ih )
+    tkTest_PushMotion( h, tkTest_CX( tp ), tkTest_CY( tp ) )
+    tkTest_Check( "tooltip popup appears after hover time", WaitTip( h, tp, true, 1500 ), *SDL_GetError() )
+    tkTest_PushMotion( h, 2, 2 )
+    tkTest_Check( "tooltip hides on leave", WaitTip( h, tp, false, 500 ) )
+
+    ' ---- H: the retrofit -- theme, pinning, fonts, the tooltip handle ---------------------------
+    dim as TKBUTTON_COLORS cc
+    tkTheme_Apply( tkTheme_Light() )
+    tkButton_GetColors( bI, @cc )
+    tkTest_Check( "theme reaches an unpinned button", cc.BackColor = tkTheme_Light().Surface andalso cc.FocusRingColor = tkTheme_Light().FocusRing )
+    tkButton_GetColors( a, @cc )
+    tkTest_Check( "SetColors pinned the AA test's button", cc.BorderColor = &hFFFF0000ul )
+    tkButton_UnpinColors( a )
+    tkButton_GetColors( a, @cc )
+    tkTest_Check( "unpin hands it back to the current theme", cc.BackColor = tkTheme_Light().Surface )
+    tkTheme_Apply( tkTheme_Dark() )
+    dim as TTF_Font ptr fBig = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 16 )
+    dim as long wSmall, wBig, hh2
+    tkButton_GetIdealSize( tp, wSmall, hh2 )
+    tkButton_SetText( tp, "Caption" )
+    tkButton_GetIdealSize( tp, wSmall, hh2 )
+    tkButton_ApplyFonts( tp, fBig, 0 )
+    tkButton_GetIdealSize( tp, wBig, hh2 )
+    tkTest_Check( "ApplyFonts re-measures with the new caption font", wBig > wSmall, wSmall & " -> " & wBig )
+    tkTest_Check( "the tooltip handle is the button's tkTooltip", tkButton_GetTooltipHandle( tp ) <> 0 andalso tkTooltip_GetAttached( tkButton_GetTooltipHandle( tp ) ) = tp )
+
+    tkHost_Destroy( h )
+end sub
+
+
+' ---- the detached-measure trap: with NO font anywhere, text measures zero ----------------
+sub RunNoFont()
+    tkTest_Begin( "no font" )
+    dim as TK_HOST ptr h = tkHost_Create( "tkButton selftest", 320, 200, "", 1 )
+    dim as TK_WIDGET ptr a = tkButton_Create( tkHost_Root( h ), 1 )
+    tkButton_SetText( a, "Save Changes" )
+    dim as long iw, ih, tw, th
+    tkButton_GetIdealSize( a, iw, ih )
+    tkButton_GetTextWidth( a, tw, th )
+    tkTest_Check( "no font: caption measures 0 (the degenerate answer)", tw = 0 andalso th = 0, tw & "x" & th )
+    tkHost_Destroy( h )
+end sub
+
+
+' ==========================================================================================
+if tkTest_Init() = false then end 99
+
+RunNoFont()
+RunPass( 1.0 )
+RunPass( 1.75 )
+
+' The same button measured at the two scales: three different numbers (0, w1, w175) and the
+' ratio is the scale -- asserting only "1.75 is bigger" would pass on a detached control too.
+tkTest_Begin( "cross-pass" )
+tkTest_Check( "ideal width scales with the scale", (gIdealW(0) > 0) andalso (gIdealW(1) > gIdealW(0) * 1.6) andalso (gIdealW(1) < gIdealW(0) * 1.9), gIdealW(0) & " -> " & gIdealW(1) )
+dim as long nFail = tkTest_Report( "tkButton" )
+tkTest_Quit()
+end nFail

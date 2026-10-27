@@ -1,0 +1,1531 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkDatePicker -- PsDatePicker on SDL3 + SDL_ttf: an editable date field with a calendar icon
+' on the right, and a calendar that drops out of it. Typing a date and picking one are two
+' routes to the same TKDATE value. A port of pkg/vendor/PsControls/PsDatePicker onto tkHost.
+'
+' THE FIELD is a borderless tkTextBox child (vendor: a borderless PsTextBox), so the caret,
+' selection, undo, paste and the right-click menu are the text box's. The container owns the
+' frame, the divider and the icon cell, vendor's layout to the pixel. The host owns format and
+' parsing (Format / Parse callbacks, ISO yyyy-MM-dd without one); the control stores a TKDATE.
+'
+' THE CALENDAR IS tkCalendar, NOT A SECOND MONTH GRID (PsPlatform's PsDatePicker decision):
+' vendor's popup re-implemented the grid, the drill-down and the range rules a second time. The
+' popup is a tkHost popup surface holding a frame widget, a tkCalendar and, optionally,
+' vendor's clickable "Today: ..." band (a wrapper, as in PsPlatform: a band that only makes
+' sense in a dropdown does not belong in the embeddable calendar). It is created per open --
+' Wayland fixes a popup's position at creation -- and re-seeded from the control every time.
+'
+' THE ICON is drawn from rectangles until the host hands over a glyph font (PsPlatform's
+' decision: Segoe Fluent Icons is a Windows 11 font). SetIconFont / ApplyFonts' glyph font
+' switch to vendor's glyph, U+E787 by default.
+'
+' GONE with the HWND: FilterMessage (the host routes Escape to the popup, applies the dismissal
+' rule and closes the popup when focus leaves the application), the foreground poll, the
+' comctl32 tip backend, WM_GETDLGCODE, CS_DBLCLKS, PsRegistry. The reopen guard stays:
+' tkHost_PressSerial tells the icon that the press it is handling is the one that just closed
+' the calendar.
+#module "tkDatePicker"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkTooltip" public
+#import "../tkTextBox" public
+#import "../tkCalendar" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkTooltip
+using tkTextBox
+using tkCalendar
+
+' ---- constants (vendor's names) ----------------------------------------------------------
+public enum
+    DTP_SUNDAY = 0
+    DTP_MONDAY = 1
+end enum
+
+public enum
+    DTP_VIEW_DAYS = 0
+    DTP_VIEW_MONTHS
+    DTP_VIEW_YEARS
+end enum
+
+public const CDTP_DEFAULT_ICONWIDTH = 28
+public const CDTP_DEFAULT_FIELDPAD = 6
+public const CDTP_DEFAULT_VERTPAD = 5
+public const CDTP_DEFAULT_CORNERRADIUS = 6
+public const CDTP_DEFAULT_BORDERTHICK = 1      ' never scaled: a hairline
+public const CDTP_DEFAULT_DIVIDERTHICK = 1     ' never scaled
+public const CDTP_DEFAULT_ICONGLYPH = &hE787   ' Segoe Fluent Icons "Calendar"
+public const CDTP_CAL_BORDERTHICK = 1          ' the popup's outline; never scaled
+public const CDTP_CAL_FOOTERH = 30             ' the Today band
+
+' ---- types --------------------------------------------------------------------------------
+public type TKDATEPICKER_COLORS
+    ' --- frame / field ---
+    BackColor                as ulong = &hFF21252Bul    ' behind the rounded corners
+    BorderColor              as ulong = &hFF3C424Dul
+    FocusBorderColor         as ulong = &hFF569CD6ul    ' while the field has focus
+    BorderColorDisabled      as ulong = &hFF30343Cul
+    DividerColor             as ulong = &hFF3C424Dul
+    DividerColorDisabled     as ulong = &hFF30343Cul
+    FieldBackColor           as ulong = &hFF2C313Aul
+    FieldForeColor           as ulong = &hFFD7DAE0ul
+    FieldBackColorDisabled   as ulong = &hFF262A31ul
+    FieldForeColorDisabled   as ulong = &hFF5A606Aul
+    ' --- the calendar icon cell ---
+    IconColor                as ulong = &hFF2C313Aul    ' = FieldBackColor (flat at rest)
+    IconGlyphColor           as ulong = &hFFBEC4CEul
+    IconGlyphColorHot        as ulong = &hFFFFFFFFul
+    IconBackColorHot         as ulong = &hFF383E49ul
+    IconGlyphColorDisabled   as ulong = &hFF5A606Aul
+    ' --- calendar chrome ---
+    CalBackColor             as ulong = &hFF21252Bul
+    CalBorderColor           as ulong = &hFF464C58ul
+    TitleColor               as ulong = &hFFE1E4EAul
+    TitleColorHot            as ulong = &hFFFFFFFFul
+    NavGlyphColor            as ulong = &hFFBEC4CEul
+    NavGlyphColorHot         as ulong = &hFFFFFFFFul
+    NavGlyphColorDisabled    as ulong = &hFF464A52ul
+    WeekdayColor             as ulong = &hFF8C929Cul
+    ' --- calendar day cells ---
+    DayColor                 as ulong = &hFFD2D6DCul
+    DayColorWeekend          as ulong = &hFF96AFCDul
+    DayColorAdjacent         as ulong = &hFF7C838Eul    ' still clickable: keep it far from Disabled
+    DayColorDisabled         as ulong = &hFF383C44ul    ' out of range, inert
+    DayBackColorHot          as ulong = &hFF343A44ul
+    DayForeColorHot          as ulong = &hFFFFFFFFul
+    DayBackColorSelected     as ulong = &hFF0078D7ul
+    DayForeColorSelected     as ulong = &hFFFFFFFFul
+    TodayRingColor           as ulong = &hFF569CD6ul
+    ' --- the optional "Today" footer ---
+    TodayFooterColor         as ulong = &hFFAAB0BAul
+    TodayFooterColorHot      as ulong = &hFFFFFFFFul
+    TodayFooterColorDisabled as ulong = &hFF464A52ul    ' today is outside the range
+end type
+
+public type TKDATEPICKER_PAINTINFO
+    hCtrl       as TK_WIDGET ptr
+    b           as TK_PAINT ptr
+    rcClient    as TKRECT
+    rcFrame     as TKRECT
+    rcField     as TKRECT
+    rcDiv       as TKRECT
+    rcIcon      as TKRECT
+    isEnabled   as boolean
+    isFocused   as boolean
+    isOpen      as boolean
+    iconHot     as boolean
+    iconPressed as boolean
+end type
+
+public type TKDATEPICKER_DAYPAINTINFO
+    hCtrl       as TK_WIDGET ptr       ' the PICKER, not the calendar
+    b           as TK_PAINT ptr
+    rcCell      as TKRECT              ' calendar-local pixels
+    stDate      as TKDATE
+    dayNumber   as long
+    monthIndex  as long                ' 0 = left / only panel, 1 = right
+    isAdjacent  as boolean
+    isWeekend   as boolean
+    isToday     as boolean
+    isSelected  as boolean
+    isHot       as boolean
+    isDisabled  as boolean
+    isEnabled   as boolean
+end type
+
+public type TKDATEPICKER_MESSAGEINFO
+    hCtrl       as TK_WIDGET ptr       ' the picker, also for a message that reached the field
+    msg         as long                ' TKM_* (or TKTEXTBOX_MSG_CONTEXTMENU from the field)
+    x           as single
+    y           as single
+    key         as long
+    mods        as long
+    text        as string
+end type
+
+public type TKDATEPICKER_TOOLTIPINFO
+    hCtrl       as TK_WIDGET ptr
+    stDate      as TKDATE
+    isValid     as boolean
+    outText     as ustring
+end type
+
+public type DTP_ParseCallbackFunc as function( byval hCtrl as TK_WIDGET ptr, byval sText as ustring, byval pDate as TKDATE ptr ) as boolean
+public type DTP_FormatCallbackSub as sub( byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr, byref sOut as ustring )
+public type DTP_DateChangedCallbackSub as sub( byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr, byval bHasDate as boolean )
+public type DTP_DropDownCallbackSub as sub( byval hCtrl as TK_WIDGET ptr, byval isOpen as boolean )
+public type DTP_PaintCallbackSub as sub( byval p as TKDATEPICKER_PAINTINFO ptr )
+public type DTP_DayPaintCallbackSub as sub( byval p as TKDATEPICKER_DAYPAINTINFO ptr )
+public type DTP_MessageCallbackFunc as function( byval m as TKDATEPICKER_MESSAGEINFO ptr ) as boolean
+public type DTP_TooltipCallbackFunc as function( byval t as TKDATEPICKER_TOOLTIPINFO ptr ) as boolean
+
+public type TKDATEPICKER_STATE
+    hWin            as TK_WIDGET ptr
+    wText           as TK_WIDGET ptr       ' the embedded tkTextBox
+    idc             as long
+    isEnabled       as boolean = true
+    isFocused       as boolean
+    isOpen          as boolean
+    iconHot         as boolean
+    iconPressed     as boolean
+    bColorsPinned   as boolean
+    bLayoutDirty    as boolean = true
+
+    stDate          as TKDATE
+    hasDate         as boolean
+    stMin           as TKDATE
+    stMax           as TKDATE
+    hasMin          as boolean
+    hasMax          as boolean
+    bAllowEmpty     as boolean = true
+    lastValidText   as ustring
+
+    nWeekStart      as long = DTP_SUNDAY
+    nMonthCount     as long = 1
+    bShowToday      as boolean = true
+    bShowTodayFooter as boolean = false
+    stTodayPinned   as TKDATE
+    bTodayPinned    as boolean
+
+    pFont           as TTF_Font ptr        ' borrowed
+    pIconFont       as TTF_Font ptr        ' borrowed; 0 = the drawn icon
+    wszIconGlyph    as ustring
+
+    nIconWidth      as long
+    nFieldPadLeft   as long
+    nFieldPadRight  as long
+    nVertPadding    as long
+    nCornerRadius   as long
+    nBorderThick    as long = CDTP_DEFAULT_BORDERTHICK
+    nDividerThick   as long = CDTP_DEFAULT_DIVIDERTHICK
+    nFooterH        as long
+
+    rcFrame         as TKRECT
+    rcField         as TKRECT
+    rcDiv           as TKRECT
+    rcIcon          as TKRECT
+
+    colors          as TKDATEPICKER_COLORS
+
+    ' the open calendar (all 0 while closed)
+    pPop            as TK_HOST ptr
+    wPop            as TK_WIDGET ptr
+    wCal            as TK_WIDGET ptr
+    wFooter         as TK_WIDGET ptr
+    bFooterHot      as boolean
+    nClosedBySerial as ulong = &hFFFFFFFFul    ' the press serial current when it last closed
+    bSilentClose    as boolean
+
+    ParseCallback        as DTP_ParseCallbackFunc
+    FormatCallback       as DTP_FormatCallbackSub
+    DateChangedCallback  as DTP_DateChangedCallbackSub
+    DropDownCallback     as DTP_DropDownCallbackSub
+    PaintCallback        as DTP_PaintCallbackSub
+    DayPaintCallback     as DTP_DayPaintCallbackSub
+    MessageCallback      as DTP_MessageCallbackFunc
+    TooltipCallback      as DTP_TooltipCallbackFunc
+end type
+
+dim shared as TKDATEPICKER_STATE ptr gOpenPicker      ' one calendar open per process
+
+public declare sub tkDatePicker_DropDown( byval hCtrl as TK_WIDGET ptr )
+public declare sub tkDatePicker_CloseUp( byval hCtrl as TK_WIDGET ptr )
+public declare sub tkDatePicker_ApplyTheme( byval hCtrl as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+public declare function tkDatePicker_ThemeColors( byref t as TKTHEME_COLORS ) as TKDATEPICKER_COLORS
+
+
+' ==========================================================================================
+' Date helpers -- vendor's pure functions, answered by tkCalendar's (one set of date rules).
+' ==========================================================================================
+public function tkDatePicker_IsLeapYear( byval y as long ) as boolean
+    return tkCalendar_IsLeapYear( y )
+end function
+
+public function tkDatePicker_DaysInMonth( byval y as long, byval m as long ) as long
+    return tkCalendar_DaysInMonth( y, m )
+end function
+
+public function tkDatePicker_DateToSerial( byval y as long, byval m as long, byval d as long ) as longint
+    return tkCalendar_DateToSerial( y, m, d )
+end function
+
+public sub tkDatePicker_SerialToDate( byval serial as longint, byref y as long, byref m as long, byref d as long )
+    tkCalendar_SerialToDate( serial, y, m, d )
+end sub
+
+public function tkDatePicker_DowSunday( byval y as long, byval m as long, byval d as long ) as long
+    return tkCalendar_DowSunday( y, m, d )
+end function
+
+public function tkDatePicker_LeadingCells( byval y as long, byval m as long, byval nWeekStart as long ) as long
+    return tkCalendar_LeadingCells( y, m, iif( nWeekStart = DTP_MONDAY, CAL_MONDAY, CAL_SUNDAY ) )
+end function
+
+public function tkDatePicker_MakeDate( byval y as long, byval m as long, byval d as long ) as TKDATE
+    return tkCalendar_MakeDate( y, m, d )
+end function
+
+public function tkDatePicker_AddMonths( byref st as TKDATE, byval delta as long ) as TKDATE
+    return tkCalendar_AddMonths( st, delta )
+end function
+
+public function tkDatePicker_DecadeBase( byval y as long ) as long
+    return tkCalendar_DecadeBase( y )
+end function
+
+private function DtpSerial( byref st as TKDATE ) as longint
+    return tkCalendar_DateToSerial( st.wYear, st.wMonth, st.wDay )
+end function
+
+private function DtpSameYMD( byref a as TKDATE, byref b as TKDATE ) as boolean
+    return (a.wYear = b.wYear) andalso (a.wMonth = b.wMonth) andalso (a.wDay = b.wDay)
+end function
+
+private function DtpPad( byval n as long, byval nWidth as long ) as ustring
+    dim as ustring s = str( n )
+    while len( s ) < nWidth
+        s = "0" & s
+    wend
+    return s
+end function
+
+
+' ==========================================================================================
+' State helpers
+' ==========================================================================================
+private function GetDatePickerPointer( byval hCtrl as TK_WIDGET ptr ) as TKDATEPICKER_STATE ptr
+    if hCtrl = 0 then return 0
+    return cast( TKDATEPICKER_STATE ptr, hCtrl->pData )
+end function
+
+private function DtpFont( byval p as TKDATEPICKER_STATE ptr ) as TTF_Font ptr
+    if p->pFont then return p->pFont
+    return p->hWin->pHost->pDefaultFont
+end function
+
+private function DtpToday( byval p as TKDATEPICKER_STATE ptr ) as TKDATE
+    if p->bTodayPinned then return p->stTodayPinned
+    return tkCalendar_LocalToday()
+end function
+
+private function DtpInRange( byval p as TKDATEPICKER_STATE ptr, byref st as TKDATE ) as boolean
+    dim as longint s = DtpSerial( st )
+    if p->hasMin andalso (s < DtpSerial( p->stMin )) then return false
+    if p->hasMax andalso (s > DtpSerial( p->stMax )) then return false
+    return true
+end function
+
+private function DtpClamp( byval p as TKDATEPICKER_STATE ptr, byref st as TKDATE ) as TKDATE
+    dim as longint s = DtpSerial( st )
+    if p->hasMin andalso (s < DtpSerial( p->stMin )) then return p->stMin
+    if p->hasMax andalso (s > DtpSerial( p->stMax )) then return p->stMax
+    return st
+end function
+
+private function DtpFormat( byval p as TKDATEPICKER_STATE ptr, byref st as TKDATE ) as ustring
+    dim as ustring sOut
+    if p->FormatCallback then
+        p->FormatCallback( p->hWin, @st, sOut )
+    else
+        ' a plain ISO fallback, so the control is usable before a host wires Format
+        sOut = DtpPad( st.wYear, 4 ) & "-" & DtpPad( st.wMonth, 2 ) & "-" & DtpPad( st.wDay, 2 )
+    end if
+    return sOut
+end function
+
+' Format the current date into the field. Silent (tkTextBox_SetText never notifies).
+private sub DtpFormatIntoField( byval p as TKDATEPICKER_STATE ptr )
+    if p->wText = 0 then exit sub
+    if p->hasDate = false then
+        tkTextBox_SetText( p->wText, "" )
+        p->lastValidText = ""
+        exit sub
+    end if
+    dim as ustring sOut = DtpFormat( p, p->stDate )
+    tkTextBox_SetText( p->wText, sOut )
+    p->lastValidText = sOut
+end sub
+
+private sub DtpNotifyChanged( byval p as TKDATEPICKER_STATE ptr )
+    if p->DateChangedCallback then p->DateChangedCallback( p->hWin, @p->stDate, p->hasDate )
+end sub
+
+' Commit whatever the user typed: parse, validate, clamp, reformat, and report once.
+private sub DtpCommitTypedText( byval p as TKDATEPICKER_STATE ptr )
+    if p->wText = 0 then exit sub
+    dim as ustring sText = tkTextBox_GetText( p->wText )
+    dim as boolean bWasDate = p->hasDate
+    dim as TKDATE stOld = p->stDate
+    if len( trim( sText ) ) = 0 then
+        if p->bAllowEmpty then
+            p->hasDate = false
+            DtpFormatIntoField( p )
+            if bWasDate then DtpNotifyChanged( p )
+        else
+            tkTextBox_SetText( p->wText, p->lastValidText )
+        end if
+        exit sub
+    end if
+    dim as TKDATE stNew
+    dim as boolean bOK = false
+    if p->ParseCallback then bOK = p->ParseCallback( p->hWin, sText, @stNew )
+    if bOK = false then
+        ' unparseable: revert to the last text the control wrote
+        tkTextBox_SetText( p->wText, p->lastValidText )
+        exit sub
+    end if
+    stNew = DtpClamp( p, stNew )
+    p->stDate = tkCalendar_MakeDate( stNew.wYear, stNew.wMonth, stNew.wDay )
+    p->hasDate = true
+    DtpFormatIntoField( p )
+    if (bWasDate = false) orelse (DtpSameYMD( p->stDate, stOld ) = false) then DtpNotifyChanged( p )
+end sub
+
+private function DtpCallMessage( byval p as TKDATEPICKER_STATE ptr, byval msg as long, byval x as single, byval y as single, _
+                                 byval key as long, byval mods as long, byref text as string ) as boolean
+    if p->MessageCallback = 0 then return false
+    dim as TKDATEPICKER_MESSAGEINFO mi
+    mi.hCtrl = p->hWin : mi.msg = msg : mi.x = x : mi.y = y
+    mi.key = key : mi.mods = mods : mi.text = text
+    return p->MessageCallback( @mi )
+end function
+
+private sub DtpApplyFieldColors( byval p as TKDATEPICKER_STATE ptr )
+    if p->wText = 0 then exit sub
+    dim as TKTEXTBOX_COLORS c
+    tkTextBox_GetColors( p->wText, @c )
+    dim as ulong clrBack = iif( p->isEnabled, p->colors.FieldBackColor, p->colors.FieldBackColorDisabled )
+    c.BackColor = clrBack
+    c.OuterBackColor = clrBack
+    c.ForeColor = p->colors.FieldForeColor
+    c.ForeColorDisabled = p->colors.FieldForeColorDisabled
+    tkTextBox_SetColors( p->wText, @c )
+end sub
+
+' vendor LayoutControl: icon = the right nIconWidth pixels, divider immediately left of it,
+' field from left + radius to the divider, inset top and bottom by the border.
+private sub DtpLayout( byval p as TKDATEPICKER_STATE ptr )
+    dim as long cw = p->hWin->cw, ch = p->hWin->ch
+    if (cw <= 0) orelse (ch <= 0) then p->bLayoutDirty = true : exit sub
+    p->bLayoutDirty = false
+    tkRect_Set( p->rcFrame, 0, 0, cw, ch )
+    tkRect_Set( p->rcIcon, cw - p->nIconWidth, 0, cw, ch )
+    tkRect_Set( p->rcDiv, p->rcIcon.left - p->nDividerThick, 0, p->rcIcon.left, ch )
+    dim as long fl = p->nCornerRadius, fr = p->rcDiv.left
+    if fr < fl then fr = fl
+    dim as long ft = p->nBorderThick, fb = ch - p->nBorderThick
+    if fb < ft then fb = ft
+    tkRect_Set( p->rcField, fl, ft, fr, fb )
+    if p->wText then
+        dim as boolean bShow = (fr > fl) andalso (fb > ft)
+        if bShow then tkWidget_SetPos( p->wText, fl, ft, fr - fl, fb - ft )
+        tkWidget_Show( p->wText, bShow )
+    end if
+end sub
+
+private sub DtpRefresh( byval p as TKDATEPICKER_STATE ptr )
+    p->bLayoutDirty = true
+    DtpLayout( p )
+    tkWidget_Invalidate( p->hWin )
+end sub
+
+private function DtpReady( byval hCtrl as TK_WIDGET ptr ) as TKDATEPICKER_STATE ptr
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then return 0
+    if p->bLayoutDirty then DtpLayout( p )
+    return p
+end function
+
+
+' ==========================================================================================
+' The calendar popup
+' ==========================================================================================
+private function DtpCalColors( byval p as TKDATEPICKER_STATE ptr ) as TKCALENDAR_COLORS
+    dim as TKCALENDAR_COLORS c
+    with p->colors
+        c.BackColor = .CalBackColor
+        c.BorderColor = .CalBorderColor
+        c.FocusRingColor = .FocusBorderColor
+        c.TitleColor = .TitleColor
+        c.TitleColorHot = .TitleColorHot
+        c.CaptionColor = .TitleColor
+        c.NavGlyphColor = .NavGlyphColor
+        c.NavGlyphColorHot = .NavGlyphColorHot
+        c.NavGlyphColorDisabled = .NavGlyphColorDisabled
+        c.WeekdayColor = .WeekdayColor
+        c.DayColor = .DayColor
+        c.DayColorWeekend = .DayColorWeekend
+        c.DayColorAdjacent = .DayColorAdjacent
+        c.DayColorDisabled = .DayColorDisabled
+        c.DayBackColorHot = .DayBackColorHot
+        c.DayForeColorHot = .DayForeColorHot
+        c.DayBackColorSelected = .DayBackColorSelected
+        c.DayForeColorSelected = .DayForeColorSelected
+        c.TodayRingColor = .TodayRingColor
+    end with
+    return c
+end function
+
+' The picker behind a calendar widget: the popup's pUser (0 once the popup has closed).
+private function DtpOfCal( byval hCal as TK_WIDGET ptr ) as TKDATEPICKER_STATE ptr
+    if (hCal = 0) orelse (hCal->pHost = 0) then return 0
+    dim as TKDATEPICKER_STATE ptr p = cast( TKDATEPICKER_STATE ptr, hCal->pHost->pUser )
+    if (p = 0) orelse (p->wCal <> hCal) then return 0
+    return p
+end function
+
+sub DtpCalDayPaint( byval ci as TKCALENDAR_DAYPAINTINFO ptr )
+    dim as TKDATEPICKER_STATE ptr p = DtpOfCal( ci->hCtrl )
+    if (p = 0) orelse (p->DayPaintCallback = 0) then exit sub
+    dim as TKDATEPICKER_DAYPAINTINFO d
+    d.hCtrl = p->hWin : d.b = ci->b : d.rcCell = ci->rcCell : d.stDate = ci->stDate
+    d.dayNumber = ci->dayNumber : d.monthIndex = ci->panelIndex
+    d.isAdjacent = ci->isAdjacent : d.isWeekend = ci->isWeekend : d.isToday = ci->isToday
+    d.isSelected = ci->isSelected : d.isHot = ci->isHot : d.isDisabled = ci->isDisabled
+    d.isEnabled = ci->isEnabled
+    p->DayPaintCallback( @d )
+end sub
+
+function DtpCalTooltip( byval ti as TKCALENDAR_TOOLTIPINFO ptr ) as boolean
+    dim as TKDATEPICKER_STATE ptr p = DtpOfCal( ti->hCtrl )
+    if (p = 0) orelse (p->TooltipCallback = 0) then return false
+    dim as TKDATEPICKER_TOOLTIPINFO t
+    t.hCtrl = p->hWin : t.stDate = ti->stDate : t.isValid = ti->isValid
+    dim as boolean bOK = p->TooltipCallback( @t )
+    ti->outText = t.outText
+    return bOK
+end function
+
+' A pick (a day click, Enter, the Today band): the calendar closes FIRST (DropDown(false)),
+' then the field is written and DateChanged fires -- once, and only for a real change.
+private sub DtpPick( byval p as TKDATEPICKER_STATE ptr, byref stIn as TKDATE )
+    dim as TKDATE st = DtpClamp( p, stIn )
+    dim as boolean bWasDate = p->hasDate
+    dim as TKDATE stOld = p->stDate
+    tkDatePicker_CloseUp( p->hWin )
+    p->stDate = tkCalendar_MakeDate( st.wYear, st.wMonth, st.wDay )
+    p->hasDate = true
+    DtpFormatIntoField( p )
+    if (bWasDate = false) orelse (DtpSameYMD( p->stDate, stOld ) = false) then DtpNotifyChanged( p )
+end sub
+
+sub DtpCalActivated( byval hCal as TK_WIDGET ptr, byval pDate as TKDATE ptr )
+    dim as TKDATEPICKER_STATE ptr p = DtpOfCal( hCal )
+    if (p = 0) orelse (pDate = 0) then exit sub
+    dim as TKDATE st = *pDate
+    if DtpInRange( p, st ) then DtpPick( p, st )
+end sub
+
+' One click on a day PICKS it (the calendar alone would only select), an out-of-range day is
+' inert, F4 and Alt+Up/Down close. Everything else -- chevrons, the drill-down, the wheel, the
+' arrow keys -- is the calendar's own.
+function DtpCalMessage( byval mi as TKCALENDAR_MESSAGEINFO ptr ) as boolean
+    dim as TKDATEPICKER_STATE ptr p = DtpOfCal( mi->hCtrl )
+    if p = 0 then return false
+    select case mi->msg
+    case TKM_LBUTTONDOWN
+        dim as TKPOINT pt
+        pt.x = cint( mi->x ) : pt.y = cint( mi->y )
+        dim as CAL_HITRESULT hr = tkCalendar_HitTest( mi->hCtrl, pt )
+        if hr.part = CAL_HIT_DAYCELL then
+            dim as TKDATE st
+            if tkCalendar_GetCellDate( mi->hCtrl, hr.panel, hr.index, st ) then
+                if DtpInRange( p, st ) then DtpPick( p, st )
+            end if
+            return true
+        end if
+    case TKM_KEYDOWN
+        dim as boolean bAlt = ((mi->mods and SDL_KMOD_ALT) <> 0)
+        if (mi->key = SDLK_F4) orelse (bAlt andalso ((mi->key = SDLK_DOWN) orelse (mi->key = SDLK_UP))) then
+            tkDatePicker_CloseUp( p->hWin )
+            return true
+        end if
+    end select
+    return false
+end function
+
+private sub DtpSeedCalendar( byval p as TKDATEPICKER_STATE ptr, byval c as TK_WIDGET ptr )
+    dim as TKDATE today = DtpToday( p )
+    tkCalendar_SetFont( c, DtpFont( p ) )
+    tkCalendar_SetPanelGrid( c, p->nMonthCount, 1 )
+    tkCalendar_SetNavStep( c, 1 )
+    tkCalendar_SetWeekStart( c, iif( p->nWeekStart = DTP_MONDAY, CAL_MONDAY, CAL_SUNDAY ) )
+    tkCalendar_SetShowTodayRing( c, p->bShowToday )
+    tkCalendar_SetToday( c, today )
+    tkCalendar_SetRange( c, p->stMin, p->stMax, p->hasMin, p->hasMax )
+    if p->hasDate then tkCalendar_SetSelDate( c, p->stDate ) else tkCalendar_ClearSelDate( c )
+    tkCalendar_SetAnchorDate( c, iif( p->hasDate, p->stDate, today ) )
+    tkCalendar_SetView( c, CAL_VIEW_DAYS )
+    tkCalendar_SetBorderThickness( c, 0 )
+    dim as TKCALENDAR_COLORS cc = DtpCalColors( p )
+    tkCalendar_SetColors( c, @cc )
+end sub
+
+private function DtpFooterText( byval p as TKDATEPICKER_STATE ptr ) as ustring
+    dim as TKDATE today = DtpToday( p )
+    return "Today: " & DtpFormat( p, today )
+end function
+
+function DtpFooterProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKDATEPICKER_STATE ptr p = cast( TKDATEPICKER_STATE ptr, w->pData )
+    if p = 0 then return false
+    dim as TKDATE today = DtpToday( p )
+    dim as boolean bLive = DtpInRange( p, today )
+    select case m->msg
+    case TKM_PAINT
+        dim as TK_PAINT ptr b = m->pPaint
+        dim as TKRECT rc
+        tkRect_Set( rc, 0, 0, w->cw, w->ch )
+        b->SetBackColor( p->colors.CalBackColor )
+        b->PaintRect( @rc )
+        dim as ulong clr = p->colors.TodayFooterColor
+        if bLive = false then
+            clr = p->colors.TodayFooterColorDisabled
+        elseif p->bFooterHot then
+            clr = p->colors.TodayFooterColorHot
+        end if
+        b->SetFont( DtpFont( p ) )
+        b->SetForeColor( clr )
+        b->PaintText( DtpFooterText( p ), @rc, TK_DT_CENTER )
+        return true
+    case TKM_MOUSEMOVE
+        dim as boolean bHot = bLive
+        if bHot <> p->bFooterHot then p->bFooterHot = bHot : tkWidget_Invalidate( w )
+        return true
+    case TKM_MOUSELEAVE
+        if p->bFooterHot then p->bFooterHot = false : tkWidget_Invalidate( w )
+        return true
+    case TKM_LBUTTONDOWN
+        if bLive then DtpPick( p, today )
+        return true
+    end select
+    return false
+end function
+
+' The popup's frame: the background and the hairline outline around the calendar and band.
+function DtpPopProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKDATEPICKER_STATE ptr p = cast( TKDATEPICKER_STATE ptr, w->pData )
+    if p = 0 then return false
+    if m->msg = TKM_PAINT then
+        dim as TK_PAINT ptr b = m->pPaint
+        dim as TKRECT rc
+        tkRect_Set( rc, 0, 0, w->cw, w->ch )
+        b->SetBackColor( p->colors.CalBackColor )
+        b->PaintRect( @rc )
+        b->SetPenColor( p->colors.CalBorderColor )
+        b->PaintRoundOutline( @rc, 0, CDTP_CAL_BORDERTHICK )
+        return true
+    end if
+    return false
+end function
+
+' OnClosed: every close lands here, whatever caused it (a pick, Escape, an outside press, focus
+' leaving the application, CloseUp). The popup's widgets are destroyed when it is reaped.
+private sub DtpPopClosed( byval hPop as TK_HOST ptr )
+    dim as TKDATEPICKER_STATE ptr p = cast( TKDATEPICKER_STATE ptr, hPop->pUser )
+    if (p = 0) orelse (p->pPop <> hPop) then exit sub
+    hPop->pUser = 0
+    if p->wCal then
+        tkCalendar_SetMessageCallback( p->wCal, 0 )
+        tkCalendar_SetDayPaintCallback( p->wCal, 0 )
+        tkCalendar_SetTooltipCallback( p->wCal, 0 )
+        tkCalendar_SetDateActivatedCallback( p->wCal, 0 )
+    end if
+    if p->wPop then p->wPop->pData = 0
+    if p->wFooter then p->wFooter->pData = 0
+    p->pPop = 0 : p->wPop = 0 : p->wCal = 0 : p->wFooter = 0
+    p->bFooterHot = false
+    ' the reopen guard: a press on the icon carrying THIS serial is the one that closed us
+    p->nClosedBySerial = tkHost_PressSerial()
+    dim as boolean bWasOpen = p->isOpen
+    p->isOpen = false
+    if gOpenPicker = p then gOpenPicker = 0
+    tkWidget_Invalidate( p->hWin )
+    if bWasOpen andalso (p->bSilentClose = false) andalso (p->DropDownCallback <> 0) then p->DropDownCallback( p->hWin, false )
+end sub
+
+' Build, seed, place and show the calendar. The opening edge fires FIRST, before anything is
+' built or seeded: the just-in-time hook for a range that depends on current state.
+private sub DtpOpen( byval p as TKDATEPICKER_STATE ptr )
+    if p->DropDownCallback then p->DropDownCallback( p->hWin, true )
+    dim as TK_HOST ptr h = p->hWin->pHost
+    ' measure with a throwaway calendar on our own surface (the popup draws at our scale)
+    dim as TK_WIDGET ptr tmp = tkCalendar_Create( p->hWin, 0 )
+    tkWidget_Show( tmp, false )
+    DtpSeedCalendar( p, tmp )
+    dim as long cw, ch
+    tkCalendar_GetIdealSize( tmp, cw, ch )
+    tkWidget_Destroy( tmp )
+    dim as long bt = CDTP_CAL_BORDERTHICK
+    dim as long fh = iif( p->bShowTodayFooter, p->nFooterH, 0 )
+    dim as long pw = cw + 2 * bt, ph = ch + fh + 2 * bt
+    ' below the control, left edges aligned, the popup's top edge merged with the frame's bottom
+    dim as TKRECT rcAnchor
+    tkWidget_AbsRect( p->hWin, rcAnchor )
+    rcAnchor.bottom -= 1
+    dim as long x, y
+    tkHost_PlacePopup( h, rcAnchor, pw, ph, false, x, y )
+    dim as TK_HOST ptr pop = tkHost_CreatePopup( h, x, y, pw, ph )
+    if pop = 0 then
+        if p->DropDownCallback then p->DropDownCallback( p->hWin, false )     ' keep the pairing
+        exit sub
+    end if
+    pop->clrBack = p->colors.CalBackColor
+    pop->bPassDismissClick = true          ' vendor: the dismissing click still reaches its target
+    pop->pUser = p
+    pop->OnClosed = @DtpPopClosed
+    p->pPop = pop
+    p->wPop = tkWidget_Create( pop, p->idc, @DtpPopProc, p )
+    tkWidget_SetPos( p->wPop, 0, 0, pw, ph )
+    p->wCal = tkCalendar_Create( p->wPop, p->idc )
+    DtpSeedCalendar( p, p->wCal )
+    tkCalendar_SetMessageCallback( p->wCal, @DtpCalMessage )
+    tkCalendar_SetDateActivatedCallback( p->wCal, @DtpCalActivated )
+    if p->DayPaintCallback then tkCalendar_SetDayPaintCallback( p->wCal, @DtpCalDayPaint )
+    if p->TooltipCallback then tkCalendar_SetTooltipCallback( p->wCal, @DtpCalTooltip )
+    tkWidget_SetPos( p->wCal, bt, bt, cw, ch )
+    if p->bShowTodayFooter then
+        p->wFooter = tkWidget_CreateChild( p->wPop, p->idc, @DtpFooterProc, p )
+        tkWidget_SetPos( p->wFooter, bt, bt + ch, cw, fh )
+    end if
+    p->isOpen = true
+    gOpenPicker = p
+    tkHost_Show( pop )
+    tkHost_SetFocus( pop, p->wCal )
+    tkWidget_Invalidate( p->hWin )
+end sub
+
+
+' ==========================================================================================
+' The control
+' ==========================================================================================
+private sub DtpPaintIcon( byval b as TK_PAINT ptr, byref rc as TKRECT, byval clr as ulong )
+    ' PsPlatform's drawn calendar: an outline, a header band and two hanger rings
+    dim as long w = ((rc.right - rc.left) * 5) \ 9
+    dim as long hh = w
+    if w < 6 then exit sub
+    dim as long x = rc.left + ((rc.right - rc.left) - w) \ 2
+    dim as long y = rc.top + ((rc.bottom - rc.top) - hh) \ 2
+    dim as long th = (w + 8) \ 16
+    if th < 1 then th = 1
+    dim as TKRECT r
+    tkRect_Set( r, x, y, x + w, y + hh )
+    b->SetPenColor( clr )
+    b->PaintRoundOutline( @r, 0, th )
+    b->SetBackColor( clr )
+    tkRect_Set( r, x, y, x + w, y + hh \ 4 )
+    b->PaintRect( @r )
+    dim as long rx = x + w \ 4
+    tkRect_Set( r, rx, y - th, rx + th, y + th )
+    b->PaintRect( @r )
+    rx = x + w - w \ 4 - th
+    tkRect_Set( r, rx, y - th, rx + th, y + th )
+    b->PaintRect( @r )
+end sub
+
+private sub DtpRenderDefault( byval p as TKDATEPICKER_STATE ptr, byval pi as TKDATEPICKER_PAINTINFO ptr )
+    dim as TK_PAINT ptr b = pi->b
+    dim as long cw = pi->rcFrame.right - pi->rcFrame.left, ch = pi->rcFrame.bottom - pi->rcFrame.top
+    if (cw <= 0) orelse (ch <= 0) then exit sub
+    dim as long ell = p->nCornerRadius * 2
+    ' frame fill (also the field's background in the inset strips the child does not cover)
+    dim as TKRECT rcFrame = pi->rcFrame
+    b->SetBackColor( iif( pi->isEnabled, p->colors.FieldBackColor, p->colors.FieldBackColorDisabled ) )
+    b->PaintRoundRect( @rcFrame, ell )
+    ' the icon cell, extended inward past the divider so only its outer corners round
+    dim as long ext = p->nCornerRadius + p->nDividerThick + 1
+    dim as TKRECT rcIconFill
+    tkRect_Set( rcIconFill, pi->rcIcon.left - ext, pi->rcIcon.top, pi->rcIcon.right, pi->rcIcon.bottom )
+    dim as boolean bLit = pi->iconHot orelse pi->iconPressed
+    b->SetBackColor( iif( pi->isEnabled andalso bLit, p->colors.IconBackColorHot, p->colors.IconColor ) )
+    b->PaintRoundRect( @rcIconFill, ell )
+    if p->nDividerThick > 0 then
+        dim as TKRECT rcDiv = pi->rcDiv
+        b->SetBackColor( iif( pi->isEnabled, p->colors.DividerColor, p->colors.DividerColorDisabled ) )
+        b->PaintRect( @rcDiv )
+    end if
+    dim as ulong clrGlyph = p->colors.IconGlyphColor
+    if pi->isEnabled = false then
+        clrGlyph = p->colors.IconGlyphColorDisabled
+    elseif bLit then
+        clrGlyph = p->colors.IconGlyphColorHot
+    end if
+    dim as TKRECT rcIcon = pi->rcIcon
+    if p->pIconFont then
+        b->SetFont( p->pIconFont )
+        b->SetForeColor( clrGlyph )
+        b->PaintText( p->wszIconGlyph, @rcIcon, TK_DT_CENTER )
+    else
+        DtpPaintIcon( b, rcIcon, clrGlyph )
+    end if
+    ' the outline last
+    if p->nBorderThick > 0 then
+        dim as ulong clrBorder = p->colors.BorderColor
+        if pi->isEnabled = false then
+            clrBorder = p->colors.BorderColorDisabled
+        elseif pi->isFocused then
+            clrBorder = p->colors.FocusBorderColor
+        end if
+        b->SetPenColor( clrBorder )
+        b->PaintRoundOutline( @rcFrame, ell, p->nBorderThick )
+    end if
+end sub
+
+private sub DtpPaint( byval p as TKDATEPICKER_STATE ptr, byval b as TK_PAINT ptr )
+    if p->bLayoutDirty then DtpLayout( p )
+    dim as TKDATEPICKER_PAINTINFO pi
+    pi.hCtrl = p->hWin : pi.b = b
+    tkRect_Set( pi.rcClient, 0, 0, p->hWin->cw, p->hWin->ch )
+    b->SetBackColor( p->colors.BackColor )
+    b->PaintRect( @pi.rcClient )
+    pi.rcFrame = p->rcFrame : pi.rcField = p->rcField : pi.rcDiv = p->rcDiv : pi.rcIcon = p->rcIcon
+    pi.isEnabled = p->isEnabled : pi.isFocused = p->isFocused : pi.isOpen = p->isOpen
+    pi.iconHot = p->iconHot : pi.iconPressed = p->iconPressed
+    if p->PaintCallback then p->PaintCallback( @pi ) else DtpRenderDefault( p, @pi )
+end sub
+
+private sub DtpSetIconHot( byval p as TKDATEPICKER_STATE ptr, byval bHot as boolean )
+    if bHot = p->iconHot then exit sub
+    p->iconHot = bHot
+    tkWidget_Invalidate( p->hWin )
+end sub
+
+private sub DtpRescale( byval p as TKDATEPICKER_STATE ptr, byval fOld as single, byval fNew as single )
+    if (fOld <= 0) orelse (fNew <= 0) then exit sub
+    dim as single k = fNew / fOld
+    p->nIconWidth = cint( p->nIconWidth * k )
+    p->nFieldPadLeft = cint( p->nFieldPadLeft * k )
+    p->nFieldPadRight = cint( p->nFieldPadRight * k )
+    p->nVertPadding = cint( p->nVertPadding * k )
+    p->nCornerRadius = cint( p->nCornerRadius * k )
+    p->nFooterH = cint( p->nFooterH * k )
+    ' an open calendar was sized for the old scale
+    if p->isOpen then tkDatePicker_CloseUp( p->hWin )
+    DtpRefresh( p )
+end sub
+
+function tkDatePicker_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( w )
+    if p = 0 then return false
+    select case m->msg
+    case TKM_PAINT
+        if DtpCallMessage( p, m->msg, 0, 0, 0, 0, "" ) then return true
+        DtpPaint( p, m->pPaint )
+        return true
+
+    case TKM_SIZE
+        DtpRefresh( p )
+        DtpCallMessage( p, m->msg, 0, 0, 0, 0, "" )
+        return true
+
+    case TKM_SCALECHANGED
+        DtpRescale( p, m->fOld, m->fNew )
+        return true
+
+    case TKM_THEMECHANGED
+        tkDatePicker_ApplyTheme( w, tkTheme_Get() )
+        return true
+
+    case TKM_MOUSEMOVE
+        if DtpCallMessage( p, m->msg, m->x, m->y, 0, m->mods, "" ) then return true
+        if p->isEnabled then DtpSetIconHot( p, tkRect_Contains( p->rcIcon, m->x, m->y ) )
+        return true
+
+    case TKM_MOUSELEAVE
+        DtpCallMessage( p, m->msg, 0, 0, 0, 0, "" )         ' result IGNORED
+        p->iconPressed = false
+        DtpSetIconHot( p, false )
+        return true
+
+    case TKM_LBUTTONDOWN
+        if DtpCallMessage( p, m->msg, m->x, m->y, 0, m->mods, "" ) then return true
+        if p->isEnabled = false then return true
+        if tkRect_Contains( p->rcIcon, m->x, m->y ) then
+            ' the press that just closed our calendar must not reopen it
+            if p->nClosedBySerial = tkHost_PressSerial() then return true
+            p->iconPressed = true
+            tkWidget_Invalidate( w )
+            if p->isOpen then tkDatePicker_CloseUp( w ) else tkDatePicker_DropDown( w )
+        elseif p->wText then
+            tkHost_SetFocus( w->pHost, p->wText )
+        end if
+        return true
+
+    case TKM_LBUTTONUP
+        DtpCallMessage( p, m->msg, m->x, m->y, 0, m->mods, "" )   ' result IGNORED
+        if p->iconPressed then p->iconPressed = false : tkWidget_Invalidate( w )
+        return true
+
+    case TKM_KEYDOWN
+        ' keys the field left unclaimed bubble here
+        return DtpCallMessage( p, m->msg, 0, 0, m->key, m->mods, "" )
+
+    case TKM_ENABLE
+        p->isEnabled = m->bFlag
+        if p->isEnabled = false then
+            if p->isOpen then tkDatePicker_CloseUp( w )
+            p->iconHot = false : p->iconPressed = false
+        end if
+        DtpApplyFieldColors( p )
+        tkWidget_Invalidate( w )
+        DtpCallMessage( p, m->msg, 0, 0, 0, 0, "" )          ' result IGNORED
+        return true
+
+    case TKM_DESTROY
+        if p->pPop then
+            p->bSilentClose = true
+            tkHost_Close( p->pPop )
+        end if
+        if gOpenPicker = p then gOpenPicker = 0
+        if p->wText then p->wText = 0
+        delete p
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ---- the three hooks into the embedded tkTextBox -----------------------------------------
+private function DtpOfField( byval hTextBox as TK_WIDGET ptr ) as TKDATEPICKER_STATE ptr
+    dim as TK_WIDGET ptr parent = tkWidget_Parent( hTextBox )
+    if parent = 0 then return 0
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( parent )
+    if (p = 0) orelse (p->wText <> hTextBox) then return 0
+    return p
+end function
+
+sub DtpOnFieldFocus( byval hTextBox as TK_WIDGET ptr, byval bGotFocus as boolean )
+    dim as TKDATEPICKER_STATE ptr p = DtpOfField( hTextBox )
+    if p = 0 then exit sub
+    p->isFocused = bGotFocus
+    tkWidget_Invalidate( p->hWin )
+    if bGotFocus = false then DtpCommitTypedText( p )
+end sub
+
+sub DtpOnFieldEnter( byval hTextBox as TK_WIDGET ptr )
+    dim as TKDATEPICKER_STATE ptr p = DtpOfField( hTextBox )
+    if p then DtpCommitTypedText( p )
+end sub
+
+' Relay the field's messages to the host, and CLAIM the keys that open the calendar: F4, Down
+' and Alt+Down (vendor: Alt is not tested -- both open).
+function DtpOnFieldMessage( byval m as TKTEXTBOX_MESSAGEINFO ptr ) as boolean
+    dim as TKDATEPICKER_STATE ptr p = DtpOfField( m->hTextBox )
+    if p = 0 then return false
+    dim as boolean bClaimed = DtpCallMessage( p, m->msg, m->x, m->y, m->key, m->mods, m->text )
+    if bClaimed andalso (m->msg <> TKM_KILLFOCUS) then return true
+    if p->isEnabled = false then return false
+    if (m->msg = TKM_KEYDOWN) andalso ((m->key = SDLK_F4) orelse (m->key = SDLK_DOWN)) then
+        if p->isOpen then tkDatePicker_CloseUp( p->hWin ) else tkDatePicker_DropDown( p->hWin )
+        return true
+    end if
+    return false
+end function
+
+
+' ==========================================================================================
+' Public API -- vendor's surface, HWND replaced by the widget pointer, SYSTEMTIME by TKDATE.
+' ==========================================================================================
+public function tkDatePicker_Create( byval hParent as TK_WIDGET ptr, byval CtrlID as long ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TK_HOST ptr h = hParent->pHost
+    dim as TKDATEPICKER_STATE ptr p = new TKDATEPICKER_STATE
+    p->idc = CtrlID
+    p->wszIconGlyph = wchr( CDTP_DEFAULT_ICONGLYPH )
+    ' the Create-time defaults are scaled once; border and divider stay hairlines
+    p->nIconWidth = tkHost_Scale( h, CDTP_DEFAULT_ICONWIDTH )
+    p->nFieldPadLeft = tkHost_Scale( h, CDTP_DEFAULT_FIELDPAD )
+    p->nFieldPadRight = tkHost_Scale( h, CDTP_DEFAULT_FIELDPAD )
+    p->nVertPadding = tkHost_Scale( h, CDTP_DEFAULT_VERTPAD )
+    p->nCornerRadius = tkHost_Scale( h, CDTP_DEFAULT_CORNERRADIUS )
+    p->nFooterH = tkHost_Scale( h, CDTP_CAL_FOOTERH )
+    p->colors = tkDatePicker_ThemeColors( tkTheme_Get() )
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @tkDatePicker_Proc, p )
+    p->hWin = w
+    ' the editable field: borderless, plain text (dates are free-form)
+    p->wText = tkTextBox_Create( w, CtrlID )
+    if p->wText then
+        tkTextBox_SetBorderWidth( p->wText, 0 )
+        tkTextBox_SetCornerRadius( p->wText, 0 )
+        tkTextBox_SetSelectOnFocus( p->wText, true )
+        tkTextBox_SetMargins( p->wText, p->nFieldPadLeft, p->nFieldPadRight )
+        DtpApplyFieldColors( p )
+        tkTextBox_SetFocusCallback( p->wText, @DtpOnFieldFocus )
+        tkTextBox_SetEnterPressedCallback( p->wText, @DtpOnFieldEnter )
+        tkTextBox_SetMessageCallback( p->wText, @DtpOnFieldMessage )
+    end if
+    return w
+end function
+
+public function tkDatePicker_GetTextBoxHandle( byval hCtrl as TK_WIDGET ptr ) as TK_WIDGET ptr
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then return 0
+    return p->wText
+end function
+
+' The calendar widget while the calendar is open, else 0 (it is rebuilt at every open).
+public function tkDatePicker_GetCalendarHandle( byval hCtrl as TK_WIDGET ptr ) as TK_WIDGET ptr
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then return 0
+    return p->wCal
+end function
+
+' The popup surface while the calendar is open, else 0.
+public function tkDatePicker_GetPopup( byval hCtrl as TK_WIDGET ptr ) as TK_HOST ptr
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then return 0
+    return p->pPop
+end function
+
+' The Today band while the calendar is open with it on, else 0.
+public function tkDatePicker_GetFooterHandle( byval hCtrl as TK_WIDGET ptr ) as TK_WIDGET ptr
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then return 0
+    return p->wFooter
+end function
+
+public function tkDatePicker_HasFocus( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if (p = 0) orelse (p->wText = 0) then return false
+    return tkTextBox_HasFocus( p->wText )
+end function
+
+' ---- value (all silent) -------------------------------------------------------------------
+public function tkDatePicker_GetDate( byval hCtrl as TK_WIDGET ptr, byref st as TKDATE ) as boolean
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if (p = 0) orelse (p->hasDate = false) then return false
+    st = p->stDate
+    return true
+end function
+
+public sub tkDatePicker_SetDate( byval hCtrl as TK_WIDGET ptr, byref st as TKDATE )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then exit sub
+    dim as TKDATE s = DtpClamp( p, st )
+    p->stDate = tkCalendar_MakeDate( s.wYear, s.wMonth, s.wDay )
+    p->hasDate = true
+    DtpFormatIntoField( p )
+end sub
+
+public sub tkDatePicker_ClearDate( byval hCtrl as TK_WIDGET ptr )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then exit sub
+    p->hasDate = false
+    DtpFormatIntoField( p )
+end sub
+
+public function tkDatePicker_HasDate( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then return false
+    return p->hasDate
+end function
+
+public sub tkDatePicker_GetRange( byval hCtrl as TK_WIDGET ptr, byref stMin as TKDATE, byref stMax as TKDATE, _
+                                  byref bHasMin as boolean, byref bHasMax as boolean )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then bHasMin = false : bHasMax = false : exit sub
+    stMin = p->stMin : stMax = p->stMax
+    bHasMin = p->hasMin : bHasMax = p->hasMax
+end sub
+
+public sub tkDatePicker_SetRange( byval hCtrl as TK_WIDGET ptr, byref stMin as TKDATE, byref stMax as TKDATE, _
+                                  byval bHasMin as boolean, byval bHasMax as boolean )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then exit sub
+    p->hasMin = bHasMin
+    p->hasMax = bHasMax
+    if bHasMin then p->stMin = tkCalendar_MakeDate( stMin.wYear, stMin.wMonth, stMin.wDay )
+    if bHasMax then p->stMax = tkCalendar_MakeDate( stMax.wYear, stMax.wMonth, stMax.wDay )
+    ' an inverted pair is swapped rather than left unsatisfiable
+    if bHasMin andalso bHasMax then
+        if DtpSerial( p->stMin ) > DtpSerial( p->stMax ) then swap p->stMin, p->stMax
+    end if
+    if p->hasDate then
+        p->stDate = DtpClamp( p, p->stDate )
+        DtpFormatIntoField( p )
+    end if
+    if p->wCal then tkCalendar_SetRange( p->wCal, p->stMin, p->stMax, p->hasMin, p->hasMax )
+    if p->wFooter then tkWidget_Invalidate( p->wFooter )
+end sub
+
+public function tkDatePicker_GetAllowEmpty( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then return true
+    return p->bAllowEmpty
+end function
+
+public sub tkDatePicker_SetAllowEmpty( byval hCtrl as TK_WIDGET ptr, byval bAllow as boolean )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p then p->bAllowEmpty = bAllow
+end sub
+
+public sub tkDatePicker_ReformatText( byval hCtrl as TK_WIDGET ptr )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then exit sub
+    DtpFormatIntoField( p )
+    if p->wFooter then tkWidget_Invalidate( p->wFooter )
+end sub
+
+' "Today" for the calendar's ring and band. A tk addition: vendor always reads the clock;
+' tests and screenshots pin it. bPin false hands it back to the clock.
+public sub tkDatePicker_SetToday( byval hCtrl as TK_WIDGET ptr, byref st as TKDATE, byval bPin as boolean = true )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then exit sub
+    p->bTodayPinned = bPin
+    if bPin then p->stTodayPinned = tkCalendar_MakeDate( st.wYear, st.wMonth, st.wDay )
+end sub
+
+' ---- calendar behaviour -------------------------------------------------------------------
+public function tkDatePicker_GetWeekStart( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then return DTP_SUNDAY
+    return p->nWeekStart
+end function
+
+public sub tkDatePicker_SetWeekStart( byval hCtrl as TK_WIDGET ptr, byval nWeekStart as long )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p then p->nWeekStart = iif( nWeekStart = DTP_MONDAY, DTP_MONDAY, DTP_SUNDAY )
+end sub
+
+public function tkDatePicker_GetMonthCount( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then return 1
+    return p->nMonthCount
+end function
+
+public sub tkDatePicker_SetMonthCount( byval hCtrl as TK_WIDGET ptr, byval nCount as long )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then exit sub
+    if nCount < 1 then nCount = 1
+    if nCount > 2 then nCount = 2
+    p->nMonthCount = nCount
+end sub
+
+public function tkDatePicker_GetShowToday( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then return true
+    return p->bShowToday
+end function
+
+public sub tkDatePicker_SetShowToday( byval hCtrl as TK_WIDGET ptr, byval bShow as boolean )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then exit sub
+    p->bShowToday = bShow
+    if p->wCal then tkCalendar_SetShowTodayRing( p->wCal, bShow )
+end sub
+
+public function tkDatePicker_GetShowTodayFooter( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then return false
+    return p->bShowTodayFooter
+end function
+
+' Silent. The band changes the popup's height, so an OPEN calendar is resized at once (vendor's
+' SetWindowPos), the band added or removed in place -- no DropDown callbacks, no new window.
+public sub tkDatePicker_SetShowTodayFooter( byval hCtrl as TK_WIDGET ptr, byval bShow as boolean )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if (p = 0) orelse (p->bShowTodayFooter = bShow) then exit sub
+    p->bShowTodayFooter = bShow
+    if (p->pPop = 0) orelse (p->wCal = 0) then exit sub
+    dim as long bt = CDTP_CAL_BORDERTHICK
+    dim as long cw = p->wCal->cw, ch = p->wCal->ch
+    dim as long fh = iif( bShow, p->nFooterH, 0 )
+    dim as long pw = cw + 2 * bt, ph = ch + fh + 2 * bt
+    if bShow then
+        p->wFooter = tkWidget_CreateChild( p->wPop, p->idc, @DtpFooterProc, p )
+        tkWidget_SetPos( p->wFooter, bt, bt + ch, cw, fh )
+    elseif p->wFooter then
+        tkWidget_Destroy( p->wFooter )
+        p->wFooter = 0
+        p->bFooterHot = false
+    end if
+    tkWidget_SetPos( p->wPop, 0, 0, pw, ph )
+    dim as single d = p->hWin->pHost->fDensity
+    SDL_SetWindowSize( p->pPop->win, cint( pw / d ), cint( ph / d ) )
+    tkHost_Invalidate( p->pPop )
+end sub
+
+public sub tkDatePicker_DropDown( byval hCtrl as TK_WIDGET ptr )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then exit sub
+    if (p->isEnabled = false) orelse p->isOpen then exit sub
+    if (gOpenPicker <> 0) andalso (gOpenPicker <> p) then tkDatePicker_CloseUp( gOpenPicker->hWin )
+    DtpOpen( p )
+end sub
+
+public sub tkDatePicker_CloseUp( byval hCtrl as TK_WIDGET ptr )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if (p = 0) orelse (p->pPop = 0) then exit sub
+    tkHost_Close( p->pPop )        ' OnClosed does the bookkeeping and DropDown(false)
+end sub
+
+public function tkDatePicker_IsDroppedDown( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then return false
+    return p->isOpen
+end function
+
+' ---- layout and appearance (raw pixels) ---------------------------------------------------
+public function tkDatePicker_GetFont( byval hCtrl as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then return 0
+    return p->pFont
+end function
+
+public sub tkDatePicker_SetFont( byval hCtrl as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then exit sub
+    p->pFont = f
+    if p->wText then tkTextBox_SetFont( p->wText, f )
+    if p->wCal then tkCalendar_SetFont( p->wCal, f )
+    DtpRefresh( p )
+end sub
+
+public function tkDatePicker_GetIconFont( byval hCtrl as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then return 0
+    return p->pIconFont
+end function
+
+' Borrowed. 0 restores the default, the drawn calendar.
+public sub tkDatePicker_SetIconFont( byval hCtrl as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then exit sub
+    p->pIconFont = f
+    tkWidget_Invalidate( hCtrl )
+end sub
+
+public function tkDatePicker_GetIconGlyph( byval hCtrl as TK_WIDGET ptr ) as ustring
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then return ""
+    return p->wszIconGlyph
+end function
+
+public sub tkDatePicker_SetIconGlyph( byval hCtrl as TK_WIDGET ptr, byval sGlyph as ustring )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then exit sub
+    p->wszIconGlyph = sGlyph
+    tkWidget_Invalidate( hCtrl )
+end sub
+
+public function tkDatePicker_GetIconWidth( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then return 0
+    return p->nIconWidth
+end function
+
+public sub tkDatePicker_SetIconWidth( byval hCtrl as TK_WIDGET ptr, byval nWidth as long )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then exit sub
+    p->nIconWidth = iif( nWidth < 0, 0, nWidth )
+    DtpRefresh( p )
+end sub
+
+public function tkDatePicker_GetCornerRadius( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then return 0
+    return p->nCornerRadius
+end function
+
+public sub tkDatePicker_SetCornerRadius( byval hCtrl as TK_WIDGET ptr, byval nRadius as long )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then exit sub
+    p->nCornerRadius = iif( nRadius < 0, 0, nRadius )
+    DtpRefresh( p )
+end sub
+
+public function tkDatePicker_GetBorderThickness( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then return 0
+    return p->nBorderThick
+end function
+
+public sub tkDatePicker_SetBorderThickness( byval hCtrl as TK_WIDGET ptr, byval nThickness as long )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then exit sub
+    p->nBorderThick = iif( nThickness < 0, 0, nThickness )
+    DtpRefresh( p )
+end sub
+
+' vendor's formula: the field text (or "Wednesday, September 30, 2222" when it is empty) plus
+' both paddings, the corner inset, the divider and the icon; one text line plus the vertical
+' padding and the border. Valid before the control has ever been sized.
+public sub tkDatePicker_GetIdealSize( byval hCtrl as TK_WIDGET ptr, byref nWidth as long, byref nHeight as long )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    nWidth = 0 : nHeight = 0
+    if p = 0 then exit sub
+    dim as TTF_Font ptr f = DtpFont( p )
+    dim as ustring sMeasure
+    if p->wText then sMeasure = tkTextBox_GetText( p->wText )
+    if len( trim( sMeasure ) ) = 0 then sMeasure = "Wednesday, September 30, 2222"
+    dim as long textW = tkText_Width( f, sMeasure )
+    nWidth = p->nCornerRadius + p->nFieldPadLeft + textW + p->nFieldPadRight + p->nDividerThick + p->nIconWidth
+    nHeight = tkText_Height( f ) + 2 * p->nVertPadding + 2 * p->nBorderThick
+end sub
+
+public function tkDatePicker_GetEnabled( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then return false
+    return p->isEnabled
+end function
+
+' The container AND the field, so the disable is enforced rather than cosmetic.
+public sub tkDatePicker_SetEnabled( byval hCtrl as TK_WIDGET ptr, byval isEnabled as boolean )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then exit sub
+    tkWidget_Enable( hCtrl, isEnabled )
+    if p->wText then tkWidget_Enable( p->wText, isEnabled )
+end sub
+
+public sub tkDatePicker_Refresh( byval hCtrl as TK_WIDGET ptr )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p then DtpRefresh( p )
+end sub
+
+' ---- geometry -----------------------------------------------------------------------------
+public function tkDatePicker_GetFrameRect( byval hCtrl as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    dim as TKDATEPICKER_STATE ptr p = DtpReady( hCtrl )
+    if (p = 0) orelse p->bLayoutDirty then return false
+    rc = p->rcFrame
+    return true
+end function
+
+public function tkDatePicker_GetFieldRect( byval hCtrl as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    dim as TKDATEPICKER_STATE ptr p = DtpReady( hCtrl )
+    if (p = 0) orelse p->bLayoutDirty then return false
+    rc = p->rcField
+    return true
+end function
+
+public function tkDatePicker_GetIconRect( byval hCtrl as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    dim as TKDATEPICKER_STATE ptr p = DtpReady( hCtrl )
+    if (p = 0) orelse p->bLayoutDirty then return false
+    rc = p->rcIcon
+    return true
+end function
+
+' 1 inside the icon cell, 0 anywhere else (the field is a child and hits nothing here).
+public function tkDatePicker_HitTest( byval hCtrl as TK_WIDGET ptr, byval pt as TKPOINT ) as long
+    dim as TKDATEPICKER_STATE ptr p = DtpReady( hCtrl )
+    if (p = 0) orelse p->bLayoutDirty then return 0
+    return iif( tkRect_Contains( p->rcIcon, pt.x, pt.y ), 1, 0 )
+end function
+
+public function tkDatePicker_GetIconHot( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then return false
+    return p->iconHot
+end function
+
+' ---- colours ------------------------------------------------------------------------------
+public sub tkDatePicker_GetColors( byval hCtrl as TK_WIDGET ptr, byval pColors as TKDATEPICKER_COLORS ptr )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if (p = 0) orelse (pColors = 0) then exit sub
+    *pColors = p->colors
+end sub
+
+' Copies them in (and PINS them), pushes the field colours into the text box, and repaints the
+' control and any open calendar.
+public sub tkDatePicker_SetColors( byval hCtrl as TK_WIDGET ptr, byval pColors as TKDATEPICKER_COLORS ptr )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if (p = 0) orelse (pColors = 0) then exit sub
+    p->colors = *pColors
+    p->bColorsPinned = true
+    DtpApplyFieldColors( p )
+    tkWidget_Invalidate( hCtrl )
+    if p->wCal then
+        dim as TKCALENDAR_COLORS cc = DtpCalColors( p )
+        tkCalendar_SetColors( p->wCal, @cc )
+    end if
+    if p->pPop then
+        p->pPop->clrBack = p->colors.CalBackColor
+        tkHost_Invalidate( p->pPop )
+    end if
+end sub
+
+public function tkDatePicker_ThemeColors( byref t as TKTHEME_COLORS ) as TKDATEPICKER_COLORS
+    dim as TKDATEPICKER_COLORS c
+    c.BackColor                = t.Window
+    c.BorderColor              = t.Border
+    c.FocusBorderColor         = t.FocusRing
+    c.BorderColorDisabled      = t.BorderDisabled
+    c.DividerColor             = t.Divider
+    c.DividerColorDisabled     = t.BorderDisabled
+    c.FieldBackColor           = t.Surface
+    c.FieldForeColor           = t.Text
+    c.FieldBackColorDisabled   = t.SurfaceDisabled
+    c.FieldForeColorDisabled   = t.TextDisabled
+    c.IconColor                = t.Surface
+    c.IconGlyphColor           = t.Text
+    c.IconGlyphColorHot        = t.TextHot
+    c.IconBackColorHot         = t.SurfaceHot
+    c.IconGlyphColorDisabled   = t.TextDisabled
+    c.CalBackColor             = t.Popup
+    c.CalBorderColor           = t.Border
+    c.TitleColor               = t.TextHot
+    c.TitleColorHot            = t.TextStrong
+    c.NavGlyphColor            = t.Text
+    c.NavGlyphColorHot         = t.TextHot
+    c.NavGlyphColorDisabled    = t.TextDisabled
+    c.WeekdayColor             = t.TextDim
+    c.DayColor                 = t.PopupText
+    c.DayColorWeekend          = t.AccentHot
+    c.DayColorAdjacent         = t.TextDim
+    c.DayColorDisabled         = t.TextDisabled
+    c.DayBackColorHot          = t.SurfaceHot
+    c.DayForeColorHot          = t.TextHot
+    c.DayBackColorSelected     = t.Selected
+    c.DayForeColorSelected     = t.SelectedText
+    c.TodayRingColor           = t.Accent
+    c.TodayFooterColor         = t.TextDim
+    c.TodayFooterColorHot      = t.TextHot
+    c.TodayFooterColorDisabled = t.TextDisabled
+    return c
+end function
+
+public sub tkDatePicker_ApplyTheme( byval hCtrl as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if (p = 0) orelse p->bColorsPinned then exit sub
+    dim as TKDATEPICKER_COLORS c = tkDatePicker_ThemeColors( t )
+    tkDatePicker_SetColors( hCtrl, @c )
+    p->bColorsPinned = false
+end sub
+
+public sub tkDatePicker_UnpinColors( byval hCtrl as TK_WIDGET ptr )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then exit sub
+    p->bColorsPinned = false
+    tkDatePicker_ApplyTheme( hCtrl, tkTheme_Get() )
+end sub
+
+public sub tkDatePicker_ApplyFonts( byval hCtrl as TK_WIDGET ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
+    if fText then tkDatePicker_SetFont( hCtrl, fText )
+    if fGlyph then tkDatePicker_SetIconFont( hCtrl, fGlyph )
+end sub
+
+' ---- callbacks ----------------------------------------------------------------------------
+public sub tkDatePicker_SetParseCallback( byval hCtrl as TK_WIDGET ptr, byval userfunc as DTP_ParseCallbackFunc )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p then p->ParseCallback = userfunc
+end sub
+
+' Re-renders the current date in the new format at once.
+public sub tkDatePicker_SetFormatCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as DTP_FormatCallbackSub )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then exit sub
+    p->FormatCallback = usersub
+    DtpFormatIntoField( p )
+end sub
+
+public sub tkDatePicker_SetDateChangedCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as DTP_DateChangedCallbackSub )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p then p->DateChangedCallback = usersub
+end sub
+
+public sub tkDatePicker_SetDropDownCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as DTP_DropDownCallbackSub )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p then p->DropDownCallback = usersub
+end sub
+
+public sub tkDatePicker_SetPaintCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as DTP_PaintCallbackSub )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then exit sub
+    p->PaintCallback = usersub
+    tkWidget_Invalidate( hCtrl )
+end sub
+
+public sub tkDatePicker_SetDayPaintCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as DTP_DayPaintCallbackSub )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then exit sub
+    p->DayPaintCallback = usersub
+    if p->wCal then
+        if usersub then tkCalendar_SetDayPaintCallback( p->wCal, @DtpCalDayPaint ) else tkCalendar_SetDayPaintCallback( p->wCal, 0 )
+    end if
+end sub
+
+public sub tkDatePicker_SetMessageCallback( byval hCtrl as TK_WIDGET ptr, byval userfunc as DTP_MessageCallbackFunc )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p then p->MessageCallback = userfunc
+end sub
+
+' No callback, no tooltip machinery: the calendar builds its tip lazily, and only with one set.
+public sub tkDatePicker_SetTooltipCallback( byval hCtrl as TK_WIDGET ptr, byval userfunc as DTP_TooltipCallbackFunc )
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if p = 0 then exit sub
+    p->TooltipCallback = userfunc
+    if p->wCal then
+        if userfunc then tkCalendar_SetTooltipCallback( p->wCal, @DtpCalTooltip ) else tkCalendar_SetTooltipCallback( p->wCal, 0 )
+    end if
+end sub
+
+' The calendar's tkTooltip, under vendor's rule: 0 unless the calendar is open AND a day cell
+' has asked for a tip.
+public function tkDatePicker_GetTooltipHandle( byval hCtrl as TK_WIDGET ptr ) as TK_TIP ptr
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if (p = 0) orelse (p->wCal = 0) then return 0
+    return tkCalendar_GetTooltipHandle( p->wCal )
+end function
+
+' ---- render probes (vendor's, on the open calendar) ---------------------------------------
+' Distinct colours over the whole calendar, capped at 256.
+public function tkDatePicker_TestCalendarTones( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if (p = 0) orelse (p->wCal = 0) then return 0
+    return tkCalendar_TestPartTones( p->wCal, CAL_PART_CLIENT )
+end function
+
+' Brightest pixel in a part: 0 = prev chevron, 1 = next chevron, 100 + k = day cell k of panel
+' 0. -1 when the calendar is not open.
+public function tkDatePicker_TestPartBrightness( byval hCtrl as TK_WIDGET ptr, byval nPart as long ) as long
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if (p = 0) orelse (p->wCal = 0) then return -1
+    dim as long calPart
+    select case nPart
+    case 0 : calPart = CAL_PART_PREV
+    case 1 : calPart = CAL_PART_NEXT
+    case 100 to 141 : calPart = CAL_PART_DAYCELL_BASE + (nPart - 100)
+    case else : return -1
+    end select
+    return tkCalendar_TestPartBrightness( p->wCal, calPart )
+end function
+
+' Distinct colours inside the Today band; 0 when the band is off or the calendar is closed.
+public function tkDatePicker_TestFooterTones( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKDATEPICKER_STATE ptr p = GetDatePickerPointer( hCtrl )
+    if (p = 0) orelse (p->wFooter = 0) then return 0
+    dim as TK_HOST ptr pop = p->pPop
+    tkHost_RenderTo( pop, false )
+    dim as TKRECT a
+    tkWidget_AbsRect( p->wFooter, a )
+    dim as SDL_Rect r
+    r.x = a.left : r.y = a.top : r.w = a.right - a.left : r.h = a.bottom - a.top
+    dim as SDL_Surface ptr s0 = SDL_RenderReadPixels( pop->renderer, @r )
+    pop->bDirty = true
+    if s0 = 0 then return 0
+    dim as SDL_Surface ptr s = SDL_ConvertSurface( s0, SDL_PIXELFORMAT_ARGB8888 )
+    SDL_DestroySurface( s0 )
+    if s = 0 then return 0
+    dim seen(0 to 255) as ulong
+    dim as long nSeen = 0
+    for y as long = 0 to s->h - 1
+        dim as ulong ptr row = cast( ulong ptr, cast( ubyte ptr, s->pixels ) + y * s->pitch )
+        for x as long = 0 to s->w - 1
+            dim as ulong c = row[x] and &h00FFFFFFul
+            dim as boolean bNew = true
+            for i as long = 0 to nSeen - 1
+                if seen(i) = c then bNew = false : exit for
+            next
+            if bNew andalso (nSeen < 256) then seen(nSeen) = c : nSeen += 1
+        next
+    next
+    SDL_DestroySurface( s )
+    return nSeen
+end function

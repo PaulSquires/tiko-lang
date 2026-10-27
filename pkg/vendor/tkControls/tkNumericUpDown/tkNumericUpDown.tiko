@@ -1,0 +1,1069 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkNumericUpDown -- PsNumericUpDown on SDL3 + SDL_ttf: a rounded frame holding a "-" button,
+' an editable numeric field and a "+" button. A port of
+' pkg/vendor/PsControls/PsNumericUpDown/PsNumericUpDown.tiko onto tkHost.
+'
+' WHAT IS UNCHANGED, by design: the nine-rect layout (cells not deflated by the border, only
+' rcValue inset, both "+" bars on one centre), the paint order that keeps the corners round,
+' the decimal grid and the clamp (never a wrap), the step on the button-DOWN with auto-repeat
+' that stops at a limit and pauses off the button, notify-on-commit for typing and at once for
+' every stepping input, silent setters, the ideal size measured from both ends of the range,
+' the colour struct and its theme roles, and the relayed message stream.
+'
+' THE VALUE FIELD is a tkTextBox child (borderless, numeric, centred, ZeroWhenEmpty, select-on-
+' focus) -- vendor's PsTextBox, one widget level down instead of two windows. Its focus, enter
+' and message callbacks belong to this control.
+'
+' GONE with the HWND: FilterMessage (the host routes the field's menu), WS_EX_CONTROLPARENT (the
+' host's Tab walk sees every focusable widget), the 100 ms hover poll (the host guarantees the
+' leave), CS_DBLCLKS (a second click is an ordinary press: SDL's click count is ignored).
+#module "tkNumericUpDown"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkTextBox" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkTextBox
+
+public enum
+    NUD_PART_NONE = 0
+    NUD_PART_MINUS
+    NUD_PART_VALUE       ' reported by HitTest, never acted on
+    NUD_PART_PLUS
+end enum
+
+public const TKNUD_DEFAULT_BUTTONW = 28
+public const TKNUD_DEFAULT_VALUEPAD = 6        ' left and right, inside the value cell
+public const TKNUD_DEFAULT_VERTPAD = 5         ' above and below the text
+public const TKNUD_DEFAULT_CORNERRADIUS = 6
+public const TKNUD_DEFAULT_BORDERTHICK = 1     ' not scaled
+public const TKNUD_DEFAULT_DIVIDERTHICK = 1    ' not scaled
+public const TKNUD_DEFAULT_GLYPHLENGTH = 10
+public const TKNUD_DEFAULT_GLYPHTHICK = 1      ' SCALED: an icon stroke, not a rule
+public const TKNUD_DEFAULT_REPEATDELAY = 400
+public const TKNUD_DEFAULT_REPEATINTERVAL = 60
+public const TKNUD_DEFAULT_MIN = -1000000.0
+public const TKNUD_DEFAULT_MAX = 1000000.0
+public const TKNUD_DEFAULT_INCREMENT = 1.0
+public const TKNUD_DEFAULT_DECIMALPLACES = 0
+
+' The Win32 control's dark defaults, value for value (BGR(r,g,b) -> tkRGB(r,g,b)).
+public type TKNUMERICUPDOWN_COLORS
+    BackColor                as ulong = &hFF21252Bul    ' behind the rounded corners
+    BorderColor              as ulong = &hFF3C424Dul
+    FocusBorderColor         as ulong = &hFF569CD6ul
+    BorderColorDisabled      as ulong = &hFF30343Cul
+    DividerColor             as ulong = &hFF3C424Dul
+    DividerColorDisabled     as ulong = &hFF30343Cul
+    ValueBackColor           as ulong = &hFF2C313Aul    ' handed to the tkTextBox
+    ValueForeColor           as ulong = &hFFD7DAE0ul
+    ValueBackColorDisabled   as ulong = &hFF262A31ul
+    ValueForeColorDisabled   as ulong = &hFF5A606Aul
+    ButtonBackColor          as ulong = &hFF2C313Aul    ' = ValueBackColor: one flat cell at rest
+    ButtonBackColorHot       as ulong = &hFF383E49ul
+    ButtonBackColorPressed   as ulong = &hFF264F78ul
+    ButtonBackColorDisabled  as ulong = &hFF262A31ul
+    GlyphColor               as ulong = &hFFBEC4CEul
+    GlyphColorHot            as ulong = &hFFFFFFFFul
+    GlyphColorPressed        as ulong = &hFFFFFFFFul
+    GlyphColorDisabled       as ulong = &hFF5A606Aul
+end type
+
+public type TKNUMERICUPDOWN_PAINTINFO
+    hCtrl        as TK_WIDGET ptr
+    b            as TK_PAINT ptr
+    rcClient     as TKRECT
+    rcFrame      as TKRECT
+    rcMinus      as TKRECT
+    rcDiv1       as TKRECT
+    rcValue      as TKRECT
+    rcDiv2       as TKRECT
+    rcPlus       as TKRECT
+    rcMinusBar   as TKRECT
+    rcPlusBarH   as TKRECT
+    rcPlusBarV   as TKRECT
+    hotPart      as long
+    pressedPart  as long
+    isEnabled    as boolean
+    isFocused    as boolean
+    bAtMin       as boolean
+    bAtMax       as boolean
+    nValue       as double
+end type
+
+public type TKNUMERICUPDOWN_MESSAGEINFO
+    hCtrl as TK_WIDGET ptr            ' this control, ALWAYS -- also for the field's relayed messages
+    msg   as long                     ' TKM_*
+    x     as single
+    y     as single
+    key   as long
+    mods  as long
+    wheelY as single                  ' TKM_MOUSEWHEEL: notches, positive = away
+end type
+
+public type NUD_PaintCallbackSub as sub( byval p as TKNUMERICUPDOWN_PAINTINFO ptr )
+public type NUD_MessageCallbackFunc as function( byval m as TKNUMERICUPDOWN_MESSAGEINFO ptr ) as boolean
+public type NUD_ValueChangedCallbackSub as sub( byval hCtrl as TK_WIDGET ptr, byval nValue as double )
+
+public type TKNUMERICUPDOWN_STATE
+    hWin            as TK_WIDGET ptr
+    id              as long
+    hTextBox        as TK_WIDGET ptr
+    bColorsPinned   as boolean
+    colors          as TKNUMERICUPDOWN_COLORS
+    pFont           as TTF_Font ptr            ' borrowed
+    nValue          as double                  ' the COMMITTED value
+    nMin            as double = TKNUD_DEFAULT_MIN
+    nMax            as double = TKNUD_DEFAULT_MAX
+    nIncrement      as double = TKNUD_DEFAULT_INCREMENT
+    nLargeIncrement as double = TKNUD_DEFAULT_INCREMENT * 10
+    nDecimalPlaces  as long = TKNUD_DEFAULT_DECIMALPLACES
+    bReadOnly       as boolean
+    isEnabled       as boolean = true
+    isFocused       as boolean
+    hotPart         as long
+    pressedPart     as long
+    repeatOn        as boolean
+    nRepeatDelayMs  as long = TKNUD_DEFAULT_REPEATDELAY
+    nRepeatIntervalMs as long = TKNUD_DEFAULT_REPEATINTERVAL
+    fWheelAccum     as single
+    nButtonWidth    as long
+    nValuePadLeft   as long
+    nValuePadRight  as long
+    nVertPadding    as long
+    nCornerRadius   as long
+    nBorderThick    as long = TKNUD_DEFAULT_BORDERTHICK
+    nDividerThick   as long = TKNUD_DEFAULT_DIVIDERTHICK
+    nGlyphLength    as long
+    nGlyphThick     as long
+    rcFrame         as TKRECT
+    rcMinus         as TKRECT
+    rcDiv1          as TKRECT
+    rcValue         as TKRECT
+    rcDiv2          as TKRECT
+    rcPlus          as TKRECT
+    rcMinusBar      as TKRECT
+    rcPlusBarH      as TKRECT
+    rcPlusBarV      as TKRECT
+    bLayoutDirty    as boolean = true
+    PaintCallback        as NUD_PaintCallbackSub
+    MessageCallback      as NUD_MessageCallbackFunc
+    ValueChangedCallback as NUD_ValueChangedCallbackSub
+end type
+
+
+private function NU( byval h as TK_WIDGET ptr ) as TKNUMERICUPDOWN_STATE ptr
+    if h = 0 then return 0
+    return cast( TKNUMERICUPDOWN_STATE ptr, h->pData )
+end function
+
+' Snapped to the decimal grid, half away from zero (vendor SnapToPlaces).
+private function NudSnap( byval p as TKNUMERICUPDOWN_STATE ptr, byval v as double ) as double
+    dim as double k = 10.0 ^ p->nDecimalPlaces
+    if v < 0 then return -int( (-v * k) + 0.5 ) / k
+    return int( (v * k) + 0.5 ) / k
+end function
+
+private function NudClamp( byval p as TKNUMERICUPDOWN_STATE ptr, byval v as double ) as double
+    if v > p->nMax then v = p->nMax
+    if v < p->nMin then v = p->nMin
+    return v
+end function
+
+' Vendor's format( v, "0.00" ): tiko has no format().
+private function NudFormat( byval v as double, byval places as long ) as string
+    if places < 0 then places = 0
+    dim as double a = abs( v ) * (10 ^ places)
+    dim as ulongint n = fix( a + 0.5 + a * 1e-12 )
+    dim as string digits = str( n )
+    if places > 0 then
+        while len( digits ) <= places
+            digits = "0" & digits
+        wend
+        digits = left( digits, len( digits ) - places ) & "." & right( digits, places )
+    end if
+    if (v < 0) andalso (n <> 0) then digits = "-" & digits
+    return digits
+end function
+
+' A quarter of a grid unit: below it is binary residue, above it a real difference.
+private function NudDiffer( byval p as TKNUMERICUPDOWN_STATE ptr, byval a as double, byval b as double ) as boolean
+    return abs( a - b ) > 0.25 / (10.0 ^ p->nDecimalPlaces)
+end function
+
+private function NudAtMin( byval p as TKNUMERICUPDOWN_STATE ptr ) as boolean
+    return (NudDiffer( p, p->nValue, p->nMin ) = false) orelse (p->nValue < p->nMin)
+end function
+
+private function NudAtMax( byval p as TKNUMERICUPDOWN_STATE ptr ) as boolean
+    return (NudDiffer( p, p->nValue, p->nMax ) = false) orelse (p->nValue > p->nMax)
+end function
+
+private function NudCall( byval p as TKNUMERICUPDOWN_STATE ptr, byval msg as long, byval x as single, byval y as single, _
+                          byval key as long = 0, byval mods as long = 0, byval wheelY as single = 0 ) as boolean
+    if p->MessageCallback = 0 then return false
+    dim as TKNUMERICUPDOWN_MESSAGEINFO mi
+    mi.hCtrl = p->hWin
+    mi.msg = msg
+    mi.x = x : mi.y = y : mi.key = key : mi.mods = mods : mi.wheelY = wheelY
+    return p->MessageCallback( @mi )
+end function
+
+' The value cell's colours live on the child; they are authored here (vendor
+' NUD_ApplyStateColors). The field's outer fill is the value colour, so it has no visible frame.
+private sub NudApplyStateColors( byval p as TKNUMERICUPDOWN_STATE ptr )
+    if p->hTextBox = 0 then exit sub
+    dim as TKTEXTBOX_COLORS c
+    tkTextBox_GetColors( p->hTextBox, @c )
+    dim as TKTHEME_COLORS t = tkTheme_Get()
+    c.BackColor = iif( p->isEnabled, p->colors.ValueBackColor, p->colors.ValueBackColorDisabled )
+    c.ForeColor = iif( p->isEnabled, p->colors.ValueForeColor, p->colors.ValueForeColorDisabled )
+    c.ForeColorDisabled = p->colors.ValueForeColorDisabled
+    c.OuterBackColor = c.BackColor
+    c.BorderColor = c.BackColor : c.FocusBorderColor = c.BackColor
+    c.CueColor = t.TextDim
+    c.SelBackColor = t.Selected : c.SelForeColor = t.SelectedText
+    tkTextBox_SetColors( p->hTextBox, @c )
+end sub
+
+' Display and record as the committed value -- nValue first, so whatever the write triggers
+' already sees it. Silent (tkTextBox_SetValue is).
+private sub NudDisplay( byval p as TKNUMERICUPDOWN_STATE ptr, byval v as double )
+    p->nValue = v
+    if p->hTextBox then tkTextBox_SetValue( p->hTextBox, v )
+    tkWidget_Invalidate( p->hWin )
+end sub
+
+' What is in the field NOW, snapped and clamped: a step starts from what was typed.
+private function NudCurrent( byval p as TKNUMERICUPDOWN_STATE ptr ) as double
+    if p->hTextBox = 0 then return p->nValue
+    return NudClamp( p, NudSnap( p, tkTextBox_GetValue( p->hTextBox ) ) )
+end function
+
+' TRUE when the value MOVED (what stops auto-repeat at a limit). "Moved" compares with the
+' field, "notify" with the committed value: typing 50 then "+" reports 51 once.
+private function NudStepBy( byval p as TKNUMERICUPDOWN_STATE ptr, byval delta as double ) as boolean
+    dim as double nCur = NudCurrent( p )
+    dim as double nNew = NudClamp( p, NudSnap( p, nCur + delta ) )
+    dim as double nOld = p->nValue
+    dim as boolean bMoved = NudDiffer( p, nNew, nCur )
+    dim as boolean bNotify = NudDiffer( p, nNew, nOld )
+    NudDisplay( p, nNew )
+    if bNotify andalso (p->ValueChangedCallback <> 0) then p->ValueChangedCallback( p->hWin, nNew )
+    return bMoved
+end function
+
+' Typing commits on ENTER or focus loss: clamp, snap, reformat, report once.
+private sub NudCommit( byval p as TKNUMERICUPDOWN_STATE ptr )
+    dim as double nOld = p->nValue
+    dim as double nNew = NudCurrent( p )
+    NudDisplay( p, nNew )
+    if NudDiffer( p, nNew, nOld ) andalso (p->ValueChangedCallback <> 0) then p->ValueChangedCallback( p->hWin, nNew )
+end sub
+
+' One increment per notch; sub-notch deltas accumulate. Positive = away = up.
+private function NudWheel( byval p as TKNUMERICUPDOWN_STATE ptr, byval dy as single ) as boolean
+    if p->isEnabled = false then return false
+    p->fWheelAccum += dy
+    dim as long n = fix( p->fWheelAccum )
+    if n = 0 then return true
+    p->fWheelAccum -= n
+    NudStepBy( p, n * p->nIncrement )
+    return true
+end function
+
+
+' ==========================================================================================
+' Layout -- vendor LayoutControl, line for line
+' ==========================================================================================
+private sub NudLayout( byval p as TKNUMERICUPDOWN_STATE ptr )
+    p->bLayoutDirty = false
+    dim as TK_WIDGET ptr w = p->hWin
+    if (w->cw <= 0) orelse (w->ch <= 0) then p->bLayoutDirty = true : exit sub
+    dim as long L = 0, T = 0, R = w->cw, B = w->ch
+    tkRect_Set( p->rcFrame, L, T, R, B )
+    tkRect_Set( p->rcMinus, L, T, L + p->nButtonWidth, B )
+    tkRect_Set( p->rcDiv1, p->rcMinus.right, T, p->rcMinus.right + p->nDividerThick, B )
+    tkRect_Set( p->rcPlus, R - p->nButtonWidth, T, R, B )
+    tkRect_Set( p->rcDiv2, p->rcPlus.left - p->nDividerThick, T, p->rcPlus.left, B )
+    dim as long bt = p->nBorderThick, vpad = p->nVertPadding
+    dim as long valueL = p->rcDiv1.right, valueR = p->rcDiv2.left
+    if valueR < valueL then valueR = valueL
+    dim as long valueT = T + bt + vpad, valueB = B - bt - vpad
+    if valueB < valueT then
+        valueT = T + bt : valueB = B - bt
+        if valueB < valueT then valueB = valueT
+    end if
+    tkRect_Set( p->rcValue, valueL, valueT, valueR, valueB )
+    dim as long gl = iif( p->nGlyphLength < 1, 1, p->nGlyphLength )
+    dim as long gt = iif( p->nGlyphThick < 1, 1, p->nGlyphThick )
+    dim as long cxM = p->rcMinus.left + ((p->rcMinus.right - p->rcMinus.left) \ 2)
+    dim as long cyM = p->rcMinus.top + ((p->rcMinus.bottom - p->rcMinus.top) \ 2)
+    tkRect_Set( p->rcMinusBar, cxM - (gl \ 2), cyM - (gt \ 2), cxM - (gl \ 2) + gl, cyM - (gt \ 2) + gt )
+    dim as long cxP = p->rcPlus.left + ((p->rcPlus.right - p->rcPlus.left) \ 2)
+    dim as long cyP = p->rcPlus.top + ((p->rcPlus.bottom - p->rcPlus.top) \ 2)
+    tkRect_Set( p->rcPlusBarH, cxP - (gl \ 2), cyP - (gt \ 2), cxP - (gl \ 2) + gl, cyP - (gt \ 2) + gt )
+    tkRect_Set( p->rcPlusBarV, cxP - (gt \ 2), cyP - (gl \ 2), cxP - (gt \ 2) + gt, cyP - (gl \ 2) + gl )
+end sub
+
+' The field sits exactly on rcValue; a collapsed cell hides it.
+private sub NudSyncChild( byval p as TKNUMERICUPDOWN_STATE ptr )
+    if p->hTextBox = 0 then exit sub
+    if p->bLayoutDirty then NudLayout( p )
+    if p->bLayoutDirty then exit sub
+    dim as TKRECT rc = p->rcValue
+    if (rc.right - rc.left <= 0) orelse (rc.bottom - rc.top <= 0) then
+        tkWidget_Show( p->hTextBox, false )
+        exit sub
+    end if
+    dim as TK_WIDGET ptr c = p->hTextBox
+    if (c->x <> rc.left) orelse (c->y <> rc.top) orelse (c->cw <> rc.right - rc.left) orelse (c->ch <> rc.bottom - rc.top) then
+        tkWidget_SetPos( c, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top )
+    end if
+    tkWidget_Show( c, true )
+end sub
+
+private sub NudRefresh( byval p as TKNUMERICUPDOWN_STATE ptr )
+    p->bLayoutDirty = true
+    tkWidget_Invalidate( p->hWin )
+    NudSyncChild( p )
+end sub
+
+private function NudHit( byval p as TKNUMERICUPDOWN_STATE ptr, byval x as single, byval y as single ) as long
+    if p->bLayoutDirty then NudLayout( p )
+    if tkRect_Contains( p->rcMinus, x, y ) then return NUD_PART_MINUS
+    if tkRect_Contains( p->rcPlus, x, y ) then return NUD_PART_PLUS
+    if tkRect_Contains( p->rcValue, x, y ) then return NUD_PART_VALUE
+    return NUD_PART_NONE
+end function
+
+private sub NudStartRepeat( byval p as TKNUMERICUPDOWN_STATE ptr )
+    if (p->nRepeatDelayMs <= 0) orelse (p->nRepeatIntervalMs <= 0) then exit sub
+    tkWidget_SetTimer( p->hWin, TK_TIMER_AUTOREPEAT, p->nRepeatDelayMs )
+    p->repeatOn = true
+end sub
+
+private sub NudStopRepeat( byval p as TKNUMERICUPDOWN_STATE ptr )
+    if p->repeatOn then tkWidget_KillTimer( p->hWin, TK_TIMER_AUTOREPEAT )
+    p->repeatOn = false
+end sub
+
+private sub NudCancelPress( byval p as TKNUMERICUPDOWN_STATE ptr )
+    p->pressedPart = NUD_PART_NONE
+    NudStopRepeat( p )
+end sub
+
+
+' ==========================================================================================
+' Paint -- vendor RenderDefault, order for order
+' ==========================================================================================
+private sub NudFillPaintInfo( byval p as TKNUMERICUPDOWN_STATE ptr, byval b as TK_PAINT ptr, byval pi as TKNUMERICUPDOWN_PAINTINFO ptr )
+    pi->hCtrl = p->hWin : pi->b = b
+    tkRect_Set( pi->rcClient, 0, 0, p->hWin->cw, p->hWin->ch )
+    pi->rcFrame = p->rcFrame : pi->rcMinus = p->rcMinus : pi->rcDiv1 = p->rcDiv1
+    pi->rcValue = p->rcValue : pi->rcDiv2 = p->rcDiv2 : pi->rcPlus = p->rcPlus
+    pi->rcMinusBar = p->rcMinusBar : pi->rcPlusBarH = p->rcPlusBarH : pi->rcPlusBarV = p->rcPlusBarV
+    pi->hotPart = p->hotPart
+    pi->pressedPart = iif( p->pressedPart = p->hotPart, p->pressedPart, NUD_PART_NONE )
+    pi->isEnabled = p->isEnabled
+    pi->isFocused = p->isFocused
+    pi->bAtMin = NudAtMin( p ) : pi->bAtMax = NudAtMax( p )
+    pi->nValue = p->nValue
+end sub
+
+private sub NudRenderDefault( byval p as TKNUMERICUPDOWN_STATE ptr, byval b as TK_PAINT ptr, byval pi as TKNUMERICUPDOWN_PAINTINFO ptr )
+    if tkRect_IsEmpty( pi->rcFrame ) then exit sub
+    dim as long ell = p->nCornerRadius * 2
+    ' 2. the frame's fill: the corners' roundness and the value cell's strips
+    b->SetBackColor( iif( pi->isEnabled, p->colors.ValueBackColor, p->colors.ValueBackColorDisabled ) )
+    b->PaintRoundRect( @pi->rcFrame, ell )
+    ' 3. the cells, extended inward past the divider so only their outer rounding survives
+    dim as long ext = p->nCornerRadius + p->nDividerThick + 1
+    for iPart as long = NUD_PART_MINUS to NUD_PART_PLUS step NUD_PART_PLUS - NUD_PART_MINUS
+        dim as TKRECT rcFill
+        dim as boolean bAtLimit
+        if iPart = NUD_PART_MINUS then
+            bAtLimit = pi->bAtMin
+            tkRect_Set( rcFill, pi->rcMinus.left, pi->rcMinus.top, pi->rcMinus.right + ext, pi->rcMinus.bottom )
+        else
+            bAtLimit = pi->bAtMax
+            tkRect_Set( rcFill, pi->rcPlus.left - ext, pi->rcPlus.top, pi->rcPlus.right, pi->rcPlus.bottom )
+        end if
+        dim as ulong clrBack, clrGlyph
+        if (pi->isEnabled = false) orelse bAtLimit then
+            clrBack = p->colors.ButtonBackColorDisabled : clrGlyph = p->colors.GlyphColorDisabled
+        elseif pi->pressedPart = iPart then
+            clrBack = p->colors.ButtonBackColorPressed : clrGlyph = p->colors.GlyphColorPressed
+        elseif pi->hotPart = iPart then
+            clrBack = p->colors.ButtonBackColorHot : clrGlyph = p->colors.GlyphColorHot
+        else
+            clrBack = p->colors.ButtonBackColor : clrGlyph = p->colors.GlyphColor
+        end if
+        ' CLIPPED to the cell: vendor's extension otherwise shows in the value cell's vpad
+        ' strips above and below the field whenever the button's colour differs (hot, pressed)
+        dim as TKRECT rcCell = iif( iPart = NUD_PART_MINUS, pi->rcMinus, pi->rcPlus )
+        b->SetBackColor( clrBack )
+        b->PushClip( @rcCell )
+        b->PaintRoundRect( @rcFill, ell )
+        b->PopClip()
+        ' 4b. the glyph, as filled rectangles (crisp)
+        b->SetBackColor( clrGlyph )
+        if iPart = NUD_PART_MINUS then
+            b->PaintRect( @pi->rcMinusBar )
+        else
+            b->PaintRect( @pi->rcPlusBarH )
+            b->PaintRect( @pi->rcPlusBarV )
+        end if
+    next
+    ' 4a. the dividers
+    if p->nDividerThick > 0 then
+        b->SetBackColor( iif( pi->isEnabled, p->colors.DividerColor, p->colors.DividerColorDisabled ) )
+        b->PaintRect( @pi->rcDiv1 )
+        b->PaintRect( @pi->rcDiv2 )
+    end if
+    ' 5. the outline, last
+    if p->nBorderThick > 0 then
+        dim as ulong clrBorder = p->colors.BorderColor
+        if pi->isEnabled = false then
+            clrBorder = p->colors.BorderColorDisabled
+        elseif pi->isFocused then
+            clrBorder = p->colors.FocusBorderColor
+        end if
+        b->SetPenColor( clrBorder )
+        b->PaintRoundOutline( @pi->rcFrame, ell, p->nBorderThick )
+    end if
+end sub
+
+private sub NudOnPaint( byval p as TKNUMERICUPDOWN_STATE ptr, byval b as TK_PAINT ptr )
+    if p->bLayoutDirty then NudLayout( p )
+    NudSyncChild( p )
+    dim as TKRECT rcC
+    tkRect_Set( rcC, 0, 0, p->hWin->cw, p->hWin->ch )
+    b->SetBackColor( p->colors.BackColor )
+    b->PaintRect( @rcC )
+    dim as TKNUMERICUPDOWN_PAINTINFO pi
+    NudFillPaintInfo( p, b, @pi )
+    if p->PaintCallback then
+        p->PaintCallback( @pi )
+    else
+        NudRenderDefault( p, b, @pi )
+    end if
+end sub
+
+
+' ==========================================================================================
+' The value field's callbacks (owned by this control)
+' ==========================================================================================
+private sub NudOnFieldFocus( byval hTextBox as TK_WIDGET ptr, byval bGot as boolean )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( tkWidget_Parent( hTextBox ) )
+    if p = 0 then exit sub
+    p->isFocused = bGot
+    tkWidget_Invalidate( p->hWin )
+    if bGot = false then NudCommit( p )
+end sub
+
+private sub NudOnFieldEnter( byval hTextBox as TK_WIDGET ptr )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( tkWidget_Parent( hTextBox ) )
+    if p then NudCommit( p )
+end sub
+
+' The field's message stream, relayed with hCtrl rewritten to this control; the arrows,
+' PgUp/PgDn and the wheel step. A host claim is honoured for everything but KILLFOCUS.
+private function NudOnFieldMessage( byval m as TKTEXTBOX_MESSAGEINFO ptr ) as boolean
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( tkWidget_Parent( m->hTextBox ) )
+    if p = 0 then return false
+    dim as boolean bClaimed = NudCall( p, m->msg, m->x, m->y, m->key, m->mods, m->wheelY )
+    if bClaimed andalso (m->msg <> TKM_KILLFOCUS) then return true
+    if p->isEnabled = false then return false
+    select case m->msg
+    case TKM_KEYDOWN
+        select case m->key
+        case SDLK_UP : NudStepBy( p, p->nIncrement ) : return true
+        case SDLK_DOWN : NudStepBy( p, -p->nIncrement ) : return true
+        case SDLK_PAGEUP : NudStepBy( p, p->nLargeIncrement ) : return true
+        case SDLK_PAGEDOWN : NudStepBy( p, -p->nLargeIncrement ) : return true
+        end select
+    case TKM_MOUSEWHEEL
+        return NudWheel( p, m->wheelY )
+    end select
+    return false
+end function
+
+
+' ==========================================================================================
+' The proc
+' ==========================================================================================
+public declare sub tkNumericUpDown_ApplyTheme( byval hCtrl as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+public declare function tkNumericUpDown_ThemeColors( byref t as TKTHEME_COLORS ) as TKNUMERICUPDOWN_COLORS
+
+private function NudProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( w )
+    if p = 0 then return false
+    dim as TK_HOST ptr h = w->pHost
+
+    select case m->msg
+    case TKM_PAINT
+        NudOnPaint( p, m->pPaint )
+        return true
+
+    case TKM_SIZE
+        NudRefresh( p )
+        return true
+
+    case TKM_SCALECHANGED
+        if (m->fOld > 0) andalso (m->fNew > 0) then
+            dim as single k = m->fNew / m->fOld
+            p->nButtonWidth = cint( p->nButtonWidth * k )
+            p->nValuePadLeft = cint( p->nValuePadLeft * k )
+            p->nValuePadRight = cint( p->nValuePadRight * k )
+            p->nVertPadding = cint( p->nVertPadding * k )
+            p->nCornerRadius = cint( p->nCornerRadius * k )
+            p->nGlyphLength = cint( p->nGlyphLength * k )
+            p->nGlyphThick = cint( p->nGlyphThick * k )
+            if p->nGlyphLength < 1 then p->nGlyphLength = 1
+            if p->nGlyphThick < 1 then p->nGlyphThick = 1
+        end if
+        ' (the field rescales its own margins: it gets the broadcast too)
+        NudRefresh( p )
+        return true
+
+    case TKM_THEMECHANGED
+        tkNumericUpDown_ApplyTheme( w, tkTheme_Get() )
+        return true
+
+    case TKM_SETFOCUS
+        ' the container is not a tab stop; a programmatic focus lands on the field
+        if p->hTextBox then tkHost_SetFocus( h, p->hTextBox )
+        return true
+
+    case TKM_TIMER
+        if m->timerId <> TK_TIMER_AUTOREPEAT then return false
+        if NudCall( p, m->msg, 0, 0 ) then return true
+        tkWidget_SetTimer( w, TK_TIMER_AUTOREPEAT, p->nRepeatIntervalMs )
+        if (p->pressedPart = NUD_PART_NONE) orelse (p->pressedPart <> p->hotPart) then
+            NudStopRepeat( p )
+            return true
+        end if
+        dim as double delta = iif( p->pressedPart = NUD_PART_MINUS, -p->nIncrement, p->nIncrement )
+        if NudStepBy( p, delta ) = false then NudStopRepeat( p )
+        return true
+
+    case TKM_MOUSEMOVE
+        if p->isEnabled = false then return true
+        dim as long newHot = NudHit( p, m->x, m->y )
+        if newHot = NUD_PART_VALUE then newHot = NUD_PART_NONE
+        if newHot <> p->hotPart then
+            p->hotPart = newHot
+            ' off the button the repeat stops; back on it, it resumes after the FULL delay
+            if p->pressedPart <> NUD_PART_NONE then
+                if p->pressedPart = newHot then NudStartRepeat( p ) else NudStopRepeat( p )
+            end if
+            tkWidget_Invalidate( w )
+        end if
+        NudCall( p, m->msg, m->x, m->y )
+        return true
+
+    case TKM_MOUSELEAVE
+        if p->hotPart <> NUD_PART_NONE then
+            p->hotPart = NUD_PART_NONE
+            if p->pressedPart <> NUD_PART_NONE then NudStopRepeat( p )
+            tkWidget_Invalidate( w )
+        end if
+        NudCall( p, m->msg, m->x, m->y )
+        return true
+
+    case TKM_LBUTTONDOWN
+        if p->isEnabled = false then return true
+        dim as long part = NudHit( p, m->x, m->y )
+        if (part <> NUD_PART_MINUS) andalso (part <> NUD_PART_PLUS) then
+            NudCall( p, m->msg, m->x, m->y )
+            return true
+        end if
+        ' focus the field WITHOUT select-on-focus: the number is not left highlighted
+        if p->hTextBox then
+            tkTextBox_SetSelectOnFocus( p->hTextBox, false )
+            tkHost_SetFocus( h, p->hTextBox )
+            tkTextBox_SetSelectOnFocus( p->hTextBox, true )
+        end if
+        if NudCall( p, m->msg, m->x, m->y ) then return true
+        tkHost_SetCapture( w )
+        p->pressedPart = part
+        p->hotPart = part
+        tkWidget_Invalidate( w )
+        ' the step happens on the DOWN; sliding off does not undo it
+        if NudStepBy( p, iif( part = NUD_PART_MINUS, -p->nIncrement, p->nIncrement ) ) then NudStartRepeat( p )
+        return true
+
+    case TKM_LBUTTONUP
+        if tkHost_GetCapture( h ) = w then tkHost_ReleaseCapture( h )
+        NudCancelPress( p )
+        p->hotPart = NudHit( p, m->x, m->y )
+        if p->hotPart = NUD_PART_VALUE then p->hotPart = NUD_PART_NONE
+        tkWidget_Invalidate( w )
+        NudCall( p, m->msg, m->x, m->y )             ' result IGNORED
+        return true
+
+    case TKM_CAPTURECHANGED
+        NudCancelPress( p )
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_MOUSEWHEEL
+        if NudCall( p, m->msg, m->x, m->y, 0, 0, m->wheelY ) then return true
+        return NudWheel( p, m->wheelY )
+
+    case TKM_RBUTTONDOWN, TKM_RBUTTONUP
+        NudCall( p, m->msg, m->x, m->y )             ' reported, never acted on
+        return true
+
+    case TKM_ENABLE
+        p->isEnabled = m->bFlag
+        if p->isEnabled = false then
+            p->hotPart = NUD_PART_NONE
+            NudCancelPress( p )
+        end if
+        NudApplyStateColors( p )
+        tkWidget_Invalidate( w )
+        NudCall( p, m->msg, 0, 0 )
+        return true
+
+    case TKM_DESTROY
+        NudCancelPress( p )
+        delete p
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ==========================================================================================
+' Public API -- vendor's surface, HWND replaced by the widget pointer
+' ==========================================================================================
+public function tkNumericUpDown_Create( byval hParent as TK_WIDGET ptr, byval CtrlID as long ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TK_HOST ptr hh = hParent->pHost
+    dim as TKNUMERICUPDOWN_STATE ptr p = new TKNUMERICUPDOWN_STATE
+    p->id = CtrlID
+    p->nButtonWidth = tkHost_Scale( hh, TKNUD_DEFAULT_BUTTONW )
+    p->nValuePadLeft = tkHost_Scale( hh, TKNUD_DEFAULT_VALUEPAD )
+    p->nValuePadRight = tkHost_Scale( hh, TKNUD_DEFAULT_VALUEPAD )
+    p->nVertPadding = tkHost_Scale( hh, TKNUD_DEFAULT_VERTPAD )
+    p->nCornerRadius = tkHost_Scale( hh, TKNUD_DEFAULT_CORNERRADIUS )
+    p->nGlyphLength = tkHost_Scale( hh, TKNUD_DEFAULT_GLYPHLENGTH )
+    p->nGlyphThick = tkHost_Scale( hh, TKNUD_DEFAULT_GLYPHTHICK )
+    if p->nGlyphThick < 1 then p->nGlyphThick = 1
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @NudProc, p )
+    p->hWin = w
+    p->colors = tkNumericUpDown_ThemeColors( tkTheme_Get() )
+    p->hTextBox = tkTextBox_Create( w, CtrlID )
+    tkTextBox_SetBorderWidth( p->hTextBox, 0 )
+    tkTextBox_SetNumericMode( p->hTextBox, true )
+    tkTextBox_SetDecimalPlaces( p->hTextBox, p->nDecimalPlaces )
+    tkTextBox_SetZeroWhenEmpty( p->hTextBox, true )
+    tkTextBox_SetSelectOnFocus( p->hTextBox, true )
+    tkTextBox_SetMargins( p->hTextBox, p->nValuePadLeft, p->nValuePadRight )
+    tkTextBox_SetTextAlign( p->hTextBox, TXT_ALIGN_CENTER )
+    NudApplyStateColors( p )
+    tkTextBox_SetFocusCallback( p->hTextBox, @NudOnFieldFocus )
+    tkTextBox_SetEnterPressedCallback( p->hTextBox, @NudOnFieldEnter )
+    tkTextBox_SetMessageCallback( p->hTextBox, @NudOnFieldMessage )
+    tkTextBox_SetValue( p->hTextBox, p->nValue )
+    return w
+end function
+
+' Every tkTextBox_* setter applies to it -- except SetValue, SetDecimalPlaces, SetBorderWidth
+' and its focus / enter / message callbacks, which this control owns.
+public function tkNumericUpDown_GetTextBoxHandle( byval hCtrl as TK_WIDGET ptr ) as TK_WIDGET ptr
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then return 0
+    return p->hTextBox
+end function
+
+public function tkNumericUpDown_HasFocus( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then return false
+    return tkTextBox_HasFocus( p->hTextBox )
+end function
+
+public function tkNumericUpDown_GetID( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then return 0
+    return p->id
+end function
+
+public function tkNumericUpDown_GetEnabled( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then return false
+    return p->isEnabled
+end function
+
+' The field is a child, so disabling the container disables it too (tkWidget_IsEnabled).
+public sub tkNumericUpDown_SetEnabled( byval hCtrl as TK_WIDGET ptr, byval isEnabled as boolean )
+    if NU( hCtrl ) then tkWidget_Enable( hCtrl, isEnabled )
+end sub
+
+public sub tkNumericUpDown_Refresh( byval hCtrl as TK_WIDGET ptr )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p then NudRefresh( p )
+end sub
+
+' ---- value and range: every setter SILENT --------------------------------------------------
+public function tkNumericUpDown_GetValue( byval hCtrl as TK_WIDGET ptr ) as double
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then return 0
+    return p->nValue
+end function
+
+public sub tkNumericUpDown_SetValue( byval hCtrl as TK_WIDGET ptr, byval nValue as double )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p then NudDisplay( p, NudClamp( p, NudSnap( p, nValue ) ) )
+end sub
+
+public sub tkNumericUpDown_GetRange( byval hCtrl as TK_WIDGET ptr, byref nMin as double, byref nMax as double )
+    nMin = 0 : nMax = 0
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then exit sub
+    nMin = p->nMin : nMax = p->nMax
+end sub
+
+' An inverted pair is swapped, not rejected. Re-clamps, silently.
+public sub tkNumericUpDown_SetRange( byval hCtrl as TK_WIDGET ptr, byval nMin as double, byval nMax as double )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then exit sub
+    if nMin > nMax then swap nMin, nMax
+    p->nMin = nMin : p->nMax = nMax
+    NudDisplay( p, NudClamp( p, p->nValue ) )
+end sub
+
+public function tkNumericUpDown_GetIncrement( byval hCtrl as TK_WIDGET ptr ) as double
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then return 0
+    return p->nIncrement
+end function
+
+public sub tkNumericUpDown_SetIncrement( byval hCtrl as TK_WIDGET ptr, byval nIncrement as double )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p then p->nIncrement = abs( nIncrement )
+end sub
+
+public function tkNumericUpDown_GetLargeIncrement( byval hCtrl as TK_WIDGET ptr ) as double
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then return 0
+    return p->nLargeIncrement
+end function
+
+public sub tkNumericUpDown_SetLargeIncrement( byval hCtrl as TK_WIDGET ptr, byval nIncrement as double )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p then p->nLargeIncrement = abs( nIncrement )
+end sub
+
+public function tkNumericUpDown_GetDecimalPlaces( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then return 0
+    return p->nDecimalPlaces
+end function
+
+' Re-snaps the value onto the new grid, silently; at 0 the field refuses a decimal point.
+public sub tkNumericUpDown_SetDecimalPlaces( byval hCtrl as TK_WIDGET ptr, byval nPlaces as long )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then exit sub
+    p->nDecimalPlaces = iif( nPlaces < 0, 0, nPlaces )
+    tkTextBox_SetDecimalPlaces( p->hTextBox, p->nDecimalPlaces )
+    NudDisplay( p, NudClamp( p, NudSnap( p, p->nValue ) ) )
+end sub
+
+' What "+" does, minus the notification.
+public sub tkNumericUpDown_StepUp( byval hCtrl as TK_WIDGET ptr )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p then NudDisplay( p, NudClamp( p, NudSnap( p, NudCurrent( p ) + p->nIncrement ) ) )
+end sub
+
+public sub tkNumericUpDown_StepDown( byval hCtrl as TK_WIDGET ptr )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p then NudDisplay( p, NudClamp( p, NudSnap( p, NudCurrent( p ) - p->nIncrement ) ) )
+end sub
+
+public sub tkNumericUpDown_GetAutoRepeat( byval hCtrl as TK_WIDGET ptr, byref nDelayMs as long, byref nIntervalMs as long )
+    nDelayMs = 0 : nIntervalMs = 0
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then exit sub
+    nDelayMs = p->nRepeatDelayMs : nIntervalMs = p->nRepeatIntervalMs
+end sub
+
+' Either at or below zero disables repeating (and stops a running one).
+public sub tkNumericUpDown_SetAutoRepeat( byval hCtrl as TK_WIDGET ptr, byval nDelayMs as long, byval nIntervalMs as long )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then exit sub
+    p->nRepeatDelayMs = nDelayMs : p->nRepeatIntervalMs = nIntervalMs
+    if (nDelayMs <= 0) orelse (nIntervalMs <= 0) then NudStopRepeat( p )
+end sub
+
+' ---- the value field -----------------------------------------------------------------------
+public function tkNumericUpDown_GetReadOnly( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then return false
+    return p->bReadOnly
+end function
+
+' Blocks TYPING only: buttons, arrows, PgUp/PgDn and the wheel still step.
+public sub tkNumericUpDown_SetReadOnly( byval hCtrl as TK_WIDGET ptr, byval bReadOnly as boolean )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then exit sub
+    p->bReadOnly = bReadOnly
+    tkTextBox_SetReadOnly( p->hTextBox, bReadOnly )
+end sub
+
+public function tkNumericUpDown_GetFont( byval hCtrl as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then return 0
+    return p->pFont
+end function
+
+public sub tkNumericUpDown_SetFont( byval hCtrl as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then exit sub
+    p->pFont = f
+    tkTextBox_SetFont( p->hTextBox, f )
+    NudRefresh( p )
+end sub
+
+' ---- geometry: raw pixels ------------------------------------------------------------------
+public function tkNumericUpDown_GetButtonWidth( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then return 0
+    return p->nButtonWidth
+end function
+
+public sub tkNumericUpDown_SetButtonWidth( byval hCtrl as TK_WIDGET ptr, byval nWidth as long )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then exit sub
+    p->nButtonWidth = iif( nWidth < 0, 0, nWidth )
+    NudRefresh( p )
+end sub
+
+public sub tkNumericUpDown_GetValuePadding( byval hCtrl as TK_WIDGET ptr, byref nLeft as long, byref nRight as long, byref nVert as long )
+    nLeft = 0 : nRight = 0 : nVert = 0
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then exit sub
+    nLeft = p->nValuePadLeft : nRight = p->nValuePadRight : nVert = p->nVertPadding
+end sub
+
+public sub tkNumericUpDown_SetValuePadding( byval hCtrl as TK_WIDGET ptr, byval nLeft as long, byval nRight as long, byval nVert as long )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then exit sub
+    p->nValuePadLeft = iif( nLeft < 0, 0, nLeft )
+    p->nValuePadRight = iif( nRight < 0, 0, nRight )
+    p->nVertPadding = iif( nVert < 0, 0, nVert )
+    tkTextBox_SetMargins( p->hTextBox, p->nValuePadLeft, p->nValuePadRight )
+    NudRefresh( p )
+end sub
+
+public function tkNumericUpDown_GetCornerRadius( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then return 0
+    return p->nCornerRadius
+end function
+
+public sub tkNumericUpDown_SetCornerRadius( byval hCtrl as TK_WIDGET ptr, byval nRadius as long )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then exit sub
+    p->nCornerRadius = iif( nRadius < 0, 0, nRadius )
+    NudRefresh( p )
+end sub
+
+public function tkNumericUpDown_GetBorderThickness( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then return 0
+    return p->nBorderThick
+end function
+
+public sub tkNumericUpDown_SetBorderThickness( byval hCtrl as TK_WIDGET ptr, byval nThickness as long )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then exit sub
+    p->nBorderThick = iif( nThickness < 0, 0, nThickness )
+    NudRefresh( p )
+end sub
+
+public function tkNumericUpDown_GetDividerThickness( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then return 0
+    return p->nDividerThick
+end function
+
+public sub tkNumericUpDown_SetDividerThickness( byval hCtrl as TK_WIDGET ptr, byval nThickness as long )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then exit sub
+    p->nDividerThick = iif( nThickness < 0, 0, nThickness )
+    NudRefresh( p )
+end sub
+
+public sub tkNumericUpDown_GetGlyphSize( byval hCtrl as TK_WIDGET ptr, byref nLength as long, byref nThickness as long )
+    nLength = 0 : nThickness = 0
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then exit sub
+    nLength = p->nGlyphLength : nThickness = p->nGlyphThick
+end sub
+
+' Each floored at 1.
+public sub tkNumericUpDown_SetGlyphSize( byval hCtrl as TK_WIDGET ptr, byval nLength as long, byval nThickness as long )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then exit sub
+    p->nGlyphLength = iif( nLength < 1, 1, nLength )
+    p->nGlyphThick = iif( nThickness < 1, 1, nThickness )
+    NudRefresh( p )
+end sub
+
+' The widest of the range's two ends at the current places, in the current font, plus the
+' padding, both buttons, both dividers and the border. Valid before the control is sized.
+public sub tkNumericUpDown_GetIdealSize( byval hCtrl as TK_WIDGET ptr, byref nWidth as long, byref nHeight as long )
+    nWidth = 0 : nHeight = 0
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then exit sub
+    dim as TTF_Font ptr f = p->pFont
+    if f = 0 then f = hCtrl->pHost->pDefaultFont
+    dim as long w0 = tkText_WidthU8( f, NudFormat( p->nMin, p->nDecimalPlaces ) )
+    dim as long w1 = tkText_WidthU8( f, NudFormat( p->nMax, p->nDecimalPlaces ) )
+    dim as long textW = iif( w1 > w0, w1, w0 )
+    nWidth = (p->nButtonWidth * 2) + (p->nDividerThick * 2) + p->nValuePadLeft + p->nValuePadRight + textW
+    nHeight = tkText_Height( f ) + (p->nVertPadding * 2) + (p->nBorderThick * 2)
+end sub
+
+private function NudGetRect( byval hCtrl as TK_WIDGET ptr, byref rc as TKRECT, byval iPart as long ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then return false
+    if p->bLayoutDirty then NudLayout( p )
+    if p->bLayoutDirty then return false
+    select case iPart
+    case NUD_PART_MINUS : rc = p->rcMinus
+    case NUD_PART_VALUE : rc = p->rcValue
+    case NUD_PART_PLUS : rc = p->rcPlus
+    case else : rc = p->rcFrame
+    end select
+    return true
+end function
+
+public function tkNumericUpDown_GetFrameRect( byval hCtrl as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return NudGetRect( hCtrl, rc, NUD_PART_NONE )
+end function
+public function tkNumericUpDown_GetMinusRect( byval hCtrl as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return NudGetRect( hCtrl, rc, NUD_PART_MINUS )
+end function
+public function tkNumericUpDown_GetValueRect( byval hCtrl as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return NudGetRect( hCtrl, rc, NUD_PART_VALUE )
+end function
+public function tkNumericUpDown_GetPlusRect( byval hCtrl as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return NudGetRect( hCtrl, rc, NUD_PART_PLUS )
+end function
+
+' The NUD_PART_* under a point in the control's own pixels.
+public function tkNumericUpDown_HitTest( byval hCtrl as TK_WIDGET ptr, byval x as long, byval y as long ) as long
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then return NUD_PART_NONE
+    return NudHit( p, x, y )
+end function
+
+' The part under the mouse, and the part held (for tests and custom painters).
+public function tkNumericUpDown_GetHotPart( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then return NUD_PART_NONE
+    return p->hotPart
+end function
+
+public function tkNumericUpDown_GetPressedPart( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then return NUD_PART_NONE
+    return p->pressedPart
+end function
+
+public function tkNumericUpDown_IsRepeating( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then return false
+    return p->repeatOn
+end function
+
+' ---- appearance ----------------------------------------------------------------------------
+public sub tkNumericUpDown_GetColors( byval hCtrl as TK_WIDGET ptr, byval pColors as TKNUMERICUPDOWN_COLORS ptr )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if (p = 0) orelse (pColors = 0) then exit sub
+    *pColors = p->colors
+end sub
+
+' Copies the struct, PINS it and pushes the value cell's colours into the field.
+public sub tkNumericUpDown_SetColors( byval hCtrl as TK_WIDGET ptr, byval pColors as TKNUMERICUPDOWN_COLORS ptr )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if (p = 0) orelse (pColors = 0) then exit sub
+    p->colors = *pColors
+    p->bColorsPinned = true
+    NudApplyStateColors( p )
+    tkWidget_Invalidate( hCtrl )
+end sub
+
+public function tkNumericUpDown_ThemeColors( byref t as TKTHEME_COLORS ) as TKNUMERICUPDOWN_COLORS
+    dim as TKNUMERICUPDOWN_COLORS c
+    c.BackColor = t.Window
+    c.BorderColor = t.Border
+    c.FocusBorderColor = t.FocusRing
+    c.BorderColorDisabled = t.BorderDisabled
+    c.DividerColor = t.Divider
+    c.DividerColorDisabled = t.BorderDisabled
+    c.ValueBackColor = t.Surface
+    c.ValueForeColor = t.Text
+    c.ValueBackColorDisabled = t.SurfaceDisabled
+    c.ValueForeColorDisabled = t.TextDisabled
+    c.ButtonBackColor = t.Surface
+    c.ButtonBackColorHot = t.SurfaceHot
+    c.ButtonBackColorPressed = t.Selected
+    c.ButtonBackColorDisabled = t.SurfaceDisabled
+    c.GlyphColor = t.Text
+    c.GlyphColorHot = t.TextHot
+    c.GlyphColorPressed = t.SelectedText
+    c.GlyphColorDisabled = t.TextDisabled
+    return c
+end function
+
+public sub tkNumericUpDown_ApplyTheme( byval hCtrl as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if (p = 0) orelse p->bColorsPinned then exit sub
+    p->colors = tkNumericUpDown_ThemeColors( t )
+    NudApplyStateColors( p )
+    tkWidget_Invalidate( hCtrl )
+end sub
+
+public sub tkNumericUpDown_UnpinColors( byval hCtrl as TK_WIDGET ptr )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then exit sub
+    p->bColorsPinned = false
+    tkNumericUpDown_ApplyTheme( hCtrl, tkTheme_Get() )
+end sub
+
+' No glyph font: the +/- glyphs are drawn bars.
+public sub tkNumericUpDown_ApplyFonts( byval hCtrl as TK_WIDGET ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
+    if fText then tkNumericUpDown_SetFont( hCtrl, fText )
+end sub
+
+' ---- callbacks -----------------------------------------------------------------------------
+public sub tkNumericUpDown_SetPaintCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as NUD_PaintCallbackSub )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p = 0 then exit sub
+    p->PaintCallback = usersub
+    tkWidget_Invalidate( hCtrl )
+end sub
+
+public sub tkNumericUpDown_SetMessageCallback( byval hCtrl as TK_WIDGET ptr, byval userfunc as NUD_MessageCallbackFunc )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p then p->MessageCallback = userfunc
+end sub
+
+public sub tkNumericUpDown_SetValueChangedCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as NUD_ValueChangedCallbackSub )
+    dim as TKNUMERICUPDOWN_STATE ptr p = NU( hCtrl )
+    if p then p->ValueChangedCallback = usersub
+end sub

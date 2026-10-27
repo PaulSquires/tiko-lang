@@ -1,0 +1,143 @@
+' tkKeys self-test. Chord text both ways (tiko-editor's whole default vocabulary), the unshifted
+' key from a scancode, and a key map attached to a real surface, driven by pushed SDL key events.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkKeys"
+#import "vendor/tkControls/tkTest"
+using tkKeys
+using tkTest
+using tkHost
+
+dim shared as long gCmd, gCmds, gWidgetKeys
+
+sub OnCommand( byval h as TK_HOST ptr, byval cmd as long )
+    gCmd = cmd : gCmds += 1
+end sub
+
+function KeyProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    if m->msg = TKM_KEYDOWN then gWidgetKeys += 1 : return true
+    return false
+end function
+
+' Parse, then format portably: the text must come back as written (canonical spellings).
+sub RoundTrip( byref s as string )
+    dim as TK_CHORD c
+    dim as boolean ok = tkKeys_Parse( s, c )
+    tkTest_Check( "parse " & s, ok )
+    if ok then tkTest_Check( "format " & s, tkKeys_Format( c, true ) = s, tkKeys_Format( c, true ) )
+end sub
+
+sub Chords()
+    tkTest_Begin( "chords" )
+    ' every chord tiko-editor's default keybindings use, in portable form (Ctrl -> Primary)
+    dim as string vocab( ... ) = { "Primary+N", "Primary+O", "Primary+W", "Primary+Shift+W", "Primary+S", _
+        "Primary+Shift+S", "Primary+Comma", "Primary+Shift+T", "Primary+K", "Alt+F4", "Primary+Z", _
+        "Primary+Shift+Z", "Primary+X", "Primary+C", "Primary+V", "Primary+Y", "Primary+D", "Alt+Up", _
+        "Alt+Down", "Primary+/", "Primary+Shift+/", "Primary+L", "Primary+A", "Shift+F3", "Shift+Tab", _
+        "Primary+I", "Primary+Alt+U", "Primary+Alt+L", "Primary+Alt+X", "Primary+Enter", "Primary+Tilde", _
+        "Alt+Shift+F", "Primary+P", "Primary+Plus", "Primary+Minus", "Primary+0", "Primary+PgUp", _
+        "Primary+PgDn", "F5", "Primary+F5", "F8", "Shift+F8", "F11", "F12", "Primary+\", "Primary+Right", "Primary+Left" }
+    for i as long = 0 to ubound( vocab )
+        RoundTrip( vocab(i) )
+    next
+    ' aliases and case
+    dim as TK_CHORD a, b
+    tkKeys_Parse( "ctrl+shift+s", a ) : tkKeys_Parse( "Control+Shift+S", b )
+    tkTest_Check( "case and Control alias", (a.key = b.key) andalso (a.mods = b.mods) andalso (a.key = asc( "s" )) )
+    tkKeys_Parse( "Primary+S", b )
+#if defined( TIKO_OS_MACOS )
+    tkTest_Check( "Primary is Cmd on macOS", b.mods = TKKEY_GUI )
+#else
+    tkTest_Check( "Primary is Ctrl here", b.mods = TKKEY_CTRL )
+    tkTest_Check( "Ctrl formats as Ctrl for a menu", tkKeys_Format( b ) = "Ctrl+S", tkKeys_Format( b ) )
+#endif
+    tkKeys_Parse( "PageUp", a ) : tkKeys_Parse( "PgUp", b )
+    tkTest_Check( "PageUp = PgUp", (a.key = SDLK_PAGEUP) andalso (b.key = SDLK_PAGEUP) )
+    tkKeys_Parse( "Ctrl+Esc", a )
+    tkTest_Check( "Esc alias", a.key = SDLK_ESCAPE )
+    tkKeys_Parse( "F24", a )
+    tkTest_Check( "F24", a.key = SDLK_F24 )
+    ' tiko-studio's keybindings.toml spellings
+    tkKeys_Parse( "Primary+Spacebar", a )
+    tkTest_Check( "Spacebar alias", a.key = SDLK_SPACE )
+    tkKeys_Parse( "SingleQuote", a )
+    tkTest_Check( "SingleQuote alias", a.key = SDLK_APOSTROPHE )
+    tkKeys_Parse( "Numpad*", a )
+    tkTest_Check( "Numpad* alias", a.key = SDLK_KP_MULTIPLY )
+    tkKeys_Parse( "Numpad0", a ) : tkKeys_Parse( "Numpad9", b )
+    tkTest_Check( "Numpad0 / Numpad9", (a.key = SDLK_KP_0) andalso (b.key = SDLK_KP_9) )
+    tkTest_Check( "Num9 formats", tkKeys_Format( b ) = "Num9", tkKeys_Format( b ) )
+    ' refused
+    dim as string bad( ... ) = { "", "Ctrl+", "Ctrl+Hyper+S", "Shift+NoSuchKey", "F25", "F0", "Ctrl++", "S+Ctrl" }
+    for i as long = 0 to ubound( bad )
+        tkTest_Check( "refused '" & bad(i) & "'", tkKeys_Parse( bad(i), a ) = false )
+    next
+    ' the event side: the unshifted key from the scancode, modifiers normalised
+    dim as TK_MSG m
+    m.msg = TKM_KEYDOWN : m.key = asc( "?" ) : m.mods = SDL_KMOD_LCTRL or SDL_KMOD_RSHIFT : m.scancode = SDL_SCANCODE_SLASH
+    dim as TK_CHORD ev = tkKeys_FromMsg( @m )
+    tkKeys_Parse( "Ctrl+Shift+/", b )
+    tkTest_Check( "Shift+/ from a scancode matches Ctrl+Shift+/", (ev.key = b.key) andalso (ev.mods = b.mods), ev.key & " " & ev.mods )
+    m.key = asc( "A" ) : m.mods = SDL_KMOD_SHIFT : m.scancode = 0
+    ev = tkKeys_FromMsg( @m )
+    tkTest_Check( "a synthesised 'A' is the a key", ev.key = asc( "a" ) )
+end sub
+
+sub Maps()
+    tkTest_Begin( "maps" )
+    dim as TK_KEYMAP ptr km = tkKeys_MapCreate()
+    tkTest_Check( "Ctrl+S binds", tkKeys_BindText( km, "Primary+S", 101 ) )
+    tkTest_Check( "a bad chord binds nothing", (tkKeys_BindText( km, "Ctrl+Nope", 102 ) = false) andalso (tkKeys_Count( km ) = 1) )
+    tkKeys_BindText( km, "Primary+Shift+/", 103 )
+    tkKeys_BindText( km, "F5", 104 )
+    tkKeys_BindText( km, "Primary+S", 105 )                 ' rebinding replaces
+    dim as TK_CHORD c
+    tkKeys_Parse( "Primary+S", c )
+    tkTest_Check( "rebinding a chord replaces it", (tkKeys_Lookup( km, c ) = 105) andalso (tkKeys_Count( km ) = 3) )
+
+    ' a real surface: the map is asked before the focused widget
+    dim as TK_HOST ptr h = tkHost_Create( "tkKeys selftest", 300, 200, TK_TEST_FONTDIR & "segoeui.ttf", 1.0 )
+    dim as TK_WIDGET ptr w = tkWidget_Create( h, 1, @KeyProc, 0 )
+    w->isFocusable = true
+    tkWidget_SetPos( w, 0, 0, 100, 100 )
+    tkHost_Show( h )
+    tkHost_SetFocus( h, w )
+    tkKeys_Attach( h, km, @OnCommand )
+    dim as long prim = iif( tkKeys_Primary() = TKKEY_GUI, SDL_KMOD_LGUI, SDL_KMOD_LCTRL )
+    gCmds = 0 : gWidgetKeys = 0
+    tkTest_PushKey( h, asc( "s" ), prim, true, SDL_SCANCODE_S )
+    tkTest_Check( "a bound chord runs its command", (gCmds = 1) andalso (gCmd = 105) )
+    tkTest_Check( "and the focused widget never sees it", gWidgetKeys = 0 )
+    tkTest_PushKey( h, asc( "?" ), prim or SDL_KMOD_LSHIFT, true, SDL_SCANCODE_SLASH )
+    tkTest_Check( "a shifted symbol matches through its scancode", (gCmds = 2) andalso (gCmd = 103) )
+    tkTest_PushKey( h, SDLK_F5, 0, true, SDL_SCANCODE_F5 )
+    tkTest_Check( "a bare function key", gCmd = 104 )
+    tkTest_PushKey( h, asc( "q" ), prim, true, SDL_SCANCODE_Q )
+    tkTest_Check( "an unbound chord goes to the widget", (gCmds = 3) andalso (gWidgetKeys = 1) )
+    tkTest_PushKey( h, asc( "s" ), prim, false, SDL_SCANCODE_S )
+    tkTest_Check( "a key UP is never a command", gCmds = 3 )
+
+    ' a dialog is its own surface: the main window's map does not run there
+    dim as TK_HOST ptr dlg = tkHost_CreateDialog( h, "dlg", 200, 100, false )
+    dim as TK_WIDGET ptr dw = tkWidget_Create( dlg, 1, @KeyProc, 0 )
+    dw->isFocusable = true
+    tkWidget_SetPos( dw, 0, 0, 50, 50 )
+    tkHost_Show( dlg )
+    tkHost_SetFocus( dlg, dw )
+    tkTest_PushKey( dlg, asc( "s" ), prim, true, SDL_SCANCODE_S )
+    tkTest_Check( "a dialog does not run the main map", (gCmds = 3) andalso (gWidgetKeys = 2) )
+    tkHost_Destroy( dlg )
+
+    tkKeys_Attach( h, 0, 0 )
+    tkTest_PushKey( h, asc( "s" ), prim, true, SDL_SCANCODE_S )
+    tkTest_Check( "detached: the widget has it", (gCmds = 3) andalso (gWidgetKeys = 3) andalso (h->OnPreKey = 0) )
+    tkHost_Destroy( h )
+    tkKeys_MapDestroy( km )
+end sub
+
+if tkTest_Init() = false then end 99
+Chords()
+Maps()
+dim as long nFail = tkTest_Report( "tkKeys" )
+tkTest_Quit()
+end nFail

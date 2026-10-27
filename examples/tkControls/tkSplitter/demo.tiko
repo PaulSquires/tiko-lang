@@ -1,0 +1,269 @@
+' tkSplitter demo: the Win32 harness (tiko-lang/examples/PsControls/PsSplitter/frmMain.tiko),
+' three panes laid out by the HOST and separated by two splitters, so the two can be put side
+' by side.
+'
+'     +---------------+---+-------------------+
+'     |               | V |   right / top     |
+'     |     left      | e |                   |
+'     |     pane      | r +===== H bar =======+
+'     |               | t |   right / bottom  |
+'     +---------------+---+-------------------+
+'
+' V: built-in painter, no message callback. H: custom painter (a thin centred line) and a
+' double-click that collapses/restores the bottom pane. Arrow keys nudge both bars through the
+' SILENT SetPos. The panes are painted rects, not widgets: the control knows nothing about them.
+'
+'   demo                     interactive
+'   demo --shot out.bmp      render once, save the window, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkSplitter"
+using tkSplitter
+using tkHost
+using tkPaint
+
+#ifdef TIKO_OS_LINUX
+    const FONTDIR = "/mnt/c/Windows/Fonts/"
+#else
+    const FONTDIR = "C:\Windows\Fonts\"
+#endif
+
+const as long SPLITTER_SIZE = 6      ' bar thickness, scaled; this IS the grab area
+const as long MIN_PANE = 80          ' smallest pane, scaled -> feeds SetRange
+const as long IDC_SPLITV = 1001, IDC_SPLITH = 1002, IDC_FORM = 1000
+
+' The Win32 demo's THEME_TYPE, value for value.
+const as ulong T_PANEL = &hFF21252Bul, T_BOX = &hFF2C313Aul, T_FORE = &hFFD7DAE0ul
+const as ulong T_RULER = &hFF5A6270ul, T_SBBACK = &hFF21252Bul, T_SBHOT = &hFF5A6270ul
+const as ulong T_ACCENTHOT = &hFF78B4F0ul
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gForm, gSplitV, gSplitH
+dim shared as TTF_Font ptr gFont10
+dim shared as boolean gCollapsedH
+dim shared as long gSavedPosH
+
+private function BarV() as long
+    return tkHost_Scale( gHost, SPLITTER_SIZE )
+end function
+
+' The horizontal bar lives in the right pane: its CROSS axis (x, width) tracks the vertical bar.
+sub PositionHSplitter()
+    dim as long pw, ph
+    tkHost_PixelSize( gHost, pw, ph )
+    dim as long xRight = tkSplitter_GetPos( gSplitV ) + BarV()
+    tkWidget_SetPos( gSplitH, xRight, tkSplitter_GetPos( gSplitH ), pw - xRight, BarV() )
+end sub
+
+' The full layout. The LIMITS are computed here and pushed in: a splitter never derives them.
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    if (pw <= 0) orelse (ph <= 0) then exit sub
+    tkWidget_SetPos( gForm, 0, 0, pw, ph )
+    dim as long bar = BarV(), minPane = tkHost_Scale( h, MIN_PANE )
+    tkSplitter_SetRange( gSplitV, minPane, pw - minPane - bar )
+    tkWidget_SetPos( gSplitV, tkSplitter_GetPos( gSplitV ), 0, bar, ph )
+    dim as long xRight = tkSplitter_GetPos( gSplitV ) + bar
+    tkSplitter_SetRange( gSplitH, minPane, ph - minPane - bar )
+    tkWidget_SetPos( gSplitH, xRight, tkSplitter_GetPos( gSplitH ), pw - xRight, bar )
+    tkHost_Invalidate( h )
+end sub
+
+sub PaintPane( byval b as TK_PAINT ptr, byref rcPane as TKRECT, byref l1 as ustring, byref l2 as ustring, byref l3 as ustring )
+    if (rcPane.right <= rcPane.left) orelse (rcPane.bottom <= rcPane.top) then exit sub
+    b->SetBackColor( T_BOX )
+    b->PaintRect( @rcPane )
+    dim as long lh = tkText_Height( gFont10 )
+    dim as TKRECT rc
+    dim as long x = rcPane.left + tkHost_Scale( gHost, 10 ), y = rcPane.top + tkHost_Scale( gHost, 8 )
+    b->SetFont( gFont10 )
+    b->SetColors( T_FORE, T_BOX )
+    tkRect_Set( rc, x, y, rcPane.right - tkHost_Scale( gHost, 6 ), y + lh )
+    b->PaintText( l1, @rc, TK_DT_LEFT or TK_DT_ELLIPSIS )
+    tkRect_Offset( rc, 0, lh )
+    b->PaintText( l2, @rc, TK_DT_LEFT or TK_DT_ELLIPSIS )
+    tkRect_Offset( rc, 0, lh )
+    b->PaintText( l3, @rc, TK_DT_LEFT or TK_DT_ELLIPSIS )
+end sub
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long bar = BarV()
+    dim as long posV = tkSplitter_GetPos( gSplitV ), posH = tkSplitter_GetPos( gSplitH )
+    dim as TKRECT rcLeft, rcTop, rcBottom
+    tkRect_Set( rcLeft, 0, 0, posV, ph )
+    tkRect_Set( rcTop, posV + bar, 0, pw, posH )
+    tkRect_Set( rcBottom, posV + bar, posH + bar, pw, ph )
+    PaintPane( b, rcLeft, "Left pane", "vertical bar x = " & posV, _
+               "range " & tkSplitter_GetMin( gSplitV ) & " .. " & tkSplitter_GetMax( gSplitV ) )
+    PaintPane( b, rcTop, "Right / top pane", "horizontal bar y = " & posH, _
+               "range " & tkSplitter_GetMin( gSplitH ) & " .. " & tkSplitter_GetMax( gSplitH ) )
+    if gCollapsedH then
+        PaintPane( b, rcBottom, "Right / bottom pane (collapsed)", "double-click the H bar to restore", "" )
+    else
+        PaintPane( b, rcBottom, "Right / bottom pane", "double-click the H bar to collapse/restore", "" )
+    end if
+end sub
+
+function PhaseName( byval nPhase as long ) as string
+    select case nPhase
+    case TKSPLITTER_PHASE_BEGIN : return "BEGIN"
+    case TKSPLITTER_PHASE_MOVE  : return "MOVE "
+    case TKSPLITTER_PHASE_END   : return "END  "
+    end select
+    return "?????"
+end function
+
+' The user moved a splitter. The control has already moved ITSELF; lay out what it does not own.
+sub Split_PosChanged( byval hSplitter as TK_WIDGET ptr, byval newPos as long, byval nPhase as long )
+    if hSplitter = gSplitV then PositionHSplitter()
+    tkHost_Invalidate( gHost )
+    print "splitter " & iif( hSplitter = gSplitV, "V", "H" ) & "  " & PhaseName( nPhase ) & "  pos=" & newPos
+end sub
+
+' The H painter: a thin centred line on the panel background.
+sub SplitH_Paint( byval p as TKSPLITTER_PAINTINFO ptr )
+    p->b->SetBackColor( T_PANEL )
+    p->b->PaintRect( @p->rcClient )
+    dim as TKRECT rcLine = p->rcClient
+    dim as long midY = (rcLine.top + rcLine.bottom) \ 2
+    rcLine.top = midY : rcLine.bottom = midY + 1
+    p->b->SetBackColor( iif( p->isHot orelse p->isDragging, T_ACCENTHOT, T_RULER ) )
+    p->b->PaintRect( @rcLine )
+end sub
+
+' Claim the double-click to collapse/restore the bottom pane. Claiming it means no drag starts;
+' the control keeps the capture it already took and releases it on the trailing up. SetPos is
+' SILENT, so the repaint is ours.
+function SplitH_Message( byval m as TKSPLITTER_MESSAGEINFO ptr ) as boolean
+    if (m->msg <> TKM_LBUTTONDOWN) orelse (m->clicks <> 2) then return false
+    dim as string sWhat
+    if gCollapsedH then
+        tkSplitter_SetPos( m->hSplitter, gSavedPosH )
+        gCollapsedH = false
+        sWhat = "restored"
+    else
+        gSavedPosH = tkSplitter_GetPos( m->hSplitter )
+        tkSplitter_SetPos( m->hSplitter, tkSplitter_GetMax( m->hSplitter ) )
+        gCollapsedH = true
+        sWhat = "collapsed"
+    end if
+    tkHost_Invalidate( gHost )
+    print "dblclick H -> bottom pane " & sWhat & "  (SetPos is silent: no END trace follows)"
+    return true
+end function
+
+' The form itself: a focusable widget under the bars, so the arrow keys have somewhere to go
+' (vendor's frmMain WM_KEYDOWN). It paints nothing -- the panes are the host's OnPaint.
+function Form_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    select case m->msg
+    case TKM_LBUTTONDOWN
+        tkHost_SetFocus( w->pHost, w )
+        return true
+    case TKM_KEYDOWN
+        dim as long step10 = tkHost_Scale( gHost, 10 )
+        select case m->key
+        case SDLK_LEFT  : tkSplitter_SetPos( gSplitV, tkSplitter_GetPos( gSplitV ) - step10 )
+        case SDLK_RIGHT : tkSplitter_SetPos( gSplitV, tkSplitter_GetPos( gSplitV ) + step10 )
+        case SDLK_UP    : tkSplitter_SetPos( gSplitH, tkSplitter_GetPos( gSplitH ) - step10 )
+        case SDLK_DOWN  : tkSplitter_SetPos( gSplitH, tkSplitter_GetPos( gSplitH ) + step10 )
+        case else
+            return false
+        end select
+        PositionHSplitter()
+        tkHost_Invalidate( gHost )
+        print "SetPos (silent)  V=" & tkSplitter_GetPos( gSplitV ) & "  H=" & tkSplitter_GetPos( gSplitH ) & "  <- no callback fired"
+        return true
+    end select
+    return false
+end function
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+' Save the current back buffer -- read BEFORE present, which is when it is defined.
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr s = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if s then
+        SDL_SaveBMP( s, strptr( path ) )
+        print "shot: " & path & "  " & s->w & "x" & s->h & "  scale=" & gHost->fScale & "  density=" & gHost->fDensity
+        SDL_DestroySurface( s )
+    end if
+end sub
+
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "Custom Splitter", 900, 560, FONTDIR & "segoeui.ttf", forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = T_PANEL
+print "video driver: " & *SDL_GetCurrentVideoDriver() & "  renderer: " & *SDL_GetRendererName( gHost->renderer ) & _
+      "  scale=" & gHost->fScale & "  density=" & gHost->fDensity
+gFont10 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 10 )
+if gFont10 = 0 then print "fonts: " & *SDL_GetError() : end 1
+
+gForm = tkWidget_Create( gHost, IDC_FORM, @Form_Proc, 0 )
+gForm->isFocusable = true
+
+' Vertical bar: default painter, no message callback.
+gSplitV = tkSplitter_Create( tkHost_Root( gHost ), IDC_SPLITV, TKSPLITTER_VERTICAL )
+tkSplitter_SetColors( gSplitV, T_SBBACK, T_SBHOT )
+tkSplitter_SetPosChangedCallback( gSplitV, @Split_PosChanged )
+
+' Horizontal bar: custom painter + double-click collapse.
+gSplitH = tkSplitter_Create( tkHost_Root( gHost ), IDC_SPLITH, TKSPLITTER_HORIZONTAL )
+tkSplitter_SetPosChangedCallback( gSplitH, @Split_PosChanged )
+tkSplitter_SetPaintCallback( gSplitH, @SplitH_Paint )
+tkSplitter_SetMessageCallback( gSplitH, @SplitH_Message )
+
+' Initial positions, before the first layout pass sets the limits.
+tkSplitter_SetPos( gSplitV, tkHost_Scale( gHost, 240 ) )
+tkSplitter_SetPos( gSplitH, tkHost_Scale( gHost, 240 ) )
+
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkHost_SetFocus( gHost, gForm )
+
+print "tkSplitter test harness"
+print "-----------------------"
+print "Vertical bar   default painter, position = its x in the form's pixel space"
+print "Horizontal bar custom painter (thin centred line), double-click = collapse"
+print ""
+print "Manual checks (things a script cannot drive):"
+print "  Cursor       SIZEWE over the vertical bar, SIZENS over the horizontal one, and it"
+print "               must HOLD for the whole drag, including over the panes"
+print "  Hover        the bar brightens under the mouse; whip the mouse out fast"
+print "  Drag         the bar tracks the cursor with no jump, stops dead at the limits,"
+print "               and resumes the instant the cursor comes back inside them"
+print "  Steal        Alt-Tab away mid-drag -> the drag ends where it was (END traced)"
+print "  Dbl-click    double-click the horizontal bar -> bottom pane collapses/restores"
+print "  Keyboard     arrow keys nudge both bars via SetPos (SILENT: no callback trace)"
+print "  Resize       limits rederive from the client size; the bars stay inside them"
+print ""
+
+tkHost_Show( gHost )
+
+dim as string shot = ArgValue( "--shot" )
+if len( shot ) then
+    tkHost_Pump( gHost )
+    Form_Size( gHost )
+    SaveShot( shot )
+else
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

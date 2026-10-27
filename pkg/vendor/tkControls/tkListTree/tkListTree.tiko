@@ -1,0 +1,2740 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkListTree -- PsListTree on SDL3 + SDL_ttf: a scrolling list of fixed-height host-painted
+' rows that is also a tree (unlimited depth, twisties, per-depth indent), with groups,
+' single / multiple / extended selection, per-row tooltips, an optional column band (report
+' mode), in-place label editing and drag-reorder. A port of pkg/vendor/PsControls/PsListTree.
+'
+' THE MODEL IS VENDOR'S, nearly verbatim: rows() in pre-order with a level per row (parent,
+' children and subtree extent are derived, never stored), selection as a per-row flag that
+' survives collapse, the visible map rebuilt from one "hide below" integer, MoveRows' stable
+' permutation, the batch kinds of BeginUpdate / EndUpdate, the column-0 / row-text alias and
+' its shift on column insert / delete.
+'
+' THE VIEW is four widgets: the container (border), the row surface (focus, keys, mouse,
+' paint), a tkVScrollBar that auto-hides, and a tkColumnHeader band that starts hidden. The
+' in-place editor is a tkTextBox child of the surface, created on the first edit and HIDDEN
+' (not destroyed) when an edit ends -- an edit usually ends from inside the editor's own
+' callback, and destroying a widget from inside its own procedure would free it under itself.
+'
+' GONE with the HWND: FilterMessage (the host routes Enter and Escape to the focused editor),
+' WM_GETDLGCODE, the WM_CHAR swallows and their probe, CS_DBLCLKS (a double click is the press
+' with clicks = 2), the 100 ms hot poll (the host guarantees the leave), the system tooltip
+' backend, PsRegistry. PsPlatform's built-in row painter survives as an opt-in helper,
+' tkListTree_PaintRowDefault, for a host that wants rows without writing a painter.
+#module "tkListTree"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkTooltip" public
+#import "../tkTextBox" public
+#import "../tkColumnHeader" public
+#import "../tkVScrollBar" public
+#import "../tkScrollBar" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkTooltip
+using tkTextBox
+using tkColumnHeader
+using tkVScrollBar
+using tkScrollBar
+
+' ---- constants --------------------------------------------------------------------------
+public const CLISTTREE_DEFAULT_ROWHEIGHT = 22      ' unscaled
+public const CLISTTREE_DEFAULT_HEADERHEIGHT = 24   ' unscaled
+public const CLISTTREE_DEFAULT_SCROLLWIDTH = 12    ' unscaled
+public const CLISTTREE_DEFAULT_INDENT = 16         ' unscaled
+public const CLISTTREE_DEFAULT_TWISTY = 16         ' unscaled
+public const CLISTTREE_DRAG_THRESHOLD = 4          ' scaled: SDL has no SM_CXDRAG
+public const CLISTTREE_DRAGSCROLL_ZONE = 16        ' scaled
+public const CLISTTREE_DRAGSCROLL_MS = 60
+
+' ---- types ------------------------------------------------------------------------------
+public type TKLISTTREE_CELLINFO
+    iCol    as integer
+    rc      as TKRECT
+    wszText as ustring
+end type
+
+public type TKLISTTREE_PAINTINFO
+    hList        as TK_WIDGET ptr      ' the control
+    itemID       as integer            ' MODEL index
+    b            as TK_PAINT ptr
+    rc           as TKRECT             ' surface-local
+    isHot        as boolean
+    isSelected   as boolean
+    isFocused    as boolean            ' the caret row
+    hasFocus     as boolean            ' the surface has the keyboard focus (tk addition)
+    isHeader     as boolean
+    isCollapsed  as boolean
+    isSpanned    as boolean
+    isSelectable as boolean
+    wszCaption   as ustring
+    level        as integer
+    hasChildren  as boolean
+    isExpanded   as boolean
+    indent       as integer
+    rcTwisty     as TKRECT
+    columnCount  as integer
+    cells        as TKLISTTREE_CELLINFO ptr
+end type
+
+public type TKLISTTREE_MESSAGEINFO
+    hList   as TK_WIDGET ptr           ' the control (vendor: the row surface)
+    msg     as long                    ' TKM_*
+    x       as single                  ' surface-local
+    y       as single
+    clicks  as long                    ' TKM_LBUTTONDOWN: 2 = vendor's WM_LBUTTONDBLCLK
+    wheelY  as single
+    idx     as integer                 ' MODEL row under the mouse, or -1
+    isCtrl  as boolean
+    isShift as boolean
+end type
+
+public type TKLISTTREE_ROWINFO
+    IsHeader      as boolean = false
+    bCollapsed    as boolean = false
+    bSpanColumns  as boolean = false
+    bSelectable   as boolean = true
+    level         as integer = 0
+    selected      as boolean = false
+    Text          as ustring
+    cells(any)    as ustring           ' columns 1..N, sparse
+    itemData      as integer
+    itemDataExtra as integer
+    declare sub EnsureCells( byval n as integer )
+    declare sub TrimCells( byval n as integer )
+end type
+
+sub TKLISTTREE_ROWINFO.EnsureCells( byval n as integer )
+    if n <= 0 then exit sub
+    if ubound( this.cells ) < n - 1 then redim preserve this.cells( 0 to n - 1 )
+end sub
+
+sub TKLISTTREE_ROWINFO.TrimCells( byval n as integer )
+    if n <= 0 then
+        erase this.cells
+    elseif ubound( this.cells ) >= n then
+        redim preserve this.cells( 0 to n - 1 )
+    end if
+end sub
+
+public type TKLISTTREE_DROPINFO
+    hList        as TK_WIDGET ptr
+    srcRows      as integer ptr
+    srcCount     as integer
+    insertBefore as integer
+    onHeader     as boolean
+    targetRow    as integer
+    targetInfo   as TKLISTTREE_ROWINFO ptr
+end type
+
+public type LT_PaintCallbackSub as sub( byval p as TKLISTTREE_PAINTINFO ptr )
+public type LT_MessageCallbackFunc as function( byval m as TKLISTTREE_MESSAGEINFO ptr ) as boolean
+public type LT_TooltipCallbackFunc as function( byval hList as TK_WIDGET ptr, byval row as integer, byval col as integer ) as ustring
+public type LT_SelChangeCallbackSub as sub( byval hList as TK_WIDGET ptr, byval row as integer )
+public type LT_ActivateCallbackSub as sub( byval hList as TK_WIDGET ptr, byval row as integer )
+public type LT_CanDropCallbackFunc as function( byval p as TKLISTTREE_DROPINFO ptr ) as boolean
+public type LT_DragDropCallbackSub as sub( byval hList as TK_WIDGET ptr, byval newFirstRow as integer, byval count as integer )
+public type LT_BeginLabelEditCallbackFunc as function( byval hList as TK_WIDGET ptr, byval row as integer ) as boolean
+public type LT_EndLabelEditCallbackFunc as function( byval hList as TK_WIDGET ptr, byval row as integer, byval newText as ustring ) as boolean
+public type LT_ExpandCollapseCallbackSub as sub( byval hList as TK_WIDGET ptr, byval row as integer, byval bExpanded as boolean )
+
+public type TKLISTTREE_STATE
+    hWin            as TK_WIDGET ptr       ' the container (the handle)
+    wSurf           as TK_WIDGET ptr
+    wBar            as TK_WIDGET ptr
+    wHeader         as TK_WIDGET ptr
+    wEdit           as TK_WIDGET ptr       ' 0 until the first edit; hidden between edits
+    bColorsPinned   as boolean
+    tip             as TKTIPHOST_STATE
+    ' --- model ---
+    rows(any)       as TKLISTTREE_ROWINFO
+    rowCount        as integer
+    visibleMap(any) as integer
+    visibleCount    as integer
+    updateDepth     as integer
+    batchKind       as integer             ' 0 none, 1 row contents, 2 shape
+    batchFirstRow   as integer = -1
+    batchLastRow    as integer = -1
+    ' --- view ---
+    RowHeight       as integer = CLISTTREE_DEFAULT_ROWHEIGHT
+    nItemHeightPx   as integer
+    fWheelAccum     as single
+    nLastHotIdx     as integer = -1        ' VISIBLE
+    nLastHotCol     as integer = -1
+    focusRow        as integer = -1
+    lastNotifiedRow as integer = -1
+    anchorRow       as integer = -1
+    topRow          as integer = 0
+    nTopVis         as integer = 0
+    ExtendSel       as boolean
+    MultipleSel     as boolean
+    PreventDblClick as boolean
+    skipNextLBtnUp  as boolean
+    ' --- drag reorder ---
+    bDragReorder    as boolean
+    bDragArmed      as boolean
+    bDragActive     as boolean
+    dragStartX      as long
+    dragStartY      as long
+    dragLastX       as long
+    dragLastY       as long
+    dragAnchorRow   as integer = -1
+    dragPendCollapse as integer = -1
+    dropInsertBefore as integer = -1
+    dropOnHeader    as boolean
+    dropTargetRow   as integer = -1
+    dragIndicatorColor as ulong = &hFF0078D7ul
+    ' --- appearance ---
+    BackColor       as ulong = &hFF21252Bul
+    BorderColor     as ulong = &hFF7A7A7Aul
+    nBorderWidth    as integer
+    pRowFont        as TTF_Font ptr
+    bTreeIndent     as boolean
+    IndentWidth     as integer = CLISTTREE_DEFAULT_INDENT
+    bShowTwisty     as boolean
+    TwistyWidth     as integer = CLISTTREE_DEFAULT_TWISTY
+    TwistyColor     as ulong = &hFF808080ul
+    pTwistyFont     as TTF_Font ptr        ' 0 = the drawn chevron
+    wszGlyphExpanded  as ustring
+    wszGlyphCollapsed as ustring
+    ' --- editing ---
+    bLabelEdit      as boolean
+    bClickToEdit    as boolean
+    bEditing        as boolean
+    editRow         as integer = -1
+    editCol         as integer = 0
+    editGestureCol  as integer = 0
+    bEnterEdits     as boolean
+    bEditColorsSet  as boolean
+    clrEditBack     as ulong
+    clrEditFore     as ulong
+    clrEditBorder   as ulong
+    clrEditFocusBdr as ulong
+    bEditSelectAll  as boolean = true
+    nEditTextInset  as integer = -1
+    bEditTearingDown as boolean
+    ' --- children ---
+    ScrollBarWidth  as integer = CLISTTREE_DEFAULT_SCROLLWIDTH
+    scrollBarShown  as boolean
+    headerShown     as boolean
+    HeaderHeight    as integer = CLISTTREE_DEFAULT_HEADERHEIGHT
+    ' --- callbacks ---
+    ColumnResizeCallback as HDR_WidthChangedCallbackSub
+    PaintCallback        as LT_PaintCallbackSub
+    MessageCallback      as LT_MessageCallbackFunc
+    TooltipCallback      as LT_TooltipCallbackFunc
+    SelChangeCallback    as LT_SelChangeCallbackSub
+    ActivateCallback     as LT_ActivateCallbackSub
+    CanDropCallback      as LT_CanDropCallbackFunc
+    DragDropCallback     as LT_DragDropCallbackSub
+    BeginLabelEditCallback as LT_BeginLabelEditCallbackFunc
+    EndLabelEditCallback   as LT_EndLabelEditCallbackFunc
+    ExpandCollapseCallback as LT_ExpandCollapseCallbackSub
+    paintCells(any) as TKLISTTREE_CELLINFO
+    spanCell        as TKLISTTREE_CELLINFO
+
+    declare sub      EnsurePaintCells( byval n as integer )
+    declare function IsValidRow( byval row as integer ) as boolean
+    declare function GetRow( byval row as integer ) as TKLISTTREE_ROWINFO ptr
+    declare function InsertRowAt( byval modelRow as integer ) as TKLISTTREE_ROWINFO ptr
+    declare function DeleteRowAt( byval modelRow as integer ) as boolean
+    declare sub      ClearRows()
+    declare sub      RebuildVisibleMap()
+    declare function HasChildrenAt( byval row as integer ) as boolean
+    declare function ChildCountAt( byval row as integer ) as integer
+    declare function ParentOf( byval row as integer ) as integer
+    declare function LastDescendantOf( byval row as integer ) as integer
+    declare function ModelToVisible( byval modelRow as integer ) as integer
+    declare function VisibleToModel( byval visRow as integer ) as integer
+    declare function IsRowSelected( byval modelRow as integer ) as boolean
+    declare function IsRowSelectable( byval modelRow as integer ) as boolean
+    declare sub      SetRowSelected( byval modelRow as integer, byval state as boolean )
+    declare sub      ClearSelection()
+    declare sub      SelectOnly( byval modelRow as integer )
+    declare sub      SelectRange( byval a as integer, byval b as integer )
+    declare function GetSelCount() as integer
+    declare function MoveRows( srcRows() as integer, byval insertBefore as integer ) as integer
+    declare sub      NotifyChange()
+    declare sub      NotifyRowChanged( byval modelRow as integer )
+    declare sub      Refresh()
+end type
+
+declare sub LtInvalidateRowSpan( byval p as TKLISTTREE_STATE ptr, byval firstRow as integer, byval lastRow as integer )
+declare sub LtSyncViewFromModel( byval p as TKLISTTREE_STATE ptr )
+declare sub LtCaptureTopRow( byval p as TKLISTTREE_STATE ptr )
+declare sub LtSyncScrollBar( byval p as TKLISTTREE_STATE ptr )
+declare sub LtPositionWindows( byval p as TKLISTTREE_STATE ptr )
+declare function LtEndEdit( byval p as TKLISTTREE_STATE ptr, byval bCommit as boolean ) as boolean
+public declare function tkListTree_SetCellText( byval hList as TK_WIDGET ptr, byval row as integer, byval col as integer, byval Text as ustring ) as boolean
+public declare function tkListTree_GetCellText( byval hList as TK_WIDGET ptr, byval row as integer, byval col as integer ) as ustring
+public declare sub tkListTree_ApplyTheme( byval hList as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+
+
+' ==========================================================================================
+' The model (vendor's PSLISTTREE_STATE methods)
+' ==========================================================================================
+sub TKLISTTREE_STATE.EnsurePaintCells( byval n as integer )
+    if n <= 0 then
+        erase this.paintCells
+    elseif ubound( this.paintCells ) + 1 <> n then
+        redim this.paintCells( 0 to n - 1 )
+    end if
+end sub
+
+function TKLISTTREE_STATE.IsValidRow( byval row as integer ) as boolean
+    return (row >= 0) andalso (row < this.rowCount)
+end function
+
+function TKLISTTREE_STATE.GetRow( byval row as integer ) as TKLISTTREE_ROWINFO ptr
+    if this.IsValidRow( row ) = false then return 0
+    return @this.rows(row)
+end function
+
+' A fresh row at modelRow; the store grows by doubling, so a bulk load is amortised O(1).
+function TKLISTTREE_STATE.InsertRowAt( byval modelRow as integer ) as TKLISTTREE_ROWINFO ptr
+    if modelRow < 0 then modelRow = 0
+    if modelRow > this.rowCount then modelRow = this.rowCount
+    dim as integer cap = ubound( this.rows ) + 1
+    if this.rowCount >= cap then
+        redim preserve this.rows( 0 to iif( cap = 0, 16, cap * 2 ) - 1 )
+    end if
+    for i as integer = this.rowCount to modelRow + 1 step -1
+        this.rows(i) = this.rows(i - 1)
+    next
+    with this.rows(modelRow)
+        .IsHeader = false : .bCollapsed = false : .bSpanColumns = false : .bSelectable = true
+        .level = 0 : .selected = false : .Text = "" : .itemData = 0 : .itemDataExtra = 0
+    end with
+    this.rows(modelRow).TrimCells( 0 )
+    this.rowCount += 1
+    this.NotifyChange()
+    return @this.rows(modelRow)
+end function
+
+function TKLISTTREE_STATE.DeleteRowAt( byval modelRow as integer ) as boolean
+    if this.IsValidRow( modelRow ) = false then return false
+    for i as integer = modelRow to this.rowCount - 2
+        this.rows(i) = this.rows(i + 1)
+    next
+    this.rows(this.rowCount - 1).Text = ""
+    this.rows(this.rowCount - 1).TrimCells( 0 )
+    this.rowCount -= 1
+    ' a focus / anchor past the end would point at nothing
+    if this.focusRow >= this.rowCount then this.focusRow = -1
+    if this.anchorRow >= this.rowCount then this.anchorRow = -1
+    this.NotifyChange()
+    return true
+end function
+
+sub TKLISTTREE_STATE.ClearRows()
+    for i as integer = 0 to this.rowCount - 1
+        this.rows(i).Text = ""
+        this.rows(i).TrimCells( 0 )
+    next
+    this.rowCount = 0
+    this.focusRow = -1
+    this.anchorRow = -1
+    this.lastNotifiedRow = -1
+    this.NotifyChange()
+end sub
+
+' A row is hidden iff it lies inside a collapsed ancestor's subtree: one integer tracks the
+' shallowest active collapse.
+sub TKLISTTREE_STATE.RebuildVisibleMap()
+    this.visibleCount = 0
+    if this.rowCount <= 0 then erase this.visibleMap : exit sub
+    redim this.visibleMap( 0 to this.rowCount - 1 )
+    dim as integer vis = 0
+    dim as integer hideBelow = &h7FFFFFFF
+    for i as integer = 0 to this.rowCount - 1
+        if this.rows(i).level > hideBelow then continue for
+        hideBelow = &h7FFFFFFF
+        this.visibleMap(vis) = i : vis += 1
+        if this.rows(i).bCollapsed then hideBelow = this.rows(i).level
+    next
+    this.visibleCount = vis
+end sub
+
+function TKLISTTREE_STATE.HasChildrenAt( byval row as integer ) as boolean
+    if this.IsValidRow( row ) = false then return false
+    if row + 1 >= this.rowCount then return false
+    return this.rows(row + 1).level > this.rows(row).level
+end function
+
+function TKLISTTREE_STATE.ChildCountAt( byval row as integer ) as integer
+    if this.IsValidRow( row ) = false then return 0
+    dim as integer lvl = this.rows(row).level, n = 0
+    for i as integer = row + 1 to this.rowCount - 1
+        if this.rows(i).level <= lvl then exit for
+        if this.rows(i).level = lvl + 1 then n += 1
+    next
+    return n
+end function
+
+function TKLISTTREE_STATE.ParentOf( byval row as integer ) as integer
+    if this.IsValidRow( row ) = false then return -1
+    dim as integer lvl = this.rows(row).level
+    if lvl <= 0 then return -1
+    for i as integer = row - 1 to 0 step -1
+        if this.rows(i).level < lvl then return i
+    next
+    return -1
+end function
+
+function TKLISTTREE_STATE.LastDescendantOf( byval row as integer ) as integer
+    if this.IsValidRow( row ) = false then return row
+    dim as integer lvl = this.rows(row).level, last = row
+    for i as integer = row + 1 to this.rowCount - 1
+        if this.rows(i).level <= lvl then exit for
+        last = i
+    next
+    return last
+end function
+
+function TKLISTTREE_STATE.ModelToVisible( byval modelRow as integer ) as integer
+    for v as integer = 0 to this.visibleCount - 1
+        if this.visibleMap(v) = modelRow then return v
+    next
+    return -1
+end function
+
+function TKLISTTREE_STATE.VisibleToModel( byval visRow as integer ) as integer
+    if (visRow < 0) orelse (visRow >= this.visibleCount) then return -1
+    return this.visibleMap(visRow)
+end function
+
+function TKLISTTREE_STATE.IsRowSelected( byval modelRow as integer ) as boolean
+    if this.IsValidRow( modelRow ) = false then return false
+    return this.rows(modelRow).selected
+end function
+
+function TKLISTTREE_STATE.IsRowSelectable( byval modelRow as integer ) as boolean
+    if this.IsValidRow( modelRow ) = false then return false
+    return this.rows(modelRow).bSelectable
+end function
+
+sub TKLISTTREE_STATE.SetRowSelected( byval modelRow as integer, byval state as boolean )
+    if this.IsValidRow( modelRow ) = false then exit sub
+    if state andalso (this.rows(modelRow).bSelectable = false) then exit sub
+    this.rows(modelRow).selected = state
+end sub
+
+sub TKLISTTREE_STATE.ClearSelection()
+    for i as integer = 0 to this.rowCount - 1
+        this.rows(i).selected = false
+    next
+end sub
+
+sub TKLISTTREE_STATE.SelectOnly( byval modelRow as integer )
+    this.ClearSelection()
+    if this.IsValidRow( modelRow ) andalso this.rows(modelRow).bSelectable then this.rows(modelRow).selected = true
+end sub
+
+sub TKLISTTREE_STATE.SelectRange( byval a as integer, byval b as integer )
+    if a > b then swap a, b
+    if a < 0 then a = 0
+    if b > this.rowCount - 1 then b = this.rowCount - 1
+    for i as integer = a to b
+        if this.rows(i).bSelectable then this.rows(i).selected = true
+    next
+end sub
+
+function TKLISTTREE_STATE.GetSelCount() as integer
+    dim as integer n = 0
+    for i as integer = 0 to this.rowCount - 1
+        if this.rows(i).selected then n += 1
+    next
+    return n
+end function
+
+' The sources land contiguously before insertBefore, in their original relative order;
+' headers are ignored; selection travels on the struct copy.
+function TKLISTTREE_STATE.MoveRows( srcRows() as integer, byval insertBefore as integer ) as integer
+    dim as integer n = this.rowCount
+    if n <= 0 then return -1
+    dim as byte moving(0 to n - 1)
+    dim as integer srcN = 0
+    for k as integer = lbound( srcRows ) to ubound( srcRows )
+        dim as integer r = srcRows(k)
+        if (r >= 0) andalso (r < n) then
+            if (this.rows(r).IsHeader = false) andalso (moving(r) = 0) then moving(r) = 1 : srcN += 1
+        end if
+    next
+    if srcN = 0 then return -1
+    dim as integer anchor = insertBefore
+    if anchor < 0 then anchor = 0
+    if anchor > n then anchor = n
+    dim as integer newOrder(0 to n - 1)
+    dim as integer wi = 0
+    dim as boolean emitted = false
+    for i as integer = 0 to n - 1
+        if i = anchor then
+            for j as integer = 0 to n - 1
+                if moving(j) then newOrder(wi) = j : wi += 1
+            next
+            emitted = true
+        end if
+        if moving(i) = 0 then newOrder(wi) = i : wi += 1
+    next
+    if emitted = false then
+        for j as integer = 0 to n - 1
+            if moving(j) then newOrder(wi) = j : wi += 1
+        next
+    end if
+    dim as integer newFirst = -1
+    for q as integer = 0 to n - 1
+        if moving( newOrder(q) ) then newFirst = q : exit for
+    next
+    dim tmp(0 to n - 1) as TKLISTTREE_ROWINFO
+    for q as integer = 0 to n - 1
+        tmp(q) = this.rows( newOrder(q) )
+    next
+    for q as integer = 0 to n - 1
+        this.rows(q) = tmp(q)
+    next
+    this.focusRow = newFirst
+    this.anchorRow = newFirst
+    this.lastNotifiedRow = newFirst
+    this.NotifyChange()
+    return newFirst
+end function
+
+sub TKLISTTREE_STATE.NotifyChange()
+    if this.updateDepth > 0 then this.batchKind = 2 : exit sub
+    this.Refresh()
+end sub
+
+sub TKLISTTREE_STATE.NotifyRowChanged( byval modelRow as integer )
+    if this.updateDepth > 0 then
+        if this.batchKind < 2 then
+            this.batchKind = 1
+            if (this.batchFirstRow < 0) orelse (modelRow < this.batchFirstRow) then this.batchFirstRow = modelRow
+            if (this.batchLastRow < 0) orelse (modelRow > this.batchLastRow) then this.batchLastRow = modelRow
+        end if
+        exit sub
+    end if
+    LtInvalidateRowSpan( @this, modelRow, modelRow )
+end sub
+
+sub TKLISTTREE_STATE.Refresh()
+    this.batchKind = 0 : this.batchFirstRow = -1 : this.batchLastRow = -1
+    LtCaptureTopRow( @this )
+    this.RebuildVisibleMap()
+    LtSyncViewFromModel( @this )
+end sub
+
+
+' ==========================================================================================
+' View geometry
+' ==========================================================================================
+private function GetListTreePointer( byval hList as TK_WIDGET ptr ) as TKLISTTREE_STATE ptr
+    if hList = 0 then return 0
+    return cast( TKLISTTREE_STATE ptr, hList->pData )
+end function
+
+private function LtScale( byval p as TKLISTTREE_STATE ptr, byval v as long ) as long
+    return tkHost_Scale( p->hWin->pHost, v )
+end function
+
+private function LtItemHeightPx( byval p as TKLISTTREE_STATE ptr ) as integer
+    if p->nItemHeightPx > 0 then return p->nItemHeightPx
+    dim as integer ih = LtScale( p, p->RowHeight )
+    if ih < 1 then ih = 1
+    p->nItemHeightPx = ih
+    return ih
+end function
+
+private function LtIndentPx( byval p as TKLISTTREE_STATE ptr ) as integer
+    dim as integer v = LtScale( p, p->IndentWidth )
+    return iif( v < 1, 1, v )
+end function
+
+private function LtTwistyPx( byval p as TKLISTTREE_STATE ptr ) as integer
+    dim as integer v = LtScale( p, p->TwistyWidth )
+    return iif( v < 1, 1, v )
+end function
+
+private function LtRowLevelIndentPx( byval p as TKLISTTREE_STATE ptr, byval modelRow as integer ) as integer
+    if p->bTreeIndent = false then return 0
+    dim as TKLISTTREE_ROWINFO ptr r = p->GetRow( modelRow )
+    if r = 0 then return 0
+    return r->level * LtIndentPx( p )
+end function
+
+private function LtPointOverTwisty( byval p as TKLISTTREE_STATE ptr, byval x as integer, byval modelRow as integer ) as boolean
+    if (p->bShowTwisty = false) orelse (p->HasChildrenAt( modelRow ) = false) then return false
+    dim as integer tx = LtRowLevelIndentPx( p, modelRow )
+    return (x >= tx) andalso (x < tx + LtTwistyPx( p ))
+end function
+
+private function LtVisPerPage( byval p as TKLISTTREE_STATE ptr ) as integer
+    if p->wSurf = 0 then return 0
+    return p->wSurf->ch \ LtItemHeightPx( p )
+end function
+
+private function LtItemsPerPage( byval p as TKLISTTREE_STATE ptr ) as integer
+    dim as integer n = LtVisPerPage( p )
+    return iif( n < 1, 1, n )
+end function
+
+private function LtClampTopVis( byval p as TKLISTTREE_STATE ptr, byval vis as integer ) as integer
+    dim as integer maxTop = p->visibleCount - LtVisPerPage( p )
+    if maxTop < 0 then maxTop = 0
+    if vis > maxTop then vis = maxTop
+    if vis < 0 then vis = 0
+    return vis
+end function
+
+private function LtSetTopVis( byval p as TKLISTTREE_STATE ptr, byval vis as integer ) as integer
+    dim as integer newTop = LtClampTopVis( p, vis )
+    if newTop <> p->nTopVis then
+        ' an editor is anchored to a row's rect: commit it before the rows move under it
+        if p->bEditing then LtEndEdit( p, true )
+        p->nTopVis = newTop
+        if p->wSurf then tkWidget_Invalidate( p->wSurf )
+    end if
+    return p->nTopVis
+end function
+
+' A visible row's rect in surface-local pixels; FALSE when it is not on screen.
+private function LtVisIndexRect( byval p as TKLISTTREE_STATE ptr, byval vis as integer, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    if (vis < 0) orelse (vis >= p->visibleCount) orelse (p->wSurf = 0) then return false
+    dim as integer ih = LtItemHeightPx( p )
+    dim as integer y = (vis - p->nTopVis) * ih
+    if (y >= p->wSurf->ch) orelse (y + ih <= 0) then return false
+    tkRect_Set( rc, 0, y, p->wSurf->cw, y + ih )
+    return true
+end function
+
+private function LtVisIndexFromPoint( byval p as TKLISTTREE_STATE ptr, byval x as integer, byval y as integer ) as integer
+    if p->wSurf = 0 then return -1
+    if (x < 0) orelse (x >= p->wSurf->cw) orelse (y < 0) orelse (y >= p->wSurf->ch) then return -1
+    dim as integer vis = p->nTopVis + y \ LtItemHeightPx( p )
+    if (vis < 0) orelse (vis >= p->visibleCount) then return -1
+    return vis
+end function
+
+private function LtColCount( byval p as TKLISTTREE_STATE ptr ) as integer
+    if p->wHeader = 0 then return 0
+    return tkColumnHeader_GetCount( p->wHeader )
+end function
+
+' Header column rects are header-local, and the header spans the container from the same left
+' as the surface, so their x is the surface's x.
+private function LtColFromX( byval p as TKLISTTREE_STATE ptr, byval x as integer ) as integer
+    dim as integer nCols = LtColCount( p )
+    if nCols <= 0 then return 0
+    dim as TKRECT rc
+    for c as integer = 0 to nCols - 1
+        if tkColumnHeader_GetColumnRect( p->wHeader, c, rc ) then
+            if (x >= rc.left) andalso (x < rc.right) then return c
+        end if
+    next
+    return -1
+end function
+
+private sub LtDropTargetFromPoint( byval p as TKLISTTREE_STATE ptr, byval x as integer, byval y as integer, _
+                                   byref insertBefore as integer, byref onHeader as boolean, byref targetRow as integer )
+    insertBefore = 0 : onHeader = false : targetRow = -1
+    if p->rowCount <= 0 then exit sub
+    if p->visibleCount <= 0 then insertBefore = p->rowCount : exit sub
+    dim as integer ih = LtItemHeightPx( p )
+    dim as integer relRow = iif( y < 0, 0, y \ ih )
+    dim as integer vis = p->nTopVis + relRow
+    if vis >= p->visibleCount then insertBefore = p->rowCount : exit sub
+    dim as integer modelRow = p->VisibleToModel( vis )
+    if modelRow < 0 then insertBefore = p->rowCount : exit sub
+    targetRow = modelRow
+    if p->rows(modelRow).IsHeader then
+        onHeader = true
+        insertBefore = modelRow + 1
+        exit sub
+    end if
+    dim as integer rowTopY = (vis - p->nTopVis) * ih
+    if (y - rowTopY) < (ih \ 2) then
+        insertBefore = modelRow
+    elseif vis + 1 >= p->visibleCount then
+        insertBefore = p->rowCount
+    else
+        insertBefore = p->VisibleToModel( vis + 1 )
+    end if
+end sub
+
+' Vendor's "Refresh vs invalidate": a span of model rows, coalesced into one repaint. The
+' surface redraws whole anyway; this skips the rebuild and the scroll re-derivation.
+sub LtInvalidateRowSpan( byval p as TKLISTTREE_STATE ptr, byval firstRow as integer, byval lastRow as integer )
+    if p->wSurf = 0 then exit sub
+    if firstRow > lastRow then swap firstRow, lastRow
+    for r as integer = firstRow to lastRow
+        dim as TKRECT rc
+        if LtVisIndexRect( p, p->ModelToVisible( r ), rc ) then tkWidget_Invalidate( p->wSurf ) : exit sub
+    next
+end sub
+
+sub LtCaptureTopRow( byval p as TKLISTTREE_STATE ptr )
+    if p->visibleCount = 0 then exit sub
+    dim as integer modelRow = p->VisibleToModel( p->nTopVis )
+    if modelRow >= 0 then p->topRow = modelRow
+end sub
+
+sub LtSyncScrollBar( byval p as TKLISTTREE_STATE ptr )
+    if p->wBar = 0 then exit sub
+    tkVScrollBar_SetRange( p->wBar, p->visibleCount, LtItemsPerPage( p ), p->nTopVis )
+    dim as boolean needed = tkVScrollBar_NeedsThumb( p->wBar )
+    if needed <> p->scrollBarShown then
+        p->scrollBarShown = needed
+        LtPositionWindows( p )
+    end if
+end sub
+
+' Re-derive the visible top from the model's topRow (the last visible row at or before it).
+sub LtSyncViewFromModel( byval p as TKLISTTREE_STATE ptr )
+    if p->wSurf = 0 then exit sub
+    if p->visibleCount = 0 then
+        p->topRow = 0 : p->nTopVis = 0
+        tkWidget_Invalidate( p->wSurf )
+        LtSyncScrollBar( p )
+        exit sub
+    end if
+    dim as integer row = p->topRow
+    if row < 0 then row = 0
+    if row > p->rowCount - 1 then row = p->rowCount - 1
+    dim as integer lo = 0, hi = p->visibleCount - 1, visRow = 0
+    do while lo <= hi
+        dim as integer mid_ = (lo + hi) \ 2
+        if p->visibleMap(mid_) <= row then visRow = mid_ : lo = mid_ + 1 else hi = mid_ - 1
+    loop
+    dim as integer actualTop = p->VisibleToModel( LtSetTopVis( p, visRow ) )
+    if actualTop >= 0 then p->topRow = actualTop
+    tkWidget_Invalidate( p->wSurf )
+    LtSyncScrollBar( p )
+end sub
+
+' Header band across the top (over the scrollbar strip too), surface below, bar on the right.
+sub LtPositionWindows( byval p as TKLISTTREE_STATE ptr )
+    dim as long bw = p->nBorderWidth
+    dim as long l = bw, t = bw, r = p->hWin->cw - bw, b = p->hWin->ch - bw
+    if r < l then r = l
+    if b < t then b = t
+    dim as long sbW = iif( p->scrollBarShown, LtScale( p, p->ScrollBarWidth ), 0 )
+    dim as long hdrWinH = LtScale( p, p->HeaderHeight )
+    if hdrWinH < 1 then hdrWinH = 1
+    dim as long hdrH = 0
+    if p->wHeader then
+        tkWidget_SetPos( p->wHeader, l, t, r - l, hdrWinH )
+        tkWidget_Show( p->wHeader, p->headerShown )
+        if p->headerShown then hdrH = hdrWinH
+    end if
+    dim as long sh = b - t - hdrH
+    if sh < 0 then sh = 0
+    dim as long sw = r - l - sbW
+    if sw < 0 then sw = 0
+    tkWidget_SetPos( p->wSurf, l, t + hdrH, sw, sh )
+    if p->wBar then
+        tkWidget_Show( p->wBar, p->scrollBarShown )
+        if sbW > 0 then tkWidget_SetPos( p->wBar, r - sbW, t + hdrH, sbW, sh )
+    end if
+end sub
+
+
+' ==========================================================================================
+' Notifications and the selection / keyboard machinery (vendor's)
+' ==========================================================================================
+private sub LtNotifySelChange( byval p as TKLISTTREE_STATE ptr )
+    if p->focusRow = p->lastNotifiedRow then exit sub
+    p->lastNotifiedRow = p->focusRow
+    if p->SelChangeCallback then p->SelChangeCallback( p->hWin, p->focusRow )
+end sub
+
+private sub LtNotifyExpandCollapse( byval p as TKLISTTREE_STATE ptr, byval modelRow as integer, byval bExpanded as boolean )
+    if p->ExpandCollapseCallback then p->ExpandCollapseCallback( p->hWin, modelRow, bExpanded )
+end sub
+
+private sub LtFireActivate( byval p as TKLISTTREE_STATE ptr, byval modelRow as integer )
+    if (p->ActivateCallback = 0) orelse (p->IsRowSelectable( modelRow ) = false) then exit sub
+    p->ActivateCallback( p->hWin, modelRow )
+end sub
+
+private sub LtApplyClickSelection( byval p as TKLISTTREE_STATE ptr, byval modelRow as integer, byval isCtrl as boolean, byval isShift as boolean )
+    if p->IsRowSelectable( modelRow ) = false then exit sub
+    if p->MultipleSel then
+        p->SetRowSelected( modelRow, not p->IsRowSelected( modelRow ) )
+        p->anchorRow = modelRow
+    elseif p->ExtendSel then
+        if isShift then
+            dim as integer anchor = iif( p->anchorRow < 0, modelRow, p->anchorRow )
+            if isCtrl = false then p->ClearSelection()
+            p->SelectRange( anchor, modelRow )
+        elseif isCtrl then
+            p->SetRowSelected( modelRow, not p->IsRowSelected( modelRow ) )
+            p->anchorRow = modelRow
+        else
+            p->SelectOnly( modelRow )
+            p->anchorRow = modelRow
+        end if
+    else
+        p->SelectOnly( modelRow )
+        p->anchorRow = modelRow
+    end if
+    p->focusRow = modelRow
+    tkWidget_Invalidate( p->wSurf )
+    LtNotifySelChange( p )
+end sub
+
+private sub LtSetHot( byval p as TKLISTTREE_STATE ptr, byval vis as integer )
+    if vis = p->nLastHotIdx then exit sub
+    p->nLastHotIdx = vis
+    tkTipHost_SetToolIndex( @p->tip, vis )
+    tkWidget_Invalidate( p->wSurf )
+end sub
+
+private sub LtEnsureVisible( byval p as TKLISTTREE_STATE ptr, byval modelRow as integer )
+    dim as integer vis = p->ModelToVisible( modelRow )
+    if (vis < 0) orelse (LtVisPerPage( p ) < 1) then exit sub
+    dim as integer perPage = LtItemsPerPage( p )
+    if vis < p->nTopVis then
+        LtSetTopVis( p, vis )
+    elseif vis >= p->nTopVis + perPage then
+        LtSetTopVis( p, vis - perPage + 1 )
+    else
+        exit sub
+    end if
+    LtCaptureTopRow( p )
+    LtSyncScrollBar( p )
+end sub
+
+private function LtFindSelectableVis( byval p as TKLISTTREE_STATE ptr, byval startVis as integer, byval nDir as integer ) as integer
+    dim as integer v = startVis
+    while (v >= 0) andalso (v < p->visibleCount)
+        if p->IsRowSelectable( p->VisibleToModel( v ) ) then return v
+        v += nDir
+    wend
+    return -1
+end function
+
+private sub LtMoveFocusVis( byval p as TKLISTTREE_STATE ptr, byval newVis as integer, byval isShift as boolean, byval isCtrl as boolean, _
+                            byval nDir as integer, byval bAllowReverse as boolean )
+    if p->visibleCount <= 0 then exit sub
+    if newVis < 0 then newVis = 0
+    if newVis > p->visibleCount - 1 then newVis = p->visibleCount - 1
+    dim as integer resolved = LtFindSelectableVis( p, newVis, nDir )
+    if (resolved < 0) andalso bAllowReverse then resolved = LtFindSelectableVis( p, newVis, -nDir )
+    if resolved < 0 then exit sub
+    dim as integer newModel = p->VisibleToModel( resolved )
+    if newModel < 0 then exit sub
+    p->focusRow = newModel
+    if p->MultipleSel then
+        ' checklist mode: arrows move the caret only
+    elseif p->ExtendSel then
+        if isShift then
+            dim as integer anchor = iif( p->anchorRow < 0, newModel, p->anchorRow )
+            p->ClearSelection()
+            p->SelectRange( anchor, newModel )
+        elseif isCtrl = false then
+            p->SelectOnly( newModel )
+            p->anchorRow = newModel
+        end if
+    else
+        p->SelectOnly( newModel )
+        p->anchorRow = newModel
+    end if
+    LtEnsureVisible( p, newModel )
+    tkWidget_Invalidate( p->wSurf )
+    LtNotifySelChange( p )
+end sub
+
+private function LtCanFold( byval p as TKLISTTREE_STATE ptr, byval f as integer ) as boolean
+    if p->IsValidRow( f ) = false then return false
+    if p->rows(f).IsHeader then return true
+    return p->HasChildrenAt( f )
+end function
+
+private sub LtKeyLeft( byval p as TKLISTTREE_STATE ptr )
+    dim as integer f = p->focusRow
+    if p->IsValidRow( f ) = false then exit sub
+    if LtCanFold( p, f ) andalso (p->rows(f).bCollapsed = false) then
+        p->rows(f).bCollapsed = true
+        p->NotifyChange()
+        LtEnsureVisible( p, f )
+        LtNotifyExpandCollapse( p, f, false )
+    else
+        dim as integer hp = p->ParentOf( f )
+        if (hp >= 0) andalso p->IsRowSelectable( hp ) then
+            p->focusRow = hp
+            p->SelectOnly( hp )
+            p->anchorRow = hp
+            LtEnsureVisible( p, hp )
+            tkWidget_Invalidate( p->wSurf )
+            LtNotifySelChange( p )
+        end if
+    end if
+end sub
+
+private sub LtKeyRight( byval p as TKLISTTREE_STATE ptr )
+    dim as integer f = p->focusRow
+    if LtCanFold( p, f ) = false then exit sub
+    if p->rows(f).bCollapsed then
+        p->rows(f).bCollapsed = false
+        p->NotifyChange()
+        LtEnsureVisible( p, f )
+        LtNotifyExpandCollapse( p, f, true )
+    else
+        LtMoveFocusVis( p, p->ModelToVisible( f ) + 1, false, false, +1, false )
+    end if
+end sub
+
+private sub LtKeySpace( byval p as TKLISTTREE_STATE ptr )
+    dim as integer f = p->focusRow
+    if p->IsValidRow( f ) = false then exit sub
+    if p->MultipleSel orelse p->ExtendSel then
+        p->SetRowSelected( f, not p->IsRowSelected( f ) )
+    else
+        p->SelectOnly( f )
+    end if
+    p->anchorRow = f
+    tkWidget_Invalidate( p->wSurf )
+    LtNotifySelChange( p )
+end sub
+
+' ---- drag reorder ----------------------------------------------------------------------
+private function LtBuildDragSource( byval p as TKLISTTREE_STATE ptr, byval pressedRow as integer, srcRows() as integer ) as integer
+    dim as integer n = 0
+    if p->IsRowSelected( pressedRow ) andalso (p->GetSelCount() > 1) then
+        redim srcRows( 0 to p->rowCount - 1 )
+        for i as integer = 0 to p->rowCount - 1
+            if p->rows(i).selected andalso (p->rows(i).IsHeader = false) then srcRows(n) = i : n += 1
+        next
+        if n > 0 then redim preserve srcRows( 0 to n - 1 )
+    end if
+    if (n = 0) andalso p->IsValidRow( pressedRow ) then
+        if p->rows(pressedRow).IsHeader = false then
+            redim srcRows( 0 to 0 )
+            srcRows(0) = pressedRow
+            n = 1
+        end if
+    end if
+    return n
+end function
+
+private sub LtUpdateDragTarget( byval p as TKLISTTREE_STATE ptr, byval x as integer, byval y as integer )
+    dim as integer ib, tr
+    dim as boolean oh
+    LtDropTargetFromPoint( p, x, y, ib, oh, tr )
+    if (ib <> p->dropInsertBefore) orelse (oh <> p->dropOnHeader) orelse (tr <> p->dropTargetRow) then
+        p->dropInsertBefore = ib : p->dropOnHeader = oh : p->dropTargetRow = tr
+        tkWidget_Invalidate( p->wSurf )
+    end if
+end sub
+
+private sub LtCancelDrag( byval p as TKLISTTREE_STATE ptr )
+    dim as boolean wasActive = p->bDragActive
+    p->bDragArmed = false : p->bDragActive = false
+    p->dragPendCollapse = -1 : p->dragAnchorRow = -1
+    p->dropInsertBefore = -1 : p->dropOnHeader = false : p->dropTargetRow = -1
+    tkWidget_KillTimer( p->wSurf, TK_TIMER_AUTOSCROLL )
+    if tkHost_GetCapture( p->wSurf->pHost ) = p->wSurf then tkHost_ReleaseCapture( p->wSurf->pHost )
+    if wasActive then tkWidget_Invalidate( p->wSurf )
+end sub
+
+private sub LtCommitDrop( byval p as TKLISTTREE_STATE ptr )
+    dim srcRows() as integer
+    dim as integer n = LtBuildDragSource( p, p->dragAnchorRow, srcRows() )
+    if (n <= 0) orelse (p->dropInsertBefore < 0) then exit sub
+    if p->CanDropCallback then
+        dim as TKLISTTREE_DROPINFO info
+        info.hList = p->hWin
+        info.srcRows = @srcRows(0)
+        info.srcCount = n
+        info.insertBefore = p->dropInsertBefore
+        info.onHeader = p->dropOnHeader
+        info.targetRow = p->dropTargetRow
+        info.targetInfo = p->GetRow( p->dropTargetRow )
+        if p->CanDropCallback( @info ) = false then exit sub
+    end if
+    if p->dropOnHeader andalso p->IsValidRow( p->dropTargetRow ) then p->rows(p->dropTargetRow).bCollapsed = false
+    dim as integer newFirst = p->MoveRows( srcRows(), p->dropInsertBefore )
+    if (newFirst >= 0) andalso (p->DragDropCallback <> 0) then p->DragDropCallback( p->hWin, newFirst, n )
+end sub
+
+
+' ==========================================================================================
+' In-place label editor
+' ==========================================================================================
+private function LtFromEditor( byval hTextBox as TK_WIDGET ptr ) as TKLISTTREE_STATE ptr
+    dim as TK_WIDGET ptr surf = tkWidget_Parent( hTextBox )
+    if surf = 0 then return 0
+    return GetListTreePointer( tkWidget_Parent( surf ) )
+end function
+
+sub LtEditEnterPressed( byval hTextBox as TK_WIDGET ptr )
+    dim as TKLISTTREE_STATE ptr p = LtFromEditor( hTextBox )
+    if p then LtEndEdit( p, true )
+end sub
+
+sub LtEditFocusChanged( byval hTextBox as TK_WIDGET ptr, byval bGotFocus as boolean )
+    if bGotFocus then exit sub
+    dim as TKLISTTREE_STATE ptr p = LtFromEditor( hTextBox )
+    if p then LtEndEdit( p, true )
+end sub
+
+function LtEditMessage( byval m as TKTEXTBOX_MESSAGEINFO ptr ) as boolean
+    if (m->msg = TKM_KEYDOWN) andalso (m->key = SDLK_ESCAPE) then
+        dim as TKLISTTREE_STATE ptr p = LtFromEditor( m->hTextBox )
+        if p then LtEndEdit( p, false )
+        return true
+    end if
+    return false
+end function
+
+private sub LtApplyEditColors( byval p as TKLISTTREE_STATE ptr )
+    if (p->wEdit = 0) orelse (p->bEditColorsSet = false) then exit sub
+    dim as TKTEXTBOX_COLORS c
+    tkTextBox_GetColors( p->wEdit, @c )
+    c.BackColor = p->clrEditBack : c.ForeColor = p->clrEditFore
+    c.BorderColor = p->clrEditBorder : c.FocusBorderColor = p->clrEditFocusBdr
+    c.OuterBackColor = p->clrEditBack
+    tkTextBox_SetColors( p->wEdit, @c )
+end sub
+
+private function LtBeginEdit( byval p as TKLISTTREE_STATE ptr, byval row as integer, byval col as integer ) as boolean
+    if (p->bLabelEdit = false) orelse (p->IsRowSelectable( row ) = false) then return false
+    if col < 0 then col = 0
+    if p->bEditing then LtEndEdit( p, true )
+    dim as integer vis = p->ModelToVisible( row )
+    if vis < 0 then return false
+    if p->BeginLabelEditCallback then
+        if p->BeginLabelEditCallback( p->hWin, row ) = false then return false
+    end if
+    dim as TKRECT rcRow
+    if LtVisIndexRect( p, vis, rcRow ) = false then return false
+    if p->wEdit = 0 then
+        p->wEdit = tkTextBox_Create( p->wSurf, p->hWin->ctrlId + 3, false )
+        if p->wEdit = 0 then return false
+        tkTextBox_SetEnterPressedCallback( p->wEdit, @LtEditEnterPressed )
+        tkTextBox_SetFocusCallback( p->wEdit, @LtEditFocusChanged )
+        tkTextBox_SetMessageCallback( p->wEdit, @LtEditMessage )
+        tkTextBox_SetBorderWidth( p->wEdit, 1 )
+        LtApplyEditColors( p )
+    end if
+    if p->pRowFont then tkTextBox_SetFont( p->wEdit, p->pRowFont )
+    p->editRow = row
+    p->editCol = col
+    dim as integer nCols = LtColCount( p ), xLeft, xRight
+    if (col > 0) andalso (col < nCols) then
+        dim as TKRECT rcCol
+        tkColumnHeader_GetColumnRect( p->wHeader, col, rcCol )
+        xLeft = rcCol.left : xRight = rcCol.right
+    else
+        xLeft = rcRow.left + LtRowLevelIndentPx( p, row )
+        if p->bShowTwisty then xLeft += LtTwistyPx( p )
+        xRight = rcRow.right
+        if nCols > 0 then
+            dim as TKRECT rcCol0
+            tkColumnHeader_GetColumnRect( p->wHeader, 0, rcCol0 )
+            xRight = rcCol0.right
+        end if
+    end if
+    if p->nEditTextInset >= 0 then
+        dim as integer nMargin = p->nEditTextInset - tkTextBox_GetBorderWidth( p->wEdit )
+        tkTextBox_SetMargins( p->wEdit, iif( nMargin < 0, 0, nMargin ), 0 )
+    end if
+    dim as long minW = LtScale( p, 8 )
+    if xRight < xLeft + minW then xRight = xLeft + minW
+    tkWidget_SetPos( p->wEdit, xLeft, rcRow.top, xRight - xLeft, rcRow.bottom - rcRow.top )
+    tkWidget_BringToTop( p->wEdit )
+    tkWidget_Show( p->wEdit, true )
+    dim as ustring sCur = p->rows(row).Text
+    if col <> 0 then sCur = tkListTree_GetCellText( p->hWin, row, col )
+    tkTextBox_SetText( p->wEdit, sCur )
+    p->bEditing = true
+    ' focus FIRST, then the selection: select-on-focus is off for the editor, so ours stands
+    tkTextBox_SetSelectOnFocus( p->wEdit, false )
+    tkHost_SetFocus( p->wSurf->pHost, p->wEdit )
+    if p->bEditSelectAll then
+        tkTextBox_SelectAll( p->wEdit )
+    else
+        dim as integer nLen = tkTextBox_GetTextLength( p->wEdit )
+        tkTextBox_SetSel( p->wEdit, nLen, nLen )
+    end if
+    return true
+end function
+
+' Ends the edit; TRUE when the model was written. The editor is HIDDEN, never destroyed here:
+' this runs from inside the editor's own callbacks.
+function LtEndEdit( byval p as TKLISTTREE_STATE ptr, byval bCommit as boolean ) as boolean
+    if (p->bEditing = false) orelse p->bEditTearingDown then return false
+    p->bEditTearingDown = true
+    dim as integer row = p->editRow, col = p->editCol
+    dim as ustring sNew = tkTextBox_GetText( p->wEdit )
+    p->bEditing = false
+    p->editRow = -1
+    ' focus back to the rows first: hiding the focused editor would otherwise drop it to nobody
+    if p->wSurf->pHost->pFocus = p->wEdit then tkHost_SetFocus( p->wSurf->pHost, p->wSurf )
+    tkWidget_Show( p->wEdit, false )
+    dim as boolean bWrote = false
+    if bCommit andalso p->IsValidRow( row ) then
+        dim as boolean bAccept = true
+        if p->EndLabelEditCallback then bAccept = p->EndLabelEditCallback( p->hWin, row, sNew )
+        if bAccept then
+            if col = 0 then p->rows(row).Text = sNew else tkListTree_SetCellText( p->hWin, row, col, sNew )
+            bWrote = true
+        end if
+    end if
+    p->bEditTearingDown = false
+    tkWidget_Invalidate( p->wSurf )
+    return bWrote
+end function
+
+
+' ==========================================================================================
+' Paint
+' ==========================================================================================
+' The chevron PsPlatform draws when no glyph font is set: down for expanded, right for collapsed.
+private sub LtPaintChevron( byval b as TK_PAINT ptr, byref rc as TKRECT, byval bExpanded as boolean, byval clr as ulong )
+    dim as long cx = (rc.left + rc.right) \ 2, cy = (rc.top + rc.bottom) \ 2
+    dim as long s = (rc.right - rc.left) \ 5
+    if s < 2 then s = 2
+    dim as TKPOINT pts(0 to 2)
+    if bExpanded then
+        pts(0).x = cx - s : pts(0).y = cy - s \ 2
+        pts(1).x = cx     : pts(1).y = cy + s \ 2
+        pts(2).x = cx + s : pts(2).y = cy - s \ 2
+    else
+        pts(0).x = cx - s \ 2 : pts(0).y = cy - s
+        pts(1).x = cx + s \ 2 : pts(1).y = cy
+        pts(2).x = cx - s \ 2 : pts(2).y = cy + s
+    end if
+    b->SetPenColor( clr )
+    b->PaintPolyline( @pts(0), 3, 1 )
+end sub
+
+private sub LtPaintSurface( byval p as TKLISTTREE_STATE ptr, byval b as TK_PAINT ptr )
+    dim as TK_WIDGET ptr w = p->wSurf
+    dim as TKRECT rcClient
+    tkRect_Set( rcClient, 0, 0, w->cw, w->ch )
+    b->SetBackColor( p->BackColor )
+    b->PaintRect( @rcClient )
+    dim as integer ih = LtItemHeightPx( p )
+    dim as integer nCols = LtColCount( p )
+    dim as integer bandLeft = 0, bandRight = 0
+    if nCols > 0 then
+        p->EnsurePaintCells( nCols )
+        dim as TKRECT rcCol
+        for c as integer = 0 to nCols - 1
+            tkColumnHeader_GetColumnRect( p->wHeader, c, rcCol )
+            p->paintCells(c).iCol = c
+            p->paintCells(c).rc.left = rcCol.left
+            p->paintCells(c).rc.right = rcCol.right
+        next
+        bandLeft = p->paintCells(0).rc.left
+        bandRight = p->paintCells(nCols - 1).rc.right
+    end if
+    dim as boolean bHasFocus = (w->pHost->pFocus = w)
+    if p->PaintCallback then
+        for vis as integer = p->nTopVis to p->visibleCount - 1
+            dim as integer y = (vis - p->nTopVis) * ih
+            if y >= rcClient.bottom then exit for
+            dim as integer modelRow = p->VisibleToModel( vis )
+            dim as TKLISTTREE_ROWINFO ptr pRow = p->GetRow( modelRow )
+            if pRow = 0 then continue for
+            dim as TKLISTTREE_PAINTINFO pi
+            pi.hList = p->hWin : pi.itemID = modelRow : pi.b = b
+            tkRect_Set( pi.rc, 0, y, rcClient.right, y + ih )
+            pi.isHot = (vis = p->nLastHotIdx)
+            pi.isFocused = (modelRow = p->focusRow)
+            pi.hasFocus = bHasFocus
+            pi.isSelected = pRow->selected
+            pi.isHeader = pRow->IsHeader
+            pi.isCollapsed = pRow->bCollapsed
+            pi.isSpanned = pRow->bSpanColumns
+            pi.isSelectable = pRow->bSelectable
+            pi.wszCaption = pRow->Text
+            pi.level = pRow->level
+            pi.hasChildren = p->HasChildrenAt( modelRow )
+            pi.isExpanded = (pRow->bCollapsed = false)
+            dim as integer lvlIndent = LtRowLevelIndentPx( p, modelRow )
+            dim as integer indentPx = lvlIndent + iif( p->bShowTwisty, LtTwistyPx( p ), 0 )
+            pi.indent = indentPx
+            if p->bShowTwisty andalso pi.hasChildren then
+                tkRect_Set( pi.rcTwisty, lvlIndent, y, lvlIndent + LtTwistyPx( p ), y + ih )
+            end if
+            if (nCols > 0) andalso (pRow->IsHeader = false) then
+                if pRow->bSpanColumns then
+                    p->spanCell.iCol = 0
+                    tkRect_Set( p->spanCell.rc, bandLeft + indentPx, y, bandRight, y + ih )
+                    p->spanCell.wszText = pRow->Text
+                    pi.columnCount = 1
+                    pi.cells = @p->spanCell
+                else
+                    for c as integer = 0 to nCols - 1
+                        p->paintCells(c).rc.top = y
+                        p->paintCells(c).rc.bottom = y + ih
+                        if c = 0 then
+                            p->paintCells(0).rc.left = bandLeft + indentPx
+                            p->paintCells(0).wszText = pRow->Text
+                        elseif c - 1 <= ubound( pRow->cells ) then
+                            p->paintCells(c).wszText = pRow->cells(c - 1)
+                        else
+                            p->paintCells(c).wszText = ""
+                        end if
+                    next
+                    pi.columnCount = nCols
+                    pi.cells = @p->paintCells(0)
+                end if
+            end if
+            b->SetFont( iif( p->pRowFont <> 0, p->pRowFont, w->pHost->pDefaultFont ) )
+            p->PaintCallback( @pi )
+            if p->bShowTwisty andalso (tkRect_IsEmpty( pi.rcTwisty ) = false) then
+                if p->pTwistyFont then
+                    b->SetFont( p->pTwistyFont )
+                    dim as ustring g = p->wszGlyphCollapsed
+                    if pi.isExpanded then g = p->wszGlyphExpanded
+                    b->PaintChar( g, @pi.rcTwisty, p->TwistyColor )
+                else
+                    LtPaintChevron( b, pi.rcTwisty, pi.isExpanded, p->TwistyColor )
+                end if
+            end if
+        next
+    end if
+    ' the drop indicator, over the rows
+    if p->bDragActive then
+        b->SetBackColor( p->dragIndicatorColor )
+        dim as long th = LtScale( p, 2 )
+        if p->dropOnHeader andalso (p->dropTargetRow >= 0) then
+            dim as TKRECT rh
+            if LtVisIndexRect( p, p->ModelToVisible( p->dropTargetRow ), rh ) then
+                b->SetPenColor( p->dragIndicatorColor )
+                b->PaintRoundOutline( @rh, 0, th )
+            end if
+        else
+            dim as integer lineY
+            if p->dropInsertBefore >= p->rowCount then
+                lineY = (p->visibleCount - p->nTopVis) * ih
+            else
+                dim as integer gv = p->ModelToVisible( p->dropInsertBefore )
+                if gv < 0 then gv = p->visibleCount
+                lineY = (gv - p->nTopVis) * ih
+            end if
+            if lineY > rcClient.bottom - th then lineY = rcClient.bottom - th
+            if lineY < 0 then lineY = 0
+            dim as TKRECT rl
+            tkRect_Set( rl, 0, lineY, rcClient.right, lineY + th )
+            b->PaintRect( @rl )
+        end if
+    end if
+end sub
+
+
+' ==========================================================================================
+' The row surface
+' ==========================================================================================
+private function LtMakeMsg( byval p as TKLISTTREE_STATE ptr, byval m as TK_MSG ptr, byval idx as integer ) as TKLISTTREE_MESSAGEINFO
+    dim as TKLISTTREE_MESSAGEINFO mi
+    dim as SDL_Keymod km = SDL_GetModState()
+    mi.hList = p->hWin : mi.msg = m->msg : mi.x = m->x : mi.y = m->y
+    mi.clicks = m->clicks : mi.wheelY = m->wheelY : mi.idx = idx
+    mi.isCtrl = ((km and SDL_KMOD_CTRL) <> 0)
+    mi.isShift = ((km and SDL_KMOD_SHIFT) <> 0)
+    return mi
+end function
+
+private function LtCallMsg( byval p as TKLISTTREE_STATE ptr, byref mi as TKLISTTREE_MESSAGEINFO ) as boolean
+    if p->MessageCallback = 0 then return false
+    return p->MessageCallback( @mi )
+end function
+
+private function LtTipText( byval t as TK_TIP ptr, byval a as TK_WIDGET ptr, byval idx as long ) as ustring
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( tkWidget_Parent( a ) )
+    if p = 0 then return ""
+    dim as integer modelRow = p->VisibleToModel( idx )
+    if p->IsValidRow( modelRow ) = false then return ""
+    if p->TooltipCallback then return p->TooltipCallback( p->hWin, modelRow, p->nLastHotCol )
+    return p->rows(modelRow).Text
+end function
+
+private sub LtButtonDown( byval p as TKLISTTREE_STATE ptr, byval m as TK_MSG ptr )
+    dim as TK_WIDGET ptr w = p->wSurf
+    p->skipNextLBtnUp = false
+    p->bDragArmed = false
+    p->dragPendCollapse = -1
+    tkHost_SetFocus( w->pHost, w )
+    dim as integer x = cint( m->x ), y = cint( m->y )
+    dim as integer vis = LtVisIndexFromPoint( p, x, y )
+    if vis < 0 then exit sub
+    dim as integer modelRow = p->VisibleToModel( vis )
+    dim as TKLISTTREE_ROWINFO ptr pRow = p->GetRow( modelRow )
+    dim as TKLISTTREE_MESSAGEINFO mi = LtMakeMsg( p, m, modelRow )
+    if m->clicks >= 2 then
+        ' vendor's WM_LBUTTONDBLCLK: it stands in for the pair's second press
+        if p->PreventDblClick then
+            p->skipNextLBtnUp = true
+            if pRow->IsHeader then
+                pRow->bCollapsed = not pRow->bCollapsed
+                p->NotifyChange()
+            else
+                LtApplyClickSelection( p, modelRow, mi.isCtrl, mi.isShift )
+            end if
+        else
+            if LtCallMsg( p, mi ) then exit sub
+            LtFireActivate( p, modelRow )
+        end if
+        exit sub
+    end if
+    if pRow->IsHeader then
+        ' a legacy header: the whole row folds, the selection is left alone
+        pRow->bCollapsed = not pRow->bCollapsed
+        p->NotifyChange()
+        LtNotifyExpandCollapse( p, modelRow, pRow->bCollapsed = false )
+    elseif LtPointOverTwisty( p, x, modelRow ) then
+        pRow->bCollapsed = not pRow->bCollapsed
+        p->NotifyChange()
+        LtNotifyExpandCollapse( p, modelRow, pRow->bCollapsed = false )
+    else
+        dim as boolean bWasCurrent = (p->focusRow = modelRow)
+        dim as boolean canDrag = p->bDragReorder andalso pRow->bSelectable
+        dim as boolean deferSel = false
+        if canDrag then deferSel = p->IsRowSelected( modelRow ) andalso (p->GetSelCount() > 1)
+        if deferSel then
+            p->dragPendCollapse = modelRow
+        else
+            LtApplyClickSelection( p, modelRow, mi.isCtrl, mi.isShift )
+        end if
+        if canDrag then
+            p->bDragArmed = true
+            p->bDragActive = false
+            p->dragAnchorRow = modelRow
+            p->dragStartX = x : p->dragStartY = y
+        end if
+        dim as boolean bWantEdit = false
+        if p->bClickToEdit andalso p->bLabelEdit andalso bWasCurrent then bWantEdit = (deferSel = false)
+        if bWantEdit then LtBeginEdit( p, modelRow, p->editGestureCol )
+    end if
+    LtCallMsg( p, mi )          ' an observer: the control's own handling has already run
+end sub
+
+private sub LtButtonUp( byval p as TKLISTTREE_STATE ptr, byval m as TK_MSG ptr )
+    dim as integer x = cint( m->x ), y = cint( m->y )
+    if p->bDragActive then
+        LtUpdateDragTarget( p, x, y )
+        LtCommitDrop( p )
+        LtCancelDrag( p )
+        exit sub
+    end if
+    if p->bDragArmed then
+        p->bDragArmed = false
+        if p->dragPendCollapse >= 0 then
+            LtApplyClickSelection( p, p->dragPendCollapse, false, false )
+            p->dragPendCollapse = -1
+        end if
+        p->dragAnchorRow = -1
+        if tkHost_GetCapture( p->wSurf->pHost ) = p->wSurf then tkHost_ReleaseCapture( p->wSurf->pHost )
+    end if
+    if p->skipNextLBtnUp then p->skipNextLBtnUp = false : exit sub
+    dim as integer vis = LtVisIndexFromPoint( p, x, y )
+    if vis < 0 then exit sub
+    dim as TKLISTTREE_MESSAGEINFO mi = LtMakeMsg( p, m, p->VisibleToModel( vis ) )
+    LtCallMsg( p, mi )
+end sub
+
+private sub LtMouseMove( byval p as TKLISTTREE_STATE ptr, byval m as TK_MSG ptr )
+    dim as integer x = cint( m->x ), y = cint( m->y )
+    p->dragLastX = x : p->dragLastY = y
+    if p->bDragReorder then
+        if p->bDragActive then
+            LtUpdateDragTarget( p, x, y )
+            exit sub
+        elseif p->bDragArmed then
+            dim as long thr = LtScale( p, CLISTTREE_DRAG_THRESHOLD )
+            if (abs( x - p->dragStartX ) >= thr) orelse (abs( y - p->dragStartY ) >= thr) then
+                p->bDragActive = true
+                tkHost_SetCapture( p->wSurf )
+                LtSetHot( p, -1 )
+                tkWidget_SetTimer( p->wSurf, TK_TIMER_AUTOSCROLL, CLISTTREE_DRAGSCROLL_MS )
+                LtUpdateDragTarget( p, x, y )
+                exit sub
+            end if
+        end if
+    end if
+    dim as integer vis = LtVisIndexFromPoint( p, x, y )
+    p->nLastHotCol = LtColFromX( p, x )
+    if vis >= 0 then LtSetHot( p, vis )
+    dim as TKLISTTREE_MESSAGEINFO mi = LtMakeMsg( p, m, iif( vis >= 0, p->VisibleToModel( vis ), -1 ) )
+    LtCallMsg( p, mi )
+end sub
+
+private function LtWheel( byval p as TKLISTTREE_STATE ptr, byval m as TK_MSG ptr ) as boolean
+    ' vendor: lines per notch (3: SDL has no SPI_GETWHEELSCROLLLINES), capped at a page;
+    ' sub-notch deltas accumulate
+    dim as long page = LtItemsPerPage( p )
+    dim as long lines = iif( 3 > page, page, 3 )
+    p->fWheelAccum += m->wheelY
+    dim as integer nTop = p->nTopVis
+    dim as boolean moved = false
+    while p->fWheelAccum >= 1
+        nTop -= lines : p->fWheelAccum -= 1 : moved = true
+    wend
+    while p->fWheelAccum <= -1
+        nTop += lines : p->fWheelAccum += 1 : moved = true
+    wend
+    if moved = false then return true
+    dim as integer was = p->nTopVis
+    LtSetTopVis( p, nTop )
+    LtCaptureTopRow( p )
+    LtSyncScrollBar( p )
+    if p->nTopVis = was then return false     ' against the end: the parent may have it
+    dim as TKLISTTREE_MESSAGEINFO mi = LtMakeMsg( p, m, -1 )
+    LtCallMsg( p, mi )
+    return true
+end function
+
+private function LtKeyDown( byval p as TKLISTTREE_STATE ptr, byval m as TK_MSG ptr ) as boolean
+    if p->bDragActive andalso (m->key = SDLK_ESCAPE) then LtCancelDrag( p ) : return true
+    dim as boolean isShift = ((m->mods and SDL_KMOD_SHIFT) <> 0)
+    dim as boolean isCtrl = ((m->mods and SDL_KMOD_CTRL) <> 0)
+    dim as integer curVis = p->ModelToVisible( p->focusRow )
+    if curVis < 0 then curVis = 0
+    dim as integer perPage = LtItemsPerPage( p )
+    select case m->key
+    case SDLK_UP : LtMoveFocusVis( p, curVis - 1, isShift, isCtrl, -1, false ) : return true
+    case SDLK_DOWN : LtMoveFocusVis( p, curVis + 1, isShift, isCtrl, +1, false ) : return true
+    case SDLK_PAGEUP : LtMoveFocusVis( p, curVis - perPage, isShift, isCtrl, -1, true ) : return true
+    case SDLK_PAGEDOWN : LtMoveFocusVis( p, curVis + perPage, isShift, isCtrl, +1, true ) : return true
+    case SDLK_HOME : LtMoveFocusVis( p, 0, isShift, isCtrl, +1, true ) : return true
+    case SDLK_END : LtMoveFocusVis( p, p->visibleCount - 1, isShift, isCtrl, -1, true ) : return true
+    case SDLK_LEFT : LtKeyLeft( p ) : return true
+    case SDLK_RIGHT : LtKeyRight( p ) : return true
+    case SDLK_SPACE : LtKeySpace( p ) : return true
+    case SDLK_F2
+        if p->bLabelEdit then LtBeginEdit( p, p->focusRow, p->editGestureCol )
+        return true
+    case SDLK_RETURN, SDLK_KP_ENTER
+        if p->bEnterEdits andalso p->bLabelEdit then LtBeginEdit( p, p->focusRow, p->editGestureCol ) : return true
+        if p->ActivateCallback then LtFireActivate( p, p->focusRow ) : return true
+    end select
+    return false            ' Tab and the rest reach the host
+end function
+
+function LtSurfaceProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( tkWidget_Parent( w ) )
+    if p = 0 then return false
+    select case m->msg
+    case TKM_PAINT
+        LtPaintSurface( p, m->pPaint )
+        return true
+    case TKM_SIZE
+        if p->bEditing then LtEndEdit( p, true )
+        p->nTopVis = LtClampTopVis( p, p->nTopVis )
+        LtSyncScrollBar( p )
+        return true
+    case TKM_SETFOCUS, TKM_KILLFOCUS
+        tkWidget_Invalidate( w )
+        return true
+    case TKM_KEYDOWN
+        return LtKeyDown( p, m )
+    case TKM_MOUSEWHEEL
+        return LtWheel( p, m )
+    case TKM_MOUSEMOVE
+        LtMouseMove( p, m )
+        return true
+    case TKM_MOUSELEAVE
+        p->nLastHotCol = -1
+        LtSetHot( p, -1 )
+        dim as TKLISTTREE_MESSAGEINFO mi = LtMakeMsg( p, m, -1 )
+        LtCallMsg( p, mi )
+        return true
+    case TKM_LBUTTONDOWN
+        LtButtonDown( p, m )
+        return true
+    case TKM_LBUTTONUP
+        LtButtonUp( p, m )
+        return true
+    case TKM_RBUTTONDOWN
+        dim as integer vis = LtVisIndexFromPoint( p, cint( m->x ), cint( m->y ) )
+        if vis >= 0 then
+            dim as TKLISTTREE_MESSAGEINFO mi = LtMakeMsg( p, m, p->VisibleToModel( vis ) )
+            LtCallMsg( p, mi )
+        end if
+        return true
+    case TKM_TIMER
+        if (m->timerId = TK_TIMER_AUTOSCROLL) andalso p->bDragActive then
+            dim as long zone = LtScale( p, CLISTTREE_DRAGSCROLL_ZONE )
+            dim as integer nTop = p->nTopVis
+            if p->dragLastY < zone then
+                nTop -= 1
+            elseif p->dragLastY > w->ch - zone then
+                nTop += 1
+            end if
+            if nTop <> p->nTopVis then
+                LtSetTopVis( p, nTop )
+                LtCaptureTopRow( p )
+                LtSyncScrollBar( p )
+                LtUpdateDragTarget( p, p->dragLastX, p->dragLastY )
+            end if
+        end if
+        return true
+    case TKM_CAPTURECHANGED
+        if p->bDragActive orelse p->bDragArmed then LtCancelDrag( p )
+        return true
+    end select
+    return false
+end function
+
+
+' ==========================================================================================
+' The container
+' ==========================================================================================
+sub LtScrolled( byval hSB as TK_WIDGET ptr, byval newPos as integer )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( tkWidget_Parent( hSB ) )
+    if p = 0 then exit sub
+    dim as integer actual = LtSetTopVis( p, newPos )
+    if actual <> newPos then tkVScrollBar_SetPos( hSB, actual )
+    dim as integer modelTop = p->VisibleToModel( actual )
+    if modelTop >= 0 then p->topRow = modelTop
+end sub
+
+sub LtHeaderWidthChanged( byval hHeader as TK_WIDGET ptr, byval idx as integer, byval nWidth as integer, byval bLive as boolean )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( tkWidget_Parent( hHeader ) )
+    if p = 0 then exit sub
+    tkWidget_Invalidate( p->wSurf )
+    if p->ColumnResizeCallback then p->ColumnResizeCallback( hHeader, idx, nWidth, bLive )
+end sub
+
+private sub LtRescale( byval p as TKLISTTREE_STATE ptr )
+    p->nItemHeightPx = 0          ' the unscaled metrics re-derive at the new scale
+    if p->bEditing then LtEndEdit( p, true )
+    LtPositionWindows( p )
+    p->nTopVis = LtClampTopVis( p, p->nTopVis )
+    LtSyncScrollBar( p )
+    tkWidget_Invalidate( p->wSurf )
+end sub
+
+function tkListTree_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( w )
+    if p = 0 then return false
+    select case m->msg
+    case TKM_PAINT
+        if p->nBorderWidth > 0 then
+            dim as TKRECT rc
+            tkRect_Set( rc, 0, 0, w->cw, w->ch )
+            m->pPaint->SetPenColor( p->BorderColor )
+            m->pPaint->PaintRoundOutline( @rc, 0, p->nBorderWidth )
+        end if
+        return true
+    case TKM_SIZE
+        LtPositionWindows( p )
+        LtSyncViewFromModel( p )
+        return true
+    case TKM_SETFOCUS
+        ' the container has no keys: focus goes straight down to the rows
+        tkHost_SetFocus( w->pHost, p->wSurf )
+        return true
+    case TKM_SCALECHANGED
+        LtRescale( p )
+        return true
+    case TKM_THEMECHANGED
+        tkListTree_ApplyTheme( w, tkTheme_Get() )
+        return true
+    case TKM_DESTROY
+        tkTipHost_Destroy( @p->tip )
+        delete p
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ==========================================================================================
+' Public API -- vendor's surface, HWND replaced by the widget pointer.
+' ==========================================================================================
+public function tkListTree_Create( byval hParent as TK_WIDGET ptr, byval CtrlID as long ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TKLISTTREE_STATE ptr p = new TKLISTTREE_STATE
+    p->wszGlyphExpanded = wchr( &hE70D )
+    p->wszGlyphCollapsed = wchr( &hE76C )
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @tkListTree_Proc, p )
+    p->hWin = w
+    p->wSurf = tkWidget_CreateChild( w, CtrlID, @LtSurfaceProc, 0 )
+    p->wSurf->isFocusable = true
+    p->wBar = tkVScrollBar_Create( w, CtrlID + 1 )
+    tkVScrollBar_SetScrollCallback( p->wBar, @LtScrolled )
+    tkWidget_Show( p->wBar, false )
+    p->wHeader = tkColumnHeader_Create( w, CtrlID + 2 )
+    tkColumnHeader_SetWidthChangedCallback( p->wHeader, @LtHeaderWidthChanged )
+    tkWidget_Show( p->wHeader, false )
+    tkTipHost_Ensure( @p->tip, p->wSurf, @LtTipText )
+    tkTipHost_SetToolIndex( @p->tip, -1 )
+    tkTipHost_SetDelay( @p->tip, TK_TIPDELAY_INITIAL, 250 )
+    tkListTree_ApplyTheme( w, tkTheme_Get() )
+    return w
+end function
+
+' ---- content ------------------------------------------------------------------------------
+public function tkListTree_AddString( byval hList as TK_WIDGET ptr, byval Text as ustring, _
+                                     byval itemData as integer = 0, byval itemDataExtra as integer = 0 ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return -1
+    dim as TKLISTTREE_ROWINFO ptr r = p->InsertRowAt( p->rowCount )
+    r->Text = Text : r->itemData = itemData : r->itemDataExtra = itemDataExtra
+    dim as integer newIdx = p->rowCount - 1
+    ' legacy grouping as a depth-1 tree: after a header (or one of its items) it is a child
+    if newIdx > 0 then
+        if p->rows(newIdx - 1).IsHeader orelse (p->rows(newIdx - 1).level = 1) then
+            p->rows(newIdx).level = 1
+            p->NotifyChange()
+        end if
+    end if
+    return newIdx
+end function
+
+public function tkListTree_AddHeader( byval hList as TK_WIDGET ptr, byval Text as ustring, _
+                                     byval itemData as integer = 0, byval itemDataExtra as integer = 0 ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return -1
+    dim as TKLISTTREE_ROWINFO ptr r = p->InsertRowAt( p->rowCount )
+    r->IsHeader = true : r->Text = Text : r->itemData = itemData : r->itemDataExtra = itemDataExtra
+    p->NotifyChange()
+    return p->rowCount - 1
+end function
+
+public function tkListTree_InsertString( byval hList as TK_WIDGET ptr, byval row as integer, byval Text as ustring, _
+                                        byval itemData as integer = 0, byval itemDataExtra as integer = 0 ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return -1
+    dim as integer at = row
+    if at < 0 then at = 0
+    if at > p->rowCount then at = p->rowCount
+    dim as TKLISTTREE_ROWINFO ptr r = p->InsertRowAt( at )
+    r->Text = Text : r->itemData = itemData : r->itemDataExtra = itemDataExtra
+    if at > 0 then
+        if p->rows(at - 1).IsHeader orelse (p->rows(at - 1).level = 1) then
+            p->rows(at).level = 1
+            p->NotifyChange()
+        end if
+    end if
+    return at
+end function
+
+public function tkListTree_AddNode( byval hList as TK_WIDGET ptr, byval parentRow as integer, byval Text as ustring, _
+                                   byval itemData as integer = 0, byval itemDataExtra as integer = 0 ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return -1
+    dim as integer at, lvl
+    if parentRow < 0 then
+        at = p->rowCount : lvl = 0
+    else
+        if p->IsValidRow( parentRow ) = false then return -1
+        at = p->LastDescendantOf( parentRow ) + 1
+        lvl = p->rows(parentRow).level + 1
+    end if
+    dim as TKLISTTREE_ROWINFO ptr r = p->InsertRowAt( at )
+    r->Text = Text : r->level = lvl : r->itemData = itemData : r->itemDataExtra = itemDataExtra
+    p->NotifyChange()
+    return at
+end function
+
+public function tkListTree_InsertNode( byval hList as TK_WIDGET ptr, byval parentRow as integer, byval childIndex as integer, _
+                                      byval Text as ustring, byval itemData as integer = 0, byval itemDataExtra as integer = 0 ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return -1
+    if childIndex < 0 then childIndex = 0
+    dim as integer lvl, scanStart, scanEnd
+    if parentRow < 0 then
+        lvl = 0 : scanStart = 0 : scanEnd = p->rowCount - 1
+    else
+        if p->IsValidRow( parentRow ) = false then return -1
+        lvl = p->rows(parentRow).level + 1
+        scanStart = parentRow + 1
+        scanEnd = p->LastDescendantOf( parentRow )
+    end if
+    dim as integer at = scanEnd + 1, seen = 0
+    for i as integer = scanStart to scanEnd
+        if p->rows(i).level < lvl then exit for
+        if p->rows(i).level = lvl then
+            if seen = childIndex then at = i : exit for
+            seen += 1
+        end if
+    next
+    if at > p->rowCount then at = p->rowCount
+    dim as TKLISTTREE_ROWINFO ptr r = p->InsertRowAt( at )
+    r->Text = Text : r->level = lvl : r->itemData = itemData : r->itemDataExtra = itemDataExtra
+    p->NotifyChange()
+    return at
+end function
+
+public function tkListTree_DeleteString( byval hList as TK_WIDGET ptr, byval row as integer ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    if p->bEditing andalso (p->editRow = row) then LtEndEdit( p, false )
+    return p->DeleteRowAt( row )
+end function
+
+public sub tkListTree_Clear( byval hList as TK_WIDGET ptr )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then exit sub
+    if p->bEditing then LtEndEdit( p, false )
+    p->ClearRows()
+end sub
+
+public function tkListTree_GetCount( byval hList as TK_WIDGET ptr ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    return p->rowCount
+end function
+
+public function tkListTree_GetVisibleCount( byval hList as TK_WIDGET ptr ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    return p->visibleCount
+end function
+
+public function tkListTree_GetText( byval hList as TK_WIDGET ptr, byval row as integer ) as ustring
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if (p = 0) orelse (p->IsValidRow( row ) = false) then return ""
+    return p->rows(row).Text
+end function
+
+public function tkListTree_SetText( byval hList as TK_WIDGET ptr, byval row as integer, byval Text as ustring ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if (p = 0) orelse (p->IsValidRow( row ) = false) then return false
+    p->rows(row).Text = Text
+    p->NotifyRowChanged( row )
+    return true
+end function
+
+public function tkListTree_GetCellText( byval hList as TK_WIDGET ptr, byval row as integer, byval col as integer ) as ustring
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if (p = 0) orelse (p->IsValidRow( row ) = false) orelse (col < 0) then return ""
+    if col = 0 then return p->rows(row).Text
+    if col - 1 > ubound( p->rows(row).cells ) then return ""
+    return p->rows(row).cells(col - 1)
+end function
+
+public function tkListTree_SetCellText( byval hList as TK_WIDGET ptr, byval row as integer, byval col as integer, byval Text as ustring ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if (p = 0) orelse (p->IsValidRow( row ) = false) orelse (col < 0) then return false
+    if col = 0 then
+        p->rows(row).Text = Text
+    else
+        p->rows(row).EnsureCells( col )
+        p->rows(row).cells(col - 1) = Text
+    end if
+    p->NotifyRowChanged( row )
+    return true
+end function
+
+public function tkListTree_GetItemData( byval hList as TK_WIDGET ptr, byval row as integer ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if (p = 0) orelse (p->IsValidRow( row ) = false) then return 0
+    return p->rows(row).itemData
+end function
+
+public function tkListTree_SetItemData( byval hList as TK_WIDGET ptr, byval row as integer, byval itemData as integer ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if (p = 0) orelse (p->IsValidRow( row ) = false) then return false
+    p->rows(row).itemData = itemData
+    return true
+end function
+
+public function tkListTree_GetItemDataExtra( byval hList as TK_WIDGET ptr, byval row as integer ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if (p = 0) orelse (p->IsValidRow( row ) = false) then return 0
+    return p->rows(row).itemDataExtra
+end function
+
+public function tkListTree_SetItemDataExtra( byval hList as TK_WIDGET ptr, byval row as integer, byval itemDataExtra as integer ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if (p = 0) orelse (p->IsValidRow( row ) = false) then return false
+    p->rows(row).itemDataExtra = itemDataExtra
+    return true
+end function
+
+public sub tkListTree_BeginUpdate( byval hList as TK_WIDGET ptr )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then p->updateDepth += 1
+end sub
+
+public sub tkListTree_EndUpdate( byval hList as TK_WIDGET ptr )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then exit sub
+    if p->updateDepth > 0 then p->updateDepth -= 1
+    if p->updateDepth <> 0 then exit sub
+    if p->batchKind = 1 then
+        dim as integer f = p->batchFirstRow, l = p->batchLastRow
+        p->batchKind = 0 : p->batchFirstRow = -1 : p->batchLastRow = -1
+        LtInvalidateRowSpan( p, f, l )
+        exit sub
+    end if
+    p->Refresh()
+end sub
+
+public sub tkListTree_Refresh( byval hList as TK_WIDGET ptr )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then p->Refresh()
+end sub
+
+public sub tkListTree_InvalidateRow( byval hList as TK_WIDGET ptr, byval row as integer )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if (p <> 0) andalso p->IsValidRow( row ) then LtInvalidateRowSpan( p, row, row )
+end sub
+
+public sub tkListTree_InvalidateRows( byval hList as TK_WIDGET ptr, byval first_ as integer, byval last_ as integer )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then exit sub
+    if first_ > last_ then swap first_, last_
+    if first_ < 0 then first_ = 0
+    if last_ > p->rowCount - 1 then last_ = p->rowCount - 1
+    if first_ <= last_ then LtInvalidateRowSpan( p, first_, last_ )
+end sub
+
+' Paints whatever is pending now (vendor's UpdateWindow on the surface).
+public sub tkListTree_UpdateNow( byval hList as TK_WIDGET ptr )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if (p <> 0) andalso p->hWin->pHost->bDirty then tkHost_Render( p->hWin->pHost )
+end sub
+
+' ---- groups and trees ---------------------------------------------------------------------
+public function tkListTree_IsHeader( byval hList as TK_WIDGET ptr, byval row as integer ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if (p = 0) orelse (p->IsValidRow( row ) = false) then return false
+    return p->rows(row).IsHeader
+end function
+
+public function tkListTree_IsCollapsed( byval hList as TK_WIDGET ptr, byval row as integer ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if (p = 0) orelse (p->IsValidRow( row ) = false) then return false
+    return p->rows(row).bCollapsed
+end function
+
+private function LtSetCollapsed( byval hList as TK_WIDGET ptr, byval row as integer, byval nMode as long ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    if LtCanFold( p, row ) = false then return false
+    dim as boolean bNew
+    select case nMode
+    case 0 : bNew = true                          ' collapse
+    case 1 : bNew = false                         ' expand
+    case else : bNew = not p->rows(row).bCollapsed
+    end select
+    if p->rows(row).bCollapsed <> bNew then
+        p->rows(row).bCollapsed = bNew
+        if p->bEditing then LtEndEdit( p, true )
+        p->NotifyChange()
+    end if
+    return true
+end function
+
+public function tkListTree_CollapseRow( byval hList as TK_WIDGET ptr, byval row as integer ) as boolean
+    return LtSetCollapsed( hList, row, 0 )
+end function
+
+public function tkListTree_ExpandRow( byval hList as TK_WIDGET ptr, byval row as integer ) as boolean
+    return LtSetCollapsed( hList, row, 1 )
+end function
+
+public function tkListTree_ToggleRow( byval hList as TK_WIDGET ptr, byval row as integer ) as boolean
+    return LtSetCollapsed( hList, row, 2 )
+end function
+
+public function tkListTree_SetNodeCollapsed( byval hList as TK_WIDGET ptr, byval row as integer, byval bCollapsed as boolean ) as boolean
+    return LtSetCollapsed( hList, row, iif( bCollapsed, 0, 1 ) )
+end function
+
+private function LtSetAll( byval hList as TK_WIDGET ptr, byval bCollapsed as boolean ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    for i as integer = 0 to p->rowCount - 1
+        if LtCanFold( p, i ) then p->rows(i).bCollapsed = bCollapsed
+    next
+    if p->bEditing then LtEndEdit( p, true )
+    p->NotifyChange()
+    return true
+end function
+
+public function tkListTree_CollapseAll( byval hList as TK_WIDGET ptr ) as boolean
+    return LtSetAll( hList, true )
+end function
+
+public function tkListTree_ExpandAll( byval hList as TK_WIDGET ptr ) as boolean
+    return LtSetAll( hList, false )
+end function
+
+public function tkListTree_GetLevel( byval hList as TK_WIDGET ptr, byval row as integer ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if (p = 0) orelse (p->IsValidRow( row ) = false) then return -1
+    return p->rows(row).level
+end function
+
+public function tkListTree_GetParent( byval hList as TK_WIDGET ptr, byval row as integer ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return -1
+    return p->ParentOf( row )
+end function
+
+public function tkListTree_GetChildCount( byval hList as TK_WIDGET ptr, byval row as integer ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    return p->ChildCountAt( row )
+end function
+
+public function tkListTree_HasChildren( byval hList as TK_WIDGET ptr, byval row as integer ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    return p->HasChildrenAt( row )
+end function
+
+' ---- selection and state ------------------------------------------------------------------
+public function tkListTree_GetCurSel( byval hList as TK_WIDGET ptr ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return -1
+    return p->focusRow
+end function
+
+public function tkListTree_SetCurSel( byval hList as TK_WIDGET ptr, byval row as integer ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return -1
+    if p->IsValidRow( row ) = false then
+        p->ClearSelection()
+        p->focusRow = -1 : p->anchorRow = -1 : p->lastNotifiedRow = -1
+        LtSyncViewFromModel( p )
+        return -1
+    end if
+    if p->IsRowSelectable( row ) = false then return -1
+    p->SelectOnly( row )
+    p->focusRow = row : p->anchorRow = row : p->lastNotifiedRow = row
+    dim as integer visRow = p->ModelToVisible( row )
+    if (visRow >= 0) andalso (LtVisPerPage( p ) >= 1) then
+        dim as integer perPage = LtItemsPerPage( p )
+        if visRow < p->nTopVis then
+            p->topRow = row
+        elseif visRow >= p->nTopVis + perPage then
+            p->topRow = p->VisibleToModel( visRow - perPage + 1 )
+        end if
+    end if
+    LtSyncViewFromModel( p )
+    return row
+end function
+
+public function tkListTree_GetTopIndex( byval hList as TK_WIDGET ptr ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if (p = 0) orelse (p->visibleCount = 0) then return -1
+    return p->VisibleToModel( p->nTopVis )
+end function
+
+public function tkListTree_SetTopIndex( byval hList as TK_WIDGET ptr, byval row as integer ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if (p = 0) orelse (p->IsValidRow( row ) = false) then return -1
+    p->topRow = row
+    LtSyncViewFromModel( p )
+    return p->topRow
+end function
+
+public function tkListTree_GetSel( byval hList as TK_WIDGET ptr, byval row as integer ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    return p->IsRowSelected( row )
+end function
+
+public function tkListTree_SetSel( byval hList as TK_WIDGET ptr, byval row as integer, byval state as boolean ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if (p = 0) orelse (p->IsValidRow( row ) = false) then return false
+    if state andalso (p->IsRowSelectable( row ) = false) then return false
+    p->SetRowSelected( row, state )
+    tkWidget_Invalidate( p->wSurf )
+    return true
+end function
+
+public function tkListTree_GetSelCount( byval hList as TK_WIDGET ptr ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    return p->GetSelCount()
+end function
+
+public function tkListTree_GetSelItems( byval hList as TK_WIDGET ptr, selItems() as integer ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    dim as integer n = iif( p <> 0, p->GetSelCount(), 0 )
+    if n = 0 then erase selItems : return 0
+    redim selItems( 0 to n - 1 )
+    dim as integer k = 0
+    for i as integer = 0 to p->rowCount - 1
+        if p->rows(i).selected then selItems(k) = i : k += 1
+    next
+    return n
+end function
+
+public sub tkListTree_SelectAll( byval hList as TK_WIDGET ptr, byval state as boolean )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then exit sub
+    for i as integer = 0 to p->rowCount - 1
+        p->SetRowSelected( i, state )
+    next
+    tkWidget_Invalidate( p->wSurf )
+end sub
+
+public function tkListTree_SetMultiSelect( byval hList as TK_WIDGET ptr, byval enable as boolean ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    p->MultipleSel = enable
+    if enable then p->ExtendSel = false
+    return true
+end function
+
+public function tkListTree_SetExtendedSelect( byval hList as TK_WIDGET ptr, byval enable as boolean ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    p->ExtendSel = enable
+    if enable then p->MultipleSel = false
+    return true
+end function
+
+public function tkListTree_PreventDoubleClick( byval hList as TK_WIDGET ptr, byval enable as boolean = true ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    p->PreventDblClick = enable
+    return true
+end function
+
+public function tkListTree_SetRowSpanColumns( byval hList as TK_WIDGET ptr, byval row as integer, byval bSpan as boolean = true ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if (p = 0) orelse (p->IsValidRow( row ) = false) then return false
+    p->rows(row).bSpanColumns = bSpan
+    tkWidget_Invalidate( p->wSurf )
+    return true
+end function
+
+public function tkListTree_GetRowSpanColumns( byval hList as TK_WIDGET ptr, byval row as integer ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if (p = 0) orelse (p->IsValidRow( row ) = false) then return false
+    return p->rows(row).bSpanColumns
+end function
+
+' Non-selectable: never selected, never focused. Marking a live row drops both, silently.
+public function tkListTree_SetRowSelectable( byval hList as TK_WIDGET ptr, byval row as integer, byval bSelectable as boolean = true ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if (p = 0) orelse (p->IsValidRow( row ) = false) then return false
+    p->rows(row).bSelectable = bSelectable
+    if bSelectable = false then
+        p->rows(row).selected = false
+        if p->focusRow = row then p->focusRow = -1 : p->lastNotifiedRow = -1
+        if p->anchorRow = row then p->anchorRow = -1
+    end if
+    tkWidget_Invalidate( p->wSurf )
+    return true
+end function
+
+public function tkListTree_GetRowSelectable( byval hList as TK_WIDGET ptr, byval row as integer ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    return p->IsRowSelectable( row )
+end function
+
+' ---- drag reorder -------------------------------------------------------------------------
+public function tkListTree_SetDragReorder( byval hList as TK_WIDGET ptr, byval enable as boolean = true ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    p->bDragReorder = enable
+    if enable = false then LtCancelDrag( p )
+    return true
+end function
+
+public function tkListTree_GetDragReorder( byval hList as TK_WIDGET ptr ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    return p->bDragReorder
+end function
+
+public function tkListTree_MoveRows( byval hList as TK_WIDGET ptr, srcRows() as integer, byval insertBefore as integer ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return -1
+    return p->MoveRows( srcRows(), insertBefore )
+end function
+
+public function tkListTree_SetDragIndicatorColor( byval hList as TK_WIDGET ptr, byval clr as ulong ) as ulong
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    dim as ulong old = p->dragIndicatorColor
+    p->dragIndicatorColor = clr
+    p->bColorsPinned = true
+    return old
+end function
+
+public function tkListTree_GetDragIndicatorColor( byval hList as TK_WIDGET ptr ) as ulong
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    return p->dragIndicatorColor
+end function
+
+public function tkListTree_IsDragging( byval hList as TK_WIDGET ptr ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    return p->bDragActive
+end function
+
+' ---- appearance ---------------------------------------------------------------------------
+public function tkListTree_GetBackColor( byval hList as TK_WIDGET ptr ) as ulong
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    return p->BackColor
+end function
+
+' Stores it, pins it, returns the previous one. Does not repaint (vendor).
+public function tkListTree_SetBackColor( byval hList as TK_WIDGET ptr, byval clr as ulong ) as ulong
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    dim as ulong old = p->BackColor
+    p->BackColor = clr
+    p->bColorsPinned = true
+    return old
+end function
+
+public function tkListTree_GetRowHeight( byval hList as TK_WIDGET ptr ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    return p->RowHeight
+end function
+
+public function tkListTree_SetRowHeight( byval hList as TK_WIDGET ptr, byval nHeight as integer ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    p->RowHeight = nHeight
+    p->nItemHeightPx = 0
+    p->Refresh()
+    return nHeight
+end function
+
+public function tkListTree_GetItemHeightPx( byval hList as TK_WIDGET ptr ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    return LtItemHeightPx( p )
+end function
+
+public function tkListTree_GetFont( byval hList as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    return p->pRowFont
+end function
+
+public function tkListTree_SetFont( byval hList as TK_WIDGET ptr, byval f as TTF_Font ptr ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    p->pRowFont = f
+    if p->wEdit then tkTextBox_SetFont( p->wEdit, f )
+    tkWidget_Invalidate( p->wSurf )
+    return true
+end function
+
+public function tkListTree_GetBorderWidth( byval hList as TK_WIDGET ptr ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    return p->nBorderWidth
+end function
+
+public sub tkListTree_SetBorderWidth( byval hList as TK_WIDGET ptr, byval nWidth as integer )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then exit sub
+    p->nBorderWidth = iif( nWidth < 0, 0, nWidth )
+    LtPositionWindows( p )
+    LtSyncViewFromModel( p )
+    tkWidget_Invalidate( hList )
+end sub
+
+public function tkListTree_GetBorderColor( byval hList as TK_WIDGET ptr ) as ulong
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    return p->BorderColor
+end function
+
+public sub tkListTree_SetBorderColor( byval hList as TK_WIDGET ptr, byval clr as ulong )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then exit sub
+    p->BorderColor = clr
+    p->bColorsPinned = true
+    tkWidget_Invalidate( hList )
+end sub
+
+' ---- tree appearance ----------------------------------------------------------------------
+public function tkListTree_SetTreeIndent( byval hList as TK_WIDGET ptr, byval enable as boolean = true ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    p->bTreeIndent = enable
+    tkWidget_Invalidate( p->wSurf )
+    return true
+end function
+
+public function tkListTree_GetTreeIndent( byval hList as TK_WIDGET ptr ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    return p->bTreeIndent
+end function
+
+public function tkListTree_SetIndentWidth( byval hList as TK_WIDGET ptr, byval nWidth as integer ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    p->IndentWidth = iif( nWidth < 1, 1, nWidth )
+    tkWidget_Invalidate( p->wSurf )
+    return p->IndentWidth
+end function
+
+public function tkListTree_GetIndentWidth( byval hList as TK_WIDGET ptr ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    return p->IndentWidth
+end function
+
+public function tkListTree_ShowTwisty( byval hList as TK_WIDGET ptr, byval enable as boolean = true ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    p->bShowTwisty = enable
+    tkWidget_Invalidate( p->wSurf )
+    return true
+end function
+
+public function tkListTree_IsTwistyShown( byval hList as TK_WIDGET ptr ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    return p->bShowTwisty
+end function
+
+public sub tkListTree_SetTwistyWidth( byval hList as TK_WIDGET ptr, byval nWidth as integer )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then exit sub
+    p->TwistyWidth = iif( nWidth < 1, 1, nWidth )
+    tkWidget_Invalidate( p->wSurf )
+end sub
+
+public sub tkListTree_SetTwistyColor( byval hList as TK_WIDGET ptr, byval clr as ulong )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then exit sub
+    p->TwistyColor = clr
+    p->bColorsPinned = true
+    tkWidget_Invalidate( p->wSurf )
+end sub
+
+' Borrowed. 0 = the drawn chevron (the default).
+public sub tkListTree_SetTwistyFont( byval hList as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then exit sub
+    p->pTwistyFont = f
+    tkWidget_Invalidate( p->wSurf )
+end sub
+
+public sub tkListTree_SetTwistyGlyphs( byval hList as TK_WIDGET ptr, byval wszExpanded as ustring, byval wszCollapsed as ustring )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then exit sub
+    p->wszGlyphExpanded = wszExpanded
+    p->wszGlyphCollapsed = wszCollapsed
+    tkWidget_Invalidate( p->wSurf )
+end sub
+
+' ---- in-place label editing -------------------------------------------------------------
+public function tkListTree_EnableLabelEdit( byval hList as TK_WIDGET ptr, byval enable as boolean = true ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    p->bLabelEdit = enable
+    if (enable = false) andalso p->bEditing then LtEndEdit( p, false )
+    return true
+end function
+
+public function tkListTree_IsLabelEditEnabled( byval hList as TK_WIDGET ptr ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    return p->bLabelEdit
+end function
+
+public function tkListTree_SetClickToEdit( byval hList as TK_WIDGET ptr, byval enable as boolean = true ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    p->bClickToEdit = enable
+    return true
+end function
+
+public function tkListTree_SetEditColumn( byval hList as TK_WIDGET ptr, byval col as integer ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    p->editGestureCol = iif( col < 0, 0, col )
+    return true
+end function
+
+public function tkListTree_GetEditColumn( byval hList as TK_WIDGET ptr ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    return p->editGestureCol
+end function
+
+public function tkListTree_SetEnterEdits( byval hList as TK_WIDGET ptr, byval enable as boolean = true ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    p->bEnterEdits = enable
+    return true
+end function
+
+public sub tkListTree_SetEditColors( byval hList as TK_WIDGET ptr, byval clrBack as ulong, byval clrFore as ulong, _
+                                    byval clrBorder as ulong, byval clrFocusBorder as ulong )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then exit sub
+    p->bEditColorsSet = true
+    p->clrEditBack = clrBack : p->clrEditFore = clrFore
+    p->clrEditBorder = clrBorder : p->clrEditFocusBdr = clrFocusBorder
+    LtApplyEditColors( p )
+end sub
+
+public sub tkListTree_SetEditSelectAll( byval hList as TK_WIDGET ptr, byval enable as boolean )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then p->bEditSelectAll = enable
+end sub
+
+public sub tkListTree_SetEditTextInset( byval hList as TK_WIDGET ptr, byval nPx as integer )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then p->nEditTextInset = nPx
+end sub
+
+public function tkListTree_BeginEdit( byval hList as TK_WIDGET ptr, byval row as integer, byval col as integer = 0 ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    return LtBeginEdit( p, row, col )
+end function
+
+public function tkListTree_EndEdit( byval hList as TK_WIDGET ptr, byval bCommit as boolean = true ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    return LtEndEdit( p, bCommit )
+end function
+
+public function tkListTree_IsEditing( byval hList as TK_WIDGET ptr ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    return p->bEditing
+end function
+
+public function tkListTree_GetEditRow( byval hList as TK_WIDGET ptr ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return -1
+    return p->editRow
+end function
+
+public function tkListTree_GetEditCol( byval hList as TK_WIDGET ptr ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    return p->editCol
+end function
+
+' The editor widget (a tk addition, for tests and styling); 0 before the first edit.
+public function tkListTree_GetEditor( byval hList as TK_WIDGET ptr ) as TK_WIDGET ptr
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    return p->wEdit
+end function
+
+' ---- tooltips -----------------------------------------------------------------------------
+public function tkListTree_GetTooltipHandle( byval hList as TK_WIDGET ptr ) as TK_TIP ptr
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    return tkTipHost_Tip( @p->tip )
+end function
+
+public sub tkListTree_SetHoverTime( byval hList as TK_WIDGET ptr, byval ms as long )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then tkTipHost_SetDelay( @p->tip, TK_TIPDELAY_INITIAL, ms )
+end sub
+
+public sub tkListTree_SetAutoPopTime( byval hList as TK_WIDGET ptr, byval ms as long )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then tkTipHost_SetDelay( @p->tip, TK_TIPDELAY_AUTOPOP, ms )
+end sub
+
+public sub tkListTree_SetReshowTime( byval hList as TK_WIDGET ptr, byval ms as long )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then tkTipHost_SetDelay( @p->tip, TK_TIPDELAY_RESHOW, ms )
+end sub
+
+' ---- scrollbar ----------------------------------------------------------------------------
+public function tkListTree_GetScrollBar( byval hList as TK_WIDGET ptr ) as TK_WIDGET ptr
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    return p->wBar
+end function
+
+public sub tkListTree_SetScrollBarWidth( byval hList as TK_WIDGET ptr, byval nWidth as integer )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then exit sub
+    p->ScrollBarWidth = iif( nWidth < 1, 1, nWidth )
+    LtPositionWindows( p )
+    LtSyncScrollBar( p )
+end sub
+
+public sub tkListTree_SetScrollBarColors( byval hList as TK_WIDGET ptr, byval backclr as ulong, byval foreclr as ulong, byval foreclrhot as ulong )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then exit sub
+    tkVScrollBar_SetColors( p->wBar, backclr, foreclr, foreclrhot )
+    p->bColorsPinned = true
+end sub
+
+public sub tkListTree_SetScrollBarDividerColor( byval hList as TK_WIDGET ptr, byval clr as ulong, byval bShow as boolean = true )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then exit sub
+    tkVScrollBar_SetDividerColor( p->wBar, clr, bShow )
+end sub
+
+public sub tkListTree_SetScrollBarPaintCallback( byval hList as TK_WIDGET ptr, byval usersub as VScrollPaintCallbackSub )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then tkVScrollBar_SetPaintCallback( p->wBar, usersub )
+end sub
+
+' ---- columns and the header band ----------------------------------------------------------
+' Insert / delete shift every (non-spanned) row's cells across the column-0 / Text alias.
+private sub LtShiftCellColumns( byval p as TKLISTTREE_STATE ptr, byval idx as integer, byval nDir as integer )
+    if idx < 0 then exit sub
+    for r as integer = 0 to p->rowCount - 1
+        if p->rows(r).bSpanColumns then continue for
+        dim as integer nCells = ubound( p->rows(r).cells ) + 1
+        if nDir > 0 then
+            if idx = 0 then
+                if (nCells > 0) orelse (len( p->rows(r).Text ) > 0) then
+                    p->rows(r).EnsureCells( nCells + 1 )
+                    for c as integer = nCells to 1 step -1
+                        p->rows(r).cells(c) = p->rows(r).cells(c - 1)
+                    next
+                    p->rows(r).cells(0) = p->rows(r).Text
+                    p->rows(r).Text = ""
+                end if
+            elseif nCells >= idx then
+                p->rows(r).EnsureCells( nCells + 1 )
+                for c as integer = nCells to idx step -1
+                    p->rows(r).cells(c) = p->rows(r).cells(c - 1)
+                next
+                p->rows(r).cells(idx - 1) = ""
+            end if
+        else
+            if idx = 0 then
+                if nCells > 0 then
+                    p->rows(r).Text = p->rows(r).cells(0)
+                    for c as integer = 0 to nCells - 2
+                        p->rows(r).cells(c) = p->rows(r).cells(c + 1)
+                    next
+                    p->rows(r).TrimCells( nCells - 1 )
+                else
+                    p->rows(r).Text = ""
+                end if
+            elseif nCells >= idx then
+                for c as integer = idx - 1 to nCells - 2
+                    p->rows(r).cells(c) = p->rows(r).cells(c + 1)
+                next
+                p->rows(r).TrimCells( nCells - 1 )
+            end if
+        end if
+    next
+end sub
+
+public function tkListTree_AddColumn( byval hList as TK_WIDGET ptr, byval Text as ustring, byval nWidth as integer = 100, _
+                                     byval nMinWidth as integer = 0, byval itemData as integer = 0 ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return -1
+    dim as integer r = tkColumnHeader_AddColumn( p->wHeader, Text, nWidth, nMinWidth, itemData )
+    tkWidget_Invalidate( p->wSurf )
+    return r
+end function
+
+public function tkListTree_InsertColumn( byval hList as TK_WIDGET ptr, byval idx as integer, byval Text as ustring, _
+                                        byval nWidth as integer = 100, byval nMinWidth as integer = 0, byval itemData as integer = 0 ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return -1
+    dim as integer r = tkColumnHeader_InsertColumn( p->wHeader, idx, Text, nWidth, nMinWidth, itemData )
+    if r >= 0 then LtShiftCellColumns( p, r, +1 )
+    tkWidget_Invalidate( p->wSurf )
+    return r
+end function
+
+public function tkListTree_DeleteColumn( byval hList as TK_WIDGET ptr, byval idx as integer ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    if tkColumnHeader_DeleteColumn( p->wHeader, idx ) = false then return false
+    LtShiftCellColumns( p, idx, -1 )
+    tkWidget_Invalidate( p->wSurf )
+    return true
+end function
+
+public sub tkListTree_ClearColumns( byval hList as TK_WIDGET ptr )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then exit sub
+    tkColumnHeader_Clear( p->wHeader )
+    tkWidget_Invalidate( p->wSurf )
+end sub
+
+public function tkListTree_GetColumnCount( byval hList as TK_WIDGET ptr ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    return LtColCount( p )
+end function
+
+public function tkListTree_GetColumnText( byval hList as TK_WIDGET ptr, byval idx as integer ) as ustring
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return ""
+    return tkColumnHeader_GetColumnText( p->wHeader, idx )
+end function
+
+public function tkListTree_SetColumnText( byval hList as TK_WIDGET ptr, byval idx as integer, byval Text as ustring ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    return tkColumnHeader_SetColumnText( p->wHeader, idx, Text )
+end function
+
+public function tkListTree_GetColumnWidth( byval hList as TK_WIDGET ptr, byval idx as integer ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    return tkColumnHeader_GetColumnWidth( p->wHeader, idx )
+end function
+
+public function tkListTree_SetColumnWidth( byval hList as TK_WIDGET ptr, byval idx as integer, byval nWidth as integer ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    dim as boolean ok = tkColumnHeader_SetColumnWidth( p->wHeader, idx, nWidth )
+    tkWidget_Invalidate( p->wSurf )
+    return ok
+end function
+
+' Surface-local, the same x space the message callback's x carries.
+public function tkListTree_GetColumnRect( byval hList as TK_WIDGET ptr, byval idx as integer, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    if tkColumnHeader_GetColumnRect( p->wHeader, idx, rc ) = false then return false
+    rc.top = 0 : rc.bottom = p->wSurf->ch
+    return true
+end function
+
+public function tkListTree_GetColumnMinWidth( byval hList as TK_WIDGET ptr, byval idx as integer ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    return tkColumnHeader_GetColumnMinWidth( p->wHeader, idx )
+end function
+
+public function tkListTree_SetColumnMinWidth( byval hList as TK_WIDGET ptr, byval idx as integer, byval nMinWidth as integer ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    dim as boolean ok = tkColumnHeader_SetColumnMinWidth( p->wHeader, idx, nMinWidth )
+    tkWidget_Invalidate( p->wSurf )
+    return ok
+end function
+
+public function tkListTree_GetFillColumn( byval hList as TK_WIDGET ptr ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return -1
+    return tkColumnHeader_GetFillColumn( p->wHeader )
+end function
+
+public function tkListTree_SetFillColumn( byval hList as TK_WIDGET ptr, byval idx as integer ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    dim as boolean ok = tkColumnHeader_SetFillColumn( p->wHeader, idx )
+    tkWidget_Invalidate( p->wSurf )
+    return ok
+end function
+
+public function tkListTree_ShowHeader( byval hList as TK_WIDGET ptr, byval bShow as boolean = true ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    p->headerShown = bShow
+    LtPositionWindows( p )
+    LtSyncViewFromModel( p )
+    return true
+end function
+
+public function tkListTree_IsHeaderVisible( byval hList as TK_WIDGET ptr ) as boolean
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return false
+    return p->headerShown
+end function
+
+public function tkListTree_GetHeaderHeight( byval hList as TK_WIDGET ptr ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    return p->HeaderHeight
+end function
+
+public function tkListTree_SetHeaderHeight( byval hList as TK_WIDGET ptr, byval nHeight as integer ) as integer
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    p->HeaderHeight = iif( nHeight < 1, 1, nHeight )
+    LtPositionWindows( p )
+    LtSyncViewFromModel( p )
+    return p->HeaderHeight
+end function
+
+public function tkListTree_GetHeader( byval hList as TK_WIDGET ptr ) as TK_WIDGET ptr
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    return p->wHeader
+end function
+
+public function tkListTree_GetSurface( byval hList as TK_WIDGET ptr ) as TK_WIDGET ptr
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then return 0
+    return p->wSurf
+end function
+
+' ---- callback registration ----------------------------------------------------------------
+public sub tkListTree_SetPaintCallback( byval hList as TK_WIDGET ptr, byval usersub as LT_PaintCallbackSub )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then exit sub
+    p->PaintCallback = usersub
+    tkWidget_Invalidate( p->wSurf )
+end sub
+
+public sub tkListTree_SetMessageCallback( byval hList as TK_WIDGET ptr, byval userfunc as LT_MessageCallbackFunc )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then p->MessageCallback = userfunc
+end sub
+
+public sub tkListTree_SetTooltipCallback( byval hList as TK_WIDGET ptr, byval userfunc as LT_TooltipCallbackFunc )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then p->TooltipCallback = userfunc
+end sub
+
+public sub tkListTree_SetSelChangeCallback( byval hList as TK_WIDGET ptr, byval usersub as LT_SelChangeCallbackSub )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then p->SelChangeCallback = usersub
+end sub
+
+public sub tkListTree_SetActivateCallback( byval hList as TK_WIDGET ptr, byval usersub as LT_ActivateCallbackSub )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then p->ActivateCallback = usersub
+end sub
+
+public sub tkListTree_SetBeginLabelEditCallback( byval hList as TK_WIDGET ptr, byval userfunc as LT_BeginLabelEditCallbackFunc )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then p->BeginLabelEditCallback = userfunc
+end sub
+
+public sub tkListTree_SetEndLabelEditCallback( byval hList as TK_WIDGET ptr, byval userfunc as LT_EndLabelEditCallbackFunc )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then p->EndLabelEditCallback = userfunc
+end sub
+
+public sub tkListTree_SetExpandCollapseCallback( byval hList as TK_WIDGET ptr, byval usersub as LT_ExpandCollapseCallbackSub )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then p->ExpandCollapseCallback = usersub
+end sub
+
+public sub tkListTree_SetCanDropCallback( byval hList as TK_WIDGET ptr, byval userfunc as LT_CanDropCallbackFunc )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then p->CanDropCallback = userfunc
+end sub
+
+public sub tkListTree_SetDragDropCallback( byval hList as TK_WIDGET ptr, byval usersub as LT_DragDropCallbackSub )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then p->DragDropCallback = usersub
+end sub
+
+public sub tkListTree_SetColumnResizeCallback( byval hList as TK_WIDGET ptr, byval usersub as HDR_WidthChangedCallbackSub )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then p->ColumnResizeCallback = usersub
+end sub
+
+public sub tkListTree_SetColumnClickCallback( byval hList as TK_WIDGET ptr, byval usersub as HDR_ClickCallbackSub )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then tkColumnHeader_SetClickCallback( p->wHeader, usersub )
+end sub
+
+public sub tkListTree_SetColumnAutoSizeCallback( byval hList as TK_WIDGET ptr, byval userfunc as HDR_AutoSizeCallbackFunc )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then tkColumnHeader_SetAutoSizeCallback( p->wHeader, userfunc )
+end sub
+
+public sub tkListTree_SetHeaderPaintCallback( byval hList as TK_WIDGET ptr, byval usersub as HDR_PaintCallbackSub )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then tkColumnHeader_SetPaintCallback( p->wHeader, usersub )
+end sub
+
+public sub tkListTree_SetHeaderTooltipCallback( byval hList as TK_WIDGET ptr, byval userfunc as HDR_TooltipCallbackFunc )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then tkColumnHeader_SetTooltipCallback( p->wHeader, userfunc )
+end sub
+
+public sub tkListTree_SetHeaderBackColor( byval hList as TK_WIDGET ptr, byval clr as ulong )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then tkColumnHeader_SetBackColor( p->wHeader, clr )
+end sub
+
+public sub tkListTree_SetHeaderFont( byval hList as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p then tkColumnHeader_SetFont( p->wHeader, f )
+end sub
+
+' ---- theme --------------------------------------------------------------------------------
+' Vendor's role mapping; skipped while the host has pinned colours (any colour setter).
+public sub tkListTree_ApplyTheme( byval hList as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if (p = 0) orelse p->bColorsPinned then exit sub
+    p->BackColor = t.Window
+    p->BorderColor = t.Border
+    p->TwistyColor = t.TextDim
+    p->dragIndicatorColor = t.Accent
+    tkVScrollBar_SetColors( p->wBar, t.Window, t.Border, t.TextDisabled )
+    tkColumnHeader_ApplyTheme( p->wHeader, t )
+    p->bEditColorsSet = true
+    p->clrEditBack = t.Surface : p->clrEditFore = t.Text
+    p->clrEditBorder = t.Border : p->clrEditFocusBdr = t.FocusRing
+    LtApplyEditColors( p )
+    tkWidget_Invalidate( hList )
+end sub
+
+public sub tkListTree_UnpinColors( byval hList as TK_WIDGET ptr )
+    dim as TKLISTTREE_STATE ptr p = GetListTreePointer( hList )
+    if p = 0 then exit sub
+    p->bColorsPinned = false
+    tkListTree_ApplyTheme( hList, tkTheme_Get() )
+end sub
+
+public sub tkListTree_ApplyFonts( byval hList as TK_WIDGET ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
+    if fText then tkListTree_SetFont( hList, fText )
+    if fGlyph then tkListTree_SetTwistyFont( hList, fGlyph )
+end sub
+
+' ---- PsPlatform's row painter, as an opt-in helper -----------------------------------------
+' Selected > hot > plain from the current theme, a focus bar on the caret row while the rows
+' have focus, the header bold-free caption with +/- when it is a legacy header, column-0 text
+' at the tree indent, and every cell in its own rect, ellipsised.
+public sub tkListTree_PaintRowDefault( byval pi as TKLISTTREE_PAINTINFO ptr )
+    dim as TK_PAINT ptr b = pi->b
+    dim as TKTHEME_COLORS t = tkTheme_Get()
+    dim as ulong back_ = t.Window, fore = t.Text
+    if pi->isSelected then
+        back_ = t.Selected : fore = t.SelectedText
+    elseif pi->isHot then
+        back_ = t.SurfaceHot : fore = t.TextHot
+    end if
+    if pi->isSelectable = false then fore = t.TextDisabled
+    b->SetBackColor( back_ )
+    b->PaintRect( @pi->rc )
+    if pi->isFocused andalso pi->hasFocus then
+        dim as TKRECT rb = pi->rc
+        rb.right = rb.left + tkHost_Scale( pi->hList->pHost, 2 )
+        b->SetBackColor( t.FocusRing )
+        b->PaintRect( @rb )
+    end if
+    b->SetForeColor( fore )
+    dim as long pad = tkHost_Scale( pi->hList->pHost, 6 )
+    if pi->columnCount = 0 then
+        dim as TKRECT rt = pi->rc
+        rt.left += pi->indent + pad
+        dim as ustring s = pi->wszCaption
+        if pi->isHeader then
+            if pi->isCollapsed then s = "+ " & s else s = "- " & s
+        end if
+        b->PaintText( s, @rt, TK_DT_LEFT or TK_DT_ELLIPSIS )
+    else
+        for c as integer = 0 to pi->columnCount - 1
+            dim as TKRECT rt = pi->cells[c].rc
+            rt.left += pad : rt.right -= pad
+            b->PaintText( pi->cells[c].wszText, @rt, TK_DT_LEFT or TK_DT_ELLIPSIS )
+        next
+    end if
+end sub

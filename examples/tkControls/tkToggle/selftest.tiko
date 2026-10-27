@@ -1,0 +1,433 @@
+' tkToggle self-test. Real windows, real SDL event queue: every input claim is made by PUSHING
+' the SDL event a user would have produced and pumping the host, so the dispatch path under test
+' is the one the demo runs. Two passes, scale pinned at 1.0 and at 1.75.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkToggle"
+#import "vendor/tkControls/tkTest"
+using tkToggle
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as long gChanges, gCbMismatch
+dim shared as boolean gLastChecked
+dim shared as boolean gSuppressDown, gSuppressUp, gSuppressKey, gReenter
+dim shared as long gRUps, gFocusMsgs
+dim shared as long gIdealW(0 to 1)
+
+sub OnChanged( byval hToggle as TK_WIDGET ptr, byval isChecked as boolean )
+    gChanges += 1
+    gLastChecked = isChecked
+    if tkToggle_GetChecked( hToggle ) <> isChecked then gCbMismatch += 1
+    ' Calling the silent setter from inside the handler must not recurse.
+    if gReenter then tkToggle_SetChecked( hToggle, not isChecked )
+end sub
+
+function OnMessage( byval m as TKTOGGLE_MESSAGEINFO ptr ) as boolean
+    select case m->msg
+    case TKM_RBUTTONUP
+        gRUps += 1
+    case TKM_SETFOCUS, TKM_KILLFOCUS
+        gFocusMsgs += 1
+        return true                      ' ignored: focus is a fact
+    case TKM_LBUTTONDOWN
+        return gSuppressDown
+    case TKM_LBUTTONUP
+        return gSuppressUp               ' ignored: capture-critical
+    case TKM_KEYDOWN
+        return gSuppressKey
+    end select
+    return false
+end function
+
+' A host painter that draws ONLY the knob, in pure red, as a square.
+sub RedKnob( byval p as TKTOGGLE_PAINTINFO ptr )
+    p->b->SetBackColor( &hFFFF0000ul )
+    p->b->PaintRect( @p->rcKnob )
+end sub
+
+' A held key: SDL's auto-repeat keydown (repeat = true).
+sub PushRepeatKey( byval h as TK_HOST ptr, byval key as long )
+    dim as SDL_Event e
+    e.type = SDL_EVENT_KEY_DOWN
+    e.key.windowID = h->winId
+    e.key.key = key
+    e.key.down = true
+    e.key.repeat = true
+    SDL_PushEvent( @e )
+    tkHost_Pump( h )
+end sub
+
+function Opaque( byval c as ulong ) as ulong
+    return c or &hFF000000ul
+end function
+
+' Window pixel of a widget-local point.
+function PixW( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr, byval x as long, byval y as long ) as ulong
+    dim as TKRECT a
+    tkWidget_AbsRect( w, a )
+    return tkTest_PixelAt( h, a.left + x, a.top + y )
+end function
+
+' Settle hot and focus away from everything, then render without presenting.
+sub RenderQuiet( byval h as TK_HOST ptr )
+    tkHost_SetFocus( h, 0 )
+    tkTest_PushMotion( h, 2, 2 )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+    tkHost_RenderTo( h, false )
+end sub
+
+' ==========================================================================================
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkToggle selftest", 640, 480, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    tkTest_Check( "scale pinned", h->fScale = fScale, "" & h->fScale )
+    dim as TK_WIDGET ptr root = tkHost_Root( h )
+
+    ' ---- A: defaults, ideal size before sizing, the README formula --------------------------
+    dim as TK_WIDGET ptr g = tkToggle_Create( root, 900 )
+    dim as long tw, th, ins, fg, ft, iw, ih
+    tkToggle_GetTrackSize( g, tw, th )
+    ins = tkToggle_GetKnobInset( g )
+    tkToggle_GetFocusRing( g, fg, ft )
+    tkTest_Check( "defaults scaled at create", tw = tkHost_Scale( h, 40 ) andalso th = tkHost_Scale( h, 20 ) _
+                  andalso ins = tkHost_Scale( h, 2 ) andalso fg = tkHost_Scale( h, 3 ), tw & "x" & th & " " & ins & " " & fg )
+    tkTest_Check( "thicknesses NOT scaled", ft = 1 andalso tkToggle_GetBorderThickness( g ) = 1 )
+    tkTest_Check( "default justify CENTER, unchecked", tkToggle_GetJustify( g ) = TOG_JUSTIFY_CENTER andalso tkToggle_GetChecked( g ) = false )
+    dim as long rp = fg + ft
+    tkToggle_GetIdealSize( g, iw, ih )
+    tkTest_Check( "ideal size valid before sizing = formula", iw = tw + 2 * rp andalso ih = th + 2 * rp, iw & "x" & ih )
+    gIdealW(iif( fScale > 1.5, 1, 0 )) = iw
+    dim as TKRECT rc, rk, rv
+    tkTest_Check( "rect queries FALSE before sizing", tkToggle_GetTrackRect( g, rc ) = false andalso tkRect_IsEmpty( rc ) _
+                  andalso tkToggle_GetKnobRect( g, rk ) = false andalso tkToggle_GetVisualRect( g, rv ) = false )
+    dim as TKTOGGLE_COLORS cc
+    tkToggle_GetColors( g, @cc )
+    tkTest_Check( "created with the current theme (dark)", cc.TrackColorOn = tkTheme_Dark().Accent andalso cc.BackColor = tkTheme_Dark().Window )
+
+    ' at ideal size: the pill sits inside the reserved band
+    tkWidget_SetPos( g, 0, 0, iw, ih )
+    tkTest_Check( "rect queries TRUE once sized", tkToggle_GetTrackRect( g, rc ) )
+    tkToggle_GetKnobRect( g, rk ) : tkToggle_GetVisualRect( g, rv )
+    dim as long dia = th - 2 * ins
+    tkTest_Check( "rcTrack = client deflated by ringPad", rc.left = rp andalso rc.top = rp andalso rc.right = iw - rp andalso rc.bottom = ih - rp, tkRect_Str( rc ) )
+    tkTest_Check( "rcKnob OFF at the left, dia from height", rk.left = rc.left + ins andalso rk.top = rc.top + ins _
+                  andalso (rk.right - rk.left) = dia andalso (rk.bottom - rk.top) = dia, tkRect_Str( rk ) )
+    tkTest_Check( "rcVisual = full client", rv.left = 0 andalso rv.top = 0 andalso rv.right = iw andalso rv.bottom = ih, tkRect_Str( rv ) )
+    tkToggle_SetChecked( g, true )
+    tkToggle_GetKnobRect( g, rk )
+    tkTest_Check( "rcKnob ON at the right (silent setter re-lays out)", rk.right = rc.right - ins andalso rk.left = rc.right - ins - dia, tkRect_Str( rk ) )
+
+    ' justification in a wide, tall cell
+    dim as long cellW = tkHost_Scale( h, 240 ), cellH = ih + tkHost_Scale( h, 11 )
+    tkWidget_SetSize( g, cellW, cellH )
+    dim as long yExp = (cellH - th) \ 2
+    tkToggle_SetJustify( g, TOG_JUSTIFY_LEFT ) : tkToggle_GetTrackRect( g, rc )
+    tkTest_Check( "LEFT: x = ringPad, v-centred", rc.left = rp andalso rc.top = yExp, tkRect_Str( rc ) )
+    tkToggle_SetJustify( g, TOG_JUSTIFY_CENTER ) : tkToggle_GetTrackRect( g, rc )
+    tkTest_Check( "CENTER: x = (clientW - trackW) \ 2", rc.left = (cellW - tw) \ 2 andalso rc.top = yExp, tkRect_Str( rc ) )
+    tkToggle_SetJustify( g, TOG_JUSTIFY_RIGHT ) : tkToggle_GetTrackRect( g, rc )
+    tkTest_Check( "RIGHT: x = clientW - ringPad - trackW", rc.left = cellW - rp - tw, tkRect_Str( rc ) )
+    tkToggle_SetJustify( g, 99 )
+    tkTest_Check( "invalid justify ignored", tkToggle_GetJustify( g ) = TOG_JUSTIFY_RIGHT )
+    ' overflow: narrower than the visual degrades to LEFT; shorter than the track clips, not squeezes
+    tkWidget_SetSize( g, tw, th \ 2 )
+    tkToggle_GetTrackRect( g, rc )
+    tkTest_Check( "overflow: RIGHT degrades to LEFT", rc.left = rp, tkRect_Str( rc ) )
+    tkTest_Check( "overflow: pill keeps its shape, negative top", (rc.right - rc.left) = tw andalso (rc.bottom - rc.top) = th _
+                  andalso rc.top = (th \ 2 - th) \ 2 andalso rc.top < 0, tkRect_Str( rc ) )
+    tkWidget_SetSize( g, iw, ih )
+
+    ' setters: clamps, and what changes the ideal size
+    tkToggle_SetFocusRing( g, fg + 2, 3 )
+    tkToggle_GetIdealSize( g, iw, ih )
+    tkTest_Check( "focus ring changes the ideal size", iw = tw + 2 * (fg + 5) andalso ih = th + 2 * (fg + 5), iw & "x" & ih )
+    tkToggle_SetFocusRing( g, -1, -1 )
+    dim as long a1, a2
+    tkToggle_GetFocusRing( g, a1, a2 )
+    tkTest_Check( "focus ring clamps at 0", a1 = 0 andalso a2 = 0 )
+    tkToggle_SetTrackSize( g, 0, -5 )
+    tkToggle_GetTrackSize( g, a1, a2 )
+    tkTest_Check( "track size clamps at 1", a1 = 1 andalso a2 = 1 )
+    tkToggle_SetTrackSize( g, tw, th )
+    tkToggle_SetKnobInset( g, -3 )
+    tkTest_Check( "knob inset clamps at 0", tkToggle_GetKnobInset( g ) = 0 )
+    tkToggle_SetKnobInset( g, th )
+    tkToggle_GetKnobRect( g, rk )
+    tkTest_Check( "inset past half the height: knob dia 1", (rk.right - rk.left) = 1 andalso (rk.bottom - rk.top) = 1, tkRect_Str( rk ) )
+    tkToggle_SetKnobInset( g, ins )
+    tkToggle_GetTrackRect( g, rc )
+    tkToggle_SetBorderThickness( g, -2 )
+    tkToggle_GetTrackRect( g, rv )
+    tkTest_Check( "border clamps at 0 and moves nothing", tkToggle_GetBorderThickness( g ) = 0 _
+                  andalso rv.left = rc.left andalso rv.right = rc.right andalso rv.top = rc.top )
+    tkWidget_Destroy( g )
+
+    ' ---- B: input through the real dispatch -----------------------------------------------
+    dim as TK_WIDGET ptr a = tkToggle_Create( root, 101 )
+    dim as TK_WIDGET ptr b = tkToggle_Create( root, 102 )
+    dim as TK_WIDGET ptr d = tkToggle_Create( root, 103 )
+    tkToggle_GetIdealSize( a, iw, ih )
+    tkWidget_SetPos( a, tkHost_Scale( h, 20 ), tkHost_Scale( h, 20 ), iw, ih )
+    tkWidget_SetPos( b, tkHost_Scale( h, 20 ), tkHost_Scale( h, 70 ), iw, ih )
+    tkWidget_SetPos( d, tkHost_Scale( h, 20 ), tkHost_Scale( h, 120 ), iw, ih )
+    tkToggle_SetCheckChangedCallback( a, @OnChanged )
+    tkToggle_SetCheckChangedCallback( b, @OnChanged )
+    tkToggle_SetCheckChangedCallback( d, @OnChanged )
+    tkToggle_SetChecked( d, true )
+    tkToggle_SetEnabled( d, false )
+    tkHost_Pump( h )
+
+    dim as single ax = tkTest_CX( a ), ay = tkTest_CY( a )
+    dim as single offX = a->x + a->cw + tkHost_Scale( h, 200 )
+    gChanges = 0 : gCbMismatch = 0
+    tkTest_PushMotion( h, ax, ay )
+    tkTest_Check( "hot on enter", tkToggle_GetHot( a ) )
+    tkTest_PushButton( h, true, ax, ay )
+    tkTest_Check( "press takes capture", tkHost_GetCapture( h ) = a )
+    tkTest_Check( "press focuses", tkToggle_GetFocused( a ) andalso tkHost_GetFocus( h ) = a )
+    tkTest_Check( "no flip on press", tkToggle_GetChecked( a ) = false andalso gChanges = 0 )
+    tkTest_PushButton( h, false, ax, ay )
+    tkTest_Check( "flips on release inside", tkToggle_GetChecked( a ) andalso gChanges = 1 andalso gLastChecked, "" & gChanges )
+    tkTest_Check( "callback sees the new state", gCbMismatch = 0 )
+    tkTest_Check( "capture released", tkHost_GetCapture( h ) = 0 )
+
+    ' press, slide off, release: nothing
+    gChanges = 0
+    tkTest_PushButton( h, true, ax, ay )
+    tkTest_PushMotion( h, offX, ay )
+    tkTest_Check( "slide off: capture KEPT", tkHost_GetCapture( h ) = a )
+    tkTest_Check( "slide off: not hot, still pressed", tkToggle_GetHot( a ) = false andalso tkToggle_GetPressed( a ) )
+    tkTest_PushButton( h, false, offX, ay )
+    tkTest_Check( "release outside: no flip", gChanges = 0 andalso tkToggle_GetChecked( a ), "" & gChanges )
+    tkTest_Check( "release outside: not hot", tkToggle_GetHot( a ) = false )
+
+    ' press, slide off, slide back, release: flips
+    tkTest_PushButton( h, true, ax, ay )
+    tkTest_PushMotion( h, offX, ay )
+    tkTest_PushMotion( h, ax, ay )
+    tkTest_Check( "slide back: re-armed", tkToggle_GetHot( a ) andalso tkToggle_GetPressed( a ) )
+    tkTest_PushButton( h, false, ax, ay )
+    tkTest_Check( "re-armed release flips", gChanges = 1 andalso tkToggle_GetChecked( a ) = false, "" & gChanges )
+
+    ' double clicks are not special: the second press of a pair flips again
+    gChanges = 0
+    tkTest_Click( h, ax, ay, SDL_BUTTON_LEFT, 1 )
+    tkTest_Click( h, ax, ay, SDL_BUTTON_LEFT, 2 )
+    tkTest_Check( "double click = two flips", gChanges = 2 andalso tkToggle_GetChecked( a ) = false, "" & gChanges )
+
+    ' the right button is reported, never acted on
+    tkToggle_SetMessageCallback( a, @OnMessage )
+    gChanges = 0 : gRUps = 0
+    tkTest_Click( h, ax, ay, SDL_BUTTON_RIGHT )
+    tkTest_Check( "right click: reported", gRUps = 1, "" & gRUps )
+    tkTest_Check( "right click: no flip, no capture", gChanges = 0 andalso tkHost_GetCapture( h ) = 0 )
+
+    ' window-level leave clears hot
+    tkTest_PushMotion( h, ax, ay )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+    tkTest_Check( "window leave clears hot", tkToggle_GetHot( a ) = false )
+
+    ' capture lost to deactivation cancels the press
+    tkTest_PushButton( h, true, ax, ay )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_FOCUS_LOST )
+    tkTest_Check( "focus lost: capture gone, press cancelled", tkHost_GetCapture( h ) = 0 andalso tkToggle_GetPressed( a ) = false )
+    gChanges = 0
+    tkTest_PushButton( h, false, ax, ay )
+    tkTest_Check( "release after cancelled press: no flip", gChanges = 0 )
+
+    ' disabled mid-press: capture and press go at once, the state does not change
+    tkTest_PushButton( h, true, ax, ay )
+    tkToggle_SetEnabled( a, false )
+    tkTest_Check( "disable mid-press: capture + press + hot gone", tkHost_GetCapture( h ) = 0 _
+                  andalso tkToggle_GetPressed( a ) = false andalso tkToggle_GetHot( a ) = false )
+    tkTest_PushButton( h, false, ax, ay )
+    tkTest_Check( "disable mid-press: no flip", gChanges = 0 andalso tkToggle_GetChecked( a ) = false )
+    tkToggle_SetEnabled( a, true )
+    tkTest_Check( "re-enabled", tkToggle_GetEnabled( a ) )
+
+    ' keyboard: Space, Enter and keypad Enter take the click's path
+    gChanges = 0
+    tkHost_SetFocus( h, a )
+    tkTest_PushKey( h, SDLK_SPACE )
+    tkTest_Check( "Space flips + notifies", gChanges = 1 andalso tkToggle_GetChecked( a ) )
+    tkTest_PushKey( h, SDLK_RETURN ) : tkTest_PushKey( h, SDLK_KP_ENTER )
+    tkTest_Check( "Enter and keypad Enter flip + notify", gChanges = 3 andalso tkToggle_GetChecked( a ), "" & gChanges )
+    PushRepeatKey( h, SDLK_SPACE ) : PushRepeatKey( h, SDLK_SPACE )
+    tkTest_Check( "held Space: auto-repeat does not re-flip", gChanges = 3 andalso tkToggle_GetChecked( a ), "" & gChanges )
+    tkTest_PushKey( h, SDLK_LEFT ) : tkTest_PushKey( h, SDLK_RIGHT ) : tkTest_PushKey( h, SDLK_A )
+    tkTest_Check( "arrows and other keys do nothing", gChanges = 3 andalso tkToggle_GetChecked( a ) )
+    tkTest_Check( "focus stays put on the arrows", tkHost_GetFocus( h ) = a )
+
+    ' Tab order skips the disabled one
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "Tab a -> b", tkHost_GetFocus( h ) = b )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "Tab skips disabled, wraps to a", tkHost_GetFocus( h ) = a )
+    tkTest_PushKey( h, SDLK_TAB, SDL_KMOD_LSHIFT )
+    tkTest_Check( "Shift+Tab back to b", tkHost_GetFocus( h ) = b )
+
+    ' disabled swallows everything, and stays ON
+    gChanges = 0
+    tkTest_PushMotion( h, tkTest_CX( d ), tkTest_CY( d ) )
+    tkTest_Click( h, tkTest_CX( d ), tkTest_CY( d ) )
+    tkTest_Check( "disabled: no flip, never hot, still ON", gChanges = 0 andalso tkToggle_GetHot( d ) = false andalso tkToggle_GetChecked( d ) )
+    tkTest_Check( "disabled: not focusable by click", tkHost_GetFocus( h ) = b )
+
+    ' setters are silent
+    gChanges = 0
+    tkToggle_SetChecked( a, false ) : tkToggle_SetChecked( a, true ) : tkToggle_SetChecked( a, true )
+    tkToggle_SetEnabled( a, false ) : tkToggle_SetEnabled( a, true )
+    tkToggle_SetTrackSize( a, tw, th ) : tkToggle_SetJustify( a, TOG_JUSTIFY_CENTER )
+    tkTest_Check( "setters are silent", gChanges = 0 )
+
+    ' SetChecked from inside the handler does not recurse
+    gReenter = true
+    tkHost_SetFocus( h, a )
+    tkTest_PushKey( h, SDLK_SPACE )
+    gReenter = false
+    tkTest_Check( "SetChecked inside the handler: one notification", gChanges = 1 andalso tkToggle_GetChecked( a ), "" & gChanges )
+
+    ' the message callback: DOWN and KEYDOWN are suppressible, UP and focus are not
+    gChanges = 0 : gFocusMsgs = 0
+    tkHost_SetFocus( h, b )
+    gSuppressDown = true
+    tkTest_PushButton( h, true, ax, ay )
+    tkTest_Check( "suppressed press: no capture", tkHost_GetCapture( h ) = 0 )
+    tkTest_Check( "suppressed press: focus moved anyway", tkHost_GetFocus( h ) = a andalso tkToggle_GetFocused( a ) )
+    tkTest_PushButton( h, false, ax, ay )
+    tkTest_Check( "suppressed press: no flip", gChanges = 0 )
+    tkTest_Check( "focus messages reported, TRUE ignored", gFocusMsgs >= 1 andalso tkToggle_GetFocused( a ) )
+    gSuppressDown = false
+    gSuppressUp = true
+    tkTest_PushButton( h, true, ax, ay )
+    tkTest_PushButton( h, false, ax, ay )
+    tkTest_Check( "suppressing UP is ignored: flips, capture freed", gChanges = 1 andalso tkHost_GetCapture( h ) = 0, "" & gChanges )
+    ' that press came with no motion over a first, so the host never made a hot: neither may a
+    tkTest_Check( "motionless click leaves no stale hot", tkToggle_GetHot( a ) = false andalso h->pHot <> a )
+    gSuppressUp = false
+    gSuppressKey = true
+    tkTest_PushKey( h, SDLK_SPACE )
+    tkTest_Check( "suppressed Space: no flip", gChanges = 1 )
+    gSuppressKey = false
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "Tab still moves focus with a callback set", tkHost_GetFocus( h ) = b )
+
+    ' ---- C: pixels ------------------------------------------------------------------------
+    tkToggle_SetChecked( a, false )
+    RenderQuiet( h )
+    dim as TKTOGGLE_COLORS ca
+    tkToggle_GetColors( a, @ca )
+    tkToggle_GetTrackRect( a, rc ) : tkToggle_GetKnobRect( a, rk ) : tkToggle_GetVisualRect( a, rv )
+    dim as long kcx = (rk.left + rk.right) \ 2, kcy = (rk.top + rk.bottom) \ 2
+    dim as long midX = (rc.left + rc.right) \ 2
+    tkTest_Check( "px: OFF knob centre = KnobColorOff", PixW( h, a, kcx, kcy ) = Opaque( ca.KnobColorOff ), hex( PixW( h, a, kcx, kcy ) ) )
+    dim as long trX = (rk.right + rc.right) \ 2
+    tkTest_Check( "px: OFF track = TrackColorOff", PixW( h, a, trX, kcy ) = Opaque( ca.TrackColorOff ), hex( PixW( h, a, trX, kcy ) ) )
+    tkTest_Check( "px: OFF straight top edge = TrackBorderColorOff", PixW( h, a, midX, rc.top ) = Opaque( ca.TrackBorderColorOff ), hex( PixW( h, a, midX, rc.top ) ) )
+    tkTest_Check( "px: unfocused ring band = BackColor", PixW( h, a, midX, rv.top ) = Opaque( ca.BackColor ), hex( PixW( h, a, midX, rv.top ) ) )
+    dim as ulong cdummy
+    dim as TKRECT aa
+    tkWidget_AbsRect( a, aa )
+    dim as long nRim = tkTest_TonesIn( h, aa.left + rk.left, aa.top + rk.top, rk.right - rk.left, rk.bottom - rk.top, cdummy )
+    tkTest_Check( "AA: knob rim blends (> 2 tones)", nRim > 2, "" & nRim )
+    tkToggle_SetBorderThickness( a, 0 )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "px: border 0 = no border at the top edge", PixW( h, a, midX, rc.top ) = Opaque( ca.TrackColorOff ), hex( PixW( h, a, midX, rc.top ) ) )
+    tkToggle_SetBorderThickness( a, 1 )
+
+    ' ON: the knob moved, the old knob spot is pill
+    tkToggle_SetChecked( a, true )
+    tkHost_RenderTo( h, false )
+    dim as TKRECT rk2
+    tkToggle_GetKnobRect( a, rk2 )
+    dim as long kcx2 = (rk2.left + rk2.right) \ 2
+    tkTest_Check( "px: ON knob at the right = KnobColorOn", PixW( h, a, kcx2, kcy ) = Opaque( ca.KnobColorOn ), hex( PixW( h, a, kcx2, kcy ) ) )
+    tkTest_Check( "px: ON old knob spot = TrackColorOn", PixW( h, a, kcx, kcy ) = Opaque( ca.TrackColorOn ), hex( PixW( h, a, kcx, kcy ) ) )
+
+    ' hot
+    tkTest_PushMotion( h, ax, ay )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "px: hover = KnobColorOnHot + TrackColorOnHot", PixW( h, a, kcx2, kcy ) = Opaque( ca.KnobColorOnHot ) _
+                  andalso PixW( h, a, kcx, kcy ) = Opaque( ca.TrackColorOnHot ), hex( PixW( h, a, kcx, kcy ) ) )
+
+    ' focus ring: an outline over rcVisual, the pill untouched
+    tkTest_PushMotion( h, 2, 2 )
+    tkHost_SetFocus( h, a )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "px: focused ring = FocusRingColor", PixW( h, a, midX, rv.top ) = Opaque( ca.FocusRingColor ), hex( PixW( h, a, midX, rv.top ) ) )
+    tkTest_Check( "px: ring is an outline (pill still drawn)", PixW( h, a, kcx, kcy ) = Opaque( ca.TrackColorOn ) )
+
+    ' disabled ON still reads as ON
+    dim as TKRECT rkd
+    tkToggle_GetKnobRect( d, rkd )
+    tkTest_Check( "px: disabled ON knob = KnobColorOnDisabled", _
+                  PixW( h, d, (rkd.left + rkd.right) \ 2, (rkd.top + rkd.bottom) \ 2 ) = Opaque( ca.KnobColorOnDisabled ) )
+
+    ' a paint callback replaces the painter; the client is already BackColor
+    tkToggle_SetPaintCallback( b, @RedKnob )
+    tkToggle_SetChecked( b, true )
+    tkHost_RenderTo( h, false )
+    dim as TKRECT rkb, rcb
+    tkToggle_GetKnobRect( b, rkb ) : tkToggle_GetTrackRect( b, rcb )
+    tkTest_Check( "px: paint callback draws the knob", PixW( h, b, (rkb.left + rkb.right) \ 2, (rkb.top + rkb.bottom) \ 2 ) = &hFFFF0000ul )
+    tkTest_Check( "px: paint callback replaces the pill (BackColor there)", _
+                  PixW( h, b, rcb.left + ins + 1, (rcb.top + rcb.bottom) \ 2 ) = Opaque( ca.BackColor ) )
+
+    ' ---- D: theme, pinning ----------------------------------------------------------------
+    dim as TKTOGGLE_COLORS cp
+    tkToggle_GetColors( a, @cp )
+    cp.TrackColorOn = &hFF3E8C5Aul
+    tkToggle_SetColors( a, @cp )
+    tkTheme_Apply( tkTheme_Light() )
+    tkToggle_GetColors( b, @cc )
+    tkTest_Check( "theme reaches an unpinned toggle", cc.TrackColorOn = tkTheme_Light().Accent andalso cc.BackColor = tkTheme_Light().Window _
+                  andalso cc.TrackColorOff = tkTheme_Light().Track )
+    tkToggle_GetColors( a, @cc )
+    tkTest_Check( "SetColors pinned", cc.TrackColorOn = &hFF3E8C5Aul )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "px: pinned colour painted", PixW( h, a, kcx, kcy ) = &hFF3E8C5Aul, hex( PixW( h, a, kcx, kcy ) ) )
+    tkToggle_UnpinColors( a )
+    tkToggle_GetColors( a, @cc )
+    tkTest_Check( "unpin hands it back to the current theme", cc.TrackColorOn = tkTheme_Light().Accent )
+    tkTheme_Apply( tkTheme_Dark() )
+    tkToggle_GetColors( a, @cc )
+    tkTest_Check( "back to dark", cc.TrackColorOn = tkTheme_Dark().Accent )
+
+    ' ---- E: the per-monitor scale path ----------------------------------------------------
+    dim as long w0, h0, w1, h1, tw1, th1
+    tkToggle_SetFocusRing( a, fg, 1 )
+    tkToggle_GetIdealSize( a, w0, h0 )
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkToggle_GetTrackSize( a, tw1, th1 )
+    tkToggle_GetFocusRing( a, a1, a2 )
+    tkTest_Check( "rescale: track x2", tw1 = tw * 2 andalso th1 = th * 2, tw1 & "x" & th1 )
+    tkTest_Check( "rescale: inset and gap x2", tkToggle_GetKnobInset( a ) = ins * 2 andalso a1 = fg * 2, tkToggle_GetKnobInset( a ) & " " & a1 )
+    tkTest_Check( "rescale: thicknesses NOT scaled", a2 = 1 andalso tkToggle_GetBorderThickness( a ) = 1 )
+    tkToggle_GetIdealSize( a, w1, h1 )
+    tkTest_Check( "rescale: ideal ~ x2", w1 = tw * 2 + 2 * (fg * 2 + 1) andalso h1 > h0 * 1.8, w0 & " -> " & w1 )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkToggle_GetTrackSize( a, tw1, th1 )
+    tkTest_Check( "rescale back: original track", tw1 = tw andalso th1 = th, tw1 & "x" & th1 )
+
+    tkHost_Destroy( h )
+end sub
+
+
+' ==========================================================================================
+if tkTest_Init() = false then end 99
+
+RunPass( 1.0 )
+RunPass( 1.75 )
+
+tkTest_Begin( "cross-pass" )
+tkTest_Check( "ideal width scales with the scale", (gIdealW(0) > 0) andalso (gIdealW(1) > gIdealW(0) * 1.6) andalso (gIdealW(1) < gIdealW(0) * 1.9), _
+              gIdealW(0) & " -> " & gIdealW(1) )
+dim as long nFail = tkTest_Report( "tkToggle" )
+tkTest_Quit()
+end nFail

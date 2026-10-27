@@ -1,0 +1,1382 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkMessageBox -- PsMessageBox on SDL3 + SDL_ttf, a port of pkg/vendor/PsControls/PsMessageBox
+' onto tkHost. An owner-drawn modal message box: a caption band with a title and a close X, a
+' body with an optional icon glyph and a wrapped message, and a footer of one to three tkButtons.
+'
+' THE SHAPE. tkMessageBox_Create makes a hidden, borderless DIALOG surface (tkHost_CreateDialog)
+' owned by hParent's surface; the handle is the box widget that fills it, and the footer buttons
+' are tkButton children of that widget. tkMessageBox_DoModal measures, sizes and centres the
+' window, gives the drag band to tkHost_SetDragRect, focuses a button, runs tkHost_RunModal
+' (which drops the owner's input, the analogue of vendor disabling the parent), destroys the
+' surface and returns the dismissing id. THE HANDLE IS DEAD AFTER DoModal, as vendor's was.
+'
+' WHAT IS UNCHANGED, by design: LayoutBox (shrink-to-fit wrap, the max() of four widths, one
+' button height and per-button widths, right-aligned footer, icon and text sharing a vertical
+' centre), the dismissal contract (a button's id; Esc / the X / the window's close = the cancel
+' id, which defaults to the LAST button's), the default and focus resolution, the presets and
+' their ids, the close X's press / slide-off gesture and its three moods, the colours, the paint
+' and message callbacks, silent setters and the tone probe.
+'
+' WHAT IS GONE: MessageBeep (SDL has no system sound -- SetBeep is kept and stored), CS_DROPSHADOW,
+' WM_NCHITTEST (tkHost_SetDragRect), IsDialogMessage (the host owns Tab; Esc is the box's own
+' key, bubbled up from the focused button), the hot poll, PsRegistry. See PORT.md.
+#module "tkMessageBox"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkButton" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkButton
+
+public const TKMESSAGEBOX_MAXBUTTONS = 3
+public const IDC_TKMESSAGEBOX_BUTTON_BASE = 8100
+public const TKMESSAGEBOX_DEFAULT_CAPTIONHEIGHT = 34
+public const TKMESSAGEBOX_DEFAULT_CAPTIONPADX = 14
+public const TKMESSAGEBOX_DEFAULT_CLOSEWIDTH = 44
+public const TKMESSAGEBOX_DEFAULT_BODYPADX = 20
+public const TKMESSAGEBOX_DEFAULT_BODYPADY = 20
+public const TKMESSAGEBOX_DEFAULT_FOOTERPADX = 20
+public const TKMESSAGEBOX_DEFAULT_FOOTERPADY = 14
+public const TKMESSAGEBOX_DEFAULT_ICONWIDTH = 32
+public const TKMESSAGEBOX_DEFAULT_ICONHEIGHT = 32
+public const TKMESSAGEBOX_DEFAULT_ICONGAP = 16
+public const TKMESSAGEBOX_DEFAULT_BUTTONGAP = 8
+public const TKMESSAGEBOX_DEFAULT_BUTTONMINWIDTH = 88
+public const TKMESSAGEBOX_DEFAULT_MAXWIDTH = 420
+public const TKMESSAGEBOX_DEFAULT_MINWIDTH = 300
+public const TKMESSAGEBOX_DEFAULT_BORDERTHICK = 1    ' never scaled
+public const TKMESSAGEBOX_DEFAULT_DIVIDERTHICK = 1   ' never scaled
+
+' Segoe Fluent Icons codepoints, named so a host shipping another icon font can remap them.
+public const TKMESSAGEBOX_GLYPH_INFO = &hE946
+public const TKMESSAGEBOX_GLYPH_WARNING = &hE7BA
+public const TKMESSAGEBOX_GLYPH_ERROR = &hEA39
+public const TKMESSAGEBOX_GLYPH_QUESTION = &hE9CE
+public const TKMESSAGEBOX_GLYPH_CLOSE = &hE8BB
+
+' Win32's dialog ids, value for value, under names that cannot collide with a host's sys/win.
+public const MBX_IDOK = 1
+public const MBX_IDCANCEL = 2
+public const MBX_IDABORT = 3
+public const MBX_IDRETRY = 4
+public const MBX_IDIGNORE = 5
+public const MBX_IDYES = 6
+public const MBX_IDNO = 7
+
+' A pseudo-message for the message callback: the box is being closed (Esc, the X, the window's
+' own close). The result is IGNORED for it, as vendor ignored it for WM_CLOSE.
+public const TKMBX_MSG_CLOSE = 1000
+
+public enum
+    MBX_ICON_NONE = 0
+    MBX_ICON_INFO
+    MBX_ICON_WARNING
+    MBX_ICON_ERROR
+    MBX_ICON_QUESTION
+end enum
+
+public enum
+    MBX_BTN_OK = 0
+    MBX_BTN_OKCANCEL
+    MBX_BTN_YESNO
+    MBX_BTN_YESNOCANCEL
+    MBX_BTN_RETRYCANCEL
+    MBX_BTN_SAVE_DONTSAVE_CANCEL
+end enum
+
+public enum
+    MBX_PART_CAPTION = 0
+    MBX_PART_BODY
+    MBX_PART_FOOTER
+    MBX_PART_TEXT
+    MBX_PART_ICON
+    MBX_PART_CLOSE
+end enum
+
+' Vendor's dark defaults (BGR(r,g,b) -> tkRGB(r,g,b)). No disabled mood anywhere.
+public type MBX_COLORS
+    BorderColor           as ulong = &hFF464C56ul
+    CaptionBackColor      as ulong = &hFF2C313Aul
+    CaptionForeColor      as ulong = &hFFC8CDD6ul
+    CloseBackColor        as ulong = &hFF2C313Aul     ' = CaptionBackColor: invisible until hot
+    CloseForeColor        as ulong = &hFFC8CDD6ul
+    CloseBackColorHot     as ulong = &hFFC42B1Cul
+    CloseForeColorHot     as ulong = &hFFFFFFFFul
+    CloseBackColorPressed as ulong = &hFFC8463Cul
+    CloseForeColorPressed as ulong = &hFFFFFFFFul
+    BackColor             as ulong = &hFF21252Bul
+    ForeColor             as ulong = &hFFC8CDD6ul
+    FooterBackColor       as ulong = &hFF282C33ul
+    DividerColor          as ulong = &hFF373C45ul
+    IconColorInfo         as ulong = &hFF61AFEFul
+    IconColorWarning      as ulong = &hFFE5C07Bul
+    IconColorError        as ulong = &hFFE06C75ul
+    IconColorQuestion     as ulong = &hFF61AFEFul
+end type
+
+' The buttons are not in here: they are tkButtons and paint themselves.
+public type MBX_PAINTINFO
+    hMsgBox        as TK_WIDGET ptr
+    b              as TK_PAINT ptr
+    rcClient       as TKRECT
+    rcCaption      as TKRECT
+    rcCaptionText  as TKRECT
+    rcClose        as TKRECT
+    rcBody         as TKRECT
+    rcIcon         as TKRECT
+    rcText         as TKRECT            ' the WRAP box, not the ink
+    rcFooter       as TKRECT
+    isCloseHot     as boolean
+    isClosePressed as boolean
+    isActive       as boolean
+    wszCaption     as ustring
+    wszText        as ustring
+    wszGlyph       as ustring
+    clrIcon        as ulong
+end type
+
+public type MBX_MESSAGEINFO
+    hMsgBox    as TK_WIDGET ptr
+    msg        as long                  ' TKM_* or TKMBX_MSG_CLOSE
+    x          as single
+    y          as single
+    key        as long
+    mods       as long
+end type
+
+public type MBX_PaintCallbackSub as sub( byval p as MBX_PAINTINFO ptr )
+' Result IGNORED for TKM_LBUTTONUP, TKMBX_MSG_CLOSE and TKM_DESTROY (vendor's three).
+public type MBX_MessageCallbackFunc as function( byval m as MBX_MESSAGEINFO ptr ) as boolean
+
+
+public type TKMESSAGEBOX_STATE
+    hWin            as TK_WIDGET ptr       ' the box widget: the handle
+    pDlg            as TK_HOST ptr         ' its dialog surface
+    bColorsPinned   as boolean
+    wszCaption      as ustring
+    wszText         as ustring
+    wszGlyph        as ustring
+    bGlyphOverride  as boolean
+    clrIconOverride as ulong
+    bIconOverride   as boolean
+    nIconKind       as long = MBX_ICON_NONE
+    bBeep           as boolean = true
+    hButtons(0 to TKMESSAGEBOX_MAXBUTTONS - 1) as TK_WIDGET ptr
+    nButtonIds(0 to TKMESSAGEBOX_MAXBUTTONS - 1) as long
+    nButtonCount    as long
+    nDefaultIndex   as long = -1
+    nFocusIndex     as long = -1
+    bFocusExplicit  as boolean
+    nCancelID       as long
+    bCancelIDSet    as boolean
+    isCloseHot      as boolean
+    isClosePressed  as boolean
+    colors          as MBX_COLORS
+    btnColors       as TKBUTTON_COLORS
+    bBtnColorsSet   as boolean
+    pTextFont       as TTF_Font ptr        ' borrowed, all four
+    pCaptionFont    as TTF_Font ptr
+    pGlyphFont      as TTF_Font ptr
+    pCloseFont      as TTF_Font ptr
+    nCaptionHeight  as long
+    nCaptionPadX    as long
+    nCloseWidth     as long
+    nBodyPadX       as long
+    nBodyPadY       as long
+    nFooterPadX     as long
+    nFooterPadY     as long
+    nIconWidth      as long
+    nIconHeight     as long
+    nIconGap        as long
+    nButtonGap      as long
+    nButtonMinWidth as long
+    nMaxWidth       as long
+    nMinWidth       as long
+    nBorderThick    as long = TKMESSAGEBOX_DEFAULT_BORDERTHICK
+    nDividerThick   as long = TKMESSAGEBOX_DEFAULT_DIVIDERTHICK
+    nTextBlockW     as long
+    nTextBlockH     as long
+    nButtonH        as long
+    nFooterH        as long
+    nBodyH          as long
+    nIdealW         as long
+    nIdealH         as long
+    rcClient        as TKRECT
+    rcCaption       as TKRECT
+    rcCaptionText   as TKRECT
+    rcClose         as TKRECT
+    rcBody          as TKRECT
+    rcIcon          as TKRECT
+    rcText          as TKRECT
+    rcFooter        as TKRECT
+    rcButtons(0 to TKMESSAGEBOX_MAXBUTTONS - 1) as TKRECT
+    bLayoutDirty    as boolean = true
+    PaintCallback   as MBX_PaintCallbackSub
+    MessageCallback as MBX_MessageCallbackFunc
+
+    declare sub      LayoutBox()
+    declare function HasIcon() as boolean
+    declare function ResolveCancelID() as long
+    declare function ResolveFocusIndex() as long
+    declare function TextFont() as TTF_Font ptr
+    declare sub      Refresh()
+end type
+
+
+' A glyph override beats MBX_ICON_NONE: setting a glyph is a request for an icon.
+function TKMESSAGEBOX_STATE.HasIcon() as boolean
+    if this.bGlyphOverride andalso (len( this.wszGlyph ) > 0) then return true
+    return (this.nIconKind <> MBX_ICON_NONE)
+end function
+
+' Unset = the LAST button's id (Cancel or No in every preset); no buttons = 0.
+function TKMESSAGEBOX_STATE.ResolveCancelID() as long
+    if this.bCancelIDSet then return this.nCancelID
+    if this.nButtonCount <= 0 then return 0
+    return this.nButtonIds(this.nButtonCount - 1)
+end function
+
+' An explicit SetFocusButton > the default button > the first.
+function TKMESSAGEBOX_STATE.ResolveFocusIndex() as long
+    if this.nButtonCount <= 0 then return -1
+    if this.bFocusExplicit andalso (this.nFocusIndex >= 0) andalso (this.nFocusIndex < this.nButtonCount) then return this.nFocusIndex
+    if (this.nDefaultIndex >= 0) andalso (this.nDefaultIndex < this.nButtonCount) then return this.nDefaultIndex
+    return 0
+end function
+
+function TKMESSAGEBOX_STATE.TextFont() as TTF_Font ptr
+    if this.pTextFont then return this.pTextFont
+    return this.hWin->pHost->pDefaultFont
+end function
+
+sub TKMESSAGEBOX_STATE.Refresh()
+    this.bLayoutDirty = true
+    tkWidget_Invalidate( this.hWin )
+end sub
+
+' DT_EXPANDTABS and CRLF, as the measuring and the painting both need them.
+private function MBX_PrepText( byref s as ustring ) as ustring
+    dim as string u8 = s
+    dim as string o
+    for i as long = 1 to len( u8 )
+        dim as string ch = mid( u8, i, 1 )
+        if ch = chr( 13 ) then continue for
+        if ch = chr( 9 ) then o &= "    " else o &= ch
+    next
+    dim as ustring w = o
+    return w
+end function
+
+' Vendor's LayoutBox, with the GDI measuring swapped for SDL_ttf. The ideal size comes FIRST,
+' so it is valid before the window is ever sized -- DoModal sizes the window from it.
+sub TKMESSAGEBOX_STATE.LayoutBox()
+    this.bLayoutDirty = false
+    if this.hWin = 0 then exit sub
+    dim as TTF_Font ptr fText = this.TextFont()
+    dim as boolean bIcon = this.HasIcon()
+    dim as long iconBlock = 0
+    if bIcon then iconBlock = this.nIconWidth + this.nIconGap
+    dim as long availW = this.nMaxWidth - (2 * this.nBodyPadX) - iconBlock
+    if availW < 40 then availW = 40
+
+    ' THE BOX SHRINKS TO FIT: the width the wrapped text actually used, not the width offered.
+    this.nTextBlockW = 0
+    this.nTextBlockH = 0
+    if (len( this.wszText ) > 0) andalso (fText <> 0) then
+        dim as string u8 = MBX_PrepText( this.wszText )
+        dim as long st(), en()
+        dim as long n = tkText_Wrap( fText, u8, availW, st(), en() )
+        for i as long = 0 to n - 1
+            dim as long lw = tkText_WidthU8( fText, mid( u8, st(i) + 1, en(i) - st(i) ) )
+            if lw > this.nTextBlockW then this.nTextBlockW = lw
+        next
+        if n > 0 then this.nTextBlockH = (n - 1) * tkText_LineSkip( fText ) + tkText_Height( fText )
+    end if
+
+    ' the title contributes a WIDTH FLOOR only: the band's height is declared
+    dim as long capTextW = 0
+    if len( this.wszCaption ) then
+        dim as TTF_Font ptr fCap = this.pCaptionFont
+        if fCap = 0 then fCap = fText
+        capTextW = tkText_Width( fCap, this.wszCaption )
+    end if
+
+    dim btnW(0 to TKMESSAGEBOX_MAXBUTTONS - 1) as long
+    this.nButtonH = 0
+    dim as long sumBtnW = 0
+    for i as long = 0 to this.nButtonCount - 1
+        dim as long bw, bh
+        tkButton_GetIdealSize( this.hButtons(i), bw, bh )
+        if bw < this.nButtonMinWidth then bw = this.nButtonMinWidth
+        btnW(i) = bw
+        sumBtnW += bw
+        if bh > this.nButtonH then this.nButtonH = bh
+    next
+    this.nFooterH = 0
+    dim as long footerW = 0
+    if this.nButtonCount > 0 then
+        this.nFooterH = (2 * this.nFooterPadY) + this.nButtonH
+        footerW = (2 * this.nFooterPadX) + sumBtnW + ((this.nButtonCount - 1) * this.nButtonGap)
+    end if
+
+    dim as long bodyContentH = this.nTextBlockH
+    if bIcon andalso (this.nIconHeight > bodyContentH) then bodyContentH = this.nIconHeight
+    this.nBodyH = (2 * this.nBodyPadY) + bodyContentH
+    dim as long contentW = (2 * this.nBodyPadX) + iconBlock + this.nTextBlockW
+    dim as long captionW = this.nCaptionPadX + capTextW + this.nCloseWidth
+    this.nIdealW = contentW
+    if footerW > this.nIdealW then this.nIdealW = footerW
+    if captionW > this.nIdealW then this.nIdealW = captionW
+    if this.nMinWidth > this.nIdealW then this.nIdealW = this.nMinWidth
+    this.nIdealH = this.nCaptionHeight + this.nBodyH + this.nFooterH
+
+    dim as long clientW = this.hWin->cw, clientH = this.hWin->ch
+    tkRect_Set( this.rcClient, 0, 0, clientW, clientH )
+    if (clientW <= 0) orelse (clientH <= 0) then
+        this.bLayoutDirty = true
+        exit sub
+    end if
+
+    tkRect_Set( this.rcCaption, 0, 0, clientW, this.nCaptionHeight )
+    dim as long closeLeft = clientW - this.nCloseWidth
+    if closeLeft < 0 then closeLeft = 0
+    tkRect_Set( this.rcClose, closeLeft, 0, clientW, this.nCaptionHeight )
+    dim as long capRight = this.rcClose.left
+    if capRight < this.nCaptionPadX then capRight = this.nCaptionPadX
+    tkRect_Set( this.rcCaptionText, this.nCaptionPadX, 0, capRight, this.nCaptionHeight )
+
+    if this.nFooterH > 0 then
+        tkRect_Set( this.rcFooter, 0, clientH - this.nFooterH, clientW, clientH )
+    else
+        tkRect_SetEmpty( this.rcFooter )
+    end if
+    dim as long bodyBottom = clientH - this.nFooterH
+    if bodyBottom < this.nCaptionHeight then bodyBottom = this.nCaptionHeight
+    tkRect_Set( this.rcBody, 0, this.nCaptionHeight, clientW, bodyBottom )
+
+    ' icon and text centred on the TALLER of the two
+    dim as long contentTop = this.rcBody.top + this.nBodyPadY
+    if bIcon then
+        dim as long iy = contentTop + ((bodyContentH - this.nIconHeight) \ 2)
+        tkRect_Set( this.rcIcon, this.nBodyPadX, iy, this.nBodyPadX + this.nIconWidth, iy + this.nIconHeight )
+    else
+        tkRect_SetEmpty( this.rcIcon )
+    end if
+    if this.nTextBlockH > 0 then
+        dim as long tLeft = this.nBodyPadX + iconBlock
+        dim as long tRight = clientW - this.nBodyPadX
+        if tRight < tLeft then tRight = tLeft
+        dim as long ty = contentTop + ((bodyContentH - this.nTextBlockH) \ 2)
+        tkRect_Set( this.rcText, tLeft, ty, tRight, ty + this.nTextBlockH )
+    else
+        tkRect_SetEmpty( this.rcText )
+    end if
+
+    ' right-aligned, laid out from the right edge inwards; left to right in the order added
+    for i as long = 0 to TKMESSAGEBOX_MAXBUTTONS - 1
+        tkRect_SetEmpty( this.rcButtons(i) )
+    next
+    if this.nButtonCount > 0 then
+        dim as long bx = clientW - this.nFooterPadX
+        dim as long by = this.rcFooter.top + this.nFooterPadY
+        for i as long = this.nButtonCount - 1 to 0 step -1
+            tkRect_Set( this.rcButtons(i), bx - btnW(i), by, bx, by + this.nButtonH )
+            bx = bx - btnW(i) - this.nButtonGap
+        next
+    end if
+end sub
+
+
+' ========================================================================================
+' Pure resolvers
+' ========================================================================================
+public function tkMessageBox_ResolveGlyph( byval nKind as long ) as ustring
+    select case nKind
+    case MBX_ICON_INFO     : return wchr( TKMESSAGEBOX_GLYPH_INFO )
+    case MBX_ICON_WARNING  : return wchr( TKMESSAGEBOX_GLYPH_WARNING )
+    case MBX_ICON_ERROR    : return wchr( TKMESSAGEBOX_GLYPH_ERROR )
+    case MBX_ICON_QUESTION : return wchr( TKMESSAGEBOX_GLYPH_QUESTION )
+    end select
+    return ""
+end function
+
+' MBX_ICON_NONE answers the body's ForeColor, never a sentinel.
+public function tkMessageBox_ResolveIconColor( byval nKind as long, byval pColors as MBX_COLORS ptr ) as ulong
+    if pColors = 0 then return 0
+    select case nKind
+    case MBX_ICON_INFO     : return pColors->IconColorInfo
+    case MBX_ICON_WARNING  : return pColors->IconColorWarning
+    case MBX_ICON_ERROR    : return pColors->IconColorError
+    case MBX_ICON_QUESTION : return pColors->IconColorQuestion
+    end select
+    return pColors->ForeColor
+end function
+
+
+' ========================================================================================
+' Painting
+' ========================================================================================
+private function GetMessageBoxPointer( byval hMsgBox as TK_WIDGET ptr ) as TKMESSAGEBOX_STATE ptr
+    if hMsgBox = 0 then return 0
+    return cast( TKMESSAGEBOX_STATE ptr, hMsgBox->pData )
+end function
+
+private function MBX_EffectiveGlyph( byval pBox as TKMESSAGEBOX_STATE ptr ) as ustring
+    if pBox->bGlyphOverride then return pBox->wszGlyph
+    return tkMessageBox_ResolveGlyph( pBox->nIconKind )
+end function
+
+private function MBX_EffectiveIconColor( byval pBox as TKMESSAGEBOX_STATE ptr ) as ulong
+    if pBox->bIconOverride then return pBox->clrIconOverride
+    return tkMessageBox_ResolveIconColor( pBox->nIconKind, @pBox->colors )
+end function
+
+private sub MBX_RenderDefault( byval pBox as TKMESSAGEBOX_STATE ptr, byval b as TK_PAINT ptr, byval p as MBX_PAINTINFO ptr )
+    dim as TTF_Font ptr fText = pBox->TextFont()
+    dim as TTF_Font ptr fCap = iif( pBox->pCaptionFont <> 0, pBox->pCaptionFont, fText )
+    dim as TTF_Font ptr fGlyph = iif( pBox->pGlyphFont <> 0, pBox->pGlyphFont, fText )
+    dim as TTF_Font ptr fCloseX = iif( pBox->pCloseFont <> 0, pBox->pCloseFont, fGlyph )
+
+    if tkRect_IsEmpty( p->rcCaption ) = false then
+        b->SetBackColor( pBox->colors.CaptionBackColor )
+        b->PaintRect( @p->rcCaption )
+    end if
+    ' pressed > hot > idle; idle equals the caption, so the X is invisible until reached
+    dim as ulong clrCloseBk = pBox->colors.CloseBackColor, clrCloseFg = pBox->colors.CloseForeColor
+    if p->isClosePressed then
+        clrCloseBk = pBox->colors.CloseBackColorPressed : clrCloseFg = pBox->colors.CloseForeColorPressed
+    elseif p->isCloseHot then
+        clrCloseBk = pBox->colors.CloseBackColorHot : clrCloseFg = pBox->colors.CloseForeColorHot
+    end if
+    if tkRect_IsEmpty( p->rcClose ) = false then
+        b->SetBackColor( clrCloseBk )
+        b->PaintRect( @p->rcClose )
+        b->SetFont( fCloseX )
+        b->SetColors( clrCloseFg, clrCloseBk )
+        dim as ustring gx = wchr( TKMESSAGEBOX_GLYPH_CLOSE )
+        b->PaintText( gx, @p->rcClose, TK_DT_CENTER )
+    end if
+    if (tkRect_IsEmpty( p->rcCaptionText ) = false) andalso (len( p->wszCaption ) > 0) then
+        b->SetFont( fCap )
+        b->SetColors( pBox->colors.CaptionForeColor, pBox->colors.CaptionBackColor )
+        b->PaintText( p->wszCaption, @p->rcCaptionText, TK_DT_LEFT or TK_DT_ELLIPSIS )
+    end if
+    if tkRect_IsEmpty( p->rcFooter ) = false then
+        b->SetBackColor( pBox->colors.FooterBackColor )
+        b->PaintRect( @p->rcFooter )
+        ' a hairline, never a fill-and-stroke
+        if pBox->nDividerThick > 0 then
+            b->SetPenColor( pBox->colors.DividerColor )
+            b->PaintLine( pBox->nDividerThick, p->rcFooter.left, p->rcFooter.top, p->rcFooter.right, p->rcFooter.top )
+        end if
+    end if
+    if (tkRect_IsEmpty( p->rcIcon ) = false) andalso (len( p->wszGlyph ) > 0) then
+        b->SetFont( fGlyph )
+        b->SetColors( p->clrIcon, pBox->colors.BackColor )
+        b->PaintText( p->wszGlyph, @p->rcIcon, TK_DT_CENTER or TK_DT_NOCLIP )
+    end if
+    ' PaintTextEx with the SAME font and wrap the measuring pass used, or the height lies
+    if (tkRect_IsEmpty( p->rcText ) = false) andalso (len( p->wszText ) > 0) then
+        b->SetFont( fText )
+        b->SetColors( pBox->colors.ForeColor, pBox->colors.BackColor )
+        dim as ustring sT = MBX_PrepText( p->wszText )
+        b->PaintTextEx( sT, @p->rcText, TK_DT_LEFT or TK_DT_TOP or TK_DT_WORDBREAK )
+    end if
+    ' the border LAST, so no band can cover it
+    if pBox->nBorderThick > 0 then
+        b->SetPenColor( pBox->colors.BorderColor )
+        b->PaintRoundOutline( @p->rcClient, 0, pBox->nBorderThick )
+    end if
+end sub
+
+private sub MBX_FillPaintInfo( byval pBox as TKMESSAGEBOX_STATE ptr, byval b as TK_PAINT ptr, byval p as MBX_PAINTINFO ptr )
+    p->hMsgBox = pBox->hWin
+    p->b = b
+    p->rcClient = pBox->rcClient
+    p->rcCaption = pBox->rcCaption
+    p->rcCaptionText = pBox->rcCaptionText
+    p->rcClose = pBox->rcClose
+    p->rcBody = pBox->rcBody
+    p->rcIcon = pBox->rcIcon
+    p->rcText = pBox->rcText
+    p->rcFooter = pBox->rcFooter
+    p->isCloseHot = pBox->isCloseHot
+    p->isClosePressed = pBox->isClosePressed andalso pBox->isCloseHot
+    p->isActive = (pBox->pDlg <> 0) andalso (SDL_GetKeyboardFocus() = pBox->pDlg->win)
+    p->wszCaption = pBox->wszCaption
+    p->wszText = pBox->wszText
+    p->wszGlyph = MBX_EffectiveGlyph( pBox )
+    p->clrIcon = MBX_EffectiveIconColor( pBox )
+end sub
+
+private sub MBX_RenderAll( byval pBox as TKMESSAGEBOX_STATE ptr, byval b as TK_PAINT ptr )
+    if pBox->bLayoutDirty then pBox->LayoutBox()
+    b->SetBackColor( pBox->colors.BackColor )
+    b->PaintRect( @pBox->rcClient )
+    dim as MBX_PAINTINFO p
+    MBX_FillPaintInfo( pBox, b, @p )
+    if pBox->PaintCallback then pBox->PaintCallback( @p ) else MBX_RenderDefault( pBox, b, @p )
+end sub
+
+
+' ========================================================================================
+' Dismissal and the buttons
+' ========================================================================================
+private function MBX_CallMessage( byval pBox as TKMESSAGEBOX_STATE ptr, byval nMsg as long, byval m as TK_MSG ptr ) as boolean
+    if (pBox = 0) orelse (pBox->MessageCallback = 0) then return false
+    dim as MBX_MESSAGEINFO mi
+    mi.hMsgBox = pBox->hWin
+    mi.msg = nMsg
+    if m then mi.x = m->x : mi.y = m->y : mi.key = m->key : mi.mods = m->mods
+    return pBox->MessageCallback( @mi )
+end function
+
+' THE ONE DISMISSAL PATH: every route sets a result.
+private sub MBX_Dismiss( byval pBox as TKMESSAGEBOX_STATE ptr, byval nResult as long )
+    if (pBox = 0) orelse (pBox->pDlg = 0) then exit sub
+    tkHost_EndModal( pBox->pDlg, nResult )
+end sub
+
+' Esc, the X, the window's close: the callback is told, and cannot refuse.
+private sub MBX_Close( byval pBox as TKMESSAGEBOX_STATE ptr )
+    MBX_CallMessage( pBox, TKMBX_MSG_CLOSE, 0 )      ' result IGNORED
+    MBX_Dismiss( pBox, pBox->ResolveCancelID() )
+end sub
+
+private function MBX_OnCloseRequest( byval h as TK_HOST ptr ) as boolean
+    dim as TKMESSAGEBOX_STATE ptr pBox = cast( TKMESSAGEBOX_STATE ptr, h->pUser )
+    if pBox = 0 then return false
+    MBX_Close( pBox )
+    return true
+end function
+
+private sub MBX_OnButtonClick( byval hButton as TK_WIDGET ptr, byval id as long )
+    if (hButton = 0) orelse (hButton->pParent = 0) then exit sub
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hButton->pParent )
+    if pBox then MBX_Dismiss( pBox, id )
+end sub
+
+private sub MBX_PositionButtons( byval pBox as TKMESSAGEBOX_STATE ptr )
+    if pBox->bLayoutDirty then pBox->LayoutBox()
+    if pBox->bLayoutDirty then exit sub
+    for i as long = 0 to pBox->nButtonCount - 1
+        dim as TKRECT rc = pBox->rcButtons(i)
+        if tkRect_IsEmpty( rc ) then continue for
+        tkWidget_SetPos( pBox->hButtons(i), rc.left, rc.top, tkRect_Width( rc ), tkRect_Height( rc ) )
+    next
+end sub
+
+
+' The dialog surface at exactly bw x bh pixels. NOT by resizing it: on Wayland a window resized
+' after its renderer exists keeps a stale drawable (measured under WSLg: every read black, even
+' after presents). A new dialog is made at the size and the box moved onto it (tkWidget_Reparent).
+private sub MBX_EnsureSurfaceSize( byval pBox as TKMESSAGEBOX_STATE ptr, byval bw as long, byval bh as long )
+    dim as TK_HOST ptr d = pBox->pDlg
+    dim as long pw, ph
+    tkHost_PixelSize( d, pw, ph )
+    if (abs( pw - bw ) <= 2) andalso (abs( ph - bh ) <= 2) then exit sub
+    dim as TK_HOST ptr nd = tkHost_CreateDialog( d->pOwner, "", bw, bh, true )
+    if nd = 0 then
+        SDL_SetWindowSize( d->win, cint( bw / d->fDensity ), cint( bh / d->fDensity ) )
+        exit sub
+    end if
+    nd->pUser = pBox
+    nd->OnCloseRequest = @MBX_OnCloseRequest
+    tkWidget_Reparent( pBox->hWin, tkHost_Root( nd ) )
+    d->pUser = 0
+    tkHost_Destroy( d )
+    pBox->pDlg = nd
+end sub
+
+' Size the box and its window to the ideal size, hidden. DoModal and LayoutForTest share it.
+private sub MBX_SizeToIdeal( byval pBox as TKMESSAGEBOX_STATE ptr )
+    pBox->bLayoutDirty = true
+    pBox->LayoutBox()
+    dim as long bw = iif( pBox->nIdealW < 1, 1, pBox->nIdealW ), bh = iif( pBox->nIdealH < 1, 1, pBox->nIdealH )
+    MBX_EnsureSurfaceSize( pBox, bw, bh )
+    dim as TK_HOST ptr d = pBox->pDlg
+    tkWidget_SetPos( pBox->hWin, 0, 0, bw, bh )
+    pBox->bLayoutDirty = true
+    pBox->LayoutBox()
+    MBX_PositionButtons( pBox )
+    ' the caption band drags the window -- all of it but the X
+    dim as TKRECT rcDrag = pBox->rcCaption
+    rcDrag.right = pBox->rcClose.left
+    tkHost_SetDragRect( d, rcDrag )
+end sub
+
+' Centre on the owner window, else on the display; clamped into the usable bounds. (Wayland
+' places toplevels itself, so this is advice there.)
+private sub MBX_Centre( byval pBox as TKMESSAGEBOX_STATE ptr )
+    dim as TK_HOST ptr d = pBox->pDlg
+    dim as long ww, wh
+    SDL_GetWindowSize( d->win, @ww, @wh )
+    dim as long x, y
+    dim as SDL_Rect rd
+    dim as SDL_DisplayID disp = SDL_GetDisplayForWindow( iif( d->pOwner <> 0, d->pOwner->win, d->win ) )
+    if d->pOwner then
+        dim as long ox, oy, ow, oh
+        SDL_GetWindowPosition( d->pOwner->win, @ox, @oy )
+        SDL_GetWindowSize( d->pOwner->win, @ow, @oh )
+        x = ox + (ow - ww) \ 2 : y = oy + (oh - wh) \ 2
+    elseif SDL_GetDisplayUsableBounds( disp, @rd ) then
+        x = rd.x + (rd.w - ww) \ 2 : y = rd.y + (rd.h - wh) \ 2
+    end if
+    if SDL_GetDisplayUsableBounds( disp, @rd ) then
+        if x + ww > rd.x + rd.w then x = rd.x + rd.w - ww
+        if y + wh > rd.y + rd.h then y = rd.y + rd.h - wh
+        if x < rd.x then x = rd.x
+        if y < rd.y then y = rd.y
+    end if
+    SDL_SetWindowPosition( d->win, x, y )
+end sub
+
+public declare sub tkMessageBox_ApplyTheme( byval hMsgBox as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+public declare function tkMessageBox_ThemeColors( byref t as TKTHEME_COLORS ) as MBX_COLORS
+
+private sub MBX_Rescale( byval pBox as TKMESSAGEBOX_STATE ptr, byval fOld as single, byval fNew as single )
+    if (fOld <= 0) orelse (fNew <= 0) then exit sub
+    dim as single k = fNew / fOld
+    pBox->nCaptionHeight = cint( pBox->nCaptionHeight * k )
+    pBox->nCaptionPadX = cint( pBox->nCaptionPadX * k )
+    pBox->nCloseWidth = cint( pBox->nCloseWidth * k )
+    pBox->nBodyPadX = cint( pBox->nBodyPadX * k )
+    pBox->nBodyPadY = cint( pBox->nBodyPadY * k )
+    pBox->nFooterPadX = cint( pBox->nFooterPadX * k )
+    pBox->nFooterPadY = cint( pBox->nFooterPadY * k )
+    pBox->nIconWidth = cint( pBox->nIconWidth * k )
+    pBox->nIconHeight = cint( pBox->nIconHeight * k )
+    pBox->nIconGap = cint( pBox->nIconGap * k )
+    pBox->nButtonGap = cint( pBox->nButtonGap * k )
+    pBox->nButtonMinWidth = cint( pBox->nButtonMinWidth * k )
+    pBox->nMaxWidth = cint( pBox->nMaxWidth * k )
+    pBox->nMinWidth = cint( pBox->nMinWidth * k )
+    pBox->Refresh()
+end sub
+
+' The box widget. Only the X takes capture (press / slide off / release); the buttons take
+' their own. Esc and Enter arrive here when the focused button refuses them.
+private function MBX_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( w )
+    if pBox = 0 then return false
+    select case m->msg
+    case TKM_PAINT
+        MBX_RenderAll( pBox, m->pPaint )
+        return true
+
+    case TKM_SIZE
+        pBox->bLayoutDirty = true
+        pBox->LayoutBox()
+        MBX_PositionButtons( pBox )
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_SCALECHANGED
+        MBX_Rescale( pBox, m->fOld, m->fNew )
+        return true
+
+    case TKM_THEMECHANGED
+        tkMessageBox_ApplyTheme( w, tkTheme_Get() )
+        return true
+
+    case TKM_MOUSEMOVE
+        if pBox->bLayoutDirty then pBox->LayoutBox()
+        dim as boolean bOver = tkRect_Contains( pBox->rcClose, m->x, m->y )
+        ' with capture held, sliding off a pressed X un-flashes it before the release decides
+        if bOver <> pBox->isCloseHot then
+            pBox->isCloseHot = bOver
+            tkWidget_Invalidate( w )
+        end if
+        MBX_CallMessage( pBox, m->msg, m )
+        return true
+
+    case TKM_MOUSELEAVE
+        if (pBox->isClosePressed = false) andalso pBox->isCloseHot then
+            pBox->isCloseHot = false
+            tkWidget_Invalidate( w )
+        end if
+        MBX_CallMessage( pBox, m->msg, m )
+        return true
+
+    case TKM_LBUTTONDOWN
+        if pBox->bLayoutDirty then pBox->LayoutBox()
+        if MBX_CallMessage( pBox, m->msg, m ) then return true
+        if tkRect_Contains( pBox->rcClose, m->x, m->y ) then
+            tkHost_SetCapture( w )
+            pBox->isClosePressed = true
+            pBox->isCloseHot = true
+            tkWidget_Invalidate( w )
+        end if
+        return true
+
+    case TKM_LBUTTONUP
+        ' SNAPSHOT BEFORE RELEASING: CAPTURECHANGED cancels the press synchronously
+        dim as boolean bWasPressed = pBox->isClosePressed
+        if tkHost_GetCapture( w->pHost ) = w then tkHost_ReleaseCapture( w->pHost )
+        dim as boolean bInside = tkRect_Contains( pBox->rcClose, m->x, m->y )
+        pBox->isClosePressed = false
+        if bInside = false then pBox->isCloseHot = false
+        tkWidget_Invalidate( w )
+        MBX_CallMessage( pBox, m->msg, m )          ' result IGNORED
+        if bWasPressed andalso bInside then MBX_Close( pBox )
+        return true
+
+    case TKM_CAPTURECHANGED
+        pBox->isClosePressed = false
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_KEYDOWN
+        if MBX_CallMessage( pBox, m->msg, m ) then return true
+        select case m->key
+        case SDLK_ESCAPE
+            MBX_Close( pBox )
+            return true
+        case SDLK_RETURN, SDLK_KP_ENTER
+            ' only reached when no button claimed it: the default button owns Enter box-wide
+            if (pBox->nDefaultIndex >= 0) andalso (pBox->nDefaultIndex < pBox->nButtonCount) then
+                MBX_Dismiss( pBox, pBox->nButtonIds(pBox->nDefaultIndex) )
+                return true
+            end if
+        end select
+        return false
+
+    case TKM_RBUTTONDOWN, TKM_RBUTTONUP
+        MBX_CallMessage( pBox, m->msg, m )
+        return true
+
+    case TKM_DESTROY
+        MBX_CallMessage( pBox, m->msg, m )          ' result IGNORED
+        if pBox->pDlg then pBox->pDlg->pUser = 0
+        delete pBox
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ========================================================================================
+' Public API -- vendor's surface, HWND replaced by the box widget.
+' ========================================================================================
+' A hidden, borderless dialog surface owned by hParent's surface (hParent may be 0: unowned).
+' The handle is the box widget; configure it, then DoModal. A box abandoned without DoModal is
+' freed with tkMessageBox_Destroy.
+public function tkMessageBox_Create( byval hParent as TK_WIDGET ptr ) as TK_WIDGET ptr
+    dim as TK_HOST ptr owner = iif( hParent <> 0, hParent->pHost, cast( TK_HOST ptr, 0 ) )
+    dim as TK_HOST ptr d = tkHost_CreateDialog( owner, "", 100, 100, true )
+    if d = 0 then return 0
+    dim as TKMESSAGEBOX_STATE ptr pBox = new TKMESSAGEBOX_STATE
+    pBox->pDlg = d
+    pBox->nCaptionHeight = tkHost_Scale( d, TKMESSAGEBOX_DEFAULT_CAPTIONHEIGHT )
+    pBox->nCaptionPadX = tkHost_Scale( d, TKMESSAGEBOX_DEFAULT_CAPTIONPADX )
+    pBox->nCloseWidth = tkHost_Scale( d, TKMESSAGEBOX_DEFAULT_CLOSEWIDTH )
+    pBox->nBodyPadX = tkHost_Scale( d, TKMESSAGEBOX_DEFAULT_BODYPADX )
+    pBox->nBodyPadY = tkHost_Scale( d, TKMESSAGEBOX_DEFAULT_BODYPADY )
+    pBox->nFooterPadX = tkHost_Scale( d, TKMESSAGEBOX_DEFAULT_FOOTERPADX )
+    pBox->nFooterPadY = tkHost_Scale( d, TKMESSAGEBOX_DEFAULT_FOOTERPADY )
+    pBox->nIconWidth = tkHost_Scale( d, TKMESSAGEBOX_DEFAULT_ICONWIDTH )
+    pBox->nIconHeight = tkHost_Scale( d, TKMESSAGEBOX_DEFAULT_ICONHEIGHT )
+    pBox->nIconGap = tkHost_Scale( d, TKMESSAGEBOX_DEFAULT_ICONGAP )
+    pBox->nButtonGap = tkHost_Scale( d, TKMESSAGEBOX_DEFAULT_BUTTONGAP )
+    pBox->nButtonMinWidth = tkHost_Scale( d, TKMESSAGEBOX_DEFAULT_BUTTONMINWIDTH )
+    pBox->nMaxWidth = tkHost_Scale( d, TKMESSAGEBOX_DEFAULT_MAXWIDTH )
+    pBox->nMinWidth = tkHost_Scale( d, TKMESSAGEBOX_DEFAULT_MINWIDTH )
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( tkHost_Root( d ), 0, @MBX_Proc, pBox )
+    pBox->hWin = w
+    pBox->colors = tkMessageBox_ThemeColors( tkTheme_Get() )
+    pBox->btnColors = tkButton_ThemeColors( tkTheme_Get() )
+    d->pUser = pBox
+    d->OnCloseRequest = @MBX_OnCloseRequest
+    return w
+end function
+
+' Free a box that never went through DoModal.
+public sub tkMessageBox_Destroy( byval hMsgBox as TK_WIDGET ptr )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then exit sub
+    tkHost_Destroy( pBox->pDlg )
+end sub
+
+' The box's dialog surface (to reach the window, or to push events at it in a test). FINAL only
+' after tkMessageBox_LayoutForTest: the first layout replaces the staging surface Create made.
+public function tkMessageBox_GetSurface( byval hMsgBox as TK_WIDGET ptr ) as TK_HOST ptr
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then return 0
+    return pBox->pDlg
+end function
+
+' BLOCKS. Measures, sizes, centres, focuses a button, runs the modal loop (the owner gets no
+' input meanwhile), destroys the box and returns the dismissing id. THE HANDLE IS DEAD after.
+' A QUIT ends the loop (returning 0) and is re-posted for the host's own loop.
+public function tkMessageBox_DoModal( byval hMsgBox as TK_WIDGET ptr ) as long
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then return 0
+    MBX_SizeToIdeal( pBox )                      ' may REPLACE the surface: read pDlg after it
+    dim as TK_HOST ptr d = pBox->pDlg
+    MBX_Centre( pBox )
+    d->nModalResult = 0
+    dim as long nFocusIdx = pBox->ResolveFocusIndex()
+    if nFocusIdx >= 0 then tkHost_SetFocus( d, pBox->hButtons(nFocusIdx) )
+    dim as long nResult = tkHost_RunModal( d )
+    tkHost_Destroy( d )
+    return nResult
+end function
+
+public declare sub tkMessageBox_AddPreset( byval hMsgBox as TK_WIDGET ptr, byval nPreset as long )
+
+' Create + configure + DoModal. Sets NO fonts (the owner's default font measures and draws, and
+' an icon codepoint shows as a missing glyph).
+public function tkMessageBox_Show( byval hParent as TK_WIDGET ptr, byval Text as ustring, byval Caption as ustring, _
+                                   byval nIconKind as long = MBX_ICON_NONE, byval nPreset as long = MBX_BTN_OK ) as long
+    dim as TK_WIDGET ptr hBox = tkMessageBox_Create( hParent )
+    if hBox = 0 then return 0
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hBox )
+    pBox->wszCaption = Caption
+    pBox->wszText = Text
+    if (nIconKind >= MBX_ICON_NONE) andalso (nIconKind <= MBX_ICON_QUESTION) then pBox->nIconKind = nIconKind
+    tkMessageBox_AddPreset( hBox, nPreset )
+    return tkMessageBox_DoModal( hBox )
+end function
+
+' Size the box to its ideal size WITHOUT showing it or running the loop, so geometry and the
+' tone probe can be asserted. The window stays hidden.
+public sub tkMessageBox_LayoutForTest( byval hMsgBox as TK_WIDGET ptr )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox then MBX_SizeToIdeal( pBox )
+end sub
+
+' --- content (silent, lazy) -------------------------------------------------------------------
+public function tkMessageBox_GetCaption( byval hMsgBox as TK_WIDGET ptr ) as ustring
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then return ""
+    return pBox->wszCaption
+end function
+
+public sub tkMessageBox_SetCaption( byval hMsgBox as TK_WIDGET ptr, byval Text as ustring )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then exit sub
+    pBox->wszCaption = Text
+    pBox->Refresh()
+end sub
+
+public function tkMessageBox_GetText( byval hMsgBox as TK_WIDGET ptr ) as ustring
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then return ""
+    return pBox->wszText
+end function
+
+' Wrapped at the maximum width, left-justified; newlines honoured, CR dropped, tabs expanded.
+public sub tkMessageBox_SetText( byval hMsgBox as TK_WIDGET ptr, byval Text as ustring )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then exit sub
+    pBox->wszText = Text
+    pBox->Refresh()
+end sub
+
+public function tkMessageBox_GetIconKind( byval hMsgBox as TK_WIDGET ptr ) as long
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then return MBX_ICON_NONE
+    return pBox->nIconKind
+end function
+
+public sub tkMessageBox_SetIconKind( byval hMsgBox as TK_WIDGET ptr, byval nKind as long )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if (pBox = 0) orelse (nKind < MBX_ICON_NONE) orelse (nKind > MBX_ICON_QUESTION) then exit sub
+    pBox->nIconKind = nKind
+    pBox->Refresh()
+end sub
+
+' A glyph override turns the icon on even at MBX_ICON_NONE; "" clears it.
+public sub tkMessageBox_SetGlyph( byval hMsgBox as TK_WIDGET ptr, byval Glyph as ustring )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then exit sub
+    pBox->wszGlyph = Glyph
+    pBox->bGlyphOverride = (len( Glyph ) > 0)
+    pBox->Refresh()
+end sub
+
+' LATCHING: there is no way to hand the colour back to the kind.
+public sub tkMessageBox_SetIconColor( byval hMsgBox as TK_WIDGET ptr, byval clr as ulong )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then exit sub
+    pBox->clrIconOverride = clr
+    pBox->bIconOverride = true
+    tkWidget_Invalidate( hMsgBox )
+end sub
+
+' Kept and stored; SDL has no system sound, so nothing plays (PORT.md).
+public sub tkMessageBox_SetBeep( byval hMsgBox as TK_WIDGET ptr, byval bBeep as boolean )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox then pBox->bBeep = bBeep
+end sub
+
+public function tkMessageBox_GetBeep( byval hMsgBox as TK_WIDGET ptr ) as boolean
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then return false
+    return pBox->bBeep
+end function
+
+' --- buttons -----------------------------------------------------------------------------------
+' Returns the tkButton, or 0 once the box holds three. id is YOURS and is what DoModal returns.
+public function tkMessageBox_AddButton( byval hMsgBox as TK_WIDGET ptr, byval Text as ustring, byval id as long ) as TK_WIDGET ptr
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then return 0
+    if pBox->nButtonCount >= TKMESSAGEBOX_MAXBUTTONS then return 0
+    dim as long idx = pBox->nButtonCount
+    dim as TK_WIDGET ptr hBtn = tkButton_Create( hMsgBox, IDC_TKMESSAGEBOX_BUTTON_BASE + idx )
+    if hBtn = 0 then return 0
+    tkButton_SetText( hBtn, Text )
+    tkButton_SetID( hBtn, id )
+    tkButton_SetClickCallback( hBtn, @MBX_OnButtonClick )
+    if pBox->bBtnColorsSet then tkButton_SetColors( hBtn, @pBox->btnColors )
+    if pBox->pTextFont then tkButton_SetFont( hBtn, pBox->pTextFont )
+    if pBox->pGlyphFont then tkButton_SetGlyphFont( hBtn, pBox->pGlyphFont )
+    pBox->hButtons(idx) = hBtn
+    pBox->nButtonIds(idx) = id
+    pBox->nButtonCount += 1
+    pBox->Refresh()
+    return hBtn
+end function
+
+public declare sub tkMessageBox_SetDefaultButton( byval hMsgBox as TK_WIDGET ptr, byval idx as long )
+public declare sub tkMessageBox_SetCancelID( byval hMsgBox as TK_WIDGET ptr, byval id as long )
+
+' A whole set AND the default and cancel id to match. Additive.
+public sub tkMessageBox_AddPreset( byval hMsgBox as TK_WIDGET ptr, byval nPreset as long )
+    if GetMessageBoxPointer( hMsgBox ) = 0 then exit sub
+    select case nPreset
+    case MBX_BTN_OKCANCEL
+        tkMessageBox_AddButton( hMsgBox, "OK", MBX_IDOK )
+        tkMessageBox_AddButton( hMsgBox, "Cancel", MBX_IDCANCEL )
+        tkMessageBox_SetDefaultButton( hMsgBox, 0 )
+        tkMessageBox_SetCancelID( hMsgBox, MBX_IDCANCEL )
+    case MBX_BTN_YESNO
+        tkMessageBox_AddButton( hMsgBox, "Yes", MBX_IDYES )
+        tkMessageBox_AddButton( hMsgBox, "No", MBX_IDNO )
+        tkMessageBox_SetDefaultButton( hMsgBox, 0 )
+        tkMessageBox_SetCancelID( hMsgBox, MBX_IDNO )          ' the safe half of yes/no
+    case MBX_BTN_YESNOCANCEL
+        tkMessageBox_AddButton( hMsgBox, "Yes", MBX_IDYES )
+        tkMessageBox_AddButton( hMsgBox, "No", MBX_IDNO )
+        tkMessageBox_AddButton( hMsgBox, "Cancel", MBX_IDCANCEL )
+        tkMessageBox_SetDefaultButton( hMsgBox, 0 )
+        tkMessageBox_SetCancelID( hMsgBox, MBX_IDCANCEL )
+    case MBX_BTN_RETRYCANCEL
+        tkMessageBox_AddButton( hMsgBox, "Retry", MBX_IDRETRY )
+        tkMessageBox_AddButton( hMsgBox, "Cancel", MBX_IDCANCEL )
+        tkMessageBox_SetDefaultButton( hMsgBox, 0 )
+        tkMessageBox_SetCancelID( hMsgBox, MBX_IDCANCEL )
+    case MBX_BTN_SAVE_DONTSAVE_CANCEL
+        ' no IDSAVE in Win32: a save question is yes/no/cancel in better clothes
+        tkMessageBox_AddButton( hMsgBox, "Save", MBX_IDYES )
+        tkMessageBox_AddButton( hMsgBox, "Don't Save", MBX_IDNO )
+        tkMessageBox_AddButton( hMsgBox, "Cancel", MBX_IDCANCEL )
+        tkMessageBox_SetDefaultButton( hMsgBox, 0 )
+        tkMessageBox_SetCancelID( hMsgBox, MBX_IDCANCEL )
+    case else
+        tkMessageBox_AddButton( hMsgBox, "OK", MBX_IDOK )
+        tkMessageBox_SetDefaultButton( hMsgBox, 0 )
+        tkMessageBox_SetCancelID( hMsgBox, MBX_IDOK )          ' Esc must not be a silent no-op
+    end select
+end sub
+
+public function tkMessageBox_GetButtonCount( byval hMsgBox as TK_WIDGET ptr ) as long
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then return 0
+    return pBox->nButtonCount
+end function
+
+public function tkMessageBox_GetButtonHandle( byval hMsgBox as TK_WIDGET ptr, byval idx as long ) as TK_WIDGET ptr
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if (pBox = 0) orelse (idx < 0) orelse (idx >= pBox->nButtonCount) then return 0
+    return pBox->hButtons(idx)
+end function
+
+public function tkMessageBox_GetDefaultButton( byval hMsgBox as TK_WIDGET ptr ) as long
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then return -1
+    return pBox->nDefaultIndex
+end function
+
+' The accent border, Enter box-wide AND the initial focus (unless SetFocusButton comes after).
+' One accent border at most: the old default is cleared.
+public sub tkMessageBox_SetDefaultButton( byval hMsgBox as TK_WIDGET ptr, byval idx as long )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if (pBox = 0) orelse (idx < -1) orelse (idx >= pBox->nButtonCount) then exit sub
+    for i as long = 0 to pBox->nButtonCount - 1
+        tkButton_SetDefault( pBox->hButtons(i), (i = idx) )
+    next
+    pBox->nDefaultIndex = idx
+end sub
+
+' The index that WILL take focus: explicit > default > first; -1 with no buttons.
+public function tkMessageBox_GetFocusButton( byval hMsgBox as TK_WIDGET ptr ) as long
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then return -1
+    return pBox->ResolveFocusIndex()
+end function
+
+public sub tkMessageBox_SetFocusButton( byval hMsgBox as TK_WIDGET ptr, byval idx as long )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if (pBox = 0) orelse (idx < 0) orelse (idx >= pBox->nButtonCount) then exit sub
+    pBox->nFocusIndex = idx
+    pBox->bFocusExplicit = true
+end sub
+
+' What Esc / the X / the window's close WILL return.
+public function tkMessageBox_GetCancelID( byval hMsgBox as TK_WIDGET ptr ) as long
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then return 0
+    return pBox->ResolveCancelID()
+end function
+
+' MANDATORY when the last button is destructive.
+public sub tkMessageBox_SetCancelID( byval hMsgBox as TK_WIDGET ptr, byval id as long )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then exit sub
+    pBox->nCancelID = id
+    pBox->bCancelIDSet = true
+end sub
+
+' --- layout (raw pixels; negatives ignored) ------------------------------------------------------
+public sub tkMessageBox_SetMaxWidth( byval hMsgBox as TK_WIDGET ptr, byval nMaxWidth as long )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if (pBox = 0) orelse (nMaxWidth < 1) then exit sub
+    pBox->nMaxWidth = nMaxWidth
+    pBox->Refresh()
+end sub
+
+public sub tkMessageBox_SetMinWidth( byval hMsgBox as TK_WIDGET ptr, byval nMinWidth as long )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if (pBox = 0) orelse (nMinWidth < 0) then exit sub
+    pBox->nMinWidth = nMinWidth
+    pBox->Refresh()
+end sub
+
+public sub tkMessageBox_SetCaptionHeight( byval hMsgBox as TK_WIDGET ptr, byval nHeight as long )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if (pBox = 0) orelse (nHeight < 0) then exit sub
+    pBox->nCaptionHeight = nHeight
+    pBox->Refresh()
+end sub
+
+public sub tkMessageBox_SetBodyPadding( byval hMsgBox as TK_WIDGET ptr, byval nX as long, byval nY as long )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if (pBox = 0) orelse (nX < 0) orelse (nY < 0) then exit sub
+    pBox->nBodyPadX = nX : pBox->nBodyPadY = nY
+    pBox->Refresh()
+end sub
+
+public sub tkMessageBox_SetFooterPadding( byval hMsgBox as TK_WIDGET ptr, byval nX as long, byval nY as long )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if (pBox = 0) orelse (nX < 0) orelse (nY < 0) then exit sub
+    pBox->nFooterPadX = nX : pBox->nFooterPadY = nY
+    pBox->Refresh()
+end sub
+
+public sub tkMessageBox_SetIconSize( byval hMsgBox as TK_WIDGET ptr, byval nIconWidth as long, byval nIconHeight as long )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if (pBox = 0) orelse (nIconWidth < 0) orelse (nIconHeight < 0) then exit sub
+    pBox->nIconWidth = nIconWidth : pBox->nIconHeight = nIconHeight
+    pBox->Refresh()
+end sub
+
+public sub tkMessageBox_SetIconGap( byval hMsgBox as TK_WIDGET ptr, byval nGap as long )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if (pBox = 0) orelse (nGap < 0) then exit sub
+    pBox->nIconGap = nGap
+    pBox->Refresh()
+end sub
+
+public sub tkMessageBox_SetButtonGap( byval hMsgBox as TK_WIDGET ptr, byval nGap as long )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if (pBox = 0) orelse (nGap < 0) then exit sub
+    pBox->nButtonGap = nGap
+    pBox->Refresh()
+end sub
+
+public sub tkMessageBox_SetButtonMinWidth( byval hMsgBox as TK_WIDGET ptr, byval nMinWidth as long )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if (pBox = 0) orelse (nMinWidth < 0) then exit sub
+    pBox->nButtonMinWidth = nMinWidth
+    pBox->Refresh()
+end sub
+
+' 0 = no border. Drawn last, inside the client: repaints without re-measuring.
+public sub tkMessageBox_SetBorderThickness( byval hMsgBox as TK_WIDGET ptr, byval nThickness as long )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if (pBox = 0) orelse (nThickness < 0) then exit sub
+    pBox->nBorderThick = nThickness
+    tkWidget_Invalidate( hMsgBox )
+end sub
+
+' Valid BEFORE the window is ever sized.
+public sub tkMessageBox_GetIdealSize( byval hMsgBox as TK_WIDGET ptr, byref nBoxWidth as long, byref nBoxHeight as long )
+    nBoxWidth = 0 : nBoxHeight = 0
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then exit sub
+    if pBox->bLayoutDirty then pBox->LayoutBox()
+    nBoxWidth = pBox->nIdealW : nBoxHeight = pBox->nIdealH
+end sub
+
+' FALSE (rc empty) while the box has no client area -- between Create and DoModal/LayoutForTest.
+' An absent part answers TRUE with an empty rect.
+private function MBX_QueryRect( byval hMsgBox as TK_WIDGET ptr, byval nWhich as long, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then return false
+    if pBox->bLayoutDirty then pBox->LayoutBox()
+    if pBox->bLayoutDirty then return false
+    select case nWhich
+    case MBX_PART_CAPTION : rc = pBox->rcCaption
+    case MBX_PART_BODY    : rc = pBox->rcBody
+    case MBX_PART_FOOTER  : rc = pBox->rcFooter
+    case MBX_PART_TEXT    : rc = pBox->rcText
+    case MBX_PART_ICON    : rc = pBox->rcIcon
+    case MBX_PART_CLOSE   : rc = pBox->rcClose
+    case else             : return false
+    end select
+    return true
+end function
+
+public function tkMessageBox_GetCaptionRect( byval hMsgBox as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return MBX_QueryRect( hMsgBox, MBX_PART_CAPTION, rc )
+end function
+public function tkMessageBox_GetCloseRect( byval hMsgBox as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return MBX_QueryRect( hMsgBox, MBX_PART_CLOSE, rc )
+end function
+public function tkMessageBox_GetBodyRect( byval hMsgBox as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return MBX_QueryRect( hMsgBox, MBX_PART_BODY, rc )
+end function
+public function tkMessageBox_GetIconRect( byval hMsgBox as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return MBX_QueryRect( hMsgBox, MBX_PART_ICON, rc )
+end function
+public function tkMessageBox_GetTextRect( byval hMsgBox as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return MBX_QueryRect( hMsgBox, MBX_PART_TEXT, rc )
+end function
+public function tkMessageBox_GetFooterRect( byval hMsgBox as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return MBX_QueryRect( hMsgBox, MBX_PART_FOOTER, rc )
+end function
+
+public function tkMessageBox_GetButtonRect( byval hMsgBox as TK_WIDGET ptr, byval idx as long, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if (pBox = 0) orelse (idx < 0) orelse (idx >= pBox->nButtonCount) then return false
+    if pBox->bLayoutDirty then pBox->LayoutBox()
+    if pBox->bLayoutDirty then return false
+    rc = pBox->rcButtons(idx)
+    return true
+end function
+
+' --- fonts (borrowed) ------------------------------------------------------------------------------
+public function tkMessageBox_GetFont( byval hMsgBox as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then return 0
+    return pBox->pTextFont
+end function
+
+' The message AND measuring font; pushed into every button, now and later.
+public sub tkMessageBox_SetFont( byval hMsgBox as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then exit sub
+    pBox->pTextFont = f
+    for i as long = 0 to pBox->nButtonCount - 1
+        tkButton_SetFont( pBox->hButtons(i), f )
+    next
+    pBox->Refresh()
+end sub
+
+public function tkMessageBox_GetCaptionFont( byval hMsgBox as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then return 0
+    return pBox->pCaptionFont
+end function
+
+public sub tkMessageBox_SetCaptionFont( byval hMsgBox as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then exit sub
+    pBox->pCaptionFont = f
+    pBox->Refresh()
+end sub
+
+public function tkMessageBox_GetGlyphFont( byval hMsgBox as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then return 0
+    return pBox->pGlyphFont
+end function
+
+' The MESSAGE ICON's font (also the buttons' glyph font). Repaints only: the cell is declared.
+public sub tkMessageBox_SetGlyphFont( byval hMsgBox as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then exit sub
+    pBox->pGlyphFont = f
+    for i as long = 0 to pBox->nButtonCount - 1
+        tkButton_SetGlyphFont( pBox->hButtons(i), f )
+    next
+    tkWidget_Invalidate( hMsgBox )
+end sub
+
+public function tkMessageBox_GetCloseGlyphFont( byval hMsgBox as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then return 0
+    return pBox->pCloseFont
+end function
+
+' The close X's font (~10 pt), separate from the ~32 px icon's. Repaints only.
+public sub tkMessageBox_SetCloseGlyphFont( byval hMsgBox as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then exit sub
+    pBox->pCloseFont = f
+    tkWidget_Invalidate( hMsgBox )
+end sub
+
+' The form's fonts (tkApp): the message font and the icon font.
+public sub tkMessageBox_ApplyFonts( byval hMsgBox as TK_WIDGET ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
+    if fText then tkMessageBox_SetFont( hMsgBox, fText )
+    if fGlyph then tkMessageBox_SetGlyphFont( hMsgBox, fGlyph )
+end sub
+
+' --- colours and theme ----------------------------------------------------------------------------
+public sub tkMessageBox_GetColors( byval hMsgBox as TK_WIDGET ptr, byval pColors as MBX_COLORS ptr )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if (pBox = 0) orelse (pColors = 0) then exit sub
+    *pColors = pBox->colors
+end sub
+
+public sub tkMessageBox_SetColors( byval hMsgBox as TK_WIDGET ptr, byval pColors as MBX_COLORS ptr )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if (pBox = 0) orelse (pColors = 0) then exit sub
+    pBox->colors = *pColors
+    pBox->bColorsPinned = true
+    tkWidget_Invalidate( hMsgBox )
+end sub
+
+' Into every button NOW and stored for every button added LATER; pins the buttons and the box.
+public sub tkMessageBox_SetButtonColors( byval hMsgBox as TK_WIDGET ptr, byval pColors as TKBUTTON_COLORS ptr )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if (pBox = 0) orelse (pColors = 0) then exit sub
+    pBox->btnColors = *pColors
+    pBox->bBtnColorsSet = true
+    pBox->bColorsPinned = true
+    for i as long = 0 to pBox->nButtonCount - 1
+        tkButton_SetColors( pBox->hButtons(i), pColors )
+    next
+end sub
+
+' Vendor PsMessageBox_ThemeColors, role for role.
+public function tkMessageBox_ThemeColors( byref t as TKTHEME_COLORS ) as MBX_COLORS
+    dim as MBX_COLORS c
+    c.BorderColor = t.Border
+    c.CaptionBackColor = t.Surface
+    c.CaptionForeColor = t.Text
+    c.CloseBackColor = t.Surface
+    c.CloseForeColor = t.Text
+    c.CloseBackColorHot = t.Error
+    c.CloseForeColorHot = t.SelectedText
+    c.CloseBackColorPressed = t.Error
+    c.CloseForeColorPressed = t.SelectedText
+    c.BackColor = t.Window
+    c.ForeColor = t.Text
+    c.FooterBackColor = t.SurfaceDisabled
+    c.DividerColor = t.Divider
+    c.IconColorInfo = t.FocusRing
+    c.IconColorWarning = t.Warning
+    c.IconColorError = t.Error
+    c.IconColorQuestion = t.FocusRing
+    return c
+end function
+
+' The box's colours and its buttons' (tkButton's adapter), unless pinned.
+public sub tkMessageBox_ApplyTheme( byval hMsgBox as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if (pBox = 0) orelse pBox->bColorsPinned then exit sub
+    pBox->colors = tkMessageBox_ThemeColors( t )
+    pBox->btnColors = tkButton_ThemeColors( t )
+    for i as long = 0 to pBox->nButtonCount - 1
+        tkButton_ApplyTheme( pBox->hButtons(i), t )
+    next
+    tkWidget_Invalidate( hMsgBox )
+end sub
+
+public sub tkMessageBox_UnpinColors( byval hMsgBox as TK_WIDGET ptr )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then exit sub
+    pBox->bColorsPinned = false
+    pBox->bBtnColorsSet = false
+    for i as long = 0 to pBox->nButtonCount - 1
+        tkButton_UnpinColors( pBox->hButtons(i) )
+    next
+    tkMessageBox_ApplyTheme( hMsgBox, tkTheme_Get() )
+end sub
+
+' --- callbacks: 0 removes --------------------------------------------------------------------------
+public sub tkMessageBox_SetPaintCallback( byval hMsgBox as TK_WIDGET ptr, byval usersub as MBX_PaintCallbackSub )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then exit sub
+    pBox->PaintCallback = usersub
+    tkWidget_Invalidate( hMsgBox )
+end sub
+
+public sub tkMessageBox_SetMessageCallback( byval hMsgBox as TK_WIDGET ptr, byval userfunc as MBX_MessageCallbackFunc )
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox then pBox->MessageCallback = userfunc
+end sub
+
+' The close X's moods, for a host painter or a test.
+public function tkMessageBox_GetCloseHot( byval hMsgBox as TK_WIDGET ptr ) as boolean
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    if pBox = 0 then return false
+    return pBox->isCloseHot
+end function
+
+
+' ========================================================================================
+' The tone probe: the box rendered into its dialog's back buffer and read back before any present.
+' 0 while the box has no client area (LayoutForTest first).
+' ========================================================================================
+public function tkMessageBox_CountRenderedTones( byval hMsgBox as TK_WIDGET ptr, byval nPart as long ) as long
+    dim as TKRECT rcPart
+    if MBX_QueryRect( hMsgBox, nPart, rcPart ) = false then return 0
+    if tkRect_IsEmpty( rcPart ) then return 0
+    dim as TKMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer( hMsgBox )
+    dim as TK_HOST ptr h = pBox->pDlg
+    dim as TK_PAINT wp
+    wp.renderer = h->renderer
+    wp.engine = h->engine
+    wp.pFont = h->pDefaultFont
+    wp.fScale = h->fScale
+    wp.Begin( 0, 0, hMsgBox->cw, hMsgBox->ch )
+    MBX_RenderAll( pBox, @wp )
+    SDL_SetRenderClipRect( h->renderer, 0 )
+    h->bDirty = true
+    dim as SDL_Rect sr
+    sr.x = rcPart.left : sr.y = rcPart.top : sr.w = tkRect_Width( rcPart ) : sr.h = tkRect_Height( rcPart )
+    dim as SDL_Surface ptr s0 = SDL_RenderReadPixels( h->renderer, @sr )
+    if s0 = 0 then return 0
+    dim as SDL_Surface ptr s = SDL_ConvertSurface( s0, SDL_PIXELFORMAT_ARGB8888 )
+    SDL_DestroySurface( s0 )
+    if s = 0 then return 0
+    dim tones(0 to 63) as ulong
+    dim as long n = 0
+    for y as long = 0 to s->h - 1
+        dim as ulong ptr row = cast( ulong ptr, cast( ubyte ptr, s->pixels ) + y * s->pitch )
+        for x as long = 0 to s->w - 1
+            dim as ulong c = row[x] and &h00FFFFFFul
+            dim as boolean f = false
+            for t as long = 0 to n - 1
+                if tones(t) = c then f = true : exit for
+            next
+            if (f = false) andalso (n < 64) then tones(n) = c : n += 1
+        next
+    next
+    SDL_DestroySurface( s )
+    return n
+end function

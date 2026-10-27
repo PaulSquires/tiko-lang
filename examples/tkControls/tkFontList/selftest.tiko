@@ -1,0 +1,46 @@
+' tkFontList self-test: the Windows fonts folder (reached through /mnt/c under WSL) has known
+' faces -- Segoe UI, Consolas and its bold, Cascadia Mono, the MS Gothic collection -- and the
+' platform's own folders are scanned too.
+'
+'   selftest            exit code = number of failures
+#import "std/containers"
+#import "vendor/tkControls/tkFontList"
+#import "vendor/tkControls/tkTest"
+using containers
+using tkFontList
+using tkTest
+using tkHost
+
+if tkTest_Init() = false then end 99
+tkTest_Begin( "fonts" )
+dim as string winDir = left( TK_TEST_FONTDIR, len( TK_TEST_FONTDIR ) - 1 )
+dim as long n = tkFontList_Scan( winDir )
+print "scanned " & winDir & ": " & n & " faces in " & int( tkFontList_ScanMs() ) & " ms"
+tkTest_Check( "a fonts folder has faces", n > 50, str( n ) )
+dim as Array( of string ) all = tkFontList_Families()
+dim as Array( of string ) mono = tkFontList_Families( true )
+tkTest_Check( "families are fewer than faces", (all.Count() > 10) andalso (all.Count() < n) )
+tkTest_Check( "Segoe UI is a family", IndexOf( all, "Segoe UI" ) >= 0 )
+tkTest_Check( "Consolas is fixed pitch", IndexOf( mono, "Consolas" ) >= 0 )
+tkTest_Check( "Cascadia Mono is fixed pitch", IndexOf( mono, "Cascadia Mono" ) >= 0 )
+tkTest_Check( "Segoe UI is not", IndexOf( mono, "Segoe UI" ) < 0 )
+dim as boolean sorted = true
+for i as long = 1 to all.Count() - 1
+    if all.At( i - 1 ) > all.At( i ) then sorted = false
+next
+tkTest_Check( "families come sorted", sorted )
+dim as string fReg = lcase( tkFontList_Find( "Consolas" ) ), fBold = lcase( tkFontList_Find( "consolas", true ) )
+tkTest_Check( "Consolas regular is consola.ttf", right( fReg, 11 ) = "consola.ttf", fReg )
+tkTest_Check( "Consolas bold is consolab.ttf (case-insensitive family)", right( fBold, 12 ) = "consolab.ttf", fBold )
+dim as string g1 = tkFontList_Find( "MS Gothic" ), g2 = tkFontList_Find( "MS UI Gothic" )
+tkTest_Check( "a .ttc face is path|family", (lcase( right( g1, 22 ) ) = "msgothic.ttc|ms gothic") andalso (lcase( right( g2, 25 ) ) = "msgothic.ttc|ms ui gothic"), g1 & " / " & g2 )
+tkTest_Check( "a missing bold falls back to regular", lcase( tkFontList_Find( "MS UI Gothic", true ) ) = lcase( g2 ) )
+tkTest_Check( "an unknown family is empty", tkFontList_Find( "No Such Family" ) = "" )
+' the platform's own folders
+dim as long nSys = tkFontList_Scan( "" )
+print "scanned this platform's folders: " & nSys & " faces in " & int( tkFontList_ScanMs() ) & " ms"
+tkTest_Check( "this platform's own folders have faces", nSys > 0, str( nSys ) )
+tkTest_Check( "a folder that does not exist is no error", tkFontList_Scan( "/no/such/dir" ) = 0 )
+dim as long nFail = tkTest_Report( "tkFontList" )
+tkTest_Quit()
+end nFail

@@ -1,0 +1,226 @@
+' tkTextBox demo: the vendor demo's five boxes (tiko-lang/examples/PsControls/PsTextBox), so
+' the two can be put side by side -- plus an external tkVScrollBar wired to box 5 through the
+' scroll API, the way the vendor README shows it.
+'
+'   demo                     interactive
+'   demo --shot out.bmp      render once (box 1 focused with a selection), save the window, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkTextBox"
+using tkTextBox
+using tkVScrollBar
+using tkPopupMenu
+using tkTheme
+using tkHost
+using tkPaint
+
+#ifdef TIKO_OS_LINUX
+    const FONTDIR = "/mnt/c/Windows/Fonts/"
+#else
+    const FONTDIR = "C:\Windows\Fonts\"
+#endif
+
+const as long DEMO_LEFT = 20, DEMO_BOX_HEIGHT = 32, DEMO_MULTI_HEIGHT = 110
+const as long DEMO_BOX1_TOP = 46, DEMO_BOX2_TOP = 122, DEMO_BOX3_TOP = 198
+const as long DEMO_BOX4_TOP = 274, DEMO_BOX5_TOP = 416
+const as ulong T_LABEL = &hFF969CA6ul, T_EVENT = &hFF98C379ul
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gBox(1 to 5), gBar
+dim shared as ustring gLastEvent
+dim shared as TTF_Font ptr gFont9, gFont10, gCue10
+
+private function S( byval v as long ) as long
+    return tkHost_Scale( gHost, v )
+end function
+
+sub ReportEvent( byref e as ustring )
+    gLastEvent = e
+    dim as string s8 = e
+    print s8
+    tkHost_Invalidate( gHost )
+end sub
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    b->SetFont( gFont9 )
+    b->SetForeColor( T_LABEL )
+    dim as TKRECT rc
+    dim as long tops(1 to 5) = { DEMO_BOX1_TOP, DEMO_BOX2_TOP, DEMO_BOX3_TOP, DEMO_BOX4_TOP, DEMO_BOX5_TOP }
+    dim as ustring labels(1 to 5) = { _
+        "Cue banner, rounded focus border, all callbacks (ESC clears via MessageCallback):", _
+        "Read-only, wide margins, select-all on focus (context menu offers Copy only):", _
+        "Numeric only, 2 decimal places, formats on focus loss, empty shows 0.00:", _
+        "Multiline, editable: ENTER = newline, TAB = tab char, cue wraps, scroll events below:", _
+        "Multiline, read-only, 40 preloaded lines, an external tkVScrollBar on the scroll API:" }
+    for i as long = 1 to 5
+        tkRect_Set( rc, S( DEMO_LEFT ), S( tops(i) - 22 ), pw, S( tops(i) ) )
+        b->PaintText( labels(i), @rc, TK_DT_LEFT )
+    next
+    if len( gLastEvent ) then
+        tkRect_Set( rc, S( DEMO_LEFT ), ph - S( 30 ), pw, ph )
+        b->SetForeColor( T_EVENT )
+        b->PaintText( gLastEvent, @rc, TK_DT_LEFT )
+    end if
+end sub
+
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long nLeft = S( DEMO_LEFT ), nWidth = pw - 2 * nLeft
+    if nWidth < 50 then nWidth = 50
+    tkWidget_SetPos( gBox(1), nLeft, S( DEMO_BOX1_TOP ), nWidth, S( DEMO_BOX_HEIGHT ) )
+    tkWidget_SetPos( gBox(2), nLeft, S( DEMO_BOX2_TOP ), nWidth, S( DEMO_BOX_HEIGHT ) )
+    tkWidget_SetPos( gBox(3), nLeft, S( DEMO_BOX3_TOP ), nWidth, S( DEMO_BOX_HEIGHT ) )
+    tkWidget_SetPos( gBox(4), nLeft, S( DEMO_BOX4_TOP ), nWidth, S( DEMO_MULTI_HEIGHT ) )
+    dim as long sbw = S( TKVSCROLL_DEFAULT_WIDTH )
+    tkWidget_SetPos( gBox(5), nLeft, S( DEMO_BOX5_TOP ), nWidth - sbw - S( 4 ), S( DEMO_MULTI_HEIGHT ) )
+    tkWidget_SetPos( gBar, nLeft + nWidth - sbw, S( DEMO_BOX5_TOP ), sbw, S( DEMO_MULTI_HEIGHT ) )
+end sub
+
+sub OnChange( byval hTextBox as TK_WIDGET ptr )
+    ReportEvent( "changed: " & tkTextBox_GetText( hTextBox ) )
+end sub
+
+sub OnFocus( byval hTextBox as TK_WIDGET ptr, byval bGot as boolean )
+    ReportEvent( "focus " & iif( bGot, "gained", "lost" ) & ": textbox id " & hTextBox->ctrlId )
+end sub
+
+sub OnEnter( byval hTextBox as TK_WIDGET ptr )
+    ReportEvent( "ENTER pressed: [" & tkTextBox_GetText( hTextBox ) & "]" )
+end sub
+
+function OnMessage( byval m as TKTEXTBOX_MESSAGEINFO ptr ) as boolean
+    ' ESC clears the box: tkTextBox_Clear is programmatic, so no change callback fires.
+    if (m->msg = TKM_KEYDOWN) andalso (m->key = SDLK_ESCAPE) then
+        tkTextBox_Clear( m->hTextBox )
+        ReportEvent( "ESC: cleared (silently - no change event)" )
+        return true
+    end if
+    return false
+end function
+
+' The wiring the README describes: read the three numbers, push them into the bar.
+sub OnScrollChanged( byval hTextBox as TK_WIDGET ptr )
+    dim as integer nTotal, nPage, nFirst
+    tkTextBox_GetVScrollInfo( hTextBox, nTotal, nPage, nFirst )
+    if hTextBox = gBox(5) then tkVScrollBar_SetRange( gBar, nTotal, nPage, nFirst )
+    ReportEvent( "scroll: id " & hTextBox->ctrlId & "  total=" & nTotal & "  page=" & nPage & "  first=" & nFirst )
+end sub
+
+' ...and the other direction: the bar's position goes straight into ScrollToLine.
+sub OnBar( byval hSB as TK_WIDGET ptr, byval newPos as integer )
+    tkTextBox_ScrollToLine( gBox(5), newPos )
+end sub
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr sf = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if sf then
+        SDL_SaveBMP( sf, strptr( path ) )
+        print "shot: " & path & "  " & sf->w & "x" & sf->h & "  scale=" & gHost->fScale
+        SDL_DestroySurface( sf )
+    end if
+end sub
+
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkTextBox on SDL3", 640, 580, FONTDIR & "segoeui.ttf", forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = tkTheme_Get().Window
+gFont9 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 9 )
+gFont10 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 10 )
+gCue10 = tkHost_OpenFont( gHost, FONTDIR & "segoeuii.ttf", 10 )
+if (gFont10 = 0) orelse (gCue10 = 0) then print "fonts: " & *SDL_GetError() : end 1
+
+dim as TK_WIDGET ptr root = tkHost_Root( gHost )
+for i as long = 1 to 5
+    gBox(i) = tkTextBox_Create( root, 100 + i, i >= 4 )
+    tkTextBox_SetFont( gBox(i), gFont10 )
+    tkTextBox_SetMargins( gBox(i), S( 8 ), S( 8 ) )
+    tkPopupMenu_SetFonts( tkTextBox_GetContextMenu( gBox(i) ), gFont9 )
+next
+
+' 1: cue banner, rounded, all callbacks
+tkTextBox_SetCueBannerText( gBox(1), "Search anything..." )
+tkTextBox_SetCueBannerFont( gBox(1), gCue10 )
+tkTextBox_SetCornerRadius( gBox(1), S( 4 ) )
+tkTextBox_SetChangeCallback( gBox(1), @OnChange )
+tkTextBox_SetFocusCallback( gBox(1), @OnFocus )
+tkTextBox_SetEnterPressedCallback( gBox(1), @OnEnter )
+tkTextBox_SetMessageCallback( gBox(1), @OnMessage )
+' 2: read-only, wide margins, select on focus
+tkTextBox_SetMargins( gBox(2), S( 16 ), S( 16 ) )
+tkTextBox_SetText( gBox(2), "Read-only text set programmatically (no change event fired)" )
+tkTextBox_SetReadOnly( gBox(2), true )
+tkTextBox_SetSelectOnFocus( gBox(2), true )
+' 3: numeric, borderless, centred
+tkTextBox_SetBorderWidth( gBox(3), 0 )
+tkTextBox_SetCueBannerText( gBox(3), "Amount (digits, minus, one decimal)" )
+tkTextBox_SetNumericMode( gBox(3), true )
+tkTextBox_SetDecimalPlaces( gBox(3), 2 )
+tkTextBox_SetSelectOnFocus( gBox(3), true )
+tkTextBox_SetZeroWhenEmpty( gBox(3), true )
+tkTextBox_SetTextAlign( gBox(3), TXT_ALIGN_CENTER )
+tkTextBox_SetFocusCallback( gBox(3), @OnFocus )
+' 4: multiline, editable, word-wrapping cue
+tkTextBox_SetCueBannerText( gBox(4), "Type multiline notes here... ENTER starts a new line, TAB indents, and this cue banner word-wraps instead of running off the right edge of the box." )
+tkTextBox_SetCueBannerFont( gBox(4), gCue10 )
+tkTextBox_SetChangeCallback( gBox(4), @OnChange )
+tkTextBox_SetScrollChangedCallback( gBox(4), @OnScrollChanged )
+tkTextBox_SetNumericMode( gBox(4), true )         ' REFUSED on multiline
+if tkTextBox_GetNumericMode( gBox(4) ) then print "ASSERT FAILED: numeric mode accepted on multiline"
+' 5: multiline, read-only, 40 lines, an external scrollbar
+gBar = tkVScrollBar_Create( root, 200 )
+tkVScrollBar_SetScrollCallback( gBar, @OnBar )
+tkTextBox_SetScrollChangedCallback( gBox(5), @OnScrollChanged )
+dim as string sLines
+for i as long = 1 to 40
+    sLines &= "Line " & i & " of 40 - preloaded read-only multiline content"
+    if i < 40 then sLines &= chr( 13, 10 )
+next
+dim as ustring wszLines = sLines
+tkTextBox_SetText( gBox(5), wszLines )
+tkTextBox_SetReadOnly( gBox(5), true )
+
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkTextBox_ScrollToLine( gBox(5), 0 )
+OnScrollChanged( gBox(5) )
+
+dim as integer nTotal, nPage, nFirst
+tkTextBox_GetVScrollInfo( gBox(5), nTotal, nPage, nFirst )
+print "box 5 scroll info: total=" & nTotal & " page=" & nPage & " first=" & nFirst
+if nTotal <> 40 then print "ASSERT FAILED: expected 40 lines"
+
+tkHost_SetFocus( gHost, gBox(1) )
+tkHost_Show( gHost )
+
+dim as string shot = ArgValue( "--shot" )
+if len( shot ) then
+    tkTextBox_SetText( gBox(1), "Selected text in box 1" )
+    tkTextBox_SetSel( gBox(1), 0, 8 )
+    tkTextBox_SetText( gBox(4), "First line" & chr( 10 ) & "Second line, long enough that the box word-wraps it onto a third visual line for the screenshot." )
+    tkHost_Pump( gHost )
+    SaveShot( shot )
+else
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

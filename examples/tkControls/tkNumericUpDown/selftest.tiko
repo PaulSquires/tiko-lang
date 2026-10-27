@@ -1,0 +1,345 @@
+' tkNumericUpDown self-test: the ideal-size and layout formulas, the step on the button-down,
+' auto-repeat (pauses off the button, stops dead at a limit), keys and wheel through the
+' embedded tkTextBox, notify-on-commit for typing, silent setters, the decimal grid, read-only
+' vs disabled, the relayed message stream, theme and pinning, pixels, rescale. Two passes, 1.0
+' and 1.75; every input is a pushed SDL event.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkNumericUpDown"
+#import "vendor/tkControls/tkTest"
+using tkNumericUpDown
+using tkTextBox
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as long gChanges
+dim shared as double gLastValue
+dim shared as boolean gVetoDown, gVetoUp
+dim shared as long gRelayedKeys
+dim shared as TK_WIDGET ptr gNud
+
+sub OnChanged( byval hCtrl as TK_WIDGET ptr, byval v as double )
+    gChanges += 1
+    gLastValue = v
+end sub
+
+function OnMessage( byval m as TKNUMERICUPDOWN_MESSAGEINFO ptr ) as boolean
+    if m->msg = TKM_KEYDOWN then gRelayedKeys += 1
+    if gVetoDown andalso (m->msg = TKM_LBUTTONDOWN) then return true
+    if gVetoUp andalso (m->msg = TKM_LBUTTONUP) then return true
+    return false
+end function
+
+' Hold the cursor on (x, y) for ms of real time, re-pushing the hover every 50 ms: another
+' window mapping on the same desktop (a parallel test run) can deliver a REAL leave mid-wait,
+' which clears hot and pauses the repeat; the re-push puts the cursor back, as a user's would be.
+' Returns as soon as the value reaches vWant.
+sub HoldOn( byval h as TK_HOST ptr, byval x as single, byval y as single, byval ms as long, byval vWant as double )
+    dim as double t0 = timer
+    while (timer - t0) * 1000 < ms
+        tkTest_PushMotion( h, x, y )
+        tkTest_PumpFor( h, 50 )
+        if tkNumericUpDown_GetValue( gNud ) >= vWant then exit while
+    wend
+end sub
+
+' Window pixels of the centre of a part rect.
+sub PartCentre( byval w as TK_WIDGET ptr, byref rc as TKRECT, byref x as single, byref y as single )
+    dim as TKRECT a
+    tkWidget_AbsRect( w, a )
+    x = a.left + (rc.left + rc.right) / 2
+    y = a.top + (rc.top + rc.bottom) / 2
+end sub
+
+function FieldText( byval n as TK_WIDGET ptr ) as string
+    dim as string s = tkTextBox_GetText( tkNumericUpDown_GetTextBoxHandle( n ) )
+    return s
+end function
+
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkNumericUpDown selftest", 600, 420, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    if h = 0 then tkTest_Check( "host", false, *SDL_GetError() ) : exit sub
+    dim as TTF_Font ptr f10 = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 10 )
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 300 )
+
+    ' ---- A: defaults and the ideal size, valid before sizing --------------------------------
+    dim as TK_WIDGET ptr n = tkNumericUpDown_Create( tkHost_Root( h ), 201 )
+    gNud = n
+    tkNumericUpDown_SetFont( n, f10 )
+    tkNumericUpDown_SetValueChangedCallback( n, @OnChanged )
+    tkNumericUpDown_SetMessageCallback( n, @OnMessage )
+    dim as long bwid = tkNumericUpDown_GetButtonWidth( n )
+    dim as long pl, pr, pv, gl, gt
+    tkNumericUpDown_GetValuePadding( n, pl, pr, pv )
+    tkNumericUpDown_GetGlyphSize( n, gl, gt )
+    tkTest_Check( "defaults scaled at create", bwid = cint( 28 * fScale ) andalso pl = cint( 6 * fScale ) andalso pv = cint( 5 * fScale ) andalso gl = cint( 10 * fScale ), bwid & " " & pl & " " & pv & " " & gl )
+    tkTest_Check( "glyph stroke scaled, hairlines not", gt = cint( fScale ) andalso tkNumericUpDown_GetBorderThickness( n ) = 1 andalso tkNumericUpDown_GetDividerThickness( n ) = 1 )
+    dim as double mn, mx
+    tkNumericUpDown_GetRange( n, mn, mx )
+    tkTest_Check( "default range +-1e6, increment 1, large 10", mn = -1000000 andalso mx = 1000000 andalso tkNumericUpDown_GetIncrement( n ) = 1 andalso tkNumericUpDown_GetLargeIncrement( n ) = 10 )
+    tkNumericUpDown_SetDecimalPlaces( n, 2 )
+    tkNumericUpDown_SetRange( n, 100, -5 )
+    tkNumericUpDown_GetRange( n, mn, mx )
+    tkTest_Check( "an inverted range is swapped", mn = -5 andalso mx = 100 )
+    dim as long iw, ih
+    tkNumericUpDown_GetIdealSize( n, iw, ih )
+    dim as long textW = tkText_Width( f10, "100.00" )
+    if tkText_Width( f10, "-5.00" ) > textW then textW = tkText_Width( f10, "-5.00" )
+    tkTest_Check( "idealW = 2*button + 2*divider + pads + widest end", iw = 2 * bwid + 2 + pl + pr + textW, iw & " vs " & (2 * bwid + 2 + pl + pr + textW) )
+    tkTest_Check( "idealH = font + 2*vpad + 2*border", ih = tkText_Height( f10 ) + 2 * pv + 2, "" & ih )
+    dim as TKRECT rc
+    tkTest_Check( "rect query FALSE before sizing", tkNumericUpDown_GetMinusRect( n, rc ) = false )
+
+    ' ---- B: the nine-rect layout ------------------------------------------------------------
+    tkNumericUpDown_SetRange( n, 0, 100 )
+    tkNumericUpDown_SetValue( n, 10 )
+    dim as long nw = iw + tkHost_Scale( h, 40 )
+    tkWidget_SetPos( n, tkHost_Scale( h, 20 ), tkHost_Scale( h, 20 ), nw, ih )
+    dim as TKRECT rM, rV, rP, rF
+    tkTest_Check( "rect query TRUE once sized", tkNumericUpDown_GetMinusRect( n, rM ) )
+    tkNumericUpDown_GetValueRect( n, rV ) : tkNumericUpDown_GetPlusRect( n, rP ) : tkNumericUpDown_GetFrameRect( n, rF )
+    tkTest_Check( "rcFrame = client", rF.left = 0 andalso rF.right = nw andalso rF.bottom = ih )
+    tkTest_Check( "rcMinus full height at the left", rM.left = 0 andalso rM.right = bwid andalso rM.top = 0 andalso rM.bottom = ih, tkRect_Str( rM ) )
+    tkTest_Check( "rcPlus full height at the right", rP.left = nw - bwid andalso rP.right = nw andalso rP.bottom = ih, tkRect_Str( rP ) )
+    tkTest_Check( "rcValue between the dividers, inset by border + vpad", rV.left = bwid + 1 andalso rV.right = nw - bwid - 1 andalso rV.top = 1 + pv andalso rV.bottom = ih - 1 - pv, tkRect_Str( rV ) )
+    dim as TK_WIDGET ptr tb = tkNumericUpDown_GetTextBoxHandle( n )
+    tkTest_Check( "the field sits exactly on rcValue", tb->x = rV.left andalso tb->y = rV.top andalso tb->cw = rV.right - rV.left andalso tb->ch = rV.bottom - rV.top )
+    tkTest_Check( "the field shows the value", FieldText( n ) = "10.00", FieldText( n ) )
+    tkTest_Check( "HitTest", tkNumericUpDown_HitTest( n, 2, 2 ) = NUD_PART_MINUS andalso tkNumericUpDown_HitTest( n, nw - 2, 2 ) = NUD_PART_PLUS andalso tkNumericUpDown_HitTest( n, nw \ 2, ih \ 2 ) = NUD_PART_VALUE )
+
+    ' ---- C: the button press steps on the DOWN ----------------------------------------------
+    gChanges = 0
+    dim as single px, py, mxp, myp
+    PartCentre( n, rP, px, py ) : PartCentre( n, rM, mxp, myp )
+    tkTest_PushMotion( h, px, py )
+    tkTest_Check( "hover: + is hot", tkNumericUpDown_GetHotPart( n ) = NUD_PART_PLUS )
+    tkTest_PushButton( h, true, px, py )
+    tkTest_Check( "the step happens on the down", tkNumericUpDown_GetValue( n ) = 11 andalso gChanges = 1 andalso gLastValue = 11 )
+    tkTest_Check( "press takes capture", tkHost_GetCapture( h ) = n )
+    tkTest_Check( "a button press focuses the field", tkNumericUpDown_HasFocus( n ) )
+    dim as integer s0, s1
+    tkTextBox_GetSel( tb, s0, s1 )
+    tkTest_Check( "...without selecting the number", s0 = s1, s0 & "," & s1 )
+    tkTest_PushMotion( h, px, py + tkHost_Scale( h, 100 ) )
+    tkTest_Check( "slide off: not pressed-and-hot", tkNumericUpDown_GetHotPart( n ) = NUD_PART_NONE )
+    tkTest_PushButton( h, false, px, py + tkHost_Scale( h, 100 ) )
+    tkTest_Check( "sliding off does not undo the step", tkNumericUpDown_GetValue( n ) = 11 )
+    tkTest_Check( "release frees capture", tkHost_GetCapture( h ) = 0 )
+    tkTest_Click( h, mxp, myp )
+    tkTest_Click( h, mxp, myp, SDL_BUTTON_LEFT, 2 )
+    tkTest_Check( "a double click is two ordinary presses", tkNumericUpDown_GetValue( n ) = 9, "" & tkNumericUpDown_GetValue( n ) )
+
+    ' ---- D: auto-repeat --------------------------------------------------------------------
+    ' One check on the REAL timer (it fires, after the delay); the pause / resume / limit rules
+    ' then run on ticks delivered directly, with the real timer pushed out of the way -- real
+    ' pointer noise on a shared desktop (the user's mouse, a parallel test's windows) clears hot
+    ' mid-wait and made those time-based checks flaky.
+    tkNumericUpDown_SetAutoRepeat( n, 150, 30 )
+    tkNumericUpDown_SetValue( n, 0 )
+    tkTest_PushMotion( h, px, py )
+    tkTest_PushButton( h, true, px, py )
+    tkTest_Check( "a press arms the repeat", tkNumericUpDown_IsRepeating( n ) andalso tkNumericUpDown_GetValue( n ) = 1 )
+    ' up to three presses: a focus loss mid-hold (another window activating) releases the
+    ' capture and cancels the press, as it would for a user
+    dim as double vHeld = 0
+    for attempt as long = 1 to 3
+        if attempt > 1 then
+            tkNumericUpDown_SetValue( n, 0 )
+            tkTest_PushMotion( h, px, py )
+            tkTest_PushButton( h, true, px, py )
+        end if
+        HoldOn( h, px, py, 800, 4 )
+        vHeld = tkNumericUpDown_GetValue( n )
+        tkTest_PushButton( h, false, px, py )
+        if vHeld >= 4 then exit for
+    next
+    tkTest_Check( "holding repeats (the real timer)", vHeld >= 4, "" & vHeld )
+    tkNumericUpDown_SetAutoRepeat( n, 600000, 600000 )
+    dim as TK_MSG tick
+    tick.msg = TKM_TIMER : tick.timerId = TK_TIMER_AUTOREPEAT
+    tkNumericUpDown_SetValue( n, 10 )
+    tkTest_PushMotion( h, px, py )
+    tkTest_PushButton( h, true, px, py )
+    tkWidget_Send( n, @tick )
+    tkTest_Check( "a tick steps while held on the button", tkNumericUpDown_GetValue( n ) = 12, "" & tkNumericUpDown_GetValue( n ) )
+    tkTest_PushMotion( h, px, py + tkHost_Scale( h, 100 ) )
+    tkTest_Check( "off the button the repeat stops", tkNumericUpDown_IsRepeating( n ) = false )
+    tkWidget_Send( n, @tick )
+    tkTest_Check( "...and a stray tick does nothing", tkNumericUpDown_GetValue( n ) = 12 )
+    tkTest_PushMotion( h, px, py )
+    tkTest_Check( "back on it, it resumes", tkNumericUpDown_IsRepeating( n ) )
+    tkWidget_Send( n, @tick )
+    tkTest_Check( "...and steps again", tkNumericUpDown_GetValue( n ) = 13 )
+    tkTest_PushButton( h, false, px, py )
+    tkTest_Check( "release stops it", tkNumericUpDown_IsRepeating( n ) = false )
+    tkWidget_Send( n, @tick )
+    tkTest_Check( "...no step after the release", tkNumericUpDown_GetValue( n ) = 13 )
+    tkNumericUpDown_SetRange( n, 0, 5 )
+    tkNumericUpDown_SetValue( n, 3 )
+    tkTest_PushMotion( h, px, py )
+    tkTest_PushButton( h, true, px, py )
+    tkWidget_Send( n, @tick ) : tkWidget_Send( n, @tick )
+    tkTest_Check( "the range clamps: repeat ends at the max", tkNumericUpDown_GetValue( n ) = 5 )
+    tkTest_Check( "repeat stops DEAD at a limit", tkNumericUpDown_IsRepeating( n ) = false )
+    tkTest_PushButton( h, false, px, py )
+    tkNumericUpDown_SetRange( n, 0, 100 )
+    tkNumericUpDown_SetAutoRepeat( n, 400, 60 )
+
+    ' ---- E: keys and the wheel through the field --------------------------------------------
+    tkNumericUpDown_SetValue( n, 50 )
+    gChanges = 0 : gRelayedKeys = 0
+    tkHost_SetFocus( h, tb )
+    tkTest_PushKey( h, SDLK_UP ) : tkTest_PushKey( h, SDLK_UP )
+    tkTest_Check( "Up steps and notifies at once", tkNumericUpDown_GetValue( n ) = 52 andalso gChanges = 2 )
+    tkTest_PushKey( h, SDLK_PAGEDOWN )
+    tkTest_Check( "PgDn: the large increment", tkNumericUpDown_GetValue( n ) = 42 )
+    tkTest_Check( "the field's keys are relayed to the host", gRelayedKeys = 3, "" & gRelayedKeys )
+    tkTest_PushWheel( h, tkTest_CX( n ), tkTest_CY( n ), 0, 1 )
+    tkTest_Check( "wheel over the field: one increment a notch", tkNumericUpDown_GetValue( n ) = 43 )
+    tkTest_PushWheel( h, px, py, 0, -0.5 ) : tkTest_PushWheel( h, px, py, 0, -0.5 )
+    tkTest_Check( "wheel over a button; sub-notches accumulate", tkNumericUpDown_GetValue( n ) = 42, "" & tkNumericUpDown_GetValue( n ) )
+
+    ' ---- F: typing commits on Enter / focus loss -----------------------------------------------
+    gChanges = 0
+    tkTest_PushKey( h, SDLK_A, SDL_KMOD_LCTRL )
+    tkTest_PushText( h, "1" ) : tkTest_PushText( h, "6" )
+    tkTest_Check( "typing does not notify", gChanges = 0 andalso tkNumericUpDown_GetValue( n ) = 42 )
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "Enter commits once, never the transient 1", gChanges = 1 andalso gLastValue = 16 andalso FieldText( n ) = "16.00", gChanges & " " & gLastValue & " " & FieldText( n ) )
+    tkTest_PushKey( h, SDLK_A, SDL_KMOD_LCTRL )
+    tkTest_PushText( h, "5" ) : tkTest_PushText( h, "0" ) : tkTest_PushText( h, "0" )
+    tkTest_PushKey( h, SDLK_UP )
+    tkTest_Check( "a step starts from the typed text, clamped", tkNumericUpDown_GetValue( n ) = 100, "" & tkNumericUpDown_GetValue( n ) )
+    tkTest_PushKey( h, SDLK_A, SDL_KMOD_LCTRL )
+    tkTest_PushText( h, "5" ) : tkTest_PushText( h, "0" ) : tkTest_PushText( h, "0" )
+    dim as TK_WIDGET ptr other = tkTextBox_Create( tkHost_Root( h ), 299 )
+    tkWidget_SetPos( other, tkHost_Scale( h, 20 ), tkHost_Scale( h, 300 ), tkHost_Scale( h, 120 ), ih )
+    gChanges = 0
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "Tab leaves the field", tkTextBox_HasFocus( other ) )
+    tkTest_Check( "focus loss commits, clamped (no change: 100)", tkNumericUpDown_GetValue( n ) = 100 andalso gChanges = 0 andalso FieldText( n ) = "100.00", FieldText( n ) )
+    tkTest_PushKey( h, SDLK_TAB, SDL_KMOD_LSHIFT )
+    tkTest_Check( "Shift+Tab comes back", tkNumericUpDown_HasFocus( n ) )
+    tkTextBox_GetSel( tb, s0, s1 )
+    tkTest_Check( "arriving by Tab selects the number", s0 = 0 andalso s1 = len( FieldText( n ) ) )
+    tkTest_PushKey( h, SDLK_BACKSPACE )
+    tkHost_SetFocus( h, other )
+    tkTest_Check( "an emptied field reads as zero", tkNumericUpDown_GetValue( n ) = 0 andalso FieldText( n ) = "0.00", FieldText( n ) )
+
+    ' ---- G: silent setters, the grid -----------------------------------------------------------
+    gChanges = 0
+    tkNumericUpDown_SetValue( n, 3.14159 )
+    tkTest_Check( "SetValue snaps to the grid", tkNumericUpDown_GetValue( n ) = 3.14 andalso FieldText( n ) = "3.14" )
+    tkNumericUpDown_StepUp( n ) : tkNumericUpDown_StepDown( n ) : tkNumericUpDown_StepDown( n )
+    tkTest_Check( "StepUp/StepDown", abs( tkNumericUpDown_GetValue( n ) - 2.14 ) < 1e-9 )
+    tkNumericUpDown_SetDecimalPlaces( n, 0 )
+    tkTest_Check( "SetDecimalPlaces re-snaps", tkNumericUpDown_GetValue( n ) = 2 andalso FieldText( n ) = "2" )
+    tkNumericUpDown_SetRange( n, 5, 10 )
+    tkTest_Check( "SetRange re-clamps", tkNumericUpDown_GetValue( n ) = 5 )
+    tkTest_Check( "all setters silent", gChanges = 0 )
+    tkNumericUpDown_SetIncrement( n, -0.1 )
+    tkTest_Check( "increments take the magnitude", tkNumericUpDown_GetIncrement( n ) = 0.1 )
+    tkNumericUpDown_SetDecimalPlaces( n, 1 )
+    tkNumericUpDown_SetRange( n, 0, 10 )
+    tkNumericUpDown_SetValue( n, 0 )
+    for i as long = 1 to 10
+        tkNumericUpDown_StepUp( n )
+    next
+    tkTest_Check( "ten 0.1 steps land ON 1.0 (the grid, not binary drift)", tkNumericUpDown_GetValue( n ) = 1.0 andalso FieldText( n ) = "1.0", FieldText( n ) )
+    tkNumericUpDown_SetIncrement( n, 1 )
+    tkNumericUpDown_SetDecimalPlaces( n, 0 )
+    tkNumericUpDown_SetRange( n, 0, 100 )
+
+    ' ---- H: read-only vs disabled, the message callback ----------------------------------------
+    tkNumericUpDown_SetValue( n, 20 )
+    tkNumericUpDown_SetReadOnly( n, true )
+    tkHost_SetFocus( h, tb )
+    tkTest_PushKey( h, SDLK_A, SDL_KMOD_LCTRL ) : tkTest_PushText( h, "7" )
+    tkTest_Check( "read-only: typing blocked", FieldText( n ) = "20" )
+    tkTest_Click( h, px, py )
+    tkTest_Check( "read-only: buttons still step", tkNumericUpDown_GetValue( n ) = 21 )
+    tkNumericUpDown_SetReadOnly( n, false )
+    gVetoDown = true
+    tkTest_Click( h, px, py )
+    tkTest_Check( "a vetoed LBUTTONDOWN does not step", tkNumericUpDown_GetValue( n ) = 21 )
+    gVetoDown = false
+    gVetoUp = true
+    tkTest_Click( h, px, py )
+    tkTest_Check( "a vetoed LBUTTONUP is ignored: capture still released", tkHost_GetCapture( h ) = 0 andalso tkNumericUpDown_GetValue( n ) = 22 )
+    gVetoUp = false
+    gChanges = 0
+    tkNumericUpDown_SetEnabled( n, false )
+    tkTest_Check( "disabling drops the field's focus", tkNumericUpDown_HasFocus( n ) = false )
+    tkTest_Click( h, px, py )
+    tkTest_PushWheel( h, px, py, 0, 1 )
+    tkTest_Check( "disabled: no step by click or wheel", tkNumericUpDown_GetValue( n ) = 22 andalso gChanges = 0 )
+    tkHost_SetFocus( h, tb )
+    tkTest_Check( "disabled: the field cannot take focus", tkNumericUpDown_HasFocus( n ) = false )
+    tkNumericUpDown_SetEnabled( n, true )
+
+    ' ---- I: pixels -----------------------------------------------------------------------------
+    dim as TKNUMERICUPDOWN_COLORS cc
+    tkNumericUpDown_GetColors( n, @cc )
+    tkTest_PushMotion( h, px, py )
+    tkHost_RenderTo( h, false )
+    dim as long sampleX = n->x + rP.left + tkHost_Scale( h, 4 ), sampleY = n->y + rP.top + tkHost_Scale( h, 4 )
+    tkTest_Check( "hot + paints ButtonBackColorHot", tkTest_PixelAt( h, sampleX, sampleY ) = cc.ButtonBackColorHot, hex( tkTest_PixelAt( h, sampleX, sampleY ) ) )
+    ' the hot cell's fill stays IN its cell: the value strip above the field keeps the value colour
+    dim as long stripX = n->x + rV.right - 2, stripY = n->y + rV.top - 2
+    tkTest_Check( "hot fill clipped to its cell (value strip unchanged)", tkTest_PixelAt( h, stripX, stripY ) = cc.ValueBackColor, hex( tkTest_PixelAt( h, stripX, stripY ) ) )
+    tkNumericUpDown_SetValue( n, 100 )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "+ at the max paints disabled", tkTest_PixelAt( h, sampleX, sampleY ) = cc.ButtonBackColorDisabled )
+    tkTest_PushMotion( h, 2, 2 )
+    tkHost_SetFocus( h, tb )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "focused frame in FocusBorderColor", tkTest_PixelAt( h, n->x + nw \ 2, n->y ) = cc.FocusBorderColor, hex( tkTest_PixelAt( h, n->x + nw \ 2, n->y ) ) )
+    dim as long gx = n->x + (rP.left + rP.right) \ 2, gy = n->y + (rP.top + rP.bottom) \ 2
+    tkNumericUpDown_SetValue( n, 50 )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "the + glyph's centre is GlyphColor", tkTest_PixelAt( h, gx, gy ) = cc.GlyphColor, hex( tkTest_PixelAt( h, gx, gy ) ) )
+    dim as ulong cdummy
+    tkTest_Check( "the field draws the number (> 2 tones)", tkTest_TonesIn( h, n->x + rV.left, n->y + rV.top, rV.right - rV.left, rV.bottom - rV.top, cdummy ) > 2 )
+
+    ' ---- J: theme and pinning --------------------------------------------------------------
+    tkTheme_Apply( tkTheme_Light() )
+    tkNumericUpDown_GetColors( n, @cc )
+    tkTest_Check( "theme reaches an unpinned control", cc.ValueBackColor = tkTheme_Light().Surface andalso cc.FocusBorderColor = tkTheme_Light().FocusRing )
+    tkTest_Check( "the field follows", tkTextBox_GetBackColor( tb ) = tkTheme_Light().Surface )
+    cc.ButtonBackColorHot = &hFF00FF00ul
+    tkNumericUpDown_SetColors( n, @cc )
+    tkTheme_Apply( tkTheme_Dark() )
+    tkNumericUpDown_GetColors( n, @cc )
+    tkTest_Check( "SetColors pins", cc.ButtonBackColorHot = &hFF00FF00ul andalso tkTextBox_GetBackColor( tb ) = tkTheme_Light().Surface )
+    tkNumericUpDown_UnpinColors( n )
+    tkNumericUpDown_GetColors( n, @cc )
+    tkTest_Check( "unpin hands it back", cc.ValueBackColor = tkTheme_Dark().Surface andalso tkTextBox_GetBackColor( tb ) = tkTheme_Dark().Surface )
+
+    ' ---- K: rescale ------------------------------------------------------------------------
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkTest_Check( "rescale: button width x2", tkNumericUpDown_GetButtonWidth( n ) = bwid * 2, "" & tkNumericUpDown_GetButtonWidth( n ) )
+    tkTest_Check( "rescale: hairlines unchanged", tkNumericUpDown_GetBorderThickness( n ) = 1 )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+
+    ' ---- L: too narrow: the value cell collapses, the field hides -----------------------------
+    tkWidget_SetSize( n, bwid * 2, ih )
+    tkHost_RenderTo( h, false )
+    tkNumericUpDown_GetValueRect( n, rV )
+    tkTest_Check( "collapsed value cell never inverts", rV.right = rV.left )
+    tkTest_Check( "a collapsed cell hides the field", tb->isVisible = false )
+
+    tkHost_Destroy( h )
+end sub
+
+if tkTest_Init() = false then end 99
+RunPass( 1.0 )
+RunPass( 1.75 )
+dim as long nFail = tkTest_Report( "tkNumericUpDown" )
+tkTest_Quit()
+end nFail

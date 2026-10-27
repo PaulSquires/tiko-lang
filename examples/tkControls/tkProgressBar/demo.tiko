@@ -1,0 +1,273 @@
+' tkProgressBar demo: the same specimen sheet as the Win32 demo
+' (tiko-lang/examples/PsControls/PsProgressBar/frmMain.tiko) -- twelve labelled horizontal
+' rows and a strip of three vertical bars -- so the two can be put side by side.
+'
+'   demo                     interactive (the demo's own timer sweeps the determinate rows)
+'   demo --shot out.bmp      render once, save the window, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkProgressBar"
+using tkProgressBar
+using tkTooltip
+using tkHost
+using tkPaint
+
+#ifdef TIKO_OS_LINUX
+    const FONTDIR = "/mnt/c/Windows/Fonts/"
+#else
+    const FONTDIR = "C:\Windows\Fonts\"
+#endif
+
+const as long HBAR_COUNT = 12, VBAR_COUNT = 3
+const as long IDC_HBAR_FIRST = 1000, IDC_VBAR_FIRST = 1100
+const as long ROW_HEIGHT = 44, ROW_TOP = 12, ROW_MARGIN = 20, LABEL_WIDTH = 300
+const as long BAR_HEIGHT = 18, VSTRIP_WIDTH = 140, VBAR_WIDTH = 22
+const as long DEMO_TICK_MS = 120
+
+' The Win32 demo's THEME_TYPE.
+const as ulong T_FORE = &hFFBEC4CEul, T_FOREDIS = &hFF5A606Aul, T_BACK = &hFF21252Bul
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gBar(0 to HBAR_COUNT - 1), gVBar(0 to VBAR_COUNT - 1)
+dim shared as ustring gLabel(0 to HBAR_COUNT - 1), gVLabel(0 to VBAR_COUNT - 1)
+dim shared as TTF_Font ptr gFont9, gFontBold9
+dim shared as long gDemoTick
+
+private function Sc( byval v as long ) as long
+    return tkHost_Scale( gHost, v )
+end function
+
+private function RowTop( byval i as long ) as long
+    return Sc( ROW_TOP ) + i * Sc( ROW_HEIGHT )
+end function
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long margin = Sc( ROW_MARGIN ), stripW = Sc( VSTRIP_WIDTH ), vw = Sc( VBAR_WIDTH )
+    b->SetFont( gFont9 )
+    for i as long = 0 to HBAR_COUNT - 1
+        dim as TKRECT rc
+        tkRect_Set( rc, margin, RowTop( i ), pw - stripW, RowTop( i ) + Sc( ROW_HEIGHT ) )
+        b->SetColors( T_FORE, T_BACK )
+        b->PaintText( gLabel(i), @rc, TK_DT_LEFT )
+    next
+    dim as long x0 = pw - stripW
+    for i as long = 0 to VBAR_COUNT - 1
+        dim as TKRECT rc
+        dim as long xl = x0 + i * (vw + margin \ 2)
+        tkRect_Set( rc, xl, ph - margin - (margin \ 2), xl + vw + margin, ph - margin \ 3 )
+        b->SetColors( T_FOREDIS, T_BACK )
+        b->PaintText( gVLabel(i), @rc, TK_DT_LEFT )
+    next
+end sub
+
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long margin = Sc( ROW_MARGIN ), labelW = Sc( LABEL_WIDTH ), barH = Sc( BAR_HEIGHT )
+    dim as long stripW = Sc( VSTRIP_WIDTH ), vw = Sc( VBAR_WIDTH )
+    dim as long x = margin + labelW
+    dim as long w = (pw - stripW - margin) - x
+    if w < 40 then w = 40
+    for i as long = 0 to HBAR_COUNT - 1
+        tkWidget_SetPos( gBar(i), x, RowTop( i ) + (Sc( ROW_HEIGHT ) - barH) \ 2, w, barH )
+    next
+    dim as long vTop = RowTop( 0 )
+    dim as long vH = (ph - margin - (margin \ 2) - (margin \ 3)) - vTop
+    if vH < 40 then vH = 40
+    for i as long = 0 to VBAR_COUNT - 1
+        tkWidget_SetPos( gVBar(i), pw - stripW + i * (vw + margin \ 2), vTop, vw, vH )
+    next
+end sub
+
+' The demo's own clock -- the CONTROL never animates a position.
+sub DemoTick()
+    gDemoTick += 1
+    dim as long nValue = gDemoTick mod 200
+    if nValue > 100 then nValue = 200 - nValue
+    for i as long = 0 to HBAR_COUNT - 1
+        if (i = 4) orelse (i = 5) then continue for
+        tkProgressBar_SetPos( gBar(i), (nValue + i * 7) mod 101 )
+    next
+    for i as long = 0 to VBAR_COUNT - 1
+        if i = 2 then continue for
+        tkProgressBar_SetPos( gVBar(i), (nValue + i * 23) mod 101 )
+    next
+end sub
+
+' A hidden zero-size widget that owns the demo's timer (a host has no timer of its own).
+function Ticker_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    if (m->msg = TKM_TIMER) andalso (m->timerId = TK_TIMER_APP) then DemoTick() : return true
+    return false
+end function
+
+private function BarName( byval hBar as TK_WIDGET ptr ) as string
+    for i as long = 0 to HBAR_COUNT - 1
+        if hBar = gBar(i) then return str( i ) & " (" & gLabel(i) & ")"
+    next
+    for i as long = 0 to VBAR_COUNT - 1
+        if hBar = gVBar(i) then return "v" & str( i )
+    next
+    return "?"
+end function
+
+' A click is REPORTED, never acted on.
+function Demo_Message( byval m as TKPROGRESSBAR_MESSAGEINFO ptr ) as boolean
+    if m->msg = TKM_LBUTTONUP then
+        print "click         bar=" & BarName( m->hProgressBar ) & "  pos=" & str( tkProgressBar_GetPos( m->hProgressBar ) )
+    end if
+    return false
+end function
+
+function Demo_Text( byval hBar as TK_WIDGET ptr, byval nPos as long, byval nMin as long, byval nMax as long ) as ustring
+    dim as string sOut = str( nPos ) & " of " & str( nMax ) & " files"
+    return sOut
+end function
+
+function Demo_Tooltip( byval hBar as TK_WIDGET ptr ) as ustring
+    dim as string sOut = "Live tip: " & str( tkProgressBar_GetPercent( hBar ) ) & "% complete"
+    return sOut
+end function
+
+' Row 11's own renderer: a squared groove and green chips, framed with an OUTLINE (never
+' PaintBorderRect, which fills first and would erase the chips).
+sub Demo_Paint( byval p as TKPROGRESSBAR_PAINTINFO ptr )
+    if (p = 0) orelse (p->b = 0) then exit sub
+    dim as TKRECT rcTrack = p->rcTrack
+    p->b->SetBackColor( tkRGB( 24, 27, 32 ) )
+    p->b->PaintRect( @rcTrack )
+    dim as TKRECT rcBar = p->rcBar
+    dim as long w = rcBar.right - rcBar.left
+    if w > 0 then
+        dim as long chip = tkHost_Scale( gHost, 6 )
+        dim as long x = rcBar.left
+        while x < rcBar.right
+            dim as TKRECT rcChip
+            dim as long x2 = x + chip
+            if x2 > rcBar.right then x2 = rcBar.right
+            tkRect_Set( rcChip, x, rcBar.top, x2, rcBar.bottom )
+            dim as long t = ((x - rcBar.left) * 120) \ (w + 1)
+            p->b->SetBackColor( tkRGB( 40, 110 + t, 90 ) )
+            p->b->PaintRect( @rcChip )
+            x += chip + tkHost_Scale( gHost, 2 )
+        wend
+    end if
+    p->b->SetPenColor( tkRGB( 90, 96, 106 ) )
+    p->b->PaintRoundOutline( @rcTrack, 0, 1 )
+end sub
+
+private function ArgValue( byref sName as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = sName then return command( i + 1 )
+    next
+    return ""
+end function
+
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr surf = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if surf then
+        SDL_SaveBMP( surf, strptr( path ) )
+        print "shot: " & path & "  " & surf->w & "x" & surf->h & "  scale=" & gHost->fScale & "  density=" & gHost->fDensity
+        SDL_DestroySurface( surf )
+    end if
+end sub
+
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkProgressBar on SDL3", 1000, 660, FONTDIR & "segoeui.ttf", forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = T_BACK
+print "video driver: " & *SDL_GetCurrentVideoDriver() & "  renderer: " & *SDL_GetRendererName( gHost->renderer ) & _
+      "  scale=" & gHost->fScale
+
+gFont9     = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 9 )
+gFontBold9 = tkHost_OpenFont( gHost, FONTDIR & "segoeuib.ttf", 9 )
+if (gFont9 = 0) orelse (gFontBold9 = 0) then print "fonts: " & *SDL_GetError() : end 1
+tkTooltip_SetDefaultFonts( gFont9 )
+
+gLabel( 0) = "Solid, continuous   (percent text)"
+gLabel( 1) = "Gradient, continuous   (percent text)"
+gLabel( 2) = "Solid, BLOCKS"
+gLabel( 3) = "Gradient, BLOCKS   (one ramp, sliced)"
+gLabel( 4) = "Indeterminate -- BOUNCE   (gradient)"
+gLabel( 5) = "Indeterminate -- WRAP   (solid, slides off)"
+gLabel( 6) = "State: PAUSED   (value text)"
+gLabel( 7) = "State: ERROR   (callback text)"
+gLabel( 8) = "Disabled   (one text colour)"
+gLabel( 9) = "Reverse   (grows right-to-left)"
+gLabel(10) = "Square + border   (curvature 0)"
+gLabel(11) = "Host paint callback   (chips)"
+gVLabel(0) = "up" : gVLabel(1) = "down" : gVLabel(2) = "float"
+
+dim as TK_WIDGET ptr root = tkHost_Root( gHost )
+for i as long = 0 to HBAR_COUNT - 1
+    gBar(i) = tkProgressBar_Create( root, IDC_HBAR_FIRST + i, PRG_HORIZONTAL )
+    tkProgressBar_SetMessageCallback( gBar(i), @Demo_Message )
+    tkProgressBar_SetFont( gBar(i), gFontBold9 )
+    tkProgressBar_SetPos( gBar(i), 45 )
+next
+
+tkProgressBar_SetTextMode( gBar(0), PRG_TEXT_PERCENT )
+tkProgressBar_SetFillStyle( gBar(1), PRG_FILL_GRADIENT )
+tkProgressBar_SetTextMode( gBar(1), PRG_TEXT_PERCENT )
+tkProgressBar_SetSegmented( gBar(2), true )
+tkProgressBar_SetSegmented( gBar(3), true )
+tkProgressBar_SetFillStyle( gBar(3), PRG_FILL_GRADIENT )
+tkProgressBar_SetGradientMode( gBar(3), TK_GRADIENT_HORIZONTAL )
+tkProgressBar_SetFillStyle( gBar(4), PRG_FILL_GRADIENT )
+tkProgressBar_SetMode( gBar(4), PRG_MODE_INDETERMINATE )
+tkProgressBar_SetMarqueeStyle( gBar(5), PRG_MARQUEE_WRAP )
+tkProgressBar_SetMarqueeChunkPercent( gBar(5), 18 )
+tkProgressBar_SetMode( gBar(5), PRG_MODE_INDETERMINATE )
+tkProgressBar_SetState( gBar(6), PRG_STATE_PAUSED )
+tkProgressBar_SetTextMode( gBar(6), PRG_TEXT_VALUE )
+tkProgressBar_SetState( gBar(7), PRG_STATE_ERROR )
+tkProgressBar_SetFillStyle( gBar(7), PRG_FILL_GRADIENT )
+tkProgressBar_SetTextCallback( gBar(7), @Demo_Text )
+tkProgressBar_SetTextMode( gBar(7), PRG_TEXT_CALLBACK )
+tkProgressBar_SetTextMode( gBar(8), PRG_TEXT_PERCENT )
+tkProgressBar_SetEnabled( gBar(8), false )
+tkProgressBar_SetFillStyle( gBar(9), PRG_FILL_GRADIENT )
+tkProgressBar_SetReverse( gBar(9), true )
+tkProgressBar_SetCurvature( gBar(10), 0 )
+tkProgressBar_SetBorderThickness( gBar(10), 1 )
+tkProgressBar_SetBarInset( gBar(10), tkHost_Scale( gHost, 2 ) )
+tkProgressBar_SetPaintCallback( gBar(11), @Demo_Paint )
+tkProgressBar_SetTooltipText( gBar(11), "Authored tooltip text (static)" )
+
+for i as long = 0 to VBAR_COUNT - 1
+    gVBar(i) = tkProgressBar_Create( root, IDC_VBAR_FIRST + i, PRG_VERTICAL )
+    tkProgressBar_SetMessageCallback( gVBar(i), @Demo_Message )
+    tkProgressBar_SetFillStyle( gVBar(i), PRG_FILL_GRADIENT )
+    tkProgressBar_SetPos( gVBar(i), 60 )
+next
+tkProgressBar_SetReverse( gVBar(1), true )
+tkProgressBar_SetSegmented( gVBar(2), true )
+tkProgressBar_SetMode( gVBar(2), PRG_MODE_INDETERMINATE )
+tkProgressBar_SetTooltipCallback( gVBar(2), @Demo_Tooltip )
+
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkHost_Show( gHost )
+
+dim as string shot = ArgValue( "--shot" )
+if len( shot ) then
+    tkHost_Pump( gHost )
+    SaveShot( shot )
+else
+    dim as TK_WIDGET ptr ticker = tkWidget_CreateChild( root, 0, @Ticker_Proc, 0 )
+    tkWidget_SetTimer( ticker, TK_TIMER_APP, DEMO_TICK_MS )
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

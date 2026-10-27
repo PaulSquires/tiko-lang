@@ -1,0 +1,1209 @@
+' tkPaint -- PsBufferPaint for tkControls, rebuilt on SDL_Renderer + SDL_ttf.
+'
+' SDL_Renderer has no paths, no rounded rectangles and no anti-aliasing. Every shape that is
+' not an axis-aligned rect is therefore triangulated here and fed to SDL_RenderGeometry, with
+' a one-pixel alpha FRINGE either side of each edge (the technique Dear ImGui uses). Coverage
+' is taken at pixel CENTRES, so an axis-aligned edge on an integer coordinate lands fully in
+' or fully out -- straight edges stay crisp and only curves and slopes are blended.
+'
+' The method names, parameters and conventions are vendor PsBufferPaint's, so a PsControls
+' painter ports line for line:
+'   * curvature is an ellipse DIAMETER (GDI's RoundRect vocabulary), halved here;
+'   * PaintRoundOutline / PaintEllipse strokes sit INSIDE the rect; PaintPie's pen is centred
+'     on the rim;
+'   * PaintPie / PaintPieRing / PaintPolyline / PaintCurve scale their pen by the DPI
+'     (CBufScalePen), the others take raw pixels;
+'   * angles are degrees, clockwise from +x (screen y grows downwards), as GDI+'s.
+'
+' COORDINATES: every rect or point handed to a Paint* call is LOCAL to the widget being
+' painted (Win32 client coordinates, in effect). ox/oy translate to window pixels.
+#module "tkPaint"
+
+#import "vendor/SDL3/ttf" public
+#import "vendor/SDL3/image" public
+
+' ---- rects and points --------------------------------------------------------------------
+' Win32's RECT semantics, kept on purpose so the control code ports line for line: right and
+' bottom are EXCLUSIVE, and "empty" means no area.
+public type TKRECT
+    left   as long
+    top    as long
+    right  as long
+    bottom as long
+end type
+
+public type TKPOINT
+    x as long
+    y as long
+end type
+
+public sub tkRect_Set( byref rc as TKRECT, byval l as long, byval t as long, byval r as long, byval b as long )
+    rc.left = l : rc.top = t : rc.right = r : rc.bottom = b
+end sub
+
+public sub tkRect_SetEmpty( byref rc as TKRECT )
+    rc.left = 0 : rc.top = 0 : rc.right = 0 : rc.bottom = 0
+end sub
+
+public function tkRect_IsEmpty( byref rc as TKRECT ) as boolean
+    return (rc.right <= rc.left) orelse (rc.bottom <= rc.top)
+end function
+
+public sub tkRect_Inflate( byref rc as TKRECT, byval dx as long, byval dy as long )
+    rc.left -= dx : rc.top -= dy : rc.right += dx : rc.bottom += dy
+end sub
+
+public sub tkRect_Offset( byref rc as TKRECT, byval dx as long, byval dy as long )
+    rc.left += dx : rc.top += dy : rc.right += dx : rc.bottom += dy
+end sub
+
+public function tkRect_Contains( byref rc as TKRECT, byval x as single, byval y as single ) as boolean
+    return (x >= rc.left) andalso (x < rc.right) andalso (y >= rc.top) andalso (y < rc.bottom)
+end function
+
+' The overlap of a and b; empty (all zero) when they do not meet.
+public function tkRect_Intersect( byref a as TKRECT, byref b as TKRECT ) as TKRECT
+    dim as TKRECT r
+    r.left = iif( a.left > b.left, a.left, b.left )
+    r.top = iif( a.top > b.top, a.top, b.top )
+    r.right = iif( a.right < b.right, a.right, b.right )
+    r.bottom = iif( a.bottom < b.bottom, a.bottom, b.bottom )
+    if tkRect_IsEmpty( r ) then tkRect_SetEmpty( r )
+    return r
+end function
+
+public function tkRect_Width( byref rc as TKRECT ) as long
+    return rc.right - rc.left
+end function
+
+public function tkRect_Height( byref rc as TKRECT ) as long
+    return rc.bottom - rc.top
+end function
+
+public function tkRect_Str( byref rc as TKRECT ) as string
+    return "(" & rc.left & "," & rc.top & "," & rc.right & "," & rc.bottom & ")"
+end function
+
+' ---- colours: &hAARRGGBB -----------------------------------------------------------------
+public function tkRGB( byval r as long, byval g as long, byval b as long ) as ulong
+    return &hFF000000ul or (culng(r and 255) shl 16) or (culng(g and 255) shl 8) or culng(b and 255)
+end function
+
+public function tkRGBA( byval r as long, byval g as long, byval b as long, byval a as long ) as ulong
+    return (culng(a and 255) shl 24) or (culng(r and 255) shl 16) or (culng(g and 255) shl 8) or culng(b and 255)
+end function
+
+' The same colour at another alpha (the SetXxxColorA overloads' job).
+public function tkColor_WithAlpha( byval c as ulong, byval a as long ) as ulong
+    return (c and &h00FFFFFFul) or (culng(a and 255) shl 24)
+end function
+
+' Linear blend: t = 0 gives a, t = 1 gives b; alpha blends too.
+public function tkColor_Lerp( byval a as ulong, byval b as ulong, byval t as single ) as ulong
+    if t <= 0 then return a
+    if t >= 1 then return b
+    dim as long ch(0 to 3)
+    for i as long = 0 to 3
+        dim as long ca = (a shr (i * 8)) and 255, cb = (b shr (i * 8)) and 255
+        ch(i) = cint( ca + (cb - ca) * t )
+    next
+    return culng(ch(0)) or (culng(ch(1)) shl 8) or (culng(ch(2)) shl 16) or (culng(ch(3)) shl 24)
+end function
+
+private function ColR( byval c as ulong ) as ubyte
+    return (c shr 16) and 255
+end function
+private function ColG( byval c as ulong ) as ubyte
+    return (c shr 8) and 255
+end function
+private function ColB( byval c as ulong ) as ubyte
+    return c and 255
+end function
+private function ColA( byval c as ulong ) as ubyte
+    return (c shr 24) and 255
+end function
+
+' ---- PsBufferPaint's DT_* vocabulary -----------------------------------------------------
+' PaintText is single-line, vertically centred, no prefix -- PsPaintBuffer.PaintText's contract.
+' PaintTextEx honours TK_DT_WORDBREAK and the vertical flags (its default is TOP).
+public enum
+    TK_DT_LEFT      = 0
+    TK_DT_CENTER    = 1
+    TK_DT_RIGHT     = 2
+    TK_DT_ELLIPSIS  = 4
+    TK_DT_TOP       = 8
+    TK_DT_BOTTOM    = 16
+    TK_DT_VCENTER   = 32
+    TK_DT_WORDBREAK = 64
+    TK_DT_NOCLIP    = 128
+end enum
+
+public enum
+    TK_IMGFIT_ASPECT = 0      ' fit inside, proportions kept, centred
+    TK_IMGFIT_STRETCH         ' fill exactly
+    TK_IMGFIT_CENTER          ' natural size, centred, clipped
+end enum
+
+public enum
+    TK_PENDASH_SOLID = 0
+    TK_PENDASH_DASH
+    TK_PENDASH_DOT
+    TK_PENDASH_DASHDOT
+end enum
+
+' GDI+'s LinearGradientMode values.
+public enum
+    TK_GRADIENT_HORIZONTAL = 0
+    TK_GRADIENT_VERTICAL
+    TK_GRADIENT_FDIAGONAL     ' top-left -> bottom-right
+    TK_GRADIENT_BDIAGONAL     ' top-right -> bottom-left
+end enum
+
+' The UTF-8 bytes of U+2026. SDL_ttf has no ellipsis mode: the caller measures and cuts.
+#define TK_ELLIPSIS_UTF8  (chr(&hE2) & chr(&h80) & chr(&hA6))
+
+
+public type TK_PAINT
+    renderer as SDL_Renderer ptr
+    engine   as TTF_TextEngine ptr
+    fScale   as single = 1               ' the surface's scale, for the DPI-scaled pens
+    ox       as long                     ' widget origin, window pixels
+    oy       as long
+    rcClip   as TKRECT                   ' the widget's own clip, window pixels
+    rcCur    as TKRECT                   ' the clip in force now (window pixels)
+    clipStack(0 to 7) as TKRECT
+    nClip    as long
+    clrBack  as ulong = &hFF000000ul
+    clrFore  as ulong = &hFFFFFFFFul
+    clrPen   as ulong = &hFFFFFFFFul
+    nDash    as long = TK_PENDASH_SOLID
+    pFont    as TTF_Font ptr
+
+    declare sub SetBackColor( byval c as ulong )
+    declare sub SetForeColor( byval c as ulong )
+    declare sub SetPenColor( byval c as ulong )
+    declare sub SetColors( byval fore as ulong, byval back as ulong )
+    declare sub SetFont( byval f as TTF_Font ptr )
+    declare sub SetPenDashStyle( byval nDash as long )
+    declare function GetPenDashStyle() as long
+    declare sub Begin( byval x as long, byval y as long, byval w as long, byval h as long, _
+                       byval pParentClip as TKRECT ptr = 0 )
+    ' clipping, all in widget-local pixels
+    declare sub SetClipRect( byval rc as TKRECT ptr )
+    declare sub ResetClip()
+    declare sub PushClip( byval rc as TKRECT ptr )
+    declare sub PopClip()
+    declare sub ApplyClip( byval rc as TKRECT ptr )
+    ' shapes
+    declare sub PaintRect( byval rc as TKRECT ptr )
+    declare sub PaintBorderRect( byval rc as TKRECT ptr, byval nPenWidth as long = 1 )
+    declare sub PaintRectFactory( byval rc as TKRECT ptr, byval nPenWidth as long = 1, byval nCurvature as long = 0 )
+    declare sub PaintRoundRect( byval rc as TKRECT ptr, byval curvature as long = 20 )
+    declare sub PaintRoundBorderRect( byval rc as TKRECT ptr, byval curvature as long = 20, byval thick as long = 1 )
+    declare sub PaintRoundOutline( byval rc as TKRECT ptr, byval curvature as long = 20, byval thick as long = 1 )
+    declare sub PaintGradientRect( byval rc as TKRECT ptr, byval clr1 as ulong, byval clr2 as ulong, _
+                                   byval nMode as long = TK_GRADIENT_VERTICAL, byval nCurvature as long = 0 )
+    declare sub PaintEllipse( byval rc as TKRECT ptr, byval nPenWidth as long = 0 )
+    declare sub PaintPolygon( byval pts as TKPOINT ptr, byval nCount as long, byval nPenWidth as long = 0 )
+    declare sub PaintPie( byval rc as TKRECT ptr, byval startAngle as single, byval sweepAngle as single, _
+                          byval nPenWidth as long = 0 )
+    declare sub PaintPieRing( byval rc as TKRECT ptr, byval nInnerRatio as single, byval startAngle as single, _
+                              byval sweepAngle as single, byval nPenWidth as long = 0 )
+    declare sub PaintPolyline( byval pts as TKPOINT ptr, byval nCount as long, byval nPenWidth as long = 1 )
+    declare sub PaintCurve( byval pts as TKPOINT ptr, byval nCount as long, byval nPenWidth as long = 1, _
+                            byval nTension as single = 0.5 )
+    declare sub PaintLine( byval nWidth as long, byval l as long, byval t as long, byval r as long, byval b as long )
+    ' text and images
+    declare sub PaintText( byref s as ustring, byval rc as TKRECT ptr, byval flags as long )
+    declare sub PaintTextEx( byref s as ustring, byval rc as TKRECT ptr, byval flags as long )
+    declare sub PaintChar( byref glyph as ustring, byval rc as TKRECT ptr, byval clr as ulong )
+    declare sub PaintImage( byval tex as SDL_Texture ptr, byval rc as TKRECT ptr, byval nFit as long = TK_IMGFIT_ASPECT )
+end type
+
+
+' ==========================================================================================
+' Text measurement, shared by painting and by the controls' layout passes. Offsets into a
+' string are UTF-8 BYTE offsets, always on a codepoint boundary.
+' ==========================================================================================
+
+' ONE height for a font, the analogue of GetTextMetrics.tmHeight.
+public function tkText_Height( byval f as TTF_Font ptr ) as long
+    if f = 0 then return 0
+    return TTF_GetFontHeight( f )
+end function
+
+' The distance from one baseline to the next (multi-line text).
+public function tkText_LineSkip( byval f as TTF_Font ptr ) as long
+    if f = 0 then return 0
+    return TTF_GetFontLineSkip( f )
+end function
+
+public function tkText_WidthU8( byval f as TTF_Font ptr, byref u8 as string ) as long
+    if (f = 0) orelse (len( u8 ) = 0) then return 0
+    dim as long w, h
+    if TTF_GetStringSize( f, strptr( u8 ), len( u8 ), @w, @h ) = false then return 0
+    return w
+end function
+
+public function tkText_Width( byval f as TTF_Font ptr, byref s as ustring ) as long
+    if (f = 0) orelse (len( s ) = 0) then return 0
+    dim as string u8 = s
+    return tkText_WidthU8( f, u8 )
+end function
+
+' Byte length of the UTF-8 sequence that starts with lead byte b.
+private function U8Len( byval b as ubyte ) as long
+    if b < &h80 then return 1
+    if (b and &hE0) = &hC0 then return 2
+    if (b and &hF0) = &hE0 then return 3
+    if (b and &hF8) = &hF0 then return 4
+    return 1
+end function
+
+public function tkText_NextOffset( byref u8 as string, byval i as long ) as long
+    if i >= len( u8 ) then return len( u8 )
+    dim as long n = i + U8Len( u8[i] )
+    return iif( n > len( u8 ), len( u8 ), n )
+end function
+
+public function tkText_PrevOffset( byref u8 as string, byval i as long ) as long
+    if i <= 0 then return 0
+    i -= 1
+    while (i > 0) andalso ((u8[i] and &hC0) = &h80)
+        i -= 1
+    wend
+    return i
+end function
+
+' The x of the caret before byte offset i (PsPlatform's TE_IndexToX64). Measured as the width
+' of the prefix, so kerning into the next glyph is not counted -- which is what a caret wants.
+public function tkText_IndexToX( byval f as TTF_Font ptr, byref u8 as string, byval i as long ) as long
+    if (f = 0) orelse (i <= 0) then return 0
+    if i >= len( u8 ) then return tkText_WidthU8( f, u8 )
+    dim as string pre = left( u8, i )
+    return tkText_WidthU8( f, pre )
+end function
+
+' The byte offset whose caret position is NEAREST x (PsPlatform's TE_XToIndex).
+public function tkText_XToIndex( byval f as TTF_Font ptr, byref u8 as string, byval x as long ) as long
+    if (f = 0) orelse (x <= 0) orelse (len( u8 ) = 0) then return 0
+    dim as long mw = 0
+    dim as uinteger mlen = 0
+    TTF_MeasureString( f, strptr( u8 ), len( u8 ), x, @mw, @mlen )
+    dim as long i = mlen
+    if i >= len( u8 ) then return len( u8 )
+    ' between i and the next boundary: round to the nearer
+    dim as long nxt = tkText_NextOffset( u8, i )
+    dim as long xNext = tkText_IndexToX( f, u8, nxt )
+    if (x - mw) * 2 >= (xNext - mw) then return nxt
+    return i
+end function
+
+' Greedy word wrap into lines no wider than nWidth: starts()/ends() receive byte offsets
+' (end exclusive, trailing spaces dropped), the count is returned. A hard newline always
+' breaks; a word wider than the line is cut where it stops fitting.
+public function tkText_Wrap( byval f as TTF_Font ptr, byref u8 as string, byval nWidth as long, _
+                             starts() as long, ends() as long ) as long
+    dim as long n = 0, pos_ = 0, total = len( u8 )
+    redim starts( 0 to 15 ) : redim ends( 0 to 15 )
+    if f = 0 then return 0
+    if nWidth < 1 then nWidth = 1
+    do
+        if n > ubound( starts ) then
+            redim preserve starts( 0 to n * 2 ) : redim preserve ends( 0 to n * 2 )
+        end if
+        ' this paragraph: up to the next newline
+        dim as long nl = instr( pos_ + 1, u8, chr( 10 ) ) - 1
+        dim as long paraEnd = iif( nl < 0, total, nl )
+        dim as string para = mid( u8, pos_ + 1, paraEnd - pos_ )
+        if len( para ) = 0 then
+            starts(n) = pos_ : ends(n) = pos_ : n += 1
+        else
+            dim as long p0 = 0
+            while p0 < len( para )
+                if n > ubound( starts ) then
+                    redim preserve starts( 0 to n * 2 ) : redim preserve ends( 0 to n * 2 )
+                end if
+                dim as string rest = mid( para, p0 + 1 )
+                dim as long mw = 0
+                dim as uinteger mlen = 0
+                TTF_MeasureString( f, strptr( rest ), len( rest ), nWidth, @mw, @mlen )
+                dim as long cut = mlen
+                if cut >= len( rest ) then
+                    cut = len( rest )
+                else
+                    ' back off to the last space inside the fit, if there is one
+                    dim as long sp = -1
+                    for k as long = cut to 1 step -1
+                        if rest[k] = 32 then sp = k : exit for
+                    next
+                    if sp > 0 then
+                        cut = sp
+                    elseif cut = 0 then
+                        cut = tkText_NextOffset( rest, 0 )        ' at least one codepoint
+                    end if
+                end if
+                dim as long e = cut
+                while (e > 0) andalso (rest[e - 1] = 32)
+                    e -= 1
+                wend
+                starts(n) = pos_ + p0 : ends(n) = pos_ + p0 + e : n += 1
+                p0 += cut
+                while (p0 < len( para )) andalso (para[p0] = 32)
+                    p0 += 1
+                wend
+            wend
+        end if
+        if nl < 0 then exit do
+        pos_ = nl + 1
+        if pos_ >= total then
+            if n > ubound( starts ) then redim preserve starts( 0 to n ) : redim preserve ends( 0 to n )
+            starts(n) = pos_ : ends(n) = pos_ : n += 1
+            exit do
+        end if
+    loop
+    return n
+end function
+
+' Height a TK_DT_WORDBREAK block of s needs at width nWidth.
+public function tkText_MeasureWrapped( byval f as TTF_Font ptr, byref s as ustring, byval nWidth as long ) as long
+    if (f = 0) orelse (len( s ) = 0) then return 0
+    dim as string u8 = s
+    dim as long st(), en()
+    dim as long n = tkText_Wrap( f, u8, nWidth, st(), en() )
+    if n <= 0 then return 0
+    return (n - 1) * tkText_LineSkip( f ) + tkText_Height( f )
+end function
+
+
+' ==========================================================================================
+' Colours, clip, frame
+' ==========================================================================================
+sub TK_PAINT.SetBackColor( byval c as ulong )
+    this.clrBack = c
+end sub
+sub TK_PAINT.SetForeColor( byval c as ulong )
+    this.clrFore = c
+end sub
+sub TK_PAINT.SetPenColor( byval c as ulong )
+    this.clrPen = c
+end sub
+sub TK_PAINT.SetColors( byval fore as ulong, byval back as ulong )
+    this.clrFore = fore : this.clrBack = back
+end sub
+sub TK_PAINT.SetFont( byval f as TTF_Font ptr )
+    ' Ignores a null handle, as PsPaintBuffer.SetFont does.
+    if f then this.pFont = f
+end sub
+' An unrecognised value falls back to SOLID rather than being rejected (vendor's rule).
+sub TK_PAINT.SetPenDashStyle( byval nDash as long )
+    select case nDash
+    case TK_PENDASH_DASH, TK_PENDASH_DOT, TK_PENDASH_DASHDOT
+        this.nDash = nDash
+    case else
+        this.nDash = TK_PENDASH_SOLID
+    end select
+end sub
+function TK_PAINT.GetPenDashStyle() as long
+    return this.nDash
+end function
+
+' Start painting one widget: set its origin and clip it to its own bounds, which is what a
+' child HWND got from the window manager for free. pParentClip (window pixels) narrows it
+' further: a child is never drawn outside the ancestors that clip their children.
+sub TK_PAINT.Begin( byval x as long, byval y as long, byval w as long, byval h as long, _
+                    byval pParentClip as TKRECT ptr = 0 )
+    this.ox = x : this.oy = y
+    tkRect_Set( this.rcClip, x, y, x + w, y + h )
+    if pParentClip then this.rcClip = tkRect_Intersect( this.rcClip, *pParentClip )
+    this.rcCur = this.rcClip
+    this.nClip = 0
+    this.ApplyClip( 0 )
+end sub
+
+private sub SetSdlClip( byval renderer as SDL_Renderer ptr, byref c as TKRECT )
+    dim as SDL_Rect r
+    r.x = c.left : r.y = c.top
+    r.w = iif( c.right > c.left, c.right - c.left, 0 )
+    r.h = iif( c.bottom > c.top, c.bottom - c.top, 0 )
+    SDL_SetRenderClipRect( renderer, @r )
+end sub
+
+' Clip to rc (widget-local) intersected with the clip in force; rc = 0 restores it. Used
+' around one call (PaintText), so it does not change rcCur.
+sub TK_PAINT.ApplyClip( byval rc as TKRECT ptr )
+    dim as TKRECT c = this.rcCur
+    if rc then
+        dim as TKRECT a = *rc
+        tkRect_Offset( a, this.ox, this.oy )
+        c = tkRect_Intersect( c, a )
+    end if
+    SetSdlClip( this.renderer, c )
+end sub
+
+' PsPaintBuffer.SetClipRect: clip to rc (inside the widget) until ResetClip.
+sub TK_PAINT.SetClipRect( byval rc as TKRECT ptr )
+    this.rcCur = this.rcClip
+    if rc then
+        dim as TKRECT a = *rc
+        tkRect_Offset( a, this.ox, this.oy )
+        this.rcCur = tkRect_Intersect( this.rcClip, a )
+    end if
+    this.ApplyClip( 0 )
+end sub
+
+sub TK_PAINT.ResetClip()
+    this.rcCur = this.rcClip
+    this.nClip = 0
+    this.ApplyClip( 0 )
+end sub
+
+sub TK_PAINT.PushClip( byval rc as TKRECT ptr )
+    if this.nClip <= ubound( this.clipStack ) then this.clipStack(this.nClip) = this.rcCur
+    this.nClip += 1
+    if rc then
+        dim as TKRECT a = *rc
+        tkRect_Offset( a, this.ox, this.oy )
+        this.rcCur = tkRect_Intersect( this.rcCur, a )
+    end if
+    this.ApplyClip( 0 )
+end sub
+
+sub TK_PAINT.PopClip()
+    if this.nClip <= 0 then exit sub
+    this.nClip -= 1
+    if this.nClip <= ubound( this.clipStack ) then this.rcCur = this.clipStack(this.nClip)
+    this.ApplyClip( 0 )
+end sub
+
+
+' ==========================================================================================
+' Geometry. Every outline is built in WINDOW pixels as a polygon of SDL_FPoints, then filled
+' or stroked with an AA fringe by the two workhorses below.
+' ==========================================================================================
+const PI_ = 3.14159265358979
+
+private sub SetVert( byref v as SDL_Vertex, byval x as single, byval y as single, byval c as ulong, byval alpha as single )
+    v.position.x = x : v.position.y = y
+    v.color.r = ColR( c ) / 255.0
+    v.color.g = ColG( c ) / 255.0
+    v.color.b = ColB( c ) / 255.0
+    v.color.a = (ColA( c ) / 255.0) * alpha
+    v.tex_coord.x = 0 : v.tex_coord.y = 0
+end sub
+
+' A vertex buffer that grows; flushed with one SDL_RenderGeometry per shape.
+type GEOM
+    v(any) as SDL_Vertex
+    nv as long
+    ix(any) as long
+    ni as long
+    declare function AddV( byval x as single, byval y as single, byval c as ulong, byval a as single ) as long
+    declare sub AddTri( byval a as long, byval b as long, byval c as long )
+    declare sub Flush( byval r as SDL_Renderer ptr )
+end type
+
+function GEOM.AddV( byval x as single, byval y as single, byval c as ulong, byval a as single ) as long
+    if this.nv > ubound( this.v ) then redim preserve this.v( 0 to iif( this.nv < 32, 63, this.nv * 2 ) )
+    SetVert( this.v(this.nv), x, y, c, a )
+    this.nv += 1
+    return this.nv - 1
+end function
+
+sub GEOM.AddTri( byval a as long, byval b as long, byval c as long )
+    if this.ni + 2 > ubound( this.ix ) then redim preserve this.ix( 0 to iif( this.ni < 64, 191, this.ni * 2 ) )
+    this.ix(this.ni) = a : this.ix(this.ni + 1) = b : this.ix(this.ni + 2) = c
+    this.ni += 3
+end sub
+
+sub GEOM.Flush( byval r as SDL_Renderer ptr )
+    if this.ni > 0 then SDL_RenderGeometry( r, 0, @this.v(0), this.nv, @this.ix(0), this.ni )
+    this.nv = 0 : this.ni = 0
+end sub
+
+' An optional linear gradient for a fill: colour by projection onto (x0,y0)->(x1,y1).
+type GRAD
+    on_ as boolean
+    x0 as single : y0 as single : x1 as single : y1 as single
+    c1 as ulong : c2 as ulong
+end type
+
+private function GradAt( byref g as GRAD, byval x as single, byval y as single, byval c as ulong ) as ulong
+    if g.on_ = false then return c
+    dim as single dx = g.x1 - g.x0, dy = g.y1 - g.y0
+    dim as single l2 = dx * dx + dy * dy
+    if l2 <= 0 then return g.c1
+    return tkColor_Lerp( g.c1, g.c2, ((x - g.x0) * dx + (y - g.y0) * dy) / l2 )
+end function
+
+' Drop consecutive points closer than 0.01 px (and a last point equal to the first). An
+' ellipse built from four arcs repeats each join point; kept, the two copies get DIFFERENT
+' miter normals, turn into near-duplicates half a pixel apart after the AA inset, and stall the
+' ear clipper with the middle of the shape unfilled (measured: 8 vertices left, hollow centre).
+private function Dedupe( pts() as SDL_FPoint, byval n as long ) as long
+    if n < 2 then return n
+    dim as long m = 1
+    for i as long = 1 to n - 1
+        if (abs( pts(i).x - pts(m - 1).x ) > 0.01) orelse (abs( pts(i).y - pts(m - 1).y ) > 0.01) then
+            pts(m) = pts(i) : m += 1
+        end if
+    next
+    while (m > 2) andalso (abs( pts(m - 1).x - pts(0).x ) <= 0.01) andalso (abs( pts(m - 1).y - pts(0).y ) <= 0.01)
+        m -= 1
+    wend
+    return m
+end function
+
+private function SignedArea( pts() as SDL_FPoint, byval n as long ) as single
+    dim as single a = 0
+    for i as long = 0 to n - 1
+        dim as long j = (i + 1) mod n
+        a += pts(i).x * pts(j).y - pts(j).x * pts(i).y
+    next
+    return a / 2
+end function
+
+' Outward unit normals at each vertex of a closed polygon (miter direction, length 1/cos of
+' the half angle, clamped so a spike cannot shoot off).
+private sub VertexNormals( pts() as SDL_FPoint, byval n as long, nx() as single, ny() as single )
+    redim nx( 0 to n - 1 ) : redim ny( 0 to n - 1 )
+    dim as single orient = iif( SignedArea( pts(), n ) >= 0, 1.0, -1.0 )   ' y-down: area > 0 = clockwise
+    for i as long = 0 to n - 1
+        dim as long ip = (i - 1 + n) mod n, inx = (i + 1) mod n
+        dim as single e1x = pts(i).x - pts(ip).x, e1y = pts(i).y - pts(ip).y
+        dim as single e2x = pts(inx).x - pts(i).x, e2y = pts(inx).y - pts(i).y
+        dim as single l1 = sqr( e1x * e1x + e1y * e1y ), l2 = sqr( e2x * e2x + e2y * e2y )
+        if l1 > 0 then e1x /= l1 : e1y /= l1
+        if l2 > 0 then e2x /= l2 : e2y /= l2
+        ' outward normal of an edge (dx,dy) on a clockwise (y-down) polygon is (dy,-dx)
+        dim as single n1x = e1y * orient, n1y = -e1x * orient
+        dim as single n2x = e2y * orient, n2y = -e2x * orient
+        if l1 = 0 then n1x = n2x : n1y = n2y
+        if l2 = 0 then n2x = n1x : n2y = n1y
+        dim as single mx = n1x + n2x, my = n1y + n2y
+        dim as single ml = sqr( mx * mx + my * my )
+        if ml < 0.0001 then
+            nx(i) = n1x : ny(i) = n1y
+        else
+            mx /= ml : my /= ml
+            dim as single cosh = mx * n1x + my * n1y
+            dim as single k = iif( cosh > 0.25, 1.0 / cosh, 4.0 )
+            nx(i) = mx * k : ny(i) = my * k
+        end if
+    next
+end sub
+
+private function PointInTri( byval px as single, byval py as single, byref a as SDL_FPoint, _
+                             byref b as SDL_FPoint, byref c as SDL_FPoint ) as boolean
+    dim as single d1 = (px - b.x) * (a.y - b.y) - (a.x - b.x) * (py - b.y)
+    dim as single d2 = (px - c.x) * (b.y - c.y) - (b.x - c.x) * (py - c.y)
+    dim as single d3 = (px - a.x) * (c.y - a.y) - (c.x - a.x) * (py - a.y)
+    dim as boolean hasNeg = (d1 < 0) orelse (d2 < 0) orelse (d3 < 0)
+    dim as boolean hasPos = (d1 > 0) orelse (d2 > 0) orelse (d3 > 0)
+    return (hasNeg andalso hasPos) = false
+end function
+
+' Ear clipping over vertex indices base0..base0+n-1 of g whose positions are pts(): works for
+' any simple polygon (the non-convex checkbox tick, a pie ring). O(n^2), n is small here.
+private sub EarClip( byref g as GEOM, pts() as SDL_FPoint, byval n as long, byval base0 as long )
+    dim as long idx(0 to n - 1)
+    for i as long = 0 to n - 1 : idx(i) = i : next
+    dim as single orient = iif( SignedArea( pts(), n ) >= 0, 1.0, -1.0 )
+    dim as long m = n, guard = 0
+    while (m > 3) andalso (guard < n * n)
+        guard += 1
+        dim as boolean found = false
+        for k as long = 0 to m - 1
+            dim as long ia = idx((k - 1 + m) mod m), ib = idx(k), ic = idx((k + 1) mod m)
+            dim as single cr = (pts(ib).x - pts(ia).x) * (pts(ic).y - pts(ia).y) - (pts(ib).y - pts(ia).y) * (pts(ic).x - pts(ia).x)
+            ' A duplicate or collinear vertex (an ellipse's arcs share their join points) is
+            ' dropped without a triangle -- treated as reflex it would stall the clipper and
+            ' leave the shape hollow (measured: an empty ellipse with a correct rim).
+            if abs( cr ) < 0.0001 then
+                for q as long = k to m - 2 : idx(q) = idx(q + 1) : next
+                m -= 1
+                found = true
+                exit for
+            end if
+            if cr * orient < 0 then continue for                       ' reflex: not an ear
+            dim as boolean inside = false
+            for q as long = 0 to m - 1
+                dim as long iq = idx(q)
+                if (iq = ia) orelse (iq = ib) orelse (iq = ic) then continue for
+                if PointInTri( pts(iq).x, pts(iq).y, pts(ia), pts(ib), pts(ic) ) then inside = true : exit for
+            next
+            if inside then continue for
+            g.AddTri( base0 + ia, base0 + ib, base0 + ic )
+            for q as long = k to m - 2 : idx(q) = idx(q + 1) : next
+            m -= 1
+            found = true
+            exit for
+        next
+        if found = false then exit while                             ' degenerate: give up gracefully
+    wend
+    if m = 3 then g.AddTri( base0 + idx(0), base0 + idx(1), base0 + idx(2) )
+end sub
+
+' THE FILL WORKHORSE: polygon pts (window pixels, the exact edge) filled with colour c, an AA
+' fringe from 0.5 px inside the edge (alpha 1) to 0.5 px outside it (alpha 0).
+private sub FillPolyAA( byval r as SDL_Renderer ptr, pts() as SDL_FPoint, byval n as long, byval c as ulong, _
+                        byref gr as GRAD )
+    n = Dedupe( pts(), n )
+    if n < 3 then exit sub
+    dim as single nx(), ny()
+    VertexNormals( pts(), n, nx(), ny() )
+    dim as GEOM g
+    dim as SDL_FPoint inner(0 to n - 1)
+    for i as long = 0 to n - 1
+        inner(i).x = pts(i).x - nx(i) * 0.5 : inner(i).y = pts(i).y - ny(i) * 0.5
+        g.AddV( inner(i).x, inner(i).y, GradAt( gr, inner(i).x, inner(i).y, c ), 1 )
+    next
+    for i as long = 0 to n - 1
+        dim as single ox = pts(i).x + nx(i) * 0.5, oy = pts(i).y + ny(i) * 0.5
+        g.AddV( ox, oy, GradAt( gr, ox, oy, c ), 0 )
+    next
+    EarClip( g, inner(), n, 0 )
+    for i as long = 0 to n - 1
+        dim as long j = (i + 1) mod n
+        g.AddTri( i, n + i, n + j )
+        g.AddTri( i, n + j, j )
+    next
+    g.Flush( r )
+end sub
+
+' THE STROKE WORKHORSE for CLOSED outlines: a band of width t centred on pts, with AA fringes
+' on both sides. Below 1 px the band stays 1 px and its coverage drops instead.
+private sub StrokeClosedAA( byval r as SDL_Renderer ptr, pts() as SDL_FPoint, byval n as long, byval t as single, _
+                            byval c as ulong )
+    n = Dedupe( pts(), n )
+    if (n < 2) orelse (t <= 0) then exit sub
+    dim as single cov = 1
+    if t < 1 then cov = t : t = 1
+    dim as single nx(), ny()
+    VertexNormals( pts(), n, nx(), ny() )
+    dim as single hw = t / 2
+    dim as single off(0 to 3) = { hw + 0.5, hw - 0.5, -(hw - 0.5), -(hw + 0.5) }
+    dim as single alp(0 to 3) = { 0, cov, cov, 0 }
+    dim as GEOM g
+    for ring as long = 0 to 3
+        for i as long = 0 to n - 1
+            g.AddV( pts(i).x + nx(i) * off(ring), pts(i).y + ny(i) * off(ring), c, alp(ring) )
+        next
+    next
+    for ring as long = 0 to 2
+        if (ring = 1) andalso (hw - 0.5 <= 0.001) then continue for       ' 1 px: no solid core
+        for i as long = 0 to n - 1
+            dim as long j = (i + 1) mod n
+            dim as long a0 = ring * n + i, a1 = ring * n + j, b0 = (ring + 1) * n + i, b1 = (ring + 1) * n + j
+            g.AddTri( a0, b0, b1 ) : g.AddTri( a0, b1, a1 )
+        next
+    next
+    g.Flush( r )
+end sub
+
+' One straight segment of width t (window pixels), AA on both long sides and both ends.
+private sub SegmentAA( byref g as GEOM, byval x0 as single, byval y0 as single, byval x1 as single, byval y1 as single, _
+                       byval t as single, byval c as ulong )
+    dim as single dx = x1 - x0, dy = y1 - y0
+    dim as single l = sqr( dx * dx + dy * dy )
+    if l < 0.0001 then exit sub
+    dx /= l : dy /= l
+    dim as single cov = 1
+    if t < 1 then cov = t : t = 1
+    dim as single hw = t / 2
+    dim as single px = -dy, py = dx                   ' across
+    ' 4 x 4 grid: across offsets x along offsets (fringe, core, core, fringe)
+    dim as single ac(0 to 3) = { -(hw + 0.5), -(hw - 0.5), hw - 0.5, hw + 0.5 }
+    dim as single al(0 to 3) = { -0.5, 0.5, l - 0.5, l + 0.5 }
+    if l < 1 then al(1) = l / 2 : al(2) = l / 2
+    dim as long base0 = g.nv
+    for a as long = 0 to 3
+        for b as long = 0 to 3
+            dim as single alpha = iif( (a = 0) orelse (a = 3) orelse (b = 0) orelse (b = 3), 0.0, cov )
+            g.AddV( x0 + dx * al(a) + px * ac(b), y0 + dy * al(a) + py * ac(b), c, alpha )
+        next
+    next
+    for a as long = 0 to 2
+        for b as long = 0 to 2
+            dim as long v0 = base0 + a * 4 + b
+            g.AddTri( v0, v0 + 4, v0 + 5 ) : g.AddTri( v0, v0 + 5, v0 + 1 )
+        next
+    next
+end sub
+
+' A filled disc (round joins and caps), AA rim.
+private sub DiscAA( byval r as SDL_Renderer ptr, byval cx as single, byval cy as single, byval rad as single, byval c as ulong )
+    if rad <= 0.3 then exit sub
+    dim as long n = 8 + cint( rad * 2 )
+    if n > 64 then n = 64
+    dim as SDL_FPoint pts(0 to n - 1)
+    for i as long = 0 to n - 1
+        pts(i).x = cx + rad * cos( 2 * PI_ * i / n ) : pts(i).y = cy + rad * sin( 2 * PI_ * i / n )
+    next
+    dim as GRAD gr
+    FillPolyAA( r, pts(), n, c, gr )
+end sub
+
+' An OPEN polyline (window pixels), width t, optional dash pattern in pen-width units, round
+' joins (vendor's LineJoinRound for chart series).
+private sub StrokeOpenAA( byval r as SDL_Renderer ptr, pts() as SDL_FPoint, byval n as long, byval t as single, _
+                          byval c as ulong, byval nDash as long, byval bRoundJoins as boolean )
+    if (n < 2) orelse (t <= 0) then exit sub
+    dim as single pat(0 to 3)
+    dim as long np = 0
+    select case nDash
+    case TK_PENDASH_DASH
+        pat(0) = 4.0 : pat(1) = 3.0 : np = 2
+    case TK_PENDASH_DOT
+        pat(0) = 1.0 : pat(1) = 2.5 : np = 2
+    case TK_PENDASH_DASHDOT
+        pat(0) = 4.0 : pat(1) = 2.5 : pat(2) = 1.0 : pat(3) = 2.5 : np = 4
+    end select
+    dim as GEOM g
+    dim as single unit = iif( t < 1, 1.0, t )
+    dim as long ip = 0
+    dim as single left_ = iif( np > 0, pat(0) * unit, 0.0 )
+    dim as boolean bOn = true
+    for i as long = 0 to n - 2
+        dim as single x0 = pts(i).x, y0 = pts(i).y, x1 = pts(i + 1).x, y1 = pts(i + 1).y
+        if np = 0 then
+            SegmentAA( g, x0, y0, x1, y1, t, c )
+        else
+            ' walk the segment, switching on/off at the pattern's boundaries
+            dim as single dx = x1 - x0, dy = y1 - y0
+            dim as single l = sqr( dx * dx + dy * dy ), done = 0
+            if l <= 0 then continue for
+            while done < l
+                dim as single stp = iif( left_ < l - done, left_, l - done )
+                if bOn then
+                    SegmentAA( g, x0 + dx * done / l, y0 + dy * done / l, x0 + dx * (done + stp) / l, y0 + dy * (done + stp) / l, t, c )
+                end if
+                done += stp : left_ -= stp
+                if left_ <= 0.0001 then
+                    ip = (ip + 1) mod np
+                    left_ = pat(ip) * unit
+                    bOn = ((ip and 1) = 0)
+                end if
+            wend
+        end if
+    next
+    g.Flush( r )
+    if bRoundJoins andalso (np = 0) andalso (t > 1.5) then
+        for i as long = 0 to n - 1
+            DiscAA( r, pts(i).x, pts(i).y, t / 2, c )
+        next
+    end if
+end sub
+
+' The edge of a rounded rect with ELLIPTICAL corners rx, ry (window pixels), clockwise. With
+' rx = w/2 and ry = h/2 it is an ellipse.
+private function RoundRectPts( byval x0 as single, byval y0 as single, byval x1 as single, byval y1 as single, _
+                               byval rx as single, byval ry as single, pts() as SDL_FPoint ) as long
+    dim as single w = x1 - x0, h = y1 - y0
+    if rx > w / 2 then rx = w / 2
+    if ry > h / 2 then ry = h / 2
+    if rx < 0 then rx = 0
+    if ry < 0 then ry = 0
+    if (rx < 0.5) orelse (ry < 0.5) then
+        redim pts( 0 to 3 )
+        pts(0).x = x0 : pts(0).y = y0 : pts(1).x = x1 : pts(1).y = y0
+        pts(2).x = x1 : pts(2).y = y1 : pts(3).x = x0 : pts(3).y = y1
+        return 4
+    end if
+    dim as single rm = iif( rx > ry, rx, ry )
+    dim as long seg = cint( rm / 1.5 ) + 2
+    if seg > 32 then seg = 32
+    dim as single cx(0 to 3) = { x0 + rx, x1 - rx, x1 - rx, x0 + rx }
+    dim as single cy(0 to 3) = { y0 + ry, y0 + ry, y1 - ry, y1 - ry }
+    dim as double a0(0 to 3) = { PI_, PI_ * 1.5, 0, PI_ * 0.5 }
+    redim pts( 0 to 4 * (seg + 1) - 1 )
+    dim as long k = 0
+    for corner as long = 0 to 3
+        for i as long = 0 to seg
+            dim as double a = a0(corner) + (PI_ * 0.5) * i / seg
+            pts(k).x = cx(corner) + rx * cos( a )
+            pts(k).y = cy(corner) + ry * sin( a )
+            k += 1
+        next
+    next
+    return k
+end function
+
+' Points along an elliptical arc in the box, degrees clockwise from +x.
+private function ArcPts( byval cx as single, byval cy as single, byval rx as single, byval ry as single, _
+                         byval startDeg as single, byval sweepDeg as single, pts() as SDL_FPoint, _
+                         byval bReverse as boolean = false ) as long
+    dim as single rm = iif( rx > ry, rx, ry )
+    dim as long seg = cint( abs( sweepDeg ) / 360 * (rm * 1.2 + 12) ) + 2
+    if seg > 180 then seg = 180
+    redim pts( 0 to seg )
+    for i as long = 0 to seg
+        dim as long k = iif( bReverse, seg - i, i )
+        dim as double a = (startDeg + sweepDeg * k / seg) * PI_ / 180
+        pts(i).x = cx + rx * cos( a ) : pts(i).y = cy + ry * sin( a )
+    next
+    return seg + 1
+end function
+
+
+' ==========================================================================================
+' The public shapes
+' ==========================================================================================
+private function ScalePen( byval fScale as single, byval nWidth as long ) as long
+    dim as long w = cint( nWidth * fScale )
+    if (w < 1) andalso (nWidth > 0) then w = 1
+    return w
+end function
+
+sub TK_PAINT.PaintRect( byval rc as TKRECT ptr )
+    if rc = 0 then exit sub
+    dim as SDL_FRect f
+    f.x = rc->left + this.ox : f.y = rc->top + this.oy
+    f.w = rc->right - rc->left : f.h = rc->bottom - rc->top
+    if (f.w <= 0) orelse (f.h <= 0) then exit sub
+    SDL_SetRenderDrawColor( this.renderer, ColR( this.clrBack ), ColG( this.clrBack ), ColB( this.clrBack ), ColA( this.clrBack ) )
+    SDL_RenderFillRect( this.renderer, @f )
+end sub
+
+' Square chrome, filled with the back colour AND stroked inside with the pen. FILLS FIRST --
+' as vendor's does -- which is why it must never be used to draw only a frame.
+sub TK_PAINT.PaintBorderRect( byval rc as TKRECT ptr, byval nPenWidth as long = 1 )
+    this.PaintRectFactory( rc, nPenWidth, 0 )
+end sub
+
+sub TK_PAINT.PaintRectFactory( byval rc as TKRECT ptr, byval nPenWidth as long = 1, byval nCurvature as long = 0 )
+    if rc = 0 then exit sub
+    if nCurvature > 0 then
+        this.PaintRoundRect( rc, nCurvature )
+    else
+        this.PaintRect( rc )
+    end if
+    if nPenWidth > 0 then this.PaintRoundOutline( rc, nCurvature, nPenWidth )
+end sub
+
+' curvature is an ellipse DIAMETER, GDI's RoundRect vocabulary, halved here as PsBufferPaint does.
+sub TK_PAINT.PaintRoundRect( byval rc as TKRECT ptr, byval curvature as long = 20 )
+    if rc = 0 then exit sub
+    if curvature <= 0 then this.PaintRect( rc ) : exit sub
+    dim as SDL_FPoint pts()
+    dim as long n = RoundRectPts( rc->left + this.ox, rc->top + this.oy, rc->right + this.ox, rc->bottom + this.oy, _
+                                  curvature / 2, curvature / 2, pts() )
+    dim as GRAD gr
+    FillPolyAA( this.renderer, pts(), n, this.clrBack, gr )
+end sub
+
+sub TK_PAINT.PaintRoundBorderRect( byval rc as TKRECT ptr, byval curvature as long = 20, byval thick as long = 1 )
+    if rc = 0 then exit sub
+    this.PaintRoundRect( rc, curvature )
+    this.PaintRoundOutline( rc, curvature, thick )
+end sub
+
+' A stroke INSIDE the rect: its centre line runs at thick/2 in from the edge.
+sub TK_PAINT.PaintRoundOutline( byval rc as TKRECT ptr, byval curvature as long = 20, byval thick as long = 1 )
+    if (rc = 0) orelse (thick <= 0) then exit sub
+    dim as single d = thick / 2
+    dim as single rad = curvature / 2 - d
+    dim as SDL_FPoint pts()
+    dim as long n = RoundRectPts( rc->left + this.ox + d, rc->top + this.oy + d, rc->right + this.ox - d, _
+                                  rc->bottom + this.oy - d, rad, rad, pts() )
+    StrokeClosedAA( this.renderer, pts(), n, thick, this.clrPen )
+end sub
+
+sub TK_PAINT.PaintGradientRect( byval rc as TKRECT ptr, byval clr1 as ulong, byval clr2 as ulong, _
+                                byval nMode as long = TK_GRADIENT_VERTICAL, byval nCurvature as long = 0 )
+    if rc = 0 then exit sub
+    dim as single x0 = rc->left + this.ox, y0 = rc->top + this.oy, x1 = rc->right + this.ox, y1 = rc->bottom + this.oy
+    if (x1 <= x0) orelse (y1 <= y0) then exit sub
+    dim as GRAD gr
+    gr.on_ = true : gr.c1 = clr1 : gr.c2 = clr2
+    select case nMode
+    case TK_GRADIENT_HORIZONTAL
+        gr.x0 = x0 : gr.y0 = y0 : gr.x1 = x1 : gr.y1 = y0
+    case TK_GRADIENT_FDIAGONAL
+        gr.x0 = x0 : gr.y0 = y0 : gr.x1 = x1 : gr.y1 = y1
+    case TK_GRADIENT_BDIAGONAL
+        gr.x0 = x1 : gr.y0 = y0 : gr.x1 = x0 : gr.y1 = y1
+    case else
+        gr.x0 = x0 : gr.y0 = y0 : gr.x1 = x0 : gr.y1 = y1
+    end select
+    if nCurvature <= 0 then
+        ' a quad with four vertex colours: exact for a linear gradient, crisp edges
+        dim as GEOM g
+        g.AddV( x0, y0, GradAt( gr, x0, y0, 0 ), 1 ) : g.AddV( x1, y0, GradAt( gr, x1, y0, 0 ), 1 )
+        g.AddV( x1, y1, GradAt( gr, x1, y1, 0 ), 1 ) : g.AddV( x0, y1, GradAt( gr, x0, y1, 0 ), 1 )
+        g.AddTri( 0, 1, 2 ) : g.AddTri( 0, 2, 3 )
+        g.Flush( this.renderer )
+    else
+        dim as SDL_FPoint pts()
+        dim as long n = RoundRectPts( x0, y0, x1, y1, nCurvature / 2, nCurvature / 2, pts() )
+        FillPolyAA( this.renderer, pts(), n, clr1, gr )
+    end if
+end sub
+
+' Filled with the back colour; nPenWidth > 0 also strokes it INSIDE the box with the pen.
+sub TK_PAINT.PaintEllipse( byval rc as TKRECT ptr, byval nPenWidth as long = 0 )
+    if rc = 0 then exit sub
+    dim as single x0 = rc->left + this.ox, y0 = rc->top + this.oy, x1 = rc->right + this.ox, y1 = rc->bottom + this.oy
+    if (x1 - x0 < 1) orelse (y1 - y0 < 1) then exit sub
+    dim as SDL_FPoint pts()
+    dim as long n = RoundRectPts( x0, y0, x1, y1, (x1 - x0) / 2, (y1 - y0) / 2, pts() )
+    dim as GRAD gr
+    FillPolyAA( this.renderer, pts(), n, this.clrBack, gr )
+    if nPenWidth > 0 then
+        dim as single d = nPenWidth / 2
+        n = RoundRectPts( x0 + d, y0 + d, x1 - d, y1 - d, (x1 - x0) / 2 - d, (y1 - y0) / 2 - d, pts() )
+        StrokeClosedAA( this.renderer, pts(), n, nPenWidth, this.clrPen )
+    end if
+end sub
+
+' Any simple polygon -- convex or not -- filled with the back colour; nPenWidth > 0 strokes
+' its outline with the pen. Points are widget-local pixel CENTRES (+0.5, as GDI+'s were).
+sub TK_PAINT.PaintPolygon( byval pts as TKPOINT ptr, byval nCount as long, byval nPenWidth as long = 0 )
+    if (pts = 0) orelse (nCount < 3) then exit sub
+    dim as SDL_FPoint p(0 to nCount - 1)
+    for i as long = 0 to nCount - 1
+        p(i).x = pts[i].x + this.ox + 0.5 : p(i).y = pts[i].y + this.oy + 0.5
+    next
+    dim as GRAD gr
+    FillPolyAA( this.renderer, p(), nCount, this.clrBack, gr )
+    if nPenWidth > 0 then StrokeClosedAA( this.renderer, p(), nCount, nPenWidth, this.clrPen )
+end sub
+
+' A wedge of the ellipse in rc, filled with the back colour; a pen (DPI-scaled) centred on the
+' rim. A zero sweep draws NOTHING -- a legal data point, not a radius line.
+sub TK_PAINT.PaintPie( byval rc as TKRECT ptr, byval startAngle as single, byval sweepAngle as single, _
+                       byval nPenWidth as long = 0 )
+    if rc = 0 then exit sub
+    if abs( sweepAngle ) < 0.0001 then exit sub
+    dim as single x0 = rc->left + this.ox, y0 = rc->top + this.oy
+    dim as single rx = (rc->right - rc->left - 1) / 2, ry = (rc->bottom - rc->top - 1) / 2
+    if (rx <= 0) orelse (ry <= 0) then exit sub
+    dim as single cx = x0 + 0.5 + rx, cy = y0 + 0.5 + ry
+    dim as SDL_FPoint arc()
+    dim as SDL_FPoint pts()
+    dim as long n
+    if abs( sweepAngle ) >= 359.99 then
+        n = RoundRectPts( cx - rx, cy - ry, cx + rx, cy + ry, rx, ry, pts() )
+    else
+        dim as long na = ArcPts( cx, cy, rx, ry, startAngle, sweepAngle, arc() )
+        n = na + 1
+        redim pts( 0 to n - 1 )
+        pts(0).x = cx : pts(0).y = cy
+        for i as long = 0 to na - 1 : pts(i + 1) = arc(i) : next
+    end if
+    dim as GRAD gr
+    FillPolyAA( this.renderer, pts(), n, this.clrBack, gr )
+    if nPenWidth > 0 then StrokeClosedAA( this.renderer, pts(), n, ScalePen( this.fScale, nPenWidth ), this.clrPen )
+end sub
+
+' An annular sector: the hole is nInnerRatio (0..0.9) of the radius. The doughnut's wedge.
+sub TK_PAINT.PaintPieRing( byval rc as TKRECT ptr, byval nInnerRatio as single, byval startAngle as single, _
+                           byval sweepAngle as single, byval nPenWidth as long = 0 )
+    if rc = 0 then exit sub
+    if abs( sweepAngle ) < 0.0001 then exit sub
+    dim as single ratio = nInnerRatio
+    if ratio < 0 then ratio = 0
+    if ratio > 0.9 then ratio = 0.9
+    dim as single rx = (rc->right - rc->left - 1) / 2, ry = (rc->bottom - rc->top - 1) / 2
+    ' below about a pixel of hole there is nothing to see: it is a pie
+    if (ratio * rx < 1) orelse (ratio * ry < 1) then this.PaintPie( rc, startAngle, sweepAngle, nPenWidth ) : exit sub
+    dim as single cx = rc->left + this.ox + 0.5 + rx, cy = rc->top + this.oy + 0.5 + ry
+    dim as single sw = iif( abs( sweepAngle ) >= 359.99, sgn( sweepAngle ) * 359.9, sweepAngle )
+    dim as SDL_FPoint outerA(), innerA()
+    dim as long no = ArcPts( cx, cy, rx, ry, startAngle, sw, outerA() )
+    dim as long ni = ArcPts( cx, cy, rx * ratio, ry * ratio, startAngle, sw, innerA(), true )
+    dim as long n = no + ni
+    dim as SDL_FPoint pts(0 to n - 1)
+    for i as long = 0 to no - 1 : pts(i) = outerA(i) : next
+    for i as long = 0 to ni - 1 : pts(no + i) = innerA(i) : next
+    dim as GRAD gr
+    FillPolyAA( this.renderer, pts(), n, this.clrBack, gr )
+    if nPenWidth > 0 then StrokeClosedAA( this.renderer, pts(), n, ScalePen( this.fScale, nPenWidth ), this.clrPen )
+end sub
+
+' Connected segments in the pen colour, DPI-scaled width, round joins, the dash style in force.
+sub TK_PAINT.PaintPolyline( byval pts as TKPOINT ptr, byval nCount as long, byval nPenWidth as long = 1 )
+    if (pts = 0) orelse (nCount < 2) then exit sub
+    dim as long pw = ScalePen( this.fScale, nPenWidth )
+    if pw <= 0 then exit sub
+    dim as SDL_FPoint p(0 to nCount - 1)
+    for i as long = 0 to nCount - 1
+        p(i).x = pts[i].x + this.ox + 0.5 : p(i).y = pts[i].y + this.oy + 0.5
+    next
+    StrokeOpenAA( this.renderer, p(), nCount, pw, this.clrPen, this.nDash, true )
+end sub
+
+' A cardinal spline through the points (GDI+'s DrawCurve), tension 0..1.
+sub TK_PAINT.PaintCurve( byval pts as TKPOINT ptr, byval nCount as long, byval nPenWidth as long = 1, _
+                         byval nTension as single = 0.5 )
+    if pts = 0 then exit sub
+    if nCount < 3 then this.PaintPolyline( pts, nCount, nPenWidth ) : exit sub
+    dim as long pw = ScalePen( this.fScale, nPenWidth )
+    if pw <= 0 then exit sub
+    dim as single tension = nTension
+    if tension < 0 then tension = 0
+    if tension > 1 then tension = 1
+    const SUB_ = 12
+    dim as long n = (nCount - 1) * SUB_ + 1
+    dim as SDL_FPoint p(0 to n - 1)
+    dim as long k = 0
+    for i as long = 0 to nCount - 2
+        dim as long i0 = iif( i > 0, i - 1, 0 ), i3 = iif( i + 2 < nCount, i + 2, nCount - 1 )
+        dim as single p0x = pts[i0].x, p0y = pts[i0].y, p1x = pts[i].x, p1y = pts[i].y
+        dim as single p2x = pts[i + 1].x, p2y = pts[i + 1].y, p3x = pts[i3].x, p3y = pts[i3].y
+        ' Hermite tangents of the cardinal spline
+        dim as single m1x = tension * (p2x - p0x), m1y = tension * (p2y - p0y)
+        dim as single m2x = tension * (p3x - p1x), m2y = tension * (p3y - p1y)
+        for s as long = 0 to SUB_ - 1
+            dim as single t = s / SUB_
+            dim as single t2 = t * t, t3 = t2 * t
+            dim as single h00 = 2 * t3 - 3 * t2 + 1, h10 = t3 - 2 * t2 + t, h01 = -2 * t3 + 3 * t2, h11 = t3 - t2
+            p(k).x = h00 * p1x + h10 * m1x + h01 * p2x + h11 * m2x + this.ox + 0.5
+            p(k).y = h00 * p1y + h10 * m1y + h01 * p2y + h11 * m2y + this.oy + 0.5
+            k += 1
+        next
+    next
+    p(k).x = pts[nCount - 1].x + this.ox + 0.5 : p(k).y = pts[nCount - 1].y + this.oy + 0.5
+    StrokeOpenAA( this.renderer, p(), n, pw, this.clrPen, this.nDash, true )
+end sub
+
+' A straight line in the pen colour, nWidth raw pixels. An axis-aligned line is a crisp rect.
+sub TK_PAINT.PaintLine( byval nWidth as long, byval l as long, byval t as long, byval r as long, byval b as long )
+    if nWidth <= 0 then exit sub
+    if (l = r) orelse (t = b) then
+        dim as SDL_FRect f
+        if t = b then
+            f.x = iif( l < r, l, r ) + this.ox : f.w = abs( r - l ) : f.y = t + this.oy - (nWidth \ 2) : f.h = nWidth
+        else
+            f.y = iif( t < b, t, b ) + this.oy : f.h = abs( b - t ) : f.x = l + this.ox - (nWidth \ 2) : f.w = nWidth
+        end if
+        if f.w <= 0 then f.w = nWidth
+        if f.h <= 0 then f.h = nWidth
+        SDL_SetRenderDrawColor( this.renderer, ColR( this.clrPen ), ColG( this.clrPen ), ColB( this.clrPen ), ColA( this.clrPen ) )
+        SDL_RenderFillRect( this.renderer, @f )
+        exit sub
+    end if
+    dim as SDL_FPoint p(0 to 1)
+    p(0).x = l + this.ox + 0.5 : p(0).y = t + this.oy + 0.5
+    p(1).x = r + this.ox + 0.5 : p(1).y = b + this.oy + 0.5
+    StrokeOpenAA( this.renderer, p(), 2, nWidth, this.clrPen, TK_PENDASH_SOLID, false )
+end sub
+
+
+' ==========================================================================================
+' Text and images
+' ==========================================================================================
+private sub DrawU8( byref p as TK_PAINT, byref u8 as string, byval x as long, byval y as long )
+    if len( u8 ) = 0 then exit sub
+    dim as TTF_Text ptr t = TTF_CreateText( p.engine, p.pFont, strptr( u8 ), len( u8 ) )
+    if t then
+        TTF_SetTextColor( t, ColR( p.clrFore ), ColG( p.clrFore ), ColB( p.clrFore ), ColA( p.clrFore ) )
+        TTF_DrawRendererText( t, x + p.ox, y + p.oy )
+        TTF_DestroyText( t )
+    end if
+end sub
+
+' Single line, vertically centred (or TOP / BOTTOM), no prefix processing -- PsPaintBuffer.
+' PaintText's contract. TK_DT_ELLIPSIS cuts and appends U+2026 when it does not fit.
+sub TK_PAINT.PaintText( byref s as ustring, byval rc as TKRECT ptr, byval flags as long )
+    if (rc = 0) orelse (this.pFont = 0) orelse (len( s ) = 0) then exit sub
+    dim as long availW = rc->right - rc->left
+    if ((flags and TK_DT_NOCLIP) = 0) andalso ((availW <= 0) orelse (rc->bottom <= rc->top)) then exit sub
+
+    dim as string u8 = s
+    dim as long tw = tkText_WidthU8( this.pFont, u8 )
+
+    if ((flags and TK_DT_ELLIPSIS) <> 0) andalso (tw > availW) then
+        dim as string ell = TK_ELLIPSIS_UTF8
+        dim as long ew = tkText_WidthU8( this.pFont, ell )
+        dim as long fitW = 0
+        dim as uinteger fitBytes = 0
+        if availW > ew then
+            TTF_MeasureString( this.pFont, strptr( u8 ), len( u8 ), availW - ew, @fitW, @fitBytes )
+        end if
+        u8 = left( u8, fitBytes ) & ell
+        tw = fitW + ew
+    end if
+
+    dim as long x = rc->left
+    select case flags and 3
+    case TK_DT_CENTER
+        x = rc->left + (availW - tw) \ 2
+    case TK_DT_RIGHT
+        x = rc->right - tw
+    end select
+    dim as long fh = TTF_GetFontHeight( this.pFont )
+    dim as long y = rc->top + ((rc->bottom - rc->top) - fh) \ 2
+    if flags and TK_DT_TOP then y = rc->top
+    if flags and TK_DT_BOTTOM then y = rc->bottom - fh
+
+    if (flags and TK_DT_NOCLIP) = 0 then this.ApplyClip( rc )
+    DrawU8( this, u8, x, y )
+    if (flags and TK_DT_NOCLIP) = 0 then this.ApplyClip( 0 )
+end sub
+
+' Multi-line: hard newlines always break; TK_DT_WORDBREAK also wraps to the rect's width.
+' The block sits at the TOP unless TK_DT_VCENTER / TK_DT_BOTTOM; each line is aligned by the
+' horizontal flags. Clipped to rc.
+sub TK_PAINT.PaintTextEx( byref s as ustring, byval rc as TKRECT ptr, byval flags as long )
+    if (rc = 0) orelse (this.pFont = 0) orelse (len( s ) = 0) then exit sub
+    dim as long availW = rc->right - rc->left
+    if availW <= 0 then exit sub
+    dim as string u8 = s
+    dim as long st(), en()
+    dim as long n = tkText_Wrap( this.pFont, u8, iif( (flags and TK_DT_WORDBREAK) <> 0, availW, &h3FFFFFFF ), st(), en() )
+    if n <= 0 then exit sub
+    dim as long skip = tkText_LineSkip( this.pFont ), fh = tkText_Height( this.pFont )
+    dim as long blockH = (n - 1) * skip + fh
+    dim as long y = rc->top
+    if flags and TK_DT_VCENTER then y = rc->top + ((rc->bottom - rc->top) - blockH) \ 2
+    if flags and TK_DT_BOTTOM then y = rc->bottom - blockH
+    if (flags and TK_DT_NOCLIP) = 0 then this.ApplyClip( rc )
+    for i as long = 0 to n - 1
+        dim as string ln = mid( u8, st(i) + 1, en(i) - st(i) )
+        dim as long lw = tkText_WidthU8( this.pFont, ln )
+        dim as long x = rc->left
+        select case flags and 3
+        case TK_DT_CENTER : x = rc->left + (availW - lw) \ 2
+        case TK_DT_RIGHT : x = rc->right - lw
+        end select
+        DrawU8( this, ln, x, y )
+        y += skip
+    next
+    if (flags and TK_DT_NOCLIP) = 0 then this.ApplyClip( 0 )
+end sub
+
+' One glyph (an icon-font codepoint) left-aligned and vertically centred, NOT clipped -- the
+' vendor PaintChar's DT_SINGLELINE | DT_VCENTER | DT_LEFT | DT_NOCLIP.
+sub TK_PAINT.PaintChar( byref glyph as ustring, byval rc as TKRECT ptr, byval clr as ulong )
+    dim as ulong saved = this.clrFore
+    this.clrFore = clr
+    this.PaintText( glyph, rc, TK_DT_LEFT or TK_DT_NOCLIP )
+    this.clrFore = saved
+end sub
+
+' Draw a texture into rc by the fit mode (vendor's PS_IMGFIT_*).
+sub TK_PAINT.PaintImage( byval tex as SDL_Texture ptr, byval rc as TKRECT ptr, byval nFit as long = TK_IMGFIT_ASPECT )
+    if (tex = 0) orelse (rc = 0) then exit sub
+    dim as single tw, th
+    SDL_GetTextureSize( tex, @tw, @th )
+    if (tw <= 0) orelse (th <= 0) then exit sub
+    dim as single bw = rc->right - rc->left, bh = rc->bottom - rc->top
+    if (bw <= 0) orelse (bh <= 0) then exit sub
+    dim as SDL_FRect d
+    select case nFit
+    case TK_IMGFIT_STRETCH
+        d.w = bw : d.h = bh
+    case TK_IMGFIT_CENTER
+        d.w = tw : d.h = th
+    case else
+        dim as single k = bw / tw
+        if bh / th < k then k = bh / th
+        d.w = tw * k : d.h = th * k
+    end select
+    d.x = rc->left + this.ox + (bw - d.w) / 2
+    d.y = rc->top + this.oy + (bh - d.h) / 2
+    this.ApplyClip( rc )
+    SDL_RenderTexture( this.renderer, tex, 0, @d )
+    this.ApplyClip( 0 )
+end sub

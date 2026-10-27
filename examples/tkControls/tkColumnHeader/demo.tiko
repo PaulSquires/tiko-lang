@@ -1,0 +1,205 @@
+' tkColumnHeader demo. Vendor PsColumnHeader has no demo of its own (PsListTree's exercises
+' it), so this one is a header over a small table the FORM draws from the header's column
+' rects: click a caption to sort (the host sorts, then sets the indicator), drag a divider
+' (live), double-click a divider to auto-fit (the host measures), hover for a tooltip. A second
+' header below shows a paint callback drawing on top of the built-in painter.
+'
+'   demo                     interactive
+'   demo --shot out.bmp      render once (sorted by Size, descending), save the window, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkColumnHeader"
+using tkColumnHeader
+using tkTheme
+using tkHost
+using tkPaint
+
+#ifdef TIKO_OS_LINUX
+    const FONTDIR = "/mnt/c/Windows/Fonts/"
+#else
+    const FONTDIR = "C:\Windows\Fonts\"
+#endif
+
+const as long ROWS = 8, COLS = 3
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gHdr, gHdr2
+dim shared as TTF_Font ptr gFont9, gFont9b
+dim shared as string gCell(0 to ROWS - 1, 0 to COLS - 1)
+dim shared as long gSize(0 to ROWS - 1)
+dim shared as ustring gStatus
+
+private function S( byval v as long ) as long
+    return tkHost_Scale( gHost, v )
+end function
+
+sub LoadData()
+    dim as string names(0 to ROWS - 1) = { "tkHost.tiko", "tkPaint.tiko", "tkButton.tiko", "tkTextBox.tiko", _
+                                          "tkComboBox.tiko", "README.md", "PORTING.md", "tiko.toml" }
+    dim as long sizes(0 to ROWS - 1) = { 52114, 44876, 41402, 88120, 49035, 3120, 7710, 214 }
+    for i as long = 0 to ROWS - 1
+        gCell(i, 0) = names(i)
+        gSize(i) = sizes(i)
+        gCell(i, 1) = str( sizes(i) )
+        dim as long dot = instrrev( names(i), "." )
+        gCell(i, 2) = iif( dot > 0, mid( names(i), dot + 1 ) & " file", "file" )
+    next
+end sub
+
+' The host sorts (the control never does): a simple exchange sort on the chosen column.
+sub SortBy( byval col as long, byval bDesc as boolean )
+    for i as long = 0 to ROWS - 2
+        for j as long = i + 1 to ROWS - 1
+            dim as boolean bSwap
+            if col = 1 then
+                bSwap = iif( bDesc, gSize(j) > gSize(i), gSize(j) < gSize(i) )
+            else
+                bSwap = iif( bDesc, lcase( gCell(j, col) ) > lcase( gCell(i, col) ), lcase( gCell(j, col) ) < lcase( gCell(i, col) ) )
+            end if
+            if bSwap then
+                for k as long = 0 to COLS - 1
+                    swap gCell(i, k), gCell(j, k)
+                next
+                swap gSize(i), gSize(j)
+            end if
+        next
+    next
+end sub
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as TKTHEME_COLORS t = tkTheme_Get()
+    dim as long rh = S( 22 ), pad = tkColumnHeader_GetPadding( gHdr )
+    b->SetFont( gFont9 )
+    for r as long = 0 to ROWS - 1
+        dim as long y = gHdr->y + gHdr->ch + r * rh
+        for c as long = 0 to COLS - 1
+            dim as TKRECT rc
+            tkColumnHeader_GetColumnRect( gHdr, c, rc )
+            dim as TKRECT rt
+            tkRect_Set( rt, gHdr->x + rc.left + pad, y, gHdr->x + rc.right - pad, y + rh )
+            if rt.right > gHdr->x + gHdr->cw then rt.right = gHdr->x + gHdr->cw
+            b->SetForeColor( iif( c = 0, t.Text, t.TextDim ) )
+            dim as ustring u = gCell(r, c)
+            if rt.right > rt.left then b->PaintText( u, @rt, iif( c = 1, TK_DT_RIGHT, TK_DT_LEFT ) or TK_DT_ELLIPSIS )
+        next
+    next
+    dim as TKRECT rs
+    tkRect_Set( rs, S( 20 ), gHdr2->y + gHdr2->ch + S( 10 ), gHost->root->cw - S( 20 ), gHdr2->y + gHdr2->ch + S( 34 ) )
+    b->SetForeColor( t.Accent )
+    b->PaintText( gStatus, @rs, TK_DT_LEFT )
+end sub
+
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    tkWidget_SetPos( gHdr, S( 20 ), S( 20 ), pw - S( 40 ), S( 28 ) )
+    tkWidget_SetPos( gHdr2, S( 20 ), S( 20 ) + S( 28 ) + ROWS * S( 22 ) + S( 24 ), pw - S( 40 ), S( 28 ) )
+end sub
+
+sub OnClick( byval hHdr as TK_WIDGET ptr, byval idx as integer )
+    dim as boolean bDesc = (tkColumnHeader_GetSortColumn( hHdr ) = idx) andalso (tkColumnHeader_GetSortDirection( hHdr ) = HDR_SORT_ASC)
+    SortBy( idx, bDesc )
+    tkColumnHeader_SetSortColumn( hHdr, idx, iif( bDesc, HDR_SORT_DESC, HDR_SORT_ASC ) )
+    gStatus = "sorted by " & tkColumnHeader_GetColumnText( hHdr, idx ) & iif( bDesc, " (descending)", " (ascending)" )
+    tkHost_Invalidate( gHost )
+end sub
+
+sub OnWidth( byval hHdr as TK_WIDGET ptr, byval idx as integer, byval nWidth as integer, byval bLive as boolean )
+    gStatus = "column " & idx & " width " & nWidth & iif( bLive, "  (live)", "  (final)" )
+    tkHost_Invalidate( gHost )
+end sub
+
+' The best fit: the widest cell (or the caption) plus the padding on both sides.
+function OnAutoSize( byval hHdr as TK_WIDGET ptr, byval idx as integer ) as integer
+    dim as long w = tkText_Width( gFont9b, tkColumnHeader_GetColumnText( hHdr, idx ) )
+    for r as long = 0 to ROWS - 1
+        dim as long cw = tkText_WidthU8( gFont9, gCell(r, idx) )
+        if cw > w then w = cw
+    next
+    return w + 2 * tkColumnHeader_GetPadding( hHdr ) + S( 12 )
+end function
+
+function OnTip( byval hHdr as TK_WIDGET ptr, byval idx as integer ) as ustring
+    return "Click to sort by " & tkColumnHeader_GetColumnText( hHdr, idx ) & "; double-click a divider to fit"
+end function
+
+' The built-in painter, then a small accent bar under the hot column.
+sub AccentPaint( byval p as TKCOLUMNHEADER_PAINTINFO ptr )
+    tkColumnHeader_PaintColumnDefault( p )
+    if p->isHot orelse p->isPressed then
+        dim as TKRECT rb = p->rc
+        rb.top = rb.bottom - S( 3 )
+        p->b->SetBackColor( tkTheme_Get().Accent )
+        p->b->PaintRect( @rb )
+    end if
+end sub
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr sf = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if sf then
+        SDL_SaveBMP( sf, strptr( path ) )
+        print "shot: " & path & "  " & sf->w & "x" & sf->h & "  scale=" & gHost->fScale
+        SDL_DestroySurface( sf )
+    end if
+end sub
+
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkColumnHeader on SDL3", 600, 380, FONTDIR & "segoeui.ttf", forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = tkTheme_Get().Window
+gFont9 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 9 )
+gFont9b = tkHost_OpenFont( gHost, FONTDIR & "segoeuib.ttf", 9 )
+if (gFont9 = 0) orelse (gFont9b = 0) then print "fonts: " & *SDL_GetError() : end 1
+LoadData()
+
+dim as TK_WIDGET ptr root = tkHost_Root( gHost )
+gHdr = tkColumnHeader_Create( root, 1 )
+tkColumnHeader_SetFont( gHdr, gFont9b )
+tkColumnHeader_AddColumn( gHdr, "Name", S( 200 ) )
+tkColumnHeader_AddColumn( gHdr, "Size", S( 90 ), S( 50 ) )
+tkColumnHeader_AddColumn( gHdr, "Type" )
+tkColumnHeader_SetClickCallback( gHdr, @OnClick )
+tkColumnHeader_SetWidthChangedCallback( gHdr, @OnWidth )
+tkColumnHeader_SetAutoSizeCallback( gHdr, @OnAutoSize )
+tkColumnHeader_SetTooltipCallback( gHdr, @OnTip )
+
+gHdr2 = tkColumnHeader_Create( root, 2 )
+tkColumnHeader_SetFont( gHdr2, gFont9b )
+tkColumnHeader_AddColumn( gHdr2, "Paint callback", S( 160 ) )
+tkColumnHeader_AddColumn( gHdr2, "over the built-in painter", S( 220 ) )
+tkColumnHeader_AddColumn( gHdr2, "FILL_NONE" )
+tkColumnHeader_SetFillColumn( gHdr2, CCOLHDR_FILL_NONE )
+tkColumnHeader_SetPaintCallback( gHdr2, @AccentPaint )
+tkColumnHeader_SetClickCallback( gHdr2, @OnClick )
+
+gStatus = "click a caption to sort; drag or double-click a divider"
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkHost_Show( gHost )
+
+dim as string shot = ArgValue( "--shot" )
+if len( shot ) then
+    OnClick( gHdr, 1 ) : OnClick( gHdr, 1 )      ' Size, descending
+    tkHost_Pump( gHost )
+    SaveShot( shot )
+else
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

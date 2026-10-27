@@ -1,0 +1,416 @@
+' tkIconPanel self-test. Real windows, real SDL event queue: every input claim is made by
+' PUSHING the SDL event a user would have produced and pumping the host. Two passes, scale
+' pinned at 1.0 and at 1.75.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkIconPanel"
+#import "vendor/tkControls/tkTest"
+using tkIconPanel
+using tkTooltip
+using tkTheme
+using tkImage
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as long gClicks, gLastIdx, gLastId, gSelChanges, gLastSel, gRClicks, gTipAsks, gTipIdx
+dim shared as boolean gSuppressDown, gStateAgrees
+dim shared as long gIdealW(0 to 1)
+
+sub OnClick( byval hPanel as TK_WIDGET ptr, byval idx as long, byval id as long )
+    gClicks += 1 : gLastIdx = idx : gLastId = id
+end sub
+
+sub OnSelChange( byval hPanel as TK_WIDGET ptr, byval idx as long, byval isSelected as boolean )
+    gSelChanges += 1 : gLastIdx = idx : gLastSel = iif( isSelected, 1, 0 )
+    ' fired AFTER the state is updated
+    gStateAgrees = (tkIconPanel_GetSelected( hPanel, idx ) = isSelected)
+end sub
+
+function OnMessage( byval m as TKICONPANEL_MESSAGEINFO ptr ) as boolean
+    if m->msg = TKM_RBUTTONUP then gRClicks += 1 : gLastIdx = m->idx
+    if gSuppressDown andalso (m->msg = TKM_LBUTTONDOWN) then return true
+    ' TRUE for an up is IGNORED: it must not strand the capture
+    if m->msg = TKM_LBUTTONUP then return true
+    return false
+end function
+
+function OnTip( byval hPanel as TK_WIDGET ptr, byval idx as long ) as ustring
+    gTipAsks += 1 : gTipIdx = idx
+    return "on-demand tip for item " & idx
+end function
+
+function WaitTip( byval h as TK_HOST ptr, byval tp as TK_TIP ptr, byval want as boolean, byval ms as long ) as boolean
+    dim as double t0 = timer
+    dim as SDL_Event e
+    while (timer - t0) * 1000 < ms
+        if SDL_WaitEventTimeout( @e, 20 ) then tkHost_Dispatch( h, @e )
+        if h->bDirty then tkHost_Render( h )
+        if tkTooltip_IsVisible( tp ) = want then return true
+    wend
+    return false
+end function
+
+' Centre of item idx in WINDOW pixels.
+function ItemCX( byval p as TK_WIDGET ptr, byval idx as long ) as single
+    dim as TKRECT rc
+    tkIconPanel_GetItemRect( p, idx, rc )
+    return p->x + (rc.left + rc.right) / 2
+end function
+function ItemCY( byval p as TK_WIDGET ptr, byval idx as long ) as single
+    dim as TKRECT rc
+    tkIconPanel_GetItemRect( p, idx, rc )
+    return p->y + (rc.top + rc.bottom) / 2
+end function
+
+' A pixel in item idx's PADDING (top-left of its cell, clear of the glyph), window pixels.
+function CellPixel( byval h as TK_HOST ptr, byval p as TK_WIDGET ptr, byval idx as long ) as ulong
+    dim as TKRECT rc
+    tkIconPanel_GetItemRect( p, idx, rc )
+    return tkTest_PixelAt( h, p->x + rc.left + 1, p->y + rc.top + 1 )
+end function
+
+private sub MakeChecker( byref path as string )
+    dim as SDL_Surface ptr s = SDL_CreateSurface( 32, 32, SDL_PIXELFORMAT_ARGB8888 )
+    if s = 0 then exit sub
+    for y as long = 0 to 31
+        dim as ulong ptr row = cast( ulong ptr, cast( ubyte ptr, s->pixels ) + y * s->pitch )
+        for x as long = 0 to 31
+            row[x] = iif( (((x \ 8) + (y \ 8)) and 1), &hFFEE9933ul, &hFF3399EEul )
+        next
+    next
+    SDL_SaveBMP( s, strptr( path ) )
+    SDL_DestroySurface( s )
+end sub
+
+' The vendor demo's toolbar: 2 commands, sep, 3 toggles, sep, a disabled command, an oversized one.
+enum
+    I_SAVE = 0, I_REFRESH, I_SEP1, I_FAV, I_RO, I_FIND, I_SEP2, I_DELETE, I_SETTINGS
+end enum
+
+sub BuildToolbar( byval h as TK_HOST ptr, byval p as TK_WIDGET ptr )
+    dim as long idx
+    idx = tkIconPanel_AddItem( p, IP_KIND_COMMAND, wchr( &hE74E ), 11 ) : tkIconPanel_SetTooltipText( p, idx, "Save" )
+    idx = tkIconPanel_AddItem( p, IP_KIND_COMMAND, wchr( &hE72C ), 12 ) : tkIconPanel_SetTooltipText( p, idx, "Refresh" )
+    tkIconPanel_SetItemForeColor( p, idx, tkRGB( 126, 190, 126 ) )
+    tkIconPanel_AddSeparator( p )
+    idx = tkIconPanel_AddItem( p, IP_KIND_TOGGLE, wchr( &hE734 ), 21 ) : tkIconPanel_SetTooltipText( p, idx, "Favourite" )
+    idx = tkIconPanel_AddItem( p, IP_KIND_TOGGLE, wchr( &hE72E ), 22 ) : tkIconPanel_SetTooltipText( p, idx, "Read only" )
+    idx = tkIconPanel_AddItem( p, IP_KIND_TOGGLE, wchr( &hE721 ), 23 ) : tkIconPanel_SetTooltipText( p, idx, "Find panel" )
+    tkIconPanel_AddSeparator( p )
+    idx = tkIconPanel_AddItem( p, IP_KIND_COMMAND, wchr( &hE74D ), 31 )
+    tkIconPanel_SetEnabled( p, idx, false )
+    idx = tkIconPanel_AddItem( p, IP_KIND_COMMAND, wchr( &hE713 ), 41 )
+    tkIconPanel_SetItemIconSize( p, idx, tkHost_Scale( h, 30 ), tkHost_Scale( h, 30 ) )
+    tkIconPanel_SetItemPadding( p, idx, tkHost_Scale( h, 14 ), tkHost_Scale( h, 14 ) )
+end sub
+
+' ==========================================================================================
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkIconPanel selftest", 640, 400, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    tkTest_Check( "scale pinned", h->fScale = fScale, "" & h->fScale )
+    dim as TTF_Font ptr fGlyph = tkHost_OpenFont( h, TK_TEST_FONTDIR & "SegoeIcons.ttf", 12 )
+    tkTest_Check( "glyph font opened", fGlyph <> 0 )
+    tkTheme_Apply( tkTheme_Dark() )
+
+    ' ---- A: the declared-cell model -----------------------------------------------------
+    dim as TK_WIDGET ptr p = tkIconPanel_Create( tkHost_Root( h ), 101 )
+    tkIconPanel_SetFont( p, fGlyph )
+    tkIconPanel_SetClickCallback( p, @OnClick )
+    tkIconPanel_SetSelChangeCallback( p, @OnSelChange )
+    tkIconPanel_SetMessageCallback( p, @OnMessage )
+    tkIconPanel_SetTooltipCallback( p, @OnTip )
+    BuildToolbar( h, p )
+    tkTest_Check( "count includes separators", tkIconPanel_GetCount( p ) = 9 )
+
+    dim as long iw, ih, pb, pa, sw
+    tkIconPanel_GetIconSize( p, iw, ih )
+    tkIconPanel_GetPadding( p, pb, pa )
+    sw = tkIconPanel_GetSeparatorWidth( p )
+    tkTest_Check( "defaults scaled at create", iw = cint( 20 * fScale ) andalso ih = cint( 20 * fScale ) andalso pb = cint( 4 * fScale ) andalso sw = cint( 1 * fScale ), _
+                  iw & " " & ih & " " & pb & " " & sw )
+    dim as long big = tkHost_Scale( h, 30 ), bigPad = tkHost_Scale( h, 14 )
+    dim as long cellN = pb + iw + pa, cellS = pb + sw + pa, cellBig = bigPad + big + bigPad
+    ' 6 plain items (2 cmd, 3 toggles, 1 disabled) + 2 separators + the oversized one
+    dim as long expTotal = 6 * cellN + 2 * cellS + cellBig
+    dim as long idealW = tkIconPanel_GetIdealWidth( p )
+    tkTest_Check( "ideal width valid before sizing = summed cells", idealW = expTotal, idealW & " vs " & expTotal )
+    gIdealW(iif( fScale > 1.5, 1, 0 )) = idealW
+    dim as TKRECT rc, rci
+    tkTest_Check( "rect query before sizing: TRUE, empty", tkIconPanel_GetItemRect( p, 0, rc ) andalso tkRect_IsEmpty( rc ) )
+    tkTest_Check( "rect query bad index: FALSE", tkIconPanel_GetItemRect( p, 99, rc ) = false )
+
+    dim as long panelW = tkHost_Scale( h, 600 ), panelH = tkHost_Scale( h, 40 )
+    tkWidget_SetPos( p, 0, tkHost_Scale( h, 10 ), panelW, panelH )
+    tkIconPanel_GetItemRect( p, 0, rc ) : tkIconPanel_GetItemIconRect( p, 0, rci )
+    tkTest_Check( "LEFT: run starts at 0, full client height", rc.left = 0 andalso rc.top = 0 andalso rc.right = cellN andalso rc.bottom = panelH, tkRect_Str( rc ) )
+    tkTest_Check( "rcIcon at padBefore, centred vertically", rci.left = pb andalso rci.right = pb + iw andalso rci.top = (panelH - ih) \ 2 andalso rci.bottom = rci.top + ih, tkRect_Str( rci ) )
+    tkIconPanel_GetItemRect( p, I_SEP1, rc ) : tkIconPanel_GetItemIconRect( p, I_SEP1, rci )
+    tkTest_Check( "separator cell = pad + rule + pad", rc.left = 2 * cellN andalso (rc.right - rc.left) = cellS, tkRect_Str( rc ) )
+    tkTest_Check( "separator rule: sepWidth wide, icon-height tall", (rci.right - rci.left) = sw andalso (rci.bottom - rci.top) = ih, tkRect_Str( rci ) )
+    tkIconPanel_GetItemRect( p, I_SETTINGS, rc ) : tkIconPanel_GetItemIconRect( p, I_SETTINGS, rci )
+    tkTest_Check( "oversized item: own cell, ends the run", (rc.right - rc.left) = cellBig andalso rc.right = expTotal andalso rci.left = rc.left + bigPad, tkRect_Str( rc ) )
+
+    tkIconPanel_SetJustify( p, IP_JUSTIFY_CENTER )
+    tkIconPanel_GetItemRect( p, 0, rc )
+    tkTest_Check( "CENTER: x0 = (W - total) \ 2", rc.left = (panelW - expTotal) \ 2, "" & rc.left )
+    tkIconPanel_SetJustify( p, IP_JUSTIFY_RIGHT )
+    tkIconPanel_GetItemRect( p, I_SETTINGS, rc )
+    tkTest_Check( "RIGHT: the run ends at the right edge", rc.right = panelW, "" & rc.right )
+    tkIconPanel_SetJustify( p, 7 )
+    tkTest_Check( "invalid justify ignored", tkIconPanel_GetJustify( p ) = IP_JUSTIFY_RIGHT )
+    tkWidget_SetSize( p, expTotal - tkHost_Scale( h, 30 ), panelH )
+    tkIconPanel_GetItemRect( p, 0, rc )
+    tkTest_Check( "overflow degrades to LEFT", rc.left = 0, "" & rc.left )
+    tkIconPanel_GetItemRect( p, I_SETTINGS, rc )
+    tkTest_Check( "overflow: rects honest, tail past the edge", rc.right = expTotal, "" & rc.right )
+    tkIconPanel_SetJustify( p, IP_JUSTIFY_LEFT )
+    tkWidget_SetSize( p, panelW, panelH )
+
+    tkTest_Check( "HitTest: a separator is not a target", tkIconPanel_HitTest( p, cellN * 2 + cellS \ 2, panelH \ 2 ) = -1 )
+    tkTest_Check( "HitTest: a disabled item IS reported", tkIconPanel_HitTest( p, cint( ItemCX( p, I_DELETE ) ) - p->x, panelH \ 2 ) = I_DELETE )
+    tkTest_Check( "HitTest: empty space -1", tkIconPanel_HitTest( p, panelW - 2, panelH \ 2 ) = -1 )
+    tkTest_Check( "FindItemByID skips separators (id 0)", tkIconPanel_FindItemByID( p, 0 ) = -1 andalso tkIconPanel_FindItemByID( p, 22 ) = I_RO )
+    tkTest_Check( "GetItemKind", tkIconPanel_GetItemKind( p, I_SEP2 ) = IP_KIND_SEPARATOR andalso tkIconPanel_GetItemKind( p, 99 ) = -1 )
+
+    ' ---- B: gestures through the real dispatch -----------------------------------------
+    tkHost_Pump( h )
+    gClicks = 0 : gSelChanges = 0
+    tkTest_PushMotion( h, ItemCX( p, I_SAVE ), ItemCY( p, I_SAVE ) )
+    tkTest_Check( "hover: item hot", tkIconPanel_GetHotItem( p ) = I_SAVE )
+    tkTest_Check( "hover: tip tool index follows the item", tkTooltip_GetToolIndex( tkIconPanel_GetTooltipHandle( p ) ) = I_SAVE )
+    tkTest_PushButton( h, true, ItemCX( p, I_SAVE ), ItemCY( p, I_SAVE ) )
+    tkTest_Check( "press takes capture", tkHost_GetCapture( h ) = p )
+    tkTest_Check( "press arms the item", tkIconPanel_GetPressedItem( p ) = I_SAVE )
+    tkTest_Check( "press never takes focus", tkHost_GetFocus( h ) = 0 )
+    tkTest_PushButton( h, false, ItemCX( p, I_SAVE ), ItemCY( p, I_SAVE ) )
+    tkTest_Check( "COMMAND click on matched release", gClicks = 1 andalso gLastIdx = I_SAVE andalso gLastId = 11, gClicks & " " & gLastIdx & " " & gLastId )
+    tkTest_Check( "capture released (callback TRUE on up ignored)", tkHost_GetCapture( h ) = 0 )
+    tkTest_Check( "a command never latches", tkIconPanel_GetSelected( p, I_SAVE ) = false )
+
+    tkTest_Click( h, ItemCX( p, I_FAV ), ItemCY( p, I_FAV ) )
+    tkTest_Check( "TOGGLE click latches + SelChange", gSelChanges = 1 andalso gLastIdx = I_FAV andalso gLastSel = 1 andalso tkIconPanel_GetSelected( p, I_FAV ), "" & gSelChanges )
+    tkTest_Check( "SelChange fires AFTER the state update", gStateAgrees )
+    tkTest_Check( "a toggle fires no Click", gClicks = 1 )
+    tkTest_Click( h, ItemCX( p, I_FAV ), ItemCY( p, I_FAV ) )
+    tkTest_Check( "second click unlatches (no double-click swallowing)", gSelChanges = 2 andalso gLastSel = 0 andalso tkIconPanel_GetSelected( p, I_FAV ) = false )
+    tkTest_Click( h, ItemCX( p, I_FAV ), ItemCY( p, I_FAV ), SDL_BUTTON_LEFT, 2 )
+    tkTest_Check( "a clicks=2 press still toggles", gSelChanges = 3 andalso tkIconPanel_GetSelected( p, I_FAV ) )
+
+    ' press, slide off, release: nothing
+    gClicks = 0
+    tkTest_PushButton( h, true, ItemCX( p, I_REFRESH ), ItemCY( p, I_REFRESH ) )
+    tkTest_PushMotion( h, ItemCX( p, I_RO ), ItemCY( p, I_RO ) )
+    tkTest_Check( "slide off: capture KEPT", tkHost_GetCapture( h ) = p )
+    tkTest_Check( "slide off: not hot on the pressed item", tkIconPanel_GetHotItem( p ) <> I_REFRESH )
+    tkTest_PushButton( h, false, ItemCX( p, I_RO ), ItemCY( p, I_RO ) )
+    tkTest_Check( "release on another item: nothing", gClicks = 0 andalso tkIconPanel_GetSelected( p, I_RO ) = false )
+    ' press, slide off the panel, slide back, release: click
+    tkTest_PushButton( h, true, ItemCX( p, I_REFRESH ), ItemCY( p, I_REFRESH ) )
+    tkTest_PushMotion( h, ItemCX( p, I_REFRESH ), p->y + panelH + tkHost_Scale( h, 50 ) )
+    tkTest_Check( "outside the client: no hot item", tkIconPanel_GetHotItem( p ) = -1 )
+    tkTest_PushMotion( h, ItemCX( p, I_REFRESH ), ItemCY( p, I_REFRESH ) )
+    tkTest_PushButton( h, false, ItemCX( p, I_REFRESH ), ItemCY( p, I_REFRESH ) )
+    tkTest_Check( "slide back re-arms: click", gClicks = 1 andalso gLastId = 12, "" & gClicks )
+
+    ' disabled and separator swallow
+    gClicks = 0
+    tkTest_PushMotion( h, ItemCX( p, I_DELETE ), ItemCY( p, I_DELETE ) )
+    tkTest_Check( "disabled: never hot", tkIconPanel_GetHotItem( p ) = -1 )
+    tkTest_PushButton( h, true, ItemCX( p, I_DELETE ), ItemCY( p, I_DELETE ) )
+    tkTest_Check( "disabled: no capture", tkHost_GetCapture( h ) = 0 )
+    tkTest_PushButton( h, false, ItemCX( p, I_DELETE ), ItemCY( p, I_DELETE ) )
+    tkTest_Click( h, ItemCX( p, I_SEP1 ), ItemCY( p, I_SEP1 ) )
+    tkTest_Check( "disabled and separator: no click", gClicks = 0 )
+
+    ' disabling the pressed item cancels the press
+    tkTest_PushButton( h, true, ItemCX( p, I_SAVE ), ItemCY( p, I_SAVE ) )
+    tkIconPanel_SetEnabled( p, I_SAVE, false )
+    tkTest_Check( "disable under a press cancels it", tkIconPanel_GetPressedItem( p ) = -1 )
+    tkTest_PushButton( h, false, ItemCX( p, I_SAVE ), ItemCY( p, I_SAVE ) )
+    tkTest_Check( "...and the release does nothing", gClicks = 0 )
+    tkIconPanel_SetEnabled( p, I_SAVE, true )
+
+    ' capture lost to deactivation
+    tkTest_PushButton( h, true, ItemCX( p, I_SAVE ), ItemCY( p, I_SAVE ) )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_FOCUS_LOST )
+    tkTest_Check( "focus lost: capture gone, press cancelled", tkHost_GetCapture( h ) = 0 andalso tkIconPanel_GetPressedItem( p ) = -1 )
+    tkTest_PushButton( h, false, ItemCX( p, I_SAVE ), ItemCY( p, I_SAVE ) )
+    tkTest_Check( "release after cancelled press: nothing", gClicks = 0 )
+
+    ' the message callback: suppress the down; right button reported only
+    gSuppressDown = true
+    tkTest_PushButton( h, true, ItemCX( p, I_SAVE ), ItemCY( p, I_SAVE ) )
+    tkTest_Check( "suppressed down: no capture", tkHost_GetCapture( h ) = 0 )
+    tkTest_PushButton( h, false, ItemCX( p, I_SAVE ), ItemCY( p, I_SAVE ) )
+    tkTest_Check( "suppressed down: no click", gClicks = 0 )
+    gSuppressDown = false
+    gRClicks = 0
+    tkTest_Click( h, ItemCX( p, I_RO ), ItemCY( p, I_RO ), SDL_BUTTON_RIGHT )
+    tkTest_Check( "right click reported with idx, never acted on", gRClicks = 1 andalso gLastIdx = I_RO andalso tkIconPanel_GetSelected( p, I_RO ) = false andalso tkHost_GetCapture( h ) = 0 )
+
+    ' window leave clears hot
+    tkTest_PushMotion( h, ItemCX( p, I_SAVE ), ItemCY( p, I_SAVE ) )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+    tkTest_Check( "window leave clears hot", tkIconPanel_GetHotItem( p ) = -1 )
+
+    ' ---- C: setters are silent ------------------------------------------------------------
+    gClicks = 0 : gSelChanges = 0
+    tkTest_Check( "SetSelected latches", tkIconPanel_SetSelected( p, I_RO, true ) andalso tkIconPanel_GetSelected( p, I_RO ) )
+    tkTest_Check( "SetSelected no-op returns TRUE", tkIconPanel_SetSelected( p, I_RO, true ) )
+    tkTest_Check( "SetSelected refuses a command / separator", tkIconPanel_SetSelected( p, I_SAVE, true ) = false andalso tkIconPanel_SetSelected( p, I_SEP1, true ) = false )
+    tkIconPanel_SelectExclusive( p, I_FIND )
+    tkTest_Check( "SelectExclusive: one toggle latched", tkIconPanel_GetSelected( p, I_FIND ) andalso tkIconPanel_GetSelected( p, I_RO ) = false andalso tkIconPanel_GetSelected( p, I_FAV ) = false )
+    tkIconPanel_SetGlyph( p, I_SAVE, wchr( &hE74E ) ) : tkIconPanel_SetEnabled( p, I_REFRESH, false ) : tkIconPanel_SetEnabled( p, I_REFRESH, true )
+    tkTest_Check( "setters are silent", gClicks = 0 andalso gSelChanges = 0 )
+    tkTest_Check( "set calls on a bad index return FALSE", tkIconPanel_SetGlyph( p, 99, "x" ) = false andalso tkIconPanel_SetItemID( p, -1, 1 ) = false )
+    tkTest_Check( "ItemID / ItemData round-trip", tkIconPanel_SetItemData( p, I_SAVE, 777 ) andalso tkIconPanel_GetItemData( p, I_SAVE ) = 777 andalso tkIconPanel_GetItemID( p, I_SAVE ) = 11 )
+
+    ' ---- D: pixels --------------------------------------------------------------------------
+    tkIconPanel_SetSelected( p, I_FIND, false ) : tkIconPanel_SetSelected( p, I_FAV, true )
+    dim as TKICONPANEL_COLORS cc
+    tkIconPanel_GetColors( p, @cc )
+    tkTest_PushMotion( h, ItemCX( p, I_RO ), ItemCY( p, I_RO ) )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "pixel: latched toggle fills BackColorSelect", CellPixel( h, p, I_FAV ) = cc.BackColorSelect, hex( CellPixel( h, p, I_FAV ) ) )
+    tkTest_Check( "pixel: hot cell fills BackColorHot", CellPixel( h, p, I_RO ) = cc.BackColorHot, hex( CellPixel( h, p, I_RO ) ) )
+    tkTest_Check( "pixel: idle cell fills BackColor", CellPixel( h, p, I_SAVE ) = cc.BackColor, hex( CellPixel( h, p, I_SAVE ) ) )
+    tkIconPanel_GetItemIconRect( p, I_SEP1, rci )
+    tkTest_Check( "pixel: the separator rule", tkTest_PixelAt( h, p->x + rci.left, p->y + (rci.top + rci.bottom) \ 2 ) = cc.SeparatorColor )
+    tkIconPanel_GetItemIconRect( p, I_SAVE, rci )
+    dim as ulong c0
+    tkTest_Check( "pixel: the glyph is drawn (> 2 tones)", tkTest_TonesIn( h, p->x + rci.left, p->y + rci.top, rci.right - rci.left, rci.bottom - rci.top, c0 ) > 2 )
+    ' per-item fore colour only on the idle rung: the glyph of REFRESH contains it
+    tkIconPanel_GetItemIconRect( p, I_REFRESH, rci )
+    dim as boolean bGreen = false
+    for yy as long = rci.top to rci.bottom - 1
+        for xx as long = rci.left to rci.right - 1
+            if tkTest_PixelAt( h, p->x + xx, p->y + yy ) = tkRGB( 126, 190, 126 ) then bGreen = true : exit for
+        next
+        if bGreen then exit for
+    next
+    tkTest_Check( "pixel: per-item idle fore colour", bGreen )
+
+    ' marker (PsPlatform): a rule under the latched cell, fill off
+    tkIconPanel_SetMarker( p, tkHost_Scale( h, 3 ), false )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+    tkHost_RenderTo( h, false )
+    dim as TKRECT rm
+    tkIconPanel_GetMarkerRect( p, I_FAV, rm )
+    tkIconPanel_GetItemRect( p, I_FAV, rc )
+    tkTest_Check( "marker: a row underlines", rm.bottom = rc.bottom andalso (rm.bottom - rm.top) = tkHost_Scale( h, 3 ) andalso rm.left = rc.left andalso rm.right = rc.right, tkRect_Str( rm ) )
+    tkTest_Check( "pixel: marker in MarkerColor", tkTest_PixelAt( h, p->x + (rm.left + rm.right) \ 2, p->y + rm.top ) = cc.MarkerColor )
+    tkTest_Check( "pixel: fill off keeps BackColor", CellPixel( h, p, I_FAV ) = cc.BackColor )
+    tkIconPanel_SetMarker( p, 0, true )
+
+    ' ---- E: the column mode (PsPlatform) ----------------------------------------------
+    dim as TK_WIDGET ptr v = tkIconPanel_Create( tkHost_Root( h ), 102 )
+    tkIconPanel_SetVertical( v, true )
+    tkIconPanel_AddItem( v, IP_KIND_TOGGLE, wchr( &hE8A5 ), 1 )
+    tkIconPanel_AddSeparator( v )
+    tkIconPanel_AddItem( v, IP_KIND_TOGGLE, wchr( &hE721 ), 2 )
+    tkTest_Check( "column: ideal height = summed cells", tkIconPanel_GetIdealHeight( v ) = 2 * cellN + cellS, "" & tkIconPanel_GetIdealHeight( v ) )
+    tkTest_Check( "column: ideal width = the icon", tkIconPanel_GetIdealWidth( v ) = iw, "" & tkIconPanel_GetIdealWidth( v ) )
+    dim as long vw = tkHost_Scale( h, 48 ), vh = tkHost_Scale( h, 200 )
+    tkWidget_SetPos( v, tkHost_Scale( h, 500 ), tkHost_Scale( h, 100 ), vw, vh )
+    tkIconPanel_GetItemRect( v, 2, rc ) : tkIconPanel_GetItemIconRect( v, 2, rci )
+    tkTest_Check( "column: cells stack, full client width", rc.left = 0 andalso rc.right = vw andalso rc.top = cellN + cellS andalso rc.bottom = 2 * cellN + cellS, tkRect_Str( rc ) )
+    tkTest_Check( "column: icon centred across, padBefore down", rci.left = (vw - iw) \ 2 andalso rci.top = rc.top + pb, tkRect_Str( rci ) )
+    tkIconPanel_GetItemIconRect( v, 1, rci )
+    tkTest_Check( "column: separator rule lies flat", (rci.bottom - rci.top) = sw andalso (rci.right - rci.left) = iw, tkRect_Str( rci ) )
+    tkIconPanel_SetJustify( v, IP_JUSTIFY_RIGHT )
+    tkIconPanel_GetItemRect( v, 2, rc )
+    tkTest_Check( "column: RIGHT justifies to the bottom", rc.bottom = vh, "" & rc.bottom )
+    tkIconPanel_SetMarker( v, tkHost_Scale( h, 3 ) )
+    tkIconPanel_GetMarkerRect( v, 0, rm )
+    tkIconPanel_GetItemRect( v, 0, rc )
+    tkTest_Check( "column: the marker runs down the left edge", rm.left = 0 andalso (rm.right - rm.left) = tkHost_Scale( h, 3 ) andalso rm.top = rc.top andalso rm.bottom = rc.bottom, tkRect_Str( rm ) )
+    gSelChanges = 0
+    tkTest_Click( h, tkTest_CX( v ) , v->y + (rc.top + rc.bottom) \ 2 )
+    tkTest_Check( "column: click latches", gSelChanges = 0 andalso tkIconPanel_GetSelected( v, 0 ) )
+
+    ' ---- F: images ---------------------------------------------------------------------
+    dim as string imgPath = exepath() & "/selftest_icon.bmp"
+    MakeChecker( imgPath )
+    tkTest_Check( "SetImage loads, clears the glyph", tkIconPanel_SetImage( p, I_SAVE, imgPath ) andalso tkIconPanel_GetGlyph( p, I_SAVE ) = "" )
+    dim as long w0 = tkIconPanel_GetIdealWidth( p )
+    tkTest_Check( "an image changes no geometry", w0 = expTotal )
+    tkHost_RenderTo( h, false )
+    tkIconPanel_GetItemIconRect( p, I_SAVE, rci )
+    dim as ulong pc = tkTest_PixelAt( h, p->x + rci.left + 2, p->y + rci.top + 2 )
+    tkTest_Check( "pixel: the image is drawn in rcIcon", pc = &hFF3399EEul, hex( pc ) )
+    tkTest_Check( "SetImage of a missing file: FALSE", tkIconPanel_SetImage( p, I_REFRESH, exepath() & "/no-such.png" ) = false )
+    tkTest_Check( "SetGlyph frees the image", tkIconPanel_SetGlyph( p, I_SAVE, wchr( &hE74E ) ) )
+    tkHost_RenderTo( h, false )
+    pc = tkTest_PixelAt( h, p->x + rci.left + 2, p->y + rci.top + 2 )
+    tkTest_Check( "pixel: glyph back, image gone", pc <> &hFF3399EEul, hex( pc ) )
+    tkTest_Check( "SetImage '' removes: TRUE", tkIconPanel_SetImage( p, I_SAVE, "" ) )
+
+    ' ---- G: theme and pinning ----------------------------------------------------------------
+    dim as TK_WIDGET ptr q = tkIconPanel_Create( tkHost_Root( h ), 103 )
+    dim as TKICONPANEL_COLORS pin
+    tkIconPanel_GetColors( q, @pin )
+    pin.BackColor = &hFFFF0000ul
+    tkIconPanel_SetColors( q, @pin )
+    tkTheme_Apply( tkTheme_Light() )
+    tkIconPanel_GetColors( p, @cc )
+    tkTest_Check( "theme reaches an unpinned panel", cc.BackColor = tkTheme_Light().Window andalso cc.BackColorSelect = tkTheme_Light().Selected andalso cc.MarkerColor = tkTheme_Light().Accent )
+    tkIconPanel_GetColors( q, @cc )
+    tkTest_Check( "SetColors pins", cc.BackColor = &hFFFF0000ul )
+    tkIconPanel_UnpinColors( q )
+    tkIconPanel_GetColors( q, @cc )
+    tkTest_Check( "unpin hands it back to the theme", cc.BackColor = tkTheme_Light().Window )
+    tkTheme_Apply( tkTheme_Dark() )
+    tkIconPanel_GetColors( p, @cc )
+    tkTest_Check( "dark preset = the struct defaults", cc.BackColor = &hFF21252Bul andalso cc.ForeColor = tkTheme_Dark().Text )
+
+    ' ---- H: tooltips are per item ---------------------------------------------------------
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 400 )
+    tkIconPanel_SetHoverTime( p, 150 )
+    dim as TK_TIP ptr tp = tkIconPanel_GetTooltipHandle( p )
+    tkTest_Check( "the tooltip handle is the panel's", tp <> 0 andalso tkTooltip_GetAttached( tp ) = p )
+    gTipAsks = 0
+    tkTest_PushMotion( h, ItemCX( p, I_SETTINGS ), ItemCY( p, I_SETTINGS ) )
+    tkTest_Check( "tip appears for an item with no text (callback)", WaitTip( h, tp, true, 1500 ) )
+    tkTest_Check( "the callback was asked for THAT item", gTipAsks > 0 andalso gTipIdx = I_SETTINGS, gTipAsks & " " & gTipIdx )
+    tkTest_PushMotion( h, ItemCX( p, I_RO ), ItemCY( p, I_RO ) )
+    tkTest_Check( "moving to another item hides the tip at once", tkTooltip_IsVisible( tp ) = false )
+    gTipAsks = 0
+    tkTest_Check( "own text: tip appears", WaitTip( h, tp, true, 1500 ) )
+    tkTest_Check( "own text: callback not consulted", gTipAsks = 0, "" & gTipAsks )
+    tkTest_PushMotion( h, 2, 2 )
+    tkTest_Check( "tip hides on leave", WaitTip( h, tp, false, 800 ) )
+
+    ' ---- I: rescale ------------------------------------------------------------------------
+    dim as long ow, oh
+    tkIconPanel_GetIconSize( p, ow, oh )
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    dim as long nw, nh
+    tkIconPanel_GetIconSize( p, nw, nh )
+    tkTest_Check( "rescale: icon cell x2", nw = cint( ow * 2 ), ow & " -> " & nw )
+    tkIconPanel_GetItemIconRect( p, I_SETTINGS, rci )
+    tkTest_Check( "rescale: a per-item override x2", (rci.right - rci.left) = big * 2, "" & (rci.right - rci.left) )
+    dim as long w2 = tkIconPanel_GetIdealWidth( p )
+    tkTest_Check( "rescale: ideal width ~x2", (w2 >= expTotal * 2 - 10) andalso (w2 <= expTotal * 2 + 10), expTotal & " -> " & w2 )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+
+    tkHost_Destroy( h )
+end sub
+
+
+' ==========================================================================================
+if tkTest_Init() = false then end 99
+
+RunPass( 1.0 )
+RunPass( 1.75 )
+
+tkTest_Begin( "cross-pass" )
+tkTest_Check( "ideal width scales with the scale", (gIdealW(0) > 0) andalso (gIdealW(1) > gIdealW(0) * 1.6) andalso (gIdealW(1) < gIdealW(0) * 1.9), gIdealW(0) & " -> " & gIdealW(1) )
+dim as long nFail = tkTest_Report( "tkIconPanel" )
+tkTest_Quit()
+end nFail

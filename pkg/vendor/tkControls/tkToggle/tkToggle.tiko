@@ -1,0 +1,716 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkToggle -- PsToggle on SDL3 + SDL_ttf, a port of pkg/vendor/PsControls/PsToggle/PsToggle.tiko
+' onto tkHost. A rounded pill whose fill follows the state, and a circular knob at the left end
+' (OFF) or the right end (ON). No caption, no font, no tooltip, no animation, no tri-state.
+'
+' WHAT IS UNCHANGED, by design: LayoutToggle and its formulas (the rects are computed honestly,
+' never squeezed), the twenty-field colour struct and its precedence (disabled > hot/pressed >
+' idle, per ON/OFF group), the three callbacks, the press/slide-off/release gesture, Space and
+' Enter taking the same path as a completed click, silent SetChecked, GetIdealSize being valid
+' before the control is sized, and every setter clamp.
+'
+' WHAT IS GONE, because the HWND is gone: WM_GETDLGCODE (the host owns Tab), the WM_CHAR
+' swallow and its bAteKeyDown flag (SDL never beeps), the 100 ms hover poll (the host
+' GUARANTEES the leave), WM_ERASEBKGND, CS_DBLCLKS, PsRegistry. See PORT.md.
+#module "tkToggle"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+using tkHost
+using tkPaint
+using tkTheme
+
+' Where the pill sits horizontally when the control is wider than the pill needs. It is
+' ALWAYS vertically centred.
+public enum
+    TOG_JUSTIFY_LEFT = 0
+    TOG_JUSTIFY_CENTER
+    TOG_JUSTIFY_RIGHT
+end enum
+
+' The four SIZE values are scaled at create; the two THICKNESS values never are.
+public const as long TKTOGGLE_DEFAULT_TRACKW      = 40
+public const as long TKTOGGLE_DEFAULT_TRACKH      = 20
+public const as long TKTOGGLE_DEFAULT_KNOBINSET   = 2
+public const as long TKTOGGLE_DEFAULT_BORDERTHICK = 1
+public const as long TKTOGGLE_DEFAULT_FOCUSGAP    = 3
+public const as long TKTOGGLE_DEFAULT_FOCUSTHICK  = 1
+
+' The Win32 control's dark defaults, value for value (COLORREF BGR(r,g,b) -> tkRGB(r,g,b)).
+' The ON pill looks borderless because TrackBorderColorOn* equals TrackColorOn*; the OFF pill
+' reads as an outline. There are no pressed colours: a live press renders as hot.
+public type TKTOGGLE_COLORS
+    BackColor                   as ulong = &hFF21252Bul    ' ( 33, 37, 43) the control's own background
+    FocusRingColor              as ulong = &hFF569CD6ul    ' ( 86,156,214)
+    ' --- checked (ON) ---
+    TrackColorOn                as ulong = &hFF4A6C8Cul    ' ( 74,108,140)
+    TrackColorOnHot             as ulong = &hFF5C84AAul    ' ( 92,132,170)
+    TrackColorOnDisabled        as ulong = &hFF384654ul    ' ( 56, 70, 84)
+    TrackBorderColorOn          as ulong = &hFF4A6C8Cul    ' = TrackColorOn
+    TrackBorderColorOnHot       as ulong = &hFF5C84AAul    ' = TrackColorOnHot
+    TrackBorderColorOnDisabled  as ulong = &hFF384654ul    ' = TrackColorOnDisabled
+    KnobColorOn                 as ulong = &hFFD8DCE2ul    ' (216,220,226)
+    KnobColorOnHot              as ulong = &hFFFFFFFFul
+    KnobColorOnDisabled         as ulong = &hFF787E86ul    ' (120,126,134)
+    ' --- unchecked (OFF) ---
+    TrackColorOff               as ulong = &hFF33373Ful    ' ( 51, 55, 63)
+    TrackColorOffHot            as ulong = &hFF3E434Dul    ' ( 62, 67, 77)
+    TrackColorOffDisabled       as ulong = &hFF2C3037ul    ' ( 44, 48, 55)
+    TrackBorderColorOff         as ulong = &hFF6B7280ul    ' (107,114,128)
+    TrackBorderColorOffHot      as ulong = &hFF8A92A1ul    ' (138,146,161)
+    TrackBorderColorOffDisabled as ulong = &hFF484D56ul    ' ( 72, 77, 86)
+    KnobColorOff                as ulong = &hFF8A9099ul    ' (138,144,153)
+    KnobColorOffHot             as ulong = &hFFB0B6BFul    ' (176,182,191)
+    KnobColorOffDisabled        as ulong = &hFF545961ul    ' ( 84, 89, 97)
+end type
+
+' Everything the painter needs. All three rects are precomputed by LayoutToggle -- never derive
+' the knob from the track by repeating the inset arithmetic.
+public type TKTOGGLE_PAINTINFO
+    hToggle    as TK_WIDGET ptr
+    b          as TK_PAINT ptr          ' the control's paint for this frame (borrowed)
+    rcClient   as TKRECT
+    rcTrack    as TKRECT
+    rcKnob     as TKRECT                ' already at the end the current state calls for
+    rcVisual   as TKRECT                ' rcTrack inflated by the focus-ring band
+    isChecked  as boolean
+    isHot      as boolean
+    isPressed  as boolean               ' a live left press AND the cursor still inside
+    isEnabled  as boolean
+    isFocused  as boolean
+end type
+
+public type TKTOGGLE_MESSAGEINFO
+    hToggle as TK_WIDGET ptr
+    msg     as long                     ' TKM_*
+    x       as single
+    y       as single
+    key     as long
+end type
+
+public type TOG_PaintCallbackSub as sub( byval p as TKTOGGLE_PAINTINFO ptr )
+public type TOG_MessageCallbackFunc as function( byval m as TKTOGGLE_MESSAGEINFO ptr ) as boolean
+public type TOG_CheckChangedCallbackSub as sub( byval hToggle as TK_WIDGET ptr, byval isChecked as boolean )
+
+public type TKTOGGLE_STATE
+    hWin                 as TK_WIDGET ptr
+    id                   as long
+    bColorsPinned        as boolean     ' the host set colours itself: themes leave them alone
+    isChecked            as boolean
+    isEnabled            as boolean = true
+    isHot                as boolean
+    isFocused            as boolean
+    isPressed            as boolean
+    colors               as TKTOGGLE_COLORS
+    nTrackWidth          as long
+    nTrackHeight         as long
+    nKnobInset           as long
+    nBorderThick         as long = TKTOGGLE_DEFAULT_BORDERTHICK
+    nFocusGap            as long
+    nFocusThick          as long = TKTOGGLE_DEFAULT_FOCUSTHICK
+    nJustify             as long = TOG_JUSTIFY_CENTER
+    rcTrack              as TKRECT
+    rcKnob               as TKRECT
+    rcVisual             as TKRECT
+    bLayoutDirty         as boolean = true
+    PaintCallback        as TOG_PaintCallbackSub
+    MessageCallback      as TOG_MessageCallbackFunc
+    CheckChangedCallback as TOG_CheckChangedCallbackSub
+
+    declare sub      LayoutToggle()
+    declare function RingPad() as long
+    declare function KnobDiameter() as long
+    declare sub      CancelPress()
+    declare sub      Refresh()
+end type
+
+
+function TKTOGGLE_STATE.RingPad() as long
+    return this.nFocusGap + this.nFocusThick
+end function
+
+' Follows the track HEIGHT and the inset, never the width; floored at 1.
+function TKTOGGLE_STATE.KnobDiameter() as long
+    dim as long dia = this.nTrackHeight - (2 * this.nKnobInset)
+    if dia < 1 then dia = 1
+    return dia
+end function
+
+sub TKTOGGLE_STATE.CancelPress()
+    this.isPressed = false
+end sub
+
+sub TKTOGGLE_STATE.Refresh()
+    this.bLayoutDirty = true
+    tkWidget_Invalidate( this.hWin )
+end sub
+
+' The Win32 LayoutToggle, formula for formula (README "Geometry is derived"). No measuring:
+' nothing about this control's geometry depends on a font.
+sub TKTOGGLE_STATE.LayoutToggle()
+    this.bLayoutDirty = false
+    if this.hWin = 0 then exit sub
+    dim as long clientW = this.hWin->cw
+    dim as long clientH = this.hWin->ch
+    if (clientW <= 0) orelse (clientH <= 0) then
+        this.bLayoutDirty = true
+        exit sub
+    end if
+
+    dim as long nRingPad = this.RingPad()
+    dim as long knobDia  = this.KnobDiameter()
+    dim as long visualW  = this.nTrackWidth + (2 * nRingPad)
+
+    ' LEFT, which is also the overflow fallback.
+    dim as long x = nRingPad
+    if visualW < clientW then
+        select case this.nJustify
+        case TOG_JUSTIFY_CENTER
+            x = (clientW - this.nTrackWidth) \ 2
+        case TOG_JUSTIFY_RIGHT
+            x = clientW - nRingPad - this.nTrackWidth
+        end select
+    end if
+    dim as long y = (clientH - this.nTrackHeight) \ 2
+
+    tkRect_Set( this.rcTrack, x, y, x + this.nTrackWidth, y + this.nTrackHeight )
+
+    dim as long knobX = this.rcTrack.left + this.nKnobInset
+    if this.isChecked then knobX = this.rcTrack.right - this.nKnobInset - knobDia
+    dim as long knobY = this.rcTrack.top + this.nKnobInset
+    tkRect_Set( this.rcKnob, knobX, knobY, knobX + knobDia, knobY + knobDia )
+
+    this.rcVisual = this.rcTrack
+    tkRect_Inflate( this.rcVisual, nRingPad, nRingPad )
+end sub
+
+
+private function GetTogglePointer( byval hToggle as TK_WIDGET ptr ) as TKTOGGLE_STATE ptr
+    if hToggle = 0 then return 0
+    return cast( TKTOGGLE_STATE ptr, hToggle->pData )
+end function
+
+private function tkToggle_CallMessage( byval pTog as TKTOGGLE_STATE ptr, byval m as TK_MSG ptr ) as boolean
+    if (pTog = 0) orelse (pTog->MessageCallback = 0) then return false
+    dim as TKTOGGLE_MESSAGEINFO mi
+    mi.hToggle = pTog->hWin
+    mi.msg = m->msg
+    mi.x = m->x
+    mi.y = m->y
+    mi.key = m->key
+    return pTog->MessageCallback( @mi )
+end function
+
+' The three colours for this frame. Precedence: disabled > hot/pressed > idle, inside whichever
+' state group (ON / OFF) applies.
+private sub tkToggle_ResolveColors( byval pColors as TKTOGGLE_COLORS ptr, byval p as TKTOGGLE_PAINTINFO ptr, _
+                                    byref clrTrack as ulong, byref clrBorder as ulong, byref clrKnob as ulong )
+    with *pColors
+        if p->isEnabled = false then
+            if p->isChecked then
+                clrTrack = .TrackColorOnDisabled : clrBorder = .TrackBorderColorOnDisabled : clrKnob = .KnobColorOnDisabled
+            else
+                clrTrack = .TrackColorOffDisabled : clrBorder = .TrackBorderColorOffDisabled : clrKnob = .KnobColorOffDisabled
+            end if
+        elseif p->isHot orelse p->isPressed then
+            if p->isChecked then
+                clrTrack = .TrackColorOnHot : clrBorder = .TrackBorderColorOnHot : clrKnob = .KnobColorOnHot
+            else
+                clrTrack = .TrackColorOffHot : clrBorder = .TrackBorderColorOffHot : clrKnob = .KnobColorOffHot
+            end if
+        else
+            if p->isChecked then
+                clrTrack = .TrackColorOn : clrBorder = .TrackBorderColorOn : clrKnob = .KnobColorOn
+            else
+                clrTrack = .TrackColorOff : clrBorder = .TrackBorderColorOff : clrKnob = .KnobColorOff
+            end if
+        end if
+    end with
+end sub
+
+private sub tkToggle_RenderDefault( byval pTog as TKTOGGLE_STATE ptr, byval b as TK_PAINT ptr, byval p as TKTOGGLE_PAINTINFO ptr )
+    if (pTog = 0) orelse (b = 0) orelse (p = 0) then exit sub
+    if tkRect_IsEmpty( p->rcVisual ) then exit sub
+
+    dim as ulong clrTrack, clrBorder, clrKnob
+    tkToggle_ResolveColors( @pTog->colors, p, clrTrack, clrBorder, clrKnob )
+
+    ' A corner DIAMETER equal to the rect's own height makes both ends exact semicircles.
+    dim as TKRECT rcT = p->rcTrack
+    dim as long ell = rcT.bottom - rcT.top
+    b->SetBackColor( clrTrack )
+    if pTog->nBorderThick > 0 then
+        b->SetPenColor( clrBorder )
+        b->PaintRoundBorderRect( @rcT, ell, pTog->nBorderThick )
+    else
+        b->PaintRoundRect( @rcT, ell )
+    end if
+
+    dim as TKRECT rcK = p->rcKnob
+    b->SetBackColor( clrKnob )
+    b->PaintEllipse( @rcK, 0 )
+
+    ' Outline, never filled: it is drawn OVER the pill.
+    if p->isFocused andalso (pTog->nFocusThick > 0) then
+        dim as TKRECT rcRing = p->rcVisual
+        b->SetPenColor( pTog->colors.FocusRingColor )
+        b->PaintRoundOutline( @rcRing, rcRing.bottom - rcRing.top, pTog->nFocusThick )
+    end if
+end sub
+
+private sub tkToggle_OnPaint( byval pTog as TKTOGGLE_STATE ptr, byval b as TK_PAINT ptr )
+    if pTog->bLayoutDirty then pTog->LayoutToggle()
+    dim as TKTOGGLE_PAINTINFO p
+    p.hToggle = pTog->hWin
+    p.b = b
+    tkRect_Set( p.rcClient, 0, 0, pTog->hWin->cw, pTog->hWin->ch )
+    b->SetBackColor( pTog->colors.BackColor )
+    b->PaintRect( @p.rcClient )
+    p.rcTrack = pTog->rcTrack
+    p.rcKnob = pTog->rcKnob
+    p.rcVisual = pTog->rcVisual
+    p.isChecked = pTog->isChecked
+    p.isHot = pTog->isHot
+    ' "The press is still armed" is exactly "pressed AND the cursor is still inside".
+    p.isPressed = pTog->isPressed andalso pTog->isHot
+    p.isEnabled = pTog->isEnabled
+    p.isFocused = pTog->isFocused
+    if pTog->PaintCallback then
+        pTog->PaintCallback( @p )
+    else
+        tkToggle_RenderDefault( pTog, b, @p )
+    end if
+end sub
+
+' The USER flipped it -- a completed click, or Space/Enter. The one place that notifies, and it
+' notifies LAST, so GetChecked already answers the new state inside the callback.
+private sub tkToggle_ApplyUserToggle( byval pTog as TKTOGGLE_STATE ptr )
+    if (pTog = 0) orelse (pTog->isEnabled = false) then exit sub
+    pTog->isChecked = not pTog->isChecked
+    pTog->Refresh()                    ' the knob moved: rcKnob depends on isChecked
+    if pTog->CheckChangedCallback then pTog->CheckChangedCallback( pTog->hWin, pTog->isChecked )
+end sub
+
+private sub tkToggle_Rescale( byval pTog as TKTOGGLE_STATE ptr, byval fOld as single, byval fNew as single )
+    if (fOld <= 0) orelse (fNew <= 0) orelse (fOld = fNew) then exit sub
+    dim as single k = fNew / fOld
+    pTog->nTrackWidth  = cint( pTog->nTrackWidth * k )
+    pTog->nTrackHeight = cint( pTog->nTrackHeight * k )
+    pTog->nKnobInset   = cint( pTog->nKnobInset * k )
+    pTog->nFocusGap    = cint( pTog->nFocusGap * k )
+    if pTog->nTrackWidth < 1 then pTog->nTrackWidth = 1
+    if pTog->nTrackHeight < 1 then pTog->nTrackHeight = 1
+    pTog->Refresh()
+end sub
+
+private function tkToggle_Inside( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    return (m->x >= 0) andalso (m->x < w->cw) andalso (m->y >= 0) andalso (m->y < w->ch)
+end function
+
+
+public declare sub tkToggle_ApplyTheme( byval hToggle as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+public declare function tkToggle_ThemeColors( byref t as TKTHEME_COLORS ) as TKTOGGLE_COLORS
+
+' The WndProc, case for case where a case survived. Only what CHANGED is commented here; see the
+' Win32 file for the reasoning behind the rest.
+private function tkToggle_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( w )
+    if pTog = 0 then return false
+    dim as TK_HOST ptr h = w->pHost
+
+    select case m->msg
+    case TKM_PAINT
+        tkToggle_OnPaint( pTog, m->pPaint )
+        return true
+
+    case TKM_SIZE
+        pTog->Refresh()
+        return true
+
+    case TKM_SCALECHANGED
+        tkToggle_Rescale( pTog, m->fOld, m->fNew )
+        return true
+
+    case TKM_THEMECHANGED
+        tkToggle_ApplyTheme( w, tkTheme_Get() )
+        return true
+
+    case TKM_MOUSEMOVE
+        if pTog->isEnabled = false then return true
+        ' Under capture moves arrive from anywhere: "over" is a rect test, never assumed.
+        dim as boolean bOver = tkToggle_Inside( w, m )
+        if bOver <> pTog->isHot then
+            pTog->isHot = bOver
+            tkWidget_Invalidate( w )
+        end if
+        tkToggle_CallMessage( pTog, m )
+        return true
+
+    case TKM_MOUSELEAVE
+        if pTog->isPressed = false then
+            if pTog->isHot then
+                pTog->isHot = false
+                tkWidget_Invalidate( w )
+            end if
+        end if
+        tkToggle_CallMessage( pTog, m )
+        return true
+
+    case TKM_LBUTTONDOWN
+        ' m->clicks is deliberately not read: a rapid second click is an ordinary press and
+        ' flips the switch again (vendor's reason for leaving CS_DBLCLKS off).
+        if pTog->isEnabled = false then return true
+        tkHost_SetFocus( h, w )
+        if tkToggle_CallMessage( pTog, m ) then return true
+        tkHost_SetCapture( w )
+        pTog->isPressed = true
+        pTog->isHot = true
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_LBUTTONUP
+        ' SNAPSHOT BEFORE RELEASING: TKM_CAPTURECHANGED arrives synchronously and cancels it.
+        dim as boolean bWasPressed = pTog->isPressed
+        if tkHost_GetCapture( h ) = w then tkHost_ReleaseCapture( h )
+        dim as boolean bInside = tkToggle_Inside( w, m )
+        pTog->CancelPress()
+        ' With capture gone, hot follows reality. Inside counts as hot only when the HOST agrees
+        ' (h->pHot): a press that arrived with no motion before it never made the widget the
+        ' host's hot one, so no leave would ever come to clear it (PORT.md).
+        if (bInside = false) orelse (h->pHot <> w) then pTog->isHot = false
+        tkWidget_Invalidate( w )
+        tkToggle_CallMessage( pTog, m )            ' result IGNORED
+        if bWasPressed andalso bInside then tkToggle_ApplyUserToggle( pTog )
+        return true
+
+    case TKM_CAPTURECHANGED
+        pTog->CancelPress()
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_RBUTTONDOWN, TKM_RBUTTONUP
+        tkToggle_CallMessage( pTog, m )            ' reported, never acted on
+        return true
+
+    case TKM_SETFOCUS, TKM_KILLFOCUS
+        dim as boolean bFocused = (m->msg = TKM_SETFOCUS)
+        if bFocused <> pTog->isFocused then
+            pTog->isFocused = bFocused
+            tkWidget_Invalidate( w )
+        end if
+        tkToggle_CallMessage( pTog, m )            ' result IGNORED: focus is a fact
+        return true
+
+    case TKM_KEYDOWN
+        if pTog->isEnabled = false then return false
+        select case m->key
+        case SDLK_SPACE, SDLK_RETURN, SDLK_KP_ENTER
+        case else
+            ' Unclaimed (arrows included). Reported, but the result is IGNORED: under Win32 the
+            ' dialog manager took Tab before the control saw it, so no callback could eat it.
+            tkToggle_CallMessage( pTog, m )
+            return false
+        end select
+        if tkToggle_CallMessage( pTog, m ) then return true
+        ' A held key auto-repeats; the Win32 control re-flipped at the typematic rate. Claimed,
+        ' not acted on (PORT.md, vendor bugs).
+        if m->bFlag then return true
+        tkToggle_ApplyUserToggle( pTog )
+        return true
+
+    case TKM_ENABLE
+        pTog->isEnabled = m->bFlag
+        if pTog->isEnabled = false then
+            pTog->isHot = false
+            pTog->CancelPress()
+        end if
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_SHOW
+        ' The host released capture and dropped hot without a leave; forget both here.
+        if m->bFlag = false then
+            pTog->isHot = false
+            pTog->CancelPress()
+        end if
+        return true
+
+    case TKM_DESTROY
+        delete pTog
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ========================================================================================
+' Public API -- the Win32 surface, HWND replaced by the widget pointer.
+' ========================================================================================
+' A child of hParent -- a widget, or tkHost_Root( h ) for a top-level toggle. Created 0x0:
+' size it from GetIdealSize, place it with tkWidget_SetPos.
+public function tkToggle_Create( byval hParent as TK_WIDGET ptr, byval ctrlId as long ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TK_HOST ptr pHost = hParent->pHost
+    dim as TKTOGGLE_STATE ptr pTog = new TKTOGGLE_STATE
+    pTog->id = ctrlId
+    pTog->nTrackWidth  = tkHost_Scale( pHost, TKTOGGLE_DEFAULT_TRACKW )
+    pTog->nTrackHeight = tkHost_Scale( pHost, TKTOGGLE_DEFAULT_TRACKH )
+    pTog->nKnobInset   = tkHost_Scale( pHost, TKTOGGLE_DEFAULT_KNOBINSET )
+    pTog->nFocusGap    = tkHost_Scale( pHost, TKTOGGLE_DEFAULT_FOCUSGAP )
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, ctrlId, @tkToggle_Proc, pTog )
+    w->isFocusable = true
+    pTog->hWin = w
+    pTog->colors = tkToggle_ThemeColors( tkTheme_Get() )
+    return w
+end function
+
+' ---- state ---------------------------------------------------------------------------------
+public function tkToggle_GetChecked( byval hToggle as TK_WIDGET ptr ) as boolean
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if pTog = 0 then return false
+    return pTog->isChecked
+end function
+
+' SILENT: the change callback fires only for user interaction.
+public sub tkToggle_SetChecked( byval hToggle as TK_WIDGET ptr, byval isChecked as boolean )
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if (pTog = 0) orelse (pTog->isChecked = isChecked) then exit sub
+    pTog->isChecked = isChecked
+    pTog->Refresh()
+end sub
+
+public function tkToggle_GetEnabled( byval hToggle as TK_WIDGET ptr ) as boolean
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if pTog = 0 then return false
+    return pTog->isEnabled
+end function
+
+' tkWidget_Enable: input really stops, Tab skips it, capture/focus/hot go at once (TKM_ENABLE).
+public sub tkToggle_SetEnabled( byval hToggle as TK_WIDGET ptr, byval isEnabled as boolean )
+    if hToggle then tkWidget_Enable( hToggle, isEnabled )
+end sub
+
+public function tkToggle_GetFocused( byval hToggle as TK_WIDGET ptr ) as boolean
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if pTog = 0 then return false
+    return pTog->isFocused
+end function
+
+public sub tkToggle_Refresh( byval hToggle as TK_WIDGET ptr )
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if pTog then pTog->Refresh()
+end sub
+
+' Test probes (tkButton has the same pair).
+public function tkToggle_GetHot( byval hToggle as TK_WIDGET ptr ) as boolean
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if pTog = 0 then return false
+    return pTog->isHot
+end function
+
+public function tkToggle_GetPressed( byval hToggle as TK_WIDGET ptr ) as boolean
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if pTog = 0 then return false
+    return pTog->isPressed
+end function
+
+public function tkToggle_GetID( byval hToggle as TK_WIDGET ptr ) as long
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if pTog = 0 then return 0
+    return pTog->id
+end function
+
+' ---- layout: raw pixels, the caller scales --------------------------------------------------
+public sub tkToggle_GetTrackSize( byval hToggle as TK_WIDGET ptr, byref nTrackWidth as long, byref nTrackHeight as long )
+    nTrackWidth = 0 : nTrackHeight = 0
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if pTog = 0 then exit sub
+    nTrackWidth = pTog->nTrackWidth : nTrackHeight = pTog->nTrackHeight
+end sub
+
+public sub tkToggle_SetTrackSize( byval hToggle as TK_WIDGET ptr, byval nTrackWidth as long, byval nTrackHeight as long )
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if pTog = 0 then exit sub
+    pTog->nTrackWidth = iif( nTrackWidth < 1, 1, nTrackWidth )
+    pTog->nTrackHeight = iif( nTrackHeight < 1, 1, nTrackHeight )
+    pTog->Refresh()
+end sub
+
+public function tkToggle_GetKnobInset( byval hToggle as TK_WIDGET ptr ) as long
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if pTog = 0 then return 0
+    return pTog->nKnobInset
+end function
+
+public sub tkToggle_SetKnobInset( byval hToggle as TK_WIDGET ptr, byval nKnobInset as long )
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if pTog = 0 then exit sub
+    pTog->nKnobInset = iif( nKnobInset < 0, 0, nKnobInset )
+    pTog->Refresh()
+end sub
+
+public function tkToggle_GetBorderThickness( byval hToggle as TK_WIDGET ptr ) as long
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if pTog = 0 then return 0
+    return pTog->nBorderThick
+end function
+
+' Repaints, never re-lays-out: the border is drawn inside the track. 0 = no border.
+public sub tkToggle_SetBorderThickness( byval hToggle as TK_WIDGET ptr, byval nThickness as long )
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if pTog = 0 then exit sub
+    pTog->nBorderThick = iif( nThickness < 0, 0, nThickness )
+    tkWidget_Invalidate( hToggle )
+end sub
+
+public sub tkToggle_GetFocusRing( byval hToggle as TK_WIDGET ptr, byref nGap as long, byref nThickness as long )
+    nGap = 0 : nThickness = 0
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if pTog = 0 then exit sub
+    nGap = pTog->nFocusGap : nThickness = pTog->nFocusThick
+end sub
+
+' Both change the ideal size: the band is reserved whether or not the control has focus.
+public sub tkToggle_SetFocusRing( byval hToggle as TK_WIDGET ptr, byval nGap as long, byval nThickness as long )
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if pTog = 0 then exit sub
+    pTog->nFocusGap = iif( nGap < 0, 0, nGap )
+    pTog->nFocusThick = iif( nThickness < 0, 0, nThickness )
+    pTog->Refresh()
+end sub
+
+public function tkToggle_GetJustify( byval hToggle as TK_WIDGET ptr ) as long
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if pTog = 0 then return TOG_JUSTIFY_CENTER
+    return pTog->nJustify
+end function
+
+' Values outside the three constants are ignored.
+public sub tkToggle_SetJustify( byval hToggle as TK_WIDGET ptr, byval nJustify as long )
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if pTog = 0 then exit sub
+    select case nJustify
+    case TOG_JUSTIFY_LEFT, TOG_JUSTIFY_CENTER, TOG_JUSTIFY_RIGHT
+        pTog->nJustify = nJustify
+        pTog->Refresh()
+    end select
+end sub
+
+' (trackW + 2*ringPad) x (trackH + 2*ringPad), from the scalars: valid before sizing.
+public sub tkToggle_GetIdealSize( byval hToggle as TK_WIDGET ptr, byref nWidth as long, byref nHeight as long )
+    nWidth = 0 : nHeight = 0
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if pTog = 0 then exit sub
+    dim as long nRingPad = pTog->RingPad()
+    nWidth = pTog->nTrackWidth + (2 * nRingPad)
+    nHeight = pTog->nTrackHeight + (2 * nRingPad)
+end sub
+
+' 0 track, 1 knob, 2 visual. FALSE (rc empty) while the control has no client area.
+private function GetPart( byval hToggle as TK_WIDGET ptr, byval nPart as long, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if pTog = 0 then return false
+    if pTog->bLayoutDirty then pTog->LayoutToggle()
+    if pTog->bLayoutDirty then return false
+    select case nPart
+    case 1
+        rc = pTog->rcKnob
+    case 2
+        rc = pTog->rcVisual
+    case else
+        rc = pTog->rcTrack
+    end select
+    return true
+end function
+
+public function tkToggle_GetTrackRect( byval hToggle as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return GetPart( hToggle, 0, rc )
+end function
+public function tkToggle_GetKnobRect( byval hToggle as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return GetPart( hToggle, 1, rc )
+end function
+public function tkToggle_GetVisualRect( byval hToggle as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return GetPart( hToggle, 2, rc )
+end function
+
+' ---- appearance ----------------------------------------------------------------------------
+public sub tkToggle_GetColors( byval hToggle as TK_WIDGET ptr, byval pColors as TKTOGGLE_COLORS ptr )
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if (pTog = 0) orelse (pColors = 0) then exit sub
+    *pColors = pTog->colors
+end sub
+
+' Copies the struct and PINS it: a theme change leaves this toggle alone until UnpinColors.
+public sub tkToggle_SetColors( byval hToggle as TK_WIDGET ptr, byval pColors as TKTOGGLE_COLORS ptr )
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if (pTog = 0) orelse (pColors = 0) then exit sub
+    pTog->colors = *pColors
+    pTog->bColorsPinned = true
+    tkWidget_Invalidate( hToggle )
+end sub
+
+' The toggle's colours from the theme's roles (vendor PsToggle_ThemeColors, role for role).
+public function tkToggle_ThemeColors( byref t as TKTHEME_COLORS ) as TKTOGGLE_COLORS
+    dim as TKTOGGLE_COLORS c
+    c.BackColor                   = t.Window
+    c.FocusRingColor              = t.FocusRing
+    c.TrackColorOn                = t.Accent
+    c.TrackColorOnHot             = t.AccentHot
+    c.TrackColorOnDisabled        = t.Border
+    c.TrackBorderColorOn          = t.Accent
+    c.TrackBorderColorOnHot       = t.AccentHot
+    c.TrackBorderColorOnDisabled  = t.Border
+    c.KnobColorOn                 = t.SelectedText
+    c.KnobColorOnHot              = t.SelectedText
+    c.KnobColorOnDisabled         = t.TextDisabled
+    c.TrackColorOff               = t.Track
+    c.TrackColorOffHot            = t.SurfaceHot
+    c.TrackColorOffDisabled       = t.SurfaceDisabled
+    c.TrackBorderColorOff         = t.TextDim
+    c.TrackBorderColorOffHot      = t.Text
+    c.TrackBorderColorOffDisabled = t.TextDisabled
+    c.KnobColorOff                = t.TextDim
+    c.KnobColorOffHot             = t.Text
+    c.KnobColorOffDisabled        = t.TextDisabled
+    return c
+end function
+
+public sub tkToggle_ApplyTheme( byval hToggle as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if (pTog = 0) orelse pTog->bColorsPinned then exit sub
+    pTog->colors = tkToggle_ThemeColors( t )
+    tkWidget_Invalidate( hToggle )
+end sub
+
+' Hands the toggle back to the theme, which is applied at once.
+public sub tkToggle_UnpinColors( byval hToggle as TK_WIDGET ptr )
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if pTog = 0 then exit sub
+    pTog->bColorsPinned = false
+    tkToggle_ApplyTheme( hToggle, tkTheme_Get() )
+end sub
+
+' ---- callbacks -----------------------------------------------------------------------------
+public sub tkToggle_SetPaintCallback( byval hToggle as TK_WIDGET ptr, byval usersub as TOG_PaintCallbackSub )
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if pTog = 0 then exit sub
+    pTog->PaintCallback = usersub
+    tkWidget_Invalidate( hToggle )
+end sub
+
+public sub tkToggle_SetMessageCallback( byval hToggle as TK_WIDGET ptr, byval userfunc as TOG_MessageCallbackFunc )
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if pTog then pTog->MessageCallback = userfunc
+end sub
+
+public sub tkToggle_SetCheckChangedCallback( byval hToggle as TK_WIDGET ptr, byval usersub as TOG_CheckChangedCallbackSub )
+    dim as TKTOGGLE_STATE ptr pTog = GetTogglePointer( hToggle )
+    if pTog then pTog->CheckChangedCallback = usersub
+end sub

@@ -1,0 +1,196 @@
+#cmdline "-s gui"
+'' std/* before anything that brings in vendor/SDL3: see pad.tiko
+#import "std/fs"
+#import "std/strings"
+#import "./pad"
+#import "vendor/tkControls/tkApp"
+#import "vendor/tkControls/tkTextBox"
+#import "vendor/tkControls/tkStatusBar"
+#import "vendor/tkControls/tkMessageBox"
+
+using tkApp
+using tkHost
+using tkTextBox
+using tkStatusBar
+using tkMessageBox
+
+'' tpad, the wiki's Notepad Tutorial, on tkControls (SDL3 + SDL_ttf):
+'' the same program on Windows and Linux.
+''
+''   tpad [file]                 run it
+''   tpad --selftest             drive the real window, print what it saw
+''   tpad --shot out.bmp [file]  render once (dark theme) and save it
+
+'' ---- the self-test (the wiki's, with SDL events for Win32 messages) ----
+
+'' The person, scripted: what the test answers to each question.
+function ScriptedAsk( byval f as TK_FORM ptr, byref text as ustring, _
+                      byval buttons as long ) as long
+    static as long replies( ... ) = { MBX_IDCANCEL, MBX_IDNO, MBX_IDNO }
+    static as int32 n
+    print "  asked: "; text
+    if buttons = MBX_BTN_OK then return MBX_IDOK
+    n += 1
+    print "  answered: "; iif( replies( n - 1 ) = MBX_IDNO, _
+                               "Don't Save", "Cancel" )
+    return replies( n - 1 )
+end function
+
+function ScriptedPick( byval f as TK_FORM ptr, byval saving as boolean, _
+                       byref suggest as ustring ) as ustring
+    print "  picked: lf.tmp"
+    return "lf.tmp"
+end function
+
+'' Lets queued events arrive, as the loop would.
+sub Pump( )
+    tkApp_Pump( )
+end sub
+
+'' A key, delivered where the keyboard would deliver it.
+sub Press( byval ed as pad.Editor ptr, byval key as long )
+    dim as SDL_Event e
+    e.type = SDL_EVENT_KEY_DOWN
+    e.key.windowID = tkForm_Host( ed->form )->winId
+    e.key.key = key
+    e.key.down = true
+    SDL_PushEvent( @e )
+    Pump( )
+end sub
+
+'' Typed text, as the OS hands it over after the keys: UTF-8. The event
+'' points at this string, so it lives until the event has been handled.
+dim shared as string gTyped
+sub Type_( byval ed as pad.Editor ptr, byref s as ustring )
+    gTyped = s
+    dim as SDL_Event e
+    e.type = SDL_EVENT_TEXT_INPUT
+    e.text.windowID = tkForm_Host( ed->form )->winId
+    e.text.text = strptr( gTyped )
+    SDL_PushEvent( @e )
+    Pump( )
+end sub
+
+sub Report( byval ed as pad.Editor ptr )
+    dim as ustring title = *SDL_GetWindowTitle( tkForm_Host( ed->form )->win )
+    print "  title:  "; title
+    print "  status: "; tkStatusBar_GetText( ed->status, 0 ); " | "; _
+          tkStatusBar_GetText( ed->status, 1 ); " | "; _
+          tkStatusBar_GetText( ed->status, 2 )
+end sub
+
+function SelfTest( byval ed as pad.Editor ptr ) as long
+    ed->ask = @ScriptedAsk
+    ed->pick = @ScriptedPick
+    fs.WriteAllText( "lf.tmp", !"one\ntwo\nthree\n" )
+    dim as TK_HOST ptr h = tkForm_Host( ed->form )
+    tkForm_Show( ed->form )
+    Pump( )
+
+    print "== a new window"
+    Report( ed )
+    print "== the layout, at 600 x 400"
+    SDL_SetWindowSize( h->win, 600, 400 )
+    dim as Uint64 t0 = SDL_GetTicks( )
+    while SDL_GetTicks( ) - t0 < 300
+        Pump( )
+        SDL_Delay( 10 )
+    wend
+    print "  text meets the scroll bar: "; _
+          cbool( ed->text->x + ed->text->cw = ed->scroll->x )
+    print "  text meets the status bar: "; _
+          cbool( ed->text->y + ed->text->ch = ed->status->y )
+    print "  status bar is as wide as the window: "; _
+          cbool( ed->status->cw = h->root->cw )
+
+    print "== File > Open"
+    pad.Execute( ed, pad.CmdOpen )
+    Report( ed )
+    print "== Down, Down, End, and type ""!"""
+    tkHost_SetFocus( h, ed->text )
+    Press( ed, SDLK_DOWN )
+    Press( ed, SDLK_DOWN )
+    Press( ed, SDLK_END )
+    Type_( ed, "!" )
+    Report( ed )
+
+    print "== Find Next, for ""T"", twice"
+    ed->findWhat = "T"
+    pad.Execute( ed, pad.CmdFindNext )
+    Report( ed )
+    pad.Execute( ed, pad.CmdFindNext )
+    Report( ed )
+    print "== Find Next, for ""four"""
+    ed->findWhat = "four"
+    pad.Execute( ed, pad.CmdFindNext )
+
+    print "== File > Save"
+    pad.Execute( ed, pad.CmdSave )
+    Report( ed )
+    dim as ustring saved = fs.ReadAllText( "lf.tmp" ).Value( )
+    print "  on disk: "; strings.Escape( saved )
+
+    print "== type, then File > New, twice"
+    Type_( ed, "?" )
+    pad.Execute( ed, pad.CmdNew )
+    Report( ed )
+    pad.Execute( ed, pad.CmdNew )
+    Report( ed )
+
+    '' Win32 sent WM_DPICHANGED; here the surface's scale doubles and
+    '' SDL says so.
+    print "== moved to a monitor at twice the DPI"
+    h->fScaleForced = 2 * h->fScale
+    dim as SDL_Event e
+    e.type = SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED
+    e.window.windowID = h->winId
+    SDL_PushEvent( @e )
+    Pump( )
+    print "  the text is still monospaced: "; _
+          cbool( tkTextBox_GetFont( ed->text ) = _
+                 tkForm_Font( ed->form, TKFONT_MONO ) )
+
+    print "== type, then close the window"
+    Type_( ed, "x" )
+    tkForm_Close( ed->form )
+    print "  window closed: "; cbool( h->bQuit )
+    fs.RemoveFile( "lf.tmp" )
+    return 0
+end function
+
+'' ---- the program ----
+
+dim as string cmd1 = command( 1 )
+dim as TKAPP_OPTIONS opts
+if (cmd1 = "--selftest") orelse (cmd1 = "--shot") then opts.ThemeMode = TKAPP_THEME_DARK
+if tkApp_Init( opts ) = false then print "tkApp_Init: " & *SDL_GetError( ) : end 1
+' the self-test runs at 1.0, a shot at 1.75 (so shots from two platforms compare), and the
+' program at the display's own scale unless TPAD_SCALE pins one
+dim as single scale_ = val( environ( "TPAD_SCALE" ) )
+if cmd1 = "--selftest" then scale_ = 1.0
+if cmd1 = "--shot" then scale_ = 1.75
+dim as pad.Editor ptr ed = pad.Create( scale_ )
+if cmd1 = "--selftest" then
+    dim as long r = SelfTest( ed )
+    tkApp_Shutdown( )
+    end r
+end if
+if cmd1 = "--shot" then
+    if len( command( 3 ) ) then pad.OpenPath( ed, command( 3 ) )
+    tkForm_Show( ed->form )
+    dim as Uint64 t0 = SDL_GetTicks( )
+    while SDL_GetTicks( ) - t0 < 300
+        tkApp_Pump( )
+        SDL_Delay( 10 )
+    wend
+    dim as TK_HOST ptr h = tkForm_Host( ed->form )
+    tkHost_Render( h )
+    tkHost_RenderTo( h, false )
+    dim as SDL_Surface ptr s = SDL_RenderReadPixels( h->renderer, 0 )
+    dim as string shot = command( 2 )
+    if s then SDL_SaveBMP( s, strptr( shot ) ) : SDL_DestroySurface( s )
+    tkApp_Shutdown( )
+    end 0
+end if
+if len( cmd1 ) then pad.OpenPath( ed, cmd1 )
+end tkApp_Run( ed->form )

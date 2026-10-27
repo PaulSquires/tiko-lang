@@ -1,0 +1,452 @@
+' tkHost self-test: the widget core itself, with probe widgets that record every message.
+' Tree and coordinates, hit testing and z-order, clipping, enter/leave, disabled subtrees, Tab
+' pre-order, key and wheel bubbling, double-click demotion, text input and the IME, timers,
+' popups and the dismissal rule, the modal pump, clipboard, cursors, destruction, rescale.
+' Two passes, scale pinned at 1.0 and 1.75.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkTest"
+using tkTest
+using tkHost
+using tkPaint
+
+type REC
+    nMove as long : nEnter as long : nLeave as long
+    nDown as long : nUp as long : nRDown as long : nMDown as long
+    nWheel as long : nKey as long : nChar as long : nIme as long
+    nSetFocus as long : nKillFocus as long : nTimer as long : nDestroy as long
+    nScale as long : nPaint as long : nCapLost as long
+    lastX as single : lastY as single : lastClicks as long : wheelY as single
+    lastKey as long : text as string : imeStart as long : fNew as single
+    claimKeys as boolean       ' consume every key
+    claimTab as boolean
+    claimWheel as boolean
+    paintColor as ulong
+    endOnReturn as boolean     ' Return ends the widget's modal dialog with 42
+end type
+
+function NewRec( ) as REC ptr
+    return new REC
+end function
+
+function Rx( byval w as TK_WIDGET ptr ) as REC ptr
+    return cast( REC ptr, w->pData )
+end function
+
+function ProbeProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as REC ptr r = cast( REC ptr, w->pData )
+    if r = 0 then return false
+    select case m->msg
+    case TKM_PAINT
+        r->nPaint += 1
+        if r->paintColor then
+            dim as TKRECT rc
+            tkRect_Set( rc, 0, 0, w->cw, w->ch )
+            m->pPaint->SetBackColor( r->paintColor )
+            m->pPaint->PaintRect( @rc )
+        end if
+        return true
+    case TKM_MOUSEMOVE : r->nMove += 1 : r->lastX = m->x : r->lastY = m->y : return true
+    case TKM_MOUSEENTER : r->nEnter += 1 : return true
+    case TKM_MOUSELEAVE : r->nLeave += 1 : return true
+    case TKM_LBUTTONDOWN : r->nDown += 1 : r->lastX = m->x : r->lastY = m->y : r->lastClicks = m->clicks : return true
+    case TKM_LBUTTONUP : r->nUp += 1 : return true
+    case TKM_RBUTTONDOWN : r->nRDown += 1 : return true
+    case TKM_MBUTTONDOWN : r->nMDown += 1 : return true
+    case TKM_MOUSEWHEEL
+        if r->claimWheel = false then return false
+        r->nWheel += 1 : r->wheelY = m->wheelY : r->lastX = m->x : r->lastY = m->y : return true
+    case TKM_KEYDOWN
+        if m->key = SDLK_TAB then
+            if r->claimTab = false then return false
+            r->nKey += 1 : return true
+        end if
+        if r->endOnReturn andalso (m->key = SDLK_RETURN) then
+            tkHost_EndModal( w->pHost, 42 )
+            return true
+        end if
+        if r->claimKeys = false then return false
+        r->nKey += 1 : r->lastKey = m->key : return true
+    case TKM_CHAR : r->nChar += 1 : r->text = m->text : return true
+    case TKM_IMECOMPOSE : r->nIme += 1 : r->text = m->text : r->imeStart = m->nStart : return true
+    case TKM_SETFOCUS : r->nSetFocus += 1 : return true
+    case TKM_KILLFOCUS : r->nKillFocus += 1 : return true
+    case TKM_TIMER : r->nTimer += 1 : return true
+    case TKM_CAPTURECHANGED : r->nCapLost += 1 : return true
+    case TKM_SCALECHANGED : r->nScale += 1 : r->fNew = m->fNew : return true
+    case TKM_DESTROY : r->nDestroy += 1 : return true
+    end select
+    return false
+end function
+
+' A probe widget at scaled design coordinates.
+function Probe( byval parent as TK_WIDGET ptr, byval h as TK_HOST ptr, byval x as long, byval y as long, _
+                byval w as long, byval hh as long, byval focusable as boolean = false ) as TK_WIDGET ptr
+    dim as TK_WIDGET ptr p = tkWidget_CreateChild( parent, 0, @ProbeProc, NewRec() )
+    p->isFocusable = focusable
+    tkWidget_SetPos( p, tkHost_Scale( h, x ), tkHost_Scale( h, y ), tkHost_Scale( h, w ), tkHost_Scale( h, hh ) )
+    return p
+end function
+
+dim shared as long gClosedCount
+sub OnPopupClosed( byval h as TK_HOST ptr )
+    gClosedCount += 1
+end sub
+
+' the four public coords of a widget in window pixels, as "l,t,r,b"
+function AbsStr( byval w as TK_WIDGET ptr ) as string
+    dim as TKRECT a
+    tkWidget_AbsRect( w, a )
+    return tkRect_Str( a )
+end function
+
+function S( byval h as TK_HOST ptr, byval v as long ) as long
+    return tkHost_Scale( h, v )
+end function
+
+
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkHost selftest", 640, 480, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    dim as TK_WIDGET ptr root = tkHost_Root( h )
+
+    ' ---- tree and coordinates ----------------------------------------------------------------
+    dim as TK_WIDGET ptr P = Probe( root, h, 100, 50, 300, 200 )
+    dim as TK_WIDGET ptr C = Probe( P, h, 20, 30, 100, 40 )
+    dim as TK_WIDGET ptr C2 = Probe( P, h, 250, 150, 100, 100 )      ' sticks out of P
+    tkTest_Check( "child abs rect = parent + child", AbsStr( C ) = "(" & S( h, 100 ) + S( h, 20 ) & "," & S( h, 50 ) + S( h, 30 ) & "," & S( h, 100 ) + S( h, 20 ) + S( h, 100 ) & "," & S( h, 50 ) + S( h, 30 ) + S( h, 40 ) & ")", AbsStr( C ) )
+    tkTest_Check( "hit: point in child -> child", tkHost_HitTest( h, S( h, 130 ), S( h, 90 ) ) = C )
+    tkTest_Check( "hit: point in parent only -> parent", tkHost_HitTest( h, S( h, 110 ), S( h, 60 ) ) = P )
+    tkTest_Check( "hit: outside clipping parent -> nothing", tkHost_HitTest( h, S( h, 370 ), S( h, 270 ) ) = 0 )
+    P->bClipChildren = false
+    tkTest_Check( "hit: outside NON-clipping parent -> child", tkHost_HitTest( h, S( h, 370 ), S( h, 270 ) ) = C2 )
+    P->bClipChildren = true
+
+    ' z-order: the later sibling wins; BringToTop reorders
+    dim as TK_WIDGET ptr Z1 = Probe( root, h, 450, 50, 100, 100 )
+    dim as TK_WIDGET ptr Z2 = Probe( root, h, 480, 80, 100, 100 )
+    tkTest_Check( "z: later sibling on top", tkHost_HitTest( h, S( h, 500 ), S( h, 100 ) ) = Z2 )
+    tkWidget_BringToTop( Z1 )
+    tkTest_Check( "z: BringToTop", tkHost_HitTest( h, S( h, 500 ), S( h, 100 ) ) = Z1 )
+
+    ' ---- mouse: local coordinates, enter/leave ------------------------------------------------
+    tkTest_PushMotion( h, S( h, 130 ), S( h, 90 ) )
+    tkTest_Check( "enter child", Rx( C )->nEnter = 1 )
+    tkTest_Check( "move in LOCAL coords", Rx( C )->lastX = S( h, 130 ) - S( h, 120 ) andalso Rx( C )->lastY = S( h, 90 ) - S( h, 80 ), Rx( C )->lastX & "," & Rx( C )->lastY )
+    tkTest_PushMotion( h, S( h, 110 ), S( h, 60 ) )
+    tkTest_Check( "leave child / enter parent", Rx( C )->nLeave = 1 andalso Rx( P )->nEnter = 1 )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+    tkTest_Check( "window leave clears hot", Rx( P )->nLeave = 1 )
+
+    ' buttons; the right and middle buttons arrive too
+    tkTest_Click( h, S( h, 130 ), S( h, 90 ) )
+    tkTest_Click( h, S( h, 130 ), S( h, 90 ), SDL_BUTTON_RIGHT )
+    tkTest_Click( h, S( h, 130 ), S( h, 90 ), SDL_BUTTON_MIDDLE )
+    tkTest_Check( "left/right/middle delivered", Rx( C )->nDown = 1 andalso Rx( C )->nUp = 1 andalso Rx( C )->nRDown = 1 andalso Rx( C )->nMDown = 1 )
+
+    ' a double click that changed widgets is demoted to a single click
+    tkTest_Click( h, S( h, 110 ), S( h, 60 ), SDL_BUTTON_LEFT, 2 )
+    tkTest_Check( "dblclick on a NEW widget demoted to 1", Rx( P )->lastClicks = 1, "" & Rx( P )->lastClicks )
+    tkTest_Click( h, S( h, 110 ), S( h, 60 ), SDL_BUTTON_LEFT, 2 )
+    tkTest_Check( "dblclick on the same widget = 2", Rx( P )->lastClicks = 2, "" & Rx( P )->lastClicks )
+
+    ' disabled parent: the subtree gets nothing and swallows the click
+    dim as long nDownC = Rx( C )->nDown, nDownP = Rx( P )->nDown
+    tkWidget_Enable( P, false )
+    tkTest_Check( "disabled parent -> child effectively disabled", tkWidget_IsEnabled( C ) = false )
+    tkTest_Click( h, S( h, 130 ), S( h, 90 ) )
+    tkTest_Check( "disabled subtree swallows clicks", Rx( C )->nDown = nDownC andalso Rx( P )->nDown = nDownP )
+    tkWidget_Enable( P, true )
+
+    ' ---- wheel bubbles while refused ------------------------------------------------------------
+    Rx( P )->claimWheel = true
+    tkTest_PushWheel( h, S( h, 130 ), S( h, 90 ), 0, 1 )
+    tkTest_Check( "wheel refused by child bubbles to parent", Rx( P )->nWheel = 1 andalso Rx( P )->wheelY = 1 andalso Rx( C )->nWheel = 0 )
+    tkTest_Check( "bubbled wheel in the PARENT's coords", Rx( P )->lastX = S( h, 130 ) - S( h, 100 ), "" & Rx( P )->lastX )
+    Rx( C )->claimWheel = true
+    tkTest_PushWheel( h, S( h, 130 ), S( h, 90 ), 0, -1 )
+    tkTest_Check( "wheel claimed by child stops there", Rx( C )->nWheel = 1 andalso Rx( P )->nWheel = 1 andalso Rx( C )->wheelY = -1 )
+
+    ' ---- focus: Tab is tree pre-order; disabled subtrees skipped ------------------------------
+    dim as TK_WIDGET ptr F1 = Probe( root, h, 10, 300, 50, 30, true )
+    dim as TK_WIDGET ptr G = Probe( root, h, 100, 300, 300, 60 )
+    dim as TK_WIDGET ptr F2 = Probe( G, h, 10, 10, 50, 30, true )
+    dim as TK_WIDGET ptr F3 = Probe( G, h, 100, 10, 50, 30, true )
+    dim as TK_WIDGET ptr F4 = Probe( root, h, 450, 300, 50, 30, true )
+    tkHost_SetFocus( h, F1 )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "Tab F1 -> F2 (into the group)", tkHost_GetFocus( h ) = F2 )
+    tkTest_PushKey( h, SDLK_TAB ) : tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "Tab F3 -> F4", tkHost_GetFocus( h ) = F4 )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "Tab wraps to F1", tkHost_GetFocus( h ) = F1 )
+    tkTest_PushKey( h, SDLK_TAB, SDL_KMOD_LSHIFT )
+    tkTest_Check( "Shift+Tab F1 -> F4", tkHost_GetFocus( h ) = F4 )
+    tkWidget_Enable( G, false )
+    tkHost_SetFocus( h, F1 )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "Tab skips a disabled group", tkHost_GetFocus( h ) = F4 )
+    tkWidget_Enable( G, true )
+    tkTest_Check( "SETFOCUS/KILLFOCUS delivered", Rx( F1 )->nSetFocus >= 2 andalso Rx( F1 )->nKillFocus >= 2 )
+    Rx( F2 )->claimTab = true
+    tkHost_SetFocus( h, F2 )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "a widget that claims Tab keeps focus", tkHost_GetFocus( h ) = F2 )
+    Rx( F2 )->claimTab = false
+
+    ' keys bubble to the parent while refused
+    Rx( G )->claimKeys = true
+    tkHost_SetFocus( h, F3 )
+    tkTest_PushKey( h, SDLK_A )
+    tkTest_Check( "key refused by focus bubbles to parent", Rx( G )->nKey = 1 andalso Rx( G )->lastKey = SDLK_A )
+    Rx( F3 )->claimKeys = true
+    tkTest_PushKey( h, SDLK_B )
+    tkTest_Check( "key claimed by focus stops there", Rx( F3 )->nKey = 1 andalso Rx( G )->nKey = 1 )
+
+    ' ---- text input and the IME -----------------------------------------------------------------
+    F3->bWantsText = true
+    tkHost_SetFocus( h, F2 )
+    tkHost_SetFocus( h, F3 )
+    tkTest_Check( "focus on a text widget starts text input", SDL_TextInputActive( h->win ) )
+    tkTest_PushText( h, "h" & wchr( &hE9 ) & "llo" )
+    tkTest_Check( "TKM_CHAR carries UTF-8", Rx( F3 )->nChar = 1 andalso Rx( F3 )->text = "h" & chr( &hC3, &hA9 ) & "llo", Rx( F3 )->text )
+    tkTest_PushEditing( h, wchr( &h304B ), 1, 0 )
+    tkTest_Check( "TKM_IMECOMPOSE carries pre-edit + cursor", Rx( F3 )->nIme = 1 andalso Rx( F3 )->imeStart = 1 andalso Rx( F3 )->text = chr( &hE3, &h81, &h8B ) )
+    tkHost_SetFocus( h, F2 )
+    tkTest_Check( "focus off a text widget stops text input", SDL_TextInputActive( h->win ) = false )
+
+    ' ---- timers ---------------------------------------------------------------------------------
+    tkWidget_SetTimer( F4, TK_TIMER_APP, 30 )
+    tkTest_PumpFor( h, 250 )
+    dim as long nT = Rx( F4 )->nTimer
+    tkTest_Check( "timer ticks on the UI thread", nT >= 3, "" & nT )
+    tkWidget_KillTimer( F4, TK_TIMER_APP )
+    tkTest_PumpFor( h, 120 )
+    tkTest_Check( "killed timer: no more ticks", Rx( F4 )->nTimer = nT, nT & " -> " & Rx( F4 )->nTimer )
+
+    ' ---- cursor follows the hot widget ----------------------------------------------------------
+    tkWidget_SetCursor( C, TK_CURSOR_IBEAM )
+    tkTest_PushMotion( h, S( h, 130 ), S( h, 90 ) )
+    tkTest_Check( "cursor = hot widget's", tkHost_CurrentCursor() = TK_CURSOR_IBEAM )
+    tkTest_PushMotion( h, S( h, 110 ), S( h, 60 ) )
+    tkTest_Check( "cursor back to arrow", tkHost_CurrentCursor() = TK_CURSOR_ARROW )
+
+    ' ---- painting: origin, clipping, hidden --------------------------------------------------
+    Rx( C2 )->paintColor = &hFFFF0000ul
+    Rx( C )->paintColor = &hFF00FF00ul
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "child paints at its own origin", tkTest_PixelAt( h, S( h, 120 ), S( h, 80 ) ) = &hFF00FF00ul, hex( tkTest_PixelAt( h, S( h, 120 ), S( h, 80 ) ) ) )
+    tkTest_Check( "clipping parent clips the child", tkTest_PixelAt( h, S( h, 370 ), S( h, 260 ) ) <> &hFFFF0000ul )
+    tkTest_Check( "inside the parent the child paints", tkTest_PixelAt( h, S( h, 360 ), S( h, 210 ) ) = &hFFFF0000ul )
+    P->bClipChildren = false
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "NON-clipping parent lets it out", tkTest_PixelAt( h, S( h, 370 ), S( h, 260 ) ) = &hFFFF0000ul )
+    P->bClipChildren = true
+    tkWidget_Show( C, false )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "hidden widget not painted", tkTest_PixelAt( h, S( h, 120 ), S( h, 80 ) ) <> &hFF00FF00ul )
+    tkTest_Check( "hidden widget not hit", tkHost_HitTest( h, S( h, 130 ), S( h, 90 ) ) = P )
+    tkWidget_Show( C, true )
+
+    ' ---- rescale reaches every widget ---------------------------------------------------------
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkTest_Check( "TKM_SCALECHANGED to nested widgets", Rx( F3 )->nScale = 1 andalso Rx( F3 )->fNew = fScale * 2 andalso Rx( C )->nScale = 1 )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+
+    ' ---- clipboard ------------------------------------------------------------------------------
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 300 )                 ' map + X11 settle
+    dim as ustring clip = "tk " & wchr( &h2713 ) & " clip"
+    tkHost_SetClipboardText( clip )
+    tkTest_Check( "clipboard round trip", tkHost_GetClipboardText() = clip, str( tkHost_GetClipboardText() ) )
+
+    ' ---- popups: content, key routing, Esc, outside click, chains -------------------------------
+    gClosedCount = 0
+    dim as long nHosts0 = tkHost_Count()
+    dim as TKRECT rcA
+    tkWidget_AbsRect( F1, rcA )
+    dim as long px, py
+    tkHost_PlacePopup( h, rcA, S( h, 160 ), S( h, 120 ), false, px, py )
+    tkTest_Check( "popup placed below its anchor (room)", (px = rcA.left) andalso (py = rcA.bottom), px & "," & py )
+    dim as TK_HOST ptr pop = tkHost_CreatePopup( h, px, py, S( h, 160 ), S( h, 120 ) )
+    tkTest_Check( "popup created", pop <> 0, *SDL_GetError() )
+    if pop then
+        pop->OnClosed = @OnPopupClosed
+        tkTest_Check( "popup inherits the owner's scale", pop->fScale = h->fScale )
+        dim as TK_WIDGET ptr PW = Probe( tkHost_Root( pop ), pop, 10, 10, 100, 60, true )
+        Rx( PW )->claimKeys = true
+        tkHost_Show( pop )
+        tkHost_SetFocus( pop, PW )
+        tkTest_PumpFor( h, 200 )
+        tkTest_Check( "popup open", tkHost_IsOpen( pop ) andalso tkHost_Count() = nHosts0 + 1 )
+        tkTest_Click( pop, tkTest_CX( PW ), tkTest_CY( PW ) )
+        tkTest_Check( "click inside the popup reaches its widget, popup stays", Rx( PW )->nDown = 1 andalso tkHost_IsOpen( pop ) )
+        dim as long nKeyF2 = Rx( F2 )->nKey
+        tkTest_PushKey( h, SDLK_X )                       ' addressed to the OWNER window
+        tkTest_Check( "keys go to the popup while it is up", Rx( PW )->nKey = 1 andalso Rx( F2 )->nKey = nKeyF2 )
+        Rx( PW )->claimKeys = false
+        tkTest_PushKey( h, SDLK_ESCAPE )
+        tkTest_Check( "unclaimed Esc closes the popup", tkHost_IsOpen( pop ) = false andalso gClosedCount = 1 )
+        tkTest_Check( "closed popup reaped", tkHost_Count() = nHosts0 )
+    end if
+
+    ' outside click: closes AND is consumed
+    pop = tkHost_CreatePopup( h, px, py, S( h, 160 ), S( h, 120 ) )
+    if pop then
+        pop->OnClosed = @OnPopupClosed
+        tkHost_Show( pop )
+        tkTest_PumpFor( h, 150 )
+        dim as long nDownF4 = Rx( F4 )->nDown
+        tkTest_Click( h, tkTest_CX( F4 ), tkTest_CY( F4 ) )
+        tkTest_Check( "press outside closes the popup", tkHost_IsOpen( pop ) = false andalso gClosedCount = 2 )
+        tkTest_Check( "the dismissing press is CONSUMED", Rx( F4 )->nDown = nDownF4, Rx( F4 )->nDown & " vs " & nDownF4 )
+    end if
+
+    ' chain: a press in a submenu keeps its parent; a press in the parent closes the submenu
+    dim as TK_HOST ptr m1 = tkHost_CreatePopup( h, px, py, S( h, 160 ), S( h, 120 ) )
+    if m1 then
+        dim as TK_WIDGET ptr M1W = Probe( tkHost_Root( m1 ), m1, 0, 0, 160, 120 )
+        tkHost_Show( m1 )
+        tkTest_PumpFor( h, 100 )
+        dim as TK_HOST ptr m2 = tkHost_CreatePopup( m1, S( h, 160 ), 0, S( h, 120 ), S( h, 80 ) )
+        if m2 then
+            dim as TK_WIDGET ptr M2W = Probe( tkHost_Root( m2 ), m2, 0, 0, 120, 80 )
+            tkHost_Show( m2 )
+            tkTest_PumpFor( h, 150 )
+            tkTest_Click( m2, tkTest_CX( M2W ), tkTest_CY( M2W ) )
+            tkTest_Check( "press in submenu keeps the chain", tkHost_IsOpen( m1 ) andalso tkHost_IsOpen( m2 ) andalso Rx( M2W )->nDown = 1 )
+            tkTest_Click( m1, tkTest_CX( M1W ), tkTest_CY( M1W ) )
+            tkTest_Check( "press in the parent menu closes the submenu only", tkHost_IsOpen( m1 ) andalso (tkHost_IsOpen( m2 ) = false) andalso Rx( M1W )->nDown = 1 )
+        else
+            tkTest_Check( "submenu created", false, *SDL_GetError() )
+        end if
+        tkHost_Close( m1 )
+        tkHost_Pump( h )
+        tkTest_Check( "closing a menu closes its whole chain", tkHost_Count() = nHosts0 )
+    end if
+
+    ' ---- the modal pump ---------------------------------------------------------------------------
+    dim as TK_HOST ptr dlg = tkHost_CreateDialog( h, "modal", S( h, 300 ), S( h, 160 ) )
+    tkTest_Check( "dialog created", dlg <> 0, *SDL_GetError() )
+    if dlg then
+        dim as TK_WIDGET ptr DW = Probe( tkHost_Root( dlg ), dlg, 20, 20, 100, 40, true )
+        Rx( DW )->endOnReturn = true
+        dim as long nDownF1 = Rx( F1 )->nDown
+        ' queued BEFORE the pump: an owner click (must be dropped), then Return for the dialog
+        dim as SDL_Event e
+        e.type = SDL_EVENT_MOUSE_BUTTON_DOWN
+        e.button.windowID = h->winId : e.button.button = SDL_BUTTON_LEFT : e.button.down = true : e.button.clicks = 1
+        e.button.x = tkTest_CX( F1 ) / h->fDensity : e.button.y = tkTest_CY( F1 ) / h->fDensity
+        SDL_PushEvent( @e )
+        dim as SDL_Event k
+        k.type = SDL_EVENT_KEY_DOWN : k.key.windowID = dlg->winId : k.key.key = SDLK_RETURN : k.key.down = true
+        SDL_PushEvent( @k )
+        dim as long res = tkHost_RunModal( dlg )
+        tkTest_Check( "modal returns the content's result", res = 42, "" & res )
+        tkTest_Check( "modal focused its first tabstop", tkHost_GetFocus( dlg ) = DW )
+        tkTest_Check( "owner input DROPPED while modal", Rx( F1 )->nDown = nDownF1 )
+        tkHost_Destroy( dlg )
+    end if
+    ' a QUIT ends the dialog and is re-posted for the outer loop
+    dlg = tkHost_CreateDialog( h, "modal 2", S( h, 200 ), S( h, 100 ) )
+    if dlg then
+        dim as SDL_Event q
+        q.type = SDL_EVENT_QUIT
+        SDL_PushEvent( @q )
+        tkHost_RunModal( dlg )
+        ' ASK THE QUEUE, don't poll it: SDL3 ends a PollEvent round at a sentinel, so an event
+        ' pushed during the round (the re-post) is not returned by the same loop.
+        tkTest_Check( "QUIT ends the modal AND is re-posted", SDL_HasEvent( SDL_EVENT_QUIT ) )
+        SDL_FlushEvent( SDL_EVENT_QUIT )
+        tkHost_Destroy( dlg )
+    end if
+
+    ' ---- reparent across surfaces (tkMessageBox recreates its dialog at its final size) ----------
+    dlg = tkHost_CreateDialog( h, "reparent", S( h, 200 ), S( h, 100 ) )
+    if dlg then
+        dim as TK_WIDGET ptr RP = Probe( tkHost_Root( h ), h, 300, 300, 60, 30, true )
+        dim as TK_WIDGET ptr RK = Probe( RP, h, 2, 2, 20, 20, true )
+        tkHost_SetFocus( h, RK )
+        tkWidget_Reparent( RP, tkHost_Root( dlg ) )
+        tkTest_Check( "reparent: the subtree moves to the new surface", RP->pHost = dlg andalso RK->pHost = dlg andalso RP->pParent = tkHost_Root( dlg ) )
+        tkTest_Check( "reparent: the old surface forgets the focus inside it", tkHost_GetFocus( h ) = 0 )
+        tkTest_Check( "reparent: hit-testable on the new surface", tkHost_HitTest( dlg, RP->x + S( h, 5 ), RP->y + S( h, 5 ) ) = RK )
+        tkWidget_Reparent( RP, RK )
+        tkTest_Check( "reparent: never under its own subtree", RP->pParent = tkHost_Root( dlg ) )
+        tkHost_Destroy( dlg )
+    end if
+
+    ' ---- destruction ----------------------------------------------------------------------------
+    tkHost_SetFocus( h, F3 )
+    dim as REC ptr rF2 = Rx( F2 ), rF3 = Rx( F3 ), rG = Rx( G )
+    tkWidget_Destroy( G )
+    tkTest_Check( "destroy reaches the whole subtree", rF2->nDestroy = 1 andalso rF3->nDestroy = 1 andalso rG->nDestroy = 1 )
+    tkTest_Check( "destroying the focus clears focus", tkHost_GetFocus( h ) = 0 )
+    tkTest_Check( "destroyed subtree gone from hit test", tkHost_HitTest( h, S( h, 115 ), S( h, 315 ) ) = 0 )
+
+    tkHost_Destroy( h )
+end sub
+
+
+' ---- drops from the OS --------------------------------------------------------------------
+dim shared as long gDrops, gDropCount, gHostDrops
+dim shared as string gDropText, gDropTarget
+dim shared as single gDropX, gDropY
+dim shared as boolean gRefuseDrops
+
+function DropProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    select case m->msg
+    case TKM_DROPFILES, TKM_DROPTEXT
+        if gRefuseDrops andalso (w->ctrlId = 2) then return false
+        gDrops += 1 : gDropCount = m->nStart : gDropText = m->text
+        gDropX = m->x : gDropY = m->y : gDropTarget = str( w->ctrlId ) & iif( m->msg = TKM_DROPTEXT, "t", "f" )
+        return true
+    end select
+    return false
+end function
+
+sub OnHostDrop( byval h as TK_HOST ptr, byval m as TK_MSG ptr )
+    gHostDrops += 1 : gDropText = m->text
+end sub
+
+sub DropPass( byval fScale as single )
+    tkTest_Begin( "drop " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkHost drops", 400, 300, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    dim as TK_WIDGET ptr outer = tkWidget_Create( h, 1, @DropProc, 0 )
+    tkWidget_SetPos( outer, tkHost_Scale( h, 10 ), tkHost_Scale( h, 10 ), tkHost_Scale( h, 200 ), tkHost_Scale( h, 200 ) )
+    dim as TK_WIDGET ptr inner = tkWidget_CreateChild( outer, 2, @DropProc, 0 )
+    tkWidget_SetPos( inner, tkHost_Scale( h, 20 ), tkHost_Scale( h, 20 ), tkHost_Scale( h, 50 ), tkHost_Scale( h, 50 ) )
+    h->OnDrop = @OnHostDrop
+    tkHost_Show( h )
+    tkHost_Pump( h )
+    dim as single ix = tkHost_Scale( h, 10 + 20 + 5 ), iy = tkHost_Scale( h, 10 + 20 + 7 )
+    gDrops = 0 : gHostDrops = 0
+    tkTest_PushDrop( h, "C:/a/one.tiko" & chr( 10 ) & "C:/b/tw" & chr( &hC3 ) & chr( &hB6 ) & ".ti", ix, iy )
+    tkTest_Check( "two files arrive as one message", (gDrops = 1) andalso (gDropCount = 2) )
+    tkTest_Check( "to the widget under the point", gDropTarget = "2f", gDropTarget )
+    tkTest_Check( "paths LF-separated, UTF-8 kept", gDropText = "C:/a/one.tiko" & chr( 10 ) & "C:/b/tw" & chr( &hC3 ) & chr( &hB6 ) & ".ti" )
+    tkTest_Check( "the point is widget-local", (abs( gDropX - tkHost_Scale( h, 5 ) ) <= 1) andalso (abs( gDropY - tkHost_Scale( h, 7 ) ) <= 1), gDropX & "," & gDropY )
+    gRefuseDrops = true
+    tkTest_PushDrop( h, "C:/c.txt", ix, iy )
+    tkTest_Check( "a refused drop bubbles to the parent", (gDrops = 2) andalso (gDropTarget = "1f") andalso (gDropCount = 1) )
+    gRefuseDrops = false
+    tkTest_PushDrop( h, "some text", ix, iy, true )
+    tkTest_Check( "dropped text is TKM_DROPTEXT", (gDrops = 3) andalso (gDropTarget = "2t") andalso (gDropText = "some text") )
+    tkTest_PushDrop( h, "C:/d.txt", tkHost_Scale( h, 350 ), tkHost_Scale( h, 250 ) )
+    tkTest_Check( "a drop on no widget goes to OnDrop", (gDrops = 3) andalso (gHostDrops = 1) andalso (gDropText = "C:/d.txt") )
+    tkTest_PushDrop( h, "", ix, iy )
+    tkTest_Check( "an empty drop delivers nothing", (gDrops = 3) andalso (gHostDrops = 1) )
+    tkHost_Destroy( h )
+end sub
+
+if tkTest_Init() = false then end 99
+RunPass( 1.0 )
+RunPass( 1.75 )
+DropPass( 1.0 )
+DropPass( 1.75 )
+dim as long nFail = tkTest_Report( "tkHost" )
+tkTest_Quit()
+end nFail

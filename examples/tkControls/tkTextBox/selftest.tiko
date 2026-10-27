@@ -1,0 +1,564 @@
+' tkTextBox self-test. Real windows, real SDL event queue: typing is PUSHED as the SDL key and
+' text events a keyboard produces (tkTest_PushKey + tkTest_PushText), the IME as the
+' TEXT_EDITING events an input method produces (tkTest_PushEditing), the mouse as button and
+' motion events. Two passes, scale pinned at 1.0 and at 1.75.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkTextBox"
+#import "vendor/tkControls/tkTest"
+using tkTextBox
+using tkPopupMenu
+using tkVScrollBar
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as long gChanges, gEnters, gScrolls, gFocusIn, gFocusOut
+dim shared as ustring gTextAtFocusOut
+dim shared as boolean gVetoMenu
+
+sub OnChange( byval hTextBox as TK_WIDGET ptr )
+    gChanges += 1
+end sub
+
+sub OnEnter( byval hTextBox as TK_WIDGET ptr )
+    gEnters += 1
+end sub
+
+sub OnScroll( byval hTextBox as TK_WIDGET ptr )
+    gScrolls += 1
+end sub
+
+sub OnFocus( byval hTextBox as TK_WIDGET ptr, byval bGot as boolean )
+    if bGot then
+        gFocusIn += 1
+    else
+        gFocusOut += 1
+        gTextAtFocusOut = tkTextBox_GetText( hTextBox )
+    end if
+end sub
+
+function OnMessage( byval m as TKTEXTBOX_MESSAGEINFO ptr ) as boolean
+    if gVetoMenu andalso (m->msg = TKTEXTBOX_MSG_CONTEXTMENU) then return true
+    return false
+end function
+
+' Window pixels of a widget-local point.
+sub AbsPt( byval w as TK_WIDGET ptr, byval lx as long, byval ly as long, byref x as single, byref y as single )
+    dim as TKRECT a
+    tkWidget_AbsRect( w, a )
+    x = a.left + lx : y = a.top + ly
+end sub
+
+' Click at the caret point of offset off (vertically mid-line).
+sub ClickOffset( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr, byval off as long, byval clicks as long = 1 )
+    dim as long px, py
+    tkTextBox_PosFromChar( w, off, px, py )
+    dim as single x, y
+    AbsPt( w, px + 1, py + tkHost_Scale( h, 6 ), x, y )
+    tkTest_Click( h, x, y, SDL_BUTTON_LEFT, clicks )
+end sub
+
+sub TypeKeys( byval h as TK_HOST ptr, byref s as ustring )
+    tkTest_PushText( h, s )
+end sub
+
+function Sel( byval w as TK_WIDGET ptr ) as string
+    dim as integer a, b
+    tkTextBox_GetSel( w, a, b )
+    return a & "," & b
+end function
+
+' ==========================================================================================
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkTextBox selftest", 640, 520, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    dim as TTF_Font ptr f10 = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 10 )
+    dim as TTF_Font ptr f9i = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeuii.ttf", 9 )
+    tkTest_Check( "fonts opened", (f10 <> 0) andalso (f9i <> 0) )
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 300 )
+    dim as long S6 = tkHost_Scale( h, 6 )
+    gFocusIn = 0 : gFocusOut = 0
+
+    ' ---- A: geometry against the README ---------------------------------------------------
+    dim as TK_WIDGET ptr a = tkTextBox_Create( tkHost_Root( h ), 101 )
+    tkTextBox_SetFont( a, f10 )
+    tkTest_Check( "defaults: border 1, radius 0, margins 0", tkTextBox_GetBorderWidth( a ) = 1 andalso tkTextBox_GetCornerRadius( a ) = 0 )
+    tkTest_Check( "defaults: single-line, numeric off, 2 places", tkTextBox_GetMultiline( a ) = false andalso tkTextBox_GetNumericMode( a ) = false andalso tkTextBox_GetDecimalPlaces( a ) = 2 )
+    dim as TKRECT rc
+    tkTest_Check( "text rect FALSE before sizing", tkTextBox_GetTextRect( a, rc ) = false )
+    tkTextBox_SetMargins( a, S6, S6 )
+    tkTextBox_SetCornerRadius( a, tkHost_Scale( h, 4 ) )
+    dim as long bw = 3
+    tkTextBox_SetBorderWidth( a, bw )
+    dim as long aw = tkHost_Scale( h, 300 ), ah = tkHost_Scale( h, 32 )
+    tkWidget_SetPos( a, tkHost_Scale( h, 20 ), tkHost_Scale( h, 20 ), aw, ah )
+    tkTest_Check( "text rect TRUE once sized", tkTextBox_GetTextRect( a, rc ) )
+    dim as long fh = tkText_Height( f10 )
+    dim as long expTop = bw + ((ah - 2 * bw - fh) \ 2)
+    tkTest_Check( "rcText.left = border + margin", rc.left = bw + S6, tkRect_Str( rc ) )
+    tkTest_Check( "rcText.right = w - border - margin", rc.right = aw - bw - S6, tkRect_Str( rc ) )
+    tkTest_Check( "single line centred: top", rc.top = expTop, rc.top & " vs " & expTop )
+    tkTest_Check( "single line: one font height tall", rc.bottom - rc.top = fh )
+    dim as integer nT, nP, nF
+    tkTextBox_GetVScrollInfo( a, nT, nP, nF )
+    tkTest_Check( "single-line scroll info: 1 line, first 0", nT = 1 andalso nF = 0, nT & " " & nP & " " & nF )
+    tkTextBox_SetBorderWidth( a, 1 )
+    bw = 1
+    tkTextBox_GetTextRect( a, rc )
+    tkTest_Check( "border width re-derives the inset", rc.left = 1 + S6 )
+    tkTextBox_SetChangeCallback( a, @OnChange )
+    tkTextBox_SetEnterPressedCallback( a, @OnEnter )
+    tkTextBox_SetFocusCallback( a, @OnFocus )
+    tkTextBox_SetMessageCallback( a, @OnMessage )
+
+    ' a second box, for Tab
+    dim as TK_WIDGET ptr b2 = tkTextBox_Create( tkHost_Root( h ), 102 )
+    tkTextBox_SetFont( b2, f10 )
+    tkWidget_SetPos( b2, tkHost_Scale( h, 340 ), tkHost_Scale( h, 20 ), tkHost_Scale( h, 200 ), ah )
+    tkTextBox_SetText( b2, "second box" )
+
+    ' ---- B: typing, through the real dispatch -------------------------------------------------
+    gChanges = 0
+    tkTest_Click( h, tkTest_CX( a ), tkTest_CY( a ) )
+    tkTest_Check( "click focuses", tkTextBox_HasFocus( a ) andalso gFocusIn = 1, "" & gFocusIn )
+    tkTest_Check( "bWantsText started text input", h->bTextInput )
+    tkTest_Check( "I-beam cursor", a->cursor = TK_CURSOR_IBEAM )
+    TypeKeys( h, "h" ) : TypeKeys( h, "e" ) : TypeKeys( h, "l" ) : TypeKeys( h, "l" ) : TypeKeys( h, "o" )
+    tkTest_Check( "typed text lands", tkTextBox_GetText( a ) = "hello", tkTextBox_GetText( a ) )
+    tkTest_Check( "typing notifies per keystroke", gChanges = 5, "" & gChanges )
+    tkTest_Check( "typing sets modify", tkTextBox_GetModify( a ) )
+    tkTest_Check( "caret after the text", tkTextBox_GetCaret( a ) = 5 )
+    tkTest_PushKey( h, SDLK_HOME )
+    tkTest_PushKey( h, SDLK_END, SDL_KMOD_LSHIFT )
+    tkTest_Check( "Home, Shift+End selects all", Sel( a ) = "0,5", Sel( a ) )
+    TypeKeys( h, "X" )
+    tkTest_Check( "typing replaces the selection", tkTextBox_GetText( a ) = "X" )
+    tkTest_PushKey( h, SDLK_Z, SDL_KMOD_LCTRL )
+    tkTest_Check( "Ctrl+Z undoes the replace", tkTextBox_GetText( a ) = "hello", tkTextBox_GetText( a ) )
+    tkTest_PushKey( h, SDLK_Z, SDL_KMOD_LCTRL )
+    tkTest_Check( "typing run is ONE undo step", tkTextBox_GetText( a ) = "", tkTextBox_GetText( a ) )
+    tkTest_PushKey( h, SDLK_Y, SDL_KMOD_LCTRL )
+    tkTest_Check( "Ctrl+Y redoes", tkTextBox_GetText( a ) = "hello" )
+    tkTest_Check( "CanUndo / CanRedo", tkTextBox_CanUndo( a ) andalso tkTextBox_CanRedo( a ) )
+
+    ' word navigation and deletion
+    tkTextBox_SetText( a, "foo bar.baz qux" )
+    tkTest_PushKey( h, SDLK_LEFT, SDL_KMOD_LCTRL )
+    tkTest_Check( "Ctrl+Left: start of 'qux'", tkTextBox_GetCaret( a ) = 12, "" & tkTextBox_GetCaret( a ) )
+    tkTest_PushKey( h, SDLK_LEFT, SDL_KMOD_LCTRL )
+    tkTest_Check( "Ctrl+Left: start of 'baz'", tkTextBox_GetCaret( a ) = 8, "" & tkTextBox_GetCaret( a ) )
+    tkTest_PushKey( h, SDLK_LEFT, SDL_KMOD_LCTRL )
+    tkTest_Check( "Ctrl+Left: punctuation is its own word", tkTextBox_GetCaret( a ) = 7, "" & tkTextBox_GetCaret( a ) )
+    tkTest_PushKey( h, SDLK_HOME )
+    tkTest_PushKey( h, SDLK_RIGHT, SDL_KMOD_LCTRL )
+    tkTest_Check( "Ctrl+Right: past the word and its space", tkTextBox_GetCaret( a ) = 4, "" & tkTextBox_GetCaret( a ) )
+    tkTest_PushKey( h, SDLK_DELETE, SDL_KMOD_LCTRL )
+    tkTest_Check( "Ctrl+Delete deletes the word", tkTextBox_GetText( a ) = "foo .baz qux", tkTextBox_GetText( a ) )
+    tkTest_PushKey( h, SDLK_BACKSPACE )
+    tkTest_Check( "Backspace", tkTextBox_GetText( a ) = "foo.baz qux", tkTextBox_GetText( a ) )
+    tkTest_PushKey( h, SDLK_END )
+    tkTest_PushKey( h, SDLK_BACKSPACE, SDL_KMOD_LCTRL )
+    tkTest_Check( "Ctrl+Backspace", tkTextBox_GetText( a ) = "foo.baz ", tkTextBox_GetText( a ) )
+
+    ' UTF-8: one Left steps over a whole codepoint
+    tkTextBox_SetText( a, "a" & wchr( &hE9 ) & "b" )
+    tkTest_Check( "byte length of a" & chr( 195, 169 ) & "b = 4", tkTextBox_GetTextLength( a ) = 4 )
+    tkTest_PushKey( h, SDLK_LEFT ) : tkTest_PushKey( h, SDLK_LEFT )
+    tkTest_Check( "Left steps over a 2-byte codepoint", tkTextBox_GetCaret( a ) = 1, "" & tkTextBox_GetCaret( a ) )
+    tkTextBox_SetSel( a, 2, 2 )
+    tkTest_Check( "SetSel snaps into a codepoint boundary", Sel( a ) = "1,1", Sel( a ) )
+
+    ' ENTER single-line: claimed, callback, no newline
+    gEnters = 0
+    tkTextBox_SetText( a, "abc" )
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "Enter fires EnterPressed", gEnters = 1 )
+    tkTest_Check( "Enter inserts nothing on single-line", tkTextBox_GetText( a ) = "abc" )
+
+    ' Tab leaves a single-line box; SelectOnFocus selects all on Tab
+    tkTextBox_SetSelectOnFocus( b2, true )
+    gFocusOut = 0
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "Tab moves focus on", tkTextBox_HasFocus( b2 ) )
+    tkTest_Check( "focus callback on the way out", gFocusOut = 1 )
+    tkTest_Check( "SelectOnFocus selects everything on Tab", Sel( b2 ) = "0,10", Sel( b2 ) )
+    ' and a click places the caret instead
+    ClickOffset( h, b2, 3 )
+    tkTest_Check( "a click still places the caret", Sel( b2 ) = "3,3", Sel( b2 ) )
+    tkTest_PushKey( h, SDLK_TAB, SDL_KMOD_LSHIFT )
+    tkTest_Check( "Shift+Tab moves back", tkTextBox_HasFocus( a ) )
+
+    ' ---- C: silent setters vs notifying actions ------------------------------------------------
+    gChanges = 0
+    tkTextBox_SetText( a, "one two" ) : tkTextBox_ReplaceSel( a, "!" ) : tkTextBox_SelectAll( a )
+    tkTest_Check( "ReplaceSel lands at the caret", tkTextBox_GetText( a ) = "one two!" )
+    tkTest_Check( "ReplaceSel is undoable", tkTextBox_CanUndo( a ) )
+    tkTextBox_Clear( a ) : tkTextBox_SetText( a, "one two" )
+    tkTest_Check( "SetText/ReplaceSel/Clear are silent", gChanges = 0, "" & gChanges )
+    tkTest_Check( "SetText clears modify", tkTextBox_GetModify( a ) = false )
+    tkTextBox_SetSel( a, 0, 3 )
+    tkHost_SetClipboardText( "zz" )
+    tkTextBox_Copy( a )
+    tkTest_Check( "Copy puts the selection on the clipboard", tkHost_GetClipboardText() = "one" )
+    tkTextBox_Cut( a )
+    tkTest_Check( "Cut removes it and notifies", tkTextBox_GetText( a ) = " two" andalso gChanges = 1, gChanges & " [" & tkTextBox_GetText( a ) & "]" )
+    tkTextBox_SetSel( a, -1, -1 )
+    tkTest_PushKey( h, SDLK_END )
+    tkTest_PushKey( h, SDLK_V, SDL_KMOD_LCTRL )
+    tkTest_Check( "Ctrl+V pastes and notifies", tkTextBox_GetText( a ) = " twoone" andalso gChanges = 2, gChanges & " [" & tkTextBox_GetText( a ) & "]" )
+    tkTextBox_Undo( a )
+    tkTest_Check( "Undo notifies", gChanges = 3 andalso tkTextBox_GetText( a ) = " two" )
+    tkHost_SetClipboardText( "line1" & chr( 13, 10 ) & "line2" )
+    tkTextBox_SetText( a, "" )
+    tkTextBox_Paste( a )
+    tkTest_Check( "single-line keeps the first pasted line", tkTextBox_GetText( a ) = "line1", tkTextBox_GetText( a ) )
+
+    ' limit, in characters
+    tkTextBox_SetText( a, "" )
+    tkTextBox_SetLimitText( a, 5 )
+    TypeKeys( h, "abcdefg" )
+    tkTest_Check( "LimitText truncates typing", tkTextBox_GetText( a ) = "abcde", tkTextBox_GetText( a ) )
+    tkTextBox_SetText( a, "" )
+    tkTextBox_SetLimitText( a, 2 )
+    TypeKeys( h, wchr( &hE9, &hE9, &hE9 ) )
+    tkTest_Check( "LimitText counts characters, not bytes", tkTextBox_GetTextLength( a ) = 4, "" & tkTextBox_GetTextLength( a ) )
+    tkTextBox_SetLimitText( a, 0 )
+
+    ' read-only: no typing, still selectable
+    tkTextBox_SetText( a, "fixed" )
+    tkTextBox_SetReadOnly( a, true )
+    TypeKeys( h, "x" ) : tkTest_PushKey( h, SDLK_BACKSPACE )
+    tkTest_Check( "read-only refuses edits", tkTextBox_GetText( a ) = "fixed" )
+    tkTest_PushKey( h, SDLK_A, SDL_KMOD_LCTRL )
+    tkTest_Check( "read-only still selects", Sel( a ) = "0,5" )
+    tkTextBox_SetReadOnly( a, false )
+
+    ' password: masked caret geometry, no copy
+    tkTextBox_SetText( a, "secret" )
+    tkTextBox_SetPasswordChar( a, &h25CF )
+    dim as long px, py, px0, py0
+    tkTextBox_PosFromChar( a, 0, px0, py0 )
+    tkTextBox_PosFromChar( a, 2, px, py )
+    dim as string mask2 = chr( &hE2, &h97, &h8F, &hE2, &h97, &h8F )
+    tkTest_Check( "password: caret x = two mask glyphs", px - px0 = tkText_WidthU8( f10, mask2 ), (px - px0) & " vs " & tkText_WidthU8( f10, mask2 ) )
+    tkHost_SetClipboardText( "untouched" )
+    tkTextBox_SelectAll( a ) : tkTextBox_Copy( a )
+    tkTest_Check( "password: Copy refused", tkHost_GetClipboardText() = "untouched" )
+    tkTextBox_SetPasswordChar( a, 0 )
+
+    ' ---- D: numeric mode ----------------------------------------------------------------------
+    dim as TK_WIDGET ptr n = tkTextBox_Create( tkHost_Root( h ), 103 )
+    tkTextBox_SetFont( n, f10 )
+    tkWidget_SetPos( n, tkHost_Scale( h, 20 ), tkHost_Scale( h, 70 ), tkHost_Scale( h, 200 ), ah )
+    tkTextBox_SetNumericMode( n, true )
+    tkTextBox_SetFocusCallback( n, @OnFocus )
+    tkTextBox_SetChangeCallback( n, @OnChange )
+    tkTest_Click( h, tkTest_CX( n ), tkTest_CY( n ) )
+    TypeKeys( h, "1" ) : TypeKeys( h, "2" ) : TypeKeys( h, "." ) : TypeKeys( h, "3" ) : TypeKeys( h, "4" ) : TypeKeys( h, "5" )
+    tkTest_Check( "numeric: decimal-places limit", tkTextBox_GetText( n ) = "12.34", tkTextBox_GetText( n ) )
+    TypeKeys( h, "-" ) : TypeKeys( h, "a" ) : TypeKeys( h, "." )
+    tkTest_Check( "numeric: minus mid-text, letters, 2nd point refused", tkTextBox_GetText( n ) = "12.34" )
+    tkTest_PushKey( h, SDLK_HOME ) : TypeKeys( h, "-" )
+    tkTest_Check( "numeric: leading minus accepted", tkTextBox_GetText( n ) = "-12.34" )
+    tkTest_PushKey( h, SDLK_HOME ) : TypeKeys( h, "9" )
+    tkTest_Check( "numeric: nothing in front of the minus", tkTextBox_GetText( n ) = "-12.34" )
+    tkTextBox_SetText( n, "5." )
+    gChanges = 0 : gFocusOut = 0
+    tkHost_SetFocus( h, a )
+    tkTest_Check( "numeric: focus loss reformats", tkTextBox_GetText( n ) = "5.00", tkTextBox_GetText( n ) )
+    tkTest_Check( "numeric: reformat is silent", gChanges = 0 )
+    tkTest_Check( "numeric: focus callback reads the FORMATTED text", gFocusOut = 1 andalso gTextAtFocusOut = "5.00", "" & gTextAtFocusOut )
+    tkTextBox_SetText( n, "" )
+    tkTextBox_SetZeroWhenEmpty( n, true )
+    tkTest_Check( "ZeroWhenEmpty stamps an unfocused empty box", tkTextBox_GetText( n ) = "0.00" )
+    tkTest_Check( "GetValue", tkTextBox_GetValue( n ) = 0 )
+    tkTextBox_SetValue( n, -1234.567 )
+    tkTest_Check( "SetValue: no separators, rounded", tkTextBox_GetText( n ) = "-1234.57", tkTextBox_GetText( n ) )
+    tkTextBox_SetDecimalPlaces( n, 0 )
+    tkTextBox_SetValue( n, 7.5 )
+    tkTest_Check( "0 places: integers", tkTextBox_GetText( n ) = "8", tkTextBox_GetText( n ) )
+    tkTextBox_SetDecimalPlaces( n, 2 )
+    tkTextBox_SetText( n, "" )
+    tkHost_SetClipboardText( "1x2" )
+    tkTextBox_Paste( n )
+    tkTest_Check( "numeric: an invalid paste is refused WHOLE", tkTextBox_GetText( n ) = "" )
+    tkHost_SetClipboardText( "-3.25" )
+    tkTextBox_Paste( n )
+    tkTest_Check( "numeric: a valid paste lands", tkTextBox_GetText( n ) = "-3.25" )
+
+    ' ---- E: multiline ---------------------------------------------------------------------------
+    dim as TK_WIDGET ptr m = tkTextBox_Create( tkHost_Root( h ), 104, true )
+    tkTextBox_SetFont( m, f10 )
+    dim as integer t0, p0, q0
+    tkTextBox_GetVScrollInfo( m, t0, p0, q0 )
+    tkTest_Check( "scroll info all 0 before sizing", t0 = 0 andalso p0 = 0 andalso q0 = 0 )
+    tkTextBox_SetNumericMode( m, true )
+    tkTest_Check( "numeric mode refused on multiline", tkTextBox_GetNumericMode( m ) = false )
+    tkTextBox_SetMargins( m, S6, S6 )
+    tkTextBox_SetScrollChangedCallback( m, @OnScroll )
+    dim as long mh = tkHost_Scale( h, 110 )
+    tkWidget_SetPos( m, tkHost_Scale( h, 20 ), tkHost_Scale( h, 120 ), tkHost_Scale( h, 300 ), mh )
+    dim as string sLines
+    for i as long = 1 to 40
+        sLines &= "Line " & i
+        if i < 40 then sLines &= chr( 13, 10 )
+    next
+    gScrolls = 0
+    tkTextBox_SetText( m, sLines )
+    tkTest_Check( "programmatic SetText DOES fire scroll-changed", gScrolls >= 1, "" & gScrolls )
+    tkTextBox_GetVScrollInfo( m, nT, nP, nF )
+    dim as long lskip = tkText_LineSkip( f10 )
+    tkTest_Check( "40 lines, CRLF normalised", nT = 40 andalso tkTextBox_GetTextLength( m ) = len( sLines ) - 39, nT & " " & tkTextBox_GetTextLength( m ) )
+    tkTest_Check( "lines per page = (h - 2*border) \ lineskip", nP = (mh - 2) \ lskip, nP & " vs " & ((mh - 2) \ lskip) )
+    tkTest_Check( "SetText scrolls to the caret at the end", nF = 40 - nP, "" & nF )
+    gScrolls = 0
+    tkTextBox_ScrollToLine( m, 10 )
+    tkTextBox_GetVScrollInfo( m, nT, nP, nF )
+    tkTest_Check( "ScrollToLine", nF = 10 )
+    tkTest_Check( "ScrollToLine is silent", gScrolls = 0 )
+    tkTextBox_ScrollToLine( m, -5 )
+    tkTextBox_GetVScrollInfo( m, nT, nP, nF )
+    tkTest_Check( "ScrollToLine clamps negatives", nF = 0 )
+    tkTest_PushWheel( h, tkTest_CX( m ), tkTest_CY( m ), 0, -1 )
+    tkTextBox_GetVScrollInfo( m, nT, nP, nF )
+    tkTest_Check( "wheel down one notch = 3 lines", nF = 3, "" & nF )
+    tkTest_Check( "wheel notifies", gScrolls = 1, "" & gScrolls )
+    tkTest_PushWheel( h, tkTest_CX( m ), tkTest_CY( m ), 0, 0.5 )
+    tkTest_PushWheel( h, tkTest_CX( m ), tkTest_CY( m ), 0, 0.5 )
+    tkTextBox_GetVScrollInfo( m, nT, nP, nF )
+    tkTest_Check( "sub-notch deltas accumulate", nF = 0, "" & nF )
+    tkTest_PushWheel( h, tkTest_CX( a ), tkTest_CY( a ), 0, -1 )
+    tkTest_Check( "single-line refuses the wheel (bubbles)", tkTextBox_GetCaret( a ) >= 0 )
+
+    ' Enter, Tab, Up/Down with a desired column
+    tkTextBox_SetText( m, "abcdefgh" & chr( 10 ) & "ab" & chr( 10 ) & "abcdefgh" )
+    tkTest_Click( h, tkTest_CX( m ), tkTest_CY( m ) )
+    tkTextBox_SetSel( m, 6, 6 )
+    tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_Check( "Down onto a short line: its end", tkTextBox_GetCaret( m ) = 11, "" & tkTextBox_GetCaret( m ) )
+    tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_Check( "Down again: the desired column returns", tkTextBox_GetCaret( m ) = 18, "" & tkTextBox_GetCaret( m ) )
+    tkTest_PushKey( h, SDLK_HOME )
+    tkTest_Check( "Home = this line's start", tkTextBox_GetCaret( m ) = 12 )
+    tkTest_PushKey( h, SDLK_END, SDL_KMOD_LCTRL )
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "multiline Enter/Tab insert", tkTextBox_GetText( m ) = "abcdefgh" & chr( 10 ) & "ab" & chr( 10 ) & "abcdefgh" & chr( 10, 9 ) )
+    tkTest_Check( "multiline Tab keeps focus", tkTextBox_HasFocus( m ) )
+    tkTextBox_GetVScrollInfo( m, nT, nP, nF )
+    tkTest_Check( "Enter adds a line", nT = 4 )
+
+    ' word wrap: every line fits, breaks at spaces
+    dim as string para = ""
+    for i as long = 1 to 30
+        para &= "word" & i & " "
+    next
+    tkTextBox_SetText( m, para )
+    tkTextBox_GetVScrollInfo( m, nT, nP, nF )
+    tkTest_Check( "a paragraph wraps into several lines", nT > 3, "" & nT )
+    tkTextBox_GetTextRect( m, rc )
+    dim as boolean bFits = true
+    dim as long prevY = -100000
+    for i as long = 0 to len( para )
+        dim as long qx, qy
+        tkTextBox_PosFromChar( m, i, qx, qy )
+        if qx > rc.right then bFits = false
+    next
+    tkTest_Check( "no caret position past the wrap width", bFits )
+    tkTextBox_PosFromChar( m, 6, px, py )
+    tkTest_Check( "wrapped lines start on a word", tkTextBox_CharFromPos( m, rc.left, py + lskip + 2 ) > 6 )
+
+    ' the embedded scrollbar (opt-in)
+    dim as TKRECT rc0, rc1
+    tkTextBox_GetTextRect( m, rc0 )
+    tkTextBox_SetScrollBarVisible( m, true )
+    tkTextBox_GetTextRect( m, rc1 )
+    tkTest_Check( "embedded bar reserves its strip", rc0.right - rc1.right = tkHost_Scale( h, TKVSCROLL_DEFAULT_WIDTH ), (rc0.right - rc1.right) & "" )
+    tkTextBox_SetText( m, sLines )
+    tkTextBox_ScrollToLine( m, 7 )
+    dim as TK_WIDGET ptr sb = tkTextBox_GetScrollBar( m )
+    tkTest_Check( "the bar follows the view", tkVScrollBar_GetPos( sb ) = 7, "" & tkVScrollBar_GetPos( sb ) )
+    tkVScrollBar_SetPos( sb, 3 )
+    tkTest_PushWheel( h, tkTest_CX( sb ), tkTest_CY( sb ), 0, -1 )
+    tkTextBox_GetVScrollInfo( m, nT, nP, nF )
+    tkTest_Check( "the bar drives the view", nF = tkVScrollBar_GetPos( sb ) andalso nF <> 7, nF & " vs " & tkVScrollBar_GetPos( sb ) )
+    tkTextBox_SetScrollBarVisible( m, false )
+
+    ' ---- F: the mouse -----------------------------------------------------------------------------
+    tkTextBox_SetText( a, "hello world" )
+    ClickOffset( h, a, 3 )
+    tkTest_Check( "click places the caret", Sel( a ) = "3,3", Sel( a ) )
+    dim as long x0, y0, x5, y5
+    tkTextBox_PosFromChar( a, 0, x0, y0 ) : tkTextBox_PosFromChar( a, 5, x5, y5 )
+    dim as single ax0, ay0, ax5, ay5
+    AbsPt( a, x0 + 1, y0 + S6, ax0, ay0 ) : AbsPt( a, x5, y5 + S6, ax5, ay5 )
+    tkTest_PushButton( h, true, ax0, ay0 )
+    tkTest_Check( "press takes capture", tkHost_GetCapture( h ) = a )
+    tkTest_PushMotion( h, ax5, ay5 )
+    tkTest_PushButton( h, false, ax5, ay5 )
+    tkTest_Check( "drag selects", Sel( a ) = "0,5", Sel( a ) )
+    tkTest_Check( "release frees capture", tkHost_GetCapture( h ) = 0 )
+    ClickOffset( h, a, 8, 2 )
+    tkTest_Check( "double click selects the word", Sel( a ) = "6,11", Sel( a ) )
+
+    ' ---- G: the IME -----------------------------------------------------------------------------
+    tkTextBox_SetText( a, "ab" )
+    tkTextBox_SetSel( a, 1, 1 )
+    dim as TKRECT rcC0, rcC1
+    tkTextBox_GetCaretRect( a, rcC0 )
+    tkTest_PushEditing( h, "xy", 2, 0 )
+    tkTest_Check( "pre-edit held, not committed", tkTextBox_GetComposition( a ) = "xy" andalso tkTextBox_GetText( a ) = "ab" )
+    tkTextBox_GetCaretRect( a, rcC1 )
+    dim as string xy = "xy"
+    tkTest_Check( "caret drawn after the pre-edit", rcC1.left - rcC0.left = tkText_WidthU8( f10, "a" & xy ) - tkText_WidthU8( f10, "a" ), (rcC1.left - rcC0.left) & "" )
+    tkTest_PushEditing( h, "xy", 1, 0 )
+    tkTextBox_GetCaretRect( a, rcC1 )
+    tkTest_Check( "the IME cursor moves inside the pre-edit", rcC1.left - rcC0.left = tkText_WidthU8( f10, "ax" ) - tkText_WidthU8( f10, "a" ) )
+    tkTest_PushKey( h, SDLK_LEFT )
+    tkTest_Check( "keys while composing belong to the IME", tkTextBox_GetCaret( a ) = 1 )
+    tkTest_PushText( h, wchr( &h304B ) )
+    tkTest_Check( "commit inserts and ends the pre-edit", tkTextBox_GetText( a ) = "a" & wchr( &h304B ) & "b" andalso tkTextBox_GetComposition( a ) = "" )
+    tkTest_PushEditing( h, "q", 1, 0 )
+    tkTest_PushEditing( h, "", 0, 0 )
+    tkTest_Check( "an empty pre-edit cancels", tkTextBox_GetComposition( a ) = "" andalso tkTextBox_GetText( a ) = "a" & wchr( &h304B ) & "b" )
+
+    ' ---- H: the context menu ------------------------------------------------------------------
+    dim as TK_MENU ptr cm = tkTextBox_GetContextMenu( a )
+    tkTest_Check( "context menu exists from create", cm <> 0 )
+    tkTextBox_SetText( a, "menu text" )
+    tkTextBox_SetSel( a, 0, 4 )
+    tkHost_SetClipboardText( "clip" )
+    ' (checked at once: a popup of a window that is not the active application is dismissed
+    ' by the host's focus check 150 ms later -- a user working in another window)
+    tkTest_Click( h, tkTest_CX( a ), tkTest_CY( a ), SDL_BUTTON_RIGHT )
+    tkTest_Check( "right click opens the menu", tkPopupMenu_IsOpen( cm ) )
+    ' Cut, Copy, sep, Paste, sep, Select All
+    tkTest_Check( "rebuilt for sel+clip+text: 6 rows", tkPopupMenu_GetItemCount( cm ) = 6, "" & tkPopupMenu_GetItemCount( cm ) )
+    dim as TKRECT rcRow
+    tkPopupMenu_GetItemRect( cm, 5, rcRow )
+    if tkPopupMenu_Surface( cm ) then tkTest_Click( tkPopupMenu_Surface( cm ), (rcRow.left + rcRow.right) / 2, (rcRow.top + rcRow.bottom) / 2 )
+    tkTest_PumpFor( h, 100 )
+    tkTest_Check( "Select All from the menu", Sel( a ) = "0,9" andalso tkPopupMenu_IsOpen( cm ) = false, Sel( a ) )
+    tkTextBox_SetReadOnly( a, true )
+    tkTextBox_SetMenuText( a, "Couper", "Copier", "Coller", "Tout" )
+    tkTest_Click( h, tkTest_CX( a ), tkTest_CY( a ), SDL_BUTTON_RIGHT )
+    tkTest_Check( "read-only: Copy + Select All only", tkPopupMenu_GetItemCount( cm ) = 3, "" & tkPopupMenu_GetItemCount( cm ) )
+    tkTextBox_CloseContextMenu()
+    tkTest_PumpFor( h, 50 )
+    tkTest_Check( "CloseContextMenu", tkPopupMenu_IsOpen( cm ) = false )
+    tkTextBox_SetReadOnly( a, false )
+    gVetoMenu = true
+    tkTest_Click( h, tkTest_CX( a ), tkTest_CY( a ), SDL_BUTTON_RIGHT )
+    tkTest_PumpFor( h, 100 )
+    tkTest_Check( "message callback vetoes the menu", tkPopupMenu_IsOpen( cm ) = false )
+    gVetoMenu = false
+    tkTextBox_SetText( a, "" )
+    SDL_ClearClipboardData()
+    tkTest_Click( h, tkTest_CX( a ), tkTest_CY( a ), SDL_BUTTON_RIGHT )
+    tkTest_PumpFor( h, 100 )
+    tkTest_Check( "nothing qualifies: no menu at all", tkPopupMenu_IsOpen( cm ) = false )
+
+    ' ---- I: the caret blinks while focused ------------------------------------------------------
+    tkHost_SetFocus( h, a )
+    tkTextBox_SetCaretBlink( a, 60 )
+    dim as long nFlips = 0
+    dim as boolean bWas = tkTextBox_GetCaretVisible( a )
+    dim as double tb0 = timer
+    while timer - tb0 < 0.5
+        tkTest_PumpFor( h, 20 )
+        if tkTextBox_GetCaretVisible( a ) <> bWas then nFlips += 1 : bWas = (bWas = false)
+    wend
+    tkTest_Check( "caret blinks", nFlips >= 2, "" & nFlips )
+    tkTextBox_SetCaretBlink( a, 0 )
+    tkTest_PumpFor( h, 150 )
+    tkTest_Check( "blink 0 = steady caret", tkTextBox_GetCaretVisible( a ) )
+    tkHost_SetFocus( h, b2 )
+    tkTest_Check( "no caret without focus", tkTextBox_GetCaretVisible( a ) = false )
+
+    ' ---- J: pixels: frame, focus border, cue, selection ----------------------------------------
+    dim as TK_WIDGET ptr c = tkTextBox_Create( tkHost_Root( h ), 105 )
+    tkTextBox_SetFont( c, f10 )
+    tkTextBox_SetMargins( c, S6, S6 )
+    tkWidget_SetPos( c, tkHost_Scale( h, 20 ), tkHost_Scale( h, 250 ), tkHost_Scale( h, 300 ), ah )
+    tkTextBox_SetCueBannerText( c, "Search anything..." )
+    tkTextBox_SetCueBannerFont( c, f9i )
+    tkTextBox_SetCueBannerColor( c, &hFF00FF00ul )
+    tkTextBox_SetBorderColor( c, &hFFFF0000ul )
+    tkTextBox_SetFocusBorderColor( c, &hFF0000FFul )
+    tkTest_Check( "shows cue when empty", tkTextBox_ShowsCue( c ) )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "unfocused border = BorderColor", tkTest_PixelAt( h, c->x, c->y + ah \ 2 ) = &hFFFF0000ul, hex( tkTest_PixelAt( h, c->x, c->y + ah \ 2 ) ) )
+    tkTextBox_GetTextRect( c, rc )
+    dim as ulong c0
+    dim as long nCue = tkTest_TonesIn( h, c->x + rc.left, c->y + rc.top, rc.right - rc.left, rc.bottom - rc.top, c0 )
+    tkTest_Check( "cue banner drawn (> 2 tones)", nCue > 2, "" & nCue )
+    dim as boolean bGreen = false
+    for yy as long = rc.top to rc.bottom - 1
+        for xx as long = rc.left to rc.left + tkHost_Scale( h, 40 )
+            dim as ulong px1 = tkTest_PixelAt( h, c->x + xx, c->y + yy )
+            ' the cue's own ink: green-dominant (anti-aliased onto the dark back colour)
+            if (((px1 shr 8) and 255) > 120) andalso (((px1 shr 16) and 255) < 70) andalso ((px1 and 255) < 70) then bGreen = true : exit for
+        next
+        if bGreen then exit for
+    next
+    tkTest_Check( "cue in its OWN colour", bGreen )
+    tkHost_SetFocus( h, c )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "focused border = FocusBorderColor", tkTest_PixelAt( h, c->x, c->y + ah \ 2 ) = &hFF0000FFul )
+    tkTest_Check( "cue shows while focused too", tkTextBox_ShowsCue( c ) )
+    tkTextBox_SetText( c, "selected" )
+    tkTextBox_SelectAll( c )
+    tkHost_RenderTo( h, false )
+    dim as TKTEXTBOX_COLORS cc
+    tkTextBox_GetColors( c, @cc )
+    tkTextBox_PosFromChar( c, 0, px, py )
+    tkTest_Check( "selection band in SelBackColor", tkTest_PixelAt( h, c->x + px + 1, c->y + rc.top + 1 ) = cc.SelBackColor, hex( tkTest_PixelAt( h, c->x + px + 1, c->y + rc.top + 1 ) ) )
+    tkTest_Check( "no cue once there is text", tkTextBox_ShowsCue( c ) = false )
+
+    ' ---- K: theme and pinning -----------------------------------------------------------------
+    tkTheme_Apply( tkTheme_Light() )
+    tkTextBox_GetColors( b2, @cc )
+    tkTest_Check( "theme reaches an unpinned box", cc.BackColor = tkTheme_Light().Surface andalso cc.CueColor = tkTheme_Light().TextDim )
+    tkTextBox_GetColors( c, @cc )
+    tkTest_Check( "a Set*Color pinned box keeps its colours", cc.BorderColor = &hFFFF0000ul )
+    tkTextBox_UnpinColors( c )
+    tkTextBox_GetColors( c, @cc )
+    tkTest_Check( "unpin hands it back to the theme", cc.BorderColor = tkTheme_Light().Border )
+    dim as ulong old = tkTextBox_SetForeColor( b2, &hFF112233ul )
+    tkTest_Check( "SetForeColor returns the previous", old = tkTheme_Light().Text )
+    tkTheme_Apply( tkTheme_Dark() )
+    tkTest_Check( "...and pins", tkTextBox_GetForeColor( b2 ) = &hFF112233ul )
+
+    ' ---- L: rescale ---------------------------------------------------------------------------
+    dim as integer ml0, mr0
+    tkTextBox_GetMargins( a, ml0, mr0 )
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    dim as integer ml1, mr1
+    tkTextBox_GetMargins( a, ml1, mr1 )
+    tkTest_Check( "rescale: margins x2", ml1 = ml0 * 2, ml0 & " -> " & ml1 )
+    tkTest_Check( "rescale: border width NOT scaled", tkTextBox_GetBorderWidth( a ) = 1 )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+
+    ' ---- M: disabled swallows input -----------------------------------------------------------
+    tkHost_SetFocus( h, 0 )
+    tkWidget_Enable( b2, false )
+    tkTest_Click( h, tkTest_CX( b2 ), tkTest_CY( b2 ) )
+    tkTest_Check( "disabled: a click does not focus", tkTextBox_HasFocus( b2 ) = false )
+
+    tkHost_Destroy( h )
+end sub
+
+
+' ==========================================================================================
+if tkTest_Init() = false then end 99
+RunPass( 1.0 )
+RunPass( 1.75 )
+dim as long nFail = tkTest_Report( "tkTextBox" )
+tkTest_Quit()
+end nFail

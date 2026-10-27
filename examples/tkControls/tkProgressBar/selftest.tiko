@@ -1,0 +1,709 @@
+' tkProgressBar self-test. Real windows, real SDL event queue: every input claim is made by
+' PUSHING the SDL event a user would have produced and pumping the host, and the marquee is
+' timed by pumping REAL time through the host's timers. Two passes, scale pinned at 1.0 and 1.75.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkProgressBar"
+#import "vendor/tkControls/tkTest"
+using tkProgressBar
+using tkTooltip
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as TK_HOST ptr gH
+dim shared as long gMsgCount, gDownCount, gUpCount, gDestroyOffered
+dim shared as boolean gSuppressPaint
+dim shared as long gTipCalls
+dim shared as long gBlockLen(0 to 1)
+
+function OnMessage( byval m as TKPROGRESSBAR_MESSAGEINFO ptr ) as boolean
+    gMsgCount += 1
+    select case m->msg
+    case TKM_LBUTTONDOWN : gDownCount += 1
+    case TKM_LBUTTONUP : gUpCount += 1
+    case TKM_DESTROY : gDestroyOffered += 1
+    case TKM_PAINT
+        if gSuppressPaint then return true
+    end select
+    return false
+end function
+
+function OnText( byval hBar as TK_WIDGET ptr, byval nPos as long, byval nMin as long, byval nMax as long ) as ustring
+    dim as string sOut = "CB:" & str( nPos ) & "/" & str( nMax )
+    return sOut
+end function
+
+function OnWideText( byval hBar as TK_WIDGET ptr, byval nPos as long, byval nMin as long, byval nMax as long ) as ustring
+    return "MMMMMMMMMMMMMMMM"
+end function
+
+function OnTip( byval hBar as TK_WIDGET ptr ) as ustring
+    gTipCalls += 1
+    return "tip from callback"
+end function
+
+private function S( byval v as long ) as long
+    return tkHost_Scale( gH, v )
+end function
+
+private function Chan( byval c as ulong, byval sh as long ) as long
+    return (c shr sh) and 255
+end function
+
+private function Near( byval a as ulong, byval b as ulong, byval tol as long ) as boolean
+    for i as long = 0 to 2
+        if abs( Chan( a, i * 8 ) - Chan( b, i * 8 ) ) > tol then return false
+    next
+    return true
+end function
+
+private function HexC( byval c as ulong ) as string
+    return hex( c and &hFFFFFFul, 6 )
+end function
+
+' Pixels in a window-pixel rect of the back buffer within tol (per channel) of c.
+private function CountNear( byval x as long, byval y as long, byval w as long, byval hh as long, _
+                            byval c as ulong, byval tol as long ) as long
+    if (w <= 0) orelse (hh <= 0) then return 0
+    dim as SDL_Rect sr
+    sr.x = x : sr.y = y : sr.w = w : sr.h = hh
+    dim as SDL_Surface ptr s0 = SDL_RenderReadPixels( gH->renderer, @sr )
+    if s0 = 0 then return 0
+    dim as SDL_Surface ptr surf = SDL_ConvertSurface( s0, SDL_PIXELFORMAT_ARGB8888 )
+    SDL_DestroySurface( s0 )
+    if surf = 0 then return 0
+    dim as long n = 0
+    for yy as long = 0 to surf->h - 1
+        dim as ulong ptr row = cast( ulong ptr, cast( ubyte ptr, surf->pixels ) + yy * surf->pitch )
+        for xx as long = 0 to surf->w - 1
+            if Near( row[xx], c, tol ) then n += 1
+        next
+    next
+    SDL_DestroySurface( surf )
+    return n
+end function
+
+private function PixelIn( byval w as TK_WIDGET ptr, byval x as long, byval y as long ) as ulong
+    dim as TKRECT a
+    tkWidget_AbsRect( w, a )
+    return tkTest_PixelAt( gH, a.left + x, a.top + y )
+end function
+
+private sub TimerTickNow( byval w as TK_WIDGET ptr )
+    dim as TK_MSG tm
+    tm.msg = TKM_TIMER
+    tm.timerId = TK_TIMER_MARQUEE
+    tkWidget_Send( w, @tm )
+end sub
+
+dim shared as string gTipDiag
+
+' Pump real time until the tip is (or is not) up. While waiting for it to SHOW, a resting user's
+' cursor stays on the bar: if a REAL pointer event from the shared desktop moved the surface's
+' hot widget elsewhere (or a real leave cleared it), the hover is pushed again at the same spot.
+function WaitTip( byval tp as TK_WIDGET ptr, byval want as boolean, byval ms as long ) as boolean
+    dim as double t0 = timer
+    dim as SDL_Event e
+    dim as long nRepush = 0
+    while (timer - t0) * 1000 < ms
+        if SDL_WaitEventTimeout( @e, 20 ) then tkHost_Dispatch( gH, @e )
+        if gH->bDirty then tkHost_Render( gH )
+        if tkTooltip_IsVisible( tkProgressBar_GetTooltipHandle( tp ) ) = want then return true
+        if want andalso (gH->pHot <> tp) then
+            nRepush += 1
+            tkTest_PushMotion( gH, tkTest_CX( tp ), tkTest_CY( tp ) )
+        end if
+    wend
+    gTipDiag = "hot=" & iif( gH->pHot = tp, "bar", iif( gH->pHot = 0, "none", "other" ) ) & _
+               " buttons=" & gH->buttonsDown & " capture=" & iif( gH->pCapture <> 0, "yes", "no" ) & " repushed=" & nRepush
+    return false
+end function
+
+
+' ==========================================================================================
+sub RunPure()
+    tkTest_Begin( "pure" )
+    dim as long n
+    n = tkProgressBar_ComputeBarLength( 0, 0, 100, 200 )   : tkTest_Check( "BarLength: minimum is empty", n = 0, "" & n )
+    n = tkProgressBar_ComputeBarLength( 100, 0, 100, 200 ) : tkTest_Check( "BarLength: maximum fills", n = 200, "" & n )
+    n = tkProgressBar_ComputeBarLength( 50, 0, 100, 200 )  : tkTest_Check( "BarLength: half is half", n = 100, "" & n )
+    n = tkProgressBar_ComputeBarLength( 150, 100, 200, 200 ) : tkTest_Check( "BarLength: non-zero minimum", n = 100, "" & n )
+    n = tkProgressBar_ComputeBarLength( 5, 5, 5, 200 )     : tkTest_Check( "BarLength: empty range -> 0", n = 0, "" & n )
+    n = tkProgressBar_ComputeBarLength( 50, 100, 0, 200 )  : tkTest_Check( "BarLength: inverted range -> 0", n = 0, "" & n )
+    n = tkProgressBar_ComputeBarLength( -50, 0, 100, 200 ) : tkTest_Check( "BarLength: below clamps", n = 0, "" & n )
+    n = tkProgressBar_ComputeBarLength( 500, 0, 100, 200 ) : tkTest_Check( "BarLength: above clamps", n = 200, "" & n )
+    n = tkProgressBar_ComputeBarLength( 500000000, 0, 1000000000, 200 )
+    tkTest_Check( "BarLength: no 32-bit overflow", n = 100, "" & n )
+    n = tkProgressBar_ComputeBarLength( 50, 0, 100, 0 )    : tkTest_Check( "BarLength: zero track -> 0", n = 0, "" & n )
+
+    ' BOUNCE: track 100, chunk 20, step 2 -> span 80, period 80 ticks (2*span/step)
+    dim as long o = tkProgressBar_ComputeMarqueeOffset( 100, 20, 2, 0, PRG_MARQUEE_BOUNCE )
+    tkTest_Check( "Bounce: starts at 0", o = 0, "" & o )
+    dim as long mn = 999, mx = -999, prev = 0, maxJump = 0
+    dim as boolean bInRange = true
+    for t as long = 0 to 160
+        o = tkProgressBar_ComputeMarqueeOffset( 100, 20, 2, t, PRG_MARQUEE_BOUNCE )
+        if (o < 0) orelse (o > 80) then bInRange = false
+        if o < mn then mn = o
+        if o > mx then mx = o
+        if (t > 0) andalso (abs( o - prev ) > maxJump) then maxJump = abs( o - prev )
+        prev = o
+    next
+    tkTest_Check( "Bounce: stays in [0, span]", bInRange )
+    tkTest_Check( "Bounce: reaches both ends", (mn = 0) andalso (mx = 80), mn & ".." & mx )
+    tkTest_Check( "Bounce: reverses smoothly (no wrap jump)", maxJump <= 2, "" & maxJump )
+    dim as boolean bPer = true
+    for t as long = 0 to 79
+        if tkProgressBar_ComputeMarqueeOffset( 100, 20, 2, t, 0 ) <> tkProgressBar_ComputeMarqueeOffset( 100, 20, 2, t + 80, 0 ) then bPer = false
+    next
+    tkTest_Check( "Bounce: period is 2*span", bPer )
+    tkTest_Check( "Bounce: NOT periodic after span", tkProgressBar_ComputeMarqueeOffset( 100, 20, 2, 10, 0 ) <> tkProgressBar_ComputeMarqueeOffset( 100, 20, 2, 50, 0 ) )
+    tkTest_Check( "Bounce: chunk = track cannot move", tkProgressBar_ComputeMarqueeOffset( 100, 100, 2, 7, 0 ) = 0 )
+    tkTest_Check( "Bounce: oversized chunk cannot move", tkProgressBar_ComputeMarqueeOffset( 100, 150, 2, 7, 0 ) = 0 )
+    dim as boolean bNeg = true
+    for t as long = -60 to -1
+        o = tkProgressBar_ComputeMarqueeOffset( 100, 20, 2, t, 0 )
+        if (o < 0) orelse (o > 80) then bNeg = false
+    next
+    tkTest_Check( "Bounce: negative ticks stay in range", bNeg )
+    tkTest_Check( "Bounce: step 0 treated as 1", tkProgressBar_ComputeMarqueeOffset( 100, 20, 0, 5, 0 ) = 5 )
+
+    ' WRAP: period (track + chunk) / step = 60 ticks, range [-chunk, track)
+    o = tkProgressBar_ComputeMarqueeOffset( 100, 20, 2, 0, PRG_MARQUEE_WRAP )
+    tkTest_Check( "Wrap: starts fully off (-chunk)", o = -20, "" & o )
+    mn = 999 : mx = -999
+    dim as boolean bMono = true
+    prev = -999
+    for t as long = 0 to 59
+        o = tkProgressBar_ComputeMarqueeOffset( 100, 20, 2, t, PRG_MARQUEE_WRAP )
+        if o < mn then mn = o
+        if o > mx then mx = o
+        if o <= prev then bMono = false
+        prev = o
+    next
+    tkTest_Check( "Wrap: ends past the far edge", (mn = -20) andalso (mx >= 98), mn & ".." & mx )
+    tkTest_Check( "Wrap: sawtooth rises within a period", bMono )
+    tkTest_Check( "Wrap: period is track + chunk", tkProgressBar_ComputeMarqueeOffset( 100, 20, 2, 7, 1 ) = tkProgressBar_ComputeMarqueeOffset( 100, 20, 2, 67, 1 ) )
+
+    n = tkProgressBar_ComputeBlockCount( 100, 10, 3 ) : tkTest_Check( "Blocks: 100 of 10+3 = 7", n = 7, "" & n )
+    n = tkProgressBar_ComputeBlockCount( 88, 10, 3 )  : tkTest_Check( "Blocks: exact fit 88 = 7", n = 7, "" & n )
+    n = tkProgressBar_ComputeBlockCount( 87, 10, 3 )  : tkTest_Check( "Blocks: one short = 6", n = 6, "" & n )
+    n = tkProgressBar_ComputeBlockCount( 100, 10, 0 ) : tkTest_Check( "Blocks: zero gap", n = 10, "" & n )
+    n = tkProgressBar_ComputeBlockCount( 10, 10, 3 )  : tkTest_Check( "Blocks: last needs no gap", n = 1, "" & n )
+    n = tkProgressBar_ComputeBlockCount( 9, 10, 3 )   : tkTest_Check( "Blocks: shorter than one", n = 0, "" & n )
+    n = tkProgressBar_ComputeBlockCount( 100, 0, 3 )  : tkTest_Check( "Blocks: zero length", n = 0, "" & n )
+end sub
+
+
+' ==========================================================================================
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    gH = tkHost_Create( "tkProgressBar selftest", 640, 520, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    if gH = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    tkTest_Check( "scale pinned", gH->fScale = fScale, "" & gH->fScale )
+    dim as TTF_Font ptr fText = tkHost_OpenFont( gH, TK_TEST_FONTDIR & "segoeuib.ttf", 12 )
+    tkTest_Check( "font opened", fText <> 0 )
+    dim as TK_WIDGET ptr root = tkHost_Root( gH )
+    dim as TKRECT rt, rf, rb, rc
+
+    ' ---- A: defaults, layout before sizing --------------------------------------------
+    dim as TK_WIDGET ptr a = tkProgressBar_Create( root, 101 )
+    tkTest_Check( "orientation default horizontal", tkProgressBar_GetOrientation( a ) = PRG_HORIZONTAL )
+    tkTest_Check( "not focusable (no tab stop)", a->isFocusable = false )
+    dim as long bl, bg, ims, stp
+    tkProgressBar_GetBlockMetrics( a, bl, bg )
+    tkProgressBar_GetMarqueeSpeed( a, ims, stp )
+    tkTest_Check( "defaults scaled at create", (bl = S( 10 )) andalso (bg = S( 3 )) andalso (stp = S( 2 )), bl & " " & bg & " " & stp )
+    tkTest_Check( "interval/chunk/curvature/border defaults", (ims = 30) andalso (tkProgressBar_GetMarqueeChunkPercent( a ) = 25) andalso _
+                  (tkProgressBar_GetCurvature( a ) = TKPROGRESSBAR_CURVATURE_STADIUM) andalso (tkProgressBar_GetBorderThickness( a ) = 0) )
+    dim as long nMin, nMax
+    tkProgressBar_GetRange( a, nMin, nMax )
+    tkTest_Check( "range 0..100, pos 0, step 10", (nMin = 0) andalso (nMax = 100) andalso (tkProgressBar_GetPos( a ) = 0) andalso (tkProgressBar_GetStep( a ) = 10) )
+    tkTest_Check( "GetBlockCount 0 before sizing / unsegmented", tkProgressBar_GetBlockCount( a ) = 0 )
+    tkTest_Check( "probe answers 0 with no geometry", tkProgressBar_CountRenderedTones( a, PRG_PART_CONTROL ) = 0 )
+
+    dim as long bw = S( 400 ), bh = S( 18 )
+    tkWidget_SetPos( a, S( 20 ), S( 10 ), bw, bh )
+    tkProgressBar_SetPos( a, 50 )
+    tkProgressBar_GetTrackRect( a, rt ) : tkProgressBar_GetFillRect( a, rf ) : tkProgressBar_GetBarRect( a, rb )
+    tkTest_Check( "H: track spans the client", (rt.left = 0) andalso (rt.right = bw) andalso (rt.top = 0) andalso (rt.bottom = bh), tkRect_Str( rt ) )
+    tkTest_Check( "H: no inset -> fill = track", (rf.left = rt.left) andalso (rf.right = rt.right) andalso (rf.top = rt.top) andalso (rf.bottom = rt.bottom) )
+    tkTest_Check( "H: 50% is half, from the left", (rb.left = 0) andalso (rb.right = bw \ 2) andalso (rb.top = 0) andalso (rb.bottom = bh), tkRect_Str( rb ) )
+    tkProgressBar_SetPos( a, 0 ) : tkProgressBar_GetBarRect( a, rb )
+    tkTest_Check( "H: empty bar zero width", tkRect_Width( rb ) = 0 )
+    tkProgressBar_SetPos( a, 100 ) : tkProgressBar_GetBarRect( a, rb )
+    tkTest_Check( "H: full bar = fill", (rb.left = rf.left) andalso (rb.right = rf.right) )
+
+    tkProgressBar_SetThickness( a, S( 8 ) )
+    tkProgressBar_GetTrackRect( a, rt )
+    tkTest_Check( "H thickness: deep and centred", (tkRect_Height( rt ) = S( 8 )) andalso (rt.top = (bh - S( 8 )) \ 2), tkRect_Str( rt ) )
+    tkProgressBar_SetThickness( a, bh + 50 )
+    tkProgressBar_GetTrackRect( a, rt )
+    tkTest_Check( "H thickness: larger than client -> fill client", tkRect_Height( rt ) = bh )
+    tkProgressBar_SetThickness( a, -4 )
+    tkTest_Check( "thickness negative clamps to 0", tkProgressBar_GetThickness( a ) = 0 )
+    tkProgressBar_SetBarInset( a, S( 3 ) )
+    tkProgressBar_GetTrackRect( a, rt ) : tkProgressBar_GetFillRect( a, rf )
+    tkTest_Check( "H inset: fill = track deflated", (rf.left = rt.left + S( 3 )) andalso (rf.top = rt.top + S( 3 )) andalso (rf.right = rt.right - S( 3 )) andalso (rf.bottom = rt.bottom - S( 3 )), tkRect_Str( rf ) )
+    tkProgressBar_SetBarInset( a, bh )
+    tkProgressBar_GetFillRect( a, rf )
+    tkTest_Check( "H inset: oversized collapses, never inverts", (rf.bottom >= rf.top) andalso (rf.right >= rf.left) andalso (tkRect_Height( rf ) = 0), tkRect_Str( rf ) )
+    tkProgressBar_SetBarInset( a, -1 )
+    tkTest_Check( "inset negative clamps to 0", tkProgressBar_GetBarInset( a ) = 0 )
+    tkProgressBar_SetPos( a, 25 ) : tkProgressBar_SetReverse( a, true )
+    tkProgressBar_GetFillRect( a, rf ) : tkProgressBar_GetBarRect( a, rb )
+    tkTest_Check( "H reverse: anchored right, 25% long", (rb.right = rf.right) andalso (tkRect_Width( rb ) = bw \ 4), tkRect_Str( rb ) )
+    tkProgressBar_SetReverse( a, false )
+
+    ' ---- B: vertical -----------------------------------------------------------------------
+    dim as TK_WIDGET ptr v = tkProgressBar_Create( root, 102, PRG_VERTICAL )
+    dim as TK_WIDGET ptr vBad = tkProgressBar_Create( root, 103, 77 )
+    tkTest_Check( "orientation fixed at create; unknown -> horizontal", (tkProgressBar_GetOrientation( v ) = PRG_VERTICAL) andalso (tkProgressBar_GetOrientation( vBad ) = PRG_HORIZONTAL) )
+    tkWidget_Destroy( vBad )
+    dim as long vw = S( 22 ), vh = S( 200 )
+    tkWidget_SetPos( v, S( 600 ), S( 10 ), vw, vh )
+    tkProgressBar_SetPos( v, 25 )
+    tkProgressBar_GetTrackRect( v, rt ) : tkProgressBar_GetFillRect( v, rf ) : tkProgressBar_GetBarRect( v, rb )
+    tkTest_Check( "V: track spans the height", (rt.top = 0) andalso (rt.bottom = vh) andalso (tkRect_Width( rt ) = vw) )
+    tkTest_Check( "V: fills BOTTOM-UP, a quarter", (rb.bottom = rf.bottom) andalso (tkRect_Height( rb ) = vh \ 4) andalso (tkRect_Width( rb ) = vw), tkRect_Str( rb ) )
+    tkProgressBar_SetReverse( v, true ) : tkProgressBar_GetBarRect( v, rb )
+    tkTest_Check( "V reverse: fills TOP-DOWN", (rb.top = rf.top) andalso (tkRect_Height( rb ) = vh \ 4), tkRect_Str( rb ) )
+    tkProgressBar_SetReverse( v, false )
+    tkProgressBar_SetThickness( v, S( 10 ) ) : tkProgressBar_GetTrackRect( v, rt )
+    tkTest_Check( "V thickness: wide and h-centred", (tkRect_Width( rt ) = S( 10 )) andalso (rt.left = (vw - S( 10 )) \ 2), tkRect_Str( rt ) )
+    tkProgressBar_SetThickness( v, 0 )
+
+    ' ---- C: model -----------------------------------------------------------------------------
+    tkProgressBar_SetPos( a, 500 ) : tkTest_Check( "SetPos clamps at max", tkProgressBar_GetPos( a ) = 100 )
+    tkProgressBar_SetPos( a, -5 ) : tkTest_Check( "SetPos clamps at min", tkProgressBar_GetPos( a ) = 0 )
+    tkProgressBar_SetPos( a, 95 )
+    dim as long nAfter = tkProgressBar_StepIt( a )
+    tkTest_Check( "StepIt CLAMPS at max (no wrap)", (nAfter = 100) andalso (tkProgressBar_GetPos( a ) = 100), "" & nAfter )
+    nAfter = tkProgressBar_StepIt( a )
+    tkTest_Check( "StepIt at max stays", nAfter = 100 )
+    nAfter = tkProgressBar_DeltaPos( a, -75 )
+    tkTest_Check( "DeltaPos negative", nAfter = 25, "" & nAfter )
+    nAfter = tkProgressBar_DeltaPos( a, -500 )
+    tkTest_Check( "DeltaPos clamps at min", nAfter = 0 )
+    tkProgressBar_SetStep( a, 30 ) : nAfter = tkProgressBar_StepIt( a )
+    tkTest_Check( "SetStep is used by StepIt", nAfter = 30 )
+    tkProgressBar_SetRange( a, 300, 100 )
+    tkProgressBar_GetRange( a, nMin, nMax )
+    tkTest_Check( "inverted SetRange normalised", (nMin = 100) andalso (nMax = 300), nMin & ".." & nMax )
+    tkTest_Check( "and pos pulled into range", tkProgressBar_GetPos( a ) = 100 )
+    tkProgressBar_SetPos( a, 150 )
+    tkTest_Check( "percent of the RANGE", tkProgressBar_GetPercent( a ) = 25, "" & tkProgressBar_GetPercent( a ) )
+    tkProgressBar_SetRange( a, 5, 5 )
+    tkProgressBar_GetBarRect( a, rb )
+    tkTest_Check( "empty range: percent 0, empty bar", (tkProgressBar_GetPercent( a ) = 0) andalso (tkRect_Width( rb ) = 0) )
+    tkProgressBar_SetRange( a, 0, 100 ) : tkProgressBar_SetStep( a, 10 )
+    tkProgressBar_SetCurvature( a, -7 )
+    tkTest_Check( "negative curvature -> stadium sentinel", tkProgressBar_GetCurvature( a ) = TKPROGRESSBAR_CURVATURE_STADIUM )
+    tkProgressBar_SetBorderThickness( a, -2 )
+    tkTest_Check( "border negative clamps to 0", tkProgressBar_GetBorderThickness( a ) = 0 )
+    tkProgressBar_SetMarqueeChunkPercent( a, 0 ) : tkTest_Check( "chunk% clamps to 1", tkProgressBar_GetMarqueeChunkPercent( a ) = 1 )
+    tkProgressBar_SetMarqueeChunkPercent( a, 300 ) : tkTest_Check( "chunk% clamps to 100", tkProgressBar_GetMarqueeChunkPercent( a ) = 100 )
+    tkProgressBar_SetMarqueeChunkPercent( a, 25 )
+    tkProgressBar_SetMarqueeSpeed( a, 0, -3 )
+    tkProgressBar_GetMarqueeSpeed( a, ims, stp )
+    tkTest_Check( "MarqueeSpeed <= 0 ignored", (ims = 30) andalso (stp = S( 2 )), ims & " " & stp )
+    tkProgressBar_SetMarqueeStyle( a, 9 ) : tkTest_Check( "unknown marquee style -> BOUNCE", tkProgressBar_GetMarqueeStyle( a ) = PRG_MARQUEE_BOUNCE )
+    tkProgressBar_SetMode( a, 9 ) : tkTest_Check( "unknown mode -> determinate", tkProgressBar_GetMode( a ) = PRG_MODE_DETERMINATE )
+    tkProgressBar_SetFillStyle( a, 9 ) : tkTest_Check( "unknown fill -> solid", tkProgressBar_GetFillStyle( a ) = PRG_FILL_SOLID )
+    tkProgressBar_SetGradientMode( a, 9 ) : tkTest_Check( "unknown gradient mode -> vertical", tkProgressBar_GetGradientMode( a ) = TK_GRADIENT_VERTICAL )
+    tkProgressBar_SetState( a, 9 ) : tkTest_Check( "unknown state -> normal", tkProgressBar_GetState( a ) = PRG_STATE_NORMAL )
+    tkProgressBar_SetTextMode( a, 42 ) : tkTest_Check( "unknown text mode -> none", tkProgressBar_GetTextMode( a ) = PRG_TEXT_NONE )
+
+    ' ---- D: blocks ----------------------------------------------------------------------------
+    tkProgressBar_SetPos( a, 100 )
+    tkProgressBar_SetSegmented( a, true )
+    tkProgressBar_GetFillRect( a, rf )
+    dim as long want = tkProgressBar_ComputeBlockCount( tkRect_Width( rf ), bl, bg )
+    dim as long nBlk = tkProgressBar_GetBlockCount( a )
+    tkTest_Check( "blocks: live count = pure function", (nBlk = want) andalso (nBlk > 5), nBlk & " vs " & want )
+    dim as boolean bStride = true, bInside = true
+    for k as long = 0 to nBlk - 1
+        if tkProgressBar_GetBlockRect( a, k, rc ) = false then bStride = false : exit for
+        if (rc.left <> rf.left + k * (bl + bg)) orelse (tkRect_Width( rc ) <> bl) then bStride = false
+        if rc.right > rf.right then bInside = false
+    next
+    tkTest_Check( "blocks: exact stride, no drift", bStride )
+    tkTest_Check( "blocks: last does not overhang", bInside )
+    dim as boolean bPast = tkProgressBar_GetBlockRect( a, nBlk, rc )
+    tkTest_Check( "blocks: past the end -> FALSE, rc left empty (vendor left it set)", (bPast = false) andalso tkRect_IsEmpty( rc ), tkRect_Str( rc ) )
+    tkTest_Check( "blocks: negative -> FALSE", tkProgressBar_GetBlockRect( a, -1, rc ) = false )
+    tkProgressBar_SetPos( a, 50 )
+    tkProgressBar_GetBarRect( a, rb )
+    tkTest_Check( "blocks: a half bar lights the blocks in it", tkProgressBar_GetBlockCount( a ) = tkProgressBar_ComputeBlockCount( tkRect_Width( rb ), bl, bg ) )
+    tkProgressBar_SetBlockMetrics( a, 0, -1 )
+    dim as long bl2, bg2
+    tkProgressBar_GetBlockMetrics( a, bl2, bg2 )
+    tkTest_Check( "SetBlockMetrics ignores len<=0 and gap<0", (bl2 = bl) andalso (bg2 = bg) )
+    tkProgressBar_SetSegmented( a, false )
+    tkTest_Check( "blocks: continuous bar reports none", (tkProgressBar_GetBlockCount( a ) = 0) andalso (tkProgressBar_GetBlockRect( a, 0, rc ) = false) )
+    gBlockLen(iif( fScale > 1.5, 1, 0 )) = bl
+
+    ' ---- E: states and their colours -------------------------------------------------------
+    dim as TKTHEME_COLORS th0 = tkTheme_Get()
+    dim as ulong c1, c2
+    tkProgressBar_SetState( a, PRG_STATE_NORMAL ) : tkProgressBar_ResolveBarColors( a, c1, c2 )
+    tkTest_Check( "colours: NORMAL pair", (c1 = th0.Accent) andalso (c2 = th0.Accent) )
+    tkProgressBar_SetState( a, PRG_STATE_PAUSED ) : tkProgressBar_ResolveBarColors( a, c1, c2 )
+    tkTest_Check( "colours: PAUSED pair", c1 = th0.Warning )
+    tkProgressBar_SetState( a, PRG_STATE_ERROR ) : tkProgressBar_ResolveBarColors( a, c1, c2 )
+    tkTest_Check( "colours: ERROR pair", c1 = th0.Error )
+    tkProgressBar_SetState( a, PRG_STATE_PAUSED ) : tkProgressBar_SetEnabled( a, false )
+    tkProgressBar_ResolveBarColors( a, c1, c2 )
+    tkTest_Check( "colours: DISABLED beats PAUSED", c1 = th0.TextDisabled )
+    tkTest_Check( "SetEnabled is tkWidget_Enable", (a->isEnabled = false) andalso (tkProgressBar_GetEnabled( a ) = false) )
+    tkProgressBar_SetEnabled( a, true )
+    ' pixels: the bar's own colour at its centre, per state (a quarter in, clear of any text)
+    tkProgressBar_SetPos( a, 100 )
+    dim as long sx = bw \ 4, sy = bh \ 2
+    dim as long st(0 to 3) = { PRG_STATE_NORMAL, PRG_STATE_PAUSED, PRG_STATE_ERROR, -1 }
+    dim as ulong cwant(0 to 3) = { th0.Accent, th0.Warning, th0.Error, th0.TextDisabled }
+    for i as long = 0 to 3
+        if st(i) >= 0 then
+            tkProgressBar_SetState( a, st(i) )
+        else
+            tkProgressBar_SetEnabled( a, false )
+        end if
+        tkHost_RenderTo( gH, false )
+        dim as ulong got = PixelIn( a, sx, sy )
+        tkTest_Check( "pixel: state " & i & " paints its colour", Near( got, cwant(i), 2 ), HexC( got ) & " vs " & HexC( cwant(i) ) )
+    next
+    tkProgressBar_SetEnabled( a, true ) : tkProgressBar_SetState( a, PRG_STATE_NORMAL )
+    ' the track: an empty bar shows the track colour at the same spot
+    tkProgressBar_SetPos( a, 0 )
+    tkHost_RenderTo( gH, false )
+    tkTest_Check( "pixel: empty bar shows the track", Near( PixelIn( a, sx, sy ), th0.Track, 2 ), HexC( PixelIn( a, sx, sy ) ) )
+
+    ' ---- F: gradient through PaintGradientRect, solid flat, blocks sliced from ONE ramp ----
+    dim as TK_WIDGET ptr g = tkProgressBar_Create( root, 104 )
+    tkWidget_SetPos( g, S( 20 ), S( 40 ), bw, bh )
+    dim as TKPROGRESSBAR_COLORS gc
+    tkProgressBar_GetColors( g, @gc )
+    gc.BarColor = &hFFFF0000ul : gc.BarColorEnd = &hFF0000FFul
+    gc.TrackColor = &hFF282828ul
+    tkProgressBar_SetColors( g, @gc )
+    tkProgressBar_SetCurvature( g, 0 )
+    tkProgressBar_SetPos( g, 100 )
+    tkProgressBar_SetFillStyle( g, PRG_FILL_GRADIENT )
+    tkProgressBar_SetGradientMode( g, TK_GRADIENT_HORIZONTAL )
+    tkHost_RenderTo( gH, false )
+    dim as ulong cL = PixelIn( g, 0, bh \ 2 ), cR = PixelIn( g, bw - 1, bh \ 2 ), cM = PixelIn( g, bw \ 2, bh \ 2 )
+    tkTest_Check( "gradient H: starts at BarColor", Near( cL, &hFFFF0000ul, 8 ), HexC( cL ) )
+    tkTest_Check( "gradient H: ends at BarColorEnd", Near( cR, &hFF0000FFul, 8 ), HexC( cR ) )
+    tkTest_Check( "gradient H: ramps through the middle", Near( cM, tkColor_Lerp( &hFFFF0000ul, &hFF0000FFul, 0.5 ), 10 ), HexC( cM ) )
+    tkTest_Check( "gradient H: many tones on a row", tkTest_TonesIn( gH, g->x, g->y + bh \ 2, bw, 1, c1 ) > 30 )
+    tkProgressBar_SetGradientMode( g, TK_GRADIENT_VERTICAL )
+    tkHost_RenderTo( gH, false )
+    dim as ulong cT = PixelIn( g, bw \ 2, 0 ), cB = PixelIn( g, bw \ 2, bh - 1 )
+    tkTest_Check( "gradient V: top -> bottom on a horizontal bar", Near( cT, &hFFFF0000ul, 20 ) andalso Near( cB, &hFF0000FFul, 20 ), HexC( cT ) & " " & HexC( cB ) )
+    tkTest_Check( "gradient V: one tone per row", tkTest_TonesIn( gH, g->x + S( 4 ), g->y + bh \ 2, bw - S( 8 ), 1, c1 ) = 1 )
+    tkProgressBar_SetFillStyle( g, PRG_FILL_SOLID )
+    tkHost_RenderTo( gH, false )
+    tkTest_Check( "solid: flat, start colour only", (tkTest_TonesIn( gH, g->x + 1, g->y + 1, bw - 2, bh - 2, c1 ) = 1) andalso Near( c1, &hFFFF0000ul, 1 ), HexC( c1 ) )
+    ' segmented + gradient: each block is its slice of ONE ramp across the bar
+    tkProgressBar_SetFillStyle( g, PRG_FILL_GRADIENT )
+    tkProgressBar_SetGradientMode( g, TK_GRADIENT_HORIZONTAL )
+    tkProgressBar_SetSegmented( g, true )
+    tkHost_RenderTo( gH, false )
+    dim as long nG = tkProgressBar_GetBlockCount( g )
+    dim as boolean bSlice = true
+    dim as string sDet = ""
+    for k as long = 0 to nG - 1
+        tkProgressBar_GetBlockRect( g, k, rc )
+        dim as long xc = (rc.left + rc.right) \ 2
+        dim as ulong cGot = PixelIn( g, xc, bh \ 2 )
+        dim as ulong cWantK = tkColor_Lerp( &hFFFF0000ul, &hFF0000FFul, (xc + 0.5) / bw )
+        if Near( cGot, cWantK, 10 ) = false then bSlice = false : sDet = "block " & k & " " & HexC( cGot ) & " vs " & HexC( cWantK )
+    next
+    tkTest_Check( "blocks + gradient: one ramp, sliced", bSlice andalso (nG > 5), sDet )
+    tkProgressBar_GetBlockRect( g, 0, rc )
+    dim as ulong cGap = PixelIn( g, rc.right + (bg \ 2), bh \ 2 )
+    tkTest_Check( "blocks: the gap shows the track", Near( cGap, &hFF282828ul, 2 ), HexC( cGap ) )
+    ' stadium blocks: capsules (corner clamped to half the block's shorter side) -- the
+    ' block's top-left corner pixel is track, its centre is bar
+    tkProgressBar_SetCurvature( g, -1 )
+    tkProgressBar_SetFillStyle( g, PRG_FILL_SOLID )
+    tkHost_RenderTo( gH, false )
+    tkProgressBar_GetBlockRect( g, 1, rc )
+    tkTest_Check( "stadium blocks: capsule corners", Near( PixelIn( g, rc.left, rc.top ), &hFF282828ul, 40 ) andalso Near( PixelIn( g, (rc.left + rc.right) \ 2, bh \ 2 ), &hFFFF0000ul, 2 ), HexC( PixelIn( g, rc.left, rc.top ) ) )
+
+    ' ---- G: text modes and the split caption ------------------------------------------------
+    dim as TK_WIDGET ptr tx = tkProgressBar_Create( root, 105 )
+    tkWidget_SetPos( tx, S( 20 ), S( 70 ), bw, S( 26 ) )
+    tkProgressBar_SetFont( tx, fText )
+    tkTest_Check( "GetFont reads the borrowed font", tkProgressBar_GetFont( tx ) = fText )
+    tkTest_Check( "text NONE draws nothing", len( tkProgressBar_GetDisplayText( tx ) ) = 0 )
+    tkProgressBar_SetRange( tx, 0, 200 ) : tkProgressBar_SetPos( tx, 50 )
+    tkProgressBar_SetTextMode( tx, PRG_TEXT_PERCENT )
+    tkTest_Check( "text PERCENT of the range", tkProgressBar_GetDisplayText( tx ) = "25%", tkProgressBar_GetDisplayText( tx ) )
+    tkProgressBar_SetTextMode( tx, PRG_TEXT_VALUE )
+    tkTest_Check( "text VALUE is the raw position", tkProgressBar_GetDisplayText( tx ) = "50" )
+    tkProgressBar_SetTextMode( tx, PRG_TEXT_CALLBACK )
+    tkTest_Check( "text CALLBACK, none installed -> nothing", len( tkProgressBar_GetDisplayText( tx ) ) = 0 )
+    tkProgressBar_SetTextCallback( tx, @OnText )
+    tkTest_Check( "text CALLBACK owns the string", tkProgressBar_GetDisplayText( tx ) = "CB:50/200", tkProgressBar_GetDisplayText( tx ) )
+    tkProgressBar_SetRange( tx, 7, 7 ) : tkProgressBar_SetTextMode( tx, PRG_TEXT_PERCENT )
+    tkTest_Check( "text PERCENT of an empty range is 0%", tkProgressBar_GetDisplayText( tx ) = "0%" )
+    tkProgressBar_SetRange( tx, 0, 100 ) : tkProgressBar_SetPos( tx, 50 )
+    ' split: magenta over the bar, green over the track; the string straddles the boundary
+    dim as TKPROGRESSBAR_COLORS tcol
+    tkProgressBar_GetColors( tx, @tcol )
+    tcol.BarColor = &hFF000080ul : tcol.TrackColor = &hFF282828ul
+    tcol.TextColorOnBar = &hFFFF00FFul : tcol.TextColor = &hFF00FF00ul : tcol.TextColorDisabled = &hFFFFFF00ul
+    tcol.BarColorDisabled = &hFF000080ul
+    tkProgressBar_SetColors( tx, @tcol )
+    tkProgressBar_SetCurvature( tx, 0 )
+    tkProgressBar_SetTextCallback( tx, @OnWideText )
+    tkProgressBar_SetTextMode( tx, PRG_TEXT_CALLBACK )
+    tkHost_RenderTo( gH, false )
+    tkProgressBar_GetBarRect( tx, rb ) : tkProgressBar_GetTrackRect( tx, rt )
+    dim as TKRECT ra
+    tkWidget_AbsRect( tx, ra )
+    dim as long nMagOn = CountNear( ra.left + rb.left, ra.top, tkRect_Width( rb ), tx->ch, &hFFFF00FFul, 60 )
+    dim as long nGrnOn = CountNear( ra.left + rb.left, ra.top, tkRect_Width( rb ), tx->ch, &hFF00FF00ul, 60 )
+    dim as long nMagOff = CountNear( ra.left + rb.right, ra.top, rt.right - rb.right, tx->ch, &hFFFF00FFul, 60 )
+    dim as long nGrnOff = CountNear( ra.left + rb.right, ra.top, rt.right - rb.right, tx->ch, &hFF00FF00ul, 60 )
+    tkTest_Check( "split text: TextColorOnBar over the bar only", (nMagOn > 5) andalso (nMagOff = 0), nMagOn & " / " & nMagOff )
+    tkTest_Check( "split text: TextColor over the track only", (nGrnOff > 5) andalso (nGrnOn = 0), nGrnOff & " / " & nGrnOn )
+    tkProgressBar_SetEnabled( tx, false )
+    tkHost_RenderTo( gH, false )
+    dim as long nYel = CountNear( ra.left, ra.top, tx->cw, tx->ch, &hFFFFFF00ul, 60 )
+    dim as long nOther = CountNear( ra.left, ra.top, tx->cw, tx->ch, &hFFFF00FFul, 60 ) + CountNear( ra.left, ra.top, tx->cw, tx->ch, &hFF00FF00ul, 60 )
+    tkTest_Check( "disabled text: ONE colour, TextColorDisabled", (nYel > 10) andalso (nOther = 0), nYel & " / " & nOther )
+    tkProgressBar_SetEnabled( tx, true )
+    ' indeterminate: the chunk floats in the middle -> on-bar colour in it, track colour both sides
+    tkProgressBar_SetMarqueeChunkPercent( tx, 20 )
+    tkProgressBar_SetMode( tx, PRG_MODE_INDETERMINATE )
+    tkProgressBar_SetMarqueeStyle( tx, PRG_MARQUEE_WRAP )
+    for i as long = 1 to 300
+        TimerTickNow( tx )
+        tkProgressBar_GetBarRect( tx, rb )
+        if (rb.left > rt.left + bw \ 3) then exit for
+    next
+    tkTest_Check( "floating chunk: not anchored to either end", (rb.left > rt.left) andalso (rb.right < rt.right), tkRect_Str( rb ) )
+    tkHost_RenderTo( gH, false )
+    tkTest_Check( "floating chunk: track colour on BOTH sides (difference region)", _
+                  (CountNear( ra.left, ra.top, rb.left, tx->ch, &hFF00FF00ul, 60 ) > 0) andalso _
+                  (CountNear( ra.left + rb.right, ra.top, rt.right - rb.right, tx->ch, &hFF00FF00ul, 60 ) > 0) )
+    tkProgressBar_SetMode( tx, PRG_MODE_DETERMINATE )
+
+    ' ---- H: the marquee law, driven through the proc's own TKM_TIMER -------------------------
+    dim as TK_WIDGET ptr mq = tkProgressBar_Create( root, 106 )
+    tkWidget_SetPos( mq, S( 20 ), S( 110 ), bw, bh )
+    tkProgressBar_SetMode( mq, PRG_MODE_INDETERMINATE )
+    tkTest_Check( "indeterminate starts the marquee timer", tkWidget_HasTimer( mq, TK_TIMER_MARQUEE ) )
+    tkTest_Check( "marquee runs before the window is shown (assume shown)", gH->root->isVisible andalso tkWidget_HasTimer( mq, TK_TIMER_MARQUEE ) )
+    tkProgressBar_GetFillRect( mq, rf )
+    dim as long fl = tkRect_Width( rf ), chunk = (tkRect_Width( rf ) * 25) \ 100
+    dim as boolean bLaw = true, bOneWidth = true
+    for i as long = 1 to 40
+        TimerTickNow( mq )
+        dim as long tk = tkProgressBar_GetMarqueeTick( mq )
+        tkProgressBar_GetBarRect( mq, rb )
+        if rb.left <> rf.left + tkProgressBar_ComputeMarqueeOffset( fl, chunk, stp, tk, PRG_MARQUEE_BOUNCE ) then bLaw = false
+        if tkRect_Width( rb ) <> chunk then bOneWidth = false
+    next
+    tkTest_Check( "marquee: chunk sits where the pure law says", bLaw )
+    tkTest_Check( "BOUNCE: chunk keeps one width", bOneWidth )
+    tkProgressBar_SetMarqueeStyle( mq, PRG_MARQUEE_WRAP )
+    tkTest_Check( "SetMarqueeStyle resets the tick", tkProgressBar_GetMarqueeTick( mq ) = 0 )
+    dim as boolean bClipOK = true, bNarrowed = false
+    for i as long = 0 to (fl + chunk) \ stp + 2
+        tkProgressBar_GetBarRect( mq, rb )
+        if (rb.left < rf.left) orelse (rb.right > rf.right) then bClipOK = false
+        if (tkRect_Width( rb ) > 0) andalso (tkRect_Width( rb ) < chunk) then bNarrowed = true
+        TimerTickNow( mq )
+    next
+    tkTest_Check( "WRAP: clipped to the fill", bClipOK )
+    tkTest_Check( "WRAP: slides in -- narrower at the edges", bNarrowed )
+    tkProgressBar_SetMode( mq, PRG_MODE_DETERMINATE )
+    tkTest_Check( "leaving indeterminate stops the timer and resets the tick", (tkWidget_HasTimer( mq, TK_TIMER_MARQUEE ) = false) andalso (tkProgressBar_GetMarqueeTick( mq ) = 0) )
+    tkProgressBar_SetEnabled( mq, false ) : tkProgressBar_SetEnabled( mq, true )
+    tkTest_Check( "determinate never runs a timer", tkWidget_HasTimer( mq, TK_TIMER_MARQUEE ) = false )
+
+    ' ---- I: the marquee in REAL time: advances; stops disabled / hidden; resumes -------------
+    tkProgressBar_SetMarqueeStyle( mq, PRG_MARQUEE_BOUNCE )
+    tkProgressBar_SetMarqueeSpeed( mq, 15, 0 )
+    tkProgressBar_SetMode( mq, PRG_MODE_INDETERMINATE )
+    tkTest_Check( "SetMarqueeSpeed keeps / restarts the timer", tkWidget_HasTimer( mq, TK_TIMER_MARQUEE ) )
+    dim as long t0 = tkProgressBar_GetMarqueeTick( mq )
+    dim as TKRECT rb0
+    tkProgressBar_GetBarRect( mq, rb0 )
+    tkTest_PumpFor( gH, 350 )
+    dim as long t1 = tkProgressBar_GetMarqueeTick( mq )
+    tkProgressBar_GetBarRect( mq, rb )
+    tkTest_Check( "real time: the tick advances", t1 >= t0 + 3, t0 & " -> " & t1 )
+    tkTest_Check( "real time: the chunk moves", rb.left <> rb0.left, tkRect_Str( rb0 ) & " -> " & tkRect_Str( rb ) )
+    tkProgressBar_SetEnabled( mq, false )
+    tkTest_Check( "disabled: marquee timer stopped", tkWidget_HasTimer( mq, TK_TIMER_MARQUEE ) = false )
+    t1 = tkProgressBar_GetMarqueeTick( mq )
+    tkTest_PumpFor( gH, 250 )
+    tkTest_Check( "disabled: tick frozen", tkProgressBar_GetMarqueeTick( mq ) = t1, t1 & " -> " & tkProgressBar_GetMarqueeTick( mq ) )
+    tkProgressBar_SetEnabled( mq, true )
+    tkTest_Check( "re-enabled: timer back", tkWidget_HasTimer( mq, TK_TIMER_MARQUEE ) )
+    tkTest_PumpFor( gH, 250 )
+    dim as long t2 = tkProgressBar_GetMarqueeTick( mq )
+    tkTest_Check( "re-enabled: resumes from where it stopped", t2 > t1, t1 & " -> " & t2 )
+    tkWidget_Show( mq, false )
+    tkTest_Check( "hidden: marquee timer stopped", tkWidget_HasTimer( mq, TK_TIMER_MARQUEE ) = false )
+    t2 = tkProgressBar_GetMarqueeTick( mq )
+    tkTest_PumpFor( gH, 250 )
+    tkTest_Check( "hidden: tick frozen", tkProgressBar_GetMarqueeTick( mq ) = t2 )
+    tkProgressBar_SetEnabled( mq, false )
+    tkWidget_Show( mq, true )
+    tkTest_Check( "shown but disabled: still stopped", tkWidget_HasTimer( mq, TK_TIMER_MARQUEE ) = false )
+    tkProgressBar_SetEnabled( mq, true )
+    tkTest_Check( "shown and enabled: running", tkWidget_HasTimer( mq, TK_TIMER_MARQUEE ) )
+    tkTest_PumpFor( gH, 250 )
+    tkTest_Check( "re-shown: resumes", tkProgressBar_GetMarqueeTick( mq ) > t2 )
+    ' the direct EnableWindow path (tkWidget_Enable) syncs too
+    tkWidget_Enable( mq, false )
+    tkTest_Check( "tkWidget_Enable(false) also stops it", (tkWidget_HasTimer( mq, TK_TIMER_MARQUEE ) = false) andalso (tkProgressBar_GetEnabled( mq ) = false) )
+    tkWidget_Enable( mq, true )
+    tkProgressBar_SetMode( mq, PRG_MODE_DETERMINATE )
+
+    ' ---- J: display-only input through the real dispatch; the message callback ---------------
+    tkHost_Pump( gH )
+    tkProgressBar_SetMessageCallback( a, @OnMessage )
+    gDownCount = 0 : gUpCount = 0
+    tkTest_PushMotion( gH, tkTest_CX( a ), tkTest_CY( a ) )
+    tkTest_Click( gH, tkTest_CX( a ), tkTest_CY( a ) )
+    tkTest_Check( "click offered to the message callback", (gDownCount = 1) andalso (gUpCount = 1), gDownCount & "/" & gUpCount )
+    tkTest_Check( "click takes no focus", tkHost_GetFocus( gH ) <> a )
+    tkTest_Check( "click takes no capture", tkHost_GetCapture( gH ) = 0 )
+    tkTest_PushKey( gH, SDLK_TAB )
+    tkTest_Check( "Tab never lands on a progress bar", tkHost_GetFocus( gH ) = 0 )
+    ' silence: setters fire nothing at all
+    gMsgCount = 0
+    tkProgressBar_SetRange( a, 0, 50 ) : tkProgressBar_SetPos( a, 20 ) : tkProgressBar_StepIt( a ) : tkProgressBar_DeltaPos( a, 3 )
+    tkProgressBar_SetStep( a, 5 ) : tkProgressBar_SetState( a, PRG_STATE_ERROR ) : tkProgressBar_SetState( a, PRG_STATE_NORMAL )
+    tkProgressBar_SetFillStyle( a, PRG_FILL_GRADIENT ) : tkProgressBar_SetFillStyle( a, PRG_FILL_SOLID )
+    tkProgressBar_SetTextMode( a, PRG_TEXT_PERCENT ) : tkProgressBar_SetTextMode( a, PRG_TEXT_NONE )
+    tkProgressBar_SetRange( a, 0, 100 )
+    tkTest_Check( "setters are silent (no message, no callback)", gMsgCount = 0, "" & gMsgCount )
+    tkHost_RenderTo( gH, false )
+    tkProgressBar_SetPos( a, tkProgressBar_GetPos( a ) )
+    tkProgressBar_SetStep( a, 10 )
+    tkTest_Check( "SetPos to the same value / SetStep: no repaint", gH->bDirty = false )
+    tkProgressBar_SetPos( a, tkProgressBar_GetPos( a ) + 1 )
+    tkTest_Check( "SetPos to a new value repaints", gH->bDirty )
+    ' every answer is honoured: a claimed TKM_PAINT draws nothing
+    tkProgressBar_SetPos( a, 100 )
+    gSuppressPaint = true
+    tkHost_RenderTo( gH, false )
+    dim as ulong cSup = PixelIn( a, sx, sy )
+    gSuppressPaint = false
+    tkHost_RenderTo( gH, false )
+    dim as ulong cNorm = PixelIn( a, sx, sy )
+    tkTest_Check( "a claimed TKM_PAINT is honoured (nothing drawn)", Near( cSup, gH->clrBack, 2 ) andalso Near( cNorm, th0.Accent, 2 ), HexC( cSup ) & " " & HexC( cNorm ) )
+    ' TKM_DESTROY is never offered
+    dim as TK_WIDGET ptr dz = tkProgressBar_Create( root, 107 )
+    tkProgressBar_SetMessageCallback( dz, @OnMessage )
+    gDestroyOffered = 0
+    tkWidget_Destroy( dz )
+    tkTest_Check( "TKM_DESTROY is never offered", gDestroyOffered = 0 )
+
+    ' ---- K: probes -------------------------------------------------------------------------
+    tkTest_Check( "probe: control not flooded", tkProgressBar_CountRenderedTones( a, PRG_PART_CONTROL ) > 2 )
+    dim as ulong hN = tkProgressBar_HashRenderedPart( a, PRG_PART_BAR )
+    tkProgressBar_SetState( a, PRG_STATE_ERROR )
+    dim as ulong hE = tkProgressBar_HashRenderedPart( a, PRG_PART_BAR )
+    tkProgressBar_SetState( a, PRG_STATE_NORMAL )
+    tkTest_Check( "probe: a state change reaches the pixels", (hN <> 0) andalso (hN <> hE) )
+    dim as ulong hC = tkProgressBar_HashRenderedPart( a, PRG_PART_BAR )
+    tkProgressBar_SetSegmented( a, true )
+    dim as ulong hS = tkProgressBar_HashRenderedPart( a, PRG_PART_BAR )
+    tkProgressBar_SetSegmented( a, false )
+    tkTest_Check( "probe: segmenting changes the pixels", hC <> hS )
+    tkProgressBar_SetFont( a, fText )
+    tkProgressBar_SetPos( a, 40 )
+    dim as ulong hNo = tkProgressBar_HashRenderedPart( a, PRG_PART_TEXT )
+    tkProgressBar_SetTextMode( a, PRG_TEXT_PERCENT )
+    dim as ulong hTx = tkProgressBar_HashRenderedPart( a, PRG_PART_TEXT )
+    tkProgressBar_SetTextMode( a, PRG_TEXT_NONE )
+    tkTest_Check( "probe: the text reaches the pixels", hNo <> hTx )
+    tkTest_Check( "probe: vertical renders", tkProgressBar_CountRenderedTones( v, PRG_PART_CONTROL ) > 2 )
+
+    ' ---- L: theme, pinning, fonts ---------------------------------------------------------------
+    dim as TKPROGRESSBAR_COLORS cc
+    tkTheme_Apply( tkTheme_Light() )
+    tkProgressBar_GetColors( a, @cc )
+    tkTest_Check( "theme reaches an unpinned bar", (cc.BarColor = tkTheme_Light().Accent) andalso (cc.TrackColor = tkTheme_Light().Track) andalso (cc.BackColor = tkTheme_Light().Window) )
+    tkHost_RenderTo( gH, false )
+    tkTest_Check( "theme reaches the pixels", Near( PixelIn( a, sx \ 2, sy ), tkTheme_Light().Accent, 2 ), HexC( PixelIn( a, sx \ 2, sy ) ) )
+    tkProgressBar_GetColors( g, @cc )
+    tkTest_Check( "SetColors pinned: theme leaves it alone", cc.BarColor = &hFFFF0000ul )
+    tkProgressBar_UnpinColors( g )
+    tkProgressBar_GetColors( g, @cc )
+    tkTest_Check( "unpin hands it back to the current theme", cc.BarColor = tkTheme_Light().Accent )
+    tkTheme_Apply( tkTheme_Dark() )
+    tkProgressBar_GetColors( g, @cc )
+    tkTest_Check( "and it follows the next theme", cc.BarColor = tkTheme_Dark().Accent )
+    tkProgressBar_ApplyFonts( a, 0, 0 )
+    tkTest_Check( "ApplyFonts(0) keeps the font", tkProgressBar_GetFont( a ) = fText )
+
+    ' ---- M: TKM_SCALECHANGED --------------------------------------------------------------------
+    tkProgressBar_SetThickness( a, S( 12 ) ) : tkProgressBar_SetBarInset( a, S( 2 ) )
+    tkProgressBar_SetBorderThickness( a, 1 ) : tkProgressBar_SetCurvature( a, 6 )
+    dim as long th1 = tkProgressBar_GetThickness( a ), in1 = tkProgressBar_GetBarInset( a )
+    tkProgressBar_GetBlockMetrics( a, bl, bg )
+    tkProgressBar_GetMarqueeSpeed( a, ims, stp )
+    gH->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( gH, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    dim as long bl3, bg3, ims3, stp3
+    tkProgressBar_GetBlockMetrics( a, bl3, bg3 )
+    tkProgressBar_GetMarqueeSpeed( a, ims3, stp3 )
+    tkTest_Check( "rescale: metrics x2", (tkProgressBar_GetThickness( a ) = th1 * 2) andalso (tkProgressBar_GetBarInset( a ) = in1 * 2) andalso _
+                  (bl3 = bl * 2) andalso (bg3 = bg * 2) andalso (stp3 = stp * 2), bl & "->" & bl3 & " " & stp & "->" & stp3 )
+    tkTest_Check( "rescale: border, curvature, interval NOT scaled", (tkProgressBar_GetBorderThickness( a ) = 1) andalso (tkProgressBar_GetCurvature( a ) = 6) andalso (ims3 = ims) )
+    gH->fScaleForced = fScale
+    tkTest_PushWindowEvent( gH, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkTest_Check( "rescale back restores", tkProgressBar_GetThickness( a ) = th1 )
+
+    ' ---- N: the tooltip is a real popup (tkTipHost) ----------------------------------------------
+    tkHost_Show( gH )
+    tkTest_PumpFor( gH, 400 )         ' X11 settle (the map's real enter + motion lands first)
+    dim as TK_WIDGET ptr tp = tkProgressBar_Create( root, 108 )
+    tkWidget_SetPos( tp, S( 20 ), S( 200 ), bw, bh )
+    tkProgressBar_SetTooltipCallback( tp, @OnTip )
+    tkProgressBar_SetHoverTime( tp, 200 )
+    tkTest_Check( "the tooltip handle is the bar's tkTooltip", (tkProgressBar_GetTooltipHandle( tp ) <> 0) andalso (tkTooltip_GetAttached( tkProgressBar_GetTooltipHandle( tp ) ) = tp) )
+    gTipCalls = 0
+    tkTest_PushMotion( gH, tkTest_CX( tp ), tkTest_CY( tp ) )
+    dim as boolean bShown1 = WaitTip( tp, true, 1500 )
+    tkTest_Check( "tooltip: callback text shows after the hover time", bShown1 andalso (gTipCalls > 0), "calls=" & gTipCalls & " " & gTipDiag )
+    tkTest_PushMotion( gH, 2, 2 )
+    tkTest_Check( "tooltip hides on leave", WaitTip( tp, false, 800 ) )
+    tkProgressBar_SetTooltipText( tp, "authored" )
+    tkTest_Check( "GetTooltipText", tkProgressBar_GetTooltipText( tp ) = "authored" )
+    tkTest_PumpFor( gH, 100 )
+    gTipCalls = 0
+    tkTest_PushMotion( gH, tkTest_CX( tp ), tkTest_CY( tp ) )
+    dim as boolean bShown2 = WaitTip( tp, true, 1500 )
+    tkTest_Check( "tooltip: authored text wins, callback not consulted", bShown2 andalso (gTipCalls = 0), "calls=" & gTipCalls & " " & gTipDiag )
+    tkTest_PushMotion( gH, 2, 2 )
+    WaitTip( tp, false, 800 )
+
+    tkHost_Destroy( gH )
+    gH = 0
+end sub
+
+
+' ==========================================================================================
+if tkTest_Init() = false then end 99
+
+RunPure()
+RunPass( 1.0 )
+RunPass( 1.75 )
+
+tkTest_Begin( "cross-pass" )
+tkTest_Check( "block length scales with the scale", (gBlockLen(0) = 10) andalso (gBlockLen(1) = cint( 10 * 1.75 )), gBlockLen(0) & " -> " & gBlockLen(1) )
+dim as long nFail = tkTest_Report( "tkProgressBar" )
+tkTest_Quit()
+end nFail

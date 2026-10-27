@@ -1,0 +1,270 @@
+' tkCalendar demo: the same three calendars as the Win32 demo
+' (tiko-lang/examples/PsControls/PsCalendar/frmMain.tiko), so the two can be put side by side.
+'
+'   demo                     interactive
+'   demo --shot out.bmp      render once (cal0 focused), save the window, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkCalendar"
+#import "vendor/tkControls/tkButton"
+using tkCalendar
+using tkButton
+using tkTooltip
+using tkTheme
+using tkHost
+using tkPaint
+
+#ifdef TIKO_OS_LINUX
+    const FONTDIR = "/mnt/c/Windows/Fonts/"
+#else
+    const FONTDIR = "C:\Windows\Fonts\"
+#endif
+
+const as long CAL_COUNT = 3
+const as long DEMO_MARGIN = 20, DEMO_LABELH = 22, DEMO_STATUSH = 28, DEMO_BTNW = 120, DEMO_BTNH = 26
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gCal(0 to CAL_COUNT - 1)
+dim shared as TK_WIDGET ptr gBtnBefore, gBtnAfter
+dim shared as TKRECT gRcCal(0 to CAL_COUNT - 1)
+dim shared as ustring gCalLabel(0 to CAL_COUNT - 1), gStatus
+dim shared as TTF_Font ptr gFont9, gFont10, gFontBold10, gFontBold11
+
+private function DemoPad( byval n as long, byval nWidth as long ) as ustring
+    dim as ustring s = str( n )
+    while len( s ) < nWidth
+        s = "0" & s
+    wend
+    return s
+end function
+
+private function DemoDateText( byval p as TKDATE ptr ) as ustring
+    if p = 0 then return "(none)"
+    return DemoPad( p->wYear, 4 ) & "-" & DemoPad( p->wMonth, 2 ) & "-" & DemoPad( p->wDay, 2 )
+end function
+
+private function DemoWhich( byval hCtrl as TK_WIDGET ptr ) as ustring
+    for i as long = 0 to CAL_COUNT - 1
+        if gCal(i) = hCtrl then return "cal" & str( i )
+    next
+    return "cal?"
+end function
+
+sub Demo_SelChange( byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr, byval bHasDate as boolean )
+    if bHasDate then
+        gStatus = DemoWhich( hCtrl ) & "  SelChange -> " & DemoDateText( pDate )
+    else
+        gStatus = DemoWhich( hCtrl ) & "  SelChange -> (cleared)"
+    end if
+    tkHost_Invalidate( gHost )
+end sub
+
+sub Demo_DateActivated( byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr )
+    gStatus = DemoWhich( hCtrl ) & "  ACTIVATED -> " & DemoDateText( pDate ) & "   (double-click, Enter or Space)"
+    tkHost_Invalidate( gHost )
+end sub
+
+function Demo_Tooltip( byval t as TKCALENDAR_TOOLTIPINFO ptr ) as boolean
+    if (t = 0) orelse (t->isValid = false) then return false
+    t->outText = "Day " & str( t->stDate.wDay ) & " of month " & str( t->stDate.wMonth )
+    return true
+end function
+
+' Shade every Friday and dot the 1st and the 15th. No focus ring: the control draws it after.
+sub Demo_DayPaint( byval p as TKCALENDAR_DAYPAINTINFO ptr )
+    if p = 0 then exit sub
+    dim as TK_PAINT ptr b = p->b
+    dim as TKRECT rcFill = p->rcCell
+    dim as long inset = (p->rcCell.bottom - p->rcCell.top) \ 8
+    if inset < 1 then inset = 1
+    tkRect_Inflate( rcFill, -inset, -inset )
+    dim as long ell = (rcFill.bottom - rcFill.top) \ 3
+    if ell < 2 then ell = 2
+    dim as long dow = tkCalendar_DowSunday( p->stDate.wYear, p->stDate.wMonth, p->stDate.wDay )
+    dim as boolean bFriday = (dow = 5) andalso (p->isAdjacent = false)
+    if p->isSelected then
+        b->SetBackColor( tkRGB( 0, 120, 215 ) )
+        b->PaintRoundRect( @rcFill, ell )
+    elseif p->isHot andalso (p->isDisabled = false) then
+        b->SetBackColor( tkRGB( 52, 58, 68 ) )
+        b->PaintRoundRect( @rcFill, ell )
+    elseif bFriday then
+        b->SetBackColor( tkRGB( 44, 52, 44 ) )
+        b->PaintRoundRect( @rcFill, ell )
+    end if
+    dim as ulong clr = tkRGB( 210, 214, 220 )
+    if p->isDisabled then
+        clr = tkRGB( 56, 60, 68 )
+    elseif p->isSelected orelse p->isHot then
+        clr = tkRGB( 255, 255, 255 )
+    elseif p->isAdjacent then
+        clr = tkRGB( 124, 131, 142 )
+    end if
+    b->SetForeColor( clr )
+    dim as ustring s = str( p->dayNumber )
+    b->PaintText( s, @p->rcCell, TK_DT_CENTER )
+    dim as boolean bMark = ((p->stDate.wDay = 1) orelse (p->stDate.wDay = 15)) andalso (p->isAdjacent = false)
+    if bMark andalso (p->isDisabled = false) then
+        dim as long cx = (p->rcCell.left + p->rcCell.right) \ 2
+        dim as long yy = p->rcCell.bottom - inset - 2
+        dim as TKRECT rcDot
+        tkRect_Set( rcDot, cx - 2, yy - 2, cx + 2, yy + 2 )
+        b->SetBackColor( tkRGB( 230, 160, 60 ) )
+        b->PaintEllipse( @rcDot )
+    end if
+end sub
+
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long M = tkHost_Scale( h, DEMO_MARGIN ), LH = tkHost_Scale( h, DEMO_LABELH ), SH = tkHost_Scale( h, DEMO_STATUSH )
+    dim as long w0, h0, w1, h1
+    tkCalendar_GetIdealSize( gCal(0), w0, h0 )
+    tkCalendar_GetIdealSize( gCal(1), w1, h1 )
+    dim as long y0 = M + LH
+    tkRect_Set( gRcCal(0), M, y0, M + w0, y0 + h0 )
+    dim as long x1 = gRcCal(0).right + M
+    tkRect_Set( gRcCal(1), x1, y0, x1 + w1, y0 + h1 )
+    dim as long topH = iif( h1 > h0, h1, h0 )
+    ' cal2 takes what is left, normally BELOW its ideal: the stretch path, not size-to-fit
+    dim as long y2 = y0 + topH + M + LH
+    dim as long btnRow = ph - M - tkHost_Scale( h, DEMO_BTNH )
+    dim as long bot = btnRow - M - SH
+    if bot < y2 + 40 then bot = y2 + 40
+    tkRect_Set( gRcCal(2), M, y2, pw - M, bot )
+    for i as long = 0 to CAL_COUNT - 1
+        tkWidget_SetPos( gCal(i), gRcCal(i).left, gRcCal(i).top, tkRect_Width( gRcCal(i) ), tkRect_Height( gRcCal(i) ) )
+    next
+    dim as long bw = tkHost_Scale( h, DEMO_BTNW ), bh = tkHost_Scale( h, DEMO_BTNH )
+    tkWidget_SetPos( gBtnBefore, M, btnRow, bw, bh )
+    tkWidget_SetPos( gBtnAfter, M + bw + M, btnRow, bw, bh )
+end sub
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long LH = tkHost_Scale( h, DEMO_LABELH ), M = tkHost_Scale( h, DEMO_MARGIN ), SH = tkHost_Scale( h, DEMO_STATUSH )
+    dim as TKTHEME_COLORS t = tkTheme_Get()
+    b->SetFont( gFontBold10 )
+    b->SetForeColor( t.TextHot )
+    for i as long = 0 to CAL_COUNT - 1
+        dim as TKRECT rcLab
+        tkRect_Set( rcLab, gRcCal(i).left, gRcCal(i).top - LH, pw, gRcCal(i).top )
+        b->PaintText( gCalLabel(i), @rcLab, TK_DT_LEFT )
+    next
+    dim as TKRECT rcStatus
+    tkRect_Set( rcStatus, M, gRcCal(2).bottom, pw - M, gRcCal(2).bottom + SH )
+    b->SetFont( gFont10 )
+    b->SetForeColor( t.Accent )
+    b->PaintText( gStatus, @rcStatus, TK_DT_LEFT )
+end sub
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr s = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if s then
+        SDL_SaveBMP( s, strptr( path ) )
+        print "shot: " & path & "  " & s->w & "x" & s->h & "  scale=" & gHost->fScale
+        SDL_DestroySurface( s )
+    end if
+end sub
+
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkCalendar on SDL3", 1120, 800, FONTDIR & "segoeui.ttf", forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = tkTheme_Get().Window
+
+gFont9 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 9 )
+gFont10 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 10 )
+gFontBold10 = tkHost_OpenFont( gHost, FONTDIR & "segoeuib.ttf", 10 )
+gFontBold11 = tkHost_OpenFont( gHost, FONTDIR & "segoeuib.ttf", 11 )
+if (gFont10 = 0) orelse (gFontBold11 = 0) then print "fonts: " & *SDL_GetError() : end 1
+tkTooltip_SetDefaultFonts( gFont9 )
+
+gCalLabel(0) = "Single month  (border on, Sunday start)"
+gCalLabel(1) = "Two months, sliding  (SetNavStep(1), Monday start, a live range, tooltips)"
+gCalLabel(2) = "Three months  (custom day painter, French month names)"
+
+' A button BEFORE the calendars in the tab order and one AFTER, so Tab has somewhere to go.
+gBtnBefore = tkButton_Create( tkHost_Root( gHost ), 100 )
+tkButton_SetFont( gBtnBefore, gFont10 ) : tkButton_SetText( gBtnBefore, "Before (Tab)" )
+
+for i as long = 0 to CAL_COUNT - 1
+    gCal(i) = tkCalendar_Create( tkHost_Root( gHost ), 1000 + i )
+    tkCalendar_SetFont( gCal(i), gFont10 )
+    tkCalendar_SetTitleFont( gCal(i), gFontBold11 )
+    tkCalendar_SetWeekdayFont( gCal(i), gFont9 )
+    tkCalendar_SetSelChangeCallback( gCal(i), @Demo_SelChange )
+    tkCalendar_SetDateActivatedCallback( gCal(i), @Demo_DateActivated )
+next
+
+dim as TKDATE today = tkCalendar_LocalToday()
+dim as string shot = ArgValue( "--shot" )
+' A pinned day for the screenshot, so two shots taken on different days compare.
+if len( shot ) then
+    today = tkCalendar_MakeDate( 2026, 3, 15 )
+    for i as long = 0 to CAL_COUNT - 1 : tkCalendar_SetToday( gCal(i), today ) : next
+end if
+
+' cal 0: the plainest calendar, plus the optional frame
+tkCalendar_SetBorderThickness( gCal(0), 1 )
+tkCalendar_SetSelDate( gCal(0), today )
+
+' cal 1: two months stepping ONE at a time, Monday start, a live range, tooltips
+tkCalendar_SetPanelGrid( gCal(1), 2, 1 )
+tkCalendar_SetNavStep( gCal(1), 1 )
+tkCalendar_SetWeekStart( gCal(1), CAL_MONDAY )
+tkCalendar_SetTooltipCallback( gCal(1), @Demo_Tooltip )
+dim as TKDATE stLo = tkCalendar_AddDays( today, -10 )
+dim as TKDATE stHi = tkCalendar_AddDays( today, 45 )
+tkCalendar_SetRange( gCal(1), stLo, stHi, true, true )
+tkCalendar_SetAnchorDate( gCal(1), today )
+tkCalendar_SetSelDate( gCal(1), today )
+
+' cal 2: three months, host-painted days, localized names
+tkCalendar_SetPanelGrid( gCal(2), 3, 1 )
+tkCalendar_SetDayPaintCallback( gCal(2), @Demo_DayPaint )
+tkCalendar_SetAnchorDate( gCal(2), tkCalendar_MakeDate( today.wYear, 1, 1 ) )
+dim as ustring sFr(1 to 12) = { "Janvier", "Fevrier", "Mars", "Avril", "Mai", "Juin", _
+                                "Juillet", "Aout", "Septembre", "Octobre", "Novembre", "Decembre" }
+dim as ustring sFrAb(1 to 12) = { "Jan", "Fev", "Mar", "Avr", "Mai", "Jun", _
+                                  "Jui", "Aou", "Sep", "Oct", "Nov", "Dec" }
+dim as ustring sFrDw(0 to 6) = { "Di", "Lu", "Ma", "Me", "Je", "Ve", "Sa" }
+tkCalendar_SetMonthNames( gCal(2), sFr() )
+tkCalendar_SetMonthAbbrevs( gCal(2), sFrAb() )
+tkCalendar_SetWeekdayAbbrevs( gCal(2), sFrDw() )
+
+gBtnAfter = tkButton_Create( tkHost_Root( gHost ), 101 )
+tkButton_SetFont( gBtnAfter, gFont10 ) : tkButton_SetText( gBtnAfter, "After (Tab)" )
+
+gStatus = "Click a day, double-click or press Enter to activate. Tab moves between the two buttons and the three calendars."
+
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkHost_SetFocus( gHost, gCal(0) )
+tkHost_Show( gHost )
+
+if len( shot ) then
+    tkHost_Pump( gHost )
+    SaveShot( shot )
+else
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

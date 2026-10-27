@@ -1,0 +1,52 @@
+' tkPaint text benchmark: what a frame of an IDE costs in text. 400 labels (an explorer tree, tabs,
+' a status bar's worth) through TK_PAINT.PaintText, rendered without presenting.
+'
+'   bench               steady frames (the same labels: a caret blink, a hover) and scrolling
+'                       frames (every label new: the tree scrolled), ms per frame each
+#import "vendor/tkControls/tkHost"
+#import "vendor/tkControls/tkTest"
+using tkHost
+using tkPaint
+using tkTest
+
+dim shared as long gFrame, gScroll
+dim shared as TTF_Font ptr gFont
+
+sub BenchPaint( byval h as TK_HOST ptr, byval p as TK_PAINT ptr )
+    p->SetFont( gFont )
+    p->SetForeColor( &hFFD4D4D4ul )
+    dim as TKRECT rc
+    for i as long = 0 to 399
+        dim as long col = i \ 50, row = i mod 50
+        tkRect_Set( rc, col * 120, row * 16, col * 120 + 118, row * 16 + 16 )
+        dim as long n = i + gScroll * gFrame * 400
+        dim as ustring s = "item_" & n & ".tiko"
+        p->PaintText( s, @rc, 0 )
+    next
+end sub
+
+function Bench( byval h as TK_HOST ptr, byval scroll_ as long, byval frames as long ) as double
+    gScroll = scroll_
+    gFrame = 0
+    tkHost_RenderTo( h, false )                 ' warm
+    dim as Uint64 t0 = SDL_GetPerformanceCounter()
+    for f as long = 1 to frames
+        gFrame = f
+        tkHost_RenderTo( h, false )
+    next
+    SDL_RenderReadPixels( h->renderer, 0 )      ' the GPU has finished
+    return (SDL_GetPerformanceCounter() - t0) * 1000.0 / SDL_GetPerformanceFrequency() / frames
+end function
+
+if tkTest_Init() = false then end 99
+dim as TK_HOST ptr h = tkHost_Create( "tkPaint bench", 980, 820, TK_TEST_FONTDIR & "segoeui.ttf", 1.0 )
+gFont = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 9 )
+h->OnPaint = @BenchPaint
+tkHost_Show( h )
+tkHost_Pump( h )
+dim as double steady = Bench( h, 0, 100 )
+dim as double scrolling = Bench( h, 1, 100 )
+print "bench [" & *SDL_GetRendererName( h->renderer ) & "]: 400 labels -- steady " & (int( steady * 100 ) / 100) & _
+      " ms/frame, scrolling " & (int( scrolling * 100 ) / 100) & " ms/frame"
+tkHost_Destroy( h )
+tkTest_Quit()

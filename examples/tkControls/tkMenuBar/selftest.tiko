@@ -1,0 +1,317 @@
+' tkMenuBar self-test. Real windows, real SDL event queue: every input claim is made by
+' PUSHING the SDL event a user would have produced and pumping the host -- at the bar on the
+' main surface and at the dropdowns on their own popup surfaces. Two passes, 1.0 and 1.75.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkMenuBar"
+#import "vendor/tkControls/tkButton"
+#import "vendor/tkControls/tkTest"
+using tkMenuBar
+using tkPopupMenu
+using tkButton
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+enum
+    IDM_NEW = 101, IDM_OPEN, IDM_RECENT, IDM_R1, IDM_R2, IDM_WRAP, IDM_DISABLED, IDM_EXIT
+    IDM_UNDO = 201, IDM_REDO
+    IDM_EXPLORER = 301, IDM_OUTPUT
+end enum
+
+dim shared as long gCmds, gLastCmd, gPopupSel, gClicks, gInitBar, gInitPopup
+dim shared as string gInitLog
+dim shared as boolean gOpenInCmd
+
+sub OnCommand( byval hMenuBar as TK_WIDGET ptr, byval id as long )
+    gCmds += 1 : gLastCmd = id
+    gOpenInCmd = tkMenuBar_IsMenuOpen( hMenuBar ) orelse (tkMenuBar_GetActiveIndex( hMenuBar ) <> -1)
+end sub
+
+sub OnBarInit( byval hMenuBar as TK_WIDGET ptr, byval idx as long, byval hPopup as TK_MENU ptr )
+    gInitBar += 1 : gInitLog &= "B" & idx
+end sub
+
+sub OnPopupInit( byval hPopup as TK_MENU ptr )
+    gInitPopup += 1 : gInitLog &= "P"
+end sub
+
+sub OnPopupSelect( byval hPopup as TK_MENU ptr, byval id as long )
+    gPopupSel += 1
+end sub
+
+sub OnClick( byval hButton as TK_WIDGET ptr, byval id as long )
+    gClicks += 1
+end sub
+
+function ItemCX( byval b as TK_WIDGET ptr, byval idx as long ) as single
+    dim as TKRECT rc
+    tkMenuBar_GetItemRect( b, idx, rc )
+    return b->x + (rc.left + rc.right) / 2
+end function
+function ItemCY( byval b as TK_WIDGET ptr ) as single
+    return b->y + b->ch / 2
+end function
+
+sub ClickRow( byval m as TK_MENU ptr, byval idx as long )
+    dim as TKRECT rc
+    tkPopupMenu_GetItemRect( m, idx, rc )
+    tkTest_Click( tkPopupMenu_Surface( m ), (rc.left + rc.right) / 2, (rc.top + rc.bottom) / 2 )
+end sub
+
+' ==========================================================================================
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkMenuBar selftest", 700, 420, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    tkTest_Check( "scale pinned", h->fScale = fScale )
+    tkTheme_Apply( tkTheme_Dark() )
+    dim as TTF_Font ptr f = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 10 )
+
+    ' ---- the bar and its dropdowns --------------------------------------------------------
+    dim as TK_WIDGET ptr b = tkMenuBar_Create( tkHost_Root( h ), 100 )
+    tkMenuBar_SetFont( b, f )
+    tkMenuBar_SetCommandCallback( b, @OnCommand )
+    tkMenuBar_SetInitPopupCallback( b, @OnBarInit )
+    tkTest_Check( "AddItem returns indices", tkMenuBar_AddItem( b, "File", 1 ) = 0 andalso tkMenuBar_AddItem( b, "Edit", 2 ) = 1 )
+    tkMenuBar_AddItem( b, "View", 3 )
+    tkMenuBar_AddItem( b, "Help", 4 )          ' no dropdown
+    dim as TK_MENU ptr mFile = tkPopupMenu_Create( h )
+    tkPopupMenu_SetFonts( mFile, f )
+    tkPopupMenu_AddItem( mFile, IDM_NEW, "New File", "Ctrl+N" )
+    tkPopupMenu_AddItem( mFile, IDM_OPEN, "Open File...", "Ctrl+O" )
+    tkPopupMenu_AddSeparator( mFile )
+    tkPopupMenu_AddItem( mFile, IDM_RECENT, "Open Recent" )
+    tkPopupMenu_AddItem( mFile, IDM_WRAP, "Word Wrap", "", false, true )
+    tkPopupMenu_AddItem( mFile, IDM_DISABLED, "Disabled Item", "", true )
+    tkPopupMenu_AddItem( mFile, IDM_EXIT, "Exit", "Alt+F4" )
+    dim as TK_MENU ptr mRecent = tkPopupMenu_Create( h )
+    tkPopupMenu_SetFonts( mRecent, f )
+    tkPopupMenu_AddItem( mRecent, IDM_R1, "first.tiko" )
+    tkPopupMenu_AddItem( mRecent, IDM_R2, "second.tiko" )
+    tkPopupMenu_SetItemSubMenu( mFile, IDM_RECENT, mRecent )
+    tkPopupMenu_SetInitPopupCallback( mFile, @OnPopupInit )
+    tkPopupMenu_SetSelectCallback( mFile, @OnPopupSelect )      ' the popup's own: both run
+    dim as TK_MENU ptr mEdit = tkPopupMenu_Create( h )
+    tkPopupMenu_SetFonts( mEdit, f )
+    tkPopupMenu_AddItem( mEdit, IDM_UNDO, "Undo", "Ctrl+Z" )
+    tkPopupMenu_AddItem( mEdit, IDM_REDO, "Redo", "Ctrl+Y" )
+    dim as TK_MENU ptr mView = tkPopupMenu_Create( h )
+    tkPopupMenu_SetFonts( mView, f )
+    tkPopupMenu_AddItem( mView, IDM_EXPLORER, "Explorer" )
+    tkPopupMenu_AddItem( mView, IDM_OUTPUT, "Output" )
+    tkTest_Check( "SetDropDown", tkMenuBar_SetDropDown( b, 0, mFile ) andalso tkMenuBar_SetDropDown( b, 1, mEdit ) andalso tkMenuBar_SetDropDown( b, 2, mView ) )
+    tkTest_Check( "SetDropDown bad index: FALSE", tkMenuBar_SetDropDown( b, 9, mView ) = false )
+    tkTest_Check( "GetDropDown", tkMenuBar_GetDropDown( b, 1 ) = mEdit andalso tkMenuBar_GetDropDown( b, 3 ) = 0 )
+
+    ' ---- geometry ---------------------------------------------------------------------------
+    tkTest_Check( "ideal width 0 before the bar has a height", tkMenuBar_GetIdealWidth( b ) = 0 )
+    tkTest_Check( "OpenMenu without geometry: FALSE", tkMenuBar_OpenMenu( b, 0 ) = false )
+    dim as long barH = tkHost_Scale( h, 30 )
+    tkWidget_SetPos( b, 0, 0, tkHost_Scale( h, 700 ), barH )
+    dim as long pad = tkMenuBar_GetPadding( b )
+    tkTest_Check( "padding scaled at create", pad = cint( 6 * fScale ), "" & pad )
+    dim as TKRECT r0, r1, r3
+    tkMenuBar_GetItemRect( b, 0, r0 ) : tkMenuBar_GetItemRect( b, 1, r1 ) : tkMenuBar_GetItemRect( b, 3, r3 )
+    tkTest_Check( "item = text + 2*padding, full height, from x = 0", r0.left = 0 andalso r0.right = tkText_Width( f, "File" ) + 2 * pad andalso r0.top = 0 andalso r0.bottom = barH, tkRect_Str( r0 ) )
+    tkTest_Check( "items contiguous", r1.left = r0.right )
+    tkTest_Check( "ideal width = last right edge", tkMenuBar_GetIdealWidth( b ) = r3.right )
+    tkMenuBar_SetPadding( b, pad * 2 )
+    tkMenuBar_GetItemRect( b, 0, r0 )
+    tkTest_Check( "SetPadding re-lays out", r0.right = tkText_Width( f, "File" ) + 4 * pad )
+    tkMenuBar_SetPadding( b, pad )
+    tkMenuBar_SetItemText( b, 3, "Help me" )
+    tkMenuBar_GetItemRect( b, 3, r3 )
+    tkTest_Check( "SetItemText re-measures", (r3.right - r3.left) = tkText_Width( f, "Help me" ) + 2 * pad andalso tkMenuBar_GetItemText( b, 3 ) = "Help me" )
+    tkMenuBar_SetItemText( b, 3, "Help" )
+
+    ' a button elsewhere, for outside clicks
+    dim as TK_WIDGET ptr btn = tkButton_Create( tkHost_Root( h ), 500 )
+    tkButton_SetFont( btn, f ) : tkButton_SetText( btn, "Elsewhere" )
+    tkButton_SetClickCallback( btn, @OnClick )
+    tkWidget_SetPos( btn, tkHost_Scale( h, 450 ), tkHost_Scale( h, 300 ), tkHost_Scale( h, 140 ), tkHost_Scale( h, 40 ) )
+
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 300 )
+
+    ' ---- the mouse ---------------------------------------------------------------------------
+    tkTest_PushMotion( h, ItemCX( b, 0 ), ItemCY( b ) )
+    tkTest_Check( "hover: item hot, not active", tkMenuBar_GetHotIndex( b ) = 0 andalso tkMenuBar_GetActiveIndex( b ) = -1 )
+    tkHost_RenderTo( h, false )
+    dim as TKMENUBAR_COLORS cc
+    tkMenuBar_GetColors( b, @cc )
+    tkTest_Check( "pixel: the hovered item takes BackColorHot", tkTest_PixelAt( h, b->x + r0.left + 1, b->y + 1 ) = cc.BackColorHot )
+    tkTest_Check( "pixel: an idle item BackColor", tkTest_PixelAt( h, b->x + r1.left + 1, b->y + 1 ) = cc.BackColor )
+    gInitLog = "" : gInitBar = 0 : gInitPopup = 0
+    tkTest_Click( h, ItemCX( b, 0 ), ItemCY( b ) )
+    tkTest_PumpFor( h, 150 )
+    tkTest_Check( "click opens the dropdown, nothing selected", tkMenuBar_IsMenuOpen( b ) andalso tkPopupMenu_IsOpen( mFile ) andalso tkPopupMenu_GetCurSel( mFile ) = -1 )
+    tkTest_Check( "the item is active", tkMenuBar_GetActiveIndex( b ) = 0 )
+    tkTest_Check( "init-popup: the bar's first, then the popup's", gInitLog = "B0P", gInitLog )
+    tkTest_Check( "no capture taken by the bar", tkHost_GetCapture( h ) = 0 )
+    if *SDL_GetCurrentVideoDriver() <> "wayland" then
+        ' a popup's position is reported relative to its parent window (SDL3)
+        dim as long px, py
+        SDL_GetWindowPosition( tkPopupMenu_Surface( mFile )->win, @px, @py )
+        tkTest_Check( "anchored under the item, merged with the bar's edge", abs( px * h->fDensity - (b->x + r0.left) ) <= 2 andalso abs( py * h->fDensity - (b->y + barH - 1) ) <= 2, _
+                      (px * h->fDensity) & "," & (py * h->fDensity) )
+    else
+        tkTest_Check( "anchored (Wayland: the compositor places it)", tkPopupMenu_Surface( mFile ) <> 0 )
+    end if
+    ' hover-switch
+    tkTest_PushMotion( h, ItemCX( b, 1 ), ItemCY( b ) )
+    tkTest_PumpFor( h, 100 )
+    tkTest_Check( "hover-switch: Edit opens, File closes", tkPopupMenu_IsOpen( mEdit ) andalso tkPopupMenu_IsOpen( mFile ) = false andalso tkMenuBar_GetActiveIndex( b ) = 1 )
+    tkTest_PushMotion( h, ItemCX( b, 3 ), ItemCY( b ) )
+    tkTest_Check( "hover onto an item without a dropdown: Edit stays", tkPopupMenu_IsOpen( mEdit ) andalso tkMenuBar_GetActiveIndex( b ) = 1 )
+    ' click the bar again: closes, does not reopen
+    tkTest_Click( h, ItemCX( b, 1 ), ItemCY( b ) )
+    tkTest_PumpFor( h, 100 )
+    tkTest_Check( "click the bar while open: closed, not reopened", tkMenuBar_IsMenuOpen( b ) = false andalso tkPopupMenu_IsOpen( mEdit ) = false andalso tkMenuBar_GetActiveIndex( b ) = -1 )
+    tkTest_Click( h, ItemCX( b, 3 ), ItemCY( b ) )
+    tkTest_Check( "click an item without a dropdown: nothing", tkMenuBar_IsMenuOpen( b ) = false )
+    tkTest_Click( h, ItemCX( b, 1 ), ItemCY( b ), SDL_BUTTON_LEFT, 2 )
+    tkTest_PumpFor( h, 100 )
+    tkTest_Check( "a clicks=2 press opens too", tkMenuBar_IsMenuOpen( b ) andalso tkMenuBar_GetActiveIndex( b ) = 1 )
+    tkMenuBar_CloseMenu( b )
+    tkTest_Check( "CloseMenu: closed and cleared", tkMenuBar_IsMenuOpen( b ) = false andalso tkPopupMenu_IsOpen( mEdit ) = false andalso tkMenuBar_GetActiveIndex( b ) = -1 )
+
+    ' a command row: chain closed + highlight cleared BEFORE the callback; the popup's own runs too
+    gCmds = 0 : gPopupSel = 0
+    tkTest_Click( h, ItemCX( b, 0 ), ItemCY( b ) )
+    tkTest_PumpFor( h, 150 )
+    ClickRow( mFile, 0 )
+    tkTest_PumpFor( h, 100 )
+    tkTest_Check( "command: the popup row's id", gCmds = 1 andalso gLastCmd = IDM_NEW, gCmds & " " & gLastCmd )
+    tkTest_Check( "command: chain closed and highlight cleared before it", gOpenInCmd = false )
+    tkTest_Check( "the popup's own select callback ran too", gPopupSel = 1 )
+    ' an outside press while open: closes, and still lands
+    gClicks = 0
+    tkTest_Click( h, ItemCX( b, 0 ), ItemCY( b ) )
+    tkTest_PumpFor( h, 150 )
+    tkTest_Click( h, tkTest_CX( btn ), tkTest_CY( btn ) )
+    tkTest_PumpFor( h, 100 )
+    tkTest_Check( "outside press closes the chain and clears", tkMenuBar_IsMenuOpen( b ) = false andalso tkMenuBar_GetActiveIndex( b ) = -1 )
+    tkTest_Check( "...and the press still reaches its target", gClicks = 1, "" & gClicks )
+
+    ' ---- the keyboard, with a dropdown open --------------------------------------------------
+    gInitLog = ""
+    tkTest_Check( "OpenMenu with select-first", tkMenuBar_OpenMenu( b, 0, true ) )
+    tkTest_PumpFor( h, 150 )
+    tkTest_Check( "...first row selected, init fired", tkPopupMenu_GetCurSel( mFile ) = 0 andalso gInitLog = "B0P", gInitLog )
+    tkTest_PushKey( h, SDLK_RIGHT )
+    tkTest_PumpFor( h, 100 )
+    tkTest_Check( "Right on a row without a submenu: next item, first row", tkMenuBar_GetActiveIndex( b ) = 1 andalso tkPopupMenu_IsOpen( mEdit ) andalso tkPopupMenu_GetCurSel( mEdit ) = 0 )
+    tkTest_PushKey( h, SDLK_LEFT )
+    tkTest_PumpFor( h, 100 )
+    tkTest_Check( "Left at the root: previous item", tkMenuBar_GetActiveIndex( b ) = 0 andalso tkPopupMenu_IsOpen( mFile ) andalso tkPopupMenu_GetCurSel( mFile ) = 0 )
+    tkTest_PushKey( h, SDLK_LEFT )
+    tkTest_PumpFor( h, 100 )
+    tkTest_Check( "Left wraps to the last item WITH a dropdown (skips Help)", tkMenuBar_GetActiveIndex( b ) = 2 andalso tkPopupMenu_IsOpen( mView ) )
+    tkTest_PushKey( h, SDLK_RIGHT )
+    tkTest_PumpFor( h, 100 )
+    tkTest_Check( "Right wraps past Help to File", tkMenuBar_GetActiveIndex( b ) = 0 andalso tkPopupMenu_IsOpen( mFile ) )
+    tkTest_PushKey( h, SDLK_DOWN ) : tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_Check( "Down reaches Open Recent (skips the separator)", tkPopupMenu_GetCurSel( mFile ) = 3, "" & tkPopupMenu_GetCurSel( mFile ) )
+    tkTest_PushKey( h, SDLK_RIGHT )
+    tkTest_PumpFor( h, 150 )
+    tkTest_Check( "Right on a submenu row: the MENU opens it (the bar does not claim)", tkPopupMenu_IsOpen( mRecent ) andalso tkMenuBar_GetActiveIndex( b ) = 0 )
+    tkTest_PushKey( h, SDLK_LEFT )
+    tkTest_PumpFor( h, 100 )
+    tkTest_Check( "Left inside a submenu closes it (the bar does not claim)", tkPopupMenu_IsOpen( mRecent ) = false andalso tkPopupMenu_IsOpen( mFile ) andalso tkMenuBar_GetActiveIndex( b ) = 0 )
+    ' Escape at the root drops back to the keyboard highlight
+    tkTest_PushKey( h, SDLK_ESCAPE )
+    tkTest_PumpFor( h, 100 )
+    tkTest_Check( "Escape at the root: menu closed, highlight kept", tkMenuBar_IsMenuOpen( b ) = false andalso tkMenuBar_GetActiveIndex( b ) = 0 )
+    tkTest_Check( "...the highlight holds the focus and capture", tkHost_GetFocus( h ) = b andalso tkHost_GetCapture( h ) = b )
+
+    ' ---- the highlight-only mode -------------------------------------------------------------
+    tkTest_PushKey( h, SDLK_RIGHT )
+    tkTest_Check( "highlight: Right moves to the next item", tkMenuBar_GetActiveIndex( b ) = 1 andalso tkMenuBar_IsMenuOpen( b ) = false )
+    tkTest_PushKey( h, SDLK_RIGHT ) : tkTest_PushKey( h, SDLK_RIGHT )
+    tkTest_Check( "highlight steps onto ANY item (Help)", tkMenuBar_GetActiveIndex( b ) = 3 )
+    tkTest_PushKey( h, SDLK_RIGHT )
+    tkTest_Check( "highlight wraps", tkMenuBar_GetActiveIndex( b ) = 0 )
+    tkTest_PushKey( h, SDLK_LEFT )
+    tkTest_Check( "Left wraps back", tkMenuBar_GetActiveIndex( b ) = 3 )
+    tkTest_PushKey( h, SDLK_LEFT )
+    tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_PumpFor( h, 150 )
+    tkTest_Check( "Down opens the highlighted item, first row", tkMenuBar_IsMenuOpen( b ) andalso tkMenuBar_GetActiveIndex( b ) = 2 andalso tkPopupMenu_GetCurSel( mView ) = 0 )
+    tkTest_PushKey( h, SDLK_ESCAPE )
+    tkTest_PumpFor( h, 100 )
+    tkTest_PushKey( h, SDLK_ESCAPE )
+    tkTest_Check( "Escape in the highlight clears it, focus and capture given back", tkMenuBar_GetActiveIndex( b ) = -1 andalso tkHost_GetFocus( h ) <> b andalso tkHost_GetCapture( h ) = 0 )
+    ' focus is handed back to whoever had it
+    tkHost_SetFocus( h, btn )
+    tkTest_Check( "SetActiveIndex highlights without opening", tkMenuBar_SetActiveIndex( b, 1 ) andalso tkMenuBar_IsMenuOpen( b ) = false andalso tkMenuBar_GetActiveIndex( b ) = 1 )
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_PumpFor( h, 150 )
+    tkTest_Check( "Enter opens it", tkPopupMenu_IsOpen( mEdit ) andalso tkPopupMenu_GetCurSel( mEdit ) = 0 )
+    gCmds = 0
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_PumpFor( h, 100 )
+    tkTest_Check( "Enter on a row: the command, then everything idle", gCmds = 1 andalso gLastCmd = IDM_UNDO andalso tkMenuBar_GetActiveIndex( b ) = -1 )
+    tkTest_Check( "...and the focus is back on the button", tkHost_GetFocus( h ) = btn andalso tkHost_GetCapture( h ) = 0 )
+    ' a click elsewhere abandons the highlight, and still lands
+    gClicks = 0
+    tkMenuBar_SetActiveIndex( b, 2 )
+    tkTest_Click( h, tkTest_CX( btn ), tkTest_CY( btn ) )
+    tkTest_Check( "a click elsewhere abandons the highlight", tkMenuBar_GetActiveIndex( b ) = -1 andalso tkHost_GetCapture( h ) = 0 )
+    tkTest_Check( "...and still lands on its target", gClicks = 1, "" & gClicks )
+    tkTest_Check( "SetActiveIndex: -1 ok, bad refused", tkMenuBar_SetActiveIndex( b, -1 ) andalso tkMenuBar_SetActiveIndex( b, 9 ) = false )
+    tkMenuBar_SetActiveIndex( b, 0 )
+    tkTest_Click( h, ItemCX( b, 1 ), ItemCY( b ) )
+    tkTest_PumpFor( h, 150 )
+    tkTest_Check( "a click on an item during the highlight opens it", tkMenuBar_IsMenuOpen( b ) andalso tkMenuBar_GetActiveIndex( b ) = 1 )
+    tkMenuBar_CloseMenu( b )
+    tkTest_Check( "the programmatic paths were silent", gCmds = 1 )
+
+    ' ---- theme, pinning, rescale --------------------------------------------------------------
+    dim as TKMENUBAR_COLORS pin = cc
+    pin.BackColor = &hFF102030ul
+    tkMenuBar_SetColors( b, @pin )
+    tkTheme_Apply( tkTheme_Light() )
+    tkMenuBar_GetColors( b, @cc )
+    tkTest_Check( "SetColors pins", cc.BackColor = &hFF102030ul )
+    tkMenuBar_UnpinColors( b )
+    tkMenuBar_GetColors( b, @cc )
+    tkTest_Check( "unpin: the theme's roles", cc.BackColor = tkTheme_Light().Window andalso cc.BackColorHot = tkTheme_Light().SurfaceHot )
+    tkTheme_Apply( tkTheme_Dark() )
+    tkMenuBar_GetColors( b, @cc )
+    tkTest_Check( "follows the next theme", cc.BackColor = tkTheme_Dark().Window andalso cc.ForeColorHot = tkTheme_Dark().TextHot )
+    dim as long p0 = tkMenuBar_GetPadding( b )
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkTest_Check( "rescale: padding x2", tkMenuBar_GetPadding( b ) = p0 * 2, p0 & " -> " & tkMenuBar_GetPadding( b ) )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+
+    ' destroying the host destroys the bar, and the bar its dropdowns
+    tkHost_Destroy( h )
+end sub
+
+
+' Parallel test runs on one desktop steal the OS focus from these windows, and the host then
+' (rightly) dismisses every open popup 150 ms later -- an open dropdown vanished mid-sequence in
+' 4 runs of 4 while three other suites were running. No check here is about focus theft or the
+' cursor leaving the window, so the OS's focus-lost / mouse-leave window events are filtered.
+function DropOsFocusEvents( byval userdata as any ptr, byval e as SDL_Event ptr ) as boolean
+    select case e->type
+    case SDL_EVENT_WINDOW_FOCUS_LOST, SDL_EVENT_WINDOW_MOUSE_LEAVE
+        return false
+    end select
+    return true
+end function
+
+' ==========================================================================================
+if tkTest_Init() = false then end 99
+SDL_SetEventFilter( @DropOsFocusEvents, 0 )
+
+RunPass( 1.0 )
+RunPass( 1.75 )
+
+dim as long nFail = tkTest_Report( "tkMenuBar" )
+tkTest_Quit()
+end nFail

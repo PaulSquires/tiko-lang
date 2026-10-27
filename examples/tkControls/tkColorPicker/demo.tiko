@@ -1,0 +1,256 @@
+' tkColorPicker demo: the Win32 demo's three rows
+' (tiko-lang/examples/PsControls/PsColorPicker/frmMain.tiko), so the two can be put side by side.
+'
+'   demo                     interactive
+'   demo --shot out.bmp      open row 2's popup (centred, host-painted), save BOTH windows, exit
+'                            (out.bmp = the form, out-popup.bmp = the popup)
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkColorPicker"
+#import "vendor/tkControls/tkButton"
+using tkColorPicker
+using tkButton
+using tkTheme
+using tkHost
+using tkPaint
+
+#ifdef TIKO_OS_LINUX
+    const FONTDIR = "/mnt/c/Windows/Fonts/"
+#else
+    const FONTDIR = "C:\Windows\Fonts\"
+#endif
+
+const as long ROW_COUNT = 3
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gBtnPick(0 to ROW_COUNT - 1), gBtnClose
+dim shared as TKRECT gRowSwatch(0 to ROW_COUNT - 1)
+dim shared as ulong gRowColor(0 to ROW_COUNT - 1)
+dim shared as ubyte gRowAlpha(0 to ROW_COUNT - 1)
+dim shared as ustring gHeading(0 to ROW_COUNT - 1), gNote(0 to ROW_COUNT - 1)
+dim shared as ustring gStatusLine, gPhaseLine
+dim shared as TTF_Font ptr gFont9, gFont10, gFontBold10, gFontBold12
+dim shared as long gMoveCount
+dim shared as string gShot
+
+private function ClrToStr( byval clr as ulong, byval nAlpha as ubyte ) as ustring
+    return str( (clr shr 16) and 255 ) & "; " & str( (clr shr 8) and 255 ) & "; " & str( clr and 255 ) & _
+           "   " & tkColorPicker_FormatHex( clr ) & "   alpha " & str( clng( nAlpha ) )
+end function
+
+sub Demo_ColorChanged( byval hCtrl as TK_WIDGET ptr, byval clr as ulong, byval nAlpha as ubyte, byval nPhase as long )
+    dim as ustring wszPhase
+    select case nPhase
+    case CLR_PHASE_BEGIN : wszPhase = "BEGIN" : gMoveCount = 0
+    case CLR_PHASE_MOVE  : wszPhase = "MOVE"  : gMoveCount += 1
+    case CLR_PHASE_END   : wszPhase = "END"
+    end select
+    gStatusLine = "live: " & ClrToStr( clr, nAlpha )
+    gPhaseLine = "live preview: " & wszPhase & "   (moves in this drag: " & str( gMoveCount ) & ")"
+    tkHost_Invalidate( gHost )
+end sub
+
+sub Demo_TabChanged( byval hCtrl as TK_WIDGET ptr, byval nTab as long )
+    gPhaseLine = "tab -> " & tkColorPicker_TabName( nTab )
+    tkHost_Invalidate( gHost )
+end sub
+
+' Decorate rather than replace: the built-in painter, then an accent frame (an OUTLINE).
+sub Demo_PickerPaint( byval p as any ptr )
+    dim as TKCOLORPICKER_PAINTINFO ptr pinf = p
+    if pinf->b = 0 then exit sub
+    tkColorPicker_RenderInfo( p )
+    dim as TKRECT rc = pinf->rcBody
+    tkRect_Inflate( rc, 2, 2 )
+    pinf->b->SetPenColor( tkTheme_Get().Accent )
+    pinf->b->PaintRoundOutline( @rc, 6, 1 )
+end sub
+
+' --shot: the popup is open; render and save it, then cancel the run.
+sub Demo_ShotOpen( byval hCtrl as TK_WIDGET ptr, byval pop as TK_HOST ptr )
+    tkHost_Pump( pop )
+    tkHost_RenderTo( pop, false )
+    dim as SDL_Surface ptr s = SDL_RenderReadPixels( pop->renderer, 0 )
+    if s then
+        dim as string path = left( gShot, len( gShot ) - 4 ) & "-popup.bmp"
+        SDL_SaveBMP( s, strptr( path ) )
+        print "shot: " & path & "  " & s->w & "x" & s->h
+        SDL_DestroySurface( s )
+    end if
+    tkColorPicker_EndModal( hCtrl, false )
+end sub
+
+sub PickRow( byval nRow as long )
+    if (nRow < 0) orelse (nRow >= ROW_COUNT) then exit sub
+    dim as boolean bOK = false
+    dim as TKRECT rcAnchor
+    tkWidget_AbsRect( gBtnPick(nRow), rcAnchor )
+    if nRow = 0 then
+        ' the long way, only because it wants ShowAlpha(false)
+        dim as TK_WIDGET ptr hPick = tkColorPicker_Create( tkHost_Root( gHost ), 0 )
+        tkColorPicker_SetFont( hPick, gFont10 )
+        tkColorPicker_ShowAlpha( hPick, false )
+        tkColorPicker_SetColor( hPick, gRowColor(nRow), gRowAlpha(nRow), false )
+        tkColorPicker_SetTab( hPick, CLR_TAB_WEB )
+        tkColorPicker_PositionForRect( hPick, rcAnchor )
+        bOK = tkColorPicker_RunModal( hPick )
+        if bOK then
+            gRowColor(nRow) = tkColorPicker_GetColor( hPick )
+            gRowAlpha(nRow) = tkColorPicker_GetAlpha( hPick )
+        end if
+        tkColorPicker_Destroy( hPick )
+    elseif nRow = 1 then
+        ' ONE LINE
+        bOK = tkColorPicker_DoModalForRect( tkHost_Root( gHost ), rcAnchor, gRowColor(1), gRowAlpha(1) )
+    else
+        dim as TK_WIDGET ptr hPick = tkColorPicker_Create( tkHost_Root( gHost ), 0 )
+        tkColorPicker_SetFont( hPick, gFont10 )
+        tkColorPicker_SetPaintCallback( hPick, @Demo_PickerPaint )
+        tkColorPicker_SetColorChangedCallback( hPick, @Demo_ColorChanged )
+        tkColorPicker_SetTabChangedCallback( hPick, @Demo_TabChanged )
+        tkColorPicker_SetColor( hPick, gRowColor(nRow), gRowAlpha(nRow), false )
+        tkColorPicker_SetTab( hPick, CLR_TAB_CUSTOM )
+        tkColorPicker_PositionCentered( hPick, 0 )
+        if len( gShot ) then tkColorPicker_SetOpenCallback( hPick, @Demo_ShotOpen )
+        bOK = tkColorPicker_RunModal( hPick )
+        if bOK then
+            gRowColor(nRow) = tkColorPicker_GetColor( hPick )
+            gRowAlpha(nRow) = tkColorPicker_GetAlpha( hPick )
+        end if
+        tkColorPicker_Destroy( hPick )
+    end if
+    if bOK then
+        gStatusLine = "row " & str( nRow ) & " -> " & ClrToStr( gRowColor(nRow), gRowAlpha(nRow) )
+        gPhaseLine = "DoModal returned TRUE"
+    else
+        gStatusLine = "row " & str( nRow ) & " unchanged: " & ClrToStr( gRowColor(nRow), gRowAlpha(nRow) )
+        gPhaseLine = "cancelled (Escape or a click outside) -- the host's variables were not touched"
+    end if
+    tkHost_Invalidate( gHost )
+    ' focus comes back to the button that opened it
+    tkHost_SetFocus( gHost, gBtnPick(nRow) )
+end sub
+
+sub Demo_Click( byval hButton as TK_WIDGET ptr, byval id as long )
+    if id = 99 then gHost->bQuit = true : exit sub
+    PickRow( id - 100 )
+end sub
+
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long nMargin = tkHost_Scale( h, 24 ), nTop = tkHost_Scale( h, 86 ), nRowH = tkHost_Scale( h, 108 )
+    dim as long nSwW = tkHost_Scale( h, 120 ), nSwH = tkHost_Scale( h, 44 ), nBtnW = tkHost_Scale( h, 130 ), nBtnH = tkHost_Scale( h, 30 )
+    for i as long = 0 to ROW_COUNT - 1
+        dim as long y = nTop + (i * nRowH)
+        tkRect_Set( gRowSwatch(i), nMargin, y, nMargin + nSwW, y + nSwH )
+        tkWidget_SetPos( gBtnPick(i), nMargin + nSwW + tkHost_Scale( h, 20 ), y + ((nSwH - nBtnH) \ 2), nBtnW, nBtnH )
+    next
+    tkWidget_SetPos( gBtnClose, pw - nMargin - nBtnW, ph - tkHost_Scale( h, 46 ), nBtnW, nBtnH )
+end sub
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as TKTHEME_COLORS t = tkTheme_Get()
+    dim as long nMargin = tkHost_Scale( h, 24 )
+    dim as TKRECT rc
+    tkRect_Set( rc, nMargin, tkHost_Scale( h, 16 ), pw - nMargin, tkHost_Scale( h, 42 ) )
+    b->SetFont( gFontBold12 ) : b->SetColors( t.TextStrong, t.Window )
+    b->PaintText( "tkColorPicker  --  a MODAL POPUP. DoModal blocks, returns TRUE on OK, and adds nothing to your pump.", @rc, TK_DT_LEFT or TK_DT_ELLIPSIS )
+    tkRect_Set( rc, nMargin, tkHost_Scale( h, 44 ), pw - nMargin, tkHost_Scale( h, 70 ) )
+    b->SetFont( gFont9 ) : b->SetColors( t.Text, t.Window )
+    b->PaintText( "OK commits. Escape or a click anywhere outside cancels, and a cancel leaves the host's variables untouched.", @rc, TK_DT_LEFT or TK_DT_ELLIPSIS )
+    for i as long = 0 to ROW_COUNT - 1
+        b->SetBackColor( gRowColor(i) )
+        b->PaintRect( @gRowSwatch(i) )
+        b->SetPenColor( t.Divider )
+        b->PaintRoundOutline( @gRowSwatch(i), 0, 1 )
+        dim as TKRECT rcH
+        tkRect_Set( rcH, gRowSwatch(i).left, gRowSwatch(i).bottom + tkHost_Scale( h, 6 ), pw - nMargin, gRowSwatch(i).bottom + tkHost_Scale( h, 26 ) )
+        b->SetFont( gFontBold10 ) : b->SetColors( t.TextStrong, t.Window )
+        dim as ustring sH = gHeading(i) & "   --   " & ClrToStr( gRowColor(i), gRowAlpha(i) )
+        b->PaintText( sH, @rcH, TK_DT_LEFT )
+        dim as TKRECT rcN
+        tkRect_Set( rcN, gRowSwatch(i).left + tkHost_Scale( h, 300 ), gRowSwatch(i).top, pw - nMargin, gRowSwatch(i).bottom + tkHost_Scale( h, 4 ) )
+        b->SetFont( gFont9 ) : b->SetColors( t.Text, t.Window )
+        b->PaintTextEx( gNote(i), @rcN, TK_DT_LEFT or TK_DT_WORDBREAK )
+    next
+    tkRect_Set( rc, 0, ph - tkHost_Scale( h, 90 ), pw, ph - tkHost_Scale( h, 90 ) + 1 )
+    b->SetBackColor( t.Divider ) : b->PaintRect( @rc )
+    tkRect_Set( rc, nMargin, ph - tkHost_Scale( h, 82 ), pw - nMargin, ph - tkHost_Scale( h, 58 ) )
+    b->SetFont( gFontBold10 ) : b->SetColors( t.TextStrong, t.Window )
+    b->PaintText( gStatusLine, @rc, TK_DT_LEFT )
+    tkRect_Set( rc, nMargin, ph - tkHost_Scale( h, 56 ), pw - nMargin - tkHost_Scale( h, 150 ), ph - tkHost_Scale( h, 32 ) )
+    b->SetFont( gFont9 ) : b->SetColors( t.Accent, t.Window )
+    b->PaintText( gPhaseLine, @rc, TK_DT_LEFT )
+end sub
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkColorPicker on SDL3", 880, 580, FONTDIR & "segoeui.ttf", forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = tkTheme_Get().Window
+gFont9 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 9 )
+gFont10 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 10 )
+gFontBold10 = tkHost_OpenFont( gHost, FONTDIR & "segoeuib.ttf", 10 )
+gFontBold12 = tkHost_OpenFont( gHost, FONTDIR & "segoeuib.ttf", 12 )
+if (gFont10 = 0) orelse (gFontBold12 = 0) then print "fonts: " & *SDL_GetError() : end 1
+
+gRowColor(0) = tkRGB( 0, 0, 128 )     : gRowAlpha(0) = 255
+gRowColor(1) = tkRGB( 97, 175, 239 )  : gRowAlpha(1) = 180
+gRowColor(2) = tkRGB( 152, 195, 121 ) : gRowAlpha(2) = 255
+gHeading(0) = "Anchored, no alpha"
+gNote(0) = "Opens UNDER its own button, opaque, on the Web tab, opened on Navy -- scrolled into view by itself. Built the long way only because it wants ShowAlpha(false)."
+gHeading(1) = "Anchored, the default"
+gNote(1) = "ONE LINE: tkColorPicker_DoModalForRect. Cancel it with Escape or a click outside and the swatch does not move."
+gHeading(2) = "Centred, host-painted"
+gNote(2) = "Centred on the form, a paint callback that calls RenderInfo then adds an accent frame, and the colour callback: one BEGIN, many MOVEs, one END."
+gStatusLine = ClrToStr( gRowColor(0), gRowAlpha(0) )
+gPhaseLine = "press a button to open the popup"
+
+for i as long = 0 to ROW_COUNT - 1
+    gBtnPick(i) = tkButton_Create( tkHost_Root( gHost ), 100 + i )
+    tkButton_SetFont( gBtnPick(i), gFont10 ) : tkButton_SetText( gBtnPick(i), "Pick colour..." )
+    tkButton_SetClickCallback( gBtnPick(i), @Demo_Click )
+next
+gBtnClose = tkButton_Create( tkHost_Root( gHost ), 99 )
+tkButton_SetFont( gBtnClose, gFont10 ) : tkButton_SetText( gBtnClose, "Close" )
+tkButton_SetClickCallback( gBtnClose, @Demo_Click )
+
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkHost_SetFocus( gHost, gBtnPick(0) )
+tkHost_Show( gHost )
+
+gShot = ArgValue( "--shot" )
+if len( gShot ) then
+    tkHost_Pump( gHost )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr s = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if s then
+        SDL_SaveBMP( s, strptr( gShot ) )
+        print "shot: " & gShot & "  " & s->w & "x" & s->h & "  scale=" & gHost->fScale
+        SDL_DestroySurface( s )
+    end if
+    PickRow( 2 )
+else
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

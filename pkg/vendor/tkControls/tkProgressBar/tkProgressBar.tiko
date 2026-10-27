@@ -1,0 +1,1439 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkProgressBar -- PsProgressBar on SDL3 + SDL_ttf, a port of
+' pkg/vendor/PsControls/PsProgressBar/PsProgressBar.tiko onto tkHost. See PORT.md.
+'
+' WHAT IS UNCHANGED, by design: the three derived rects (LayoutProgressBar, the Win32 function
+' with GetClientRect swapped for the widget's size), the three PURE functions, the block tiling
+' from the bar's own growth-start edge, the state x enabled colour precedence, the text modes and
+' the two-pass split-colour caption, the clamping rules of every setter, the marquee clock (a
+' tick advanced by the ONE timer this control runs, only in indeterminate mode, stopped while the
+' control is disabled or hidden), silence (there is no change callback at all), the message
+' callback that sees every message but the destroy and whose answer is always honoured, and the
+' two offscreen probes.
+'
+' WHAT IS GONE, because the HWND is gone: WM_ERASEBKGND, WM_NOTIFY / TTN_GETDISPINFOW (the tip
+' asks tkTipHost's callback), the comctl32 tooltip backend and its mode switch, PsRegistry, and
+' Rescale(oldDpi, newDpi) (TKM_SCALECHANGED).
+#module "tkProgressBar"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkTooltip" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkTooltip
+
+' Defaults. The SIZE values are scaled at create (tkHost_Scale); every setter afterwards takes
+' raw pixels. The border thickness and the curvature are NEVER scaled.
+public const TKPROGRESSBAR_DEFAULT_THICKNESS    = 0    ' 0 = fill the client's cross axis
+public const TKPROGRESSBAR_DEFAULT_BARINSET     = 0
+public const TKPROGRESSBAR_DEFAULT_BORDERTHICK  = 0    ' not scaled; 0 = no track border
+public const TKPROGRESSBAR_DEFAULT_CURVATURE    = -1   ' not scaled; -1 = stadium
+public const TKPROGRESSBAR_DEFAULT_BLOCKLEN     = 10
+public const TKPROGRESSBAR_DEFAULT_BLOCKGAP     = 3
+public const TKPROGRESSBAR_DEFAULT_MARQUEE_MS   = 30
+public const TKPROGRESSBAR_DEFAULT_MARQUEE_STEP = 2
+public const TKPROGRESSBAR_DEFAULT_CHUNK_PCT    = 25
+
+' -1: both ends exact semicircles whatever the track's thickness (resolved at paint time).
+public const TKPROGRESSBAR_CURVATURE_STADIUM = -1
+
+public enum
+    PRG_HORIZONTAL = 0
+    PRG_VERTICAL
+end enum
+
+public enum
+    PRG_MODE_DETERMINATE = 0
+    PRG_MODE_INDETERMINATE
+end enum
+
+public enum
+    PRG_MARQUEE_BOUNCE = 0
+    PRG_MARQUEE_WRAP
+end enum
+
+public enum
+    PRG_FILL_SOLID = 0
+    PRG_FILL_GRADIENT
+end enum
+
+public enum
+    PRG_STATE_NORMAL = 0
+    PRG_STATE_PAUSED
+    PRG_STATE_ERROR
+end enum
+
+public enum
+    PRG_TEXT_NONE = 0
+    PRG_TEXT_PERCENT
+    PRG_TEXT_VALUE
+    PRG_TEXT_CALLBACK
+end enum
+
+public enum
+    PRG_PART_CONTROL = 0
+    PRG_PART_TRACK
+    PRG_PART_BAR
+    PRG_PART_TEXT
+end enum
+
+
+' The Win32 control's dark defaults, value for value (COLORREF BGR(r,g,b) -> tkRGB(r,g,b)).
+' A bar takes tkProgressBar_ThemeColors( tkTheme_Get() ) at create, which is what draws.
+public type TKPROGRESSBAR_COLORS
+    BackColor            as ulong = &hFF21252Bul    ' ( 33, 37, 43)
+    TrackColor           as ulong = &hFF33373Ful    ' ( 51, 55, 63)
+    TrackBorderColor     as ulong = &hFF484D56ul    ' ( 72, 77, 86)
+    BarColor             as ulong = &hFF569CD6ul    ' ( 86,156,214)
+    BarColorEnd          as ulong = &hFF346EAAul    ' ( 52,110,170)
+    BarColorPaused       as ulong = &hFFDEB846ul    ' (222,184, 70)
+    BarColorPausedEnd    as ulong = &hFFB28C22ul    ' (178,140, 34)
+    BarColorError        as ulong = &hFFE06060ul    ' (224, 96, 96)
+    BarColorErrorEnd     as ulong = &hFFB03838ul    ' (176, 56, 56)
+    BarColorDisabled     as ulong = &hFF545961ul    ' ( 84, 89, 97)
+    BarColorDisabledEnd  as ulong = &hFF3E434Bul    ' ( 62, 67, 75)
+    TextColor            as ulong = &hFFBEC4CEul    ' (190,196,206) over the EMPTY track
+    TextColorOnBar       as ulong = &hFFFFFFFFul    ' over the FILLED bar
+    TextColorDisabled    as ulong = &hFF5A606Aul    ' ( 90, 96,106) both halves, disabled
+end type
+
+public type TKPROGRESSBAR_PAINTINFO
+    hProgressBar     as TK_WIDGET ptr
+    b                as TK_PAINT ptr
+    rcClient         as TKRECT
+    rcTrack          as TKRECT
+    rcFill           as TKRECT
+    rcBar            as TKRECT          ' indeterminate: the floating chunk
+    nPos             as long
+    nMin             as long
+    nMax             as long
+    nPercent         as long
+    isIndeterminate  as boolean
+    isEnabled        as boolean
+    isReverse        as boolean
+    isSegmented      as boolean
+    nOrientation     as long
+    nState           as long
+    nFillStyle       as long
+    nCurvature       as long            ' resolved: the stadium sentinel never reaches here
+    nBlockLength     as long
+    nBlockGap        as long
+    wszText          as ustring         ' "" = draw nothing
+end type
+
+' Vendor's uMsg/wParam/lParam, as the TK_MSG fields a progress bar can receive.
+public type TKPROGRESSBAR_MESSAGEINFO
+    hProgressBar as TK_WIDGET ptr
+    msg          as long                ' TKM_*
+    x            as single
+    y            as single
+    key          as long
+    timerId      as long
+    bFlag        as boolean
+end type
+
+public type PRG_PaintCallbackSub as sub( byval p as TKPROGRESSBAR_PAINTINFO ptr )
+public type PRG_MessageCallbackFunc as function( byval m as TKPROGRESSBAR_MESSAGEINFO ptr ) as boolean
+public type PRG_TooltipCallbackFunc as function( byval hProgressBar as TK_WIDGET ptr ) as ustring
+public type PRG_TextCallbackFunc as function( byval hProgressBar as TK_WIDGET ptr, byval nPos as long, _
+                                              byval nMin as long, byval nMax as long ) as ustring
+
+public type TKPROGRESSBAR_STATE
+    hWin            as TK_WIDGET ptr
+    id              as long
+    bColorsPinned   as boolean
+    tip             as TKTIPHOST_STATE
+    ' --- model: every setter clamps, none notifies ---
+    nMin            as long = 0
+    nMax            as long = 100
+    nPos            as long = 0
+    nStep           as long = 10
+    ' --- state ---
+    isEnabled       as boolean = true
+    isReverse       as boolean
+    isSegmented     as boolean
+    nOrientation    as long = PRG_HORIZONTAL
+    nMode           as long = PRG_MODE_DETERMINATE
+    nState          as long = PRG_STATE_NORMAL
+    nFillStyle      as long = PRG_FILL_SOLID
+    nGradientMode   as long = TK_GRADIENT_VERTICAL
+    nTextMode       as long = PRG_TEXT_NONE
+    pTextFont       as TTF_Font ptr        ' borrowed
+    ' --- marquee: nTick is the clock, and only TKM_TIMER advances it ---
+    nMarqueeStyle   as long = PRG_MARQUEE_BOUNCE
+    nMarqueeMs      as long = TKPROGRESSBAR_DEFAULT_MARQUEE_MS
+    nMarqueeStep    as long = TKPROGRESSBAR_DEFAULT_MARQUEE_STEP
+    nChunkPercent   as long = TKPROGRESSBAR_DEFAULT_CHUNK_PCT
+    nTick           as long
+    marqueeTimerOn  as boolean
+    bHidden         as boolean             ' from TKM_SHOW; false = "assume shown" (vendor)
+    ' --- layout: derived, lazy ---
+    nThickness      as long
+    nBarInset       as long
+    nBlockLength    as long
+    nBlockGap       as long
+    nBorderThick    as long = TKPROGRESSBAR_DEFAULT_BORDERTHICK
+    nCurvature      as long = TKPROGRESSBAR_DEFAULT_CURVATURE
+    rcTrack         as TKRECT
+    rcFill          as TKRECT
+    rcBar           as TKRECT
+    bLayoutDirty    as boolean = true
+    colors          as TKPROGRESSBAR_COLORS
+    wszTooltip      as ustring
+    PaintCallback   as PRG_PaintCallbackSub
+    MessageCallback as PRG_MessageCallbackFunc
+    TooltipCallback as PRG_TooltipCallbackFunc
+    TextCallback    as PRG_TextCallbackFunc
+
+    declare sub      LayoutProgressBar()
+    declare function ResolvedCurvature() as long
+    declare function FillLength() as long
+    declare sub      Refresh()
+end type
+
+
+' ========================================================================================
+' THE PURE FUNCTIONS -- vendor's, unchanged. No widget, no state, no timer.
+' ========================================================================================
+
+' Bar length for a determinate position. Clamps nPos; 0 for an empty/inverted range or a
+' zero-length track; longint so a byte-count range cannot overflow.
+public function tkProgressBar_ComputeBarLength( byval nPos as long, byval nMin as long, _
+                                                byval nMax as long, byval nTrackLen as long ) as long
+    if nTrackLen <= 0 then return 0
+    if nMax <= nMin then return 0
+    dim as long p = nPos
+    if p < nMin then p = nMin
+    if p > nMax then p = nMax
+    dim as longint num = cast( longint, p - nMin ) * cast( longint, nTrackLen )
+    dim as long n = clng( num \ cast( longint, nMax - nMin ) )
+    if n < 0 then n = 0
+    if n > nTrackLen then n = nTrackLen
+    return n
+end function
+
+' The chunk's leading edge at tick nTick. BOUNCE: [0, track - chunk], a triangle wave with a
+' period of TWICE the span. WRAP: [-chunk, track), a sawtooth that goes negative on purpose --
+' the caller clips (LayoutProgressBar does).
+public function tkProgressBar_ComputeMarqueeOffset( byval nTrackLen as long, byval nChunkLen as long, _
+                                                    byval nStep as long, byval nTick as long, _
+                                                    byval nStyle as long ) as long
+    if nTrackLen <= 0 then return 0
+    if nChunkLen <= 0 then return 0
+    dim as long stp = nStep
+    if stp < 1 then stp = 1
+    dim as longint travel = cast( longint, nTick ) * cast( longint, stp )
+    if nStyle = PRG_MARQUEE_WRAP then
+        dim as longint period = cast( longint, nTrackLen ) + cast( longint, nChunkLen )
+        dim as longint p = travel mod period
+        if p < 0 then p += period
+        return clng( p ) - nChunkLen
+    end if
+    dim as long span = nTrackLen - nChunkLen
+    if span <= 0 then return 0
+    dim as longint period = cast( longint, span ) * 2
+    dim as longint p = travel mod period
+    if p < 0 then p += period
+    if p <= cast( longint, span ) then return clng( p )
+    return clng( period - p )
+end function
+
+' Whole blocks of nBlockLen separated by nBlockGap in nLength; the last needs no trailing gap.
+public function tkProgressBar_ComputeBlockCount( byval nLength as long, byval nBlockLen as long, _
+                                                 byval nBlockGap as long ) as long
+    if nBlockLen <= 0 then return 0
+    if nLength < nBlockLen then return 0
+    dim as long gap = nBlockGap
+    if gap < 0 then gap = 0
+    dim as long stride = nBlockLen + gap
+    if stride <= 0 then return 0
+    return (nLength + gap) \ stride
+end function
+
+
+' ========================================================================================
+' Layout -- vendor's LayoutProgressBar; the client is the widget's size.
+' ========================================================================================
+function TKPROGRESSBAR_STATE.ResolvedCurvature() as long
+    if this.nCurvature >= 0 then return this.nCurvature
+    dim as long cross
+    if this.nOrientation = PRG_VERTICAL then
+        cross = this.rcTrack.right - this.rcTrack.left
+    else
+        cross = this.rcTrack.bottom - this.rcTrack.top
+    end if
+    if cross < 0 then cross = 0
+    return cross
+end function
+
+function TKPROGRESSBAR_STATE.FillLength() as long
+    dim as long n
+    if this.nOrientation = PRG_VERTICAL then
+        n = this.rcFill.bottom - this.rcFill.top
+    else
+        n = this.rcFill.right - this.rcFill.left
+    end if
+    if n < 0 then n = 0
+    return n
+end function
+
+sub TKPROGRESSBAR_STATE.LayoutProgressBar()
+    this.bLayoutDirty = false
+    if this.hWin = 0 then exit sub
+    dim as long clientW = this.hWin->cw
+    dim as long clientH = this.hWin->ch
+    if (clientW <= 0) orelse (clientH <= 0) then
+        this.bLayoutDirty = true
+        exit sub
+    end if
+
+    ' rcTrack: full length along the growth axis, nThickness across it, centred
+    if this.nOrientation = PRG_VERTICAL then
+        dim as long nW = this.nThickness
+        if (nW <= 0) orelse (nW > clientW) then nW = clientW
+        dim as long x = (clientW - nW) \ 2
+        tkRect_Set( this.rcTrack, x, 0, x + nW, clientH )
+    else
+        dim as long nH = this.nThickness
+        if (nH <= 0) orelse (nH > clientH) then nH = clientH
+        dim as long y = (clientH - nH) \ 2
+        tkRect_Set( this.rcTrack, 0, y, clientW, y + nH )
+    end if
+
+    ' rcFill: the track, inset; an oversized inset collapses rather than inverting
+    this.rcFill = this.rcTrack
+    if this.nBarInset > 0 then
+        tkRect_Inflate( this.rcFill, -this.nBarInset, -this.nBarInset )
+        if this.rcFill.right < this.rcFill.left then this.rcFill.right = this.rcFill.left
+        if this.rcFill.bottom < this.rcFill.top then this.rcFill.bottom = this.rcFill.top
+    end if
+
+    ' rcBar: (start, length) along the growth axis, then projected
+    dim as long fillLen = this.FillLength()
+    dim as long barStart = 0
+    dim as long barLen = 0
+    if this.nMode = PRG_MODE_INDETERMINATE then
+        dim as long chunk = (fillLen * this.nChunkPercent) \ 100
+        if chunk < 1 then chunk = 1
+        if chunk > fillLen then chunk = fillLen
+        barLen = chunk
+        barStart = tkProgressBar_ComputeMarqueeOffset( fillLen, chunk, this.nMarqueeStep, this.nTick, this.nMarqueeStyle )
+    else
+        barLen = tkProgressBar_ComputeBarLength( this.nPos, this.nMin, this.nMax, fillLen )
+    end if
+
+    this.rcBar = this.rcFill
+    if this.nOrientation = PRG_VERTICAL then
+        if this.isReverse then
+            this.rcBar.top = this.rcFill.top + barStart          ' top-down
+            this.rcBar.bottom = this.rcBar.top + barLen
+        else
+            this.rcBar.bottom = this.rcFill.bottom - barStart    ' bottom-up (the default)
+            this.rcBar.top = this.rcBar.bottom - barLen
+        end if
+    else
+        if this.isReverse then
+            this.rcBar.right = this.rcFill.right - barStart      ' right-to-left
+            this.rcBar.left = this.rcBar.right - barLen
+        else
+            this.rcBar.left = this.rcFill.left + barStart
+            this.rcBar.right = this.rcBar.left + barLen
+        end if
+    end if
+
+    ' Clip to the fill area, once (WRAP overhangs on purpose); off-track collapses to empty.
+    if this.rcBar.left < this.rcFill.left then this.rcBar.left = this.rcFill.left
+    if this.rcBar.top < this.rcFill.top then this.rcBar.top = this.rcFill.top
+    if this.rcBar.right > this.rcFill.right then this.rcBar.right = this.rcFill.right
+    if this.rcBar.bottom > this.rcFill.bottom then this.rcBar.bottom = this.rcFill.bottom
+    if this.rcBar.right < this.rcBar.left then this.rcBar.right = this.rcBar.left
+    if this.rcBar.bottom < this.rcBar.top then this.rcBar.bottom = this.rcBar.top
+end sub
+
+sub TKPROGRESSBAR_STATE.Refresh()
+    this.bLayoutDirty = true
+    if this.hWin then tkWidget_Invalidate( this.hWin )
+end sub
+
+
+' ========================================================================================
+' Helpers
+' ========================================================================================
+private function GetProgressBarPointer( byval hProgressBar as TK_WIDGET ptr ) as TKPROGRESSBAR_STATE ptr
+    if hProgressBar = 0 then return 0
+    return cast( TKPROGRESSBAR_STATE ptr, hProgressBar->pData )
+end function
+
+private function PRG_Percent( byval pBar as TKPROGRESSBAR_STATE ptr ) as long
+    if pBar = 0 then return 0
+    if pBar->nMax <= pBar->nMin then return 0
+    dim as long p = pBar->nPos
+    if p < pBar->nMin then p = pBar->nMin
+    if p > pBar->nMax then p = pBar->nMax
+    dim as longint num = cast( longint, p - pBar->nMin ) * 100
+    return clng( num \ cast( longint, pBar->nMax - pBar->nMin ) )
+end function
+
+private function PRG_ResolveText( byval pBar as TKPROGRESSBAR_STATE ptr ) as ustring
+    dim as ustring wszOut
+    if pBar = 0 then return wszOut
+    select case pBar->nTextMode
+    case PRG_TEXT_PERCENT
+        dim as string s = str( PRG_Percent( pBar ) ) & "%"
+        wszOut = s
+    case PRG_TEXT_VALUE
+        dim as string s = str( pBar->nPos )
+        wszOut = s
+    case PRG_TEXT_CALLBACK
+        if pBar->TextCallback then wszOut = pBar->TextCallback( pBar->hWin, pBar->nPos, pBar->nMin, pBar->nMax )
+    end select
+    return wszOut
+end function
+
+' Block idx inside the CURRENT bar, tiled from the bar's own growth-start edge (so in
+' indeterminate mode the blocks travel with the chunk).
+private function PRG_BlockRectAt( byval pBar as TKPROGRESSBAR_STATE ptr, byval idx as long, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    if pBar = 0 then return false
+    if idx < 0 then return false
+    dim as long blockLen = pBar->nBlockLength
+    if blockLen <= 0 then return false
+    dim as long gap = pBar->nBlockGap
+    if gap < 0 then gap = 0
+    dim as long ofs = idx * (blockLen + gap)
+    rc = pBar->rcBar
+    if pBar->nOrientation = PRG_VERTICAL then
+        if pBar->isReverse then
+            rc.top = pBar->rcBar.top + ofs
+            rc.bottom = rc.top + blockLen
+            if rc.bottom > pBar->rcBar.bottom then tkRect_SetEmpty( rc ) : return false
+        else
+            rc.bottom = pBar->rcBar.bottom - ofs
+            rc.top = rc.bottom - blockLen
+            if rc.top < pBar->rcBar.top then tkRect_SetEmpty( rc ) : return false
+        end if
+    else
+        if pBar->isReverse then
+            rc.right = pBar->rcBar.right - ofs
+            rc.left = rc.right - blockLen
+            if rc.left < pBar->rcBar.left then tkRect_SetEmpty( rc ) : return false
+        else
+            rc.left = pBar->rcBar.left + ofs
+            rc.right = rc.left + blockLen
+            if rc.right > pBar->rcBar.right then tkRect_SetEmpty( rc ) : return false
+        end if
+    end if
+    return true
+end function
+
+private function PRG_BarLength( byval pBar as TKPROGRESSBAR_STATE ptr ) as long
+    if pBar = 0 then return 0
+    dim as long n
+    if pBar->nOrientation = PRG_VERTICAL then
+        n = pBar->rcBar.bottom - pBar->rcBar.top
+    else
+        n = pBar->rcBar.right - pBar->rcBar.left
+    end if
+    if n < 0 then n = 0
+    return n
+end function
+
+' Disabled > ERROR > PAUSED > NORMAL. Solid uses clr1 only.
+private sub PRG_ResolveColors( byval pBar as TKPROGRESSBAR_STATE ptr, byref clr1 as ulong, byref clr2 as ulong )
+    clr1 = 0 : clr2 = 0
+    if pBar = 0 then exit sub
+    with pBar->colors
+        if pBar->isEnabled = false then
+            clr1 = .BarColorDisabled : clr2 = .BarColorDisabledEnd
+            exit sub
+        end if
+        select case pBar->nState
+        case PRG_STATE_PAUSED
+            clr1 = .BarColorPaused : clr2 = .BarColorPausedEnd
+        case PRG_STATE_ERROR
+            clr1 = .BarColorError : clr2 = .BarColorErrorEnd
+        case else
+            clr1 = .BarColor : clr2 = .BarColorEnd
+        end select
+    end with
+end sub
+
+' GDI+'s BuildRoundPath clamps a corner to half the rect's SHORTER side, so both radii are one
+' circle; tkPaint clamps x and y independently (an ellipse on a block narrower than the track).
+' Clamping the diameter here gives vendor's capsule blocks.
+private function ClampCurv( byref rc as TKRECT, byval nCurv as long ) as long
+    dim as long nW = rc.right - rc.left, nH = rc.bottom - rc.top
+    dim as long nShort = iif( nW < nH, nW, nH )
+    if nCurv > nShort then nCurv = nShort
+    if nCurv < 0 then nCurv = 0
+    return nCurv
+end function
+
+' The colour one gradient ramp across rcRamp gives at (x, y): tkPaint's projection, so a block
+' painted from rcRamp's colours at its own two ends is a slice of the ONE ramp (vendor passed
+' rcBar as GDI+'s brush rect; PaintGradientRect has no such argument).
+private function RampAt( byref rcRamp as TKRECT, byval nMode as long, byval c1 as ulong, byval c2 as ulong, _
+                         byval x as single, byval y as single ) as ulong
+    dim as single x0 = rcRamp.left, y0 = rcRamp.top, x1 = rcRamp.right, y1 = rcRamp.bottom
+    dim as single ax, ay, bx, by
+    select case nMode
+    case TK_GRADIENT_HORIZONTAL
+        ax = x0 : ay = y0 : bx = x1 : by = y0
+    case TK_GRADIENT_FDIAGONAL
+        ax = x0 : ay = y0 : bx = x1 : by = y1
+    case TK_GRADIENT_BDIAGONAL
+        ax = x1 : ay = y0 : bx = x0 : by = y1
+    case else
+        ax = x0 : ay = y0 : bx = x0 : by = y1
+    end select
+    dim as single dx = bx - ax, dy = by - ay
+    dim as single l2 = dx * dx + dy * dy
+    if l2 <= 0 then return c1
+    return tkColor_Lerp( c1, c2, ((x - ax) * dx + (y - ay) * dy) / l2 )
+end function
+
+private sub PaintBlockGradient( byval b as TK_PAINT ptr, byref rcBlk as TKRECT, byref rcRamp as TKRECT, _
+                                byval nMode as long, byval c1 as ulong, byval c2 as ulong, byval nCurv as long )
+    dim as single ax, ay, bx, by
+    dim as single x0 = rcBlk.left, y0 = rcBlk.top, x1 = rcBlk.right, y1 = rcBlk.bottom
+    select case nMode
+    case TK_GRADIENT_HORIZONTAL
+        ax = x0 : ay = y0 : bx = x1 : by = y0
+    case TK_GRADIENT_FDIAGONAL
+        ax = x0 : ay = y0 : bx = x1 : by = y1
+    case TK_GRADIENT_BDIAGONAL
+        ax = x1 : ay = y0 : bx = x0 : by = y1
+    case else
+        ax = x0 : ay = y0 : bx = x0 : by = y1
+    end select
+    dim as ulong cA = RampAt( rcRamp, nMode, c1, c2, ax, ay )
+    dim as ulong cB = RampAt( rcRamp, nMode, c1, c2, bx, by )
+    b->PaintGradientRect( @rcBlk, cA, cB, nMode, ClampCurv( rcBlk, nCurv ) )
+end sub
+
+private function PRG_TextFont( byval pBar as TKPROGRESSBAR_STATE ptr ) as TTF_Font ptr
+    if pBar->pTextFont then return pBar->pTextFont
+    return pBar->hWin->pHost->pDefaultFont
+end function
+
+
+' ========================================================================================
+' The built-in painter
+' ========================================================================================
+private sub tkProgressBar_RenderDefault( byval pBar as TKPROGRESSBAR_STATE ptr, byval b as TK_PAINT ptr, _
+                                         byval p as TKPROGRESSBAR_PAINTINFO ptr )
+    if (pBar = 0) orelse (b = 0) orelse (p = 0) then exit sub
+    dim as long curv = p->nCurvature
+
+    ' ---- the track ----
+    dim as TKRECT rcTrack = p->rcTrack
+    if tkRect_IsEmpty( rcTrack ) = false then
+        b->SetBackColor( pBar->colors.TrackColor )
+        if pBar->nBorderThick > 0 then
+            b->SetPenColor( pBar->colors.TrackBorderColor )
+            b->PaintRoundBorderRect( @rcTrack, ClampCurv( rcTrack, curv ), pBar->nBorderThick )
+        else
+            b->PaintRoundRect( @rcTrack, ClampCurv( rcTrack, curv ) )
+        end if
+    end if
+
+    ' ---- the bar ----
+    dim as ulong clr1, clr2
+    PRG_ResolveColors( pBar, clr1, clr2 )
+    dim as TKRECT rcBar = p->rcBar
+    dim as boolean bHasBar = (tkRect_IsEmpty( rcBar ) = false)
+    dim as boolean bGrad = (p->nFillStyle = PRG_FILL_GRADIENT)
+    if bHasBar then
+        if p->isSegmented then
+            dim as long n = tkProgressBar_ComputeBlockCount( PRG_BarLength( pBar ), pBar->nBlockLength, pBar->nBlockGap )
+            for k as long = 0 to n - 1
+                dim as TKRECT rcBlk
+                if PRG_BlockRectAt( pBar, k, rcBlk ) = false then exit for
+                if bGrad then
+                    PaintBlockGradient( b, rcBlk, rcBar, pBar->nGradientMode, clr1, clr2, curv )
+                else
+                    b->SetBackColor( clr1 )
+                    b->PaintRoundRect( @rcBlk, ClampCurv( rcBlk, curv ) )
+                end if
+            next
+        elseif bGrad then
+            b->PaintGradientRect( @rcBar, clr1, clr2, pBar->nGradientMode, ClampCurv( rcBar, curv ) )
+        else
+            b->SetBackColor( clr1 )
+            b->PaintRoundRect( @rcBar, ClampCurv( rcBar, curv ) )
+        end if
+    end if
+
+    ' ---- the text: the same string into the same rect, twice, clipped ----
+    if len( p->wszText ) = 0 then exit sub
+    if tkRect_IsEmpty( rcTrack ) then exit sub
+    b->SetFont( PRG_TextFont( pBar ) )
+    if p->isEnabled = false then
+        b->SetForeColor( pBar->colors.TextColorDisabled )
+        b->PaintText( p->wszText, @rcTrack, TK_DT_CENTER )
+        exit sub
+    end if
+    if bHasBar = false then
+        b->SetForeColor( pBar->colors.TextColor )
+        b->PaintText( p->wszText, @rcTrack, TK_DT_CENTER )
+        exit sub
+    end if
+    ' pass A: over the bar
+    b->PushClip( @rcBar )
+    b->SetForeColor( pBar->colors.TextColorOnBar )
+    b->PaintText( p->wszText, @rcTrack, TK_DT_CENTER )
+    b->PopClip()
+    ' pass B: track minus bar. Vendor's RGN_DIFF region, as up to four rects: the bands above and
+    ' below the bar (an inset leaves them) and the two pieces either side of it (a floating chunk
+    ' leaves both).
+    dim as TKRECT rOut(0 to 3)
+    tkRect_Set( rOut(0), rcTrack.left, rcTrack.top, rcTrack.right, rcBar.top )
+    tkRect_Set( rOut(1), rcTrack.left, rcBar.bottom, rcTrack.right, rcTrack.bottom )
+    tkRect_Set( rOut(2), rcTrack.left, rcBar.top, rcBar.left, rcBar.bottom )
+    tkRect_Set( rOut(3), rcBar.right, rcBar.top, rcTrack.right, rcBar.bottom )
+    b->SetForeColor( pBar->colors.TextColor )
+    for i as long = 0 to 3
+        if tkRect_IsEmpty( rOut(i) ) then continue for
+        b->PushClip( @rOut(i) )
+        b->PaintText( p->wszText, @rcTrack, TK_DT_CENTER )
+        b->PopClip()
+    next
+end sub
+
+' Render the whole control through b -- the exact path TKM_PAINT and the probes both take.
+private sub PRG_Render( byval pBar as TKPROGRESSBAR_STATE ptr, byval b as TK_PAINT ptr )
+    if (pBar = 0) orelse (b = 0) then exit sub
+    if pBar->bLayoutDirty then pBar->LayoutProgressBar()
+    dim as TKRECT rcC
+    tkRect_Set( rcC, 0, 0, pBar->hWin->cw, pBar->hWin->ch )
+    b->SetBackColor( pBar->colors.BackColor )
+    b->PaintRect( @rcC )
+
+    dim as TKPROGRESSBAR_PAINTINFO p
+    p.hProgressBar = pBar->hWin
+    p.b = b
+    p.rcClient = rcC
+    p.rcTrack = pBar->rcTrack
+    p.rcFill = pBar->rcFill
+    p.rcBar = pBar->rcBar
+    p.nPos = pBar->nPos
+    p.nMin = pBar->nMin
+    p.nMax = pBar->nMax
+    p.nPercent = PRG_Percent( pBar )
+    p.isIndeterminate = (pBar->nMode = PRG_MODE_INDETERMINATE)
+    p.isEnabled = pBar->isEnabled
+    p.isReverse = pBar->isReverse
+    p.isSegmented = pBar->isSegmented
+    p.nOrientation = pBar->nOrientation
+    p.nState = pBar->nState
+    p.nFillStyle = pBar->nFillStyle
+    p.nCurvature = pBar->ResolvedCurvature()
+    p.nBlockLength = pBar->nBlockLength
+    p.nBlockGap = pBar->nBlockGap
+    p.wszText = PRG_ResolveText( pBar )
+    if pBar->PaintCallback then
+        pBar->PaintCallback( @p )
+    else
+        tkProgressBar_RenderDefault( pBar, b, @p )
+    end if
+end sub
+
+
+' ========================================================================================
+' The marquee timer: wanted = indeterminate AND enabled AND not hidden. Called from every
+' place that can change the answer (vendor's PRG_SyncMarqueeTimer).
+' ========================================================================================
+private sub PRG_SyncMarqueeTimer( byval pBar as TKPROGRESSBAR_STATE ptr )
+    if (pBar = 0) orelse (pBar->hWin = 0) then exit sub
+    dim as boolean bIndeterminate = (pBar->nMode = PRG_MODE_INDETERMINATE)
+    dim as boolean bShown = (pBar->bHidden = false)
+    dim as boolean bWant = bIndeterminate andalso pBar->isEnabled andalso bShown
+    if bWant andalso (pBar->marqueeTimerOn = false) then
+        dim as long ms = pBar->nMarqueeMs
+        if ms < 1 then ms = 1
+        tkWidget_SetTimer( pBar->hWin, TK_TIMER_MARQUEE, ms )
+        pBar->marqueeTimerOn = true
+    elseif (bWant = false) andalso pBar->marqueeTimerOn then
+        tkWidget_KillTimer( pBar->hWin, TK_TIMER_MARQUEE )
+        pBar->marqueeTimerOn = false
+    end if
+end sub
+
+' Own text first, then the callback, then nothing -- no fallback to the percentage.
+private function tkProgressBar_ResolveTooltipText( byval pBar as TKPROGRESSBAR_STATE ptr ) as ustring
+    dim as ustring wszOut
+    if pBar = 0 then return wszOut
+    if len( pBar->wszTooltip ) then
+        wszOut = pBar->wszTooltip
+        return wszOut
+    end if
+    if pBar->TooltipCallback then return pBar->TooltipCallback( pBar->hWin )
+    return wszOut
+end function
+
+private function tkProgressBar_TipText( byval t as TK_TIP ptr, byval a as TK_WIDGET ptr, byval idx as long ) as ustring
+    return tkProgressBar_ResolveTooltipText( GetProgressBarPointer( a ) )
+end function
+
+private function tkProgressBar_CallMessage( byval pBar as TKPROGRESSBAR_STATE ptr, byval m as TK_MSG ptr ) as boolean
+    if (pBar = 0) orelse (pBar->MessageCallback = 0) then return false
+    dim as TKPROGRESSBAR_MESSAGEINFO mi
+    mi.hProgressBar = pBar->hWin
+    mi.msg = m->msg
+    mi.x = m->x
+    mi.y = m->y
+    mi.key = m->key
+    mi.timerId = m->timerId
+    mi.bFlag = m->bFlag
+    return pBar->MessageCallback( @mi )
+end function
+
+private sub tkProgressBar_RescaleState( byval pBar as TKPROGRESSBAR_STATE ptr, byval fOld as single, byval fNew as single )
+    if (fOld <= 0) orelse (fNew <= 0) orelse (fOld = fNew) then exit sub
+    dim as single k = fNew / fOld
+    pBar->nThickness   = cint( pBar->nThickness * k )
+    pBar->nBarInset    = cint( pBar->nBarInset * k )
+    pBar->nBlockLength = cint( pBar->nBlockLength * k )
+    pBar->nBlockGap    = cint( pBar->nBlockGap * k )
+    pBar->nMarqueeStep = cint( pBar->nMarqueeStep * k )
+    if pBar->nBlockLength < 1 then pBar->nBlockLength = 1
+    if pBar->nMarqueeStep < 1 then pBar->nMarqueeStep = 1
+    pBar->Refresh()
+end sub
+
+
+public declare sub tkProgressBar_ApplyTheme( byval hProgressBar as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+public declare function tkProgressBar_ThemeColors( byref t as TKTHEME_COLORS ) as TKPROGRESSBAR_COLORS
+
+' ========================================================================================
+' The proc. NO CAPTURE, NO FOCUS, NO HOT STATE: the bar is display-only. Every message but
+' TKM_DESTROY is offered to the message callback first and its answer is honoured.
+' ========================================================================================
+private function tkProgressBar_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( w )
+    if pBar = 0 then return false
+
+    if m->msg <> TKM_DESTROY then
+        if tkProgressBar_CallMessage( pBar, m ) then return true
+    end if
+
+    select case m->msg
+    case TKM_PAINT
+        PRG_Render( pBar, m->pPaint )
+        return true
+
+    case TKM_SIZE
+        pBar->Refresh()
+        return true
+
+    case TKM_TIMER
+        if m->timerId = TK_TIMER_MARQUEE then
+            pBar->nTick += 1
+            pBar->Refresh()
+            return true
+        end if
+        return false
+
+    case TKM_SHOW
+        pBar->bHidden = (m->bFlag = false)
+        PRG_SyncMarqueeTimer( pBar )
+        return true
+
+    case TKM_ENABLE
+        pBar->isEnabled = m->bFlag
+        if pBar->isEnabled = false then tkTipHost_Pop( @pBar->tip )
+        PRG_SyncMarqueeTimer( pBar )
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_SCALECHANGED
+        tkProgressBar_RescaleState( pBar, m->fOld, m->fNew )
+        return true
+
+    case TKM_THEMECHANGED
+        tkProgressBar_ApplyTheme( w, tkTheme_Get() )
+        return true
+
+    case TKM_DESTROY
+        if pBar->marqueeTimerOn then
+            tkWidget_KillTimer( w, TK_TIMER_MARQUEE )
+            pBar->marqueeTimerOn = false
+        end if
+        tkTipHost_Destroy( @pBar->tip )
+        delete pBar
+        w->pData = 0
+        return true
+    end select
+    ' Mouse and wheel are not acted on; a refused wheel bubbles to the parent, as
+    ' DefWindowProc forwarded WM_MOUSEWHEEL.
+    return false
+end function
+
+
+' ========================================================================================
+' Public API
+' ========================================================================================
+' A child of hParent -- a widget, or tkHost_Root( h ) for a top-level bar. Orientation is fixed
+' here; anything unrecognised is horizontal.
+public function tkProgressBar_Create( byval hParent as TK_WIDGET ptr, byval CtrlID as long, _
+                                      byval nOrientation as long = PRG_HORIZONTAL ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TK_HOST ptr pHost = hParent->pHost
+    dim as TKPROGRESSBAR_STATE ptr pBar = new TKPROGRESSBAR_STATE
+    pBar->id = CtrlID
+    pBar->nOrientation = iif( nOrientation = PRG_VERTICAL, PRG_VERTICAL, PRG_HORIZONTAL )
+    ' Creation-time defaults are scaled; border thickness and curvature never are.
+    pBar->nThickness   = tkHost_Scale( pHost, TKPROGRESSBAR_DEFAULT_THICKNESS )
+    pBar->nBarInset    = tkHost_Scale( pHost, TKPROGRESSBAR_DEFAULT_BARINSET )
+    pBar->nBlockLength = tkHost_Scale( pHost, TKPROGRESSBAR_DEFAULT_BLOCKLEN )
+    pBar->nBlockGap    = tkHost_Scale( pHost, TKPROGRESSBAR_DEFAULT_BLOCKGAP )
+    pBar->nMarqueeStep = tkHost_Scale( pHost, TKPROGRESSBAR_DEFAULT_MARQUEE_STEP )
+    if pBar->nMarqueeStep < 1 then pBar->nMarqueeStep = 1
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @tkProgressBar_Proc, pBar )
+    w->isFocusable = false                 ' not a tab stop: nothing here can be acted on
+    pBar->hWin = w
+    pBar->colors = tkProgressBar_ThemeColors( tkTheme_Get() )
+    tkTipHost_Ensure( @pBar->tip, w, @tkProgressBar_TipText )
+    return w
+end function
+
+public sub tkProgressBar_Refresh( byval hProgressBar as TK_WIDGET ptr )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar then pBar->Refresh()
+end sub
+
+public function tkProgressBar_GetOrientation( byval hProgressBar as TK_WIDGET ptr ) as long
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return PRG_HORIZONTAL
+    return pBar->nOrientation
+end function
+
+public function tkProgressBar_GetID( byval hProgressBar as TK_WIDGET ptr ) as long
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return 0
+    return pBar->id
+end function
+
+' ---- range and position: every one silent ----
+public sub tkProgressBar_GetRange( byval hProgressBar as TK_WIDGET ptr, byref nMin as long, byref nMax as long )
+    nMin = 0 : nMax = 0
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    nMin = pBar->nMin : nMax = pBar->nMax
+end sub
+
+' An inverted pair is swapped, and the position is pulled into the result.
+public sub tkProgressBar_SetRange( byval hProgressBar as TK_WIDGET ptr, byval nMin as long, byval nMax as long )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    dim as long lo = nMin, hi = nMax
+    if hi < lo then swap lo, hi
+    pBar->nMin = lo
+    pBar->nMax = hi
+    if pBar->nPos < lo then pBar->nPos = lo
+    if pBar->nPos > hi then pBar->nPos = hi
+    pBar->Refresh()
+end sub
+
+public function tkProgressBar_GetPos( byval hProgressBar as TK_WIDGET ptr ) as long
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return 0
+    return pBar->nPos
+end function
+
+' Clamps; repaints only when the value moved.
+public sub tkProgressBar_SetPos( byval hProgressBar as TK_WIDGET ptr, byval nPos as long )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    dim as long p = nPos
+    if p < pBar->nMin then p = pBar->nMin
+    if p > pBar->nMax then p = pBar->nMax
+    if p = pBar->nPos then exit sub
+    pBar->nPos = p
+    pBar->Refresh()
+end sub
+
+public function tkProgressBar_GetStep( byval hProgressBar as TK_WIDGET ptr ) as long
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return 0
+    return pBar->nStep
+end function
+
+' No repaint: nothing visible changed.
+public sub tkProgressBar_SetStep( byval hProgressBar as TK_WIDGET ptr, byval nStep as long )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar then pBar->nStep = nStep
+end sub
+
+' CLAMPS at the maximum; PBM_STEPIT's wrap makes a finished job look restarted.
+public function tkProgressBar_StepIt( byval hProgressBar as TK_WIDGET ptr ) as long
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return 0
+    tkProgressBar_SetPos( hProgressBar, pBar->nPos + pBar->nStep )
+    return pBar->nPos
+end function
+
+public function tkProgressBar_DeltaPos( byval hProgressBar as TK_WIDGET ptr, byval nDelta as long ) as long
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return 0
+    tkProgressBar_SetPos( hProgressBar, pBar->nPos + nDelta )
+    return pBar->nPos
+end function
+
+public function tkProgressBar_GetPercent( byval hProgressBar as TK_WIDGET ptr ) as long
+    return PRG_Percent( GetProgressBarPointer( hProgressBar ) )
+end function
+
+' ---- mode and state ----
+public function tkProgressBar_GetMode( byval hProgressBar as TK_WIDGET ptr ) as long
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return PRG_MODE_DETERMINATE
+    return pBar->nMode
+end function
+
+' Entering or leaving indeterminate resets the animation and starts / stops the timer.
+public sub tkProgressBar_SetMode( byval hProgressBar as TK_WIDGET ptr, byval nMode as long )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    dim as long md = iif( nMode = PRG_MODE_INDETERMINATE, PRG_MODE_INDETERMINATE, PRG_MODE_DETERMINATE )
+    if md = pBar->nMode then exit sub
+    pBar->nMode = md
+    pBar->nTick = 0
+    PRG_SyncMarqueeTimer( pBar )
+    pBar->Refresh()
+end sub
+
+public function tkProgressBar_GetState( byval hProgressBar as TK_WIDGET ptr ) as long
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return PRG_STATE_NORMAL
+    return pBar->nState
+end function
+
+' Swaps the colour pair; unknown -> NORMAL. Repaints without re-laying out.
+public sub tkProgressBar_SetState( byval hProgressBar as TK_WIDGET ptr, byval nState as long )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    dim as long s = nState
+    if (s < PRG_STATE_NORMAL) orelse (s > PRG_STATE_ERROR) then s = PRG_STATE_NORMAL
+    if s = pBar->nState then exit sub
+    pBar->nState = s
+    tkWidget_Invalidate( hProgressBar )
+end sub
+
+public function tkProgressBar_GetEnabled( byval hProgressBar as TK_WIDGET ptr ) as boolean
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return false
+    return pBar->isEnabled
+end function
+
+' Through tkWidget_Enable (EnableWindow), so TKM_ENABLE syncs the flag and the marquee.
+public sub tkProgressBar_SetEnabled( byval hProgressBar as TK_WIDGET ptr, byval isEnabled as boolean )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    if pBar->isEnabled = isEnabled then exit sub
+    tkWidget_Enable( hProgressBar, isEnabled )
+    pBar->isEnabled = isEnabled
+    PRG_SyncMarqueeTimer( pBar )
+    tkWidget_Invalidate( hProgressBar )
+end sub
+
+' ---- marquee ----
+public function tkProgressBar_GetMarqueeStyle( byval hProgressBar as TK_WIDGET ptr ) as long
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return PRG_MARQUEE_BOUNCE
+    return pBar->nMarqueeStyle
+end function
+
+public sub tkProgressBar_SetMarqueeStyle( byval hProgressBar as TK_WIDGET ptr, byval nStyle as long )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    dim as long s = iif( nStyle = PRG_MARQUEE_WRAP, PRG_MARQUEE_WRAP, PRG_MARQUEE_BOUNCE )
+    if s = pBar->nMarqueeStyle then exit sub
+    pBar->nMarqueeStyle = s
+    pBar->nTick = 0
+    pBar->Refresh()
+end sub
+
+public sub tkProgressBar_GetMarqueeSpeed( byval hProgressBar as TK_WIDGET ptr, byref nIntervalMs as long, byref nStepPx as long )
+    nIntervalMs = 0 : nStepPx = 0
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    nIntervalMs = pBar->nMarqueeMs
+    nStepPx = pBar->nMarqueeStep
+end sub
+
+' <= 0 leaves that setting alone. A running timer restarts so a new interval applies now.
+public sub tkProgressBar_SetMarqueeSpeed( byval hProgressBar as TK_WIDGET ptr, byval nIntervalMs as long, byval nStepPx as long )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    if nIntervalMs > 0 then pBar->nMarqueeMs = nIntervalMs
+    if nStepPx > 0 then pBar->nMarqueeStep = nStepPx
+    if pBar->marqueeTimerOn then
+        tkWidget_KillTimer( hProgressBar, TK_TIMER_MARQUEE )
+        pBar->marqueeTimerOn = false
+        PRG_SyncMarqueeTimer( pBar )
+    end if
+    pBar->Refresh()
+end sub
+
+public function tkProgressBar_GetMarqueeChunkPercent( byval hProgressBar as TK_WIDGET ptr ) as long
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return 0
+    return pBar->nChunkPercent
+end function
+
+public sub tkProgressBar_SetMarqueeChunkPercent( byval hProgressBar as TK_WIDGET ptr, byval nPercent as long )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    dim as long n = nPercent
+    if n < 1 then n = 1
+    if n > 100 then n = 100
+    pBar->nChunkPercent = n
+    pBar->Refresh()
+end sub
+
+' The animation clock (test probe; vendor's self-test read pBar->nTick directly).
+public function tkProgressBar_GetMarqueeTick( byval hProgressBar as TK_WIDGET ptr ) as long
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return 0
+    return pBar->nTick
+end function
+
+' ---- fill style and segmentation ----
+public function tkProgressBar_GetFillStyle( byval hProgressBar as TK_WIDGET ptr ) as long
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return PRG_FILL_SOLID
+    return pBar->nFillStyle
+end function
+
+public sub tkProgressBar_SetFillStyle( byval hProgressBar as TK_WIDGET ptr, byval nFillStyle as long )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    dim as long f = iif( nFillStyle = PRG_FILL_GRADIENT, PRG_FILL_GRADIENT, PRG_FILL_SOLID )
+    if f = pBar->nFillStyle then exit sub
+    pBar->nFillStyle = f
+    tkWidget_Invalidate( hProgressBar )
+end sub
+
+' TK_GRADIENT_* (GDI+'s LinearGradientMode values). Out of range -> VERTICAL.
+public function tkProgressBar_GetGradientMode( byval hProgressBar as TK_WIDGET ptr ) as long
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return TK_GRADIENT_VERTICAL
+    return pBar->nGradientMode
+end function
+
+public sub tkProgressBar_SetGradientMode( byval hProgressBar as TK_WIDGET ptr, byval nMode as long )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    dim as long md = nMode
+    if (md < TK_GRADIENT_HORIZONTAL) orelse (md > TK_GRADIENT_BDIAGONAL) then md = TK_GRADIENT_VERTICAL
+    pBar->nGradientMode = md
+    tkWidget_Invalidate( hProgressBar )
+end sub
+
+public function tkProgressBar_GetSegmented( byval hProgressBar as TK_WIDGET ptr ) as boolean
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return false
+    return pBar->isSegmented
+end function
+
+public sub tkProgressBar_SetSegmented( byval hProgressBar as TK_WIDGET ptr, byval isSegmented as boolean )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    if pBar->isSegmented = isSegmented then exit sub
+    pBar->isSegmented = isSegmented
+    tkWidget_Invalidate( hProgressBar )
+end sub
+
+public sub tkProgressBar_GetBlockMetrics( byval hProgressBar as TK_WIDGET ptr, byref nBlockLen as long, byref nBlockGap as long )
+    nBlockLen = 0 : nBlockGap = 0
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    nBlockLen = pBar->nBlockLength
+    nBlockGap = pBar->nBlockGap
+end sub
+
+' A length <= 0 is ignored, a negative gap is ignored. Raw pixels.
+public sub tkProgressBar_SetBlockMetrics( byval hProgressBar as TK_WIDGET ptr, byval nBlockLen as long, byval nBlockGap as long )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    if nBlockLen > 0 then pBar->nBlockLength = nBlockLen
+    if nBlockGap >= 0 then pBar->nBlockGap = nBlockGap
+    tkWidget_Invalidate( hProgressBar )
+end sub
+
+' Blocks CURRENTLY DRAWN (0 when not segmented).
+public function tkProgressBar_GetBlockCount( byval hProgressBar as TK_WIDGET ptr ) as long
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return 0
+    if pBar->isSegmented = false then return 0
+    if pBar->bLayoutDirty then pBar->LayoutProgressBar()
+    return tkProgressBar_ComputeBlockCount( PRG_BarLength( pBar ), pBar->nBlockLength, pBar->nBlockGap )
+end function
+
+public function tkProgressBar_GetBlockRect( byval hProgressBar as TK_WIDGET ptr, byval idx as long, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return false
+    if pBar->isSegmented = false then return false
+    if pBar->bLayoutDirty then pBar->LayoutProgressBar()
+    return PRG_BlockRectAt( pBar, idx, rc )
+end function
+
+' ---- geometry and chrome ----
+public function tkProgressBar_GetThickness( byval hProgressBar as TK_WIDGET ptr ) as long
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return 0
+    return pBar->nThickness
+end function
+
+public sub tkProgressBar_SetThickness( byval hProgressBar as TK_WIDGET ptr, byval nThickness as long )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    pBar->nThickness = iif( nThickness < 0, 0, nThickness )
+    pBar->Refresh()
+end sub
+
+public function tkProgressBar_GetBarInset( byval hProgressBar as TK_WIDGET ptr ) as long
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return 0
+    return pBar->nBarInset
+end function
+
+public sub tkProgressBar_SetBarInset( byval hProgressBar as TK_WIDGET ptr, byval nBarInset as long )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    pBar->nBarInset = iif( nBarInset < 0, 0, nBarInset )
+    pBar->Refresh()
+end sub
+
+public function tkProgressBar_GetBorderThickness( byval hProgressBar as TK_WIDGET ptr ) as long
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return 0
+    return pBar->nBorderThick
+end function
+
+' Not scaled, ever: a hairline stays a hairline.
+public sub tkProgressBar_SetBorderThickness( byval hProgressBar as TK_WIDGET ptr, byval nThickness as long )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    pBar->nBorderThick = iif( nThickness < 0, 0, nThickness )
+    tkWidget_Invalidate( hProgressBar )
+end sub
+
+public function tkProgressBar_GetCurvature( byval hProgressBar as TK_WIDGET ptr ) as long
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return 0
+    return pBar->nCurvature
+end function
+
+' Any negative value normalises to the stadium sentinel. Not scaled.
+public sub tkProgressBar_SetCurvature( byval hProgressBar as TK_WIDGET ptr, byval nCurvature as long )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    pBar->nCurvature = iif( nCurvature < 0, TKPROGRESSBAR_CURVATURE_STADIUM, nCurvature )
+    tkWidget_Invalidate( hProgressBar )
+end sub
+
+public function tkProgressBar_GetReverse( byval hProgressBar as TK_WIDGET ptr ) as boolean
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return false
+    return pBar->isReverse
+end function
+
+public sub tkProgressBar_SetReverse( byval hProgressBar as TK_WIDGET ptr, byval isReverse as boolean )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    if pBar->isReverse = isReverse then exit sub
+    pBar->isReverse = isReverse
+    pBar->Refresh()
+end sub
+
+private function GetRectOf( byval hProgressBar as TK_WIDGET ptr, byval nWhich as long, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return false
+    if pBar->bLayoutDirty then pBar->LayoutProgressBar()
+    select case nWhich
+    case 0 : rc = pBar->rcTrack
+    case 1 : rc = pBar->rcFill
+    case else : rc = pBar->rcBar
+    end select
+    return true
+end function
+
+public function tkProgressBar_GetTrackRect( byval hProgressBar as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return GetRectOf( hProgressBar, 0, rc )
+end function
+public function tkProgressBar_GetFillRect( byval hProgressBar as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return GetRectOf( hProgressBar, 1, rc )
+end function
+public function tkProgressBar_GetBarRect( byval hProgressBar as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return GetRectOf( hProgressBar, 2, rc )
+end function
+
+' ---- text ----
+public function tkProgressBar_GetTextMode( byval hProgressBar as TK_WIDGET ptr ) as long
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return PRG_TEXT_NONE
+    return pBar->nTextMode
+end function
+
+public sub tkProgressBar_SetTextMode( byval hProgressBar as TK_WIDGET ptr, byval nTextMode as long )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    dim as long md = nTextMode
+    if (md < PRG_TEXT_NONE) orelse (md > PRG_TEXT_CALLBACK) then md = PRG_TEXT_NONE
+    if md = pBar->nTextMode then exit sub
+    pBar->nTextMode = md
+    tkWidget_Invalidate( hProgressBar )
+end sub
+
+public function tkProgressBar_GetFont( byval hProgressBar as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return 0
+    return pBar->pTextFont
+end function
+
+' Borrowed. 0 falls back to the host's default font.
+public sub tkProgressBar_SetFont( byval hProgressBar as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    pBar->pTextFont = f
+    tkWidget_Invalidate( hProgressBar )
+end sub
+
+public function tkProgressBar_GetDisplayText( byval hProgressBar as TK_WIDGET ptr ) as ustring
+    return PRG_ResolveText( GetProgressBarPointer( hProgressBar ) )
+end function
+
+' ---- colours and theme ----
+public sub tkProgressBar_GetColors( byval hProgressBar as TK_WIDGET ptr, byval pColors as TKPROGRESSBAR_COLORS ptr )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if (pBar = 0) orelse (pColors = 0) then exit sub
+    *pColors = pBar->colors
+end sub
+
+' Copies the struct and PINS it: a theme change leaves this bar alone until UnpinColors.
+public sub tkProgressBar_SetColors( byval hProgressBar as TK_WIDGET ptr, byval pColors as TKPROGRESSBAR_COLORS ptr )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if (pBar = 0) orelse (pColors = 0) then exit sub
+    pBar->colors = *pColors
+    pBar->bColorsPinned = true
+    tkWidget_Invalidate( hProgressBar )
+end sub
+
+' Vendor's role mapping. Each End stop takes its start's role, so a themed gradient is flat.
+public function tkProgressBar_ThemeColors( byref t as TKTHEME_COLORS ) as TKPROGRESSBAR_COLORS
+    dim as TKPROGRESSBAR_COLORS c
+    c.BackColor           = t.Window
+    c.TrackColor          = t.Track
+    c.TrackBorderColor    = t.Border
+    c.BarColor            = t.Accent
+    c.BarColorEnd         = t.Accent
+    c.BarColorPaused      = t.Warning
+    c.BarColorPausedEnd   = t.Warning
+    c.BarColorError       = t.Error
+    c.BarColorErrorEnd    = t.Error
+    c.BarColorDisabled    = t.TextDisabled
+    c.BarColorDisabledEnd = t.TextDisabled
+    c.TextColor           = t.Text
+    c.TextColorOnBar      = t.SelectedText
+    c.TextColorDisabled   = t.TextDisabled
+    return c
+end function
+
+public sub tkProgressBar_ApplyTheme( byval hProgressBar as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if (pBar = 0) orelse pBar->bColorsPinned then exit sub
+    pBar->colors = tkProgressBar_ThemeColors( t )
+    tkWidget_Invalidate( hProgressBar )
+end sub
+
+' Hands the bar back to the theme, which is applied at once.
+public sub tkProgressBar_UnpinColors( byval hProgressBar as TK_WIDGET ptr )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    pBar->bColorsPinned = false
+    tkProgressBar_ApplyTheme( hProgressBar, tkTheme_Get() )
+end sub
+
+' The form's fonts: fText may be 0 to keep the current one. There is no glyph font.
+public sub tkProgressBar_ApplyFonts( byval hProgressBar as TK_WIDGET ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
+    if fText then tkProgressBar_SetFont( hProgressBar, fText )
+end sub
+
+' The two stops the control would use now, precedence applied.
+public sub tkProgressBar_ResolveBarColors( byval hProgressBar as TK_WIDGET ptr, byref clr1 as ulong, byref clr2 as ulong )
+    PRG_ResolveColors( GetProgressBarPointer( hProgressBar ), clr1, clr2 )
+end sub
+
+' ---- tooltips (tkTipHost) ----
+public function tkProgressBar_GetTooltipText( byval hProgressBar as TK_WIDGET ptr ) as ustring
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return ""
+    return pBar->wszTooltip
+end function
+
+public sub tkProgressBar_SetTooltipText( byval hProgressBar as TK_WIDGET ptr, byval Text as ustring )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar then pBar->wszTooltip = Text
+end sub
+
+' The bar's tkTooltip (vendor's GetPsTooltipHandle). Owned here.
+public function tkProgressBar_GetTooltipHandle( byval hProgressBar as TK_WIDGET ptr ) as TK_TIP ptr
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return 0
+    return tkTipHost_Tip( @pBar->tip )
+end function
+
+public sub tkProgressBar_SetHoverTime( byval hProgressBar as TK_WIDGET ptr, byval ms as long )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar then tkTipHost_SetDelay( @pBar->tip, TK_TIPDELAY_INITIAL, ms )
+end sub
+
+public sub tkProgressBar_SetAutoPopTime( byval hProgressBar as TK_WIDGET ptr, byval ms as long )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar then tkTipHost_SetDelay( @pBar->tip, TK_TIPDELAY_AUTOPOP, ms )
+end sub
+
+public sub tkProgressBar_SetReshowTime( byval hProgressBar as TK_WIDGET ptr, byval ms as long )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar then tkTipHost_SetDelay( @pBar->tip, TK_TIPDELAY_RESHOW, ms )
+end sub
+
+' ---- callbacks ----
+public sub tkProgressBar_SetPaintCallback( byval hProgressBar as TK_WIDGET ptr, byval usersub as PRG_PaintCallbackSub )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    pBar->PaintCallback = usersub
+    tkWidget_Invalidate( hProgressBar )
+end sub
+
+public sub tkProgressBar_SetMessageCallback( byval hProgressBar as TK_WIDGET ptr, byval userfunc as PRG_MessageCallbackFunc )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar then pBar->MessageCallback = userfunc
+end sub
+
+public sub tkProgressBar_SetTooltipCallback( byval hProgressBar as TK_WIDGET ptr, byval userfunc as PRG_TooltipCallbackFunc )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar then pBar->TooltipCallback = userfunc
+end sub
+
+public sub tkProgressBar_SetTextCallback( byval hProgressBar as TK_WIDGET ptr, byval userfunc as PRG_TextCallbackFunc )
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then exit sub
+    pBar->TextCallback = userfunc
+    tkWidget_Invalidate( hProgressBar )
+end sub
+
+
+' ========================================================================================
+' OFFSCREEN PROBES. Render the control through PRG_Render (the TKM_PAINT path) into the host's
+' back buffer at its own place, read nPart's rect back, count tones and FNV-1a hash the same
+' pixels (RGB only, vendor's byte order). The probe drew into the back buffer, so the surface
+' is marked dirty.
+' ========================================================================================
+private function PRG_PartRect( byval pBar as TKPROGRESSBAR_STATE ptr, byval nPart as long ) as TKRECT
+    dim as TKRECT rc
+    select case nPart
+    case PRG_PART_TRACK
+        rc = pBar->rcTrack
+    case PRG_PART_BAR
+        rc = pBar->rcBar
+    case PRG_PART_TEXT
+        ' The middle third of the track, where a short centred string lands.
+        rc = pBar->rcTrack
+        dim as long nW = rc.right - rc.left
+        rc.left += nW \ 3
+        rc.right -= nW \ 3
+    case else
+        tkRect_Set( rc, 0, 0, pBar->hWin->cw, pBar->hWin->ch )
+    end select
+    return rc
+end function
+
+private function tkProgressBar_ProbePart( byval hProgressBar as TK_WIDGET ptr, byval nPart as long, _
+                                          byref nTones as long, byref nHash as ulong ) as boolean
+    nTones = 0 : nHash = 0
+    dim as TKPROGRESSBAR_STATE ptr pBar = GetProgressBarPointer( hProgressBar )
+    if pBar = 0 then return false
+    if pBar->bLayoutDirty then pBar->LayoutProgressBar()
+    if pBar->bLayoutDirty then return false
+    dim as long cw = hProgressBar->cw, ch = hProgressBar->ch
+    dim as TKRECT rcPart = PRG_PartRect( pBar, nPart )
+    if rcPart.left < 0 then rcPart.left = 0
+    if rcPart.top < 0 then rcPart.top = 0
+    if rcPart.right > cw then rcPart.right = cw
+    if rcPart.bottom > ch then rcPart.bottom = ch
+    if tkRect_IsEmpty( rcPart ) then return false
+
+    dim as TK_HOST ptr h = hProgressBar->pHost
+    dim as TKRECT a
+    tkWidget_AbsRect( hProgressBar, a )
+    dim as TK_PAINT wp
+    wp.renderer = h->renderer
+    wp.engine = h->engine
+    wp.pFont = h->pDefaultFont
+    wp.fScale = h->fScale
+    wp.Begin( a.left, a.top, cw, ch )
+    PRG_Render( pBar, @wp )
+    SDL_SetRenderClipRect( h->renderer, 0 )
+    h->bDirty = true
+
+    dim as SDL_Rect sr
+    sr.x = a.left + rcPart.left : sr.y = a.top + rcPart.top
+    sr.w = rcPart.right - rcPart.left : sr.h = rcPart.bottom - rcPart.top
+    dim as SDL_Surface ptr s0 = SDL_RenderReadPixels( h->renderer, @sr )
+    if s0 = 0 then return false
+    dim as SDL_Surface ptr s = SDL_ConvertSurface( s0, SDL_PIXELFORMAT_ARGB8888 )
+    SDL_DestroySurface( s0 )
+    if s = 0 then return false
+
+    dim tones(0 to 63) as ulong
+    dim as long nSeen = 0
+    dim as ulong hv = &h811C9DC5ul
+    const FNV_PRIME as ulong = &h01000193ul
+    for y as long = 0 to s->h - 1
+        dim as ulong ptr row = cast( ulong ptr, cast( ubyte ptr, s->pixels ) + y * s->pitch )
+        for x as long = 0 to s->w - 1
+            dim as ulong c = row[x] and &h00FFFFFFul
+            dim as boolean bFound = false
+            for t as long = 0 to nSeen - 1
+                if tones(t) = c then bFound = true : exit for
+            next
+            if (bFound = false) andalso (nSeen < 64) then tones(nSeen) = c : nSeen += 1
+            hv = (hv xor (c and &hFFul)) * FNV_PRIME
+            hv = (hv xor ((c shr 8) and &hFFul)) * FNV_PRIME
+            hv = (hv xor ((c shr 16) and &hFFul)) * FNV_PRIME
+        next
+    next
+    SDL_DestroySurface( s )
+    nTones = nSeen
+    nHash = hv
+    return true
+end function
+
+' Distinct colours in nPart's rect; a part flooded by one fill scores 1. 0 = no geometry.
+public function tkProgressBar_CountRenderedTones( byval hProgressBar as TK_WIDGET ptr, byval nPart as long ) as long
+    dim as long nTones
+    dim as ulong nHash
+    if tkProgressBar_ProbePart( hProgressBar, nPart, nTones, nHash ) = false then return 0
+    return nTones
+end function
+
+' An FNV-1a hash of the same pixels: compare two states of ONE part; equal = the change never
+' reached the surface. Proves difference only.
+public function tkProgressBar_HashRenderedPart( byval hProgressBar as TK_WIDGET ptr, byval nPart as long ) as ulong
+    dim as long nTones
+    dim as ulong nHash
+    if tkProgressBar_ProbePart( hProgressBar, nPart, nTones, nHash ) = false then return 0
+    return nHash
+end function

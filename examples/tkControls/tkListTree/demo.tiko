@@ -1,0 +1,190 @@
+' tkListTree demo: the vendor demos' three faces in one window
+' (tiko-lang/examples/PsControls/PsListTree: main.exe's grouped list and report, tree_demo.exe's tree).
+'
+'   demo                     interactive
+'   demo --shot out.bmp      render once, save the window, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkListTree"
+using tkListTree
+using tkColumnHeader
+using tkTooltip
+using tkTheme
+using tkHost
+using tkPaint
+
+#ifdef TIKO_OS_LINUX
+    const FONTDIR = "/mnt/c/Windows/Fonts/"
+#else
+    const FONTDIR = "C:\Windows\Fonts\"
+#endif
+
+const as long M = 16, LABELH = 22
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gList, gReport, gTree
+dim shared as ustring gStatus
+dim shared as TTF_Font ptr gFont9, gFont10, gFontBold10
+
+sub DemoSel( byval hList as TK_WIDGET ptr, byval row as integer )
+    gStatus = "selchange  row=" & row & "  """ & tkListTree_GetText( hList, row ) & """"
+    tkHost_Invalidate( gHost )
+end sub
+
+sub DemoActivate( byval hList as TK_WIDGET ptr, byval row as integer )
+    gStatus = "activate   row=" & row & "  """ & tkListTree_GetText( hList, row ) & """"
+    tkHost_Invalidate( gHost )
+end sub
+
+' The grouped list: PsPlatform's painter, headers bold.
+sub PaintGrouped( byval p as TKLISTTREE_PAINTINFO ptr )
+    if p->isHeader then p->b->SetFont( gFontBold10 )
+    tkListTree_PaintRowDefault( p )
+end sub
+
+function TipText( byval hList as TK_WIDGET ptr, byval row as integer, byval col as integer ) as ustring
+    return "row " & row & ", column " & col & ": " & tkListTree_GetCellText( hList, row, iif( col < 0, 0, col ) )
+end function
+
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long sm = tkHost_Scale( h, M ), lh = tkHost_Scale( h, LABELH )
+    dim as long colW = (pw - 3 * sm) \ 2
+    dim as long topH = (ph - 3 * sm - 2 * lh - lh) \ 2
+    tkWidget_SetPos( gList, sm, sm + lh, colW, topH )
+    tkWidget_SetPos( gReport, 2 * sm + colW, sm + lh, colW, topH )
+    tkWidget_SetPos( gTree, sm, 2 * sm + 2 * lh + topH, pw - 2 * sm, topH )
+end sub
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as TKTHEME_COLORS t = tkTheme_Get()
+    dim as long lh = tkHost_Scale( h, LABELH )
+    b->SetFont( gFontBold10 )
+    b->SetForeColor( t.TextHot )
+    dim as TKRECT r
+    tkRect_Set( r, gList->x, gList->y - lh, gList->x + gList->cw, gList->y )
+    b->PaintText( "Grouped list (extended select)", @r, TK_DT_LEFT )
+    tkRect_Set( r, gReport->x, gReport->y - lh, gReport->x + gReport->cw, gReport->y )
+    b->PaintText( "Report mode (columns, drag to reorder)", @r, TK_DT_LEFT )
+    tkRect_Set( r, gTree->x, gTree->y - lh, gTree->x + gTree->cw, gTree->y )
+    b->PaintText( "Tree (twisties, indent, F2 / click to rename)", @r, TK_DT_LEFT )
+    tkRect_Set( r, gTree->x, gTree->y + gTree->ch, gTree->x + gTree->cw, gTree->y + gTree->ch + lh )
+    b->SetFont( gFont10 )
+    b->SetForeColor( t.Accent )
+    b->PaintText( gStatus, @r, TK_DT_LEFT )
+end sub
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr s = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if s then
+        SDL_SaveBMP( s, strptr( path ) )
+        print "shot: " & path & "  " & s->w & "x" & s->h & "  scale=" & gHost->fScale
+        SDL_DestroySurface( s )
+    end if
+end sub
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkListTree on SDL3", 860, 640, FONTDIR & "segoeui.ttf", forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = tkTheme_Get().Window
+gFont9 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 9 )
+gFont10 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 10 )
+gFontBold10 = tkHost_OpenFont( gHost, FONTDIR & "segoeuib.ttf", 10 )
+tkTooltip_SetDefaultFonts( gFont9 )
+
+' 1: a grouped list
+gList = tkListTree_Create( tkHost_Root( gHost ), 1000 )
+tkListTree_SetFont( gList, gFont10 )
+tkListTree_SetPaintCallback( gList, @PaintGrouped )
+tkListTree_SetSelChangeCallback( gList, @DemoSel )
+tkListTree_SetActivateCallback( gList, @DemoActivate )
+tkListTree_SetExtendedSelect( gList, true )
+tkListTree_SetBorderWidth( gList, 1 )
+tkListTree_BeginUpdate( gList )
+tkListTree_AddHeader( gList, "Group Alpha" )
+for i as long = 0 to 6 : tkListTree_AddString( gList, "Alpha item " & i, 1000 + i ) : next
+tkListTree_AddHeader( gList, "Group Beta" )
+for i as long = 0 to 12 : tkListTree_AddString( gList, "Beta item " & i, 2000 + i ) : next
+tkListTree_EndUpdate( gList )
+tkListTree_SetCurSel( gList, 2 )
+
+' 2: report mode
+gReport = tkListTree_Create( tkHost_Root( gHost ), 1010 )
+tkListTree_SetFont( gReport, gFont10 )
+tkListTree_SetPaintCallback( gReport, @PaintGrouped )
+tkListTree_SetSelChangeCallback( gReport, @DemoSel )
+tkListTree_SetTooltipCallback( gReport, @TipText )
+tkListTree_SetDragReorder( gReport, true )
+tkListTree_SetBorderWidth( gReport, 1 )
+tkListTree_AddColumn( gReport, "Name", tkHost_Scale( gHost, 150 ) )
+tkListTree_AddColumn( gReport, "Size", tkHost_Scale( gHost, 60 ) )
+tkListTree_AddColumn( gReport, "Type" )
+tkListTree_SetHeaderFont( gReport, gFontBold10 )
+tkListTree_ShowHeader( gReport, true )
+tkListTree_BeginUpdate( gReport )
+tkListTree_AddHeader( gReport, "Sources" )
+dim as ustring exts(0 to 2) = { ".tiko", ".ti", ".md" }
+dim as ustring kinds(0 to 2) = { "tiko source", "tiko header", "Markdown" }
+for i as long = 0 to 11
+    dim as integer r = tkListTree_AddString( gReport, "file" & i & exts(i mod 3) )
+    tkListTree_SetCellText( gReport, r, 1, str( 137 * (i + 1) ) )
+    tkListTree_SetCellText( gReport, r, 2, kinds(i mod 3) )
+next
+dim as integer note = tkListTree_AddString( gReport, "A spanned note row runs across every column" )
+tkListTree_SetRowSpanColumns( gReport, note, true )
+tkListTree_SetRowSelectable( gReport, note, false )
+tkListTree_EndUpdate( gReport )
+
+' 3: a tree
+gTree = tkListTree_Create( tkHost_Root( gHost ), 1020 )
+tkListTree_SetFont( gTree, gFont10 )
+tkListTree_SetPaintCallback( gTree, @PaintGrouped )
+tkListTree_SetSelChangeCallback( gTree, @DemoSel )
+tkListTree_SetTreeIndent( gTree, true )
+tkListTree_ShowTwisty( gTree, true )
+tkListTree_EnableLabelEdit( gTree, true )
+tkListTree_SetClickToEdit( gTree, true )
+tkListTree_SetBorderWidth( gTree, 1 )
+dim as integer proj = tkListTree_AddNode( gTree, -1, "MyProject" )
+dim as integer src = tkListTree_AddNode( gTree, proj, "src" )
+tkListTree_AddNode( gTree, src, "main.tiko" )
+dim as integer eng = tkListTree_AddNode( gTree, src, "engine" )
+tkListTree_AddNode( gTree, eng, "render.tiko" )
+tkListTree_AddNode( gTree, eng, "audio.tiko" )
+dim as integer mth = tkListTree_AddNode( gTree, src, "math" )
+tkListTree_AddNode( gTree, mth, "vector.tiko" )
+tkListTree_CollapseRow( gTree, mth )
+dim as integer docs = tkListTree_AddNode( gTree, proj, "docs" )
+tkListTree_AddNode( gTree, docs, "README.md" )
+tkListTree_SetCurSel( gTree, proj )
+
+gStatus = "Click, Shift/Ctrl+click, arrows, Left/Right fold, Enter / double-click activate, F2 renames."
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkHost_Show( gHost )
+tkHost_SetFocus( gHost, gTree )
+
+dim as string shot = ArgValue( "--shot" )
+if len( shot ) then
+    tkHost_Pump( gHost )
+    SaveShot( shot )
+else
+    tkHost_Run( gHost )
+end if
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

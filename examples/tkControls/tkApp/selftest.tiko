@@ -1,0 +1,230 @@
+' tkApp self-test. Real windows, real SDL event queue. tkApp is once per process, so it is
+' initialised once; each pass makes its forms at a pinned scale (1.0, then 1.75); the last
+' check runs tkApp_Run, which shuts the application down.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkApp"
+#import "vendor/tkControls/tkTextBox"
+#import "vendor/tkControls/tkTest"
+using tkApp
+using tkTextBox
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as long gOrder(0 to 199), gnOrder
+dim shared as long gSizes, gLastCx, gThemeCalls, gTicks, gKeys, gLastKey, gScaleCalls
+dim shared as boolean gAllowClose, gWorkerSawUI = true, gTickOnUI
+dim shared as long gTickId
+
+sub Note( byval payload as any ptr )
+    if gnOrder <= ubound( gOrder ) then gOrder(gnOrder) = cast( long, cast( integer, payload ) ) : gnOrder += 1
+end sub
+
+function Worker( byval data_ as any ptr ) as long
+    gWorkerSawUI = tkApp_IsUIThread()
+    for i as long = 1 to 100
+        tkApp_RunOnUI( @Note, cast( any ptr, cast( integer, i ) ) )
+    next
+    return 0
+end function
+
+sub OnSize( byval f as TK_FORM ptr, byval cx as long, byval cy as long )
+    gSizes += 1 : gLastCx = cx
+end sub
+sub OnTheme( byval f as TK_FORM ptr )
+    gThemeCalls += 1
+end sub
+function OnKey( byval f as TK_FORM ptr, byval key as long, byval mods as long ) as boolean
+    gKeys += 1 : gLastKey = key
+    return key = SDLK_F5
+end function
+function OnClose( byval f as TK_FORM ptr ) as boolean
+    return gAllowClose
+end function
+sub OnScale( byval f as TK_FORM ptr, byval fOld as single, byval fNew as single )
+    gScaleCalls += 1
+end sub
+
+sub OnTick( byval id as long, byval payload as any ptr )
+    gTicks += 1
+    gTickOnUI = tkApp_IsUIThread()
+    if gTicks = 2 then tkApp_KillTimer( id )      ' safe from its own proc
+end sub
+
+sub EndWith42( byval payload as any ptr )
+    tkForm_EndModal( cast( TK_FORM ptr, payload ), 42 )
+end sub
+
+' Push an Escape to the dialog FROM INSIDE its modal loop.
+sub PushEsc( byval payload as any ptr )
+    dim as TK_FORM ptr f = cast( TK_FORM ptr, payload )
+    dim as SDL_Event e
+    e.type = SDL_EVENT_KEY_DOWN
+    e.key.windowID = tkForm_Host( f )->winId
+    e.key.key = SDLK_ESCAPE
+    e.key.down = true
+    SDL_PushEvent( @e )
+end sub
+
+' The watchdog: a modal check that would otherwise hang ends with -1 and FAILS instead.
+dim shared as TK_FORM ptr gModal
+sub Watchdog( byval id as long, byval payload as any ptr )
+    tkApp_KillTimer( id )
+    if gModal then tkForm_EndModal( gModal, -1 )
+end sub
+
+sub QuitWith7( byval payload as any ptr )
+    tkApp_Quit( 7 )
+end sub
+
+sub PumpMs( byval ms as long )
+    dim as Uint64 t0 = SDL_GetTicks()
+    while SDL_GetTicks() - t0 < ms
+        tkApp_Pump()
+        SDL_Delay( 5 )
+    wend
+end sub
+
+' ==========================================================================================
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    gSizes = 0 : gThemeCalls = 0 : gKeys = 0 : gnOrder = 0
+    dim as TK_FORM ptr f = tkApp_NewForm( "tkApp selftest", 480, 320, 0, fScale )
+    if f = 0 then tkTest_Check( "form", false, *SDL_GetError() ) : exit sub
+    dim as TK_HOST ptr h = tkForm_Host( f )
+    tkForm_OnSize( f, @OnSize )
+    tkForm_OnThemeChanged( f, @OnTheme )
+    tkForm_OnKeyDown( f, @OnKey )
+    tkForm_OnClose( f, @OnClose )
+    tkForm_OnScaleChanged( f, @OnScale )
+    dim as TK_WIDGET ptr tb = tkTextBox_Create( tkForm_Widget( f ), 10 )
+    tkWidget_SetPos( tb, tkForm_Scale( f, 10 ), tkForm_Scale( f, 10 ), tkForm_Scale( f, 200 ), tkForm_Scale( f, 28 ) )
+
+    ' ---- A: the form, its roles -----------------------------------------------------------
+    tkForm_Show( f )
+    tkTest_PumpFor( h, 300 )
+    tkTest_Check( "Show runs OnSize once with the client width", (gSizes >= 1) andalso (gLastCx = h->root->cw) )
+    tkTest_Check( "the form widget fills the client", (tkForm_Widget( f )->cw = h->root->cw) andalso (tkForm_Widget( f )->ch = h->root->ch) )
+    tkTest_Check( "Show focuses the first tab stop", h->pFocus = tb )
+    tkTest_Check( "the surface default font IS the UI role", h->pDefaultFont = tkForm_Font( f, TKFONT_UI ) )
+    tkTest_Check( "role sizes: small 9, ui 10, large 12", (tkForm_RolePoints( f, TKFONT_UI_SMALL ) = 9) andalso (tkForm_RolePoints( f, TKFONT_UI ) = 10) andalso (tkForm_RolePoints( f, TKFONT_UI_LARGE ) = 12) )
+    tkTest_Check( "the bold role is its own file", lcase( right( tkForm_RoleFile( f, TKFONT_UI_BOLD ), 12 ) ) = "segoeuib.ttf" )
+    tkTest_Check( "the glyph role is the glyph face", (len( tkApp_GlyphFace() ) > 0) andalso (tkForm_RoleFile( f, TKFONT_GLYPH ) = tkApp_GlyphFace()) andalso (tkForm_Font( f, TKFONT_GLYPH ) <> 0) )
+    tkTest_Check( "the mono role opened", tkForm_Font( f, TKFONT_MONO ) <> 0, tkForm_RoleFile( f, TKFONT_MONO ) )
+    tkTest_Check( "FromWidget finds the form", tkForm_FromWidget( tb ) = f )
+
+    ' ---- B: RunOnUI, timers -----------------------------------------------------------------
+    for i as long = 1 to 3 : tkApp_RunOnUI( @Note, cast( any ptr, cast( integer, i ) ) ) : next
+    tkTest_Check( "RunOnUI queues, it does not call", gnOrder = 0 )
+    tkApp_Pump()
+    tkTest_Check( "queued work runs on the pump, in order", (gnOrder = 3) andalso (gOrder(0) = 1) andalso (gOrder(2) = 3) )
+    gnOrder = 0
+    ' SDL_CreateThread's macro in vendor/SDL3 does not compile (it casts _beginthreadex without @);
+    ' the Runtime form with null begin/end functions is what it expands to, minus the CRT hooks.
+    dim as SDL_Thread ptr th = SDL_CreateThreadRuntime( @Worker, "worker", 0, 0, 0 )
+    SDL_WaitThread( th, 0 )
+    tkApp_Pump()
+    dim as boolean inOrder = (gnOrder = 100)
+    for i as long = 0 to gnOrder - 1
+        if gOrder(i) <> i + 1 then inOrder = false
+    next
+    tkTest_Check( "100 RunOnUI calls from a worker arrive in order", inOrder, "n=" & gnOrder )
+    tkTest_Check( "the worker is not the UI thread; we are", (gWorkerSawUI = false) andalso tkApp_IsUIThread() )
+    gTicks = 0
+    gTickId = tkApp_SetTimer( 20, @OnTick )
+    PumpMs( 250 )
+    tkTest_Check( "an app timer ticks on the UI thread; KillTimer in its proc stops it", (gTickId <> 0) andalso (gTicks = 2) andalso gTickOnUI, "ticks=" & gTicks )
+
+    ' ---- C: the theme mode ----------------------------------------------------------------
+    tkApp_SetThemeMode( TKAPP_THEME_LIGHT )
+    dim as TKTEXTBOX_COLORS tc
+    tkTextBox_GetColors( tb, @tc )
+    tkTest_Check( "LIGHT: theme, form background, OnThemeChanged, unpinned controls", _
+        tkTheme_Equal( tkApp_Theme(), tkTheme_Light() ) andalso (h->clrBack = tkTheme_Light().Window) _
+        andalso (gThemeCalls = 1) andalso (tc.BackColor = tkTextBox_ThemeColors( tkTheme_Light() ).BackColor) )
+    tkApp_SetThemeMode( TKAPP_THEME_DARK )
+    tkTest_Check( "DARK", tkTheme_Equal( tkApp_Theme(), tkTheme_Dark() ) andalso (tkApp_ThemeMode() = TKAPP_THEME_DARK) )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "pixels: the form paints the Window role", (tkTest_PixelAt( h, h->root->cw - 4, h->root->ch - 4 ) and &hFFFFFFul) = (tkTheme_Dark().Window and &hFFFFFFul) )
+
+    ' ---- D: keys the controls leave reach the form ------------------------------------------
+    tkHost_SetFocus( h, tb )
+    tkTest_PushKey( h, SDLK_F5 )
+    tkTest_Check( "an unclaimed key bubbles to OnKeyDown", (gKeys = 1) andalso (gLastKey = SDLK_F5) )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "Tab still walks focus (OnKeyDown saw it, did not claim)", gLastKey = SDLK_TAB )
+
+    ' ---- E: modal forms ----------------------------------------------------------------------
+    dim as TK_FORM ptr dlg = tkApp_NewForm( "About", 300, 160, f )
+    tkTextBox_Create( tkForm_Widget( dlg ), 20 )
+    tkApp_RunOnUI( @EndWith42, dlg )
+    gModal = dlg
+    dim as long wd = tkApp_SetTimer( 3000, @Watchdog )
+    tkTest_Check( "RunOnUI runs inside a modal loop; EndModal's code returns", tkForm_ShowModal( dlg ) = 42 )
+    tkApp_KillTimer( wd )
+    tkTest_Check( "ShowModal destroys the form", tkApp_FormCount() = 1 )
+    dlg = tkApp_NewForm( "About", 300, 160, f )
+    dim as TK_WIDGET ptr tb2 = tkTextBox_Create( tkForm_Widget( dlg ), 21 )
+    tkWidget_SetPos( tb2, 4, 4, 100, 24 )
+    tkApp_RunOnUI( @PushEsc, dlg )
+    gModal = dlg
+    wd = tkApp_SetTimer( 3000, @Watchdog )
+    tkTest_Check( "Esc ends a modal form with IDCANCEL", tkForm_ShowModal( dlg ) = TKAPP_IDCANCEL )
+    tkApp_KillTimer( wd )
+    gModal = 0
+
+    ' ---- F: the close button asks OnClose ----------------------------------------------------
+    gAllowClose = false
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_CLOSE_REQUESTED )
+    tkTest_Check( "OnClose FALSE keeps the form", h->bQuit = false )
+    gAllowClose = true
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_CLOSE_REQUESTED )
+    tkTest_Check( "OnClose TRUE closes it", h->bQuit )
+
+    ' ---- G: rescale ----------------------------------------------------------------------
+    gScaleCalls = 0
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkTest_Check( "OnScaleChanged fires", gScaleCalls = 1 )
+
+    tkForm_Destroy( f )
+    tkTest_Check( "Destroy removes the form", tkApp_FormCount() = 0 )
+end sub
+
+if tkTest_Init() = false then end 99
+dim as TKAPP_OPTIONS opts
+opts.FontDir = TK_TEST_FONTDIR
+opts.ThemeMode = TKAPP_THEME_DARK
+if tkApp_Init( opts ) = false then print "tkApp_Init failed: " & *SDL_GetError() : end 98
+tkTest_Begin( "init" )
+tkTest_Check( "a second Init is refused", tkApp_Init( opts ) = false )
+tkTest_Check( "Init applied the DARK mode", tkTheme_Equal( tkApp_Theme(), tkTheme_Dark() ) )
+' A MACHINE WITHOUT THE NAMED FILES picks installed families (tkApp_FallbackFont, tkFontList):
+' this platform's own fonts -- Segoe UI / Cascadia Mono on Windows, DejaVu or Ubuntu on Linux.
+scope
+    dim as ustring fu = tkApp_FallbackFont( false ), fm = tkApp_FallbackFont( true ), fbold = tkApp_FallbackFont( false, true )
+    print "fallback fonts: " & fu & " / " & fbold & " / " & fm
+    tkTest_Check( "an installed UI family is found", len( fu ) > 0 )
+    tkTest_Check( "an installed mono family is found", len( fm ) > 0 )
+    dim as string fm8 = fm, fu8 = fu
+    dim as TTF_Font ptr tm = TTF_OpenFont( strptr( fm8 ), 12 ), tu = TTF_OpenFont( strptr( fu8 ), 12 )
+    tkTest_Check( "both open", (tm <> 0) andalso (tu <> 0) )
+    if tm then tkTest_Check( "the mono one is fixed pitch", TTF_FontIsFixedWidth( tm ) ) : TTF_CloseFont( tm )
+    if tu then tkTest_Check( "the UI one is not", TTF_FontIsFixedWidth( tu ) = false ) : TTF_CloseFont( tu )
+    tkTest_Check( "a bold face differs from the regular", (len( fbold ) > 0) andalso (fbold <> fu) )
+end scope
+RunPass( 1.0 )
+RunPass( 1.75 )
+
+' ---- Run / Quit: the last thing, Run shuts the application down -------------------------
+tkTest_Begin( "run" )
+dim as TK_FORM ptr fm = tkApp_NewForm( "run", 200, 120 )
+tkApp_RunOnUI( @QuitWith7 )
+tkTest_Check( "Run returns Quit's exit code", tkApp_Run( fm ) = 7 )
+tkTest_Check( "Run undid Init", (tkApp_IsInit() = false) andalso (tkApp_FormCount() = 0) )
+
+dim as long nFail = tkTest_Report( "tkApp" )
+tkTest_Quit()
+end nFail

@@ -1,0 +1,2457 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkCalendar -- PsCalendar on SDL3 + SDL_ttf, a port of pkg/vendor/PsControls/PsCalendar onto
+' tkHost. An owner-drawn month calendar that lives INSIDE its parent: one month or a grid of up
+' to twelve, a shared nav band, a single selectable day, an optional min/max range, and a
+' MonthCal-style drill-down from days to months to years.
+'
+' WHAT IS UNCHANGED, by design: the date math (Hinnant serials), LayoutCalendar (pure
+' arithmetic, so the ideal size is valid before sizing), the selection / anchor / today split,
+' the keyboard model (arrows move the SELECTION and fire SelChange; Enter / Space / double-click
+' activate; Ctrl+PgUp / PgDn a year; Ctrl+Home today; Esc zooms out ONLY while drilled down),
+' the nav step and its chevron-disable rule, the colour precedence, the five callbacks, the
+' single-copy selection rule across panels, silent setters with SelectDate / Activate as the two
+' notifying actions, and the three render probes.
+'
+' WHAT IS GONE, because the HWND is gone: WM_GETDLGCODE (a key the control does not claim
+' returns FALSE and bubbles, so Esc in DAYS view still reaches a dialog), the WM_CHAR swallow
+' (SDL never beeps), the 100 ms hot poll (the host guarantees the leave), CS_DBLCLKS (SDL
+' counts clicks), the comctl32 tooltip backend and PsRegistry. See PORT.md.
+'
+' ADDED from PsPlatform's PsCalendar: tkCalendar_SetToday (a host-supplied today, which also
+' makes the control testable on any date) and a ViewChange callback for user navigation.
+#module "tkCalendar"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkTooltip" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkTooltip
+
+' ---- defaults: SIZE values are scaled ONCE at create; setters take raw pixels -------------
+public const CCAL_PAD = 8
+public const CCAL_NAVBANDH = 34
+public const CCAL_NAVGAP = 4
+public const CCAL_CHEVW = 28
+public const CCAL_GUTTERX = 12
+public const CCAL_GUTTERY = 10
+public const CCAL_CAPTIONH = 24
+public const CCAL_WEEKDAYH = 22
+public const CCAL_CELLMINW = 34
+public const CCAL_CELLMINH = 30
+
+' Never scaled (PORTING.md): the chevron stroke is grown with the scale at paint time instead,
+' as vendor's PaintLine did.
+public const CCAL_DEFAULT_BORDERTHICK = 0
+public const CCAL_DEFAULT_CHEVTHICK = 2
+public const CCAL_DEFAULT_FOCUSTHICK = 1
+
+public const CCAL_MY_COLS = 3
+public const CCAL_MY_ROWS = 4
+public const CCAL_MIN_YEAR = 1
+public const CCAL_MAX_YEAR = 9999
+public const CCAL_MAX_PANELS = 12
+
+public enum
+    CAL_SUNDAY = 0
+    CAL_MONDAY = 1
+end enum
+
+public enum
+    CAL_VIEW_DAYS = 0
+    CAL_VIEW_MONTHS
+    CAL_VIEW_YEARS
+end enum
+
+public enum
+    CAL_HIT_NONE = 0
+    CAL_HIT_PREV
+    CAL_HIT_NEXT
+    CAL_HIT_TITLE
+    CAL_HIT_DAYCELL
+    CAL_HIT_MONTHCELL
+    CAL_HIT_YEARCELL
+end enum
+
+public enum
+    CAL_PART_CLIENT  = 0
+    CAL_PART_NAVBAND = 1
+    CAL_PART_PREV    = 2
+    CAL_PART_NEXT    = 3
+    CAL_PART_TITLE   = 4
+    CAL_PART_GRID    = 5
+end enum
+public const CAL_PART_MYCELL_BASE = 100
+public const CAL_PART_DAYCELL_BASE = 1000
+
+' SYSTEMTIME's date half, field for field, so a vendor caller ports by renaming the type.
+public type TKDATE
+    wYear      as long
+    wMonth     as long
+    wDayOfWeek as long
+    wDay       as long
+end type
+
+public type CAL_HITRESULT
+    part   as long = CAL_HIT_NONE
+    panel  as long = -1
+    index  as long = -1
+end type
+
+' Vendor's dark defaults, value for value (BGR(r,g,b) -> tkRGB(r,g,b)).
+public type TKCALENDAR_COLORS
+    BackColor              as ulong = &hFF21252Bul
+    BorderColor            as ulong = &hFF464C58ul
+    FocusRingColor         as ulong = &hFF569CD6ul
+    TitleColor             as ulong = &hFFE1E4EAul
+    TitleColorHot          as ulong = &hFFFFFFFFul
+    CaptionColor           as ulong = &hFFC8CDD5ul
+    NavGlyphColor          as ulong = &hFFBEC4CEul
+    NavGlyphColorHot       as ulong = &hFFFFFFFFul
+    NavGlyphColorDisabled  as ulong = &hFF464A52ul
+    WeekdayColor           as ulong = &hFF8C929Cul
+    DayColor               as ulong = &hFFD2D6DCul
+    DayColorWeekend        as ulong = &hFF96AFCDul
+    DayColorAdjacent       as ulong = &hFF7C838Eul     ' still clickable: keep it far from Disabled
+    DayColorDisabled       as ulong = &hFF383C44ul     ' out of range, inert
+    DayBackColorHot        as ulong = &hFF343A44ul
+    DayForeColorHot        as ulong = &hFFFFFFFFul
+    DayBackColorSelected   as ulong = &hFF0078D7ul
+    DayForeColorSelected   as ulong = &hFFFFFFFFul
+    TodayRingColor         as ulong = &hFF569CD6ul
+end type
+
+public type TKCALENDAR_PAINTINFO
+    hCtrl          as TK_WIDGET ptr
+    b              as TK_PAINT ptr
+    rcClient       as TKRECT
+    rcInner        as TKRECT
+    rcNavBand      as TKRECT
+    rcPrev         as TKRECT
+    rcTitle        as TKRECT
+    rcNext         as TKRECT
+    rcGrid         as TKRECT
+    eView          as long
+    nCols          as long
+    nRows          as long
+    panelCount     as long
+    isEnabled      as boolean
+    isFocused      as boolean
+    isPrevDisabled as boolean
+    isNextDisabled as boolean
+    hotPart        as long
+    hotPanel       as long
+    hotIndex       as long
+end type
+
+public type TKCALENDAR_DAYPAINTINFO
+    hCtrl       as TK_WIDGET ptr
+    b           as TK_PAINT ptr
+    rcCell      as TKRECT
+    stDate      as TKDATE
+    dayNumber   as long
+    panelIndex  as long
+    cellIndex   as long
+    isAdjacent  as boolean
+    isWeekend   as boolean
+    isToday     as boolean
+    isSelected  as boolean     ' exactly ONE cell per render
+    isHot       as boolean
+    isFocused   as boolean
+    isDisabled  as boolean
+    isEnabled   as boolean
+end type
+
+public type TKCALENDAR_MYPAINTINFO
+    hCtrl       as TK_WIDGET ptr
+    b           as TK_PAINT ptr
+    rcCell      as TKRECT
+    eView       as long
+    cellIndex   as long
+    nValue      as long
+    wszLabel    as ustring
+    isSelected  as boolean
+    isHot       as boolean
+    isFocused   as boolean
+    isDimmed    as boolean
+    isEnabled   as boolean
+end type
+
+' WM_* in disguise: msg is a TKM_* value, with the mouse position and key it carried.
+public type TKCALENDAR_MESSAGEINFO
+    hCtrl       as TK_WIDGET ptr
+    msg         as long
+    x           as single
+    y           as single
+    key         as long
+    mods        as long
+    clicks      as long
+end type
+
+public type TKCALENDAR_TOOLTIPINFO
+    hCtrl       as TK_WIDGET ptr
+    stDate      as TKDATE
+    isValid     as boolean
+    outText     as ustring
+end type
+
+public type CAL_SelChangeCallbackSub as sub( byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr, byval bHasDate as boolean )
+public type CAL_DateActivatedCallbackSub as sub( byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr )
+public type CAL_PaintCallbackSub as sub( byval p as TKCALENDAR_PAINTINFO ptr )
+public type CAL_DayPaintCallbackSub as sub( byval p as TKCALENDAR_DAYPAINTINFO ptr )
+public type CAL_MonthYearPaintCallbackSub as sub( byval p as TKCALENDAR_MYPAINTINFO ptr )
+public type CAL_MessageCallbackFunc as function( byval m as TKCALENDAR_MESSAGEINFO ptr ) as boolean
+public type CAL_TooltipCallbackFunc as function( byval t as TKCALENDAR_TOOLTIPINFO ptr ) as boolean
+' PsPlatform's OnViewChange: the USER moved the page or the view (chevron, wheel, title, a
+' drill-down cell, a key that scrolled). Setters are silent here too.
+public type CAL_ViewChangeCallbackSub as sub( byval hCtrl as TK_WIDGET ptr, byval eView as long, byval pAnchor as TKDATE ptr )
+
+
+public type TKCALENDAR_STATE
+    hWin            as TK_WIDGET ptr
+    bColorsPinned   as boolean
+    idc_Calendar    as long
+    isEnabled       as boolean = true
+    isFocused       as boolean
+    eView           as long = CAL_VIEW_DAYS
+
+    stAnchor        as TKDATE
+    stSelected      as TKDATE
+    hasSelection    as boolean
+    stToday         as TKDATE
+    stMin           as TKDATE
+    stMax           as TKDATE
+    hasMin          as boolean
+    hasMax          as boolean
+
+    nWeekStart      as long = CAL_SUNDAY
+    nCols           as long = 1
+    nRows           as long = 1
+    nNavStep        as long = 0
+    bShowTodayRing  as boolean = true
+
+    hotPart         as long = CAL_HIT_NONE
+    hotPanel        as long = -1
+    hotIndex        as long = -1
+    nMyFocus        as long
+    fWheelAccum     as single
+
+    tip             as TKTIPHOST_STATE     ' LAZY: built on the first day cell wanting a tip
+    tipKey          as longint = -1
+
+    colors          as TKCALENDAR_COLORS
+    pMainFont       as TTF_Font ptr        ' borrowed, all three
+    pTitleFont      as TTF_Font ptr
+    pWeekdayFont    as TTF_Font ptr
+
+    wszMonthName(1 to 12)     as ustring
+    wszMonthAbbrev(1 to 12)   as ustring
+    wszWeekdayAbbrev(0 to 6)  as ustring
+
+    nPad            as long
+    nNavBandH       as long
+    nNavGap         as long
+    nChevW          as long
+    nGutterX        as long
+    nGutterY        as long
+    nCaptionH       as long
+    nWeekdayH       as long
+    nCellMinW       as long
+    nCellMinH       as long
+    nBorderThick    as long = CCAL_DEFAULT_BORDERTHICK
+    nChevThick      as long = CCAL_DEFAULT_CHEVTHICK
+    nFocusThick     as long = CCAL_DEFAULT_FOCUSTHICK
+
+    rcClient        as TKRECT
+    rcInner         as TKRECT
+    rcNavBand       as TKRECT
+    rcPrev          as TKRECT
+    rcTitle         as TKRECT
+    rcNext          as TKRECT
+    rcGrid          as TKRECT
+    rcPanel  (0 to CCAL_MAX_PANELS-1)              as TKRECT
+    rcCaption(0 to CCAL_MAX_PANELS-1)              as TKRECT
+    rcBody   (0 to CCAL_MAX_PANELS-1)              as TKRECT
+    rcWeekday(0 to CCAL_MAX_PANELS-1, 0 to 6)      as TKRECT
+    rcDayCell(0 to CCAL_MAX_PANELS-1, 0 to 41)     as TKRECT
+    rcMyGrid        as TKRECT
+    rcMyCell (0 to 11)                             as TKRECT
+    panelYear (0 to CCAL_MAX_PANELS-1)             as long
+    panelMonth(0 to CCAL_MAX_PANELS-1)             as long
+    panelLead (0 to CCAL_MAX_PANELS-1)             as long
+    cellW     (0 to CCAL_MAX_PANELS-1)             as long
+    rowH      (0 to CCAL_MAX_PANELS-1)             as long
+
+    nIdealW         as long
+    nIdealH         as long
+    bLayoutDirty    as boolean = true
+
+    SelChangeCallback      as CAL_SelChangeCallbackSub
+    DateActivatedCallback  as CAL_DateActivatedCallbackSub
+    PaintCallback          as CAL_PaintCallbackSub
+    DayPaintCallback       as CAL_DayPaintCallbackSub
+    MonthYearPaintCallback as CAL_MonthYearPaintCallbackSub
+    MessageCallback        as CAL_MessageCallbackFunc
+    TooltipCallback        as CAL_TooltipCallbackFunc
+    ViewChangeCallback     as CAL_ViewChangeCallbackSub
+
+    declare sub      LayoutCalendar()
+    declare function PanelCount() as long
+    declare function CellDate( byval panel as long, byval k as long ) as TKDATE
+end type
+
+
+' ========================================================================================
+' Pure date math (vendor's, verbatim): serial = days since 1970-01-01, proleptic Gregorian.
+' ========================================================================================
+public function tkCalendar_IsLeapYear( byval y as long ) as boolean
+    dim as boolean b1 = ((y mod 4) = 0) andalso ((y mod 100) <> 0)
+    dim as boolean b2 = ((y mod 400) = 0)
+    return (b1 orelse b2)
+end function
+
+public function tkCalendar_DaysInMonth( byval y as long, byval m as long ) as long
+    select case m
+    case 1, 3, 5, 7, 8, 10, 12 : return 31
+    case 4, 6, 9, 11           : return 30
+    case 2
+        if tkCalendar_IsLeapYear( y ) then return 29 else return 28
+    case else                  : return 30
+    end select
+end function
+
+public function tkCalendar_DateToSerial( byval y as long, byval m as long, byval d as long ) as longint
+    dim as longint yy = y
+    if m <= 2 then yy -= 1
+    dim as longint era
+    if yy >= 0 then era = yy \ 400 else era = (yy - 399) \ 400
+    dim as longint yoe = yy - era * 400
+    dim as longint mp
+    if m > 2 then mp = m - 3 else mp = m + 9
+    dim as longint doy = (153 * mp + 2) \ 5 + d - 1
+    dim as longint doe = yoe * 365 + yoe \ 4 - yoe \ 100 + doy
+    return era * 146097 + doe - 719468
+end function
+
+public sub tkCalendar_SerialToDate( byval serial as longint, byref y as long, byref m as long, byref d as long )
+    dim as longint z = serial + 719468
+    dim as longint era
+    if z >= 0 then era = z \ 146097 else era = (z - 146096) \ 146097
+    dim as longint doe = z - era * 146097
+    dim as longint yoe = (doe - doe \ 1460 + doe \ 36524 - doe \ 146096) \ 365
+    dim as longint yy = yoe + era * 400
+    dim as longint doy = doe - (365 * yoe + yoe \ 4 - yoe \ 100)
+    dim as longint mp = (5 * doy + 2) \ 153
+    dim as longint dd = doy - (153 * mp + 2) \ 5 + 1
+    dim as longint mm
+    if mp < 10 then mm = mp + 3 else mm = mp - 9
+    if mm <= 2 then yy += 1
+    y = cast( long, yy ) : m = cast( long, mm ) : d = cast( long, dd )
+end sub
+
+public function tkCalendar_DowSunday( byval y as long, byval m as long, byval d as long ) as long
+    dim as longint z = tkCalendar_DateToSerial( y, m, d )
+    dim as long w = cast( long, ((z mod 7) + 7) mod 7 )
+    return (w + 4) mod 7
+end function
+
+public function tkCalendar_LeadingCells( byval y as long, byval m as long, byval nWeekStart as long ) as long
+    dim as long dow1 = tkCalendar_DowSunday( y, m, 1 )
+    if nWeekStart = CAL_MONDAY then return (dow1 + 6) mod 7
+    return dow1
+end function
+
+public function tkCalendar_MakeDate( byval y as long, byval m as long, byval d as long ) as TKDATE
+    dim as TKDATE st
+    st.wYear = y
+    st.wMonth = m
+    st.wDay = d
+    st.wDayOfWeek = tkCalendar_DowSunday( y, m, d )
+    return st
+end function
+
+public function tkCalendar_AddMonths( byref st as TKDATE, byval delta as long ) as TKDATE
+    dim as long total = st.wYear * 12 + (st.wMonth - 1) + delta
+    dim as long y = total \ 12
+    dim as long m = total mod 12
+    if m < 0 then
+        m += 12
+        y -= 1
+    end if
+    m += 1
+    dim as long d = st.wDay
+    dim as long dmax = tkCalendar_DaysInMonth( y, m )
+    if d > dmax then d = dmax
+    return tkCalendar_MakeDate( y, m, d )
+end function
+
+public function tkCalendar_AddDays( byref st as TKDATE, byval delta as long ) as TKDATE
+    dim as longint s = tkCalendar_DateToSerial( st.wYear, st.wMonth, st.wDay ) + delta
+    dim as long yy, mm, dd
+    tkCalendar_SerialToDate( s, yy, mm, dd )
+    return tkCalendar_MakeDate( yy, mm, dd )
+end function
+
+public function tkCalendar_DecadeBase( byval y as long ) as long
+    return (y \ 10) * 10
+end function
+
+' The local date from the system clock (GetLocalTime's date half).
+public function tkCalendar_LocalToday() as TKDATE
+    dim as SDL_Time t
+    dim as SDL_DateTime dt
+    if SDL_GetCurrentTime( @t ) andalso SDL_TimeToDateTime( t, @dt, true ) then
+        return tkCalendar_MakeDate( dt.year, dt.month, dt.day )
+    end if
+    return tkCalendar_MakeDate( 2026, 1, 1 )
+end function
+
+private function CAL_Serial( byref st as TKDATE ) as longint
+    return tkCalendar_DateToSerial( st.wYear, st.wMonth, st.wDay )
+end function
+
+private function CAL_SameYMD( byref a as TKDATE, byref b as TKDATE ) as boolean
+    dim as boolean b1 = (a.wYear = b.wYear) andalso (a.wMonth = b.wMonth)
+    return (b1 andalso (a.wDay = b.wDay))
+end function
+
+
+' ========================================================================================
+' Type methods
+' ========================================================================================
+function TKCALENDAR_STATE.PanelCount() as long
+    dim as long c = this.nCols
+    dim as long rr = this.nRows
+    if c < 1 then c = 1
+    if rr < 1 then rr = 1
+    dim as long n = c * rr
+    if n > CCAL_MAX_PANELS then n = CCAL_MAX_PANELS
+    return n
+end function
+
+function TKCALENDAR_STATE.CellDate( byval panel as long, byval k as long ) as TKDATE
+    if panel < 0 then panel = 0
+    if panel > CCAL_MAX_PANELS - 1 then panel = CCAL_MAX_PANELS - 1
+    dim as longint s0 = tkCalendar_DateToSerial( this.panelYear(panel), this.panelMonth(panel), 1 ) - this.panelLead(panel)
+    dim as long yy, mm, dd
+    tkCalendar_SerialToDate( s0 + k, yy, mm, dd )
+    return tkCalendar_MakeDate( yy, mm, dd )
+end function
+
+' Vendor's one geometry pass, unchanged: all rects derived, nothing measured, the ideal size
+' computed FIRST so it answers before the control is ever sized.
+sub TKCALENDAR_STATE.LayoutCalendar()
+    this.bLayoutDirty = false
+
+    dim as long nc = this.nCols
+    dim as long nr = this.nRows
+    if nc < 1 then nc = 1
+    if nr < 1 then nr = 1
+    if nc * nr > CCAL_MAX_PANELS then
+        nc = 1 : nr = 1
+    end if
+    dim as long np = nc * nr
+
+    ' The per-panel caption is suppressed at one panel: the nav title already names the month.
+    dim as long capH = 0
+    if np > 1 then capH = this.nCaptionH
+
+    dim as long panelIdealW = 7 * this.nCellMinW
+    dim as long panelIdealH = capH + this.nWeekdayH + 6 * this.nCellMinH
+    dim as long edge = this.nPad + this.nBorderThick
+    this.nIdealW = 2 * edge + nc * panelIdealW + (nc - 1) * this.nGutterX
+    this.nIdealH = 2 * edge + this.nNavBandH + this.nNavGap + nr * panelIdealH + (nr - 1) * this.nGutterY
+
+    dim as TKDATE st0 = tkCalendar_MakeDate( this.stAnchor.wYear, this.stAnchor.wMonth, 1 )
+    for p as long = 0 to CCAL_MAX_PANELS - 1
+        dim as TKDATE stP = tkCalendar_AddMonths( st0, p )
+        this.panelYear(p) = stP.wYear
+        this.panelMonth(p) = stP.wMonth
+        this.panelLead(p) = tkCalendar_LeadingCells( stP.wYear, stP.wMonth, this.nWeekStart )
+    next
+
+    if this.hWin = 0 then
+        this.bLayoutDirty = true
+        exit sub
+    end if
+
+    dim as long cliW = this.hWin->cw
+    dim as long cliH = this.hWin->ch
+    tkRect_Set( this.rcClient, 0, 0, cliW, cliH )
+    if (cliW <= 0) orelse (cliH <= 0) then
+        this.bLayoutDirty = true
+        exit sub
+    end if
+
+    tkRect_Set( this.rcInner, edge, edge, cliW - edge, cliH - edge )
+    tkRect_Set( this.rcNavBand, this.rcInner.left, this.rcInner.top, this.rcInner.right, this.rcInner.top + this.nNavBandH )
+    tkRect_Set( this.rcPrev, this.rcNavBand.left, this.rcNavBand.top, this.rcNavBand.left + this.nChevW, this.rcNavBand.bottom )
+    tkRect_Set( this.rcNext, this.rcNavBand.right - this.nChevW, this.rcNavBand.top, this.rcNavBand.right, this.rcNavBand.bottom )
+    tkRect_Set( this.rcTitle, this.rcNavBand.left + this.nChevW, this.rcNavBand.top, this.rcNavBand.right - this.nChevW, this.rcNavBand.bottom )
+    tkRect_Set( this.rcGrid, this.rcInner.left, this.rcNavBand.bottom + this.nNavGap, this.rcInner.right, this.rcInner.bottom )
+
+    ' Clear the tail, or a hit test resolves into a panel a smaller grid no longer draws.
+    for p as long = 0 to CCAL_MAX_PANELS - 1
+        tkRect_SetEmpty( this.rcPanel(p) )
+        tkRect_SetEmpty( this.rcCaption(p) )
+        tkRect_SetEmpty( this.rcBody(p) )
+        this.cellW(p) = 0
+        this.rowH(p) = 0
+        for i as long = 0 to 6
+            tkRect_SetEmpty( this.rcWeekday(p, i) )
+        next
+        for k as long = 0 to 41
+            tkRect_SetEmpty( this.rcDayCell(p, k) )
+        next
+    next
+    tkRect_SetEmpty( this.rcMyGrid )
+    for k as long = 0 to 11
+        tkRect_SetEmpty( this.rcMyCell(k) )
+    next
+
+    if this.eView <> CAL_VIEW_DAYS then
+        this.rcMyGrid = this.rcGrid
+        dim as long mw = (this.rcMyGrid.right - this.rcMyGrid.left) \ CCAL_MY_COLS
+        dim as long mh = (this.rcMyGrid.bottom - this.rcMyGrid.top) \ CCAL_MY_ROWS
+        for k as long = 0 to 11
+            dim as long col = k mod CCAL_MY_COLS
+            dim as long row = k \ CCAL_MY_COLS
+            tkRect_Set( this.rcMyCell(k), this.rcMyGrid.left + col * mw, this.rcMyGrid.top + row * mh, _
+                        this.rcMyGrid.left + col * mw + mw, this.rcMyGrid.top + row * mh + mh )
+        next
+        exit sub
+    end if
+
+    dim as long gridW = this.rcGrid.right - this.rcGrid.left
+    dim as long gridH = this.rcGrid.bottom - this.rcGrid.top
+    dim as long panelW = (gridW - (nc - 1) * this.nGutterX) \ nc
+    dim as long panelH = (gridH - (nr - 1) * this.nGutterY) \ nr
+    if panelW < 0 then panelW = 0
+    if panelH < 0 then panelH = 0
+
+    for p as long = 0 to np - 1
+        dim as long col = p mod nc
+        dim as long row = p \ nc
+        dim as long pl = this.rcGrid.left + col * (panelW + this.nGutterX)
+        dim as long ptop = this.rcGrid.top + row * (panelH + this.nGutterY)
+        tkRect_Set( this.rcPanel(p), pl, ptop, pl + panelW, ptop + panelH )
+
+        dim as long bodyTop = ptop
+        if capH > 0 then
+            tkRect_Set( this.rcCaption(p), pl, ptop, pl + panelW, ptop + capH )
+            bodyTop = ptop + capH
+        end if
+
+        dim as TKRECT weekBand
+        tkRect_Set( weekBand, pl, bodyTop, pl + panelW, bodyTop + this.nWeekdayH )
+        tkRect_Set( this.rcBody(p), pl, weekBand.bottom, pl + panelW, this.rcPanel(p).bottom )
+
+        dim as long cw = panelW \ 7
+        dim as long rh = (this.rcBody(p).bottom - this.rcBody(p).top) \ 6
+        if cw < 0 then cw = 0
+        if rh < 0 then rh = 0
+        this.cellW(p) = cw
+        this.rowH(p) = rh
+
+        for i as long = 0 to 6
+            tkRect_Set( this.rcWeekday(p, i), pl + i * cw, weekBand.top, pl + i * cw + cw, weekBand.bottom )
+        next
+        for k as long = 0 to 41
+            dim as long ccol = k mod 7
+            dim as long crow = k \ 7
+            dim as long xx = this.rcBody(p).left + ccol * cw
+            dim as long yy = this.rcBody(p).top + crow * rh
+            tkRect_Set( this.rcDayCell(p, k), xx, yy, xx + cw, yy + rh )
+        next
+    next
+end sub
+
+
+' ========================================================================================
+' Labels: the per-instance table first, then the built-in English. "" = not overridden.
+' ========================================================================================
+private function CAL_MonthName( byval pCal as TKCALENDAR_STATE ptr, byval m as long ) as ustring
+    if (m < 1) orelse (m > 12) then return ""
+    if pCal then
+        if len( pCal->wszMonthName(m) ) then return pCal->wszMonthName(m)
+    end if
+    select case m
+    case 1  : return "January"
+    case 2  : return "February"
+    case 3  : return "March"
+    case 4  : return "April"
+    case 5  : return "May"
+    case 6  : return "June"
+    case 7  : return "July"
+    case 8  : return "August"
+    case 9  : return "September"
+    case 10 : return "October"
+    case 11 : return "November"
+    case 12 : return "December"
+    end select
+    return ""
+end function
+
+private function CAL_MonthAbbrev( byval pCal as TKCALENDAR_STATE ptr, byval m as long ) as ustring
+    if (m < 1) orelse (m > 12) then return ""
+    if pCal then
+        if len( pCal->wszMonthAbbrev(m) ) then return pCal->wszMonthAbbrev(m)
+    end if
+    select case m
+    case 1  : return "Jan"
+    case 2  : return "Feb"
+    case 3  : return "Mar"
+    case 4  : return "Apr"
+    case 5  : return "May"
+    case 6  : return "Jun"
+    case 7  : return "Jul"
+    case 8  : return "Aug"
+    case 9  : return "Sep"
+    case 10 : return "Oct"
+    case 11 : return "Nov"
+    case 12 : return "Dec"
+    end select
+    return ""
+end function
+
+' Header label for COLUMN i; the table is indexed by DAY OF WEEK (0 = Sunday).
+private function CAL_WeekdayAbbrev( byval pCal as TKCALENDAR_STATE ptr, byval i as long, byval nWeekStart as long ) as ustring
+    if (i < 0) orelse (i > 6) then return ""
+    dim as long dow = i
+    if nWeekStart = CAL_MONDAY then dow = (i + 1) mod 7
+    if pCal then
+        if len( pCal->wszWeekdayAbbrev(dow) ) then return pCal->wszWeekdayAbbrev(dow)
+    end if
+    select case dow
+    case 0 : return "Su"
+    case 1 : return "Mo"
+    case 2 : return "Tu"
+    case 3 : return "We"
+    case 4 : return "Th"
+    case 5 : return "Fr"
+    case 6 : return "Sa"
+    end select
+    return ""
+end function
+
+private function CAL_TitleText( byval pCal as TKCALENDAR_STATE ptr ) as ustring
+    if pCal = 0 then return ""
+    select case pCal->eView
+    case CAL_VIEW_MONTHS
+        return str( pCal->stAnchor.wYear )
+    case CAL_VIEW_YEARS
+        dim as long nBase = tkCalendar_DecadeBase( pCal->stAnchor.wYear )
+        return str( nBase ) & " - " & str( nBase + 9 )
+    case else
+        dim as long np = pCal->PanelCount()
+        if np <= 1 then
+            return CAL_MonthName( pCal, pCal->panelMonth(0) ) & " " & str( pCal->panelYear(0) )
+        end if
+        dim as long y0 = pCal->panelYear(0), m0 = pCal->panelMonth(0)
+        dim as long y1 = pCal->panelYear(np - 1), m1 = pCal->panelMonth(np - 1)
+        if y0 = y1 then
+            return CAL_MonthAbbrev( pCal, m0 ) & " - " & CAL_MonthAbbrev( pCal, m1 ) & " " & str( y1 )
+        end if
+        return CAL_MonthAbbrev( pCal, m0 ) & " " & str( y0 ) & " - " & CAL_MonthAbbrev( pCal, m1 ) & " " & str( y1 )
+    end select
+end function
+
+
+' ========================================================================================
+' Range, navigation targets, chevron disable (vendor's rules, unchanged)
+' ========================================================================================
+private function CAL_InRange( byval pCal as TKCALENDAR_STATE ptr, byref st as TKDATE ) as boolean
+    if pCal = 0 then return true
+    dim as longint s = CAL_Serial( st )
+    if pCal->hasMin then
+        if s < CAL_Serial( pCal->stMin ) then return false
+    end if
+    if pCal->hasMax then
+        if s > CAL_Serial( pCal->stMax ) then return false
+    end if
+    return true
+end function
+
+private function CAL_AddMonthsClamped( byref st as TKDATE, byval delta as long ) as TKDATE
+    dim as long total = st.wYear * 12 + (st.wMonth - 1) + delta
+    dim as long loTotal = CCAL_MIN_YEAR * 12
+    dim as long hiTotal = CCAL_MAX_YEAR * 12 + 11
+    if total < loTotal then total = loTotal
+    if total > hiTotal then total = hiTotal
+    return tkCalendar_MakeDate( total \ 12, (total mod 12) + 1, 1 )
+end function
+
+private function CAL_EffStep( byval pCal as TKCALENDAR_STATE ptr ) as long
+    if pCal = 0 then return 1
+    if pCal->nNavStep > 0 then return pCal->nNavStep
+    return pCal->PanelCount()
+end function
+
+private function CAL_NavTarget( byval pCal as TKCALENDAR_STATE ptr, byval nDir as long ) as TKDATE
+    dim as TKDATE st
+    if pCal = 0 then return st
+    dim as long y = pCal->stAnchor.wYear
+    select case pCal->eView
+    case CAL_VIEW_MONTHS
+        y += nDir
+    case CAL_VIEW_YEARS
+        y += nDir * 10
+    case else
+        return CAL_AddMonthsClamped( pCal->stAnchor, nDir * CAL_EffStep( pCal ) )
+    end select
+    if y < CCAL_MIN_YEAR then y = CCAL_MIN_YEAR
+    if y > CCAL_MAX_YEAR then y = CCAL_MAX_YEAR
+    return tkCalendar_MakeDate( y, pCal->stAnchor.wMonth, 1 )
+end function
+
+private function CAL_ClampToRange( byval pCal as TKCALENDAR_STATE ptr, byref st as TKDATE ) as TKDATE
+    if pCal = 0 then return st
+    dim as longint s = CAL_Serial( st )
+    dim as longint yLo = tkCalendar_DateToSerial( CCAL_MIN_YEAR, 1, 1 )
+    dim as longint yHi = tkCalendar_DateToSerial( CCAL_MAX_YEAR, 12, 31 )
+    if s < yLo then s = yLo
+    if s > yHi then s = yHi
+    if pCal->hasMin then
+        dim as longint mn = CAL_Serial( pCal->stMin )
+        if s < mn then s = mn
+    end if
+    if pCal->hasMax then
+        dim as longint mx = CAL_Serial( pCal->stMax )
+        if s > mx then s = mx
+    end if
+    dim as long yy, mm, dd
+    tkCalendar_SerialToDate( s, yy, mm, dd )
+    return tkCalendar_MakeDate( yy, mm, dd )
+end function
+
+private function CAL_NavWouldStall( byval pCal as TKCALENDAR_STATE ptr, byval nDir as long ) as boolean
+    if pCal = 0 then return false
+    dim as TKDATE stTo = CAL_NavTarget( pCal, nDir )
+    dim as TKDATE stNow = tkCalendar_MakeDate( pCal->stAnchor.wYear, pCal->stAnchor.wMonth, 1 )
+    return CAL_SameYMD( stTo, stNow )
+end function
+
+' "Does pressing this reveal anything usable" -- so a sliding range picker (step < page)
+' stays live until the genuinely new month runs out.
+private function CAL_PrevDisabled( byval pCal as TKCALENDAR_STATE ptr ) as boolean
+    if pCal = 0 then return false
+    if CAL_NavWouldStall( pCal, -1 ) then return true
+    if pCal->hasMin = false then return false
+    dim as longint minS = CAL_Serial( pCal->stMin )
+    select case pCal->eView
+    case CAL_VIEW_DAYS
+        dim as long np = pCal->PanelCount()
+        dim as long s = CAL_EffStep( pCal )
+        dim as long lastNew = s - np + 1
+        if lastNew < 1 then lastNew = 1
+        dim as TKDATE stPrev = tkCalendar_AddMonths( pCal->stAnchor, -lastNew )
+        dim as long lastD = tkCalendar_DaysInMonth( stPrev.wYear, stPrev.wMonth )
+        return tkCalendar_DateToSerial( stPrev.wYear, stPrev.wMonth, lastD ) < minS
+    case CAL_VIEW_MONTHS
+        return tkCalendar_DateToSerial( pCal->stAnchor.wYear - 1, 12, 31 ) < minS
+    case CAL_VIEW_YEARS
+        dim as long nBase = tkCalendar_DecadeBase( pCal->stAnchor.wYear )
+        return tkCalendar_DateToSerial( nBase - 1, 12, 31 ) < minS
+    end select
+    return false
+end function
+
+private function CAL_NextDisabled( byval pCal as TKCALENDAR_STATE ptr ) as boolean
+    if pCal = 0 then return false
+    if CAL_NavWouldStall( pCal, 1 ) then return true
+    if pCal->hasMax = false then return false
+    dim as longint maxS = CAL_Serial( pCal->stMax )
+    select case pCal->eView
+    case CAL_VIEW_DAYS
+        dim as long np = pCal->PanelCount()
+        dim as long s = CAL_EffStep( pCal )
+        dim as long firstNew = s
+        if np > firstNew then firstNew = np
+        dim as TKDATE stNext = tkCalendar_AddMonths( pCal->stAnchor, firstNew )
+        return tkCalendar_DateToSerial( stNext.wYear, stNext.wMonth, 1 ) > maxS
+    case CAL_VIEW_MONTHS
+        return tkCalendar_DateToSerial( pCal->stAnchor.wYear + 1, 1, 1 ) > maxS
+    case CAL_VIEW_YEARS
+        dim as long nBase = tkCalendar_DecadeBase( pCal->stAnchor.wYear )
+        return tkCalendar_DateToSerial( nBase + 10, 1, 1 ) > maxS
+    end select
+    return false
+end function
+
+
+' ========================================================================================
+' Cell lookup and the focus cell
+' ========================================================================================
+' Two passes: the panel that OWNS the date first, then any neighbour that merely shows it.
+private function CAL_FindCell( byval pCal as TKCALENDAR_STATE ptr, byref st as TKDATE, byref panel as long, byref index as long ) as boolean
+    panel = -1 : index = -1
+    if pCal = 0 then return false
+    dim as long np = pCal->PanelCount()
+    dim as longint target = CAL_Serial( st )
+    for pass as long = 0 to 1
+        for p as long = 0 to np - 1
+            dim as longint s0 = tkCalendar_DateToSerial( pCal->panelYear(p), pCal->panelMonth(p), 1 ) - pCal->panelLead(p)
+            dim as longint k = target - s0
+            if (k >= 0) andalso (k <= 41) then
+                dim as boolean bOwn = (st.wYear = pCal->panelYear(p)) andalso (st.wMonth = pCal->panelMonth(p))
+                if (pass = 1) orelse bOwn then
+                    panel = p
+                    index = cast( long, k )
+                    return true
+                end if
+            end if
+        next
+    next
+    return false
+end function
+
+' Selection -> today -> day 1 of panel 0. A pure function of the laid-out state.
+private function CAL_FocusCell( byval pCal as TKCALENDAR_STATE ptr, byref panel as long, byref index as long ) as boolean
+    panel = -1 : index = -1
+    if pCal = 0 then return false
+    if pCal->eView <> CAL_VIEW_DAYS then return false
+    if pCal->bLayoutDirty then pCal->LayoutCalendar()
+    if pCal->hasSelection then
+        if CAL_FindCell( pCal, pCal->stSelected, panel, index ) then return true
+    end if
+    if CAL_FindCell( pCal, pCal->stToday, panel, index ) then return true
+    panel = 0
+    index = pCal->panelLead(0)
+    return true
+end function
+
+private function CAL_FocusDate( byval pCal as TKCALENDAR_STATE ptr ) as TKDATE
+    dim as TKDATE st
+    if pCal = 0 then return st
+    if pCal->hasSelection then return pCal->stSelected
+    dim as long p, k
+    if CAL_FocusCell( pCal, p, k ) then return pCal->CellDate( p, k )
+    return pCal->stToday
+end function
+
+
+' ========================================================================================
+' Hit testing (identity only -- the click handler applies range and disable)
+' ========================================================================================
+private function CAL_HitTestPt( byval pCal as TKCALENDAR_STATE ptr, byval ptx as long, byval pty as long ) as CAL_HITRESULT
+    dim as CAL_HITRESULT hr
+    if pCal = 0 then return hr
+    if pCal->bLayoutDirty then pCal->LayoutCalendar()
+
+    if tkRect_Contains( pCal->rcPrev, ptx, pty ) then hr.part = CAL_HIT_PREV : return hr
+    if tkRect_Contains( pCal->rcNext, ptx, pty ) then hr.part = CAL_HIT_NEXT : return hr
+    if tkRect_Contains( pCal->rcTitle, ptx, pty ) then hr.part = CAL_HIT_TITLE : return hr
+
+    select case pCal->eView
+    case CAL_VIEW_DAYS
+        dim as long np = pCal->PanelCount()
+        for p as long = 0 to np - 1
+            if tkRect_Contains( pCal->rcBody(p), ptx, pty ) then
+                dim as long cw = pCal->cellW(p)
+                dim as long rh = pCal->rowH(p)
+                if (cw > 0) andalso (rh > 0) then
+                    dim as long col = (ptx - pCal->rcBody(p).left) \ cw
+                    dim as long row = (pty - pCal->rcBody(p).top) \ rh
+                    dim as boolean bCol = (col >= 0) andalso (col < 7)
+                    dim as boolean bRow = (row >= 0) andalso (row < 6)
+                    if bCol andalso bRow then
+                        hr.part = CAL_HIT_DAYCELL
+                        hr.panel = p
+                        hr.index = row * 7 + col
+                        return hr
+                    end if
+                end if
+            end if
+        next
+    case CAL_VIEW_MONTHS, CAL_VIEW_YEARS
+        if tkRect_Contains( pCal->rcMyGrid, ptx, pty ) then
+            dim as long cw = (pCal->rcMyGrid.right - pCal->rcMyGrid.left) \ CCAL_MY_COLS
+            dim as long rh = (pCal->rcMyGrid.bottom - pCal->rcMyGrid.top) \ CCAL_MY_ROWS
+            if (cw > 0) andalso (rh > 0) then
+                dim as long col = (ptx - pCal->rcMyGrid.left) \ cw
+                dim as long row = (pty - pCal->rcMyGrid.top) \ rh
+                dim as boolean bCol = (col >= 0) andalso (col < CCAL_MY_COLS)
+                dim as boolean bRow = (row >= 0) andalso (row < CCAL_MY_ROWS)
+                if bCol andalso bRow then
+                    dim as long idx = row * CCAL_MY_COLS + col
+                    if idx <= 11 then
+                        if pCal->eView = CAL_VIEW_MONTHS then hr.part = CAL_HIT_MONTHCELL else hr.part = CAL_HIT_YEARCELL
+                        hr.index = idx
+                        return hr
+                    end if
+                end if
+            end if
+        end if
+    end select
+    return hr
+end function
+
+
+' ========================================================================================
+' Tooltip: a TRACKED tip over day cells, built lazily and only with a TooltipCallback.
+' ========================================================================================
+private sub CAL_TipHide( byval pCal as TKCALENDAR_STATE ptr )
+    if pCal = 0 then exit sub
+    if pCal->tipKey = -1 then exit sub
+    tkTipHost_TrackHide( @pCal->tip )
+    ' The tip's own dwell clock still watches the control: give it nothing to re-show.
+    if tkTipHost_Tip( @pCal->tip ) then tkTooltip_SetText( tkTipHost_Tip( @pCal->tip ), "" )
+    pCal->tipKey = -1
+end sub
+
+private sub CAL_TipUpdate( byval pCal as TKCALENDAR_STATE ptr, byref hr as CAL_HITRESULT )
+    if pCal = 0 then exit sub
+    if pCal->TooltipCallback = 0 then CAL_TipHide( pCal ) : exit sub
+    if hr.part <> CAL_HIT_DAYCELL then CAL_TipHide( pCal ) : exit sub
+
+    dim as TKDATE st = pCal->CellDate( hr.panel, hr.index )
+    dim as longint key = CAL_Serial( st )
+    if key = pCal->tipKey then exit sub
+
+    dim as TKCALENDAR_TOOLTIPINFO t
+    t.hCtrl = pCal->hWin
+    t.stDate = st
+    t.isValid = true
+    t.outText = ""
+    dim as boolean bWant = pCal->TooltipCallback( @t )
+    if (bWant = false) orelse (len( t.outText ) = 0) then CAL_TipHide( pCal ) : exit sub
+
+    if tkTipHost_Tip( @pCal->tip ) = 0 then
+        tkTipHost_SetTracked( @pCal->tip, true )
+        ' comctl32's tracked tip never auto-pops; neither does this one
+        tkTipHost_SetDelay( @pCal->tip, TK_TIPDELAY_AUTOPOP, 0 )
+        tkTipHost_Ensure( @pCal->tip, pCal->hWin )
+    end if
+    dim as TKRECT rcCell = pCal->rcDayCell( hr.panel, hr.index )
+    tkTipHost_TrackShow( @pCal->tip, rcCell, t.outText )
+    pCal->tipKey = key
+end sub
+
+
+' ========================================================================================
+' Painting
+' ========================================================================================
+private function CAL_MainFontOf( byval pCal as TKCALENDAR_STATE ptr ) as TTF_Font ptr
+    if pCal->pMainFont then return pCal->pMainFont
+    return pCal->hWin->pHost->pDefaultFont
+end function
+
+private function CAL_TitleFontOf( byval pCal as TKCALENDAR_STATE ptr ) as TTF_Font ptr
+    if pCal->pTitleFont then return pCal->pTitleFont
+    return CAL_MainFontOf( pCal )
+end function
+
+private function CAL_WeekdayFontOf( byval pCal as TKCALENDAR_STATE ptr ) as TTF_Font ptr
+    if pCal->pWeekdayFont then return pCal->pWeekdayFont
+    return CAL_MainFontOf( pCal )
+end function
+
+' Two strokes, no glyph font. Vendor's PaintLine scaled the pen by the DPI; tkPaint's takes raw
+' pixels, so the stroke is grown with the scale here and the stored thickness stays unscaled.
+private sub CAL_PaintChevron( byval b as TK_PAINT ptr, byref rc as TKRECT, byval bLeft as boolean, byval clr as ulong, byval thick as long )
+    if b = 0 then exit sub
+    dim as long cx = (rc.left + rc.right) \ 2
+    dim as long cy = (rc.top + rc.bottom) \ 2
+    dim as long d = (rc.bottom - rc.top) \ 6
+    if d < 3 then d = 3
+    if thick < 1 then thick = 1
+    dim as long pw = cint( thick * b->fScale )
+    if pw < 1 then pw = 1
+    b->SetPenColor( clr )
+    if bLeft then
+        b->PaintLine( pw, cx + d, cy - d, cx - d, cy )
+        b->PaintLine( pw, cx - d, cy, cx + d, cy + d )
+    else
+        b->PaintLine( pw, cx - d, cy - d, cx + d, cy )
+        b->PaintLine( pw, cx + d, cy, cx - d, cy + d )
+    end if
+end sub
+
+' PaintRoundOutline, never a fill-and-stroke: a ring must not flood what is under it.
+private sub CAL_PaintRing( byval b as TK_PAINT ptr, byref rc as TKRECT, byval clr as ulong, byval nCurve as long, byval thick as long )
+    if b = 0 then exit sub
+    if thick < 1 then thick = 1
+    b->SetPenColor( clr )
+    dim as TKRECT r2 = rc
+    b->PaintRoundOutline( @r2, nCurve, thick )
+end sub
+
+private sub CAL_DayChip( byref rcCell as TKRECT, byref rcFill as TKRECT, byref nEll as long )
+    rcFill = rcCell
+    dim as long inset = (rcCell.bottom - rcCell.top) \ 8
+    if inset < 1 then inset = 1
+    tkRect_Inflate( rcFill, -inset, -inset )
+    nEll = (rcFill.bottom - rcFill.top) \ 3
+    if nEll < 2 then nEll = 2
+end sub
+
+private sub CAL_PaintDayDefault( byval b as TK_PAINT ptr, byval pColors as TKCALENDAR_COLORS ptr, byval p as TKCALENDAR_DAYPAINTINFO ptr, byval bShowTodayRing as boolean )
+    if (b = 0) orelse (pColors = 0) orelse (p = 0) then exit sub
+    dim as TKRECT rcFill
+    dim as long ell
+    CAL_DayChip( p->rcCell, rcFill, ell )
+
+    if p->isSelected then
+        b->SetBackColor( pColors->DayBackColorSelected )
+        b->PaintRoundRect( @rcFill, ell )
+    elseif p->isHot andalso (p->isDisabled = false) then
+        b->SetBackColor( pColors->DayBackColorHot )
+        b->PaintRoundRect( @rcFill, ell )
+    end if
+
+    dim as boolean bRing = bShowTodayRing andalso p->isToday andalso (p->isSelected = false)
+    if bRing then CAL_PaintRing( b, rcFill, pColors->TodayRingColor, ell, 1 )
+
+    dim as ulong clr
+    if p->isDisabled then
+        clr = pColors->DayColorDisabled
+    elseif p->isSelected then
+        clr = pColors->DayForeColorSelected
+    elseif p->isHot then
+        clr = pColors->DayForeColorHot
+    elseif p->isAdjacent then
+        clr = pColors->DayColorAdjacent
+    elseif p->isWeekend then
+        clr = pColors->DayColorWeekend
+    else
+        clr = pColors->DayColor
+    end if
+    b->SetForeColor( clr )
+    dim as ustring s = str( p->dayNumber )
+    b->PaintText( s, @p->rcCell, TK_DT_CENTER )
+end sub
+
+private sub CAL_PaintMyDefault( byval b as TK_PAINT ptr, byval pColors as TKCALENDAR_COLORS ptr, byval p as TKCALENDAR_MYPAINTINFO ptr )
+    if (b = 0) orelse (pColors = 0) orelse (p = 0) then exit sub
+    dim as TKRECT rcFill = p->rcCell
+    dim as long inset = (p->rcCell.bottom - p->rcCell.top) \ 6
+    if inset < 2 then inset = 2
+    tkRect_Inflate( rcFill, -inset, -inset )
+    dim as long ell = (rcFill.bottom - rcFill.top) \ 3
+    if ell < 2 then ell = 2
+
+    if p->isSelected then
+        b->SetBackColor( pColors->DayBackColorSelected )
+        b->PaintRoundRect( @rcFill, ell )
+    elseif p->isHot then
+        b->SetBackColor( pColors->DayBackColorHot )
+        b->PaintRoundRect( @rcFill, ell )
+    end if
+
+    dim as ulong clr = pColors->DayColor
+    if p->isDimmed then
+        clr = pColors->DayColorAdjacent
+    elseif p->isSelected then
+        clr = pColors->DayForeColorSelected
+    elseif p->isHot then
+        clr = pColors->DayForeColorHot
+    end if
+    b->SetForeColor( clr )
+    b->PaintText( p->wszLabel, @p->rcCell, TK_DT_CENTER )
+end sub
+
+private sub CAL_Render( byval pCal as TKCALENDAR_STATE ptr, byval pb as TK_PAINT ptr )
+    if (pCal = 0) orelse (pb = 0) then exit sub
+    if pCal->bLayoutDirty then pCal->LayoutCalendar()
+
+    dim as TKCALENDAR_COLORS ptr pc = @pCal->colors
+    dim as boolean bEnabled = pCal->isEnabled
+    dim as boolean bPrevOff = CAL_PrevDisabled( pCal )
+    dim as boolean bNextOff = CAL_NextDisabled( pCal )
+    dim as long np = pCal->PanelCount()
+
+    if pCal->PaintCallback then
+        dim as TKCALENDAR_PAINTINFO pinf
+        pinf.hCtrl = pCal->hWin
+        pinf.b = pb
+        pinf.rcClient = pCal->rcClient
+        pinf.rcInner = pCal->rcInner
+        pinf.rcNavBand = pCal->rcNavBand
+        pinf.rcPrev = pCal->rcPrev
+        pinf.rcTitle = pCal->rcTitle
+        pinf.rcNext = pCal->rcNext
+        pinf.rcGrid = pCal->rcGrid
+        pinf.eView = pCal->eView
+        pinf.nCols = pCal->nCols
+        pinf.nRows = pCal->nRows
+        pinf.panelCount = np
+        pinf.isEnabled = bEnabled
+        pinf.isFocused = pCal->isFocused
+        pinf.isPrevDisabled = bPrevOff
+        pinf.isNextDisabled = bNextOff
+        pinf.hotPart = pCal->hotPart
+        pinf.hotPanel = pCal->hotPanel
+        pinf.hotIndex = pCal->hotIndex
+        pCal->PaintCallback( @pinf )
+        exit sub
+    end if
+
+    ' ---- nav band ----
+    dim as TTF_Font ptr fTitle = CAL_TitleFontOf( pCal )
+    pb->SetFont( fTitle )
+    dim as ulong clrTitle = pc->TitleColor
+    if pCal->hotPart = CAL_HIT_TITLE then clrTitle = pc->TitleColorHot
+    pb->SetForeColor( clrTitle )
+    dim as ustring sTitle = CAL_TitleText( pCal )
+    pb->PaintText( sTitle, @pCal->rcTitle, TK_DT_CENTER )
+
+    dim as ulong clrPrev = pc->NavGlyphColor
+    if bPrevOff then
+        clrPrev = pc->NavGlyphColorDisabled
+    elseif pCal->hotPart = CAL_HIT_PREV then
+        clrPrev = pc->NavGlyphColorHot
+    end if
+    dim as ulong clrNext = pc->NavGlyphColor
+    if bNextOff then
+        clrNext = pc->NavGlyphColorDisabled
+    elseif pCal->hotPart = CAL_HIT_NEXT then
+        clrNext = pc->NavGlyphColorHot
+    end if
+    CAL_PaintChevron( pb, pCal->rcPrev, true, clrPrev, pCal->nChevThick )
+    CAL_PaintChevron( pb, pCal->rcNext, false, clrNext, pCal->nChevThick )
+
+    dim as long focPanel = -1, focIndex = -1
+    dim as boolean bHaveFocus = false
+    if pCal->isFocused andalso (pCal->eView = CAL_VIEW_DAYS) then
+        bHaveFocus = CAL_FocusCell( pCal, focPanel, focIndex )
+    end if
+
+    ' EXACTLY ONE cell renders selected, resolved through the same lookup as the ring.
+    dim as long selPanel = -1, selIndex = -1
+    dim as boolean bHaveSel = false
+    if pCal->hasSelection then bHaveSel = CAL_FindCell( pCal, pCal->stSelected, selPanel, selIndex )
+
+    if pCal->eView = CAL_VIEW_DAYS then
+        dim as TTF_Font ptr fWeek = CAL_WeekdayFontOf( pCal )
+        dim as TTF_Font ptr fMain = CAL_MainFontOf( pCal )
+        for p as long = 0 to np - 1
+            if pCal->rcCaption(p).bottom > pCal->rcCaption(p).top then
+                pb->SetFont( fTitle )
+                pb->SetForeColor( pc->CaptionColor )
+                dim as ustring sCap = CAL_MonthName( pCal, pCal->panelMonth(p) )
+                pb->PaintText( sCap, @pCal->rcCaption(p), TK_DT_CENTER )
+            end if
+
+            pb->SetFont( fWeek )
+            pb->SetForeColor( pc->WeekdayColor )
+            for i as long = 0 to 6
+                dim as ustring sWd = CAL_WeekdayAbbrev( pCal, i, pCal->nWeekStart )
+                pb->PaintText( sWd, @pCal->rcWeekday(p, i), TK_DT_CENTER )
+            next
+
+            for k as long = 0 to 41
+                dim as TKDATE st = pCal->CellDate( p, k )
+                dim as TKCALENDAR_DAYPAINTINFO d
+                d.hCtrl = pCal->hWin
+                d.b = pb
+                d.rcCell = pCal->rcDayCell(p, k)
+                d.stDate = st
+                d.dayNumber = st.wDay
+                d.panelIndex = p
+                d.cellIndex = k
+                d.isAdjacent = (st.wMonth <> pCal->panelMonth(p)) orelse (st.wYear <> pCal->panelYear(p))
+                dim as long dow = tkCalendar_DowSunday( st.wYear, st.wMonth, st.wDay )
+                d.isWeekend = (dow = 0) orelse (dow = 6)
+                d.isToday = CAL_SameYMD( st, pCal->stToday )
+                d.isSelected = bHaveSel andalso (selPanel = p) andalso (selIndex = k)
+                d.isHot = (pCal->hotPart = CAL_HIT_DAYCELL) andalso (pCal->hotPanel = p) andalso (pCal->hotIndex = k)
+                d.isFocused = bHaveFocus andalso (focPanel = p) andalso (focIndex = k)
+                d.isDisabled = (CAL_InRange( pCal, st ) = false)
+                d.isEnabled = bEnabled
+                pb->SetFont( fMain )
+                if pCal->DayPaintCallback then
+                    pCal->DayPaintCallback( @d )
+                else
+                    CAL_PaintDayDefault( pb, pc, @d, pCal->bShowTodayRing )
+                end if
+            next
+        next
+
+        ' The ring goes on AFTER the cell painter, so a host painter cannot hide the focus.
+        if bHaveFocus then
+            dim as TKRECT rcFill
+            dim as long ell
+            CAL_DayChip( pCal->rcDayCell(focPanel, focIndex), rcFill, ell )
+            tkRect_Inflate( rcFill, 1, 1 )
+            CAL_PaintRing( pb, rcFill, pc->FocusRingColor, ell + 1, pCal->nFocusThick )
+        end if
+    else
+        dim as long nBase = tkCalendar_DecadeBase( pCal->stAnchor.wYear )
+        dim as TTF_Font ptr fMain = CAL_MainFontOf( pCal )
+        for k as long = 0 to 11
+            dim as TKCALENDAR_MYPAINTINFO m
+            m.hCtrl = pCal->hWin
+            m.b = pb
+            m.rcCell = pCal->rcMyCell(k)
+            m.eView = pCal->eView
+            m.cellIndex = k
+            m.isEnabled = bEnabled
+            m.isFocused = pCal->isFocused andalso (pCal->nMyFocus = k)
+            if pCal->eView = CAL_VIEW_MONTHS then
+                m.nValue = k + 1
+                m.wszLabel = CAL_MonthAbbrev( pCal, k + 1 )
+                m.isSelected = pCal->hasSelection andalso (pCal->stSelected.wYear = pCal->stAnchor.wYear) andalso (pCal->stSelected.wMonth = (k + 1))
+                m.isHot = (pCal->hotPart = CAL_HIT_MONTHCELL) andalso (pCal->hotIndex = k)
+                m.isDimmed = false
+            else
+                ' 12 cells for 10 years: the overhang years either side are dimmed, still clickable.
+                dim as long yy = nBase - 1 + k
+                m.nValue = yy
+                m.wszLabel = str( yy )
+                m.isSelected = pCal->hasSelection andalso (pCal->stSelected.wYear = yy)
+                m.isHot = (pCal->hotPart = CAL_HIT_YEARCELL) andalso (pCal->hotIndex = k)
+                m.isDimmed = (yy < nBase) orelse (yy > nBase + 9)
+            end if
+            pb->SetFont( fMain )
+            if pCal->MonthYearPaintCallback then
+                pCal->MonthYearPaintCallback( @m )
+            else
+                CAL_PaintMyDefault( pb, pc, @m )
+            end if
+        next
+
+        if pCal->isFocused then
+            dim as long kf = pCal->nMyFocus
+            if (kf >= 0) andalso (kf <= 11) then
+                dim as TKRECT rcF = pCal->rcMyCell(kf)
+                dim as long inset = (rcF.bottom - rcF.top) \ 6
+                if inset < 2 then inset = 2
+                tkRect_Inflate( rcF, -(inset - 1), -(inset - 1) )
+                dim as long ell = (rcF.bottom - rcF.top) \ 3
+                if ell < 2 then ell = 2
+                CAL_PaintRing( pb, rcF, pc->FocusRingColor, ell, pCal->nFocusThick )
+            end if
+        end if
+    end if
+end sub
+
+' Background, content, frame: TKM_PAINT and every probe go through here.
+private sub CAL_RenderFull( byval pCal as TKCALENDAR_STATE ptr, byval pb as TK_PAINT ptr )
+    if (pCal = 0) orelse (pb = 0) then exit sub
+    if pCal->bLayoutDirty then pCal->LayoutCalendar()
+    pb->SetBackColor( pCal->colors.BackColor )
+    dim as TKRECT rcC
+    tkRect_Set( rcC, 0, 0, pCal->hWin->cw, pCal->hWin->ch )
+    pb->PaintRect( @rcC )
+    CAL_Render( pCal, pb )
+    if pCal->nBorderThick > 0 then CAL_PaintRing( pb, rcC, pCal->colors.BorderColor, 0, pCal->nBorderThick )
+end sub
+
+
+' ========================================================================================
+' Notification and navigation
+' ========================================================================================
+private sub CAL_NotifySelChange( byval pCal as TKCALENDAR_STATE ptr )
+    if (pCal = 0) orelse (pCal->SelChangeCallback = 0) then exit sub
+    pCal->SelChangeCallback( pCal->hWin, @pCal->stSelected, pCal->hasSelection )
+end sub
+
+private sub CAL_NotifyActivated( byval pCal as TKCALENDAR_STATE ptr )
+    if pCal = 0 then exit sub
+    if pCal->hasSelection = false then exit sub
+    if pCal->DateActivatedCallback = 0 then exit sub
+    pCal->DateActivatedCallback( pCal->hWin, @pCal->stSelected )
+end sub
+
+private sub CAL_Relayout( byval pCal as TKCALENDAR_STATE ptr )
+    if pCal = 0 then exit sub
+    pCal->bLayoutDirty = true
+    if pCal->hWin then tkWidget_Invalidate( pCal->hWin )
+end sub
+
+' Scroll so st's OWN month is displayed (not merely visible as an adjacent cell).
+private sub CAL_EnsureMonthVisible( byval pCal as TKCALENDAR_STATE ptr, byref st as TKDATE )
+    if pCal = 0 then exit sub
+    if pCal->bLayoutDirty then pCal->LayoutCalendar()
+    dim as long np = pCal->PanelCount()
+    for p as long = 0 to np - 1
+        dim as boolean bHit = (pCal->panelYear(p) = st.wYear) andalso (pCal->panelMonth(p) = st.wMonth)
+        if bHit then exit sub
+    next
+    dim as long am = pCal->panelYear(0) * 12 + (pCal->panelMonth(0) - 1)
+    dim as long tm = st.wYear * 12 + (st.wMonth - 1)
+    dim as TKDATE stFirst = tkCalendar_MakeDate( st.wYear, st.wMonth, 1 )
+    if tm < am then
+        pCal->stAnchor = CAL_AddMonthsClamped( stFirst, 0 )
+    else
+        pCal->stAnchor = CAL_AddMonthsClamped( stFirst, -(np - 1) )
+    end if
+    pCal->bLayoutDirty = true
+end sub
+
+' A USER selection: notify only when something actually changed.
+private sub CAL_SelectUser( byval pCal as TKCALENDAR_STATE ptr, byref st as TKDATE )
+    if pCal = 0 then exit sub
+    dim as boolean bChanged = (pCal->hasSelection = false) orelse (CAL_SameYMD( st, pCal->stSelected ) = false)
+    pCal->stSelected = st
+    pCal->hasSelection = true
+    CAL_EnsureMonthVisible( pCal, st )
+    CAL_Relayout( pCal )
+    if bChanged then CAL_NotifySelChange( pCal )
+end sub
+
+private sub CAL_NavStep( byval pCal as TKCALENDAR_STATE ptr, byval nDir as long )
+    if pCal = 0 then exit sub
+    pCal->stAnchor = CAL_NavTarget( pCal, nDir )
+    CAL_Relayout( pCal )
+end sub
+
+private sub CAL_ZoomOut( byval pCal as TKCALENDAR_STATE ptr )
+    if pCal = 0 then exit sub
+    select case pCal->eView
+    case CAL_VIEW_DAYS
+        pCal->eView = CAL_VIEW_MONTHS
+        pCal->nMyFocus = pCal->stAnchor.wMonth - 1
+        CAL_Relayout( pCal )
+    case CAL_VIEW_MONTHS
+        pCal->eView = CAL_VIEW_YEARS
+        pCal->nMyFocus = pCal->stAnchor.wYear - tkCalendar_DecadeBase( pCal->stAnchor.wYear ) + 1
+        CAL_Relayout( pCal )
+    end select
+end sub
+
+' Drilling in never selects: it is navigation, not a choice.
+private sub CAL_ZoomInCell( byval pCal as TKCALENDAR_STATE ptr, byval k as long )
+    if pCal = 0 then exit sub
+    if (k < 0) orelse (k > 11) then exit sub
+    select case pCal->eView
+    case CAL_VIEW_MONTHS
+        pCal->stAnchor = tkCalendar_MakeDate( pCal->stAnchor.wYear, k + 1, 1 )
+        pCal->eView = CAL_VIEW_DAYS
+        CAL_Relayout( pCal )
+    case CAL_VIEW_YEARS
+        dim as long nBase = tkCalendar_DecadeBase( pCal->stAnchor.wYear )
+        dim as long yy = nBase - 1 + k
+        pCal->stAnchor = CAL_AddMonthsClamped( tkCalendar_MakeDate( yy, pCal->stAnchor.wMonth, 1 ), 0 )
+        pCal->eView = CAL_VIEW_MONTHS
+        pCal->nMyFocus = pCal->stAnchor.wMonth - 1
+        CAL_Relayout( pCal )
+    end select
+end sub
+
+private sub CAL_Click( byval pCal as TKCALENDAR_STATE ptr, byval ptx as long, byval pty as long, byval bDouble as boolean )
+    if pCal = 0 then exit sub
+    dim as CAL_HITRESULT hr = CAL_HitTestPt( pCal, ptx, pty )
+    select case hr.part
+    case CAL_HIT_PREV
+        if CAL_PrevDisabled( pCal ) = false then CAL_NavStep( pCal, -1 )
+    case CAL_HIT_NEXT
+        if CAL_NextDisabled( pCal ) = false then CAL_NavStep( pCal, 1 )
+    case CAL_HIT_TITLE
+        CAL_ZoomOut( pCal )
+    case CAL_HIT_DAYCELL
+        dim as TKDATE st = pCal->CellDate( hr.panel, hr.index )
+        if CAL_InRange( pCal, st ) then
+            CAL_SelectUser( pCal, st )
+            ' SelChange first, then Activated: a host reading the selection inside Activated
+            ' already sees the new value.
+            if bDouble then CAL_NotifyActivated( pCal )
+        end if
+    case CAL_HIT_MONTHCELL, CAL_HIT_YEARCELL
+        CAL_ZoomInCell( pCal, hr.index )
+    end select
+end sub
+
+' Notches accumulate (a precise touchpad sends fractions). Away from the user = previous.
+private sub CAL_Wheel( byval pCal as TKCALENDAR_STATE ptr, byval fNotches as single )
+    if pCal = 0 then exit sub
+    pCal->fWheelAccum += fNotches
+    dim as long nNotches = fix( pCal->fWheelAccum )
+    if nNotches = 0 then exit sub
+    pCal->fWheelAccum -= nNotches
+    dim as long nDir = -1
+    if nNotches < 0 then nDir = 1
+    for i as long = 1 to abs( nNotches )
+        if nDir < 0 then
+            if CAL_PrevDisabled( pCal ) then exit for
+            CAL_NavStep( pCal, -1 )
+        else
+            if CAL_NextDisabled( pCal ) then exit for
+            CAL_NavStep( pCal, 1 )
+        end if
+    next
+end sub
+
+' TRUE when the key was consumed. A key it does not claim returns FALSE and bubbles, which is
+' how Esc in DAYS view still reaches a host dialog (vendor's per-message WM_GETDLGCODE).
+private function CAL_KeyDown( byval pCal as TKCALENDAR_STATE ptr, byval key as long, byval bCtrl as boolean ) as boolean
+    if pCal = 0 then return false
+
+    if pCal->eView <> CAL_VIEW_DAYS then
+        dim as long k = pCal->nMyFocus
+        select case key
+        case SDLK_LEFT  : k -= 1
+        case SDLK_RIGHT : k += 1
+        case SDLK_UP    : k -= CCAL_MY_COLS
+        case SDLK_DOWN  : k += CCAL_MY_COLS
+        case SDLK_HOME  : k = 0
+        case SDLK_END   : k = 11
+        case SDLK_PAGEUP : CAL_NavStep( pCal, -1 ) : return true
+        case SDLK_PAGEDOWN : CAL_NavStep( pCal, 1 ) : return true
+        case SDLK_SPACE, SDLK_RETURN, SDLK_KP_ENTER
+            CAL_ZoomInCell( pCal, pCal->nMyFocus )
+            return true
+        case SDLK_ESCAPE
+            if pCal->eView = CAL_VIEW_YEARS then
+                pCal->eView = CAL_VIEW_MONTHS
+                pCal->nMyFocus = pCal->stAnchor.wMonth - 1
+            else
+                pCal->eView = CAL_VIEW_DAYS
+            end if
+            CAL_Relayout( pCal )
+            return true
+        case else
+            return false
+        end select
+        if k < 0 then k = 0
+        if k > 11 then k = 11
+        if k <> pCal->nMyFocus then
+            pCal->nMyFocus = k
+            tkWidget_Invalidate( pCal->hWin )
+        end if
+        return true
+    end if
+
+    dim as TKDATE stFrom = CAL_FocusDate( pCal )
+    dim as TKDATE stTo = stFrom
+    select case key
+    case SDLK_LEFT  : stTo = tkCalendar_AddDays( stFrom, -1 )
+    case SDLK_RIGHT : stTo = tkCalendar_AddDays( stFrom, 1 )
+    case SDLK_UP    : stTo = tkCalendar_AddDays( stFrom, -7 )
+    case SDLK_DOWN  : stTo = tkCalendar_AddDays( stFrom, 7 )
+    case SDLK_PAGEUP
+        if bCtrl then stTo = tkCalendar_AddMonths( stFrom, -12 ) else stTo = tkCalendar_AddMonths( stFrom, -1 )
+    case SDLK_PAGEDOWN
+        if bCtrl then stTo = tkCalendar_AddMonths( stFrom, 12 ) else stTo = tkCalendar_AddMonths( stFrom, 1 )
+    case SDLK_HOME
+        if bCtrl then
+            stTo = pCal->stToday
+        else
+            stTo = tkCalendar_MakeDate( stFrom.wYear, stFrom.wMonth, 1 )
+        end if
+    case SDLK_END
+        stTo = tkCalendar_MakeDate( stFrom.wYear, stFrom.wMonth, tkCalendar_DaysInMonth( stFrom.wYear, stFrom.wMonth ) )
+    case SDLK_SPACE, SDLK_RETURN, SDLK_KP_ENTER
+        ' With nothing selected the focus cell is committed first, then activated.
+        if pCal->hasSelection = false then CAL_SelectUser( pCal, stFrom )
+        CAL_NotifyActivated( pCal )
+        return true
+    case else
+        return false
+    end select
+    stTo = CAL_ClampToRange( pCal, stTo )
+    CAL_SelectUser( pCal, stTo )
+    return true
+end function
+
+private sub CAL_UpdateHot( byval pCal as TKCALENDAR_STATE ptr, byval ptx as long, byval pty as long )
+    if pCal = 0 then exit sub
+    dim as CAL_HITRESULT hr
+    if pCal->isEnabled then
+        hr = CAL_HitTestPt( pCal, ptx, pty )
+        ' A day cell lights only when clickable, and a disabled chevron never hovers.
+        if hr.part = CAL_HIT_DAYCELL then
+            dim as TKDATE st = pCal->CellDate( hr.panel, hr.index )
+            if CAL_InRange( pCal, st ) = false then
+                hr.part = CAL_HIT_NONE : hr.panel = -1 : hr.index = -1
+            end if
+        end if
+        if (hr.part = CAL_HIT_PREV) andalso CAL_PrevDisabled( pCal ) then hr.part = CAL_HIT_NONE
+        if (hr.part = CAL_HIT_NEXT) andalso CAL_NextDisabled( pCal ) then hr.part = CAL_HIT_NONE
+    end if
+    dim as boolean bChanged = (hr.part <> pCal->hotPart) orelse (hr.panel <> pCal->hotPanel) orelse (hr.index <> pCal->hotIndex)
+    if bChanged then
+        pCal->hotPart = hr.part
+        pCal->hotPanel = hr.panel
+        pCal->hotIndex = hr.index
+        tkWidget_Invalidate( pCal->hWin )
+    end if
+    CAL_TipUpdate( pCal, hr )
+end sub
+
+private sub CAL_ClearHot( byval pCal as TKCALENDAR_STATE ptr )
+    if pCal = 0 then exit sub
+    if pCal->hotPart <> CAL_HIT_NONE then
+        pCal->hotPart = CAL_HIT_NONE : pCal->hotPanel = -1 : pCal->hotIndex = -1
+        tkWidget_Invalidate( pCal->hWin )
+    end if
+    CAL_TipHide( pCal )
+end sub
+
+private function GetCalendarPointer( byval hCtrl as TK_WIDGET ptr ) as TKCALENDAR_STATE ptr
+    if hCtrl = 0 then return 0
+    return cast( TKCALENDAR_STATE ptr, hCtrl->pData )
+end function
+
+private function CAL_CallMessage( byval pCal as TKCALENDAR_STATE ptr, byval m as TK_MSG ptr ) as boolean
+    if (pCal = 0) orelse (pCal->MessageCallback = 0) then return false
+    dim as TKCALENDAR_MESSAGEINFO mi
+    mi.hCtrl = pCal->hWin
+    mi.msg = m->msg
+    mi.x = m->x
+    mi.y = m->y
+    mi.key = m->key
+    mi.mods = m->mods
+    mi.clicks = m->clicks
+    return pCal->MessageCallback( @mi )
+end function
+
+' PsPlatform's view-change notice: fired after a USER action moved the page or the view.
+private sub CAL_NotifyViewIfMoved( byval pCal as TKCALENDAR_STATE ptr, byref stWas as TKDATE, byval eWas as long )
+    if (pCal = 0) orelse (pCal->ViewChangeCallback = 0) then exit sub
+    if (pCal->eView = eWas) andalso CAL_SameYMD( pCal->stAnchor, stWas ) then exit sub
+    pCal->ViewChangeCallback( pCal->hWin, pCal->eView, @pCal->stAnchor )
+end sub
+
+
+public declare sub tkCalendar_ApplyTheme( byval hCtrl as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+public declare function tkCalendar_ThemeColors( byref t as TKTHEME_COLORS ) as TKCALENDAR_COLORS
+
+private sub CAL_Rescale( byval pCal as TKCALENDAR_STATE ptr, byval fOld as single, byval fNew as single )
+    if (fOld <= 0) orelse (fNew <= 0) then exit sub
+    dim as single k = fNew / fOld
+    pCal->nPad = cint( pCal->nPad * k )
+    pCal->nNavBandH = cint( pCal->nNavBandH * k )
+    pCal->nNavGap = cint( pCal->nNavGap * k )
+    pCal->nChevW = cint( pCal->nChevW * k )
+    pCal->nGutterX = cint( pCal->nGutterX * k )
+    pCal->nGutterY = cint( pCal->nGutterY * k )
+    pCal->nCaptionH = cint( pCal->nCaptionH * k )
+    pCal->nWeekdayH = cint( pCal->nWeekdayH * k )
+    pCal->nCellMinW = cint( pCal->nCellMinW * k )
+    pCal->nCellMinH = cint( pCal->nCellMinH * k )
+    if pCal->nCellMinW < 1 then pCal->nCellMinW = 1
+    if pCal->nCellMinH < 1 then pCal->nCellMinH = 1
+    CAL_Relayout( pCal )
+end sub
+
+' No capture, as vendor: the control acts on the button DOWN, so there is no press to protect.
+private function tkCalendar_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( w )
+    if pCal = 0 then return false
+    select case m->msg
+    case TKM_PAINT
+        if CAL_CallMessage( pCal, m ) then return true
+        CAL_RenderFull( pCal, m->pPaint )
+        return true
+
+    case TKM_SIZE
+        CAL_Relayout( pCal )
+        CAL_CallMessage( pCal, m )
+        return true
+
+    case TKM_SCALECHANGED
+        CAL_Rescale( pCal, m->fOld, m->fNew )
+        return true
+
+    case TKM_THEMECHANGED
+        tkCalendar_ApplyTheme( w, tkTheme_Get() )
+        return true
+
+    case TKM_MOUSEMOVE
+        if CAL_CallMessage( pCal, m ) then return true
+        CAL_UpdateHot( pCal, cint( m->x ), cint( m->y ) )
+        return true
+
+    case TKM_MOUSELEAVE
+        CAL_ClearHot( pCal )
+        CAL_CallMessage( pCal, m )
+        return true
+
+    case TKM_LBUTTONDOWN
+        if CAL_CallMessage( pCal, m ) then return true
+        if pCal->isEnabled = false then return true
+        CAL_TipHide( pCal )
+        tkHost_SetFocus( w->pHost, w )
+        dim as TKDATE stWas = pCal->stAnchor
+        dim as long eWas = pCal->eView
+        CAL_Click( pCal, cint( m->x ), cint( m->y ), (m->clicks >= 2) )
+        CAL_UpdateHot( pCal, cint( m->x ), cint( m->y ) )
+        CAL_NotifyViewIfMoved( pCal, stWas, eWas )
+        return true
+
+    case TKM_LBUTTONUP, TKM_RBUTTONDOWN, TKM_RBUTTONUP
+        CAL_CallMessage( pCal, m )
+        return true
+
+    case TKM_MOUSEWHEEL
+        if CAL_CallMessage( pCal, m ) then return true
+        if pCal->isEnabled = false then return true
+        dim as TKDATE stWas = pCal->stAnchor
+        dim as long eWas = pCal->eView
+        CAL_Wheel( pCal, m->wheelY )
+        CAL_NotifyViewIfMoved( pCal, stWas, eWas )
+        return true
+
+    case TKM_SETFOCUS, TKM_KILLFOCUS
+        dim as boolean bFocused = (m->msg = TKM_SETFOCUS)
+        if bFocused <> pCal->isFocused then
+            pCal->isFocused = bFocused
+            tkWidget_Invalidate( w )
+        end if
+        CAL_CallMessage( pCal, m )         ' result IGNORED: never stranded as focused
+        return true
+
+    case TKM_KEYDOWN
+        if pCal->isEnabled = false then return false
+        ' The host sees the key BEFORE it moves anything, so navigation can be vetoed.
+        if CAL_CallMessage( pCal, m ) then return true
+        dim as TKDATE stWas = pCal->stAnchor
+        dim as long eWas = pCal->eView
+        dim as boolean bCtrl = ((m->mods and SDL_KMOD_CTRL) <> 0)
+        dim as boolean bAte = CAL_KeyDown( pCal, m->key, bCtrl )
+        CAL_NotifyViewIfMoved( pCal, stWas, eWas )
+        return bAte
+
+    case TKM_ENABLE
+        if m->bFlag <> pCal->isEnabled then
+            pCal->isEnabled = m->bFlag
+            if pCal->isEnabled = false then CAL_ClearHot( pCal )
+            tkWidget_Invalidate( w )
+        end if
+        CAL_CallMessage( pCal, m )
+        return true
+
+    case TKM_DESTROY
+        CAL_CallMessage( pCal, m )         ' result IGNORED
+        tkTipHost_Destroy( @pCal->tip )
+        delete pCal
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ========================================================================================
+' Public API -- vendor's surface, HWND replaced by the widget pointer, SYSTEMTIME by TKDATE.
+' Every setter is SILENT; tkCalendar_SelectDate and tkCalendar_Activate are the two actions.
+' ========================================================================================
+public function tkCalendar_Create( byval hParent as TK_WIDGET ptr, byval ctrlId as long ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TK_HOST ptr pHost = hParent->pHost
+    dim as TKCALENDAR_STATE ptr pCal = new TKCALENDAR_STATE
+    pCal->idc_Calendar = ctrlId
+    pCal->nPad = tkHost_Scale( pHost, CCAL_PAD )
+    pCal->nNavBandH = tkHost_Scale( pHost, CCAL_NAVBANDH )
+    pCal->nNavGap = tkHost_Scale( pHost, CCAL_NAVGAP )
+    pCal->nChevW = tkHost_Scale( pHost, CCAL_CHEVW )
+    pCal->nGutterX = tkHost_Scale( pHost, CCAL_GUTTERX )
+    pCal->nGutterY = tkHost_Scale( pHost, CCAL_GUTTERY )
+    pCal->nCaptionH = tkHost_Scale( pHost, CCAL_CAPTIONH )
+    pCal->nWeekdayH = tkHost_Scale( pHost, CCAL_WEEKDAYH )
+    pCal->nCellMinW = tkHost_Scale( pHost, CCAL_CELLMINW )
+    pCal->nCellMinH = tkHost_Scale( pHost, CCAL_CELLMINH )
+    pCal->stToday = tkCalendar_LocalToday()
+    pCal->stAnchor = tkCalendar_MakeDate( pCal->stToday.wYear, pCal->stToday.wMonth, 1 )
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, ctrlId, @tkCalendar_Proc, pCal )
+    w->isFocusable = true
+    pCal->hWin = w
+    pCal->colors = tkCalendar_ThemeColors( tkTheme_Get() )
+    return w
+end function
+
+' --- selection ---------------------------------------------------------------------------
+public function tkCalendar_GetSelDate( byval hCtrl as TK_WIDGET ptr, byref st as TKDATE ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return false
+    if pCal->hasSelection = false then return false
+    st = pCal->stSelected
+    return true
+end function
+
+' Refuses a date outside the range: the setter cannot reach where the user could not.
+public sub tkCalendar_SetSelDate( byval hCtrl as TK_WIDGET ptr, byref st as TKDATE )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    if CAL_InRange( pCal, st ) = false then exit sub
+    pCal->stSelected = tkCalendar_MakeDate( st.wYear, st.wMonth, st.wDay )
+    pCal->hasSelection = true
+    CAL_EnsureMonthVisible( pCal, pCal->stSelected )
+    CAL_Relayout( pCal )
+end sub
+
+public sub tkCalendar_ClearSelDate( byval hCtrl as TK_WIDGET ptr )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    pCal->hasSelection = false
+    CAL_Relayout( pCal )
+end sub
+
+public function tkCalendar_HasSelDate( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return false
+    return pCal->hasSelection
+end function
+
+public sub tkCalendar_SelectDate( byval hCtrl as TK_WIDGET ptr, byref st as TKDATE )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    if CAL_InRange( pCal, st ) = false then exit sub
+    dim as TKDATE d = tkCalendar_MakeDate( st.wYear, st.wMonth, st.wDay )
+    CAL_SelectUser( pCal, d )
+end sub
+
+public sub tkCalendar_Activate( byval hCtrl as TK_WIDGET ptr )
+    CAL_NotifyActivated( GetCalendarPointer( hCtrl ) )
+end sub
+
+public sub tkCalendar_GetRange( byval hCtrl as TK_WIDGET ptr, byref stMin as TKDATE, byref stMax as TKDATE, _
+                                byref bHasMin as boolean, byref bHasMax as boolean )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    bHasMin = false : bHasMax = false
+    if pCal = 0 then exit sub
+    stMin = pCal->stMin : stMax = pCal->stMax
+    bHasMin = pCal->hasMin : bHasMax = pCal->hasMax
+end sub
+
+' An inverted pair is SWAPPED; a selection now outside the range is DROPPED.
+public sub tkCalendar_SetRange( byval hCtrl as TK_WIDGET ptr, byref stMin as TKDATE, byref stMax as TKDATE, _
+                                byval bHasMin as boolean, byval bHasMax as boolean )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    dim as TKDATE a = stMin, b = stMax
+    if bHasMin andalso bHasMax then
+        if CAL_Serial( a ) > CAL_Serial( b ) then
+            dim as TKDATE t = a : a = b : b = t
+        end if
+    end if
+    pCal->stMin = a : pCal->hasMin = bHasMin
+    pCal->stMax = b : pCal->hasMax = bHasMax
+    if pCal->hasSelection then
+        if CAL_InRange( pCal, pCal->stSelected ) = false then pCal->hasSelection = false
+    end if
+    CAL_Relayout( pCal )
+end sub
+
+public function tkCalendar_GetToday( byval hCtrl as TK_WIDGET ptr, byref st as TKDATE ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return false
+    st = pCal->stToday
+    return true
+end function
+
+' PsPlatform's SetToday: the host decides what "today" is (a server date, a test's pinned day).
+' tkCalendar_Refresh goes back to the system clock.
+public sub tkCalendar_SetToday( byval hCtrl as TK_WIDGET ptr, byref st as TKDATE )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    pCal->stToday = tkCalendar_MakeDate( st.wYear, st.wMonth, st.wDay )
+    CAL_Relayout( pCal )
+end sub
+
+' --- displayed page ------------------------------------------------------------------------
+public function tkCalendar_GetAnchorDate( byval hCtrl as TK_WIDGET ptr, byref st as TKDATE ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return false
+    st = pCal->stAnchor
+    return true
+end function
+
+public sub tkCalendar_SetAnchorDate( byval hCtrl as TK_WIDGET ptr, byref st as TKDATE )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    pCal->stAnchor = CAL_AddMonthsClamped( tkCalendar_MakeDate( st.wYear, st.wMonth, 1 ), 0 )
+    CAL_Relayout( pCal )
+end sub
+
+public function tkCalendar_GetView( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return CAL_VIEW_DAYS
+    return pCal->eView
+end function
+
+public sub tkCalendar_SetView( byval hCtrl as TK_WIDGET ptr, byval eView as long )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    if (eView < CAL_VIEW_DAYS) orelse (eView > CAL_VIEW_YEARS) then exit sub
+    pCal->eView = eView
+    select case eView
+    case CAL_VIEW_MONTHS : pCal->nMyFocus = pCal->stAnchor.wMonth - 1
+    case CAL_VIEW_YEARS  : pCal->nMyFocus = pCal->stAnchor.wYear - tkCalendar_DecadeBase( pCal->stAnchor.wYear ) + 1
+    end select
+    CAL_Relayout( pCal )
+end sub
+
+public function tkCalendar_GetTitleText( byval hCtrl as TK_WIDGET ptr ) as ustring
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return ""
+    if pCal->bLayoutDirty then pCal->LayoutCalendar()
+    return CAL_TitleText( pCal )
+end function
+
+' --- behaviour -------------------------------------------------------------------------------
+public function tkCalendar_GetWeekStart( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return CAL_SUNDAY
+    return pCal->nWeekStart
+end function
+
+public sub tkCalendar_SetWeekStart( byval hCtrl as TK_WIDGET ptr, byval nWeekStart as long )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    dim as long ws = CAL_SUNDAY
+    if nWeekStart = CAL_MONDAY then ws = CAL_MONDAY
+    if ws = pCal->nWeekStart then exit sub
+    pCal->nWeekStart = ws
+    CAL_Relayout( pCal )
+end sub
+
+public sub tkCalendar_GetPanelGrid( byval hCtrl as TK_WIDGET ptr, byref nCols as long, byref nRows as long )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    nCols = 0 : nRows = 0
+    if pCal = 0 then exit sub
+    nCols = pCal->nCols : nRows = pCal->nRows
+end sub
+
+' REFUSED (grid untouched) when either dimension is < 1 or the product exceeds 12.
+public sub tkCalendar_SetPanelGrid( byval hCtrl as TK_WIDGET ptr, byval nCols as long, byval nRows as long )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    if (nCols < 1) orelse (nRows < 1) then exit sub
+    if nCols * nRows > CCAL_MAX_PANELS then exit sub
+    if (nCols = pCal->nCols) andalso (nRows = pCal->nRows) then exit sub
+    pCal->nCols = nCols
+    pCal->nRows = nRows
+    CAL_Relayout( pCal )
+end sub
+
+public function tkCalendar_GetPanelCount( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return 0
+    return pCal->PanelCount()
+end function
+
+public function tkCalendar_GetNavStep( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return 0
+    return pCal->nNavStep
+end function
+
+public sub tkCalendar_SetNavStep( byval hCtrl as TK_WIDGET ptr, byval nStep as long )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    if nStep < 0 then nStep = 0
+    pCal->nNavStep = nStep
+    tkWidget_Invalidate( hCtrl )
+end sub
+
+public function tkCalendar_GetShowTodayRing( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return false
+    return pCal->bShowTodayRing
+end function
+
+public sub tkCalendar_SetShowTodayRing( byval hCtrl as TK_WIDGET ptr, byval bShow as boolean )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    pCal->bShowTodayRing = bShow
+    tkWidget_Invalidate( hCtrl )
+end sub
+
+public function tkCalendar_IsPrevDisabled( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return false
+    if pCal->bLayoutDirty then pCal->LayoutCalendar()
+    return CAL_PrevDisabled( pCal )
+end function
+
+public function tkCalendar_IsNextDisabled( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return false
+    if pCal->bLayoutDirty then pCal->LayoutCalendar()
+    return CAL_NextDisabled( pCal )
+end function
+
+' --- localization ----------------------------------------------------------------------------
+public function tkCalendar_GetMonthName( byval hCtrl as TK_WIDGET ptr, byval m as long ) as ustring
+    return CAL_MonthName( GetCalendarPointer( hCtrl ), m )
+end function
+
+public sub tkCalendar_SetMonthName( byval hCtrl as TK_WIDGET ptr, byval m as long, byval sName as ustring )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if (pCal = 0) orelse (m < 1) orelse (m > 12) then exit sub
+    pCal->wszMonthName(m) = sName
+    tkWidget_Invalidate( hCtrl )
+end sub
+
+public function tkCalendar_GetMonthAbbrev( byval hCtrl as TK_WIDGET ptr, byval m as long ) as ustring
+    return CAL_MonthAbbrev( GetCalendarPointer( hCtrl ), m )
+end function
+
+public sub tkCalendar_SetMonthAbbrev( byval hCtrl as TK_WIDGET ptr, byval m as long, byval sName as ustring )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if (pCal = 0) orelse (m < 1) orelse (m > 12) then exit sub
+    pCal->wszMonthAbbrev(m) = sName
+    tkWidget_Invalidate( hCtrl )
+end sub
+
+' i is the DAY OF WEEK (0 = Sunday), never the column.
+public function tkCalendar_GetWeekdayAbbrev( byval hCtrl as TK_WIDGET ptr, byval i as long ) as ustring
+    if (i < 0) orelse (i > 6) then return ""
+    return CAL_WeekdayAbbrev( GetCalendarPointer( hCtrl ), i, CAL_SUNDAY )
+end function
+
+public sub tkCalendar_SetWeekdayAbbrev( byval hCtrl as TK_WIDGET ptr, byval i as long, byval sName as ustring )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if (pCal = 0) orelse (i < 0) orelse (i > 6) then exit sub
+    pCal->wszWeekdayAbbrev(i) = sName
+    tkWidget_Invalidate( hCtrl )
+end sub
+
+public sub tkCalendar_SetMonthNames( byval hCtrl as TK_WIDGET ptr, sNames() as ustring )
+    dim as long lo = lbound( sNames ), hi = ubound( sNames )
+    for i as long = lo to hi
+        dim as long m = i - lo + 1
+        if m > 12 then exit for
+        tkCalendar_SetMonthName( hCtrl, m, sNames(i) )
+    next
+end sub
+
+public sub tkCalendar_SetMonthAbbrevs( byval hCtrl as TK_WIDGET ptr, sNames() as ustring )
+    dim as long lo = lbound( sNames ), hi = ubound( sNames )
+    for i as long = lo to hi
+        dim as long m = i - lo + 1
+        if m > 12 then exit for
+        tkCalendar_SetMonthAbbrev( hCtrl, m, sNames(i) )
+    next
+end sub
+
+public sub tkCalendar_SetWeekdayAbbrevs( byval hCtrl as TK_WIDGET ptr, sNames() as ustring )
+    dim as long lo = lbound( sNames ), hi = ubound( sNames )
+    for i as long = lo to hi
+        dim as long d = i - lo
+        if d > 6 then exit for
+        tkCalendar_SetWeekdayAbbrev( hCtrl, d, sNames(i) )
+    next
+end sub
+
+' --- fonts (borrowed, never freed) -----------------------------------------------------------
+public function tkCalendar_GetFont( byval hCtrl as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return 0
+    return pCal->pMainFont
+end function
+
+' Sets all three and CLEARS the title and weekday overrides: call it first.
+public sub tkCalendar_SetFont( byval hCtrl as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    pCal->pMainFont = f
+    pCal->pTitleFont = 0
+    pCal->pWeekdayFont = 0
+    tkWidget_Invalidate( hCtrl )
+end sub
+
+public function tkCalendar_GetTitleFont( byval hCtrl as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return 0
+    if pCal->pTitleFont then return pCal->pTitleFont
+    return pCal->pMainFont
+end function
+
+public sub tkCalendar_SetTitleFont( byval hCtrl as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    pCal->pTitleFont = f
+    tkWidget_Invalidate( hCtrl )
+end sub
+
+public function tkCalendar_GetWeekdayFont( byval hCtrl as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return 0
+    if pCal->pWeekdayFont then return pCal->pWeekdayFont
+    return pCal->pMainFont
+end function
+
+public sub tkCalendar_SetWeekdayFont( byval hCtrl as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    pCal->pWeekdayFont = f
+    tkWidget_Invalidate( hCtrl )
+end sub
+
+' The form's fonts (tkApp). No glyph font: the chevrons are drawn.
+public sub tkCalendar_ApplyFonts( byval hCtrl as TK_WIDGET ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
+    if fText then tkCalendar_SetFont( hCtrl, fText )
+end sub
+
+' --- layout and appearance -------------------------------------------------------------------
+public function tkCalendar_GetBorderThickness( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return 0
+    return pCal->nBorderThick
+end function
+
+public sub tkCalendar_SetBorderThickness( byval hCtrl as TK_WIDGET ptr, byval nThickness as long )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    if nThickness < 0 then nThickness = 0
+    if nThickness = pCal->nBorderThick then exit sub
+    pCal->nBorderThick = nThickness
+    CAL_Relayout( pCal )
+end sub
+
+public function tkCalendar_GetChevronThickness( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return 0
+    return pCal->nChevThick
+end function
+
+public sub tkCalendar_SetChevronThickness( byval hCtrl as TK_WIDGET ptr, byval nThickness as long )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    if nThickness < 1 then nThickness = 1
+    pCal->nChevThick = nThickness
+    tkWidget_Invalidate( hCtrl )
+end sub
+
+public function tkCalendar_GetPadding( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return 0
+    return pCal->nPad
+end function
+
+public sub tkCalendar_SetPadding( byval hCtrl as TK_WIDGET ptr, byval nPad as long )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    if nPad < 0 then nPad = 0
+    pCal->nPad = nPad
+    CAL_Relayout( pCal )
+end sub
+
+public sub tkCalendar_GetGutters( byval hCtrl as TK_WIDGET ptr, byref nGutterX as long, byref nGutterY as long )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    nGutterX = 0 : nGutterY = 0
+    if pCal = 0 then exit sub
+    nGutterX = pCal->nGutterX : nGutterY = pCal->nGutterY
+end sub
+
+public sub tkCalendar_SetGutters( byval hCtrl as TK_WIDGET ptr, byval nGutterX as long, byval nGutterY as long )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    if nGutterX < 0 then nGutterX = 0
+    if nGutterY < 0 then nGutterY = 0
+    pCal->nGutterX = nGutterX
+    pCal->nGutterY = nGutterY
+    CAL_Relayout( pCal )
+end sub
+
+public sub tkCalendar_GetCellMinSize( byval hCtrl as TK_WIDGET ptr, byref nW as long, byref nH as long )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    nW = 0 : nH = 0
+    if pCal = 0 then exit sub
+    nW = pCal->nCellMinW : nH = pCal->nCellMinH
+end sub
+
+' Feeds GetIdealSize ONLY: cells stretch to the control's actual size.
+public sub tkCalendar_SetCellMinSize( byval hCtrl as TK_WIDGET ptr, byval nW as long, byval nH as long )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    if nW < 1 then nW = 1
+    if nH < 1 then nH = 1
+    pCal->nCellMinW = nW
+    pCal->nCellMinH = nH
+    CAL_Relayout( pCal )
+end sub
+
+' Pure arithmetic, valid before the control is ever sized.
+public sub tkCalendar_GetIdealSize( byval hCtrl as TK_WIDGET ptr, byref nWidth as long, byref nHeight as long )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    nWidth = 0 : nHeight = 0
+    if pCal = 0 then exit sub
+    pCal->LayoutCalendar()
+    nWidth = pCal->nIdealW
+    nHeight = pCal->nIdealH
+end sub
+
+public function tkCalendar_GetEnabled( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return false
+    return pCal->isEnabled
+end function
+
+' Through tkWidget_Enable, so the host enforces it (no input, skipped by Tab).
+public sub tkCalendar_SetEnabled( byval hCtrl as TK_WIDGET ptr, byval isEnabled as boolean )
+    if hCtrl then tkWidget_Enable( hCtrl, isEnabled )
+end sub
+
+public function tkCalendar_HasFocus( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return false
+    return pCal->isFocused
+end function
+
+' Re-reads today from the system clock and repaints.
+public sub tkCalendar_Refresh( byval hCtrl as TK_WIDGET ptr )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    pCal->stToday = tkCalendar_LocalToday()
+    CAL_Relayout( pCal )
+end sub
+
+' --- geometry: each forces a pending layout; FALSE for a bad handle or index -----------------
+private function CAL_Ready( byval hCtrl as TK_WIDGET ptr ) as TKCALENDAR_STATE ptr
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return 0
+    if pCal->bLayoutDirty then pCal->LayoutCalendar()
+    return pCal
+end function
+
+public function tkCalendar_HitTest( byval hCtrl as TK_WIDGET ptr, byval pt as TKPOINT ) as CAL_HITRESULT
+    dim as CAL_HITRESULT hr
+    dim as TKCALENDAR_STATE ptr pCal = CAL_Ready( hCtrl )
+    if pCal = 0 then return hr
+    return CAL_HitTestPt( pCal, pt.x, pt.y )
+end function
+
+public function tkCalendar_GetInnerRect( byval hCtrl as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = CAL_Ready( hCtrl )
+    if pCal = 0 then return false
+    rc = pCal->rcInner : return true
+end function
+
+public function tkCalendar_GetNavBandRect( byval hCtrl as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = CAL_Ready( hCtrl )
+    if pCal = 0 then return false
+    rc = pCal->rcNavBand : return true
+end function
+
+public function tkCalendar_GetPrevRect( byval hCtrl as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = CAL_Ready( hCtrl )
+    if pCal = 0 then return false
+    rc = pCal->rcPrev : return true
+end function
+
+public function tkCalendar_GetNextRect( byval hCtrl as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = CAL_Ready( hCtrl )
+    if pCal = 0 then return false
+    rc = pCal->rcNext : return true
+end function
+
+public function tkCalendar_GetTitleRect( byval hCtrl as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = CAL_Ready( hCtrl )
+    if pCal = 0 then return false
+    rc = pCal->rcTitle : return true
+end function
+
+public function tkCalendar_GetGridRect( byval hCtrl as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = CAL_Ready( hCtrl )
+    if pCal = 0 then return false
+    rc = pCal->rcGrid : return true
+end function
+
+public function tkCalendar_GetPanelRect( byval hCtrl as TK_WIDGET ptr, byval panel as long, byref rc as TKRECT ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = CAL_Ready( hCtrl )
+    if pCal = 0 then return false
+    if (panel < 0) orelse (panel >= pCal->PanelCount()) then return false
+    rc = pCal->rcPanel(panel) : return true
+end function
+
+public function tkCalendar_GetCaptionRect( byval hCtrl as TK_WIDGET ptr, byval panel as long, byref rc as TKRECT ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = CAL_Ready( hCtrl )
+    if pCal = 0 then return false
+    if (panel < 0) orelse (panel >= pCal->PanelCount()) then return false
+    rc = pCal->rcCaption(panel) : return true
+end function
+
+public function tkCalendar_GetWeekdayRect( byval hCtrl as TK_WIDGET ptr, byval panel as long, byval i as long, byref rc as TKRECT ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = CAL_Ready( hCtrl )
+    if pCal = 0 then return false
+    if (panel < 0) orelse (panel >= pCal->PanelCount()) then return false
+    if (i < 0) orelse (i > 6) then return false
+    rc = pCal->rcWeekday(panel, i) : return true
+end function
+
+public function tkCalendar_GetDayCellRect( byval hCtrl as TK_WIDGET ptr, byval panel as long, byval k as long, byref rc as TKRECT ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = CAL_Ready( hCtrl )
+    if pCal = 0 then return false
+    if (panel < 0) orelse (panel >= pCal->PanelCount()) then return false
+    if (k < 0) orelse (k > 41) then return false
+    rc = pCal->rcDayCell(panel, k) : return true
+end function
+
+public function tkCalendar_GetMyCellRect( byval hCtrl as TK_WIDGET ptr, byval k as long, byref rc as TKRECT ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = CAL_Ready( hCtrl )
+    if pCal = 0 then return false
+    if (k < 0) orelse (k > 11) then return false
+    rc = pCal->rcMyCell(k) : return true
+end function
+
+public function tkCalendar_GetCellDate( byval hCtrl as TK_WIDGET ptr, byval panel as long, byval k as long, byref st as TKDATE ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = CAL_Ready( hCtrl )
+    if pCal = 0 then return false
+    if (panel < 0) orelse (panel >= pCal->PanelCount()) then return false
+    if (k < 0) orelse (k > 41) then return false
+    st = pCal->CellDate( panel, k )
+    return true
+end function
+
+public function tkCalendar_GetPanelMonth( byval hCtrl as TK_WIDGET ptr, byval panel as long, byref nYear as long, byref nMonth as long ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = CAL_Ready( hCtrl )
+    nYear = 0 : nMonth = 0
+    if pCal = 0 then return false
+    if (panel < 0) orelse (panel >= pCal->PanelCount()) then return false
+    nYear = pCal->panelYear(panel)
+    nMonth = pCal->panelMonth(panel)
+    return true
+end function
+
+public function tkCalendar_GetFocusCell( byval hCtrl as TK_WIDGET ptr, byref panel as long, byref index as long ) as boolean
+    dim as TKCALENDAR_STATE ptr pCal = CAL_Ready( hCtrl )
+    panel = -1 : index = -1
+    if pCal = 0 then return false
+    return CAL_FocusCell( pCal, panel, index )
+end function
+
+' The drill-down cursor (0..11), for a host or a test; meaningless in DAYS view.
+public function tkCalendar_GetMyFocus( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return -1
+    return pCal->nMyFocus
+end function
+
+' The hot part under the cursor, as the renderer sees it.
+public function tkCalendar_GetHot( byval hCtrl as TK_WIDGET ptr ) as CAL_HITRESULT
+    dim as CAL_HITRESULT hr
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return hr
+    hr.part = pCal->hotPart : hr.panel = pCal->hotPanel : hr.index = pCal->hotIndex
+    return hr
+end function
+
+' --- colours and theme ----------------------------------------------------------------------
+public sub tkCalendar_GetColors( byval hCtrl as TK_WIDGET ptr, byval pColors as TKCALENDAR_COLORS ptr )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if (pCal = 0) orelse (pColors = 0) then exit sub
+    *pColors = pCal->colors
+end sub
+
+' Copies and PINS: a theme change leaves this calendar alone until UnpinColors.
+public sub tkCalendar_SetColors( byval hCtrl as TK_WIDGET ptr, byval pColors as TKCALENDAR_COLORS ptr )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if (pCal = 0) orelse (pColors = 0) then exit sub
+    pCal->colors = *pColors
+    pCal->bColorsPinned = true
+    tkWidget_Invalidate( hCtrl )
+end sub
+
+' Vendor PsCalendar_ThemeColors, role for role.
+public function tkCalendar_ThemeColors( byref t as TKTHEME_COLORS ) as TKCALENDAR_COLORS
+    dim as TKCALENDAR_COLORS c
+    c.BackColor = t.Window
+    c.BorderColor = t.Border
+    c.FocusRingColor = t.FocusRing
+    c.TitleColor = t.TextHot
+    c.TitleColorHot = t.TextStrong
+    c.CaptionColor = t.Text
+    c.NavGlyphColor = t.Text
+    c.NavGlyphColorHot = t.TextHot
+    c.NavGlyphColorDisabled = t.TextDisabled
+    c.WeekdayColor = t.TextDim
+    c.DayColor = t.Text
+    c.DayColorWeekend = t.AccentHot
+    c.DayColorAdjacent = t.TextDim
+    c.DayColorDisabled = t.TextDisabled
+    c.DayBackColorHot = t.SurfaceHot
+    c.DayForeColorHot = t.TextHot
+    c.DayBackColorSelected = t.Selected
+    c.DayForeColorSelected = t.SelectedText
+    c.TodayRingColor = t.Accent
+    return c
+end function
+
+public sub tkCalendar_ApplyTheme( byval hCtrl as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if (pCal = 0) orelse pCal->bColorsPinned then exit sub
+    pCal->colors = tkCalendar_ThemeColors( t )
+    tkWidget_Invalidate( hCtrl )
+end sub
+
+public sub tkCalendar_UnpinColors( byval hCtrl as TK_WIDGET ptr )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    pCal->bColorsPinned = false
+    tkCalendar_ApplyTheme( hCtrl, tkTheme_Get() )
+end sub
+
+' --- callbacks: 0 removes ----------------------------------------------------------------------
+public sub tkCalendar_SetSelChangeCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as CAL_SelChangeCallbackSub )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal then pCal->SelChangeCallback = usersub
+end sub
+
+public sub tkCalendar_SetDateActivatedCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as CAL_DateActivatedCallbackSub )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal then pCal->DateActivatedCallback = usersub
+end sub
+
+public sub tkCalendar_SetPaintCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as CAL_PaintCallbackSub )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    pCal->PaintCallback = usersub
+    tkWidget_Invalidate( hCtrl )
+end sub
+
+public sub tkCalendar_SetDayPaintCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as CAL_DayPaintCallbackSub )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    pCal->DayPaintCallback = usersub
+    tkWidget_Invalidate( hCtrl )
+end sub
+
+public sub tkCalendar_SetMonthYearPaintCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as CAL_MonthYearPaintCallbackSub )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    pCal->MonthYearPaintCallback = usersub
+    tkWidget_Invalidate( hCtrl )
+end sub
+
+public sub tkCalendar_SetMessageCallback( byval hCtrl as TK_WIDGET ptr, byval userfunc as CAL_MessageCallbackFunc )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal then pCal->MessageCallback = userfunc
+end sub
+
+public sub tkCalendar_SetTooltipCallback( byval hCtrl as TK_WIDGET ptr, byval userfunc as CAL_TooltipCallbackFunc )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then exit sub
+    pCal->TooltipCallback = userfunc
+    if userfunc = 0 then CAL_TipHide( pCal )
+end sub
+
+public sub tkCalendar_SetViewChangeCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as CAL_ViewChangeCallbackSub )
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal then pCal->ViewChangeCallback = usersub
+end sub
+
+' The calendar's tkTooltip, or 0 until a day cell has actually wanted a tip (the tip is lazy).
+public function tkCalendar_GetTooltipHandle( byval hCtrl as TK_WIDGET ptr ) as TK_TIP ptr
+    dim as TKCALENDAR_STATE ptr pCal = GetCalendarPointer( hCtrl )
+    if pCal = 0 then return 0
+    return tkTipHost_Tip( @pCal->tip )
+end function
+
+
+' ========================================================================================
+' Render probes: the full composition rendered into the back buffer at the widget's place,
+' read back before any present. nPart is CAL_PART_*, CAL_PART_MYCELL_BASE + k or
+' CAL_PART_DAYCELL_BASE + panel*100 + k.
+' ========================================================================================
+private function CAL_PartRect( byval pCal as TKCALENDAR_STATE ptr, byval nPart as long, byref rc as TKRECT ) as boolean
+    if pCal = 0 then return false
+    if nPart >= CAL_PART_DAYCELL_BASE then
+        dim as long v = nPart - CAL_PART_DAYCELL_BASE
+        dim as long p = v \ 100
+        dim as long k = v mod 100
+        if (p < 0) orelse (p >= pCal->PanelCount()) then return false
+        if (k < 0) orelse (k > 41) then return false
+        rc = pCal->rcDayCell(p, k)
+        return true
+    end if
+    if nPart >= CAL_PART_MYCELL_BASE then
+        dim as long k = nPart - CAL_PART_MYCELL_BASE
+        if (k < 0) orelse (k > 11) then return false
+        rc = pCal->rcMyCell(k)
+        return true
+    end if
+    select case nPart
+    case CAL_PART_CLIENT  : rc = pCal->rcClient  : return true
+    case CAL_PART_NAVBAND : rc = pCal->rcNavBand : return true
+    case CAL_PART_PREV    : rc = pCal->rcPrev    : return true
+    case CAL_PART_NEXT    : rc = pCal->rcNext    : return true
+    case CAL_PART_TITLE   : rc = pCal->rcTitle   : return true
+    case CAL_PART_GRID    : rc = pCal->rcGrid    : return true
+    end select
+    return false
+end function
+
+private function CAL_ProbeSurface( byval hCtrl as TK_WIDGET ptr, byval nPart as long ) as SDL_Surface ptr
+    dim as TKCALENDAR_STATE ptr pCal = CAL_Ready( hCtrl )
+    if pCal = 0 then return 0
+    dim as TKRECT rcPart
+    if CAL_PartRect( pCal, nPart, rcPart ) = false then return 0
+    if tkRect_IsEmpty( rcPart ) then return 0
+    dim as TK_HOST ptr h = hCtrl->pHost
+    dim as TKRECT a
+    tkWidget_AbsRect( hCtrl, a )
+    dim as TK_PAINT wp
+    wp.renderer = h->renderer
+    wp.engine = h->engine
+    wp.pFont = h->pDefaultFont
+    wp.fScale = h->fScale
+    wp.Begin( a.left, a.top, hCtrl->cw, hCtrl->ch )
+    CAL_RenderFull( pCal, @wp )
+    SDL_SetRenderClipRect( h->renderer, 0 )
+    dim as SDL_Rect r
+    r.x = a.left + rcPart.left : r.y = a.top + rcPart.top
+    r.w = rcPart.right - rcPart.left : r.h = rcPart.bottom - rcPart.top
+    dim as SDL_Surface ptr s0 = SDL_RenderReadPixels( h->renderer, @r )
+    h->bDirty = true                 ' the probe drew into the back buffer; repaint honestly
+    if s0 = 0 then return 0
+    dim as SDL_Surface ptr s = SDL_ConvertSurface( s0, SDL_PIXELFORMAT_ARGB8888 )
+    SDL_DestroySurface( s0 )
+    return s
+end function
+
+' Distinct colours in a part, capped at 256. A flooded part reports 1 or 2.
+public function tkCalendar_TestPartTones( byval hCtrl as TK_WIDGET ptr, byval nPart as long ) as long
+    dim as SDL_Surface ptr s = CAL_ProbeSurface( hCtrl, nPart )
+    if s = 0 then return 0
+    dim seen(0 to 255) as ulong
+    dim as long nSeen = 0
+    for y as long = 0 to s->h - 1
+        dim as ulong ptr row = cast( ulong ptr, cast( ubyte ptr, s->pixels ) + y * s->pitch )
+        for x as long = 0 to s->w - 1
+            dim as ulong c = row[x] and &h00FFFFFFul
+            dim as boolean bNew = true
+            for i as long = 0 to nSeen - 1
+                if seen(i) = c then bNew = false : exit for
+            next
+            if bNew andalso (nSeen < 256) then seen(nSeen) = c : nSeen += 1
+        next
+    next
+    SDL_DestroySurface( s )
+    return nSeen
+end function
+
+' Brightest pixel, 0..255 (mean of R, G, B). Compare two parts as a RATIO.
+public function tkCalendar_TestPartBrightness( byval hCtrl as TK_WIDGET ptr, byval nPart as long ) as long
+    dim as SDL_Surface ptr s = CAL_ProbeSurface( hCtrl, nPart )
+    if s = 0 then return 0
+    dim as long nMax = 0
+    for y as long = 0 to s->h - 1
+        dim as ulong ptr row = cast( ulong ptr, cast( ubyte ptr, s->pixels ) + y * s->pitch )
+        for x as long = 0 to s->w - 1
+            dim as ulong c = row[x]
+            dim as long lum = (cast( long, c and &hFF ) + cast( long, (c shr 8) and &hFF ) + cast( long, (c shr 16) and &hFF )) \ 3
+            if lum > nMax then nMax = lum
+        next
+    next
+    SDL_DestroySurface( s )
+    return nMax
+end function
+
+' FNV-1a over a part's RGB. A changed hash proves only that SOMETHING moved: pair it with tones.
+public function tkCalendar_TestHashPart( byval hCtrl as TK_WIDGET ptr, byval nPart as long ) as ulongint
+    dim as SDL_Surface ptr s = CAL_ProbeSurface( hCtrl, nPart )
+    if s = 0 then return 0
+    dim as ulongint hv = 14695981039346656037ull
+    for y as long = 0 to s->h - 1
+        dim as ulong ptr row = cast( ulong ptr, cast( ubyte ptr, s->pixels ) + y * s->pitch )
+        for x as long = 0 to s->w - 1
+            dim as ulong c = row[x]
+            for byteIdx as long = 0 to 2
+                hv = hv xor ((c shr (byteIdx * 8)) and &hFF)
+                hv = hv * 1099511628211ull
+            next
+        next
+    next
+    SDL_DestroySurface( s )
+    return hv
+end function

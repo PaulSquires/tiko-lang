@@ -1,0 +1,301 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkKeys -- keyboard shortcuts: a CHORD (a key and its modifiers), its text both ways, and key maps
+' a surface consults before its focused widget. Win32 had all three as accelerator tables
+' (CreateAcceleratorTable / TranslateAccelerator) and tiko-editor's keybinding text; SDL has none.
+'
+' THE KEY IS THE UNSHIFTED ONE. SDL3 reports a key event's keycode with the modifiers applied, so
+' Shift+/ arrives as '?' and Ctrl+Shift+/ could never match the chord "Ctrl+Shift+/" a user
+' wrote. A chord is matched on the key its SCANCODE gives with no modifiers (tkKeys_FromMsg);
+' letters are kept lowercase, as SDL's own keycodes are.
+'
+' "PRIMARY" IS THE COMMAND KEY OF THE PLATFORM: Ctrl on Windows and Linux, Cmd on macOS. Stored
+' shortcuts say "Primary+S" (tkKeys_Format( c, true )) so one keybindings file serves every OS;
+' menus show "Ctrl+S" or "Cmd+S" (tkKeys_Format( c )).
+'
+' A KEY MAP is attached to a SURFACE (tkKeys_Attach): its OnPreKey asks the map before the focused
+' widget, as TranslateAccelerator ran before the window's own WM_KEYDOWN. A dialog or a popup is
+' its own surface and never runs the main window's commands.
+#module "tkKeys"
+
+#import "std/containers"
+#import "../tkHost" public
+using containers
+using tkHost
+
+' Modifiers, normalised: left and right are one.
+public const TKKEY_SHIFT = 1
+public const TKKEY_CTRL = 2
+public const TKKEY_ALT = 4
+public const TKKEY_GUI = 8                  ' Cmd on macOS, the Windows key, Super
+
+public type TK_CHORD
+    key  as long                            ' SDL_Keycode, unshifted; 0 = none
+    mods as long                            ' TKKEY_*
+end type
+
+' The platform's command modifier.
+public function tkKeys_Primary() as long
+#if defined( TIKO_OS_MACOS )
+    return TKKEY_GUI
+#else
+    return TKKEY_CTRL
+#endif
+end function
+
+public function tkKeys_ModsFromSDL( byval m as long ) as long
+    dim as long r = 0
+    if (m and SDL_KMOD_SHIFT) then r or= TKKEY_SHIFT
+    if (m and SDL_KMOD_CTRL) then r or= TKKEY_CTRL
+    if (m and SDL_KMOD_ALT) then r or= TKKEY_ALT
+    if (m and SDL_KMOD_GUI) then r or= TKKEY_GUI
+    return r
+end function
+
+' The chord a key message carries: the scancode's UNSHIFTED key when there is one (a real
+' keyboard), the keycode lowercased otherwise (a synthesised event).
+public function tkKeys_FromMsg( byval m as TK_MSG ptr ) as TK_CHORD
+    dim as TK_CHORD c
+    if m = 0 then return c
+    c.key = m->key
+    if m->scancode <> 0 then
+        dim as long k = SDL_GetKeyFromScancode( m->scancode, SDL_KMOD_NONE, false )
+        if k <> 0 then c.key = k
+    end if
+    if (c.key >= asc( "A" )) andalso (c.key <= asc( "Z" )) then c.key += 32
+    c.mods = tkKeys_ModsFromSDL( m->mods )
+    return c
+end function
+
+' ---- names ---------------------------------------------------------------------------------------
+' One table, both ways. The FIRST name of a key is the one Format writes; the rest are aliases
+' Parse accepts. The editor's own vocabulary (tiko-editor keybindings.ini) is all here: "Plus" is
+' the =+ key (Win32's VK_OEM_PLUS), "Tilde" the `~ key (VK_OEM_3).
+type TKKEY_NAME
+    key   as long
+    names as string                          ' "|"-separated, first = canonical
+end type
+
+dim shared as TKKEY_NAME gNames( 0 to 47 )
+dim shared as long gnNames
+
+private sub AddName( byval key as long, byref names as string )
+    if gnNames > ubound( gNames ) then exit sub
+    gNames(gnNames).key = key
+    gNames(gnNames).names = names
+    gnNames += 1
+end sub
+
+private sub InitNames()
+    if gnNames then exit sub
+    AddName( SDLK_UP, "Up" ) : AddName( SDLK_DOWN, "Down" )
+    AddName( SDLK_LEFT, "Left" ) : AddName( SDLK_RIGHT, "Right" )
+    AddName( SDLK_HOME, "Home" ) : AddName( SDLK_END, "End" )
+    AddName( SDLK_PAGEUP, "PgUp|PageUp|Prior" ) : AddName( SDLK_PAGEDOWN, "PgDn|PageDown|Next" )
+    AddName( SDLK_INSERT, "Insert|Ins" ) : AddName( SDLK_DELETE, "Delete|Del" )
+    AddName( SDLK_RETURN, "Enter|Return" ) : AddName( SDLK_TAB, "Tab" )
+    AddName( SDLK_ESCAPE, "Escape|Esc" ) : AddName( SDLK_SPACE, "Space|Spacebar" )
+    AddName( SDLK_BACKSPACE, "Backspace|Back" )
+    AddName( SDLK_EQUALS, "Plus|Equals" ) : AddName( SDLK_MINUS, "Minus" )
+    AddName( SDLK_COMMA, "Comma" ) : AddName( SDLK_PERIOD, "Period|Dot" )
+    AddName( SDLK_GRAVE, "Tilde|Grave|Backquote" )
+    AddName( SDLK_SLASH, "/|Slash" ) : AddName( SDLK_BACKSLASH, "\|Backslash" )
+    AddName( SDLK_SEMICOLON, "Semicolon" ) : AddName( SDLK_APOSTROPHE, "Quote|Apostrophe|SingleQuote" )
+    AddName( SDLK_LEFTBRACKET, "LBracket|[" ) : AddName( SDLK_RIGHTBRACKET, "RBracket|]" )
+    ' the keypad; "Numpad+" etc. are tiko-studio's keybindings.toml spellings (tsc/keybind)
+    AddName( SDLK_KP_PLUS, "NumPlus|Numpad+" ) : AddName( SDLK_KP_MINUS, "NumMinus|Numpad-" )
+    AddName( SDLK_KP_MULTIPLY, "NumMultiply|Numpad*" ) : AddName( SDLK_KP_DIVIDE, "NumDivide|Numpad/" )
+    AddName( SDLK_KP_ENTER, "NumEnter" ) : AddName( SDLK_KP_PERIOD, "NumPeriod|Numpad." )
+    AddName( SDLK_KP_0, "Num0|Numpad0" )
+    for d as long = 1 to 9                   ' SDL: KP_1 .. KP_9 run on, KP_0 comes after them
+        AddName( SDLK_KP_1 + d - 1, "Num" & d & "|Numpad" & d )
+    next
+end sub
+
+private function KeyFromName( byref nm as string ) as long
+    InitNames()
+    dim as string l = lcase( nm )
+    if len( nm ) = 1 then
+        dim as long ch = asc( l )
+        if ((ch >= asc( "a" )) andalso (ch <= asc( "z" ))) orelse ((ch >= asc( "0" )) andalso (ch <= asc( "9" ))) then return ch
+    end if
+    ' F1 .. F24
+    if (len( l ) >= 2) andalso (left( l, 1 ) = "f") then
+        dim as string d = mid( l, 2 )
+        dim as boolean allDigits = true
+        for i as long = 0 to len( d ) - 1
+            if (d[i] < asc( "0" )) orelse (d[i] > asc( "9" )) then allDigits = false
+        next
+        if allDigits then
+            dim as long n = valint( d )
+            if (n >= 1) andalso (n <= 12) then return SDLK_F1 + n - 1
+            if (n >= 13) andalso (n <= 24) then return SDLK_F13 + n - 13
+        end if
+    end if
+    for i as long = 0 to gnNames - 1
+        dim as string all = "|" & lcase( gNames(i).names ) & "|"
+        if instr( all, "|" & l & "|" ) then return gNames(i).key
+    next
+    return 0
+end function
+
+private function NameOfKey( byval key as long ) as string
+    InitNames()
+    if (key >= asc( "a" )) andalso (key <= asc( "z" )) then return chr( key - 32 )
+    if (key >= asc( "0" )) andalso (key <= asc( "9" )) then return chr( key )
+    if (key >= SDLK_F1) andalso (key <= SDLK_F12) then return "F" & (key - SDLK_F1 + 1)
+    if (key >= SDLK_F13) andalso (key <= SDLK_F24) then return "F" & (key - SDLK_F13 + 13)
+    for i as long = 0 to gnNames - 1
+        if gNames(i).key = key then
+            dim as long bar = instr( gNames(i).names, "|" )
+            if bar then return left( gNames(i).names, bar - 1 )
+            return gNames(i).names
+        end if
+    next
+    return ""
+end function
+
+' "Primary+Shift+S", "Ctrl+Alt+Left", "Shift+F3", "Ctrl+/" ... -> c. Case does not matter; the
+' key is the LAST part (so "Ctrl++" is not a chord: write "Ctrl+Plus"). FALSE leaves c empty.
+public function tkKeys_Parse( byref s as string, byref c as TK_CHORD ) as boolean
+    c.key = 0 : c.mods = 0
+    dim as string rest = trim( s )
+    if len( rest ) = 0 then return false
+    dim as long mods = 0
+    do
+        dim as long p = instr( rest, "+" )
+        ' a "+" that is the last character, or the whole rest, is no separator
+        if (p = 0) orelse (p = len( rest )) then exit do
+        dim as string part = lcase( trim( left( rest, p - 1 ) ) )
+        rest = mid( rest, p + 1 )
+        select case part
+        case "ctrl", "control" : mods or= TKKEY_CTRL
+        case "shift" : mods or= TKKEY_SHIFT
+        case "alt", "option", "opt" : mods or= TKKEY_ALT
+        case "cmd", "command", "super", "win", "meta", "gui" : mods or= TKKEY_GUI
+        case "primary" : mods or= tkKeys_Primary()
+        case else : return false
+        end select
+    loop
+    dim as long k = KeyFromName( trim( rest ) )
+    if k = 0 then return false
+    c.key = k : c.mods = mods
+    return true
+end function
+
+' The chord as text. bPortable: the platform's command modifier is written "Primary" (for a
+' keybindings file); otherwise as this platform names it (for a menu): Ctrl, or Cmd on macOS.
+public function tkKeys_Format( byref c as TK_CHORD, byval bPortable as boolean = false ) as string
+    dim as string k = NameOfKey( c.key )
+    if len( k ) = 0 then return ""
+    dim as string r = ""
+    dim as long prim = tkKeys_Primary()
+    if bPortable andalso ((c.mods and prim) <> 0) then r &= "Primary+"
+    if (c.mods and TKKEY_CTRL) andalso ((bPortable = false) orelse (prim <> TKKEY_CTRL)) then r &= "Ctrl+"
+#if defined( TIKO_OS_MACOS )
+    if (c.mods and TKKEY_GUI) andalso ((bPortable = false) orelse (prim <> TKKEY_GUI)) then r &= "Cmd+"
+#else
+    if (c.mods and TKKEY_GUI) andalso ((bPortable = false) orelse (prim <> TKKEY_GUI)) then r &= "Win+"
+#endif
+    if (c.mods and TKKEY_ALT) then r &= "Alt+"
+    if (c.mods and TKKEY_SHIFT) then r &= "Shift+"
+    return r & k
+end function
+
+' ---- key maps ------------------------------------------------------------------------------------
+public type TKKEYS_CommandSub as sub( byval h as TK_HOST ptr, byval cmd as long )
+
+public type TK_KEYMAP
+    chords as Map( of longint, long )         ' (mods shl 32) or key -> command
+end type
+
+private function ChordId( byref c as TK_CHORD ) as longint
+    return (cast( longint, c.mods ) shl 32) or cast( ulong, c.key )
+end function
+
+public function tkKeys_MapCreate() as TK_KEYMAP ptr
+    return new TK_KEYMAP
+end function
+
+public sub tkKeys_MapDestroy( byval km as TK_KEYMAP ptr )
+    if km then delete km
+end sub
+
+' One command per chord: binding a chord again replaces it. A command may have several chords.
+public sub tkKeys_Bind( byval km as TK_KEYMAP ptr, byref c as TK_CHORD, byval cmd as long )
+    if (km = 0) orelse (c.key = 0) then exit sub
+    km->chords.Put( ChordId( c ), cmd )
+end sub
+
+' Bind from text: FALSE (and nothing bound) when the chord does not parse.
+public function tkKeys_BindText( byval km as TK_KEYMAP ptr, byref s as string, byval cmd as long ) as boolean
+    dim as TK_CHORD c
+    if tkKeys_Parse( s, c ) = false then return false
+    tkKeys_Bind( km, c, cmd )
+    return true
+end function
+
+public sub tkKeys_Unbind( byval km as TK_KEYMAP ptr, byref c as TK_CHORD )
+    if km then km->chords.Remove( ChordId( c ) )
+end sub
+
+public sub tkKeys_Clear( byval km as TK_KEYMAP ptr )
+    if km then km->chords.Clear()
+end sub
+
+public function tkKeys_Count( byval km as TK_KEYMAP ptr ) as long
+    if km = 0 then return 0
+    return km->chords.Count()
+end function
+
+' The command bound to the chord, 0 when none.
+public function tkKeys_Lookup( byval km as TK_KEYMAP ptr, byref c as TK_CHORD ) as long
+    if km = 0 then return 0
+    dim as long cmd
+    if km->chords.TryGet( ChordId( c ), cmd ) then return cmd
+    return 0
+end function
+
+' ---- attaching a map to a surface ---------------------------------------------------------------
+type TKKEYS_ATTACH
+    h   as TK_HOST ptr
+    km  as TK_KEYMAP ptr
+    cb  as TKKEYS_CommandSub
+end type
+dim shared as TKKEYS_ATTACH gAttach( 0 to 31 )
+
+private function PreKey( byval h as TK_HOST ptr, byval m as TK_MSG ptr ) as boolean
+    for i as long = 0 to ubound( gAttach )
+        if (gAttach(i).h = h) andalso (gAttach(i).km <> 0) then
+            dim as TK_CHORD c = tkKeys_FromMsg( m )
+            dim as long cmd = tkKeys_Lookup( gAttach(i).km, c )
+            if cmd = 0 then return false
+            if gAttach(i).cb then gAttach(i).cb( h, cmd )
+            return true
+        end if
+    next
+    return false
+end function
+
+' The surface asks km before its focused widget; a bound chord runs cb( h, cmd ) and is consumed.
+' km = 0 detaches. The map stays the caller's.
+public sub tkKeys_Attach( byval h as TK_HOST ptr, byval km as TK_KEYMAP ptr, byval cb as TKKEYS_CommandSub )
+    if h = 0 then exit sub
+    dim as long slot = -1
+    for i as long = 0 to ubound( gAttach )
+        if gAttach(i).h = h then slot = i : exit for
+        if (slot < 0) andalso (gAttach(i).h = 0) then slot = i
+    next
+    if slot < 0 then exit sub
+    if km = 0 then
+        gAttach(slot).h = 0 : gAttach(slot).km = 0 : gAttach(slot).cb = 0
+        if h->OnPreKey = @PreKey then h->OnPreKey = 0
+        exit sub
+    end if
+    gAttach(slot).h = h : gAttach(slot).km = km : gAttach(slot).cb = cb
+    h->OnPreKey = @PreKey
+end sub

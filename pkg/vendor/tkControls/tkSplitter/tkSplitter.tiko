@@ -1,0 +1,514 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkSplitter -- PsSplitter on SDL3, a port of pkg/vendor/PsControls/PsSplitter/PsSplitter.tiko
+' onto tkHost. See PORT.md.
+'
+' WHAT IT IS NOT (unchanged from vendor): the control does not own, create, size, or even know
+' about the panes on either side of it. It maintains exactly one number -- the bar's position --
+' moves ITSELF while the user drags, and tells the host through the position callback.
+'
+' THE POSITION
+'   nPos is the bar's LEADING EDGE in the PARENT's coordinates (the widget's own x/y, which tkHost
+'   keeps parent-relative):
+'       TKSPLITTER_VERTICAL   -> the bar's x (a vertical bar splitting left/right panes)
+'       TKSPLITTER_HORIZONTAL -> the bar's y (a horizontal bar splitting top/bottom panes)
+'   The orientation is named for the BAR's own axis, not for the panes it separates.
+'
+' WHAT IS GONE, because the HWND is gone: WM_SETCURSOR (the cursor is the widget's property, set
+' once at create -- a host replaces it with tkWidget_SetCursor), CS_DBLCLKS (SDL counts clicks:
+' TKM_LBUTTONDOWN with clicks = 2), TrackMouseEvent and the 100 ms hover poll (the host GUARANTEES
+' the leave), WM_WINDOWPOSCHANGED (the position is re-read from the widget on every query, so a
+' host move can never desync it), and PsRegistry.
+#module "tkSplitter"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+using tkHost
+using tkPaint
+using tkTheme
+
+' Named for the BAR's own axis: a VERTICAL bar is a vertical line separating a left and a
+' right pane, and drags horizontally (TK_CURSOR_SIZEWE).
+public enum TKSPLITTER_ORIENTATION
+    TKSPLITTER_VERTICAL   = 0     ' vertical bar,   left/right panes -> TK_CURSOR_SIZEWE, nPos = x
+    TKSPLITTER_HORIZONTAL = 1     ' horizontal bar, top/bottom panes -> TK_CURSOR_SIZENS, nPos = y
+end enum
+
+' Phase of the position notification. BEGIN and END bracket a user drag.
+public enum TKSPLITTER_PHASE
+    TKSPLITTER_PHASE_BEGIN = 0    ' the user just grabbed the bar; newPos = current position
+    TKSPLITTER_PHASE_MOVE  = 1    ' the position actually changed
+    TKSPLITTER_PHASE_END   = 2    ' the drag ended (button up, or capture lost); final position
+end enum
+
+' The "never called SetRange" maximum: effectively unbounded, and never rescaled.
+public const as long TKSPLITTER_MAX_UNBOUNDED = &h7FFFFFFF
+
+' Vendor has no colour struct -- its whole surface is two COLORREFs set together by SetColors.
+' The struct exists for the theme mapping (tkSplitter_ThemeColors). Defaults are vendor's,
+' value for value: BGR(53,59,69) and BGR(90,98,112).
+public type TKSPLITTER_COLORS
+    BackColor as ulong = &hFF353B45ul      ' the whole bar, idle
+    HotColor  as ulong = &hFF5A6270ul      ' the whole bar, hot OR dragging
+end type
+
+public type TKSPLITTER_PAINTINFO
+    hSplitter    as TK_WIDGET ptr         ' the control, so the callback can query it
+    b            as TK_PAINT ptr          ' the paint context for this repaint (borrowed)
+    rcClient     as TKRECT                ' the whole bar, widget-local
+    nOrientation as long                  ' TKSPLITTER_VERTICAL / TKSPLITTER_HORIZONTAL
+    isHot        as boolean               ' the mouse is over the bar (pinned TRUE for a drag)
+    isDragging   as boolean               ' a drag is in progress
+end type
+
+' Vendor's uMsg/wParam/lParam, in tkHost's terms. msg is TKM_LBUTTONDOWN (clicks = 2 is the
+' double click vendor saw as WM_LBUTTONDBLCLK), TKM_MOUSEMOVE or TKM_LBUTTONUP; x, y are
+' widget-local pixels.
+public type TKSPLITTER_MESSAGEINFO
+    hSplitter as TK_WIDGET ptr
+    msg       as long
+    x         as single
+    y         as single
+    clicks    as long
+end type
+
+public type SPL_PaintCallbackSub as sub( byval p as TKSPLITTER_PAINTINFO ptr )
+' Return TRUE to suppress the control's own handling. IGNORED for TKM_LBUTTONUP: that message is
+' the capture's exit, and a host allowed to suppress it would strand the capture.
+public type SPL_MessageCallbackFunc as function( byval m as TKSPLITTER_MESSAGEINFO ptr ) as boolean
+' The USER moved the splitter. NOT fired for SetPos / SetRange (programmatic setters are silent).
+public type SPL_PosChangedCallbackSub as sub( byval hSplitter as TK_WIDGET ptr, byval newPos as long, _
+                                              byval nPhase as long )
+
+public type TKSPLITTER_STATE
+    hWin               as TK_WIDGET ptr
+    bColorsPinned      as boolean             ' SetColors pins; UnpinColors hands back to the theme
+    nOrientation       as long = TKSPLITTER_VERTICAL
+    nPos               as long = 0
+    nMin               as long = 0
+    nMax               as long = TKSPLITTER_MAX_UNBOUNDED
+    isHot              as boolean
+    isDragging         as boolean
+    dragOffset         as long                ' cursor offset from the leading edge at grab
+    colors             as TKSPLITTER_COLORS
+    PaintCallback      as SPL_PaintCallbackSub
+    MessageCallback    as SPL_MessageCallbackFunc
+    PosChangedCallback as SPL_PosChangedCallbackSub
+
+    declare function ClampPos( byval n as long ) as long
+    declare function BarEdgeFromWidget() as long
+    declare sub      SyncPos()
+    declare sub      MoveBar()
+    declare sub      Notify( byval nPhase as long )
+end type
+
+
+' Clamp into [nMin, nMax]. An inverted range (max < min) collapses to min (vendor's rule).
+function TKSPLITTER_STATE.ClampPos( byval n as long ) as long
+    dim as long lo = this.nMin
+    dim as long hi = this.nMax
+    if hi < lo then hi = lo
+    if n < lo then n = lo
+    if n > hi then n = hi
+    return n
+end function
+
+' Where the bar ACTUALLY is: the widget's parent-relative x (vertical) or y (horizontal).
+function TKSPLITTER_STATE.BarEdgeFromWidget() as long
+    if this.hWin = 0 then return this.nPos
+    if this.nOrientation = TKSPLITTER_VERTICAL then return this.hWin->x
+    return this.hWin->y
+end function
+
+' Vendor re-synced from WM_WINDOWPOSCHANGED, which tkHost does not send for a move. Re-reading
+' the widget at every entry point is the same observation: nothing clamped, nothing notified,
+' and skipped mid-drag, where the control is the one doing the moving.
+sub TKSPLITTER_STATE.SyncPos()
+    if this.isDragging = false then this.nPos = this.BarEdgeFromWidget()
+end sub
+
+' Move the widget to nPos along the drag axis ONLY; cross-axis position and size are preserved.
+sub TKSPLITTER_STATE.MoveBar()
+    if this.hWin = 0 then exit sub
+    dim as long x = this.hWin->x
+    dim as long y = this.hWin->y
+    if this.nOrientation = TKSPLITTER_VERTICAL then
+        x = this.nPos
+    else
+        y = this.nPos
+    end if
+    if (x = this.hWin->x) andalso (y = this.hWin->y) then exit sub
+    tkWidget_SetPos( this.hWin, x, y, this.hWin->cw, this.hWin->ch )
+end sub
+
+sub TKSPLITTER_STATE.Notify( byval nPhase as long )
+    if this.PosChangedCallback then this.PosChangedCallback( this.hWin, this.nPos, nPhase )
+end sub
+
+
+private function GetSplitterPointer( byval hSplit as TK_WIDGET ptr ) as TKSPLITTER_STATE ptr
+    if hSplit = 0 then return 0
+    return cast( TKSPLITTER_STATE ptr, hSplit->pData )
+end function
+
+' Hand a message to the host's message callback. TRUE = the host claims it. Callers decide
+' whether to honour that -- TKM_LBUTTONUP deliberately does not.
+private function tkSplitter_CallMessage( byval pSpl as TKSPLITTER_STATE ptr, byval m as TK_MSG ptr ) as boolean
+    if (pSpl = 0) orelse (pSpl->MessageCallback = 0) then return false
+    dim as TKSPLITTER_MESSAGEINFO mi
+    mi.hSplitter = pSpl->hWin
+    mi.msg = m->msg
+    mi.x = m->x
+    mi.y = m->y
+    mi.clicks = m->clicks
+    return pSpl->MessageCallback( @mi )
+end function
+
+' The cursor's position along the drag axis in PARENT coordinates. Vendor read GetCursorPos for
+' the same reason this adds the widget's own offset: the message coordinate is relative to a
+' widget that is moving mid-gesture, and only an absolute read keeps the clamps from going
+' "sticky". tkHost computes m->x against the widget's CURRENT rect, so w->x + m->x is absolute.
+private function tkSplitter_AxisInParent( byval pSpl as TKSPLITTER_STATE ptr, byval m as TK_MSG ptr ) as long
+    ' cint, not int: the host's pixels arrive as (point x density), and 241 / 1.25 * 1.25 may
+    ' come back as 240.99998.
+    if pSpl->nOrientation = TKSPLITTER_VERTICAL then return pSpl->hWin->x + cint( m->x )
+    return pSpl->hWin->y + cint( m->y )
+end function
+
+' Is the host's last known cursor position over the bar? (vendor: isMouseOverRECT)
+private function tkSplitter_CursorOver( byval pSpl as TKSPLITTER_STATE ptr ) as boolean
+    dim as TK_HOST ptr h = pSpl->hWin->pHost
+    if (h = 0) orelse (tkWidget_IsVisible( pSpl->hWin ) = false) then return false
+    dim as TKRECT a
+    tkWidget_AbsRect( pSpl->hWin, a )
+    return (h->lastX >= a.left) andalso (h->lastX < a.right) andalso (h->lastY >= a.top) andalso (h->lastY < a.bottom)
+end function
+
+' Clear hover. Repaints only when the state actually changes.
+private sub tkSplitter_ClearHot( byval pSpl as TKSPLITTER_STATE ptr )
+    if pSpl = 0 then exit sub
+    if pSpl->isHot then
+        pSpl->isHot = false
+        tkWidget_Invalidate( pSpl->hWin )
+    end if
+end sub
+
+' End a drag, keeping the position the user dragged to. Shared by TKM_LBUTTONUP,
+' TKM_CAPTURECHANGED and a hide -- a stolen capture is an implicit button-up. No-op when no drag
+' is in progress, so the CAPTURECHANGED that the release itself sends cannot fire a second END.
+' END goes out LAST, when IsDragging already reads FALSE.
+private sub tkSplitter_EndDrag( byval pSpl as TKSPLITTER_STATE ptr )
+    if pSpl = 0 then exit sub
+    if pSpl->isDragging = false then exit sub
+    pSpl->isDragging = false
+    ' The hover pin is released with the drag: re-derive it from where the cursor finished.
+    pSpl->isHot = tkSplitter_CursorOver( pSpl )
+    tkWidget_Invalidate( pSpl->hWin )
+    pSpl->Notify( TKSPLITTER_PHASE_END )
+end sub
+
+private sub tkSplitter_OnPaint( byval pSpl as TKSPLITTER_STATE ptr, byval b as TK_PAINT ptr )
+    dim as TKSPLITTER_PAINTINFO p
+    p.hSplitter    = pSpl->hWin
+    p.b            = b
+    tkRect_Set( p.rcClient, 0, 0, pSpl->hWin->cw, pSpl->hWin->ch )
+    p.nOrientation = pSpl->nOrientation
+    p.isHot        = pSpl->isHot
+    p.isDragging   = pSpl->isDragging
+    if pSpl->PaintCallback then
+        pSpl->PaintCallback( @p )
+    else
+        ' Default paint: a flat bar, brighter while hot or dragging. That is all of it.
+        dim as ulong clr = pSpl->colors.BackColor
+        if pSpl->isHot orelse pSpl->isDragging then clr = pSpl->colors.HotColor
+        b->SetBackColor( clr )
+        b->PaintRect( @p.rcClient )
+    end if
+end sub
+
+' Per-monitor scale (vendor PsSplitter_Rescale): position and limits are parent pixels, so all
+' three scale -- except the unbounded maximum, which stays the sentinel. The grab offset scales
+' too, so a scale change mid-drag does not make the bar jump (vendor left it unscaled).
+private sub tkSplitter_Rescale( byval pSpl as TKSPLITTER_STATE ptr, byval fOld as single, byval fNew as single )
+    if (fOld <= 0) orelse (fNew <= 0) orelse (fOld = fNew) then exit sub
+    dim as single k = fNew / fOld
+    pSpl->SyncPos()
+    pSpl->nPos = cint( pSpl->nPos * k )
+    pSpl->nMin = cint( pSpl->nMin * k )
+    if pSpl->nMax <> TKSPLITTER_MAX_UNBOUNDED then pSpl->nMax = cint( pSpl->nMax * k )
+    pSpl->dragOffset = cint( pSpl->dragOffset * k )
+    pSpl->nPos = pSpl->ClampPos( pSpl->nPos )
+    pSpl->MoveBar()
+    tkWidget_Invalidate( pSpl->hWin )
+end sub
+
+
+public declare sub tkSplitter_ApplyTheme( byval hSplit as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+public declare function tkSplitter_ThemeColors( byref t as TKTHEME_COLORS ) as TKSPLITTER_COLORS
+
+' The WndProc, case for case where a case survived.
+private function tkSplitter_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKSPLITTER_STATE ptr pSpl = GetSplitterPointer( w )
+    if pSpl = 0 then return false
+    dim as TK_HOST ptr h = w->pHost
+
+    select case m->msg
+    case TKM_PAINT
+        tkSplitter_OnPaint( pSpl, m->pPaint )
+        return true
+
+    case TKM_SIZE
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_SCALECHANGED
+        tkSplitter_Rescale( pSpl, m->fOld, m->fNew )
+        return true
+
+    case TKM_THEMECHANGED
+        tkSplitter_ApplyTheme( w, tkTheme_Get() )
+        return true
+
+    case TKM_LBUTTONDOWN
+        ' clicks = 2 is vendor's WM_LBUTTONDBLCLK: the same capture bookkeeping as a down, or the
+        ' trailing up would release a capture that was never taken. Capture goes FIRST, before
+        ' any host callback runs, so the down->up pairing is guaranteed.
+        tkHost_SetCapture( w )
+        if tkSplitter_CallMessage( pSpl, m ) then return true
+        pSpl->SyncPos()
+        pSpl->isDragging = true
+        pSpl->isHot      = true      ' pinned for the whole gesture
+        pSpl->dragOffset = tkSplitter_AxisInParent( pSpl, m ) - pSpl->nPos
+        tkWidget_Invalidate( w )
+        pSpl->Notify( TKSPLITTER_PHASE_BEGIN )
+        return true
+
+    case TKM_MOUSEMOVE
+        if tkSplitter_CallMessage( pSpl, m ) then return true
+        if pSpl->isDragging then
+            dim as long newPos = pSpl->ClampPos( tkSplitter_AxisInParent( pSpl, m ) - pSpl->dragOffset )
+            if newPos <> pSpl->nPos then
+                pSpl->nPos = newPos
+                pSpl->MoveBar()
+                pSpl->Notify( TKSPLITTER_PHASE_MOVE )
+            end if
+        else
+            ' Hover. A rect test rather than vendor's "any move that reaches us is on us": under a
+            ' capture the host keeps (a claimed double-click), moves arrive from anywhere.
+            dim as boolean bOver = (m->x >= 0) andalso (m->x < w->cw) andalso (m->y >= 0) andalso (m->y < w->ch)
+            if bOver <> pSpl->isHot then
+                pSpl->isHot = bOver
+                tkWidget_Invalidate( w )
+            end if
+        end if
+        return true
+
+    case TKM_LBUTTONUP
+        ' The callback's answer is deliberately IGNORED here (see SPL_MessageCallbackFunc).
+        tkSplitter_CallMessage( pSpl, m )
+        ' End the drag BEFORE releasing, so the CAPTURECHANGED the release sends synchronously
+        ' finds nothing to do and cannot fire a second END.
+        tkSplitter_EndDrag( pSpl )
+        if tkHost_GetCapture( h ) = w then tkHost_ReleaseCapture( h )
+        return true
+
+    case TKM_CAPTURECHANGED
+        ' Capture lost mid-drag (deactivation, a hide, another widget's SetCapture): keep the
+        ' position the user dragged to and close the gesture cleanly.
+        tkSplitter_EndDrag( pSpl )
+        return true
+
+    case TKM_MOUSELEAVE
+        ' Stand down while dragging: under capture the cursor legitimately leaves the bar.
+        if pSpl->isDragging = false then tkSplitter_ClearHot( pSpl )
+        return true
+
+    case TKM_SHOW
+        ' Hidden (a collapsed pane) while hot or mid-drag: end the drag and drop the hover, or it
+        ' would reappear stale the next time it is shown. (tkWidget_Show releases the capture
+        ' first, so the END normally comes from CAPTURECHANGED; this is the belt.)
+        if m->bFlag = false then
+            tkSplitter_EndDrag( pSpl )
+            tkSplitter_ClearHot( pSpl )
+        end if
+        return true
+
+    case TKM_ENABLE
+        ' Vendor has no enabled state; tkHost has a generic one. Disabling releases the capture
+        ' (an END via CAPTURECHANGED) and takes the widget out of hit-testing: drop the hover.
+        if m->bFlag = false then
+            tkSplitter_EndDrag( pSpl )
+            tkSplitter_ClearHot( pSpl )
+        end if
+        return true
+
+    case TKM_DESTROY
+        delete pSpl
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ========================================================================================
+' Public API -- the Win32 surface, HWND replaced by the widget pointer.
+' ========================================================================================
+' A child of hParent -- a widget, or tkHost_Root( h ) for a top-level splitter. Created at 0,0,
+' zero-sized: place, size and show it with tkWidget_SetPos. The size along the drag axis IS the
+' grab area. The orientation is fixed for the control's lifetime; anything other than
+' TKSPLITTER_HORIZONTAL is TKSPLITTER_VERTICAL.
+public function tkSplitter_Create( byval hParent as TK_WIDGET ptr, byval ctrlId as long, _
+                                   byval nOrientation as long = TKSPLITTER_VERTICAL ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TKSPLITTER_STATE ptr pSpl = new TKSPLITTER_STATE
+    if nOrientation <> TKSPLITTER_HORIZONTAL then nOrientation = TKSPLITTER_VERTICAL
+    pSpl->nOrientation = nOrientation
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, ctrlId, @tkSplitter_Proc, pSpl )
+    pSpl->hWin = w
+    ' Never a tab stop, never takes focus, handles no keys (vendor).
+    w->isFocusable = false
+    ' The resize cursor: the host shows it over the bar and, under capture, for the whole drag.
+    tkWidget_SetCursor( w, iif( nOrientation = TKSPLITTER_VERTICAL, TK_CURSOR_SIZEWE, TK_CURSOR_SIZENS ) )
+    pSpl->colors = tkSplitter_ThemeColors( tkTheme_Get() )
+    return w
+end function
+
+public function tkSplitter_GetOrientation( byval hSplit as TK_WIDGET ptr ) as long
+    dim as TKSPLITTER_STATE ptr pSpl = GetSplitterPointer( hSplit )
+    if pSpl = 0 then return TKSPLITTER_VERTICAL
+    return pSpl->nOrientation
+end function
+
+' Always agrees with where the bar actually is: re-read from the widget whenever the host moved
+' it. An out-of-range host move is reported honestly.
+public function tkSplitter_GetPos( byval hSplit as TK_WIDGET ptr ) as long
+    dim as TKSPLITTER_STATE ptr pSpl = GetSplitterPointer( hSplit )
+    if pSpl = 0 then return 0
+    pSpl->SyncPos()
+    return pSpl->nPos
+end function
+
+' Clamps, moves the bar, repaints -- and fires NOTHING.
+public sub tkSplitter_SetPos( byval hSplit as TK_WIDGET ptr, byval nPosition as long )
+    dim as TKSPLITTER_STATE ptr pSpl = GetSplitterPointer( hSplit )
+    if pSpl = 0 then exit sub
+    pSpl->SyncPos()
+    nPosition = pSpl->ClampPos( nPosition )
+    if nPosition = pSpl->nPos then exit sub
+    pSpl->nPos = nPosition
+    pSpl->MoveBar()
+    tkWidget_Invalidate( hSplit )
+end sub
+
+' The limits a drag clamps to, in the same parent space. Also clamps the current position into
+' the new range -- silently. An inverted range pins the bar at nMin.
+public sub tkSplitter_SetRange( byval hSplit as TK_WIDGET ptr, byval nMin as long, byval nMax as long )
+    dim as TKSPLITTER_STATE ptr pSpl = GetSplitterPointer( hSplit )
+    if pSpl = 0 then exit sub
+    pSpl->SyncPos()
+    pSpl->nMin = nMin
+    pSpl->nMax = nMax
+    dim as long nClamped = pSpl->ClampPos( pSpl->nPos )
+    if nClamped <> pSpl->nPos then
+        pSpl->nPos = nClamped
+        pSpl->MoveBar()
+        tkWidget_Invalidate( hSplit )
+    end if
+end sub
+
+public function tkSplitter_GetMin( byval hSplit as TK_WIDGET ptr ) as long
+    dim as TKSPLITTER_STATE ptr pSpl = GetSplitterPointer( hSplit )
+    if pSpl = 0 then return 0
+    return pSpl->nMin
+end function
+
+' TKSPLITTER_MAX_UNBOUNDED until SetRange. 0 for an invalid handle -- NOT the default.
+public function tkSplitter_GetMax( byval hSplit as TK_WIDGET ptr ) as long
+    dim as TKSPLITTER_STATE ptr pSpl = GetSplitterPointer( hSplit )
+    if pSpl = 0 then return 0
+    return pSpl->nMax
+end function
+
+' Pinned TRUE for the whole of a drag; re-derived from the cursor when the drag ends.
+public function tkSplitter_IsHot( byval hSplit as TK_WIDGET ptr ) as boolean
+    dim as TKSPLITTER_STATE ptr pSpl = GetSplitterPointer( hSplit )
+    if pSpl = 0 then return false
+    return pSpl->isHot
+end function
+
+' Already FALSE by the time the END callback runs.
+public function tkSplitter_IsDragging( byval hSplit as TK_WIDGET ptr ) as boolean
+    dim as TKSPLITTER_STATE ptr pSpl = GetSplitterPointer( hSplit )
+    if pSpl = 0 then return false
+    return pSpl->isDragging
+end function
+
+public function tkSplitter_GetBackColor( byval hSplit as TK_WIDGET ptr ) as ulong
+    dim as TKSPLITTER_STATE ptr pSpl = GetSplitterPointer( hSplit )
+    if pSpl = 0 then return 0
+    return pSpl->colors.BackColor
+end function
+
+' Added: vendor has no getter for the hot colour.
+public function tkSplitter_GetHotColor( byval hSplit as TK_WIDGET ptr ) as ulong
+    dim as TKSPLITTER_STATE ptr pSpl = GetSplitterPointer( hSplit )
+    if pSpl = 0 then return 0
+    return pSpl->colors.HotColor
+end function
+
+' Both colours at once, and PINS them: a theme change leaves this splitter alone until
+' UnpinColors. Used by the built-in painter only -- a paint callback ignores them.
+public sub tkSplitter_SetColors( byval hSplit as TK_WIDGET ptr, byval backclr as ulong, byval hotclr as ulong )
+    dim as TKSPLITTER_STATE ptr pSpl = GetSplitterPointer( hSplit )
+    if pSpl = 0 then exit sub
+    pSpl->colors.BackColor = backclr
+    pSpl->colors.HotColor  = hotclr
+    pSpl->bColorsPinned = true
+    tkWidget_Invalidate( hSplit )
+end sub
+
+' The splitter's colours from the theme's roles (vendor PsSplitter_ApplyTheme's mapping).
+public function tkSplitter_ThemeColors( byref t as TKTHEME_COLORS ) as TKSPLITTER_COLORS
+    dim as TKSPLITTER_COLORS c
+    c.BackColor = t.Divider
+    c.HotColor  = t.TextDisabled
+    return c
+end function
+
+public sub tkSplitter_ApplyTheme( byval hSplit as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKSPLITTER_STATE ptr pSpl = GetSplitterPointer( hSplit )
+    if (pSpl = 0) orelse pSpl->bColorsPinned then exit sub
+    pSpl->colors = tkSplitter_ThemeColors( t )
+    tkWidget_Invalidate( hSplit )
+end sub
+
+' Hands the splitter back to the theme, which is applied at once.
+public sub tkSplitter_UnpinColors( byval hSplit as TK_WIDGET ptr )
+    dim as TKSPLITTER_STATE ptr pSpl = GetSplitterPointer( hSplit )
+    if pSpl = 0 then exit sub
+    pSpl->bColorsPinned = false
+    tkSplitter_ApplyTheme( hSplit, tkTheme_Get() )
+end sub
+
+' Draws the whole bar INSTEAD of the built-in painter; 0 restores it. Repaints.
+public sub tkSplitter_SetPaintCallback( byval hSplit as TK_WIDGET ptr, byval usersub as SPL_PaintCallbackSub )
+    dim as TKSPLITTER_STATE ptr pSpl = GetSplitterPointer( hSplit )
+    if pSpl = 0 then exit sub
+    pSpl->PaintCallback = usersub
+    tkWidget_Invalidate( hSplit )
+end sub
+
+public sub tkSplitter_SetMessageCallback( byval hSplit as TK_WIDGET ptr, byval userfunc as SPL_MessageCallbackFunc )
+    dim as TKSPLITTER_STATE ptr pSpl = GetSplitterPointer( hSplit )
+    if pSpl then pSpl->MessageCallback = userfunc
+end sub
+
+public sub tkSplitter_SetPosChangedCallback( byval hSplit as TK_WIDGET ptr, byval usersub as SPL_PosChangedCallbackSub )
+    dim as TKSPLITTER_STATE ptr pSpl = GetSplitterPointer( hSplit )
+    if pSpl then pSpl->PosChangedCallback = usersub
+end sub

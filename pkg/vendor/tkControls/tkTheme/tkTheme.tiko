@@ -1,0 +1,144 @@
+' tkTheme -- vendor PsTheme for tkControls: one flat struct of 23 roles, the Dark and Light
+' presets (value for value), the system preference, and the process-wide current theme.
+'
+' A theme is APPLIED, not looked up at paint time: tkTheme_Apply stores it and broadcasts
+' TKM_THEMECHANGED to every widget on every surface. Each control then copies the roles it
+' uses into its own colour struct -- unless the host pinned that control's colours with its
+' SetColors, in which case it is left alone until UnpinColors (vendor's rule).
+'
+' Dropped as Win32-only: PsTheme_ApplyTitleBar / ApplyCaptionOf (DWM caption colour). SDL has
+' no title-bar colour; the OS draws the caption in its own theme. See PORT.md.
+#module "tkTheme"
+
+#import "../tkHost" public
+using tkHost
+using tkPaint
+
+public type TKTHEME_COLORS
+    IsDark          as boolean
+    Window          as ulong     ' form background; controls that sit flat on it
+    Surface         as ulong     ' control face: buttons, fields, bars
+    SurfaceHot      as ulong     ' face under the mouse
+    SurfaceDisabled as ulong
+    Text            as ulong
+    TextHot         as ulong     ' text under the mouse
+    TextStrong      as ulong     ' titles, pressed and emphasised text
+    TextDim         as ulong     ' secondary text: captions, labels, placeholders
+    TextDisabled    as ulong
+    Accent          as ulong     ' checked / on / progress / today
+    AccentHot       as ulong
+    FocusRing       as ulong     ' focus rings and focused borders
+    Border          as ulong
+    BorderDisabled  as ulong
+    Divider         as ulong     ' separators, grid lines, hairlines
+    Selected        as ulong     ' selection and pressed fill
+    SelectedText    as ulong
+    Popup           as ulong     ' menus, dropdowns, tooltips
+    PopupText       as ulong
+    Track           as ulong     ' the unfilled part of a track: toggle off, progress
+    Success         as ulong
+    Warning         as ulong
+    Error           as ulong
+end type
+
+public function tkTheme_Dark( ) as TKTHEME_COLORS
+    dim as TKTHEME_COLORS t
+    t.IsDark          = true
+    t.Window          = tkRGB( 33, 37, 43)
+    t.Surface         = tkRGB( 44, 49, 58)
+    t.SurfaceHot      = tkRGB( 55, 61, 72)
+    t.SurfaceDisabled = tkRGB( 40, 44, 51)
+    t.Text            = tkRGB(200,205,214)
+    t.TextHot         = tkRGB(226,230,238)
+    t.TextStrong      = tkRGB(255,255,255)
+    t.TextDim         = tkRGB(150,156,166)
+    t.TextDisabled    = tkRGB( 96,102,112)
+    t.Accent          = tkRGB( 86,156,214)
+    t.AccentHot       = tkRGB(122,180,230)
+    t.FocusRing       = tkRGB( 97,175,239)
+    t.Border          = tkRGB( 68, 74, 86)
+    t.BorderDisabled  = tkRGB( 48, 52, 60)
+    t.Divider         = tkRGB( 55, 60, 69)
+    t.Selected        = tkRGB( 38, 79,120)
+    t.SelectedText    = tkRGB(255,255,255)
+    t.Popup           = tkRGB( 44, 49, 58)
+    t.PopupText       = tkRGB(212,217,226)
+    t.Track           = tkRGB( 51, 55, 63)
+    t.Success         = tkRGB( 72,151, 13)
+    t.Warning         = tkRGB(229,192,123)
+    t.Error           = tkRGB(224,108,117)
+    return t
+end function
+
+public function tkTheme_Light( ) as TKTHEME_COLORS
+    dim as TKTHEME_COLORS t
+    t.IsDark          = false
+    t.Window          = tkRGB(243,243,243)
+    t.Surface         = tkRGB(255,255,255)
+    t.SurfaceHot      = tkRGB(229,241,251)
+    t.SurfaceDisabled = tkRGB(240,240,240)
+    t.Text            = tkRGB( 32, 32, 32)
+    t.TextHot         = tkRGB(  0,  0,  0)
+    t.TextStrong      = tkRGB(  0,  0,  0)
+    t.TextDim         = tkRGB( 96, 96, 96)
+    t.TextDisabled    = tkRGB(160,160,160)
+    t.Accent          = tkRGB(  0,120,215)
+    t.AccentHot       = tkRGB( 25,140,230)
+    t.FocusRing       = tkRGB(  0,120,215)
+    t.Border          = tkRGB(200,200,200)
+    t.BorderDisabled  = tkRGB(222,222,222)
+    t.Divider         = tkRGB(225,225,225)
+    t.Selected        = tkRGB(  0,120,215)
+    t.SelectedText    = tkRGB(255,255,255)
+    t.Popup           = tkRGB(249,249,249)
+    t.PopupText       = tkRGB( 32, 32, 32)
+    t.Track           = tkRGB(225,225,225)
+    t.Success         = tkRGB( 16,124, 16)
+    t.Warning         = tkRGB(157, 93,  0)
+    t.Error           = tkRGB(196, 43, 28)
+    return t
+end function
+
+' The OS preference, through SDL (Windows: AppsUseLightTheme; Linux: the portal's colour
+' scheme; macOS: the appearance). UNKNOWN reads as light, as vendor's failed registry read did.
+public function tkTheme_SystemIsDark( ) as boolean
+    return SDL_GetSystemTheme() = SDL_SYSTEM_THEME_DARK
+end function
+
+public function tkTheme_System( ) as TKTHEME_COLORS
+    if tkTheme_SystemIsDark() then return tkTheme_Dark()
+    return tkTheme_Light()
+end function
+
+public function tkTheme_Equal( byref a as TKTHEME_COLORS, byref b as TKTHEME_COLORS ) as boolean
+    if a.IsDark <> b.IsDark then return false
+    dim as ulong ptr pa = @a.Window
+    dim as ulong ptr pb = @b.Window
+    dim as long n = ((cast( ubyte ptr, @a.Error ) - cast( ubyte ptr, pa )) \ sizeof( ulong )) + 1
+    for i as long = 0 to n - 1
+        if pa[i] <> pb[i] then return false
+    next
+    return true
+end function
+
+
+' ---- the current theme ---------------------------------------------------------------------
+dim shared as TKTHEME_COLORS gTheme
+dim shared as boolean gThemeSet
+
+' The theme in force: the last one applied, else the dark preset every control defaults to.
+public function tkTheme_Get( ) as TKTHEME_COLORS
+    if gThemeSet = false then gTheme = tkTheme_Dark() : gThemeSet = true
+    return gTheme
+end function
+
+' Make t current and tell every widget on every surface (TKM_THEMECHANGED). Each control
+' re-themes itself unless its colours are pinned. The surfaces' own backgrounds follow
+' t.Window. Applying an EQUAL theme does nothing, so a settings change that touched no
+' colour costs no repaint.
+public sub tkTheme_Apply( byref t as TKTHEME_COLORS )
+    if gThemeSet andalso tkTheme_Equal( gTheme, t ) then exit sub
+    gTheme = t
+    gThemeSet = true
+    tkHost_BroadcastAll( TKM_THEMECHANGED, t.Window )
+end sub

@@ -1,0 +1,165 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkFontList -- the fonts installed on this machine, by family, style and file. Win32 had
+' EnumFontFamiliesEx and GDI resolved a face name to its file; SDL_ttf opens FILES and lists none,
+' and Linux's answer (fontconfig) is not a dependency tkControls takes. So this walks font folders
+' and asks SDL_ttf about each face: family, style, fixed pitch.
+'
+' A FACE IS A FILE, OR A FILE AND A FAMILY. A .ttc collection holds several faces; its face is
+' named "path|Family", the spelling tkCodeEdit_SetFontFace and the fallback chain take -- the
+' family selects within the collection, and the wrong name fails rather than opening face 0.
+'
+' Scanning opens every face, so it is not free (tkFontList_Scan's result says how long); an
+' application scans once, when a font picker first needs it.
+#module "tkFontList"
+
+#import "std/fs"
+#import "std/containers"
+#import "../tkHost" public
+using containers
+using tkHost
+
+public type TKFONT_FACE
+    family as string                  ' UTF-8, as the font names itself
+    style  as string                  ' "Regular", "Bold", "Italic", "Bold Italic", ...
+    file   as string                  ' "path", or "path|family" for a face of a .ttc
+    bMono  as boolean                 ' fixed pitch
+    bBold  as boolean
+    bItalic as boolean
+end type
+
+dim shared as Array( of TKFONT_FACE ) gFaces
+dim shared as double gScanMs
+
+' The folders a platform keeps its fonts in: the user's own last, so a system face comes first.
+public function tkFontList_SystemDirs() as string
+#if defined( TIKO_OS_WINDOWS )
+    dim as string w = environ( "WINDIR" )
+    if len( w ) = 0 then w = "C:\Windows"
+    dim as string r = w & "\Fonts"
+    dim as string l = environ( "LOCALAPPDATA" )
+    if len( l ) then r &= chr( 10 ) & l & "\Microsoft\Windows\Fonts"
+    return r
+#elseif defined( TIKO_OS_MACOS )
+    return "/System/Library/Fonts" & chr( 10 ) & "/Library/Fonts" & chr( 10 ) & environ( "HOME" ) & "/Library/Fonts"
+#else
+    return "/usr/share/fonts" & chr( 10 ) & "/usr/local/share/fonts" & chr( 10 ) & environ( "HOME" ) & "/.local/share/fonts"
+#endif
+end function
+
+private function IsFontFile( byref nm as ustring ) as boolean
+    dim as string l = lcase( nm )
+    return (right( l, 4 ) = ".ttf") orelse (right( l, 4 ) = ".otf") orelse (right( l, 4 ) = ".ttc")
+end function
+
+private sub AddFile( byref path as string )
+    dim as boolean bTtc = (lcase( right( path, 4 ) ) = ".ttc")
+    dim as SDL_PropertiesID props = SDL_CreateProperties()
+    if props = 0 then exit sub
+    SDL_SetStringProperty( props, TTF_PROP_FONT_CREATE_FILENAME_STRING, strptr( path ) )
+    SDL_SetFloatProperty( props, TTF_PROP_FONT_CREATE_SIZE_FLOAT, 12 )
+    dim as long nFaces = 1
+    dim as long i = 0
+    while (i < nFaces) andalso (i < 32)
+        SDL_SetNumberProperty( props, TTF_PROP_FONT_CREATE_FACE_NUMBER, i )
+        dim as TTF_Font ptr f = TTF_OpenFontWithProperties( props )
+        if f = 0 then exit while
+        if i = 0 then nFaces = TTF_GetNumFontFaces( f )
+        dim as TKFONT_FACE fc
+        if TTF_GetFontFamilyName( f ) then fc.family = *TTF_GetFontFamilyName( f )
+        if TTF_GetFontStyleName( f ) then fc.style = *TTF_GetFontStyleName( f )
+        fc.bMono = TTF_FontIsFixedWidth( f )
+        dim as long st = TTF_GetFontStyle( f )
+        fc.bBold = (st and TTF_STYLE_BOLD) <> 0
+        fc.bItalic = (st and TTF_STYLE_ITALIC) <> 0
+        ' a style name says more than the flags for many fonts ("Semibold", "Oblique")
+        dim as string ls = lcase( fc.style )
+        if instr( ls, "bold" ) then fc.bBold = true
+        if instr( ls, "italic" ) orelse instr( ls, "oblique" ) then fc.bItalic = true
+        fc.file = path
+        if bTtc then fc.file &= "|" & fc.family
+        if len( fc.family ) then gFaces.Push( fc )
+        TTF_CloseFont( f )
+        i += 1
+    wend
+    SDL_DestroyProperties( props )
+end sub
+
+' Walk the folders (LF-separated; "" = this platform's tkFontList_SystemDirs), opening every face.
+' Replaces what an earlier scan found. Returns the number of faces. TTF_Init must have run.
+public function tkFontList_Scan( byref dirs as string = "" ) as long
+    dim as Uint64 t0 = SDL_GetPerformanceCounter()
+    gFaces.Clear()
+    dim as string rest = dirs
+    if len( rest ) = 0 then rest = tkFontList_SystemDirs()
+    while len( rest )
+        dim as long nl = instr( rest, chr( 10 ) )
+        dim as string d
+        if nl then
+            d = left( rest, nl - 1 ) : rest = mid( rest, nl + 1 )
+        else
+            d = rest : rest = ""
+        end if
+        dim as ustring ud = d
+        if (len( d ) = 0) orelse (fs.IsDir( ud ) = false) then continue while
+        for each r as fs.DirEntryResult in fs.WalkDir( ud )
+            if r.IsOk() = false then continue for
+            dim as fs.DirEntry e = r.Value()
+            if e.IsFile() andalso IsFontFile( e.Name() ) then
+                dim as string p8 = e.Path()
+                AddFile( p8 )
+            end if
+        next
+    wend
+    gScanMs = (SDL_GetPerformanceCounter() - t0) * 1000.0 / SDL_GetPerformanceFrequency()
+    return gFaces.Count()
+end function
+
+public function tkFontList_ScanMs() as double
+    return gScanMs
+end function
+
+public function tkFontList_Count() as long
+    return gFaces.Count()
+end function
+
+public function tkFontList_Face( byval i as long ) as TKFONT_FACE
+    dim as TKFONT_FACE none
+    if (i < 0) orelse (i >= gFaces.Count()) then return none
+    return gFaces.At( i )
+end function
+
+' Every family once, sorted, case-insensitively unique. bMonoOnly: the fixed-pitch ones.
+public function tkFontList_Families( byval bMonoOnly as boolean = false ) as Array( of string )
+    dim as Map( of string, string ) seen
+    for each fc as TKFONT_FACE in gFaces
+        if bMonoOnly andalso (fc.bMono = false) then continue for
+        dim as string k = lcase( fc.family )
+        if seen.Contains( k ) = false then seen.Put( k, fc.family )
+    next
+    dim as Array( of string ) out_
+    for each kv as KeyValuePair( of string, string ) in seen
+        out_.Push( kv.value )
+    next
+    Sort( out_ )
+    return out_
+end function
+
+' The file of a family in a style, "" when the family is not installed. A missing bold or italic
+' falls back to the regular face (as PlatTk does), and that to any face of the family.
+public function tkFontList_Find( byref family as string, byval bBold as boolean = false, byval bItalic as boolean = false ) as string
+    dim as string lf = lcase( family )
+    dim as string anyFile, regular
+    for each fc as TKFONT_FACE in gFaces
+        if lcase( fc.family ) <> lf then continue for
+        if (fc.bBold = bBold) andalso (fc.bItalic = bItalic) then return fc.file
+        if (fc.bBold = false) andalso (fc.bItalic = false) andalso (len( regular ) = 0) then regular = fc.file
+        if len( anyFile ) = 0 then anyFile = fc.file
+    next
+    if len( regular ) then return regular
+    return anyFile
+end function

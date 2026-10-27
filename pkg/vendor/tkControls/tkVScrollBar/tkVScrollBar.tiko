@@ -1,0 +1,98 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkVScrollBar -- vendor PsVScrollBar on tkControls: the same API over the shared
+' tkScrollBar engine (see that module's header for the behaviour). Takes only the vertical wheel.
+#module "tkVScrollBar"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkScrollBar" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkScrollBar
+
+public const TKVSCROLL_REPEAT_DELAY = TKSCROLL_REPEAT_DELAY
+public const TKVSCROLL_REPEAT_MS = TKSCROLL_REPEAT_MS
+public const TKVSCROLL_MIN_THUMB = TKSCROLL_MIN_THUMB
+public const TKVSCROLL_DEFAULT_WIDTH = TKSCROLL_DEFAULT_THICKNESS
+
+public type TKVSCROLLBAR_PAINTINFO as TKSCROLLBAR_PAINTINFO
+public type VScrollPaintCallbackSub as tkScrollPaintSub
+public type VScrollCallbackSub as tkScrollNotifySub
+
+public function tkVScrollBar_Create( byval hParent as TK_WIDGET ptr, byval CtrlID as integer ) as TK_WIDGET ptr
+    return tkScrollBar_Create( hParent, CtrlID, true )
+end function
+
+public sub tkVScrollBar_SetRange( byval hSB as TK_WIDGET ptr, byval nTotal as integer, byval nPage as integer, byval nPosition as integer )
+    tkScrollBar_SetRange( hSB, nTotal, nPage, nPosition )
+end sub
+
+public function tkVScrollBar_GetPos( byval hSB as TK_WIDGET ptr ) as integer
+    return tkScrollBar_GetPos( hSB )
+end function
+
+public sub tkVScrollBar_SetPos( byval hSB as TK_WIDGET ptr, byval nPosition as integer )
+    tkScrollBar_SetPos( hSB, nPosition )
+end sub
+
+' nDelta in 120ths of a notch, already signed: POSITIVE scrolls UP (decreases the position).
+public function tkVScrollBar_HandleWheelDelta( byval hSB as TK_WIDGET ptr, byval nDelta as integer ) as boolean
+    return tkScrollBar_HandleWheelDelta( hSB, nDelta )
+end function
+
+public sub tkVScrollBar_SetWheelStep( byval hSB as TK_WIDGET ptr, byval nUnitsPerNotch as integer )
+    tkScrollBar_SetWheelStep( hSB, nUnitsPerNotch )
+end sub
+
+public function tkVScrollBar_GetWheelStep( byval hSB as TK_WIDGET ptr ) as integer
+    return tkScrollBar_GetWheelStep( hSB )
+end function
+
+public function tkVScrollBar_NeedsThumb( byval hSB as TK_WIDGET ptr ) as boolean
+    return tkScrollBar_NeedsThumb( hSB )
+end function
+
+public function tkVScrollBar_IsDragging( byval hSB as TK_WIDGET ptr ) as boolean
+    return tkScrollBar_IsDragging( hSB )
+end function
+
+public function tkVScrollBar_GetThumbRect( byval hSB as TK_WIDGET ptr ) as TKRECT
+    return tkScrollBar_GetThumbRect( hSB )
+end function
+
+public sub tkVScrollBar_SetColors( byval hSB as TK_WIDGET ptr, byval backclr as ulong, byval foreclr as ulong, byval foreclrhot as ulong )
+    tkScrollBar_SetColors( hSB, backclr, foreclr, foreclrhot )
+end sub
+
+' A one-pixel line down the bar's left edge, separating it from the content it scrolls.
+public sub tkVScrollBar_SetDividerColor( byval hSB as TK_WIDGET ptr, byval clr as ulong, byval bShow as boolean = true )
+    tkScrollBar_SetDividerColor( hSB, clr, bShow )
+end sub
+
+public function tkVScrollBar_GetDividerColor( byval hSB as TK_WIDGET ptr ) as ulong
+    dim as TKSCROLLBAR_STATE ptr pSB = tkScrollBar_State( hSB )
+    if pSB = 0 then return 0
+    return pSB->DividerColor
+end function
+
+public sub tkVScrollBar_ApplyTheme( byval hSB as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    tkScrollBar_ApplyTheme( hSB, t )
+end sub
+
+public sub tkVScrollBar_UnpinColors( byval hSB as TK_WIDGET ptr )
+    tkScrollBar_UnpinColors( hSB )
+end sub
+
+public sub tkVScrollBar_SetPaintCallback( byval hSB as TK_WIDGET ptr, byval usersub as VScrollPaintCallbackSub )
+    tkScrollBar_SetPaintCallback( hSB, usersub )
+end sub
+
+public sub tkVScrollBar_SetScrollCallback( byval hSB as TK_WIDGET ptr, byval usersub as VScrollCallbackSub )
+    tkScrollBar_SetScrollCallback( hSB, usersub )
+end sub

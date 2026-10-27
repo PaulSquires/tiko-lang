@@ -1,0 +1,1075 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkIconPanel -- PsIconPanel on SDL3 + SDL_ttf, a port of
+' pkg/vendor/PsControls/PsIconPanel/PsIconPanel.tiko onto tkHost.
+'
+' WHAT IS UNCHANGED, by design: the declared-cell layout model (nothing is measured; a resize
+' moves the run as one block), the static item set, the three kinds, selection as a SET on the
+' items, silent setters, the press / slide-off / release gesture with capture, the state
+' precedence and colours, glyph-or-image cells, per-item tooltips, and GetIdealWidth being
+' valid before the control is sized.
+'
+' WHAT IS ADDED, from PsPlatform's PsIconPanel: a VERTICAL mode (the activity-bar column) and
+' the selection MARKER (a slab down a column's left edge, a rule under a row's cell), plus
+' SelectExclusive. Both are off by default, so a vendor program looks the same.
+'
+' WHAT IS GONE, because the HWND is gone: the 100 ms hot-track poll (the host guarantees the
+' leave), WM_MOUSEHOVER (no TrackMouseEvent; the tooltip keeps its own dwell), the comctl32
+' tooltip backend and its mode switch, and PsRegistry. See PORT.md.
+#module "tkIconPanel"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkTooltip" public
+#import "../tkImage" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkTooltip
+using tkImage
+
+public const TKICONPANEL_DEFAULT_ICONWIDTH = 20
+public const TKICONPANEL_DEFAULT_ICONHEIGHT = 20
+public const TKICONPANEL_DEFAULT_PADBEFORE = 4
+public const TKICONPANEL_DEFAULT_PADAFTER = 4
+public const TKICONPANEL_DEFAULT_SEPWIDTH = 1
+
+public enum
+    IP_JUSTIFY_LEFT = 0           ' TOP in vertical mode
+    IP_JUSTIFY_CENTER
+    IP_JUSTIFY_RIGHT              ' BOTTOM in vertical mode
+end enum
+
+public enum
+    IP_KIND_TOGGLE = 0
+    IP_KIND_COMMAND
+    IP_KIND_SEPARATOR
+end enum
+
+' The Win32 control's dark defaults, value for value, plus MarkerColor (PsPlatform's accent).
+public type TKICONPANEL_COLORS
+    BackColor         as ulong = &hFF21252Bul    ' ( 33, 37, 43) panel + idle cell
+    ForeColor         as ulong = &hFFD7DAE0ul    ' (215,218,224) idle glyph
+    BackColorHot      as ulong = &hFF2C313Aul    ' ( 44, 49, 58)
+    ForeColorHot      as ulong = &hFFFFFFFFul
+    BackColorSelect   as ulong = &hFF264F78ul    ' ( 38, 79,120) latched toggle + press flash
+    ForeColorSelect   as ulong = &hFFFFFFFFul
+    ForeColorDisabled as ulong = &hFF6E737Dul    ' (110,115,125)
+    SeparatorColor    as ulong = &hFF464C58ul    ' ( 70, 76, 88)
+    MarkerColor       as ulong = &hFF569CD6ul    ' the selection marker (tk addition)
+end type
+
+public type TKICONPANEL_ITEM
+    itemKind      as long = IP_KIND_TOGGLE
+    wszGlyph      as ustring
+    pImage        as tkImageFile ptr     ' OWNED; a cell is a glyph or an image, never both
+    wszTooltip    as ustring
+    id            as long
+    itemData      as integer
+    isSelected    as boolean
+    isEnabled     as boolean = true
+    nPadBefore    as long = -1           ' -1 = inherit
+    nPadAfter     as long = -1
+    nIconWidth    as long = 0            '  0 = inherit
+    nIconHeight   as long = 0
+    ForeColorItem as ulong
+    bHasForeColor as boolean
+    ' --- derived by LayoutItems ---
+    nCellWidth    as long                ' the cell's extent ALONG the run (a height when vertical)
+    rc            as TKRECT
+    rcIcon        as TKRECT
+end type
+
+public type TKICONPANEL_PAINTINFO
+    hIconPanel as TK_WIDGET ptr
+    itemID     as long
+    b          as TK_PAINT ptr
+    itemKind   as long
+    rc         as TKRECT
+    rcIcon     as TKRECT
+    isHot      as boolean
+    isSelected as boolean
+    isPressed  as boolean
+    isEnabled  as boolean
+    wszGlyph   as ustring
+    pImage     as tkImageFile ptr        ' draw with tkImage_Paint INSTEAD OF the glyph
+    isVertical as boolean
+end type
+
+public type TKICONPANEL_MESSAGEINFO
+    hIconPanel as TK_WIDGET ptr
+    msg        as long                   ' TKM_*
+    x          as single
+    y          as single
+    idx        as long                   ' item under the mouse, -1 for none
+end type
+
+public type IP_PaintItemCallbackSub as sub( byval p as TKICONPANEL_PAINTINFO ptr )
+public type IP_MessageCallbackFunc as function( byval m as TKICONPANEL_MESSAGEINFO ptr ) as boolean
+public type IP_TooltipCallbackFunc as function( byval hIconPanel as TK_WIDGET ptr, byval idx as long ) as ustring
+public type IP_ClickCallbackSub as sub( byval hIconPanel as TK_WIDGET ptr, byval idx as long, byval id as long )
+public type IP_SelChangeCallbackSub as sub( byval hIconPanel as TK_WIDGET ptr, byval idx as long, byval isSelected as boolean )
+
+public type TKICONPANEL_STATE
+    hWin              as TK_WIDGET ptr
+    id                as long
+    bColorsPinned     as boolean
+    tip               as TKTIPHOST_STATE
+    items(any)        as TKICONPANEL_ITEM
+    itemCount         as long
+    nLastHotIdx       as long = -1
+    nPressedIdx       as long = -1
+    colors            as TKICONPANEL_COLORS
+    pIconFont         as TTF_Font ptr        ' borrowed
+    nJustify          as long = IP_JUSTIFY_LEFT
+    bVertical         as boolean
+    nMarkerSize       as long                ' 0 = no marker (vendor's look)
+    bFillSelected     as boolean = true
+    nIconWidth        as long
+    nIconHeight       as long
+    nPadBefore        as long
+    nPadAfter         as long
+    nSepWidth         as long
+    nTotalWidth       as long
+    nCrossExtent      as long                ' the widest icon across the run
+    bLayoutDirty      as boolean = true
+    PaintItemCallback as IP_PaintItemCallbackSub
+    MessageCallback   as IP_MessageCallbackFunc
+    TooltipCallback   as IP_TooltipCallbackFunc
+    ClickCallback     as IP_ClickCallbackSub
+    SelChangeCallback as IP_SelChangeCallbackSub
+
+    declare sub      LayoutItems()
+    declare function GetCount() as long
+    declare function AddItem() as TKICONPANEL_ITEM ptr
+    declare function GetItem( byval idx as long ) as TKICONPANEL_ITEM ptr
+    declare function IsValidItem( byval idx as long ) as boolean
+    declare function HitTest( byval x as long, byval y as long ) as long
+    declare sub      CancelPress()
+    declare sub      Refresh()
+end type
+
+
+' The vendor cell model, unchanged for a row; a column is the same model with the axes swapped
+' (cells stack downwards, the icon is centred across, a separator's rule lies flat).
+'
+'   cellLen(i) = padBefore(i) + coreLen(i) + padAfter(i)
+'   coreLen    = iconWidth (row) / iconHeight (column); a separator's is sepWidth
+'   start      = 0 | (client - total) \ 2 | client - total      LEFT/TOP, CENTER, RIGHT/BOTTOM
+sub TKICONPANEL_STATE.LayoutItems()
+    this.bLayoutDirty = false
+    this.nTotalWidth = 0
+    this.nCrossExtent = 0
+    if (this.hWin = 0) orelse (this.itemCount = 0) then exit sub
+
+    dim as long clientW = this.hWin->cw
+    dim as long clientH = this.hWin->ch
+    dim as long clientLen = iif( this.bVertical, clientH, clientW )
+    dim as long clientCross = iif( this.bVertical, clientW, clientH )
+
+    dim padB( 0 to this.itemCount - 1 ) as long
+    dim coreW( 0 to this.itemCount - 1 ) as long
+    dim coreH( 0 to this.itemCount - 1 ) as long
+
+    dim as long totalW = 0
+    for i as long = 0 to this.itemCount - 1
+        with this.items(i)
+            padB(i) = iif( .nPadBefore < 0, this.nPadBefore, .nPadBefore )
+            dim as long padA = iif( .nPadAfter < 0, this.nPadAfter, .nPadAfter )
+            coreW(i) = iif( .nIconWidth = 0, this.nIconWidth, .nIconWidth )
+            coreH(i) = iif( .nIconHeight = 0, this.nIconHeight, .nIconHeight )
+            ' A separator's rule replaces the extent ALONG the run and keeps the one across it,
+            ' so it stands exactly as tall (row) or as wide (column) as the icons it divides.
+            if .itemKind = IP_KIND_SEPARATOR then
+                if this.bVertical then coreH(i) = this.nSepWidth else coreW(i) = this.nSepWidth
+            end if
+            dim as long nCross = iif( this.bVertical, coreW(i), coreH(i) )
+            if nCross > this.nCrossExtent then this.nCrossExtent = nCross
+            ' never larger across than the client -- once there is a client
+            if clientCross > 0 then
+                if this.bVertical then
+                    if coreW(i) > clientCross then coreW(i) = clientCross
+                else
+                    if coreH(i) > clientCross then coreH(i) = clientCross
+                end if
+            end if
+            .nCellWidth = padB(i) + iif( this.bVertical, coreH(i), coreW(i) ) + padA
+            totalW += .nCellWidth
+        end with
+    next
+    this.nTotalWidth = totalW
+
+    ' AFTER the total: the run's length never depends on the client, only its start does.
+    if (clientW <= 0) orelse (clientH <= 0) then
+        this.bLayoutDirty = true
+        exit sub
+    end if
+
+    dim as long x0 = 0
+    if totalW < clientLen then
+        select case this.nJustify
+        case IP_JUSTIFY_CENTER
+            x0 = (clientLen - totalW) \ 2
+        case IP_JUSTIFY_RIGHT
+            x0 = clientLen - totalW
+        end select
+    end if
+
+    dim as long x = x0
+    for i as long = 0 to this.itemCount - 1
+        with this.items(i)
+            if this.bVertical then
+                tkRect_Set( .rc, 0, x, clientW, x + .nCellWidth )
+                dim as long xLeft = (clientW - coreW(i)) \ 2
+                tkRect_Set( .rcIcon, xLeft, x + padB(i), xLeft + coreW(i), x + padB(i) + coreH(i) )
+            else
+                tkRect_Set( .rc, x, 0, x + .nCellWidth, clientH )
+                dim as long yTop = (clientH - coreH(i)) \ 2
+                tkRect_Set( .rcIcon, x + padB(i), yTop, x + padB(i) + coreW(i), yTop + coreH(i) )
+            end if
+            x += .nCellWidth
+        end with
+    next
+end sub
+
+function TKICONPANEL_STATE.GetCount() as long
+    return this.itemCount
+end function
+
+function TKICONPANEL_STATE.IsValidItem( byval idx as long ) as boolean
+    return (idx >= 0) andalso (idx < this.itemCount)
+end function
+
+function TKICONPANEL_STATE.GetItem( byval idx as long ) as TKICONPANEL_ITEM ptr
+    if this.IsValidItem( idx ) = false then return 0
+    return @this.items(idx)
+end function
+
+' Separators excluded; DISABLED items included (they occupy their cell).
+function TKICONPANEL_STATE.HitTest( byval x as long, byval y as long ) as long
+    for i as long = 0 to this.itemCount - 1
+        if this.items(i).itemKind = IP_KIND_SEPARATOR then continue for
+        if tkRect_Contains( this.items(i).rc, x, y ) then return i
+    next
+    return -1
+end function
+
+function TKICONPANEL_STATE.AddItem() as TKICONPANEL_ITEM ptr
+    dim as long cap = ubound( this.items ) + 1
+    if this.itemCount >= cap then
+        dim as long newcap = iif( cap = 0, 16, cap * 2 )
+        redim preserve this.items( 0 to newcap - 1 )
+    end if
+    dim as long idx = this.itemCount
+    with this.items(idx)
+        .itemKind = IP_KIND_TOGGLE : .wszGlyph = "" : .wszTooltip = "" : .pImage = 0
+        .id = 0 : .itemData = 0 : .isSelected = false : .isEnabled = true
+        .nPadBefore = -1 : .nPadAfter = -1 : .nIconWidth = 0 : .nIconHeight = 0
+        .ForeColorItem = 0 : .bHasForeColor = false : .nCellWidth = 0
+        tkRect_SetEmpty( .rc ) : tkRect_SetEmpty( .rcIcon )
+    end with
+    this.itemCount += 1
+    this.Refresh()
+    return @this.items(idx)
+end function
+
+sub TKICONPANEL_STATE.CancelPress()
+    this.nPressedIdx = -1
+end sub
+
+sub TKICONPANEL_STATE.Refresh()
+    this.bLayoutDirty = true
+    tkWidget_Invalidate( this.hWin )
+end sub
+
+
+private function GetIconPanelPointer( byval hIconPanel as TK_WIDGET ptr ) as TKICONPANEL_STATE ptr
+    if hIconPanel = 0 then return 0
+    return cast( TKICONPANEL_STATE ptr, hIconPanel->pData )
+end function
+
+' The item under (x, y) for HOVER and CLICK: inside the client, hit, and enabled.
+private function HotItemAt( byval pIcon as TKICONPANEL_STATE ptr, byval x as single, byval y as single ) as long
+    dim as TK_WIDGET ptr w = pIcon->hWin
+    if (x < 0) orelse (y < 0) orelse (x >= w->cw) orelse (y >= w->ch) then return -1
+    if pIcon->bLayoutDirty then pIcon->LayoutItems()
+    dim as long idx = pIcon->HitTest( fix( x ), fix( y ) )
+    if idx = -1 then return -1
+    if pIcon->items(idx).isEnabled = false then return -1
+    return idx
+end function
+
+private function CallMessage( byval pIcon as TKICONPANEL_STATE ptr, byval m as TK_MSG ptr, byval idx as long ) as boolean
+    if pIcon->MessageCallback = 0 then return false
+    dim as TKICONPANEL_MESSAGEINFO mi
+    mi.hIconPanel = pIcon->hWin
+    mi.msg = m->msg
+    mi.x = m->x
+    mi.y = m->y
+    mi.idx = idx
+    return pIcon->MessageCallback( @mi )
+end function
+
+private function ResolveTooltipText( byval pIcon as TKICONPANEL_STATE ptr, byval idx as long ) as ustring
+    if pIcon = 0 then return ""
+    if pIcon->IsValidItem( idx ) = false then return ""
+    if len( pIcon->items(idx).wszTooltip ) then return pIcon->items(idx).wszTooltip
+    if pIcon->TooltipCallback then return pIcon->TooltipCallback( pIcon->hWin, idx )
+    return ""
+end function
+
+private function TipText( byval t as TK_TIP ptr, byval a as TK_WIDGET ptr, byval idx as long ) as ustring
+    return ResolveTooltipText( GetIconPanelPointer( a ), idx )
+end function
+
+' The selection marker's rect for an item (local pixels): a column marks its LEFT edge, a row
+' underlines (PsPlatform's MarkerRect). Empty when there is no marker.
+private function MarkerRectOf( byval pIcon as TKICONPANEL_STATE ptr, byval idx as long ) as TKRECT
+    dim as TKRECT r
+    if (pIcon->nMarkerSize <= 0) orelse (pIcon->IsValidItem( idx ) = false) then return r
+    dim as TKRECT ri = pIcon->items(idx).rc
+    if tkRect_IsEmpty( ri ) then return r
+    if pIcon->bVertical then
+        tkRect_Set( r, ri.left, ri.top, ri.left + pIcon->nMarkerSize, ri.bottom )
+    else
+        tkRect_Set( r, ri.left, ri.bottom - pIcon->nMarkerSize, ri.right, ri.bottom )
+    end if
+    return r
+end function
+
+' disabled > pressed > hot > selected > per-item fore > idle; pressed reuses the Select pair.
+private sub PaintItemDefault( byval pIcon as TKICONPANEL_STATE ptr, byval b as TK_PAINT ptr, byval idx as long, _
+                              byval isHot as boolean, byval isPressed as boolean )
+    with pIcon->items(idx)
+        if .itemKind = IP_KIND_SEPARATOR then
+            b->SetBackColor( pIcon->colors.BackColor )
+            b->PaintRect( @.rc )
+            b->SetBackColor( pIcon->colors.SeparatorColor )
+            b->PaintRect( @.rcIcon )
+            exit sub
+        end if
+
+        dim as ulong backclr = pIcon->colors.BackColor
+        dim as ulong foreclr = pIcon->colors.ForeColor
+        if .isEnabled = false then
+            foreclr = pIcon->colors.ForeColorDisabled
+        elseif isPressed then
+            backclr = pIcon->colors.BackColorSelect
+            foreclr = pIcon->colors.ForeColorSelect
+        elseif isHot then
+            backclr = pIcon->colors.BackColorHot
+            foreclr = pIcon->colors.ForeColorHot
+        elseif .isSelected then
+            ' PsPlatform's bFillSelected: a marker-only selection keeps the idle fill
+            if pIcon->bFillSelected then backclr = pIcon->colors.BackColorSelect
+            foreclr = pIcon->colors.ForeColorSelect
+        elseif .bHasForeColor then
+            foreclr = .ForeColorItem
+        end if
+
+        b->SetColors( foreclr, backclr )
+        b->PaintRect( @.rc )
+
+        if .isSelected andalso (pIcon->nMarkerSize > 0) then
+            dim as TKRECT rm = MarkerRectOf( pIcon, idx )
+            b->SetBackColor( pIcon->colors.MarkerColor )
+            b->PaintRect( @rm )
+        end if
+
+        if (.pImage <> 0) andalso (.pImage->IsValid() <> 0) then
+            tkImage_Paint( b, .pImage, @.rcIcon, TK_IMGFIT_ASPECT )
+        elseif len( .wszGlyph ) then
+            dim as TTF_Font ptr f = pIcon->pIconFont
+            if f = 0 then f = pIcon->hWin->pHost->pDefaultFont
+            b->SetFont( f )
+            b->SetColors( foreclr, backclr )
+            b->PaintText( .wszGlyph, @.rcIcon, TK_DT_CENTER )
+        end if
+    end with
+end sub
+
+private sub OnPaint( byval pIcon as TKICONPANEL_STATE ptr, byval b as TK_PAINT ptr )
+    if pIcon->bLayoutDirty then pIcon->LayoutItems()
+    dim as TKRECT rcC
+    tkRect_Set( rcC, 0, 0, pIcon->hWin->cw, pIcon->hWin->ch )
+    b->SetBackColor( pIcon->colors.BackColor )
+    b->PaintRect( @rcC )
+
+    dim as TKICONPANEL_PAINTINFO p
+    p.hIconPanel = pIcon->hWin
+    p.b = b
+    p.isVertical = pIcon->bVertical
+    for i as long = 0 to pIcon->itemCount - 1
+        dim as boolean isHot = (i = pIcon->nLastHotIdx)
+        dim as boolean isPressed = (i = pIcon->nPressedIdx) andalso (pIcon->nLastHotIdx = pIcon->nPressedIdx)
+        if pIcon->PaintItemCallback then
+            dim as TKICONPANEL_ITEM ptr pit = @pIcon->items(i)
+            p.itemID = i
+            p.itemKind = pit->itemKind
+            p.rc = pit->rc
+            p.rcIcon = pit->rcIcon
+            p.isHot = isHot
+            p.isSelected = pit->isSelected
+            p.isPressed = isPressed
+            p.isEnabled = pit->isEnabled
+            p.wszGlyph = pit->wszGlyph
+            p.pImage = iif( (pit->pImage <> 0) andalso (pit->pImage->IsValid() <> 0), pit->pImage, cast( tkImageFile ptr, 0 ) )
+            pIcon->PaintItemCallback( @p )
+        else
+            PaintItemDefault( pIcon, b, i, isHot, isPressed )
+        end if
+    next
+end sub
+
+' Clear the hot item. A live press stops LOOKING armed (isPressed derives from hot) but the
+' gesture survives -- only a release or a capture loss ends it.
+private sub ClearHot( byval pIcon as TKICONPANEL_STATE ptr )
+    if pIcon->nLastHotIdx <> -1 then
+        pIcon->nLastHotIdx = -1
+        tkWidget_Invalidate( pIcon->hWin )
+    end if
+    tkTipHost_SetToolIndex( @pIcon->tip, -1 )
+end sub
+
+private sub Rescale( byval pIcon as TKICONPANEL_STATE ptr, byval fOld as single, byval fNew as single )
+    if (fOld <= 0) orelse (fNew <= 0) then exit sub
+    dim as single k = fNew / fOld
+    pIcon->nIconWidth  = cint( pIcon->nIconWidth * k )
+    pIcon->nIconHeight = cint( pIcon->nIconHeight * k )
+    pIcon->nPadBefore  = cint( pIcon->nPadBefore * k )
+    pIcon->nPadAfter   = cint( pIcon->nPadAfter * k )
+    pIcon->nSepWidth   = cint( pIcon->nSepWidth * k )
+    pIcon->nMarkerSize = cint( pIcon->nMarkerSize * k )
+    for i as long = 0 to pIcon->itemCount - 1
+        with pIcon->items(i)
+            ' the inherit sentinels (-1 / 0) are left alone
+            if .nPadBefore  > 0 then .nPadBefore  = cint( .nPadBefore * k )
+            if .nPadAfter   > 0 then .nPadAfter   = cint( .nPadAfter * k )
+            if .nIconWidth  > 0 then .nIconWidth  = cint( .nIconWidth * k )
+            if .nIconHeight > 0 then .nIconHeight = cint( .nIconHeight * k )
+        end with
+    next
+    pIcon->Refresh()
+end sub
+
+public declare sub tkIconPanel_ApplyTheme( byval hIconPanel as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+public declare function tkIconPanel_ThemeColors( byref t as TKTHEME_COLORS ) as TKICONPANEL_COLORS
+
+' The WndProc, case for case where a case survived.
+private function tkIconPanel_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( w )
+    if pIcon = 0 then return false
+    dim as TK_HOST ptr h = w->pHost
+
+    select case m->msg
+    case TKM_PAINT
+        OnPaint( pIcon, m->pPaint )
+        return true
+
+    case TKM_SIZE
+        pIcon->Refresh()
+        return true
+
+    case TKM_SCALECHANGED
+        Rescale( pIcon, m->fOld, m->fNew )
+        return true
+
+    case TKM_THEMECHANGED
+        tkIconPanel_ApplyTheme( w, tkTheme_Get() )
+        return true
+
+    case TKM_MOUSEMOVE
+        dim as long idx = HotItemAt( pIcon, m->x, m->y )
+        if idx <> pIcon->nLastHotIdx then
+            pIcon->nLastHotIdx = idx
+            tkWidget_Invalidate( w )
+            ' a new item is a new offer: the tip hides and re-resolves on the next dwell
+            tkTipHost_SetToolIndex( @pIcon->tip, idx )
+        end if
+        CallMessage( pIcon, m, idx )
+        return true
+
+    case TKM_MOUSELEAVE
+        ClearHot( pIcon )
+        CallMessage( pIcon, m, -1 )
+        return true
+
+    case TKM_LBUTTONDOWN
+        dim as long idx = HotItemAt( pIcon, m->x, m->y )
+        if CallMessage( pIcon, m, idx ) then return true
+        ' No SetFocus: a toolbar must not steal focus from the host's editor.
+        if idx <> -1 then
+            tkTipHost_Pop( @pIcon->tip )
+            tkHost_SetCapture( w )
+            pIcon->nPressedIdx = idx
+            pIcon->nLastHotIdx = idx
+            tkWidget_Invalidate( w )
+        end if
+        return true
+
+    case TKM_LBUTTONUP
+        ' SNAPSHOT BEFORE RELEASING: CAPTURECHANGED arrives synchronously and cancels the press.
+        dim as long idxPressed = pIcon->nPressedIdx
+        if tkHost_GetCapture( h ) = w then tkHost_ReleaseCapture( h )
+        dim as long idx = HotItemAt( pIcon, m->x, m->y )
+        pIcon->CancelPress()
+        pIcon->nLastHotIdx = idx
+        tkWidget_Invalidate( w )
+        CallMessage( pIcon, m, idx )                ' result IGNORED
+        if (idxPressed <> -1) andalso (idx = idxPressed) then
+            dim as TKICONPANEL_ITEM ptr pItem = pIcon->GetItem( idxPressed )
+            if pItem andalso pItem->isEnabled then
+                select case pItem->itemKind
+                case IP_KIND_TOGGLE
+                    dim as boolean bNewState = not pItem->isSelected
+                    pItem->isSelected = bNewState
+                    if pIcon->SelChangeCallback then pIcon->SelChangeCallback( w, idxPressed, bNewState )
+                case IP_KIND_COMMAND
+                    dim as long nId = pItem->id
+                    if pIcon->ClickCallback then pIcon->ClickCallback( w, idxPressed, nId )
+                end select
+            end if
+        end if
+        return true
+
+    case TKM_CAPTURECHANGED
+        pIcon->CancelPress()
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_RBUTTONDOWN, TKM_RBUTTONUP
+        ' Reported, never acted on: a context menu is the host's business.
+        CallMessage( pIcon, m, HotItemAt( pIcon, m->x, m->y ) )
+        return true
+
+    case TKM_ENABLE
+        if m->bFlag = false then
+            pIcon->CancelPress()
+            ClearHot( pIcon )
+            tkTipHost_Pop( @pIcon->tip )
+        end if
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_DESTROY
+        tkTipHost_Destroy( @pIcon->tip )
+        for i as long = 0 to pIcon->itemCount - 1
+            if pIcon->items(i).pImage then delete pIcon->items(i).pImage : pIcon->items(i).pImage = 0
+        next
+        delete pIcon
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ========================================================================================
+' Public API -- the Win32 surface, HWND replaced by the widget pointer.
+' ========================================================================================
+' A child of hParent -- a widget, or tkHost_Root( h ) for a top-level panel. Created
+' zero-sized: place it with tkWidget_SetPos. Not focusable, as vendor (no WS_TABSTOP).
+public function tkIconPanel_Create( byval hParent as TK_WIDGET ptr, byval CtrlID as long ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TK_HOST ptr pHost = hParent->pHost
+    dim as TKICONPANEL_STATE ptr pIcon = new TKICONPANEL_STATE
+    pIcon->id = CtrlID
+    pIcon->nIconWidth  = tkHost_Scale( pHost, TKICONPANEL_DEFAULT_ICONWIDTH )
+    pIcon->nIconHeight = tkHost_Scale( pHost, TKICONPANEL_DEFAULT_ICONHEIGHT )
+    pIcon->nPadBefore  = tkHost_Scale( pHost, TKICONPANEL_DEFAULT_PADBEFORE )
+    pIcon->nPadAfter   = tkHost_Scale( pHost, TKICONPANEL_DEFAULT_PADAFTER )
+    pIcon->nSepWidth   = tkHost_Scale( pHost, TKICONPANEL_DEFAULT_SEPWIDTH )
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @tkIconPanel_Proc, pIcon )
+    pIcon->hWin = w
+    pIcon->colors = tkIconPanel_ThemeColors( tkTheme_Get() )
+    tkTipHost_Ensure( @pIcon->tip, w, @TipText )
+    return w
+end function
+
+public function tkIconPanel_AddItem( byval hIconPanel as TK_WIDGET ptr, byval itemKind as long, byval Glyph as ustring, _
+                                     byval id as long = 0, byval itemData as integer = 0 ) as long
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then return -1
+    dim as TKICONPANEL_ITEM ptr pItem = pIcon->AddItem()
+    pItem->itemKind = itemKind
+    pItem->wszGlyph = Glyph
+    pItem->id = id
+    pItem->itemData = itemData
+    return pIcon->GetCount() - 1
+end function
+
+public function tkIconPanel_AddSeparator( byval hIconPanel as TK_WIDGET ptr ) as long
+    return tkIconPanel_AddItem( hIconPanel, IP_KIND_SEPARATOR, "", 0, 0 )
+end function
+
+public sub tkIconPanel_Refresh( byval hIconPanel as TK_WIDGET ptr )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon then pIcon->Refresh()
+end sub
+
+public function tkIconPanel_GetCount( byval hIconPanel as TK_WIDGET ptr ) as long
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then return 0
+    return pIcon->GetCount()
+end function
+
+public function tkIconPanel_IsValidItem( byval hIconPanel as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then return false
+    return pIcon->IsValidItem( idx )
+end function
+
+' The FIRST item with that id; separators skipped (they all carry id 0).
+public function tkIconPanel_FindItemByID( byval hIconPanel as TK_WIDGET ptr, byval id as long ) as long
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then return -1
+    for i as long = 0 to pIcon->itemCount - 1
+        if pIcon->items(i).itemKind = IP_KIND_SEPARATOR then continue for
+        if pIcon->items(i).id = id then return i
+    next
+    return -1
+end function
+
+' Widget-local coordinates. Forces a pending layout; separators excluded, disabled included.
+public function tkIconPanel_HitTest( byval hIconPanel as TK_WIDGET ptr, byval x as long, byval y as long ) as long
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then return -1
+    if pIcon->bLayoutDirty then pIcon->LayoutItems()
+    return pIcon->HitTest( x, y )
+end function
+
+public function tkIconPanel_GetItemKind( byval hIconPanel as TK_WIDGET ptr, byval idx as long ) as long
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pIcon->IsValidItem( idx ) = false) then return -1
+    return pIcon->items(idx).itemKind
+end function
+
+public function tkIconPanel_GetGlyph( byval hIconPanel as TK_WIDGET ptr, byval idx as long ) as ustring
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pIcon->IsValidItem( idx ) = false) then return ""
+    return pIcon->items(idx).wszGlyph
+end function
+
+' Repaints only; a glyph swap cannot move anything. A non-empty glyph frees the item's image.
+public function tkIconPanel_SetGlyph( byval hIconPanel as TK_WIDGET ptr, byval idx as long, byval Glyph as ustring ) as boolean
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pIcon->IsValidItem( idx ) = false) then return false
+    dim as TKICONPANEL_ITEM ptr pit = @pIcon->items(idx)
+    pit->wszGlyph = Glyph
+    if (len( Glyph ) > 0) andalso (pit->pImage <> 0) then delete pit->pImage : pit->pImage = 0
+    tkWidget_Invalidate( hIconPanel )
+    return true
+end function
+
+' .png / .bmp / .jpg / .ico (SDL_image). TRUE for a successful load or a removal ("").
+public function tkIconPanel_SetImage( byval hIconPanel as TK_WIDGET ptr, byval idx as long, byval Path as ustring ) as boolean
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pIcon->IsValidItem( idx ) = false) then return false
+    dim as TKICONPANEL_ITEM ptr pit = @pIcon->items(idx)
+    if len( Path ) = 0 then
+        if pit->pImage then delete pit->pImage : pit->pImage = 0
+        tkWidget_Invalidate( hIconPanel )
+        return true
+    end if
+    if pit->pImage = 0 then pit->pImage = new tkImageFile
+    dim as long bOK = pit->pImage->Load( Path )
+    if bOK = 0 then
+        delete pit->pImage : pit->pImage = 0
+    else
+        pit->wszGlyph = ""
+    end if
+    tkWidget_Invalidate( hIconPanel )
+    return (bOK <> 0)
+end function
+
+public function tkIconPanel_GetItemID( byval hIconPanel as TK_WIDGET ptr, byval idx as long ) as long
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pIcon->IsValidItem( idx ) = false) then return 0
+    return pIcon->items(idx).id
+end function
+
+public function tkIconPanel_SetItemID( byval hIconPanel as TK_WIDGET ptr, byval idx as long, byval id as long ) as boolean
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pIcon->IsValidItem( idx ) = false) then return false
+    pIcon->items(idx).id = id
+    return true
+end function
+
+public function tkIconPanel_GetItemData( byval hIconPanel as TK_WIDGET ptr, byval idx as long ) as integer
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pIcon->IsValidItem( idx ) = false) then return 0
+    return pIcon->items(idx).itemData
+end function
+
+public function tkIconPanel_SetItemData( byval hIconPanel as TK_WIDGET ptr, byval idx as long, byval itemData as integer ) as boolean
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pIcon->IsValidItem( idx ) = false) then return false
+    pIcon->items(idx).itemData = itemData
+    return true
+end function
+
+public function tkIconPanel_GetSelected( byval hIconPanel as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pIcon->IsValidItem( idx ) = false) then return false
+    return pIcon->items(idx).isSelected
+end function
+
+' SILENT; TOGGLE items only (FALSE for anything else).
+public function tkIconPanel_SetSelected( byval hIconPanel as TK_WIDGET ptr, byval idx as long, byval isSelected as boolean ) as boolean
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pIcon->IsValidItem( idx ) = false) then return false
+    dim as TKICONPANEL_ITEM ptr pItem = @pIcon->items(idx)
+    if pItem->itemKind <> IP_KIND_TOGGLE then return false
+    if pItem->isSelected = isSelected then return true
+    pItem->isSelected = isSelected
+    tkWidget_Invalidate( hIconPanel )
+    return true
+end function
+
+' PsPlatform's helper for the radio case: latch idx, clear every other toggle. Silent. NOT the
+' control's own model -- a host asks for it explicitly.
+public sub tkIconPanel_SelectExclusive( byval hIconPanel as TK_WIDGET ptr, byval idx as long )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then exit sub
+    for i as long = 0 to pIcon->itemCount - 1
+        if pIcon->items(i).itemKind = IP_KIND_TOGGLE then pIcon->items(i).isSelected = (i = idx)
+    next
+    tkWidget_Invalidate( hIconPanel )
+end sub
+
+public function tkIconPanel_GetEnabled( byval hIconPanel as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pIcon->IsValidItem( idx ) = false) then return false
+    return pIcon->items(idx).isEnabled
+end function
+
+' Disabling the hot item clears hot; disabling the pressed item cancels the press -- now.
+public function tkIconPanel_SetEnabled( byval hIconPanel as TK_WIDGET ptr, byval idx as long, byval isEnabled as boolean ) as boolean
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pIcon->IsValidItem( idx ) = false) then return false
+    dim as TKICONPANEL_ITEM ptr pItem = @pIcon->items(idx)
+    if pItem->isEnabled = isEnabled then return true
+    pItem->isEnabled = isEnabled
+    if isEnabled = false then
+        if pIcon->nLastHotIdx = idx then pIcon->nLastHotIdx = -1
+        if pIcon->nPressedIdx = idx then pIcon->CancelPress()
+    end if
+    tkWidget_Invalidate( hIconPanel )
+    return true
+end function
+
+public function tkIconPanel_GetJustify( byval hIconPanel as TK_WIDGET ptr ) as long
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then return IP_JUSTIFY_LEFT
+    return pIcon->nJustify
+end function
+
+public sub tkIconPanel_SetJustify( byval hIconPanel as TK_WIDGET ptr, byval nJustify as long )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then exit sub
+    if (nJustify < IP_JUSTIFY_LEFT) orelse (nJustify > IP_JUSTIFY_RIGHT) then exit sub
+    pIcon->nJustify = nJustify
+    pIcon->Refresh()
+end sub
+
+' PsPlatform's column mode: cells stack downwards; justify LEFT/CENTER/RIGHT = top/centre/bottom.
+public sub tkIconPanel_SetVertical( byval hIconPanel as TK_WIDGET ptr, byval bVertical as boolean )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pIcon->bVertical = bVertical) then exit sub
+    pIcon->bVertical = bVertical
+    pIcon->Refresh()
+end sub
+
+public function tkIconPanel_GetVertical( byval hIconPanel as TK_WIDGET ptr ) as boolean
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then return false
+    return pIcon->bVertical
+end function
+
+' PsPlatform's selection marker: nSize raw pixels (0 = none, the default); bFillSelected =
+' whether a latched toggle ALSO takes BackColorSelect (a tab row usually wants the marker alone).
+public sub tkIconPanel_SetMarker( byval hIconPanel as TK_WIDGET ptr, byval nSize as long, byval bFillSelected as boolean = true )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then exit sub
+    pIcon->nMarkerSize = iif( nSize < 0, 0, nSize )
+    pIcon->bFillSelected = bFillSelected
+    tkWidget_Invalidate( hIconPanel )
+end sub
+
+public sub tkIconPanel_GetMarker( byval hIconPanel as TK_WIDGET ptr, byref nSize as long, byref bFillSelected as boolean )
+    nSize = 0 : bFillSelected = true
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then exit sub
+    nSize = pIcon->nMarkerSize : bFillSelected = pIcon->bFillSelected
+end sub
+
+' Where the marker of item idx is (or would be), local pixels; FALSE for a bad index.
+public function tkIconPanel_GetMarkerRect( byval hIconPanel as TK_WIDGET ptr, byval idx as long, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pIcon->IsValidItem( idx ) = false) then return false
+    if pIcon->bLayoutDirty then pIcon->LayoutItems()
+    rc = MarkerRectOf( pIcon, idx )
+    return true
+end function
+
+public sub tkIconPanel_GetIconSize( byval hIconPanel as TK_WIDGET ptr, byref nIconWidth as long, byref nIconHeight as long )
+    nIconWidth = 0 : nIconHeight = 0
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then exit sub
+    nIconWidth = pIcon->nIconWidth : nIconHeight = pIcon->nIconHeight
+end sub
+
+public sub tkIconPanel_SetIconSize( byval hIconPanel as TK_WIDGET ptr, byval nIconWidth as long, byval nIconHeight as long )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then exit sub
+    pIcon->nIconWidth = iif( nIconWidth < 0, 0, nIconWidth )
+    pIcon->nIconHeight = iif( nIconHeight < 0, 0, nIconHeight )
+    pIcon->Refresh()
+end sub
+
+public sub tkIconPanel_GetPadding( byval hIconPanel as TK_WIDGET ptr, byref nPadBefore as long, byref nPadAfter as long )
+    nPadBefore = 0 : nPadAfter = 0
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then exit sub
+    nPadBefore = pIcon->nPadBefore : nPadAfter = pIcon->nPadAfter
+end sub
+
+public sub tkIconPanel_SetPadding( byval hIconPanel as TK_WIDGET ptr, byval nPadBefore as long, byval nPadAfter as long )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then exit sub
+    pIcon->nPadBefore = iif( nPadBefore < 0, 0, nPadBefore )
+    pIcon->nPadAfter = iif( nPadAfter < 0, 0, nPadAfter )
+    pIcon->Refresh()
+end sub
+
+public function tkIconPanel_GetSeparatorWidth( byval hIconPanel as TK_WIDGET ptr ) as long
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then return 0
+    return pIcon->nSepWidth
+end function
+
+public sub tkIconPanel_SetSeparatorWidth( byval hIconPanel as TK_WIDGET ptr, byval nSepWidth as long )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then exit sub
+    pIcon->nSepWidth = iif( nSepWidth < 0, 0, nSepWidth )
+    pIcon->Refresh()
+end sub
+
+' -1 for either side goes back to inheriting; below -1 clamps to -1.
+public function tkIconPanel_SetItemPadding( byval hIconPanel as TK_WIDGET ptr, byval idx as long, byval nPadBefore as long, byval nPadAfter as long ) as boolean
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pIcon->IsValidItem( idx ) = false) then return false
+    pIcon->items(idx).nPadBefore = iif( nPadBefore < -1, -1, nPadBefore )
+    pIcon->items(idx).nPadAfter = iif( nPadAfter < -1, -1, nPadAfter )
+    pIcon->Refresh()
+    return true
+end function
+
+' 0 for either dimension goes back to inheriting; negatives clamp to 0.
+public function tkIconPanel_SetItemIconSize( byval hIconPanel as TK_WIDGET ptr, byval idx as long, byval nIconWidth as long, byval nIconHeight as long ) as boolean
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pIcon->IsValidItem( idx ) = false) then return false
+    pIcon->items(idx).nIconWidth = iif( nIconWidth < 0, 0, nIconWidth )
+    pIcon->items(idx).nIconHeight = iif( nIconHeight < 0, 0, nIconHeight )
+    pIcon->Refresh()
+    return true
+end function
+
+public function tkIconPanel_GetItemRect( byval hIconPanel as TK_WIDGET ptr, byval idx as long, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pIcon->IsValidItem( idx ) = false) then return false
+    if pIcon->bLayoutDirty then pIcon->LayoutItems()
+    rc = pIcon->items(idx).rc
+    return true
+end function
+
+public function tkIconPanel_GetItemIconRect( byval hIconPanel as TK_WIDGET ptr, byval idx as long, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pIcon->IsValidItem( idx ) = false) then return false
+    if pIcon->bLayoutDirty then pIcon->LayoutItems()
+    rc = pIcon->items(idx).rcIcon
+    return true
+end function
+
+' The summed cell widths -- valid before the control is sized. In vertical mode the run is
+' a column, so this is the widest icon (the column's natural width) and GetIdealHeight is the
+' summed run.
+public function tkIconPanel_GetIdealWidth( byval hIconPanel as TK_WIDGET ptr ) as long
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then return 0
+    if pIcon->bLayoutDirty then pIcon->LayoutItems()
+    return iif( pIcon->bVertical, pIcon->nCrossExtent, pIcon->nTotalWidth )
+end function
+
+public function tkIconPanel_GetIdealHeight( byval hIconPanel as TK_WIDGET ptr ) as long
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then return 0
+    if pIcon->bLayoutDirty then pIcon->LayoutItems()
+    return iif( pIcon->bVertical, pIcon->nTotalWidth, pIcon->nCrossExtent )
+end function
+
+public sub tkIconPanel_GetColors( byval hIconPanel as TK_WIDGET ptr, byval pColors as TKICONPANEL_COLORS ptr )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pColors = 0) then exit sub
+    *pColors = pIcon->colors
+end sub
+
+' Copies the struct and PINS it: a theme change leaves this panel alone until UnpinColors.
+public sub tkIconPanel_SetColors( byval hIconPanel as TK_WIDGET ptr, byval pColors as TKICONPANEL_COLORS ptr )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pColors = 0) then exit sub
+    pIcon->colors = *pColors
+    pIcon->bColorsPinned = true
+    tkWidget_Invalidate( hIconPanel )
+end sub
+
+' vendor PsIconPanel_ThemeColors, plus MarkerColor = Accent.
+public function tkIconPanel_ThemeColors( byref t as TKTHEME_COLORS ) as TKICONPANEL_COLORS
+    dim as TKICONPANEL_COLORS c
+    c.BackColor = t.Window
+    c.ForeColor = t.Text
+    c.BackColorHot = t.SurfaceHot
+    c.ForeColorHot = t.TextHot
+    c.BackColorSelect = t.Selected
+    c.ForeColorSelect = t.SelectedText
+    c.ForeColorDisabled = t.TextDisabled
+    c.SeparatorColor = t.Divider
+    c.MarkerColor = t.Accent
+    return c
+end function
+
+public sub tkIconPanel_ApplyTheme( byval hIconPanel as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse pIcon->bColorsPinned then exit sub
+    pIcon->colors = tkIconPanel_ThemeColors( t )
+    tkWidget_Invalidate( hIconPanel )
+end sub
+
+public sub tkIconPanel_UnpinColors( byval hIconPanel as TK_WIDGET ptr )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then exit sub
+    pIcon->bColorsPinned = false
+    tkIconPanel_ApplyTheme( hIconPanel, tkTheme_Get() )
+end sub
+
+' The form's fonts: the panel draws only glyphs, so fText is ignored (vendor).
+public sub tkIconPanel_ApplyFonts( byval hIconPanel as TK_WIDGET ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (fGlyph = 0) then exit sub
+    pIcon->pIconFont = fGlyph
+    tkWidget_Invalidate( hIconPanel )
+end sub
+
+public function tkIconPanel_SetItemForeColor( byval hIconPanel as TK_WIDGET ptr, byval idx as long, byval clr as ulong ) as boolean
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pIcon->IsValidItem( idx ) = false) then return false
+    pIcon->items(idx).ForeColorItem = clr
+    pIcon->items(idx).bHasForeColor = true
+    tkWidget_Invalidate( hIconPanel )
+    return true
+end function
+
+public function tkIconPanel_ClearItemForeColor( byval hIconPanel as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pIcon->IsValidItem( idx ) = false) then return false
+    pIcon->items(idx).ForeColorItem = 0
+    pIcon->items(idx).bHasForeColor = false
+    tkWidget_Invalidate( hIconPanel )
+    return true
+end function
+
+public function tkIconPanel_GetFont( byval hIconPanel as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then return 0
+    return pIcon->pIconFont
+end function
+
+' Borrowed. A PAINT-time input only: repaints, never re-lays-out.
+public function tkIconPanel_SetFont( byval hIconPanel as TK_WIDGET ptr, byval f as TTF_Font ptr ) as boolean
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then return false
+    pIcon->pIconFont = f
+    tkWidget_Invalidate( hIconPanel )
+    return true
+end function
+
+' The panel's tkTooltip (vendor GetPsTooltipHandle), for any tkTooltip_* call. Owned here.
+public function tkIconPanel_GetTooltipHandle( byval hIconPanel as TK_WIDGET ptr ) as TK_TIP ptr
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then return 0
+    return tkTipHost_Tip( @pIcon->tip )
+end function
+
+public sub tkIconPanel_SetHoverTime( byval hIconPanel as TK_WIDGET ptr, byval milliseconds as long )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon then tkTipHost_SetDelay( @pIcon->tip, TK_TIPDELAY_INITIAL, milliseconds )
+end sub
+
+public sub tkIconPanel_SetAutoPopTime( byval hIconPanel as TK_WIDGET ptr, byval milliseconds as long )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon then tkTipHost_SetDelay( @pIcon->tip, TK_TIPDELAY_AUTOPOP, milliseconds )
+end sub
+
+public sub tkIconPanel_SetReshowTime( byval hIconPanel as TK_WIDGET ptr, byval milliseconds as long )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon then tkTipHost_SetDelay( @pIcon->tip, TK_TIPDELAY_RESHOW, milliseconds )
+end sub
+
+public function tkIconPanel_GetTooltipText( byval hIconPanel as TK_WIDGET ptr, byval idx as long ) as ustring
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pIcon->IsValidItem( idx ) = false) then return ""
+    return pIcon->items(idx).wszTooltip
+end function
+
+public function tkIconPanel_SetTooltipText( byval hIconPanel as TK_WIDGET ptr, byval idx as long, byval Text as ustring ) as boolean
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if (pIcon = 0) orelse (pIcon->IsValidItem( idx ) = false) then return false
+    pIcon->items(idx).wszTooltip = Text
+    return true
+end function
+
+' The item the hot tip is for: the tool index tkTipHost carries (-1 for none).
+public function tkIconPanel_GetHotItem( byval hIconPanel as TK_WIDGET ptr ) as long
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then return -1
+    return pIcon->nLastHotIdx
+end function
+
+' The pressed item while a press is live, else -1.
+public function tkIconPanel_GetPressedItem( byval hIconPanel as TK_WIDGET ptr ) as long
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon = 0 then return -1
+    return pIcon->nPressedIdx
+end function
+
+public sub tkIconPanel_SetPaintItemCallback( byval hIconPanel as TK_WIDGET ptr, byval usersub as IP_PaintItemCallbackSub )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon then pIcon->PaintItemCallback = usersub
+end sub
+
+public sub tkIconPanel_SetMessageCallback( byval hIconPanel as TK_WIDGET ptr, byval userfunc as IP_MessageCallbackFunc )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon then pIcon->MessageCallback = userfunc
+end sub
+
+public sub tkIconPanel_SetTooltipCallback( byval hIconPanel as TK_WIDGET ptr, byval userfunc as IP_TooltipCallbackFunc )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon then pIcon->TooltipCallback = userfunc
+end sub
+
+public sub tkIconPanel_SetClickCallback( byval hIconPanel as TK_WIDGET ptr, byval usersub as IP_ClickCallbackSub )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon then pIcon->ClickCallback = usersub
+end sub
+
+public sub tkIconPanel_SetSelChangeCallback( byval hIconPanel as TK_WIDGET ptr, byval usersub as IP_SelChangeCallbackSub )
+    dim as TKICONPANEL_STATE ptr pIcon = GetIconPanelPointer( hIconPanel )
+    if pIcon then pIcon->SelChangeCallback = usersub
+end sub

@@ -1,0 +1,146 @@
+' tkTheme + tkImage self-test. Theme: the presets are vendor's values, Equal, the broadcast
+' reaches every widget on every surface (popups included) and the windows' backgrounds, an
+' equal re-apply is free. Image: loading (pixels, file, failure), natural size, one image drawn
+' in TWO windows (two renderers), surviving a renderer's destruction, and the three fit modes.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkTheme"
+#import "vendor/tkControls/tkImage"
+#import "vendor/tkControls/tkTest"
+using tkTheme
+using tkImage
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as long gThemed(0 to 3)
+dim shared as tkImageFile ptr gImg
+dim shared as long gFit = -1
+
+function Probe( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    select case m->msg
+    case TKM_THEMECHANGED
+        gThemed(w->ctrlId) += 1
+        return true
+    case TKM_PAINT
+        dim as TKRECT rc
+        tkRect_Set( rc, 0, 0, w->cw, w->ch )
+        m->pPaint->SetBackColor( &hFF000000ul )
+        m->pPaint->PaintRect( @rc )
+        if gImg then tkImage_Paint( m->pPaint, gImg, @rc, iif( gFit >= 0, gFit, TK_IMGFIT_ASPECT ) )
+        return true
+    end select
+    return false
+end function
+
+' a 20 x 10 image: left half red, right half blue
+sub MakePixels( p() as ulong )
+    redim p( 0 to 199 )
+    for y as long = 0 to 9
+        for x as long = 0 to 19
+            p(y * 20 + x) = iif( x < 10, &hFFFF0000ul, &hFF0000FFul )
+        next
+    next
+end sub
+
+function Px( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr, byval x as long, byval y as long ) as ulong
+    dim as TKRECT a
+    tkWidget_AbsRect( w, a )
+    return tkTest_PixelAt( h, a.left + x, a.top + y )
+end function
+
+sub Themes()
+    tkTest_Begin( "theme" )
+    dim as TKTHEME_COLORS d = tkTheme_Dark(), l = tkTheme_Light()
+    tkTest_Check( "dark preset = vendor values", d.IsDark andalso d.Window = tkRGB( 33, 37, 43 ) andalso d.Accent = tkRGB( 86, 156, 214 ) andalso d.Error = tkRGB( 224, 108, 117 ) )
+    tkTest_Check( "light preset = vendor values", (l.IsDark = false) andalso l.Window = tkRGB( 243, 243, 243 ) andalso l.Selected = tkRGB( 0, 120, 215 ) andalso l.Error = tkRGB( 196, 43, 28 ) )
+    tkTest_Check( "Equal", tkTheme_Equal( d, tkTheme_Dark() ) andalso (tkTheme_Equal( d, l ) = false) )
+    dim as TKTHEME_COLORS d2 = d
+    d2.Error = 0
+    tkTest_Check( "Equal sees the LAST field", tkTheme_Equal( d, d2 ) = false )
+    tkTest_Check( "default current theme is dark", tkTheme_Get().IsDark )
+    dim as boolean b = tkTheme_SystemIsDark()
+    tkTest_Check( "system preference answers", (b = true) orelse (b = false) )
+
+    dim as TK_HOST ptr h = tkHost_Create( "tkTheme selftest", 320, 200, TK_TEST_FONTDIR & "segoeui.ttf", 1 )
+    dim as TK_WIDGET ptr w0 = tkWidget_Create( h, 0, @Probe, 0 )
+    dim as TK_WIDGET ptr w1 = tkWidget_CreateChild( w0, 1, @Probe, 0 )
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 200 )
+    dim as TK_HOST ptr pop = tkHost_CreatePopup( h, 10, 10, 100, 60 )
+    dim as TK_WIDGET ptr w2 = tkWidget_Create( pop, 2, @Probe, 0 )
+    tkTheme_Apply( l )
+    tkTest_Check( "broadcast reaches top-level, nested and popup widgets", gThemed(0) = 1 andalso gThemed(1) = 1 andalso gThemed(2) = 1 )
+    tkTest_Check( "the window background follows Window", h->clrBack = l.Window )
+    tkTest_Check( "a popup keeps its own background", pop->clrBack <> l.Window )
+    tkTheme_Apply( tkTheme_Light() )
+    tkTest_Check( "an EQUAL theme is not re-broadcast", gThemed(0) = 1 )
+    tkTheme_Apply( d )
+    tkTest_Check( "a different one is", gThemed(0) = 2 andalso tkTheme_Get().IsDark )
+    tkHost_Destroy( h )
+end sub
+
+sub Images()
+    tkTest_Begin( "image" )
+    dim as ulong pixels()
+    MakePixels( pixels() )
+    dim as tkImageFile img
+    tkTest_Check( "empty image is not valid", img.IsValid() = 0 andalso img.NaturalWidth() = 0 )
+    tkTest_Check( "LoadFromPixels", img.LoadFromPixels( 20, 10, @pixels(0) ) <> 0 andalso img.IsValid() <> 0 )
+    tkTest_Check( "natural size", img.NaturalWidth() = 20 andalso img.NaturalHeight() = 10 )
+    ' round trip through a file
+    dim as string path = exepath() & "/tkimage_test.bmp"
+    SDL_SaveBMP( img.Surface(), strptr( path ) )
+    dim as tkImageFile img2
+    tkTest_Check( "Load( .bmp )", img2.Load( path ) <> 0 andalso img2.NaturalWidth() = 20 )
+    tkTest_Check( "a failed load clears the image", img2.Load( "no-such-file.png" ) = 0 andalso img2.IsValid() = 0 )
+    kill path
+
+    dim as TK_HOST ptr h = tkHost_Create( "tkImage selftest", 400, 300, TK_TEST_FONTDIR & "segoeui.ttf", 1 )
+    dim as TK_WIDGET ptr cv = tkWidget_Create( h, 3, @Probe, 0 )
+    tkWidget_SetPos( cv, 10, 10, 200, 50 )            ' wider than the image's 2:1
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 200 )
+    gImg = @img
+    gFit = TK_IMGFIT_ASPECT
+    tkHost_RenderTo( h, false )
+    ' aspect: 200x50 box, 2:1 image -> 100x50, centred: x 50..150
+    tkTest_Check( "ASPECT: image fills its height, centred", ((Px( h, cv, 60, 25 ) and &hFFFFFF) = &hFF0000) andalso ((Px( h, cv, 140, 25 ) and &hFFFFFF) = &h0000FF) )
+    tkTest_Check( "ASPECT: letterbox left and right", (Px( h, cv, 20, 25 ) and &hFFFFFF) = 0 andalso (Px( h, cv, 180, 25 ) and &hFFFFFF) = 0 )
+    gFit = TK_IMGFIT_STRETCH
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "STRETCH: fills the box", ((Px( h, cv, 5, 25 ) and &hFFFFFF) = &hFF0000) andalso ((Px( h, cv, 195, 25 ) and &hFFFFFF) = &h0000FF) )
+    gFit = TK_IMGFIT_CENTER
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "CENTER: natural size, centred", ((Px( h, cv, 95, 25 ) and &hFFFFFF) = &hFF0000) andalso (Px( h, cv, 85, 25 ) and &hFFFFFF) = 0 andalso (Px( h, cv, 95, 15 ) and &hFFFFFF) = 0 )
+    gFit = TK_IMGFIT_ASPECT
+
+    ' the SAME image in a second window (a second renderer)
+    dim as TK_HOST ptr pop = tkHost_CreatePopup( h, 20, 80, 220, 70 )
+    dim as TK_WIDGET ptr cv2 = tkWidget_Create( pop, 3, @Probe, 0 )
+    tkWidget_SetPos( cv2, 10, 10, 200, 50 )
+    tkHost_Show( pop )
+    tkTest_PumpFor( h, 150 )
+    tkHost_RenderTo( pop, false )
+    tkTest_Check( "one image drawn in a SECOND window", ((Px( pop, cv2, 60, 25 ) and &hFFFFFF) = &hFF0000) )
+    tkHost_Close( pop )
+    tkHost_Pump( h )                                  ' reaped: its renderer is gone
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "after that renderer died, the first window still draws it", ((Px( h, cv, 60, 25 ) and &hFFFFFF) = &hFF0000) )
+    dim as TK_HOST ptr pop2 = tkHost_CreatePopup( h, 20, 80, 220, 70 )
+    dim as TK_WIDGET ptr cv3 = tkWidget_Create( pop2, 3, @Probe, 0 )
+    tkWidget_SetPos( cv3, 10, 10, 200, 50 )
+    tkHost_Show( pop2 )
+    tkTest_PumpFor( h, 150 )
+    tkHost_RenderTo( pop2, false )
+    tkTest_Check( "and a NEW window gets a fresh texture", ((Px( pop2, cv3, 60, 25 ) and &hFFFFFF) = &hFF0000) )
+    gImg = 0
+    tkHost_Destroy( h )
+end sub
+
+if tkTest_Init() = false then end 99
+Themes()
+Images()
+dim as long nFail = tkTest_Report( "tkTheme" )
+tkTest_Quit()
+end nFail

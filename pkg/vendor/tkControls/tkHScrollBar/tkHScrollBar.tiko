@@ -1,0 +1,87 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkHScrollBar -- vendor PsHScrollBar on tkControls: the same API over the shared
+' tkScrollBar engine (see that module's header for the behaviour). Takes only the horizontal wheel (a trackpad swipe); the vertical one bubbles on.
+#module "tkHScrollBar"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkScrollBar" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkScrollBar
+
+public const TKHSCROLL_REPEAT_DELAY = TKSCROLL_REPEAT_DELAY
+public const TKHSCROLL_REPEAT_MS = TKSCROLL_REPEAT_MS
+public const TKHSCROLL_MIN_THUMB = TKSCROLL_MIN_THUMB
+public const TKHSCROLL_DEFAULT_HEIGHT = TKSCROLL_DEFAULT_THICKNESS
+
+public type TKHSCROLLBAR_PAINTINFO as TKSCROLLBAR_PAINTINFO
+public type HScrollPaintCallbackSub as tkScrollPaintSub
+public type HScrollCallbackSub as tkScrollNotifySub
+
+public function tkHScrollBar_Create( byval hParent as TK_WIDGET ptr, byval CtrlID as integer ) as TK_WIDGET ptr
+    return tkScrollBar_Create( hParent, CtrlID, false )
+end function
+
+public sub tkHScrollBar_SetRange( byval hSB as TK_WIDGET ptr, byval nTotal as integer, byval nPage as integer, byval nPosition as integer )
+    tkScrollBar_SetRange( hSB, nTotal, nPage, nPosition )
+end sub
+
+public function tkHScrollBar_GetPos( byval hSB as TK_WIDGET ptr ) as integer
+    return tkScrollBar_GetPos( hSB )
+end function
+
+public sub tkHScrollBar_SetPos( byval hSB as TK_WIDGET ptr, byval nPosition as integer )
+    tkScrollBar_SetPos( hSB, nPosition )
+end sub
+
+' nDelta in 120ths of a notch, already signed: POSITIVE scrolls RIGHT (increases the position).
+public function tkHScrollBar_HandleWheelDelta( byval hSB as TK_WIDGET ptr, byval nDelta as integer ) as boolean
+    return tkScrollBar_HandleWheelDelta( hSB, nDelta )
+end function
+
+public sub tkHScrollBar_SetWheelStep( byval hSB as TK_WIDGET ptr, byval nUnitsPerNotch as integer )
+    tkScrollBar_SetWheelStep( hSB, nUnitsPerNotch )
+end sub
+
+public function tkHScrollBar_GetWheelStep( byval hSB as TK_WIDGET ptr ) as integer
+    return tkScrollBar_GetWheelStep( hSB )
+end function
+
+public function tkHScrollBar_NeedsThumb( byval hSB as TK_WIDGET ptr ) as boolean
+    return tkScrollBar_NeedsThumb( hSB )
+end function
+
+public function tkHScrollBar_IsDragging( byval hSB as TK_WIDGET ptr ) as boolean
+    return tkScrollBar_IsDragging( hSB )
+end function
+
+public function tkHScrollBar_GetThumbRect( byval hSB as TK_WIDGET ptr ) as TKRECT
+    return tkScrollBar_GetThumbRect( hSB )
+end function
+
+public sub tkHScrollBar_SetColors( byval hSB as TK_WIDGET ptr, byval backclr as ulong, byval foreclr as ulong, byval foreclrhot as ulong )
+    tkScrollBar_SetColors( hSB, backclr, foreclr, foreclrhot )
+end sub
+
+public sub tkHScrollBar_ApplyTheme( byval hSB as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    tkScrollBar_ApplyTheme( hSB, t )
+end sub
+
+public sub tkHScrollBar_UnpinColors( byval hSB as TK_WIDGET ptr )
+    tkScrollBar_UnpinColors( hSB )
+end sub
+
+public sub tkHScrollBar_SetPaintCallback( byval hSB as TK_WIDGET ptr, byval usersub as HScrollPaintCallbackSub )
+    tkScrollBar_SetPaintCallback( hSB, usersub )
+end sub
+
+public sub tkHScrollBar_SetScrollCallback( byval hSB as TK_WIDGET ptr, byval usersub as HScrollCallbackSub )
+    tkScrollBar_SetScrollCallback( hSB, usersub )
+end sub

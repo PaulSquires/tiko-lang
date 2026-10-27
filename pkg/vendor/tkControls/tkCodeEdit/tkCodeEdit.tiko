@@ -1,0 +1,1832 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkCodeEdit -- a Scintilla editor as a tkControls widget. A port of PsPlatform's PsSciView
+' (+ PsSciInput, PsSciClipboard, PsSciNotify): the editor is Scintilla 5.5.7 + Lexilla in the
+' scintk shared library (scintk/), loaded at run time; this module is its host.
+'
+' THE HOST OWNS THE PIXELS. scintk draws through two tables registered here -- text (TkTeApi,
+' over SDL_ttf) and shapes (TkDrawApi, over SDL_Renderer) -- into the widget's OWN render-target
+' texture, TKCE_TARGET "view". Scintilla repaints that texture only when it asked to (its
+' invalidate callback) or the size changed; every frame in between blits it in one call. That
+' is what keeps a caret blink from re-laying-out the document. Pixmaps Scintilla allocates
+' (line buffers are off: SCI_SETBUFFEREDDRAW 0; the fold hatching, marker images) are more
+' render-target textures.
+'
+' THE LIBRARY IS LOADED, NOT LINKED (SDL_LoadObject): scintk.dll / libscintk.so beside the
+' program, so a host that never makes an editor never needs it, and nothing C++ reaches the
+' tiko link. tkCodeEdit_LibraryError says why a load failed.
+'
+' THE POPUPS ARE THE HOST'S: Scintilla's autocompletion list (its ListBox model, scintk's Lb*)
+' and its call tip (SciTk_PaintCallTip) are tkHost POPUP surfaces, made per show because Wayland
+' fixes a popup's position when it is created; the context menu is a tkPopupMenu. A popup takes
+' the keyboard on Linux, so each forwards keys to its editor, and the editor ignores the focus
+' loss its own popup causes (PsSciInput's g_sciAcOwner rule).
+'
+' FONTS are files: tkCodeEdit_SetFontFace maps a family name (what SCI_STYLESETFONT names) to
+' its regular / bold / italic files, tkCodeEdit_SetFallbackFonts names the faces a glyph the
+' primary lacks is taken from. IME composition is ScintillaGTK's inline pre-edit. Each editor
+' keeps its own DPI and restyles on TKM_SCALECHANGED.
+#module "tkCodeEdit"
+
+#import "std/containers"
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkPopupMenu"
+using containers
+using tkHost
+using tkPopupMenu
+using tkPaint
+using tkTheme
+
+' ---- scintk's C ABI (scintk/scintk.h) -------------------------------------------------------
+public const TKCE_ABI_VERSION = 2
+
+type TKTE_API
+    Create             as any ptr
+    Destroy            as any ptr
+    Ascent             as any ptr
+    Descent            as any ptr
+    LineHeight         as any ptr
+    AverageCharWidth64 as any ptr
+    MeasureText64      as any ptr
+    MeasureWidths64    as any ptr
+    XToIndex           as any ptr
+    DrawText           as any ptr
+    AddFallback        as any ptr
+    CreateFace         as any ptr
+end type
+
+type TKDRAW_API
+    PixmapCreate  as any ptr
+    PixmapDestroy as any ptr
+    FillRect      as any ptr
+    FrameRect     as any ptr
+    RoundRect     as any ptr
+    Line          as any ptr
+    PolyLine      as any ptr
+    Polygon       as any ptr
+    Ellipse       as any ptr
+    Gradient      as any ptr
+    Image         as any ptr
+    CopyPixmap    as any ptr
+    TilePixmap    as any ptr
+    PushClip      as any ptr
+    PopClip       as any ptr
+end type
+
+' SciTkNotification, field for field. checked against SciTk_NotificationSize at load.
+public type TKCE_NOTIFICATION
+    code                 as long
+    position             as longint
+    ch                   as long
+    modifiers            as long
+    modificationType     as long
+    text                 as const zstring ptr     ' borrowed: valid during the callback only
+    length               as longint
+    linesAdded           as longint
+    message              as long
+    wParam               as longint
+    lParam               as longint
+    line_                as longint
+    foldLevelNow         as long
+    foldLevelPrev        as long
+    margin               as long
+    listType             as long
+    x                    as long
+    y                    as long
+    token                as long
+    annotationLinesAdded as longint
+    updated              as long
+    listCompletionMethod as long
+end type
+
+type FnCreate as function cdecl ( byval w as long, byval h as long ) as any ptr
+type FnPtr as sub cdecl ( byval p as any ptr )
+type FnSend as function cdecl ( byval p as any ptr, byval msg as ulong, byval wp as uinteger, byval lp as integer ) as integer
+type FnPaint as function cdecl ( byval p as any ptr, byval target as any ptr, byval w as long, byval h as long ) as long
+type FnPtrII as sub cdecl ( byval p as any ptr, byval a as long, byval b as long )
+type FnPtrI as sub cdecl ( byval p as any ptr, byval a as long )
+type FnPtrToI as function cdecl ( byval p as any ptr ) as long
+type FnPtrIToI as function cdecl ( byval p as any ptr, byval a as long ) as long
+type FnKey as function cdecl ( byval p as any ptr, byval key as long, byval mods as long ) as long
+type FnText as sub cdecl ( byval p as any ptr, byval s as const zstring ptr, byval n as long )
+type FnMouseDown as sub cdecl ( byval p as any ptr, byval x as long, byval y as long, byval t as ulong, byval mods as long, byval bRight as long )
+type FnMouse as sub cdecl ( byval p as any ptr, byval x as long, byval y as long, byval t as ulong, byval mods as long )
+type FnSetCb as sub cdecl ( byval p as any ptr, byval fn as any ptr, byval user as any ptr )
+type FnSetClip as sub cdecl ( byval p as any ptr, byval getFn as any ptr, byval setFn as any ptr, byval user as any ptr )
+type FnSetTable as sub cdecl ( byval api as const any ptr )
+type FnSetInt as sub cdecl ( byval v as long )
+type FnSetStr as sub cdecl ( byval s as const zstring ptr )
+type FnLexer as function cdecl ( byval name as const zstring ptr ) as any ptr
+type FnInt as function cdecl ( ) as long
+type FnHostTable as sub cdecl ( byval p as any ptr, byval host as const any ptr, byval user as any ptr )
+type FnGlobalTable as sub cdecl ( byval host as const any ptr, byval user as any ptr )
+type FnPaintTip as function cdecl ( byval p as any ptr, byval target as any ptr, byval w as long, byval h as long ) as long
+type FnIme as sub cdecl ( byval p as any ptr, byval s as const zstring ptr, byval n as long, byval cursorChars as long )
+type FnCaretRect as sub cdecl ( byval p as any ptr, byval x as long ptr, byval y as long ptr, byval lh as long ptr )
+type FnSetResolver as sub cdecl ( byval r as any ptr )
+type FnLbToI as function cdecl ( byval lb as any ptr ) as long
+type FnLbIToS as function cdecl ( byval lb as any ptr, byval n as long ) as const zstring ptr
+type FnLbIToI as function cdecl ( byval lb as any ptr, byval n as long ) as long
+type FnLbI as sub cdecl ( byval lb as any ptr, byval n as long )
+
+type TKCE_LIB
+    so              as SDL_SharedObject ptr
+    tried           as boolean
+    sError          as string
+    Create          as FnCreate
+    Destroy         as FnPtr
+    Send            as FnSend
+    Paint           as FnPaint
+    SetSize         as FnPtrII
+    Cursor          as FnPtrToI
+    KeyDown         as FnKey
+    TextInput       as FnText
+    MouseDown       as FnMouseDown
+    MouseMove       as FnMouse
+    MouseUp         as FnMouse
+    SetFocus        as FnPtrI
+    SetInvalidate   as FnSetCb
+    SetNotify       as FnSetCb
+    SetClipboard    as FnSetClip
+    SetTicker       as FnSetCb
+    Tick            as FnPtrI
+    SetTextApi      as FnSetTable
+    SetDrawApi      as FnSetTable
+    SetDpi          as FnSetInt
+    SetFontPath     as FnSetStr
+    CreateLexer     as FnLexer
+    AbiVersion      as FnInt
+    NotificationSize as FnInt
+    ' ABI 2: popups, the menu, IME, per-editor DPI, faces
+    SetCallTipHost  as FnHostTable
+    PaintCallTip    as FnPaintTip
+    CallTipClick    as FnPtrII
+    ImeCompose      as FnIme
+    CaretRect       as FnCaretRect
+    SetEditorDpi    as FnPtrI
+    SetListBoxHost  as FnGlobalTable
+    LbCount         as FnLbToI
+    LbText          as FnLbIToS
+    LbSelection     as FnLbToI
+    LbRowHeight     as FnLbToI
+    LbSetSelection  as FnLbI
+    LbActivate      as FnLbI
+    SetMenuHost     as FnGlobalTable
+    MenuCommand     as FnPtrI
+    ContextMenu     as FnPtrII
+    SetFontResolver as FnSetResolver
+    SetFallbackChain as FnSetStr
+end type
+
+dim shared as TKCE_LIB gLib
+dim shared as TKTE_API gTeApi
+dim shared as TKDRAW_API gDrawApi
+
+' ---- drawing targets ------------------------------------------------------------------------
+' The view (one per editor) or a pixmap. Its own clip stack, in its own pixels.
+type TKCE_TARGET
+    renderer as SDL_Renderer ptr
+    engine   as TTF_TextEngine ptr
+    tex      as SDL_Texture ptr
+    w        as long
+    h        as long
+    clips(0 to 15) as SDL_Rect
+    nClip    as long
+end type
+
+dim shared as TKCE_TARGET ptr gCur            ' the target the renderer draws into now
+' Profile of the last re-render (tkCodeEdit_Profile): text runs and their time, other primitives,
+' and the flush back to the window.
+dim shared as long gnText, gnPrim
+dim shared as double gfText, gfFlush
+dim shared as SDL_Renderer ptr gPaintRenderer ' the renderer of the editor being painted
+dim shared as TTF_TextEngine ptr gPaintEngine
+
+' Make t the renderer's target. STATE IS SET ONLY ON A CHANGE: a clip or blend change splits
+' SDL's draw batch, and on GL every split is a draw call -- re-applying both per primitive cost
+' 18-25 ms a re-render under WSLg against 1.5 ms on D3D11 (measured).
+private sub TgApplyClip( byval t as TKCE_TARGET ptr )
+    if t->nClip > 0 then
+        SDL_SetRenderClipRect( t->renderer, @t->clips(t->nClip - 1) )
+    else
+        SDL_SetRenderClipRect( t->renderer, 0 )
+    end if
+end sub
+
+private sub TgSelect( byval t as TKCE_TARGET ptr )
+    if (t = 0) orelse (gCur = t) then exit sub
+    SDL_SetRenderTarget( t->renderer, t->tex )
+    gCur = t
+    TgApplyClip( t )
+    SDL_SetRenderDrawBlendMode( t->renderer, SDL_BLENDMODE_BLEND )
+end sub
+
+private sub TgColour( byval t as TKCE_TARGET ptr, byval argb as ulong )
+    SDL_SetRenderDrawColor( t->renderer, (argb shr 16) and 255, (argb shr 8) and 255, argb and 255, (argb shr 24) and 255 )
+end sub
+
+private function FColour( byval argb as ulong ) as SDL_FColor
+    dim as SDL_FColor c
+    c.r = ((argb shr 16) and 255) / 255.0
+    c.g = ((argb shr 8) and 255) / 255.0
+    c.b = (argb and 255) / 255.0
+    c.a = ((argb shr 24) and 255) / 255.0
+    return c
+end function
+
+private sub TgFill( byval t as TKCE_TARGET ptr, byval x as single, byval y as single, byval w as single, byval h as single, byval argb as ulong )
+    if (w <= 0) orelse (h <= 0) orelse ((argb shr 24) = 0) then exit sub
+    gnPrim += 1
+    dim as SDL_FRect r
+    r.x = x : r.y = y : r.w = w : r.h = h
+    TgColour( t, argb )
+    SDL_RenderFillRect( t->renderer, @r )
+end sub
+
+' A convex polygon, filled as a triangle fan.
+private sub TgFan( byval t as TKCE_TARGET ptr, byval xy as const single ptr, byval n as long, byval argb as ulong )
+    if (n < 3) orelse ((argb shr 24) = 0) then exit sub
+    dim as SDL_Vertex v( 0 to n - 1 )
+    dim as SDL_FColor c = FColour( argb )
+    for i as long = 0 to n - 1
+        v(i).position.x = xy[i * 2] : v(i).position.y = xy[i * 2 + 1] : v(i).color = c
+    next
+    dim as long idx( 0 to (n - 2) * 3 - 1 )
+    for i as long = 0 to n - 3
+        idx(i * 3) = 0 : idx(i * 3 + 1) = i + 1 : idx(i * 3 + 2) = i + 2
+    next
+    SDL_RenderGeometry( t->renderer, 0, @v(0), n, @idx(0), (n - 2) * 3 )
+end sub
+
+' A line of any width, as a quad (SDL_RenderLine is one pixel).
+private sub TgLine( byval t as TKCE_TARGET ptr, byval x1 as single, byval y1 as single, byval x2 as single, byval y2 as single, _
+                    byval wid as single, byval argb as ulong )
+    if (argb shr 24) = 0 then exit sub
+    if wid <= 1.0 then
+        TgColour( t, argb )
+        SDL_RenderLine( t->renderer, x1, y1, x2, y2 )
+        exit sub
+    end if
+    dim as single dx = x2 - x1, dy = y2 - y1
+    dim as single l = sqr( dx * dx + dy * dy )
+    if l <= 0 then exit sub
+    dim as single nx = -dy / l * wid / 2, ny = dx / l * wid / 2
+    dim as single q( 0 to 7 ) = { x1 + nx, y1 + ny, x2 + nx, y2 + ny, x2 - nx, y2 - ny, x1 - nx, y1 - ny }
+    TgFan( t, @q(0), 4, argb )
+end sub
+
+private sub TgOutline( byval t as TKCE_TARGET ptr, byval xy as const single ptr, byval n as long, byval wid as single, _
+                       byval argb as ulong, byval bClosed as boolean )
+    if (n < 2) orelse ((argb shr 24) = 0) orelse (wid <= 0) then exit sub
+    for i as long = 0 to n - 2
+        TgLine( t, xy[i * 2], xy[i * 2 + 1], xy[i * 2 + 2], xy[i * 2 + 3], wid, argb )
+    next
+    if bClosed then TgLine( t, xy[(n - 1) * 2], xy[(n - 1) * 2 + 1], xy[0], xy[1], wid, argb )
+end sub
+
+' The outline of a rounded rectangle (or an ellipse when the radius covers it), as points.
+private function TgRoundPoints( byval x as single, byval y as single, byval w as single, byval h as single, _
+                                byval r as single, pts() as single ) as long
+    const SEG = 6
+    if r > w / 2 then r = w / 2
+    if r > h / 2 then r = h / 2
+    redim pts( 0 to (SEG + 1) * 4 * 2 - 1 )
+    dim as single cx( 0 to 3 ) = { x + w - r, x + w - r, x + r, x + r }
+    dim as single cy( 0 to 3 ) = { y + r, y + h - r, y + h - r, y + r }
+    dim as long n = 0
+    const PI_ = 3.14159265358979
+    for c as long = 0 to 3
+        dim as single a0 = -PI_ / 2 + c * PI_ / 2
+        for s as long = 0 to SEG
+            dim as single a = a0 + s * (PI_ / 2) / SEG
+            pts(n * 2) = cx(c) + r * cos( a ) : pts(n * 2 + 1) = cy(c) + r * sin( a )
+            n += 1
+        next
+    next
+    return n
+end function
+
+' ---- TkDrawApi, over SDL_Renderer -----------------------------------------------------------
+private function DrPixmapCreate cdecl ( byval w as long, byval h as long ) as any ptr
+    if (gPaintRenderer = 0) orelse (w <= 0) orelse (h <= 0) then return 0
+    dim as TKCE_TARGET ptr t = new TKCE_TARGET
+    t->renderer = gPaintRenderer
+    t->engine = gPaintEngine
+    t->w = w : t->h = h
+    t->tex = SDL_CreateTexture( gPaintRenderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, w, h )
+    if t->tex = 0 then delete t : return 0
+    SDL_SetTextureBlendMode( t->tex, SDL_BLENDMODE_BLEND )
+    dim as TKCE_TARGET ptr was = gCur
+    TgSelect( t )
+    SDL_SetRenderDrawColor( t->renderer, 0, 0, 0, 0 )
+    SDL_RenderClear( t->renderer )
+    if was then TgSelect( was )
+    return t
+end function
+
+private sub DrPixmapDestroy cdecl ( byval pm as any ptr )
+    dim as TKCE_TARGET ptr t = pm
+    if t = 0 then exit sub
+    if gCur = t then
+        SDL_SetRenderTarget( t->renderer, 0 )
+        gCur = 0
+    end if
+    if t->tex then SDL_DestroyTexture( t->tex )
+    delete t
+end sub
+
+private sub DrFillRect cdecl ( byval tg as any ptr, byval x as single, byval y as single, byval w as single, byval h as single, byval argb as ulong )
+    dim as TKCE_TARGET ptr t = tg
+    if t = 0 then exit sub
+    TgSelect( t )
+    TgFill( t, x, y, w, h, argb )
+end sub
+
+private sub DrFrameRect cdecl ( byval tg as any ptr, byval x as single, byval y as single, byval w as single, byval h as single, _
+                                byval wid as single, byval argb as ulong )
+    dim as TKCE_TARGET ptr t = tg
+    if (t = 0) orelse (wid <= 0) then exit sub
+    TgSelect( t )
+    TgFill( t, x, y, w, wid, argb )
+    TgFill( t, x, y + h - wid, w, wid, argb )
+    TgFill( t, x, y + wid, wid, h - wid * 2, argb )
+    TgFill( t, x + w - wid, y + wid, wid, h - wid * 2, argb )
+end sub
+
+private sub DrRoundRect cdecl ( byval tg as any ptr, byval x as single, byval y as single, byval w as single, byval h as single, _
+                                byval r as single, byval fill as ulong, byval stroke as ulong, byval wid as single )
+    dim as TKCE_TARGET ptr t = tg
+    if (t = 0) orelse (w <= 0) orelse (h <= 0) then exit sub
+    TgSelect( t )
+    dim as single pts( any )
+    dim as long n = TgRoundPoints( x, y, w, h, r, pts() )
+    TgFan( t, @pts(0), n, fill )
+    TgOutline( t, @pts(0), n, wid, stroke, true )
+end sub
+
+private sub DrLine cdecl ( byval tg as any ptr, byval x1 as single, byval y1 as single, byval x2 as single, byval y2 as single, _
+                           byval wid as single, byval argb as ulong )
+    dim as TKCE_TARGET ptr t = tg
+    if t = 0 then exit sub
+    TgSelect( t )
+    TgLine( t, x1, y1, x2, y2, wid, argb )
+end sub
+
+private sub DrPolyLine cdecl ( byval tg as any ptr, byval xy as const single ptr, byval n as long, byval wid as single, byval argb as ulong )
+    dim as TKCE_TARGET ptr t = tg
+    if (t = 0) orelse (xy = 0) then exit sub
+    TgSelect( t )
+    TgOutline( t, xy, n, wid, argb, false )
+end sub
+
+private sub DrPolygon cdecl ( byval tg as any ptr, byval xy as const single ptr, byval n as long, _
+                              byval fill as ulong, byval stroke as ulong, byval wid as single )
+    dim as TKCE_TARGET ptr t = tg
+    if (t = 0) orelse (xy = 0) then exit sub
+    TgSelect( t )
+    TgFan( t, xy, n, fill )
+    TgOutline( t, xy, n, wid, stroke, true )
+end sub
+
+private sub DrEllipse cdecl ( byval tg as any ptr, byval x as single, byval y as single, byval w as single, byval h as single, _
+                              byval fill as ulong, byval stroke as ulong, byval wid as single )
+    dim as TKCE_TARGET ptr t = tg
+    if (t = 0) orelse (w <= 0) orelse (h <= 0) then exit sub
+    TgSelect( t )
+    const N = 32
+    const PI_ = 3.14159265358979
+    dim as single pts( 0 to N * 2 - 1 )
+    for i as long = 0 to N - 1
+        pts(i * 2) = x + w / 2 + (w / 2) * cos( i * 2 * PI_ / N )
+        pts(i * 2 + 1) = y + h / 2 + (h / 2) * sin( i * 2 * PI_ / N )
+    next
+    TgFan( t, @pts(0), N, fill )
+    TgOutline( t, @pts(0), N, wid, stroke, true )
+end sub
+
+private sub DrGradient cdecl ( byval tg as any ptr, byval x as single, byval y as single, byval w as single, byval h as single, _
+                               byval pos_ as const single ptr, byval argb as const ulong ptr, byval n as long, byval horizontal as long )
+    dim as TKCE_TARGET ptr t = tg
+    if (t = 0) orelse (n < 1) orelse (pos_ = 0) orelse (argb = 0) then exit sub
+    TgSelect( t )
+    if n = 1 then TgFill( t, x, y, w, h, argb[0] ) : exit sub
+    for i as long = 0 to n - 2
+        dim as SDL_Vertex v( 0 to 3 )
+        dim as SDL_FColor c0 = FColour( argb[i] ), c1 = FColour( argb[i + 1] )
+        if horizontal then
+            dim as single xa = x + w * pos_[i], xb = x + w * pos_[i + 1]
+            v(0).position.x = xa : v(0).position.y = y : v(0).color = c0
+            v(1).position.x = xb : v(1).position.y = y : v(1).color = c1
+            v(2).position.x = xb : v(2).position.y = y + h : v(2).color = c1
+            v(3).position.x = xa : v(3).position.y = y + h : v(3).color = c0
+        else
+            dim as single ya = y + h * pos_[i], yb = y + h * pos_[i + 1]
+            v(0).position.x = x : v(0).position.y = ya : v(0).color = c0
+            v(1).position.x = x + w : v(1).position.y = ya : v(1).color = c0
+            v(2).position.x = x + w : v(2).position.y = yb : v(2).color = c1
+            v(3).position.x = x : v(3).position.y = yb : v(3).color = c1
+        end if
+        dim as long idx( 0 to 5 ) = { 0, 1, 2, 0, 2, 3 }
+        SDL_RenderGeometry( t->renderer, 0, @v(0), 4, @idx(0), 6 )
+    next
+end sub
+
+private sub DrImage cdecl ( byval tg as any ptr, byval x as single, byval y as single, byval w as single, byval h as single, _
+                            byval iw as long, byval ih as long, byval rgba as const ubyte ptr )
+    dim as TKCE_TARGET ptr t = tg
+    if (t = 0) orelse (rgba = 0) orelse (iw <= 0) orelse (ih <= 0) then exit sub
+    TgSelect( t )
+    ' straight RGBA bytes in memory order are SDL's ABGR8888 on a little-endian machine
+    dim as SDL_Texture ptr tx = SDL_CreateTexture( t->renderer, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_STATIC, iw, ih )
+    if tx = 0 then exit sub
+    SDL_UpdateTexture( tx, 0, rgba, iw * 4 )
+    SDL_SetTextureBlendMode( tx, SDL_BLENDMODE_BLEND )
+    dim as SDL_FRect d
+    d.x = x : d.y = y : d.w = w : d.h = h
+    SDL_RenderTexture( t->renderer, tx, 0, @d )
+    SDL_DestroyTexture( tx )
+end sub
+
+' Scintilla's Copy is a blit: the source REPLACES what is under it.
+private sub DrCopyPixmap cdecl ( byval tg as any ptr, byval dx as single, byval dy as single, byval w as single, byval h as single, _
+                                 byval src as any ptr, byval sx as single, byval sy as single )
+    dim as TKCE_TARGET ptr t = tg, s = src
+    if (t = 0) orelse (s = 0) orelse (s->tex = 0) then exit sub
+    TgSelect( t )
+    dim as SDL_FRect a, b
+    a.x = sx : a.y = sy : a.w = w : a.h = h
+    b.x = dx : b.y = dy : b.w = w : b.h = h
+    SDL_SetTextureBlendMode( s->tex, SDL_BLENDMODE_NONE )
+    SDL_RenderTexture( t->renderer, s->tex, @a, @b )
+    SDL_SetTextureBlendMode( s->tex, SDL_BLENDMODE_BLEND )
+end sub
+
+private sub DrTilePixmap cdecl ( byval tg as any ptr, byval x as single, byval y as single, byval w as single, byval h as single, _
+                                 byval src as any ptr )
+    dim as TKCE_TARGET ptr t = tg, s = src
+    if (t = 0) orelse (s = 0) orelse (s->tex = 0) then exit sub
+    TgSelect( t )
+    dim as SDL_FRect d
+    d.x = x : d.y = y : d.w = w : d.h = h
+    SDL_RenderTextureTiled( t->renderer, s->tex, 0, 1.0, @d )
+end sub
+
+private sub DrPushClip cdecl ( byval tg as any ptr, byval x as single, byval y as single, byval w as single, byval h as single )
+    dim as TKCE_TARGET ptr t = tg
+    if t = 0 then exit sub
+    dim as SDL_Rect r
+    r.x = int( x ) : r.y = int( y )
+    r.w = -int( -(x + w) ) - r.x : r.h = -int( -(y + h) ) - r.y
+    if t->nClip > 0 then
+        ' intersected with the clip in force: a nested clip never widens
+        dim as SDL_Rect o = t->clips(t->nClip - 1), i
+        if SDL_GetRectIntersection( @r, @o, @i ) = false then i.x = r.x : i.y = r.y : i.w = 0 : i.h = 0
+        r = i
+    end if
+    if t->nClip <= ubound( t->clips ) then t->clips(t->nClip) = r
+    t->nClip += 1
+    if gCur = t then TgApplyClip( t ) else TgSelect( t )
+end sub
+
+private sub DrPopClip cdecl ( byval tg as any ptr )
+    dim as TKCE_TARGET ptr t = tg
+    if (t = 0) orelse (t->nClip <= 0) then exit sub
+    t->nClip -= 1
+    if gCur = t then TgApplyClip( t ) else TgSelect( t )
+end sub
+
+' ---- TkTeApi, over SDL_ttf ------------------------------------------------------------------
+' A handle is one font FACE at one pixel size, shared by every Scintilla Font that asks for the
+' same triple (Scintilla makes one per style). Its fallback fonts are its own: SDL_ttf draws a
+' glyph the primary lacks from them, and TeAdvance measures it from them, so a CJK character in
+' Cascadia Mono is a fallback glyph measured and drawn the same way, not a tofu box.
+type TKCE_FONT
+    sKey  as string                        ' path | face | px
+    px    as long
+    f     as TTF_Font ptr
+    refs  as long
+    adv( 0 to 255 ) as long                ' cached advances of codepoints below 256, -1 = unread
+    fb( 0 to 7 ) as TTF_Font ptr           ' its fallbacks, in the order SDL_ttf consults them
+    nFb   as long
+    sFb   as string                        ' LF-joined "path|face" of each, to add each once
+end type
+dim shared as TKCE_FONT ptr gFonts( 0 to 63 )
+
+' A font file at a pixel size; face names one face of a .ttc COLLECTION. The wrong name FAILS
+' rather than opening face 0, which would render another typeface and report success (PlatPs's
+' rule: msgothic.ttc's face 0 is MS Gothic, not the MS UI Gothic a user may have picked).
+private function OpenFace( byref sPath as string, byref sFace as string, byval px as single ) as TTF_Font ptr
+    if len( sFace ) = 0 then return TTF_OpenFont( strptr( sPath ), px )
+    dim as SDL_PropertiesID props = SDL_CreateProperties()
+    if props = 0 then return 0
+    SDL_SetStringProperty( props, TTF_PROP_FONT_CREATE_FILENAME_STRING, strptr( sPath ) )
+    SDL_SetFloatProperty( props, TTF_PROP_FONT_CREATE_SIZE_FLOAT, px )
+    dim as TTF_Font ptr found = 0
+    dim as long nFaces = 1
+    dim as long idx = 0
+    while (idx < nFaces) andalso (idx < 64)
+        SDL_SetNumberProperty( props, TTF_PROP_FONT_CREATE_FACE_NUMBER, idx )
+        dim as TTF_Font ptr f = TTF_OpenFontWithProperties( props )
+        if f = 0 then exit while
+        if idx = 0 then nFaces = TTF_GetNumFontFaces( f )
+        dim as const zstring ptr fam = TTF_GetFontFamilyName( f )
+        if fam andalso (lcase( *fam ) = lcase( sFace )) then found = f : exit while
+        TTF_CloseFont( f )
+        idx += 1
+    wend
+    SDL_DestroyProperties( props )
+    return found
+end function
+
+' "path" or "path|face" -> the two halves.
+private sub SplitFace( byref entry as string, byref sPath as string, byref sFace as string )
+    dim as long bar = instr( entry, "|" )
+    if bar then
+        sPath = left( entry, bar - 1 ) : sFace = mid( entry, bar + 1 )
+    else
+        sPath = entry : sFace = ""
+    end if
+end sub
+
+private function TeOpen( byref sPath as string, byref sFace as string, byval px as long ) as any ptr
+    if (len( sPath ) = 0) orelse (px <= 0) then return 0
+    dim as string sKey = sPath & "|" & sFace & "|" & px
+    dim as long free_ = -1
+    for i as long = 0 to ubound( gFonts )
+        if gFonts(i) then
+            if gFonts(i)->sKey = sKey then gFonts(i)->refs += 1 : return gFonts(i)
+        elseif free_ < 0 then
+            free_ = i
+        end if
+    next
+    if free_ < 0 then return 0
+    dim as TTF_Font ptr f = OpenFace( sPath, sFace, px )
+    if f = 0 then return 0
+    dim as TKCE_FONT ptr e = new TKCE_FONT
+    e->sKey = sKey : e->px = px : e->f = f : e->refs = 1
+    for c as long = 0 to 255 : e->adv(c) = -1 : next
+    gFonts(free_) = e
+    return e
+end function
+
+private function TeCreate cdecl ( byval path as const zstring ptr, byval px as long ) as any ptr
+    if path = 0 then return 0
+    dim as string sPath = *path         ' a const zstring for 'byref as string' is fbc's 181 (TS-001)
+    return TeOpen( sPath, "", px )
+end function
+
+private function TeCreateFace cdecl ( byval path as const zstring ptr, byval face as const zstring ptr, byval px as long ) as any ptr
+    if path = 0 then return 0
+    dim as string sFace, sPath = *path  ' const zstring -> byref string: fbc's 181 (TS-001)
+    if face then sFace = *face
+    return TeOpen( sPath, sFace, px )
+end function
+
+private sub TeDestroy cdecl ( byval h as any ptr )
+    dim as TKCE_FONT ptr e = h
+    if e = 0 then exit sub
+    e->refs -= 1
+    if e->refs > 0 then exit sub
+    for i as long = 0 to ubound( gFonts )
+        if gFonts(i) = e then gFonts(i) = 0
+    next
+    RunCacheFlush()                 ' cached runs hold the font
+    TTF_ClearFallbackFonts( e->f )
+    for i as long = 0 to e->nFb - 1 : TTF_CloseFont( e->fb(i) ) : next
+    TTF_CloseFont( e->f )
+    delete e
+end sub
+
+private function TeFont( byval h as any ptr ) as TTF_Font ptr
+    if h = 0 then return 0
+    return cast( TKCE_FONT ptr, h )->f
+end function
+
+' ---- shaped runs, cached ----
+' A run is shaped once (TTF_CreateText) and drawn from the cache after: a view repaints the same
+' tokens -- keywords, spaces, operators -- hundreds of times, and shaping is the cost. Measured,
+' 575 runs a re-render: 1.2 ms on Windows' SDL3_ttf, 14.6 ms under WSLg, where SDL3_ttf shapes
+' with HarfBuzz. Keyed by engine, font, colour and bytes; flushed WHOLE when it outgrows the cap,
+' when a font closes and when an editor goes (its renderer's engine may go with it).
+const TKCE_RUNCACHE_MAX = 8192
+dim shared as Map( of string, any ptr ) gRuns
+
+private sub RunCacheFlush()
+    for each kv as KeyValuePair( of string, any ptr ) in gRuns
+        TTF_DestroyText( cast( TTF_Text ptr, kv.value ) )
+    next
+    gRuns.Clear()
+end sub
+
+private function RunCacheGet( byval eng as TTF_TextEngine ptr, byval f as TTF_Font ptr, byval argb as ulong, _
+                              byval s as const zstring ptr, byval n as long ) as TTF_Text ptr
+    dim as string k = space( 20 + n )
+    *cast( any ptr ptr, strptr( k ) ) = eng
+    *cast( any ptr ptr, strptr( k ) + 8 ) = f
+    *cast( ulong ptr, strptr( k ) + 16 ) = argb
+    memcpy( strptr( k ) + 20, s, n )
+    dim as any ptr v
+    if gRuns.TryGet( k, v ) then return v
+    if gRuns.Count() >= TKCE_RUNCACHE_MAX then RunCacheFlush()
+    dim as TTF_Text ptr tx = TTF_CreateText( eng, f, s, n )
+    if tx = 0 then return 0
+    TTF_SetTextColor( tx, (argb shr 16) and 255, (argb shr 8) and 255, argb and 255, (argb shr 24) and 255 )
+    gRuns.Put( k, tx )
+    return tx
+end function
+
+private function TeAscent cdecl ( byval h as any ptr ) as long
+    dim as TTF_Font ptr f = TeFont( h )
+    if f = 0 then return 0
+    return TTF_GetFontAscent( f )
+end function
+
+private function TeDescent cdecl ( byval h as any ptr ) as long
+    dim as TTF_Font ptr f = TeFont( h )
+    if f = 0 then return 0
+    return -TTF_GetFontDescent( f )
+end function
+
+private function TeLineHeight cdecl ( byval h as any ptr ) as long
+    dim as TTF_Font ptr f = TeFont( h )
+    if f = 0 then return 0
+    return TTF_GetFontHeight( f )
+end function
+
+private function TeAverageCharWidth64 cdecl ( byval h as any ptr ) as long
+    dim as TTF_Font ptr f = TeFont( h )
+    if f = 0 then return 0
+    dim as long minx, maxx, miny, maxy, adv
+    if TTF_GetGlyphMetrics( f, asc( "x" ), @minx, @maxx, @miny, @maxy, @adv ) = false then return 0
+    return adv * 64
+end function
+
+' THE CUMULATIVE X AFTER EACH BYTE (Scintilla's MeasureWidths contract): each codepoint's hinted
+' advance plus the kerning from the one before, every byte of the codepoint given its end, so a
+' caret never lands inside a character and a combining mark (advance 0) shares its base's place.
+' NOT TTF_Text's substring rects: those are INK boxes (Cascadia's 'i' at x 9, w 6 inside an 8 px
+' cell -- measured), not the pen. Shaping a prefix per byte would be exact for ligatures but
+' O(n^2); a ligature font draws through TTF_Text with its own advances (PORT.md).
+private function TeAdvance( byval e as TKCE_FONT ptr, byval cp as ulong ) as long
+    if cp < 256 then
+        if e->adv(cp) >= 0 then return e->adv(cp)
+    end if
+    dim as long minx, maxx, miny, maxy, a
+    dim as TTF_Font ptr f = e->f
+    ' a glyph the primary lacks is drawn from the first fallback that has it: measured from it too
+    if (e->nFb > 0) andalso (TTF_FontHasGlyph( f, cp ) = false) then
+        for i as long = 0 to e->nFb - 1
+            if TTF_FontHasGlyph( e->fb(i), cp ) then f = e->fb(i) : exit for
+        next
+    end if
+    if TTF_GetGlyphMetrics( f, cp, @minx, @maxx, @miny, @maxy, @a ) = false then a = 0
+    if cp < 256 then e->adv(cp) = a
+    return a
+end function
+
+private sub TeMeasureWidths64 cdecl ( byval h as any ptr, byval s as const zstring ptr, byval n as long, byval out64 as long ptr )
+    if (out64 = 0) orelse (n <= 0) then exit sub
+    dim as TKCE_FONT ptr e = h
+    if (e = 0) orelse (s = 0) then
+        for i as long = 0 to n - 1 : out64[i] = 0 : next
+        exit sub
+    end if
+    dim as const ubyte ptr b = cast( const ubyte ptr, s )
+    dim as long x = 0, i = 0
+    dim as ulong prev = 0
+    while i < n
+        dim as ulong c = b[i]
+        dim as long k = 1
+        if c >= &hF0 then
+            k = 4 : c = c and &h07
+        elseif c >= &hE0 then
+            k = 3 : c = c and &h0F
+        elseif c >= &hC0 then
+            k = 2 : c = c and &h1F
+        end if
+        if i + k > n then k = n - i
+        for j as long = 1 to k - 1
+            c = (c shl 6) or (b[i + j] and &h3F)
+        next
+        if prev then
+            dim as long kern
+            if TTF_GetGlyphKerning( e->f, prev, c, @kern ) then x += kern
+        end if
+        x += TeAdvance( e, c )
+        prev = c
+        for j as long = 0 to k - 1
+            out64[i + j] = x * 64
+        next
+        i += k
+    wend
+end sub
+
+' A run's width is its LAST cluster's end, from the same walk -- not TTF_GetStringSize, which
+' sums whole-pixel advances while the glyphs land at rounded fractional positions (Cascadia at
+' 13 px: 7.8 px a cell). Measured: 104 vs 103 px for 13 cells. One answer, or Scintilla's
+' layout and what is drawn drift apart.
+private function TeMeasureText64 cdecl ( byval h as any ptr, byval s as const zstring ptr, byval n as long ) as long
+    if (s = 0) orelse (n <= 0) then return 0
+    dim as long pos_( 0 to n - 1 )
+    TeMeasureWidths64( h, s, n, @pos_(0) )
+    return pos_(n - 1)
+end function
+
+private function TeXToIndex cdecl ( byval h as any ptr, byval s as const zstring ptr, byval n as long, byval x64 as long ) as long
+    if n <= 0 then return 0
+    dim as long pos_( 0 to n - 1 )
+    TeMeasureWidths64( h, s, n, @pos_(0) )
+    for i as long = 0 to n - 1
+        if pos_(i) >= x64 then return i
+    next
+    return n
+end function
+
+private sub TeDrawText cdecl ( byval h as any ptr, byval tg as any ptr, byval x as long, byval y as long, _
+                               byval s as const zstring ptr, byval n as long, byval argb as ulong )
+    dim as TTF_Font ptr f = TeFont( h )
+    dim as TKCE_TARGET ptr t = tg
+    if (f = 0) orelse (t = 0) orelse (s = 0) orelse (n <= 0) orelse ((argb shr 24) = 0) then exit sub
+    TgSelect( t )
+    dim as Uint64 c0 = SDL_GetPerformanceCounter()
+    dim as TTF_Text ptr tx = RunCacheGet( t->engine, f, argb, s, n )
+    if tx = 0 then exit sub
+    TTF_DrawRendererText( tx, x, y - TTF_GetFontAscent( f ) )
+    gnText += 1
+    gfText += (SDL_GetPerformanceCounter() - c0) * 1000.0 / SDL_GetPerformanceFrequency()
+end sub
+
+' A fallback face for this font, at its size; each "path|face" once (PlatTk applies the chain to
+' every Font it makes, and fonts are shared). The run cache is flushed: runs shaped before the
+' fallback hold tofu.
+private function AddFallbackTo( byval e as TKCE_FONT ptr, byref sPath as string, byref sFace as string ) as boolean
+    if (e = 0) orelse (len( sPath ) = 0) then return false
+    dim as string sId = sPath & "|" & sFace & chr( 10 )
+    if instr( chr( 10 ) & e->sFb, chr( 10 ) & sId ) then return true
+    if e->nFb > ubound( e->fb ) then return false
+    dim as TTF_Font ptr fBack = OpenFace( sPath, sFace, TTF_GetFontSize( e->f ) )
+    if fBack = 0 then return false
+    if TTF_AddFallbackFont( e->f, fBack ) = false then TTF_CloseFont( fBack ) : return false
+    e->fb(e->nFb) = fBack : e->nFb += 1
+    e->sFb &= sId
+    for c as long = 0 to 255 : e->adv(c) = -1 : next
+    RunCacheFlush()
+    return true
+end function
+
+private function TeAddFallback cdecl ( byval h as any ptr, byval path as const zstring ptr, byval face as const zstring ptr ) as long
+    if path = 0 then return 0
+    dim as string sFace, sPath = *path  ' const zstring -> byref string: fbc's 181 (TS-001)
+    if face then sFace = *face
+    return iif( AddFallbackTo( h, sPath, sFace ), 1, 0 )
+end function
+
+' ---- faces: Scintilla names a font the way a person does; the host answers with a file -------
+type TKCE_FACE
+    sFamily as string
+    sFile( 0 to 3 ) as string                ' regular, bold, italic, bold italic ("" = none)
+end type
+dim shared as TKCE_FACE gFaces( 0 to 31 )
+dim shared as long gnFaces
+dim shared as string gFallbackChain           ' LF-separated "path" or "path|face"
+
+' PlatTk's resolver: family + style -> "path" or "path|face". 0 = not known here (PlatTk then
+' asks for the regular cut, then uses the default file).
+private function CeResolve cdecl ( byval family as const zstring ptr, byval bold as long, byval italic as long, _
+                                   byval out_ as zstring ptr, byval cbOut as long ) as long
+    if (family = 0) orelse (out_ = 0) then return 0
+    dim as string sFam = lcase( *family )
+    for i as long = 0 to gnFaces - 1
+        if lcase( gFaces(i).sFamily ) = sFam then
+            dim as string f = gFaces(i).sFile( iif( bold, 1, 0 ) + iif( italic, 2, 0 ) )
+            if (len( f ) = 0) orelse (len( f ) >= cbOut) then return 0
+            memcpy( out_, strptr( f ), len( f ) )
+            return len( f )
+        end if
+    next
+    return 0
+end function
+
+' The fallback chain applied to one font (each face once: AddFallbackTo).
+private sub ApplyChain( byval h as any ptr )
+    dim as string chain_ = gFallbackChain
+    while len( chain_ )
+        dim as long nl = instr( chain_, chr( 10 ) )
+        dim as string entry = iif( nl, left( chain_, nl - 1 ), chain_ )
+        chain_ = iif( nl, mid( chain_, nl + 1 ), "" )
+        if len( entry ) then
+            dim as string sPath, sFace
+            SplitFace( entry, sPath, sFace )
+            AddFallbackTo( h, sPath, sFace )
+        end if
+    wend
+end sub
+
+' ==========================================================================================
+' Loading scintk
+' ==========================================================================================
+#if defined( TIKO_OS_WINDOWS )
+const SCINTK_FILE = "scintk.dll"
+#elseif defined( TIKO_OS_MACOS )
+const SCINTK_FILE = "libscintk.dylib"
+#else
+const SCINTK_FILE = "libscintk.so"
+#endif
+
+private function Need( byref name_ as string ) as any ptr
+    dim as any ptr p = SDL_LoadFunction( gLib.so, strptr( name_ ) )
+    if (p = 0) andalso (len( gLib.sError ) = 0) then gLib.sError = SCINTK_FILE & " has no " & name_
+    return p
+end function
+
+' Once per process. TRUE when every entry point resolved and the ABI matches.
+private function LoadLib() as boolean
+    if gLib.tried then return len( gLib.sError ) = 0
+    gLib.tried = true
+    dim as const zstring ptr base_ = SDL_GetBasePath()
+    dim as string sPath = SCINTK_FILE
+    if base_ then sPath = *base_ & SCINTK_FILE
+    gLib.so = SDL_LoadObject( strptr( sPath ) )
+    if gLib.so = 0 then gLib.so = SDL_LoadObject( SCINTK_FILE )
+    if gLib.so = 0 then gLib.sError = "cannot load " & sPath & ": " & *SDL_GetError() : return false
+    gLib.Create = Need( "SciTk_Create" )
+    gLib.Destroy = Need( "SciTk_Destroy" )
+    gLib.Send = Need( "SciTk_Send" )
+    gLib.Paint = Need( "SciTk_Paint" )
+    gLib.SetSize = Need( "SciTk_SetSize" )
+    gLib.Cursor = Need( "SciTk_Cursor" )
+    gLib.KeyDown = Need( "SciTk_KeyDown" )
+    gLib.TextInput = Need( "SciTk_TextInput" )
+    gLib.MouseDown = Need( "SciTk_MouseDown" )
+    gLib.MouseMove = Need( "SciTk_MouseMove" )
+    gLib.MouseUp = Need( "SciTk_MouseUp" )
+    gLib.SetFocus = Need( "SciTk_SetFocus" )
+    gLib.SetInvalidate = Need( "SciTk_SetInvalidateCallback" )
+    gLib.SetNotify = Need( "SciTk_SetNotifyCallback" )
+    gLib.SetClipboard = Need( "SciTk_SetClipboardHooks" )
+    gLib.SetTicker = Need( "SciTk_SetTickerCallback" )
+    gLib.Tick = Need( "SciTk_Tick" )
+    gLib.SetTextApi = Need( "SciTk_SetTextApi" )
+    gLib.SetDrawApi = Need( "SciTk_SetDrawApi" )
+    gLib.SetDpi = Need( "SciTk_SetDpi" )
+    gLib.SetFontPath = Need( "SciTk_SetFontPath" )
+    gLib.CreateLexer = Need( "SciTk_CreateLexer" )
+    gLib.AbiVersion = Need( "SciTk_AbiVersion" )
+    gLib.NotificationSize = Need( "SciTk_NotificationSize" )
+    gLib.SetCallTipHost = Need( "SciTk_SetCallTipHost" )
+    gLib.PaintCallTip = Need( "SciTk_PaintCallTip" )
+    gLib.CallTipClick = Need( "SciTk_CallTipClick" )
+    gLib.ImeCompose = Need( "SciTk_ImeCompose" )
+    gLib.CaretRect = Need( "SciTk_CaretRect" )
+    gLib.SetEditorDpi = Need( "SciTk_SetEditorDpi" )
+    gLib.SetListBoxHost = Need( "SciTk_SetListBoxHost" )
+    gLib.LbCount = Need( "SciTk_LbCount" )
+    gLib.LbText = Need( "SciTk_LbText" )
+    gLib.LbSelection = Need( "SciTk_LbSelection" )
+    gLib.LbRowHeight = Need( "SciTk_LbRowHeight" )
+    gLib.LbSetSelection = Need( "SciTk_LbSetSelection" )
+    gLib.LbActivate = Need( "SciTk_LbActivate" )
+    gLib.SetMenuHost = Need( "SciTk_SetMenuHost" )
+    gLib.MenuCommand = Need( "SciTk_MenuCommand" )
+    gLib.ContextMenu = Need( "SciTk_ContextMenu" )
+    gLib.SetFontResolver = Need( "SciTk_SetFontResolver" )
+    gLib.SetFallbackChain = Need( "SciTk_SetFallbackChain" )
+    if len( gLib.sError ) then return false
+    if gLib.AbiVersion() <> TKCE_ABI_VERSION then
+        gLib.sError = SCINTK_FILE & " is ABI " & gLib.AbiVersion() & ", tkCodeEdit wants " & TKCE_ABI_VERSION
+        return false
+    end if
+    if gLib.NotificationSize() <> sizeof( TKCE_NOTIFICATION ) then
+        gLib.sError = "SciTkNotification is " & gLib.NotificationSize() & " bytes, TKCE_NOTIFICATION " & sizeof( TKCE_NOTIFICATION )
+        return false
+    end if
+
+    gTeApi.Create = @TeCreate
+    gTeApi.Destroy = @TeDestroy
+    gTeApi.Ascent = @TeAscent
+    gTeApi.Descent = @TeDescent
+    gTeApi.LineHeight = @TeLineHeight
+    gTeApi.AverageCharWidth64 = @TeAverageCharWidth64
+    gTeApi.MeasureText64 = @TeMeasureText64
+    gTeApi.MeasureWidths64 = @TeMeasureWidths64
+    gTeApi.XToIndex = @TeXToIndex
+    gTeApi.DrawText = @TeDrawText
+    gTeApi.AddFallback = @TeAddFallback
+    gTeApi.CreateFace = @TeCreateFace
+    gDrawApi.PixmapCreate = @DrPixmapCreate
+    gDrawApi.PixmapDestroy = @DrPixmapDestroy
+    gDrawApi.FillRect = @DrFillRect
+    gDrawApi.FrameRect = @DrFrameRect
+    gDrawApi.RoundRect = @DrRoundRect
+    gDrawApi.Line = @DrLine
+    gDrawApi.PolyLine = @DrPolyLine
+    gDrawApi.Polygon = @DrPolygon
+    gDrawApi.Ellipse = @DrEllipse
+    gDrawApi.Gradient = @DrGradient
+    gDrawApi.Image = @DrImage
+    gDrawApi.CopyPixmap = @DrCopyPixmap
+    gDrawApi.TilePixmap = @DrTilePixmap
+    gDrawApi.PushClip = @DrPushClip
+    gDrawApi.PopClip = @DrPopClip
+    gLib.SetTextApi( @gTeApi )
+    gLib.SetDrawApi( @gDrawApi )
+    gLbHost.Show = @LbShow
+    gLbHost.Hide = @LbHide
+    gLbHost.ItemsChanged = @LbItemsChanged
+    gLbHost.SelectionChanged = @LbSelectionChanged
+    gLib.SetListBoxHost( @gLbHost, 0 )
+    gTipHost.Show = @CtShow
+    gTipHost.Hide = @CtHide
+    gTipHost.Invalidate = @CtInvalidate
+    gMenuTable.Begin_ = @MnBegin
+    gMenuTable.AddItem = @MnAddItem
+    gMenuTable.Show = @MnShow
+    gLib.SetMenuHost( @gMenuTable, 0 )
+    gLib.SetFontResolver( @CeResolve )
+    return true
+end function
+
+' Why the last tkCodeEdit_Create returned 0 ("" when scintk loaded).
+public function tkCodeEdit_LibraryError() as string
+    return gLib.sError
+end function
+
+
+' ==========================================================================================
+' The widget
+' ==========================================================================================
+public type TKCODEEDIT_NotifySub as sub( byval hEdit as TK_WIDGET ptr, byval n as const TKCE_NOTIFICATION ptr )
+' The host's own context menu (x, y: editor pixels). Installing one replaces Scintilla's.
+public type TKCODEEDIT_ContextMenuSub as sub( byval hEdit as TK_WIDGET ptr, byval x as long, byval y as long )
+' The editor's scale changed (a move to another monitor): margins the host sized in pixels are
+' the host's to resize. Scintilla has already restyled its fonts.
+public type TKCODEEDIT_ScaleSub as sub( byval hEdit as TK_WIDGET ptr, byval fOld as single, byval fNew as single )
+
+' Scintilla's TickReasons as widget timer ids.
+const TKCE_TICK_BASE = TK_TIMER_APP
+
+type TKCE_STATE
+    hWin        as TK_WIDGET ptr
+    pSci        as any ptr
+    view        as TKCE_TARGET
+    bDirty      as boolean = true
+    bInPaint    as boolean
+    fWheel      as single                ' notches not yet scrolled (precise touchpads)
+    sClip       as string                ' the clipboard text handed to scintk, alive past the call
+    sFontPath   as string
+    nFontPt     as long = 10
+    NotifyCallback as TKCODEEDIT_NotifySub
+    ContextMenuCallback as TKCODEEDIT_ContextMenuSub
+    ScaleCallback  as TKCODEEDIT_ScaleSub
+    ' measurements (tiko-studio P1 gate): the last re-render of the view and their count
+    fLastPaintMs as double
+    nPaints      as long
+    nBlits       as long
+end type
+
+private function CE( byval h as TK_WIDGET ptr ) as TKCE_STATE ptr
+    if h = 0 then return 0
+    if h->pData = 0 then return 0
+    return cast( TKCE_STATE ptr, h->pData )
+end function
+
+' Scintilla asking for pixels. The rect is ignored and the view re-rendered whole (PsSciView's
+' choice): its coordinates would need trusting, and getting them slightly wrong leaves trails.
+private sub CeInvalidate cdecl ( byval user as any ptr, byval p as any ptr, byval x as long, byval y as long, _
+                                 byval w as long, byval h as long )
+    dim as TKCE_STATE ptr t = user
+    if t = 0 then exit sub
+    t->bDirty = true
+    if t->bInPaint = false then tkWidget_Invalidate( t->hWin )
+end sub
+
+' A fine ticker started or stopped, from inside an edit: arm or kill, never re-enter.
+private sub CeTicker cdecl ( byval user as any ptr, byval reason as long, byval ms as long, byval running as long )
+    dim as TKCE_STATE ptr t = user
+    if (t = 0) orelse (reason < 0) orelse (reason > 4) then exit sub
+    if running then
+        tkWidget_SetTimer( t->hWin, TKCE_TICK_BASE + reason, iif( ms < 1, 1, ms ) )
+    else
+        tkWidget_KillTimer( t->hWin, TKCE_TICK_BASE + reason )
+    end if
+end sub
+
+private sub CeNotify cdecl ( byval user as any ptr, byval n as const TKCE_NOTIFICATION ptr )
+    dim as TKCE_STATE ptr t = user
+    if (t = 0) orelse (n = 0) then exit sub
+    if t->NotifyCallback then t->NotifyCallback( t->hWin, n )
+end sub
+
+private function CeClipGet cdecl ( byval user as any ptr ) as const zstring ptr
+    dim as TKCE_STATE ptr t = user
+    if t = 0 then return 0
+    t->sClip = tkHost_GetClipboardText()
+    return strptr( t->sClip )
+end function
+
+private sub CeClipSet cdecl ( byval user as any ptr, byval s as const zstring ptr )
+    if s = 0 then exit sub
+    dim as ustring u = *s
+    tkHost_SetClipboardText( u )
+end sub
+
+' SDL keycode -> Scintilla Keys, or the character code (letters UPPERCASE, as Scintilla's key map
+' is written). 0 = a key Scintilla has no name for.
+private function SciKey( byval k as long ) as long
+    select case k
+    case SDLK_DOWN : return 300
+    case SDLK_UP : return 301
+    case SDLK_LEFT : return 302
+    case SDLK_RIGHT : return 303
+    case SDLK_HOME : return 304
+    case SDLK_END : return 305
+    case SDLK_PAGEUP : return 306
+    case SDLK_PAGEDOWN : return 307
+    case SDLK_DELETE : return 308
+    case SDLK_INSERT : return 309
+    case SDLK_ESCAPE : return 7
+    case SDLK_BACKSPACE : return 8
+    case SDLK_TAB : return 9
+    case SDLK_RETURN, SDLK_KP_ENTER : return 13
+    case SDLK_KP_PLUS : return 310
+    case SDLK_KP_MINUS : return 311
+    case SDLK_KP_DIVIDE : return 312
+    end select
+    if (k >= SDLK_A) andalso (k <= SDLK_Z) then return k - 32
+    if (k >= 32) andalso (k < 127) then return k
+    return 0
+end function
+
+' SDL_Keymod -> Scintilla KeyMod. On macOS Cmd is the command key, so it reaches Scintilla's key
+' map as Ctrl (tiko-studio D8: the Primary modifier).
+private function SciMods( byval m as long ) as long
+    dim as long r = 0
+    if (m and SDL_KMOD_SHIFT) then r or= 1
+#if defined( TIKO_OS_MACOS )
+    if (m and SDL_KMOD_GUI) then r or= 2
+    if (m and SDL_KMOD_CTRL) then r or= 8
+#else
+    if (m and SDL_KMOD_CTRL) then r or= 2
+    if (m and SDL_KMOD_GUI) then r or= 8
+#endif
+    if (m and SDL_KMOD_ALT) then r or= 4
+    return r
+end function
+
+private sub CeSyncCursor( byval t as TKCE_STATE ptr )
+    dim as long c = TK_CURSOR_IBEAM
+    select case gLib.Cursor( t->pSci )
+    case 2, 3, 7 : c = TK_CURSOR_ARROW
+    case 4 : c = TK_CURSOR_WAIT
+    case 5 : c = TK_CURSOR_SIZEWE
+    case 6 : c = TK_CURSOR_SIZENS
+    case 8 : c = TK_CURSOR_HAND
+    end select
+    if t->hWin->cursor <> c then tkWidget_SetCursor( t->hWin, c )
+end sub
+
+' The view texture, the widget's size. A new one is a full re-render.
+private function CeEnsureView( byval t as TKCE_STATE ptr, byval r as SDL_Renderer ptr, byval e as TTF_TextEngine ptr, _
+                               byval w as long, byval h as long ) as boolean
+    if (w <= 0) orelse (h <= 0) then return false
+    if t->view.tex andalso (t->view.w = w) andalso (t->view.h = h) andalso (t->view.renderer = r) then return true
+    if t->view.tex then SDL_DestroyTexture( t->view.tex )
+    t->view.renderer = r : t->view.engine = e
+    t->view.w = w : t->view.h = h : t->view.nClip = 0
+    t->view.tex = SDL_CreateTexture( r, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, w, h )
+    if t->view.tex = 0 then return false
+    SDL_SetTextureBlendMode( t->view.tex, SDL_BLENDMODE_NONE )
+    t->bDirty = true
+    return true
+end function
+
+private sub CeOnPaint( byval t as TKCE_STATE ptr, byval p as TK_PAINT ptr )
+    dim as TK_WIDGET ptr w = t->hWin
+    if CeEnsureView( t, p->renderer, p->engine, w->cw, w->ch ) = false then exit sub
+    if t->bDirty then
+        dim as Uint64 t0 = SDL_GetPerformanceCounter()
+        t->bDirty = false
+        t->bInPaint = true
+        gPaintRenderer = p->renderer : gPaintEngine = p->engine
+        gnText = 0 : gnPrim = 0 : gfText = 0
+        TgSelect( @t->view )
+        gLib.Paint( t->pSci, @t->view, w->cw, w->ch )
+        dim as Uint64 f0 = SDL_GetPerformanceCounter()
+        SDL_SetRenderTarget( p->renderer, 0 )
+        gfFlush = (SDL_GetPerformanceCounter() - f0) * 1000.0 / SDL_GetPerformanceFrequency()
+        gCur = 0
+        t->bInPaint = false
+        t->fLastPaintMs = (SDL_GetPerformanceCounter() - t0) * 1000.0 / SDL_GetPerformanceFrequency()
+        t->nPaints += 1
+        ' Scintilla abandoned or re-invalidated during the paint: once more, next frame
+        if t->bDirty then tkWidget_Invalidate( w )
+    end if
+    p->ApplyClip( 0 )
+    dim as SDL_FRect d
+    d.x = p->ox : d.y = p->oy : d.w = w->cw : d.h = w->ch
+    SDL_RenderTexture( p->renderer, t->view.tex, 0, @d )
+    t->nBlits += 1
+end sub
+
+' The editor the user is working in: the list and the context menu have one host table for the
+' process (Scintilla allocates its ListBox with nowhere to thread a host pointer), so they act
+' for this one. Set on every input message and on every tkCodeEdit_Send.
+dim shared as TKCE_STATE ptr gActive
+
+' A popup's position: below the caret line, or above it when the display ends first.
+private sub PopupAt( byval t as TKCE_STATE ptr, byval x as long, byval w as long, byval h as long, _
+                     byref px as long, byref py as long )
+    dim as TKRECT a
+    tkWidget_AbsRect( t->hWin, a )
+    dim as long cx, cy, lh
+    gLib.CaretRect( t->pSci, @cx, @cy, @lh )
+    dim as TKRECT anchor
+    tkRect_Set( anchor, a.left + x, a.top + cy, a.left + x + w, a.top + cy + lh )
+    tkHost_PlacePopup( t->hWin->pHost, anchor, w, h, false, px, py )
+end sub
+
+' The input method's candidate window goes under the caret.
+private sub CeSyncInputArea( byval t as TKCE_STATE ptr )
+    dim as long cx, cy, lh
+    gLib.CaretRect( t->pSci, @cx, @cy, @lh )
+    dim as TKRECT rc
+    tkRect_Set( rc, cx, cy, cx + 1, cy + lh )
+    tkHost_SetTextInputArea( t->hWin, rc, 0 )
+end sub
+
+' Keys reaching one of the editor's popups belong to the editor.
+private function ForwardKeys( byval t as TKCE_STATE ptr, byval m as TK_MSG ptr ) as boolean
+    if (t = 0) orelse (t->hWin = 0) then return false
+    return tkWidget_Send( t->hWin, m )
+end function
+
+' ---- the autocompletion list -------------------------------------------------------------------
+type TKCE_LIST
+    lb      as any ptr                  ' Scintilla's ListBox (the model: SciTk_Lb*)
+    owner   as TKCE_STATE ptr
+    popup   as TK_HOST ptr
+    w       as TK_WIDGET ptr
+    hf      as TKCE_FONT ptr            ' the editor's font at the editor's size
+    nTop    as long
+    bHiding as boolean                  ' the close is Scintilla's own: do not cancel it back
+end type
+dim shared as TKCE_LIST gList
+
+private sub ListClose()
+    if gList.popup = 0 then exit sub
+    gList.bHiding = true
+    tkHost_Close( gList.popup )         ' OnClosed (ListClosed) clears the rest
+    gList.bHiding = false
+end sub
+
+private sub ListClosed( byval h as TK_HOST ptr )
+    if h <> gList.popup then exit sub
+    dim as TKCE_STATE ptr owner = gList.owner
+    dim as boolean bOurs = gList.bHiding
+    gList.popup = 0 : gList.w = 0 : gList.lb = 0
+    if gList.hf then TeDestroy( gList.hf ) : gList.hf = 0
+    ' closed by the HOST (a press elsewhere, focus leaving the app): Scintilla must hear it
+    if (bOurs = false) andalso (owner <> 0) andalso (owner->pSci <> 0) then
+        if gLib.Send( owner->pSci, SCI_AUTOCACTIVE, 0, 0 ) then gLib.Send( owner->pSci, SCI_AUTOCCANCEL, 0, 0 )
+    end if
+end sub
+
+private function ListRows() as long
+    if (gList.w = 0) orelse (gList.lb = 0) then return 1
+    dim as long rh = gLib.LbRowHeight( gList.lb )
+    if rh <= 0 then return 1
+    return iif( gList.w->ch \ rh < 1, 1, gList.w->ch \ rh )
+end function
+
+private sub ListEnsureVisible()
+    if gList.lb = 0 then exit sub
+    dim as long sel = gLib.LbSelection( gList.lb ), rows = ListRows()
+    if sel < 0 then exit sub
+    if sel < gList.nTop then gList.nTop = sel
+    if sel >= gList.nTop + rows then gList.nTop = sel - rows + 1
+end sub
+
+private function ListProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    if gList.lb = 0 then return false
+    select case m->msg
+    case TKM_PAINT
+        dim as TK_PAINT ptr p = m->pPaint
+        dim as TKTHEME_COLORS th = tkTheme_Get()
+        dim as TKRECT rc
+        tkRect_Set( rc, 0, 0, w->cw, w->ch )
+        p->SetBackColor( th.Popup )
+        p->PaintRect( @rc )
+        dim as long rh = gLib.LbRowHeight( gList.lb ), n = gLib.LbCount( gList.lb ), sel = gLib.LbSelection( gList.lb )
+        if rh <= 0 then return true
+        if gList.hf then p->SetFont( gList.hf->f )
+        dim as long pad = tkHost_Scale( w->pHost, 4 )
+        for i as long = gList.nTop to n - 1
+            dim as long y = (i - gList.nTop) * rh
+            if y >= w->ch then exit for
+            tkRect_Set( rc, 0, y, w->cw, y + rh )
+            if i = sel then
+                p->SetBackColor( th.Selected )
+                p->PaintRect( @rc )
+                p->SetForeColor( th.SelectedText )
+            else
+                p->SetForeColor( th.PopupText )
+            end if
+            dim as ustring u = *gLib.LbText( gList.lb, i )
+            tkRect_Set( rc, pad, y, w->cw - pad, y + rh )
+            p->PaintText( u, @rc, 0 )
+        next
+        ' the frame as four lines: PaintRectFactory FILLS before it strokes, and painted the rows out
+        p->SetPenColor( th.Border )
+        p->PaintLine( 1, 0, 0, w->cw - 1, 0 )
+        p->PaintLine( 1, 0, w->ch - 1, w->cw - 1, w->ch - 1 )
+        p->PaintLine( 1, 0, 0, 0, w->ch - 1 )
+        p->PaintLine( 1, w->cw - 1, 0, w->cw - 1, w->ch - 1 )
+        return true
+    case TKM_LBUTTONDOWN
+        dim as long rh = gLib.LbRowHeight( gList.lb )
+        if rh <= 0 then return true
+        dim as long row = gList.nTop + cint( m->y ) \ rh
+        if (row < 0) orelse (row >= gLib.LbCount( gList.lb )) then return true
+        gLib.LbSetSelection( gList.lb, row )
+        tkWidget_Invalidate( w )
+        ' completing closes this popup: tkHost_Close defers the teardown past this message
+        if m->clicks >= 2 then gLib.LbActivate( gList.lb, row )
+        return true
+    case TKM_MOUSEWHEEL
+        dim as long n = gLib.LbCount( gList.lb ), rows = ListRows()
+        gList.nTop -= cint( m->wheelY ) * 3
+        if gList.nTop > n - rows then gList.nTop = n - rows
+        if gList.nTop < 0 then gList.nTop = 0
+        tkWidget_Invalidate( w )
+        return true
+    case TKM_KEYDOWN, TKM_KEYUP, TKM_CHAR, TKM_IMECOMPOSE
+        return ForwardKeys( gList.owner, m )
+    end select
+    return false
+end function
+
+' Scintilla's ListBox host (SciTkListBoxHost): x, y, w, h are editor pixels.
+private sub LbShow cdecl ( byval user as any ptr, byval lb as any ptr, byval x as long, byval y as long, _
+                           byval w as long, byval h as long )
+    dim as TKCE_STATE ptr t = gActive
+    if (t = 0) orelse (w <= 0) orelse (h <= 0) then exit sub
+    ListClose()
+    dim as long px, py
+    PopupAt( t, x, w, h, px, py )
+    dim as TK_HOST ptr ph = tkHost_CreatePopup( t->hWin->pHost, px, py, w, h )
+    if ph = 0 then exit sub
+    ph->bPassDismissClick = true          ' a click in the editor both closes the list and lands
+    ph->OnClosed = @ListClosed
+    gList.lb = lb : gList.owner = t : gList.popup = ph : gList.nTop = 0
+    gList.hf = TeOpen( t->sFontPath, "", cint( t->nFontPt * 96 * t->hWin->pHost->fScale / 72 ) )
+    gList.w = tkWidget_Create( ph, 1, @ListProc, 0 )
+    gList.w->isFocusable = true
+    tkWidget_SetPos( gList.w, 0, 0, w, h )
+    ListEnsureVisible()
+    tkHost_Show( ph )
+    tkHost_SetFocus( ph, gList.w )
+end sub
+
+private sub LbHide cdecl ( byval user as any ptr, byval lb as any ptr )
+    if lb = gList.lb then ListClose()
+end sub
+
+private sub LbItemsChanged cdecl ( byval user as any ptr, byval lb as any ptr )
+    if (lb = gList.lb) andalso (gList.w <> 0) then tkWidget_Invalidate( gList.w )
+end sub
+
+private sub LbSelectionChanged cdecl ( byval user as any ptr, byval lb as any ptr, byval n as long )
+    if (lb <> gList.lb) orelse (gList.w = 0) then exit sub
+    ListEnsureVisible()
+    tkWidget_Invalidate( gList.w )
+end sub
+
+type TKSCI_LBHOST
+    Show             as any ptr
+    Hide             as any ptr
+    ItemsChanged     as any ptr
+    SelectionChanged as any ptr
+end type
+dim shared as TKSCI_LBHOST gLbHost
+
+' ---- the call tip -----------------------------------------------------------------------------
+type TKCE_TIP
+    owner   as TKCE_STATE ptr
+    popup   as TK_HOST ptr
+    w       as TK_WIDGET ptr
+    tgt     as TKCE_TARGET
+    bDirty  as boolean
+    bHiding as boolean
+end type
+dim shared as TKCE_TIP gTip
+
+private sub TipClose()
+    if gTip.popup = 0 then exit sub
+    gTip.bHiding = true
+    tkHost_Close( gTip.popup )
+    gTip.bHiding = false
+end sub
+
+private sub TipClosed( byval h as TK_HOST ptr )
+    if h <> gTip.popup then exit sub
+    dim as TKCE_STATE ptr owner = gTip.owner
+    dim as boolean bOurs = gTip.bHiding
+    if gCur = @gTip.tgt then SDL_SetRenderTarget( gTip.tgt.renderer, 0 ) : gCur = 0
+    if gTip.tgt.tex then SDL_DestroyTexture( gTip.tgt.tex ) : gTip.tgt.tex = 0
+    RunCacheFlush()                     ' runs shaped for the popup's text engine go with it
+    gTip.popup = 0 : gTip.w = 0
+    if (bOurs = false) andalso (owner <> 0) andalso (owner->pSci <> 0) then
+        if gLib.Send( owner->pSci, SCI_CALLTIPACTIVE, 0, 0 ) then gLib.Send( owner->pSci, SCI_CALLTIPCANCEL, 0, 0 )
+    end if
+end sub
+
+private function TipProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKCE_STATE ptr t = gTip.owner
+    if (t = 0) orelse (t->pSci = 0) then return false
+    select case m->msg
+    case TKM_PAINT
+        dim as TK_PAINT ptr p = m->pPaint
+        if (gTip.tgt.tex = 0) orelse (gTip.tgt.w <> w->cw) orelse (gTip.tgt.h <> w->ch) then
+            if gTip.tgt.tex then SDL_DestroyTexture( gTip.tgt.tex )
+            gTip.tgt.renderer = p->renderer : gTip.tgt.engine = p->engine
+            gTip.tgt.w = w->cw : gTip.tgt.h = w->ch : gTip.tgt.nClip = 0
+            gTip.tgt.tex = SDL_CreateTexture( p->renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, w->cw, w->ch )
+            if gTip.tgt.tex = 0 then return true
+            SDL_SetTextureBlendMode( gTip.tgt.tex, SDL_BLENDMODE_NONE )
+            gTip.bDirty = true
+        end if
+        if gTip.bDirty then
+            gTip.bDirty = false
+            gPaintRenderer = p->renderer : gPaintEngine = p->engine
+            TgSelect( @gTip.tgt )
+            gLib.PaintCallTip( t->pSci, @gTip.tgt, w->cw, w->ch )
+            SDL_SetRenderTarget( p->renderer, 0 )
+            gCur = 0
+        end if
+        p->ApplyClip( 0 )
+        dim as SDL_FRect d
+        d.x = p->ox : d.y = p->oy : d.w = w->cw : d.h = w->ch
+        SDL_RenderTexture( p->renderer, gTip.tgt.tex, 0, @d )
+        return true
+    case TKM_LBUTTONDOWN
+        gLib.CallTipClick( t->pSci, cint( m->x ), cint( m->y ) )
+        return true
+    case TKM_KEYDOWN, TKM_KEYUP, TKM_CHAR, TKM_IMECOMPOSE
+        return ForwardKeys( t, m )
+    end select
+    return false
+end function
+
+' Scintilla's call tip host (SciTkCallTipHost), registered per editor: user = its state.
+private sub CtShow cdecl ( byval user as any ptr, byval editor as any ptr, byval x as long, byval y as long, _
+                           byval w as long, byval h as long )
+    dim as TKCE_STATE ptr t = user
+    if (t = 0) orelse (w <= 0) orelse (h <= 0) then exit sub
+    TipClose()
+    dim as long px, py
+    PopupAt( t, x, w, h, px, py )
+    dim as TK_HOST ptr ph = tkHost_CreatePopup( t->hWin->pHost, px, py, w, h )
+    if ph = 0 then exit sub
+    ph->bPassDismissClick = true
+    ph->OnClosed = @TipClosed
+    gTip.owner = t : gTip.popup = ph : gTip.bDirty = true
+    gTip.w = tkWidget_Create( ph, 1, @TipProc, 0 )
+    gTip.w->isFocusable = true
+    tkWidget_SetPos( gTip.w, 0, 0, w, h )
+    tkHost_Show( ph )
+    tkHost_SetFocus( ph, gTip.w )
+end sub
+
+private sub CtHide cdecl ( byval user as any ptr, byval editor as any ptr )
+    if user = gTip.owner then TipClose()
+end sub
+
+private sub CtInvalidate cdecl ( byval user as any ptr, byval editor as any ptr )
+    if (user <> gTip.owner) orelse (gTip.w = 0) then exit sub
+    gTip.bDirty = true
+    tkWidget_Invalidate( gTip.w )
+end sub
+
+type TKSCI_TIPHOST
+    Show       as any ptr
+    Hide       as any ptr
+    Invalidate as any ptr
+end type
+dim shared as TKSCI_TIPHOST gTipHost
+
+' ---- Scintilla's context menu, as a tkPopupMenu ---------------------------------------------
+dim shared as TK_MENU ptr gMenu
+dim shared as TK_HOST ptr gMenuHost
+dim shared as TKCE_STATE ptr gMenuOwner
+
+private sub MnSelect( byval hPopup as TK_MENU ptr, byval id as long )
+    if (gMenuOwner = 0) orelse (gMenuOwner->pSci = 0) then exit sub
+    gLib.MenuCommand( gMenuOwner->pSci, id )
+end sub
+
+private sub MnBegin cdecl ( byval user as any ptr )
+    dim as TKCE_STATE ptr t = gActive
+    if t = 0 then exit sub
+    if (gMenu <> 0) andalso (gMenuHost <> t->hWin->pHost) then tkPopupMenu_Destroy( gMenu ) : gMenu = 0
+    if gMenu = 0 then
+        gMenu = tkPopupMenu_Create( t->hWin->pHost )
+        gMenuHost = t->hWin->pHost
+        tkPopupMenu_SetSelectCallback( gMenu, @MnSelect )
+    end if
+    tkPopupMenu_Clear( gMenu )
+    gMenuOwner = t
+end sub
+
+' An EMPTY label is a separator: Scintilla's convention.
+private sub MnAddItem cdecl ( byval user as any ptr, byval label as const zstring ptr, byval cmd as long, byval bEnabled as long )
+    if gMenu = 0 then exit sub
+    dim as string sLabel
+    if label then sLabel = *label
+    if len( sLabel ) = 0 then
+        tkPopupMenu_AddSeparator( gMenu )
+    else
+        dim as ustring u = sLabel
+        tkPopupMenu_AddItem( gMenu, cmd, u )
+        tkPopupMenu_SetItemEnabled( gMenu, cmd, bEnabled <> 0 )
+    end if
+end sub
+
+private sub MnShow cdecl ( byval user as any ptr, byval x as long, byval y as long )
+    if (gMenu = 0) orelse (gMenuOwner = 0) then exit sub
+    dim as TKRECT a
+    tkWidget_AbsRect( gMenuOwner->hWin, a )
+    tkPopupMenu_Show( gMenu, a.left + x, a.top + y )
+end sub
+
+type TKSCI_MENUHOST
+    Begin_  as any ptr
+    AddItem as any ptr
+    Show    as any ptr
+end type
+dim shared as TKSCI_MENUHOST gMenuTable
+
+private function CeProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKCE_STATE ptr t = CE( w )
+    if (t = 0) orelse (t->pSci = 0) then return false
+    dim as TK_HOST ptr h = w->pHost
+    select case m->msg
+    case TKM_KEYDOWN, TKM_CHAR, TKM_IMECOMPOSE, TKM_LBUTTONDOWN, TKM_RBUTTONDOWN, TKM_SETFOCUS
+        gActive = t
+    end select
+
+    select case m->msg
+    case TKM_PAINT
+        CeOnPaint( t, m->pPaint )
+        return true
+
+    case TKM_SIZE
+        if (w->cw > 0) andalso (w->ch > 0) then gLib.SetSize( t->pSci, w->cw, w->ch )
+        t->bDirty = true
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_KEYDOWN
+        if tkWidget_IsEnabled( w ) = false then return false
+        dim as long k = SciKey( m->key )
+        if k = 0 then return false
+        ' ASKED, NOT TOLD: an unconsumed key bubbles on, and its text arrives as TKM_CHAR
+        dim as boolean bConsumed = gLib.KeyDown( t->pSci, k, SciMods( m->mods ) ) <> 0
+        CeSyncInputArea( t )
+        return bConsumed
+
+    case TKM_CHAR
+        ' Committed text, ONE CHARACTER PER CALL, as ScintillaGTK commits an IME string: each is
+        ' its own SCN_CHARADDED, which auto-indent and autocompletion count on. Control
+        ' characters arrive as keys, never as text.
+        dim as long i = 0, n = len( m->text )
+        while i < n
+            dim as long c = m->text[i], k = 1
+            if c >= &hF0 then
+                k = 4
+            elseif c >= &hE0 then
+                k = 3
+            elseif c >= &hC0 then
+                k = 2
+            end if
+            if i + k > n then k = n - i
+            if (c >= 32) andalso (c <> 127) then gLib.TextInput( t->pSci, strptr( m->text ) + i, k )
+            i += k
+        wend
+        CeSyncInputArea( t )
+        return true
+
+    case TKM_IMECOMPOSE
+        ' the pre-edit, inline and tentative (SciTk_ImeCompose); the commit arrives as TKM_CHAR
+        gLib.ImeCompose( t->pSci, strptr( m->text ), len( m->text ), m->nStart )
+        CeSyncInputArea( t )
+        return true
+
+    case TKM_LBUTTONDOWN, TKM_RBUTTONDOWN
+        if tkHost_GetFocus( h ) <> w then tkHost_SetFocus( h, w )
+        gLib.MouseDown( t->pSci, cint( m->x ), cint( m->y ), culng( SDL_GetTicks() ), SciMods( SDL_GetModState() ), _
+                        iif( m->msg = TKM_RBUTTONDOWN, 1, 0 ) )
+        if m->msg = TKM_LBUTTONDOWN then tkHost_SetCapture( w )
+        CeSyncCursor( t )
+        return true
+
+    case TKM_MOUSEMOVE
+        gLib.MouseMove( t->pSci, cint( m->x ), cint( m->y ), culng( SDL_GetTicks() ), SciMods( SDL_GetModState() ) )
+        CeSyncCursor( t )
+        return true
+
+    case TKM_LBUTTONUP, TKM_RBUTTONUP
+        gLib.MouseUp( t->pSci, cint( m->x ), cint( m->y ), culng( SDL_GetTicks() ), SciMods( SDL_GetModState() ) )
+        if (m->msg = TKM_LBUTTONUP) andalso (tkHost_GetCapture( h ) = w) then tkHost_ReleaseCapture( h )
+        ' the context menu goes up on RELEASE (Win32's WM_CONTEXTMENU follows WM_RBUTTONUP); the
+        ' host's own replaces Scintilla's
+        if m->msg = TKM_RBUTTONUP then
+            gActive = t
+            if t->ContextMenuCallback then
+                t->ContextMenuCallback( w, cint( m->x ), cint( m->y ) )
+            else
+                gLib.ContextMenu( t->pSci, cint( m->x ), cint( m->y ) )
+            end if
+        end if
+        return true
+
+    case TKM_MOUSEWHEEL
+        ' Scintilla has no wheel: every platform layer builds it on SCI_LINESCROLL (PsSciInput).
+        ' Ctrl zooms, Shift scrolls sideways, three lines a notch, fractions accumulate.
+        dim as long mods = SDL_GetModState()
+        if (SciMods( mods ) and 2) then
+            if m->wheelY > 0 then gLib.Send( t->pSci, SCI_ZOOMIN, 0, 0 ) else if m->wheelY < 0 then gLib.Send( t->pSci, SCI_ZOOMOUT, 0, 0 )
+            return true
+        end if
+        t->fWheel += m->wheelY
+        dim as long nNotches = fix( t->fWheel )
+        if nNotches = 0 then return true
+        t->fWheel -= nNotches
+        if (mods and SDL_KMOD_SHIFT) then
+            gLib.Send( t->pSci, SCI_LINESCROLL, -nNotches * 3, 0 )
+        else
+            gLib.Send( t->pSci, SCI_LINESCROLL, 0, -nNotches * 3 )
+        end if
+        return true
+
+    case TKM_SETFOCUS
+        gLib.SetFocus( t->pSci, 1 )
+        CeSyncInputArea( t )
+        return true
+
+    case TKM_KILLFOCUS
+        ' NOT for this editor's own popup: on Linux the list takes the keyboard the moment it
+        ' maps, and forwarding that loss cancels the list in the frame it opened (PsSciInput)
+        if ((gList.popup <> 0) andalso (gList.owner = t)) orelse ((gTip.popup <> 0) andalso (gTip.owner = t)) then return true
+        gLib.SetFocus( t->pSci, 0 )
+        return true
+
+    case TKM_SCALECHANGED
+        ' fonts restyle at the new DPI (this editor's own: SciTk_SetEditorDpi); pixel margins are
+        ' the host's, told through ScaleCallback
+        gLib.SetEditorDpi( t->pSci, cint( 96 * m->fNew ) )
+        t->bDirty = true
+        tkWidget_Invalidate( w )
+        if t->ScaleCallback then t->ScaleCallback( w, m->fOld, m->fNew )
+        return true
+
+    case TKM_TIMER
+        dim as long reason = m->timerId - TKCE_TICK_BASE
+        if (reason < 0) orelse (reason > 4) then return false
+        gLib.Tick( t->pSci, reason )
+        return true
+
+    case TKM_DESTROY
+        if gList.owner = t then ListClose() : gList.owner = 0
+        if gTip.owner = t then TipClose() : gTip.owner = 0
+        if gActive = t then gActive = 0
+        if gMenuOwner = t then gMenuOwner = 0
+        ' detached first: Scintilla notifies and invalidates during its own teardown
+        gLib.SetCallTipHost( t->pSci, 0, 0 )
+        gLib.SetInvalidate( t->pSci, 0, 0 )
+        gLib.SetNotify( t->pSci, 0, 0 )
+        gLib.SetTicker( t->pSci, 0, 0 )
+        gLib.SetClipboard( t->pSci, 0, 0, 0 )
+        gLib.Destroy( t->pSci )
+        t->pSci = 0
+        RunCacheFlush()             ' cached runs hold this renderer's text engine
+        if gCur = @t->view then gCur = 0
+        if t->view.tex then SDL_DestroyTexture( t->view.tex )
+        delete t
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ==========================================================================================
+' Public API
+' ==========================================================================================
+' An editor, UTF-8, at its surface's DPI. 0 when scintk would not load
+' (tkCodeEdit_LibraryError says why).
+public function tkCodeEdit_Create( byval hParent as TK_WIDGET ptr, byval CtrlID as long ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    if LoadLib() = false then return 0
+    gLib.SetDpi( cint( 96 * hParent->pHost->fScale ) )
+    dim as TKCE_STATE ptr t = new TKCE_STATE
+    ' LARGE until the first TKM_SIZE: a caret placed before layout (SetText + SetSel on a new
+    ' document) otherwise scrolls the view sideways to fit a 100 px pane -- seen in the demo
+    t->pSci = gLib.Create( 4096, 4096 )
+    if t->pSci = 0 then
+        gLib.sError = "SciTk_Create failed"
+        delete t
+        return 0
+    end if
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @CeProc, t )
+    w->isFocusable = true
+    w->bWantsText = true
+    w->cursor = TK_CURSOR_IBEAM
+    t->hWin = w
+    gLib.SetInvalidate( t->pSci, @CeInvalidate, t )
+    gLib.SetTicker( t->pSci, @CeTicker, t )
+    gLib.SetNotify( t->pSci, @CeNotify, t )
+    gLib.SetClipboard( t->pSci, @CeClipGet, @CeClipSet, t )
+    gLib.Send( t->pSci, SCI_SETCODEPAGE, SC_CP_UTF8, 0 )
+    ' the view is already a texture: Scintilla's per-line pixmaps would only add target switches
+    gLib.Send( t->pSci, SCI_SETBUFFEREDDRAW, 0, 0 )
+    ' Scintilla's own context menu (a tkPopupMenu); tkCodeEdit_SetContextMenuCallback replaces it
+    gLib.Send( t->pSci, SCI_USEPOPUP, SC_POPUP_ALL, 0 )
+    gLib.SetEditorDpi( t->pSci, cint( 96 * hParent->pHost->fScale ) )
+    gLib.SetCallTipHost( t->pSci, @gTipHost, t )
+    return w
+end function
+
+' The direct function: SCI_* messages, as SciMsg was in tiko-editor.
+public function tkCodeEdit_Send( byval hEdit as TK_WIDGET ptr, byval msg as ulong, byval wp as uinteger = 0, _
+                                 byval lp as integer = 0 ) as integer
+    dim as TKCE_STATE ptr t = CE( hEdit )
+    if (t = 0) orelse (t->pSci = 0) then return 0
+    gActive = t          ' SCI_AUTOCSHOW / SCI_CALLTIPSHOW from the host act for this editor
+    return gLib.Send( t->pSci, msg, wp, lp )
+end function
+
+' A string parameter (SCI_SETTEXT, SCI_STYLESETFONT, SCI_SETKEYWORDS ...), UTF-8.
+public function tkCodeEdit_SendText( byval hEdit as TK_WIDGET ptr, byval msg as ulong, byval wp as uinteger, _
+                                     byref s as ustring ) as integer
+    ' "" must still be a pointer to a NUL: an empty string's strptr is 0, and Scintilla ignores
+    ' SCI_SETTEXT( 0 ) -- SetText( "" ) left the old document in place (found by the P2 tests)
+    dim as string u8 = s & chr( 0 )
+    return tkCodeEdit_Send( hEdit, msg, wp, cast( integer, strptr( u8 ) ) )
+end function
+
+' The whole document as a ustring.
+public function tkCodeEdit_GetText( byval hEdit as TK_WIDGET ptr ) as ustring
+    dim as integer n = tkCodeEdit_Send( hEdit, SCI_GETLENGTH )
+    if n <= 0 then return ""
+    dim as string buf = string( n + 1, 0 )
+    tkCodeEdit_Send( hEdit, SCI_GETTEXT, n + 1, cast( integer, strptr( buf ) ) )
+    dim as ustring u = left( buf, n )
+    return u
+end function
+
+public sub tkCodeEdit_SetText( byval hEdit as TK_WIDGET ptr, byref s as ustring )
+    tkCodeEdit_SendText( hEdit, SCI_SETTEXT, 0, s )
+end sub
+
+' The font every style uses (P1: one file; per-style faces are P2), in points at the surface's
+' scale -- Scintilla converts with SciTk_SetDpi's 96 x scale. 'sFile' is const: only read, and a
+' caller's const object may hand its field straight in (tiko refuses that for a non-const byref).
+public sub tkCodeEdit_SetFont( byval hEdit as TK_WIDGET ptr, byref sFile as const ustring, byval nPoints as long )
+    dim as TKCE_STATE ptr t = CE( hEdit )
+    if t = 0 then exit sub
+    t->sFontPath = sFile
+    t->nFontPt = nPoints
+    gLib.SetFontPath( strptr( t->sFontPath ) )
+    tkCodeEdit_SendText( hEdit, SCI_STYLESETFONT, STYLE_DEFAULT, "tkCodeEdit" )
+    tkCodeEdit_Send( hEdit, SCI_STYLESETSIZE, STYLE_DEFAULT, nPoints )
+    ' STYLE_DEFAULT alone changes nothing drawn: CLEARALL copies it into every style
+    tkCodeEdit_Send( hEdit, SCI_STYLECLEARALL )
+end sub
+
+' A lexer by name ("tiko"). FALSE when scintk has no such lexer.
+public function tkCodeEdit_SetLexer( byval hEdit as TK_WIDGET ptr, byref sName as string ) as boolean
+    dim as TKCE_STATE ptr t = CE( hEdit )
+    if t = 0 then return false
+    dim as any ptr lx = gLib.CreateLexer( strptr( sName ) )
+    if lx = 0 then return false
+    tkCodeEdit_Send( hEdit, SCI_SETILEXER, 0, cast( integer, lx ) )
+    return true
+end function
+
+public sub tkCodeEdit_SetNotifyCallback( byval hEdit as TK_WIDGET ptr, byval pfn as TKCODEEDIT_NotifySub )
+    dim as TKCE_STATE ptr t = CE( hEdit )
+    if t then t->NotifyCallback = pfn
+end sub
+
+' Measurements: the last re-render of the view (ms), how many re-renders and blits so far.
+public function tkCodeEdit_LastPaintMs( byval hEdit as TK_WIDGET ptr ) as double
+    dim as TKCE_STATE ptr t = CE( hEdit )
+    if t = 0 then return 0
+    return t->fLastPaintMs
+end function
+
+public function tkCodeEdit_PaintCount( byval hEdit as TK_WIDGET ptr ) as long
+    dim as TKCE_STATE ptr t = CE( hEdit )
+    if t = 0 then return 0
+    return t->nPaints
+end function
+
+public function tkCodeEdit_BlitCount( byval hEdit as TK_WIDGET ptr ) as long
+    dim as TKCE_STATE ptr t = CE( hEdit )
+    if t = 0 then return 0
+    return t->nBlits
+end function
+
+' The last re-render's profile: text runs drawn and their ms, rectangles filled, the ms the
+' switch back to the window target took (where GL flushes).
+public function tkCodeEdit_Profile() as string
+    return gnText & " text runs " & (int( gfText * 100 ) / 100) & " ms, " & gnPrim & " fills, flush " & (int( gfFlush * 100 ) / 100) & " ms"
+end function
+
+' Is the view waiting for a re-render (Scintilla invalidated it since the last paint)?
+public function tkCodeEdit_IsDirty( byval hEdit as TK_WIDGET ptr ) as boolean
+    dim as TKCE_STATE ptr t = CE( hEdit )
+    if t = 0 then return false
+    return t->bDirty
+end function
+
+' ---- fonts -------------------------------------------------------------------------------------
+' Map a family name -- what SCI_STYLESETFONT names -- to its files: "path" or "path|face" for a
+' face of a .ttc collection. A missing bold / italic cut renders the regular one (PlatTk). Takes
+' effect for styles set after it; re-set a style's font to rebuild it.
+public sub tkCodeEdit_SetFontFace( byref sFamily as string, byref sRegular as string, byref sBold as string = "", _
+                                   byref sItalic as string = "", byref sBoldItalic as string = "" )
+    if LoadLib() = false then exit sub
+    dim as long i = 0
+    while (i < gnFaces) andalso (lcase( gFaces(i).sFamily ) <> lcase( sFamily ))
+        i += 1
+    wend
+    if i > ubound( gFaces ) then exit sub
+    if i = gnFaces then gnFaces += 1
+    gFaces(i).sFamily = sFamily
+    gFaces(i).sFile(0) = sRegular
+    gFaces(i).sFile(1) = sBold
+    gFaces(i).sFile(2) = sItalic
+    gFaces(i).sFile(3) = sBoldItalic
+end sub
+
+' The faces a glyph the editor font lacks is drawn from, in order: LF-separated "path" or
+' "path|face". Applied to every font made after it -- call it before tkCodeEdit_SetFont.
+public sub tkCodeEdit_SetFallbackFonts( byref sChain as string )
+    if LoadLib() = false then exit sub
+    gFallbackChain = sChain
+    gLib.SetFallbackChain( strptr( gFallbackChain ) )
+    ' fonts already open (shared by every editor) take the chain now, too
+    for i as long = 0 to ubound( gFonts )
+        if gFonts(i) then ApplyChain( gFonts(i) )
+    next
+end sub
+
+public sub tkCodeEdit_SetContextMenuCallback( byval hEdit as TK_WIDGET ptr, byval pfn as TKCODEEDIT_ContextMenuSub )
+    dim as TKCE_STATE ptr t = CE( hEdit )
+    if t then t->ContextMenuCallback = pfn
+end sub
+
+public sub tkCodeEdit_SetScaleCallback( byval hEdit as TK_WIDGET ptr, byval pfn as TKCODEEDIT_ScaleSub )
+    dim as TKCE_STATE ptr t = CE( hEdit )
+    if t then t->ScaleCallback = pfn
+end sub
+
+' The popups, for tests and for hosts that place their own chrome around them: 0 when closed.
+public function tkCodeEdit_ListPopup() as TK_HOST ptr
+    return gList.popup
+end function
+
+public function tkCodeEdit_CallTipPopup() as TK_HOST ptr
+    return gTip.popup
+end function
+
+public function tkCodeEdit_ContextMenu() as TK_MENU ptr
+    return gMenu
+end function
+
+' ---- the text engine, for tests: positions SciTk would get for a run ----------------------
+public function tkCodeEdit_MeasureWidths( byref sFile as string, byval px as long, byref u8 as string, pos64() as long ) as boolean
+    if len( u8 ) = 0 then return false
+    dim as any ptr hf = TeOpen( sFile, "", px )
+    if hf = 0 then return false
+    ApplyChain( hf )
+    redim pos64( 0 to len( u8 ) - 1 )
+    TeMeasureWidths64( hf, strptr( u8 ), len( u8 ), @pos64(0) )
+    TeDestroy( hf )
+    return true
+end function
+
+public function tkCodeEdit_MeasureText( byref sFile as string, byval px as long, byref u8 as string ) as long
+    dim as any ptr hf = TeOpen( sFile, "", px )
+    if hf = 0 then return 0
+    ApplyChain( hf )
+    dim as long w = TeMeasureText64( hf, strptr( u8 ), len( u8 ) )
+    TeDestroy( hf )
+    return w
+end function

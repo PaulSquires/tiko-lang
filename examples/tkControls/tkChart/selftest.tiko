@@ -1,0 +1,691 @@
+' tkChart self-test. Real windows, real SDL event queue: the hot point is driven by PUSHED
+' motion through the host. Geometry is asserted against the README / vendor formulas (the
+' layout is the one set of rects the renderer and the hit test read), pixels through the
+' control's own probes. Two passes, scale pinned at 1.0 and at 1.75.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkChart"
+#import "vendor/tkControls/tkTest"
+using tkChart
+using tkTooltip
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+const as long X0 = 10, Y0 = 10       ' every chart sits here, window pixels
+
+dim shared as long gHotCount, gHotSeenS, gHotSeenP, gMsgCount, gUpCount, gPaintCount
+dim shared as boolean gEatMove, gTipEmpty
+dim shared as TKRECT gPaintPlot
+dim shared as long gPaintType
+
+sub OnHot( byval hChart as TK_WIDGET ptr, byval iSer as long, byval iPt as long )
+    gHotCount += 1
+    tkChart_GetHotPoint( hChart, gHotSeenS, gHotSeenP )      ' the state is already updated
+end sub
+
+function OnMsg( byval m as TKCHART_MESSAGEINFO ptr ) as boolean
+    gMsgCount += 1
+    if m->msg = TKM_LBUTTONUP then gUpCount += 1
+    if gEatMove andalso (m->msg = TKM_MOUSEMOVE) then return true
+    return false
+end function
+
+function OnTipCB( byval hChart as TK_WIDGET ptr ) as ustring
+    if gTipEmpty then return ""
+    return "CB"
+end function
+
+function OnValueLabel( byval hChart as TK_WIDGET ptr, byval fValue as double, byval nContext as long ) as ustring
+    if nContext = CHT_FMT_AXIS then return "$" & CHT_FormatNumber( fValue, 0, true )
+    return ""
+end function
+
+sub OnPaint( byval p as TKCHART_PAINTINFO ptr )
+    gPaintCount += 1
+    gPaintPlot = p->rcPlot
+    gPaintType = p->nChartType
+    p->b->SetBackColor( &hFF123456ul )
+    p->b->PaintRect( @p->rcPlot )
+end sub
+
+function RectEq( byref a as TKRECT, byref b as TKRECT ) as boolean
+    return (a.left = b.left) andalso (a.top = b.top) andalso (a.right = b.right) andalso (a.bottom = b.bottom)
+end function
+
+function Near( byval a as double, byval b as double, byval eps as double = 0.000001 ) as boolean
+    return abs( a - b ) <= eps
+end function
+
+function Anchor( byval c as TK_WIDGET ptr, byval iSer as long, byval iPt as long ) as TKPOINT
+    dim as TKPOINT pp
+    tkChart_GetPointAnchor( c, iSer, iPt, pp )
+    return pp
+end function
+
+function PRect( byval c as TK_WIDGET ptr, byval iSer as long, byval iPt as long ) as TKRECT
+    dim as TKRECT rc
+    tkChart_GetPointRect( c, iSer, iPt, rc )
+    return rc
+end function
+
+function PlotR( byval c as TK_WIDGET ptr ) as TKRECT
+    dim as TKRECT rc
+    tkChart_GetPlotRect( c, rc )
+    return rc
+end function
+
+sub Hover( byval h as TK_HOST ptr, byval x as long, byval y as long )
+    tkTest_PushMotion( h, X0 + x, Y0 + y )
+end sub
+
+function Pix( byval c as TK_WIDGET ptr, byval x as long, byval y as long ) as ulong
+    return tkChart_GetRenderedPixel( c, x, y )
+end function
+
+' Render the chart (a probe leaves it in the back buffer), then read back the whole client.
+function CountColor( byval h as TK_HOST ptr, byval c as TK_WIDGET ptr, byval clr as ulong ) as long
+    tkChart_GetRenderedPixel( c, 0, 0 )
+    dim as SDL_Rect r
+    r.x = X0 : r.y = Y0 : r.w = c->cw : r.h = c->ch
+    dim as SDL_Surface ptr s0 = SDL_RenderReadPixels( h->renderer, @r )
+    if s0 = 0 then return -1
+    dim as SDL_Surface ptr sf = SDL_ConvertSurface( s0, SDL_PIXELFORMAT_ARGB8888 )
+    SDL_DestroySurface( s0 )
+    dim as long n = 0
+    for yy as long = 0 to sf->h - 1
+        dim as ulong ptr row = cast( ulong ptr, cast( ubyte ptr, sf->pixels ) + yy * sf->pitch )
+        for xx as long = 0 to sf->w - 1
+            if (row[xx] and &h00FFFFFFul) = (clr and &h00FFFFFFul) then n += 1
+        next
+    next
+    SDL_DestroySurface( sf )
+    return n
+end function
+
+function HashChart( byval h as TK_HOST ptr, byval c as TK_WIDGET ptr ) as ulongint
+    tkChart_GetRenderedPixel( c, 0, 0 )
+    return tkTest_HashRect( h, X0, Y0, c->cw, c->ch )
+end function
+
+function WaitTip( byval h as TK_HOST ptr, byval c as TK_WIDGET ptr, byval want as boolean, byval ms as long ) as boolean
+    dim as double t0 = timer
+    dim as SDL_Event e
+    while (timer - t0) * 1000 < ms
+        if SDL_WaitEventTimeout( @e, 20 ) then tkHost_Dispatch( h, @e )
+        if h->bDirty then tkHost_Render( h )
+        if tkTooltip_IsVisible( tkChart_GetTooltipHandle( c ) ) = want then return true
+    wend
+    return false
+end function
+
+
+' ==========================================================================================
+sub RunPure()
+    tkTest_Begin( "pure helpers" )
+    dim as double lo, hi, st
+    CHT_NiceRange( 0, 97, 5, lo, hi, st )
+    tkTest_Check( "NiceRange 0..97 -> 0..100 step 20", Near( lo, 0 ) andalso Near( hi, 100 ) andalso Near( st, 20 ), lo & " " & hi & " " & st )
+    CHT_NiceRange( 0, 0, 5, lo, hi, st )
+    tkTest_Check( "NiceRange flat at zero opens -1..1", Near( lo, -1 ) andalso Near( hi, 1 ) andalso Near( st, 0.5 ), lo & " " & hi & " " & st )
+    CHT_NiceRange( 3, 3, 5, lo, hi, st )
+    tkTest_Check( "NiceRange flat at 3 opens +-10%, step 0.2", Near( st, 0.2 ) andalso (lo <= 2.7) andalso (hi >= 3.3) andalso (lo > 2.4) andalso (hi < 3.6), lo & " " & hi & " " & st )
+    CHT_NiceRange( 80, 20, 5, lo, hi, st )
+    tkTest_Check( "NiceRange swaps a reversed range", Near( lo, 20 ) andalso Near( hi, 80 ) andalso Near( st, 20 ) )
+    CHT_NiceRange( -30, 85, 5, lo, hi, st )
+    tkTest_Check( "NiceRange -30..85 -> -50..100 step 50", Near( lo, -50 ) andalso Near( hi, 100 ) andalso Near( st, 50 ), lo & " " & hi & " " & st )
+    tkTest_Check( "AutoDecimals 0.25 = 2, 5 = 0, 0.5 = 1", CHT_AutoDecimals( 0.25 ) = 2 andalso CHT_AutoDecimals( 5 ) = 0 andalso CHT_AutoDecimals( 0.5 ) = 1 )
+    tkTest_Check( "FormatNumber groups thousands", CHT_FormatNumber( 1234567.891, 2, true ) = "1,234,567.89", CHT_FormatNumber( 1234567.891, 2, true ) )
+    tkTest_Check( "FormatNumber without grouping", CHT_FormatNumber( 1234567.891, 0, false ) = "1234568" )
+    tkTest_Check( "FormatNumber: no minus on a rounded zero", CHT_FormatNumber( -0.004, 2, true ) = "0.00", CHT_FormatNumber( -0.004, 2, true ) )
+    tkTest_Check( "FormatNumber rounds half away from zero", CHT_FormatNumber( -12.5, 0, true ) = "-13" andalso CHT_FormatNumber( 999, 0, true ) = "999" )
+    tkTest_Check( "FormatNumber pads the fraction", CHT_FormatNumber( 3.05, 2, false ) = "3.05" andalso CHT_FormatNumber( 7, 3, false ) = "7.000" )
+end sub
+
+
+' ==========================================================================================
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkChart selftest", 900, 700, TK_TEST_FONTDIR & "segoeui.ttf", fScale )
+    if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    dim as TTF_Font ptr fText = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeui.ttf", 9 )
+    dim as TTF_Font ptr fBig = tkHost_OpenFont( h, TK_TEST_FONTDIR & "segoeuib.ttf", 14 )
+    tkTest_Check( "fonts opened", (fText <> 0) andalso (fBig <> 0) )
+    tkTooltip_SetDefaultFonts( fText )
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 400 )                 ' the X11 settle (a real enter lands here, not later)
+    dim as long W = tkHost_Scale( h, 600 ), HH = tkHost_Scale( h, 400 )
+    dim as long P = tkHost_Scale( h, 10 ), GAP = tkHost_Scale( h, 6 ), TICK = tkHost_Scale( h, 4 )
+    dim as long LH = tkText_Height( fText )
+    dim as TKCHART_COLORS cc
+    dim as TKRECT rc, rp
+    dim as long iSr, iPn
+    dim as double lo, hi
+
+    ' ---- A: a line chart, three series ------------------------------------------------------
+    dim as TK_WIDGET ptr c = tkChart_Create( tkHost_Root( h ), 201 )
+    tkTest_Check( "default type is LINE", tkChart_GetChartType( c ) = TKCHART_TYPE_LINE )
+    tkChart_SetFont( c, fText )
+    tkTest_Check( "font reads back", tkChart_GetFont( c ) = fText )
+    tkWidget_SetPos( c, X0, Y0, W, HH )
+    dim as ustring months(0 to 5) = { "Jan", "Feb", "Mar", "Apr", "May", "Jun" }
+    dim as double midv(0 to 5) = { 30, 60, 40, 70, 50, 55 }
+    tkChart_BeginUpdate( c )
+    tkChart_BeginUpdate( c )
+    tkTest_Check( "BeginUpdate nests", tkChart_GetUpdateDepth( c ) = 2 )
+    dim as long s0 = tkChart_AddSeries( c, "Low" )
+    dim as long s1 = tkChart_AddSeries( c, "High" )
+    dim as long s2 = tkChart_AddSeries( c, "Mid" )
+    for j as long = 0 to 5
+        tkChart_AddPoint( c, s0, months(j), 20 )
+        tkChart_AddPoint( c, s1, months(j), 80 )
+        tkChart_AddPoint( c, s2, months(j), midv(j) )
+    next
+    tkChart_EndUpdate( c )
+    tkTest_Check( "inner EndUpdate does not end it", tkChart_GetUpdateDepth( c ) = 1 )
+    tkChart_EndUpdate( c )
+    tkChart_EndUpdate( c )
+    tkTest_Check( "extra EndUpdate ignored", tkChart_GetUpdateDepth( c ) = 0 )
+    tkTest_Check( "series and point counts", tkChart_GetSeriesCount( c ) = 3 andalso tkChart_GetPointCount( c, s2 ) = 6 )
+    tkTest_Check( "series name reads back", tkChart_GetSeriesName( c, s2 ) = "Mid" andalso tkChart_GetPointLabel( c, s2, 1 ) = "Feb" )
+    tkTest_Check( "invalid indices refused", (tkChart_SetPointValue( c, 0, 6, 1 ) = false) andalso (tkChart_SetSeriesName( c, 3, "x" ) = false) andalso (tkChart_AddPoint( c, 7, "x", 1 ) = -1) )
+
+    tkChart_GetValueRange( c, lo, hi )
+    tkTest_Check( "autoscale 20..80 step 20 (line does not force zero)", Near( lo, 20 ) andalso Near( hi, 80 ) andalso Near( tkChart_GetValueStep( c ), 20 ), lo & ".." & hi )
+    rp = PlotR( c )
+    dim as long gw = 0
+    for v as long = 20 to 80 step 20
+        dim as long tw = tkText_Width( fText, str( v ) )
+        if tw > gw then gw = tw
+    next
+    tkTest_Check( "plot: top and right at the padding", rp.top = P andalso rp.right = W - P, tkRect_Str( rp ) )
+    tkTest_Check( "plot: left = padding + widest value label + tick", rp.left = P + gw + TICK, rp.left & " vs " & (P + gw + TICK) )
+    tkTest_Check( "plot: bottom leaves the category strip", rp.bottom = HH - P - (LH + TICK), rp.bottom & " vs " & (HH - P - (LH + TICK)) )
+    tkTest_Check( "ValueToY: min -> bottom, max -> top", tkChart_ValueToY( c, 20 ) = rp.bottom andalso tkChart_ValueToY( c, 80 ) = rp.top )
+    dim as long ph = rp.bottom - rp.top
+    tkTest_Check( "ValueToY 50 = bottom - round(h/2)", tkChart_ValueToY( c, 50 ) = rp.bottom - clng( int( 0.5 * ph + 0.5 ) ) )
+    tkTest_Check( "YToValue inverts at the edges", Near( tkChart_YToValue( c, rp.top ), 80, 0.0001 ) andalso Near( tkChart_YToValue( c, rp.bottom ), 20, 0.0001 ) )
+    dim as single slot = csng( rp.right - rp.left ) / 6.0
+    dim as boolean okA = true
+    for j as long = 0 to 5
+        dim as TKPOINT a = Anchor( c, s2, j )
+        if (a.x <> rp.left + clng( (j + 0.5) * slot )) orelse (a.y <> tkChart_ValueToY( c, midv(j) )) then okA = false
+    next
+    tkTest_Check( "anchors at the slot centres and the value", okA )
+    dim as long HR = tkHost_Scale( h, 8 )
+    dim as TKPOINT a21 = Anchor( c, s2, 1 )
+    rc = PRect( c, s2, 1 )
+    tkTest_Check( "line hit box = anchor +- hit radius", rc.left = a21.x - HR andalso rc.right = a21.x + HR andalso rc.top = a21.y - HR andalso rc.bottom = a21.y + HR, tkRect_Str( rc ) )
+    tkTest_Check( "HitTest on a vertex", tkChart_HitTest( c, a21.x, a21.y, iSr, iPn ) andalso iSr = s2 andalso iPn = 1 )
+    dim as TKPOINT a00 = Anchor( c, s0, 0 )
+    tkTest_Check( "HitTest on series 0", tkChart_HitTest( c, a00.x, a00.y, iSr, iPn ) andalso iSr = s0 andalso iPn = 0 )
+    tkTest_Check( "HitTest on empty plot misses", (tkChart_HitTest( c, rp.left + 2, (rp.top + rp.bottom) \ 2, iSr, iPn ) = false) andalso iSr = -1 andalso iPn = -1 )
+
+    ' ---- B: the hot point, through the host -------------------------------------------------
+    tkChart_SetHotChangeCallback( c, @OnHot )
+    gHotCount = 0
+    Hover( h, a21.x, a21.y )
+    tkChart_GetHotPoint( c, iSr, iPn )
+    tkTest_Check( "hover: hot point set", iSr = s2 andalso iPn = 1, iSr & "/" & iPn )
+    tkTest_Check( "hot change fired once, state already updated", gHotCount = 1 andalso gHotSeenS = s2 andalso gHotSeenP = 1 )
+    Hover( h, a21.x + 1, a21.y )
+    tkTest_Check( "same point: no second notification", gHotCount = 1 )
+    tkTest_Check( "tooltip describes the hot point", tkChart_ResolveTooltipText( c ) = "Feb: Mid 60", tkChart_ResolveTooltipText( c ) )
+    tkChart_SetTooltipCallback( c, @OnTipCB )
+    tkTest_Check( "tooltip callback wins over the description", tkChart_ResolveTooltipText( c ) = "CB" )
+    gTipEmpty = true
+    tkTest_Check( "an empty callback answer falls through", tkChart_ResolveTooltipText( c ) = "Feb: Mid 60" )
+    gTipEmpty = false
+    tkChart_SetTooltipText( c, "Fixed" )
+    tkTest_Check( "authored text wins over everything", tkChart_ResolveTooltipText( c ) = "Fixed" andalso tkChart_GetTooltipText( c ) = "Fixed" )
+    tkChart_SetTooltipText( c, "" )
+    tkChart_SetTooltipCallback( c, 0 )
+    tkTest_Check( "tip tool index tracks the point", tkTooltip_GetToolIndex( tkChart_GetTooltipHandle( c ) ) = s2 * 65536 + 1 )
+    Hover( h, rp.left + 2, (rp.top + rp.bottom) \ 2 )
+    tkChart_GetHotPoint( c, iSr, iPn )
+    tkTest_Check( "off the points: hot cleared and notified", iSr = -1 andalso iPn = -1 andalso gHotCount = 2 )
+    tkTest_Check( "no hot point: tooltip empty", tkChart_ResolveTooltipText( c ) = "" )
+
+    ' the real popup: dwell on a point
+    tkChart_SetHoverTime( c, 200 )
+    Hover( h, a21.x, a21.y )
+    tkTest_Check( "tooltip popup appears over a point", WaitTip( h, c, true, 1500 ) )
+    Hover( h, a21.x, rp.bottom + LH )
+    tkTest_Check( "tooltip hides when the point is left", WaitTip( h, c, false, 800 ) )
+
+    ' the message callback: offered first, a TRUE eats the move
+    tkChart_SetMessageCallback( c, @OnMsg )
+    gMsgCount = 0 : gHotCount = 0
+    gEatMove = true
+    Hover( h, a21.x, a21.y )
+    tkTest_Check( "message callback sees the move and can eat it", gMsgCount > 0 andalso gHotCount = 0 )
+    gEatMove = false
+    Hover( h, a21.x, a21.y + 1 )
+    tkTest_Check( "not eaten: the move lands", gHotCount = 1 )
+    tkTest_Click( h, X0 + a21.x, Y0 + a21.y )
+    tkTest_Check( "LBUTTONUP is offered", gUpCount >= 1 )
+    tkChart_SetMessageCallback( c, 0 )
+
+    ' value labels
+    dim as TKRECT ay0, ay1
+    tkChart_GetAxisYRect( c, ay0 )
+    tkChart_SetValueLabelCallback( c, @OnValueLabel )
+    tkChart_GetAxisYRect( c, ay1 )
+    tkTest_Check( "value-label callback widens the gutter", tkRect_Width( ay1 ) = tkRect_Width( ay0 ) + tkText_Width( fText, "$80" ) - tkText_Width( fText, "80" ), tkRect_Width( ay0 ) & " -> " & tkRect_Width( ay1 ) )
+    tkTest_Check( "an empty value label falls back to the number", tkChart_ResolveTooltipText( c ) = "Feb: Mid 60", tkChart_ResolveTooltipText( c ) )
+    tkChart_SetValueLabelCallback( c, 0 )
+    tkChart_SetValueFormat( c, 2, true )
+    tkChart_GetAxisYRect( c, ay1 )
+    tkTest_Check( "two fixed decimals widen the gutter", tkRect_Width( ay1 ) = tkText_Width( fText, "80.00" ) + TICK, tkRect_Width( ay1 ) & "" )
+    tkChart_SetValueFormat( c, TKCHART_DECIMALS_AUTO, true )
+
+    ' hiding a series: out of the range, empty rects, hot cleared
+    Hover( h, Anchor( c, s1, 0 ).x, Anchor( c, s1, 0 ).y )
+    tkChart_GetHotPoint( c, iSr, iPn )
+    tkTest_Check( "hovered series 1", iSr = s1 andalso iPn = 0 )
+    dim as TKPOINT a10 = Anchor( c, s1, 0 )
+    tkChart_SetSeriesVisible( c, s1, false )
+    tkChart_GetHotPoint( c, iSr, iPn )
+    tkTest_Check( "hiding the hot series clears the hot point", iSr = -1 )
+    tkChart_GetValueRange( c, lo, hi )
+    tkTest_Check( "hidden series leaves the range (20..70 step 10)", Near( lo, 20 ) andalso Near( hi, 70 ) andalso Near( tkChart_GetValueStep( c ), 10 ), lo & ".." & hi )
+    tkTest_Check( "hidden series: empty point rects", tkRect_IsEmpty( PRect( c, s1, 3 ) ) andalso (tkChart_IsSeriesVisible( c, s1 ) = false) )
+    tkChart_HitTest( c, a10.x, a10.y, iSr, iPn )
+    tkTest_Check( "hidden series is not hit", iSr <> s1 )
+    tkChart_SetSeriesVisible( c, s1, true )
+
+    ' manual range, tick hint
+    tkChart_SetValueRange( c, 0, 1000 )
+    tkChart_GetValueRange( c, lo, hi )
+    tkTest_Check( "manual range turns autoscale off", (tkChart_GetAutoScale( c ) = false) andalso Near( lo, 0 ) andalso Near( hi, 1000 ) andalso Near( tkChart_GetValueStep( c ), 200 ) )
+    tkChart_SetAutoScale( c, true )
+    tkChart_SetTickCountHint( c, 10 )
+    tkTest_Check( "tick hint 10 -> step 10", Near( tkChart_GetValueStep( c ), 10 ) )
+    tkChart_SetTickCountHint( c, TKCHART_DEFAULT_TICKHINT )
+
+    ' ---- C: pixels -- band, fill, line, symbol, dash, grid -----------------------------------
+    tkChart_GetColors( c, @cc )
+    tkTest_Check( "colours start from the theme", cc.BackColor = tkTheme_Get().Window andalso cc.UpColor = tkTheme_Get().Success )
+    rp = PlotR( c )
+    dim as long bx = (Anchor( c, s2, 2 ).x + Anchor( c, s2, 3 ).x) \ 2
+    dim as long by = tkChart_ValueToY( c, 25 )
+    tkTest_Check( "between the edges: plot background", Pix( c, bx, by ) = (cc.PlotBackColor or &hFF000000ul), hex( Pix( c, bx, by ) ) )
+    tkTest_Check( "band refused on one series / a bad index", (tkChart_SetSeriesBand( c, s0, s0, &hFFFF0000ul, 255 ) = false) andalso (tkChart_SetSeriesBand( c, s0, 9, &hFFFF0000ul, 255 ) = false) )
+    tkTest_Check( "band set", tkChart_SetSeriesBand( c, s0, s1, &hFFFF0000ul, 255 ) andalso tkChart_GetBandCount( c ) = 1 )
+    tkChart_SetSeriesBand( c, s1, s0, &hFFFF0000ul, 255 )
+    tkTest_Check( "the PAIR is the identity: reversed replaces", tkChart_GetBandCount( c ) = 1 )
+    tkTest_Check( "band fills between its edges", Pix( c, bx, by ) = &hFFFF0000ul, hex( Pix( c, bx, by ) ) )
+    tkTest_Check( "band is under the polyline", Pix( c, Anchor( c, s2, 1 ).x, Anchor( c, s2, 1 ).y ) = tkChart_GetPaletteColor( c, 2 ), hex( Pix( c, Anchor( c, s2, 1 ).x, Anchor( c, s2, 1 ).y ) ) )
+    tkTest_Check( "band clears in either order, once", tkChart_ClearSeriesBand( c, s1, s0 ) andalso (tkChart_ClearSeriesBand( c, s0, s1 ) = false) andalso tkChart_GetBandCount( c ) = 0 )
+    tkChart_SetSeriesFill( c, s2, &hFF00FF00ul, 255 )
+    tkTest_Check( "area fill under the line", Pix( c, bx, by ) = &hFF00FF00ul, hex( Pix( c, bx, by ) ) )
+    tkTest_Check( "area fill stops at the line", Pix( c, bx, tkChart_ValueToY( c, 75 ) ) = (cc.PlotBackColor or &hFF000000ul) )
+    tkChart_ClearSeriesFill( c, s2 )
+    tkTest_Check( "fill cleared", Pix( c, bx, by ) = (cc.PlotBackColor or &hFF000000ul) )
+    ' a zero-width band (the edges coincide) draws NOTHING between them
+    tkChart_SetPointValue( c, s1, 0, 20 ) : tkChart_SetPointValue( c, s1, 1, 20 ) : tkChart_SetPointValue( c, s1, 2, 20 )
+    tkChart_SetSeriesBand( c, s0, s1, &hFFFF0000ul, 255 )
+    dim as long zx = (Anchor( c, s0, 0 ).x + Anchor( c, s0, 1 ).x) \ 2
+    tkTest_Check( "zero-width stretch of a band draws nothing", Pix( c, zx, tkChart_ValueToY( c, 50 ) ) <> &hFFFF0000ul, hex( Pix( c, zx, tkChart_ValueToY( c, 50 ) ) ) )
+    tkTest_Check( "...and the band opens where the edges part", Pix( c, (Anchor( c, s0, 4 ).x + Anchor( c, s0, 5 ).x) \ 2, tkChart_ValueToY( c, 25 ) ) = &hFFFF0000ul )
+    tkChart_ClearSeriesBand( c, s0, s1 )
+    for j as long = 0 to 2 : tkChart_SetPointValue( c, s1, j, 80 ) : next
+    tkTest_Check( "GetPointValue", tkChart_GetPointValue( c, s1, 2 ) = 80 andalso tkChart_GetPointValue( c, s2, 3 ) = 70 )
+
+    dim as TKPOINT a23 = Anchor( c, s2, 3 )
+    tkChart_SetSeriesSymbol( c, s2, CHT_SYM_SQUARE, tkHost_Scale( h, 10 ) )
+    tkChart_SetPointColor( c, s2, 3, &hFFFF00FFul )
+    tkTest_Check( "square symbol in the point's own colour", Pix( c, a23.x, a23.y ) = &hFFFF00FFul andalso Pix( c, a23.x + tkHost_Scale( h, 3 ), a23.y - tkHost_Scale( h, 3 ) ) = &hFFFF00FFul )
+    tkChart_ClearPointColor( c, s2, 3 )
+    tkTest_Check( "point colour cleared: the series colour", Pix( c, a23.x, a23.y ) = tkChart_GetPaletteColor( c, 2 ) )
+    tkChart_SetSeriesColor( c, s2, &hFF0000FFul )
+    tkTest_Check( "series colour", Pix( c, a23.x, a23.y ) = &hFF0000FFul )
+    tkChart_ClearSeriesColor( c, s2 )
+    tkChart_SetPaletteColor( c, 2, &hFF00FFFFul )
+    tkTest_Check( "palette colour drives an uncoloured series", Pix( c, a23.x, a23.y ) = &hFF00FFFFul andalso tkChart_GetPaletteColor( c, 2 ) = &hFF00FFFFul )
+    tkChart_SetPaletteColor( c, 2, tkRGB( 140, 196, 90 ) )
+    tkTest_Check( "palette index out of range ignored", tkChart_GetPaletteColor( c, 10 ) = 0 )
+    tkChart_SetSeriesSymbol( c, s2, CHT_SYM_NONE )
+
+    ' ink: only series 2 visible, no grid
+    tkChart_SetSeriesVisible( c, s0, false )
+    tkChart_SetSeriesVisible( c, s1, false )
+    tkChart_SetGridLines( c, false, false )
+    dim as long inkSolid = tkChart_CountPlotInkPixels( c, cc.PlotBackColor )
+    tkChart_SetSeriesLineStyle( c, s2, CHT_LINE_DASH )
+    dim as long inkDash = tkChart_CountPlotInkPixels( c, cc.PlotBackColor )
+    tkChart_SetSeriesLineStyle( c, s2, CHT_LINE_DOT )
+    dim as long inkDot = tkChart_CountPlotInkPixels( c, cc.PlotBackColor )
+    tkTest_Check( "dash and dot draw less ink than solid", (inkSolid > 0) andalso (inkDash < inkSolid) andalso (inkDot < inkSolid) andalso (inkDash > 0), inkSolid & " " & inkDash & " " & inkDot )
+    tkTest_Check( "style reads back", tkChart_GetSeriesLineStyle( c, s2 ) = CHT_LINE_DOT )
+    tkChart_SetSeriesLineStyle( c, s2, 99 )
+    tkTest_Check( "an unknown style is stored as solid", tkChart_GetSeriesLineStyle( c, s2 ) = CHT_LINE_SOLID )
+    tkChart_SetSeriesLineWidth( c, s2, 4 )
+    tkTest_Check( "a wider line draws more ink", tkChart_CountPlotInkPixels( c, cc.PlotBackColor ) > inkSolid )
+    tkChart_SetSeriesLineWidth( c, s2, 2 )
+    dim as ulongint hStraight = HashChart( h, c )
+    tkChart_SetSeriesSmooth( c, s2, true )
+    tkTest_Check( "smoothing changes the picture", HashChart( h, c ) <> hStraight )
+    tkChart_SetSeriesSmooth( c, s2, false )
+    tkTest_Check( "...and back", HashChart( h, c ) = hStraight )
+    dim as long inkNoGrid = tkChart_CountPlotInkPixels( c, cc.PlotBackColor )
+    tkChart_SetGridLines( c, true, true )
+    tkTest_Check( "gridlines are ink", tkChart_CountPlotInkPixels( c, cc.PlotBackColor ) > inkNoGrid )
+    tkChart_SetSeriesVisible( c, s0, true )
+    tkChart_SetSeriesVisible( c, s1, true )
+    tkChart_SetGridLines( c, true, false )
+
+    ' ---- D: chrome -- title, subtitle, legend ------------------------------------------------
+    tkChart_SetTitle( c, "Sales" )
+    tkChart_GetTitleRect( c, rc )
+    rp = PlotR( c )
+    tkTest_Check( "title at the padding, label-font high", rc.top = P andalso tkRect_Height( rc ) = LH andalso rc.left = P, tkRect_Str( rc ) )
+    tkTest_Check( "plot below title + chrome gap", rp.top = rc.bottom + GAP )
+    tkChart_SetSubtitle( c, "by month" )
+    dim as TKRECT rs
+    tkChart_GetSubtitleRect( c, rs )
+    tkTest_Check( "subtitle under the title", rs.top = rc.bottom + GAP andalso PlotR( c ).top = rs.bottom + GAP )
+    tkChart_SetTitleFont( c, fBig )
+    tkChart_GetTitleRect( c, rc )
+    tkTest_Check( "title font sets the title strip", tkRect_Height( rc ) = tkText_Height( fBig ) )
+    tkTest_Check( "title / subtitle read back", tkChart_GetTitle( c ) = "Sales" andalso tkChart_GetSubtitle( c ) = "by month" )
+    tkChart_SetTitle( c, "" ) : tkChart_SetSubtitle( c, "" )
+    tkChart_GetTitleRect( c, rc )
+    tkTest_Check( "no title: empty strip", tkRect_IsEmpty( rc ) andalso PlotR( c ).top = P )
+
+    tkChart_SetLegendVisible( c, true )
+    dim as TKRECT rl, ax
+    tkChart_GetLegendRect( c, rl )
+    tkChart_GetAxisXRect( c, ax )
+    tkTest_Check( "legend at the bottom: one label high", rl.bottom = HH - P andalso tkRect_Height( rl ) = LH andalso tkChart_IsLegendVisible( c ), tkRect_Str( rl ) )
+    tkTest_Check( "category strip above the legend", ax.bottom = rl.top - GAP )
+    tkTest_Check( "legend swatch 0 in series 0's colour", Pix( c, rl.left + 2, rl.top + 2 ) = tkChart_GetPaletteColor( c, 0 ) )
+    tkChart_SetSeriesVisible( c, s0, false )
+    tkTest_Check( "hidden series leaves the legend", Pix( c, rl.left + 2, rl.top + 2 ) = tkChart_GetPaletteColor( c, 1 ) )
+    tkChart_SetSeriesVisible( c, s0, true )
+    tkChart_SetLegendPosition( c, CHT_LEGEND_RIGHT )
+    tkChart_GetLegendRect( c, rl )
+    dim as long wid = tkText_Width( fText, "High" )
+    if tkText_Width( fText, "Low" ) > wid then wid = tkText_Width( fText, "Low" )
+    if tkText_Width( fText, "Mid" ) > wid then wid = tkText_Width( fText, "Mid" )
+    tkTest_Check( "legend right: swatch + gap + widest name", rl.right = W - P andalso tkRect_Width( rl ) = LH + GAP + wid, tkRect_Str( rl ) )
+    tkTest_Check( "plot left of the legend", PlotR( c ).right = rl.left - GAP )
+    tkChart_SetLegendPosition( c, 99 )
+    tkChart_GetLegendRect( c, rs )
+    tkTest_Check( "an unknown legend edge is ignored", RectEq( rs, rl ) )
+    tkChart_SetLegendPosition( c, CHT_LEGEND_TOP )
+    tkChart_GetLegendRect( c, rl )
+    tkTest_Check( "legend top", rl.top = P andalso PlotR( c ).top = rl.bottom + GAP )
+    tkChart_SetLegendVisible( c, false )
+
+    ' ---- E: paint callback, theme, enable, rescale -------------------------------------------
+    gPaintCount = 0
+    tkChart_SetPaintCallback( c, @OnPaint )
+    rp = PlotR( c )
+    tkTest_Check( "paint callback replaces the renderer", Pix( c, (rp.left + rp.right) \ 2, (rp.top + rp.bottom) \ 2 ) = &hFF123456ul andalso gPaintCount > 0 )
+    tkTest_Check( "paint info: resolved rects and type", RectEq( gPaintPlot, rp ) andalso gPaintType = TKCHART_TYPE_LINE )
+    tkChart_SetPaintCallback( c, 0 )
+
+    tkTheme_Apply( tkTheme_Light() )
+    tkChart_GetColors( c, @cc )
+    tkTest_Check( "theme reaches an unpinned chart", cc.BackColor = tkTheme_Light().Window andalso cc.GridColor = tkTheme_Light().Divider )
+    tkTest_Check( "rendered background follows", Pix( c, 1, 1 ) = (tkTheme_Light().Window or &hFF000000ul) )
+    cc.BackColor = &hFF102030ul
+    tkChart_SetColors( c, @cc )
+    tkTheme_Apply( tkTheme_Dark() )
+    tkChart_GetColors( c, @cc )
+    tkTest_Check( "SetColors pins against a theme change", cc.BackColor = &hFF102030ul )
+    tkChart_UnpinColors( c )
+    tkChart_GetColors( c, @cc )
+    tkTest_Check( "unpin hands it back to the current theme", cc.BackColor = tkTheme_Dark().Window )
+
+    Hover( h, a21.x, a21.y )
+    tkWidget_Enable( c, false )
+    tkChart_GetHotPoint( c, iSr, iPn )
+    tkTest_Check( "disable clears the hot point", iSr = -1 )
+    Hover( h, a00.x, a00.y )
+    tkChart_GetHotPoint( c, iSr, iPn )
+    tkTest_Check( "disabled: motion makes nothing hot", iSr = -1 )
+    tkWidget_Enable( c, true )
+
+    tkChart_SetTitle( c, "T" )
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkChart_GetTitleRect( c, rc )
+    tkTest_Check( "rescale doubles the padding", rc.top = cint( P * 2 ), rc.top & " vs " & cint( P * 2 ) )
+    rc = PRect( c, s2, 1 )
+    tkTest_Check( "rescale doubles the hit radius", tkRect_Width( rc ) = 2 * cint( HR * 2 ), tkRect_Width( rc ) & "" )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkChart_GetTitleRect( c, rc )
+    tkTest_Check( "rescale back", rc.top = P )
+    tkChart_SetTitle( c, "" )
+
+    tkChart_SetSeriesFill( c, s2, &hFF00FF00ul, 255 )
+    tkChart_SetSeriesBand( c, s0, s1, &hFFFF0000ul, 255 )
+    tkChart_Clear( c )
+    tkTest_Check( "Clear empties series and bands", tkChart_GetSeriesCount( c ) = 0 andalso tkChart_GetBandCount( c ) = 0 )
+    dim as long sn = tkChart_AddSeries( c )
+    tkTest_Check( "a recycled series slot inherits nothing", sn = 0 andalso tkChart_GetSeriesName( c, 0 ) = "" andalso tkChart_GetPointCount( c, 0 ) = 0 )
+    tkWidget_Destroy( c )
+
+    ' ---- F: label stride ---------------------------------------------------------------------
+    dim as TK_WIDGET ptr cs = tkChart_Create( tkHost_Root( h ), 202 )
+    tkChart_SetFont( cs, fText )
+    tkWidget_SetPos( cs, X0, Y0, W, HH )
+    dim as long ss = tkChart_AddSeries( cs, "S" )
+    dim as long widest = 0
+    for j as long = 0 to 39
+        dim as ustring lbl = "Category " & str( j + 1 )
+        tkChart_AddPoint( cs, ss, lbl, j )
+        if tkText_Width( fText, lbl ) > widest then widest = tkText_Width( fText, lbl )
+    next
+    rp = PlotR( cs )
+    dim as single slot40 = csng( rp.right - rp.left ) / 40.0
+    dim as single need = csng( widest + tkHost_Scale( h, TKCHART_DEFAULT_LABELGAP ) )
+    dim as long expStride = clng( need / slot40 )
+    if expStride * slot40 < need then expStride += 1
+    tkTest_Check( "auto stride from the widest label", tkChart_GetAxisLabelSkip( cs ) = expStride andalso expStride > 1, tkChart_GetAxisLabelSkip( cs ) & " vs " & expStride )
+    tkChart_SetAxisLabelSkip( cs, 3 )
+    tkTest_Check( "a fixed skip wins", tkChart_GetAxisLabelSkip( cs ) = 3 )
+    tkChart_SetAxisLabelSkip( cs, 0 )
+    tkTest_Check( "0 goes back to auto", tkChart_GetAxisLabelSkip( cs ) = expStride )
+    tkWidget_Destroy( cs )
+
+    ' ---- G: columns, grouped and stacked -----------------------------------------------------
+    dim as TK_WIDGET ptr cc3 = tkChart_Create( tkHost_Root( h ), 203, TKCHART_TYPE_COLUMN )
+    tkChart_SetFont( cc3, fText )
+    tkWidget_SetPos( cc3, X0, Y0, W, HH )
+    tkTest_Check( "column type", tkChart_GetChartType( cc3 ) = TKCHART_TYPE_COLUMN andalso tkChart_GetColumnMode( cc3 ) = CHT_COL_GROUPED )
+    dim as long c0 = tkChart_AddSeries( cc3, "A" ), c1 = tkChart_AddSeries( cc3, "B" )
+    for j as long = 0 to 3
+        tkChart_AddPoint( cc3, c0, "Q" & str( j + 1 ), 50 + 10 * j )
+        tkChart_AddPoint( cc3, c1, "Q" & str( j + 1 ), 55 + 10 * j )
+    next
+    tkChart_GetValueRange( cc3, lo, hi )
+    tkTest_Check( "column range includes zero (0..100)", Near( lo, 0 ) andalso Near( hi, 100 ), lo & ".." & hi )
+    rp = PlotR( cc3 )
+    dim as single slot4 = csng( rp.right - rp.left ) / 4.0
+    dim as single groupW = slot4 * 0.75
+    dim as long bg = tkHost_Scale( h, 1 )
+    dim as single barW = (groupW - bg) / 2.0
+    dim as long cx2 = rp.left + clng( 2.5 * slot4 )
+    dim as TKRECT b0 = PRect( cc3, c0, 2 ), b1 = PRect( cc3, c1, 2 )
+    dim as long expL0 = clng( csng( cx2 ) - groupW / 2.0 )
+    dim as long expL1 = clng( csng( cx2 ) - groupW / 2.0 + barW + bg )
+    tkTest_Check( "grouped bar 0: left and width", b0.left = expL0 andalso tkRect_Width( b0 ) = clng( barW ), tkRect_Str( b0 ) & " exp " & expL0 & " w " & clng( barW ) )
+    tkTest_Check( "grouped bar 1: one gap to the right", b1.left = expL1 andalso tkRect_Width( b1 ) = clng( barW ), tkRect_Str( b1 ) & " exp " & expL1 )
+    tkTest_Check( "bars stand on the origin, top at the value", b0.bottom = rp.bottom andalso b0.top = tkChart_ValueToY( cc3, 70 ) andalso b1.top = tkChart_ValueToY( cc3, 75 ) )
+    tkTest_Check( "bar 0 in palette 0, bar 1 in palette 1", Pix( cc3, (b0.left + b0.right) \ 2, (b0.top + b0.bottom) \ 2 ) = tkChart_GetPaletteColor( cc3, 0 ) andalso Pix( cc3, (b1.left + b1.right) \ 2, (b1.top + b1.bottom) \ 2 ) = tkChart_GetPaletteColor( cc3, 1 ) )
+    tkTest_Check( "HitTest a bar", tkChart_HitTest( cc3, (b1.left + b1.right) \ 2, b1.bottom - 2, iSr, iPn ) andalso iSr = c1 andalso iPn = 2 )
+    tkChart_SetPointValue( cc3, c0, 1, -30 )
+    tkChart_GetValueRange( cc3, lo, hi )
+    rp = PlotR( cc3 )
+    dim as long oy = tkChart_ValueToY( cc3, 0 )
+    rc = PRect( cc3, c0, 1 )
+    tkTest_Check( "negative range -50..100, origin inside the plot", Near( lo, -50 ) andalso Near( hi, 100 ) andalso oy > rp.top andalso oy < rp.bottom, lo & ".." & hi )
+    tkTest_Check( "a negative bar hangs from the origin", rc.top = oy andalso rc.bottom = tkChart_ValueToY( cc3, -30 ) )
+    tkChart_GetColors( cc3, @cc )
+    tkTest_Check( "zero rule drawn inside the plot", Pix( cc3, rp.left + 1, oy ) = (cc.AxisColor or &hFF000000ul), hex( Pix( cc3, rp.left + 1, oy ) ) )
+    tkChart_SetPointValue( cc3, c0, 1, 60 )
+    tkChart_SetPointColor( cc3, c0, 0, &hFF00FF00ul )
+    b0 = PRect( cc3, c0, 0 )
+    tkTest_Check( "point colour on a bar", Pix( cc3, (b0.left + b0.right) \ 2, b0.bottom - 2 ) = &hFF00FF00ul )
+    tkChart_SetPointItemData( cc3, c0, 0, 4242 )
+    tkTest_Check( "item data", tkChart_GetPointItemData( cc3, c0, 0 ) = 4242 )
+    tkTest_Check( "set label", tkChart_SetPointLabel( cc3, c0, 0, "First" ) andalso tkChart_GetPointLabel( cc3, c0, 0 ) = "First" )
+    ' ClearPoints, then a recycled slot inherits nothing
+    tkChart_ClearPoints( cc3, c0 )
+    for j as long = 0 to 3 : tkChart_AddPoint( cc3, c0, "Q" & str( j + 1 ), 50 + 10 * j ) : next
+    b0 = PRect( cc3, c0, 0 )
+    tkTest_Check( "recycled point: no colour, no item data", Pix( cc3, (b0.left + b0.right) \ 2, b0.bottom - 2 ) = tkChart_GetPaletteColor( cc3, 0 ) andalso tkChart_GetPointItemData( cc3, c0, 0 ) = 0 )
+
+    tkTest_Check( "stacked mode", tkChart_SetColumnMode( cc3, CHT_COL_STACKED ) andalso tkChart_GetColumnMode( cc3 ) = CHT_COL_STACKED )
+    tkChart_GetValueRange( cc3, lo, hi )
+    tkTest_Check( "stacked range scales to the totals (0..200)", Near( lo, 0 ) andalso Near( hi, 200 ), lo & ".." & hi )
+    b0 = PRect( cc3, c0, 3 ) : b1 = PRect( cc3, c1, 3 )
+    tkTest_Check( "stacked: series 1 sits on series 0", b1.bottom = b0.top andalso b1.left = b0.left andalso b1.right = b0.right )
+    tkTest_Check( "stacked: the top is the total", b1.top = tkChart_ValueToY( cc3, 80 + 85 ) andalso b0.bottom = tkChart_ValueToY( cc3, 0 ) )
+    tkChart_SetPointValue( cc3, c1, 0, -20 )
+    oy = tkChart_ValueToY( cc3, 0 )
+    b0 = PRect( cc3, c0, 0 ) : b1 = PRect( cc3, c1, 0 )
+    tkTest_Check( "stacked negatives pile down from zero", b1.top = oy andalso b1.bottom = tkChart_ValueToY( cc3, -20 ) andalso b0.bottom = oy )
+    tkChart_SetColumnMode( cc3, 7 )
+    tkTest_Check( "an unknown mode falls back to grouped", tkChart_GetColumnMode( cc3 ) = CHT_COL_GROUPED )
+    tkWidget_Destroy( cc3 )
+
+    ' ---- H: HLOC ------------------------------------------------------------------------------
+    dim as TK_WIDGET ptr ch4 = tkChart_Create( tkHost_Root( h ), 204, TKCHART_TYPE_HLOC )
+    tkChart_SetFont( ch4, fText )
+    tkWidget_SetPos( ch4, X0, Y0, W, HH )
+    dim as long hs = tkChart_AddSeries( ch4, "Px" )
+    for j as long = 0 to 9
+        dim as double o = 100 + j
+        dim as double cl = o + iif( (j and 1) = 0, 3, -3 )
+        dim as double hv = iif( o > cl, o, cl ) + 2, lv = iif( o < cl, o, cl ) - 2
+        tkChart_AddHlocPoint( ch4, hs, chr( 65 + j ), o, hv, lv, cl )
+    next
+    tkChart_AddHlocPoint( ch4, hs, "K", 100, 95, 105, 101 )      ' high below low: swapped
+    tkChart_GetValueRange( ch4, lo, hi )
+    tkTest_Check( "HLOC range from low/high, no forced zero (95..115)", Near( lo, 95 ) andalso Near( hi, 115 ), lo & ".." & hi )
+    tkTest_Check( "HLOC value is the close", tkChart_GetPointValue( ch4, hs, 0 ) = 103 )
+    rp = PlotR( ch4 )
+    dim as single slot11 = csng( rp.right - rp.left ) / 11.0
+    dim as long half = clng( slot11 / 2.0 )
+    rc = PRect( ch4, hs, 4 )
+    dim as TKPOINT a4 = Anchor( ch4, hs, 4 )
+    tkTest_Check( "HLOC hit band: the slot wide, high to low", tkRect_Width( rc ) = 2 * half andalso rc.top = tkChart_ValueToY( ch4, 109 ) andalso rc.bottom = tkChart_ValueToY( ch4, 102 ), tkRect_Str( rc ) & " half " & half )
+    tkTest_Check( "HLOC anchor at the close", a4.y = tkChart_ValueToY( ch4, 107 ) andalso a4.x = rp.left + clng( 4.5 * slot11 ) )
+    rc = PRect( ch4, hs, 10 )
+    tkTest_Check( "a high below its low is swapped", rc.top = tkChart_ValueToY( ch4, 105 ) andalso rc.bottom = tkChart_ValueToY( ch4, 95 ) )
+    dim as TKPOINT ak = Anchor( ch4, hs, 10 )
+    Hover( h, ak.x, (PRect( ch4, hs, 10 ).top + PRect( ch4, hs, 10 ).bottom) \ 2 )
+    tkTest_Check( "HLOC tooltip: O H L C", tkChart_ResolveTooltipText( ch4 ) = "K: O 100  H 105  L 95  C 101", tkChart_ResolveTooltipText( ch4 ) )
+    tkChart_GetColors( ch4, @cc )
+    dim as TKPOINT a0 = Anchor( ch4, hs, 0 ), a1 = Anchor( ch4, hs, 1 )
+    dim as long ym0 = (tkChart_ValueToY( ch4, 105 ) + tkChart_ValueToY( ch4, 98 )) \ 2
+    dim as long ym1 = (PRect( ch4, hs, 1 ).top + PRect( ch4, hs, 1 ).bottom) \ 2
+    tkTest_Check( "HLOC wick in the series colour", Pix( ch4, a0.x, ym0 ) = tkChart_GetPaletteColor( ch4, 0 ), hex( Pix( ch4, a0.x, ym0 ) ) )
+    tkChart_SetHlocUpDownColors( ch4, true )
+    tkTest_Check( "up bar (close >= open) in UpColor", Pix( ch4, a0.x, ym0 ) = (cc.UpColor or &hFF000000ul), hex( Pix( ch4, a0.x, ym0 ) ) )
+    tkTest_Check( "down bar in DownColor", Pix( ch4, a1.x, ym1 ) = (cc.DownColor or &hFF000000ul), hex( Pix( ch4, a1.x, ym1 ) ) )
+    tkWidget_Destroy( ch4 )
+
+    ' ---- I: pie and doughnut ------------------------------------------------------------------
+    dim as TK_WIDGET ptr cp = tkChart_Create( tkHost_Root( h ), 205, TKCHART_TYPE_PIE )
+    tkChart_SetFont( cp, fText )
+    tkWidget_SetPos( cp, X0, Y0, W, HH )
+    dim as long ps = tkChart_AddSeries( cp, "Share" )
+    tkChart_AddPoint( cp, ps, "A", 10 ) : tkChart_AddPoint( cp, ps, "B", 20 )
+    tkChart_AddPoint( cp, ps, "C", 30 ) : tkChart_AddPoint( cp, ps, "D", 40 )
+    tkChart_GetValueRange( cp, lo, hi )
+    tkTest_Check( "pie range is 0..1", Near( lo, 0 ) andalso Near( hi, 1 ) )
+    dim as single fSt, fSw
+    dim as boolean bOut, bHid
+    dim as boolean okS = true
+    dim as single expSw(0 to 3) = { 36, 72, 108, 144 }, expSt(0 to 3) = { -90, -54, 18, 126 }
+    for j as long = 0 to 3
+        tkChart_GetSliceInfo( cp, j, fSt, fSw, bOut, bHid )
+        if (abs( fSw - expSw(j) ) > 0.01) orelse (abs( fSt - expSt(j) ) > 0.01) then okS = false
+    next
+    tkTest_Check( "slice sweeps proportional, from -90 clockwise", okS )
+    dim as TKRECT rpie
+    tkChart_GetPieRect( cp, rpie )
+    dim as long lw8 = tkText_Width( fText, "MMMMMMMM" )
+    dim as long inset = lw8 \ 2 + GAP * 2
+    dim as long avail = iif( W - 2 * P < HH - 2 * P, W - 2 * P, HH - 2 * P )
+    tkTest_Check( "pie square inset for outside labels", tkRect_Width( rpie ) = tkRect_Height( rpie ) andalso tkRect_Width( rpie ) = avail - 2 * inset, tkRect_Str( rpie ) & " vs " & (avail - 2 * inset) )
+    dim as long pcx = (rpie.left + rpie.right) \ 2, pcy = (rpie.top + rpie.bottom) \ 2
+    dim as single rad = tkRect_Width( rpie ) / 2.0
+    const PI_ = 3.14159265358979323846
+    #define PolX( deg, rr ) clng( pcx + cos( (deg) * PI_ / 180.0 ) * (rr) )
+    #define PolY( deg, rr ) clng( pcy + sin( (deg) * PI_ / 180.0 ) * (rr) )
+    tkTest_Check( "pie HitTest: slice D", tkChart_HitTest( cp, PolX( 198, rad * 0.5 ), PolY( 198, rad * 0.5 ), iSr, iPn ) andalso iSr = 0 andalso iPn = 3 )
+    tkTest_Check( "pie HitTest: slice A", tkChart_HitTest( cp, PolX( -72, rad * 0.5 ), PolY( -72, rad * 0.5 ), iSr, iPn ) andalso iPn = 0 )
+    tkTest_Check( "pie HitTest: outside the rim misses", tkChart_HitTest( cp, PolX( 198, rad * 1.1 ), PolY( 198, rad * 1.1 ), iSr, iPn ) = false )
+    tkTest_Check( "slice D in palette 3", Pix( cp, PolX( 198, rad * 0.5 ), PolY( 198, rad * 0.5 ) ) = tkChart_GetPaletteColor( cp, 3 ) )
+    Hover( h, PolX( 198, rad * 0.5 ), PolY( 198, rad * 0.5 ) )
+    tkTest_Check( "pie tooltip: value and percent", tkChart_ResolveTooltipText( cp ) = "D: 40 (40%)", tkChart_ResolveTooltipText( cp ) )
+    tkChart_SetDoughnutRatio( cp, 0.5 )
+    tkTest_Check( "doughnut: the hole is a hole", (tkChart_HitTest( cp, PolX( 198, rad * 0.3 ), PolY( 198, rad * 0.3 ), iSr, iPn ) = false) andalso tkChart_HitTest( cp, PolX( 198, rad * 0.75 ), PolY( 198, rad * 0.75 ), iSr, iPn ) )
+    tkChart_GetColors( cp, @cc )
+    tkTest_Check( "doughnut hole shows the background", Pix( cp, pcx, pcy ) = (cc.BackColor or &hFF000000ul) andalso Near( tkChart_GetDoughnutRatio( cp ), 0.5, 0.0001 ) )
+    tkChart_SetDoughnutRatio( cp, 2 )
+    tkTest_Check( "doughnut ratio clamped at 0.9", Near( tkChart_GetDoughnutRatio( cp ), 0.9, 0.0001 ) )
+    tkChart_SetDoughnutRatio( cp, 0 )
+    ' explode: the square shrinks by the offset, and the wedge moves with its hit area
+    dim as long ex = tkHost_Scale( h, 20 )
+    tkTest_Check( "hit beyond A's rim misses unexploded", tkChart_HitTest( cp, PolX( -72, rad + ex \ 2 ), PolY( -72, rad + ex \ 2 ), iSr, iPn ) = false )
+    tkChart_SetPointExplode( cp, 0, ex )
+    dim as TKRECT rpie2
+    tkChart_GetPieRect( cp, rpie2 )
+    tkTest_Check( "explode reserves its offset", tkRect_Width( rpie2 ) = tkRect_Width( rpie ) - 2 * ex, tkRect_Width( rpie2 ) & "" )
+    pcx = (rpie2.left + rpie2.right) \ 2 : pcy = (rpie2.top + rpie2.bottom) \ 2
+    rad = tkRect_Width( rpie2 ) / 2.0
+    tkTest_Check( "an exploded slice is hit where it was moved to", tkChart_HitTest( cp, PolX( -72, rad + ex \ 2 ), PolY( -72, rad + ex \ 2 ), iSr, iPn ) andalso iPn = 0 )
+    tkTest_Check( "...and a neighbour is not", tkChart_HitTest( cp, PolX( 0, rad + ex \ 2 ), PolY( 0, rad + ex \ 2 ), iSr, iPn ) = false )
+    tkChart_SetPointExplode( cp, 0, 0 )
+    ' label placement: a sliver forces AUTO outside; INSIDE drops it; OUTSIDE takes all
+    tkChart_AddPoint( cp, ps, "E", 0.5 )
+    tkChart_GetSliceInfo( cp, 4, fSt, fSw, bOut, bHid )
+    dim as boolean bOutD, bHidD
+    tkChart_GetSliceInfo( cp, 3, fSt, fSw, bOutD, bHidD )
+    tkTest_Check( "AUTO: the sliver's label goes outside, the big one stays in", bOut andalso (bHid = false) andalso (bOutD = false) andalso (bHidD = false) )
+    tkChart_SetPieLabelPlacement( cp, CHT_PIEPLACE_INSIDE )
+    tkChart_GetSliceInfo( cp, 4, fSt, fSw, bOut, bHid )
+    tkTest_Check( "INSIDE: a label that does not fit is dropped", bHid andalso (bOut = false) )
+    tkChart_SetPieLabelPlacement( cp, CHT_PIEPLACE_OUTSIDE )
+    tkChart_GetSliceInfo( cp, 3, fSt, fSw, bOutD, bHidD )
+    tkTest_Check( "OUTSIDE: every label on a leader", bOutD )
+    ' leaders: in the LeaderColor, only when labels are outside
+    tkChart_GetColors( cp, @cc )
+    cc.LeaderColor = &hFFFF00FFul
+    tkChart_SetColors( cp, @cc )
+    dim as long nLeadOut = CountColor( h, cp, &hFFFF00FFul )
+    tkChart_SetPieLabelPlacement( cp, CHT_PIEPLACE_INSIDE )
+    dim as long nLeadIn = CountColor( h, cp, &hFFFF00FFul )
+    tkTest_Check( "leader lines drawn for outside labels only", nLeadOut > 10 andalso nLeadIn = 0, nLeadOut & " / " & nLeadIn )
+    tkChart_SetPieLabelMode( cp, CHT_PIELABEL_NONE )
+    tkChart_GetSliceInfo( cp, 4, fSt, fSw, bOut, bHid )
+    tkTest_Check( "label mode NONE: nothing placed", (bOut = false) andalso (bHid = false) )
+    tkChart_SetLegendVisible( cp, true )
+    tkChart_GetLegendRect( cp, rl )
+    tkTest_Check( "pie legend lists the points", (tkRect_IsEmpty( rl ) = false) andalso Pix( cp, rl.left + 2, rl.top + 2 ) = tkChart_GetPaletteColor( cp, 0 ) )
+    tkTest_Check( "rendered tones: a pie is colourful", tkChart_CountRenderedTones( cp ) >= 5 andalso tkChart_HashRenderedPart( cp ) <> 0 )
+    tkWidget_Destroy( cp )
+
+    tkHost_Destroy( h )
+end sub
+
+
+' ==========================================================================================
+if tkTest_Init() = false then end 99
+
+RunPure()
+RunPass( 1.0 )
+RunPass( 1.75 )
+
+dim as long nFail = tkTest_Report( "tkChart" )
+tkTest_Quit()
+end nFail

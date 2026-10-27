@@ -1,0 +1,286 @@
+' tkDatePicker demo: the same four pickers as the Win32 demo
+' (tiko-lang/examples/PsControls/PsDatePicker/frmMain.tiko), plus a plain text box after them.
+'
+'   demo                     interactive
+'   demo --shot out.bmp      render once (row 1's calendar open), save the main window, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkDatePicker"
+using tkDatePicker
+using tkCalendar
+using tkTextBox
+using tkTooltip
+using tkTheme
+using tkHost
+using tkPaint
+
+#ifdef TIKO_OS_LINUX
+    const FONTDIR = "/mnt/c/Windows/Fonts/"
+#else
+    const FONTDIR = "C:\Windows\Fonts\"
+#endif
+
+const as long PICK_COUNT = 4
+const as long ROW_HEIGHT = 54, ROW_TOP = 16, ROW_MARGIN = 22
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gPick(0 to PICK_COUNT - 1), gPlain
+dim shared as ustring gLabel(0 to PICK_COUNT - 1), gStatus
+dim shared as TTF_Font ptr gFont9, gFont10
+
+private function MonthAbbrev( byval m as long ) as ustring
+    dim as ustring names(1 to 12) = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" }
+    if (m < 1) orelse (m > 12) then return ""
+    return names(m)
+end function
+
+' FORMAT: "MMM d, yyyy"
+sub DemoFormat( byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr, byref sOut as ustring )
+    if pDate = 0 then sOut = "" : exit sub
+    sOut = MonthAbbrev( pDate->wMonth ) & " " & str( pDate->wDay ) & ", " & str( pDate->wYear )
+end sub
+
+' PARSE: up to three numbers (year-first when the first is > 31, else month-first), or two
+' numbers and a month NAME -- which is what DemoFormat writes, so the pair round-trips.
+function DemoParse( byval hCtrl as TK_WIDGET ptr, byval sText as ustring, byval pDate as TKDATE ptr ) as boolean
+    dim as string s = lcase( trim( sText ) )
+    dim as long vals(0 to 2), n = 0
+    dim as string cur
+    for i as long = 1 to len( s ) + 1
+        dim as string ch = mid( s, i, 1 )
+        if (ch >= "0") andalso (ch <= "9") then
+            cur &= ch
+        elseif len( cur ) then
+            if n < 3 then vals(n) = valint( cur ) : n += 1
+            cur = ""
+        end if
+    next
+    dim as long y, m, d
+    if n >= 3 then
+        if vals(0) > 31 then y = vals(0) : m = vals(1) : d = vals(2) else m = vals(0) : d = vals(1) : y = vals(2)
+    elseif n = 2 then
+        m = 0
+        for k as long = 1 to 12
+            if instr( s, lcase( MonthAbbrev( k ) ) ) then m = k : exit for
+        next
+        if m = 0 then return false
+        d = vals(0) : y = vals(1)
+    else
+        return false
+    end if
+    if y < 100 then y += 2000
+    if (m < 1) orelse (m > 12) orelse (d < 1) then return false
+    if d > tkDatePicker_DaysInMonth( y, m ) then return false
+    *pDate = tkDatePicker_MakeDate( y, m, d )
+    return true
+end function
+
+function DemoTooltip( byval t as TKDATEPICKER_TOOLTIPINFO ptr ) as boolean
+    if t->isValid = false then return false
+    dim as ustring names(0 to 6) = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" }
+    dim as long dow = tkDatePicker_DowSunday( t->stDate.wYear, t->stDate.wMonth, t->stDate.wDay )
+    t->outText = names(dow) & ", " & MonthAbbrev( t->stDate.wMonth ) & " " & str( t->stDate.wDay )
+    return true
+end function
+
+' Row 3: a host painter that owns the whole cell.
+sub DemoDayPaint( byval p as TKDATEPICKER_DAYPAINTINFO ptr )
+    dim as TK_PAINT ptr b = p->b
+    dim as TKRECT rcFill = p->rcCell
+    dim as long inset = (rcFill.bottom - rcFill.top) \ 8
+    if inset < 1 then inset = 1
+    tkRect_Inflate( rcFill, -inset, -inset )
+    dim as long ell = (rcFill.bottom - rcFill.top) \ 3
+    if ell < 2 then ell = 2
+    if p->isSelected then
+        b->SetBackColor( tkRGB( 0, 120, 215 ) ) : b->PaintRoundRect( @rcFill, ell )
+    elseif p->isHot andalso (p->isDisabled = false) then
+        b->SetBackColor( tkRGB( 60, 66, 78 ) ) : b->PaintRoundRect( @rcFill, ell )
+    end if
+    dim as ulong clr = tkRGB( 210, 214, 220 )
+    if p->isDisabled then
+        clr = tkRGB( 56, 60, 68 )
+    elseif p->isSelected then
+        clr = tkRGB( 255, 255, 255 )
+    elseif p->isAdjacent then
+        clr = tkRGB( 124, 131, 142 )
+    elseif p->isWeekend then
+        clr = tkRGB( 150, 175, 205 )
+    end if
+    b->SetForeColor( clr )
+    b->PaintText( str( p->dayNumber ), @p->rcCell, TK_DT_CENTER )
+end sub
+
+private function PickName( byval hCtrl as TK_WIDGET ptr ) as string
+    for i as long = 0 to PICK_COUNT - 1
+        if gPick(i) = hCtrl then return str( i )
+    next
+    return "?"
+end function
+
+sub DemoChanged( byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr, byval bHasDate as boolean )
+    if bHasDate then
+        gStatus = "datechanged  pick=" & PickName( hCtrl ) & "  date=" & pDate->wYear & "-" & pDate->wMonth & "-" & pDate->wDay
+    else
+        gStatus = "datechanged  pick=" & PickName( hCtrl ) & "  (cleared)"
+    end if
+    print gStatus
+    tkHost_Invalidate( gHost )
+end sub
+
+sub DemoDropDown( byval hCtrl as TK_WIDGET ptr, byval isOpen as boolean )
+    print "dropdown     pick=" & PickName( hCtrl ) & "  open=" & isOpen
+end sub
+
+private sub RowRect( byval h as TK_HOST ptr, byval idx as long, byref rc as TKRECT )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long rh = tkHost_Scale( h, ROW_HEIGHT ), t = tkHost_Scale( h, ROW_TOP )
+    tkRect_Set( rc, 0, t + idx * rh, pw, t + idx * rh + rh )
+end sub
+
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long M = tkHost_Scale( h, ROW_MARGIN )
+    dim as long xCtl = tkHost_Scale( h, 400 )
+    for i as long = 0 to PICK_COUNT - 1
+        dim as TKRECT rc
+        RowRect( h, i, rc )
+        dim as long iw, ih
+        tkDatePicker_GetIdealSize( gPick(i), iw, ih )
+        tkWidget_SetPos( gPick(i), xCtl, rc.top + (rc.bottom - rc.top - ih) \ 2, iw, ih )
+    next
+    dim as TKRECT rcP
+    RowRect( h, PICK_COUNT, rcP )
+    dim as long ih = gPick(0)->ch
+    tkWidget_SetPos( gPlain, xCtl, rcP.top + (rcP.bottom - rcP.top - ih) \ 2, tkHost_Scale( h, 220 ), ih )
+end sub
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as TKTHEME_COLORS t = tkTheme_Get()
+    dim as long M = tkHost_Scale( h, ROW_MARGIN )
+    b->SetFont( gFont10 )
+    b->SetForeColor( t.Text )
+    for i as long = 0 to PICK_COUNT
+        dim as TKRECT rc
+        RowRect( h, i, rc )
+        rc.left = M
+        dim as ustring sLab = "Plain text box (Tab reaches it)"
+        if i < PICK_COUNT then sLab = gLabel(i)
+        b->PaintText( sLab, @rc, TK_DT_LEFT )
+    next
+    dim as TKRECT rcS
+    RowRect( h, PICK_COUNT + 1, rcS )
+    rcS.left = M
+    b->SetForeColor( t.Accent )
+    b->PaintText( gStatus, @rcS, TK_DT_LEFT )
+end sub
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+' The main window, with the open calendar composited where it sits on it (the popup is
+' another window; a screenshot of the main window alone would not show it).
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr s = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if s = 0 then exit sub
+    dim as TK_HOST ptr pop = tkDatePicker_GetPopup( gPick(1) )
+    if pop then
+        tkHost_RenderTo( pop, false )
+        dim as SDL_Surface ptr sp = SDL_RenderReadPixels( pop->renderer, 0 )
+        if sp then
+            dim as TKRECT a
+            tkWidget_AbsRect( gPick(1), a )
+            dim as SDL_Rect dst
+            dst.x = a.left : dst.y = a.bottom - 1 : dst.w = sp->w : dst.h = sp->h
+            SDL_BlitSurface( sp, 0, s, @dst )
+            SDL_DestroySurface( sp )
+        end if
+    end if
+    SDL_SaveBMP( s, strptr( path ) )
+    print "shot: " & path & "  " & s->w & "x" & s->h & "  scale=" & gHost->fScale
+    SDL_DestroySurface( s )
+end sub
+
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkDatePicker on SDL3", 760, 560, FONTDIR & "segoeui.ttf", forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = tkTheme_Get().Window
+gFont9 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 9 )
+gFont10 = tkHost_OpenFont( gHost, FONTDIR & "segoeui.ttf", 10 )
+if gFont10 = 0 then print "fonts: " & *SDL_GetError() : end 1
+tkTooltip_SetDefaultFonts( gFont9 )
+
+gLabel(0) = "Date   (single month, ""MMM d, yyyy"")"
+gLabel(1) = "Date   (two months side by side, + Today footer)"
+gLabel(2) = "Date   (Monday start; only today .. today+60 selectable)"
+gLabel(3) = "Date   (empty allowed, custom day paint)"
+
+dim as string shot = ArgValue( "--shot" )
+dim as TKDATE today = tkCalendar_LocalToday()
+if len( shot ) then today = tkDatePicker_MakeDate( 2026, 3, 15 )     ' pinned, so shots compare
+
+for i as long = 0 to PICK_COUNT - 1
+    gPick(i) = tkDatePicker_Create( tkHost_Root( gHost ), 1000 + i )
+    tkDatePicker_SetFont( gPick(i), gFont10 )
+    if len( shot ) then tkDatePicker_SetToday( gPick(i), today )
+    tkDatePicker_SetFormatCallback( gPick(i), @DemoFormat )
+    tkDatePicker_SetParseCallback( gPick(i), @DemoParse )
+    tkDatePicker_SetDateChangedCallback( gPick(i), @DemoChanged )
+    tkDatePicker_SetDropDownCallback( gPick(i), @DemoDropDown )
+    tkDatePicker_SetTooltipCallback( gPick(i), @DemoTooltip )
+next
+
+' Row 0: the screenshot's case
+tkDatePicker_SetDate( gPick(0), today )
+' Row 1: two months, with the Today footer
+tkDatePicker_SetMonthCount( gPick(1), 2 )
+tkDatePicker_SetShowTodayFooter( gPick(1), true )
+tkDatePicker_SetDate( gPick(1), today )
+' Row 2: Monday start, range today .. today+60, footer live
+dim as long y2, m2, d2
+tkDatePicker_SerialToDate( tkDatePicker_DateToSerial( today.wYear, today.wMonth, today.wDay ) + 60, y2, m2, d2 )
+dim as TKDATE plus60 = tkDatePicker_MakeDate( y2, m2, d2 )
+tkDatePicker_SetShowTodayFooter( gPick(2), true )
+tkDatePicker_SetWeekStart( gPick(2), DTP_MONDAY )
+tkDatePicker_SetRange( gPick(2), today, plus60, true, true )
+tkDatePicker_SetDate( gPick(2), today )
+' Row 3: empty allowed, custom day paint
+tkDatePicker_SetAllowEmpty( gPick(3), true )
+tkDatePicker_SetDayPaintCallback( gPick(3), @DemoDayPaint )
+tkDatePicker_ClearDate( gPick(3) )
+
+gPlain = tkTextBox_Create( tkHost_Root( gHost ), 1100 )
+tkTextBox_SetFont( gPlain, gFont10 )
+tkTextBox_SetCueBannerText( gPlain, "ordinary text" )
+
+gStatus = "F4 / Down / the icon open a calendar; type a date and press Enter or Tab away."
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkHost_Show( gHost )
+
+if len( shot ) then
+    tkHost_Pump( gHost )
+    tkHost_SetFocus( gHost, tkDatePicker_GetTextBoxHandle( gPick(0) ) )
+    tkDatePicker_DropDown( gPick(1) )
+    tkHost_Pump( gHost )
+    SaveShot( shot )
+else
+    tkHost_SetFocus( gHost, tkDatePicker_GetTextBoxHandle( gPick(0) ) )
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

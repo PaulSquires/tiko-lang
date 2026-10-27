@@ -1,0 +1,1192 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkCheckBox -- PsCheckBox on SDL3 + SDL_ttf, a port of pkg/vendor/PsControls/PsCheckBox/PsCheckBox.tiko
+' onto tkHost. See PORT.md.
+'
+' WHAT IS UNCHANGED, by design: the layout model (LayoutCheckBox is the Win32 function with GDI
+' measuring swapped for SDL_ttf), two states only, the four moods and their precedence, the
+' colour struct and its theme mapping, the four callbacks, press / slide-off / release, silent
+' SetChecked with Toggle as the one notifying action, Space AND Enter, AutoSize, GetIdealSize
+' valid before the control is sized, the rect queries and the two render probes.
+'
+' WHAT CHANGED: the box is drawn as VECTORS by default (PsPlatform's polygon tick, in the one box
+' colour) -- the Segoe Fluent Icons glyph pair is still there, one SetBoxStyle away. A font that
+' only Windows ships cannot be the default on a cross-platform control.
+'
+' WHAT IS GONE, because the HWND is gone: WM_SETTEXT/GETTEXT, WM_GETDLGCODE, the WM_CHAR swallow,
+' the 100 ms hover poll, the comctl32 tooltip backend, PsRegistry.
+#module "tkCheckBox"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkTooltip" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkTooltip
+
+public enum
+    CHK_BOXALIGN_LEFT = 0
+    CHK_BOXALIGN_RIGHT
+end enum
+
+public enum
+    CHK_TEXTALIGN_LEFT = 0
+    CHK_TEXTALIGN_CENTER
+    CHK_TEXTALIGN_RIGHT
+end enum
+
+public enum
+    CHK_MOOD_IDLE = 0
+    CHK_MOOD_HOT
+    CHK_MOOD_PRESSED
+    CHK_MOOD_DISABLED
+end enum
+
+public enum
+    CHK_PART_CONTROL = 0
+    CHK_PART_BOX
+    CHK_PART_TEXT
+end enum
+
+' ADDED (PORT.md): how the built-in painter draws the box.
+public enum
+    CHK_BOXSTYLE_VECTOR = 0      ' rounded square + polygon tick, no font needed (default)
+    CHK_BOXSTYLE_GLYPH           ' vendor's: one font glyph per state (Segoe Fluent Icons)
+end enum
+
+' The Segoe Fluent Icons pair vendor draws: E739 Checkbox, E73A CheckboxComposite.
+public const TKCHECKBOX_GLYPH_UNCHECKED = !"\uE739"
+public const TKCHECKBOX_GLYPH_CHECKED = !"\uE73A"
+
+public const as long TKCHECKBOX_DEFAULT_PADLEFT    = 4
+public const as long TKCHECKBOX_DEFAULT_PADTOP     = 2
+public const as long TKCHECKBOX_DEFAULT_PADRIGHT   = 4
+public const as long TKCHECKBOX_DEFAULT_PADBOTTOM  = 2
+public const as long TKCHECKBOX_DEFAULT_BOXGAP     = 8
+public const as long TKCHECKBOX_DEFAULT_BOXWIDTH   = 16
+public const as long TKCHECKBOX_DEFAULT_BOXHEIGHT  = 16
+public const as long TKCHECKBOX_DEFAULT_FOCUSGAP   = 2
+public const as long TKCHECKBOX_DEFAULT_FOCUSCURV  = 4     ' ellipse DIAMETER
+public const as long TKCHECKBOX_DEFAULT_FOCUSTHICK = 1     ' never scaled
+
+' The Win32 control's dark defaults, value for value (COLORREF BGR(r,g,b) -> tkRGB(r,g,b)).
+public type TKCHECKBOX_COLORS
+    BackColor               as ulong = &hFF21252Bul    ' ( 33, 37, 43)
+    BackColorHot            as ulong = &hFF21252Bul    ' = BackColor: flat out of the box
+    BackColorPressed        as ulong = &hFF21252Bul
+    BackColorDisabled       as ulong = &hFF21252Bul
+    ForeColor               as ulong = &hFFC8CDD6ul    ' (200,205,214)
+    ForeColorHot            as ulong = &hFFE2E6EEul    ' (226,230,238)
+    ForeColorPressed        as ulong = &hFFFFFFFFul
+    ForeColorDisabled       as ulong = &hFF606670ul    ' ( 96,102,112)
+    BoxColor                as ulong = &hFF8A9099ul    ' (138,144,153)
+    BoxColorHot             as ulong = &hFFB0B6BFul    ' (176,182,191)
+    BoxColorPressed         as ulong = &hFFC8CDD6ul    ' (200,205,214)
+    BoxColorDisabled        as ulong = &hFF545961ul    ' ( 84, 89, 97)
+    BoxColorChecked         as ulong = &hFF569CD6ul    ' ( 86,156,214)
+    BoxColorCheckedHot      as ulong = &hFF7AB4E6ul    ' (122,180,230)
+    BoxColorCheckedPressed  as ulong = &hFF96C8F0ul    ' (150,200,240)
+    BoxColorCheckedDisabled as ulong = &hFF384654ul    ' ( 56, 70, 84)
+    FocusRingColor          as ulong = &hFF569CD6ul    ' ( 86,156,214)
+end type
+
+public type TKCHECKBOX_PAINTINFO
+    hCheckBox   as TK_WIDGET ptr
+    b           as TK_PAINT ptr
+    rcClient    as TKRECT
+    rcContent   as TKRECT          ' rcClient deflated by the focus-ring band
+    rcBox       as TKRECT          ' the box cell; never empty once sized
+    rcText      as TKRECT          ' the caption SPAN, not the ink; empty with no caption
+    rcVisual    as TKRECT          ' rcContent inflated by the band: where the ring goes
+    isChecked   as boolean
+    isHot       as boolean
+    isPressed   as boolean         ' a live press AND the cursor still inside
+    isEnabled   as boolean
+    isFocused   as boolean
+    wszText     as ustring
+    wszGlyph    as ustring         ' already resolved for isChecked
+    nBoxAlign   as long
+    nTextAlign  as long
+    nBoxStyle   as long            ' CHK_BOXSTYLE_* (added)
+end type
+
+public type TKCHECKBOX_MESSAGEINFO
+    hCheckBox as TK_WIDGET ptr
+    msg       as long              ' TKM_*
+    x         as single
+    y         as single
+    key       as long
+end type
+
+public type CHK_PaintCallbackSub as sub( byval p as TKCHECKBOX_PAINTINFO ptr )
+public type CHK_MessageCallbackFunc as function( byval m as TKCHECKBOX_MESSAGEINFO ptr ) as boolean
+public type CHK_TooltipCallbackFunc as function( byval hCheckBox as TK_WIDGET ptr ) as ustring
+public type CHK_CheckChangedCallbackSub as sub( byval hCheckBox as TK_WIDGET ptr, byval isChecked as boolean )
+
+public type TKCHECKBOX_STATE
+    hWin              as TK_WIDGET ptr
+    id                as long
+    itemData          as integer
+    wszText           as ustring
+    wszGlyphUnchecked as ustring
+    wszGlyphChecked   as ustring
+    wszTooltip        as ustring
+    tip               as TKTIPHOST_STATE
+    bColorsPinned     as boolean
+    isChecked         as boolean
+    isEnabled         as boolean = true
+    isHot             as boolean
+    isFocused         as boolean
+    isPressed         as boolean           ' the GESTURE: a live left press, inside or not
+    colors            as TKCHECKBOX_COLORS
+    pTextFont         as TTF_Font ptr      ' borrowed
+    pGlyphFont        as TTF_Font ptr      ' borrowed
+    nBoxStyle         as long = CHK_BOXSTYLE_VECTOR
+    nBoxAlign         as long = CHK_BOXALIGN_LEFT
+    nTextAlign        as long = CHK_TEXTALIGN_LEFT
+    bAutoSize         as boolean
+    nPadLeft          as long
+    nPadTop           as long
+    nPadRight         as long
+    nPadBottom        as long
+    nBoxGap           as long
+    nBoxWidth         as long
+    nBoxHeight        as long
+    nFocusGap         as long
+    nFocusCurvature   as long
+    nFocusThick       as long = TKCHECKBOX_DEFAULT_FOCUSTHICK
+    nTextWidth        as long
+    nTextHeight       as long
+    nIdealW           as long
+    nIdealH           as long
+    rcContent         as TKRECT
+    rcBox             as TKRECT
+    rcText            as TKRECT
+    rcVisual          as TKRECT
+    bLayoutDirty      as boolean = true
+    PaintCallback        as CHK_PaintCallbackSub
+    MessageCallback      as CHK_MessageCallbackFunc
+    TooltipCallback      as CHK_TooltipCallbackFunc
+    CheckChangedCallback as CHK_CheckChangedCallbackSub
+
+    declare sub      LayoutCheckBox()
+    declare function RingPad() as long
+    declare function HasText() as boolean
+    declare function ResolveGlyph() as ustring
+    declare function ShowsPressed() as boolean
+    declare sub      CancelPress()
+    declare sub      Refresh()
+end type
+
+
+function TKCHECKBOX_STATE.RingPad() as long
+    return this.nFocusGap + this.nFocusThick
+end function
+
+function TKCHECKBOX_STATE.HasText() as boolean
+    return (len( this.wszText ) > 0)
+end function
+
+function TKCHECKBOX_STATE.ResolveGlyph() as ustring
+    if this.isChecked then return this.wszGlyphChecked
+    return this.wszGlyphUnchecked
+end function
+
+' What the PAINTER calls pressed: the gesture AND the cursor still inside. Vendor painted the
+' gesture flag, so sliding off kept the pressed colours (PORT.md, vendor bugs).
+function TKCHECKBOX_STATE.ShowsPressed() as boolean
+    return this.isPressed andalso this.isHot
+end function
+
+sub TKCHECKBOX_STATE.CancelPress()
+    this.isPressed = false
+end sub
+
+sub TKCHECKBOX_STATE.Refresh()
+    this.bLayoutDirty = true
+    tkWidget_Invalidate( this.hWin )
+end sub
+
+
+' ---- layout -------------------------------------------------------------------------------
+' The Win32 LayoutCheckBox, unchanged except for where the two numbers come from: the caption
+' width is TTF_GetStringSize and the ONE text height is TTF_GetFontHeight (tmHeight). With no
+' caption font the host's default font measures, as DEFAULT_GUI_FONT did.
+sub TKCHECKBOX_STATE.LayoutCheckBox()
+    this.bLayoutDirty = false
+    if this.hWin = 0 then exit sub
+
+    dim as TTF_Font ptr fUse = this.pTextFont
+    if fUse = 0 then fUse = this.hWin->pHost->pDefaultFont
+    this.nTextHeight = tkText_Height( fUse )
+
+    dim as boolean bText = this.HasText()
+    this.nTextWidth = 0
+    if bText then this.nTextWidth = tkText_Width( fUse, this.wszText )
+
+    dim as long nRingPad = this.RingPad()
+    dim as long textBlock = 0
+    if bText then textBlock = this.nBoxGap + this.nTextWidth
+    dim as long contentH = this.nBoxHeight
+    if bText andalso (this.nTextHeight > contentH) then contentH = this.nTextHeight
+
+    this.nIdealW = (2 * nRingPad) + this.nPadLeft + this.nBoxWidth + textBlock + this.nPadRight
+    this.nIdealH = (2 * nRingPad) + this.nPadTop + contentH + this.nPadBottom
+
+    dim as long clientW = this.hWin->cw
+    dim as long clientH = this.hWin->ch
+    if (clientW <= 0) orelse (clientH <= 0) then
+        this.bLayoutDirty = true
+        exit sub
+    end if
+
+    tkRect_Set( this.rcContent, 0, 0, clientW, clientH )
+    tkRect_Inflate( this.rcContent, -nRingPad, -nRingPad )
+    dim as long contH = this.rcContent.bottom - this.rcContent.top
+
+    dim as long boxY = this.rcContent.top + ((contH - this.nBoxHeight) \ 2)
+    dim as long boxX
+    if this.nBoxAlign = CHK_BOXALIGN_RIGHT then
+        boxX = this.rcContent.right - this.nPadRight - this.nBoxWidth
+    else
+        boxX = this.rcContent.left + this.nPadLeft
+    end if
+    tkRect_Set( this.rcBox, boxX, boxY, boxX + this.nBoxWidth, boxY + this.nBoxHeight )
+
+    if bText then
+        dim as long tLeft, tRight
+        if this.nBoxAlign = CHK_BOXALIGN_RIGHT then
+            tLeft  = this.rcContent.left + this.nPadLeft
+            tRight = this.rcBox.left - this.nBoxGap
+        else
+            tLeft  = this.rcBox.right + this.nBoxGap
+            tRight = this.rcContent.right - this.nPadRight
+        end if
+        if tRight < tLeft then tRight = tLeft
+        dim as long tTop = this.rcContent.top + ((contH - this.nTextHeight) \ 2)
+        tkRect_Set( this.rcText, tLeft, tTop, tRight, tTop + this.nTextHeight )
+    else
+        tkRect_SetEmpty( this.rcText )
+    end if
+
+    this.rcVisual = this.rcContent
+    tkRect_Inflate( this.rcVisual, nRingPad, nRingPad )
+end sub
+
+
+' ---- colour resolution (pure) ---------------------------------------------------------------
+public function tkCheckBox_ResolveMood( byval isEnabled as boolean, byval isPressed as boolean, byval isHot as boolean ) as long
+    if isEnabled = false then return CHK_MOOD_DISABLED
+    if isPressed then return CHK_MOOD_PRESSED
+    if isHot then return CHK_MOOD_HOT
+    return CHK_MOOD_IDLE
+end function
+
+' isChecked picks between the two box sets WITHIN the mood and touches nothing else.
+public sub tkCheckBox_ResolveColors( byval pColors as TKCHECKBOX_COLORS ptr, byval nMood as long, byval isChecked as boolean, _
+                                     byref clrBack as ulong, byref clrFore as ulong, byref clrBox as ulong )
+    if pColors = 0 then exit sub
+    with *pColors
+        select case nMood
+        case CHK_MOOD_DISABLED
+            clrBack = .BackColorDisabled : clrFore = .ForeColorDisabled
+            clrBox = iif( isChecked, .BoxColorCheckedDisabled, .BoxColorDisabled )
+        case CHK_MOOD_PRESSED
+            clrBack = .BackColorPressed : clrFore = .ForeColorPressed
+            clrBox = iif( isChecked, .BoxColorCheckedPressed, .BoxColorPressed )
+        case CHK_MOOD_HOT
+            clrBack = .BackColorHot : clrFore = .ForeColorHot
+            clrBox = iif( isChecked, .BoxColorCheckedHot, .BoxColorHot )
+        case else
+            clrBack = .BackColor : clrFore = .ForeColor
+            clrBox = iif( isChecked, .BoxColorChecked, .BoxColor )
+        end select
+    end with
+end sub
+
+
+' ---- the vector box (PsPlatform's) ------------------------------------------------------------
+' The square the vector box occupies: the largest square in the cell, centred in it.
+public sub tkCheckBox_VectorSquare( byref rcCell as TKRECT, byref rcSq as TKRECT )
+    dim as long cw = rcCell.right - rcCell.left
+    dim as long ch = rcCell.bottom - rcCell.top
+    dim as long side = iif( cw < ch, cw, ch )
+    if side <= 0 then tkRect_SetEmpty( rcSq ) : exit sub
+    dim as long x0 = rcCell.left + ((cw - side) \ 2)
+    dim as long y0 = rcCell.top + ((ch - side) \ 2)
+    tkRect_Set( rcSq, x0, y0, x0 + side, y0 + side )
+end sub
+
+' The outline's pen, derived from the square (a metric) so it never needs its own scaling.
+public function tkCheckBox_VectorPen( byval side as long ) as long
+    dim as long nPen = (side + 8) \ 16
+    if nPen < 1 then nPen = 1
+    return nPen
+end function
+
+' Unchecked: a rounded outline in clrBox. Checked: the square FILLED with clrBox and the tick
+' knocked out of it in clrBack -- still one box colour, as vendor's composite glyph was. The
+' tick is a polygon derived from the square's side (PsPlatform), never from scaled constants:
+' scaling each vertex on its own drifted it off centre at 1.5.
+public sub tkCheckBox_DrawVectorBox( byval b as TK_PAINT ptr, byref rcCell as TKRECT, byval isChecked as boolean, _
+                                     byval clrBox as ulong, byval clrBack as ulong )
+    if b = 0 then exit sub
+    dim as TKRECT sq
+    tkCheckBox_VectorSquare( rcCell, sq )
+    if tkRect_IsEmpty( sq ) then exit sub
+    dim as long side = sq.right - sq.left
+    dim as long nCurv = side \ 4
+    if isChecked = false then
+        b->SetPenColor( clrBox )
+        b->PaintRoundOutline( @sq, nCurv, tkCheckBox_VectorPen( side ) )
+        exit sub
+    end if
+    b->SetBackColor( clrBox )
+    b->PaintRoundRect( @sq, nCurv )
+    dim as long lft = sq.left, tp = sq.top
+    dim as TKPOINT tick(0 to 5)
+    tick(0).x = lft + ((side * 22) \ 100) : tick(0).y = tp + ((side * 50) \ 100)
+    tick(1).x = lft + ((side * 42) \ 100) : tick(1).y = tp + ((side * 70) \ 100)
+    tick(2).x = lft + ((side * 78) \ 100) : tick(2).y = tp + ((side * 27) \ 100)
+    tick(3).x = lft + ((side * 78) \ 100) : tick(3).y = tp + ((side * 43) \ 100)
+    tick(4).x = lft + ((side * 42) \ 100) : tick(4).y = tp + ((side * 86) \ 100)
+    tick(5).x = lft + ((side * 22) \ 100) : tick(5).y = tp + ((side * 66) \ 100)
+    b->SetBackColor( clrBack )
+    b->PaintPolygon( @tick(0), 6, 0 )
+end sub
+
+
+' ---- plumbing ---------------------------------------------------------------------------------
+private function GetCheckBoxPointer( byval hCheckBox as TK_WIDGET ptr ) as TKCHECKBOX_STATE ptr
+    if hCheckBox = 0 then return 0
+    return cast( TKCHECKBOX_STATE ptr, hCheckBox->pData )
+end function
+
+private function tkCheckBox_CallMessage( byval pChk as TKCHECKBOX_STATE ptr, byval m as TK_MSG ptr ) as boolean
+    if (pChk = 0) orelse (pChk->MessageCallback = 0) then return false
+    dim as TKCHECKBOX_MESSAGEINFO mi
+    mi.hCheckBox = pChk->hWin
+    mi.msg = m->msg
+    mi.x = m->x
+    mi.y = m->y
+    mi.key = m->key
+    return pChk->MessageCallback( @mi )
+end function
+
+' The control's own text, else the callback, else nothing -- no caption fallback.
+private function tkCheckBox_ResolveTooltipText( byval pChk as TKCHECKBOX_STATE ptr ) as ustring
+    if pChk = 0 then return ""
+    if len( pChk->wszTooltip ) then return pChk->wszTooltip
+    if pChk->TooltipCallback then return pChk->TooltipCallback( pChk->hWin )
+    return ""
+end function
+
+private function tkCheckBox_TipText( byval t as TK_TIP ptr, byval a as TK_WIDGET ptr, byval idx as long ) as ustring
+    return tkCheckBox_ResolveTooltipText( GetCheckBoxPointer( a ) )
+end function
+
+
+' ---- paint --------------------------------------------------------------------------------------
+private sub tkCheckBox_RenderDefault( byval pChk as TKCHECKBOX_STATE ptr, byval b as TK_PAINT ptr, byval p as TKCHECKBOX_PAINTINFO ptr )
+    if (pChk = 0) orelse (b = 0) orelse (p = 0) then exit sub
+    if tkRect_IsEmpty( p->rcContent ) then exit sub
+
+    dim as long nMood = tkCheckBox_ResolveMood( p->isEnabled, p->isPressed, p->isHot )
+    dim as ulong clrBack, clrFore, clrBox
+    tkCheckBox_ResolveColors( @pChk->colors, nMood, p->isChecked, clrBack, clrFore, clrBox )
+
+    dim as TTF_Font ptr fText = pChk->pTextFont
+    if fText = 0 then fText = pChk->hWin->pHost->pDefaultFont
+    dim as TTF_Font ptr fGlyph = pChk->pGlyphFont
+    if fGlyph = 0 then fGlyph = fText
+
+    if p->nBoxStyle = CHK_BOXSTYLE_GLYPH then
+        b->SetFont( fGlyph )
+        b->SetColors( clrBox, clrBack )
+        b->PaintText( p->wszGlyph, @p->rcBox, TK_DT_CENTER )
+    else
+        tkCheckBox_DrawVectorBox( b, p->rcBox, p->isChecked, clrBox, clrBack )
+    end if
+
+    if tkRect_IsEmpty( p->rcText ) = false then
+        dim as long nAlign = TK_DT_LEFT
+        select case p->nTextAlign
+        case CHK_TEXTALIGN_CENTER
+            nAlign = TK_DT_CENTER
+        case CHK_TEXTALIGN_RIGHT
+            nAlign = TK_DT_RIGHT
+        end select
+        b->SetFont( fText )
+        b->SetColors( clrFore, clrBack )
+        b->PaintText( p->wszText, @p->rcText, nAlign or TK_DT_ELLIPSIS )
+    end if
+
+    ' Outline, never filled.
+    if p->isFocused andalso (pChk->nFocusThick > 0) then
+        b->SetPenColor( pChk->colors.FocusRingColor )
+        b->PaintRoundOutline( @p->rcVisual, pChk->nFocusCurvature, pChk->nFocusThick )
+    end if
+end sub
+
+private sub tkCheckBox_FillPaintInfo( byval pChk as TKCHECKBOX_STATE ptr, byval b as TK_PAINT ptr, byval p as TKCHECKBOX_PAINTINFO ptr )
+    p->hCheckBox = pChk->hWin
+    p->b = b
+    tkRect_Set( p->rcClient, 0, 0, pChk->hWin->cw, pChk->hWin->ch )
+    p->rcContent = pChk->rcContent
+    p->rcBox = pChk->rcBox
+    p->rcText = pChk->rcText
+    p->rcVisual = pChk->rcVisual
+    p->isChecked = pChk->isChecked
+    p->isHot = pChk->isHot
+    p->isPressed = pChk->ShowsPressed()
+    p->isEnabled = pChk->isEnabled
+    p->isFocused = pChk->isFocused
+    p->wszText = pChk->wszText
+    p->wszGlyph = pChk->ResolveGlyph()
+    p->nBoxAlign = pChk->nBoxAlign
+    p->nTextAlign = pChk->nTextAlign
+    p->nBoxStyle = pChk->nBoxStyle
+end sub
+
+private sub tkCheckBox_OnPaint( byval pChk as TKCHECKBOX_STATE ptr, byval b as TK_PAINT ptr )
+    if pChk->bLayoutDirty then pChk->LayoutCheckBox()
+    ' The client takes the resolved mood's background first, so a paint callback that draws
+    ' only a foreground still sits on the right colour.
+    dim as long nMood = tkCheckBox_ResolveMood( pChk->isEnabled, pChk->ShowsPressed(), pChk->isHot )
+    dim as ulong clrFill, clrFore, clrBox
+    tkCheckBox_ResolveColors( @pChk->colors, nMood, pChk->isChecked, clrFill, clrFore, clrBox )
+    b->SetBackColor( clrFill )
+    dim as TKRECT rcC
+    tkRect_Set( rcC, 0, 0, pChk->hWin->cw, pChk->hWin->ch )
+    b->PaintRect( @rcC )
+
+    dim as TKCHECKBOX_PAINTINFO p
+    tkCheckBox_FillPaintInfo( pChk, b, @p )
+    if pChk->PaintCallback then
+        pChk->PaintCallback( @p )
+    else
+        tkCheckBox_RenderDefault( pChk, b, @p )
+    end if
+end sub
+
+
+' ---- state helpers ------------------------------------------------------------------------------
+private sub tkCheckBox_ClearHot( byval pChk as TKCHECKBOX_STATE ptr )
+    tkTipHost_Pop( @pChk->tip )
+    if pChk->isHot then
+        pChk->isHot = false
+        tkWidget_Invalidate( pChk->hWin )
+    end if
+end sub
+
+sub tkCheckBox_ApplyAutoSize( byval pChk as TKCHECKBOX_STATE ptr )
+    if (pChk = 0) orelse (pChk->bAutoSize = false) then exit sub
+    if pChk->bLayoutDirty then pChk->LayoutCheckBox()
+    if (pChk->nIdealW <= 0) orelse (pChk->nIdealH <= 0) then exit sub
+    tkWidget_SetSize( pChk->hWin, pChk->nIdealW, pChk->nIdealH )
+end sub
+
+' The one notifying path: a completed click, Space, Enter, or tkCheckBox_Toggle. The state is
+' updated BEFORE the callback, so GetChecked agrees with what the callback is handed.
+private sub tkCheckBox_FireToggle( byval pChk as TKCHECKBOX_STATE ptr )
+    if (pChk = 0) orelse (pChk->isEnabled = false) then exit sub
+    pChk->isChecked = not pChk->isChecked
+    tkWidget_Invalidate( pChk->hWin )
+    if pChk->CheckChangedCallback then pChk->CheckChangedCallback( pChk->hWin, pChk->isChecked )
+end sub
+
+private sub tkCheckBox_Rescale( byval pChk as TKCHECKBOX_STATE ptr, byval fOld as single, byval fNew as single )
+    if (fOld <= 0) orelse (fNew <= 0) then exit sub
+    dim as single k = fNew / fOld
+    pChk->nPadLeft        = cint( pChk->nPadLeft * k )
+    pChk->nPadTop         = cint( pChk->nPadTop * k )
+    pChk->nPadRight       = cint( pChk->nPadRight * k )
+    pChk->nPadBottom      = cint( pChk->nPadBottom * k )
+    pChk->nBoxGap         = cint( pChk->nBoxGap * k )
+    pChk->nBoxWidth       = cint( pChk->nBoxWidth * k )
+    pChk->nBoxHeight      = cint( pChk->nBoxHeight * k )
+    pChk->nFocusGap       = cint( pChk->nFocusGap * k )
+    pChk->nFocusCurvature = cint( pChk->nFocusCurvature * k )
+    pChk->Refresh()
+    tkCheckBox_ApplyAutoSize( pChk )
+end sub
+
+private function InClient( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    return (m->x >= 0) andalso (m->x < w->cw) andalso (m->y >= 0) andalso (m->y < w->ch)
+end function
+
+
+public declare sub tkCheckBox_ApplyTheme( byval hCheckBox as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+public declare function tkCheckBox_ThemeColors( byref t as TKTHEME_COLORS ) as TKCHECKBOX_COLORS
+
+' ---- the proc: the WndProc, case for case where a case survived ---------------------------------
+private function tkCheckBox_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( w )
+    if pChk = 0 then return false
+    dim as TK_HOST ptr h = w->pHost
+
+    select case m->msg
+    case TKM_PAINT
+        tkCheckBox_OnPaint( pChk, m->pPaint )
+        return true
+
+    case TKM_SIZE
+        pChk->Refresh()
+        return true
+
+    case TKM_SCALECHANGED
+        tkCheckBox_Rescale( pChk, m->fOld, m->fNew )
+        return true
+
+    case TKM_THEMECHANGED
+        tkCheckBox_ApplyTheme( w, tkTheme_Get() )
+        return true
+
+    case TKM_MOUSEMOVE
+        if pChk->isEnabled = false then return true
+        ' While a press is live, hot keeps tracking, so sliding off un-flashes the control.
+        dim as boolean bOver = InClient( w, m )
+        if bOver <> pChk->isHot then
+            pChk->isHot = bOver
+            tkWidget_Invalidate( w )
+        end if
+        tkCheckBox_CallMessage( pChk, m )
+        return true
+
+    case TKM_MOUSELEAVE
+        if pChk->isPressed = false then tkCheckBox_ClearHot( pChk )
+        tkCheckBox_CallMessage( pChk, m )
+        return true
+
+    case TKM_LBUTTONDOWN
+        if pChk->isEnabled = false then return true
+        tkHost_SetFocus( h, w )
+        tkTipHost_Pop( @pChk->tip )
+        if tkCheckBox_CallMessage( pChk, m ) then return true
+        tkHost_SetCapture( w )
+        pChk->isPressed = true
+        pChk->isHot = true
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_LBUTTONUP
+        ' SNAPSHOT BEFORE RELEASING: CAPTURECHANGED arrives synchronously and cancels the press.
+        dim as boolean bWasPressed = pChk->isPressed
+        if tkHost_GetCapture( h ) = w then tkHost_ReleaseCapture( h )
+        dim as boolean bInside = InClient( w, m )
+        pChk->CancelPress()
+        if bInside = false then pChk->isHot = false
+        tkWidget_Invalidate( w )
+        tkCheckBox_CallMessage( pChk, m )            ' result IGNORED: it would strand capture
+        if bWasPressed andalso bInside then tkCheckBox_FireToggle( pChk )
+        return true
+
+    case TKM_CAPTURECHANGED
+        pChk->CancelPress()
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_RBUTTONDOWN, TKM_RBUTTONUP
+        tkCheckBox_CallMessage( pChk, m )            ' reported, never acted on
+        return true
+
+    case TKM_SETFOCUS, TKM_KILLFOCUS
+        dim as boolean bFocused = (m->msg = TKM_SETFOCUS)
+        if bFocused <> pChk->isFocused then
+            pChk->isFocused = bFocused
+            tkWidget_Invalidate( w )
+        end if
+        tkCheckBox_CallMessage( pChk, m )            ' result IGNORED: focus is a fact
+        return true
+
+    case TKM_KEYDOWN
+        if pChk->isEnabled = false then return true
+        if tkCheckBox_CallMessage( pChk, m ) then return true
+        select case m->key
+        case SDLK_SPACE, SDLK_RETURN, SDLK_KP_ENTER
+            tkCheckBox_FireToggle( pChk )
+            return true
+        end select
+        return false                                 ' Tab and the rest go on to the host
+
+    case TKM_ENABLE
+        pChk->isEnabled = m->bFlag
+        if pChk->isEnabled = false then
+            pChk->isHot = false
+            pChk->CancelPress()
+            tkTipHost_Pop( @pChk->tip )
+        end if
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_DESTROY
+        tkTipHost_Destroy( @pChk->tip )
+        delete pChk
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ========================================================================================
+' Public API -- the Win32 surface, HWND replaced by the widget pointer.
+' ========================================================================================
+' A child of hParent -- a widget, or tkHost_Root( h ) for a top-level checkbox. Zero-sized:
+' size it with GetIdealSize, or turn on SetAutoSize.
+public function tkCheckBox_Create( byval hParent as TK_WIDGET ptr, byval ctrlId as long ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TK_HOST ptr pHost = hParent->pHost
+    dim as TKCHECKBOX_STATE ptr pChk = new TKCHECKBOX_STATE
+    pChk->id = ctrlId
+    pChk->wszGlyphUnchecked = TKCHECKBOX_GLYPH_UNCHECKED
+    pChk->wszGlyphChecked = TKCHECKBOX_GLYPH_CHECKED
+    ' Creation-time defaults are scaled; the ring's thickness never is.
+    pChk->nPadLeft        = tkHost_Scale( pHost, TKCHECKBOX_DEFAULT_PADLEFT )
+    pChk->nPadTop         = tkHost_Scale( pHost, TKCHECKBOX_DEFAULT_PADTOP )
+    pChk->nPadRight       = tkHost_Scale( pHost, TKCHECKBOX_DEFAULT_PADRIGHT )
+    pChk->nPadBottom      = tkHost_Scale( pHost, TKCHECKBOX_DEFAULT_PADBOTTOM )
+    pChk->nBoxGap         = tkHost_Scale( pHost, TKCHECKBOX_DEFAULT_BOXGAP )
+    pChk->nBoxWidth       = tkHost_Scale( pHost, TKCHECKBOX_DEFAULT_BOXWIDTH )
+    pChk->nBoxHeight      = tkHost_Scale( pHost, TKCHECKBOX_DEFAULT_BOXHEIGHT )
+    pChk->nFocusGap       = tkHost_Scale( pHost, TKCHECKBOX_DEFAULT_FOCUSGAP )
+    pChk->nFocusCurvature = tkHost_Scale( pHost, TKCHECKBOX_DEFAULT_FOCUSCURV )
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, ctrlId, @tkCheckBox_Proc, pChk )
+    w->isFocusable = true
+    pChk->hWin = w
+    pChk->colors = tkCheckBox_ThemeColors( tkTheme_Get() )
+    tkTipHost_Ensure( @pChk->tip, w, @tkCheckBox_TipText )
+    return w
+end function
+
+' ---- content (all silent) --------------------------------------------------------------------
+public function tkCheckBox_GetText( byval hCheckBox as TK_WIDGET ptr ) as ustring
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then return ""
+    return pChk->wszText
+end function
+
+public sub tkCheckBox_SetText( byval hCheckBox as TK_WIDGET ptr, byval Text as ustring )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then exit sub
+    pChk->wszText = Text
+    pChk->Refresh()
+    tkCheckBox_ApplyAutoSize( pChk )
+end sub
+
+public function tkCheckBox_GetGlyphUnchecked( byval hCheckBox as TK_WIDGET ptr ) as ustring
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then return ""
+    return pChk->wszGlyphUnchecked
+end function
+
+' Repaints only: the cell is declared, so a glyph can never change the ideal size.
+public sub tkCheckBox_SetGlyphUnchecked( byval hCheckBox as TK_WIDGET ptr, byval Glyph as ustring )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then exit sub
+    pChk->wszGlyphUnchecked = Glyph
+    tkWidget_Invalidate( hCheckBox )
+end sub
+
+public function tkCheckBox_GetGlyphChecked( byval hCheckBox as TK_WIDGET ptr ) as ustring
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then return ""
+    return pChk->wszGlyphChecked
+end function
+
+public sub tkCheckBox_SetGlyphChecked( byval hCheckBox as TK_WIDGET ptr, byval Glyph as ustring )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then exit sub
+    pChk->wszGlyphChecked = Glyph
+    tkWidget_Invalidate( hCheckBox )
+end sub
+
+public function tkCheckBox_GetBoxStyle( byval hCheckBox as TK_WIDGET ptr ) as long
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then return CHK_BOXSTYLE_VECTOR
+    return pChk->nBoxStyle
+end function
+
+' Vector box or glyph box. Repaints only -- both live in the same declared cell. Values outside
+' the enum are ignored.
+public sub tkCheckBox_SetBoxStyle( byval hCheckBox as TK_WIDGET ptr, byval nBoxStyle as long )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then exit sub
+    if (nBoxStyle < CHK_BOXSTYLE_VECTOR) orelse (nBoxStyle > CHK_BOXSTYLE_GLYPH) then exit sub
+    pChk->nBoxStyle = nBoxStyle
+    tkWidget_Invalidate( hCheckBox )
+end sub
+
+public function tkCheckBox_GetID( byval hCheckBox as TK_WIDGET ptr ) as long
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then return 0
+    return pChk->id
+end function
+
+public sub tkCheckBox_SetID( byval hCheckBox as TK_WIDGET ptr, byval id as long )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk then pChk->id = id
+end sub
+
+public function tkCheckBox_GetItemData( byval hCheckBox as TK_WIDGET ptr ) as integer
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then return 0
+    return pChk->itemData
+end function
+
+public sub tkCheckBox_SetItemData( byval hCheckBox as TK_WIDGET ptr, byval itemData as integer )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk then pChk->itemData = itemData
+end sub
+
+' ---- state -----------------------------------------------------------------------------------
+public function tkCheckBox_GetChecked( byval hCheckBox as TK_WIDGET ptr ) as boolean
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then return false
+    return pChk->isChecked
+end function
+
+' SILENT: fires no callback, so it is safe inside the change handler. Repaints only.
+public sub tkCheckBox_SetChecked( byval hCheckBox as TK_WIDGET ptr, byval isChecked as boolean )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if (pChk = 0) orelse (pChk->isChecked = isChecked) then exit sub
+    pChk->isChecked = isChecked
+    tkWidget_Invalidate( hCheckBox )
+end sub
+
+public function tkCheckBox_GetEnabled( byval hCheckBox as TK_WIDGET ptr ) as boolean
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then return false
+    return pChk->isEnabled
+end function
+
+' tkWidget_Enable: no input, Tab skips it, hot and any live press cleared at once. The checked
+' state is untouched.
+public sub tkCheckBox_SetEnabled( byval hCheckBox as TK_WIDGET ptr, byval isEnabled as boolean )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then exit sub
+    tkWidget_Enable( hCheckBox, isEnabled )
+    tkCheckBox_ClearHot( pChk )
+end sub
+
+public function tkCheckBox_GetFocused( byval hCheckBox as TK_WIDGET ptr ) as boolean
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then return false
+    return pChk->isFocused
+end function
+
+public function tkCheckBox_GetHot( byval hCheckBox as TK_WIDGET ptr ) as boolean
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then return false
+    return pChk->isHot
+end function
+
+' The live GESTURE (inside or slid off). The painter's "pressed" is this AND hot.
+public function tkCheckBox_GetPressed( byval hCheckBox as TK_WIDGET ptr ) as boolean
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then return false
+    return pChk->isPressed
+end function
+
+public sub tkCheckBox_Refresh( byval hCheckBox as TK_WIDGET ptr )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk then pChk->Refresh()
+end sub
+
+' The ACTION: flips and fires CheckChangedCallback. Refused on a disabled control.
+public sub tkCheckBox_Toggle( byval hCheckBox as TK_WIDGET ptr )
+    tkCheckBox_FireToggle( GetCheckBoxPointer( hCheckBox ) )
+end sub
+
+' ---- geometry and layout (raw pixels) --------------------------------------------------------
+public function tkCheckBox_GetBoxAlign( byval hCheckBox as TK_WIDGET ptr ) as long
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then return CHK_BOXALIGN_LEFT
+    return pChk->nBoxAlign
+end function
+
+' Never changes the ideal size, so it never triggers auto-size.
+public sub tkCheckBox_SetBoxAlign( byval hCheckBox as TK_WIDGET ptr, byval nBoxAlign as long )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then exit sub
+    if (nBoxAlign < CHK_BOXALIGN_LEFT) orelse (nBoxAlign > CHK_BOXALIGN_RIGHT) then exit sub
+    pChk->nBoxAlign = nBoxAlign
+    pChk->Refresh()
+end sub
+
+public function tkCheckBox_GetTextAlign( byval hCheckBox as TK_WIDGET ptr ) as long
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then return CHK_TEXTALIGN_LEFT
+    return pChk->nTextAlign
+end function
+
+' Within the SPAN, not the control. Repaints only.
+public sub tkCheckBox_SetTextAlign( byval hCheckBox as TK_WIDGET ptr, byval nTextAlign as long )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then exit sub
+    if (nTextAlign < CHK_TEXTALIGN_LEFT) orelse (nTextAlign > CHK_TEXTALIGN_RIGHT) then exit sub
+    pChk->nTextAlign = nTextAlign
+    tkWidget_Invalidate( hCheckBox )
+end sub
+
+public sub tkCheckBox_GetPadding( byval hCheckBox as TK_WIDGET ptr, byref nLeft as long, byref nTop as long, _
+                                  byref nRight as long, byref nBottom as long )
+    nLeft = 0 : nTop = 0 : nRight = 0 : nBottom = 0
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then exit sub
+    nLeft = pChk->nPadLeft : nTop = pChk->nPadTop : nRight = pChk->nPadRight : nBottom = pChk->nPadBottom
+end sub
+
+public sub tkCheckBox_SetPadding( byval hCheckBox as TK_WIDGET ptr, byval nLeft as long, byval nTop as long, _
+                                  byval nRight as long, byval nBottom as long )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then exit sub
+    pChk->nPadLeft = iif( nLeft < 0, 0, nLeft ) : pChk->nPadTop = iif( nTop < 0, 0, nTop )
+    pChk->nPadRight = iif( nRight < 0, 0, nRight ) : pChk->nPadBottom = iif( nBottom < 0, 0, nBottom )
+    pChk->Refresh()
+    tkCheckBox_ApplyAutoSize( pChk )
+end sub
+
+public function tkCheckBox_GetBoxGap( byval hCheckBox as TK_WIDGET ptr ) as long
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then return 0
+    return pChk->nBoxGap
+end function
+
+' Charged only when there is a caption.
+public sub tkCheckBox_SetBoxGap( byval hCheckBox as TK_WIDGET ptr, byval nBoxGap as long )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then exit sub
+    pChk->nBoxGap = iif( nBoxGap < 0, 0, nBoxGap )
+    pChk->Refresh()
+    tkCheckBox_ApplyAutoSize( pChk )
+end sub
+
+public sub tkCheckBox_GetBoxSize( byval hCheckBox as TK_WIDGET ptr, byref nBoxWidth as long, byref nBoxHeight as long )
+    nBoxWidth = 0 : nBoxHeight = 0
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then exit sub
+    nBoxWidth = pChk->nBoxWidth : nBoxHeight = pChk->nBoxHeight
+end sub
+
+' The declared cell: nothing is measured, so this alone decides the box's room.
+public sub tkCheckBox_SetBoxSize( byval hCheckBox as TK_WIDGET ptr, byval nBoxWidth as long, byval nBoxHeight as long )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then exit sub
+    pChk->nBoxWidth = iif( nBoxWidth < 0, 0, nBoxWidth )
+    pChk->nBoxHeight = iif( nBoxHeight < 0, 0, nBoxHeight )
+    pChk->Refresh()
+    tkCheckBox_ApplyAutoSize( pChk )
+end sub
+
+public sub tkCheckBox_GetFocusRing( byval hCheckBox as TK_WIDGET ptr, byref nGap as long, byref nThickness as long )
+    nGap = 0 : nThickness = 0
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then exit sub
+    nGap = pChk->nFocusGap : nThickness = pChk->nFocusThick
+end sub
+
+' Both are reserved unconditionally, so either changes the ideal size. Thickness 0 = no ring.
+public sub tkCheckBox_SetFocusRing( byval hCheckBox as TK_WIDGET ptr, byval nGap as long, byval nThickness as long )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then exit sub
+    pChk->nFocusGap = iif( nGap < 0, 0, nGap )
+    pChk->nFocusThick = iif( nThickness < 0, 0, nThickness )
+    pChk->Refresh()
+    tkCheckBox_ApplyAutoSize( pChk )
+end sub
+
+public function tkCheckBox_GetFocusCurvature( byval hCheckBox as TK_WIDGET ptr ) as long
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then return 0
+    return pChk->nFocusCurvature
+end function
+
+' An ellipse DIAMETER. Repaints only.
+public sub tkCheckBox_SetFocusCurvature( byval hCheckBox as TK_WIDGET ptr, byval nCurvature as long )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then exit sub
+    pChk->nFocusCurvature = iif( nCurvature < 0, 0, nCurvature )
+    tkWidget_Invalidate( hCheckBox )
+end sub
+
+public function tkCheckBox_GetAutoSize( byval hCheckBox as TK_WIDGET ptr ) as boolean
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then return false
+    return pChk->bAutoSize
+end function
+
+public sub tkCheckBox_SetAutoSize( byval hCheckBox as TK_WIDGET ptr, byval bAutoSize as boolean )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then exit sub
+    pChk->bAutoSize = bAutoSize
+    tkCheckBox_ApplyAutoSize( pChk )
+end sub
+
+' Valid BEFORE the control has been sized: the measuring pass precedes the zero-client bail.
+public sub tkCheckBox_GetIdealSize( byval hCheckBox as TK_WIDGET ptr, byref nWidth as long, byref nHeight as long )
+    nWidth = 0 : nHeight = 0
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then exit sub
+    if pChk->bLayoutDirty then pChk->LayoutCheckBox()
+    nWidth = pChk->nIdealW : nHeight = pChk->nIdealH
+end sub
+
+' Test probe: the measured caption width and the one text height.
+public sub tkCheckBox_GetTextSize( byval hCheckBox as TK_WIDGET ptr, byref tw as long, byref nTextH as long )
+    tw = 0 : nTextH = 0
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then exit sub
+    if pChk->bLayoutDirty then pChk->LayoutCheckBox()
+    tw = pChk->nTextWidth : nTextH = pChk->nTextHeight
+end sub
+
+private function GetPart( byval hCheckBox as TK_WIDGET ptr, byval nPart as long, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then return false
+    if pChk->bLayoutDirty then pChk->LayoutCheckBox()
+    if pChk->bLayoutDirty then return false          ' no client area yet
+    select case nPart
+    case CHK_PART_BOX
+        rc = pChk->rcBox
+    case CHK_PART_TEXT
+        rc = pChk->rcText
+    case -1
+        rc = pChk->rcVisual
+    case else
+        rc = pChk->rcContent
+    end select
+    return true
+end function
+
+public function tkCheckBox_GetContentRect( byval hCheckBox as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return GetPart( hCheckBox, CHK_PART_CONTROL, rc )
+end function
+public function tkCheckBox_GetBoxRect( byval hCheckBox as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return GetPart( hCheckBox, CHK_PART_BOX, rc )
+end function
+public function tkCheckBox_GetTextRect( byval hCheckBox as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return GetPart( hCheckBox, CHK_PART_TEXT, rc )
+end function
+public function tkCheckBox_GetVisualRect( byval hCheckBox as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return GetPart( hCheckBox, -1, rc )
+end function
+
+' ---- appearance ---------------------------------------------------------------------------------
+public sub tkCheckBox_GetColors( byval hCheckBox as TK_WIDGET ptr, byval pColors as TKCHECKBOX_COLORS ptr )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if (pChk = 0) orelse (pColors = 0) then exit sub
+    *pColors = pChk->colors
+end sub
+
+' Copies the struct and PINS it: a theme change leaves this control alone until UnpinColors.
+public sub tkCheckBox_SetColors( byval hCheckBox as TK_WIDGET ptr, byval pColors as TKCHECKBOX_COLORS ptr )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if (pChk = 0) orelse (pColors = 0) then exit sub
+    pChk->colors = *pColors
+    pChk->bColorsPinned = true
+    tkWidget_Invalidate( hCheckBox )
+end sub
+
+' Vendor PsCheckBox_ThemeColors, role for role.
+public function tkCheckBox_ThemeColors( byref t as TKTHEME_COLORS ) as TKCHECKBOX_COLORS
+    dim as TKCHECKBOX_COLORS c
+    c.BackColor = t.Window : c.BackColorHot = t.Window
+    c.BackColorPressed = t.Window : c.BackColorDisabled = t.Window
+    c.ForeColor = t.Text : c.ForeColorHot = t.TextHot
+    c.ForeColorPressed = t.TextStrong : c.ForeColorDisabled = t.TextDisabled
+    c.BoxColor = t.TextDim : c.BoxColorHot = t.Text
+    c.BoxColorPressed = t.TextHot : c.BoxColorDisabled = t.TextDisabled
+    c.BoxColorChecked = t.Accent : c.BoxColorCheckedHot = t.AccentHot
+    c.BoxColorCheckedPressed = t.AccentHot : c.BoxColorCheckedDisabled = t.Border
+    c.FocusRingColor = t.FocusRing
+    return c
+end function
+
+public sub tkCheckBox_ApplyTheme( byval hCheckBox as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if (pChk = 0) orelse pChk->bColorsPinned then exit sub
+    pChk->colors = tkCheckBox_ThemeColors( t )
+    tkWidget_Invalidate( hCheckBox )
+end sub
+
+' Hands the control back to the theme, which is applied at once.
+public sub tkCheckBox_UnpinColors( byval hCheckBox as TK_WIDGET ptr )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then exit sub
+    pChk->bColorsPinned = false
+    tkCheckBox_ApplyTheme( hCheckBox, tkTheme_Get() )
+end sub
+
+public function tkCheckBox_GetFont( byval hCheckBox as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then return 0
+    return pChk->pTextFont
+end function
+
+' The caption font AND the measuring font. Borrowed.
+public sub tkCheckBox_SetFont( byval hCheckBox as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then exit sub
+    pChk->pTextFont = f
+    pChk->Refresh()
+    tkCheckBox_ApplyAutoSize( pChk )
+end sub
+
+public function tkCheckBox_GetGlyphFont( byval hCheckBox as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then return 0
+    return pChk->pGlyphFont
+end function
+
+' The box font (CHK_BOXSTYLE_GLYPH). A paint-time input only: never re-lays-out.
+public sub tkCheckBox_SetGlyphFont( byval hCheckBox as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then exit sub
+    pChk->pGlyphFont = f
+    tkWidget_Invalidate( hCheckBox )
+end sub
+
+' The form's fonts (tkApp): either may be 0 to keep the current one.
+public sub tkCheckBox_ApplyFonts( byval hCheckBox as TK_WIDGET ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
+    if fText then tkCheckBox_SetFont( hCheckBox, fText )
+    if fGlyph then tkCheckBox_SetGlyphFont( hCheckBox, fGlyph )
+end sub
+
+' ---- tooltips (tkTipHost) ----------------------------------------------------------------------
+public sub tkCheckBox_SetTooltipText( byval hCheckBox as TK_WIDGET ptr, byval Text as ustring )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk then pChk->wszTooltip = Text
+end sub
+
+public function tkCheckBox_GetTooltipText( byval hCheckBox as TK_WIDGET ptr ) as ustring
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then return ""
+    return pChk->wszTooltip
+end function
+
+' The control's tkTooltip (vendor's GetPsTooltipHandle), for any tkTooltip_* call. Owned here.
+public function tkCheckBox_GetTooltipHandle( byval hCheckBox as TK_WIDGET ptr ) as TK_TIP ptr
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then return 0
+    return tkTipHost_Tip( @pChk->tip )
+end function
+
+public sub tkCheckBox_SetHoverTime( byval hCheckBox as TK_WIDGET ptr, byval ms as long )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk then tkTipHost_SetDelay( @pChk->tip, TK_TIPDELAY_INITIAL, ms )
+end sub
+
+public sub tkCheckBox_SetAutoPopTime( byval hCheckBox as TK_WIDGET ptr, byval ms as long )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk then tkTipHost_SetDelay( @pChk->tip, TK_TIPDELAY_AUTOPOP, ms )
+end sub
+
+public sub tkCheckBox_SetReshowTime( byval hCheckBox as TK_WIDGET ptr, byval ms as long )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk then tkTipHost_SetDelay( @pChk->tip, TK_TIPDELAY_RESHOW, ms )
+end sub
+
+' ---- callbacks (0 removes) ---------------------------------------------------------------------
+public sub tkCheckBox_SetPaintCallback( byval hCheckBox as TK_WIDGET ptr, byval usersub as CHK_PaintCallbackSub )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then exit sub
+    pChk->PaintCallback = usersub
+    tkWidget_Invalidate( hCheckBox )
+end sub
+
+public sub tkCheckBox_SetMessageCallback( byval hCheckBox as TK_WIDGET ptr, byval userfunc as CHK_MessageCallbackFunc )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk then pChk->MessageCallback = userfunc
+end sub
+
+public sub tkCheckBox_SetTooltipCallback( byval hCheckBox as TK_WIDGET ptr, byval userfunc as CHK_TooltipCallbackFunc )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk then pChk->TooltipCallback = userfunc
+end sub
+
+public sub tkCheckBox_SetCheckChangedCallback( byval hCheckBox as TK_WIDGET ptr, byval usersub as CHK_CheckChangedCallbackSub )
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk then pChk->CheckChangedCallback = usersub
+end sub
+
+
+' ---- render probes ----------------------------------------------------------------------------
+' Render the control into the back buffer with focus forced on and its current painter, read one
+' CHK_PART_* rect back, and return its distinct tones (capped at 64) and an FNV-1a hash. Like
+' tkButton_CountRenderedTones this draws into the WINDOW's back buffer, then marks it dirty.
+private function ProbePart( byval hCheckBox as TK_WIDGET ptr, byval nPart as long, byref nTones as long, byref nHash as ulong ) as boolean
+    nTones = 0 : nHash = 0
+    dim as TKCHECKBOX_STATE ptr pChk = GetCheckBoxPointer( hCheckBox )
+    if pChk = 0 then return false
+    dim as TKRECT rc
+    if GetPart( hCheckBox, nPart, rc ) = false then return false
+    if rc.left < 0 then rc.left = 0
+    if rc.top < 0 then rc.top = 0
+    if rc.right > hCheckBox->cw then rc.right = hCheckBox->cw
+    if rc.bottom > hCheckBox->ch then rc.bottom = hCheckBox->ch
+    if tkRect_IsEmpty( rc ) then return false
+
+    dim as TK_HOST ptr h = hCheckBox->pHost
+    dim as boolean bSaved = pChk->isFocused
+    pChk->isFocused = true
+    dim as TKRECT a
+    tkWidget_AbsRect( hCheckBox, a )
+    dim as TK_PAINT wp
+    wp.renderer = h->renderer
+    wp.engine = h->engine
+    wp.Begin( a.left, a.top, hCheckBox->cw, hCheckBox->ch )
+    tkCheckBox_OnPaint( pChk, @wp )
+    pChk->isFocused = bSaved
+    SDL_SetRenderClipRect( h->renderer, 0 )
+
+    dim as SDL_Rect sr
+    sr.x = a.left + rc.left : sr.y = a.top + rc.top
+    sr.w = rc.right - rc.left : sr.h = rc.bottom - rc.top
+    dim as SDL_Surface ptr s0 = SDL_RenderReadPixels( h->renderer, @sr )
+    if s0 = 0 then return false
+    dim as SDL_Surface ptr s = SDL_ConvertSurface( s0, SDL_PIXELFORMAT_ARGB8888 )
+    SDL_DestroySurface( s0 )
+    if s = 0 then return false
+    h->bDirty = true                 ' the probe drew into the back buffer; repaint honestly
+
+    dim tones(0 to 63) as ulong
+    dim as ulong hv = &h811C9DC5ul
+    for y as long = 0 to s->h - 1
+        dim as ulong ptr row = cast( ulong ptr, cast( ubyte ptr, s->pixels ) + y * s->pitch )
+        for x as long = 0 to s->w - 1
+            dim as ulong c = row[x] and &h00FFFFFFul
+            dim as boolean bFound = false
+            for t as long = 0 to nTones - 1
+                if tones(t) = c then bFound = true : exit for
+            next
+            if (bFound = false) andalso (nTones < 64) then tones(nTones) = c : nTones += 1
+            for k as long = 0 to 2
+                hv = (hv xor ((c shr (k * 8)) and &hFFul)) * &h01000193ul
+            next
+        next
+    next
+    SDL_DestroySurface( s )
+    nHash = hv
+    return true
+end function
+
+public function tkCheckBox_CountRenderedTones( byval hCheckBox as TK_WIDGET ptr, byval nPart as long ) as long
+    dim as long nTones
+    dim as ulong nHash
+    if ProbePart( hCheckBox, nPart, nTones, nHash ) = false then return 0
+    return nTones
+end function
+
+public function tkCheckBox_HashRenderedPart( byval hCheckBox as TK_WIDGET ptr, byval nPart as long ) as ulong
+    dim as long nTones
+    dim as ulong nHash
+    if ProbePart( hCheckBox, nPart, nTones, nHash ) = false then return 0
+    return nHash
+end function
