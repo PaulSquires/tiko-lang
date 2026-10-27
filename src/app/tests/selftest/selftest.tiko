@@ -229,6 +229,38 @@ public sub Pass( byref t as Tally, byval sc as single )
     t.Check( (v->y = 0) andalso (v->ch = cy - sh), P( sc, strings.Format( "the view is back: y {} h {}", v->y, v->ch ) ) )
     t.Check( mw.View( ).Text( ) = "dim x as long" & mw.View( ).EolText( ), P( sc, "Esc typed nothing" ) )
 
+    ' ---- a message goes at the next key; a build's stays
+    mw.SetMessage( "a note" )
+    Chord( h, SDLK_RIGHT, SDL_SCANCODE_RIGHT, 0 )
+    t.Check( (mw.Message = "") andalso (mw.StatusText( mainwin.StatusPanel.Message ) = ""), P( sc, "the next key cleared a message: " & mw.Message ) )
+    mw.SetBuildMessage( "Build OK" )
+    Chord( h, SDLK_RIGHT, SDL_SCANCODE_RIGHT, 0 )
+    t.Check( mw.Message = "Build OK", P( sc, "and kept a build's: " & mw.Message ) )
+    mw.SetMessage( "" )
+
+    ' ---- live resize: a live-resize expose (what Windows' sizing loop sends, data1 = 1) lays the
+    ' window out at once, before the event loop runs again
+    if platform.CurrentOs( ) = platform.Os.Windows then
+        dim as SDL_Window ptr win = h->win
+        dim as long w0, h0
+        SDL_GetWindowSize( win, @w0, @h0 )
+        SDL_SetWindowSize( win, w0 - 100, h0 - 60 )
+        SDL_SyncWindow( win )
+        dim as SDL_Event ev
+        ev.type = SDL_EVENT_WINDOW_EXPOSED
+        ev.window.windowID = SDL_GetWindowID( win )
+        ev.window.data1 = 1
+        SDL_PushEvent( @ev )                     ' the watcher runs inside the push
+        dim as long pw, ph
+        SDL_GetWindowSizeInPixels( win, @pw, @ph )
+        t.Check( (h->root->cw = pw) andalso (h->root->ch = ph) andalso (mw.status->cw = pw) andalso (mw.status->y = ph - sh), _
+                 P( sc, strings.Format( "the layout followed the live resize: root {}x{}, status at {} {}w (window {}x{})", _
+                 h->root->cw, h->root->ch, mw.status->y, mw.status->cw, pw, ph ) ) )
+        SDL_SetWindowSize( win, w0, h0 )
+        SDL_SyncWindow( win )
+        tkTest_PumpFor( h, 100 )
+    end if
+
     ' ---- a click on the message panel shows the output pane, another hides it
     ClickPanel( mw, mainwin.StatusPanel.Message )
     t.Check( mw.OutputShown andalso tkWidget_IsVisible( mw.Out.frame ), P( sc, "the message panel showed the output pane" ) )
@@ -1001,7 +1033,7 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     dim as ustring pf = fs.PathJoin( dir_, "hello.tkedit" )
     t.Check( mw.ProjOpen andalso fs.IsFile( pf ) andalso (mw.Proj.Main = "main.tiko"), P( sc, "hello.tkedit, main.tiko its main: " & mw.Proj.Main ) )
     dim as ustring title = *SDL_GetWindowTitle( h->win )
-    t.Check( instr( title, "[hello]" ) > 0, P( sc, "the title names the project: " & title ) )
+    t.Check( instr( title, "[hello.tkedit]" ) > 0, P( sc, "the title names the project file: " & title ) )
 
     ' ---- Ctrl+F5: a build that works; the pane stays hidden
     Chord( h, SDLK_F5, SDL_SCANCODE_F5, SDL_KMOD_CTRL )
@@ -1260,6 +1292,18 @@ public sub IntelPass( byref t as Tally, byval sc as single )
     Chord( h, SDLK_SPACE, SDL_SCANCODE_SPACE, SDL_KMOD_CTRL )
     t.Check( v->CompletionsShown( ) andalso (v->CompletionSelected( ) = "Show"), P( sc, "Ctrl+Space does: " & v->CompletionSelected( ) ) )
     v->CancelCompletions( )
+    v->SetSavePoint( )
+    ' ---- not in a file that is not source: the same typing in notes.txt lists nothing
+    dim as ustring notesF = fs.PathJoin( dir_, "notes.txt" )
+    fs.WriteAllText( notesF, "" )
+    mw.OpenFile( notesF )
+    v = @mw.View( )
+    tkTest_PushText( h, "pt." )
+    tkTest_PumpFor( h, 40 )
+    tkTest_PushText( h, " Twi" )
+    tkTest_PumpFor( h, 40 )
+    Chord( h, SDLK_SPACE, SDL_SCANCODE_SPACE, SDL_KMOD_CTRL )
+    t.Check( (v->CompletionsShown( ) = false) andalso (v->CallTipShown( ) = false), P( sc, "notes.txt: no completion list, typed or asked for" ) )
     v->SetSavePoint( )
     mw.Destroy( )
 

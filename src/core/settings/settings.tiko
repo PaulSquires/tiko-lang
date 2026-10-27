@@ -58,7 +58,7 @@ public type EditorSettings
     Wrap         as boolean
     CaretLine    as boolean = true
     IndentGuides as boolean = true
-    FoldMargin   as boolean = true
+    FoldMargin   as boolean              ' off unless asked for (author 2026-10-27)
     AutoIndent   as boolean = true
     AutoEnd      as boolean = true
     CodeTips     as boolean = true

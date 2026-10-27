@@ -266,6 +266,7 @@ public type Window
     Recent as mru.RecentList
     CurrentBuild as ustring             ' the build configuration's name
     Message as ustring                  ' the message panel's text
+    BuildMessage as ustring             ' the last build's: kept past the next key
     Chooser as popuplist.Picker
     Choosing as PickKind
     Finder as findstrip.Strip
@@ -345,6 +346,7 @@ public type Window
     declare function BottomHeight( ) as long                   ' the status line, and the strip above it
     declare function OutputHeight( ) as long                   ' 0 when the pane is hidden
     declare sub SetMessage( byref s as const ustring )
+    declare sub SetBuildMessage( byref s as const ustring )
 
     ' ---- commands
     declare function Execute( byval id as Cmd ) as boolean       ' FALSE = not available (yet)
@@ -562,6 +564,8 @@ function Window.Create( byval forcedScale as single ) as boolean
     h->OnPreKey = function( byval h as TK_HOST ptr, byval m as TK_MSG ptr ) as boolean
         dim as Window ptr mw = WindowOfHost( h )
         if (mw = 0) orelse (mw->accel = 0) then return false
+        ' a message lasts until the next key -- a build's until it is replaced
+        if (len( mw->Message ) > 0) andalso (mw->Message <> mw->BuildMessage) then mw->SetMessage( "" )
         ' Esc closes the find strip and the output pane wherever the focus is -- after a view's own
         ' completion list or calltip, which Esc closes first
         if (m->key = SDLK_ESCAPE) andalso (mw->Finder.isOpen orelse mw->OutputShown) then
@@ -718,6 +722,13 @@ sub Window.SetMessage( byref s as const ustring )
     this.ShowStatus( )
 end sub
 
+' A build's message (starting, progress, the result, its diagnostics, running the program): it
+' stays until another message replaces it, where any other goes at the next key (author 2026-10-27).
+sub Window.SetBuildMessage( byref s as const ustring )
+    BuildMessage = s
+    this.SetMessage( s )
+end sub
+
 sub Window.ShowStatus( )
     if status = 0 then exit sub
     this.SyncFocus( )
@@ -759,7 +770,7 @@ sub Window.ShowTitle( )
     if d then
         dim as ustring nm = d->DisplayName( )
         if len( d->Path ) then nm = d->Path       ' the full path (author 2026-10-27)
-        if ProjOpen then nm &= " [" & Proj.Name( ) & "]"
+        if ProjOpen then nm &= " [" & fs.PathFileName( Proj.Path ) & "]"   ' hello.tkedit
         title = appinfo.WindowTitle( nm )
     end if
     if title = lastTitle then exit sub
@@ -919,7 +930,8 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.SplitTopBottom : this.ToggleSplit( session.SplitMode.Horizontal )
     case Cmd.CycleFocus : this.CycleFocus( )
     case Cmd.FindInProject : this.OpenStrip( findstrip.StripMode.Project )
-    case Cmd.CompleteWord : this.ShowCompletionsAt( v, this.Active( ), 0 )
+    case Cmd.CompleteWord
+        if documents.IsSourceFile( this.ActivePath( ) ) then this.ShowCompletionsAt( v, this.Active( ), 0 )
     case Cmd.GoToDefinition : this.GoToDefinition( )
     case Cmd.GoBack : this.GoHistory( false )
     case Cmd.GoForward : this.GoHistory( true )
@@ -2349,12 +2361,12 @@ end function
 ' saved first (settings save_before_build). The output arrives through PollBuild.
 function Window.StartBuild( byval action as build.BuildAction, byval rebuild as boolean ) as boolean
     if this.IsBuilding( ) then
-        this.SetMessage( "a build is running" )
+        this.SetBuildMessage( "a build is running" )
         return false
     end if
     dim as ustring tiko = this.CompilerPath( )
     if len( tiko ) = 0 then
-        this.SetMessage( "tiko not found: set [compiler] tiko in settings.toml, or put it on the PATH" )
+        this.SetBuildMessage( "tiko not found: set [compiler] tiko in settings.toml, or put it on the PATH" )
         return false
     end if
     dim as DocRef d = this.Active( )
@@ -2444,10 +2456,10 @@ function Window.StartBuild( byval action as build.BuildAction, byval rebuild as 
     if st.IsOk( ) = false then
         LogText &= st.Failure( ) & chr( 10 )
         Out.SetLog( LogText )
-        this.SetMessage( "the build could not start: " & st.Failure( ) )
+        this.SetBuildMessage( "the build could not start: " & st.Failure( ) )
         return false
     end if
-    this.SetMessage( "building..." )
+    this.SetBuildMessage( "building..." )
     buildTimer = tkApp_SetTimer( BUILD_POLL_MS, sub( byval id as long, byval payload as any ptr )
         cast( Window ptr, payload )->PollBuild( )
     end sub, @this )
@@ -2461,7 +2473,7 @@ sub Window.PollBuild( )
         for each ln as ustring in got
             BuildRaw &= ln & chr( 10 )
             if Progress.Feed( ln ) then
-                this.SetMessage( strings.Format( "building... {}/{}", Progress.Done, Progress.Total ) )
+                this.SetBuildMessage( strings.Format( "building... {}/{}", Progress.Done, Progress.Total ) )
             elseif build.IsEventLine( ln ) = false then
                 LogText &= ln & chr( 10 )
             end if
@@ -2505,7 +2517,7 @@ sub Window.FinishBuild( )
     BuildSucceeded = ok
     dim as ustring msg = "Build OK"
     if ok = false then msg = "Build failed"
-    this.SetMessage( strings.Format( "{}  {} errors, {} warnings", msg, counts.Errors, counts.Warnings ) )
+    this.SetBuildMessage( strings.Format( "{}  {} errors, {} warnings", msg, counts.Errors, counts.Warnings ) )
     if ok = false then
         this.ShowOutput( true )
         if counts.ShowLog then
@@ -2565,14 +2577,14 @@ sub Window.OpenDiagnostic( byval i as long )
     dim as long col = 0
     if dg.Col > 0 then col = dg.Col - 1
     this.JumpTo( dg.File, dg.Line - 1, col, selChars )
-    this.SetMessage( build.RowText( dg ) )
+    this.SetBuildMessage( build.RowText( dg ) )
 end sub
 
 ' Alt+PgDn / Alt+PgUp: the next / previous error or warning with a place, wrapping.
 sub Window.StepDiagnostic( byval forward as boolean )
     dim as long n = Diags.Count( )
     if n = 0 then
-        this.SetMessage( "no diagnostics" )
+        this.SetBuildMessage( "no diagnostics" )
         exit sub
     end if
     dim as long i = DiagAt
@@ -2611,7 +2623,7 @@ end sub
 ' (platform.TerminalArgv), with the project's command line.
 sub Window.RunProgram( byref exe as const ustring )
     if (len( exe ) = 0) orelse (fs.IsFile( exe ) = false) then
-        this.SetMessage( "nothing to run: build it first (" & exe & ")" )
+        this.SetBuildMessage( "nothing to run: build it first (" & exe & ")" )
         exit sub
     end if
     dim as ustring cmdline = RunArgs
@@ -2629,14 +2641,14 @@ sub Window.RunProgram( byref exe as const ustring )
     else
         argv = platform.TerminalArgv( exe, args, dir_, fs.PathJoin( ConfigDir, "run" ) )
         if argv.Count( ) = 0 then
-            this.SetMessage( "no terminal program was found to run it in: set $TERMINAL" )
+            this.SetBuildMessage( "no terminal program was found to run it in: set $TERMINAL" )
             exit sub
         end if
     end if
     if Launch( argv, dir_ ) then
-        this.SetMessage( "running " & fs.PathFileName( exe ) )
+        this.SetBuildMessage( "running " & fs.PathFileName( exe ) )
     else
-        this.SetMessage( "could not start " & fs.PathFileName( exe ) )
+        this.SetBuildMessage( "could not start " & fs.PathFileName( exe ) )
     end if
 end sub
 
@@ -2916,6 +2928,7 @@ sub Window.CodeTips( byval hEdit as TK_WIDGET ptr, byval ch as long )
     if Prefs.CodeTips = false then exit sub
     dim as DocRef d = this.DocOfWidget( hEdit )
     if d = 0 then exit sub
+    if documents.IsSourceFile( d->Path ) = false then exit sub     ' none in .toml, .txt ... (author)
     dim as editor.CodeView ptr v = @d->Main
     dim as long ln = v->CaretLine( )
     if ch = 40 then
