@@ -141,6 +141,15 @@ namespace Tko
         as StrVec                 pkgLinkOwner
         as StrVec                 pkgLinkMod
         as StrVec                 pkgLinkModes
+        '' ...and [vendor.<module>] runtime: the package's index, the module's path below it, its
+        '' files joined by LF, as written.
+        as StrVec                 pkgRtOwner
+        as StrVec                 pkgRtMod
+        as StrVec                 pkgRtFiles
+        '' THE FILES THE PROGRAM'S MODULES NEED AT RUN TIME, each one's path: found from the
+        '' module graph by BuildImports, so a module the cache supplies has them too, and
+        '' copied beside the output after the link (CopyVendorLibs).
+        as StrVec                 runtimeFiles
         as boolean                pkgRootKnown
         as string                 pkgRootName
         as string                 pkgRootDir

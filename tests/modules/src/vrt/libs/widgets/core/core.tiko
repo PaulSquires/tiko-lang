@@ -1,0 +1,5 @@
+'' widgets/core: a module of an ordinary package that needs a data file at run time.
+#module "core"
+public function core_id( ) as long
+    return 11
+end function

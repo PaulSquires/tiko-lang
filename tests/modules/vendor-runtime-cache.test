@@ -1,0 +1,17 @@
+'' A MODULE FROM THE CACHE BRINGS ITS RUNTIME FILES TOO: they are found from the module graph,
+'' not from the compile, so the second build -- vendor.gamma a cache hit -- still copies them.
+'' TEST: cli
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TKO_PKG=build/.vrk/pkg
+'' ENV: TKO_MODCACHE=build/.vrk/mc
+'' CLEAN: build/.vrk
+'' COPY: tests/modules/src/vrt/pkg => build/.vrk/pkg
+'' WRITE: build/.vrk/pkg/vendor/gamma/fonts/gamma.ttf :: a font\n
+'' WRITE: build/.vrk/pkg/vendor/gamma/lib/gammart.dll :: a library the program loads itself\n
+'' STEP: -target windows-x86_64 tests/modules/src/vrt/app/gamma.tiko -o build/.vrk/gamma.exe
+'' COPY: tests/modules/src/vrt/app => build/.vrk/two
+'' ARGS: -v -target windows-x86_64 build/.vrk/two/gamma.tiko -o build/.vrk/two/gamma.exe
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: module vendor.gamma: hit
+'' EXPECT-FILE: build/.vrk/two/gamma.ttf
+'' EXPECT-FILE: build/.vrk/two/gammart.dll

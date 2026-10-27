@@ -36,6 +36,12 @@ type Manifest
     '' module's path below the package, dotted, and its modes as "|static|dynamic|".
     as StrVec  vendorMods
     as StrVec  vendorLinks
+    '' [vendor.<module>] runtime = ["..."]: the files a module of this package needs beside the
+    '' program at run time -- a font, a library the program loads itself -- each relative to the
+    '' module's directory. The module's path below the package, dotted, and its files joined by
+    '' LF, as written. A table may hold links, runtime or both.
+    as StrVec  vendorRtMods
+    as StrVec  vendorRtFiles
 end type
 
 '' READ dir_/tiko.toml. False with the reason reported (TKO0144) when it is not the subset
