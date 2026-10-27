@@ -63,7 +63,7 @@ sub PlatformSuite( byref c as tally.Checker )
     c.Begin( "appinfo" )
     c.Check( appinfo.VersionText( ) = "0.1.0", "VersionText" )
     c.Check( appinfo.WindowTitle( ) = "tkEdit 0.1.0", "WindowTitle, no document" )
-    c.Check( appinfo.WindowTitle( "a.tiko" ) = "a.tiko - tkEdit", "WindowTitle with a document" )
+    c.Check( appinfo.WindowTitle( "a.tiko" ) = "tkEdit - a.tiko", "WindowTitle with a document" )
 end sub
 
 dim as tally.Checker c

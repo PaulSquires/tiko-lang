@@ -17,7 +17,8 @@ using cmdids
 ' The commands whose default is not tiko-editor's, or that tiko-editor does not have.
 private function Changed( byref name_ as const ustring ) as boolean
     select case name_
-    case "FileRecent", "Settings", "KeyboardShortcuts", "ThemeFile", "ReplaceOne", "GoToLine", _
+    case "FileRecent", "Settings", "KeyboardShortcuts", "ThemeFile", "ReplaceOne", "GoToLine", "FileSaveAs", "ToUpperCase", "ToLowerCase", "ToMixedCase", _
+         "FunctionList", "ProjectNew", "ProjectClose", _
          "BufferList", "BufferNext", "BufferPrev", "CycleFocus", "BuildConfig", _
          "NextDiagnostic", "PrevDiagnostic", "FormatDocument"
         return true

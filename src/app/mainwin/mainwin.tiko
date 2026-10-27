@@ -152,6 +152,7 @@ end type
 ' answers from a script instead.
 public type AskProc as function( byval f as TK_FORM ptr, byref text as const ustring, byval buttons as long ) as long
 public type PickProc as function( byval f as TK_FORM ptr, byval kind as long, byref suggest as const ustring ) as ustring
+public const PICK_OPEN_MANY = 100        ' a Pick kind: open several files; the paths one per line
 public type DocRef as documents.Document ptr
 ' Starting a program (Run): argv[0] is the program. The self-test records instead.
 public type LaunchProc as function( byref argv as const Array( of ustring ), byref workDir as const ustring ) as boolean
@@ -224,9 +225,20 @@ private function LaunchProgram( byref argv as const Array( of ustring ), byref w
 end function
 
 private function PickPerson( byval f as TK_FORM ptr, byval kind as long, byref suggest as const ustring ) as ustring
-    dim as string filters = "tiko source|tiko;ti;bas;bi;inc|TOML|toml|All files|*"
+    dim as string filters = "tiko sources and projects|tiko;ti;bas;bi;inc;tkedit|tiko sources|tiko;ti;bas;bi;inc|" & _
+                            "tkEdit projects|tkedit|TOML|toml|All files|*"
     dim as ustring where = suggest
     if kind = TKFD_SAVE then return tkFileDialog_SaveFile( tkForm_Host( f ), filters, where )
+    if kind = PICK_OPEN_MANY then
+        dim as Array( of ustring ) paths
+        if tkFileDialog_Wait( TKFD_OPEN, tkForm_Host( f ), filters, where, true, paths ) = false then return ""
+        dim as ustring all_ = ""
+        for each p as ustring in paths
+            if len( all_ ) then all_ &= wchr( 10 )
+            all_ &= p
+        next
+        return all_
+    end if
     return tkFileDialog_OpenFile( tkForm_Host( f ), filters, where )
 end function
 
@@ -877,8 +889,15 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.FileOpen
         dim as ustring dir_ = ""
         if len( this.ActivePath( ) ) then dir_ = fs.PathParent( this.ActivePath( ) )
-        dim as ustring p = Pick( form, TKFD_OPEN, dir_ )
-        if len( p ) then this.OpenFile( p )
+        ' several files at once (author 2026-10-27); a project first, as opening one closes the
+        ' buffers open before it
+        dim as Array( of ustring ) picked = strings.Split( Pick( form, PICK_OPEN_MANY, dir_ ), wchr( 10 ) )
+        for each p as ustring in picked
+            if len( p ) andalso project.IsProjectFile( p ) then this.OpenFile( p )
+        next
+        for each p as ustring in picked
+            if len( p ) andalso (project.IsProjectFile( p ) = false) then this.OpenFile( p )
+        next
     case Cmd.FileRecent : this.OpenChooser( PickKind.Recent )
     case Cmd.FileClose : this.CloseDoc( this.Active( ) )
     case Cmd.FileCloseAll : this.CloseAll( )
@@ -937,8 +956,15 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.Find : this.OpenStrip( findstrip.StripMode.Find )
     case Cmd.Replace : this.OpenStrip( findstrip.StripMode.Replace )
     case Cmd.GoToLine : this.OpenStrip( findstrip.StripMode.GoTo )
-    case Cmd.FindNext : this.OnFind( findstrip.FindAction.NextMatch )
-    case Cmd.FindPrev : this.OnFind( findstrip.FindAction.PrevMatch )
+    case Cmd.FindNext, Cmd.FindPrev
+        ' a selection on one line is what F3 looks for, not the last phrase (author 2026-10-27)
+        dim as ustring sel = v->SelectedText( )
+        if (len( sel ) > 0) andalso (instr( sel, wchr( 10 ) ) = 0) andalso (instr( sel, wchr( 13 ) ) = 0) then Finder.SetPhrase( sel )
+        if id = Cmd.FindNext then
+            this.OnFind( findstrip.FindAction.NextMatch )
+        else
+            this.OnFind( findstrip.FindAction.PrevMatch )
+        end if
     case Cmd.ReplaceOne
         if Finder.isOpen andalso (Finder.Mode = findstrip.StripMode.Replace) then this.OnFind( findstrip.FindAction.ReplaceOne )
     case Cmd.BookmarkToggle : v->ToggleBookmark( v->CaretLine( ) - 1 )
@@ -1487,7 +1513,7 @@ end function
 
 ' The same mode again unsplits (the focused pane's buffer stays); the other mode switches. A new
 ' split shows, in pane 2, the most recent buffer other than the active one -- a new untitled one
-' when there is none (author 2026-10-27).
+' when there is none -- and pane 2 has the focus (author 2026-10-27).
 sub Window.ToggleSplit( byval mode as session.SplitMode )
     if Split = mode then
         if InPane2 andalso Pane2 then Pane1 = Pane2
@@ -1513,6 +1539,7 @@ sub Window.ToggleSplit( byval mode as session.SplitMode )
                 Mru.Push( b )
             end if
             Pane2 = b
+            InPane2 = true                       ' the new pane takes the focus (author 2026-10-27)
         end if
         Split = mode
         if splitBar then tkWidget_Destroy( splitBar )
@@ -1653,8 +1680,8 @@ sub Window.ApplyState( byref st as const session.SessionState, byref base_ as co
         if (b <> 0) andalso (b <> Pane1) then
             Pane2 = b
             this.Layout( )
-            this.ShowStatus( )
         end if
+        this.FocusPane( false )                  ' the session's active buffer, in pane 1, has it
     end if
 end sub
 
@@ -1880,7 +1907,9 @@ sub Window.OpenChooser( byval kind as PickKind )
         next
     case PickKind.Recent
         for i as long = 0 to Recent.Count( ) - 1
-            rows.Push( Row( " ", fs.PathFileName( Recent.Item( i ) ), fs.PathParent( Recent.Item( i ) ), i ) )
+            dim as ustring nm = fs.PathFileName( Recent.Item( i ) )
+            if project.IsProjectFile( Recent.Item( i ) ) then nm &= "  [project]"
+            rows.Push( Row( " ", nm, fs.PathParent( Recent.Item( i ) ), i ) )
         next
     case PickKind.Encoding
         Chooser.Filter = false

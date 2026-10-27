@@ -466,7 +466,7 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     t.Check( mw.StatusText( mainwin.StatusPanel.Buffer ) = "a.tiko", P( sc, "buffer panel: " & mw.StatusText( mainwin.StatusPanel.Buffer ) ) )
     t.Check( mw.StatusText( mainwin.StatusPanel.LineEnding ) = "LF", P( sc, "a.tiko is LF" ) )
     dim as ustring title = *SDL_GetWindowTitle( h->win )
-    t.Check( title = "a.tiko - tkEdit", P( sc, "title: " & title ) )
+    t.Check( title = "tkEdit - a.tiko", P( sc, "title: " & title ) )
     mw.OpenFile( pathB )
     t.Check( mw.StatusText( mainwin.StatusPanel.LineEnding ) = "CRLF", P( sc, "b.tiko is CRLF" ) )
     mw.OpenFile( pathA )
@@ -477,6 +477,18 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     t.Check( (mw.View( ).IsHighlighted( ) = false) andalso mw.FindOpen( pathA )->Main.IsHighlighted( ), P( sc, "c.txt plain, a.tiko coloured" ) )
     t.Check( (mw.Mru.Count( ) = 3) andalso (mw.Mru[0] = mw.Active( )), P( sc, "the most recent first" ) )
     t.Check( mw.Recent.Count( ) = 3, P( sc, strings.Format( "three recent files ({})", mw.Recent.Count( ) ) ) )
+
+    ' ---- Ctrl+O: several files at once; closed again
+    dim as ustring pathE = fs.PathJoin( dir_, "e.tiko" ), pathF = fs.PathJoin( dir_, "f.tiko" )
+    WriteBytes( pathE, "dim e as long" & chr( 10 ) )
+    WriteBytes( pathF, "dim f as long" & chr( 10 ) )
+    gPickPath = pathE & wchr( 10 ) & pathF
+    Chord( h, SDLK_O, SDL_SCANCODE_O, SDL_KMOD_CTRL )
+    t.Check( (mw.Docs.Count( ) = 5) andalso (mw.FindOpen( pathE ) <> 0) andalso (mw.FindOpen( pathF ) <> 0), _
+             P( sc, strings.Format( "Ctrl+O opened both picked files ({} buffers)", mw.Docs.Count( ) ) ) )
+    mw.CloseDoc( mw.FindOpen( pathF ) )
+    mw.CloseDoc( mw.FindOpen( pathE ) )
+    mw.ShowDoc( mw.FindOpen( pathC ) )
 
     ' ---- Ctrl+E: the buffer list, filtered by typing, Enter picks
     Chord( h, SDLK_E, SDL_SCANCODE_E, SDL_KMOD_CTRL )
@@ -607,14 +619,19 @@ public sub BufferPass( byref t as Tally, byval sc as single )
              (tkStatusBar_GetText( mw.status2, mainwin.StatusPanel.Buffer ) = mw.Pane2->DisplayName( )), _
              P( sc, "each names its pane's buffer: " & tkStatusBar_GetText( mw.status2, mainwin.StatusPanel.Buffer ) ) )
     title = *SDL_GetWindowTitle( h->win )
-    t.Check( title = "a.tiko - tkEdit", P( sc, "the caption names pane 1's: " & title ) )
+    t.Check( mw.InPane2 andalso (tkHost_GetFocus( h ) = v2), P( sc, "the new pane has the focus" ) )
+    t.Check( title = "tkEdit - " & mw.Pane2->DisplayName( ), P( sc, "the caption names pane 2's: " & title ) )
     Chord( h, SDLK_GRAVE, SDL_SCANCODE_GRAVE, SDL_KMOD_CTRL )
-    t.Check( mw.InPane2 andalso (tkHost_GetFocus( h ) = v2), P( sc, "Ctrl+Tilde moved the focus to pane 2" ) )
+    title = *SDL_GetWindowTitle( h->win )
+    t.Check( (mw.InPane2 = false) andalso (tkHost_GetFocus( h ) = v1) andalso (title = "tkEdit - a.tiko"), _
+             P( sc, "Ctrl+Tilde moved the focus to pane 1, the caption with it: " & title ) )
+    Chord( h, SDLK_GRAVE, SDL_SCANCODE_GRAVE, SDL_KMOD_CTRL )
+    t.Check( mw.InPane2 andalso (tkHost_GetFocus( h ) = v2), P( sc, "and back to pane 2" ) )
     mw.ShowDoc( splitB )
     v2 = mw.Pane2->Main.Widget( )
     t.Check( (mw.Pane2 = splitB) andalso (mw.Pane1 = splitA) andalso (tkHost_GetFocus( h ) = v2), P( sc, "b.tiko in pane 2, a.tiko still in pane 1" ) )
     title = *SDL_GetWindowTitle( h->win )
-    t.Check( title = "b.tiko - tkEdit", P( sc, "the caption follows the focus: " & title ) )
+    t.Check( title = "tkEdit - b.tiko", P( sc, "the caption follows the buffer: " & title ) )
     tkTest_PushText( h, "zz" )
     tkTest_PumpFor( h, 40 )
     t.Check( (left( splitB->Main.Text( ), 2 ) = "zz") andalso (left( splitA->Main.Text( ), 2 ) <> "zz"), P( sc, "typing in pane 2 edits its own buffer only" ) )
@@ -675,9 +692,9 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     t.Check( (gAsked = 0) andalso (da->Main.Text( ) = "new a" & chr( 10 )) andalso (da->IsModified( ) = false), _
              P( sc, "the modified buffer reloaded, nothing asked: " & left( da->Main.Text( ), 8 ) ) )
 
-    ' ---- Ctrl+Shift+O: the recent files (settings.toml among them: the build pick opened it)
+    ' ---- Ctrl+Shift+O: the recent files (settings.toml among them: the build pick opened it; e and f)
     Chord( h, SDLK_O, SDL_SCANCODE_O, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
-    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Recent) andalso (mw.Chooser.ShownCount( ) = 5), _
+    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Recent) andalso (mw.Chooser.ShownCount( ) = 7), _
              P( sc, strings.Format( "Ctrl+Shift+O lists the recent files ({})", mw.Chooser.ShownCount( ) ) ) )
     PopKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
 
@@ -893,6 +910,18 @@ public sub FindPass( byref t as Tally, byval sc as single )
     t.Check( mw.View( ).LineCount( ) = lines0, P( sc, "Ctrl+D in the find box did not duplicate an editor line" ) )
     StripKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
 
+    ' ---- F3 on a selection looks for the selection, not for the last phrase
+    dim as editor.FindOptions plain
+    mw.Finder.SetOptions( plain )
+    mw.Finder.SetPhrase( "gamma" )
+    mw.View( ).SetText( "one two one two" & nl )
+    mw.View( ).Focus( )
+    mw.View( ).SetSelection( 4, 7 )
+    Chord( h, SDLK_F3, SDL_SCANCODE_F3, 0 )
+    t.Check( (mw.View( ).SelectionStart( ) = 12) andalso (mw.View( ).SelectedText( ) = "two"), _
+             P( sc, strings.Format( "F3 on 'two' found the next 'two' at {}", mw.View( ).SelectionStart( ) ) ) )
+    t.Check( mw.Finder.Phrase( ) = "two", P( sc, "and it is the phrase now: " & mw.Finder.Phrase( ) ) )
+
     mw.View( ).SetSavePoint( )
     mw.Destroy( )
 end sub
@@ -1069,6 +1098,11 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     t.Check( mw.CloseProject( ) andalso (mw.ProjOpen = false), P( sc, "Close Project" ) )
     t.Check( (mw.Docs.Count( ) = 1) andalso mw.Docs[0]->IsNew( ), P( sc, "its buffers closed" ) )
     t.Check( mw.OpenFile( pf ), P( sc, "opening hello.tkedit opens the project" ) )
+    t.Check( (mw.Recent.Count( ) > 0) andalso (lcase( mw.Recent.Item( 0 ) ) = lcase( pf )), P( sc, "the project is the most recent file" ) )
+    mw.OpenChooser( mainwin.PickKind.Recent )
+    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Chooser.Rows.Count( ) > 0) andalso (mw.Chooser.Rows[0].Cells[1] = "hello.tkedit  [project]"), _
+             P( sc, "the recent list marks it a project" ) )
+    mw.Chooser.Close( )
     t.Check( mw.ProjOpen andalso (lcase( mw.ActivePath( ) ) = lcase( mainF )), P( sc, "main.tiko is back: " & mw.ActivePath( ) ) )
     dim as ustring other = fs.PathJoin( dir_, "util.tiko" )
     fs.WriteAllText( other, "' util" & nl )
@@ -1142,12 +1176,12 @@ public sub IntelPass( byref t as Tally, byval sc as single )
     t.Check( mw.Db.HasFile( mainF ) andalso mw.Db.HasFile( utilF ), P( sc, "both files are scanned" ) )
 
     ' ---- F4: this buffer's procedures; F4 again: every open buffer's, with the file
-    Chord( h, SDLK_F4, SDL_SCANCODE_F4, 0 )
+    Chord( h, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
     t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Functions), P( sc, "F4 opened the functions list" ) )
     t.Check( mw.Chooser.ShownCount( ) = 2, P( sc, strings.Format( "two in main.tiko ({})", mw.Chooser.ShownCount( ) ) ) )
     t.Check( RowCells( mw, 0 ) = "Twice|function|6", P( sc, "Name | Kind | Line: " & RowCells( mw, 0 ) ) )
     t.Check( RowCells( mw, 1 ) = "Show|sub|10", P( sc, "in source order: " & RowCells( mw, 1 ) ) )
-    PopKey( mw, SDLK_F4, SDL_SCANCODE_F4 )
+    PopKey( mw, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
     t.Check( mw.Chooser.IsOpen( ) andalso mw.FuncsAll andalso (mw.Chooser.ShownCount( ) = 3), _
              P( sc, strings.Format( "F4 again: every open buffer ({})", mw.Chooser.ShownCount( ) ) ) )
     t.Check( mw.Chooser.Columns.Count( ) = 4, P( sc, "with a File column" ) )
@@ -1156,10 +1190,10 @@ public sub IntelPass( byref t as Tally, byval sc as single )
         tkTest_PumpFor( h, 40 )
     end if
     t.Check( (mw.Chooser.ShownCount( ) = 1) andalso (RowCells( mw, 0 ) = "Helper|function|1|util.tiko"), P( sc, "'help' leaves Helper: " & RowCells( mw, 0 ) ) )
-    PopKey( mw, SDLK_F4, SDL_SCANCODE_F4 )
+    PopKey( mw, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
     t.Check( (mw.FuncsAll = false) andalso (mw.Chooser.QueryText( ) = "help") andalso (mw.Chooser.ShownCount( ) = 0), _
              P( sc, "F4 once more: back to this buffer, the query kept" ) )
-    PopKey( mw, SDLK_F4, SDL_SCANCODE_F4 )
+    PopKey( mw, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
     PopKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
     t.Check( (lcase( mw.ActivePath( ) ) = lcase( utilF )) andalso (mw.View( ).CaretLine( ) = 1), P( sc, "Enter opened util.tiko at Helper" ) )
 
@@ -1238,7 +1272,7 @@ public sub IntelPass( byref t as Tally, byval sc as single )
     m2.OpenFile( utilF )
     m2.OpenFile( mainF )
     t.Check( m2.Scanner.running = false, P( sc, "outline: no scanner" ) )
-    Chord( h2, SDLK_F4, SDL_SCANCODE_F4, 0 )
+    Chord( h2, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
     t.Check( m2.Chooser.IsOpen( ) andalso (m2.Chooser.ShownCount( ) = 2), P( sc, strings.Format( "outline: F4 lists two ({})", m2.Chooser.ShownCount( ) ) ) )
     PopKey( m2, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
     m2.View( ).GoToLine( 15, 2 )                                  ' "Show( pt )"
