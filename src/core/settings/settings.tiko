@@ -248,6 +248,7 @@ public function ToToml( byref s as const EditorSettings ) as ustring
     next
     dim as ustring t = _
         "# tkEdit settings. Saving this file in tkEdit applies it at once." & nl & _
+        platform.ConfigPlaces( SETTINGS_FILE ) & _
         nl & _
         KeyLine( "version", str( SETTINGS_VERSION ) ) & _
         nl & _

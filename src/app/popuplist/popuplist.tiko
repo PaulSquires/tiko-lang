@@ -251,6 +251,10 @@ function Picker.Open( byval owner as TK_HOST ptr, byref rows_ as const Array( of
     tkListTree_ShowHeader( List, false )
     tkListTree_SetPaintCallback( List, @PaintPickRow )   ' a tkListTree draws no row by itself
     tkListTree_SetBackColor( List, mc.BackColor )
+    ' no tooltip per row: an empty tip is never shown
+    tkListTree_SetTooltipCallback( List, function( byval hL as TK_WIDGET ptr, byval row as integer, byval col as integer ) as ustring
+        return ""
+    end function )
     tkListTree_SetActivateCallback( List, sub( byval hL as TK_WIDGET ptr, byval row as integer )
         dim as Picker ptr p = PickerOf( hL->pHost )
         if p then p->Accept( )

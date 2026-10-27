@@ -5,10 +5,9 @@
 '    License, v. 2.0. If a copy of the MPL was not distributed with this
 '    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 '
-' documents -- one open file: its path, how it is encoded on disk, the Scintilla view(s) showing
-' it, and what the disk held when it was last read or written (the file watch compares). The
-' text lives in Scintilla; the second pane shows a buffer through a second CodeView on the same
-' Scintilla document (Other), so both panes edit one text with one undo history.
+' documents -- one open file: its path, how it is encoded on disk, the Scintilla view showing it,
+' and what the disk held when it was last read or written (the file watch compares). The text
+' lives in Scintilla. A buffer has one view: the two panes of a split show two different buffers.
 #module "documents"
 
 #import "std/fs"
@@ -49,7 +48,6 @@ public type Document
     Untitled as ustring                  ' "Untitled1": the name until it has a path
     Enc      as docencoding.EncodingState
     Main     as editor.CodeView          ' the first (or only) view
-    Other    as editor.CodeView          ' its view in the second pane, made when it is shown there
     Stamp    as DiskStamp                ' at the last load or save
     Ignored  as DiskStamp                ' a change the user chose to keep their text over
 
@@ -64,7 +62,7 @@ public type Document
     declare function ChangedOnDisk( ) as boolean
     declare function HasView( byval w as TK_WIDGET ptr ) as boolean
     declare sub DestroyViews( )
-    declare sub ApplyHighlight( )                   ' both views: coloured for a source file only
+    declare sub ApplyHighlight( )                   ' coloured for a source file only
 end type
 
 ' A tiko source file by its name: .tiko .ti .bas .bi (any case). An untitled buffer counts as one.
@@ -158,16 +156,14 @@ end function
 
 function Document.HasView( byval w as TK_WIDGET ptr ) as boolean
     if w = 0 then return false
-    return (Main.Widget( ) = w) orelse (Other.Widget( ) = w)
+    return Main.Widget( ) = w
 end function
 
 sub Document.DestroyViews( )
-    Other.Destroy( )
     Main.Destroy( )
 end sub
 
 sub Document.ApplyHighlight( )
     dim as boolean src = IsSourceFile( Path )
     Main.SetHighlight( src )
-    if Other.Exists( ) then Other.SetHighlight( src )
 end sub

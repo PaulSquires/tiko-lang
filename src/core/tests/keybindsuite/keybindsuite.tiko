@@ -185,6 +185,8 @@ private sub TomlChecks( byref c as tally.Checker )
     c.Check( t.IsOk( ), "ToToml of the defaults" )
     c.SameNum( LiveCount( t.Value( ) ), m.Count( ), "every command is a live line under [bindings]" )
     c.Check( instr( t.Value( ), "# FileSave" ) = 0, "none commented out" )
+    c.Check( (instr( t.Value( ), "%APPDATA%\tkEdit\keybindings.toml" ) > 0) andalso _
+             (instr( t.Value( ), "~/Library/Application Support/tkEdit/keybindings.toml" ) > 0), "it says where it is kept" )
     c.Check( instr( t.Value( ), wchr( 10 ) & "FileSave = 'Primary+S'" & wchr( 10 ) ) > 0, "a default is listed at its chord" )
     c.Check( instr( t.Value( ), wchr( 10 ) & "SplitLeftRight = 'Primary+\'" & wchr( 10 ) ) > 0, "a backslash chord in a literal string" )
     c.Check( instr( t.Value( ), "# ---- Build" & wchr( 10 ) ) > 0, "the menu groups head their commands" )

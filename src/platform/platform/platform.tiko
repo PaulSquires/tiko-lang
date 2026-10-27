@@ -97,6 +97,14 @@ public function ConfigDir( ) as fs.FsResultUStr
     return Ok( of ustring, fs.FsError )( fs.PathJoin( c.Value( ), APP_NAME ) )
 end function
 
+' Comment lines for the top of a config file: where `file` is kept on each platform (ConfigDir).
+public function ConfigPlaces( byref file as const ustring ) as ustring
+    dim as ustring nl = wchr( 10 )
+    return "# Saved in:  Windows  %APPDATA%\tkEdit\" & file & nl & _
+           "#            Linux    $XDG_CONFIG_HOME/tkEdit/" & file & "  (default ~/.config/tkEdit/" & file & ")" & nl & _
+           "#            macOS    ~/Library/Application Support/tkEdit/" & file & nl
+end function
+
 ' Folders that hold system fonts, for tkFontList (P3). The bundled fonts/ folder is searched first
 ' by the caller; these are the user's own choices.
 public function SystemFontDirs( ) as Array( of ustring )

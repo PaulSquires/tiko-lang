@@ -128,6 +128,15 @@ private sub ClickPanel( byref mw as mainwin.Window, byval panel as mainwin.Statu
     tkTest_PumpFor( h, 60 )
 end sub
 
+' The same on pane 2's status line.
+private sub ClickPanel2( byref mw as mainwin.Window, byval panel as mainwin.StatusPanel )
+    dim as TKRECT rc
+    tkStatusBar_GetPanelRect( mw.status2, panel, rc )
+    dim as TK_HOST ptr h = tkForm_Host( mw.form )
+    tkTest_Click( h, mw.status2->x + (rc.left + rc.right) \ 2, mw.status2->y + (rc.top + rc.bottom) \ 2 )
+    tkTest_PumpFor( h, 60 )
+end sub
+
 ' P0: the frame. Window size, fonts, the editor above one status row, the panels' text, and
 ' typing reaching the view and moving the caret panel; the position panel's click, and Esc closing
 ' the find strip from the box or the view.
@@ -225,6 +234,10 @@ public sub Pass( byref t as Tally, byval sc as single )
     t.Check( mw.OutputShown andalso tkWidget_IsVisible( mw.Out.frame ), P( sc, "the message panel showed the output pane" ) )
     ClickPanel( mw, mainwin.StatusPanel.Message )
     t.Check( (mw.OutputShown = false) andalso (v->ch = cy - sh), P( sc, "and hid it" ) )
+    ClickPanel( mw, mainwin.StatusPanel.Message )
+    mw.View( ).Focus( )
+    Chord( h, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE, 0 )
+    t.Check( (mw.OutputShown = false) andalso (v->ch = cy - sh), P( sc, "Esc, the focus in the view, hid it too" ) )
 
     ' ---- the view's right-click menu: ten commands, what cannot be done greyed; Select All runs
     tkTest_Click( h, v->x + v->cw \ 2, v->y + v->ch \ 2, SDL_BUTTON_RIGHT )
@@ -528,13 +541,15 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     t.Check( mw.StatusTip( mainwin.StatusPanel.Encoding ) = "", P( sc, "no tooltip on the others" ) )
     ClickPanel( mw, mainwin.StatusPanel.Encoding )
     t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Encoding), P( sc, "the encoding panel opens a chooser" ) )
-    PopKey( mw, SDLK_DOWN, SDL_SCANCODE_DOWN )
+    t.Check( mw.Chooser.SelectedTag( ) = clng( docencoding.FileEncoding.Utf8 ), P( sc, "on the current encoding, UTF-8" ) )
     PopKey( mw, SDLK_DOWN, SDL_SCANCODE_DOWN )
     PopKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
     t.Check( mw.StatusText( mainwin.StatusPanel.Encoding ) = "UTF-8 (BOM)", P( sc, "UTF-8 (BOM) chosen: " & mw.StatusText( mainwin.StatusPanel.Encoding ) ) )
     ClickPanel( mw, mainwin.StatusPanel.LineEnding )
     t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.LineEnding), P( sc, "the line-ending panel opens a chooser" ) )
-    PopKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )                     ' the first row: CRLF
+    t.Check( mw.Chooser.SelectedTag( ) = clng( docencoding.LineEnd.Lf ), P( sc, "on the current line ending, LF" ) )
+    PopKey( mw, SDLK_UP, SDL_SCANCODE_UP )                             ' the row above: CRLF
+    PopKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
     t.Check( mw.StatusText( mainwin.StatusPanel.LineEnding ) = "CRLF", P( sc, "converted to CRLF" ) )
     t.Check( mw.View( ).Text( ) = "dim a as long" & chr( 13, 10 ), P( sc, "the line break converted in the text" ) )
     Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
@@ -550,7 +565,9 @@ public sub BufferPass( byref t as Tally, byval sc as single )
              P( sc, "and made it settings.toml's default" ) )
     mw.Execute( Cmd.Settings )
     mw.Execute( Cmd.BuildConfig )
-    PopKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )                     ' the first row: Debug
+    t.Check( mw.Chooser.SelectedTag( ) = 1, P( sc, "the build list opens on the current one, Release" ) )
+    PopKey( mw, SDLK_UP, SDL_SCANCODE_UP )                             ' the row above: Debug
+    PopKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
     t.Check( (instr( mw.View( ).Text( ), "name = 'Debug'" & bnl & "options = '-g -exx'" & bnl & "default = true" ) > 0) andalso _
              (mw.View( ).IsModified( ) = false), P( sc, "Debug picked: the open settings.toml reloaded with it" ) )
     mw.Execute( Cmd.FileClose )
@@ -564,34 +581,62 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     PopKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
     t.Check( mw.Chooser.IsOpen( ) = false, P( sc, "Esc closes it" ) )
 
-    ' ---- split: one buffer in both panes, the focus moves, then another buffer in pane 2
+    ' ---- split: another buffer in pane 2 (never the same one), a status line under each pane, the
+    ' caption naming the focused pane's buffer
     dim as long cx = h->root->cw, cy = h->root->ch
     dim as long sh = mw.StatusHeight( ), bar = tkForm_Scale( mw.form, mainwin.SPLIT_BAR )
+    dim as DocRef splitA = mw.FindOpen( pathA ), splitB = mw.FindOpen( pathB )
+    t.Check( mw.Pane1 = splitA, P( sc, "a.tiko before the split: " & mw.ActivePath( ) ) )
     Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL )
-    t.Check( (mw.Split = session.SplitMode.Vertical) andalso (mw.Pane2 = mw.Pane1), P( sc, "Ctrl+\ split the active buffer left/right" ) )
+    t.Check( (mw.Split = session.SplitMode.Vertical) andalso (mw.Pane2 <> 0) andalso (mw.Pane2 <> mw.Pane1), _
+             P( sc, "Ctrl+\ split left/right with another buffer in pane 2" ) )
     if mw.Pane2 = 0 then exit sub
-    dim as TK_WIDGET ptr v1 = mw.Pane1->Main.Widget( ), v2 = mw.Pane2->Other.Widget( )
+    dim as TK_WIDGET ptr v1 = mw.Pane1->Main.Widget( ), v2 = mw.Pane2->Main.Widget( )
     dim as long w1 = cint( (cx - bar) * 0.5 )
     t.Check( (v1->x = 0) andalso (v1->cw = w1) andalso (v1->ch = cy - sh), P( sc, strings.Format( "pane 1 at {} {}x{}", v1->x, v1->cw, v1->ch ) ) )
-    t.Check( (v2->x = w1 + bar) andalso (v2->cw = cx - w1 - bar) andalso tkWidget_IsVisible( v2 ), P( sc, strings.Format( "pane 2 at {} {}x{}", v2->x, v2->cw, v2->ch ) ) )
+    t.Check( (v2->x = w1 + bar) andalso (v2->cw = cx - w1 - bar) andalso (v2->ch = cy - sh) andalso tkWidget_IsVisible( v2 ), _
+             P( sc, strings.Format( "pane 2 at {} {}x{}", v2->x, v2->cw, v2->ch ) ) )
     t.Check( (mw.splitBar <> 0) andalso (mw.splitBar->x = w1) andalso (mw.splitBar->cw = bar), P( sc, "the bar between them" ) )
+    t.Check( (mw.status->x = 0) andalso (mw.status->y = cy - sh) andalso (mw.status->cw = w1 + bar) andalso _
+             tkWidget_IsVisible( mw.status2 ) andalso (mw.status2->x = w1 + bar) andalso (mw.status2->y = cy - sh) andalso _
+             (mw.status2->cw = cx - w1 - bar), P( sc, strings.Format( "a status line under each: {} {}w / {} {}w", _
+             mw.status->x, mw.status->cw, mw.status2->x, mw.status2->cw ) ) )
+    t.Check( (tkStatusBar_GetText( mw.status, mainwin.StatusPanel.Buffer ) = "a.tiko") andalso _
+             (tkStatusBar_GetText( mw.status2, mainwin.StatusPanel.Buffer ) = mw.Pane2->DisplayName( )), _
+             P( sc, "each names its pane's buffer: " & tkStatusBar_GetText( mw.status2, mainwin.StatusPanel.Buffer ) ) )
+    title = *SDL_GetWindowTitle( h->win )
+    t.Check( title = "a.tiko - tkEdit", P( sc, "the caption names pane 1's: " & title ) )
     Chord( h, SDLK_GRAVE, SDL_SCANCODE_GRAVE, SDL_KMOD_CTRL )
     t.Check( mw.InPane2 andalso (tkHost_GetFocus( h ) = v2), P( sc, "Ctrl+Tilde moved the focus to pane 2" ) )
+    mw.ShowDoc( splitB )
+    v2 = mw.Pane2->Main.Widget( )
+    t.Check( (mw.Pane2 = splitB) andalso (mw.Pane1 = splitA) andalso (tkHost_GetFocus( h ) = v2), P( sc, "b.tiko in pane 2, a.tiko still in pane 1" ) )
+    title = *SDL_GetWindowTitle( h->win )
+    t.Check( title = "b.tiko - tkEdit", P( sc, "the caption follows the focus: " & title ) )
     tkTest_PushText( h, "zz" )
     tkTest_PumpFor( h, 40 )
-    t.Check( left( mw.Pane1->Main.Text( ), 2 ) = "zz", P( sc, "typing in pane 2 edits the one document" ) )
-    mw.ShowDoc( mw.FindOpen( pathB ) )
-    t.Check( (mw.Pane2 = mw.FindOpen( pathB )) andalso (lcase( mw.Pane1->Path ) = lcase( pathA )), P( sc, "pane 2 shows b.tiko, pane 1 still a.tiko" ) )
+    t.Check( (left( splitB->Main.Text( ), 2 ) = "zz") andalso (left( splitA->Main.Text( ), 2 ) <> "zz"), P( sc, "typing in pane 2 edits its own buffer only" ) )
+    mw.ShowDoc( splitA )
+    t.Check( (mw.InPane2 = false) andalso (mw.Pane2 = splitB) andalso (mw.Pane1 = splitA), P( sc, "showing pane 1's buffer from pane 2 moves the focus there" ) )
+    ClickPanel2( mw, mainwin.StatusPanel.Buffer )
+    t.Check( mw.InPane2 andalso mw.Chooser.IsOpen( ), P( sc, "a click on pane 2's status line focuses pane 2" ) )
+    PopKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
+    Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL )
+    t.Check( (mw.Pane2 <> splitA) andalso (mw.Pane1 = splitA), P( sc, "Ctrl+Tab in pane 2 passes over pane 1's buffer" ) )
+    mw.ShowDoc( splitB )
     Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
     v1 = mw.Pane1->Main.Widget( )
-    v2 = mw.Pane2->Other.Widget( )
-    dim as long h1 = cint( (cy - sh - bar) * 0.5 )
-    t.Check( (mw.Split = session.SplitMode.Horizontal) andalso (v1->y = 0) andalso (v1->ch = h1) andalso (v2->y = h1 + bar) _
-             andalso (v1->cw = cx), P( sc, strings.Format( "Ctrl+Shift+\ switched to top/bottom: {} {} / {}", v1->y, v1->ch, v2->y ) ) )
+    v2 = mw.Pane2->Main.Widget( )
+    dim as long h1 = cint( (cy - sh - sh - bar) * 0.5 )
+    t.Check( (mw.Split = session.SplitMode.Horizontal) andalso (v1->y = 0) andalso (v1->ch = h1) andalso (v1->cw = cx) andalso _
+             (mw.status->y = h1) andalso (mw.status->cw = cx) andalso (v2->y = h1 + sh + bar) andalso (v2->ch = cy - sh - h1 - sh - bar) andalso _
+             (mw.status2->y = cy - sh) andalso (mw.status2->cw = cx), _
+             P( sc, strings.Format( "Ctrl+Shift+\ switched to top/bottom: {} {} / status {} / {} {} / status {}", v1->y, v1->ch, mw.status->y, v2->y, v2->ch, mw.status2->y ) ) )
     Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
-    t.Check( (mw.Split = session.SplitMode.None) andalso (mw.Pane2 = 0), P( sc, "the same key again unsplit" ) )
+    t.Check( (mw.Split = session.SplitMode.None) andalso (mw.Pane2 = 0) andalso (tkWidget_IsVisible( mw.status2 ) = false), P( sc, "the same key again unsplit" ) )
     dim as TK_WIDGET ptr vv = mw.View( ).Widget( )
-    t.Check( (vv->x = 0) andalso (vv->y = 0) andalso (vv->cw = cx) andalso (vv->ch = cy - sh), P( sc, "one pane fills the window again" ) )
+    t.Check( (vv->x = 0) andalso (vv->y = 0) andalso (vv->cw = cx) andalso (vv->ch = cy - sh) andalso (mw.status->cw = cx) andalso _
+             (mw.status->y = cy - sh), P( sc, "one pane and one status line fill the window again" ) )
     t.Check( lcase( mw.ActivePath( ) ) = lcase( pathB ), P( sc, "keeping the buffer that had the focus: " & mw.ActivePath( ) ) )
 
     ' ---- new, save as, close with and without saving
@@ -1250,8 +1295,22 @@ public sub PolishPass( byref t as Tally, byval sc as single )
     t.Check( tkListTree_GetCount( mw.Out.search ) = 8, P( sc, strings.Format( "three headers + five rows ({})", tkListTree_GetCount( mw.Out.search ) ) ) )
     t.Check( instr( mw.Message, "5 matches in 3 files" ) = 1, P( sc, "the message: " & mw.Message ) )
     t.Check( (lcase( mw.ActivePath( ) ) = lcase( mainF )) andalso (mw.View( ).SelectedText( ) = "Needle"), P( sc, "the first match selected" ) )
-    mw.OpenSearchHit( 2 )
-    t.Check( (lcase( mw.ActivePath( ) ) = lcase( libF )) andalso (mw.View( ).CaretLine( ) = 1), P( sc, "a match in an unopened file opens it there" ) )
+    ' one click on the row of match 2 (in lib.tiko, not open yet)
+    scope
+        dim as long row = -1
+        for r as long = 0 to tkListTree_GetCount( mw.Out.search ) - 1
+            if tkListTree_GetItemData( mw.Out.search, r ) = 2 then row = r
+        next
+        dim as TK_WIDGET ptr surf = tkListTree_GetSurface( mw.Out.search )
+        dim as TKRECT sa
+        tkWidget_AbsRect( surf, sa )
+        dim as long ih = tkListTree_GetItemHeightPx( mw.Out.search )
+        dim as long ry = sa.top + (row - tkListTree_GetTopIndex( mw.Out.search )) * ih + ih \ 2
+        t.Check( (row >= 0) andalso (ry < sa.bottom), P( sc, strings.Format( "match 2 is row {}, on screen at y {}", row, ry ) ) )
+        tkTest_Click( h, sa.left + 40, ry )
+        tkTest_PumpFor( h, 60 )
+    end scope
+    t.Check( (lcase( mw.ActivePath( ) ) = lcase( libF )) andalso (mw.View( ).CaretLine( ) = 1), P( sc, "one click on a match in an unopened file opens it there: " & mw.ActivePath( ) ) )
     Chord( h, SDLK_F, SDL_SCANCODE_F, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
     dim as editor.FindOptions o = mw.Finder.Options( )
     o.MatchCase = true

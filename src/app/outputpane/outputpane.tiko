@@ -51,6 +51,7 @@ public type Pane
     results as TK_WIDGET ptr
     logBox as TK_WIDGET ptr
     search as TK_WIDGET ptr
+    searchPressed as boolean            ' the button went down on a Search row
     current as OutputTab
 
     declare sub Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ as any ptr )
@@ -118,6 +119,21 @@ sub Pane.Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ a
     tkListTree_SetActivateCallback( results, act )
     tkListTree_SetActivateCallback( search, act )
     tkListTree_SetPaintCallback( results, @tkListTree_PaintRowDefault )   ' a tkListTree draws no row by itself
+    ' a Search row opens on one click: a press on a row, then its release there
+    tkListTree_SetMessageCallback( search, function( byval mi as TKLISTTREE_MESSAGEINFO ptr ) as boolean
+        dim as Pane ptr p = PaneOf( mi->hList )
+        if p = 0 then return false
+        if mi->msg = TKM_LBUTTONDOWN then
+            p->searchPressed = (mi->idx >= 0)
+            return false
+        end if
+        if mi->msg <> TKM_LBUTTONUP then return false
+        dim as boolean wasPressed = p->searchPressed
+        p->searchPressed = false
+        if (mi->idx < 0) orelse (wasPressed = false) orelse (p->OnActivate = 0) then return false
+        p->OnActivate( p->owner, OutputTab.Search, tkListTree_GetItemData( mi->hList, mi->idx ) )
+        return true
+    end function )
     tkListTree_SetPaintCallback( search, @tkListTree_PaintRowDefault )
     this.ShowTab( OutputTab.Results )
     tkWidget_Show( frame, false )

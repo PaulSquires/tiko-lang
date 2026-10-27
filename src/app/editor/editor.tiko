@@ -8,7 +8,6 @@
 ' editor -- CodeView, one Scintilla view (a tkCodeEdit) with typed methods. The ONLY module that
 ' sends SCI_ messages (tools/idiom.sh): everything else asks a CodeView. Text in and out is a
 ' ustring; Scintilla holds it as UTF-8 (SC_CP_UTF8), positions are Scintilla's byte positions.
-' Two views of one document (split view) share Scintilla's document object (ShareDocument).
 #module "editor"
 
 #import "std/containers"
@@ -116,7 +115,6 @@ public type CodeView
     declare sub SetSavePoint( )
     declare function LineEnding( ) as docencoding.LineEnd
     declare sub SetLineEnding( byval e as docencoding.LineEnd, byval convert as boolean )
-    declare sub ShareDocument( byref other as CodeView )  ' show other's document here (split view)
 
     ' ---- caret and scrolling
     declare function Position( ) as longint
@@ -320,13 +318,6 @@ sub CodeView.SetLineEnding( byval e as docencoding.LineEnd, byval convert as boo
     if w = 0 then exit sub
     tkCodeEdit_Send( w, SCI_SETEOLMODE, cast( long, e ) )
     if convert then tkCodeEdit_Send( w, SCI_CONVERTEOLS, cast( long, e ) )
-end sub
-
-' SETDOCPOINTER takes its own reference, so the document lives until both views let it go.
-sub CodeView.ShareDocument( byref other as CodeView )
-    if (w = 0) orelse (other.w = 0) then exit sub
-    dim as integer doc = tkCodeEdit_Send( other.w, SCI_GETDOCPOINTER )
-    tkCodeEdit_Send( w, SCI_SETDOCPOINTER, 0, doc )
 end sub
 
 function CodeView.Position( ) as longint

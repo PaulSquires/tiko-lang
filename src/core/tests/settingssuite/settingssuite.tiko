@@ -34,6 +34,8 @@ private sub SettingsChecks( byref c as tally.Checker )
              "ToToml sets every key" )
     c.Check( (instr( dt, "# font_size" ) = 0) andalso (instr( dt, "# [[builds]]" ) = 0) andalso (instr( dt, "# name" ) = 0), _
              "and comments none out" )
+    c.Check( (instr( dt, "%APPDATA%\tkEdit\settings.toml" ) > 0) andalso (instr( dt, "~/.config/tkEdit/settings.toml" ) > 0) andalso _
+             (instr( dt, "~/Library/Application Support/tkEdit/settings.toml" ) > 0), "and says where it is kept on each platform" )
     dim as settings.SettingsResult t = settings.ParseSettings( dt )
     c.Check( t.IsOk( ), "the defaults' file is TOML" )
     if t.IsOk( ) then

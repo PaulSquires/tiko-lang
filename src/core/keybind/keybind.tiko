@@ -424,7 +424,8 @@ end function
 private function ToTomlHead( ) as ustring
     dim as ustring nl = wchr( 10 )
     return "# tkEdit keyboard shortcuts: every command at its chord. Change one to rebind it; Command = ''" & nl & _
-           "# removes it. Primary is Ctrl (Cmd on macOS). Saving this file in tkEdit applies it at once." & nl
+           "# removes it. Primary is Ctrl (Cmd on macOS). Saving this file in tkEdit applies it at once." & nl & _
+           platform.ConfigPlaces( KEYBINDINGS_FILE )
 end function
 
 ' The whole file: every command once, in table order, under its group's comment, at the chord in
