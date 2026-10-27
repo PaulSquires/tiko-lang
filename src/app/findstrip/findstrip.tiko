@@ -5,7 +5,7 @@
 '    License, v. 2.0. If a copy of the MPL was not distributed with this
 '    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 '
-' findstrip -- what takes the status line's place for Find, Replace and Go to Line (D10). One row
+' findstrip -- the strip above the status line for Find, Replace and Go to Line (D10). One row
 ' for Find and Go to Line, two for Replace:
 '
 '     Find:     [phrase.............]  Aa  W  .*  Sel  <  >  x   3 of 10

@@ -55,8 +55,8 @@ for g as long = 0 to clng( MenuGroup.Count_ ) - 1
 next
 s &= nl & "## Fixed keys (not rebindable)" & nl & nl & _
     "- Find / Replace / Go to Line / Find in Project strip: Enter next (Go to Line: go; In files: search)," & nl & _
-    "  Shift+Enter previous, Ctrl+Alt+Enter replace all, Tab moves between the boxes, Esc gives the" & nl & _
-    "  status line back." & nl & _
+    "  Shift+Enter previous, Ctrl+Alt+Enter replace all, Tab moves between the boxes, Esc closes the" & nl & _
+    "  strip." & nl & _
     "- Popups: Up / Down / PgUp / PgDn move, Tab / Shift+Tab move, Enter picks, Esc closes, typing" & nl & _
     "  filters. In the functions list, its own key (F4) again switches between this buffer and every" & nl & _
     "  open buffer. The Ctrl+Tab switcher picks when Ctrl is let go." & nl & _

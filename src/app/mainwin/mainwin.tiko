@@ -322,7 +322,7 @@ public type Window
     declare sub ShowTitle( )
     declare function StatusText( byval p as StatusPanel ) as ustring
     declare function StatusHeight( ) as long
-    declare function BottomHeight( ) as long                   ' the status line, or the strip
+    declare function BottomHeight( ) as long                   ' the status line, and the strip above it
     declare function OutputHeight( ) as long                   ' 0 when the pane is hidden
     declare function MenuHeight( ) as long
     declare sub SetMessage( byref s as const ustring )
@@ -591,7 +591,7 @@ function Window.StatusHeight( ) as long
 end function
 
 function Window.BottomHeight( ) as long
-    if Finder.isOpen then return Finder.Height( )
+    if Finder.isOpen then return this.StatusHeight( ) + Finder.Height( )
     return this.StatusHeight( )
 end function
 
@@ -605,21 +605,19 @@ function Window.MenuHeight( ) as long
     return tkForm_Scale( form, MENUBAR_CY )
 end function
 
-' The menu bar (while shown) on top, the pane(s), one status row at the bottom. Every view no
-' pane shows is hidden.
+' The menu bar (while shown) on top, the pane(s), the output pane, the find strip (while open), one
+' status row at the bottom. Every view no pane shows is hidden.
 sub Window.Layout( )
     if form = 0 then exit sub
     dim as TK_WIDGET ptr root = tkForm_Widget( form )
     dim as long cx = root->cw, cy = root->ch
     dim as long sh = this.StatusHeight( ), mh = this.MenuHeight( )
     if mh > 0 then tkWidget_SetPos( menuBar, 0, 0, cx, mh )
+    tkWidget_SetPos( status, 0, cy - sh, cx, sh )
     if Finder.isOpen then
-        sh = Finder.Height( )                    ' the strip takes the status line's place (D10)
-        tkWidget_Show( status, false )
-        tkWidget_SetPos( Finder.frame, 0, cy - sh, cx, sh )
-    else
-        tkWidget_Show( status, true )
-        tkWidget_SetPos( status, 0, cy - sh, cx, sh )
+        dim as long fh = Finder.Height( )        ' the strip sits on top of the status line (D10)
+        tkWidget_SetPos( Finder.frame, 0, cy - sh - fh, cx, fh )
+        sh += fh
     end if
     dim as long oh = 0
     if OutputShown then
@@ -1767,7 +1765,7 @@ function Window.FindOptionsNow( ) as editor.FindOptions
     return o
 end function
 
-' The strip in the status line's place, the phrase seeded from a one-line selection; a multi-line
+' The strip above the status line, the phrase seeded from a one-line selection; a multi-line
 ' selection is remembered for "Sel".
 sub Window.OpenStrip( byval m as findstrip.StripMode )
     dim as editor.CodeView ptr v = @this.View( )

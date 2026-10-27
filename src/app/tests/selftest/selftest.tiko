@@ -562,15 +562,16 @@ public sub FindPass( byref t as Tally, byval sc as single )
     mw.View( ).SetLineEnding( docencoding.LineEnd.Lf, false )
     mw.View( ).SetText( "alpha beta alpha" & nl & "ALPHA gamma" & nl & "alpha" & nl )
     dim as long cx = h->root->cw, cy = h->root->ch
-    dim as long rowH = tkForm_Scale( mw.form, findstrip.ROW_CY )
+    dim as long rowH = tkForm_Scale( mw.form, findstrip.ROW_CY ), sh = mw.StatusHeight( )
 
-    ' ---- Ctrl+F: the strip in the status line's place, typing finds as it goes
+    ' ---- Ctrl+F: the strip above the status line, typing finds as it goes
     Chord( h, SDLK_F, SDL_SCANCODE_F, SDL_KMOD_CTRL )
     t.Check( mw.Finder.isOpen andalso (mw.Finder.Mode = findstrip.StripMode.Find), P( sc, "Ctrl+F opened the find strip" ) )
-    t.Check( tkWidget_IsVisible( mw.status ) = false, P( sc, "the status line is gone" ) )
+    t.Check( tkWidget_IsVisible( mw.status ) andalso (mw.status->y = cy - sh) andalso (mw.status->ch = sh), _
+             P( sc, strings.Format( "the status line stays at the bottom: {} {}", mw.status->y, mw.status->ch ) ) )
     dim as TK_WIDGET ptr fr = mw.Finder.frame
-    t.Check( (fr->y = cy - rowH) andalso (fr->ch = rowH) andalso (fr->cw = cx), P( sc, strings.Format( "one row in its place: {} {}x{}", fr->y, fr->cw, fr->ch ) ) )
-    t.Check( mw.View( ).Widget( )->ch = cy - rowH, P( sc, "the view ends above it" ) )
+    t.Check( (fr->y = cy - sh - rowH) andalso (fr->ch = rowH) andalso (fr->cw = cx), P( sc, strings.Format( "one row above it: {} {}x{}", fr->y, fr->cw, fr->ch ) ) )
+    t.Check( mw.View( ).Widget( )->ch = cy - sh - rowH, P( sc, "the view ends above the strip" ) )
     t.Check( tkHost_GetFocus( h ) = mw.Finder.findBox, P( sc, "the find box has the focus" ) )
     tkTest_PushText( h, "alpha" )
     tkTest_PumpFor( h, 40 )
@@ -595,7 +596,7 @@ public sub FindPass( byref t as Tally, byval sc as single )
     t.Check( mw.Finder.status = "No matches", P( sc, "no match says so: " & mw.Finder.status ) )
     mw.Finder.SetPhrase( "alpha" )
     StripKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
-    t.Check( (mw.Finder.isOpen = false) andalso tkWidget_IsVisible( mw.status ), P( sc, "Esc: the status line is back" ) )
+    t.Check( (mw.Finder.isOpen = false) andalso tkWidget_IsVisible( mw.status ), P( sc, "Esc: the strip is gone, the status line stays" ) )
     t.Check( tkHost_GetFocus( h ) = mw.View( ).Widget( ), P( sc, "and the view has the focus" ) )
     mw.View( ).SetPosition( mw.View( ).Length( ) )
     Chord( h, SDLK_F3, SDL_SCANCODE_F3, 0 )
@@ -606,7 +607,7 @@ public sub FindPass( byref t as Tally, byval sc as single )
     mw.View( ).SetPosition( 0 )
     Chord( h, SDLK_H, SDL_SCANCODE_H, SDL_KMOD_CTRL )
     t.Check( mw.Finder.isOpen andalso (mw.Finder.Mode = findstrip.StripMode.Replace) andalso (fr->ch = rowH * 2) _
-             andalso (fr->y = cy - rowH * 2), P( sc, strings.Format( "Ctrl+H: two rows ({} at {})", fr->ch, fr->y ) ) )
+             andalso (fr->y = cy - sh - rowH * 2), P( sc, strings.Format( "Ctrl+H: two rows ({} at {})", fr->ch, fr->y ) ) )
     mw.Finder.SetReplacement( "omega" )
     mw.Finder.SetPhrase( "alpha" )
     mw.OnFind( findstrip.FindAction.Changed )         ' the first match selected, as typing does

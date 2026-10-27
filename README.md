@@ -14,7 +14,7 @@ tkEdit [files...]        restores the last session (or project), then opens the 
 - **Buffers:** Ctrl+E lists them, Ctrl+Tab switches to the last one (keep Ctrl down and press Tab
   again for older ones), the status line's file name lists them too. Ctrl+\ and Ctrl+Shift+\
   split the window; Ctrl+Tilde moves between the panes and the output pane.
-- **Finding:** Ctrl+F / Ctrl+H open a strip where the status line was; Ctrl+G goes to a line;
+- **Finding:** Ctrl+F / Ctrl+H open a strip above the status line; Ctrl+G goes to a line;
   Ctrl+Shift+F searches every project file; Ctrl+P searches files and definitions; F4 lists the
   functions of the buffer (F4 again: of every open buffer). F12 goes to a definition, Alt+Left
   comes back.
