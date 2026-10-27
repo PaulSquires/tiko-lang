@@ -473,7 +473,7 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     mw.OnFind( findstrip.FindAction.CloseStrip )
     ' the question box's buttons in French, each as wide as its words, none overlapping, inside the box
     scope
-        dim as TK_WIDGET ptr box = mainwin.NewAskBox( tkForm_Widget( mw.form ), "x", MBX_BTN_SAVE_DONTSAVE_CANCEL )
+        dim as TK_WIDGET ptr box = mainwin.NewAskBox( tkForm_Widget( mw.form ), "x", MBX_BTN_SAVE_DONTSAVE_CANCEL, mw.AskIcon )
         t.Check( (tkMessageBox_GetButtonCount( box ) = 3) andalso _
                  (tkButton_GetText( tkMessageBox_GetButtonHandle( box, 0 ) ) = "Enregistrer") andalso _
                  (tkButton_GetText( tkMessageBox_GetButtonHandle( box, 1 ) ) = "Ne pas enregistrer") andalso _
@@ -487,6 +487,14 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
         t.Check( (gClose <> 0) andalso TTF_FontHasGlyph( gClose, TKMESSAGEBOX_GLYPH_CLOSE ), P( sc, "the close X's font has its glyph" ) )
         t.Check( tkMessageBox_GetFont( box ) = tkForm_Font( mw.form, TKFONT_UI ), P( sc, "the text in the form's UI font" ) )
         tkMessageBox_LayoutForTest( box )
+        ' 20 pt at the window's DPI: taller than the form's large glyphs, and within the icon's cell
+        dim as TKRECT ri
+        tkMessageBox_GetIconRect( box, ri )
+        t.Check( (gIcon = mw.AskIcon) andalso (TTF_GetFontSize( gIcon ) = mainwin.ASK_ICON_PT) andalso _
+                 (TTF_GetFontHeight( gIcon ) > TTF_GetFontHeight( tkForm_Font( mw.form, TKFONT_GLYPH_LARGE ) )) andalso _
+                 (TTF_GetFontHeight( gIcon ) <= ri.bottom - ri.top + tkHost_Scale( tkForm_Host( mw.form ), 8 )), _
+                 P( sc, strings.Format( "the icon at {} pt: {} px high against the large glyphs' {}, in a cell of {}", TTF_GetFontSize( gIcon ), _
+                                        TTF_GetFontHeight( gIcon ), TTF_GetFontHeight( tkForm_Font( mw.form, TKFONT_GLYPH_LARGE ) ), ri.bottom - ri.top ) ) )
         dim as long bw, bh
         tkMessageBox_GetIdealSize( box, bw, bh )
         dim as TKRECT r( 0 to 2 )

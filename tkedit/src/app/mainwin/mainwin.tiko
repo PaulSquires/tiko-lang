@@ -86,6 +86,7 @@ public const FONT_UI = "Inter-Regular.ttf"
 public const FONT_UI_BOLD = "Inter-Bold.ttf"
 public const FONT_MONO = "JetBrainsMono-Regular.ttf"
 public const FONT_GLYPH = "PsIcons.ttf"
+public const ASK_ICON_PT = 20                 ' the question box's icon: vendor's 32 px cell, as its demo
 public const DEFAULT_CX = 960
 public const DEFAULT_CY = 640
 public const STATUS_CY = 24              ' one status row, unscaled
@@ -215,13 +216,15 @@ end function
 ' tkMessageBox_AddPreset says them in English): the same ids, default and cancel as the preset.
 ' Not shown: DoModal shows it, tkMessageBox_Destroy frees one that never was. The box draws in the
 ' form's fonts: it has none of its own, and its icon and close X are PsIcons codepoints that the
-' text font draws as boxes.
-public function NewAskBox( byval parent as TK_WIDGET ptr, byref text as const ustring, byval buttons as long ) as TK_WIDGET ptr
+' text font draws as boxes. iconFont: the icon's (Window.AskIcon, ASK_ICON_PT); 0 = the form's large glyphs.
+public function NewAskBox( byval parent as TK_WIDGET ptr, byref text as const ustring, byval buttons as long, _
+                           byval iconFont as TTF_Font ptr = 0 ) as TK_WIDGET ptr
     dim as TK_WIDGET ptr box = tkMessageBox_Create( parent )
     if box = 0 then return 0
     dim as TK_FORM ptr f = tkForm_FromWidget( parent )
     if f then
-        tkMessageBox_ApplyFonts( box, tkForm_Font( f, TKFONT_UI ), tkForm_Font( f, TKFONT_GLYPH_LARGE ) )
+        if iconFont = 0 then iconFont = tkForm_Font( f, TKFONT_GLYPH_LARGE )
+        tkMessageBox_ApplyFonts( box, tkForm_Font( f, TKFONT_UI ), iconFont )
         tkMessageBox_SetCloseGlyphFont( box, tkForm_Font( f, TKFONT_GLYPH ) )
     end if
     tkMessageBox_SetCaption( box, platform.APP_NAME )
@@ -258,12 +261,6 @@ public function NewAskBox( byval parent as TK_WIDGET ptr, byref text as const us
     tkMessageBox_SetDefaultButton( box, 0 )
     tkMessageBox_SetCancelID( box, cancelId )
     return box
-end function
-
-private function AskPerson( byval f as TK_FORM ptr, byref text as const ustring, byval buttons as long ) as long
-    dim as TK_WIDGET ptr box = NewAskBox( tkForm_Widget( f ), text, buttons )
-    if box = 0 then return 0
-    return tkMessageBox_DoModal( box )
 end function
 
 private function LaunchProgram( byref argv as const Array( of ustring ), byref workDir as const ustring ) as boolean
@@ -313,6 +310,7 @@ public type Window
     ' ---- the App state
     ResourceDir as ustring
     HasIcon as boolean                                         ' icons/tkedit.png set as the window icon
+    AskIcon as TTF_Font ptr             ' PsIcons at ASK_ICON_PT for question boxes; the host owns it (DPI, close)
     Prefs as settings.EditorSettings
     Keys as keybind.KeyMap
     Theme as themes.Theme
@@ -538,6 +536,15 @@ public type Window
     declare sub SyncFocus( )
 end type
 
+private function AskPerson( byval f as TK_FORM ptr, byref text as const ustring, byval buttons as long ) as long
+    dim as Window ptr mw = f->Tag
+    dim as TTF_Font ptr icon = 0
+    if mw then icon = mw->AskIcon
+    dim as TK_WIDGET ptr box = NewAskBox( tkForm_Widget( f ), text, buttons, icon )
+    if box = 0 then return 0
+    return tkMessageBox_DoModal( box )
+end function
+
 private function WindowOfHost( byval h as TK_HOST ptr ) as Window ptr
     dim as TK_FORM ptr f = tkForm_FromHost( h )
     if f = 0 then return 0
@@ -569,6 +576,8 @@ function Window.Create( byval forcedScale as single ) as boolean
     form = tkApp_NewForm( appinfo.WindowTitle( ), DEFAULT_CX, DEFAULT_CY, 0, forcedScale )
     if form = 0 then return false
     form->Tag = @this
+    ' opened on the window's host, which resizes it when the DPI changes and closes it with the window
+    AskIcon = tkHost_OpenFont( tkForm_Host( form ), fs.PathJoin( ResourceDir, "fonts", FONT_GLYPH ), ASK_ICON_PT )
     ' the title bar's icon, every platform; on Windows the .exe's own (res/tkEdit.rc) is the taskbar's
     ' and Explorer's, and SDL starts from it
     dim as string icon8 = fs.PathJoin( ResourceDir, "icons", "tkedit.png" )
