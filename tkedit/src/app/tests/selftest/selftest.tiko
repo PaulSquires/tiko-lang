@@ -162,6 +162,9 @@ public sub Pass( byref t as Tally, byval sc as single )
     if (vd = 0) orelse (*vd <> "wayland") then t.Check( mw.HasIcon, P( sc, "the window icon is icons/tkedit.png" ) )
     t.Check( strings.EndsWith( tkForm_RoleFile( mw.form, TKFONT_UI ), mainwin.FONT_UI ), P( sc, "UI font is Inter" ) )
     t.Check( strings.EndsWith( tkForm_RoleFile( mw.form, TKFONT_MONO ), mainwin.FONT_MONO ), P( sc, "mono font is JetBrains Mono" ) )
+    ' the code view's own font (Scintilla's): tkEdit's JetBrains Mono, never vendor/tkControls' bundled mono
+    t.Check( strings.EndsWith( mw.Look.FontFile, mainwin.FONT_MONO ) andalso fs.IsFile( mw.Look.FontFile ), _
+             P( sc, "the code view's font is JetBrains Mono: " & mw.Look.FontFile ) )
     t.Check( strings.EndsWith( tkApp_GlyphFace( ), mainwin.FONT_GLYPH ), P( sc, "glyph font is '" & tkApp_GlyphFace( ) & "'" ) )
     dim as ustring title = *SDL_GetWindowTitle( h->win )
     t.Check( title = appinfo.WindowTitle( "untitled1" ), P( sc, "title is '" & title & "'" ) )
