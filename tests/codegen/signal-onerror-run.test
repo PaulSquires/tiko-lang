@@ -1,0 +1,11 @@
+'' RUN: abort( ) with an ON ERROR handler installed: the handler runs and ENDs with 3. The
+'' thread's error context exists (ON ERROR made it), so TK-004's handler takes the throw path,
+'' and lowers its re-entry guard first. (fbc-modern loops on "before" here until it crashes.)
+'' TEST: cli
+'' ARGS: -exx -target windows-x86_64 tests/codegen/src/signal-onerror.bas -o tests/codegen/signalonerror.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/signalonerror.exe
+'' EXPECT-RUN-EXIT: 3
+'' EXPECT-RUN-OUT: before
+'' EXPECT-RUN-OUT: caught

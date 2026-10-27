@@ -1,0 +1,11 @@
+'' RUN: abort( ) under -exx is runtime error 14 -- the message and the exit code fbc-modern
+'' gives. TK-004 changed how the signal handler gets there (it peeks the thread's error context
+'' and never allocates, since glibc may abort from inside malloc), not what it prints.
+'' TEST: cli
+'' ARGS: -exx -target windows-x86_64 tests/codegen/src/signal-abort.bas -o tests/codegen/signalabort.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/signalabort.exe
+'' EXPECT-RUN-EXIT: 14
+'' EXPECT-RUN-OUT: before
+'' EXPECT-RUN-OUT: Aborting due to runtime error 14 ("abnormal termination" signal) in tests/codegen/src/signal-abort.bas::()
