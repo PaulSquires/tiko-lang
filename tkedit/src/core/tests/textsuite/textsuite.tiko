@@ -65,6 +65,10 @@ public sub Run( byref c as tally.Checker )
     dim as ustring clk = text.Clock12( )
     c.Check( ( len( clk ) = 8 ) andalso ( mid( clk, 3, 1 ) = ":" ) andalso ( mid( clk, 6, 1 ) = ":" ) _
              andalso ( valint( left( clk, 2 ) ) >= 1 ) andalso ( valint( left( clk, 2 ) ) <= 12 ), "Clock12 is hh:mm:ss, 01..12" )
+    dim as ustring stp = text.DateTimeStamp( )
+    c.Check( ( len( stp ) = 19 ) andalso ( mid( stp, 5, 1 ) = "-" ) andalso ( mid( stp, 8, 1 ) = "-" ) andalso ( mid( stp, 11, 1 ) = " " ) _
+             andalso ( mid( stp, 14, 1 ) = ":" ) andalso ( mid( stp, 17, 1 ) = ":" ) andalso ( valint( left( stp, 4 ) ) >= 2026 ) _
+             andalso ( valint( mid( stp, 12, 2 ) ) <= 23 ), "DateTimeStamp is yyyy-mm-dd hh:mm:ss, 24-hour: " & stp )
 
     c.Begin( "textstream" )
     dim as ustring CR = wchr( 13 ), LF = wchr( 10 )

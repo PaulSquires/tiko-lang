@@ -53,3 +53,11 @@ public function Clock12( ) as ustring
     if h = 0 then h = 12
     return strings.Format( "{:02}:{:02}:{:02}", h, t.Minute, t.Second )
 end function
+
+' The wall clock as "yyyy-mm-dd hh:mm:ss", 24-hour (the build log's compile time).
+public function DateTimeStamp( ) as ustring
+    dim as chrono.DateTime n = chrono.WallClock.Now( )
+    dim as chrono.LocalDate d = n.GetDate( )
+    dim as chrono.LocalTime t = n.GetTimeOfDay( )
+    return strings.Format( "{:04}-{:02}-{:02} {:02}:{:02}:{:02}", d.Year, d.Month, d.Day, t.Hour, t.Minute, t.Second )
+end function

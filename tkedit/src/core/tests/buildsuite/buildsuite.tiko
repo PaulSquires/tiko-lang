@@ -310,8 +310,23 @@ private sub CommandTests( byref c as tally.Checker )
     c.Check( ( pr.Done = 2 ) andalso ( pr.Total = 2 ) andalso ( pr.LastUnit = "b.tiko" ), "progress 2/2, last b.tiko" )
 end sub
 
+' The Log tab's summary and the status line's size (author 2026-10-27).
+private sub SummaryTests( byref c as tally.Checker )
+    dim as ustring nl = wchr( 10 )
+    c.Same( build.SizeText( "test-1.exe", 52736 ), "test-1.exe (52 KB, 52736 bytes)", "SizeText: KB rounded up, bytes ungrouped" )
+    c.Same( build.LogSummary( true, 0, 0, "C:\dev\x\test-1.bas", "C:\dev\x\test-1.exe", 52736, 2251, "2026-10-27 05:55:10" ), _
+            "Successful Compile (Errors 0 Warnings 0)" & nl & nl & _
+            "Primary Source: C:\dev\x\test-1.bas" & nl & _
+            "Target Compilation: C:\dev\x\test-1.exe (52 KB, 52736 bytes)" & nl & _
+            "Compile Time: 2.2 seconds (2026-10-27 05:55:10)" & nl & nl, "LogSummary: a successful build" )
+    c.Same( build.LogSummary( false, 2, 1, "a.tiko", "", -1, 950, "2026-10-27 05:55:10" ), _
+            "Failed Compile (Errors 2 Warnings 1)" & nl & nl & "Primary Source: a.tiko" & nl & _
+            "Compile Time: 0.9 seconds (2026-10-27 05:55:10)" & nl & nl, "LogSummary: a failed build names no target" )
+end sub
+
 public sub Run( byref c as tally.Checker )
     c.Begin( "build" )
     DiagFileTests( c )
     CommandTests( c )
+    SummaryTests( c )
 end sub

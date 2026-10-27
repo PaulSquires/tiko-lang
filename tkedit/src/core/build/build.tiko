@@ -29,6 +29,7 @@
 #import "std/fs"
 #import "std/outcome"
 #import "tkp/platform"
+#import "tkc/text"
 using containers
 using outcome
 
@@ -667,4 +668,34 @@ public function CountResults( byref rep as const DiagReport, byval haveReport as
         c.ShowLog = true
     end if
     return c
+end function
+
+' ================================================================ the build's summary
+
+' A built file as the status line and the log name it: "test-1.exe (52 KB, 52736 bytes)" -- the
+' KB rounded up as Explorer shows them (text.FormatKBSize), the bytes ungrouped.
+public function SizeText( byref fileName as const ustring, byval bytes as ulongint ) as ustring
+    return fileName & " (" & text.FormatKBSize( bytes ) & ", " & str( bytes ) & " bytes)"
+end function
+
+' The lines the Log tab starts with when a build ends (author 2026-10-27, as tiko-editor's):
+'   Successful Compile (Errors 0 Warnings 0)            -- or Failed Compile
+'
+'   Primary Source: <mainFile>
+'   Target Compilation: <exeFile> (52 KB, 52736 bytes)  -- only when exeBytes >= 0
+'   Compile Time: 2.2 seconds (2026-10-27 05:55:10)
+'
+' ms is the build's wall time (tenths, truncated); stamp is text.DateTimeStamp( ).
+public function LogSummary( byval ok as boolean, byval errors as long, byval warnings as long, _
+                            byref mainFile as const ustring, byref exeFile as const ustring, _
+                            byval exeBytes as longint, byval ms as long, byref stamp as const ustring ) as ustring
+    dim as ustring nl = wchr( 10 )
+    dim as ustring head = "Failed Compile"
+    if ok then head = "Successful Compile"
+    if ms < 0 then ms = 0
+    dim as ustring s = head & strings.Format( " (Errors {} Warnings {})", errors, warnings ) & nl & nl
+    s &= "Primary Source: " & mainFile & nl
+    if exeBytes >= 0 then s &= "Target Compilation: " & SizeText( exeFile, exeBytes ) & nl
+    s &= strings.Format( "Compile Time: {}.{} seconds ({})", ms \ 1000, (ms mod 1000) \ 100, stamp ) & nl & nl
+    return s
 end function

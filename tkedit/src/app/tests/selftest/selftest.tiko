@@ -1158,6 +1158,15 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     t.Check( mw.BuildSucceeded, P( sc, "built: " & mw.Message ) )
     t.Check( left( mw.Message, 8 ) = "Build OK", P( sc, "the message says so" ) )
     t.Check( mw.OutputShown = false, P( sc, "the output pane stays hidden" ) )
+    scope   ' the log starts with the summary; the message names the program and its size
+        dim as ustring lg = mw.Out.LogText( )
+        dim as ustring sz = " [" & fs.PathFileName( mw.LastExe ) & " ("
+        t.Check( (left( lg, 42 ) = "Successful Compile (Errors 0 Warnings 0)" & nl & nl) andalso _
+                 (instr( lg, nl & "Primary Source: " & fs.PathToNative( mw.Proj.MainOf( mw.ProjectTarget( ) ) ) & nl ) > 0) andalso _
+                 (instr( lg, nl & "Target Compilation: " & mw.LastExe & " (" ) > 0) andalso (instr( lg, nl & "Compile Time: " ) > 0), _
+                 P( sc, "the log starts with the summary: " & left( lg, 120 ) ) )
+        t.Check( (instr( mw.Message, sz ) > 0) andalso (right( mw.Message, 8 ) = " bytes)]"), P( sc, "the message ends with the program's size: " & mw.Message ) )
+    end scope
     t.Check( fs.IsFile( mw.LastExe ), P( sc, "the program: " & mw.LastExe ) )
     t.Check( (instr( mw.Out.LogText( ), "build" ) > 0) andalso (instr( mw.Out.LogText( ), "{""event""" ) = 0), P( sc, "the log: the command line, no JSON events" ) )
     if fs.IsFile( mw.LastExe ) then
@@ -1198,6 +1207,8 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     t.Check( WaitBuild( mw ), P( sc, "the failing build ended" ) )
     t.Check( mw.BuildSucceeded = false, P( sc, "it failed: " & mw.Message ) )
     t.Check( left( mw.Message, 12 ) = "Build failed" orelse (left( mw.Message, 6 ) = "error "), P( sc, "the message says so: " & mw.Message ) )
+    t.Check( (left( mw.Out.LogText( ), 15 ) = "Failed Compile ") andalso (instr( mw.Out.LogText( ), "Target Compilation:" ) = 0) andalso _
+             (instr( mw.Message, " bytes)]" ) = 0), P( sc, "a failed build: the summary says so, no program size anywhere" ) )
     t.Check( fs.ReadAllText( mainF ).ValueOr( "" ) <> good, P( sc, "the buffer was saved before the build" ) )
     t.Check( mw.OutputShown andalso (mw.Out.current = outputpane.OutputTab.Results), P( sc, "the output pane opened on Results" ) )
     ' the Log tab's background is the lists'

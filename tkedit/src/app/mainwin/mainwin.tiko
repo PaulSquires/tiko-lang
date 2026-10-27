@@ -42,6 +42,7 @@
 #import "tkc/session"
 #import "tkc/settings"
 #import "tkc/symboldb"
+#import "tkc/text"
 #import "tkc/textsearch"
 #import "tkc/textstream"
 #import "tkc/themes"
@@ -295,6 +296,7 @@ public type Window
     BuildProgram as ustring
     BuildDir as ustring
     BuildRaw as ustring
+    BuildTicks as ulongint                    ' SDL_GetTicks( ) when the build started (the log's compile time)
     LogText as ustring
     LastExe as ustring
     PendingArgs as Array( of ustring )
@@ -2639,6 +2641,7 @@ function Window.StartBuild( byval action as build.BuildAction, byval rebuild as 
     LogText = build.CommandLine( tiko, args ) & chr( 10 )
     Out.SetLog( LogText )
     this.ClearDiagnostics( )
+    BuildTicks = SDL_GetTicks( )
     dim as Result( of boolean, ustring ) st = Job.Start( tiko, args, workDir )
     if st.IsOk( ) = false then
         LogText &= st.Failure( ) & chr( 10 )
@@ -2698,9 +2701,22 @@ sub Window.FinishBuild( )
     if len( LastExe ) then LastExe = fs.PathToNative( LastExe )          ' tiko's events write /
     dim as boolean ok = (code = 0) andalso (counts.Errors = 0)
     BuildSucceeded = ok
+    ' the program's size, for the log's summary and the message (a successful build's only)
+    dim as longint exeBytes = -1
+    if ok andalso (len( LastExe ) > 0) then
+        dim as fs.FsResultInfo fi = fs.Stat( LastExe )
+        if fi.IsOk( ) then
+            if fi.Value( ).IsFile( ) then exeBytes = fi.Value( ).Size( )
+        end if
+    end if
+    LogText = build.LogSummary( ok, counts.Errors, counts.Warnings, fs.PathToNative( BuildMain ), LastExe, exeBytes, _
+                                clng( SDL_GetTicks( ) - BuildTicks ), text.DateTimeStamp( ) ) & LogText
+    Out.SetLog( LogText )
     dim as ustring msg = "Build OK"
     if ok = false then msg = "Build failed"
-    this.SetBuildMessage( strings.Format( "{}  {} errors, {} warnings", msg, counts.Errors, counts.Warnings ) )
+    msg = strings.Format( "{}  {} errors, {} warnings", msg, counts.Errors, counts.Warnings )
+    if exeBytes >= 0 then msg &= " [" & build.SizeText( fs.PathFileName( LastExe ), exeBytes ) & "]"
+    this.SetBuildMessage( msg )
     if ok = false then
         this.ShowOutput( true )
         if counts.ShowLog then
