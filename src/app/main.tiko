@@ -13,6 +13,7 @@
 #import "std/fs"
 #import "std/strings"
 #import "tkp/platform"
+#import "tkc/project"
 #import "tka/mainwin"
 #import "./tests/selftest"
 #import "tkControls/tkApp"
@@ -50,13 +51,22 @@ if theWindow.Create( ) = false then
     print "tkEdit: the main window could not be created: "; *SDL_GetError( ); " "; tkCodeEdit_LibraryError( )
     end 1
 end if
-theWindow.RestoreSession( )
+' Files (or a .tkedit) named on the command line take the place of the last session's files and
+' project; the window's place and the recent list come back either way.
+dim as Array( of ustring ) named
 dim as long i = 1
 while len( command( i ) )
     dim as ustring a = command( i )
     dim as ustring f = fs.AbsolutePath( a ).ValueOr( a )
-    if fs.IsFile( f ) then theWindow.OpenFile( f )
+    if fs.IsFile( f ) then named.Push( f )
     i += 1
 wend
+theWindow.RestoreSession( named.Count( ) = 0 )
+for each f as ustring in named
+    if project.IsProjectFile( f ) then theWindow.OpenFile( f )     ' a project first: it closes what is open
+next
+for each f as ustring in named
+    if project.IsProjectFile( f ) = false then theWindow.OpenFile( f )
+next
 theWindow.Show( )
 end tkApp_Run( theWindow.form )

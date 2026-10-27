@@ -812,6 +812,27 @@ public sub SessionPass( byref t as Tally, byval sc as single )
         t.Check( (wx = 140) andalso (wy = 130), P( sc, strings.Format( "and its place: {},{}", wx, wy ) ) )
     end if
     mw2.Destroy( )
+
+    ' files named on the command line: RestoreSession( FALSE ) keeps the window's size and the
+    ' recent list, and opens nothing of the last session (main.tiko then opens the named files)
+    dim as mainwin.Window mw3
+    mw3.ConfigDir = cfg
+    mw3.Ask = @ScriptedAsk
+    mw3.Pick = @ScriptedPick
+    t.Check( mw3.Create( sc ), P( sc, "session: third window" ) )
+    if mw3.form = 0 then exit sub
+    mw3.Show( )
+    mw3.RestoreSession( false )
+    tkTest_PumpFor( tkForm_Host( mw3.form ), 100 )
+    dim as long w3, h3
+    SDL_GetWindowSize( tkForm_Host( mw3.form )->win, @w3, @h3 )
+    t.Check( (mw3.Docs.Count( ) = 1) andalso mw3.Docs[0]->IsNew( ) andalso (mw3.Split = session.SplitMode.None), _
+             P( sc, strings.Format( "named files instead: no buffer of the last session reopened ({})", mw3.Docs.Count( ) ) ) )
+    t.Check( (mw3.Recent.Count( ) = 2) andalso (w3 = 720) andalso (h3 = 520), _
+             P( sc, strings.Format( "but the recent files ({}) and the window's size ({}x{}) came back", mw3.Recent.Count( ), w3, h3 ) ) )
+    mw3.OpenFile( pathB )
+    t.Check( (mw3.Docs.Count( ) = 1) andalso (lcase( mw3.ActivePath( ) ) = lcase( pathB )), P( sc, "and the named file opens alone" ) )
+    mw3.Destroy( )
 end sub
 
 ' ================================================================ P3: find, go to line, bookmarks, typing

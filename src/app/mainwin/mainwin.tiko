@@ -390,7 +390,7 @@ public type Window
     declare sub SetEncoding( byval e as docencoding.FileEncoding )
     declare sub SetLineEnding( byval e as docencoding.LineEnd )
     declare sub SaveSession( )
-    declare sub RestoreSession( )
+    declare sub RestoreSession( byval reopen as boolean = true )   ' FALSE: the window's place and the recent list only
     declare sub KeepNormalPlace( )
 
     ' ---- find, replace, go to line, bookmarks, typing
@@ -1794,7 +1794,7 @@ private function OnADisplay( byval x as long, byval y as long, byval w as long )
     return found
 end function
 
-sub Window.RestoreSession( )
+sub Window.RestoreSession( byval reopen as boolean )
     dim as session.SessionResult r = session.LoadSession( this.SessionFile( ) )
     if r.IsOk( ) = false then exit sub
     dim as session.SessionState st = r.Value( )
@@ -1805,10 +1805,14 @@ sub Window.RestoreSession( )
         NormalX = st.WinX : NormalY = st.WinY : NormalW = st.WinW : NormalH = st.WinH
         StartMax = st.WinMax
     end if
-    if len( st.Project ) andalso fs.IsFile( st.Project ) then
-        this.OpenProject( st.Project )
-    else
-        this.ApplyState( st, "" )
+    ' files named on the command line come instead of the last session's files or project
+    ' (author 2026-10-27): the caller passes reopen = FALSE and opens them itself
+    if reopen then
+        if len( st.Project ) andalso fs.IsFile( st.Project ) then
+            this.OpenProject( st.Project )
+        else
+            this.ApplyState( st, "" )
+        end if
     end if
     Recent.Assign( st.Recent )                  ' opening the files reordered it
     Message = ""
