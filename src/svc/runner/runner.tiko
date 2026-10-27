@@ -6,10 +6,10 @@
 '    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 '
 ' runner -- one child process whose output the window shows as it comes (the old
-' CreatePipe + ThreadCreate + PostMessage, PLAN.md deficiency 14). A goroutine reads the
+' CreatePipe + ThreadCreate + PostMessage, PLAN.md deficiency 14). A reader thread reads the
 ' child's merged stdout/stderr and sends each line down a channel, then the exit code; the UI
-' drains both from a timer (Poll), so nothing here touches a widget. The reader blocks in a pipe
-' read, which holds a pool thread, as std/tasks says it may.
+' drains both from a timer (Poll), so nothing here touches a widget. The thread is joined once
+' the code is in, so the Job never goes while the reader is still inside a Send.
 #module "runner"
 
 #import "std/containers"
@@ -29,6 +29,7 @@ public type Job
     finished as boolean
     exitCode as long = -1
     pending as string                    ' bytes after the last line break
+    reader as any ptr                    ' the reader thread, joined once its code is in
 
     declare function Start( byref program as const ustring, byref args as const Array( of ustring ), _
                             byref workDir as const ustring ) as Result( of boolean, ustring )
@@ -71,6 +72,17 @@ sub ReadAll( byval j as Job ptr )
     j->Exit_.Send( code )
 end sub
 
+' A thread of its own, joined (Poll, Finish) once the code has arrived: the Job must not be
+' reused or deleted while the reader is still inside its last Send.
+private sub ReadThread( byval p as any ptr )
+    ReadAll( cast( Job ptr, p ) )
+end sub
+
+private sub Join( byref t as any ptr )
+    if t then threadwait( t )
+    t = 0
+end sub
+
 function Job.Start( byref program as const ustring, byref args as const Array( of ustring ), _
                     byref workDir as const ustring ) as Result( of boolean, ustring )
     if running then return Fail( of boolean, ustring )( "already running" )
@@ -81,11 +93,14 @@ function Job.Start( byref program as const ustring, byref args as const Array( o
     cmd.StdinFrom( process.STDIO_NULL ).StdoutTo( process.STDIO_PIPE ).StderrToStdout( ).HideWindow( )
     dim as process.ProcResultBool r = child.Spawn( cmd )
     if r.IsOk( ) = false then return Fail( of boolean, ustring )( r.Failure( ).Message( ) )
-    running = true
     finished = false
     exitCode = -1
-    dim as Job ptr me_ = @this
-    spawn ReadAll( me_ )
+    reader = threadcreate( @ReadThread, @this )
+    if reader = 0 then
+        child.Kill( )
+        return Fail( of boolean, ustring )( "could not start the output reader" )
+    end if
+    running = true
     return Ok( of boolean, ustring )( true )
 end function
 
@@ -103,6 +118,7 @@ function Job.Poll( byref got as Array( of ustring ) ) as boolean
             got.Push( ln )
         wend
         exitCode = code
+        Join( reader )
         running = false
         finished = true
     end if
@@ -118,7 +134,11 @@ sub Job.Finish( )
     if running = false then exit sub
     child.Kill( )
     dim as long code
-    if Exit_.ReceiveFor( code, 5000 ) then exitCode = code
+    if Exit_.ReceiveFor( code, 5000 ) then
+        exitCode = code
+        Join( reader )
+    end if
+    reader = 0                          ' not in 5 s: left behind rather than hang the close
     running = false
     finished = true
 end sub

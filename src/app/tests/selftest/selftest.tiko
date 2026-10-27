@@ -100,8 +100,11 @@ private function FreshConfig( ) as ustring
     return cfg
 end function
 
+' The key-down may close the popup h is (Esc on a menu); the pump then frees it, so the key-up
+' and the pump after it go only to a host that is still open (valgrind: a read of freed memory).
 private sub Chord( byval h as TK_HOST ptr, byval key as long, byval sc as long, byval mods as long )
     tkTest_PushKey( h, key, mods, true, sc )
+    if tkHost_IsOpen( h ) = false then exit sub
     tkTest_PushKey( h, key, mods, false, sc )
     tkTest_PumpFor( h, 30 )
 end sub

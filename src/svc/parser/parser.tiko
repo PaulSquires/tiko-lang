@@ -301,6 +301,7 @@ public type Scanner
     Answers as Channel( of any ptr ) = Channel( of any ptr )( 64 )
     running as boolean
     queued as long
+    thread as any ptr                    ' the worker, joined by Stop
     declare function Start( byref libDir as const ustring ) as boolean
     declare sub Queue( byref path as const ustring, byref text as const ustring, byval useText as boolean, _
                        byref o as const ScanOptions, byval gen as long = 0 )
@@ -326,13 +327,21 @@ sub Work( byval sc as Scanner ptr )
     sc->Answers.Send( 0 )
 end sub
 
+' The worker is a thread of its own, not a goroutine: Stop JOINS it. Waiting only for its last
+' Send was not enough -- the worker could still be inside that Send, unlocking the channel, when
+' the window deleted the Scanner with it; and a pool goroutine's thread outlived main into the
+' runtime's exit (the Linux heap corruption, 2026-10-26).
+private sub WorkThread( byval p as any ptr )
+    Work( cast( Scanner ptr, p ) )
+end sub
+
 ' Loads the library from libDir and starts the worker. FALSE: Lib.LastError says why.
 function Scanner.Start( byref libDir as const ustring ) as boolean
     if running then return true
     if Lib.Load( libDir ) = false then return false
+    thread = threadcreate( @WorkThread, @this )
+    if thread = 0 then return false
     running = true
-    dim as Scanner ptr me_ = @this
-    spawn Work( me_ )
     return true
 end function
 
@@ -367,14 +376,21 @@ function Scanner.Pending( ) as long
 end function
 
 ' Ends the worker, waiting for the scan in hand (the library must not be mid-call when the
-' window goes).
+' window goes), then joins its thread. A scan stuck for 30 s leaves the thread behind rather
+' than hanging the close.
 sub Scanner.Stop( )
     if running = false then exit sub
     Requests.Send( 0 )
     dim as any ptr p
+    dim as boolean ended = false
     while Answers.ReceiveFor( p, 30000 )
-        if p = 0 then exit while
+        if p = 0 then
+            ended = true
+            exit while
+        end if
         delete cast( ScanJob ptr, p )
     wend
+    if ended andalso (thread <> 0) then threadwait( thread )
+    thread = 0
     running = false
 end sub
