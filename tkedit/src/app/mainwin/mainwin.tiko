@@ -86,7 +86,7 @@ public const FONT_UI = "Inter-Regular.ttf"
 public const FONT_UI_BOLD = "Inter-Bold.ttf"
 public const FONT_MONO = "JetBrainsMono-Regular.ttf"
 public const FONT_GLYPH = "PsIcons.ttf"
-public const ASK_ICON_PT = 20                 ' the question box's icon: vendor's 32 px cell, as its demo
+public const ASK_ICON_PT = 32                 ' the question box's icon (author 2026-10-27); its cell grows to fit
 public const DEFAULT_CX = 960
 public const DEFAULT_CY = 640
 public const STATUS_CY = 24              ' one status row, unscaled
@@ -223,7 +223,13 @@ public function NewAskBox( byval parent as TK_WIDGET ptr, byref text as const us
     if box = 0 then return 0
     dim as TK_FORM ptr f = tkForm_FromWidget( parent )
     if f then
-        if iconFont = 0 then iconFont = tkForm_Font( f, TKFONT_GLYPH_LARGE )
+        if iconFont = 0 then
+            iconFont = tkForm_Font( f, TKFONT_GLYPH_LARGE )
+        else
+            ' the icon's cell (vendor: 32 px) as tall as the font, whose em is its whole height
+            dim as long fh = TTF_GetFontHeight( iconFont )
+            tkMessageBox_SetIconSize( box, fh, fh )
+        end if
         tkMessageBox_ApplyFonts( box, tkForm_Font( f, TKFONT_UI ), iconFont )
         tkMessageBox_SetCloseGlyphFont( box, tkForm_Font( f, TKFONT_GLYPH ) )
     end if
