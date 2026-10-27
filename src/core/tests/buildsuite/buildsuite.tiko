@@ -245,12 +245,6 @@ private sub CommandTests( byref c as tally.Checker )
     dim as Array( of ustring ) e0
     c.Same( build.CommandLine( "C:\fb\x.exe", e0 ), """C:\fb\x.exe""", "CommandLine with no arguments" )
 
-    ' 'tiko check'
-    a = build.CheckArgs( "C:\p q\mod.tiko", " -i ""C:\My Inc"" -g ", "", W )
-    c.Same( Joined( a ), "[check][C:\p q\mod.tiko][--message-format][json][-target][windows-x86_64][--options][-i ""C:\My Inc"" -g]", "CheckArgs" )
-    c.Same( Joined( build.CheckArgs( "m.tiko", " ", "d.tsv", M ) ), "[check][m.tiko][--message-format][json][-target][macos-arm64][--diagnostics-file][d.tsv]", _
-        "CheckArgs, no flags, the macOS target" )
-
     ' a target of tiko.toml: the trailing separator goes, the extra inputs join the flags
     dim as Array( of ustring ) extra
     extra.Push( "C:\lib\x.o" )

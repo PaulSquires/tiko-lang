@@ -55,6 +55,7 @@ public type Picker
     AcceptOnCtrlUp as boolean
     Toggle   as TK_CHORD                 ' a chord that calls OnToggle instead (F4 again); key 0 = none
     OnToggle as PickedProc               ' tag = 0
+    OnTab    as PickedProc               ' Tab calls it instead of moving down; tag = 0
     SeedQuery as ustring                 ' the query box's text when it opens
     OnPick   as PickedProc
     OnMove   as PickedProc               ' the selection moved (Move): tag = the selected row's
@@ -220,7 +221,13 @@ function Picker.Open( byval owner as TK_HOST ptr, byref rows_ as const Array( of
         case SDLK_PAGEUP : p->Move( -p->MaxRows ) : return true
         case SDLK_PAGEDOWN : p->Move( p->MaxRows ) : return true
         case SDLK_TAB
-            if shift_ then p->Move( -1 ) else p->Move( 1 )
+            if (p->OnTab <> 0) andalso (shift_ = false) then
+                p->OnTab( p->Payload, 0 )
+            elseif shift_ then
+                p->Move( -1 )
+            else
+                p->Move( 1 )
+            end if
             return true
         end select
         return false

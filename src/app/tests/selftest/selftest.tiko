@@ -294,8 +294,6 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     tkTest_PumpFor( h, 30 )
     Chord( h, SDLK_D, SDL_SCANCODE_D, SDL_KMOD_CTRL )
     t.Check( mw.View( ).LineCount( ) = 2, P( sc, strings.Format( "Ctrl+D duplicated the line ({} lines)", mw.View( ).LineCount( ) ) ) )
-    Chord( h, SDLK_F, SDL_SCANCODE_F, SDL_KMOD_ALT or SDL_KMOD_SHIFT )
-    t.Check( mw.View( ).Text( ) = "abc" & mw.View( ).EolText( ) & "abc", P( sc, "Alt+Shift+F typed nothing" ) )
     mw.View( ).SetText( "" )                                     ' unmodified: closing it asks nothing
 
     ' ---- settings.toml: Ctrl+Comma opens it; saving applies it
@@ -466,7 +464,7 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     t.Check( mw.StatusText( mainwin.StatusPanel.Buffer ) = "a.tiko", P( sc, "buffer panel: " & mw.StatusText( mainwin.StatusPanel.Buffer ) ) )
     t.Check( mw.StatusText( mainwin.StatusPanel.LineEnding ) = "LF", P( sc, "a.tiko is LF" ) )
     dim as ustring title = *SDL_GetWindowTitle( h->win )
-    t.Check( title = "tkEdit - a.tiko", P( sc, "title: " & title ) )
+    t.Check( title = "tkEdit - " & pathA, P( sc, "title: " & title ) )
     mw.OpenFile( pathB )
     t.Check( mw.StatusText( mainwin.StatusPanel.LineEnding ) = "CRLF", P( sc, "b.tiko is CRLF" ) )
     mw.OpenFile( pathA )
@@ -620,10 +618,12 @@ public sub BufferPass( byref t as Tally, byval sc as single )
              P( sc, "each names its pane's buffer: " & tkStatusBar_GetText( mw.status2, mainwin.StatusPanel.Buffer ) ) )
     title = *SDL_GetWindowTitle( h->win )
     t.Check( mw.InPane2 andalso (tkHost_GetFocus( h ) = v2), P( sc, "the new pane has the focus" ) )
-    t.Check( title = "tkEdit - " & mw.Pane2->DisplayName( ), P( sc, "the caption names pane 2's: " & title ) )
+    dim as ustring p2name = mw.Pane2->Path
+    if len( p2name ) = 0 then p2name = mw.Pane2->DisplayName( )
+    t.Check( title = "tkEdit - " & p2name, P( sc, "the caption names pane 2's, its full path: " & title ) )
     Chord( h, SDLK_GRAVE, SDL_SCANCODE_GRAVE, SDL_KMOD_CTRL )
     title = *SDL_GetWindowTitle( h->win )
-    t.Check( (mw.InPane2 = false) andalso (tkHost_GetFocus( h ) = v1) andalso (title = "tkEdit - a.tiko"), _
+    t.Check( (mw.InPane2 = false) andalso (tkHost_GetFocus( h ) = v1) andalso (title = "tkEdit - " & pathA), _
              P( sc, "Ctrl+Tilde moved the focus to pane 1, the caption with it: " & title ) )
     Chord( h, SDLK_GRAVE, SDL_SCANCODE_GRAVE, SDL_KMOD_CTRL )
     t.Check( mw.InPane2 andalso (tkHost_GetFocus( h ) = v2), P( sc, "and back to pane 2" ) )
@@ -631,7 +631,7 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     v2 = mw.Pane2->Main.Widget( )
     t.Check( (mw.Pane2 = splitB) andalso (mw.Pane1 = splitA) andalso (tkHost_GetFocus( h ) = v2), P( sc, "b.tiko in pane 2, a.tiko still in pane 1" ) )
     title = *SDL_GetWindowTitle( h->win )
-    t.Check( title = "tkEdit - b.tiko", P( sc, "the caption follows the buffer: " & title ) )
+    t.Check( title = "tkEdit - " & pathB, P( sc, "the caption follows the buffer: " & title ) )
     tkTest_PushText( h, "zz" )
     tkTest_PumpFor( h, 40 )
     t.Check( (left( splitB->Main.Text( ), 2 ) = "zz") andalso (left( splitA->Main.Text( ), 2 ) <> "zz"), P( sc, "typing in pane 2 edits its own buffer only" ) )
@@ -1073,9 +1073,7 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     t.Check( gLaunched.Count( ) = 1, P( sc, "and ran it" ) )
     t.Check( (mw.Diags.Count( ) = 0) andalso (mw.View( ).SquiggleAt( 0 ) = 0), P( sc, "the squiggles and rows are gone" ) )
 
-    ' ---- Ctrl+F7: tiko check of the module; Ctrl+Alt+F5: clean, then build
-    Chord( h, SDLK_F7, SDL_SCANCODE_F7, SDL_KMOD_CTRL )
-    t.Check( WaitBuild( mw ) andalso mw.BuildSucceeded andalso (instr( mw.Out.LogText( ), " check " ) > 0), P( sc, "Ctrl+F7 checked the module" ) )
+    ' ---- Ctrl+Alt+F5: clean, then build
     Chord( h, SDLK_F5, SDL_SCANCODE_F5, SDL_KMOD_CTRL or SDL_KMOD_ALT )
     t.Check( WaitBuild( mw ) andalso mw.BuildSucceeded, P( sc, "Ctrl+Alt+F5 rebuilt: " & mw.Message ) )
     t.Check( (instr( mw.Out.LogText( ), " clean " ) > 0) andalso (instr( mw.Out.LogText( ), " build " ) > 0), P( sc, "clean, then build, in the log" ) )
@@ -1175,31 +1173,37 @@ public sub IntelPass( byref t as Tally, byval sc as single )
     t.Check( WaitScans( mw, 2 ), P( sc, strings.Format( "the scans came back ({}): {}", mw.ScansInstalled, mw.LastScanError ) ) )
     t.Check( mw.Db.HasFile( mainF ) andalso mw.Db.HasFile( utilF ), P( sc, "both files are scanned" ) )
 
-    ' ---- F4: this buffer's procedures; F4 again: every open buffer's, with the file
+    ' ---- Ctrl+Shift+P: this buffer's procedures; Tab: every open buffer's, with the file; the same key closes it
     Chord( h, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
-    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Functions), P( sc, "F4 opened the functions list" ) )
+    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Functions), P( sc, "Ctrl+Shift+P opened the functions list" ) )
+    PopKey( mw, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    t.Check( mw.Chooser.IsOpen( ) = false, P( sc, "Ctrl+Shift+P again closed it" ) )
+    Chord( h, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
     t.Check( mw.Chooser.ShownCount( ) = 2, P( sc, strings.Format( "two in main.tiko ({})", mw.Chooser.ShownCount( ) ) ) )
     t.Check( RowCells( mw, 0 ) = "Twice|function|6", P( sc, "Name | Kind | Line: " & RowCells( mw, 0 ) ) )
     t.Check( RowCells( mw, 1 ) = "Show|sub|10", P( sc, "in source order: " & RowCells( mw, 1 ) ) )
-    PopKey( mw, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    PopKey( mw, SDLK_TAB, SDL_SCANCODE_TAB )
     t.Check( mw.Chooser.IsOpen( ) andalso mw.FuncsAll andalso (mw.Chooser.ShownCount( ) = 3), _
-             P( sc, strings.Format( "F4 again: every open buffer ({})", mw.Chooser.ShownCount( ) ) ) )
+             P( sc, strings.Format( "Tab: every open buffer ({})", mw.Chooser.ShownCount( ) ) ) )
     t.Check( mw.Chooser.Columns.Count( ) = 4, P( sc, "with a File column" ) )
     if mw.Chooser.Pop then
         tkTest_PushText( mw.Chooser.Pop, "help" )
         tkTest_PumpFor( h, 40 )
     end if
     t.Check( (mw.Chooser.ShownCount( ) = 1) andalso (RowCells( mw, 0 ) = "Helper|function|1|util.tiko"), P( sc, "'help' leaves Helper: " & RowCells( mw, 0 ) ) )
-    PopKey( mw, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    PopKey( mw, SDLK_TAB, SDL_SCANCODE_TAB )
     t.Check( (mw.FuncsAll = false) andalso (mw.Chooser.QueryText( ) = "help") andalso (mw.Chooser.ShownCount( ) = 0), _
-             P( sc, "F4 once more: back to this buffer, the query kept" ) )
-    PopKey( mw, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+             P( sc, "Tab again: back to this buffer, the query kept" ) )
+    PopKey( mw, SDLK_TAB, SDL_SCANCODE_TAB )
     PopKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
     t.Check( (lcase( mw.ActivePath( ) ) = lcase( utilF )) andalso (mw.View( ).CaretLine( ) = 1), P( sc, "Enter opened util.tiko at Helper" ) )
 
     ' ---- Ctrl+P: files and definitions, fuzzy
     Chord( h, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL )
     t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Symbols), P( sc, "Ctrl+P opened Search Symbol" ) )
+    PopKey( mw, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL )
+    t.Check( mw.Chooser.IsOpen( ) = false, P( sc, "Ctrl+P again closed it" ) )
+    Chord( h, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL )
     t.Check( mw.Chooser.ShownCount( ) = 6, P( sc, strings.Format( "2 files + Point, Twice, Show, Helper ({})", mw.Chooser.ShownCount( ) ) ) )
     if mw.Chooser.Pop then
         tkTest_PushText( mw.Chooser.Pop, "twi" )
@@ -1281,7 +1285,7 @@ public sub IntelPass( byref t as Tally, byval sc as single )
     m2.Destroy( )
 end sub
 
-' ================================================================ P6: formatter, Find in Project
+' ================================================================ P6: Find in Project
 
 public sub PolishPass( byref t as Tally, byval sc as single )
     dim as ustring dir_ = fs.PathJoin( Files( ), "polish" )
@@ -1302,20 +1306,6 @@ public sub PolishPass( byref t as Tally, byval sc as single )
     if mw.form = 0 then exit sub
     mw.Show( )
     dim as TK_HOST ptr h = tkForm_Host( mw.form )
-
-    ' ---- Alt+Shift+F: the formatter, one undo step
-    mw.View( ).SetLineEnding( docencoding.LineEnd.Lf, false )
-    mw.View( ).SetText( "sub f( )" & nl & "if x then" & nl & "print 1" & nl & "end if" & nl & "end sub" & nl )
-    mw.Prefs.CodeTips = false
-    Chord( h, SDLK_F, SDL_SCANCODE_F, SDL_KMOD_ALT or SDL_KMOD_SHIFT )
-    t.Check( mw.View( ).Text( ) = "sub f( )" & nl & "    if x then" & nl & "        print 1" & nl & "    end if" & nl & "end sub" & nl, _
-             P( sc, "Alt+Shift+F indented the blocks: [" & mw.View( ).Text( ) & "]" ) )
-    t.Check( mw.Message = "formatted", P( sc, "and said so" ) )
-    Chord( h, SDLK_F, SDL_SCANCODE_F, SDL_KMOD_ALT or SDL_KMOD_SHIFT )
-    t.Check( mw.Message = "already formatted", P( sc, "twice: nothing to do" ) )
-    mw.View( ).Undo( )
-    t.Check( left( mw.View( ).Text( ), 18 ) = "sub f( )" & nl & "if x then", P( sc, "one Undo takes it back" ) )
-    mw.View( ).SetSavePoint( )
 
     ' ---- Ctrl+Shift+F: every project file, unopened ones and unsaved edits too
     mw.OpenFile( mainF )

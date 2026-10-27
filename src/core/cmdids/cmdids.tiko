@@ -56,7 +56,6 @@ public enum Cmd explicit
     ToLowerCase
     ToMixedCase
     CompleteWord
-    FormatDocument
     ' Search
     SearchSymbol
     Find
@@ -94,15 +93,12 @@ public enum Cmd explicit
     UnfoldAll
     ' Project
     ProjectNew
-    ProjectOpen
-    ProjectSave
     ProjectClose
     ProjectFilesAdd
     ' Build
     BuildExecute
     Compile
     RebuildAll
-    CompileModule
     QuickRun
     RunExe
     BuildConfig
@@ -242,8 +238,8 @@ constructor CommandTable( )
     this.Def( Cmd.SelectLine, "SelectLine", g, "Select Line", "Primary+L" )
     this.Def( Cmd.DeleteLine, "DeleteLine", g, "Delete Line", "Primary+Y", true )
     this.Def( Cmd.DuplicateLine, "DuplicateLine", g, "Duplicate Line", "Primary+D" )
-    this.Def( Cmd.MoveLineUp, "MoveLineUp", g, "Move Line Up", "Alt+Up" )
-    this.Def( Cmd.MoveLineDown, "MoveLineDown", g, "Move Line Down", "Alt+Down" )
+    this.Def( Cmd.MoveLineUp, "MoveLineUp", g, "Move Line Up", "Primary+Shift+Up" )
+    this.Def( Cmd.MoveLineDown, "MoveLineDown", g, "Move Line Down", "Primary+Shift+Down" )
     this.Def( Cmd.NewLineBelowCurrent, "NewLineBelowCurrent", g, "New Line Below", "Primary+Enter" )
     this.Def( Cmd.CommentBlock, "CommentBlock", g, "Comment", "Primary+/", true )
     this.Def( Cmd.UncommentBlock, "UncommentBlock", g, "Uncomment", "Primary+Shift+/" )
@@ -253,7 +249,6 @@ constructor CommandTable( )
     this.Def( Cmd.ToLowerCase, "ToLowerCase", g, "Lower Case", "Primary+Shift+L" )
     this.Def( Cmd.ToMixedCase, "ToMixedCase", g, "Mixed Case", "Primary+Shift+X" )
     this.Def( Cmd.CompleteWord, "CompleteWord", g, "Complete Word", "Primary+Spacebar", true )
-    this.Def( Cmd.FormatDocument, "FormatDocument", g, "Format Document", "Alt+Shift+F" )
 
     g = MenuGroup.Search
     this.Def( Cmd.SearchSymbol, "SearchSymbol", g, "Search Symbol...", "Primary+P" )
@@ -294,8 +289,6 @@ constructor CommandTable( )
 
     g = MenuGroup.Project
     this.Def( Cmd.ProjectNew, "ProjectNew", g, "New Project...", "Primary+Alt+N" )
-    this.Def( Cmd.ProjectOpen, "ProjectOpen", g, "Open Project...", "" )
-    this.Def( Cmd.ProjectSave, "ProjectSave", g, "Save Project", "" )
     this.Def( Cmd.ProjectClose, "ProjectClose", g, "Close Project", "Primary+Alt+W" )
     this.Def( Cmd.ProjectFilesAdd, "ProjectFilesAdd", g, "Add File...", "Primary+F11", true )
 
@@ -303,7 +296,6 @@ constructor CommandTable( )
     this.Def( Cmd.BuildExecute, "BuildExecute", g, "Build and Run", "F5" )
     this.Def( Cmd.Compile, "Compile", g, "Compile", "Primary+F5" )
     this.Def( Cmd.RebuildAll, "RebuildAll", g, "Rebuild All", "Primary+Alt+F5" )
-    this.Def( Cmd.CompileModule, "CompileModule", g, "Compile Module", "Primary+F7" )
     this.Def( Cmd.QuickRun, "QuickRun", g, "Quick Run", "Primary+Shift+F5", true )
     this.Def( Cmd.RunExe, "RunExe", g, "Run", "Shift+F5" )
     this.Def( Cmd.BuildConfig, "BuildConfig", g, "Build Configuration...", "F7", true )

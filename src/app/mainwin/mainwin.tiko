@@ -33,7 +33,6 @@
 #import "tkc/build"
 #import "tkc/cmdids"
 #import "tkc/docencoding"
-#import "tkc/format"
 #import "tkc/keybind"
 #import "tkc/mru"
 #import "tkc/navhistory"
@@ -314,8 +313,6 @@ public type Window
     Hits as Array( of SymHit )          ' the chooser's rows, for Symbols and Functions
 
     ' ---- P6
-    Fmt as format.Formatter
-    FormatterReady as boolean
     scratch as editor.CodeView          ' hidden: Find in Project matches each file's text in it
     Found as Array( of SearchHit )      ' the Search tab's rows
 
@@ -436,12 +433,12 @@ public type Window
     declare sub ShowCompletionsAt( byval v as editor.CodeView ptr, byval d as DocRef, byval minLen as long )
 
     ' ---- P6: the formatter, Find in Project
-    declare function FormatDocument( ) as boolean
     declare function RunProjectSearch( ) as long
     declare sub OpenSearchHit( byval i as long )
 
     ' ---- the chooser popup
     declare sub OpenChooser( byval kind as PickKind )
+    declare sub CloseOnOwnKey( byval id as Cmd )
     declare sub Chosen( byval tag as long )
     declare function DocOfWidget( byval w as TK_WIDGET ptr ) as DocRef
     declare sub ShowEditMenu( byval hEdit as TK_WIDGET ptr, byval x as long, byval y as long )
@@ -761,6 +758,7 @@ sub Window.ShowTitle( )
     dim as ustring title = appinfo.WindowTitle( )
     if d then
         dim as ustring nm = d->DisplayName( )
+        if len( d->Path ) then nm = d->Path       ' the full path (author 2026-10-27)
         if ProjOpen then nm &= " [" & Proj.Name( ) & "]"
         title = appinfo.WindowTitle( nm )
     end if
@@ -858,13 +856,13 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
          Cmd.SplitTopBottom, Cmd.CycleFocus, Cmd.ZoomIn, Cmd.ZoomOut, Cmd.ZoomReset, Cmd.FoldToggle, _
          Cmd.FoldBelow, Cmd.FoldAll, Cmd.UnfoldAll, Cmd.BuildConfig
         return true
-    case Cmd.FormatDocument, Cmd.FindInProject
+    case Cmd.FindInProject
         return true
     case Cmd.CompleteWord, Cmd.GoToDefinition, Cmd.GoBack, Cmd.GoForward, Cmd.GoToNextFunction, _
          Cmd.GoToPrevFunction, Cmd.SearchSymbol, Cmd.FunctionList
         return true
-    case Cmd.OutputPane, Cmd.BuildExecute, Cmd.Compile, Cmd.RebuildAll, Cmd.CompileModule, Cmd.QuickRun, _
-         Cmd.RunExe, Cmd.NextDiagnostic, Cmd.PrevDiagnostic, Cmd.ProjectNew, Cmd.ProjectOpen, Cmd.ProjectSave, _
+    case Cmd.OutputPane, Cmd.BuildExecute, Cmd.Compile, Cmd.RebuildAll, Cmd.QuickRun, _
+         Cmd.RunExe, Cmd.NextDiagnostic, Cmd.PrevDiagnostic, Cmd.ProjectNew, _
          Cmd.ProjectClose, Cmd.ProjectFilesAdd
         return true
     case Cmd.Find, Cmd.Replace, Cmd.FindNext, Cmd.FindPrev, Cmd.ReplaceOne, Cmd.GoToLine, _
@@ -920,7 +918,6 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.SplitLeftRight : this.ToggleSplit( session.SplitMode.Vertical )
     case Cmd.SplitTopBottom : this.ToggleSplit( session.SplitMode.Horizontal )
     case Cmd.CycleFocus : this.CycleFocus( )
-    case Cmd.FormatDocument : this.FormatDocument( )
     case Cmd.FindInProject : this.OpenStrip( findstrip.StripMode.Project )
     case Cmd.CompleteWord : this.ShowCompletionsAt( v, this.Active( ), 0 )
     case Cmd.GoToDefinition : this.GoToDefinition( )
@@ -928,15 +925,23 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.GoForward : this.GoHistory( true )
     case Cmd.GoToNextFunction : this.GoFunction( true )
     case Cmd.GoToPrevFunction : this.GoFunction( false )
-    case Cmd.SearchSymbol : this.OpenChooser( PickKind.Symbols )
+    case Cmd.SearchSymbol
+        if Chooser.IsOpen( ) andalso (Choosing = PickKind.Symbols) then
+            Chooser.Close( )
+        else
+            this.OpenChooser( PickKind.Symbols )
+        end if
     case Cmd.FunctionList
-        FuncsAll = false
-        this.OpenChooser( PickKind.Functions )
+        if Chooser.IsOpen( ) andalso (Choosing = PickKind.Functions) then
+            Chooser.Close( )
+        else
+            FuncsAll = false
+            this.OpenChooser( PickKind.Functions )
+        end if
     case Cmd.OutputPane : this.ShowOutput( OutputShown = false )
     case Cmd.Compile : this.StartBuild( build.BuildAction.Compile )
     case Cmd.BuildExecute : this.StartBuild( build.BuildAction.BuildExecute )
     case Cmd.RebuildAll : this.StartBuild( build.BuildAction.Compile, true )
-    case Cmd.CompileModule : this.StartBuild( build.BuildAction.CompileModule )
     case Cmd.QuickRun : this.StartBuild( build.BuildAction.QuickRun )
     case Cmd.RunExe
         if len( LastExe ) = 0 then LastExe = build.OutputFile( this.ActivePath( ), "", platform.CurrentOs( ) )
@@ -944,12 +949,6 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.NextDiagnostic : this.StepDiagnostic( true )
     case Cmd.PrevDiagnostic : this.StepDiagnostic( false )
     case Cmd.ProjectNew : this.NewProject( )
-    case Cmd.ProjectOpen
-        dim as ustring dir_ = ""
-        if len( this.ActivePath( ) ) then dir_ = fs.PathParent( this.ActivePath( ) )
-        dim as ustring pp = Pick( form, TKFD_OPEN, dir_ )
-        if len( pp ) then this.OpenProject( pp )
-    case Cmd.ProjectSave : this.SaveProject( )
     case Cmd.ProjectClose : this.CloseProject( )
     case Cmd.ProjectFilesAdd : this.AddToProject( )
     case Cmd.BuildConfig : this.OpenChooser( PickKind.Build )
@@ -1791,6 +1790,7 @@ sub Window.OpenChooser( byval kind as PickKind )
     Chooser.SeedQuery = keep
     Chooser.MaxRows = 12
     Chooser.Toggle.key = 0
+    Chooser.OnTab = 0
     Chooser.Columns.Clear( )
     Chooser.Columns.Push( 18 )
     Chooser.Columns.Push( 220 )
@@ -1798,6 +1798,7 @@ sub Window.OpenChooser( byval kind as PickKind )
     dim as long popW = 460
     select case kind
     case PickKind.Symbols
+        this.CloseOnOwnKey( Cmd.SearchSymbol )
         ' the project's files and the open buffers, then every definition in them
         Hits.Clear( )
         Chooser.Columns.Clear( )
@@ -1888,10 +1889,9 @@ sub Window.OpenChooser( byval kind as PickKind )
             r.Tag = i
             rows.Push( r )
         next
-        dim as TK_CHORD tc
-        dim as string fk = Keys.Effective( Cmd.FunctionList )
-        if len( fk ) andalso tkKeys_Parse( fk, tc ) then Chooser.Toggle = tc
-        Chooser.OnToggle = sub( byval payload as any ptr, byval tag as long )
+        ' its own key again closes it (author 2026-10-27); Tab flips this buffer / every open buffer
+        this.CloseOnOwnKey( Cmd.FunctionList )
+        Chooser.OnTab = sub( byval payload as any ptr, byval tag as long )
             dim as Window ptr mw = payload
             mw->FuncsAll = (mw->FuncsAll = false)
             mw->OpenChooser( PickKind.Functions )
@@ -1999,6 +1999,17 @@ sub Window.OpenChooser( byval kind as PickKind )
         if x < 0 then x = 0
         Chooser.Open( h, rows, x, a.top - ph, w, sel )
     end if
+end sub
+
+' The chooser closes when the key of the command that opened it is pressed in it again.
+sub Window.CloseOnOwnKey( byval id as Cmd )
+    dim as TK_CHORD tc
+    dim as string k = Keys.Effective( id )
+    if (len( k ) = 0) orelse (tkKeys_Parse( k, tc ) = false) then exit sub
+    Chooser.Toggle = tc
+    Chooser.OnToggle = sub( byval payload as any ptr, byval tag as long )
+        cast( Window ptr, payload )->Chooser.Close( )
+    end sub
 end sub
 
 sub Window.Chosen( byval tag as long )
@@ -2347,7 +2358,7 @@ function Window.StartBuild( byval action as build.BuildAction, byval rebuild as 
         return false
     end if
     dim as DocRef d = this.Active( )
-    dim as boolean single_ = (action = build.BuildAction.CompileModule) orelse (action = build.BuildAction.QuickRun)
+    dim as boolean single_ = (action = build.BuildAction.QuickRun)
     dim as boolean useTarget = ProjOpen andalso (len( Proj.Target ) > 0) andalso (single_ = false)
     dim as boolean useMain = ProjOpen andalso (len( Proj.Target ) = 0) andalso (len( Proj.Main ) > 0) andalso (single_ = false)
     if (useTarget = false) andalso (useMain = false) andalso (action <> build.BuildAction.QuickRun) then
@@ -2387,10 +2398,6 @@ function Window.StartBuild( byval action as build.BuildAction, byval rebuild as 
         end if
         workDir = Proj.Dir_( )
         BuildMain = Proj.MainPath( )
-    elseif action = build.BuildAction.CompileModule then
-        args = build.CheckArgs( d->Path, BuildFlags, BuildDiagFile, os_ )
-        workDir = fs.PathParent( d->Path )
-        BuildMain = d->Path
     else
         dim as ustring src
         if useMain then
@@ -2490,11 +2497,9 @@ sub Window.FinishBuild( )
     Diags = rep.Records
     dim as build.ResultCounts counts = build.CountResults( rep, dr.IsOk( ), false, code )
     this.ShowDiagnostics( counts )
-    if BuildAct <> build.BuildAction.CompileModule then
-        LastExe = build.EventRunPath( BuildRaw )
-        if len( LastExe ) = 0 then LastExe = build.OutputFile( BuildMain, BuildFlags, platform.CurrentOs( ) )
-        if len( LastExe ) then LastExe = fs.PathToNative( LastExe )      ' tiko's events write /
-    end if
+    LastExe = build.EventRunPath( BuildRaw )
+    if len( LastExe ) = 0 then LastExe = build.OutputFile( BuildMain, BuildFlags, platform.CurrentOs( ) )
+    if len( LastExe ) then LastExe = fs.PathToNative( LastExe )          ' tiko's events write /
     if len( QuickRunFile ) then fs.RemoveFile( QuickRunFile )
     dim as boolean ok = (code = 0) andalso (counts.Errors = 0)
     BuildSucceeded = ok
@@ -2973,25 +2978,7 @@ sub Window.ShowCompletionsAt( byval v as editor.CodeView ptr, byval d as DocRef,
     v->ShowCompletions( len( word ), items )
 end sub
 
-' ================================================================ P6: the formatter, Find in Project
-
-' Alt+Shift+F: the active buffer through tkc/format (its default rules, the settings' tab size),
-' in one undo step, the view kept where it was.
-function Window.FormatDocument( ) as boolean
-    if FormatterReady = false then
-        Fmt.SetKeywords( Look.Words.Words1, Look.Words.Words2, Look.Words.Words3 )
-        FormatterReady = true
-    end if
-    dim as editor.CodeView ptr v = @this.View( )
-    dim as format.FormatResult r = Fmt.FormatText( v->Text( ), format.DefaultRules( ), Prefs.TabSize, Prefs.UseTabs )
-    if r.Changed = false then
-        this.SetMessage( "already formatted" )
-        return false
-    end if
-    v->ReplaceAllText( r.Text )
-    this.SetMessage( "formatted" )
-    return true
-end function
+' ================================================================ P6: Find in Project
 
 ' Every file of the project (with no project: every open buffer) searched for the strip's phrase
 ' with its Aa / W / .* -- in a hidden view, so the matching is Find's own. An open buffer's text is

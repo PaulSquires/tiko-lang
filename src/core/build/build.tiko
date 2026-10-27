@@ -47,13 +47,12 @@ public type BuildConfig
 end type
 
 ' What a build was asked for: the old IDM_COMPILE, IDM_BUILDEXECUTE, IDM_QUICKRUN,
-' IDM_DEBUG_STARTDEBUGGING and IDM_COMPILEMODULE.
+' IDM_DEBUG_STARTDEBUGGING.
 public enum BuildAction explicit
     Compile          ' build only
     BuildExecute     ' build, then run
     QuickRun         ' build a temporary copy of the active document, then run it
     StartDebugging   ' build with -g -exx and no optimisation, then debug
-    CompileModule    ' 'tiko check' of the one module document
 end enum
 
 ' A '#CONSOLE' or '#GUI' directive in the main source, in source order.
@@ -221,17 +220,6 @@ public function BuildArgs( byref mainFile as const ustring, byref modules as Arr
         a.Push( m )
     next
     if len( resourceFile ) then Add( a, resourceFile )
-    Tail( a, trim( flags ), diagFile, os_ )
-    return a
-end function
-
-' Compile Module: 'tiko check' of the one document (BuildTikoCheckArgs) -- every error and
-' warning a build would give it, nothing written.
-public function CheckArgs( byref moduleFile as const ustring, byref flags as const ustring, _
-        byref diagFile as const ustring, byval os_ as platform.Os ) as Array( of ustring )
-    dim as Array( of ustring ) a
-    a.Push( "check" )
-    Add( a, moduleFile )
     Tail( a, trim( flags ), diagFile, os_ )
     return a
 end function

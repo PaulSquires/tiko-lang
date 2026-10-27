@@ -42,7 +42,6 @@ the name `tiko-studio` → `tkEdit` (incl. `platform.APP_NAME` and the run-scrip
 | `src/core/tests/sessionsuite` | — | new |
 | `src/core/project` | — | new: the `.tkedit` file; `SplitArgs` from tiko-studio's `tsc/manifest` |
 | `src/core/tests/projectsuite` | — | new |
-| `src/core/format` | `src/core/format` | — |
 | `src/core/tests/fmtsuite` | `src/core/tests/fmtsuite` | — |
 | `src/core/tests/keysdoc.tiko` | — | new: KEYS.md from the command table |
 | `src/app/outputpane` | `src/app/outputpane` | Results, Log and Search only |

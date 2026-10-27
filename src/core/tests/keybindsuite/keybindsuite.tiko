@@ -118,7 +118,7 @@ end sub
 
 private sub MapChecks( byref c as tally.Checker )
     dim as keybind.KeyMap m
-    c.SameNum( m.Count( ), 80, "one binding per command" )
+    c.SameNum( m.Count( ), 76, "one binding per command" )
     c.Check( m.Item( 0 ).Id = cmdids.Cmd.FileNew, "table order" )
     ' every shipped default parses and is canonical, and none collide
     dim as cmdids.CommandTable t
@@ -139,7 +139,7 @@ private sub MapChecks( byref c as tally.Checker )
     next
     c.Check( allParse, "every default chord parses and is written canonically:" & odd )
     c.Check( unique, "no two defaults share a chord" )
-    c.SameNum( withKeys, 78, "78 defaults" )
+    c.SameNum( withKeys, 76, "76 defaults" )
     c.Same( m.Effective( cmdids.Cmd.IndentBlock ), "Tab", "the default Tab is held canonically" )
     c.Same( m.Effective( cmdids.Cmd.FileSave ), "Primary+S", "FileSave default" )
     c.Same( m.Effective( cmdids.Cmd.SplitLeftRight ), "Primary+\", "a chord with a backslash" )
@@ -189,7 +189,8 @@ private sub TomlChecks( byref c as tally.Checker )
     c.Check( instr( t.Value( ), wchr( 10 ) & "FileSave = 'Primary+S'" & wchr( 10 ) ) > 0, "a default is listed at its chord" )
     c.Check( instr( t.Value( ), wchr( 10 ) & "SplitLeftRight = 'Primary+\'" & wchr( 10 ) ) > 0, "a backslash chord in a literal string" )
     c.Check( instr( t.Value( ), "# ---- Build" & wchr( 10 ) ) > 0, "the menu groups head their commands" )
-    c.Check( instr( t.Value( ), wchr( 10 ) & "ProjectOpen = ''" & wchr( 10 ) ) > 0, "a command with no default is listed too" )
+    c.Check( instr( t.Value( ), "ProjectOpen" ) = 0, "ProjectOpen takes no key (author 2026-10-27)" )
+    c.Same( m.Effective( cmdids.Cmd.MoveLineUp ), "Primary+Shift+Up", "Move Line Up default" )
     c.Same( m.Effective( cmdids.Cmd.FileSaveAs ), "Primary+Alt+S", "Save As default" )
     c.Same( m.Effective( cmdids.Cmd.ToUpperCase ), "Primary+Shift+U", "Upper Case default" )
     c.Same( m.Effective( cmdids.Cmd.FunctionList ), "Primary+Shift+P", "Functions default" )
@@ -204,12 +205,13 @@ private sub TomlChecks( byref c as tally.Checker )
 
     m.SetUserKeys( cmdids.Cmd.Compile, "Primary+Shift+B" )
     m.SetDefaultDisabled( cmdids.Cmd.DuplicateLine, true )
-    m.SetUserKeys( cmdids.Cmd.ProjectOpen, "Primary+Alt+O" )                ' no default
+    m.SetDefaultDisabled( cmdids.Cmd.ProjectNew, true )
+    m.SetUserKeys( cmdids.Cmd.ProjectNew, "Primary+Alt+O" )                 ' another chord
     m.SetUserKeys( cmdids.Cmd.Undo, "Primary+Z" )                           ' = its default
     m.SetUserKeys( cmdids.Cmd.CycleFocus, "Primary+Shift+\" )
     t = m.ToToml( )
     dim as ustring tv = t.Value( )
-    c.Check( (instr( tv, "ProjectOpen = 'Primary+Alt+O'" ) > 0) andalso (instr( tv, "DuplicateLine = ''" ) > 0) andalso _
+    c.Check( (instr( tv, "ProjectNew = 'Primary+Alt+O'" ) > 0) andalso (instr( tv, "DuplicateLine = ''" ) > 0) andalso _
              (instr( tv, "CycleFocus = 'Primary+Shift+\'" ) > 0) andalso (instr( tv, "Compile = 'Primary+Shift+B'" ) > 0) andalso _
              (instr( tv, "Undo = 'Primary+Z'" ) > 0), "the changed chords are written as they are in force" )
 
