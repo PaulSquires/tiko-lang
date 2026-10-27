@@ -1,0 +1,7 @@
+# A project whose program imports a module with runtime files, copied to dist/.
+[package]
+name = "vrtproj"
+
+[target.app]
+main = "main.tiko"
+copy_to = ["dist"]

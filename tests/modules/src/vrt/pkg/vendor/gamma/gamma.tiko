@@ -1,0 +1,5 @@
+'' A module with no library, whose package lists files it needs at run time.
+#module "gamma"
+public function gamma_id( ) as long
+    return 7
+end function

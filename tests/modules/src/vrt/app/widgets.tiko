@@ -1,0 +1,2 @@
+#import "widgets/core"
+print core.core_id( )

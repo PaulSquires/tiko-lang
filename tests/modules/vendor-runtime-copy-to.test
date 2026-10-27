@@ -1,0 +1,18 @@
+'' copy_to AND RUNTIME FILES: each file copied beside the artefact is a runtime-lib event, so
+'' 'tiko build' copies it into dist/ with the program.
+'' TEST: cli
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TKO_PKG=build/.vrt/pkg
+'' ENV: TKO_MODCACHE=build/.vrt/mc
+'' CLEAN: build/.vrt
+'' COPY: tests/modules/src/vrt/pkg => build/.vrt/pkg
+'' WRITE: build/.vrt/pkg/vendor/gamma/fonts/gamma.ttf :: a font\n
+'' WRITE: build/.vrt/pkg/vendor/gamma/lib/gammart.dll :: a library the program loads itself\n
+'' COPY: tests/modules/src/vrt/proj => build/.vrt/proj
+'' ARGS: build -target windows-x86_64 --manifest build/.vrt/proj --message-format json
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: {"event":"runtime-lib","path":"build/.vrt/proj/out/debug/gamma.ttf"}
+'' EXPECT-OUT: {"event":"runtime-lib","path":"build/.vrt/proj/out/debug/gammart.dll"}
+'' EXPECT-FILE: build/.vrt/proj/dist/app.exe
+'' EXPECT-FILE: build/.vrt/proj/dist/gamma.ttf
+'' EXPECT-FILE: build/.vrt/proj/dist/gammart.dll

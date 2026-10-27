@@ -1,0 +1,14 @@
+'' ANY PACKAGE'S [vendor.<module>] runtime, not only the toolchain's vendor package: widgets,
+'' found through -i, lists '../share/widgets.dat' for its module widgets/core -- a path that
+'' climbs out of the module's directory, as '#foreignlib "../lib/x"' may.
+'' TEST: cli
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TKO_MODCACHE=build/.vrp/mc
+'' CLEAN: build/.vrp
+'' COPY: tests/modules/src/vrt/libs => build/.vrp/libs
+'' WRITE: build/.vrp/libs/widgets/share/widgets.dat :: widgets' data\n
+'' ARGS: -target windows-x86_64 -i build/.vrp/libs tests/modules/src/vrt/app/widgets.tiko -o build/.vrp/widgets.exe
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: build/.vrp/widgets.dat
+'' RUN: build/.vrp/widgets.exe
+'' EXPECT-RUN-OUT: 11

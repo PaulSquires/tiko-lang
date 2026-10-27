@@ -80,6 +80,8 @@ inherits = "release"
 options  = ["-mt"]
 ```
 
+**`[vendor.<module>]`** belongs to the package rather than to a build: `links` names the link modes a C library module ships, and `runtime` the files a module needs beside the program at run time -- fonts, a library it loads itself -- relative to the module's directory, copied beside every program that imports the module and, with it, into each `copy_to` directory. See [Vendor Packages](Vendor-Packages#files-a-module-needs-at-run-time).
+
 ### `[target.<name>]`
 
 | Key | Type | Means |

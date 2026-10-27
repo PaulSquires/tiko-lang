@@ -90,6 +90,7 @@ function BuildImports _
       byref toolExit as int32, byval scanOnly as boolean ) as boolean
 
     dim as ModGraph g
+    ctx.runtimeFiles.Clear( )
     if BuildGraph( ctx, rootCount, true, g ) = false then return false
     '' HOW MANY UNITS THIS BUILD HAS, now that the graph says: every module and every root.
     '' A 'tiko build' tells its caller, for a progress count (src/build/events.ti).
@@ -105,6 +106,34 @@ function BuildImports _
         return false
     end if
     ctx.modObjPaths.Clear( )
+
+    '' THE FILES ITS MODULES NEED AT RUN TIME ([vendor.<module>] runtime), for CopyVendorLibs
+    '' to put beside the output after the link. Found from the graph, not the compiles, so a
+    '' module the cache supplies has them too; looked for only by a run that will copy them,
+    '' and before anything is compiled, so a package that lists a missing file fails at once.
+    dim as boolean copies = (scanOnly = false) andalso (ctx.options.noCopyLibs = false) andalso _
+                            (ctx.options.compileOnly = false) andalso (ctx.options.outKind <> Tko.OUT_STATICLIB) andalso _
+                            (len( ctx.options.outputPath ) > 0)
+    if copies then
+        dim as boolean missing = false
+        for each n as uint32 in g.order
+            dim as Tko.StrVec ents, paths
+            RuntimeFilesOf( ctx, g.pkgNames[n], g.chains[n], g.dirs[n], ents, paths )
+            for k as int32 = 0 to paths.Count - 1
+                if fs.IsFile( paths[k] ) = false then
+                    ctx.diags.ReportGlobal( Tko.TKO0176, g.chains[n], ents[k], paths[k] )
+                    missing = true
+                    continue for
+                end if
+                dim as boolean seen = false
+                for each p as string in ctx.runtimeFiles
+                    if p = paths[k] then seen = true
+                next
+                if seen = false then ctx.runtimeFiles.Push( paths[k] )
+            next
+        next
+        if missing then return false
+    end if
 
     '' A RUN WITH NO OUTPUT -- '--dump-ir' and the other dumps -- still compiles every module it
     '' imports, into the cache. Its intermediates were '<output>.<i>.o' with no output, so
@@ -289,6 +318,7 @@ function EmitInterface( byref ctx as Tko.CompilerContext, byref dir_ as string )
     dim as string privDir = PrivateTempDir_( )
     if len( privDir ) = 0 then privDir = environ( "TEMP" )
     ctx.options.outputPath = JoinPath( privDir, "tiko-emit-tki" )
+    ctx.options.noCopyLibs = true          '' nothing is linked, so nothing goes beside it
     dim as Tko.StrVec linkObjs, tempObjs
     dim as int32 toolExit = Tko.EXIT_OK
     dim as boolean ok = BuildImports( ctx, 1, linkObjs, tempObjs, toolExit )

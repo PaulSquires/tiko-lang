@@ -1,0 +1,2 @@
+#import "vendor/delta"
+print delta.delta_id( )

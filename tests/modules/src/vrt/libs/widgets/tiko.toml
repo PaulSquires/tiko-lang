@@ -1,0 +1,7 @@
+# An ordinary package, found through -i: its [vendor.<module>] runtime is honoured as the
+# toolchain's vendor package's is. The entry climbs out of the module's directory.
+[package]
+name = "widgets"
+
+[vendor.core]
+runtime = ["../share/widgets.dat"]

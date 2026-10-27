@@ -1,0 +1,2 @@
+#import "vendor/gamma"
+print gamma.gamma_id( )
