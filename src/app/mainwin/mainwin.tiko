@@ -38,6 +38,7 @@
 #import "tkc/navhistory"
 #import "tkc/outline"
 #import "tkc/project"
+#import "tkc/runargs"
 #import "tkc/session"
 #import "tkc/settings"
 #import "tkc/symboldb"
@@ -276,7 +277,10 @@ public type Window
     Marks as Array( of BookmarkHit )    ' the Bookmarks list's rows
 
     ' ---- the project (D8) and the build (P4)
-    Proj as project.ProjectFile
+    Proj as project.Manifest            ' the project's tiko.toml
+    ProjOpts as project.ProjectOptions  ' its options file in the config folder
+    ProjFiles as Array( of ustring )    ' the source files under its folder (ProjectFiles)
+    RunStore as runargs.RunArgsStore    ' the arguments of files built without a project
     ProjOpen as boolean
     Out as outputpane.Pane
     OutputShown as boolean
@@ -297,7 +301,6 @@ public type Window
     Cleaning as boolean
     BuildSucceeded as boolean
     Progress as build.BuildProgress
-    RunArgs as ustring                  ' Run's arguments with no project open
 
     ' ---- code intelligence (P5)
     NoParser as boolean                 ' set before Create: the outline only (the self-test)
@@ -372,7 +375,7 @@ public type Window
     declare function View( ) byref as editor.CodeView           ' the focused pane's view
     declare function ActivePath( ) as ustring
     declare function NewDocument( ) as DocRef
-    declare function OpenFile( byref path as const ustring ) as boolean     ' a .tkedit opens the project
+    declare function OpenFile( byref path as const ustring ) as boolean     ' a tiko.toml opens the project
     declare function OpenText( byref path as const ustring ) as boolean     ' any file, as text
     declare function SourceDoc( ) as DocRef
     declare sub EditProjectFile( )
@@ -405,7 +408,12 @@ public type Window
     declare function NewProject( ) as boolean
     declare function SaveProject( ) as boolean
     declare function CloseProject( ) as boolean
-    declare sub AddToProject( )
+    declare function ProjectTarget( ) as ustring
+    declare function ProjectFiles( byval refresh as boolean = false ) byref as Array( of ustring )
+    declare sub WriteProjectOptions( )
+    declare sub ApplyProjectOptions( )
+    declare function RunArgsNow( ) as ustring
+    declare sub SetRunArgs( byref a as const ustring )
     declare function CompilerPath( ) as ustring
     declare function ActiveBuildConfig( ) as build.BuildConfig
     declare function IsBuilding( ) as boolean
@@ -484,6 +492,11 @@ function Window.Create( byval forcedScale as single ) as boolean
 
     Prefs = settings.DefaultSettings( )
     Theme = themes.DarkTheme( )
+    ' the editor's state of projects whose tiko.toml is gone, and the arguments of files that are
+    ' gone, are dropped at every start (author 2026-10-27)
+    project.Prune( ConfigDir )
+    RunStore.Load( fs.PathJoin( ConfigDir, runargs.RUNARGS_FILE ) )
+    if RunStore.Prune( ) > 0 then RunStore.Save( )
 
     form = tkApp_NewForm( appinfo.WindowTitle( ), DEFAULT_CX, DEFAULT_CY, 0, forcedScale )
     if form = 0 then return false
@@ -775,7 +788,7 @@ sub Window.ShowTitle( )
     if d then
         dim as ustring nm = d->DisplayName( )
         if len( d->Path ) then nm = d->Path       ' the full path (author 2026-10-27)
-        if ProjOpen then nm &= " [" & fs.PathFileName( Proj.Path ) & "]"   ' hello.tkedit
+        if ProjOpen then nm &= " [" & fs.PathJoin( Proj.Name( ), project.MANIFEST_FILE ) & "]"   ' hello\tiko.toml
         title = appinfo.WindowTitle( nm )
     end if
     if title = lastTitle then exit sub
@@ -885,7 +898,7 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
         return true
     case Cmd.OutputPane, Cmd.BuildExecute, Cmd.Compile, Cmd.RebuildAll, _
          Cmd.RunExe, Cmd.NextDiagnostic, Cmd.PrevDiagnostic, Cmd.ProjectNew, _
-         Cmd.ProjectClose, Cmd.ProjectFilesAdd
+         Cmd.ProjectClose, Cmd.RunArguments
         return true
     case Cmd.Find, Cmd.Replace, Cmd.FindNext, Cmd.FindPrev, Cmd.ReplaceOne, Cmd.GoToLine, _
          Cmd.BookmarkToggle, Cmd.BookmarkNext, Cmd.BookmarkPrev, Cmd.BookmarkClearAll, Cmd.BookmarksList
@@ -913,10 +926,10 @@ function Window.Execute( byval id as Cmd ) as boolean
         ' buffers open before it
         dim as Array( of ustring ) picked = strings.Split( Pick( form, PICK_OPEN_MANY, dir_ ), wchr( 10 ) )
         for each p as ustring in picked
-            if len( p ) andalso project.IsProjectFile( p ) then this.OpenFile( p )
+            if len( p ) andalso project.IsManifest( p ) then this.OpenFile( p )
         next
         for each p as ustring in picked
-            if len( p ) andalso (project.IsProjectFile( p ) = false) then this.OpenFile( p )
+            if len( p ) andalso (project.IsManifest( p ) = false) then this.OpenFile( p )
         next
     case Cmd.FileRecent : this.OpenChooser( PickKind.Recent )
     case Cmd.FileClose : this.CloseDoc( this.Active( ) )
@@ -972,7 +985,7 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.PrevDiagnostic : this.StepDiagnostic( false )
     case Cmd.ProjectNew : this.NewProject( )
     case Cmd.ProjectClose : this.CloseProject( )
-    case Cmd.ProjectFilesAdd : this.AddToProject( )
+    case Cmd.RunArguments : this.OpenStrip( findstrip.StripMode.Args )
     case Cmd.BuildConfig : this.OpenChooser( PickKind.Build )
     case Cmd.Find : this.OpenStrip( findstrip.StripMode.Find )
     case Cmd.Replace : this.OpenStrip( findstrip.StripMode.Replace )
@@ -1226,21 +1239,16 @@ sub Window.AfterSave( byval d as DocRef )
     elseif (p = lcase( Theme.Path )) orelse _
            (p = lcase( fs.PathJoin( ConfigDir, themes.THEME_DIR, Prefs.Theme & ".toml" ) )) then
         this.ReloadTheme( )                     ' the active theme, or the user's new copy of it
-    elseif ProjOpen andalso (p = lcase( Proj.Path )) then
-        ' the project file, edited by hand: what it says now is the project
-        dim as project.ProjectResult r = project.LoadProject( Proj.Path )
+    elseif ProjOpen andalso (p = lcase( project.OptionsPath( ConfigDir, Proj.Path ) )) then
+        ' the project's options, edited by hand: what they say now holds
+        dim as project.OptionsResult r = project.LoadOptions( d->Path )
         if r.IsOk( ) then
-            dim as ustring keep = Proj.Path
-            Proj = r.Value( )
-            Proj.Path = keep
-            if len( Proj.Build ) then
-                for each b as settings.BuildConfig in Prefs.Builds
-                    if b.Name = Proj.Build then CurrentBuild = Proj.Build
-                next
-            end if
+            ProjOpts = r.Value( )
+            ProjOpts.Manifest = Proj.Path         ' which project it is, whatever was typed
+            this.ApplyProjectOptions( )
             this.ShowStatus( )
         else
-            this.SetMessage( fs.PathFileName( Proj.Path ) & ": " & r.Failure( ) )
+            this.SetMessage( fs.PathFileName( d->Path ) & ": " & r.Failure( ) )
         end if
     end if
 end sub
@@ -1416,11 +1424,19 @@ end sub
 ' Opens path in the focused pane, or shows the buffer it is already in. An untitled, empty,
 ' unmodified buffer in that pane gives way to it.
 function Window.OpenFile( byref path as const ustring ) as boolean
-    if project.IsProjectFile( path ) then return this.OpenProject( path )
+    if project.IsManifest( path ) then
+        ' a tiko.toml opens its folder's project, and is shown too, to edit (author 2026-10-27)
+        dim as ustring given = path
+        dim as ustring full = fs.AbsolutePath( given ).ValueOr( given )
+        if (ProjOpen = false) orelse (fs.PathEquals( full, Proj.Path ) = false) then
+            if this.OpenProject( full ) = false then return false
+        end if
+        return this.OpenText( full )
+    end if
     return this.OpenText( path )
 end function
 
-' path in a buffer, whatever it is -- a .tkedit too (the Project panel edits one by hand).
+' path in a buffer, whatever it is -- a tiko.toml too, without opening its project.
 function Window.OpenText( byref path as const ustring ) as boolean
     dim as DocRef have = this.FindOpen( path )
     if have then
@@ -1683,7 +1699,7 @@ sub Window.CaptureState( byref st as session.SessionState, byref base_ as const 
         st.Files[i].Open = false
     next
     for each d as DocRef in Docs
-        if (len( d->Path ) = 0) orelse project.IsProjectFile( d->Path ) then continue for
+        if len( d->Path ) = 0 then continue for
         dim as ustring stored = session.StoredPath( base_, d->Path )
         dim as long at = -1
         for i as long = 0 to st.Files.Count( ) - 1
@@ -1718,8 +1734,8 @@ sub Window.ApplyState( byref st as const session.SessionState, byref base_ as co
     end if
     for each f as session.FileState in st.Files
         dim as ustring full = session.FullPath( base_, f.Path )
-        if (f.Open = false) orelse (fs.IsFile( full ) = false) orelse project.IsProjectFile( full ) then continue for
-        if this.OpenFile( full ) = false then continue for
+        if (f.Open = false) orelse (fs.IsFile( full ) = false) then continue for
+        if this.OpenText( full ) = false then continue for
         dim as DocRef d = this.Active( )
         d->Main.SetBookmarks( f.Bookmarks )
         d->Main.SetPosition( f.Position )
@@ -1806,7 +1822,7 @@ sub Window.RestoreSession( byval reopen as boolean )
     ' files named on the command line come instead of the last session's files or project
     ' (author 2026-10-27): the caller passes reopen = FALSE and opens them itself
     if reopen then
-        if len( st.Project ) andalso fs.IsFile( st.Project ) then
+        if len( st.Project ) andalso fs.IsFile( st.Project ) andalso project.IsManifest( st.Project ) then
             this.OpenProject( st.Project )
         else
             this.ApplyState( st, "" )
@@ -1870,11 +1886,9 @@ sub Window.OpenChooser( byval kind as PickKind )
         popW = 620
         dim as Map( of ustring, boolean ) mine
         dim as Array( of ustring ) paths
-        if ProjOpen then
-            for i as long = 0 to Proj.FileCount( ) - 1
-                paths.Push( Proj.FilePath( i ) )
-            next
-        end if
+        for each f as ustring in this.ProjectFiles( true )
+            paths.Push( f )
+        next
         for each d as DocRef in Docs
             if len( d->Path ) then paths.Push( d->Path )
         next
@@ -1969,7 +1983,7 @@ sub Window.OpenChooser( byval kind as PickKind )
     case PickKind.Recent
         for i as long = 0 to Recent.Count( ) - 1
             dim as ustring nm = fs.PathFileName( Recent.Item( i ) )
-            if project.IsProjectFile( Recent.Item( i ) ) then nm &= "  [project]"
+            if project.IsManifest( Recent.Item( i ) ) then nm &= "  [project]"
             rows.Push( Row( " ", nm, fs.PathParent( Recent.Item( i ) ), i ) )
         next
     case PickKind.Encoding
@@ -2122,7 +2136,8 @@ end function
 sub Window.OpenStrip( byval m as findstrip.StripMode )
     dim as editor.CodeView ptr v = @this.View( )
     dim as ustring seed = v->SelectedText( )
-    dim as boolean multi = (instr( seed, chr( 10 ) ) > 0)
+    if m = findstrip.StripMode.Args then seed = this.RunArgsNow( )
+    dim as boolean multi = (m <> findstrip.StripMode.Args) andalso (instr( seed, chr( 10 ) ) > 0)
     if multi then
         FindLo = v->SelectionStart( )
         FindHi = v->SelectionEnd( )
@@ -2134,6 +2149,12 @@ sub Window.OpenStrip( byval m as findstrip.StripMode )
     this.Layout( )
     if m = findstrip.StripMode.GoTo then
         Finder.SetStatus( strings.Format( "1 - {}", v->LineCount( ) ) )
+    elseif m = findstrip.StripMode.Args then
+        if ProjOpen then
+            Finder.SetStatus( "Enter sets " & Proj.Name( ) & "'s command line; empty clears it" )
+        else
+            Finder.SetStatus( "Enter sets the arguments of this file; empty clears them" )
+        end if
     elseif m = findstrip.StripMode.Project then
         if ProjOpen then
             Finder.SetStatus( "Enter searches the project's files" )
@@ -2196,6 +2217,17 @@ sub Window.OnFind( byval a as findstrip.FindAction )
         exit sub
     case findstrip.FindAction.SearchFiles
         this.RunProjectSearch( )
+        exit sub
+    case findstrip.FindAction.SetArgs
+        this.SetRunArgs( trim( p ) )
+        Finder.Close( )
+        this.Layout( )
+        v->Focus( )
+        if len( trim( p ) ) then
+            this.SetMessage( "arguments: " & trim( p ) )
+        else
+            this.SetMessage( "arguments cleared" )
+        end if
         exit sub
     case findstrip.FindAction.GoToLine
         ' "42" or "42:7" (line:column, 1-based)
@@ -2271,7 +2303,7 @@ end sub
 ' Opens a .tkedit project: the buffers open now are closed first (asking for unsaved ones), then
 ' the project's open files come back where they were.
 function Window.OpenProject( byref path as const ustring ) as boolean
-    dim as project.ProjectResult r = project.LoadProject( path )
+    dim as project.ManifestResult r = project.LoadManifest( path )
     if r.IsOk( ) = false then
         this.SetMessage( r.Failure( ) )
         return false
@@ -2283,45 +2315,52 @@ function Window.OpenProject( byref path as const ustring ) as boolean
         if this.CloseAll( ) = false then return false
     end if
     Proj = r.Value( )
-    dim as ustring full = fs.AbsolutePath( Proj.Path ).ValueOr( Proj.Path )
-    Proj.Path = full
+    Proj.Path = fs.AbsolutePath( Proj.Path ).ValueOr( Proj.Path )
     ProjOpen = true
-    if len( Proj.Build ) then Proj.State.Build = Proj.Build
-    this.ApplyState( Proj.State, Proj.Dir_( ) )
-    if (Docs.Count( ) = 1) andalso Docs[0]->IsNew( ) andalso (len( Proj.MainPath( ) ) > 0) andalso fs.IsFile( Proj.MainPath( ) ) then
-        this.OpenFile( Proj.MainPath( ) )
+    ' the editor's options for it: kept from before, else new ones (the current build)
+    dim as project.OptionsResult o = project.LoadOptions( project.OptionsPath( ConfigDir, Proj.Path ) )
+    dim as project.ProjectOptions none_
+    ProjOpts = none_
+    if o.IsOk( ) then ProjOpts = o.Value( ) else ProjOpts.Build = CurrentBuild
+    ProjOpts.Manifest = Proj.Path
+    this.WriteProjectOptions( )
+    this.ProjectFiles( true )
+    dim as session.SessionResult sr = session.LoadSession( project.SessionPath( ConfigDir, Proj.Path ) )
+    if sr.IsOk( ) then this.ApplyState( sr.Value( ), Proj.Dir_( ) )
+    this.ApplyProjectOptions( )                  ' the options' build wins over the session's
+    if (Docs.Count( ) = 1) andalso Docs[0]->IsNew( ) then
+        dim as ustring m = Proj.MainOf( this.ProjectTarget( ) )
+        if len( m ) andalso fs.IsFile( m ) then this.OpenText( m )
     end if
-    Recent.Add( full )
+    Recent.Add( Proj.Path )
     LastExe = ""
     this.SetMessage( "project " & Proj.Name( ) )
     this.ShowTitle( )
     return true
 end function
 
-' A new project file (asked for) whose main file is the source buffer in front (SourceDoc).
+' A new project: the folder of the source buffer in front (SourceDoc). Its tiko.toml is written
+' when there is none -- a package named for the folder, one target whose main is that file -- and
+' the project opens (author 2026-10-27).
 function Window.NewProject( ) as boolean
     dim as DocRef d = this.SourceDoc( )
-    if (d <> 0) andalso d->IsNew( ) then
-        if this.SaveDoc( d, false ) = false then return false
-    end if
-    dim as ustring mainF = ""
-    if d then mainF = d->Path
-    dim as ustring suggest = "project" & project.PROJECT_EXT
-    if len( mainF ) then suggest = fs.PathJoin( fs.PathParent( mainF ), fs.PathStem( mainF ) & project.PROJECT_EXT )
-    dim as ustring path = Pick( form, TKFD_SAVE, suggest )
-    if len( path ) = 0 then return false
-    if ProjOpen then this.SaveProject( )
-    Proj = project.NewProject( path, mainF )
-    Proj.Build = CurrentBuild
-    ProjOpen = true
-    if this.SaveProject( ) = false then
-        ProjOpen = false
+    if d = 0 then
+        this.SetMessage( "no source file to make a project of" )
         return false
     end if
-    Recent.Add( Proj.Path )
-    this.SetMessage( "project " & Proj.Name( ) & " created" )
-    this.ShowTitle( )
-    return true
+    if d->IsNew( ) then
+        if this.SaveDoc( d, false ) = false then return false
+    end if
+    dim as ustring dir_ = fs.PathParent( d->Path )
+    dim as ustring mf = fs.PathJoin( dir_, project.MANIFEST_FILE )
+    if fs.IsFile( mf ) = false then
+        dim as ustring text = project.NewManifestText( fs.PathFileName( dir_ ), fs.PathStem( d->Path ), fs.PathFileName( d->Path ) )
+        if fs.WriteAtomic( mf, text ).IsOk( ) = false then
+            this.SetMessage( "could not write " & mf )
+            return false
+        end if
+    end if
+    return this.OpenProject( mf )
 end function
 
 ' The project file, with what is open now.
@@ -2330,15 +2369,100 @@ function Window.SaveProject( ) as boolean
         this.SetMessage( "no project is open" )
         return false
     end if
-    this.CaptureState( Proj.State, Proj.Dir_( ) )
-    Proj.Build = CurrentBuild
-    dim as fs.FsResultBool w = project.SaveProject( Proj )
+    dim as session.SessionState st
+    this.CaptureState( st, Proj.Dir_( ) )
+    st.Build = CurrentBuild
+    ProjOpts.Build = CurrentBuild
+    this.WriteProjectOptions( )
+    dim as fs.FsResultBool w = session.SaveSession( project.SessionPath( ConfigDir, Proj.Path ), st )
     if w.IsOk( ) = false then
-        this.SetMessage( fs.PathFileName( Proj.Path ) & ": " & w.Failure( ).Message( ) )
+        this.SetMessage( "the project's session: " & w.Failure( ).Message( ) )
         return false
     end if
     return true
 end function
+
+' The options file for the project, written when it changed; a buffer showing it is reloaded.
+sub Window.WriteProjectOptions( )
+    if ProjOpen = false then exit sub
+    dim as ustring op = project.OptionsPath( ConfigDir, Proj.Path )
+    if project.WriteOptions( op, ProjOpts ) then
+        dim as DocRef pd = this.FindOpen( op )
+        if pd then pd->Reload( )
+    end if
+end sub
+
+' The options' build configuration, when settings.toml has it.
+sub Window.ApplyProjectOptions( )
+    if (ProjOpen = false) orelse (len( ProjOpts.Build ) = 0) then exit sub
+    for each b as settings.BuildConfig in Prefs.Builds
+        if b.Name = ProjOpts.Build then CurrentBuild = ProjOpts.Build
+    next
+end sub
+
+' The target a build makes: the options' when tiko.toml has it, else the first; "" = none.
+function Window.ProjectTarget( ) as ustring
+    if ProjOpen = false then return ""
+    if Proj.TargetIndex( ProjOpts.Target ) >= 0 then return ProjOpts.Target
+    if Proj.Targets.Count( ) > 0 then return Proj.Targets[0].Name
+    return ""
+end function
+
+private sub CollectSources( byref dir_ as const ustring, byref out_ as Array( of ustring ), byval depth as long )
+    if (depth > 12) orelse (out_.Count( ) >= 5000) then exit sub
+    dim as Array( of ustring ) subs
+    for each r in fs.ReadDir( dir_ )
+        if r.IsOk( ) = false then continue for
+        dim as fs.DirEntry e = r.Value( )
+        dim as ustring nm = e.Name( )
+        if e.IsDirectory( ) then
+            if (left( nm, 1 ) <> ".") andalso (lcase( nm ) <> "out") then subs.Push( fs.PathJoin( dir_, nm ) )
+        elseif e.IsFile( ) andalso documents.IsSourceFile( nm ) then
+            if out_.Count( ) < 5000 then out_.Push( fs.PathJoin( dir_, nm ) )
+        end if
+    next
+    for each sd as ustring in subs
+        CollectSources( sd, out_, depth + 1 )
+    next
+end sub
+
+' The project's source files: everything tiko under its folder but out/ and dot-folders, at most
+' 5000 (author 2026-10-27: no file list any more). Walked again on refresh (opening the project,
+' Find in Project, Search Symbol), else the last walk.
+function Window.ProjectFiles( byval refresh as boolean ) byref as Array( of ustring )
+    if refresh then
+        ProjFiles.Clear( )
+        if ProjOpen then CollectSources( Proj.Dir_( ), ProjFiles, 0 )
+    end if
+    return ProjFiles
+end function
+
+' The program's arguments when it runs: the project's command_line, else those of the file built.
+function Window.RunArgsNow( ) as ustring
+    if ProjOpen then return ProjOpts.CommandLine
+    dim as ustring f = BuildMain
+    if len( f ) = 0 then
+        dim as DocRef d = this.SourceDoc( )
+        if d then f = d->Path
+    end if
+    return RunStore.Get( f )
+end function
+
+' Run Arguments (Enter in its row): the project's command_line, else the source file's.
+sub Window.SetRunArgs( byref a as const ustring )
+    if ProjOpen then
+        ProjOpts.CommandLine = a
+        this.WriteProjectOptions( )
+        exit sub
+    end if
+    dim as DocRef d = this.SourceDoc( )
+    if (d = 0) orelse (len( d->Path ) = 0) then
+        this.SetMessage( "Run Arguments: save the file first" )
+        exit sub
+    end if
+    RunStore.Set( d->Path, a )
+    RunStore.Save( )
+end sub
 
 ' Saves the project, then closes its buffers (asking for unsaved ones). FALSE = cancelled.
 function Window.CloseProject( ) as boolean
@@ -2346,8 +2470,11 @@ function Window.CloseProject( ) as boolean
     this.SaveProject( )
     if this.CloseAll( ) = false then return false
     ProjOpen = false
-    dim as project.ProjectFile none_
+    dim as project.Manifest none_
     Proj = none_
+    dim as project.ProjectOptions noOpts
+    ProjOpts = noOpts
+    ProjFiles.Clear( )
     LastExe = ""
     this.ClearDiagnostics( )
     this.ShowTitle( )
@@ -2366,39 +2493,16 @@ function Window.SourceDoc( ) as DocRef
     return 0
 end function
 
-' The Project panel: with no project, a new one (asked where; its main the source buffer in front);
-' with one, it is saved first. Then its .tkedit opens as text to edit by hand; saving that buffer
-' makes what it says the project (AfterSave). Author 2026-10-27.
+' The Project panel: with no project, a new one (NewProject). Then the project's options file
+' opens -- target, build, command line -- to edit by hand; saving it applies it (AfterSave).
 sub Window.EditProjectFile( )
     if ProjOpen = false then
         if this.NewProject( ) = false then exit sub
-    else
-        this.SaveProject( )
-        dim as DocRef pd = this.FindOpen( Proj.Path )
-        if pd then pd->Reload( )                 ' what was just written
     end if
-    this.OpenText( Proj.Path )
+    this.WriteProjectOptions( )
+    this.OpenText( project.OptionsPath( ConfigDir, Proj.Path ) )
 end sub
 
-' Ctrl+F11: the active buffer joins the project; when it is already in it, a file is asked for.
-sub Window.AddToProject( )
-    if ProjOpen = false then
-        this.SetMessage( "no project is open" )
-        exit sub
-    end if
-    dim as ustring p = this.ActivePath( )
-    if (len( p ) = 0) orelse (Proj.IndexOf( p ) >= 0) then
-        p = Pick( form, TKFD_OPEN, Proj.Dir_( ) )
-        if len( p ) = 0 then exit sub
-    end if
-    if Proj.Add( p ) then
-        this.SaveProject( )
-        this.SetMessage( fs.PathFileName( p ) & " added to " & Proj.Name( ) )
-    else
-        this.SetMessage( fs.PathFileName( p ) & " is already in " & Proj.Name( ) )
-    end if
-    if this.FindOpen( p ) = 0 then this.OpenFile( p )
-end sub
 
 ' ================================================================ the build (P4)
 
@@ -2430,8 +2534,8 @@ function Window.IsBuilding( ) as boolean
     return Job.IsRunning( ) orelse (buildTimer <> 0)
 end function
 
-' What is built: the project's tiko.toml target, else its main file, else the source buffer in
-' front (SourceDoc). Modified source buffers with a path are saved first (settings
+' What is built: the project's target (tiko build <target> --manifest <folder>), else the source
+' buffer in front (SourceDoc). Modified source buffers with a path are saved first (settings
 ' save_before_build). The output arrives through PollBuild.
 function Window.StartBuild( byval action as build.BuildAction, byval rebuild as boolean ) as boolean
     if this.IsBuilding( ) then
@@ -2445,13 +2549,17 @@ function Window.StartBuild( byval action as build.BuildAction, byval rebuild as 
     end if
     ' settings.toml, keybindings.toml, a theme or a text file is never built (author 2026-10-27)
     dim as DocRef d = this.SourceDoc( )
-    dim as boolean useTarget = ProjOpen andalso (len( Proj.Target ) > 0)
-    dim as boolean useMain = ProjOpen andalso (len( Proj.Target ) = 0) andalso (len( Proj.Main ) > 0)
-    if (d = 0) andalso (useTarget = false) andalso (useMain = false) then
+    dim as boolean useTarget = ProjOpen
+    dim as ustring target = this.ProjectTarget( )
+    if useTarget andalso (len( target ) = 0) then
+        this.SetBuildMessage( "tiko.toml has no [target.*] to build" )
+        return false
+    end if
+    if (d = 0) andalso (useTarget = false) then
         this.SetBuildMessage( "nothing to build: no source file is open" )
         return false
     end if
-    if (useTarget = false) andalso (useMain = false) then
+    if useTarget = false then
         if d = 0 then return false
         if len( d->Path ) = 0 then
             if this.SaveDoc( d, false ) = false then return false
@@ -2464,9 +2572,7 @@ function Window.StartBuild( byval action as build.BuildAction, byval rebuild as 
         next
     end if
     dim as Array( of build.Subsystem ) directives
-    dim as ustring projOpts = ""
-    if ProjOpen then projOpts = Proj.Options
-    BuildFlags = build.ComposeFlags( this.ActiveBuildConfig( ), action, projOpts, strings.Join( Prefs.Includes, ";" ), directives )
+    BuildFlags = build.ComposeFlags( this.ActiveBuildConfig( ), action, "", strings.Join( Prefs.Includes, ";" ), directives )
     BuildDiagFile = fs.PathJoin( ConfigDir, "build.diagnostics" )
     fs.CreateDirAll( ConfigDir )
     fs.RemoveFile( BuildDiagFile )
@@ -2474,9 +2580,9 @@ function Window.StartBuild( byval action as build.BuildAction, byval rebuild as 
     dim as Array( of ustring ) args, none_
     dim as ustring workDir
     if useTarget then
-        args = build.TargetArgs( Proj.Target, Proj.Dir_( ), BuildFlags, none_, BuildDiagFile, os_ )
+        args = build.TargetArgs( target, Proj.Dir_( ), BuildFlags, none_, BuildDiagFile, os_ )
         ' --profile editor is tiko-editor's managed profile; tiko refuses an unknown one (TKO0163)
-        dim as ustring toml = fs.ReadAllText( fs.PathJoin( Proj.Dir_( ), "tiko.toml" ) ).ValueOr( "" )
+        dim as ustring toml = fs.ReadAllText( Proj.Path ).ValueOr( "" )
         if instr( toml, "[profile.editor]" ) = 0 then
             for i as long = 0 to args.Count( ) - 2
                 if (args[i] = "--profile") andalso (args[i + 1] = "editor") then
@@ -2487,14 +2593,9 @@ function Window.StartBuild( byval action as build.BuildAction, byval rebuild as 
             next
         end if
         workDir = Proj.Dir_( )
-        BuildMain = Proj.MainPath( )
+        BuildMain = Proj.MainOf( target )
     else
-        dim as ustring src
-        if useMain then
-            src = Proj.MainPath( )
-        else
-            src = d->Path
-        end if
+        dim as ustring src = d->Path
         BuildMain = src
         args = build.BuildArgs( src, none_, none_, "", BuildFlags, BuildDiagFile, os_ )
         workDir = fs.PathParent( src )
@@ -2505,7 +2606,7 @@ function Window.StartBuild( byval action as build.BuildAction, byval rebuild as 
         args.Clear( )
         args.Push( "clean" )
         if useTarget then
-            args.Push( Proj.Target )
+            args.Push( target )
             args.Push( "--manifest" )
             args.Push( Proj.Dir_( ) )
         else
@@ -2692,8 +2793,7 @@ sub Window.RunProgram( byref exe as const ustring )
         this.SetBuildMessage( "nothing to run: build it first (" & exe & ")" )
         exit sub
     end if
-    dim as ustring cmdline = RunArgs
-    if ProjOpen then cmdline = Proj.CommandLine
+    dim as ustring cmdline = this.RunArgsNow( )
     dim as Array( of ustring ) args = project.SplitArgs( cmdline )
     dim as ustring dir_ = fs.PathParent( exe )
     dim as boolean gui = instr( " " & lcase( BuildFlags ) & " ", " -s gui " ) > 0
@@ -2917,11 +3017,9 @@ function Window.ScannedFile( byref upper as const ustring ) as ustring
     for each d as DocRef in Docs
         if ucase( d->Path ) = ucase( upper ) then return d->Path
     next
-    if ProjOpen then
-        for i as long = 0 to Proj.FileCount( ) - 1
-            if ucase( Proj.FilePath( i ) ) = ucase( upper ) then return Proj.FilePath( i )
-        next
-    end if
+    for each f as ustring in this.ProjectFiles( )
+        if ucase( f ) = ucase( upper ) then return f
+    next
     return symboldb.RealPath( upper )
 end function
 
@@ -3069,21 +3167,20 @@ function Window.RunProjectSearch( ) as long
         if scratch.Create( tkForm_Widget( form ), ID_SCRATCH ) = false then return 0
         tkWidget_Show( scratch.Widget( ), false )
     end if
-    ' the files: the project's, then any open buffer not among them
-    dim as Array( of ustring ) paths
+    ' the files: the active buffer's first, the other open buffers, then the project's folder
+    dim as Array( of ustring ) paths, cands
     dim as Map( of ustring, boolean ) seen
-    if ProjOpen then
-        for i as long = 0 to Proj.FileCount( ) - 1
-            dim as ustring f = Proj.FilePath( i )
-            if seen.Contains( ucase( f ) ) then continue for
-            seen.Put( ucase( f ), true )
-            paths.Push( f )
-        next
-    end if
+    if (this.Active( ) <> 0) andalso (len( this.Active( )->Path ) > 0) then cands.Push( this.Active( )->Path )
     for each d as DocRef in Docs
-        if (len( d->Path ) = 0) orelse seen.Contains( ucase( d->Path ) ) then continue for
-        seen.Put( ucase( d->Path ), true )
-        paths.Push( d->Path )
+        if len( d->Path ) then cands.Push( d->Path )
+    next
+    for each f as ustring in this.ProjectFiles( true )
+        cands.Push( f )
+    next
+    for each f as ustring in cands
+        if seen.Contains( ucase( f ) ) then continue for
+        seen.Put( ucase( f ), true )
+        paths.Push( f )
     next
     Found.Clear( )
     dim as TK_WIDGET ptr list = Out.search
@@ -3135,8 +3232,8 @@ function Window.RunProjectSearch( ) as long
     this.ShowOutput( true )
     Out.ShowTab( outputpane.OutputTab.Search )
     this.Layout( )
+    this.OpenSearchHit( 0 )                      ' opening its file clears the message: say it after
     this.SetMessage( msg )
-    this.OpenSearchHit( 0 )
     return Found.Count( )
 end function
 

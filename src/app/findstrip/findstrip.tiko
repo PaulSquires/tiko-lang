@@ -39,6 +39,7 @@ public enum StripMode explicit
     Replace
     GoTo
     Project               ' Find in Project: the phrase searched in every file on Enter
+    Args                  ' Run Arguments: the program's arguments, set on Enter
 end enum
 
 public enum FindAction explicit
@@ -49,13 +50,14 @@ public enum FindAction explicit
     ReplaceEvery
     GoToLine              ' Enter in Go to Line
     SearchFiles           ' Enter in Find in Project
+    SetArgs               ' Enter in Run Arguments
     CloseStrip
 end enum
 
 public type FindActionSub as sub( byval owner as any ptr, byval a as FindAction )
 
 public const ROW_CY = 26                 ' one row, unscaled
-const LABEL_CX = 76
+const LABEL_CX = 84
 const BOX_CX = 280
 const ID_FIND = 1
 const ID_REPLACE = 2
@@ -135,6 +137,7 @@ private function FrameProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as
         dim as ustring first = "Find:"
         if st->Mode = StripMode.GoTo then first = "Line:"
         if st->Mode = StripMode.Project then first = "In files:"
+        if st->Mode = StripMode.Args then first = "Arguments:"
         m->pPaint->PaintText( first, @lb, TK_DT_LEFT or TK_DT_VCENTER )
         if st->Mode = StripMode.Replace then
             tkRect_Set( lb, pad, rowH, tkHost_Scale( w->pHost, LABEL_CX ), rowH * 2 )
@@ -142,7 +145,7 @@ private function FrameProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as
         end if
         ' the count, right of the tools (of the box in Go to Line)
         dim as long sx = st->findBox->x + st->findBox->cw + pad
-        if st->Mode <> StripMode.GoTo then sx = st->tools->x + st->tools->cw + pad
+        if (st->Mode <> StripMode.GoTo) andalso (st->Mode <> StripMode.Args) then sx = st->tools->x + st->tools->cw + pad
         dim as TKRECT sr
         tkRect_Set( sr, sx, 0, w->cw, rowH )
         m->pPaint->PaintText( st->status, @sr, TK_DT_LEFT or TK_DT_VCENTER or TK_DT_ELLIPSIS )
@@ -177,6 +180,8 @@ private function BoxKeys( byval m as TKTEXTBOX_MESSAGEINFO ptr ) as boolean
             st->Fire( FindAction.GoToLine )
         elseif st->Mode = StripMode.Project then
             st->Fire( FindAction.SearchFiles )
+        elseif st->Mode = StripMode.Args then
+            st->Fire( FindAction.SetArgs )
         elseif ctrlAlt then
             if st->Mode = StripMode.Replace then st->Fire( FindAction.ReplaceEvery )
         elseif m->hTextBox = st->replaceBox then
@@ -199,7 +204,7 @@ sub Strip.Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ 
     tkTextBox_SetSelectOnFocus( findBox, true )
     tkTextBox_SetChangeCallback( findBox, sub( byval h as TK_WIDGET ptr )
         dim as Strip ptr st = StripOf( h )
-        if st andalso (st->Mode <> StripMode.GoTo) andalso (st->Mode <> StripMode.Project) then st->Fire( FindAction.Changed )
+        if st andalso (st->Mode <> StripMode.GoTo) andalso (st->Mode <> StripMode.Project) andalso (st->Mode <> StripMode.Args) then st->Fire( FindAction.Changed )
     end sub )
     tkTextBox_SetMessageCallback( findBox, @BoxKeys )
     tkTextBox_SetMessageCallback( replaceBox, @BoxKeys )
@@ -257,8 +262,10 @@ sub Strip.Open( byval m as StripMode, byref seed as const ustring, byval canSele
     isOpen = true
     if m = StripMode.GoTo then
         tkTextBox_SetText( findBox, "" )
+    elseif m = StripMode.Args then
+        tkTextBox_SetText( findBox, seed )                  ' the arguments as they are, one line
     else
-        if was = StripMode.GoTo then tkTextBox_SetText( findBox, "" )
+        if (was = StripMode.GoTo) orelse (was = StripMode.Args) then tkTextBox_SetText( findBox, "" )
         if (len( seed ) > 0) andalso (instr( seed, chr( 10 ) ) = 0) then tkTextBox_SetText( findBox, seed )
         dim as long sel = tkToolbar_FindItemByID( tools, TB_SEL )
         tkToolbar_SetEnabled( tools, sel, canSelect andalso (m <> StripMode.Project) )
@@ -266,7 +273,7 @@ sub Strip.Open( byval m as StripMode, byref seed as const ustring, byval canSele
     end if
     status = ""
     tkWidget_Show( frame, true )
-    tkWidget_Show( tools, m <> StripMode.GoTo )
+    tkWidget_Show( tools, (m <> StripMode.GoTo) andalso (m <> StripMode.Args) )
     tkWidget_Show( replaceBox, m = StripMode.Replace )
     tkWidget_Show( rtools, m = StripMode.Replace )
     this.Layout( )

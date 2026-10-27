@@ -20,6 +20,7 @@
 #import "tkc/docencoding"
 #import "tkc/keybind"
 #import "tkc/project"
+#import "tkc/runargs"
 #import "tkc/session"
 #import "tkc/settings"
 #import "tka/documents"
@@ -1081,16 +1082,17 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     mw.CloseDoc( sdoc )
     mw.ShowDoc( mw.FindOpen( mainF ) )
 
-    ' ---- the Project panel with no project: a new one (main = the source buffer in front), its
-    ' .tkedit opened as text; saving a hand edit of it applies it
+    ' ---- the Project panel with no project: a tiko.toml written in main.tiko's folder (target
+    ' "main", main = main.tiko), the project opens, its options file opens; saving it applies it
     t.Check( mw.StatusText( mainwin.StatusPanel.Project ) = "Project", P( sc, "a Project panel" ) )
-    gPickPath = fs.PathJoin( dir_, "hello" )
     ClickPanel( mw, mainwin.StatusPanel.Project )
-    dim as ustring pf = fs.PathJoin( dir_, "hello.tkedit" )
-    t.Check( mw.ProjOpen andalso fs.IsFile( pf ) andalso (mw.Proj.Main = "main.tiko"), P( sc, "hello.tkedit, main.tiko its main: " & mw.Proj.Main ) )
-    t.Check( (lcase( mw.ActivePath( ) ) = lcase( pf )) andalso (instr( mw.View( ).Text( ), "[project]" ) > 0), _
-             P( sc, "and its .tkedit open as text: " & mw.ActivePath( ) ) )
-    t.Check( mw.StatusTip( mainwin.StatusPanel.Project ) = mw.Proj.Path, P( sc, "the panel's tooltip is the project file" ) )
+    dim as ustring pf = fs.PathJoin( dir_, project.MANIFEST_FILE )
+    dim as ustring optF = project.OptionsPath( cfg, pf )
+    t.Check( mw.ProjOpen andalso fs.IsFile( pf ) andalso (mw.Proj.Targets.Count( ) = 1) andalso _
+             (lcase( mw.Proj.MainOf( "main" ) ) = lcase( mainF )), P( sc, "tiko.toml written: target main, main.tiko its main" ) )
+    t.Check( (lcase( mw.ActivePath( ) ) = lcase( optF )) andalso (instr( mw.View( ).Text( ), "command_line = " ) > 0) andalso _
+             (instr( mw.View( ).Text( ), "manifest = " ) > 0), P( sc, "and the project's options file open: " & mw.ActivePath( ) ) )
+    t.Check( mw.StatusTip( mainwin.StatusPanel.Project ) = mw.Proj.Path, P( sc, "the panel's tooltip is the tiko.toml" ) )
     scope
         dim as ustring pt = mw.View( ).Text( )
         dim as long k = instr( pt, "command_line =" )
@@ -1099,15 +1101,15 @@ public sub BuildPass( byref t as Tally, byval sc as single )
         mw.View( ).ReplaceAllText( pt )
     end scope
     Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
-    t.Check( mw.ProjOpen andalso (mw.Proj.CommandLine = "x y") andalso (lcase( mw.Proj.Path ) = lcase( pf )), _
-             P( sc, "saving the hand edit applied it: command line '" & mw.Proj.CommandLine & "'" ) )
+    t.Check( mw.ProjOpen andalso (mw.ProjOpts.CommandLine = "x y") andalso (lcase( mw.ProjOpts.Manifest ) = lcase( pf )), _
+             P( sc, "saving the hand edit applied it: command line '" & mw.ProjOpts.CommandLine & "'" ) )
     mw.ShowDoc( mw.FindOpen( mainF ) )
     ClickPanel( mw, mainwin.StatusPanel.Project )
-    t.Check( (lcase( mw.ActivePath( ) ) = lcase( pf )) andalso mw.ProjOpen andalso (mw.Docs.Count( ) = 2), _
-             P( sc, strings.Format( "with the project open the panel shows its .tkedit again ({} buffers)", mw.Docs.Count( ) ) ) )
+    t.Check( (lcase( mw.ActivePath( ) ) = lcase( optF )) andalso mw.ProjOpen andalso (mw.Docs.Count( ) = 2), _
+             P( sc, strings.Format( "with the project open the panel shows its options again ({} buffers)", mw.Docs.Count( ) ) ) )
     mw.ShowDoc( mw.FindOpen( mainF ) )
     dim as ustring title = *SDL_GetWindowTitle( h->win )
-    t.Check( instr( title, "[hello.tkedit]" ) > 0, P( sc, "the title names the project file: " & title ) )
+    t.Check( instr( title, "[" & fs.PathJoin( "hello", project.MANIFEST_FILE ) & "]" ) > 0, P( sc, "the title names the project: " & title ) )
 
     ' ---- Ctrl+F5: a build that works; the pane stays hidden
     Chord( h, SDLK_F5, SDL_SCANCODE_F5, SDL_KMOD_CTRL )
@@ -1123,8 +1125,18 @@ public sub BuildPass( byref t as Tally, byval sc as single )
         t.Check( po.IsOk( ) andalso (instr( po.Value( ).StdoutText( ), "hello from tkEdit" ) > 0), P( sc, "the program runs" ) )
     end if
 
+    ' ---- Run Arguments (Ctrl+Shift+F5): the row holds the command line; Enter sets it
+    Chord( h, SDLK_F5, SDL_SCANCODE_F5, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    t.Check( mw.Finder.isOpen andalso (mw.Finder.Mode = findstrip.StripMode.Args) andalso (mw.Finder.Phrase( ) = "x y"), _
+             P( sc, "Ctrl+Shift+F5: the Arguments row, the command line in it: " & mw.Finder.Phrase( ) ) )
+    mw.Finder.SetPhrase( "one ""two words""" )
+    StripKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
+    t.Check( (mw.Finder.isOpen = false) andalso (mw.ProjOpts.CommandLine = "one ""two words""") andalso _
+             (instr( fs.ReadAllText( optF ).ValueOr( "" ), "command_line = 'one ""two words""'" ) > 0), _
+             P( sc, "Enter set it, in the options file too" ) )
+    t.Check( instr( mw.FindOpen( optF )->Main.Text( ), "one ""two words""" ) > 0, P( sc, "and the open options buffer reloaded" ) )
+
     ' ---- Shift+F5: Run, in a terminal, with the project's command line
-    mw.Proj.CommandLine = "one ""two words"""
     gLaunched.Clear( )
     Chord( h, SDLK_F5, SDL_SCANCODE_F5, SDL_KMOD_SHIFT )
     t.Check( gLaunched.Count( ) = 1, P( sc, strings.Format( "Run launched once ({})", gLaunched.Count( ) ) ) )
@@ -1196,27 +1208,61 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     t.Check( WaitBuild( mw ) andalso mw.BuildSucceeded, P( sc, "Ctrl+Alt+F5 rebuilt: " & mw.Message ) )
     t.Check( (instr( mw.Out.LogText( ), " clean " ) > 0) andalso (instr( mw.Out.LogText( ), " build " ) > 0), P( sc, "clean, then build, in the log" ) )
 
-    ' ---- the project: saved, closed, opened again as it was
+    ' ---- the project: saved, closed, opened again as it was -- its session from the config folder
     mw.View( ).GoToLine( 0 )
     t.Check( mw.SaveProject( ), P( sc, "Save Project" ) )
+    t.Check( fs.IsFile( project.SessionPath( cfg, pf ) ), P( sc, "its session is in the config folder" ) )
     t.Check( mw.CloseProject( ) andalso (mw.ProjOpen = false), P( sc, "Close Project" ) )
     t.Check( (mw.Docs.Count( ) = 1) andalso mw.Docs[0]->IsNew( ), P( sc, "its buffers closed" ) )
-    t.Check( mw.OpenFile( pf ), P( sc, "opening hello.tkedit opens the project" ) )
+    t.Check( mw.OpenFile( pf ), P( sc, "opening tiko.toml opens the project" ) )
     t.Check( (mw.Recent.Count( ) > 0) andalso (lcase( mw.Recent.Item( 0 ) ) = lcase( pf )), P( sc, "the project is the most recent file" ) )
     mw.OpenChooser( mainwin.PickKind.Recent )
-    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Chooser.Rows.Count( ) > 0) andalso (mw.Chooser.Rows[0].Cells[1] = "hello.tkedit  [project]"), _
+    t.Check( mw.Chooser.IsOpen( ) andalso (mw.Chooser.Rows.Count( ) > 0) andalso (mw.Chooser.Rows[0].Cells[1] = "tiko.toml  [project]"), _
              P( sc, "the recent list marks it a project" ) )
     mw.Chooser.Close( )
-    t.Check( mw.ProjOpen andalso (lcase( mw.ActivePath( ) ) = lcase( mainF )), P( sc, "main.tiko is back: " & mw.ActivePath( ) ) )
+    t.Check( mw.ProjOpen andalso (mw.FindOpen( mainF ) <> 0) andalso (lcase( mw.ActivePath( ) ) = lcase( pf )), _
+             P( sc, "main.tiko is back, and tiko.toml shown to edit: " & mw.ActivePath( ) ) )
+    t.Check( mw.ProjOpts.CommandLine = "one ""two words""", P( sc, "the command line kept: " & mw.ProjOpts.CommandLine ) )
+    ' a file in the folder that was never opened is the project's
     dim as ustring other = fs.PathJoin( dir_, "util.tiko" )
     fs.WriteAllText( other, "' util" & nl )
-    gPickPath = other
-    Chord( h, SDLK_F11, SDL_SCANCODE_F11, SDL_KMOD_CTRL )
-    t.Check( (mw.Proj.IndexOf( other ) >= 0) andalso (lcase( mw.ActivePath( ) ) = lcase( other )), P( sc, "Ctrl+F11 added and opened util.tiko" ) )
-    dim as project.ProjectResult pr = project.LoadProject( pf )
-    t.Check( pr.IsOk( ) andalso (pr.Value( ).FileCount( ) = 2), P( sc, "the project file lists both" ) )
+    dim as boolean hasOther = false
+    for each f as ustring in mw.ProjectFiles( true )
+        if lcase( f ) = lcase( other ) then hasOther = true
+    next
+    t.Check( hasOther, P( sc, "util.tiko, never opened, is one of the project's files" ) )
+
+    ' ---- Run Arguments without a project: the file's own, kept in runargs.toml
+    t.Check( mw.CloseProject( ), P( sc, "closed again" ) )
+    mw.OpenFile( mainF )
+    Chord( h, SDLK_F5, SDL_SCANCODE_F5, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    t.Check( mw.Finder.isOpen andalso (mw.Finder.Phrase( ) = ""), P( sc, "no project: the row is empty for main.tiko" ) )
+    mw.Finder.SetPhrase( "-v 3" )
+    StripKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
+    dim as ustring rf = fs.PathJoin( cfg, runargs.RUNARGS_FILE )
+    t.Check( (mw.RunStore.Get( mainF ) = "-v 3") andalso fs.IsFile( rf ), P( sc, "set for main.tiko, in runargs.toml" ) )
+    t.Check( mw.RunArgsNow( ) = "-v 3", P( sc, "and what Run passes" ) )
+    Chord( h, SDLK_F5, SDL_SCANCODE_F5, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    mw.Finder.SetPhrase( "" )
+    StripKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
+    t.Check( (mw.RunStore.Get( mainF ) = "") andalso (fs.IsFile( rf ) = false), P( sc, "empty cleared it, and the file went" ) )
 
     mw.Destroy( )
+
+    ' ---- at start, the state of a project whose tiko.toml is gone is pruned; a live one stays
+    dim as project.ProjectOptions stale
+    stale.Manifest = fs.PathJoin( dir_, "gone", project.MANIFEST_FILE )
+    project.WriteOptions( project.OptionsPath( cfg, stale.Manifest ), stale )
+    fs.WriteAllText( project.SessionPath( cfg, stale.Manifest ), "version = 1" & nl )
+    dim as mainwin.Window mw4
+    mw4.ConfigDir = cfg
+    mw4.Ask = @ScriptedAsk
+    mw4.Pick = @ScriptedPick
+    t.Check( mw4.Create( sc ), P( sc, "prune: a window" ) )
+    t.Check( (fs.IsFile( project.OptionsPath( cfg, stale.Manifest ) ) = false) andalso (fs.IsFile( project.SessionPath( cfg, stale.Manifest ) ) = false), _
+             P( sc, "the gone project's options and session were pruned" ) )
+    t.Check( fs.IsFile( optF ) andalso fs.IsFile( project.SessionPath( cfg, pf ) ), P( sc, "the live project's stayed" ) )
+    if mw4.form then mw4.Destroy( )
 end sub
 
 ' ================================================================ P5: code intelligence
@@ -1427,10 +1473,7 @@ public sub PolishPass( byref t as Tally, byval sc as single )
 
     ' ---- Ctrl+Shift+F: every project file, unopened ones and unsaved edits too
     mw.OpenFile( mainF )
-    gPickPath = fs.PathJoin( dir_, "polish" )
-    mw.NewProject( )
-    mw.Proj.Add( libF )
-    mw.Proj.Add( hdrF )
+    mw.NewProject( )                              ' a tiko.toml there: its folder's files are the project's
     mw.View( ).ReplaceAllText( "#include ""lib.ti""" & nl & "print Needle( ) + Needle( )" & nl )   ' unsaved
     Chord( h, SDLK_F, SDL_SCANCODE_F, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
     t.Check( mw.Finder.isOpen andalso (mw.Finder.Mode = findstrip.StripMode.Project), P( sc, "Ctrl+Shift+F: the strip, In files" ) )
@@ -1442,18 +1485,22 @@ public sub PolishPass( byref t as Tally, byval sc as single )
     t.Check( tkListTree_GetCount( mw.Out.search ) = 8, P( sc, strings.Format( "three headers + five rows ({})", tkListTree_GetCount( mw.Out.search ) ) ) )
     t.Check( instr( mw.Message, "5 matches in 3 files" ) = 1, P( sc, "the message: " & mw.Message ) )
     t.Check( (lcase( mw.ActivePath( ) ) = lcase( mainF )) andalso (mw.View( ).SelectedText( ) = "Needle"), P( sc, "the first match selected" ) )
-    ' one click on the row of match 2 (in lib.tiko, not open yet)
+    ' one click on the row of lib.tiko's first match (not open yet)
     scope
+        dim as long hit = -1
+        for k as long = mw.Found.Count( ) - 1 to 0 step -1
+            if lcase( mw.Found[k].Path ) = lcase( libF ) then hit = k
+        next
         dim as long row = -1
         for r as long = 0 to tkListTree_GetCount( mw.Out.search ) - 1
-            if tkListTree_GetItemData( mw.Out.search, r ) = 2 then row = r
+            if (hit >= 0) andalso (tkListTree_GetItemData( mw.Out.search, r ) = hit) then row = r
         next
         dim as TK_WIDGET ptr surf = tkListTree_GetSurface( mw.Out.search )
         dim as TKRECT sa
         tkWidget_AbsRect( surf, sa )
         dim as long ih = tkListTree_GetItemHeightPx( mw.Out.search )
         dim as long ry = sa.top + (row - tkListTree_GetTopIndex( mw.Out.search )) * ih + ih \ 2
-        t.Check( (row >= 0) andalso (ry < sa.bottom), P( sc, strings.Format( "match 2 is row {}, on screen at y {}", row, ry ) ) )
+        t.Check( (row >= 0) andalso (ry < sa.bottom), P( sc, strings.Format( "lib.tiko's first match is row {}, on screen at y {}", row, ry ) ) )
         tkTest_Click( h, sa.left + 40, ry )
         tkTest_PumpFor( h, 60 )
     end scope

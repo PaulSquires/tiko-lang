@@ -51,7 +51,7 @@ if theWindow.Create( ) = false then
     print "tkEdit: the main window could not be created: "; *SDL_GetError( ); " "; tkCodeEdit_LibraryError( )
     end 1
 end if
-' Files (or a .tkedit) named on the command line take the place of the last session's files and
+' Files (or a project's tiko.toml) named on the command line take the place of the last session's files and
 ' project; the window's place and the recent list come back either way.
 dim as Array( of ustring ) named
 dim as long i = 1
@@ -63,10 +63,10 @@ while len( command( i ) )
 wend
 theWindow.RestoreSession( named.Count( ) = 0 )
 for each f as ustring in named
-    if project.IsProjectFile( f ) then theWindow.OpenFile( f )     ' a project first: it closes what is open
+    if project.IsManifest( f ) then theWindow.OpenFile( f )     ' a project first: it closes what is open
 next
 for each f as ustring in named
-    if project.IsProjectFile( f ) = false then theWindow.OpenFile( f )
+    if project.IsManifest( f ) = false then theWindow.OpenFile( f )
 next
 theWindow.Show( )
 end tkApp_Run( theWindow.form )

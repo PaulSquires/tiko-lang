@@ -200,21 +200,6 @@ public function LoadSettings( byref path as const ustring ) as SettingsResult
     return Ok( of EditorSettings, config.ConfigError )( FromToml( r.Value( ) ) )
 end function
 
-private function Quoted( byref v as const ustring ) as ustring
-    if (instr( v, "'" ) = 0) andalso (instr( v, chr( 10 ) ) = 0) then return "'" & v & "'"
-    dim as ustring o = ""
-    for i as long = 1 to len( v )
-        dim as ustring ch = mid( v, i, 1 )
-        select case ch
-        case "\", """" : o &= "\" & ch
-        case chr( 10 ) : o &= "\n"
-        case chr( 13 ) : o &= "\r"
-        case else : o &= ch
-        end select
-    next
-    return """" & o & """"
-end function
-
 private function BoolText( byval b as boolean ) as ustring
     if b then return "true"
     return "false"
@@ -253,7 +238,7 @@ public function ToToml( byref s as const EditorSettings ) as ustring
     dim as ustring incl = ""
     for each p as ustring in s.Includes
         if len( incl ) then incl &= ", "
-        incl &= Quoted( p )
+        incl &= tomlget.Quoted( p )
     next
     dim as ustring t = _
         "# tkEdit settings. Saving this file in tkEdit applies it at once." & nl & _
@@ -262,7 +247,7 @@ public function ToToml( byref s as const EditorSettings ) as ustring
         KeyLine( "version", str( SETTINGS_VERSION ) ) & _
         nl & _
         "[editor]" & nl & _
-        KeyLine( "font", Quoted( s.Font ), "'' = the bundled JetBrains Mono; else a .ttf path" ) & _
+        KeyLine( "font", tomlget.Quoted( s.Font ), "'' = the bundled JetBrains Mono; else a .ttf path" ) & _
         KeyLine( "font_size", str( s.FontSize ) ) & _
         KeyLine( "tab_size", str( s.TabSize ) ) & _
         KeyLine( "use_tabs", BoolText( s.UseTabs ) ) & _
@@ -277,7 +262,7 @@ public function ToToml( byref s as const EditorSettings ) as ustring
         KeyLine( "codetips", BoolText( s.CodeTips ), "completion and calltips" ) & _
         nl & _
         "[ui]" & nl & _
-        KeyLine( "theme", Quoted( s.Theme ), "themes/<name>.toml: beside the program, or in this folder" ) & _
+        KeyLine( "theme", tomlget.Quoted( s.Theme ), "themes/<name>.toml: beside the program, or in this folder" ) & _
         KeyLine( "font_size", str( s.UiFontSize ) ) & _
         nl & _
         "[statusbar]" & nl & _
@@ -286,19 +271,19 @@ public function ToToml( byref s as const EditorSettings ) as ustring
         KeyLine( "show_keys", BoolText( s.ShowKeysPanel ), "the Keys panel" ) & _
         nl & _
         "[files]" & nl & _
-        KeyLine( "new_eol", Quoted( EolText( s.NewLineEnd ) ), "native | crlf | lf" ) & _
-        KeyLine( "new_encoding", Quoted( EncodingText( s.NewEncoding ) ), "utf8 | utf8bom | utf16 | ansi" ) & _
+        KeyLine( "new_eol", tomlget.Quoted( EolText( s.NewLineEnd ) ), "native | crlf | lf" ) & _
+        KeyLine( "new_encoding", tomlget.Quoted( EncodingText( s.NewEncoding ) ), "utf8 | utf8bom | utf16 | ansi" ) & _
         KeyLine( "save_before_build", BoolText( s.SaveBeforeBuild ) ) & _
         KeyLine( "trim_trailing", BoolText( s.TrimTrailing ) ) & _
         nl & _
         "[compiler]" & nl & _
-        KeyLine( "tiko", Quoted( s.Tiko ), "'' = tiko on PATH" ) & _
+        KeyLine( "tiko", tomlget.Quoted( s.Tiko ), "'' = tiko on PATH" ) & _
         KeyLine( "includes", "[" & incl & "]" ) & _
         KeyLine( "run_in_terminal", BoolText( s.RunInTerminal ) )
     for each b as BuildConfig in s.Builds
         t &= nl & "[[builds]]" & nl & _
-             KeyLine( "name", Quoted( b.Name ) ) & _
-             KeyLine( "options", Quoted( b.Options ) ) & _
+             KeyLine( "name", tomlget.Quoted( b.Name ) ) & _
+             KeyLine( "options", tomlget.Quoted( b.Options ) ) & _
              KeyLine( "default", BoolText( b.IsDefault ) )
     next
     return t

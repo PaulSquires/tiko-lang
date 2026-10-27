@@ -113,3 +113,20 @@ public sub SetInts( byref t as config.TomlValue, byref k as const ustring, byref
     next
     t.SetKey( k, a )
 end sub
+
+' v as a TOML string: a literal one ('...') when it holds no apostrophe and no line break, else a
+' basic one with \ " and the breaks escaped -- a Windows path stays readable.
+public function Quoted( byref v as const ustring ) as ustring
+    if (instr( v, "'" ) = 0) andalso (instr( v, chr( 10 ) ) = 0) then return "'" & v & "'"
+    dim as ustring o = ""
+    for i as long = 1 to len( v )
+        dim as ustring ch = mid( v, i, 1 )
+        select case ch
+        case "\", """" : o &= "\" & ch
+        case chr( 10 ) : o &= "\n"
+        case chr( 13 ) : o &= "\r"
+        case else : o &= ch
+        end select
+    next
+    return """" & o & """"
+end function

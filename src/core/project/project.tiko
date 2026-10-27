@@ -5,17 +5,16 @@
 '    License, v. 2.0. If a copy of the MPL was not distributed with this
 '    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 '
-' project -- a .tkedit project file (PLAN.md D8, docs/tkEdit/CONFIG.md): ONE file, like tiko-editor's
-' .tkproj, that names what is built and how, and keeps the project's session beside it.
+' project -- a project is a folder's tiko.toml (PLAN.md D8, as tiko's own build RFC B3 decided):
+' the manifest says what is built and how, and tkEdit only reads it. What is the editor's own --
+' the target to build, the build configuration, the program's arguments, the open files -- lives
+' in tkEdit's config folder, never in the project (docs/tkEdit/CONFIG.md):
 '
-'     format = 1
-'     [project]   main, target, build, options, command_line
-'     [session]   ... and [[files]]: tkc/session's tables -- the project's files, open or not
+'     <config>/projects/<folder>-<8 hex>.toml           the options: edited by hand, applied on save
+'     <config>/projects/<folder>-<8 hex>.session.toml   the session: written by tkEdit
 '
-' Paths are stored relative to the .tkedit file's folder with "/" separators. With `target` set the
-' build is `tiko build <target> --manifest <the project folder>` (its tiko.toml); without it,
-' `tiko build <main>`. tkEdit writes this file whenever the project is saved, through std/config,
-' so comments in it do not survive.
+' The 8 hex are FNV-1a of the manifest's full path (case-folded where the file system is). An
+' options file names its manifest; Prune removes the pair once that manifest is gone.
 #module "project"
 
 #import "std/fs"
@@ -23,155 +22,229 @@
 #import "std/containers"
 #import "std/outcome"
 #import "tkp/platform"
-#import "tkc/session"
 #import "tkc/tomlget"
 using containers
 using outcome
 
-public const PROJECT_FORMAT = 1
-public const PROJECT_EXT = ".tkedit"
+public const MANIFEST_FILE = "tiko.toml"
+public const PROJECTS_DIR = "projects"
+const SESSION_SUFFIX = ".session.toml"
 
-public type ProjectFile
-    Path        as ustring                 ' the .tkedit file, full
-    Main        as ustring                 ' stored: relative to Dir( )
-    Target      as ustring                 ' a tiko.toml target; "" = build Main
-    Build       as ustring                 ' a [[builds]] name; "" = the settings' default
-    Options     as ustring                 ' extra compiler switches
-    CommandLine as ustring                 ' Run's arguments
-    State       as session.SessionState    ' its files (stored paths) and its session
-
-    declare function Dir_( ) as ustring
-    declare function Name( ) as ustring
-    declare function MainPath( ) as ustring           ' full; "" = none
-    declare function FileCount( ) as long
-    declare function FilePath( byval i as long ) as ustring    ' full
-    declare function IndexOf( byref path as const ustring ) as long
-    declare function Add( byref path as const ustring ) as boolean       ' FALSE = already in it
-    declare function Remove( byref path as const ustring ) as boolean
+' A [target.<name>] of the manifest.
+public type ManifestTarget
+    Name as ustring
+    Main as ustring                       ' as written: relative to the manifest's folder
 end type
 
-public type ProjectResult as Result( of ProjectFile, ustring )
+public type Manifest
+    Path     as ustring                   ' the tiko.toml, full
+    Package  as ustring                   ' [package] name
+    Targets  as Array( of ManifestTarget )   ' in file order
 
-function ProjectFile.Dir_( ) as ustring
+    declare function Dir_( ) as ustring
+    declare function Name( ) as ustring               ' the folder's name
+    declare function TargetIndex( byref name_ as const ustring ) as long   ' -1 = none
+    declare function MainOf( byref target as const ustring ) as ustring    ' full; "" = none
+end type
+
+public type ManifestResult as Result( of Manifest, ustring )
+
+function Manifest.Dir_( ) as ustring
     return fs.PathParent( Path )
 end function
 
-' The file's name without .tkedit.
-function ProjectFile.Name( ) as ustring
-    return fs.PathStem( Path )
+function Manifest.Name( ) as ustring
+    return fs.PathFileName( this.Dir_( ) )
 end function
 
-function ProjectFile.MainPath( ) as ustring
-    if len( Main ) = 0 then return ""
-    return session.FullPath( this.Dir_( ), Main )
-end function
-
-function ProjectFile.FileCount( ) as long
-    return State.Files.Count( )
-end function
-
-function ProjectFile.FilePath( byval i as long ) as ustring
-    if (i < 0) orelse (i >= State.Files.Count( )) then return ""
-    return session.FullPath( this.Dir_( ), State.Files[i].Path )
-end function
-
-' By full path; the comparison is case-blind except on Linux.
-function ProjectFile.IndexOf( byref path as const ustring ) as long
-    dim as ustring want = session.StoredPath( this.Dir_( ), path )
-    for i as long = 0 to State.Files.Count( ) - 1
-        if platform.CurrentOs( ) = platform.Os.Linux then
-            if State.Files[i].Path = want then return i
-        elseif lcase( State.Files[i].Path ) = lcase( want ) then
-            return i
-        end if
+function Manifest.TargetIndex( byref name_ as const ustring ) as long
+    for i as long = 0 to Targets.Count( ) - 1
+        if Targets[i].Name = name_ then return i
     next
     return -1
 end function
 
-function ProjectFile.Add( byref path as const ustring ) as boolean
-    if this.IndexOf( path ) >= 0 then return false
-    dim as session.FileState f
-    f.Path = session.StoredPath( this.Dir_( ), path )
-    f.Open = false
-    State.Files.Push( f )
-    return true
+function Manifest.MainOf( byref target as const ustring ) as ustring
+    dim as long i = this.TargetIndex( target )
+    if (i < 0) orelse (len( Targets[i].Main ) = 0) then return ""
+    return fs.PathToNative( fs.PathJoin( this.Dir_( ), Targets[i].Main ) )
 end function
 
-function ProjectFile.Remove( byref path as const ustring ) as boolean
-    dim as long i = this.IndexOf( path )
-    if i < 0 then return false
-    State.Files.Remove( i )
-    return true
+' Is path a project's manifest: a file named tiko.toml (any case, except on Linux)?
+public function IsManifest( byref path as const ustring ) as boolean
+    if platform.CurrentOs( ) = platform.Os.Linux then return fs.PathFileName( path ) = MANIFEST_FILE
+    return lcase( fs.PathFileName( path ) ) = MANIFEST_FILE
 end function
 
-public function ParseProject( byref text as const ustring, byref path as const ustring ) as ProjectResult
+public function ParseManifest( byref text as const ustring, byref path as const ustring ) as ManifestResult
     dim as config.ConfigResultToml r = config.ParseToml( text )
-    if r.IsOk( ) = false then return Fail( of ProjectFile, ustring )( fs.PathFileName( path ) & ": " & r.Failure( ).Message( ) )
+    if r.IsOk( ) = false then return Fail( of Manifest, ustring )( fs.PathFileName( path ) & ": " & r.Failure( ).Message( ) )
     dim as config.TomlValue root = r.Value( )
-    dim as longint fmt = tomlget.GetInt( root, "format", PROJECT_FORMAT )
-    if fmt <> PROJECT_FORMAT then return Fail( of ProjectFile, ustring )( fs.PathFileName( path ) & ": format " & fmt & " is not " & PROJECT_FORMAT )
-    dim as ProjectFile p
-    p.Path = path
-    dim as config.TomlValue t = tomlget.Table( root, "project" )
-    p.Main = tomlget.GetStr( t, "main" )
-    p.Target = tomlget.GetStr( t, "target" )
-    p.Build = tomlget.GetStr( t, "build" )
-    p.Options = tomlget.GetStr( t, "options" )
-    p.CommandLine = tomlget.GetStr( t, "command_line" )
-    p.State = session.FromToml( root )
-    p.State.Recent.Clear( )                      ' a project keeps none
-    return Ok( of ProjectFile, ustring )( p )
+    dim as Manifest m
+    m.Path = path
+    m.Package = tomlget.GetStr( tomlget.Table( root, "package" ), "name" )
+    dim as config.TomlValue ts = tomlget.Table( root, "target" )
+    for i as long = 0 to ts.Count( ) - 1
+        dim as ManifestTarget t
+        t.Name = ts.KeyAt( i )
+        dim as config.TomlValue v = ts.Item( i )
+        t.Main = tomlget.GetStr( v, "main" )
+        m.Targets.Push( t )
+    next
+    return Ok( of Manifest, ustring )( m )
 end function
 
-public function LoadProject( byref path as const ustring ) as ProjectResult
+public function LoadManifest( byref path as const ustring ) as ManifestResult
     dim as fs.FsResultUStr r = fs.ReadAllText( path )
-    if r.IsOk( ) = false then return Fail( of ProjectFile, ustring )( r.Failure( ).Message( ) )
-    return ParseProject( r.Value( ), path )
+    if r.IsOk( ) = false then return Fail( of Manifest, ustring )( fs.PathFileName( path ) & ": " & r.Failure( ).Message( ) )
+    return ParseManifest( r.Value( ), path )
 end function
 
-public function ProjectText( byref p as ProjectFile ) as config.ConfigResultText
-    dim as config.TomlValue root = config.TomlValue.NewTable( )
-    tomlget.SetInt( root, "format", PROJECT_FORMAT )
-    dim as config.TomlValue t = config.TomlValue.NewTable( )
-    tomlget.SetStr( t, "main", p.Main )
-    tomlget.SetStr( t, "target", p.Target )
-    tomlget.SetStr( t, "build", p.Build )
-    tomlget.SetStr( t, "options", p.Options )
-    tomlget.SetStr( t, "command_line", p.CommandLine )
-    root.SetKey( "project", t )
-    dim as session.SessionState st = p.State
-    st.Recent.Clear( )
-    session.IntoToml( root, st )
-    return config.ToTomlText( root )
+' A new project's tiko.toml: a package and one target whose main is mainFile (a name in the folder).
+' The target's name keeps letters, digits, - and _ (a bare TOML key); anything else becomes '_'.
+public function NewManifestText( byref pkg as const ustring, byref target as const ustring, _
+                                 byref mainFile as const ustring ) as ustring
+    dim as ustring nl = wchr( 10 )
+    dim as ustring tn = ""
+    for i as long = 1 to len( target )
+        dim as long a = asc( mid( target, i, 1 ) )
+        dim as boolean ok = ((a >= 48) andalso (a <= 57)) orelse ((a >= 65) andalso (a <= 90)) orelse _
+                            ((a >= 97) andalso (a <= 122)) orelse (a = 45) orelse (a = 95)
+        if ok then tn &= mid( target, i, 1 ) else tn &= "_"
+    next
+    if len( tn ) = 0 then tn = "main"
+    return "[package]" & nl & _
+           "name = " & tomlget.Quoted( pkg ) & nl & _
+           "version = '0.1.0'" & nl & _
+           nl & _
+           "[target." & tn & "]" & nl & _
+           "main = " & tomlget.Quoted( mainFile ) & nl
 end function
 
-' Writes atomically, creating the folder.
-public function SaveProject( byref p as ProjectFile ) as fs.FsResultBool
-    dim as config.ConfigResultText t = ProjectText( p )
-    if t.IsOk( ) = false then return fs.FsFail( of boolean )( fs.FS_INVALID_DATA, "SaveProject", p.Path )
-    dim as ustring dir_ = fs.PathParent( p.Path )
-    if ( len( dir_ ) > 0 ) andalso ( fs.IsDir( dir_ ) = false ) then
-        dim as fs.FsResultBool mk = fs.CreateDirAll( dir_ )
-        if mk.IsOk( ) = false then return mk
+' ---------------------------------------------------------------------- the editor's state
+
+public type ProjectOptions
+    Manifest    as ustring                ' the project's tiko.toml, full
+    Target      as ustring                ' a [target.*] name; "" = the first
+    Build       as ustring                ' a [[builds]] name of settings.toml; "" = its default
+    CommandLine as ustring                ' the program's arguments when it runs
+end type
+
+public type OptionsResult as Result( of ProjectOptions, ustring )
+
+private function KeyLine( byref k as const ustring, byref v as const ustring, byref note as const ustring ) as ustring
+    dim as ustring s = k & " = " & v
+    if len( s ) < 38 then s &= space( 38 - len( s ) )
+    return s & " # " & note & wchr( 10 )
+end function
+
+' The options file: every key at its value, like settings.toml.
+public function OptionsText( byref o as const ProjectOptions ) as ustring
+    return "# tkEdit project options. Saving this file in tkEdit applies it at once." & wchr( 10 ) & _
+           KeyLine( "manifest", tomlget.Quoted( o.Manifest ), "the project (do not edit)" ) & _
+           KeyLine( "target", tomlget.Quoted( o.Target ), "a [target.*] of tiko.toml; '' = the first" ) & _
+           KeyLine( "build", tomlget.Quoted( o.Build ), "a [[builds]] name of settings.toml" ) & _
+           KeyLine( "command_line", tomlget.Quoted( o.CommandLine ), "the program's arguments (F5, Shift+F5)" )
+end function
+
+public function ParseOptions( byref text as const ustring ) as OptionsResult
+    dim as config.ConfigResultToml r = config.ParseToml( text )
+    if r.IsOk( ) = false then return Fail( of ProjectOptions, ustring )( r.Failure( ).Message( ) )
+    dim as config.TomlValue root = r.Value( )
+    dim as ProjectOptions o
+    o.Manifest = tomlget.GetStr( root, "manifest" )
+    o.Target = tomlget.GetStr( root, "target" )
+    o.Build = tomlget.GetStr( root, "build" )
+    o.CommandLine = tomlget.GetStr( root, "command_line" )
+    return Ok( of ProjectOptions, ustring )( o )
+end function
+
+public function LoadOptions( byref path as const ustring ) as OptionsResult
+    dim as fs.FsResultUStr r = fs.ReadAllText( path )
+    if r.IsOk( ) = false then return Fail( of ProjectOptions, ustring )( r.Failure( ).Message( ) )
+    return ParseOptions( r.Value( ) )
+end function
+
+' Writes OptionsText( o ) to path, creating the folder, unless it holds exactly that already.
+' TRUE = written.
+public function WriteOptions( byref path as const ustring, byref o as const ProjectOptions ) as boolean
+    dim as ustring want = OptionsText( o )
+    if fs.IsFile( path ) then
+        if fs.ReadAllText( path ).ValueOr( "" ) = want then return false
+    else
+        dim as ustring dir_ = fs.PathParent( path )
+        if (len( dir_ ) > 0) andalso (fs.IsDir( dir_ ) = false) then
+            if fs.CreateDirAll( dir_ ).IsOk( ) = false then return false
+        end if
     end if
-    return fs.WriteAtomic( p.Path, t.Value( ) )
+    return fs.WriteAtomic( path, want ).IsOk( )
 end function
 
-' A new project at path (".tkedit" added when missing), its main file mainFile ("" = none yet),
-' that file in its list. Not written.
-public function NewProject( byref path as const ustring, byref mainFile as const ustring ) as ProjectFile
-    dim as ProjectFile p
-    p.Path = path
-    if lcase( right( p.Path, len( PROJECT_EXT ) ) ) <> PROJECT_EXT then p.Path &= PROJECT_EXT
-    if len( mainFile ) then
-        p.Main = session.StoredPath( p.Dir_( ), mainFile )
-        p.Add( mainFile )
-    end if
-    return p
+' "<folder>-<8 hex>": the folder's name (anything but letters, digits, - _ . as '_') and FNV-1a 32
+' of the manifest's full path, both case-folded except on Linux.
+public function StateKey( byref manifestPath as const ustring ) as ustring
+    dim as string p8 = manifestPath
+    if platform.CurrentOs( ) <> platform.Os.Linux then p8 = lcase( p8 )
+    dim as ulong h = 2166136261ul
+    for i as long = 0 to len( p8 ) - 1
+        h = (h xor p8[i]) * 16777619ul
+    next
+    dim as ustring folder = fs.PathFileName( fs.PathParent( manifestPath ) )
+    if platform.CurrentOs( ) <> platform.Os.Linux then folder = lcase( folder )   ' one project, one key
+    dim as ustring nm = ""
+    for i as long = 1 to len( folder )
+        dim as ustring ch = mid( folder, i, 1 )
+        dim as long a = asc( ch )
+        dim as boolean ok = ((a >= 48) andalso (a <= 57)) orelse ((a >= 65) andalso (a <= 90)) orelse _
+                            ((a >= 97) andalso (a <= 122)) orelse (a = 45) orelse (a = 95) orelse (a = 46)
+        if ok then nm &= ch else nm &= "_"
+    next
+    if len( nm ) = 0 then nm = "project"
+    return nm & "-" & lcase( right( "0000000" & hex( h ), 8 ) )
 end function
 
-public function IsProjectFile( byref path as const ustring ) as boolean
-    return lcase( right( path, len( PROJECT_EXT ) ) ) = PROJECT_EXT
+public function OptionsPath( byref configDir as const ustring, byref manifestPath as const ustring ) as ustring
+    return fs.PathJoin( configDir, PROJECTS_DIR, StateKey( manifestPath ) & ".toml" )
+end function
+
+public function SessionPath( byref configDir as const ustring, byref manifestPath as const ustring ) as ustring
+    return fs.PathJoin( configDir, PROJECTS_DIR, StateKey( manifestPath ) & SESSION_SUFFIX )
+end function
+
+' At startup: every options file whose manifest is gone goes, with its session, and so does a
+' session left without its options. Returns how many files were removed.
+public function Prune( byref configDir as const ustring ) as long
+    dim as ustring dir_ = fs.PathJoin( configDir, PROJECTS_DIR )
+    if fs.IsDir( dir_ ) = false then return 0
+    dim as Array( of ustring ) names
+    for each r in fs.ReadDir( dir_ )
+        if r.IsOk( ) = false then continue for
+        dim as fs.DirEntry e = r.Value( )
+        if e.IsFile( ) then names.Push( e.Name( ) )
+    next
+    dim as long removed = 0
+    for each nm as ustring in names
+        dim as ustring full = fs.PathJoin( dir_, nm )
+        dim as ustring low = lcase( nm )
+        if right( low, len( SESSION_SUFFIX ) ) = SESSION_SUFFIX then
+            dim as ustring opt = fs.PathJoin( dir_, left( nm, len( nm ) - len( SESSION_SUFFIX ) ) & ".toml" )
+            if fs.IsFile( opt ) = false then
+                if fs.RemoveFile( full ).IsOk( ) then removed += 1
+            end if
+        elseif right( low, 5 ) = ".toml" then
+            dim as OptionsResult o = LoadOptions( full )
+            dim as boolean gone = (o.IsOk( ) = false)
+            if gone = false then gone = (len( o.Value( ).Manifest ) = 0) orelse (fs.IsFile( o.Value( ).Manifest ) = false)
+            if gone then
+                if fs.RemoveFile( full ).IsOk( ) then removed += 1
+                dim as ustring ses = left( full, len( full ) - 5 ) & SESSION_SUFFIX
+                if fs.IsFile( ses ) then
+                    if fs.RemoveFile( ses ).IsOk( ) then removed += 1
+                end if
+            end if
+        end if
+    next
+    return removed
 end function
 
 ' A command line split as tiko splits --options (CommandLineToArgvW's rule on every OS): blanks

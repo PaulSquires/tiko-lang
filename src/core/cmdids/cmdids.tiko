@@ -94,12 +94,12 @@ public enum Cmd explicit
     ' Project
     ProjectNew
     ProjectClose
-    ProjectFilesAdd
     ' Build
     BuildExecute
     Compile
     RebuildAll
     RunExe
+    RunArguments
     BuildConfig
     NextDiagnostic
     PrevDiagnostic
@@ -289,13 +289,13 @@ constructor CommandTable( )
     g = MenuGroup.Project
     this.Def( Cmd.ProjectNew, "ProjectNew", g, "New Project...", "Primary+Alt+N" )
     this.Def( Cmd.ProjectClose, "ProjectClose", g, "Close Project", "Primary+Alt+W" )
-    this.Def( Cmd.ProjectFilesAdd, "ProjectFilesAdd", g, "Add File...", "Primary+F11", true )
 
     g = MenuGroup.Build
     this.Def( Cmd.BuildExecute, "BuildExecute", g, "Build and Run", "F5" )
     this.Def( Cmd.Compile, "Compile", g, "Compile", "Primary+F5" )
     this.Def( Cmd.RebuildAll, "RebuildAll", g, "Rebuild All", "Primary+Alt+F5" )
     this.Def( Cmd.RunExe, "RunExe", g, "Run", "Shift+F5" )
+    this.Def( Cmd.RunArguments, "RunArguments", g, "Run Arguments...", "Primary+Shift+F5" )
     this.Def( Cmd.BuildConfig, "BuildConfig", g, "Build Configuration...", "F7", true )
     this.Def( Cmd.NextDiagnostic, "NextDiagnostic", g, "Next Diagnostic", "Alt+PgDn" )
     this.Def( Cmd.PrevDiagnostic, "PrevDiagnostic", g, "Previous Diagnostic", "Alt+PgUp" )
