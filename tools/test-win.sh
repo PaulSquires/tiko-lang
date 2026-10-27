@@ -21,7 +21,7 @@ build() {    # build <package dir>
 run() {      # run <name> <dir> <command...>
     local name=$1 dir=$2; shift 2
     local res rc line
-    res=$(cd "$dir" && timeout 300 "$@" 2>&1); rc=$?
+    res=$(cd "$dir" && timeout -k 10 300 "$@" 2>&1); rc=$?
     echo "$res" | grep -E '^FAIL' | head -20
     line=$(echo "$res" | grep -E ' selftest: ' | tail -1)
     echo "$name [windows]: ${line:-no summary line} (exit $rc)"

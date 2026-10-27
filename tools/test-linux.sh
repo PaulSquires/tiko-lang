@@ -39,7 +39,7 @@ build() {    # build <package dir>
 run() {      # run <name> <dir> <driver> <command...>
     local name=$1 dir=$2 drv=$3; shift 3
     local res rc line
-    res=$(cd "$dir" && SDL_VIDEO_DRIVER=$drv timeout 300 "$@" 2>&1 | grep -v ZINK); rc=${PIPESTATUS[0]}
+    res=$(cd "$dir" && SDL_VIDEO_DRIVER=$drv timeout -k 10 300 "$@" 2>&1 | grep -v ZINK); rc=${PIPESTATUS[0]}
     echo "$res" | grep -E '^FAIL' | head -20
     line=$(echo "$res" | grep -E ' selftest: ' | tail -1)
     echo "$name [$drv]: ${line:-no summary line} (exit $rc)"
