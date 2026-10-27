@@ -122,6 +122,10 @@ public sub Pass( byref t as Tally, byval sc as single )
     dim as long cx = tkForm_Scale( mw.form, mainwin.DEFAULT_CX ), cy = tkForm_Scale( mw.form, mainwin.DEFAULT_CY )
     t.Check( (h->root->cw = cx) andalso (h->root->ch = cy), _
              P( sc, strings.Format( "client {}x{}, want {}x{}", h->root->cw, h->root->ch, cx, cy ) ) )
+    ' Wayland sets no window icon without the compositor's xdg-toplevel-icon (WSLg has none): there
+    ' the .desktop file names it
+    dim as const zstring ptr vd = SDL_GetCurrentVideoDriver( )
+    if (vd = 0) orelse (*vd <> "wayland") then t.Check( mw.HasIcon, P( sc, "the window icon is icons/tkedit.png" ) )
     t.Check( strings.EndsWith( tkForm_RoleFile( mw.form, TKFONT_UI ), mainwin.FONT_UI ), P( sc, "UI font is Inter" ) )
     t.Check( strings.EndsWith( tkForm_RoleFile( mw.form, TKFONT_MONO ), mainwin.FONT_MONO ), P( sc, "mono font is Cascadia Mono" ) )
     t.Check( strings.EndsWith( tkApp_GlyphFace( ), mainwin.FONT_GLYPH ), P( sc, "glyph font is '" & tkApp_GlyphFace( ) & "'" ) )

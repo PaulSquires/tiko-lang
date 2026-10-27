@@ -21,6 +21,9 @@ copy() {     # copy <from> <to>
         | ( cd "$2" && tar -xf - )
 }
 copy "$SRC" "$W/tkEdit"
+# TK-003: a manifest cannot say "Windows only", and a Linux build refuses a .rc (TKO0108). The
+# copy drops the exe icon's line; the window icon (icons/tkedit.png) is set at run time anyway.
+sed -i '/^resources *= *\["res\/tkEdit.rc"\]/d' "$W/tkEdit/src/app/tiko.toml"
 copy "$TK" "$W/tkControls"
 mkdir -p "$W/tkEdit/bin"
 export XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir EGL_LOG_LEVEL=fatal LD_LIBRARY_PATH=$LIB

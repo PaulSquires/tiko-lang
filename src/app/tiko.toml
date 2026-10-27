@@ -17,4 +17,5 @@ options = ["-w", "all"]
 main      = "main.tiko"
 subsystem = "gui"
 options   = ["-mt"]
+resources = ["res/tkEdit.rc"]
 copy_to   = ["../../bin"]

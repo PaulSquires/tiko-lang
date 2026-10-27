@@ -32,7 +32,8 @@ tkEdit [files...]        restores the last session (or project), then opens the 
 | `src/core` | `tkc` | GUI-free modules, console-tested by `tests/coreall`; `tests/keysdoc` writes KEYS.md |
 | `src/svc` | `tks` | background work: the tikoParser scanner, the build runner |
 | `src/app` | `tka` | the window, on tkControls (path dependency `../tkControls`) |
-| `fonts/`, `keywords/`, `themes/` | | resources found beside `bin/` |
+| `fonts/`, `icons/`, `keywords/`, `themes/` | | resources found beside `bin/` |
+| `src/app/res` | | `tkEdit.rc` + `tkedit.ico`: the exe's icon (Windows); `tools/make-icon.py` draws both icons |
 
 Copied modules and their source: [PROVENANCE.md](PROVENANCE.md).
 
@@ -48,6 +49,12 @@ MSYS_NO_PATHCONV=1 wsl.exe -e bash /mnt/c/dev/tkEdit/tools/test-linux.sh
 
 ```bash
 bash tools/idiom.sh
+```
+
+A release build (the test scripts build debug) writes `bin/tkedit.exe` too, from `src/app`:
+
+```bash
+TKO_MODCACHE=/c/dev/tkEdit/out/modcache /c/dev/tiko-lang/toolchains/tiko-windows/tiko.exe build --profile release
 ```
 
 `bin/` is the run folder (`bin/tkedit.exe` beside the SDL libraries, `scintk.dll` and

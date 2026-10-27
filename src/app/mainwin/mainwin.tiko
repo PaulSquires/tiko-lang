@@ -236,6 +236,7 @@ public type Window
 
     ' ---- the App state
     ResourceDir as ustring
+    HasIcon as boolean                                         ' icons/tkedit.png set as the window icon
     Prefs as settings.EditorSettings
     Keys as keybind.KeyMap
     Theme as themes.Theme
@@ -460,6 +461,14 @@ function Window.Create( byval forcedScale as single ) as boolean
     form = tkApp_NewForm( appinfo.WindowTitle( ), DEFAULT_CX, DEFAULT_CY, 0, forcedScale )
     if form = 0 then return false
     form->Tag = @this
+    ' the title bar's icon, every platform; on Windows the .exe's own (res/tkEdit.rc) is the taskbar's
+    ' and Explorer's, and SDL starts from it
+    dim as string icon8 = fs.PathJoin( ResourceDir, "icons", "tkedit.png" )
+    dim as SDL_Surface ptr icon = IMG_Load( strptr( icon8 ) )
+    if icon then
+        HasIcon = SDL_SetWindowIcon( tkForm_Host( form )->win, icon )
+        SDL_DestroySurface( icon )
+    end if
     dim as TK_WIDGET ptr root = tkForm_Widget( form )
 
     status = tkStatusBar_Create( root, ID_STATUS )

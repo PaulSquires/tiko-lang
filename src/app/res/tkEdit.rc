@@ -1,0 +1,4 @@
+/* tkEdit resources (Windows only). Block comments only: the resource compiler rejects //.
+   The icon is drawn by tools/make-icon.py. Its NAME sorts first (IMAGE_AAA_) so Windows takes it
+   as the program icon, and SDL takes the first icon for the window class. */
+IMAGE_AAA_MAINICON   ICON     "tkedit.ico"
