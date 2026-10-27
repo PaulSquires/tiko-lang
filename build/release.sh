@@ -15,7 +15,8 @@
 #   3. tars toolchains/tiko-linux under WSL from a copy in ~/tkrel-<sha>, 644 for files and
 #      755 for bin/tiko, owner 0 (tarring from /mnt/c gives every file 777);
 #      both archives carry the editor beside the toolchain: toolchains/tkedit-<host> (made by
-#      package.sh) as tkedit/, so each unpacks to tiko-<host>/ and tkedit/ (--no-tkedit: not);
+#      package.sh) as tkedit/, so each unpacks to tiko-<host>/ and tkedit/ (--no-tkedit: not;
+#      the zip adds a staged copy named tkedit, as System32's bsdtar cannot rename with -s);
 #   4. writes SHA256SUMS and appends the hashes to a copy of the notes;
 #   5. smoke-tests each archive extracted into an empty directory with no TKO_* variable:
 #      hello.tiko compiled and run, and tkedit/ holds the program at its root with fonts/;
@@ -39,7 +40,7 @@ while [ $# -gt 0 ]; do
         --publish) PUBLISH=1 ;;
         --latest)  LATEST=1 ;;
         --no-tkedit) TKEDIT=0 ;;
-        -h|--help) sed -n '2,28p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,29p' "$0"; exit 0 ;;
         *) echo "release: unknown argument '$1'" >&2; exit 2 ;;
     esac
     shift
@@ -77,7 +78,11 @@ BSDTAR=/c/Windows/System32/tar.exe
 [ -x "$BSDTAR" ] || die "no $BSDTAR (bsdtar) -- the GNU tar in Git Bash cannot write a zip"
 rm -f "$ZIP"
 if [ "$TKEDIT" = "1" ]; then
-    ( cd toolchains && "$BSDTAR" -a -cf "$ROOT/$ZIP" -s ',^tkedit-windows,tkedit,' tiko-windows tkedit-windows ) || die "zip failed"
+    # tkedit-windows goes in as tkedit/: System32's bsdtar has no -s to rename, so a copy named
+    # tkedit is staged in $OUT and added from there with -C
+    rm -rf "$OUT/stage" && mkdir -p "$OUT/stage" && cp -r "$TKWIN" "$OUT/stage/tkedit" || die "staging tkedit"
+    ( cd toolchains && "$BSDTAR" -a -cf "$ROOT/$ZIP" tiko-windows -C "$ROOT/$OUT/stage" tkedit ) || die "zip failed"
+    rm -rf "$OUT/stage"
 else
     ( cd toolchains && "$BSDTAR" -a -cf "$ROOT/$ZIP" tiko-windows ) || die "zip failed"
 fi
