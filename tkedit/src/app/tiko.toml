@@ -23,3 +23,10 @@ copy_to   = ["../../bin"]
 # the exe's icon: a .rc is Windows-only, and a Linux build refuses one (TK-003)
 [target.tkEdit.windows]
 resources = ["res/tkEdit.rc"]
+
+# Linux: find the SDL3 libraries beside the program, as a packaged tkedit/ has them. An RPATH
+# (--disable-new-dtags), not a RUNPATH: a RUNPATH covers only the program's own needs, and
+# libSDL3_ttf needs libharfbuzz and libfreetype from the same folder (measured 2026-10-27; the
+# link had no run path at all). LD_LIBRARY_PATH, which the test scripts set, still works.
+[target.tkEdit.linux]
+options = ["-Wl", "--disable-new-dtags,-rpath,$ORIGIN"]

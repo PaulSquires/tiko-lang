@@ -884,7 +884,9 @@ if [ "$DO_TKEDIT" = "1" ]; then
     if [ -z "$_tkfail" ]; then
         note "building tkedit with the packaged compiler"
         rm -rf "$TKSRC/src/app/out/release"
-        if ! ( cd "$TKSRC/src/app" && TKO_MODCACHE="$TKSRC/out/modcache-package" \
+        # LD_LIBRARY_PATH for the LINK only: GNU ld finds libSDL3_ttf's own needs (libharfbuzz)
+        # through it. The self-test below runs without it -- tkedit must find them beside itself.
+        if ! ( cd "$TKSRC/src/app" && TKO_MODCACHE="$TKSRC/out/modcache-package" LD_LIBRARY_PATH="${_tklib:-}" \
                  "$OUT/${BINSUB}tiko$EXT" build --profile release ${_tkopts:+--options "$_tkopts"} ) >>"$_tklog" 2>&1; then
             _tkfail="the build failed -- lib/rt/obj/package-tkedit.log"
         fi
@@ -914,7 +916,7 @@ if [ "$DO_TKEDIT" = "1" ]; then
         if [ "$DO_VERIFY" = "1" ]; then
             if [ "$HOST" = "windows" ] || [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
                 note "verifying tkedit: its self-test"
-                _tkres=$( cd "$TKD" && TKEDIT_TIKO="$OUT/${BINSUB}tiko$EXT" SDL_VIDEO_DRIVER=${SDL_VIDEO_DRIVER:-} \
+                _tkres=$( cd "$TKD" && env -u LD_LIBRARY_PATH TKEDIT_TIKO="$OUT/${BINSUB}tiko$EXT" SDL_VIDEO_DRIVER=${SDL_VIDEO_DRIVER:-} \
                           timeout 600 "./tkedit$EXT" --selftest 2>&1 | grep ' selftest: ' | tail -1 )
                 rm -rf "$TKD/out"
                 if echo "$_tkres" | grep -q ' 0 failed'; then
