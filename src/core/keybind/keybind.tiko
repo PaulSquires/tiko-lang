@@ -43,10 +43,10 @@
 ' AccelKeyToValue accepted (the shifted characters meant the same physical key there).
 '
 ' KEYBINDINGS.TOML (PLAN.md D15) is UTF-8 in platform.ConfigDir( ), by command NAME (tkc/cmdids).
-' ToToml writes every command, the ones at their default commented out:
+' ToToml writes every command at the chord in force, none commented out:
 '     format = 1
 '     [bindings]
-'     # FileSave = 'Primary+S'        a default: the line is only a reference
+'     FileSave = 'Primary+S'          its default
 '     Compile = 'Primary+Shift+B'     this chord instead of the default
 '     DuplicateLine = ''              the default removed, nothing in its place
 ' A command not listed (or commented) has its default. Unknown names, unbindable commands, values that are not
@@ -423,13 +423,12 @@ end function
 
 private function ToTomlHead( ) as ustring
     dim as ustring nl = wchr( 10 )
-    return "# tkEdit keyboard shortcuts. Every command is listed; a commented line is its default." & nl & _
-           "# Uncomment and change a line to rebind it; Command = '' removes the default." & nl & _
-           "# Primary is Ctrl (Cmd on macOS). Saving this file in tkEdit applies it at once." & nl
+    return "# tkEdit keyboard shortcuts: every command at its chord. Change one to rebind it; Command = ''" & nl & _
+           "# removes it. Primary is Ctrl (Cmd on macOS). Saving this file in tkEdit applies it at once." & nl
 end function
 
-' The whole file: every command once, in table order, under its menu's comment. A command at its
-' default is written commented, so the file is also the reference. Literal strings: a chord may
+' The whole file: every command once, in table order, under its group's comment, at the chord in
+' force -- the default included, so the file is also the reference. Literal strings: a chord may
 ' hold a backslash ("Primary+") and never an apostrophe (that key is "SingleQuote").
 function KeyMap.ToToml( ) as TextResult
     dim as ustring nl = wchr( 10 )
@@ -441,12 +440,7 @@ function KeyMap.ToToml( ) as TextResult
             s &= nl & "# ---- " & cat & nl
             grp = cat
         end if
-        dim as ustring eff = b.Effective( )
-        if eff = b.DefaultKeys then
-            s &= "# " & b.Name & " = '" & b.DefaultKeys & "'" & nl
-        else
-            s &= b.Name & " = '" & eff & "'" & nl
-        end if
+        s &= b.Name & " = '" & b.Effective( ) & "'" & nl
     next
     return Ok( of ustring, ustring )( s )
 end function

@@ -31,6 +31,7 @@
 #import "tkControls/tkApp"
 #import "tkControls/tkTest"
 #import "tkControls/tkPaint"
+#import "tkControls/tkPopupMenu"
 #import "tkControls/tkMessageBox"
 #import "tkControls/tkStatusBar"
 #import "tkControls/tkTextBox"
@@ -43,6 +44,7 @@ using tkApp
 using tkHost
 using tkTest
 using tkPaint
+using tkPopupMenu
 using tkMessageBox
 using tkStatusBar
 using tkTextBox
@@ -106,6 +108,18 @@ private sub Chord( byval h as TK_HOST ptr, byval key as long, byval sc as long, 
 end sub
 
 ' The status panel's middle, in the window's pixels.
+' A list w on host h, rendered: more than its back colour and one other -- its rows were drawn.
+private function RowsDrawn( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr ) as boolean
+    if (h = 0) orelse (w = 0) then return false
+    tkHost_RenderTo( h, false )
+    dim as TKRECT a
+    tkWidget_AbsRect( w, a )
+    dim as ulong c0
+    dim as long n = tkTest_TonesIn( h, a.left, a.top, a.right - a.left, a.bottom - a.top, c0 )
+    if n <= 2 then print strings.Format( "  list: {} tones at {},{} {}x{}", n, a.left, a.top, a.right - a.left, a.bottom - a.top )
+    return n > 2
+end function
+
 private sub ClickPanel( byref mw as mainwin.Window, byval panel as mainwin.StatusPanel )
     dim as TKRECT rc
     tkStatusBar_GetPanelRect( mw.status, panel, rc )
@@ -194,6 +208,29 @@ public sub Pass( byref t as Tally, byval sc as single )
     t.Check( (v->y = 0) andalso (v->ch = cy - sh), P( sc, strings.Format( "the view is back: y {} h {}", v->y, v->ch ) ) )
     t.Check( mw.View( ).Text( ) = "dim x as long" & mw.View( ).EolText( ), P( sc, "Esc typed nothing" ) )
 
+    ' ---- a click on the message panel shows the output pane, another hides it
+    ClickPanel( mw, mainwin.StatusPanel.Message )
+    t.Check( mw.OutputShown andalso tkWidget_IsVisible( mw.Out.frame ), P( sc, "the message panel showed the output pane" ) )
+    ClickPanel( mw, mainwin.StatusPanel.Message )
+    t.Check( (mw.OutputShown = false) andalso (v->ch = cy - sh), P( sc, "and hid it" ) )
+
+    ' ---- the view's right-click menu: ten commands, what cannot be done greyed; Select All runs
+    tkTest_Click( h, v->x + v->cw \ 2, v->y + v->ch \ 2, SDL_BUTTON_RIGHT )
+    tkTest_PumpFor( h, 60 )
+    t.Check( tkPopupMenu_IsOpen( mw.editMenu ), P( sc, "a right click opened the menu" ) )
+    t.Check( tkPopupMenu_GetItemCount( mw.editMenu ) = 14, P( sc, strings.Format( "ten commands, four separators ({})", tkPopupMenu_GetItemCount( mw.editMenu ) ) ) )
+    t.Check( tkPopupMenu_GetItemEnabled( mw.editMenu, Cmd.Undo ) andalso (tkPopupMenu_GetItemEnabled( mw.editMenu, Cmd.Cut ) = false) andalso _
+             (tkPopupMenu_GetItemEnabled( mw.editMenu, Cmd.Redo ) = false), P( sc, "Undo on; Redo, and Cut with no selection, greyed" ) )
+    dim as TKRECT ir
+    dim as TK_HOST ptr ms = tkPopupMenu_Surface( mw.editMenu )
+    if (ms <> 0) andalso tkPopupMenu_GetItemRect( mw.editMenu, 13, ir ) then
+        tkTest_Click( ms, (ir.left + ir.right) \ 2, (ir.top + ir.bottom) \ 2 )
+        tkTest_PumpFor( h, 60 )
+    end if
+    t.Check( tkPopupMenu_IsOpen( mw.editMenu ) = false, P( sc, "a pick closed it" ) )
+    t.Check( mw.View( ).SelectionLength( ) = mw.View( ).Length( ), P( sc, strings.Format( "Select All selected {} of {}", mw.View( ).SelectionLength( ), mw.View( ).Length( ) ) ) )
+    t.Check( mw.View( ).IsHighlighted( ), P( sc, "an untitled buffer is coloured" ) )
+
     mw.Destroy( )
 end sub
 
@@ -210,12 +247,13 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     tkTest_PumpFor( h, 150 )
     dim as ustring nl = wchr( 10 )
 
-    ' ---- first run: both files written, commented
+    ' ---- first run: both files written, every key set
     dim as ustring sf = fs.PathJoin( cfg, settings.SETTINGS_FILE ), kf = fs.PathJoin( cfg, keybind.KEYBINDINGS_FILE )
     dim as ustring st = fs.ReadAllText( sf ).ValueOr( "" ), kt = fs.ReadAllText( kf ).ValueOr( "" )
     t.Check( (instr( st, nl & "tab_size = 4" & nl ) > 0) andalso (instr( st, "# tab_size" ) = 0), _
              P( sc, "first run wrote settings.toml, every key set" ) )
-    t.Check( instr( kt, "# FileSave = 'Primary+S'" ) > 0, P( sc, "first run wrote keybindings.toml, commented" ) )
+    t.Check( (instr( kt, nl & "FileSave = 'Primary+S'" & nl ) > 0) andalso (instr( kt, "# FileSave" ) = 0), _
+             P( sc, "first run wrote keybindings.toml, every command at its chord" ) )
 
     ' ---- every command implemented, its shortcut text from the key map
     dim as long greyed = 0
@@ -238,6 +276,7 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     ' ---- settings.toml: Ctrl+Comma opens it; saving applies it
     Chord( h, SDLK_COMMA, SDL_SCANCODE_COMMA, SDL_KMOD_CTRL )
     t.Check( lcase( mw.ActivePath( ) ) = lcase( sf ), P( sc, "Ctrl+Comma opened settings.toml: " & mw.ActivePath( ) ) )
+    t.Check( mw.View( ).IsHighlighted( ) = false, P( sc, "not coloured: not a source file" ) )
     t.Check( left( mw.View( ).Text( ), 17 ) = "# tkEdit settings", P( sc, "its text is in the view" ) )
     t.Check( mw.StatusText( mainwin.StatusPanel.Buffer ) = settings.SETTINGS_FILE, P( sc, "the buffer panel names it" ) )
     dim as long pts0 = mw.View( ).FontSize( ), lineH0 = mw.View( ).LineHeight( )
@@ -288,6 +327,12 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     mw.View( ).SetText( "format = 1" & nl & "[bindings]" & nl )
     Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
     t.Check( mw.Keys.Effective( Cmd.DuplicateLine ) = "Primary+D", P( sc, "an emptied file restores the defaults" ) )
+    mw.Execute( Cmd.FileClose )
+    Chord( h, SDLK_K, SDL_SCANCODE_K, SDL_KMOD_CTRL )
+    dim as ustring kt2 = mw.View( ).Text( )
+    t.Check( (lcase( mw.ActivePath( ) ) = lcase( kf )) andalso (instr( kt2, nl & "DuplicateLine = 'Primary+D'" & nl ) > 0) andalso _
+             (instr( kt2, nl & "FileSave = 'Primary+S'" & nl ) > 0) andalso (instr( kt2, "# FileSave" ) = 0), _
+             P( sc, "reopened, keybindings.toml lists every command at its chord" ) )
 
     ' ---- the theme file: Ctrl+Shift+T copies the shipped one into the config folder; saving applies it
     Chord( h, SDLK_T, SDL_SCANCODE_T, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
@@ -363,6 +408,7 @@ private sub PopKey( byref mw as mainwin.Window, byval key as long, byval sc as l
     tkTest_PumpFor( tkForm_Host( mw.form ), 40 )
 end sub
 
+
 public sub BufferPass( byref t as Tally, byval sc as single )
     dim as mainwin.Window mw
     mw.ConfigDir = FreshConfig( )
@@ -395,6 +441,7 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     mw.OpenFile( pathC )
     t.Check( mw.StatusText( mainwin.StatusPanel.Encoding ) = "ANSI", P( sc, "c.txt is ANSI: " & mw.StatusText( mainwin.StatusPanel.Encoding ) ) )
     t.Check( mw.View( ).Text( ) = "caf" & wchr( &hE9 ) & chr( 10 ), P( sc, "and decoded" ) )
+    t.Check( (mw.View( ).IsHighlighted( ) = false) andalso mw.FindOpen( pathA )->Main.IsHighlighted( ), P( sc, "c.txt plain, a.tiko coloured" ) )
     t.Check( (mw.Mru.Count( ) = 3) andalso (mw.Mru[0] = mw.Active( )), P( sc, "the most recent first" ) )
     t.Check( mw.Recent.Count( ) = 3, P( sc, strings.Format( "three recent files ({})", mw.Recent.Count( ) ) ) )
 
@@ -402,6 +449,16 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     Chord( h, SDLK_E, SDL_SCANCODE_E, SDL_KMOD_CTRL )
     t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Buffers), P( sc, "Ctrl+E opened the buffer list" ) )
     t.Check( mw.Chooser.ShownCount( ) = 3, P( sc, strings.Format( "three rows ({})", mw.Chooser.ShownCount( ) ) ) )
+    t.Check( RowsDrawn( mw.Chooser.Pop, mw.Chooser.List ), P( sc, "and draws them" ) )
+    dim as TKRECT pr
+    tkStatusBar_GetPanelRect( mw.status, mainwin.StatusPanel.Buffer, pr )
+    dim as long popX = 0, popY = 0
+    SDL_GetWindowPosition( mw.Chooser.Pop->win, @popX, @popY )
+    dim as long popW = 0, popH = 0
+    SDL_GetWindowSize( mw.Chooser.Pop->win, @popW, @popH )
+    dim as single dd = h->fDensity
+    t.Check( (abs( popX * dd - (mw.status->x + pr.left) ) <= 2) andalso (abs( (popY + popH) * dd - mw.status->y ) <= 2), _
+             P( sc, strings.Format( "the list sits on the filename panel: {},{} {}x{} (status at y {})", popX, popY, popW, popH, mw.status->y ) ) )
     if mw.Chooser.Pop then
         tkTest_PushText( mw.Chooser.Pop, "b.t" )
         tkTest_PumpFor( h, 40 )
@@ -841,6 +898,7 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     t.Check( mw.OutputShown andalso (mw.Out.current = outputpane.OutputTab.Results), P( sc, "the output pane opened on Results" ) )
     t.Check( mw.Diags.Count( ) >= 2, P( sc, strings.Format( "the diagnostics ({})", mw.Diags.Count( ) ) ) )
     t.Check( tkListTree_GetCount( mw.Out.results ) >= 2, P( sc, strings.Format( "Results rows ({})", tkListTree_GetCount( mw.Out.results ) ) ) )
+    t.Check( RowsDrawn( h, mw.Out.results ), P( sc, "and drawn" ) )
     v = @mw.View( )
     t.Check( v->CaretLine( ) = 2, P( sc, strings.Format( "the caret went to the first error, line {}", v->CaretLine( ) ) ) )
     t.Check( v->SquiggleAt( v->SelectionStart( ) ) <> 0, P( sc, "a squiggle under it" ) )

@@ -23,7 +23,7 @@ the name `tiko-studio` → `tkEdit` (incl. `platform.APP_NAME` and the run-scrip
 | `src/core/textsearch` | `src/core/textsearch` | — |
 | `src/core/textstream` | `src/core/textstream` | — |
 | `src/core/tomlget` | `src/core/tomlget` | — |
-| `src/core/keybind` | `src/core/keybind` | importer of the old keybindings.ini dropped; `ToToml` writes every command, defaults commented, as literal strings |
+| `src/core/keybind` | `src/core/keybind` | importer of the old keybindings.ini dropped; `ToToml` writes every command at its chord in force, none commented, as literal strings |
 | `src/core/cmdids` | — | new: tkEdit's 83 commands (shape of tiko-studio's `CommandTable`, no OldName, `MenuGroup`, `SepBefore`, `InGroup`) |
 | `src/core/settings` | — | new, trimmed schema; `Template`/`EnsureFile` |
 | `src/core/themes` | — | new: TOML themes (not tiko-studio's `.theme`) |

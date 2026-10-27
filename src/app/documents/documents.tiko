@@ -64,7 +64,20 @@ public type Document
     declare function ChangedOnDisk( ) as boolean
     declare function HasView( byval w as TK_WIDGET ptr ) as boolean
     declare sub DestroyViews( )
+    declare sub ApplyHighlight( )                   ' both views: coloured for a source file only
 end type
+
+' A tiko source file by its name: .tiko .ti .bas .bi (any case). An untitled buffer counts as one.
+public function IsSourceFile( byref path as const ustring ) as boolean
+    if len( path ) = 0 then return true
+    dim as ustring nm = fs.PathFileName( path )
+    dim as long dot = instrrev( nm, "." )
+    if dot <= 1 then return false
+    select case lcase( mid( nm, dot + 1 ) )
+    case "tiko", "ti", "bas", "bi" : return true
+    end select
+    return false
+end function
 
 ' The tab's and title bar's name for it.
 function Document.DisplayName( ) as ustring
@@ -96,6 +109,7 @@ function Document.Load( byref path as const ustring ) as TextResult
     Main.SetText( t.Text )
     Main.SetLineEnding( Enc.LineEnding, false )
     this.Path = path
+    this.ApplyHighlight( )
     Stamp = StampOf( path )
     Ignored = Stamp
     return Ok( of boolean, ustring )( true )
@@ -127,6 +141,7 @@ function Document.Save( byref path as const ustring, byval acceptLoss as boolean
     dim as fs.FsResultBool w = docencoding.WriteFile( path, p.Bytes )
     if w.IsOk( ) = false then return Fail( of boolean, ustring )( w.Failure( ).Message( ) )
     this.Path = path
+    this.ApplyHighlight( )
     Main.SetSavePoint( )
     Stamp = StampOf( path )
     Ignored = Stamp
@@ -149,4 +164,10 @@ end function
 sub Document.DestroyViews( )
     Other.Destroy( )
     Main.Destroy( )
+end sub
+
+sub Document.ApplyHighlight( )
+    dim as boolean src = IsSourceFile( Path )
+    Main.SetHighlight( src )
+    if Other.Exists( ) then Other.SetHighlight( src )
 end sub

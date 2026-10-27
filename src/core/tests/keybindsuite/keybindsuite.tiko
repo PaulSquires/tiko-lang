@@ -3,7 +3,7 @@
 '
 ' keybindsuite -- tkc/keybind: the key-name vocabulary (the old self-test's assertions, pinned by
 ' name), chord parse/format in both spellings, the binding list and conflict lookup,
-' keybindings.toml (every command listed, defaults commented) round trips and warnings. Vocabulary
+' keybindings.toml (every command listed at its chord, none commented) round trips and warnings. Vocabulary
 ' and chord checks are tiko-studio's (PROVENANCE.md); the map and TOML checks are tkEdit's.
 #module "keybindsuite"
 
@@ -165,29 +165,30 @@ private sub MapChecks( byref c as tally.Checker )
     c.Same( m.Effective( cmdids.Cmd.FileSave ), "Primary+S", "Reset restores the default" )
 end sub
 
-' The lines of s after the [bindings] header that are not comments or blank.
-private function LiveLines( byref s as const ustring ) as ustring
-    dim as ustring o
+' How many lines of s after the [bindings] header are not comments or blank.
+private function LiveCount( byref s as const ustring ) as long
+    dim as long n = 0
     dim as long p = instr( s, "[bindings]" )
-    if p = 0 then return "!"
+    if p = 0 then return -1
     dim as Array( of ustring ) lines = strings.Split( mid( s, p ), wchr( 10 ) )
     for i as long = 1 to lines.Count( ) - 1
         dim as ustring ln = lines[i]
         if (len( ln ) = 0) orelse (left( ln, 1 ) = "#") then continue for
-        o &= ln & "|"
+        n += 1
     next
-    return o
+    return n
 end function
 
 private sub TomlChecks( byref c as tally.Checker )
     dim as keybind.KeyMap m
     dim as keybind.TextResult t = m.ToToml( )
     c.Check( t.IsOk( ), "ToToml of the defaults" )
-    c.Same( LiveLines( t.Value( ) ), "", "the defaults write only comments under [bindings]" )
-    c.Check( instr( t.Value( ), "# FileSave = 'Primary+S'" & wchr( 10 ) ) > 0, "a default is listed, commented" )
-    c.Check( instr( t.Value( ), "# SplitLeftRight = 'Primary+\'" & wchr( 10 ) ) > 0, "a backslash chord in a literal string" )
+    c.SameNum( LiveCount( t.Value( ) ), m.Count( ), "every command is a live line under [bindings]" )
+    c.Check( instr( t.Value( ), "# FileSave" ) = 0, "none commented out" )
+    c.Check( instr( t.Value( ), wchr( 10 ) & "FileSave = 'Primary+S'" & wchr( 10 ) ) > 0, "a default is listed at its chord" )
+    c.Check( instr( t.Value( ), wchr( 10 ) & "SplitLeftRight = 'Primary+\'" & wchr( 10 ) ) > 0, "a backslash chord in a literal string" )
     c.Check( instr( t.Value( ), "# ---- Build" & wchr( 10 ) ) > 0, "the menu groups head their commands" )
-    c.Check( instr( t.Value( ), "# FileSaveAs = ''" & wchr( 10 ) ) > 0, "a command with no default is listed too" )
+    c.Check( instr( t.Value( ), wchr( 10 ) & "FileSaveAs = ''" & wchr( 10 ) ) > 0, "a command with no default is listed too" )
     dim as keybind.KeyMap fresh
     dim as keybind.WarningsResult w0 = fresh.ApplyToml( t.Value( ) )
     c.Check( w0.IsOk( ) andalso ( w0.Value( ).Count( ) = 0 ), "the defaults' file reads back" )
@@ -203,8 +204,10 @@ private sub TomlChecks( byref c as tally.Checker )
     m.SetUserKeys( cmdids.Cmd.Undo, "Primary+Z" )                           ' = its default
     m.SetUserKeys( cmdids.Cmd.CycleFocus, "Primary+Shift+\" )
     t = m.ToToml( )
-    c.Same( LiveLines( t.Value( ) ), "FileSaveAs = 'Primary+Alt+S'|DuplicateLine = ''|CycleFocus = 'Primary+Shift+\'|Compile = 'Primary+Shift+B'|", _
-            "the deviations, live, in table order" )
+    dim as ustring tv = t.Value( )
+    c.Check( (instr( tv, "FileSaveAs = 'Primary+Alt+S'" ) > 0) andalso (instr( tv, "DuplicateLine = ''" ) > 0) andalso _
+             (instr( tv, "CycleFocus = 'Primary+Shift+\'" ) > 0) andalso (instr( tv, "Compile = 'Primary+Shift+B'" ) > 0) andalso _
+             (instr( tv, "Undo = 'Primary+Z'" ) > 0), "the changed chords are written as they are in force" )
 
     dim as keybind.KeyMap back
     back.SetUserKeys( cmdids.Cmd.Find, "Primary+Q" )                        ' ApplyToml starts from defaults

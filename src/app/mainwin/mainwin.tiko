@@ -18,7 +18,8 @@
 ' Configuration is files only (D15): settings.toml, keybindings.toml and the theme are opened as
 ' buffers like any text, and saving one re-applies it at once. A file that does not parse leaves
 ' the previous values in force and says why in the status line's message panel. settings.toml is
-' rewritten to list every key at its value in force when tkEdit starts and before it is opened.
+' rewritten to list every key at its value in force when tkEdit starts and before it is opened;
+' keybindings.toml every command at its chord, the same way.
 #module "mainwin"
 
 #import "std/containers"
@@ -30,7 +31,6 @@
 #import "tkc/appinfo"
 #import "tkc/autoinsert"
 #import "tkc/build"
-#import "tkc/commented"
 #import "tkc/cmdids"
 #import "tkc/docencoding"
 #import "tkc/format"
@@ -60,6 +60,7 @@
 #import "tkControls/tkListTree"
 #import "tkControls/tkMessageBox"
 #import "tkControls/tkPaint"
+#import "tkControls/tkPopupMenu"
 #import "tkControls/tkSplitter"
 #import "tkControls/tkStatusBar"
 using containers
@@ -73,6 +74,7 @@ using tkKeys
 using tkListTree
 using tkMessageBox
 using tkPaint
+using tkPopupMenu
 using tkSplitter
 using tkStatusBar
 
@@ -97,7 +99,7 @@ const DISK_CHECK_MS = 1000
 ' The status line's panels, left to right (PLAN.md, Window).
 public enum StatusPanel explicit
     Buffer = 0          ' the active buffer's name, its full path the tooltip; a click lists the buffers
-    Message             ' stretches: build results, config errors
+    Message             ' stretches: build results, config errors; a click shows or hides the output pane
     Position            ' Ln, Col; a click opens Go to Line, or closes it
     Build               ' the build configuration; a click picks one
     Encoding            ' a click picks one
@@ -302,6 +304,7 @@ public type Window
     form as TK_FORM ptr
     status as TK_WIDGET ptr
     splitBar as TK_WIDGET ptr
+    editMenu as TK_MENU ptr             ' a view's right-click menu
     accel as TK_KEYMAP ptr
     diskTimer as long
     untitled as long
@@ -332,6 +335,7 @@ public type Window
     declare function SessionFile( ) as ustring
     declare sub ReloadSettings( )
     declare sub SyncSettingsFile( )
+    declare sub SyncKeysFile( )
     declare sub ReloadKeys( )
     declare sub ReloadTheme( )
     declare sub ApplyLook( )
@@ -414,6 +418,7 @@ public type Window
     declare sub OpenChooser( byval kind as PickKind )
     declare sub Chosen( byval tag as long )
     declare function DocOfWidget( byval w as TK_WIDGET ptr ) as DocRef
+    declare sub ShowEditMenu( byval hEdit as TK_WIDGET ptr, byval x as long, byval y as long )
 
   private:
     declare sub RebuildAccelerators( )
@@ -444,9 +449,6 @@ function Window.Create( byval forcedScale as single ) as boolean
     if len( ConfigDir ) = 0 then ConfigDir = platform.ConfigDir( ).ValueOr( fs.PathJoin( ResourceDir, "config" ) )
     Words = LoadKeywords( ResourceDir )
 
-    ' first run: keybindings.toml as the commented reference (D15), never overwritten; settings.toml
-    ' is written below, once it has been read
-    if fs.Exists( this.KeysFile( ) ) = false then Keys.Save( this.KeysFile( ) )
     Prefs = settings.DefaultSettings( )
     Theme = themes.DarkTheme( )
 
@@ -473,6 +475,7 @@ function Window.Create( byval forcedScale as single ) as boolean
         if mw = 0 then exit sub
         select case idx
         case StatusPanel.Buffer : mw->OpenChooser( PickKind.Buffers )
+        case StatusPanel.Message : mw->Execute( Cmd.OutputPane )
         case StatusPanel.Position
             if mw->Finder.isOpen andalso (mw->Finder.Mode = findstrip.StripMode.GoTo) then
                 mw->OnFind( findstrip.FindAction.CloseStrip )
@@ -489,6 +492,27 @@ function Window.Create( byval forcedScale as single ) as boolean
         if mw = 0 then return ""
         return mw->StatusTip( cast( StatusPanel, idx ) )
     end function )
+
+    ' a view's right-click menu: commands by id, through Execute like their keys
+    editMenu = tkPopupMenu_Create( tkForm_Host( form ) )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.Undo ), "Undo" )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.Redo ), "Redo" )
+    tkPopupMenu_AddSeparator( editMenu )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.Cut ), "Cut" )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.Copy ), "Copy" )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.Paste ), "Paste" )
+    tkPopupMenu_AddSeparator( editMenu )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.IndentBlock ), "Indent Block" )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.UnindentBlock ), "UnIndent Block" )
+    tkPopupMenu_AddSeparator( editMenu )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.CommentBlock ), "Comment Block" )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.UncommentBlock ), "UnComment Block" )
+    tkPopupMenu_AddSeparator( editMenu )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.SelectAll ), "Select All" )
+    tkPopupMenu_SetSelectCallback( editMenu, sub( byval hPopup as TK_MENU ptr, byval id as long )
+        dim as Window ptr mw = WindowOfHost( hPopup->pOwner )
+        if mw then mw->Execute( cast( Cmd, id ) )
+    end sub )
 
     Out.Create( root, ID_OUTPUT, @this )
     Out.OnActivate = sub( byval owner as any ptr, byval tab_ as outputpane.OutputTab, byval itemIndex as long )
@@ -507,6 +531,7 @@ function Window.Create( byval forcedScale as single ) as boolean
     this.ReloadSettings( )                      ' the theme and the look with it
     this.SyncSettingsFile( )
     this.ReloadKeys( )                          ' the accelerators with them
+    this.SyncKeysFile( )                        ' after: what it warned about stays in the status line
     CurrentBuild = Prefs.DefaultBuild( )
     if NoParser = false then this.StartScanner( )
 
@@ -597,6 +622,8 @@ sub Window.Destroy( )
     Pane2 = 0
     if accel then tkKeys_MapDestroy( accel )
     accel = 0
+    if editMenu then tkPopupMenu_Destroy( editMenu )
+    editMenu = 0
     if form then tkForm_Destroy( form )
     form = 0
 end sub
@@ -788,7 +815,9 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.Settings
         if this.FindOpen( this.SettingsFile( ) ) = 0 then this.SyncSettingsFile( )   ' never under an open buffer
         this.OpenFile( this.SettingsFile( ) )
-    case Cmd.KeyboardShortcuts : this.OpenFile( this.KeysFile( ) )
+    case Cmd.KeyboardShortcuts
+        if this.FindOpen( this.KeysFile( ) ) = 0 then this.SyncKeysFile( )           ' never under an open buffer
+        this.OpenFile( this.KeysFile( ) )
     case Cmd.ThemeFile
         dim as ustring f = this.EditableThemeFile( )
         if len( f ) then this.OpenFile( f )
@@ -950,6 +979,17 @@ sub Window.SyncSettingsFile( )
     if r.IsOk( ) then settings.WriteFile( this.SettingsFile( ), r.Value( ) )
 end sub
 
+' keybindings.toml rewritten to list every command at the chord in force, unless it does already
+' (first run: written). A file that does not load is the person's to fix, and is left alone.
+sub Window.SyncKeysFile( )
+    dim as keybind.KeyMap k
+    if k.Load( this.KeysFile( ) ).IsOk( ) = false then exit sub
+    dim as keybind.TextResult t = k.ToToml( )
+    if t.IsOk( ) = false then exit sub
+    if fs.IsFile( this.KeysFile( ) ) andalso (fs.ReadAllText( this.KeysFile( ) ).ValueOr( "" ) = t.Value( )) then exit sub
+    k.Save( this.KeysFile( ) )
+end sub
+
 ' keybindings.toml: the key map and the accelerators; warnings and chords
 ' two commands share go to the message panel.
 sub Window.ReloadKeys( )
@@ -970,9 +1010,7 @@ sub Window.ReloadKeys( )
     next
     this.RebuildAccelerators( )
     if notes.Count( ) = 0 then
-        dim as keybind.KeyMap defaults
-        Message = commented.Warning( commented.EditedComments( _
-                      fs.ReadAllText( this.KeysFile( ) ).ValueOr( "" ), defaults.ToToml( ).ValueOr( "" ) ) )
+        Message = ""
     elseif notes.Count( ) = 1 then
         Message = keybind.KEYBINDINGS_FILE & ": " & notes[0]
     else
@@ -1092,9 +1130,30 @@ function Window.NewView( byref v as editor.CodeView ) as boolean
         case SCN_MARGINCLICK : mw->OnMarginClick( h, n->margin, n->position )
         end select
     end sub )
+    tkCodeEdit_SetContextMenuCallback( v.Widget( ), sub( byval hEdit as TK_WIDGET ptr, byval x as long, byval y as long )
+        dim as Window ptr mw = WindowOfWidget( hEdit )
+        if mw then mw->ShowEditMenu( hEdit, x, y )
+    end sub )
     tkWidget_Show( v.Widget( ), false )
     return true
 end function
+
+' The right-click menu at x, y in hEdit, for hEdit's pane: what cannot be done now is greyed.
+sub Window.ShowEditMenu( byval hEdit as TK_WIDGET ptr, byval x as long, byval y as long )
+    if (editMenu = 0) orelse (this.DocOfWidget( hEdit ) = 0) then exit sub
+    tkHost_SetFocus( tkForm_Host( form ), hEdit )
+    this.SyncFocus( )
+    dim as editor.CodeView ptr v = @this.View( )
+    dim as boolean sel = v->SelectionLength( ) > 0
+    tkPopupMenu_SetItemEnabled( editMenu, clng( Cmd.Undo ), v->CanUndo( ) )
+    tkPopupMenu_SetItemEnabled( editMenu, clng( Cmd.Redo ), v->CanRedo( ) )
+    tkPopupMenu_SetItemEnabled( editMenu, clng( Cmd.Cut ), sel )
+    tkPopupMenu_SetItemEnabled( editMenu, clng( Cmd.Copy ), sel )
+    tkPopupMenu_SetItemEnabled( editMenu, clng( Cmd.Paste ), v->CanPaste( ) )
+    dim as TKRECT a
+    tkWidget_AbsRect( hEdit, a )
+    tkPopupMenu_Show( editMenu, a.left + x, a.top + y )
+end sub
 
 ' d is the most recently shown buffer now.
 sub Window.Touch( byval d as DocRef )
@@ -1152,6 +1211,7 @@ sub Window.ShowDoc( byval d as DocRef )
         if d->Other.Exists( ) = false then
             if this.NewView( d->Other ) = false then exit sub
             d->Other.ShareDocument( d->Main )
+            d->ApplyHighlight( )
             d->Other.SetFirstLine( d->Main.FirstLine( ) )
         end if
         Pane2 = d
@@ -1287,6 +1347,7 @@ function Window.CloseDoc( byval d as DocRef ) as boolean
         if Pane2->Other.Exists( ) = false then
             this.NewView( Pane2->Other )
             Pane2->Other.ShareDocument( Pane2->Main )
+            Pane2->ApplyHighlight( )
         end if
     end if
     d->DestroyViews( )
@@ -1324,6 +1385,7 @@ sub Window.ToggleSplit( byval mode as session.SplitMode )
             if Pane2->Other.Exists( ) = false then
                 if this.NewView( Pane2->Other ) = false then exit sub
                 Pane2->Other.ShareDocument( Pane2->Main )
+                Pane2->ApplyHighlight( )
                 Pane2->Other.SetFirstLine( Pane2->Main.FirstLine( ) )
                 Pane2->Other.SetPosition( Pane2->Main.Position( ) )
             end if
@@ -1514,6 +1576,15 @@ end function
 
 ' The one popup list, anchored at the bottom of the panes: what kind decides the rows and what a
 ' pick does (Chosen).
+' The short lists over the right-hand status panels: a name and a note, no wider than they need.
+private sub Narrow( byref c as popuplist.Picker, byref popW as long )
+    c.Columns.Clear( )
+    c.Columns.Push( 18 )
+    c.Columns.Push( 130 )
+    c.Columns.Push( 120 )
+    popW = 280
+end sub
+
 sub Window.OpenChooser( byval kind as PickKind )
     dim as Array( of popuplist.PickRow ) rows
     dim as long sel = 0
@@ -1644,6 +1715,7 @@ sub Window.OpenChooser( byval kind as PickKind )
         next
     case PickKind.Encoding
         Chooser.Filter = false
+        Narrow( Chooser, popW )
         for e as long = docencoding.FileEncoding.Ansi to docencoding.FileEncoding.Utf16Bom
             dim as ustring mark = " "
             if (this.Active( ) <> 0) andalso (clng( this.Active( )->Enc.Encoding ) = e) then mark = "*"
@@ -1651,6 +1723,7 @@ sub Window.OpenChooser( byval kind as PickKind )
         next
     case PickKind.LineEnding
         Chooser.Filter = false
+        Narrow( Chooser, popW )
         rows.Push( Row( " ", "CRLF", "Windows", clng( docencoding.LineEnd.CrLf ) ) )
         rows.Push( Row( " ", "LF", "Linux, macOS", clng( docencoding.LineEnd.Lf ) ) )
         rows.Push( Row( " ", "CR", "classic Mac", clng( docencoding.LineEnd.Cr ) ) )
@@ -1667,6 +1740,7 @@ sub Window.OpenChooser( byval kind as PickKind )
         next
     case PickKind.Build
         Chooser.Filter = false
+        Narrow( Chooser, popW )
         for i as long = 0 to Prefs.Builds.Count( ) - 1
             dim as ustring mark = " "
             if Prefs.Builds[i].Name = CurrentBuild then mark = "*"
@@ -1682,24 +1756,33 @@ sub Window.OpenChooser( byval kind as PickKind )
         cast( Window ptr, payload )->Chosen( tag )
     end sub
     Chooser.Payload = @this
-    ' the lists of names at the top, centred over the panes; the others at the bottom left, over
-    ' the status line's panels
+    ' the lists of names at the top, centred over the panes; the others above the status panel
+    ' they belong to (the buffers' at the left), inside the window. A popup is placed in the
+    ' window's own pixels (tkHost_CreatePopup), not the screen's.
     dim as TK_HOST ptr h = tkForm_Host( form )
+    dim as long cx = tkForm_Widget( form )->cw
     dim as long w = tkForm_Scale( form, popW )
+    if w > cx then w = cx
     dim as long n = rows.Count( )
     if n > Chooser.MaxRows then n = Chooser.MaxRows
     dim as long ph = n * tkForm_Scale( form, popuplist.ROW_CY ) + tkForm_Scale( form, 4 )
     if Chooser.Filter then ph += tkForm_Scale( form, 26 )
-    dim as TKRECT a
-    tkWidget_AbsRect( status, a )
-    dim as long wx = 0, wy = 0
-    SDL_GetWindowPosition( h->win, @wx, @wy )
     if (kind = PickKind.Symbols) orelse (kind = PickKind.Functions) then
-        dim as long cx = tkForm_Widget( form )->cw
-        if w > cx then w = cx
-        Chooser.Open( h, rows, wx + (cx - w) \ 2, wy + tkForm_Scale( form, 32 ), w, sel )
+        Chooser.Open( h, rows, (cx - w) \ 2, tkForm_Scale( form, 32 ), w, sel )
     else
-        Chooser.Open( h, rows, wx + a.left, wy + a.top - ph, w, sel )
+        dim as StatusPanel anchor = StatusPanel.Buffer
+        select case kind
+        case PickKind.Build : anchor = StatusPanel.Build
+        case PickKind.Encoding : anchor = StatusPanel.Encoding
+        case PickKind.LineEnding : anchor = StatusPanel.LineEnding
+        end select
+        dim as TKRECT a, rc
+        tkWidget_AbsRect( status, a )
+        tkStatusBar_GetPanelRect( status, anchor, rc )
+        dim as long x = a.left + rc.left
+        if x + w > cx then x = cx - w
+        if x < 0 then x = 0
+        Chooser.Open( h, rows, x, a.top - ph, w, sel )
     end if
 end sub
 

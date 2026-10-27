@@ -204,6 +204,7 @@ function Picker.Open( byval owner as TK_HOST ptr, byref rows_ as const Array( of
     if Columns.Count( ) = 0 then tkListTree_AddColumn( List, "", w )
     tkListTree_SetFillColumn( List, tkListTree_GetColumnCount( List ) - 1 )
     tkListTree_ShowHeader( List, false )
+    tkListTree_SetPaintCallback( List, @tkListTree_PaintRowDefault )   ' a tkListTree draws no row by itself
     tkListTree_SetActivateCallback( List, sub( byval hL as TK_WIDGET ptr, byval row as integer )
         dim as Picker ptr p = PickerOf( hL->pHost )
         if p then p->Accept( )

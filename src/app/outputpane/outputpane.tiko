@@ -117,6 +117,8 @@ sub Pane.Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ a
     end sub
     tkListTree_SetActivateCallback( results, act )
     tkListTree_SetActivateCallback( search, act )
+    tkListTree_SetPaintCallback( results, @tkListTree_PaintRowDefault )   ' a tkListTree draws no row by itself
+    tkListTree_SetPaintCallback( search, @tkListTree_PaintRowDefault )
     this.ShowTab( OutputTab.Results )
     tkWidget_Show( frame, false )
 end sub

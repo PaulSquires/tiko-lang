@@ -98,6 +98,10 @@ end type
 
 public type CodeView
     w as TK_WIDGET ptr
+    Plain as boolean                    ' no lexer: every character in the default style
+    lexerOn as boolean                  ' the tiko lexer is installed
+    lastLook as Look
+    hasLook as boolean
     declare function Create( byval parent as TK_WIDGET ptr, byval id as long ) as boolean
     declare sub Destroy( )
     declare function Widget( ) as TK_WIDGET ptr
@@ -222,6 +226,13 @@ public type CodeView
 
     ' ---- looks
     declare sub ApplyLook( byref k as const Look )
+    declare sub SetHighlight( byval enable as boolean )    ' the tiko lexer, or none (Plain)
+    declare function IsHighlighted( ) as boolean
+
+    ' ---- what the context menu may offer
+    declare function CanUndo( ) as boolean
+    declare function CanRedo( ) as boolean
+    declare function CanPaste( ) as boolean
 end type
 
 ' Scintilla takes &h00BBGGRR; a theme holds &hRRGGBB.
@@ -239,7 +250,7 @@ function CodeView.Create( byval parent as TK_WIDGET ptr, byval id as long ) as b
     if w = 0 then return false
     tkCodeEdit_Send( w, SCI_SETCODEPAGE, SC_CP_UTF8 )
     tkCodeEdit_Send( w, SCI_USEPOPUP, 0 )               ' tkCodeEdit has its own context menu
-    tkCodeEdit_SetLexer( w, "tiko" )
+    lexerOn = tkCodeEdit_SetLexer( w, "tiko" )
     ' keybindings.toml is the only keymap (D15): Scintilla's own letter chords would still fire a
     ' command the user moved or removed (Ctrl+D duplicate, Ctrl+L line cut, Ctrl+U lower case ...)
     dim as long keys( 0 to 13 ) = { asc( "Z" ), asc( "Z" ), asc( "Y" ), asc( "X" ), asc( "C" ), asc( "V" ), _
@@ -1187,7 +1198,17 @@ end sub
 ' settings or theme change re-applies to every view.
 sub CodeView.ApplyLook( byref k as const Look )
     if w = 0 then exit sub
+    lastLook = k
+    hasLook = true
     dim as single sc = w->pHost->fScale
+    ' the tiko lexer for source files only (SetHighlight); a new lexer instance has no keywords
+    ' or properties yet, so it goes in before they are sent
+    if Plain then
+        if lexerOn then tkCodeEdit_Send( w, SCI_SETILEXER, 0, 0 )
+        lexerOn = false
+    elseif lexerOn = false then
+        lexerOn = tkCodeEdit_SetLexer( w, "tiko" )
+    end if
 
     if len( k.FontFile ) then tkCodeEdit_SetFont( w, k.FontFile, k.FontSize )
     StyleSet( w, STYLE_DEFAULT, k.Text, k.Text )
@@ -1303,4 +1324,33 @@ sub CodeView.ApplyLook( byref k as const Look )
     tkCodeEdit_Send( w, SCI_SETTABWIDTH, k.TabSize )
     tkCodeEdit_Send( w, SCI_SETINDENT, k.TabSize )
     tkCodeEdit_SendText( w, SCI_SETWORDCHARS, 0, "~_\abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" )
+    if Plain then
+        tkCodeEdit_Send( w, SCI_CLEARDOCUMENTSTYLE )      ' what the lexer coloured stays coloured else
+    else
+        tkCodeEdit_Send( w, SCI_COLOURISE, 0, -1 )
+    end if
 end sub
+
+' Source files are coloured by the tiko lexer; anything else (TOML, text) is plain. The view's
+' look is applied again, so the change shows at once.
+sub CodeView.SetHighlight( byval enable as boolean )
+    if (w = 0) orelse (Plain = (enable = false)) then exit sub
+    Plain = (enable = false)
+    if hasLook then this.ApplyLook( lastLook )
+end sub
+
+function CodeView.IsHighlighted( ) as boolean
+    return (w <> 0) andalso lexerOn
+end function
+
+function CodeView.CanUndo( ) as boolean
+    return (w <> 0) andalso (tkCodeEdit_Send( w, SCI_CANUNDO ) <> 0)
+end function
+
+function CodeView.CanRedo( ) as boolean
+    return (w <> 0) andalso (tkCodeEdit_Send( w, SCI_CANREDO ) <> 0)
+end function
+
+function CodeView.CanPaste( ) as boolean
+    return (w <> 0) andalso (tkCodeEdit_Send( w, SCI_CANPASTE ) <> 0)
+end function
