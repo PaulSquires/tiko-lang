@@ -389,6 +389,24 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
              (instr( kt2, nl & "FileSave = 'Primary+S'" & nl ) > 0) andalso (instr( kt2, "# FileSave" ) = 0), _
              P( sc, "reopened, keybindings.toml lists every command at its chord" ) )
 
+    ' ---- [statusbar] switches hide the Project, Settings and Keys panels
+    Chord( h, SDLK_COMMA, SDL_SCANCODE_COMMA, SDL_KMOD_CTRL )
+    mw.View( ).SetText( "version = 1" & nl & "[ui]" & nl & "theme = 'light'" & nl & "[statusbar]" & nl & "show_project = false" & nl & "show_keys = false" & nl )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    scope
+        dim as TKRECT rpj, rst, rky
+        tkStatusBar_GetPanelRect( mw.status, mainwin.StatusPanel.Project, rpj )
+        tkStatusBar_GetPanelRect( mw.status, mainwin.StatusPanel.Settings, rst )
+        tkStatusBar_GetPanelRect( mw.status, mainwin.StatusPanel.Keys, rky )
+        t.Check( (rpj.right = rpj.left) andalso (rky.right = rky.left) andalso (rst.right > rst.left), _
+                 P( sc, strings.Format( "Project and Keys hidden, Settings shown: {} {} {}", rpj.right - rpj.left, rst.right - rst.left, rky.right - rky.left ) ) )
+    end scope
+    mw.View( ).SetText( "version = 1" & nl & "[ui]" & nl & "theme = 'light'" & nl )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    t.Check( tkStatusBar_GetPanelVisible( mw.status, mainwin.StatusPanel.Project ) andalso tkStatusBar_GetPanelVisible( mw.status, mainwin.StatusPanel.Keys ), _
+             P( sc, "the keys gone: shown again" ) )
+    Chord( h, SDLK_K, SDL_SCANCODE_K, SDL_KMOD_CTRL )                    ' back to keybindings.toml, as before
+
     ' ---- the Settings and Keys panels open their files
     mw.View( ).SetText( "format = 1" & nl & "[bindings]" & nl )
     Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
@@ -1042,11 +1060,31 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     mw.CloseDoc( sdoc )
     mw.ShowDoc( mw.FindOpen( mainF ) )
 
-    ' ---- a project from the active file
+    ' ---- the Project panel with no project: a new one (main = the source buffer in front), its
+    ' .tkedit opened as text; saving a hand edit of it applies it
+    t.Check( mw.StatusText( mainwin.StatusPanel.Project ) = "Project", P( sc, "a Project panel" ) )
     gPickPath = fs.PathJoin( dir_, "hello" )
-    t.Check( mw.NewProject( ), P( sc, "a new project" ) )
+    ClickPanel( mw, mainwin.StatusPanel.Project )
     dim as ustring pf = fs.PathJoin( dir_, "hello.tkedit" )
     t.Check( mw.ProjOpen andalso fs.IsFile( pf ) andalso (mw.Proj.Main = "main.tiko"), P( sc, "hello.tkedit, main.tiko its main: " & mw.Proj.Main ) )
+    t.Check( (lcase( mw.ActivePath( ) ) = lcase( pf )) andalso (instr( mw.View( ).Text( ), "[project]" ) > 0), _
+             P( sc, "and its .tkedit open as text: " & mw.ActivePath( ) ) )
+    t.Check( mw.StatusTip( mainwin.StatusPanel.Project ) = mw.Proj.Path, P( sc, "the panel's tooltip is the project file" ) )
+    scope
+        dim as ustring pt = mw.View( ).Text( )
+        dim as long k = instr( pt, "command_line =" )
+        dim as long e = instr( k, pt, chr( 10 ) )
+        if (k > 0) andalso (e > k) then pt = left( pt, k - 1 ) & "command_line = 'x y'" & mid( pt, e )
+        mw.View( ).ReplaceAllText( pt )
+    end scope
+    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    t.Check( mw.ProjOpen andalso (mw.Proj.CommandLine = "x y") andalso (lcase( mw.Proj.Path ) = lcase( pf )), _
+             P( sc, "saving the hand edit applied it: command line '" & mw.Proj.CommandLine & "'" ) )
+    mw.ShowDoc( mw.FindOpen( mainF ) )
+    ClickPanel( mw, mainwin.StatusPanel.Project )
+    t.Check( (lcase( mw.ActivePath( ) ) = lcase( pf )) andalso mw.ProjOpen andalso (mw.Docs.Count( ) = 2), _
+             P( sc, strings.Format( "with the project open the panel shows its .tkedit again ({} buffers)", mw.Docs.Count( ) ) ) )
+    mw.ShowDoc( mw.FindOpen( mainF ) )
     dim as ustring title = *SDL_GetWindowTitle( h->win )
     t.Check( instr( title, "[hello.tkedit]" ) > 0, P( sc, "the title names the project file: " & title ) )
 

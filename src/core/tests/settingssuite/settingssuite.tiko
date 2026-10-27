@@ -34,6 +34,7 @@ private sub SettingsChecks( byref c as tally.Checker )
              "ToToml sets every key" )
     c.Check( (instr( dt, "# font_size" ) = 0) andalso (instr( dt, "# [[builds]]" ) = 0) andalso (instr( dt, "# name" ) = 0), _
              "and comments none out" )
+    c.Check( instr( dt, nl & "[statusbar]" & nl & "show_project = true" ) > 0, "with the [statusbar] switches" )
     c.Check( (instr( dt, "%APPDATA%\tkEdit\settings.toml" ) > 0) andalso (instr( dt, "~/.config/tkEdit/settings.toml" ) > 0) andalso _
              (instr( dt, "~/Library/Application Support/tkEdit/settings.toml" ) > 0), "and says where it is kept on each platform" )
     dim as settings.SettingsResult t = settings.ParseSettings( dt )
@@ -47,6 +48,7 @@ private sub SettingsChecks( byref c as tally.Checker )
 
     dim as ustring txt = "version = 1" & nl & "[editor]" & nl & "font_size = 14" & nl & "tab_size = 99" & nl & _
         "use_tabs = true" & nl & "wrap = 'yes'" & nl & "[ui]" & nl & "theme = 'light'" & nl & _
+        "[statusbar]" & nl & "show_keys = false" & nl & _
         "[files]" & nl & "new_eol = 'lf'" & nl & "new_encoding = 'utf8bom'" & nl & _
         "[compiler]" & nl & "tiko = 'C:/t/tiko.exe'" & nl & "includes = ['a', 'b']" & nl & _
         "[[builds]]" & nl & "name = 'Fast'" & nl & "options = '-O3'" & nl & _
@@ -61,6 +63,7 @@ private sub SettingsChecks( byref c as tally.Checker )
         c.Check( s.UseTabs, "use_tabs read" )
         c.Check( s.Wrap = false, "a mistyped wrap keeps its default" )
         c.Same( s.Theme, "light", "theme read" )
+        c.Check( (s.ShowKeysPanel = false) andalso s.ShowProjectPanel andalso s.ShowSettingsPanel, "[statusbar] read, the rest defaults" )
         c.Check( s.NewLineEnd = settings.NewEol.Lf, "new_eol read" )
         c.Check( s.NewEncoding = docencoding.FileEncoding.Utf8Bom, "new_encoding read" )
         c.Same( s.Tiko, "C:/t/tiko.exe", "tiko read" )

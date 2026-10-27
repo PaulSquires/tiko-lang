@@ -14,6 +14,7 @@
 '     [editor]   font, font_size, tab_size, use_tabs, line_numbers, whitespace, wrap, caret_line,
 '                indent_guides, fold_margin, auto_indent, auto_end, codetips
 '     [ui]       theme, font_size
+'     [statusbar] show_project, show_settings, show_keys
 '     [files]    new_eol (native | crlf | lf), new_encoding (utf8 | utf8bom | utf16 | ansi),
 '                save_before_build, trim_trailing
 '     [compiler] tiko, includes = [...], run_in_terminal
@@ -65,6 +66,10 @@ public type EditorSettings
     ' [ui]
     Theme        as ustring = "dark"
     UiFontSize   as long = 10
+    ' [statusbar]: the Project, Settings and Keys panels shown (author 2026-10-27)
+    ShowProjectPanel  as boolean = true
+    ShowSettingsPanel as boolean = true
+    ShowKeysPanel     as boolean = true
     ' [files]
     NewLineEnd   as NewEol
     NewEncoding  as docencoding.FileEncoding = docencoding.FileEncoding.Utf8
@@ -152,6 +157,10 @@ public function FromToml( byref root as config.TomlValue ) as EditorSettings
     dim as config.TomlValue u = tomlget.Table( root, "ui" )
     s.Theme = tomlget.GetStr( u, "theme", s.Theme )
     s.UiFontSize = Clamp( tomlget.GetInt( u, "font_size", s.UiFontSize ), 6, 32 )
+    dim as config.TomlValue sb = tomlget.Table( root, "statusbar" )
+    s.ShowProjectPanel = tomlget.GetBool( sb, "show_project", s.ShowProjectPanel )
+    s.ShowSettingsPanel = tomlget.GetBool( sb, "show_settings", s.ShowSettingsPanel )
+    s.ShowKeysPanel = tomlget.GetBool( sb, "show_keys", s.ShowKeysPanel )
     dim as config.TomlValue f = tomlget.Table( root, "files" )
     s.NewLineEnd = EolOf( tomlget.GetStr( f, "new_eol" ), s.NewLineEnd )
     s.NewEncoding = EncodingOf( tomlget.GetStr( f, "new_encoding" ), s.NewEncoding )
@@ -270,6 +279,11 @@ public function ToToml( byref s as const EditorSettings ) as ustring
         "[ui]" & nl & _
         KeyLine( "theme", Quoted( s.Theme ), "themes/<name>.toml: beside the program, or in this folder" ) & _
         KeyLine( "font_size", str( s.UiFontSize ) ) & _
+        nl & _
+        "[statusbar]" & nl & _
+        KeyLine( "show_project", BoolText( s.ShowProjectPanel ), "the Project panel" ) & _
+        KeyLine( "show_settings", BoolText( s.ShowSettingsPanel ), "the Settings panel" ) & _
+        KeyLine( "show_keys", BoolText( s.ShowKeysPanel ), "the Keys panel" ) & _
         nl & _
         "[files]" & nl & _
         KeyLine( "new_eol", Quoted( EolText( s.NewLineEnd ) ), "native | crlf | lf" ) & _

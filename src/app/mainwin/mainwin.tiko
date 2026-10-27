@@ -104,6 +104,7 @@ public enum StatusPanel explicit
     Buffer = 0          ' the active buffer's name, its full path the tooltip; a click lists the buffers
     Message             ' stretches: build results, config errors; a click shows or hides the output pane
     Position            ' Ln, Col; a click opens Go to Line, or closes it
+    Project             ' "Project": a click opens the project's .tkedit as text (no project: makes one first)
     Settings            ' "Settings": a click opens settings.toml
     Keys                ' "Keys": a click opens keybindings.toml
     Build               ' the build configuration; a click picks one, and makes it settings.toml's default
@@ -359,6 +360,7 @@ public type Window
     declare function SessionFile( ) as ustring
     declare sub ReloadSettings( )
     declare sub SyncSettingsFile( )
+    declare sub ApplyStatusPanels( )
     declare sub SyncKeysFile( )
     declare sub SetDefaultBuild( byref name_ as const ustring )
     declare sub ReloadKeys( )
@@ -371,7 +373,10 @@ public type Window
     declare function View( ) byref as editor.CodeView           ' the focused pane's view
     declare function ActivePath( ) as ustring
     declare function NewDocument( ) as DocRef
-    declare function OpenFile( byref path as const ustring ) as boolean
+    declare function OpenFile( byref path as const ustring ) as boolean     ' a .tkedit opens the project
+    declare function OpenText( byref path as const ustring ) as boolean     ' any file, as text
+    declare function SourceDoc( ) as DocRef
+    declare sub EditProjectFile( )
     declare function FindOpen( byref path as const ustring ) as DocRef
     declare sub ShowDoc( byval d as DocRef )                     ' in the focused pane
     declare sub CycleBuffer( byval forward as boolean )          ' the next in open order, wrapping
@@ -751,6 +756,7 @@ sub Window.FillStatus( byval bar as TK_WIDGET ptr, byval d as DocRef, byval focu
     tkStatusBar_SetText( bar, StatusPanel.Message, msg )
     tkStatusBar_SetText( bar, StatusPanel.Position, _
                          strings.Format( "Ln {}, Col {}", v->CaretLine( ), v->CaretColumn( ) ) )
+    tkStatusBar_SetText( bar, StatusPanel.Project, "Project" )
     tkStatusBar_SetText( bar, StatusPanel.Settings, "Settings" )
     tkStatusBar_SetText( bar, StatusPanel.Keys, "Keys" )
     tkStatusBar_SetText( bar, StatusPanel.Build, CurrentBuild )
@@ -784,8 +790,13 @@ function Window.StatusText( byval p as StatusPanel ) as ustring
     return tkStatusBar_GetText( status, p )
 end function
 
-' The buffer panel's tooltip: its pane's buffer's full path (its name while untitled).
+' The buffer panel's tooltip: its pane's buffer's full path (its name while untitled); the Project
+' panel's: the project file.
 function Window.StatusTip( byval p as StatusPanel, byval second as boolean ) as ustring
+    if p = StatusPanel.Project then
+        if ProjOpen then return Proj.Path
+        return "no project: a click makes one"
+    end if
     if p <> StatusPanel.Buffer then return ""
     dim as DocRef d = Pane1
     if second then d = Pane2
@@ -816,6 +827,7 @@ function Window.NewStatusBar( byval root as TK_WIDGET ptr, byval id as long ) as
             else
                 mw->Execute( Cmd.GoToLine )
             end if
+        case StatusPanel.Project : mw->EditProjectFile( )
         case StatusPanel.Settings : mw->Execute( Cmd.Settings )
         case StatusPanel.Keys : mw->Execute( Cmd.KeyboardShortcuts )
         case StatusPanel.Build : mw->OpenChooser( PickKind.Build )
@@ -1069,8 +1081,21 @@ sub Window.ReloadSettings( )
         if b.Name = CurrentBuild then known = true
     next
     if known = false then CurrentBuild = Prefs.DefaultBuild( )
+    this.ApplyStatusPanels( )
     this.ReloadTheme( )
     this.ShowStatus( )
+end sub
+
+' settings.toml's [statusbar] switches: the Project, Settings and Keys panels on both status lines.
+sub Window.ApplyStatusPanels( )
+    for k as long = 0 to 1
+        dim as TK_WIDGET ptr bar = status
+        if k = 1 then bar = status2
+        if bar = 0 then continue for
+        tkStatusBar_SetPanelVisible( bar, StatusPanel.Project, Prefs.ShowProjectPanel )
+        tkStatusBar_SetPanelVisible( bar, StatusPanel.Settings, Prefs.ShowSettingsPanel )
+        tkStatusBar_SetPanelVisible( bar, StatusPanel.Keys, Prefs.ShowKeysPanel )
+    next
 end sub
 
 ' settings.toml rewritten to list every key at the value it reads as, unless it does already. A
@@ -1203,6 +1228,22 @@ sub Window.AfterSave( byval d as DocRef )
     elseif (p = lcase( Theme.Path )) orelse _
            (p = lcase( fs.PathJoin( ConfigDir, themes.THEME_DIR, Prefs.Theme & ".toml" ) )) then
         this.ReloadTheme( )                     ' the active theme, or the user's new copy of it
+    elseif ProjOpen andalso (p = lcase( Proj.Path )) then
+        ' the project file, edited by hand: what it says now is the project
+        dim as project.ProjectResult r = project.LoadProject( Proj.Path )
+        if r.IsOk( ) then
+            dim as ustring keep = Proj.Path
+            Proj = r.Value( )
+            Proj.Path = keep
+            if len( Proj.Build ) then
+                for each b as settings.BuildConfig in Prefs.Builds
+                    if b.Name = Proj.Build then CurrentBuild = Proj.Build
+                next
+            end if
+            this.ShowStatus( )
+        else
+            this.SetMessage( fs.PathFileName( Proj.Path ) & ": " & r.Failure( ) )
+        end if
     end if
 end sub
 
@@ -1378,6 +1419,11 @@ end sub
 ' unmodified buffer in that pane gives way to it.
 function Window.OpenFile( byref path as const ustring ) as boolean
     if project.IsProjectFile( path ) then return this.OpenProject( path )
+    return this.OpenText( path )
+end function
+
+' path in a buffer, whatever it is -- a .tkedit too (the Project panel edits one by hand).
+function Window.OpenText( byref path as const ustring ) as boolean
     dim as DocRef have = this.FindOpen( path )
     if have then
         this.ShowDoc( have )
@@ -1639,7 +1685,7 @@ sub Window.CaptureState( byref st as session.SessionState, byref base_ as const 
         st.Files[i].Open = false
     next
     for each d as DocRef in Docs
-        if len( d->Path ) = 0 then continue for
+        if (len( d->Path ) = 0) orelse project.IsProjectFile( d->Path ) then continue for
         dim as ustring stored = session.StoredPath( base_, d->Path )
         dim as long at = -1
         for i as long = 0 to st.Files.Count( ) - 1
@@ -1674,7 +1720,7 @@ sub Window.ApplyState( byref st as const session.SessionState, byref base_ as co
     end if
     for each f as session.FileState in st.Files
         dim as ustring full = session.FullPath( base_, f.Path )
-        if (f.Open = false) orelse (fs.IsFile( full ) = false) then continue for
+        if (f.Open = false) orelse (fs.IsFile( full ) = false) orelse project.IsProjectFile( full ) then continue for
         if this.OpenFile( full ) = false then continue for
         dim as DocRef d = this.Active( )
         d->Main.SetBookmarks( f.Bookmarks )
@@ -2250,9 +2296,9 @@ function Window.OpenProject( byref path as const ustring ) as boolean
     return true
 end function
 
-' A new project file (asked for) whose main file is the active buffer.
+' A new project file (asked for) whose main file is the source buffer in front (SourceDoc).
 function Window.NewProject( ) as boolean
-    dim as DocRef d = this.Active( )
+    dim as DocRef d = this.SourceDoc( )
     if (d <> 0) andalso d->IsNew( ) then
         if this.SaveDoc( d, false ) = false then return false
     end if
@@ -2306,6 +2352,31 @@ function Window.CloseProject( ) as boolean
     this.ShowStatus( )
     return true
 end function
+
+' The buffer a build or a new project means: the active one when it is source, else the most recent
+' source buffer with a file; 0 when there is none.
+function Window.SourceDoc( ) as DocRef
+    dim as DocRef d = this.Active( )
+    if (d <> 0) andalso documents.IsSourceFile( d->Path ) then return d
+    for each x as DocRef in Mru
+        if (len( x->Path ) > 0) andalso documents.IsSourceFile( x->Path ) then return x
+    next
+    return 0
+end function
+
+' The Project panel: with no project, a new one (asked where; its main the source buffer in front);
+' with one, it is saved first. Then its .tkedit opens as text to edit by hand; saving that buffer
+' makes what it says the project (AfterSave). Author 2026-10-27.
+sub Window.EditProjectFile( )
+    if ProjOpen = false then
+        if this.NewProject( ) = false then exit sub
+    else
+        this.SaveProject( )
+        dim as DocRef pd = this.FindOpen( Proj.Path )
+        if pd then pd->Reload( )                 ' what was just written
+    end if
+    this.OpenText( Proj.Path )
+end sub
 
 ' Ctrl+F11: the active buffer joins the project; when it is already in it, a file is asked for.
 sub Window.AddToProject( )
@@ -2370,18 +2441,8 @@ function Window.StartBuild( byval action as build.BuildAction, byval rebuild as 
         this.SetBuildMessage( "tiko not found: set [compiler] tiko in settings.toml, or put it on the PATH" )
         return false
     end if
-    ' the active buffer when it is source, else the most recent source buffer: settings.toml,
-    ' keybindings.toml, a theme or a text file is never built (author 2026-10-27)
-    dim as DocRef d = this.Active( )
-    if (d <> 0) andalso (documents.IsSourceFile( d->Path ) = false) then
-        d = 0
-        for each x as DocRef in Mru
-            if documents.IsSourceFile( x->Path ) andalso (len( x->Path ) > 0) then
-                d = x
-                exit for
-            end if
-        next
-    end if
+    ' settings.toml, keybindings.toml, a theme or a text file is never built (author 2026-10-27)
+    dim as DocRef d = this.SourceDoc( )
     dim as boolean single_ = (action = build.BuildAction.QuickRun)
     dim as boolean useTarget = ProjOpen andalso (len( Proj.Target ) > 0) andalso (single_ = false)
     dim as boolean useMain = ProjOpen andalso (len( Proj.Target ) = 0) andalso (len( Proj.Main ) > 0) andalso (single_ = false)
