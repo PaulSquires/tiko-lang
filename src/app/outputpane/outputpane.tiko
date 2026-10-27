@@ -61,6 +61,7 @@ public type Pane
     declare sub SetLog( byref text as const ustring )
     declare function LogText( ) as ustring
     declare sub Focus( )
+    declare sub ApplyColors( )                  ' after a theme change
 end type
 
 private function PaneOf( byval w as TK_WIDGET ptr ) as Pane ptr
@@ -108,6 +109,7 @@ sub Pane.Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ a
     tkTextBox_SetReadOnly( logBox, true )
     dim as TK_FORM ptr f = tkForm_FromWidget( frame )
     if f then tkTextBox_SetFont( logBox, tkForm_Font( f, TKFONT_MONO ) )
+    this.ApplyColors( )
     search = tkListTree_Create( frame, ID_SEARCH )
     dim as LT_ActivateCallbackSub act = sub( byval h as TK_WIDGET ptr, byval row as integer )
         dim as Pane ptr p = PaneOf( h )
@@ -172,4 +174,15 @@ end function
 
 sub Pane.Focus( )
     tkHost_SetFocus( frame->pHost, this.Content( current ) )
+end sub
+
+' The Log tab's box in the Results and Search lists' background (a text box's own is the theme's
+' Surface): pinned, so it is applied again after every theme change (author 2026-10-27).
+sub Pane.ApplyColors( )
+    if logBox = 0 then exit sub
+    dim as TKTHEME_COLORS t = tkTheme_Get( )
+    dim as TKTEXTBOX_COLORS c = tkTextBox_ThemeColors( t )
+    c.BackColor = t.Window
+    c.OuterBackColor = t.Window
+    tkTextBox_SetColors( logBox, @c )
 end sub

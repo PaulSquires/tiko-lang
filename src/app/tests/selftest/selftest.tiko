@@ -1026,8 +1026,23 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     end if
     t.Check( mw.CompilerPath( ) = tk, P( sc, "the compiler: " & mw.CompilerPath( ) ) )
 
-    ' ---- a project from the active file
+    ' ---- no project, settings.toml in front and edited: Ctrl+F5 builds main.tiko, and leaves
+    ' settings.toml alone (not built, not saved)
     mw.OpenFile( mainF )
+    mw.Execute( Cmd.Settings )
+    dim as DocRef sdoc = mw.Active( )
+    dim as ustring sText = sdoc->Main.Text( )
+    sdoc->Main.ReplaceAllText( sText & nl & nl )                         ' an edit: modified, not saved
+    Chord( h, SDLK_F5, SDL_SCANCODE_F5, SDL_KMOD_CTRL )
+    t.Check( WaitBuild( mw ) andalso mw.BuildSucceeded andalso (lcase( mw.BuildMain ) = lcase( mainF )), _
+             P( sc, "settings.toml in front: Ctrl+F5 built main.tiko: " & mw.BuildMain ) )
+    t.Check( sdoc->IsModified( ) andalso (instr( fs.ReadAllText( mw.SettingsFile( ) ).ValueOr( "" ), sText & nl & nl ) = 0), _
+             P( sc, "and did not save settings.toml" ) )
+    sdoc->Main.SetSavePoint( )
+    mw.CloseDoc( sdoc )
+    mw.ShowDoc( mw.FindOpen( mainF ) )
+
+    ' ---- a project from the active file
     gPickPath = fs.PathJoin( dir_, "hello" )
     t.Check( mw.NewProject( ), P( sc, "a new project" ) )
     dim as ustring pf = fs.PathJoin( dir_, "hello.tkedit" )
@@ -1074,6 +1089,17 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     t.Check( left( mw.Message, 12 ) = "Build failed" orelse (left( mw.Message, 6 ) = "error "), P( sc, "the message says so: " & mw.Message ) )
     t.Check( fs.ReadAllText( mainF ).ValueOr( "" ) <> good, P( sc, "the buffer was saved before the build" ) )
     t.Check( mw.OutputShown andalso (mw.Out.current = outputpane.OutputTab.Results), P( sc, "the output pane opened on Results" ) )
+    ' the Log tab's background is the lists'
+    mw.Out.ShowTab( outputpane.OutputTab.CompilerLog )
+    tkHost_RenderTo( h, false )
+    scope
+        dim as TKRECT la
+        tkWidget_AbsRect( mw.Out.logBox, la )
+        dim as ulong lc = tkTest_PixelAt( h, la.right - 6, la.bottom - 6 ) and &hFFFFFFul
+        dim as ulong rc_ = tkListTree_GetBackColor( mw.Out.results ) and &hFFFFFFul
+        t.Check( lc = rc_, P( sc, strings.Format( "the Log's background is Results' (&h{} vs &h{})", hex( lc ), hex( rc_ ) ) ) )
+    end scope
+    mw.Out.ShowTab( outputpane.OutputTab.Results )
     t.Check( mw.Diags.Count( ) >= 2, P( sc, strings.Format( "the diagnostics ({})", mw.Diags.Count( ) ) ) )
     t.Check( tkListTree_GetCount( mw.Out.results ) >= 2, P( sc, strings.Format( "Results rows ({})", tkListTree_GetCount( mw.Out.results ) ) ) )
     t.Check( RowsDrawn( h, mw.Out.results ), P( sc, "and drawn" ) )

@@ -1168,6 +1168,7 @@ sub Window.ReloadTheme( )
     sbc.ForeColor = chrome.StatusText( Theme )   ' dimmer than the theme's status text
     tkStatusBar_SetColors( status, @sbc )
     tkStatusBar_SetColors( status2, @sbc )
+    Out.ApplyColors( )
     this.ApplyLook( )
     tkForm_Invalidate( form )
 end sub
@@ -2369,10 +2370,25 @@ function Window.StartBuild( byval action as build.BuildAction, byval rebuild as 
         this.SetBuildMessage( "tiko not found: set [compiler] tiko in settings.toml, or put it on the PATH" )
         return false
     end if
+    ' the active buffer when it is source, else the most recent source buffer: settings.toml,
+    ' keybindings.toml, a theme or a text file is never built (author 2026-10-27)
     dim as DocRef d = this.Active( )
+    if (d <> 0) andalso (documents.IsSourceFile( d->Path ) = false) then
+        d = 0
+        for each x as DocRef in Mru
+            if documents.IsSourceFile( x->Path ) andalso (len( x->Path ) > 0) then
+                d = x
+                exit for
+            end if
+        next
+    end if
     dim as boolean single_ = (action = build.BuildAction.QuickRun)
     dim as boolean useTarget = ProjOpen andalso (len( Proj.Target ) > 0) andalso (single_ = false)
     dim as boolean useMain = ProjOpen andalso (len( Proj.Target ) = 0) andalso (len( Proj.Main ) > 0) andalso (single_ = false)
+    if (d = 0) andalso (useTarget = false) andalso (useMain = false) then
+        this.SetBuildMessage( "nothing to build: no source file is open" )
+        return false
+    end if
     if (useTarget = false) andalso (useMain = false) andalso (action <> build.BuildAction.QuickRun) then
         if d = 0 then return false
         if len( d->Path ) = 0 then
@@ -2381,7 +2397,8 @@ function Window.StartBuild( byval action as build.BuildAction, byval rebuild as 
     end if
     if Prefs.SaveBeforeBuild andalso (action <> build.BuildAction.QuickRun) then
         for each x as DocRef in Docs
-            if x->IsModified( ) andalso (len( x->Path ) > 0) then this.SaveDoc( x, false )
+            ' source files only: saving settings.toml or keybindings.toml would apply them
+            if x->IsModified( ) andalso (len( x->Path ) > 0) andalso documents.IsSourceFile( x->Path ) then this.SaveDoc( x, false )
         next
     end if
     dim as Array( of build.Subsystem ) directives
