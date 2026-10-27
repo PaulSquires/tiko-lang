@@ -441,6 +441,13 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     mw.Execute( Cmd.FileClose )
     Chord( h, SDLK_COMMA, SDL_SCANCODE_COMMA, SDL_KMOD_CTRL )
     t.Check( lcase( mw.ActivePath( ) ) = lcase( sf ), P( sc, "back on settings.toml" ) )
+    ' a shipped catalog (no copy in the config folder): lang/fr.toml beside the program
+    mw.View( ).SetText( "version = 1" & nl & "[ui]" & nl & "theme = 'light'" & nl & "language = 'fr'" & nl )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    t.Check( lcase( mw.LangPath ) = lcase( fs.PathJoin( mw.ResourceDir, "lang", "fr.toml" ) ), P( sc, "language = 'fr': the shipped catalog: " & mw.LangPath ) )
+    t.Check( (mw.StatusText( mainwin.StatusPanel.Project ) = "Projet") andalso (tkTabBar_GetText( mw.Out.tabs, 0 ) = "R" & wchr( &hE9 ) & "sultats"), _
+             P( sc, "in French: " & mw.StatusText( mainwin.StatusPanel.Project ) & ", " & tkTabBar_GetText( mw.Out.tabs, 0 ) ) )
+    t.Check( len( mw.Message ) = 0, P( sc, "the shipped catalog loads without a warning: " & mw.Message ) )
     mw.View( ).SetText( "version = 1" & nl & "[ui]" & nl & "theme = 'light'" & nl & "language = 'xx'" & nl )
     Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
     t.Check( mw.StatusText( mainwin.StatusPanel.Project ) = "Project", P( sc, "a code with no catalog is English" ) )

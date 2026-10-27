@@ -32,7 +32,7 @@ tkEdit [files...]        restores the last session (or project), then opens the 
 | `src/core` | `tkc` | GUI-free modules, console-tested by `tests/coreall`; `tests/keysdoc` writes KEYS.md |
 | `src/svc` | `tks` | background work: the tikoParser scanner, the build runner |
 | `src/app` | `tka` | the window, on tiko's `vendor/tkControls` (it comes with the toolchain) |
-| `fonts/`, `icons/`, `keywords/`, `themes/` | | resources found beside `bin/` |
+| `fonts/`, `icons/`, `keywords/`, `lang/`, `themes/` | | resources found beside `bin/`; `lang/` = the es / fr / de catalogs |
 | `src/app/res` | | `tkEdit.rc` + `tkedit.ico`: the exe's icon (Windows); `tools/make-icon.py` draws both icons |
 
 Copied modules and their source: [PROVENANCE.md](PROVENANCE.md).

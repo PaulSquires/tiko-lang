@@ -1,0 +1,190 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+' langsuite -- the shipped catalogs, lang/es.toml, fr.toml and de.toml, against the source
+' (docs/tkEdit/I18N.md). The keys are every i18n.Tr( "key", "English" ) in src/ outside tests/,
+' plus commands.<Name> for every command (its English is the cmdids description). Each catalog
+' must have every key, no other key, no warning, and the same placeholders as the English: the
+' same {n} ids, or as many {} fields. One key says one English everywhere it is used.
+#module "langsuite"
+
+#import "std/fs"
+#import "std/containers"
+#import "std/outcome"
+#import "std/strings"
+#import "tkp/platform"
+#import "tkc/cmdids"
+#import "tkc/i18n"
+#import "../tally"
+using containers
+using outcome
+
+' Reads a "..." literal starting at s's position i (on the opening quote); "" inside is a quote.
+' Returns the position after the closing quote, 0 when there is none.
+private function ReadLiteral( byref s as const ustring, byval i as long, byref out_ as ustring ) as long
+    out_ = ""
+    if mid( s, i, 1 ) <> """" then return 0
+    i += 1
+    while i <= len( s )
+        dim as ustring ch = mid( s, i, 1 )
+        if ch = """" then
+            if mid( s, i + 1, 1 ) <> """" then return i + 1
+            out_ &= """"
+            i += 2
+        else
+            out_ &= ch
+            i += 1
+        end if
+    wend
+    return 0
+end function
+
+' Every i18n.Tr( "key", "English" ) in text into keys; a key seen with another English is a clash.
+private sub ScanSource( byref text as const ustring, byref where_ as const ustring, _
+                        byref keys as Map( of ustring, ustring ), byref clashes as Array( of ustring ) )
+    const MARK = "i18n.Tr( "
+    dim as long p = instr( text, MARK )
+    while p > 0
+        dim as ustring k, e
+        dim as long q = ReadLiteral( text, p + len( MARK ), k )
+        if (q > 0) andalso (mid( text, q, 2 ) = ", ") then
+            if ReadLiteral( text, q + 2, e ) > 0 then
+                dim as ustring was
+                if keys.TryGet( k, was ) then
+                    if was <> e then clashes.Push( where_ & ": " & k )
+                else
+                    keys.Put( k, e )
+                end if
+            end if
+        end if
+        p = instr( p + 1, text, MARK )
+    wend
+end sub
+
+' A text's placeholders as a sorted list of ids: {} fields are numbered in order. "?" = both kinds.
+public function Fields( byref s as const ustring ) as ustring
+    dim as Array( of long ) ids
+    dim as long auto_ = 0
+    dim as boolean bare = false, numbered = false
+    dim as long i = 1
+    while i <= len( s )
+        dim as ustring ch = mid( s, i, 1 )
+        if (ch = "{") andalso (mid( s, i + 1, 1 ) = "{") then
+            i += 2
+        elseif ch = "{" then
+            dim as long j = instr( i, s, "}" )
+            if j = 0 then return "?"
+            dim as ustring body = mid( s, i + 1, j - i - 1 )
+            dim as long c = instr( body, ":" )
+            if c > 0 then body = left( body, c - 1 )
+            if len( body ) = 0 then
+                bare = true
+                ids.Push( auto_ )
+                auto_ += 1
+            else
+                numbered = true
+                ids.Push( valint( body ) )
+            end if
+            i = j + 1
+        else
+            i += 1
+        end if
+    wend
+    if bare andalso numbered then return "?"
+    ' a few fields: an insertion sort is plenty
+    for a as long = 1 to ids.Count( ) - 1
+        dim as long v = ids[a], b = a - 1
+        while (b >= 0) andalso (ids[b] > v)
+            ids[b + 1] = ids[b]
+            b -= 1
+        wend
+        ids[b + 1] = v
+    next
+    dim as ustring r = ""
+    for each v as long in ids
+        r &= "{" & v & "}"
+    next
+    return r
+end function
+
+public sub Run( byref c as tally.Checker )
+    c.Begin( "langs" )
+    c.Same( Fields( "{0}  {1} errors, {2} warnings" ), "{0}{1}{2}", "Fields: numbered" )
+    c.Same( Fields( "{1} von {0}" ), "{0}{1}", "Fields: reordered sorts the same" )
+    c.Same( Fields( "{} of {}" ), "{0}{1}", "Fields: bare ones count in order" )
+    c.Same( Fields( "{{literal}} {}" ), "{0}", "Fields: {{ is not a field" )
+    c.Same( Fields( "{} and {1}" ), "?", "Fields: both kinds is wrong" )
+
+    ' the tree: src/core/tests/bin/coreall -> four levels up
+    dim as ustring root = platform.ExeDir( )
+    for k as long = 1 to 4
+        root = fs.PathParent( root )
+    next
+    dim as ustring src = fs.PathJoin( root, "src" )
+    c.Check( fs.IsDir( src ) andalso fs.IsDir( fs.PathJoin( root, i18n.LANG_DIR ) ), "found src/ and lang/ at " & root )
+    if fs.IsDir( src ) = false then exit sub
+
+    dim as Map( of ustring, ustring ) keys
+    dim as Array( of ustring ) clashes
+    dim as long files_ = 0
+    for each r as fs.DirEntryResult in fs.WalkDir( src )
+        if r.IsOk( ) = false then continue for
+        dim as fs.DirEntry de = r.Value( )
+        if (de.IsFile( ) = false) orelse (strings.EndsWith( lcase( de.Name( ) ), ".tiko" ) = false) then continue for
+        dim as ustring rel = mid( de.Path( ), len( src ) + 2 )
+        if instr( "/" & strings.Replace( rel, "\", "/" ), "/tests/" ) > 0 then continue for
+        ScanSource( fs.ReadAllText( de.Path( ) ).ValueOr( "" ), rel, keys, clashes )
+        files_ += 1
+    next
+    c.Check( keys.Count( ) >= 50, strings.Format( "the source's keys: {} in {} files", keys.Count( ), files_ ) )
+    c.SameNum( clashes.Count( ), 0, "one key, one English" )
+    for each x as ustring in clashes
+        print "     clash: " & x
+    next
+    dim as cmdids.CommandTable t
+    for i as long = 0 to t.Count( ) - 1
+        keys.Put( "commands." & t.Item( i ).Name, t.Item( i ).Description )
+    next
+
+    dim as ustring codes( 0 to 2 ) = { "es", "fr", "de" }
+    for ci as long = 0 to 2
+        dim as ustring code = codes( ci )
+        dim as ustring path = fs.PathJoin( root, i18n.LANG_DIR, code & ".toml" )
+        dim as i18n.CatalogResult cr = i18n.LoadCatalog( path, code )
+        c.Check( cr.IsOk( ), code & ".toml loads" )
+        if cr.IsOk( ) = false then
+            print "     " & cr.Failure( )
+            continue for
+        end if
+        dim as i18n.Catalog cat = cr.Value( )
+        c.Check( len( cat.Name ) > 0, code & ".toml has a name" )
+        c.SameNum( cat.Warnings.Count( ), 0, code & ".toml: no warnings" )
+        for each w as ustring in cat.Warnings
+            print "     " & w
+        next
+        dim as long missing = 0, orphans = 0, badFields = 0
+        for each k as ustring in keys.Keys( )
+            dim as ustring english, tr
+            keys.TryGet( k, english )
+            if cat.Texts.TryGet( k, tr ) = false then
+                missing += 1
+                print "     " & code & " missing: " & k
+            elseif Fields( tr ) <> Fields( english ) then
+                badFields += 1
+                print "     " & code & " fields: " & k & " = " & tr
+            elseif len( trim( tr ) ) = 0 then
+                missing += 1
+                print "     " & code & " empty: " & k
+            end if
+        next
+        for each k as ustring in cat.Texts.Keys( )
+            if keys.Contains( k ) = false then
+                orphans += 1
+                print "     " & code & " not in the source: " & k
+            end if
+        next
+        c.SameNum( missing, 0, code & ".toml has every key" )
+        c.SameNum( orphans, 0, code & ".toml has no other key" )
+        c.SameNum( badFields, 0, code & ".toml keeps every text's placeholders" )
+    next
+end sub

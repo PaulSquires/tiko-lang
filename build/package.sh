@@ -849,7 +849,7 @@ fi
 # so the folder is tkedit-<host> here; build/release.sh names it tkedit/ in the archive.
 #
 # RELEASE BINARIES AND WHAT THEY LOAD, NOTHING ELSE: the program and its shared libraries in
-# the folder's ROOT (no bin/: the author's order) beside fonts/ icons/ keywords/ themes/,
+# the folder's ROOT (no bin/: the author's order) beside fonts/ icons/ keywords/ lang/ themes/,
 # and licences/. No source, no README, and not vendor/tkControls' own fonts, which its
 # runtime copies beside every program but tkedit never loads (it has its own in fonts/).
 #
@@ -901,7 +901,7 @@ if [ "$DO_TKEDIT" = "1" ]; then
         done
         cp -f "$_tkp" "$TKD/"
         [ "$HOST" = "linux" ] && cp -a "$_tklib"/lib*.so* "$TKD/"
-        for d in fonts icons keywords themes; do
+        for d in fonts icons keywords lang themes; do
             cp -r "$TKSRC/$d" "$TKD/$d"
         done
         rm -f "$TKD/fonts/README.md"
