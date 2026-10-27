@@ -755,6 +755,13 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     Chord( h, SDLK_O, SDL_SCANCODE_O, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
     t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Recent) andalso (mw.Chooser.ShownCount( ) = 7), _
              P( sc, strings.Format( "Ctrl+Shift+O lists the recent files ({})", mw.Chooser.ShownCount( ) ) ) )
+    scope   ' where Search Symbol opens: centred at the top of the panes
+        dim as long rx = 0, ry = 0, rw = 0, rh = 0
+        SDL_GetWindowPosition( mw.Chooser.Pop->win, @rx, @ry )
+        SDL_GetWindowSize( mw.Chooser.Pop->win, @rw, @rh )
+        t.Check( (abs( rx * h->fDensity - (h->root->cw - rw * h->fDensity) / 2 ) <= 2) andalso (abs( ry * h->fDensity - tkForm_Scale( mw.form, 32 ) ) <= 2), _
+                 P( sc, strings.Format( "centred at the top, like Search Symbol: {},{} {}x{}", rx, ry, rw, rh ) ) )
+    end scope
     PopKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
     ' a recent file deleted from disk is not offered (still in the list)
     fs.RemoveFile( pathE )

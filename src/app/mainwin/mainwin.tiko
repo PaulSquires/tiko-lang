@@ -931,7 +931,7 @@ function Window.Execute( byval id as Cmd ) as boolean
         for each p as ustring in picked
             if len( p ) andalso (project.IsManifest( p ) = false) then this.OpenFile( p )
         next
-    case Cmd.FileRecent : this.OpenChooser( PickKind.Recent )
+    case Cmd.FileRecent : this.OpenChooser( PickKind.Recent, true )   ' where Ctrl+P opens (author)
     case Cmd.FileClose : this.CloseDoc( this.Active( ) )
     case Cmd.FileCloseAll : this.CloseAll( )
     case Cmd.FileSave : this.SaveDoc( this.Active( ), false )
