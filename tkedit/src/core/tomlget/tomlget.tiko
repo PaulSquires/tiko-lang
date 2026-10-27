@@ -1,0 +1,132 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tomlget -- typed reads and writes over std/config's TomlValue, for tkEdit's own TOML files
+' (settings.toml, state.toml). A missing key, or one of the wrong type, reads as the default the
+' caller gives: these files are the program's own and a hand edit that breaks one key must not
+' cost the user the rest.
+#module "tomlget"
+
+#import "std/config"
+#import "std/containers"
+#import "std/outcome"
+using containers
+using outcome
+
+public function GetBool( byref t as config.TomlValue, byref k as const ustring, byval dflt as boolean ) as boolean
+    dim as config.TomlValue ptr p = t.Find( k )
+    if p = 0 then return dflt
+    return p->AsBool( ).ValueOr( dflt )
+end function
+
+public function GetInt( byref t as config.TomlValue, byref k as const ustring, byval dflt as longint ) as longint
+    dim as config.TomlValue ptr p = t.Find( k )
+    if p = 0 then return dflt
+    return p->AsInt( ).ValueOr( dflt )
+end function
+
+public function GetStr( byref t as config.TomlValue, byref k as const ustring, byref dflt as const ustring = "" ) as ustring
+    dim as config.TomlValue ptr p = t.Find( k )
+    if p = 0 then return dflt
+    dim as ustring d = dflt
+    return p->AsString( ).ValueOr( d )
+end function
+
+' An array of strings; anything else in it is skipped.
+public function GetStrings( byref t as config.TomlValue, byref k as const ustring ) as Array( of ustring )
+    dim as Array( of ustring ) out_
+    dim as config.TomlValue ptr p = t.Find( k )
+    if p = 0 then return out_
+    if p->Kind( ) <> config.TOML_ARRAY then return out_
+    for i as long = 0 to p->Count( ) - 1
+        dim as Optional( of ustring ) s = p->Item( i ).AsString( )
+        if s.HasValue( ) then out_.Push( s.Value( ) )
+    next
+    return out_
+end function
+
+' An array of integers; anything else in it is skipped.
+public function GetInts( byref t as config.TomlValue, byref k as const ustring ) as Array( of long )
+    dim as Array( of long ) out_
+    dim as config.TomlValue ptr p = t.Find( k )
+    if p = 0 then return out_
+    if p->Kind( ) <> config.TOML_ARRAY then return out_
+    for i as long = 0 to p->Count( ) - 1
+        dim as Optional( of longint ) n = p->Item( i ).AsInt( )
+        if n.HasValue( ) then out_.Push( clng( n.Value( ) ) )
+    next
+    return out_
+end function
+
+' The sub-table k, or an empty table when there is none (or k is not a table).
+public function Table( byref t as config.TomlValue, byref k as const ustring ) as config.TomlValue
+    dim as config.TomlValue ptr p = t.Find( k )
+    if ( p <> 0 ) andalso ( p->Kind( ) = config.TOML_TABLE ) then return *p
+    return config.TomlValue.NewTable( )
+end function
+
+' The tables of array k ([[k]] sections); anything else in it is skipped.
+public function Tables( byref t as config.TomlValue, byref k as const ustring ) as Array( of config.TomlValue )
+    dim as Array( of config.TomlValue ) out_
+    dim as config.TomlValue ptr p = t.Find( k )
+    if p = 0 then return out_
+    if p->Kind( ) <> config.TOML_ARRAY then return out_
+    for i as long = 0 to p->Count( ) - 1
+        if p->Item( i ).Kind( ) = config.TOML_TABLE then out_.Push( p->Item( i ) )
+    next
+    return out_
+end function
+
+public sub SetBool( byref t as config.TomlValue, byref k as const ustring, byval v as boolean )
+    dim as config.TomlValue x = config.TomlValue.FromBool( v )
+    t.SetKey( k, x )
+end sub
+
+public sub SetInt( byref t as config.TomlValue, byref k as const ustring, byval v as longint )
+    dim as config.TomlValue x = config.TomlValue.FromInt( v )
+    t.SetKey( k, x )
+end sub
+
+public sub SetStr( byref t as config.TomlValue, byref k as const ustring, byref v as const ustring )
+    dim as config.TomlValue x = config.TomlValue.FromString( v )
+    t.SetKey( k, x )
+end sub
+
+public sub SetStrings( byref t as config.TomlValue, byref k as const ustring, byref v as Array( of ustring ) )
+    dim as config.TomlValue a = config.TomlValue.NewArray( )
+    for each s as ustring in v
+        dim as config.TomlValue x = config.TomlValue.FromString( s )
+        a.Push( x )
+    next
+    t.SetKey( k, a )
+end sub
+
+public sub SetInts( byref t as config.TomlValue, byref k as const ustring, byref v as Array( of long ) )
+    dim as config.TomlValue a = config.TomlValue.NewArray( )
+    for each n as long in v
+        dim as config.TomlValue x = config.TomlValue.FromInt( n )
+        a.Push( x )
+    next
+    t.SetKey( k, a )
+end sub
+
+' v as a TOML string: a literal one ('...') when it holds no apostrophe and no line break, else a
+' basic one with \ " and the breaks escaped -- a Windows path stays readable.
+public function Quoted( byref v as const ustring ) as ustring
+    if (instr( v, "'" ) = 0) andalso (instr( v, chr( 10 ) ) = 0) then return "'" & v & "'"
+    dim as ustring o = ""
+    for i as long = 1 to len( v )
+        dim as ustring ch = mid( v, i, 1 )
+        select case ch
+        case "\", """" : o &= "\" & ch
+        case chr( 10 ) : o &= "\n"
+        case chr( 13 ) : o &= "\r"
+        case else : o &= ch
+        end select
+    next
+    return """" & o & """"
+end function

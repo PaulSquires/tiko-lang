@@ -1,0 +1,169 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+' projectsuite -- tkc/project: a new project and its main file, Add / Remove / IndexOf, a file
+' written and read back field for field (its session tables too), a wrong format refused, and
+' SplitArgs over tiko's quoting rule.
+#module "projectsuite"
+
+#import "std/containers"
+#import "std/fs"
+#import "std/config"
+#import "tkc/project"
+#import "tkc/runargs"
+#import "tkp/platform"
+#import "tkc/session"
+#import "../tally"
+using containers
+
+private function Joined( byref a as const Array( of ustring ) ) as ustring
+    dim as ustring s
+    for each x as ustring in a
+        s &= "[" & x & "]"
+    next
+    return s
+end function
+
+public sub Run( byref c as tally.Checker )
+    c.Begin( "project" )
+    dim as fs.FsResultUStr tmp = fs.CreateTempDir( "projectsuite" )
+    c.Check( tmp.IsOk( ), "a temp folder" )
+    if tmp.IsOk( ) = false then exit sub
+    dim as ustring d = tmp.Value( )
+    dim as ustring nl = wchr( 10 )
+
+    ' the manifest: package, targets in file order, their mains
+    dim as ustring mf = fs.PathJoin( d, "hello", project.MANIFEST_FILE )
+    fs.CreateDirAll( fs.PathParent( mf ) )
+    fs.WriteAllText( mf, "[package]" & nl & "name = 'hello'" & nl & "version = '0.1.0'" & nl & nl & _
+                         "[target.zeta]" & nl & "main = 'src/z.tiko'" & nl & nl & "[target.alpha]" & nl & "main = 'a.tiko'" & nl )
+    c.Check( project.IsManifest( mf ) andalso (project.IsManifest( fs.PathJoin( d, "x.tkedit" ) ) = false), "IsManifest" )
+    dim as boolean upperIs = project.IsManifest( fs.PathJoin( d, "TIKO.TOML" ) )
+    if platform.CurrentOs( ) = platform.Os.Linux then
+        c.Check( upperIs = false, "TIKO.TOML is not the manifest on Linux" )
+    else
+        c.Check( upperIs, "TIKO.TOML is, where names are case-blind" )
+    end if
+    dim as project.ManifestResult mr = project.LoadManifest( mf )
+    c.Check( mr.IsOk( ), "LoadManifest" )
+    if mr.IsOk( ) then
+        dim as project.Manifest m = mr.Value( )
+        c.Check( (m.Package = "hello") andalso (m.Name( ) = "hello") andalso (m.Targets.Count( ) = 2), "package, folder name, two targets" )
+        if m.Targets.Count( ) = 2 then
+            c.Check( (m.Targets[0].Name = "zeta") andalso (m.Targets[1].Name = "alpha"), "the targets in file order" )
+        end if
+        c.Same( m.MainOf( "zeta" ), fs.PathToNative( fs.PathJoin( d, "hello", "src", "z.tiko" ) ), "MainOf is full" )
+        c.Check( (m.TargetIndex( "alpha" ) = 1) andalso (m.TargetIndex( "nope" ) = -1) andalso (m.MainOf( "nope" ) = ""), "TargetIndex, an unknown one" )
+    end if
+    c.Check( project.ParseManifest( "[package" & nl, "tiko.toml" ).IsOk( ) = false, "not TOML is refused" )
+    dim as project.ManifestResult nr = project.ParseManifest( project.NewManifestText( "demo", "demo", "demo.tiko" ), "tiko.toml" )
+    c.Check( nr.IsOk( ) andalso (nr.Value( ).Package = "demo") andalso (nr.Value( ).Targets.Count( ) = 1) andalso _
+             (nr.Value( ).Targets[0].Main = "demo.tiko"), "NewManifestText reads back" )
+    scope   ' every table, empty ones too, so they are there to fill in
+        dim as ustring mt = project.NewManifestText( "demo", "demo", "demo.tiko" )
+        dim as boolean all_ = true
+        dim as ustring tables = "[package] [dependencies] [defines] [target.demo] [profile.debug] [profile.release]"
+        dim as long st = 1
+        while st <= len( tables )
+            dim as long sp = instr( st, tables, " " )
+            if sp = 0 then sp = len( tables ) + 1
+            if instr( mt, mid( tables, st, sp - st ) & nl ) = 0 then all_ = false
+            st = sp + 1
+        wend
+        c.Check( all_, "NewManifestText writes every table" )
+        ' the samples are TOML: every '# key = ' and '# [table]' line uncommented reads back, with the
+        ' fast profile and the target's defines
+        dim as ustring un = ""
+        dim as long st2 = 1, samples = 0
+        while st2 <= len( mt )
+            dim as long e2 = instr( st2, mt, nl )
+            if e2 = 0 then e2 = len( mt ) + 1
+            dim as ustring ln = mid( mt, st2, e2 - st2 )
+            st2 = e2 + 1
+            if left( ln, 2 ) = "# " then
+                dim as ustring body = mid( ln, 3 )
+                dim as long eq = instr( body, " = " ), sp = instr( body, " " )
+                if (left( body, 1 ) = "[") orelse ((eq > 1) andalso (eq = sp)) then
+                    ln = body
+                    samples += 1
+                end if
+            end if
+            un &= ln & nl
+        wend
+        dim as project.ManifestResult ur = project.ParseManifest( un, "tiko.toml" )
+        c.Check( (samples >= 25) andalso ur.IsOk( ) andalso (ur.Value( ).Targets.Count( ) = 1) andalso _
+                 (ur.Value( ).Targets[0].Main = "demo.tiko") andalso (instr( un, nl & "[profile.fast]" & nl ) > 0) andalso _
+                 (instr( un, nl & "[target.demo.defines]" & nl ) > 0), _
+                 "NewManifestText's samples, uncommented, read back (" & samples & " lines)" )
+    end scope
+
+    ' the options file: every key, round trip, written only when it changes
+    dim as project.ProjectOptions o
+    o.Manifest = mf
+    o.Target = "alpha"
+    o.Build = "Release"
+    o.CommandLine = "one ""two words"" it's"
+    dim as ustring op = project.OptionsPath( d, mf )
+    c.Check( project.WriteOptions( op, o ), "WriteOptions writes it, and its folder" )
+    c.Check( project.WriteOptions( op, o ) = false, "and not again when it holds that already" )
+    dim as project.OptionsResult orr = project.LoadOptions( op )
+    c.Check( orr.IsOk( ) andalso (orr.Value( ).Manifest = mf) andalso (orr.Value( ).Target = "alpha") andalso _
+             (orr.Value( ).Build = "Release") andalso (orr.Value( ).CommandLine = o.CommandLine), "every key back" )
+    dim as ustring ot = project.OptionsText( o )
+    c.Check( (instr( ot, nl & "command_line = " ) > 0) andalso (instr( ot, "# command_line" ) = 0), "every key set, none commented out" )
+
+    ' where the state lives: <config>/projects/<folder>-<8 hex>
+    dim as ustring k = project.StateKey( mf )
+    c.Check( (left( k, 6 ) = "hello-") andalso (len( k ) = 14), "StateKey: the folder and 8 hex: " & k )
+    c.Same( project.StateKey( mf ), k, "the same path, the same key" )
+    if platform.CurrentOs( ) = platform.Os.Windows then c.Same( project.StateKey( ucase( mf ) ), k, "case-folded on Windows" )
+    c.Check( project.StateKey( fs.PathJoin( d, "other", project.MANIFEST_FILE ) ) <> k, "another project, another key" )
+    c.Check( left( project.StateKey( fs.PathJoin( d, "my dir!", project.MANIFEST_FILE ) ), 7 ) = "my_dir_", "as '_'" )
+    c.Same( project.OptionsPath( d, mf ), fs.PathJoin( d, project.PROJECTS_DIR, k & ".toml" ), "OptionsPath" )
+    c.Same( project.SessionPath( d, mf ), fs.PathJoin( d, project.PROJECTS_DIR, k & ".session.toml" ), "SessionPath" )
+
+    ' Prune: a pair whose manifest is gone goes; a live one stays; a session alone goes
+    fs.WriteAllText( project.SessionPath( d, mf ), "version = 1" & nl )
+    dim as ustring goneMf = fs.PathJoin( d, "gone", project.MANIFEST_FILE )
+    dim as project.ProjectOptions g
+    g.Manifest = goneMf
+    project.WriteOptions( project.OptionsPath( d, goneMf ), g )
+    fs.WriteAllText( project.SessionPath( d, goneMf ), "version = 1" & nl )
+    fs.WriteAllText( fs.PathJoin( d, project.PROJECTS_DIR, "lonely-00000000.session.toml" ), "" )
+    c.SameNum( project.Prune( d ), 3, "Prune removed the gone pair and the lonely session" )
+    c.Check( fs.IsFile( op ) andalso fs.IsFile( project.SessionPath( d, mf ) ), "the live project's pair stays" )
+    c.Check( (fs.IsFile( project.OptionsPath( d, goneMf ) ) = false) andalso (fs.IsFile( project.SessionPath( d, goneMf ) ) = false), _
+             "the gone one's pair is gone" )
+    c.SameNum( project.Prune( d ), 0, "nothing more the second time" )
+    c.SameNum( project.Prune( fs.PathJoin( d, "no such config" ) ), 0, "no projects folder: nothing" )
+
+    ' run arguments of files built without a project
+    c.Begin( "runargs" )
+    dim as ustring runA = fs.PathJoin( d, "a.tiko" ), runB = fs.PathJoin( d, "b.tiko" )
+    fs.WriteAllText( runA, "" )
+    fs.WriteAllText( runB, "" )
+    dim as runargs.RunArgsStore st
+    dim as ustring rp = fs.PathJoin( d, runargs.RUNARGS_FILE )
+    st.Load( rp )
+    c.Check( (st.Files.Count( ) = 0) andalso (st.Get( runA ) = ""), "no file: nothing" )
+    st.Set( runA, "-v ""x y""" )
+    st.Set( runB, "it's" )
+    c.Check( st.Save( ) andalso fs.IsFile( rp ), "Save" )
+    dim as runargs.RunArgsStore st2
+    st2.Load( rp )
+    c.Check( (st2.Get( runA ) = "-v ""x y""") andalso (st2.Get( runB ) = "it's"), "read back" )
+    if platform.CurrentOs( ) = platform.Os.Windows then c.Same( st2.Get( ucase( runA ) ), "-v ""x y""", "case-blind on Windows" )
+    st2.Set( runA, "" )
+    c.Check( (st2.Get( runA ) = "") andalso (st2.Files.Count( ) = 1), "empty arguments remove the file" )
+    fs.RemoveFile( runB )
+    c.SameNum( st2.Prune( ), 1, "Prune drops a file that is gone" )
+    c.Check( st2.Save( ) andalso (fs.IsFile( rp ) = false), "none left: the file goes" )
+    fs.RemoveDirAll( d )
+
+    c.Begin( "splitargs" )
+    c.Same( Joined( project.SplitArgs( "a  b" & chr( 9 ) & "c" ) ), "[a][b][c]", "blanks separate" )
+    c.Same( Joined( project.SplitArgs( "one ""two words"" three" ) ), "[one][two words][three]", "quotes group" )
+    c.Same( Joined( project.SplitArgs( "C:\a\b ""c\""d""" ) ), "[C:\a\b][c""d]", "a backslash is literal; before a quote it escapes" )
+    c.Same( Joined( project.SplitArgs( "x\\""y z""" ) ), "[x\y z]", "two backslashes before a quote: one, and the quote groups" )
+    c.Same( Joined( project.SplitArgs( "" ) ), "", "nothing" )
+end sub

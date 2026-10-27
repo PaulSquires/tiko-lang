@@ -1,0 +1,24 @@
+# tkEdit: the application package (GUI on tkControls). Imported modules: "tka/<module>".
+[package]
+name = "tka"
+version = "0.1.0"
+
+[dependencies]
+tkp = { path = "../platform" }
+tkc = { path = "../core" }
+tks = { path = "../svc" }
+tkControls = { path = "../../../tkControls" }
+
+[profile.debug]
+options = ["-w", "all"]
+
+# bin/ holds the program beside its SDL libraries and finds fonts/ and themes/ in its parent.
+[target.tkEdit]
+main      = "main.tiko"
+subsystem = "gui"
+options   = ["-mt"]
+copy_to   = ["../../bin"]
+
+# the exe's icon: a .rc is Windows-only, and a Linux build refuses one (TK-003)
+[target.tkEdit.windows]
+resources = ["res/tkEdit.rc"]

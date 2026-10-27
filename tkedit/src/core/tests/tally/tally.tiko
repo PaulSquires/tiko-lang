@@ -1,0 +1,56 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+' tally -- the console suites' tally. One Checker is passed to every suite; a failure prints
+' "FAIL <suite>: <what>" and, for Same, the two values.
+#module "tally"
+
+public type Checker
+    declare sub Begin( byref suiteName as const ustring )
+    declare sub Check( byval ok as boolean, byref what as const ustring )
+    declare sub Same( byref got as const ustring, byref want as const ustring, byref what as const ustring )
+    declare sub SameNum( byval got as longint, byval want as longint, byref what as const ustring )
+    Passed as long
+    Failed as long
+    Suite  as ustring
+end type
+
+sub Checker.Begin( byref suiteName as const ustring )
+    this.Suite = suiteName
+end sub
+
+sub Checker.Check( byval ok as boolean, byref what as const ustring )
+    if ok then
+        this.Passed += 1
+    else
+        this.Failed += 1
+        print "FAIL " & this.Suite & ": " & what
+    end if
+end sub
+
+' Shows control characters as \r \n \t so a failure is readable on one line.
+private function Visible( byref s as const ustring ) as ustring
+    dim as ustring o
+    for i as long = 0 to len( s ) - 1
+        select case s[i]
+        case 13 : o &= "\r"
+        case 10 : o &= "\n"
+        case 9 : o &= "\t"
+        case else : o &= wchr( s[i] )
+        end select
+    next
+    return o
+end function
+
+sub Checker.Same( byref got as const ustring, byref want as const ustring, byref what as const ustring )
+    this.Check( got = want, what )
+    if got <> want then
+        print "     got:  [" & Visible( got ) & "]"
+        print "     want: [" & Visible( want ) & "]"
+    end if
+end sub
+
+sub Checker.SameNum( byval got as longint, byval want as longint, byref what as const ustring )
+    this.Check( got = want, what )
+    if got <> want then print "     got " & got & ", want " & want
+end sub

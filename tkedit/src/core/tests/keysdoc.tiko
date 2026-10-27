@@ -1,0 +1,79 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' keysdoc -- docs/tkEdit/KEYS.md, written from the command table (tkc/cmdids) and the key model
+' (tkc/keybind), so the reference cannot drift from the defaults.
+'   keysdoc <out.md>      exit 0 = written
+#import "std/fs"
+#import "std/strings"
+#import "tkc/cmdids"
+#import "tkc/keybind"
+using cmdids
+
+' The commands whose default is not tiko-editor's, or that tiko-editor does not have.
+private function Changed( byref name_ as const ustring ) as boolean
+    select case name_
+    case "FileRecent", "Settings", "KeyboardShortcuts", "ThemeFile", "ReplaceOne", "GoToLine", "FileSaveAs", "ToUpperCase", "ToLowerCase", "ToMixedCase", _
+         "FunctionList", "ProjectNew", "ProjectClose", "MoveLineUp", "MoveLineDown", _
+         "BufferList", "BufferNext", "BufferPrev", "CycleFocus", "BuildConfig", _
+         "NextDiagnostic", "PrevDiagnostic"
+        return true
+    end select
+    return false
+end function
+
+dim as ustring outPath = command( 1 )
+if len( outPath ) = 0 then
+    print "keysdoc <out.md>"
+    end 2
+end if
+dim as keybind.KeyMap km
+dim as CommandTable t
+dim as ustring nl = chr( 10 )
+dim as ustring s = "# tkEdit default keys" & nl & nl & _
+    "Generated from `src/core/cmdids` by `src/core/tests/keysdoc` -- do not edit by hand. ★ = changed" & nl & _
+    "from tiko-editor, or new. `Primary` is Ctrl on Windows and Linux, Cmd on macOS; the keys below" & nl & _
+    "show Ctrl. Single chords only (D2). Every one is rebound in `keybindings.toml` by the Name column" & nl & _
+    "(`Name = 'Primary+Shift+K'`, or `''` to remove it)." & nl
+for g as long = 0 to clng( MenuGroup.Count_ ) - 1
+    s &= nl & "## " & GroupName( cast( MenuGroup, g ) ) & nl & nl & "| Command | Name | Key |" & nl & "| --- | --- | --- |" & nl
+    for each id as Cmd in t.InGroup( cast( MenuGroup, g ) )
+        dim as CommandInfo ci = t.Info( id )
+        dim as ustring key = "—"
+        if len( ci.DefaultKeys ) then
+            dim as keybind.ChordResult r = km.Vocab( ).ParseChord( ci.DefaultKeys )
+            if r.IsOk( ) then key = r.Value( ).ToDisplay( )
+        end if
+        key = strings.Replace( key, "|", "\|" )
+        dim as ustring label = ci.Description
+        if Changed( ci.Name ) then label &= " ★"
+        s &= "| " & label & " | `" & ci.Name & "` | " & key & " |" & nl
+    next
+next
+s &= nl & "## Fixed keys (not rebindable)" & nl & nl & _
+    "- Find / Replace / Go to Line / Find in Project strip: Enter next (Go to Line: go; In files: search)," & nl & _
+    "  Shift+Enter previous, Ctrl+Alt+Enter replace all, Tab moves between the boxes, Esc closes the" & nl & _
+    "  strip." & nl & _
+    "- Popups: Up / Down / PgUp / PgDn move, Tab / Shift+Tab move, Enter picks, Esc closes, typing" & nl & _
+    "  filters. In the functions list, its own key (F4) again switches between this buffer and every" & nl & _
+    "  open buffer. The Ctrl+Tab switcher shows each buffer as soon as Ctrl+Tab / Tab reaches it;" & nl & _
+    "  letting go of Ctrl keeps it, Esc goes back to the one before." & nl & _
+    "- Menu bar: Left / Right between menus, Esc or a command hides it again." & nl & _
+    "- Completion list: Enter or Tab inserts, Esc closes." & nl & _
+    "- Scintilla's own letter chords (Ctrl+Z/Y/X/C/V/A/L/T/D/U and their Shift forms) are cleared, so" & nl & _
+    "  keybindings.toml is the only keymap: an unbound chord does nothing." & nl & _
+    "- Two commands on one chord: the first in the table keeps it, and the status line says so." & nl & _
+    "- Exit is Alt+F4; on macOS the system's Cmd+Q." & nl & nl & _
+    "## Reserved" & nl & nl & _
+    "F6, F9, F10, F11, Ctrl+F6, Ctrl+F10, Shift+F6, Shift+F11 and Ctrl+Shift+F9 are left unbound for a" & nl & _
+    "later debugger (D6)." & nl
+if fs.WriteAtomic( outPath, s ).IsOk( ) = false then
+    print "keysdoc: cannot write " & outPath
+    end 1
+end if
+print strings.Format( "keysdoc: {} commands -> {}", t.Count( ), outPath )
+end 0

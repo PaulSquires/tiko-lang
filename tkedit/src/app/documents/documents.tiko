@@ -1,0 +1,169 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' documents -- one open file: its path, how it is encoded on disk, the Scintilla view showing it,
+' and what the disk held when it was last read or written (the file watch compares). The text
+' lives in Scintilla. A buffer has one view: the two panes of a split show two different buffers.
+#module "documents"
+
+#import "std/fs"
+#import "std/outcome"
+#import "std/strings"
+#import "tkc/docencoding"
+#import "tka/editor"
+#import "tkControls/tkHost"
+using outcome
+using tkHost
+
+' What the disk held: the file watch's evidence that someone else wrote it.
+public type DiskStamp
+    Exists   as boolean
+    Size     as ulongint
+    Modified as longint
+    declare function Same( byref o as const DiskStamp ) as boolean
+end type
+
+function DiskStamp.Same( byref o as const DiskStamp ) as boolean
+    return (Exists = o.Exists) andalso (Size = o.Size) andalso (Modified = o.Modified)
+end function
+
+public function StampOf( byref path as const ustring ) as DiskStamp
+    dim as DiskStamp s
+    dim as fs.FsResultInfo r = fs.Stat( path )
+    if r.IsOk( ) = false then return s
+    s.Exists = r.Value( ).Exists( )
+    s.Size = r.Value( ).Size( )
+    s.Modified = r.Value( ).ModifiedUtc( )
+    return s
+end function
+
+public type TextResult as Result( of boolean, ustring )
+
+public type Document
+    Path     as ustring                  ' "" = never saved
+    Untitled as ustring                  ' "Untitled1": the name until it has a path
+    Enc      as docencoding.EncodingState
+    Main     as editor.CodeView          ' the first (or only) view
+    Stamp    as DiskStamp                ' at the last load or save
+    Ignored  as DiskStamp                ' a change the user chose to keep their text over
+
+    declare function DisplayName( ) as ustring
+    declare function IsNew( ) as boolean
+    declare function IsModified( ) as boolean
+    declare function Text( ) as ustring
+    declare function Load( byref path as const ustring ) as TextResult    ' into Main
+    declare function Reload( ) as TextResult
+    declare function Save( byref path as const ustring, byval acceptLoss as boolean ) as TextResult
+    declare function MustConfirmLoss( ) as boolean
+    declare function ChangedOnDisk( ) as boolean
+    declare function HasView( byval w as TK_WIDGET ptr ) as boolean
+    declare sub DestroyViews( )
+    declare sub ApplyHighlight( )                   ' coloured for a source file only
+end type
+
+' A tiko source file by its name: .tiko .ti .bas .bi (any case). An untitled buffer counts as one.
+public function IsSourceFile( byref path as const ustring ) as boolean
+    if len( path ) = 0 then return true
+    dim as ustring nm = fs.PathFileName( path )
+    dim as long dot = instrrev( nm, "." )
+    if dot <= 1 then return false
+    select case lcase( mid( nm, dot + 1 ) )
+    case "tiko", "ti", "bas", "bi" : return true
+    end select
+    return false
+end function
+
+' The tab's and title bar's name for it.
+function Document.DisplayName( ) as ustring
+    if len( Path ) = 0 then return Untitled
+    return fs.PathFileName( Path )
+end function
+
+function Document.IsNew( ) as boolean
+    return len( Path ) = 0
+end function
+
+function Document.IsModified( ) as boolean
+    return Main.IsModified( )
+end function
+
+function Document.Text( ) as ustring
+    return Main.Text( )
+end function
+
+' Reads path (any encoding docencoding knows), shows it, remembers how it was encoded and which
+' line break it uses; the view is left unmodified with an empty undo history.
+function Document.Load( byref path as const ustring ) as TextResult
+    dim as Result( of docencoding.LoadedText, fs.FsError ) r = docencoding.LoadFile( path )
+    if r.IsOk( ) = false then return Fail( of boolean, ustring )( r.Failure( ).Message( ) )
+    dim as docencoding.LoadedText t = r.Value( )
+    Enc.Encoding = t.Encoding
+    Enc.LossyAccepted = false
+    Enc.LineEnding = docencoding.ChooseLineEnd( t.Text, false, Enc.LineEnding, Enc.LineEnding )
+    Main.SetText( t.Text )
+    Main.SetLineEnding( Enc.LineEnding, false )
+    this.Path = path
+    this.ApplyHighlight( )
+    Stamp = StampOf( path )
+    Ignored = Stamp
+    return Ok( of boolean, ustring )( true )
+end function
+
+' Load again from Path, keeping the caret's line.
+function Document.Reload( ) as TextResult
+    dim as long first = Main.FirstLine( )
+    dim as longint pos_ = Main.Position( )
+    dim as TextResult r = this.Load( Path )
+    if r.IsOk( ) then
+        Main.SetPosition( pos_ )
+        Main.SetFirstLine( first )
+    end if
+    return r
+end function
+
+' Would saving now lose characters the user has not agreed to lose? (The caller asks.)
+function Document.MustConfirmLoss( ) as boolean
+    return Enc.PlanSave( Main.Text( ) ).MustConfirm
+end function
+
+' Writes the text, encoded as the document was found (or chosen); acceptLoss = the user agreed
+' to characters the encoding cannot hold becoming its default character.
+function Document.Save( byref path as const ustring, byval acceptLoss as boolean ) as TextResult
+    if acceptLoss then Enc.AcceptLossy( )
+    dim as docencoding.SavePlan p = Enc.PlanSave( Main.Text( ) )
+    if p.MustConfirm then return Fail( of boolean, ustring )( "lossy" )
+    dim as fs.FsResultBool w = docencoding.WriteFile( path, p.Bytes )
+    if w.IsOk( ) = false then return Fail( of boolean, ustring )( w.Failure( ).Message( ) )
+    this.Path = path
+    this.ApplyHighlight( )
+    Main.SetSavePoint( )
+    Stamp = StampOf( path )
+    Ignored = Stamp
+    return Ok( of boolean, ustring )( true )
+end function
+
+' Someone else wrote (or removed) the file since we last read or wrote it, and the user has not
+' already said to keep their version of that change.
+function Document.ChangedOnDisk( ) as boolean
+    if len( Path ) = 0 then return false
+    dim as DiskStamp now_ = StampOf( Path )
+    return (now_.Same( Stamp ) = false) andalso (now_.Same( Ignored ) = false)
+end function
+
+function Document.HasView( byval w as TK_WIDGET ptr ) as boolean
+    if w = 0 then return false
+    return Main.Widget( ) = w
+end function
+
+sub Document.DestroyViews( )
+    Main.Destroy( )
+end sub
+
+sub Document.ApplyHighlight( )
+    dim as boolean src = IsSourceFile( Path )
+    Main.SetHighlight( src )
+end sub

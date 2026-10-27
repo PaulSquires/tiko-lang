@@ -1,0 +1,55 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' text -- small text jobs std/strings has no single call for. Ported from tiko-editor-tiko's edc/text
+' minus its Win32 half: WPtr (API structures), FbStr (FB's wcstombs, for a theme writer that now
+' writes UTF-8) and the byte transcoders (tkc/textstream and tkc/docencoding decode and encode
+' on std/codec).
+#module "text"
+
+#import "std/strings"
+#import "std/containers"
+#import "std/chrono"
+using containers
+
+' The n-th field of s, 1-based, split at d; "" past the last field.
+public function ParseField( byref s as const ustring, byval n as long = 1, byref d as const ustring = "," ) as ustring
+    dim as Array( of ustring ) p = strings.Split( s, d )
+    if ( n < 1 ) orelse ( n > p.Count( ) ) then return ""
+    return p[n - 1]
+end function
+
+' As ParseField, splitting at ANY character of chars.
+public function ParseFieldAny( byref s as const ustring, byval n as long = 1, byref chars as const ustring = "," ) as ustring
+    dim as Array( of ustring ) p = strings.SplitChars( s, chars )
+    if ( n < 1 ) orelse ( n > p.Count( ) ) then return ""
+    return p[n - 1]
+end function
+
+' n bytes the way Explorer's size column shows them (the old StrFormatKBSizeW): whole KB rounded
+' UP, digits grouped by thousands -- "0 KB", "1 KB" for 1..1024 bytes, "1,234 KB". The group
+' separator is "," everywhere (the Win32 call used the user's locale).
+public function FormatKBSize( byval n as ulongint ) as ustring
+    dim as ulongint kb = ( n + 1023 ) \ 1024
+    dim as ustring digits = str( kb ), o
+    dim as long count_ = 0
+    for i as long = len( digits ) to 1 step -1
+        if ( count_ > 0 ) andalso ( count_ mod 3 = 0 ) then o = "," & o
+        o = mid( digits, i, 1 ) & o
+        count_ += 1
+    next
+    return o & " KB"
+end function
+
+' The wall clock as "hh:mm:ss" on the 12-HOUR clock with a leading zero (00:30 is "12:30:00"),
+' which is what Win32's "hh" picture gave the old status line.
+public function Clock12( ) as ustring
+    dim as chrono.LocalTime t = chrono.WallClock.TimeOfDay( )
+    dim as long h = t.Hour mod 12
+    if h = 0 then h = 12
+    return strings.Format( "{:02}:{:02}:{:02}", h, t.Minute, t.Second )
+end function

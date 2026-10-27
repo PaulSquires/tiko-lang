@@ -1,0 +1,237 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+' encsuite -- tkc/docencoding: the old TIKO_ENCODING_SELFTEST's Tier A (byte-exact encodes, the
+' UTF-16 length that pinned the half-file truncation, BOMs present and absent, the tail marker,
+' the ANSI round trip, an embedded NUL, lossy detection), its disk round trip (encode -> write ->
+' read -> detect, now through WriteFile / LoadFile) and its name table; plus the load detection
+' the old GetFileToString made, the line-ending rule of AssignTextBuffer, and the lossy-save and
+' change-encoding decisions. The byte-corpus oracle is tools/oracle/run-enc.sh.
+#module "encsuite"
+
+#import "std/containers"
+#import "std/outcome"
+#import "std/fs"
+#import "tkc/docencoding"
+#import "../tally"
+using containers
+using outcome
+
+' raw bytes of a string
+private function Raw( byref s as const string ) as Array( of ubyte )
+    dim as Array( of ubyte ) b
+    for i as long = 0 to len( s ) - 1
+        b.Push( s[i] )
+    next
+    return b
+end function
+
+private function AsString( byref b as Array( of ubyte ) ) as string
+    dim as string s
+    for i as long = 0 to b.Count( ) - 1
+        s &= chr( b[i] )
+    next
+    return s
+end function
+
+private function HexOf( byref b as Array( of ubyte ), byval n as long = 16 ) as ustring
+    dim as ustring h
+    for i as long = 0 to b.Count( ) - 1
+        if i >= n then return h & "..."
+        h &= hex( b[i], 2 ) & " "
+    next
+    return h
+end function
+
+' the UTF-8 bytes of a text, through the module (UTF-8 is never lossy)
+private function U8( byref t as const ustring ) as string
+    return AsString( docencoding.EncodeForDisk( t, docencoding.FileEncoding.Utf8 ).Bytes )
+end function
+
+public sub Run( byref c as tally.Checker )
+    c.Begin( "encoding" )
+    ' ---- corpora from explicit code points (source-file encoding independent)
+    dim as ustring wAccents = wchr( &hE1, &hE9, &hED, &hF3, &hFA, &hF6, &hFC )
+    dim as ustring wBase = "Jose " & wAccents & " tail_marker_EOF"
+    dim as ustring wRich = "Jose " & wAccents & " " & wchr( &h20AC, &h201C, &h201D, &h2014 ) & " tail_marker_EOF"
+    dim as ustring wCJK = "Jose " & wAccents & " " & wchr( &h65E5, &h672C, &h8A9E ) & " tail_marker_EOF"
+
+    ' ================= Tier A: pure encodes
+    dim as docencoding.EncodedText wb = docencoding.EncodeForDisk( wRich, docencoding.FileEncoding.Utf16Bom )
+    c.SameNum( wb.Bytes.Count( ), 2 + len( wRich ) * 2, "UTF-16 length = BOM + 2 * units (the half-file truncation)" )
+    dim as string outU = AsString( docencoding.EncodeForDisk( wRich, docencoding.FileEncoding.Utf8 ).Bytes )
+    dim as string outUB = AsString( docencoding.EncodeForDisk( wRich, docencoding.FileEncoding.Utf8Bom ).Bytes )
+    dim as string outWB = AsString( wb.Bytes )
+    dim as docencoding.EncodedText ea = docencoding.EncodeForDisk( wRich, docencoding.FileEncoding.Ansi )
+    dim as string outA = AsString( ea.Bytes )
+    c.Check( left( outUB, 3 ) = chr( &hEF, &hBB, &hBF ), "UTF-8 BOM prefix" )
+    c.Check( left( outWB, 2 ) = chr( &hFF, &hFE ), "UTF-16 BOM prefix" )
+    c.Check( left( outU, 3 ) <> chr( &hEF, &hBB, &hBF ), "UTF-8 (no BOM) does not start with a BOM" )
+    c.Check( ( outA[0] <> &hEF ) andalso ( outA[0] <> &hFF ), "ANSI does not start with a BOM" )
+    c.Check( outUB = chr( &hEF, &hBB, &hBF ) & outU, "UTF-8 BOM = BOM + the UTF-8 payload" )
+    c.Check( instr( outA, "tail_marker_EOF" ) > 0, "ANSI kept the tail marker" )
+    c.Check( instr( outU, "tail_marker_EOF" ) > 0, "UTF-8 kept the tail marker" )
+    c.Check( instr( outUB, "tail_marker_EOF" ) > 0, "UTF-8 BOM kept the tail marker" )
+    c.Check( right( outWB, 2 ) = chr( &h46, 0 ), "UTF-16 ends in 'F',00 -- tail not truncated" )
+    c.SameNum( len( outU ), 5 + 14 + 1 + 12 + 16, "UTF-8 byte length of the rich corpus" )
+    c.Check( ea.Lossy = false, "the rich corpus (cp1252 members) is not lossy in ANSI" )
+
+    ' ANSI round trip of the Latin-1 subset
+    dim as docencoding.EncodedText aBase = docencoding.EncodeForDisk( wBase, docencoding.FileEncoding.Ansi )
+    c.Check( aBase.Lossy = false, "Latin-1 accents not lossy in ANSI" )
+    c.SameNum( aBase.Bytes.Count( ), len( wBase ), "Latin-1 in ANSI is one byte a character" )
+    dim as docencoding.LoadedText back = docencoding.DecodeFile( aBase.Bytes )
+    c.Check( back.Encoding = docencoding.FileEncoding.Ansi, "ANSI bytes of accents detect as ANSI" )
+    c.Same( back.Text, wBase, "ANSI round trip reproduces the text" )
+
+    ' embedded NUL survives
+    dim as ustring tNul = "AB_CD"
+    tNul[2] = 0                    ' wchr( 0 ) concatenates as nothing
+    c.SameNum( docencoding.EncodeForDisk( tNul, docencoding.FileEncoding.Utf8 ).Bytes.Count( ), 5, "embedded NUL: UTF-8 is 5 bytes" )
+    c.SameNum( docencoding.EncodeForDisk( tNul, docencoding.FileEncoding.Utf16Bom ).Bytes.Count( ), 12, "embedded NUL: UTF-16 is 12 bytes" )
+    c.Same( docencoding.DecodeFile( Raw( "AB" & chr( 0 ) & "CD" ) ).Text, tNul, "embedded NUL survives a load" )
+
+    ' lossy detection
+    c.Check( docencoding.EncodeForDisk( wCJK, docencoding.FileEncoding.Ansi ).Lossy, "CJK -> ANSI is lossy" )
+    c.Check( docencoding.EncodeForDisk( wCJK, docencoding.FileEncoding.Utf8 ).Lossy = false, "CJK -> UTF-8 is not" )
+    c.Check( docencoding.EncodeForDisk( wCJK, docencoding.FileEncoding.Utf16Bom ).Lossy = false, "CJK -> UTF-16 is not" )
+    c.Check( docencoding.CanRepresent( wCJK, docencoding.FileEncoding.Ansi ) = false, "CanRepresent: CJK not in ANSI" )
+    c.Check( docencoding.CanRepresent( wBase, docencoding.FileEncoding.Ansi ), "CanRepresent: accents in ANSI" )
+    c.Same( AsString( docencoding.EncodeForDisk( wchr( &h221E ), docencoding.FileEncoding.Ansi ).Bytes ), "?", _
+            "no best-fit: U+221E is '?', not '8'" )
+    c.SameNum( docencoding.EncodeForDisk( "", docencoding.FileEncoding.Ansi ).Bytes.Count( ), 0, "empty ANSI is no bytes" )
+
+    ' ================= load detection (the old GetFileToString)
+    scope
+        dim as docencoding.LoadedText t
+        t = docencoding.DecodeFile( Raw( "" ) )
+        c.Check( t.Encoding = docencoding.FileEncoding.Ansi, "an empty file is ANSI (old isUTF8encoded said no)" )
+        t = docencoding.DecodeFile( Raw( "print 1" ) )
+        c.Check( t.Encoding = docencoding.FileEncoding.Utf8, "pure ASCII is UTF-8, deliberately" )
+        t = docencoding.DecodeFile( Raw( U8( wRich ) ) )
+        c.Check( t.Encoding = docencoding.FileEncoding.Utf8, "valid UTF-8 is UTF-8" )
+        c.Same( t.Text, wRich, "UTF-8 decodes to the text" )
+        t = docencoding.DecodeFile( Raw( chr( &hEF, &hBB, &hBF ) & U8( wRich ) ) )
+        c.Check( t.Encoding = docencoding.FileEncoding.Utf8Bom, "EF BB BF is UTF-8 BOM" )
+        c.Same( t.Text, wRich, "the BOM is consumed" )
+        t = docencoding.DecodeFile( Raw( chr( &hEF, &hBB, &hBF, &hEF, &hBB, &hBF ) & "x" ) )
+        c.Same( t.Text, wchr( &hFEFF ) & "x", "only ONE BOM is consumed; a second is U+FEFF" )
+        t = docencoding.DecodeFile( Raw( chr( &hEF, &hBB, &hBF, &hE9 ) ) )
+        c.Check( t.Encoding = docencoding.FileEncoding.Utf8Bom, "a BOM labels UTF-8 whatever follows" )
+        c.Same( t.Text, wchr( &hFFFD ), "a bad byte after a BOM is U+FFFD" )
+        t = docencoding.DecodeFile( Raw( chr( &hEF, &hBB, &hBF, &hE0, &h80 ) ) )
+        c.Same( t.Text, wchr( &hFFFD, &hFFFD ), "E0 80 after a BOM: TWO U+FFFD (std/codec; Windows writes one)" )
+        t = docencoding.DecodeFile( Raw( chr( &hE9 ) & "t" ) )
+        c.Check( t.Encoding = docencoding.FileEncoding.Ansi, "invalid UTF-8 without a BOM is ANSI" )
+        c.Same( t.Text, wchr( &hE9 ) & "t", "ANSI E9 is e-acute" )
+        t = docencoding.DecodeFile( Raw( chr( &hFF, &hFE, &h41, 0, &h3D, &hD8, 0, &hDE, &h42, 0 ) ) )
+        c.Check( t.Encoding = docencoding.FileEncoding.Utf16Bom, "FF FE is UTF-16" )
+        c.Same( t.Text, "A" & wchr( &hD83D, &hDE00 ) & "B", "UTF-16LE with a pair" )
+        c.Check( t.BigEndian = false, "FF FE is little-endian" )
+        t = docencoding.DecodeFile( Raw( chr( &hFE, &hFF, 0, &h41, &hD8, &h3D, &hDE, 0 ) ) )
+        c.Check( t.Encoding = docencoding.FileEncoding.Utf16Bom, "FE FF is UTF-16 too" )
+        c.Check( t.BigEndian, "FE FF is big-endian" )
+        c.Same( t.Text, "A" & wchr( &hD83D, &hDE00 ), "UTF-16BE swapped" )
+        t = docencoding.DecodeFile( Raw( chr( &hFF, &hFE, &h41, 0, 0, &hD8, &h42, 0, &h43 ) ) )
+        c.Same( t.Text, "A" & wchr( &hFFFD ) & "B", "a lone surrogate is U+FFFD; the odd last byte is dropped" )
+        t = docencoding.DecodeFile( Raw( chr( &hFF ) ) )
+        c.Check( t.Encoding = docencoding.FileEncoding.Ansi, "a lone FF is ANSI, not a short BOM" )
+        dim as Array( of ubyte ) bom
+        bom = Raw( chr( &hEF, &hBB, &hBF ) & chr( &hFF ) )
+        c.Check( docencoding.IsUtf8Encoded( bom ), "IsUtf8Encoded: a BOM is enough" )
+        c.Check( docencoding.IsUtf8Encoded( Raw( "" ) ) = false, "IsUtf8Encoded: empty is not" )
+        c.Check( docencoding.IsUtf8Encoded( Raw( chr( &hC3, &hA9 ) ) ), "IsUtf8Encoded: C3 A9" )
+        c.Check( docencoding.IsUtf8Encoded( Raw( chr( &hC3 ) ) ) = false, "IsUtf8Encoded: a cut sequence" )
+        c.Check( docencoding.IsUtf8Encoded( Raw( chr( &hED, &hA0, &h80 ) ) ) = false, "IsUtf8Encoded: an encoded surrogate" )
+    end scope
+
+    ' every byte through the legacy code page and back: the ANSI round trip is exact (cp1252)
+    scope
+        dim as Array( of ubyte ) all_
+        for i as long = 1 to 255
+            dim as ubyte bb = i
+            all_.Push( bb )
+        next
+        dim as docencoding.LoadedText t = docencoding.DecodeFile( all_ )
+        dim as docencoding.EncodedText again = docencoding.EncodeForDisk( t.Text, docencoding.FileEncoding.Ansi )
+        c.Check( t.Encoding = docencoding.FileEncoding.Ansi, "bytes 1-255 are ANSI" )
+        c.Check( again.Lossy = false, "bytes 1-255 decode to text ANSI holds" )
+        c.Check( AsString( again.Bytes ) = AsString( all_ ), "bytes 1-255 round-trip byte-exact: " & HexOf( again.Bytes ) )
+    end scope
+
+    ' ================= disk round trip: encode -> WriteFile -> LoadFile
+    scope
+        dim as fs.FsResultUStr td = fs.CreateTempDir( "encsuite" )
+        c.Check( td.IsOk( ), "a temp folder" )
+        if td.IsOk( ) then
+            dim as ustring p = fs.PathJoin( td.Value( ), "doc.txt" )
+            for k as long = 0 to 3
+                dim as docencoding.FileEncoding e = docencoding.EncodingFromNumber( k )
+                dim as docencoding.EncodedText x = docencoding.EncodeForDisk( wRich, e )
+                c.Check( docencoding.WriteFile( p, x.Bytes ).IsOk( ), docencoding.EncodingName( e ) & ": written" )
+                dim as Result( of docencoding.LoadedText, fs.FsError ) r = docencoding.LoadFile( p )
+                c.Check( r.IsOk( ), docencoding.EncodingName( e ) & ": read back" )
+                if r.IsOk( ) then
+                    c.Check( r.Value( ).Encoding = e, docencoding.EncodingName( e ) & ": detected as written" )
+                    c.Same( r.Value( ).Text, wRich, docencoding.EncodingName( e ) & ": the text survives" )
+                end if
+            next
+            ' a second save over the first replaces it whole
+            dim as docencoding.EncodedText small_ = docencoding.EncodeForDisk( "x", docencoding.FileEncoding.Utf8 )
+            docencoding.WriteFile( p, small_.Bytes ).IsOk( )
+            dim as Array( of ubyte ) onDisk
+            fs.ReadAllBytes( p, onDisk ).IsOk( )
+            c.Same( AsString( onDisk ), "x", "a shorter save leaves nothing of the longer file" )
+            c.Check( docencoding.LoadFile( fs.PathJoin( td.Value( ), "nope.txt" ) ).IsOk( ) = false, "a missing file is a failure, not empty text" )
+            fs.RemoveDirAll( td.Value( ) ).IsOk( )
+        end if
+    end scope
+
+    ' ================= names: distinct, non-empty, unknown = ANSI
+    for e1 as long = 0 to 3
+        dim as ustring n1 = docencoding.EncodingName( docencoding.EncodingFromNumber( e1 ) )
+        c.Check( len( n1 ) > 0, "name of " & e1 & " is not blank" )
+        for e2 as long = e1 + 1 to 3
+            c.Check( n1 <> docencoding.EncodingName( docencoding.EncodingFromNumber( e2 ) ), "names " & e1 & " and " & e2 & " differ" )
+        next
+    next
+    c.Same( docencoding.EncodingName( docencoding.EncodingFromNumber( -1 ) ), "ANSI", "number -1 is ANSI" )
+    c.Same( docencoding.EncodingName( docencoding.EncodingFromNumber( 99 ) ), "ANSI", "number 99 is ANSI" )
+    c.Same( docencoding.EncodingName( docencoding.FileEncoding.Utf8Bom ), "UTF-8 (BOM)", "the BOM name" )
+    c.SameNum( clng( docencoding.FileEncoding.Utf16Bom ), 3, "Utf16Bom keeps the old number 3" )
+
+    ' ================= line endings (AssignTextBuffer)
+    scope
+        dim as docencoding.LineEnd crlf_ = docencoding.LineEnd.CrLf, lf_ = docencoding.LineEnd.Lf, cr_ = docencoding.LineEnd.Cr
+        c.Check( docencoding.DetectLineEnd( "a" & wchr( 10 ) & "b" & wchr( 13, 10 ) ).Value( ) = crlf_, "any CRLF wins" )
+        c.Check( docencoding.DetectLineEnd( "a" & wchr( 13 ) & "b" & wchr( 10 ) ).Value( ) = lf_, "LF before CR (no CRLF)" )
+        c.Check( docencoding.DetectLineEnd( "a" & wchr( 13 ) & "b" ).Value( ) = cr_, "CR alone" )
+        c.Check( docencoding.DetectLineEnd( "print 1" ).HasValue( ) = false, "no line break: nothing detected" )
+        c.Check( docencoding.ChooseLineEnd( "print 1", true, lf_, crlf_ ) = lf_, "a NEW one-line document takes the setting" )
+        c.Check( docencoding.ChooseLineEnd( "print 1", false, lf_, crlf_ ) = crlf_, "an existing one-line file does not" )
+        c.Check( docencoding.ChooseLineEnd( "a" & wchr( 13, 10 ), true, lf_, lf_ ) = crlf_, "a template's own endings win over the setting" )
+        c.SameNum( clng( lf_ ), 2, "Lf is SC_EOL_LF (2)" )
+    end scope
+
+    ' ================= the lossy save and the encoding change
+    scope
+        dim as docencoding.EncodingState st
+        st.Encoding = docencoding.FileEncoding.Ansi
+        dim as docencoding.SavePlan sp = st.PlanSave( wCJK )
+        c.Check( sp.Lossy andalso sp.MustConfirm, "CJK in an ANSI document: ask before saving" )
+        st.AcceptLossy( )
+        sp = st.PlanSave( wCJK )
+        c.Check( sp.Lossy andalso ( sp.MustConfirm = false ), "asked once per document" )
+        c.Check( st.PlanSave( wBase ).MustConfirm = false, "a representable text is never asked" )
+        c.Check( st.PlanChange( docencoding.FileEncoding.Ansi, wCJK ) = docencoding.EncodingChange.Unchanged, "same encoding: unchanged" )
+        c.Check( st.PlanChange( docencoding.FileEncoding.Utf8Bom, wCJK ) = docencoding.EncodingChange.Relabel, "to UTF-8 BOM: a relabel" )
+        st.ApplyChange( docencoding.FileEncoding.Utf8Bom )
+        c.Check( st.LossyAccepted = false, "a change forgets the earlier yes" )
+        c.Check( st.PlanSave( wCJK ).MustConfirm = false, "UTF-8 BOM saves CJK without asking" )
+        c.Same( HexOf( st.PlanSave( "A" ).Bytes ), "EF BB BF 41 ", "the plan's bytes carry the BOM" )
+        c.Check( st.PlanChange( docencoding.FileEncoding.Ansi, wCJK ) = docencoding.EncodingChange.RelabelLossy, "to ANSI with CJK: lossy" )
+        c.Check( st.PlanChange( docencoding.FileEncoding.Ansi, wBase ) = docencoding.EncodingChange.Relabel, "to ANSI with accents: a relabel" )
+        st.ApplyChange( docencoding.FileEncoding.Ansi )
+        c.Check( st.PlanSave( wCJK ).MustConfirm, "after the change to ANSI it asks again" )
+    end scope
+end sub

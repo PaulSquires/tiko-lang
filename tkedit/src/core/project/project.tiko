@@ -1,0 +1,346 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' project -- a project is a folder's tiko.toml (PLAN.md D8, as tiko's own build RFC B3 decided):
+' the manifest says what is built and how, and tkEdit only reads it. What is the editor's own --
+' the target to build, the build configuration, the program's arguments, the open files -- lives
+' in tkEdit's config folder, never in the project (docs/tkEdit/CONFIG.md):
+'
+'     <config>/projects/<folder>-<8 hex>.toml           the options: edited by hand, applied on save
+'     <config>/projects/<folder>-<8 hex>.session.toml   the session: written by tkEdit
+'
+' The 8 hex are FNV-1a of the manifest's full path (case-folded where the file system is). An
+' options file names its manifest; Prune removes the pair once that manifest is gone.
+#module "project"
+
+#import "std/fs"
+#import "std/config"
+#import "std/containers"
+#import "std/outcome"
+#import "tkp/platform"
+#import "tkc/tomlget"
+using containers
+using outcome
+
+public const MANIFEST_FILE = "tiko.toml"
+public const PROJECTS_DIR = "projects"
+const SESSION_SUFFIX = ".session.toml"
+
+' A [target.<name>] of the manifest.
+public type ManifestTarget
+    Name as ustring
+    Main as ustring                       ' as written: relative to the manifest's folder
+end type
+
+public type Manifest
+    Path     as ustring                   ' the tiko.toml, full
+    Package  as ustring                   ' [package] name
+    Targets  as Array( of ManifestTarget )   ' in file order
+
+    declare function Dir_( ) as ustring
+    declare function Name( ) as ustring               ' the folder's name
+    declare function TargetIndex( byref name_ as const ustring ) as long   ' -1 = none
+    declare function MainOf( byref target as const ustring ) as ustring    ' full; "" = none
+end type
+
+public type ManifestResult as Result( of Manifest, ustring )
+
+function Manifest.Dir_( ) as ustring
+    return fs.PathParent( Path )
+end function
+
+function Manifest.Name( ) as ustring
+    return fs.PathFileName( this.Dir_( ) )
+end function
+
+function Manifest.TargetIndex( byref name_ as const ustring ) as long
+    for i as long = 0 to Targets.Count( ) - 1
+        if Targets[i].Name = name_ then return i
+    next
+    return -1
+end function
+
+function Manifest.MainOf( byref target as const ustring ) as ustring
+    dim as long i = this.TargetIndex( target )
+    if (i < 0) orelse (len( Targets[i].Main ) = 0) then return ""
+    return fs.PathToNative( fs.PathJoin( this.Dir_( ), Targets[i].Main ) )
+end function
+
+' Is path a project's manifest: a file named tiko.toml (any case, except on Linux)?
+public function IsManifest( byref path as const ustring ) as boolean
+    if platform.CurrentOs( ) = platform.Os.Linux then return fs.PathFileName( path ) = MANIFEST_FILE
+    return lcase( fs.PathFileName( path ) ) = MANIFEST_FILE
+end function
+
+public function ParseManifest( byref text as const ustring, byref path as const ustring ) as ManifestResult
+    dim as config.ConfigResultToml r = config.ParseToml( text )
+    if r.IsOk( ) = false then return Fail( of Manifest, ustring )( fs.PathFileName( path ) & ": " & r.Failure( ).Message( ) )
+    dim as config.TomlValue root = r.Value( )
+    dim as Manifest m
+    m.Path = path
+    m.Package = tomlget.GetStr( tomlget.Table( root, "package" ), "name" )
+    dim as config.TomlValue ts = tomlget.Table( root, "target" )
+    for i as long = 0 to ts.Count( ) - 1
+        dim as ManifestTarget t
+        t.Name = ts.KeyAt( i )
+        dim as config.TomlValue v = ts.Item( i )
+        t.Main = tomlget.GetStr( v, "main" )
+        m.Targets.Push( t )
+    next
+    return Ok( of Manifest, ustring )( m )
+end function
+
+public function LoadManifest( byref path as const ustring ) as ManifestResult
+    dim as fs.FsResultUStr r = fs.ReadAllText( path )
+    if r.IsOk( ) = false then return Fail( of Manifest, ustring )( fs.PathFileName( path ) & ": " & r.Failure( ).Message( ) )
+    return ParseManifest( r.Value( ), path )
+end function
+
+' A new project's tiko.toml: a package and one target whose main is mainFile (a name in the folder),
+' with every other table tiko reads there, and each table's keys as commented samples to fill in
+' (author 2026-10-27). tiko builds it as it is, and with the samples uncommented (probed).
+' [vendor.<module>] is left out: it is what a vendor package ships, not an application's.
+' The target's name keeps letters, digits, - and _ (a bare TOML key); anything else becomes '_'.
+public function NewManifestText( byref pkg as const ustring, byref target as const ustring, _
+                                 byref mainFile as const ustring ) as ustring
+    dim as ustring nl = wchr( 10 )
+    dim as ustring tn = ""
+    for i as long = 1 to len( target )
+        dim as long a = asc( mid( target, i, 1 ) )
+        dim as boolean ok = ((a >= 48) andalso (a <= 57)) orelse ((a >= 65) andalso (a <= 90)) orelse _
+                            ((a >= 97) andalso (a <= 122)) orelse (a = 45) orelse (a = 95)
+        if ok then tn &= mid( target, i, 1 ) else tn &= "_"
+    next
+    if len( tn ) = 0 then tn = "main"
+    dim as ustring exe = tn
+    if platform.CurrentOs( ) = platform.Os.Windows then exe &= ".exe"
+    dim as ustring t = ""
+    t &= "[package]" & nl
+    t &= "name = " & tomlget.Quoted( pkg ) & nl
+    t &= "version = '0.1.0'" & nl
+    t &= "# description = 'What the program does'" & nl
+    t &= "# license = 'MIT'" & nl
+    t &= "# authors = ['Your Name <you@example.com>']" & nl
+    t &= "# repository = 'https://github.com/you/" & tn & "'" & nl
+    t &= nl
+    t &= "[dependencies]" & nl
+    t &= "# another package's folder; its modules are then #import-ed by its name:" & nl
+    t &= "# ui = { path = '../ui' }" & nl
+    t &= nl
+    t &= "[defines]" & nl
+    t &= "# every module of this package sees these, as -d NAME=value:" & nl
+    t &= "# LOG_LEVEL = '2'" & nl
+    t &= nl
+    t &= "[target." & tn & "]" & nl
+    t &= "main = " & tomlget.Quoted( mainFile ) & nl
+    t &= "# sources = ['util.tiko']                 # more files, compiled along with main" & nl
+    t &= "# kind = 'exe'                            # 'exe', 'dll' or 'lib'" & nl
+    t &= "# subsystem = 'console'                   # 'console' or 'gui' (Windows)" & nl
+    t &= "# resources = ['" & tn & ".rc']" & space( 21 - len( tn ) ) & "# .rc files (Windows)" & nl
+    t &= "# libs = ['user32']                       # libraries to link (-l)" & nl
+    t &= "# libpaths = ['lib']                      # where to find them (-p)" & nl
+    t &= "# options = ['-w', 'all']                 # more compiler flags" & nl
+    t &= "# output = 'bin/" & exe & "'" & space( 25 - len( exe ) ) & "# instead of out/<profile>/" & exe & nl
+    t &= "# copy_to = ['dist']                      # copied here after each build" & nl
+    t &= nl
+    t &= "# this target's own defines (-d NAME=value):" & nl
+    t &= "# [target." & tn & ".defines]" & nl
+    t &= "# EDITION = '2'" & nl
+    t &= nl
+    t &= "[profile.debug]" & nl
+    t &= "# what tiko build uses by default; built in: -g -exx -O0" & nl
+    t &= "# opt = 0                                 # 0 to 3 (-O)" & nl
+    t &= "# errors = 'exx'                          # 'e', 'ex', 'exx' or '' for none" & nl
+    t &= "# debug = true                            # debug information (-g)" & nl
+    t &= "# options = ['-w', 'all']                 # more flags, after the above" & nl
+    t &= nl
+    t &= "[profile.release]" & nl
+    t &= "# tiko build --profile release; built in: -O2" & nl
+    t &= "# opt = 2" & nl
+    t &= "# errors = ''" & nl
+    t &= "# debug = false" & nl
+    t &= "# options = []" & nl
+    t &= nl
+    t &= "# a profile of your own, built with --profile fast:" & nl
+    t &= "# [profile.fast]" & nl
+    t &= "# inherits = 'release'" & nl
+    t &= "# options = ['-mt']" & nl
+    return t
+end function
+
+' ---------------------------------------------------------------------- the editor's state
+
+public type ProjectOptions
+    Manifest    as ustring                ' the project's tiko.toml, full
+    Target      as ustring                ' a [target.*] name; "" = the first
+    Build       as ustring                ' a [[builds]] name of settings.toml; "" = its default
+    CommandLine as ustring                ' the program's arguments when it runs
+end type
+
+public type OptionsResult as Result( of ProjectOptions, ustring )
+
+private function KeyLine( byref k as const ustring, byref v as const ustring, byref note as const ustring ) as ustring
+    dim as ustring s = k & " = " & v
+    if len( s ) < 38 then s &= space( 38 - len( s ) )
+    return s & " # " & note & wchr( 10 )
+end function
+
+' The options file: every key at its value, like settings.toml.
+public function OptionsText( byref o as const ProjectOptions ) as ustring
+    return "# tkEdit project options. Saving this file in tkEdit applies it at once." & wchr( 10 ) & _
+           KeyLine( "manifest", tomlget.Quoted( o.Manifest ), "the project (do not edit)" ) & _
+           KeyLine( "target", tomlget.Quoted( o.Target ), "a [target.*] of tiko.toml; '' = the first" ) & _
+           KeyLine( "build", tomlget.Quoted( o.Build ), "a [[builds]] name of settings.toml" ) & _
+           KeyLine( "command_line", tomlget.Quoted( o.CommandLine ), "the program's arguments (F5, Shift+F5)" )
+end function
+
+public function ParseOptions( byref text as const ustring ) as OptionsResult
+    dim as config.ConfigResultToml r = config.ParseToml( text )
+    if r.IsOk( ) = false then return Fail( of ProjectOptions, ustring )( r.Failure( ).Message( ) )
+    dim as config.TomlValue root = r.Value( )
+    dim as ProjectOptions o
+    o.Manifest = tomlget.GetStr( root, "manifest" )
+    o.Target = tomlget.GetStr( root, "target" )
+    o.Build = tomlget.GetStr( root, "build" )
+    o.CommandLine = tomlget.GetStr( root, "command_line" )
+    return Ok( of ProjectOptions, ustring )( o )
+end function
+
+public function LoadOptions( byref path as const ustring ) as OptionsResult
+    dim as fs.FsResultUStr r = fs.ReadAllText( path )
+    if r.IsOk( ) = false then return Fail( of ProjectOptions, ustring )( r.Failure( ).Message( ) )
+    return ParseOptions( r.Value( ) )
+end function
+
+' Writes OptionsText( o ) to path, creating the folder, unless it holds exactly that already.
+' TRUE = written.
+public function WriteOptions( byref path as const ustring, byref o as const ProjectOptions ) as boolean
+    dim as ustring want = OptionsText( o )
+    if fs.IsFile( path ) then
+        if fs.ReadAllText( path ).ValueOr( "" ) = want then return false
+    else
+        dim as ustring dir_ = fs.PathParent( path )
+        if (len( dir_ ) > 0) andalso (fs.IsDir( dir_ ) = false) then
+            if fs.CreateDirAll( dir_ ).IsOk( ) = false then return false
+        end if
+    end if
+    return fs.WriteAtomic( path, want ).IsOk( )
+end function
+
+' "<folder>-<8 hex>": the folder's name (anything but letters, digits, - _ . as '_') and FNV-1a 32
+' of the manifest's full path, both case-folded except on Linux.
+public function StateKey( byref manifestPath as const ustring ) as ustring
+    dim as string p8 = manifestPath
+    if platform.CurrentOs( ) <> platform.Os.Linux then p8 = lcase( p8 )
+    dim as ulong h = 2166136261ul
+    for i as long = 0 to len( p8 ) - 1
+        h = (h xor p8[i]) * 16777619ul
+    next
+    dim as ustring folder = fs.PathFileName( fs.PathParent( manifestPath ) )
+    if platform.CurrentOs( ) <> platform.Os.Linux then folder = lcase( folder )   ' one project, one key
+    dim as ustring nm = ""
+    for i as long = 1 to len( folder )
+        dim as ustring ch = mid( folder, i, 1 )
+        dim as long a = asc( ch )
+        dim as boolean ok = ((a >= 48) andalso (a <= 57)) orelse ((a >= 65) andalso (a <= 90)) orelse _
+                            ((a >= 97) andalso (a <= 122)) orelse (a = 45) orelse (a = 95) orelse (a = 46)
+        if ok then nm &= ch else nm &= "_"
+    next
+    if len( nm ) = 0 then nm = "project"
+    return nm & "-" & lcase( right( "0000000" & hex( h ), 8 ) )
+end function
+
+public function OptionsPath( byref configDir as const ustring, byref manifestPath as const ustring ) as ustring
+    return fs.PathJoin( configDir, PROJECTS_DIR, StateKey( manifestPath ) & ".toml" )
+end function
+
+public function SessionPath( byref configDir as const ustring, byref manifestPath as const ustring ) as ustring
+    return fs.PathJoin( configDir, PROJECTS_DIR, StateKey( manifestPath ) & SESSION_SUFFIX )
+end function
+
+' At startup: every options file whose manifest is gone goes, with its session, and so does a
+' session left without its options. Returns how many files were removed.
+public function Prune( byref configDir as const ustring ) as long
+    dim as ustring dir_ = fs.PathJoin( configDir, PROJECTS_DIR )
+    if fs.IsDir( dir_ ) = false then return 0
+    dim as Array( of ustring ) names
+    for each r in fs.ReadDir( dir_ )
+        if r.IsOk( ) = false then continue for
+        dim as fs.DirEntry e = r.Value( )
+        if e.IsFile( ) then names.Push( e.Name( ) )
+    next
+    dim as long removed = 0
+    for each nm as ustring in names
+        dim as ustring full = fs.PathJoin( dir_, nm )
+        dim as ustring low = lcase( nm )
+        if right( low, len( SESSION_SUFFIX ) ) = SESSION_SUFFIX then
+            dim as ustring opt = fs.PathJoin( dir_, left( nm, len( nm ) - len( SESSION_SUFFIX ) ) & ".toml" )
+            if fs.IsFile( opt ) = false then
+                if fs.RemoveFile( full ).IsOk( ) then removed += 1
+            end if
+        elseif right( low, 5 ) = ".toml" then
+            dim as OptionsResult o = LoadOptions( full )
+            dim as boolean gone = (o.IsOk( ) = false)
+            if gone = false then gone = (len( o.Value( ).Manifest ) = 0) orelse (fs.IsFile( o.Value( ).Manifest ) = false)
+            if gone then
+                if fs.RemoveFile( full ).IsOk( ) then removed += 1
+                dim as ustring ses = left( full, len( full ) - 5 ) & SESSION_SUFFIX
+                if fs.IsFile( ses ) then
+                    if fs.RemoveFile( ses ).IsOk( ) then removed += 1
+                end if
+            end if
+        end if
+    next
+    return removed
+end function
+
+' A command line split as tiko splits --options (CommandLineToArgvW's rule on every OS): blanks
+' separate; "..." groups; backslashes are literal except before a quote, where 2n give n and
+' 2n+1 give n and a literal quote. From tiko-studio's tsc/manifest SplitArgs (PROVENANCE.md).
+public function SplitArgs( byref cmdline as const ustring ) as Array( of ustring )
+    dim as Array( of ustring ) out_
+    dim as long i = 0, n = len( cmdline )
+    while i < n
+        while ( i < n ) andalso ( ( cmdline[i] = 32 ) orelse ( cmdline[i] = 9 ) )
+            i += 1
+        wend
+        if i >= n then exit while
+        dim as ustring arg
+        dim as boolean quoted = false
+        while i < n
+            dim as long ch = cmdline[i]
+            dim as boolean blank = ( ch = 32 ) orelse ( ch = 9 )
+            if blank andalso ( quoted = false ) then exit while
+            if ch = 92 then
+                dim as long bs = 0
+                while ( i < n ) andalso ( cmdline[i] = 92 )
+                    bs += 1
+                    i += 1
+                wend
+                dim as boolean beforeQuote = false
+                if i < n then beforeQuote = ( cmdline[i] = 34 )
+                if beforeQuote then
+                    arg &= string( bs \ 2, 92 )
+                    if ( bs and 1 ) <> 0 then
+                        arg &= wchr( 34 )
+                        i += 1
+                    end if
+                else
+                    arg &= string( bs, 92 )
+                end if
+            elseif ch = 34 then
+                quoted = ( quoted = false )
+                i += 1
+            else
+                arg &= wchr( ch )
+                i += 1
+            end if
+        wend
+        out_.Push( arg )
+    wend
+    return out_
+end function

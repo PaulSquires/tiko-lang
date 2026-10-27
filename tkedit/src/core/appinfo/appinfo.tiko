@@ -1,0 +1,26 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' appinfo -- the program's name and version, and the title-bar text built from them.
+#module "appinfo"
+
+#import "std/strings"
+#import "tkp/platform"
+
+public const VERSION_MAJOR = 0
+public const VERSION_MINOR = 1
+public const VERSION_PATCH = 0
+
+public function VersionText( ) as ustring
+    return strings.Format( "{}.{}.{}", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH )
+end function
+
+' "tkEdit 0.1.0", or "name - tkEdit" with a document open.
+public function WindowTitle( byref docName as const ustring = "" ) as ustring
+    if len( docName ) = 0 then return strings.Format( "{} {}", platform.APP_NAME, VersionText( ) )
+    return strings.Format( "{} - {}", platform.APP_NAME, docName )   ' "tkEdit - a.tiko" (author 2026-10-27)
+end function

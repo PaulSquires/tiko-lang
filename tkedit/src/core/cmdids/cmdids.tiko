@@ -1,0 +1,302 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' cmdids -- every tkEdit command: the Cmd enum and its table (name, menu group, description,
+' default keys). The table drives three things: the key map (tkc/keybind), the hidden menu bar
+' (one menu per group, rows in table order, a separator where SepBefore says) and KEYS.md.
+'
+' A command is persisted by its NAME, never its number: keybindings.toml says FileSave =
+' 'Primary+S', so reordering this enum invalidates nothing. Default keys say "Primary": Ctrl on
+' Windows and Linux, Cmd on macOS (tkp/platform.PrimaryModifierName). The defaults are
+' tiko-editor's, changed only where docs/tkEdit/KEYS.md marks it. Exit is AppExit (a keyword).
+#module "cmdids"
+
+#import "std/containers"
+#import "std/outcome"
+using containers
+using outcome
+
+public enum Cmd explicit
+    None = 0
+    ' File
+    FileNew
+    FileOpen
+    FileRecent
+    FileClose
+    FileCloseAll
+    FileSave
+    FileSaveAs
+    FileSaveAll
+    Settings
+    KeyboardShortcuts
+    ThemeFile
+    AppExit
+    ' Edit
+    Undo
+    Redo
+    Cut
+    Copy
+    Paste
+    SelectAll
+    SelectLine
+    DeleteLine
+    DuplicateLine
+    MoveLineUp
+    MoveLineDown
+    NewLineBelowCurrent
+    CommentBlock
+    UncommentBlock
+    IndentBlock
+    UnindentBlock
+    ToUpperCase
+    ToLowerCase
+    ToMixedCase
+    CompleteWord
+    ' Search
+    SearchSymbol
+    Find
+    Replace
+    FindNext
+    FindPrev
+    ReplaceOne
+    FindInProject
+    GoToLine
+    GoToDefinition
+    GoBack
+    GoForward
+    GoToNextFunction
+    GoToPrevFunction
+    BookmarkToggle
+    BookmarkNext
+    BookmarkPrev
+    BookmarkClearAll
+    BookmarksList
+    ' View
+    FunctionList
+    BufferList
+    BufferNext
+    BufferPrev
+    OutputPane
+    SplitLeftRight
+    SplitTopBottom
+    CycleFocus
+    ZoomIn
+    ZoomOut
+    ZoomReset
+    FoldToggle
+    FoldBelow
+    FoldAll
+    UnfoldAll
+    ' Project
+    ProjectNew
+    ProjectClose
+    ' Build
+    BuildExecute
+    Compile
+    RebuildAll
+    RunExe
+    RunArguments
+    BuildConfig
+    NextDiagnostic
+    PrevDiagnostic
+    Last_                   ' not a command: the count
+end enum
+
+' The hidden menu bar's menus, left to right.
+public enum MenuGroup explicit
+    File = 0
+    Edit
+    Search
+    View
+    Project
+    Build
+    Count_                  ' not a menu
+end enum
+
+public function GroupName( byval g as MenuGroup ) as ustring
+    select case g
+    case MenuGroup.File : return "File"
+    case MenuGroup.Edit : return "Edit"
+    case MenuGroup.Search : return "Search"
+    case MenuGroup.View : return "View"
+    case MenuGroup.Project : return "Project"
+    case MenuGroup.Build : return "Build"
+    end select
+    return ""
+end function
+
+public type CommandInfo
+    Id          as Cmd
+    Name        as ustring      ' "FileSave": what keybindings.toml says
+    Group       as MenuGroup    ' its menu
+    Category    as ustring      ' the group's name; every command here is bindable
+    Description as ustring      ' "Save": the menu row's text
+    DefaultKeys as ustring      ' "Primary+S", or "" for no default
+    SepBefore   as boolean      ' a separator above its menu row
+end type
+
+' The table. Whoever needs lookups owns one; building it is cheap.
+public type CommandTable
+    declare constructor( )
+    declare function Count( ) as long
+    declare function Item( byval i as long ) byref as CommandInfo   ' 0 .. Count - 1
+    declare function Info( byval id as Cmd ) byref as CommandInfo
+    declare function Find( byref name_ as const ustring ) as Optional( of Cmd )      ' by Name, any case
+    declare function Bindable( ) as Array( of Cmd )                 ' table order
+    declare function InGroup( byval g as MenuGroup ) as Array( of Cmd )
+  private:
+    declare sub Def( byval id as Cmd, byref name_ as const ustring, byval grp as MenuGroup, _
+                     byref description as const ustring, byref keys as const ustring, _
+                     byval sepBefore as boolean = false )
+    m_items  as Array( of CommandInfo )
+    m_byName as Map( of ustring, long )
+    m_byId   as Map( of long, long )
+end type
+
+sub CommandTable.Def( byval id as Cmd, byref name_ as const ustring, byval grp as MenuGroup, _
+                      byref description as const ustring, byref keys as const ustring, _
+                      byval sepBefore as boolean )
+    dim as CommandInfo c
+    c.Id = id
+    c.Name = name_
+    c.Group = grp
+    c.Category = GroupName( grp )
+    c.Description = description
+    c.DefaultKeys = keys
+    c.SepBefore = sepBefore
+    dim as long i = m_items.Count( )
+    m_items.Push( c )
+    m_byName.Put( lcase( name_ ), i )
+    m_byId.Put( clng( id ), i )
+end sub
+
+function CommandTable.Count( ) as long
+    return m_items.Count( )
+end function
+
+function CommandTable.Item( byval i as long ) byref as CommandInfo
+    return m_items[i]
+end function
+
+' Every Cmd but None is in the table (cmdsuite checks it); None gives the first row.
+function CommandTable.Info( byval id as Cmd ) byref as CommandInfo
+    dim as long i = 0
+    m_byId.TryGet( clng( id ), i )
+    return m_items[i]
+end function
+
+function CommandTable.Find( byref name_ as const ustring ) as Optional( of Cmd )
+    dim as long i
+    if m_byName.TryGet( lcase( name_ ), i ) then return Some( of Cmd )( m_items[i].Id )
+    return None( of Cmd )( )
+end function
+
+function CommandTable.Bindable( ) as Array( of Cmd )
+    dim as Array( of Cmd ) out_
+    for each c as CommandInfo in m_items
+        out_.Push( c.Id )
+    next
+    return out_
+end function
+
+function CommandTable.InGroup( byval g as MenuGroup ) as Array( of Cmd )
+    dim as Array( of Cmd ) out_
+    for each c as CommandInfo in m_items
+        if c.Group = g then out_.Push( c.Id )
+    next
+    return out_
+end function
+
+' The rows, in menu order. Def( id, name, menu, description, default keys, separator above )
+constructor CommandTable( )
+    dim as MenuGroup g = MenuGroup.File
+    this.Def( Cmd.FileNew, "FileNew", g, "New", "Primary+N" )
+    this.Def( Cmd.FileOpen, "FileOpen", g, "Open...", "Primary+O" )
+    this.Def( Cmd.FileRecent, "FileRecent", g, "Open Recent...", "Primary+Shift+O" )
+    this.Def( Cmd.FileClose, "FileClose", g, "Close", "Primary+W" )
+    this.Def( Cmd.FileCloseAll, "FileCloseAll", g, "Close All", "Primary+Shift+W" )
+    this.Def( Cmd.FileSave, "FileSave", g, "Save", "Primary+S", true )
+    this.Def( Cmd.FileSaveAs, "FileSaveAs", g, "Save As...", "Primary+Alt+S" )
+    this.Def( Cmd.FileSaveAll, "FileSaveAll", g, "Save All", "Primary+Shift+S" )
+    this.Def( Cmd.Settings, "Settings", g, "Settings (settings.toml)", "Primary+Comma", true )
+    this.Def( Cmd.KeyboardShortcuts, "KeyboardShortcuts", g, "Keyboard Shortcuts (keybindings.toml)", "Primary+K" )
+    this.Def( Cmd.ThemeFile, "ThemeFile", g, "Theme File", "Primary+Shift+T" )
+    this.Def( Cmd.AppExit, "AppExit", g, "Exit", "Alt+F4", true )
+
+    g = MenuGroup.Edit
+    this.Def( Cmd.Undo, "Undo", g, "Undo", "Primary+Z" )
+    this.Def( Cmd.Redo, "Redo", g, "Redo", "Primary+Shift+Z" )
+    this.Def( Cmd.Cut, "Cut", g, "Cut", "Primary+X", true )
+    this.Def( Cmd.Copy, "Copy", g, "Copy", "Primary+C" )
+    this.Def( Cmd.Paste, "Paste", g, "Paste", "Primary+V" )
+    this.Def( Cmd.SelectAll, "SelectAll", g, "Select All", "Primary+A" )
+    this.Def( Cmd.SelectLine, "SelectLine", g, "Select Line", "Primary+L" )
+    this.Def( Cmd.DeleteLine, "DeleteLine", g, "Delete Line", "Primary+Y", true )
+    this.Def( Cmd.DuplicateLine, "DuplicateLine", g, "Duplicate Line", "Primary+D" )
+    this.Def( Cmd.MoveLineUp, "MoveLineUp", g, "Move Line Up", "Primary+Shift+Up" )
+    this.Def( Cmd.MoveLineDown, "MoveLineDown", g, "Move Line Down", "Primary+Shift+Down" )
+    this.Def( Cmd.NewLineBelowCurrent, "NewLineBelowCurrent", g, "New Line Below", "Primary+Enter" )
+    this.Def( Cmd.CommentBlock, "CommentBlock", g, "Comment", "Primary+/", true )
+    this.Def( Cmd.UncommentBlock, "UncommentBlock", g, "Uncomment", "Primary+Shift+/" )
+    this.Def( Cmd.IndentBlock, "IndentBlock", g, "Indent", "Tab" )
+    this.Def( Cmd.UnindentBlock, "UnindentBlock", g, "Unindent", "Shift+Tab" )
+    this.Def( Cmd.ToUpperCase, "ToUpperCase", g, "Upper Case", "Primary+Shift+U", true )
+    this.Def( Cmd.ToLowerCase, "ToLowerCase", g, "Lower Case", "Primary+Shift+L" )
+    this.Def( Cmd.ToMixedCase, "ToMixedCase", g, "Mixed Case", "Primary+Shift+X" )
+    this.Def( Cmd.CompleteWord, "CompleteWord", g, "Complete Word", "Primary+Spacebar", true )
+
+    g = MenuGroup.Search
+    this.Def( Cmd.SearchSymbol, "SearchSymbol", g, "Search Symbol...", "Primary+P" )
+    this.Def( Cmd.Find, "Find", g, "Find...", "Primary+F", true )
+    this.Def( Cmd.Replace, "Replace", g, "Replace...", "Primary+H" )
+    this.Def( Cmd.FindNext, "FindNext", g, "Find Next", "F3" )
+    this.Def( Cmd.FindPrev, "FindPrev", g, "Find Previous", "Shift+F3" )
+    this.Def( Cmd.ReplaceOne, "ReplaceOne", g, "Replace One", "Primary+R" )
+    this.Def( Cmd.FindInProject, "FindInProject", g, "Find in Project...", "Primary+Shift+F" )
+    this.Def( Cmd.GoToLine, "GoToLine", g, "Go to Line...", "Primary+G", true )
+    this.Def( Cmd.GoToDefinition, "GoToDefinition", g, "Go to Definition", "F12" )
+    this.Def( Cmd.GoBack, "GoBack", g, "Back", "Alt+Left" )
+    this.Def( Cmd.GoForward, "GoForward", g, "Forward", "Alt+Right" )
+    this.Def( Cmd.GoToNextFunction, "GoToNextFunction", g, "Next Function", "Primary+PgDn" )
+    this.Def( Cmd.GoToPrevFunction, "GoToPrevFunction", g, "Previous Function", "Primary+PgUp" )
+    this.Def( Cmd.BookmarkToggle, "BookmarkToggle", g, "Toggle Bookmark", "Primary+F2", true )
+    this.Def( Cmd.BookmarkNext, "BookmarkNext", g, "Next Bookmark", "F2" )
+    this.Def( Cmd.BookmarkPrev, "BookmarkPrev", g, "Previous Bookmark", "Shift+F2" )
+    this.Def( Cmd.BookmarkClearAll, "BookmarkClearAll", g, "Clear Bookmarks", "Primary+Shift+F2" )
+    this.Def( Cmd.BookmarksList, "BookmarksList", g, "Bookmarks...", "Shift+F4" )
+
+    g = MenuGroup.View
+    this.Def( Cmd.FunctionList, "FunctionList", g, "Functions...", "Primary+Shift+P", true )
+    this.Def( Cmd.BufferList, "BufferList", g, "Buffers...", "Primary+E" )
+    this.Def( Cmd.BufferNext, "BufferNext", g, "Next Buffer", "Primary+Tab" )
+    this.Def( Cmd.BufferPrev, "BufferPrev", g, "Previous Buffer", "Primary+Shift+Tab" )
+    this.Def( Cmd.OutputPane, "OutputPane", g, "Output", "Primary+F9" )
+    this.Def( Cmd.SplitLeftRight, "SplitLeftRight", g, "Split Left/Right", "Primary+\", true )
+    this.Def( Cmd.SplitTopBottom, "SplitTopBottom", g, "Split Top/Bottom", "Primary+Shift+\" )
+    this.Def( Cmd.CycleFocus, "CycleFocus", g, "Next Pane", "Primary+Tilde" )
+    this.Def( Cmd.ZoomIn, "ZoomIn", g, "Zoom In", "Primary+Plus", true )
+    this.Def( Cmd.ZoomOut, "ZoomOut", g, "Zoom Out", "Primary+Minus" )
+    this.Def( Cmd.ZoomReset, "ZoomReset", g, "Reset Zoom", "Primary+0" )
+    this.Def( Cmd.FoldToggle, "FoldToggle", g, "Toggle Fold", "F8", true )
+    this.Def( Cmd.FoldBelow, "FoldBelow", g, "Fold This and Below", "Primary+F8" )
+    this.Def( Cmd.FoldAll, "FoldAll", g, "Fold All", "Shift+F8" )
+    this.Def( Cmd.UnfoldAll, "UnfoldAll", g, "Unfold All", "Primary+Shift+F8" )
+
+    g = MenuGroup.Project
+    this.Def( Cmd.ProjectNew, "ProjectNew", g, "New Project...", "Primary+Alt+N" )
+    this.Def( Cmd.ProjectClose, "ProjectClose", g, "Close Project", "Primary+Alt+W" )
+
+    g = MenuGroup.Build
+    this.Def( Cmd.BuildExecute, "BuildExecute", g, "Build and Run", "F5" )
+    this.Def( Cmd.Compile, "Compile", g, "Compile", "Primary+F5" )
+    this.Def( Cmd.RebuildAll, "RebuildAll", g, "Rebuild All", "Primary+Alt+F5" )
+    this.Def( Cmd.RunExe, "RunExe", g, "Run", "Shift+F5" )
+    this.Def( Cmd.RunArguments, "RunArguments", g, "Run Arguments...", "Primary+Shift+F5" )
+    this.Def( Cmd.BuildConfig, "BuildConfig", g, "Build Configuration...", "F7", true )
+    this.Def( Cmd.NextDiagnostic, "NextDiagnostic", g, "Next Diagnostic", "Alt+PgDn" )
+    this.Def( Cmd.PrevDiagnostic, "PrevDiagnostic", g, "Previous Diagnostic", "Alt+PgUp" )
+end constructor

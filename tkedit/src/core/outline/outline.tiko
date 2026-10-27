@@ -1,0 +1,209 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' outline -- the procedures and types a source file defines, found line by line: what the
+' Functions list shows and Search Symbol searches until tikoParser's scans arrive (P8). A
+' definition is a line that STARTS one: `[public|private|static ...] sub|function|property|
+' constructor|destructor|operator|type|union|enum|namespace name` or `#macro name`. Declarations
+' (`declare ...`), aliases (`type T as ...`), block ends and anonymous enums are not. Comments
+' (`'`, `rem`, `/' ... '/` across lines) and `"""` block strings are skipped.
+#module "outline"
+
+#import "std/containers"
+using containers
+
+const TRIPLE = chr( 34, 34, 34 )         ' a block string's fence, kept out of a literal
+
+public enum SymbolKind explicit
+    SubProc
+    FunctionProc
+    PropertyProc
+    ConstructorProc
+    DestructorProc
+    OperatorProc
+    TypeDef
+    UnionDef
+    EnumDef
+    NamespaceDef
+    MacroDef
+end enum
+
+public type Symbol
+    Kind as SymbolKind
+    Name as ustring          ' "Foo", "Foo.Bar" (a member defined outside its type)
+    Line as long             ' 0-based
+end type
+
+' The kind's word as written in source ("sub", "type", "#macro").
+public function KindWord( byval k as SymbolKind ) as ustring
+    select case k
+    case SymbolKind.SubProc : return "sub"
+    case SymbolKind.FunctionProc : return "function"
+    case SymbolKind.PropertyProc : return "property"
+    case SymbolKind.ConstructorProc : return "constructor"
+    case SymbolKind.DestructorProc : return "destructor"
+    case SymbolKind.OperatorProc : return "operator"
+    case SymbolKind.TypeDef : return "type"
+    case SymbolKind.UnionDef : return "union"
+    case SymbolKind.EnumDef : return "enum"
+    case SymbolKind.NamespaceDef : return "namespace"
+    case SymbolKind.MacroDef : return "#macro"
+    end select
+    return ""
+end function
+
+' A procedure (it has a body to jump into), not a type-like block.
+public function IsProcedure( byval k as SymbolKind ) as boolean
+    return k <= SymbolKind.OperatorProc
+end function
+
+private function IsIdentStart( byval c as ulong ) as boolean
+    return ((c >= 65) andalso (c <= 90)) orelse ((c >= 97) andalso (c <= 122)) orelse (c = 95)
+end function
+
+private function IsIdentChar( byval c as ulong ) as boolean
+    return IsIdentStart( c ) orelse ((c >= 48) andalso (c <= 57))
+end function
+
+' The next word at i (letters, digits, '_'), lower-cased; i moves past it and the blanks after.
+private function NextWord( byref s as const ustring, byref i as long ) as ustring
+    dim as long n = len( s ), j = i
+    while (j < n) andalso IsIdentChar( s[j] )
+        j += 1
+    wend
+    dim as ustring w = lcase( mid( s, i + 1, j - i ) )
+    while (j < n) andalso ((s[j] = 32) orelse (s[j] = 9))
+        j += 1
+    wend
+    i = j
+    return w
+end function
+
+' A dotted name at i: "Foo", "Foo.Bar", "ns.Foo.Bar". "" when no identifier starts there.
+private function DottedName( byref s as const ustring, byval i as long ) as ustring
+    dim as long n = len( s ), j = i
+    if (j >= n) orelse (IsIdentStart( s[j] ) = false) then return ""
+    do
+        while (j < n) andalso IsIdentChar( s[j] )
+            j += 1
+        wend
+        if (j + 1 < n) andalso (s[j] = 46) andalso IsIdentStart( s[j + 1] ) then
+            j += 1
+        else
+            exit do
+        end if
+    loop
+    return mid( s, i + 1, j - i )
+end function
+
+' One line, comment-free and trimmed on the left: TRUE (and out_) when it starts a definition.
+private function LineSymbol( byref s as const ustring, byval ln as long, byref out_ as Symbol ) as boolean
+    dim as long i = 0
+    if (len( s ) > 0) andalso (s[0] = 35) then              ' #macro name
+        i = 1
+        if NextWord( s, i ) <> "macro" then return false
+        out_.Kind = SymbolKind.MacroDef
+        out_.Name = DottedName( s, i )
+        out_.Line = ln
+        return len( out_.Name ) > 0
+    end if
+    dim as ustring w = NextWord( s, i )
+    do while (w = "public") orelse (w = "private") orelse (w = "protected") orelse (w = "static") _
+             orelse (w = "virtual") orelse (w = "abstract") orelse (w = "override")
+        w = NextWord( s, i )
+    loop
+    dim as SymbolKind k
+    select case w
+    case "sub" : k = SymbolKind.SubProc
+    case "function" : k = SymbolKind.FunctionProc
+    case "property" : k = SymbolKind.PropertyProc
+    case "constructor" : k = SymbolKind.ConstructorProc
+    case "destructor" : k = SymbolKind.DestructorProc
+    case "operator" : k = SymbolKind.OperatorProc
+    case "type" : k = SymbolKind.TypeDef
+    case "union" : k = SymbolKind.UnionDef
+    case "enum" : k = SymbolKind.EnumDef
+    case "namespace" : k = SymbolKind.NamespaceDef
+    case else : return false
+    end select
+    dim as ustring name_ = DottedName( s, i )
+    if k = SymbolKind.OperatorProc then
+        ' operator T.+= (...) / operator + ( ... ): the name runs to the '('
+        dim as long p = instr( i + 1, s, "(" )
+        if p = 0 then return false
+        name_ = trim( mid( s, i + 1, p - i - 1 ) )
+    elseif (k = SymbolKind.EnumDef) andalso (lcase( name_ ) = "explicit") then
+        return false                                         ' `enum explicit` with no name
+    end if
+    if len( name_ ) = 0 then return false                   ' anonymous enum, `type<...>`
+    ' `type Alias as Other`: an alias, not a block
+    if (k = SymbolKind.TypeDef) orelse (k = SymbolKind.UnionDef) then
+        dim as long j = i + len( name_ )
+        dim as long n = len( s )
+        while (j < n) andalso ((s[j] = 32) orelse (s[j] = 9))
+            j += 1
+        wend
+        dim as ustring after = lcase( mid( s, j + 1, 3 ) )
+        if (after = "as ") orelse (after = "as" & chr( 9 )) then return false
+    end if
+    out_.Kind = k
+    out_.Name = name_
+    out_.Line = ln
+    return true
+end function
+
+' Every definition in text, in line order.
+public function Scan( byref text as const ustring ) as Array( of Symbol )
+    dim as Array( of Symbol ) syms
+    dim as long n = len( text ), start = 0, ln = 0
+    dim as boolean inBlockComment = false, inBlockString = false
+    while start <= n
+        dim as long e = start
+        while (e < n) andalso (text[e] <> 10) andalso (text[e] <> 13)
+            e += 1
+        wend
+        dim as ustring raw = mid( text, start + 1, e - start )
+        ' block comments /' ... '/ and block strings """ ... """
+        dim as ustring s = raw
+        if inBlockComment then
+            dim as long q = instr( s, "'/" )
+            if q = 0 then
+                s = ""
+            else
+                s = mid( s, q + 2 )
+                inBlockComment = false
+            end if
+        end if
+        if inBlockString then
+            dim as long q = instr( s, TRIPLE )
+            if q = 0 then
+                s = ""
+            else
+                s = mid( s, q + 3 )
+                inBlockString = false
+            end if
+        end if
+        s = ltrim( s, any !" \t" )
+        if left( s, 2 ) = "/'" then
+            if instr( 3, s, "'/" ) = 0 then inBlockComment = true
+            s = ""
+        end if
+        if len( s ) andalso (s[0] <> 39) andalso (lcase( left( s, 4 ) ) <> "rem ") then
+            dim as Symbol sym
+            if LineSymbol( s, ln, sym ) then syms.Push( sym )
+            ' a block string opened (and not closed) on this line
+            dim as long q = instr( s, TRIPLE )
+            if q > 0 andalso instr( q + 3, s, TRIPLE ) = 0 then inBlockString = true
+        end if
+        ' the line break: CRLF, LF or CR
+        if e >= n then exit while
+        if (text[e] = 13) andalso (e + 1 < n) andalso (text[e + 1] = 10) then e += 1
+        start = e + 1
+        ln += 1
+    wend
+    return syms
+end function

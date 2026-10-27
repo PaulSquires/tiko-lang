@@ -1,0 +1,396 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' parser -- tikoParser (.dll / .so, D3), loaded at run time, and a worker that scans in the
+' background. The C contract is tiko-lang's src/api/tikoparser.ti, version 4; the records here
+' mirror it. Its strings are UTF-16 on EVERY OS (the library reads and writes uint16, not the
+' host's wchar_t), so they are ushort here and no wstring is involved.
+'
+' THREADING: the library takes one call at a time. One goroutine owns every call; the window
+' queues requests (Queue) and drains finished scans (Poll) from a timer.
+#module "parser"
+
+#import "std/containers"
+#import "std/fs"
+#import "std/outcome"
+#import "std/tasks"
+#import "tkp/platform"
+#import "tkc/symboldb"
+using containers
+using outcome
+using tasks
+
+public const TKP_VERSION = 4
+
+public type TKP_SYMBOL
+    kind         as long
+    flags        as long
+    nameOffset   as long
+    typeOffset   as long
+    parentIndex  as long
+    fileIndex    as long
+    lineNum      as long
+    colNum       as long
+    bodyLine     as long
+    bodyEndLine  as long
+    readCount    as long
+    writeCount   as long
+    refFileIndex as long
+    refLine      as long
+end type
+
+public type TKP_DIAG
+    errNum      as long
+    fileIndex   as long
+    lineNum     as long
+    textOffset  as long
+end type
+
+public type TKP_RESULT
+    version     as long
+    symbolCount as long
+    symbols     as TKP_SYMBOL ptr
+    fileCount   as long
+    fileOffsets as long ptr
+    diagCount   as long
+    diags       as TKP_DIAG ptr
+    poolChars   as long
+    stringPool  as ushort ptr
+end type
+
+public type TKP_OPTIONS
+    version      as long
+    flags        as long
+    includeCount as long
+    includePaths as ushort ptr ptr
+    defineCount  as long
+    defines      as ushort ptr ptr
+    pkgDir       as ushort ptr
+end type
+
+public type TKP_VERSION_FN as function cdecl ( ) as long
+public type TKP_SCAN_FN as function cdecl ( byval file as ushort ptr, byval options as TKP_OPTIONS ptr, _
+                                     byval ppResult as TKP_RESULT ptr ptr ) as long
+public type TKP_SCAN_TEXT_FN as function cdecl ( byval text as zstring ptr, byval name_ as ushort ptr, _
+                                          byval options as TKP_OPTIONS ptr, byval ppResult as TKP_RESULT ptr ptr ) as long
+public type TKP_FREE_FN as sub cdecl ( byval pResult as TKP_RESULT ptr )
+
+' ---- UTF-16, the library's strings
+
+' NUL-terminated UTF-16 of s.
+private function ToUtf16( byref s as const ustring ) as Array( of ushort )
+    dim as Array( of ushort ) a
+    dim as string u8 = s
+    dim as long i = 0, n = len( u8 )
+    while i < n
+        dim as ulong c = u8[i], extra = 0
+        if c >= &hF0 then
+            c and= &h07 : extra = 3
+        elseif c >= &hE0 then
+            c and= &h0F : extra = 2
+        elseif c >= &hC0 then
+            c and= &h1F : extra = 1
+        end if
+        i += 1
+        for k as long = 1 to extra
+            if i < n then c = (c shl 6) or (u8[i] and &h3F)
+            i += 1
+        next
+        dim as ushort unit
+        if c >= &h10000 then
+            c -= &h10000
+            unit = &hD800 or (c shr 10) : a.Push( unit )
+            unit = &hDC00 or (c and &h3FF) : a.Push( unit )
+        else
+            unit = c : a.Push( unit )
+        end if
+    wend
+    dim as ushort nul = 0
+    a.Push( nul )
+    return a
+end function
+
+' The UTF-16 at p (to its NUL) as a ustring.
+private function FromUtf16( byval p as ushort ptr ) as ustring
+    if p = 0 then return ""
+    dim as string u8
+    dim as long i = 0
+    while p[i] <> 0
+        dim as ulong c = p[i]
+        i += 1
+        if (c >= &hD800) andalso (c <= &hDBFF) andalso (p[i] >= &hDC00) andalso (p[i] <= &hDFFF) then
+            c = &h10000 + ((c - &hD800) shl 10) + (p[i] - &hDC00)
+            i += 1
+        end if
+        if c < &h80 then
+            u8 &= chr( c )
+        elseif c < &h800 then
+            u8 &= chr( &hC0 or (c shr 6), &h80 or (c and &h3F) )
+        elseif c < &h10000 then
+            u8 &= chr( &hE0 or (c shr 12), &h80 or ((c shr 6) and &h3F), &h80 or (c and &h3F) )
+        else
+            u8 &= chr( &hF0 or (c shr 18), &h80 or ((c shr 12) and &h3F), &h80 or ((c shr 6) and &h3F), &h80 or (c and &h3F) )
+        end if
+    wend
+    return *cast( zstring ptr, strptr( u8 ) )
+end function
+
+private function PoolText( byval r as TKP_RESULT ptr, byval offset_ as long ) as ustring
+    if (offset_ < 0) orelse (offset_ >= r->poolChars) then return ""
+    return FromUtf16( @r->stringPool[offset_] )
+end function
+
+' ---- the library
+
+public type ScanOptions
+    Includes as Array( of ustring )
+    PkgDir   as ustring          ' the toolchain's pkg folder, for #import "std/..."
+end type
+
+public type ScanResult as Result( of symboldb.SymbolSet, ustring )
+
+public type Library
+    h as any ptr
+    fnVersion as TKP_VERSION_FN
+    fnScan as TKP_SCAN_FN
+    fnScanText as TKP_SCAN_TEXT_FN
+    fnFree as TKP_FREE_FN
+    err_ as ustring
+    declare function Load( byref dir_ as const ustring ) as boolean
+    declare function IsLoaded( ) as boolean
+    declare function LastError( ) as ustring
+    declare function Version( ) as long
+    declare function Scan( byref path as const ustring, byref text as const ustring, byval useText as boolean, _
+                           byref o as const ScanOptions ) as ScanResult
+end type
+
+' tikoParser.dll / tikoParser.so in dir_, its version checked against the contract.
+function Library.Load( byref dir_ as const ustring ) as boolean
+    if h then return true
+    dim as string path = fs.PathJoin( dir_, platform.SharedLibraryFile( "tikoParser" ) )
+    if fs.IsFile( path ) = false then
+        err_ = path & ": no such file"
+        return false
+    end if
+    h = dylibload( path )
+    if h = 0 then
+        err_ = path & ": it would not load"
+        return false
+    end if
+    fnVersion = dylibsymbol( h, "TIKOPARSER_VERSION" )
+    fnScan = dylibsymbol( h, "TIKOPARSER_SCAN" )
+    fnScanText = dylibsymbol( h, "TIKOPARSER_SCAN_TEXT" )
+    fnFree = dylibsymbol( h, "TIKOPARSER_FREE" )
+    if (fnVersion = 0) orelse (fnScan = 0) orelse (fnScanText = 0) orelse (fnFree = 0) then
+        err_ = path & ": an entry point is missing"
+        dylibfree( h ) : h = 0
+        return false
+    end if
+    if fnVersion( ) <> TKP_VERSION then
+        err_ = path & ": version " & fnVersion( ) & ", this editor reads " & TKP_VERSION
+        dylibfree( h ) : h = 0
+        return false
+    end if
+    return true
+end function
+
+function Library.IsLoaded( ) as boolean
+    return h <> 0
+end function
+
+function Library.LastError( ) as ustring
+    return err_
+end function
+
+function Library.Version( ) as long
+    if h = 0 then return 0
+    return fnVersion( )
+end function
+
+' One scan: the file on disk, or its unsaved text (useText). The records become a SymbolSet.
+function Library.Scan( byref path as const ustring, byref text as const ustring, byval useText as boolean, _
+                       byref o as const ScanOptions ) as ScanResult
+    if h = 0 then return Fail( of symboldb.SymbolSet, ustring )( "tikoParser is not loaded" )
+    dim as Array( of ushort ) wName = ToUtf16( path )
+    dim as Array( of ushort ) wPkg = ToUtf16( o.PkgDir )
+    ' the include paths: each a UTF-16 array kept alive here, and a pointer table to them
+    dim as Array( of ushort ) w0, w1, w2, w3, w4, w5, w6, w7
+    dim as ushort ptr incs( 0 to 7 )
+    dim as long nInc = 0
+    for each inc as ustring in o.Includes
+        if nInc > 7 then exit for
+        select case nInc
+        case 0 : w0 = ToUtf16( inc ) : incs( 0 ) = w0.Data( )
+        case 1 : w1 = ToUtf16( inc ) : incs( 1 ) = w1.Data( )
+        case 2 : w2 = ToUtf16( inc ) : incs( 2 ) = w2.Data( )
+        case 3 : w3 = ToUtf16( inc ) : incs( 3 ) = w3.Data( )
+        case 4 : w4 = ToUtf16( inc ) : incs( 4 ) = w4.Data( )
+        case 5 : w5 = ToUtf16( inc ) : incs( 5 ) = w5.Data( )
+        case 6 : w6 = ToUtf16( inc ) : incs( 6 ) = w6.Data( )
+        case 7 : w7 = ToUtf16( inc ) : incs( 7 ) = w7.Data( )
+        end select
+        nInc += 1
+    next
+    dim as TKP_OPTIONS opt
+    opt.version = TKP_VERSION
+    opt.includeCount = nInc
+    if nInc then opt.includePaths = @incs( 0 )
+    if len( o.PkgDir ) then opt.pkgDir = wPkg.Data( )
+    dim as TKP_RESULT ptr r = 0
+    dim as long rc
+    if useText then
+        dim as string t8 = text
+        rc = fnScanText( strptr( t8 ), wName.Data( ), @opt, @r )
+    else
+        rc = fnScan( wName.Data( ), @opt, @r )
+    end if
+    if (rc <> 0) orelse (r = 0) then return Fail( of symboldb.SymbolSet, ustring )( "tikoParser: error " & rc )
+    dim as symboldb.SymbolSet s
+    s.Root = path
+    dim as Array( of ustring ) files
+    for i as long = 0 to r->fileCount - 1
+        files.Push( PoolText( r, r->fileOffsets[i] ) )
+    next
+    for i as long = 0 to r->symbolCount - 1
+        dim as TKP_SYMBOL ptr p = @r->symbols[i]
+        dim as symboldb.Sym y
+        y.Kind = cast( symboldb.SymKind, p->kind )
+        y.Flags = p->flags
+        y.Name = PoolText( r, p->nameOffset )
+        y.TypeText = PoolText( r, p->typeOffset )
+        y.Parent = p->parentIndex
+        if (p->fileIndex >= 0) andalso (p->fileIndex < files.Count( )) then y.File = files[p->fileIndex]
+        y.LineNo = p->lineNum
+        y.Col = p->colNum
+        y.BodyLine = p->bodyLine
+        y.BodyEndLine = p->bodyEndLine
+        s.Syms.Push( y )
+    next
+    fnFree( r )
+    return Ok( of symboldb.SymbolSet, ustring )( s )
+end function
+
+' ---- the worker
+
+type ScanJob
+    Path    as ustring
+    Text    as ustring
+    UseText as boolean
+    Options as ScanOptions
+    Gen     as long
+    Result  as symboldb.SymbolSet
+    Error   as ustring
+    Ok      as boolean
+end type
+
+public type Finished
+    Root  as ustring
+    Gen   as long
+    Ok    as boolean
+    Error as ustring
+    Set   as symboldb.SymbolSet
+end type
+
+public type Scanner
+    Lib as Library
+    Requests as Channel( of any ptr ) = Channel( of any ptr )( 64 )
+    Answers as Channel( of any ptr ) = Channel( of any ptr )( 64 )
+    running as boolean
+    queued as long
+    thread as any ptr                    ' the worker, joined by Stop
+    declare function Start( byref libDir as const ustring ) as boolean
+    declare sub Queue( byref path as const ustring, byref text as const ustring, byval useText as boolean, _
+                       byref o as const ScanOptions, byval gen as long = 0 )
+    declare function Poll( byref done as Array( of Finished ) ) as long
+    declare function Pending( ) as long
+    declare sub Stop( )
+end type
+
+sub Work( byval sc as Scanner ptr )
+    dim as any ptr p
+    while sc->Requests.Receive( p )
+        if p = 0 then exit while                     ' Stop's marker
+        dim as ScanJob ptr j = p
+        dim as ScanResult r = sc->Lib.Scan( j->Path, j->Text, j->UseText, j->Options )
+        if r.IsOk( ) then
+            j->Result = r.Value( )
+            j->Ok = true
+        else
+            j->Error = r.Failure( )
+        end if
+        sc->Answers.Send( j )
+    wend
+    sc->Answers.Send( 0 )
+end sub
+
+' The worker is a thread of its own, not a goroutine: Stop JOINS it. Waiting only for its last
+' Send was not enough -- the worker could still be inside that Send, unlocking the channel, when
+' the window deleted the Scanner with it; and a pool goroutine's thread outlived main into the
+' runtime's exit (the Linux heap corruption, 2026-10-26).
+private sub WorkThread( byval p as any ptr )
+    Work( cast( Scanner ptr, p ) )
+end sub
+
+' Loads the library from libDir and starts the worker. FALSE: Lib.LastError says why.
+function Scanner.Start( byref libDir as const ustring ) as boolean
+    if running then return true
+    if Lib.Load( libDir ) = false then return false
+    thread = threadcreate( @WorkThread, @this )
+    if thread = 0 then return false
+    running = true
+    return true
+end function
+
+sub Scanner.Queue( byref path as const ustring, byref text as const ustring, byval useText as boolean, _
+                   byref o as const ScanOptions, byval gen as long )
+    if running = false then exit sub
+    dim as ScanJob ptr j = new ScanJob
+    j->Path = path : j->Text = text : j->UseText = useText : j->Options = o : j->Gen = gen
+    queued += 1
+    Requests.Send( j )
+end sub
+
+' The scans that finished since the last call.
+function Scanner.Poll( byref done as Array( of Finished ) ) as long
+    dim as any ptr p
+    dim as long n = 0
+    while Answers.TryReceive( p )
+        if p = 0 then continue while
+        dim as ScanJob ptr j = p
+        dim as Finished f
+        f.Root = j->Path : f.Gen = j->Gen : f.Ok = j->Ok : f.Error = j->Error : f.Set = j->Result
+        done.Push( f )
+        delete j
+        queued -= 1
+        n += 1
+    wend
+    return n
+end function
+
+function Scanner.Pending( ) as long
+    return queued
+end function
+
+' Ends the worker, waiting for the scan in hand (the library must not be mid-call when the
+' window goes), then joins its thread. A scan stuck for 30 s leaves the thread behind rather
+' than hanging the close.
+sub Scanner.Stop( )
+    if running = false then exit sub
+    Requests.Send( 0 )
+    dim as any ptr p
+    dim as boolean ended = false
+    while Answers.ReceiveFor( p, 30000 )
+        if p = 0 then
+            ended = true
+            exit while
+        end if
+        delete cast( ScanJob ptr, p )
+    wend
+    if ended andalso (thread <> 0) then threadwait( thread )
+    thread = 0
+    running = false
+end sub

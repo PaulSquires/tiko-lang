@@ -1,0 +1,196 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' textsearch -- a phrase in a text, without Scintilla: Find in Project over files that are not
+' open, and the replace that rewrites them. Positions are character indexes into the ustring
+' (0-based); a match never spans a line break. Match case and whole word as the find bar has
+' them; a word character is a letter, a digit or '_'. Regular expressions are the find bar's
+' (Scintilla's): with Regex set the app searches on a scratch editor, not here. ApplyLineEdits
+' writes the editable search results back.
+#module "textsearch"
+
+#import "std/containers"
+using containers
+
+public type SearchOptions
+    MatchCase as boolean
+    WholeWord as boolean
+    Regex     as boolean       ' Scintilla's C++11 regex; FindAll and ReplaceAll ignore it
+end type
+
+public type TextMatch
+    Start  as long           ' character index in the text
+    Length as long
+    Line   as long           ' 0-based
+    Column as long           ' character index in the line
+end type
+
+private function IsWordChar( byval c as ulong ) as boolean
+    return ((c >= 48) andalso (c <= 57)) orelse ((c >= 65) andalso (c <= 90)) orelse _
+           ((c >= 97) andalso (c <= 122)) orelse (c = 95) orelse (c >= 128)
+end function
+
+' Is text(at .. at + n - 1) a whole word?
+private function WordBounded( byref text as const ustring, byval at as long, byval n as long ) as boolean
+    if (at > 0) andalso IsWordChar( text[at - 1] ) then return false
+    if (at + n < len( text )) andalso IsWordChar( text[at + n] ) then return false
+    return true
+end function
+
+' Every match of phrase, left to right, not overlapping. None for an empty phrase.
+public function FindAll( byref text as const ustring, byref phrase as const ustring, _
+                         byref opts as const SearchOptions ) as Array( of TextMatch )
+    dim as Array( of TextMatch ) found
+    dim as long n = len( phrase )
+    if n = 0 then return found
+    if (instr( phrase, chr( 10 ) ) > 0) orelse (instr( phrase, chr( 13 ) ) > 0) then return found
+    dim as ustring hay = text, needle = phrase
+    if opts.MatchCase = false then
+        hay = lcase( hay )
+        needle = lcase( needle )
+    end if
+    dim as long ln = 0, lineStart = 0, scanned = 0
+    dim as long p = instr( hay, needle )
+    while p > 0
+        dim as long at = p - 1
+        ' count the line breaks between the last match and this one
+        for k as long = scanned to at - 1
+            dim as ulong c = hay[k]
+            if c = 10 then
+                ln += 1 : lineStart = k + 1
+            elseif c = 13 then
+                if (k + 1 >= len( hay )) orelse (hay[k + 1] <> 10) then
+                    ln += 1 : lineStart = k + 1
+                end if
+            end if
+        next
+        scanned = at
+        if (opts.WholeWord = false) orelse WordBounded( hay, at, n ) then
+            dim as TextMatch m
+            m.Start = at : m.Length = n : m.Line = ln : m.Column = at - lineStart
+            found.Push( m )
+            p = instr( at + n + 1, hay, needle )
+        else
+            p = instr( at + 2, hay, needle )
+        end if
+    wend
+    return found
+end function
+
+' text with every match replaced; count = how many.
+public function ReplaceAll( byref text as const ustring, byref phrase as const ustring, _
+                            byref replacement as const ustring, byref opts as const SearchOptions, _
+                            byref count as long ) as ustring
+    dim as Array( of TextMatch ) ms = FindAll( text, phrase, opts )
+    count = ms.Count( )
+    if count = 0 then return text
+    dim as ustring o
+    dim as long from = 0
+    for each m as TextMatch in ms
+        o &= mid( text, from + 1, m.Start - from ) & replacement
+        from = m.Start + m.Length
+    next
+    return o & mid( text, from + 1 )
+end function
+
+' Line ln (0-based) without its break; "" past the end.
+public function LineText( byref text as const ustring, byval ln as long ) as ustring
+    dim as long n = len( text ), start = 0, cur = 0
+    while cur < ln
+        while (start < n) andalso (text[start] <> 10) andalso (text[start] <> 13)
+            start += 1
+        wend
+        if start >= n then return ""
+        if (text[start] = 13) andalso (start + 1 < n) andalso (text[start + 1] = 10) then start += 1
+        start += 1
+        cur += 1
+    wend
+    dim as long e = start
+    while (e < n) andalso (text[e] <> 10) andalso (text[e] <> 13)
+        e += 1
+    wend
+    return mid( text, start + 1, e - start )
+end function
+
+' The text's lines without their breaks (CRLF, LF or CR); a final break ends the last line, so
+' "a" & LF is one line. Empty text = no lines.
+public function SplitLines( byref text as const ustring ) as Array( of ustring )
+    dim as Array( of ustring ) lines
+    dim as long n = len( text ), start = 0, i = 0
+    while i < n
+        dim as ulong c = text[i]
+        if (c = 10) orelse (c = 13) then
+            dim as ustring one = mid( text, start + 1, i - start )
+            lines.Push( one )
+            if (c = 13) andalso (i + 1 < n) andalso (text[i + 1] = 10) then i += 1
+            start = i + 1
+        end if
+        i += 1
+    wend
+    if start < n then
+        dim as ustring last = mid( text, start + 1 )
+        lines.Push( last )
+    end if
+    return lines
+end function
+
+' One edited line of the search results: line Line (0-based) held Before when the search ran.
+public type LineEdit
+    Line   as long
+    Before as ustring
+    After  as ustring
+end type
+
+' text with each edit's line replaced, its line break kept. An edit whose line no longer holds
+' Before (the file changed since the search), or is past the end, is left out and counted in
+' skipped. applied = how many went in.
+public function ApplyLineEdits( byref text as const ustring, byref edits as const Array( of LineEdit ), _
+                                byref applied as long, byref skipped as long ) as ustring
+    applied = 0 : skipped = 0
+    dim as Map( of long, long ) at                ' line -> edit index
+    for i as long = 0 to edits.Count( ) - 1
+        dim as long ln = edits[i].Line
+        if at.Contains( ln ) then
+            skipped += 1                          ' one line edited twice: the first edit stands
+        else
+            at.Put( ln, i )
+        end if
+    next
+    dim as ustring o
+    dim as long n = len( text ), start = 0, i = 0, ln = 0
+    do
+        ' the line ln: start .. e - 1, then its break e .. b - 1
+        dim as long e = start
+        while (e < n) andalso (text[e] <> 10) andalso (text[e] <> 13)
+            e += 1
+        wend
+        dim as long b = e
+        if b < n then
+            if (text[b] = 13) andalso (b + 1 < n) andalso (text[b + 1] = 10) then b += 2 else b += 1
+        end if
+        if n = 0 then exit do
+        dim as long k
+        dim as ustring body = mid( text, start + 1, e - start )
+        if at.TryGet( ln, k ) then
+            if body = edits[k].Before then
+                o &= edits[k].After
+                applied += 1
+            else
+                o &= body
+                skipped += 1
+            end if
+            at.Remove( ln )
+        else
+            o &= body
+        end if
+        o &= mid( text, e + 1, b - e )
+        start = b
+        ln += 1
+    loop while start < n
+    skipped += at.Count( )                        ' lines past the end
+    return o
+end function

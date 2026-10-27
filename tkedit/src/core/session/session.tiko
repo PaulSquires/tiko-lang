@@ -1,0 +1,211 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' session -- what was open and where (docs/tkEdit/CONFIG.md): the buffers, each one's caret,
+' first line, bookmarks and folds, the active buffer, the split and the build configuration; in
+' session.toml also the main window's place ([window], in SDL's window coordinates).
+' session.toml (in the config folder) holds it when no project is open; a .tkedit project file
+' (P4) holds the same tables beside its [project]. The app writes this file; nobody edits it, so
+' it is written through std/config (which drops comments).
+'
+'     version = 1
+'     [session]   active, split (none | vertical | horizontal), split_ratio, pane2, build,
+'                 project (session.toml: the .tkedit that was open)
+'     [[files]]   path, open, first_line, position, bookmarks = [...], folds = [...]
+'     [recent]    files = [...]   newest first; session.toml only (a project keeps none)
+'
+' A path inside the base folder is stored relative to it with "/" separators, else absolute.
+' Lines and positions are 0-based, as Scintilla's.
+#module "session"
+
+#import "std/fs"
+#import "std/config"
+#import "std/strings"
+#import "std/containers"
+#import "std/outcome"
+#import "tkc/tomlget"
+using containers
+using outcome
+
+public const SESSION_VERSION = 1
+public const SESSION_FILE = "session.toml"
+
+public enum SplitMode explicit
+    None = 0
+    Vertical = 1           ' left | right
+    Horizontal = 2         ' top / bottom
+end enum
+
+public type FileState
+    Path      as ustring
+    Open      as boolean = true
+    FirstLine as long
+    Position  as longint
+    Bookmarks as Array( of long )
+    Folds     as Array( of long )      ' fold headers that are collapsed
+end type
+
+public type SessionState
+    Active     as ustring              ' the active buffer's stored path, "" = the first
+    Split      as SplitMode
+    SplitRatio as double = 0.5
+    Pane2      as ustring              ' the second pane's buffer, stored path
+    Build      as ustring              ' the build configuration's name, "" = the default
+    Files      as Array( of FileState )
+    Recent     as Array( of ustring )  ' recently opened files, newest first, full paths
+    Project    as ustring              ' session.toml: the project that was open, full path
+    WinX       as long                 ' session.toml: the window's normal (not maximized) place
+    WinY       as long
+    WinW       as long                 ' 0 = none kept: the default size, centred
+    WinH       as long
+    WinMax     as boolean              ' it was maximized
+end type
+
+public type SessionResult as Result( of SessionState, config.ConfigError )
+
+private function SplitName( byval m as SplitMode ) as ustring
+    select case m
+    case SplitMode.Vertical : return "vertical"
+    case SplitMode.Horizontal : return "horizontal"
+    end select
+    return "none"
+end function
+
+private function SplitOf( byref s as const ustring ) as SplitMode
+    select case lcase( s )
+    case "vertical" : return SplitMode.Vertical
+    case "horizontal" : return SplitMode.Horizontal
+    end select
+    return SplitMode.None
+end function
+
+' A path as stored under base: relative with "/" when it lies inside, else as given.
+public function StoredPath( byref base_ as const ustring, byref path as const ustring ) as ustring
+    if len( base_ ) = 0 then return path
+    dim as fs.FsResultUStr r = fs.PathRelativeTo( path, base_ )
+    if r.IsOk( ) = false then return path
+    dim as ustring rel = r.Value( )
+    if ( len( rel ) = 0 ) orelse ( left( rel, 2 ) = ".." ) orelse fs.PathIsAbsolute( rel ) then return path
+    return strings.Replace( rel, "\", "/" )
+end function
+
+' A stored path back to a full, native one.
+public function FullPath( byref base_ as const ustring, byref stored as const ustring ) as ustring
+    if fs.PathIsAbsolute( stored ) orelse ( len( base_ ) = 0 ) then return stored
+    return fs.PathToNative( fs.PathJoin( base_, stored ) )
+end function
+
+' The [session] and [[files]] tables of root (a session.toml or a .tkedit file).
+public function FromToml( byref root as config.TomlValue ) as SessionState
+    dim as SessionState st
+    dim as config.TomlValue s = tomlget.Table( root, "session" )
+    st.Active = tomlget.GetStr( s, "active" )
+    st.Split = SplitOf( tomlget.GetStr( s, "split", "none" ) )
+    dim as Optional( of config.TomlValue ) ro = s.Get( "split_ratio" )
+    if ro.HasValue( ) then
+        dim as double v = ro.Value( ).AsFloat( ).ValueOr( 0.5 )
+        if (v > 0.05) andalso (v < 0.95) then st.SplitRatio = v
+    end if
+    st.Pane2 = tomlget.GetStr( s, "pane2" )
+    st.Build = tomlget.GetStr( s, "build" )
+    st.Project = tomlget.GetStr( s, "project" )
+    for each t as config.TomlValue in tomlget.Tables( root, "files" )
+        dim as FileState f
+        f.Path = tomlget.GetStr( t, "path" )
+        if len( f.Path ) = 0 then continue for
+        f.Open = tomlget.GetBool( t, "open", true )
+        f.FirstLine = tomlget.GetInt( t, "first_line", 0 )
+        f.Position = tomlget.GetInt( t, "position", 0 )
+        f.Bookmarks = tomlget.GetInts( t, "bookmarks" )
+        f.Folds = tomlget.GetInts( t, "folds" )
+        st.Files.Push( f )
+    next
+    st.Recent = tomlget.GetStrings( tomlget.Table( root, "recent" ), "files" )
+    dim as config.TomlValue w = tomlget.Table( root, "window" )
+    st.WinX = tomlget.GetInt( w, "x", 0 )
+    st.WinY = tomlget.GetInt( w, "y", 0 )
+    st.WinW = tomlget.GetInt( w, "width", 0 )
+    st.WinH = tomlget.GetInt( w, "height", 0 )
+    st.WinMax = tomlget.GetBool( w, "maximized", false )
+    if (st.WinW < 200) orelse (st.WinH < 150) then st.WinW = 0 : st.WinH = 0
+    return st
+end function
+
+' Adds [session] and [[files]] to root.
+public sub IntoToml( byref root as config.TomlValue, byref st as SessionState )
+    dim as config.TomlValue s = config.TomlValue.NewTable( )
+    tomlget.SetStr( s, "active", st.Active )
+    tomlget.SetStr( s, "split", SplitName( st.Split ) )
+    s.SetKey( "split_ratio", config.TomlValue.FromFloat( st.SplitRatio ) )
+    tomlget.SetStr( s, "pane2", st.Pane2 )
+    tomlget.SetStr( s, "build", st.Build )
+    if len( st.Project ) then tomlget.SetStr( s, "project", st.Project )
+    root.SetKey( "session", s )
+    if st.Recent.Count( ) > 0 then
+        dim as config.TomlValue r = config.TomlValue.NewTable( )
+        tomlget.SetStrings( r, "files", st.Recent )
+        root.SetKey( "recent", r )
+    end if
+    if st.WinW > 0 then
+        dim as config.TomlValue w = config.TomlValue.NewTable( )
+        tomlget.SetInt( w, "x", st.WinX )
+        tomlget.SetInt( w, "y", st.WinY )
+        tomlget.SetInt( w, "width", st.WinW )
+        tomlget.SetInt( w, "height", st.WinH )
+        tomlget.SetBool( w, "maximized", st.WinMax )
+        root.SetKey( "window", w )
+    end if
+    if st.Files.Count( ) = 0 then exit sub
+    dim as config.TomlValue a = config.TomlValue.NewArray( )
+    for each f as FileState in st.Files
+        dim as config.TomlValue t = config.TomlValue.NewTable( )
+        tomlget.SetStr( t, "path", f.Path )
+        tomlget.SetBool( t, "open", f.Open )
+        tomlget.SetInt( t, "first_line", f.FirstLine )
+        tomlget.SetInt( t, "position", f.Position )
+        tomlget.SetInts( t, "bookmarks", f.Bookmarks )
+        tomlget.SetInts( t, "folds", f.Folds )
+        a.Push( t )
+    next
+    root.SetKey( "files", a )
+end sub
+
+public function ParseSession( byref text as const ustring ) as SessionResult
+    dim as config.ConfigResultToml r = config.ParseToml( text )
+    if r.IsOk( ) = false then return Fail( of SessionState, config.ConfigError )( r.Failure( ) )
+    return Ok( of SessionState, config.ConfigError )( FromToml( r.Value( ) ) )
+end function
+
+public function SessionText( byref st as SessionState ) as config.ConfigResultText
+    dim as config.TomlValue root = config.TomlValue.NewTable( )
+    tomlget.SetInt( root, "version", SESSION_VERSION )
+    IntoToml( root, st )
+    return config.ToTomlText( root )
+end function
+
+' No file = an empty session, not a failure.
+public function LoadSession( byref path as const ustring ) as SessionResult
+    if fs.Exists( path ) = false then
+        dim as SessionState empty_
+        return Ok( of SessionState, config.ConfigError )( empty_ )
+    end if
+    dim as config.ConfigResultToml r = config.LoadToml( path )
+    if r.IsOk( ) = false then return Fail( of SessionState, config.ConfigError )( r.Failure( ) )
+    return Ok( of SessionState, config.ConfigError )( FromToml( r.Value( ) ) )
+end function
+
+' Writes atomically, creating the folder.
+public function SaveSession( byref path as const ustring, byref st as SessionState ) as fs.FsResultBool
+    dim as config.ConfigResultText t = SessionText( st )
+    if t.IsOk( ) = false then return fs.FsFail( of boolean )( fs.FS_INVALID_DATA, "SaveSession", path )
+    dim as ustring dir_ = fs.PathParent( path )
+    if ( len( dir_ ) > 0 ) andalso ( fs.IsDir( dir_ ) = false ) then
+        dim as fs.FsResultBool mk = fs.CreateDirAll( dir_ )
+        if mk.IsOk( ) = false then return mk
+    end if
+    return fs.WriteAtomic( path, t.Value( ) )
+end function

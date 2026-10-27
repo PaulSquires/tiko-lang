@@ -1,0 +1,124 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' runargs -- the program's arguments for a file built without a project (Run Arguments),
+' <config>/runargs.toml, written by tkEdit:
+'
+'     [[files]]
+'     file = 'C:\dev\hello.tiko'
+'     args = '-v 3'
+'
+' A project keeps its arguments in its options file instead (tkc/project). Prune drops the files
+' that are gone, at startup.
+#module "runargs"
+
+#import "std/fs"
+#import "std/config"
+#import "std/containers"
+#import "tkp/platform"
+#import "tkc/tomlget"
+using containers
+
+public const RUNARGS_FILE = "runargs.toml"
+
+public type RunArgsStore
+    Path  as ustring
+    Files as Array( of ustring )
+    Args  as Array( of ustring )
+
+    declare sub Load( byref path_ as const ustring )               ' no file, or not TOML: empty
+    declare function Get( byref file as const ustring ) as ustring
+    declare sub Set( byref file as const ustring, byref args_ as const ustring )   ' "" removes it
+    declare function Save( ) as boolean
+    declare function Prune( ) as long                               ' files that are gone; how many
+    declare function IndexOf( byref file as const ustring ) as long
+end type
+
+sub RunArgsStore.Load( byref path_ as const ustring )
+    Path = path_
+    Files.Clear( )
+    Args.Clear( )
+    if fs.IsFile( Path ) = false then exit sub
+    dim as config.ConfigResultToml r = config.LoadToml( Path )
+    if r.IsOk( ) = false then exit sub
+    dim as config.TomlValue root = r.Value( )
+    for each t as config.TomlValue in tomlget.Tables( root, "files" )
+        dim as ustring f = tomlget.GetStr( t, "file" )
+        dim as ustring a = tomlget.GetStr( t, "args" )
+        if (len( f ) > 0) andalso (len( a ) > 0) andalso (this.IndexOf( f ) < 0) then
+            Files.Push( f )
+            Args.Push( a )
+        end if
+    next
+end sub
+
+' By full path; case-blind except on Linux.
+function RunArgsStore.IndexOf( byref file as const ustring ) as long
+    for i as long = 0 to Files.Count( ) - 1
+        if platform.CurrentOs( ) = platform.Os.Linux then
+            if Files[i] = file then return i
+        elseif lcase( Files[i] ) = lcase( file ) then
+            return i
+        end if
+    next
+    return -1
+end function
+
+function RunArgsStore.Get( byref file as const ustring ) as ustring
+    dim as long i = this.IndexOf( file )
+    if i < 0 then return ""
+    return Args[i]
+end function
+
+sub RunArgsStore.Set( byref file as const ustring, byref args_ as const ustring )
+    dim as long i = this.IndexOf( file )
+    if len( args_ ) = 0 then
+        if i >= 0 then
+            Files.Remove( i )
+            Args.Remove( i )
+        end if
+    elseif i >= 0 then
+        Args[i] = args_
+    else
+        dim as ustring f = file, a = args_                ' Push takes its value by reference
+        Files.Push( f )
+        Args.Push( a )
+    end if
+end sub
+
+' The whole file; none left: the file goes.
+function RunArgsStore.Save( ) as boolean
+    if len( Path ) = 0 then return false
+    if Files.Count( ) = 0 then
+        if fs.IsFile( Path ) then return fs.RemoveFile( Path ).IsOk( )
+        return true
+    end if
+    dim as ustring nl = wchr( 10 )
+    dim as ustring s = "# Run Arguments for files built without a project (tkEdit writes this file)." & nl
+    for i as long = 0 to Files.Count( ) - 1
+        s &= nl & "[[files]]" & nl & "file = " & tomlget.Quoted( Files[i] ) & nl & "args = " & tomlget.Quoted( Args[i] ) & nl
+    next
+    dim as ustring dir_ = fs.PathParent( Path )
+    if (len( dir_ ) > 0) andalso (fs.IsDir( dir_ ) = false) then
+        if fs.CreateDirAll( dir_ ).IsOk( ) = false then return false
+    end if
+    return fs.WriteAtomic( Path, s ).IsOk( )
+end function
+
+function RunArgsStore.Prune( ) as long
+    dim as long n = 0
+    dim as long i = Files.Count( ) - 1
+    while i >= 0
+        if fs.IsFile( Files[i] ) = false then
+            Files.Remove( i )
+            Args.Remove( i )
+            n += 1
+        end if
+        i -= 1
+    wend
+    return n
+end function

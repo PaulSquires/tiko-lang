@@ -1,0 +1,670 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' build -- the PURE half of a build: the build configuration, the compiler's flags, the argument
+' list of 'tiko build' / 'tiko check', the output file's name, the compiler's --diagnostics-file
+' read back, the JSON events 'tiko build --message-format json' prints, and the Results counts.
+' No process is started here and no window is touched; the build service (P7) does both.
+' Ported from tiko-editor-tiko's eda/compile (the old modBuildService, modCompile, modCompileErrors
+' and modDiagFile); tools/oracle/run-diag.sh holds the argument lists, the events and the
+' diagnostics-file reader to the old editor's own functions.
+'
+' WHAT CHANGED FROM THE OLD CODE, deliberately:
+'   - an argument list, not a command-line string. The old functions returned one string for
+'     CreateProcessW with every path hand-quoted; here the arguments are an Array( of ustring )
+'     -- exactly what the child receives (the oracle checks that through CommandLineToArgvW) -- and
+'     CommandLine( ) renders them for Windows and for the log.
+'   - the target is the host's (TargetName), not always windows-x86_64, and the output names
+'     follow tiko's own per-OS rule (no .exe off Windows, lib<name>.so for a -dll on Linux).
+'   - the file field of a diagnostic gets the host's separator (the old code: always '\').
+#module "build"
+
+#import "std/containers"
+#import "std/strings"
+#import "std/codec"
+#import "std/fs"
+#import "std/outcome"
+#import "tkp/platform"
+using containers
+using outcome
+
+' ================================================================ build configurations
+
+' One row of the Build Configurations list (the old [Builds] BUILD_nn rows of settings.ini, which
+' were id|-|description|-|options|-|IsDefault|-|ExcludeInPopup|-|IsCtrl|-|IsAlt|-|IsShift|-|key).
+' settings.toml stores it; nothing here reads or writes a file.
+public type BuildConfig
+    Id             as ustring   ' "{GUID}" with braces, as settings.ini had it
+    Name           as ustring   ' the old wszDescription, e.g. "Win64 GUI (Release)"
+    Options        as ustring   ' the old wszOptions, e.g. "-s gui -O2"
+    IsDefault      as boolean
+    ExcludeInPopup as boolean
+    Keys           as ustring   ' the shortcut as a chord string "Primary+Shift+F5", "" = none
+end type
+
+' What a build was asked for: the old IDM_COMPILE, IDM_BUILDEXECUTE,
+' IDM_DEBUG_STARTDEBUGGING.
+public enum BuildAction explicit
+    Compile          ' build only
+    BuildExecute     ' build, then run
+    StartDebugging   ' build with -g -exx and no optimisation, then debug
+end enum
+
+' A '#CONSOLE' or '#GUI' directive in the main source, in source order.
+public enum Subsystem explicit
+    Console
+    Gui
+end enum
+
+
+' Does this action start the program once it is built? (The old RunAfterCompile.)
+public function RunsAfterBuild( byval action as BuildAction ) as boolean
+    return action = BuildAction.BuildExecute
+end function
+
+' ================================================================ the compiler's flags
+
+' The flags string a build hands tiko in --options, composed as code_Compile did:
+'   1. the build configuration's Options;
+'   2. StartDebugging: every " -O1", " -O2", " -O3" removed, then " -g -exx " appended;
+'   3. " " & projectOptions & " " & one ' -i "<path>"' per entry of the ';'-separated include list
+'      (right-trimmed, empty entries skipped);
+'   4. each #CONSOLE / #GUI directive: the other subsystem's " -S GUI " / " -S CONSOLE " removed
+'      (once, and case-sensitively, as the old code did -- so a lower-case "-s gui" stays and the
+'      appended switch, being last, is the one tiko applies), then " -s console " / " -s gui ".
+' The result keeps the old spacing; BuildArgs trims it.
+public function ComposeFlags( byref cfg as const BuildConfig, byval action as BuildAction, _
+        byref projectOptions as const ustring, byref includePaths as const ustring, _
+        byref directives as Array( of Subsystem ) ) as ustring
+    dim as ustring flags = cfg.Options
+    if action = BuildAction.StartDebugging then
+        flags = strings.Remove( flags, " -O1" )
+        flags = strings.Remove( flags, " -O2" )
+        flags = strings.Remove( flags, " -O3" )
+        flags &= " -g -exx "
+    end if
+    dim as ustring includes
+    dim as long start = 1
+    do
+        dim as long semi = instr( start, includePaths, ";" )
+        dim as ustring one
+        if semi = 0 then
+            one = rtrim( mid( includePaths, start ) )
+        else
+            one = rtrim( mid( includePaths, start, semi - start ) )
+        end if
+        if len( one ) then includes &= " -i """ & one & """"
+        if semi = 0 then exit do
+        start = semi + 1
+    loop
+    flags &= " " & projectOptions & " " & includes
+    for each d as Subsystem in directives
+        if d = Subsystem.Console then
+            dim as long n = instr( flags, " -S GUI " )
+            if n then flags = strings.DeleteAt( flags, n, 8 )
+            flags &= " -s console "
+        else
+            dim as long n = instr( flags, " -S CONSOLE " )
+            if n then flags = strings.DeleteAt( flags, n, 12 )
+            flags &= " -s gui "
+        end if
+    next
+    return flags
+end function
+
+' ================================================================ per-OS names
+
+' The -target a build passes, so the log says what it built for and a toolchain whose default
+' moves does not move the build (the old TIKO_TARGET_SWITCH, now the host's).
+public function TargetName( byval os_ as platform.Os ) as ustring
+    select case os_
+    case platform.Os.Windows : return "windows-x86_64"
+    case platform.Os.MacOS : return "macos-arm64"
+    case else : return "linux-x86_64"
+    end select
+end function
+
+' What kind of file the flags build: -dll / -dylib, -lib, else a program.
+private enum OutKind explicit
+    Program
+    SharedLib
+    StaticLib
+end enum
+
+' tiko's own naming (driver.tiko DefaultOutputPath_): a static library and, off Windows, a shared
+' one gain a "lib" prefix; the suffix is the target's.
+private function OutName( byref stem as const ustring, byval kind as OutKind, byval os_ as platform.Os ) as ustring
+    select case kind
+    case OutKind.StaticLib
+        return "lib" & stem & ".a"
+    case OutKind.SharedLib
+        if os_ = platform.Os.Windows then return stem & ".dll"
+        if os_ = platform.Os.MacOS then return "lib" & stem & ".dylib"
+        return "lib" & stem & ".so"
+    case else
+        if os_ = platform.Os.Windows then return stem & ".exe"
+        return stem
+    end select
+end function
+
+' The implicit target's output, before the build says (code_SetMainFile): the main file's name
+' beside it. The flags are tested as the old code did -- " " & ucase( flags ) holding " -DLL",
+' " -DYLIB" or " -LIB", a prefix match -- and -LIB wins over -DLL.
+public function OutputFile( byref mainFile as const ustring, byref flags as const ustring, _
+        byval os_ as platform.Os ) as ustring
+    dim as ustring f = " " & ucase( flags )
+    dim as OutKind kind = OutKind.Program
+    if ( instr( f, " -DLL" ) > 0 ) orelse ( instr( f, " -DYLIB" ) > 0 ) then kind = OutKind.SharedLib
+    if instr( f, " -LIB" ) > 0 then kind = OutKind.StaticLib
+    return fs.PathJoin( fs.PathParent( mainFile ), OutName( fs.PathStem( mainFile ), kind, os_ ) )
+end function
+
+' A tiko.toml target's output, before the build says (BuildTargetOutput): out/editor/ beside
+' tiko.toml. Here the switches must be whole words (" -DLL " with spaces round it).
+public function TargetOutputFile( byref manifestDir as const ustring, byref targetName_ as const ustring, _
+        byref flags as const ustring, byval os_ as platform.Os ) as ustring
+    dim as ustring f = " " & ucase( flags ) & " "
+    dim as OutKind kind = OutKind.Program
+    if ( instr( f, " -DLL " ) > 0 ) orelse ( instr( f, " -DYLIB " ) > 0 ) then kind = OutKind.SharedLib
+    if instr( f, " -LIB " ) > 0 then kind = OutKind.StaticLib
+    return fs.PathJoin( manifestDir, "out", "editor", OutName( targetName_, kind, os_ ) )
+end function
+
+' ================================================================ the argument lists
+
+' Array.Push takes its argument byref and non-const: a const parameter goes through a copy.
+private sub Add( byref a as Array( of ustring ), byval s as ustring )
+    a.Push( s )
+end sub
+
+' The arguments every build ends with: the event stream (in JSON mode tiko refuses -v, TKO0154),
+' the target, the flags as ONE --options argument (tiko splits it again; none when there are
+' none) and, last so it wins, the diagnostics file.
+private sub Tail( byref a as Array( of ustring ), byref flags as const ustring, _
+        byref diagFile as const ustring, byval os_ as platform.Os )
+    a.Push( "--message-format" )
+    a.Push( "json" )
+    a.Push( "-target" )
+    a.Push( TargetName( os_ ) )
+    if len( flags ) then
+        a.Push( "--options" )
+        Add( a, flags )
+    end if
+    if len( diagFile ) then
+        a.Push( "--diagnostics-file" )
+        Add( a, diagFile )
+    end if
+end sub
+
+' 'tiko build' of the IMPLICIT target (BuildTikoBuildArgs): the main file first, so it owns main,
+' then the module documents, the #LINKMODULES objects and the resource script, as roots. No -o:
+' the output is the main file's name beside it. diagFile "" = no --diagnostics-file.
+public function BuildArgs( byref mainFile as const ustring, byref modules as Array( of ustring ), _
+        byref linkModules as Array( of ustring ), byref resourceFile as const ustring, _
+        byref flags as const ustring, byref diagFile as const ustring, _
+        byval os_ as platform.Os ) as Array( of ustring )
+    dim as Array( of ustring ) a
+    a.Push( "build" )
+    Add( a, mainFile )
+    for each m as ustring in modules
+        a.Push( m )
+    next
+    for each m as ustring in linkModules
+        a.Push( m )
+    next
+    if len( resourceFile ) then Add( a, resourceFile )
+    Tail( a, trim( flags ), diagFile, os_ )
+    return a
+end function
+
+' 'tiko build' of a TARGET of tiko.toml (BuildTikoTargetArgs): the manifest says what to build,
+' --profile editor adds nothing, and the flags plus the extra inputs (#LINKMODULES objects, a
+' #RESOURCE script the project does not already have) travel in --options -- each extra input
+' double-quoted there, since tiko splits that one argument again. A trailing '\' or '/' of the
+' manifest folder is dropped.
+public function TargetArgs( byref targetName_ as const ustring, byref manifestDir as const ustring, _
+        byref flags as const ustring, byref extraInputs as Array( of ustring ), _
+        byref diagFile as const ustring, byval os_ as platform.Os ) as Array( of ustring )
+    dim as ustring dir_ = manifestDir
+    if ( right( dir_, 1 ) = "\" ) orelse ( right( dir_, 1 ) = "/" ) then dir_ = left( dir_, len( dir_ ) - 1 )
+    dim as ustring extra
+    for each x as ustring in extraInputs
+        extra &= " """ & x & """"
+    next
+    dim as Array( of ustring ) a
+    a.Push( "build" )
+    Add( a, targetName_ )
+    a.Push( "--manifest" )
+    a.Push( dir_ )
+    a.Push( "--profile" )
+    a.Push( "editor" )
+    Tail( a, trim( trim( flags ) & " " & trim( extra ) ), diagFile, os_ )
+    return a
+end function
+
+' ONE ARGUMENT, quoted so CommandLineToArgvW -- and tiko's own split of --options -- gives it back
+' unchanged (BuildQuoteArg): a run of backslashes is literal unless a quote follows, when it is
+' doubled and the quote escaped. A word with no space, tab or quote goes through bare; "" is "".
+public function QuoteArg( byref arg as const ustring ) as ustring
+    dim as boolean plain = ( len( arg ) > 0 )
+    for i as long = 0 to len( arg ) - 1
+        if ( arg[i] = 32 ) orelse ( arg[i] = 9 ) orelse ( arg[i] = 34 ) then plain = false : exit for
+    next
+    if plain then return arg
+    dim as ustring o = """"
+    dim as long slashes = 0
+    for i as long = 0 to len( arg ) - 1
+        if arg[i] = 92 then
+            slashes += 1
+        elseif arg[i] = 34 then
+            o &= string( slashes * 2 + 1, "\" ) & """"
+            slashes = 0
+        else
+            o &= string( slashes, "\" ) & wchr( arg[i] )
+            slashes = 0
+        end if
+    next
+    return o & string( slashes * 2, "\" ) & """"
+end function
+
+' The Windows command line for the program and its arguments (BuildChildCommandLine): the program
+' double-quoted as argv[0] -- the child discards the first token, so it must never be a switch --
+' then each argument through QuoteArg. Also what the Compiler Log shows as the command line.
+public function CommandLine( byref program as const ustring, byref args as Array( of ustring ) ) as ustring
+    dim as ustring s = """" & program & """"
+    for each x as ustring in args
+        s &= " " & QuoteArg( x )
+    next
+    return s
+end function
+
+' ================================================================ the build's JSON events
+
+' 'tiko build --message-format json' prints one flat JSON object per line on stdout, e.g.
+'     {"event":"unit","kind":"root","unit":"src/main.tiko","status":"hit"}
+' tiko writes them in this one shape, so a field is found by its key, not by a JSON parser. The
+' text is the console text already decoded (UTF-8).
+public function IsEventLine( byref ln as const ustring ) as boolean
+    return left( ln, 9 ) = "{""event"":"
+end function
+
+' A string field's value, JSON escapes undone; "" when the line has no such key.
+public function EventStr( byref ln as const ustring, byref key as const ustring ) as ustring
+    dim as long p = instr( ln, """" & key & """:""" )
+    if p = 0 then return ""
+    p += len( key ) + 4
+    dim as ustring o
+    while p <= len( ln )
+        dim as ustring c = mid( ln, p, 1 )
+        if c = """" then exit while
+        if c = "\" then
+            p += 1
+            dim as ustring e = mid( ln, p, 1 )
+            select case e
+            case "n" : o &= wchr( 10 )
+            case "r" : o &= wchr( 13 )
+            case "t" : o &= wchr( 9 )
+            case "u"
+                o &= wchr( valint( "&h" & mid( ln, p + 1, 4 ) ) )
+                p += 4
+            case else : o &= e
+            end select
+        else
+            o &= c
+        end if
+        p += 1
+    wend
+    return o
+end function
+
+' A number field's value; -1 when the line has no such key.
+public function EventNum( byref ln as const ustring, byref key as const ustring ) as long
+    dim as long p = instr( ln, """" & key & """:" )
+    if p = 0 then return -1
+    return valint( mid( ln, p + len( key ) + 3 ) )
+end function
+
+' What Run and the debugger start (BuildEventRunPath): the FIRST 'copy' event's path when the
+' target has copy_to, else the LAST 'artifact' event's; "" when there is neither.
+public function EventRunPath( byref text_ as const ustring ) as ustring
+    dim as ustring artifact, copy_
+    dim as long p = 1
+    while p <= len( text_ )
+        dim as long e = instr( p, text_, wchr( 10 ) )
+        if e = 0 then e = len( text_ ) + 1
+        dim as ustring ln = mid( text_, p, e - p )
+        dim as ustring ev = EventStr( ln, "event" )
+        if ev = "artifact" then artifact = EventStr( ln, "path" )
+        if ( ev = "copy" ) andalso ( len( copy_ ) = 0 ) then copy_ = EventStr( ln, "path" )
+        p = e + 1
+    wend
+    if len( copy_ ) then return copy_
+    return artifact
+end function
+
+' The console text less the event lines: what the Compiler Log shows (BuildStripEvents).
+public function StripEvents( byref text_ as const ustring ) as ustring
+    dim as ustring o
+    dim as long p = 1
+    while p <= len( text_ )
+        dim as long e = instr( p, text_, wchr( 10 ) )
+        if e = 0 then e = len( text_ ) + 1
+        dim as ustring ln = mid( text_, p, e - p + 1 )
+        if IsEventLine( ln ) = false then o &= ln
+        p = e + 1
+    wend
+    return o
+end function
+
+' Progress through a running build (BuildProgressLine, less the PostMessage): a 'plan' event sets
+' Total, a 'unit' event counts one and names it. Feed every complete stdout line.
+public type BuildProgress
+    declare function Feed( byref ln as const ustring ) as boolean   ' true = a unit was counted
+    Done     as long
+    Total    as long
+    LastUnit as ustring
+end type
+
+function BuildProgress.Feed( byref ln as const ustring ) as boolean
+    if IsEventLine( ln ) = false then return false
+    select case EventStr( ln, "event" )
+    case "plan"
+        this.Total = EventNum( ln, "units" )
+    case "unit"
+        this.Done += 1
+        this.LastUnit = EventStr( ln, "unit" )
+        return true
+    end select
+    return false
+end function
+
+' ================================================================ the diagnostics file
+'
+' tiko writes every diagnostic of a run to the file named by --diagnostics-file, as tab-separated
+' records (contract: tiko-lang docs/internals/diagnostics-file.md):
+'     tiko-diagnostics <TAB> 1
+'     <kind> <id> <file> <line> <col> <endLine> <endCol> <message>
+'     related <id> <file> <line> <col> <endLine> <endCol> <message>
+'     end <errors> <warnings> <exitcode>
+' LF ends a line (a CR before it is tolerated); kind is error | warning | note | remark; a
+' 'related' record is a note of the diagnostic before it; line and col are 1-based, col counts
+' characters; four zeros = no location; no 'end' record = the compiler did not finish. Unknown
+' kinds and fields past the eighth are ignored; a higher version refuses the whole file.
+
+public const DIAGFILE_VERSION = 1
+
+' A record's kind. Related is a note belonging to the diagnostic before it.
+public enum DiagKind explicit
+    None
+    Error
+    Warning
+    Note
+    Remark
+    Related
+end enum
+
+' What reading the file found (the old DIAGFILE_*). Only Complete carries counts that can be
+' trusted; Incomplete still carries the records it got. NotRequested is the build service's
+' state for a compiler that does not take --diagnostics-file; the reader never returns it.
+public enum DiagState explicit
+    NotRequested
+    Missing          ' requested, but nothing was written (or it cannot be opened)
+    Unreadable       ' empty, too large, or not a tiko-diagnostics file
+    Newer            ' a format version this reader does not know
+    Incomplete       ' records, but no valid 'end' -- the compiler did not finish
+    Complete
+end enum
+
+public type Diagnostic
+    Kind     as DiagKind
+    Code     as ustring     ' "TKO0613"
+    File     as ustring     ' absolute, host separators; "" = no location
+    Line     as long        ' 1-based physical line; 0 = no location
+    Col      as long        ' 1-based CHARACTER column; 0 = none
+    EndLine  as long        ' exclusive end
+    EndCol   as long
+    Message  as ustring
+    Parent   as long = -1   ' Related: index of the diagnostic it belongs to; else -1
+end type
+
+' A file that could be read: Complete or Incomplete. Errors/Warnings/ExitCode come from the 'end'
+' record (Complete only; ExitCode -1 otherwise).
+public type DiagReport
+    State    as DiagState = DiagState.Incomplete
+    Version  as long
+    Errors   as long
+    Warnings as long
+    ExitCode as long = -1
+    Records  as Array( of Diagnostic )
+end type
+
+' Why there is no report: Missing, Unreadable or Newer (Version = the file's, for Newer).
+public type DiagError
+    State   as DiagState = DiagState.Unreadable
+    Version as long
+end type
+
+public type DiagResult as Result( of DiagReport, DiagError )
+
+' A non-negative decimal integer of at most nine digits, and nothing else: "12abc" and "" are
+' damaged, not 12 and 0 (0 means "no location").
+private function ParseNum( byref s as const string, byref ok as boolean ) as long
+    ok = false
+    if ( len( s ) = 0 ) orelse ( len( s ) > 9 ) then return 0
+    for i as long = 0 to len( s ) - 1
+        if ( s[i] < 48 ) orelse ( s[i] > 57 ) then return 0
+    next
+    ok = true
+    return valint( s )
+end function
+
+' A field's bytes as text, by the old editor's rule (text.DecodeUtf8OrAnsi): UTF-8 when the bytes
+' are UTF-8 or start with a BOM (which stays, as U+FEFF), else the ANSI code page -- a message can
+' quote a source line kept verbatim. Off Windows there is no ANSI page; the UTF-8 replacement
+' decode is used instead.
+private function FieldText( byref s as const string ) as ustring
+    dim as long n = len( s )
+    if n = 0 then return ""
+    dim as const ubyte ptr p = cast( const ubyte ptr, strptr( s ) )
+    dim as boolean bom = ( n >= 3 ) andalso ( s[0] = &hEF ) andalso ( s[1] = &hBB ) andalso ( s[2] = &hBF )
+    dim as codec.EncResultText r = codec.DecodeText( p, n, codec.Utf8( ), true )
+    if ( r.IsOk( ) = false ) andalso ( bom = false ) then r = codec.DecodeText( p, n, codec.Ansi( ) )
+    if r.IsOk( ) = false then r = codec.DecodeText( p, n, codec.Utf8( ) )
+    if r.IsOk( ) = false then return ""
+    if bom then return wchr( &hFEFF ) & r.Value( )
+    return r.Value( )
+end function
+
+' Split one record on TAB, byte-level (a TAB byte never occurs inside a UTF-8 sequence). At most
+' 16 fields are kept, as the old reader did: a later version may append fields.
+private sub SplitFields( byref ln as const string, byref fields as Array( of string ) )
+    fields.Clear( )
+    dim as long start = 1
+    do
+        dim as long t = instr( start, ln, chr( 9 ) )
+        if t = 0 then
+            fields.Push( mid( ln, start ) )
+            exit sub
+        end if
+        fields.Push( mid( ln, start, t - start ) )
+        start = t + 1
+        if fields.Count( ) >= 16 then exit sub
+    loop
+end sub
+
+private function DiagFail( byval st as DiagState, byval version as long ) as DiagResult
+    dim as DiagError e
+    e.State = st
+    e.Version = version
+    return Fail( of DiagReport, DiagError )( e )
+end function
+
+' Parse the raw bytes of a diagnostics file (DiagFile_ParseText). Pure.
+public function ParseDiagnostics( byref bytes as Array( of ubyte ) ) as DiagResult
+    ' The bytes as a byte string: the format is split on TAB and LF bytes before any decoding.
+    dim as string raw = space( bytes.Count( ) )
+    for i as long = 0 to bytes.Count( ) - 1
+        raw[i] = bytes[i]
+    next
+
+    dim as DiagReport rep
+    dim as Array( of string ) fields
+    dim as long total = len( raw ), start = 1, lastDiag = -1
+    dim as boolean header = false, ended = false
+    while start <= total
+        dim as long nl = instr( start, raw, chr( 10 ) )
+        dim as string ln
+        if nl = 0 then
+            ln = mid( raw, start )
+            start = total + 1
+        else
+            ln = mid( raw, start, nl - start )
+            start = nl + 1
+        end if
+        if right( ln, 1 ) = chr( 13 ) then ln = left( ln, len( ln ) - 1 )
+        if len( ln ) = 0 then continue while
+        SplitFields( ln, fields )
+
+        ' THE FIRST LINE SAYS WHAT THIS IS, or it is not ours.
+        if header = false then
+            if ( fields.Count( ) < 2 ) orelse ( fields[0] <> "tiko-diagnostics" ) then
+                return DiagFail( DiagState.Unreadable, 0 )
+            end if
+            dim as boolean ok
+            rep.Version = ParseNum( fields[1], ok )
+            if ok = false then return DiagFail( DiagState.Unreadable, 0 )
+            if rep.Version > DIAGFILE_VERSION then return DiagFail( DiagState.Newer, rep.Version )
+            header = true
+            continue while
+        end if
+
+        dim as DiagKind kind = DiagKind.None
+        select case fields[0]
+        case "error" : kind = DiagKind.Error
+        case "warning" : kind = DiagKind.Warning
+        case "note" : kind = DiagKind.Note
+        case "remark" : kind = DiagKind.Remark
+        case "related" : kind = DiagKind.Related
+        case "end"
+            if fields.Count( ) >= 4 then
+                dim as boolean b1, b2, b3
+                rep.Errors = ParseNum( fields[1], b1 )
+                rep.Warnings = ParseNum( fields[2], b2 )
+                rep.ExitCode = ParseNum( fields[3], b3 )
+                ended = b1 andalso b2 andalso b3
+            end if
+            continue while
+        case else
+            continue while          ' a kind a later version added
+        end select
+        if fields.Count( ) < 8 then continue while
+
+        dim as Diagnostic d
+        d.Kind = kind
+        d.Code = FieldText( fields[1] )
+        d.File = strings.Replace( FieldText( fields[2] ), "/", fs.PathSeparator( fs.FB_PATH_NATIVE ) )
+        d.Message = FieldText( fields[7] )
+        ' ALL FOUR NUMBERS OR NONE: a damaged position keeps the diagnostic, without a location.
+        dim as boolean bL, bC, bEL, bEC
+        d.Line = ParseNum( fields[3], bL )
+        d.Col = ParseNum( fields[4], bC )
+        d.EndLine = ParseNum( fields[5], bEL )
+        d.EndCol = ParseNum( fields[6], bEC )
+        dim as boolean numsOk = bL andalso bC andalso bEL andalso bEC
+        if ( numsOk = false ) orelse ( d.Line = 0 ) orelse ( len( d.File ) = 0 ) then
+            d.File = ""
+            d.Line = 0 : d.Col = 0 : d.EndLine = 0 : d.EndCol = 0
+        end if
+        if kind = DiagKind.Related then d.Parent = lastDiag
+        rep.Records.Push( d )
+        if kind <> DiagKind.Related then lastDiag = rep.Records.Count( ) - 1
+    wend
+
+    if header = false then return DiagFail( DiagState.Unreadable, 0 )
+    if ended then
+        rep.State = DiagState.Complete
+    else
+        rep.State = DiagState.Incomplete
+    end if
+    return Ok( of DiagReport, DiagError )( rep )
+end function
+
+' Read and parse the file (DiagFile_Read): Missing when it cannot be opened, Unreadable when it is
+' empty or 64 MB or more (a diagnostics file is a few KB).
+public function ReadDiagnostics( byref path as const ustring ) as DiagResult
+    if len( path ) = 0 then return DiagFail( DiagState.Missing, 0 )
+    dim as Array( of ubyte ) b
+    dim as fs.FsResultI64 r = fs.ReadAllBytes( path, b, 64 * 1024 * 1024 - 1 )
+    if r.IsOk( ) = false then
+        if r.Failure( ).Code( ) <> fs.FS_TOO_LARGE then return DiagFail( DiagState.Missing, 0 )
+        b.Clear( )
+    end if
+    return ParseDiagnostics( b )
+end function
+
+' "error", "warning", "remark"; "note" for a note and a Related record.
+public function KindName( byval kind as DiagKind ) as ustring
+    select case kind
+    case DiagKind.Error : return "error"
+    case DiagKind.Warning : return "warning"
+    case DiagKind.Remark : return "remark"
+    case else : return "note"
+    end select
+end function
+
+' A Results row's description (ParseLogForError): "error TKO0613: message"; a Related record
+' reads as a note of the row above it, "    note: message".
+public function RowText( byref d as const Diagnostic ) as ustring
+    if d.Kind = DiagKind.Related then return "    " & KindName( d.Kind ) & ": " & d.Message
+    return KindName( d.Kind ) & " " & d.Code & ": " & d.Message
+end function
+
+' ================================================================ the Results counts
+
+' One compile's counts, as ParseLogForError reckons them from the records and the exit code.
+public type ResultCounts
+    Errors        as long
+    Warnings      as long
+    Notes         as long
+    FirstError    as long = -1   ' index of the first error record with a location; -1 = none
+    ExitFailure   as boolean     ' failed by exit code with no error record: one row says so
+    ShowLog       as boolean     ' nothing to point at: the Compiler Log tab is the better view
+end type
+
+' haveReport: the file was read (Complete or Incomplete); notRequested: the compiler does not take
+' --diagnostics-file; exitCode: the compiler's (-1 = unknown). Every record is a row; a Complete
+' file's 'end' totals replace the counted errors and warnings (they include errors past
+' -fmax-errors); a non-zero exit with no error is one more error, and the log is the view.
+public function CountResults( byref rep as const DiagReport, byval haveReport as boolean, _
+        byval notRequested as boolean, byval exitCode as long ) as ResultCounts
+    dim as ResultCounts c
+    if haveReport then
+        for i as long = 0 to rep.Records.Count( ) - 1
+            select case rep.Records[i].Kind
+            case DiagKind.Error
+                c.Errors += 1
+                if ( rep.Records[i].Line > 0 ) andalso ( c.FirstError = -1 ) then c.FirstError = i
+            case DiagKind.Warning
+                c.Warnings += 1
+            case else
+                c.Notes += 1
+            end select
+        next
+        if rep.State = DiagState.Complete then
+            c.Errors = rep.Errors
+            c.Warnings = rep.Warnings
+        end if
+    end if
+    if ( c.Errors > 0 ) andalso ( c.FirstError = -1 ) then c.ShowLog = true
+    if notRequested andalso ( exitCode <> 0 ) then c.ShowLog = true
+    if ( exitCode <> 0 ) andalso ( c.Errors = 0 ) then
+        c.Errors += 1
+        c.ExitFailure = true
+        c.ShowLog = true
+    end if
+    return c
+end function

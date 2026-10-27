@@ -1,0 +1,148 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' mru -- a most-recently-used list (Recent Files, Recent Projects): the model only, no menu.
+' Ported from tiko-editor-tiko's eda/mru (the old modMRU.inc), whose UpdateMRUList moved an entry
+' to the front -- or pushed a new one in and let the tenth fall off -- over a fixed array of ten.
+'
+' THE RULES, kept from the old list: newest first; adding a path already present moves it to the
+' front instead of duplicating it; past the cap the OLDEST entry drops off; Clear empties it. Two
+' paths are the same entry when fs.PathEquals says so -- case-insensitive on Windows, as the old
+' ucase( ) compare was, and case-sensitive where the file system is.
+'
+' What changed: the old array kept "" holes (a cleared or never-filled slot); this list holds
+' only real entries, so Count is the number of menu items. RemoveMissing is new -- the old menu
+' offered a vanished file and failed on the click. The old "a NAMED project tracks its own files,
+' so they skip Recent Files" rule and the drive-letter rewrite (ProcessFromCurdriveApp) are the
+' app's: it decides what to Add. Persistence is the settings module's (Items / Assign).
+#module "mru"
+
+#import "std/containers"
+#import "std/fs"
+using containers
+
+' The old menus held ten of each.
+public const DEFAULT_CAP = 10
+
+public type RecentList
+    declare constructor( byval maxItems as long = DEFAULT_CAP )
+    ' Puts path first: moved there if present, else inserted (the oldest past the cap drops).
+    ' An empty path is ignored. TRUE when the list changed.
+    declare function Add( byref path as const ustring ) as boolean
+    ' Takes path out; TRUE when it was there.
+    declare function Remove( byref path as const ustring ) as boolean
+    ' Takes out every entry that is no longer a file or a folder on disk; returns how many.
+    declare function RemoveMissing( ) as long
+    declare sub Clear( )
+    declare function Count( ) as long
+    declare function Item( byval i as long ) as ustring       ' 0 = newest; "" out of range
+    declare function IndexOf( byref path as const ustring ) as long   ' -1 when absent
+    declare function Cap( ) as long
+    ' A new cap (at least 1); entries past it are dropped from the old end.
+    declare sub SetCap( byval maxItems as long )
+    ' The entries, newest first -- what settings.toml stores.
+    declare function Items( ) as Array( of ustring )
+    ' Replaces the list with saved entries (newest first): empties skipped, later duplicates of
+    ' an earlier entry dropped, cut to the cap.
+    declare sub Assign( byref saved as Array( of ustring ) )
+private:
+    declare sub Trim_( )
+    as Array( of ustring ) m_items
+    as long m_cap
+end type
+
+constructor RecentList( byval maxItems as long )
+    this.m_cap = maxItems
+    if this.m_cap < 1 then this.m_cap = 1
+end constructor
+
+function RecentList.IndexOf( byref path as const ustring ) as long
+    for i as long = 0 to this.m_items.Count( ) - 1
+        if fs.PathEquals( this.m_items[i], path ) then return i
+    next
+    return -1
+end function
+
+sub RecentList.Trim_( )
+    while this.m_items.Count( ) > this.m_cap
+        this.m_items.Remove( this.m_items.Count( ) - 1 )
+    wend
+end sub
+
+function RecentList.Add( byref path as const ustring ) as boolean
+    if len( path ) = 0 then return false
+    dim as long at = this.IndexOf( path )
+    if at = 0 then
+        ' already first: take the new spelling (the old list did), changed only if it differs
+        if this.m_items[0] = path then return false
+        this.m_items[0] = path
+        return true
+    end if
+    if at > 0 then this.m_items.Remove( at )
+    dim as ustring p = path
+    this.m_items.Insert( 0, p )
+    this.Trim_( )
+    return true
+end function
+
+function RecentList.Remove( byref path as const ustring ) as boolean
+    dim as long at = this.IndexOf( path )
+    if at < 0 then return false
+    this.m_items.Remove( at )
+    return true
+end function
+
+function RecentList.RemoveMissing( ) as long
+    dim as long n = 0
+    dim as long i = this.m_items.Count( ) - 1
+    while i >= 0
+        dim as ustring p = this.m_items[i]
+        if ( fs.IsFile( p ) = false ) andalso ( fs.IsDir( p ) = false ) then
+            this.m_items.Remove( i )
+            n += 1
+        end if
+        i -= 1
+    wend
+    return n
+end function
+
+sub RecentList.Clear( )
+    this.m_items.Clear( )
+end sub
+
+function RecentList.Count( ) as long
+    return this.m_items.Count( )
+end function
+
+function RecentList.Item( byval i as long ) as ustring
+    if ( i < 0 ) orelse ( i >= this.m_items.Count( ) ) then return ""
+    return this.m_items[i]
+end function
+
+function RecentList.Cap( ) as long
+    return this.m_cap
+end function
+
+sub RecentList.SetCap( byval maxItems as long )
+    this.m_cap = maxItems
+    if this.m_cap < 1 then this.m_cap = 1
+    this.Trim_( )
+end sub
+
+function RecentList.Items( ) as Array( of ustring )
+    return this.m_items
+end function
+
+sub RecentList.Assign( byref saved as Array( of ustring ) )
+    this.m_items.Clear( )
+    for each p as ustring in saved
+        if len( p ) = 0 then continue for
+        if this.IndexOf( p ) >= 0 then continue for
+        this.m_items.Push( p )
+    next
+    this.Trim_( )
+end sub

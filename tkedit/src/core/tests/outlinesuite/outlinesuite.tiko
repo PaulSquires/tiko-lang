@@ -1,0 +1,160 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+' outlinesuite -- tkc/outline: which lines start a definition and what they are called, with the
+' traps (declarations, aliases, block ends, comments of three kinds, block strings, anonymous
+' enums, operators, members defined outside their type) and all three line breaks.
+' textsearch rides along (SearchRun, LineEditRun).
+#module "outlinesuite"
+
+#import "std/containers"
+#import "std/fs"
+#import "std/strings"
+#import "tkc/outline"
+#import "tkc/textsearch"
+#import "../tally"
+using containers
+
+private function Listing( byref text as const ustring ) as ustring
+    dim as ustring s
+    for each y as outline.Symbol in outline.Scan( text )
+        if len( s ) then s &= "|"
+        s &= outline.KindWord( y.Kind ) & " " & y.Name & "@" & y.Line
+    next
+    return s
+end function
+
+public sub Run( byref c as tally.Checker )
+    c.Begin( "outline" )
+    dim as ustring nl = chr( 10 )
+    dim as ustring src = _
+        "' a comment: sub NotMe( )" & nl & _
+        "public sub Foo( byval x as long )" & nl & _
+        "end sub" & nl & _
+        "declare function Bar( ) as long" & nl & _
+        "private function Bar( ) as long" & nl & _
+        "    return 1" & nl & _
+        "end function" & nl & _
+        "type Alias as long" & nl & _
+        "type Point" & nl & _
+        "    declare constructor( )" & nl & _
+        "end type" & nl & _
+        "constructor Point( )" & nl & _
+        "end constructor" & nl & _
+        "public enum Color explicit" & nl & _
+        "end enum" & nl & _
+        "enum" & nl & _
+        "end enum" & nl & _
+        "public enum explicit" & nl & _
+        "end enum" & nl & _
+        "operator Point.+=( byref o as Point )" & nl & _
+        "end operator" & nl & _
+        "function Point.Len( ) as double" & nl & _
+        "end function" & nl & _
+        "/' block comment" & nl & _
+        "sub Hidden( )" & nl & _
+        "'/" & nl & _
+        "  REM sub AlsoHidden( )" & nl & _
+        "#macro Twice( x )" & nl & _
+        "#endmacro" & nl & _
+        "namespace geo" & nl & _
+        "end namespace" & nl & _
+        "union U" & nl & _
+        "end union" & nl & _
+        "static sub Quiet( )" & nl & _
+        "    exit sub" & nl & _
+        "end sub" & nl & _
+        "type<Point>( 1, 2 )" & nl
+    c.Same( Listing( src ), "sub Foo@1|function Bar@4|type Point@8|constructor Point@11|enum Color@13|" & _
+            "operator Point.+=@19|function Point.Len@21|#macro Twice@27|namespace geo@29|union U@31|sub Quiet@33", _
+            "definitions, and only definitions" )
+
+    dim as ustring q3 = chr( 34, 34, 34 )
+    dim as ustring blockStr = "dim s as string = " & q3 & nl & "sub InString( )" & nl & q3 & nl & "sub After( )" & nl
+    c.Same( Listing( blockStr ), "sub After@3", "a block string hides what is in it" )
+    dim as ustring crlf = "sub A( )" & chr( 13, 10 ) & "end sub" & chr( 13, 10 ) & "sub B( )" & chr( 13 ) & "sub C( )"
+    c.Same( Listing( crlf ), "sub A@0|sub B@2|sub C@3", "CRLF and CR line numbers" )
+    c.Same( Listing( "" ), "", "an empty text" )
+    c.Check( outline.IsProcedure( outline.SymbolKind.OperatorProc ) andalso _
+             (outline.IsProcedure( outline.SymbolKind.TypeDef ) = false), "procedures and blocks" )
+    SearchRun( c )
+end sub
+
+private function Spans( byref text as const ustring, byref phrase as const ustring, byval matchCase as boolean, _
+                        byval word as boolean ) as ustring
+    dim as textsearch.SearchOptions o
+    o.MatchCase = matchCase : o.WholeWord = word
+    dim as ustring s
+    for each m as textsearch.TextMatch in textsearch.FindAll( text, phrase, o )
+        if len( s ) then s &= "|"
+        s &= m.Start & ":" & m.Line & "," & m.Column
+    next
+    return s
+end function
+
+sub SearchRun( byref c as tally.Checker )
+    c.Begin( "textsearch" )
+    dim as ustring t = "dim x" & chr( 13, 10 ) & "X = x + xx" & chr( 10 ) & "print x_1; x"
+    c.Same( Spans( t, "x", false, false ), "4:0,4|7:1,0|11:1,4|15:1,8|16:1,9|24:2,6|29:2,11", "every x, any case, with line and column" )
+    c.Same( Spans( t, "x", true, false ), "4:0,4|11:1,4|15:1,8|16:1,9|24:2,6|29:2,11", "match case" )
+    c.Same( Spans( t, "x", false, true ), "4:0,4|7:1,0|11:1,4|29:2,11", "whole words: not xx, not x_1" )
+    c.Same( Spans( "aaaa", "aa", false, false ), "0:0,0|2:0,2", "matches do not overlap" )
+    c.Same( Spans( t, "", false, false ), "", "an empty phrase finds nothing" )
+    c.Same( Spans( t, "x" & chr( 10 ) & "p", false, false ), "", "a phrase never spans a line break" )
+    dim as textsearch.SearchOptions o
+    o.WholeWord = true
+    dim as long n
+    c.Same( textsearch.ReplaceAll( t, "x", "yy", o, n ), "dim yy" & chr( 13, 10 ) & "yy = yy + xx" & chr( 10 ) & "print x_1; yy", "replace whole words" )
+    c.SameNum( n, 4, "four replaced" )
+    c.Same( textsearch.ReplaceAll( "abc", "z", "q", o, n ), "abc", "nothing to replace" )
+    c.SameNum( n, 0, "none replaced" )
+    c.Same( textsearch.LineText( t, 1 ), "X = x + xx", "LineText CRLF" )
+    c.Same( textsearch.LineText( t, 2 ), "print x_1; x", "LineText last" )
+    c.Same( textsearch.LineText( t, 5 ), "", "LineText past the end" )
+    dim as ustring u = "caf" & wchr( &hE9 ) & " CAF" & wchr( &hC9 )
+    c.Same( Spans( u, "caf" & wchr( &hE9 ), false, true ), "0:0,0|5:0,5", "non-ASCII letters: any case, word-bounded" )
+    LineEditRun( c )
+end sub
+
+private function Joined( byref a as const Array( of ustring ) ) as ustring
+    dim as ustring s
+    for each x as ustring in a
+        s &= "[" & x & "]"
+    next
+    return s
+end function
+
+private sub AddEdit( byref es as Array( of textsearch.LineEdit ), byval ln as long, byref before as const ustring, _
+                     byref after as const ustring )
+    dim as textsearch.LineEdit e
+    e.Line = ln : e.Before = before : e.After = after
+    es.Push( e )
+end sub
+
+' The editable search results: lines split and written back.
+sub LineEditRun( byref c as tally.Checker )
+    c.Begin( "textsearch lines" )
+    dim as ustring crlf = chr( 13 ) & chr( 10 ), lf = chr( 10 ), cr = chr( 13 )
+    c.Same( Joined( textsearch.SplitLines( "a" & crlf & "b" & lf & "c" & cr & "d" ) ), "[a][b][c][d]", "SplitLines: CRLF, LF, CR" )
+    c.Same( Joined( textsearch.SplitLines( "a" & lf ) ), "[a]", "a final break ends the last line" )
+    c.Same( Joined( textsearch.SplitLines( "a" & lf & lf ) ), "[a][]", "an empty last line" )
+    c.SameNum( textsearch.SplitLines( "" ).Count( ), 0, "empty text: no lines" )
+    dim as ustring t = "one" & crlf & "two" & lf & "three" & cr & "four"
+    dim as Array( of textsearch.LineEdit ) es
+    AddEdit( es, 1, "two", "TWO" )
+    AddEdit( es, 3, "four", "4" )
+    dim as long ap, sk
+    c.Same( textsearch.ApplyLineEdits( t, es, ap, sk ), "one" & crlf & "TWO" & lf & "three" & cr & "4", "edits keep each line's own break" )
+    c.Check( (ap = 2) andalso (sk = 0), "two applied, none skipped" )
+    es.Clear( )
+    AddEdit( es, 0, "uno", "1" )                  ' the file changed since the search
+    AddEdit( es, 2, "three", "3" )
+    AddEdit( es, 9, "x", "y" )                    ' past the end
+    c.Same( textsearch.ApplyLineEdits( t, es, ap, sk ), "one" & crlf & "two" & lf & "3" & cr & "four", "a changed line is left as it is" )
+    c.Check( (ap = 1) andalso (sk = 2), strings.Format( "one applied, two skipped ({}, {})", ap, sk ) )
+    es.Clear( )
+    AddEdit( es, 0, "a", "b" )
+    c.Same( textsearch.ApplyLineEdits( "a" & lf, es, ap, sk ), "b" & lf, "the final break is kept" )
+    c.Same( textsearch.ApplyLineEdits( "", es, ap, sk ), "", "empty text: nothing to edit" )
+    c.SameNum( sk, 1, "and the edit is skipped" )
+end sub

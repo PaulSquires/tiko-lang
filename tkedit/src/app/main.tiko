@@ -1,0 +1,72 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+'   tkEdit [files...]     run it, restoring the last session, then opening the files
+'   tkEdit --selftest     drive the real window at scale 1.0 and 1.75, print what it saw;
+'                         exit code = failures, last line " selftest: N passed, M failed"
+'' std/* before anything that brings in vendor/SDL3 (Linux: crt/stdio.bi, tkControls FINDINGS)
+#import "std/containers"
+#import "std/fs"
+#import "std/strings"
+#import "tkp/platform"
+#import "tkc/project"
+#import "tka/mainwin"
+#import "./tests/selftest"
+#import "tkControls/tkApp"
+#import "tkControls/tkCodeEdit"
+using containers
+using tkApp
+using tkHost
+using tkCodeEdit
+
+dim as TKAPP_OPTIONS opts = mainwin.AppOptions( )
+if tkApp_Init( opts ) = false then
+    print "tkEdit: SDL could not start: "; *SDL_GetError( )
+    end 1
+end if
+
+if command( 1 ) = "--selftest" then
+    dim as selftest.Tally t
+    selftest.Pass( t, 1.0 )
+    selftest.Pass( t, 1.75 )
+    selftest.ConfigPass( t, 1.0 )
+    selftest.BufferPass( t, 1.0 )
+    selftest.SessionPass( t, 1.0 )
+    selftest.FindPass( t, 1.0 )
+    selftest.FindPass( t, 1.75 )
+    selftest.BuildPass( t, 1.0 )
+    selftest.IntelPass( t, 1.0 )
+    selftest.PolishPass( t, 1.0 )
+    tkApp_Shutdown( )
+    print strings.Format( "tkEdit [{}] selftest: {} passed, {} failed", platform.OsName( ), t.passed, t.failed )
+    end t.failed
+end if
+
+dim as mainwin.Window theWindow
+if theWindow.Create( ) = false then
+    print "tkEdit: the main window could not be created: "; *SDL_GetError( ); " "; tkCodeEdit_LibraryError( )
+    end 1
+end if
+' Files (or a project's tiko.toml) named on the command line take the place of the last session's files and
+' project; the window's place and the recent list come back either way.
+dim as Array( of ustring ) named
+dim as long i = 1
+while len( command( i ) )
+    dim as ustring a = command( i )
+    dim as ustring f = fs.AbsolutePath( a ).ValueOr( a )
+    if fs.IsFile( f ) then named.Push( f )
+    i += 1
+wend
+theWindow.RestoreSession( named.Count( ) = 0 )
+for each f as ustring in named
+    if project.IsManifest( f ) then theWindow.OpenFile( f )     ' a project first: it closes what is open
+next
+for each f as ustring in named
+    if project.IsManifest( f ) = false then theWindow.OpenFile( f )
+next
+theWindow.Show( )
+end tkApp_Run( theWindow.form )

@@ -1,0 +1,7 @@
+# Sources are LF on every OS (tiko-lang's convention); Windows-only scripts stay CRLF.
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.ttf binary
+*.png binary
+*.bmp binary

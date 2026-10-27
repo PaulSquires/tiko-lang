@@ -1,0 +1,107 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+' textsuite -- tkc/text and tkc/textstream: fields, sizes, the clock's shape, FSO's line rules, and
+' ReadText's encoding detection over files written byte by byte into a temporary folder.
+#module "textsuite"
+
+#import "std/fs"
+#import "std/codec"
+#import "std/containers"
+#import "std/outcome"
+#import "tkc/text"
+#import "tkc/textstream"
+#import "../tally"
+using containers
+using outcome
+
+private function Joined( byref a as Array( of ustring ) ) as ustring
+    dim as ustring o
+    for i as long = 0 to a.Count( ) - 1
+        if i then o &= "|"
+        o &= "[" & a[i] & "]"
+    next
+    return o
+end function
+
+private function Bytes( byref hexText as const ustring ) as Array( of ubyte )
+    dim as Array( of ubyte ) b
+    for i as long = 1 to len( hexText ) step 3
+        b.Push( valint( "&h" & mid( hexText, i, 2 ) ) )
+    next
+    return b
+end function
+
+' Writes the bytes, reads them back as text.
+private function ReadBack( byref dir_ as const ustring, byref name_ as const ustring, byref hexText as const ustring, _
+                           byref enc as ustring ) as ustring
+    dim as ustring p = fs.PathJoin( dir_, name_ )
+    fs.WriteAllBytes( p, Bytes( hexText ) )
+    dim as textstream.TextFileResult r = textstream.ReadText( p )
+    if r.IsOk( ) = false then
+        enc = "FAILED"
+        return ""
+    end if
+    enc = r.Value( ).Encoding.Name( )
+    if r.Value( ).Encoding.Bom then enc &= "+bom"
+    return r.Value( ).Text
+end function
+
+public sub Run( byref c as tally.Checker )
+    c.Begin( "text" )
+    c.Same( text.ParseField( "a,b,,d", 2 ), "b", "ParseField 2" )
+    c.Same( text.ParseField( "a,b,,d", 3 ), "", "ParseField empty field" )
+    c.Same( text.ParseField( "a,b,,d", 5 ), "", "ParseField past the end" )
+    c.Same( text.ParseField( "a,b,,d", 0 ), "", "ParseField 0" )
+    c.Same( text.ParseField( "IDM_X:Ctrl+S", 2, ":" ), "Ctrl+S", "ParseField with a delimiter" )
+    c.Same( text.ParseField( "x|-|y|-|z", 3, "|-|" ), "z", "ParseField with a long delimiter" )
+    c.Same( text.ParseFieldAny( "a;b,c", 3, ";," ), "c", "ParseFieldAny" )
+    c.Same( text.FormatKBSize( 0 ), "0 KB", "FormatKBSize 0" )
+    c.Same( text.FormatKBSize( 1 ), "1 KB", "FormatKBSize rounds up" )
+    c.Same( text.FormatKBSize( 1024 ), "1 KB", "FormatKBSize 1024" )
+    c.Same( text.FormatKBSize( 1025 ), "2 KB", "FormatKBSize 1025" )
+    c.Same( text.FormatKBSize( 1263616 ), "1,234 KB", "FormatKBSize groups thousands" )
+    c.Same( text.FormatKBSize( 1048576000ull * 1024 ), "1,048,576,000 KB", "FormatKBSize big" )
+    dim as ustring clk = text.Clock12( )
+    c.Check( ( len( clk ) = 8 ) andalso ( mid( clk, 3, 1 ) = ":" ) andalso ( mid( clk, 6, 1 ) = ":" ) _
+             andalso ( valint( left( clk, 2 ) ) >= 1 ) andalso ( valint( left( clk, 2 ) ) <= 12 ), "Clock12 is hh:mm:ss, 01..12" )
+
+    c.Begin( "textstream" )
+    dim as ustring CR = wchr( 13 ), LF = wchr( 10 )
+    c.Same( Joined( textstream.SplitLines( "a" & CR & LF & "b" & LF & "c" ) ), "[a]|[b]|[c]", "CR LF and LF end lines" )
+    c.Same( Joined( textstream.SplitLines( "a" & LF ) ), "[a]", "a final newline adds no empty line" )
+    c.Same( Joined( textstream.SplitLines( "a" & LF & LF ) ), "[a]|[]", "an empty last line is kept" )
+    c.Same( Joined( textstream.SplitLines( "a" & CR & "b" & LF ) ), "[a" & CR & "b]", "a bare CR is text" )
+    c.Same( Joined( textstream.SplitLines( "a" & CR & CR & LF ) ), "[a" & CR & "]", "only ONE CR before LF is dropped" )
+    c.Same( Joined( textstream.SplitLines( "" ) ), "", "no text, no lines" )
+    c.Same( Joined( textstream.SplitLines( LF ) ), "[]", "one newline, one empty line" )
+
+    dim as fs.FsResultUStr td = fs.CreateTempDir( "tscp4" )
+    c.Check( td.IsOk( ), "a temporary folder" )
+    if td.IsOk( ) = false then exit sub
+    dim as ustring dir_ = td.Value( ), enc
+    dim as ustring ue = "z" & wchr( &hFC ) & LF          ' "zü" LF
+    c.Same( ReadBack( dir_, "u8.txt", "7A C3 BC 0A", enc ), ue, "UTF-8 without a BOM" )
+    c.Same( enc, "utf-8", "  found utf-8" )
+    c.Same( ReadBack( dir_, "u8b.txt", "EF BB BF 7A C3 BC 0A", enc ), ue, "UTF-8 with a BOM, BOM consumed" )
+    c.Same( enc, "utf-8+bom", "  found utf-8 + BOM" )
+    c.Same( ReadBack( dir_, "u16.txt", "FF FE 7A 00 FC 00 0A 00", enc ), ue, "UTF-16LE with a BOM" )
+    c.Same( enc, "utf-16le+bom", "  found utf-16le + BOM" )
+    c.Same( ReadBack( dir_, "u16be.txt", "FE FF 00 7A 00 FC 00 0A", enc ), ue, "UTF-16BE with a BOM" )
+    c.Same( ReadBack( dir_, "ansi.txt", "7A FC 0A", enc ), ue, "not UTF-8: the ANSI / western code page" )
+    c.Check( ( enc = "ansi" ) orelse ( enc = "windows-1252" ), "  found ansi or windows-1252 (" & enc & ")" )
+    c.Same( ReadBack( dir_, "empty.txt", "", enc ), "", "an empty file is empty text" )
+
+    dim as ustring p = fs.PathJoin( dir_, "w.txt" )
+    dim as ustring sample = "line 1" & CR & LF & "l" & wchr( &hE9 ) & "ne " & wchr( &h4E2D, &hD83D, &hDE00 ) & LF
+    c.Check( textstream.WriteText( p, sample ).IsOk( ), "WriteText" )
+    dim as Array( of ubyte ) raw
+    fs.ReadAllBytes( p, raw )
+    c.Check( ( raw.Count( ) > 0 ) andalso ( raw[0] = &h6C ), "WriteText: UTF-8, no BOM" )
+    dim as textstream.TextFileResult back = textstream.ReadText( p )
+    c.Check( back.IsOk( ) andalso ( back.Value( ).Text = sample ), "WriteText -> ReadText round trip, non-BMP included" )
+    dim as Result( of Array( of ustring ), fs.FsError ) lines = textstream.ReadLines( p )
+    c.Check( lines.IsOk( ) andalso ( lines.Value( ).Count( ) = 2 ), "ReadLines: two lines" )
+    c.Check( textstream.ReadText( fs.PathJoin( dir_, "none.txt" ) ).IsOk( ) = false, "a missing file is a failure" )
+    fs.RemoveDirAll( dir_ )
+end sub

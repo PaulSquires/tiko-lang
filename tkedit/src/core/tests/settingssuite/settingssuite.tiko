@@ -1,0 +1,179 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+' settingssuite -- tkc/settings and tkc/theme: defaults, every key read, clamps and bad values,
+' ToToml with every key uncommented and reading back as what it wrote, WriteFile; themes parsed over the dark
+' default, warnings, the shipped dark.toml equal to DarkTheme, light.toml light, FindTheme order.
+#module "settingssuite"
+
+#import "std/containers"
+#import "std/outcome"
+#import "std/fs"
+#import "tkp/platform"
+#import "tkc/docencoding"
+#import "tkc/settings"
+#import "tkc/themes"
+#import "../tally"
+using containers
+using outcome
+
+private sub SettingsChecks( byref c as tally.Checker )
+    c.Begin( "settings" )
+    dim as settings.EditorSettings d = settings.DefaultSettings( )
+    c.SameNum( d.FontSize, 11, "font_size default" )
+    c.SameNum( d.TabSize, 4, "tab_size default" )
+    c.Check( d.LineNumbers andalso d.CaretLine andalso (d.UseTabs = false) andalso (d.FoldMargin = false), "editor flags default" )
+    c.Same( d.Theme, "dark", "theme default" )
+    c.SameNum( d.Builds.Count( ), 2, "two default builds" )
+    c.Same( d.DefaultBuild( ), "Debug", "Debug is the default build" )
+
+    ' the defaults' file: every key set, none commented out; it reads back as the defaults
+    dim as ustring nl = wchr( 10 )
+    dim as ustring dt = settings.ToToml( d )
+    c.Check( (instr( dt, nl & "font_size = 11" & nl ) > 0) andalso (instr( dt, nl & "tab_size = 4" & nl ) > 0), _
+             "ToToml sets every key" )
+    c.Check( (instr( dt, "# font_size" ) = 0) andalso (instr( dt, "# [[builds]]" ) = 0) andalso (instr( dt, "# name" ) = 0), _
+             "and comments none out" )
+    c.Check( instr( dt, nl & "[statusbar]" & nl & "show_project = true" ) > 0, "with the [statusbar] switches" )
+    c.Check( (instr( dt, "%APPDATA%\tkEdit\settings.toml" ) > 0) andalso (instr( dt, "~/.config/tkEdit/settings.toml" ) > 0) andalso _
+             (instr( dt, "~/Library/Application Support/tkEdit/settings.toml" ) > 0), "and says where it is kept on each platform" )
+    dim as settings.SettingsResult t = settings.ParseSettings( dt )
+    c.Check( t.IsOk( ), "the defaults' file is TOML" )
+    if t.IsOk( ) then
+        dim as settings.EditorSettings v = t.Value( )
+        c.Check( (v.FontSize = 11) andalso (v.Theme = "dark") andalso (v.Builds.Count( ) = 2) andalso v.AutoEnd, _
+                 "and reads as the defaults" )
+        c.Same( settings.ToToml( v ), dt, "and writes the same file again" )
+    end if
+
+    dim as ustring txt = "version = 1" & nl & "[editor]" & nl & "font_size = 14" & nl & "tab_size = 99" & nl & _
+        "use_tabs = true" & nl & "wrap = 'yes'" & nl & "[ui]" & nl & "theme = 'light'" & nl & _
+        "[statusbar]" & nl & "show_keys = false" & nl & _
+        "[files]" & nl & "new_eol = 'lf'" & nl & "new_encoding = 'utf8bom'" & nl & _
+        "[compiler]" & nl & "tiko = 'C:/t/tiko.exe'" & nl & "includes = ['a', 'b']" & nl & _
+        "[[builds]]" & nl & "name = 'Fast'" & nl & "options = '-O3'" & nl & _
+        "[[builds]]" & nl & "name = 'Dbg'" & nl & "default = true" & nl & _
+        "[[builds]]" & nl & "options = 'no name'" & nl
+    dim as settings.SettingsResult r = settings.ParseSettings( txt )
+    c.Check( r.IsOk( ), "a full file parses" )
+    if r.IsOk( ) then
+        dim as settings.EditorSettings s = r.Value( )
+        c.SameNum( s.FontSize, 14, "font_size read" )
+        c.SameNum( s.TabSize, 16, "tab_size clamped to 16" )
+        c.Check( s.UseTabs, "use_tabs read" )
+        c.Check( s.Wrap = false, "a mistyped wrap keeps its default" )
+        c.Same( s.Theme, "light", "theme read" )
+        c.Check( (s.ShowKeysPanel = false) andalso s.ShowProjectPanel andalso s.ShowSettingsPanel, "[statusbar] read, the rest defaults" )
+        c.Check( s.NewLineEnd = settings.NewEol.Lf, "new_eol read" )
+        c.Check( s.NewEncoding = docencoding.FileEncoding.Utf8Bom, "new_encoding read" )
+        c.Same( s.Tiko, "C:/t/tiko.exe", "tiko read" )
+        c.SameNum( s.Includes.Count( ), 2, "includes read" )
+        c.SameNum( s.Builds.Count( ), 2, "builds replace the defaults; a nameless one is skipped" )
+        c.Same( s.DefaultBuild( ), "Dbg", "the build marked default" )
+        ' written as it is in force, read back the same: a quote and a backslash in a value too
+        s.Tiko = "C:\it's\tiko.exe"
+        dim as settings.SettingsResult rr = settings.ParseSettings( settings.ToToml( s ) )
+        c.Check( rr.IsOk( ), "ToToml of the full file parses" )
+        if rr.IsOk( ) then
+            dim as settings.EditorSettings w = rr.Value( )
+            c.Check( (w.FontSize = 14) andalso (w.TabSize = 16) andalso w.UseTabs andalso (w.Theme = "light") andalso _
+                     (w.NewLineEnd = settings.NewEol.Lf) andalso (w.NewEncoding = docencoding.FileEncoding.Utf8Bom), _
+                     "and reads back its values" )
+            c.Same( w.Tiko, s.Tiko, "a quote and backslashes survive" )
+            c.Check( (w.Includes.Count( ) = 2) andalso (w.Includes[1] = "b"), "includes survive" )
+            c.Check( (w.Builds.Count( ) = 2) andalso (w.DefaultBuild( ) = "Dbg") andalso (w.Builds[0].Options = "-O3"), _
+                     "builds survive" )
+        end if
+    end if
+    dim as settings.SettingsResult bad = settings.ParseSettings( "[editor" & nl & "x = 1" )
+    c.Check( bad.IsOk( ) = false, "not TOML fails" )
+    if bad.IsOk( ) = false then c.SameNum( bad.Failure( ).Line( ), 1, "and says the line" )
+
+    dim as fs.FsResultUStr tmp = fs.CreateTempDir( "setsuite" )
+    c.Check( tmp.IsOk( ), "a temp folder" )
+    if tmp.IsOk( ) = false then exit sub
+    dim as ustring p = fs.PathJoin( tmp.Value( ), "cfg", settings.SETTINGS_FILE )
+    c.Check( settings.WriteFile( p, d ), "WriteFile writes the file, and its folder" )
+    c.Check( settings.WriteFile( p, d ) = false, "and not again when it holds that already" )
+    dim as settings.SettingsResult l = settings.LoadSettings( p )
+    c.Check( l.IsOk( ) andalso (l.Value( ).TabSize = 4), "the written file loads" )
+    fs.WriteAtomic( p, "[editor]" & nl & "tab_size = 2" & nl )
+    dim as settings.EditorSettings e = settings.LoadSettings( p ).ValueOr( d )
+    c.Check( settings.WriteFile( p, e ), "a file missing keys is rewritten" )
+    dim as ustring et = fs.ReadAllText( p ).ValueOr( "" )
+    c.Check( (instr( et, "tab_size = 2" ) > 0) andalso (instr( et, "font_size = 11" ) > 0), "with its value and every other key" )
+    c.Check( settings.LoadSettings( fs.PathJoin( tmp.Value( ), "none.toml" ) ).IsOk( ), "a missing file is the defaults" )
+    fs.RemoveDirAll( tmp.Value( ) )
+end sub
+
+private sub ThemeChecks( byref c as tally.Checker )
+    c.Begin( "theme" )
+    c.SameNum( themes.ParseColor( "#1E1e1f" ), &h1E1E1F, "ParseColor, either case" )
+    c.SameNum( themes.ParseColor( "1e1e1e" ), -1, "no # is refused" )
+    c.SameNum( themes.ParseColor( "#1e1e1g" ), -1, "a bad digit is refused" )
+    c.Same( themes.FormatColor( &h0E639C ), "#0e639c", "FormatColor" )
+    dim as themes.Theme d = themes.DarkTheme( )
+    c.Check( d.IsDark( ), "DarkTheme is dark" )
+
+    dim as ustring nl = wchr( 10 )
+    dim as themes.ThemeResult r = themes.ParseTheme( "[ui]" & nl & "bg = '#ffffff'" & nl & "fg = 'red'" & nl & _
+        "[syntax]" & nl & "keyword = { fg = '#0000ff', bold = true }" & nl & "comment = '#008000'" & nl & _
+        "string = 3" & nl & "colour = 1" & nl, "mine" )
+    c.Check( r.IsOk( ), "a partial theme parses" )
+    if r.IsOk( ) then
+        dim as themes.Theme t = r.Value( )
+        c.Same( t.Name, "mine", "the name given" )
+        c.SameNum( t.Bg, &hFFFFFF, "ui.bg read" )
+        c.SameNum( t.Fg, d.Fg, "a bad colour keeps the default" )
+        c.Check( t.IsDark( ) = false, "a white background is light" )
+        c.Check( (t.Keyword.Fore = &h0000FF) andalso t.Keyword.Bold, "a style table" )
+        c.Check( (t.Comment.Fore = &h008000) andalso (t.Comment.Italic = false), "a plain colour clears the style" )
+        c.SameNum( t.EdBg, d.EdBg, "a missing key keeps the default" )
+        dim as ustring ws
+        for each x as ustring in t.Warnings
+            ws &= " [" & x & "]"
+        next
+        c.Check( t.Warnings.Count( ) = 3, "three warnings, ui.fg, syntax.string, syntax.colour:" & ws )
+    end if
+    c.Check( themes.ParseTheme( "[ui", "x" ).IsOk( ) = false, "not TOML fails" )
+
+    ' the shipped files: src/core/tests/bin -> the repo root is four folders up
+    dim as ustring res = platform.ResourceDir( ).ValueOr( "" )
+    dim as ustring root = fs.PathParent( fs.PathParent( fs.PathParent( fs.PathParent( platform.ExeDir( ) ) ) ) )
+    if fs.IsDir( fs.PathJoin( root, themes.THEME_DIR ) ) then res = root
+    dim as ustring df = themes.FindTheme( "dark", "", res )
+    c.Check( len( df ) > 0, "dark.toml is shipped (" & res & ")" )
+    if len( df ) then
+        dim as themes.ThemeResult sd = themes.LoadTheme( df, "dark" )
+        c.Check( sd.IsOk( ) andalso (sd.Value( ).Warnings.Count( ) = 0), "dark.toml loads clean" )
+        if sd.IsOk( ) then
+            dim as themes.Theme s = sd.Value( )
+            c.Check( (s.Bg = d.Bg) andalso (s.Selection = d.Selection) andalso (s.Keyword4.Fore = d.Keyword4.Fore) _
+                     andalso s.Comment.Italic andalso (s.Bookmark = d.Bookmark), "dark.toml = DarkTheme" )
+        end if
+    end if
+    dim as ustring lf = themes.FindTheme( "light", "", res )
+    if len( lf ) then
+        dim as themes.ThemeResult sl = themes.LoadTheme( lf, "light" )
+        c.Check( sl.IsOk( ) andalso (sl.Value( ).Warnings.Count( ) = 0) andalso (sl.Value( ).IsDark( ) = false), _
+                 "light.toml loads clean and is light" )
+    else
+        c.Check( false, "light.toml is shipped" )
+    end if
+    c.Same( themes.FindTheme( "nope", "", res ), "", "an unknown theme has no file" )
+
+    ' the user's copy wins
+    dim as fs.FsResultUStr tmp = fs.CreateTempDir( "themesuite" )
+    if tmp.IsOk( ) then
+        fs.CreateDirAll( fs.PathJoin( tmp.Value( ), themes.THEME_DIR ) )
+        dim as ustring mine = fs.PathJoin( tmp.Value( ), themes.THEME_DIR, "dark.toml" )
+        fs.WriteAllText( mine, "[ui]" & nl & "bg = '#000000'" & nl )
+        c.Same( themes.FindTheme( "dark", tmp.Value( ), res ), mine, "the config folder's theme wins" )
+        fs.RemoveDirAll( tmp.Value( ) )
+    end if
+end sub
+
+public sub Run( byref c as tally.Checker )
+    SettingsChecks( c )
+    ThemeChecks( c )
+end sub

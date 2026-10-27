@@ -1,0 +1,189 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' outputpane -- the toggleable pane under the editors (D4): hidden until Ctrl+F9 or a failed build,
+' three tabs:
+'   Results   the build's diagnostics, a header row per file; Enter or a double click goes there
+'   Log       what tiko printed, less its JSON events
+'   Search    Find in Project's matches, a header row per file; Enter or a double click goes there
+' Rows carry an index the owner gives; what activating one means is the owner's (OnActivate).
+' After tiko-studio's tsa/outputpane: its Results, Compiler Log and Search Results (PROVENANCE.md).
+#module "outputpane"
+
+#import "std/containers"
+#import "tkControls/tkApp"
+#import "tkControls/tkTabBar"
+#import "tkControls/tkListTree"
+#import "tkControls/tkTextBox"
+using containers
+using tkApp
+using tkHost
+using tkPaint
+using tkTheme
+using tkTabBar
+using tkListTree
+using tkTextBox
+
+public enum OutputTab explicit
+    Results = 0
+    CompilerLog = 1
+    Search = 2
+end enum
+
+public type OutputActivateSub as sub( byval owner as any ptr, byval tab_ as OutputTab, byval itemIndex as long )
+
+public const TAB_CY = 26
+public const PANE_CY = 170               ' the pane's height, unscaled
+const ID_TABS = 1
+const ID_RESULTS = 10
+const ID_LOG = 11
+const ID_SEARCH = 12
+
+public type Pane
+    owner as any ptr
+    OnActivate as OutputActivateSub
+    frame as TK_WIDGET ptr
+    tabs as TK_WIDGET ptr
+    results as TK_WIDGET ptr
+    logBox as TK_WIDGET ptr
+    search as TK_WIDGET ptr
+    searchPressed as boolean            ' the button went down on a Search row
+    current as OutputTab
+
+    declare sub Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ as any ptr )
+    declare sub Layout( )
+    declare sub ShowTab( byval t as OutputTab )
+    declare function Content( byval t as OutputTab ) as TK_WIDGET ptr
+    declare sub SetLog( byref text as const ustring )
+    declare function LogText( ) as ustring
+    declare sub Focus( )
+    declare sub ApplyColors( )                  ' after a theme change
+end type
+
+private function PaneOf( byval w as TK_WIDGET ptr ) as Pane ptr
+    while w
+        if w->ctrlId < 0 then return w->pData
+        w = w->pParent
+    wend
+    return 0
+end function
+
+private function FrameProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    select case m->msg
+    case TKM_PAINT
+        dim as TKRECT rc
+        tkRect_Set( rc, 0, 0, w->cw, w->ch )
+        m->pPaint->SetBackColor( tkTheme_Get( ).Surface )
+        m->pPaint->PaintRect( @rc )
+        return true
+    case TKM_SIZE
+        cast( Pane ptr, w->pData )->Layout( )
+        return true
+    case TKM_THEMECHANGED
+        tkWidget_Invalidate( w )
+        return true
+    end select
+    return false
+end function
+
+sub Pane.Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ as any ptr )
+    owner = owner_
+    frame = tkWidget_CreateChild( parent, -id, @FrameProc, @this )
+    tabs = tkTabBar_Create( frame, ID_TABS )
+    tkTabBar_AddTab( tabs, "Results" )
+    tkTabBar_AddTab( tabs, "Log" )
+    tkTabBar_AddTab( tabs, "Search" )
+    for i as long = 0 to 2
+        tkTabBar_SetClosable( tabs, i, false )
+    next
+    tkTabBar_SetSelChangeCallback( tabs, sub( byval h as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long )
+        dim as Pane ptr p = PaneOf( h )
+        if p then p->ShowTab( cast( OutputTab, idxNew ) )
+    end sub )
+    results = tkListTree_Create( frame, ID_RESULTS )
+    logBox = tkTextBox_Create( frame, ID_LOG, true )
+    tkTextBox_SetReadOnly( logBox, true )
+    tkTextBox_SetBorderWidth( logBox, 0 )   ' no frame: Results and Search have none (author 2026-10-27)
+    dim as TK_FORM ptr f = tkForm_FromWidget( frame )
+    if f then tkTextBox_SetFont( logBox, tkForm_Font( f, TKFONT_MONO ) )
+    this.ApplyColors( )
+    search = tkListTree_Create( frame, ID_SEARCH )
+    dim as LT_ActivateCallbackSub act = sub( byval h as TK_WIDGET ptr, byval row as integer )
+        dim as Pane ptr p = PaneOf( h )
+        if (p = 0) orelse (p->OnActivate = 0) then exit sub
+        dim as OutputTab t = OutputTab.Results
+        if h->ctrlId = ID_SEARCH then t = OutputTab.Search
+        p->OnActivate( p->owner, t, tkListTree_GetItemData( h, row ) )
+    end sub
+    tkListTree_SetActivateCallback( results, act )
+    tkListTree_SetActivateCallback( search, act )
+    tkListTree_SetPaintCallback( results, @tkListTree_PaintRowDefault )   ' a tkListTree draws no row by itself
+    ' a Search row opens on one click: a press on a row, then its release there
+    tkListTree_SetMessageCallback( search, function( byval mi as TKLISTTREE_MESSAGEINFO ptr ) as boolean
+        dim as Pane ptr p = PaneOf( mi->hList )
+        if p = 0 then return false
+        if mi->msg = TKM_LBUTTONDOWN then
+            p->searchPressed = (mi->idx >= 0)
+            return false
+        end if
+        if mi->msg <> TKM_LBUTTONUP then return false
+        dim as boolean wasPressed = p->searchPressed
+        p->searchPressed = false
+        if (mi->idx < 0) orelse (wasPressed = false) orelse (p->OnActivate = 0) then return false
+        p->OnActivate( p->owner, OutputTab.Search, tkListTree_GetItemData( mi->hList, mi->idx ) )
+        return true
+    end function )
+    tkListTree_SetPaintCallback( search, @tkListTree_PaintRowDefault )
+    this.ShowTab( OutputTab.Results )
+    tkWidget_Show( frame, false )
+end sub
+
+sub Pane.Layout( )
+    if frame = 0 then exit sub
+    dim as long th = tkHost_Scale( frame->pHost, TAB_CY )
+    tkWidget_SetPos( tabs, 0, 0, frame->cw, th )
+    tkWidget_SetPos( results, 0, th, frame->cw, frame->ch - th )
+    tkWidget_SetPos( logBox, 0, th, frame->cw, frame->ch - th )
+    tkWidget_SetPos( search, 0, th, frame->cw, frame->ch - th )
+end sub
+
+sub Pane.ShowTab( byval t as OutputTab )
+    current = t
+    tkWidget_Show( results, t = OutputTab.Results )
+    tkWidget_Show( logBox, t = OutputTab.CompilerLog )
+    tkWidget_Show( search, t = OutputTab.Search )
+    if tkTabBar_GetCurSel( tabs ) <> cast( long, t ) then tkTabBar_SetCurSel( tabs, t )
+end sub
+
+function Pane.Content( byval t as OutputTab ) as TK_WIDGET ptr
+    if t = OutputTab.CompilerLog then return logBox
+    if t = OutputTab.Search then return search
+    return results
+end function
+
+sub Pane.SetLog( byref text as const ustring )
+    tkTextBox_SetText( logBox, text )
+end sub
+
+function Pane.LogText( ) as ustring
+    return tkTextBox_GetText( logBox )
+end function
+
+sub Pane.Focus( )
+    tkHost_SetFocus( frame->pHost, this.Content( current ) )
+end sub
+
+' The Log tab's box in the Results and Search lists' background (a text box's own is the theme's
+' Surface): pinned, so it is applied again after every theme change (author 2026-10-27).
+sub Pane.ApplyColors( )
+    if logBox = 0 then exit sub
+    dim as TKTHEME_COLORS t = tkTheme_Get( )
+    dim as TKTEXTBOX_COLORS c = tkTextBox_ThemeColors( t )
+    c.BackColor = t.Window
+    c.OuterBackColor = t.Window
+    tkTextBox_SetColors( logBox, @c )
+end sub

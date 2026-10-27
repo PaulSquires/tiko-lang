@@ -1,0 +1,348 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' findstrip -- the strip above the status line for Find, Replace and Go to Line (D10). One row
+' for Find and Go to Line, two for Replace:
+'
+'     Find:     [phrase.............]  Aa  W  .*  Sel  <  >  x   3 of 10
+'     Replace:  [replacement........]  Replace  All
+'
+'     Line:     [42.................]  1 - 380
+'
+'     In files: [phrase.............]  Aa  W  .*        (Find in Project: Enter searches)
+'
+' Esc closes it; Enter finds the next match (Shift+Enter the previous), in the replace box it
+' replaces one; Ctrl+Alt+Enter replaces all; Tab moves between the boxes. The strip only holds the
+' phrase and the options -- the owner searches (CodeView.Find & co.) when told, through OnAction.
+' After tiko-studio's tsa/findbar (PROVENANCE.md).
+#module "findstrip"
+
+#import "std/containers"
+#import "tka/editor"
+#import "tkControls/tkApp"
+#import "tkControls/tkTextBox"
+#import "tkControls/tkToolbar"
+using containers
+using tkApp
+using tkHost
+using tkPaint
+using tkTheme
+using tkTextBox
+using tkToolbar
+
+public enum StripMode explicit
+    Find = 0
+    Replace
+    GoTo
+    Project               ' Find in Project: the phrase searched in every file on Enter
+    Args                  ' Run Arguments: the program's arguments, set on Enter
+end enum
+
+public enum FindAction explicit
+    Changed               ' the phrase or an option changed: search again from the selection
+    NextMatch
+    PrevMatch
+    ReplaceOne
+    ReplaceEvery
+    GoToLine              ' Enter in Go to Line
+    SearchFiles           ' Enter in Find in Project
+    SetArgs               ' Enter in Run Arguments
+    CloseStrip
+end enum
+
+public type FindActionSub as sub( byval owner as any ptr, byval a as FindAction )
+
+public const ROW_CY = 26                 ' one row, unscaled
+const LABEL_CX = 84
+const BOX_CX = 280
+const ID_FIND = 1
+const ID_REPLACE = 2
+const ID_TOOLS = 3
+const ID_RTOOLS = 4
+const TB_CASE = 10
+const TB_WORD = 11
+const TB_REGEX = 12
+const TB_SEL = 13
+const TB_PREV = 14
+const TB_NEXT = 15
+const TB_CLOSE = 16
+const TB_REPLACE = 17
+const TB_REPLACE_ALL = 18
+
+public type Strip
+    owner as any ptr
+    OnAction as FindActionSub
+    frame as TK_WIDGET ptr
+    findBox as TK_WIDGET ptr
+    replaceBox as TK_WIDGET ptr
+    tools as TK_WIDGET ptr
+    rtools as TK_WIDGET ptr
+    status as ustring                    ' "3 of 10", "No matches", "1 - 380"
+    Mode as StripMode
+    isOpen as boolean
+
+    declare sub Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ as any ptr )
+    declare function Height( ) as long                     ' pixels the strip wants, 0 when closed
+    declare sub Open( byval m as StripMode, byref seed as const ustring, byval canSelect as boolean )
+    declare sub Close( )
+    declare sub Layout( )
+    declare function Phrase( ) as ustring
+    declare function Replacement( ) as ustring
+    declare sub SetPhrase( byref s as const ustring )
+    declare sub SetReplacement( byref s as const ustring )
+    declare function Options( ) as editor.FindOptions      ' the toggles; the owner adds the range
+    declare sub SetOptions( byref o as const editor.FindOptions )
+    declare sub SetStatus( byref s as const ustring )
+    declare sub Fire( byval a as FindAction )
+    declare function HasFocus( ) as boolean
+    declare sub FocusFind( )
+end type
+
+private function StripOf( byval w as TK_WIDGET ptr ) as Strip ptr
+    while w
+        if w->ctrlId < 0 then return w->pData
+        w = w->pParent
+    wend
+    return 0
+end function
+
+' The toolbars sit on the strip's Surface, not their own default Window back colour. Pinned, so a
+' theme change repaints them only through here.
+private sub MatchTools( byval st as Strip ptr )
+    dim as TKTOOLBAR_COLORS c = tkToolbar_ThemeColors( tkTheme_Get( ) )
+    c.BackColor = tkTheme_Get( ).Surface
+    tkToolbar_SetColors( st->tools, @c )
+    tkToolbar_SetColors( st->rtools, @c )
+end sub
+
+private function FrameProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    select case m->msg
+    case TKM_PAINT
+        dim as Strip ptr st = w->pData
+        dim as TKRECT rc
+        tkRect_Set( rc, 0, 0, w->cw, w->ch )
+        m->pPaint->SetBackColor( tkTheme_Get( ).Surface )
+        m->pPaint->PaintRect( @rc )
+        dim as long rowH = tkHost_Scale( w->pHost, ROW_CY ), pad = tkHost_Scale( w->pHost, 6 )
+        dim as TK_FORM ptr f = tkForm_FromWidget( w )
+        if f then m->pPaint->SetFont( tkForm_Font( f, TKFONT_UI ) )
+        m->pPaint->SetForeColor( tkTheme_Get( ).TextDim )
+        ' the labels
+        dim as TKRECT lb
+        tkRect_Set( lb, pad, 0, tkHost_Scale( w->pHost, LABEL_CX ), rowH )
+        dim as ustring first = "Find:"
+        if st->Mode = StripMode.GoTo then first = "Line:"
+        if st->Mode = StripMode.Project then first = "In files:"
+        if st->Mode = StripMode.Args then first = "Arguments:"
+        m->pPaint->PaintText( first, @lb, TK_DT_LEFT or TK_DT_VCENTER )
+        if st->Mode = StripMode.Replace then
+            tkRect_Set( lb, pad, rowH, tkHost_Scale( w->pHost, LABEL_CX ), rowH * 2 )
+            m->pPaint->PaintText( "Replace:", @lb, TK_DT_LEFT or TK_DT_VCENTER )
+        end if
+        ' the count, right of the tools (of the box in Go to Line)
+        dim as long sx = st->findBox->x + st->findBox->cw + pad
+        if (st->Mode <> StripMode.GoTo) andalso (st->Mode <> StripMode.Args) then sx = st->tools->x + st->tools->cw + pad
+        dim as TKRECT sr
+        tkRect_Set( sr, sx, 0, w->cw, rowH )
+        m->pPaint->PaintText( st->status, @sr, TK_DT_LEFT or TK_DT_VCENTER or TK_DT_ELLIPSIS )
+        return true
+    case TKM_SIZE
+        cast( Strip ptr, w->pData )->Layout( )
+        return true
+    case TKM_THEMECHANGED
+        MatchTools( w->pData )
+        tkWidget_Invalidate( w )
+        return true
+    end select
+    return false
+end function
+
+' The boxes' own keys: Esc, Enter, Shift+Enter, Ctrl+Alt+Enter. A claimed key's text is
+' swallowed with it (the TKM_CHAR of Enter would otherwise reach the box).
+private function BoxKeys( byval m as TKTEXTBOX_MESSAGEINFO ptr ) as boolean
+    dim as Strip ptr st = StripOf( m->hTextBox )
+    if st = 0 then return false
+    if m->msg = TKM_CHAR then
+        return (m->text = chr( 13 )) orelse (m->text = chr( 10 )) orelse (m->text = chr( 27 ))
+    end if
+    if m->msg <> TKM_KEYDOWN then return false
+    select case m->key
+    case SDLK_ESCAPE
+        st->Fire( FindAction.CloseStrip )
+        return true
+    case SDLK_RETURN, SDLK_KP_ENTER
+        dim as boolean ctrlAlt = ((m->mods and SDL_KMOD_CTRL) <> 0) andalso ((m->mods and SDL_KMOD_ALT) <> 0)
+        if st->Mode = StripMode.GoTo then
+            st->Fire( FindAction.GoToLine )
+        elseif st->Mode = StripMode.Project then
+            st->Fire( FindAction.SearchFiles )
+        elseif st->Mode = StripMode.Args then
+            st->Fire( FindAction.SetArgs )
+        elseif ctrlAlt then
+            if st->Mode = StripMode.Replace then st->Fire( FindAction.ReplaceEvery )
+        elseif m->hTextBox = st->replaceBox then
+            st->Fire( FindAction.ReplaceOne )
+        elseif (m->mods and SDL_KMOD_SHIFT) <> 0 then
+            st->Fire( FindAction.PrevMatch )
+        else
+            st->Fire( FindAction.NextMatch )
+        end if
+        return true
+    end select
+    return false
+end function
+
+sub Strip.Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ as any ptr )
+    owner = owner_
+    frame = tkWidget_CreateChild( parent, -id, @FrameProc, @this )
+    findBox = tkTextBox_Create( frame, ID_FIND )
+    replaceBox = tkTextBox_Create( frame, ID_REPLACE )
+    tkTextBox_SetSelectOnFocus( findBox, true )
+    tkTextBox_SetChangeCallback( findBox, sub( byval h as TK_WIDGET ptr )
+        dim as Strip ptr st = StripOf( h )
+        if st andalso (st->Mode <> StripMode.GoTo) andalso (st->Mode <> StripMode.Project) andalso (st->Mode <> StripMode.Args) then st->Fire( FindAction.Changed )
+    end sub )
+    tkTextBox_SetMessageCallback( findBox, @BoxKeys )
+    tkTextBox_SetMessageCallback( replaceBox, @BoxKeys )
+
+    tools = tkToolbar_Create( frame, ID_TOOLS )
+    tkToolbar_AddItem( tools, TBR_KIND_TOGGLE, "", "Aa", TB_CASE )
+    tkToolbar_AddItem( tools, TBR_KIND_TOGGLE, "", "W", TB_WORD )
+    tkToolbar_AddItem( tools, TBR_KIND_TOGGLE, "", ".*", TB_REGEX )
+    tkToolbar_AddItem( tools, TBR_KIND_TOGGLE, "", "Sel", TB_SEL )
+    tkToolbar_AddSeparator( tools )
+    tkToolbar_AddItem( tools, TBR_KIND_COMMAND, !"", "", TB_PREV )
+    tkToolbar_AddItem( tools, TBR_KIND_COMMAND, !"", "", TB_NEXT )
+    tkToolbar_AddItem( tools, TBR_KIND_COMMAND, !"", "", TB_CLOSE )
+    rtools = tkToolbar_Create( frame, ID_RTOOLS )
+    tkToolbar_AddItem( rtools, TBR_KIND_COMMAND, "", "Replace", TB_REPLACE )
+    tkToolbar_AddItem( rtools, TBR_KIND_COMMAND, "", "All", TB_REPLACE_ALL )
+    dim as TBR_ClickCallbackSub onClick = sub( byval h as TK_WIDGET ptr, byval idx as long, byval cid as long )
+        dim as Strip ptr st = StripOf( h )
+        select case cid
+        case TB_CASE, TB_WORD, TB_REGEX, TB_SEL : st->Fire( FindAction.Changed )
+        case TB_PREV : st->Fire( FindAction.PrevMatch )
+        case TB_NEXT : st->Fire( FindAction.NextMatch )
+        case TB_CLOSE : st->Fire( FindAction.CloseStrip )
+        case TB_REPLACE : st->Fire( FindAction.ReplaceOne )
+        case TB_REPLACE_ALL : st->Fire( FindAction.ReplaceEvery )
+        end select
+    end sub
+    tkToolbar_SetClickCallback( tools, onClick )
+    tkToolbar_SetClickCallback( rtools, onClick )
+    MatchTools( @this )
+    ' the prev / next / close glyphs are PsIcons codepoints: without this the toolbar draws them in
+    ' the UI font, as boxes
+    dim as TK_FORM ptr fm = tkForm_FromWidget( frame )
+    if fm then tkToolbar_SetGlyphFont( tools, tkForm_Font( fm, TKFONT_GLYPH ) )
+    tkWidget_Show( frame, false )
+end sub
+
+sub Strip.Fire( byval a as FindAction )
+    if OnAction then OnAction( owner, a )
+end sub
+
+function Strip.Height( ) as long
+    if isOpen = false then return 0
+    dim as long h = tkHost_Scale( frame->pHost, ROW_CY )
+    if Mode = StripMode.Replace then return h * 2
+    return h
+end function
+
+' Shows it in mode m, the phrase seeded from the selection (one line only), the first box focused
+' and selected. canSelect: there is a multi-line selection, so "Sel" may limit the search to it --
+' and starts on.
+sub Strip.Open( byval m as StripMode, byref seed as const ustring, byval canSelect as boolean )
+    dim as StripMode was = Mode
+    Mode = m
+    isOpen = true
+    if m = StripMode.GoTo then
+        tkTextBox_SetText( findBox, "" )
+    elseif m = StripMode.Args then
+        tkTextBox_SetText( findBox, seed )                  ' the arguments as they are, one line
+    else
+        if (was = StripMode.GoTo) orelse (was = StripMode.Args) then tkTextBox_SetText( findBox, "" )
+        if (len( seed ) > 0) andalso (instr( seed, chr( 10 ) ) = 0) then tkTextBox_SetText( findBox, seed )
+        dim as long sel = tkToolbar_FindItemByID( tools, TB_SEL )
+        tkToolbar_SetEnabled( tools, sel, canSelect andalso (m <> StripMode.Project) )
+        tkToolbar_SetSelected( tools, sel, canSelect andalso (m <> StripMode.Project) )
+    end if
+    status = ""
+    tkWidget_Show( frame, true )
+    tkWidget_Show( tools, (m <> StripMode.GoTo) andalso (m <> StripMode.Args) )
+    tkWidget_Show( replaceBox, m = StripMode.Replace )
+    tkWidget_Show( rtools, m = StripMode.Replace )
+    this.Layout( )
+    this.FocusFind( )
+end sub
+
+sub Strip.FocusFind( )
+    tkHost_SetFocus( frame->pHost, findBox )
+    tkTextBox_SelectAll( findBox )
+end sub
+
+sub Strip.Close( )
+    isOpen = false
+    tkWidget_Show( frame, false )
+end sub
+
+function Strip.HasFocus( ) as boolean
+    if isOpen = false then return false
+    dim as TK_WIDGET ptr f = tkHost_GetFocus( frame->pHost )
+    return (f = findBox) orelse (f = replaceBox)
+end function
+
+sub Strip.Layout( )
+    if frame = 0 then exit sub
+    dim as TK_HOST ptr h = frame->pHost
+    dim as long rowH = tkHost_Scale( h, ROW_CY ), pad = tkHost_Scale( h, 3 )
+    dim as long lx = tkHost_Scale( h, LABEL_CX ) + tkHost_Scale( h, 6 )
+    dim as long boxW = tkHost_Scale( h, BOX_CX ), boxH = rowH - 2 * pad
+    dim as long toolW = tkHost_Scale( h, 8 * 30 )
+    if boxW > frame->cw / 2 then boxW = frame->cw / 2
+    tkWidget_SetPos( findBox, lx, pad, boxW, boxH )
+    tkWidget_SetPos( tools, lx + boxW + pad * 2, 0, toolW, rowH )
+    tkWidget_SetPos( replaceBox, lx, rowH + pad, boxW, boxH )
+    tkWidget_SetPos( rtools, lx + boxW + pad * 2, rowH, tkHost_Scale( h, 160 ), rowH )
+end sub
+
+function Strip.Phrase( ) as ustring
+    return tkTextBox_GetText( findBox )
+end function
+
+function Strip.Replacement( ) as ustring
+    return tkTextBox_GetText( replaceBox )
+end function
+
+sub Strip.SetPhrase( byref s as const ustring )
+    tkTextBox_SetText( findBox, s )
+end sub
+
+sub Strip.SetReplacement( byref s as const ustring )
+    tkTextBox_SetText( replaceBox, s )
+end sub
+
+function Strip.Options( ) as editor.FindOptions
+    dim as editor.FindOptions o
+    o.MatchCase = tkToolbar_GetSelected( tools, tkToolbar_FindItemByID( tools, TB_CASE ) )
+    o.WholeWord = tkToolbar_GetSelected( tools, tkToolbar_FindItemByID( tools, TB_WORD ) )
+    o.Regex = tkToolbar_GetSelected( tools, tkToolbar_FindItemByID( tools, TB_REGEX ) )
+    o.InSelection = tkToolbar_GetSelected( tools, tkToolbar_FindItemByID( tools, TB_SEL ) )
+    return o
+end function
+
+sub Strip.SetOptions( byref o as const editor.FindOptions )
+    tkToolbar_SetSelected( tools, tkToolbar_FindItemByID( tools, TB_CASE ), o.MatchCase )
+    tkToolbar_SetSelected( tools, tkToolbar_FindItemByID( tools, TB_WORD ), o.WholeWord )
+    tkToolbar_SetSelected( tools, tkToolbar_FindItemByID( tools, TB_REGEX ), o.Regex )
+    tkToolbar_SetSelected( tools, tkToolbar_FindItemByID( tools, TB_SEL ), o.InSelection )
+end sub
+
+sub Strip.SetStatus( byref s as const ustring )
+    status = s
+    tkWidget_Invalidate( frame )
+end sub

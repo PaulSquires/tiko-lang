@@ -1,0 +1,3261 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' mainwin -- the main window and the App state it owns (PLAN.md, Window). One editor pane fills
+' the window, or two after a split; the status line sits at the bottom; there is no menu. Every
+' command goes through Execute( Cmd ).
+'
+' BUFFERS (D3): every open file is a documents.Document with its own Scintilla view; there is no
+' tab bar. Pane 1 shows one buffer, pane 2 (after a split) another -- never the same one -- and
+' each pane has a status line of its own under it (author 2026-10-27).
+' Views of buffers no pane shows are hidden. Docs is the open order, which Ctrl+Tab walks; Mru
+' holds the buffers most recently shown first. There is always at least one buffer (an untitled one).
+'
+' Configuration is files only (D15): settings.toml, keybindings.toml and the theme are opened as
+' buffers like any text, and saving one re-applies it at once. A file that does not parse leaves
+' the previous values in force and says why in the status line's message panel. settings.toml is
+' rewritten to list every key at its value in force when tkEdit starts and before it is opened;
+' keybindings.toml every command at its chord, the same way.
+#module "mainwin"
+
+#import "std/containers"
+#import "std/fs"
+#import "std/outcome"
+#import "std/process"
+#import "std/strings"
+#import "tkp/platform"
+#import "tkc/appinfo"
+#import "tkc/autoinsert"
+#import "tkc/build"
+#import "tkc/cmdids"
+#import "tkc/docencoding"
+#import "tkc/keybind"
+#import "tkc/mru"
+#import "tkc/navhistory"
+#import "tkc/outline"
+#import "tkc/project"
+#import "tkc/runargs"
+#import "tkc/session"
+#import "tkc/settings"
+#import "tkc/symboldb"
+#import "tkc/textsearch"
+#import "tkc/textstream"
+#import "tkc/themes"
+#import "tka/chrome"
+#import "tka/documents"
+#import "tka/editor"
+#import "tka/findstrip"
+#import "tka/outputpane"
+#import "tka/popuplist"
+#import "tks/parser"
+#import "tks/runner"
+#import "tkControls/tkApp"
+#import "tkControls/tkCodeEdit"
+#import "tkControls/tkFileDialog"
+#import "tkControls/tkKeys"
+#import "tkControls/tkListTree"
+#import "tkControls/tkMessageBox"
+#import "tkControls/tkPaint"
+#import "tkControls/tkPopupMenu"
+#import "tkControls/tkSplitter"
+#import "tkControls/tkStatusBar"
+#import "tkControls/tkTheme"
+using containers
+using outcome
+using cmdids
+using tkApp
+using tkHost
+using tkCodeEdit
+using tkFileDialog
+using tkKeys
+using tkListTree
+using tkMessageBox
+using tkPaint
+using tkPopupMenu
+using tkSplitter
+using tkStatusBar
+using tkTheme
+
+public const FONT_UI = "Inter-Regular.ttf"
+public const FONT_UI_BOLD = "Inter-Bold.ttf"
+public const FONT_MONO = "JetBrainsMono-Regular.ttf"
+public const FONT_GLYPH = "PsIcons.ttf"
+public const DEFAULT_CX = 960
+public const DEFAULT_CY = 640
+public const STATUS_CY = 24              ' one status row, unscaled
+public const SPLIT_BAR = 5               ' the bar between the two panes, unscaled
+const ID_STATUS = 101
+const ID_STATUS2 = 107
+const ID_SPLIT2 = 108
+const ID_SPLIT = 103
+const ID_FINDSTRIP = 104
+const ID_OUTPUT = 105
+const BUILD_POLL_MS = 40
+const ID_SCRATCH = 106
+const SEARCH_LIMIT = 5000              ' Find in Project stops counting there
+const ID_VIEW = 200                      ' views are ID_VIEW + n
+const DISK_CHECK_MS = 1000
+
+' The status line's panels, left to right (PLAN.md, Window).
+public enum StatusPanel explicit
+    Buffer = 0          ' the active buffer's name, its full path the tooltip; a click lists the buffers
+    Message             ' stretches: build results, config errors; a click shows or hides the output pane
+    Position            ' Ln, Col; a click opens Go to Line, or closes it
+    Project             ' "Project": a click opens the project's .tkedit as text (no project: makes one first)
+    Settings            ' "Settings": a click opens settings.toml
+    Keys                ' "Keys": a click opens keybindings.toml
+    Build               ' the build configuration; a click picks one, and makes it settings.toml's default
+    Encoding            ' a click picks one
+    LineEnding          ' a click converts
+end enum
+
+' What the one chooser popup is choosing.
+public enum PickKind explicit
+    None = 0
+    Buffers
+    Recent
+    Encoding
+    LineEnding
+    Build
+    Bookmarks
+    Symbols             ' Ctrl+P: files and definitions
+    Functions           ' F4: the procedures of the buffer, or of every open buffer
+end enum
+
+' One Find in Project match.
+public type SearchHit
+    Path   as ustring
+    Line   as long                      ' 0-based
+    Column as long                      ' character index in the line
+    Length as long                      ' characters
+end type
+
+' A row of Search Symbol or the functions list: where it goes.
+public type SymHit
+    Name as ustring
+    Kind as ustring                     ' "function", "sub", "type", "enum", "file"
+    Path as ustring
+    Line as long                        ' 0-based; -1 = a file
+    Doc  as documents.Document ptr      ' the buffer it came from, when it did
+end type
+
+' One bookmark the Bookmarks list shows.
+public type BookmarkHit
+    Doc  as documents.Document ptr
+    Line as long                        ' 0-based
+end type
+
+' The person, as the window asks them things: a message box, a file dialog. The self-test
+' answers from a script instead.
+public type AskProc as function( byval f as TK_FORM ptr, byref text as const ustring, byval buttons as long ) as long
+public type PickProc as function( byval f as TK_FORM ptr, byval kind as long, byref suggest as const ustring ) as ustring
+public const PICK_OPEN_MANY = 100        ' a Pick kind: open several files; the paths one per line
+public type DocRef as documents.Document ptr
+' Starting a program (Run): argv[0] is the program. The self-test records instead.
+public type LaunchProc as function( byref argv as const Array( of ustring ), byref workDir as const ustring ) as boolean
+
+' tkApp's fonts: the bundled ones in <resources>/fonts (D16). The UI font size is read from the
+' user's settings.toml here, before any window exists, so it applies from the next start.
+public function AppOptions( ) as TKAPP_OPTIONS
+    dim as TKAPP_OPTIONS opts
+    dim as Optional( of ustring ) res = platform.ResourceDir( )
+    if res.HasValue( ) then
+        opts.FontDir = fs.PathJoin( res.Value( ), "fonts" ) & "/"     ' tkApp appends the file name
+        opts.FontUIFile = FONT_UI
+        opts.FontUIBoldFile = FONT_UI_BOLD
+        opts.FontMonoFile = FONT_MONO
+        opts.GlyphFontFile = FONT_GLYPH
+    end if
+    dim as fs.FsResultUStr sp = settings.SettingsPath( )
+    if sp.IsOk( ) then
+        dim as settings.SettingsResult s = settings.LoadSettings( sp.Value( ) )
+        if s.IsOk( ) then opts.FontUISize = s.Value( ).UiFontSize
+    end if
+    opts.ThemeMode = TKAPP_THEME_NONE          ' the theme file decides (Window.ReloadTheme)
+    return opts
+end function
+
+' A keyword file's words, lower case, one space apart (LexTiko's list format).
+private function WordsOf( byref path as const ustring ) as ustring
+    dim as textstream.TextFileResult r = textstream.ReadText( path )
+    if r.IsOk( ) = false then return ""
+    dim as ustring s = lcase( r.Value( ).Text )
+    dim as ustring o
+    dim as boolean gap = true
+    for i as long = 0 to len( s ) - 1
+        dim as ulong ch = s[i]
+        if (ch = 32) orelse (ch = 9) orelse (ch = 10) orelse (ch = 13) then
+            gap = true
+        else
+            if gap andalso (len( o ) > 0) then o &= " "
+            gap = false
+            o &= wchr( ch )
+        end if
+    next
+    return o
+end function
+
+' <resources>/keywords: tiko.txt (the language), extra.txt (the user's own words).
+public function LoadKeywords( byref resourceDir as const ustring ) as editor.Keywords
+    dim as editor.Keywords k
+    dim as ustring d = fs.PathJoin( resourceDir, "keywords" )
+    k.Words1 = WordsOf( fs.PathJoin( d, "tiko.txt" ) )
+    k.Words3 = WordsOf( fs.PathJoin( d, "extra.txt" ) )
+    return k
+end function
+
+private function AskPerson( byval f as TK_FORM ptr, byref text as const ustring, byval buttons as long ) as long
+    dim as long icon = MBX_ICON_QUESTION
+    if buttons = MBX_BTN_OK then icon = MBX_ICON_INFO
+    return tkMessageBox_Show( tkForm_Widget( f ), text, platform.APP_NAME, icon, buttons )
+end function
+
+private function LaunchProgram( byref argv as const Array( of ustring ), byref workDir as const ustring ) as boolean
+    if argv.Count( ) = 0 then return false
+    dim as process.Command c = process.Command( argv[0] )
+    for i as long = 1 to argv.Count( ) - 1
+        c.Arg( argv[i] )
+    next
+    if len( workDir ) then c.Cwd( workDir )
+    dim as process.Child ptr ch = new process.Child         ' left to run; the OS reaps it
+    return ch->Spawn( c ).IsOk( )
+end function
+
+private function PickPerson( byval f as TK_FORM ptr, byval kind as long, byref suggest as const ustring ) as ustring
+    dim as string filters = "tiko sources and projects|tiko;ti;bas;bi;inc;tkedit|tiko sources|tiko;ti;bas;bi;inc|" & _
+                            "tkEdit projects|tkedit|TOML|toml|All files|*"
+    dim as ustring where = suggest
+    if kind = TKFD_SAVE then return tkFileDialog_SaveFile( tkForm_Host( f ), filters, where )
+    if kind = PICK_OPEN_MANY then
+        dim as Array( of ustring ) paths
+        if tkFileDialog_Wait( TKFD_OPEN, tkForm_Host( f ), filters, where, true, paths ) = false then return ""
+        dim as ustring all_ = ""
+        for each p as ustring in paths
+            if len( all_ ) then all_ &= wchr( 10 )
+            all_ &= p
+        next
+        return all_
+    end if
+    return tkFileDialog_OpenFile( tkForm_Host( f ), filters, where )
+end function
+
+public type Window
+    ' ---- set before Create (the self-test points them elsewhere)
+    ConfigDir as ustring                ' settings.toml, keybindings.toml, session.toml, themes/
+    Ask as AskProc
+    Pick as PickProc
+    Launch as LaunchProc
+
+    ' ---- the App state
+    ResourceDir as ustring
+    HasIcon as boolean                                         ' icons/tkedit.png set as the window icon
+    Prefs as settings.EditorSettings
+    Keys as keybind.KeyMap
+    Theme as themes.Theme
+    Words as editor.Keywords
+    Look as editor.Look
+    Docs as Array( of DocRef )          ' open order
+    Mru as Array( of DocRef )           ' most recently shown first
+    Pane1 as DocRef
+    Pane2 as DocRef                     ' 0 = not split
+    Split as session.SplitMode
+    SplitRatio as double = 0.5
+    InPane2 as boolean                  ' the second pane has the focus
+    Recent as mru.RecentList
+    CurrentBuild as ustring             ' the build configuration's name
+    Message as ustring                  ' the message panel's text
+    BuildMessage as ustring             ' the last build's: kept past the next key
+    Chooser as popuplist.Picker
+    Choosing as PickKind
+    Finder as findstrip.Strip
+    FindLo as longint                   ' "Sel": the selection the strip opened over
+    FindHi as longint
+    Marks as Array( of BookmarkHit )    ' the Bookmarks list's rows
+
+    ' ---- the project (D8) and the build (P4)
+    Proj as project.Manifest            ' the project's tiko.toml
+    ProjOpts as project.ProjectOptions  ' its options file in the config folder
+    ProjFiles as Array( of ustring )    ' the source files under its folder (ProjectFiles)
+    RunStore as runargs.RunArgsStore    ' the arguments of files built without a project
+    ProjOpen as boolean
+    Out as outputpane.Pane
+    OutputShown as boolean
+    Job as runner.Job
+    buildTimer as long
+    Diags as Array( of build.Diagnostic )
+    DiagAt as long = -1
+    BuildAct as build.BuildAction
+    BuildMain as ustring
+    BuildFlags as ustring
+    BuildDiagFile as ustring
+    BuildProgram as ustring
+    BuildDir as ustring
+    BuildRaw as ustring
+    LogText as ustring
+    LastExe as ustring
+    PendingArgs as Array( of ustring )
+    Cleaning as boolean
+    BuildSucceeded as boolean
+    Progress as build.BuildProgress
+
+    ' ---- code intelligence (P5)
+    NoParser as boolean                 ' set before Create: the outline only (the self-test)
+    Scanner as parser.Scanner
+    Db as symboldb.Database
+    Nav as navhistory.History
+    scanTimer as long
+    scanGen as long
+    scanDirty as boolean
+    lastEditTicks as ulongint
+    ScansInstalled as long
+    LastScanError as ustring
+    FuncsAll as boolean                 ' F4: every open buffer's procedures
+    Hits as Array( of SymHit )          ' the chooser's rows, for Symbols and Functions
+
+    ' ---- P6
+    scratch as editor.CodeView          ' hidden: Find in Project matches each file's text in it
+    Found as Array( of SearchHit )      ' the Search tab's rows
+
+    form as TK_FORM ptr
+    status as TK_WIDGET ptr             ' pane 1's status line (the only one, unsplit)
+    status2 as TK_WIDGET ptr            ' pane 2's, while split
+    lastTitle as ustring
+    splitBar as TK_WIDGET ptr
+    splitFoot as TK_WIDGET ptr          ' a left/right split's bar through the status row, between the two
+    NormalX as long                     ' the window's last place while neither maximized nor minimized
+    NormalY as long
+    NormalW as long
+    NormalH as long
+    StartMax as boolean                 ' Show maximizes it (session.toml said so)
+    editMenu as TK_MENU ptr             ' a view's right-click menu
+    accel as TK_KEYMAP ptr
+    diskTimer as long
+    untitled as long
+    viewIds as long
+
+    declare function Create( byval forcedScale as single = 0 ) as boolean
+    declare sub Show( )
+    declare sub Destroy( )
+    declare sub Layout( )
+    declare sub ShowStatus( )
+    declare sub ShowTitle( )
+    declare function StatusText( byval p as StatusPanel ) as ustring
+    declare function StatusTip( byval p as StatusPanel, byval second as boolean = false ) as ustring   ' "" = none
+    declare function StatusHeight( ) as long
+    declare function BottomHeight( ) as long                   ' the status line, and the strip above it
+    declare function OutputHeight( ) as long                   ' 0 when the pane is hidden
+    declare sub SetMessage( byref s as const ustring )
+    declare sub SetBuildMessage( byref s as const ustring )
+
+    ' ---- commands
+    declare function Execute( byval id as Cmd ) as boolean       ' FALSE = not available (yet)
+    declare function IsImplemented( byval id as Cmd ) as boolean
+    declare function ShortcutText( byval id as Cmd ) as ustring  ' "Ctrl+S", "" = none
+
+    ' ---- configuration
+    declare function SettingsFile( ) as ustring
+    declare function KeysFile( ) as ustring
+    declare function SessionFile( ) as ustring
+    declare sub ReloadSettings( )
+    declare sub SyncSettingsFile( )
+    declare sub ApplyStatusPanels( )
+    declare sub SyncKeysFile( )
+    declare sub SetDefaultBuild( byref name_ as const ustring )
+    declare sub ReloadKeys( )
+    declare sub ReloadTheme( )
+    declare sub ApplyLook( )
+    declare function EditableThemeFile( ) as ustring
+
+    ' ---- buffers and panes
+    declare function Active( ) as DocRef
+    declare function View( ) byref as editor.CodeView           ' the focused pane's view
+    declare function ActivePath( ) as ustring
+    declare function NewDocument( ) as DocRef
+    declare function OpenFile( byref path as const ustring ) as boolean     ' a tiko.toml opens the project
+    declare function OpenText( byref path as const ustring ) as boolean     ' any file, as text
+    declare function SourceDoc( ) as DocRef
+    declare sub EditProjectFile( )
+    declare function FindOpen( byref path as const ustring ) as DocRef
+    declare sub ShowDoc( byval d as DocRef )                     ' in the focused pane
+    declare sub CycleBuffer( byval forward as boolean )          ' the next in open order, wrapping
+    declare function SaveDoc( byval d as DocRef, byval newName as boolean ) as boolean
+    declare function CloseDoc( byval d as DocRef ) as boolean   ' FALSE = the person cancelled
+    declare function CloseAll( ) as boolean
+    declare function SaveAll( ) as boolean
+    declare sub ToggleSplit( byval mode as session.SplitMode )
+    declare sub FocusPane( byval second as boolean )
+    declare sub CheckDisk( )
+    declare sub SetEncoding( byval e as docencoding.FileEncoding )
+    declare sub SetLineEnding( byval e as docencoding.LineEnd )
+    declare sub SaveSession( )
+    declare sub RestoreSession( byval reopen as boolean = true )   ' FALSE: the window's place and the recent list only
+    declare sub KeepNormalPlace( )
+
+    ' ---- find, replace, go to line, bookmarks, typing
+    declare sub OpenStrip( byval m as findstrip.StripMode )
+    declare sub OnFind( byval a as findstrip.FindAction )
+    declare sub ShowFindStatus( )
+    declare function FindOptionsNow( ) as editor.FindOptions
+    declare sub OnCharAdded( byval hEdit as TK_WIDGET ptr, byval ch as long )
+    declare sub OnMarginClick( byval hEdit as TK_WIDGET ptr, byval margin as long, byval position as longint )
+
+    ' ---- projects and builds
+    declare function OpenProject( byref path as const ustring ) as boolean
+    declare function NewProject( ) as boolean
+    declare function SaveProject( ) as boolean
+    declare function CloseProject( ) as boolean
+    declare function ProjectTarget( ) as ustring
+    declare function ProjectFiles( byval refresh as boolean = false ) byref as Array( of ustring )
+    declare sub WriteProjectOptions( )
+    declare sub ApplyProjectOptions( )
+    declare function RunArgsNow( ) as ustring
+    declare sub SetRunArgs( byref a as const ustring )
+    declare function CompilerPath( ) as ustring
+    declare function ActiveBuildConfig( ) as build.BuildConfig
+    declare function IsBuilding( ) as boolean
+    declare function StartBuild( byval action as build.BuildAction, byval rebuild as boolean = false ) as boolean
+    declare sub PollBuild( )
+    declare sub FinishBuild( )
+    declare sub ClearDiagnostics( )
+    declare sub ShowDiagnostics( byref counts as const build.ResultCounts )
+    declare sub OpenDiagnostic( byval i as long )
+    declare sub StepDiagnostic( byval forward as boolean )
+    declare sub RunProgram( byref exe as const ustring )
+    declare sub ShowOutput( byval visible as boolean )
+    declare sub CycleFocus( )
+    declare function OutputHasFocus( ) as boolean
+    declare sub JumpTo( byref file as const ustring, byval ln as long, byval col as long, byval selChars as long )
+    declare sub CaptureState( byref st as session.SessionState, byref base_ as const ustring )
+    declare sub ApplyState( byref st as const session.SessionState, byref base_ as const ustring )
+
+    ' ---- code intelligence
+    declare function PkgDir( ) as ustring
+    declare function StartScanner( ) as boolean
+    declare sub QueueScan( byval d as DocRef )
+    declare sub PollScans( )
+    declare function ProcsOf( byval d as DocRef ) as Array( of SymHit )
+    declare function Here( ) as navhistory.NavEntry
+    declare sub GoHistory( byval forward as boolean )
+    declare function ScannedFile( byref upper as const ustring ) as ustring
+    declare function GoToDefinition( ) as boolean
+    declare sub GoFunction( byval forward as boolean )
+    declare sub CodeTips( byval hEdit as TK_WIDGET ptr, byval ch as long )
+    declare sub ShowCompletionsAt( byval v as editor.CodeView ptr, byval d as DocRef, byval minLen as long )
+
+    ' ---- P6: the formatter, Find in Project
+    declare function RunProjectSearch( ) as long
+    declare sub OpenSearchHit( byval i as long )
+
+    ' ---- the chooser popup
+    declare sub OpenChooser( byval kind as PickKind, byval atTop as boolean = false )   ' atTop: where Ctrl+P opens
+    declare sub CloseOnOwnKey( byval id as Cmd )
+    declare sub Chosen( byval tag as long )
+    declare function DocOfWidget( byval w as TK_WIDGET ptr ) as DocRef
+    declare sub ShowEditMenu( byval hEdit as TK_WIDGET ptr, byval x as long, byval y as long )
+
+  private:
+    declare function NewStatusBar( byval root as TK_WIDGET ptr, byval id as long ) as TK_WIDGET ptr
+    declare sub FillStatus( byval bar as TK_WIDGET ptr, byval d as DocRef, byval focused as boolean )
+    declare function IsSplit( ) as boolean
+    declare function OtherPaneDoc( ) as DocRef
+    declare sub RebuildAccelerators( )
+    declare sub AfterSave( byval d as DocRef )
+    declare function FontFile( ) as ustring
+    declare function NewView( byref v as editor.CodeView ) as boolean
+    declare sub Touch( byval d as DocRef )
+    declare sub SyncFocus( )
+end type
+
+private function WindowOfHost( byval h as TK_HOST ptr ) as Window ptr
+    dim as TK_FORM ptr f = tkForm_FromHost( h )
+    if f = 0 then return 0
+    return f->Tag
+end function
+
+private function WindowOfWidget( byval w as TK_WIDGET ptr ) as Window ptr
+    dim as TK_FORM ptr f = tkForm_FromWidget( w )
+    if f = 0 then return 0
+    return f->Tag
+end function
+
+function Window.Create( byval forcedScale as single ) as boolean
+    if Ask = 0 then Ask = @AskPerson
+    if Pick = 0 then Pick = @PickPerson
+    if Launch = 0 then Launch = @LaunchProgram
+    ResourceDir = platform.ResourceDir( ).ValueOr( platform.ExeDir( ) )
+    if len( ConfigDir ) = 0 then ConfigDir = platform.ConfigDir( ).ValueOr( fs.PathJoin( ResourceDir, "config" ) )
+    Words = LoadKeywords( ResourceDir )
+
+    Prefs = settings.DefaultSettings( )
+    Theme = themes.DarkTheme( )
+    ' the editor's state of projects whose tiko.toml is gone, and the arguments of files that are
+    ' gone, are dropped at every start (author 2026-10-27)
+    project.Prune( ConfigDir )
+    RunStore.Load( fs.PathJoin( ConfigDir, runargs.RUNARGS_FILE ) )
+    if RunStore.Prune( ) > 0 then RunStore.Save( )
+
+    form = tkApp_NewForm( appinfo.WindowTitle( ), DEFAULT_CX, DEFAULT_CY, 0, forcedScale )
+    if form = 0 then return false
+    form->Tag = @this
+    ' the title bar's icon, every platform; on Windows the .exe's own (res/tkEdit.rc) is the taskbar's
+    ' and Explorer's, and SDL starts from it
+    dim as string icon8 = fs.PathJoin( ResourceDir, "icons", "tkedit.png" )
+    dim as SDL_Surface ptr icon = IMG_Load( strptr( icon8 ) )
+    if icon then
+        HasIcon = SDL_SetWindowIcon( tkForm_Host( form )->win, icon )
+        SDL_DestroySurface( icon )
+    end if
+    dim as TK_WIDGET ptr root = tkForm_Widget( form )
+
+    status = this.NewStatusBar( root, ID_STATUS )
+    status2 = this.NewStatusBar( root, ID_STATUS2 )
+    tkWidget_Show( status2, false )
+
+    ' a view's right-click menu: commands by id, through Execute like their keys
+    editMenu = tkPopupMenu_Create( tkForm_Host( form ) )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.Undo ), "Undo" )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.Redo ), "Redo" )
+    tkPopupMenu_AddSeparator( editMenu )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.Cut ), "Cut" )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.Copy ), "Copy" )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.Paste ), "Paste" )
+    tkPopupMenu_AddSeparator( editMenu )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.IndentBlock ), "Indent Block" )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.UnindentBlock ), "UnIndent Block" )
+    tkPopupMenu_AddSeparator( editMenu )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.CommentBlock ), "Comment Block" )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.UncommentBlock ), "UnComment Block" )
+    tkPopupMenu_AddSeparator( editMenu )
+    tkPopupMenu_AddItem( editMenu, clng( Cmd.SelectAll ), "Select All" )
+    tkPopupMenu_SetSelectCallback( editMenu, sub( byval hPopup as TK_MENU ptr, byval id as long )
+        dim as Window ptr mw = WindowOfHost( hPopup->pOwner )
+        if mw then mw->Execute( cast( Cmd, id ) )
+    end sub )
+
+    Out.Create( root, ID_OUTPUT, @this )
+    Out.OnActivate = sub( byval owner as any ptr, byval tab_ as outputpane.OutputTab, byval itemIndex as long )
+        dim as Window ptr mw = owner
+        if tab_ = outputpane.OutputTab.Search then
+            mw->OpenSearchHit( itemIndex )
+        else
+            mw->OpenDiagnostic( itemIndex )
+        end if
+    end sub
+    Finder.Create( root, ID_FINDSTRIP, @this )
+    Finder.OnAction = sub( byval owner as any ptr, byval a as findstrip.FindAction )
+        cast( Window ptr, owner )->OnFind( a )
+    end sub
+
+    this.ReloadSettings( )                      ' the theme and the look with it
+    this.SyncSettingsFile( )
+    this.ReloadKeys( )                          ' the accelerators with them
+    this.SyncKeysFile( )                        ' after: what it warned about stays in the status line
+    CurrentBuild = Prefs.DefaultBuild( )
+    if NoParser = false then this.StartScanner( )
+
+    dim as DocRef d = this.NewDocument( )
+    if d = 0 then return false
+    Pane1 = d
+    this.Touch( d )
+
+    tkForm_OnSize( form, sub( byval f as TK_FORM ptr, byval cx as long, byval cy as long )
+        cast( Window ptr, f->Tag )->KeepNormalPlace( )
+        cast( Window ptr, f->Tag )->Layout( )
+    end sub )
+    tkForm_OnScaleChanged( form, sub( byval f as TK_FORM ptr, byval fOld as single, byval fNew as single )
+        dim as Window ptr mw = f->Tag
+        mw->ApplyLook( )                         ' margins are pixels
+        mw->Layout( )
+    end sub )
+    tkForm_OnClose( form, function( byval f as TK_FORM ptr ) as boolean
+        dim as Window ptr mw = f->Tag
+        mw->SaveSession( )
+        if mw->ProjOpen then mw->SaveProject( )
+        return mw->CloseAll( )
+    end function )
+    dim as TK_HOST ptr h = tkForm_Host( form )
+    h->OnPreKey = function( byval h as TK_HOST ptr, byval m as TK_MSG ptr ) as boolean
+        dim as Window ptr mw = WindowOfHost( h )
+        if (mw = 0) orelse (mw->accel = 0) then return false
+        ' a message lasts until the next key -- a build's until it is replaced
+        if (len( mw->Message ) > 0) andalso (mw->Message <> mw->BuildMessage) then mw->SetMessage( "" )
+        ' Esc closes the find strip and the output pane wherever the focus is -- after a view's own
+        ' completion list or calltip, which Esc closes first
+        if (m->key = SDLK_ESCAPE) andalso (mw->Finder.isOpen orelse mw->OutputShown) then
+            if mw->DocOfWidget( tkHost_GetFocus( h ) ) then
+                if mw->View( ).CompletionsShown( ) orelse mw->View( ).CallTipShown( ) then return false
+            end if
+            if mw->Finder.isOpen then mw->OnFind( findstrip.FindAction.CloseStrip )
+            if mw->OutputShown then mw->ShowOutput( false )
+            return true
+        end if
+        dim as Cmd id = cast( Cmd, tkKeys_Lookup( mw->accel, tkKeys_FromMsg( m ) ) )
+        if id = Cmd.None then return false
+        select case id
+        case Cmd.IndentBlock, Cmd.UnindentBlock
+            return false                        ' Scintilla's own Tab and Shift+Tab
+        end select
+        ' the Edit group's keys belong to a text field when one has the focus (the find strip)
+        if (mw->DocOfWidget( tkHost_GetFocus( h ) ) = 0) andalso _
+           (mw->Keys.Commands( ).Info( id ).Group = MenuGroup.Edit) then return false
+        mw->Execute( id )
+        return true
+    end function
+    h->OnDrop = sub( byval h as TK_HOST ptr, byval m as TK_MSG ptr )
+        dim as Window ptr mw = WindowOfHost( h )
+        if (mw = 0) orelse (m->msg <> TKM_DROPFILES) then exit sub
+        for each p as ustring in strings.Split( m->text, !"\n" )
+            dim as ustring f = trim( p, any !" \r" )
+            if len( f ) andalso fs.IsFile( f ) then mw->OpenFile( f )
+        next
+    end sub
+    diskTimer = tkApp_SetTimer( DISK_CHECK_MS, sub( byval id as long, byval payload as any ptr )
+        cast( Window ptr, payload )->CheckDisk( )
+    end sub, @this )
+    this.Layout( )
+    this.ShowTitle( )
+    this.ShowStatus( )
+    return true
+end function
+
+sub Window.Show( )
+    if form = 0 then exit sub
+    tkForm_Show( form )
+    if StartMax then SDL_MaximizeWindow( tkForm_Host( form )->win )
+    this.View( ).Focus( )
+end sub
+
+sub Window.Destroy( )
+    if diskTimer then tkApp_KillTimer( diskTimer )
+    diskTimer = 0
+    if buildTimer then tkApp_KillTimer( buildTimer )
+    buildTimer = 0
+    Job.Finish( )
+    if scanTimer then tkApp_KillTimer( scanTimer )
+    scanTimer = 0
+    Scanner.Stop( )
+    Chooser.Close( )
+    for each d as DocRef in Docs
+        d->DestroyViews( )
+        delete d
+    next
+    Docs.Clear( )
+    Mru.Clear( )
+    Pane1 = 0
+    Pane2 = 0
+    if accel then tkKeys_MapDestroy( accel )
+    accel = 0
+    if editMenu then tkPopupMenu_Destroy( editMenu )
+    editMenu = 0
+    if form then tkForm_Destroy( form )
+    form = 0
+end sub
+
+function Window.StatusHeight( ) as long
+    return tkForm_Scale( form, STATUS_CY )
+end function
+
+function Window.BottomHeight( ) as long
+    if Finder.isOpen then return this.StatusHeight( ) + Finder.Height( )
+    return this.StatusHeight( )
+end function
+
+function Window.OutputHeight( ) as long
+    if OutputShown = false then return 0
+    return tkForm_Scale( form, outputpane.PANE_CY )
+end function
+
+' The pane(s), the output pane, the find strip (while open), the status row at the bottom. Split
+' left/right, the two status lines share that row, each under its pane; split top/bottom, pane 1's
+' sits between pane 1 and the bar, pane 2's at the bottom. Every view no pane shows is hidden.
+sub Window.Layout( )
+    if form = 0 then exit sub
+    dim as TK_WIDGET ptr root = tkForm_Widget( form )
+    dim as long cx = root->cw, cy = root->ch
+    dim as long sh = this.StatusHeight( )
+    dim as long bottom = cy - sh
+    dim as long fh = 0
+    if Finder.isOpen then
+        fh = Finder.Height( )                    ' the strip sits on top of the status row (D10)
+        tkWidget_SetPos( Finder.frame, 0, bottom - fh, cx, fh )
+    end if
+    dim as long oh = 0
+    if OutputShown then
+        oh = tkForm_Scale( form, outputpane.PANE_CY )
+        tkWidget_SetPos( Out.frame, 0, bottom - fh - oh, cx, oh )
+    end if
+    tkWidget_Show( Out.frame, OutputShown )
+    dim as long ah = bottom - fh - oh            ' the panes' area
+    dim as boolean split_ = this.IsSplit( )
+    dim as TK_WIDGET ptr v1 = 0, v2 = 0
+    if Pane1 then v1 = Pane1->Main.Widget( )
+    if split_ then v2 = Pane2->Main.Widget( )
+    for each d as DocRef in Docs
+        dim as TK_WIDGET ptr w = d->Main.Widget( )
+        if (w <> 0) andalso (w <> v1) andalso (w <> v2) then tkWidget_Show( w, false )
+    next
+    tkWidget_Show( status2, split_ )
+    if splitBar then tkWidget_Show( splitBar, split_ )
+    if splitFoot then tkWidget_Show( splitFoot, split_ andalso (Split = session.SplitMode.Vertical) )
+    if v1 = 0 then exit sub
+    tkWidget_Show( v1, true )
+    if split_ = false then
+        tkWidget_SetPos( v1, 0, 0, cx, ah )
+        tkWidget_SetPos( status, 0, bottom, cx, sh )
+        exit sub
+    end if
+    dim as long bar = tkForm_Scale( form, SPLIT_BAR )
+    tkWidget_Show( v2, true )
+    if Split = session.SplitMode.Vertical then
+        dim as long w1 = cint( (cx - bar) * SplitRatio )
+        tkWidget_SetPos( v1, 0, 0, w1, ah )
+        tkWidget_SetPos( splitBar, w1, 0, bar, ah )
+        tkWidget_SetPos( v2, w1 + bar, 0, cx - w1 - bar, ah )
+        ' the bar goes on through the status row, between the two status lines (author 2026-10-27);
+        ' the output pane and the find strip, full width, sit over it
+        tkWidget_SetPos( status, 0, bottom, w1, sh )
+        tkWidget_SetPos( splitFoot, w1, bottom, bar, sh )
+        tkWidget_SetPos( status2, w1 + bar, bottom, cx - w1 - bar, sh )
+        if (fh = 0) andalso (oh = 0) then tkWidget_SetPos( splitBar, w1, 0, bar, cy )   ' one piece, top to bottom
+        tkSplitter_SetRange( splitBar, tkForm_Scale( form, 60 ), cx - bar - tkForm_Scale( form, 60 ) )
+        tkSplitter_SetRange( splitFoot, tkForm_Scale( form, 60 ), cx - bar - tkForm_Scale( form, 60 ) )
+    else
+        dim as long h1 = cint( (ah - sh - bar) * SplitRatio )
+        tkWidget_SetPos( v1, 0, 0, cx, h1 )
+        tkWidget_SetPos( status, 0, h1, cx, sh )
+        tkWidget_SetPos( splitBar, 0, h1 + sh, cx, bar )
+        tkWidget_SetPos( v2, 0, h1 + sh + bar, cx, ah - h1 - sh - bar )
+        tkWidget_SetPos( status2, 0, bottom, cx, sh )
+        tkSplitter_SetRange( splitBar, sh + tkForm_Scale( form, 40 ), ah - bar - tkForm_Scale( form, 40 ) )
+    end if
+end sub
+
+sub Window.SetMessage( byref s as const ustring )
+    Message = s
+    this.ShowStatus( )
+end sub
+
+' A build's message (starting, progress, the result, its diagnostics, running the program): it
+' stays until another message replaces it, where any other goes at the next key (author 2026-10-27).
+sub Window.SetBuildMessage( byref s as const ustring )
+    BuildMessage = s
+    this.SetMessage( s )
+end sub
+
+sub Window.ShowStatus( )
+    if status = 0 then exit sub
+    this.SyncFocus( )
+    if Pane1 = 0 then exit sub
+    dim as boolean split_ = this.IsSplit( )
+    this.FillStatus( status, Pane1, (split_ = false) orelse (InPane2 = false) )
+    if split_ then this.FillStatus( status2, Pane2, InPane2 )
+    this.ShowTitle( )                            ' the caption names the focused pane's buffer
+end sub
+
+' bar's panels for d, the buffer of its pane; the message only on the focused pane's.
+sub Window.FillStatus( byval bar as TK_WIDGET ptr, byval d as DocRef, byval focused as boolean )
+    if (bar = 0) orelse (d = 0) then exit sub
+    dim as editor.CodeView ptr v = @d->Main
+    dim as ustring name_ = d->DisplayName( )
+    if d->IsModified( ) then name_ &= " *"
+    ' how many other buffers are open, Ctrl+E's list (author 2026-10-27)
+    if Docs.Count( ) > 1 then name_ &= strings.Format( " (+{} more)", Docs.Count( ) - 1 )
+    tkStatusBar_SetText( bar, StatusPanel.Buffer, name_ )
+    dim as ustring msg = ""
+    if focused then msg = Message
+    tkStatusBar_SetText( bar, StatusPanel.Message, msg )
+    tkStatusBar_SetText( bar, StatusPanel.Position, _
+                         strings.Format( "Ln {}, Col {}", v->CaretLine( ), v->CaretColumn( ) ) )
+    tkStatusBar_SetText( bar, StatusPanel.Project, "Project" )
+    tkStatusBar_SetText( bar, StatusPanel.Settings, "Settings" )
+    tkStatusBar_SetText( bar, StatusPanel.Keys, "Keys" )
+    tkStatusBar_SetText( bar, StatusPanel.Build, CurrentBuild )
+    tkStatusBar_SetText( bar, StatusPanel.Encoding, docencoding.EncodingName( d->Enc.Encoding ) )
+    dim as ustring eol = "CRLF"
+    select case v->LineEnding( )
+    case docencoding.LineEnd.Lf : eol = "LF"
+    case docencoding.LineEnd.Cr : eol = "CR"
+    end select
+    tkStatusBar_SetText( bar, StatusPanel.LineEnding, eol )
+end sub
+
+sub Window.ShowTitle( )
+    if form = 0 then exit sub
+    dim as DocRef d = this.Active( )
+    dim as ustring title = appinfo.WindowTitle( )
+    if d then
+        dim as ustring nm = d->DisplayName( )
+        if len( d->Path ) then nm = d->Path       ' the full path (author 2026-10-27)
+        if ProjOpen then nm &= " [" & fs.PathJoin( Proj.Name( ), project.MANIFEST_FILE ) & "]"   ' hello\tiko.toml
+        title = appinfo.WindowTitle( nm )
+    end if
+    if title = lastTitle then exit sub
+    lastTitle = title
+    dim as string t8 = title
+    SDL_SetWindowTitle( tkForm_Host( form )->win, strptr( t8 ) )
+end sub
+
+function Window.StatusText( byval p as StatusPanel ) as ustring
+    if status = 0 then return ""
+    return tkStatusBar_GetText( status, p )
+end function
+
+' The buffer panel's tooltip: its pane's buffer's full path (its name while untitled); the Project
+' panel's: the project file; Settings' and Keys': the key that does the same (author 2026-10-27).
+function Window.StatusTip( byval p as StatusPanel, byval second as boolean ) as ustring
+    if p = StatusPanel.Project then
+        if ProjOpen then return Proj.Path
+        return "no project: a click makes one"
+    end if
+    if p = StatusPanel.Settings then return this.ShortcutText( Cmd.Settings )
+    if p = StatusPanel.Keys then return this.ShortcutText( Cmd.KeyboardShortcuts )
+    if p <> StatusPanel.Buffer then return ""
+    dim as DocRef d = Pane1
+    if second then d = Pane2
+    if d = 0 then return ""
+    if len( d->Path ) then return d->Path
+    return d->DisplayName( )
+end function
+
+' A status line with every panel, for pane 1 (status) or pane 2 (status2). A click acts for the
+' pane under it: that pane takes the focus first.
+function Window.NewStatusBar( byval root as TK_WIDGET ptr, byval id as long ) as TK_WIDGET ptr
+    dim as TK_WIDGET ptr bar = tkStatusBar_Create( root, id )
+    for i as long = StatusPanel.Buffer to StatusPanel.LineEnding
+        tkStatusBar_AddPanel( bar, "" )
+    next
+    tkStatusBar_SetExpandPanel( bar, StatusPanel.Message )
+    tkStatusBar_SetClickCallback( bar, sub( byval hBar as TK_WIDGET ptr, byval idx as long, byval clicks as long )
+        dim as Window ptr mw = WindowOfWidget( hBar )
+        if mw = 0 then exit sub
+        dim as boolean second = (hBar = mw->status2)
+        if second <> mw->InPane2 then mw->FocusPane( second )
+        select case idx
+        case StatusPanel.Buffer : mw->OpenChooser( PickKind.Buffers, true )   ' where Ctrl+E opens it (author)
+        case StatusPanel.Message : mw->Execute( Cmd.OutputPane )
+        case StatusPanel.Position
+            if mw->Finder.isOpen andalso (mw->Finder.Mode = findstrip.StripMode.GoTo) then
+                mw->OnFind( findstrip.FindAction.CloseStrip )
+            else
+                mw->Execute( Cmd.GoToLine )
+            end if
+        case StatusPanel.Project : mw->EditProjectFile( )
+        case StatusPanel.Settings : mw->Execute( Cmd.Settings )
+        case StatusPanel.Keys : mw->Execute( Cmd.KeyboardShortcuts )
+        case StatusPanel.Build : mw->OpenChooser( PickKind.Build )
+        case StatusPanel.Encoding : mw->OpenChooser( PickKind.Encoding )
+        case StatusPanel.LineEnding : mw->OpenChooser( PickKind.LineEnding )
+        end select
+    end sub )
+    tkStatusBar_SetTooltipCallback( bar, function( byval hBar as TK_WIDGET ptr, byval idx as long ) as ustring
+        dim as Window ptr mw = WindowOfWidget( hBar )
+        if mw = 0 then return ""
+        return mw->StatusTip( cast( StatusPanel, idx ), hBar = mw->status2 )
+    end function )
+    return bar
+end function
+
+function Window.IsSplit( ) as boolean
+    return (Split <> session.SplitMode.None) andalso (Pane2 <> 0)
+end function
+
+' The buffer the pane without the focus shows; 0 unsplit.
+function Window.OtherPaneDoc( ) as DocRef
+    if this.IsSplit( ) = false then return 0
+    if InPane2 then return Pane1
+    return Pane2
+end function
+
+' ================================================================ commands
+
+function Window.ShortcutText( byval id as Cmd ) as ustring
+    dim as ustring t = Keys.Effective( id )
+    if len( t ) = 0 then return ""
+    dim as keybind.ChordResult r = Keys.Vocab( ).ParseChord( t )
+    if r.IsOk( ) = false then return ""
+    return r.Value( ).ToDisplay( )
+end function
+
+' What this phase can do; the rest says so when its key is pressed.
+function Window.IsImplemented( byval id as Cmd ) as boolean
+    select case id
+    case Cmd.FileNew, Cmd.FileOpen, Cmd.FileRecent, Cmd.FileClose, Cmd.FileCloseAll, Cmd.FileSave, _
+         Cmd.FileSaveAs, Cmd.FileSaveAll, Cmd.Settings, Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit
+        return true
+    case Cmd.Undo, Cmd.Redo, Cmd.Cut, Cmd.Copy, Cmd.Paste, Cmd.SelectAll, Cmd.SelectLine, _
+         Cmd.DeleteLine, Cmd.DuplicateLine, Cmd.MoveLineUp, Cmd.MoveLineDown, Cmd.NewLineBelowCurrent, _
+         Cmd.CommentBlock, Cmd.UncommentBlock, Cmd.IndentBlock, Cmd.UnindentBlock, _
+         Cmd.ToUpperCase, Cmd.ToLowerCase, Cmd.ToMixedCase
+        return true
+    case Cmd.BufferList, Cmd.BufferNext, Cmd.BufferPrev, Cmd.SplitLeftRight, _
+         Cmd.SplitTopBottom, Cmd.CycleFocus, Cmd.ZoomIn, Cmd.ZoomOut, Cmd.ZoomReset, Cmd.FoldToggle, _
+         Cmd.FoldBelow, Cmd.FoldAll, Cmd.UnfoldAll, Cmd.BuildConfig
+        return true
+    case Cmd.FindInProject
+        return true
+    case Cmd.CompleteWord, Cmd.GoToDefinition, Cmd.GoBack, Cmd.GoForward, Cmd.GoToNextFunction, _
+         Cmd.GoToPrevFunction, Cmd.SearchSymbol, Cmd.FunctionList
+        return true
+    case Cmd.OutputPane, Cmd.BuildExecute, Cmd.Compile, Cmd.RebuildAll, _
+         Cmd.RunExe, Cmd.NextDiagnostic, Cmd.PrevDiagnostic, Cmd.ProjectNew, _
+         Cmd.ProjectClose, Cmd.RunArguments
+        return true
+    case Cmd.Find, Cmd.Replace, Cmd.FindNext, Cmd.FindPrev, Cmd.ReplaceOne, Cmd.GoToLine, _
+         Cmd.BookmarkToggle, Cmd.BookmarkNext, Cmd.BookmarkPrev, Cmd.BookmarkClearAll, Cmd.BookmarksList
+        return true
+    end select
+    return false
+end function
+
+function Window.Execute( byval id as Cmd ) as boolean
+    if this.IsImplemented( id ) = false then
+        dim as cmdids.CommandInfo ci = Keys.Commands( ).Info( id )
+        this.SetMessage( ci.Description & ": not available yet" )
+        return false
+    end if
+    this.SyncFocus( )
+    dim as editor.CodeView ptr v = @this.View( )
+    select case id
+    case Cmd.FileNew
+        dim as DocRef d = this.NewDocument( )
+        if d then this.ShowDoc( d )
+    case Cmd.FileOpen
+        dim as ustring dir_ = ""
+        if len( this.ActivePath( ) ) then dir_ = fs.PathParent( this.ActivePath( ) )
+        ' several files at once (author 2026-10-27); a project first, as opening one closes the
+        ' buffers open before it
+        dim as Array( of ustring ) picked = strings.Split( Pick( form, PICK_OPEN_MANY, dir_ ), wchr( 10 ) )
+        for each p as ustring in picked
+            if len( p ) andalso project.IsManifest( p ) then this.OpenFile( p )
+        next
+        for each p as ustring in picked
+            if len( p ) andalso (project.IsManifest( p ) = false) then this.OpenFile( p )
+        next
+    case Cmd.FileRecent : this.OpenChooser( PickKind.Recent, true )   ' where Ctrl+P opens (author)
+    case Cmd.FileClose : this.CloseDoc( this.Active( ) )
+    case Cmd.FileCloseAll : this.CloseAll( )
+    case Cmd.FileSave : this.SaveDoc( this.Active( ), false )
+    case Cmd.FileSaveAs : this.SaveDoc( this.Active( ), true )
+    case Cmd.FileSaveAll : this.SaveAll( )
+    case Cmd.Settings
+        if this.FindOpen( this.SettingsFile( ) ) = 0 then this.SyncSettingsFile( )   ' never under an open buffer
+        this.OpenFile( this.SettingsFile( ) )
+    case Cmd.KeyboardShortcuts
+        if this.FindOpen( this.KeysFile( ) ) = 0 then this.SyncKeysFile( )           ' never under an open buffer
+        this.OpenFile( this.KeysFile( ) )
+    case Cmd.ThemeFile
+        dim as ustring f = this.EditableThemeFile( )
+        if len( f ) then this.OpenFile( f )
+    case Cmd.AppExit : tkForm_Close( form )
+    case Cmd.BufferList : this.OpenChooser( PickKind.Buffers, true )   ' Ctrl+E: where Ctrl+P opens (author)
+    case Cmd.BufferNext : this.CycleBuffer( true )
+    case Cmd.BufferPrev : this.CycleBuffer( false )
+    case Cmd.SplitLeftRight : this.ToggleSplit( session.SplitMode.Vertical )
+    case Cmd.SplitTopBottom : this.ToggleSplit( session.SplitMode.Horizontal )
+    case Cmd.CycleFocus : this.CycleFocus( )
+    case Cmd.FindInProject : this.OpenStrip( findstrip.StripMode.Project )
+    case Cmd.CompleteWord
+        if documents.IsSourceFile( this.ActivePath( ) ) then this.ShowCompletionsAt( v, this.Active( ), 0 )
+    case Cmd.GoToDefinition : this.GoToDefinition( )
+    case Cmd.GoBack : this.GoHistory( false )
+    case Cmd.GoForward : this.GoHistory( true )
+    case Cmd.GoToNextFunction : this.GoFunction( true )
+    case Cmd.GoToPrevFunction : this.GoFunction( false )
+    case Cmd.SearchSymbol
+        if Chooser.IsOpen( ) andalso (Choosing = PickKind.Symbols) then
+            Chooser.Close( )
+        else
+            this.OpenChooser( PickKind.Symbols )
+        end if
+    case Cmd.FunctionList
+        if Chooser.IsOpen( ) andalso (Choosing = PickKind.Functions) then
+            FuncsAll = (FuncsAll = false)              ' again: this buffer / every open buffer
+        else
+            FuncsAll = false
+        end if
+        this.OpenChooser( PickKind.Functions )
+    case Cmd.OutputPane : this.ShowOutput( OutputShown = false )
+    case Cmd.Compile : this.StartBuild( build.BuildAction.Compile )
+    case Cmd.BuildExecute : this.StartBuild( build.BuildAction.BuildExecute )
+    case Cmd.RebuildAll : this.StartBuild( build.BuildAction.Compile, true )
+    case Cmd.RunExe
+        if len( LastExe ) = 0 then LastExe = build.OutputFile( this.ActivePath( ), "", platform.CurrentOs( ) )
+        this.RunProgram( LastExe )
+    case Cmd.NextDiagnostic : this.StepDiagnostic( true )
+    case Cmd.PrevDiagnostic : this.StepDiagnostic( false )
+    case Cmd.ProjectNew : this.NewProject( )
+    case Cmd.ProjectClose : this.CloseProject( )
+    case Cmd.RunArguments : this.OpenStrip( findstrip.StripMode.Args )
+    case Cmd.BuildConfig : this.OpenChooser( PickKind.Build )
+    case Cmd.Find : this.OpenStrip( findstrip.StripMode.Find )
+    case Cmd.Replace : this.OpenStrip( findstrip.StripMode.Replace )
+    case Cmd.GoToLine : this.OpenStrip( findstrip.StripMode.GoTo )
+    case Cmd.FindNext, Cmd.FindPrev
+        ' a selection on one line is what F3 looks for, not the last phrase (author 2026-10-27)
+        dim as ustring sel = v->SelectedText( )
+        if (len( sel ) > 0) andalso (instr( sel, wchr( 10 ) ) = 0) andalso (instr( sel, wchr( 13 ) ) = 0) then Finder.SetPhrase( sel )
+        if id = Cmd.FindNext then
+            this.OnFind( findstrip.FindAction.NextMatch )
+        else
+            this.OnFind( findstrip.FindAction.PrevMatch )
+        end if
+    case Cmd.ReplaceOne
+        if Finder.isOpen andalso (Finder.Mode = findstrip.StripMode.Replace) then this.OnFind( findstrip.FindAction.ReplaceOne )
+    case Cmd.BookmarkToggle : v->ToggleBookmark( v->CaretLine( ) - 1 )
+    case Cmd.BookmarkNext : v->NextBookmark( true )
+    case Cmd.BookmarkPrev : v->NextBookmark( false )
+    case Cmd.BookmarkClearAll : v->ClearBookmarks( )
+    case Cmd.BookmarksList : this.OpenChooser( PickKind.Bookmarks )
+    case Cmd.Undo : v->Undo( )
+    case Cmd.Redo : v->Redo( )
+    case Cmd.Cut : v->Cut( )
+    case Cmd.Copy : v->Copy( )
+    case Cmd.Paste : v->Paste( )
+    case Cmd.SelectAll : v->SelectAll( )
+    case Cmd.SelectLine : v->SelectLine( )
+    case Cmd.DeleteLine : v->DeleteLine( )
+    case Cmd.DuplicateLine : v->DuplicateLine( )
+    case Cmd.MoveLineUp : v->MoveLinesUp( )
+    case Cmd.MoveLineDown : v->MoveLinesDown( )
+    case Cmd.NewLineBelowCurrent : v->NewLineBelow( )
+    case Cmd.CommentBlock : v->CommentLines( true )
+    case Cmd.UncommentBlock : v->CommentLines( false )
+    case Cmd.IndentBlock : v->Indent( )
+    case Cmd.UnindentBlock : v->Unindent( )
+    case Cmd.ToUpperCase : v->UpperCaseSelection( )
+    case Cmd.ToLowerCase : v->LowerCaseSelection( )
+    case Cmd.ToMixedCase : v->MixedCaseSelection( )
+    case Cmd.ZoomIn : v->ZoomIn( )
+    case Cmd.ZoomOut : v->ZoomOut( )
+    case Cmd.ZoomReset : v->ZoomReset( )
+    case Cmd.FoldToggle : v->FoldToggle( false )
+    case Cmd.FoldBelow : v->FoldToggle( true )
+    case Cmd.FoldAll : v->FoldAll( true )
+    case Cmd.UnfoldAll : v->FoldAll( false )
+    end select
+    this.ShowStatus( )
+    return true
+end function
+
+' ================================================================ accelerators
+
+sub Window.RebuildAccelerators( )
+    if accel = 0 then accel = tkKeys_MapCreate( )
+    tkKeys_Clear( accel )
+    for i as long = 0 to Keys.Count( ) - 1
+        dim as ustring eff = Keys.Item( i ).Effective( )
+        if len( eff ) = 0 then continue for
+        ' two commands on one chord: the first in the table keeps it (keybind.OwnerOf's rule)
+        dim as string t = eff
+        dim as TK_CHORD c
+        if tkKeys_Parse( t, c ) andalso (tkKeys_Lookup( accel, c ) = 0) then tkKeys_Bind( accel, c, Keys.Item( i ).Id )
+    next
+end sub
+
+' ================================================================ configuration
+
+function Window.SettingsFile( ) as ustring
+    return fs.PathJoin( ConfigDir, settings.SETTINGS_FILE )
+end function
+
+function Window.KeysFile( ) as ustring
+    return fs.PathJoin( ConfigDir, keybind.KEYBINDINGS_FILE )
+end function
+
+function Window.SessionFile( ) as ustring
+    return fs.PathJoin( ConfigDir, session.SESSION_FILE )
+end function
+
+function Window.FontFile( ) as ustring
+    if (len( Prefs.Font ) > 0) andalso fs.IsFile( Prefs.Font ) then return Prefs.Font
+    return fs.PathJoin( ResourceDir, "fonts", FONT_MONO )
+end function
+
+sub Window.ApplyLook( )
+    Look = chrome.LookOf( Theme, Prefs, Words, this.FontFile( ) )
+    for each d as DocRef in Docs
+        d->Main.ApplyLook( Look )
+    next
+end sub
+
+' settings.toml, then the theme it names. A file that does not parse changes nothing.
+sub Window.ReloadSettings( )
+    dim as settings.SettingsResult r = settings.LoadSettings( this.SettingsFile( ) )
+    if r.IsOk( ) then
+        Prefs = r.Value( )
+        Message = ""
+    else
+        Message = strings.Format( "{}:{}: {}", settings.SETTINGS_FILE, r.Failure( ).Line( ), r.Failure( ).Detail( ) )
+    end if
+    dim as boolean known = false
+    for each b as settings.BuildConfig in Prefs.Builds
+        if b.Name = CurrentBuild then known = true
+    next
+    if known = false then CurrentBuild = Prefs.DefaultBuild( )
+    this.ApplyStatusPanels( )
+    this.ReloadTheme( )
+    this.ShowStatus( )
+end sub
+
+' settings.toml's [statusbar] switches: the Project, Settings and Keys panels on both status lines.
+sub Window.ApplyStatusPanels( )
+    for k as long = 0 to 1
+        dim as TK_WIDGET ptr bar = status
+        if k = 1 then bar = status2
+        if bar = 0 then continue for
+        tkStatusBar_SetPanelVisible( bar, StatusPanel.Project, Prefs.ShowProjectPanel )
+        tkStatusBar_SetPanelVisible( bar, StatusPanel.Settings, Prefs.ShowSettingsPanel )
+        tkStatusBar_SetPanelVisible( bar, StatusPanel.Keys, Prefs.ShowKeysPanel )
+    next
+end sub
+
+' settings.toml rewritten to list every key at the value it reads as, unless it does already. A
+' file that does not parse is the person's to fix, and is left alone.
+sub Window.SyncSettingsFile( )
+    dim as settings.SettingsResult r = settings.LoadSettings( this.SettingsFile( ) )
+    if r.IsOk( ) then settings.WriteFile( this.SettingsFile( ), r.Value( ) )
+end sub
+
+' The build configuration name_ is used now and is settings.toml's default from now on: the file
+' is rewritten, and the buffer showing it, if one does, reloaded. A file that does not parse is
+' the person's to fix: the choice holds for this run only.
+sub Window.SetDefaultBuild( byref name_ as const ustring )
+    CurrentBuild = name_
+    dim as settings.SettingsResult r = settings.LoadSettings( this.SettingsFile( ) )
+    if r.IsOk( ) = false then
+        this.SetMessage( settings.SETTINGS_FILE & " does not parse: " & name_ & " is not saved as the default" )
+        exit sub
+    end if
+    dim as settings.EditorSettings st = r.Value( )
+    for i as long = 0 to st.Builds.Count( ) - 1
+        st.Builds[i].IsDefault = (st.Builds[i].Name = name_)
+    next
+    for i as long = 0 to Prefs.Builds.Count( ) - 1
+        Prefs.Builds[i].IsDefault = (Prefs.Builds[i].Name = name_)
+    next
+    if settings.WriteFile( this.SettingsFile( ), st ) then
+        dim as DocRef d = this.FindOpen( this.SettingsFile( ) )
+        if d then d->Reload( )
+    end if
+end sub
+
+' keybindings.toml rewritten to list every command at the chord in force, unless it does already
+' (first run: written). A file that does not load is the person's to fix, and is left alone.
+sub Window.SyncKeysFile( )
+    dim as keybind.KeyMap k
+    if k.Load( this.KeysFile( ) ).IsOk( ) = false then exit sub
+    dim as keybind.TextResult t = k.ToToml( )
+    if t.IsOk( ) = false then exit sub
+    if fs.IsFile( this.KeysFile( ) ) andalso (fs.ReadAllText( this.KeysFile( ) ).ValueOr( "" ) = t.Value( )) then exit sub
+    k.Save( this.KeysFile( ) )
+end sub
+
+' keybindings.toml: the key map and the accelerators; warnings and chords
+' two commands share go to the message panel.
+sub Window.ReloadKeys( )
+    dim as keybind.WarningsResult r = Keys.Load( this.KeysFile( ) )
+    dim as Array( of ustring ) notes
+    if r.IsOk( ) = false then
+        notes.Push( r.Failure( ) )
+    else
+        notes = r.Value( )
+    end if
+    for i as long = 0 to Keys.Count( ) - 1
+        dim as ustring eff = Keys.Item( i ).Effective( )
+        if len( eff ) = 0 then continue for
+        dim as Optional( of Cmd ) o = Keys.OwnerOf( eff, Keys.Item( i ).Id )
+        if o.HasValue( ) andalso (clng( o.Value( ) ) < clng( Keys.Item( i ).Id )) then
+            notes.Push( strings.Format( "{} and {} share {}", Keys.Commands( ).Info( o.Value( ) ).Name, Keys.Item( i ).Name, eff ) )
+        end if
+    next
+    this.RebuildAccelerators( )
+    if notes.Count( ) = 0 then
+        Message = ""
+    elseif notes.Count( ) = 1 then
+        Message = keybind.KEYBINDINGS_FILE & ": " & notes[0]
+    else
+        Message = strings.Format( "{}: {} (+{} more)", keybind.KEYBINDINGS_FILE, notes[0], notes.Count( ) - 1 )
+    end if
+    this.ShowStatus( )
+end sub
+
+' The theme settings.toml names: the user's copy, else the shipped one, else the built-in dark.
+sub Window.ReloadTheme( )
+    dim as ustring path = themes.FindTheme( Prefs.Theme, ConfigDir, ResourceDir )
+    if len( path ) = 0 then
+        Theme = themes.DarkTheme( )
+        if lcase( Prefs.Theme ) <> themes.DEFAULT_THEME then Message = "theme '" & Prefs.Theme & "' not found; using dark"
+    else
+        dim as themes.ThemeResult r = themes.LoadTheme( path, Prefs.Theme )
+        if r.IsOk( ) then
+            Theme = r.Value( )
+            if Theme.Warnings.Count( ) > 0 then
+                Message = strings.Format( "{}.toml: {}", Prefs.Theme, Theme.Warnings[0] )
+            end if
+        else
+            Message = r.Failure( )
+        end if
+    end if
+    tkApp_SetTheme( chrome.PaletteOf( Theme ) )
+    ' the status line's background is the right-click menu's (tkPopupMenu's Popup colour)
+    dim as TKTHEME_COLORS tc = tkApp_Theme( )
+    dim as TKSTATUSBAR_COLORS sbc = tkStatusBar_ThemeColors( tc )
+    sbc.BackColor = tc.Popup
+    sbc.ForeColor = chrome.StatusText( Theme )   ' dimmer than the theme's status text
+    tkStatusBar_SetColors( status, @sbc )
+    tkStatusBar_SetColors( status2, @sbc )
+    Out.ApplyColors( )
+    this.ApplyLook( )
+    tkForm_Invalidate( form )
+end sub
+
+' The active theme as a file the user may edit: <config>/themes/<name>.toml, copied from the
+' shipped one (or the built-in dark's file) the first time.
+function Window.EditableThemeFile( ) as ustring
+    dim as ustring dir_ = fs.PathJoin( ConfigDir, themes.THEME_DIR )
+    dim as ustring mine = fs.PathJoin( dir_, Prefs.Theme & ".toml" )
+    if fs.IsFile( mine ) then return mine
+    dim as ustring shipped = themes.FindTheme( Prefs.Theme, "", ResourceDir )
+    if len( shipped ) = 0 then shipped = themes.FindTheme( themes.DEFAULT_THEME, "", ResourceDir )
+    if len( shipped ) = 0 then
+        this.SetMessage( "no theme file to copy" )
+        return ""
+    end if
+    fs.CreateDirAll( dir_ )
+    if fs.CopyFile( shipped, mine ).IsOk( ) = false then
+        this.SetMessage( "cannot write " & mine )
+        return ""
+    end if
+    return mine
+end function
+
+' A saved config file is applied at once (D15).
+sub Window.AfterSave( byval d as DocRef )
+    dim as ustring p = lcase( d->Path )
+    if p = lcase( this.SettingsFile( ) ) then
+        this.ReloadSettings( )
+    elseif p = lcase( this.KeysFile( ) ) then
+        this.ReloadKeys( )
+    elseif (p = lcase( Theme.Path )) orelse _
+           (p = lcase( fs.PathJoin( ConfigDir, themes.THEME_DIR, Prefs.Theme & ".toml" ) )) then
+        this.ReloadTheme( )                     ' the active theme, or the user's new copy of it
+    elseif ProjOpen andalso (p = lcase( project.OptionsPath( ConfigDir, Proj.Path ) )) then
+        ' the project's options, edited by hand: what they say now holds
+        dim as project.OptionsResult r = project.LoadOptions( d->Path )
+        if r.IsOk( ) then
+            ProjOpts = r.Value( )
+            ProjOpts.Manifest = Proj.Path         ' which project it is, whatever was typed
+            this.ApplyProjectOptions( )
+            this.ShowStatus( )
+        else
+            this.SetMessage( fs.PathFileName( d->Path ) & ": " & r.Failure( ) )
+        end if
+    end if
+end sub
+
+' ================================================================ buffers and panes
+
+' The second pane's focus follows the keyboard focus whenever it sits in one of the panes.
+sub Window.SyncFocus( )
+    if form = 0 then exit sub
+    dim as TK_WIDGET ptr f = tkHost_GetFocus( tkForm_Host( form ) )
+    if f = 0 then exit sub
+    if Pane1 andalso (f = Pane1->Main.Widget( )) then InPane2 = false
+    if Pane2 andalso (f = Pane2->Main.Widget( )) then InPane2 = true
+end sub
+
+function Window.Active( ) as DocRef
+    if InPane2 andalso (Pane2 <> 0) andalso (Split <> session.SplitMode.None) then return Pane2
+    return Pane1
+end function
+
+function Window.View( ) byref as editor.CodeView
+    if InPane2 andalso (Pane2 <> 0) andalso (Split <> session.SplitMode.None) then return Pane2->Main
+    return Pane1->Main
+end function
+
+function Window.ActivePath( ) as ustring
+    dim as DocRef d = this.Active( )
+    if d = 0 then return ""
+    return d->Path
+end function
+
+function Window.DocOfWidget( byval w as TK_WIDGET ptr ) as DocRef
+    if w = 0 then return 0
+    for each d as DocRef in Docs
+        if d->HasView( w ) then return d
+    next
+    return 0
+end function
+
+' A Scintilla view, styled, reporting caret moves to the status line; hidden until a pane shows it.
+function Window.NewView( byref v as editor.CodeView ) as boolean
+    viewIds += 1
+    if v.Create( tkForm_Widget( form ), ID_VIEW + viewIds ) = false then return false
+    v.ApplyLook( Look )
+    tkCodeEdit_SetNotifyCallback( v.Widget( ), sub( byval h as TK_WIDGET ptr, byval n as const TKCE_NOTIFICATION ptr )
+        dim as Window ptr mw = WindowOfWidget( h )
+        if mw = 0 then exit sub
+        select case n->code
+        case SCN_UPDATEUI, SCN_FOCUSIN : mw->ShowStatus( )
+        case SCN_CHARADDED
+            mw->OnCharAdded( h, n->ch )
+            mw->CodeTips( h, n->ch )
+        case SCN_MODIFIED
+            if (n->modificationType and (SC_MOD_INSERTTEXT or SC_MOD_DELETETEXT)) then
+                mw->scanDirty = true
+                mw->lastEditTicks = SDL_GetTicks( )
+            end if
+        case SCN_MARGINCLICK : mw->OnMarginClick( h, n->margin, n->position )
+        end select
+    end sub )
+    tkCodeEdit_SetContextMenuCallback( v.Widget( ), sub( byval hEdit as TK_WIDGET ptr, byval x as long, byval y as long )
+        dim as Window ptr mw = WindowOfWidget( hEdit )
+        if mw then mw->ShowEditMenu( hEdit, x, y )
+    end sub )
+    tkWidget_Show( v.Widget( ), false )
+    return true
+end function
+
+' The right-click menu at x, y in hEdit, for hEdit's pane: what cannot be done now is greyed.
+sub Window.ShowEditMenu( byval hEdit as TK_WIDGET ptr, byval x as long, byval y as long )
+    if (editMenu = 0) orelse (this.DocOfWidget( hEdit ) = 0) then exit sub
+    tkHost_SetFocus( tkForm_Host( form ), hEdit )
+    this.SyncFocus( )
+    dim as editor.CodeView ptr v = @this.View( )
+    dim as boolean sel = v->SelectionLength( ) > 0
+    tkPopupMenu_SetItemEnabled( editMenu, clng( Cmd.Undo ), v->CanUndo( ) )
+    tkPopupMenu_SetItemEnabled( editMenu, clng( Cmd.Redo ), v->CanRedo( ) )
+    tkPopupMenu_SetItemEnabled( editMenu, clng( Cmd.Cut ), sel )
+    tkPopupMenu_SetItemEnabled( editMenu, clng( Cmd.Copy ), sel )
+    tkPopupMenu_SetItemEnabled( editMenu, clng( Cmd.Paste ), v->CanPaste( ) )
+    dim as TKRECT a
+    tkWidget_AbsRect( hEdit, a )
+    tkPopupMenu_Show( editMenu, a.left + x, a.top + y )
+end sub
+
+' d is the most recently shown buffer now.
+sub Window.Touch( byval d as DocRef )
+    for i as long = 0 to Mru.Count( ) - 1
+        if Mru[i] = d then
+            Mru.Remove( i )
+            exit for
+        end if
+    next
+    Mru.Insert( 0, d )
+end sub
+
+' An empty untitled buffer, not shown yet.
+function Window.NewDocument( ) as DocRef
+    dim as DocRef d = new documents.Document
+    if this.NewView( d->Main ) = false then
+        delete d
+        return 0
+    end if
+    untitled += 1
+    d->Untitled = "untitled" & untitled
+    d->Enc.Encoding = Prefs.NewEncoding
+    dim as docencoding.LineEnd e = docencoding.LineEnd.Lf
+    select case Prefs.NewLineEnd
+    case settings.NewEol.CrLf : e = docencoding.LineEnd.CrLf
+    case settings.NewEol.Native
+        if platform.CurrentOs( ) = platform.Os.Windows then e = docencoding.LineEnd.CrLf
+    end select
+    d->Enc.LineEnding = e
+    d->Main.SetLineEnding( e, false )
+    Docs.Push( d )
+    return d
+end function
+
+' The open buffer holding path (compared as the file system compares), or 0.
+function Window.FindOpen( byref path as const ustring ) as DocRef
+    dim as ustring given = path
+    dim as ustring want = fs.CanonicalPath( given, true ).ValueOr( given )
+    for each d as DocRef in Docs
+        if len( d->Path ) = 0 then continue for
+        dim as ustring have = fs.CanonicalPath( d->Path, true ).ValueOr( d->Path )
+        if platform.CurrentOs( ) = platform.Os.Linux then
+            if have = want then return d
+        elseif lcase( have ) = lcase( want ) then
+            return d
+        end if
+    next
+    return 0
+end function
+
+' d in the focused pane, focused, most recent. A buffer the other pane shows stays there and that
+' pane takes the focus instead (author 2026-10-27).
+sub Window.ShowDoc( byval d as DocRef )
+    if d = 0 then exit sub
+    if (d = this.OtherPaneDoc( )) andalso (d <> 0) then
+        this.FocusPane( InPane2 = false )
+        exit sub
+    end if
+    if InPane2 andalso this.IsSplit( ) then
+        Pane2 = d
+    else
+        Pane1 = d
+    end if
+    this.Touch( d )
+    this.Layout( )
+    this.View( ).Focus( )
+    this.ShowStatus( )
+end sub
+
+' The buffer after (or before) the focused pane's in open order, wrapping at either end.
+sub Window.CycleBuffer( byval forward as boolean )
+    dim as long n = Docs.Count( )
+    if n < 2 then exit sub
+    dim as long i = 0
+    for k as long = 0 to n - 1
+        if Docs[k] = this.Active( ) then i = k
+    next
+    ' the other pane's buffer is passed over: it stays where it is
+    dim as DocRef other = this.OtherPaneDoc( )
+    for k as long = 1 to n
+        if forward then i = (i + 1) mod n else i = (i + n - 1) mod n
+        if Docs[i] <> other then
+            this.ShowDoc( Docs[i] )
+            exit sub
+        end if
+    next
+end sub
+
+' Opens path in the focused pane, or shows the buffer it is already in. An untitled, empty,
+' unmodified buffer in that pane gives way to it.
+function Window.OpenFile( byref path as const ustring ) as boolean
+    if project.IsManifest( path ) then
+        ' a tiko.toml opens its folder's project, and is shown too, to edit (author 2026-10-27)
+        dim as ustring given = path
+        dim as ustring full = fs.AbsolutePath( given ).ValueOr( given )
+        if (ProjOpen = false) orelse (fs.PathEquals( full, Proj.Path ) = false) then
+            if this.OpenProject( full ) = false then return false
+        end if
+        return this.OpenText( full )
+    end if
+    return this.OpenText( path )
+end function
+
+' path in a buffer, whatever it is -- a tiko.toml too, without opening its project.
+function Window.OpenText( byref path as const ustring ) as boolean
+    dim as DocRef have = this.FindOpen( path )
+    if have then
+        this.ShowDoc( have )
+        return true
+    end if
+    dim as DocRef cur = this.Active( )
+    dim as DocRef d = this.NewDocument( )
+    if d = 0 then return false
+    untitled -= 1
+    dim as documents.TextResult r = d->Load( path )
+    if r.IsOk( ) = false then
+        Docs.Pop( )
+        d->DestroyViews( )
+        delete d
+        this.SetMessage( fs.PathFileName( path ) & ": " & r.Failure( ) )
+        return false
+    end if
+    Recent.Add( path )
+    this.ShowDoc( d )
+    this.QueueScan( d )
+    if cur andalso cur->IsNew( ) andalso (cur->IsModified( ) = false) andalso (cur->Main.Length( ) = 0) _
+       andalso (cur <> Pane1) andalso (cur <> Pane2) then
+        this.CloseDoc( cur )
+    end if
+    Message = ""
+    this.ShowStatus( )
+    return true
+end function
+
+' Save (newName, or no path yet: ask for one). FALSE when nothing was written.
+function Window.SaveDoc( byval d as DocRef, byval newName as boolean ) as boolean
+    if d = 0 then return false
+    dim as ustring path = d->Path
+    if newName orelse (len( path ) = 0) then
+        dim as ustring suggest = d->DisplayName( )
+        if len( d->Path ) then suggest = d->Path
+        path = Pick( form, TKFD_SAVE, suggest )
+        if len( path ) = 0 then return false
+    end if
+    dim as boolean accept_ = false
+    if d->MustConfirmLoss( ) then
+        if Ask( form, d->DisplayName( ) & ": some characters cannot be written as " & _
+                docencoding.EncodingName( d->Enc.Encoding ) & " and will be replaced. Save anyway?", _
+                MBX_BTN_OKCANCEL ) <> MBX_IDOK then return false
+        accept_ = true
+    end if
+    dim as documents.TextResult r = d->Save( path, accept_ )
+    if r.IsOk( ) = false then
+        this.SetMessage( fs.PathFileName( path ) & ": " & r.Failure( ) )
+        return false
+    end if
+    Recent.Add( path )
+    Message = ""
+    this.AfterSave( d )
+    this.QueueScan( d )
+    this.ShowTitle( )
+    this.ShowStatus( )
+    return true
+end function
+
+function Window.SaveAll( ) as boolean
+    for each d as DocRef in Docs
+        if d->IsModified( ) andalso (len( d->Path ) > 0) then
+            if this.SaveDoc( d, false ) = false then return false
+        end if
+    next
+    return true
+end function
+
+' Close d, asking to save it when modified. A pane that showed it shows the most recent buffer the
+' other pane does not; with none, the split closes; the last buffer closed leaves an untitled one.
+' FALSE = the person cancelled.
+function Window.CloseDoc( byval d as DocRef ) as boolean
+    if d = 0 then return true
+    if d->IsModified( ) then
+        select case Ask( form, d->DisplayName( ) & ": save the changes?", MBX_BTN_SAVE_DONTSAVE_CANCEL )
+        case MBX_IDYES
+            if this.SaveDoc( d, false ) = false then return false
+        case MBX_IDNO
+        case else
+            return false
+        end select
+    end if
+    for i as long = 0 to Mru.Count( ) - 1
+        if Mru[i] = d then
+            Mru.Remove( i )
+            exit for
+        end if
+    next
+    for i as long = 0 to Docs.Count( ) - 1
+        if Docs[i] = d then
+            Docs.Remove( i )
+            exit for
+        end if
+    next
+    ' its pane shows the most recent buffer the other pane does not
+    dim as DocRef keep = 0
+    if this.IsSplit( ) then
+        if d = Pane1 then keep = Pane2
+        if d = Pane2 then keep = Pane1
+    end if
+    dim as DocRef nxt = 0
+    for each x as DocRef in Mru
+        if x <> keep then
+            nxt = x
+            exit for
+        end if
+    next
+    if (nxt = 0) andalso (keep <> 0) then
+        ' nothing else to show: the split closes and the other pane's buffer fills the window (a new
+        ' untitled one here would be closed next by CloseAll, which would make another -- for ever)
+        Pane1 = keep
+        Pane2 = 0
+        Split = session.SplitMode.None
+        InPane2 = false
+        if splitBar then tkWidget_Destroy( splitBar )
+        splitBar = 0
+        if splitFoot then tkWidget_Destroy( splitFoot )
+        splitFoot = 0
+    else
+        if (nxt = 0) andalso (d = Pane1) then
+            nxt = this.NewDocument( )
+            Mru.Push( nxt )
+        end if
+        if Pane1 = d then Pane1 = nxt
+        if Pane2 = d then Pane2 = nxt
+    end if
+    d->DestroyViews( )
+    delete d
+    this.Layout( )
+    this.View( ).Focus( )
+    this.ShowTitle( )
+    this.ShowStatus( )
+    return true
+end function
+
+function Window.CloseAll( ) as boolean
+    while Docs.Count( ) > 0
+        dim as DocRef d = Docs[Docs.Count( ) - 1]
+        if (Docs.Count( ) = 1) andalso d->IsNew( ) andalso (d->IsModified( ) = false) then exit while
+        if this.CloseDoc( d ) = false then return false
+    wend
+    return true
+end function
+
+' The same mode again unsplits (the focused pane's buffer stays); the other mode switches. A new
+' split shows, in pane 2, the most recent buffer other than the active one -- a new untitled one
+' when there is none -- and pane 2 has the focus (author 2026-10-27).
+sub Window.ToggleSplit( byval mode as session.SplitMode )
+    if Split = mode then
+        if InPane2 andalso Pane2 then Pane1 = Pane2
+        Split = session.SplitMode.None
+        InPane2 = false
+        Pane2 = 0
+        if splitBar then tkWidget_Destroy( splitBar )
+        splitBar = 0
+        if splitFoot then tkWidget_Destroy( splitFoot )
+        splitFoot = 0
+    else
+        if Split = session.SplitMode.None then
+            dim as DocRef b = 0
+            for each x as DocRef in Mru
+                if x <> Pane1 then
+                    b = x
+                    exit for
+                end if
+            next
+            if b = 0 then
+                b = this.NewDocument( )
+                if b = 0 then exit sub
+                Mru.Push( b )
+            end if
+            Pane2 = b
+            InPane2 = true                       ' the new pane takes the focus (author 2026-10-27)
+        end if
+        Split = mode
+        if splitBar then tkWidget_Destroy( splitBar )
+        dim as long orient = TKSPLITTER_VERTICAL
+        if mode = session.SplitMode.Horizontal then orient = TKSPLITTER_HORIZONTAL
+        splitBar = tkSplitter_Create( tkForm_Widget( form ), ID_SPLIT, orient )
+        dim as SPL_PosChangedCallbackSub moved = sub( byval h as TK_WIDGET ptr, byval newPos as long, byval nPhase as long )
+            dim as Window ptr mw = WindowOfWidget( h )
+            if mw = 0 then exit sub
+            dim as TK_WIDGET ptr root = tkForm_Widget( mw->form )
+            dim as long bar = tkForm_Scale( mw->form, SPLIT_BAR )
+            if mw->Split = session.SplitMode.Vertical then
+                if root->cw > bar then mw->SplitRatio = newPos / (root->cw - bar)
+            else
+                ' pane 1's status line sits between pane 1 and the bar
+                dim as long sh = mw->StatusHeight( )
+                dim as long ah = root->ch - mw->BottomHeight( ) - mw->OutputHeight( )
+                if ah > sh + bar then mw->SplitRatio = (newPos - sh) / (ah - sh - bar)
+            end if
+            mw->Layout( )
+        end sub
+        tkSplitter_SetPosChangedCallback( splitBar, moved )
+        if splitFoot then tkWidget_Destroy( splitFoot )
+        splitFoot = 0
+        if mode = session.SplitMode.Vertical then
+            splitFoot = tkSplitter_Create( tkForm_Widget( form ), ID_SPLIT2, orient )
+            tkSplitter_SetPosChangedCallback( splitFoot, moved )
+        end if
+    end if
+    this.Layout( )
+    this.View( ).Focus( )
+    this.ShowStatus( )
+end sub
+
+sub Window.FocusPane( byval second as boolean )
+    if (Split = session.SplitMode.None) orelse (Pane2 = 0) then second = false
+    InPane2 = second
+    this.View( ).Focus( )
+    this.Touch( this.Active( ) )
+    this.ShowTitle( )
+    this.ShowStatus( )
+end sub
+
+' Another program wrote (or removed) an open file: its buffer reloads, modified or not, with no
+' message (the author's rule, 2026-10-27). A removed file's buffer keeps its text.
+sub Window.CheckDisk( )
+    for each d as DocRef in Docs
+        if d->ChangedOnDisk( ) = false then continue for
+        if fs.IsFile( d->Path ) then
+            d->Reload( )
+        else
+            d->Ignored = documents.StampOf( d->Path )
+        end if
+    next
+    this.ShowStatus( )
+end sub
+
+' A relabel: the text is Unicode, so the bytes change only at the next save (docencoding).
+sub Window.SetEncoding( byval e as docencoding.FileEncoding )
+    dim as DocRef d = this.Active( )
+    if d = 0 then exit sub
+    if d->Enc.PlanChange( e, d->Text( ) ) = docencoding.EncodingChange.RelabelLossy then
+        if Ask( form, d->DisplayName( ) & ": some characters cannot be written as " & _
+                docencoding.EncodingName( e ) & ". Change anyway?", MBX_BTN_OKCANCEL ) <> MBX_IDOK then exit sub
+    end if
+    d->Enc.ApplyChange( e )
+    this.ShowStatus( )
+end sub
+
+' Converts every line break of the active buffer, and new lines use e from now on.
+sub Window.SetLineEnding( byval e as docencoding.LineEnd )
+    dim as DocRef d = this.Active( )
+    if d = 0 then exit sub
+    d->Enc.LineEnding = e
+    d->Main.SetLineEnding( e, true )
+    this.ShowStatus( )
+end sub
+
+' session.toml: the buffers with a path, their places, the split, the build, the recent files.
+' What is open, where, into st: paths stored under base_ ("" = absolute). The files st already
+' lists (a project's) keep their place and become closed unless a buffer shows them; every other
+' buffer with a path is added.
+sub Window.CaptureState( byref st as session.SessionState, byref base_ as const ustring )
+    for i as long = 0 to st.Files.Count( ) - 1
+        st.Files[i].Open = false
+    next
+    for each d as DocRef in Docs
+        if len( d->Path ) = 0 then continue for
+        dim as ustring stored = session.StoredPath( base_, d->Path )
+        dim as long at = -1
+        for i as long = 0 to st.Files.Count( ) - 1
+            if lcase( st.Files[i].Path ) = lcase( stored ) then at = i
+        next
+        if at < 0 then
+            dim as session.FileState nf
+            nf.Path = stored
+            st.Files.Push( nf )
+            at = st.Files.Count( ) - 1
+        end if
+        st.Files[at].Open = true
+        st.Files[at].FirstLine = d->Main.FirstLine( )
+        st.Files[at].Position = d->Main.Position( )
+        st.Files[at].Bookmarks = d->Main.Bookmarks( )
+    next
+    st.Active = ""
+    st.Pane2 = ""
+    if Pane1 andalso len( Pane1->Path ) then st.Active = session.StoredPath( base_, Pane1->Path )
+    st.Split = Split
+    st.SplitRatio = SplitRatio
+    if Pane2 andalso len( Pane2->Path ) then st.Pane2 = session.StoredPath( base_, Pane2->Path )
+    st.Build = CurrentBuild
+end sub
+
+' Opens st's open files (stored under base_), their places, the active one, the split.
+sub Window.ApplyState( byref st as const session.SessionState, byref base_ as const ustring )
+    if len( st.Build ) then
+        for each b as settings.BuildConfig in Prefs.Builds
+            if b.Name = st.Build then CurrentBuild = st.Build
+        next
+    end if
+    for each f as session.FileState in st.Files
+        dim as ustring full = session.FullPath( base_, f.Path )
+        if (f.Open = false) orelse (fs.IsFile( full ) = false) then continue for
+        if this.OpenText( full ) = false then continue for
+        dim as DocRef d = this.Active( )
+        d->Main.SetBookmarks( f.Bookmarks )
+        d->Main.SetPosition( f.Position )
+        d->Main.SetFirstLine( f.FirstLine )
+    next
+    dim as DocRef a = 0
+    if len( st.Active ) then a = this.FindOpen( session.FullPath( base_, st.Active ) )
+    if a then this.ShowDoc( a )
+    if (st.Split <> session.SplitMode.None) andalso (Pane1 <> 0) then
+        SplitRatio = st.SplitRatio
+        this.ToggleSplit( st.Split )
+        dim as DocRef b = 0
+        if len( st.Pane2 ) then b = this.FindOpen( session.FullPath( base_, st.Pane2 ) )
+        if (b <> 0) andalso (b <> Pane1) then
+            Pane2 = b
+            this.Layout( )
+        end if
+        this.FocusPane( false )                  ' the session's active buffer, in pane 1, has it
+    end if
+end sub
+
+' session.toml: what is open outside a project, the recent files, the project that was open, the
+' window's place.
+sub Window.SaveSession( )
+    dim as session.SessionState st
+    if ProjOpen then
+        st.Project = Proj.Path                  ' its own files are the project's to keep
+    else
+        this.CaptureState( st, "" )
+    end if
+    st.Build = CurrentBuild
+    st.Recent = Recent.Items( )
+    this.KeepNormalPlace( )
+    st.WinX = NormalX
+    st.WinY = NormalY
+    st.WinW = NormalW
+    st.WinH = NormalH
+    st.WinMax = (SDL_GetWindowFlags( tkForm_Host( form )->win ) and SDL_WINDOW_MAXIMIZED) <> 0
+    session.SaveSession( this.SessionFile( ), st )
+end sub
+
+' The window's place, unless it is maximized, minimized or full screen (that place is not the one to
+' come back to).
+sub Window.KeepNormalPlace( )
+    if form = 0 then exit sub
+    dim as SDL_Window ptr win = tkForm_Host( form )->win
+    if (SDL_GetWindowFlags( win ) and (SDL_WINDOW_MAXIMIZED or SDL_WINDOW_MINIMIZED or SDL_WINDOW_FULLSCREEN)) <> 0 then exit sub
+    dim as long x, y, w, h
+    SDL_GetWindowPosition( win, @x, @y )
+    SDL_GetWindowSize( win, @w, @h )
+    if (w < 200) orelse (h < 150) then exit sub
+    NormalX = x : NormalY = y : NormalW = w : NormalH = h
+end sub
+
+' Is the middle of a window's top edge at x, y (width w) on a display? A place kept from a monitor
+' since unplugged is not used.
+private function OnADisplay( byval x as long, byval y as long, byval w as long ) as boolean
+    dim as long n = 0
+    dim as SDL_DisplayID ptr ids = SDL_GetDisplays( @n )
+    if ids = 0 then return false
+    dim as boolean found = false
+    dim as long mx = x + w \ 2
+    for i as long = 0 to n - 1
+        dim as SDL_Rect r
+        if SDL_GetDisplayUsableBounds( ids[i], @r ) then
+            if (mx >= r.x) andalso (mx < r.x + r.w) andalso (y >= r.y) andalso (y < r.y + r.h) then found = true
+        end if
+    next
+    SDL_free( ids )
+    return found
+end function
+
+sub Window.RestoreSession( byval reopen as boolean )
+    dim as session.SessionResult r = session.LoadSession( this.SessionFile( ) )
+    if r.IsOk( ) = false then exit sub
+    dim as session.SessionState st = r.Value( )
+    if (st.WinW > 0) andalso (form <> 0) then
+        dim as SDL_Window ptr win = tkForm_Host( form )->win
+        SDL_SetWindowSize( win, st.WinW, st.WinH )
+        if OnADisplay( st.WinX, st.WinY, st.WinW ) then SDL_SetWindowPosition( win, st.WinX, st.WinY )
+        NormalX = st.WinX : NormalY = st.WinY : NormalW = st.WinW : NormalH = st.WinH
+        StartMax = st.WinMax
+    end if
+    ' files named on the command line come instead of the last session's files or project
+    ' (author 2026-10-27): the caller passes reopen = FALSE and opens them itself
+    if reopen then
+        if len( st.Project ) andalso fs.IsFile( st.Project ) andalso project.IsManifest( st.Project ) then
+            this.OpenProject( st.Project )
+        else
+            this.ApplyState( st, "" )
+        end if
+    end if
+    Recent.Assign( st.Recent )                  ' opening the files reordered it
+    Message = ""
+    this.ShowStatus( )
+end sub
+
+' ================================================================ the chooser popup
+
+private function Row( byval a as ustring, byval b as ustring, byval c as ustring, _
+                      byval tag as long ) as popuplist.PickRow
+    dim as popuplist.PickRow r
+    r.Cells.Push( a )
+    r.Cells.Push( b )
+    r.Cells.Push( c )
+    r.Key = b
+    r.Tag = tag
+    return r
+end function
+
+' The short lists over the right-hand status panels: a name and a note, no wider than they need.
+private sub Narrow( byref c as popuplist.Picker, byref popW as long )
+    c.Columns.Clear( )
+    c.Columns.Push( 18 )
+    c.Columns.Push( 130 )
+    c.Columns.Push( 120 )
+    popW = 280
+end sub
+
+' The one popup list, anchored at the bottom of the panes: what kind decides the rows and what a
+' pick does (Chosen).
+sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
+    dim as Array( of popuplist.PickRow ) rows
+    dim as long sel = 0
+    dim as ustring keep = ""
+    if (kind = PickKind.Functions) andalso (Choosing = PickKind.Functions) then keep = Chooser.QueryText( )
+    Chooser.Close( )
+    ' every list has the query box, its cue saying what is asked for (author 2026-10-27)
+    Chooser.Filter = true
+    Chooser.Cue = ""
+    Chooser.SeedQuery = keep
+    Chooser.MaxRows = 12
+    Chooser.Toggle.key = 0
+    Chooser.Columns.Clear( )
+    Chooser.Columns.Push( 18 )
+    Chooser.Columns.Push( 220 )
+    Chooser.Columns.Push( 200 )
+    dim as long popW = 460
+    select case kind
+    case PickKind.Symbols
+        Chooser.Cue = "Search for symbol or file"
+        this.CloseOnOwnKey( Cmd.SearchSymbol )
+        ' the project's files and the open buffers, then every definition in them
+        Hits.Clear( )
+        Chooser.Columns.Clear( )
+        Chooser.Columns.Push( 64 )
+        Chooser.Columns.Push( 300 )
+        Chooser.Columns.Push( 240 )
+        Chooser.MaxRows = 14
+        popW = 620
+        dim as Map( of ustring, boolean ) mine
+        dim as Array( of ustring ) paths
+        for each f as ustring in this.ProjectFiles( true )
+            paths.Push( f )
+        next
+        for each d as DocRef in Docs
+            if len( d->Path ) then paths.Push( d->Path )
+        next
+        for each pth as ustring in paths
+            if mine.Contains( ucase( pth ) ) then continue for
+            mine.Put( ucase( pth ), true )
+            dim as SymHit hh
+            hh.Name = fs.PathFileName( pth )
+            hh.Kind = "file"
+            hh.Path = pth
+            hh.Line = -1
+            Hits.Push( hh )
+        next
+        dim as Map( of ustring, boolean ) scanned
+        for each r as symboldb.SymRef in Db.Definitions( )
+            dim byref as symboldb.Sym y = Db.Item( r )
+            if mine.Contains( ucase( y.File ) ) = false then continue for     ' the user's files only
+            scanned.Put( ucase( y.File ), true )
+            dim as SymHit hh
+            hh.Name = Db.QualifiedName( r )
+            select case y.Kind
+            case symboldb.SymKind.FunctionProc : hh.Kind = "function"
+            case symboldb.SymKind.SubProc : hh.Kind = "sub"
+            case symboldb.SymKind.EnumDef : hh.Kind = "enum"
+            case else : hh.Kind = "type"
+            end select
+            hh.Path = this.ScannedFile( y.File )
+            hh.Line = y.LineNo - 1
+            if y.BodyLine > 0 then hh.Line = y.BodyLine - 1
+            Hits.Push( hh )
+        next
+        for each d as DocRef in Docs                    ' unscanned buffers: the outline
+            if (len( d->Path ) > 0) andalso scanned.Contains( ucase( d->Path ) ) then continue for
+            for each hh as SymHit in this.ProcsOf( d )
+                Hits.Push( hh )
+            next
+        next
+        for i as long = 0 to Hits.Count( ) - 1
+            dim as ustring where_ = fs.PathFileName( Hits[i].Path )
+            if Hits[i].Line >= 0 then where_ &= ":" & (Hits[i].Line + 1)
+            if Hits[i].Kind = "file" then where_ = fs.PathParent( Hits[i].Path )
+            rows.Push( Row( Hits[i].Kind, Hits[i].Name, where_, i ) )
+        next
+    case PickKind.Functions
+        Chooser.Cue = "Go to function in this file"
+        if FuncsAll then Chooser.Cue = "Go to function in any open file"
+        ' F4: the active buffer's procedures; F4 again (inside the list) every open buffer's
+        Hits.Clear( )
+        Chooser.Columns.Clear( )
+        Chooser.Columns.Push( 260 )
+        Chooser.Columns.Push( 80 )
+        Chooser.Columns.Push( 60 )
+        if FuncsAll then
+            Chooser.Columns.Push( 180 )
+            popW = 600
+            for each d as DocRef in Mru
+                for each hh as SymHit in this.ProcsOf( d )
+                    Hits.Push( hh )
+                next
+            next
+        else
+            popW = 420
+            Hits = this.ProcsOf( this.Active( ) )
+        end if
+        for i as long = 0 to Hits.Count( ) - 1
+            dim as popuplist.PickRow r
+            r.Cells.Push( Hits[i].Name )
+            r.Cells.Push( Hits[i].Kind )
+            r.Cells.Push( str( Hits[i].Line + 1 ) )
+            if FuncsAll then
+                dim as ustring fname = "untitled"
+                if Hits[i].Doc then fname = Hits[i].Doc->DisplayName( )
+                r.Cells.Push( fname )
+            end if
+            r.Tag = i
+            rows.Push( r )
+        next
+        ' its own key again flips this buffer / every open buffer (D11; the author kept it 2026-10-27)
+        dim as TK_CHORD tc
+        dim as string fk = Keys.Effective( Cmd.FunctionList )
+        if len( fk ) andalso tkKeys_Parse( fk, tc ) then Chooser.Toggle = tc
+        Chooser.OnToggle = sub( byval payload as any ptr, byval tag as long )
+            dim as Window ptr mw = payload
+            mw->FuncsAll = (mw->FuncsAll = false)
+            mw->OpenChooser( PickKind.Functions )
+        end sub
+    case PickKind.Buffers
+        Chooser.Cue = "Select edit buffer"
+        for i as long = 0 to Mru.Count( ) - 1
+            dim as DocRef d = Mru[i]
+            dim as ustring mark = " "
+            if d->IsModified( ) then mark = "*"
+            dim as ustring dir_ = ""
+            if len( d->Path ) then dir_ = fs.PathParent( d->Path )
+            rows.Push( Row( mark, d->DisplayName( ), dir_, i ) )
+        next
+    case PickKind.Recent
+        Chooser.Cue = "Open recent file"
+        ' a file that is not on disk is not offered; it stays in the list, so it is back if the file
+        ' (a drive, a share) is (author 2026-10-27)
+        for i as long = 0 to Recent.Count( ) - 1
+            if fs.IsFile( Recent.Item( i ) ) = false then continue for
+            dim as ustring nm = fs.PathFileName( Recent.Item( i ) )
+            if project.IsManifest( Recent.Item( i ) ) then nm &= "  [project]"
+            rows.Push( Row( " ", nm, fs.PathParent( Recent.Item( i ) ), i ) )
+        next
+    case PickKind.Encoding
+        Chooser.Cue = "Select file encoding"
+        Narrow( Chooser, popW )
+        for e as long = docencoding.FileEncoding.Ansi to docencoding.FileEncoding.Utf16Bom
+            dim as ustring mark = " "
+            if (this.Active( ) <> 0) andalso (clng( this.Active( )->Enc.Encoding ) = e) then
+                mark = "*"
+                sel = rows.Count( )
+            end if
+            rows.Push( Row( mark, docencoding.EncodingName( cast( docencoding.FileEncoding, e ) ), "", e ) )
+        next
+    case PickKind.LineEnding
+        Chooser.Cue = "Select line ending"
+        Narrow( Chooser, popW )
+        dim as docencoding.LineEnd now_ = this.View( ).LineEnding( )
+        dim as docencoding.LineEnd ends( 0 to 2 ) = { docencoding.LineEnd.CrLf, docencoding.LineEnd.Lf, docencoding.LineEnd.Cr }
+        dim as ustring names( 0 to 2 ) = { "CRLF", "LF", "CR" }
+        dim as ustring notes( 0 to 2 ) = { "Windows", "Linux, macOS", "classic Mac" }
+        for k as long = 0 to 2
+            dim as ustring mark = " "
+            if ends( k ) = now_ then
+                mark = "*"
+                sel = k
+            end if
+            rows.Push( Row( mark, names( k ), notes( k ), clng( ends( k ) ) ) )
+        next
+    case PickKind.Bookmarks
+        Chooser.Cue = "Go to bookmark"
+        Marks.Clear( )
+        for each d as DocRef in Mru
+            for each ln as long in d->Main.Bookmarks( )
+                dim as BookmarkHit bh
+                bh.Doc = d
+                bh.Line = ln
+                Marks.Push( bh )
+                rows.Push( Row( " ", d->DisplayName( ) & ":" & (ln + 1), trim( d->Main.LineTextAt( ln ) ), Marks.Count( ) - 1 ) )
+            next
+        next
+    case PickKind.Build
+        Chooser.Cue = "Select build configuration"
+        Narrow( Chooser, popW )
+        for i as long = 0 to Prefs.Builds.Count( ) - 1
+            dim as ustring mark = " "
+            if Prefs.Builds[i].Name = CurrentBuild then
+                mark = "*"
+                sel = i
+            end if
+            rows.Push( Row( mark, Prefs.Builds[i].Name, Prefs.Builds[i].Options, i ) )
+        next
+    end select
+    if (rows.Count( ) = 0) andalso (kind <> PickKind.Functions) then
+        this.SetMessage( "nothing to choose from" )
+        exit sub
+    end if
+    Choosing = kind
+    Chooser.OnPick = sub( byval payload as any ptr, byval tag as long )
+        cast( Window ptr, payload )->Chosen( tag )
+    end sub
+    Chooser.Payload = @this
+    ' the lists of names at the top, centred over the panes; the others above the status panel
+    ' they belong to (the buffers' at the left), inside the window. A popup is placed in the
+    ' window's own pixels (tkHost_CreatePopup), not the screen's.
+    dim as TK_HOST ptr h = tkForm_Host( form )
+    dim as long cx = tkForm_Widget( form )->cw
+    dim as long w = tkForm_Scale( form, popW )
+    if w > cx then w = cx
+    dim as long n = rows.Count( )
+    if n > Chooser.MaxRows then n = Chooser.MaxRows
+    dim as long ph = n * tkForm_Scale( form, popuplist.ROW_CY ) + tkForm_Scale( form, 4 )
+    if Chooser.Filter then ph += tkForm_Scale( form, 26 )
+    if (kind = PickKind.Symbols) orelse (kind = PickKind.Functions) orelse atTop then
+        Chooser.Open( h, rows, (cx - w) \ 2, tkForm_Scale( form, 32 ), w, sel )
+    else
+        dim as StatusPanel anchor = StatusPanel.Buffer
+        select case kind
+        case PickKind.Build : anchor = StatusPanel.Build
+        case PickKind.Encoding : anchor = StatusPanel.Encoding
+        case PickKind.LineEnding : anchor = StatusPanel.LineEnding
+        end select
+        dim as TKRECT a, rc
+        dim as TK_WIDGET ptr sbar = status
+        if InPane2 andalso this.IsSplit( ) then sbar = status2
+        tkWidget_AbsRect( sbar, a )
+        tkStatusBar_GetPanelRect( sbar, anchor, rc )
+        dim as long x = a.left + rc.left
+        if x + w > cx then x = cx - w
+        if x < 0 then x = 0
+        Chooser.Open( h, rows, x, a.top - ph, w, sel )
+    end if
+end sub
+
+' The chooser closes when the key of the command that opened it is pressed in it again.
+sub Window.CloseOnOwnKey( byval id as Cmd )
+    dim as TK_CHORD tc
+    dim as string k = Keys.Effective( id )
+    if (len( k ) = 0) orelse (tkKeys_Parse( k, tc ) = false) then exit sub
+    Chooser.Toggle = tc
+    Chooser.OnToggle = sub( byval payload as any ptr, byval tag as long )
+        cast( Window ptr, payload )->Chooser.Close( )
+    end sub
+end sub
+
+sub Window.Chosen( byval tag as long )
+    dim as PickKind kind = Choosing
+    Choosing = PickKind.None
+    select case kind
+    case PickKind.Buffers
+        if (tag >= 0) andalso (tag < Mru.Count( )) then this.ShowDoc( Mru[tag] )
+    case PickKind.Recent
+        dim as ustring p = Recent.Item( tag )
+        if len( p ) then this.OpenFile( p )
+    case PickKind.Encoding : this.SetEncoding( cast( docencoding.FileEncoding, tag ) )
+    case PickKind.LineEnding : this.SetLineEnding( cast( docencoding.LineEnd, tag ) )
+    case PickKind.Build
+        if (tag >= 0) andalso (tag < Prefs.Builds.Count( )) then this.SetDefaultBuild( Prefs.Builds[tag].Name )
+    case PickKind.Symbols, PickKind.Functions
+        if (tag >= 0) andalso (tag < Hits.Count( )) then
+            dim as SymHit hh = Hits[tag]
+            if len( hh.Path ) then
+                this.JumpTo( hh.Path, iif( hh.Line < 0, 0, hh.Line ), 0, 0 )
+            elseif hh.Doc then
+                this.ShowDoc( hh.Doc )
+                this.View( ).GoToLine( hh.Line )
+            end if
+        end if
+    case PickKind.Bookmarks
+        if (tag >= 0) andalso (tag < Marks.Count( )) then
+            dim as BookmarkHit bh = Marks[tag]
+            this.ShowDoc( bh.Doc )
+            this.View( ).GoToLine( bh.Line )
+        end if
+    end select
+    this.View( ).Focus( )
+    this.ShowStatus( )
+end sub
+
+' ================================================================ find, replace, go to line
+
+' The strip's toggles, and the range "Sel" limits a search to.
+function Window.FindOptionsNow( ) as editor.FindOptions
+    dim as editor.FindOptions o = Finder.Options( )
+    o.RangeStart = FindLo
+    o.RangeEnd = FindHi
+    return o
+end function
+
+' The strip above the status line, the phrase seeded from a one-line selection; a multi-line
+' selection is remembered for "Sel".
+sub Window.OpenStrip( byval m as findstrip.StripMode )
+    dim as editor.CodeView ptr v = @this.View( )
+    dim as ustring seed = v->SelectedText( )
+    if m = findstrip.StripMode.Args then seed = this.RunArgsNow( )
+    dim as boolean multi = (m <> findstrip.StripMode.Args) andalso (instr( seed, chr( 10 ) ) > 0)
+    if multi then
+        FindLo = v->SelectionStart( )
+        FindHi = v->SelectionEnd( )
+    else
+        FindLo = 0
+        FindHi = 0
+    end if
+    Finder.Open( m, seed, multi )
+    this.Layout( )
+    if m = findstrip.StripMode.GoTo then
+        Finder.SetStatus( strings.Format( "1 - {}", v->LineCount( ) ) )
+    elseif m = findstrip.StripMode.Args then
+        if ProjOpen then
+            Finder.SetStatus( "Enter sets " & Proj.Name( ) & "'s command line; empty clears it" )
+        else
+            Finder.SetStatus( "Enter sets the arguments of this file; empty clears them" )
+        end if
+    elseif m = findstrip.StripMode.Project then
+        if ProjOpen then
+            Finder.SetStatus( "Enter searches the project's files" )
+        else
+            Finder.SetStatus( "Enter searches the open buffers" )
+        end if
+    else
+        this.ShowFindStatus( )
+    end if
+end sub
+
+' "3 of 10" or "No matches", and every match highlighted.
+sub Window.ShowFindStatus( )
+    if (Finder.isOpen = false) orelse (Finder.Mode = findstrip.StripMode.GoTo) orelse (Finder.Mode = findstrip.StripMode.Project) then exit sub
+    dim as editor.CodeView ptr v = @this.View( )
+    dim as ustring p = Finder.Phrase( )
+    dim as editor.FindOptions o = this.FindOptionsNow( )
+    v->MarkMatches( p, o )
+    if len( p ) = 0 then
+        Finder.SetStatus( "" )
+        exit sub
+    end if
+    dim as long n = v->CountMatches( p, o )
+    if n = 0 then
+        Finder.SetStatus( "No matches" )
+    else
+        Finder.SetStatus( strings.Format( "{} of {}", v->MatchIndex( p, o ), n ) )
+    end if
+end sub
+
+sub Window.OnFind( byval a as findstrip.FindAction )
+    dim as editor.CodeView ptr v = @this.View( )
+    dim as ustring p = Finder.Phrase( )
+    dim as editor.FindOptions o = this.FindOptionsNow( )
+    select case a
+    case findstrip.FindAction.Changed
+        ' incremental: from where the current match starts, so typing extends it in place
+        v->SetPosition( v->Position( ) - v->SelectionLength( ) )
+        v->Find( p, o, true )
+    case findstrip.FindAction.NextMatch
+        if len( p ) = 0 then
+            if Finder.isOpen = false then this.OpenStrip( findstrip.StripMode.Find )
+            exit sub
+        end if
+        v->Find( p, o, true )
+    case findstrip.FindAction.PrevMatch
+        if len( p ) = 0 then exit sub
+        v->Find( p, o, false )
+    case findstrip.FindAction.ReplaceOne
+        dim as longint n0 = v->Length( )
+        v->ReplaceCurrent( p, Finder.Replacement( ), o )
+        if o.InSelection then FindHi += v->Length( ) - n0
+    case findstrip.FindAction.ReplaceEvery
+        dim as longint n0 = v->Length( )
+        dim as long k = v->ReplaceAll( p, Finder.Replacement( ), o )
+        if o.InSelection then FindHi += v->Length( ) - n0
+        this.ShowFindStatus( )
+        Finder.SetStatus( strings.Format( "{} replaced", k ) )
+        this.ShowStatus( )
+        exit sub
+    case findstrip.FindAction.SearchFiles
+        this.RunProjectSearch( )
+        exit sub
+    case findstrip.FindAction.SetArgs
+        this.SetRunArgs( trim( p ) )
+        Finder.Close( )
+        this.Layout( )
+        v->Focus( )
+        if len( trim( p ) ) then
+            this.SetMessage( "arguments: " & trim( p ) )
+        else
+            this.SetMessage( "arguments cleared" )
+        end if
+        exit sub
+    case findstrip.FindAction.GoToLine
+        ' "42" or "42:7" (line:column, 1-based)
+        dim as ustring t = trim( p )
+        dim as long colon = instr( t, ":" ), col = 0
+        dim as long ln = valint( t )
+        if colon > 0 then col = valint( mid( t, colon + 1 ) )
+        if (ln >= 1) andalso (ln <= v->LineCount( )) then
+            Finder.Close( )
+            this.Layout( )
+            if col > 0 then col -= 1
+            v->GoToLine( ln - 1, col )
+            v->Focus( )
+            this.ShowStatus( )
+        else
+            Finder.SetStatus( strings.Format( "1 - {}: no line '{}'", v->LineCount( ), t ) )
+        end if
+        exit sub
+    case findstrip.FindAction.CloseStrip
+        v->MarkMatches( "", o )
+        Finder.Close( )
+        this.Layout( )
+        v->Focus( )
+        this.ShowStatus( )
+        exit sub
+    end select
+    this.ShowFindStatus( )
+    this.ShowStatus( )
+end sub
+
+' Enter: the new line indented like the one above (deeper after a block opener), and the block's
+' 'end ...' line inserted below when it is owed (tkc/autoinsert; settings auto_indent, auto_end).
+sub Window.OnCharAdded( byval hEdit as TK_WIDGET ptr, byval ch as long )
+    dim as DocRef d = this.DocOfWidget( hEdit )
+    if d = 0 then exit sub
+    dim as editor.CodeView ptr v = @d->Main
+    dim as boolean isNewLine = (ch = 10) orelse ((ch = 13) andalso (v->LineEnding( ) = docencoding.LineEnd.Cr))
+    if isNewLine = false then exit sub
+    if (Prefs.AutoIndent = false) andalso (Prefs.AutoEnd = false) then exit sub
+    dim as long ln = v->CaretLine( )                    ' 1-based: the new line
+    dim as Array( of ustring ) lines
+    dim as long last = v->LineCount( ) - 1
+    if last > ln + 400 then last = ln + 400             ' the block's end is near, or owed
+    for i as long = 0 to last
+        if i < ln - 2 then
+            lines.Push( "" )                            ' only from the line above on matters
+        else
+            lines.Push( v->LineTextAt( i ) )
+        end if
+    next
+    dim as ustring one = space( Prefs.TabSize )
+    if Prefs.UseTabs then one = chr( 9 )
+    dim as autoinsert.EnterPlan pl = autoinsert.Plan( lines, ln - 2, one, Prefs.AutoIndent, Prefs.AutoEnd )
+    if Prefs.AutoIndent then v->SetIndentText( ln - 1, pl.NewIndent )
+    if len( pl.EndLine ) then v->InsertLineAfter( ln - 1, pl.EndLine )
+end sub
+
+' A click in the bookmark margin toggles the line's bookmark; one in the fold margin folds.
+sub Window.OnMarginClick( byval hEdit as TK_WIDGET ptr, byval margin as long, byval position as longint )
+    dim as DocRef d = this.DocOfWidget( hEdit )
+    if d = 0 then exit sub
+    dim as editor.CodeView ptr v = @d->Main
+    dim as long ln = v->LineOf( position )
+    if margin = 1 then
+        v->ToggleBookmark( ln )
+    elseif margin = 2 then
+        v->FoldLineAt( ln )
+    end if
+end sub
+
+' ================================================================ projects
+
+' Opens a .tkedit project: the buffers open now are closed first (asking for unsaved ones), then
+' the project's open files come back where they were.
+function Window.OpenProject( byref path as const ustring ) as boolean
+    dim as project.ManifestResult r = project.LoadManifest( path )
+    if r.IsOk( ) = false then
+        this.SetMessage( r.Failure( ) )
+        return false
+    end if
+    if ProjOpen then
+        if this.CloseProject( ) = false then return false
+    else
+        this.SaveSession( )
+        if this.CloseAll( ) = false then return false
+    end if
+    Proj = r.Value( )
+    Proj.Path = fs.AbsolutePath( Proj.Path ).ValueOr( Proj.Path )
+    ProjOpen = true
+    ' the editor's options for it: kept from before, else new ones (the current build)
+    dim as project.OptionsResult o = project.LoadOptions( project.OptionsPath( ConfigDir, Proj.Path ) )
+    dim as project.ProjectOptions none_
+    ProjOpts = none_
+    if o.IsOk( ) then ProjOpts = o.Value( ) else ProjOpts.Build = CurrentBuild
+    ProjOpts.Manifest = Proj.Path
+    this.WriteProjectOptions( )
+    this.ProjectFiles( true )
+    dim as session.SessionResult sr = session.LoadSession( project.SessionPath( ConfigDir, Proj.Path ) )
+    if sr.IsOk( ) then this.ApplyState( sr.Value( ), Proj.Dir_( ) )
+    this.ApplyProjectOptions( )                  ' the options' build wins over the session's
+    if (Docs.Count( ) = 1) andalso Docs[0]->IsNew( ) then
+        dim as ustring m = Proj.MainOf( this.ProjectTarget( ) )
+        if len( m ) andalso fs.IsFile( m ) then this.OpenText( m )
+    end if
+    Recent.Add( Proj.Path )
+    LastExe = ""
+    this.SetMessage( "project " & Proj.Name( ) )
+    this.ShowTitle( )
+    return true
+end function
+
+' A new project: the folder of the source buffer in front (SourceDoc). Its tiko.toml is written
+' when there is none -- a package named for the folder, one target whose main is that file -- and
+' the project opens (author 2026-10-27).
+function Window.NewProject( ) as boolean
+    dim as DocRef d = this.SourceDoc( )
+    if d = 0 then
+        this.SetMessage( "no source file to make a project of" )
+        return false
+    end if
+    if d->IsNew( ) then
+        if this.SaveDoc( d, false ) = false then return false
+    end if
+    dim as ustring dir_ = fs.PathParent( d->Path )
+    dim as ustring mf = fs.PathJoin( dir_, project.MANIFEST_FILE )
+    if fs.IsFile( mf ) = false then
+        dim as ustring text = project.NewManifestText( fs.PathFileName( dir_ ), fs.PathStem( d->Path ), fs.PathFileName( d->Path ) )
+        if fs.WriteAtomic( mf, text ).IsOk( ) = false then
+            this.SetMessage( "could not write " & mf )
+            return false
+        end if
+    end if
+    return this.OpenProject( mf )
+end function
+
+' The project file, with what is open now.
+function Window.SaveProject( ) as boolean
+    if ProjOpen = false then
+        this.SetMessage( "no project is open" )
+        return false
+    end if
+    dim as session.SessionState st
+    this.CaptureState( st, Proj.Dir_( ) )
+    st.Build = CurrentBuild
+    ProjOpts.Build = CurrentBuild
+    this.WriteProjectOptions( )
+    dim as fs.FsResultBool w = session.SaveSession( project.SessionPath( ConfigDir, Proj.Path ), st )
+    if w.IsOk( ) = false then
+        this.SetMessage( "the project's session: " & w.Failure( ).Message( ) )
+        return false
+    end if
+    return true
+end function
+
+' The options file for the project, written when it changed; a buffer showing it is reloaded.
+sub Window.WriteProjectOptions( )
+    if ProjOpen = false then exit sub
+    dim as ustring op = project.OptionsPath( ConfigDir, Proj.Path )
+    if project.WriteOptions( op, ProjOpts ) then
+        dim as DocRef pd = this.FindOpen( op )
+        if pd then pd->Reload( )
+    end if
+end sub
+
+' The options' build configuration, when settings.toml has it.
+sub Window.ApplyProjectOptions( )
+    if (ProjOpen = false) orelse (len( ProjOpts.Build ) = 0) then exit sub
+    for each b as settings.BuildConfig in Prefs.Builds
+        if b.Name = ProjOpts.Build then CurrentBuild = ProjOpts.Build
+    next
+end sub
+
+' The target a build makes: the options' when tiko.toml has it, else the first; "" = none.
+function Window.ProjectTarget( ) as ustring
+    if ProjOpen = false then return ""
+    if Proj.TargetIndex( ProjOpts.Target ) >= 0 then return ProjOpts.Target
+    if Proj.Targets.Count( ) > 0 then return Proj.Targets[0].Name
+    return ""
+end function
+
+private sub CollectSources( byref dir_ as const ustring, byref out_ as Array( of ustring ), byval depth as long )
+    if (depth > 12) orelse (out_.Count( ) >= 5000) then exit sub
+    dim as Array( of ustring ) subs
+    for each r in fs.ReadDir( dir_ )
+        if r.IsOk( ) = false then continue for
+        dim as fs.DirEntry e = r.Value( )
+        dim as ustring nm = e.Name( )
+        if e.IsDirectory( ) then
+            if (left( nm, 1 ) <> ".") andalso (lcase( nm ) <> "out") then subs.Push( fs.PathJoin( dir_, nm ) )
+        elseif e.IsFile( ) andalso documents.IsSourceFile( nm ) then
+            if out_.Count( ) < 5000 then out_.Push( fs.PathJoin( dir_, nm ) )
+        end if
+    next
+    for each sd as ustring in subs
+        CollectSources( sd, out_, depth + 1 )
+    next
+end sub
+
+' The project's source files: everything tiko under its folder but out/ and dot-folders, at most
+' 5000 (author 2026-10-27: no file list any more). Walked again on refresh (opening the project,
+' Find in Project, Search Symbol), else the last walk.
+function Window.ProjectFiles( byval refresh as boolean ) byref as Array( of ustring )
+    if refresh then
+        ProjFiles.Clear( )
+        if ProjOpen then CollectSources( Proj.Dir_( ), ProjFiles, 0 )
+    end if
+    return ProjFiles
+end function
+
+' The program's arguments when it runs: the project's command_line, else those of the file built.
+function Window.RunArgsNow( ) as ustring
+    if ProjOpen then return ProjOpts.CommandLine
+    dim as ustring f = BuildMain
+    if len( f ) = 0 then
+        dim as DocRef d = this.SourceDoc( )
+        if d then f = d->Path
+    end if
+    return RunStore.Get( f )
+end function
+
+' Run Arguments (Enter in its row): the project's command_line, else the source file's.
+sub Window.SetRunArgs( byref a as const ustring )
+    if ProjOpen then
+        ProjOpts.CommandLine = a
+        this.WriteProjectOptions( )
+        exit sub
+    end if
+    dim as DocRef d = this.SourceDoc( )
+    if (d = 0) orelse (len( d->Path ) = 0) then
+        this.SetMessage( "Run Arguments: save the file first" )
+        exit sub
+    end if
+    RunStore.Set( d->Path, a )
+    RunStore.Save( )
+end sub
+
+' Saves the project, then closes its buffers (asking for unsaved ones). FALSE = cancelled.
+function Window.CloseProject( ) as boolean
+    if ProjOpen = false then return true
+    this.SaveProject( )
+    if this.CloseAll( ) = false then return false
+    ProjOpen = false
+    dim as project.Manifest none_
+    Proj = none_
+    dim as project.ProjectOptions noOpts
+    ProjOpts = noOpts
+    ProjFiles.Clear( )
+    LastExe = ""
+    this.ClearDiagnostics( )
+    this.ShowTitle( )
+    this.ShowStatus( )
+    return true
+end function
+
+' The buffer a build or a new project means: the active one when it is source, else the most recent
+' source buffer with a file; 0 when there is none.
+function Window.SourceDoc( ) as DocRef
+    dim as DocRef d = this.Active( )
+    if (d <> 0) andalso documents.IsSourceFile( d->Path ) then return d
+    for each x as DocRef in Mru
+        if (len( x->Path ) > 0) andalso documents.IsSourceFile( x->Path ) then return x
+    next
+    return 0
+end function
+
+' The Project panel: with no project, a new one (NewProject). Then the project's options file
+' opens -- target, build, command line -- to edit by hand; saving it applies it (AfterSave).
+sub Window.EditProjectFile( )
+    if ProjOpen = false then
+        if this.NewProject( ) = false then exit sub
+    end if
+    this.WriteProjectOptions( )
+    this.OpenText( project.OptionsPath( ConfigDir, Proj.Path ) )
+end sub
+
+
+' ================================================================ the build (P4)
+
+function Window.CompilerPath( ) as ustring
+    if len( Prefs.Tiko ) andalso fs.IsFile( Prefs.Tiko ) then return Prefs.Tiko
+    dim as ustring nm = "tiko"
+    if platform.CurrentOs( ) = platform.Os.Windows then nm = "tiko.exe"
+    return platform.FindOnPath( nm )
+end function
+
+' The configuration the build panel shows, as tkc/build wants it.
+function Window.ActiveBuildConfig( ) as build.BuildConfig
+    dim as build.BuildConfig c
+    for each b as settings.BuildConfig in Prefs.Builds
+        if b.Name = CurrentBuild then
+            c.Name = b.Name
+            c.Options = b.Options
+            return c
+        end if
+    next
+    if Prefs.Builds.Count( ) > 0 then
+        c.Name = Prefs.Builds[0].Name
+        c.Options = Prefs.Builds[0].Options
+    end if
+    return c
+end function
+
+function Window.IsBuilding( ) as boolean
+    return Job.IsRunning( ) orelse (buildTimer <> 0)
+end function
+
+' What is built: the project's target (tiko build <target> --manifest <folder>), else the source
+' buffer in front (SourceDoc). Modified source buffers with a path are saved first (settings
+' save_before_build). The output arrives through PollBuild.
+function Window.StartBuild( byval action as build.BuildAction, byval rebuild as boolean ) as boolean
+    if this.IsBuilding( ) then
+        this.SetBuildMessage( "a build is running" )
+        return false
+    end if
+    dim as ustring tiko = this.CompilerPath( )
+    if len( tiko ) = 0 then
+        this.SetBuildMessage( "tiko not found: set [compiler] tiko in settings.toml, or put it on the PATH" )
+        return false
+    end if
+    ' settings.toml, keybindings.toml, a theme or a text file is never built (author 2026-10-27)
+    dim as DocRef d = this.SourceDoc( )
+    dim as boolean useTarget = ProjOpen
+    dim as ustring target = this.ProjectTarget( )
+    if useTarget andalso (len( target ) = 0) then
+        this.SetBuildMessage( "tiko.toml has no [target.*] to build" )
+        return false
+    end if
+    if (d = 0) andalso (useTarget = false) then
+        this.SetBuildMessage( "nothing to build: no source file is open" )
+        return false
+    end if
+    if useTarget = false then
+        if d = 0 then return false
+        if len( d->Path ) = 0 then
+            if this.SaveDoc( d, false ) = false then return false
+        end if
+    end if
+    if Prefs.SaveBeforeBuild then
+        for each x as DocRef in Docs
+            ' source files only: saving settings.toml or keybindings.toml would apply them
+            if x->IsModified( ) andalso (len( x->Path ) > 0) andalso documents.IsSourceFile( x->Path ) then this.SaveDoc( x, false )
+        next
+    end if
+    dim as Array( of build.Subsystem ) directives
+    BuildFlags = build.ComposeFlags( this.ActiveBuildConfig( ), action, "", strings.Join( Prefs.Includes, ";" ), directives )
+    BuildDiagFile = fs.PathJoin( ConfigDir, "build.diagnostics" )
+    fs.CreateDirAll( ConfigDir )
+    fs.RemoveFile( BuildDiagFile )
+    dim as platform.Os os_ = platform.CurrentOs( )
+    dim as Array( of ustring ) args, none_
+    dim as ustring workDir
+    if useTarget then
+        args = build.TargetArgs( target, Proj.Dir_( ), BuildFlags, none_, BuildDiagFile, os_ )
+        ' --profile editor is tiko-editor's managed profile; tiko refuses an unknown one (TKO0163)
+        dim as ustring toml = fs.ReadAllText( Proj.Path ).ValueOr( "" )
+        if instr( toml, "[profile.editor]" ) = 0 then
+            for i as long = 0 to args.Count( ) - 2
+                if (args[i] = "--profile") andalso (args[i + 1] = "editor") then
+                    args.Remove( i )
+                    args.Remove( i )
+                    exit for
+                end if
+            next
+        end if
+        workDir = Proj.Dir_( )
+        BuildMain = Proj.MainOf( target )
+    else
+        dim as ustring src = d->Path
+        BuildMain = src
+        args = build.BuildArgs( src, none_, none_, "", BuildFlags, BuildDiagFile, os_ )
+        workDir = fs.PathParent( src )
+    end if
+    if rebuild then
+        ' Rebuild All: 'tiko clean' first, then this build (FinishBuild starts it)
+        PendingArgs = args
+        args.Clear( )
+        args.Push( "clean" )
+        if useTarget then
+            args.Push( target )
+            args.Push( "--manifest" )
+            args.Push( Proj.Dir_( ) )
+        else
+            args.Push( BuildMain )
+        end if
+        Cleaning = true
+    end if
+    BuildAct = action
+    BuildProgram = tiko
+    BuildDir = workDir
+    BuildRaw = ""
+    dim as build.BuildProgress fresh
+    Progress = fresh
+    LogText = build.CommandLine( tiko, args ) & chr( 10 )
+    Out.SetLog( LogText )
+    this.ClearDiagnostics( )
+    dim as Result( of boolean, ustring ) st = Job.Start( tiko, args, workDir )
+    if st.IsOk( ) = false then
+        LogText &= st.Failure( ) & chr( 10 )
+        Out.SetLog( LogText )
+        this.SetBuildMessage( "the build could not start: " & st.Failure( ) )
+        return false
+    end if
+    this.SetBuildMessage( "building..." )
+    buildTimer = tkApp_SetTimer( BUILD_POLL_MS, sub( byval id as long, byval payload as any ptr )
+        cast( Window ptr, payload )->PollBuild( )
+    end sub, @this )
+    return true
+end function
+
+sub Window.PollBuild( )
+    dim as Array( of ustring ) got
+    dim as boolean ended = Job.Poll( got )
+    if got.Count( ) then
+        for each ln as ustring in got
+            BuildRaw &= ln & chr( 10 )
+            if Progress.Feed( ln ) then
+                this.SetBuildMessage( strings.Format( "building... {}/{}", Progress.Done, Progress.Total ) )
+            elseif build.IsEventLine( ln ) = false then
+                LogText &= ln & chr( 10 )
+            end if
+        next
+        Out.SetLog( LogText )
+    end if
+    if ended then this.FinishBuild( )
+end sub
+
+' The build ended: Results and squiggles from the diagnostics file, the message, the output pane
+' with the first error on a failure, the program run when the action asked for it.
+sub Window.FinishBuild( )
+    if buildTimer then tkApp_KillTimer( buildTimer )
+    buildTimer = 0
+    if Cleaning then
+        Cleaning = false
+        LogText &= build.CommandLine( BuildProgram, PendingArgs ) & chr( 10 )
+        Out.SetLog( LogText )
+        if Job.Start( BuildProgram, PendingArgs, BuildDir ).IsOk( ) then
+            buildTimer = tkApp_SetTimer( BUILD_POLL_MS, sub( byval id as long, byval payload as any ptr )
+                cast( Window ptr, payload )->PollBuild( )
+            end sub, @this )
+            exit sub
+        end if
+    end if
+    dim as long code = Job.exitCode
+    dim as build.DiagResult dr = build.ReadDiagnostics( BuildDiagFile )
+    dim as build.DiagReport rep
+    if dr.IsOk( ) then rep = dr.Value( )
+    Diags = rep.Records
+    dim as build.ResultCounts counts = build.CountResults( rep, dr.IsOk( ), false, code )
+    this.ShowDiagnostics( counts )
+    LastExe = build.EventRunPath( BuildRaw )
+    if len( LastExe ) = 0 then LastExe = build.OutputFile( BuildMain, BuildFlags, platform.CurrentOs( ) )
+    if len( LastExe ) then LastExe = fs.PathToNative( LastExe )          ' tiko's events write /
+    dim as boolean ok = (code = 0) andalso (counts.Errors = 0)
+    BuildSucceeded = ok
+    dim as ustring msg = "Build OK"
+    if ok = false then msg = "Build failed"
+    this.SetBuildMessage( strings.Format( "{}  {} errors, {} warnings", msg, counts.Errors, counts.Warnings ) )
+    if ok = false then
+        this.ShowOutput( true )
+        if counts.ShowLog then
+            Out.ShowTab( outputpane.OutputTab.CompilerLog )
+        else
+            Out.ShowTab( outputpane.OutputTab.Results )
+            if counts.FirstError >= 0 then this.OpenDiagnostic( counts.FirstError )
+        end if
+    elseif build.RunsAfterBuild( BuildAct ) then
+        this.RunProgram( LastExe )
+    end if
+end sub
+
+sub Window.ClearDiagnostics( )
+    Diags.Clear( )
+    DiagAt = -1
+    for each d as DocRef in Docs
+        d->Main.ClearSquiggles( )
+    next
+    tkListTree_Clear( Out.results )
+end sub
+
+' Results: a header row per file, a row per record; squiggles in the open buffers.
+sub Window.ShowDiagnostics( byref counts as const build.ResultCounts )
+    tkListTree_BeginUpdate( Out.results )
+    tkListTree_Clear( Out.results )
+    dim as ustring lastFile = chr( 1 )
+    for i as long = 0 to Diags.Count( ) - 1
+        dim as build.Diagnostic dg = Diags[i]
+        if dg.File <> lastFile then
+            lastFile = dg.File
+            dim as ustring hdr = fs.PathFileName( dg.File )
+            if len( hdr ) = 0 then hdr = "tiko"
+            tkListTree_AddHeader( Out.results, hdr, i )
+        end if
+        dim as ustring where = ""
+        if dg.Line > 0 then where = "(" & dg.Line & "," & dg.Col & ")  "
+        tkListTree_InsertString( Out.results, tkListTree_GetCount( Out.results ), where & build.RowText( dg ), i )
+        if (dg.Line > 0) andalso ((dg.Kind = build.DiagKind.Error) orelse (dg.Kind = build.DiagKind.Warning)) then
+            dim as DocRef t = this.FindOpen( dg.File )
+            if t then t->Main.AddSquiggle( dg.Line, dg.Col, dg.EndLine, dg.EndCol, dg.Kind = build.DiagKind.Error )
+        end if
+    next
+    if counts.ExitFailure then
+        tkListTree_AddString( Out.results, "Build failed (exit code " & Job.exitCode & ")", -1 )
+    end if
+    tkListTree_EndUpdate( Out.results )
+end sub
+
+sub Window.OpenDiagnostic( byval i as long )
+    if (i < 0) orelse (i >= Diags.Count( )) then exit sub
+    dim as build.Diagnostic dg = Diags[i]
+    if (len( dg.File ) = 0) orelse (dg.Line <= 0) then exit sub
+    DiagAt = i
+    dim as long selChars = 0
+    if (dg.EndLine = dg.Line) andalso (dg.EndCol > dg.Col) then selChars = dg.EndCol - dg.Col
+    dim as long col = 0
+    if dg.Col > 0 then col = dg.Col - 1
+    this.JumpTo( dg.File, dg.Line - 1, col, selChars )
+    this.SetBuildMessage( build.RowText( dg ) )
+end sub
+
+' Alt+PgDn / Alt+PgUp: the next / previous error or warning with a place, wrapping.
+sub Window.StepDiagnostic( byval forward as boolean )
+    dim as long n = Diags.Count( )
+    if n = 0 then
+        this.SetBuildMessage( "no diagnostics" )
+        exit sub
+    end if
+    dim as long i = DiagAt
+    for k as long = 1 to n
+        if forward then
+            i += 1
+            if i >= n then i = 0
+        else
+            i -= 1
+            if i < 0 then i = n - 1
+        end if
+        dim as build.Diagnostic dg = Diags[i]
+        if (dg.Line > 0) andalso ((dg.Kind = build.DiagKind.Error) orelse (dg.Kind = build.DiagKind.Warning)) then
+            this.OpenDiagnostic( i )
+            exit sub
+        end if
+    next
+end sub
+
+' The file shown (opened when it is not), the caret at line ln, character column col (0-based),
+' selChars characters selected.
+sub Window.JumpTo( byref file as const ustring, byval ln as long, byval col as long, byval selChars as long )
+    Nav.RecordJump( this.Here( ) )
+    dim as DocRef d = this.FindOpen( file )
+    if d then
+        this.ShowDoc( d )
+    elseif this.OpenFile( file ) = false then
+        exit sub
+    end if
+    if ln >= 0 then this.View( ).GoToLine( ln, col, selChars )      ' -1: where it was
+    this.View( ).Focus( )
+    Nav.NoteArrival( this.Here( ) )
+end sub
+
+' Run: a GUI program directly; a console one in a terminal of its own that waits for a key
+' (platform.TerminalArgv), with the project's command line.
+sub Window.RunProgram( byref exe as const ustring )
+    if (len( exe ) = 0) orelse (fs.IsFile( exe ) = false) then
+        this.SetBuildMessage( "nothing to run: build it first (" & exe & ")" )
+        exit sub
+    end if
+    dim as ustring cmdline = this.RunArgsNow( )
+    dim as Array( of ustring ) args = project.SplitArgs( cmdline )
+    dim as ustring dir_ = fs.PathParent( exe )
+    dim as boolean gui = instr( " " & lcase( BuildFlags ) & " ", " -s gui " ) > 0
+    dim as Array( of ustring ) argv
+    if gui andalso (Prefs.RunInTerminal = false) then
+        dim as ustring program = exe
+        argv.Push( program )
+        for each a as ustring in args
+            argv.Push( a )
+        next
+    else
+        argv = platform.TerminalArgv( exe, args, dir_, fs.PathJoin( ConfigDir, "run" ) )
+        if argv.Count( ) = 0 then
+            this.SetBuildMessage( "no terminal program was found to run it in: set $TERMINAL" )
+            exit sub
+        end if
+    end if
+    ' started: the build's result stays in the status line (author 2026-10-27)
+    if Launch( argv, dir_ ) = false then this.SetBuildMessage( "could not start " & fs.PathFileName( exe ) )
+end sub
+
+sub Window.ShowOutput( byval visible as boolean )
+    if OutputShown = visible then exit sub
+    OutputShown = visible
+    this.Layout( )
+    if visible = false then this.View( ).Focus( )
+end sub
+
+' Ctrl+Tilde: pane 1, pane 2 (when split), the output pane (when shown), round again.
+sub Window.CycleFocus( )
+    dim as boolean inOut = this.OutputHasFocus( )
+    dim as boolean split_ = (Split <> session.SplitMode.None) andalso (Pane2 <> 0)
+    if inOut then
+        this.FocusPane( false )
+    elseif split_ andalso (InPane2 = false) then
+        this.FocusPane( true )
+    elseif OutputShown then
+        Out.Focus( )
+    else
+        this.FocusPane( false )
+    end if
+end sub
+
+' The keyboard focus is somewhere inside the output pane (a list's own surface widget included).
+function Window.OutputHasFocus( ) as boolean
+    if OutputShown = false then return false
+    dim as TK_WIDGET ptr f = tkHost_GetFocus( tkForm_Host( form ) )
+    while f
+        if f = Out.frame then return true
+        f = f->pParent
+    wend
+    return false
+end function
+
+' ================================================================ code intelligence (P5)
+
+private function IsIdentCharU( byval c as ulong ) as boolean
+    return ((c >= 48) andalso (c <= 57)) orelse ((c >= 65) andalso (c <= 90)) orelse _
+           ((c >= 97) andalso (c <= 122)) orelse (c = 95)
+end function
+
+' "a.b.word" before the caret -> word "word", qualifier "b".
+private sub SplitQualified( byref before as const ustring, byref word as ustring, byref qualifier as ustring )
+    dim as long i = len( before )
+    while (i > 0) andalso IsIdentCharU( before[i - 1] )
+        i -= 1
+    wend
+    word = mid( before, i + 1 )
+    qualifier = ""
+    if (i > 0) andalso (before[i - 1] = 46) then            ' "."
+        dim as long j = i - 1
+        while (j > 0) andalso IsIdentCharU( before[j - 1] )
+            j -= 1
+        wend
+        qualifier = mid( before, j + 1, i - 1 - j )
+    end if
+end sub
+
+' Sorted case-blind, each name once.
+private function SortNames( byref names as const Array( of ustring ) ) as Array( of ustring )
+    dim as Array( of ustring ) keys, out_
+    for each n as ustring in names
+        dim as ustring k = lcase( n )
+        dim as long at = keys.Count( )
+        while (at > 0) andalso (keys[at - 1] > k)
+            at -= 1
+        wend
+        if (at > 0) andalso (keys[at - 1] = k) then continue for
+        keys.Insert( at, k )
+        out_.Insert( at, n )
+    next
+    return out_
+end function
+
+' The toolchain's pkg folder beside the compiler: #import "std/..." resolves there.
+function Window.PkgDir( ) as ustring
+    dim as ustring c = this.CompilerPath( )
+    if len( c ) = 0 then return ""
+    dim as ustring d = fs.PathParent( c )
+    if fs.IsDir( fs.PathJoin( d, "pkg" ) ) then return fs.PathJoin( d, "pkg" )
+    if fs.IsDir( fs.PathJoin( fs.PathParent( d ), "pkg" ) ) then return fs.PathJoin( fs.PathParent( d ), "pkg" )
+    return ""
+end function
+
+' Loads tikoParser from beside the program and starts its worker. FALSE = code intelligence
+' runs on the line-based outline only (the reason is in the Log).
+function Window.StartScanner( ) as boolean
+    if Scanner.running then return true
+    if Scanner.Start( platform.ExeDir( ) ) = false then
+        LogText &= "code intelligence: " & Scanner.Lib.LastError( ) & chr( 10 )
+        Out.SetLog( LogText )
+        return false
+    end if
+    scanTimer = tkApp_SetTimer( 150, sub( byval id as long, byval payload as any ptr )
+        cast( Window ptr, payload )->PollScans( )
+    end sub, @this )
+    return true
+end function
+
+' A buffer's scan: its unsaved text when modified, else the file. Untitled buffers are not scanned.
+sub Window.QueueScan( byval d as DocRef )
+    if (d = 0) orelse (Scanner.running = false) orelse (len( d->Path ) = 0) then exit sub
+    dim as parser.ScanOptions o
+    for each inc as ustring in Prefs.Includes
+        o.Includes.Push( inc )
+    next
+    o.PkgDir = this.PkgDir( )
+    scanGen += 1
+    Scanner.Queue( d->Path, d->Text( ), d->IsModified( ), o, scanGen )
+end sub
+
+' Installs what came back; rescans the active buffer 0.7 s after typing stops.
+sub Window.PollScans( )
+    dim as Array( of parser.Finished ) done
+    if Scanner.Poll( done ) then
+        for each f as parser.Finished in done
+            if f.Ok then
+                Db.Install( f.Set )
+                ScansInstalled += 1
+            else
+                LastScanError = f.Error
+            end if
+        next
+    end if
+    if scanDirty andalso (SDL_GetTicks( ) - lastEditTicks > 700) andalso (Scanner.Pending( ) = 0) then
+        scanDirty = false
+        this.QueueScan( this.Active( ) )
+    end if
+end sub
+
+' A buffer's procedures, by line: tikoParser's when it has scanned the file, else the outline's.
+function Window.ProcsOf( byval d as DocRef ) as Array( of SymHit )
+    dim as Array( of SymHit ) out_
+    if d = 0 then return out_
+    if (len( d->Path ) > 0) andalso Db.HasFile( d->Path ) then
+        for each r as symboldb.SymRef in Db.Procedures( d->Path )
+            dim byref as symboldb.Sym y = Db.Item( r )
+            dim as SymHit hh
+            hh.Name = Db.QualifiedName( r )
+            hh.Kind = "sub"
+            if y.Kind = symboldb.SymKind.FunctionProc then hh.Kind = "function"
+            hh.Path = d->Path
+            hh.Line = y.BodyLine - 1
+            hh.Doc = d
+            out_.Push( hh )
+        next
+        return out_
+    end if
+    for each y as outline.Symbol in outline.Scan( d->Text( ) )
+        if outline.IsProcedure( y.Kind ) = false then continue for
+        dim as SymHit hh
+        hh.Name = y.Name
+        hh.Kind = outline.KindWord( y.Kind )
+        hh.Path = d->Path
+        hh.Line = y.Line
+        hh.Doc = d
+        out_.Push( hh )
+    next
+    return out_
+end function
+
+' Where the caret is, for the jump history.
+function Window.Here( ) as navhistory.NavEntry
+    dim as DocRef d = this.Active( )
+    dim as navhistory.NavEntry none_
+    if (d = 0) orelse (len( d->Path ) = 0) then return none_
+    dim as editor.CodeView ptr v = @this.View( )
+    return navhistory.MakeEntry( d->Path, v->CaretLine( ) - 1, v->Position( ), v->Length( ), v->FirstLine( ) )
+end function
+
+' Alt+Left / Alt+Right.
+sub Window.GoHistory( byval forward as boolean )
+    dim as navhistory.NavEntry e
+    if forward then
+        e = Nav.Forward( this.Here( ) )
+    else
+        e = Nav.Back( this.Here( ) )
+    end if
+    if len( e.File ) = 0 then exit sub
+    Nav.Suppress( )
+    dim as DocRef d = this.FindOpen( e.File )
+    if d then
+        this.ShowDoc( d )
+    elseif this.OpenFile( e.File ) = false then
+        Nav.Unsuppress( )
+        exit sub
+    end if
+    dim as editor.CodeView ptr v = @this.View( )
+    if navhistory.UseExactPosition( e, v->Length( ) ) then
+        v->SetPosition( e.Position )
+    else
+        v->GoToLine( e.Line )
+    end if
+    v->SetFirstLine( e.FirstLine )
+    Nav.Unsuppress( )
+    this.ShowStatus( )
+end sub
+
+' The parser's uppercased path back to the open buffer's or the project's spelling, else the disk's.
+function Window.ScannedFile( byref upper as const ustring ) as ustring
+    for each d as DocRef in Docs
+        if ucase( d->Path ) = ucase( upper ) then return d->Path
+    next
+    for each f as ustring in this.ProjectFiles( )
+        if ucase( f ) = ucase( upper ) then return f
+    next
+    return symboldb.RealPath( upper )
+end function
+
+' F12: the definition of the word under the caret (qualified by what stands before a ".").
+function Window.GoToDefinition( ) as boolean
+    dim as editor.CodeView ptr v = @this.View( )
+    dim as DocRef d = this.Active( )
+    if d = 0 then return false
+    dim as ustring word = v->WordAtCaret( )
+    if len( word ) = 0 then return false
+    dim as ustring lineText = v->LineTextAt( v->CaretLine( ) - 1 )
+    dim as long at = instr( lineText, word )
+    dim as long caretCol = v->CaretColumn( )
+    while (at > 0) andalso (at + len( word ) < caretCol)        ' the occurrence that holds the caret
+        dim as long nx = instr( at + 1, lineText, word )
+        if nx = 0 then exit while
+        at = nx
+    wend
+    dim as ustring w2, qual
+    SplitQualified( left( lineText, at - 1 + len( word ) ), w2, qual )
+    dim as symboldb.SymRef r = Db.Definition( word, d->Path, v->CaretLine( ), qual )
+    if r.IsValid( ) = false then
+        ' no scan: the outline of the open buffers
+        for each b as DocRef in Docs
+            for each hh as SymHit in this.ProcsOf( b )
+                if lcase( hh.Name ) = lcase( word ) then
+                    this.JumpTo( b->Path, hh.Line, 0, 0 )
+                    return true
+                end if
+            next
+        next
+        this.SetMessage( "no definition found for " & word )
+        return false
+    end if
+    dim as symboldb.Sym y = Db.Item( r )
+    dim as ustring target = this.ScannedFile( y.File )
+    if len( target ) = 0 then return false
+    dim as long ln = y.LineNo
+    if y.BodyLine > 0 then ln = y.BodyLine
+    this.JumpTo( target, ln - 1, 0, 0 )
+    return true
+end function
+
+' Ctrl+PgDn / Ctrl+PgUp: the nearest procedure below (above) the caret's line.
+sub Window.GoFunction( byval forward as boolean )
+    dim as DocRef d = this.Active( )
+    if d = 0 then exit sub
+    dim as editor.CodeView ptr v = @this.View( )
+    dim as long cur = v->CaretLine( ) - 1, best = -1
+    for each hh as SymHit in this.ProcsOf( d )
+        if forward then
+            if (hh.Line > cur) andalso ((best < 0) orelse (hh.Line < best)) then best = hh.Line
+        elseif (hh.Line < cur) andalso (hh.Line > best) then
+            best = hh.Line
+        end if
+    next
+    if best < 0 then exit sub
+    Nav.RecordJump( this.Here( ) )
+    v->GoToLine( best )
+    Nav.NoteArrival( this.Here( ) )
+    this.ShowStatus( )
+end sub
+
+' Completion and calltips while typing (settings codetips): "(" the calltip, ")" gone, "." the
+' members, a third identifier character the names that start so (types after "as ").
+sub Window.CodeTips( byval hEdit as TK_WIDGET ptr, byval ch as long )
+    if Prefs.CodeTips = false then exit sub
+    dim as DocRef d = this.DocOfWidget( hEdit )
+    if d = 0 then exit sub
+    if documents.IsSourceFile( d->Path ) = false then exit sub     ' none in .toml, .txt ... (author)
+    dim as editor.CodeView ptr v = @d->Main
+    dim as long ln = v->CaretLine( )
+    if ch = 40 then
+        dim as ustring before = v->TextBeforeCaret( )
+        dim as ustring word, qual
+        SplitQualified( left( before, len( before ) - 1 ), word, qual )
+        if len( word ) then
+            dim as ustring tip = Db.CallTip( word, qual, d->Path, ln )
+            if len( tip ) then v->ShowCallTip( tip )
+        end if
+        exit sub
+    end if
+    if ch = 41 then
+        v->CancelCallTip( )
+        exit sub
+    end if
+    if ch = 46 then
+        dim as ustring before = v->TextBeforeCaret( )
+        dim as ustring word, qual
+        SplitQualified( left( before, len( before ) - 1 ), word, qual )
+        if len( word ) then
+            dim as Array( of ustring ) items = Db.MemberNames( word, d->Path, ln )
+            if items.Count( ) then v->ShowCompletions( 0, items )
+        end if
+        exit sub
+    end if
+    if IsIdentCharU( ch ) = false then exit sub
+    if v->CompletionsShown( ) then exit sub                     ' Scintilla filters as typing goes on
+    this.ShowCompletionsAt( v, d, 3 )
+end sub
+
+' The names that start like the word before the caret: the scan's, the outline's procedures,
+' the keywords. minLen: how much must be typed first (Ctrl+Space: 0).
+sub Window.ShowCompletionsAt( byval v as editor.CodeView ptr, byval d as DocRef, byval minLen as long )
+    dim as ustring before = v->TextBeforeCaret( )
+    dim as ustring word, qual
+    SplitQualified( before, word, qual )
+    if len( word ) < minLen then exit sub
+    dim as Array( of ustring ) items
+    if len( qual ) then
+        items = Db.MemberNames( qual, d->Path, v->CaretLine( ) )
+    elseif instr( lcase( right( before, len( word ) + 4 ) ), "as " ) = 1 then
+        items = Db.TypeNames( word )
+    else
+        items = Db.Completions( word, d->Path, v->CaretLine( ) )
+        if Db.HasFile( d->Path ) = false then
+            for each hh as SymHit in this.ProcsOf( d )
+                if lcase( left( hh.Name, len( word ) ) ) = lcase( word ) then items.Push( hh.Name )
+            next
+        end if
+        dim as ustring lw = lcase( word )
+        for each k as ustring in strings.Split( Look.Words.Words1, " " )
+            if left( k, len( lw ) ) = lw then items.Push( k )
+            if items.Count( ) > 300 then exit for
+        next
+    end if
+    items = SortNames( items )
+    if items.Count( ) = 0 then exit sub
+    if (items.Count( ) = 1) andalso (lcase( items[0] ) = lcase( word )) andalso (minLen > 0) then exit sub
+    v->ShowCompletions( len( word ), items )
+end sub
+
+' ================================================================ P6: Find in Project
+
+' Every file of the project (with no project: every open buffer) searched for the strip's phrase
+' with its Aa / W / .* -- in a hidden view, so the matching is Find's own. An open buffer's text is
+' searched as it stands, unsaved edits included. The Search tab gets a header per file and a row
+' per match; the count is the return.
+function Window.RunProjectSearch( ) as long
+    dim as ustring p = Finder.Phrase( )
+    if len( p ) = 0 then return 0
+    dim as editor.FindOptions o = Finder.Options( )
+    o.InSelection = false
+    if scratch.Exists( ) = false then
+        if scratch.Create( tkForm_Widget( form ), ID_SCRATCH ) = false then return 0
+        tkWidget_Show( scratch.Widget( ), false )
+    end if
+    ' the files: the active buffer's first, the other open buffers, then the project's folder
+    dim as Array( of ustring ) paths, cands
+    dim as Map( of ustring, boolean ) seen
+    if (this.Active( ) <> 0) andalso (len( this.Active( )->Path ) > 0) then cands.Push( this.Active( )->Path )
+    for each d as DocRef in Docs
+        if len( d->Path ) then cands.Push( d->Path )
+    next
+    for each f as ustring in this.ProjectFiles( true )
+        cands.Push( f )
+    next
+    for each f as ustring in cands
+        if seen.Contains( ucase( f ) ) then continue for
+        seen.Put( ucase( f ), true )
+        paths.Push( f )
+    next
+    Found.Clear( )
+    dim as TK_WIDGET ptr list = Out.search
+    tkListTree_BeginUpdate( list )
+    tkListTree_Clear( list )
+    dim as long files_ = 0
+    for each f as ustring in paths
+        dim as ustring text
+        dim as DocRef d = this.FindOpen( f )
+        if d then
+            text = d->Text( )
+        else
+            dim as Result( of docencoding.LoadedText, fs.FsError ) lt = docencoding.LoadFile( f )
+            if lt.IsOk( ) = false then continue for
+            text = lt.Value( ).Text
+        end if
+        scratch.SetText( text )
+        dim as boolean bad = false
+        dim as Array( of textsearch.TextMatch ) ms = scratch.MatchesOf( p, o, SEARCH_LIMIT - Found.Count( ), bad )
+        if bad then
+            tkListTree_EndUpdate( list )
+            Finder.SetStatus( "not a valid regular expression" )
+            return 0
+        end if
+        if ms.Count( ) = 0 then continue for
+        files_ += 1
+        tkListTree_AddHeader( list, strings.Format( "{}  ({})", fs.PathFileName( f ), ms.Count( ) ), -1 )
+        for each m as textsearch.TextMatch in ms
+            dim as SearchHit hh
+            hh.Path = f
+            hh.Line = m.Line
+            hh.Column = m.Column
+            hh.Length = m.Length
+            Found.Push( hh )
+            tkListTree_InsertString( list, tkListTree_GetCount( list ), _
+                                     (m.Line + 1) & ": " & trim( scratch.LineTextAt( m.Line ) ), Found.Count( ) - 1 )
+        next
+        if Found.Count( ) >= SEARCH_LIMIT then exit for
+    next
+    tkListTree_EndUpdate( list )
+    scratch.SetText( "" )
+    dim as ustring msg = strings.Format( "{} matches in {} files", Found.Count( ), files_ )
+    if Found.Count( ) >= SEARCH_LIMIT then msg &= " (stopped at the limit)"
+    if Found.Count( ) = 0 then
+        Finder.SetStatus( "No matches" )
+        return 0
+    end if
+    Finder.Close( )
+    this.ShowOutput( true )
+    Out.ShowTab( outputpane.OutputTab.Search )
+    this.Layout( )
+    this.OpenSearchHit( 0 )                      ' opening its file clears the message: say it after
+    this.SetMessage( msg )
+    return Found.Count( )
+end function
+
+sub Window.OpenSearchHit( byval i as long )
+    if (i < 0) orelse (i >= Found.Count( )) then exit sub
+    dim as SearchHit hh = Found[i]
+    this.JumpTo( hh.Path, hh.Line, hh.Column, hh.Length )
+end sub
+

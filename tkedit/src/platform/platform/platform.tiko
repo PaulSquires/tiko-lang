@@ -1,0 +1,307 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' platform -- the ONE module in tkEdit that asks which operating system it runs on. Every
+' other module calls these functions instead of testing TIKO_OS_*; tools/idiom.sh fails a build
+' that tests one anywhere else. macOS answers are designed in now (plan D8) and measured only
+' when tiko can run there.
+#module "platform"
+
+#import "std/fs"
+#import "std/containers"
+#import "std/outcome"
+using containers
+using outcome
+
+public const APP_NAME = "tkEdit"
+
+public enum Os explicit
+    Windows
+    Linux
+    MacOS
+end enum
+
+public function CurrentOs( ) as Os
+#if defined( TIKO_OS_WINDOWS )
+    return Os.Windows
+#elseif defined( TIKO_OS_MACOS )
+    return Os.MacOS
+#elseif defined( TIKO_OS_LINUX )
+    return Os.Linux
+#else
+    #error "tkEdit: no TIKO_OS_* target define"
+#endif
+end function
+
+public function OsName( ) as ustring
+    select case CurrentOs( )
+    case Os.Windows : return "windows"
+    case Os.MacOS : return "macos"
+    case else : return "linux"
+    end select
+end function
+
+' The modifier a shortcut's "Primary" means: Ctrl, except Cmd on macOS. keybindings.toml stores
+' "Primary+S"; the menus show this name.
+public function PrimaryModifierName( ) as ustring
+    if CurrentOs( ) = Os.MacOS then return "Cmd"
+    return "Ctrl"
+end function
+
+' The file name a shared library has here: tikoParser -> tikoParser.dll / .so / .dylib (tiko-lang's
+' build.sh writes bin/tikoParser.so on Linux, with no "lib" prefix).
+public function SharedLibraryFile( byref base_ as const ustring ) as ustring
+    select case CurrentOs( )
+    case Os.Windows : return base_ & ".dll"
+    case Os.MacOS : return base_ & ".dylib"
+    case else : return base_ & ".so"
+    end select
+end function
+
+' The folder the running program is in, or the current folder when the OS will not say.
+public function ExeDir( ) as ustring
+    dim as fs.FsResultUStr r = fs.ExecutablePath( )
+    if r.IsOk( ) = false then return fs.CurrentDir( ).ValueOr( "." )
+    return fs.PathParent( r.Value( ) )
+end function
+
+' The installation's resource root: the folder holding fonts/ and settings/. A dev build runs from
+' <repo>/bin, so the exe folder's parent is tried after the exe folder itself; a macOS bundle
+' keeps them in Contents/Resources.
+public function ResourceDir( ) as Optional( of ustring )
+    dim as ustring here = ExeDir( )
+    dim as ustring tries( 0 to 2 )
+    tries( 0 ) = here
+    tries( 1 ) = fs.PathParent( here )
+    tries( 2 ) = fs.PathJoin( fs.PathParent( here ), "Resources" )
+    for each d as ustring in tries
+        if fs.IsDir( fs.PathJoin( d, "fonts" ) ) then return Some( of ustring )( d )
+    next
+    return None( of ustring )( )
+end function
+
+' Where settings.toml and keybindings.toml live: %APPDATA%\tkEdit, $XDG_CONFIG_HOME/tkEdit
+' (~/.config), ~/Library/Application Support/tkEdit. Not created here.
+public function ConfigDir( ) as fs.FsResultUStr
+    if CurrentOs( ) = Os.MacOS then
+        dim as fs.FsResultUStr h = fs.HomeDir( )
+        if h.IsOk( ) = false then return h
+        return Ok( of ustring, fs.FsError )( fs.PathJoin( h.Value( ), "Library/Application Support", APP_NAME ) )
+    end if
+    dim as fs.FsResultUStr c = fs.ConfigDir( )
+    if c.IsOk( ) = false then return c
+    return Ok( of ustring, fs.FsError )( fs.PathJoin( c.Value( ), APP_NAME ) )
+end function
+
+' Comment lines for the top of a config file: where `file` is kept on each platform (ConfigDir).
+public function ConfigPlaces( byref file as const ustring ) as ustring
+    dim as ustring nl = wchr( 10 )
+    return "# Saved in:  Windows  %APPDATA%\tkEdit\" & file & nl & _
+           "#            Linux    $XDG_CONFIG_HOME/tkEdit/" & file & "  (default ~/.config/tkEdit/" & file & ")" & nl & _
+           "#            macOS    ~/Library/Application Support/tkEdit/" & file & nl
+end function
+
+' Folders that hold system fonts, for tkFontList (P3). The bundled fonts/ folder is searched first
+' by the caller; these are the user's own choices.
+public function SystemFontDirs( ) as Array( of ustring )
+    dim as Array( of ustring ) dirs
+    select case CurrentOs( )
+    case Os.Windows
+        dim as string w = environ( "WINDIR" )
+        if len( w ) = 0 then w = "C:\Windows"
+        dirs.Push( fs.PathJoin( w, "Fonts" ) )
+        dim as string l = environ( "LOCALAPPDATA" )
+        if len( l ) then dirs.Push( fs.PathJoin( l, "Microsoft\Windows\Fonts" ) )
+    case Os.MacOS
+        dirs.Push( "/System/Library/Fonts" )
+        dirs.Push( "/Library/Fonts" )
+        dim as fs.FsResultUStr h = fs.HomeDir( )
+        if h.IsOk( ) then dirs.Push( fs.PathJoin( h.Value( ), "Library/Fonts" ) )
+    case else
+        dirs.Push( "/usr/share/fonts" )
+        dirs.Push( "/usr/local/share/fonts" )
+        dim as fs.FsResultUStr h = fs.HomeDir( )
+        if h.IsOk( ) then dirs.Push( fs.PathJoin( h.Value( ), ".local/share/fonts" ) )
+    end select
+    return dirs
+end function
+
+' ---- running a built program (P7) -------------------------------------------------------------
+
+' A name on PATH, as a full path; "" when it is not there.
+public function FindOnPath( byref name_ as const ustring ) as ustring
+    dim as string sep = ":"
+    if CurrentOs( ) = Os.Windows then sep = ";"
+    dim as ustring path_ = environ( "PATH" )
+    dim as long start = 1
+    while start <= len( path_ )
+        dim as long e = instr( start, path_, sep )
+        if e = 0 then e = len( path_ ) + 1
+        dim as ustring d = mid( path_, start, e - start )
+        if len( d ) then
+            dim as ustring f = fs.PathJoin( d, name_ )
+            if fs.IsFile( f ) then return f
+        end if
+        start = e + 1
+    wend
+    return ""
+end function
+
+' The terminal Run opens on Linux: $TERMINAL, then the usual ones. "" = none found.
+public function LinuxTerminal( ) as ustring
+    dim as ustring t = environ( "TERMINAL" )
+    if len( t ) then
+        dim as ustring f = FindOnPath( t )
+        if len( f ) then return f
+        if fs.IsFile( t ) then return t
+    end if
+    dim as ustring names( 0 to 4 ) = { "x-terminal-emulator", "gnome-terminal", "konsole", "xfce4-terminal", "xterm" }
+    for each nm as ustring in names
+        dim as ustring f = FindOnPath( nm )
+        if len( f ) then return f
+    next
+    return ""
+end function
+
+' The command that runs exe with args in a console window of its own and waits for a key after
+' it ends (the old "press any key"): argv[0] is the program to start. The script it needs is
+' written into scriptDir. An empty array: no terminal could be found (Linux).
+'   Windows  a .cmd (it runs through cmd.exe; a GUI process's console child gets a new window)
+'   Linux    a .sh, under $TERMINAL / x-terminal-emulator / gnome-terminal / konsole / ... / xterm
+'   macOS    a .command, opened by Terminal.app (open -a Terminal)
+public function TerminalArgv( byref exe as const ustring, byref args as const Array( of ustring ), _
+                              byref workDir as const ustring, byref scriptDir as const ustring ) as Array( of ustring )
+    dim as Array( of ustring ) argv
+    dim as ustring q = chr( 34 )
+    fs.CreateDirAll( scriptDir )
+    if CurrentOs( ) = Os.Windows then
+        dim as ustring nl = chr( 13, 10 )
+        dim as ustring line_ = q & exe & q
+        for each a as ustring in args
+            line_ &= " " & q & a & q
+        next
+        dim as ustring script = fs.PathJoin( scriptDir, "tkEdit-run.cmd" )
+        fs.WriteAllText( script, "@echo off" & nl & "cd /d " & q & workDir & q & nl & line_ & nl & _
+                                 "echo." & nl & "pause" & nl )
+        argv.Push( script )
+        return argv
+    end if
+    dim as ustring nl = chr( 10 )
+    dim as ustring line_ = "'" & exe & "'"
+    for each a as ustring in args
+        line_ &= " '" & a & "'"
+    next
+    dim as ustring body = "#!/bin/sh" & nl & "cd '" & workDir & "'" & nl & line_ & nl & _
+                          "printf '\n[exit %s] press Enter ' $?" & nl & "read _" & nl
+    if CurrentOs( ) = Os.MacOS then
+        dim as ustring script = fs.PathJoin( scriptDir, "tkEdit-run.command" )
+        fs.WriteAllText( script, body )
+        argv.Push( "/usr/bin/open" ) : argv.Push( "-a" ) : argv.Push( "Terminal" ) : argv.Push( script )
+        return argv
+    end if
+    dim as ustring script = fs.PathJoin( scriptDir, "tkEdit-run.sh" )
+    fs.WriteAllText( script, body )
+    dim as ustring term = LinuxTerminal( )
+    if len( term ) = 0 then return argv
+    argv.Push( term )
+    if lcase( fs.PathFileName( term ) ) = "gnome-terminal" then
+        argv.Push( "--" )
+    else
+        argv.Push( "-e" )
+    end if
+    argv.Push( "/bin/sh" )
+    argv.Push( script )
+    return argv
+end function
+
+' ---- the debugger (P10) ----------------------------------------------------------------------
+
+' lldb-dap: the settings' path when it exists, else on PATH, else where LLVM puts it
+' (Windows: Program Files\LLVM\bin; Linux: /usr/bin/lldb-dap-NN or /usr/lib/llvm-NN/bin, the
+' newest). "" = none found.
+public function FindLldbDap( byref configured as const ustring ) as ustring
+    if len( configured ) andalso fs.IsFile( configured ) then return configured
+    if CurrentOs( ) = Os.Windows then
+        dim as ustring f = FindOnPath( "lldb-dap.exe" )
+        if len( f ) then return f
+        dim as ustring pf = environ( "ProgramFiles" )
+        if len( pf ) = 0 then pf = "C:\Program Files"
+        f = fs.PathJoin( pf, "LLVM", "bin", "lldb-dap.exe" )
+        if fs.IsFile( f ) then return f
+        return ""
+    end if
+    dim as ustring f = FindOnPath( "lldb-dap" )
+    if len( f ) then return f
+    dim as ustring best
+    dim as long bestN = -1
+    for each r in fs.ReadDir( "/usr/bin" )
+        if r.IsOk( ) = false then continue for
+        dim as ustring nm = r.Value( ).Name( )
+        if left( nm, 9 ) = "lldb-dap-" then
+            dim as long n = valint( mid( nm, 10 ) )
+            if n > bestN then
+                bestN = n
+                best = r.Value( ).Path( )
+            end if
+        end if
+    next
+    if len( best ) then return best
+    for each r in fs.ReadDir( "/usr/lib" )
+        if r.IsOk( ) = false then continue for
+        dim as ustring nm = r.Value( ).Name( )
+        if left( nm, 5 ) = "llvm-" then
+            dim as ustring cand = fs.PathJoin( r.Value( ).Path( ), "bin", "lldb-dap" )
+            dim as long n = valint( mid( nm, 6 ) )
+            if fs.IsFile( cand ) andalso (n > bestN) then
+                bestN = n
+                best = cand
+            end if
+        end if
+    next
+    return best
+end function
+
+' ---- the window's title bar (P11) -------------------------------------------------------------
+
+#if defined( TIKO_OS_WINDOWS )
+#inclib "dwmapi"
+extern "C"
+    declare function tsp_DwmSetWindowAttribute stdcall alias "DwmSetWindowAttribute" ( byval hwnd as any ptr, _
+        byval attr as ulong, byval pv as const any ptr, byval cb as ulong ) as long
+    declare function tsp_DwmGetWindowAttribute stdcall alias "DwmGetWindowAttribute" ( byval hwnd as any ptr, _
+        byval attr as ulong, byval pv as any ptr, byval cb as ulong ) as long
+end extern
+#endif
+
+' A dark title bar to go with a dark theme (Windows 10 1809+: DWMWA_USE_IMMERSIVE_DARK_MODE). The
+' native window handle is the caller's (SDL's "SDL.window.win32.hwnd"). TRUE = the system took
+' it; elsewhere, and on an older Windows, FALSE and nothing changes.
+public function SetDarkTitleBar( byval nativeWindow as any ptr, byval dark as boolean ) as boolean
+#if defined( TIKO_OS_WINDOWS )
+    if nativeWindow = 0 then return false
+    dim as long v = 0
+    if dark then v = 1
+    if tsp_DwmSetWindowAttribute( nativeWindow, 20, @v, 4 ) = 0 then return true          ' 20: since 20H1
+    return tsp_DwmSetWindowAttribute( nativeWindow, 19, @v, 4 ) = 0                        ' 19: 1809 .. 1909
+#else
+    return false
+#endif
+end function
+
+' What the system says the title bar is (the self-test's read-back): TRUE = dark.
+public function TitleBarIsDark( byval nativeWindow as any ptr ) as boolean
+#if defined( TIKO_OS_WINDOWS )
+    if nativeWindow = 0 then return false
+    dim as long v = 0
+    if tsp_DwmGetWindowAttribute( nativeWindow, 20, @v, 4 ) <> 0 then
+        if tsp_DwmGetWindowAttribute( nativeWindow, 19, @v, 4 ) <> 0 then return false
+    end if
+    return v <> 0
+#else
+    return false
+#endif
+end function
