@@ -196,3 +196,35 @@ private sub CheckStaticMemberVar_ _
                      c.names->Spelling( memberName ) )
 end sub
 
+'' A FIELD NAMED LIKE A NAMESPACE, as the base of 'enc.KindName( Enc )' inside a method of a type
+'' with a field 'Enc', or of 'enc.Kind.B' in that field's initializer (tkEdit TK-001). Names fold
+'' case, so the base bound to the field; nothing was said, and lowering stopped on TKO0994. Looked
+'' past -- the base rebound to the namespace of that name outside the type -- where fbc reads the
+'' namespace: from the type's own scope (a field's initializer, as ResolveTypeRefAt_ does for a
+'' qualified type, 306951f52). In a METHOD BODY fbc reads the field (error 3, fbc-modern 1.20,
+'' 2026-10-26) and so does this, leaving TKO0835 to refuse it -- EXCEPT through an '#import' alias,
+'' which fbc has no form of: a module is looked past there too, as a method named like one is
+'' (TS-005). Never when the field is a UDT (its own members win) or the namespace lacks the member.
+private sub LookPastField_ _
+    ( byref c as Ctx, byval mlhs as Tko.NodeId, byval mrhs as Tko.NodeId, byval scope_ as Tko.ScopeId )
+
+    if c.ast->Kind( mlhs ) <> Tko.N_IDENT then return
+    if c.ast->Kind( mrhs ) <> Tko.N_IDENT then return
+    dim as Tko.Symbol ptr fs_ = c.syms->SymbolAt( c.info->RefOf( mlhs ) )
+    if fs_ = nullptr then return
+    if fs_->kind <> cast( uint8, Tko.SYM_FIELD ) then return
+    if fs_->type_ <> Tko.TYPE_NONE then
+        if c.types->Kind( c.types->Unqualify( fs_->type_ ) ) = Tko.TK_UDT then return
+    end if
+    dim as Tko.SymScope ptr usc = c.syms->ScopeAt( fs_->parent )
+    if usc = nullptr then return
+    dim as Tko.SymbolId nsid = c.syms->Lookup( usc->parent, IdentNameOf( c, mlhs ) )
+    dim as Tko.Symbol ptr ns_ = c.syms->SymbolAt( nsid )
+    if ns_ = nullptr then return
+    if ns_->kind <> cast( uint8, Tko.SYM_NAMESPACE ) then return
+    if (fs_->parent <> scope_) andalso (ModuleView_( c, nsid ) = false) then return
+    c.syms->privileged = c.syms->IsImportNs( nsid )
+    dim as Tko.SymbolId msid = c.syms->LookupInNamespace( ns_->inner, IdentNameOf( c, mrhs ) )
+    c.syms->privileged = false
+    if msid <> Tko.SYMBOL_NONE then c.info->SetRef( mlhs, nsid )
+end sub

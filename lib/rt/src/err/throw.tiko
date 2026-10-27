@@ -81,16 +81,11 @@ private function hErrMessage( byval n as int32 ) as zstring ptr
 	return @""
 end function
 
-'' Builds the abort message and ends the program. STATIC in fbc: no symbol.
-''
-'' THE PREPOSITION CHANGES WITH THE LINE NUMBER -- " of MOD::FUN()" when a line
-'' is known and " in MOD::FUN()" when it is not. fbc picks it with an inline
-'' conditional on line_num > 0, and the two words are not interchangeable in
-'' the output a test compares.
-private sub hDie( byval err_num as int32, byval line_num as int32, _
-                  byval mod_name as zstring ptr, byval fun_name as zstring ptr, _
-                  byval msg as zstring ptr )
-
+'' Builds the abort message into __fb_errmsg and returns it. Shared by hDie and by the signal
+'' handler's way out after the runtime has shut down (tkort_SigDie).
+private function hFormat( byval err_num as int32, byval line_num as int32, _
+                          byval mod_name as zstring ptr, byval fun_name as zstring ptr, _
+                          byval msg as zstring ptr ) as zstring ptr
 	'' integer, not long: it is a byte offset into the message buffer, and
 	'' snprintf returns a C int that is widened here explicitly.
 	dim as integer pos_ = 0
@@ -129,6 +124,20 @@ private sub hDie( byval err_num as int32, byval line_num as int32, _
 	pos_ += tkrt_snprintf( em + pos_, FB_ERRMSG_SIZE - pos_, @!"\n\n" )
 
 	em[FB_ERRMSG_SIZE - 1] = 0
+	return em
+end function
+
+'' Builds the abort message and ends the program. STATIC in fbc: no symbol.
+''
+'' THE PREPOSITION CHANGES WITH THE LINE NUMBER -- " of MOD::FUN()" when a line
+'' is known and " in MOD::FUN()" when it is not. fbc picks it with an inline
+'' conditional on line_num > 0, and the two words are not interchangeable in
+'' the output a test compares.
+private sub hDie( byval err_num as int32, byval line_num as int32, _
+                  byval mod_name as zstring ptr, byval fun_name as zstring ptr, _
+                  byval msg as zstring ptr )
+
+	dim as zstring ptr em = hFormat( err_num, line_num, mod_name, fun_name, msg )
 
 	'' Published, not printed -- fb_hRtExit shows it on the way out.
 	TKORT_CTX_ERRMSG() = em
@@ -279,5 +288,46 @@ function tkort_ErrorSetHandler alias "fb_ErrorSetHandler" _
 	if( newhandler = nullptr ) then fb_ErrorJmpDisarm( )
 	return oldhandler
 end function
+
+end extern
+
+'' ---------------------------------------------------------------- a fatal signal's way out
+
+#if defined( __FB_WIN32__ ) or defined( __FB_WIN64__ )
+	extern "c"   '' NON-FBCALL: msvcrt.
+		declare function sig_write alias "_write" ( byval fd as int32, byval buf as any ptr, byval n as uint32 ) as int32
+		declare sub sig_exit alias "_exit" ( byval code as int32 )
+	end extern
+#else
+	extern "c"   '' NON-FBCALL: libc.
+		declare function sig_write alias "write" ( byval fd as int32, byval buf as any ptr, byval n as uinteger ) as integer
+		declare sub sig_exit alias "_exit" ( byval code as int32 )
+	end extern
+#endif
+
+extern "c"   '' NON-FBCALL: internal to tiko-rt, for error/signals.tiko; fbc has no such entry.
+
+'' THE HANDLER'S DIE PATH WHEN THE THREAD HAS NO ERROR CONTEXT -- which also means it has no ON
+'' ERROR handler, since installing one creates the context. What fb_ErrorThrowMsg would do for a
+'' fresh context, without creating it (TK-004): the same message, no module, no function.
+''
+'' rtGone: fb_hRtExit has already run -- the signal came from a library's clean-up after the
+'' program's (tkEdit: libGLX's fini, on a heap it found corrupt). There is nothing left to
+'' unwind and exit( ) must not run again: the aborting thread may hold the heap's lock, and every
+'' free in the remaining clean-up would wait on it. So the message goes straight to stderr and
+'' the process ends with the error number, as it would have.
+sub tkort_SigDie alias "tkort_SigDie" ( byval err_num as int32, byval rtGone as int32 )
+	if( rtGone = 0 ) then
+		hDie( err_num, -1, nullptr, nullptr, nullptr )
+		exit sub
+	end if
+	dim as zstring ptr em = hFormat( err_num, -1, nullptr, nullptr, nullptr )
+	dim as int32 n = 0
+	while( em[n] <> 0 )
+		n += 1
+	wend
+	sig_write( 2, em, n )
+	sig_exit( err_num )
+end sub
 
 end extern

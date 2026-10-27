@@ -1,0 +1,165 @@
+' tkCodeEdit demo: a tiko source file in a dark theme, line numbers, a caret line, a selection.
+'
+'   demo                     run it
+'   demo --shot out.bmp      render once and save the window, exit
+'   demo --scale 1.75        pin the scale
+#import "vendor/tkControls/tkCodeEdit"
+using tkCodeEdit
+using tkHost
+using tkPaint
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gEd
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+private sub Form_Size( byval h as TK_HOST ptr )
+    dim as long m = tkHost_Scale( h, 8 )
+    tkWidget_SetPos( gEd, m, m, h->root->cw - m * 2, h->root->ch - m * 2 )
+end sub
+
+' BGR, as Scintilla takes colours
+private function Bgr( byval rgb as ulong ) as long
+    return ((rgb and &hFF) shl 16) or (rgb and &hFF00) or ((rgb shr 16) and &hFF)
+end function
+
+dim as single forced = val( ArgValue( "--scale" ) )
+SDL_Init( SDL_INIT_VIDEO ) : TTF_Init()
+#ifdef TIKO_OS_LINUX
+const FONTDIR = "/mnt/c/Windows/Fonts/"
+#else
+const FONTDIR = "C:\Windows\Fonts\"
+#endif
+gHost = tkHost_Create( "tkCodeEdit demo", 760, 420, tkHost_FontDir() & TK_FONT_UI, forced )
+gHost->clrBack = &hFF1E1F22ul
+gEd = tkCodeEdit_Create( tkHost_Root( gHost ), 100 )
+if gEd = 0 then print "tkCodeEdit: " & tkCodeEdit_LibraryError() : end 1
+tkCodeEdit_SetFont( gEd, tkHost_FontDir() & TK_FONT_MONO, 10 )
+tkCodeEdit_Send( gEd, SCI_STYLESETFORE, STYLE_DEFAULT, Bgr( &hD4D4D4 ) )
+tkCodeEdit_Send( gEd, SCI_STYLESETBACK, STYLE_DEFAULT, Bgr( &h1E1F22 ) )
+tkCodeEdit_Send( gEd, SCI_STYLECLEARALL )
+tkCodeEdit_SetLexer( gEd, "tiko" )
+tkCodeEdit_SendText( gEd, SCI_SETKEYWORDS, 0, "dim as long ustring sub end function return for each in next if then else print type declare" )
+tkCodeEdit_Send( gEd, SCI_STYLESETFORE, SCE_B_KEYWORD, Bgr( &h569CD6 ) )
+tkCodeEdit_Send( gEd, SCI_STYLESETFORE, SCE_B_COMMENT, Bgr( &h6A9955 ) )
+tkCodeEdit_Send( gEd, SCI_STYLESETFORE, SCE_B_STRING, Bgr( &hCE9178 ) )
+tkCodeEdit_Send( gEd, SCI_STYLESETFORE, SCE_B_NUMBER, Bgr( &hB5CEA8 ) )
+tkCodeEdit_Send( gEd, SCI_STYLESETFORE, SCE_B_OPERATOR, Bgr( &hD4D4D4 ) )
+' line numbers
+tkCodeEdit_Send( gEd, SCI_SETMARGINTYPEN, 0, SC_MARGIN_NUMBER )
+tkCodeEdit_Send( gEd, SCI_SETMARGINWIDTHN, 0, tkCodeEdit_SendText( gEd, SCI_TEXTWIDTH, STYLE_LINENUMBER, "_9999" ) )
+tkCodeEdit_Send( gEd, SCI_STYLESETFORE, STYLE_LINENUMBER, Bgr( &h858585 ) )
+tkCodeEdit_Send( gEd, SCI_STYLESETBACK, STYLE_LINENUMBER, Bgr( &h1E1F22 ) )
+tkCodeEdit_Send( gEd, SCI_SETMARGINWIDTHN, 1, 0 )
+' caret, caret line, selection
+tkCodeEdit_Send( gEd, SCI_SETCARETFORE, Bgr( &hAEAFAD ) )
+tkCodeEdit_Send( gEd, SCI_SETCARETLINEVISIBLE, 1 )
+tkCodeEdit_Send( gEd, SCI_SETCARETLINEBACK, Bgr( &h2A2D2E ) )
+tkCodeEdit_Send( gEd, SCI_SETSELBACK, 1, Bgr( &h264F78 ) )
+tkCodeEdit_Send( gEd, SCI_SETTABWIDTH, 4 )
+dim as ustring src = _
+    "' tiko-studio, P2: Scintilla on SDL3" & chr( 10 ) & _
+    "type Point" & chr( 10 ) & _
+    "    x as long" & chr( 10 ) & _
+    "    y as long" & chr( 10 ) & _
+    "end type" & chr( 10 ) & chr( 10 ) & _
+    "function Sum( byref xs as Array( of long ) ) as long" & chr( 10 ) & _
+    "    dim as long total = 0" & chr( 10 ) & _
+    "    for each v as long in xs" & chr( 10 ) & _
+    "        total += v          ' accumulate" & chr( 10 ) & _
+    "    next" & chr( 10 ) & _
+    "    return total" & chr( 10 ) & _
+    "end function" & chr( 10 ) & chr( 10 ) & _
+    "dim as ustring greeting = ""héllo, wörld — 日本""" & chr( 10 ) & _
+    "print greeting; Sum( { 1, 2, 3 } )" & chr( 10 )
+tkCodeEdit_SetFallbackFonts( FONTDIR & "msgothic.ttc|MS Gothic" )
+tkCodeEdit_SetFont( gEd, tkHost_FontDir() & TK_FONT_MONO, 10 )
+tkCodeEdit_Send( gEd, SCI_STYLESETFORE, STYLE_DEFAULT, Bgr( &hD4D4D4 ) )
+tkCodeEdit_Send( gEd, SCI_STYLESETBACK, STYLE_DEFAULT, Bgr( &h1E1F22 ) )
+tkCodeEdit_Send( gEd, SCI_STYLECLEARALL )
+tkCodeEdit_Send( gEd, SCI_STYLESETFORE, SCE_B_KEYWORD, Bgr( &h569CD6 ) )
+tkCodeEdit_Send( gEd, SCI_STYLESETBOLD, SCE_B_KEYWORD, 0 )
+tkCodeEdit_Send( gEd, SCI_STYLESETFORE, SCE_B_COMMENT, Bgr( &h6A9955 ) )
+tkCodeEdit_Send( gEd, SCI_STYLESETFORE, SCE_B_STRING, Bgr( &hCE9178 ) )
+tkCodeEdit_Send( gEd, SCI_STYLESETFORE, SCE_B_NUMBER, Bgr( &hB5CEA8 ) )
+tkCodeEdit_Send( gEd, SCI_STYLESETFORE, STYLE_LINENUMBER, Bgr( &h858585 ) )
+tkCodeEdit_Send( gEd, SCI_STYLESETBACK, STYLE_LINENUMBER, Bgr( &h1E1F22 ) )
+tkCodeEdit_SetText( gEd, src )
+' fold margin, a bookmark, an error squiggle
+dim as string kFold = "fold", vOne = "1"
+tkCodeEdit_Send( gEd, SCI_SETPROPERTY, cast( uinteger, strptr( kFold ) ), cast( integer, strptr( vOne ) ) )
+tkCodeEdit_Send( gEd, SCI_SETMARGINTYPEN, 2, SC_MARGIN_SYMBOL )
+tkCodeEdit_Send( gEd, SCI_SETMARGINMASKN, 2, SC_MASK_FOLDERS )
+tkCodeEdit_Send( gEd, SCI_SETMARGINWIDTHN, 2, tkHost_Scale( gHost, 14 ) )
+tkCodeEdit_Send( gEd, SCI_SETMARGINSENSITIVEN, 2, 1 )
+tkCodeEdit_Send( gEd, SCI_SETFOLDMARGINCOLOUR, 1, Bgr( &h1E1F22 ) )
+tkCodeEdit_Send( gEd, SCI_SETFOLDMARGINHICOLOUR, 1, Bgr( &h1E1F22 ) )
+for mk as long = 25 to 31
+    tkCodeEdit_Send( gEd, SCI_MARKERSETFORE, mk, Bgr( &h1E1F22 ) )
+    tkCodeEdit_Send( gEd, SCI_MARKERSETBACK, mk, Bgr( &h858585 ) )
+next
+tkCodeEdit_Send( gEd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDEROPEN, SC_MARK_BOXMINUS )
+tkCodeEdit_Send( gEd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDER, SC_MARK_BOXPLUS )
+tkCodeEdit_Send( gEd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDERSUB, SC_MARK_VLINE )
+tkCodeEdit_Send( gEd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDERTAIL, SC_MARK_LCORNER )
+tkCodeEdit_Send( gEd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDEREND, SC_MARK_BOXPLUSCONNECTED )
+tkCodeEdit_Send( gEd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDEROPENMID, SC_MARK_BOXMINUSCONNECTED )
+tkCodeEdit_Send( gEd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDERMIDTAIL, SC_MARK_TCORNER )
+tkCodeEdit_Send( gEd, SCI_SETAUTOMATICFOLD, SC_AUTOMATICFOLD_SHOW or SC_AUTOMATICFOLD_CLICK or SC_AUTOMATICFOLD_CHANGE )
+tkCodeEdit_Send( gEd, SCI_SETMARGINTYPEN, 1, SC_MARGIN_SYMBOL )
+tkCodeEdit_Send( gEd, SCI_SETMARGINMASKN, 1, 2 )
+tkCodeEdit_Send( gEd, SCI_SETMARGINWIDTHN, 1, tkHost_Scale( gHost, 14 ) )
+tkCodeEdit_Send( gEd, SCI_MARKERDEFINE, 1, SC_MARK_CIRCLE )
+tkCodeEdit_Send( gEd, SCI_MARKERSETBACK, 1, Bgr( &hE05050 ) )
+tkCodeEdit_Send( gEd, SCI_MARKERSETFORE, 1, Bgr( &hE05050 ) )
+tkCodeEdit_Send( gEd, SCI_MARKERADD, 9, 1 )
+tkCodeEdit_Send( gEd, SCI_INDICSETSTYLE, 8, INDIC_SQUIGGLE )
+tkCodeEdit_Send( gEd, SCI_INDICSETFORE, 8, Bgr( &hF14C4C ) )
+tkCodeEdit_Send( gEd, SCI_SETINDICATORCURRENT, 8 )
+tkCodeEdit_Send( gEd, SCI_INDICATORFILLRANGE, 236, 5 )
+tkCodeEdit_Send( gEd, SCI_COLOURISE, 0, -1 )
+tkCodeEdit_Send( gEd, SCI_SETSEL, 105, 117 )
+
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkHost_SetFocus( gHost, gEd )
+tkHost_Show( gHost )
+
+dim as string shot = ArgValue( "--shot" )
+if len( shot ) then
+    tkHost_Pump( gHost )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr s = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if s then
+        SDL_SaveBMP( s, strptr( shot ) )
+        print "shot: " & shot & "  " & s->w & "x" & s->h & "  scale=" & gHost->fScale
+        SDL_DestroySurface( s )
+    end if
+    ' the popups, one each: the autocompletion list, then a call tip
+    tkCodeEdit_Send( gEd, SCI_GOTOPOS, 140 )
+    tkCodeEdit_SendText( gEd, SCI_AUTOCSHOW, 0, "total totalCount toString trim" )
+    tkHost_Pump( gHost )
+    if tkCodeEdit_ListPopup() then
+        tkHost_RenderTo( tkCodeEdit_ListPopup(), false )
+        s = SDL_RenderReadPixels( tkCodeEdit_ListPopup()->renderer, 0 )
+        if s then dim as string f = shot & ".list.bmp" : SDL_SaveBMP( s, strptr( f ) ) : SDL_DestroySurface( s ) : print "shot: " & f
+    end if
+    tkCodeEdit_Send( gEd, SCI_AUTOCCANCEL )
+    tkCodeEdit_SendText( gEd, SCI_CALLTIPSHOW, 140, "Sum( byref xs as Array( of long ) ) as long" )
+    tkCodeEdit_Send( gEd, SCI_CALLTIPSETHLT, 5, 33 )
+    tkHost_Pump( gHost )
+    if tkCodeEdit_CallTipPopup() then
+        tkHost_RenderTo( tkCodeEdit_CallTipPopup(), false )
+        s = SDL_RenderReadPixels( tkCodeEdit_CallTipPopup()->renderer, 0 )
+        if s then dim as string f = shot & ".tip.bmp" : SDL_SaveBMP( s, strptr( f ) ) : SDL_DestroySurface( s ) : print "shot: " & f
+    end if
+    end 0
+end if
+tkHost_Run( gHost )

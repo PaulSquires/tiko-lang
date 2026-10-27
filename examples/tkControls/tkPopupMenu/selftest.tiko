@@ -1,0 +1,246 @@
+' tkPopupMenu self-test: the layout formula and hit testing, show/hide and one chain per
+' process, hover selection and its pin/clear rules, the hover delay opening a submenu, the
+' keyboard table, execution (chain closed BEFORE the callback), the dismissal rules (outside
+' press closes, notifies and STILL reaches its target; Escape at the root notifies 1), the
+' by-id tree operations, theme and pinning, and the painter. Two passes, 1.0 and 1.75.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkPopupMenu"
+#import "vendor/tkControls/tkTest"
+using tkPopupMenu
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+enum
+    ID_OPEN = 101, ID_SAVE, ID_GONE, ID_RECENT, ID_R1, ID_R2, ID_QUIT, ID_DEEP
+end enum
+
+dim shared as long gSelId, gSelCount, gClosedReason, gClosedCount, gInitCount, gTargetDowns
+dim shared as boolean gOpenAtSelect
+
+sub OnSelect( byval m as TK_MENU ptr, byval id as long )
+    gSelId = id : gSelCount += 1
+    gOpenAtSelect = tkPopupMenu_IsOpen( m )
+end sub
+
+sub OnClosed( byval m as TK_MENU ptr, byval reason as long )
+    gClosedReason = reason : gClosedCount += 1
+end sub
+
+sub OnInit( byval m as TK_MENU ptr )
+    gInitCount += 1
+end sub
+
+function TargetProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    if m->msg = TKM_LBUTTONDOWN then gTargetDowns += 1 : return true
+    return false
+end function
+
+' Window pixels of row idx's centre in an open level.
+sub RowCentre( byval m as TK_MENU ptr, byval idx as long, byref x as single, byref y as single )
+    dim as TKRECT rc
+    tkPopupMenu_GetItemRect( m, idx, rc )
+    x = (rc.left + rc.right) / 2 : y = (rc.top + rc.bottom) / 2
+end sub
+
+sub HoverRow( byval m as TK_MENU ptr, byval idx as long )
+    dim as single x, y
+    RowCentre( m, idx, x, y )
+    tkTest_PushMotion( tkPopupMenu_Surface( m ), x, y )
+end sub
+
+sub ClickRow( byval m as TK_MENU ptr, byval idx as long )
+    dim as single x, y
+    RowCentre( m, idx, x, y )
+    tkTest_Click( tkPopupMenu_Surface( m ), x, y )
+end sub
+
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkPopupMenu selftest", 600, 420, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host", false ) : exit sub
+    dim as TTF_Font ptr f = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 9 )
+    dim as TK_WIDGET ptr target = tkWidget_Create( h, 1, @TargetProc, 0 )
+    tkWidget_SetPos( target, tkHost_Scale( h, 400 ), tkHost_Scale( h, 300 ), tkHost_Scale( h, 100 ), tkHost_Scale( h, 60 ) )
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 300 )
+
+    ' ---- build: File menu with a separator, a disabled row and a submenu --------------------------
+    dim as TK_MENU ptr m = tkPopupMenu_Create( h )
+    tkPopupMenu_SetFonts( m, f )
+    tkPopupMenu_AddItem( m, ID_OPEN, "Open...", "Ctrl+O" )
+    tkPopupMenu_AddItem( m, ID_SAVE, "Save", "Ctrl+S" )
+    tkPopupMenu_AddSeparator( m )
+    tkPopupMenu_AddItem( m, ID_GONE, "Unavailable", "", true )
+    tkPopupMenu_AddItem( m, ID_RECENT, "Recent" )
+    tkPopupMenu_AddItem( m, ID_QUIT, "Quit" )
+    dim as TK_MENU ptr sm = tkPopupMenu_Create( h )
+    tkPopupMenu_SetFonts( sm, f )
+    tkPopupMenu_AddItem( sm, ID_R1, "first.txt" )
+    tkPopupMenu_AddItem( sm, ID_R2, "second.txt" )
+    tkPopupMenu_SetItemSubMenu( m, ID_RECENT, sm )
+    tkPopupMenu_SetSelectCallback( m, @OnSelect )
+    tkPopupMenu_SetClosedCallback( m, @OnClosed )
+    tkPopupMenu_SetInitPopupCallback( m, @OnInit )
+    tkTest_Check( "count includes separators", tkPopupMenu_GetItemCount( m ) = 6 )
+
+    ' ---- layout formula ---------------------------------------------------------------------------
+    dim as long iw, ih
+    tkPopupMenu_GetIdealSize( m, iw, ih )
+    dim as long ihgt = tkHost_Scale( h, TKPOPUPMENU_DEFAULT_ITEMHEIGHT ), sh = tkHost_Scale( h, TKPOPUPMENU_DEFAULT_SEPHEIGHT )
+    dim as long bw = iif( tkHost_Scale( h, 1 ) < 1, 1, tkHost_Scale( h, 1 ) )
+    dim as long vpad = tkHost_Scale( h, TKPOPUPMENU_DEFAULT_VPADDING ), hpad = tkHost_Scale( h, TKPOPUPMENU_DEFAULT_HPADDING )
+    tkTest_Check( "idealH = 5 rows + 1 separator + padding + border", ih = 5 * ihgt + sh + 2 * vpad + 2 * bw, ih & " vs " & (5 * ihgt + sh + 2 * vpad + 2 * bw) )
+    dim as long capW = tkText_Width( f, "Unavailable" ), accW = tkText_Width( f, "Ctrl+O" )
+    if tkText_Width( f, "Ctrl+S" ) > accW then accW = tkText_Width( f, "Ctrl+S" )
+    dim as long contentW = tkHost_Scale( h, TKPOPUPMENU_DEFAULT_CHECKCOL ) + capW + tkHost_Scale( h, TKPOPUPMENU_DEFAULT_ACCELGAP ) + accW + tkHost_Scale( h, TKPOPUPMENU_DEFAULT_CHEVRONCOL )
+    tkTest_Check( "idealW = check + widest caption + accel block + chevron + padding", iw = contentW + 2 * hpad + 2 * bw, iw & " vs " & (contentW + 2 * hpad + 2 * bw) )
+    dim as TKRECT r2, r3
+    tkPopupMenu_GetItemRect( m, 2, r2 ) : tkPopupMenu_GetItemRect( m, 3, r3 )
+    tkTest_Check( "separator row is short; rows follow a running y", (r2.bottom - r2.top) = sh andalso r3.top = r2.bottom )
+    tkTest_Check( "HitTest inverts GetItemRect", tkPopupMenu_HitTest( m, (r3.left + r3.right) \ 2, (r3.top + r3.bottom) \ 2 ) = 3 )
+    tkTest_Check( "padding is not a row", tkPopupMenu_HitTest( m, 1, 1 ) = -1 )
+    tkPopupMenu_SetMinWidth( m, 2000 )
+    tkPopupMenu_GetIdealSize( m, iw, ih )
+    tkTest_Check( "min width floors the content", iw = 2000 + 2 * hpad + 2 * bw )
+    tkPopupMenu_SetMinWidth( m, 0 )
+
+    ' ---- show, init, one chain --------------------------------------------------------------------
+    gInitCount = 0
+    tkTest_Check( "Show", tkPopupMenu_Show( m, tkHost_Scale( h, 30 ), tkHost_Scale( h, 30 ) ) andalso tkPopupMenu_IsOpen( m ) )
+    tkTest_PumpFor( h, 150 )
+    tkTest_Check( "init-popup fired on show", gInitCount = 1 )
+    dim as TK_HOST ptr ps = tkPopupMenu_Surface( m )
+    dim as long pw, ph
+    tkHost_PixelSize( ps, pw, ph )
+    tkPopupMenu_GetIdealSize( m, iw, ih )
+    tkTest_Check( "surface = ideal size", abs( pw - iw ) <= 1 andalso abs( ph - ih ) <= 1, pw & "x" & ph & " vs " & iw & "x" & ih )
+
+    ' ---- hover selection ----------------------------------------------------------------------------
+    HoverRow( m, 1 )
+    tkTest_Check( "hover selects", tkPopupMenu_GetCurSel( m ) = 1 )
+    tkTest_PushWindowEvent( ps, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+    tkTest_Check( "leaving clears a MOUSE-owned selection", tkPopupMenu_GetCurSel( m ) = -1 )
+    tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_Check( "keys reach the menu from the owner window", tkPopupMenu_GetCurSel( m ) = 0 )
+    tkTest_PushWindowEvent( ps, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+    tkTest_Check( "a KEYBOARD-owned selection survives leaving", tkPopupMenu_GetCurSel( m ) = 0 )
+
+    ' ---- the keyboard table --------------------------------------------------------------------------
+    tkTest_PushKey( h, SDLK_DOWN ) : tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_Check( "Down skips the separator and the disabled row", tkPopupMenu_GetCurSel( m ) = 4, "" & tkPopupMenu_GetCurSel( m ) )
+    tkTest_PushKey( h, SDLK_DOWN ) : tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_Check( "Down wraps to the first", tkPopupMenu_GetCurSel( m ) = 0 )
+    tkTest_PushKey( h, SDLK_UP )
+    tkTest_Check( "Up wraps to the last", tkPopupMenu_GetCurSel( m ) = 5 )
+    tkTest_PushKey( h, SDLK_HOME )
+    tkTest_Check( "Home", tkPopupMenu_GetCurSel( m ) = 0 )
+    tkTest_PushKey( h, SDLK_END )
+    tkTest_Check( "End", tkPopupMenu_GetCurSel( m ) = 5 )
+    tkPopupMenu_SetCurSel( m, 4 )
+    tkTest_PushKey( h, SDLK_RIGHT )
+    tkTest_PumpFor( h, 100 )
+    tkTest_Check( "Right opens the submenu, first row selected", tkPopupMenu_IsOpen( sm ) andalso tkPopupMenu_GetCurSel( sm ) = 0 )
+    tkTest_Check( "the parent stays pinned to its row", tkPopupMenu_GetCurSel( m ) = 4 )
+    tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_Check( "keys now drive the INNERMOST level", tkPopupMenu_GetCurSel( sm ) = 1 andalso tkPopupMenu_GetCurSel( m ) = 4 )
+    tkTest_PushKey( h, SDLK_LEFT )
+    tkTest_Check( "Left closes the submenu only", (tkPopupMenu_IsOpen( sm ) = false) andalso tkPopupMenu_IsOpen( m ) andalso tkPopupMenu_GetCurSel( m ) = 4 )
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_PumpFor( h, 100 )
+    tkTest_Check( "Enter on a submenu row opens it", tkPopupMenu_IsOpen( sm ) )
+    gClosedCount = 0
+    tkTest_PushKey( h, SDLK_ESCAPE )
+    tkTest_Check( "Escape in a submenu closes that level only, silently", (tkPopupMenu_IsOpen( sm ) = false) andalso tkPopupMenu_IsOpen( m ) andalso gClosedCount = 0 )
+    gSelCount = 0
+    tkPopupMenu_SetCurSel( m, 1 )
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "Enter executes the row", gSelCount = 1 andalso gSelId = ID_SAVE )
+    tkTest_Check( "the chain was closed BEFORE the callback ran", gOpenAtSelect = false andalso tkPopupMenu_IsOpen( m ) = false )
+    tkTest_PumpFor( h, 50 )
+
+    ' ---- the mouse: submenu by click and by rest; execute; refuse ---------------------------------------
+    tkPopupMenu_Show( m, tkHost_Scale( h, 30 ), tkHost_Scale( h, 30 ) )
+    tkTest_PumpFor( h, 150 )
+    ClickRow( m, 4 )
+    tkTest_PumpFor( h, 100 )
+    tkTest_Check( "a click on a submenu row opens it at once", tkPopupMenu_IsOpen( sm ) )
+    gSelCount = 0
+    ClickRow( m, 3 )
+    tkTest_Check( "a disabled row refuses to execute", gSelCount = 0 andalso tkPopupMenu_IsOpen( m ) )
+    HoverRow( m, 5 )
+    tkTest_PumpFor( h, TKPOPUPMENU_HOVER_MS + 200 )
+    tkTest_Check( "resting on a plain row closes the open submenu", tkPopupMenu_IsOpen( sm ) = false )
+    HoverRow( m, 4 )
+    tkTest_PumpFor( h, TKPOPUPMENU_HOVER_MS + 200 )
+    tkTest_Check( "resting on a submenu row opens it after the delay", tkPopupMenu_IsOpen( sm ) )
+    ClickRow( sm, 1 )
+    tkTest_Check( "a release in the SUBMENU executes through the root's callback", gSelCount = 1 andalso gSelId = ID_R2 andalso (tkPopupMenu_IsOpen( m ) = false) )
+    tkTest_PumpFor( h, 50 )
+
+    ' ---- dismissal --------------------------------------------------------------------------------------
+    tkPopupMenu_Show( m, tkHost_Scale( h, 30 ), tkHost_Scale( h, 30 ) )
+    tkTest_PumpFor( h, 150 )
+    gClosedCount = 0 : gTargetDowns = 0
+    tkTest_Click( h, tkTest_CX( target ), tkTest_CY( target ) )
+    tkTest_Check( "an outside press closes the chain and notifies 0", (tkPopupMenu_IsOpen( m ) = false) andalso gClosedCount = 1 andalso gClosedReason = PM_CLOSED_OTHER )
+    tkTest_Check( "...and STILL reaches its target", gTargetDowns = 1 )
+    tkPopupMenu_Show( m, tkHost_Scale( h, 30 ), tkHost_Scale( h, 30 ) )
+    tkTest_PumpFor( h, 150 )
+    gClosedCount = 0
+    tkTest_PushKey( h, SDLK_ESCAPE )
+    tkTest_Check( "Escape at the root closes and notifies 1", (tkPopupMenu_IsOpen( m ) = false) andalso gClosedCount = 1 andalso gClosedReason = PM_CLOSED_ESCAPE )
+    ' one chain per process; programmatic closes are silent
+    dim as TK_MENU ptr other = tkPopupMenu_Create( h )
+    tkPopupMenu_SetFonts( other, f )
+    tkPopupMenu_AddItem( other, 900, "Other" )
+    tkPopupMenu_Show( m, tkHost_Scale( h, 30 ), tkHost_Scale( h, 30 ) )
+    gClosedCount = 0
+    tkPopupMenu_Show( other, tkHost_Scale( h, 300 ), tkHost_Scale( h, 30 ) )
+    tkTest_Check( "showing a second root closes the first, silently", (tkPopupMenu_IsOpen( m ) = false) andalso tkPopupMenu_IsOpen( other ) andalso gClosedCount = 0 )
+    tkPopupMenu_CloseChain( other )
+    tkTest_Check( "CloseChain is silent", gClosedCount = 0 andalso tkPopupMenu_GetOpenRoot() = 0 )
+    tkPopupMenu_Destroy( other )
+
+    ' ---- by-id across the tree ------------------------------------------------------------------------
+    tkTest_Check( "SetItemEnabled finds an id in a submenu", tkPopupMenu_SetItemEnabled( m, ID_R1, false ) andalso (tkPopupMenu_GetItemEnabled( m, ID_R1 ) = false) )
+    tkTest_Check( "checked state round-trips", tkPopupMenu_SetItemChecked( m, ID_SAVE, true ) andalso tkPopupMenu_GetItemChecked( m, ID_SAVE ) )
+    tkPopupMenu_SetItemText( m, ID_OPEN, "Open" )
+    tkTest_Check( "SetItemText without Accel CLEARS the accelerator", m->items(0).wszAccel = "" )
+    tkTest_Check( "DeleteItem removes the row and its submenu", tkPopupMenu_DeleteItem( m, ID_RECENT ) andalso tkPopupMenu_GetItemCount( m ) = 5 andalso tkPopupMenu_GetItemSubMenu( m, ID_RECENT ) = 0 )
+    tkTest_Check( "id 0 (separators) is never found", tkPopupMenu_SetItemEnabled( m, 0, true ) = false )
+
+    ' ---- theme, pinning, the painter --------------------------------------------------------------------
+    tkTheme_Apply( tkTheme_Light() )
+    tkPopupMenu_Show( m, tkHost_Scale( h, 30 ), tkHost_Scale( h, 30 ) )
+    tkTest_PumpFor( h, 150 )
+    dim as TKPOPUPMENU_COLORS c
+    tkPopupMenu_GetColors( m, @c )
+    tkTest_Check( "an unpinned menu shows in the current theme", c.BackColor = tkTheme_Light().Popup )
+    ps = tkPopupMenu_Surface( m )
+    tkPopupMenu_SetCurSel( m, 1 )
+    tkHost_RenderTo( ps, false )
+    dim as TKRECT rh, rn
+    tkPopupMenu_GetItemRect( m, 1, rh ) : tkPopupMenu_GetItemRect( m, 4, rn )
+    tkTest_Check( "the selected row fills with BackColorHot", tkTest_PixelAt( ps, rh.left + 2, rh.top + 2 ) = c.BackColorHot )
+    tkTest_Check( "other rows with BackColor", tkTest_PixelAt( ps, rn.left + 2, rn.top + 2 ) = c.BackColor )
+    tkTest_Check( "the border is painted last", tkTest_PixelAt( ps, 0, 0 ) = c.BorderColor )
+    c.BackColor = &hFF102030ul
+    tkPopupMenu_SetColors( m, @c )
+    tkTheme_Apply( tkTheme_Dark() )
+    tkPopupMenu_GetColors( m, @c )
+    tkTest_Check( "pinned colours survive a theme change", c.BackColor = &hFF102030ul )
+    tkPopupMenu_CloseChain( m )
+    tkPopupMenu_Destroy( m )
+    tkHost_Pump( h )
+    tkHost_Destroy( h )
+end sub
+
+if tkTest_Init() = false then end 99
+RunPass( 1.0 )
+RunPass( 1.75 )
+dim as long nFail = tkTest_Report( "tkPopupMenu" )
+tkTest_Quit()
+end nFail

@@ -1,0 +1,234 @@
+' tkCheckBox demo: the same fourteen rows as the Win32 demo
+' (tiko-lang/examples/PsControls/PsCheckBox/frmMain.tiko), so the two can be put side by side.
+'
+'   demo                     interactive
+'   demo --shot out.bmp      render once (row 0 focused), save the window, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkCheckBox"
+using tkCheckBox
+using tkTooltip
+using tkHost
+using tkPaint
+
+const as long CHECKBOX_COUNT = 14
+const as long ROW_HEIGHT = 46, ROW_TOP = 12, ROW_MARGIN = 22
+const as long WIDE_ROW_W = 320, ROW_SLACK = 120
+const as long IDC_FIRST = 1000
+enum
+    ROW_RIGHT_IDEAL = 1, ROW_RIGHT_ROW, ROW_CHECKED, ROW_DIS_ON, ROW_DIS_OFF, ROW_NOCAPTION
+    ROW_ALIGNC, ROW_ALIGNR, ROW_HOTROW, ROW_CUSTOM, ROW_TOOLTIP, ROW_ELLIPSIS, ROW_GLYPHS
+end enum
+
+' The Win32 demo's THEME_TYPE, value for value.
+const as ulong T_FORE = &hFFBEC4CEul, T_FOREDIS = &hFF5A606Aul, T_BACK = &hFF21252Bul
+const as ulong T_BACKHOT = &hFF2C313Aul, T_FORESEL = &hFFFFFFFFul, T_BACKSEL = &hFF264F78ul
+const as ulong T_FOCUS = &hFF569CD6ul, T_DIVIDER = &hFF373C45ul
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gChk(0 to CHECKBOX_COUNT - 1)
+dim shared as ustring gLabel(0 to CHECKBOX_COUNT - 1), gNote(0 to CHECKBOX_COUNT - 1)
+dim shared as long gChanges(0 to CHECKBOX_COUNT - 1)
+dim shared as TTF_Font ptr gFont9, gFont10, gFontBold10, gGlyph12
+
+private function RowTop( byval i as long ) as long
+    return tkHost_Scale( gHost, ROW_TOP ) + i * tkHost_Scale( gHost, ROW_HEIGHT )
+end function
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long margin = tkHost_Scale( h, ROW_MARGIN ), rh = tkHost_Scale( h, ROW_HEIGHT )
+    for i as long = 0 to CHECKBOX_COUNT - 1
+        dim as long t = RowTop( i )
+        dim as TKRECT rc
+        tkRect_Set( rc, margin, t, pw - margin, t + rh \ 2 )
+        b->SetColors( T_FORE, T_BACK )
+        b->SetFont( gFont10 )
+        b->PaintText( gLabel(i), @rc, TK_DT_LEFT )
+        dim as ustring note = gNote(i)
+        if gChanges(i) > 0 then note &= "   [changes: " & gChanges(i) & "]"
+        tkRect_Set( rc, margin, t + rh \ 2, pw - margin, t + rh )
+        b->SetColors( T_FOREDIS, T_BACK )
+        b->SetFont( gFont9 )
+        b->PaintText( note, @rc, TK_DT_LEFT )
+        tkRect_Set( rc, margin, t + rh - 1, pw - margin, t + rh )
+        b->SetBackColor( T_DIVIDER )
+        b->PaintRect( @rc )
+    next
+end sub
+
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long margin = tkHost_Scale( h, ROW_MARGIN ), rh = tkHost_Scale( h, ROW_HEIGHT )
+    for i as long = 0 to CHECKBOX_COUNT - 1
+        dim as long iw, ih
+        tkCheckBox_GetIdealSize( gChk(i), iw, ih )
+        if (iw <= 0) orelse (ih <= 0) then continue for
+        select case i
+        case ROW_RIGHT_ROW
+            iw = tkHost_Scale( h, WIDE_ROW_W )
+        case ROW_ALIGNC, ROW_ALIGNR, ROW_HOTROW
+            iw += tkHost_Scale( h, ROW_SLACK )
+        case ROW_ELLIPSIS
+            iw = (iw * 55) \ 100
+        end select
+        tkWidget_SetPos( gChk(i), pw - margin - iw, RowTop( i ) + (rh - ih) \ 2, iw, ih )
+    next
+end sub
+
+sub Demo_Changed( byval hCheckBox as TK_WIDGET ptr, byval isChecked as boolean )
+    dim as long idx = hCheckBox->ctrlId - IDC_FIRST
+    if (idx >= 0) andalso (idx < CHECKBOX_COUNT) then gChanges(idx) += 1
+    print "CheckChanged   ctrl=" & hCheckBox->ctrlId & "  checked=" & isChecked & "   [" & tkCheckBox_GetText( hCheckBox ) & "]"
+    tkHost_Invalidate( gHost )
+end sub
+
+function Demo_Message( byval m as TKCHECKBOX_MESSAGEINFO ptr ) as boolean
+    if m->msg = TKM_LBUTTONDOWN then print "  (message callback saw TKM_LBUTTONDOWN on ctrl=" & m->hCheckBox->ctrlId & ")"
+    return false
+end function
+
+function Demo_Tooltip( byval hCheckBox as TK_WIDGET ptr ) as ustring
+    return "Supplied on demand by the tooltip callback"
+end function
+
+' A square swatch, filled when checked, a bold caption and a square focus ring.
+sub Demo_Paint( byval p as TKCHECKBOX_PAINTINFO ptr )
+    dim as ulong clrLine = T_FORE
+    if p->isEnabled = false then
+        clrLine = T_FOREDIS
+    elseif p->isPressed orelse p->isHot then
+        clrLine = T_FORESEL
+    end if
+    p->b->SetBackColor( iif( p->isChecked, T_BACKSEL, T_BACK ) )
+    p->b->SetPenColor( clrLine )
+    p->b->PaintRectFactory( @p->rcBox, 1 )
+    if tkRect_IsEmpty( p->rcText ) = false then
+        p->b->SetFont( gFontBold10 )
+        p->b->SetColors( clrLine, T_BACK )
+        p->b->PaintText( p->wszText, @p->rcText, TK_DT_LEFT or TK_DT_ELLIPSIS )
+    end if
+    if p->isFocused then
+        p->b->SetPenColor( T_FOCUS )
+        p->b->PaintRoundOutline( @p->rcVisual, 0, 1 )
+    end if
+end sub
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+' Save the current back buffer -- read BEFORE present, which is when it is defined.
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr s = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if s then
+        SDL_SaveBMP( s, strptr( path ) )
+        print "shot: " & path & "  " & s->w & "x" & s->h & "  scale=" & gHost->fScale & "  density=" & gHost->fDensity
+        SDL_DestroySurface( s )
+    end if
+end sub
+
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkCheckBox on SDL3", 900, 680, tkHost_FontDir() & TK_FONT_UI, forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = T_BACK
+print "video driver: " & *SDL_GetCurrentVideoDriver() & "  renderer: " & *SDL_GetRendererName( gHost->renderer ) & _
+      "  scale=" & gHost->fScale & "  density=" & gHost->fDensity
+
+gFont9      = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 9 )
+gFont10     = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 10 )
+gFontBold10 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI_BOLD, 10 )
+gGlyph12    = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_ICONS, 12 )
+if (gFont10 = 0) orelse (gGlyph12 = 0) then print "fonts: " & *SDL_GetError() : end 1
+if gFontBold10 = 0 then gFontBold10 = gFont10
+tkTooltip_SetDefaultFonts( gFont9 )
+
+gLabel(0) = "Box on the LEFT"                  : gNote(0) = "the default -- press and slide off: nothing toggles"
+gLabel(ROW_RIGHT_IDEAL) = "Box on the RIGHT, ideal width" : gNote(ROW_RIGHT_IDEAL) = "packed: the box sits one gap from the caption"
+gLabel(ROW_RIGHT_ROW) = "Box on the RIGHT, row width" : gNote(ROW_RIGHT_ROW) = "SAME settings, wider cell -- the box pins to the right edge"
+gLabel(ROW_CHECKED) = "Checked at create"    : gNote(ROW_CHECKED) = "set with SetChecked, which is SILENT: no count appears"
+gLabel(ROW_DIS_ON) = "Disabled, checked"     : gNote(ROW_DIS_ON) = "a disabled tick still reads as ticked -- its own colour"
+gLabel(ROW_DIS_OFF) = "Disabled, unchecked"  : gNote(ROW_DIS_OFF) = "through tkWidget_Enable, so it eats input and Tab skips it"
+gLabel(ROW_NOCAPTION) = "No caption"         : gNote(ROW_NOCAPTION) = "no gap charged, and the ideal height drops to the box"
+gLabel(ROW_ALIGNC) = "CHK_TEXTALIGN_CENTER"  : gNote(ROW_ALIGNC) = "given slack past ideal, or the span IS the caption"
+gLabel(ROW_ALIGNR) = "CHK_TEXTALIGN_RIGHT"   : gNote(ROW_ALIGNR) = "same slack -- the box has not moved in either"
+gLabel(ROW_HOTROW) = "Hover row highlight"   : gNote(ROW_HOTROW) = "the flat default overridden by ONE colour field"
+gLabel(ROW_CUSTOM) = "Custom painter"        : gNote(ROW_CUSTOM) = "square swatch drawn by the host; callback prints the DOWN"
+gLabel(ROW_TOOLTIP) = "Tooltip"              : gNote(ROW_TOOLTIP) = "no caption, so the callback is asked -- hover and wait"
+gLabel(ROW_ELLIPSIS) = "Forced narrow"       : gNote(ROW_ELLIPSIS) = "sized to 55% of ideal, so the ellipsis has work to do"
+gLabel(ROW_GLYPHS) = "Glyph box, custom glyphs" : gNote(ROW_GLYPHS) = "CHK_BOXSTYLE_GLYPH with E739 / E73E (vendor's font-glyph box)"
+
+for i as long = 0 to CHECKBOX_COUNT - 1
+    gChk(i) = tkCheckBox_Create( tkHost_Root( gHost ), IDC_FIRST + i )
+    tkCheckBox_SetFont( gChk(i), gFont10 )
+    tkCheckBox_SetGlyphFont( gChk(i), gGlyph12 )
+    tkCheckBox_SetCheckChangedCallback( gChk(i), @Demo_Changed )
+    tkCheckBox_SetText( gChk(i), "Enable dark mode" )
+next
+
+tkCheckBox_SetBoxAlign( gChk(ROW_RIGHT_IDEAL), CHK_BOXALIGN_RIGHT )
+tkCheckBox_SetBoxAlign( gChk(ROW_RIGHT_ROW), CHK_BOXALIGN_RIGHT )
+tkCheckBox_SetChecked( gChk(ROW_CHECKED), true )
+tkCheckBox_SetText( gChk(ROW_DIS_ON), "Cannot change this" )
+tkCheckBox_SetChecked( gChk(ROW_DIS_ON), true )
+tkCheckBox_SetEnabled( gChk(ROW_DIS_ON), false )
+tkCheckBox_SetText( gChk(ROW_DIS_OFF), "Cannot change this either" )
+tkCheckBox_SetEnabled( gChk(ROW_DIS_OFF), false )
+tkCheckBox_SetText( gChk(ROW_NOCAPTION), "" )
+tkCheckBox_SetText( gChk(ROW_ALIGNC), "Centred" )
+tkCheckBox_SetTextAlign( gChk(ROW_ALIGNC), CHK_TEXTALIGN_CENTER )
+tkCheckBox_SetText( gChk(ROW_ALIGNR), "Right" )
+tkCheckBox_SetTextAlign( gChk(ROW_ALIGNR), CHK_TEXTALIGN_RIGHT )
+scope
+    dim as TKCHECKBOX_COLORS c
+    tkCheckBox_GetColors( gChk(ROW_HOTROW), @c )
+    c.BackColorHot = T_BACKHOT
+    c.BackColorPressed = T_BACKSEL
+    tkCheckBox_SetColors( gChk(ROW_HOTROW), @c )
+end scope
+tkCheckBox_SetText( gChk(ROW_HOTROW), "Highlight the whole row" )
+tkCheckBox_SetText( gChk(ROW_CUSTOM), "Host-drawn swatch" )
+tkCheckBox_SetPaintCallback( gChk(ROW_CUSTOM), @Demo_Paint )
+tkCheckBox_SetMessageCallback( gChk(ROW_CUSTOM), @Demo_Message )
+tkCheckBox_SetText( gChk(ROW_TOOLTIP), "" )
+tkCheckBox_SetTooltipCallback( gChk(ROW_TOOLTIP), @Demo_Tooltip )
+tkCheckBox_SetText( gChk(ROW_ELLIPSIS), "Automatically restore the previous session" )
+tkCheckBox_SetText( gChk(ROW_GLYPHS), "Bare tick instead of a box" )
+tkCheckBox_SetBoxStyle( gChk(ROW_GLYPHS), CHK_BOXSTYLE_GLYPH )
+tkCheckBox_SetGlyphUnchecked( gChk(ROW_GLYPHS), wchr( TK_ICON_CHECKBOX ) )
+tkCheckBox_SetGlyphChecked( gChk(ROW_GLYPHS), wchr( TK_ICON_CHECKMARK ) )
+tkCheckBox_SetChecked( gChk(ROW_GLYPHS), true )
+
+dim as long iw, ih
+tkCheckBox_GetIdealSize( gChk(0), iw, ih ) : print "row 0 ideal size (box + caption): " & iw & "x" & ih
+tkCheckBox_GetIdealSize( gChk(ROW_NOCAPTION), iw, ih ) : print "row 6 ideal size (box only):      " & iw & "x" & ih
+
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkHost_SetFocus( gHost, gChk(0) )
+tkHost_Show( gHost )
+
+dim as string shot = ArgValue( "--shot" )
+if len( shot ) then
+    tkHost_Pump( gHost )
+    SaveShot( shot )
+else
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

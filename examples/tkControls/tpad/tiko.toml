@@ -1,0 +1,7 @@
+# tpad, the wiki's Notepad Tutorial, on tkControls: `tiko build tpad`
+[package]
+name = "tpad"
+
+[target.tpad]
+main   = "tpad.tiko"
+output = "tpad.exe"

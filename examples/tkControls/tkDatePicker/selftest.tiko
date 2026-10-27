@@ -1,0 +1,415 @@
+' tkDatePicker self-test. Real windows, real SDL event queue: every input claim is made by
+' PUSHING the SDL event a user would have produced and pumping the host. Two passes, scale
+' pinned at 1.0 and at 1.75. Today is pinned (tkDatePicker_SetToday): 2026-03-15, and March
+' 2026 starts on a Sunday, so day cell k of March is March k+1.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkDatePicker"
+#import "vendor/tkControls/tkTest"
+using tkDatePicker
+using tkCalendar
+using tkTextBox
+using tkTooltip
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as long gChanged, gDropOpen, gDropClose, gDayPaints, gMsgs
+dim shared as boolean gLastHas
+dim shared as TKDATE gLastDate
+dim shared as string gOrder
+dim shared as TK_WIDGET ptr gPicker, gPaintCtrl
+
+function D( byval y as long, byval m as long, byval dd as long ) as TKDATE
+    return tkDatePicker_MakeDate( y, m, dd )
+end function
+
+function Same( byref a as TKDATE, byref b as TKDATE ) as boolean
+    return (a.wYear = b.wYear) andalso (a.wMonth = b.wMonth) andalso (a.wDay = b.wDay)
+end function
+
+function DStr( byref st as TKDATE ) as string
+    return st.wYear & "-" & st.wMonth & "-" & st.wDay
+end function
+
+function Pad2( byval n as long ) as string
+    return iif( n < 10, "0", "" ) & n
+end function
+
+' dd.mm.yyyy, both ways -- a pair that round-trips
+sub MyFormat( byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr, byref sOut as ustring )
+    sOut = Pad2( pDate->wDay ) & "." & Pad2( pDate->wMonth ) & "." & pDate->wYear
+end sub
+
+function MyParse( byval hCtrl as TK_WIDGET ptr, byval sText as ustring, byval pDate as TKDATE ptr ) as boolean
+    dim as string s = trim( sText )
+    if (len( s ) <> 10) orelse (mid( s, 3, 1 ) <> ".") orelse (mid( s, 6, 1 ) <> ".") then return false
+    dim as long dd = valint( mid( s, 1, 2 ) ), mm = valint( mid( s, 4, 2 ) ), yy = valint( mid( s, 7, 4 ) )
+    if (mm < 1) orelse (mm > 12) then return false
+    if (dd < 1) orelse (dd > tkDatePicker_DaysInMonth( yy, mm )) then return false
+    *pDate = tkDatePicker_MakeDate( yy, mm, dd )
+    return true
+end function
+
+sub OnChanged( byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr, byval bHasDate as boolean )
+    gChanged += 1
+    gLastHas = bHasDate
+    gLastDate = *pDate
+    gOrder &= "C"
+end sub
+
+sub OnDrop( byval hCtrl as TK_WIDGET ptr, byval isOpen as boolean )
+    if isOpen then gDropOpen += 1 : gOrder &= "O" else gDropClose += 1 : gOrder &= "X"
+end sub
+
+sub OnDayPaint( byval p as TKDATEPICKER_DAYPAINTINFO ptr )
+    gDayPaints += 1
+    gPaintCtrl = p->hCtrl
+    p->b->SetForeColor( &hFFFFFFFFul )
+    p->b->PaintText( str( p->dayNumber ), @p->rcCell, TK_DT_CENTER )
+end sub
+
+function OnMsg( byval m as TKDATEPICKER_MESSAGEINFO ptr ) as boolean
+    if m->hCtrl = gPicker then gMsgs += 1
+    return false
+end function
+
+sub ResetCounts()
+    gChanged = 0 : gDropOpen = 0 : gDropClose = 0 : gOrder = ""
+end sub
+
+' Type into the focused field: select all, then the text, then Enter.
+sub TypeAndEnter( byval h as TK_HOST ptr, byref s as ustring )
+    tkTest_PushKey( h, SDLK_A, SDL_KMOD_CTRL )
+    if len( s ) then
+        tkTest_PushText( h, s )
+    else
+        tkTest_PushKey( h, SDLK_BACKSPACE )
+    end if
+    tkTest_PushKey( h, SDLK_RETURN )
+end sub
+
+sub ClickIcon( byval h as TK_HOST ptr, byval c as TK_WIDGET ptr )
+    dim as TKRECT rc, a
+    tkDatePicker_GetIconRect( c, rc )
+    tkWidget_AbsRect( c, a )
+    tkTest_Click( h, a.left + (rc.left + rc.right) / 2, a.top + (rc.top + rc.bottom) / 2 )
+end sub
+
+' A day cell of the open calendar, clicked in the POPUP's window.
+sub ClickDay( byval c as TK_WIDGET ptr, byval panel as long, byval k as long )
+    dim as TK_WIDGET ptr cal = tkDatePicker_GetCalendarHandle( c )
+    dim as TK_HOST ptr pop = tkDatePicker_GetPopup( c )
+    if (cal = 0) orelse (pop = 0) then exit sub
+    dim as TKRECT rc, a
+    tkCalendar_GetDayCellRect( cal, panel, k, rc )
+    tkWidget_AbsRect( cal, a )
+    tkTest_Click( pop, a.left + (rc.left + rc.right) / 2, a.top + (rc.top + rc.bottom) / 2 )
+end sub
+
+' ==========================================================================================
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkDatePicker selftest", 700, 520, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    dim as TTF_Font ptr f10 = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
+    tkTest_Check( "font opened", f10 <> 0 )
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 300 )
+    dim as TKDATE today = D( 2026, 3, 15 )
+
+    ' ---- A: defaults and the ideal size, before sizing ------------------------------------
+    dim as TK_WIDGET ptr c = tkDatePicker_Create( tkHost_Root( h ), 401 )
+    gPicker = c
+    tkDatePicker_SetFont( c, f10 )
+    tkDatePicker_SetToday( c, today )
+    tkDatePicker_SetDateChangedCallback( c, @OnChanged )
+    tkDatePicker_SetDropDownCallback( c, @OnDrop )
+    dim as long iw = tkDatePicker_GetIconWidth( c ), cr = tkDatePicker_GetCornerRadius( c )
+    tkTest_Check( "defaults scaled, border not", iw = cint( 28 * fScale ) andalso cr = cint( 6 * fScale ) andalso tkDatePicker_GetBorderThickness( c ) = 1 )
+    tkTest_Check( "defaults: allow empty, Sunday, 1 month, ring on, no footer", tkDatePicker_GetAllowEmpty( c ) andalso _
+        (tkDatePicker_GetWeekStart( c ) = DTP_SUNDAY) andalso (tkDatePicker_GetMonthCount( c ) = 1) andalso _
+        tkDatePicker_GetShowToday( c ) andalso (tkDatePicker_GetShowTodayFooter( c ) = false) )
+    dim as TKRECT rc
+    tkTest_Check( "rects FALSE before the first size", tkDatePicker_GetIconRect( c, rc ) = false )
+    dim as long iwid, ihgt
+    tkDatePicker_GetIdealSize( c, iwid, ihgt )
+    dim as long pad = cint( 6 * fScale ), vpad = cint( 5 * fScale )
+    dim as long wantW = cr + pad + tkText_Width( f10, "Wednesday, September 30, 2222" ) + pad + 1 + iw
+    dim as long wantH = tkText_Height( f10 ) + 2 * vpad + 2
+    tkTest_Check( "ideal size = README formula (empty field)", (iwid = wantW) andalso (ihgt = wantH), iwid & "x" & ihgt & " want " & wantW & "x" & wantH )
+    tkTest_Check( "no date at start", tkDatePicker_HasDate( c ) = false )
+
+    ' ---- B: layout ------------------------------------------------------------------------
+    dim as long x0 = tkHost_Scale( h, 20 ), y0 = tkHost_Scale( h, 20 )
+    tkWidget_SetPos( c, x0, y0, iwid, ihgt )
+    dim as TKRECT rcI, rcF, rcFr
+    tkDatePicker_GetIconRect( c, rcI )
+    tkDatePicker_GetFieldRect( c, rcF )
+    tkDatePicker_GetFrameRect( c, rcFr )
+    tkTest_Check( "icon = the right nIconWidth, full height", (rcI.left = iwid - iw) andalso (rcI.right = iwid) andalso (rcI.top = 0) andalso (rcI.bottom = ihgt) )
+    tkTest_Check( "field = radius .. divider, inset by the border", (rcF.left = cr) andalso (rcF.right = iwid - iw - 1) andalso (rcF.top = 1) andalso (rcF.bottom = ihgt - 1) )
+    tkTest_Check( "frame = the client", (rcFr.left = 0) andalso (rcFr.right = iwid) andalso (rcFr.bottom = ihgt) )
+    dim as TK_WIDGET ptr tb = tkDatePicker_GetTextBoxHandle( c )
+    tkTest_Check( "the text box sits on rcField", (tb <> 0) andalso (tb->x = rcF.left) andalso (tb->y = rcF.top) andalso (tb->cw = rcF.right - rcF.left) andalso (tb->ch = rcF.bottom - rcF.top) )
+    dim as TKPOINT pt
+    pt.x = rcI.left + 2 : pt.y = ihgt \ 2
+    dim as long hitIcon = tkDatePicker_HitTest( c, pt )
+    pt.x = rcF.left + 2
+    tkTest_Check( "HitTest: 1 on the icon, 0 on the field", (hitIcon = 1) andalso (tkDatePicker_HitTest( c, pt ) = 0) )
+
+    ' a second field after the picker, for the outside click and the focus commit
+    dim as TK_WIDGET ptr other = tkTextBox_Create( tkHost_Root( h ), 402 )
+    tkTextBox_SetFont( other, f10 )
+    tkWidget_SetPos( other, x0, h->root->ch - tkHost_Scale( h, 60 ), tkHost_Scale( h, 200 ), ihgt )
+    tkTest_PumpFor( h, 50 )
+
+    ' ---- C: silent setters, the ISO fallback, the Format callback --------------------------
+    ResetCounts()
+    tkDatePicker_SetDate( c, D( 2026, 3, 15 ) )
+    tkTest_Check( "SetDate writes ISO without a Format callback", tkTextBox_GetText( tb ) = "2026-03-15", tkTextBox_GetText( tb ) )
+    tkDatePicker_SetFormatCallback( c, @MyFormat )
+    tkTest_Check( "SetFormatCallback re-renders at once", tkTextBox_GetText( tb ) = "15.03.2026", tkTextBox_GetText( tb ) )
+    tkDatePicker_SetParseCallback( c, @MyParse )
+    tkDatePicker_ClearDate( c )
+    tkTest_Check( "ClearDate empties the field", (tkDatePicker_HasDate( c ) = false) andalso (tkTextBox_GetText( tb ) = "") )
+    tkDatePicker_SetDate( c, D( 2026, 3, 15 ) )
+    tkTest_Check( "setters are silent", (gChanged = 0) andalso (gDropOpen = 0) )
+    tkDatePicker_GetIdealSize( c, iwid, ihgt )
+    tkTest_Check( "ideal width follows the field text", iwid = cr + pad + tkText_Width( f10, "15.03.2026" ) + pad + 1 + iw )
+
+    ' ---- D: typed commits ----------------------------------------------------------------
+    tkTest_Click( h, tkTest_CX( tb ), tkTest_CY( tb ) )
+    tkTest_Check( "a click in the field focuses it", tkDatePicker_HasFocus( c ) )
+    ResetCounts()
+    TypeAndEnter( h, "20.03.2026" )
+    dim as TKDATE st
+    tkDatePicker_GetDate( c, st )
+    tkTest_Check( "typed + Enter commits", Same( st, D( 2026, 3, 20 ) ) andalso (gChanged = 1) andalso gLastHas, DStr( st ) & " n=" & gChanged )
+    TypeAndEnter( h, "20.03.2026" )
+    tkTest_Check( "the same date again fires nothing", gChanged = 1 )
+    TypeAndEnter( h, "garbage" )
+    tkTest_Check( "unparseable text reverts silently", (tkTextBox_GetText( tb ) = "20.03.2026") andalso (gChanged = 1), tkTextBox_GetText( tb ) )
+    TypeAndEnter( h, "" )
+    tkTest_Check( "empty (allowed) clears and reports bHasDate FALSE", (tkDatePicker_HasDate( c ) = false) andalso (gChanged = 2) andalso (gLastHas = false) )
+    tkDatePicker_SetDate( c, D( 2026, 3, 20 ) )
+    tkDatePicker_SetAllowEmpty( c, false )
+    TypeAndEnter( h, "" )
+    tkTest_Check( "empty (not allowed) reverts to the last valid text", tkDatePicker_HasDate( c ) andalso (tkTextBox_GetText( tb ) = "20.03.2026") andalso (gChanged = 2) )
+    tkDatePicker_SetAllowEmpty( c, true )
+    ' focus leaving the field commits too
+    tkTest_PushKey( h, SDLK_A, SDL_KMOD_CTRL )
+    tkTest_PushText( h, "21.03.2026" )
+    tkTest_Click( h, tkTest_CX( other ), tkTest_CY( other ) )
+    tkDatePicker_GetDate( c, st )
+    tkTest_Check( "focus leaving the field commits", Same( st, D( 2026, 3, 21 ) ) andalso (gChanged = 3) )
+
+    ' ---- E: the range clamps ---------------------------------------------------------------
+    dim as TKDATE rMin = D( 2026, 3, 25 ), rMax = D( 2026, 3, 10 )
+    tkDatePicker_SetRange( c, rMin, rMax, true, true )
+    dim as TKDATE gMin, gMax
+    dim as boolean bMin, bMax
+    tkDatePicker_GetRange( c, gMin, gMax, bMin, bMax )
+    tkTest_Check( "an inverted range is swapped", Same( gMin, D( 2026, 3, 10 ) ) andalso Same( gMax, D( 2026, 3, 25 ) ) andalso bMin andalso bMax )
+    tkDatePicker_SetDate( c, D( 2026, 4, 1 ) )
+    tkDatePicker_GetDate( c, st )
+    tkTest_Check( "SetDate clamps into the range", Same( st, D( 2026, 3, 25 ) ) )
+    tkHost_SetFocus( h, tb )
+    TypeAndEnter( h, "01.01.2026" )
+    tkDatePicker_GetDate( c, st )
+    tkTest_Check( "a typed commit clamps too", Same( st, D( 2026, 3, 10 ) ) andalso (tkTextBox_GetText( tb ) = "10.03.2026") )
+    tkDatePicker_SetDate( c, D( 2026, 3, 20 ) )
+
+    ' ---- F: F4 opens, Escape closes ---------------------------------------------------------
+    ResetCounts()
+    tkHost_SetFocus( h, tb )
+    tkTest_PushKey( h, SDLK_F4 )
+    tkTest_PumpFor( h, 150 )
+    dim as TK_WIDGET ptr cal = tkDatePicker_GetCalendarHandle( c )
+    dim as TK_HOST ptr pop = tkDatePicker_GetPopup( c )
+    tkTest_Check( "F4 opens the calendar", tkDatePicker_IsDroppedDown( c ) andalso (cal <> 0) andalso (pop <> 0) andalso (gDropOpen = 1), gOrder & " open=" & tkDatePicker_IsDroppedDown( c ) & " cal=" & (cal <> 0) )
+    if cal then
+        dim as long ny, nm
+        tkCalendar_GetPanelMonth( cal, 0, ny, nm )
+        dim as TKDATE sel
+        tkCalendar_GetSelDate( cal, sel )
+        tkTest_Check( "seeded: the selected date's month, the selection", (ny = 2026) andalso (nm = 3) andalso Same( sel, D( 2026, 3, 20 ) ) )
+        dim as long cw, ch
+        tkCalendar_GetIdealSize( cal, cw, ch )
+        tkTest_Check( "popup = calendar ideal + the hairline frame", (pop->root->cw = cw + 2) andalso (pop->root->ch = ch + 2), pop->root->cw & "x" & pop->root->ch & " cal " & cw & "x" & ch )
+        tkTest_Check( "the popup sits below the control", tkDatePicker_GetFooterHandle( c ) = 0 )
+        tkTest_Check( "the calendar owns the popup's focus", pop->pFocus = cal )
+        tkTest_Check( "seeded: 1 panel, Sunday start", (tkCalendar_GetPanelCount( cal ) = 1) andalso (tkCalendar_GetWeekStart( cal ) = CAL_SUNDAY) )
+        tkTest_Check( "an out-of-range day renders dimmer than an in-range one", _
+            tkDatePicker_TestPartBrightness( c, 100 + 2 ) < tkDatePicker_TestPartBrightness( c, 100 + 14 ) )
+        tkTest_Check( "a live calendar has many tones", tkDatePicker_TestCalendarTones( c ) > 8 )
+    end if
+    tkTest_PushKey( h, SDLK_ESCAPE )
+    tkTest_PumpFor( h, 50 )
+    tkTest_Check( "Escape closes it, DropDown(false) once", (tkDatePicker_IsDroppedDown( c ) = false) andalso (gDropClose = 1) andalso (tkDatePicker_GetCalendarHandle( c ) = 0) )
+
+    ' ---- G: the icon toggles, and the press that closed it does not reopen it ---------------
+    ResetCounts()
+    ClickIcon( h, c )
+    tkTest_PumpFor( h, 150 )
+    tkTest_Check( "icon click opens", tkDatePicker_IsDroppedDown( c ) andalso (gDropOpen = 1) )
+    ClickIcon( h, c )
+    tkTest_PumpFor( h, 50 )
+    tkTest_Check( "a second icon click closes and does NOT reopen", (tkDatePicker_IsDroppedDown( c ) = false) andalso (gDropOpen = 1) andalso (gDropClose = 1), gOrder )
+    ClickIcon( h, c )
+    tkTest_PumpFor( h, 150 )
+    tkTest_Check( "the guard is one-shot: the next click opens", tkDatePicker_IsDroppedDown( c ) andalso (gDropOpen = 2) )
+
+    ' ---- H: a day click picks; I: an out-of-range day is inert -------------------------------
+    ResetCounts()
+    ClickDay( c, 0, 2 )                    ' March 3, before the min
+    tkTest_PumpFor( h, 30 )
+    tkTest_Check( "an out-of-range day is inert", tkDatePicker_IsDroppedDown( c ) andalso (gChanged = 0) )
+    ClickDay( c, 0, 21 )                   ' March 22
+    tkTest_PumpFor( h, 30 )
+    tkDatePicker_GetDate( c, st )
+    tkTest_Check( "one click on a day picks it", (tkDatePicker_IsDroppedDown( c ) = false) andalso Same( st, D( 2026, 3, 22 ) ) andalso (gChanged = 1), DStr( st ) )
+    tkTest_Check( "closed first, then DateChanged", gOrder = "XC", gOrder )
+    tkTest_Check( "the field shows the pick", tkTextBox_GetText( tb ) = "22.03.2026" )
+
+    ' ---- K: the calendar's keyboard; L: Alt+Down closes ------------------------------------
+    ResetCounts()
+    tkHost_SetFocus( h, tb )
+    tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_PumpFor( h, 150 )
+    tkTest_Check( "Down in the field opens", tkDatePicker_IsDroppedDown( c ) )
+    tkTest_PushKey( h, SDLK_RIGHT )
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_PumpFor( h, 30 )
+    tkDatePicker_GetDate( c, st )
+    tkTest_Check( "Right + Enter in the calendar picks the next day", (tkDatePicker_IsDroppedDown( c ) = false) andalso Same( st, D( 2026, 3, 23 ) ) andalso (gChanged = 1), DStr( st ) )
+    tkTest_PushKey( h, SDLK_F4 )
+    tkTest_PumpFor( h, 150 )
+    tkTest_PushKey( h, SDLK_DOWN, SDL_KMOD_ALT )
+    tkTest_PumpFor( h, 30 )
+    tkTest_Check( "Alt+Down in the calendar closes it", tkDatePicker_IsDroppedDown( c ) = false )
+
+    ' ---- J: the Today band --------------------------------------------------------------------
+    ResetCounts()
+    tkDatePicker_DropDown( c )
+    tkTest_PumpFor( h, 150 )
+    pop = tkDatePicker_GetPopup( c )
+    cal = tkDatePicker_GetCalendarHandle( c )
+    tkDatePicker_SetShowTodayFooter( c, true )
+    tkTest_PumpFor( h, 150 )
+    dim as TK_WIDGET ptr ft = tkDatePicker_GetFooterHandle( c )
+    tkTest_Check( "the band appears on an open calendar, silently", (ft <> 0) andalso tkDatePicker_IsDroppedDown( c ) andalso (gDropOpen = 1) andalso (gDropClose = 0), gOrder )
+    if ft then
+        tkTest_Check( "the band is FOOTERH tall", ft->ch = tkHost_Scale( h, 30 ) )
+        tkTest_Check( "the popup grew by the band, in place", (pop->root->ch = cal->ch + 2 + ft->ch) andalso (tkDatePicker_GetPopup( c ) = pop), pop->root->ch & " cal " & cal->ch )
+        tkTest_Check( "the band draws its caption", tkDatePicker_TestFooterTones( c ) > 2 )
+        tkTest_Click( pop, tkTest_CX( ft ), tkTest_CY( ft ) )
+        tkTest_PumpFor( h, 30 )
+        tkDatePicker_GetDate( c, st )
+        tkTest_Check( "a click on the band picks today", Same( st, today ) andalso (tkDatePicker_IsDroppedDown( c ) = false) andalso (gChanged = 1) )
+    end if
+    tkDatePicker_SetShowTodayFooter( c, false )
+
+    ' ---- M: an outside click closes AND reaches its target -------------------------------
+    tkDatePicker_DropDown( c )
+    tkTest_PumpFor( h, 150 )
+    tkTest_Click( h, tkTest_CX( other ), tkTest_CY( other ) )
+    tkTest_PumpFor( h, 30 )
+    tkTest_Check( "an outside click closes the calendar", tkDatePicker_IsDroppedDown( c ) = false )
+    tkTest_Check( "... and still reaches its target", tkTextBox_HasFocus( other ) )
+
+    ' ---- N: month count, week start, the day painter -----------------------------------------
+    tkDatePicker_SetMonthCount( c, 5 )
+    tkTest_Check( "SetMonthCount clamps to 2", tkDatePicker_GetMonthCount( c ) = 2 )
+    tkDatePicker_SetWeekStart( c, 7 )
+    tkTest_Check( "a bad week start is Sunday", tkDatePicker_GetWeekStart( c ) = DTP_SUNDAY )
+    tkDatePicker_SetWeekStart( c, DTP_MONDAY )
+    tkDatePicker_SetDayPaintCallback( c, @OnDayPaint )
+    gDayPaints = 0 : gPaintCtrl = 0
+    tkDatePicker_DropDown( c )
+    tkTest_PumpFor( h, 150 )
+    cal = tkDatePicker_GetCalendarHandle( c )
+    pop = tkDatePicker_GetPopup( c )
+    if cal then
+        tkHost_Render( pop )
+        tkTest_Check( "two panels, Monday start", (tkCalendar_GetPanelCount( cal ) = 2) andalso (tkCalendar_GetWeekStart( cal ) = CAL_MONDAY) )
+        tkTest_Check( "the day painter runs per cell and sees the PICKER", (gDayPaints >= 84) andalso (gPaintCtrl = c), "n=" & gDayPaints )
+    end if
+    tkDatePicker_CloseUp( c )
+    tkDatePicker_SetDayPaintCallback( c, 0 )
+    tkDatePicker_SetMonthCount( c, 1 )
+    tkDatePicker_SetWeekStart( c, DTP_SUNDAY )
+
+    ' ---- O: theme and pinning ----------------------------------------------------------------
+    dim as TKTHEME_COLORS tl = tkTheme_Light()
+    tkDatePicker_ApplyTheme( c, tl )
+    dim as TKDATEPICKER_COLORS cc
+    tkDatePicker_GetColors( c, @cc )
+    tkTest_Check( "ApplyTheme maps the roles", (cc.FieldBackColor = tl.Surface) andalso (cc.CalBackColor = tl.Popup) andalso (cc.DayBackColorSelected = tl.Selected) )
+    dim as TKTEXTBOX_COLORS tc
+    tkTextBox_GetColors( tb, @tc )
+    tkTest_Check( "the field colours reach the text box", (tc.BackColor = tl.Surface) andalso (tc.ForeColor = tl.Text) )
+    cc.FieldBackColor = &hFF102030ul
+    tkDatePicker_SetColors( c, @cc )
+    tkDatePicker_ApplyTheme( c, tkTheme_Dark() )
+    tkDatePicker_GetColors( c, @cc )
+    tkTest_Check( "SetColors pins: a theme no longer applies", cc.FieldBackColor = &hFF102030ul )
+    tkDatePicker_UnpinColors( c )
+    tkDatePicker_GetColors( c, @cc )
+    tkTest_Check( "UnpinColors returns to the current theme", cc.FieldBackColor = tkTheme_Get().Surface )
+
+    ' ---- Q: pixels: the icon cell lights under the cursor ---------------------------------
+    dim as TKRECT a
+    tkWidget_AbsRect( c, a )
+    tkDatePicker_GetIconRect( c, rcI )
+    dim as long px = a.left + rcI.left + 2, py = a.top + 3 + 1
+    tkTest_PushMotion( h, tkHost_Scale( h, 400 ), tkHost_Scale( h, 300 ) )
+    tkHost_RenderTo( h, false )
+    dim as ulong cRest = tkTest_PixelAt( h, px, py ) and &hFFFFFFul
+    tkTest_PushMotion( h, a.left + (rcI.left + rcI.right) / 2, a.top + (rcI.top + rcI.bottom) / 2 )
+    tkHost_RenderTo( h, false )
+    dim as ulong cHot = tkTest_PixelAt( h, px, py ) and &hFFFFFFul
+    tkTest_Check( "icon cell at rest = IconColor", cRest = (cc.IconColor and &hFFFFFFul), hex( cRest ) )
+    tkTest_Check( "icon cell hot = IconBackColorHot", tkDatePicker_GetIconHot( c ) andalso (cHot = (cc.IconBackColorHot and &hFFFFFFul)), hex( cHot ) )
+    dim as ulong c0
+    tkTest_Check( "the drawn icon has ink", tkTest_TonesIn( h, a.left + rcI.left, a.top + rcI.top, rcI.right - rcI.left, rcI.bottom - rcI.top, c0 ) > 3 )
+
+    ' ---- P: disabled -----------------------------------------------------------------------
+    tkDatePicker_DropDown( c )
+    tkTest_PumpFor( h, 150 )
+    ResetCounts()
+    tkDatePicker_SetEnabled( c, false )
+    tkTest_Check( "disabling closes the calendar", (tkDatePicker_IsDroppedDown( c ) = false) andalso (gDropClose = 1) andalso (tkDatePicker_GetEnabled( c ) = false) )
+    tkTest_Check( "disabling clears the icon hover", tkDatePicker_GetIconHot( c ) = false )
+    ClickIcon( h, c )
+    tkTest_PumpFor( h, 30 )
+    tkDatePicker_DropDown( c )
+    tkTest_Check( "disabled: neither the icon nor DropDown opens", (tkDatePicker_IsDroppedDown( c ) = false) andalso (gDropOpen = 0) )
+    tkTest_Check( "disabled: the field cannot take focus", tkDatePicker_HasFocus( c ) = false )
+    tkDatePicker_SetEnabled( c, true )
+
+    ' ---- R: the message callback sees the field's messages as the picker's -------------------
+    tkDatePicker_SetMessageCallback( c, @OnMsg )
+    gMsgs = 0
+    tkHost_SetFocus( h, tb )
+    tkTest_PushKey( h, SDLK_LEFT )
+    tkTest_Check( "field messages reach the host as the picker's", gMsgs > 0 )
+    tkDatePicker_SetMessageCallback( c, 0 )
+
+    ' ---- S: rescale ------------------------------------------------------------------------
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkTest_Check( "rescale: icon width x2, border not", (tkDatePicker_GetIconWidth( c ) = iw * 2) andalso (tkDatePicker_GetBorderThickness( c ) = 1) )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+
+    tkHost_Destroy( h )
+end sub
+
+if tkTest_Init() = false then end 99
+RunPass( 1.0 )
+RunPass( 1.75 )
+dim as long nFail = tkTest_Report( "tkDatePicker" )
+tkTest_Quit()
+end nFail

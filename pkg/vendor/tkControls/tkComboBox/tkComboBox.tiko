@@ -1,0 +1,1590 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkComboBox -- PsComboBox on SDL3 + SDL_ttf: a button showing the current choice with a
+' stacked up/down chevron, dropping a list of the alternatives where the current one is
+' checkmarked. A port of pkg/vendor/PsControls/PsComboBox/PsComboBox.tiko onto tkHost.
+'
+' THE BUTTON is vendor's, unchanged by design: the four-rect layout (the width comes from the
+' WIDEST item, never the selected one; the placeholder is never measured; the text gap is
+' charged only when a caption is drawn), the three text modes, the chevron as four strokes, the
+' four moods (disabled > open > hot > idle), silent setters with SelChange for user picks and
+' DropDown for every open/close, the closed-list keyboard (arrows clamp, Home/End, Alt+arrows,
+' F4/Space/Enter open), auto-size, and the derived list colours.
+'
+' THE LIST is PsPlatform's PsComboList, not a PsPopupMenu: a tkHost popup surface holding one
+' list widget that SCROLLS (a tkVScrollBar past nMaxRows), with hover-is-highlight, a
+' provisional highlight that commits on click or Enter and is abandoned on Escape, and vendor's
+' left checkmark gutter. Vendor's "the list does not scroll" limit is gone; see PORT.md.
+'
+' GONE with the HWND: FilterMessage and its one-shot reopen guard (the host routes keys to the
+' popup and CONSUMES the press that dismisses it, so a click on the button simply closes the
+' list), WM_GETDLGCODE, the WM_CHAR swallow, the 100 ms hover poll, CS_DBLCLKS, PsRegistry.
+#module "tkComboBox"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkPopupMenu" public
+#import "../tkVScrollBar" public
+#import "../tkTextBox"
+using tkHost
+using tkPaint
+using tkTheme
+using tkPopupMenu
+using tkVScrollBar
+using tkTextBox
+
+public enum
+    CBO_TEXT_ALWAYS = 0
+    CBO_TEXT_NEVER
+    CBO_TEXT_WHENSELECTED
+end enum
+
+public const TKCOMBOBOX_DEFAULT_PADLEFT = 12
+public const TKCOMBOBOX_DEFAULT_PADRIGHT = 10
+public const TKCOMBOBOX_DEFAULT_PADTOP = 6
+public const TKCOMBOBOX_DEFAULT_PADBOTTOM = 6
+public const TKCOMBOBOX_DEFAULT_TEXTGAP = 8
+public const TKCOMBOBOX_DEFAULT_CHEVRONW = 9          ' odd, so the glyph comes to a point
+public const TKCOMBOBOX_DEFAULT_CHEVRONH = 12
+public const TKCOMBOBOX_DEFAULT_CHEVRONGAP = 3
+public const TKCOMBOBOX_DEFAULT_CURVATURE = 12        ' a DIAMETER
+public const TKCOMBOBOX_DEFAULT_BORDERTHICK = 1       ' not scaled
+public const TKCOMBOBOX_DEFAULT_FOCUSGAP = 2
+public const TKCOMBOBOX_DEFAULT_FOCUSTHICK = 1        ' not scaled
+' The list (vendor PsPopupMenu's row metrics; PsPlatform's row cap)
+public const TKCOMBOBOX_DEFAULT_LISTITEMHEIGHT = 24
+public const TKCOMBOBOX_DEFAULT_LISTCHECKCOL = 30     ' the left checkmark gutter
+public const TKCOMBOBOX_DEFAULT_LISTRIGHTCOL = 20     ' reserved on the right, as vendor's
+public const TKCOMBOBOX_DEFAULT_LISTMAXROWS = 12      ' the list scrolls past this many
+
+' The Win32 control's dark defaults, value for value.
+public type TKCOMBOBOX_COLORS
+    BackColor            as ulong = &hFF2C313Aul
+    ForeColor            as ulong = &hFFC8CDD6ul
+    BorderColor          as ulong = &hFF2C313Aul    ' = BackColor: borderless by default
+    ChevronColor         as ulong = &hFFC8CDD6ul    ' = ForeColor
+    BackColorHot         as ulong = &hFF373D48ul
+    ForeColorHot         as ulong = &hFFE2E6EEul
+    BorderColorHot       as ulong = &hFF373D48ul
+    ChevronColorHot      as ulong = &hFFE2E6EEul
+    BackColorOpen        as ulong = &hFF2C313Aul    ' = BackColor, NOT BackColorHot
+    ForeColorOpen        as ulong = &hFF61AFEFul
+    BorderColorOpen      as ulong = &hFF2C313Aul
+    ChevronColorOpen     as ulong = &hFF61AFEFul
+    BackColorDisabled    as ulong = &hFF282C33ul
+    ForeColorDisabled    as ulong = &hFF606670ul
+    BorderColorDisabled  as ulong = &hFF282C33ul
+    ChevronColorDisabled as ulong = &hFF606670ul
+    ForeColorPlaceholder as ulong = &hFF787E88ul
+    FocusRingColor       as ulong = &hFF61AFEFul
+end type
+
+public type TKCOMBOBOX_ITEM
+    wszText   as ustring
+    id        as long
+    itemData  as integer
+    isEnabled as boolean = true
+end type
+
+public type TKCOMBOBOX_PAINTINFO
+    hCombo        as TK_WIDGET ptr
+    b             as TK_PAINT ptr
+    rcClient      as TKRECT
+    rcButton      as TKRECT
+    rcText        as TKRECT
+    rcChevron     as TKRECT
+    rcVisual      as TKRECT
+    isHot         as boolean
+    isOpen        as boolean
+    isEnabled     as boolean
+    isFocused     as boolean
+    nCurSel       as long
+    wszText       as ustring
+    isPlaceholder as boolean
+    isTextVisible as boolean
+end type
+
+public type TKCOMBOBOX_MESSAGEINFO
+    hCombo as TK_WIDGET ptr
+    msg    as long                    ' TKM_*
+    x      as single
+    y      as single
+    key    as long
+    mods   as long
+end type
+
+public type CBO_PaintCallbackSub as sub( byval p as TKCOMBOBOX_PAINTINFO ptr )
+public type CBO_MessageCallbackFunc as function( byval m as TKCOMBOBOX_MESSAGEINFO ptr ) as boolean
+public type CBO_SelChangeCallbackSub as sub( byval hCombo as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long )
+public type CBO_DropDownCallbackSub as sub( byval hCombo as TK_WIDGET ptr, byval isOpen as boolean )
+' EDITABLE mode (tkComboBox_SetEditable): the text was typed / Enter was pressed in it.
+public type CBO_EditCallbackSub as sub( byval hCombo as TK_WIDGET ptr )
+
+public type TKCOMBOBOX_STATE
+    hWin            as TK_WIDGET ptr
+    wEdit           as TK_WIDGET ptr      ' EDITABLE mode: the single-line tkTextBox over the text
+    EditChangeCallback as CBO_EditCallbackSub
+    EditEnterCallback  as CBO_EditCallbackSub
+    id              as long
+    items(any)      as TKCOMBOBOX_ITEM
+    itemCount       as long
+    nCurSel         as long = -1
+    wszPlaceholder  as ustring
+    nTextMode       as long = CBO_TEXT_ALWAYS
+    bAutoSize       as boolean
+    isEnabled       as boolean = true
+    isHot           as boolean
+    isFocused       as boolean
+    isOpen          as boolean
+    bColorsPinned   as boolean
+    colors          as TKCOMBOBOX_COLORS
+    pTextFont       as TTF_Font ptr               ' borrowed
+    nPadLeft        as long
+    nPadRight       as long
+    nPadTop         as long
+    nPadBottom      as long
+    nTextGap        as long
+    nChevronWidth   as long
+    nChevronHeight  as long
+    nChevronGap     as long
+    nChevronThick   as long = 1
+    nCurvature      as long
+    nBorderThick    as long = TKCOMBOBOX_DEFAULT_BORDERTHICK
+    nFocusGap       as long
+    nFocusThick     as long = TKCOMBOBOX_DEFAULT_FOCUSTHICK
+    nTextWidth      as long
+    nTextHeight     as long
+    nIdealW         as long
+    nIdealH         as long
+    rcButton        as TKRECT
+    rcText          as TKRECT
+    rcChevron       as TKRECT
+    rcVisual        as TKRECT
+    bLayoutDirty    as boolean = true
+    ' --- the list ---
+    listColors      as TKPOPUPMENU_COLORS
+    bListColorsClaimed as boolean
+    nListItemHeight as long
+    nListCheckCol   as long
+    nListRightCol   as long
+    nListMaxRows    as long = TKCOMBOBOX_DEFAULT_LISTMAXROWS
+    pList           as TK_HOST ptr                ' the open popup, or 0
+    wList           as TK_WIDGET ptr              ' its one widget
+    wListBar        as TK_WIDGET ptr              ' its scrollbar, when the rows overflow
+    nListHot        as long = -1                  ' the PROVISIONAL highlight
+    nListTop        as long
+    fListWheel      as single
+    nCommitIdx      as long = -2                  ' set while a commit closes the list
+    fWheelAccum     as single
+    PaintCallback     as CBO_PaintCallbackSub
+    MessageCallback   as CBO_MessageCallbackFunc
+    SelChangeCallback as CBO_SelChangeCallbackSub
+    DropDownCallback  as CBO_DropDownCallbackSub
+end type
+
+
+private function CB( byval h as TK_WIDGET ptr ) as TKCOMBOBOX_STATE ptr
+    if h = 0 then return 0
+    return cast( TKCOMBOBOX_STATE ptr, h->pData )
+end function
+
+private function CbFont( byval p as TKCOMBOBOX_STATE ptr ) as TTF_Font ptr
+    if p->pTextFont then return p->pTextFont
+    return p->hWin->pHost->pDefaultFont
+end function
+
+private function CbRingPad( byval p as TKCOMBOBOX_STATE ptr ) as long
+    return p->nFocusGap + p->nFocusThick
+end function
+
+private function CbValid( byval p as TKCOMBOBOX_STATE ptr, byval idx as long ) as boolean
+    return (idx >= 0) andalso (idx < p->itemCount)
+end function
+
+private function CbSelectable( byval p as TKCOMBOBOX_STATE ptr, byval idx as long ) as boolean
+    return CbValid( p, idx ) andalso p->items(idx).isEnabled
+end function
+
+private function CbTextVisible( byval p as TKCOMBOBOX_STATE ptr ) as boolean
+    if p->wEdit then return true                ' the edit IS the text
+    select case p->nTextMode
+    case CBO_TEXT_NEVER : return false
+    case CBO_TEXT_WHENSELECTED : return CbValid( p, p->nCurSel )
+    end select
+    return true
+end function
+
+' The selected caption, else the placeholder, else "".
+private function CbDisplayText( byval p as TKCOMBOBOX_STATE ptr, byref bPlaceholder as boolean ) as ustring
+    bPlaceholder = false
+    if CbValid( p, p->nCurSel ) then return p->items(p->nCurSel).wszText
+    if len( p->wszPlaceholder ) then bPlaceholder = true : return p->wszPlaceholder
+    return ""
+end function
+
+' Clamps: no wrap (the closed list).
+private function CbNextSelectable( byval p as TKCOMBOBOX_STATE ptr, byval nFrom as long, byval nDir as long ) as long
+    if (p->itemCount = 0) orelse (nDir = 0) then return -1
+    dim as long i = nFrom + nDir
+    while (i >= 0) andalso (i < p->itemCount)
+        if p->items(i).isEnabled then return i
+        i += nDir
+    wend
+    return -1
+end function
+
+' Wraps: the open list (vendor's list is a menu, and menus wrap).
+private function CbNextSelectableWrap( byval p as TKCOMBOBOX_STATE ptr, byval nFrom as long, byval nDir as long ) as long
+    if p->itemCount = 0 then return -1
+    dim as long i = nFrom
+    for k as long = 1 to p->itemCount
+        i += nDir
+        if i < 0 then i = p->itemCount - 1
+        if i >= p->itemCount then i = 0
+        if p->items(i).isEnabled then return i
+    next
+    return -1
+end function
+
+' Vendor LayoutCombo: the measuring pass precedes the zero-client bail, so the ideal size is
+' valid before the control is sized.
+private sub CbLayout( byval p as TKCOMBOBOX_STATE ptr )
+    p->bLayoutDirty = false
+    dim as TTF_Font ptr f = CbFont( p )
+    p->nTextWidth = 0
+    p->nTextHeight = tkText_Height( f )
+    dim as boolean bText = CbTextVisible( p )
+    if bText then
+        for i as long = 0 to p->itemCount - 1
+            dim as long w = tkText_Width( f, p->items(i).wszText )
+            if w > p->nTextWidth then p->nTextWidth = w
+        next
+    end if
+    dim as long rp = CbRingPad( p )
+    dim as long contentH = iif( p->nChevronHeight > p->nTextHeight, p->nChevronHeight, p->nTextHeight )
+    dim as long textBlock = iif( bText, p->nTextWidth + p->nTextGap, 0 )
+    p->nIdealW = (2 * rp) + p->nPadLeft + textBlock + p->nChevronWidth + p->nPadRight
+    p->nIdealH = (2 * rp) + p->nPadTop + contentH + p->nPadBottom
+
+    dim as long cw = p->hWin->cw, chh = p->hWin->ch
+    if (cw <= 0) orelse (chh <= 0) then p->bLayoutDirty = true : exit sub
+    tkRect_Set( p->rcButton, 0, 0, cw, chh )
+    tkRect_Inflate( p->rcButton, -rp, -rp )
+    dim as long chevRight = p->rcButton.right - p->nPadRight
+    dim as long chevLeft = chevRight - p->nChevronWidth
+    dim as long chevTop = p->rcButton.top + (((p->rcButton.bottom - p->rcButton.top) - p->nChevronHeight) \ 2)
+    tkRect_Set( p->rcChevron, chevLeft, chevTop, chevRight, chevTop + p->nChevronHeight )
+    if bText then
+        dim as long tl = p->rcButton.left + p->nPadLeft
+        dim as long tr = p->rcChevron.left - p->nTextGap
+        if tr < tl then tr = tl
+        dim as long tt = p->rcButton.top + (((p->rcButton.bottom - p->rcButton.top) - p->nTextHeight) \ 2)
+        tkRect_Set( p->rcText, tl, tt, tr, tt + p->nTextHeight )
+    else
+        tkRect_SetEmpty( p->rcText )
+    end if
+    p->rcVisual = p->rcButton
+    tkRect_Inflate( p->rcVisual, rp, rp )
+    if p->wEdit andalso (tkRect_IsEmpty( p->rcText ) = false) then
+        ' the full inner height, so the edit's caret and selection have the button's room
+        dim as long bw = iif( p->nBorderThick > 0, p->nBorderThick, 0 ) + 1
+        tkWidget_SetPos( p->wEdit, p->rcText.left, p->rcButton.top + bw, _
+                         p->rcText.right - p->rcText.left, (p->rcButton.bottom - p->rcButton.top) - 2 * bw )
+    end if
+end sub
+
+private sub CbApplyAutoSize( byval p as TKCOMBOBOX_STATE ptr )
+    if p->bAutoSize = false then exit sub
+    if p->bLayoutDirty then CbLayout( p )
+    if (p->nIdealW <= 0) orelse (p->nIdealH <= 0) then exit sub
+    tkWidget_SetSize( p->hWin, p->nIdealW, p->nIdealH )
+end sub
+
+private sub CbRefresh( byval p as TKCOMBOBOX_STATE ptr )
+    p->bLayoutDirty = true
+    tkWidget_Invalidate( p->hWin )
+end sub
+
+' Re-measure, and re-size when auto-size is on.
+private sub CbRemeasure( byval p as TKCOMBOBOX_STATE ptr )
+    CbRefresh( p )
+    CbApplyAutoSize( p )
+end sub
+
+private function CbCall( byval p as TKCOMBOBOX_STATE ptr, byval m as TK_MSG ptr ) as boolean
+    if p->MessageCallback = 0 then return false
+    dim as TKCOMBOBOX_MESSAGEINFO mi
+    mi.hCombo = p->hWin
+    mi.msg = m->msg
+    mi.x = m->x : mi.y = m->y : mi.key = m->key : mi.mods = m->mods
+    return p->MessageCallback( @mi )
+end function
+
+' The list's colours from the button's (vendor ApplyDerivedListColors) unless claimed.
+private sub CbDeriveListColors( byval p as TKCOMBOBOX_STATE ptr )
+    if p->bListColorsClaimed then exit sub
+    with p->colors
+        p->listColors.BackColor = .BackColor
+        p->listColors.ForeColor = .ForeColor
+        p->listColors.BackColorHot = .BackColorHot
+        p->listColors.ForeColorHot = .ForeColorHot
+        p->listColors.ForeColorDisabled = .ForeColorDisabled
+        p->listColors.BorderColor = .BorderColorHot          ' BorderColor = BackColor would vanish
+        p->listColors.SeparatorColor = .ForeColorDisabled
+    end with
+    if p->wList then tkWidget_Invalidate( p->wList )
+end sub
+
+' A selection change made by the USER: notifies. A disabled or invalid index is dropped.
+private sub CbApplyUserSel( byval p as TKCOMBOBOX_STATE ptr, byval idxNew as long )
+    if idxNew = p->nCurSel then exit sub
+    if idxNew <> -1 then
+        if CbSelectable( p, idxNew ) = false then exit sub
+    end if
+    dim as boolean bTextBefore = CbTextVisible( p )
+    dim as long idxOld = p->nCurSel
+    p->nCurSel = idxNew
+    if p->wEdit andalso (idxNew >= 0) then
+        tkTextBox_SetText( p->wEdit, p->items(idxNew).wszText )      ' silent: SelChange says it
+        tkTextBox_SetSel( p->wEdit, 0, -1 )
+    end if
+    tkWidget_Invalidate( p->hWin )
+    if CbTextVisible( p ) <> bTextBefore then CbRemeasure( p )
+    if p->SelChangeCallback then p->SelChangeCallback( p->hWin, idxOld, idxNew )
+end sub
+
+
+' ==========================================================================================
+' The list (PsPlatform's PsComboList as a tkHost popup)
+' ==========================================================================================
+private function CbListRows( byval p as TKCOMBOBOX_STATE ptr ) as long
+    dim as long n = p->itemCount
+    if n > p->nListMaxRows then n = p->nListMaxRows
+    return iif( n < 1, 1, n )
+end function
+
+private function CbListBorder( byval p as TKCOMBOBOX_STATE ptr ) as long
+    return 1
+end function
+
+private function CbListBarW( byval p as TKCOMBOBOX_STATE ptr ) as long
+    if p->itemCount <= p->nListMaxRows then return 0
+    return tkHost_Scale( p->hWin->pHost, TKVSCROLL_DEFAULT_WIDTH )
+end function
+
+' Row idx's rect in the LIST widget's pixels; FALSE when scrolled out.
+private function CbListRowRect( byval p as TKCOMBOBOX_STATE ptr, byval idx as long, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    if (p->wList = 0) orelse (CbValid( p, idx ) = false) then return false
+    dim as long v = idx - p->nListTop
+    if (v < 0) orelse (v >= CbListRows( p )) then return false
+    dim as long bw = CbListBorder( p )
+    tkRect_Set( rc, bw, bw + v * p->nListItemHeight, p->wList->cw - bw - CbListBarW( p ), bw + (v + 1) * p->nListItemHeight )
+    return true
+end function
+
+private function CbListHit( byval p as TKCOMBOBOX_STATE ptr, byval x as single, byval y as single ) as long
+    if p->wList = 0 then return -1
+    dim as long bw = CbListBorder( p )
+    if (y < bw) orelse (x < bw) orelse (x >= p->wList->cw - bw - CbListBarW( p )) then return -1
+    dim as long v = (cint( y ) - bw) \ p->nListItemHeight
+    if (v < 0) orelse (v >= CbListRows( p )) then return -1
+    dim as long idx = p->nListTop + v
+    return iif( CbValid( p, idx ), idx, -1 )
+end function
+
+private sub CbListSetTop( byval p as TKCOMBOBOX_STATE ptr, byval n as long )
+    dim as long maxTop = p->itemCount - CbListRows( p )
+    if maxTop < 0 then maxTop = 0
+    if n > maxTop then n = maxTop
+    if n < 0 then n = 0
+    if n = p->nListTop then exit sub
+    p->nListTop = n
+    if p->wListBar then tkVScrollBar_SetPos( p->wListBar, n )
+    if p->wList then tkWidget_Invalidate( p->wList )
+end sub
+
+private sub CbListEnsureVisible( byval p as TKCOMBOBOX_STATE ptr, byval idx as long )
+    if idx < 0 then exit sub
+    dim as long vis = CbListRows( p )
+    if idx < p->nListTop then
+        CbListSetTop( p, idx )
+    elseif idx >= p->nListTop + vis then
+        CbListSetTop( p, idx - vis + 1 )
+    end if
+end sub
+
+private sub CbListSetHot( byval p as TKCOMBOBOX_STATE ptr, byval idx as long )
+    if (idx <> -1) andalso (CbSelectable( p, idx ) = false) then exit sub
+    if idx = p->nListHot then exit sub
+    p->nListHot = idx
+    if p->wList then tkWidget_Invalidate( p->wList )
+end sub
+
+' Close the popup; OnClosed does the bookkeeping and the DropDown(false) callback.
+private sub CbCloseList( byval p as TKCOMBOBOX_STATE ptr )
+    if p->pList then tkHost_Close( p->pList )
+end sub
+
+' Commit: the list closes FIRST (DropDown(false)), then the selection changes (SelChange) --
+' vendor's "closed, and here is the new value" order.
+private sub CbListCommit( byval p as TKCOMBOBOX_STATE ptr, byval idx as long )
+    if CbSelectable( p, idx ) = false then exit sub
+    CbCloseList( p )
+    CbApplyUserSel( p, idx )
+end sub
+
+private sub CbListPaint( byval p as TKCOMBOBOX_STATE ptr, byval b as TK_PAINT ptr )
+    dim as TK_WIDGET ptr w = p->wList
+    dim as TKRECT rcAll
+    tkRect_Set( rcAll, 0, 0, w->cw, w->ch )
+    b->SetBackColor( p->listColors.BackColor )
+    b->PaintRect( @rcAll )
+    dim as TTF_Font ptr f = CbFont( p )
+    dim as single sc = p->hWin->pHost->fScale
+    for v as long = 0 to CbListRows( p ) - 1
+        dim as long idx = p->nListTop + v
+        dim as TKRECT r
+        if CbListRowRect( p, idx, r ) = false then continue for
+        dim as ulong clr = p->listColors.ForeColor
+        if p->items(idx).isEnabled = false then
+            clr = p->listColors.ForeColorDisabled
+        elseif idx = p->nListHot then
+            b->SetBackColor( p->listColors.BackColorHot )
+            b->PaintRect( @r )
+            clr = p->listColors.ForeColorHot
+        end if
+        ' the checkmark, in the left gutter: geometry, so no font has to carry U+2713
+        if idx = p->nCurSel then
+            dim as long gx = r.left + (p->nListCheckCol \ 2), gy = (r.top + r.bottom) \ 2
+            dim as long u = iif( cint( 3 * sc ) < 2, 2, cint( 3 * sc ) )
+            dim as TKPOINT pts(0 to 2)
+            pts(0).x = gx - 2 * u : pts(0).y = gy
+            pts(1).x = gx - u \ 2 : pts(1).y = gy + (3 * u) \ 2
+            pts(2).x = gx + 2 * u : pts(2).y = gy - (3 * u) \ 2
+            b->SetPenColor( clr )
+            b->PaintPolyline( @pts(0), 3, 2 )
+        end if
+        dim as TKRECT rt = r
+        rt.left += p->nListCheckCol
+        rt.right -= p->nListRightCol
+        if rt.right > rt.left then
+            b->SetFont( f )
+            b->SetForeColor( clr )
+            b->PaintText( p->items(idx).wszText, @rt, TK_DT_LEFT or TK_DT_ELLIPSIS )
+        end if
+    next
+    b->SetPenColor( p->listColors.BorderColor )
+    b->PaintRoundOutline( @rcAll, 0, CbListBorder( p ) )
+end sub
+
+private function CbListProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKCOMBOBOX_STATE ptr p = cast( TKCOMBOBOX_STATE ptr, w->pData )
+    if p = 0 then return false
+    select case m->msg
+    case TKM_PAINT
+        CbListPaint( p, m->pPaint )
+        return true
+    case TKM_MOUSEMOVE
+        dim as long i = CbListHit( p, m->x, m->y )
+        if CbSelectable( p, i ) then CbListSetHot( p, i )
+        return true
+    case TKM_LBUTTONDOWN
+        return true
+    case TKM_LBUTTONUP
+        dim as long i = CbListHit( p, m->x, m->y )
+        if CbSelectable( p, i ) then CbListCommit( p, i )
+        return true
+    case TKM_MOUSEWHEEL
+        p->fListWheel += m->wheelY
+        dim as long n = fix( p->fListWheel )
+        if n <> 0 then
+            p->fListWheel -= n
+            CbListSetTop( p, p->nListTop - n * 3 )
+        end if
+        return true
+    case TKM_KEYDOWN
+        dim as boolean bAlt = (m->mods and SDL_KMOD_ALT) <> 0
+        select case m->key
+        case SDLK_DOWN, SDLK_UP
+            if bAlt then CbCloseList( p ) : return true
+            dim as long nFrom = p->nListHot
+            if (nFrom < 0) andalso (m->key = SDLK_UP) then nFrom = p->itemCount
+            dim as long n = CbNextSelectableWrap( p, nFrom, iif( m->key = SDLK_DOWN, 1, -1 ) )
+            if n >= 0 then CbListSetHot( p, n ) : CbListEnsureVisible( p, n )
+            return true
+        case SDLK_HOME, SDLK_END
+            dim as long n = iif( m->key = SDLK_HOME, CbNextSelectable( p, -1, 1 ), CbNextSelectable( p, p->itemCount, -1 ) )
+            if n >= 0 then CbListSetHot( p, n ) : CbListEnsureVisible( p, n )
+            return true
+        case SDLK_PAGEDOWN, SDLK_PAGEUP
+            dim as long dir_ = iif( m->key = SDLK_PAGEDOWN, 1, -1 )
+            dim as long n = p->nListHot
+            for k as long = 1 to CbListRows( p ) - 1
+                dim as long nn = CbNextSelectable( p, n, dir_ )
+                if nn < 0 then exit for
+                n = nn
+            next
+            if n >= 0 then CbListSetHot( p, n ) : CbListEnsureVisible( p, n )
+            return true
+        case SDLK_RETURN, SDLK_KP_ENTER, SDLK_SPACE
+            if CbSelectable( p, p->nListHot ) then CbListCommit( p, p->nListHot ) else CbCloseList( p )
+            return true
+        case SDLK_F4, SDLK_TAB
+            CbCloseList( p )
+            return true
+        end select
+        return false            ' Escape: the host closes the popup
+    case TKM_DESTROY
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+private sub CbListBarScrolled( byval hSB as TK_WIDGET ptr, byval newPos as integer )
+    dim as TK_WIDGET ptr wl = tkWidget_Parent( hSB )
+    if (wl = 0) orelse (wl->pData = 0) then exit sub
+    dim as TKCOMBOBOX_STATE ptr p = cast( TKCOMBOBOX_STATE ptr, wl->pData )
+    p->nListTop = newPos
+    tkWidget_Invalidate( wl )
+end sub
+
+' Fired once whenever the popup closes, for any reason (commit, Escape, an outside press,
+' another popup opening, focus leaving the application).
+private sub CbListClosed( byval hPop as TK_HOST ptr )
+    dim as TKCOMBOBOX_STATE ptr p = cast( TKCOMBOBOX_STATE ptr, hPop->pUser )
+    if (p = 0) orelse (p->pList <> hPop) then exit sub
+    if p->wList then p->wList->pData = 0
+    p->pList = 0 : p->wList = 0 : p->wListBar = 0
+    dim as boolean bWasOpen = p->isOpen
+    p->isOpen = false
+    tkWidget_Invalidate( p->hWin )
+    if bWasOpen andalso (p->DropDownCallback <> 0) then p->DropDownCallback( p->hWin, false )
+end sub
+
+' The list's width: at least the button's, else the widest row (gutter + text + right column).
+private function CbListWidth( byval p as TKCOMBOBOX_STATE ptr ) as long
+    dim as TTF_Font ptr f = CbFont( p )
+    dim as long wMax = 0
+    for i as long = 0 to p->itemCount - 1
+        dim as long w = tkText_Width( f, p->items(i).wszText )
+        if w > wMax then wMax = w
+    next
+    dim as long w = 2 * CbListBorder( p ) + p->nListCheckCol + wMax + p->nListRightCol + CbListBarW( p )
+    dim as long bw = p->rcButton.right - p->rcButton.left
+    return iif( w > bw, w, bw )
+end function
+
+' vendor PsComboBox_DropDown, in its order: the opening callback FIRST, before a row exists;
+' then the list, preselected at the current item, below the button chrome, left edges aligned.
+private function CbDropDown( byval p as TKCOMBOBOX_STATE ptr ) as boolean
+    if p->isEnabled = false then return false
+    if p->isOpen then return true
+    if p->DropDownCallback then p->DropDownCallback( p->hWin, true )
+    if p->itemCount <= 0 then
+        if p->DropDownCallback then p->DropDownCallback( p->hWin, false )
+        return false
+    end if
+    if p->bLayoutDirty then CbLayout( p )
+    dim as TK_HOST ptr h = p->hWin->pHost
+    dim as TKRECT a, rcAnchor
+    tkWidget_AbsRect( p->hWin, a )
+    rcAnchor = p->rcButton
+    if tkRect_IsEmpty( rcAnchor ) then tkRect_Set( rcAnchor, 0, 0, p->hWin->cw, p->hWin->ch )
+    tkRect_Offset( rcAnchor, a.left, a.top )
+    dim as long lw = CbListWidth( p )
+    dim as long lh = 2 * CbListBorder( p ) + CbListRows( p ) * p->nListItemHeight
+    dim as long x, y
+    tkHost_PlacePopup( h, rcAnchor, lw, lh, false, x, y )
+    dim as TK_HOST ptr pop = tkHost_CreatePopup( h, x, y, lw, lh )
+    if pop = 0 then
+        if p->DropDownCallback then p->DropDownCallback( p->hWin, false )
+        return false
+    end if
+    pop->clrBack = p->listColors.BackColor
+    pop->pUser = p
+    pop->OnClosed = @CbListClosed
+    p->pList = pop
+    p->wList = tkWidget_Create( pop, p->id, @CbListProc, p )
+    p->wList->isFocusable = true
+    tkWidget_SetPos( p->wList, 0, 0, lw, lh )
+    p->nListTop = 0
+    p->fListWheel = 0
+    if p->itemCount > p->nListMaxRows then
+        dim as long sbw = CbListBarW( p ), bw = CbListBorder( p )
+        p->wListBar = tkVScrollBar_Create( p->wList, 0 )
+        tkWidget_SetPos( p->wListBar, lw - bw - sbw, bw, sbw, lh - 2 * bw )
+        tkVScrollBar_SetRange( p->wListBar, p->itemCount, CbListRows( p ), 0 )
+        tkVScrollBar_SetScrollCallback( p->wListBar, @CbListBarScrolled )
+    end if
+    p->nListHot = iif( CbSelectable( p, p->nCurSel ), p->nCurSel, -1 )
+    CbListEnsureVisible( p, p->nListHot )
+    p->isOpen = true
+    tkHost_Show( pop )
+    tkHost_SetFocus( pop, p->wList )
+    tkWidget_Invalidate( p->hWin )
+    return true
+end function
+
+
+' ==========================================================================================
+' The button
+' ==========================================================================================
+private sub CbFillPaintInfo( byval p as TKCOMBOBOX_STATE ptr, byval b as TK_PAINT ptr, byval pi as TKCOMBOBOX_PAINTINFO ptr )
+    pi->hCombo = p->hWin : pi->b = b
+    tkRect_Set( pi->rcClient, 0, 0, p->hWin->cw, p->hWin->ch )
+    pi->rcButton = p->rcButton : pi->rcText = p->rcText
+    pi->rcChevron = p->rcChevron : pi->rcVisual = p->rcVisual
+    pi->isHot = p->isHot andalso (p->isOpen = false)
+    pi->isOpen = p->isOpen
+    pi->isEnabled = p->isEnabled
+    pi->isFocused = p->isFocused
+    pi->nCurSel = p->nCurSel
+    pi->wszText = CbDisplayText( p, pi->isPlaceholder )
+    pi->isTextVisible = CbTextVisible( p )
+end sub
+
+private sub CbMoodColors( byval p as TKCOMBOBOX_STATE ptr, byval pi as TKCOMBOBOX_PAINTINFO ptr, _
+                          byref cBack as ulong, byref cFore as ulong, byref cBorder as ulong, byref cChev as ulong )
+    with p->colors
+        if pi->isEnabled = false then
+            cBack = .BackColorDisabled : cFore = .ForeColorDisabled : cBorder = .BorderColorDisabled : cChev = .ChevronColorDisabled
+        elseif pi->isOpen then
+            cBack = .BackColorOpen : cFore = .ForeColorOpen : cBorder = .BorderColorOpen : cChev = .ChevronColorOpen
+        elseif pi->isHot then
+            cBack = .BackColorHot : cFore = .ForeColorHot : cBorder = .BorderColorHot : cChev = .ChevronColorHot
+        else
+            cBack = .BackColor : cFore = .ForeColor : cBorder = .BorderColor : cChev = .ChevronColor
+        end if
+    end with
+end sub
+
+private sub CbRenderDefault( byval p as TKCOMBOBOX_STATE ptr, byval b as TK_PAINT ptr, byval pi as TKCOMBOBOX_PAINTINFO ptr )
+    if tkRect_IsEmpty( pi->rcButton ) then exit sub
+    dim as ulong cBack, cFore, cBorder, cChev
+    CbMoodColors( p, pi, cBack, cFore, cBorder, cChev )
+    b->SetBackColor( cBack )
+    if p->nBorderThick > 0 then
+        b->SetPenColor( cBorder )
+        b->PaintRoundBorderRect( @pi->rcButton, p->nCurvature, p->nBorderThick )
+    else
+        b->PaintRoundRect( @pi->rcButton, p->nCurvature )
+    end if
+    if pi->isTextVisible andalso (len( pi->wszText ) > 0) andalso (p->wEdit = 0) then
+        b->SetFont( CbFont( p ) )
+        b->SetColors( iif( pi->isPlaceholder, p->colors.ForeColorPlaceholder, cFore ), cBack )
+        b->PaintText( pi->wszText, @pi->rcText, TK_DT_LEFT or TK_DT_ELLIPSIS )
+    end if
+    ' four strokes, both apexes pointing AWAY from the centre; a degenerate cell is skipped
+    dim as long cl = pi->rcChevron.left, cr = pi->rcChevron.right
+    dim as long ct = pi->rcChevron.top, cbot = pi->rcChevron.bottom
+    dim as long cx = cl + ((cr - cl) \ 2)
+    dim as long chh = ((cbot - ct) - p->nChevronGap) \ 2
+    if (chh >= 1) andalso (cx > cl) andalso (cr > cx) then
+        ' vendor's PaintLine scaled the pen by the DPI; tkPaint's does not, so it is done here
+        dim as long thick = cint( iif( p->nChevronThick < 1, 1, p->nChevronThick ) * p->hWin->pHost->fScale )
+        if thick < 1 then thick = 1
+        b->SetPenColor( cChev )
+        b->PaintLine( thick, cl, ct + chh, cx, ct )
+        b->PaintLine( thick, cx, ct, cr, ct + chh )
+        b->PaintLine( thick, cl, cbot - chh, cx, cbot )
+        b->PaintLine( thick, cx, cbot, cr, cbot - chh )
+    end if
+    if pi->isFocused andalso (p->nFocusThick > 0) then
+        b->SetPenColor( p->colors.FocusRingColor )
+        b->PaintRoundOutline( @pi->rcVisual, p->nCurvature + (2 * CbRingPad( p )), p->nFocusThick )
+    end if
+end sub
+
+private sub CbOnPaint( byval p as TKCOMBOBOX_STATE ptr, byval b as TK_PAINT ptr )
+    if p->bLayoutDirty then CbLayout( p )
+    dim as TKCOMBOBOX_PAINTINFO pi
+    CbFillPaintInfo( p, b, @pi )
+    ' the client takes the mood's background, as vendor's did (see tkButton/FINDINGS)
+    dim as ulong cBack, cFore, cBorder, cChev
+    CbMoodColors( p, @pi, cBack, cFore, cBorder, cChev )
+    b->SetBackColor( cBack )
+    b->PaintRect( @pi.rcClient )
+    if p->PaintCallback then p->PaintCallback( @pi ) else CbRenderDefault( p, b, @pi )
+end sub
+
+
+' ==========================================================================================
+' The proc
+' ==========================================================================================
+public declare sub tkComboBox_ApplyTheme( byval hCombo as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+declare sub CbEditColors( byval p as TKCOMBOBOX_STATE ptr )
+public declare function tkComboBox_ThemeColors( byref t as TKTHEME_COLORS ) as TKCOMBOBOX_COLORS
+
+private function CbProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKCOMBOBOX_STATE ptr p = CB( w )
+    if p = 0 then return false
+    dim as TK_HOST ptr h = w->pHost
+
+    select case m->msg
+    case TKM_PAINT
+        CbOnPaint( p, m->pPaint )
+        return true
+
+    case TKM_SIZE
+        CbRefresh( p )
+        return true
+
+    case TKM_SCALECHANGED
+        if (m->fOld > 0) andalso (m->fNew > 0) then
+            dim as single k = m->fNew / m->fOld
+            p->nPadLeft = cint( p->nPadLeft * k ) : p->nPadRight = cint( p->nPadRight * k )
+            p->nPadTop = cint( p->nPadTop * k ) : p->nPadBottom = cint( p->nPadBottom * k )
+            p->nTextGap = cint( p->nTextGap * k )
+            p->nChevronWidth = cint( p->nChevronWidth * k ) : p->nChevronHeight = cint( p->nChevronHeight * k )
+            p->nChevronGap = cint( p->nChevronGap * k )
+            p->nCurvature = cint( p->nCurvature * k )
+            p->nFocusGap = cint( p->nFocusGap * k )
+            p->nListItemHeight = cint( p->nListItemHeight * k )
+            p->nListCheckCol = cint( p->nListCheckCol * k )
+            p->nListRightCol = cint( p->nListRightCol * k )
+        end if
+        CbCloseList( p )
+        CbRemeasure( p )
+        return true
+
+    case TKM_THEMECHANGED
+        tkComboBox_ApplyTheme( w, tkTheme_Get() )
+        CbEditColors( p )
+        return true
+
+    case TKM_MOUSEMOVE
+        if p->isEnabled = false then return true
+        dim as boolean bOver = (m->x >= 0) andalso (m->x < w->cw) andalso (m->y >= 0) andalso (m->y < w->ch)
+        if bOver <> p->isHot then p->isHot = bOver : tkWidget_Invalidate( w )
+        CbCall( p, m )
+        return true
+
+    case TKM_MOUSELEAVE
+        if p->isHot then p->isHot = false : tkWidget_Invalidate( w )
+        CbCall( p, m )
+        return true
+
+    case TKM_LBUTTONDOWN
+        if p->isEnabled = false then return true
+        tkHost_SetFocus( h, w )                 ' focus whatever the host then decides
+        if CbCall( p, m ) then return true
+        ' the list opens on the DOWN; no capture: from here the popup owns the interaction
+        if p->isOpen then CbCloseList( p ) else CbDropDown( p )
+        return true
+
+    case TKM_LBUTTONUP, TKM_RBUTTONDOWN, TKM_RBUTTONUP
+        CbCall( p, m )                          ' reported, never acted on
+        return true
+
+    case TKM_SETFOCUS, TKM_KILLFOCUS
+        ' EDITABLE: the edit takes the keyboard; the combo shows the ring while it has it
+        if p->wEdit andalso (m->msg = TKM_SETFOCUS) then
+            tkHost_SetFocus( h, p->wEdit )
+            return true
+        end if
+        dim as boolean bF = (m->msg = TKM_SETFOCUS)
+        if bF <> p->isFocused then p->isFocused = bF : tkWidget_Invalidate( w )
+        CbCall( p, m )                          ' result IGNORED: focus is a fact
+        return true
+
+    case TKM_MOUSEWHEEL
+        ' (PsPlatform) a focused, closed combo steps its selection; otherwise the parent scrolls
+        if p->isOpen orelse (p->isFocused = false) orelse (p->isEnabled = false) then return false
+        if CbCall( p, m ) then return true
+        p->fWheelAccum += m->wheelY
+        dim as long n = fix( p->fWheelAccum )
+        if n = 0 then return true
+        p->fWheelAccum -= n
+        dim as long idx = p->nCurSel
+        for k as long = 1 to abs( n )
+            dim as long nFrom = idx
+            if (nFrom = -1) andalso (n > 0) then nFrom = p->itemCount
+            dim as long nn = CbNextSelectable( p, nFrom, iif( n > 0, -1, 1 ) )
+            if nn < 0 then exit for
+            idx = nn
+        next
+        if idx <> -1 then CbApplyUserSel( p, idx )
+        return true
+
+    case TKM_KEYDOWN
+        if p->isEnabled = false then return false
+        if p->isOpen then return true
+        if CbCall( p, m ) then return true
+        dim as boolean bAlt = (m->mods and SDL_KMOD_ALT) <> 0
+        select case m->key
+        case SDLK_DOWN
+            if bAlt then
+                CbDropDown( p )
+            else
+                dim as long idx = CbNextSelectable( p, p->nCurSel, 1 )
+                if idx <> -1 then CbApplyUserSel( p, idx )
+            end if
+            return true
+        case SDLK_UP
+            if bAlt then
+                CbDropDown( p )
+            else
+                dim as long nFrom = iif( p->nCurSel = -1, p->itemCount, p->nCurSel )
+                dim as long idx = CbNextSelectable( p, nFrom, -1 )
+                if idx <> -1 then CbApplyUserSel( p, idx )
+            end if
+            return true
+        case SDLK_HOME
+            dim as long idx = CbNextSelectable( p, -1, 1 )
+            if idx <> -1 then CbApplyUserSel( p, idx )
+            return true
+        case SDLK_END
+            dim as long idx = CbNextSelectable( p, p->itemCount, -1 )
+            if idx <> -1 then CbApplyUserSel( p, idx )
+            return true
+        case SDLK_F4, SDLK_SPACE, SDLK_RETURN, SDLK_KP_ENTER
+            CbDropDown( p )
+            return true
+        end select
+        return false
+
+    case TKM_ENABLE
+        p->isEnabled = m->bFlag
+        if p->isEnabled = false then
+            p->isHot = false
+            CbCloseList( p )
+        end if
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_DESTROY
+        if p->pList then
+            dim as TK_HOST ptr pop = p->pList
+            pop->pUser = 0
+            if p->wList then p->wList->pData = 0
+            p->pList = 0
+            tkHost_Close( pop )
+        end if
+        delete p
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ---- EDITABLE mode: the edit's callbacks, told as the combo's ----------------------------------
+private sub CbEditChanged( byval hEdit as TK_WIDGET ptr )
+    dim as TKCOMBOBOX_STATE ptr p = CB( tkWidget_Parent( hEdit ) )
+    if p andalso p->EditChangeCallback then p->EditChangeCallback( p->hWin )
+end sub
+
+private sub CbEditEnter( byval hEdit as TK_WIDGET ptr )
+    dim as TKCOMBOBOX_STATE ptr p = CB( tkWidget_Parent( hEdit ) )
+    if p andalso p->EditEnterCallback then p->EditEnterCallback( p->hWin )
+end sub
+
+private sub CbEditFocus( byval hEdit as TK_WIDGET ptr, byval bGot as boolean )
+    dim as TKCOMBOBOX_STATE ptr p = CB( tkWidget_Parent( hEdit ) )
+    if p = 0 then exit sub
+    if bGot <> p->isFocused then p->isFocused = bGot : tkWidget_Invalidate( p->hWin )
+end sub
+
+private sub CbEditColors( byval p as TKCOMBOBOX_STATE ptr )
+    if p->wEdit = 0 then exit sub
+    dim as TKTEXTBOX_COLORS c = tkTextBox_ThemeColors( tkTheme_Get() )
+    c.BackColor = p->colors.BackColor
+    c.OuterBackColor = p->colors.BackColor
+    c.ForeColor = p->colors.ForeColor
+    tkTextBox_SetColors( p->wEdit, @c )
+end sub
+
+
+' ==========================================================================================
+' Public API -- vendor's surface, HWND replaced by the widget pointer
+' ==========================================================================================
+public function tkComboBox_Create( byval hParent as TK_WIDGET ptr, byval CtrlID as long ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TK_HOST ptr hh = hParent->pHost
+    dim as TKCOMBOBOX_STATE ptr p = new TKCOMBOBOX_STATE
+    p->id = CtrlID
+    p->nPadLeft = tkHost_Scale( hh, TKCOMBOBOX_DEFAULT_PADLEFT )
+    p->nPadRight = tkHost_Scale( hh, TKCOMBOBOX_DEFAULT_PADRIGHT )
+    p->nPadTop = tkHost_Scale( hh, TKCOMBOBOX_DEFAULT_PADTOP )
+    p->nPadBottom = tkHost_Scale( hh, TKCOMBOBOX_DEFAULT_PADBOTTOM )
+    p->nTextGap = tkHost_Scale( hh, TKCOMBOBOX_DEFAULT_TEXTGAP )
+    p->nChevronWidth = tkHost_Scale( hh, TKCOMBOBOX_DEFAULT_CHEVRONW )
+    p->nChevronHeight = tkHost_Scale( hh, TKCOMBOBOX_DEFAULT_CHEVRONH )
+    p->nChevronGap = tkHost_Scale( hh, TKCOMBOBOX_DEFAULT_CHEVRONGAP )
+    p->nCurvature = tkHost_Scale( hh, TKCOMBOBOX_DEFAULT_CURVATURE )
+    p->nFocusGap = tkHost_Scale( hh, TKCOMBOBOX_DEFAULT_FOCUSGAP )
+    p->nListItemHeight = tkHost_Scale( hh, TKCOMBOBOX_DEFAULT_LISTITEMHEIGHT )
+    p->nListCheckCol = tkHost_Scale( hh, TKCOMBOBOX_DEFAULT_LISTCHECKCOL )
+    p->nListRightCol = tkHost_Scale( hh, TKCOMBOBOX_DEFAULT_LISTRIGHTCOL )
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @CbProc, p )
+    w->isFocusable = true
+    p->hWin = w
+    p->colors = tkComboBox_ThemeColors( tkTheme_Get() )
+    CbDeriveListColors( p )
+    return w
+end function
+
+public function tkComboBox_GetID( byval hCombo as TK_WIDGET ptr ) as long
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return 0
+    return p->id
+end function
+
+' ---- items: every mutator SILENT, every structural one fixes up the selection ----------------
+private function CbInsertAt( byval p as TKCOMBOBOX_STATE ptr, byval idx as long, byref Text as ustring, _
+                             byval id as long, byval itemData as integer ) as long
+    if (idx < 0) orelse (idx > p->itemCount) then return -1
+    if p->itemCount > ubound( p->items ) then
+        redim preserve p->items( 0 to iif( p->itemCount < 8, 15, p->itemCount * 2 ) )
+    end if
+    for i as long = p->itemCount to idx + 1 step -1
+        p->items(i) = p->items(i - 1)
+    next
+    p->items(idx).wszText = Text
+    p->items(idx).id = id
+    p->items(idx).itemData = itemData
+    p->items(idx).isEnabled = true
+    p->itemCount += 1
+    if (p->nCurSel >= idx) andalso (idx < p->itemCount - 1) then p->nCurSel += 1
+    CbRemeasure( p )
+    return idx
+end function
+
+public function tkComboBox_AddItem( byval hCombo as TK_WIDGET ptr, byval Text as ustring, byval id as long = 0, byval itemData as integer = 0 ) as long
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return -1
+    return CbInsertAt( p, p->itemCount, Text, id, itemData )
+end function
+
+' Before idx; idx = the count appends. A selection at or after idx moves up.
+public function tkComboBox_InsertItem( byval hCombo as TK_WIDGET ptr, byval idx as long, byval Text as ustring, _
+                                       byval id as long = 0, byval itemData as integer = 0 ) as long
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return -1
+    return CbInsertAt( p, idx, Text, id, itemData )
+end function
+
+' Deleting the CURRENT item clears the selection to -1.
+public function tkComboBox_DeleteItem( byval hCombo as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if (p = 0) orelse (CbValid( p, idx ) = false) then return false
+    for i as long = idx to p->itemCount - 2
+        p->items(i) = p->items(i + 1)
+    next
+    p->itemCount -= 1
+    p->items(p->itemCount).wszText = ""
+    if p->nCurSel = idx then
+        p->nCurSel = -1
+    elseif p->nCurSel > idx then
+        p->nCurSel -= 1
+    end if
+    CbRemeasure( p )
+    return true
+end function
+
+public sub tkComboBox_Clear( byval hCombo as TK_WIDGET ptr )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then exit sub
+    for i as long = 0 to p->itemCount - 1
+        p->items(i).wszText = ""
+    next
+    p->itemCount = 0
+    p->nCurSel = -1
+    CbRemeasure( p )
+end sub
+
+public function tkComboBox_GetCount( byval hCombo as TK_WIDGET ptr ) as long
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return 0
+    return p->itemCount
+end function
+
+public function tkComboBox_IsValidItem( byval hCombo as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return false
+    return CbValid( p, idx )
+end function
+
+public function tkComboBox_GetItemText( byval hCombo as TK_WIDGET ptr, byval idx as long ) as ustring
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if (p = 0) orelse (CbValid( p, idx ) = false) then return ""
+    return p->items(idx).wszText
+end function
+
+public function tkComboBox_SetItemText( byval hCombo as TK_WIDGET ptr, byval idx as long, byval Text as ustring ) as boolean
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if (p = 0) orelse (CbValid( p, idx ) = false) then return false
+    p->items(idx).wszText = Text
+    CbRemeasure( p )
+    return true
+end function
+
+public function tkComboBox_GetItemID( byval hCombo as TK_WIDGET ptr, byval idx as long ) as long
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if (p = 0) orelse (CbValid( p, idx ) = false) then return 0
+    return p->items(idx).id
+end function
+
+public function tkComboBox_SetItemID( byval hCombo as TK_WIDGET ptr, byval idx as long, byval id as long ) as boolean
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if (p = 0) orelse (CbValid( p, idx ) = false) then return false
+    p->items(idx).id = id
+    return true
+end function
+
+public function tkComboBox_GetItemData( byval hCombo as TK_WIDGET ptr, byval idx as long ) as integer
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if (p = 0) orelse (CbValid( p, idx ) = false) then return 0
+    return p->items(idx).itemData
+end function
+
+public function tkComboBox_SetItemData( byval hCombo as TK_WIDGET ptr, byval idx as long, byval itemData as integer ) as boolean
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if (p = 0) orelse (CbValid( p, idx ) = false) then return false
+    p->items(idx).itemData = itemData
+    return true
+end function
+
+public function tkComboBox_GetItemEnabled( byval hCombo as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if (p = 0) orelse (CbValid( p, idx ) = false) then return false
+    return p->items(idx).isEnabled
+end function
+
+' Disabling the CURRENT item clears the selection to -1. Still counts for the width.
+public function tkComboBox_SetItemEnabled( byval hCombo as TK_WIDGET ptr, byval idx as long, byval bEnabled as boolean ) as boolean
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if (p = 0) orelse (CbValid( p, idx ) = false) then return false
+    p->items(idx).isEnabled = bEnabled
+    if (bEnabled = false) andalso (p->nCurSel = idx) then
+        dim as boolean bTextBefore = CbTextVisible( p )
+        p->nCurSel = -1
+        if CbTextVisible( p ) <> bTextBefore then CbRemeasure( p )
+    end if
+    tkWidget_Invalidate( hCombo )
+    return true
+end function
+
+public function tkComboBox_FindItemByID( byval hCombo as TK_WIDGET ptr, byval id as long ) as long
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return -1
+    for i as long = 0 to p->itemCount - 1
+        if p->items(i).id = id then return i
+    next
+    return -1
+end function
+
+' Exact caption, case-insensitively (no buffer limit here).
+public function tkComboBox_FindItemByText( byval hCombo as TK_WIDGET ptr, byval Text as ustring ) as long
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return -1
+    dim as ustring want = lcase( Text )
+    for i as long = 0 to p->itemCount - 1
+        if lcase( p->items(i).wszText ) = want then return i
+    next
+    return -1
+end function
+
+' ---- selection and state -------------------------------------------------------------------
+public function tkComboBox_GetCurSel( byval hCombo as TK_WIDGET ptr ) as long
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return -1
+    return p->nCurSel
+end function
+
+' SILENT. Refuses a disabled item; -1 always succeeds; TRUE when it already matched.
+public function tkComboBox_SetCurSel( byval hCombo as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return false
+    if idx <> -1 then
+        if CbSelectable( p, idx ) = false then return false
+    end if
+    if idx = p->nCurSel then return true
+    dim as boolean bTextBefore = CbTextVisible( p )
+    p->nCurSel = idx
+    tkWidget_Invalidate( hCombo )
+    if CbTextVisible( p ) <> bTextBefore then CbRemeasure( p )
+    return true
+end function
+
+' What the BUTTON shows: the selected caption, or the placeholder, or "".
+public function tkComboBox_GetText( byval hCombo as TK_WIDGET ptr ) as ustring
+    if (CB( hCombo ) <> 0) andalso (CB( hCombo )->wEdit <> 0) then return tkTextBox_GetText( CB( hCombo )->wEdit )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return ""
+    dim as boolean bPh
+    return CbDisplayText( p, bPh )
+end function
+
+public function tkComboBox_GetEnabled( byval hCombo as TK_WIDGET ptr ) as boolean
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return false
+    return p->isEnabled
+end function
+
+public sub tkComboBox_SetEnabled( byval hCombo as TK_WIDGET ptr, byval isEnabled as boolean )
+    if CB( hCombo ) then tkWidget_Enable( hCombo, isEnabled )
+end sub
+
+public function tkComboBox_GetFocused( byval hCombo as TK_WIDGET ptr ) as boolean
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return false
+    return p->isFocused
+end function
+
+public function tkComboBox_GetHot( byval hCombo as TK_WIDGET ptr ) as boolean
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return false
+    return p->isHot
+end function
+
+public sub tkComboBox_Refresh( byval hCombo as TK_WIDGET ptr )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p then CbRefresh( p )
+end sub
+
+' ---- the dropdown --------------------------------------------------------------------------
+public function tkComboBox_IsDroppedDown( byval hCombo as TK_WIDGET ptr ) as boolean
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return false
+    return p->isOpen
+end function
+
+' DropDown(true) fires FIRST, before a row exists; a failed open (disabled is refused before
+' it; an empty list after it) fires the matching DropDown(false).
+public function tkComboBox_DropDown( byval hCombo as TK_WIDGET ptr ) as boolean
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return false
+    return CbDropDown( p )
+end function
+
+' Fires DropDown(false) if it was open; silent when already closed. No selection change.
+public sub tkComboBox_CloseUp( byval hCombo as TK_WIDGET ptr )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p then CbCloseList( p )
+end sub
+
+' The open list's popup surface (for tkTest and appearance), or 0 while closed.
+public function tkComboBox_GetListHandle( byval hCombo as TK_WIDGET ptr ) as TK_HOST ptr
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return 0
+    return p->pList
+end function
+
+' Row idx's rect in the open list's window pixels; FALSE when closed or scrolled out.
+public function tkComboBox_GetListItemRect( byval hCombo as TK_WIDGET ptr, byval idx as long, byref rc as TKRECT ) as boolean
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then tkRect_SetEmpty( rc ) : return false
+    return CbListRowRect( p, idx, rc )
+end function
+
+' The provisional highlight in the open list (-1 none).
+public function tkComboBox_GetListHot( byval hCombo as TK_WIDGET ptr ) as long
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return -1
+    return p->nListHot
+end function
+
+public function tkComboBox_GetListTopIndex( byval hCombo as TK_WIDGET ptr ) as long
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return 0
+    return p->nListTop
+end function
+
+' The list's own scrollbar while open and overflowing, else 0.
+public function tkComboBox_GetListScrollBar( byval hCombo as TK_WIDGET ptr ) as TK_WIDGET ptr
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return 0
+    return p->wListBar
+end function
+
+' CLAIMS the list's colours: SetColors no longer re-derives them.
+public sub tkComboBox_SetListColors( byval hCombo as TK_WIDGET ptr, byval pColors as TKPOPUPMENU_COLORS ptr )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if (p = 0) orelse (pColors = 0) then exit sub
+    p->listColors = *pColors
+    p->bListColorsClaimed = true
+    if p->wList then tkWidget_Invalidate( p->wList )
+end sub
+
+public sub tkComboBox_GetListColors( byval hCombo as TK_WIDGET ptr, byval pColors as TKPOPUPMENU_COLORS ptr )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if (p = 0) orelse (pColors = 0) then exit sub
+    *pColors = p->listColors
+end sub
+
+public sub tkComboBox_SetListItemHeight( byval hCombo as TK_WIDGET ptr, byval nItemHeight as long )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p then p->nListItemHeight = iif( nItemHeight < 1, 1, nItemHeight )
+end sub
+
+public function tkComboBox_GetListItemHeight( byval hCombo as TK_WIDGET ptr ) as long
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return 0
+    return p->nListItemHeight
+end function
+
+' Rows shown before the list scrolls (PsPlatform's 12).
+public sub tkComboBox_SetListMaxRows( byval hCombo as TK_WIDGET ptr, byval nRows as long )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p then p->nListMaxRows = iif( nRows < 1, 1, nRows )
+end sub
+
+public function tkComboBox_GetListMaxRows( byval hCombo as TK_WIDGET ptr ) as long
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return 0
+    return p->nListMaxRows
+end function
+
+' ---- geometry and layout: raw pixels -------------------------------------------------------
+public function tkComboBox_GetTextMode( byval hCombo as TK_WIDGET ptr ) as long
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return CBO_TEXT_ALWAYS
+    return p->nTextMode
+end function
+
+' Values outside the three constants are ignored.
+public sub tkComboBox_SetTextMode( byval hCombo as TK_WIDGET ptr, byval nTextMode as long )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then exit sub
+    select case nTextMode
+    case CBO_TEXT_ALWAYS, CBO_TEXT_NEVER, CBO_TEXT_WHENSELECTED
+        p->nTextMode = nTextMode
+        CbRemeasure( p )
+    end select
+end sub
+
+' "Is a caption drawn right now", not "what mode is set".
+public function tkComboBox_GetShowText( byval hCombo as TK_WIDGET ptr ) as boolean
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return false
+    return CbTextVisible( p )
+end function
+
+public sub tkComboBox_SetShowText( byval hCombo as TK_WIDGET ptr, byval bShowText as boolean )
+    tkComboBox_SetTextMode( hCombo, iif( bShowText, CBO_TEXT_ALWAYS, CBO_TEXT_NEVER ) )
+end sub
+
+public function tkComboBox_GetAutoSize( byval hCombo as TK_WIDGET ptr ) as boolean
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return false
+    return p->bAutoSize
+end function
+
+' The control owns its SIZE; the host still owns its position.
+public sub tkComboBox_SetAutoSize( byval hCombo as TK_WIDGET ptr, byval bAutoSize as boolean )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then exit sub
+    p->bAutoSize = bAutoSize
+    CbApplyAutoSize( p )
+end sub
+
+public sub tkComboBox_GetPadding( byval hCombo as TK_WIDGET ptr, byref nLeft as long, byref nTop as long, byref nRight as long, byref nBottom as long )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then exit sub
+    nLeft = p->nPadLeft : nTop = p->nPadTop : nRight = p->nPadRight : nBottom = p->nPadBottom
+end sub
+
+public sub tkComboBox_SetPadding( byval hCombo as TK_WIDGET ptr, byval nLeft as long, byval nTop as long, byval nRight as long, byval nBottom as long )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then exit sub
+    p->nPadLeft = iif( nLeft < 0, 0, nLeft ) : p->nPadTop = iif( nTop < 0, 0, nTop )
+    p->nPadRight = iif( nRight < 0, 0, nRight ) : p->nPadBottom = iif( nBottom < 0, 0, nBottom )
+    CbRemeasure( p )
+end sub
+
+public function tkComboBox_GetTextGap( byval hCombo as TK_WIDGET ptr ) as long
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return 0
+    return p->nTextGap
+end function
+
+public sub tkComboBox_SetTextGap( byval hCombo as TK_WIDGET ptr, byval nTextGap as long )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then exit sub
+    p->nTextGap = iif( nTextGap < 0, 0, nTextGap )
+    CbRemeasure( p )
+end sub
+
+public sub tkComboBox_GetChevronSize( byval hCombo as TK_WIDGET ptr, byref nWidth as long, byref nHeight as long )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then exit sub
+    nWidth = p->nChevronWidth : nHeight = p->nChevronHeight
+end sub
+
+' Clamped to a minimum of 2x2.
+public sub tkComboBox_SetChevronSize( byval hCombo as TK_WIDGET ptr, byval nWidth as long, byval nHeight as long )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then exit sub
+    p->nChevronWidth = iif( nWidth < 2, 2, nWidth )
+    p->nChevronHeight = iif( nHeight < 2, 2, nHeight )
+    CbRemeasure( p )
+end sub
+
+public function tkComboBox_GetChevronGap( byval hCombo as TK_WIDGET ptr ) as long
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return 0
+    return p->nChevronGap
+end function
+
+' Inside the cell: repaint only.
+public sub tkComboBox_SetChevronGap( byval hCombo as TK_WIDGET ptr, byval nGap as long )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then exit sub
+    p->nChevronGap = iif( nGap < 0, 0, nGap )
+    tkWidget_Invalidate( hCombo )
+end sub
+
+public function tkComboBox_GetChevronThickness( byval hCombo as TK_WIDGET ptr ) as long
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return 0
+    return p->nChevronThick
+end function
+
+' Minimum 1; scaled by the DPI at paint time (the one thickness that is).
+public sub tkComboBox_SetChevronThickness( byval hCombo as TK_WIDGET ptr, byval nThickness as long )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then exit sub
+    p->nChevronThick = iif( nThickness < 1, 1, nThickness )
+    tkWidget_Invalidate( hCombo )
+end sub
+
+public function tkComboBox_GetCornerCurvature( byval hCombo as TK_WIDGET ptr ) as long
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return 0
+    return p->nCurvature
+end function
+
+' A DIAMETER; 0 = square.
+public sub tkComboBox_SetCornerCurvature( byval hCombo as TK_WIDGET ptr, byval nCurvature as long )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then exit sub
+    p->nCurvature = iif( nCurvature < 0, 0, nCurvature )
+    tkWidget_Invalidate( hCombo )
+end sub
+
+public function tkComboBox_GetBorderThickness( byval hCombo as TK_WIDGET ptr ) as long
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return 0
+    return p->nBorderThick
+end function
+
+public sub tkComboBox_SetBorderThickness( byval hCombo as TK_WIDGET ptr, byval nThickness as long )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then exit sub
+    p->nBorderThick = iif( nThickness < 0, 0, nThickness )
+    tkWidget_Invalidate( hCombo )
+end sub
+
+public sub tkComboBox_GetFocusRing( byval hCombo as TK_WIDGET ptr, byref nGap as long, byref nThickness as long )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then exit sub
+    nGap = p->nFocusGap : nThickness = p->nFocusThick
+end sub
+
+' Both change the ideal size: the band is reserved focused or not.
+public sub tkComboBox_SetFocusRing( byval hCombo as TK_WIDGET ptr, byval nGap as long, byval nThickness as long )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then exit sub
+    p->nFocusGap = iif( nGap < 0, 0, nGap )
+    p->nFocusThick = iif( nThickness < 0, 0, nThickness )
+    CbRemeasure( p )
+end sub
+
+' Valid BEFORE the control is sized.
+public sub tkComboBox_GetIdealSize( byval hCombo as TK_WIDGET ptr, byref nWidth as long, byref nHeight as long )
+    nWidth = 0 : nHeight = 0
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then exit sub
+    if p->bLayoutDirty then CbLayout( p )
+    nWidth = p->nIdealW : nHeight = p->nIdealH
+end sub
+
+private function CbGetRect( byval hCombo as TK_WIDGET ptr, byref rc as TKRECT, byval nPart as long ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return false
+    if p->bLayoutDirty then CbLayout( p )
+    if p->bLayoutDirty then return false
+    select case nPart
+    case 1 : rc = p->rcText
+    case 2 : rc = p->rcChevron
+    case 3 : rc = p->rcVisual
+    case else : rc = p->rcButton
+    end select
+    return true
+end function
+
+public function tkComboBox_GetButtonRect( byval hCombo as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return CbGetRect( hCombo, rc, 0 )
+end function
+' TRUE with an EMPTY rect in arrow-only mode.
+public function tkComboBox_GetTextRect( byval hCombo as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return CbGetRect( hCombo, rc, 1 )
+end function
+public function tkComboBox_GetChevronRect( byval hCombo as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return CbGetRect( hCombo, rc, 2 )
+end function
+public function tkComboBox_GetVisualRect( byval hCombo as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return CbGetRect( hCombo, rc, 3 )
+end function
+
+' ---- appearance ----------------------------------------------------------------------------
+public sub tkComboBox_GetColors( byval hCombo as TK_WIDGET ptr, byval pColors as TKCOMBOBOX_COLORS ptr )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if (p = 0) orelse (pColors = 0) then exit sub
+    *pColors = p->colors
+end sub
+
+' Copies, PINS, and re-derives the list's colours unless they were claimed.
+public sub tkComboBox_SetColors( byval hCombo as TK_WIDGET ptr, byval pColors as TKCOMBOBOX_COLORS ptr )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if (p = 0) orelse (pColors = 0) then exit sub
+    p->colors = *pColors
+    p->bColorsPinned = true
+    CbDeriveListColors( p )
+    tkWidget_Invalidate( hCombo )
+end sub
+
+public function tkComboBox_ThemeColors( byref t as TKTHEME_COLORS ) as TKCOMBOBOX_COLORS
+    dim as TKCOMBOBOX_COLORS c
+    c.BackColor = t.Surface : c.ForeColor = t.Text : c.BorderColor = t.Surface : c.ChevronColor = t.Text
+    c.BackColorHot = t.SurfaceHot : c.ForeColorHot = t.TextHot : c.BorderColorHot = t.SurfaceHot : c.ChevronColorHot = t.TextHot
+    c.BackColorOpen = t.Surface : c.ForeColorOpen = t.Accent : c.BorderColorOpen = t.Surface : c.ChevronColorOpen = t.Accent
+    c.BackColorDisabled = t.SurfaceDisabled : c.ForeColorDisabled = t.TextDisabled
+    c.BorderColorDisabled = t.SurfaceDisabled : c.ChevronColorDisabled = t.TextDisabled
+    c.ForeColorPlaceholder = t.TextDim
+    c.FocusRingColor = t.FocusRing
+    return c
+end function
+
+public sub tkComboBox_ApplyTheme( byval hCombo as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if (p = 0) orelse p->bColorsPinned then exit sub
+    p->colors = tkComboBox_ThemeColors( t )
+    CbDeriveListColors( p )
+    tkWidget_Invalidate( hCombo )
+end sub
+
+public sub tkComboBox_UnpinColors( byval hCombo as TK_WIDGET ptr )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then exit sub
+    p->bColorsPinned = false
+    tkComboBox_ApplyTheme( hCombo, tkTheme_Get() )
+end sub
+
+public function tkComboBox_GetFont( byval hCombo as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return 0
+    return p->pTextFont
+end function
+
+' Borrowed. Also the measuring font and the list's font.
+public sub tkComboBox_SetFont( byval hCombo as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then exit sub
+    p->pTextFont = f
+    CbRemeasure( p )
+end sub
+
+public sub tkComboBox_ApplyFonts( byval hCombo as TK_WIDGET ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
+    if fText then tkComboBox_SetFont( hCombo, fText )
+end sub
+
+public function tkComboBox_GetPlaceholderText( byval hCombo as TK_WIDGET ptr ) as ustring
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return ""
+    return p->wszPlaceholder
+end function
+
+' Never measured: repaint only.
+public sub tkComboBox_SetPlaceholderText( byval hCombo as TK_WIDGET ptr, byval Text as ustring )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then exit sub
+    p->wszPlaceholder = Text
+    tkWidget_Invalidate( hCombo )
+end sub
+
+' ---- callbacks -----------------------------------------------------------------------------
+public sub tkComboBox_SetPaintCallback( byval hCombo as TK_WIDGET ptr, byval usersub as CBO_PaintCallbackSub )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then exit sub
+    p->PaintCallback = usersub
+    tkWidget_Invalidate( hCombo )
+end sub
+
+public sub tkComboBox_SetMessageCallback( byval hCombo as TK_WIDGET ptr, byval userfunc as CBO_MessageCallbackFunc )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p then p->MessageCallback = userfunc
+end sub
+
+public sub tkComboBox_SetSelChangeCallback( byval hCombo as TK_WIDGET ptr, byval usersub as CBO_SelChangeCallbackSub )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p then p->SelChangeCallback = usersub
+end sub
+
+public sub tkComboBox_SetDropDownCallback( byval hCombo as TK_WIDGET ptr, byval usersub as CBO_DropDownCallbackSub )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p then p->DropDownCallback = usersub
+end sub
+
+' ---- EDITABLE mode (Win32's CBS_DROPDOWN) -------------------------------------------------------
+' A single-line tkTextBox over the text area: the user may type a value the list does not hold.
+' A pick from the list fills it (silently: SelChange reports the pick); typing notifies through
+' SetEditChangeCallback, Enter through SetEditEnterCallback; the chevron, F4 and Alt+Down still
+' drop the list. The combo itself stops taking focus: the edit does, and the combo shows the ring.
+public sub tkComboBox_SetEditable( byval hCombo as TK_WIDGET ptr, byval bEditable as boolean )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then exit sub
+    if bEditable andalso (p->wEdit = 0) then
+        p->wEdit = tkTextBox_Create( hCombo, p->id, false )
+        tkTextBox_SetFont( p->wEdit, CbFont( p ) )
+        tkTextBox_SetBorderWidth( p->wEdit, 0 )
+        tkTextBox_SetChangeCallback( p->wEdit, @CbEditChanged )
+        tkTextBox_SetEnterPressedCallback( p->wEdit, @CbEditEnter )
+        tkTextBox_SetFocusCallback( p->wEdit, @CbEditFocus )
+        CbEditColors( p )
+        if p->nCurSel >= 0 then tkTextBox_SetText( p->wEdit, p->items(p->nCurSel).wszText )
+        hCombo->isFocusable = false
+    elseif (bEditable = false) andalso (p->wEdit <> 0) then
+        tkWidget_Destroy( p->wEdit )
+        p->wEdit = 0
+        hCombo->isFocusable = true
+    end if
+    CbRemeasure( p )
+end sub
+
+public function tkComboBox_GetEditable( byval hCombo as TK_WIDGET ptr ) as boolean
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    return (p <> 0) andalso (p->wEdit <> 0)
+end function
+
+' The edit's text, set silently. The selection is not changed.
+public sub tkComboBox_SetEditText( byval hCombo as TK_WIDGET ptr, byval Text as ustring )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if (p = 0) orelse (p->wEdit = 0) then exit sub
+    tkTextBox_SetText( p->wEdit, Text )
+end sub
+
+' The edit (a tkTextBox), for anything the combo does not wrap; 0 when not editable.
+public function tkComboBox_GetEditHandle( byval hCombo as TK_WIDGET ptr ) as TK_WIDGET ptr
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p = 0 then return 0
+    return p->wEdit
+end function
+
+public sub tkComboBox_SetEditChangeCallback( byval hCombo as TK_WIDGET ptr, byval usersub as CBO_EditCallbackSub )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p then p->EditChangeCallback = usersub
+end sub
+
+public sub tkComboBox_SetEditEnterCallback( byval hCombo as TK_WIDGET ptr, byval usersub as CBO_EditCallbackSub )
+    dim as TKCOMBOBOX_STATE ptr p = CB( hCombo )
+    if p then p->EditEnterCallback = usersub
+end sub

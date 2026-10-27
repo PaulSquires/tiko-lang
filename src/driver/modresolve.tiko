@@ -7,6 +7,7 @@
 #include once "driver/manifest.ti"
 #include once "support/text.ti"
 #include once "codegen/dllimplib.ti"
+#include once "codegen/target.ti"
 #include once "build/events.ti"
 
 namespace Tko.Modules
@@ -158,23 +159,54 @@ private function PkgDir_( byref ctx as Tko.CompilerContext ) as string
     return ""
 end function
 
+'' ONE FILE BESIDE THE OUTPUT, as 'nm' -- left alone when a copy there has the same size and is
+'' no older -- and told to the build observer either way, so 'tiko build''s copy_to takes it.
+private function CopyBeside_ _
+    ( byref ctx as Tko.CompilerContext, byref src as string, byref outDir as string, _
+      byref outSpelled as string, byref nm as string, byref failSrc as string, _
+      byref failDst as string ) as boolean
+    dim as string dst = JoinPath( outDir, nm )
+    if SamePath_( dst, src ) = false then
+        dim as boolean fresh = false
+        dim as fs.FsResultInfo rs = fs.Stat( src )
+        dim as fs.FsResultInfo rd = fs.Stat( dst )
+        if rs.IsOk( ) andalso rd.IsOk( ) then
+            dim as fs.FileInfo fsrc = rs.Value( )
+            dim as fs.FileInfo fdst = rd.Value( )
+            fresh = (fsrc.Size( ) = fdst.Size( )) andalso (fsrc.ModifiedUtc( ) <= fdst.ModifiedUtc( ))
+        end if
+        if fresh = false then
+            dim as fs.FsResultBool r = fs.CopyFile( src, dst, true )
+            if r.IsOk( ) = false then
+                failSrc = src
+                failDst = dst
+                return false
+            end if
+        end if
+    end if
+    Tko.Build.OnRuntimeLib( ctx.build, JoinPath( outSpelled, nm ) )
+    return true
+end function
+
 '' A VENDOR PACKAGE'S DYNAMIC LIBRARIES, BESIDE THE OUTPUT (tiko-vendor RFC-0002 V13). The
 '' library stays in the toolchain's pkg/vendor/<module>/lib, where neither Windows' loader nor
 '' an ELF $ORIGIN looks, so a 'link dynamic' program would not start: measured, both exit
 '' 'cannot open shared object' / 0xC0000135. Each linked file under pkg/vendor that is a
 '' '.dll' or a '.so' -- or a Windows import library with its '.dll' beside it -- is copied
 '' into the output's directory, unless a copy there has the same size and is no older.
-'' False at the first copy that fails, naming it.
+'' Then each file of ctx.runtimeFiles, under its own name. False at the first copy that fails,
+'' naming it.
 function CopyVendorLibs _
     ( byref ctx as Tko.CompilerContext, byref outPath as string, _
       byref failSrc as string, byref failDst as string ) as boolean
     dim as string pk = PkgDir_( ctx )
-    if len( pk ) = 0 then return true
-    dim as string vdir = NormPath( AbsPath( JoinPath( pk, "vendor" ) ) ) & "/"
+    dim as string vdir = ""
+    if len( pk ) > 0 then vdir = NormPath( AbsPath( JoinPath( pk, "vendor" ) ) ) & "/"
     dim as string outDir = DirOfFile( AbsPath( outPath ) )
     '' ...and as the output is spelled, for what the build observer is told.
     dim as string outSpelled = DirOfFile( outPath )
     for each lf as string in ctx.link.pragmaLibFiles
+        if len( vdir ) = 0 then exit for
         dim as string src = NormPath( AbsPath( lf ) )
         if SamePath_( left( src, len( vdir ) ), vdir ) = false then continue for
         dim as string low = Tko.Text.LowerAscii( src )
@@ -206,28 +238,14 @@ function CopyVendorLibs _
             dim as string son = Tko.Codegen.ElfSoname( run_ )
             if len( son ) > 0 then nm = son
         end if
-        dim as string dst = JoinPath( outDir, nm )
-        if SamePath_( dst, run_ ) then
-            Tko.Build.OnRuntimeLib( ctx.build, JoinPath( outSpelled, nm ) )
-            continue for
-        end if
-        dim as fs.FsResultInfo rs = fs.Stat( run_ )
-        dim as fs.FsResultInfo rd = fs.Stat( dst )
-        if rs.IsOk( ) andalso rd.IsOk( ) then
-            dim as fs.FileInfo fsrc = rs.Value( )
-            dim as fs.FileInfo fdst = rd.Value( )
-            if (fsrc.Size( ) = fdst.Size( )) andalso (fsrc.ModifiedUtc( ) <= fdst.ModifiedUtc( )) then
-                Tko.Build.OnRuntimeLib( ctx.build, JoinPath( outSpelled, nm ) )
-                continue for
-            end if
-        end if
-        dim as fs.FsResultBool r = fs.CopyFile( run_, dst, true )
-        if r.IsOk( ) = false then
-            failSrc = run_
-            failDst = dst
-            return false
-        end if
-        Tko.Build.OnRuntimeLib( ctx.build, JoinPath( outSpelled, nm ) )
+        if CopyBeside_( ctx, run_, outDir, outSpelled, nm, failSrc, failDst ) = false then return false
+    next
+    '' THE FILES A MODULE NEEDS AT RUN TIME ([vendor.<module>] runtime), flat, by their own
+    '' names: a font, a library the program loads itself, which no link names.
+    for each rf as string in ctx.runtimeFiles
+        dim as string src = NormPath( AbsPath( rf ) )
+        dim as string nm = mid( src, instrrev( src, "/" ) + 1 )
+        if CopyBeside_( ctx, src, outDir, outSpelled, nm, failSrc, failDst ) = false then return false
     next
     return true
 end function
@@ -245,6 +263,7 @@ sub ResetPackages( byref ctx as Tko.CompilerContext )
     ctx.pkgDefOwner.Clear( ) : ctx.pkgDefText.Clear( )
     ctx.pkgDdDep.Clear( ) : ctx.pkgDdText.Clear( )
     ctx.pkgLinkOwner.Clear( ) : ctx.pkgLinkMod.Clear( ) : ctx.pkgLinkModes.Clear( )
+    ctx.pkgRtOwner.Clear( ) : ctx.pkgRtMod.Clear( ) : ctx.pkgRtFiles.Clear( )
     ctx.pkgRootKnown = false
 end sub
 
@@ -305,6 +324,9 @@ private function Register_ _
     for k as int32 = 0 to m.vendorMods.Count - 1
         ctx.pkgLinkOwner.Push( idx ) : ctx.pkgLinkMod.Push( m.vendorMods[k] ) : ctx.pkgLinkModes.Push( m.vendorLinks[k] )
     next
+    for k as int32 = 0 to m.vendorRtMods.Count - 1
+        ctx.pkgRtOwner.Push( idx ) : ctx.pkgRtMod.Push( m.vendorRtMods[k] ) : ctx.pkgRtFiles.Push( m.vendorRtFiles[k] )
+    next
     if isRoot then
         for k as int32 = 0 to m.ddDep.Count - 1
             ctx.pkgDdDep.Push( Tko.Text.LowerAscii( m.ddDep[k] ) ) : ctx.pkgDdText.Push( m.ddDefine[k] )
@@ -349,6 +371,15 @@ function RootPackage _
     return Register_( ctx, ctx.pkgRootName, ctx.pkgRootDir, true )
 end function
 
+'' A MODULE'S PATH BELOW ITS PACKAGE, as a [vendor.<module>] table names it: 'vendor.SDL3.image'
+'' of package 'vendor' is 'sdl3.image'; a package's root module goes by the package's name.
+private function ModBelow_( byref name_ as string, byref chain as string ) as string
+    dim as string below = Tko.Text.LowerAscii( chain )
+    dim as string pre = Tko.Text.LowerAscii( name_ ) & "."
+    if left( below, len( pre ) ) = pre then below = mid( below, len( pre ) + 1 )
+    return below
+end function
+
 '' THE LINK MODES MODULE 'chain' OF PACKAGE 'name_' SHIPS, "|static|dynamic|" -- its
 '' manifest's [vendor.<module>] links -- or "" when it declares none: such a module takes no
 '' '#import ... link' (tiko-vendor RFC-0002 V7).
@@ -356,9 +387,7 @@ function LinkModesOf( byref ctx as Tko.CompilerContext, byref name_ as string, b
     dim as int32 at = PkgIndex_( ctx, Tko.Text.LowerAscii( name_ ) )
     if at < 0 then return ""
     dim as string idx = str( at )
-    dim as string below = Tko.Text.LowerAscii( chain )
-    dim as string pre = Tko.Text.LowerAscii( name_ ) & "."
-    if left( below, len( pre ) ) = pre then below = mid( below, len( pre ) + 1 )
+    dim as string below = ModBelow_( name_, chain )
     for k as int32 = 0 to ctx.pkgLinkOwner.Count - 1
         if (ctx.pkgLinkOwner[k] = idx) andalso (Tko.Text.LowerAscii( ctx.pkgLinkMod[k] ) = below) then
             return ctx.pkgLinkModes[k]
@@ -366,6 +395,44 @@ function LinkModesOf( byref ctx as Tko.CompilerContext, byref name_ as string, b
     next
     return ""
 end function
+
+'' THE FILES MODULE 'chain' OF PACKAGE 'name_' NEEDS AT RUN TIME -- its manifest's
+'' [vendor.<module>] runtime -- each entry as written and its path below the module's directory
+'' 'dir_', as '#foreignlib "lib/x"' is. An entry whose file name has no extension is a shared
+'' library, spelled as the target spells one: 'lib/x' is lib/x.dll for a Windows target,
+'' lib/libx.so for an ELF one, lib/libx.dylib for Mach-O.
+sub RuntimeFilesOf _
+    ( byref ctx as Tko.CompilerContext, byref name_ as string, byref chain as string, _
+      byref dir_ as string, byref entries as Tko.StrVec, byref paths as Tko.StrVec )
+    dim as int32 at = PkgIndex_( ctx, Tko.Text.LowerAscii( name_ ) )
+    if at < 0 then return
+    dim as string idx = str( at )
+    dim as string below = ModBelow_( name_, chain )
+    dim as Tko.Codegen.ObjFormat ofmt = Tko.Codegen.TargetFor( ctx.options.target ).objFormat
+    for k as int32 = 0 to ctx.pkgRtOwner.Count - 1
+        if (ctx.pkgRtOwner[k] <> idx) orelse (Tko.Text.LowerAscii( ctx.pkgRtMod[k] ) <> below) then continue for
+        dim as string v = ctx.pkgRtFiles[k]
+        dim as int32 st = 1
+        while st <= len( v )
+            dim as int32 nl_ = instr( st, v, chr( 10 ) )
+            if nl_ = 0 then nl_ = len( v ) + 1
+            dim as string one = mid( v, st, nl_ - st )
+            st = nl_ + 1
+            dim as string e = NormPath( one )
+            dim as int32 sl = instrrev( e, "/" )
+            dim as string base_ = mid( e, sl + 1 )
+            if instr( base_, "." ) = 0 then
+                select case ofmt
+                case Tko.Codegen.OBJ_COFF : e &= ".dll"
+                case Tko.Codegen.OBJ_ELF  : e = left( e, sl ) & "lib" & base_ & ".so"
+                case else                 : e = left( e, sl ) & "lib" & base_ & ".dylib"
+                end select
+            end if
+            entries.Push( one )
+            paths.Push( JoinPath( dir_, e ) )
+        wend
+    next
+end sub
 
 '' WHAT A MODULE UNIT IS COMPILED WITH besides its files: its package's defines, and
 '' TIKO_LINK_STATIC or TIKO_LINK_DYNAMIC when the program chose a link mode for it

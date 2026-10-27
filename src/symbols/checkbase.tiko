@@ -116,7 +116,9 @@ end function
 '' PARAMETER, are refused -- and so is 'E.EA' inside 'f( byval e as E )', because there 'e'
 '' IS the parameter -- while the nested 'x.IE.I1', a member access that names the type,
 '' compiles. tiko bound the member and printed it. Reports TKO0835 and answers true for a
-'' plain name bound to a variable or parameter whose type is an enum; false otherwise.
+'' plain name bound to a variable, parameter or FIELD whose type is an enum; false otherwise.
+'' A field is the implicit 'this.E' of a method body -- fbc's error 3 there, and tiko said
+'' nothing and stopped in lowering on TKO0994 (tkEdit TK-001).
 private function EnumValueBase_ _
     ( byref c as Ctx, byval b as Tko.NodeId, byval bt as Tko.TypeId ) as boolean
 
@@ -128,7 +130,7 @@ private function EnumValueBase_ _
     dim as Tko.Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( b ) )
     if s = nullptr then return false
     select case cast( Tko.SymbolKind, s->kind )
-    case Tko.SYM_VARIABLE, Tko.SYM_PARAMETER
+    case Tko.SYM_VARIABLE, Tko.SYM_PARAMETER, Tko.SYM_FIELD
     case else
         return false
     end select

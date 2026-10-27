@@ -1,0 +1,291 @@
+' tkTooltip + tkTipHost self-test: the pure placement/stem/fade/decision functions, the layout
+' formula, the state machine driven tick by tick with injected time (tkTooltip_TickForTest),
+' the real clock driven by pushed mouse events, the listener (scale, theme, destruction), the
+' render probes, and tkTipHost. Two passes, scale 1.0 and 1.75.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkTooltip"
+#import "vendor/tkControls/tkTest"
+using tkTooltip
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as long gCbCalls, gShowEdges
+dim shared as boolean gVeto
+dim shared as ustring gCbText
+
+function TipText( byval t as TK_TIP ptr, byval a as TK_WIDGET ptr, byval idx as long ) as ustring
+    gCbCalls += 1
+    return gCbText
+end function
+
+function OnShow( byval t as TK_TIP ptr, byval a as TK_WIDGET ptr, byval idx as long, byval bShowing as boolean ) as boolean
+    gShowEdges += 1
+    if bShowing andalso gVeto then return false
+    return true
+end function
+
+' A plain probe the tip attaches to.
+function PlainProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    if m->msg = TKM_PAINT then
+        dim as TKRECT rc
+        tkRect_Set( rc, 0, 0, w->cw, w->ch )
+        m->pPaint->SetBackColor( &hFF404850ul )
+        m->pPaint->PaintRect( @rc )
+        return true
+    end if
+    return false
+end function
+
+function RectStr( byref r as TKRECT ) as string
+    return tkRect_Str( r )
+end function
+
+sub PureFunctions()
+    tkTest_Begin( "pure" )
+    dim as TKRECT work, a
+    tkRect_Set( work, 0, 0, 1000, 800 )
+    tkRect_Set( a, 100, 100, 200, 130 )
+    dim as TKPOINT p = tkTooltip_ComputeOrigin( a, 150, 40, work, TIP_ALIGN_BELOW, 0 )
+    tkTest_Check( "BELOW: under the anchor", p.x = 100 andalso p.y = 130 )
+    tkRect_Set( a, 100, 780, 200, 790 )
+    p = tkTooltip_ComputeOrigin( a, 150, 40, work, TIP_ALIGN_BELOW, 0 )
+    tkTest_Check( "BELOW: no room -> flips ABOVE", p.y = 740, "" & p.y )
+    tkTest_Check( "stem side follows the RESULT", tkTooltip_StemOnTop( a, p, TIP_ALIGN_BELOW ) = false )
+    tkRect_Set( a, 100, 10, 200, 30 )
+    p = tkTooltip_ComputeOrigin( a, 150, 40, work, TIP_ALIGN_ABOVE, 0 )
+    tkTest_Check( "ABOVE: no room -> flips BELOW", p.y = 30, "" & p.y )
+    tkRect_Set( a, 950, 100, 960, 110 )
+    p = tkTooltip_ComputeOrigin( a, 150, 40, work, TIP_ALIGN_BELOW, 0 )
+    tkTest_Check( "horizontal clamp into the work area", p.x = 850 )
+    tkRect_Set( a, 100, 900, 100, 900 )             ' an anchor OFF the work area (the cursor)
+    p = tkTooltip_ComputeOrigin( a, 150, 40, work, TIP_ALIGN_CURSOR, 20 )
+    tkTest_Check( "full clamp after the flip: bottom inside", p.y + 40 <= 800, "" & p.y )
+    dim as TKPOINT pts(0 to 2)
+    tkTest_Check( "stem fits", tkTooltip_ComputeStem( 100, 50, true, 14, 7, 5, 6, @pts(0) ) andalso pts(1).x = 3 + 7 andalso pts(1).y = 0, pts(1).x & "," & pts(1).y )
+    tkTest_Check( "stem: too narrow -> none", tkTooltip_ComputeStem( 12, 50, true, 14, 7, 5, 6, @pts(0) ) = false )
+    tkTest_Check( "alpha ramp ends + middle", tkTooltip_ComputeAlpha( 0, 120, true ) = 0 andalso tkTooltip_ComputeAlpha( 120, 120, true ) = 255 andalso tkTooltip_ComputeAlpha( 60, 120, true ) = 127 andalso tkTooltip_ComputeAlpha( 60, 120, false ) = 128 )
+    tkTest_Check( "alpha: no fade is instant", tkTooltip_ComputeAlpha( 0, 0, true ) = 255 andalso tkTooltip_ComputeAlpha( 0, 0, false ) = 0 )
+    tkTest_Check( "ShouldShow: all conditions", tkTooltip_ShouldShow( true, true, true, false, false ) )
+    tkTest_Check( "ShouldShow: each blocker blocks", (tkTooltip_ShouldShow( false, true, true, false, false ) orelse tkTooltip_ShouldShow( true, false, true, false, false ) orelse tkTooltip_ShouldShow( true, true, false, false, false ) orelse tkTooltip_ShouldShow( true, true, true, true, false ) orelse tkTooltip_ShouldShow( true, true, true, false, true )) = false )
+end sub
+
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkTooltip selftest", 640, 480, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host", false, *SDL_GetError() ) : exit sub
+    dim as TTF_Font ptr fText = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 9 )
+    dim as TTF_Font ptr fTitle = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI_BOLD, 9 )
+    dim as TTF_Font ptr fGlyph = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_ICONS, 12 )
+    dim as TK_WIDGET ptr a = tkWidget_Create( h, 1, @PlainProc, 0 )
+    tkWidget_SetPos( a, tkHost_Scale( h, 50 ), tkHost_Scale( h, 50 ), tkHost_Scale( h, 120 ), tkHost_Scale( h, 40 ) )
+    dim as TK_WIDGET ptr far_ = tkWidget_Create( h, 2, @PlainProc, 0 )
+    tkWidget_SetPos( far_, tkHost_Scale( h, 400 ), tkHost_Scale( h, 300 ), tkHost_Scale( h, 100 ), tkHost_Scale( h, 40 ) )
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 300 )
+
+    dim as TK_TIP ptr t = tkTooltip_Create( a )
+    tkTest_Check( "created + attached", (t <> 0) andalso (tkTooltip_GetAttached( t ) = a) )
+    tkTooltip_SetFonts( t, fText )
+    tkTooltip_SetFadeTime( t, 0 )
+
+    ' ---- layout: text only ----------------------------------------------------------------------
+    tkTooltip_SetText( t, "Hello tooltip" )
+    dim as long iw, ih
+    tkTooltip_GetIdealSize( t, iw, ih )
+    dim as long padX = tkHost_Scale( h, TKTOOLTIP_DEFAULT_PADX ), padY = tkHost_Scale( h, TKTOOLTIP_DEFAULT_PADY )
+    dim as long tw = tkText_Width( fText, "Hello tooltip" ), th = tkText_Height( fText )
+    tkTest_Check( "ideal W = text + 2 pad + 2 border", iw = tw + 2 * padX + 2, iw & " vs " & (tw + 2 * padX + 2) )
+    tkTest_Check( "ideal H = text + 2 pad + 2 border", ih = th + 2 * padY + 2, ih & " vs " & (th + 2 * padY + 2) )
+    tkTest_Check( "no glyph -> empty glyph part", tkRect_IsEmpty( tkTooltip_GetPartRect( t, TIP_PART_GLYPH ) ) )
+    ' glyph + title row
+    tkTooltip_SetFonts( t, fText, fTitle, fGlyph )
+    tkTooltip_SetTitle( t, "Title" )
+    tkTooltip_SetGlyph( t, wchr( TK_ICON_INFO ) )
+    dim as TKRECT rG = tkTooltip_GetPartRect( t, TIP_PART_GLYPH ), rT = tkTooltip_GetPartRect( t, TIP_PART_TITLE ), rX = tkTooltip_GetPartRect( t, TIP_PART_TEXT )
+    dim as long cell = tkHost_Scale( h, TKTOOLTIP_DEFAULT_GLYPHCELL ), gap = tkHost_Scale( h, TKTOOLTIP_DEFAULT_GLYPHGAP )
+    tkTest_Check( "glyph cell declared, at the content origin", (rG.right - rG.left) = cell andalso rG.left = 1 + padX, RectStr( rG ) )
+    tkTest_Check( "title after glyph + gap", rT.left = rG.right + gap, RectStr( rT ) )
+    tkTest_Check( "message below the title row", rX.top >= rT.bottom andalso rX.top >= rG.bottom, RectStr( rX ) )
+    ' wrapping
+    tkTooltip_SetTitle( t, "" ) : tkTooltip_SetGlyph( t, "" )
+    tkTooltip_SetText( t, "a long message that has to wrap across several lines of the tip" )
+    dim as long w0, h0
+    tkTooltip_GetIdealSize( t, w0, h0 )
+    tkTooltip_SetMaxWidth( t, tkHost_Scale( h, 140 ) )
+    dim as long w1, h1
+    tkTooltip_GetIdealSize( t, w1, h1 )
+    tkTest_Check( "max width wraps: narrower and taller", (w1 <= tkHost_Scale( h, 140 )) andalso (h1 > h0) andalso (w1 < w0), w0 & "x" & h0 & " -> " & w1 & "x" & h1 )
+    tkTooltip_SetMaxWidth( t, 0 )
+    tkTooltip_SetStyle( t, TIP_STYLE_BALLOON )
+    dim as long w2, h2
+    tkTooltip_GetIdealSize( t, w2, h2 )
+    tkTest_Check( "balloon adds the stem band to the height only", w2 = w0 andalso h2 = h0 + tkHost_Scale( h, TKTOOLTIP_DEFAULT_STEMH ) )
+    tkTooltip_SetStyle( t, TIP_STYLE_RECT )
+
+    ' ---- probes ---------------------------------------------------------------------------------
+    tkTooltip_SetText( t, "Probe" )
+    tkTest_Check( "rendered body has fill + frame + text tones", tkTooltip_CountRenderedTones( t, TIP_PART_BODY ) > 3, "" & tkTooltip_CountRenderedTones( t, TIP_PART_BODY ) )
+    dim as ulong hA = tkTooltip_HashRenderedPart( t, TIP_PART_TEXT )
+    tkTooltip_SetText( t, "Other" )
+    tkTest_Check( "text change reaches the pixels", tkTooltip_HashRenderedPart( t, TIP_PART_TEXT ) <> hA )
+
+    ' ---- the state machine, tick by tick ---------------------------------------------------------
+    tkTooltip_SetText( t, "Dwell" )
+    tkTooltip_SetInitialDelay( t, 500 ) : tkTooltip_SetReshowDelay( t, 100 ) : tkTooltip_SetAutoPopDelay( t, 5000 )
+    dim as long cx = tkTest_CX( a ), cy = tkTest_CY( a )
+    tkTooltip_TickForTest( t, cx, cy, true, false, 10000 )      ' starts resting
+    tkTooltip_TickForTest( t, cx, cy, true, false, 10499 )
+    tkTest_Check( "not before the initial delay", tkTooltip_IsVisible( t ) = false )
+    tkTooltip_TickForTest( t, cx, cy, true, false, 10500 )
+    tkTest_Check( "shows at the initial delay", tkTooltip_IsVisible( t ) )
+    dim as TK_HOST ptr ts = tkTooltip_Surface( t )
+    tkTest_Check( "shown as its own tooltip surface", (ts <> 0) andalso (ts->kind = TK_SURF_TOOLTIP) )
+    if ts then
+        dim as long sw, sh
+        tkHost_PixelSize( ts, sw, sh )
+        tkTooltip_GetIdealSize( t, iw, ih )
+        tkTest_Check( "surface is the ideal size", (abs( sw - iw ) <= 1) andalso (abs( sh - ih ) <= 1), sw & "x" & sh & " vs " & iw & "x" & ih )
+    end if
+    tkTooltip_TickForTest( t, cx + 1, cy + 1, true, false, 10600 )
+    tkTest_Check( "jitter inside the tolerance keeps it", tkTooltip_IsVisible( t ) )
+    tkTooltip_TickForTest( t, cx, cy, true, true, 10700 )
+    tkTest_Check( "a button press hides it", tkTooltip_IsVisible( t ) = false )
+    tkTooltip_TickForTest( t, cx, cy, true, false, 12000 )
+    tkTooltip_TickForTest( t, cx, cy, true, false, 13000 )
+    tkTest_Check( "...and suppresses it until the cursor leaves", tkTooltip_IsVisible( t ) = false )
+    tkTooltip_TickForTest( t, cx, cy, false, false, 13100 )
+    tkTooltip_TickForTest( t, cx, cy, true, false, 13200 )
+    tkTooltip_TickForTest( t, cx, cy, true, false, 13300 )
+    tkTest_Check( "leaving clears it; the RESHOW delay applies after a recent hide", tkTooltip_IsVisible( t ) = false )
+    tkTooltip_TickForTest( t, cx, cy, false, false, 20000 )   ' long gone: no reshow shortcut
+    tkTooltip_TickForTest( t, cx, cy, true, false, 20100 )
+    tkTooltip_TickForTest( t, cx, cy, true, false, 20600 )
+    tkTest_Check( "after a long time it is the initial delay again", tkTooltip_IsVisible( t ) )
+    tkTooltip_TickForTest( t, cx, cy, true, false, 20600 + 5000 )
+    tkTest_Check( "auto-pop", tkTooltip_IsVisible( t ) = false )
+    tkTooltip_TickForTest( t, cx, cy, true, false, 26000 )
+    tkTooltip_TickForTest( t, cx, cy, true, false, 27000 )
+    tkTest_Check( "auto-pop suppresses the rest of the hover", tkTooltip_IsVisible( t ) = false )
+    tkTooltip_TickForTest( t, cx, cy, false, false, 27100 )
+
+    ' the veto and the callback pull
+    tkTooltip_SetText( t, "" )
+    tkTooltip_SetTooltipCallback( t, @TipText )
+    tkTooltip_SetShowCallback( t, @OnShow )
+    gCbText = "from callback" : gCbCalls = 0 : gVeto = true : gShowEdges = 0
+    tkTooltip_TickForTest( t, cx, cy, true, false, 40000 )
+    tkTooltip_TickForTest( t, cx, cy, true, false, 40400 )
+    tkTest_Check( "callback NOT pulled before a show is due", gCbCalls = 0 )
+    tkTooltip_TickForTest( t, cx, cy, true, false, 40500 )
+    tkTest_Check( "veto: no tip, callback pulled once", tkTooltip_IsVisible( t ) = false andalso gCbCalls = 1 )
+    tkTooltip_TickForTest( t, cx, cy, true, false, 41000 )
+    tkTest_Check( "a veto covers the whole hover (not retried)", gCbCalls = 1 andalso gShowEdges = 1 )
+    tkTooltip_SetToolIndex( t, 3 )
+    gVeto = false
+    tkTooltip_TickForTest( t, cx, cy, true, false, 42000 )
+    tkTooltip_TickForTest( t, cx, cy, true, false, 42500 )
+    tkTest_Check( "a new tool index is a new offer", tkTooltip_IsVisible( t ) )
+    tkTooltip_SetToolIndex( t, 3 )
+    tkTest_Check( "a no-op SetToolIndex keeps the tip", tkTooltip_IsVisible( t ) )
+    tkTooltip_SetToolIndex( t, 4 )
+    tkTest_Check( "a real change hides it", tkTooltip_IsVisible( t ) = false )
+    gCbText = ""
+    tkTooltip_TickForTest( t, cx, cy, false, false, 43000 )
+    tkTooltip_TickForTest( t, cx, cy, true, false, 50000 )
+    tkTooltip_TickForTest( t, cx, cy, true, false, 50500 )
+    tkTest_Check( "callback answering empty shows nothing", tkTooltip_IsVisible( t ) = false )
+    tkTooltip_SetTooltipCallback( t, 0 )
+    tkTooltip_SetShowCallback( t, 0 )
+    tkTooltip_TickForTest( t, cx, cy, false, false, 51000 )
+
+    ' fade: half way through a 120 ms fade-in
+    tkTooltip_SetText( t, "Fade" )
+    tkTooltip_SetFadeTime( t, 120 )
+    tkTooltip_TickForTest( t, cx, cy, true, false, 60000 )
+    tkTooltip_TickForTest( t, cx, cy, true, false, 60500 )
+    tkTest_Check( "fade starts transparent", tkTooltip_IsVisible( t ) andalso t->nAlpha = 0 )
+    tkTooltip_TickForTest( t, cx, cy, true, false, 60560 )
+    tkTest_Check( "fade half way", t->nAlpha = 127, "" & t->nAlpha )
+    tkTooltip_TickForTest( t, cx, cy, false, false, 60700 )
+    tkTest_Check( "fading out is still visible", tkTooltip_IsVisible( t ) )
+    tkTooltip_TickForTest( t, cx, cy, false, false, 60900 )
+    tkTest_Check( "fade out finishes the hide", tkTooltip_IsVisible( t ) = false )
+    tkTooltip_SetFadeTime( t, 0 )
+
+    ' ---- the real clock, driven by the mouse -----------------------------------------------------
+    tkTooltip_SetInitialDelay( t, 200 )
+    tkTest_PushMotion( h, cx, cy )
+    tkTest_PumpFor( h, 600 )
+    tkTest_Check( "hover with the real clock shows it", tkTooltip_IsVisible( t ) )
+    tkTest_PushMotion( h, tkTest_CX( far_ ), tkTest_CY( far_ ) )
+    tkTest_PumpFor( h, 300 )
+    tkTest_Check( "moving off hides it", tkTooltip_IsVisible( t ) = false )
+    tkTest_PumpFor( h, 250 )
+    tkTest_Check( "the clock STOPS when nothing is engaged", t->nClockMs = 0, "" & t->nClockMs )
+
+    ' ShowForRect pins it under a rect of the control
+    dim as TKRECT rcA
+    tkRect_Set( rcA, 0, 0, a->cw, a->ch )
+    tkTest_Check( "ShowForRect", tkTooltip_ShowForRect( t, rcA, TIP_ALIGN_BELOW ) )
+    tkTooltip_Hide( t )
+    tkTest_PumpFor( h, 50 )
+
+    ' ---- theme and pinning ----------------------------------------------------------------------
+    dim as TKTOOLTIP_COLORS c
+    tkTheme_Apply( tkTheme_Light() )
+    tkTooltip_GetColors( t, @c )
+    tkTest_Check( "theme reaches the tip (via its listener)", c.BackColor = tkTheme_Light().Popup )
+    c.BackColor = &hFF112233ul
+    tkTooltip_SetColors( t, @c )
+    tkTheme_Apply( tkTheme_Dark() )
+    tkTooltip_GetColors( t, @c )
+    tkTest_Check( "pinned colours survive a theme change", c.BackColor = &hFF112233ul )
+    tkTooltip_UnpinColors( t )
+    tkTooltip_GetColors( t, @c )
+    tkTest_Check( "unpin re-applies the current theme", c.BackColor = tkTheme_Dark().Popup )
+
+    ' ---- rescale through the listener -------------------------------------------------------------
+    dim as long px0 = t->nPadX
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkTest_Check( "rescale doubles the padding", abs( t->nPadX - px0 * 2 ) <= 1, px0 & " -> " & t->nPadX )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+
+    ' ---- tkTipHost ---------------------------------------------------------------------------------
+    dim as TKTIPHOST_STATE tipHost
+    tkTipHost_SetDelay( @tipHost, TK_TIPDELAY_INITIAL, 321 )
+    tkTest_Check( "TipHost: no tip until Ensure", tkTipHost_Tip( @tipHost ) = 0 )
+    tkTest_Check( "TipHost: Ensure creates", tkTipHost_Ensure( @tipHost, far_ ) andalso tkTipHost_Tip( @tipHost ) <> 0 )
+    dim as TK_TIP ptr t2 = tkTipHost_Tip( @tipHost )
+    tkTest_Check( "TipHost: a delay set BEFORE the tip existed applies", t2->nInitialDelay = 321 )
+    tkTipHost_Ensure( @tipHost, far_ )
+    tkTest_Check( "TipHost: Ensure is idempotent", tkTipHost_Tip( @tipHost ) = t2 )
+    tkTooltip_SetFonts( t2, fText )
+    tkRect_Set( rcA, 0, 0, far_->cw, far_->ch )
+    tkTipHost_TrackShow( @tipHost, rcA, "tracked" )
+    tkTest_Check( "TrackShow shows at once", tkTooltip_IsVisible( t2 ) )
+    tkTest_Check( "only one tip on screen", tkTooltip_IsVisible( t ) = false )
+    tkTipHost_TrackHide( @tipHost )
+    tkTest_Check( "TrackHide hides", tkTooltip_IsVisible( t2 ) = false )
+    tkTipHost_Destroy( @tipHost )
+
+    ' ---- the attached control's death detaches the tip -------------------------------------------
+    tkTooltip_ShowForRect( t, rcA, TIP_ALIGN_BELOW )
+    tkWidget_Destroy( a )
+    tkTest_Check( "control destroyed -> tip detached and hidden", tkTooltip_GetAttached( t ) = 0 andalso tkTooltip_IsVisible( t ) = false )
+    tkTooltip_Destroy( t )
+    tkHost_Pump( h )
+    tkHost_Destroy( h )
+end sub
+
+if tkTest_Init() = false then end 99
+PureFunctions()
+RunPass( 1.0 )
+RunPass( 1.75 )
+dim as long nFail = tkTest_Report( "tkTooltip" )
+tkTest_Quit()
+end nFail

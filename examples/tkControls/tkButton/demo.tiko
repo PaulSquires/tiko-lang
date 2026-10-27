@@ -1,0 +1,258 @@
+' tkButton demo: the same twelve rows as the Win32 demo
+' (tiko-lang/examples/PsControls/PsButton/frmMain.tiko), so the two can be put side by side.
+'
+'   demo                     interactive
+'   demo --shot out.bmp      render once (row 0 focused), save the window, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+'   demo --idle 10           run 10 s with no input, print frames rendered, exit
+#import "vendor/tkControls/tkButton"
+using tkButton
+using tkTooltip
+using tkHost
+using tkPaint
+
+const as long BUTTON_COUNT = 12
+const as long ROW_HEIGHT = 50, ROW_TOP = 14, ROW_MARGIN = 22
+const as long IDC_FIRST = 1000
+enum
+    BUTTON_ALIGNL = 5, BUTTON_ALIGNR = 6, BUTTON_DISABLED = 7, BUTTON_DEFAULT = 8
+    BUTTON_CUSTOM = 9, BUTTON_TOOLTIP = 10, BUTTON_ELLIPSIS = 11
+end enum
+
+' The Win32 demo's THEME_TYPE, value for value.
+const as ulong T_FORE = &hFFBEC4CEul, T_FOREDIS = &hFF5A606Aul, T_BACK = &hFF21252Bul
+const as ulong T_BACKHOT = &hFF2C313Aul, T_FORESEL = &hFFFFFFFFul, T_BACKSEL = &hFF264F78ul
+const as ulong T_FOCUS = &hFF569CD6ul, T_DIVIDER = &hFF373C45ul
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gBtn(0 to BUTTON_COUNT - 1)
+dim shared as ustring gLabel(0 to BUTTON_COUNT - 1), gNote(0 to BUTTON_COUNT - 1)
+dim shared as long gClicks(0 to BUTTON_COUNT - 1)
+dim shared as TTF_Font ptr gFont9, gFont10, gGlyph10
+
+private function RowTop( byval i as long ) as long
+    return tkHost_Scale( gHost, ROW_TOP ) + i * tkHost_Scale( gHost, ROW_HEIGHT )
+end function
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long margin = tkHost_Scale( h, ROW_MARGIN ), rh = tkHost_Scale( h, ROW_HEIGHT )
+    for i as long = 0 to BUTTON_COUNT - 1
+        dim as long t = RowTop( i )
+        dim as TKRECT rc
+        tkRect_Set( rc, margin, t, pw - margin, t + rh \ 2 )
+        b->SetColors( T_FORE, T_BACK )
+        b->SetFont( gFont10 )
+        b->PaintText( gLabel(i), @rc, TK_DT_LEFT )
+        dim as ustring note = gNote(i)
+        if gClicks(i) > 0 then note &= "   [clicks: " & gClicks(i) & "]"
+        tkRect_Set( rc, margin, t + rh \ 2, pw - margin, t + rh )
+        b->SetColors( T_FOREDIS, T_BACK )
+        b->SetFont( gFont9 )
+        b->PaintText( note, @rc, TK_DT_LEFT )
+        tkRect_Set( rc, margin, t + rh - 1, pw - margin, t + rh )
+        b->SetBackColor( T_DIVIDER )
+        b->PaintRect( @rc )
+    next
+end sub
+
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long margin = tkHost_Scale( h, ROW_MARGIN ), rh = tkHost_Scale( h, ROW_HEIGHT )
+    for i as long = 0 to BUTTON_COUNT - 1
+        dim as long iw, ih
+        tkButton_GetIdealSize( gBtn(i), iw, ih )
+        if (iw <= 0) orelse (ih <= 0) then continue for
+        if i = BUTTON_ELLIPSIS then iw = (iw * 55) \ 100
+        if (i = BUTTON_ALIGNL) orelse (i = BUTTON_ALIGNR) then iw += tkHost_Scale( h, 110 )
+        tkWidget_SetPos( gBtn(i), pw - margin - iw, RowTop( i ) + (rh - ih) \ 2, iw, ih )
+    next
+end sub
+
+sub Demo_Click( byval hButton as TK_WIDGET ptr, byval id as long )
+    dim as long idx = id - IDC_FIRST
+    if (idx >= 0) andalso (idx < BUTTON_COUNT) then gClicks(idx) += 1
+    print "Click       ctrl=" & hButton->ctrlId & "  id=" & id & "   [" & tkButton_GetText( hButton ) & "]"
+    tkHost_Invalidate( gHost )
+end sub
+
+function Demo_Message( byval m as TKBUTTON_MESSAGEINFO ptr ) as boolean
+    if m->msg = TKM_LBUTTONDOWN then print "  (message callback saw TKM_LBUTTONDOWN on ctrl=" & m->hButton->ctrlId & ")"
+    return false
+end function
+
+function Demo_Tooltip( byval hButton as TK_WIDGET ptr ) as ustring
+    return "Supplied on demand by the tooltip callback"
+end function
+
+' Square chrome, outlined and filled, plus the caption and a square focus ring.
+sub Demo_Paint( byval p as TKBUTTON_PAINTINFO ptr )
+    dim as ulong clrLine = T_FORE, clrFill = T_BACKHOT
+    if p->isEnabled = false then
+        clrLine = T_FOREDIS : clrFill = T_BACK
+    elseif p->isPressed then
+        clrLine = T_FORESEL : clrFill = T_BACKSEL
+    elseif p->isHot then
+        clrLine = T_FORESEL
+    end if
+    p->b->SetBackColor( clrFill )
+    p->b->SetPenColor( clrLine )
+    p->b->PaintRectFactory( @p->rcButton, 1 )
+    if tkRect_IsEmpty( p->rcText ) = false then
+        p->b->SetFont( gFont10 )
+        p->b->SetColors( clrLine, clrFill )
+        p->b->PaintText( p->wszText, @p->rcText, TK_DT_CENTER or TK_DT_ELLIPSIS )
+    end if
+    if p->isFocused then
+        p->b->SetPenColor( T_FOCUS )
+        p->b->PaintRoundOutline( @p->rcVisual, 0, 1 )
+    end if
+end sub
+
+' A 32x32 two-colour checker written as a BMP beside the program -- the Win32 demo's
+' procedural sample_icon.png, without needing a PNG encoder.
+private sub MakeSampleIcon( byref path as string )
+    dim as SDL_Surface ptr s = SDL_CreateSurface( 32, 32, SDL_PIXELFORMAT_ARGB8888 )
+    if s = 0 then exit sub
+    for y as long = 0 to 31
+        dim as ulong ptr row = cast( ulong ptr, cast( ubyte ptr, s->pixels ) + y * s->pitch )
+        for x as long = 0 to 31
+            row[x] = iif( (((x \ 8) + (y \ 8)) and 1), &hFFEE9933ul, &hFF3399EEul )
+        next
+    next
+    SDL_SaveBMP( s, strptr( path ) )
+    SDL_DestroySurface( s )
+end sub
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+' Save the current back buffer -- read BEFORE present, which is when it is defined.
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )                     ' presents
+    tkHost_RenderTo( gHost, false )            ' re-draw without presenting, then read
+    dim as SDL_Surface ptr s = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if s then
+        SDL_SaveBMP( s, strptr( path ) )
+        print "shot: " & path & "  " & s->w & "x" & s->h & "  scale=" & gHost->fScale & "  density=" & gHost->fDensity
+        SDL_DestroySurface( s )
+    end if
+end sub
+
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkButton on SDL3", 760, 690, tkHost_FontDir() & TK_FONT_UI, forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = T_BACK
+print "video driver: " & *SDL_GetCurrentVideoDriver() & "  renderer: " & *SDL_GetRendererName( gHost->renderer ) & _
+      "  scale=" & gHost->fScale & "  density=" & gHost->fDensity
+
+gFont9   = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 9 )
+gFont10  = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 10 )
+gGlyph10 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_ICONS, 10 )
+if (gFont10 = 0) orelse (gGlyph10 = 0) then print "fonts: " & *SDL_GetError() : end 1
+tkTooltip_SetDefaultFonts( gFont9 )
+
+gLabel(0) = "Plain command button" : gNote(0) = "caption only, centred -- press and slide off: no click"
+gLabel(1) = "Left glyph"           : gNote(1) = "icon pinned at padLeft; the gap is charged because there IS a caption"
+gLabel(2) = "Right glyph"          : gNote(2) = "icon pinned at padRight, mirrored"
+gLabel(3) = "Both glyphs"          : gNote(3) = "caption centred in the SPAN between them, not on the button"
+gLabel(4) = "Icon only"            : gNote(4) = "no caption, so no gap is charged and the height drops to the icon"
+gLabel(5) = "BTN_ALIGN_LEFT"       : gNote(5) = "given slack past its ideal width, so the alignment is visible at all"
+gLabel(6) = "BTN_ALIGN_RIGHT"      : gNote(6) = "same slack, other end -- the icon has not moved in either"
+gLabel(7) = "Disabled"             : gNote(7) = "tkWidget_Enable, so it swallows input for real and Tab skips it"
+gLabel(8) = "Default button"       : gNote(8) = "DefaultBorderColor overlays the mood's border -- hover it, press it"
+gLabel(9) = "Custom painter"       : gNote(9) = "square chrome drawn by the host; message callback prints the DOWN"
+gLabel(10) = "Tooltip"             : gNote(10) = "no text of its own, so the callback is asked -- hover and wait"
+gLabel(11) = "Forced narrow"       : gNote(11) = "sized to 55% of ideal, so the ellipsis has something to do"
+
+dim as string iconPath = exepath() & "/sample_icon.bmp"
+MakeSampleIcon( iconPath )
+
+for i as long = 0 to BUTTON_COUNT - 1
+    gBtn(i) = tkButton_Create( tkHost_Root( gHost ), IDC_FIRST + i )
+    tkButton_SetFont( gBtn(i), gFont10 )
+    tkButton_SetGlyphFont( gBtn(i), gGlyph10 )
+    tkButton_SetClickCallback( gBtn(i), @Demo_Click )
+next
+
+tkButton_SetText( gBtn(0), "Save Changes" )
+tkButton_SetText( gBtn(1), "Save" ) : tkButton_SetGlyphLeft( gBtn(1), wchr( TK_ICON_SAVE ) )
+tkButton_SetText( gBtn(2), "Next" ) : tkButton_SetGlyphRight( gBtn(2), wchr( TK_ICON_CHEVRON_RIGHT ) )
+if tkButton_SetImageLeft( gBtn(2), iconPath ) = 0 then print "image load failed: " & *SDL_GetError()
+tkButton_SetText( gBtn(3), "Refresh" )
+tkButton_SetGlyphLeft( gBtn(3), wchr( TK_ICON_REFRESH ) ) : tkButton_SetGlyphRight( gBtn(3), wchr( TK_ICON_CHEVRON_RIGHT ) )
+tkButton_SetGlyphLeft( gBtn(4), wchr( TK_ICON_SETTINGS ) )
+tkButton_SetText( gBtn(BUTTON_ALIGNL), "Open Project" )
+tkButton_SetGlyphLeft( gBtn(BUTTON_ALIGNL), wchr( TK_ICON_FOLDER_OPEN ) )
+tkButton_SetTextAlign( gBtn(BUTTON_ALIGNL), BTN_ALIGN_LEFT )
+tkButton_SetText( gBtn(BUTTON_ALIGNR), "Run" )
+tkButton_SetGlyphRight( gBtn(BUTTON_ALIGNR), wchr( TK_ICON_PLAY ) )
+tkButton_SetTextAlign( gBtn(BUTTON_ALIGNR), BTN_ALIGN_RIGHT )
+tkButton_SetText( gBtn(BUTTON_DISABLED), "Delete" )
+tkButton_SetGlyphLeft( gBtn(BUTTON_DISABLED), wchr( TK_ICON_DELETE ) )
+tkButton_SetEnabled( gBtn(BUTTON_DISABLED), false )
+tkButton_SetText( gBtn(BUTTON_DEFAULT), "OK" )
+tkButton_SetGlyphLeft( gBtn(BUTTON_DEFAULT), wchr( TK_ICON_CHECKMARK ) )
+tkButton_SetDefault( gBtn(BUTTON_DEFAULT), true )
+tkButton_SetText( gBtn(BUTTON_CUSTOM), "Custom painter" )
+tkButton_SetCornerCurvature( gBtn(BUTTON_CUSTOM), 0 )
+tkButton_SetPaintCallback( gBtn(BUTTON_CUSTOM), @Demo_Paint )
+tkButton_SetMessageCallback( gBtn(BUTTON_CUSTOM), @Demo_Message )
+tkButton_SetGlyphLeft( gBtn(BUTTON_TOOLTIP), wchr( TK_ICON_INFO ) )
+tkButton_SetTooltipCallback( gBtn(BUTTON_TOOLTIP), @Demo_Tooltip )
+tkButton_SetText( gBtn(BUTTON_ELLIPSIS), "Save Configuration As..." )
+tkButton_SetGlyphLeft( gBtn(BUTTON_ELLIPSIS), wchr( TK_ICON_SAVE ) )
+
+dim as long iw, ih
+tkButton_GetIdealSize( gBtn(0), iw, ih ) : print "row 0 ideal size (text only): " & iw & "x" & ih
+tkButton_GetIdealSize( gBtn(4), iw, ih ) : print "row 4 ideal size (icon only): " & iw & "x" & ih
+
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkHost_SetFocus( gHost, gBtn(0) )
+tkHost_Show( gHost )
+
+dim as string shot = ArgValue( "--shot" )
+dim as long idleSecs = valint( ArgValue( "--idle" ) )
+dim as long nBench = valint( ArgValue( "--bench" ) )
+if nBench > 0 then
+    ' Full-window repaints back to back: the cost of having no damage regions.
+    tkHost_Pump( gHost )
+    dim as double t0 = timer
+    for i as long = 1 to nBench
+        tkHost_Render( gHost )
+    next
+    print "bench: " & nBench & " full repaints, " & (cint( (timer - t0) * 1000000 / nBench ) / 1000) & " ms each (incl. present)"
+elseif len( shot ) then
+    tkHost_Pump( gHost )
+    SaveShot( shot )
+elseif idleSecs > 0 then
+    tkHost_Pump( gHost )
+    dim as long f0 = gHost->nFrames
+    dim as double t0 = timer
+    dim as SDL_Event e
+    while timer - t0 < idleSecs
+        if SDL_WaitEventTimeout( @e, 100 ) then tkHost_Dispatch( gHost, @e )
+        if gHost->bDirty then tkHost_Render( gHost )
+    wend
+    print "idle " & idleSecs & " s: frames rendered = " & (gHost->nFrames - f0)
+else
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

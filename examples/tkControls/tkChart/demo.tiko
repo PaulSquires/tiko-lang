@@ -1,0 +1,291 @@
+' tkChart demo: the same eight charts as the Win32 demo
+' (tiko-lang/examples/PsControls/PsChart/frmMain.tiko), so the two can be put side by side.
+'
+'   demo                     interactive (hover a point for its tooltip)
+'   demo --shot out.bmp      render once, save the window, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkChart"
+using tkChart
+using tkTooltip
+using tkTheme
+using tkHost
+using tkPaint
+
+enum
+    CHART_LINE = 0
+    CHART_COLUMN
+    CHART_HLOC
+    CHART_PIE
+    CHART_DOUGHNUT
+    CHART_NEGATIVE
+    CHART_FORECAST
+    CHART_STACKED
+    CHART_COUNT
+end enum
+
+const as long CELL_COLS = 4, CELL_ROWS = 2, SHEET_MARGIN = 14, CAPTION_HEIGHT = 22, CELL_GAP = 14
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gChart(0 to CHART_COUNT - 1)
+dim shared as ustring gCaptions(0 to CHART_COUNT - 1)
+dim shared as TTF_Font ptr gFont9, gFontBold9
+
+' The cell a chart occupies, recomputed from the client every time (the host positions, the
+' control draws).
+private function CellRect( byval idx as long ) as TKRECT
+    dim as long pw, ph
+    tkHost_PixelSize( gHost, pw, ph )
+    dim as long margin = tkHost_Scale( gHost, SHEET_MARGIN ), gap = tkHost_Scale( gHost, CELL_GAP )
+    dim as long availW = pw - margin * 2 - gap * (CELL_COLS - 1)
+    dim as long availH = ph - margin * 2 - gap * (CELL_ROWS - 1)
+    if availW < CELL_COLS then availW = CELL_COLS
+    if availH < CELL_ROWS then availH = CELL_ROWS
+    dim as long cw = availW \ CELL_COLS, chh = availH \ CELL_ROWS
+    dim as long col = idx mod CELL_COLS, row = idx \ CELL_COLS
+    dim as TKRECT rc
+    tkRect_Set( rc, margin + col * (cw + gap), margin + row * (chh + gap), margin + col * (cw + gap) + cw, margin + row * (chh + gap) + chh )
+    return rc
+end function
+
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long capH = tkHost_Scale( h, CAPTION_HEIGHT )
+    for i as long = 0 to CHART_COUNT - 1
+        dim as TKRECT rc = CellRect( i )
+        tkWidget_SetPos( gChart(i), rc.left, rc.top + capH, tkRect_Width( rc ), tkRect_Height( rc ) - capH )
+    next
+end sub
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as long capH = tkHost_Scale( h, CAPTION_HEIGHT )
+    b->SetFont( gFontBold9 )
+    b->SetForeColor( tkRGB( 30, 30, 30 ) )
+    for i as long = 0 to CHART_COUNT - 1
+        dim as TKRECT rc = CellRect( i )
+        rc.bottom = rc.top + capH
+        b->PaintText( gCaptions(i), @rc, TK_DT_LEFT )
+    next
+end sub
+
+' The light palette the reference screenshots use, through the read-modify-write pair.
+private sub ApplyLightTheme( byval hChart as TK_WIDGET ptr )
+    dim as TKCHART_COLORS clrs
+    tkChart_GetColors( hChart, @clrs )
+    clrs.BackColor          = tkRGB(255,255,255)
+    clrs.PlotBackColor      = tkRGB(255,255,255)
+    clrs.GridColor          = tkRGB( 60, 60, 60)
+    clrs.AxisColor          = tkRGB(190,190,190)
+    clrs.LabelColor         = tkRGB(140,140,140)
+    clrs.TitleColor         = tkRGB( 30, 30, 30)
+    clrs.SubtitleColor      = tkRGB(110,110,110)
+    clrs.LegendTextColor    = tkRGB( 70, 70, 70)
+    clrs.SliceLabelColor    = tkRGB(110,110,110)
+    clrs.SliceLabelOutColor = tkRGB( 70, 70, 70)
+    clrs.LeaderColor        = tkRGB(170,170,170)
+    clrs.SliceGapColor      = tkRGB(255,255,255)
+    tkChart_SetColors( hChart, @clrs )
+end sub
+
+private sub LoadFruitSeries( byval hChart as TK_WIDGET ptr )
+    dim as ustring cats(0 to 4) = { "Oranges", "Apples", "Pears", "Bananas", "Pineapples" }
+    dim as double vals(0 to 2, 0 to 4) = { { 1, 4, 5, 4, 4 }, { 7, 3, 8, 5, 5 }, { 5, 5, 1, 5, 1 } }
+    dim as ustring names(0 to 2) = { "Series 1", "Series 2", "Series 3" }
+    tkChart_BeginUpdate( hChart )
+    for i as long = 0 to 2
+        dim as long si = tkChart_AddSeries( hChart, names(i) )
+        for j as long = 0 to 4
+            tkChart_AddPoint( hChart, si, cats(j), vals(i, j) )
+        next
+    next
+    tkChart_EndUpdate( hChart )
+end sub
+
+' Sixty deterministic bars: the point is the axis at that density, not the prices.
+private sub LoadHlocSeries( byval hChart as TK_WIDGET ptr )
+    dim as ustring months(0 to 2) = { "Jan", "Feb", "Mar" }
+    tkChart_BeginUpdate( hChart )
+    dim as long si = tkChart_AddSeries( hChart, "Index" )
+    dim as double startPrice = 1030.0
+    for i as long = 0 to 59
+        dim as double drift = sin( i / 7.0 ) * 55.0 + sin( i / 2.3 ) * 12.0
+        dim as double o = startPrice + drift
+        dim as double c = o + sin( i / 1.7 ) * 14.0
+        dim as double hi = iif( o > c, o, c ) + 9.0 + (i mod 5) * 2.0
+        dim as double lo = iif( o < c, o, c ) - 9.0 - (i mod 3) * 3.0
+        dim as ustring lbl = months(i \ 20) & "-" & str( (i mod 20) + 1 )
+        tkChart_AddHlocPoint( hChart, si, lbl, o, hi, lo, c )
+    next
+    tkChart_EndUpdate( hChart )
+end sub
+
+private sub LoadPieSeries( byval hChart as TK_WIDGET ptr )
+    dim as ustring cats(0 to 8) = { "US", "Germany", "UK", "Japan", "Italy", "France", "Canada", "Russia", "China" }
+    dim as double vals(0 to 8) = { 4, 4, 1, 4, 4, 1, 1, 2, 2 }
+    tkChart_BeginUpdate( hChart )
+    dim as long si = tkChart_AddSeries( hChart, "Countries" )
+    for j as long = 0 to 8
+        tkChart_AddPoint( hChart, si, cats(j), vals(j) )
+    next
+    tkChart_EndUpdate( hChart )
+end sub
+
+' The dashed forecast is the SAME colour as the actual data: the dash is what separates them.
+' The band's edges go in first, the forecast next, the actual line last (on top).
+private sub LoadForecastSeries( byval hChart as TK_WIDGET ptr )
+    dim as ustring cats(0 to 11) = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" }
+    dim as double act(0 to 6) = { 100, 108, 104, 115, 121, 118, 127 }
+    dim as double fc(0 to 11) = { 100, 108, 104, 115, 121, 118, 127, 133, 138, 146, 151, 159 }
+    dim as double lo(0 to 11) = { 100, 108, 104, 115, 121, 118, 127, 127, 129, 133, 135, 140 }
+    dim as double hi(0 to 11) = { 100, 108, 104, 115, 121, 118, 127, 139, 148, 159, 168, 180 }
+    dim as ulong clrData = tkRGB( 46, 120, 200 )
+    dim as ulong clrEdge = tkRGB( 150, 175, 205 )
+    tkChart_BeginUpdate( hChart )
+    dim as long sLo = tkChart_AddSeries( hChart, "Low" )
+    dim as long sHi = tkChart_AddSeries( hChart, "High" )
+    dim as long sFc = tkChart_AddSeries( hChart, "Forecast" )
+    dim as long sAc = tkChart_AddSeries( hChart, "Actual" )
+    for j as long = 0 to 11
+        tkChart_AddPoint( hChart, sLo, cats(j), lo(j) )
+        tkChart_AddPoint( hChart, sHi, cats(j), hi(j) )
+        tkChart_AddPoint( hChart, sFc, cats(j), fc(j) )
+        if j <= 6 then tkChart_AddPoint( hChart, sAc, cats(j), act(j) )
+    next
+    tkChart_SetSeriesColor( hChart, sLo, clrEdge )
+    tkChart_SetSeriesColor( hChart, sHi, clrEdge )
+    tkChart_SetSeriesLineStyle( hChart, sLo, CHT_LINE_DOT )
+    tkChart_SetSeriesLineStyle( hChart, sHi, CHT_LINE_DOT )
+    tkChart_SetSeriesLineWidth( hChart, sLo, 1 )
+    tkChart_SetSeriesLineWidth( hChart, sHi, 1 )
+    tkChart_SetSeriesColor( hChart, sFc, clrData )
+    tkChart_SetSeriesLineStyle( hChart, sFc, CHT_LINE_DASH )
+    tkChart_SetSeriesLineWidth( hChart, sFc, 2 )
+    tkChart_SetSeriesColor( hChart, sAc, clrData )
+    tkChart_SetSeriesLineWidth( hChart, sAc, 2 )
+    tkChart_SetSeriesFill( hChart, sAc, clrData, 60 )
+    tkChart_SetSeriesBand( hChart, sLo, sHi, clrData, 46 )
+    tkChart_EndUpdate( hChart )
+end sub
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr s = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if s then
+        SDL_SaveBMP( s, strptr( path ) )
+        print "shot: " & path & "  " & s->w & "x" & s->h & "  scale=" & gHost->fScale
+        SDL_DestroySurface( s )
+    end if
+end sub
+
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkChart on SDL3", 1600, 820, tkHost_FontDir() & TK_FONT_UI, forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = tkRGB( 255, 255, 255 )
+
+gFont9 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 9 )
+gFontBold9 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI_BOLD, 9 )
+if (gFont9 = 0) orelse (gFontBold9 = 0) then print "fonts: " & *SDL_GetError() : end 1
+tkTooltip_SetDefaultFonts( gFont9 )
+
+gCaptions(CHART_LINE)     = "Line -- three series, straight segments"
+gCaptions(CHART_COLUMN)   = "Column -- three series, grouped"
+gCaptions(CHART_HLOC)     = "HLOC -- 60 bars, labels auto-skipped"
+gCaptions(CHART_PIE)      = "Pie -- value labels inside the wedges"
+gCaptions(CHART_DOUGHNUT) = "Doughnut -- exploded slice, name + percent on leaders"
+gCaptions(CHART_NEGATIVE) = "Column -- negative values below the origin"
+gCaptions(CHART_FORECAST) = "Line -- dashed forecast, area fill, uncertainty band"
+gCaptions(CHART_STACKED)  = "Column -- stacked, axis scaled to the stack totals"
+
+dim as long types(0 to CHART_COUNT - 1) = { TKCHART_TYPE_LINE, TKCHART_TYPE_COLUMN, TKCHART_TYPE_HLOC, _
+        TKCHART_TYPE_PIE, TKCHART_TYPE_PIE, TKCHART_TYPE_COLUMN, TKCHART_TYPE_LINE, TKCHART_TYPE_COLUMN }
+for i as long = 0 to CHART_COUNT - 1
+    gChart(i) = tkChart_Create( tkHost_Root( gHost ), 100 + i, types(i) )
+    tkChart_SetFont( gChart(i), gFont9 )
+    ApplyLightTheme( gChart(i) )
+next
+
+' 0: line, the third series smoothed with circle markers
+LoadFruitSeries( gChart(CHART_LINE) )
+tkChart_SetLegendVisible( gChart(CHART_LINE), true )
+tkChart_SetSeriesSmooth( gChart(CHART_LINE), 2, true )
+tkChart_SetSeriesSymbol( gChart(CHART_LINE), 2, CHT_SYM_CIRCLE, tkHost_Scale( gHost, 7 ) )
+
+' 1: grouped columns, eight ticks so the axis steps by 1
+LoadFruitSeries( gChart(CHART_COLUMN) )
+tkChart_SetTickCountHint( gChart(CHART_COLUMN), 8 )
+tkChart_SetLegendVisible( gChart(CHART_COLUMN), true )
+
+' 2: HLOC, one colour for the series
+LoadHlocSeries( gChart(CHART_HLOC) )
+tkChart_SetHlocUpDownColors( gChart(CHART_HLOC), false )
+tkChart_SetSeriesColor( gChart(CHART_HLOC), 0, tkRGB( 120, 175, 215 ) )
+
+' 3: pie, values inside, a 3 px separator in the background colour
+LoadPieSeries( gChart(CHART_PIE) )
+tkChart_SetPieLabelMode( gChart(CHART_PIE), CHT_PIELABEL_VALUE )
+tkChart_SetPieLabelPlacement( gChart(CHART_PIE), CHT_PIEPLACE_INSIDE )
+tkChart_SetPieSliceGap( gChart(CHART_PIE), 3 )
+
+' 4: doughnut, exploded, labels on leaders
+LoadPieSeries( gChart(CHART_DOUGHNUT) )
+tkChart_SetDoughnutRatio( gChart(CHART_DOUGHNUT), 0.45 )
+tkChart_SetPieLabelMode( gChart(CHART_DOUGHNUT), CHT_PIELABEL_NAME_PERCENT )
+tkChart_SetPieLabelPlacement( gChart(CHART_DOUGHNUT), CHT_PIEPLACE_OUTSIDE )
+tkChart_SetPieSliceGap( gChart(CHART_DOUGHNUT), 2 )
+tkChart_SetPointExplode( gChart(CHART_DOUGHNUT), 0, tkHost_Scale( gHost, 14 ) )
+
+' 5: columns straddling zero, legend on top
+scope
+    dim as TK_WIDGET ptr hc = gChart(CHART_NEGATIVE)
+    dim as ustring cats(0 to 5) = { "Q1", "Q2", "Q3", "Q4", "Q5", "Q6" }
+    dim as double a(0 to 5) = { 4, 6, -3, 2, -5, 7 }
+    dim as double bvals(0 to 5) = { 2, -4, 5, -1, 3, -2 }
+    tkChart_BeginUpdate( hc )
+    dim as long s0 = tkChart_AddSeries( hc, "Gain" )
+    dim as long s1 = tkChart_AddSeries( hc, "Loss" )
+    for j as long = 0 to 5
+        tkChart_AddPoint( hc, s0, cats(j), a(j) )
+        tkChart_AddPoint( hc, s1, cats(j), bvals(j) )
+    next
+    tkChart_EndUpdate( hc )
+    tkChart_SetLegendVisible( hc, true )
+    tkChart_SetLegendPosition( hc, CHT_LEGEND_TOP )
+end scope
+
+' 6: the dash / fill / band specimen
+LoadForecastSeries( gChart(CHART_FORECAST) )
+tkChart_SetLegendVisible( gChart(CHART_FORECAST), true )
+
+' 7: cell 1's data, stacked: the axis has to reach 13
+LoadFruitSeries( gChart(CHART_STACKED) )
+tkChart_SetColumnMode( gChart(CHART_STACKED), CHT_COL_STACKED )
+tkChart_SetLegendVisible( gChart(CHART_STACKED), true )
+
+dim as string shot = ArgValue( "--shot" )
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkHost_Show( gHost )
+
+if len( shot ) then
+    tkHost_Pump( gHost )
+    SaveShot( shot )
+else
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

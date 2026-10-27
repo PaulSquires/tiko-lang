@@ -1,0 +1,257 @@
+' tkPaint self-test: every primitive drawn into a real window's back buffer and read back.
+' Shapes are asserted by pixels (inside / outside / blended edge), text by its ink extent, and
+' the text helpers by round trips. Two passes, scale 1.0 and 1.75.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkTest"
+using tkTest
+using tkHost
+using tkPaint
+
+const BG = &hFF102030ul
+const FG = &hFFF0E0D0ul
+const PEN = &hFF00FF00ul
+
+dim shared as long gScene
+dim shared as TTF_Font ptr gFont
+
+' What the canvas widget paints is chosen by gScene; coordinates are canvas-local.
+function CanvasProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    if m->msg <> TKM_PAINT then return false
+    dim as TK_PAINT ptr p = m->pPaint
+    dim as TKRECT rc
+    tkRect_Set( rc, 0, 0, w->cw, w->ch )
+    p->SetBackColor( BG ) : p->PaintRect( @rc )
+    p->SetBackColor( FG ) : p->SetPenColor( PEN ) : p->SetForeColor( FG )
+    p->SetFont( gFont )
+    select case gScene
+    case 1      ' ellipse, filled, no pen
+        tkRect_Set( rc, 20, 20, 120, 80 ) : p->PaintEllipse( @rc )
+    case 2      ' ellipse with a 3px pen inside
+        tkRect_Set( rc, 20, 20, 120, 80 ) : p->PaintEllipse( @rc, 3 )
+    case 3      ' a non-convex polygon: a "V" tick
+        dim as TKPOINT pts(0 to 5) = { (10, 50), (30, 50), (45, 70), (90, 10), (110, 10), (45, 95) }
+        p->PaintPolygon( @pts(0), 6 )
+    case 4      ' pie quarter: 0..90 degrees (clockwise from +x: the bottom-right quadrant)
+        tkRect_Set( rc, 20, 20, 120, 120 ) : p->PaintPie( @rc, 0, 90 )
+    case 5      ' zero sweep draws nothing
+        tkRect_Set( rc, 20, 20, 120, 120 ) : p->PaintPie( @rc, 30, 0 )
+    case 6      ' a full ring, hole 0.5
+        tkRect_Set( rc, 20, 20, 120, 120 ) : p->PaintPieRing( @rc, 0.5, 0, 360 )
+    case 7      ' vertical gradient black -> white
+        tkRect_Set( rc, 10, 10, 110, 110 ) : p->PaintGradientRect( @rc, &hFF000000ul, &hFFFFFFFFul, TK_GRADIENT_VERTICAL )
+    case 8      ' horizontal gradient
+        tkRect_Set( rc, 10, 10, 110, 110 ) : p->PaintGradientRect( @rc, &hFF000000ul, &hFFFFFFFFul, TK_GRADIENT_HORIZONTAL )
+    case 9      ' a dashed horizontal polyline, 2 px pen (scaled)
+        dim as TKPOINT pts(0 to 1) = { (10, 50), (300, 50) }
+        p->SetPenDashStyle( TK_PENDASH_DASH ) : p->PaintPolyline( @pts(0), 2, 2 ) : p->SetPenDashStyle( TK_PENDASH_SOLID )
+    case 10     ' a curve through three points
+        dim as TKPOINT pts(0 to 2) = { (20, 100), (100, 20), (180, 100) }
+        p->PaintCurve( @pts(0), 3, 2 )
+    case 11     ' lines: horizontal crisp, diagonal blended
+        p->PaintLine( 1, 10, 30, 200, 30 )
+        p->PaintLine( 1, 10, 60, 200, 120 )
+    case 12     ' clip: a big rect clipped to a small one; push/pop restores
+        tkRect_Set( rc, 50, 50, 100, 100 ) : p->PushClip( @rc )
+        tkRect_Set( rc, 0, 0, 200, 200 ) : p->SetBackColor( PEN ) : p->PaintRect( @rc )
+        p->PopClip()
+        tkRect_Set( rc, 150, 150, 160, 160 ) : p->PaintRect( @rc )
+    case 13     ' text: left, right, ellipsis
+        tkRect_Set( rc, 20, 10, 300, 40 ) : p->PaintText( "Left aligned", @rc, TK_DT_LEFT )
+        tkRect_Set( rc, 20, 50, 300, 80 ) : p->PaintText( "Right aligned", @rc, TK_DT_RIGHT )
+        tkRect_Set( rc, 20, 90, 90, 120 ) : p->PaintText( "Far too long a caption", @rc, TK_DT_LEFT or TK_DT_ELLIPSIS )
+    case 14     ' word-wrapped text
+        tkRect_Set( rc, 10, 10, 160, 300 )
+        p->PaintTextEx( "the quick brown fox jumps over the lazy dog again and again", @rc, TK_DT_WORDBREAK )
+    end select
+    return true
+end function
+
+function S( byval h as TK_HOST ptr, byval v as long ) as long
+    return v      ' scenes are drawn in raw pixels; only pens scale
+end function
+
+' Draw a scene and leave it in the back buffer.
+sub Scene( byval h as TK_HOST ptr, byval n as long )
+    gScene = n
+    tkHost_RenderTo( h, false )
+end sub
+
+function Px( byval h as TK_HOST ptr, byval cv as TK_WIDGET ptr, byval x as long, byval y as long ) as ulong
+    dim as TKRECT a
+    tkWidget_AbsRect( cv, a )
+    return tkTest_PixelAt( h, a.left + x, a.top + y )
+end function
+
+function Tones( byval h as TK_HOST ptr, byval cv as TK_WIDGET ptr, byval x as long, byval y as long, _
+                byval w as long, byval hh as long ) as long
+    dim as TKRECT a
+    tkWidget_AbsRect( cv, a )
+    dim as ulong c0
+    return tkTest_TonesIn( h, a.left + x, a.top + y, w, hh, c0 )
+end function
+
+function IsMid( byval c as ulong, byval a as ulong, byval b as ulong ) as boolean
+    ' strictly between a and b on every channel that differs
+    for i as long = 0 to 2
+        dim as long cc = (c shr (i * 8)) and 255, ca = (a shr (i * 8)) and 255, cb = (b shr (i * 8)) and 255
+        if ca = cb then continue for
+        dim as long lo = iif( ca < cb, ca, cb ), hi = iif( ca < cb, cb, ca )
+        if (cc <= lo) orelse (cc >= hi) then return false
+    next
+    return true
+end function
+
+' The leftmost / rightmost column in a row band that is not the background.
+function InkSpan( byval h as TK_HOST ptr, byval cv as TK_WIDGET ptr, byval y0 as long, byval y1 as long, _
+                  byval x0 as long, byval x1 as long, byref first as long, byref last as long ) as boolean
+    first = -1 : last = -1
+    for x as long = x0 to x1 - 1
+        for y as long = y0 to y1 - 1
+            if Px( h, cv, x, y ) <> BG then
+                if first < 0 then first = x
+                last = x
+                exit for
+            end if
+        next
+    next
+    return first >= 0
+end function
+
+
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkPaint selftest", 640, 480, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host", false, *SDL_GetError() ) : exit sub
+    gFont = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
+    dim as TK_WIDGET ptr cv = tkWidget_Create( h, 1, @CanvasProc, 0 )
+    tkWidget_SetPos( cv, 10, 10, 400, 320 )
+
+    ' ---- ellipse ---------------------------------------------------------------------------------
+    Scene( h, 1 )
+    tkTest_Check( "ellipse: centre filled", Px( h, cv, 70, 50 ) = FG, hex( Px( h, cv, 70, 50 ) ) & " row:" & Tones( h, cv, 20, 50, 100, 1 ) & " col:" & Tones( h, cv, 70, 20, 1, 60 ) )
+    tkTest_Check( "ellipse: box corner empty", Px( h, cv, 21, 21 ) = BG )
+    dim as boolean bMid = false
+    for x as long = 18 to 24
+        if IsMid( Px( h, cv, x, 50 ), BG, FG ) then bMid = true
+    next
+    for y as long = 17 to 23
+        if IsMid( Px( h, cv, 70, y ), BG, FG ) then bMid = true
+    next
+    tkTest_Check( "ellipse: rim is blended (AA)", bMid orelse (Tones( h, cv, 20, 20, 25, 25 ) > 2) )
+    Scene( h, 2 )
+    tkTest_Check( "ellipse pen: drawn inside the box", Px( h, cv, 21, 50 ) = PEN orelse Px( h, cv, 22, 50 ) = PEN )
+    tkTest_Check( "ellipse pen: centre still filled", Px( h, cv, 70, 50 ) = FG )
+
+    ' ---- non-convex polygon ----------------------------------------------------------------------
+    Scene( h, 3 )
+    tkTest_Check( "tick: left arm filled", Px( h, cv, 30, 55 ) = FG, hex( Px( h, cv, 30, 55 ) ) )
+    tkTest_Check( "tick: right arm filled", Px( h, cv, 95, 18 ) = FG, hex( Px( h, cv, 95, 18 ) ) )
+    tkTest_Check( "tick: the notch (concave) is EMPTY", Px( h, cv, 45, 40 ) = BG, hex( Px( h, cv, 45, 40 ) ) )
+
+    ' ---- pie, zero sweep, ring ---------------------------------------------------------------------
+    Scene( h, 4 )
+    tkTest_Check( "pie 0..90: bottom-right quadrant filled", Px( h, cv, 90, 90 ) = FG )
+    tkTest_Check( "pie 0..90: top-left quadrant empty", Px( h, cv, 50, 50 ) = BG )
+    tkTest_Check( "pie 0..90: top-right quadrant empty", Px( h, cv, 90, 50 ) = BG )
+    Scene( h, 5 )
+    tkTest_Check( "pie with zero sweep draws NOTHING", Tones( h, cv, 15, 15, 110, 110 ) = 1 )
+    Scene( h, 6 )
+    tkTest_Check( "ring: the hole is empty", Px( h, cv, 70, 70 ) = BG )
+    tkTest_Check( "ring: the band is filled", Px( h, cv, 70, 30 ) = FG andalso Px( h, cv, 110, 70 ) = FG )
+
+    ' ---- gradients --------------------------------------------------------------------------------
+    Scene( h, 7 )
+    dim as ulong cTop = Px( h, cv, 60, 10 ), cBot = Px( h, cv, 60, 109 ), cMid = Px( h, cv, 60, 60 )
+    tkTest_Check( "vertical gradient: dark top, light bottom, grey middle", ((cTop and 255) < 16) andalso ((cBot and 255) > 239) andalso ((cMid and 255) > 100) andalso ((cMid and 255) < 155), hex( cTop ) & " " & hex( cMid ) & " " & hex( cBot ) )
+    tkTest_Check( "vertical gradient: a row is one colour", Tones( h, cv, 10, 60, 100, 1 ) = 1 )
+    Scene( h, 8 )
+    tkTest_Check( "horizontal gradient: dark left, light right", ((Px( h, cv, 10, 60 ) and 255) < 16) andalso ((Px( h, cv, 109, 60 ) and 255) > 239) )
+    tkTest_Check( "horizontal gradient: a column is one colour", Tones( h, cv, 60, 10, 1, 100 ) = 1 )
+
+    ' ---- dashed polyline: count the dashes along the line --------------------------------------
+    Scene( h, 9 )
+    dim as long nRuns = 0
+    dim as boolean bInk = false
+    for x as long = 10 to 300
+        dim as boolean b = (Px( h, cv, x, 50 ) = PEN)
+        if b andalso (bInk = false) then nRuns += 1
+        bInk = b
+    next
+    dim as long pw = cint( 2 * fScale ), expectRuns = 290 \ (7 * pw)
+    tkTest_Check( "dash: on/off runs match 4-on 3-off in pen widths", (nRuns >= expectRuns - 1) andalso (nRuns <= expectRuns + 2), nRuns & " runs, ~" & expectRuns & " expected" )
+
+    ' ---- curve passes through its points ---------------------------------------------------------
+    Scene( h, 10 )
+    tkTest_Check( "curve: through the middle control point", Px( h, cv, 100, 20 ) = PEN orelse Px( h, cv, 100, 21 ) = PEN, hex( Px( h, cv, 100, 20 ) ) )
+    tkTest_Check( "curve: through the end points", Px( h, cv, 20, 100 ) = PEN andalso Px( h, cv, 180, 100 ) = PEN )
+
+    ' ---- lines ------------------------------------------------------------------------------------
+    Scene( h, 11 )
+    tkTest_Check( "horizontal line: crisp (ink row one colour)", Tones( h, cv, 20, 30, 150, 1 ) = 1 andalso Px( h, cv, 100, 30 ) = PEN )
+    tkTest_Check( "horizontal line: 1 px tall", Px( h, cv, 100, 29 ) = BG andalso Px( h, cv, 100, 31 ) = BG )
+    tkTest_Check( "diagonal line: blended", Tones( h, cv, 60, 70, 60, 40 ) > 2 )
+
+    ' ---- clipping ---------------------------------------------------------------------------------
+    Scene( h, 12 )
+    tkTest_Check( "PushClip: inside painted", Px( h, cv, 75, 75 ) = PEN )
+    tkTest_Check( "PushClip: outside untouched", Px( h, cv, 40, 40 ) = BG andalso Px( h, cv, 120, 120 ) = BG )
+    tkTest_Check( "PopClip restores the full clip", Px( h, cv, 155, 155 ) = PEN )
+
+    ' ---- text -------------------------------------------------------------------------------------
+    Scene( h, 13 )
+    dim as long f1, l1
+    InkSpan( h, cv, 10, 40, 0, 320, f1, l1 )
+    tkTest_Check( "TK_DT_LEFT: ink starts at the rect's left", (f1 >= 20) andalso (f1 <= 23), f1 & ".." & l1 )
+    InkSpan( h, cv, 50, 80, 0, 320, f1, l1 )
+    tkTest_Check( "TK_DT_RIGHT: ink ends at the rect's right", (l1 <= 299) andalso (l1 >= 295), f1 & ".." & l1 )
+    InkSpan( h, cv, 90, 120, 0, 320, f1, l1 )
+    tkTest_Check( "TK_DT_ELLIPSIS: clipped inside its span", (l1 >= 0) andalso (l1 < 90), f1 & ".." & l1 )
+    Scene( h, 14 )
+    dim as long rowsInk = 0, lastY = -100
+    dim as string u8 = "the quick brown fox jumps over the lazy dog again and again"
+    dim as long st(), en()
+    dim as long nLines = tkText_Wrap( gFont, u8, 150, st(), en() )
+    for y as long = 10 to 300
+        dim as long a, b
+        if InkSpan( h, cv, y, y + 1, 10, 162, a, b ) then
+            if (b > 160) then rowsInk = -999
+        end if
+    next
+    tkTest_Check( "wordbreak: nothing painted past the width", rowsInk >= 0 )
+    tkTest_Check( "wordbreak: several lines", nLines >= 3, "" & nLines )
+    dim as boolean bWidthOk = true
+    for i as long = 0 to nLines - 1
+        dim as string ln = mid( u8, st(i) + 1, en(i) - st(i) )
+        if tkText_WidthU8( gFont, ln ) > 150 then bWidthOk = false
+    next
+    tkTest_Check( "tkText_Wrap: every line fits", bWidthOk )
+    dim as string hard = "one" & chr( 10 ) & chr( 10 ) & "three"
+    tkTest_Check( "tkText_Wrap: hard newlines, blank line kept", tkText_Wrap( gFont, hard, 1000, st(), en() ) = 3 )
+
+    ' ---- the caret helpers ------------------------------------------------------------------------
+    dim as string w8 = "Caf" & chr( &hC3, &hA9 ) & " " & chr( &hE2, &h82, &hAC ) & "42"     ' "Café €42"
+    dim as boolean bRound = true
+    dim as long i = 0, prevX = -1
+    while i <= len( w8 )
+        dim as long x = tkText_IndexToX( gFont, w8, i )
+        if x <= prevX then bRound = false
+        if tkText_XToIndex( gFont, w8, x ) <> i then bRound = false
+        prevX = x
+        if i = len( w8 ) then exit while
+        i = tkText_NextOffset( w8, i )
+    wend
+    tkTest_Check( "IndexToX increases and XToIndex inverts it, per codepoint", bRound )
+    tkTest_Check( "NextOffset/PrevOffset step over a 2-byte char", tkText_NextOffset( w8, 3 ) = 5 andalso tkText_PrevOffset( w8, 5 ) = 3 )
+    dim as long xA = tkText_IndexToX( gFont, w8, 1 ), xB = tkText_IndexToX( gFont, w8, 2 )
+    tkTest_Check( "XToIndex rounds to the nearer boundary", tkText_XToIndex( gFont, w8, xA + (xB - xA) \ 4 ) = 1 andalso tkText_XToIndex( gFont, w8, xB - (xB - xA) \ 4 ) = 2 )
+
+    tkHost_Destroy( h )
+end sub
+
+if tkTest_Init() = false then end 99
+RunPass( 1.0 )
+RunPass( 1.75 )
+dim as long nFail = tkTest_Report( "tkPaint" )
+tkTest_Quit()
+end nFail

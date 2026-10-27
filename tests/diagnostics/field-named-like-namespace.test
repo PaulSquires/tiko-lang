@@ -1,0 +1,16 @@
+'' A FIELD NAMED LIKE A NAMESPACE, the namespace reached through it. MEASURED, fbc-modern 1.20
+'' with -maxerr inf over the source -- exactly these lines, and no others:
+''
+''     20, 21   error 3   'enc.KindName( Enc )' and 'E2.A' in a METHOD BODY, where the field
+''                        (names fold case) is what 'enc' names -- TKO0835. tiko said nothing
+''                        and stopped in lowering on TKO0994 (tkEdit TK-001).
+''
+'' Beside them fbc ACCEPTS 'Enc as enc.Kind = enc.Kind.B': in the type's own scope the
+'' namespace is read, and so it is by tiko (resolvedot.tiko LookPastField_). Through an
+'' '#import' alias the method body looks past too -- tests/modules/field-named-like-module-call.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/field-named-like-namespace.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: field-named-like-namespace.bas(20,11): error TKO0835
+'' EXPECT-OUT: field-named-like-namespace.bas(21,11): error TKO0835
+'' EXPECT-MAX-DIAG: 2

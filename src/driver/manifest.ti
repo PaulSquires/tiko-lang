@@ -18,10 +18,11 @@ type Manifest
     '' [dependencies.x.defines]: honoured only in the root's manifest. ddDep[k] is x.
     as StrVec  ddDep
     as StrVec  ddDefine
-    '' [target.<name>], [target.<name>.defines] and [profile.<name>] (tiko-build RFC-0001
-    '' §5): what to build, read only by 'tiko build' (src/build). Kept as records -- the
-    '' table's name, the key, the value, an array's elements joined by LF; a define is key
-    '' 'define', value NAME=value -- in file order, each name once in *Names.
+    '' [target.<name>], [target.<name>.defines], [target.<name>.<os>] and [profile.<name>]
+    '' (tiko-build RFC-0001 §5): what to build, read only by 'tiko build' (src/build). Kept as
+    '' records -- the table's name, the key, the value, an array's elements joined by LF; a
+    '' define is key 'define', value NAME=value; a key of an OS table is '<key>@<os>' -- in
+    '' file order, each name once in *Names.
     as StrVec  targetNames
     as StrVec  tgtName
     as StrVec  tgtKey
@@ -35,6 +36,12 @@ type Manifest
     '' module's path below the package, dotted, and its modes as "|static|dynamic|".
     as StrVec  vendorMods
     as StrVec  vendorLinks
+    '' [vendor.<module>] runtime = ["..."]: the files a module of this package needs beside the
+    '' program at run time -- a font, a library the program loads itself -- each relative to the
+    '' module's directory. The module's path below the package, dotted, and its files joined by
+    '' LF, as written. A table may hold links, runtime or both.
+    as StrVec  vendorRtMods
+    as StrVec  vendorRtFiles
 end type
 
 '' READ dir_/tiko.toml. False with the reason reported (TKO0144) when it is not the subset

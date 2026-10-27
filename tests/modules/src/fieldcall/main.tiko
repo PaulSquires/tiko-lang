@@ -1,0 +1,16 @@
+#import "std/outcome"
+#import "./enc"
+using outcome
+type W
+    Enc as enc.Kind = enc.Kind.B
+    declare sub Show( )
+end type
+sub W.Show( )
+    dim as Optional( of enc.Kind ) o = Some( of enc.Kind )( Enc )
+    select case Enc
+    case enc.Kind.B : print enc.KindName( Enc ); " ";
+    end select
+    print enc.KindName( o.Value( ) )
+end sub
+dim as W x
+x.Show( )

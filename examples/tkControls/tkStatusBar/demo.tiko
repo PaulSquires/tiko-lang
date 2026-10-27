@@ -1,0 +1,217 @@
+' tkStatusBar demo: the Win32 demo's two bars (tiko-lang/examples/PsControls/PsStatusBar), so the
+' two can be put side by side, plus a third bar on the BUILT-IN painter (the PsPlatform addition).
+'
+'   demo                     interactive
+'   demo --shot out.bmp      render once (bar 3 panel 1 hot), save the window, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkStatusBar"
+using tkStatusBar
+using tkTooltip
+using tkHost
+using tkPaint
+
+' The Win32 demo's THEME_TYPE, value for value (COLORREF BGR(r,g,b) -> tkRGB(r,g,b)).
+const as ulong T_BACKPANEL = &hFFDCDCDCul      ' (220,220,220)
+const as ulong T_FORE      = &hFFBEC4CEul
+const as ulong T_BACK      = &hFF21252Bul      ' ( 33, 37, 43)
+const as ulong T_FOREHOT   = &hFFCCCCCCul      ' (204,204,204)
+const as ulong T_BACKHOT   = &hFF2C313Aul      ' ( 44, 49, 58)
+const as ulong T_FORESEL   = &hFFFFFFFFul
+const as ulong T_BACKSEL   = &hFF264F78ul      ' ( 38, 79,120)
+const as ulong T_FOCUS     = &hFF569CD6ul      ' ( 86,156,214)
+const as ulong T_NOTE      = &hFF505050ul
+
+const as long IDC_STATUSBAR = 1000, IDC_STATUSBAR2 = 1001, IDC_STATUSBAR3 = 1002
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gBar1, gBar2, gBar3
+dim shared as TTF_Font ptr gFont9, gFont10
+
+' Panel state: hot > normal (no selection -- a status bar has none).
+sub Bar1_Paint( byval p as TKSTATUSBAR_PAINTINFO ptr )
+    dim as ulong backclr = T_BACK, foreclr = T_FORE
+    if p->isHot then backclr = T_BACKHOT : foreclr = T_FOREHOT
+    p->b->SetBackColor( backclr )
+    p->b->PaintRect( @p->rc )
+    ' Inset by the control's own padding, and draw with the font it measured with.
+    dim as TKRECT rcText = p->rc
+    rcText.left += tkStatusBar_GetPadding( p->hStatusBar )
+    p->b->SetFont( gFont10 )
+    p->b->SetColors( foreclr, backclr )
+    p->b->PaintText( p->wszCaption, @rcText, TK_DT_LEFT )
+end sub
+
+' The second instance's own renderer, different colours: callbacks are per-instance.
+sub Bar2_Paint( byval p as TKSTATUSBAR_PAINTINFO ptr )
+    dim as ulong backclr = T_BACKSEL, foreclr = T_FORESEL
+    if p->isHot then backclr = T_FOCUS
+    p->b->SetBackColor( backclr )
+    p->b->PaintRect( @p->rc )
+    dim as TKRECT rcText = p->rc
+    rcText.left += tkStatusBar_GetPadding( p->hStatusBar )
+    p->b->SetFont( gFont10 )
+    p->b->SetColors( foreclr, backclr )
+    p->b->PaintText( p->wszCaption, @rcText, TK_DT_LEFT )
+end sub
+
+private function BarName( byval hBar as TK_WIDGET ptr ) as string
+    if hBar = gBar1 then return "bar1"
+    if hBar = gBar2 then return "bar2"
+    return "bar3"
+end function
+
+function Bar_Message( byval m as TKSTATUSBAR_MESSAGEINFO ptr ) as boolean
+    select case m->msg
+    case TKSB_MOUSEHOVER
+        print BarName( m->hStatusBar ) & " hover idx=" & m->idx
+        return true
+    case TKM_LBUTTONUP
+        ' No capture, so an up only arrives while the cursor is over the bar.
+        if m->idx <> -1 then
+            print BarName( m->hStatusBar ) & " click idx=" & m->idx & " itemData=" & tkStatusBar_GetItemData( m->hStatusBar, m->idx )
+        end if
+    case TKM_LBUTTONDOWN
+        if m->clicks = 2 then print BarName( m->hStatusBar ) & " double click idx=" & m->idx
+    end select
+    return false
+end function
+
+function Bar_Tooltip( byval hBar as TK_WIDGET ptr, byval idx as long ) as ustring
+    dim as ustring s = tkStatusBar_GetText( hBar, idx )
+    if len( s ) = 0 then return ""          ' "" suppresses the tip (the spring)
+    return "Panel " & idx & " -> " & s
+end function
+
+sub Bar3_Click( byval hBar as TK_WIDGET ptr, byval idx as long, byval clicks as long )
+    print "bar3 click callback idx=" & idx & " clicks=" & clicks & " [" & tkStatusBar_GetText( hBar, idx ) & "]"
+end sub
+
+' Stack the bars along the bottom, full width: the control has no opinion about its placement.
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long nHeight = tkHost_Scale( h, 24 )
+    tkWidget_SetPos( gBar1, 0, ph - nHeight, pw, nHeight )
+    tkWidget_SetPos( gBar2, 0, ph - nHeight * 2, pw, nHeight )
+    tkWidget_SetPos( gBar3, 0, ph - nHeight * 3 - tkHost_Scale( h, 16 ), pw, nHeight )
+end sub
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as TKRECT rc
+    tkRect_Set( rc, 0, 0, pw, ph )
+    b->SetBackColor( T_BACKPANEL )
+    b->PaintRect( @rc )
+    dim as long m = tkHost_Scale( h, 16 )
+    b->SetFont( gFont9 )
+    b->SetColors( T_NOTE, T_BACKPANEL )
+    tkRect_Set( rc, m, m, pw - m, m + tkHost_Scale( h, 20 ) )
+    b->PaintText( "Bottom: the Win32 demo's two bars (host paint callbacks; bar 2 springs panel 0, padding 20).", @rc, TK_DT_LEFT )
+    tkRect_Set( rc, m, m + tkHost_Scale( h, 20 ), pw - m, m + tkHost_Scale( h, 40 ) )
+    b->PaintText( "Above them: no paint callback, so the BUILT-IN painter -- dividers, hot fill on clickable panels.", @rc, TK_DT_LEFT )
+end sub
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr s = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if s then
+        SDL_SaveBMP( s, strptr( path ) )
+        print "shot: " & path & "  " & s->w & "x" & s->h & "  scale=" & gHost->fScale & "  density=" & gHost->fDensity
+        SDL_DestroySurface( s )
+    end if
+end sub
+
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkStatusBar on SDL3", 800, 400, tkHost_FontDir() & TK_FONT_UI, forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = T_BACKPANEL
+print "video driver: " & *SDL_GetCurrentVideoDriver() & "  renderer: " & *SDL_GetRendererName( gHost->renderer ) & _
+      "  scale=" & gHost->fScale & "  density=" & gHost->fDensity
+
+gFont9  = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 9 )
+gFont10 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 10 )
+if gFont10 = 0 then print "fonts: " & *SDL_GetError() : end 1
+tkTooltip_SetDefaultFonts( gFont9 )
+
+' A representative status bar: a message on the left, readouts on the right, and an empty
+' spring panel between them doing the pushing.
+gBar1 = tkStatusBar_Create( tkHost_Root( gHost ), IDC_STATUSBAR )
+tkStatusBar_SetPaintCallback( gBar1, @Bar1_Paint )
+tkStatusBar_SetMessageCallback( gBar1, @Bar_Message )
+tkStatusBar_SetBackColor( gBar1, T_BACK )
+tkStatusBar_SetFont( gBar1, gFont10 )
+tkStatusBar_SetTooltipCallback( gBar1, @Bar_Tooltip )
+tkStatusBar_AddPanel( gBar1, "Ready", 1001 )
+tkStatusBar_AddPanel( gBar1, "", 1002 )                 ' the spring
+tkStatusBar_AddPanel( gBar1, "Ln 1, Col 1", 1003 )
+tkStatusBar_AddPanel( gBar1, "CRLF", 1004 )
+tkStatusBar_AddPanel( gBar1, "UTF-8", 1005 )
+tkStatusBar_SetExpandPanel( gBar1, 1 )
+tkStatusBar_SetPanelMinWidth( gBar1, 2, tkHost_Scale( gHost, 110 ) )
+
+' A second, independent instance: its own panels, spring (panel 0), padding and hover state.
+gBar2 = tkStatusBar_Create( tkHost_Root( gHost ), IDC_STATUSBAR2 )
+tkStatusBar_SetPaintCallback( gBar2, @Bar2_Paint )
+tkStatusBar_SetMessageCallback( gBar2, @Bar_Message )
+tkStatusBar_SetBackColor( gBar2, T_BACKSEL )
+tkStatusBar_SetFont( gBar2, gFont10 )
+tkStatusBar_SetTooltipCallback( gBar2, @Bar_Tooltip )
+tkStatusBar_SetPadding( gBar2, tkHost_Scale( gHost, 20 ) )
+tkStatusBar_AddPanel( gBar2, "", 2001 )                 ' the spring
+tkStatusBar_AddPanel( gBar2, "second instance", 2002 )
+tkStatusBar_AddPanel( gBar2, "INS", 2003 )
+tkStatusBar_SetExpandPanel( gBar2, 0 )
+
+' tk addition: no paint callback, so the built-in painter (themed colours), clickable panels.
+gBar3 = tkStatusBar_Create( tkHost_Root( gHost ), IDC_STATUSBAR3 )
+tkStatusBar_SetFont( gBar3, gFont10 )
+tkStatusBar_SetMessageCallback( gBar3, @Bar_Message )
+tkStatusBar_SetClickCallback( gBar3, @Bar3_Click )
+tkStatusBar_AddPanel( gBar3, "Built-in painter", 3001 )
+tkStatusBar_AddPanel( gBar3, "Spaces: 4", 3002 )
+tkStatusBar_AddPanel( gBar3, "", 3003 )                 ' the spring
+tkStatusBar_AddPanel( gBar3, "tiko", 3004 )
+tkStatusBar_AddPanel( gBar3, "Bell", 3005 )
+tkStatusBar_SetExpandPanel( gBar3, 2 )
+
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkHost_Show( gHost )
+
+dim as string shot = ArgValue( "--shot" )
+if len( shot ) then
+    tkHost_Pump( gHost )
+    ' Hover bar 3's panel 1 so the shot shows the built-in hot fill.
+    dim as TKRECT rc, ab
+    dim as SDL_Event e
+    tkStatusBar_GetPanelRect( gBar3, 1, rc )
+    tkWidget_AbsRect( gBar3, ab )
+    e.type = SDL_EVENT_MOUSE_MOTION
+    e.motion.windowID = gHost->winId
+    e.motion.x = (ab.left + (rc.left + rc.right) \ 2) / gHost->fDensity
+    e.motion.y = (ab.top + (rc.top + rc.bottom) \ 2) / gHost->fDensity
+    tkHost_Dispatch( gHost, @e )
+    SaveShot( shot )
+else
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

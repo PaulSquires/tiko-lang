@@ -1,0 +1,703 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkApp -- PsApp on SDL3 + SDL_ttf: the application framework for tkControls. tkApp_Init /
+' tkApp_Run / tkApp_Quit own start-up, the loop and tear-down; a TK_FORM is a window whose
+' events arrive as callbacks. A port of pkg/vendor/PsControls/PsApp, of the parts that map.
+'
+' WHAT MAPS:
+'   * font ROLES per form (UI, small, bold, large, glyph, glyph large, mono), opened from font
+'     FILES at the form's scale -- SDL_ttf has no face lookup, so the options name files: by
+'     default the fonts tkControls bundles (tkHost's TK_FONT_*), beside the program;
+'   * the THEME MODE: SYSTEM follows SDL_EVENT_SYSTEM_THEME_CHANGED live, LIGHT / DARK fix it;
+'     every unpinned control restyles (tkTheme_Apply's broadcast) and OnThemeChanged fires;
+'   * RunOnUI from any thread (SDL_PushEvent is thread-safe, and the queue keeps call order),
+'     run wherever the pump is -- tkHost_Run, tkHost_Pump, a modal loop -- through tkHost's
+'     event hook; form-less timers on SDL_AddTimer, delivered on the UI thread the same way;
+'   * a FORM with dialog semantics: Tab is the host's, Esc ends a modal form with
+'     TKAPP_IDCANCEL, the close button asks OnClose, ShowModal / EndModal / IsModal.
+'
+' GONE with Win32 (PORT.md): COM, DPI awareness modes, GDI+, IsDialogMessage and accelerator
+' tables, message filters, OnCommand / OnNotify / OnMessage / OnTimer / OnActivateApp,
+' WM_* built-ins, per-form window classes, PsRegistry's per-control font hand-out (controls
+' take the form's UI font as the surface default instead).
+#module "tkApp"
+
+' tkFontList first: it brings std/fs, and on Linux std/* must come before vendor/SDL3 (FINDINGS)
+#import "../tkFontList"
+#import "../tkHost" public
+#import "../tkTheme" public
+using tkHost
+using tkFontList
+using tkPaint
+using tkTheme
+
+' ---- constants --------------------------------------------------------------------------
+public enum
+    TKAPP_THEME_SYSTEM = 0
+    TKAPP_THEME_LIGHT
+    TKAPP_THEME_DARK
+    TKAPP_THEME_NONE
+end enum
+
+public enum
+    TKFONT_UI = 0
+    TKFONT_UI_SMALL
+    TKFONT_UI_BOLD
+    TKFONT_UI_LARGE
+    TKFONT_GLYPH
+    TKFONT_GLYPH_LARGE
+    TKFONT_MONO
+    TKFONT_COUNT
+end enum
+
+public const TKAPP_IDOK = 1
+public const TKAPP_IDCANCEL = 2
+
+public type TKAPP_OPTIONS
+    FontDir        as ustring            ' "" = the bundled fonts' (see tkApp_DefaultFontDir)
+    FontUIFile     as ustring = TK_FONT_UI
+    FontUIBoldFile as ustring = TK_FONT_UI_BOLD
+    FontUISize     as single = 10
+    GlyphFontFile  as ustring            ' tried FIRST when set; then TK_FONT_ICONS
+    FontMonoFile   as ustring = TK_FONT_MONO   ' then an installed mono family, then the UI file
+    ThemeMode      as long = TKAPP_THEME_SYSTEM
+end type
+
+public type TK_FORM as TK_FORM_
+public type TKFORM_SizeSub as sub( byval f as TK_FORM ptr, byval cx as long, byval cy as long )
+public type TKFORM_PaintSub as sub( byval f as TK_FORM ptr, byval b as TK_PAINT ptr )
+public type TKFORM_KeyFunc as function( byval f as TK_FORM ptr, byval key as long, byval mods as long ) as boolean
+public type TKFORM_CloseFunc as function( byval f as TK_FORM ptr ) as boolean
+public type TKFORM_Sub as sub( byval f as TK_FORM ptr )
+public type TKFORM_ScaleSub as sub( byval f as TK_FORM ptr, byval fOld as single, byval fNew as single )
+public type TKAPP_UIProc as sub( byval payload as any ptr )
+public type TKAPP_TimerProc as sub( byval id as long, byval payload as any ptr )
+
+public type TK_FORM_
+    host         as TK_HOST ptr
+    wForm        as TK_WIDGET ptr      ' the full-size form widget: parent of the form's controls
+    pOwner       as TK_FORM ptr
+    bModal       as boolean
+    bShown       as boolean
+    bDestroyed   as boolean
+    fonts(0 to TKFONT_COUNT - 1) as TTF_Font ptr
+    fontPt(0 to TKFONT_COUNT - 1) as single
+    fontFile(0 to TKFONT_COUNT - 1) as ustring
+    Tag          as any ptr
+    OnSize_         as TKFORM_SizeSub
+    OnPaint_        as TKFORM_PaintSub
+    OnKeyDown_      as TKFORM_KeyFunc
+    OnClose_        as TKFORM_CloseFunc
+    OnDestroy_      as TKFORM_Sub
+    OnThemeChanged_ as TKFORM_Sub
+    OnScaleChanged_ as TKFORM_ScaleSub
+end type
+
+type TKAPP_TIMER
+    id       as long
+    sdlId    as SDL_TimerID
+    proc     as TKAPP_TimerProc
+    payload  as any ptr
+    active   as boolean
+end type
+
+dim shared as boolean gInit
+dim shared as TKAPP_OPTIONS gOpts
+dim shared as SDL_ThreadID gUiThread
+dim shared as Uint32 gEvRunOnUI, gEvTimer
+dim shared as TK_FORM ptr gForms(0 to 63)
+dim shared as long gnForms
+dim shared as TK_FORM ptr gMainForm
+dim shared as long gExitCode
+dim shared as boolean gQuitting
+dim shared as long gThemeMode = TKAPP_THEME_SYSTEM
+dim shared as TKAPP_TIMER gTimers(0 to 63)
+dim shared as long gNextTimerId = 1
+dim shared as ustring gGlyphFile, gMonoFile
+
+public declare function tkApp_SetTheme( byref t as TKTHEME_COLORS ) as TKTHEME_COLORS
+public declare sub tkForm_Destroy( byval f as TK_FORM ptr )
+
+
+' ==========================================================================================
+' Fonts
+' ==========================================================================================
+' The bundled fonts' directory: the program's own (tkHost_FontDir), where tiko copies them. A
+' file the options name that is not there falls back to an installed family (FallbackFont).
+public function tkApp_DefaultFontDir() as ustring
+    return tkHost_FontDir()
+end function
+
+private function FontDir() as ustring
+    if len( gOpts.FontDir ) then return gOpts.FontDir
+    return tkApp_DefaultFontDir()
+end function
+
+private function FileThere( byref path as ustring ) as boolean
+    if len( path ) = 0 then return false
+    dim as string p8 = path
+    return SDL_GetPathInfo( strptr( p8 ), 0 )
+end function
+
+' A bare file name is looked up in the font directory; anything with a separator is a path.
+private function Resolve( byref f as ustring ) as ustring
+    if len( f ) = 0 then return ""
+    if (instr( f, "/" ) > 0) orelse (instr( f, "\" ) > 0) then return f
+    return FontDir() & f
+end function
+
+private function FirstThere( byref a as ustring, byref b as ustring, byref c as ustring ) as ustring
+    if FileThere( Resolve( a ) ) then return Resolve( a )
+    if FileThere( Resolve( b ) ) then return Resolve( b )
+    if FileThere( Resolve( c ) ) then return Resolve( c )
+    return ""
+end function
+
+' AN INSTALLED FONT BY FAMILY, for a program without the files the options name (the bundled
+' fonts not copied beside it, or a FontDir that lacks them). The first family of the list that is
+' installed, through tkFontList (scanned once, on first need). A .ttc face is skipped: the role
+' fonts open files. "" when none is installed.
+dim shared as boolean gFontsScanned
+public function tkApp_FallbackFont( byval bMono as boolean, byval bBold as boolean = false ) as ustring
+    if gFontsScanned = false then tkFontList_Scan( "" ) : gFontsScanned = true
+    dim as string fams
+    if bMono then
+        fams = "Cascadia Mono|Consolas|DejaVu Sans Mono|Noto Sans Mono|Ubuntu Mono|Liberation Mono|Menlo|Courier New"
+    else
+        fams = "Inter|Segoe UI|Noto Sans|DejaVu Sans|Ubuntu|Liberation Sans|Cantarell|Arial|Helvetica"
+    end if
+    while len( fams )
+        dim as long bar = instr( fams, "|" )
+        dim as string fam
+        if bar then
+            fam = left( fams, bar - 1 ) : fams = mid( fams, bar + 1 )
+        else
+            fam = fams : fams = ""
+        end if
+        dim as string f = tkFontList_Find( fam, bBold )
+        if (len( f ) > 0) andalso (instr( f, "|" ) = 0) then
+            dim as ustring u = f
+            return u
+        end if
+    wend
+    return ""
+end function
+
+' The glyph font file Init chose: GlyphFontFile, then the bundled TK_FONT_ICONS.
+public function tkApp_GlyphFace() as ustring
+    return gGlyphFile
+end function
+
+public function tkApp_Options() as TKAPP_OPTIONS
+    return gOpts
+end function
+
+private sub RoleSpec( byval role as long, byref file as ustring, byref pt as single )
+    dim as single base_ = gOpts.FontUISize
+    select case role
+    case TKFONT_UI : file = Resolve( gOpts.FontUIFile ) : pt = base_
+    case TKFONT_UI_SMALL : file = Resolve( gOpts.FontUIFile ) : pt = base_ - 1
+    case TKFONT_UI_BOLD : file = Resolve( gOpts.FontUIBoldFile ) : pt = base_
+    case TKFONT_UI_LARGE : file = Resolve( gOpts.FontUIFile ) : pt = base_ + 2
+    case TKFONT_GLYPH : file = gGlyphFile : pt = base_
+    case TKFONT_GLYPH_LARGE : file = gGlyphFile : pt = base_ + 2
+    case TKFONT_MONO : file = gMonoFile : pt = base_
+    end select
+    if len( file ) = 0 then file = Resolve( gOpts.FontUIFile )
+end sub
+
+
+' ==========================================================================================
+' Events: RunOnUI, app timers, the system theme -- through tkHost's event hook
+' ==========================================================================================
+private function TimerTick( byval userdata as any ptr, byval timerID as SDL_TimerID, byval interval as Uint32 ) as Uint32
+    dim as SDL_Event e
+    e.type = gEvTimer
+    e.user.code = cast( long, cast( integer, userdata ) )
+    SDL_PushEvent( @e )
+    return interval
+end function
+
+private function AppEventHook( byval e as SDL_Event ptr ) as boolean
+    if (gEvRunOnUI <> 0) andalso (e->type = gEvRunOnUI) then
+        dim as TKAPP_UIProc p = cast( TKAPP_UIProc, e->user.data1 )
+        if p then p( e->user.data2 )
+        return true
+    end if
+    if (gEvTimer <> 0) andalso (e->type = gEvTimer) then
+        dim as long id = e->user.code
+        for i as long = 0 to ubound( gTimers )
+            ' a tick queued before KillTimer finds the slot inactive and is dropped
+            if gTimers(i).active andalso (gTimers(i).id = id) then
+                gTimers(i).proc( id, gTimers(i).payload )
+                exit for
+            end if
+        next
+        return true
+    end if
+    if e->type = SDL_EVENT_SYSTEM_THEME_CHANGED then
+        if gThemeMode = TKAPP_THEME_SYSTEM then tkApp_SetTheme( tkTheme_System() )
+        return false
+    end if
+    return false
+end function
+
+
+' ==========================================================================================
+' The application
+' ==========================================================================================
+' Starts SDL (video) and SDL_ttf, chooses the glyph and mono files and applies the theme mode.
+' Once per process, before any form; FALSE when called again or when SDL fails.
+public function tkApp_Init( byref opts as TKAPP_OPTIONS = TKAPP_OPTIONS() ) as boolean
+    if gInit then return false
+    if SDL_Init( SDL_INIT_VIDEO ) = false then return false
+    if TTF_Init() = false then SDL_Quit() : return false
+    gOpts = opts
+    gUiThread = SDL_GetCurrentThreadID()
+    gEvRunOnUI = SDL_RegisterEvents( 2 )
+    gEvTimer = gEvRunOnUI + 1
+    ' the UI files the options name, or installed families like them (tkApp_FallbackFont)
+    if FileThere( Resolve( gOpts.FontUIFile ) ) = false then
+        dim as ustring fbUi = tkApp_FallbackFont( false )
+        if len( fbUi ) then gOpts.FontUIFile = fbUi
+    end if
+    if FileThere( Resolve( gOpts.FontUIBoldFile ) ) = false then
+        dim as ustring fbb = tkApp_FallbackFont( false, true )
+        if len( fbb ) then gOpts.FontUIBoldFile = fbb else gOpts.FontUIBoldFile = gOpts.FontUIFile
+    end if
+    gGlyphFile = FirstThere( gOpts.GlyphFontFile, TK_FONT_ICONS, "" )
+    gMonoFile = FirstThere( gOpts.FontMonoFile, "", "" )
+    if len( gMonoFile ) = 0 then gMonoFile = tkApp_FallbackFont( true )
+    if len( gMonoFile ) = 0 then gMonoFile = Resolve( gOpts.FontUIFile )
+    tkHost_SetEventHook( @AppEventHook )
+    gInit = true
+    gQuitting = false
+    gExitCode = 0
+    gThemeMode = opts.ThemeMode
+    select case gThemeMode
+    case TKAPP_THEME_SYSTEM : tkApp_SetTheme( tkTheme_System() )
+    case TKAPP_THEME_LIGHT : tkApp_SetTheme( tkTheme_Light() )
+    case TKAPP_THEME_DARK : tkApp_SetTheme( tkTheme_Dark() )
+    end select
+    return true
+end function
+
+public function tkApp_IsInit() as boolean
+    return gInit
+end function
+
+public function tkApp_IsUIThread() as boolean
+    return gInit andalso (SDL_GetCurrentThreadID() = gUiThread)
+end function
+
+' ANY THREAD. Queues proc( payload ) for the UI thread, in call order. The payload pointer is
+' copied, never what it points at. FALSE when no application is running.
+public function tkApp_RunOnUI( byval proc as TKAPP_UIProc, byval payload as any ptr = 0 ) as boolean
+    if (gInit = false) orelse (proc = 0) then return false
+    dim as SDL_Event e
+    e.type = gEvRunOnUI
+    e.user.data1 = cast( any ptr, proc )
+    e.user.data2 = payload
+    return SDL_PushEvent( @e )
+end function
+
+' A timer that needs no form. UI thread only. Returns the id, never 0 (0 = failure).
+public function tkApp_SetTimer( byval ms as long, byval proc as TKAPP_TimerProc, byval payload as any ptr = 0 ) as long
+    if (gInit = false) orelse (proc = 0) orelse (ms <= 0) then return 0
+    for i as long = 0 to ubound( gTimers )
+        if gTimers(i).active = false then
+            dim as long id = gNextTimerId
+            gNextTimerId += 1
+            gTimers(i).id = id
+            gTimers(i).proc = proc
+            gTimers(i).payload = payload
+            gTimers(i).sdlId = SDL_AddTimer( ms, @TimerTick, cast( any ptr, cast( integer, id ) ) )
+            if gTimers(i).sdlId = 0 then return 0
+            gTimers(i).active = true
+            return id
+        end if
+    next
+    return 0
+end function
+
+' Safe from the timer's own proc.
+public sub tkApp_KillTimer( byval id as long )
+    for i as long = 0 to ubound( gTimers )
+        if gTimers(i).active andalso (gTimers(i).id = id) then
+            SDL_RemoveTimer( gTimers(i).sdlId )
+            gTimers(i).active = false
+            exit sub
+        end if
+    next
+end sub
+
+public function tkApp_Theme() as TKTHEME_COLORS
+    return tkTheme_Get()
+end function
+
+' The current theme for every surface: unpinned controls restyle (tkTheme_Apply), every form
+' takes the Window role as its background, and OnThemeChanged fires.
+public function tkApp_SetTheme( byref t as TKTHEME_COLORS ) as TKTHEME_COLORS
+    tkTheme_Apply( t )
+    for i as long = 0 to gnForms - 1
+        dim as TK_FORM ptr f = gForms(i)
+        f->host->clrBack = t.Window
+        tkHost_Invalidate( f->host )
+        if f->OnThemeChanged_ then f->OnThemeChanged_( f )
+    next
+    return tkTheme_Get()
+end function
+
+public sub tkApp_SetThemeMode( byval nMode as long )
+    gThemeMode = nMode
+    select case nMode
+    case TKAPP_THEME_SYSTEM : tkApp_SetTheme( tkTheme_System() )
+    case TKAPP_THEME_LIGHT : tkApp_SetTheme( tkTheme_Light() )
+    case TKAPP_THEME_DARK : tkApp_SetTheme( tkTheme_Dark() )
+    end select
+end sub
+
+public function tkApp_ThemeMode() as long
+    return gThemeMode
+end function
+
+' Run returns exitCode. Also ends any modal loop (a QUIT does).
+public sub tkApp_Quit( byval exitCode as long = 0 )
+    gExitCode = exitCode
+    gQuitting = true
+    dim as SDL_Event e
+    e.type = SDL_EVENT_QUIT
+    SDL_PushEvent( @e )
+end sub
+
+public function tkApp_FormCount() as long
+    return gnForms
+end function
+
+' Destroys every form, stops the timers and undoes Init. Run calls it.
+public sub tkApp_Shutdown()
+    if gInit = false then exit sub
+    while gnForms > 0
+        tkForm_Destroy( gForms(gnForms - 1) )
+    wend
+    for i as long = 0 to ubound( gTimers )
+        if gTimers(i).active then SDL_RemoveTimer( gTimers(i).sdlId ) : gTimers(i).active = false
+    next
+    tkHost_SetEventHook( 0 )
+    gMainForm = 0
+    gInit = false
+    TTF_Quit()
+    SDL_Quit()
+end sub
+
+
+' ==========================================================================================
+' Forms
+' ==========================================================================================
+private function FormOf( byval h as TK_HOST ptr ) as TK_FORM ptr
+    if h = 0 then return 0
+    for i as long = 0 to gnForms - 1
+        if gForms(i)->host = h then return gForms(i)
+    next
+    return 0
+end function
+
+' The form a widget lives on (vendor's PsForm.FromHwnd): its surface, or for a popup, the
+' surface's owner chain.
+public function tkForm_FromWidget( byval w as TK_WIDGET ptr ) as TK_FORM ptr
+    if w = 0 then return 0
+    dim as TK_HOST ptr h = w->pHost
+    while h
+        dim as TK_FORM ptr f = FormOf( h )
+        if f then return f
+        h = h->pOwner
+    wend
+    return 0
+end function
+
+public function tkForm_FromHost( byval h as TK_HOST ptr ) as TK_FORM ptr
+    return FormOf( h )
+end function
+
+function FormProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TK_FORM ptr f = cast( TK_FORM ptr, w->pData )
+    if f = 0 then return false
+    select case m->msg
+    case TKM_PAINT
+        if f->OnPaint_ then f->OnPaint_( f, m->pPaint )
+        return true
+    case TKM_SIZE
+        if f->OnSize_ then f->OnSize_( f, w->cw, w->ch )
+        return true
+    case TKM_KEYDOWN
+        ' keys no control claimed bubble here: the host's callback first, then Esc ends a
+        ' modal form; Tab is left for the host's focus walk
+        if f->OnKeyDown_ then
+            if f->OnKeyDown_( f, m->key, m->mods ) then return true
+        end if
+        if (m->key = SDLK_ESCAPE) andalso f->bModal then
+            tkHost_EndModal( f->host, TKAPP_IDCANCEL )
+            return true
+        end if
+        return false
+    case TKM_SCALECHANGED
+        ' the role fonts are host fonts: the host re-sized them already
+        if f->OnScaleChanged_ then f->OnScaleChanged_( f, m->fOld, m->fNew )
+        return true
+    end select
+    return false
+end function
+
+sub FormHostSize( byval h as TK_HOST ptr )
+    dim as TK_FORM ptr f = FormOf( h )
+    if (f = 0) orelse (f->wForm = 0) then exit sub
+    tkWidget_SetPos( f->wForm, 0, 0, h->root->cw, h->root->ch )
+end sub
+
+' The close button: OnClose may veto (FALSE cancels). TRUE = handled (stays open).
+function FormCloseRequest( byval h as TK_HOST ptr ) as boolean
+    dim as TK_FORM ptr f = FormOf( h )
+    if f = 0 then return false
+    if f->OnClose_ then
+        if f->OnClose_( f ) = false then return true
+    end if
+    if f->bModal then
+        tkHost_EndModal( h, TKAPP_IDCANCEL )
+        return true
+    end if
+    return false
+end function
+
+' A form, hidden. cx / cy are DIPs (scaled by the form's scale). With an owner it is a dialog
+' surface owned by it (ShowModal it); without, a top-level window.
+public function tkApp_NewForm( byref title as ustring, byval cx as long, byval cy as long, _
+                               byval pOwner as TK_FORM ptr = 0, byval forcedScale as single = 0 ) as TK_FORM ptr
+    if (gInit = false) orelse (gnForms > ubound( gForms )) then return 0
+    dim as TK_HOST ptr h
+    if pOwner then
+        dim as single sc = pOwner->host->fScale
+        h = tkHost_CreateDialog( pOwner->host, title, cint( cx * sc ), cint( cy * sc ), false )
+    else
+        h = tkHost_Create( title, cx, cy, Resolve( gOpts.FontUIFile ), forcedScale )
+    end if
+    if h = 0 then return 0
+    dim as TK_FORM ptr f = new TK_FORM
+    f->host = h
+    f->pOwner = pOwner
+    gForms(gnForms) = f : gnForms += 1
+    h->clrBack = tkTheme_Get().Window
+    ' the surface default font IS the UI role, so every control on the form uses it unset
+    dim as TTF_Font ptr fUI = tkHost_OpenFont( h, Resolve( gOpts.FontUIFile ), gOpts.FontUISize )
+    if fUI then
+        h->pDefaultFont = fUI
+        f->fonts(TKFONT_UI) = fUI
+        f->fontPt(TKFONT_UI) = gOpts.FontUISize
+        f->fontFile(TKFONT_UI) = Resolve( gOpts.FontUIFile )
+    end if
+    f->wForm = tkWidget_Create( h, 0, @FormProc, f )
+    tkWidget_SetPos( f->wForm, 0, 0, h->root->cw, h->root->ch )
+    h->OnSize = @FormHostSize
+    h->OnCloseRequest = @FormCloseRequest
+    if gMainForm = 0 then gMainForm = f
+    return f
+end function
+
+' The parent for the form's controls.
+public function tkForm_Widget( byval f as TK_FORM ptr ) as TK_WIDGET ptr
+    if f = 0 then return 0
+    return f->wForm
+end function
+
+public function tkForm_Host( byval f as TK_FORM ptr ) as TK_HOST ptr
+    if f = 0 then return 0
+    return f->host
+end function
+
+public function tkForm_Scale( byval f as TK_FORM ptr, byval v as long ) as long
+    if f = 0 then return v
+    return tkHost_Scale( f->host, v )
+end function
+
+' The role's font, opened at the form's scale on first use and closed with the form.
+public function tkForm_Font( byval f as TK_FORM ptr, byval role as long ) as TTF_Font ptr
+    if (f = 0) orelse (role < 0) orelse (role >= TKFONT_COUNT) then return 0
+    if f->fonts(role) then return f->fonts(role)
+    dim as ustring file
+    dim as single pt
+    RoleSpec( role, file, pt )
+    f->fonts(role) = tkHost_OpenFont( f->host, file, pt )
+    f->fontPt(role) = pt
+    f->fontFile(role) = file
+    return f->fonts(role)
+end function
+
+' Replaces a role's font (file and size). The old handle stays valid until the form goes,
+' because the surface owns every font it opened; hand the NEW one to controls.
+public function tkForm_SetRoleFont( byval f as TK_FORM ptr, byval role as long, byref file as ustring, byval pt as single ) as TTF_Font ptr
+    if (f = 0) orelse (role < 0) orelse (role >= TKFONT_COUNT) then return 0
+    dim as TTF_Font ptr nf = tkHost_OpenFont( f->host, Resolve( file ), pt )
+    if nf = 0 then return 0
+    f->fonts(role) = nf
+    f->fontPt(role) = pt
+    f->fontFile(role) = Resolve( file )
+    if role = TKFONT_UI then f->host->pDefaultFont = nf
+    tkHost_Invalidate( f->host )
+    return nf
+end function
+
+public function tkForm_RoleFile( byval f as TK_FORM ptr, byval role as long ) as ustring
+    if (f = 0) orelse (role < 0) orelse (role >= TKFONT_COUNT) then return ""
+    if f->fonts(role) = 0 then tkForm_Font( f, role )
+    return f->fontFile(role)
+end function
+
+public function tkForm_RolePoints( byval f as TK_FORM ptr, byval role as long ) as single
+    if (f = 0) orelse (role < 0) orelse (role >= TKFONT_COUNT) then return 0
+    if f->fonts(role) = 0 then tkForm_Font( f, role )
+    return f->fontPt(role)
+end function
+
+' Shows a form modelessly. The first call runs OnSize and focuses the first tab stop.
+public sub tkForm_Show( byval f as TK_FORM ptr )
+    if f = 0 then exit sub
+    tkHost_Show( f->host )
+    if f->bShown = false then
+        f->bShown = true
+        FormHostSize( f->host )
+        if f->OnSize_ then f->OnSize_( f, f->wForm->cw, f->wForm->ch )
+        if f->host->pFocus = 0 then tkHost_FocusNext( f->host )
+    end if
+end sub
+
+' Pumps until EndModal, Esc or the close button; then destroys the form and returns the code.
+public function tkForm_ShowModal( byval f as TK_FORM ptr ) as long
+    if f = 0 then return 0
+    f->bModal = true
+    if f->bShown = false then
+        f->bShown = true
+        FormHostSize( f->host )
+        if f->OnSize_ then f->OnSize_( f, f->wForm->cw, f->wForm->ch )
+    end if
+    dim as long r = tkHost_RunModal( f->host )
+    tkForm_Destroy( f )
+    return r
+end function
+
+public sub tkForm_EndModal( byval f as TK_FORM ptr, byval code as long )
+    if (f <> 0) andalso f->bModal then tkHost_EndModal( f->host, code )
+end sub
+
+public function tkForm_IsModal( byval f as TK_FORM ptr ) as boolean
+    if f = 0 then return false
+    return f->bModal
+end function
+
+' Asks OnClose, as the close button does.
+public sub tkForm_Close( byval f as TK_FORM ptr )
+    if f = 0 then exit sub
+    if FormCloseRequest( f->host ) = false then f->host->bQuit = true
+end sub
+
+public sub tkForm_FocusFirst( byval f as TK_FORM ptr )
+    if f = 0 then exit sub
+    tkHost_SetFocus( f->host, 0 )
+    tkHost_FocusNext( f->host )
+end sub
+
+public sub tkForm_Invalidate( byval f as TK_FORM ptr )
+    if f then tkHost_Invalidate( f->host )
+end sub
+
+' OnDestroy, then the surface (and every control on it) goes.
+public sub tkForm_Destroy( byval f as TK_FORM ptr )
+    if (f = 0) orelse f->bDestroyed then exit sub
+    f->bDestroyed = true
+    if f->OnDestroy_ then f->OnDestroy_( f )
+    for i as long = 0 to gnForms - 1
+        if gForms(i) = f then
+            for j as long = i to gnForms - 2
+                gForms(j) = gForms(j + 1)
+            next
+            gnForms -= 1
+            exit for
+        end if
+    next
+    if gMainForm = f then gMainForm = 0
+    tkHost_Destroy( f->host )
+    delete f
+end sub
+
+' ---- callbacks (a null proc clears) ----
+public sub tkForm_OnSize( byval f as TK_FORM ptr, byval p as TKFORM_SizeSub )
+    if f then f->OnSize_ = p
+end sub
+public sub tkForm_OnPaint( byval f as TK_FORM ptr, byval p as TKFORM_PaintSub )
+    if f then f->OnPaint_ = p
+end sub
+public sub tkForm_OnKeyDown( byval f as TK_FORM ptr, byval p as TKFORM_KeyFunc )
+    if f then f->OnKeyDown_ = p
+end sub
+public sub tkForm_OnClose( byval f as TK_FORM ptr, byval p as TKFORM_CloseFunc )
+    if f then f->OnClose_ = p
+end sub
+public sub tkForm_OnDestroy( byval f as TK_FORM ptr, byval p as TKFORM_Sub )
+    if f then f->OnDestroy_ = p
+end sub
+public sub tkForm_OnThemeChanged( byval f as TK_FORM ptr, byval p as TKFORM_Sub )
+    if f then f->OnThemeChanged_ = p
+end sub
+public sub tkForm_OnScaleChanged( byval f as TK_FORM ptr, byval p as TKFORM_ScaleSub )
+    if f then f->OnScaleChanged_ = p
+end sub
+
+
+' ==========================================================================================
+' The loop
+' ==========================================================================================
+' Destroy every modeless form whose window was closed; TRUE when the main form went.
+private function ReapClosedForms() as boolean
+    dim as boolean bMainGone = false
+    dim as long i = gnForms - 1
+    while i >= 0
+        if i < gnForms then
+            dim as TK_FORM ptr f = gForms(i)
+            if (f->bModal = false) andalso f->host->bQuit then
+                if f = gMainForm then bMainGone = true
+                tkForm_Destroy( f )
+            end if
+        end if
+        i -= 1
+    wend
+    return bMainGone
+end function
+
+' One turn of the loop without blocking (the self-tests drive tkApp with this).
+public sub tkApp_Pump()
+    if gMainForm then tkHost_Pump( gMainForm->host )
+end sub
+
+' Shows the main form and pumps until it closes (or Quit), then destroys the rest and undoes
+' Init. Returns the exit code.
+public function tkApp_Run( byval mainForm as TK_FORM ptr ) as long
+    if (gInit = false) orelse (mainForm = 0) then return -1
+    gMainForm = mainForm
+    tkForm_Show( mainForm )
+    dim as SDL_Event e
+    do
+        ' drain FIRST and test BEFORE blocking: a Quit queued (or run) by the drain must not
+        ' leave the loop asleep in SDL_WaitEvent with nothing left to wake it
+        tkHost_Pump( mainForm->host )
+        if gQuitting orelse ReapClosedForms() then exit do
+        if SDL_WaitEvent( @e ) then
+            tkHost_Dispatch( mainForm->host, @e )
+            tkHost_Reap()
+        end if
+    loop
+    dim as long code = gExitCode
+    tkApp_Shutdown()
+    return code
+end function

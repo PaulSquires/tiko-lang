@@ -1,0 +1,932 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkSelectBar -- PsSelectBar on SDL3 + SDL_ttf, a port of pkg/vendor/PsControls/PsSelectBar/
+' PsSelectBar.tiko onto tkHost. See PORT.md.
+'
+' WHAT IS UNCHANGED, by design: the static panel set (AddPanel / Clear, no insert or delete),
+' the exactly-one-current invariant and its three rules, LayoutPanels and its block-centred
+' geometry (GetTextMetrics.tmHeight is TTF_GetFontHeight, GetTextExtentPoint32 is
+' TTF_GetStringSize), the colour struct and its precedence, the four callbacks, the
+' press / slide-off / release gesture with capture, silent SetCurSel vs the notifying user
+' selection, per-panel tooltips with no caption fallback.
+'
+' WHAT IS GONE, because the HWND is gone: the 100 ms hot-tracking poll (the host GUARANTEES the
+' leave), WM_MOUSEHOVER (no TrackMouseEvent; the tip owns its own dwell), CS_DBLCLKS (a double
+' click is TKM_LBUTTONDOWN with m->clicks = 2, handled as a press exactly as vendor did), the
+' comctl32 tooltip backend, WM_ERASEBKGND, PsRegistry.
+'
+' WHAT IS ADDED, from PsPlatform: keyboard focus. The bar is a Tab stop, draws a focus ring
+' round the current panel, and Left / Right / Home / End move the selection (skipping disabled
+' panels, never wrapping, NOTIFYING -- a key is a user action). Clicking still never takes
+' focus (vendor's rule: the bar must not pull the caret out of the host's editor).
+#module "tkSelectBar"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkTooltip" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkTooltip
+
+' Default horizontal padding either side of a panel's measured text, and the indicator's
+' thickness and its gap below the text. All four are LAYOUT inputs and all four are scaled at
+' create (vendor scales the indicator thickness too: it is part of the centred block).
+public const as long TKSELECTBAR_DEFAULT_PADLEFT      = 12
+public const as long TKSELECTBAR_DEFAULT_PADRIGHT     = 12
+public const as long TKSELECTBAR_DEFAULT_INDICATORH   = 2
+public const as long TKSELECTBAR_DEFAULT_INDICATORGAP = 4
+' The focus ring (an addition): inset from the current panel's cell; the ring itself is 1 px
+' and never scaled.
+public const as long TKSELECTBAR_DEFAULT_FOCUSGAP     = 2
+public const as long TKSELECTBAR_FOCUSTHICK           = 1
+
+' The Win32 control's dark defaults, value for value (BGR(r,g,b) -> tkRGB(r,g,b)).
+' BackColorHot and BackColorSelect equal BackColor on purpose: the flat look where only the
+' label colour and the indicator move.
+public type TKSELECTBAR_COLORS
+    BackColor         as ulong = &hFF21252Bul    ' ( 33, 37, 43) bar background + idle cell
+    ForeColor         as ulong = &hFF969CA6ul    ' (150,156,166) idle label
+    BackColorHot      as ulong = &hFF21252Bul
+    ForeColorHot      as ulong = &hFFD7DAE0ul    ' (215,218,224)
+    BackColorSelect   as ulong = &hFF21252Bul
+    ForeColorSelect   as ulong = &hFFFFFFFFul
+    ForeColorDisabled as ulong = &hFF5A606Aul    ' ( 90, 96,106)
+    IndicatorColor    as ulong = &hFFFFFFFFul    ' the line under the current panel
+    FocusRingColor    as ulong = &hFF61AFEFul    ' ADDED: the keyboard focus ring ( 97,175,239)
+end type
+
+' One panel. Everything above the DERIVED line is authored; below belongs to LayoutPanels.
+public type TKSELECTBAR_PANEL
+    wszText     as ustring
+    wszTooltip  as ustring            ' "" = ask the tooltip callback, then nothing
+    id          as long = 0
+    itemData    as integer = 0
+    isEnabled   as boolean = true
+    nPadLeft    as long = -1          ' -1 = inherit the bar's
+    nPadRight   as long = -1
+    ' --- DERIVED by LayoutPanels -----------------------------------------------------------
+    nTextW      as long = 0
+    nCellWidth  as long = 0
+    rc          as TKRECT             ' the full cell: the FILL and HIT rect
+    rcText      as TKRECT             ' exactly the measured text box
+    rcIndicator as TKRECT             ' spans rcText, gap below it
+end type
+
+public type TKSELECTBAR_PAINTINFO
+    hSelectBar  as TK_WIDGET ptr
+    itemID      as long
+    b           as TK_PAINT ptr       ' this repaint's painter (borrowed)
+    rc          as TKRECT             ' fill THIS
+    rcText      as TKRECT
+    rcIndicator as TKRECT
+    isHot       as boolean
+    isSelected  as boolean
+    isPressed   as boolean            ' live left press on this panel AND the cursor still on it
+    isEnabled   as boolean
+    isFocused   as boolean            ' ADDED: the bar has keyboard focus and this is current
+    wszCaption  as ustring
+end type
+
+public type TKSELECTBAR_MESSAGEINFO
+    hSelectBar  as TK_WIDGET ptr
+    msg         as long               ' TKM_*
+    x           as single             ' widget-local pixels
+    y           as single
+    clicks      as long               ' TKM_LBUTTONDOWN: 2 = the double click (WM_LBUTTONDBLCLK)
+    idx         as long               ' the INTERACTION index: -1 for none, disabled, outside
+end type
+
+public type SEL_PaintPanelCallbackSub as sub( byval p as TKSELECTBAR_PAINTINFO ptr )
+public type SEL_MessageCallbackFunc as function( byval m as TKSELECTBAR_MESSAGEINFO ptr ) as boolean
+public type SEL_TooltipCallbackFunc as function( byval hSelectBar as TK_WIDGET ptr, byval idx as long ) as ustring
+public type SEL_SelChangeCallbackSub as sub( byval hSelectBar as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long )
+
+public type TKSELECTBAR_STATE
+    hWin              as TK_WIDGET ptr
+    id                as long
+    bColorsPinned     as boolean
+    tip               as TKTIPHOST_STATE
+    panels(any)       as TKSELECTBAR_PANEL
+    panelCount        as long = 0
+    HoverTime         as long = 250
+    nCurSel           as long = -1       ' -1 only while the bar is empty
+    nLastHotIdx       as long = -1
+    nPressedIdx       as long = -1
+    isFocused         as boolean
+    colors            as TKSELECTBAR_COLORS
+    pPanelFont        as TTF_Font ptr    ' borrowed
+    nPadLeft          as long
+    nPadRight         as long
+    nIndicatorHeight  as long
+    nIndicatorGap     as long
+    nFocusGap         as long
+    nTextHeight       as long = 0
+    nTotalWidth       as long = 0
+    bLayoutDirty      as boolean = true
+    PaintPanelCallback as SEL_PaintPanelCallbackSub
+    MessageCallback    as SEL_MessageCallbackFunc
+    TooltipCallback    as SEL_TooltipCallbackFunc
+    SelChangeCallback  as SEL_SelChangeCallbackSub
+
+    declare sub      LayoutPanels()
+    declare function GetCount() as long
+    declare function AddPanel() as long
+    declare function IsValidPanel( byval idx as long ) as boolean
+    declare function HitTest( byval x as long, byval y as long ) as long
+    declare function FontInUse() as TTF_Font ptr
+    declare sub      CancelPress()
+    declare sub      Clear()
+    declare sub      Refresh()
+end type
+
+
+function TKSELECTBAR_STATE.FontInUse() as TTF_Font ptr
+    if this.pPanelFont then return this.pPanelFont
+    if this.hWin = 0 then return 0
+    return this.hWin->pHost->pDefaultFont
+end function
+
+' Vendor LayoutPanels, measured with SDL_ttf. ONE text height for the whole bar; the block
+' text + gap + line is centred as a unit; rc spans the full client height; the run starts at 0.
+' GetIdealWidth's total is computed BEFORE the zero-client bail, so it is valid unsized.
+sub TKSELECTBAR_STATE.LayoutPanels()
+    this.bLayoutDirty = false
+    this.nTotalWidth = 0
+    if this.hWin = 0 then exit sub
+    if this.panelCount = 0 then exit sub
+
+    dim as TTF_Font ptr fUse = this.FontInUse()
+    this.nTextHeight = tkText_Height( fUse )
+
+    dim as long totalW = 0
+    for i as long = 0 to this.panelCount - 1
+        with this.panels(i)
+            .nTextW = 0
+            if len( .wszText ) > 0 then .nTextW = tkText_Width( fUse, .wszText )
+            dim as long padL = iif( .nPadLeft < 0, this.nPadLeft, .nPadLeft )
+            dim as long padR = iif( .nPadRight < 0, this.nPadRight, .nPadRight )
+            .nCellWidth = padL + .nTextW + padR
+            totalW += .nCellWidth
+        end with
+    next
+    this.nTotalWidth = totalW
+
+    dim as long clientW = this.hWin->cw
+    dim as long clientH = this.hWin->ch
+    if (clientW <= 0) orelse (clientH <= 0) then
+        ' No client: the rects stay EMPTY (vendor left stale ones from an earlier size).
+        for i as long = 0 to this.panelCount - 1
+            tkRect_SetEmpty( this.panels(i).rc )
+            tkRect_SetEmpty( this.panels(i).rcText )
+            tkRect_SetEmpty( this.panels(i).rcIndicator )
+        next
+        this.bLayoutDirty = true
+        exit sub
+    end if
+
+    dim as long blockH = this.nTextHeight + this.nIndicatorGap + this.nIndicatorHeight
+    dim as long blockTop = (clientH - blockH) \ 2
+
+    dim as long x = 0
+    for i as long = 0 to this.panelCount - 1
+        with this.panels(i)
+            dim as long padL = iif( .nPadLeft < 0, this.nPadLeft, .nPadLeft )
+            tkRect_Set( .rc, x, 0, x + .nCellWidth, clientH )
+            tkRect_Set( .rcText, x + padL, blockTop, x + padL + .nTextW, blockTop + this.nTextHeight )
+            tkRect_Set( .rcIndicator, .rcText.left, .rcText.bottom + this.nIndicatorGap, _
+                        .rcText.right, .rcText.bottom + this.nIndicatorGap + this.nIndicatorHeight )
+            x += .nCellWidth
+        end with
+    next
+end sub
+
+function TKSELECTBAR_STATE.GetCount() as long
+    return this.panelCount
+end function
+
+function TKSELECTBAR_STATE.IsValidPanel( byval idx as long ) as boolean
+    return (idx >= 0) andalso (idx < this.panelCount)
+end function
+
+' Geometry only: disabled panels included, no client-area test.
+function TKSELECTBAR_STATE.HitTest( byval x as long, byval y as long ) as long
+    for i as long = 0 to this.panelCount - 1
+        with this.panels(i).rc
+            if (x >= .left) andalso (x < .right) andalso (y >= .top) andalso (y < .bottom) then return i
+        end with
+    next
+    return -1
+end function
+
+' Append a reset panel (amortised doubling); the FIRST becomes current, silently.
+function TKSELECTBAR_STATE.AddPanel() as long
+    dim as long cap = ubound( this.panels ) + 1
+    if this.panelCount >= cap then
+        dim as long newcap = iif( cap = 0, 16, cap * 2 )
+        redim preserve this.panels( 0 to newcap - 1 )
+    end if
+    dim as long idx = this.panelCount
+    with this.panels(idx)
+        .wszText = "" : .wszTooltip = ""
+        .id = 0 : .itemData = 0 : .isEnabled = true
+        .nPadLeft = -1 : .nPadRight = -1
+        .nTextW = 0 : .nCellWidth = 0
+        tkRect_SetEmpty( .rc ) : tkRect_SetEmpty( .rcText ) : tkRect_SetEmpty( .rcIndicator )
+    end with
+    this.panelCount += 1
+    if this.panelCount = 1 then this.nCurSel = 0
+    this.Refresh()
+    return idx
+end function
+
+' Forget the press WITHOUT touching capture (the proc owns release).
+sub TKSELECTBAR_STATE.CancelPress()
+    this.nPressedIdx = -1
+end sub
+
+sub TKSELECTBAR_STATE.Clear()
+    for i as long = 0 to this.panelCount - 1
+        this.panels(i).wszText = ""
+        this.panels(i).wszTooltip = ""
+    next
+    this.panelCount = 0
+    this.nCurSel = -1
+    this.nLastHotIdx = -1
+    this.CancelPress()
+    ' Vendor left the tip pointing at the old index; a panel that no longer exists offers none.
+    tkTipHost_SetToolIndex( @this.tip, -1 )
+    this.Refresh()
+end sub
+
+sub TKSELECTBAR_STATE.Refresh()
+    this.bLayoutDirty = true
+    if this.hWin then tkWidget_Invalidate( this.hWin )
+end sub
+
+
+private function GetSelectBarPointer( byval hSelectBar as TK_WIDGET ptr ) as TKSELECTBAR_STATE ptr
+    if hSelectBar = 0 then return 0
+    return cast( TKSELECTBAR_STATE ptr, hSelectBar->pData )
+end function
+
+' The INTERACTION index at a widget-local point: inside the client, on a panel, enabled.
+private function HotPanelAt( byval pSel as TKSELECTBAR_STATE ptr, byval x as single, byval y as single ) as long
+    dim as TK_WIDGET ptr w = pSel->hWin
+    if (x < 0) orelse (y < 0) orelse (x >= w->cw) orelse (y >= w->ch) then return -1
+    if pSel->bLayoutDirty then pSel->LayoutPanels()
+    dim as long idx = pSel->HitTest( int( x ), int( y ) )
+    if idx = -1 then return -1
+    if pSel->panels(idx).isEnabled = false then return -1
+    return idx
+end function
+
+private function CallMessage( byval pSel as TKSELECTBAR_STATE ptr, byval m as TK_MSG ptr, byval idx as long ) as boolean
+    if pSel->MessageCallback = 0 then return false
+    dim as TKSELECTBAR_MESSAGEINFO mi
+    mi.hSelectBar = pSel->hWin
+    mi.msg = m->msg
+    mi.x = m->x
+    mi.y = m->y
+    mi.clicks = m->clicks
+    mi.idx = idx
+    return pSel->MessageCallback( @mi )
+end function
+
+private function ResolveTooltipText( byval pSel as TKSELECTBAR_STATE ptr, byval idx as long ) as ustring
+    if pSel = 0 then return ""
+    if pSel->IsValidPanel( idx ) = false then return ""
+    if len( pSel->panels(idx).wszTooltip ) then return pSel->panels(idx).wszTooltip
+    if pSel->TooltipCallback then return pSel->TooltipCallback( pSel->hWin, idx )
+    return ""
+end function
+
+private function TipText( byval t as TK_TIP ptr, byval a as TK_WIDGET ptr, byval idx as long ) as ustring
+    return ResolveTooltipText( GetSelectBarPointer( a ), idx )
+end function
+
+private sub SetHot( byval pSel as TKSELECTBAR_STATE ptr, byval idx as long )
+    if idx = pSel->nLastHotIdx then exit sub
+    pSel->nLastHotIdx = idx
+    tkTipHost_SetToolIndex( @pSel->tip, idx )
+    tkWidget_Invalidate( pSel->hWin )
+end sub
+
+' A USER selection: move it and notify. Not a change for a disabled or already-current panel.
+private function SelChoose( byval pSel as TKSELECTBAR_STATE ptr, byval idx as long ) as boolean
+    if pSel->IsValidPanel( idx ) = false then return false
+    if pSel->panels(idx).isEnabled = false then return false
+    if idx = pSel->nCurSel then return false
+    dim as long idxOld = pSel->nCurSel
+    pSel->nCurSel = idx
+    tkWidget_Invalidate( pSel->hWin )
+    if pSel->SelChangeCallback then pSel->SelChangeCallback( pSel->hWin, idxOld, idx )
+    return true
+end function
+
+' Disabled > pressed = hot > selected > idle. The indicator last, so BackColorSelect can't
+' cover it; the focus ring (added) after that.
+private sub PaintPanelDefault( byval pSel as TKSELECTBAR_STATE ptr, byval b as TK_PAINT ptr, byval p as TKSELECTBAR_PAINTINFO ptr )
+    dim as ulong backclr = pSel->colors.BackColor
+    dim as ulong foreclr = pSel->colors.ForeColor
+    if p->isEnabled = false then
+        foreclr = pSel->colors.ForeColorDisabled
+    elseif p->isPressed orelse p->isHot then
+        backclr = pSel->colors.BackColorHot
+        foreclr = pSel->colors.ForeColorHot
+    elseif p->isSelected then
+        backclr = pSel->colors.BackColorSelect
+        foreclr = pSel->colors.ForeColorSelect
+    end if
+    b->SetColors( foreclr, backclr )
+    b->PaintRect( @p->rc )
+    if len( p->wszCaption ) then
+        b->SetFont( pSel->FontInUse() )
+        b->PaintText( p->wszCaption, @p->rcText, TK_DT_CENTER )
+    end if
+    if p->isSelected then
+        b->SetBackColor( pSel->colors.IndicatorColor )
+        b->PaintRect( @p->rcIndicator )
+    end if
+    if p->isFocused then
+        dim as TKRECT rcRing = p->rc
+        tkRect_Inflate( rcRing, -pSel->nFocusGap, -pSel->nFocusGap )
+        b->SetPenColor( pSel->colors.FocusRingColor )
+        b->PaintRoundOutline( @rcRing, 0, TKSELECTBAR_FOCUSTHICK )
+    end if
+end sub
+
+private sub OnPaintBar( byval pSel as TKSELECTBAR_STATE ptr, byval b as TK_PAINT ptr )
+    if pSel->bLayoutDirty then pSel->LayoutPanels()
+    dim as TK_WIDGET ptr w = pSel->hWin
+    dim as TKRECT rcC
+    tkRect_Set( rcC, 0, 0, w->cw, w->ch )
+    b->SetBackColor( pSel->colors.BackColor )
+    b->PaintRect( @rcC )
+    if pSel->bLayoutDirty then exit sub          ' no client yet
+
+    ' The whole widget disabled (PsPlatform's rule): every label greys; the indicator stays.
+    dim as boolean bOn = tkWidget_IsEnabled( w )
+    dim as TKSELECTBAR_PAINTINFO p
+    p.hSelectBar = w
+    p.b = b
+    for i as long = 0 to pSel->panelCount - 1
+        if pSel->panels(i).rc.left >= w->cw then exit for     ' the clipped tail
+        p.itemID = i
+        p.rc = pSel->panels(i).rc
+        p.rcText = pSel->panels(i).rcText
+        p.rcIndicator = pSel->panels(i).rcIndicator
+        p.isHot = (i = pSel->nLastHotIdx)
+        p.isSelected = (i = pSel->nCurSel)
+        p.isPressed = (i = pSel->nPressedIdx) andalso (pSel->nLastHotIdx = pSel->nPressedIdx)
+        p.isEnabled = pSel->panels(i).isEnabled andalso bOn
+        p.isFocused = pSel->isFocused andalso p.isSelected
+        p.wszCaption = pSel->panels(i).wszText
+        if pSel->PaintPanelCallback then
+            pSel->PaintPanelCallback( @p )
+        else
+            PaintPanelDefault( pSel, b, @p )
+        end if
+    next
+end sub
+
+private sub Rescale( byval pSel as TKSELECTBAR_STATE ptr, byval fOld as single, byval fNew as single )
+    if (fOld <= 0) orelse (fNew <= 0) then exit sub
+    dim as single k = fNew / fOld
+    pSel->nPadLeft         = cint( pSel->nPadLeft * k )
+    pSel->nPadRight        = cint( pSel->nPadRight * k )
+    pSel->nIndicatorHeight = cint( pSel->nIndicatorHeight * k )
+    pSel->nIndicatorGap    = cint( pSel->nIndicatorGap * k )
+    pSel->nFocusGap        = cint( pSel->nFocusGap * k )
+    for i as long = 0 to pSel->panelCount - 1
+        with pSel->panels(i)
+            if .nPadLeft > 0 then .nPadLeft = cint( .nPadLeft * k )
+            if .nPadRight > 0 then .nPadRight = cint( .nPadRight * k )
+        end with
+    next
+    pSel->Refresh()
+end sub
+
+' Left / Right / Home / End (PsPlatform). Disabled panels are skipped; neither end wraps.
+private function OnKey( byval pSel as TKSELECTBAR_STATE ptr, byval key as long ) as boolean
+    if pSel->panelCount = 0 then return false
+    select case key
+    case SDLK_LEFT, SDLK_RIGHT
+        dim as long dir_ = iif( key = SDLK_LEFT, -1, 1 )
+        dim as long i = pSel->nCurSel + dir_
+        while (i >= 0) andalso (i < pSel->panelCount)
+            if pSel->panels(i).isEnabled then SelChoose( pSel, i ) : exit while
+            i += dir_
+        wend
+        return true
+    case SDLK_HOME
+        for i as long = 0 to pSel->panelCount - 1
+            if pSel->panels(i).isEnabled then SelChoose( pSel, i ) : exit for
+        next
+        return true
+    case SDLK_END
+        for i as long = pSel->panelCount - 1 to 0 step -1
+            if pSel->panels(i).isEnabled then SelChoose( pSel, i ) : exit for
+        next
+        return true
+    end select
+    return false
+end function
+
+
+public declare sub tkSelectBar_ApplyTheme( byval hSelectBar as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+
+private function SelectBar_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( w )
+    if pSel = 0 then return false
+    dim as TK_HOST ptr h = w->pHost
+
+    select case m->msg
+    case TKM_PAINT
+        OnPaintBar( pSel, m->pPaint )
+        return true
+
+    case TKM_SIZE
+        pSel->Refresh()
+        return true
+
+    case TKM_SCALECHANGED
+        Rescale( pSel, m->fOld, m->fNew )
+        return true
+
+    case TKM_THEMECHANGED
+        tkSelectBar_ApplyTheme( w, tkTheme_Get() )
+        return true
+
+    case TKM_MOUSEMOVE
+        dim as long idx = HotPanelAt( pSel, m->x, m->y )
+        SetHot( pSel, idx )
+        CallMessage( pSel, m, idx )
+        return true
+
+    case TKM_MOUSELEAVE
+        SetHot( pSel, -1 )
+        CallMessage( pSel, m, -1 )
+        return true
+
+    case TKM_LBUTTONDOWN
+        ' A double click (clicks = 2) is a press, exactly as vendor's shared DOWN/DBLCLK arm.
+        dim as long idx = HotPanelAt( pSel, m->x, m->y )
+        if CallMessage( pSel, m, idx ) then return true
+        ' NO tkHost_SetFocus: a select bar must not pull the caret out of the host's editor.
+        if idx <> -1 then
+            tkTipHost_Pop( @pSel->tip )
+            tkHost_SetCapture( w )
+            pSel->nPressedIdx = idx
+            SetHot( pSel, idx )
+            tkWidget_Invalidate( w )
+        end if
+        return true
+
+    case TKM_LBUTTONUP
+        ' SNAPSHOT BEFORE RELEASING: CAPTURECHANGED arrives synchronously and cancels the press.
+        dim as long idxPressed = pSel->nPressedIdx
+        if tkHost_GetCapture( h ) = w then tkHost_ReleaseCapture( h )
+        dim as long idx = HotPanelAt( pSel, m->x, m->y )
+        pSel->CancelPress()
+        SetHot( pSel, idx )
+        tkWidget_Invalidate( w )
+        CallMessage( pSel, m, idx )                  ' result IGNORED (capture-critical)
+        if (idxPressed <> -1) andalso (idx = idxPressed) then SelChoose( pSel, idx )
+        return true
+
+    case TKM_CAPTURECHANGED
+        pSel->CancelPress()
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_RBUTTONDOWN, TKM_RBUTTONUP
+        CallMessage( pSel, m, HotPanelAt( pSel, m->x, m->y ) )
+        return true
+
+    case TKM_SETFOCUS, TKM_KILLFOCUS
+        pSel->isFocused = (m->msg = TKM_SETFOCUS)
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_KEYDOWN
+        return OnKey( pSel, m->key )
+
+    case TKM_ENABLE
+        if m->bFlag = false then
+            pSel->CancelPress()
+            SetHot( pSel, -1 )
+            tkTipHost_Pop( @pSel->tip )
+        end if
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_DESTROY
+        if tkHost_GetCapture( h ) = w then tkHost_ReleaseCapture( h )
+        tkTipHost_Destroy( @pSel->tip )
+        delete pSel
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ========================================================================================
+' Public API -- the Win32 surface, HWND replaced by the widget pointer.
+' ========================================================================================
+public declare function tkSelectBar_ThemeColors( byref t as TKTHEME_COLORS ) as TKSELECTBAR_COLORS
+
+' A child of hParent -- a widget, or tkHost_Root( h ) for a top-level bar. Created zero-sized.
+public function tkSelectBar_Create( byval hParent as TK_WIDGET ptr, byval CtrlID as long ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TK_HOST ptr pHost = hParent->pHost
+    dim as TKSELECTBAR_STATE ptr pSel = new TKSELECTBAR_STATE
+    pSel->id = CtrlID
+    pSel->nPadLeft         = tkHost_Scale( pHost, TKSELECTBAR_DEFAULT_PADLEFT )
+    pSel->nPadRight        = tkHost_Scale( pHost, TKSELECTBAR_DEFAULT_PADRIGHT )
+    pSel->nIndicatorHeight = tkHost_Scale( pHost, TKSELECTBAR_DEFAULT_INDICATORH )
+    pSel->nIndicatorGap    = tkHost_Scale( pHost, TKSELECTBAR_DEFAULT_INDICATORGAP )
+    pSel->nFocusGap        = tkHost_Scale( pHost, TKSELECTBAR_DEFAULT_FOCUSGAP )
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @SelectBar_Proc, pSel )
+    w->isFocusable = true                 ' ADDED (PsPlatform): a Tab stop
+    pSel->hWin = w
+    pSel->colors = tkSelectBar_ThemeColors( tkTheme_Get() )
+    tkTipHost_Ensure( @pSel->tip, w, @TipText )
+    tkTipHost_SetDelay( @pSel->tip, TK_TIPDELAY_INITIAL, pSel->HoverTime )
+    return w
+end function
+
+' ---- panels ----------------------------------------------------------------------------------
+public function tkSelectBar_AddPanel( byval hSelectBar as TK_WIDGET ptr, byval Text as ustring, _
+                                      byval id as long = 0, byval itemData as integer = 0 ) as long
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return -1
+    dim as long idx = pSel->AddPanel()
+    pSel->panels(idx).wszText = Text
+    pSel->panels(idx).id = id
+    pSel->panels(idx).itemData = itemData
+    return idx
+end function
+
+public sub tkSelectBar_Clear( byval hSelectBar as TK_WIDGET ptr )
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel then pSel->Clear()
+end sub
+
+public sub tkSelectBar_Refresh( byval hSelectBar as TK_WIDGET ptr )
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel then pSel->Refresh()
+end sub
+
+public function tkSelectBar_GetCount( byval hSelectBar as TK_WIDGET ptr ) as long
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return 0
+    return pSel->GetCount()
+end function
+
+public function tkSelectBar_IsValidPanel( byval hSelectBar as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return false
+    return pSel->IsValidPanel( idx )
+end function
+
+public function tkSelectBar_FindPanelByID( byval hSelectBar as TK_WIDGET ptr, byval id as long ) as long
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return -1
+    for i as long = 0 to pSel->panelCount - 1
+        if pSel->panels(i).id = id then return i
+    next
+    return -1
+end function
+
+' Geometry, not interaction: disabled panels included, no client-area test.
+public function tkSelectBar_HitTest( byval hSelectBar as TK_WIDGET ptr, byval x as long, byval y as long ) as long
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return -1
+    if pSel->bLayoutDirty then pSel->LayoutPanels()
+    return pSel->HitTest( x, y )
+end function
+
+public function tkSelectBar_GetText( byval hSelectBar as TK_WIDGET ptr, byval idx as long ) as ustring
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return ""
+    if pSel->IsValidPanel( idx ) = false then return ""
+    return pSel->panels(idx).wszText
+end function
+
+public function tkSelectBar_SetText( byval hSelectBar as TK_WIDGET ptr, byval idx as long, byval Text as ustring ) as boolean
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return false
+    if pSel->IsValidPanel( idx ) = false then return false
+    pSel->panels(idx).wszText = Text
+    pSel->Refresh()
+    return true
+end function
+
+public function tkSelectBar_GetPanelID( byval hSelectBar as TK_WIDGET ptr, byval idx as long ) as long
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return 0
+    if pSel->IsValidPanel( idx ) = false then return 0
+    return pSel->panels(idx).id
+end function
+
+public function tkSelectBar_SetPanelID( byval hSelectBar as TK_WIDGET ptr, byval idx as long, byval id as long ) as boolean
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return false
+    if pSel->IsValidPanel( idx ) = false then return false
+    pSel->panels(idx).id = id
+    return true
+end function
+
+public function tkSelectBar_GetItemData( byval hSelectBar as TK_WIDGET ptr, byval idx as long ) as integer
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return 0
+    if pSel->IsValidPanel( idx ) = false then return 0
+    return pSel->panels(idx).itemData
+end function
+
+public function tkSelectBar_SetItemData( byval hSelectBar as TK_WIDGET ptr, byval idx as long, byval itemData as integer ) as boolean
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return false
+    if pSel->IsValidPanel( idx ) = false then return false
+    pSel->panels(idx).itemData = itemData
+    return true
+end function
+
+public function tkSelectBar_GetEnabled( byval hSelectBar as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return false
+    if pSel->IsValidPanel( idx ) = false then return false
+    return pSel->panels(idx).isEnabled
+end function
+
+' REFUSED for the current panel. Disabling the hot or pressed one clears that state now.
+public function tkSelectBar_SetEnabled( byval hSelectBar as TK_WIDGET ptr, byval idx as long, byval isEnabled as boolean ) as boolean
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return false
+    if pSel->IsValidPanel( idx ) = false then return false
+    if (isEnabled = false) andalso (idx = pSel->nCurSel) then return false
+    if pSel->panels(idx).isEnabled = isEnabled then return true
+    pSel->panels(idx).isEnabled = isEnabled
+    if isEnabled = false then
+        if pSel->nLastHotIdx = idx then SetHot( pSel, -1 )      ' also moves the tip off it
+        if pSel->nPressedIdx = idx then pSel->CancelPress()
+    end if
+    tkWidget_Invalidate( hSelectBar )
+    return true
+end function
+
+public function tkSelectBar_GetCurSel( byval hSelectBar as TK_WIDGET ptr ) as long
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return -1
+    return pSel->nCurSel
+end function
+
+' SILENT. Rejects -1, an invalid index and a disabled panel; TRUE if already current.
+public function tkSelectBar_SetCurSel( byval hSelectBar as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return false
+    if pSel->IsValidPanel( idx ) = false then return false
+    if pSel->panels(idx).isEnabled = false then return false
+    if pSel->nCurSel = idx then return true
+    pSel->nCurSel = idx
+    tkWidget_Invalidate( hSelectBar )
+    return true
+end function
+
+' ---- layout (raw pixels) ---------------------------------------------------------------------
+public sub tkSelectBar_GetPadding( byval hSelectBar as TK_WIDGET ptr, byref nPadLeft as long, byref nPadRight as long )
+    nPadLeft = 0 : nPadRight = 0
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then exit sub
+    nPadLeft = pSel->nPadLeft : nPadRight = pSel->nPadRight
+end sub
+
+public sub tkSelectBar_SetPadding( byval hSelectBar as TK_WIDGET ptr, byval nPadLeft as long, byval nPadRight as long )
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then exit sub
+    pSel->nPadLeft = iif( nPadLeft < 0, 0, nPadLeft )
+    pSel->nPadRight = iif( nPadRight < 0, 0, nPadRight )
+    pSel->Refresh()
+end sub
+
+' -1 on either side inherits the bar's; below -1 clamps to -1.
+public function tkSelectBar_SetPanelPadding( byval hSelectBar as TK_WIDGET ptr, byval idx as long, _
+                                             byval nPadLeft as long, byval nPadRight as long ) as boolean
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return false
+    if pSel->IsValidPanel( idx ) = false then return false
+    pSel->panels(idx).nPadLeft = iif( nPadLeft < -1, -1, nPadLeft )
+    pSel->panels(idx).nPadRight = iif( nPadRight < -1, -1, nPadRight )
+    pSel->Refresh()
+    return true
+end function
+
+public sub tkSelectBar_GetIndicator( byval hSelectBar as TK_WIDGET ptr, byref nThickness as long, byref nGap as long )
+    nThickness = 0 : nGap = 0
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then exit sub
+    nThickness = pSel->nIndicatorHeight : nGap = pSel->nIndicatorGap
+end sub
+
+' BOTH are layout inputs: the centred block is text + gap + thickness.
+public sub tkSelectBar_SetIndicator( byval hSelectBar as TK_WIDGET ptr, byval nThickness as long, byval nGap as long )
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then exit sub
+    pSel->nIndicatorHeight = iif( nThickness < 0, 0, nThickness )
+    pSel->nIndicatorGap = iif( nGap < 0, 0, nGap )
+    pSel->Refresh()
+end sub
+
+private function GetPart( byval hSelectBar as TK_WIDGET ptr, byval idx as long, byval nPart as long, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return false
+    if pSel->IsValidPanel( idx ) = false then return false
+    if pSel->bLayoutDirty then pSel->LayoutPanels()
+    select case nPart
+    case 1 : rc = pSel->panels(idx).rcText
+    case 2 : rc = pSel->panels(idx).rcIndicator
+    case else : rc = pSel->panels(idx).rc
+    end select
+    return true
+end function
+
+public function tkSelectBar_GetPanelRect( byval hSelectBar as TK_WIDGET ptr, byval idx as long, byref rc as TKRECT ) as boolean
+    return GetPart( hSelectBar, idx, 0, rc )
+end function
+
+public function tkSelectBar_GetPanelTextRect( byval hSelectBar as TK_WIDGET ptr, byval idx as long, byref rc as TKRECT ) as boolean
+    return GetPart( hSelectBar, idx, 1, rc )
+end function
+
+public function tkSelectBar_GetPanelIndicatorRect( byval hSelectBar as TK_WIDGET ptr, byval idx as long, byref rc as TKRECT ) as boolean
+    return GetPart( hSelectBar, idx, 2, rc )
+end function
+
+' Valid before the bar has ever been sized.
+public function tkSelectBar_GetIdealWidth( byval hSelectBar as TK_WIDGET ptr ) as long
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return 0
+    if pSel->bLayoutDirty then pSel->LayoutPanels()
+    return pSel->nTotalWidth
+end function
+
+' ---- appearance ------------------------------------------------------------------------------
+public sub tkSelectBar_GetColors( byval hSelectBar as TK_WIDGET ptr, byval pColors as TKSELECTBAR_COLORS ptr )
+    if pColors = 0 then exit sub
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then exit sub
+    *pColors = pSel->colors
+end sub
+
+' Copies the struct and PINS it: a theme change leaves this bar alone until UnpinColors.
+public sub tkSelectBar_SetColors( byval hSelectBar as TK_WIDGET ptr, byval pColors as TKSELECTBAR_COLORS ptr )
+    if pColors = 0 then exit sub
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then exit sub
+    pSel->colors = *pColors
+    pSel->bColorsPinned = true
+    tkWidget_Invalidate( hSelectBar )
+end sub
+
+' The bar's colours from the theme's roles (vendor PsSelectBar_ThemeColors, + the focus ring).
+public function tkSelectBar_ThemeColors( byref t as TKTHEME_COLORS ) as TKSELECTBAR_COLORS
+    dim as TKSELECTBAR_COLORS c
+    c.BackColor         = t.Window
+    c.ForeColor         = t.TextDim
+    c.BackColorHot      = t.Window
+    c.ForeColorHot      = t.TextHot
+    c.BackColorSelect   = t.Window
+    c.ForeColorSelect   = t.TextStrong
+    c.ForeColorDisabled = t.TextDisabled
+    c.IndicatorColor    = t.TextStrong
+    c.FocusRingColor    = t.FocusRing
+    return c
+end function
+
+public sub tkSelectBar_ApplyTheme( byval hSelectBar as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if (pSel = 0) orelse pSel->bColorsPinned then exit sub
+    pSel->colors = tkSelectBar_ThemeColors( t )
+    tkWidget_Invalidate( hSelectBar )
+end sub
+
+public sub tkSelectBar_UnpinColors( byval hSelectBar as TK_WIDGET ptr )
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then exit sub
+    pSel->bColorsPinned = false
+    tkSelectBar_ApplyTheme( hSelectBar, tkTheme_Get() )
+end sub
+
+public function tkSelectBar_GetFont( byval hSelectBar as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return 0
+    return pSel->pPanelFont
+end function
+
+' The measuring AND drawing font, borrowed. Re-lays out the whole bar.
+public function tkSelectBar_SetFont( byval hSelectBar as TK_WIDGET ptr, byval f as TTF_Font ptr ) as boolean
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return false
+    pSel->pPanelFont = f
+    pSel->Refresh()
+    return true
+end function
+
+' The form's fonts: the bar has no glyph font, so fGlyph is ignored; 0 keeps the current one.
+public sub tkSelectBar_ApplyFonts( byval hSelectBar as TK_WIDGET ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
+    if fText then tkSelectBar_SetFont( hSelectBar, fText )
+end sub
+
+' ---- tooltips --------------------------------------------------------------------------------
+public function tkSelectBar_GetTooltipHandle( byval hSelectBar as TK_WIDGET ptr ) as TK_TIP ptr
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return 0
+    return tkTipHost_Tip( @pSel->tip )
+end function
+
+public sub tkSelectBar_SetHoverTime( byval hSelectBar as TK_WIDGET ptr, byval milliseconds as long )
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then exit sub
+    pSel->HoverTime = milliseconds
+    tkTipHost_SetDelay( @pSel->tip, TK_TIPDELAY_INITIAL, milliseconds )
+end sub
+
+public sub tkSelectBar_SetAutoPopTime( byval hSelectBar as TK_WIDGET ptr, byval milliseconds as long )
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel then tkTipHost_SetDelay( @pSel->tip, TK_TIPDELAY_AUTOPOP, milliseconds )
+end sub
+
+public sub tkSelectBar_SetReshowTime( byval hSelectBar as TK_WIDGET ptr, byval milliseconds as long )
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel then tkTipHost_SetDelay( @pSel->tip, TK_TIPDELAY_RESHOW, milliseconds )
+end sub
+
+public function tkSelectBar_GetTooltipText( byval hSelectBar as TK_WIDGET ptr, byval idx as long ) as ustring
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return ""
+    if pSel->IsValidPanel( idx ) = false then return ""
+    return pSel->panels(idx).wszTooltip
+end function
+
+public function tkSelectBar_SetTooltipText( byval hSelectBar as TK_WIDGET ptr, byval idx as long, byval Text as ustring ) as boolean
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return false
+    if pSel->IsValidPanel( idx ) = false then return false
+    pSel->panels(idx).wszTooltip = Text
+    return true
+end function
+
+' ---- callbacks -------------------------------------------------------------------------------
+public sub tkSelectBar_SetPaintPanelCallback( byval hSelectBar as TK_WIDGET ptr, byval usersub as SEL_PaintPanelCallbackSub )
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel then pSel->PaintPanelCallback = usersub
+end sub
+
+public sub tkSelectBar_SetMessageCallback( byval hSelectBar as TK_WIDGET ptr, byval userfunc as SEL_MessageCallbackFunc )
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel then pSel->MessageCallback = userfunc
+end sub
+
+public sub tkSelectBar_SetTooltipCallback( byval hSelectBar as TK_WIDGET ptr, byval userfunc as SEL_TooltipCallbackFunc )
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel then pSel->TooltipCallback = userfunc
+end sub
+
+public sub tkSelectBar_SetSelChangeCallback( byval hSelectBar as TK_WIDGET ptr, byval usersub as SEL_SelChangeCallbackSub )
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel then pSel->SelChangeCallback = usersub
+end sub
+
+' ---- probes (added, for tests and hosts) ----------------------------------------------------
+public function tkSelectBar_GetHot( byval hSelectBar as TK_WIDGET ptr ) as long
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return -1
+    return pSel->nLastHotIdx
+end function
+
+public function tkSelectBar_GetPressed( byval hSelectBar as TK_WIDGET ptr ) as long
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return -1
+    return pSel->nPressedIdx
+end function
+
+public function tkSelectBar_GetFocused( byval hSelectBar as TK_WIDGET ptr ) as boolean
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return false
+    return pSel->isFocused
+end function
+
+' The ONE text height the layout uses (tmHeight's analogue).
+public function tkSelectBar_GetTextHeight( byval hSelectBar as TK_WIDGET ptr ) as long
+    dim as TKSELECTBAR_STATE ptr pSel = GetSelectBarPointer( hSelectBar )
+    if pSel = 0 then return 0
+    if pSel->bLayoutDirty then pSel->LayoutPanels()
+    return pSel->nTextHeight
+end function

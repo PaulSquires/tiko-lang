@@ -1,0 +1,601 @@
+' tkCodeEdit self-test. Real windows, real SDL event queue: typing is PUSHED as the SDL key and
+' text events a keyboard produces, the mouse as button / motion / wheel events. Two passes, scale
+' pinned at 1.0 and 1.75. The last part is tiko-studio's P1 GATE: a 50,000-line document, its
+' load, a full re-render after a scroll and after a keystroke, and what a caret blink costs.
+'
+'   selftest            exit code = number of failures
+#import "std/strings"
+#import "vendor/tkControls/tkCodeEdit"
+#import "vendor/tkControls/tkTest"
+#import "vendor/tkControls/tkPopupMenu"
+using tkCodeEdit
+using tkPopupMenu
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as long gModified, gCharAdded, gUpdateUI, gTipClicks, gScaleCalls, gMenuCalls, gMenuX
+dim shared as string gGate              ' the gate's numbers, printed at the end
+dim shared as string gRendererName
+
+sub OnNotify( byval hEdit as TK_WIDGET ptr, byval n as const TKCE_NOTIFICATION ptr )
+    select case n->code
+    case SCN_MODIFIED : gModified += 1
+    case SCN_CHARADDED : gCharAdded += 1
+    case SCN_UPDATEUI : gUpdateUI += 1
+    case SCN_CALLTIPCLICK : gTipClicks += 1
+    end select
+end sub
+
+sub OnScale( byval hEdit as TK_WIDGET ptr, byval fOld as single, byval fNew as single )
+    gScaleCalls += 1
+end sub
+
+sub OnMenu( byval hEdit as TK_WIDGET ptr, byval x as long, byval y as long )
+    gMenuCalls += 1 : gMenuX = x
+end sub
+
+' Dark pixels (luminance < 128) in a rect: the ink of text drawn dark on light.
+function Ink( byval h as TK_HOST ptr, byval x as long, byval y as long, byval w as long, byval hh as long ) as long
+    dim as long n = 0
+    for yy as long = y to y + hh - 1
+        for xx as long = x to x + w - 1
+            dim as ulong c = tkTest_PixelAt( h, xx, yy )
+            if (((c shr 16) and 255) * 3 + ((c shr 8) and 255) * 6 + (c and 255)) < 1280 then n += 1
+        next
+    next
+    return n
+end function
+
+' A SCI_ message with two string parameters (SCI_SETPROPERTY).
+sub SendStrings( byval ed as TK_WIDGET ptr, byval msg as ulong, byref a as string, byref b as string )
+    tkCodeEdit_Send( ed, msg, cast( uinteger, strptr( a ) ), cast( integer, strptr( b ) ) )
+end sub
+
+function Ms( byval t0 as Uint64 ) as double
+    return (SDL_GetPerformanceCounter() - t0) * 1000.0 / SDL_GetPerformanceFrequency()
+end function
+
+' Window pixels of a document position (its caret point, mid-line).
+sub PosPoint( byval ed as TK_WIDGET ptr, byval pos_ as long, byref x as single, byref y as single )
+    dim as TKRECT a
+    tkWidget_AbsRect( ed, a )
+    dim as long lh = tkCodeEdit_Send( ed, SCI_TEXTHEIGHT, 0 )
+    x = a.left + tkCodeEdit_Send( ed, SCI_POINTXFROMPOSITION, 0, pos_ ) + 1
+    y = a.top + tkCodeEdit_Send( ed, SCI_POINTYFROMPOSITION, 0, pos_ ) + lh \ 2
+end sub
+
+' Does the rect hold a pixel TINTED towards channel ch (0 red, 1 green, 2 blue) -- that channel at
+' least 60 above both others? Anti-aliased glyph stems rarely reach the exact style colour.
+function HasTint( byval h as TK_HOST ptr, byval x as long, byval y as long, byval w as long, byval hh as long, byval ch as long ) as boolean
+    for yy as long = y to y + hh - 1
+        for xx as long = x to x + w - 1
+            dim as ulong p = tkTest_PixelAt( h, xx, yy )
+            dim as long c( 0 to 2 ) = { (p shr 16) and 255, (p shr 8) and 255, p and 255 }
+            if (c(ch) - c((ch + 1) mod 3) >= 60) andalso (c(ch) - c((ch + 2) mod 3) >= 60) then return true
+        next
+    next
+    return false
+end function
+
+function Ms2( byval v as double ) as string
+    return str( int( v * 100 + 0.5 ) / 100 )
+end function
+
+function GateLine( byval s as single, byval a as double, byval b as double, byval c as double, byval n as long, byval d as double ) as string
+    return "  gate [" & gRendererName & "] scale " & s & ": open+paint " & Ms2( a ) & " ms, scroll re-render " & Ms2( b ) & _
+           " ms, keystroke-to-frame " & Ms2( c ) & " ms, blinks/s " & n & " (period 100), blink re-render " & Ms2( d ) & " ms" & chr( 10 )
+end function
+
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkCodeEdit selftest", 800, 600, tkHost_FontDir() & TK_FONT_UI, fScale )
+    dim as string sMono = tkHost_FontDir() & TK_FONT_MONO
+    dim as TK_WIDGET ptr ed = tkCodeEdit_Create( tkHost_Root( h ), 100 )
+    tkTest_Check( "scintk loads", ed <> 0, tkCodeEdit_LibraryError() )
+    if ed = 0 then tkHost_Destroy( h ) : exit sub
+    ' a caret placed BEFORE the first layout must not scroll the view sideways (found by the demo:
+    ' the editor was made 100 px wide until sized)
+    tkCodeEdit_SetText( ed, "the caret goes far along this line, at column sixty or so ......" )
+    tkCodeEdit_Send( ed, SCI_SETSEL, 60, 62 )
+    tkWidget_SetPos( ed, tkHost_Scale( h, 10 ), tkHost_Scale( h, 10 ), tkHost_Scale( h, 600 ), tkHost_Scale( h, 400 ) )
+    tkTest_Check( "no sideways scroll from a caret set before layout", tkCodeEdit_Send( ed, SCI_GETXOFFSET ) = 0, str( tkCodeEdit_Send( ed, SCI_GETXOFFSET ) ) )
+    tkCodeEdit_SetNotifyCallback( ed, @OnNotify )
+    tkCodeEdit_SetFont( ed, sMono, 10 )
+    tkCodeEdit_Send( ed, SCI_STYLESETFORE, STYLE_DEFAULT, &h000000 )
+    tkCodeEdit_Send( ed, SCI_STYLESETBACK, STYLE_DEFAULT, &hFFFFFF )
+    tkCodeEdit_Send( ed, SCI_STYLECLEARALL )
+    tkHost_Show( h )
+    gRendererName = *SDL_GetRendererName( h->renderer )
+    tkHost_SetFocus( h, ed )
+    tkHost_Pump( h )
+
+    ' ---- the document ----
+    tkCodeEdit_SetText( ed, "hello" )
+    tkTest_Check( "SetText / GetText", tkCodeEdit_GetText( ed ) = "hello", tkCodeEdit_GetText( ed ) )
+    tkTest_Check( "SCI_GETLENGTH", tkCodeEdit_Send( ed, SCI_GETLENGTH ) = 5 )
+    tkTest_Check( "UTF-8 code page", tkCodeEdit_Send( ed, SCI_GETCODEPAGE ) = SC_CP_UTF8 )
+    tkCodeEdit_SetText( ed, "π=3" )
+    tkTest_Check( "non-ASCII round trip (ustring <-> UTF-8)", tkCodeEdit_GetText( ed ) = "π=3", tkCodeEdit_GetText( ed ) )
+    tkTest_Check( "π is two UTF-8 bytes", tkCodeEdit_Send( ed, SCI_GETLENGTH ) = 4 )
+
+    ' ---- typing: text events insert, keys are asked ----
+    tkCodeEdit_SetText( ed, "hello" )
+    tkCodeEdit_Send( ed, SCI_GOTOPOS, 0 )
+    gCharAdded = 0 : gModified = 0
+    tkTest_PushText( h, "abc" )
+    tkTest_Check( "typed text inserts at the caret", tkCodeEdit_GetText( ed ) = "abchello", tkCodeEdit_GetText( ed ) )
+    tkTest_Check( "SCN_CHARADDED per character", gCharAdded = 3, str( gCharAdded ) )
+    tkTest_Check( "SCN_MODIFIED notifies", gModified > 0 )
+    tkTest_PushKey( h, SDLK_END )
+    tkTest_Check( "End moves the caret", tkCodeEdit_Send( ed, SCI_GETCURRENTPOS ) = 8 )
+    tkTest_PushKey( h, SDLK_BACKSPACE )
+    tkTest_Check( "Backspace deletes", tkCodeEdit_GetText( ed ) = "abchell" )
+    tkTest_PushKey( h, SDLK_Z, SDL_KMOD_CTRL )
+    tkTest_Check( "Ctrl+Z undoes", tkCodeEdit_GetText( ed ) = "abchello", tkCodeEdit_GetText( ed ) )
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "Enter inserts a line", tkCodeEdit_Send( ed, SCI_GETLINECOUNT ) = 2 )
+    tkTest_PushKey( h, SDLK_A, SDL_KMOD_CTRL )
+    tkTest_Check( "Ctrl+A selects all", (tkCodeEdit_Send( ed, SCI_GETSELECTIONSTART ) = 0) andalso _
+                  (tkCodeEdit_Send( ed, SCI_GETSELECTIONEND ) = tkCodeEdit_Send( ed, SCI_GETLENGTH )) )
+    ' a key Scintilla does not map bubbles on (the application's accelerator)
+    dim as ustring sBefore = tkCodeEdit_GetText( ed )
+    tkTest_PushKey( h, SDLK_B, SDL_KMOD_CTRL )
+    tkTest_Check( "Ctrl+B changes nothing (not in Scintilla's key map)", tkCodeEdit_GetText( ed ) = sBefore )
+
+    ' ---- the clipboard: the desktop's, through tkHost ----
+    tkCodeEdit_SetText( ed, "copy me" )
+    tkCodeEdit_Send( ed, SCI_SELECTALL )
+    tkTest_PushKey( h, SDLK_C, SDL_KMOD_CTRL )
+    tkTest_Check( "Ctrl+C reaches the desktop clipboard", tkHost_GetClipboardText() = "copy me", tkHost_GetClipboardText() )
+    tkHost_SetClipboardText( "pasted" )
+    tkCodeEdit_Send( ed, SCI_DOCUMENTEND )
+    tkTest_PushKey( h, SDLK_V, SDL_KMOD_CTRL )
+    tkTest_Check( "Ctrl+V pastes from it", tkCodeEdit_GetText( ed ) = "copy mepasted", tkCodeEdit_GetText( ed ) )
+    tkTest_PushKey( h, SDLK_Z, SDL_KMOD_CTRL )
+    tkTest_Check( "one Ctrl+Z undoes one paste", tkCodeEdit_GetText( ed ) = "copy me", tkCodeEdit_GetText( ed ) )
+
+    ' ---- the tiko lexer ----
+    tkTest_Check( "lexer 'tiko' exists", tkCodeEdit_SetLexer( ed, "tiko" ) )
+    tkTest_Check( "an unknown lexer is refused", tkCodeEdit_SetLexer( ed, "nosuchlexer" ) = false )
+    tkCodeEdit_SetLexer( ed, "tiko" )
+    tkCodeEdit_SendText( ed, SCI_SETKEYWORDS, 0, "dim as long" )
+    tkCodeEdit_Send( ed, SCI_STYLESETFORE, SCE_B_KEYWORD, &h0000E0 )      ' BGR: red
+    tkCodeEdit_Send( ed, SCI_STYLESETFORE, SCE_B_COMMENT, &h00A000 )      ' green
+    tkCodeEdit_SetText( ed, "dim x as long ' note" & chr( 10 ) & "x = 1" )
+    tkCodeEdit_Send( ed, SCI_COLOURISE, 0, -1 )
+    tkTest_Check( "'dim' is a keyword", tkCodeEdit_Send( ed, SCI_GETSTYLEAT, 0 ) = SCE_B_KEYWORD, str( tkCodeEdit_Send( ed, SCI_GETSTYLEAT, 0 ) ) )
+    tkTest_Check( "' starts a comment", tkCodeEdit_Send( ed, SCI_GETSTYLEAT, 15 ) = SCE_B_COMMENT, str( tkCodeEdit_Send( ed, SCI_GETSTYLEAT, 15 ) ) )
+    tkTest_Check( "x is an identifier", tkCodeEdit_Send( ed, SCI_GETSTYLEAT, 4 ) = SCE_B_IDENTIFIER )
+
+    ' ---- pixels: the view is painted, coloured by style, at the widget's place ----
+    tkHost_RenderTo( h, false )
+    dim as TKRECT a
+    tkWidget_AbsRect( ed, a )
+    dim as long lh = tkCodeEdit_Send( ed, SCI_TEXTHEIGHT, 0 )
+    dim as long xKw = a.left + tkCodeEdit_Send( ed, SCI_POINTXFROMPOSITION, 0, 0 )
+    dim as long wKw = tkCodeEdit_Send( ed, SCI_POINTXFROMPOSITION, 0, 3 ) - tkCodeEdit_Send( ed, SCI_POINTXFROMPOSITION, 0, 0 )
+    tkTest_Check( "the keyword is drawn red", HasTint( h, xKw, a.top, wKw, lh, 0 ) )
+    dim as long xC = a.left + tkCodeEdit_Send( ed, SCI_POINTXFROMPOSITION, 0, 16 )
+    tkTest_Check( "the comment is drawn green", HasTint( h, xC, a.top, wKw, lh, 1 ) )
+    tkTest_Check( "x (default style) is not red", HasTint( h, a.left + tkCodeEdit_Send( ed, SCI_POINTXFROMPOSITION, 0, 4 ), a.top, wKw \ 3, lh, 0 ) = false )
+    dim as ulong c0
+    tkTest_Check( "an empty line is background only", tkTest_TonesIn( h, a.left + 40, a.top + lh * 4, 100, lh, c0 ) = 1 andalso (c0 = &hFFFFFF) )
+    tkTest_Check( "nothing drawn outside the widget", tkTest_PixelAt( h, a.right + 2, a.top + 2 ) <> &hFFFFFFFFul )
+    tkTest_Check( "the line height follows the scale", (lh >= cint( 12 * fScale )) andalso (lh <= cint( 22 * fScale )), str( lh ) )
+
+    ' ---- the mouse ----
+    dim as single px, py
+    PosPoint( ed, 22, px, py )                   ' line 1, "x = 1": position 21 + 1
+    tkTest_Click( h, px, py )
+    tkTest_Check( "a click places the caret", tkCodeEdit_Send( ed, SCI_GETCURRENTPOS ) = 22, str( tkCodeEdit_Send( ed, SCI_GETCURRENTPOS ) ) )
+    PosPoint( ed, 4, px, py )
+    tkTest_Click( h, px, py, SDL_BUTTON_LEFT, 1 )      ' a user's double click: two presses
+    tkTest_Click( h, px, py, SDL_BUTTON_LEFT, 2 )
+    tkTest_Check( "a double click selects the word", (tkCodeEdit_Send( ed, SCI_GETSELECTIONSTART ) = 4) andalso (tkCodeEdit_Send( ed, SCI_GETSELECTIONEND ) = 5) )
+    tkTest_Check( "the pointer is an I-beam over text", ed->cursor = TK_CURSOR_IBEAM )
+
+    ' ---- the wheel: three lines a notch ----
+    dim as string sLines
+    for i as long = 1 to 200 : sLines &= "line " & i & chr( 10 ) : next
+    tkCodeEdit_SetText( ed, sLines )
+    tkCodeEdit_Send( ed, SCI_SETFIRSTVISIBLELINE, 0 )
+    tkTest_PushWheel( h, a.left + 50, a.top + 50, 0, -1 )
+    tkTest_Check( "one notch down scrolls 3 lines", tkCodeEdit_Send( ed, SCI_GETFIRSTVISIBLELINE ) = 3, str( tkCodeEdit_Send( ed, SCI_GETFIRSTVISIBLELINE ) ) )
+    tkTest_PushWheel( h, a.left + 50, a.top + 50, 0, 0.5 )
+    tkTest_Check( "half a notch waits", tkCodeEdit_Send( ed, SCI_GETFIRSTVISIBLELINE ) = 3 )
+    tkTest_PushWheel( h, a.left + 50, a.top + 50, 0, 0.5 )
+    tkTest_Check( "the second half scrolls", tkCodeEdit_Send( ed, SCI_GETFIRSTVISIBLELINE ) = 0 )
+
+    ' ---- the text engine's cluster map (scintk's MeasureWidths) ----
+    dim as long px10 = cint( 10 * 96 * fScale / 72 )
+    dim as long p64( any )
+    dim as string sAscii = "dim x as long"
+    tkTest_Check( "MeasureWidths runs", tkCodeEdit_MeasureWidths( sMono, px10, sAscii, p64() ) )
+    dim as boolean bMono = true
+    for i as long = 1 to ubound( p64 )
+        if p64(i) < p64(i - 1) then bMono = false
+    next
+    tkTest_Check( "ASCII positions are monotonic", bMono )
+    ' the oracle is SDL_ttf's own shaped width, not tkCodeEdit's
+    dim as TTF_Font ptr fo = TTF_OpenFont( strptr( sMono ), px10 )
+    dim as long wTtf, hTtf
+    TTF_GetStringSize( fo, strptr( sAscii ), len( sAscii ), @wTtf, @hTtf )
+    TTF_CloseFont( fo )
+    tkTest_Check( "the last position is SDL_ttf's shaped width", p64( ubound( p64 ) ) = wTtf * 64, _
+                  p64( ubound( p64 ) ) & " vs " & wTtf * 64 )
+    tkTest_Check( "the run width agrees with the positions", tkCodeEdit_MeasureText( sMono, px10, sAscii ) = p64( ubound( p64 ) ) )
+    dim as boolean bCells = true
+    for i as long = 1 to ubound( p64 )
+        if abs( (p64(i) - p64(i - 1)) - p64(0) ) > 64 then bCells = false
+    next
+    dim as string sDbg
+    for i as long = 0 to ubound( p64 ) : sDbg &= p64(i) \ 1 & " " : next
+    tkTest_Check( "monospace: every cell within 1 px of the first", bCells, sDbg )
+    dim as ustring uComb = "e" & wchr( &h301 ) & "x"          ' e + COMBINING ACUTE: one cluster
+    dim as string sComb = uComb
+    tkCodeEdit_MeasureWidths( sMono, px10, sComb, p64() )
+    tkTest_Check( "a combining mark shares its base's cluster", (ubound( p64 ) = 3) andalso (p64(0) = p64(1)) andalso (p64(1) = p64(2)) andalso (p64(3) > p64(2)), _
+                  p64(0) & " " & p64(1) & " " & p64(2) & " " & p64(3) )
+    dim as ustring uCjk = wchr( &h65E5 ) & wchr( &h672C ) & "a"   ' two 3-byte characters
+    dim as string sCjk = uCjk
+    tkCodeEdit_MeasureWidths( sMono, px10, sCjk, p64() )
+    bMono = true
+    for i as long = 1 to ubound( p64 )
+        if p64(i) < p64(i - 1) then bMono = false
+    next
+    tkTest_Check( "CJK positions are monotonic, 3 bytes share one", bMono andalso (p64(0) = p64(2)) andalso (p64(3) = p64(5)) andalso (p64(6) > p64(5)), _
+                  p64(0) & " " & p64(2) & " " & p64(3) & " " & p64(5) & " " & p64(6) )
+
+    ' ==== P2 ====
+    tkCodeEdit_SetLexer( ed, "tiko" )
+    tkCodeEdit_SendText( ed, SCI_SETKEYWORDS, 0, "dim as long sub end" )
+
+    ' ---- the autocompletion list: a popup, keys forwarded to the editor ----
+    tkCodeEdit_SetText( ed, "" )
+    tkHost_SetFocus( h, ed )
+    tkCodeEdit_SendText( ed, SCI_AUTOCSHOW, 0, "alpha beta gamma" )
+    tkHost_Pump( h )
+    dim as TK_HOST ptr lp = tkCodeEdit_ListPopup()
+    tkTest_Check( "AUTOCSHOW opens the list", (tkCodeEdit_Send( ed, SCI_AUTOCACTIVE ) <> 0) andalso (lp <> 0) )
+    if lp then
+        tkHost_RenderTo( lp, false )
+        dim as long pw, ph_
+        tkHost_PixelSize( lp, pw, ph_ )
+        dim as long nTones = tkTest_TonesIn( lp, 0, 0, pw, ph_, c0 )
+        tkTest_Check( "the list draws its rows", nTones > 3, nTones & " tones in " & pw & "x" & ph_ )
+        tkTest_PushKey( lp, SDLK_DOWN )
+        tkTest_Check( "Down in the list moves its selection", tkCodeEdit_Send( ed, SCI_AUTOCGETCURRENT ) = 1, str( tkCodeEdit_Send( ed, SCI_AUTOCGETCURRENT ) ) )
+        tkTest_PushKey( lp, SDLK_RETURN )
+        tkHost_Pump( h )
+        tkTest_Check( "Enter completes the word", tkCodeEdit_GetText( ed ) = "beta", tkCodeEdit_GetText( ed ) )
+        tkTest_Check( "and closes the list", (tkCodeEdit_Send( ed, SCI_AUTOCACTIVE ) = 0) andalso (tkCodeEdit_ListPopup() = 0) )
+    end if
+    tkCodeEdit_SendText( ed, SCI_AUTOCSHOW, 0, "alpha beta gamma" )
+    tkHost_Pump( h )
+    lp = tkCodeEdit_ListPopup()
+    if lp then
+        dim as long rh = tkCodeEdit_Send( ed, SCI_TEXTHEIGHT, 0 )
+        tkTest_Click( lp, 10, rh * 2 + rh \ 2, SDL_BUTTON_LEFT, 1 )
+        tkTest_Click( lp, 10, rh * 2 + rh \ 2, SDL_BUTTON_LEFT, 2 )
+        tkHost_Pump( h )
+        tkTest_Check( "a double click on a row completes it", tkCodeEdit_GetText( ed ) = "betagamma", tkCodeEdit_GetText( ed ) )
+    else
+        tkTest_Check( "the list reopens", false )
+    end if
+    tkCodeEdit_SendText( ed, SCI_AUTOCSHOW, 0, "alpha beta gamma" )
+    tkHost_Pump( h )
+    if tkCodeEdit_ListPopup() then tkTest_PushKey( tkCodeEdit_ListPopup(), SDLK_ESCAPE )
+    tkHost_Pump( h )
+    tkTest_Check( "Escape cancels the list", (tkCodeEdit_Send( ed, SCI_AUTOCACTIVE ) = 0) andalso (tkCodeEdit_ListPopup() = 0) )
+    tkCodeEdit_SendText( ed, SCI_AUTOCSHOW, 0, "alpha alpine beta" )
+    tkHost_Pump( h )
+    if tkCodeEdit_ListPopup() then tkTest_PushText( tkCodeEdit_ListPopup(), "alpi" )
+    tkTest_Check( "typing into the list filters it", (tkCodeEdit_Send( ed, SCI_AUTOCACTIVE ) <> 0) andalso (tkCodeEdit_Send( ed, SCI_AUTOCGETCURRENT ) = 1), _
+                  str( tkCodeEdit_Send( ed, SCI_AUTOCGETCURRENT ) ) )
+    tkWidget_AbsRect( ed, a )
+    tkTest_Click( h, a.left + 200, a.top + 200 )
+    tkHost_Pump( h )
+    tkTest_Check( "a click in the editor closes the list (and Scintilla hears it)", (tkCodeEdit_Send( ed, SCI_AUTOCACTIVE ) = 0) andalso (tkCodeEdit_ListPopup() = 0) )
+
+    ' ---- the call tip: a popup Scintilla paints ----
+    tkCodeEdit_SetText( ed, "foo(" )
+    tkCodeEdit_Send( ed, SCI_GOTOPOS, 4 )
+    gTipClicks = 0
+    tkCodeEdit_SendText( ed, SCI_CALLTIPSHOW, 4, "foo( a as long, b as string )" )
+    tkHost_Pump( h )
+    dim as TK_HOST ptr tp = tkCodeEdit_CallTipPopup()
+    tkTest_Check( "CALLTIPSHOW opens the tip", (tkCodeEdit_Send( ed, SCI_CALLTIPACTIVE ) <> 0) andalso (tp <> 0) )
+    if tp then
+        dim as long tw, th
+        tkHost_PixelSize( tp, tw, th )
+        tkHost_RenderTo( tp, false )
+        tkTest_Check( "the tip is painted (text on a background)", tkTest_TonesIn( tp, 0, 0, tw, th, c0 ) > 2 )
+        dim as ulongint hash0 = tkTest_HashRect( tp, 0, 0, tw, th )
+        tkCodeEdit_Send( ed, SCI_CALLTIPSETHLT, 5, 14 )
+        tkHost_RenderTo( tp, false )
+        tkTest_Check( "a highlight repaints the tip", tkTest_HashRect( tp, 0, 0, tw, th ) <> hash0 )
+        tkTest_Click( tp, tw \ 2, th \ 2 )
+        tkTest_Check( "a click on the tip notifies SCN_CALLTIPCLICK", gTipClicks = 1, str( gTipClicks ) )
+    end if
+    tkCodeEdit_Send( ed, SCI_CALLTIPCANCEL )
+    tkHost_Pump( h )
+    tkTest_Check( "CALLTIPCANCEL closes it", tkCodeEdit_CallTipPopup() = 0 )
+
+    ' ---- the context menu: Scintilla's, as a tkPopupMenu ----
+    tkCodeEdit_SetText( ed, "select me" )
+    PosPoint( ed, 3, px, py )
+    tkTest_Click( h, px, py, SDL_BUTTON_RIGHT )
+    dim as TK_MENU ptr cm = tkCodeEdit_ContextMenu()
+    tkTest_Check( "a right click opens Scintilla's menu", (cm <> 0) andalso tkPopupMenu_IsOpen( cm ) )
+    if cm then
+        dim as long nItems = tkPopupMenu_GetItemCount( cm )
+        tkTest_Check( "Undo .. Select All, with separators", nItems = 9, str( nItems ) )
+        dim as TKRECT ri
+        tkPopupMenu_GetItemRect( cm, nItems - 1, ri )
+        tkTest_Click( tkPopupMenu_Surface( cm ), (ri.left + ri.right) \ 2, (ri.top + ri.bottom) \ 2 )
+        tkHost_Pump( h )
+        tkTest_Check( "its Select All selects all", (tkCodeEdit_Send( ed, SCI_GETSELECTIONSTART ) = 0) andalso (tkCodeEdit_Send( ed, SCI_GETSELECTIONEND ) = 9) )
+        tkTest_Check( "and the menu closed", tkPopupMenu_IsOpen( cm ) = false )
+    end if
+    tkCodeEdit_SetContextMenuCallback( ed, @OnMenu )
+    gMenuCalls = 0
+    tkTest_Click( h, px, py, SDL_BUTTON_RIGHT )
+    tkTest_Check( "a host menu callback replaces Scintilla's", (gMenuCalls = 1) andalso (tkPopupMenu_IsOpen( cm ) = false) andalso (gMenuX = cint( px ) - a.left), _
+                  gMenuCalls & " " & gMenuX )
+    tkCodeEdit_SetContextMenuCallback( ed, 0 )
+
+    ' ---- IME: the pre-edit is inline and tentative; the commit replaces it ----
+    tkCodeEdit_SetText( ed, "" )
+    tkHost_SetFocus( h, ed )
+    tkTest_PushEditing( h, wchr( &h306B, &h307B ), 2, 0 )
+    tkTest_Check( "a pre-edit shows inline", tkCodeEdit_GetText( ed ) = wchr( &h306B, &h307B ), tkCodeEdit_GetText( ed ) )
+    tkTest_Check( "marked with the IME indicator", tkCodeEdit_Send( ed, SCI_INDICATORVALUEAT, 32, 0 ) <> 0 )
+    tkTest_PushEditing( h, wchr( &h65E5, &h672C ), 2, 0 )
+    tkTest_Check( "a new pre-edit replaces the old", tkCodeEdit_GetText( ed ) = wchr( &h65E5, &h672C ), tkCodeEdit_GetText( ed ) )
+    tkTest_PushText( h, wchr( &h65E5, &h672C ) )
+    tkTest_Check( "the commit lands once", tkCodeEdit_GetText( ed ) = wchr( &h65E5, &h672C ), tkCodeEdit_GetText( ed ) )
+    tkTest_Check( "committed text carries no IME indicator", tkCodeEdit_Send( ed, SCI_INDICATORVALUEAT, 32, 0 ) = 0 )
+    tkTest_PushEditing( h, wchr( &h304B ), 1, 0 )
+    tkTest_PushEditing( h, "", 0, 0 )
+    tkTest_Check( "a cancelled pre-edit leaves nothing", tkCodeEdit_GetText( ed ) = wchr( &h65E5, &h672C ), tkCodeEdit_GetText( ed ) )
+    tkCodeEdit_Send( ed, SCI_UNDO )
+    tkTest_Check( "undo never resurrects a pre-edit", len( tkCodeEdit_GetText( ed ) ) < 2 )
+
+    ' ---- folding: LexTiko folds by indentation; the fold margin's click folds ----
+    tkCodeEdit_SetText( ed, "sub A" & chr( 10 ) & "    x = 1" & chr( 10 ) & "    y = 2" & chr( 10 ) & "end sub" & chr( 10 ) )
+    SendStrings( ed, SCI_SETPROPERTY, "fold", "1" )
+    tkCodeEdit_Send( ed, SCI_SETMARGINTYPEN, 2, SC_MARGIN_SYMBOL )
+    tkCodeEdit_Send( ed, SCI_SETMARGINMASKN, 2, SC_MASK_FOLDERS )
+    tkCodeEdit_Send( ed, SCI_SETMARGINWIDTHN, 2, tkHost_Scale( h, 16 ) )
+    tkCodeEdit_Send( ed, SCI_SETMARGINSENSITIVEN, 2, 1 )
+    tkCodeEdit_Send( ed, SCI_MARKERDEFINE, SC_MARKNUM_FOLDEROPEN, SC_MARK_BOXMINUS )
+    tkCodeEdit_Send( ed, SCI_MARKERDEFINE, SC_MARKNUM_FOLDER, SC_MARK_BOXPLUS )
+    tkCodeEdit_Send( ed, SCI_SETAUTOMATICFOLD, SC_AUTOMATICFOLD_SHOW or SC_AUTOMATICFOLD_CLICK or SC_AUTOMATICFOLD_CHANGE )
+    tkCodeEdit_Send( ed, SCI_COLOURISE, 0, -1 )
+    tkTest_Check( "line 0 is a fold header", (tkCodeEdit_Send( ed, SCI_GETFOLDLEVEL, 0 ) and SC_FOLDLEVELHEADERFLAG) <> 0 )
+    tkHost_RenderTo( h, false )
+    dim as long xFold = a.left + tkCodeEdit_Send( ed, SCI_GETMARGINWIDTHN, 0 ) + tkCodeEdit_Send( ed, SCI_GETMARGINWIDTHN, 1 )
+    dim as long wFold = tkCodeEdit_Send( ed, SCI_GETMARGINWIDTHN, 2 )
+    tkTest_Check( "the fold margin draws a box", tkTest_TonesIn( h, xFold, a.top, wFold, lh, c0 ) > 2 )
+    tkTest_Click( h, xFold + wFold \ 2, a.top + lh \ 2 )
+    tkTest_Check( "a margin click folds", tkCodeEdit_Send( ed, SCI_GETLINEVISIBLE, 1 ) = 0 )
+    tkTest_Click( h, xFold + wFold \ 2, a.top + lh \ 2 )
+    tkTest_Check( "a second click unfolds", tkCodeEdit_Send( ed, SCI_GETLINEVISIBLE, 1 ) <> 0 )
+    tkCodeEdit_Send( ed, SCI_SETMARGINWIDTHN, 2, 0 )
+
+    ' ---- markers: a shape and an RGBA image in a symbol margin ----
+    tkCodeEdit_Send( ed, SCI_SETMARGINTYPEN, 1, SC_MARGIN_SYMBOL )
+    tkCodeEdit_Send( ed, SCI_SETMARGINMASKN, 1, (1 shl 1) or (1 shl 2) )
+    tkCodeEdit_Send( ed, SCI_SETMARGINWIDTHN, 1, tkHost_Scale( h, 16 ) )
+    tkCodeEdit_Send( ed, SCI_MARKERDEFINE, 1, SC_MARK_CIRCLE )
+    tkCodeEdit_Send( ed, SCI_MARKERSETBACK, 1, &h0000E0 )
+    tkCodeEdit_Send( ed, SCI_MARKERSETFORE, 1, &h0000E0 )
+    dim as ubyte img( 0 to 8 * 8 * 4 - 1 )
+    for i as long = 0 to 63
+        img(i * 4) = 0 : img(i * 4 + 1) = 200 : img(i * 4 + 2) = 0 : img(i * 4 + 3) = 255
+    next
+    tkCodeEdit_Send( ed, SCI_RGBAIMAGESETWIDTH, 8 )
+    tkCodeEdit_Send( ed, SCI_RGBAIMAGESETHEIGHT, 8 )
+    tkCodeEdit_Send( ed, SCI_MARKERDEFINERGBAIMAGE, 2, cast( integer, @img(0) ) )
+    tkCodeEdit_Send( ed, SCI_MARKERADD, 1, 1 )
+    tkCodeEdit_Send( ed, SCI_MARKERADD, 2, 2 )
+    tkHost_RenderTo( h, false )
+    dim as long xM = a.left + tkCodeEdit_Send( ed, SCI_GETMARGINWIDTHN, 0 )
+    dim as long wM = tkCodeEdit_Send( ed, SCI_GETMARGINWIDTHN, 1 )
+    tkTest_Check( "a circle marker draws (red)", HasTint( h, xM, a.top + lh, wM, lh, 0 ) )
+    tkTest_Check( "an RGBA image marker draws (green)", HasTint( h, xM, a.top + lh * 2, wM, lh, 1 ) )
+    tkTest_Check( "a line without a marker stays clear", HasTint( h, xM, a.top + lh * 3, wM, lh, 0 ) = false )
+    tkCodeEdit_Send( ed, SCI_MARKERDELETEALL, -1 )
+    tkCodeEdit_Send( ed, SCI_SETMARGINWIDTHN, 1, 0 )
+
+    ' ---- indicators: a squiggle under text, a translucent box behind it ----
+    tkCodeEdit_SetText( ed, "error here" & chr( 10 ) & "boxed text" )
+    tkCodeEdit_Send( ed, SCI_INDICSETSTYLE, 8, INDIC_SQUIGGLE )
+    tkCodeEdit_Send( ed, SCI_INDICSETFORE, 8, &h0000E0 )
+    tkCodeEdit_Send( ed, SCI_SETINDICATORCURRENT, 8 )
+    tkCodeEdit_Send( ed, SCI_INDICATORFILLRANGE, 0, 5 )
+    tkCodeEdit_Send( ed, SCI_INDICSETSTYLE, 9, INDIC_ROUNDBOX )
+    tkCodeEdit_Send( ed, SCI_INDICSETFORE, 9, &hE00000 )
+    tkCodeEdit_Send( ed, SCI_INDICSETALPHA, 9, 120 )
+    tkCodeEdit_Send( ed, SCI_SETINDICATORCURRENT, 9 )
+    tkCodeEdit_Send( ed, SCI_INDICATORFILLRANGE, 11, 5 )
+    tkHost_RenderTo( h, false )
+    dim as long x0 = a.left + tkCodeEdit_Send( ed, SCI_POINTXFROMPOSITION, 0, 0 )
+    dim as long x5 = a.left + tkCodeEdit_Send( ed, SCI_POINTXFROMPOSITION, 0, 5 )
+    tkTest_Check( "a squiggle draws under its range", HasTint( h, x0, a.top, x5 - x0, lh, 0 ) )
+    tkTest_Check( "and not under the rest", HasTint( h, x5 + 2, a.top, x5 - x0, lh, 0 ) = false )
+    tkTest_Check( "a translucent box draws behind its range (blue)", HasTint( h, x0, a.top + lh, x5 - x0, lh, 2 ) )
+    tkCodeEdit_Send( ed, SCI_INDICATORCLEARRANGE, 0, 30 )
+
+    ' ---- multiple and rectangular selection, text drag ----
+    tkCodeEdit_SetText( ed, "aaa" & chr( 10 ) & "bbb" & chr( 10 ) & "ccc" )
+    tkCodeEdit_Send( ed, SCI_SETMULTIPLESELECTION, 1 )
+    tkCodeEdit_Send( ed, SCI_SETADDITIONALSELECTIONTYPING, 1 )
+    PosPoint( ed, 1, px, py )
+    tkTest_Click( h, px, py )
+    PosPoint( ed, 9, px, py )
+    SDL_SetModState( SDL_KMOD_CTRL )
+    tkTest_Click( h, px, py )
+    SDL_SetModState( SDL_KMOD_NONE )
+    tkTest_Check( "Ctrl+click adds a caret", tkCodeEdit_Send( ed, SCI_GETSELECTIONS ) = 2, str( tkCodeEdit_Send( ed, SCI_GETSELECTIONS ) ) )
+    tkTest_PushText( h, "X" )
+    tkTest_Check( "typing goes to every caret", tkCodeEdit_GetText( ed ) = "aXaa" & chr( 10 ) & "bbb" & chr( 10 ) & "cXcc", tkCodeEdit_GetText( ed ) )
+    dim as long rectMod = tkCodeEdit_Send( ed, SCI_GETRECTANGULARSELECTIONMODIFIER )
+    dim as long sdlMod = iif( rectMod = 4, SDL_KMOD_ALT, iif( rectMod = 8, SDL_KMOD_GUI, SDL_KMOD_CTRL ) )
+    dim as single qx, qy
+    PosPoint( ed, 0, px, py )
+    PosPoint( ed, 13, qx, qy )
+    SDL_SetModState( sdlMod )
+    tkTest_PushButton( h, true, px, py, SDL_BUTTON_LEFT, 1 )
+    tkTest_PushMotion( h, (px + qx) / 2, (py + qy) / 2 )
+    tkTest_PushMotion( h, qx, qy )
+    tkTest_PushButton( h, false, qx, qy, SDL_BUTTON_LEFT, 1 )
+    SDL_SetModState( SDL_KMOD_NONE )
+    tkTest_Check( "a modifier drag makes a rectangle", (tkCodeEdit_Send( ed, SCI_GETSELECTIONMODE ) = SC_SEL_RECTANGLE) andalso _
+                  (tkCodeEdit_Send( ed, SCI_GETSELECTIONS ) = 3), tkCodeEdit_Send( ed, SCI_GETSELECTIONMODE ) & " " & tkCodeEdit_Send( ed, SCI_GETSELECTIONS ) & _
+                  " anchor " & tkCodeEdit_Send( ed, SCI_GETRECTANGULARSELECTIONANCHOR ) & " caret " & tkCodeEdit_Send( ed, SCI_GETRECTANGULARSELECTIONCARET ) & _
+                  " from y " & py & " to y " & qy )
+    tkCodeEdit_Send( ed, SCI_SETSEL, 5, 8 )                     ' "bbb"
+    PosPoint( ed, 6, px, py )
+    PosPoint( ed, 13, qx, qy )
+    tkTest_PushButton( h, true, px, py, SDL_BUTTON_LEFT, 1 )
+    tkTest_PushMotion( h, px + 6, py + 3 )
+    tkTest_PushMotion( h, qx, qy )
+    tkTest_PushButton( h, false, qx, qy, SDL_BUTTON_LEFT, 1 )
+    dim as ustring sDrag = tkCodeEdit_GetText( ed )
+    tkTest_Check( "dragging a selection moves the text", sDrag = "aXaa" & chr( 10 ) & chr( 10 ) & "cXccbbb", strings.Replace( sDrag, chr( 10 ), "|" ) )
+    tkCodeEdit_Send( ed, SCI_SETMULTIPLESELECTION, 0 )
+
+    ' ---- faces: a family maps to files, bold is its own file ----
+    tkCodeEdit_SetFontFace( "TestFace", TK_TEST_FONTDIR & "consola.ttf", TK_TEST_FONTDIR & "consolab.ttf" )
+    tkCodeEdit_SendText( ed, SCI_STYLESETFONT, STYLE_DEFAULT, "TestFace" )
+    tkCodeEdit_Send( ed, SCI_STYLECLEARALL )
+    tkCodeEdit_Send( ed, SCI_STYLESETBOLD, SCE_B_KEYWORD, 1 )
+    tkCodeEdit_SendText( ed, SCI_SETKEYWORDS, 0, "mmm" )
+    tkCodeEdit_SetText( ed, "mmm nnn" & chr( 10 ) & "nnn mmm" )
+    tkCodeEdit_Send( ed, SCI_COLOURISE, 0, -1 )
+    tkHost_RenderTo( h, false )
+    lh = tkCodeEdit_Send( ed, SCI_TEXTHEIGHT, 0 )
+    dim as long xa = a.left + tkCodeEdit_Send( ed, SCI_POINTXFROMPOSITION, 0, 0 )
+    dim as long xb = a.left + tkCodeEdit_Send( ed, SCI_POINTXFROMPOSITION, 0, 3 )
+    dim as long inkBold = Ink( h, xa, a.top, xb - xa, lh )
+    tkCodeEdit_Send( ed, SCI_STYLESETBOLD, SCE_B_KEYWORD, 0 )
+    tkHost_RenderTo( h, false )
+    dim as long inkReg = Ink( h, xa, a.top, xb - xa, lh )
+    tkTest_Check( "a bold style draws from the bold file (more ink)", inkBold > inkReg * 1.08, inkBold & " vs " & inkReg )
+    tkCodeEdit_SendText( ed, SCI_STYLESETFONT, STYLE_DEFAULT, "NoSuchFamily" )
+    tkCodeEdit_Send( ed, SCI_STYLECLEARALL )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "an unknown family falls back to the default file", Ink( h, xa, a.top, xb - xa, lh ) > 0 )
+    tkCodeEdit_SetFont( ed, sMono, 10 )
+
+    ' ---- fallback: a CJK glyph Cascadia lacks, from MS Gothic (face of a .ttc) ----
+    tkCodeEdit_SetFallbackFonts( TK_TEST_FONTDIR & "msgothic.ttc|MS Gothic" )
+    dim as ustring uJa = wchr( &h65E5 ) & "a"
+    dim as string sJa = uJa
+    tkCodeEdit_MeasureWidths( sMono, px10, sJa, p64() )
+    dim as TTF_Font ptr fo2 = TTF_OpenFont( strptr( sMono ), px10 )
+    dim as SDL_PropertiesID pr = SDL_CreateProperties()
+    dim as string sGothic = TK_TEST_FONTDIR & "msgothic.ttc"
+    SDL_SetStringProperty( pr, TTF_PROP_FONT_CREATE_FILENAME_STRING, strptr( sGothic ) )
+    SDL_SetFloatProperty( pr, TTF_PROP_FONT_CREATE_SIZE_FLOAT, px10 )
+    dim as TTF_Font ptr fg = TTF_OpenFontWithProperties( pr )
+    SDL_DestroyProperties( pr )
+    TTF_AddFallbackFont( fo2, fg )
+    dim as long wJa, hJa
+    TTF_GetStringSize( fo2, strptr( sJa ), len( sJa ), @wJa, @hJa )
+    TTF_CloseFont( fo2 ) : TTF_CloseFont( fg )
+    tkTest_Check( "a fallback glyph is measured from the fallback (= SDL_ttf's width)", p64( ubound( p64 ) ) = wJa * 64, p64( ubound( p64 ) ) & " vs " & wJa * 64 )
+    tkTest_Check( "a CJK cell is wider than an ASCII one", p64(2) > (p64(3) - p64(2)) * 3 \ 2, p64(2) & " " & p64(3) )
+    tkCodeEdit_SetFont( ed, sMono, 10 )
+    tkCodeEdit_SetText( ed, wchr( &h65E5, &h672C ) )
+    tkHost_RenderTo( h, false )
+    lh = tkCodeEdit_Send( ed, SCI_TEXTHEIGHT, 0 )
+    dim as long xj0 = a.left + tkCodeEdit_Send( ed, SCI_POINTXFROMPOSITION, 0, 0 )
+    dim as long xj1 = a.left + tkCodeEdit_Send( ed, SCI_POINTXFROMPOSITION, 0, 3 )
+    dim as long xj2 = a.left + tkCodeEdit_Send( ed, SCI_POINTXFROMPOSITION, 0, 6 )
+    tkTest_Check( "two CJK glyphs draw differently (not two tofu boxes)", (xj1 - xj0 = xj2 - xj1) andalso _
+                  (tkTest_HashRect( h, xj0, a.top, xj1 - xj0, lh ) <> tkTest_HashRect( h, xj1, a.top, xj2 - xj1, lh )) )
+
+    ' ---- DPI: each editor restyles at its own scale ----
+    tkCodeEdit_SetScaleCallback( ed, @OnScale )
+    gScaleCalls = 0
+    dim as long lh1 = tkCodeEdit_Send( ed, SCI_TEXTHEIGHT, 0 )
+    dim as TK_MSG sm
+    sm.msg = TKM_SCALECHANGED : sm.fOld = fScale : sm.fNew = fScale * 2
+    tkWidget_Send( ed, @sm )
+    dim as long lh2 = tkCodeEdit_Send( ed, SCI_TEXTHEIGHT, 0 )
+    tkTest_Check( "a scale change restyles (line height doubles)", abs( lh2 - lh1 * 2 ) <= 2, lh1 & " -> " & lh2 )
+    tkTest_Check( "and tells the host", gScaleCalls = 1 )
+    sm.fOld = fScale * 2 : sm.fNew = fScale
+    tkWidget_Send( ed, @sm )
+    tkTest_Check( "and back", tkCodeEdit_Send( ed, SCI_TEXTHEIGHT, 0 ) = lh1 )
+    tkCodeEdit_SetScaleCallback( ed, 0 )
+
+    ' ---- P1 GATE: 50,000 lines ----
+    dim as string sBig
+    dim as string sRow = "    dim as long total = total + values( i ) ' accumulate" & chr( 10 )
+    for i as long = 1 to 50000 : sBig &= sRow : next
+    dim as Uint64 t0 = SDL_GetPerformanceCounter()
+    tkCodeEdit_Send( ed, SCI_SETTEXT, 0, cast( integer, strptr( sBig ) ) )
+    tkHost_RenderTo( h, false )
+    dim as double fLoad = Ms( t0 )
+    tkTest_Check( "50k lines loaded", tkCodeEdit_Send( ed, SCI_GETLINECOUNT ) = 50001 )
+    tkTest_Check( "open + first paint < 1000 ms", fLoad < 1000, str( fLoad ) )
+    tkCodeEdit_Send( ed, SCI_LINESCROLL, 0, 25000 )
+    tkHost_RenderTo( h, false )
+    dim as double fScroll = tkCodeEdit_LastPaintMs( ed )
+    gGate &= "  profile of the scroll re-render: " & tkCodeEdit_Profile() & chr( 10 )
+    tkTest_Check( "a scroll re-render < 16 ms", fScroll < 16, str( fScroll ) )
+    tkCodeEdit_Send( ed, SCI_GOTOLINE, 25010 )
+    tkHost_RenderTo( h, false )
+    t0 = SDL_GetPerformanceCounter()
+    tkTest_PushText( h, "x" )
+    tkHost_RenderTo( h, false )
+    dim as double fType = Ms( t0 )
+    tkTest_Check( "a keystroke, event to painted frame < 16 ms", fType < 16, str( fType ) )
+    ' real source, paged into lines never drawn: every run a cache miss (the honest case)
+    dim as string sReal
+    dim as long ff = freefile
+    if open( "../../../pkg/vendor/tkControls/tkListTree/tkListTree.tiko" for binary access read as #ff ) = 0 then
+        sReal = string( lof( ff ), 0 )
+        get #ff, , sReal
+        close #ff
+    end if
+    tkTest_Check( "a real source file to page through", len( sReal ) > 50000, str( len( sReal ) ) )
+    tkCodeEdit_SendText( ed, SCI_SETKEYWORDS, 0, "dim as long ulong string ustring sub end function return for next if then else elseif select case while wend do loop exit type public private byval byref ptr any boolean single double integer const shared declare" )
+    tkCodeEdit_Send( ed, SCI_SETTEXT, 0, cast( integer, strptr( sReal ) ) )
+    tkHost_RenderTo( h, false )
+    dim as double fPageMax = 0
+    for pg as long = 1 to 10
+        tkCodeEdit_Send( ed, SCI_LINESCROLL, 0, tkCodeEdit_Send( ed, SCI_LINESONSCREEN ) )
+        tkHost_RenderTo( h, false )
+        if tkCodeEdit_LastPaintMs( ed ) > fPageMax then fPageMax = tkCodeEdit_LastPaintMs( ed )
+    next
+    tkTest_Check( "a page of unseen real source < 16 ms (worst of 10)", fPageMax < 16, str( fPageMax ) )
+    gGate &= "  unseen pages of tkListTree.tiko: worst re-render " & Ms2( fPageMax ) & " ms (" & tkCodeEdit_Profile() & ")" & chr( 10 )
+    tkCodeEdit_Send( ed, SCI_SETTEXT, 0, cast( integer, strptr( sBig ) ) )
+    tkCodeEdit_Send( ed, SCI_GOTOLINE, 25010 )
+    ' the caret blinks (500 ms): each blink re-renders the view once and the frame blits it
+    tkCodeEdit_Send( ed, SCI_SETCARETPERIOD, 100 )
+    tkTest_PumpFor( h, 50 )
+    dim as long nP0 = tkCodeEdit_PaintCount( ed )
+    tkTest_PumpFor( h, 1050 )
+    dim as long nBlinks = tkCodeEdit_PaintCount( ed ) - nP0
+    tkTest_Check( "the caret blinks (view re-rendered per blink)", (nBlinks >= 5) andalso (nBlinks <= 14), str( nBlinks ) )
+    dim as double fBlink = tkCodeEdit_LastPaintMs( ed )
+    tkTest_Check( "a blink re-render < 16 ms", fBlink < 16, str( fBlink ) )
+    gGate &= GateLine( fScale, fLoad, fScroll, fType, nBlinks, fBlink )
+
+    tkHost_Destroy( h )
+end sub
+
+if tkTest_Init() = false then end 99
+RunPass( 1.0 )
+RunPass( 1.75 )
+print gGate;
+dim as long nFail = tkTest_Report( "tkCodeEdit" )
+tkTest_Quit()
+end nFail

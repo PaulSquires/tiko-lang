@@ -77,7 +77,7 @@ A subcommand is the first word on the command line. It builds a project from its
 |---|---|
 | `-Wl ‹a,b,c›` | pass options to the linker, split at commas, as fbc's -Wl |
 | `-norpath` | no $ORIGIN run path when a Linux link takes a shared library |
-| `-nocopylibs` | do not copy a vendor package's dynamic library beside the output |
+| `-nocopylibs` | do not copy vendor libraries or modules' runtime files beside the output |
 | `-o ‹file›` | output path |
 | `-x ‹file›` | the linked output's path, as fbc's -x: over -o, the last one winning; ignored with -c |
 | `-c` | compile only; do not link |

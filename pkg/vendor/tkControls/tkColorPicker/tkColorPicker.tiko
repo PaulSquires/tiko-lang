@@ -1,0 +1,2331 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkColorPicker -- PsColorPicker on SDL3 + SDL_ttf, a port of pkg/vendor/PsControls/PsColorPicker
+' onto tkHost. A chromeless MODAL colour picker popup: tkColorPicker_DoModal puts it on screen,
+' blocks until the user answers, and returns TRUE with the colour written back, or FALSE with the
+' caller's variables untouched.
+'
+' THE SHAPE. Vendor's handle was the popup HWND itself, created hidden so the host could reach
+' the setters first. Here the handle is a HIDDEN zero-size widget in the owner's tree that holds
+' the state; the popup SURFACE (a TK_SURF_POPUP) is created by tkColorPicker_RunModal for each
+' run and closed at its end -- Wayland cannot re-show an unmapped popup, and the state must
+' outlive the surface so GetColor answers after the run. The content widget on the popup shares
+' the state.
+'
+' WHAT IS UNCHANGED, by design: the layout (tab strip sized to its captions, a FIXED-height body,
+' the preview / fields / OK bottom block), the matrix colour law, the Web table, the one edit
+' buffer with select-all-on-entry, the field rules (digits only, three max, clamp on commit), the
+' ColorChanged phases (BEGIN / MOVE / END, no END for an abandoned drag), the selection that
+' follows the value, the keyboard (Esc cancels from anywhere, Enter commits a field or accepts,
+' Tab walks the fields and WRAPS, arrows navigate the body), double-click-a-cell accepts, the OK
+' press/slide-off gesture, click-Initial-reverts, silent setters, theme and pinning, the probes.
+'
+' WHAT CHANGED: the outside click is the router's popup dismissal (tkHost), so it cancels and
+' the press is consumed, as vendor's loop did; the popup opts out of the router's other rule,
+' closing when the application loses focus (bKeepOnFocusLoss), which vendor never had. Digits
+' come from TKM_KEYDOWN, not WM_CHAR (a popup never owns the OS text input). The System tab is
+' PsPlatform's frozen table of Windows' default system colours, overridable per entry -- SDL has
+' no GetSysColor. Coordinates are OWNER window pixels, not screen pixels. See PORT.md.
+#module "tkColorPicker"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkVScrollBar" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkVScrollBar
+
+public const TKCOLORPICKER_DEFAULT_PAD = 8
+public const TKCOLORPICKER_DEFAULT_GAP = 6
+public const TKCOLORPICKER_DEFAULT_TABHEIGHT = 24
+public const TKCOLORPICKER_DEFAULT_MATRIXCOLS = 16
+public const TKCOLORPICKER_DEFAULT_MATRIXROWS = 14
+public const TKCOLORPICKER_DEFAULT_CELLW = 18
+public const TKCOLORPICKER_DEFAULT_CELLH = 22
+public const TKCOLORPICKER_DEFAULT_SWATCHW = 34
+public const TKCOLORPICKER_DEFAULT_LISTROWS = 14
+public const TKCOLORPICKER_DEFAULT_SCROLLW = 14
+public const TKCOLORPICKER_DEFAULT_PREVIEWW = 92
+public const TKCOLORPICKER_DEFAULT_PREVIEWH = 46
+public const TKCOLORPICKER_DEFAULT_FIELDW = 58
+public const TKCOLORPICKER_DEFAULT_FIELDH = 24
+public const TKCOLORPICKER_DEFAULT_OKW = 92
+public const TKCOLORPICKER_DEFAULT_OKH = 30
+public const TKCOLORPICKER_DEFAULT_LABELW = 52
+public const TKCOLORPICKER_DEFAULT_ROWH = 22
+public const TKCOLORPICKER_DEFAULT_TABPAD = 14
+public const TKCOLORPICKER_DEFAULT_CURVATURE = 4
+public const TKCOLORPICKER_DEFAULT_BORDERTHICK = 1   ' never scaled
+public const TKCOLORPICKER_DEFAULT_FOCUSTHICK = 1    ' never scaled
+public const TKCOLORPICKER_RINGINSET = 1
+public const TKCOLORPICKER_CARET_MS = 530
+
+public enum
+    CLR_TAB_WEB = 0
+    CLR_TAB_SYSTEM
+    CLR_TAB_CUSTOM
+    CLR_TAB_COUNT
+end enum
+
+public enum
+    CLR_PHASE_BEGIN = 0
+    CLR_PHASE_MOVE
+    CLR_PHASE_END
+end enum
+
+public enum
+    CLR_PART_TABS = 0
+    CLR_PART_MATRIX
+    CLR_PART_SWATCHES
+    CLR_PART_INITIAL
+    CLR_PART_CURRENT
+    CLR_PART_FIELDS
+    CLR_PART_ALPHA
+    CLR_PART_OK
+end enum
+
+public enum
+    CLR_FIELD_R = 0
+    CLR_FIELD_G
+    CLR_FIELD_B
+    CLR_FIELD_A
+    CLR_FIELD_COUNT
+end enum
+
+' Vendor's dark defaults (BGR(r,g,b) -> tkRGB(r,g,b)). They dress the CHROME; the colours being
+' edited are content and are never themed.
+public type TKCOLORPICKER_COLORS
+    BackColor           as ulong = &hFF2C313Aul
+    ForeColor           as ulong = &hFFC8CDD6ul
+    BorderColor         as ulong = &hFF444A56ul
+    TabBackColor        as ulong = &hFF2C313Aul
+    TabBackColorSel     as ulong = &hFF373D48ul
+    TabForeColor        as ulong = &hFF969CA7ul
+    TabForeColorSel     as ulong = &hFFE2E6EEul
+    FieldBackColor      as ulong = &hFF21252Bul
+    FieldForeColor      as ulong = &hFFC8CDD6ul
+    FieldBorderColor    as ulong = &hFF444A56ul
+    FieldBorderColorSel as ulong = &hFF61AFEFul
+    HotRingColor        as ulong = &hFFFFFFFFul
+    SelRingColor        as ulong = &hFF61AFEFul
+    FocusRingColor      as ulong = &hFF61AFEFul
+    OKBackColor         as ulong = &hFF373D48ul
+    OKBackColorHot      as ulong = &hFF444A56ul
+    OKBackColorPressed  as ulong = &hFF282D35ul
+    OKForeColor         as ulong = &hFFE2E6EEul
+    OKBorderColor       as ulong = &hFF444A56ul
+end type
+
+public type TKCOLORPICKER_PAINTINFO
+    hColorPicker   as TK_WIDGET ptr      ' the handle, so the callback can query it
+    b              as TK_PAINT ptr
+    rcClient       as TKRECT
+    rcContent      as TKRECT
+    rcTabs         as TKRECT
+    rcBody         as TKRECT
+    rcMatrix       as TKRECT             ' EMPTY off Custom
+    rcSwatches     as TKRECT             ' EMPTY on Custom
+    rcOK           as TKRECT
+    rcPreview      as TKRECT
+    rcInitial      as TKRECT
+    rcCurrent      as TKRECT
+    rcInitialLabel as TKRECT
+    rcCurrentLabel as TKRECT
+    rcFields       as TKRECT
+    rcAlpha        as TKRECT
+    clrCurrent     as ulong
+    nAlphaCurrent  as ubyte
+    clrInitial     as ulong
+    nAlphaInitial  as ubyte
+    nTab           as long
+    isEnabled      as boolean
+    isFocused      as boolean
+    isDragging     as boolean
+    isOKHot        as boolean
+    isOKPressed    as boolean
+    nFocusField    as long
+end type
+
+public type TKCOLORPICKER_MESSAGEINFO
+    hColorPicker  as TK_WIDGET ptr
+    msg           as long               ' TKM_*
+    x             as single
+    y             as single
+    key           as long
+    mods          as long
+    clicks        as long
+end type
+
+public type CLR_ColorChangedCallbackSub as sub( byval hCtrl as TK_WIDGET ptr, byval clr as ulong, _
+                                                byval nAlpha as ubyte, byval nPhase as long )
+public type CLR_TabChangedCallbackSub as sub( byval hCtrl as TK_WIDGET ptr, byval nTab as long )
+' Result IGNORED for TKM_LBUTTONUP, TKM_SETFOCUS and TKM_KILLFOCUS (vendor's three).
+public type CLR_MessageCallbackFunc as function( byval m as TKCOLORPICKER_MESSAGEINFO ptr ) as boolean
+public type CLR_PaintCallbackSub as sub( byval p as any ptr )
+' ADDED: the popup is on screen and about to read its first event. The seam a host uses to
+' reach the live surface, and the one a test uses to push events at it.
+public type CLR_OpenCallbackSub as sub( byval hCtrl as TK_WIDGET ptr, byval pSurface as TK_HOST ptr )
+
+
+public type TKCOLORPICKER_STATE
+    hWin             as TK_WIDGET ptr      ' the HANDLE: hidden, zero size, in the owner's tree
+    hContent         as TK_WIDGET ptr      ' the popup's content widget, while a run is open
+    pSurf            as TK_HOST ptr        ' the popup surface, while a run is open
+    hScroll          as TK_WIDGET ptr      ' the list scrollbar, a child of hContent
+    bColorsPinned    as boolean
+    id               as long
+    itemData         as integer
+
+    clrCurrent       as ulong = &hFF000000ul
+    nAlphaCurrent    as ubyte = 255
+    clrInitial       as ulong = &hFF000000ul
+    nAlphaInitial    as ubyte = 255
+
+    nTab             as long = CLR_TAB_CUSTOM
+    bShowAlpha       as boolean = true
+    bModalDone       as boolean
+    bAccepted        as boolean
+    popX             as long               ' owner window pixels
+    popY             as long
+    bPlaced          as boolean
+    nBodySel         as long = -1
+    nScrollTop       as long
+    bScrollToSel     as boolean = true
+
+    isEnabled        as boolean = true
+    isFocused        as boolean
+    isDragging       as boolean
+    nHotTab          as long = -1
+    nHotSwatch       as long = -1
+    nHotField        as long = -1
+    bOKHot           as boolean
+    bOKPressed       as boolean
+
+    nFocusField      as long = -1
+    wszEdit          as string             ' digits only: ASCII, so bytes are characters
+    bEditFresh       as boolean
+    nCaret           as long
+    bCaretOn         as boolean
+    caretTimerOn     as boolean
+
+    wszOK            as ustring
+    wszInitialLabel  as ustring
+    wszCurrentLabel  as ustring
+    wszFieldLabel(0 to CLR_FIELD_COUNT - 1) as ustring
+    colors           as TKCOLORPICKER_COLORS
+    pTextFont        as TTF_Font ptr       ' borrowed
+
+    nPad             as long
+    nGap             as long
+    nTabHeight       as long
+    nTabPad          as long
+    nMatrixCols      as long = TKCOLORPICKER_DEFAULT_MATRIXCOLS
+    nMatrixRows      as long = TKCOLORPICKER_DEFAULT_MATRIXROWS
+    nCellW           as long
+    nCellH           as long
+    nSwatchW         as long
+    nListRows        as long = TKCOLORPICKER_DEFAULT_LISTROWS
+    nScrollBarW      as long
+    nPreviewW        as long
+    nPreviewH        as long
+    nFieldW          as long
+    nFieldH          as long
+    nOKW             as long
+    nOKH             as long
+    nLabelW          as long
+    nRowH            as long
+    nCurvature       as long
+    nBorderThick     as long = TKCOLORPICKER_DEFAULT_BORDERTHICK
+    nFocusThick      as long = TKCOLORPICKER_DEFAULT_FOCUSTHICK
+
+    nIdealW          as long
+    nIdealH          as long
+    rcClient         as TKRECT
+    rcContent        as TKRECT
+    rcTabs           as TKRECT
+    rcBody           as TKRECT
+    rcMatrix         as TKRECT
+    rcSwatches       as TKRECT
+    rcScroll         as TKRECT
+    rcOK             as TKRECT
+    rcPreview        as TKRECT
+    rcInitial        as TKRECT
+    rcCurrent        as TKRECT
+    rcInitialLabel   as TKRECT
+    rcCurrentLabel   as TKRECT
+    rcFields         as TKRECT
+    rcAlpha          as TKRECT
+    rcTab(0 to CLR_TAB_COUNT - 1) as TKRECT
+    rcFieldBox(0 to CLR_FIELD_COUNT - 1)   as TKRECT
+    rcFieldLabel(0 to CLR_FIELD_COUNT - 1) as TKRECT
+    bLayoutDirty     as boolean = true
+
+    ColorChangedCallback as CLR_ColorChangedCallbackSub
+    TabChangedCallback   as CLR_TabChangedCallbackSub
+    MessageCallback      as CLR_MessageCallbackFunc
+    PaintCallback        as CLR_PaintCallbackSub
+    OpenCallback         as CLR_OpenCallbackSub
+
+    declare sub      LayoutColorPicker()
+    declare sub      Refresh()
+    declare sub      CancelDrag()
+    declare function IsFieldVisible( byval nField as long ) as boolean
+    declare function TextFont() as TTF_Font ptr
+    declare function MeasureTabWidth( byval idx as long ) as long
+    declare function MeasureTabStrip() as long
+end type
+
+
+' ========================================================================================
+' Pure colour functions (vendor's, in tkRGB's &hAARRGGBB with alpha forced opaque)
+' ========================================================================================
+private function CLR_HueChannel( byval p as double, byval q as double, byval t as double ) as double
+    if t < 0.0 then t += 1.0
+    if t > 1.0 then t -= 1.0
+    if t < (1.0 / 6.0) then return p + (q - p) * 6.0 * t
+    if t < (1.0 / 2.0) then return q
+    if t < (2.0 / 3.0) then return p + (q - p) * ((2.0 / 3.0) - t) * 6.0
+    return p
+end function
+
+' h, s, lum all 0..1 and CLAMPED (a hue of 1.4 does not wrap). Double precision and int(x+0.5)
+' rounding, vendor's pair of fixes for the pure primaries.
+public function tkColorPicker_HSLtoRGB( byval h as double, byval s as double, byval lum as double ) as ulong
+    if h < 0.0 then h = 0.0
+    if h > 1.0 then h = 1.0
+    if s < 0.0 then s = 0.0
+    if s > 1.0 then s = 1.0
+    if lum < 0.0 then lum = 0.0
+    if lum > 1.0 then lum = 1.0
+    dim as double fRed, fGrn, fBlu
+    if s = 0.0 then
+        fRed = lum : fGrn = lum : fBlu = lum
+    else
+        dim as double q
+        if lum < 0.5 then q = lum * (1.0 + s) else q = lum + s - (lum * s)
+        dim as double p = (2.0 * lum) - q
+        fRed = CLR_HueChannel( p, q, h + (1.0 / 3.0) )
+        fGrn = CLR_HueChannel( p, q, h )
+        fBlu = CLR_HueChannel( p, q, h - (1.0 / 3.0) )
+    end if
+    dim as long nR = clng( int( (fRed * 255.0) + 0.5 ) )
+    dim as long nG = clng( int( (fGrn * 255.0) + 0.5 ) )
+    dim as long nB = clng( int( (fBlu * 255.0) + 0.5 ) )
+    if nR < 0 then nR = 0
+    if nR > 255 then nR = 255
+    if nG < 0 then nG = 0
+    if nG > 255 then nG = 255
+    if nB < 0 then nB = 0
+    if nB > 255 then nB = 255
+    return tkRGB( nR, nG, nB )
+end function
+
+' Column = hue, row = lightness, LAST column = greyscale: l = 1 - (row + 0.5) / rows.
+public function tkColorPicker_MatrixColorAt( byval nCol as long, byval nRow as long, byval nCols as long, byval nRows as long ) as ulong
+    if nCols < 2 then nCols = 2
+    if nRows < 1 then nRows = 1
+    if nCol < 0 then nCol = 0
+    if nCol > (nCols - 1) then nCol = nCols - 1
+    if nRow < 0 then nRow = 0
+    if nRow > (nRows - 1) then nRow = nRows - 1
+    dim as double lum = 1.0 - ((cdbl( nRow ) + 0.5) / cdbl( nRows ))
+    if nCol = (nCols - 1) then return tkColorPicker_HSLtoRGB( 0.0, 0.0, lum )
+    return tkColorPicker_HSLtoRGB( cdbl( nCol ) / cdbl( nCols - 1 ), 1.0, lum )
+end function
+
+' The cell index (row * cols + col) holding clr, or -1.
+public function tkColorPicker_MatrixIndexOf( byval clr as ulong, byval nCols as long, byval nRows as long ) as long
+    clr or= &hFF000000ul
+    for rr as long = 0 to nRows - 1
+        for cc as long = 0 to nCols - 1
+            if tkColorPicker_MatrixColorAt( cc, rr, nCols, nRows ) = clr then return rr * nCols + cc
+        next
+    next
+    return -1
+end function
+
+' Half-open containment, the convention the cell arithmetic uses.
+public function tkColorPicker_PtIn( byref rc as TKRECT, byval x as long, byval y as long ) as boolean
+    return ((x >= rc.left) andalso (x < rc.right) andalso (y >= rc.top) andalso (y < rc.bottom))
+end function
+
+public function tkColorPicker_CellFromPoint( byref rc as TKRECT, byval nCellW as long, byval nCellH as long, _
+                                             byval nCols as long, byval nRows as long, byval x as long, byval y as long, _
+                                             byref nCol as long, byref nRow as long ) as boolean
+    nCol = -1 : nRow = -1
+    if (nCellW <= 0) orelse (nCellH <= 0) then return false
+    if (nCols <= 0) orelse (nRows <= 0) then return false
+    if (x < rc.left) orelse (y < rc.top) then return false
+    dim as long cc = (x - rc.left) \ nCellW
+    dim as long rr = (y - rc.top) \ nCellH
+    if (cc < 0) orelse (cc > (nCols - 1)) then return false
+    if (rr < 0) orelse (rr > (nRows - 1)) then return false
+    nCol = cc : nRow = rr
+    return true
+end function
+
+' #RRGGBB, upper case.
+public function tkColorPicker_FormatHex( byval clr as ulong ) as ustring
+    dim as string sHex = "#" & right( "0" & hex( (clr shr 16) and &hFF ), 2 ) & _
+                         right( "0" & hex( (clr shr 8) and &hFF ), 2 ) & right( "0" & hex( clr and &hFF ), 2 )
+    dim as ustring wszOut = ucase( sHex )
+    return wszOut
+end function
+
+' #RRGGBB with or without the '#', either case. FALSE -- clr untouched -- on anything else.
+public function tkColorPicker_ParseHex( byval wszText as ustring, byref clr as ulong ) as boolean
+    dim as string s = ucase( trim( wszText ) )
+    if left( s, 1 ) = "#" then s = mid( s, 2 )
+    if len( s ) <> 6 then return false
+    dim as long nVal(0 to 2)
+    for i as long = 0 to 2
+        dim as long v = 0
+        for j as long = 0 to 1
+            dim as long ch = asc( mid( s, (i * 2) + j + 1, 1 ) )
+            dim as long dg
+            select case ch
+            case asc( "0" ) to asc( "9" ) : dg = ch - asc( "0" )
+            case asc( "A" ) to asc( "F" ) : dg = (ch - asc( "A" )) + 10
+            case else : return false
+            end select
+            v = (v * 16) + dg
+        next
+        nVal(i) = v
+    next
+    clr = tkRGB( nVal(0), nVal(1), nVal(2) )
+    return true
+end function
+
+' Black or white, whichever is legible ON clr (BT.601 luma, threshold 140).
+public function tkColorPicker_ContrastColor( byval clr as ulong ) as ulong
+    dim as long nR = (clr shr 16) and &hFF, nG = (clr shr 8) and &hFF, nB = clr and &hFF
+    dim as long nLuma = ((299 * nR) + (587 * nG) + (114 * nB)) \ 1000
+    if nLuma >= 140 then return tkRGB( 0, 0, 0 )
+    return tkRGB( 255, 255, 255 )
+end function
+
+' Digits only; nPos never matters (kept for vendor's signature).
+public function tkColorPicker_FieldAccepts( byval nField as long, byval ch as long, byval nPos as long ) as boolean
+    if (nField < 0) orelse (nField >= CLR_FIELD_COUNT) then return false
+    return ((ch >= asc( "0" )) andalso (ch <= asc( "9" )))
+end function
+
+public function tkColorPicker_FieldMaxLen( byval nField as long ) as long
+    return 3
+end function
+
+public function tkColorPicker_TabName( byval idx as long ) as ustring
+    dim as ustring wszOut
+    select case idx
+    case CLR_TAB_WEB    : wszOut = "Web"
+    case CLR_TAB_SYSTEM : wszOut = "System"
+    case CLR_TAB_CUSTOM : wszOut = "Custom"
+    end select
+    return wszOut
+end function
+
+
+' ========================================================================================
+' The two tables. Web: vendor's 137 named colours in the editors' order. System: PsPlatform's
+' FROZEN table -- the values GetSysColor returned on Windows 11's default light scheme -- because
+' there is no cross-platform GetSysColor; a host wanting live colours sets them per entry.
+' ========================================================================================
+const TKCLR_WEB_COUNT = 137
+const TKCLR_SYS_COUNT = 30
+dim shared as zstring * 21 gClrWebName(0 to TKCLR_WEB_COUNT - 1) = { _
+    "Black"               , "DimGray"             , "Gray"                , "DarkGray", _
+    "Silver"              , "LightGray"           , "Gainsboro"           , "WhiteSmoke", _
+    "White"               , "RosyBrown"           , "IndianRed"           , "Brown", _
+    "Firebrick"           , "LightCoral"          , "Maroon"              , "DarkRed", _
+    "Red"                 , "Snow"                , "MistyRose"           , "Salmon", _
+    "Tomato"              , "DarkSalmon"          , "Coral"               , "OrangeRed", _
+    "LightSalmon"         , "Sienna"              , "SeaShell"            , "Chocolate", _
+    "SaddleBrown"         , "SandyBrown"          , "PeachPuff"           , "Peru", _
+    "Linen"               , "Bisque"              , "DarkOrange"          , "BurlyWood", _
+    "Tan"                 , "AntiqueWhite"        , "NavajoWhite"         , "BlanchedAlmond", _
+    "PapayaWhip"          , "Moccasin"            , "Orange"              , "Wheat", _
+    "OldLace"             , "FloralWhite"         , "DarkGoldenrod"       , "Cornsilk", _
+    "Goldenrod"           , "PaleGoldenrod"       , "Khaki"               , "LemonChiffon", _
+    "DarkKhaki"           , "Beige"               , "LightGoldenrodYellow", "Olive", _
+    "Yellow"              , "LightYellow"         , "Ivory"               , "OliveDrab", _
+    "YellowGreen"         , "DarkOliveGreen"      , "GreenYellow"         , "Chartreuse", _
+    "LawnGreen"           , "DarkSeaGreen"        , "ForestGreen"         , "LimeGreen", _
+    "LightGreen"          , "PaleGreen"           , "DarkGreen"           , "Green", _
+    "Lime"                , "Honeydew"            , "SeaGreen"            , "MediumSeaGreen", _
+    "SpringGreen"         , "MintCream"           , "MediumSpringGreen"   , "MediumAquamarine", _
+    "Aquamarine"          , "Turquoise"           , "LightSeaGreen"       , "MediumTurquoise", _
+    "DarkSlateGray"       , "PaleTurquoise"       , "Teal"                , "DarkCyan", _
+    "Cyan"                , "LightCyan"           , "Azure"               , "DarkTurquoise", _
+    "CadetBlue"           , "PowderBlue"          , "LightBlue"           , "DeepSkyBlue", _
+    "SkyBlue"             , "LightSkyBlue"        , "SteelBlue"           , "AliceBlue", _
+    "DodgerBlue"          , "SlateGray"           , "LightSlateGray"      , "LightSteelBlue", _
+    "CornflowerBlue"      , "RoyalBlue"           , "MidnightBlue"        , "Lavender", _
+    "Navy"                , "DarkBlue"            , "MediumBlue"          , "Blue", _
+    "GhostWhite"          , "SlateBlue"           , "DarkSlateBlue"       , "MediumSlateBlue", _
+    "MediumPurple"        , "BlueViolet"          , "Indigo"              , "DarkOrchid", _
+    "DarkViolet"          , "MediumOrchid"        , "Thistle"             , "Plum", _
+    "Violet"              , "Purple"              , "DarkMagenta"         , "Magenta", _
+    "Orchid"              , "MediumVioletRed"     , "DeepPink"            , "HotPink", _
+    "LavenderBlush"       , "PaleVioletRed"       , "Crimson"             , "Pink", _
+    "LightPink" }
+dim shared as ulong gClrWebRgb(0 to TKCLR_WEB_COUNT - 1) = { _
+    &h000000, &h696969, &h808080, &hA9A9A9, &hC0C0C0, &hD3D3D3, &hDCDCDC, &hF5F5F5, _
+    &hFFFFFF, &hBC8F8F, &hCD5C5C, &hA52A2A, &hB22222, &hF08080, &h800000, &h8B0000, _
+    &hFF0000, &hFFFAFA, &hFFE4E1, &hFA8072, &hFF6347, &hE9967A, &hFF7F50, &hFF4500, _
+    &hFFA07A, &hA0522D, &hFFF5EE, &hD2691E, &h8B4513, &hF4A460, &hFFDAB9, &hCD853F, _
+    &hFAF0E6, &hFFE4C4, &hFF8C00, &hDEB887, &hD2B48C, &hFAEBD7, &hFFDEAD, &hFFEBCD, _
+    &hFFEFD5, &hFFE4B5, &hFFA500, &hF5DEB3, &hFDF5E6, &hFFFAF0, &hB8860B, &hFFF8DC, _
+    &hDAA520, &hEEE8AA, &hF0E68C, &hFFFACD, &hBDB76B, &hF5F5DC, &hFAFAD2, &h808000, _
+    &hFFFF00, &hFFFFE0, &hFFFFF0, &h6B8E23, &h9ACD32, &h556B2F, &hADFF2F, &h7FFF00, _
+    &h7CFC00, &h8FBC8F, &h228B22, &h32CD32, &h90EE90, &h98FB98, &h006400, &h008000, _
+    &h00FF00, &hF0FFF0, &h2E8B57, &h3CB371, &h00FF7F, &hF5FFFA, &h00FA9A, &h66CDAA, _
+    &h7FFFD4, &h40E0D0, &h20B2AA, &h48D1CC, &h2F4F4F, &hAFEEEE, &h008080, &h008B8B, _
+    &h00FFFF, &hE0FFFF, &hF0FFFF, &h00CED1, &h5F9EA0, &hB0E0E6, &hADD8E6, &h00BFFF, _
+    &h87CEEB, &h87CEFA, &h4682B4, &hF0F8FF, &h1E90FF, &h708090, &h778899, &hB0C4DE, _
+    &h6495ED, &h4169E1, &h191970, &hE6E6FA, &h000080, &h00008B, &h0000CD, &h0000FF, _
+    &hF8F8FF, &h6A5ACD, &h483D8B, &h7B68EE, &h9370DB, &h8A2BE2, &h4B0082, &h9932CC, _
+    &h9400D3, &hBA55D3, &hD8BFD8, &hDDA0DD, &hEE82EE, &h800080, &h8B008B, &hFF00FF, _
+    &hDA70D6, &hC71585, &hFF1493, &hFF69B4, &hFFF0F5, &hDB7093, &hDC143C, &hFFC0CB, _
+    &hFFB6C1 }
+dim shared as zstring * 26 gClrSysName(0 to TKCLR_SYS_COUNT - 1) = { _
+    "Scroll Bar"                , "Desktop"                   , "Active Caption", _
+    "Inactive Caption"          , "Menu"                      , "Window", _
+    "Window Frame"              , "Menu Text"                 , "Window Text", _
+    "Caption Text"              , "Active Border"             , "Inactive Border", _
+    "App Workspace"             , "Highlight"                 , "Highlight Text", _
+    "Button Face"               , "Button Shadow"             , "Gray Text", _
+    "Button Text"               , "Inactive Caption Text"     , "Button Highlight", _
+    "3D Dark Shadow"            , "3D Light"                  , "Tooltip Text", _
+    "Tooltip Background"        , "Hot Tracking"              , "Gradient Active Caption", _
+    "Gradient Inactive Caption" , "Menu Highlight"            , "Menu Bar" }
+dim shared as ulong gClrSysRgb(0 to TKCLR_SYS_COUNT - 1) = { _
+    &hC8C8C8, &h000000, &h99B4D1, &hBFCDDB, &hF0F0F0, &hFFFFFF, _
+    &h646464, &h000000, &h000000, &h000000, &hB4B4B4, &hF4F7FC, _
+    &hABABAB, &h0078D7, &hFFFFFF, &hF0F0F0, &hA0A0A0, &h6D6D6D, _
+    &h000000, &h000000, &hFFFFFF, &h696969, &hE3E3E3, &h000000, _
+    &hFFFFE1, &h0066CC, &hB9D1EA, &hD7E4F2, &h0078D7, &hF0F0F0 }
+
+public function tkColorPicker_WebColorCount() as long
+    return TKCLR_WEB_COUNT
+end function
+
+public function tkColorPicker_WebColorAt( byval idx as long ) as ulong
+    if (idx < 0) orelse (idx >= TKCLR_WEB_COUNT) then return 0
+    return gClrWebRgb(idx) or &hFF000000ul
+end function
+
+public function tkColorPicker_WebColorName( byval idx as long ) as ustring
+    dim as ustring wszOut
+    if (idx < 0) orelse (idx >= TKCLR_WEB_COUNT) then return wszOut
+    wszOut = gClrWebName(idx)
+    return wszOut
+end function
+
+public function tkColorPicker_SystemColorCount() as long
+    return TKCLR_SYS_COUNT
+end function
+
+public function tkColorPicker_SystemColorAt( byval idx as long ) as ulong
+    if (idx < 0) orelse (idx >= TKCLR_SYS_COUNT) then return 0
+    return gClrSysRgb(idx) or &hFF000000ul
+end function
+
+public function tkColorPicker_SystemColorName( byval idx as long ) as ustring
+    dim as ustring wszOut
+    if (idx < 0) orelse (idx >= TKCLR_SYS_COUNT) then return wszOut
+    wszOut = gClrSysName(idx)
+    return wszOut
+end function
+
+' PsPlatform's override: the System tab's entry idx shows clr from now on, process-wide.
+public sub tkColorPicker_SetSystemColor( byval idx as long, byval clr as ulong )
+    if (idx < 0) orelse (idx >= TKCLR_SYS_COUNT) then exit sub
+    gClrSysRgb(idx) = clr and &h00FFFFFFul
+end sub
+
+
+' ========================================================================================
+' Type methods and layout
+' ========================================================================================
+function TKCOLORPICKER_STATE.IsFieldVisible( byval nField as long ) as boolean
+    if nField = CLR_FIELD_A then return this.bShowAlpha
+    if (nField < 0) orelse (nField >= CLR_FIELD_COUNT) then return false
+    return true
+end function
+
+function TKCOLORPICKER_STATE.TextFont() as TTF_Font ptr
+    if this.pTextFont then return this.pTextFont
+    if this.hWin then return this.hWin->pHost->pDefaultFont
+    return 0
+end function
+
+' A caption plus nTabPad either side. The font is always at hand here (no DC to wait for), so
+' vendor's no-window estimate is only the no-font fallback.
+function TKCOLORPICKER_STATE.MeasureTabWidth( byval idx as long ) as long
+    dim as ustring wszCaption = tkColorPicker_TabName( idx )
+    dim as long nTextW = tkText_Width( this.TextFont(), wszCaption )
+    if nTextW <= 0 then nTextW = len( wszCaption ) * this.nTabPad
+    return nTextW + (2 * this.nTabPad)
+end function
+
+function TKCOLORPICKER_STATE.MeasureTabStrip() as long
+    dim as long nTotal = 0
+    for i as long = 0 to CLR_TAB_COUNT - 1
+        nTotal += this.MeasureTabWidth( i )
+    next
+    return nTotal
+end function
+
+sub TKCOLORPICKER_STATE.CancelDrag()
+    this.isDragging = false
+end sub
+
+sub TKCOLORPICKER_STATE.Refresh()
+    this.bLayoutDirty = true
+    if this.hContent then tkWidget_Invalidate( this.hContent )
+end sub
+
+' Vendor's layout, unchanged. The client is the content widget while a run is open, otherwise
+' the ideal size the popup WILL have -- so geometry answers before the first run, too.
+sub TKCOLORPICKER_STATE.LayoutColorPicker()
+    this.bLayoutDirty = false
+
+    dim as long bodyW = this.nMatrixCols * this.nCellW
+    dim as long bodyH = this.nMatrixRows * this.nCellH
+    dim as long listH = this.nListRows * this.nRowH
+    if listH > bodyH then bodyH = listH
+
+    dim as long nFieldRows = 0
+    for i as long = 0 to CLR_FIELD_COUNT - 1
+        if this.IsFieldVisible( i ) then nFieldRows += 1
+    next
+    dim as long fieldsW = this.nLabelW + this.nFieldW
+    dim as long fieldsH = 0
+    if nFieldRows > 0 then fieldsH = (nFieldRows * this.nFieldH) + ((nFieldRows - 1) * this.nGap)
+    dim as long previewH = (2 * this.nRowH) + (2 * this.nPreviewH)
+    dim as long bottomW = this.nPreviewW + this.nGap + fieldsW + this.nGap + this.nOKW
+    dim as long bottomH = fieldsH
+    if previewH > bottomH then bottomH = previewH
+    if this.nOKH > bottomH then bottomH = this.nOKH
+    dim as long innerW = bodyW
+    if bottomW > innerW then innerW = bottomW
+    dim as long stripNeed = this.MeasureTabStrip()
+    if stripNeed > innerW then innerW = stripNeed
+    this.nIdealW = (2 * this.nPad) + innerW
+    this.nIdealH = (2 * this.nPad) + this.nTabHeight + this.nGap + bodyH + this.nGap + bottomH
+
+    dim as long clientW = this.nIdealW, clientH = this.nIdealH
+    if this.hContent then clientW = this.hContent->cw : clientH = this.hContent->ch
+    tkRect_Set( this.rcClient, 0, 0, clientW, clientH )
+    if (clientW <= 0) orelse (clientH <= 0) then
+        this.bLayoutDirty = true
+        exit sub
+    end if
+
+    this.rcContent = this.rcClient
+    tkRect_Inflate( this.rcContent, -this.nPad, -this.nPad )
+
+    tkRect_Set( this.rcTabs, this.rcContent.left, this.rcContent.top, this.rcContent.right, this.rcContent.top + this.nTabHeight )
+    dim as long tabX = this.rcTabs.left
+    for i as long = 0 to CLR_TAB_COUNT - 1
+        dim as long tabW = this.MeasureTabWidth( i )
+        tkRect_Set( this.rcTab(i), tabX, this.rcTabs.top, tabX + tabW, this.rcTabs.bottom )
+        tabX += tabW
+    next
+
+    dim as long bodyTop = this.rcTabs.bottom + this.nGap
+    tkRect_Set( this.rcBody, this.rcContent.left, bodyTop, this.rcContent.right, bodyTop + bodyH )
+    tkRect_SetEmpty( this.rcMatrix )
+    tkRect_SetEmpty( this.rcSwatches )
+    tkRect_SetEmpty( this.rcScroll )
+    if this.nTab = CLR_TAB_CUSTOM then
+        ' EXACTLY the grid, so the point->cell division cannot report a cell that is not there
+        tkRect_Set( this.rcMatrix, this.rcBody.left, this.rcBody.top, _
+                    this.rcBody.left + (this.nMatrixCols * this.nCellW), this.rcBody.top + (this.nMatrixRows * this.nCellH) )
+    else
+        ' the scrollbar strip is reserved whether or not a thumb is needed
+        this.rcSwatches = this.rcBody
+        tkRect_Set( this.rcScroll, this.rcSwatches.right - this.nScrollBarW, this.rcSwatches.top, _
+                    this.rcSwatches.right, this.rcSwatches.bottom )
+        this.rcSwatches.right = this.rcScroll.left
+        if this.rcSwatches.right < this.rcSwatches.left then this.rcSwatches.right = this.rcSwatches.left
+    end if
+
+    dim as long botTop = this.rcBody.bottom + this.nGap
+    tkRect_Set( this.rcInitialLabel, this.rcContent.left, botTop, this.rcContent.left + this.nPreviewW, botTop + this.nRowH )
+    tkRect_Set( this.rcPreview, this.rcContent.left, this.rcInitialLabel.bottom, _
+                this.rcContent.left + this.nPreviewW, this.rcInitialLabel.bottom + (2 * this.nPreviewH) )
+    tkRect_Set( this.rcInitial, this.rcPreview.left, this.rcPreview.top, this.rcPreview.right, this.rcPreview.top + this.nPreviewH )
+    tkRect_Set( this.rcCurrent, this.rcPreview.left, this.rcInitial.bottom, this.rcPreview.right, this.rcPreview.bottom )
+    tkRect_Set( this.rcCurrentLabel, this.rcContent.left, this.rcPreview.bottom, _
+                this.rcContent.left + this.nPreviewW, this.rcPreview.bottom + this.nRowH )
+
+    dim as long fx = this.rcPreview.right + this.nGap
+    for i as long = 0 to CLR_FIELD_COUNT - 1
+        tkRect_SetEmpty( this.rcFieldBox(i) )
+        tkRect_SetEmpty( this.rcFieldLabel(i) )
+    next
+    ' a hidden field consumes no row
+    dim as long fy = botTop
+    dim as long fieldsBottom = botTop
+    for i as long = 0 to CLR_FIELD_COUNT - 1
+        if this.IsFieldVisible( i ) = false then continue for
+        tkRect_Set( this.rcFieldLabel(i), fx, fy, fx + this.nLabelW, fy + this.nFieldH )
+        tkRect_Set( this.rcFieldBox(i), fx + this.nLabelW, fy, fx + this.nLabelW + this.nFieldW, fy + this.nFieldH )
+        fieldsBottom = fy + this.nFieldH
+        fy += this.nFieldH + this.nGap
+    next
+    ' OK against the right margin, its bottom on the last VISIBLE field's bottom
+    tkRect_Set( this.rcOK, this.rcContent.right - this.nOKW, fieldsBottom - this.nOKH, this.rcContent.right, fieldsBottom )
+    this.rcAlpha = this.rcFieldBox(CLR_FIELD_A)
+    tkRect_Set( this.rcFields, fx, botTop, fx, fieldsBottom )
+    for i as long = 0 to CLR_FIELD_COUNT - 1
+        if tkRect_IsEmpty( this.rcFieldBox(i) ) = false then
+            if this.rcFieldBox(i).right > this.rcFields.right then this.rcFields.right = this.rcFieldBox(i).right
+        end if
+    next
+end sub
+
+
+' ========================================================================================
+' Body, selection, scrolling
+' ========================================================================================
+private function GetColorPickerPointer( byval hCtrl as TK_WIDGET ptr ) as TKCOLORPICKER_STATE ptr
+    if hCtrl = 0 then return 0
+    return cast( TKCOLORPICKER_STATE ptr, hCtrl->pData )
+end function
+
+private function CLR_GridCount( byval pClr as TKCOLORPICKER_STATE ptr ) as long
+    if pClr = 0 then return 0
+    select case pClr->nTab
+    case CLR_TAB_CUSTOM : return pClr->nMatrixCols * pClr->nMatrixRows
+    case CLR_TAB_WEB    : return tkColorPicker_WebColorCount()
+    case CLR_TAB_SYSTEM : return tkColorPicker_SystemColorCount()
+    end select
+    return 0
+end function
+
+private function CLR_GridColorAt( byval pClr as TKCOLORPICKER_STATE ptr, byval idx as long, byref clr as ulong ) as boolean
+    clr = 0
+    if (pClr = 0) orelse (idx < 0) then return false
+    if idx >= CLR_GridCount( pClr ) then return false
+    select case pClr->nTab
+    case CLR_TAB_CUSTOM
+        clr = tkColorPicker_MatrixColorAt( idx mod pClr->nMatrixCols, idx \ pClr->nMatrixCols, pClr->nMatrixCols, pClr->nMatrixRows )
+        return true
+    case CLR_TAB_WEB
+        clr = tkColorPicker_WebColorAt( idx )
+        return true
+    case CLR_TAB_SYSTEM
+        clr = tkColorPicker_SystemColorAt( idx )
+        return true
+    end select
+    return false
+end function
+
+private function CLR_GridNameAt( byval pClr as TKCOLORPICKER_STATE ptr, byval idx as long ) as ustring
+    if (pClr = 0) orelse (idx < 0) then return ""
+    if idx >= CLR_GridCount( pClr ) then return ""
+    select case pClr->nTab
+    case CLR_TAB_WEB    : return tkColorPicker_WebColorName( idx )
+    case CLR_TAB_SYSTEM : return tkColorPicker_SystemColorName( idx )
+    end select
+    return ""
+end function
+
+private function CLR_IsListTab( byval pClr as TKCOLORPICKER_STATE ptr ) as boolean
+    if pClr = 0 then return false
+    return (pClr->nTab <> CLR_TAB_CUSTOM)
+end function
+
+private function CLR_VisibleRows( byval pClr as TKCOLORPICKER_STATE ptr ) as long
+    if (pClr = 0) orelse (pClr->nRowH <= 0) then return 0
+    dim as long hh = pClr->rcSwatches.bottom - pClr->rcSwatches.top
+    if hh <= 0 then return 0
+    return hh \ pClr->nRowH
+end function
+
+private sub CLR_ClampScroll( byval pClr as TKCOLORPICKER_STATE ptr )
+    if pClr = 0 then exit sub
+    dim as long nMax = CLR_GridCount( pClr ) - CLR_VisibleRows( pClr )
+    if nMax < 0 then nMax = 0
+    if pClr->nScrollTop > nMax then pClr->nScrollTop = nMax
+    if pClr->nScrollTop < 0 then pClr->nScrollTop = 0
+end sub
+
+' Push the list state into the scrollbar and show or hide it; the STRIP stays reserved.
+private sub CLR_SyncScrollBar( byval pClr as TKCOLORPICKER_STATE ptr )
+    if (pClr = 0) orelse (pClr->hScroll = 0) then exit sub
+    if CLR_IsListTab( pClr ) = false then
+        tkWidget_Show( pClr->hScroll, false )
+        exit sub
+    end if
+    CLR_ClampScroll( pClr )
+    tkWidget_SetPos( pClr->hScroll, pClr->rcScroll.left, pClr->rcScroll.top, tkRect_Width( pClr->rcScroll ), tkRect_Height( pClr->rcScroll ) )
+    tkVScrollBar_SetRange( pClr->hScroll, CLR_GridCount( pClr ), CLR_VisibleRows( pClr ), pClr->nScrollTop )
+    tkWidget_Show( pClr->hScroll, tkVScrollBar_NeedsThumb( pClr->hScroll ) )
+end sub
+
+' Only moves the viewport when the selected row is outside it.
+private sub CLR_EnsureSelVisible( byval pClr as TKCOLORPICKER_STATE ptr )
+    if (pClr = 0) orelse (CLR_IsListTab( pClr ) = false) orelse (pClr->nBodySel < 0) then exit sub
+    dim as long nVis = CLR_VisibleRows( pClr )
+    if nVis <= 0 then exit sub
+    if pClr->nBodySel < pClr->nScrollTop then
+        pClr->nScrollTop = pClr->nBodySel
+    elseif pClr->nBodySel > (pClr->nScrollTop + nVis - 1) then
+        pClr->nScrollTop = pClr->nBodySel - nVis + 1
+    end if
+    CLR_ClampScroll( pClr )
+    CLR_SyncScrollBar( pClr )
+end sub
+
+' Layout, then the deferred scroll-into-view, then the scrollbar: one place, so a paint, a probe
+' and a geometry query all see the same list position.
+private sub CLR_Ready( byval pClr as TKCOLORPICKER_STATE ptr )
+    if pClr = 0 then exit sub
+    if pClr->bLayoutDirty then pClr->LayoutColorPicker()
+    if pClr->bScrollToSel then
+        pClr->bScrollToSel = false
+        CLR_EnsureSelVisible( pClr )
+    end if
+    CLR_ClampScroll( pClr )
+    CLR_SyncScrollBar( pClr )
+end sub
+
+' The list scrollbar moved: looking, not choosing.
+private sub CLR_OnScroll( byval hSB as TK_WIDGET ptr, byval newPos as integer )
+    if (hSB = 0) orelse (hSB->pParent = 0) then exit sub
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hSB->pParent )
+    if (pClr = 0) orelse (pClr->nScrollTop = clng( newPos )) then exit sub
+    pClr->nScrollTop = clng( newPos )
+    CLR_ClampScroll( pClr )
+    tkWidget_Invalidate( pClr->hContent )
+end sub
+
+' The ring is a FUNCTION of the value: a colour not on this tab selects nothing.
+private sub CLR_SyncBodySel( byval pClr as TKCOLORPICKER_STATE ptr )
+    if pClr = 0 then exit sub
+    pClr->nBodySel = -1
+    dim as long nCount = CLR_GridCount( pClr )
+    for i as long = 0 to nCount - 1
+        dim as ulong c
+        if CLR_GridColorAt( pClr, i, c ) then
+            if c = pClr->clrCurrent then pClr->nBodySel = i : exit sub
+        end if
+    next
+end sub
+
+private sub CLR_Notify( byval pClr as TKCOLORPICKER_STATE ptr, byval nPhase as long )
+    if (pClr = 0) orelse (pClr->ColorChangedCallback = 0) then exit sub
+    pClr->ColorChangedCallback( pClr->hWin, pClr->clrCurrent, pClr->nAlphaCurrent, nPhase )
+end sub
+
+private function CLR_ChannelText( byval clr as ulong, byval nAlpha as ubyte, byval nField as long ) as string
+    select case nField
+    case CLR_FIELD_R : return str( (clr shr 16) and &hFF )
+    case CLR_FIELD_G : return str( (clr shr 8) and &hFF )
+    case CLR_FIELD_B : return str( clr and &hFF )
+    case CLR_FIELD_A : return str( clng( nAlpha ) )
+    end select
+    return ""
+end function
+
+' THE ONE PLACE the value is written. A no-op is still notified while a phase is running.
+private sub CLR_ApplyColor( byval pClr as TKCOLORPICKER_STATE ptr, byval clr as ulong, byval nAlpha as ubyte, _
+                            byval bNotify as boolean, byval nPhase as long )
+    if pClr = 0 then exit sub
+    clr or= &hFF000000ul
+    dim as boolean bSame = ((pClr->clrCurrent = clr) andalso (pClr->nAlphaCurrent = nAlpha))
+    if bSame andalso (bNotify = false) then exit sub
+    pClr->clrCurrent = clr
+    pClr->nAlphaCurrent = nAlpha
+    CLR_SyncBodySel( pClr )
+    pClr->bScrollToSel = true
+    if pClr->nFocusField >= 0 then
+        pClr->wszEdit = CLR_ChannelText( clr, nAlpha, pClr->nFocusField )
+        if pClr->nCaret > len( pClr->wszEdit ) then pClr->nCaret = len( pClr->wszEdit )
+        pClr->bEditFresh = true
+    end if
+    tkWidget_Invalidate( pClr->hContent )
+    if bNotify then CLR_Notify( pClr, nPhase )
+end sub
+
+
+' ========================================================================================
+' The fields: one edit buffer, seeded on entry, parsed on exit
+' ========================================================================================
+private function CLR_FieldText( byval pClr as TKCOLORPICKER_STATE ptr, byval nField as long ) as string
+    if pClr = 0 then return ""
+    if nField = pClr->nFocusField then return pClr->wszEdit
+    return CLR_ChannelText( pClr->clrCurrent, pClr->nAlphaCurrent, nField )
+end function
+
+private sub CLR_CaretTimer( byval pClr as TKCOLORPICKER_STATE ptr, byval bOn as boolean )
+    if (pClr = 0) orelse (pClr->hContent = 0) then pClr->caretTimerOn = false : exit sub
+    if bOn = pClr->caretTimerOn then exit sub
+    pClr->caretTimerOn = bOn
+    if bOn then
+        tkWidget_SetTimer( pClr->hContent, TK_TIMER_CARET, TKCOLORPICKER_CARET_MS )
+    else
+        tkWidget_KillTimer( pClr->hContent, TK_TIMER_CARET )
+    end if
+end sub
+
+declare sub CLR_CommitField( byval pClr as TKCOLORPICKER_STATE ptr )
+
+private sub CLR_BeginEdit( byval pClr as TKCOLORPICKER_STATE ptr, byval nField as long )
+    if pClr = 0 then exit sub
+    if pClr->IsFieldVisible( nField ) = false then exit sub
+    ' entering the SAME field again must not commit a half-typed value
+    if pClr->nFocusField <> nField then CLR_CommitField( pClr )
+    pClr->nFocusField = nField
+    pClr->wszEdit = CLR_ChannelText( pClr->clrCurrent, pClr->nAlphaCurrent, nField )
+    pClr->nCaret = len( pClr->wszEdit )
+    pClr->bEditFresh = true
+    pClr->bCaretOn = true
+    CLR_CaretTimer( pClr, true )
+    tkWidget_Invalidate( pClr->hContent )
+end sub
+
+' Parse, clamp, apply, notify ONCE with END. An empty buffer is discarded silently.
+sub CLR_CommitField( byval pClr as TKCOLORPICKER_STATE ptr )
+    if (pClr = 0) orelse (pClr->nFocusField < 0) then exit sub
+    dim as long nField = pClr->nFocusField
+    dim as ulong clrNew = pClr->clrCurrent
+    dim as ubyte nANew = pClr->nAlphaCurrent
+    dim as boolean bValid = false
+    dim as string s = trim( pClr->wszEdit )
+    if len( s ) > 0 then
+        dim as long v = clng( valint( s ) )
+        if v < 0 then v = 0
+        if v > 255 then v = 255
+        dim as long nR = (pClr->clrCurrent shr 16) and &hFF
+        dim as long nG = (pClr->clrCurrent shr 8) and &hFF
+        dim as long nB = pClr->clrCurrent and &hFF
+        select case nField
+        case CLR_FIELD_R : nR = v
+        case CLR_FIELD_G : nG = v
+        case CLR_FIELD_B : nB = v
+        case CLR_FIELD_A : nANew = cubyte( v )
+        end select
+        clrNew = tkRGB( nR, nG, nB )
+        bValid = true
+    end if
+    ' clear the caret BEFORE applying, so ApplyColor does not re-seed a field nobody is in
+    pClr->nFocusField = -1
+    pClr->wszEdit = ""
+    pClr->nCaret = 0
+    if bValid then
+        if (clrNew <> pClr->clrCurrent) orelse (nANew <> pClr->nAlphaCurrent) then CLR_ApplyColor( pClr, clrNew, nANew, true, CLR_PHASE_END )
+    end if
+    tkWidget_Invalidate( pClr->hContent )
+end sub
+
+' -1 = off the end (the caller wraps).
+private function CLR_NextField( byval pClr as TKCOLORPICKER_STATE ptr, byval nFrom as long, byval nDelta as long ) as long
+    if pClr = 0 then return -1
+    dim as long n = nFrom
+    do
+        n += nDelta
+        if (n < 0) orelse (n >= CLR_FIELD_COUNT) then return -1
+        if pClr->IsFieldVisible( n ) then return n
+    loop
+end function
+
+
+' ========================================================================================
+' Painting. PaintRoundOutline strokes without filling; a frame is never a fill-and-stroke.
+' ========================================================================================
+private sub CLR_Frame( byval b as TK_PAINT ptr, byval rc as TKRECT, byval clr as ulong, byval nThick as long, byval nCurv as long )
+    if (b = 0) orelse (nThick <= 0) orelse tkRect_IsEmpty( rc ) then exit sub
+    b->SetPenColor( clr )
+    b->PaintRoundOutline( @rc, nCurv, nThick )
+end sub
+
+private function CLR_CaretX( byval pClr as TKCOLORPICKER_STATE ptr, byref rc as TKRECT ) as long
+    dim as long nPrefix = pClr->nCaret
+    if nPrefix > len( pClr->wszEdit ) then nPrefix = len( pClr->wszEdit )
+    dim as long nOut = rc.left
+    if nPrefix > 0 then nOut += tkText_WidthU8( pClr->TextFont(), left( pClr->wszEdit, nPrefix ) )
+    if nOut > (rc.right - 2) then nOut = rc.right - 2
+    return nOut
+end function
+
+private sub CLR_RenderTabs( byval pClr as TKCOLORPICKER_STATE ptr, byval b as TK_PAINT ptr )
+    b->SetFont( pClr->TextFont() )
+    for i as long = 0 to CLR_TAB_COUNT - 1
+        dim as TKRECT rc = pClr->rcTab(i)
+        if rc.right <= rc.left then continue for
+        dim as boolean bSel = (i = pClr->nTab), bHot = (i = pClr->nHotTab)
+        dim as ulong clrBack = pClr->colors.TabBackColor, clrFore = pClr->colors.TabForeColor
+        if bSel then
+            clrBack = pClr->colors.TabBackColorSel : clrFore = pClr->colors.TabForeColorSel
+        elseif bHot then
+            clrBack = pClr->colors.TabBackColorSel
+        end if
+        if pClr->isEnabled = false then clrFore = pClr->colors.TabForeColor
+        b->SetBackColor( clrBack )
+        b->PaintRect( @rc )
+        b->SetColors( clrFore, clrBack )
+        dim as ustring wszCaption = tkColorPicker_TabName( i )
+        b->PaintText( wszCaption, @rc, TK_DT_CENTER or TK_DT_ELLIPSIS )
+        ' the selected tab's rule under the word, a block that scales with the DPI
+        if bSel then
+            dim as TKRECT rcInd = rc
+            rcInd.top = rcInd.bottom - cint( 2 * pClr->nBorderThick * b->fScale )
+            b->SetBackColor( pClr->colors.SelRingColor )
+            b->PaintRect( @rcInd )
+        end if
+    next
+end sub
+
+' Same arithmetic as CellFromPoint, and the same clip rule as the hit test.
+private sub CLR_RenderMatrix( byval pClr as TKCOLORPICKER_STATE ptr, byval b as TK_PAINT ptr )
+    dim as TKRECT rcGrid = pClr->rcMatrix
+    dim as long nCellW = pClr->nCellW, nCellH = pClr->nCellH, nCols = pClr->nMatrixCols
+    if (nCols <= 0) orelse (nCellW <= 0) orelse (nCellH <= 0) orelse tkRect_IsEmpty( rcGrid ) then exit sub
+    dim as long nCount = CLR_GridCount( pClr )
+    for i as long = 0 to nCount - 1
+        dim as long cc = i mod nCols, rr = i \ nCols
+        dim as TKRECT rc
+        tkRect_Set( rc, rcGrid.left + (cc * nCellW), rcGrid.top + (rr * nCellH), rcGrid.left + ((cc + 1) * nCellW), rcGrid.top + ((rr + 1) * nCellH) )
+        if rc.bottom > rcGrid.bottom then exit for
+        if rc.right > rcGrid.right then continue for
+        dim as ulong clrCell
+        if CLR_GridColorAt( pClr, i, clrCell ) = false then continue for
+        b->SetBackColor( clrCell )
+        b->PaintRect( @rc )
+        dim as boolean bSel = (i = pClr->nBodySel), bHot = (i = pClr->nHotSwatch)
+        if bSel orelse bHot then
+            dim as TKRECT rcRing = rc
+            tkRect_Inflate( rcRing, -TKCOLORPICKER_RINGINSET, -TKCOLORPICKER_RINGINSET )
+            dim as ulong clrRing = pClr->colors.HotRingColor
+            if bSel then clrRing = pClr->colors.SelRingColor        ' the answer wins over the hover
+            CLR_Frame( b, rcRing, clrRing, 2 * pClr->nBorderThick, 0 )
+        end if
+    next
+end sub
+
+private sub CLR_RenderList( byval pClr as TKCOLORPICKER_STATE ptr, byval b as TK_PAINT ptr )
+    dim as TKRECT rcList = pClr->rcSwatches
+    if tkRect_IsEmpty( rcList ) orelse (pClr->nRowH <= 0) then exit sub
+    b->SetFont( pClr->TextFont() )
+    dim as long nCount = CLR_GridCount( pClr ), nVis = CLR_VisibleRows( pClr )
+    for v as long = 0 to nVis - 1
+        dim as long i = pClr->nScrollTop + v
+        if i >= nCount then exit for
+        dim as TKRECT rcRow
+        tkRect_Set( rcRow, rcList.left, rcList.top + (v * pClr->nRowH), rcList.right, rcList.top + ((v + 1) * pClr->nRowH) )
+        if rcRow.bottom > rcList.bottom then exit for
+        dim as ulong clrEntry
+        if CLR_GridColorAt( pClr, i, clrEntry ) = false then continue for
+        dim as ustring wszName = CLR_GridNameAt( pClr, i )
+        dim as boolean bSel = (i = pClr->nBodySel), bHot = (i = pClr->nHotSwatch)
+        dim as ulong clrRowBack = pClr->colors.BackColor, clrRowFore = pClr->colors.ForeColor
+        if bSel then
+            clrRowBack = pClr->colors.SelRingColor
+            clrRowFore = tkColorPicker_ContrastColor( pClr->colors.SelRingColor )
+        elseif bHot then
+            clrRowBack = pClr->colors.TabBackColorSel
+            clrRowFore = pClr->colors.TabForeColorSel
+        end if
+        b->SetBackColor( clrRowBack )
+        b->PaintRect( @rcRow )
+        dim as long ins = tkHost_Scale( pClr->hWin->pHost, 3 )
+        dim as TKRECT rcSw
+        tkRect_Set( rcSw, rcRow.left + ins, rcRow.top + ins, rcRow.left + pClr->nSwatchW, rcRow.bottom - ins )
+        if rcSw.right > rcRow.right then rcSw.right = rcRow.right
+        if rcSw.right > rcSw.left then
+            b->SetBackColor( clrEntry )
+            b->PaintRect( @rcSw )
+            ' framed: White and Black are both in the table, so a swatch matching the panel is normal
+            CLR_Frame( b, rcSw, pClr->colors.BorderColor, pClr->nBorderThick, 0 )
+        end if
+        dim as TKRECT rcName = rcRow
+        rcName.left = rcSw.right + pClr->nGap
+        if rcName.left < rcName.right then
+            b->SetColors( clrRowFore, clrRowBack )
+            b->PaintText( wszName, @rcName, TK_DT_LEFT or TK_DT_ELLIPSIS )
+        end if
+    next
+end sub
+
+private sub CLR_RenderPreviews( byval pClr as TKCOLORPICKER_STATE ptr, byval b as TK_PAINT ptr )
+    if tkRect_IsEmpty( pClr->rcPreview ) then exit sub
+    b->SetFont( pClr->TextFont() )
+    b->SetColors( pClr->colors.ForeColor, pClr->colors.BackColor )
+    b->PaintText( pClr->wszInitialLabel, @pClr->rcInitialLabel, TK_DT_CENTER or TK_DT_ELLIPSIS )
+    b->PaintText( pClr->wszCurrentLabel, @pClr->rcCurrentLabel, TK_DT_CENTER or TK_DT_ELLIPSIS )
+    b->SetBackColor( pClr->clrInitial )
+    b->PaintRect( @pClr->rcInitial )
+    b->SetBackColor( pClr->clrCurrent )
+    b->PaintRect( @pClr->rcCurrent )
+    ' ONE frame around the pair: two readings of one value
+    CLR_Frame( b, pClr->rcPreview, pClr->colors.BorderColor, pClr->nBorderThick, 0 )
+end sub
+
+' Pressed > hot > idle; never disabled.
+private sub CLR_RenderOK( byval pClr as TKCOLORPICKER_STATE ptr, byval b as TK_PAINT ptr )
+    if tkRect_IsEmpty( pClr->rcOK ) then exit sub
+    b->SetFont( pClr->TextFont() )
+    dim as ulong clrBack = pClr->colors.OKBackColor
+    if pClr->bOKPressed andalso pClr->bOKHot then
+        clrBack = pClr->colors.OKBackColorPressed
+    elseif pClr->bOKHot then
+        clrBack = pClr->colors.OKBackColorHot
+    end if
+    b->SetBackColor( clrBack )
+    b->PaintRoundRect( @pClr->rcOK, pClr->nCurvature )
+    CLR_Frame( b, pClr->rcOK, pClr->colors.OKBorderColor, pClr->nBorderThick, pClr->nCurvature )
+    b->SetColors( pClr->colors.OKForeColor, clrBack )
+    b->PaintText( pClr->wszOK, @pClr->rcOK, TK_DT_CENTER or TK_DT_ELLIPSIS )
+end sub
+
+private sub CLR_RenderFields( byval pClr as TKCOLORPICKER_STATE ptr, byval b as TK_PAINT ptr )
+    b->SetFont( pClr->TextFont() )
+    dim as long ins = tkHost_Scale( pClr->hWin->pHost, 4 )
+    for i as long = 0 to CLR_FIELD_COUNT - 1
+        if pClr->IsFieldVisible( i ) = false then continue for
+        dim as TKRECT rcBox = pClr->rcFieldBox(i)
+        if tkRect_IsEmpty( rcBox ) then continue for
+        b->SetColors( pClr->colors.ForeColor, pClr->colors.BackColor )
+        b->PaintText( pClr->wszFieldLabel(i), @pClr->rcFieldLabel(i), TK_DT_LEFT )
+        b->SetBackColor( pClr->colors.FieldBackColor )
+        b->PaintRoundRect( @rcBox, pClr->nCurvature )
+        dim as boolean bFocusedField = (i = pClr->nFocusField)
+        dim as ulong clrBorder = pClr->colors.FieldBorderColor
+        if bFocusedField then clrBorder = pClr->colors.FieldBorderColorSel
+        CLR_Frame( b, rcBox, clrBorder, pClr->nBorderThick, pClr->nCurvature )
+        dim as TKRECT rcText = rcBox
+        rcText.left += ins
+        rcText.right -= ins
+        b->SetColors( pClr->colors.FieldForeColor, pClr->colors.FieldBackColor )
+        dim as ustring wszT = CLR_FieldText( pClr, i )
+        b->PaintText( wszT, @rcText, TK_DT_LEFT or TK_DT_ELLIPSIS )
+        ' the caret: a filled hairline, so it is never scaled twice
+        if bFocusedField andalso pClr->bCaretOn andalso pClr->isFocused then
+            dim as long cx = CLR_CaretX( pClr, rcText )
+            dim as long ci = tkHost_Scale( pClr->hWin->pHost, 3 )
+            dim as TKRECT rcCaret
+            tkRect_Set( rcCaret, cx, rcBox.top + ci, cx + pClr->nBorderThick, rcBox.bottom - ci )
+            b->SetBackColor( pClr->colors.FieldForeColor )
+            b->PaintRect( @rcCaret )
+        end if
+    next
+end sub
+
+' The background is NOT drawn here: the caller flooded the client first.
+private sub CLR_RenderDefault( byval pClr as TKCOLORPICKER_STATE ptr, byval b as TK_PAINT ptr )
+    if (pClr = 0) orelse (b = 0) orelse tkRect_IsEmpty( pClr->rcContent ) then exit sub
+    CLR_RenderTabs( pClr, b )
+    if CLR_IsListTab( pClr ) then CLR_RenderList( pClr, b ) else CLR_RenderMatrix( pClr, b )
+    CLR_RenderPreviews( pClr, b )
+    CLR_RenderFields( pClr, b )
+    CLR_RenderOK( pClr, b )
+    ' the control-level ring, only while no field holds the caret
+    if pClr->isFocused andalso (pClr->nFocusField < 0) andalso (pClr->nFocusThick > 0) then
+        dim as TKRECT rcRing = pClr->rcContent
+        tkRect_Inflate( rcRing, pClr->nFocusThick, pClr->nFocusThick )
+        CLR_Frame( b, rcRing, pClr->colors.FocusRingColor, pClr->nFocusThick, pClr->nCurvature )
+    end if
+    ' the popup's own frame: a WS_BORDER would have been the system's colour
+    CLR_Frame( b, pClr->rcClient, pClr->colors.BorderColor, pClr->nBorderThick, 0 )
+end sub
+
+private sub CLR_FillPaintInfo( byval pClr as TKCOLORPICKER_STATE ptr, byval b as TK_PAINT ptr, byval p as TKCOLORPICKER_PAINTINFO ptr )
+    p->hColorPicker = pClr->hWin
+    p->b = b
+    p->rcClient = pClr->rcClient
+    p->rcContent = pClr->rcContent
+    p->rcTabs = pClr->rcTabs
+    p->rcBody = pClr->rcBody
+    p->rcMatrix = pClr->rcMatrix
+    p->rcSwatches = pClr->rcSwatches
+    p->rcOK = pClr->rcOK
+    p->rcPreview = pClr->rcPreview
+    p->rcInitial = pClr->rcInitial
+    p->rcCurrent = pClr->rcCurrent
+    p->rcInitialLabel = pClr->rcInitialLabel
+    p->rcCurrentLabel = pClr->rcCurrentLabel
+    p->rcFields = pClr->rcFields
+    p->rcAlpha = pClr->rcAlpha
+    p->clrCurrent = pClr->clrCurrent
+    p->nAlphaCurrent = pClr->nAlphaCurrent
+    p->clrInitial = pClr->clrInitial
+    p->nAlphaInitial = pClr->nAlphaInitial
+    p->nTab = pClr->nTab
+    p->isEnabled = pClr->isEnabled
+    p->isFocused = pClr->isFocused
+    p->isDragging = pClr->isDragging
+    p->isOKHot = pClr->bOKHot
+    p->isOKPressed = pClr->bOKPressed
+    p->nFocusField = pClr->nFocusField
+end sub
+
+' Background, then the host's painter or the built-in one. TKM_PAINT and the probes share it.
+private sub CLR_RenderAll( byval pClr as TKCOLORPICKER_STATE ptr, byval b as TK_PAINT ptr )
+    CLR_Ready( pClr )
+    b->SetBackColor( pClr->colors.BackColor )
+    b->PaintRect( @pClr->rcClient )
+    if pClr->PaintCallback then
+        dim as TKCOLORPICKER_PAINTINFO p
+        CLR_FillPaintInfo( pClr, b, @p )
+        pClr->PaintCallback( @p )
+    else
+        CLR_RenderDefault( pClr, b )
+    end if
+end sub
+
+
+' ========================================================================================
+' Hit tests (client = content coordinates)
+' ========================================================================================
+private function CLR_HitTab( byval pClr as TKCOLORPICKER_STATE ptr, byval x as long, byval y as long ) as long
+    for i as long = 0 to CLR_TAB_COUNT - 1
+        if tkColorPicker_PtIn( pClr->rcTab(i), x, y ) then return i
+    next
+    return -1
+end function
+
+private function CLR_HitField( byval pClr as TKCOLORPICKER_STATE ptr, byval x as long, byval y as long ) as long
+    for i as long = 0 to CLR_FIELD_COUNT - 1
+        if pClr->IsFieldVisible( i ) = false then continue for
+        if tkColorPicker_PtIn( pClr->rcFieldBox(i), x, y ) then return i
+    next
+    return -1
+end function
+
+private function CLR_HitBody( byval pClr as TKCOLORPICKER_STATE ptr, byval x as long, byval y as long ) as long
+    dim as long nCount = CLR_GridCount( pClr )
+    if nCount <= 0 then return -1
+    if CLR_IsListTab( pClr ) then
+        if tkColorPicker_PtIn( pClr->rcSwatches, x, y ) = false then return -1
+        if pClr->nRowH <= 0 then return -1
+        dim as long v = (y - pClr->rcSwatches.top) \ pClr->nRowH
+        if v < 0 then return -1
+        ' a row drawn past the viewport's bottom is not clickable either
+        if (pClr->rcSwatches.top + ((v + 1) * pClr->nRowH)) > pClr->rcSwatches.bottom then return -1
+        dim as long rw = pClr->nScrollTop + v
+        if (rw < 0) orelse (rw >= nCount) then return -1
+        return rw
+    end if
+    dim as long cc, rr
+    if tkColorPicker_CellFromPoint( pClr->rcMatrix, pClr->nCellW, pClr->nCellH, pClr->nMatrixCols, pClr->nMatrixRows, x, y, cc, rr ) = false then return -1
+    ' a cell that does not fit entirely is not drawn, so it is not clickable
+    if (pClr->rcMatrix.left + ((cc + 1) * pClr->nCellW) > pClr->rcMatrix.right) orelse _
+       (pClr->rcMatrix.top + ((rr + 1) * pClr->nCellH) > pClr->rcMatrix.bottom) then return -1
+    dim as long idx = (rr * pClr->nMatrixCols) + cc
+    if idx >= nCount then return -1
+    return idx
+end function
+
+' Hover only: never touches the selection, the field or the caret.
+private sub CLR_ClearHot( byval pClr as TKCOLORPICKER_STATE ptr )
+    dim as boolean bHotAny = ((pClr->nHotTab >= 0) orelse (pClr->nHotSwatch >= 0) orelse (pClr->nHotField >= 0))
+    if bHotAny orelse pClr->bOKHot then
+        pClr->nHotTab = -1 : pClr->nHotSwatch = -1 : pClr->nHotField = -1
+        pClr->bOKHot = false
+        tkWidget_Invalidate( pClr->hContent )
+    end if
+end sub
+
+' Clamp, not wrap. Starts at cell 0 when nothing is selected.
+private sub CLR_NavigateBody( byval pClr as TKCOLORPICKER_STATE ptr, byval nDelta as long )
+    if (pClr = 0) orelse (pClr->isEnabled = false) then exit sub
+    dim as long nCount = CLR_GridCount( pClr )
+    if nCount <= 0 then exit sub
+    dim as long idx = pClr->nBodySel
+    if idx < 0 then
+        idx = 0
+    else
+        idx += nDelta
+        if idx < 0 then idx = 0
+        if idx > (nCount - 1) then idx = nCount - 1
+    end if
+    dim as ulong c
+    if CLR_GridColorAt( pClr, idx, c ) = false then exit sub
+    CLR_ApplyColor( pClr, c, pClr->nAlphaCurrent, true, CLR_PHASE_END )
+    pClr->nBodySel = idx          ' re-asserted: two cells may hold the same colour
+    tkWidget_Invalidate( pClr->hContent )
+end sub
+
+private function CLR_NavRowStep( byval pClr as TKCOLORPICKER_STATE ptr ) as long
+    if CLR_IsListTab( pClr ) orelse (pClr->nMatrixCols < 1) then return 1
+    return pClr->nMatrixCols
+end function
+
+private function CLR_CallMessage( byval pClr as TKCOLORPICKER_STATE ptr, byval m as TK_MSG ptr ) as boolean
+    if (pClr = 0) orelse (pClr->MessageCallback = 0) then return false
+    dim as TKCOLORPICKER_MESSAGEINFO mi
+    mi.hColorPicker = pClr->hWin
+    mi.msg = m->msg
+    mi.x = m->x : mi.y = m->y
+    mi.key = m->key : mi.mods = m->mods : mi.clicks = m->clicks
+    return pClr->MessageCallback( @mi )
+end function
+
+
+' ========================================================================================
+' The modal run
+' ========================================================================================
+' First answer wins. Accepting commits the focused field first; cancelling does not.
+private sub CLR_EndModal( byval pClr as TKCOLORPICKER_STATE ptr, byval bAccept as boolean )
+    if (pClr = 0) orelse pClr->bModalDone then exit sub
+    if bAccept andalso (pClr->nFocusField >= 0) then CLR_CommitField( pClr )
+    pClr->bAccepted = bAccept
+    pClr->bModalDone = true
+    if pClr->pSurf then tkHost_Close( pClr->pSurf )
+end sub
+
+' The router closed the popup -- an outside press, Esc unclaimed, the app losing focus -- or
+' EndModal did. Anything not already answered is a CANCEL.
+private sub CLR_OnSurfClosed( byval h as TK_HOST ptr )
+    dim as TKCOLORPICKER_STATE ptr pClr = cast( TKCOLORPICKER_STATE ptr, h->pUser )
+    if pClr = 0 then exit sub
+    if pClr->bModalDone = false then
+        pClr->bAccepted = false
+        pClr->bModalDone = true
+    end if
+    if pClr->hContent then pClr->hContent->pData = 0
+    ' The run is over: an accept has already committed the field (EndModal), so whatever is
+    ' still in the buffer was CANCELLED and is dropped -- the next run must not commit it.
+    pClr->nFocusField = -1
+    pClr->wszEdit = ""
+    pClr->nCaret = 0
+    pClr->bEditFresh = false
+    pClr->CancelDrag()
+    pClr->bOKPressed = false
+    pClr->isFocused = false
+    pClr->caretTimerOn = false
+    pClr->pSurf = 0
+    pClr->hContent = 0
+    pClr->hScroll = 0
+    pClr->bLayoutDirty = true
+    h->pUser = 0
+end sub
+
+public declare sub tkColorPicker_ApplyTheme( byval hCtrl as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+public declare function tkColorPicker_ThemeColors( byref t as TKTHEME_COLORS ) as TKCOLORPICKER_COLORS
+
+private function CLR_KeyDigit( byval key as long ) as long
+    if (key >= SDLK_0) andalso (key <= SDLK_9) then return asc( "0" ) + (key - SDLK_0)
+    if (key >= SDLK_KP_1) andalso (key <= SDLK_KP_9) then return asc( "1" ) + (key - SDLK_KP_1)
+    if key = SDLK_KP_0 then return asc( "0" )
+    return 0
+end function
+
+' The popup's content widget: vendor's WndProc, case for case.
+private function CLR_ContentProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( w )
+    if pClr = 0 then return false
+    select case m->msg
+    case TKM_PAINT
+        CLR_RenderAll( pClr, m->pPaint )
+        return true
+
+    case TKM_SIZE
+        pClr->Refresh()
+        return true
+
+    case TKM_TIMER
+        if m->timerId = TK_TIMER_CARET then
+            pClr->bCaretOn = (pClr->bCaretOn = false)
+            tkWidget_Invalidate( w )
+            return true
+        end if
+        return false
+
+    case TKM_MOUSEMOVE
+        if pClr->isEnabled = false then return true
+        CLR_Ready( pClr )
+        dim as long mx = cint( m->x ), my = cint( m->y )
+        if pClr->isDragging then
+            ' a drag off the grid CLAMPS to the nearest cell rather than stopping
+            dim as long cx = mx, cy = my
+            if cx < pClr->rcMatrix.left then cx = pClr->rcMatrix.left
+            if cx > (pClr->rcMatrix.right - 1) then cx = pClr->rcMatrix.right - 1
+            if cy < pClr->rcMatrix.top then cy = pClr->rcMatrix.top
+            if cy > (pClr->rcMatrix.bottom - 1) then cy = pClr->rcMatrix.bottom - 1
+            dim as long idx = CLR_HitBody( pClr, cx, cy )
+            if idx >= 0 then
+                dim as ulong c
+                if CLR_GridColorAt( pClr, idx, c ) then CLR_ApplyColor( pClr, c, pClr->nAlphaCurrent, true, CLR_PHASE_MOVE )
+            end if
+            CLR_CallMessage( pClr, m )
+            return true
+        end if
+        dim as long nTabH = CLR_HitTab( pClr, mx, my )
+        dim as long nSw = CLR_HitBody( pClr, mx, my )
+        dim as long nFld = CLR_HitField( pClr, mx, my )
+        dim as boolean bOverOK = tkColorPicker_PtIn( pClr->rcOK, mx, my )
+        dim as boolean bChanged = ((nTabH <> pClr->nHotTab) orelse (nSw <> pClr->nHotSwatch) orelse (nFld <> pClr->nHotField))
+        if bChanged orelse (bOverOK <> pClr->bOKHot) then
+            pClr->nHotTab = nTabH : pClr->nHotSwatch = nSw : pClr->nHotField = nFld
+            pClr->bOKHot = bOverOK
+            tkWidget_Invalidate( w )
+        end if
+        ' an I-beam over the fields, so they read as typeable
+        tkWidget_SetCursor( w, iif( nFld >= 0, TK_CURSOR_IBEAM, TK_CURSOR_ARROW ) )
+        CLR_CallMessage( pClr, m )
+        return true
+
+    case TKM_MOUSELEAVE
+        if pClr->isDragging = false then CLR_ClearHot( pClr )
+        CLR_CallMessage( pClr, m )
+        return true
+
+    case TKM_MOUSEWHEEL
+        if pClr->isEnabled = false then return true
+        if CLR_CallMessage( pClr, m ) then return true
+        if CLR_IsListTab( pClr ) andalso (pClr->hScroll <> 0) then
+            ' notches -> vendor's 120ths, into the scrollbar's own accumulator
+            tkVScrollBar_HandleWheelDelta( pClr->hScroll, cint( m->wheelY * 120 ) )
+        end if
+        return true
+
+    case TKM_LBUTTONDOWN
+        if pClr->isEnabled = false then return true
+        dim as boolean bDblClk = (m->clicks >= 2)
+        dim as long mx = cint( m->x ), my = cint( m->y )
+        tkHost_SetFocus( w->pHost, w )
+        if CLR_CallMessage( pClr, m ) then return true
+        CLR_Ready( pClr )
+        dim as long nFld = CLR_HitField( pClr, mx, my )
+        if nFld >= 0 then
+            CLR_BeginEdit( pClr, nFld )
+            return true
+        end if
+        ' anything else takes the caret out of a field and COMMITS it
+        CLR_CommitField( pClr )
+        CLR_CaretTimer( pClr, false )
+        dim as long nTabH = CLR_HitTab( pClr, mx, my )
+        if nTabH >= 0 then
+            if nTabH <> pClr->nTab then
+                pClr->nTab = nTabH
+                pClr->nScrollTop = 0
+                pClr->bScrollToSel = true
+                CLR_SyncBodySel( pClr )
+                pClr->Refresh()
+                if pClr->TabChangedCallback then pClr->TabChangedCallback( pClr->hWin, nTabH )
+            end if
+            return true
+        end if
+        ' OK arms a press/slide-off gesture: capture on the DOWN, commit on the UP inside
+        if tkColorPicker_PtIn( pClr->rcOK, mx, my ) then
+            tkHost_SetCapture( w )
+            pClr->bOKPressed = true
+            pClr->bOKHot = true
+            tkWidget_Invalidate( w )
+            return true
+        end if
+        ' the Initial half reverts; the Current half is inert
+        if tkColorPicker_PtIn( pClr->rcInitial, mx, my ) then
+            if (pClr->clrInitial <> pClr->clrCurrent) orelse (pClr->nAlphaInitial <> pClr->nAlphaCurrent) then
+                CLR_ApplyColor( pClr, pClr->clrInitial, pClr->nAlphaInitial, true, CLR_PHASE_END )
+            end if
+            return true
+        end if
+        dim as long idx = CLR_HitBody( pClr, mx, my )
+        if idx >= 0 then
+            dim as ulong c
+            if CLR_GridColorAt( pClr, idx, c ) then
+                if bDblClk then
+                    ' the mouse's Enter: adopt the cell HIT, then accept
+                    CLR_ApplyColor( pClr, c, pClr->nAlphaCurrent, true, CLR_PHASE_END )
+                    pClr->nBodySel = idx
+                    CLR_EndModal( pClr, true )
+                    return true
+                end if
+                if pClr->nTab = CLR_TAB_CUSTOM then
+                    tkHost_SetCapture( w )
+                    pClr->isDragging = true
+                    CLR_ApplyColor( pClr, c, pClr->nAlphaCurrent, true, CLR_PHASE_BEGIN )
+                else
+                    CLR_ApplyColor( pClr, c, pClr->nAlphaCurrent, true, CLR_PHASE_END )
+                end if
+                pClr->nBodySel = idx
+                tkWidget_Invalidate( w )
+            end if
+            return true
+        end if
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_LBUTTONUP
+        ' SNAPSHOT BEFORE RELEASING: CAPTURECHANGED arrives synchronously and cancels both gestures
+        dim as boolean bWasDragging = pClr->isDragging
+        dim as boolean bWasOKPressed = pClr->bOKPressed
+        if tkHost_GetCapture( w->pHost ) = w then tkHost_ReleaseCapture( w->pHost )
+        pClr->CancelDrag()
+        pClr->bOKPressed = false
+        CLR_CallMessage( pClr, m )             ' result IGNORED
+        if bWasDragging then
+            CLR_Notify( pClr, CLR_PHASE_END )
+            tkWidget_Invalidate( w )
+        end if
+        if bWasOKPressed then
+            if tkColorPicker_PtIn( pClr->rcOK, cint( m->x ), cint( m->y ) ) then
+                CLR_EndModal( pClr, true )
+                return true
+            end if
+            tkWidget_Invalidate( w )
+        end if
+        return true
+
+    case TKM_CAPTURECHANGED
+        ' the gesture is over; NO END for an abandoned drag
+        pClr->CancelDrag()
+        pClr->bOKPressed = false
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_RBUTTONDOWN, TKM_RBUTTONUP
+        CLR_CallMessage( pClr, m )
+        return true
+
+    case TKM_SETFOCUS
+        pClr->isFocused = true
+        ' arriving puts the caret in the first field; a click then re-targets it
+        if pClr->nFocusField < 0 then CLR_BeginEdit( pClr, CLR_FIELD_R )
+        tkWidget_Invalidate( w )
+        CLR_CallMessage( pClr, m )             ' result IGNORED
+        return true
+
+    case TKM_KILLFOCUS
+        pClr->isFocused = false
+        CLR_CommitField( pClr )                ' commit on the way out
+        CLR_CaretTimer( pClr, false )
+        pClr->bCaretOn = false
+        tkWidget_Invalidate( w )
+        CLR_CallMessage( pClr, m )             ' result IGNORED
+        return true
+
+    case TKM_KEYDOWN
+        if pClr->isEnabled = false then return true
+        if CLR_CallMessage( pClr, m ) then return true
+        ' Esc cancels from anywhere, and does NOT commit the field on the way out
+        if m->key = SDLK_ESCAPE then
+            CLR_EndModal( pClr, false )
+            return true
+        end if
+        dim as boolean bShift = ((m->mods and SDL_KMOD_SHIFT) <> 0)
+        if pClr->nFocusField >= 0 then
+            select case m->key
+            case SDLK_LEFT, SDLK_RIGHT, SDLK_HOME, SDLK_END, SDLK_BACKSPACE, SDLK_DELETE
+                pClr->bEditFresh = false             ' an editing key says AMEND, not REPLACE
+            end select
+            dim as long nLen = len( pClr->wszEdit )
+            select case m->key
+            case SDLK_LEFT
+                if pClr->nCaret > 0 then pClr->nCaret -= 1
+            case SDLK_RIGHT
+                if pClr->nCaret < nLen then pClr->nCaret += 1
+            case SDLK_HOME
+                pClr->nCaret = 0
+            case SDLK_END
+                pClr->nCaret = nLen
+            case SDLK_BACKSPACE
+                if pClr->nCaret > 0 then
+                    pClr->wszEdit = left( pClr->wszEdit, pClr->nCaret - 1 ) & mid( pClr->wszEdit, pClr->nCaret + 1 )
+                    pClr->nCaret -= 1
+                end if
+            case SDLK_DELETE
+                if pClr->nCaret < nLen then pClr->wszEdit = left( pClr->wszEdit, pClr->nCaret ) & mid( pClr->wszEdit, pClr->nCaret + 2 )
+            case SDLK_RETURN, SDLK_KP_ENTER
+                ' commit and STAY, re-seeded, so the user sees what 999 became
+                dim as long nField = pClr->nFocusField
+                CLR_CommitField( pClr )
+                CLR_BeginEdit( pClr, nField )
+                return true
+            case SDLK_TAB
+                dim as long nDelta = iif( bShift, -1, 1 )
+                dim as long nNext = CLR_NextField( pClr, pClr->nFocusField, nDelta )
+                if nNext < 0 then nNext = CLR_NextField( pClr, iif( nDelta > 0, -1, CLR_FIELD_COUNT ), nDelta )   ' WRAP
+                if nNext >= 0 then CLR_BeginEdit( pClr, nNext )
+                return true
+            case else
+                ' digits: vendor's WM_CHAR rules -- the accept test FIRST, then a fresh seed is replaced
+                dim as long ch = CLR_KeyDigit( m->key )
+                if ch = 0 then return true            ' a popup claims every key; nothing leaks behind it
+                dim as long nPos = iif( pClr->bEditFresh, 0, pClr->nCaret )
+                if tkColorPicker_FieldAccepts( pClr->nFocusField, ch, nPos ) = false then return true
+                if pClr->bEditFresh then
+                    pClr->wszEdit = ""
+                    pClr->nCaret = 0
+                    pClr->bEditFresh = false
+                end if
+                if len( pClr->wszEdit ) >= tkColorPicker_FieldMaxLen( pClr->nFocusField ) then return true
+                pClr->wszEdit = left( pClr->wszEdit, pClr->nCaret ) & chr( ch ) & mid( pClr->wszEdit, pClr->nCaret + 1 )
+                pClr->nCaret += 1
+            end select
+            pClr->bCaretOn = true
+            tkWidget_Invalidate( w )
+            return true
+        end if
+        select case m->key
+        case SDLK_RETURN, SDLK_KP_ENTER
+            CLR_EndModal( pClr, true )
+        case SDLK_TAB
+            dim as long nFirst = CLR_NextField( pClr, -1, 1 )
+            if nFirst >= 0 then CLR_BeginEdit( pClr, nFirst )
+        case SDLK_LEFT
+            CLR_NavigateBody( pClr, -1 )
+        case SDLK_RIGHT
+            CLR_NavigateBody( pClr, 1 )
+        case SDLK_UP
+            CLR_NavigateBody( pClr, -CLR_NavRowStep( pClr ) )
+        case SDLK_DOWN
+            CLR_NavigateBody( pClr, CLR_NavRowStep( pClr ) )
+        end select
+        return true
+
+    case TKM_ENABLE
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_DESTROY
+        ' the popup is being reaped; the STATE belongs to the handle and outlives it
+        pClr->hContent = 0
+        pClr->hScroll = 0
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+private sub CLR_Rescale( byval pClr as TKCOLORPICKER_STATE ptr, byval fOld as single, byval fNew as single )
+    if (fOld <= 0) orelse (fNew <= 0) then exit sub
+    dim as single k = fNew / fOld
+    pClr->nPad = cint( pClr->nPad * k )
+    pClr->nGap = cint( pClr->nGap * k )
+    pClr->nTabHeight = cint( pClr->nTabHeight * k )
+    pClr->nTabPad = cint( pClr->nTabPad * k )
+    pClr->nCellW = cint( pClr->nCellW * k )
+    pClr->nCellH = cint( pClr->nCellH * k )
+    pClr->nSwatchW = cint( pClr->nSwatchW * k )
+    pClr->nScrollBarW = cint( pClr->nScrollBarW * k )
+    pClr->nPreviewW = cint( pClr->nPreviewW * k )
+    pClr->nPreviewH = cint( pClr->nPreviewH * k )
+    pClr->nFieldW = cint( pClr->nFieldW * k )
+    pClr->nFieldH = cint( pClr->nFieldH * k )
+    pClr->nOKW = cint( pClr->nOKW * k )
+    pClr->nOKH = cint( pClr->nOKH * k )
+    pClr->nLabelW = cint( pClr->nLabelW * k )
+    pClr->nRowH = cint( pClr->nRowH * k )
+    pClr->nCurvature = cint( pClr->nCurvature * k )
+    if pClr->nCellW < 1 then pClr->nCellW = 1
+    if pClr->nCellH < 1 then pClr->nCellH = 1
+    pClr->Refresh()
+end sub
+
+' The HANDLE's proc: theme, scale, and the state's lifetime. It is never visible.
+private function CLR_HandleProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( w )
+    if pClr = 0 then return false
+    select case m->msg
+    case TKM_SCALECHANGED
+        CLR_Rescale( pClr, m->fOld, m->fNew )
+        return true
+    case TKM_THEMECHANGED
+        tkColorPicker_ApplyTheme( w, tkTheme_Get() )
+        return true
+    case TKM_DESTROY
+        if pClr->pSurf then
+            if pClr->hContent then pClr->hContent->pData = 0
+            pClr->pSurf->pUser = 0
+            tkHost_Close( pClr->pSurf )
+        end if
+        delete pClr
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ========================================================================================
+' Public API
+' ========================================================================================
+' The picker, NOT shown: a hidden handle in hParent's tree (any widget of the owner surface,
+' typically tkHost_Root or the button that opens it) so the setters can be reached first. Run it
+' with tkColorPicker_RunModal; free it with tkColorPicker_Destroy (or with its owner).
+public function tkColorPicker_Create( byval hParent as TK_WIDGET ptr, byval id as long = 0 ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TK_HOST ptr pHost = hParent->pHost
+    dim as TKCOLORPICKER_STATE ptr pClr = new TKCOLORPICKER_STATE
+    pClr->id = id
+    pClr->nPad = tkHost_Scale( pHost, TKCOLORPICKER_DEFAULT_PAD )
+    pClr->nGap = tkHost_Scale( pHost, TKCOLORPICKER_DEFAULT_GAP )
+    pClr->nTabHeight = tkHost_Scale( pHost, TKCOLORPICKER_DEFAULT_TABHEIGHT )
+    pClr->nCellW = tkHost_Scale( pHost, TKCOLORPICKER_DEFAULT_CELLW )
+    pClr->nCellH = tkHost_Scale( pHost, TKCOLORPICKER_DEFAULT_CELLH )
+    pClr->nSwatchW = tkHost_Scale( pHost, TKCOLORPICKER_DEFAULT_SWATCHW )
+    pClr->nScrollBarW = tkHost_Scale( pHost, TKCOLORPICKER_DEFAULT_SCROLLW )
+    pClr->nPreviewW = tkHost_Scale( pHost, TKCOLORPICKER_DEFAULT_PREVIEWW )
+    pClr->nPreviewH = tkHost_Scale( pHost, TKCOLORPICKER_DEFAULT_PREVIEWH )
+    pClr->nFieldW = tkHost_Scale( pHost, TKCOLORPICKER_DEFAULT_FIELDW )
+    pClr->nFieldH = tkHost_Scale( pHost, TKCOLORPICKER_DEFAULT_FIELDH )
+    pClr->nOKW = tkHost_Scale( pHost, TKCOLORPICKER_DEFAULT_OKW )
+    pClr->nOKH = tkHost_Scale( pHost, TKCOLORPICKER_DEFAULT_OKH )
+    pClr->nTabPad = tkHost_Scale( pHost, TKCOLORPICKER_DEFAULT_TABPAD )
+    pClr->nLabelW = tkHost_Scale( pHost, TKCOLORPICKER_DEFAULT_LABELW )
+    pClr->nRowH = tkHost_Scale( pHost, TKCOLORPICKER_DEFAULT_ROWH )
+    pClr->nCurvature = tkHost_Scale( pHost, TKCOLORPICKER_DEFAULT_CURVATURE )
+    pClr->wszOK = "OK"
+    pClr->wszInitialLabel = "Initial"
+    pClr->wszCurrentLabel = "Current"
+    pClr->wszFieldLabel(CLR_FIELD_R) = "Red:"
+    pClr->wszFieldLabel(CLR_FIELD_G) = "Green:"
+    pClr->wszFieldLabel(CLR_FIELD_B) = "Blue:"
+    pClr->wszFieldLabel(CLR_FIELD_A) = "Alpha:"
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, id, @CLR_HandleProc, pClr )
+    w->isVisible = false
+    pClr->hWin = w
+    pClr->colors = tkColorPicker_ThemeColors( tkTheme_Get() )
+    CLR_SyncBodySel( pClr )
+    return w
+end function
+
+public sub tkColorPicker_Destroy( byval hCtrl as TK_WIDGET ptr )
+    if GetColorPickerPointer( hCtrl ) then tkWidget_Destroy( hCtrl )
+end sub
+
+' Place the popup against rcAnchor (OWNER window pixels): below it, FLIPPED above when it does
+' not fit below and there is more room above, then clamped onto the work area. Not shown.
+public sub tkColorPicker_PositionForRect( byval hCtrl as TK_WIDGET ptr, byref rcAnchor as TKRECT )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then exit sub
+    CLR_Ready( pClr )
+    dim as long cx = pClr->nIdealW, cy = pClr->nIdealH
+    dim as long x = rcAnchor.left, y = rcAnchor.bottom
+    dim as TKRECT wk
+    tkHost_WorkRect( hCtrl->pHost, wk )
+    dim as long roomBelow = wk.bottom - rcAnchor.bottom
+    dim as long roomAbove = rcAnchor.top - wk.top
+    if (cy > roomBelow) andalso (roomAbove > roomBelow) then y = rcAnchor.top - cy
+    if (x + cx) > wk.right then x = wk.right - cx
+    if (y + cy) > wk.bottom then y = wk.bottom - cy
+    if x < wk.left then x = wk.left
+    if y < wk.top then y = wk.top
+    pClr->popX = x : pClr->popY = y
+    pClr->bPlaced = true
+end sub
+
+' Centre on hRef (a widget of the owner surface), or on the whole owner window when 0.
+public sub tkColorPicker_PositionCentered( byval hCtrl as TK_WIDGET ptr, byval hRef as TK_WIDGET ptr = 0 )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then exit sub
+    CLR_Ready( pClr )
+    dim as long cx = pClr->nIdealW, cy = pClr->nIdealH
+    dim as TKRECT rcRef
+    if hRef then
+        tkWidget_AbsRect( hRef, rcRef )
+    else
+        dim as long pw, ph
+        tkHost_PixelSize( hCtrl->pHost, pw, ph )
+        tkRect_Set( rcRef, 0, 0, pw, ph )
+    end if
+    dim as long x = rcRef.left + ((tkRect_Width( rcRef ) - cx) \ 2)
+    dim as long y = rcRef.top + ((tkRect_Height( rcRef ) - cy) \ 2)
+    dim as TKRECT wk
+    tkHost_WorkRect( hCtrl->pHost, wk )
+    if (x + cx) > wk.right then x = wk.right - cx
+    if (y + cy) > wk.bottom then y = wk.bottom - cy
+    if x < wk.left then x = wk.left
+    if y < wk.top then y = wk.top
+    pClr->popX = x : pClr->popY = y
+    pClr->bPlaced = true
+end sub
+
+' Where the popup will open (owner window pixels), after PositionForRect / PositionCentered.
+public sub tkColorPicker_GetPosition( byval hCtrl as TK_WIDGET ptr, byref x as long, byref y as long )
+    x = 0 : y = 0
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr then x = pClr->popX : y = pClr->popY
+end sub
+
+' Show the popup and pump until it is answered: TRUE on OK. The popup surface is created for
+' this run and closed at its end; the handle survives, so GetColor answers afterwards. Not placed
+' yet = centred on the owner window.
+public function tkColorPicker_RunModal( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if (pClr = 0) orelse (pClr->pSurf <> 0) then return false
+    dim as TK_HOST ptr owner = hCtrl->pHost
+    if pClr->bPlaced = false then tkColorPicker_PositionCentered( hCtrl, 0 )
+    CLR_Ready( pClr )
+    dim as long cx = pClr->nIdealW, cy = pClr->nIdealH
+    if cx <= 0 then cx = 1
+    if cy <= 0 then cy = 1
+    dim as TK_HOST ptr pop = tkHost_CreatePopup( owner, pClr->popX, pClr->popY, cx, cy, TK_SURF_POPUP )
+    if pop = 0 then return false
+    pop->clrBack = pClr->colors.BackColor
+    ' vendor's loop ended only on a press outside, Esc or OK -- never on deactivation
+    pop->bKeepOnFocusLoss = true
+    pop->pUser = pClr
+    pop->OnClosed = @CLR_OnSurfClosed
+    pClr->pSurf = pop
+    pClr->hContent = tkWidget_CreateChild( tkHost_Root( pop ), pClr->id, @CLR_ContentProc, pClr )
+    pClr->hContent->isFocusable = true
+    tkWidget_SetPos( pClr->hContent, 0, 0, cx, cy )
+    pClr->hScroll = tkVScrollBar_Create( pClr->hContent, pClr->id + 1 )
+    tkVScrollBar_SetScrollCallback( pClr->hScroll, @CLR_OnScroll )
+    tkWidget_Show( pClr->hScroll, false )
+    if pClr->isEnabled = false then tkWidget_Enable( pClr->hContent, false )
+    pClr->bModalDone = false
+    pClr->bAccepted = false
+    pClr->bScrollToSel = true
+    pClr->Refresh()
+    tkHost_Show( pop )
+    tkHost_SetFocus( pop, pClr->hContent )
+    if pClr->OpenCallback then pClr->OpenCallback( hCtrl, pop )
+
+    ' The owner keeps running underneath (it is not disabled -- a click on it is the cancel), so
+    ' this is the host's own pump with a stop condition. A QUIT reaches every surface's bQuit,
+    ' which the host's loop sees once this returns.
+    dim as SDL_Event e
+    tkHost_Pump( owner )
+    while pClr->bModalDone = false
+        if SDL_WaitEvent( @e ) then
+            tkHost_Dispatch( owner, @e )
+            tkHost_Reap()
+        end if
+        tkHost_Pump( owner )
+        if owner->bQuit then CLR_EndModal( pClr, false )
+    wend
+    if pClr->pSurf then tkHost_Close( pClr->pSurf )
+    tkHost_Reap()
+    owner->bDirty = true
+    return pClr->bAccepted
+end function
+
+private function CLR_DoModalCore( byval hParent as TK_WIDGET ptr, byval pAnchor as TKRECT ptr, _
+                                  byref clr as ulong, byref nAlpha as ubyte ) as boolean
+    dim as TK_WIDGET ptr hCtrl = tkColorPicker_Create( hParent, 0 )
+    if hCtrl = 0 then return false
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    pClr->clrInitial = clr or &hFF000000ul
+    pClr->nAlphaInitial = nAlpha
+    CLR_ApplyColor( pClr, clr, nAlpha, false, CLR_PHASE_END )
+    if pAnchor then
+        tkColorPicker_PositionForRect( hCtrl, *pAnchor )
+    else
+        tkColorPicker_PositionCentered( hCtrl, hParent )
+    end if
+    dim as boolean bOK = tkColorPicker_RunModal( hCtrl )
+    if bOK then
+        clr = pClr->clrCurrent
+        nAlpha = pClr->nAlphaCurrent
+    end if
+    tkWidget_Destroy( hCtrl )
+    return bOK
+end function
+
+' Create, centre on hParent's widget, block, destroy. TRUE on OK with both written; FALSE on a
+' cancel with NEITHER touched.
+public function tkColorPicker_DoModal( byval hParent as TK_WIDGET ptr, byref clr as ulong, byref nAlpha as ubyte ) as boolean
+    return CLR_DoModalCore( hParent, 0, clr, nAlpha )
+end function
+
+' The same, dropped under rcAnchor (OWNER window pixels) and flipped above when it will not fit.
+public function tkColorPicker_DoModalForRect( byval hParent as TK_WIDGET ptr, byref rcAnchor as TKRECT, _
+                                              byref clr as ulong, byref nAlpha as ubyte ) as boolean
+    return CLR_DoModalCore( hParent, @rcAnchor, clr, nAlpha )
+end function
+
+' Ends a run as if the user had answered (TRUE = OK). The door a host or a test uses.
+public sub tkColorPicker_EndModal( byval hCtrl as TK_WIDGET ptr, byval bAccept as boolean )
+    CLR_EndModal( GetColorPickerPointer( hCtrl ), bAccept )
+end sub
+
+public function tkColorPicker_IsOpen( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then return false
+    return (pClr->pSurf <> 0)
+end function
+
+' The live popup surface and its content widget, or 0 between runs.
+public function tkColorPicker_GetSurface( byval hCtrl as TK_WIDGET ptr ) as TK_HOST ptr
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then return 0
+    return pClr->pSurf
+end function
+
+public function tkColorPicker_GetContent( byval hCtrl as TK_WIDGET ptr ) as TK_WIDGET ptr
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then return 0
+    return pClr->hContent
+end function
+
+' --- value ----------------------------------------------------------------------------------
+' Sets the live value, SILENT; also the Initial baseline unless bKeepInitial. The colour is
+' opaque &hFFRRGGBB (tkRGB); alpha travels separately.
+public sub tkColorPicker_SetColor( byval hCtrl as TK_WIDGET ptr, byval clr as ulong, byval nAlpha as ubyte = 255, _
+                                   byval bKeepInitial as boolean = false )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then exit sub
+    if bKeepInitial = false then
+        pClr->clrInitial = clr or &hFF000000ul
+        pClr->nAlphaInitial = nAlpha
+    end if
+    CLR_ApplyColor( pClr, clr, nAlpha, false, CLR_PHASE_END )
+    tkWidget_Invalidate( pClr->hContent )
+end sub
+
+public function tkColorPicker_GetColor( byval hCtrl as TK_WIDGET ptr ) as ulong
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then return 0
+    return pClr->clrCurrent
+end function
+
+public function tkColorPicker_GetAlpha( byval hCtrl as TK_WIDGET ptr ) as ubyte
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then return 255
+    return pClr->nAlphaCurrent
+end function
+
+public sub tkColorPicker_SetInitial( byval hCtrl as TK_WIDGET ptr, byval clr as ulong, byval nAlpha as ubyte = 255 )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then exit sub
+    pClr->clrInitial = clr or &hFF000000ul
+    pClr->nAlphaInitial = nAlpha
+    tkWidget_Invalidate( pClr->hContent )
+end sub
+
+public function tkColorPicker_GetInitial( byval hCtrl as TK_WIDGET ptr ) as ulong
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then return 0
+    return pClr->clrInitial
+end function
+
+' An ACTION: fires with a single END.
+public sub tkColorPicker_RevertToInitial( byval hCtrl as TK_WIDGET ptr )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then exit sub
+    CLR_ApplyColor( pClr, pClr->clrInitial, pClr->nAlphaInitial, true, CLR_PHASE_END )
+end sub
+
+' --- tabs and fields -----------------------------------------------------------------------
+' Shown by default. Changes the field count and OK's position, NOT the popup's size.
+public sub tkColorPicker_ShowAlpha( byval hCtrl as TK_WIDGET ptr, byval bShow as boolean )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if (pClr = 0) orelse (pClr->bShowAlpha = bShow) then exit sub
+    pClr->bShowAlpha = bShow
+    if (bShow = false) andalso (pClr->nFocusField = CLR_FIELD_A) then CLR_CommitField( pClr )
+    pClr->Refresh()
+end sub
+
+public function tkColorPicker_IsAlphaShown( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then return false
+    return pClr->bShowAlpha
+end function
+
+' SILENT. Refuses an out-of-range tab; resets the scroll and re-derives the selection.
+public sub tkColorPicker_SetTab( byval hCtrl as TK_WIDGET ptr, byval nTab as long )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then exit sub
+    if (nTab < CLR_TAB_WEB) orelse (nTab >= CLR_TAB_COUNT) then exit sub
+    if pClr->nTab = nTab then exit sub
+    pClr->nTab = nTab
+    pClr->nScrollTop = 0
+    pClr->bScrollToSel = true
+    CLR_SyncBodySel( pClr )
+    pClr->Refresh()
+end sub
+
+public function tkColorPicker_GetTab( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then return CLR_TAB_CUSTOM
+    return pClr->nTab
+end function
+
+' --- appearance -------------------------------------------------------------------------------
+public sub tkColorPicker_SetColors( byval hCtrl as TK_WIDGET ptr, byval pColors as TKCOLORPICKER_COLORS ptr )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if (pClr = 0) orelse (pColors = 0) then exit sub
+    pClr->colors = *pColors
+    pClr->bColorsPinned = true
+    if pClr->pSurf then pClr->pSurf->clrBack = pClr->colors.BackColor
+    tkWidget_Invalidate( pClr->hContent )
+end sub
+
+public sub tkColorPicker_GetColors( byval hCtrl as TK_WIDGET ptr, byval pColors as TKCOLORPICKER_COLORS ptr )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if (pClr = 0) orelse (pColors = 0) then exit sub
+    *pColors = pClr->colors
+end sub
+
+' Vendor PsColorPicker_ThemeColors, role for role.
+public function tkColorPicker_ThemeColors( byref t as TKTHEME_COLORS ) as TKCOLORPICKER_COLORS
+    dim as TKCOLORPICKER_COLORS c
+    c.BackColor = t.Popup
+    c.ForeColor = t.Text
+    c.BorderColor = t.Border
+    c.TabBackColor = t.Popup
+    c.TabBackColorSel = t.SurfaceHot
+    c.TabForeColor = t.TextDim
+    c.TabForeColorSel = t.TextHot
+    c.FieldBackColor = t.Window
+    c.FieldForeColor = t.Text
+    c.FieldBorderColor = t.Border
+    c.FieldBorderColorSel = t.FocusRing
+    c.HotRingColor = t.TextStrong
+    c.SelRingColor = t.FocusRing
+    c.FocusRingColor = t.FocusRing
+    c.OKBackColor = t.Surface
+    c.OKBackColorHot = t.SurfaceHot
+    c.OKBackColorPressed = t.Selected
+    c.OKForeColor = t.Text
+    c.OKBorderColor = t.Border
+    return c
+end function
+
+public sub tkColorPicker_ApplyTheme( byval hCtrl as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if (pClr = 0) orelse pClr->bColorsPinned then exit sub
+    pClr->colors = tkColorPicker_ThemeColors( t )
+    if pClr->pSurf then pClr->pSurf->clrBack = pClr->colors.BackColor
+    tkWidget_Invalidate( pClr->hContent )
+end sub
+
+public sub tkColorPicker_UnpinColors( byval hCtrl as TK_WIDGET ptr )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then exit sub
+    pClr->bColorsPinned = false
+    tkColorPicker_ApplyTheme( hCtrl, tkTheme_Get() )
+end sub
+
+public sub tkColorPicker_SetFont( byval hCtrl as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then exit sub
+    pClr->pTextFont = f
+    pClr->Refresh()
+end sub
+
+public function tkColorPicker_GetFont( byval hCtrl as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then return 0
+    return pClr->pTextFont
+end function
+
+' The form's fonts (tkApp). No glyph font.
+public sub tkColorPicker_ApplyFonts( byval hCtrl as TK_WIDGET ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
+    if fText then tkColorPicker_SetFont( hCtrl, fText )
+end sub
+
+public sub tkColorPicker_SetOKText( byval hCtrl as TK_WIDGET ptr, byval Text as ustring )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then exit sub
+    pClr->wszOK = Text
+    tkWidget_Invalidate( pClr->hContent )
+end sub
+
+public sub tkColorPicker_SetPreviewText( byval hCtrl as TK_WIDGET ptr, byval TextInitial as ustring, byval TextCurrent as ustring )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then exit sub
+    pClr->wszInitialLabel = TextInitial
+    pClr->wszCurrentLabel = TextCurrent
+    tkWidget_Invalidate( pClr->hContent )
+end sub
+
+' In CLR_FIELD_* order. Nothing is appended: the default's colon is part of the default.
+public sub tkColorPicker_SetFieldText( byval hCtrl as TK_WIDGET ptr, byval nField as long, byval Text as ustring )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if (pClr = 0) orelse (nField < 0) orelse (nField >= CLR_FIELD_COUNT) then exit sub
+    pClr->wszFieldLabel(nField) = Text
+    pClr->Refresh()
+end sub
+
+public function tkColorPicker_GetFieldText( byval hCtrl as TK_WIDGET ptr, byval nField as long ) as ustring
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if (pClr = 0) orelse (nField < 0) orelse (nField >= CLR_FIELD_COUNT) then return ""
+    return pClr->wszFieldLabel(nField)
+end function
+
+public sub tkColorPicker_Refresh( byval hCtrl as TK_WIDGET ptr )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr then pClr->Refresh()
+end sub
+
+' --- state -------------------------------------------------------------------------------------
+public function tkColorPicker_GetEnabled( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then return false
+    return pClr->isEnabled
+end function
+
+' Through tkWidget_Enable on the live content, so the host enforces it.
+public sub tkColorPicker_SetEnabled( byval hCtrl as TK_WIDGET ptr, byval bEnabled as boolean )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then exit sub
+    pClr->isEnabled = bEnabled
+    if bEnabled = false then CLR_ClearHot( pClr ) : pClr->CancelDrag()
+    if pClr->hContent then tkWidget_Enable( pClr->hContent, bEnabled )
+end sub
+
+public function tkColorPicker_GetFocused( byval hCtrl as TK_WIDGET ptr ) as boolean
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then return false
+    return pClr->isFocused
+end function
+
+' The field holding the caret (CLR_FIELD_*), or -1; and its in-progress text.
+public function tkColorPicker_GetFocusField( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then return -1
+    return pClr->nFocusField
+end function
+
+public function tkColorPicker_GetEditText( byval hCtrl as TK_WIDGET ptr ) as ustring
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then return ""
+    return pClr->wszEdit
+end function
+
+' The selected body cell on the current tab (-1 = none), and the list's first visible row.
+public function tkColorPicker_GetBodySel( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then return -1
+    return pClr->nBodySel
+end function
+
+public function tkColorPicker_GetScrollTop( byval hCtrl as TK_WIDGET ptr ) as long
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then return 0
+    CLR_Ready( pClr )
+    return pClr->nScrollTop
+end function
+
+' --- geometry ------------------------------------------------------------------------------------
+' Valid before the popup is ever shown. Varies with the matrix, the cell size and the font; NOT
+' with ShowAlpha.
+public sub tkColorPicker_GetIdealSize( byval hCtrl as TK_WIDGET ptr, byref cx as long, byref cy as long )
+    cx = 0 : cy = 0
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then exit sub
+    if pClr->bLayoutDirty then pClr->LayoutColorPicker()
+    cx = pClr->nIdealW : cy = pClr->nIdealH
+end sub
+
+public sub tkColorPicker_GetMatrixSize( byval hCtrl as TK_WIDGET ptr, byref nCols as long, byref nRows as long )
+    nCols = 0 : nRows = 0
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then exit sub
+    nCols = pClr->nMatrixCols : nRows = pClr->nMatrixRows
+end sub
+
+public sub tkColorPicker_SetMatrixSize( byval hCtrl as TK_WIDGET ptr, byval nCols as long, byval nRows as long )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then exit sub
+    if nCols < 2 then nCols = 2       ' the last column is the greyscale ramp
+    if nRows < 1 then nRows = 1
+    pClr->nMatrixCols = nCols
+    pClr->nMatrixRows = nRows
+    CLR_SyncBodySel( pClr )
+    pClr->Refresh()
+end sub
+
+public sub tkColorPicker_GetCellSize( byval hCtrl as TK_WIDGET ptr, byref cx as long, byref cy as long )
+    cx = 0 : cy = 0
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then exit sub
+    cx = pClr->nCellW : cy = pClr->nCellH
+end sub
+
+public sub tkColorPicker_SetCellSize( byval hCtrl as TK_WIDGET ptr, byval cx as long, byval cy as long )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then exit sub
+    if cx < 1 then cx = 1
+    if cy < 1 then cy = 1
+    pClr->nCellW = cx
+    pClr->nCellH = cy
+    pClr->Refresh()
+end sub
+
+private function CLR_PartRect( byval pClr as TKCOLORPICKER_STATE ptr, byval nPart as long ) as TKRECT
+    dim as TKRECT rc
+    select case nPart
+    case CLR_PART_TABS     : rc = pClr->rcTabs
+    case CLR_PART_MATRIX   : rc = pClr->rcMatrix
+    case CLR_PART_SWATCHES : rc = pClr->rcSwatches
+    case CLR_PART_INITIAL  : rc = pClr->rcInitial
+    case CLR_PART_CURRENT  : rc = pClr->rcCurrent
+    case CLR_PART_FIELDS   : rc = pClr->rcFields
+    case CLR_PART_ALPHA    : rc = pClr->rcAlpha
+    case CLR_PART_OK       : rc = pClr->rcOK
+    end select
+    return rc
+end function
+
+' FALSE when the part is legitimately empty on this tab or with alpha hidden.
+public function tkColorPicker_GetPartRect( byval hCtrl as TK_WIDGET ptr, byval nPart as long, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then return false
+    CLR_Ready( pClr )
+    rc = CLR_PartRect( pClr, nPart )
+    return (tkRect_IsEmpty( rc ) = false)
+end function
+
+public function tkColorPicker_GetFieldRect( byval hCtrl as TK_WIDGET ptr, byval nField as long, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if (pClr = 0) orelse (nField < 0) orelse (nField >= CLR_FIELD_COUNT) then return false
+    CLR_Ready( pClr )
+    rc = pClr->rcFieldBox(nField)
+    return (tkRect_IsEmpty( rc ) = false)
+end function
+
+public function tkColorPicker_GetTabRect( byval hCtrl as TK_WIDGET ptr, byval idx as long, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if (pClr = 0) orelse (idx < 0) orelse (idx >= CLR_TAB_COUNT) then return false
+    CLR_Ready( pClr )
+    rc = pClr->rcTab(idx)
+    return (tkRect_IsEmpty( rc ) = false)
+end function
+
+public function tkColorPicker_HitTestTab( byval hCtrl as TK_WIDGET ptr, byval x as long, byval y as long ) as long
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then return -1
+    CLR_Ready( pClr )
+    return CLR_HitTab( pClr, x, y )
+end function
+
+public function tkColorPicker_HitTestField( byval hCtrl as TK_WIDGET ptr, byval x as long, byval y as long ) as long
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then return -1
+    CLR_Ready( pClr )
+    return CLR_HitField( pClr, x, y )
+end function
+
+public function tkColorPicker_HitTestBody( byval hCtrl as TK_WIDGET ptr, byval x as long, byval y as long ) as long
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then return -1
+    CLR_Ready( pClr )
+    return CLR_HitBody( pClr, x, y )
+end function
+
+' --- callbacks: 0 removes ------------------------------------------------------------------------
+public sub tkColorPicker_SetColorChangedCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as CLR_ColorChangedCallbackSub )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr then pClr->ColorChangedCallback = usersub
+end sub
+
+public sub tkColorPicker_SetTabChangedCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as CLR_TabChangedCallbackSub )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr then pClr->TabChangedCallback = usersub
+end sub
+
+public sub tkColorPicker_SetMessageCallback( byval hCtrl as TK_WIDGET ptr, byval userfunc as CLR_MessageCallbackFunc )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr then pClr->MessageCallback = userfunc
+end sub
+
+public sub tkColorPicker_SetPaintCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as CLR_PaintCallbackSub )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then exit sub
+    pClr->PaintCallback = usersub
+    tkWidget_Invalidate( pClr->hContent )
+end sub
+
+public sub tkColorPicker_SetOpenCallback( byval hCtrl as TK_WIDGET ptr, byval usersub as CLR_OpenCallbackSub )
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr then pClr->OpenCallback = usersub
+end sub
+
+' Run the BUILT-IN painter into the buffer a paint callback was handed: decorate, not replace.
+public sub tkColorPicker_RenderInfo( byval p as any ptr )
+    if p = 0 then exit sub
+    dim as TKCOLORPICKER_PAINTINFO ptr pinf = cast( TKCOLORPICKER_PAINTINFO ptr, p )
+    if pinf->b = 0 then exit sub
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( pinf->hColorPicker )
+    if pClr = 0 then exit sub
+    CLR_RenderDefault( pClr, pinf->b )
+end sub
+
+
+' ========================================================================================
+' Probes: the real paint path rendered into a back buffer -- the popup's while it is open, the
+' owner's (at its top-left) otherwise -- with focus and the caret forced ON, then read back.
+' ========================================================================================
+private function CLR_ProbePart( byval hCtrl as TK_WIDGET ptr, byval nPart as long, byref nTones as long, byref nHash as ulong ) as boolean
+    nTones = 0 : nHash = 0
+    dim as TKCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
+    if pClr = 0 then return false
+    CLR_Ready( pClr )
+    dim as TKRECT rcPart = CLR_PartRect( pClr, nPart )
+    if tkRect_IsEmpty( rcPart ) then return false
+    dim as TK_HOST ptr h = iif( pClr->pSurf <> 0, pClr->pSurf, hCtrl->pHost )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    rcPart = tkRect_Intersect( rcPart, pClr->rcClient )
+    if rcPart.right > pw then rcPart.right = pw
+    if rcPart.bottom > ph then rcPart.bottom = ph
+    if tkRect_IsEmpty( rcPart ) then return false
+
+    dim as boolean bSavedFocus = pClr->isFocused, bSavedCaret = pClr->bCaretOn
+    pClr->isFocused = true
+    pClr->bCaretOn = true
+    dim as TK_PAINT wp
+    wp.renderer = h->renderer
+    wp.engine = h->engine
+    wp.pFont = h->pDefaultFont
+    wp.fScale = h->fScale
+    wp.Begin( 0, 0, tkRect_Width( pClr->rcClient ), tkRect_Height( pClr->rcClient ) )
+    CLR_RenderAll( pClr, @wp )
+    pClr->isFocused = bSavedFocus
+    pClr->bCaretOn = bSavedCaret
+    SDL_SetRenderClipRect( h->renderer, 0 )
+    h->bDirty = true
+    dim as SDL_Rect sr
+    sr.x = rcPart.left : sr.y = rcPart.top : sr.w = tkRect_Width( rcPart ) : sr.h = tkRect_Height( rcPart )
+    dim as SDL_Surface ptr s0 = SDL_RenderReadPixels( h->renderer, @sr )
+    if s0 = 0 then return false
+    dim as SDL_Surface ptr s = SDL_ConvertSurface( s0, SDL_PIXELFORMAT_ARGB8888 )
+    SDL_DestroySurface( s0 )
+    if s = 0 then return false
+    dim tones(0 to 63) as ulong
+    dim as long nSeen = 0
+    dim as ulong hv = &h811C9DC5ul
+    for y as long = 0 to s->h - 1
+        dim as ulong ptr row = cast( ulong ptr, cast( ubyte ptr, s->pixels ) + y * s->pitch )
+        for x as long = 0 to s->w - 1
+            dim as ulong c = row[x] and &h00FFFFFFul
+            dim as boolean bFound = false
+            for t as long = 0 to nSeen - 1
+                if tones(t) = c then bFound = true : exit for
+            next
+            if (bFound = false) andalso (nSeen < 64) then tones(nSeen) = c : nSeen += 1
+            hv = (hv xor (c and &hFF)) * &h01000193ul
+            hv = (hv xor ((c shr 8) and &hFF)) * &h01000193ul
+            hv = (hv xor ((c shr 16) and &hFF)) * &h01000193ul
+        next
+    next
+    SDL_DestroySurface( s )
+    nTones = nSeen
+    nHash = hv
+    return true
+end function
+
+' Distinct colours in a part, capped at 64. A part wiped by a flood is ONE tone.
+public function tkColorPicker_CountRenderedTones( byval hCtrl as TK_WIDGET ptr, byval nPart as long ) as long
+    dim as long nTones
+    dim as ulong nHash
+    if CLR_ProbePart( hCtrl, nPart, nTones, nHash ) = false then return 0
+    return nTones
+end function
+
+' FNV-1a of a part: equal hashes across two states mean the change never reached the pixels.
+public function tkColorPicker_HashRenderedPart( byval hCtrl as TK_WIDGET ptr, byval nPart as long ) as ulong
+    dim as long nTones
+    dim as ulong nHash
+    if CLR_ProbePart( hCtrl, nPart, nTones, nHash ) = false then return 0
+    return nHash
+end function

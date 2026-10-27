@@ -1,0 +1,1406 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkOptionButton -- PsOptionButton on SDL3 + SDL_ttf, a port of
+' pkg/vendor/PsControls/PsOptionButton/PsOptionButton.tiko onto tkHost. See PORT.md.
+'
+' WHAT IS UNCHANGED, by design: the layout model (LayoutOptionButton is the Win32 function with
+' GDI measuring swapped for SDL_ttf), the inscribed circle and the derived dot, the four moods,
+' the 21-field colour struct and its theme mapping, the four callbacks, press / slide-off /
+' release, the GROUP: (parent, group id), mutual exclusion owned by the control, a module
+' registry in creation order, both edges notifying loser first after both writes, silent
+' SetChecked / SetGroupID / ClearGroup with Click as the notifying action, ONE tab stop per
+' group, arrows that move focus AND the check (wrapping, stepping over disabled members), Space
+' (Enter NOT claimed), AutoSize, GetIdealSize before sizing, the rect queries, the two probes.
+'
+' WHAT CHANGED: WS_TABSTOP is w->isFocusable (tkHost's Tab order walks focusable widgets), and
+' while focus is INSIDE a group the focused member holds that group's tab stop, so Tab leaves
+' the group from wherever focus sits. The circle is drawn with PaintEllipse.
+'
+' WHAT IS GONE, because the HWND is gone: WM_SETTEXT/GETTEXT, WM_GETDLGCODE, the WM_CHAR swallow,
+' the 100 ms hover poll, the comctl32 tooltip backend, PsRegistry.
+#module "tkOptionButton"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkTooltip" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkTooltip
+
+public enum
+    OPT_BOXALIGN_LEFT = 0
+    OPT_BOXALIGN_RIGHT
+end enum
+
+public enum
+    OPT_TEXTALIGN_LEFT = 0
+    OPT_TEXTALIGN_CENTER
+    OPT_TEXTALIGN_RIGHT
+end enum
+
+public enum
+    OPT_MOOD_IDLE = 0
+    OPT_MOOD_HOT
+    OPT_MOOD_PRESSED
+    OPT_MOOD_DISABLED
+end enum
+
+public enum
+    OPT_PART_CONTROL = 0
+    OPT_PART_BOX
+    OPT_PART_TEXT
+end enum
+
+public const as long TKOPTIONBUTTON_DEFAULT_PADLEFT    = 4
+public const as long TKOPTIONBUTTON_DEFAULT_PADTOP     = 2
+public const as long TKOPTIONBUTTON_DEFAULT_PADRIGHT   = 4
+public const as long TKOPTIONBUTTON_DEFAULT_PADBOTTOM  = 2
+public const as long TKOPTIONBUTTON_DEFAULT_BOXGAP     = 8
+public const as long TKOPTIONBUTTON_DEFAULT_BOXWIDTH   = 16
+public const as long TKOPTIONBUTTON_DEFAULT_BOXHEIGHT  = 16
+public const as long TKOPTIONBUTTON_DEFAULT_RINGTHICK  = 1     ' never scaled
+public const as long TKOPTIONBUTTON_DEFAULT_FOCUSTHICK = 1     ' never scaled
+public const as long TKOPTIONBUTTON_DEFAULT_DOTSIZE    = 0     ' 0 = derive from the circle
+public const as long TKOPTIONBUTTON_DOTRATIO_PCT       = 40
+public const as long TKOPTIONBUTTON_DEFAULT_FOCUSGAP   = 2
+public const as long TKOPTIONBUTTON_DEFAULT_FOCUSCURV  = 4     ' ellipse DIAMETER
+public const as long TKOPTIONBUTTON_DEFAULT_GROUPID    = 0
+
+' The Win32 control's dark defaults, value for value (COLORREF BGR(r,g,b) -> tkRGB(r,g,b)).
+public type TKOPTIONBUTTON_COLORS
+    BackColor                as ulong = &hFF21252Bul    ' ( 33, 37, 43)
+    BackColorHot             as ulong = &hFF21252Bul    ' = BackColor: flat out of the box
+    BackColorPressed         as ulong = &hFF21252Bul
+    BackColorDisabled        as ulong = &hFF21252Bul
+    ForeColor                as ulong = &hFFC8CDD6ul    ' (200,205,214)
+    ForeColorHot             as ulong = &hFFE2E6EEul    ' (226,230,238)
+    ForeColorPressed         as ulong = &hFFFFFFFFul
+    ForeColorDisabled        as ulong = &hFF606670ul    ' ( 96,102,112)
+    RingColor                as ulong = &hFF8A9099ul    ' (138,144,153) the UNCHECKED outline
+    RingColorHot             as ulong = &hFFB0B6BFul    ' (176,182,191)
+    RingColorPressed         as ulong = &hFFC8CDD6ul    ' (200,205,214)
+    RingColorDisabled        as ulong = &hFF545961ul    ' ( 84, 89, 97)
+    RingColorChecked         as ulong = &hFF569CD6ul    ' ( 86,156,214) the CHECKED fill
+    RingColorCheckedHot      as ulong = &hFF7AB4E6ul    ' (122,180,230)
+    RingColorCheckedPressed  as ulong = &hFF96C8F0ul    ' (150,200,240)
+    RingColorCheckedDisabled as ulong = &hFF384654ul    ' ( 56, 70, 84)
+    DotColor                 as ulong = &hFFFFFFFFul    ' on the accent fill, not on the back
+    DotColorHot              as ulong = &hFFFFFFFFul
+    DotColorPressed          as ulong = &hFFFFFFFFul
+    DotColorDisabled         as ulong = &hFF21252Bul    ' = BackColor: a hollow disabled ring
+    FocusRingColor           as ulong = &hFF569CD6ul    ' ( 86,156,214)
+end type
+
+public type TKOPTIONBUTTON_PAINTINFO
+    hOptionButton as TK_WIDGET ptr
+    b             as TK_PAINT ptr
+    rcClient      as TKRECT
+    rcContent     as TKRECT        ' rcClient deflated by the focus-ring band
+    rcBox         as TKRECT        ' the declared box CELL
+    rcCircle      as TKRECT        ' the largest centred square in rcBox: what is drawn round
+    rcDot         as TKRECT        ' centred in rcCircle; computed checked or not
+    rcText        as TKRECT        ' the caption SPAN, not the ink; empty with no caption
+    rcVisual      as TKRECT        ' rcContent inflated by the band: where the ring goes
+    isChecked     as boolean
+    isHot         as boolean
+    isPressed     as boolean       ' a live press AND the cursor still inside
+    isEnabled     as boolean
+    isFocused     as boolean
+    wszText       as ustring
+    nRingThick    as long          ' pen width in pixels (never scaled)
+    nBoxAlign     as long
+    nTextAlign    as long
+end type
+
+public type TKOPTIONBUTTON_MESSAGEINFO
+    hOptionButton as TK_WIDGET ptr
+    msg           as long          ' TKM_*
+    x             as single
+    y             as single
+    key           as long
+end type
+
+public type OPT_PaintCallbackSub as sub( byval p as TKOPTIONBUTTON_PAINTINFO ptr )
+public type OPT_MessageCallbackFunc as function( byval m as TKOPTIONBUTTON_MESSAGEINFO ptr ) as boolean
+public type OPT_TooltipCallbackFunc as function( byval hOptionButton as TK_WIDGET ptr ) as ustring
+public type OPT_CheckChangedCallbackSub as sub( byval hOptionButton as TK_WIDGET ptr, byval isChecked as boolean )
+
+public type TKOPTIONBUTTON_STATE
+    hWin              as TK_WIDGET ptr
+    id                as long
+    itemData          as integer
+    ' The group is (hParent, nGroupID). The parent is cached at create: the scans run on every
+    ' click and arrow key, and TKM_DESTROY re-syncs the group it is leaving.
+    hParent           as TK_WIDGET ptr
+    nGroupID          as long = TKOPTIONBUTTON_DEFAULT_GROUPID
+    wszText           as ustring
+    wszTooltip        as ustring
+    tip               as TKTIPHOST_STATE
+    bColorsPinned     as boolean
+    isChecked         as boolean
+    isEnabled         as boolean = true
+    isHot             as boolean
+    isFocused         as boolean
+    isPressed         as boolean           ' the GESTURE: a live left press, inside or not
+    colors            as TKOPTIONBUTTON_COLORS
+    pTextFont         as TTF_Font ptr      ' borrowed
+    nBoxAlign         as long = OPT_BOXALIGN_LEFT
+    nTextAlign        as long = OPT_TEXTALIGN_LEFT
+    bAutoSize         as boolean
+    nPadLeft          as long
+    nPadTop           as long
+    nPadRight         as long
+    nPadBottom        as long
+    nBoxGap           as long
+    nBoxWidth         as long
+    nBoxHeight        as long
+    nRingThick        as long = TKOPTIONBUTTON_DEFAULT_RINGTHICK
+    nDotSize          as long = TKOPTIONBUTTON_DEFAULT_DOTSIZE
+    nFocusGap         as long
+    nFocusCurvature   as long
+    nFocusThick       as long = TKOPTIONBUTTON_DEFAULT_FOCUSTHICK
+    nTextWidth        as long
+    nTextHeight       as long
+    nIdealW           as long
+    nIdealH           as long
+    nDotDiameter      as long
+    rcContent         as TKRECT
+    rcBox             as TKRECT
+    rcCircle          as TKRECT
+    rcDot             as TKRECT
+    rcText            as TKRECT
+    rcVisual          as TKRECT
+    bLayoutDirty      as boolean = true
+    PaintCallback        as OPT_PaintCallbackSub
+    MessageCallback      as OPT_MessageCallbackFunc
+    TooltipCallback      as OPT_TooltipCallbackFunc
+    CheckChangedCallback as OPT_CheckChangedCallbackSub
+
+    declare sub      LayoutOptionButton()
+    declare function RingPad() as long
+    declare function HasText() as boolean
+    declare function ShowsPressed() as boolean
+    declare sub      CancelPress()
+    declare sub      Refresh()
+end type
+
+
+function TKOPTIONBUTTON_STATE.RingPad() as long
+    return this.nFocusGap + this.nFocusThick
+end function
+
+function TKOPTIONBUTTON_STATE.HasText() as boolean
+    return (len( this.wszText ) > 0)
+end function
+
+' What the PAINTER calls pressed: the gesture AND the cursor still inside. Vendor painted the
+' gesture flag, so sliding off kept the pressed colours (PORT.md, vendor bugs).
+function TKOPTIONBUTTON_STATE.ShowsPressed() as boolean
+    return this.isPressed andalso this.isHot
+end function
+
+sub TKOPTIONBUTTON_STATE.CancelPress()
+    this.isPressed = false
+end sub
+
+sub TKOPTIONBUTTON_STATE.Refresh()
+    this.bLayoutDirty = true
+    tkWidget_Invalidate( this.hWin )
+end sub
+
+
+' ---- layout -------------------------------------------------------------------------------
+' The Win32 LayoutOptionButton, unchanged except for where the two numbers come from: the
+' caption width is TTF_GetStringSize and the ONE text height is TTF_GetFontHeight (tmHeight).
+' With no caption font the host's default font measures, as DEFAULT_GUI_FONT did.
+sub TKOPTIONBUTTON_STATE.LayoutOptionButton()
+    this.bLayoutDirty = false
+    if this.hWin = 0 then exit sub
+
+    dim as TTF_Font ptr fUse = this.pTextFont
+    if fUse = 0 then fUse = this.hWin->pHost->pDefaultFont
+    this.nTextHeight = tkText_Height( fUse )
+
+    dim as boolean bText = this.HasText()
+    this.nTextWidth = 0
+    if bText then this.nTextWidth = tkText_Width( fUse, this.wszText )
+
+    dim as long nRingPad = this.RingPad()
+    dim as long textBlock = 0
+    if bText then textBlock = this.nBoxGap + this.nTextWidth
+    dim as long contentH = this.nBoxHeight
+    if bText andalso (this.nTextHeight > contentH) then contentH = this.nTextHeight
+
+    this.nIdealW = (2 * nRingPad) + this.nPadLeft + this.nBoxWidth + textBlock + this.nPadRight
+    this.nIdealH = (2 * nRingPad) + this.nPadTop + contentH + this.nPadBottom
+
+    dim as long clientW = this.hWin->cw
+    dim as long clientH = this.hWin->ch
+    if (clientW <= 0) orelse (clientH <= 0) then
+        this.bLayoutDirty = true
+        exit sub
+    end if
+
+    tkRect_Set( this.rcContent, 0, 0, clientW, clientH )
+    tkRect_Inflate( this.rcContent, -nRingPad, -nRingPad )
+    dim as long contH = this.rcContent.bottom - this.rcContent.top
+
+    dim as long boxY = this.rcContent.top + ((contH - this.nBoxHeight) \ 2)
+    dim as long boxX
+    if this.nBoxAlign = OPT_BOXALIGN_RIGHT then
+        boxX = this.rcContent.right - this.nPadRight - this.nBoxWidth
+    else
+        boxX = this.rcContent.left + this.nPadLeft
+    end if
+    tkRect_Set( this.rcBox, boxX, boxY, boxX + this.nBoxWidth, boxY + this.nBoxHeight )
+
+    ' The inscribed circle: the largest centred SQUARE in the cell.
+    dim as long nSide = this.nBoxWidth
+    if this.nBoxHeight < nSide then nSide = this.nBoxHeight
+    if nSide < 0 then nSide = 0
+    dim as long circX = this.rcBox.left + ((this.nBoxWidth - nSide) \ 2)
+    dim as long circY = this.rcBox.top + ((this.nBoxHeight - nSide) \ 2)
+    tkRect_Set( this.rcCircle, circX, circY, circX + nSide, circY + nSide )
+
+    ' The dot: a declared size wins, 0 derives it; at least 2px, never past the disc.
+    if this.nDotSize > 0 then
+        this.nDotDiameter = this.nDotSize
+    else
+        this.nDotDiameter = (nSide * TKOPTIONBUTTON_DOTRATIO_PCT) \ 100
+    end if
+    if this.nDotDiameter < 2 then this.nDotDiameter = 2
+    if this.nDotDiameter > nSide then this.nDotDiameter = nSide
+    dim as long dotX = this.rcCircle.left + ((nSide - this.nDotDiameter) \ 2)
+    dim as long dotY = this.rcCircle.top + ((nSide - this.nDotDiameter) \ 2)
+    tkRect_Set( this.rcDot, dotX, dotY, dotX + this.nDotDiameter, dotY + this.nDotDiameter )
+
+    if bText then
+        dim as long tLeft, tRight
+        if this.nBoxAlign = OPT_BOXALIGN_RIGHT then
+            tLeft  = this.rcContent.left + this.nPadLeft
+            tRight = this.rcBox.left - this.nBoxGap
+        else
+            tLeft  = this.rcBox.right + this.nBoxGap
+            tRight = this.rcContent.right - this.nPadRight
+        end if
+        if tRight < tLeft then tRight = tLeft
+        dim as long tTop = this.rcContent.top + ((contH - this.nTextHeight) \ 2)
+        tkRect_Set( this.rcText, tLeft, tTop, tRight, tTop + this.nTextHeight )
+    else
+        tkRect_SetEmpty( this.rcText )
+    end if
+
+    this.rcVisual = this.rcContent
+    tkRect_Inflate( this.rcVisual, nRingPad, nRingPad )
+end sub
+
+
+' ---- colour resolution (pure) ---------------------------------------------------------------
+public function tkOptionButton_ResolveMood( byval isEnabled as boolean, byval isPressed as boolean, byval isHot as boolean ) as long
+    if isEnabled = false then return OPT_MOOD_DISABLED
+    if isPressed then return OPT_MOOD_PRESSED
+    if isHot then return OPT_MOOD_HOT
+    return OPT_MOOD_IDLE
+end function
+
+' isChecked picks between the two ring sets WITHIN the mood; clrDot is resolved either way.
+public sub tkOptionButton_ResolveColors( byval pColors as TKOPTIONBUTTON_COLORS ptr, byval nMood as long, byval isChecked as boolean, _
+                                         byref clrBack as ulong, byref clrFore as ulong, byref clrRing as ulong, byref clrDot as ulong )
+    if pColors = 0 then exit sub
+    with *pColors
+        select case nMood
+        case OPT_MOOD_DISABLED
+            clrBack = .BackColorDisabled : clrFore = .ForeColorDisabled : clrDot = .DotColorDisabled
+            clrRing = iif( isChecked, .RingColorCheckedDisabled, .RingColorDisabled )
+        case OPT_MOOD_PRESSED
+            clrBack = .BackColorPressed : clrFore = .ForeColorPressed : clrDot = .DotColorPressed
+            clrRing = iif( isChecked, .RingColorCheckedPressed, .RingColorPressed )
+        case OPT_MOOD_HOT
+            clrBack = .BackColorHot : clrFore = .ForeColorHot : clrDot = .DotColorHot
+            clrRing = iif( isChecked, .RingColorCheckedHot, .RingColorHot )
+        case else
+            clrBack = .BackColor : clrFore = .ForeColor : clrDot = .DotColor
+            clrRing = iif( isChecked, .RingColorChecked, .RingColor )
+        end select
+    end with
+end sub
+
+
+' ---- plumbing ---------------------------------------------------------------------------------
+declare function tkOptionButton_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+
+' A widget is ours only if its proc is ours: the group code holds handles to OTHER controls, so
+' "is this really an option button?" is a question that gets asked (vendor's registry lookup).
+private function GetOptionButtonPointer( byval hOptionButton as TK_WIDGET ptr ) as TKOPTIONBUTTON_STATE ptr
+    if hOptionButton = 0 then return 0
+    if hOptionButton->proc <> @tkOptionButton_Proc then return 0
+    return cast( TKOPTIONBUTTON_STATE ptr, hOptionButton->pData )
+end function
+
+
+' ---- THE REGISTRY: every live option button, in CREATION order (the arrow order) ------------
+' Removal compacts rather than swapping with the last, which would reorder a group.
+dim shared gOptRegistry() as TKOPTIONBUTTON_STATE ptr
+dim shared gOptRegistryCount as long = 0
+dim shared gOptRegistryCap as long = 0
+
+private sub RegistryAdd( byval pOpt as TKOPTIONBUTTON_STATE ptr )
+    if pOpt = 0 then exit sub
+    if gOptRegistryCount >= gOptRegistryCap then
+        dim as long nNewCap = gOptRegistryCap + 16
+        redim preserve gOptRegistry( 0 to nNewCap - 1 )
+        gOptRegistryCap = nNewCap
+    end if
+    gOptRegistry( gOptRegistryCount ) = pOpt
+    gOptRegistryCount += 1
+end sub
+
+private sub RegistryRemove( byval pOpt as TKOPTIONBUTTON_STATE ptr )
+    if pOpt = 0 then exit sub
+    for i as long = 0 to gOptRegistryCount - 1
+        if gOptRegistry(i) = pOpt then
+            for j as long = i to gOptRegistryCount - 2
+                gOptRegistry(j) = gOptRegistry(j + 1)
+            next
+            gOptRegistryCount -= 1
+            gOptRegistry( gOptRegistryCount ) = 0
+            exit sub
+        end if
+    next
+end sub
+
+private function InGroup( byval p as TKOPTIONBUTTON_STATE ptr, byval hParent as TK_WIDGET ptr, byval nGroupID as long ) as boolean
+    if p = 0 then return false
+    return (p->hParent = hParent) andalso (p->nGroupID = nGroupID)
+end function
+
+private function GroupCountOf( byval hParent as TK_WIDGET ptr, byval nGroupID as long ) as long
+    dim as long n = 0
+    for i as long = 0 to gOptRegistryCount - 1
+        if InGroup( gOptRegistry(i), hParent, nGroupID ) then n += 1
+    next
+    return n
+end function
+
+' The idx'th member, in creation order; 0 when out of range.
+private function GroupAt( byval hParent as TK_WIDGET ptr, byval nGroupID as long, byval idx as long ) as TKOPTIONBUTTON_STATE ptr
+    if idx < 0 then return 0
+    dim as long n = 0
+    for i as long = 0 to gOptRegistryCount - 1
+        if InGroup( gOptRegistry(i), hParent, nGroupID ) then
+            if n = idx then return gOptRegistry(i)
+            n += 1
+        end if
+    next
+    return 0
+end function
+
+private function GroupIndexOf( byval pOpt as TKOPTIONBUTTON_STATE ptr ) as long
+    if pOpt = 0 then return -1
+    dim as long n = 0
+    for i as long = 0 to gOptRegistryCount - 1
+        dim as TKOPTIONBUTTON_STATE ptr p = gOptRegistry(i)
+        if InGroup( p, pOpt->hParent, pOpt->nGroupID ) then
+            if p = pOpt then return n
+            n += 1
+        end if
+    next
+    return -1
+end function
+
+' At most one by construction: every write of isChecked goes through ApplyCheck.
+private function GroupCheckedOf( byval hParent as TK_WIDGET ptr, byval nGroupID as long ) as TKOPTIONBUTTON_STATE ptr
+    for i as long = 0 to gOptRegistryCount - 1
+        dim as TKOPTIONBUTTON_STATE ptr p = gOptRegistry(i)
+        if InGroup( p, hParent, nGroupID ) andalso p->isChecked then return p
+    next
+    return 0
+end function
+
+
+' ---- THE TAB-STOP INVARIANT ---------------------------------------------------------------
+' Exactly one member of a group is focusable (WS_TABSTOP -> w->isFocusable): the checked one
+' (when enabled), else the first ENABLED one, else the first. tkHost's Tab order walks focusable widgets, so the
+' whole GROUP is one tab stop.
+'
+' ADDED (PORT.md): while keyboard focus sits on a member of the group, THAT member holds the
+' stop. tkHost's FocusNext restarts at the first stop when the focused widget is not in its
+' list, so a focused non-holder (a slid-off press, a vetoed press, a programmatic SetFocus)
+' would otherwise Tab to the top of the window instead of out of the group. Recomputed from
+' scratch, idempotent, and it never moves focus.
+private sub SyncTabStop( byval hParent as TK_WIDGET ptr, byval nGroupID as long )
+    dim as TKOPTIONBUTTON_STATE ptr pWinner = GroupCheckedOf( hParent, nGroupID )
+    ' A DISABLED checked member cannot hold it: Tab skips disabled widgets, so the whole group
+    ' would drop out of the tab order (vendor bug, PORT.md).
+    if (pWinner <> 0) andalso (pWinner->isEnabled = false) then pWinner = 0
+    if pWinner = 0 then
+        for i as long = 0 to gOptRegistryCount - 1
+            dim as TKOPTIONBUTTON_STATE ptr p = gOptRegistry(i)
+            if InGroup( p, hParent, nGroupID ) andalso p->isEnabled then pWinner = p : exit for
+        next
+    end if
+    if pWinner = 0 then pWinner = GroupAt( hParent, nGroupID, 0 )
+    for i as long = 0 to gOptRegistryCount - 1
+        dim as TKOPTIONBUTTON_STATE ptr p = gOptRegistry(i)
+        if InGroup( p, hParent, nGroupID ) = false then continue for
+        dim as TK_HOST ptr h = p->hWin->pHost
+        if (h <> 0) andalso (h->pFocus = p->hWin) then pWinner = p : exit for
+    next
+    for i as long = 0 to gOptRegistryCount - 1
+        dim as TKOPTIONBUTTON_STATE ptr p = gOptRegistry(i)
+        if InGroup( p, hParent, nGroupID ) then p->hWin->isFocusable = (p = pWinner)
+    next
+end sub
+
+
+private function tkOptionButton_CallMessage( byval pOpt as TKOPTIONBUTTON_STATE ptr, byval m as TK_MSG ptr ) as boolean
+    if (pOpt = 0) orelse (pOpt->MessageCallback = 0) then return false
+    dim as TKOPTIONBUTTON_MESSAGEINFO mi
+    mi.hOptionButton = pOpt->hWin
+    mi.msg = m->msg
+    mi.x = m->x
+    mi.y = m->y
+    mi.key = m->key
+    return pOpt->MessageCallback( @mi )
+end function
+
+' The control's own text, else the callback, else nothing -- no caption fallback.
+private function tkOptionButton_ResolveTooltipText( byval pOpt as TKOPTIONBUTTON_STATE ptr ) as ustring
+    if pOpt = 0 then return ""
+    if len( pOpt->wszTooltip ) then return pOpt->wszTooltip
+    if pOpt->TooltipCallback then return pOpt->TooltipCallback( pOpt->hWin )
+    return ""
+end function
+
+private function tkOptionButton_TipText( byval t as TK_TIP ptr, byval a as TK_WIDGET ptr, byval idx as long ) as ustring
+    return tkOptionButton_ResolveTooltipText( GetOptionButtonPointer( a ) )
+end function
+
+
+' ---- paint --------------------------------------------------------------------------------------
+' The circle is two PaintEllipse calls: unchecked = the back colour filled and the ring stroked
+' with nRingThick (0 = no ring, as vendor); checked = the accent disc, then the dot on it.
+private sub tkOptionButton_RenderDefault( byval pOpt as TKOPTIONBUTTON_STATE ptr, byval b as TK_PAINT ptr, byval p as TKOPTIONBUTTON_PAINTINFO ptr )
+    if (pOpt = 0) orelse (b = 0) orelse (p = 0) then exit sub
+    if tkRect_IsEmpty( p->rcContent ) then exit sub
+
+    dim as long nMood = tkOptionButton_ResolveMood( p->isEnabled, p->isPressed, p->isHot )
+    dim as ulong clrBack, clrFore, clrRing, clrDot
+    tkOptionButton_ResolveColors( @pOpt->colors, nMood, p->isChecked, clrBack, clrFore, clrRing, clrDot )
+
+    if tkRect_IsEmpty( p->rcCircle ) = false then
+        if p->isChecked then
+            b->SetBackColor( clrRing )
+            b->PaintEllipse( @p->rcCircle, 0 )
+            if tkRect_IsEmpty( p->rcDot ) = false then
+                b->SetBackColor( clrDot )
+                b->PaintEllipse( @p->rcDot, 0 )
+            end if
+        else
+            b->SetBackColor( clrBack )
+            b->SetPenColor( clrRing )
+            b->PaintEllipse( @p->rcCircle, p->nRingThick )
+        end if
+    end if
+
+    if tkRect_IsEmpty( p->rcText ) = false then
+        dim as long nAlign = TK_DT_LEFT
+        select case p->nTextAlign
+        case OPT_TEXTALIGN_CENTER
+            nAlign = TK_DT_CENTER
+        case OPT_TEXTALIGN_RIGHT
+            nAlign = TK_DT_RIGHT
+        end select
+        dim as TTF_Font ptr fText = pOpt->pTextFont
+        if fText = 0 then fText = pOpt->hWin->pHost->pDefaultFont
+        b->SetFont( fText )
+        b->SetColors( clrFore, clrBack )
+        b->PaintText( p->wszText, @p->rcText, nAlign or TK_DT_ELLIPSIS )
+    end if
+
+    ' Outline, never filled.
+    if p->isFocused andalso (pOpt->nFocusThick > 0) then
+        b->SetPenColor( pOpt->colors.FocusRingColor )
+        b->PaintRoundOutline( @p->rcVisual, pOpt->nFocusCurvature, pOpt->nFocusThick )
+    end if
+end sub
+
+private sub tkOptionButton_FillPaintInfo( byval pOpt as TKOPTIONBUTTON_STATE ptr, byval b as TK_PAINT ptr, byval p as TKOPTIONBUTTON_PAINTINFO ptr )
+    p->hOptionButton = pOpt->hWin
+    p->b = b
+    tkRect_Set( p->rcClient, 0, 0, pOpt->hWin->cw, pOpt->hWin->ch )
+    p->rcContent = pOpt->rcContent
+    p->rcBox = pOpt->rcBox
+    p->rcCircle = pOpt->rcCircle
+    p->rcDot = pOpt->rcDot
+    p->rcText = pOpt->rcText
+    p->rcVisual = pOpt->rcVisual
+    p->isChecked = pOpt->isChecked
+    p->isHot = pOpt->isHot
+    p->isPressed = pOpt->ShowsPressed()
+    p->isEnabled = pOpt->isEnabled
+    p->isFocused = pOpt->isFocused
+    p->wszText = pOpt->wszText
+    p->nRingThick = pOpt->nRingThick
+    p->nBoxAlign = pOpt->nBoxAlign
+    p->nTextAlign = pOpt->nTextAlign
+end sub
+
+private sub tkOptionButton_OnPaint( byval pOpt as TKOPTIONBUTTON_STATE ptr, byval b as TK_PAINT ptr )
+    if pOpt->bLayoutDirty then pOpt->LayoutOptionButton()
+    ' The client takes the resolved mood's background first, so a paint callback that draws
+    ' only a foreground still sits on the right colour.
+    dim as long nMood = tkOptionButton_ResolveMood( pOpt->isEnabled, pOpt->ShowsPressed(), pOpt->isHot )
+    dim as ulong clrFill, clrFore, clrRing, clrDot
+    tkOptionButton_ResolveColors( @pOpt->colors, nMood, pOpt->isChecked, clrFill, clrFore, clrRing, clrDot )
+    b->SetBackColor( clrFill )
+    dim as TKRECT rcC
+    tkRect_Set( rcC, 0, 0, pOpt->hWin->cw, pOpt->hWin->ch )
+    b->PaintRect( @rcC )
+
+    dim as TKOPTIONBUTTON_PAINTINFO p
+    tkOptionButton_FillPaintInfo( pOpt, b, @p )
+    if pOpt->PaintCallback then
+        pOpt->PaintCallback( @p )
+    else
+        tkOptionButton_RenderDefault( pOpt, b, @p )
+    end if
+end sub
+
+
+' ---- state helpers ------------------------------------------------------------------------------
+private sub tkOptionButton_ClearHot( byval pOpt as TKOPTIONBUTTON_STATE ptr )
+    tkTipHost_Pop( @pOpt->tip )
+    if pOpt->isHot then
+        pOpt->isHot = false
+        tkWidget_Invalidate( pOpt->hWin )
+    end if
+end sub
+
+sub tkOptionButton_ApplyAutoSize( byval pOpt as TKOPTIONBUTTON_STATE ptr )
+    if (pOpt = 0) orelse (pOpt->bAutoSize = false) then exit sub
+    if pOpt->bLayoutDirty then pOpt->LayoutOptionButton()
+    if (pOpt->nIdealW <= 0) orelse (pOpt->nIdealH <= 0) then exit sub
+    tkWidget_SetSize( pOpt->hWin, pOpt->nIdealW, pOpt->nIdealH )
+end sub
+
+' THE ONE PLACE isChecked IS WRITTEN. Both writes land before any callback, then the LOSER is
+' told first; the tab stop follows the check. bNotify is false for every setter.
+private sub ApplyCheck( byval pOpt as TKOPTIONBUTTON_STATE ptr, byval bChecked as boolean, byval bNotify as boolean )
+    if pOpt = 0 then exit sub
+    if pOpt->isChecked = bChecked then exit sub          ' no-op, and therefore silent
+    dim as TKOPTIONBUTTON_STATE ptr pOld = 0
+    if bChecked then
+        pOld = GroupCheckedOf( pOpt->hParent, pOpt->nGroupID )
+        if pOld = pOpt then pOld = 0
+    end if
+    if pOld then
+        pOld->isChecked = false
+        tkWidget_Invalidate( pOld->hWin )
+    end if
+    pOpt->isChecked = bChecked
+    tkWidget_Invalidate( pOpt->hWin )
+    SyncTabStop( pOpt->hParent, pOpt->nGroupID )
+    if bNotify then
+        if (pOld <> 0) andalso (pOld->CheckChangedCallback <> 0) then pOld->CheckChangedCallback( pOld->hWin, false )
+        if pOpt->CheckChangedCallback then pOpt->CheckChangedCallback( pOpt->hWin, pOpt->isChecked )
+    end if
+end sub
+
+' The user-action funnel: a completed click, Space, an arrow move, tkOptionButton_Click. A no-op
+' on a disabled or already-checked member -- no gesture ever empties a group.
+private sub FireCheck( byval pOpt as TKOPTIONBUTTON_STATE ptr )
+    if pOpt = 0 then exit sub
+    if (pOpt->isEnabled = false) orelse pOpt->isChecked then exit sub
+    ApplyCheck( pOpt, true, true )
+end sub
+
+' Arrow navigation: the next/previous ENABLED member in creation order, wrapping at both ends;
+' focus moves first, then the check (as a click: down focuses, up checks). A member tkHost would
+' refuse focus to (disabled, or hidden) is stepped over.
+private sub NavigateGroup( byval pOpt as TKOPTIONBUTTON_STATE ptr, byval nDelta as long )
+    if (pOpt = 0) orelse (pOpt->isEnabled = false) then exit sub
+    dim as long nCount = GroupCountOf( pOpt->hParent, pOpt->nGroupID )
+    if nCount <= 1 then exit sub
+    dim as long idx = GroupIndexOf( pOpt )
+    if idx < 0 then exit sub
+    for nStep as long = 1 to nCount - 1
+        dim as long nNext = ((idx + (nDelta * nStep)) mod nCount + nCount) mod nCount
+        dim as TKOPTIONBUTTON_STATE ptr pTo = GroupAt( pOpt->hParent, pOpt->nGroupID, nNext )
+        if pTo = 0 then continue for
+        if pTo->isEnabled = false then continue for
+        if tkWidget_IsVisible( pTo->hWin ) = false then continue for
+        tkHost_SetFocus( pTo->hWin->pHost, pTo->hWin )
+        FireCheck( pTo )
+        exit sub
+    next
+end sub
+
+private sub tkOptionButton_Rescale( byval pOpt as TKOPTIONBUTTON_STATE ptr, byval fOld as single, byval fNew as single )
+    if (fOld <= 0) orelse (fNew <= 0) then exit sub
+    dim as single k = fNew / fOld
+    pOpt->nPadLeft        = cint( pOpt->nPadLeft * k )
+    pOpt->nPadTop         = cint( pOpt->nPadTop * k )
+    pOpt->nPadRight       = cint( pOpt->nPadRight * k )
+    pOpt->nPadBottom      = cint( pOpt->nPadBottom * k )
+    pOpt->nBoxGap         = cint( pOpt->nBoxGap * k )
+    pOpt->nBoxWidth       = cint( pOpt->nBoxWidth * k )
+    pOpt->nBoxHeight      = cint( pOpt->nBoxHeight * k )
+    pOpt->nDotSize        = cint( pOpt->nDotSize * k )      ' a derived 0 stays 0
+    pOpt->nFocusGap       = cint( pOpt->nFocusGap * k )
+    pOpt->nFocusCurvature = cint( pOpt->nFocusCurvature * k )
+    pOpt->Refresh()
+    tkOptionButton_ApplyAutoSize( pOpt )
+end sub
+
+private function InClient( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    return (m->x >= 0) andalso (m->x < w->cw) andalso (m->y >= 0) andalso (m->y < w->ch)
+end function
+
+
+public declare sub tkOptionButton_ApplyTheme( byval hOptionButton as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+public declare function tkOptionButton_ThemeColors( byref t as TKTHEME_COLORS ) as TKOPTIONBUTTON_COLORS
+
+' ---- the proc: the WndProc, case for case where a case survived ---------------------------------
+function tkOptionButton_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = cast( TKOPTIONBUTTON_STATE ptr, w->pData )
+    if pOpt = 0 then return false
+    dim as TK_HOST ptr h = w->pHost
+
+    select case m->msg
+    case TKM_PAINT
+        tkOptionButton_OnPaint( pOpt, m->pPaint )
+        return true
+
+    case TKM_SIZE
+        pOpt->Refresh()
+        return true
+
+    case TKM_SCALECHANGED
+        tkOptionButton_Rescale( pOpt, m->fOld, m->fNew )
+        return true
+
+    case TKM_THEMECHANGED
+        tkOptionButton_ApplyTheme( w, tkTheme_Get() )
+        return true
+
+    case TKM_MOUSEMOVE
+        if pOpt->isEnabled = false then return true
+        ' While a press is live, hot keeps tracking, so sliding off un-flashes the control.
+        dim as boolean bOver = InClient( w, m )
+        if bOver <> pOpt->isHot then
+            pOpt->isHot = bOver
+            tkWidget_Invalidate( w )
+        end if
+        tkOptionButton_CallMessage( pOpt, m )
+        return true
+
+    case TKM_MOUSELEAVE
+        if pOpt->isPressed = false then tkOptionButton_ClearHot( pOpt )
+        tkOptionButton_CallMessage( pOpt, m )
+        return true
+
+    case TKM_LBUTTONDOWN
+        if pOpt->isEnabled = false then return true
+        tkHost_SetFocus( h, w )
+        tkTipHost_Pop( @pOpt->tip )
+        if tkOptionButton_CallMessage( pOpt, m ) then return true
+        tkHost_SetCapture( w )
+        pOpt->isPressed = true
+        pOpt->isHot = true
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_LBUTTONUP
+        ' SNAPSHOT BEFORE RELEASING: CAPTURECHANGED arrives synchronously and cancels the press.
+        dim as boolean bWasPressed = pOpt->isPressed
+        if tkHost_GetCapture( h ) = w then tkHost_ReleaseCapture( h )
+        dim as boolean bInside = InClient( w, m )
+        pOpt->CancelPress()
+        if bInside = false then pOpt->isHot = false
+        tkWidget_Invalidate( w )
+        tkOptionButton_CallMessage( pOpt, m )          ' result IGNORED: it would strand capture
+        if bWasPressed andalso bInside then FireCheck( pOpt )
+        return true
+
+    case TKM_CAPTURECHANGED
+        pOpt->CancelPress()
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_RBUTTONDOWN, TKM_RBUTTONUP
+        tkOptionButton_CallMessage( pOpt, m )          ' reported, never acted on
+        return true
+
+    case TKM_SETFOCUS, TKM_KILLFOCUS
+        dim as boolean bFocused = (m->msg = TKM_SETFOCUS)
+        if bFocused <> pOpt->isFocused then
+            pOpt->isFocused = bFocused
+            tkWidget_Invalidate( w )
+        end if
+        ' The focused member holds the group's tab stop while it has focus (see SyncTabStop).
+        SyncTabStop( pOpt->hParent, pOpt->nGroupID )
+        tkOptionButton_CallMessage( pOpt, m )          ' result IGNORED: focus is a fact
+        return true
+
+    case TKM_KEYDOWN
+        if pOpt->isEnabled = false then return true
+        ' The host sees the key BEFORE it moves the group selection, so it can veto navigation.
+        if tkOptionButton_CallMessage( pOpt, m ) then return true
+        select case m->key
+        case SDLK_SPACE
+            FireCheck( pOpt )
+            return true
+        case SDLK_DOWN, SDLK_RIGHT
+            NavigateGroup( pOpt, 1 )
+            return true
+        case SDLK_UP, SDLK_LEFT
+            NavigateGroup( pOpt, -1 )
+            return true
+        end select
+        return false                                   ' Enter, Tab and the rest go on
+
+    case TKM_ENABLE
+        pOpt->isEnabled = m->bFlag
+        if pOpt->isEnabled = false then
+            pOpt->isHot = false
+            pOpt->CancelPress()
+            tkTipHost_Pop( @pOpt->tip )
+        end if
+        ' A disabled member must not keep the group's tab stop; a re-enabled one may now be best.
+        SyncTabStop( pOpt->hParent, pOpt->nGroupID )
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_DESTROY
+        ' Leave the registry FIRST, then hand the tab stop to a survivor. A destroyed checked
+        ' member leaves the group with nothing checked: the check is not reassigned.
+        dim as TK_WIDGET ptr hOldParent = pOpt->hParent
+        dim as long nOldGroupID = pOpt->nGroupID
+        RegistryRemove( pOpt )
+        SyncTabStop( hOldParent, nOldGroupID )
+        tkTipHost_Destroy( @pOpt->tip )
+        delete pOpt
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ========================================================================================
+' Public API -- the Win32 surface, HWND replaced by the widget pointer.
+' ========================================================================================
+' A child of hParent -- a widget, or tkHost_Root( h ) for a top-level option button. Buttons that
+' share hParent and nGroupID are one group. Zero-sized: size it with GetIdealSize, or SetAutoSize.
+public function tkOptionButton_Create( byval hParent as TK_WIDGET ptr, byval ctrlId as long, _
+                                       byval nGroupID as long = TKOPTIONBUTTON_DEFAULT_GROUPID ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TK_HOST ptr pHost = hParent->pHost
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = new TKOPTIONBUTTON_STATE
+    pOpt->id = ctrlId
+    pOpt->nGroupID = nGroupID
+    pOpt->hParent = hParent
+    ' Creation-time defaults are scaled; the two pens never are.
+    pOpt->nPadLeft        = tkHost_Scale( pHost, TKOPTIONBUTTON_DEFAULT_PADLEFT )
+    pOpt->nPadTop         = tkHost_Scale( pHost, TKOPTIONBUTTON_DEFAULT_PADTOP )
+    pOpt->nPadRight       = tkHost_Scale( pHost, TKOPTIONBUTTON_DEFAULT_PADRIGHT )
+    pOpt->nPadBottom      = tkHost_Scale( pHost, TKOPTIONBUTTON_DEFAULT_PADBOTTOM )
+    pOpt->nBoxGap         = tkHost_Scale( pHost, TKOPTIONBUTTON_DEFAULT_BOXGAP )
+    pOpt->nBoxWidth       = tkHost_Scale( pHost, TKOPTIONBUTTON_DEFAULT_BOXWIDTH )
+    pOpt->nBoxHeight      = tkHost_Scale( pHost, TKOPTIONBUTTON_DEFAULT_BOXHEIGHT )
+    pOpt->nFocusGap       = tkHost_Scale( pHost, TKOPTIONBUTTON_DEFAULT_FOCUSGAP )
+    pOpt->nFocusCurvature = tkHost_Scale( pHost, TKOPTIONBUTTON_DEFAULT_FOCUSCURV )
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, ctrlId, @tkOptionButton_Proc, pOpt )
+    pOpt->hWin = w
+    pOpt->colors = tkOptionButton_ThemeColors( tkTheme_Get() )
+    tkTipHost_Ensure( @pOpt->tip, w, @tkOptionButton_TipText )
+    ' Join the registry BEFORE the tab-stop sync, or the sync cannot see us.
+    RegistryAdd( pOpt )
+    SyncTabStop( hParent, nGroupID )
+    return w
+end function
+
+' ---- group (all silent) ----------------------------------------------------------------------
+public function tkOptionButton_GetGroupID( byval hOptionButton as TK_WIDGET ptr ) as long
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return 0
+    return pOpt->nGroupID
+end function
+
+' Re-syncs both groups. An arriving CHECKED button loses if the destination already has a
+' checked member; the group it left keeps nothing checked.
+public sub tkOptionButton_SetGroupID( byval hOptionButton as TK_WIDGET ptr, byval nGroupID as long )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if (pOpt = 0) orelse (pOpt->nGroupID = nGroupID) then exit sub
+    dim as long nOldGroupID = pOpt->nGroupID
+    if pOpt->isChecked andalso (GroupCheckedOf( pOpt->hParent, nGroupID ) <> 0) then
+        pOpt->isChecked = false
+        tkWidget_Invalidate( hOptionButton )
+    end if
+    pOpt->nGroupID = nGroupID
+    SyncTabStop( pOpt->hParent, nOldGroupID )
+    SyncTabStop( pOpt->hParent, nGroupID )
+end sub
+
+public function tkOptionButton_GetGroupCount( byval hOptionButton as TK_WIDGET ptr ) as long
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return 0
+    return GroupCountOf( pOpt->hParent, pOpt->nGroupID )
+end function
+
+' The idx'th member in CREATION order; 0 when out of range.
+public function tkOptionButton_GetGroupMember( byval hOptionButton as TK_WIDGET ptr, byval idx as long ) as TK_WIDGET ptr
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return 0
+    dim as TKOPTIONBUTTON_STATE ptr pMember = GroupAt( pOpt->hParent, pOpt->nGroupID, idx )
+    if pMember = 0 then return 0
+    return pMember->hWin
+end function
+
+public function tkOptionButton_GetGroupChecked( byval hOptionButton as TK_WIDGET ptr ) as TK_WIDGET ptr
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return 0
+    dim as TKOPTIONBUTTON_STATE ptr pChecked = GroupCheckedOf( pOpt->hParent, pOpt->nGroupID )
+    if pChecked = 0 then return 0
+    return pChecked->hWin
+end function
+
+public function tkOptionButton_FindChecked( byval hParent as TK_WIDGET ptr, byval nGroupID as long ) as TK_WIDGET ptr
+    dim as TKOPTIONBUTTON_STATE ptr pChecked = GroupCheckedOf( hParent, nGroupID )
+    if pChecked = 0 then return 0
+    return pChecked->hWin
+end function
+
+' -1 = unanswered (nothing checked), not failed.
+public function tkOptionButton_FindCheckedID( byval hParent as TK_WIDGET ptr, byval nGroupID as long ) as long
+    dim as TKOPTIONBUTTON_STATE ptr pChecked = GroupCheckedOf( hParent, nGroupID )
+    if pChecked = 0 then return -1
+    return pChecked->id
+end function
+
+public sub tkOptionButton_ClearGroup( byval hOptionButton as TK_WIDGET ptr )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then exit sub
+    dim as TKOPTIONBUTTON_STATE ptr pChecked = GroupCheckedOf( pOpt->hParent, pOpt->nGroupID )
+    if pChecked then ApplyCheck( pChecked, false, false )
+end sub
+
+' Probe (added): does this member carry its group's tab stop (w->isFocusable)?
+public function tkOptionButton_GetTabStop( byval hOptionButton as TK_WIDGET ptr ) as boolean
+    if GetOptionButtonPointer( hOptionButton ) = 0 then return false
+    return hOptionButton->isFocusable
+end function
+
+' ---- content (all silent) --------------------------------------------------------------------
+public function tkOptionButton_GetText( byval hOptionButton as TK_WIDGET ptr ) as ustring
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return ""
+    return pOpt->wszText
+end function
+
+public sub tkOptionButton_SetText( byval hOptionButton as TK_WIDGET ptr, byval Text as ustring )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then exit sub
+    pOpt->wszText = Text
+    pOpt->Refresh()
+    tkOptionButton_ApplyAutoSize( pOpt )
+end sub
+
+public function tkOptionButton_GetID( byval hOptionButton as TK_WIDGET ptr ) as long
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return 0
+    return pOpt->id
+end function
+
+' The id FindCheckedID reports. w->ctrlId is untouched.
+public sub tkOptionButton_SetID( byval hOptionButton as TK_WIDGET ptr, byval id as long )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt then pOpt->id = id
+end sub
+
+public function tkOptionButton_GetItemData( byval hOptionButton as TK_WIDGET ptr ) as integer
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return 0
+    return pOpt->itemData
+end function
+
+public sub tkOptionButton_SetItemData( byval hOptionButton as TK_WIDGET ptr, byval itemData as integer )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt then pOpt->itemData = itemData
+end sub
+
+' ---- state -----------------------------------------------------------------------------------
+public function tkOptionButton_GetChecked( byval hOptionButton as TK_WIDGET ptr ) as boolean
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return false
+    return pOpt->isChecked
+end function
+
+' SILENT. Checking unchecks every peer and moves the tab stop here; unchecking empties the
+' group. Works on a disabled button.
+public sub tkOptionButton_SetChecked( byval hOptionButton as TK_WIDGET ptr, byval isChecked as boolean )
+    ApplyCheck( GetOptionButtonPointer( hOptionButton ), isChecked, false )
+end sub
+
+public function tkOptionButton_GetEnabled( byval hOptionButton as TK_WIDGET ptr ) as boolean
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return false
+    return pOpt->isEnabled
+end function
+
+' tkWidget_Enable (EnableWindow): its TKM_ENABLE updates the flag and re-syncs the tab stop.
+public sub tkOptionButton_SetEnabled( byval hOptionButton as TK_WIDGET ptr, byval isEnabled as boolean )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then exit sub
+    tkWidget_Enable( hOptionButton, isEnabled )
+    tkOptionButton_ClearHot( pOpt )
+end sub
+
+public function tkOptionButton_GetFocused( byval hOptionButton as TK_WIDGET ptr ) as boolean
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return false
+    return pOpt->isFocused
+end function
+
+public function tkOptionButton_GetHot( byval hOptionButton as TK_WIDGET ptr ) as boolean
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return false
+    return pOpt->isHot
+end function
+
+' The live GESTURE (inside or slid off). The painter's "pressed" is this AND hot.
+public function tkOptionButton_GetPressed( byval hOptionButton as TK_WIDGET ptr ) as boolean
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return false
+    return pOpt->isPressed
+end function
+
+public sub tkOptionButton_Refresh( byval hOptionButton as TK_WIDGET ptr )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt then pOpt->Refresh()
+end sub
+
+' The ACTION: checks as a user click would, firing both edges, loser first. A silent no-op on a
+' checked or disabled button.
+public sub tkOptionButton_Click( byval hOptionButton as TK_WIDGET ptr )
+    FireCheck( GetOptionButtonPointer( hOptionButton ) )
+end sub
+
+' ---- geometry and layout (raw pixels) --------------------------------------------------------
+public function tkOptionButton_GetBoxAlign( byval hOptionButton as TK_WIDGET ptr ) as long
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return OPT_BOXALIGN_LEFT
+    return pOpt->nBoxAlign
+end function
+
+' The mirror is exact: never changes the ideal size. Out-of-range values are ignored.
+public sub tkOptionButton_SetBoxAlign( byval hOptionButton as TK_WIDGET ptr, byval nBoxAlign as long )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then exit sub
+    if (nBoxAlign < OPT_BOXALIGN_LEFT) orelse (nBoxAlign > OPT_BOXALIGN_RIGHT) then exit sub
+    pOpt->nBoxAlign = nBoxAlign
+    pOpt->Refresh()
+end sub
+
+public function tkOptionButton_GetTextAlign( byval hOptionButton as TK_WIDGET ptr ) as long
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return OPT_TEXTALIGN_LEFT
+    return pOpt->nTextAlign
+end function
+
+' Within the SPAN, not the control. Out-of-range values are ignored.
+public sub tkOptionButton_SetTextAlign( byval hOptionButton as TK_WIDGET ptr, byval nTextAlign as long )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then exit sub
+    if (nTextAlign < OPT_TEXTALIGN_LEFT) orelse (nTextAlign > OPT_TEXTALIGN_RIGHT) then exit sub
+    pOpt->nTextAlign = nTextAlign
+    pOpt->Refresh()
+end sub
+
+public sub tkOptionButton_GetPadding( byval hOptionButton as TK_WIDGET ptr, byref nLeft as long, byref nTop as long, _
+                                      byref nRight as long, byref nBottom as long )
+    nLeft = 0 : nTop = 0 : nRight = 0 : nBottom = 0
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then exit sub
+    nLeft = pOpt->nPadLeft : nTop = pOpt->nPadTop : nRight = pOpt->nPadRight : nBottom = pOpt->nPadBottom
+end sub
+
+public sub tkOptionButton_SetPadding( byval hOptionButton as TK_WIDGET ptr, byval nLeft as long, byval nTop as long, _
+                                      byval nRight as long, byval nBottom as long )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then exit sub
+    pOpt->nPadLeft = iif( nLeft < 0, 0, nLeft ) : pOpt->nPadTop = iif( nTop < 0, 0, nTop )
+    pOpt->nPadRight = iif( nRight < 0, 0, nRight ) : pOpt->nPadBottom = iif( nBottom < 0, 0, nBottom )
+    pOpt->Refresh()
+    tkOptionButton_ApplyAutoSize( pOpt )
+end sub
+
+public function tkOptionButton_GetBoxGap( byval hOptionButton as TK_WIDGET ptr ) as long
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return 0
+    return pOpt->nBoxGap
+end function
+
+' Charged only when there is a caption.
+public sub tkOptionButton_SetBoxGap( byval hOptionButton as TK_WIDGET ptr, byval nBoxGap as long )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then exit sub
+    pOpt->nBoxGap = iif( nBoxGap < 0, 0, nBoxGap )
+    pOpt->Refresh()
+    tkOptionButton_ApplyAutoSize( pOpt )
+end sub
+
+public sub tkOptionButton_GetBoxSize( byval hOptionButton as TK_WIDGET ptr, byref nBoxWidth as long, byref nBoxHeight as long )
+    nBoxWidth = 0 : nBoxHeight = 0
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then exit sub
+    nBoxWidth = pOpt->nBoxWidth : nBoxHeight = pOpt->nBoxHeight
+end sub
+
+' The declared cell; the circle drawn is the largest centred square in it.
+public sub tkOptionButton_SetBoxSize( byval hOptionButton as TK_WIDGET ptr, byval nBoxWidth as long, byval nBoxHeight as long )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then exit sub
+    pOpt->nBoxWidth = iif( nBoxWidth < 0, 0, nBoxWidth )
+    pOpt->nBoxHeight = iif( nBoxHeight < 0, 0, nBoxHeight )
+    pOpt->Refresh()
+    tkOptionButton_ApplyAutoSize( pOpt )
+end sub
+
+public function tkOptionButton_GetRingThickness( byval hOptionButton as TK_WIDGET ptr ) as long
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return 0
+    return pOpt->nRingThick
+end function
+
+' Pixels, never scaled. 0 = no ring. Repaints without re-measuring.
+public sub tkOptionButton_SetRingThickness( byval hOptionButton as TK_WIDGET ptr, byval nThickness as long )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then exit sub
+    pOpt->nRingThick = iif( nThickness < 0, 0, nThickness )
+    tkWidget_Invalidate( hOptionButton )
+end sub
+
+public function tkOptionButton_GetDotSize( byval hOptionButton as TK_WIDGET ptr ) as long
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return 0
+    return pOpt->nDotSize
+end function
+
+' 0 derives the dot from the circle; non-zero is a fixed diameter. Re-derives the layout.
+public sub tkOptionButton_SetDotSize( byval hOptionButton as TK_WIDGET ptr, byval nDotSize as long )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then exit sub
+    pOpt->nDotSize = iif( nDotSize < 0, 0, nDotSize )
+    pOpt->Refresh()
+end sub
+
+public sub tkOptionButton_GetFocusRing( byval hOptionButton as TK_WIDGET ptr, byref nGap as long, byref nThickness as long )
+    nGap = 0 : nThickness = 0
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then exit sub
+    nGap = pOpt->nFocusGap : nThickness = pOpt->nFocusThick
+end sub
+
+' Both are reserved unconditionally, so either changes the ideal size. Thickness 0 = no ring.
+public sub tkOptionButton_SetFocusRing( byval hOptionButton as TK_WIDGET ptr, byval nGap as long, byval nThickness as long )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then exit sub
+    pOpt->nFocusGap = iif( nGap < 0, 0, nGap )
+    pOpt->nFocusThick = iif( nThickness < 0, 0, nThickness )
+    pOpt->Refresh()
+    tkOptionButton_ApplyAutoSize( pOpt )
+end sub
+
+public function tkOptionButton_GetFocusCurvature( byval hOptionButton as TK_WIDGET ptr ) as long
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return 0
+    return pOpt->nFocusCurvature
+end function
+
+' An ellipse DIAMETER. Repaints only.
+public sub tkOptionButton_SetFocusCurvature( byval hOptionButton as TK_WIDGET ptr, byval nCurvature as long )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then exit sub
+    pOpt->nFocusCurvature = iif( nCurvature < 0, 0, nCurvature )
+    tkWidget_Invalidate( hOptionButton )
+end sub
+
+public function tkOptionButton_GetAutoSize( byval hOptionButton as TK_WIDGET ptr ) as boolean
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return false
+    return pOpt->bAutoSize
+end function
+
+public sub tkOptionButton_SetAutoSize( byval hOptionButton as TK_WIDGET ptr, byval bAutoSize as boolean )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then exit sub
+    pOpt->bAutoSize = bAutoSize
+    tkOptionButton_ApplyAutoSize( pOpt )
+end sub
+
+' Valid BEFORE the control has been sized: the measuring pass precedes the zero-client bail.
+public sub tkOptionButton_GetIdealSize( byval hOptionButton as TK_WIDGET ptr, byref nWidth as long, byref nHeight as long )
+    nWidth = 0 : nHeight = 0
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then exit sub
+    if pOpt->bLayoutDirty then pOpt->LayoutOptionButton()
+    nWidth = pOpt->nIdealW : nHeight = pOpt->nIdealH
+end sub
+
+' Test probe: the measured caption width and the one text height.
+public sub tkOptionButton_GetTextSize( byval hOptionButton as TK_WIDGET ptr, byref tw as long, byref nTextH as long )
+    tw = 0 : nTextH = 0
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then exit sub
+    if pOpt->bLayoutDirty then pOpt->LayoutOptionButton()
+    tw = pOpt->nTextWidth : nTextH = pOpt->nTextHeight
+end sub
+
+' 0 content, 1 box, 2 circle, 3 dot, 4 text, else visual. FALSE when there is no geometry yet
+' or the rect is legitimately empty (vendor's GetRectCommon).
+private function GetRectCommon( byval hOptionButton as TK_WIDGET ptr, byref rc as TKRECT, byval nWhich as long ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return false
+    if pOpt->bLayoutDirty then pOpt->LayoutOptionButton()
+    if pOpt->bLayoutDirty then return false          ' no client area yet
+    select case nWhich
+    case 0 : rc = pOpt->rcContent
+    case 1 : rc = pOpt->rcBox
+    case 2 : rc = pOpt->rcCircle
+    case 3 : rc = pOpt->rcDot
+    case 4 : rc = pOpt->rcText
+    case else : rc = pOpt->rcVisual
+    end select
+    return (tkRect_IsEmpty( rc ) = false)
+end function
+
+public function tkOptionButton_GetContentRect( byval hOptionButton as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return GetRectCommon( hOptionButton, rc, 0 )
+end function
+public function tkOptionButton_GetBoxRect( byval hOptionButton as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return GetRectCommon( hOptionButton, rc, 1 )
+end function
+public function tkOptionButton_GetCircleRect( byval hOptionButton as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return GetRectCommon( hOptionButton, rc, 2 )
+end function
+public function tkOptionButton_GetDotRect( byval hOptionButton as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return GetRectCommon( hOptionButton, rc, 3 )
+end function
+public function tkOptionButton_GetTextRect( byval hOptionButton as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return GetRectCommon( hOptionButton, rc, 4 )
+end function
+public function tkOptionButton_GetVisualRect( byval hOptionButton as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return GetRectCommon( hOptionButton, rc, 5 )
+end function
+
+' ---- appearance ---------------------------------------------------------------------------------
+public sub tkOptionButton_GetColors( byval hOptionButton as TK_WIDGET ptr, byval pColors as TKOPTIONBUTTON_COLORS ptr )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if (pOpt = 0) orelse (pColors = 0) then exit sub
+    *pColors = pOpt->colors
+end sub
+
+' Copies the struct and PINS it: a theme change leaves this control alone until UnpinColors.
+public sub tkOptionButton_SetColors( byval hOptionButton as TK_WIDGET ptr, byval pColors as TKOPTIONBUTTON_COLORS ptr )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if (pOpt = 0) orelse (pColors = 0) then exit sub
+    pOpt->colors = *pColors
+    pOpt->bColorsPinned = true
+    tkWidget_Invalidate( hOptionButton )
+end sub
+
+' Vendor PsOptionButton_ThemeColors, role for role.
+public function tkOptionButton_ThemeColors( byref t as TKTHEME_COLORS ) as TKOPTIONBUTTON_COLORS
+    dim as TKOPTIONBUTTON_COLORS c
+    c.BackColor = t.Window : c.BackColorHot = t.Window
+    c.BackColorPressed = t.Window : c.BackColorDisabled = t.Window
+    c.ForeColor = t.Text : c.ForeColorHot = t.TextHot
+    c.ForeColorPressed = t.TextStrong : c.ForeColorDisabled = t.TextDisabled
+    c.RingColor = t.TextDim : c.RingColorHot = t.Text
+    c.RingColorPressed = t.TextHot : c.RingColorDisabled = t.TextDisabled
+    c.RingColorChecked = t.Accent : c.RingColorCheckedHot = t.AccentHot
+    c.RingColorCheckedPressed = t.AccentHot : c.RingColorCheckedDisabled = t.Border
+    c.DotColor = t.SelectedText : c.DotColorHot = t.SelectedText
+    c.DotColorPressed = t.SelectedText : c.DotColorDisabled = t.Window
+    c.FocusRingColor = t.FocusRing
+    return c
+end function
+
+public sub tkOptionButton_ApplyTheme( byval hOptionButton as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if (pOpt = 0) orelse pOpt->bColorsPinned then exit sub
+    pOpt->colors = tkOptionButton_ThemeColors( t )
+    tkWidget_Invalidate( hOptionButton )
+end sub
+
+' Hands the control back to the theme, which is applied at once.
+public sub tkOptionButton_UnpinColors( byval hOptionButton as TK_WIDGET ptr )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then exit sub
+    pOpt->bColorsPinned = false
+    tkOptionButton_ApplyTheme( hOptionButton, tkTheme_Get() )
+end sub
+
+public function tkOptionButton_GetFont( byval hOptionButton as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return 0
+    return pOpt->pTextFont
+end function
+
+' The caption font AND the measuring font. Borrowed.
+public sub tkOptionButton_SetFont( byval hOptionButton as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then exit sub
+    pOpt->pTextFont = f
+    pOpt->Refresh()
+    tkOptionButton_ApplyAutoSize( pOpt )
+end sub
+
+' The form's fonts (tkApp). There is no glyph font -- the circle is geometry -- so fGlyph is
+' ignored, as vendor's is. fText 0 keeps the current font.
+public sub tkOptionButton_ApplyFonts( byval hOptionButton as TK_WIDGET ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
+    if fText then tkOptionButton_SetFont( hOptionButton, fText )
+end sub
+
+' ---- tooltips (tkTipHost) ----------------------------------------------------------------------
+public sub tkOptionButton_SetTooltipText( byval hOptionButton as TK_WIDGET ptr, byval Text as ustring )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt then pOpt->wszTooltip = Text
+end sub
+
+public function tkOptionButton_GetTooltipText( byval hOptionButton as TK_WIDGET ptr ) as ustring
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return ""
+    return pOpt->wszTooltip
+end function
+
+' The control's tkTooltip (vendor's GetPsTooltipHandle), for any tkTooltip_* call. Owned here.
+public function tkOptionButton_GetTooltipHandle( byval hOptionButton as TK_WIDGET ptr ) as TK_TIP ptr
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return 0
+    return tkTipHost_Tip( @pOpt->tip )
+end function
+
+public sub tkOptionButton_SetHoverTime( byval hOptionButton as TK_WIDGET ptr, byval ms as long )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt then tkTipHost_SetDelay( @pOpt->tip, TK_TIPDELAY_INITIAL, ms )
+end sub
+
+public sub tkOptionButton_SetAutoPopTime( byval hOptionButton as TK_WIDGET ptr, byval ms as long )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt then tkTipHost_SetDelay( @pOpt->tip, TK_TIPDELAY_AUTOPOP, ms )
+end sub
+
+public sub tkOptionButton_SetReshowTime( byval hOptionButton as TK_WIDGET ptr, byval ms as long )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt then tkTipHost_SetDelay( @pOpt->tip, TK_TIPDELAY_RESHOW, ms )
+end sub
+
+' ---- callbacks (0 removes) ---------------------------------------------------------------------
+public sub tkOptionButton_SetPaintCallback( byval hOptionButton as TK_WIDGET ptr, byval usersub as OPT_PaintCallbackSub )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then exit sub
+    pOpt->PaintCallback = usersub
+    tkWidget_Invalidate( hOptionButton )
+end sub
+
+public sub tkOptionButton_SetMessageCallback( byval hOptionButton as TK_WIDGET ptr, byval userfunc as OPT_MessageCallbackFunc )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt then pOpt->MessageCallback = userfunc
+end sub
+
+public sub tkOptionButton_SetTooltipCallback( byval hOptionButton as TK_WIDGET ptr, byval userfunc as OPT_TooltipCallbackFunc )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt then pOpt->TooltipCallback = userfunc
+end sub
+
+public sub tkOptionButton_SetCheckChangedCallback( byval hOptionButton as TK_WIDGET ptr, byval usersub as OPT_CheckChangedCallbackSub )
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt then pOpt->CheckChangedCallback = usersub
+end sub
+
+
+' ---- render probes ----------------------------------------------------------------------------
+' Render the control into the back buffer with focus forced on and its current painter, read one
+' OPT_PART_* rect back, and return its distinct tones (capped at 64) and an FNV-1a hash. Like
+' tkCheckBox's this draws into the WINDOW's back buffer, then marks it dirty.
+private function ProbePart( byval hOptionButton as TK_WIDGET ptr, byval nPart as long, byref nTones as long, byref nHash as ulong ) as boolean
+    nTones = 0 : nHash = 0
+    dim as TKOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer( hOptionButton )
+    if pOpt = 0 then return false
+    dim as TKRECT rc
+    dim as long nWhich = 0
+    if nPart = OPT_PART_BOX then nWhich = 1
+    if nPart = OPT_PART_TEXT then nWhich = 4
+    if GetRectCommon( hOptionButton, rc, nWhich ) = false then return false
+    if rc.left < 0 then rc.left = 0
+    if rc.top < 0 then rc.top = 0
+    if rc.right > hOptionButton->cw then rc.right = hOptionButton->cw
+    if rc.bottom > hOptionButton->ch then rc.bottom = hOptionButton->ch
+    if tkRect_IsEmpty( rc ) then return false
+
+    dim as TK_HOST ptr h = hOptionButton->pHost
+    dim as boolean bSaved = pOpt->isFocused
+    pOpt->isFocused = true
+    dim as TKRECT a
+    tkWidget_AbsRect( hOptionButton, a )
+    dim as TK_PAINT wp
+    wp.renderer = h->renderer
+    wp.engine = h->engine
+    wp.Begin( a.left, a.top, hOptionButton->cw, hOptionButton->ch )
+    tkOptionButton_OnPaint( pOpt, @wp )
+    pOpt->isFocused = bSaved
+    SDL_SetRenderClipRect( h->renderer, 0 )
+
+    dim as SDL_Rect sr
+    sr.x = a.left + rc.left : sr.y = a.top + rc.top
+    sr.w = rc.right - rc.left : sr.h = rc.bottom - rc.top
+    dim as SDL_Surface ptr s0 = SDL_RenderReadPixels( h->renderer, @sr )
+    if s0 = 0 then return false
+    dim as SDL_Surface ptr s = SDL_ConvertSurface( s0, SDL_PIXELFORMAT_ARGB8888 )
+    SDL_DestroySurface( s0 )
+    if s = 0 then return false
+    h->bDirty = true                 ' the probe drew into the back buffer; repaint honestly
+
+    dim tones(0 to 63) as ulong
+    dim as ulong hv = &h811C9DC5ul
+    for y as long = 0 to s->h - 1
+        dim as ulong ptr row = cast( ulong ptr, cast( ubyte ptr, s->pixels ) + y * s->pitch )
+        for x as long = 0 to s->w - 1
+            dim as ulong c = row[x] and &h00FFFFFFul
+            dim as boolean bFound = false
+            for t as long = 0 to nTones - 1
+                if tones(t) = c then bFound = true : exit for
+            next
+            if (bFound = false) andalso (nTones < 64) then tones(nTones) = c : nTones += 1
+            for k as long = 0 to 2
+                hv = (hv xor ((c shr (k * 8)) and &hFFul)) * &h01000193ul
+            next
+        next
+    next
+    SDL_DestroySurface( s )
+    nHash = hv
+    return true
+end function
+
+public function tkOptionButton_CountRenderedTones( byval hOptionButton as TK_WIDGET ptr, byval nPart as long ) as long
+    dim as long nTones
+    dim as ulong nHash
+    if ProbePart( hOptionButton, nPart, nTones, nHash ) = false then return 0
+    return nTones
+end function
+
+public function tkOptionButton_HashRenderedPart( byval hOptionButton as TK_WIDGET ptr, byval nPart as long ) as ulong
+    dim as long nTones
+    dim as ulong nHash
+    if ProbePart( hOptionButton, nPart, nTones, nHash ) = false then return 0
+    return nHash
+end function

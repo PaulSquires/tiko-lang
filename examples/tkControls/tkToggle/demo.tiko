@@ -1,0 +1,205 @@
+' tkToggle demo: the same eight rows as the Win32 demo
+' (tiko-lang/examples/PsControls/PsToggle/frmMain.tiko), so the two can be put side by side.
+'
+'   demo                     interactive
+'   demo --shot out.bmp      render once (row 0 focused), save the window, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkToggle"
+using tkToggle
+using tkHost
+using tkPaint
+
+const as long TOGGLE_COUNT = 8
+const as long ROW_HEIGHT = 52, ROW_TOP = 14, ROW_MARGIN = 22, CELL_WIDTH = 240
+const as long IDC_FIRST = 1000
+
+' The Win32 demo's THEME_TYPE, value for value.
+const as ulong T_FORE = &hFFBEC4CEul, T_FOREDIS = &hFF5A606Aul, T_BACK = &hFF21252Bul
+const as ulong T_BACKHOT = &hFF2C313Aul, T_BACKSEL = &hFF264F78ul
+const as ulong T_FOCUS = &hFF569CD6ul, T_DIVIDER = &hFF373C45ul
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gTog(0 to TOGGLE_COUNT - 1)
+dim shared as ustring gLabel(0 to TOGGLE_COUNT - 1)
+dim shared as TTF_Font ptr gFont10
+
+private function RowTop( byval i as long ) as long
+    return tkHost_Scale( gHost, ROW_TOP ) + i * tkHost_Scale( gHost, ROW_HEIGHT )
+end function
+
+private function ToggleName( byval w as TK_WIDGET ptr ) as string
+    for i as long = 0 to TOGGLE_COUNT - 1
+        if w = gTog(i) then return str( i ) & " (" & gLabel(i) & ")"
+    next
+    return "?"
+end function
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long margin = tkHost_Scale( h, ROW_MARGIN ), rh = tkHost_Scale( h, ROW_HEIGHT )
+    for i as long = 0 to TOGGLE_COUNT - 1
+        dim as long t = RowTop( i )
+        dim as TKRECT rc
+        tkRect_Set( rc, margin, t, pw - margin, t + rh )
+        b->SetColors( T_FORE, T_BACK )
+        b->SetFont( gFont10 )
+        b->PaintText( gLabel(i), @rc, TK_DT_LEFT or TK_DT_VCENTER )
+        tkRect_Set( rc, margin, t + rh - 1, pw - margin, t + rh )
+        b->SetBackColor( T_DIVIDER )
+        b->PaintRect( @rc )
+    next
+end sub
+
+' Each toggle at its IDEAL size against the right margin, except rows 5..7, which get the whole
+' wide cell so the justification is visible.
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long margin = tkHost_Scale( h, ROW_MARGIN ), rh = tkHost_Scale( h, ROW_HEIGHT )
+    dim as long cellW = tkHost_Scale( h, CELL_WIDTH )
+    for i as long = 0 to TOGGLE_COUNT - 1
+        dim as long iw, ih
+        tkToggle_GetIdealSize( gTog(i), iw, ih )
+        dim as long w = iw
+        if i >= 5 then w = cellW
+        tkWidget_SetPos( gTog(i), pw - margin - w, RowTop( i ) + (rh - ih) \ 2, w, ih )
+    next
+end sub
+
+sub Demo_Changed( byval hToggle as TK_WIDGET ptr, byval isChecked as boolean )
+    print "checkchanged  toggle=" & ToggleName( hToggle ) & "  checked=" & isChecked
+end sub
+
+function Demo_Message( byval m as TKTOGGLE_MESSAGEINFO ptr ) as boolean
+    select case m->msg
+    case TKM_RBUTTONUP
+        print "rclick        toggle=" & ToggleName( m->hToggle )
+    case TKM_SETFOCUS, TKM_KILLFOCUS
+        print "focus         toggle=" & ToggleName( m->hToggle ) & "  focused=" & iif( m->msg = TKM_SETFOCUS, "true", "false" )
+    end select
+    return false
+end function
+
+' Row 4: a SQUARE switch, which makes the point that a callback owns the whole look.
+sub Demo_SquarePaint( byval p as TKTOGGLE_PAINTINFO ptr )
+    dim as ulong clrTrack = T_BACKHOT, clrKnob = T_FORE
+    if p->isEnabled = false then
+        clrKnob = T_FOREDIS
+    elseif p->isPressed then
+        clrTrack = T_FOCUS : clrKnob = &hFFFFFFFFul      ' pressed differs from hot, unlike the built-in
+    elseif p->isChecked then
+        clrTrack = T_BACKSEL : clrKnob = &hFFFFFFFFul
+    end if
+    if p->isHot andalso (p->isPressed = false) then clrKnob = &hFFFFFFFFul
+    p->b->SetBackColor( clrTrack )
+    p->b->PaintRect( @p->rcTrack )
+    p->b->SetBackColor( clrKnob )
+    p->b->PaintRect( @p->rcKnob )
+    if p->isFocused then
+        p->b->SetPenColor( T_FOCUS )
+        p->b->PaintRoundOutline( @p->rcVisual, 0, 1 )
+    end if
+end sub
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+' Save the current back buffer -- read BEFORE present, which is when it is defined.
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr s = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if s then
+        SDL_SaveBMP( s, strptr( path ) )
+        print "shot: " & path & "  " & s->w & "x" & s->h & "  scale=" & gHost->fScale & "  density=" & gHost->fDensity
+        SDL_DestroySurface( s )
+    end if
+end sub
+
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkToggle on SDL3", 620, 460, tkHost_FontDir() & TK_FONT_UI, forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = T_BACK
+print "video driver: " & *SDL_GetCurrentVideoDriver() & "  renderer: " & *SDL_GetRendererName( gHost->renderer ) & _
+      "  scale=" & gHost->fScale & "  density=" & gHost->fDensity
+
+gFont10 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 10 )
+if gFont10 = 0 then print "fonts: " & *SDL_GetError() : end 1
+
+gLabel(0) = "Word wrap"
+gLabel(1) = "Show line numbers"
+gLabel(2) = "Highlight current line   (custom colours)"
+gLabel(3) = "Auto-save   (disabled, but still ON)"
+gLabel(4) = "Custom painter   (square switch)"
+gLabel(5) = "Justify LEFT   (wide cell)"
+gLabel(6) = "Justify CENTER   (wide cell)"
+gLabel(7) = "Justify RIGHT   (wide cell)"
+
+for i as long = 0 to TOGGLE_COUNT - 1
+    gTog(i) = tkToggle_Create( tkHost_Root( gHost ), IDC_FIRST + i )
+    tkToggle_SetMessageCallback( gTog(i), @Demo_Message )
+    tkToggle_SetCheckChangedCallback( gTog(i), @Demo_Changed )
+next
+
+' Row 0 -- default colours, ON. Programmatic, so NO callback line appears.
+tkToggle_SetChecked( gTog(0), true )
+
+' Row 2 -- custom colours: a green ON pill, a bigger track and inset.
+dim as TKTOGGLE_COLORS clrs
+tkToggle_GetColors( gTog(2), @clrs )
+clrs.TrackColorOn          = tkRGB( 62,140, 90)
+clrs.TrackColorOnHot       = tkRGB( 78,168,110)
+clrs.TrackBorderColorOn    = tkRGB( 62,140, 90)
+clrs.TrackBorderColorOnHot = tkRGB( 78,168,110)
+clrs.KnobColorOn           = tkRGB(255,255,255)
+clrs.FocusRingColor        = tkRGB(120,200,150)
+tkToggle_SetColors( gTog(2), @clrs )
+tkToggle_SetTrackSize( gTog(2), tkHost_Scale( gHost, 52 ), tkHost_Scale( gHost, 26 ) )
+tkToggle_SetKnobInset( gTog(2), tkHost_Scale( gHost, 3 ) )
+tkToggle_SetChecked( gTog(2), true )
+
+' Row 3 -- disabled AND checked: it must still read as ON.
+tkToggle_SetChecked( gTog(3), true )
+tkToggle_SetEnabled( gTog(3), false )
+
+' Row 4 -- the built-in painter replaced wholesale.
+tkToggle_SetPaintCallback( gTog(4), @Demo_SquarePaint )
+
+' Rows 5..7 -- the three justifications, in a cell far wider than the switch.
+tkToggle_SetJustify( gTog(5), TOG_JUSTIFY_LEFT )
+tkToggle_SetJustify( gTog(6), TOG_JUSTIFY_CENTER )
+tkToggle_SetJustify( gTog(7), TOG_JUSTIFY_RIGHT )
+tkToggle_SetChecked( gTog(7), true )
+
+dim as long iw, ih
+tkToggle_GetIdealSize( gTog(0), iw, ih )
+print "default ideal size: " & iw & "x" & ih
+
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkHost_SetFocus( gHost, gTog(0) )
+tkHost_Show( gHost )
+
+dim as string shot = ArgValue( "--shot" )
+if len( shot ) then
+    tkHost_Pump( gHost )
+    SaveShot( shot )
+else
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

@@ -1,0 +1,759 @@
+' tkOptionButton self-test. Real windows, real SDL event queue: every input claim is made by
+' PUSHING the SDL event a user would have produced and pumping the host, so the dispatch path
+' under test is the one the demo runs. Two passes, scale pinned at 1.0 and at 1.75.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkOptionButton"
+#import "vendor/tkControls/tkTest"
+using tkOptionButton
+using tkTooltip
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+' ---- the change log: every CheckChanged call, in order ---------------------------------------
+dim shared as long gLogN
+dim shared as TK_WIDGET ptr gLogW(0 to 31)
+dim shared as boolean gLogS(0 to 31)
+dim shared as boolean gCoherent = true
+dim shared as boolean gSuppressDown, gSuppressDown2
+dim shared as long gContKeys(0 to 31), gContKeyN
+dim shared as long gIdealW(0 to 1)
+
+' Pinned, all distinct, so a pixel names the mood and state that painted it.
+const as ulong C_BACK = &hFF102030ul, C_FORE = &hFFE0E0E0ul
+const as ulong C_RING = &hFF2050F0ul, C_RINGHOT = &hFF20F050ul, C_RINGPRESS = &hFFF02020ul, C_RINGDIS = &hFF505050ul
+const as ulong C_CHK = &hFF30C0C0ul, C_CHKHOT = &hFFC0C030ul, C_CHKPRESS = &hFFC030C0ul, C_CHKDIS = &hFF404860ul
+const as ulong C_DOT = &hFFF0F0A0ul, C_DOTDIS = &hFF806040ul
+const as ulong C_FOCUS = &hFFFF8000ul
+
+
+sub ResetLog()
+    gLogN = 0
+    gCoherent = true
+end sub
+
+' Both writes land before either callback, so inside EITHER one the group has exactly one
+' checked member, and the getter agrees with the argument.
+sub OnChanged( byval hOpt as TK_WIDGET ptr, byval isChecked as boolean )
+    if gLogN <= 31 then gLogW(gLogN) = hOpt : gLogS(gLogN) = isChecked
+    gLogN += 1
+    dim as long nChecked = 0
+    for i as long = 0 to tkOptionButton_GetGroupCount( hOpt ) - 1
+        if tkOptionButton_GetChecked( tkOptionButton_GetGroupMember( hOpt, i ) ) then nChecked += 1
+    next
+    if nChecked <> 1 then gCoherent = false
+    if tkOptionButton_GetChecked( hOpt ) <> isChecked then gCoherent = false
+    ' SetChecked inside the handler must not recurse (it is silent)
+    tkOptionButton_SetChecked( hOpt, isChecked )
+end sub
+
+' Exactly the two edges, loser first.
+function LogIs( byval wLose as TK_WIDGET ptr, byval wWin as TK_WIDGET ptr ) as boolean
+    if wLose = 0 then return (gLogN = 1) andalso (gLogW(0) = wWin) andalso gLogS(0)
+    return (gLogN = 2) andalso (gLogW(0) = wLose) andalso (gLogS(0) = false) andalso (gLogW(1) = wWin) andalso gLogS(1)
+end function
+
+function LogStr() as string
+    dim as string s = "n=" & gLogN
+    for i as long = 0 to iif( gLogN > 4, 4, gLogN ) - 1
+        s &= " [" & gLogW(i)->ctrlId & "," & gLogS(i) & "]"
+    next
+    return s
+end function
+
+function OnMessage( byval m as TKOPTIONBUTTON_MESSAGEINFO ptr ) as boolean
+    if gSuppressDown andalso (m->msg = TKM_KEYDOWN) andalso (m->key = SDLK_DOWN) then return true
+    if gSuppressDown2 andalso (m->msg = TKM_LBUTTONDOWN) then return true
+    return false
+end function
+
+function OnTip( byval hOpt as TK_WIDGET ptr ) as ustring
+    return "tip from callback"
+end function
+
+' A plain focusable widget (the "somewhere else" a Tab walk goes), and a container that records
+' every key that BUBBLES to it -- the keys its option buttons did not claim.
+function PlainProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    return false
+end function
+
+function ContProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    if (m->msg = TKM_KEYDOWN) andalso (m->key <> SDLK_TAB) then
+        if gContKeyN <= 31 then gContKeys(gContKeyN) = m->key
+        gContKeyN += 1
+        return true
+    end if
+    return false
+end function
+
+function ContSaw( byval key as long ) as boolean
+    for i as long = 0 to iif( gContKeyN > 32, 32, gContKeyN ) - 1
+        if gContKeys(i) = key then return true
+    next
+    return false
+end function
+
+' Re-sends the hover while waiting for a tip to show: on Linux a compositor leave/enter around a
+' popup can reset the dwell. Returns as soon as the state is reached.
+function WaitTip( byval h as TK_HOST ptr, byval tp as TK_WIDGET ptr, byval want as boolean, byval ms as long, _
+                  byval hx as single = -1, byval hy as single = -1 ) as boolean
+    dim as double t0 = timer, tPush = timer
+    dim as SDL_Event e
+    while (timer - t0) * 1000 < ms
+        if SDL_WaitEventTimeout( @e, 20 ) then tkHost_Dispatch( h, @e )
+        if h->bDirty then tkHost_Render( h )
+        if tkTooltip_IsVisible( tkOptionButton_GetTooltipHandle( tp ) ) = want then return true
+        if want andalso (hx >= 0) andalso ((timer - tPush) * 1000 > 150) then
+            tPush = timer
+            tkTest_PushMotion( h, hx, hy )
+        end if
+    wend
+    return false
+end function
+
+function ColorNear( byval c as ulong, byval want as ulong, byval tol as long = 12 ) as boolean
+    for k as long = 0 to 2
+        dim as long a = (c shr (k * 8)) and &hFF, b = (want shr (k * 8)) and &hFF
+        if abs( a - b ) > tol then return false
+    next
+    return true
+end function
+
+' A pixel at (fx, fy) fractions of the circle, after a real render.
+function CirclePx( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr, byval fx as single, byval fy as single ) as ulong
+    dim as TKRECT rc, a
+    tkOptionButton_GetCircleRect( w, rc )
+    tkWidget_AbsRect( w, a )
+    tkHost_RenderTo( h, false )
+    dim as long side = rc.right - rc.left
+    return tkTest_PixelAt( h, a.left + rc.left + cint( fix( side * fx ) ), a.top + rc.top + cint( fix( side * fy ) ) )
+end function
+
+' The ring's stroke: one pixel in from the circle's left edge, mid-height (ring thickness 3).
+function RingPx( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr ) as ulong
+    dim as TKRECT rc, a
+    tkOptionButton_GetCircleRect( w, rc )
+    tkWidget_AbsRect( w, a )
+    tkHost_RenderTo( h, false )
+    return tkTest_PixelAt( h, a.left + rc.left + 1, a.top + (rc.top + rc.bottom) \ 2 )
+end function
+
+function FocusId( byval h as TK_HOST ptr ) as long
+    if tkHost_GetFocus( h ) = 0 then return -1
+    return tkHost_GetFocus( h )->ctrlId
+end function
+
+function PinnedColors() as TKOPTIONBUTTON_COLORS
+    dim as TKOPTIONBUTTON_COLORS c
+    c.BackColor = C_BACK : c.BackColorHot = C_BACK : c.BackColorPressed = C_BACK : c.BackColorDisabled = C_BACK
+    c.ForeColor = C_FORE : c.ForeColorHot = C_FORE : c.ForeColorPressed = C_FORE : c.ForeColorDisabled = C_FORE
+    c.RingColor = C_RING : c.RingColorHot = C_RINGHOT : c.RingColorPressed = C_RINGPRESS : c.RingColorDisabled = C_RINGDIS
+    c.RingColorChecked = C_CHK : c.RingColorCheckedHot = C_CHKHOT
+    c.RingColorCheckedPressed = C_CHKPRESS : c.RingColorCheckedDisabled = C_CHKDIS
+    c.DotColor = C_DOT : c.DotColorHot = C_DOT : c.DotColorPressed = C_DOT : c.DotColorDisabled = C_DOTDIS
+    c.FocusRingColor = C_FOCUS
+    return c
+end function
+
+' How many members of hOpt's group carry the tab stop.
+function TabStops( byval hOpt as TK_WIDGET ptr ) as long
+    dim as long n = 0
+    for i as long = 0 to tkOptionButton_GetGroupCount( hOpt ) - 1
+        if tkOptionButton_GetTabStop( tkOptionButton_GetGroupMember( hOpt, i ) ) then n += 1
+    next
+    return n
+end function
+
+function MakeOpt( byval hParent as TK_WIDGET ptr, byval id as long, byval nGroup as long, byref cap as ustring, _
+                  byval f as TTF_Font ptr, byval x as long, byval y as long ) as TK_WIDGET ptr
+    dim as TK_WIDGET ptr w = tkOptionButton_Create( hParent, id, nGroup )
+    tkOptionButton_SetFont( w, f )
+    tkOptionButton_SetText( w, cap )
+    tkOptionButton_SetCheckChangedCallback( w, @OnChanged )
+    dim as long iw, ih
+    tkOptionButton_GetIdealSize( w, iw, ih )
+    tkWidget_SetPos( w, x, y, iw, ih )
+    return w
+end function
+
+' ==========================================================================================
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkOptionButton selftest", 700, 560, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    tkTest_Check( "scale pinned", h->fScale = fScale, "" & h->fScale )
+    dim as TTF_Font ptr fText = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
+    tkTest_Check( "font opened", fText <> 0 )
+    dim as TK_WIDGET ptr root = tkHost_Root( h )
+
+    ' ---- A: layout before sizing, then the README formula ------------------------------
+    dim as TK_WIDGET ptr lay = tkOptionButton_Create( root, 501, 50 )
+    tkOptionButton_SetFont( lay, fText )
+    tkOptionButton_SetText( lay, "Highest quality" )
+    tkTest_Check( "created unchecked, enabled, id = ctrlId, group = arg", tkOptionButton_GetChecked( lay ) = false _
+           andalso tkOptionButton_GetEnabled( lay ) andalso tkOptionButton_GetID( lay ) = 501 andalso tkOptionButton_GetGroupID( lay ) = 50 )
+    dim as long iw, ih
+    tkOptionButton_GetIdealSize( lay, iw, ih )
+    tkTest_Check( "ideal size valid before sizing", (iw > 0) andalso (ih > 0), iw & "x" & ih )
+    dim as TKRECT rc
+    tkTest_Check( "rect query FALSE before sizing", tkOptionButton_GetBoxRect( lay, rc ) = false )
+
+    dim as long pl, pt, pr, pbm, gap, bw, bh, fg, ft, tw, nTextH
+    tkOptionButton_GetPadding( lay, pl, pt, pr, pbm )
+    gap = tkOptionButton_GetBoxGap( lay )
+    tkOptionButton_GetBoxSize( lay, bw, bh )
+    tkOptionButton_GetFocusRing( lay, fg, ft )
+    tkOptionButton_GetTextSize( lay, tw, nTextH )
+    tkTest_Check( "defaults scaled at create", pl = tkHost_Scale( h, 4 ) andalso pt = tkHost_Scale( h, 2 ) andalso gap = tkHost_Scale( h, 8 ) _
+           andalso bw = tkHost_Scale( h, 16 ) andalso bh = tkHost_Scale( h, 16 ) andalso fg = tkHost_Scale( h, 2 ) _
+           andalso tkOptionButton_GetFocusCurvature( lay ) = tkHost_Scale( h, 4 ), pl & " " & gap & " " & bw & " " & fg )
+    tkTest_Check( "pens NOT scaled (ring 1, focus 1), dot derived (0)", ft = 1 andalso tkOptionButton_GetRingThickness( lay ) = 1 _
+           andalso tkOptionButton_GetDotSize( lay ) = 0 )
+    tkTest_Check( "caption measured", tw > 0 andalso nTextH > 0, tw & "x" & nTextH )
+    dim as long rp = fg + ft
+    dim as long contentH = iif( nTextH > bh, nTextH, bh )
+    tkTest_Check( "idealW = 2rp+pl+box+gap+text+pr", iw = 2 * rp + pl + bw + gap + tw + pr, iw & " vs " & (2 * rp + pl + bw + gap + tw + pr) )
+    tkTest_Check( "idealH = 2rp+pt+max(text,box)+pb", ih = 2 * rp + pt + contentH + pbm, ih & " vs " & (2 * rp + pt + contentH + pbm) )
+    gIdealW(iif( fScale > 1.5, 1, 0 )) = iw
+
+    tkWidget_SetPos( lay, tkHost_Scale( h, 330 ), tkHost_Scale( h, 400 ), iw, ih )
+    dim as TKRECT rCont, rb, rcir, rdot, rt, rv
+    tkTest_Check( "rect query TRUE once sized", tkOptionButton_GetContentRect( lay, rCont ) )
+    tkOptionButton_GetBoxRect( lay, rb ) : tkOptionButton_GetCircleRect( lay, rcir ) : tkOptionButton_GetDotRect( lay, rdot )
+    tkOptionButton_GetTextRect( lay, rt ) : tkOptionButton_GetVisualRect( lay, rv )
+    tkTest_Check( "rcContent = client deflated by ringPad", rCont.left = rp andalso rCont.top = rp andalso rCont.right = iw - rp andalso rCont.bottom = ih - rp, tkRect_Str( rCont ) )
+    tkTest_Check( "rcBox pinned at padLeft, declared size, v-centred", rb.left = rp + pl andalso (rb.right - rb.left) = bw _
+           andalso (rb.bottom - rb.top) = bh andalso rb.top = rp + ((ih - 2 * rp - bh) \ 2), tkRect_Str( rb ) )
+    tkTest_Check( "square cell: rcCircle = rcBox", rcir.left = rb.left andalso rcir.top = rb.top andalso rcir.right = rb.right andalso rcir.bottom = rb.bottom, tkRect_Str( rcir ) )
+    dim as long dd = (bw * 40) \ 100
+    tkTest_Check( "dot = 40% of the circle, centred", (rdot.right - rdot.left) = dd andalso (rdot.bottom - rdot.top) = dd _
+           andalso rdot.left = rcir.left + (bw - dd) \ 2 andalso rdot.top = rcir.top + (bw - dd) \ 2, tkRect_Str( rdot ) )
+    tkTest_Check( "rcText = box.right+gap .. content.right-padRight", rt.left = rb.right + gap andalso rt.right = iw - rp - pr _
+           andalso (rt.bottom - rt.top) = nTextH, tkRect_Str( rt ) )
+    tkTest_Check( "rcVisual = full client at ideal", rv.left = 0 andalso rv.top = 0 andalso rv.right = iw andalso rv.bottom = ih, tkRect_Str( rv ) )
+
+    ' the box on the right: the mirror is exact
+    tkOptionButton_SetBoxAlign( lay, OPT_BOXALIGN_RIGHT )
+    dim as long iw2, ih2
+    tkOptionButton_GetIdealSize( lay, iw2, ih2 )
+    tkOptionButton_GetBoxRect( lay, rb ) : tkOptionButton_GetTextRect( lay, rt )
+    tkTest_Check( "BOXALIGN_RIGHT: ideal size unchanged", iw2 = iw andalso ih2 = ih )
+    tkTest_Check( "BOXALIGN_RIGHT: box at padRight, span padLeft .. box.left-gap", rb.right = iw - rp - pr andalso rt.left = rp + pl _
+           andalso rt.right = rb.left - gap, tkRect_Str( rb ) & " " & tkRect_Str( rt ) )
+    tkWidget_SetSize( lay, iw + tkHost_Scale( h, 100 ), ih )
+    tkOptionButton_GetBoxRect( lay, rb ) : tkOptionButton_GetTextRect( lay, rt )
+    tkTest_Check( "row width: box follows the right edge, span takes the slack", rb.right = iw + tkHost_Scale( h, 100 ) - rp - pr _
+           andalso (rt.right - rt.left) = tw + tkHost_Scale( h, 100 ), tkRect_Str( rb ) & " " & tkRect_Str( rt ) )
+    tkOptionButton_SetBoxAlign( lay, 7 ) : tkOptionButton_SetTextAlign( lay, -1 )
+    tkTest_Check( "out-of-range aligns ignored", tkOptionButton_GetBoxAlign( lay ) = OPT_BOXALIGN_RIGHT andalso tkOptionButton_GetTextAlign( lay ) = OPT_TEXTALIGN_LEFT )
+    tkOptionButton_SetBoxAlign( lay, OPT_BOXALIGN_LEFT )
+    tkWidget_SetSize( lay, iw, ih )
+
+    ' a non-square cell: the circle is inscribed, the dot follows the circle
+    tkOptionButton_SetBoxSize( lay, 30, 16 )
+    tkOptionButton_GetBoxRect( lay, rb ) : tkOptionButton_GetCircleRect( lay, rcir ) : tkOptionButton_GetDotRect( lay, rdot )
+    tkTest_Check( "non-square cell: circle = centred 16x16 square", (rcir.right - rcir.left) = 16 andalso (rcir.bottom - rcir.top) = 16 _
+           andalso rcir.left = rb.left + 7 andalso rcir.top = rb.top, tkRect_Str( rb ) & " " & tkRect_Str( rcir ) )
+    tkTest_Check( "non-square cell: dot = 40% of the CIRCLE", (rdot.right - rdot.left) = 6, tkRect_Str( rdot ) )
+    dim as long iw3, ih3
+    tkOptionButton_GetIdealSize( lay, iw3, ih3 )
+    tkTest_Check( "the cell (not the circle) is charged", iw3 = iw - bw + 30, iw & " -> " & iw3 )
+    tkOptionButton_SetDotSize( lay, 10 )
+    tkOptionButton_GetDotRect( lay, rdot )
+    tkTest_Check( "declared dot size wins", (rdot.right - rdot.left) = 10 andalso tkOptionButton_GetDotSize( lay ) = 10 )
+    tkOptionButton_SetDotSize( lay, 100 ) : tkOptionButton_GetDotRect( lay, rdot )
+    tkTest_Check( "dot clamped to the circle", (rdot.right - rdot.left) = 16 )
+    tkOptionButton_SetDotSize( lay, 1 ) : tkOptionButton_GetDotRect( lay, rdot )
+    tkTest_Check( "dot clamped to >= 2", (rdot.right - rdot.left) = 2 )
+    tkOptionButton_SetDotSize( lay, -4 )
+    tkTest_Check( "negative dot size clamps to 0 (derived)", tkOptionButton_GetDotSize( lay ) = 0 )
+    tkOptionButton_GetIdealSize( lay, iw2, ih2 )
+    tkTest_Check( "ring / dot setters never move the ideal size", iw2 = iw3 )
+    tkOptionButton_SetRingThickness( lay, -3 )
+    tkTest_Check( "negative ring thickness clamps to 0", tkOptionButton_GetRingThickness( lay ) = 0 )
+    tkOptionButton_SetRingThickness( lay, 1 )
+    tkOptionButton_SetBoxSize( lay, -1, -1 )
+    dim as long q1, q2, q3, q4
+    tkOptionButton_GetBoxSize( lay, q1, q2 )
+    tkTest_Check( "negative box size clamps to 0", q1 = 0 andalso q2 = 0 )
+    tkOptionButton_SetBoxSize( lay, bw, bh )
+    tkOptionButton_SetPadding( lay, -5, -5, -5, -5 )
+    tkOptionButton_GetPadding( lay, q1, q2, q3, q4 )
+    tkTest_Check( "negative padding clamps to 0", q1 = 0 andalso q2 = 0 andalso q3 = 0 andalso q4 = 0 )
+    tkOptionButton_SetPadding( lay, pl, pt, pr, pbm )
+    tkOptionButton_SetFocusRing( lay, fg + 3, 2 )
+    tkOptionButton_GetIdealSize( lay, iw2, ih2 )
+    tkTest_Check( "SetFocusRing moves the ideal size by 2x the band", iw2 = iw + 2 * 4 andalso ih2 = ih + 2 * 4, iw & " -> " & iw2 )
+    tkOptionButton_SetFocusRing( lay, fg, 1 )
+
+    ' no caption: no gap, the box alone sets the height, rcText FALSE and empty
+    dim as TK_WIDGET ptr nc = tkOptionButton_Create( root, 502, 51 )
+    tkOptionButton_SetFont( nc, fText )
+    tkOptionButton_GetIdealSize( nc, iw2, ih2 )
+    tkTest_Check( "no caption: idealW = 2rp+pl+box+pr, idealH from the box", iw2 = 2 * rp + pl + bw + pr andalso ih2 = 2 * rp + pt + bh + pbm, iw2 & "x" & ih2 )
+    tkWidget_SetPos( nc, tkHost_Scale( h, 600 ), tkHost_Scale( h, 400 ), iw2, ih2 )
+    tkTest_Check( "no caption: GetTextRect FALSE and empty", tkOptionButton_GetTextRect( nc, rt ) = false andalso tkRect_IsEmpty( rt ) )
+    tkTest_Check( "no caption: circle still there", tkOptionButton_GetCircleRect( nc, rt ) )
+
+    ' starved: the circle keeps its size, the span collapses to zero width
+    tkWidget_SetSize( lay, tkHost_Scale( h, 20 ), ih )
+    tkOptionButton_GetBoxRect( lay, rb ) : tkOptionButton_GetTextRect( lay, rt )
+    tkTest_Check( "starved: box kept, span degenerate (query FALSE)", (rb.right - rb.left) = bw andalso rt.right = rt.left, tkRect_Str( rt ) )
+    tkWidget_SetSize( lay, iw, ih )
+
+    ' moods and colours, pure functions
+    tkTest_Check( "mood precedence disabled > pressed > hot > idle", tkOptionButton_ResolveMood( false, true, true ) = OPT_MOOD_DISABLED _
+           andalso tkOptionButton_ResolveMood( true, true, true ) = OPT_MOOD_PRESSED andalso tkOptionButton_ResolveMood( true, false, true ) = OPT_MOOD_HOT _
+           andalso tkOptionButton_ResolveMood( true, false, false ) = OPT_MOOD_IDLE )
+    dim as TKOPTIONBUTTON_COLORS pc = PinnedColors()
+    dim as ulong cb, cf, cr, cd, cb2, cf2, cr2, cd2
+    tkOptionButton_ResolveColors( @pc, OPT_MOOD_HOT, true, cb, cf, cr, cd )
+    tkTest_Check( "checked selects the ring set within the mood", cr = C_CHKHOT andalso cd = C_DOT )
+    tkOptionButton_ResolveColors( @pc, OPT_MOOD_DISABLED, false, cb, cf, cr, cd )
+    tkOptionButton_ResolveColors( @pc, OPT_MOOD_DISABLED, true, cb2, cf2, cr2, cd2 )
+    tkTest_Check( "isChecked touches nothing but the ring; dot resolved unchecked too", cb2 = cb andalso cf2 = cf andalso cd2 = cd _
+           andalso cr = C_RINGDIS andalso cr2 = C_CHKDIS andalso cd = C_DOTDIS )
+
+    ' ---- B: groups ------------------------------------------------------------------------
+    dim as long y0 = tkHost_Scale( h, 20 ), dy = tkHost_Scale( h, 30 ), x0 = tkHost_Scale( h, 20 )
+    dim as TK_WIDGET ptr pre = tkWidget_CreateChild( root, 90, @PlainProc, 0 )
+    pre->isFocusable = true
+    tkWidget_SetPos( pre, x0, y0, tkHost_Scale( h, 40 ), tkHost_Scale( h, 20 ) )
+    dim as TK_WIDGET ptr a = MakeOpt( root, 101, 1, "Highest", fText, x0, y0 + dy )
+    dim as TK_WIDGET ptr b = MakeOpt( root, 102, 1, "Balanced", fText, x0, y0 + 2 * dy )
+    dim as TK_WIDGET ptr c = MakeOpt( root, 103, 1, "Smallest file", fText, x0, y0 + 3 * dy )
+    dim as TK_WIDGET ptr d = MakeOpt( root, 201, 2, "Stable", fText, x0, y0 + 4 * dy )
+    dim as TK_WIDGET ptr e = MakeOpt( root, 202, 2, "Beta", fText, x0, y0 + 5 * dy )
+    dim as TK_WIDGET ptr post = tkWidget_CreateChild( root, 91, @PlainProc, 0 )
+    post->isFocusable = true
+    tkWidget_SetPos( post, x0, y0 + 6 * dy, tkHost_Scale( h, 40 ), tkHost_Scale( h, 20 ) )
+    ' another parent, SAME group id 1
+    dim as TK_WIDGET ptr cont = tkWidget_CreateChild( root, 92, @ContProc, 0 )
+    tkWidget_SetPos( cont, tkHost_Scale( h, 300 ), y0, tkHost_Scale( h, 300 ), tkHost_Scale( h, 120 ) )
+    dim as TK_WIDGET ptr xo = MakeOpt( cont, 301, 1, "Metric", fText, tkHost_Scale( h, 10 ), tkHost_Scale( h, 5 ) )
+    dim as TK_WIDGET ptr yo = MakeOpt( cont, 302, 1, "Imperial", fText, tkHost_Scale( h, 10 ), tkHost_Scale( h, 5 ) + dy )
+    dim as TK_WIDGET ptr zo = MakeOpt( cont, 303, 1, "Astronomical", fText, tkHost_Scale( h, 10 ), tkHost_Scale( h, 5 ) + 2 * dy )
+    tkHost_Pump( h )
+
+    tkTest_Check( "group count / members in creation order", tkOptionButton_GetGroupCount( b ) = 3 andalso tkOptionButton_GetGroupMember( c, 0 ) = a _
+           andalso tkOptionButton_GetGroupMember( a, 1 ) = b andalso tkOptionButton_GetGroupMember( a, 2 ) = c )
+    tkTest_Check( "member out of range = 0", tkOptionButton_GetGroupMember( a, 3 ) = 0 andalso tkOptionButton_GetGroupMember( a, -1 ) = 0 )
+    tkTest_Check( "a group starts with nothing checked: FindCheckedID -1, checked 0", tkOptionButton_FindCheckedID( root, 1 ) = -1 _
+           andalso tkOptionButton_FindChecked( root, 1 ) = 0 andalso tkOptionButton_GetGroupChecked( a ) = 0 )
+    tkTest_Check( "nothing checked: the first member holds the ONE tab stop", tkOptionButton_GetTabStop( a ) andalso TabStops( a ) = 1 _
+           andalso tkOptionButton_GetTabStop( d ) andalso TabStops( d ) = 1 )
+    tkTest_Check( "groups cannot span parents: (cont,1) is its own group", tkOptionButton_GetGroupCount( xo ) = 3 _
+           andalso tkOptionButton_GetGroupMember( xo, 0 ) = xo andalso tkOptionButton_GetTabStop( xo ) )
+
+    ' silent SetChecked: exclusion, tab stop moves, no callbacks
+    ResetLog()
+    tkOptionButton_SetChecked( b, true )
+    tkTest_Check( "SetChecked: checked, silent", tkOptionButton_GetChecked( b ) andalso gLogN = 0 )
+    tkTest_Check( "SetChecked: FindChecked / ID / GetGroupChecked agree", tkOptionButton_FindChecked( root, 1 ) = b _
+           andalso tkOptionButton_FindCheckedID( root, 1 ) = 102 andalso tkOptionButton_GetGroupChecked( c ) = b )
+    tkTest_Check( "SetChecked: the tab stop moved to the checked one", tkOptionButton_GetTabStop( b ) andalso TabStops( b ) = 1 )
+    tkOptionButton_SetChecked( c, true )
+    tkTest_Check( "SetChecked: checking c unchecks b (exclusion), silent", tkOptionButton_GetChecked( c ) andalso tkOptionButton_GetChecked( b ) = false _
+           andalso tkOptionButton_GetChecked( a ) = false andalso gLogN = 0 andalso tkOptionButton_GetTabStop( c ) andalso TabStops( c ) = 1 )
+    tkTest_Check( "two groups on one parent never interfere", tkOptionButton_FindCheckedID( root, 2 ) = -1 )
+    tkOptionButton_SetChecked( xo, true )
+    tkTest_Check( "same id, other parent: c stays checked", tkOptionButton_GetChecked( c ) andalso tkOptionButton_FindCheckedID( cont, 1 ) = 301 _
+           andalso tkOptionButton_FindCheckedID( root, 1 ) = 103 )
+    tkOptionButton_SetChecked( c, true )
+    tkTest_Check( "SetChecked to the current state: no-op", tkOptionButton_GetChecked( c ) andalso gLogN = 0 )
+    tkOptionButton_SetChecked( c, false )
+    tkTest_Check( "SetChecked(false) empties the group; tab stop back to the first", tkOptionButton_FindCheckedID( root, 1 ) = -1 _
+           andalso tkOptionButton_GetTabStop( a ) andalso TabStops( a ) = 1 andalso gLogN = 0 )
+
+    ' Click: the notifying action -- both edges, loser first, coherent inside both
+    tkOptionButton_SetChecked( b, true )
+    ResetLog()
+    tkOptionButton_Click( a )
+    tkTest_Check( "Click: both edges, loser first", LogIs( b, a ), LogStr() )
+    tkTest_Check( "Click: group coherent inside both callbacks", gCoherent )
+    ResetLog()
+    tkOptionButton_Click( a )
+    tkTest_Check( "Click on the checked member: silent no-op", gLogN = 0 andalso tkOptionButton_GetChecked( a ) )
+    tkOptionButton_ClearGroup( b )
+    ResetLog()
+    tkOptionButton_Click( c )
+    tkTest_Check( "Click into an empty group: only the winner fires", LogIs( 0, c ), LogStr() )
+
+    ' ClearGroup: silent, keeps a tab stop
+    ResetLog()
+    tkOptionButton_ClearGroup( a )
+    tkTest_Check( "ClearGroup: nothing checked, silent, one tab stop", tkOptionButton_FindCheckedID( root, 1 ) = -1 andalso gLogN = 0 _
+           andalso TabStops( a ) = 1 andalso tkOptionButton_GetTabStop( a ) )
+    tkOptionButton_ClearGroup( a )
+    tkTest_Check( "ClearGroup on an empty group: no-op", gLogN = 0 )
+
+    ' disabled: refuses Click, but SetChecked still works; disabling hands the tab stop on
+    tkOptionButton_SetChecked( b, true )
+    tkOptionButton_SetEnabled( b, false )
+    tkTest_Check( "disabling the checked holder hands the tab stop to an enabled member", tkOptionButton_GetTabStop( a ) _
+           andalso tkOptionButton_GetTabStop( b ) = false andalso TabStops( a ) = 1 andalso tkOptionButton_GetChecked( b ) )
+    tkOptionButton_SetEnabled( b, true )
+    tkTest_Check( "re-enabling gives it back", tkOptionButton_GetTabStop( b ) andalso TabStops( a ) = 1 )
+    tkOptionButton_ClearGroup( a )
+    tkOptionButton_SetEnabled( a, false )
+    tkTest_Check( "nothing checked, first disabled: the first ENABLED member holds it", tkOptionButton_GetTabStop( b ) andalso TabStops( a ) = 1 )
+    ResetLog()
+    tkOptionButton_Click( a )
+    tkTest_Check( "Click on a disabled member: refused", gLogN = 0 andalso tkOptionButton_GetChecked( a ) = false )
+    tkOptionButton_SetChecked( a, true )
+    tkTest_Check( "SetChecked works on a disabled member", tkOptionButton_GetChecked( a ) andalso gLogN = 0 )
+    tkOptionButton_SetEnabled( a, true )
+    tkOptionButton_SetChecked( b, true )
+
+    ' SetGroupID: an arriving checked button loses; the group it left keeps nothing checked
+    tkOptionButton_SetChecked( d, true )
+    tkOptionButton_SetGroupID( b, 2 )
+    tkTest_Check( "SetGroupID: moved, counts follow", tkOptionButton_GetGroupID( b ) = 2 andalso tkOptionButton_GetGroupCount( a ) = 2 _
+           andalso tkOptionButton_GetGroupCount( d ) = 3 )
+    tkTest_Check( "SetGroupID: the arriving checked button LOSES", tkOptionButton_GetChecked( b ) = false andalso tkOptionButton_FindChecked( root, 2 ) = d )
+    tkTest_Check( "SetGroupID: the group it left has nothing checked", tkOptionButton_FindCheckedID( root, 1 ) = -1 )
+    tkTest_Check( "SetGroupID: one tab stop in each group", TabStops( a ) = 1 andalso tkOptionButton_GetTabStop( a ) andalso TabStops( d ) = 1 _
+           andalso tkOptionButton_GetTabStop( d ) )
+    tkOptionButton_SetChecked( b, true )
+    tkTest_Check( "...and is now exclusive with group 2", tkOptionButton_GetChecked( d ) = false )
+    tkOptionButton_SetGroupID( b, 1 )
+    tkTest_Check( "SetGroupID into an EMPTY group: stays checked; creation order kept", tkOptionButton_GetChecked( b ) _
+           andalso tkOptionButton_FindChecked( root, 1 ) = b andalso tkOptionButton_FindCheckedID( root, 2 ) = -1 _
+           andalso tkOptionButton_GetGroupMember( a, 1 ) = b andalso TabStops( d ) = 1 andalso tkOptionButton_GetTabStop( d ) )
+    tkTest_Check( "regrouping was silent", gLogN = 0 )
+
+    ' destroying the checked member: nothing checked, the tab stop handed on
+    dim as TK_WIDGET ptr tmp = MakeOpt( root, 104, 1, "Temporary", fText, x0, y0 + 7 * dy )
+    tkTest_Check( "a late member joins at the END of the order", tkOptionButton_GetGroupMember( a, 3 ) = tmp andalso tkOptionButton_GetTabStop( tmp ) = false )
+    tkOptionButton_SetChecked( tmp, true )
+    tkWidget_Destroy( tmp )
+    tkTest_Check( "destroyed checked member: group empty, count 3", tkOptionButton_FindCheckedID( root, 1 ) = -1 andalso tkOptionButton_GetGroupCount( a ) = 3 )
+    tkTest_Check( "destroyed holder: the tab stop handed on", tkOptionButton_GetTabStop( a ) andalso TabStops( a ) = 1 )
+    tkTest_Check( "a foreign widget is not an option button", tkOptionButton_GetGroupCount( pre ) = 0 andalso tkOptionButton_GetTabStop( pre ) = false )
+
+    ' ---- C: mouse ---------------------------------------------------------------------------
+    tkOptionButton_SetChecked( b, true )
+    tkHost_SetFocus( h, 0 )
+    ResetLog()
+    tkTest_PushMotion( h, tkTest_CX( c ), tkTest_CY( c ) )
+    tkTest_Check( "hot on enter", tkOptionButton_GetHot( c ) )
+    tkTest_PushButton( h, true, tkTest_CX( c ), tkTest_CY( c ) )
+    tkTest_Check( "press: capture, focus, nothing checked yet", tkHost_GetCapture( h ) = c andalso tkOptionButton_GetFocused( c ) _
+           andalso tkOptionButton_GetChecked( c ) = false andalso gLogN = 0 )
+    tkTest_PushButton( h, false, tkTest_CX( c ), tkTest_CY( c ) )
+    tkTest_Check( "release inside: checks, both edges loser first", tkOptionButton_GetChecked( c ) andalso LogIs( b, c ), LogStr() )
+    tkTest_Check( "click: coherent inside the callbacks; capture released", gCoherent andalso tkHost_GetCapture( h ) = 0 )
+    ResetLog()
+    tkTest_Click( h, tkTest_CX( c ), tkTest_CY( c ) )
+    tkTest_Click( h, tkTest_CX( c ), tkTest_CY( c ), SDL_BUTTON_LEFT, 2 )
+    tkTest_Check( "clicking the checked member (and a double click): no-op", gLogN = 0 andalso tkOptionButton_GetChecked( c ), LogStr() )
+    ' the caption is hit area too
+    dim as TKRECT rta, aa
+    tkOptionButton_GetTextRect( a, rta )
+    tkWidget_AbsRect( a, aa )
+    tkTest_Click( h, aa.left + (rta.left + rta.right) \ 2, aa.top + (rta.top + rta.bottom) \ 2 )
+    tkTest_Check( "caption click checks", LogIs( c, a ), LogStr() )
+
+    ' press, slide off, release: nothing -- but focus moved
+    ResetLog()
+    tkTest_PushButton( h, true, tkTest_CX( b ), tkTest_CY( b ) )
+    dim as TKRECT ab
+    tkWidget_AbsRect( b, ab )
+    tkTest_PushMotion( h, ab.right + tkHost_Scale( h, 200 ), tkTest_CY( b ) )
+    tkTest_Check( "slide off: capture KEPT, gesture live, not hot", tkHost_GetCapture( h ) = b andalso tkOptionButton_GetPressed( b ) _
+           andalso tkOptionButton_GetHot( b ) = false )
+    tkTest_PushButton( h, false, ab.right + tkHost_Scale( h, 200 ), tkTest_CY( b ) )
+    tkTest_Check( "release outside: nothing checked", gLogN = 0 andalso tkOptionButton_GetChecked( a ) andalso tkOptionButton_GetChecked( b ) = false )
+    tkTest_Check( "...focus is on b (a non-holder), which holds the stop while focused", tkHost_GetFocus( h ) = b _
+           andalso tkOptionButton_GetTabStop( b ) andalso TabStops( a ) = 1 )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "Tab from a focused non-holder LEAVES the group", tkHost_GetFocus( h ) = d, "" & FocusId( h ) )
+    tkTest_Check( "focus gone: the stop is back on the checked member", tkOptionButton_GetTabStop( a ) andalso TabStops( a ) = 1 )
+
+    ' capture lost cancels the press
+    tkTest_PushButton( h, true, tkTest_CX( c ), tkTest_CY( c ) )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_FOCUS_LOST )
+    tkTest_Check( "focus lost: capture gone, press cancelled", tkHost_GetCapture( h ) = 0 andalso tkOptionButton_GetPressed( c ) = false )
+    tkTest_PushButton( h, false, tkTest_CX( c ), tkTest_CY( c ) )
+    tkTest_Check( "release after a cancelled press: nothing", gLogN = 0 )
+
+    ' right button reported, never acted on; disabled never hot, never checks
+    tkTest_Click( h, tkTest_CX( c ), tkTest_CY( c ), SDL_BUTTON_RIGHT )
+    tkTest_Check( "right click does nothing", gLogN = 0 andalso tkOptionButton_GetChecked( c ) = false )
+    tkOptionButton_SetEnabled( c, false )
+    tkTest_PushMotion( h, tkTest_CX( c ), tkTest_CY( c ) )
+    tkTest_Click( h, tkTest_CX( c ), tkTest_CY( c ) )
+    tkTest_Check( "disabled: never hot, click refused", gLogN = 0 andalso tkOptionButton_GetHot( c ) = false andalso tkOptionButton_GetChecked( c ) = false )
+    tkOptionButton_SetEnabled( c, true )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+    tkTest_Check( "window leave clears hot", tkOptionButton_GetHot( c ) = false )
+
+    ' a message callback may suppress the press; focus still moves
+    gSuppressDown2 = true
+    tkOptionButton_SetMessageCallback( c, @OnMessage )
+    tkHost_SetFocus( h, a )
+    tkTest_Click( h, tkTest_CX( c ), tkTest_CY( c ) )
+    tkTest_Check( "suppressed press: no capture, no check, focus moved", gLogN = 0 andalso tkHost_GetCapture( h ) = 0 _
+           andalso tkHost_GetFocus( h ) = c andalso tkOptionButton_GetChecked( c ) = false )
+    gSuppressDown2 = false
+    tkOptionButton_SetMessageCallback( c, 0 )
+
+    ' ---- D: keyboard -------------------------------------------------------------------------
+    ' a is checked. Arrows move focus AND the check, wrapping, as a notifying user action.
+    tkHost_SetFocus( h, a )
+    ResetLog()
+    tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_Check( "Down: focus and check move to b, both edges", tkHost_GetFocus( h ) = b andalso tkOptionButton_GetChecked( b ) andalso LogIs( a, b ), LogStr() )
+    tkTest_Check( "Down: coherent, tab stop followed", gCoherent andalso tkOptionButton_GetTabStop( b ) andalso TabStops( b ) = 1 )
+    ResetLog()
+    tkTest_PushKey( h, SDLK_RIGHT )
+    tkTest_Check( "Right = Down", tkHost_GetFocus( h ) = c andalso LogIs( b, c ), LogStr() )
+    ResetLog()
+    tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_Check( "Down at the end wraps to the first", tkHost_GetFocus( h ) = a andalso LogIs( c, a ), LogStr() )
+    ResetLog()
+    tkTest_PushKey( h, SDLK_UP )
+    tkTest_Check( "Up at the start wraps to the last", tkHost_GetFocus( h ) = c andalso LogIs( a, c ), LogStr() )
+    ResetLog()
+    tkTest_PushKey( h, SDLK_LEFT )
+    tkTest_Check( "Left = Up", tkHost_GetFocus( h ) = b andalso LogIs( c, b ), LogStr() )
+    ' a disabled member is stepped over, both directions
+    tkOptionButton_SetEnabled( c, false )
+    ResetLog()
+    tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_Check( "Down steps OVER a disabled member (b -> a, wrapping)", tkHost_GetFocus( h ) = a andalso LogIs( b, a ), LogStr() )
+    ResetLog()
+    tkTest_PushKey( h, SDLK_UP )
+    tkTest_Check( "Up steps over it too (a -> b)", tkHost_GetFocus( h ) = b andalso LogIs( a, b ), LogStr() )
+    tkOptionButton_SetEnabled( a, false )
+    ResetLog()
+    tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_Check( "every other member disabled: arrows stay put, silently", tkHost_GetFocus( h ) = b andalso gLogN = 0 )
+    tkOptionButton_SetEnabled( a, true ) : tkOptionButton_SetEnabled( c, true )
+    ' the message callback sees the arrow first and can veto it
+    gSuppressDown = true
+    tkOptionButton_SetMessageCallback( b, @OnMessage )
+    ResetLog()
+    tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_Check( "message callback vetoes Down", tkHost_GetFocus( h ) = b andalso gLogN = 0 )
+    tkTest_PushKey( h, SDLK_UP )
+    tkTest_Check( "...but not Up", tkHost_GetFocus( h ) = a andalso LogIs( b, a ), LogStr() )
+    gSuppressDown = false
+    tkOptionButton_SetMessageCallback( b, 0 )
+    ' Space checks the focused member; on the checked one it is a no-op
+    tkHost_SetFocus( h, c )
+    ResetLog()
+    tkTest_PushKey( h, SDLK_SPACE )
+    tkTest_Check( "Space checks the focused member, both edges", tkOptionButton_GetChecked( c ) andalso LogIs( a, c ), LogStr() )
+    ResetLog()
+    tkTest_PushKey( h, SDLK_SPACE )
+    tkTest_Check( "Space on the checked member: no-op", gLogN = 0 )
+    ' ENTER IS NOT CLAIMED (asserted negatively): it bubbles to the parent; arrows and Space do not
+    tkOptionButton_SetChecked( xo, true )
+    tkHost_SetFocus( h, xo )
+    gContKeyN = 0
+    tkTest_PushKey( h, SDLK_RETURN ) : tkTest_PushKey( h, SDLK_KP_ENTER ) : tkTest_PushKey( h, SDLK_A )
+    tkTest_Check( "Enter, keypad Enter and 'A' are NOT claimed (reach the parent)", ContSaw( SDLK_RETURN ) andalso ContSaw( SDLK_KP_ENTER ) _
+           andalso ContSaw( SDLK_A ) andalso tkOptionButton_GetChecked( xo ), "" & gContKeyN )
+    gContKeyN = 0
+    ResetLog()
+    tkTest_PushKey( h, SDLK_SPACE ) : tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_Check( "Space and arrows ARE claimed (never reach the parent)", gContKeyN = 0 andalso tkHost_GetFocus( h ) = yo andalso LogIs( xo, yo ), gContKeyN & " " & LogStr() )
+    tkTest_Check( "arrows in the other parent's group never touch group (root,1)", tkOptionButton_GetChecked( c ) )
+
+    ' ---- E: Tab -- the group is ONE tab stop ------------------------------------------------
+    ' tree order: pre, a b c (1), d b?(2: d, e), post, cont{ xo yo zo (1) }, lay, nc
+    tkOptionButton_SetChecked( b, true )
+    tkOptionButton_ClearGroup( d )
+    tkHost_SetFocus( h, pre )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "Tab enters group 1 at its CHECKED member", tkHost_GetFocus( h ) = b, "" & FocusId( h ) )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "next Tab LEAVES the group (to group 2's first member)", tkHost_GetFocus( h ) = d, "" & FocusId( h ) )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "group 2 is one stop too", tkHost_GetFocus( h ) = post, "" & FocusId( h ) )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "into the other parent's group at ITS checked member", tkHost_GetFocus( h ) = yo, "" & FocusId( h ) )
+    tkHost_SetFocus( h, post )
+    tkTest_PushKey( h, SDLK_TAB, SDL_KMOD_LSHIFT )
+    tkTest_Check( "Shift+Tab back into group 2", tkHost_GetFocus( h ) = d, "" & FocusId( h ) )
+    tkTest_PushKey( h, SDLK_TAB, SDL_KMOD_LSHIFT )
+    tkTest_Check( "Shift+Tab enters group 1 at its checked member", tkHost_GetFocus( h ) = b, "" & FocusId( h ) )
+    tkTest_PushKey( h, SDLK_TAB, SDL_KMOD_LSHIFT )
+    tkTest_Check( "Shift+Tab leaves it", tkHost_GetFocus( h ) = pre, "" & FocusId( h ) )
+    tkOptionButton_ClearGroup( a )
+    tkOptionButton_SetEnabled( a, false )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "nothing checked, first disabled: Tab enters at the first ENABLED", tkHost_GetFocus( h ) = b, "" & FocusId( h ) )
+    tkOptionButton_SetEnabled( a, true )
+    tkHost_SetFocus( h, c )
+    tkTest_PushKey( h, SDLK_TAB, SDL_KMOD_LSHIFT )
+    tkTest_Check( "Shift+Tab from a focused non-holder leaves the group backwards", tkHost_GetFocus( h ) = pre, "" & FocusId( h ) )
+
+    ' setters are silent
+    ResetLog()
+    tkOptionButton_SetChecked( a, true ) : tkOptionButton_SetChecked( a, false ) : tkOptionButton_SetText( a, "Highest" )
+    tkOptionButton_SetEnabled( a, false ) : tkOptionButton_SetEnabled( a, true ) : tkOptionButton_SetGroupID( a, 3 ) : tkOptionButton_SetGroupID( a, 1 )
+    tkOptionButton_SetID( a, 555 ) : tkOptionButton_SetItemData( a, 42 ) : tkOptionButton_ClearGroup( a )
+    tkTest_Check( "setters are silent", gLogN = 0 )
+    tkTest_Check( "ID / ItemData stored; FindCheckedID reports the id", tkOptionButton_GetID( a ) = 555 andalso tkOptionButton_GetItemData( a ) = 42 _
+           andalso a->ctrlId = 101 )
+    tkOptionButton_SetChecked( a, true )
+    tkTest_Check( "...and FindCheckedID answers it", tkOptionButton_FindCheckedID( root, 1 ) = 555 )
+    tkOptionButton_SetID( a, 101 )
+
+    ' ---- F: pixels ---------------------------------------------------------------------------
+    tkHost_SetFocus( h, 0 )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+    dim as TK_WIDGET ptr pxo = MakeOpt( root, 701, 70, "", fText, tkHost_Scale( h, 330 ), tkHost_Scale( h, 300 ) )
+    tkOptionButton_SetColors( pxo, @pc )
+    tkOptionButton_SetRingThickness( pxo, 3 )
+    tkTest_Check( "unchecked idle: ring = RingColor", ColorNear( RingPx( h, pxo ), C_RING ), hex( RingPx( h, pxo ) ) )
+    tkTest_Check( "unchecked: hollow (centre = back)", CirclePx( h, pxo, 0.5, 0.5 ) = C_BACK, hex( CirclePx( h, pxo, 0.5, 0.5 ) ) )
+    tkOptionButton_SetChecked( pxo, true )
+    tkTest_Check( "checked: disc filled with RingColorChecked", CirclePx( h, pxo, 0.2, 0.5 ) = C_CHK, hex( CirclePx( h, pxo, 0.2, 0.5 ) ) )
+    tkTest_Check( "checked: the dot on top in DotColor", CirclePx( h, pxo, 0.5, 0.5 ) = C_DOT, hex( CirclePx( h, pxo, 0.5, 0.5 ) ) )
+    tkOptionButton_SetChecked( pxo, false )
+    tkTest_PushMotion( h, tkTest_CX( pxo ), tkTest_CY( pxo ) )
+    tkTest_Check( "hot: ring = RingColorHot", ColorNear( RingPx( h, pxo ), C_RINGHOT ), hex( RingPx( h, pxo ) ) )
+    tkTest_PushButton( h, true, tkTest_CX( pxo ), tkTest_CY( pxo ) )
+    tkTest_Check( "pressed: ring = RingColorPressed", ColorNear( RingPx( h, pxo ), C_RINGPRESS ), hex( RingPx( h, pxo ) ) )
+    dim as TKRECT apx
+    tkWidget_AbsRect( pxo, apx )
+    tkTest_PushMotion( h, apx.right + tkHost_Scale( h, 150 ), tkTest_CY( pxo ) )
+    tkTest_Check( "slid off: un-flashed to RingColor", ColorNear( RingPx( h, pxo ), C_RING ), hex( RingPx( h, pxo ) ) )
+    tkTest_PushButton( h, false, apx.right + tkHost_Scale( h, 150 ), tkTest_CY( pxo ) )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+    tkOptionButton_SetChecked( pxo, true )
+    tkOptionButton_SetEnabled( pxo, false )
+    tkTest_Check( "disabled checked: CheckedDisabled disc, DotColorDisabled dot", CirclePx( h, pxo, 0.2, 0.5 ) = C_CHKDIS _
+           andalso CirclePx( h, pxo, 0.5, 0.5 ) = C_DOTDIS, hex( CirclePx( h, pxo, 0.2, 0.5 ) ) & " " & hex( CirclePx( h, pxo, 0.5, 0.5 ) ) )
+    tkOptionButton_SetEnabled( pxo, true )
+    tkOptionButton_SetChecked( pxo, false )
+    tkOptionButton_SetRingThickness( pxo, 0 )
+    tkTest_Check( "ring thickness 0: no ring drawn", RingPx( h, pxo ) = C_BACK, hex( RingPx( h, pxo ) ) )
+    tkOptionButton_SetRingThickness( pxo, 3 )
+    ' focus ring: an outline on rcVisual's edge, only while focused
+    dim as TKRECT rvp
+    tkOptionButton_GetVisualRect( pxo, rvp )
+    tkHost_RenderTo( h, false )
+    dim as ulong cNoRing = tkTest_PixelAt( h, apx.left + (rvp.left + rvp.right) \ 2, apx.top + rvp.top )
+    tkHost_SetFocus( h, pxo )
+    tkHost_RenderTo( h, false )
+    dim as ulong cRing = tkTest_PixelAt( h, apx.left + (rvp.left + rvp.right) \ 2, apx.top + rvp.top )
+    tkTest_Check( "focus ring drawn only when focused", cNoRing = C_BACK andalso cRing = C_FOCUS, hex( cNoRing ) & " " & hex( cRing ) )
+    tkHost_SetFocus( h, 0 )
+    ' render probes
+    tkTest_Check( "probe tones: control > 1, caption > 1", tkOptionButton_CountRenderedTones( a, OPT_PART_CONTROL ) > 1 _
+           andalso tkOptionButton_CountRenderedTones( a, OPT_PART_TEXT ) > 1 )
+    tkTest_Check( "probe: empty part answers 0", tkOptionButton_CountRenderedTones( pxo, OPT_PART_TEXT ) = 0 )
+    dim as ulong hOff = tkOptionButton_HashRenderedPart( pxo, OPT_PART_BOX )
+    tkOptionButton_SetChecked( pxo, true )
+    dim as ulong hOn = tkOptionButton_HashRenderedPart( pxo, OPT_PART_BOX )
+    tkTest_Check( "probe hash: state reaches the pixels, same state same hash", hOff <> 0 andalso hOn <> 0 andalso hOff <> hOn _
+           andalso tkOptionButton_HashRenderedPart( pxo, OPT_PART_BOX ) = hOn )
+
+    ' AutoSize follows the caption and keeps the top-left
+    dim as long xs = lay->x, ys = lay->y
+    tkOptionButton_SetAutoSize( lay, true )
+    tkOptionButton_SetText( lay, "Go" )
+    tkOptionButton_GetIdealSize( lay, iw2, ih2 )
+    tkTest_Check( "AutoSize follows SetText, top-left kept", lay->cw = iw2 andalso iw2 < iw andalso lay->x = xs andalso lay->y = ys, lay->cw & " vs " & iw2 )
+    tkOptionButton_SetAutoSize( lay, false )
+    tkOptionButton_SetText( lay, "Highest quality" )
+
+    ' ---- G: the per-monitor scale path ---------------------------------------------------
+    dim as long w0, h0, w1, h1, bw1, bh1, fg1, ft1
+    tkOptionButton_SetDotSize( nc, 6 )
+    tkOptionButton_GetIdealSize( a, w0, h0 )
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkOptionButton_GetIdealSize( a, w1, h1 )
+    tkOptionButton_GetBoxSize( a, bw1, bh1 )
+    tkOptionButton_GetFocusRing( a, fg1, ft1 )
+    tkTest_Check( "rescale: ideal width ~ x2", (w1 > w0 * 1.85) andalso (w1 < w0 * 2.15), w0 & " -> " & w1 )
+    tkTest_Check( "rescale: box doubled", bw1 = 2 * bw andalso bh1 = 2 * bh, bw & " -> " & bw1 )
+    tkTest_Check( "rescale: focus gap doubled, pens not", fg1 = 2 * fg andalso ft1 = 1 andalso tkOptionButton_GetRingThickness( pxo ) = 3, fg1 & " " & ft1 )
+    tkTest_Check( "rescale: a declared dot doubles, a derived one stays 0", tkOptionButton_GetDotSize( nc ) = 12 andalso tkOptionButton_GetDotSize( a ) = 0 )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkOptionButton_GetIdealSize( a, w1, h1 )
+    tkTest_Check( "rescale back: ideal size restored", w1 = w0 andalso h1 = h0, w0 & " / " & w1 )
+
+    ' ---- H: the tooltip is a real popup window ------------------------------------------
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 400 )                 ' the X11 settle (see tkButton)
+    dim as TK_WIDGET ptr tp = MakeOpt( root, 801, 80, "", fText, tkHost_Scale( h, 600 ), tkHost_Scale( h, 300 ) )
+    tkOptionButton_SetTooltipCallback( tp, @OnTip )
+    tkOptionButton_SetHoverTime( tp, 200 )
+    tkTest_PushMotion( h, tkTest_CX( tp ), tkTest_CY( tp ) )
+    tkTest_Check( "tooltip popup appears after hover time", WaitTip( h, tp, true, 3000, tkTest_CX( tp ), tkTest_CY( tp ) ), *SDL_GetError() )
+    tkTest_PushMotion( h, 2, 2 )
+    tkTest_Check( "tooltip hides on leave", WaitTip( h, tp, false, 1000 ) )
+    tkTest_PumpFor( h, 300 )                 ' let the compositor's leave/enter for the unmap settle
+    tkOptionButton_SetTooltipText( tp, "own text" )
+    tkTest_Check( "tooltip text stored", tkOptionButton_GetTooltipText( tp ) = "own text" )
+    tkTest_Check( "the tooltip handle is the control's tkTooltip", tkOptionButton_GetTooltipHandle( tp ) <> 0 _
+           andalso tkTooltip_GetAttached( tkOptionButton_GetTooltipHandle( tp ) ) = tp )
+
+    ' ---- I: theme, pinning, fonts ---------------------------------------------------------
+    dim as TKOPTIONBUTTON_COLORS cc
+    tkTheme_Apply( tkTheme_Light() )
+    tkOptionButton_GetColors( a, @cc )
+    dim as TKTHEME_COLORS tl = tkTheme_Light()
+    tkTest_Check( "theme reaches an unpinned control, role for role", cc.BackColor = tl.Window andalso cc.RingColor = tl.TextDim _
+           andalso cc.RingColorChecked = tl.Accent andalso cc.RingColorCheckedDisabled = tl.Border andalso cc.DotColor = tl.SelectedText _
+           andalso cc.DotColorDisabled = tl.Window andalso cc.FocusRingColor = tl.FocusRing andalso cc.ForeColorPressed = tl.TextStrong )
+    tkOptionButton_GetColors( pxo, @cc )
+    tkTest_Check( "SetColors pinned: theme left it alone", cc.RingColor = C_RING )
+    tkOptionButton_UnpinColors( pxo )
+    tkOptionButton_GetColors( pxo, @cc )
+    tkTest_Check( "unpin hands it back to the current theme", cc.BackColor = tl.Window )
+    tkTheme_Apply( tkTheme_Dark() )
+    tkOptionButton_GetColors( pxo, @cc )
+    tkTest_Check( "unpinned follows the next theme", cc.RingColorChecked = tkTheme_Dark().Accent )
+
+    dim as TTF_Font ptr fBig = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 16 )
+    dim as long wSmall, wBig, hh2
+    tkOptionButton_SetText( tp, "Caption" )
+    tkOptionButton_GetIdealSize( tp, wSmall, hh2 )
+    tkOptionButton_ApplyFonts( tp, fBig, 0 )
+    tkOptionButton_GetIdealSize( tp, wBig, hh2 )
+    tkTest_Check( "ApplyFonts re-measures with the new caption font", wBig > wSmall andalso tkOptionButton_GetFont( tp ) = fBig, wSmall & " -> " & wBig )
+    tkOptionButton_ApplyFonts( tp, 0, fText )
+    tkTest_Check( "ApplyFonts 0 keeps the caption font", tkOptionButton_GetFont( tp ) = fBig )
+
+    tkHost_Destroy( h )
+end sub
+
+
+' ---- with NO font anywhere, text measures zero and the box alone sets the size ----------
+sub RunNoFont()
+    tkTest_Begin( "no font" )
+    dim as TK_HOST ptr h = tkHost_Create( "tkOptionButton selftest", 320, 200, "", 1 )
+    dim as TK_WIDGET ptr a = tkOptionButton_Create( tkHost_Root( h ), 1 )
+    tkOptionButton_SetText( a, "Highest" )
+    dim as long iw, ih, tw, nTextH
+    tkOptionButton_GetIdealSize( a, iw, ih )
+    tkOptionButton_GetTextSize( a, tw, nTextH )
+    tkTest_Check( "no font: caption measures 0", tw = 0 andalso nTextH = 0, tw & "x" & nTextH )
+    tkTest_Check( "no font: still a box-sized ideal", iw > 0 andalso ih > 0, iw & "x" & ih )
+    tkTest_Check( "default group id is 0", tkOptionButton_GetGroupID( a ) = 0 andalso tkOptionButton_FindChecked( tkHost_Root( h ), 0 ) = 0 )
+    tkHost_Destroy( h )
+end sub
+
+
+' ==========================================================================================
+if tkTest_Init() = false then end 99
+
+RunNoFont()
+RunPass( 1.0 )
+RunPass( 1.75 )
+
+tkTest_Begin( "cross-pass" )
+tkTest_Check( "ideal width scales with the scale", (gIdealW(0) > 0) andalso (gIdealW(1) > gIdealW(0) * 1.6) andalso (gIdealW(1) < gIdealW(0) * 1.9), gIdealW(0) & " -> " & gIdealW(1) )
+dim as long nFail = tkTest_Report( "tkOptionButton" )
+tkTest_Quit()
+end nFail

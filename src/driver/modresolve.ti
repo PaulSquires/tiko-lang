@@ -64,8 +64,13 @@ declare sub PackageDefines( byref ctx as Tko.CompilerContext, byref name_ as str
 declare function LinkModesOf( byref ctx as Tko.CompilerContext, byref name_ as string, byref chain as string ) as string
 '' PackageDefines of ctx.unit.modPkgName, and the TIKO_LINK_* of ctx.unit.modLinkMode (RFC-0002 V6).
 declare sub ModuleDefines( byref ctx as Tko.CompilerContext, byref outv as Tko.StrVec )
-'' The linked vendor packages' .dll / .so copied beside 'outPath' (RFC-0002 V13); false, with
-'' the pair that failed, when a copy did.
+'' A module's [vendor.<module>] runtime: each entry as written, and its path below 'dir_', with
+'' a bare library name spelled as the target names a shared library.
+declare sub RuntimeFilesOf _
+    ( byref ctx as Tko.CompilerContext, byref name_ as string, byref chain as string, _
+      byref dir_ as string, byref entries as Tko.StrVec, byref paths as Tko.StrVec )
+'' The linked vendor packages' .dll / .so (RFC-0002 V13), and ctx.runtimeFiles, copied beside
+'' 'outPath'; false, with the pair that failed, when a copy did.
 declare function CopyVendorLibs _
     ( byref ctx as Tko.CompilerContext, byref outPath as string, _
       byref failSrc as string, byref failDst as string ) as boolean

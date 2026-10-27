@@ -1,0 +1,421 @@
+' tkSplitter self-test. Real windows, real SDL event queue: every input claim is made by
+' PUSHING the SDL event a user would have produced and pumping the host, so the dispatch path
+' under test is the one the demo runs. Two passes, scale pinned at 1.0 and at 1.75.
+'
+' The window is never shown: nothing here needs the OS, and an unmapped window gets no REAL
+' pointer events on X11 to race the synthetic ones.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkSplitter"
+#import "vendor/tkControls/tkTest"
+using tkSplitter
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+' ---- the position-callback recorder: the BEGIN/MOVE/END sequence is asserted, not eyeballed ----
+const as long MAX_REC = 64
+dim shared as long gRecN
+dim shared as long gRecPhase(0 to MAX_REC - 1)
+dim shared as long gRecPos(0 to MAX_REC - 1)
+dim shared as boolean gRecDragging(0 to MAX_REC - 1)    ' IsDragging as the callback saw it
+dim shared as TK_WIDGET ptr gRecWho(0 to MAX_REC - 1)
+
+dim shared as TK_WIDGET ptr gV, gH        ' the two bars of the vendor harness
+dim shared as long gBarW                  ' bar thickness, scaled
+dim shared as boolean gFollow = true      ' the V callback re-places H's cross axis (the demo's job)
+
+' message-callback modes
+const as long MSG_NONE = 0, MSG_DBLCLICK_COLLAPSE = 1, MSG_CLAIM_ALL = 2, MSG_CLAIM_MOVE = 3
+dim shared as long gMsgMode, gMsgUps, gMsgDbl
+dim shared as boolean gCollapsed
+dim shared as long gSavedPos
+
+sub RecReset()
+    gRecN = 0
+end sub
+
+sub OnPos( byval hSplitter as TK_WIDGET ptr, byval newPos as long, byval nPhase as long )
+    if gRecN < MAX_REC then
+        gRecPhase(gRecN) = nPhase
+        gRecPos(gRecN) = newPos
+        gRecDragging(gRecN) = tkSplitter_IsDragging( hSplitter )
+        gRecWho(gRecN) = hSplitter
+        gRecN += 1
+    end if
+    ' The horizontal bar lives in the right pane: a vertical move drags it sideways. The control
+    ' never does that itself -- it preserves whatever cross-axis geometry it is given.
+    if gFollow andalso (hSplitter = gV) andalso (gH <> 0) then
+        dim as long xRight = newPos + gBarW
+        tkWidget_SetPos( gH, xRight, gH->y, gH->pHost->root->cw - xRight, gH->ch )
+    end if
+end sub
+
+function OnMsg( byval m as TKSPLITTER_MESSAGEINFO ptr ) as boolean
+    if m->msg = TKM_LBUTTONUP then gMsgUps += 1
+    select case gMsgMode
+    case MSG_CLAIM_ALL
+        return true
+    case MSG_CLAIM_MOVE
+        return (m->msg = TKM_MOUSEMOVE)
+    case MSG_DBLCLICK_COLLAPSE
+        if (m->msg <> TKM_LBUTTONDOWN) orelse (m->clicks <> 2) then return false
+        gMsgDbl += 1
+        if gCollapsed then
+            tkSplitter_SetPos( m->hSplitter, gSavedPos )
+            gCollapsed = false
+        else
+            gSavedPos = tkSplitter_GetPos( m->hSplitter )
+            tkSplitter_SetPos( m->hSplitter, tkSplitter_GetMax( m->hSplitter ) )
+            gCollapsed = true
+        end if
+        return true
+    end select
+    return false
+end function
+
+const as ulong CB_FILL = &hFF102030ul, CB_LINE = &hFFF0E0D0ul, CB_LINEHOT = &hFF00FFFFul
+
+' A thin centred line on a dark fill -- the vendor demo's H painter.
+sub OnPaintH( byval p as TKSPLITTER_PAINTINFO ptr )
+    p->b->SetBackColor( CB_FILL )
+    p->b->PaintRect( @p->rcClient )
+    dim as TKRECT rcLine = p->rcClient
+    dim as long midY = (rcLine.top + rcLine.bottom) \ 2
+    rcLine.top = midY : rcLine.bottom = midY + 1
+    p->b->SetBackColor( iif( p->isHot orelse p->isDragging, CB_LINEHOT, CB_LINE ) )
+    p->b->PaintRect( @rcLine )
+end sub
+
+' Phases BEGIN, MOVE..., END, the MOVEs all distinct from their predecessor.
+function SequenceOk() as boolean
+    if gRecN < 2 then return false
+    if gRecPhase(0) <> TKSPLITTER_PHASE_BEGIN then return false
+    if gRecPhase(gRecN - 1) <> TKSPLITTER_PHASE_END then return false
+    for i as long = 1 to gRecN - 2
+        if gRecPhase(i) <> TKSPLITTER_PHASE_MOVE then return false
+        if gRecPos(i) = gRecPos(i - 1) then return false
+    next
+    return true
+end function
+
+function RecStr() as string
+    dim as string s
+    for i as long = 0 to gRecN - 1
+        s &= " " & mid( "BME", gRecPhase(i) + 1, 1 ) & gRecPos(i)
+    next
+    return s
+end function
+
+' The vendor harness's layout pass: limits pushed in, bars placed, H tracking V.
+sub Layout( byval h as TK_HOST ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long minPane = tkHost_Scale( h, 80 )
+    tkSplitter_SetRange( gV, minPane, pw - minPane - gBarW )
+    tkWidget_SetPos( gV, tkSplitter_GetPos( gV ), 0, gBarW, ph )
+    dim as long xRight = tkSplitter_GetPos( gV ) + gBarW
+    tkSplitter_SetRange( gH, minPane, ph - minPane - gBarW )
+    tkWidget_SetPos( gH, xRight, tkSplitter_GetPos( gH ), pw - xRight, gBarW )
+end sub
+
+
+' ==========================================================================================
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    tkTheme_Apply( tkTheme_Dark() )
+    dim as TK_HOST ptr h = tkHost_Create( "tkSplitter selftest", 640, 480, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    tkTest_Check( "scale pinned", h->fScale = fScale, "" & h->fScale )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    gBarW = tkHost_Scale( h, 6 )
+    dim as long minPane = tkHost_Scale( h, 80 )
+    dim as long cy = ph \ 4                     ' a row of the V bar clear of the H bar
+
+    ' ---- A: creation and defaults ---------------------------------------------------------
+    gV = tkSplitter_Create( tkHost_Root( h ), 201, TKSPLITTER_VERTICAL )
+    gH = tkSplitter_Create( tkHost_Root( h ), 202, TKSPLITTER_HORIZONTAL )
+    dim as TK_WIDGET ptr odd = tkSplitter_Create( tkHost_Root( h ), 203, 7 )
+    tkTest_Check( "orientation V / H", tkSplitter_GetOrientation( gV ) = TKSPLITTER_VERTICAL andalso tkSplitter_GetOrientation( gH ) = TKSPLITTER_HORIZONTAL )
+    tkTest_Check( "unknown orientation taken as VERTICAL", tkSplitter_GetOrientation( odd ) = TKSPLITTER_VERTICAL )
+    tkTest_Check( "cursor: SIZEWE on V, SIZENS on H", gV->cursor = TK_CURSOR_SIZEWE andalso gH->cursor = TK_CURSOR_SIZENS andalso odd->cursor = TK_CURSOR_SIZEWE )
+    tkTest_Check( "never a tab stop", (gV->isFocusable = false) andalso (gH->isFocusable = false) )
+    tkTest_Check( "created at 0,0 zero-sized", gV->x = 0 andalso gV->y = 0 andalso gV->cw = 0 andalso gV->ch = 0 andalso tkSplitter_GetPos( gV ) = 0 )
+    tkTest_Check( "range defaults 0 .. unbounded", tkSplitter_GetMin( gV ) = 0 andalso tkSplitter_GetMax( gV ) = &h7FFFFFFF, tkSplitter_GetMin( gV ) & ".." & tkSplitter_GetMax( gV ) )
+    tkTest_Check( "invalid handle: GetPos 0, GetMax 0 (not the default), orientation V", _
+           tkSplitter_GetPos( 0 ) = 0 andalso tkSplitter_GetMax( 0 ) = 0 andalso tkSplitter_GetOrientation( 0 ) = TKSPLITTER_VERTICAL _
+           andalso tkSplitter_IsHot( 0 ) = false andalso tkSplitter_IsDragging( 0 ) = false andalso tkSplitter_GetBackColor( 0 ) = 0 )
+    tkTest_Check( "colours at create = the theme's roles (Divider / TextDisabled)", _
+           tkSplitter_GetBackColor( gV ) = tkTheme_Dark().Divider andalso tkSplitter_GetHotColor( gV ) = tkTheme_Dark().TextDisabled )
+    dim as TKSPLITTER_COLORS cdef
+    tkTest_Check( "struct defaults are vendor's BGR(53,59,69) / BGR(90,98,112)", cdef.BackColor = tkRGB( 53, 59, 69 ) andalso cdef.HotColor = tkRGB( 90, 98, 112 ) )
+    tkSplitter_SetPosChangedCallback( gV, @OnPos )
+    tkSplitter_SetPosChangedCallback( gH, @OnPos )
+
+    ' ---- B: position and range, all SILENT ------------------------------------------------
+    RecReset()
+    tkSplitter_SetPos( gV, tkHost_Scale( h, 240 ) )
+    tkTest_Check( "SetPos before sizing moves the widget", tkSplitter_GetPos( gV ) = tkHost_Scale( h, 240 ) andalso gV->x = tkHost_Scale( h, 240 ), "" & gV->x )
+    tkSplitter_SetPos( gH, tkHost_Scale( h, 240 ) )
+    Layout( h )
+    tkTest_Check( "layout: V bar = pos, full height, barW wide", gV->x = tkHost_Scale( h, 240 ) andalso gV->y = 0 andalso gV->cw = gBarW andalso gV->ch = ph )
+    tkTest_Check( "layout: range pushed in", tkSplitter_GetMin( gV ) = minPane andalso tkSplitter_GetMax( gV ) = pw - minPane - gBarW )
+    dim as long S100 = tkHost_Scale( h, 100 ), S400 = tkHost_Scale( h, 400 )
+    tkSplitter_SetRange( gV, S100, S400 )
+    tkSplitter_SetPos( gV, tkHost_Scale( h, 250 ) )
+    tkTest_Check( "SetPos -> GetPos round-trip", tkSplitter_GetPos( gV ) = tkHost_Scale( h, 250 ) )
+    tkSplitter_SetPos( gV, tkHost_Scale( h, 20 ) )
+    tkTest_Check( "SetPos clamps to nMin", tkSplitter_GetPos( gV ) = S100, "" & tkSplitter_GetPos( gV ) )
+    tkSplitter_SetPos( gV, 99999 )
+    tkTest_Check( "SetPos clamps to nMax", tkSplitter_GetPos( gV ) = S400 andalso gV->x = S400, "" & tkSplitter_GetPos( gV ) )
+    tkSplitter_SetRange( gV, S100, tkHost_Scale( h, 300 ) )
+    tkTest_Check( "SetRange clamps the current pos", tkSplitter_GetPos( gV ) = tkHost_Scale( h, 300 ) andalso gV->x = tkHost_Scale( h, 300 ) )
+    tkSplitter_SetRange( gV, tkHost_Scale( h, 200 ), tkHost_Scale( h, 50 ) )
+    tkTest_Check( "inverted range pins at nMin", tkSplitter_GetPos( gV ) = tkHost_Scale( h, 200 ) )
+    tkSplitter_SetPos( gV, 99999 )
+    tkTest_Check( "inverted range: SetPos stays pinned", tkSplitter_GetPos( gV ) = tkHost_Scale( h, 200 ) )
+    tkSplitter_SetRange( gV, S100, S400 )
+    tkWidget_SetPos( gV, tkHost_Scale( h, 275 ), 0, gBarW, ph )
+    tkTest_Check( "host move -> GetPos re-syncs", tkSplitter_GetPos( gV ) = tkHost_Scale( h, 275 ), "" & tkSplitter_GetPos( gV ) )
+    tkWidget_SetPos( gV, tkHost_Scale( h, 50 ), 0, gBarW, ph )
+    tkTest_Check( "host move out of range reported honestly", tkSplitter_GetPos( gV ) = tkHost_Scale( h, 50 ) )
+    tkSplitter_SetPos( gV, tkHost_Scale( h, 50 ) )
+    tkTest_Check( "the next SetPos pulls it back in", tkSplitter_GetPos( gV ) = S100 andalso gV->x = S100 )
+    dim as long hx0 = gH->x, hw0 = gH->cw, hh0 = gH->ch
+    tkSplitter_SetPos( gH, tkHost_Scale( h, 200 ) )
+    tkTest_Check( "H SetPos moves y only; x and size preserved", gH->y = tkHost_Scale( h, 200 ) andalso gH->x = hx0 andalso gH->cw = hw0 andalso gH->ch = hh0 )
+    tkTest_Check( "B: every setter was silent", gRecN = 0, "" & gRecN )
+    ' back to the harness layout
+    tkSplitter_SetPos( gV, tkHost_Scale( h, 240 ) )
+    tkSplitter_SetPos( gH, tkHost_Scale( h, 240 ) )
+    Layout( h )
+    tkHost_Pump( h )
+
+    ' ---- C: a vertical drag through the real dispatch --------------------------------------
+    dim as long p0 = tkSplitter_GetPos( gV )
+    dim as long gx = p0 + gBarW \ 2
+    tkTest_PushMotion( h, gx, cy )
+    tkTest_Check( "hover: hot", tkSplitter_IsHot( gV ) )
+    tkTest_Check( "hover: SIZEWE cursor", tkHost_CurrentCursor() = TK_CURSOR_SIZEWE, "" & tkHost_CurrentCursor() )
+    RecReset()
+    tkTest_PushButton( h, true, gx, cy )
+    tkTest_Check( "press takes capture", tkHost_GetCapture( h ) = gV )
+    tkTest_Check( "press: IsDragging", tkSplitter_IsDragging( gV ) )
+    tkTest_Check( "BEGIN fired from the press, at the unchanged position", gRecN = 1 andalso gRecPhase(0) = TKSPLITTER_PHASE_BEGIN andalso gRecPos(0) = p0 andalso gRecWho(0) = gV, RecStr() )
+    tkTest_PushMotion( h, gx + tkHost_Scale( h, 30 ), cy )
+    tkTest_Check( "MOVE: pos follows the cursor", tkSplitter_GetPos( gV ) = p0 + tkHost_Scale( h, 30 ), "" & tkSplitter_GetPos( gV ) )
+    tkTest_Check( "MOVE: the control moved itself", gV->x = p0 + tkHost_Scale( h, 30 ) andalso gV->y = 0 andalso gV->cw = gBarW andalso gV->ch = ph )
+    tkTest_Check( "MOVE notified with the applied position", gRecN = 2 andalso gRecPhase(1) = TKSPLITTER_PHASE_MOVE andalso gRecPos(1) = p0 + tkHost_Scale( h, 30 ), RecStr() )
+    tkTest_Check( "the host's callback moved H's cross axis", gH->x = tkSplitter_GetPos( gV ) + gBarW )
+    tkTest_PushMotion( h, gx + tkHost_Scale( h, 30 ), cy + tkHost_Scale( h, 40 ) )
+    tkTest_Check( "cross-axis motion: no MOVE", gRecN = 2, RecStr() )
+    dim as long maxV = tkSplitter_GetMax( gV )
+    tkTest_PushMotion( h, pw - tkHost_Scale( h, 5 ), cy )
+    tkTest_Check( "drag clamps at nMax", tkSplitter_GetPos( gV ) = maxV andalso gRecN = 3 andalso gRecPos(2) = maxV, RecStr() )
+    tkTest_Check( "hot PINNED while the cursor is off the bar", tkSplitter_IsHot( gV ) )
+    tkTest_Check( "cursor held SIZEWE off the bar (capture)", tkHost_CurrentCursor() = TK_CURSOR_SIZEWE )
+    tkTest_PushMotion( h, pw - tkHost_Scale( h, 2 ), cy )
+    tkTest_Check( "held against the limit: quiet, no repeated MOVE", gRecN = 3, RecStr() )
+    tkTest_PushMotion( h, gx + tkHost_Scale( h, 60 ), cy )
+    tkTest_Check( "no sticky clamp: back inside, pos = cursor - offset at once", tkSplitter_GetPos( gV ) = p0 + tkHost_Scale( h, 60 ), "" & tkSplitter_GetPos( gV ) )
+    tkTest_PushMotion( h, tkHost_Scale( h, 10 ), cy )
+    tkTest_Check( "drag clamps at nMin", tkSplitter_GetPos( gV ) = minPane, "" & tkSplitter_GetPos( gV ) )
+    dim as long nBeforeUp = gRecN
+    tkTest_PushButton( h, false, tkHost_Scale( h, 10 ), cy )
+    tkTest_Check( "release: exactly one END, last, at the final pos", gRecN = nBeforeUp + 1 andalso gRecPhase(gRecN - 1) = TKSPLITTER_PHASE_END andalso gRecPos(gRecN - 1) = minPane, RecStr() )
+    tkTest_Check( "END sees IsDragging already FALSE", gRecDragging(gRecN - 1) = false andalso gRecDragging(0) = true )
+    tkTest_Check( "sequence BEGIN, MOVE..., END; no repeated MOVE", SequenceOk(), RecStr() )
+    tkTest_Check( "release: capture released, not dragging", tkHost_GetCapture( h ) = 0 andalso tkSplitter_IsDragging( gV ) = false )
+    tkTest_Check( "release off the bar: hot re-derived FALSE", tkSplitter_IsHot( gV ) = false )
+    ' release ON the bar keeps it hot
+    dim as long bx = tkSplitter_GetPos( gV ) + gBarW \ 2
+    tkTest_PushButton( h, true, bx, cy )
+    tkTest_PushMotion( h, bx + tkHost_Scale( h, 20 ), cy )
+    tkTest_PushButton( h, false, bx + tkHost_Scale( h, 20 ), cy )
+    tkTest_Check( "release on the bar: hot re-derived TRUE", tkSplitter_IsHot( gV ) andalso tkSplitter_GetPos( gV ) = minPane + tkHost_Scale( h, 20 ) )
+    tkTest_PushMotion( h, tkHost_Scale( h, 10 ), cy )
+    tkTest_Check( "leave: hot cleared, arrow cursor", tkSplitter_IsHot( gV ) = false andalso tkHost_CurrentCursor() = TK_CURSOR_ARROW, "" & tkHost_CurrentCursor() )
+    tkTest_PushMotion( h, tkSplitter_GetPos( gV ) + gBarW \ 2, cy )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+    tkTest_Check( "window leave clears hot (no hover poll)", tkSplitter_IsHot( gV ) = false )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "never takes focus (click or Tab)", tkHost_GetFocus( h ) = 0 )
+
+    ' ---- D: capture lost mid-drag ends the drag ------------------------------------------
+    RecReset()
+    dim as long pd = tkSplitter_GetPos( gV )
+    tkTest_PushButton( h, true, pd + gBarW \ 2, cy )
+    tkTest_PushMotion( h, pd + gBarW \ 2 + tkHost_Scale( h, 25 ), cy )
+    dim as long pSteal = tkSplitter_GetPos( gV )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_FOCUS_LOST )
+    tkTest_Check( "capture loss: capture gone", tkHost_GetCapture( h ) = 0 )
+    tkTest_Check( "capture loss: END delivered, once", gRecN = 3 andalso gRecPhase(2) = TKSPLITTER_PHASE_END, RecStr() )
+    tkTest_Check( "capture loss keeps the position", tkSplitter_GetPos( gV ) = pSteal andalso pSteal = pd + tkHost_Scale( h, 25 ) andalso gRecPos(gRecN - 1) = pSteal, "" & pSteal )
+    tkTest_Check( "capture loss: IsDragging FALSE (also inside END)", tkSplitter_IsDragging( gV ) = false andalso gRecDragging(gRecN - 1) = false )
+    tkTest_PushMotion( h, pd + gBarW \ 2 + tkHost_Scale( h, 60 ), cy )
+    tkTest_PushButton( h, false, pd + gBarW \ 2 + tkHost_Scale( h, 60 ), cy )
+    tkTest_Check( "after the loss: later motion and release do nothing", gRecN = 3 andalso tkSplitter_GetPos( gV ) = pSteal, RecStr() )
+
+    ' ---- E: the message callback: double-click collapse, claims, the ignored UP -----------
+    tkSplitter_SetMessageCallback( gH, @OnMsg )
+    gMsgMode = MSG_DBLCLICK_COLLAPSE : gCollapsed = false : gMsgDbl = 0
+    dim as long posH0 = tkSplitter_GetPos( gH )
+    dim as long hx = gH->x + gH->cw \ 2
+    dim as long hy = gH->y + gBarW \ 2
+    RecReset()
+    tkTest_PushButton( h, true, hx, hy ) : tkTest_PushButton( h, false, hx, hy )
+    tkTest_PushButton( h, true, hx, hy, SDL_BUTTON_LEFT, 2 ) : tkTest_PushButton( h, false, hx, hy, SDL_BUTTON_LEFT, 2 )
+    tkTest_Check( "dbl-click: the first click is a zero-length drag (BEGIN, END)", gRecN = 2 andalso gRecPhase(0) = TKSPLITTER_PHASE_BEGIN andalso gRecPhase(1) = TKSPLITTER_PHASE_END andalso gRecPos(1) = posH0, RecStr() )
+    tkTest_Check( "dbl-click claimed: collapsed to max SILENTLY", gMsgDbl = 1 andalso tkSplitter_GetPos( gH ) = tkSplitter_GetMax( gH ) andalso gH->y = tkSplitter_GetMax( gH ), "" & tkSplitter_GetPos( gH ) )
+    tkTest_Check( "dbl-click: trailing up released the capture", tkHost_GetCapture( h ) = 0 andalso tkSplitter_IsDragging( gH ) = false )
+    hy = gH->y + gBarW \ 2
+    RecReset()
+    tkTest_PushButton( h, true, hx, hy ) : tkTest_PushButton( h, false, hx, hy )
+    tkTest_PushButton( h, true, hx, hy, SDL_BUTTON_LEFT, 2 ) : tkTest_PushButton( h, false, hx, hy, SDL_BUTTON_LEFT, 2 )
+    tkTest_Check( "second dbl-click restores", gMsgDbl = 2 andalso tkSplitter_GetPos( gH ) = posH0 andalso gRecN = 2, tkSplitter_GetPos( gH ) & RecStr() )
+    hy = gH->y + gBarW \ 2
+    gMsgMode = MSG_CLAIM_ALL : gMsgUps = 0
+    RecReset()
+    tkTest_PushButton( h, true, hx, hy )
+    tkTest_Check( "claimed DOWN: capture already taken, no drag, no BEGIN", tkHost_GetCapture( h ) = gH andalso tkSplitter_IsDragging( gH ) = false andalso gRecN = 0 )
+    tkTest_PushMotion( h, hx, hy + tkHost_Scale( h, 30 ) )
+    tkTest_PushButton( h, false, hx, hy + tkHost_Scale( h, 30 ) )
+    tkTest_Check( "claimed UP is IGNORED: capture released anyway", tkHost_GetCapture( h ) = 0 andalso gMsgUps = 1 )
+    tkTest_Check( "claimed gesture: nothing notified, nothing moved", gRecN = 0 andalso tkSplitter_GetPos( gH ) = posH0 )
+    gMsgMode = MSG_CLAIM_MOVE
+    RecReset()
+    tkTest_PushButton( h, true, hx, hy )
+    tkTest_PushMotion( h, hx, hy + tkHost_Scale( h, 30 ) )
+    tkTest_Check( "claimed MOVE: the drag update does not run", tkSplitter_GetPos( gH ) = posH0 andalso gRecN = 1, RecStr() )
+    tkTest_PushButton( h, false, hx, hy + tkHost_Scale( h, 30 ) )
+    tkTest_Check( "claimed MOVE: BEGIN/END still bracket it", gRecN = 2 andalso gRecPhase(1) = TKSPLITTER_PHASE_END, RecStr() )
+    gMsgMode = MSG_NONE
+
+    ' ---- F: hidden mid-drag ends the drag and the hover ----------------------------------
+    RecReset()
+    dim as long pf = tkSplitter_GetPos( gV )
+    tkTest_PushButton( h, true, pf + gBarW \ 2, cy )
+    tkTest_PushMotion( h, pf + gBarW \ 2 + tkHost_Scale( h, 15 ), cy )
+    tkWidget_Show( gV, false )
+    tkTest_Check( "hide mid-drag: END, not dragging, not hot", gRecN = 3 andalso gRecPhase(2) = TKSPLITTER_PHASE_END andalso tkSplitter_IsDragging( gV ) = false andalso tkSplitter_IsHot( gV ) = false, RecStr() )
+    tkTest_PushButton( h, false, pf + gBarW \ 2 + tkHost_Scale( h, 15 ), cy )
+    tkWidget_Show( gV, true )
+    tkTest_Check( "shown again: no stale hover, no extra phase", tkSplitter_IsHot( gV ) = false andalso gRecN = 3 andalso tkHost_GetCapture( h ) = 0 )
+
+    ' ---- G: a horizontal drag ---------------------------------------------------------------
+    posH0 = tkSplitter_GetPos( gH )
+    hx = gH->x + gH->cw \ 2 : hy = gH->y + gBarW \ 2
+    hx0 = gH->x : hw0 = gH->cw : hh0 = gH->ch
+    tkTest_PushMotion( h, hx, hy )
+    tkTest_Check( "H hover: hot, SIZENS cursor", tkSplitter_IsHot( gH ) andalso tkHost_CurrentCursor() = TK_CURSOR_SIZENS )
+    RecReset()
+    tkTest_PushButton( h, true, hx, hy )
+    tkTest_PushMotion( h, hx, hy + tkHost_Scale( h, 30 ) )
+    tkTest_PushMotion( h, hx + tkHost_Scale( h, 100 ), hy + tkHost_Scale( h, 30 ) )
+    tkTest_PushButton( h, false, hx + tkHost_Scale( h, 100 ), hy + tkHost_Scale( h, 30 ) )
+    tkTest_Check( "H drag: pos = y + 30", tkSplitter_GetPos( gH ) = posH0 + tkHost_Scale( h, 30 ) andalso gH->y = posH0 + tkHost_Scale( h, 30 ), "" & tkSplitter_GetPos( gH ) )
+    tkTest_Check( "H drag: x and size preserved", gH->x = hx0 andalso gH->cw = hw0 andalso gH->ch = hh0 )
+    tkTest_Check( "H drag: BEGIN, MOVE, END (cross-axis motion silent)", gRecN = 3 andalso SequenceOk(), RecStr() )
+
+    ' ---- H: pixels ---------------------------------------------------------------------------
+    tkSplitter_SetColors( gV, &hFFFF0000ul, &hFF00FF00ul )
+    tkTest_PushMotion( h, tkHost_Scale( h, 10 ), cy )
+    tkHost_RenderTo( h, false )
+    dim as long vx = gV->x + gBarW \ 2
+    tkTest_Check( "idle bar painted BackColor", tkTest_PixelAt( h, vx, cy ) = &hFFFF0000ul, hex( tkTest_PixelAt( h, vx, cy ) ) )
+    dim as ulong c0
+    tkTest_Check( "the built-in painter is ONE flat fill (no grip)", tkTest_TonesIn( h, gV->x, 0, gBarW, ph, c0 ) = 1 andalso c0 = &hFF0000ul, hex( c0 ) )
+    tkTest_PushMotion( h, vx, cy )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "hot bar painted HotColor", tkTest_PixelAt( h, vx, cy ) = &hFF00FF00ul, hex( tkTest_PixelAt( h, vx, cy ) ) )
+    tkTest_PushButton( h, true, vx, cy )
+    tkTest_PushMotion( h, pw - tkHost_Scale( h, 2 ), cy )
+    tkHost_RenderTo( h, false )
+    vx = gV->x + gBarW \ 2
+    tkTest_Check( "dragging, cursor off the bar: still HotColor", tkTest_PixelAt( h, vx, cy ) = &hFF00FF00ul, hex( tkTest_PixelAt( h, vx, cy ) ) )
+    tkTest_PushButton( h, false, pw - tkHost_Scale( h, 2 ), cy )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "released off the bar: back to BackColor", tkTest_PixelAt( h, vx, cy ) = &hFFFF0000ul )
+    tkSplitter_SetPaintCallback( gH, @OnPaintH )
+    tkTest_PushMotion( h, tkHost_Scale( h, 10 ), cy )
+    tkHost_RenderTo( h, false )
+    hx = gH->x + gH->cw \ 2
+    tkTest_Check( "paint callback replaces the painter: its fill", tkTest_PixelAt( h, hx, gH->y ) = CB_FILL, hex( tkTest_PixelAt( h, hx, gH->y ) ) )
+    tkTest_Check( "paint callback: its centred line", tkTest_PixelAt( h, hx, gH->y + gBarW \ 2 ) = CB_LINE, hex( tkTest_PixelAt( h, hx, gH->y + gBarW \ 2 ) ) )
+    tkTest_PushMotion( h, hx, gH->y + gBarW \ 2 )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "paint callback is handed isHot", tkTest_PixelAt( h, hx, gH->y + gBarW \ 2 ) = CB_LINEHOT )
+    tkSplitter_SetPaintCallback( gH, 0 )
+    tkTest_PushMotion( h, tkHost_Scale( h, 10 ), cy )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "callback cleared: built-in painter back", tkTest_PixelAt( h, hx, gH->y ) = (tkSplitter_GetBackColor( gH ) or &hFF000000ul), hex( tkTest_PixelAt( h, hx, gH->y ) ) )
+
+    ' ---- I: theme and pinning ---------------------------------------------------------------
+    tkTheme_Apply( tkTheme_Light() )
+    tkTest_Check( "theme reaches an unpinned splitter", tkSplitter_GetBackColor( gH ) = tkTheme_Light().Divider andalso tkSplitter_GetHotColor( gH ) = tkTheme_Light().TextDisabled )
+    tkTest_Check( "SetColors PINNED: the theme leaves it alone", tkSplitter_GetBackColor( gV ) = &hFFFF0000ul andalso tkSplitter_GetHotColor( gV ) = &hFF00FF00ul )
+    tkSplitter_UnpinColors( gV )
+    tkTest_Check( "unpin hands it back to the current theme", tkSplitter_GetBackColor( gV ) = tkTheme_Light().Divider )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "light theme painted", tkTest_PixelAt( h, gV->x + gBarW \ 2, cy ) = (tkTheme_Light().Divider or &hFF000000ul) )
+    tkTheme_Apply( tkTheme_Dark() )
+    tkTest_Check( "back to dark, both follow", tkSplitter_GetBackColor( gV ) = tkTheme_Dark().Divider andalso tkSplitter_GetBackColor( gH ) = tkTheme_Dark().Divider )
+
+    ' ---- J: the per-monitor scale path: pin a new scale, send the event SDL would -----------
+    dim as TK_WIDGET ptr u = tkSplitter_Create( tkHost_Root( h ), 204, TKSPLITTER_VERTICAL )
+    tkSplitter_SetPosChangedCallback( u, @OnPos )
+    tkSplitter_SetPos( u, tkHost_Scale( h, 20 ) )
+    tkWidget_SetPos( u, tkHost_Scale( h, 20 ), tkHost_Scale( h, 20 ), gBarW, tkHost_Scale( h, 50 ) )
+    dim as long vPos = tkSplitter_GetPos( gV ), vMin = tkSplitter_GetMin( gV ), vMax = tkSplitter_GetMax( gV )
+    dim as long hPos = tkSplitter_GetPos( gH ), uPos = tkSplitter_GetPos( u )
+    RecReset()
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkTest_Check( "rescale x2: pos, min, max scaled", tkSplitter_GetPos( gV ) = vPos * 2 andalso tkSplitter_GetMin( gV ) = vMin * 2 andalso tkSplitter_GetMax( gV ) = vMax * 2, _
+           tkSplitter_GetPos( gV ) & " " & tkSplitter_GetMin( gV ) & " " & tkSplitter_GetMax( gV ) )
+    tkTest_Check( "rescale: the bar moved with it", gV->x = vPos * 2 andalso gH->y = hPos * 2 )
+    tkTest_Check( "rescale: unbounded max stays the sentinel", tkSplitter_GetMax( u ) = &h7FFFFFFF andalso tkSplitter_GetPos( u ) = uPos * 2, "" & tkSplitter_GetPos( u ) )
+    tkTest_Check( "rescale is silent", gRecN = 0 )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkTest_Check( "rescale back: original numbers", tkSplitter_GetPos( gV ) = vPos andalso tkSplitter_GetMin( gV ) = vMin andalso tkSplitter_GetMax( gV ) = vMax )
+    ' Mid-drag rescale: the grab offset scales with the position, so the bar does not jump at the
+    ' next move (vendor scaled nPos but left dragOffset alone -- PORT.md).
+    tkSplitter_SetPos( gV, minPane )
+    dim as long grabOff = gBarW \ 2
+    tkTest_PushButton( h, true, gV->x + grabOff, cy )
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    dim as long xs = gV->x
+    tkTest_PushMotion( h, xs + grabOff * 2 + 10, cy )
+    tkTest_Check( "rescale mid-drag: grab offset scaled, no jump", xs = minPane * 2 andalso tkSplitter_GetPos( gV ) = xs + 10, xs & " -> " & tkSplitter_GetPos( gV ) )
+    tkTest_PushButton( h, false, xs + grabOff * 2 + 10, cy )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+
+    ' ---- K: destroyed mid-drag: the lost capture still closes the gesture ---------------------
+    RecReset()
+    dim as long ux = u->x + gBarW \ 2, uy = u->y + u->ch \ 2
+    tkTest_PushButton( h, true, ux, uy )
+    tkTest_PushMotion( h, ux + tkHost_Scale( h, 10 ), uy )
+    tkWidget_Destroy( u )
+    tkTest_Check( "destroyed mid-drag: END delivered", gRecN = 3 andalso gRecPhase(2) = TKSPLITTER_PHASE_END andalso gRecWho(2) = u, RecStr() )
+    tkTest_PushButton( h, false, ux + tkHost_Scale( h, 10 ), uy )
+    tkTest_Check( "destroyed: capture gone, nothing more", tkHost_GetCapture( h ) = 0 andalso gRecN = 3 )
+
+    tkHost_Destroy( h )
+    gV = 0 : gH = 0
+end sub
+
+
+' ==========================================================================================
+if tkTest_Init() = false then end 99
+
+RunPass( 1.0 )
+RunPass( 1.75 )
+
+dim as long nFail = tkTest_Report( "tkSplitter" )
+tkTest_Quit()
+end nFail

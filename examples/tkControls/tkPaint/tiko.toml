@@ -1,0 +1,12 @@
+# tkPaint: the paint layer's selftest. tiko build (writes selftest.exe here)
+[package]
+name = "tkpaint-tests"
+
+[target.selftest]
+main   = "selftest.tiko"
+output = "selftest.exe"
+
+# The text benchmark (not a selftest): bench.exe prints ms per frame.
+[target.bench]
+main   = "bench.tiko"
+output = "bench.exe"

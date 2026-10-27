@@ -100,6 +100,25 @@ function tkort_TlsGetCtx alias "fb_TlsGetCtx" _
 	return ctx
 end function
 
+end extern
+
+extern "c"   '' NON-FBCALL: internal to tiko-rt, for error/signals.tiko; fbc has no such entry.
+
+'' The context for a key IF THIS THREAD HAS ONE, NULL if not -- and never created. A fatal
+'' signal may arrive with the heap's lock held (glibc aborting inside malloc), and
+'' fb_TlsGetCtx's calloc then waits on that lock forever (TK-004). After fb_TlsExit the keys
+'' are gone and this reads NULL, which is the answer then too.
+function tkort_TlsPeekCtx alias "tkort_TlsPeekCtx" ( byval index_ as int32 ) as any ptr
+	TKORT_SAVEERR( lastErr )
+	dim as any ptr ctx = TKORT_TLSGET( tkort_tls_ctxtb(index_) )
+	TKORT_RESTOREERR( lastErr )
+	return ctx
+end function
+
+end extern
+
+extern "rtlib"
+
 sub tkort_TlsDelCtx alias "fb_TlsDelCtx" ( byval index_ as int32 )
 	dim as any ptr ctx = TKORT_TLSGET( tkort_tls_ctxtb(index_) )
 	dim as FB_TLS_CTX_HEADER ptr hdr = any

@@ -1,0 +1,1682 @@
+' tkHost -- the widget core every tkControls control runs on: SDL windows ("surfaces"), a
+' widget TREE in each, and the services Win32 used to provide for free -- hit testing, hot
+' tracking, capture, focus and Tab order, timers, invalidation, per-monitor scale, popups,
+' modal dialogs, text input, cursors and the clipboard.
+'
+' THE MESSAGE MODEL IS WIN32'S ON PURPOSE. A widget is a state pointer plus a WidgetProc that
+' receives TKM_* messages shaped like the WM_* ones it replaced, so a PsControls WndProc ports
+' case for case. What changes is who sends them: this file, from SDL events. The logic of the
+' tree, dispatch and popup rules follows PsPlatform's ui/core (PsWidget, PsDispatch,
+' PsPaintWalk, PsPopupHost, PsModalHost), restated in this message model.
+'
+' COORDINATES
+'   * A widget's x/y are relative to its PARENT (the surface root for a top-level widget, whose
+'     origin is the window's), in device pixels. tkWidget_AbsRect gives window pixels.
+'   * SDL reports mouse positions in WINDOW COORDINATES -- pixels on Windows, points on
+'     Wayland/macOS -- so every event is multiplied by SDL_GetWindowPixelDensity first.
+'   * Messages carry widget-LOCAL pixel coordinates, as Win32 client coordinates did.
+'
+' SURFACES. Every OS window is a TK_HOST: the main window, each popup (menus, dropdowns,
+' tooltips) and each modal dialog. Each has its own renderer, text engine, widget tree, focus,
+' capture and hot widget. One global router hands each SDL event to the surface whose window
+' it names, so a host never sees another window's events by mistake.
+#module "tkHost"
+
+#import "../tkPaint" public
+using tkPaint
+
+' ==========================================================================================
+' The bundled fonts
+' ==========================================================================================
+' tkControls ships its own fonts, so a program looks the same on every OS: Inter for text
+' (SIL OFL 1.1), Cascadia Mono for code (SIL OFL 1.1) and Fluent UI System Icons for glyphs
+' (MIT). They live in pkg/vendor/tkControls/fonts, and tiko copies them beside every program
+' that imports tkHost ('runtime' in pkg/vendor/tiko.toml), so tkHost_FontDir() & TK_FONT_UI
+' is a file that is there.
+public const TK_FONT_UI = "Inter-Regular.ttf"
+public const TK_FONT_UI_BOLD = "Inter-Bold.ttf"
+public const TK_FONT_UI_ITALIC = "Inter-Italic.ttf"
+public const TK_FONT_MONO = "CascadiaMono-Regular.ttf"
+public const TK_FONT_ICONS = "FluentSystemIcons-Regular.ttf"
+
+' Glyphs of TK_FONT_ICONS (its 20-pixel "regular" set), for wchr(): every glyph a control
+' draws by default, and the common ones a host puts on buttons, toolbars and tabs.
+public const TK_ICON_CHEVRON_DOWN = &hF2A3
+public const TK_ICON_CHEVRON_RIGHT = &hF2B0
+public const TK_ICON_MORE = &hE824                  ' the horizontal ellipsis
+public const TK_ICON_CALENDAR = &hE24E
+public const TK_ICON_INFO = &hF4A3
+public const TK_ICON_WARNING = &hF869
+public const TK_ICON_ERROR = &hF3F1
+public const TK_ICON_QUESTION = &hF63D               ' in a circle
+public const TK_ICON_CLOSE = &hF369
+public const TK_ICON_CHECKBOX = &hF291
+public const TK_ICON_CHECKBOX_CHECKED = &hF28D
+public const TK_ICON_CHECKMARK = &hF294
+public const TK_ICON_SAVE = &hF67F
+public const TK_ICON_REFRESH = &hF13D
+public const TK_ICON_SETTINGS = &hF6A9
+public const TK_ICON_FOLDER = &hF418
+public const TK_ICON_FOLDER_OPEN = &hF42E
+public const TK_ICON_OPEN = &hF582
+public const TK_ICON_DOCUMENT = &hF378
+public const TK_ICON_PAGE = &hE557                   ' a document with lines
+public const TK_ICON_PLAY = &hF605
+public const TK_ICON_STOP = &hF72A
+public const TK_ICON_DELETE = &hF34C
+public const TK_ICON_STAR = &hF70F
+public const TK_ICON_LOCK = &hE78F
+public const TK_ICON_SEARCH = &hF68F
+public const TK_ICON_BUG = &hE206
+public const TK_ICON_CONSOLE = &hEE6F
+public const TK_ICON_WRENCH = &hEE86
+public const TK_ICON_WRAP = &hED69
+public const TK_ICON_HELP = &hF638                   ' a bare question mark
+public const TK_ICON_ALIGN_LEFT = &hF79F
+public const TK_ICON_ALIGN_CENTER = &hF799
+public const TK_ICON_ALIGN_RIGHT = &hF7A1
+public const TK_ICON_BOLD = &hF7A4
+public const TK_ICON_LIKE = &hF81F
+
+' Where the bundled fonts are: the program's own directory, with its separator.
+public function tkHost_FontDir() as ustring
+    dim as const zstring ptr base_ = SDL_GetBasePath()
+    if base_ = 0 then return ""
+    return *base_
+end function
+
+public enum
+    TKM_PAINT = 1
+    TKM_SIZE
+    TKM_MOUSEMOVE
+    TKM_MOUSEENTER
+    TKM_MOUSELEAVE
+    TKM_LBUTTONDOWN          ' m->clicks = 2 for a double click (SDL's count)
+    TKM_LBUTTONUP
+    TKM_RBUTTONDOWN
+    TKM_RBUTTONUP
+    TKM_MBUTTONDOWN
+    TKM_MBUTTONUP
+    TKM_MOUSEWHEEL           ' m->wheelX / wheelY in notches; BUBBLES to the parent if refused
+    TKM_CAPTURECHANGED
+    TKM_SETFOCUS             ' m->pOther = the widget losing focus
+    TKM_KILLFOCUS            ' m->pOther = the widget gaining it
+    TKM_KEYDOWN              ' m->key (SDL_Keycode), m->mods, m->bFlag = repeat; BUBBLES if refused
+    TKM_KEYUP
+    TKM_CHAR                 ' m->text = UTF-8 text from SDL_EVENT_TEXT_INPUT
+    TKM_IMECOMPOSE           ' m->text = the pre-edit string, m->nStart/nLen its cursor/selection
+    TKM_ENABLE               ' m->bFlag = new state
+    TKM_SHOW                 ' m->bFlag = new state
+    TKM_TIMER                ' m->timerId
+    TKM_SCALECHANGED         ' m->fOld / fNew
+    TKM_THEMECHANGED
+    TKM_DESTROY
+    TKM_DROPFILES            ' files dropped from the OS: m->text = their paths, LF-separated (UTF-8),
+                             ' m->nStart = how many, m->x / y = the drop point; BUBBLES if refused
+    TKM_DROPTEXT             ' text dropped from the OS: m->text, m->x / y; BUBBLES if refused
+end enum
+
+public enum
+    TK_SURF_MAIN = 0
+    TK_SURF_POPUP            ' menus, dropdowns: dismissed by Esc or a press elsewhere
+    TK_SURF_TOOLTIP          ' never takes input, never dismissed by the router
+    TK_SURF_DIALOG           ' modal, run by tkHost_RunModal
+end enum
+
+public enum
+    TK_CURSOR_ARROW = 0
+    TK_CURSOR_IBEAM
+    TK_CURSOR_HAND
+    TK_CURSOR_SIZEWE
+    TK_CURSOR_SIZENS
+    TK_CURSOR_SIZEALL
+    TK_CURSOR_WAIT
+    TK_CURSOR_COUNT
+end enum
+
+' Reserved timer ids. A control's own ids start at TK_TIMER_APP.
+public enum
+    TK_TIMER_CARET = 900
+    TK_TIMER_AUTOREPEAT
+    TK_TIMER_AUTOSCROLL
+    TK_TIMER_MARQUEE
+    TK_TIMER_HOVER
+    TK_TIMER_TIPSHOW
+    TK_TIMER_TIPPOP
+    TK_TIMER_APP = 1000
+end enum
+
+public type TK_HOST as TK_HOST_
+public type TK_WIDGET as TK_WIDGET_
+
+public type TK_MSG
+    msg      as long
+    x        as single          ' widget-local pixels (mouse messages)
+    y        as single
+    clicks   as long            ' button messages: 1, 2 for a double click
+    wheelX   as single          ' TKM_MOUSEWHEEL, notches (fractional on precise devices)
+    wheelY   as single
+    key      as long            ' SDL_Keycode (TKM_KEYDOWN / KEYUP)
+    mods     as long            ' SDL_Keymod
+    timerId  as long            ' TKM_TIMER
+    bFlag    as boolean         ' TKM_ENABLE / TKM_SHOW: the new state; TKM_KEYDOWN: repeat
+    fOld     as single          ' TKM_SCALECHANGED
+    fNew     as single
+    text     as string          ' TKM_CHAR / TKM_IMECOMPOSE: UTF-8
+    nStart   as long            ' TKM_IMECOMPOSE
+    nLen     as long
+    pOther   as TK_WIDGET ptr   ' TKM_SETFOCUS / KILLFOCUS: the other party
+    pPaint   as TK_PAINT ptr    ' TKM_PAINT
+    scancode as long            ' TKM_KEYDOWN / KEYUP: SDL_Scancode -- the physical key, for chords
+                                ' matched on the unshifted key (tkKeys)
+end type
+
+public type tkWidgetProc as function( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+public type tkHostPaintSub as sub( byval h as TK_HOST ptr, byval p as TK_PAINT ptr )
+public type tkHostSub as sub( byval h as TK_HOST ptr )
+public type tkHostCloseFunc as function( byval h as TK_HOST ptr ) as boolean
+' A key down BEFORE the focused widget sees it: TRUE = handled (Win32's TranslateAccelerator slot).
+public type tkHostKeyFunc as function( byval h as TK_HOST ptr, byval m as TK_MSG ptr ) as boolean
+' Files or text dropped where no widget claimed them: TKM_DROPFILES / TKM_DROPTEXT, window pixels.
+public type tkHostDropSub as sub( byval h as TK_HOST ptr, byval m as TK_MSG ptr )
+
+public type TK_WIDGET_
+    pHost         as TK_HOST ptr
+    pParent       as TK_WIDGET ptr      ' 0 only for a surface's root
+    pFirst        as TK_WIDGET ptr      ' children, in z-order: the LAST is on top
+    pLast         as TK_WIDGET ptr
+    pNext         as TK_WIDGET ptr
+    pPrev         as TK_WIDGET ptr
+    x             as long               ' parent-relative pixels
+    y             as long
+    cw            as long
+    ch            as long
+    ctrlId        as long
+    isEnabled     as boolean = true
+    isVisible     as boolean = true
+    isFocusable   as boolean = false
+    bClipChildren as boolean = true
+    bWantsText    as boolean = false    ' focus here starts SDL text input (and the IME)
+    cursor        as long = TK_CURSOR_ARROW
+    proc          as tkWidgetProc
+    pData         as any ptr            ' the control's own state
+end type
+
+public type TK_FONT
+    f   as TTF_Font ptr
+    pt  as single
+end type
+
+public type TK_TIMER
+    pW     as TK_WIDGET ptr
+    id     as long
+    sdlId  as SDL_TimerID
+    gen    as long              ' bumped on kill, so a queued tick for a dead timer is dropped
+    active as boolean
+end type
+
+public type TK_HOST_
+    kind         as long = TK_SURF_MAIN
+    pOwner       as TK_HOST ptr       ' popups and dialogs: the surface they belong to
+    win          as SDL_Window ptr
+    renderer     as SDL_Renderer ptr
+    engine       as TTF_TextEngine ptr
+    winId        as SDL_WindowID
+    root         as TK_WIDGET ptr     ' covers the window; top-level widgets are its children
+    fScale       as single = 1        ' design units -> pixels
+    fDensity     as single = 1        ' SDL event coordinates -> pixels
+    fScaleForced as single = 0        ' > 0 pins fScale (the self-tests' 1.75 pass)
+    pHot         as TK_WIDGET ptr
+    pFocus       as TK_WIDGET ptr
+    pCapture     as TK_WIDGET ptr
+    pLastDown    as TK_WIDGET ptr     ' for demoting a double click that changed widgets
+    bCaptureOS   as boolean           ' did SDL_CaptureMouse succeed for the live capture?
+    bTextInput   as boolean
+    bDirty       as boolean = true
+    bQuit        as boolean
+    bClosed      as boolean           ' closed, waiting to be reaped after this event
+    bEndModal    as boolean
+    bPassDismissClick as boolean      ' popups: the press that dismisses this one still reaches
+                                      ' its target (vendor PsPopupMenu); default: consumed
+    bKeepOnFocusLoss as boolean       ' popups: NOT closed when focus leaves the application -- a
+                                      ' modal popup (tkColorPicker) ends only on a press outside
+    nModalResult as long
+    lastX        as single            ' last mouse position, window pixels
+    lastY        as single
+    buttonsDown  as long              ' bit 0 left, 1 right, 2 middle: held now
+    clrBack      as ulong = &hFF21252Bul
+    pDefaultFont as TTF_Font ptr      ' the DEFAULT_GUI_FONT analogue
+    fonts(any)   as TK_FONT
+    rcDrag       as TKRECT            ' window pixels; a press here drags the window (dialogs)
+    nFrames      as long              ' frames rendered, for the idle-CPU claim
+    pUser        as any ptr           ' the host's own payload
+    OnPaint      as tkHostPaintSub    ' the surface's own background (labels, hairlines)
+    OnSize       as tkHostSub
+    OnScale      as tkHostSub
+    OnClosed     as tkHostSub         ' popups: fired once when it closes, for any reason
+    OnCloseRequest as tkHostCloseFunc ' the OS close button (dialogs and main windows); TRUE = handled, stays open
+    OnPreKey     as tkHostKeyFunc     ' accelerators: asked before the focused widget (tkKeys_Attach)
+    OnDrop       as tkHostDropSub     ' a drop no widget claimed (the surface's own: open the files)
+    sDropFiles   as string            ' a drop in progress: the paths so far, LF-separated
+    nDropFiles   as long
+    sDropText    as string
+end type
+
+
+' ---- module state: every live surface, the timer pool, cursors ---------------------------
+dim shared as TK_HOST ptr gHosts(0 to 63)
+dim shared as long gnHosts
+dim shared as TK_TIMER gTimers(0 to 255)
+dim shared as Uint32 gEvTimer
+dim shared as Uint32 gEvFocusCheck
+dim shared as SDL_Cursor ptr gCursors(0 to TK_CURSOR_COUNT - 1)
+dim shared as long gCursorNow = -1
+dim shared as long gTrace = -1
+dim shared as ulong gPressSerial          ' +1 per mouse press, BEFORE the dismissal rule runs
+
+' Called with each renderer just before it is destroyed, so caches of textures that belong to
+' it (tkImage) can drop them. One hook: the only client is tkImage.
+public type tkRendererGoneSub as sub( byval r as SDL_Renderer ptr )
+dim shared as tkRendererGoneSub gOnRendererGone
+
+public sub tkHost_SetRendererGoneHook( byval f as tkRendererGoneSub )
+    gOnRendererGone = f
+end sub
+
+' Called whenever a surface's hot widget changes (the widget under the mouse), so a watcher
+' that does not subclass the widget -- tkTooltip -- can wake its clock. One hook.
+public type tkHotChangedSub as sub( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr )
+dim shared as tkHotChangedSub gOnHotChanged
+
+public sub tkHost_SetHotChangedHook( byval f as tkHotChangedSub )
+    gOnHotChanged = f
+end sub
+
+' Offered every event tkHost_Dispatch sees, before anything else -- in tkHost_Run, in
+' tkHost_Pump AND inside tkHost_RunModal's loop -- so an application layer (tkApp) can run its
+' own user events and watch system events wherever the pump happens to be. TRUE consumes the
+' event. One hook: the only client is tkApp.
+public type tkEventHookFunc as function( byval e as SDL_Event ptr ) as boolean
+dim shared as tkEventHookFunc gOnEvent
+
+public sub tkHost_SetEventHook( byval f as tkEventHookFunc )
+    gOnEvent = f
+end sub
+
+' MORE HOOKS, for modules below the application layer that deliver their own user events where
+' the pump is (tkFileDialog: an answer from SDL's dialog thread). Asked after tkApp's, in the
+' order added; TRUE consumes the event. Adding one twice is one.
+dim shared as tkEventHookFunc gHooks( 0 to 7 )
+
+public sub tkHost_AddEventHook( byval f as tkEventHookFunc )
+    if f = 0 then exit sub
+    for i as long = 0 to ubound( gHooks )
+        if gHooks(i) = f then exit sub
+    next
+    for i as long = 0 to ubound( gHooks )
+        if gHooks(i) = 0 then gHooks(i) = f : exit sub
+    next
+end sub
+
+public sub tkHost_RemoveEventHook( byval f as tkEventHookFunc )
+    for i as long = 0 to ubound( gHooks )
+        if gHooks(i) = f then gHooks(i) = 0
+    next
+end sub
+
+declare function LiveResizeWatch( byval userdata as any ptr, byval e as SDL_Event ptr ) as boolean
+
+private sub Register( byval h as TK_HOST ptr )
+    if gnHosts <= ubound( gHosts ) then gHosts(gnHosts) = h : gnHosts += 1
+    static as boolean watching = false
+    if watching = false then watching = SDL_AddEventWatch( @LiveResizeWatch, 0 )
+end sub
+
+private sub Unregister( byval h as TK_HOST ptr )
+    for i as long = 0 to gnHosts - 1
+        if gHosts(i) = h then
+            for j as long = i to gnHosts - 2
+                gHosts(j) = gHosts(j + 1)
+            next
+            gnHosts -= 1
+            exit sub
+        end if
+    next
+end sub
+
+private function HostOfWindow( byval id as SDL_WindowID ) as TK_HOST ptr
+    for i as long = 0 to gnHosts - 1
+        if (gHosts(i)->winId = id) andalso (gHosts(i)->bClosed = false) then return gHosts(i)
+    next
+    return 0
+end function
+
+' The serial of the press being dispatched (or the last one). A popup's OnClosed that reads it
+' and a press handler that reads it again can tell "this press closed my popup" -- the guard
+' that stops a click on the button that opened a popup from reopening it at once.
+public function tkHost_PressSerial() as ulong
+    return gPressSerial
+end function
+
+public function tkHost_Count() as long
+    return gnHosts
+end function
+
+
+' ---- scale -------------------------------------------------------------------------------
+public function tkHost_Scale( byval h as TK_HOST ptr, byval v as long ) as long
+    if h = 0 then return v
+    return cint( v * h->fScale )
+end function
+
+private sub UpdateScale( byval h as TK_HOST ptr )
+    h->fDensity = SDL_GetWindowPixelDensity( h->win )
+    if h->fDensity <= 0 then h->fDensity = 1
+    if h->fScaleForced > 0 then
+        h->fScale = h->fScaleForced
+    elseif (h->pOwner <> 0) andalso (h->kind <> TK_SURF_DIALOG) then
+        h->fScale = h->pOwner->fScale       ' a popup is drawn at its owner's scale
+    else
+        h->fScale = SDL_GetWindowDisplayScale( h->win )
+        if h->fScale <= 0 then h->fScale = 1
+    end if
+end sub
+
+' Fonts are sized in POINTS AT 96 DPI times the scale, which is what Win32's CreateFont(...,
+' 10, ...) through AfxNova's DPI-aware helper produced -- so a 10pt caption is the same pixel
+' height as the Win32 control's.
+private sub SizeFont( byval h as TK_HOST ptr, byval f as TTF_Font ptr, byval pt as single )
+    dim as long dpi = cint( 96 * h->fScale )
+    TTF_SetFontSizeDPI( f, pt, dpi, dpi )
+end sub
+
+public function tkHost_OpenFont( byval h as TK_HOST ptr, byref path as ustring, byval pt as single ) as TTF_Font ptr
+    if h = 0 then return 0
+    dim as string p8 = path
+    dim as TTF_Font ptr f = TTF_OpenFont( strptr( p8 ), pt )
+    if f = 0 then return 0
+    SizeFont( h, f, pt )
+    dim as long n = ubound( h->fonts ) + 1
+    redim preserve h->fonts( 0 to n )
+    h->fonts(n).f = f
+    h->fonts(n).pt = pt
+    return f
+end function
+
+
+' ---- creation ----------------------------------------------------------------------------
+private function NewRoot( byval h as TK_HOST ptr ) as TK_WIDGET ptr
+    dim as TK_WIDGET ptr r = new TK_WIDGET
+    r->pHost = h
+    return r
+end function
+
+private sub SizeRoot( byval h as TK_HOST ptr )
+    dim as long pw, ph
+    SDL_GetRenderOutputSize( h->renderer, @pw, @ph )
+    h->root->cw = pw : h->root->ch = ph
+end sub
+
+private function FinishSurface( byval h as TK_HOST ptr ) as boolean
+    h->winId = SDL_GetWindowID( h->win )
+    h->renderer = SDL_CreateRenderer( h->win, 0 )
+    if h->renderer = 0 then return false
+    SDL_SetRenderDrawBlendMode( h->renderer, SDL_BLENDMODE_BLEND )
+    h->engine = TTF_CreateRendererTextEngine( h->renderer )
+    h->root = NewRoot( h )
+    SizeRoot( h )
+    if gEvTimer = 0 then gEvTimer = SDL_RegisterEvents( 1 )
+    Register( h )
+    return true
+end function
+
+' The main window. w, h in DESIGN units, like CWindow.Create's: it comes out w*scale by h*scale
+' pixels.
+public function tkHost_Create( byref title as ustring, byval w as long, byval hgt as long, _
+                               byref defaultFont as ustring, byval forcedScale as single = 0 ) as TK_HOST ptr
+    dim as TK_HOST ptr h = new TK_HOST
+    h->kind = TK_SURF_MAIN
+    h->fScaleForced = forcedScale
+    dim as string t8 = title
+    h->win = SDL_CreateWindow( strptr( t8 ), w, hgt, SDL_WINDOW_HIGH_PIXEL_DENSITY or SDL_WINDOW_RESIZABLE or SDL_WINDOW_HIDDEN )
+    if h->win = 0 then delete h : return 0
+    UpdateScale( h )
+    ' Resize to the design size now the scale is known. The size is in WINDOW coordinates, so
+    ' divide the pixel target by the density.
+    SDL_SetWindowSize( h->win, cint( w * h->fScale / h->fDensity ), cint( hgt * h->fScale / h->fDensity ) )
+    if FinishSurface( h ) = false then SDL_DestroyWindow( h->win ) : delete h : return 0
+    if len( defaultFont ) then h->pDefaultFont = tkHost_OpenFont( h, defaultFont, 9 )
+    return h
+end function
+
+' A popup (TK_SURF_POPUP) or tooltip (TK_SURF_TOOLTIP) window of `owner`. x, y, w, h are OWNER
+' window pixels; see tkHost_PlacePopup to compute them against an anchor. It is created
+' hidden and EMPTY: add widgets to it, then tkHost_Show. Wayland cannot re-show an unmapped
+' popup, so a popup is created per open and closed (tkHost_Close) per dismissal.
+public function tkHost_CreatePopup( byval owner as TK_HOST ptr, byval x as long, byval y as long, _
+                                    byval w as long, byval hgt as long, byval kind as long = TK_SURF_POPUP, _
+                                    byval extraFlags as Uint64 = 0 ) as TK_HOST ptr
+    if (owner = 0) orelse (w <= 0) orelse (hgt <= 0) then return 0
+    dim as TK_HOST ptr h = new TK_HOST
+    h->kind = kind
+    h->pOwner = owner
+    h->pDefaultFont = owner->pDefaultFont
+    h->clrBack = owner->clrBack
+    dim as Uint64 fl = SDL_WINDOW_HIGH_PIXEL_DENSITY or SDL_WINDOW_HIDDEN or extraFlags
+    fl or= iif( kind = TK_SURF_TOOLTIP, SDL_WINDOW_TOOLTIP, SDL_WINDOW_POPUP_MENU )
+    dim as single d = owner->fDensity
+    h->win = SDL_CreatePopupWindow( owner->win, cint( x / d ), cint( y / d ), cint( w / d ), cint( hgt / d ), fl )
+    if h->win = 0 then
+        if gTrace = 1 then print "SDL_CreatePopupWindow failed: " & *SDL_GetError()
+        delete h : return 0
+    end if
+    UpdateScale( h )
+    if FinishSurface( h ) = false then SDL_DestroyWindow( h->win ) : delete h : return 0
+    return h
+end function
+
+' A modal dialog window (run it with tkHost_RunModal). w, h in PIXELS. bBorderless for content
+' that draws its own caption (tkMessageBox): give it a drag rect with tkHost_SetDragRect.
+public function tkHost_CreateDialog( byval owner as TK_HOST ptr, byref title as ustring, _
+                                     byval w as long, byval hgt as long, byval bBorderless as boolean = true ) as TK_HOST ptr
+    dim as TK_HOST ptr h = new TK_HOST
+    h->kind = TK_SURF_DIALOG
+    h->pOwner = owner
+    if owner then
+        h->pDefaultFont = owner->pDefaultFont
+        h->clrBack = owner->clrBack
+        h->fScaleForced = owner->fScaleForced
+    end if
+    dim as single d = iif( owner <> 0, owner->fDensity, 1.0 )
+    dim as Uint64 fl = SDL_WINDOW_HIGH_PIXEL_DENSITY or SDL_WINDOW_HIDDEN
+    if bBorderless then fl or= SDL_WINDOW_BORDERLESS
+    dim as string t8 = title
+    h->win = SDL_CreateWindow( strptr( t8 ), cint( w / d ), cint( hgt / d ), fl )
+    if h->win = 0 then delete h : return 0
+    if owner then
+        SDL_SetWindowParent( h->win, owner->win )
+        ' centre over the owner
+        dim as long ox, oy, ow, oh
+        SDL_GetWindowPosition( owner->win, @ox, @oy )
+        SDL_GetWindowSize( owner->win, @ow, @oh )
+        SDL_SetWindowPosition( h->win, ox + (ow - cint( w / d )) \ 2, oy + (oh - cint( hgt / d )) \ 2 )
+    end if
+    UpdateScale( h )
+    if FinishSurface( h ) = false then SDL_DestroyWindow( h->win ) : delete h : return 0
+    return h
+end function
+
+public function tkHost_Root( byval h as TK_HOST ptr ) as TK_WIDGET ptr
+    if h = 0 then return 0
+    return h->root
+end function
+
+public sub tkHost_Show( byval h as TK_HOST ptr )
+    if h = 0 then exit sub
+    SDL_ShowWindow( h->win )
+    SizeRoot( h )
+    h->bDirty = true
+end sub
+
+public sub tkHost_PixelSize( byval h as TK_HOST ptr, byref w as long, byref hgt as long )
+    w = 0 : hgt = 0
+    if h then SDL_GetRenderOutputSize( h->renderer, @w, @hgt )
+end sub
+
+public sub tkHost_Invalidate( byval h as TK_HOST ptr )
+    if h then h->bDirty = true
+end sub
+
+' Where a popup of size w x h should go to sit against rcAnchor (OWNER window pixels): below
+' it (bSide = false) or to its right (bSide = true), flipped above / to the left when the
+' display has no room. On Wayland the window's global position is unknown and reads 0,0, so
+' the flip is decided against the display alone and the compositor's positioner does the rest.
+public sub tkHost_PlacePopup( byval owner as TK_HOST ptr, byref rcAnchor as TKRECT, byval w as long, byval hgt as long, _
+                              byval bSide as boolean, byref x as long, byref y as long )
+    x = rcAnchor.left : y = rcAnchor.bottom
+    if bSide then x = rcAnchor.right : y = rcAnchor.top
+    if owner = 0 then exit sub
+    dim as SDL_Rect rd
+    if SDL_GetDisplayUsableBounds( SDL_GetDisplayForWindow( owner->win ), @rd ) = false then exit sub
+    dim as long wx, wy
+    SDL_GetWindowPosition( owner->win, @wx, @wy )
+    dim as single d = owner->fDensity
+    ' everything in window coordinates for the comparison
+    dim as single gx = wx + x / d, gy = wy + y / d, gw = w / d, gh = hgt / d
+    if bSide then
+        if gx + gw > rd.x + rd.w then x = rcAnchor.left - w
+        if gy + gh > rd.y + rd.h then y = rcAnchor.bottom - hgt
+    else
+        if gy + gh > rd.y + rd.h then y = rcAnchor.top - hgt
+        if gx + gw > rd.x + rd.w then x = rcAnchor.right - w
+    end if
+end sub
+
+
+' ---- widget tree -------------------------------------------------------------------------
+public function tkWidget_Send( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    if (w = 0) orelse (w->proc = 0) then return false
+    return w->proc( w, m )
+end function
+
+private sub SendSimple( byval w as TK_WIDGET ptr, byval msg as long, byval pOther as TK_WIDGET ptr = 0 )
+    dim as TK_MSG m
+    m.msg = msg
+    m.pOther = pOther
+    tkWidget_Send( w, @m )
+end sub
+
+' The widget's rect in WINDOW pixels.
+public sub tkWidget_AbsRect( byval w as TK_WIDGET ptr, byref rc as TKRECT )
+    dim as long ax = 0, ay = 0
+    dim as TK_WIDGET ptr p = w
+    while p
+        ax += p->x : ay += p->y
+        p = p->pParent
+    wend
+    tkRect_Set( rc, ax, ay, ax + w->cw, ay + w->ch )
+end sub
+
+public function tkWidget_IsEnabled( byval w as TK_WIDGET ptr ) as boolean
+    dim as TK_WIDGET ptr p = w
+    while p
+        if p->isEnabled = false then return false
+        p = p->pParent
+    wend
+    return w <> 0
+end function
+
+public function tkWidget_IsVisible( byval w as TK_WIDGET ptr ) as boolean
+    dim as TK_WIDGET ptr p = w
+    while p
+        if p->isVisible = false then return false
+        p = p->pParent
+    wend
+    return w <> 0
+end function
+
+private sub AppendChild( byval parent as TK_WIDGET ptr, byval w as TK_WIDGET ptr )
+    w->pParent = parent
+    w->pPrev = parent->pLast
+    w->pNext = 0
+    if parent->pLast then parent->pLast->pNext = w else parent->pFirst = w
+    parent->pLast = w
+end sub
+
+private sub Unlink( byval w as TK_WIDGET ptr )
+    dim as TK_WIDGET ptr parent = w->pParent
+    if parent = 0 then exit sub
+    if w->pPrev then w->pPrev->pNext = w->pNext else parent->pFirst = w->pNext
+    if w->pNext then w->pNext->pPrev = w->pPrev else parent->pLast = w->pPrev
+    w->pParent = 0 : w->pNext = 0 : w->pPrev = 0
+end sub
+
+' A child of `parent` (a widget, or tkHost_Root for a top-level one), on top of its siblings.
+public function tkWidget_CreateChild( byval parent as TK_WIDGET ptr, byval ctrlId as long, _
+                                      byval proc as tkWidgetProc, byval pData as any ptr ) as TK_WIDGET ptr
+    if parent = 0 then return 0
+    dim as TK_WIDGET ptr w = new TK_WIDGET
+    w->pHost  = parent->pHost
+    w->ctrlId = ctrlId
+    w->proc   = proc
+    w->pData  = pData
+    AppendChild( parent, w )
+    return w
+end function
+
+' A top-level widget of the surface (a child of its root).
+public function tkWidget_Create( byval h as TK_HOST ptr, byval ctrlId as long, _
+                                 byval proc as tkWidgetProc, byval pData as any ptr ) as TK_WIDGET ptr
+    if h = 0 then return 0
+    return tkWidget_CreateChild( h->root, ctrlId, proc, pData )
+end function
+
+public function tkWidget_Parent( byval w as TK_WIDGET ptr ) as TK_WIDGET ptr
+    if w = 0 then return 0
+    return w->pParent
+end function
+
+' Move to the top of the sibling z-order.
+public sub tkWidget_BringToTop( byval w as TK_WIDGET ptr )
+    if (w = 0) orelse (w->pParent = 0) then exit sub
+    dim as TK_WIDGET ptr parent = w->pParent
+    Unlink( w )
+    AppendChild( parent, w )
+    w->pHost->bDirty = true
+end sub
+
+public sub tkWidget_Invalidate( byval w as TK_WIDGET ptr )
+    if w andalso w->pHost then w->pHost->bDirty = true
+end sub
+
+' SetWindowPos, parent-relative. A size change sends TKM_SIZE, as WM_SIZE followed one.
+public sub tkWidget_SetPos( byval w as TK_WIDGET ptr, byval x as long, byval y as long, byval cw as long, byval ch as long )
+    if w = 0 then exit sub
+    dim as boolean bSized = (cw <> w->cw) orelse (ch <> w->ch)
+    w->x = x : w->y = y : w->cw = cw : w->ch = ch
+    if bSized then SendSimple( w, TKM_SIZE )
+    tkWidget_Invalidate( w )
+end sub
+
+public sub tkWidget_SetSize( byval w as TK_WIDGET ptr, byval cw as long, byval ch as long )
+    if w then tkWidget_SetPos( w, w->x, w->y, cw, ch )
+end sub
+
+public function tkHost_GetCapture( byval h as TK_HOST ptr ) as TK_WIDGET ptr
+    if h = 0 then return 0
+    return h->pCapture
+end function
+
+' SetCapture. SDL_CaptureMouse is what makes a release OUTSIDE the window arrive; it needs
+' mouse focus and is unsupported on Wayland, where the implicit grab during a held button does
+' the same job. bCaptureOS records which is in force.
+public sub tkHost_SetCapture( byval w as TK_WIDGET ptr )
+    if (w = 0) orelse (w->pHost = 0) then exit sub
+    dim as TK_HOST ptr h = w->pHost
+    if h->pCapture = w then exit sub
+    if h->pCapture then
+        dim as TK_WIDGET ptr pOld = h->pCapture
+        h->pCapture = 0
+        SendSimple( pOld, TKM_CAPTURECHANGED )
+    end if
+    h->pCapture = w
+    h->bCaptureOS = SDL_CaptureMouse( true )
+end sub
+
+' ReleaseCapture. Sends TKM_CAPTURECHANGED SYNCHRONOUSLY to the widget losing it, exactly as
+' Win32 does -- which is the reason tkButton snapshots its press before releasing.
+public sub tkHost_ReleaseCapture( byval h as TK_HOST ptr )
+    if (h = 0) orelse (h->pCapture = 0) then exit sub
+    dim as TK_WIDGET ptr pOld = h->pCapture
+    h->pCapture = 0
+    if h->bCaptureOS then SDL_CaptureMouse( false )
+    h->bCaptureOS = false
+    SendSimple( pOld, TKM_CAPTURECHANGED )
+end sub
+
+public function tkHost_GetFocus( byval h as TK_HOST ptr ) as TK_WIDGET ptr
+    if h = 0 then return 0
+    return h->pFocus
+end function
+
+private sub UpdateTextInput( byval h as TK_HOST ptr )
+    dim as boolean bWant = (h->pFocus <> 0) andalso h->pFocus->bWantsText
+    if bWant = h->bTextInput then exit sub
+    h->bTextInput = bWant
+    if bWant then SDL_StartTextInput( h->win ) else SDL_StopTextInput( h->win )
+end sub
+
+public sub tkHost_SetFocus( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr )
+    if h = 0 then exit sub
+    if w then
+        if (tkWidget_IsEnabled( w ) = false) orelse (tkWidget_IsVisible( w ) = false) then exit sub
+    end if
+    if h->pFocus = w then exit sub
+    dim as TK_WIDGET ptr pOld = h->pFocus
+    h->pFocus = w
+    if pOld then SendSimple( pOld, TKM_KILLFOCUS, w )
+    if w then SendSimple( w, TKM_SETFOCUS, pOld )
+    UpdateTextInput( h )
+end sub
+
+' Where the IME should put its candidate window: rc in widget-local pixels, cursorX the caret's
+' offset inside it.
+public sub tkHost_SetTextInputArea( byval w as TK_WIDGET ptr, byref rc as TKRECT, byval cursorX as long )
+    if (w = 0) orelse (w->pHost = 0) then exit sub
+    dim as TK_HOST ptr h = w->pHost
+    dim as TKRECT a
+    tkWidget_AbsRect( w, a )
+    dim as SDL_Rect r
+    r.x = cint( (a.left + rc.left) / h->fDensity ) : r.y = cint( (a.top + rc.top) / h->fDensity )
+    r.w = cint( (rc.right - rc.left) / h->fDensity ) : r.h = cint( (rc.bottom - rc.top) / h->fDensity )
+    SDL_SetTextInputArea( h->win, @r, cint( cursorX / h->fDensity ) )
+end sub
+
+' Is p the widget w or one of its descendants?
+private function IsWithin( byval w as TK_WIDGET ptr, byval p as TK_WIDGET ptr ) as boolean
+    while p
+        if p = w then return true
+        p = p->pParent
+    wend
+    return false
+end function
+
+public function tkWidget_IsAncestorOf( byval w as TK_WIDGET ptr, byval p as TK_WIDGET ptr ) as boolean
+    return (w <> 0) andalso IsWithin( w, p )
+end function
+
+private sub SetHostDeep( byval w as TK_WIDGET ptr, byval h as TK_HOST ptr )
+    w->pHost = h
+    dim as TK_WIDGET ptr c = w->pFirst
+    while c
+        SetHostDeep( c, h )
+        c = c->pNext
+    wend
+end sub
+
+' SetParent: move w and its subtree under newParent, on the same surface or another one (a
+' dialog recreated at its final size -- on Wayland a surface resized after its renderer exists
+' keeps a stale drawable). The old surface forgets any capture, focus or hot widget inside it.
+public sub tkWidget_Reparent( byval w as TK_WIDGET ptr, byval newParent as TK_WIDGET ptr )
+    if (w = 0) orelse (newParent = 0) orelse (w->pParent = 0) then exit sub
+    if IsWithin( w, newParent ) then exit sub                  ' never under itself
+    dim as TK_HOST ptr hOld = w->pHost, hNew = newParent->pHost
+    if (hOld <> 0) andalso (hOld <> hNew) then
+        if IsWithin( w, hOld->pCapture ) then tkHost_ReleaseCapture( hOld )
+        if IsWithin( w, hOld->pFocus ) then tkHost_SetFocus( hOld, 0 )
+        if IsWithin( w, hOld->pHot ) then hOld->pHot = 0
+        if IsWithin( w, hOld->pLastDown ) then hOld->pLastDown = 0
+        hOld->bDirty = true
+    end if
+    Unlink( w )
+    AppendChild( newParent, w )
+    SetHostDeep( w, hNew )
+    hNew->bDirty = true
+end sub
+
+' EnableWindow: a disabled widget (and its subtree) gets no input, is skipped by Tab, and gives
+' up hot, capture and focus at once rather than at the next event.
+public sub tkWidget_Enable( byval w as TK_WIDGET ptr, byval bEnable as boolean )
+    if w = 0 then exit sub
+    if w->isEnabled = bEnable then exit sub
+    w->isEnabled = bEnable
+    dim as TK_HOST ptr h = w->pHost
+    if bEnable = false then
+        if IsWithin( w, h->pCapture ) then tkHost_ReleaseCapture( h )
+        if IsWithin( w, h->pFocus ) then tkHost_SetFocus( h, 0 )
+        if IsWithin( w, h->pHot ) then h->pHot = 0
+    end if
+    dim as TK_MSG m
+    m.msg = TKM_ENABLE
+    m.bFlag = bEnable
+    tkWidget_Send( w, @m )
+    tkWidget_Invalidate( w )
+end sub
+
+public sub tkWidget_Show( byval w as TK_WIDGET ptr, byval bShow as boolean )
+    if w = 0 then exit sub
+    if w->isVisible = bShow then exit sub
+    w->isVisible = bShow
+    dim as TK_HOST ptr h = w->pHost
+    if bShow = false then
+        if IsWithin( w, h->pCapture ) then tkHost_ReleaseCapture( h )
+        if IsWithin( w, h->pFocus ) then tkHost_SetFocus( h, 0 )
+        if IsWithin( w, h->pHot ) then h->pHot = 0
+    end if
+    dim as TK_MSG m
+    m.msg = TKM_SHOW
+    m.bFlag = bShow
+    tkWidget_Send( w, @m )
+    tkWidget_Invalidate( w )
+end sub
+
+public sub tkWidget_SetCursor( byval w as TK_WIDGET ptr, byval cursor as long )
+    if w then w->cursor = cursor
+end sub
+
+
+' ---- timers: SDL_AddTimer runs its callback on ANOTHER THREAD, so it only pushes an event;
+' ---- the tick reaches the widget on the UI thread, as WM_TIMER did. -----------------------
+private function TimerTick( byval userdata as any ptr, byval timerID as SDL_TimerID, byval interval as Uint32 ) as Uint32
+    dim as TK_TIMER ptr t = cast( TK_TIMER ptr, userdata )
+    dim as SDL_Event e
+    e.type = gEvTimer
+    e.user.code = t->gen
+    e.user.data1 = userdata
+    SDL_PushEvent( @e )
+    return interval
+end function
+
+public sub tkWidget_KillTimer( byval w as TK_WIDGET ptr, byval id as long )
+    if w = 0 then exit sub
+    for i as long = 0 to ubound( gTimers )
+        if gTimers(i).active andalso (gTimers(i).pW = w) andalso (gTimers(i).id = id) then
+            SDL_RemoveTimer( gTimers(i).sdlId )
+            gTimers(i).active = false
+            gTimers(i).gen += 1
+        end if
+    next
+end sub
+
+public sub tkWidget_SetTimer( byval w as TK_WIDGET ptr, byval id as long, byval ms as long )
+    if w = 0 then exit sub
+    tkWidget_KillTimer( w, id )
+    if gEvTimer = 0 then gEvTimer = SDL_RegisterEvents( 1 )
+    ' A fixed pool, never reallocated: SDL holds pointers into it.
+    for i as long = 0 to ubound( gTimers )
+        if gTimers(i).active = false then
+            gTimers(i).pW = w
+            gTimers(i).id = id
+            gTimers(i).active = true
+            gTimers(i).sdlId = SDL_AddTimer( iif( ms < 1, 1, ms ), @TimerTick, @gTimers(i) )
+            exit sub
+        end if
+    next
+end sub
+
+public function tkWidget_HasTimer( byval w as TK_WIDGET ptr, byval id as long ) as boolean
+    for i as long = 0 to ubound( gTimers )
+        if gTimers(i).active andalso (gTimers(i).pW = w) andalso (gTimers(i).id = id) then return true
+    next
+    return false
+end function
+
+
+' ---- destruction -------------------------------------------------------------------------
+public sub tkWidget_Destroy( byval w as TK_WIDGET ptr )
+    if w = 0 then exit sub
+    ' children first, so a container's proc can still see its own state while they go
+    while w->pLast
+        tkWidget_Destroy( w->pLast )
+    wend
+    dim as TK_HOST ptr h = w->pHost
+    for i as long = 0 to ubound( gTimers )
+        if gTimers(i).active andalso (gTimers(i).pW = w) then tkWidget_KillTimer( w, gTimers(i).id )
+    next
+    if h then
+        if h->pCapture = w then tkHost_ReleaseCapture( h )
+        if h->pFocus = w then h->pFocus = 0 : UpdateTextInput( h )
+        if h->pHot = w then h->pHot = 0
+        if h->pLastDown = w then h->pLastDown = 0
+        h->bDirty = true
+    end if
+    SendSimple( w, TKM_DESTROY )
+    Unlink( w )
+    delete w
+end sub
+
+private sub DestroyNow( byval h as TK_HOST ptr )
+    if h = 0 then exit sub
+    ' popups and dialogs owned by this surface go first
+    dim as long i = 0
+    while i < gnHosts
+        if gHosts(i)->pOwner = h then
+            DestroyNow( gHosts(i) )
+            i = 0
+        else
+            i += 1
+        end if
+    wend
+    if h->root then
+        while h->root->pLast
+            tkWidget_Destroy( h->root->pLast )
+        wend
+        delete h->root
+        h->root = 0
+    end if
+    for k as long = 0 to ubound( h->fonts )
+        TTF_CloseFont( h->fonts(k).f )
+    next
+    Unregister( h )
+    if h->engine then TTF_DestroyRendererTextEngine( h->engine )
+    if h->renderer then
+        if gOnRendererGone then gOnRendererGone( h->renderer )
+        SDL_DestroyRenderer( h->renderer )
+    end if
+    if h->win then SDL_DestroyWindow( h->win )
+    delete h
+end sub
+
+' Close a popup or dialog: hidden at once, OnClosed fired, and the window destroyed after the
+' event being dispatched has finished -- a widget proc inside the popup may be the caller.
+public sub tkHost_Close( byval h as TK_HOST ptr )
+    if (h = 0) orelse h->bClosed then exit sub
+    ' close its own popups first (a submenu chain closes from the leaf)
+    for i as long = gnHosts - 1 to 0 step -1
+        if (i < gnHosts) andalso (gHosts(i)->pOwner = h) andalso (gHosts(i)->kind <> TK_SURF_DIALOG) then tkHost_Close( gHosts(i) )
+    next
+    h->bClosed = true
+    if h->pCapture then tkHost_ReleaseCapture( h )
+    SDL_HideWindow( h->win )
+    if h->pOwner then h->pOwner->bDirty = true
+    if h->OnClosed then h->OnClosed( h )
+end sub
+
+public function tkHost_IsOpen( byval h as TK_HOST ptr ) as boolean
+    if h = 0 then return false
+    for i as long = 0 to gnHosts - 1
+        if gHosts(i) = h then return (h->bClosed = false)
+    next
+    return false
+end function
+
+' Destroy every surface that was closed. Called by the pump between events.
+public sub tkHost_Reap()
+    dim as long i = 0
+    while i < gnHosts
+        if gHosts(i)->bClosed then
+            DestroyNow( gHosts(i) )
+            i = 0
+        else
+            i += 1
+        end if
+    wend
+end sub
+
+public sub tkHost_Destroy( byval h as TK_HOST ptr )
+    if h = 0 then exit sub
+    tkHost_Close( h )
+    DestroyNow( h )
+end sub
+
+
+' ---- painting ----------------------------------------------------------------------------
+private sub PaintTree( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr, byval ax as long, byval ay as long, _
+                       byref rcClip as TKRECT )
+    dim as TK_WIDGET ptr c = w->pFirst
+    while c
+        if c->isVisible andalso (c->cw > 0) andalso (c->ch > 0) then
+            dim as long cx = ax + c->x, cy = ay + c->y
+            dim as TK_PAINT wp
+            wp.renderer = h->renderer
+            wp.engine = h->engine
+            wp.pFont = h->pDefaultFont
+            wp.fScale = h->fScale
+            wp.Begin( cx, cy, c->cw, c->ch, @rcClip )
+            if tkRect_IsEmpty( wp.rcClip ) = false then
+                dim as TK_MSG m
+                m.msg = TKM_PAINT
+                m.pPaint = @wp
+                tkWidget_Send( c, @m )
+                if c->pFirst then
+                    dim as TKRECT rcKids = rcClip
+                    if c->bClipChildren then rcKids = wp.rcClip
+                    PaintTree( h, c, cx, cy, rcKids )
+                end if
+            end if
+        end if
+        c = c->pNext
+    wend
+end sub
+
+' Paint the whole surface into the back buffer; present it when bPresent. Reading pixels for a
+' test means NOT presenting first -- the back buffer is undefined after a present.
+public sub tkHost_RenderTo( byval h as TK_HOST ptr, byval bPresent as boolean )
+    if (h = 0) orelse h->bClosed then exit sub
+    h->bDirty = false
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    h->root->cw = pw : h->root->ch = ph
+    SDL_SetRenderClipRect( h->renderer, 0 )
+    ' The clear honours clrBack's ALPHA: a transparent surface (a rounded tooltip) clears to 0.
+    SDL_SetRenderDrawColor( h->renderer, (h->clrBack shr 16) and 255, (h->clrBack shr 8) and 255, h->clrBack and 255, (h->clrBack shr 24) and 255 )
+    SDL_RenderClear( h->renderer )
+    dim as TK_PAINT p
+    p.renderer = h->renderer
+    p.engine = h->engine
+    p.pFont = h->pDefaultFont
+    p.fScale = h->fScale
+    p.Begin( 0, 0, pw, ph )
+    if h->OnPaint then h->OnPaint( h, @p )
+    dim as TKRECT rcAll
+    tkRect_Set( rcAll, 0, 0, pw, ph )
+    PaintTree( h, h->root, 0, 0, rcAll )
+    SDL_SetRenderClipRect( h->renderer, 0 )
+    if bPresent then
+        SDL_RenderPresent( h->renderer )
+        h->nFrames += 1
+    end if
+end sub
+
+' The whole surface, every time it is dirty. There are no damage regions -- see FINDINGS.
+public sub tkHost_Render( byval h as TK_HOST ptr )
+    tkHost_RenderTo( h, true )
+end sub
+
+' LIVE RESIZE. While a window edge is dragged, Windows runs its own loop: the application's loop
+' sees no event until the drag ends, so the window's contents kept their old layout until then.
+' SDL3 still calls event WATCHERS from inside that loop, with an SDL_EVENT_WINDOW_EXPOSED whose
+' data1 is 1 ("live-resize expose", SDL_events.h): this one lays the host out and paints it there
+' and then. Every other event is left to the loop -- the RESIZED it also queued is handled again
+' when the drag ends, which costs one layout. Main thread only: a watcher also sees events pushed
+' from other threads (tkFileDialog's answer).
+function LiveResizeWatch( byval userdata as any ptr, byval e as SDL_Event ptr ) as boolean
+    if (e->type <> SDL_EVENT_WINDOW_EXPOSED) orelse (e->window.data1 <> 1) then return true
+    if SDL_IsMainThread( ) = false then return true
+    dim as TK_HOST ptr h = HostOfWindow( e->window.windowID )
+    if (h = 0) orelse h->bClosed then return true
+    SizeRoot( h )
+    if h->OnSize then h->OnSize( h )
+    tkHost_Render( h )
+    return true
+end function
+
+
+' ---- input dispatch ----------------------------------------------------------------------
+' The deepest visible widget under (px, py) window pixels; children are tested last-to-first,
+' so the top of the z-order wins, and a clipping parent prunes children outside it.
+private function HitIn( byval w as TK_WIDGET ptr, byval px as single, byval py as single, _
+                        byval ax as long, byval ay as long ) as TK_WIDGET ptr
+    dim as TK_WIDGET ptr c = w->pLast
+    while c
+        if c->isVisible then
+            dim as long cx = ax + c->x, cy = ay + c->y
+            dim as boolean bIn = (px >= cx) andalso (px < cx + c->cw) andalso (py >= cy) andalso (py < cy + c->ch)
+            if bIn orelse (c->bClipChildren = false) then
+                dim as TK_WIDGET ptr d = HitIn( c, px, py, cx, cy )
+                if d then return d
+            end if
+            if bIn then return c
+        end if
+        c = c->pPrev
+    wend
+    return 0
+end function
+
+public function tkHost_HitTest( byval h as TK_HOST ptr, byval px as single, byval py as single ) as TK_WIDGET ptr
+    if h = 0 then return 0
+    return HitIn( h->root, px, py, 0, 0 )
+end function
+
+private sub SendMouse( byval w as TK_WIDGET ptr, byval msg as long, byval px as single, byval py as single, _
+                       byval clicks as long = 0 )
+    dim as TKRECT a
+    tkWidget_AbsRect( w, a )
+    dim as TK_MSG m
+    m.msg = msg
+    m.x = px - a.left
+    m.y = py - a.top
+    m.clicks = clicks
+    tkWidget_Send( w, @m )
+end sub
+
+' The hot widget changes: the old one is told it was left, the new one that it was entered.
+' This is the WM_MOUSELEAVE Win32 only delivered to a window that asked -- and not reliably.
+private sub SetHot( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr )
+    if h->pHot = w then exit sub
+    dim as TK_WIDGET ptr pOld = h->pHot
+    h->pHot = w
+    if pOld then SendSimple( pOld, TKM_MOUSELEAVE )
+    if w andalso tkWidget_IsEnabled( w ) then SendSimple( w, TKM_MOUSEENTER )
+    if gOnHotChanged then gOnHotChanged( h, w )
+end sub
+
+private sub SyncCursor( byval h as TK_HOST ptr )
+    dim as TK_WIDGET ptr w = h->pCapture
+    if w = 0 then w = h->pHot
+    dim as long c = TK_CURSOR_ARROW
+    if w andalso tkWidget_IsEnabled( w ) then c = w->cursor
+    if c = gCursorNow then exit sub
+    if gCursors(c) = 0 then
+        dim as SDL_SystemCursor sc = SDL_SYSTEM_CURSOR_DEFAULT
+        select case c
+        case TK_CURSOR_IBEAM   : sc = SDL_SYSTEM_CURSOR_TEXT
+        case TK_CURSOR_HAND    : sc = SDL_SYSTEM_CURSOR_POINTER
+        case TK_CURSOR_SIZEWE  : sc = SDL_SYSTEM_CURSOR_EW_RESIZE
+        case TK_CURSOR_SIZENS  : sc = SDL_SYSTEM_CURSOR_NS_RESIZE
+        case TK_CURSOR_SIZEALL : sc = SDL_SYSTEM_CURSOR_MOVE
+        case TK_CURSOR_WAIT    : sc = SDL_SYSTEM_CURSOR_WAIT
+        end select
+        gCursors(c) = SDL_CreateSystemCursor( sc )
+    end if
+    if gCursors(c) then SDL_SetCursor( gCursors(c) )
+    gCursorNow = c
+end sub
+
+private sub BroadcastTree( byval w as TK_WIDGET ptr, byval msg as long )
+    dim as TK_WIDGET ptr c = w->pFirst
+    while c
+        SendSimple( c, msg )
+        BroadcastTree( c, msg )
+        c = c->pNext
+    wend
+end sub
+
+' Send msg to every widget of every live surface (what PsRegistry's broadcasts did). Used for
+' TKM_THEMECHANGED; clrWindow, when non-zero, becomes the background of the main windows and
+' dialogs (a popup keeps its own).
+public sub tkHost_BroadcastAll( byval msg as long, byval clrWindow as ulong = 0 )
+    for i as long = 0 to gnHosts - 1
+        dim as TK_HOST ptr h = gHosts(i)
+        if h->bClosed then continue for
+        if (clrWindow <> 0) andalso ((h->kind = TK_SURF_MAIN) orelse (h->kind = TK_SURF_DIALOG)) then h->clrBack = clrWindow
+        BroadcastTree( h->root, msg )
+        h->bDirty = true
+    next
+end sub
+
+' The TK_CURSOR_* last applied (-1 before the first pointer event).
+public function tkHost_CurrentCursor() as long
+    return gCursorNow
+end function
+
+' Tab order = tree pre-order over focusable, enabled, visible widgets.
+private sub CollectFocusable( byval w as TK_WIDGET ptr, list() as TK_WIDGET ptr, byref n as long )
+    dim as TK_WIDGET ptr c = w->pFirst
+    while c
+        if c->isVisible andalso c->isEnabled then
+            if c->isFocusable andalso (n <= ubound( list )) then list(n) = c : n += 1
+            CollectFocusable( c, list(), n )
+        end if
+        c = c->pNext
+    wend
+end sub
+
+public sub tkHost_FocusNext( byval h as TK_HOST ptr, byval bBack as boolean = false )
+    if h = 0 then exit sub
+    dim as TK_WIDGET ptr list(0 to 1023)
+    dim as long n = 0
+    CollectFocusable( h->root, list(), n )
+    if n = 0 then exit sub
+    dim as long cur = -1
+    for i as long = 0 to n - 1
+        if list(i) = h->pFocus then cur = i : exit for
+    next
+    dim as long nxt
+    if bBack then
+        nxt = iif( cur < 0, n - 1, (cur - 1 + n) mod n )
+    else
+        nxt = iif( cur < 0, 0, (cur + 1) mod n )
+    end if
+    tkHost_SetFocus( h, list(nxt) )
+end sub
+
+private sub RescaleTree( byval w as TK_WIDGET ptr, byval fOld as single, byval fNew as single )
+    dim as TK_WIDGET ptr c = w->pFirst
+    while c
+        dim as TK_MSG m
+        m.msg = TKM_SCALECHANGED
+        m.fOld = fOld
+        m.fNew = fNew
+        tkWidget_Send( c, @m )
+        RescaleTree( c, fOld, fNew )
+        c = c->pNext
+    wend
+end sub
+
+private sub RescaleAll( byval h as TK_HOST ptr )
+    dim as single fOld = h->fScale
+    UpdateScale( h )
+    if fOld = h->fScale then exit sub
+    for i as long = 0 to ubound( h->fonts )
+        SizeFont( h, h->fonts(i).f, h->fonts(i).pt )
+    next
+    RescaleTree( h->root, fOld, h->fScale )
+    if h->OnScale then h->OnScale( h )
+    if h->OnSize then h->OnSize( h )
+    h->bDirty = true
+end sub
+
+' The usable work area of the display h is on, in h's WINDOW PIXELS (so it compares directly
+' with anchor rects there). On Wayland the window's global position is unknowable: the area is
+' unbounded and the compositor's popup positioner keeps popups on screen.
+public sub tkHost_WorkRect( byval h as TK_HOST ptr, byref rc as TKRECT )
+    tkRect_Set( rc, -1000000, -1000000, 1000000, 1000000 )
+    if h = 0 then exit sub
+    if *SDL_GetCurrentVideoDriver() = "wayland" then exit sub
+    dim as SDL_Rect rd
+    if SDL_GetDisplayUsableBounds( SDL_GetDisplayForWindow( h->win ), @rd ) = false then exit sub
+    dim as long wx, wy
+    SDL_GetWindowPosition( h->win, @wx, @wy )
+    dim as single d = h->fDensity
+    tkRect_Set( rc, cint( (rd.x - wx) * d ), cint( (rd.y - wy) * d ), cint( (rd.x + rd.w - wx) * d ), cint( (rd.y + rd.h - wy) * d ) )
+end sub
+
+' The open dismissable popup on top, if any.
+private function TopPopup() as TK_HOST ptr
+    for i as long = gnHosts - 1 to 0 step -1
+        if (gHosts(i)->kind = TK_SURF_POPUP) andalso (gHosts(i)->bClosed = false) then return gHosts(i)
+    next
+    return 0
+end function
+
+' Is `h` the popup p, or a popup owned (transitively) by p? A press inside a submenu must not
+' close the menu it hangs from.
+private function InChainOf( byval h as TK_HOST ptr, byval p as TK_HOST ptr ) as boolean
+    while h
+        if h = p then return true
+        h = h->pOwner
+    wend
+    return false
+end function
+
+' THE DISMISSAL RULE (PsPopupHost's): a press anywhere that is not inside a popup's own chain
+' closes that popup, and the press is CONSUMED when it landed outside every popup -- letting the
+' dismissing click through would also activate whatever it landed on.
+private function DismissFor( byval target as TK_HOST ptr, byval bFocusLoss as boolean = false ) as boolean
+    dim as boolean bClosedAny = false
+    for i as long = gnHosts - 1 to 0 step -1
+        if i >= gnHosts then continue for
+        dim as TK_HOST ptr p = gHosts(i)
+        if bFocusLoss andalso p->bKeepOnFocusLoss then continue for
+        if (p->kind = TK_SURF_POPUP) andalso (p->bClosed = false) then
+            if InChainOf( target, p ) = false then
+                ' a popup that lets its dismissing click through does not make it consumed
+                if p->bPassDismissClick = false then bClosedAny = true
+                tkHost_Close( p )
+            end if
+        end if
+    next
+    return bClosedAny andalso ((target = 0) orelse (target->kind <> TK_SURF_POPUP))
+end function
+
+' One-shot (returns 0): post the deferred "did focus leave the application?" check.
+private function FocusCheckTick( byval userdata as any ptr, byval timerID as SDL_TimerID, byval interval as Uint32 ) as Uint32
+    dim as SDL_Event e
+    e.type = gEvFocusCheck
+    SDL_PushEvent( @e )
+    return 0
+end function
+
+private sub FocusCheck()
+    dim as SDL_Window ptr kf = SDL_GetKeyboardFocus()
+    for i as long = 0 to gnHosts - 1
+        if gHosts(i)->win = kf then exit sub
+    next
+    DismissFor( 0, true )
+end sub
+
+private sub DispatchKey( byval h as TK_HOST ptr, byval e as SDL_Event ptr )
+    dim as TK_MSG m
+    m.msg = iif( e->type = SDL_EVENT_KEY_DOWN, TKM_KEYDOWN, TKM_KEYUP )
+    m.key = e->key.key
+    m.mods = e->key.mod_
+    m.bFlag = e->key.repeat
+    m.scancode = e->key.scancode
+    ' A gesture in flight hears Escape first, whoever has the focus: a widget that never takes
+    ' focus (a column header mid-drag) must still be able to cancel. Win32 controls polled
+    ' VK_ESCAPE for this; here the key goes to the capture, then on as usual if refused.
+    if (m.msg = TKM_KEYDOWN) andalso (m.key = SDLK_ESCAPE) andalso (h->pCapture <> 0) andalso (h->pCapture <> h->pFocus) then
+        if tkWidget_IsEnabled( h->pCapture ) andalso tkWidget_Send( h->pCapture, @m ) then exit sub
+    end if
+    ' ACCELERATORS FIRST, as TranslateAccelerator ran before a window's own WM_KEYDOWN: an
+    ' application's Ctrl+S is the application's whichever control has the focus. Per surface,
+    ' so a dialog or a popup (which has none) never runs the main window's commands.
+    if (m.msg = TKM_KEYDOWN) andalso (h->OnPreKey <> 0) then
+        if h->OnPreKey( h, @m ) then exit sub
+    end if
+    ' to the focused widget, bubbling up the parents while refused
+    dim as TK_WIDGET ptr w = h->pFocus
+    while w
+        if tkWidget_IsEnabled( w ) andalso tkWidget_Send( w, @m ) then exit sub
+        w = w->pParent
+    wend
+    if m.msg <> TKM_KEYDOWN then exit sub
+    ' unclaimed keys: Tab moves focus (the dialog manager's job), Escape closes a popup
+    if e->key.key = SDLK_TAB then
+        tkHost_FocusNext( h, (e->key.mod_ and SDL_KMOD_SHIFT) <> 0 )
+    elseif (e->key.key = SDLK_ESCAPE) andalso (h->kind = TK_SURF_POPUP) then
+        tkHost_Close( h )
+    end if
+end sub
+
+private sub DispatchText( byval h as TK_HOST ptr, byval msg as long, byref s as string, _
+                          byval nStart as long = 0, byval nLen as long = 0 )
+    dim as TK_MSG m
+    m.msg = msg
+    m.text = s
+    m.nStart = nStart
+    m.nLen = nLen
+    dim as TK_WIDGET ptr w = h->pFocus
+    if w andalso tkWidget_IsEnabled( w ) then tkWidget_Send( w, @m )
+end sub
+
+private sub DispatchDrop( byval h as TK_HOST ptr, byval px as single, byval py as single )
+    dim as boolean bFiles = (h->nDropFiles > 0)
+    if (bFiles = false) andalso (len( h->sDropText ) = 0) then exit sub
+    dim as TK_MSG m
+    if bFiles then
+        m.msg = TKM_DROPFILES : m.text = h->sDropFiles
+    else
+        m.msg = TKM_DROPTEXT : m.text = h->sDropText
+    end if
+    m.nStart = h->nDropFiles
+    h->sDropFiles = "" : h->nDropFiles = 0 : h->sDropText = ""
+    dim as TK_WIDGET ptr w = tkHost_HitTest( h, px, py )
+    while w
+        if tkWidget_IsEnabled( w ) then
+            dim as TKRECT a
+            tkWidget_AbsRect( w, a )
+            m.x = px - a.left : m.y = py - a.top
+            if tkWidget_Send( w, @m ) then exit sub
+        end if
+        w = w->pParent
+    wend
+    m.x = px : m.y = py
+    if h->OnDrop then h->OnDrop( h, @m )
+end sub
+
+private sub DispatchTo( byval h as TK_HOST ptr, byval e as SDL_Event ptr )
+    select case e->type
+    case SDL_EVENT_WINDOW_CLOSE_REQUESTED
+        if h->kind = TK_SURF_MAIN then
+            ' OnCloseRequest may veto a main window's close too (TRUE = handled, stay open)
+            if h->OnCloseRequest then
+                if h->OnCloseRequest( h ) = false then h->bQuit = true
+            else
+                h->bQuit = true
+            end if
+        elseif h->OnCloseRequest then
+            if h->OnCloseRequest( h ) = false then h->bEndModal = true : h->nModalResult = 0
+        else
+            h->bEndModal = true : h->nModalResult = 0
+        end if
+
+    case SDL_EVENT_WINDOW_EXPOSED
+        h->bDirty = true
+
+    case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED, SDL_EVENT_WINDOW_RESIZED
+        SizeRoot( h )
+        if h->OnSize then h->OnSize( h )
+        h->bDirty = true
+
+    case SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED
+        RescaleAll( h )
+
+    case SDL_EVENT_WINDOW_MOUSE_LEAVE
+        ' During capture the cursor is allowed to leave; the widget keeps getting moves.
+        if h->pCapture = 0 then SetHot( h, 0 )
+
+    case SDL_EVENT_WINDOW_FOCUS_LOST
+        ' Deactivated: capture is gone (Win32 sends WM_CAPTURECHANGED here). Popups close only
+        ' when focus left the APPLICATION -- a popup taking focus is not that.
+        '
+        ' NOT DECIDED NOW. Mapping a popup on Wayland can report the main window's focus lost
+        ' while keyboard focus is momentarily nobody's -- dismissing on that closed a menu chain
+        ' the instant its submenu opened (measured: 1 Wayland run in 4). The check runs 150 ms
+        ' later, when focus has landed somewhere real.
+        tkHost_ReleaseCapture( h )
+        if gEvFocusCheck = 0 then gEvFocusCheck = SDL_RegisterEvents( 1 )
+        SDL_AddTimer( 150, @FocusCheckTick, 0 )
+
+    case SDL_EVENT_MOUSE_MOTION
+        dim as single px = e->motion.x * h->fDensity, py = e->motion.y * h->fDensity
+        h->lastX = px : h->lastY = py
+        if h->pCapture then
+            SendMouse( h->pCapture, TKM_MOUSEMOVE, px, py )
+        else
+            dim as TK_WIDGET ptr w = tkHost_HitTest( h, px, py )
+            SetHot( h, w )
+            if w andalso tkWidget_IsEnabled( w ) then SendMouse( w, TKM_MOUSEMOVE, px, py )
+        end if
+        SyncCursor( h )
+
+    case SDL_EVENT_MOUSE_BUTTON_DOWN, SDL_EVENT_MOUSE_BUTTON_UP
+        dim as single px = e->button.x * h->fDensity, py = e->button.y * h->fDensity
+        h->lastX = px : h->lastY = py
+        dim as boolean bDown = (e->type = SDL_EVENT_MOUSE_BUTTON_DOWN)
+        dim as long msg
+        select case e->button.button
+        case SDL_BUTTON_LEFT
+            msg = iif( bDown, TKM_LBUTTONDOWN, TKM_LBUTTONUP )
+        case SDL_BUTTON_RIGHT
+            msg = iif( bDown, TKM_RBUTTONDOWN, TKM_RBUTTONUP )
+        case SDL_BUTTON_MIDDLE
+            msg = iif( bDown, TKM_MBUTTONDOWN, TKM_MBUTTONUP )
+        case else
+            exit select
+        end select
+        ' A press on a dialog's drag band moves the window (SDL_SetWindowHitTest does it);
+        ' never seen here when the hit test claimed it.
+        dim as long bit = iif( msg = TKM_LBUTTONDOWN orelse msg = TKM_LBUTTONUP, 1, iif( msg = TKM_RBUTTONDOWN orelse msg = TKM_RBUTTONUP, 2, 4 ) )
+        if bDown then h->buttonsDown or= bit else h->buttonsDown and= not bit
+        dim as TK_WIDGET ptr w = h->pCapture
+        if w = 0 then w = tkHost_HitTest( h, px, py )
+        dim as long clicks = e->button.clicks
+        if bDown then
+            ' a double click that changed widgets is two single clicks (PsDispatch's rule)
+            if (clicks >= 2) andalso (w <> h->pLastDown) then clicks = 1
+            h->pLastDown = w
+        end if
+        ' A disabled widget swallows the click: it reaches neither it nor anything beneath.
+        if w andalso tkWidget_IsEnabled( w ) then SendMouse( w, msg, px, py, clicks )
+        SyncCursor( h )
+
+    case SDL_EVENT_MOUSE_WHEEL
+        dim as single px = e->wheel.mouse_x * h->fDensity, py = e->wheel.mouse_y * h->fDensity
+        dim as TK_WIDGET ptr w = h->pCapture
+        if w = 0 then w = tkHost_HitTest( h, px, py )
+        dim as single dx = e->wheel.x, dy = e->wheel.y
+        if e->wheel.direction = SDL_MOUSEWHEEL_FLIPPED then dx = -dx : dy = -dy
+        ' up the parents while refused, as DefWindowProc forwards WM_MOUSEWHEEL
+        while w
+            if tkWidget_IsEnabled( w ) then
+                dim as TKRECT a
+                tkWidget_AbsRect( w, a )
+                dim as TK_MSG m
+                m.msg = TKM_MOUSEWHEEL
+                m.x = px - a.left : m.y = py - a.top
+                m.wheelX = dx : m.wheelY = dy
+                m.mods = SDL_GetModState()
+                if tkWidget_Send( w, @m ) then exit while
+            end if
+            w = w->pParent
+        wend
+
+    case SDL_EVENT_KEY_DOWN, SDL_EVENT_KEY_UP
+        DispatchKey( h, e )
+
+    case SDL_EVENT_TEXT_INPUT
+        dim as string s = *e->text.text
+        DispatchText( h, TKM_CHAR, s )
+
+    ' A DROP FROM THE OS: SDL sends BEGIN, one FILE or TEXT per item, then COMPLETE with the
+    ' point. Collected here and delivered ONCE, on COMPLETE, to the widget under the point --
+    ' WM_DROPFILES' shape: one message, every path -- bubbling up the parents while refused,
+    ' then to the surface's OnDrop.
+    case SDL_EVENT_DROP_BEGIN
+        h->sDropFiles = "" : h->nDropFiles = 0 : h->sDropText = ""
+    case SDL_EVENT_DROP_FILE
+        if e->drop.data then
+            if h->nDropFiles then h->sDropFiles &= chr( 10 )
+            h->sDropFiles &= *e->drop.data
+            h->nDropFiles += 1
+        end if
+    case SDL_EVENT_DROP_TEXT
+        if e->drop.data then h->sDropText &= *e->drop.data
+    case SDL_EVENT_DROP_COMPLETE
+        DispatchDrop( h, e->drop.x * h->fDensity, e->drop.y * h->fDensity )
+
+    case SDL_EVENT_TEXT_EDITING
+        dim as string s = ""
+        if e->edit.text then s = *e->edit.text
+        DispatchText( h, TKM_IMECOMPOSE, s, e->edit.start, e->edit.length )
+    end select
+end sub
+
+private function EventWindow( byval e as SDL_Event ptr ) as SDL_WindowID
+    select case e->type
+    case SDL_EVENT_DROP_FILE to SDL_EVENT_DROP_POSITION : return e->drop.windowID
+    case SDL_EVENT_MOUSE_MOTION : return e->motion.windowID
+    case SDL_EVENT_MOUSE_BUTTON_DOWN, SDL_EVENT_MOUSE_BUTTON_UP : return e->button.windowID
+    case SDL_EVENT_MOUSE_WHEEL : return e->wheel.windowID
+    case SDL_EVENT_KEY_DOWN, SDL_EVENT_KEY_UP : return e->key.windowID
+    case SDL_EVENT_TEXT_INPUT : return e->text.windowID
+    case SDL_EVENT_TEXT_EDITING : return e->edit.windowID
+    case SDL_EVENT_WINDOW_FIRST to SDL_EVENT_WINDOW_LAST : return e->window.windowID
+    end select
+    return 0
+end function
+
+' One SDL event, routed to the surface it belongs to. The `h` argument is kept for callers of
+' the single-window API and is used only for SDL_EVENT_QUIT.
+public sub tkHost_Dispatch( byval h as TK_HOST ptr, byval e as SDL_Event ptr )
+    if e = 0 then exit sub
+    if (gOnEvent <> 0) andalso gOnEvent( e ) then exit sub
+    for i as long = 0 to ubound( gHooks )
+        if (gHooks(i) <> 0) andalso gHooks(i)( e ) then exit sub
+    next
+    if gTrace < 0 then gTrace = iif( environ( "TK_TRACE" ) = "1", 1, 0 )
+    dim as SDL_WindowID wid = EventWindow( e )
+    dim as TK_HOST ptr target = iif( wid <> 0, HostOfWindow( wid ), cast( TK_HOST ptr, 0 ) )
+    ' TK_TRACE=1: one line per event -- the trace that separates "SDL never sent it" from "it
+    ' went elsewhere" (Learnings.md).
+    if gTrace = 1 then
+        print "ev " & hex( e->type ) & " win=" & wid & " host=" & iif( target <> 0, target->kind, -1 ) & _
+              iif( e->type = SDL_EVENT_MOUSE_MOTION, " xy=" & e->motion.x & "," & e->motion.y, "" )
+    end if
+
+    select case e->type
+    case SDL_EVENT_QUIT
+        for i as long = 0 to gnHosts - 1
+            gHosts(i)->bQuit = true
+        next
+        if h then h->bQuit = true
+        exit sub
+    case SDL_EVENT_MOUSE_BUTTON_DOWN
+        gPressSerial += 1
+        ' the dismissal rule runs BEFORE the press is delivered
+        if DismissFor( target ) then exit sub
+    case SDL_EVENT_KEY_DOWN, SDL_EVENT_KEY_UP, SDL_EVENT_TEXT_INPUT, SDL_EVENT_TEXT_EDITING
+        ' keys go to the top popup while one is up, even when the compositor still routes them
+        ' to the owner -- otherwise the arrows would drive whatever had focus behind it
+        dim as TK_HOST ptr tp = TopPopup()
+        if tp then target = tp
+    end select
+
+    if (gEvFocusCheck <> 0) andalso (e->type = gEvFocusCheck) then FocusCheck() : exit sub
+    if (gEvTimer <> 0) andalso (e->type = gEvTimer) then
+        dim as TK_TIMER ptr t = cast( TK_TIMER ptr, e->user.data1 )
+        ' drop a tick that was already queued when its timer was killed
+        if t andalso t->active andalso (t->gen = e->user.code) then
+            dim as TK_MSG m
+            m.msg = TKM_TIMER
+            m.timerId = t->id
+            tkWidget_Send( t->pW, @m )
+        end if
+        exit sub
+    end if
+
+    if (target <> 0) andalso (target->bClosed = false) then DispatchTo( target, e )
+end sub
+
+private sub RenderDirty()
+    for i as long = 0 to gnHosts - 1
+        if gHosts(i)->bDirty andalso (gHosts(i)->bClosed = false) then tkHost_Render( gHosts(i) )
+    next
+end sub
+
+' Drain every queued event, reap closed surfaces, paint each dirty surface once. Non-blocking:
+' the self-tests drive the host with this after pushing synthetic events.
+'
+' SDL3 ENDS A PollEvent ROUND AT A SENTINEL: events pushed after the round began -- including a
+' test's own push, if an earlier round left a sentinel behind -- are not returned by that loop.
+' A pump that stops at the first `false` can therefore return with the event its caller just
+' pushed still queued (measured: the first synthetic motion of a second test pass never arrived).
+' Each round can also bring the window events of a popup that just mapped -- on Wayland enough
+' that four rounds left a pushed key queued (measured: 2 runs in 4). So drain until the queue is
+' EMPTY, with a generous cap only so a timer that refills it every few ms cannot spin forever.
+public sub tkHost_Pump( byval h as TK_HOST ptr )
+    dim as SDL_Event e
+    for round as long = 1 to 64
+        while SDL_PollEvent( @e )
+            tkHost_Dispatch( h, @e )
+            tkHost_Reap()
+        wend
+        if SDL_HasEvents( SDL_EVENT_FIRST, SDL_EVENT_LAST ) = false then exit for
+    next
+    RenderDirty()
+end sub
+
+' The message loop. It BLOCKS in SDL_WaitEvent: an idle window costs nothing, unlike a game
+' loop presenting 60 frames a second whether anything changed or not.
+public sub tkHost_Run( byval h as TK_HOST ptr )
+    if h = 0 then exit sub
+    RenderDirty()
+    dim as SDL_Event e
+    while h->bQuit = false
+        if SDL_WaitEvent( @e ) then
+            tkHost_Dispatch( h, @e )
+            tkHost_Reap()
+            while SDL_PollEvent( @e )
+                tkHost_Dispatch( h, @e )
+                tkHost_Reap()
+            wend
+        end if
+        RenderDirty()
+    wend
+end sub
+
+
+' ---- modal dialogs -----------------------------------------------------------------------
+' Is event `e` for the dialog (or a popup it owns)? Everything else is DROPPED, never handed to
+' the owner -- the owner is not supposed to be getting input while the dialog is modal.
+private function ForDialog( byval dlg as TK_HOST ptr, byval e as SDL_Event ptr ) as boolean
+    dim as SDL_WindowID wid = EventWindow( e )
+    if wid = 0 then return true                 ' timers, quit: not window events
+    dim as TK_HOST ptr t = HostOfWindow( wid )
+    if t = 0 then return false
+    return InChainOf( t, dlg )
+end function
+
+' Show `dlg` modally and pump until tkHost_EndModal (or its close button with no
+' OnCloseRequest). Returns the result. A QUIT ends the dialog AND is re-posted, so the outer loop
+' still sees it. The owner keeps being repainted (expose) but gets no input.
+public function tkHost_RunModal( byval dlg as TK_HOST ptr ) as long
+    if dlg = 0 then return 0
+    if dlg->pOwner then SDL_SetWindowModal( dlg->win, true )
+    tkHost_Show( dlg )
+    if dlg->pFocus = 0 then tkHost_FocusNext( dlg )
+    dlg->bEndModal = false
+    dim as SDL_Event e
+    RenderDirty()
+    while dlg->bEndModal = false
+        if SDL_WaitEvent( @e ) = false then continue while
+        do
+            if e.type = SDL_EVENT_QUIT then
+                dlg->bEndModal = true
+                SDL_PushEvent( @e )
+                exit do
+            end if
+            dim as SDL_WindowID wid = EventWindow( @e )
+            if ForDialog( dlg, @e ) then
+                tkHost_Dispatch( dlg, @e )
+            elseif (e.type = SDL_EVENT_WINDOW_EXPOSED) orelse (e.type = SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED) then
+                dim as TK_HOST ptr t = HostOfWindow( wid )
+                if t then DispatchTo( t, @e )
+            end if
+            tkHost_Reap()
+            if dlg->bEndModal then exit do
+        loop while SDL_PollEvent( @e )
+        RenderDirty()
+    wend
+    dim as long r = dlg->nModalResult
+    if dlg->pOwner then dlg->pOwner->bDirty = true
+    return r
+end function
+
+public sub tkHost_EndModal( byval dlg as TK_HOST ptr, byval result as long )
+    if dlg = 0 then exit sub
+    dlg->nModalResult = result
+    dlg->bEndModal = true
+end sub
+
+' The caption band of a borderless dialog: a press there drags the window.
+private function HitTestCb( byval win as SDL_Window ptr, byval area as const SDL_Point ptr, _
+                            byval data_ as any ptr ) as SDL_HitTestResult
+    dim as TK_HOST ptr h = cast( TK_HOST ptr, data_ )
+    if (h = 0) orelse (area = 0) then return SDL_HITTEST_NORMAL
+    dim as single px = area->x * h->fDensity, py = area->y * h->fDensity
+    if tkRect_Contains( h->rcDrag, px, py ) then
+        ' a widget on the band (a close button) keeps its clicks
+        dim as TK_WIDGET ptr w = tkHost_HitTest( h, px, py )
+        if (w = 0) orelse (w->isFocusable = false) then return SDL_HITTEST_DRAGGABLE
+    end if
+    return SDL_HITTEST_NORMAL
+end function
+
+public sub tkHost_SetDragRect( byval h as TK_HOST ptr, byref rc as TKRECT )
+    if h = 0 then exit sub
+    h->rcDrag = rc
+    SDL_SetWindowHitTest( h->win, @HitTestCb, h )
+end sub
+
+
+' ---- clipboard -----------------------------------------------------------------------------
+public sub tkHost_SetClipboardText( byref s as ustring )
+    dim as string u8 = s
+    SDL_SetClipboardText( strptr( u8 ) )
+end sub
+
+public function tkHost_GetClipboardText() as ustring
+    dim as zstring ptr p = SDL_GetClipboardText()
+    if p = 0 then return ""
+    dim as string u8 = *p
+    SDL_free( p )
+    dim as ustring s = u8
+    return s
+end function
+
+public function tkHost_HasClipboardText() as boolean
+    return SDL_HasClipboardText()
+end function

@@ -1,0 +1,473 @@
+' tkCalendar self-test. Real windows, real SDL event queue: every input claim is made by
+' PUSHING the SDL event a user would have produced and pumping the host. Two passes, scale
+' pinned at 1.0 and at 1.75. Today is pinned (tkCalendar_SetToday) so every date is fixed:
+' 2026-03-15; March 2026 starts on a Sunday, April on a Wednesday.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkCalendar"
+#import "vendor/tkControls/tkTest"
+using tkCalendar
+using tkTooltip
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as long gSel, gAct, gView, gActSelSeen
+dim shared as TKDATE gLastSel, gLastAct
+dim shared as boolean gLastHas
+dim shared as long gIdealW(0 to 1)
+dim shared as boolean gVetoLeft
+' census: what the renderer handed the day painter
+dim shared as long gNSel, gSelPanel, gSelIndex, gNFocus
+
+sub OnSel( byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr, byval bHasDate as boolean )
+    gSel += 1
+    gLastSel = *pDate
+    gLastHas = bHasDate
+end sub
+
+sub OnAct( byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr )
+    gAct += 1
+    gLastAct = *pDate
+    gActSelSeen = gSel
+end sub
+
+sub OnView( byval hCtrl as TK_WIDGET ptr, byval eView as long, byval pAnchor as TKDATE ptr )
+    gView += 1
+end sub
+
+function OnMsg( byval m as TKCALENDAR_MESSAGEINFO ptr ) as boolean
+    if gVetoLeft andalso (m->msg = TKM_KEYDOWN) andalso (m->key = SDLK_LEFT) then return true
+    return false
+end function
+
+function OnTip( byval t as TKCALENDAR_TOOLTIPINFO ptr ) as boolean
+    t->outText = "Day " & t->stDate.wDay
+    return true
+end function
+
+sub CensusPaint( byval p as TKCALENDAR_DAYPAINTINFO ptr )
+    if p->isSelected then gNSel += 1 : gSelPanel = p->panelIndex : gSelIndex = p->cellIndex
+    if p->isFocused then gNFocus += 1
+end sub
+
+sub FloodPaint( byval p as TKCALENDAR_DAYPAINTINFO ptr )
+    p->b->SetBackColor( &hFF808080ul )
+    p->b->PaintRect( @p->rcCell )
+end sub
+
+function D( byval y as long, byval m as long, byval dd as long ) as TKDATE
+    return tkCalendar_MakeDate( y, m, dd )
+end function
+
+function DStr( byref st as TKDATE ) as string
+    return st.wYear & "-" & st.wMonth & "-" & st.wDay
+end function
+
+function Same( byref a as TKDATE, byref b as TKDATE ) as boolean
+    return (a.wYear = b.wYear) andalso (a.wMonth = b.wMonth) andalso (a.wDay = b.wDay)
+end function
+
+' Window-pixel centre of a day cell / a drill-down cell / a nav part.
+sub CellXY( byval c as TK_WIDGET ptr, byref rc as TKRECT, byref x as single, byref y as single )
+    dim as TKRECT a
+    tkWidget_AbsRect( c, a )
+    x = a.left + (rc.left + rc.right) / 2
+    y = a.top + (rc.top + rc.bottom) / 2
+end sub
+
+sub ClickDay( byval h as TK_HOST ptr, byval c as TK_WIDGET ptr, byval panel as long, byval k as long, byval clicks as long = 1 )
+    dim as TKRECT rc
+    tkCalendar_GetDayCellRect( c, panel, k, rc )
+    dim as single x, y
+    CellXY( c, rc, x, y )
+    tkTest_Click( h, x, y, SDL_BUTTON_LEFT, clicks )
+end sub
+
+sub ClickRect( byval h as TK_HOST ptr, byval c as TK_WIDGET ptr, byref rc as TKRECT )
+    dim as single x, y
+    CellXY( c, rc, x, y )
+    tkTest_Click( h, x, y )
+end sub
+
+sub Census( byval c as TK_WIDGET ptr )
+    gNSel = 0 : gNFocus = 0 : gSelPanel = -1 : gSelIndex = -1
+    tkCalendar_SetDayPaintCallback( c, @CensusPaint )
+    tkCalendar_TestPartTones( c, CAL_PART_PREV )     ' renders the WHOLE control
+    tkCalendar_SetDayPaintCallback( c, 0 )
+end sub
+
+' ==========================================================================================
+sub RunPure()
+    tkTest_Begin( "date math" )
+    tkTest_Check( "leap years", tkCalendar_IsLeapYear( 2024 ) andalso (tkCalendar_IsLeapYear( 2100 ) = false) andalso tkCalendar_IsLeapYear( 2000 ) )
+    tkTest_Check( "Feb 2024 = 29, Feb 2023 = 28", tkCalendar_DaysInMonth( 2024, 2 ) = 29 andalso tkCalendar_DaysInMonth( 2023, 2 ) = 28 )
+    tkTest_Check( "serial epoch 1970-01-01 = 0", tkCalendar_DateToSerial( 1970, 1, 1 ) = 0 )
+    dim as long ry, rm, rd
+    tkCalendar_SerialToDate( tkCalendar_DateToSerial( 2400, 2, 29 ), ry, rm, rd )
+    tkTest_Check( "serial round trip 2400-02-29", ry = 2400 andalso rm = 2 andalso rd = 29 )
+    tkCalendar_SerialToDate( tkCalendar_DateToSerial( 1601, 1, 1 ), ry, rm, rd )
+    tkTest_Check( "serial round trip 1601-01-01 (negative)", ry = 1601 andalso rm = 1 andalso rd = 1 )
+    tkTest_Check( "1970-01-01 is a Thursday", tkCalendar_DowSunday( 1970, 1, 1 ) = 4 )
+    tkTest_Check( "2026-03-01 is a Sunday", tkCalendar_DowSunday( 2026, 3, 1 ) = 0 )
+    tkTest_Check( "LeadingCells Mar 2026: Sunday 0, Monday 6", tkCalendar_LeadingCells( 2026, 3, CAL_SUNDAY ) = 0 andalso tkCalendar_LeadingCells( 2026, 3, CAL_MONDAY ) = 6 )
+    dim as TKDATE j31 = D( 2021, 1, 31 )
+    tkTest_Check( "AddMonths clamps the day: Jan 31 + 1 = Feb 28", Same( tkCalendar_AddMonths( j31, 1 ), D( 2021, 2, 28 ) ) )
+    dim as TKDATE d1231 = D( 2020, 12, 31 )
+    tkTest_Check( "AddDays rolls the year", Same( tkCalendar_AddDays( d1231, 1 ), D( 2021, 1, 1 ) ) )
+    tkTest_Check( "DecadeBase", tkCalendar_DecadeBase( 2026 ) = 2020 andalso tkCalendar_DecadeBase( 2029 ) = 2020 )
+    tkTest_Check( "MakeDate fills the weekday", D( 2026, 3, 1 ).wDayOfWeek = 0 )
+end sub
+
+' ==========================================================================================
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkCalendar selftest", 900, 640, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    dim as TTF_Font ptr fText = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
+    dim as TTF_Font ptr fBold = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI_BOLD, 11 )
+    tkTest_Check( "fonts opened", (fText <> 0) andalso (fBold <> 0) )
+    dim as TKDATE today = D( 2026, 3, 15 )
+
+    ' ---- A: ideal size, before sizing, against the README formula -----------------------------
+    dim as TK_WIDGET ptr c = tkCalendar_Create( tkHost_Root( h ), 101 )
+    tkCalendar_SetFont( c, fText )
+    tkCalendar_SetToday( c, today )
+    tkCalendar_SetAnchorDate( c, D( 2026, 3, 20 ) )
+    dim as TKDATE stA
+    tkCalendar_GetAnchorDate( c, stA )
+    tkTest_Check( "anchor day forced to 1", Same( stA, D( 2026, 3, 1 ) ), DStr( stA ) )
+    dim as long iw1, ih1
+    tkCalendar_GetIdealSize( c, iw1, ih1 )
+    dim as long pad = tkCalendar_GetPadding( c ), cmw, cmh
+    tkCalendar_GetCellMinSize( c, cmw, cmh )
+    tkTest_Check( "defaults scaled at create", pad = tkHost_Scale( h, 8 ) andalso cmw = tkHost_Scale( h, 34 ), pad & " " & cmw )
+    tkTest_Check( "thicknesses NOT scaled", tkCalendar_GetChevronThickness( c ) = 2 andalso tkCalendar_GetBorderThickness( c ) = 0 )
+    dim as long expW = 2 * pad + 7 * cmw
+    dim as long expH = 2 * pad + tkHost_Scale( h, 34 ) + tkHost_Scale( h, 4 ) + tkHost_Scale( h, 22 ) + 6 * cmh
+    tkTest_Check( "idealW = formula (1 panel)", iw1 = expW, iw1 & " vs " & expW )
+    tkTest_Check( "idealH = formula, no caption at 1 panel", ih1 = expH, ih1 & " vs " & expH )
+    gIdealW(iif( fScale > 1.5, 1, 0 )) = iw1
+    tkCalendar_SetPanelGrid( c, 2, 1 )
+    dim as long iw2, ih2, gx, gy
+    tkCalendar_GetIdealSize( c, iw2, ih2 )
+    tkCalendar_GetGutters( c, gx, gy )
+    tkTest_Check( "2 panels: idealW adds a panel + gutter", iw2 = iw1 + 7 * cmw + gx, iw2 & "" )
+    tkTest_Check( "2 panels: exactly one caption taller", ih2 = ih1 + tkHost_Scale( h, 24 ), ih2 & " vs " & ih1 )
+    tkCalendar_SetPanelGrid( c, 4, 4 )
+    dim as long qc, qr
+    tkCalendar_GetPanelGrid( c, qc, qr )
+    tkTest_Check( "SetPanelGrid REFUSES 16 panels", qc = 2 andalso qr = 1 )
+    tkCalendar_SetPanelGrid( c, 0, 3 )
+    tkCalendar_GetPanelGrid( c, qc, qr )
+    tkTest_Check( "SetPanelGrid REFUSES a 0 dimension", qc = 2 andalso qr = 1 )
+    dim as TKRECT rc
+    tkTest_Check( "rect query before sizing gives empty rects", tkCalendar_GetPrevRect( c, rc ) andalso tkRect_IsEmpty( rc ) )
+
+    ' ---- B: geometry once sized ----------------------------------------------------------------
+    tkWidget_SetPos( c, tkHost_Scale( h, 10 ), tkHost_Scale( h, 10 ), iw2, ih2 )
+    dim as TKRECT rNav, rPrev, rNext, rTitle, rGrid, rP0, rP1, rCap, rC0, rC6
+    tkCalendar_GetNavBandRect( c, rNav ) : tkCalendar_GetPrevRect( c, rPrev )
+    tkCalendar_GetNextRect( c, rNext ) : tkCalendar_GetTitleRect( c, rTitle )
+    tkCalendar_GetGridRect( c, rGrid )
+    tkTest_Check( "nav band at the padding", rNav.left = pad andalso rNav.top = pad andalso tkRect_Height( rNav ) = tkHost_Scale( h, 34 ), tkRect_Str( rNav ) )
+    tkTest_Check( "chevrons at both ends", rPrev.left = rNav.left andalso rNext.right = rNav.right andalso tkRect_Width( rPrev ) = tkHost_Scale( h, 28 ) )
+    tkTest_Check( "title between the chevrons", rTitle.left = rPrev.right andalso rTitle.right = rNext.left )
+    tkTest_Check( "grid below band + gap", rGrid.top = rNav.bottom + tkHost_Scale( h, 4 ) )
+    tkCalendar_GetPanelRect( c, 0, rP0 ) : tkCalendar_GetPanelRect( c, 1, rP1 )
+    tkTest_Check( "panel 1 one gutter right of panel 0", rP1.left = rP0.right + gx, tkRect_Str( rP0 ) & " " & tkRect_Str( rP1 ) )
+    tkTest_Check( "panel 2 does not exist", tkCalendar_GetPanelRect( c, 2, rc ) = false )
+    tkCalendar_GetCaptionRect( c, 0, rCap )
+    tkTest_Check( "caption present at 2 panels", tkRect_Height( rCap ) = tkHost_Scale( h, 24 ) )
+    tkCalendar_GetDayCellRect( c, 0, 0, rC0 ) : tkCalendar_GetDayCellRect( c, 0, 6, rC6 )
+    tkTest_Check( "cells at ideal are the min size", tkRect_Width( rC0 ) = cmw andalso tkRect_Height( rC0 ) = cmh, tkRect_Str( rC0 ) )
+    tkTest_Check( "a week spans 7 cells", rC6.right - rC0.left = 7 * cmw )
+    tkTest_Check( "title text: a range at 2 panels", tkCalendar_GetTitleText( c ) = "Mar - Apr 2026", tkCalendar_GetTitleText( c ) )
+    dim as TKDATE stc
+    tkCalendar_GetCellDate( c, 1, 2, stc )
+    tkTest_Check( "April panel k=2 is March 31 (adjacent)", Same( stc, D( 2026, 3, 31 ) ), DStr( stc ) )
+    dim as TKPOINT pt
+    pt.x = (rC0.left + rC0.right) \ 2 : pt.y = (rC0.top + rC0.bottom) \ 2
+    dim as CAL_HITRESULT hr = tkCalendar_HitTest( c, pt )
+    tkTest_Check( "hit test: day cell 0 of panel 0", hr.part = CAL_HIT_DAYCELL andalso hr.panel = 0 andalso hr.index = 0 )
+    dim as long fp, fi
+    tkCalendar_GetFocusCell( c, fp, fi )
+    tkTest_Check( "focus falls back to today", fp = 0 andalso fi = 14, fp & "/" & fi )
+
+    ' ---- C: the mouse, through the real dispatch ----------------------------------------------
+    tkCalendar_SetSelChangeCallback( c, @OnSel )
+    tkCalendar_SetDateActivatedCallback( c, @OnAct )
+    tkCalendar_SetViewChangeCallback( c, @OnView )
+    tkHost_Pump( h )
+    gSel = 0 : gAct = 0 : gView = 0
+    ClickDay( h, c, 0, 9 )                                ' March 10
+    tkTest_Check( "click selects and notifies", gSel = 1 andalso Same( gLastSel, D( 2026, 3, 10 ) ), gSel & " " & DStr( gLastSel ) )
+    tkTest_Check( "click focuses", tkCalendar_HasFocus( c ) )
+    ClickDay( h, c, 0, 9, 2 )
+    tkTest_Check( "double-click activates", gAct = 1 andalso Same( gLastAct, D( 2026, 3, 10 ) ) )
+    tkTest_Check( "re-click of the same day: no second SelChange", gSel = 1, "" & gSel )
+    ClickDay( h, c, 1, 3, 1 ) : ClickDay( h, c, 1, 3, 2 )   ' April 1, double-clicked
+    tkTest_Check( "double-click: SelChange BEFORE Activated", gActSelSeen = gSel andalso Same( gLastAct, D( 2026, 4, 1 ) ) )
+    tkTest_Check( "day clicks never move the page", gView = 0 )
+    ClickRect( h, c, rNext )
+    tkCalendar_GetAnchorDate( c, stA )
+    tkTest_Check( "next chevron: one PAGE (2 months)", Same( stA, D( 2026, 5, 1 ) ), DStr( stA ) )
+    tkTest_Check( "chevron fires ViewChange", gView = 1 )
+    tkCalendar_SetNavStep( c, 1 )
+    ClickRect( h, c, rPrev )
+    tkCalendar_GetAnchorDate( c, stA )
+    tkTest_Check( "NavStep 1: prev slides one month", Same( stA, D( 2026, 4, 1 ) ), DStr( stA ) )
+    tkCalendar_SetNavStep( c, 0 )
+    tkCalendar_SetAnchorDate( c, D( 2026, 3, 1 ) )
+    tkTest_Check( "SetAnchorDate is silent", gView = 2, "" & gView )
+    gSel = 0
+    ClickRect( h, c, rTitle )
+    tkTest_Check( "title zooms out to MONTHS", tkCalendar_GetView( c ) = CAL_VIEW_MONTHS )
+    tkTest_Check( "zoom fires ViewChange", gView = 3 )
+    tkTest_Check( "months title is the year", tkCalendar_GetTitleText( c ) = "2026" )
+    dim as TKRECT rMy
+    tkCalendar_GetMyCellRect( c, 7, rMy )             ' August
+    ClickRect( h, c, rMy )
+    tkCalendar_GetAnchorDate( c, stA )
+    tkTest_Check( "month cell drills in to that month", tkCalendar_GetView( c ) = CAL_VIEW_DAYS andalso Same( stA, D( 2026, 8, 1 ) ), DStr( stA ) )
+    tkTest_Check( "drilling never selects", gSel = 0 )
+    tkTest_Check( "GetMyCellRect zeroed in DAYS view", tkCalendar_GetMyCellRect( c, 0, rc ) andalso tkRect_IsEmpty( rc ) )
+
+    ' wheel: away from the user = previous page
+    tkCalendar_SetAnchorDate( c, D( 2026, 3, 1 ) )
+    tkTest_PushWheel( h, tkTest_CX( c ), tkTest_CY( c ), 0, 1 )
+    tkCalendar_GetAnchorDate( c, stA )
+    tkTest_Check( "wheel away: previous page", Same( stA, D( 2026, 1, 1 ) ), DStr( stA ) )
+    tkTest_PushWheel( h, tkTest_CX( c ), tkTest_CY( c ), 0, -0.5 )
+    tkTest_PushWheel( h, tkTest_CX( c ), tkTest_CY( c ), 0, -0.5 )
+    tkCalendar_GetAnchorDate( c, stA )
+    tkTest_Check( "two half notches accumulate to one", Same( stA, D( 2026, 3, 1 ) ), DStr( stA ) )
+
+    ' hot tracking
+    dim as single hx, hy
+    tkCalendar_GetDayCellRect( c, 0, 20, rc )
+    CellXY( c, rc, hx, hy )
+    tkTest_PushMotion( h, hx, hy )
+    hr = tkCalendar_GetHot( c )
+    tkTest_Check( "motion: day cell hot", hr.part = CAL_HIT_DAYCELL andalso hr.index = 20 )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+    tkTest_Check( "leave clears hot", tkCalendar_GetHot( c ).part = CAL_HIT_NONE )
+
+    ' ---- D: the keyboard (arrows move the SELECTION) -------------------------------------------
+    tkCalendar_SetSelDate( c, D( 2026, 3, 10 ) )
+    tkHost_SetFocus( h, c )
+    gSel = 0 : gAct = 0
+    tkTest_PushKey( h, SDLK_RIGHT )
+    tkTest_Check( "Right: +1 day, notifies", gSel = 1 andalso Same( gLastSel, D( 2026, 3, 11 ) ) )
+    tkTest_PushKey( h, SDLK_DOWN )
+    tkTest_Check( "Down: +1 week", Same( gLastSel, D( 2026, 3, 18 ) ) )
+    tkTest_PushKey( h, SDLK_UP ) : tkTest_PushKey( h, SDLK_LEFT )
+    tkTest_Check( "Up, Left back", Same( gLastSel, D( 2026, 3, 10 ) ) )
+    tkTest_PushKey( h, SDLK_END )
+    tkTest_Check( "End: last day of month", Same( gLastSel, D( 2026, 3, 31 ) ) )
+    tkTest_PushKey( h, SDLK_HOME )
+    tkTest_Check( "Home: first day", Same( gLastSel, D( 2026, 3, 1 ) ) )
+    tkTest_PushKey( h, SDLK_PAGEDOWN, SDL_KMOD_LCTRL )
+    tkTest_Check( "Ctrl+PgDn: +1 year", Same( gLastSel, D( 2027, 3, 1 ) ) )
+    tkCalendar_GetPanelMonth( c, 1, qc, qr )
+    tkTest_Check( "the page follows: a forward jump lands in the LAST panel", qc = 2027 andalso qr = 3, qc & "-" & qr )
+    tkTest_PushKey( h, SDLK_PAGEUP )
+    tkTest_Check( "PgUp: -1 month", Same( gLastSel, D( 2027, 2, 1 ) ) )
+    tkTest_PushKey( h, SDLK_HOME, SDL_KMOD_LCTRL )
+    tkTest_Check( "Ctrl+Home: today", Same( gLastSel, today ) )
+    dim as long nSel0 = gSel
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "Enter activates, no SelChange", gAct = 1 andalso gSel = nSel0 andalso Same( gLastAct, today ) )
+    tkTest_PushKey( h, SDLK_SPACE )
+    tkTest_Check( "Space activates", gAct = 2 )
+    tkTest_PushKey( h, SDLK_ESCAPE )
+    tkTest_Check( "Esc in DAYS view does nothing (left for a dialog)", tkCalendar_GetView( c ) = CAL_VIEW_DAYS )
+    gVetoLeft = true
+    tkCalendar_SetMessageCallback( c, @OnMsg )
+    nSel0 = gSel
+    tkTest_PushKey( h, SDLK_LEFT )
+    tkTest_Check( "message callback vetoes a key", gSel = nSel0 )
+    gVetoLeft = false
+    tkCalendar_ClearSelDate( c )
+    gAct = 0
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "Enter with nothing selected commits the focus cell, then activates", gAct = 1 andalso tkCalendar_HasSelDate( c ) )
+    ' drill-down keyboard
+    tkCalendar_SetView( c, CAL_VIEW_MONTHS )
+    tkTest_Check( "SetView seeds the cursor at the anchor's month", tkCalendar_GetMyFocus( c ) = 2, "" & tkCalendar_GetMyFocus( c ) )
+    tkTest_PushKey( h, SDLK_DOWN ) : tkTest_PushKey( h, SDLK_RIGHT )
+    tkTest_Check( "arrows move the drill-down cursor", tkCalendar_GetMyFocus( c ) = 6 )
+    tkTest_PushKey( h, SDLK_ESCAPE )
+    tkTest_Check( "Esc in MONTHS zooms back to DAYS", tkCalendar_GetView( c ) = CAL_VIEW_DAYS )
+    tkCalendar_SetView( c, CAL_VIEW_YEARS )
+    tkTest_Check( "years title is the decade", tkCalendar_GetTitleText( c ) = "2020 - 2029" )
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "Enter in YEARS zooms in to MONTHS", tkCalendar_GetView( c ) = CAL_VIEW_MONTHS )
+    tkCalendar_SetView( c, CAL_VIEW_DAYS )
+
+    ' ---- E: range ---------------------------------------------------------------------------------
+    gSel = 0
+    dim as TKDATE lo = D( 2026, 3, 5 ), hi = D( 2026, 4, 20 )
+    tkCalendar_SetSelDate( c, D( 2026, 3, 2 ) )
+    tkCalendar_SetRange( c, hi, lo, true, true )          ' inverted on purpose
+    dim as TKDATE qlo, qhi
+    dim as boolean bLo, bHi
+    tkCalendar_GetRange( c, qlo, qhi, bLo, bHi )
+    tkTest_Check( "an inverted range is SWAPPED", Same( qlo, lo ) andalso Same( qhi, hi ) )
+    tkTest_Check( "a selection outside the new range is DROPPED", tkCalendar_HasSelDate( c ) = false )
+    tkCalendar_SetSelDate( c, D( 2026, 3, 1 ) )
+    tkTest_Check( "SetSelDate REFUSES out of range", tkCalendar_HasSelDate( c ) = false )
+    tkCalendar_SetAnchorDate( c, D( 2026, 3, 1 ) )
+    ClickDay( h, c, 0, 1 )                                ' March 2: out of range
+    tkTest_Check( "an out-of-range day is inert", gSel = 0 andalso tkCalendar_HasSelDate( c ) = false )
+    tkCalendar_GetDayCellRect( c, 0, 1, rc )
+    CellXY( c, rc, hx, hy )
+    tkTest_PushMotion( h, hx, hy )
+    tkTest_Check( "an out-of-range day never hovers", tkCalendar_GetHot( c ).part = CAL_HIT_NONE )
+    tkTest_Check( "prev chevron dead at the min", tkCalendar_IsPrevDisabled( c ) )
+    tkTest_Check( "next chevron dead: Mar+Apr shows the whole range", tkCalendar_IsNextDisabled( c ) )
+    tkCalendar_SetNavStep( c, 1 )
+    tkCalendar_SetRange( c, lo, D( 2026, 5, 3 ), true, true )
+    tkTest_Check( "sliding: next lives while the NEW month has room", tkCalendar_IsNextDisabled( c ) = false )
+    tkCalendar_SetSelDate( c, D( 2026, 3, 6 ) )
+    tkHost_SetFocus( h, c )
+    tkTest_PushKey( h, SDLK_LEFT ) : tkTest_PushKey( h, SDLK_LEFT ) : tkTest_PushKey( h, SDLK_LEFT )
+    tkTest_Check( "keys clamp to the min", Same( gLastSel, lo ), DStr( gLastSel ) )
+    dim as long nAt = gSel
+    tkTest_PushKey( h, SDLK_LEFT )
+    tkTest_Check( "held against the edge: no repeat SelChange", gSel = nAt )
+    dim as TKDATE noD
+    tkCalendar_SetRange( c, noD, noD, false, false )
+    tkCalendar_SetNavStep( c, 0 )
+
+    ' ---- F: silent setters vs the two actions -------------------------------------------------
+    gSel = 0 : gAct = 0 : gView = 0
+    tkCalendar_SetSelDate( c, D( 2026, 3, 9 ) ) : tkCalendar_ClearSelDate( c ) : tkCalendar_SetSelDate( c, D( 2026, 3, 9 ) )
+    tkCalendar_SetView( c, CAL_VIEW_MONTHS ) : tkCalendar_SetView( c, CAL_VIEW_DAYS )
+    tkCalendar_SetWeekStart( c, CAL_MONDAY ) : tkCalendar_SetWeekStart( c, CAL_SUNDAY )
+    tkCalendar_SetAnchorDate( c, D( 2026, 3, 1 ) )
+    tkTest_Check( "setters are silent", gSel = 0 andalso gAct = 0 andalso gView = 0 )
+    tkCalendar_SelectDate( c, D( 2026, 3, 12 ) )
+    tkTest_Check( "SelectDate notifies", gSel = 1 andalso Same( gLastSel, D( 2026, 3, 12 ) ) )
+    tkCalendar_Activate( c )
+    tkTest_Check( "Activate notifies", gAct = 1 andalso Same( gLastAct, D( 2026, 3, 12 ) ) )
+
+    ' ---- G: exactly one selected cell, in the panel that OWNS the date --------------------------
+    tkCalendar_SetSelDate( c, D( 2026, 3, 31 ) )
+    Census( c )
+    tkTest_Check( "Mar 31: one selected cell, in March (panel 0 k=30)", gNSel = 1 andalso gSelPanel = 0 andalso gSelIndex = 30, gNSel & " " & gSelPanel & "/" & gSelIndex )
+    tkCalendar_SetSelDate( c, D( 2026, 4, 1 ) )
+    Census( c )
+    tkTest_Check( "Apr 1: one selected cell, in April (panel 1 k=3)", gNSel = 1 andalso gSelPanel = 1 andalso gSelIndex = 3, gNSel & " " & gSelPanel & "/" & gSelIndex )
+    tkTest_Check( "the focus ring sits on the same, single cell", gNFocus = 1 )
+    tkCalendar_GetFocusCell( c, fp, fi )
+    tkTest_Check( "GetFocusCell agrees", fp = 1 andalso fi = 3 )
+
+    ' ---- H: pixels ------------------------------------------------------------------------------
+    ' adjacent (clickable) vs out-of-range (inert): the luminance gap, as a RATIO
+    tkCalendar_SetRange( c, D( 2026, 3, 1 ), D( 2026, 4, 30 ), true, true )
+    tkHost_SetFocus( h, 0 )
+    dim as long nAdj = tkCalendar_TestPartBrightness( c, CAL_PART_DAYCELL_BASE + 0 * 100 + 38 )   ' Apr 8 in the March panel
+    dim as long nDis = tkCalendar_TestPartBrightness( c, CAL_PART_DAYCELL_BASE + 1 * 100 + 40 )   ' May 8 in the April panel (same digit)
+    tkTest_Check( "adjacent day clearly brighter than disabled (ratio > 1.3)", nDis > 0 andalso nAdj * 10 > nDis * 13, nAdj & " vs " & nDis )
+    tkCalendar_SetRange( c, noD, noD, false, false )
+    dim as long nHealthy = tkCalendar_TestPartTones( c, CAL_PART_DAYCELL_BASE + 10 )
+    tkCalendar_SetDayPaintCallback( c, @FloodPaint )
+    dim as long nFlood = tkCalendar_TestPartTones( c, CAL_PART_DAYCELL_BASE + 10 )
+    tkCalendar_SetDayPaintCallback( c, 0 )
+    tkTest_Check( "tone probe sees a real render (> 4)", nHealthy > 4, "" & nHealthy )
+    tkTest_Check( "tone probe sees a flooded cell (<= 2)", nFlood <= 2, "" & nFlood )
+    ' the selected chip is drawn in DayBackColorSelected: read it back from the window
+    tkCalendar_SetSelDate( c, D( 2026, 3, 12 ) )
+    dim as TKCALENDAR_COLORS cc
+    tkCalendar_GetColors( c, @cc )
+    tkHost_RenderTo( h, false )
+    tkCalendar_GetDayCellRect( c, 0, 11, rc )
+    dim as TKRECT ac
+    tkWidget_AbsRect( c, ac )
+    dim as ulong px0 = tkTest_PixelAt( h, ac.left + rc.left + tkHost_Scale( h, 6 ), ac.top + (rc.top + rc.bottom) \ 2 )
+    tkTest_Check( "selected chip painted in DayBackColorSelected", px0 = (cc.DayBackColorSelected or &hFF000000ul), hex( px0 ) & " vs " & hex( cc.DayBackColorSelected ) )
+
+    ' ---- I: theme and pinning --------------------------------------------------------------------
+    tkTheme_Apply( tkTheme_Light() )
+    tkCalendar_GetColors( c, @cc )
+    tkTest_Check( "theme reaches an unpinned calendar", cc.BackColor = tkTheme_Light().Window andalso cc.DayBackColorSelected = tkTheme_Light().Selected )
+    cc.BackColor = &hFF102030ul
+    tkCalendar_SetColors( c, @cc )
+    tkTheme_Apply( tkTheme_Dark() )
+    tkCalendar_GetColors( c, @cc )
+    tkTest_Check( "SetColors pins against a theme change", cc.BackColor = &hFF102030ul )
+    tkCalendar_UnpinColors( c )
+    tkCalendar_GetColors( c, @cc )
+    tkTest_Check( "unpin hands it back to the current theme", cc.BackColor = tkTheme_Dark().Window )
+
+    ' ---- J: fonts ---------------------------------------------------------------------------------
+    tkCalendar_SetTitleFont( c, fBold )
+    tkTest_Check( "title font override", tkCalendar_GetTitleFont( c ) = fBold andalso tkCalendar_GetWeekdayFont( c ) = fText )
+    tkCalendar_SetFont( c, fText )
+    tkTest_Check( "SetFont clears the overrides", tkCalendar_GetTitleFont( c ) = fText )
+
+    ' ---- K: localization ---------------------------------------------------------------------------
+    dim as ustring sFr(1 to 12) = { "Janvier", "Fevrier", "Mars", "Avril", "Mai", "Juin", _
+                                    "Juillet", "Aout", "Septembre", "Octobre", "Novembre", "Decembre" }
+    tkCalendar_SetMonthNames( c, sFr() )
+    tkCalendar_SetPanelGrid( c, 1, 1 )
+    tkTest_Check( "localized month in the 1-panel title", tkCalendar_GetTitleText( c ) = "Mars 2026", tkCalendar_GetTitleText( c ) )
+    tkCalendar_SetMonthName( c, 3, "" )
+    tkTest_Check( "an empty entry reverts to English", tkCalendar_GetMonthName( c, 3 ) = "March" )
+    tkCalendar_SetWeekdayAbbrev( c, 1, "Lu" )
+    tkTest_Check( "weekday table by DAY OF WEEK", tkCalendar_GetWeekdayAbbrev( c, 1 ) = "Lu" andalso tkCalendar_GetWeekdayAbbrev( c, 0 ) = "Su" )
+    tkCalendar_SetPanelGrid( c, 2, 1 )
+
+    ' ---- L: disabled -------------------------------------------------------------------------------
+    gSel = 0
+    tkCalendar_SetEnabled( c, false )
+    ClickDay( h, c, 0, 20 )
+    tkTest_Check( "disabled: clicks do nothing", gSel = 0 andalso tkCalendar_GetEnabled( c ) = false )
+    tkCalendar_SetEnabled( c, true )
+
+    ' ---- M: per-monitor rescale ----------------------------------------------------------------------
+    dim as long w0, h0, w1, h1
+    tkCalendar_GetIdealSize( c, w0, h0 )
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkCalendar_GetIdealSize( c, w1, h1 )
+    tkTest_Check( "rescale: ideal width ~ x2", (w1 > w0 * 1.9) andalso (w1 < w0 * 2.1), w0 & " -> " & w1 )
+    tkTest_Check( "rescale: thickness untouched", tkCalendar_GetChevronThickness( c ) = 2 )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkCalendar_GetIdealSize( c, w1, h1 )
+    tkWidget_SetSize( c, w1, h1 )
+
+    ' ---- N: the tracked tooltip -- lazy, then a real popup ----------------------------------------
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 400 )
+    tkTest_Check( "no tip before a callback wants one", tkCalendar_GetTooltipHandle( c ) = 0 )
+    tkCalendar_SetTooltipCallback( c, @OnTip )
+    tkCalendar_GetDayCellRect( c, 0, 16, rc )
+    CellXY( c, rc, hx, hy )
+    tkTest_PushMotion( h, hx, hy )
+    dim as TK_TIP ptr tip = tkCalendar_GetTooltipHandle( c )
+    tkTest_Check( "tip built on the first day cell", tip <> 0 )
+    tkTest_Check( "tracked: shown at once, no dwell", tip <> 0 andalso tkTooltip_IsVisible( tip ) )
+    tkTest_Check( "tip text from the callback", tip <> 0 andalso tkTooltip_GetText( tip ) = "Day 17" )
+    tkTest_PushMotion( h, hx, ac.top + tkHost_Scale( h, 12 ) )     ' onto the nav band
+    tkTest_Check( "off the day cells: tip hidden", tip <> 0 andalso tkTooltip_IsVisible( tip ) = false )
+
+    tkHost_Destroy( h )
+end sub
+
+
+' ==========================================================================================
+if tkTest_Init() = false then end 99
+
+RunPure()
+RunPass( 1.0 )
+RunPass( 1.75 )
+
+tkTest_Begin( "cross-pass" )
+tkTest_Check( "ideal width scales with the scale", (gIdealW(0) > 0) andalso (gIdealW(1) > gIdealW(0) * 1.65) andalso (gIdealW(1) < gIdealW(0) * 1.85), gIdealW(0) & " -> " & gIdealW(1) )
+dim as long nFail = tkTest_Report( "tkCalendar" )
+tkTest_Quit()
+end nFail

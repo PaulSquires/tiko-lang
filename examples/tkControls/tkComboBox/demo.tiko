@@ -1,0 +1,251 @@
+' tkComboBox demo: the vendor demo's seven rows (tiko-lang/examples/PsControls/PsComboBox), so
+' the two can be put side by side, plus an eighth row the vendor control could not have -- a
+' thirty-item list that scrolls -- and the three buttons that drive the mutable list.
+'
+'   demo                     interactive
+'   demo --shot out.bmp      render once (row 0 focused), save the window, then open row 7's
+'                            list and save it as out.bmp.list.bmp, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkComboBox"
+#import "vendor/tkControls/tkButton"
+using tkComboBox
+using tkButton
+using tkPopupMenu
+using tkTheme
+using tkHost
+using tkPaint
+
+const as long COMBO_COUNT = 8, ROW_HEIGHT = 50, ROW_TOP = 14, ROW_MARGIN = 22
+const as long COMBO_MUTABLE = 4, COMBO_PAINTED = 5, COMBO_WHENSEL = 6, COMBO_LONG = 7
+const as ulong T_FORE = &hFFBEC4CEul, T_FOREDIS = &hFF5A606Aul, T_BACK = &hFF21252Bul
+const as ulong T_BACKHOT = &hFF2C313Aul, T_FOCUS = &hFF569CD6ul, T_DIVIDER = &hFF373C45ul
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gCombo(0 to COMBO_COUNT - 1), gBtn(0 to 2)
+dim shared as ustring gLabel(0 to COMBO_COUNT - 1), gNote(0 to COMBO_COUNT - 1)
+dim shared as TTF_Font ptr gFont9, gFont10
+dim shared as long gSerial
+
+private function RowTop( byval i as long ) as long
+    return tkHost_Scale( gHost, ROW_TOP ) + i * tkHost_Scale( gHost, ROW_HEIGHT )
+end function
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long margin = tkHost_Scale( h, ROW_MARGIN ), rh = tkHost_Scale( h, ROW_HEIGHT )
+    for i as long = 0 to COMBO_COUNT - 1
+        dim as long t = RowTop( i )
+        dim as TKRECT rc
+        tkRect_Set( rc, margin, t, pw - margin, t + rh \ 2 )
+        b->SetFont( gFont10 ) : b->SetColors( T_FORE, T_BACK )
+        b->PaintText( gLabel(i), @rc, TK_DT_LEFT )
+        tkRect_Set( rc, margin, t + rh \ 2, pw - margin, t + rh )
+        b->SetFont( gFont9 ) : b->SetColors( T_FOREDIS, T_BACK )
+        b->PaintText( gNote(i), @rc, TK_DT_LEFT )
+        tkRect_Set( rc, margin, t + rh - 1, pw - margin, t + rh )
+        b->SetBackColor( T_DIVIDER )
+        b->PaintRect( @rc )
+    next
+end sub
+
+sub PlaceCombos()
+    dim as long pw, ph
+    tkHost_PixelSize( gHost, pw, ph )
+    dim as long margin = tkHost_Scale( gHost, ROW_MARGIN ), rh = tkHost_Scale( gHost, ROW_HEIGHT )
+    for i as long = 0 to COMBO_COUNT - 1
+        dim as long iw, ih
+        tkComboBox_GetIdealSize( gCombo(i), iw, ih )
+        tkWidget_SetPos( gCombo(i), pw - margin - iw, RowTop( i ) + (rh - ih) \ 2, iw, ih )
+    next
+    dim as long x = margin
+    for i as long = 0 to 2
+        dim as long iw, ih
+        tkButton_GetIdealSize( gBtn(i), iw, ih )
+        tkWidget_SetPos( gBtn(i), x, RowTop( COMBO_COUNT ) + tkHost_Scale( gHost, 8 ), iw, ih )
+        x += iw + tkHost_Scale( gHost, 8 )
+    next
+end sub
+
+sub Form_Size( byval h as TK_HOST ptr )
+    PlaceCombos()
+end sub
+
+sub OnSel( byval hCombo as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long )
+    dim as string s8 = tkComboBox_GetItemText( hCombo, idxNew )
+    print "SelChange   ctrl=" & hCombo->ctrlId & "  " & idxOld & " -> " & idxNew & "  [" & s8 & "]"
+    if hCombo = gCombo(COMBO_WHENSEL) then PlaceCombos()       ' it grew: right-align again
+end sub
+
+sub OnDrop( byval hCombo as TK_WIDGET ptr, byval isOpen as boolean )
+    print "DropDown    ctrl=" & hCombo->ctrlId & "  " & iif( isOpen, "open", "closed" )
+end sub
+
+' Square chrome and a solid triangle, with the same font the widths were measured in.
+sub DemoPaint( byval p as TKCOMBOBOX_PAINTINFO ptr )
+    dim as ulong clrLine = iif( p->isEnabled, T_FORE, T_FOREDIS )
+    dim as ulong clrFill = iif( p->isHot orelse p->isOpen, T_BACKHOT, T_BACK )
+    p->b->SetBackColor( clrFill )
+    p->b->SetPenColor( iif( p->isOpen, T_FOCUS, clrLine ) )
+    p->b->PaintRectFactory( @p->rcButton, 1 )
+    if p->isTextVisible andalso (len( p->wszText ) > 0) then
+        p->b->SetFont( gFont10 )
+        p->b->SetColors( clrLine, clrFill )
+        p->b->PaintText( p->wszText, @p->rcText, TK_DT_LEFT or TK_DT_ELLIPSIS )
+    end if
+    dim as TKPOINT tri(0 to 2)
+    dim as long cx = (p->rcChevron.left + p->rcChevron.right) \ 2, cy = (p->rcChevron.top + p->rcChevron.bottom) \ 2
+    dim as long hw = (p->rcChevron.right - p->rcChevron.left) \ 2
+    tri(0).x = cx - hw : tri(0).y = cy - hw \ 2
+    tri(1).x = cx + hw : tri(1).y = cy - hw \ 2
+    tri(2).x = cx : tri(2).y = cy + hw \ 2
+    p->b->SetBackColor( clrLine )
+    p->b->PaintPolygon( @tri(0), 3 )
+    if p->isFocused then
+        p->b->SetPenColor( T_FOCUS )
+        p->b->PaintRoundOutline( @p->rcVisual, 0, 1 )
+    end if
+end sub
+
+sub OnButton( byval hButton as TK_WIDGET ptr, byval id as long )
+    dim as TK_WIDGET ptr m = gCombo(COMBO_MUTABLE)
+    select case id
+    case 1
+        gSerial += 1
+        tkComboBox_AddItem( m, "Added item " & gSerial, 500 + gSerial )
+    case 2
+        if tkComboBox_GetCurSel( m ) >= 0 then tkComboBox_DeleteItem( m, tkComboBox_GetCurSel( m ) )
+    case 3
+        tkComboBox_Clear( m )
+    end select
+    PlaceCombos()
+    tkHost_Invalidate( gHost )
+end sub
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr sf = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if sf then
+        SDL_SaveBMP( sf, strptr( path ) )
+        print "shot: " & path & "  " & sf->w & "x" & sf->h & "  scale=" & gHost->fScale
+        SDL_DestroySurface( sf )
+    end if
+end sub
+
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkComboBox on SDL3", 640, 470, tkHost_FontDir() & TK_FONT_UI, forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = T_BACK
+gFont9 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 9 )
+gFont10 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 10 )
+if gFont10 = 0 then print "fonts: " & *SDL_GetError() : end 1
+
+gLabel(0) = "The reference screenshot" : gNote(0) = "two items, the longer one selected"
+gLabel(1) = "Arrow only"               : gNote(1) = "SetShowText(false) -- width collapses to padding + chevron"
+gLabel(2) = "Disabled"                 : gNote(2) = "tkWidget_Enable, so it swallows input for real"
+gLabel(3) = "Nothing selected"         : gNote(3) = "nCurSel = -1 with a placeholder; width still comes from the items"
+gLabel(4) = "Mutable list"             : gNote(4) = "the buttons below exercise the selection fix-up"
+gLabel(5) = "Custom painter"           : gNote(5) = "square chrome and a solid triangle, drawn by the host"
+gLabel(6) = "Collapse until answered"  : gNote(6) = "CBO_TEXT_WHENSELECTED + AutoSize -- arrows only until you pick"
+gLabel(7) = "Thirty items"             : gNote(7) = "the list scrolls past 12 rows (PsPlatform's list; vendor's did not)"
+
+dim as TK_WIDGET ptr root = tkHost_Root( gHost )
+for i as long = 0 to COMBO_COUNT - 1
+    gCombo(i) = tkComboBox_Create( root, 100 + i )
+    tkComboBox_SetFont( gCombo(i), gFont10 )
+    tkComboBox_SetSelChangeCallback( gCombo(i), @OnSel )
+    tkComboBox_SetDropDownCallback( gCombo(i), @OnDrop )
+next
+for i as long = 0 to 2
+    tkComboBox_AddItem( gCombo(i), "Add to Existing Window", 1 )
+    tkComboBox_AddItem( gCombo(i), "Open a New Window", 2 )
+next
+tkComboBox_SetCurSel( gCombo(0), 0 )
+tkComboBox_SetCurSel( gCombo(1), 1 )
+tkComboBox_SetShowText( gCombo(1), false )
+tkComboBox_SetCurSel( gCombo(2), 0 )
+tkComboBox_SetEnabled( gCombo(2), false )
+tkComboBox_AddItem( gCombo(3), "Add to Existing Window", 1 )
+tkComboBox_AddItem( gCombo(3), "Open a New Window", 2 )
+tkComboBox_AddItem( gCombo(3), "Not Available Right Now", 3 )
+tkComboBox_SetItemEnabled( gCombo(3), 2, false )
+tkComboBox_SetPlaceholderText( gCombo(3), "Choose an action..." )
+tkComboBox_AddItem( gCombo(COMBO_MUTABLE), "First item", 501 )
+tkComboBox_AddItem( gCombo(COMBO_MUTABLE), "Second item", 502 )
+tkComboBox_AddItem( gCombo(COMBO_MUTABLE), "Third item", 503 )
+tkComboBox_SetCurSel( gCombo(COMBO_MUTABLE), 1 )
+tkComboBox_AddItem( gCombo(COMBO_PAINTED), "Add to Existing Window", 1 )
+tkComboBox_AddItem( gCombo(COMBO_PAINTED), "Open a New Window", 2 )
+tkComboBox_SetCurSel( gCombo(COMBO_PAINTED), 0 )
+tkComboBox_SetCornerCurvature( gCombo(COMBO_PAINTED), 0 )
+tkComboBox_SetPaintCallback( gCombo(COMBO_PAINTED), @DemoPaint )
+dim as TKPOPUPMENU_COLORS lc
+lc.BackColor = T_BACK : lc.ForeColor = T_FORE : lc.BackColorHot = T_FOCUS : lc.ForeColorHot = &hFFFFFFFFul
+lc.ForeColorDisabled = T_FOREDIS : lc.BorderColor = T_FORE : lc.SeparatorColor = T_FOREDIS
+tkComboBox_SetListColors( gCombo(COMBO_PAINTED), @lc )
+tkComboBox_AddItem( gCombo(COMBO_WHENSEL), "Add to Existing Window", 1 )
+tkComboBox_AddItem( gCombo(COMBO_WHENSEL), "Open a New Window", 2 )
+tkComboBox_SetTextMode( gCombo(COMBO_WHENSEL), CBO_TEXT_WHENSELECTED )
+tkComboBox_SetAutoSize( gCombo(COMBO_WHENSEL), true )
+for i as long = 1 to 30
+    tkComboBox_AddItem( gCombo(COMBO_LONG), "Item number " & i, i )
+next
+tkComboBox_SetCurSel( gCombo(COMBO_LONG), 19 )
+
+dim as string caps(0 to 2) = { "Add item", "Delete selected", "Clear" }
+for i as long = 0 to 2
+    gBtn(i) = tkButton_Create( root, i + 1 )
+    tkButton_SetFont( gBtn(i), gFont10 )
+    tkButton_SetText( gBtn(i), caps(i) )
+    tkButton_SetClickCallback( gBtn(i), @OnButton )
+next
+
+dim as long iw, ih
+tkComboBox_GetIdealSize( gCombo(0), iw, ih ) : print "row 0 ideal size: " & iw & "x" & ih
+tkComboBox_GetIdealSize( gCombo(1), iw, ih ) : print "row 1 ideal size (arrow only): " & iw & "x" & ih
+
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+PlaceCombos()
+tkHost_SetFocus( gHost, gCombo(0) )
+tkHost_Show( gHost )
+
+dim as string shot = ArgValue( "--shot" )
+if len( shot ) then
+    tkHost_Pump( gHost )
+    SaveShot( shot )
+    ' and the open list of row 7, saved beside it (a popup is its own surface)
+    tkComboBox_DropDown( gCombo(COMBO_LONG) )
+    dim as TK_HOST ptr lst = tkComboBox_GetListHandle( gCombo(COMBO_LONG) )
+    if lst then
+        tkHost_Pump( gHost )
+        tkHost_RenderTo( lst, false )
+        dim as SDL_Surface ptr sl = SDL_RenderReadPixels( lst->renderer, 0 )
+        if sl then
+            dim as string pl = shot & ".list.bmp"
+            SDL_SaveBMP( sl, strptr( pl ) )
+            print "list shot: " & pl & "  " & sl->w & "x" & sl->h
+            SDL_DestroySurface( sl )
+        end if
+    end if
+else
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

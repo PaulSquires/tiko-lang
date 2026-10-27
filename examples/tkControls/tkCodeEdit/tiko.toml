@@ -1,0 +1,12 @@
+# tkCodeEdit: selftest. tiko build (writes selftest.exe here; out/ is the cache). The scintk library
+# is copied beside it by tools/run-all.sh / run-linux.sh (the uses-scintk marker).
+[package]
+name = "tkcodeedit-tests"
+
+[target.selftest]
+main   = "selftest.tiko"
+output = "selftest.exe"
+
+[target.demo]
+main   = "demo.tiko"
+output = "demo.exe"

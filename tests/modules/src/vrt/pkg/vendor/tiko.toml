@@ -1,0 +1,14 @@
+# A stand-in for the toolchain's pkg/vendor (TKO_PKG points here) whose modules need files
+# beside the program at run time. The tests WRITE those files into their copy of this tree,
+# except lost's, which is never there.
+[package]
+name = "vendor"
+
+[vendor.gamma]
+runtime = ["fonts/gamma.ttf", "lib/gammart"]
+
+[vendor.delta]
+runtime = ["delta.dat"]
+
+[vendor.lost]
+runtime = ["nothere.bin"]

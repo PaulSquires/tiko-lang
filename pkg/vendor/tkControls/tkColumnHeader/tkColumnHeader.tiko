@@ -1,0 +1,957 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkColumnHeader -- PsColumnHeader on SDL3 + SDL_ttf: a horizontal band of column cells with
+' draggable dividers, one column absorbing the leftover width. A port of
+' pkg/vendor/PsControls/PsColumnHeader/PsColumnHeader.tiko onto tkHost.
+'
+' WHAT IS UNCHANGED, by design: the column model (pixel widths, minimums, the fill designation
+' tracked across inserts and deletes), the derived layout (honest overflow, XOffset), the
+' divider gutters tested right to left with the fill column's never grabbable, the matched
+' click (press and release on the same body), the live divider drag with bLive notifications
+' ending in exactly one bLive = FALSE, ESC and capture loss restoring the pre-drag width, the
+' divider double-click asking the host for a best fit, silent setters, per-column tooltips, and
+' the message callback's ignored LBUTTONUP / in-drag MOUSEMOVE.
+'
+' ADDED from PsPlatform: a BUILT-IN painter (hover and press fills, the caption inset by the
+' padding, a sort triangle, the divider tick) used whenever no paint callback is set, with a
+' colour struct and a sort indicator the HOST sets (the control still never sorts).
+'
+' GONE with the HWND: CS_DBLCLKS (SDL's click count arrives with the press), the 100 ms hover
+' poll and the GetAsyncKeyState ESC poll (the host guarantees the leave, and routes Escape to
+' the capture -- tkHost), WM_SETCURSOR (w->cursor), the comctl32 tooltip backend.
+#module "tkColumnHeader"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkTooltip" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkTooltip
+
+public const CCOLHDR_DEFAULT_PADDING = 8        ' scaled once at create
+public const CCOLHDR_DIVIDER_GUTTER = 3         ' scaled at use: half-width of the grab zone
+public const CCOLHDR_DEFAULT_MINWIDTH = 16      ' scaled at use: the floor for nMinWidth = 0
+public const CCOLHDR_DEFAULT_WIDTH = 100
+public const CCOLHDR_FILL_LAST = -2
+public const CCOLHDR_FILL_NONE = -1
+
+public enum
+    HDR_SORT_NONE = 0
+    HDR_SORT_ASC
+    HDR_SORT_DESC
+end enum
+
+' Vendor paints one colour (BackColor); the rest serve the built-in painter (PsPlatform's).
+public type TKCOLUMNHEADER_COLORS
+    BackColor        as ulong = &hFF2C313Aul
+    BackColorHot     as ulong = &hFF373D48ul
+    BackColorPressed as ulong = &hFF264F78ul
+    ForeColor        as ulong = &hFF969CA6ul
+    ForeColorHot     as ulong = &hFFE2E6EEul
+    ForeColorPressed as ulong = &hFFFFFFFFul
+    DividerColor     as ulong = &hFF444A56ul
+    DividerColorHot  as ulong = &hFF61AFEFul
+    SortMarkColor    as ulong = &hFF569CD6ul
+end type
+
+public type TKCOLUMNHEADER_PAINTINFO
+    hHeader     as TK_WIDGET ptr
+    itemID      as integer
+    b           as TK_PAINT ptr
+    rc          as TKRECT
+    isHot       as boolean
+    isPressed   as boolean
+    isResizeHot as boolean
+    isResizing  as boolean
+    isFill      as boolean
+    wszCaption  as ustring
+    nSortDir    as long            ' HDR_SORT_* (the host's indicator)
+end type
+
+public type TKCOLUMNHEADER_MESSAGEINFO
+    hHeader as TK_WIDGET ptr
+    msg     as long                ' TKM_*
+    x       as single
+    y       as single
+    idx     as integer             ' the column under the mouse; -1 on a divider gutter
+end type
+
+public type HDR_PaintCallbackSub as sub( byval p as TKCOLUMNHEADER_PAINTINFO ptr )
+public type HDR_MessageCallbackFunc as function( byval m as TKCOLUMNHEADER_MESSAGEINFO ptr ) as boolean
+public type HDR_TooltipCallbackFunc as function( byval hHeader as TK_WIDGET ptr, byval idx as integer ) as ustring
+public type HDR_ClickCallbackSub as sub( byval hHeader as TK_WIDGET ptr, byval idx as integer )
+public type HDR_WidthChangedCallbackSub as sub( byval hHeader as TK_WIDGET ptr, byval idx as integer, byval nWidth as integer, byval bLive as boolean )
+public type HDR_AutoSizeCallbackFunc as function( byval hHeader as TK_WIDGET ptr, byval idx as integer ) as integer
+
+public type TKCOLUMNHEADER_COLINFO
+    wszText   as ustring
+    itemData  as integer
+    nWidth    as integer = CCOLHDR_DEFAULT_WIDTH
+    nMinWidth as integer
+    rc        as TKRECT
+end type
+
+public type TKCOLUMNHEADER_STATE
+    hWin            as TK_WIDGET ptr
+    id              as long
+    cols(any)       as TKCOLUMNHEADER_COLINFO
+    colCount        as integer
+    fillCol         as integer = CCOLHDR_FILL_LAST
+    xOffset         as integer
+    nPadding        as integer
+    colors          as TKCOLUMNHEADER_COLORS
+    bColorsPinned   as boolean
+    pFont           as TTF_Font ptr               ' borrowed
+    tip             as TKTIPHOST_STATE
+    nSortCol        as integer = -1
+    nSortDir        as long = HDR_SORT_NONE
+    nLastHotIdx     as integer = -1               ' the body under the mouse
+    nHotDividerIdx  as integer = -1               ' the gutter under the mouse
+    nPressedIdx     as integer = -1
+    nDragDividerIdx as integer = -1
+    nDragOrigWidth  as integer
+    nDragAnchorX    as integer
+    nLastX          as integer                    ' the last mouse x, for a re-anchor
+    bLayoutDirty    as boolean = true
+    PaintCallback        as HDR_PaintCallbackSub
+    MessageCallback      as HDR_MessageCallbackFunc
+    TooltipCallback      as HDR_TooltipCallbackFunc
+    ClickCallback        as HDR_ClickCallbackSub
+    WidthChangedCallback as HDR_WidthChangedCallbackSub
+    AutoSizeCallback     as HDR_AutoSizeCallbackFunc
+end type
+
+
+private function HD( byval h as TK_WIDGET ptr ) as TKCOLUMNHEADER_STATE ptr
+    if h = 0 then return 0
+    return cast( TKCOLUMNHEADER_STATE ptr, h->pData )
+end function
+
+private function HdValid( byval p as TKCOLUMNHEADER_STATE ptr, byval idx as integer ) as boolean
+    return (idx >= 0) andalso (idx < p->colCount)
+end function
+
+private function HdFill( byval p as TKCOLUMNHEADER_STATE ptr ) as integer
+    if p->fillCol = CCOLHDR_FILL_NONE then return -1
+    if p->fillCol = CCOLHDR_FILL_LAST then return iif( p->colCount > 0, p->colCount - 1, -1 )
+    return iif( HdValid( p, p->fillCol ), p->fillCol, -1 )
+end function
+
+' The column's own minimum, or the scaled default when that is 0.
+private function HdMinW( byval p as TKCOLUMNHEADER_STATE ptr, byval idx as integer ) as integer
+    dim as integer m = 0
+    if HdValid( p, idx ) then m = p->cols(idx).nMinWidth
+    if m <= 0 then m = tkHost_Scale( p->hWin->pHost, CCOLHDR_DEFAULT_MINWIDTH )
+    return m
+end function
+
+' vendor LayoutColumns: fixed columns raised to their minimum, the fill takes the rest (never
+' below its own minimum), contiguous from clientLeft - xOffset, running past the edge on overflow.
+private sub HdLayout( byval p as TKCOLUMNHEADER_STATE ptr )
+    p->bLayoutDirty = false
+    if p->colCount = 0 then exit sub
+    dim as integer cw = p->hWin->cw, chh = p->hWin->ch
+    if (cw <= 0) orelse (chh <= 0) then p->bLayoutDirty = true : exit sub
+    dim as integer effFill = HdFill( p )
+    dim as integer sumOthers = 0
+    dim as integer colW( 0 to p->colCount - 1 )
+    for i as integer = 0 to p->colCount - 1
+        if i = effFill then continue for
+        dim as integer w = p->cols(i).nWidth
+        if w < HdMinW( p, i ) then w = HdMinW( p, i )
+        colW(i) = w
+        sumOthers += w
+    next
+    if effFill <> -1 then
+        dim as integer w = cw - sumOthers
+        if w < HdMinW( p, effFill ) then w = HdMinW( p, effFill )
+        colW(effFill) = w
+    end if
+    dim as integer x = -p->xOffset
+    for i as integer = 0 to p->colCount - 1
+        tkRect_Set( p->cols(i).rc, x, 0, x + colW(i), chh )
+        x += colW(i)
+    next
+end sub
+
+private sub HdEnsure( byval p as TKCOLUMNHEADER_STATE ptr )
+    if p->bLayoutDirty then HdLayout( p )
+end sub
+
+private sub HdRefresh( byval p as TKCOLUMNHEADER_STATE ptr )
+    p->bLayoutDirty = true
+    tkWidget_Invalidate( p->hWin )
+end sub
+
+private function HdHitColumn( byval p as TKCOLUMNHEADER_STATE ptr, byval x as single, byval y as single ) as integer
+    HdEnsure( p )
+    if (y < 0) orelse (y >= p->hWin->ch) then return -1
+    for i as integer = 0 to p->colCount - 1
+        if (x >= p->cols(i).rc.left) andalso (x < p->cols(i).rc.right) then return i
+    next
+    return -1
+end function
+
+' Right to left, so where two boundaries nearly coincide the later divider wins; the fill
+' column's own divider is never reported.
+private function HdHitDivider( byval p as TKCOLUMNHEADER_STATE ptr, byval x as single, byval y as single ) as integer
+    HdEnsure( p )
+    if (y < 0) orelse (y >= p->hWin->ch) then return -1
+    dim as integer gut = tkHost_Scale( p->hWin->pHost, CCOLHDR_DIVIDER_GUTTER )
+    dim as integer effFill = HdFill( p )
+    for i as integer = p->colCount - 1 to 0 step -1
+        if i = effFill then continue for
+        if abs( x - p->cols(i).rc.right ) <= gut then return i
+    next
+    return -1
+end function
+
+private function HdCall( byval p as TKCOLUMNHEADER_STATE ptr, byval m as TK_MSG ptr, byval idx as integer ) as boolean
+    if p->MessageCallback = 0 then return false
+    dim as TKCOLUMNHEADER_MESSAGEINFO mi
+    mi.hHeader = p->hWin
+    mi.msg = m->msg
+    mi.x = m->x : mi.y = m->y
+    mi.idx = idx
+    return p->MessageCallback( @mi )
+end function
+
+private sub HdFireWidth( byval p as TKCOLUMNHEADER_STATE ptr, byval idx as integer, byval w as integer, byval bLive as boolean )
+    if p->WidthChangedCallback then p->WidthChangedCallback( p->hWin, idx, w, bLive )
+end sub
+
+private sub HdSyncCursor( byval p as TKCOLUMNHEADER_STATE ptr )
+    dim as boolean bSize = (p->nDragDividerIdx <> -1) orelse (p->nHotDividerIdx <> -1)
+    tkWidget_SetCursor( p->hWin, iif( bSize, TK_CURSOR_SIZEWE, TK_CURSOR_ARROW ) )
+end sub
+
+' The hot body and the hot gutter (a gutter hit takes the body hit away).
+private sub HdUpdateHot( byval p as TKCOLUMNHEADER_STATE ptr, byval x as single, byval y as single )
+    dim as integer divIdx = HdHitDivider( p, x, y )
+    dim as integer colIdx = iif( divIdx <> -1, -1, HdHitColumn( p, x, y ) )
+    if (divIdx <> p->nHotDividerIdx) orelse (colIdx <> p->nLastHotIdx) then
+        p->nHotDividerIdx = divIdx
+        p->nLastHotIdx = colIdx
+        tkWidget_Invalidate( p->hWin )
+    end if
+    tkTipHost_SetToolIndex( @p->tip, colIdx )
+    HdSyncCursor( p )
+end sub
+
+private sub HdClearHot( byval p as TKCOLUMNHEADER_STATE ptr )
+    if (p->nLastHotIdx <> -1) orelse (p->nHotDividerIdx <> -1) then
+        p->nLastHotIdx = -1 : p->nHotDividerIdx = -1
+        tkWidget_Invalidate( p->hWin )
+    end if
+    tkTipHost_SetToolIndex( @p->tip, -1 )
+    tkTipHost_Pop( @p->tip )
+    HdSyncCursor( p )
+end sub
+
+' ESC or capture loss: the pre-drag width comes back, with the one final bLive = FALSE.
+private sub HdCancelDrag( byval p as TKCOLUMNHEADER_STATE ptr, byval bRelease as boolean )
+    if p->nDragDividerIdx = -1 then exit sub
+    dim as integer idx = p->nDragDividerIdx
+    p->nDragDividerIdx = -1
+    p->cols(idx).nWidth = p->nDragOrigWidth
+    HdRefresh( p )
+    HdSyncCursor( p )
+    HdFireWidth( p, idx, p->nDragOrigWidth, false )
+    if bRelease andalso (tkHost_GetCapture( p->hWin->pHost ) = p->hWin) then tkHost_ReleaseCapture( p->hWin->pHost )
+end sub
+
+' A gesture whose target just shifted is abandoned, silently.
+private sub HdCancelPress( byval p as TKCOLUMNHEADER_STATE ptr )
+    p->nPressedIdx = -1
+    p->nDragDividerIdx = -1
+    if tkHost_GetCapture( p->hWin->pHost ) = p->hWin then tkHost_ReleaseCapture( p->hWin->pHost )
+    HdSyncCursor( p )
+end sub
+
+
+' ==========================================================================================
+' Paint
+' ==========================================================================================
+private sub HdFillInfo( byval p as TKCOLUMNHEADER_STATE ptr, byval b as TK_PAINT ptr, byval i as integer, _
+                        byval pi as TKCOLUMNHEADER_PAINTINFO ptr )
+    pi->hHeader = p->hWin
+    pi->itemID = i
+    pi->b = b
+    pi->rc = p->cols(i).rc
+    pi->isHot = (i = p->nLastHotIdx)
+    pi->isPressed = (i = p->nPressedIdx)
+    pi->isResizeHot = (i = p->nHotDividerIdx)
+    pi->isResizing = (i = p->nDragDividerIdx)
+    pi->isFill = (i = HdFill( p ))
+    pi->wszCaption = p->cols(i).wszText
+    pi->nSortDir = iif( i = p->nSortCol, p->nSortDir, HDR_SORT_NONE )
+end sub
+
+' PsPlatform's painter, on vendor's state flags: pressed > hot > plain, the caption inset by the
+' padding, a sort triangle at the right end, and a divider tick (accented while its gutter is
+' hovered or dragged) on every column but the fill.
+private sub HdPaintDefault( byval p as TKCOLUMNHEADER_STATE ptr, byval pi as TKCOLUMNHEADER_PAINTINFO ptr )
+    dim as TK_PAINT ptr b = pi->b
+    dim as TK_HOST ptr hh = p->hWin->pHost
+    dim as TKRECT r = pi->rc
+    dim as ulong clrFore = p->colors.ForeColor
+    if pi->isPressed then
+        b->SetBackColor( p->colors.BackColorPressed ) : b->PaintRect( @r )
+        clrFore = p->colors.ForeColorPressed
+    elseif pi->isHot then
+        b->SetBackColor( p->colors.BackColorHot ) : b->PaintRect( @r )
+        clrFore = p->colors.ForeColorHot
+    end if
+    dim as long s = tkHost_Scale( hh, 4 )
+    dim as TKRECT rt = r
+    rt.left += p->nPadding
+    rt.right -= p->nPadding
+    if pi->nSortDir <> HDR_SORT_NONE then
+        dim as long cx = r.right - p->nPadding - s
+        dim as long cy = (r.top + r.bottom) \ 2
+        dim as TKPOINT tri(0 to 2)
+        if pi->nSortDir = HDR_SORT_ASC then
+            tri(0).x = cx - s : tri(0).y = cy + s \ 2
+            tri(1).x = cx + s : tri(1).y = cy + s \ 2
+            tri(2).x = cx : tri(2).y = cy - s
+        else
+            tri(0).x = cx - s : tri(0).y = cy - s \ 2
+            tri(1).x = cx + s : tri(1).y = cy - s \ 2
+            tri(2).x = cx : tri(2).y = cy + s
+        end if
+        b->SetBackColor( p->colors.SortMarkColor )
+        b->PaintPolygon( @tri(0), 3 )
+        rt.right -= 3 * s
+    end if
+    if rt.right > rt.left then
+        dim as TTF_Font ptr f = iif( p->pFont <> 0, p->pFont, hh->pDefaultFont )
+        b->SetFont( f )
+        b->SetForeColor( clrFore )
+        b->PaintText( pi->wszCaption, @rt, TK_DT_LEFT or TK_DT_ELLIPSIS )
+    end if
+    if pi->isFill = false then
+        dim as TKRECT dv
+        dim as boolean bAccent = pi->isResizeHot orelse pi->isResizing
+        dim as long dw = iif( bAccent, 2, 1 )
+        tkRect_Set( dv, r.right - dw, r.top + s, r.right, r.bottom - s )
+        b->SetBackColor( iif( bAccent, p->colors.DividerColorHot, p->colors.DividerColor ) )
+        b->PaintRect( @dv )
+    end if
+end sub
+
+private sub HdOnPaint( byval p as TKCOLUMNHEADER_STATE ptr, byval b as TK_PAINT ptr )
+    HdEnsure( p )
+    dim as TKRECT rcAll
+    tkRect_Set( rcAll, 0, 0, p->hWin->cw, p->hWin->ch )
+    b->SetBackColor( p->colors.BackColor )
+    b->PaintRect( @rcAll )
+    for i as integer = 0 to p->colCount - 1
+        dim as TKRECT r = p->cols(i).rc
+        if (r.right <= 0) orelse (r.left >= p->hWin->cw) then continue for
+        dim as TKCOLUMNHEADER_PAINTINFO pi
+        HdFillInfo( p, b, i, @pi )
+        b->PushClip( @r )
+        if p->PaintCallback then p->PaintCallback( @pi ) else HdPaintDefault( p, @pi )
+        b->PopClip()
+    next
+end sub
+
+
+' ==========================================================================================
+' The proc
+' ==========================================================================================
+public declare sub tkColumnHeader_ApplyTheme( byval hHeader as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+public declare function tkColumnHeader_ThemeColors( byref t as TKTHEME_COLORS ) as TKCOLUMNHEADER_COLORS
+
+private function HdTipText( byval t as TK_TIP ptr, byval a as TK_WIDGET ptr, byval idx as long ) as ustring
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( a )
+    if (p = 0) orelse (HdValid( p, idx ) = false) then return ""
+    if p->TooltipCallback then return p->TooltipCallback( a, idx )
+    return p->cols(idx).wszText
+end function
+
+private function HdProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( w )
+    if p = 0 then return false
+    dim as TK_HOST ptr h = w->pHost
+
+    select case m->msg
+    case TKM_PAINT
+        HdOnPaint( p, m->pPaint )
+        return true
+
+    case TKM_SIZE
+        HdRefresh( p )
+        return true
+
+    case TKM_SCALECHANGED
+        if (m->fOld > 0) andalso (m->fNew > 0) then
+            dim as single k = m->fNew / m->fOld
+            for i as integer = 0 to p->colCount - 1
+                p->cols(i).nWidth = cint( p->cols(i).nWidth * k )
+                p->cols(i).nMinWidth = cint( p->cols(i).nMinWidth * k )
+            next
+            p->nPadding = cint( p->nPadding * k )
+            p->xOffset = cint( p->xOffset * k )
+        end if
+        HdRefresh( p )
+        return true
+
+    case TKM_THEMECHANGED
+        tkColumnHeader_ApplyTheme( w, tkTheme_Get() )
+        return true
+
+    case TKM_MOUSEMOVE
+        p->nLastX = cint( m->x )
+        if p->nDragDividerIdx <> -1 then
+            ' the drag, live; hover tracking is frozen and the callback cannot stop it
+            dim as integer idx = p->nDragDividerIdx
+            dim as integer newW = p->nDragOrigWidth + (cint( m->x ) - p->nDragAnchorX)
+            if newW < HdMinW( p, idx ) then newW = HdMinW( p, idx )
+            if newW <> p->cols(idx).nWidth then
+                p->cols(idx).nWidth = newW
+                HdRefresh( p )
+                HdFireWidth( p, idx, newW, true )
+            end if
+            HdCall( p, m, -1 )                      ' result IGNORED in a drag
+            return true
+        end if
+        HdUpdateHot( p, m->x, m->y )
+        HdCall( p, m, p->nLastHotIdx )
+        return true
+
+    case TKM_MOUSELEAVE
+        if p->nDragDividerIdx = -1 then HdClearHot( p )
+        HdCall( p, m, -1 )
+        return true
+
+    case TKM_LBUTTONDOWN
+        ' capture FIRST, so its release stays guaranteed whatever the callback answers
+        tkHost_SetCapture( w )
+        p->nLastX = cint( m->x )
+        dim as integer divIdx = HdHitDivider( p, m->x, m->y )
+        dim as integer colIdx = HdHitColumn( p, m->x, m->y )
+        if HdCall( p, m, iif( divIdx <> -1, -1, colIdx ) ) then return true
+        tkTipHost_Pop( @p->tip )
+        if (m->clicks >= 2) andalso (divIdx <> -1) then
+            ' divider double-click: the host measures, the control applies
+            if p->AutoSizeCallback then
+                dim as integer bestW = p->AutoSizeCallback( w, divIdx )
+                if bestW > 0 then
+                    if bestW < HdMinW( p, divIdx ) then bestW = HdMinW( p, divIdx )
+                    p->cols(divIdx).nWidth = bestW
+                    HdRefresh( p )
+                    HdFireWidth( p, divIdx, bestW, false )
+                end if
+            end if
+        elseif divIdx <> -1 then
+            dim as integer baseW = p->cols(divIdx).nWidth
+            if baseW < HdMinW( p, divIdx ) then baseW = HdMinW( p, divIdx )
+            p->nDragDividerIdx = divIdx
+            p->nDragOrigWidth = baseW
+            p->nDragAnchorX = cint( m->x )
+            HdSyncCursor( p )
+            tkWidget_Invalidate( w )
+        elseif colIdx <> -1 then
+            ' a body press (a double click on a body is just another press)
+            p->nPressedIdx = colIdx
+            tkWidget_Invalidate( w )
+        end if
+        return true
+
+    case TKM_LBUTTONUP
+        ' SNAPSHOT BEFORE RELEASING: CAPTURECHANGED arrives synchronously
+        dim as integer pressedIdx = p->nPressedIdx, dragIdx = p->nDragDividerIdx
+        p->nPressedIdx = -1 : p->nDragDividerIdx = -1
+        if tkHost_GetCapture( h ) = w then tkHost_ReleaseCapture( h )
+        dim as integer upIdx = HdHitColumn( p, m->x, m->y )
+        HdCall( p, m, upIdx )                       ' result IGNORED
+        tkWidget_Invalidate( w )
+        if dragIdx <> -1 then
+            HdFireWidth( p, dragIdx, p->cols(dragIdx).nWidth, false )
+        elseif (pressedIdx <> -1) andalso (pressedIdx = upIdx) andalso (HdHitDivider( p, m->x, m->y ) = -1) then
+            if p->ClickCallback then p->ClickCallback( w, pressedIdx )
+        end if
+        HdUpdateHot( p, m->x, m->y )
+        return true
+
+    case TKM_CAPTURECHANGED
+        if p->nPressedIdx <> -1 then p->nPressedIdx = -1 : tkWidget_Invalidate( w )
+        HdCancelDrag( p, false )
+        return true
+
+    case TKM_KEYDOWN
+        ' Escape reaches a capturing widget first (tkHost), focused or not
+        if (m->key = SDLK_ESCAPE) andalso (p->nDragDividerIdx <> -1) then
+            HdCancelDrag( p, true )
+            return true
+        end if
+        return false
+
+    case TKM_RBUTTONDOWN, TKM_RBUTTONUP
+        HdCall( p, m, HdHitColumn( p, m->x, m->y ) )   ' reported, never acted on
+        return true
+
+    case TKM_ENABLE
+        if m->bFlag = false then
+            HdCancelDrag( p, true )
+            HdCancelPress( p )
+            HdClearHot( p )
+        end if
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_DESTROY
+        tkTipHost_Destroy( @p->tip )
+        delete p
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ==========================================================================================
+' Public API -- vendor's surface, HWND replaced by the widget pointer
+' ==========================================================================================
+' Never focusable: a header must not steal the caret.
+public function tkColumnHeader_Create( byval hParent as TK_WIDGET ptr, byval CtrlID as long ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TKCOLUMNHEADER_STATE ptr p = new TKCOLUMNHEADER_STATE
+    p->id = CtrlID
+    p->nPadding = tkHost_Scale( hParent->pHost, CCOLHDR_DEFAULT_PADDING )
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @HdProc, p )
+    p->hWin = w
+    p->colors = tkColumnHeader_ThemeColors( tkTheme_Get() )
+    tkTipHost_Ensure( @p->tip, w, @HdTipText )
+    tkTipHost_SetDelay( @p->tip, TK_TIPDELAY_INITIAL, 250 )      ' vendor's HoverTime default
+    tkTipHost_SetToolIndex( @p->tip, -1 )
+    return w
+end function
+
+public function tkColumnHeader_GetID( byval hHeader as TK_WIDGET ptr ) as long
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then return 0
+    return p->id
+end function
+
+' ---- columns ---------------------------------------------------------------------------------
+' Inserts at idx (clamped to [0, count]); returns the index used. Cancels a live gesture.
+public function tkColumnHeader_InsertColumn( byval hHeader as TK_WIDGET ptr, byval idx as integer, byval Text as ustring, _
+                                             byval nWidth as integer = CCOLHDR_DEFAULT_WIDTH, byval nMinWidth as integer = 0, _
+                                             byval itemData as integer = 0 ) as integer
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then return -1
+    if idx < 0 then idx = 0
+    if idx > p->colCount then idx = p->colCount
+    if p->colCount > ubound( p->cols ) then redim preserve p->cols( 0 to iif( p->colCount < 8, 7, p->colCount * 2 - 1 ) )
+    for i as integer = p->colCount to idx + 1 step -1
+        p->cols(i) = p->cols(i - 1)
+    next
+    p->cols(idx).wszText = Text
+    p->cols(idx).itemData = itemData
+    p->cols(idx).nWidth = iif( nWidth > 0, nWidth, CCOLHDR_DEFAULT_WIDTH )
+    p->cols(idx).nMinWidth = iif( nMinWidth > 0, nMinWidth, 0 )
+    p->colCount += 1
+    if (p->fillCol >= 0) andalso (idx <= p->fillCol) then p->fillCol += 1
+    if (p->nSortCol >= 0) andalso (idx <= p->nSortCol) then p->nSortCol += 1
+    HdCancelPress( p )
+    p->nLastHotIdx = -1 : p->nHotDividerIdx = -1
+    HdRefresh( p )
+    return idx
+end function
+
+public function tkColumnHeader_AddColumn( byval hHeader as TK_WIDGET ptr, byval Text as ustring, _
+                                          byval nWidth as integer = CCOLHDR_DEFAULT_WIDTH, byval nMinWidth as integer = 0, _
+                                          byval itemData as integer = 0 ) as integer
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then return -1
+    return tkColumnHeader_InsertColumn( hHeader, p->colCount, Text, nWidth, nMinWidth, itemData )
+end function
+
+' A stored fill index shifts down, or falls back to FILL_LAST if it WAS the deleted column.
+public function tkColumnHeader_DeleteColumn( byval hHeader as TK_WIDGET ptr, byval idx as integer ) as boolean
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if (p = 0) orelse (HdValid( p, idx ) = false) then return false
+    for i as integer = idx to p->colCount - 2
+        p->cols(i) = p->cols(i + 1)
+    next
+    p->colCount -= 1
+    p->cols(p->colCount).wszText = ""
+    if p->fillCol >= 0 then
+        if p->fillCol = idx then
+            p->fillCol = CCOLHDR_FILL_LAST
+        elseif p->fillCol > idx then
+            p->fillCol -= 1
+        end if
+    end if
+    if p->nSortCol = idx then
+        p->nSortCol = -1 : p->nSortDir = HDR_SORT_NONE
+    elseif p->nSortCol > idx then
+        p->nSortCol -= 1
+    end if
+    HdCancelPress( p )
+    p->nLastHotIdx = -1 : p->nHotDividerIdx = -1
+    HdRefresh( p )
+    return true
+end function
+
+public sub tkColumnHeader_Clear( byval hHeader as TK_WIDGET ptr )
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then exit sub
+    for i as integer = 0 to p->colCount - 1
+        p->cols(i).wszText = ""
+    next
+    p->colCount = 0
+    p->fillCol = CCOLHDR_FILL_LAST
+    p->nSortCol = -1 : p->nSortDir = HDR_SORT_NONE
+    HdCancelPress( p )
+    p->nLastHotIdx = -1 : p->nHotDividerIdx = -1
+    HdRefresh( p )
+end sub
+
+public function tkColumnHeader_GetCount( byval hHeader as TK_WIDGET ptr ) as integer
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then return 0
+    return p->colCount
+end function
+
+public sub tkColumnHeader_Refresh( byval hHeader as TK_WIDGET ptr )
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p then HdRefresh( p )
+end sub
+
+' ---- column contents -------------------------------------------------------------------------
+public function tkColumnHeader_GetColumnText( byval hHeader as TK_WIDGET ptr, byval idx as integer ) as ustring
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if (p = 0) orelse (HdValid( p, idx ) = false) then return ""
+    return p->cols(idx).wszText
+end function
+
+' Captions never drive layout: repaint only.
+public function tkColumnHeader_SetColumnText( byval hHeader as TK_WIDGET ptr, byval idx as integer, byval Text as ustring ) as boolean
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if (p = 0) orelse (HdValid( p, idx ) = false) then return false
+    p->cols(idx).wszText = Text
+    tkWidget_Invalidate( hHeader )
+    return true
+end function
+
+public function tkColumnHeader_GetColumnItemData( byval hHeader as TK_WIDGET ptr, byval idx as integer ) as integer
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if (p = 0) orelse (HdValid( p, idx ) = false) then return 0
+    return p->cols(idx).itemData
+end function
+
+public function tkColumnHeader_SetColumnItemData( byval hHeader as TK_WIDGET ptr, byval idx as integer, byval itemData as integer ) as boolean
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if (p = 0) orelse (HdValid( p, idx ) = false) then return false
+    p->cols(idx).itemData = itemData
+    return true
+end function
+
+' ---- geometry and layout ---------------------------------------------------------------------
+' Raised to the effective minimum; the FILL column reports its laid-out width.
+public function tkColumnHeader_GetColumnWidth( byval hHeader as TK_WIDGET ptr, byval idx as integer ) as integer
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if (p = 0) orelse (HdValid( p, idx ) = false) then return 0
+    if idx = HdFill( p ) then
+        HdEnsure( p )
+        if p->bLayoutDirty = false then return p->cols(idx).rc.right - p->cols(idx).rc.left
+    end if
+    dim as integer w = p->cols(idx).nWidth
+    return iif( w < HdMinW( p, idx ), HdMinW( p, idx ), w )
+end function
+
+' SILENT. During a drag of this column's divider, the value becomes the drag's base,
+' re-anchored at the current cursor x.
+public function tkColumnHeader_SetColumnWidth( byval hHeader as TK_WIDGET ptr, byval idx as integer, byval nWidth as integer ) as boolean
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if (p = 0) orelse (HdValid( p, idx ) = false) then return false
+    if nWidth < HdMinW( p, idx ) then nWidth = HdMinW( p, idx )
+    p->cols(idx).nWidth = nWidth
+    if idx = p->nDragDividerIdx then
+        p->nDragOrigWidth = nWidth
+        p->nDragAnchorX = p->nLastX
+    end if
+    HdRefresh( p )
+    return true
+end function
+
+' The column's OWN stored minimum (0 = the control default).
+public function tkColumnHeader_GetColumnMinWidth( byval hHeader as TK_WIDGET ptr, byval idx as integer ) as integer
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if (p = 0) orelse (HdValid( p, idx ) = false) then return 0
+    return p->cols(idx).nMinWidth
+end function
+
+public function tkColumnHeader_SetColumnMinWidth( byval hHeader as TK_WIDGET ptr, byval idx as integer, byval nMinWidth as integer ) as boolean
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if (p = 0) orelse (HdValid( p, idx ) = false) then return false
+    p->cols(idx).nMinWidth = iif( nMinWidth < 0, 0, nMinWidth )
+    HdRefresh( p )
+    return true
+end function
+
+' The RESOLVED fill index, or -1.
+public function tkColumnHeader_GetFillColumn( byval hHeader as TK_WIDGET ptr ) as integer
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then return -1
+    return HdFill( p )
+end function
+
+public function tkColumnHeader_SetFillColumn( byval hHeader as TK_WIDGET ptr, byval idx as integer ) as boolean
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then return false
+    if (idx <> CCOLHDR_FILL_LAST) andalso (idx <> CCOLHDR_FILL_NONE) andalso (HdValid( p, idx ) = false) then return false
+    p->fillCol = idx
+    HdRefresh( p )
+    return true
+end function
+
+' Widget pixels; forces a pending layout. FALSE (rc empty) for an invalid index.
+public function tkColumnHeader_GetColumnRect( byval hHeader as TK_WIDGET ptr, byval idx as integer, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if (p = 0) orelse (HdValid( p, idx ) = false) then return false
+    HdEnsure( p )
+    rc = p->cols(idx).rc
+    return true
+end function
+
+public function tkColumnHeader_HitTestDivider( byval hHeader as TK_WIDGET ptr, byval x as long, byval y as long ) as integer
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then return -1
+    return HdHitDivider( p, x, y )
+end function
+
+public function tkColumnHeader_HitTestColumn( byval hHeader as TK_WIDGET ptr, byval x as long, byval y as long ) as integer
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then return -1
+    return HdHitColumn( p, x, y )
+end function
+
+public function tkColumnHeader_GetPadding( byval hHeader as TK_WIDGET ptr ) as integer
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then return 0
+    return p->nPadding
+end function
+
+' Raw pixels; paint-side only, never re-lays out.
+public sub tkColumnHeader_SetPadding( byval hHeader as TK_WIDGET ptr, byval nPadding as integer )
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then exit sub
+    p->nPadding = iif( nPadding < 0, 0, nPadding )
+    tkWidget_Invalidate( hHeader )
+end sub
+
+public function tkColumnHeader_GetXOffset( byval hHeader as TK_WIDGET ptr ) as integer
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then return 0
+    return p->xOffset
+end function
+
+' Shifts the whole run left; nothing drives it for you.
+public sub tkColumnHeader_SetXOffset( byval hHeader as TK_WIDGET ptr, byval xOffset as integer )
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then exit sub
+    if xOffset < 0 then xOffset = 0
+    if xOffset = p->xOffset then exit sub
+    p->xOffset = xOffset
+    HdRefresh( p )
+end sub
+
+' ---- state, for tests and painters ------------------------------------------------------------
+public function tkColumnHeader_GetHotColumn( byval hHeader as TK_WIDGET ptr ) as integer
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then return -1
+    return p->nLastHotIdx
+end function
+
+public function tkColumnHeader_GetHotDivider( byval hHeader as TK_WIDGET ptr ) as integer
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then return -1
+    return p->nHotDividerIdx
+end function
+
+public function tkColumnHeader_GetPressedColumn( byval hHeader as TK_WIDGET ptr ) as integer
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then return -1
+    return p->nPressedIdx
+end function
+
+public function tkColumnHeader_GetDragColumn( byval hHeader as TK_WIDGET ptr ) as integer
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then return -1
+    return p->nDragDividerIdx
+end function
+
+' ---- the sort indicator (the built-in painter draws it; the control never sorts) -------------
+public sub tkColumnHeader_SetSortColumn( byval hHeader as TK_WIDGET ptr, byval idx as integer, byval nDir as long )
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then exit sub
+    if (HdValid( p, idx ) = false) orelse (nDir = HDR_SORT_NONE) then
+        p->nSortCol = -1 : p->nSortDir = HDR_SORT_NONE
+    else
+        p->nSortCol = idx : p->nSortDir = iif( nDir = HDR_SORT_DESC, HDR_SORT_DESC, HDR_SORT_ASC )
+    end if
+    tkWidget_Invalidate( hHeader )
+end sub
+
+public function tkColumnHeader_GetSortColumn( byval hHeader as TK_WIDGET ptr ) as integer
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then return -1
+    return p->nSortCol
+end function
+
+public function tkColumnHeader_GetSortDirection( byval hHeader as TK_WIDGET ptr ) as long
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then return HDR_SORT_NONE
+    return p->nSortDir
+end function
+
+' The built-in painter, for a paint callback that wants to draw on top of it.
+public sub tkColumnHeader_PaintColumnDefault( byval pi as TKCOLUMNHEADER_PAINTINFO ptr )
+    if pi = 0 then exit sub
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( pi->hHeader )
+    if p then HdPaintDefault( p, pi )
+end sub
+
+' ---- appearance --------------------------------------------------------------------------------
+public function tkColumnHeader_GetBackColor( byval hHeader as TK_WIDGET ptr ) as ulong
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then return 0
+    return p->colors.BackColor
+end function
+
+' Repaints, PINS and returns the previous value.
+public function tkColumnHeader_SetBackColor( byval hHeader as TK_WIDGET ptr, byval clr as ulong ) as ulong
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then return 0
+    dim as ulong old = p->colors.BackColor
+    p->colors.BackColor = clr
+    p->bColorsPinned = true
+    tkWidget_Invalidate( hHeader )
+    return old
+end function
+
+public sub tkColumnHeader_GetColors( byval hHeader as TK_WIDGET ptr, byval pColors as TKCOLUMNHEADER_COLORS ptr )
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if (p = 0) orelse (pColors = 0) then exit sub
+    *pColors = p->colors
+end sub
+
+public sub tkColumnHeader_SetColors( byval hHeader as TK_WIDGET ptr, byval pColors as TKCOLUMNHEADER_COLORS ptr )
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if (p = 0) orelse (pColors = 0) then exit sub
+    p->colors = *pColors
+    p->bColorsPinned = true
+    tkWidget_Invalidate( hHeader )
+end sub
+
+public function tkColumnHeader_ThemeColors( byref t as TKTHEME_COLORS ) as TKCOLUMNHEADER_COLORS
+    dim as TKCOLUMNHEADER_COLORS c
+    c.BackColor = t.Surface                    ' vendor's one role
+    c.BackColorHot = t.SurfaceHot
+    c.BackColorPressed = t.Selected
+    c.ForeColor = t.TextDim                    ' PsPlatform: a header caption is secondary text
+    c.ForeColorHot = t.TextHot
+    c.ForeColorPressed = t.SelectedText
+    c.DividerColor = t.Border
+    c.DividerColorHot = t.FocusRing
+    c.SortMarkColor = t.Accent
+    return c
+end function
+
+public sub tkColumnHeader_ApplyTheme( byval hHeader as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if (p = 0) orelse p->bColorsPinned then exit sub
+    p->colors = tkColumnHeader_ThemeColors( t )
+    tkWidget_Invalidate( hHeader )
+end sub
+
+public sub tkColumnHeader_UnpinColors( byval hHeader as TK_WIDGET ptr )
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then exit sub
+    p->bColorsPinned = false
+    tkColumnHeader_ApplyTheme( hHeader, tkTheme_Get() )
+end sub
+
+public function tkColumnHeader_GetFont( byval hHeader as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then return 0
+    return p->pFont
+end function
+
+' Borrowed. Drives no layout.
+public function tkColumnHeader_SetFont( byval hHeader as TK_WIDGET ptr, byval f as TTF_Font ptr ) as boolean
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then return false
+    p->pFont = f
+    tkWidget_Invalidate( hHeader )
+    return true
+end function
+
+public sub tkColumnHeader_ApplyFonts( byval hHeader as TK_WIDGET ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
+    if fText then tkColumnHeader_SetFont( hHeader, fText )
+end sub
+
+' ---- tooltips (tkTipHost: one tip, its text resolved per hot column) ---------------------------
+public function tkColumnHeader_GetTooltipHandle( byval hHeader as TK_WIDGET ptr ) as TK_TIP ptr
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then return 0
+    return tkTipHost_Tip( @p->tip )
+end function
+
+public sub tkColumnHeader_SetHoverTime( byval hHeader as TK_WIDGET ptr, byval ms as long )
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p then tkTipHost_SetDelay( @p->tip, TK_TIPDELAY_INITIAL, ms )
+end sub
+
+public sub tkColumnHeader_SetAutoPopTime( byval hHeader as TK_WIDGET ptr, byval ms as long )
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p then tkTipHost_SetDelay( @p->tip, TK_TIPDELAY_AUTOPOP, ms )
+end sub
+
+public sub tkColumnHeader_SetReshowTime( byval hHeader as TK_WIDGET ptr, byval ms as long )
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p then tkTipHost_SetDelay( @p->tip, TK_TIPDELAY_RESHOW, ms )
+end sub
+
+' ---- callbacks ---------------------------------------------------------------------------------
+public sub tkColumnHeader_SetPaintCallback( byval hHeader as TK_WIDGET ptr, byval usersub as HDR_PaintCallbackSub )
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p = 0 then exit sub
+    p->PaintCallback = usersub
+    tkWidget_Invalidate( hHeader )
+end sub
+
+public sub tkColumnHeader_SetMessageCallback( byval hHeader as TK_WIDGET ptr, byval userfunc as HDR_MessageCallbackFunc )
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p then p->MessageCallback = userfunc
+end sub
+
+public sub tkColumnHeader_SetTooltipCallback( byval hHeader as TK_WIDGET ptr, byval userfunc as HDR_TooltipCallbackFunc )
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p then p->TooltipCallback = userfunc
+end sub
+
+public sub tkColumnHeader_SetClickCallback( byval hHeader as TK_WIDGET ptr, byval usersub as HDR_ClickCallbackSub )
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p then p->ClickCallback = usersub
+end sub
+
+public sub tkColumnHeader_SetWidthChangedCallback( byval hHeader as TK_WIDGET ptr, byval usersub as HDR_WidthChangedCallbackSub )
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p then p->WidthChangedCallback = usersub
+end sub
+
+public sub tkColumnHeader_SetAutoSizeCallback( byval hHeader as TK_WIDGET ptr, byval userfunc as HDR_AutoSizeCallbackFunc )
+    dim as TKCOLUMNHEADER_STATE ptr p = HD( hHeader )
+    if p then p->AutoSizeCallback = userfunc
+end sub

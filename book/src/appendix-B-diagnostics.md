@@ -72,6 +72,7 @@ Text like ‹arg1› marks where the compiler substitutes a name, type or path.
 | `TKO0173` | error | 'tiko c2t' translates one header per run; '‹arg1›' is a second |
 | `TKO0174` | error | cannot read the C header '‹arg1›' |
 | `TKO0175` | error | the translation of ‹arg1› does not compile; this is a bug in tiko c2t |
+| `TKO0176` | error | module '‹arg1›' needs '‹arg2›' at run time, and there is no '‹arg3›' |
 | `TKO0169` | note | '‹arg1›' is not cached: ‹arg2› |
 | `TKO0166` | error | another build of '‹arg1›' is running (it holds ‹arg2›) |
 | `TKO0153` | error | '‹arg1›' was compiled against module object '‹arg2›', which is not there; compile it again with -c |

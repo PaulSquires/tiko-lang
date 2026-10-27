@@ -1,0 +1,648 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkScrollPanel -- PsScrollPanel on SDL3 + SDL_ttf, a port of
+' pkg/vendor/PsControls/PsScrollPanel/PsScrollPanel.tiko onto tkHost.
+'
+' THREE WIDGETS, as vendor had three windows:
+'   container   the VIEWPORT (clips its children -- the tkHost tree's clip-children)
+'   +-- page    the PAGE, as tall as the content; host widgets are ITS children, laid out in
+'   |           page coordinates once per resize
+'   +-- bar     a tkVScrollBar in a strip that stays reserved whether the thumb shows or not
+' Scrolling moves the page (y = -nPos) and touches nothing on it.
+'
+' WHAT IS UNCHANGED: pixels everywhere; the layout pass and its order; the reveal rule (needs
+' AND (mouse over OR focus inside), and never during a thumb drag) polled every 100 ms; the
+' focus-into-view scroll on a focus CHANGE only; silent setters vs the notifying user paths
+' (wheel, thumb, the focus scroll); EnsureVisible's minimum scroll; AutoSizeContent skipping
+' hidden children; the page stretched to the viewport; the strip coloured like the page.
+'
+' AUTO-SCROLL-TO-FOCUS IS REAL HERE (PsPlatform's was dead code): the reveal tick compares the
+' host's focus widget with the last one it saw, and a change that lands inside the page scrolls
+' it into view and notifies.
+'
+' WHAT IS GONE, because the HWND is gone: WM_CTLCOLOR* and its brush, the WM_COMMAND /
+' WM_NOTIFY / WM_?SCROLL forwarding, WM_SETFONT broadcasting (SetFont), lResult,
+' WS_EX_CONTROLPARENT and IsDialogMessage (the host owns Tab), PsRegistry. See PORT.md.
+#module "tkScrollPanel"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkVScrollBar" public
+#import "../tkScrollBar" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkScrollBar
+using tkVScrollBar
+
+public const TKSCROLLPANEL_REVEAL_MS = 100
+public const TKSCROLLPANEL_LINE_HEIGHT = 20     ' default wheel unit, unscaled (scaled at use)
+public const TKSCROLLPANEL_TIMER_REVEAL = TK_TIMER_APP
+
+public type SCP_PAINTINFO
+    hScrollPanel as TK_WIDGET ptr
+    hPanel       as TK_WIDGET ptr     ' the page, being painted
+    b            as TK_PAINT ptr
+    rcClient     as TKRECT            ' the WHOLE page, page coordinates
+    nPos         as long
+end type
+
+public type SCP_MESSAGEINFO
+    hScrollPanel as TK_WIDGET ptr
+    hPanel       as TK_WIDGET ptr
+    hFrom        as TK_WIDGET ptr     ' which of the two it arrived on
+    msg          as long              ' TKM_*
+    x            as single
+    y            as single
+    wheelY       as single
+end type
+
+public type SCP_PaintCallbackSub as sub( byval p as SCP_PAINTINFO ptr )
+public type SCP_MessageCallbackFunc as function( byval m as SCP_MESSAGEINFO ptr ) as boolean
+public type SCP_LayoutCallbackFunc as function( byval hPanel as TK_WIDGET ptr, byval cxPanel as long ) as long
+public type SCP_ScrollCallbackSub as sub( byval hScrollPanel as TK_WIDGET ptr, byval newPos as long )
+
+public type TKSCROLLPANEL_STATE
+    hWin               as TK_WIDGET ptr      ' the container / viewport
+    hPanel             as TK_WIDGET ptr      ' the page
+    hScrollBar         as TK_WIDGET ptr
+    id                 as long
+    bColorsPinned      as boolean
+    nContentHeight     as long
+    nPos               as long
+    ScrollBarWidth     as long = TKSCROLL_DEFAULT_THICKNESS   ' unscaled
+    LineHeight         as long = TKSCROLLPANEL_LINE_HEIGHT    ' unscaled
+    bThumbShown        as boolean
+    bAutoScrollToFocus as boolean = true
+    pLastFocus         as TK_WIDGET ptr      ' change detector for the focus-into-view scroll
+    revealTimerOn      as boolean
+    bInLayout          as boolean
+    BackColor          as ulong = &hFF21252Bul    ' ( 33, 37, 43)
+    ForeColor          as ulong = &hFFD7DAE0ul    ' (215,218,224)
+    PaintCallback      as SCP_PaintCallbackSub
+    MessageCallback    as SCP_MessageCallbackFunc
+    LayoutCallback     as SCP_LayoutCallbackFunc
+    ScrollCallback     as SCP_ScrollCallbackSub
+
+    declare function ViewportHeight() as long
+    declare function ScaledBarWidth() as long
+    declare function PanelWidth() as long
+    declare function PanelHeight() as long
+    declare function MaxPos() as long
+    declare function ClampPos( byval n as long ) as long
+    declare function NeedsThumb() as boolean
+    declare function ScaledLineHeight() as long
+    declare function FocusIsInside() as boolean
+    declare function MouseIsOver() as boolean
+    declare sub      ApplyScroll()
+end type
+
+function TKSCROLLPANEL_STATE.ViewportHeight() as long
+    return this.hWin->ch
+end function
+
+function TKSCROLLPANEL_STATE.ScaledBarWidth() as long
+    return tkHost_Scale( this.hWin->pHost, this.ScrollBarWidth )
+end function
+
+' The strip is reserved whether or not the thumb is shown.
+function TKSCROLLPANEL_STATE.PanelWidth() as long
+    dim as long w = this.hWin->cw - this.ScaledBarWidth()
+    return iif( w < 0, 0, w )
+end function
+
+' Never shorter than the viewport.
+function TKSCROLLPANEL_STATE.PanelHeight() as long
+    return iif( this.nContentHeight < this.ViewportHeight(), this.ViewportHeight(), this.nContentHeight )
+end function
+
+function TKSCROLLPANEL_STATE.MaxPos() as long
+    dim as long m = this.nContentHeight - this.ViewportHeight()
+    return iif( m < 0, 0, m )
+end function
+
+function TKSCROLLPANEL_STATE.ClampPos( byval n as long ) as long
+    if n < 0 then n = 0
+    if n > this.MaxPos() then n = this.MaxPos()
+    return n
+end function
+
+function TKSCROLLPANEL_STATE.NeedsThumb() as boolean
+    return (this.MaxPos() > 0)
+end function
+
+function TKSCROLLPANEL_STATE.ScaledLineHeight() as long
+    dim as long h = tkHost_Scale( this.hWin->pHost, this.LineHeight )
+    return iif( h < 1, 1, h )
+end function
+
+function TKSCROLLPANEL_STATE.FocusIsInside() as boolean
+    dim as TK_WIDGET ptr f = tkHost_GetFocus( this.hWin->pHost )
+    return tkWidget_IsAncestorOf( this.hPanel, f )
+end function
+
+' The widget under the cursor is the container or anything inside it -- the host's own
+' widgets on the page included (vendor's geometric test, made with the host's hot widget,
+' which is what a cursor over a child button IS here). A held scrollbar counts too.
+function TKSCROLLPANEL_STATE.MouseIsOver() as boolean
+    dim as TK_HOST ptr h = this.hWin->pHost
+    if tkWidget_IsAncestorOf( this.hWin, h->pHot ) then return true
+    return tkWidget_IsAncestorOf( this.hWin, h->pCapture )
+end function
+
+' The ONE place the page is moved.
+sub TKSCROLLPANEL_STATE.ApplyScroll()
+    if this.hPanel = 0 then exit sub
+    tkWidget_SetPos( this.hPanel, 0, -this.nPos, this.PanelWidth(), this.PanelHeight() )
+end sub
+
+
+private function GetScrollPanelPointer( byval hScp as TK_WIDGET ptr ) as TKSCROLLPANEL_STATE ptr
+    if hScp = 0 then return 0
+    return cast( TKSCROLLPANEL_STATE ptr, hScp->pData )
+end function
+
+' The reveal rule as a pure function of its three inputs.
+public function tkScrollPanel_ShouldShow( byval bNeeds as boolean, byval bMouse as boolean, byval bFocus as boolean ) as boolean
+    if bNeeds = false then return false
+    return bMouse orelse bFocus
+end function
+
+private function CallMessage( byval pScp as TKSCROLLPANEL_STATE ptr, byval hFrom as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    if pScp->MessageCallback = 0 then return false
+    dim as SCP_MESSAGEINFO mi
+    mi.hScrollPanel = pScp->hWin
+    mi.hPanel = pScp->hPanel
+    mi.hFrom = hFrom
+    mi.msg = m->msg
+    mi.x = m->x
+    mi.y = m->y
+    mi.wheelY = m->wheelY
+    return pScp->MessageCallback( @mi )
+end function
+
+' THE one place nPos changes; notifies only for the user's paths.
+private function ScrollTo( byval pScp as TKSCROLLPANEL_STATE ptr, byval nNewPos as long, byval bNotify as boolean ) as boolean
+    nNewPos = pScp->ClampPos( nNewPos )
+    if nNewPos = pScp->nPos then return false
+    pScp->nPos = nNewPos
+    pScp->ApplyScroll()
+    if tkVScrollBar_GetPos( pScp->hScrollBar ) <> nNewPos then tkVScrollBar_SetPos( pScp->hScrollBar, nNewPos )
+    if bNotify andalso (pScp->ScrollCallback <> 0) then pScp->ScrollCallback( pScp->hWin, nNewPos )
+    return true
+end function
+
+private sub ArmRevealTimer( byval pScp as TKSCROLLPANEL_STATE ptr )
+    if pScp->revealTimerOn then exit sub
+    tkWidget_SetTimer( pScp->hWin, TKSCROLLPANEL_TIMER_REVEAL, TKSCROLLPANEL_REVEAL_MS )
+    pScp->revealTimerOn = true
+end sub
+
+private sub KillRevealTimer( byval pScp as TKSCROLLPANEL_STATE ptr )
+    if pScp->revealTimerOn = false then exit sub
+    tkWidget_KillTimer( pScp->hWin, TKSCROLLPANEL_TIMER_REVEAL )
+    pScp->revealTimerOn = false
+end sub
+
+' Shows or hides the BAR only; its strip stays reserved.
+private sub ApplyReveal( byval pScp as TKSCROLLPANEL_STATE ptr )
+    dim as boolean bShow = tkScrollPanel_ShouldShow( pScp->NeedsThumb(), pScp->MouseIsOver(), pScp->FocusIsInside() )
+    ' never yank the thumb from under a drag in progress
+    if tkHost_GetCapture( pScp->hWin->pHost ) = pScp->hScrollBar then bShow = true
+    if bShow = pScp->bThumbShown then exit sub
+    pScp->bThumbShown = bShow
+    tkWidget_Show( pScp->hScrollBar, bShow )
+end sub
+
+private sub SyncScrollBar( byval pScp as TKSCROLLPANEL_STATE ptr )
+    tkVScrollBar_SetRange( pScp->hScrollBar, pScp->nContentHeight, pScp->ViewportHeight(), pScp->nPos )
+    ' a notch over the bar itself scrolls by the same step as one over the page
+    dim as long nStep = TKSCROLL_SYSTEM_WHEEL_LINES * pScp->ScaledLineHeight()
+    tkVScrollBar_SetWheelStep( pScp->hScrollBar, iif( nStep < 1, 1, nStep ) )
+    if pScp->NeedsThumb() andalso tkWidget_IsVisible( pScp->hWin ) then
+        ArmRevealTimer( pScp )
+    else
+        KillRevealTimer( pScp )
+    end if
+    ApplyReveal( pScp )
+end sub
+
+' The full layout pass. THE ORDER IS LOAD-BEARING: width first, then the host re-flows, then the
+' height, the clamp, the strip, the sync.
+private sub PositionWindows( byval pScp as TKSCROLLPANEL_STATE ptr )
+    if pScp->bInLayout then exit sub
+    dim as long cxPanel = pScp->PanelWidth()
+    dim as long cyView = pScp->ViewportHeight()
+    tkWidget_SetPos( pScp->hPanel, 0, -pScp->nPos, cxPanel, pScp->PanelHeight() )
+    if pScp->LayoutCallback then
+        pScp->bInLayout = true
+        dim as long nNewHeight = pScp->LayoutCallback( pScp->hPanel, cxPanel )
+        pScp->bInLayout = false
+        if nNewHeight > 0 then pScp->nContentHeight = nNewHeight
+    end if
+    pScp->nPos = pScp->ClampPos( pScp->nPos )
+    tkWidget_SetPos( pScp->hPanel, 0, -pScp->nPos, cxPanel, pScp->PanelHeight() )
+    tkWidget_SetPos( pScp->hScrollBar, cxPanel, 0, pScp->ScaledBarWidth(), cyView )
+    SyncScrollBar( pScp )
+end sub
+
+' The bar reports a USER scroll: move the page there and pass it on.
+private sub OnScrollBarScroll( byval hSB as TK_WIDGET ptr, byval newPos as integer )
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( tkWidget_Parent( hSB ) )
+    if pScp = 0 then exit sub
+    dim as long nWanted = pScp->ClampPos( newPos )
+    ScrollTo( pScp, nWanted, true )
+    if nWanted <> newPos then tkVScrollBar_SetPos( hSB, nWanted )
+end sub
+
+' The minimum scroll that brings hChild fully into view (taller than the viewport: top-aligned).
+private function EnsureVisibleEx( byval pScp as TKSCROLLPANEL_STATE ptr, byval hChild as TK_WIDGET ptr, _
+                                  byval nMargin as long, byval bNotify as boolean ) as boolean
+    if (hChild = 0) orelse (hChild = pScp->hPanel) then return false
+    if tkWidget_IsAncestorOf( pScp->hPanel, hChild ) = false then return false
+    ' the child's rect in PAGE coordinates -- the space nPos lives in
+    dim as long y = 0
+    dim as TK_WIDGET ptr p = hChild
+    while (p <> 0) andalso (p <> pScp->hPanel)
+        y += p->y
+        p = p->pParent
+    wend
+    dim as long nTop = y - nMargin
+    dim as long nBottom = y + hChild->ch + nMargin
+    dim as long cyView = pScp->ViewportHeight()
+    dim as long nNewPos = pScp->nPos
+    if (nBottom - nTop) >= cyView then
+        nNewPos = nTop
+    elseif nTop < pScp->nPos then
+        nNewPos = nTop
+    elseif nBottom > (pScp->nPos + cyView) then
+        nNewPos = nBottom - cyView
+    end if
+    return ScrollTo( pScp, nNewPos, bNotify )
+end function
+
+' One reveal tick: the focus-into-view scroll (on a CHANGE only), then the reveal decision.
+private sub OnRevealTick( byval pScp as TKSCROLLPANEL_STATE ptr )
+    dim as TK_WIDGET ptr f = tkHost_GetFocus( pScp->hWin->pHost )
+    if f <> pScp->pLastFocus then
+        pScp->pLastFocus = f
+        if pScp->bAutoScrollToFocus andalso (f <> 0) then EnsureVisibleEx( pScp, f, 0, true )
+    end if
+    ApplyReveal( pScp )
+end sub
+
+public declare sub tkScrollPanel_ApplyTheme( byval hScp as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+public declare function tkScrollPanel_HandleWheelDelta( byval hScp as TK_WIDGET ptr, byval nDelta as long ) as boolean
+
+' The PAGE's proc: its background, the wheel, and observation.
+private function PageProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( tkWidget_Parent( w ) )
+    if pScp = 0 then return false
+    select case m->msg
+    case TKM_PAINT
+        dim as SCP_PAINTINFO p
+        p.hScrollPanel = pScp->hWin
+        p.hPanel = w
+        p.b = m->pPaint
+        tkRect_Set( p.rcClient, 0, 0, w->cw, w->ch )
+        p.nPos = pScp->nPos
+        if pScp->PaintCallback then
+            pScp->PaintCallback( @p )
+        else
+            p.b->SetBackColor( pScp->BackColor )
+            p.b->PaintRect( @p.rcClient )
+        end if
+        return true
+    case TKM_MOUSEWHEEL
+        if m->wheelY = 0 then return false              ' vertical only: let a sideways one bubble
+        if CallMessage( pScp, w, m ) then return true
+        tkScrollPanel_HandleWheelDelta( pScp->hWin, cint( m->wheelY * 120 ) )
+        return true
+    case TKM_LBUTTONDOWN, TKM_LBUTTONUP, TKM_RBUTTONDOWN, TKM_RBUTTONUP, TKM_MOUSEMOVE
+        ' observation only: no capture, no press state, so a claim strands nothing
+        CallMessage( pScp, w, m )
+        if m->msg = TKM_MOUSEMOVE then ApplyReveal( pScp )
+        return true
+    case TKM_MOUSELEAVE
+        ApplyReveal( pScp )
+        return true
+    end select
+    return false
+end function
+
+' The CONTAINER's proc (the viewport). Its fill only ever shows in the reserved strip.
+private function tkScrollPanel_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( w )
+    if pScp = 0 then return false
+    select case m->msg
+    case TKM_PAINT
+        dim as TKRECT rc
+        tkRect_Set( rc, 0, 0, w->cw, w->ch )
+        m->pPaint->SetBackColor( pScp->BackColor )
+        m->pPaint->PaintRect( @rc )
+        return true
+
+    case TKM_SIZE
+        PositionWindows( pScp )
+        return true
+
+    case TKM_SCALECHANGED
+        ' content height and position are page pixels; the strip and line height are stored
+        ' unscaled and scaled at use, so they stay
+        if (m->fOld > 0) andalso (m->fNew > 0) then
+            dim as single k = m->fNew / m->fOld
+            pScp->nContentHeight = cint( pScp->nContentHeight * k )
+            pScp->nPos = cint( pScp->nPos * k )
+            PositionWindows( pScp )
+        end if
+        return true
+
+    case TKM_THEMECHANGED
+        tkScrollPanel_ApplyTheme( w, tkTheme_Get() )
+        return true
+
+    case TKM_TIMER
+        if m->timerId = TKSCROLLPANEL_TIMER_REVEAL then OnRevealTick( pScp ) : return true
+        return false
+
+    case TKM_MOUSEWHEEL
+        ' reachable over the reserved strip while the thumb is hidden
+        if m->wheelY = 0 then return false
+        if CallMessage( pScp, w, m ) then return true
+        tkScrollPanel_HandleWheelDelta( w, cint( m->wheelY * 120 ) )
+        return true
+
+    case TKM_LBUTTONDOWN, TKM_LBUTTONUP, TKM_RBUTTONDOWN, TKM_RBUTTONUP, TKM_MOUSEMOVE
+        CallMessage( pScp, w, m )
+        if m->msg = TKM_MOUSEMOVE then ApplyReveal( pScp )
+        return true
+
+    case TKM_MOUSELEAVE
+        ApplyReveal( pScp )
+        return true
+
+    case TKM_SHOW
+        if m->bFlag = false then
+            ' hidden: drop the poll and the reveal state, or the thumb comes back stale
+            KillRevealTimer( pScp )
+            if pScp->bThumbShown then
+                pScp->bThumbShown = false
+                tkWidget_Show( pScp->hScrollBar, false )
+            end if
+        else
+            SyncScrollBar( pScp )
+        end if
+        return true
+
+    case TKM_DESTROY
+        ' the page and the bar (and the host's widgets) are gone already: children first
+        KillRevealTimer( pScp )
+        delete pScp
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ========================================================================================
+' Public API
+' ========================================================================================
+' Returns the CONTAINER. Created zero-sized; the page and the bar are created here and are the
+' control's. Parent your widgets to tkScrollPanel_GetPanel, never to this.
+public function tkScrollPanel_Create( byval hParent as TK_WIDGET ptr, byval CtrlID as long ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TKSCROLLPANEL_STATE ptr pScp = new TKSCROLLPANEL_STATE
+    pScp->id = CtrlID
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @tkScrollPanel_Proc, pScp )
+    w->bClipChildren = true                ' the viewport
+    pScp->hWin = w
+    pScp->hPanel = tkWidget_CreateChild( w, CtrlID + 1, @PageProc, 0 )
+    pScp->hPanel->bClipChildren = true
+    pScp->hScrollBar = tkVScrollBar_Create( w, CtrlID + 2 )
+    tkVScrollBar_SetScrollCallback( pScp->hScrollBar, @OnScrollBarScroll )
+    tkWidget_Show( pScp->hScrollBar, false )
+    ' the current theme (the dark preset gives the struct defaults)
+    dim as TKTHEME_COLORS t = tkTheme_Get()
+    pScp->BackColor = t.Window
+    pScp->ForeColor = t.Text
+    tkVScrollBar_SetColors( pScp->hScrollBar, t.Window, t.Border, t.TextDisabled )
+    return w
+end function
+
+public function tkScrollPanel_GetPanel( byval hScp as TK_WIDGET ptr ) as TK_WIDGET ptr
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp = 0 then return 0
+    return pScp->hPanel
+end function
+
+' The owned tkVScrollBar. Do not show, hide, move or size it.
+public function tkScrollPanel_GetScrollBar( byval hScp as TK_WIDGET ptr ) as TK_WIDGET ptr
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp = 0 then return 0
+    return pScp->hScrollBar
+end function
+
+' Silent. Safe inside the layout callback (recorded; that pass finishes the job).
+public sub tkScrollPanel_SetContentHeight( byval hScp as TK_WIDGET ptr, byval nHeight as long )
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp = 0 then exit sub
+    if nHeight < 0 then nHeight = 0
+    if nHeight = pScp->nContentHeight then exit sub
+    pScp->nContentHeight = nHeight
+    if pScp->bInLayout then exit sub
+    pScp->nPos = pScp->ClampPos( pScp->nPos )
+    pScp->ApplyScroll()
+    SyncScrollBar( pScp )
+end sub
+
+public function tkScrollPanel_GetContentHeight( byval hScp as TK_WIDGET ptr ) as long
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp = 0 then return 0
+    return pScp->nContentHeight
+end function
+
+' The deepest VISIBLE child's bottom + padding (no visible child: 0, no padding).
+public function tkScrollPanel_AutoSizeContent( byval hScp as TK_WIDGET ptr, byval bottomPadding as long = 0 ) as long
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp = 0 then return 0
+    dim as long nBottom = 0
+    dim as TK_WIDGET ptr c = pScp->hPanel->pFirst
+    while c
+        ' the child's OWN flag: "did the host hide this row", not whether we are shown yet
+        if c->isVisible andalso (c->y + c->ch > nBottom) then nBottom = c->y + c->ch
+        c = c->pNext
+    wend
+    if nBottom > 0 then nBottom += bottomPadding
+    tkScrollPanel_SetContentHeight( hScp, nBottom )
+    return nBottom
+end function
+
+public function tkScrollPanel_GetPos( byval hScp as TK_WIDGET ptr ) as long
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp = 0 then return 0
+    return pScp->nPos
+end function
+
+' Silent.
+public sub tkScrollPanel_SetPos( byval hScp as TK_WIDGET ptr, byval nPosition as long )
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp then ScrollTo( pScp, nPosition, false )
+end sub
+
+' Silent; TRUE only if the position changed.
+public function tkScrollPanel_ScrollBy( byval hScp as TK_WIDGET ptr, byval nDelta as long ) as boolean
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp = 0 then return false
+    return ScrollTo( pScp, pScp->nPos + nDelta, false )
+end function
+
+' Silent; never moves the focus. FALSE for a non-descendant of the page or no move needed.
+public function tkScrollPanel_EnsureVisible( byval hScp as TK_WIDGET ptr, byval hChild as TK_WIDGET ptr, byval nMargin as long = 0 ) as boolean
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp = 0 then return false
+    return EnsureVisibleEx( pScp, hChild, nMargin, false )
+end function
+
+' nDelta in 120ths of a notch, positive = up (Win32's sign). User action: NOTIFIES.
+' One notch = TKSCROLL_SYSTEM_WHEEL_LINES x the line height; sub-notch deltas accumulate.
+public function tkScrollPanel_HandleWheelDelta( byval hScp as TK_WIDGET ptr, byval nDelta as long ) as boolean
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp = 0 then return false
+    dim as long nStep = TKSCROLL_SYSTEM_WHEEL_LINES * pScp->ScaledLineHeight()
+    tkVScrollBar_SetWheelStep( pScp->hScrollBar, iif( nStep < 1, 1, nStep ) )
+    ' the bar owns the sign, the accumulation and the clamping; it calls OnScrollBarScroll
+    return tkVScrollBar_HandleWheelDelta( pScp->hScrollBar, nDelta )
+end function
+
+public sub tkScrollPanel_SetLineHeight( byval hScp as TK_WIDGET ptr, byval nHeight as long )
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp = 0 then exit sub
+    pScp->LineHeight = iif( nHeight < 1, 1, nHeight )
+    SyncScrollBar( pScp )
+end sub
+
+public function tkScrollPanel_GetLineHeight( byval hScp as TK_WIDGET ptr ) as long
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp = 0 then return 0
+    return pScp->LineHeight
+end function
+
+public sub tkScrollPanel_SetAutoScrollToFocus( byval hScp as TK_WIDGET ptr, byval bEnable as boolean )
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp then pScp->bAutoScrollToFocus = bEnable
+end sub
+
+public function tkScrollPanel_GetAutoScrollToFocus( byval hScp as TK_WIDGET ptr ) as boolean
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp = 0 then return false
+    return pScp->bAutoScrollToFocus
+end function
+
+public function tkScrollPanel_GetViewportHeight( byval hScp as TK_WIDGET ptr ) as long
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp = 0 then return 0
+    return pScp->ViewportHeight()
+end function
+
+public function tkScrollPanel_GetPanelWidth( byval hScp as TK_WIDGET ptr ) as long
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp = 0 then return 0
+    return pScp->PanelWidth()
+end function
+
+public function tkScrollPanel_IsThumbVisible( byval hScp as TK_WIDGET ptr ) as boolean
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp = 0 then return false
+    return pScp->bThumbShown
+end function
+
+' A full layout pass: after adding, removing, hiding or moving children outside a resize.
+public sub tkScrollPanel_Recalc( byval hScp as TK_WIDGET ptr )
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp = 0 then exit sub
+    PositionWindows( pScp )
+    tkWidget_Invalidate( hScp )
+end sub
+
+' The page fill (and the strip's, through the bar's background) + the foreground your widgets
+' may read back. PINS. Call before SetScrollBarColors.
+public sub tkScrollPanel_SetColors( byval hScp as TK_WIDGET ptr, byval backclr as ulong, byval foreclr as ulong )
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp = 0 then exit sub
+    pScp->ForeColor = foreclr
+    if pScp->BackColor <> backclr then
+        pScp->BackColor = backclr
+        dim as TKSCROLLBAR_STATE ptr pSB = tkScrollBar_State( pScp->hScrollBar )
+        if pSB then tkVScrollBar_SetColors( pScp->hScrollBar, backclr, pSB->ForeColor, pSB->ForeColorHot )
+    end if
+    pScp->bColorsPinned = true
+    tkWidget_Invalidate( hScp )
+end sub
+
+public sub tkScrollPanel_GetColors( byval hScp as TK_WIDGET ptr, byref backclr as ulong, byref foreclr as ulong )
+    backclr = 0 : foreclr = 0
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp = 0 then exit sub
+    backclr = pScp->BackColor : foreclr = pScp->ForeColor
+end sub
+
+public sub tkScrollPanel_SetScrollBarColors( byval hScp as TK_WIDGET ptr, byval backclr as ulong, byval foreclr as ulong, byval foreclrhot as ulong )
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp = 0 then exit sub
+    tkVScrollBar_SetColors( pScp->hScrollBar, backclr, foreclr, foreclrhot )
+    pScp->bColorsPinned = true
+end sub
+
+' vendor PsScrollPanel_ApplyTheme: the page from Window/Text, the bar from Window/Border/
+' TextDisabled -- unless pinned.
+public sub tkScrollPanel_ApplyTheme( byval hScp as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if (pScp = 0) orelse pScp->bColorsPinned then exit sub
+    tkScrollPanel_SetColors( hScp, t.Window, t.Text )
+    tkScrollPanel_SetScrollBarColors( hScp, t.Window, t.Border, t.TextDisabled )
+    pScp->bColorsPinned = false
+end sub
+
+public sub tkScrollPanel_UnpinColors( byval hScp as TK_WIDGET ptr )
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp = 0 then exit sub
+    pScp->bColorsPinned = false
+    tkScrollPanel_ApplyTheme( hScp, tkTheme_Get() )
+end sub
+
+' The strip's width, UNSCALED (scaled at use). Re-runs the layout: the page width changed.
+public sub tkScrollPanel_SetScrollBarWidth( byval hScp as TK_WIDGET ptr, byval nWidth as long )
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp = 0 then exit sub
+    if nWidth < 0 then nWidth = 0
+    if nWidth = pScp->ScrollBarWidth then exit sub
+    pScp->ScrollBarWidth = nWidth
+    PositionWindows( pScp )
+end sub
+
+public sub tkScrollPanel_SetPaintCallback( byval hScp as TK_WIDGET ptr, byval usersub as SCP_PaintCallbackSub )
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp = 0 then exit sub
+    pScp->PaintCallback = usersub
+    tkWidget_Invalidate( hScp )
+end sub
+
+public sub tkScrollPanel_SetMessageCallback( byval hScp as TK_WIDGET ptr, byval userfunc as SCP_MessageCallbackFunc )
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp then pScp->MessageCallback = userfunc
+end sub
+
+public sub tkScrollPanel_SetLayoutCallback( byval hScp as TK_WIDGET ptr, byval userfunc as SCP_LayoutCallbackFunc )
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp then pScp->LayoutCallback = userfunc
+end sub
+
+public sub tkScrollPanel_SetScrollCallback( byval hScp as TK_WIDGET ptr, byval usersub as SCP_ScrollCallbackSub )
+    dim as TKSCROLLPANEL_STATE ptr pScp = GetScrollPanelPointer( hScp )
+    if pScp then pScp->ScrollCallback = usersub
+end sub

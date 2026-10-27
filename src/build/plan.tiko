@@ -264,6 +264,20 @@ private function ExeOutFlag_( byref flags as Tko.StrVec ) as string
     return r
 end function
 
+'' The OS table ([target.x.<os>]) a build for a.target reads: "windows", "linux" or "macos".
+private function OsTableName_( byref a as BuildArgs ) as string
+    dim as Tko.TargetId t = Tko.HostTarget( )
+    if len( a.target ) > 0 then
+        dim as boolean ok
+        t = Tko.TargetFromName( a.target, ok )
+    end if
+    select case Tko.TargetOs( t )
+    case Tko.OS_LINUX  : return "linux"
+    case Tko.OS_DARWIN : return "macos"
+    end select
+    return "windows"
+end function
+
 function PlanTarget _
     ( byref a as BuildArgs, byref m as Tko.Modules.Manifest, byref mdir as string, _
       byref tname as string, byref profile as string, byref p as TargetPlan, _
@@ -274,10 +288,17 @@ function PlanTarget _
     p.kind = "exe"
     dim as string main_, subsys
     dim as Tko.StrVec sources, libs, libpaths, topts, copies
+    dim as string os_ = OsTableName_( a )
     for k as int32 = 0 to m.tgtName.Count - 1
         if m.tgtName[k] <> tname then continue for
-        dim as string v = m.tgtVal[k]
-        select case m.tgtKey[k]
+        dim as string v = m.tgtVal[k], key = m.tgtKey[k]
+        '' a key of [target.x.<os>]: this OS's adds to the target's, another OS's is not read
+        dim as int32 at_ = instr( key, "@" )
+        if at_ > 0 then
+            if mid( key, at_ + 1 ) <> os_ then continue for
+            key = left( key, at_ - 1 )
+        end if
+        select case key
         case "main"      : main_ = v
         case "kind"      : p.kind = v
         case "subsystem" : subsys = v

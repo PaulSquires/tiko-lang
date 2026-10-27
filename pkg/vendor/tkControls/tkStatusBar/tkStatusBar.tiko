@@ -1,0 +1,793 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkStatusBar -- PsStatusBar on SDL3 + SDL_ttf, a port of pkg/vendor/PsControls/PsStatusBar onto
+' tkHost.
+'
+' WHAT IS UNCHANGED, by design: the panel model (an array of text + itemData + nMinWidth, rects
+' derived), the width law  max( textWidth + 2*padding, nMinWidth ), the ONE spring that absorbs
+' the leftover (and nothing shrinks on overflow), the stored-index fix-ups on insert/delete,
+' lazy layout (GetPanelRect forces it, GetItemRect does not), single-valued hover, no capture,
+' no focus, no keyboard, the message callback whose result is honoured uniformly, the tooltip
+' resolved on demand per hot panel (callback, else the panel's own text), SetBackColor returning
+' the previous colour without repainting.
+'
+' WHAT IS ADDED, from PsPlatform's PsStatusBar: a BUILT-IN panel painter used when no paint
+' callback is installed (text inset by the padding, a hot fill on clickable panels, a divider
+' between panels), the colour struct it needs, and a click callback (fired on the left-button UP
+' over a panel -- vendor's documented click convention -- which is what makes a panel
+' "clickable" for the built-in hot fill).
+'
+' WHAT IS GONE, because the HWND is gone: the 100 ms hot-track poll (the host guarantees the
+' leave), CS_DBLCLKS (SDL reports clicks = 2), WM_ERASEBKGND, the comctl32 tooltip backend
+' (SetTooltipMode / GetTooltipMode / the TTN_GETDISPINFO arm), PsRegistry. See PORT.md.
+#module "tkStatusBar"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkTooltip" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkTooltip
+
+' Default horizontal inset on EACH side of a panel's text, scaled once at create.
+public const as long TKSTATUSBAR_DEFAULT_PADDING      = 8
+' The message callback's WM_MOUSEHOVER default delay (vendor's HoverTime field), in ms.
+public const as long TKSTATUSBAR_DEFAULT_HOVERTIME    = 250
+' Built-in painter only: the divider stops this far short of the top and bottom (PsPlatform's 4).
+public const as long TKSTATUSBAR_DEFAULT_DIVIDERINSET = 4
+
+' The message id handed to the message callback for vendor's WM_MOUSEHOVER (tkHost has no
+' hover message; the control schedules it itself from the hover time).
+public const as long TKSB_MOUSEHOVER = 1001
+
+public type TKSTATUSBAR_PANELINFO
+    Text      as ustring
+    itemData  as integer
+    nMinWidth as long            ' floor for this panel's width; 0 = auto-size to the text
+    bHidden   as boolean         ' laid out at width 0: not painted, no divider, never hit (tk addition)
+    rc        as TKRECT          ' derived by LayoutPanels, read-only to the host
+end type
+
+' Vendor has exactly one colour (BackColor). The other four are the built-in painter's
+' (PsPlatform): they paint nothing while a paint callback is installed.
+public type TKSTATUSBAR_COLORS
+    BackColor    as ulong = &hFF21252Bul    ' ( 33, 37, 43) theme Window
+    BackColorHot as ulong = &hFF373D48ul    ' ( 55, 61, 72) theme SurfaceHot
+    ForeColor    as ulong = &hFF969CA6ul    ' (150,156,166) theme TextDim
+    ForeColorHot as ulong = &hFFE2E6EEul    ' (226,230,238) theme TextHot
+    DividerColor as ulong = &hFF373C45ul    ' ( 55, 60, 69) theme Divider
+end type
+
+public type TKSTATUSBAR_PAINTINFO
+    hStatusBar as TK_WIDGET ptr      ' the control, so the callback can ask for GetPadding
+    itemID     as long               ' the panel's model index
+    b          as TK_PAINT ptr       ' this repaint's painter (borrowed)
+    rc         as TKRECT             ' this panel's rect, widget-local -- the only rect to fill
+    isHot      as boolean            ' the mouse is over this panel
+    wszCaption as ustring            ' the panel's Text
+end type
+
+public type TKSTATUSBAR_MESSAGEINFO
+    hStatusBar as TK_WIDGET ptr
+    msg        as long               ' TKM_MOUSEMOVE / TKM_MOUSELEAVE / TKM_LBUTTONDOWN (clicks = 2:
+                                     ' the double click) / TKM_LBUTTONUP / TKM_RBUTTONDOWN /
+                                     ' TKSB_MOUSEHOVER
+    x          as single             ' widget-local pixels
+    y          as single
+    clicks     as long
+    idx        as long               ' panel under the mouse, -1 for none
+end type
+
+public type SB_PaintCallbackSub as sub( byval p as TKSTATUSBAR_PAINTINFO ptr )
+public type SB_MessageCallbackFunc as function( byval m as TKSTATUSBAR_MESSAGEINFO ptr ) as boolean
+public type SB_TooltipCallbackFunc as function( byval hStatusBar as TK_WIDGET ptr, byval idx as long ) as ustring
+public type SB_ClickCallbackSub as sub( byval hStatusBar as TK_WIDGET ptr, byval idx as long, byval clicks as long )
+
+public type TKSTATUSBAR_STATE
+    hWin            as TK_WIDGET ptr
+    id              as long
+    tip             as TKTIPHOST_STATE
+    panels(any)     as TKSTATUSBAR_PANELINFO
+    panelCount      as long
+    nHotIdx         as long = -1         ' the ONE hot panel (no per-panel copy)
+    nHoverTime      as long = TKSTATUSBAR_DEFAULT_HOVERTIME
+    lastX           as single            ' last mouse position, widget-local (for the hover message)
+    lastY           as single
+    isEnabled       as boolean = true
+    bColorsPinned   as boolean
+    colors          as TKSTATUSBAR_COLORS
+    pTextFont       as TTF_Font ptr      ' borrowed
+    expandPanel     as long = -1
+    nPadding        as long
+    nDividerInset   as long
+    bLayoutDirty    as boolean = true
+    PaintCallback   as SB_PaintCallbackSub
+    MessageCallback as SB_MessageCallbackFunc
+    TooltipCallback as SB_TooltipCallbackFunc
+    ClickCallback   as SB_ClickCallbackSub
+
+    declare sub      LayoutPanels()
+    declare function IsValidPanel( byval idx as long ) as boolean
+    declare function InsertPanelAt( byval idx as long ) as long
+    declare function DeletePanelAt( byval idx as long ) as boolean
+    declare sub      ClearPanels()
+    declare sub      Refresh()
+    declare function MeasureFont() as TTF_Font ptr
+end type
+
+
+function TKSTATUSBAR_STATE.IsValidPanel( byval idx as long ) as boolean
+    return (idx >= 0) andalso (idx < this.panelCount)
+end function
+
+function TKSTATUSBAR_STATE.MeasureFont() as TTF_Font ptr
+    if this.pTextFont then return this.pTextFont
+    if this.hWin = 0 then return 0
+    return this.hWin->pHost->pDefaultFont
+end function
+
+' Every mutator routes through here: layout is lazy, so a burst of SetText costs one pass.
+sub TKSTATUSBAR_STATE.Refresh()
+    this.bLayoutDirty = true
+    if this.hWin then tkWidget_Invalidate( this.hWin )
+end sub
+
+' Vendor's LayoutPanels with GetTextExtentPoint32W swapped for SDL_ttf:
+'   width(i) = max( textWidth(i) + 2*padding, nMinWidth(i) )
+'   leftover = clientW - sum(width); if leftover > 0 and the spring is valid, it takes it all
+'   rects laid left to right, each the full client height; on overflow nothing shrinks.
+sub TKSTATUSBAR_STATE.LayoutPanels()
+    this.bLayoutDirty = false
+    if this.hWin = 0 then exit sub
+    if this.panelCount = 0 then exit sub
+    dim as long clientW = this.hWin->cw
+    dim as long clientH = this.hWin->ch
+    if (clientW <= 0) orelse (clientH <= 0) then
+        this.bLayoutDirty = true          ' no geometry yet; TKM_SIZE marks it again
+        exit sub
+    end if
+
+    dim as TTF_Font ptr fUse = this.MeasureFont()
+    dim panelW( 0 to this.panelCount - 1 ) as long
+    dim as long totalW = 0
+    for i as long = 0 to this.panelCount - 1
+        if this.panels(i).bHidden then
+            panelW(i) = 0
+            continue for
+        end if
+        dim as long textW = tkText_Width( fUse, this.panels(i).Text )
+        dim as long nW = textW + (this.nPadding * 2)
+        if nW < this.panels(i).nMinWidth then nW = this.panels(i).nMinWidth
+        panelW(i) = nW
+        totalW += nW
+    next
+
+    dim as long leftover = clientW - totalW
+    if (leftover > 0) andalso this.IsValidPanel( this.expandPanel ) then
+        panelW(this.expandPanel) += leftover
+    end if
+
+    dim as long xPos = 0
+    for i as long = 0 to this.panelCount - 1
+        tkRect_Set( this.panels(i).rc, xPos, 0, xPos + panelW(i), clientH )
+        xPos += panelW(i)
+    next
+end sub
+
+' Insert a reset panel at idx (clamped), growing the store by doubling. Returns the index used.
+function TKSTATUSBAR_STATE.InsertPanelAt( byval idx as long ) as long
+    if idx < 0 then idx = 0
+    if idx > this.panelCount then idx = this.panelCount
+    dim as long cap = ubound( this.panels ) + 1
+    if this.panelCount >= cap then
+        dim as long newcap = iif( cap = 0, 16, cap * 2 )
+        redim preserve this.panels( 0 to newcap - 1 )
+    end if
+    for i as long = this.panelCount to idx + 1 step -1
+        this.panels(i) = this.panels(i - 1)
+    next
+    with this.panels(idx)
+        .Text = ""
+        .itemData = 0
+        .nMinWidth = 0
+        .bHidden = false
+        tkRect_SetEmpty( .rc )
+    end with
+    this.panelCount += 1
+    ' The spring is a stored index: inserting at or before it shifts it up.
+    if (this.expandPanel <> -1) andalso (idx <= this.expandPanel) then this.expandPanel += 1
+    ' The hot index would now name a different panel (vendor left it so): clear it; the next
+    ' mouse move recomputes it against the new layout.
+    this.nHotIdx = -1
+    tkTipHost_SetToolIndex( @this.tip, -1 )
+    this.Refresh()
+    return idx
+end function
+
+function TKSTATUSBAR_STATE.DeletePanelAt( byval idx as long ) as boolean
+    if this.IsValidPanel( idx ) = false then return false
+    for i as long = idx to this.panelCount - 2
+        this.panels(i) = this.panels(i + 1)
+    next
+    this.panels(this.panelCount - 1).Text = ""
+    this.panelCount -= 1
+    if this.expandPanel <> -1 then
+        if idx = this.expandPanel then
+            this.expandPanel = -1
+        elseif idx < this.expandPanel then
+            this.expandPanel -= 1
+        end if
+    end if
+    this.nHotIdx = -1
+    tkTipHost_SetToolIndex( @this.tip, -1 )
+    this.Refresh()
+    return true
+end function
+
+sub TKSTATUSBAR_STATE.ClearPanels()
+    for i as long = 0 to this.panelCount - 1
+        this.panels(i).Text = ""
+    next
+    this.panelCount = 0
+    this.expandPanel = -1
+    this.nHotIdx = -1
+    tkTipHost_SetToolIndex( @this.tip, -1 )
+    this.Refresh()
+end sub
+
+
+private function GetStatusBarPointer( byval hStatusBar as TK_WIDGET ptr ) as TKSTATUSBAR_STATE ptr
+    if hStatusBar = 0 then return 0
+    return cast( TKSTATUSBAR_STATE ptr, hStatusBar->pData )
+end function
+
+' Which panel holds (px, py), widget-local? -1 for none: off the control, or bar area past the
+' last panel. Forces a pending layout.
+private function HitPanel( byval pStatus as TKSTATUSBAR_STATE ptr, byval px as single, byval py as single ) as long
+    if pStatus = 0 then return -1
+    dim as TK_WIDGET ptr w = pStatus->hWin
+    if (px < 0) orelse (py < 0) orelse (px >= w->cw) orelse (py >= w->ch) then return -1
+    if pStatus->bLayoutDirty then pStatus->LayoutPanels()
+    for i as long = 0 to pStatus->panelCount - 1
+        if (px >= pStatus->panels(i).rc.left) andalso (px < pStatus->panels(i).rc.right) then return i
+    next
+    return -1
+end function
+
+private function CallMessage( byval pStatus as TKSTATUSBAR_STATE ptr, byval msg as long, byval px as single, _
+                              byval py as single, byval clicks as long, byval idx as long ) as boolean
+    if (pStatus = 0) orelse (pStatus->MessageCallback = 0) then return false
+    dim as TKSTATUSBAR_MESSAGEINFO mi
+    mi.hStatusBar = pStatus->hWin
+    mi.msg = msg
+    mi.x = px
+    mi.y = py
+    mi.clicks = clicks
+    mi.idx = idx
+    return pStatus->MessageCallback( @mi )
+end function
+
+' The tip's text: the host's callback if set, else the panel's own Text; "" for no panel.
+private function ResolveTooltipText( byval pStatus as TKSTATUSBAR_STATE ptr, byval idx as long ) as ustring
+    if (pStatus = 0) orelse (pStatus->IsValidPanel( idx ) = false) then return ""
+    if pStatus->TooltipCallback then return pStatus->TooltipCallback( pStatus->hWin, idx )
+    return pStatus->panels(idx).Text
+end function
+
+private function TipText( byval t as TK_TIP ptr, byval a as TK_WIDGET ptr, byval idx as long ) as ustring
+    return ResolveTooltipText( GetStatusBarPointer( a ), idx )
+end function
+
+private sub SetHotIdx( byval pStatus as TKSTATUSBAR_STATE ptr, byval idx as long )
+    if idx = pStatus->nHotIdx then exit sub
+    pStatus->nHotIdx = idx
+    tkWidget_Invalidate( pStatus->hWin )
+    ' Item changed: moves the tip's tool index, which hides a visible tip and re-resolves the
+    ' text on the next dwell (vendor's PsTipHost_SetToolIndex call site).
+    tkTipHost_SetToolIndex( @pStatus->tip, idx )
+end sub
+
+' PsPlatform's painter, for a control with no paint callback: hot fill (only where a click
+' does something), the text inset by the padding, a divider after every panel but the last.
+private sub RenderPanelDefault( byval pStatus as TKSTATUSBAR_STATE ptr, byval p as TKSTATUSBAR_PAINTINFO ptr )
+    dim as TK_PAINT ptr b = p->b
+    dim as boolean bClickable = (pStatus->ClickCallback <> 0)
+    dim as boolean bHot = false
+    if p->isHot andalso pStatus->isEnabled then bHot = bClickable
+    dim as ulong clrBack = pStatus->colors.BackColor
+    dim as ulong clrFore = pStatus->colors.ForeColor
+    if bHot then
+        clrBack = pStatus->colors.BackColorHot
+        clrFore = pStatus->colors.ForeColorHot
+        b->SetBackColor( clrBack )
+        b->PaintRect( @p->rc )
+    end if
+    dim as TKRECT rt
+    tkRect_Set( rt, p->rc.left + pStatus->nPadding, p->rc.top, p->rc.right - pStatus->nPadding, p->rc.bottom )
+    if (rt.right > rt.left) andalso (len( p->wszCaption ) > 0) then
+        b->SetFont( pStatus->MeasureFont() )
+        b->SetColors( clrFore, clrBack )
+        b->PaintText( p->wszCaption, @rt, TK_DT_LEFT )
+    end if
+    if p->itemID < pStatus->panelCount - 1 then
+        dim as TKRECT rd
+        tkRect_Set( rd, p->rc.right - 1, p->rc.top + pStatus->nDividerInset, p->rc.right, p->rc.bottom - pStatus->nDividerInset )
+        if rd.bottom > rd.top then
+            b->SetBackColor( pStatus->colors.DividerColor )
+            b->PaintRect( @rd )
+        end if
+    end if
+end sub
+
+' Vendor's paint sequence: consume the layout, fill the WHOLE client with BackColor, then one
+' panel at a time -- the paint callback if installed, else the built-in painter. Panels wholly
+' past the right edge (overflow) are skipped, as vendor's update-rect test skipped them.
+private sub OnPaintBar( byval pStatus as TKSTATUSBAR_STATE ptr, byval b as TK_PAINT ptr )
+    if pStatus->bLayoutDirty then pStatus->LayoutPanels()
+    dim as TK_WIDGET ptr w = pStatus->hWin
+    dim as TKRECT rcC
+    tkRect_Set( rcC, 0, 0, w->cw, w->ch )
+    b->SetBackColor( pStatus->colors.BackColor )
+    b->PaintRect( @rcC )
+    dim as TKSTATUSBAR_PAINTINFO p
+    p.hStatusBar = w
+    p.b = b
+    for i as long = 0 to pStatus->panelCount - 1
+        dim as TKRECT rcP = pStatus->panels(i).rc
+        if rcP.left >= w->cw then exit for
+        if rcP.right <= rcP.left then continue for
+        p.itemID = i
+        p.rc = rcP
+        p.isHot = (i = pStatus->nHotIdx)
+        p.wszCaption = pStatus->panels(i).Text
+        if pStatus->PaintCallback then
+            pStatus->PaintCallback( @p )
+        else
+            RenderPanelDefault( pStatus, @p )
+        end if
+    next
+end sub
+
+private sub ClearHot( byval pStatus as TKSTATUSBAR_STATE ptr )
+    tkWidget_KillTimer( pStatus->hWin, TK_TIMER_HOVER )
+    SetHotIdx( pStatus, -1 )
+end sub
+
+private sub Rescale( byval pStatus as TKSTATUSBAR_STATE ptr, byval fOld as single, byval fNew as single )
+    if (fOld <= 0) orelse (fNew <= 0) then exit sub
+    dim as single k = fNew / fOld
+    pStatus->nPadding = cint( pStatus->nPadding * k )
+    pStatus->nDividerInset = cint( pStatus->nDividerInset * k )
+    for i as long = 0 to pStatus->panelCount - 1
+        pStatus->panels(i).nMinWidth = cint( pStatus->panels(i).nMinWidth * k )
+    next
+    pStatus->Refresh()
+end sub
+
+
+public declare sub tkStatusBar_ApplyTheme( byval hStatusBar as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+public declare function tkStatusBar_ThemeColors( byref t as TKTHEME_COLORS ) as TKSTATUSBAR_COLORS
+
+' The WndProc, case for case. No capture, no focus, no keys (vendor's Behaviour and limits).
+private function tkStatusBar_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( w )
+    if pStatus = 0 then return false
+
+    select case m->msg
+    case TKM_PAINT
+        OnPaintBar( pStatus, m->pPaint )
+        return true
+
+    case TKM_SIZE
+        pStatus->Refresh()
+        return true
+
+    case TKM_SCALECHANGED
+        Rescale( pStatus, m->fOld, m->fNew )
+        return true
+
+    case TKM_THEMECHANGED
+        tkStatusBar_ApplyTheme( w, tkTheme_Get() )
+        return true
+
+    case TKM_MOUSEMOVE
+        pStatus->lastX = m->x : pStatus->lastY = m->y
+        ' TrackMouseEvent( TME_HOVER ) re-armed on every move: the hover fires once the
+        ' cursor has rested for the hover time.
+        tkWidget_SetTimer( w, TK_TIMER_HOVER, pStatus->nHoverTime )
+        dim as long idx = HitPanel( pStatus, m->x, m->y )
+        SetHotIdx( pStatus, idx )
+        CallMessage( pStatus, TKM_MOUSEMOVE, m->x, m->y, 0, idx )   ' after the hot update
+        return true
+
+    case TKM_TIMER
+        if m->timerId <> TK_TIMER_HOVER then return false
+        tkWidget_KillTimer( w, TK_TIMER_HOVER )
+        if w->pHost->pHot <> w then return true
+        CallMessage( pStatus, TKSB_MOUSEHOVER, pStatus->lastX, pStatus->lastY, 0, _
+                     HitPanel( pStatus, pStatus->lastX, pStatus->lastY ) )
+        return true
+
+    case TKM_MOUSELEAVE
+        ClearHot( pStatus )
+        CallMessage( pStatus, TKM_MOUSELEAVE, m->x, m->y, 0, -1 )   ' the mouse is gone: idx -1
+        return true
+
+    case TKM_LBUTTONDOWN, TKM_RBUTTONDOWN
+        ' No SetCapture and no SetFocus: a status bar must not steal focus from the editor.
+        dim as long idx = HitPanel( pStatus, m->x, m->y )
+        CallMessage( pStatus, m->msg, m->x, m->y, m->clicks, idx )
+        return true
+
+    case TKM_LBUTTONUP
+        ' Only ever arrives while the cursor is over the control (no capture): press on 3,
+        ' drag to 5, release fires 5. The click callback is the control's own handling, so a
+        ' message callback returning TRUE suppresses it.
+        dim as long idx = HitPanel( pStatus, m->x, m->y )
+        if CallMessage( pStatus, TKM_LBUTTONUP, m->x, m->y, m->clicks, idx ) then return true
+        if (idx >= 0) andalso (pStatus->ClickCallback <> 0) then
+            pStatus->ClickCallback( w, idx, iif( m->clicks < 1, 1, m->clicks ) )
+        end if
+        return true
+
+    case TKM_RBUTTONUP
+        return true                        ' vendor: not reported
+
+    case TKM_ENABLE
+        pStatus->isEnabled = m->bFlag
+        if pStatus->isEnabled = false then
+            ClearHot( pStatus )
+            tkTipHost_Pop( @pStatus->tip )
+        end if
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_DESTROY
+        tkWidget_KillTimer( w, TK_TIMER_HOVER )
+        tkTipHost_Destroy( @pStatus->tip )
+        pStatus->ClearPanels()
+        delete pStatus
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ========================================================================================
+' Public API -- the Win32 surface, HWND replaced by the widget pointer.
+' ========================================================================================
+' A child of hParent (tkHost_Root( h ) for a top-level bar). Created zero-sized: place it with
+' tkWidget_SetPos, typically from the host's OnSize along the bottom of the window.
+public function tkStatusBar_Create( byval hParent as TK_WIDGET ptr, byval CtrlID as long ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TK_HOST ptr pHost = hParent->pHost
+    dim as TKSTATUSBAR_STATE ptr pStatus = new TKSTATUSBAR_STATE
+    pStatus->id = CtrlID
+    pStatus->nPadding = tkHost_Scale( pHost, TKSTATUSBAR_DEFAULT_PADDING )
+    pStatus->nDividerInset = tkHost_Scale( pHost, TKSTATUSBAR_DEFAULT_DIVIDERINSET )
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @tkStatusBar_Proc, pStatus )
+    w->isFocusable = false                 ' never a tabstop, never takes focus
+    pStatus->hWin = w
+    pStatus->colors = tkStatusBar_ThemeColors( tkTheme_Get() )
+    tkTipHost_Ensure( @pStatus->tip, w, @TipText )
+    return w
+end function
+
+' ---- panels ------------------------------------------------------------------------------
+public function tkStatusBar_AddPanel( byval hStatusBar as TK_WIDGET ptr, byval Text as ustring, _
+                                      byval itemData as integer = 0 ) as long
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then return -1
+    dim as long idx = pStatus->InsertPanelAt( pStatus->panelCount )
+    pStatus->panels(idx).Text = Text
+    pStatus->panels(idx).itemData = itemData
+    return idx
+end function
+
+' idx is CLAMPED to [0, count]; returns the index actually used.
+public function tkStatusBar_InsertPanel( byval hStatusBar as TK_WIDGET ptr, byval idx as long, byval Text as ustring, _
+                                         byval itemData as integer = 0 ) as long
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then return -1
+    dim as long nAt = pStatus->InsertPanelAt( idx )
+    pStatus->panels(nAt).Text = Text
+    pStatus->panels(nAt).itemData = itemData
+    return nAt
+end function
+
+public function tkStatusBar_DeletePanel( byval hStatusBar as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then return false
+    return pStatus->DeletePanelAt( idx )
+end function
+
+public sub tkStatusBar_Clear( byval hStatusBar as TK_WIDGET ptr )
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus then pStatus->ClearPanels()
+end sub
+
+public function tkStatusBar_GetCount( byval hStatusBar as TK_WIDGET ptr ) as long
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then return 0
+    return pStatus->panelCount
+end function
+
+' Marks the layout stale and repaints. Every mutator does it; SetBackColor does not.
+public sub tkStatusBar_Refresh( byval hStatusBar as TK_WIDGET ptr )
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus then pStatus->Refresh()
+end sub
+
+' ---- panel state -------------------------------------------------------------------------
+public function tkStatusBar_GetText( byval hStatusBar as TK_WIDGET ptr, byval idx as long ) as ustring
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then return ""
+    if pStatus->IsValidPanel( idx ) = false then return ""
+    return pStatus->panels(idx).Text
+end function
+
+' Text drives the width, so this RE-LAYS-OUT.
+public function tkStatusBar_SetText( byval hStatusBar as TK_WIDGET ptr, byval idx as long, byval Text as ustring ) as boolean
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then return false
+    if pStatus->IsValidPanel( idx ) = false then return false
+    pStatus->panels(idx).Text = Text
+    pStatus->Refresh()
+    return true
+end function
+
+public function tkStatusBar_GetItemData( byval hStatusBar as TK_WIDGET ptr, byval idx as long ) as integer
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then return 0
+    if pStatus->IsValidPanel( idx ) = false then return 0
+    return pStatus->panels(idx).itemData
+end function
+
+' Affects neither layout nor appearance: no repaint.
+public function tkStatusBar_SetItemData( byval hStatusBar as TK_WIDGET ptr, byval idx as long, byval itemData as integer ) as boolean
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then return false
+    if pStatus->IsValidPanel( idx ) = false then return false
+    pStatus->panels(idx).itemData = itemData
+    return true
+end function
+
+' ---- geometry & layout (raw pixels) ------------------------------------------------------
+public function tkStatusBar_GetPanelMinWidth( byval hStatusBar as TK_WIDGET ptr, byval idx as long ) as long
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then return 0
+    if pStatus->IsValidPanel( idx ) = false then return 0
+    return pStatus->panels(idx).nMinWidth
+end function
+
+' A FLOOR, not a fixed width. Clamped at 0. Re-lays-out.
+' A panel shown or hidden without renumbering the others: a hidden one is laid out at width 0, so
+' it is neither painted nor hit, and its divider goes with it (tk addition).
+public function tkStatusBar_SetPanelVisible( byval hStatusBar as TK_WIDGET ptr, byval idx as long, byval bVisible as boolean ) as boolean
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then return false
+    if pStatus->IsValidPanel( idx ) = false then return false
+    if pStatus->panels(idx).bHidden = (bVisible = false) then return true
+    pStatus->panels(idx).bHidden = (bVisible = false)
+    pStatus->Refresh()
+    return true
+end function
+
+public function tkStatusBar_GetPanelVisible( byval hStatusBar as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then return false
+    if pStatus->IsValidPanel( idx ) = false then return false
+    return pStatus->panels(idx).bHidden = false
+end function
+
+public function tkStatusBar_SetPanelMinWidth( byval hStatusBar as TK_WIDGET ptr, byval idx as long, byval nMinWidth as long ) as boolean
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then return false
+    if pStatus->IsValidPanel( idx ) = false then return false
+    pStatus->panels(idx).nMinWidth = iif( nMinWidth < 0, 0, nMinWidth )
+    pStatus->Refresh()
+    return true
+end function
+
+public function tkStatusBar_GetExpandPanel( byval hStatusBar as TK_WIDGET ptr ) as long
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then return -1
+    return pStatus->expandPanel
+end function
+
+' The single spring. -1 clears it; an index neither valid nor -1 is refused and the current
+' spring is left alone.
+public function tkStatusBar_SetExpandPanel( byval hStatusBar as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then return false
+    if (idx <> -1) andalso (pStatus->IsValidPanel( idx ) = false) then return false
+    pStatus->expandPanel = idx
+    pStatus->Refresh()
+    return true
+end function
+
+public function tkStatusBar_GetPadding( byval hStatusBar as TK_WIDGET ptr ) as long
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then return 0
+    return pStatus->nPadding
+end function
+
+public sub tkStatusBar_SetPadding( byval hStatusBar as TK_WIDGET ptr, byval nPadding as long )
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then exit sub
+    pStatus->nPadding = iif( nPadding < 0, 0, nPadding )
+    pStatus->Refresh()
+end sub
+
+' Forces a pending layout first. FALSE (rc empty) for an invalid index.
+public function tkStatusBar_GetPanelRect( byval hStatusBar as TK_WIDGET ptr, byval idx as long, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then return false
+    if pStatus->IsValidPanel( idx ) = false then return false
+    if pStatus->bLayoutDirty then pStatus->LayoutPanels()
+    rc = pStatus->panels(idx).rc
+    return true
+end function
+
+' The LAST COMPUTED rect: no layout is forced, so it can be stale after a mutator.
+public function tkStatusBar_GetItemRect( byval hStatusBar as TK_WIDGET ptr, byval idx as long ) as TKRECT
+    dim as TKRECT rc
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then return rc
+    if pStatus->IsValidPanel( idx ) = false then return rc
+    return pStatus->panels(idx).rc
+end function
+
+' (PsPlatform) The panel under a widget-local point, -1 for none. Forces a pending layout.
+public function tkStatusBar_HitTest( byval hStatusBar as TK_WIDGET ptr, byval x as long, byval y as long ) as long
+    return HitPanel( GetStatusBarPointer( hStatusBar ), x, y )
+end function
+
+' (Test probe) the hot panel, -1 for none.
+public function tkStatusBar_GetHot( byval hStatusBar as TK_WIDGET ptr ) as long
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then return -1
+    return pStatus->nHotIdx
+end function
+
+' ---- appearance --------------------------------------------------------------------------
+public function tkStatusBar_GetBackColor( byval hStatusBar as TK_WIDGET ptr ) as ulong
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then return 0
+    return pStatus->colors.BackColor
+end function
+
+' Returns the PREVIOUS colour, PINS the colours, and does NOT repaint (vendor): follow it with
+' tkStatusBar_Refresh on a visible bar.
+public function tkStatusBar_SetBackColor( byval hStatusBar as TK_WIDGET ptr, byval clr as ulong ) as ulong
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then return 0
+    dim as ulong oldClr = pStatus->colors.BackColor
+    pStatus->colors.BackColor = clr
+    pStatus->bColorsPinned = true
+    return oldClr
+end function
+
+public sub tkStatusBar_GetColors( byval hStatusBar as TK_WIDGET ptr, byval pColors as TKSTATUSBAR_COLORS ptr )
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if (pStatus = 0) orelse (pColors = 0) then exit sub
+    *pColors = pStatus->colors
+end sub
+
+' Copies the struct and PINS it: a theme change leaves this bar alone until UnpinColors.
+public sub tkStatusBar_SetColors( byval hStatusBar as TK_WIDGET ptr, byval pColors as TKSTATUSBAR_COLORS ptr )
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if (pStatus = 0) orelse (pColors = 0) then exit sub
+    pStatus->colors = *pColors
+    pStatus->bColorsPinned = true
+    tkWidget_Invalidate( hStatusBar )
+end sub
+
+' Vendor's mapping (BackColor = Window) plus the built-in painter's roles (PsPlatform's keys:
+' hot = SurfaceHot, text = TextDim, separator = Divider) and the hot text.
+public function tkStatusBar_ThemeColors( byref t as TKTHEME_COLORS ) as TKSTATUSBAR_COLORS
+    dim as TKSTATUSBAR_COLORS c
+    c.BackColor = t.Window
+    c.BackColorHot = t.SurfaceHot
+    c.ForeColor = t.TextDim
+    c.ForeColorHot = t.TextHot
+    c.DividerColor = t.Divider
+    return c
+end function
+
+' Skipped while pinned. Repaints (vendor's did not -- its SetBackColor path never invalidated).
+public sub tkStatusBar_ApplyTheme( byval hStatusBar as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if (pStatus = 0) orelse pStatus->bColorsPinned then exit sub
+    pStatus->colors = tkStatusBar_ThemeColors( t )
+    tkWidget_Invalidate( hStatusBar )
+end sub
+
+' Hands the bar back to the theme, which is applied at once.
+public sub tkStatusBar_UnpinColors( byval hStatusBar as TK_WIDGET ptr )
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then exit sub
+    pStatus->bColorsPinned = false
+    tkStatusBar_ApplyTheme( hStatusBar, tkTheme_Get() )
+end sub
+
+public function tkStatusBar_GetFont( byval hStatusBar as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then return 0
+    return pStatus->pTextFont
+end function
+
+' The font panel widths are MEASURED with (borrowed, never freed): re-lays-out. With none, the
+' host's default font measures. FALSE only when the handle is not a tkStatusBar.
+public function tkStatusBar_SetFont( byval hStatusBar as TK_WIDGET ptr, byval f as TTF_Font ptr ) as boolean
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then return false
+    pStatus->pTextFont = f
+    pStatus->Refresh()
+    return true
+end function
+
+' The form's fonts: the text font if non-zero; the bar has no glyphs, so fGlyph is ignored.
+public sub tkStatusBar_ApplyFonts( byval hStatusBar as TK_WIDGET ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
+    if fText then tkStatusBar_SetFont( hStatusBar, fText )
+end sub
+
+' ---- tooltips ----------------------------------------------------------------------------
+' The bar's tkTooltip (vendor GetPsTooltipHandle), for any tkTooltip_* call. Owned here.
+public function tkStatusBar_GetTooltipHandle( byval hStatusBar as TK_WIDGET ptr ) as TK_TIP ptr
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then return 0
+    return tkTipHost_Tip( @pStatus->tip )
+end function
+
+' Double duty, as vendor: the tip's initial delay AND the TKSB_MOUSEHOVER delay.
+public sub tkStatusBar_SetHoverTime( byval hStatusBar as TK_WIDGET ptr, byval milliseconds as long )
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then exit sub
+    pStatus->nHoverTime = iif( milliseconds < 1, 1, milliseconds )
+    tkTipHost_SetDelay( @pStatus->tip, TK_TIPDELAY_INITIAL, milliseconds )
+end sub
+
+public sub tkStatusBar_SetAutoPopTime( byval hStatusBar as TK_WIDGET ptr, byval milliseconds as long )
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus then tkTipHost_SetDelay( @pStatus->tip, TK_TIPDELAY_AUTOPOP, milliseconds )
+end sub
+
+public sub tkStatusBar_SetReshowTime( byval hStatusBar as TK_WIDGET ptr, byval milliseconds as long )
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus then tkTipHost_SetDelay( @pStatus->tip, TK_TIPDELAY_RESHOW, milliseconds )
+end sub
+
+' ---- callbacks ---------------------------------------------------------------------------
+' Does not itself repaint (vendor); call tkStatusBar_Refresh on a visible bar.
+public sub tkStatusBar_SetPaintCallback( byval hStatusBar as TK_WIDGET ptr, byval usersub as SB_PaintCallbackSub )
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus then pStatus->PaintCallback = usersub
+end sub
+
+public sub tkStatusBar_SetMessageCallback( byval hStatusBar as TK_WIDGET ptr, byval userfunc as SB_MessageCallbackFunc )
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus then pStatus->MessageCallback = userfunc
+end sub
+
+public sub tkStatusBar_SetTooltipCallback( byval hStatusBar as TK_WIDGET ptr, byval userfunc as SB_TooltipCallbackFunc )
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus then pStatus->TooltipCallback = userfunc
+end sub
+
+' (PsPlatform OnClick) Fired on a left-button UP over a panel (clicks = 2 for the second click
+' of a double click) unless the message callback suppressed that up. Setting one also makes
+' the built-in painter's hot fill appear.
+public sub tkStatusBar_SetClickCallback( byval hStatusBar as TK_WIDGET ptr, byval usersub as SB_ClickCallbackSub )
+    dim as TKSTATUSBAR_STATE ptr pStatus = GetStatusBarPointer( hStatusBar )
+    if pStatus = 0 then exit sub
+    pStatus->ClickCallback = usersub
+    tkWidget_Invalidate( hStatusBar )
+end sub

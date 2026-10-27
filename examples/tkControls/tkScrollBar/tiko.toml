@@ -1,0 +1,7 @@
+# tkVScrollBar + tkHScrollBar selftest. tiko build (writes selftest.exe here)
+[package]
+name = "tkscrollbar-tests"
+
+[target.selftest]
+main   = "selftest.tiko"
+output = "selftest.exe"

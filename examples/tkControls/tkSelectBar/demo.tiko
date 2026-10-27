@@ -1,0 +1,197 @@
+' tkSelectBar demo: the same three bars as the Win32 demo
+' (tiko-lang/examples/PsControls/PsSelectBar/frmMain.tiko), so the two can be put side by side.
+'
+'   demo                     interactive (Tab focuses a bar; Left / Right / Home / End move it)
+'   demo --shot out.bmp      render once (bar 0 focused), save the window, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkSelectBar"
+using tkSelectBar
+using tkTooltip
+using tkHost
+using tkPaint
+
+const as long IDC_OUTPUT = 1000, IDC_TRACKS = 1001, IDC_CUSTOM = 1002
+const as long IDP_COMPILER_RESULTS = 100, IDP_COMPILER_LOG = 101, IDP_SEARCH_RESULTS = 102
+const as long IDP_TODO = 103, IDP_NOTES = 104
+const as long IDP_ACTIVE_TRADES = 200, IDP_CLOSED_TRADES = 201, IDP_TRANSACTIONS = 202, IDP_TRADES_NOTES = 203
+
+' The Win32 demo's theme, value for value.
+const as ulong T_BACKPANEL = &hFF21252Bul, T_BACK = &hFF21252Bul, T_BACKHOT = &hFF2C313Aul
+const as ulong T_BACKSEL = &hFF264F78ul, T_FORE = &hFFBEC4CEul, T_FOREHOT = &hFFD7DAE0ul
+const as ulong T_FORESEL = &hFFFFFFFFul, T_FOREDIS = &hFF5A606Aul, T_FOCUSACCENT = &hFF569CD6ul
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gBar(0 to 2)
+dim shared as TTF_Font ptr gFont10
+
+private function BarName( byval hBar as TK_WIDGET ptr ) as string
+    if hBar = gBar(0) then return "output"
+    if hBar = gBar(1) then return "tracks"
+    return "custom"
+end function
+
+sub Demo_SelChange( byval hBar as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long )
+    print BarName( hBar ) & " selchange  from=" & idxOld & " to=" & idxNew & "  id=" & tkSelectBar_GetPanelID( hBar, idxNew )
+end sub
+
+function Demo_Tooltip( byval hBar as TK_WIDGET ptr, byval idx as long ) as ustring
+    return "on-demand tip for panel " & idx
+end function
+
+function Demo_Message( byval m as TKSELECTBAR_MESSAGEINFO ptr ) as boolean
+    if m->msg = TKM_RBUTTONUP then print BarName( m->hSelectBar ) & " rclick     idx=" & m->idx
+    return false
+end function
+
+' The third bar's own renderer: pressed differs from hot, unlike the built-in painter; the
+' focus ring is drawn here too, since a paint callback replaces the built-in one entirely.
+sub Demo_BoxPaint( byval p as TKSELECTBAR_PAINTINFO ptr )
+    dim as ulong backclr = T_BACK, foreclr = T_FORE
+    if p->isEnabled = false then
+        foreclr = T_FOREDIS
+    elseif p->isPressed then
+        backclr = T_FOCUSACCENT : foreclr = T_FORESEL
+    elseif p->isHot then
+        backclr = T_BACKHOT : foreclr = T_FOREHOT
+    elseif p->isSelected then
+        backclr = T_BACKSEL : foreclr = T_FORESEL
+    end if
+    p->b->SetColors( foreclr, backclr )
+    p->b->PaintRect( @p->rc )
+    p->b->SetFont( gFont10 )
+    p->b->PaintText( p->wszCaption, @p->rcText, TK_DT_CENTER )
+    if p->isSelected then
+        p->b->SetBackColor( T_FOCUSACCENT )
+        p->b->PaintRect( @p->rcIndicator )
+    end if
+    if p->isFocused then
+        p->b->SetPenColor( T_FORESEL )
+        p->b->PaintRoundOutline( @p->rc, 0, 1 )
+    end if
+end sub
+
+' Stack the three bars down the top of the form, full width; the third is taller so the
+' block-centred rule shows as a visible difference.
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long nHeight = tkHost_Scale( h, 44 )
+    dim as long y = 0
+    for i as long = 0 to 2
+        dim as long bh = iif( i = 2, nHeight + tkHost_Scale( h, 24 ), nHeight )
+        tkWidget_SetPos( gBar(i), 0, y, pw, bh )
+        y += bh
+    next
+end sub
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as TKRECT rc
+    tkRect_Set( rc, 0, 0, pw, ph )
+    b->SetBackColor( T_BACKPANEL )
+    b->PaintRect( @rc )
+end sub
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr s = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if s then
+        SDL_SaveBMP( s, strptr( path ) )
+        print "shot: " & path & "  " & s->w & "x" & s->h & "  scale=" & gHost->fScale & "  density=" & gHost->fDensity
+        SDL_DestroySurface( s )
+    end if
+end sub
+
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkSelectBar on SDL3", 900, 330, tkHost_FontDir() & TK_FONT_UI, forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = T_BACKPANEL
+print "video driver: " & *SDL_GetCurrentVideoDriver() & "  renderer: " & *SDL_GetRendererName( gHost->renderer ) & _
+      "  scale=" & gHost->fScale & "  density=" & gHost->fDensity
+
+gFont10 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 10 )
+dim as TTF_Font ptr gFont9 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 9 )
+if gFont10 = 0 then print "fonts: " & *SDL_GetError() : end 1
+tkTooltip_SetDefaultFonts( gFont9 )
+
+' Bar 1 -- tiko's Output panel: five panels, SEARCH RESULTS disabled, panel 1 made current
+' PROGRAMMATICALLY (no selchange line may appear for it).
+gBar(0) = tkSelectBar_Create( tkHost_Root( gHost ), IDC_OUTPUT )
+tkSelectBar_SetFont( gBar(0), gFont10 )
+tkSelectBar_SetMessageCallback( gBar(0), @Demo_Message )
+tkSelectBar_SetTooltipCallback( gBar(0), @Demo_Tooltip )
+tkSelectBar_SetSelChangeCallback( gBar(0), @Demo_SelChange )
+dim as long idx
+idx = tkSelectBar_AddPanel( gBar(0), "COMPILER RESULTS", IDP_COMPILER_RESULTS )
+tkSelectBar_SetTooltipText( gBar(0), idx, "Errors and warnings from the last build" )
+tkSelectBar_SetPanelPadding( gBar(0), idx, tkHost_Scale( gHost, 20 ), -1 )
+tkSelectBar_AddPanel( gBar(0), "COMPILER LOG FILE", IDP_COMPILER_LOG )
+idx = tkSelectBar_AddPanel( gBar(0), "SEARCH RESULTS", IDP_SEARCH_RESULTS )
+tkSelectBar_SetEnabled( gBar(0), idx, false )
+tkSelectBar_AddPanel( gBar(0), "TODO", IDP_TODO )
+tkSelectBar_AddPanel( gBar(0), "NOTES", IDP_NOTES )
+tkSelectBar_SetCurSel( gBar(0), 1 )
+
+' Bar 2 -- tracks: black bar, blue indicator, thicker line, tighter padding (pins its colours).
+gBar(1) = tkSelectBar_Create( tkHost_Root( gHost ), IDC_TRACKS )
+tkSelectBar_SetFont( gBar(1), gFont10 )
+tkSelectBar_SetMessageCallback( gBar(1), @Demo_Message )
+tkSelectBar_SetSelChangeCallback( gBar(1), @Demo_SelChange )
+dim as TKSELECTBAR_COLORS clrs
+tkSelectBar_GetColors( gBar(1), @clrs )
+clrs.BackColor = &hFF000000ul : clrs.BackColorHot = &hFF000000ul : clrs.BackColorSelect = &hFF000000ul
+clrs.ForeColorSelect = T_FOCUSACCENT : clrs.IndicatorColor = T_FOCUSACCENT
+tkSelectBar_SetColors( gBar(1), @clrs )
+tkSelectBar_SetPadding( gBar(1), tkHost_Scale( gHost, 10 ), tkHost_Scale( gHost, 10 ) )
+tkSelectBar_SetIndicator( gBar(1), tkHost_Scale( gHost, 3 ), tkHost_Scale( gHost, 6 ) )
+tkSelectBar_AddPanel( gBar(1), "ACTIVE TRADES", IDP_ACTIVE_TRADES )
+tkSelectBar_AddPanel( gBar(1), "CLOSED TRADES", IDP_CLOSED_TRADES )
+tkSelectBar_AddPanel( gBar(1), "TRANSACTIONS", IDP_TRANSACTIONS )
+tkSelectBar_AddPanel( gBar(1), "NOTES", IDP_TRADES_NOTES )
+
+' Bar 3 -- a host paint callback on a taller strip.
+gBar(2) = tkSelectBar_Create( tkHost_Root( gHost ), IDC_CUSTOM )
+tkSelectBar_SetFont( gBar(2), gFont10 )
+tkSelectBar_SetPaintPanelCallback( gBar(2), @Demo_BoxPaint )
+tkSelectBar_SetMessageCallback( gBar(2), @Demo_Message )
+tkSelectBar_SetSelChangeCallback( gBar(2), @Demo_SelChange )
+tkSelectBar_SetIndicator( gBar(2), tkHost_Scale( gHost, 4 ), tkHost_Scale( gHost, 3 ) )
+tkSelectBar_AddPanel( gBar(2), "custom painter", 300 )
+tkSelectBar_AddPanel( gBar(2), "pressed differs from hot", 301 )
+tkSelectBar_AddPanel( gBar(2), "on a taller strip", 302 )
+
+print "ideal widths: output=" & tkSelectBar_GetIdealWidth( gBar(0) ) & " tracks=" & tkSelectBar_GetIdealWidth( gBar(1) ) & _
+      " custom=" & tkSelectBar_GetIdealWidth( gBar(2) )
+
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkHost_SetFocus( gHost, gBar(0) )
+tkHost_Show( gHost )
+
+dim as string shot = ArgValue( "--shot" )
+if len( shot ) then
+    tkHost_Pump( gHost )
+    SaveShot( shot )
+else
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

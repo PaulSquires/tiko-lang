@@ -1,0 +1,7 @@
+# tkPopupMenu selftest. tiko build (writes selftest.exe here)
+[package]
+name = "tkpopupmenu-tests"
+
+[target.selftest]
+main   = "selftest.tiko"
+output = "selftest.exe"

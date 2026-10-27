@@ -1,0 +1,245 @@
+' tkIconPanel demo: the Win32 demo's three panels (tiko-lang/examples/PsControls/PsIconPanel/
+' frmMain.tiko) -- left-justified, centre-justified on its own colours with wider padding, and
+' right-justified with the pill paint callback -- plus a column panel with the selection marker
+' (the PsPlatform additions).
+'
+'   demo                     interactive
+'   demo --shot out.bmp      render once, save the window, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkIconPanel"
+using tkIconPanel
+using tkTooltip
+using tkImage
+using tkHost
+using tkPaint
+
+enum
+    IDM_SAVE = 100, IDM_REFRESH, IDM_FAVOURITE, IDM_READONLY, IDM_FIND, IDM_DELETE, IDM_SETTINGS
+end enum
+
+' The Win32 demo's THEME_TYPE, value for value.
+const as ulong T_FORE = &hFFBEC4CEul, T_FOREDIS = &hFF5A606Aul, T_BACK = &hFF21252Bul, T_PANEL = &hFF1E2227ul
+const as ulong T_BACKHOT = &hFF2C313Aul, T_FOREHOT = &hFFFFFFFFul, T_FORESEL = &hFFFFFFFFul, T_BACKSEL = &hFF264F78ul
+const as ulong T_FOCUS = &hFF569CD6ul, T_SCROLL = &hFF5A606Aul
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gPanel(0 to 2), gColumn
+dim shared as TTF_Font ptr gGlyph12, gFont9
+
+private function PanelName( byval p as TK_WIDGET ptr ) as string
+    if p = gPanel(0) then return "left  "
+    if p = gPanel(1) then return "center"
+    if p = gPanel(2) then return "right "
+    return "column"
+end function
+
+sub Demo_Click( byval p as TK_WIDGET ptr, byval idx as long, byval id as long )
+    print PanelName( p ) & " click   idx=" & idx & " id=" & id
+end sub
+
+sub Demo_SelChange( byval p as TK_WIDGET ptr, byval idx as long, byval isSelected as boolean )
+    print PanelName( p ) & " toggle  idx=" & idx & " selected=" & isSelected
+end sub
+
+' The column is an activity bar: radio behaviour, built in the handler (silent setters).
+sub Column_SelChange( byval p as TK_WIDGET ptr, byval idx as long, byval isSelected as boolean )
+    tkIconPanel_SelectExclusive( p, idx )
+    print "column  select  idx=" & idx
+end sub
+
+function Demo_Tooltip( byval p as TK_WIDGET ptr, byval idx as long ) as ustring
+    return "on-demand tip for item " & idx
+end function
+
+function Demo_Message( byval m as TKICONPANEL_MESSAGEINFO ptr ) as boolean
+    if m->msg = TKM_RBUTTONUP then print PanelName( m->hIconPanel ) & " rclick  idx=" & m->idx
+    return false
+end function
+
+' The third panel's own renderer: a compact pill instead of the full-cell fill.
+sub Demo_PillPaint( byval p as TKICONPANEL_PAINTINFO ptr )
+    if p->itemKind = IP_KIND_SEPARATOR then
+        p->b->SetBackColor( T_SCROLL )
+        p->b->PaintRect( @p->rcIcon )
+        exit sub
+    end if
+    dim as ulong foreclr = T_FORE, pillclr
+    dim as boolean bFillPill = false
+    if p->isEnabled = false then
+        foreclr = T_SCROLL
+    elseif p->isPressed then
+        pillclr = T_FOCUS : bFillPill = true : foreclr = T_FORESEL
+    elseif p->isHot then
+        pillclr = T_BACKHOT : bFillPill = true : foreclr = T_FOREHOT
+    elseif p->isSelected then
+        pillclr = T_BACKSEL : bFillPill = true : foreclr = T_FORESEL
+    end if
+    dim as ulong backclr = T_BACK
+    if bFillPill then
+        dim as TKRECT rcPill = p->rcIcon
+        dim as long k = tkHost_Scale( gHost, 4 )
+        tkRect_Inflate( rcPill, k, k )
+        p->b->SetBackColor( pillclr )
+        p->b->PaintRoundRect( @rcPill, tkHost_Scale( gHost, 8 ) )
+        backclr = pillclr
+    end if
+    if p->pImage then
+        tkImage_Paint( p->b, p->pImage, @p->rcIcon )
+    else
+        p->b->SetColors( foreclr, backclr )
+        p->b->SetFont( gGlyph12 )
+        p->b->PaintText( p->wszGlyph, @p->rcIcon, TK_DT_CENTER )
+    end if
+end sub
+
+private sub MakeSampleIcon( byref path as string )
+    dim as SDL_Surface ptr s = SDL_CreateSurface( 32, 32, SDL_PIXELFORMAT_ARGB8888 )
+    if s = 0 then exit sub
+    for y as long = 0 to 31
+        dim as ulong ptr row = cast( ulong ptr, cast( ubyte ptr, s->pixels ) + y * s->pitch )
+        for x as long = 0 to 31
+            row[x] = iif( (((x \ 8) + (y \ 8)) and 1), &hFFEE9933ul, &hFF3399EEul )
+        next
+    next
+    SDL_SaveBMP( s, strptr( path ) )
+    SDL_DestroySurface( s )
+end sub
+
+private sub BuildToolbar( byval p as TK_WIDGET ptr, byref iconPath as string )
+    dim as long idx
+    idx = tkIconPanel_AddItem( p, IP_KIND_COMMAND, wchr( TK_ICON_SAVE ), IDM_SAVE )
+    tkIconPanel_SetTooltipText( p, idx, "Save" )
+    idx = tkIconPanel_AddItem( p, IP_KIND_COMMAND, wchr( TK_ICON_REFRESH ), IDM_REFRESH )
+    tkIconPanel_SetTooltipText( p, idx, "Refresh" )
+    tkIconPanel_SetItemForeColor( p, idx, tkRGB( 126, 190, 126 ) )
+    idx = tkIconPanel_AddItem( p, IP_KIND_COMMAND, "", IDM_REFRESH )
+    tkIconPanel_SetImage( p, idx, iconPath )
+    tkIconPanel_SetTooltipText( p, idx, "Image icon" )
+    tkIconPanel_AddSeparator( p )
+    idx = tkIconPanel_AddItem( p, IP_KIND_TOGGLE, wchr( TK_ICON_STAR ), IDM_FAVOURITE )
+    tkIconPanel_SetTooltipText( p, idx, "Favourite" )
+    tkIconPanel_SetSelected( p, idx, true )
+    idx = tkIconPanel_AddItem( p, IP_KIND_TOGGLE, wchr( TK_ICON_LOCK ), IDM_READONLY )
+    tkIconPanel_SetTooltipText( p, idx, "Read only" )
+    idx = tkIconPanel_AddItem( p, IP_KIND_TOGGLE, wchr( TK_ICON_SEARCH ), IDM_FIND )
+    tkIconPanel_SetTooltipText( p, idx, "Find panel" )
+    tkIconPanel_AddSeparator( p )
+    idx = tkIconPanel_AddItem( p, IP_KIND_COMMAND, wchr( TK_ICON_DELETE ), IDM_DELETE )
+    tkIconPanel_SetTooltipText( p, idx, "Delete (disabled)" )
+    tkIconPanel_SetEnabled( p, idx, false )
+    idx = tkIconPanel_AddItem( p, IP_KIND_COMMAND, wchr( TK_ICON_SETTINGS ), IDM_SETTINGS )
+    tkIconPanel_SetItemIconSize( p, idx, tkHost_Scale( gHost, 30 ), tkHost_Scale( gHost, 30 ) )
+    tkIconPanel_SetItemPadding( p, idx, tkHost_Scale( gHost, 14 ), tkHost_Scale( gHost, 14 ) )
+end sub
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as TKRECT rc
+    dim as long y0 = 3 * tkHost_Scale( h, 40 ) + tkHost_Scale( h, 12 )
+    tkRect_Set( rc, tkHost_Scale( h, 72 ), y0, tkHost_Scale( h, 880 ), y0 + tkHost_Scale( h, 20 ) )
+    b->SetColors( T_FOREDIS, T_PANEL )
+    b->SetFont( gFont9 )
+    b->PaintText( "<- tkIconPanel_SetVertical + SetMarker (PsPlatform): an activity bar, radio by its SelChange handler", @rc, TK_DT_LEFT )
+end sub
+
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long nHeight = tkHost_Scale( h, 40 )
+    for i as long = 0 to 2
+        tkWidget_SetPos( gPanel(i), 0, i * nHeight, pw, nHeight )
+    next
+    dim as long y0 = 3 * nHeight + tkHost_Scale( h, 8 )
+    tkWidget_SetPos( gColumn, tkHost_Scale( h, 8 ), y0, tkHost_Scale( h, 48 ), ph - y0 - tkHost_Scale( h, 8 ) )
+end sub
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr s = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if s then
+        SDL_SaveBMP( s, strptr( path ) )
+        print "shot: " & path & "  " & s->w & "x" & s->h & "  scale=" & gHost->fScale
+        SDL_DestroySurface( s )
+    end if
+end sub
+
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkIconPanel on SDL3", 900, 300, tkHost_FontDir() & TK_FONT_UI, forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = T_PANEL
+gGlyph12 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_ICONS, 12 )
+gFont9 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 9 )
+if gGlyph12 = 0 then print "fonts: " & *SDL_GetError() : end 1
+tkTooltip_SetDefaultFonts( gFont9 )
+
+dim as string iconPath = exepath() & "/sample_icon.bmp"
+MakeSampleIcon( iconPath )
+
+dim as long nJustify(0 to 2) = { IP_JUSTIFY_LEFT, IP_JUSTIFY_CENTER, IP_JUSTIFY_RIGHT }
+for i as long = 0 to 2
+    gPanel(i) = tkIconPanel_Create( tkHost_Root( gHost ), 1000 + i )
+    tkIconPanel_SetFont( gPanel(i), gGlyph12 )
+    tkIconPanel_SetJustify( gPanel(i), nJustify(i) )
+    tkIconPanel_SetMessageCallback( gPanel(i), @Demo_Message )
+    tkIconPanel_SetTooltipCallback( gPanel(i), @Demo_Tooltip )
+    tkIconPanel_SetClickCallback( gPanel(i), @Demo_Click )
+    tkIconPanel_SetSelChangeCallback( gPanel(i), @Demo_SelChange )
+    BuildToolbar( gPanel(i), iconPath )
+next
+
+dim as TKICONPANEL_COLORS clrs
+tkIconPanel_GetColors( gPanel(1), @clrs )
+clrs.BackColor = T_BACKSEL
+clrs.BackColorHot = T_FOCUS
+clrs.BackColorSelect = T_BACK
+tkIconPanel_SetColors( gPanel(1), @clrs )
+tkIconPanel_SetPadding( gPanel(1), tkHost_Scale( gHost, 12 ), tkHost_Scale( gHost, 12 ) )
+tkIconPanel_SetPaintItemCallback( gPanel(2), @Demo_PillPaint )
+
+gColumn = tkIconPanel_Create( tkHost_Root( gHost ), 1100 )
+tkIconPanel_SetVertical( gColumn, true )
+tkIconPanel_SetFont( gColumn, gGlyph12 )
+tkIconPanel_SetIconSize( gColumn, tkHost_Scale( gHost, 24 ), tkHost_Scale( gHost, 24 ) )
+tkIconPanel_SetPadding( gColumn, tkHost_Scale( gHost, 6 ), tkHost_Scale( gHost, 6 ) )
+tkIconPanel_SetMarker( gColumn, tkHost_Scale( gHost, 3 ), true )
+tkIconPanel_SetSelChangeCallback( gColumn, @Column_SelChange )
+dim as long cIdx
+cIdx = tkIconPanel_AddItem( gColumn, IP_KIND_TOGGLE, wchr( TK_ICON_DOCUMENT ), 1 ) : tkIconPanel_SetTooltipText( gColumn, cIdx, "Explorer" )
+cIdx = tkIconPanel_AddItem( gColumn, IP_KIND_TOGGLE, wchr( TK_ICON_SEARCH ), 2 ) : tkIconPanel_SetTooltipText( gColumn, cIdx, "Search" )
+cIdx = tkIconPanel_AddItem( gColumn, IP_KIND_TOGGLE, wchr( TK_ICON_BUG ), 3 ) : tkIconPanel_SetTooltipText( gColumn, cIdx, "Debug" )
+tkIconPanel_AddSeparator( gColumn )
+cIdx = tkIconPanel_AddItem( gColumn, IP_KIND_COMMAND, wchr( TK_ICON_SETTINGS ), 4 ) : tkIconPanel_SetTooltipText( gColumn, cIdx, "Settings" )
+tkIconPanel_SetSelected( gColumn, 0, true )
+
+print "ideal widths: left=" & tkIconPanel_GetIdealWidth( gPanel(0) ) & " center=" & tkIconPanel_GetIdealWidth( gPanel(1) ) & _
+      " right=" & tkIconPanel_GetIdealWidth( gPanel(2) ) & "  column ideal height=" & tkIconPanel_GetIdealHeight( gColumn )
+
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkHost_Show( gHost )
+
+dim as string shot = ArgValue( "--shot" )
+if len( shot ) then
+    tkHost_Pump( gHost )
+    SaveShot( shot )
+else
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

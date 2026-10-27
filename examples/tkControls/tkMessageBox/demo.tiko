@@ -1,0 +1,297 @@
+' tkMessageBox demo: the Win32 demo's rows (tiko-lang/examples/PsControls/PsMessageBox/frmMain.tiko),
+' one button per row that raises that box and shows what it returned.
+'
+'   demo                     interactive
+'   demo --shot out.bmp      the form, plus out-box.bmp: the light Save / Don't Save box laid
+'                            out hidden and rendered (no modal loop), then exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkMessageBox"
+using tkMessageBox
+using tkButton
+using tkTheme
+using tkHost
+using tkPaint
+
+enum
+    DEMO_INFO = 0
+    DEMO_OKCANCEL
+    DEMO_YESNO
+    DEMO_YESNOCANCEL
+    DEMO_SAVE
+    DEMO_ERROR
+    DEMO_BARE
+    DEMO_FOCUSSPLIT
+    DEMO_CUSTOMPAINT
+    DEMO_NESTED
+    DEMO_ONELINER
+    DEMO_ROW_COUNT
+end enum
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gBtn(0 to DEMO_ROW_COUNT - 1)
+dim shared as ustring gLabel(0 to DEMO_ROW_COUNT - 1), gResult(0 to DEMO_ROW_COUNT - 1)
+dim shared as TTF_Font ptr gFont9, gFont10, gGlyph20, gGlyph10
+
+private function ResultName( byval r as long ) as ustring
+    select case r
+    case MBX_IDOK     : return "IDOK"
+    case MBX_IDCANCEL : return "IDCANCEL"
+    case MBX_IDYES    : return "IDYES"
+    case MBX_IDNO     : return "IDNO"
+    case MBX_IDRETRY  : return "IDRETRY"
+    case 0            : return "0"
+    end select
+    return str( r )
+end function
+
+' The light set, matched to the vendor's reference screenshot.
+private sub ApplyLightTheme( byval hBox as TK_WIDGET ptr )
+    dim as MBX_COLORS c
+    tkMessageBox_GetColors( hBox, @c )
+    c.BorderColor = tkRGB( 200, 200, 200 )
+    c.CaptionBackColor = tkRGB( 243, 243, 243 ) : c.CaptionForeColor = tkRGB( 26, 26, 26 )
+    c.CloseBackColor = tkRGB( 243, 243, 243 ) : c.CloseForeColor = tkRGB( 26, 26, 26 )
+    c.CloseBackColorHot = tkRGB( 196, 43, 28 ) : c.CloseForeColorHot = tkRGB( 255, 255, 255 )
+    c.CloseBackColorPressed = tkRGB( 200, 70, 60 ) : c.CloseForeColorPressed = tkRGB( 255, 255, 255 )
+    c.BackColor = tkRGB( 255, 255, 255 ) : c.ForeColor = tkRGB( 16, 82, 166 )
+    c.FooterBackColor = tkRGB( 240, 240, 240 ) : c.DividerColor = tkRGB( 224, 224, 224 )
+    c.IconColorWarning = tkRGB( 247, 182, 21 )
+    tkMessageBox_SetColors( hBox, @c )
+    dim as TKBUTTON_COLORS b
+    b.BackColor = tkRGB( 251, 251, 251 ) : b.ForeColor = tkRGB( 26, 26, 26 )
+    b.BorderColor = tkRGB( 209, 209, 209 ) : b.IconColor = tkRGB( 26, 26, 26 )
+    b.BackColorHot = tkRGB( 246, 246, 246 ) : b.ForeColorHot = tkRGB( 26, 26, 26 )
+    b.BorderColorHot = tkRGB( 200, 200, 200 ) : b.IconColorHot = tkRGB( 26, 26, 26 )
+    b.BackColorPressed = tkRGB( 245, 245, 245 ) : b.ForeColorPressed = tkRGB( 96, 96, 96 )
+    b.BorderColorPressed = tkRGB( 205, 205, 205 ) : b.IconColorPressed = tkRGB( 96, 96, 96 )
+    b.BackColorDisabled = tkRGB( 251, 251, 251 ) : b.ForeColorDisabled = tkRGB( 160, 160, 160 )
+    b.BorderColorDisabled = tkRGB( 230, 230, 230 ) : b.IconColorDisabled = tkRGB( 160, 160, 160 )
+    b.FocusRingColor = tkRGB( 26, 111, 204 ) : b.DefaultBorderColor = tkRGB( 26, 111, 204 )
+    tkMessageBox_SetButtonColors( hBox, @b )
+end sub
+
+' The four fonts: forgetting the glyph font is the likely mistake (the one-liner shows it).
+private sub ApplyDemoFonts( byval hBox as TK_WIDGET ptr )
+    tkMessageBox_SetFont( hBox, gFont10 )
+    tkMessageBox_SetCaptionFont( hBox, gFont10 )
+    tkMessageBox_SetGlyphFont( hBox, gGlyph20 )
+    tkMessageBox_SetCloseGlyphFont( hBox, gGlyph10 )
+end sub
+
+' A wholesale painter: outlines with PaintLine / PaintRoundOutline, never a fill-and-stroke.
+sub Demo_Paint( byval p as MBX_PAINTINFO ptr )
+    dim as TK_PAINT ptr b = p->b
+    b->SetBackColor( tkRGB( 30, 40, 60 ) )
+    b->PaintRect( @p->rcCaption )
+    b->SetFont( gFont10 )
+    b->SetColors( tkRGB( 255, 214, 102 ), tkRGB( 30, 40, 60 ) )
+    b->PaintText( p->wszCaption, @p->rcCaptionText, TK_DT_LEFT or TK_DT_ELLIPSIS )
+    if tkRect_IsEmpty( p->rcIcon ) = false then
+        b->SetFont( gGlyph20 )
+        b->SetColors( tkRGB( 255, 214, 102 ), tkRGB( 33, 37, 43 ) )
+        b->PaintText( p->wszGlyph, @p->rcIcon, TK_DT_CENTER or TK_DT_NOCLIP )
+    end if
+    b->SetFont( gFont10 )
+    b->SetColors( tkRGB( 220, 220, 220 ), tkRGB( 33, 37, 43 ) )
+    b->PaintTextEx( p->wszText, @p->rcText, TK_DT_LEFT or TK_DT_WORDBREAK )
+    b->SetPenColor( tkRGB( 255, 214, 102 ) )
+    if tkRect_IsEmpty( p->rcFooter ) = false then b->PaintLine( 1, p->rcFooter.left, p->rcFooter.top, p->rcFooter.right, p->rcFooter.top )
+    b->PaintRoundOutline( @p->rcClient, 0, 2 )
+end sub
+
+' A click in the message area raises a second box on top of the first: the loops nest.
+function Demo_NestedMessage( byval m as MBX_MESSAGEINFO ptr ) as boolean
+    if m->msg <> TKM_LBUTTONDOWN then return false
+    dim as TKRECT rcCap
+    tkMessageBox_GetCaptionRect( m->hMsgBox, rcCap )
+    if m->y < rcCap.bottom then return false
+    dim as TK_WIDGET ptr hInner = tkMessageBox_Create( m->hMsgBox )
+    ApplyDemoFonts( hInner )
+    tkMessageBox_SetCaption( hInner, "Nested" )
+    tkMessageBox_SetText( hInner, "This box was raised from inside the first box's own modal loop. Close it and the first one is still there." )
+    tkMessageBox_SetIconKind( hInner, MBX_ICON_INFO )
+    tkMessageBox_AddPreset( hInner, MBX_BTN_OK )
+    tkMessageBox_DoModal( hInner )
+    return false
+end function
+
+private function BuildBox( byval idx as long ) as TK_WIDGET ptr
+    dim as TK_WIDGET ptr h = tkMessageBox_Create( tkHost_Root( gHost ) )
+    ApplyDemoFonts( h )
+    select case idx
+    case DEMO_INFO
+        tkMessageBox_SetCaption( h, "Information" )
+        tkMessageBox_SetText( h, "The project was built successfully." )
+        tkMessageBox_SetIconKind( h, MBX_ICON_INFO )
+        tkMessageBox_AddPreset( h, MBX_BTN_OK )
+    case DEMO_OKCANCEL
+        tkMessageBox_SetCaption( h, "Confirm" )
+        tkMessageBox_SetText( h, "The selected files will be moved to the recycle bin." )
+        tkMessageBox_SetIconKind( h, MBX_ICON_QUESTION )
+        tkMessageBox_AddPreset( h, MBX_BTN_OKCANCEL )
+    case DEMO_YESNO
+        tkMessageBox_SetCaption( h, "Warning" )
+        tkMessageBox_SetText( h, "Reload the file from disk and lose your edits?" )
+        tkMessageBox_SetIconKind( h, MBX_ICON_WARNING )
+        tkMessageBox_AddPreset( h, MBX_BTN_YESNO )
+    case DEMO_YESNOCANCEL
+        tkMessageBox_SetCaption( h, "Warning" )
+        tkMessageBox_SetText( h, "Three files have unsaved changes. Save them all before closing?" )
+        tkMessageBox_SetIconKind( h, MBX_ICON_WARNING )
+        tkMessageBox_AddPreset( h, MBX_BTN_YESNOCANCEL )
+    case DEMO_SAVE
+        ApplyLightTheme( h )
+        tkMessageBox_SetCaption( h, "Warning" )
+        tkMessageBox_SetText( h, "This buffer contains unsaved edits. Do you want to save it?" )
+        tkMessageBox_SetIconKind( h, MBX_ICON_WARNING )
+        tkMessageBox_AddPreset( h, MBX_BTN_SAVE_DONTSAVE_CANCEL )
+    case DEMO_ERROR
+        tkMessageBox_SetCaption( h, "Build failed" )
+        tkMessageBox_SetText( h, "The compiler reported 3 errors and 11 warnings while building the active configuration. " & _
+                                 "The first error was in modParser.inc at line 1284: 'Expected identifier, found HFONT'. " & _
+                                 "Open the compiler log for the full output?" )
+        tkMessageBox_SetIconKind( h, MBX_ICON_ERROR )
+        tkMessageBox_AddButton( h, "Open Log", MBX_IDYES )
+        tkMessageBox_AddButton( h, "Close", MBX_IDNO )
+        tkMessageBox_SetDefaultButton( h, 0 )
+    case DEMO_BARE
+        tkMessageBox_SetText( h, "No icon, no title, one button." )
+        tkMessageBox_AddPreset( h, MBX_BTN_OK )
+        tkMessageBox_SetBeep( h, false )
+    case DEMO_FOCUSSPLIT
+        tkMessageBox_SetCaption( h, "Delete" )
+        tkMessageBox_SetText( h, "Permanently delete 42 items? Delete is the default button, but Cancel has the focus." )
+        tkMessageBox_SetIconKind( h, MBX_ICON_WARNING )
+        tkMessageBox_AddButton( h, "Delete", MBX_IDYES )
+        tkMessageBox_AddButton( h, "Cancel", MBX_IDCANCEL )
+        tkMessageBox_SetDefaultButton( h, 0 )
+        tkMessageBox_SetFocusButton( h, 1 )
+    case DEMO_CUSTOMPAINT
+        tkMessageBox_SetCaption( h, "Custom painter" )
+        tkMessageBox_SetText( h, "The built-in painter has been replaced wholesale. The buttons still paint themselves -- they are real widgets." )
+        tkMessageBox_SetIconKind( h, MBX_ICON_INFO )
+        tkMessageBox_AddPreset( h, MBX_BTN_OKCANCEL )
+        tkMessageBox_SetPaintCallback( h, @Demo_Paint )
+    case DEMO_NESTED
+        tkMessageBox_SetCaption( h, "Nesting" )
+        tkMessageBox_SetText( h, "Click anywhere in this message area (not the caption) to raise a second modal box on top of this one." )
+        tkMessageBox_SetIconKind( h, MBX_ICON_QUESTION )
+        tkMessageBox_AddPreset( h, MBX_BTN_OK )
+        tkMessageBox_SetMessageCallback( h, @Demo_NestedMessage )
+    end select
+    return h
+end function
+
+sub RaiseBox( byval idx as long )
+    dim as long r
+    if idx = DEMO_ONELINER then
+        r = tkMessageBox_Show( tkHost_Root( gHost ), "Raised with the one-line tkMessageBox_Show wrapper. It sets no fonts, so the icon is a missing glyph.", _
+                               "One-liner", MBX_ICON_INFO, MBX_BTN_OKCANCEL )
+    else
+        r = tkMessageBox_DoModal( BuildBox( idx ) )
+    end if
+    gResult(idx) = "returned " & ResultName( r )
+    tkHost_Invalidate( gHost )
+end sub
+
+sub Demo_Click( byval hButton as TK_WIDGET ptr, byval id as long )
+    RaiseBox( id - 100 )
+end sub
+
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long rowH = tkHost_Scale( h, 40 ), top = tkHost_Scale( h, 16 ), m = tkHost_Scale( h, 20 )
+    for i as long = 0 to DEMO_ROW_COUNT - 1
+        tkWidget_SetPos( gBtn(i), m, top + i * rowH, tkHost_Scale( h, 120 ), tkHost_Scale( h, 30 ) )
+    next
+end sub
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as TKTHEME_COLORS t = tkTheme_Get()
+    dim as long rowH = tkHost_Scale( h, 40 ), top = tkHost_Scale( h, 16 ), x0 = tkHost_Scale( h, 156 )
+    for i as long = 0 to DEMO_ROW_COUNT - 1
+        dim as TKRECT rc
+        tkRect_Set( rc, x0, top + i * rowH, pw - tkHost_Scale( h, 20 ), top + i * rowH + tkHost_Scale( h, 30 ) )
+        b->SetFont( gFont10 ) : b->SetColors( t.Text, t.Window )
+        dim as ustring s = gLabel(i)
+        if len( gResult(i) ) then s &= "      " & gResult(i)
+        b->PaintText( s, @rc, TK_DT_LEFT or TK_DT_ELLIPSIS )
+    next
+end sub
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+private sub SaveSurface( byval h as TK_HOST ptr, byref path as string )
+    tkHost_RenderTo( h, false )
+    dim as SDL_Surface ptr s = SDL_RenderReadPixels( h->renderer, 0 )
+    if s then
+        SDL_SaveBMP( s, strptr( path ) )
+        print "shot: " & path & "  " & s->w & "x" & s->h & "  scale=" & h->fScale
+        SDL_DestroySurface( s )
+    end if
+end sub
+
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkMessageBox on SDL3", 720, 470, tkHost_FontDir() & TK_FONT_UI, forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = tkTheme_Get().Window
+gFont9 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 9 )
+gFont10 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 10 )
+gGlyph20 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_ICONS, 20 )
+gGlyph10 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_ICONS, 10 )
+if (gFont10 = 0) orelse (gGlyph20 = 0) then print "fonts: " & *SDL_GetError() : end 1
+
+gLabel(DEMO_INFO) = "Information, OK"
+gLabel(DEMO_OKCANCEL) = "Question, OK / Cancel"
+gLabel(DEMO_YESNO) = "Warning, Yes / No (Esc answers No)"
+gLabel(DEMO_YESNOCANCEL) = "Warning, Yes / No / Cancel"
+gLabel(DEMO_SAVE) = "Save / Don't Save / Cancel, the light reference palette"
+gLabel(DEMO_ERROR) = "Error, a long wrapped message and two custom buttons"
+gLabel(DEMO_BARE) = "No icon, no title, one button"
+gLabel(DEMO_FOCUSSPLIT) = "Delete default, Cancel focused"
+gLabel(DEMO_CUSTOMPAINT) = "A wholesale paint callback"
+gLabel(DEMO_NESTED) = "Nested: click the message to raise a second box"
+gLabel(DEMO_ONELINER) = "tkMessageBox_Show, the one-liner (no fonts)"
+for i as long = 0 to DEMO_ROW_COUNT - 1
+    gBtn(i) = tkButton_Create( tkHost_Root( gHost ), 100 + i )
+    tkButton_SetFont( gBtn(i), gFont10 ) : tkButton_SetText( gBtn(i), "Raise..." )
+    tkButton_SetClickCallback( gBtn(i), @Demo_Click )
+next
+
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkHost_SetFocus( gHost, gBtn(0) )
+tkHost_Show( gHost )
+
+dim as string shot = ArgValue( "--shot" )
+if len( shot ) then
+    tkHost_Pump( gHost )
+    tkHost_Render( gHost )
+    SaveSurface( gHost, shot )
+    dim as TK_WIDGET ptr hBox = BuildBox( DEMO_SAVE )
+    tkMessageBox_LayoutForTest( hBox )
+    tkHost_SetFocus( tkMessageBox_GetSurface( hBox ), tkMessageBox_GetButtonHandle( hBox, 0 ) )
+    SaveSurface( tkMessageBox_GetSurface( hBox ), left( shot, len( shot ) - 4 ) & "-box.bmp" )
+    tkMessageBox_Destroy( hBox )
+else
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

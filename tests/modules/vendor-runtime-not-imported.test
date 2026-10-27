@@ -1,0 +1,16 @@
+'' ONLY AN IMPORTED MODULE'S FILES ARE COPIED: the program imports vendor/delta, so delta.dat
+'' goes beside it and vendor/gamma's files -- in the same package -- do not.
+'' TEST: cli
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' ENV: TKO_PKG=build/.vrn/pkg
+'' ENV: TKO_MODCACHE=build/.vrn/mc
+'' CLEAN: build/.vrn
+'' COPY: tests/modules/src/vrt/pkg => build/.vrn/pkg
+'' WRITE: build/.vrn/pkg/vendor/gamma/fonts/gamma.ttf :: a font\n
+'' WRITE: build/.vrn/pkg/vendor/gamma/lib/gammart.dll :: a library the program loads itself\n
+'' WRITE: build/.vrn/pkg/vendor/delta/delta.dat :: delta's data\n
+'' ARGS: -target windows-x86_64 tests/modules/src/vrt/app/delta.tiko -o build/.vrn/delta.exe
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: build/.vrn/delta.dat
+'' EXPECT-NO-FILE: build/.vrn/gamma.ttf
+'' EXPECT-NO-FILE: build/.vrn/gammart.dll

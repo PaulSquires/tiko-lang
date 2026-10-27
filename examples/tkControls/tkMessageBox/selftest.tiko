@@ -1,0 +1,354 @@
+' tkMessageBox self-test. Real windows, real SDL event queue. The modal runs are driven the way
+' tests/tkHost drives tkHost_RunModal: the box's dialog surface exists from Create, so the events
+' a user would produce are QUEUED at its window before DoModal is called, and the modal loop
+' dispatches them. Two passes, scale pinned at 1.0 and at 1.75.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkMessageBox"
+#import "vendor/tkControls/tkTest"
+using tkMessageBox
+using tkButton
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as long gIdealW(0 to 1)
+dim shared as long gCloseMsgs, gOwnerClicks, gVetoDown
+
+function OnMsg( byval m as MBX_MESSAGEINFO ptr ) as boolean
+    if m->msg = TKMBX_MSG_CLOSE then gCloseMsgs += 1 : return true      ' must be IGNORED
+    if (gVetoDown <> 0) andalso (m->msg = TKM_LBUTTONDOWN) then return true
+    return false
+end function
+
+sub OnOwnerClick( byval hButton as TK_WIDGET ptr, byval id as long )
+    gOwnerClicks += 1
+end sub
+
+sub FloodPaint( byval p as MBX_PAINTINFO ptr )
+    p->b->SetBackColor( &hFF445566ul )
+    p->b->PaintRect( @p->rcClient )
+end sub
+
+' ---- raw pushes: QUEUED, not pumped, so the modal loop is what dispatches them ---------------
+sub QClick( byval d as TK_HOST ptr, byval x as single, byval y as single )
+    dim as SDL_Event e
+    e.type = SDL_EVENT_MOUSE_BUTTON_DOWN : e.button.windowID = d->winId : e.button.button = SDL_BUTTON_LEFT
+    e.button.down = true : e.button.clicks = 1
+    e.button.x = x / d->fDensity : e.button.y = y / d->fDensity
+    SDL_PushEvent( @e )
+    e.type = SDL_EVENT_MOUSE_BUTTON_UP : e.button.down = false
+    SDL_PushEvent( @e )
+end sub
+
+sub QButton( byval d as TK_HOST ptr, byval bDown as boolean, byval x as single, byval y as single )
+    dim as SDL_Event e
+    e.type = iif( bDown, SDL_EVENT_MOUSE_BUTTON_DOWN, SDL_EVENT_MOUSE_BUTTON_UP )
+    e.button.windowID = d->winId : e.button.button = SDL_BUTTON_LEFT
+    e.button.down = bDown : e.button.clicks = 1
+    e.button.x = x / d->fDensity : e.button.y = y / d->fDensity
+    SDL_PushEvent( @e )
+end sub
+
+sub QMotion( byval d as TK_HOST ptr, byval x as single, byval y as single )
+    dim as SDL_Event e
+    e.type = SDL_EVENT_MOUSE_MOTION : e.motion.windowID = d->winId
+    e.motion.x = x / d->fDensity : e.motion.y = y / d->fDensity
+    SDL_PushEvent( @e )
+end sub
+
+sub QKey( byval d as TK_HOST ptr, byval key as long, byval mods as long = 0 )
+    dim as SDL_Event e
+    e.type = SDL_EVENT_KEY_DOWN : e.key.windowID = d->winId : e.key.key = key : e.key.mod_ = mods : e.key.down = true
+    SDL_PushEvent( @e )
+end sub
+
+sub QWindow( byval d as TK_HOST ptr, byval t as Uint32 )
+    dim as SDL_Event e
+    e.type = t : e.window.windowID = d->winId
+    SDL_PushEvent( @e )
+end sub
+
+function RX( byref rc as TKRECT ) as single
+    return (rc.left + rc.right) / 2
+end function
+function RY( byref rc as TKRECT ) as single
+    return (rc.top + rc.bottom) / 2
+end function
+
+dim shared as TTF_Font ptr gText, gGlyph, gClose
+
+' A configured box with the three-button preset, laid out (hidden) so its geometry is known.
+function NewBox( byval h as TK_HOST ptr, byval nPreset as long = MBX_BTN_SAVE_DONTSAVE_CANCEL ) as TK_WIDGET ptr
+    dim as TK_WIDGET ptr b = tkMessageBox_Create( tkHost_Root( h ) )
+    tkMessageBox_SetFont( b, gText )
+    tkMessageBox_SetGlyphFont( b, gGlyph )
+    tkMessageBox_SetCloseGlyphFont( b, gClose )
+    tkMessageBox_SetCaption( b, "Warning" )
+    tkMessageBox_SetText( b, "This buffer contains unsaved edits. Do you want to save it?" )
+    tkMessageBox_SetIconKind( b, MBX_ICON_WARNING )
+    tkMessageBox_AddPreset( b, nPreset )
+    tkMessageBox_LayoutForTest( b )
+    return b
+end function
+
+' ==========================================================================================
+sub RunPure()
+    tkTest_Begin( "pure" )
+    tkTest_Check( "glyphs by kind", tkMessageBox_ResolveGlyph( MBX_ICON_WARNING ) = wchr( TK_ICON_WARNING ) andalso tkMessageBox_ResolveGlyph( MBX_ICON_ERROR ) = wchr( TK_ICON_ERROR ) )
+    tkTest_Check( "NONE and junk resolve to no glyph", tkMessageBox_ResolveGlyph( MBX_ICON_NONE ) = "" andalso tkMessageBox_ResolveGlyph( 99 ) = "" )
+    dim as MBX_COLORS c
+    tkTest_Check( "icon colour by kind", tkMessageBox_ResolveIconColor( MBX_ICON_WARNING, @c ) = c.IconColorWarning andalso tkMessageBox_ResolveIconColor( MBX_ICON_ERROR, @c ) = c.IconColorError )
+    tkTest_Check( "NONE answers ForeColor, not a sentinel", tkMessageBox_ResolveIconColor( MBX_ICON_NONE, @c ) = c.ForeColor andalso tkMessageBox_ResolveIconColor( 1, 0 ) = 0 )
+    tkTest_Check( "Win32 ids, value for value", MBX_IDOK = 1 andalso MBX_IDCANCEL = 2 andalso MBX_IDYES = 6 andalso MBX_IDNO = 7 andalso MBX_IDRETRY = 4 )
+end sub
+
+' ==========================================================================================
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkMessageBox selftest", 700, 500, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    gText = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
+    gGlyph = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_ICONS, 20 )
+    gClose = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_ICONS, 10 )
+    tkTest_Check( "fonts opened", (gText <> 0) andalso (gGlyph <> 0) andalso (gClose <> 0) )
+
+    ' ---- A: the ideal size, BEFORE the window is sized ------------------------------------------
+    dim as TK_WIDGET ptr b = tkMessageBox_Create( tkHost_Root( h ) )
+    tkTest_Check( "Create gives a box on a hidden dialog surface", b <> 0 andalso tkMessageBox_GetSurface( b ) <> 0 andalso tkMessageBox_GetSurface( b )->kind = TK_SURF_DIALOG )
+    tkMessageBox_SetFont( b, gText ) : tkMessageBox_SetGlyphFont( b, gGlyph ) : tkMessageBox_SetCloseGlyphFont( b, gClose )
+    tkMessageBox_SetCaption( b, "Confirm" )
+    tkMessageBox_SetText( b, "Delete this file?" )
+    tkMessageBox_SetIconKind( b, MBX_ICON_QUESTION )
+    tkMessageBox_AddPreset( b, MBX_BTN_YESNO )
+    dim as long iw, ih
+    tkMessageBox_GetIdealSize( b, iw, ih )
+    dim as long padX = tkHost_Scale( h, 20 ), padY = tkHost_Scale( h, 20 ), icW = tkHost_Scale( h, 32 ), icH = tkHost_Scale( h, 32 )
+    dim as long icGap = tkHost_Scale( h, 16 ), fpx = tkHost_Scale( h, 20 ), fpy = tkHost_Scale( h, 14 ), capH = tkHost_Scale( h, 34 )
+    dim as long gap = tkHost_Scale( h, 8 ), minBtn = tkHost_Scale( h, 88 ), minW = tkHost_Scale( h, 300 )
+    dim as long textW = tkText_Width( gText, "Delete this file?" ), textH = tkText_Height( gText )
+    dim as long bw0, bh0, bw1, bh1
+    tkButton_GetIdealSize( tkMessageBox_GetButtonHandle( b, 0 ), bw0, bh0 )
+    tkButton_GetIdealSize( tkMessageBox_GetButtonHandle( b, 1 ), bw1, bh1 )
+    if bw0 < minBtn then bw0 = minBtn
+    if bw1 < minBtn then bw1 = minBtn
+    dim as long contentW = 2 * padX + icW + icGap + textW
+    dim as long footerW = 2 * fpx + bw0 + bw1 + gap
+    dim as long expW = contentW
+    if footerW > expW then expW = footerW
+    if minW > expW then expW = minW
+    dim as long expH = capH + 2 * padY + iif( icH > textH, icH, textH ) + 2 * fpy + iif( bh0 > bh1, bh0, bh1 )
+    tkTest_Check( "idealW = max( content, footer, caption, min ) -- the box shrinks to fit", iw = expW, iw & " vs " & expW )
+    tkTest_Check( "idealH = caption + body + footer", ih = expH, ih & " vs " & expH )
+    gIdealW(iif( fScale > 1.5, 1, 0 )) = iw
+    dim as TKRECT rc, rcCap, rcX, rcBody, rcIc, rcTx, rcFt, rcB0, rcB1
+    tkTest_Check( "rect queries FALSE before the window is sized", tkMessageBox_GetCaptionRect( b, rc ) = false )
+    tkMessageBox_SetIconKind( b, MBX_ICON_NONE )
+    dim as long iwN, ihN
+    tkMessageBox_GetIdealSize( b, iwN, ihN )
+    tkTest_Check( "MBX_ICON_NONE charges no icon block", iwN = iw orelse iwN = iw - icW - icGap orelse iwN = minW )
+    tkMessageBox_SetGlyph( b, wchr( TK_ICON_INFO ) )
+    tkTest_Check( "a glyph override turns the icon on even at NONE", tkMessageBox_GetIconKind( b ) = MBX_ICON_NONE )
+    tkMessageBox_SetGlyph( b, "" )
+    tkMessageBox_SetIconKind( b, MBX_ICON_QUESTION )
+    tkMessageBox_Destroy( b )
+    tkHost_Pump( h )
+
+    ' ---- B: geometry once laid out ----------------------------------------------------------------
+    b = NewBox( h )
+    tkMessageBox_GetIdealSize( b, iw, ih )
+    tkTest_Check( "LayoutForTest sizes the box to ideal, hidden", b->cw = iw andalso b->ch = ih andalso tkMessageBox_GetSurface( b )->bClosed = false )
+    tkMessageBox_GetCaptionRect( b, rcCap ) : tkMessageBox_GetCloseRect( b, rcX ) : tkMessageBox_GetBodyRect( b, rcBody )
+    tkMessageBox_GetIconRect( b, rcIc ) : tkMessageBox_GetTextRect( b, rcTx ) : tkMessageBox_GetFooterRect( b, rcFt )
+    tkTest_Check( "caption band: full width, declared height", rcCap.left = 0 andalso rcCap.right = iw andalso tkRect_Height( rcCap ) = capH )
+    tkTest_Check( "close X hard against the right", rcX.right = iw andalso tkRect_Width( rcX ) = tkHost_Scale( h, 44 ) )
+    tkTest_Check( "three bands tile the client", rcBody.top = rcCap.bottom andalso rcFt.top = rcBody.bottom andalso rcFt.bottom = ih )
+    tkTest_Check( "icon at the body padding", rcIc.left = padX andalso tkRect_Width( rcIc ) = icW )
+    tkTest_Check( "text after icon + gap", rcTx.left = padX + icW + icGap andalso rcTx.right = iw - padX )
+    tkTest_Check( "icon and text share a vertical centre (+-1)", abs( (rcIc.top + rcIc.bottom) - (rcTx.top + rcTx.bottom) ) <= 1, tkRect_Str( rcIc ) & " " & tkRect_Str( rcTx ) )
+    tkMessageBox_GetButtonRect( b, 0, rcB0 ) : tkMessageBox_GetButtonRect( b, 1, rcB1 )
+    dim as TKRECT rcB2
+    tkMessageBox_GetButtonRect( b, 2, rcB2 )
+    tkTest_Check( "buttons right-aligned, in the order added", rcB2.right = iw - fpx andalso rcB1.right = rcB2.left - gap andalso rcB0.right = rcB1.left - gap )
+    tkTest_Check( "one height for all, own widths above the floor", tkRect_Height( rcB0 ) = tkRect_Height( rcB2 ) andalso tkRect_Width( rcB1 ) > tkRect_Width( rcB2 ) andalso tkRect_Width( rcB2 ) >= minBtn )
+    tkTest_Check( "the tkButtons sit on their rects", tkMessageBox_GetButtonHandle( b, 1 )->x = rcB1.left andalso tkMessageBox_GetButtonHandle( b, 1 )->cw = tkRect_Width( rcB1 ) )
+    tkTest_Check( "the drag band is the caption minus the X", tkMessageBox_GetSurface( b )->rcDrag.right = rcX.left andalso tkMessageBox_GetSurface( b )->rcDrag.bottom = capH )
+    tkTest_Check( "a 4th button is refused", tkMessageBox_AddButton( b, "Four", 99 ) = 0 andalso tkMessageBox_GetButtonCount( b ) = 3 )
+    tkTest_Check( "the preset: Save default, Cancel cancels", tkMessageBox_GetDefaultButton( b ) = 0 andalso tkMessageBox_GetCancelID( b ) = MBX_IDCANCEL andalso tkButton_GetDefault( tkMessageBox_GetButtonHandle( b, 0 ) ) andalso (tkButton_GetDefault( tkMessageBox_GetButtonHandle( b, 2 ) ) = false) )
+    tkTest_Check( "focus resolves to the default", tkMessageBox_GetFocusButton( b ) = 0 )
+    tkMessageBox_SetFocusButton( b, 2 )
+    tkTest_Check( "SetFocusButton after SetDefaultButton wins", tkMessageBox_GetFocusButton( b ) = 2 )
+    tkMessageBox_SetDefaultButton( b, 1 )
+    tkTest_Check( "one accent border at most", tkButton_GetDefault( tkMessageBox_GetButtonHandle( b, 0 ) ) = false andalso tkButton_GetDefault( tkMessageBox_GetButtonHandle( b, 1 ) ) )
+    ' a long message wraps at the max width, and the height follows it
+    tkMessageBox_SetText( b, "The compiler reported 3 errors and 11 warnings while building the active configuration. Open the compiler log for the full output?" )
+    tkMessageBox_LayoutForTest( b )
+    tkMessageBox_GetTextRect( b, rcTx )
+    dim as long availW = tkHost_Scale( h, 420 ) - 2 * padX - icW - icGap
+    tkTest_Check( "a long message wraps: height = the wrapped block", tkRect_Height( rcTx ) = tkText_MeasureWrapped( gText, tkMessageBox_GetText( b ), availW ) andalso tkRect_Height( rcTx ) > 2 * textH, "" & tkRect_Height( rcTx ) )
+    tkTest_Check( "...and the box is no wider than the wrap needs", b->cw <= 2 * padX + icW + icGap + availW )
+
+    ' ---- C: pixels --------------------------------------------------------------------------------
+    dim as TK_HOST ptr d = tkMessageBox_GetSurface( b )
+    dim as long nCap = tkMessageBox_CountRenderedTones( b, MBX_PART_CAPTION )
+    dim as long nBody = tkMessageBox_CountRenderedTones( b, MBX_PART_BODY )
+    tkMessageBox_SetPaintCallback( b, @FloodPaint )
+    dim as long nFlood = tkMessageBox_CountRenderedTones( b, MBX_PART_BODY )
+    tkMessageBox_SetPaintCallback( b, 0 )
+    tkTest_Check( "probe: a real caption and body (> 5 tones)", nCap > 5 andalso nBody > 5, nCap & " " & nBody )
+    tkTest_Check( "probe: a flooded body is ONE tone", nFlood = 1, "" & nFlood )
+    tkMessageBox_GetCloseRect( b, rcX )
+    tkTest_PushMotion( d, RX( rcX ), RY( rcX ) )
+    tkTest_Check( "hover on the X makes it hot", tkMessageBox_GetCloseHot( b ) )
+    tkHost_RenderTo( d, false )
+    dim as MBX_COLORS cc
+    tkMessageBox_GetColors( b, @cc )
+    tkTest_Check( "the hot X paints CloseBackColorHot", tkTest_PixelAt( d, rcX.left + 2, rcX.top + 2 ) = (cc.CloseBackColorHot or &hFF000000ul), hex( tkTest_PixelAt( d, rcX.left + 2, rcX.top + 2 ) ) )
+    tkTest_PushWindowEvent( d, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+    tkTest_Check( "leaving clears it", tkMessageBox_GetCloseHot( b ) = false )
+    tkHost_RenderTo( d, false )
+    tkTest_Check( "the idle X is invisible (caption colour)", tkTest_PixelAt( d, rcX.left + 2, rcX.top + 2 ) = (cc.CaptionBackColor or &hFF000000ul) )
+
+    ' ---- D: theme and pinning ----------------------------------------------------------------------
+    tkTheme_Apply( tkTheme_Light() )
+    tkMessageBox_GetColors( b, @cc )
+    dim as TKBUTTON_COLORS bc
+    tkButton_GetColors( tkMessageBox_GetButtonHandle( b, 0 ), @bc )
+    tkTest_Check( "theme reaches the box and its buttons", cc.BackColor = tkTheme_Light().Window andalso bc.BackColor = tkTheme_Light().Surface )
+    cc.BackColor = &hFF102030ul
+    tkMessageBox_SetColors( b, @cc )
+    tkTheme_Apply( tkTheme_Dark() )
+    tkMessageBox_GetColors( b, @cc )
+    tkTest_Check( "SetColors pins", cc.BackColor = &hFF102030ul )
+    tkMessageBox_UnpinColors( b )
+    tkMessageBox_GetColors( b, @cc )
+    tkTest_Check( "unpin hands it back", cc.BackColor = tkTheme_Dark().Window )
+    bc.BackColor = &hFF800000ul
+    tkMessageBox_SetButtonColors( b, @bc )
+    bc.BackColor = 0
+    tkButton_GetColors( tkMessageBox_GetButtonHandle( b, 2 ), @bc )
+    tkTest_Check( "button colours reach existing buttons", bc.BackColor = &hFF800000ul )
+    tkMessageBox_Destroy( b )
+    tkHost_Pump( h )
+
+    ' ---- E: the modal runs -------------------------------------------------------------------------
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 300 )
+    ' an owner button: owner input is DROPPED while the box is modal
+    dim as TK_WIDGET ptr ob = tkButton_Create( tkHost_Root( h ), 77 )
+    tkButton_SetFont( ob, gText ) : tkButton_SetText( ob, "Owner" )
+    tkWidget_SetPos( ob, 4, 4, tkHost_Scale( h, 80 ), tkHost_Scale( h, 28 ) )
+    tkButton_SetClickCallback( ob, @OnOwnerClick )
+
+    ' 1: a click on a footer button returns ITS id
+    b = NewBox( h ) : d = tkMessageBox_GetSurface( b )
+    tkMessageBox_GetButtonRect( b, 1, rc )
+    gOwnerClicks = 0
+    dim as SDL_Event oc
+    oc.type = SDL_EVENT_MOUSE_BUTTON_DOWN : oc.button.windowID = h->winId : oc.button.button = SDL_BUTTON_LEFT
+    oc.button.down = true : oc.button.clicks = 1 : oc.button.x = tkTest_CX( ob ) / h->fDensity : oc.button.y = tkTest_CY( ob ) / h->fDensity
+    SDL_PushEvent( @oc ) : oc.type = SDL_EVENT_MOUSE_BUTTON_UP : oc.button.down = false : SDL_PushEvent( @oc )
+    QClick( d, RX( rc ), RY( rc ) )
+    tkTest_Check( "1: a button click returns its id (Don't Save = IDNO)", tkMessageBox_DoModal( b ) = MBX_IDNO )
+    tkHost_Pump( h )
+    tkTest_Check( "1: owner input was dropped while modal", gOwnerClicks = 0 )
+
+    ' 2: Esc = the cancel id; the close notice reaches the callback, which cannot veto it
+    b = NewBox( h ) : d = tkMessageBox_GetSurface( b )
+    tkMessageBox_SetMessageCallback( b, @OnMsg )
+    gCloseMsgs = 0
+    QKey( d, SDLK_ESCAPE )
+    tkTest_Check( "2: Esc returns the cancel id", tkMessageBox_DoModal( b ) = MBX_IDCANCEL )
+    tkTest_Check( "2: the close is reported and its veto ignored", gCloseMsgs = 1 )
+
+    ' 3: the window's own close (Alt+F4, the OS) = the cancel id; with no SetCancelID, the LAST button
+    b = tkMessageBox_Create( tkHost_Root( h ) )
+    tkMessageBox_SetFont( b, gText ) : tkMessageBox_SetText( b, "Pick one" )
+    tkMessageBox_AddButton( b, "Alpha", 41 ) : tkMessageBox_AddButton( b, "Beta", 42 )
+    dim as TK_HOST ptr dStage = tkMessageBox_GetSurface( b )
+    tkMessageBox_LayoutForTest( b )               ' the final surface: queue events at THIS one
+    d = tkMessageBox_GetSurface( b )
+    tkTest_Check( "3: layout makes the surface at its final size (a new one)", d <> dStage andalso tkHost_IsOpen( dStage ) = false andalso b->pHost = d )
+    tkTest_Check( "3: unset cancel id = the last button's", tkMessageBox_GetCancelID( b ) = 42 )
+    QWindow( d, SDL_EVENT_WINDOW_CLOSE_REQUESTED )
+    tkTest_Check( "3: the window's close returns the cancel id", tkMessageBox_DoModal( b ) = 42 )
+
+    ' 4: the X -- pressed, slid off, released: nothing; then a real click: the cancel id
+    b = NewBox( h, MBX_BTN_YESNO ) : d = tkMessageBox_GetSurface( b )
+    tkMessageBox_GetCloseRect( b, rcX )
+    QButton( d, true, RX( rcX ), RY( rcX ) )
+    QMotion( d, RX( rcX ) - tkHost_Scale( h, 120 ), RY( rcX ) + tkHost_Scale( h, 60 ) )
+    QButton( d, false, RX( rcX ) - tkHost_Scale( h, 120 ), RY( rcX ) + tkHost_Scale( h, 60 ) )
+    QKey( d, SDLK_TAB )                     ' Yes -> No: proves the box was still running
+    QKey( d, SDLK_RETURN )
+    tkTest_Check( "4: X slid off does nothing; Tab moves on, Enter presses the FOCUSED button", tkMessageBox_DoModal( b ) = MBX_IDNO )
+    b = NewBox( h, MBX_BTN_YESNO ) : d = tkMessageBox_GetSurface( b )
+    tkMessageBox_GetCloseRect( b, rcX )
+    QClick( d, RX( rcX ), RY( rcX ) )
+    tkTest_Check( "4: a click on the X returns the cancel id (YESNO: IDNO)", tkMessageBox_DoModal( b ) = MBX_IDNO )
+
+    ' 5: Enter goes to the focused button -- the default unless SetFocusButton moved it
+    b = NewBox( h ) : d = tkMessageBox_GetSurface( b )
+    QKey( d, SDLK_RETURN )
+    tkTest_Check( "5: Enter presses the default (Save = IDYES)", tkMessageBox_DoModal( b ) = MBX_IDYES )
+    b = NewBox( h ) : d = tkMessageBox_GetSurface( b )
+    tkMessageBox_SetFocusButton( b, 2 )
+    QKey( d, SDLK_SPACE )
+    tkTest_Check( "5: focus split: Space presses Cancel, not the default", tkMessageBox_DoModal( b ) = MBX_IDCANCEL )
+    b = NewBox( h ) : d = tkMessageBox_GetSurface( b )
+    QKey( d, SDLK_TAB, SDL_KMOD_LSHIFT )
+    QKey( d, SDLK_RETURN )
+    tkTest_Check( "5: Shift+Tab wraps Save -> Cancel", tkMessageBox_DoModal( b ) = MBX_IDCANCEL )
+
+    ' 6: a vetoed press on the X does nothing (the callback may suppress a DOWN)
+    b = NewBox( h ) : d = tkMessageBox_GetSurface( b )
+    tkMessageBox_SetMessageCallback( b, @OnMsg )
+    gVetoDown = 1
+    tkMessageBox_GetCloseRect( b, rcX )
+    QClick( d, RX( rcX ), RY( rcX ) )
+    QKey( d, SDLK_RETURN )
+    tkTest_Check( "6: a vetoed press on the X does not close", tkMessageBox_DoModal( b ) = MBX_IDYES )
+    gVetoDown = 0
+
+    ' 7: QUIT ends the box (0) and is re-posted
+    b = NewBox( h )
+    dim as SDL_Event q
+    q.type = SDL_EVENT_QUIT
+    SDL_PushEvent( @q )
+    tkTest_Check( "7: QUIT ends the box with 0", tkMessageBox_DoModal( b ) = 0 )
+    tkTest_Check( "7: ...and is re-posted", SDL_HasEvent( SDL_EVENT_QUIT ) )
+    SDL_FlushEvent( SDL_EVENT_QUIT )
+    h->bQuit = false
+
+    ' ---- F: rescale --------------------------------------------------------------------------------
+    b = NewBox( h )
+    dim as long w0, h0, w1, h1
+    tkMessageBox_GetIdealSize( b, w0, h0 )
+    h->fScaleForced = fScale * 2
+    tkMessageBox_GetSurface( b )->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkTest_PushWindowEvent( tkMessageBox_GetSurface( b ), SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkMessageBox_GetIdealSize( b, w1, h1 )
+    tkTest_Check( "rescale: ideal height ~ x2", (h1 > h0 * 1.85) andalso (h1 < h0 * 2.15), h0 & " -> " & h1 )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkMessageBox_Destroy( b )
+    tkHost_Pump( h )
+
+    tkHost_Destroy( h )
+end sub
+
+
+' ==========================================================================================
+if tkTest_Init() = false then end 99
+
+RunPure()
+RunPass( 1.0 )
+RunPass( 1.75 )
+
+tkTest_Begin( "cross-pass" )
+tkTest_Check( "ideal width scales with the scale", (gIdealW(0) > 0) andalso (gIdealW(1) > gIdealW(0) * 1.6) andalso (gIdealW(1) < gIdealW(0) * 1.9), gIdealW(0) & " -> " & gIdealW(1) )
+dim as long nFail = tkTest_Report( "tkMessageBox" )
+tkTest_Quit()
+end nFail

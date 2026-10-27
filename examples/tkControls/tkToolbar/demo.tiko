@@ -1,0 +1,283 @@
+' tkToolbar demo: the Win32 demo's two bars (tiko-lang/examples/PsControls/PsToolbar/frmMain.tiko)
+' -- the main bar with every kind (commands, an image item, a split with its menu, a disabled
+' item, a latched toggle, a CONTROL cell, a right-gravity dropdown and settings) and a second
+' bar of a radio group plus a toggle drawn by the host's own painter -- and two plain buttons
+' for the toolbar to lose hover to. Drag the window narrower to watch the overflow chevron.
+' The Win32 CONTROL cell held an EDIT; tkControls has no text box in this batch, so the cell
+' holds a tkButton (any widget created as a child of the toolbar works the same way).
+'
+'   demo                     interactive
+'   demo --shot out.bmp      render once (narrowed so the overflow shows), save, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkToolbar"
+#import "vendor/tkControls/tkButton"
+using tkToolbar
+using tkPopupMenu
+using tkButton
+using tkTooltip
+using tkImage
+using tkHost
+using tkPaint
+
+enum
+    IDM_NEW = 1001, IDM_OPEN, IDM_SAVE, IDM_BUILD, IDM_RUN, IDM_STOP, IDM_WORDWRAP, IDM_HELP, IDM_SETTINGS
+    IDM_RUN_DEBUG = 1101, IDM_RUN_RELEASE, IDM_RUN_PROFILE, IDM_HELP_INDEX, IDM_HELP_ABOUT
+    IDM_ALIGNLEFT = 1201, IDM_ALIGNCENTER, IDM_ALIGNRIGHT, IDM_BOLD
+end enum
+const as long GROUP_ALIGN = 1
+
+' The Win32 demo's THEME_TYPE, value for value.
+const as ulong T_FORE = &hFFBEC4CEul, T_BACK = &hFF21252Bul, T_PANEL = &hFF1E2227ul
+const as ulong T_BACKHOT = &hFF2C313Aul, T_FORESEL = &hFFFFFFFFul, T_BACKSEL = &hFF264F78ul
+const as ulong T_FOCUS = &hFF569CD6ul, T_DIM = &hFF5A606Aul
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gMain, gCustom, gPlain1, gPlain2, gSearch
+dim shared as TTF_Font ptr gFont10, gGlyph12, gGlyph9
+
+private function BarName( byval h as TK_WIDGET ptr ) as string
+    return iif( h = gMain, "main  ", "custom" )
+end function
+
+sub OnClick( byval h as TK_WIDGET ptr, byval idx as long, byval id as long )
+    print BarName( h ) & " click   idx=" & idx & " id=" & id
+end sub
+
+sub OnSel( byval h as TK_WIDGET ptr, byval idx as long, byval isSelected as boolean )
+    print BarName( h ) & " toggle  idx=" & idx & " selected=" & isSelected
+end sub
+
+' The just-in-time hook: an item's menu is rebuilt from the opening edge.
+sub OnDrop( byval h as TK_WIDGET ptr, byval idx as long, byval m as TK_MENU ptr, byval isOpen as boolean )
+    print BarName( h ) & " menu    idx=" & idx & iif( isOpen, " open", " closed" )
+    if (isOpen = false) orelse (idx = -1) then exit sub
+    select case tkToolbar_GetItemID( h, idx )
+    case IDM_RUN
+        tkPopupMenu_Clear( m )
+        tkPopupMenu_AddItem( m, IDM_RUN_DEBUG, "Run in Debugger", "F5" )
+        tkPopupMenu_AddItem( m, IDM_RUN_RELEASE, "Run Release", "Ctrl+F5" )
+        tkPopupMenu_AddSeparator( m )
+        tkPopupMenu_AddItem( m, IDM_RUN_PROFILE, "Run with Profiler" )
+    case IDM_HELP
+        tkPopupMenu_Clear( m )
+        tkPopupMenu_AddItem( m, IDM_HELP_INDEX, "Help Index", "F1" )
+        tkPopupMenu_AddSeparator( m )
+        tkPopupMenu_AddItem( m, IDM_HELP_ABOUT, "About..." )
+    end select
+end sub
+
+sub OnMenuSelect( byval m as TK_MENU ptr, byval id as long )
+    print "menu command: id=" & id
+end sub
+
+function OnTip( byval h as TK_WIDGET ptr, byval idx as long ) as ustring
+    dim as ustring s = tkToolbar_GetText( h, idx )
+    if len( s ) then return s & " (id " & tkToolbar_GetItemID( h, idx ) & ")"
+    return ""
+end function
+
+sub OnPlain( byval hButton as TK_WIDGET ptr, byval id as long )
+    print "plain button " & id & " clicked"
+end sub
+
+sub OnSearch( byval hButton as TK_WIDGET ptr, byval id as long )
+    print "search cell clicked (a child widget in a CONTROL cell)"
+end sub
+
+' The second bar's own painter: a compact pill, an accent outline when selected.
+sub CustomPaint( byval p as TKTOOLBAR_PAINTINFO ptr )
+    dim as TK_PAINT ptr b = p->b
+    b->SetBackColor( T_BACK )
+    b->PaintRect( @p->rc )
+    if p->itemKind = TBR_KIND_SEPARATOR then
+        b->SetBackColor( T_DIM )
+        b->PaintRect( @p->rcIcon )
+        exit sub
+    end if
+    dim as ulong clrBack = T_BACK, clrFore = T_FORE
+    select case p->nMood
+    case TBR_MOOD_DISABLED : clrFore = T_DIM
+    case TBR_MOOD_PRESSED : clrBack = T_FOCUS : clrFore = T_FORESEL
+    case TBR_MOOD_HOT : clrBack = T_BACKHOT : clrFore = T_FORESEL
+    case else
+        if p->isSelected then clrBack = T_BACKSEL : clrFore = T_FORESEL
+    end select
+    dim as TKRECT rcPill = p->rc
+    tkRect_Inflate( rcPill, -tkHost_Scale( gHost, 2 ), -tkHost_Scale( gHost, 3 ) )
+    if (p->nMood <> TBR_MOOD_IDLE) orelse p->isSelected then
+        b->SetBackColor( clrBack )
+        b->PaintRoundRect( @rcPill, tkHost_Scale( gHost, 10 ) )
+    end if
+    if p->isSelected then
+        b->SetPenColor( T_FOCUS )
+        b->PaintRoundOutline( @rcPill, tkHost_Scale( gHost, 10 ), 1 )
+    end if
+    b->SetColors( clrFore, clrBack )
+    if len( p->wszGlyph ) then
+        b->SetFont( gGlyph12 )
+        b->PaintText( p->wszGlyph, @p->rcIcon, TK_DT_CENTER )
+    end if
+    if len( p->wszText ) then
+        b->SetFont( gFont10 )
+        b->PaintText( p->wszText, @p->rcText, TK_DT_LEFT or TK_DT_ELLIPSIS )
+    end if
+    if tkRect_IsEmpty( p->rcChevron ) = false then
+        b->SetFont( gGlyph9 )
+        b->PaintText( wchr( TK_ICON_CHEVRON_DOWN ), @p->rcChevron, TK_DT_CENTER )
+    end if
+end sub
+
+private sub MakeSampleIcon( byref path as string )
+    dim as SDL_Surface ptr s = SDL_CreateSurface( 32, 32, SDL_PIXELFORMAT_ARGB8888 )
+    if s = 0 then exit sub
+    for y as long = 0 to 31
+        dim as ulong ptr row = cast( ulong ptr, cast( ubyte ptr, s->pixels ) + y * s->pitch )
+        for x as long = 0 to 31
+            row[x] = iif( (((x \ 8) + (y \ 8)) and 1), &hFFEE9933ul, &hFF3399EEul )
+        next
+    next
+    SDL_SaveBMP( s, strptr( path ) )
+    SDL_DestroySurface( s )
+end sub
+
+sub BuildMainToolbar( byval t as TK_WIDGET ptr, byref iconPath as string )
+    dim as long idx
+    tkToolbar_AddItem( t, TBR_KIND_COMMAND, wchr( TK_ICON_DOCUMENT ), "New", IDM_NEW )
+    tkToolbar_AddItem( t, TBR_KIND_COMMAND, wchr( TK_ICON_OPEN ), "Open", IDM_OPEN )
+    tkToolbar_AddItem( t, TBR_KIND_COMMAND, wchr( TK_ICON_SAVE ), "Save", IDM_SAVE )
+    idx = tkToolbar_AddItem( t, TBR_KIND_COMMAND, "", "Image", IDM_OPEN )
+    tkToolbar_SetItemImage( t, idx, iconPath )
+    tkToolbar_SetTooltipText( t, idx, "An image icon" )
+    tkToolbar_AddSeparator( t )
+    idx = tkToolbar_AddItem( t, TBR_KIND_COMMAND, wchr( TK_ICON_WRENCH ), "", IDM_BUILD )
+    tkToolbar_SetTooltipText( t, idx, "Build the project" )
+    idx = tkToolbar_AddItem( t, TBR_KIND_SPLIT, wchr( TK_ICON_PLAY ), "Run", IDM_RUN )
+    tkToolbar_SetTooltipText( t, idx, "Run (click the chevron for options)" )
+    tkToolbar_SetItemForeColor( t, idx, tkRGB( 120, 200, 120 ) )
+    idx = tkToolbar_AddItem( t, TBR_KIND_COMMAND, wchr( TK_ICON_STOP ), "Stop", IDM_STOP )
+    tkToolbar_SetEnabled( t, idx, false )
+    tkToolbar_AddSeparator( t )
+    idx = tkToolbar_AddItem( t, TBR_KIND_TOGGLE, wchr( TK_ICON_WRAP ), "Wrap", IDM_WORDWRAP )
+    tkToolbar_SetSelected( t, idx, true )
+    ' a CONTROL cell: a widget created as a CHILD OF THE TOOLBAR
+    gSearch = tkButton_Create( t, 2001 )
+    tkButton_SetFont( gSearch, gFont10 )
+    tkButton_SetText( gSearch, "search..." )
+    tkButton_SetTextAlign( gSearch, BTN_ALIGN_LEFT )
+    tkButton_SetClickCallback( gSearch, @OnSearch )
+    tkToolbar_AddControl( t, gSearch, tkHost_Scale( gHost, 150 ), tkHost_Scale( gHost, 26 ) )
+    idx = tkToolbar_AddItem( t, TBR_KIND_DROPDOWN, wchr( TK_ICON_HELP ), "Help", IDM_HELP )
+    tkToolbar_SetItemGravity( t, idx, TBR_GRAVITY_RIGHT )
+    idx = tkToolbar_AddItem( t, TBR_KIND_COMMAND, wchr( TK_ICON_SETTINGS ), "", IDM_SETTINGS )
+    tkToolbar_SetItemGravity( t, idx, TBR_GRAVITY_RIGHT )
+    tkToolbar_SetTooltipText( t, idx, "Settings" )
+end sub
+
+sub BuildCustomToolbar( byval t as TK_WIDGET ptr )
+    dim as long idx
+    idx = tkToolbar_AddItem( t, TBR_KIND_TOGGLE, wchr( TK_ICON_ALIGN_LEFT ), "Left", IDM_ALIGNLEFT )
+    tkToolbar_SetItemGroupID( t, idx, GROUP_ALIGN )
+    tkToolbar_SetSelected( t, idx, true )
+    idx = tkToolbar_AddItem( t, TBR_KIND_TOGGLE, wchr( TK_ICON_ALIGN_CENTER ), "Center", IDM_ALIGNCENTER )
+    tkToolbar_SetItemGroupID( t, idx, GROUP_ALIGN )
+    idx = tkToolbar_AddItem( t, TBR_KIND_TOGGLE, wchr( TK_ICON_ALIGN_RIGHT ), "Right", IDM_ALIGNRIGHT )
+    tkToolbar_SetItemGroupID( t, idx, GROUP_ALIGN )
+    tkToolbar_AddSeparator( t )
+    tkToolbar_AddItem( t, TBR_KIND_TOGGLE, wchr( TK_ICON_BOLD ), "Bold", IDM_BOLD )
+end sub
+
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long pw, ph, nW, nH1, nH2
+    tkHost_PixelSize( h, pw, ph )
+    tkToolbar_GetIdealSize( gMain, nW, nH1 )
+    tkToolbar_GetIdealSize( gCustom, nW, nH2 )
+    dim as long y = 0
+    tkWidget_SetPos( gMain, 0, y, pw, nH1 )
+    y += nH1 + tkHost_Scale( h, 8 )
+    tkWidget_SetPos( gCustom, 0, y, pw, nH2 )
+    y += nH2 + tkHost_Scale( h, 16 )
+    dim as long bw = tkHost_Scale( h, 120 ), bh = tkHost_Scale( h, 28 ), bx = tkHost_Scale( h, 12 )
+    tkWidget_SetPos( gPlain1, bx, y, bw, bh )
+    tkWidget_SetPos( gPlain2, bx + bw + tkHost_Scale( h, 12 ), y, bw, bh )
+end sub
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr s = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if s then
+        SDL_SaveBMP( s, strptr( path ) )
+        print "shot: " & path & "  " & s->w & "x" & s->h & "  scale=" & gHost->fScale
+        SDL_DestroySurface( s )
+    end if
+end sub
+
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkToolbar on SDL3", 980, 320, tkHost_FontDir() & TK_FONT_UI, forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = T_PANEL
+gFont10 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 10 )
+gGlyph12 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_ICONS, 12 )
+gGlyph9 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_ICONS, 9 )
+if (gFont10 = 0) orelse (gGlyph12 = 0) then print "fonts: " & *SDL_GetError() : end 1
+tkTooltip_SetDefaultFonts( gFont10 )
+
+dim as string iconPath = exepath() & "/sample_icon.bmp"
+MakeSampleIcon( iconPath )
+
+gMain = tkToolbar_Create( tkHost_Root( gHost ), 100 )
+gCustom = tkToolbar_Create( tkHost_Root( gHost ), 101 )
+for i as long = 0 to 1
+    dim as TK_WIDGET ptr t = iif( i = 0, gMain, gCustom )
+    tkToolbar_SetTextFont( t, gFont10 )
+    tkToolbar_SetGlyphFont( t, gGlyph12 )
+    tkToolbar_SetTooltipCallback( t, @OnTip )
+    tkToolbar_SetClickCallback( t, @OnClick )
+    tkToolbar_SetSelChangeCallback( t, @OnSel )
+    tkToolbar_SetDropDownCallback( t, @OnDrop )
+next
+BuildMainToolbar( gMain, iconPath )
+BuildCustomToolbar( gCustom )
+tkPopupMenu_SetSelectCallback( tkToolbar_GetItemMenu( gMain, tkToolbar_FindItemByID( gMain, IDM_RUN ) ), @OnMenuSelect )
+tkPopupMenu_SetSelectCallback( tkToolbar_GetItemMenu( gMain, tkToolbar_FindItemByID( gMain, IDM_HELP ) ), @OnMenuSelect )
+tkToolbar_SetPaintItemCallback( gCustom, @CustomPaint )
+
+gPlain1 = tkButton_Create( tkHost_Root( gHost ), 3001 )
+gPlain2 = tkButton_Create( tkHost_Root( gHost ), 3002 )
+tkButton_SetFont( gPlain1, gFont10 ) : tkButton_SetText( gPlain1, "Plain Button 1" )
+tkButton_SetFont( gPlain2, gFont10 ) : tkButton_SetText( gPlain2, "Plain Button 2" )
+tkButton_SetClickCallback( gPlain1, @OnPlain ) : tkButton_SetClickCallback( gPlain2, @OnPlain )
+
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+dim as long iw, ih
+tkToolbar_GetIdealSize( gMain, iw, ih )
+print "main bar ideal: " & iw & "x" & ih
+tkHost_Show( gHost )
+
+dim as string shot = ArgValue( "--shot" )
+if len( shot ) then
+    ' the main bar at 60% of the window, so the overflow chevron is in the picture
+    tkHost_Pump( gHost )
+    tkWidget_SetSize( gMain, (gMain->cw * 6) \ 10, gMain->ch )
+    SaveShot( shot )
+else
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

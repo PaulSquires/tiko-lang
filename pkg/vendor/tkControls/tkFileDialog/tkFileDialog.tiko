@@ -1,0 +1,265 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkFileDialog -- the OS's open / save / folder dialogs (SDL_ShowOpenFileDialog and friends) as a
+' callback on the UI thread, or as a call that waits. Win32 had GetOpenFileName / IFileOpenDialog,
+' which block; SDL's dialogs are ASYNCHRONOUS and may answer ON ANOTHER THREAD (the portal's on
+' Linux, a worker on Windows).
+'
+' SO THE ANSWER CROSSES A THREAD. SDL's callback touches no tiko string: it copies the paths into
+' one SDL_malloc'd block, sets an atomic, and -- for the callback form -- pushes an SDL user event
+' carrying the request. tkHost's event hook (tkHost_AddEventHook) turns that event, on the UI
+' thread, into the caller's callback with an Array( of ustring ). The waiting form pumps the
+' owner's loop until the atomic says answered, as tpad did by hand.
+'
+' FILTERS are one string, Win32's shape: "Tiko source|*.tiko;*.ti|All files|*.*". SDL wants bare
+' extensions ("tiko;ti") and "*" for all; the conversion is here.
+'
+' A TEST DRIVER (tkFileDialog_SetDriver) replaces the native dialog: it receives what SDL would
+' and answers through the same callback, from any thread. That is the whole seam the self-test
+' needs; the native dialogs themselves are the interactive checklist's.
+#module "tkFileDialog"
+
+#import "std/containers"
+#import "../tkHost" public
+using containers
+using tkHost
+
+public const TKFD_OPEN = 0
+public const TKFD_SAVE = 1
+public const TKFD_FOLDER = 2
+
+' The answer: paths (empty = cancelled), the filter the user chose (-1 when none), bError when the
+' dialog could not be shown at all (tkFileDialog_LastError says why).
+public type TKFD_ResultSub as sub( byval owner as TK_HOST ptr, byref paths as Array( of ustring ), _
+                                   byval filterIndex as long, byval bError as boolean, byval user as any ptr )
+
+' What SDL's Show* receive. A driver answers by calling cb( userdata, list, filter ), list
+' NULL-terminated (an empty list = cancelled, a NULL list = an error), from any thread.
+public type TKFD_DriverSub as sub( byval kind as long, byval cb as SDL_DialogFileCallback, byval userdata as any ptr, _
+                                   byval win as SDL_Window ptr, byval filters as const SDL_DialogFileFilter ptr, _
+                                   byval nFilters as long, byval defaultLocation as const zstring ptr, byval allowMany as boolean )
+
+type TKFD_REQUEST
+    kind      as long
+    owner     as TK_HOST ptr
+    cb        as TKFD_ResultSub
+    user      as any ptr
+    bWait     as boolean
+    ' kept alive until SDL answers: SDL reads the filters while the dialog is up
+    names( 0 to 15 )    as string
+    patterns( 0 to 15 ) as string
+    filters( 0 to 15 )  as SDL_DialogFileFilter
+    nFilters  as long
+    sDefault  as string
+    ' the answer, written on SDL's thread: no tiko string there
+    state     as SDL_AtomicInt              ' 0 waiting, 1 answered
+    blob      as ubyte ptr                  ' the paths, NUL-separated, SDL_malloc'd
+    nPaths    as long
+    filter    as long
+    bError    as boolean
+end type
+
+dim shared as Uint32 gEvAnswer
+dim shared as TKFD_DriverSub gDriver
+dim shared as string gLastError
+
+public function tkFileDialog_LastError() as string
+    return gLastError
+end function
+
+' Replace the native dialogs (a test). 0 restores them.
+public sub tkFileDialog_SetDriver( byval d as TKFD_DriverSub )
+    gDriver = d
+end sub
+
+' "Name|*.a;*.b|All|*.*" -> the request's filters. Returns how many.
+private function ParseFilters( byval r as TKFD_REQUEST ptr, byref spec as string ) as long
+    dim as string rest = spec
+    dim as long n = 0
+    while (len( rest ) > 0) andalso (n <= ubound( r->filters ))
+        dim as long b1 = instr( rest, "|" )
+        if b1 = 0 then exit while
+        dim as string nm = left( rest, b1 - 1 )
+        rest = mid( rest, b1 + 1 )
+        dim as long b2 = instr( rest, "|" )
+        dim as string pat
+        if b2 then
+            pat = left( rest, b2 - 1 ) : rest = mid( rest, b2 + 1 )
+        else
+            pat = rest : rest = ""
+        end if
+        ' "*.tiko;*.ti" -> "tiko;ti"; "*.*" or "*" -> "*"
+        dim as string outp = ""
+        dim as string p = pat
+        while len( p )
+            dim as long sc = instr( p, ";" )
+            dim as string one
+            if sc then
+                one = trim( left( p, sc - 1 ) ) : p = mid( p, sc + 1 )
+            else
+                one = trim( p ) : p = ""
+            end if
+            if (one = "*.*") orelse (one = "*") then
+                one = "*"
+            elseif left( one, 2 ) = "*." then
+                one = mid( one, 3 )
+            elseif left( one, 1 ) = "." then
+                one = mid( one, 2 )
+            end if
+            if len( one ) then
+                if len( outp ) then outp &= ";"
+                outp &= one
+            end if
+        wend
+        if len( outp ) = 0 then continue while
+        r->names(n) = nm
+        r->patterns(n) = outp
+        r->filters(n).name = strptr( r->names(n) )
+        r->filters(n).pattern = strptr( r->patterns(n) )
+        n += 1
+    wend
+    r->nFilters = n
+    return n
+end function
+
+' SDL's callback: ANY THREAD. Plain memory only.
+private sub Answered( byval userdata as any ptr, byval filelist as const zstring const ptr ptr, byval filter as long )
+    dim as TKFD_REQUEST ptr r = userdata
+    if r = 0 then exit sub
+    r->filter = filter
+    if filelist = 0 then
+        r->bError = true
+    else
+        dim as long total = 0, n = 0
+        while filelist[n] <> 0
+            total += SDL_strlen( filelist[n] ) + 1
+            n += 1
+        wend
+        if n > 0 then
+            r->blob = SDL_malloc( total )
+            dim as long at = 0
+            for i as long = 0 to n - 1
+                dim as long l = SDL_strlen( filelist[i] )
+                SDL_memcpy( r->blob + at, filelist[i], l + 1 )
+                at += l + 1
+            next
+        end if
+        r->nPaths = n
+    end if
+    SDL_SetAtomicInt( @r->state, 1 )
+    if r->bWait = false then
+        dim as SDL_Event e
+        e.type = gEvAnswer
+        e.user.data1 = r
+        SDL_PushEvent( @e )
+    end if
+end sub
+
+' The answer's paths, as ustrings (UTF-8 decoded). UI thread.
+private sub TakePaths( byval r as TKFD_REQUEST ptr, byref paths as Array( of ustring ) )
+    paths.Clear()
+    if r->blob = 0 then exit sub
+    dim as long at = 0
+    for i as long = 0 to r->nPaths - 1
+        dim as zstring ptr z = cast( zstring ptr, r->blob + at )
+        dim as ustring u = *z
+        paths.Push( u )
+        at += SDL_strlen( z ) + 1
+    next
+    SDL_free( r->blob )
+    r->blob = 0
+end sub
+
+private function OnEvent( byval e as SDL_Event ptr ) as boolean
+    if (gEvAnswer = 0) orelse (e->type <> gEvAnswer) then return false
+    dim as TKFD_REQUEST ptr r = e->user.data1
+    if r = 0 then return true
+    dim as Array( of ustring ) paths
+    TakePaths( r, paths )
+    if r->bError andalso (len( gLastError ) = 0) then gLastError = *SDL_GetError()
+    if r->cb then r->cb( r->owner, paths, r->filter, r->bError, r->user )
+    delete r
+    return true
+end function
+
+private function Start( byval kind as long, byval owner as TK_HOST ptr, byref filters as string, byref defaultPath as ustring, _
+                        byval allowMany as boolean, byval cb as TKFD_ResultSub, byval user as any ptr, _
+                        byval bWait as boolean ) as TKFD_REQUEST ptr
+    gLastError = ""
+    if gEvAnswer = 0 then
+        gEvAnswer = SDL_RegisterEvents( 1 )
+        tkHost_AddEventHook( @OnEvent )
+    end if
+    dim as TKFD_REQUEST ptr r = new TKFD_REQUEST
+    r->kind = kind : r->owner = owner : r->cb = cb : r->user = user : r->bWait = bWait
+    r->filter = -1
+    SDL_SetAtomicInt( @r->state, 0 )
+    if kind <> TKFD_FOLDER then ParseFilters( r, filters )
+    r->sDefault = defaultPath
+    dim as const zstring ptr pDef = 0
+    if len( r->sDefault ) then pDef = strptr( r->sDefault )
+    dim as const SDL_DialogFileFilter ptr pF = 0
+    if r->nFilters > 0 then pF = @r->filters(0)
+    dim as SDL_Window ptr win = 0
+    if owner then win = owner->win
+    if gDriver then
+        gDriver( kind, @Answered, r, win, pF, r->nFilters, pDef, allowMany )
+    else
+        select case kind
+        case TKFD_OPEN : SDL_ShowOpenFileDialog( @Answered, r, win, pF, r->nFilters, pDef, allowMany )
+        case TKFD_SAVE : SDL_ShowSaveFileDialog( @Answered, r, win, pF, r->nFilters, pDef )
+        case else : SDL_ShowOpenFolderDialog( @Answered, r, win, pDef, allowMany )
+        end select
+    end if
+    return r
+end function
+
+' Show a dialog; cb( owner, paths, filterIndex, bError, user ) runs ON THE UI THREAD when the user
+' answers, from whichever loop is pumping. Returns at once.
+public sub tkFileDialog_Show( byval kind as long, byval owner as TK_HOST ptr, byref filters as string, _
+                              byref defaultPath as ustring, byval allowMany as boolean, _
+                              byval cb as TKFD_ResultSub, byval user as any ptr = 0 )
+    Start( kind, owner, filters, defaultPath, allowMany, cb, user, false )
+end sub
+
+' Show a dialog and wait, pumping the application's loop, for the answer. TRUE with paths when the
+' user picked something; FALSE when cancelled, or on an error (tkFileDialog_LastError).
+public function tkFileDialog_Wait( byval kind as long, byval owner as TK_HOST ptr, byref filters as string, _
+                                   byref defaultPath as ustring, byval allowMany as boolean, _
+                                   byref paths as Array( of ustring ) ) as boolean
+    dim as TKFD_REQUEST ptr r = Start( kind, owner, filters, defaultPath, allowMany, 0, 0, true )
+    while SDL_GetAtomicInt( @r->state ) = 0
+        tkHost_Pump( owner )
+        SDL_Delay( 10 )
+    wend
+    TakePaths( r, paths )
+    dim as boolean bErr = r->bError
+    if bErr andalso (len( gLastError ) = 0) then gLastError = *SDL_GetError()
+    delete r
+    return (bErr = false) andalso (paths.Count() > 0)
+end function
+
+' One file to open, "" when cancelled.
+public function tkFileDialog_OpenFile( byval owner as TK_HOST ptr, byref filters as string, byref defaultPath as ustring = "" ) as ustring
+    dim as Array( of ustring ) p
+    if tkFileDialog_Wait( TKFD_OPEN, owner, filters, defaultPath, false, p ) then return p.At( 0 )
+    return ""
+end function
+
+' Where to save, "" when cancelled.
+public function tkFileDialog_SaveFile( byval owner as TK_HOST ptr, byref filters as string, byref defaultPath as ustring = "" ) as ustring
+    dim as Array( of ustring ) p
+    if tkFileDialog_Wait( TKFD_SAVE, owner, filters, defaultPath, false, p ) then return p.At( 0 )
+    return ""
+end function
+
+' A folder, "" when cancelled.
+public function tkFileDialog_PickFolder( byval owner as TK_HOST ptr, byref defaultPath as ustring = "" ) as ustring
+    dim as Array( of ustring ) p
+    if tkFileDialog_Wait( TKFD_FOLDER, owner, "", defaultPath, false, p ) then return p.At( 0 )
+    return ""
+end function

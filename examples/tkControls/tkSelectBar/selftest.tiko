@@ -1,0 +1,465 @@
+' tkSelectBar self-test. Real windows, real SDL event queue: every input claim is made by
+' PUSHING the SDL event a user would have produced and pumping the host. Two passes, scale
+' pinned at 1.0 and at 1.75.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkSelectBar"
+#import "vendor/tkControls/tkTest"
+using tkSelectBar
+using tkTooltip
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+const as long NPANELS = 5
+dim shared as string gText(0 to NPANELS - 1)
+dim shared as long gChanges, gOld, gNew
+dim shared as TK_WIDGET ptr gChangeBar
+dim shared as long gMsgs, gLastMsg, gLastIdx, gLastClicks
+dim shared as boolean gSuppressDown, gSuppressUp
+dim shared as long gTipCalls, gTipIdx
+dim shared as long gIdealW(0 to 1)
+
+sub OnChange( byval hBar as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long )
+    gChanges += 1
+    gOld = idxOld : gNew = idxNew
+    gChangeBar = hBar
+    ' The state is already updated when this fires.
+    if tkSelectBar_GetCurSel( hBar ) <> idxNew then gChanges += 1000
+end sub
+
+function OnMessage( byval m as TKSELECTBAR_MESSAGEINFO ptr ) as boolean
+    gMsgs += 1
+    gLastMsg = m->msg : gLastIdx = m->idx : gLastClicks = m->clicks
+    if gSuppressDown andalso (m->msg = TKM_LBUTTONDOWN) then return true
+    if gSuppressUp andalso (m->msg = TKM_LBUTTONUP) then return true
+    return false
+end function
+
+function OnTip( byval hBar as TK_WIDGET ptr, byval idx as long ) as ustring
+    gTipCalls += 1
+    gTipIdx = idx
+    return "tip for " & idx
+end function
+
+' Window-pixel centre of a panel's cell.
+function PX( byval bar as TK_WIDGET ptr, byval idx as long ) as single
+    dim as TKRECT rc, a
+    tkSelectBar_GetPanelRect( bar, idx, rc )
+    tkWidget_AbsRect( bar, a )
+    return a.left + (rc.left + rc.right) / 2
+end function
+
+function PY( byval bar as TK_WIDGET ptr ) as single
+    return tkTest_CY( bar )
+end function
+
+' Pump real time until the tip is (or is not) visible. While waiting for it to SHOW, the cursor
+' is re-asserted at (hx, hy) now and then: a compositor can deliver a real leave/enter (a popup
+' mapping or unmapping, measured under WSLg) AFTER a synthetic hover, which takes hot off the
+' bar; a real user's pointer, resting there, would produce the motion that puts it back.
+function WaitTip( byval h as TK_HOST ptr, byval bar as TK_WIDGET ptr, byval want as boolean, byval ms as long, _
+                  byval hx as single = -1, byval hy as single = -1 ) as boolean
+    dim as double t0 = timer, tPush = timer
+    dim as SDL_Event e
+    while (timer - t0) * 1000 < ms
+        if SDL_WaitEventTimeout( @e, 20 ) then tkHost_Dispatch( h, @e )
+        if h->bDirty then tkHost_Render( h )
+        if tkTooltip_IsVisible( tkSelectBar_GetTooltipHandle( bar ) ) = want then return true
+        if want andalso (hx >= 0) andalso ((timer - tPush) * 1000 > 150) then
+            tPush = timer
+            tkTest_PushMotion( h, hx, hy )
+        end if
+    wend
+    return false
+end function
+
+' Every panel's three rects against the README's formulas.
+function LayoutMatches( byval bar as TK_WIDGET ptr, byval f as TTF_Font ptr, byval padL0 as long, byref why as string ) as boolean
+    dim as long pl, pr, thick, gap
+    tkSelectBar_GetPadding( bar, pl, pr )
+    tkSelectBar_GetIndicator( bar, thick, gap )
+    dim as long textH = tkText_Height( f )
+    dim as long clientH = bar->ch
+    dim as long blockTop = (clientH - (textH + gap + thick)) \ 2
+    dim as long x = 0
+    for i as long = 0 to tkSelectBar_GetCount( bar ) - 1
+        dim as long padL = iif( i = 0, padL0, pl )
+        dim as long tw = tkText_Width( f, tkSelectBar_GetText( bar, i ) )
+        dim as long cell = padL + tw + pr
+        dim as TKRECT rc, rt, ri
+        tkSelectBar_GetPanelRect( bar, i, rc )
+        tkSelectBar_GetPanelTextRect( bar, i, rt )
+        tkSelectBar_GetPanelIndicatorRect( bar, i, ri )
+        if (rc.left <> x) orelse (rc.top <> 0) orelse (rc.right <> x + cell) orelse (rc.bottom <> clientH) then
+            why = "rc(" & i & ")=" & tkRect_Str( rc ) : return false
+        end if
+        if (rt.left <> x + padL) orelse (rt.top <> blockTop) orelse (rt.right <> x + padL + tw) orelse (rt.bottom <> blockTop + textH) then
+            why = "rcText(" & i & ")=" & tkRect_Str( rt ) & " want top " & blockTop : return false
+        end if
+        if (ri.left <> rt.left) orelse (ri.right <> rt.right) orelse (ri.top <> rt.bottom + gap) orelse (ri.bottom <> rt.bottom + gap + thick) then
+            why = "rcInd(" & i & ")=" & tkRect_Str( ri ) : return false
+        end if
+        x += cell
+    next
+    why = "ideal " & x
+    return x = tkSelectBar_GetIdealWidth( bar )
+end function
+
+' ==========================================================================================
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkSelectBar selftest", 900, 400, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    tkTest_Check( "scale pinned", h->fScale = fScale, "" & h->fScale )
+    dim as TTF_Font ptr fText = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
+    tkTest_Check( "font opened", fText <> 0 )
+
+    ' ---- A: build, before sizing -----------------------------------------------------------
+    gChanges = 0
+    dim as TK_WIDGET ptr bar = tkSelectBar_Create( tkHost_Root( h ), 201 )
+    tkSelectBar_SetFont( bar, fText )
+    tkSelectBar_SetSelChangeCallback( bar, @OnChange )
+    tkSelectBar_SetMessageCallback( bar, @OnMessage )
+    tkSelectBar_SetTooltipCallback( bar, @OnTip )
+    tkTest_Check( "empty: GetCurSel -1", tkSelectBar_GetCurSel( bar ) = -1 )
+    for i as long = 0 to NPANELS - 1
+        dim as long idx = tkSelectBar_AddPanel( bar, gText(i), 100 + i, 1000 + i )
+        if idx <> i then tkTest_Check( "AddPanel returns its index", false, "" & idx )
+    next
+    tkTest_Check( "first panel auto-current, silently", tkSelectBar_GetCurSel( bar ) = 0 andalso gChanges = 0 )
+    tkTest_Check( "count / id / itemData", tkSelectBar_GetCount( bar ) = NPANELS andalso tkSelectBar_GetPanelID( bar, 3 ) = 103 _
+                  andalso tkSelectBar_GetItemData( bar, 4 ) = 1004 andalso tkSelectBar_FindPanelByID( bar, 102 ) = 2 _
+                  andalso tkSelectBar_FindPanelByID( bar, 999 ) = -1 )
+    tkTest_Check( "invalid index answers", tkSelectBar_GetText( bar, 9 ) = "" andalso tkSelectBar_SetText( bar, -1, "x" ) = false _
+                  andalso tkSelectBar_IsValidPanel( bar, NPANELS ) = false )
+    tkSelectBar_SetTooltipText( bar, 0, "own tip" )
+    dim as long padL0 = tkHost_Scale( h, 20 )
+    tkSelectBar_SetPanelPadding( bar, 0, padL0, -1 )
+    tkTest_Check( "SetEnabled(2,false)", tkSelectBar_SetEnabled( bar, 2, false ) )
+
+    dim as long pl, pr, thick, gap
+    tkSelectBar_GetPadding( bar, pl, pr )
+    tkSelectBar_GetIndicator( bar, thick, gap )
+    tkTest_Check( "defaults scaled at create", pl = cint( 12 * fScale ) andalso pr = cint( 12 * fScale ) _
+                  andalso thick = cint( 2 * fScale ) andalso gap = cint( 4 * fScale ), pl & " " & pr & " " & thick & " " & gap )
+
+    dim as long expIdeal = padL0 + pr
+    for i as long = 1 to NPANELS - 1
+        expIdeal += pl + pr
+    next
+    for i as long = 0 to NPANELS - 1
+        expIdeal += tkText_Width( fText, gText(i) )
+    next
+    dim as long ideal = tkSelectBar_GetIdealWidth( bar )
+    tkTest_Check( "ideal width valid before sizing = sum of cells", ideal = expIdeal andalso ideal > 0, ideal & " vs " & expIdeal )
+    gIdealW(iif( fScale > 1.5, 1, 0 )) = ideal
+    dim as TKRECT rc
+    tkTest_Check( "rect query TRUE but EMPTY before sizing", tkSelectBar_GetPanelRect( bar, 1, rc ) andalso tkRect_IsEmpty( rc ) )
+    tkTest_Check( "rect query FALSE + empty for a bad index", tkSelectBar_GetPanelRect( bar, 7, rc ) = false andalso tkRect_IsEmpty( rc ) )
+    tkTest_Check( "text height is the font's ONE height", tkSelectBar_GetTextHeight( bar ) = tkText_Height( fText ) )
+
+    ' ---- B: sized: every rect against the README ---------------------------------------------
+    dim as long barH = tkHost_Scale( h, 44 )
+    dim as long barX = tkHost_Scale( h, 10 ), barY = tkHost_Scale( h, 10 )
+    tkWidget_SetPos( bar, barX, barY, ideal + tkHost_Scale( h, 40 ), barH )
+    dim as string why
+    tkTest_Check( "layout = README formulas", LayoutMatches( bar, fText, padL0, why ), why )
+    ' The indicator is a LAYOUT input: a thicker line and gap move the TEXT up.
+    dim as TKRECT rt0, rt1
+    tkSelectBar_GetPanelTextRect( bar, 1, rt0 )
+    tkSelectBar_SetIndicator( bar, thick + 6, gap + 4 )
+    tkSelectBar_GetPanelTextRect( bar, 1, rt1 )
+    tkTest_Check( "indicator thickness+gap move the text", rt1.top = (barH - (tkText_Height( fText ) + gap + 4 + thick + 6)) \ 2 _
+                  andalso rt1.top < rt0.top, rt0.top & " -> " & rt1.top )
+    tkTest_Check( "layout = README formulas (fat indicator)", LayoutMatches( bar, fText, padL0, why ), why )
+    tkSelectBar_SetIndicator( bar, thick, gap )
+    tkSelectBar_SetIndicator( bar, -3, -1 )
+    dim as long t2, g2
+    tkSelectBar_GetIndicator( bar, t2, g2 )
+    tkTest_Check( "SetIndicator clamps negatives to 0", t2 = 0 andalso g2 = 0 )
+    tkSelectBar_SetIndicator( bar, thick, gap )
+    ' -1 inherits; below -1 clamps to -1
+    tkSelectBar_SetPanelPadding( bar, 3, -7, tkHost_Scale( h, 30 ) )
+    tkSelectBar_SetPadding( bar, pl, pr )
+    dim as TKRECT r3, rt3
+    tkSelectBar_GetPanelRect( bar, 3, r3 ) : tkSelectBar_GetPanelTextRect( bar, 3, rt3 )
+    tkTest_Check( "per-panel padding: -7 -> inherit left, own right", (rt3.left - r3.left) = pl _
+                  andalso (r3.right - rt3.right) = tkHost_Scale( h, 30 ), tkRect_Str( r3 ) & " " & tkRect_Str( rt3 ) )
+    tkSelectBar_SetPanelPadding( bar, 3, -1, -1 )
+    tkSelectBar_SetPadding( bar, -5, pr )
+    dim as long plx, prx
+    tkSelectBar_GetPadding( bar, plx, prx )
+    tkTest_Check( "SetPadding clamps negatives", plx = 0 andalso prx = pr )
+    tkSelectBar_SetPadding( bar, pl, pr )
+    tkTest_Check( "layout restored", LayoutMatches( bar, fText, padL0, why ), why )
+
+    ' Geometry hit test: disabled included, no client test.
+    dim as TKRECT r2
+    tkSelectBar_GetPanelRect( bar, 2, r2 )
+    tkTest_Check( "HitTest includes a disabled panel", tkSelectBar_HitTest( bar, r2.left, 1 ) = 2 _
+                  andalso tkSelectBar_HitTest( bar, r2.right - 1, barH - 1 ) = 2 andalso tkSelectBar_HitTest( bar, r2.right, 1 ) = 3 )
+    tkTest_Check( "HitTest past the run / below the bar = -1", tkSelectBar_HitTest( bar, ideal + 2, 1 ) = -1 _
+                  andalso tkSelectBar_HitTest( bar, 5, barH ) = -1 )
+
+    ' ---- C: real clicks ----------------------------------------------------------------------
+    tkHost_Pump( h )
+    tkHost_SetFocus( h, 0 )
+    dim as TKRECT a
+    tkWidget_AbsRect( bar, a )
+    gChanges = 0
+    tkTest_Click( h, PX( bar, 3 ), PY( bar ) )
+    tkTest_Check( "click panel 3 selects + notifies (old 0, new 3)", tkSelectBar_GetCurSel( bar ) = 3 andalso gChanges = 1 _
+                  andalso gOld = 0 andalso gNew = 3 andalso gChangeBar = bar, gChanges & " " & gOld & "->" & gNew )
+    tkTest_Check( "a click never takes focus", tkHost_GetFocus( h ) = 0 andalso tkSelectBar_GetFocused( bar ) = false )
+    tkTest_Check( "capture released after the click", tkHost_GetCapture( h ) = 0 )
+    ' every boundary pixel, by real clicks: the last column of i is i, the next column is i+1
+    dim as long nEdge = 0
+    for i as long = 0 to NPANELS - 2
+        if i + 1 = 2 orelse i = 2 then continue for
+        dim as TKRECT ri
+        tkSelectBar_GetPanelRect( bar, i, ri )
+        tkTest_Click( h, a.left + ri.right - 1 + 0.5, a.top + 1.5 )
+        if tkSelectBar_GetCurSel( bar ) = i then nEdge += 1
+        tkTest_Click( h, a.left + ri.right + 0.5, a.top + barH - 1.5 )
+        if tkSelectBar_GetCurSel( bar ) = i + 1 then nEdge += 1
+    next
+    tkTest_Check( "real-click hit test exact at cell edges", nEdge = 4, "" & nEdge )
+    ' the disabled panel swallows the click
+    tkSelectBar_SetCurSel( bar, 1 )
+    gChanges = 0
+    tkTest_Click( h, PX( bar, 2 ), PY( bar ) )
+    tkTest_Check( "disabled panel: no press, no change", tkSelectBar_GetCurSel( bar ) = 1 andalso gChanges = 0 _
+                  andalso tkHost_GetCapture( h ) = 0 )
+    ' re-click the current one: not a change
+    tkTest_Click( h, PX( bar, 1 ), PY( bar ) )
+    tkTest_Check( "re-click current: no notify", gChanges = 0 )
+    ' empty bar area right of the run
+    tkTest_Click( h, a.left + ideal + tkHost_Scale( h, 20 ), PY( bar ) )
+    tkTest_Check( "click past the run: nothing", tkSelectBar_GetCurSel( bar ) = 1 andalso gChanges = 0 )
+
+    ' press, state, slide off, release: nothing
+    tkTest_PushMotion( h, PX( bar, 4 ), PY( bar ) )
+    tkTest_Check( "hover: hot = 4", tkSelectBar_GetHot( bar ) = 4 )
+    tkTest_PushMotion( h, PX( bar, 2 ), PY( bar ) )
+    tkTest_Check( "hover a disabled panel: hot = -1", tkSelectBar_GetHot( bar ) = -1 andalso gLastIdx = -1 )
+    tkTest_PushButton( h, true, PX( bar, 4 ), PY( bar ) )
+    tkTest_Check( "press arms + captures", tkSelectBar_GetPressed( bar ) = 4 andalso tkHost_GetCapture( h ) = bar )
+    tkTest_PushMotion( h, PX( bar, 4 ), a.bottom + tkHost_Scale( h, 100 ) )
+    tkTest_Check( "slide off: capture kept, hot -1 (paints unpressed)", tkHost_GetCapture( h ) = bar _
+                  andalso tkSelectBar_GetHot( bar ) = -1 andalso tkSelectBar_GetPressed( bar ) = 4 )
+    tkTest_PushButton( h, false, PX( bar, 4 ), a.bottom + tkHost_Scale( h, 100 ) )
+    tkTest_Check( "release outside: no change", tkSelectBar_GetCurSel( bar ) = 1 andalso gChanges = 0 andalso tkHost_GetCapture( h ) = 0 )
+    ' press 4, release on 3: nothing
+    tkTest_PushButton( h, true, PX( bar, 4 ), PY( bar ) )
+    tkTest_PushMotion( h, PX( bar, 3 ), PY( bar ) )
+    tkTest_PushButton( h, false, PX( bar, 3 ), PY( bar ) )
+    tkTest_Check( "release on ANOTHER panel: no change", tkSelectBar_GetCurSel( bar ) = 1 andalso gChanges = 0 )
+    ' slide off and back: re-armed
+    tkTest_PushButton( h, true, PX( bar, 4 ), PY( bar ) )
+    tkTest_PushMotion( h, PX( bar, 4 ), a.bottom + 50 )
+    tkTest_PushMotion( h, PX( bar, 4 ), PY( bar ) )
+    tkTest_PushButton( h, false, PX( bar, 4 ), PY( bar ) )
+    tkTest_Check( "slide back + release: selects 4", tkSelectBar_GetCurSel( bar ) = 4 andalso gChanges = 1 )
+    ' focus lost cancels the gesture
+    gChanges = 0
+    tkTest_PushButton( h, true, PX( bar, 3 ), PY( bar ) )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_FOCUS_LOST )
+    tkTest_Check( "focus lost: capture gone, press cancelled", tkHost_GetCapture( h ) = 0 andalso tkSelectBar_GetPressed( bar ) = -1 )
+    tkTest_PushButton( h, false, PX( bar, 3 ), PY( bar ) )
+    tkTest_Check( "release after a cancelled press: no change", tkSelectBar_GetCurSel( bar ) = 4 andalso gChanges = 0 )
+    ' a double click is a press (vendor's shared DOWN / DBLCLK arm), reported with clicks = 2
+    tkTest_Click( h, PX( bar, 0 ), PY( bar ) )
+    tkTest_Click( h, PX( bar, 3 ), PY( bar ), SDL_BUTTON_LEFT, 2 )
+    tkTest_Check( "double click selects, reported clicks=2", tkSelectBar_GetCurSel( bar ) = 3 andalso gLastClicks = 2 _
+                  andalso gChanges = 2, gChanges & " clicks=" & gLastClicks )
+    ' right button: reported, never acted on
+    gChanges = 0
+    tkTest_Click( h, PX( bar, 1 ), PY( bar ), SDL_BUTTON_RIGHT )
+    tkTest_Check( "right click reported with idx, no change", gLastMsg = TKM_RBUTTONUP andalso gLastIdx = 1 _
+                  andalso tkSelectBar_GetCurSel( bar ) = 3 andalso gChanges = 0 andalso tkHost_GetCapture( h ) = 0 )
+    ' window leave clears hot
+    tkTest_PushMotion( h, PX( bar, 1 ), PY( bar ) )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+    tkTest_Check( "window leave clears hot, reported idx -1", tkSelectBar_GetHot( bar ) = -1 andalso gLastMsg = TKM_MOUSELEAVE andalso gLastIdx = -1 )
+    ' the message callback: DOWN may be suppressed; UP's result is IGNORED
+    gSuppressDown = true
+    tkTest_Click( h, PX( bar, 1 ), PY( bar ) )
+    tkTest_Check( "suppressed DOWN: no press, no capture, no change", tkSelectBar_GetCurSel( bar ) = 3 _
+                  andalso gChanges = 0 andalso tkHost_GetCapture( h ) = 0 )
+    gSuppressDown = false
+    gSuppressUp = true
+    tkTest_Click( h, PX( bar, 1 ), PY( bar ) )
+    tkTest_Check( "suppressing UP is ignored: capture released, selection moves", tkHost_GetCapture( h ) = 0 _
+                  andalso tkSelectBar_GetCurSel( bar ) = 1 andalso gChanges = 1 )
+    gSuppressUp = false
+
+    ' ---- D: silent setters -------------------------------------------------------------------
+    gChanges = 0
+    tkTest_Check( "SetCurSel(-1) rejected", tkSelectBar_SetCurSel( bar, -1 ) = false andalso tkSelectBar_GetCurSel( bar ) = 1 )
+    tkTest_Check( "SetCurSel(disabled) rejected", tkSelectBar_SetCurSel( bar, 2 ) = false andalso tkSelectBar_GetCurSel( bar ) = 1 )
+    tkTest_Check( "SetCurSel(current) TRUE", tkSelectBar_SetCurSel( bar, 1 ) )
+    tkTest_Check( "SetCurSel(4) moves", tkSelectBar_SetCurSel( bar, 4 ) andalso tkSelectBar_GetCurSel( bar ) = 4 )
+    tkTest_Check( "SetEnabled(current,false) REFUSED", tkSelectBar_SetEnabled( bar, 4, false ) = false andalso tkSelectBar_GetEnabled( bar, 4 ) )
+    tkTest_Check( "SetEnabled no-op TRUE", tkSelectBar_SetEnabled( bar, 2, false ) )
+    tkSelectBar_SetText( bar, 3, gText(3) ) : tkSelectBar_SetPanelID( bar, 3, 103 ) : tkSelectBar_SetItemData( bar, 3, 1003 )
+    tkTest_Check( "setters are silent", gChanges = 0 )
+    ' disabling the hot panel clears hot at once
+    tkTest_PushMotion( h, PX( bar, 0 ), PY( bar ) )
+    tkSelectBar_SetEnabled( bar, 0, false )
+    tkTest_Check( "disabling the hot panel clears hot now", tkSelectBar_GetHot( bar ) = -1 )
+    tkSelectBar_SetEnabled( bar, 0, true )
+
+    ' ---- E: keyboard (the PsPlatform addition) -----------------------------------------------
+    dim as TK_WIDGET ptr bar2 = tkSelectBar_Create( tkHost_Root( h ), 202 )
+    tkSelectBar_SetFont( bar2, fText )
+    tkSelectBar_AddPanel( bar2, "ONE" ) : tkSelectBar_AddPanel( bar2, "TWO" )
+    tkWidget_SetPos( bar2, barX, barY + barH + tkHost_Scale( h, 10 ), tkSelectBar_GetIdealWidth( bar2 ), barH )
+    tkHost_SetFocus( h, 0 )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "Tab reaches the bar (a Tab stop)", tkHost_GetFocus( h ) = bar andalso tkSelectBar_GetFocused( bar ) )
+    tkSelectBar_SetCurSel( bar, 1 )
+    gChanges = 0
+    tkTest_PushKey( h, SDLK_RIGHT )
+    tkTest_Check( "Right skips the disabled panel, notifies 1->3", tkSelectBar_GetCurSel( bar ) = 3 andalso gChanges = 1 _
+                  andalso gOld = 1 andalso gNew = 3, gChanges & " " & tkSelectBar_GetCurSel( bar ) )
+    tkTest_PushKey( h, SDLK_LEFT )
+    tkTest_Check( "Left skips back to 1", tkSelectBar_GetCurSel( bar ) = 1 andalso gChanges = 2 )
+    tkTest_PushKey( h, SDLK_END )
+    tkTest_Check( "End -> last", tkSelectBar_GetCurSel( bar ) = NPANELS - 1 andalso gChanges = 3 )
+    tkTest_PushKey( h, SDLK_RIGHT )
+    tkTest_Check( "Right at the end: no wrap, no notify", tkSelectBar_GetCurSel( bar ) = NPANELS - 1 andalso gChanges = 3 )
+    tkTest_PushKey( h, SDLK_HOME )
+    tkTest_Check( "Home -> 0", tkSelectBar_GetCurSel( bar ) = 0 andalso gChanges = 4 )
+    tkTest_PushKey( h, SDLK_LEFT )
+    tkTest_Check( "Left at the start: no wrap, no notify", tkSelectBar_GetCurSel( bar ) = 0 andalso gChanges = 4 )
+    tkSelectBar_SetEnabled( bar, 4, false )
+    tkTest_PushKey( h, SDLK_END )
+    tkTest_Check( "End skips a disabled tail", tkSelectBar_GetCurSel( bar ) = 3 andalso gChanges = 5 )
+    tkSelectBar_SetEnabled( bar, 4, true )
+    tkTest_PushKey( h, SDLK_SPACE ) : tkTest_PushKey( h, SDLK_RETURN ) : tkTest_PushKey( h, SDLK_A )
+    tkTest_Check( "Space / Enter / letters unclaimed", tkSelectBar_GetCurSel( bar ) = 3 andalso gChanges = 5 andalso tkHost_GetFocus( h ) = bar )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "Tab still moves focus off the bar", tkHost_GetFocus( h ) = bar2 andalso tkSelectBar_GetFocused( bar ) = false )
+    tkTest_PushKey( h, SDLK_TAB, SDL_KMOD_LSHIFT )
+    tkTest_Check( "Shift+Tab back", tkHost_GetFocus( h ) = bar )
+
+    ' ---- F: pixels ---------------------------------------------------------------------------
+    dim as TKSELECTBAR_COLORS cc
+    tkSelectBar_GetColors( bar, @cc )
+    tkTest_PushMotion( h, 2, h->root->ch - 2 )
+    tkHost_RenderTo( h, false )
+    dim as TKRECT ri3, ri1, rc3, rt1x
+    tkSelectBar_GetPanelIndicatorRect( bar, 3, ri3 )
+    tkSelectBar_GetPanelIndicatorRect( bar, 1, ri1 )
+    tkSelectBar_GetPanelRect( bar, 3, rc3 )
+    tkSelectBar_GetPanelTextRect( bar, 1, rt1x )
+    dim as ulong cInd = tkTest_PixelAt( h, a.left + (ri3.left + ri3.right) \ 2, a.top + ri3.top )
+    tkTest_Check( "indicator under the current panel", cInd = (cc.IndicatorColor or &hFF000000ul), hex( cInd ) )
+    dim as ulong cNo = tkTest_PixelAt( h, a.left + (ri1.left + ri1.right) \ 2, a.top + ri1.top )
+    tkTest_Check( "no indicator under another panel", cNo = (cc.BackColor or &hFF000000ul), hex( cNo ) )
+    dim as long ng = tkHost_Scale( h, 2 )
+    dim as ulong cRing = tkTest_PixelAt( h, a.left + rc3.left + ng, a.top + barH \ 2 )
+    tkTest_Check( "focus ring round the current panel", cRing = (cc.FocusRingColor or &hFF000000ul), hex( cRing ) )
+    dim as ulong c0
+    tkTest_Check( "label drawn in its text rect", tkTest_TonesIn( h, a.left + rt1x.left, a.top + rt1x.top, _
+                  rt1x.right - rt1x.left, rt1x.bottom - rt1x.top, c0 ) > 2 )
+    tkHost_SetFocus( h, 0 )
+    tkHost_RenderTo( h, false )
+    cRing = tkTest_PixelAt( h, a.left + rc3.left + ng, a.top + barH \ 2 )
+    tkTest_Check( "no ring without focus", cRing = (cc.BackColor or &hFF000000ul), hex( cRing ) )
+
+    ' ---- G: the per-monitor scale path ---------------------------------------------------------
+    dim as long w0 = tkSelectBar_GetIdealWidth( bar ), th0 = tkSelectBar_GetTextHeight( bar )
+    dim as long pl0, pr0, k0, g0
+    tkSelectBar_GetPadding( bar, pl0, pr0 ) : tkSelectBar_GetIndicator( bar, k0, g0 )
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    dim as long w1 = tkSelectBar_GetIdealWidth( bar ), th1 = tkSelectBar_GetTextHeight( bar )
+    dim as long pl1, pr1, k1, g1
+    tkSelectBar_GetPadding( bar, pl1, pr1 ) : tkSelectBar_GetIndicator( bar, k1, g1 )
+    tkTest_Check( "rescale: metrics x2", pl1 = pl0 * 2 andalso pr1 = pr0 * 2 andalso k1 = k0 * 2 andalso g1 = g0 * 2, _
+                  pl0 & "->" & pl1 & " " & k0 & "->" & k1 & " " & g0 & "->" & g1 )
+    tkTest_Check( "rescale: font re-sized", th1 > th0 * 1.8, th0 & " -> " & th1 )
+    tkTest_Check( "rescale: ideal ~ x2", (w1 > w0 * 1.85) andalso (w1 < w0 * 2.15), w0 & " -> " & w1 )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkTest_Check( "rescale back restores ideal", tkSelectBar_GetIdealWidth( bar ) = w0, "" & tkSelectBar_GetIdealWidth( bar ) )
+
+    ' ---- H: theme, pinning, unpin ----------------------------------------------------------------
+    dim as TKSELECTBAR_COLORS pin
+    tkSelectBar_GetColors( bar2, @pin )
+    pin.IndicatorColor = &hFFFF0000ul
+    tkSelectBar_SetColors( bar2, @pin )
+    tkTheme_Apply( tkTheme_Light() )
+    tkSelectBar_GetColors( bar, @cc )
+    tkTest_Check( "theme reaches an unpinned bar", cc.BackColor = tkTheme_Light().Window andalso cc.ForeColor = tkTheme_Light().TextDim _
+                  andalso cc.IndicatorColor = tkTheme_Light().TextStrong andalso cc.FocusRingColor = tkTheme_Light().FocusRing )
+    tkSelectBar_GetColors( bar2, @cc )
+    tkTest_Check( "SetColors pinned", cc.IndicatorColor = &hFFFF0000ul )
+    tkSelectBar_UnpinColors( bar2 )
+    tkSelectBar_GetColors( bar2, @cc )
+    tkTest_Check( "unpin hands it back to the theme", cc.IndicatorColor = tkTheme_Light().TextStrong )
+    tkTheme_Apply( tkTheme_Dark() )
+    tkSelectBar_GetColors( bar, @cc )
+    tkTest_Check( "dark again", cc.BackColor = tkTheme_Dark().Window )
+
+    ' ---- I: per-panel tooltips through tkTipHost ---------------------------------------------
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 400 )                                ' the X11 settle
+    tkSelectBar_SetHoverTime( bar, 200 )
+    dim as TK_TIP ptr tip = tkSelectBar_GetTooltipHandle( bar )
+    tkTest_Check( "tooltip handle attached to the bar", tip <> 0 andalso tkTooltip_GetAttached( tip ) = bar )
+    tkTest_PushMotion( h, PX( bar, 0 ), PY( bar ) )
+    tkTest_Check( "tool index follows the hot panel (0)", tkTooltip_GetToolIndex( tip ) = 0 )
+    tkTest_Check( "own tip text shows", WaitTip( h, bar, true, 1500, PX( bar, 0 ), PY( bar ) ), "idx=" & tkTooltip_GetToolIndex( tip ) & " hot=" & _
+                  tkSelectBar_GetHot( bar ) & " hostHot=" & (h->pHot = bar) & " at " & h->lastX & "," & h->lastY & _
+                  " btn=" & h->buttonsDown & " err=" & *SDL_GetError() )
+    tkTest_PushMotion( h, PX( bar, 2 ), PY( bar ) )
+    tkTest_Check( "disabled panel: index -1, tip hides", tkTooltip_GetToolIndex( tip ) = -1 andalso WaitTip( h, bar, false, 500 ) )
+    tkTest_PumpFor( h, 300 )                                ' let a popup's unmap events land
+    gTipCalls = 0
+    tkTest_PushMotion( h, PX( bar, 3 ), PY( bar ) )
+    tkTest_Check( "callback tip shows for panel 3", WaitTip( h, bar, true, 1500, PX( bar, 3 ), PY( bar ) ) andalso gTipCalls > 0 andalso gTipIdx = 3, _
+                  gTipCalls & " idx " & gTipIdx )
+    tkTest_PushMotion( h, 2, h->root->ch - 2 )
+    tkTest_Check( "tip hides on leave", WaitTip( h, bar, false, 500 ) )
+
+    ' ---- J: Clear is the rebuild hatch -------------------------------------------------------------
+    tkSelectBar_Clear( bar2 )
+    tkTest_Check( "Clear: empty, cursel -1, ideal 0", tkSelectBar_GetCount( bar2 ) = 0 andalso tkSelectBar_GetCurSel( bar2 ) = -1 _
+                  andalso tkSelectBar_GetIdealWidth( bar2 ) = 0 )
+    tkSelectBar_AddPanel( bar2, "AGAIN" )
+    tkTest_Check( "AddPanel after Clear re-establishes current", tkSelectBar_GetCurSel( bar2 ) = 0 )
+
+    tkHost_Destroy( h )
+end sub
+
+
+' ---- with NO font anywhere, text measures zero and the cells are padding only -----------------
+sub RunNoFont()
+    tkTest_Begin( "no font" )
+    dim as TK_HOST ptr h = tkHost_Create( "tkSelectBar selftest", 320, 200, "", 1 )
+    dim as TK_WIDGET ptr b = tkSelectBar_Create( tkHost_Root( h ), 1 )
+    tkSelectBar_AddPanel( b, "ALPHA" ) : tkSelectBar_AddPanel( b, "BETA" )
+    tkTest_Check( "no font: cells are padding only", tkSelectBar_GetIdealWidth( b ) = 4 * 12, "" & tkSelectBar_GetIdealWidth( b ) )
+    tkHost_Destroy( h )
+end sub
+
+
+' ==========================================================================================
+if tkTest_Init() = false then end 99
+gText(0) = "COMPILER RESULTS" : gText(1) = "COMPILER LOG FILE" : gText(2) = "SEARCH RESULTS"
+gText(3) = "TODO" : gText(4) = "NOTES"
+
+RunNoFont()
+RunPass( 1.0 )
+RunPass( 1.75 )
+
+tkTest_Begin( "cross-pass" )
+tkTest_Check( "ideal width scales with the scale", (gIdealW(0) > 0) andalso (gIdealW(1) > gIdealW(0) * 1.6) _
+              andalso (gIdealW(1) < gIdealW(0) * 1.9), gIdealW(0) & " -> " & gIdealW(1) )
+dim as long nFail = tkTest_Report( "tkSelectBar" )
+tkTest_Quit()
+end nFail

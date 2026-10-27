@@ -1,0 +1,345 @@
+' tkScrollPanel self-test. Real windows, real SDL event queue: every input claim is made by
+' PUSHING the SDL event a user would have produced and pumping the host. Two passes, scale
+' pinned at 1.0 and at 1.75.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkScrollPanel"
+#import "vendor/tkControls/tkButton"
+#import "vendor/tkControls/tkTest"
+using tkScrollPanel
+using tkButton
+using tkScrollBar
+using tkVScrollBar
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+const as long NROWS = 30
+dim shared as TK_HOST ptr gH
+dim shared as TK_WIDGET ptr gRow(0 to NROWS - 1)
+dim shared as long gLayouts, gLastCx, gScrolls, gLastPos, gClicks, gLastId, gPaintRcH, gPaintPos
+dim shared as boolean gSetInside, gHideLast
+dim shared as long gContentH(0 to 1)
+
+function RowPitch() as long
+    return tkHost_Scale( gH, 40 )
+end function
+
+' The host's layout callback: every row positioned in PAGE coordinates against the width it is
+' handed; returns the content height.
+function OnLayout( byval hPanel as TK_WIDGET ptr, byval cxPanel as long ) as long
+    gLayouts += 1
+    gLastCx = cxPanel
+    dim as long y = tkHost_Scale( gH, 10 )
+    for i as long = 0 to NROWS - 1
+        tkWidget_SetPos( gRow(i), tkHost_Scale( gH, 10 ), y, cxPanel - tkHost_Scale( gH, 20 ), tkHost_Scale( gH, 30 ) )
+        y += RowPitch()
+    next
+    dim as long h = y + tkHost_Scale( gH, 10 )
+    if gSetInside then
+        ' safe inside the pass: recorded, not a second pass
+        tkScrollPanel_SetContentHeight( tkWidget_Parent( hPanel ), h )
+        return 0
+    end if
+    return h
+end function
+
+sub OnScroll( byval hScp as TK_WIDGET ptr, byval newPos as long )
+    gScrolls += 1 : gLastPos = newPos
+end sub
+
+sub OnClick( byval hButton as TK_WIDGET ptr, byval id as long )
+    gClicks += 1 : gLastId = id
+end sub
+
+sub OnPagePaint( byval p as SCP_PAINTINFO ptr )
+    gPaintRcH = p->rcClient.bottom - p->rcClient.top
+    gPaintPos = p->nPos
+    p->b->SetBackColor( &hFF102030ul )
+    p->b->PaintRect( @p->rcClient )
+end sub
+
+' Pump real time, so the 100 ms reveal tick runs.
+sub Tick( byval ms as long = 250 )
+    tkTest_PumpFor( gH, ms )
+end sub
+
+' One reveal tick, delivered now. The real 100 ms poll is asserted separately (with retries):
+' parallel test runs on the same desktop pop windows that steal hover and focus mid-wait, so
+' every other reveal decision is driven deterministically, right after the input it reacts to.
+sub Poll( byval s as TK_WIDGET ptr )
+    dim as TK_MSG m
+    m.msg = TKM_TIMER
+    m.timerId = TKSCROLLPANEL_TIMER_REVEAL
+    tkWidget_Send( s, @m )
+end sub
+
+' Hover a point and let the REAL poll decide, up to three tries (see Poll).
+function HoverAndWait( byval s as TK_WIDGET ptr, byval x as single, byval y as single, byval want as boolean ) as boolean
+    for i as long = 1 to 3
+        tkTest_PushMotion( gH, x, y )
+        Tick()
+        if tkScrollPanel_IsThumbVisible( s ) = want then return true
+    next
+    return false
+end function
+
+' Window-pixel centre of a page row.
+function RowCX( byval r as TK_WIDGET ptr ) as single
+    return tkTest_CX( r )
+end function
+function RowCY( byval r as TK_WIDGET ptr ) as single
+    return tkTest_CY( r )
+end function
+
+' ==========================================================================================
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    gH = tkHost_Create( "tkScrollPanel selftest", 640, 480, tkHost_FontDir() & TK_FONT_UI, fScale )
+    dim as TK_HOST ptr h = gH
+    if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    tkTest_Check( "scale pinned", h->fScale = fScale, "" & h->fScale )
+    tkTheme_Apply( tkTheme_Dark() )
+    dim as TTF_Font ptr fText = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 9 )
+
+    ' ---- A: three widgets and the layout pass ---------------------------------------------
+    dim as TK_WIDGET ptr s = tkScrollPanel_Create( tkHost_Root( h ), 100 )
+    dim as TK_WIDGET ptr pg = tkScrollPanel_GetPanel( s )
+    dim as TK_WIDGET ptr sb = tkScrollPanel_GetScrollBar( s )
+    tkTest_Check( "page and bar are the container's children; ids +1 / +2", tkWidget_Parent( pg ) = s andalso tkWidget_Parent( sb ) = s andalso pg->ctrlId = 101 andalso sb->ctrlId = 102 )
+    tkTest_Check( "the container clips its children", s->bClipChildren )
+    for i as long = 0 to NROWS - 1
+        gRow(i) = tkButton_Create( pg, 1000 + i )
+        tkButton_SetFont( gRow(i), fText )
+        tkButton_SetText( gRow(i), "Setting row " & i )
+        tkButton_SetClickCallback( gRow(i), @OnClick )
+    next
+    tkScrollPanel_SetLayoutCallback( s, @OnLayout )
+    tkScrollPanel_SetScrollCallback( s, @OnScroll )
+    gLayouts = 0
+    dim as long vx = tkHost_Scale( h, 20 ), vy = tkHost_Scale( h, 20 ), vw = tkHost_Scale( h, 400 ), vh = tkHost_Scale( h, 300 )
+    tkWidget_SetPos( s, vx, vy, vw, vh )
+    dim as long barW = tkHost_Scale( h, 12 )
+    dim as long expContent = tkHost_Scale( h, 10 ) + NROWS * RowPitch() + tkHost_Scale( h, 10 )
+    tkTest_Check( "a resize runs the layout callback", gLayouts >= 1 )
+    tkTest_Check( "cxPanel = viewport width - scaled strip", gLastCx = vw - barW andalso tkScrollPanel_GetPanelWidth( s ) = vw - barW, gLastCx & " vs " & (vw - barW) )
+    tkTest_Check( "the returned height is the content height", tkScrollPanel_GetContentHeight( s ) = expContent, "" & tkScrollPanel_GetContentHeight( s ) )
+    gContentH(iif( fScale > 1.5, 1, 0 )) = expContent
+    tkTest_Check( "page = (0, -pos, cxPanel, content)", pg->x = 0 andalso pg->y = 0 andalso pg->cw = vw - barW andalso pg->ch = expContent, pg->cw & "x" & pg->ch )
+    tkTest_Check( "bar sits in the strip", sb->x = vw - barW andalso sb->y = 0 andalso sb->cw = barW andalso sb->ch = vh )
+    tkTest_Check( "viewport height", tkScrollPanel_GetViewportHeight( s ) = vh )
+    tkTest_Check( "rows keep their page coordinates", gRow(3)->y = tkHost_Scale( h, 10 ) + 3 * RowPitch() )
+
+    ' ---- B: the reveal rule -------------------------------------------------------------
+    dim as long nOk = 0
+    for bits as long = 0 to 7
+        dim as boolean bn = (bits and 1) <> 0, bm = (bits and 2) <> 0, bf = (bits and 4) <> 0
+        if tkScrollPanel_ShouldShow( bn, bm, bf ) = (bn andalso (bm orelse bf)) then nOk += 1
+    next
+    tkTest_Check( "ShouldShow truth table (8 rows)", nOk = 8 )
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 400 )
+    tkTest_Check( "the real poll hides the thumb with nothing over it", HoverAndWait( s, 2, h->root->ch - 2, false ) )
+    tkTest_Check( "thumb hidden: nothing over, nothing focused", tkScrollPanel_IsThumbVisible( s ) = false andalso sb->isVisible = false, _
+                  "hot=" & iif( h->pHot <> 0, h->pHot->ctrlId, -1 ) & " focus=" & iif( tkHost_GetFocus( h ) <> 0, tkHost_GetFocus( h )->ctrlId, -1 ) )
+    tkTest_Check( "the reveal poll runs while there is something to scroll", tkWidget_HasTimer( s, TKSCROLLPANEL_TIMER_REVEAL ) )
+    tkTest_Check( "cursor over a HOST child reveals the thumb (the real poll)", HoverAndWait( s, RowCX( gRow(1) ), RowCY( gRow(1) ), true ) andalso sb->isVisible )
+    dim as TKRECT rs
+    tkWidget_AbsRect( s, rs )
+    tkTest_PushMotion( h, rs.right + tkHost_Scale( h, 40 ), rs.top + 5 )
+    Poll( s )
+    tkTest_Check( "cursor away: hidden again", tkScrollPanel_IsThumbVisible( s ) = false )
+    tkTest_Check( "the strip is reserved while hidden: page width unchanged", pg->cw = vw - barW )
+    tkHost_SetFocus( h, gRow(0) )
+    Poll( s )
+    tkTest_Check( "focus inside the page reveals it", tkScrollPanel_IsThumbVisible( s ) )
+    tkHost_SetFocus( h, 0 )
+    Poll( s )
+    tkTest_Check( "focus gone: hidden", tkScrollPanel_IsThumbVisible( s ) = false )
+
+    ' ---- C: silent setters ----------------------------------------------------------------
+    gScrolls = 0
+    dim as long maxPos = expContent - vh
+    tkScrollPanel_SetPos( s, tkHost_Scale( h, 100 ) )
+    tkTest_Check( "SetPos moves the page: y = -pos", tkScrollPanel_GetPos( s ) = tkHost_Scale( h, 100 ) andalso pg->y = -tkHost_Scale( h, 100 ) )
+    tkTest_Check( "...and mirrors into the bar", tkVScrollBar_GetPos( sb ) = tkHost_Scale( h, 100 ) )
+    tkTest_Check( "rows are NOT moved by scrolling", gRow(3)->y = tkHost_Scale( h, 10 ) + 3 * RowPitch() )
+    tkScrollPanel_SetPos( s, 999999 )
+    tkTest_Check( "SetPos clamps to content - viewport", tkScrollPanel_GetPos( s ) = maxPos, tkScrollPanel_GetPos( s ) & " vs " & maxPos )
+    tkTest_Check( "ScrollBy at the end: FALSE", tkScrollPanel_ScrollBy( s, 10 ) = false )
+    tkTest_Check( "ScrollBy back: TRUE", tkScrollPanel_ScrollBy( s, -10 ) andalso tkScrollPanel_GetPos( s ) = maxPos - 10 )
+    tkScrollPanel_SetPos( s, -50 )
+    tkTest_Check( "SetPos clamps at 0", tkScrollPanel_GetPos( s ) = 0 )
+    tkTest_Check( "all of that was silent", gScrolls = 0 )
+
+    ' ---- D: the wheel (user action: notifies) -----------------------------------------------
+    dim as long nStep = 3 * tkHost_Scale( h, 20 )
+    tkTest_PushWheel( h, RowCX( gRow(2) ), RowCY( gRow(2) ), 0, -1 )
+    tkTest_Check( "wheel over a host child bubbles to the page: one notch = 3 lines", tkScrollPanel_GetPos( s ) = nStep, tkScrollPanel_GetPos( s ) & " vs " & nStep )
+    tkTest_Check( "the wheel notifies", gScrolls = 1 andalso gLastPos = nStep )
+    tkTest_PushWheel( h, RowCX( gRow(2) ), RowCY( gRow(2) ), 0, 1 )
+    tkTest_Check( "wheel up scrolls back", tkScrollPanel_GetPos( s ) = 0 )
+    tkScrollPanel_SetLineHeight( s, 40 )
+    tkTest_PushWheel( h, RowCX( gRow(2) ), RowCY( gRow(2) ), 0, -0.5 )
+    tkTest_PushWheel( h, RowCX( gRow(2) ), RowCY( gRow(2) ), 0, -0.5 )
+    tkTest_Check( "sub-notch deltas accumulate (two halves = one notch)", tkScrollPanel_GetPos( s ) = 3 * tkHost_Scale( h, 40 ), "" & tkScrollPanel_GetPos( s ) )
+    tkScrollPanel_SetLineHeight( s, 20 )
+    tkTest_Check( "HandleWheelDelta -120 moves down and notifies", tkScrollPanel_HandleWheelDelta( s, -120 ) andalso gLastPos = tkScrollPanel_GetPos( s ) )
+    tkScrollPanel_SetPos( s, 0 )
+    ' the strip: a wheel over the hidden bar's strip reaches the container
+    tkTest_PushMotion( h, rs.right + tkHost_Scale( h, 40 ), rs.top + 5 )
+    Poll( s )
+    tkTest_PushWheel( h, rs.right - 2, rs.top + tkHost_Scale( h, 50 ), 0, -1 )
+    tkTest_Check( "wheel over the strip scrolls too", tkScrollPanel_GetPos( s ) = nStep )
+    tkScrollPanel_SetPos( s, 0 )
+
+    ' ---- E: the thumb drag (user action) -------------------------------------------------
+    tkTest_PushMotion( h, RowCX( gRow(1) ), RowCY( gRow(1) ) )
+    Poll( s )
+    dim as TKRECT rt = tkVScrollBar_GetThumbRect( sb )
+    dim as single tx = rs.left + sb->x + (rt.left + rt.right) / 2, ty = rs.top + sb->y + (rt.top + rt.bottom) / 2
+    gScrolls = 0
+    tkTest_PushButton( h, true, tx, ty )
+    tkTest_PushMotion( h, tx, ty + tkHost_Scale( h, 60 ) )
+    tkTest_Check( "thumb drag scrolls the page and notifies", tkScrollPanel_GetPos( s ) > 0 andalso gScrolls >= 1 andalso pg->y = -tkScrollPanel_GetPos( s ), "" & tkScrollPanel_GetPos( s ) )
+    tkTest_PushMotion( h, tx + tkHost_Scale( h, 200 ), ty + tkHost_Scale( h, 60 ) )
+    Poll( s )
+    tkTest_Check( "dragging off the strip sideways keeps the thumb", tkScrollPanel_IsThumbVisible( s ) )
+    tkTest_PushButton( h, false, tx + tkHost_Scale( h, 200 ), ty + tkHost_Scale( h, 60 ) )
+    tkScrollPanel_SetPos( s, 0 )
+
+    ' ---- F: clipping and hit-testing through a moved page ---------------------------------
+    tkScrollPanel_SetPos( s, RowPitch() * 3 )
+    tkTest_Check( "a row scrolled above the viewport is not hit", tkHost_HitTest( h, RowCX( gRow(0) ), RowCY( gRow(0) ) ) <> gRow(0) )
+    gClicks = 0
+    tkTest_Click( h, RowCX( gRow(5) ), RowCY( gRow(5) ) )
+    tkTest_Check( "a click lands on the row at its SCROLLED position", gClicks = 1 andalso gLastId = 1005, gClicks & " " & gLastId )
+    tkHost_RenderTo( h, false )
+    dim as ulong cBack, cFore
+    tkScrollPanel_GetColors( s, cBack, cFore )
+    tkTest_Check( "pixel: the page background between rows", tkTest_PixelAt( h, rs.left + 2, rs.top + 2 ) = cBack, hex( tkTest_PixelAt( h, rs.left + 2, rs.top + 2 ) ) )
+    dim as ulong cAbove = tkTest_PixelAt( h, rs.left + tkHost_Scale( h, 20 ), rs.top - 2 )
+    tkTest_Check( "pixel: nothing paints above the viewport (clip)", cAbove = h->clrBack, hex( cAbove ) )
+    tkScrollPanel_SetPos( s, 0 )
+
+    ' ---- G: EnsureVisible ---------------------------------------------------------------
+    gScrolls = 0
+    tkTest_Check( "EnsureVisible of a visible row: FALSE, no move", tkScrollPanel_EnsureVisible( s, gRow(1) ) = false andalso tkScrollPanel_GetPos( s ) = 0 )
+    tkTest_Check( "EnsureVisible below: minimum scroll (bottom-aligned)", tkScrollPanel_EnsureVisible( s, gRow(20) ) andalso tkScrollPanel_GetPos( s ) = gRow(20)->y + gRow(20)->ch - vh, "" & tkScrollPanel_GetPos( s ) )
+    tkTest_Check( "EnsureVisible above: top-aligned, with margin", tkScrollPanel_EnsureVisible( s, gRow(2), 5 ) andalso tkScrollPanel_GetPos( s ) = gRow(2)->y - 5 )
+    tkTest_Check( "EnsureVisible refuses a non-descendant", tkScrollPanel_EnsureVisible( s, sb ) = false andalso tkScrollPanel_EnsureVisible( s, pg ) = false )
+    tkWidget_SetSize( gRow(10), gRow(10)->cw, vh + 50 )
+    tkTest_Check( "a row taller than the viewport is top-aligned", tkScrollPanel_EnsureVisible( s, gRow(10) ) andalso tkScrollPanel_GetPos( s ) = gRow(10)->y )
+    tkScrollPanel_Recalc( s )
+    tkTest_Check( "EnsureVisible is silent", gScrolls = 0 )
+    tkScrollPanel_SetPos( s, 0 )
+
+    ' ---- H: AUTO-SCROLL-TO-FOCUS (real here) --------------------------------------------------
+    tkTest_PushMotion( h, rs.right + tkHost_Scale( h, 40 ), rs.top + 5 )
+    Poll( s )
+    gScrolls = 0
+    tkHost_SetFocus( h, gRow(25) )
+    Tick()
+    tkTest_Check( "focus on an off-screen row scrolls it into view", tkScrollPanel_GetPos( s ) = gRow(25)->y + gRow(25)->ch - vh, "" & tkScrollPanel_GetPos( s ) )
+    tkTest_Check( "...and that scroll notifies (a user's focus change)", gScrolls = 1 )
+    tkScrollPanel_SetPos( s, 0 )
+    Tick()
+    tkTest_Check( "scrolling the focused row away does not yank it back", tkScrollPanel_GetPos( s ) = 0 )
+    tkTest_PushKey( h, SDLK_TAB )
+    Tick()
+    tkTest_Check( "Tab to the next row scrolls to IT", tkHost_GetFocus( h ) = gRow(26) andalso tkScrollPanel_GetPos( s ) = gRow(26)->y + gRow(26)->ch - vh, "" & tkScrollPanel_GetPos( s ) )
+    tkTest_PushKey( h, SDLK_TAB, SDL_KMOD_LSHIFT ) : tkTest_PushKey( h, SDLK_TAB, SDL_KMOD_LSHIFT )
+    tkHost_SetFocus( h, gRow(0) )
+    Tick()
+    tkTest_Check( "focus back at the top: row 0 top-aligned", tkScrollPanel_GetPos( s ) = gRow(0)->y, "" & tkScrollPanel_GetPos( s ) )
+    dim as long posBefore = tkScrollPanel_GetPos( s )
+    tkScrollPanel_SetAutoScrollToFocus( s, false )
+    tkHost_SetFocus( h, gRow(28) )
+    Tick()
+    tkTest_Check( "auto-scroll off: focus moves, the page stays", tkScrollPanel_GetPos( s ) = posBefore andalso tkScrollPanel_GetAutoScrollToFocus( s ) = false, "" & tkScrollPanel_GetPos( s ) )
+    tkScrollPanel_SetAutoScrollToFocus( s, true )
+    tkHost_SetFocus( h, 0 )
+    Tick()
+
+    ' ---- I: content height paths ---------------------------------------------------------
+    gSetInside = true
+    tkScrollPanel_Recalc( s )
+    tkTest_Check( "SetContentHeight inside the layout callback: recorded", tkScrollPanel_GetContentHeight( s ) = expContent )
+    gSetInside = false
+    tkScrollPanel_SetPos( s, maxPos )
+    tkScrollPanel_SetContentHeight( s, vh \ 2 )
+    tkTest_Check( "a short page: pos clamps to 0, page stretched to the viewport", tkScrollPanel_GetPos( s ) = 0 andalso pg->ch = vh )
+    Tick()
+    tkTest_Check( "nothing to scroll: no thumb, no poll", tkScrollPanel_IsThumbVisible( s ) = false andalso tkWidget_HasTimer( s, TKSCROLLPANEL_TIMER_REVEAL ) = false )
+    tkWidget_Show( gRow(NROWS - 1), false )
+    dim as long a = tkScrollPanel_AutoSizeContent( s, 7 )
+    tkTest_Check( "AutoSizeContent skips hidden children (+ padding)", a = gRow(NROWS - 2)->y + gRow(NROWS - 2)->ch + 7 andalso tkScrollPanel_GetContentHeight( s ) = a, "" & a )
+    tkWidget_Show( gRow(NROWS - 1), true )
+    tkScrollPanel_Recalc( s )
+    tkScrollPanel_SetScrollBarWidth( s, 20 )
+    tkTest_Check( "SetScrollBarWidth re-runs the layout (unscaled input)", gLastCx = vw - tkHost_Scale( h, 20 ) andalso sb->cw = tkHost_Scale( h, 20 ) )
+    tkScrollPanel_SetScrollBarWidth( s, 12 )
+
+    ' ---- J: paint callback, colours, theme ------------------------------------------------
+    tkScrollPanel_SetPaintCallback( s, @OnPagePaint )
+    tkScrollPanel_SetPos( s, tkHost_Scale( h, 33 ) )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "paint callback: rcClient is the WHOLE page, nPos supplied", gPaintRcH = expContent andalso gPaintPos = tkHost_Scale( h, 33 ), gPaintRcH & " " & gPaintPos )
+    tkTest_Check( "pixel: the callback's fill", tkTest_PixelAt( h, rs.left + 2, rs.top + 2 ) = &hFF102030ul )
+    tkScrollPanel_SetPaintCallback( s, 0 )
+    tkScrollPanel_SetPos( s, 0 )
+    tkScrollPanel_SetColors( s, &hFF203040ul, &hFFEEEEEEul )
+    tkTest_PushMotion( h, rs.right + tkHost_Scale( h, 40 ), rs.top + 5 )
+    Poll( s )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "pixel: hidden thumb, the strip matches the page", tkTest_PixelAt( h, rs.right - 2, rs.top + tkHost_Scale( h, 100 ) ) = &hFF203040ul )
+    tkTest_PushMotion( h, RowCX( gRow(1) ), RowCY( gRow(1) ) )
+    Poll( s )
+    tkHost_RenderTo( h, false )
+    rt = tkVScrollBar_GetThumbRect( sb )
+    dim as TKSCROLLBAR_STATE ptr pSB = tkScrollBar_State( sb )
+    dim as ulong cThumb = tkTest_PixelAt( h, rs.left + sb->x + (rt.left + rt.right) \ 2, rs.top + (rt.top + rt.bottom) \ 2 )
+    tkTest_Check( "pixel: revealed, the thumb is drawn", cThumb = pSB->ForeColor, hex( cThumb ) & " want " & hex( pSB->ForeColor ) & " shown=" & tkScrollPanel_IsThumbVisible( s ) & " rt=" & tkRect_Str( rt ) & " hot=" & pSB->isHot )
+    tkTest_Check( "SetColors pushed the page colour into the bar", pSB->BackColor = &hFF203040ul )
+    tkTheme_Apply( tkTheme_Light() )
+    tkScrollPanel_GetColors( s, cBack, cFore )
+    tkTest_Check( "SetColors pinned: the theme leaves it", cBack = &hFF203040ul )
+    tkScrollPanel_UnpinColors( s )
+    tkScrollPanel_GetColors( s, cBack, cFore )
+    tkTest_Check( "unpin: the theme's Window / Text, bar's Border", cBack = tkTheme_Light().Window andalso cFore = tkTheme_Light().Text andalso pSB->ForeColor = tkTheme_Light().Border )
+    tkTheme_Apply( tkTheme_Dark() )
+    tkScrollPanel_GetColors( s, cBack, cFore )
+    tkTest_Check( "an unpinned panel follows the next theme", cBack = tkTheme_Dark().Window )
+
+    ' ---- K: rescale, hide ------------------------------------------------------------------
+    tkScrollPanel_SetPos( s, tkHost_Scale( h, 50 ) )
+    dim as long p0 = tkScrollPanel_GetPos( s )
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkTest_Check( "rescale: the strip is scaled at use", tkScrollPanel_GetPanelWidth( s ) = vw - tkHost_Scale( h, 12 ), "" & tkScrollPanel_GetPanelWidth( s ) )
+    tkTest_Check( "rescale: position scaled (same content at the top)", abs( tkScrollPanel_GetPos( s ) - p0 * 2 ) <= 1, p0 & " -> " & tkScrollPanel_GetPos( s ) )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkTest_PushMotion( h, RowCX( gRow(1) ), RowCY( gRow(1) ) )
+    Poll( s )
+    tkWidget_Show( s, false )
+    tkTest_Check( "hidden: thumb and poll dropped", tkScrollPanel_IsThumbVisible( s ) = false andalso tkWidget_HasTimer( s, TKSCROLLPANEL_TIMER_REVEAL ) = false )
+    tkWidget_Show( s, true )
+    tkTest_Check( "shown again: the poll is back", tkWidget_HasTimer( s, TKSCROLLPANEL_TIMER_REVEAL ) )
+
+    tkHost_Destroy( h )
+end sub
+
+
+' ==========================================================================================
+if tkTest_Init() = false then end 99
+
+RunPass( 1.0 )
+RunPass( 1.75 )
+
+tkTest_Begin( "cross-pass" )
+tkTest_Check( "content height scales with the scale", (gContentH(0) > 0) andalso (gContentH(1) > gContentH(0) * 1.6) andalso (gContentH(1) < gContentH(0) * 1.9), gContentH(0) & " -> " & gContentH(1) )
+dim as long nFail = tkTest_Report( "tkScrollPanel" )
+tkTest_Quit()
+end nFail

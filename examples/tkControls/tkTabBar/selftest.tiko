@@ -1,0 +1,409 @@
+' tkTabBar self-test. Real windows, real SDL event queue: every input claim is made by
+' PUSHING the SDL event a user would have produced and pumping the host. Two passes, scale
+' pinned at 1.0 and at 1.75.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkTabBar"
+#import "vendor/tkControls/tkTest"
+using tkTabBar
+using tkTooltip
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as long gSel, gSelOld, gSelNew, gCloses, gCloseIdx, gReorders, gRFrom, gRTo, gRDowns, gDbl, gPaints
+dim shared as boolean gSuppressDown, gAgrees, gDeleteOnClose
+dim shared as long gTabW(0 to 1)
+dim shared as ulong gFill(0 to 15)
+
+sub OnSel( byval h as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long )
+    gSel += 1 : gSelOld = idxOld : gSelNew = idxNew
+    gAgrees = (tkTabBar_GetCurSel( h ) = idxNew)
+end sub
+
+sub OnClose( byval h as TK_WIDGET ptr, byval idx as long )
+    gCloses += 1 : gCloseIdx = idx
+    if gDeleteOnClose then tkTabBar_DeleteTab( h, idx )
+end sub
+
+sub OnReorder( byval h as TK_WIDGET ptr, byval idxFrom as long, byval idxTo as long )
+    gReorders += 1 : gRFrom = idxFrom : gRTo = idxTo
+end sub
+
+function OnMessage( byval m as TKTABBAR_MESSAGEINFO ptr ) as boolean
+    if m->msg = TKM_RBUTTONDOWN then gRDowns += 1
+    if (m->msg = TKM_LBUTTONDOWN) andalso (m->clicks = 2) then gDbl += 1
+    if gSuppressDown andalso (m->msg = TKM_LBUTTONDOWN) then return true
+    if (m->msg = TKM_LBUTTONUP) orelse (m->msg = TKM_MBUTTONUP) then return true   ' IGNORED
+    return false
+end function
+
+' A host painter that fills each tab's rc with a per-index colour (so pixels name the tab).
+sub OnPaintTab( byval p as TKTABBAR_PAINTINFO ptr )
+    gPaints += 1
+    p->b->SetBackColor( gFill(p->itemID and 15) )
+    p->b->PaintRect( @p->rc )
+end sub
+
+function WaitTip( byval h as TK_HOST ptr, byval tp as TK_TIP ptr, byval want as boolean, byval ms as long ) as boolean
+    dim as double t0 = timer
+    dim as SDL_Event e
+    while (timer - t0) * 1000 < ms
+        if SDL_WaitEventTimeout( @e, 20 ) then tkHost_Dispatch( h, @e )
+        if h->bDirty then tkHost_Render( h )
+        if tkTooltip_IsVisible( tp ) = want then return true
+    wend
+    return false
+end function
+
+function TabCX( byval b as TK_WIDGET ptr, byval idx as long ) as single
+    dim as TKRECT rc
+    tkTabBar_GetTabRect( b, idx, rc )
+    return b->x + (rc.left + rc.right) / 2
+end function
+function TabCY( byval b as TK_WIDGET ptr, byval idx as long ) as single
+    return b->y + b->ch / 2
+end function
+' Centre of tab idx's close X, window pixels.
+function XCX( byval b as TK_WIDGET ptr, byval idx as long ) as single
+    dim as TKRECT rp, rt, ri, rx
+    tkTabBar_GetTabParts( b, idx, rp, rt, ri, rx )
+    return b->x + (rx.left + rx.right) / 2
+end function
+function XCY( byval b as TK_WIDGET ptr, byval idx as long ) as single
+    dim as TKRECT rp, rt, ri, rx
+    tkTabBar_GetTabParts( b, idx, rp, rt, ri, rx )
+    return b->y + (rx.top + rx.bottom) / 2
+end function
+
+' ==========================================================================================
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkTabBar selftest", 800, 400, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    tkTest_Check( "scale pinned", h->fScale = fScale, "" & h->fScale )
+    dim as TTF_Font ptr fText = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
+    dim as TTF_Font ptr fGlyph = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_ICONS, 9 )
+    tkTest_Check( "fonts opened", (fText <> 0) andalso (fGlyph <> 0) )
+    tkTheme_Apply( tkTheme_Dark() )
+    for i as long = 0 to 15
+        gFill(i) = tkRGB( 40 + i * 10, 60, 200 - i * 8 )
+    next
+
+    ' ---- A: the measured layout ---------------------------------------------------------
+    dim as TK_WIDGET ptr b = tkTabBar_Create( tkHost_Root( h ), 101 )
+    tkTabBar_SetFont( b, fText )
+    tkTabBar_SetPaintCallback( b, @OnPaintTab )
+    tkTabBar_SetSelChangeCallback( b, @OnSel )
+    tkTabBar_SetCloseCallback( b, @OnClose )
+    tkTabBar_SetReorderCallback( b, @OnReorder )
+    tkTabBar_SetMessageCallback( b, @OnMessage )
+    dim as string names(0 to 8) = { "main.bas", "frmMain.inc", "PsTabBar.bi", "PsTabBar.inc", "a.bi", _
+                                    "PsVScrollBar.inc", "PsBufferPaint.bi", "REFACTOR_PLAN.md", "README.md" }
+    for i as long = 0 to 8
+        tkTabBar_AddTab( b, names(i), 1001 + i )
+    next
+    tkTest_Check( "adding never selects", tkTabBar_GetCurSel( b ) = -1 )
+    dim as long pad = tkTabBar_GetPadding( b ), icw = tkTabBar_GetIconWidth( b ), bw = tkTabBar_GetBorderWidth( b )
+    tkTest_Check( "defaults scaled at create", pad = cint( 8 * fScale ) andalso icw = cint( 20 * fScale ) andalso bw = iif( cint( fScale ) < 1, 1, cint( fScale ) ), _
+                  pad & " " & icw & " " & bw )
+    dim as TKRECT rc, rp, rt, ri, rx
+    tkTest_Check( "rects empty before sizing", tkTabBar_GetTabRect( b, 0, rc ) andalso tkRect_IsEmpty( rc ) )
+    tkTest_Check( "CanNavigate FALSE without geometry", tkTabBar_CanNavigate( b, 1 ) = false )
+
+    dim as long barH = tkHost_Scale( h, 36 ), barW = tkHost_Scale( h, 700 )
+    tkWidget_SetPos( b, 0, tkHost_Scale( h, 10 ), barW, barH )
+    dim as long w0 = tkText_Width( fText, names(0) ) + 2 * icw + 2 * pad + 2 * bw
+    tkTabBar_GetTabRect( b, 0, rc )
+    tkTest_Check( "width = textW + 2*icon + 2*pad + 2*border", (rc.right - rc.left) = w0 andalso rc.left = 0 andalso rc.top = 0 andalso rc.bottom = barH, tkRect_Str( rc ) & " vs " & w0 )
+    gTabW(iif( fScale > 1.5, 1, 0 )) = w0
+    tkTabBar_GetTabParts( b, 0, rp, rt, ri, rx )
+    tkTest_Check( "rcPaint deflated on 3 sides + bottom (inactive)", rp.left = bw andalso rp.top = bw andalso rp.right = w0 - bw andalso rp.bottom = barH - bw, tkRect_Str( rp ) )
+    dim as long iconTop = ((bw + (barH - bw)) \ 2) - (icw \ 2)
+    tkTest_Check( "rcIcon square at padding, centred on the symmetric height", ri.left = bw + pad andalso (ri.right - ri.left) = icw andalso ri.top = iconTop andalso (ri.bottom - ri.top) = icw, tkRect_Str( ri ) )
+    tkTest_Check( "rcClose square at the right padding", rx.right = w0 - bw - pad andalso (rx.right - rx.left) = icw andalso rx.top = iconTop, tkRect_Str( rx ) )
+    tkTest_Check( "rcText between the icons, symmetric extents", rt.left = ri.right andalso rt.right = rx.left andalso rt.top = bw andalso rt.bottom = barH - bw, tkRect_Str( rt ) )
+    tkTabBar_SetTabMinWidth( b, 4, tkHost_Scale( h, 110 ) )
+    tkTabBar_GetTabRect( b, 4, rc )
+    tkTest_Check( "min width floors a short tab", (rc.right - rc.left) = tkHost_Scale( h, 110 ), "" & (rc.right - rc.left) )
+    tkTabBar_SetTabMinWidth( b, 0, 5 )
+    tkTabBar_GetTabRect( b, 0, rc )
+    tkTest_Check( "a floor below the natural width does nothing", (rc.right - rc.left) = w0 )
+
+    ' selection: the active tab's paint area runs to the client bottom; nothing else moves
+    tkTabBar_SetCurSel( b, 0 )
+    tkTabBar_GetTabParts( b, 0, rp, rt, ri, rx )
+    tkTest_Check( "active tab: rcPaint runs to the client bottom", rp.bottom = barH )
+    tkTest_Check( "active tab: icon and text do not move", ri.top = iconTop andalso rt.top = bw andalso rt.bottom = barH - bw )
+
+    ' overflow: tabs clip, never shrink; navigation
+    tkTest_Check( "overflow: right navigation possible", tkTabBar_CanNavigate( b, 1 ) andalso tkTabBar_CanNavigate( b, -1 ) = false )
+    tkTest_Check( "CanNavigate rejects a non-unit direction", tkTabBar_CanNavigate( b, 2 ) = false )
+    tkTest_Check( "Navigate +1 steps first-visible", tkTabBar_Navigate( b, 1 ) = 1 andalso tkTabBar_GetFirstVisible( b ) = 1 )
+    tkTabBar_GetTabRect( b, 0, rc )
+    tkTest_Check( "a tab scrolled off the left has an EMPTY rect", tkRect_IsEmpty( rc ) )
+    tkTabBar_GetTabRect( b, 1, rc )
+    tkTest_Check( "first visible starts at x = 0", rc.left = 0 )
+    tkTabBar_GetTabParts( b, 0, rp, rt, ri, rx )
+    tkTest_Check( "...and so does the active tab scrolled off (chrome unbroken)", tkRect_IsEmpty( rp ) )
+    dim as long nSteps = 0
+    while tkTabBar_CanNavigate( b, 1 ) andalso (nSteps < 20)
+        tkTabBar_Navigate( b, 1 ) : nSteps += 1
+    wend
+    tkTabBar_GetTabRect( b, 8, rc )
+    tkTest_Check( "navigating right stops once the last tab fits", rc.right <= barW andalso tkTabBar_Navigate( b, 1 ) = tkTabBar_GetFirstVisible( b ), tkRect_Str( rc ) )
+    ' SetCurSel queues a scroll-into-view
+    tkTabBar_SetCurSel( b, 0 )
+    tkTest_Check( "SetCurSel scrolls its tab into view", tkTabBar_GetFirstVisible( b ) = 0 )
+    tkTabBar_SetCurSel( b, 8 )
+    tkTabBar_GetTabRect( b, 8, rc )
+    tkTest_Check( "SetCurSel of the last tab: its right edge fits", rc.right <= barW andalso rc.left >= 0 andalso tkTabBar_GetFirstVisible( b ) > 0, tkRect_Str( rc ) )
+    tkTabBar_SetCurSel( b, 0 ) : tkTabBar_SetFirstVisible( b, 3 )
+    tkTest_Check( "SetFirstVisible cancels the queued scroll", tkTabBar_GetFirstVisible( b ) = 3 )
+    tkTest_Check( "SetFirstVisible bad index: FALSE", tkTabBar_SetFirstVisible( b, 99 ) = false )
+    ' back-fill: widen the bar and the hidden tabs come back
+    tkWidget_SetSize( b, tkHost_Scale( h, 2000 ), barH )
+    tkTest_Check( "back-fill: a wide bar pulls hidden tabs back", tkTabBar_GetFirstVisible( b ) = 0 )
+    tkWidget_SetSize( b, barW, barH )
+    tkTabBar_SetFirstVisible( b, 0 )
+
+    ' ---- B: gestures -------------------------------------------------------------------------
+    tkHost_Pump( h )
+    gSel = 0
+    tkTest_PushMotion( h, TabCX( b, 1 ), TabCY( b, 1 ) )
+    tkTest_Check( "hover: tab hot, not its X", tkTabBar_GetHotTab( b ) = 1 andalso tkTabBar_GetHotClose( b ) = false )
+    tkTest_Check( "hover: tip index follows", tkTooltip_GetToolIndex( tkTabBar_GetTooltipHandle( b ) ) = 1 )
+    tkTest_PushMotion( h, XCX( b, 1 ), XCY( b, 1 ) )
+    tkTest_Check( "hover on the X: isHot AND isHotClose", tkTabBar_GetHotTab( b ) = 1 andalso tkTabBar_GetHotClose( b ) )
+    tkTest_PushButton( h, true, TabCX( b, 1 ), TabCY( b, 1 ) )
+    tkTest_Check( "select on DOWN, user: SelChange old->new", gSel = 1 andalso gSelOld = 0 andalso gSelNew = 1 andalso gAgrees, gSel & " " & gSelOld & " " & gSelNew )
+    tkTest_Check( "press takes capture, never focus", tkHost_GetCapture( h ) = b andalso tkHost_GetFocus( h ) = 0 )
+    tkTest_PushButton( h, false, TabCX( b, 1 ), TabCY( b, 1 ) )
+    tkTest_Check( "release: capture gone (callback TRUE ignored)", tkHost_GetCapture( h ) = 0 )
+    tkTest_Click( h, TabCX( b, 1 ), TabCY( b, 1 ) )
+    tkTest_Check( "clicking the active tab: no SelChange", gSel = 1 )
+    tkTest_Click( h, TabCX( b, 2 ), TabCY( b, 2 ), SDL_BUTTON_LEFT, 2 )
+    tkTest_Check( "a clicks=2 press selects and is reported", gSel = 2 andalso gDbl >= 1 andalso tkTabBar_GetCurSel( b ) = 2 )
+
+    ' close on the X: no selection, matched
+    gSel = 0 : gCloses = 0
+    tkTest_PushButton( h, true, XCX( b, 3 ), XCY( b, 3 ) )
+    tkTest_Check( "press on the X does NOT select", gSel = 0 andalso tkTabBar_GetCurSel( b ) = 2 )
+    tkTest_PushButton( h, false, XCX( b, 3 ), XCY( b, 3 ) )
+    tkTest_Check( "matched X release: close request", gCloses = 1 andalso gCloseIdx = 3 )
+    tkTest_Check( "close is notify-only: nothing deleted", tkTabBar_GetCount( b ) = 9 )
+    tkTest_PushButton( h, true, XCX( b, 3 ), XCY( b, 3 ) )
+    tkTest_PushMotion( h, TabCX( b, 3 ), TabCY( b, 3 ) )
+    tkTest_PushButton( h, false, TabCX( b, 3 ), TabCY( b, 3 ) )
+    tkTest_Check( "press X, slide to the body, release: no close", gCloses = 1 )
+    tkTest_Check( "...and no drag either (the X is not a handle)", gReorders = 0 andalso tkTabBar_IsDragging( b ) = false )
+    ' middle click anywhere on the tab (tab 4: wholly inside the bar in any UI font)
+    tkTest_Click( h, TabCX( b, 4 ), TabCY( b, 4 ), SDL_BUTTON_MIDDLE )
+    tkTest_Check( "matched middle-click: close request", gCloses = 2 andalso gCloseIdx = 4, gCloses & " " & gCloseIdx )
+    tkTest_PushButton( h, true, TabCX( b, 4 ), TabCY( b, 4 ), SDL_BUTTON_MIDDLE )
+    tkTest_PushButton( h, false, TabCX( b, 2 ), TabCY( b, 2 ), SDL_BUTTON_MIDDLE )
+    tkTest_Check( "middle press, release on another tab: nothing", gCloses = 2 andalso tkHost_GetCapture( h ) = 0 )
+    ' a non-closable tab (PsPlatform)
+    tkTabBar_SetClosable( b, 3, false )
+    tkTest_Click( h, XCX( b, 3 ), XCY( b, 3 ) )
+    tkTest_Check( "non-closable: a click on the X area SELECTS, never closes", gCloses = 2 andalso tkTabBar_GetCurSel( b ) = 3 )
+    tkTest_Click( h, TabCX( b, 3 ), TabCY( b, 3 ), SDL_BUTTON_MIDDLE )
+    tkTest_Check( "non-closable: middle-click does not close", gCloses = 2 )
+    tkTabBar_SetClosable( b, 3, true )
+    ' the host deletes from inside its close handler
+    gDeleteOnClose = true
+    tkTabBar_SetCurSel( b, 6 ) : tkTabBar_SetFirstVisible( b, 0 )   ' tab 2's X on screen
+    tkTest_Click( h, XCX( b, 2 ), XCY( b, 2 ) )
+    tkTest_Check( "DeleteTab from the close handler: an earlier tab keeps selection on the same tab", tkTabBar_GetCount( b ) = 8 andalso tkTabBar_GetCurSel( b ) = 5 andalso tkTabBar_GetItemData( b, 5 ) = 1007 )
+    gDeleteOnClose = false
+
+    ' right button observed only; suppression of the down
+    gRDowns = 0
+    tkTest_PushButton( h, true, TabCX( b, 1 ), TabCY( b, 1 ), SDL_BUTTON_RIGHT )
+    tkTest_Check( "right down reported, no capture", gRDowns = 1 andalso tkHost_GetCapture( h ) = 0 )
+    tkTest_PushButton( h, false, TabCX( b, 1 ), TabCY( b, 1 ), SDL_BUTTON_RIGHT )
+    gSel = 0 : gSuppressDown = true
+    tkTest_PushButton( h, true, TabCX( b, 1 ), TabCY( b, 1 ) )
+    tkTest_Check( "suppressed down: no selection, capture still taken", gSel = 0 andalso tkHost_GetCapture( h ) = b )
+    tkTest_PushButton( h, false, TabCX( b, 1 ), TabCY( b, 1 ) )
+    tkTest_Check( "...and released by the up", tkHost_GetCapture( h ) = 0 )
+    gSuppressDown = false
+
+    ' ---- C: drag to reorder --------------------------------------------------------------
+    tkTabBar_SetCurSel( b, 1 ) : tkTabBar_SetFirstVisible( b, 0 )
+    gReorders = 0 : gSel = 0
+    dim as integer data1 = tkTabBar_GetItemData( b, 1 )
+    tkTest_PushButton( h, true, TabCX( b, 1 ), TabCY( b, 1 ) )
+    tkTest_PushMotion( h, TabCX( b, 1 ) + 1, TabCY( b, 1 ) )
+    tkTest_Check( "under the threshold: not dragging", tkTabBar_IsDragging( b ) = false )
+    tkTest_PushMotion( h, TabCX( b, 1 ) + tkHost_Scale( h, 6 ), TabCY( b, 1 ) )
+    tkTest_Check( "past the threshold: dragging, move cursor", tkTabBar_IsDragging( b ) andalso tkHost_CurrentCursor() = TK_CURSOR_SIZEALL, "" & tkHost_CurrentCursor() )
+    dim as single x2 = TabCX( b, 2 )
+    tkTest_PushMotion( h, x2, TabCY( b, 2 ) )
+    tkTest_Check( "entering the right neighbour exchanges: reorder 1 -> 2", gReorders = 1 andalso gRFrom = 1 andalso gRTo = 2, gReorders & " " & gRFrom & " " & gRTo )
+    tkTest_Check( "itemData and selection follow the tab", tkTabBar_GetItemData( b, 2 ) = data1 andalso tkTabBar_GetCurSel( b ) = 2 )
+    tkTest_Check( "hover pinned to the dragged tab", tkTabBar_GetHotTab( b ) = 2 )
+    tkTest_PushMotion( h, x2 + 1, TabCY( b, 2 ) )
+    tkTest_Check( "no oscillation (direction gate)", gReorders = 1 )
+    tkTest_PushMotion( h, tkTest_CX( b ) * 0 + b->x + 2, TabCY( b, 0 ) )
+    tkTest_Check( "dragging left over tab 0 moves it there", tkTabBar_GetItemData( b, 0 ) = data1 andalso gReorders = 2, gReorders & "" )
+    tkTest_PushButton( h, false, b->x + 2, TabCY( b, 0 ) )
+    tkTest_Check( "drop: drag over, cursor back to the arrow", tkTabBar_IsDragging( b ) = false andalso tkHost_CurrentCursor() = TK_CURSOR_ARROW andalso tkHost_GetCapture( h ) = 0 )
+    tkTest_Check( "a drag fires no SelChange (selection followed the tab)", gSel = 0 andalso tkTabBar_GetCurSel( b ) = 0 )
+    ' capture lost mid-drag: the order stays
+    tkTest_PushButton( h, true, TabCX( b, 0 ), TabCY( b, 0 ) )
+    tkTest_PushMotion( h, TabCX( b, 0 ) + tkHost_Scale( h, 8 ), TabCY( b, 0 ) )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_FOCUS_LOST )
+    tkTest_Check( "focus lost mid-drag: drag ends, order kept", tkTabBar_IsDragging( b ) = false andalso tkTabBar_GetItemData( b, 0 ) = data1 )
+    tkTest_PushButton( h, false, TabCX( b, 0 ), TabCY( b, 0 ) )
+
+    ' ---- D: silent setters and index fix-ups ---------------------------------------------
+    gSel = 0 : gReorders = 0 : gCloses = 0
+    tkTabBar_SetCurSel( b, 3 ) : tkTabBar_MoveTab( b, 3, 0 )
+    tkTest_Check( "MoveTab silent; selection follows", gReorders = 0 andalso gSel = 0 andalso tkTabBar_GetCurSel( b ) = 0 )
+    tkTest_Check( "MoveTab same index: TRUE no-op; bad: FALSE", tkTabBar_MoveTab( b, 1, 1 ) andalso tkTabBar_MoveTab( b, 1, 99 ) = false )
+    tkTabBar_InsertTab( b, 0, "new.txt", 77 )
+    tkTest_Check( "insert before the selection shifts it", tkTabBar_GetCurSel( b ) = 1 andalso tkTabBar_GetItemData( b, 0 ) = 77 )
+    tkTest_Check( "InsertTab clamps", tkTabBar_InsertTab( b, 500, "end.txt", 78 ) = tkTabBar_GetCount( b ) - 1 )
+    tkTabBar_DeleteTab( b, 1 )
+    tkTest_Check( "deleting the selected tab selects nothing", tkTabBar_GetCurSel( b ) = -1 )
+    tkTest_Check( "SetCurSel -1 accepted, bad index refused", tkTabBar_SetCurSel( b, -1 ) andalso tkTabBar_SetCurSel( b, 99 ) = false )
+    tkTabBar_SetFirstVisible( b, 0 )
+    tkTabBar_SetText( b, 0, "a much much longer caption.txt" )
+    tkTabBar_GetTabRect( b, 0, rc )
+    tkTest_Check( "SetText re-lays out (wider)", (rc.right - rc.left) > w0 )
+    tkTest_Check( "setters were silent", gSel = 0 andalso gReorders = 0 andalso gCloses = 0 )
+    ' a mutation cancels a live press
+    tkTest_PushButton( h, true, TabCX( b, 1 ), TabCY( b, 1 ) )
+    tkTabBar_AddTab( b, "late.txt" )
+    tkTest_PushMotion( h, TabCX( b, 1 ) + tkHost_Scale( h, 30 ), TabCY( b, 1 ) )
+    tkTest_Check( "a mutation mid-press kills the gesture (no drag)", tkTabBar_IsDragging( b ) = false )
+    tkTest_PushButton( h, false, TabCX( b, 1 ), TabCY( b, 1 ) )
+
+    ' ---- E: wheel ------------------------------------------------------------------------
+    tkTabBar_SetFirstVisible( b, 0 )
+    tkTest_PushWheel( h, TabCX( b, 1 ), TabCY( b, 1 ), 0, -1 )
+    tkTest_Check( "wheel down scrolls right", tkTabBar_GetFirstVisible( b ) = 1 )
+    tkTest_PushWheel( h, TabCX( b, 2 ), TabCY( b, 2 ), 0, 1 )
+    tkTest_Check( "wheel up scrolls left", tkTabBar_GetFirstVisible( b ) = 0 )
+
+    ' ---- F: pixels (host painter + chrome) -------------------------------------------------
+    tkTabBar_Clear( b )
+    tkTest_Check( "Clear resets", tkTabBar_GetCount( b ) = 0 andalso tkTabBar_GetCurSel( b ) = -1 andalso tkTabBar_GetFirstVisible( b ) = 0 )
+    for i as long = 0 to 3
+        tkTabBar_AddTab( b, names(i), i )
+    next
+    tkTabBar_SetCurSel( b, 1 )
+    tkTabBar_SetBorderWidth( b, tkHost_Scale( h, 2 ) )
+    bw = tkTabBar_GetBorderWidth( b )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+    tkHost_RenderTo( h, false )
+    dim as TKTABBAR_COLORS cc
+    tkTabBar_GetColors( b, @cc )
+    dim as TKRECT r1, r0, r3
+    tkTabBar_GetTabRect( b, 1, r1 ) : tkTabBar_GetTabRect( b, 0, r0 ) : tkTabBar_GetTabRect( b, 3, r3 )
+    dim as long by = b->y + barH - 1
+    tkTest_Check( "pixel: bottom rule under an inactive tab", tkTest_PixelAt( h, b->x + (r0.left + r0.right) \ 2, by ) = cc.BorderColor )
+    tkTest_Check( "pixel: bottom rule past the last tab", tkTest_PixelAt( h, b->x + r3.right + 5, by ) = cc.BorderColor )
+    tkTest_Check( "pixel: the rule BREAKS under the active tab (its own fill)", tkTest_PixelAt( h, b->x + (r1.left + r1.right) \ 2, by ) = gFill(1), hex( tkTest_PixelAt( h, b->x + (r1.left + r1.right) \ 2, by ) ) )
+    tkTest_Check( "pixel: the active tab's side and top border", tkTest_PixelAt( h, b->x + r1.left, b->y + barH \ 2 ) = cc.BorderColor andalso tkTest_PixelAt( h, b->x + (r1.left + r1.right) \ 2, b->y ) = cc.BorderColor )
+    tkTest_Check( "pixel: an inactive tab's fill inside its rcPaint", tkTest_PixelAt( h, b->x + (r0.left + r0.right) \ 2, b->y + barH \ 2 ) = gFill(0) )
+    tkTest_Check( "pixel: the bar background past the tabs", tkTest_PixelAt( h, b->x + r3.right + 5, b->y + barH \ 2 ) = cc.BackColor )
+    tkTabBar_SetBorderWidth( b, 0 )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "border width 0: no chrome", tkTest_PixelAt( h, b->x + (r0.left + r0.right) \ 2, by ) <> cc.BorderColor )
+    tkTabBar_SetBorderWidth( b, tkHost_Scale( h, 1 ) )
+
+    ' ---- G: the built-in painter + opt-in keyboard (PsPlatform) ----------------------------
+    dim as TK_WIDGET ptr k = tkTabBar_Create( tkHost_Root( h ), 102 )
+    tkTabBar_SetFont( k, fText ) : tkTabBar_SetGlyphFont( k, fGlyph )
+    tkTabBar_SetSelChangeCallback( k, @OnSel )
+    for i as long = 0 to 3
+        tkTabBar_AddTab( k, names(i), i )
+    next
+    tkTabBar_SetGlyph( k, 0, wchr( TK_ICON_DOCUMENT ) )
+    tkWidget_SetPos( k, 0, tkHost_Scale( h, 100 ), barW, barH )
+    tkTabBar_SetCurSel( k, 0 )
+    tkTest_Check( "not focusable by default (vendor)", k->isFocusable = false )
+    tkTest_PushMotion( h, TabCX( k, 2 ), TabCY( k, 2 ) )
+    tkHost_RenderTo( h, false )
+    dim as TKTABBAR_COLORS kc
+    tkTabBar_GetColors( k, @kc )
+    dim as TKRECT rk1, rk2
+    tkTabBar_GetTabParts( k, 1, rk1, rt, ri, rx )
+    tkTabBar_GetTabParts( k, 2, rk2, rt, ri, rx )
+    tkTest_Check( "built-in: inactive tab fill", tkTest_PixelAt( h, k->x + rk1.left + 1, k->y + rk1.bottom - 2 ) = kc.TabBackColor )
+    tkTest_Check( "built-in: hot tab fill", tkTest_PixelAt( h, k->x + rk2.left + 1, k->y + rk2.bottom - 2 ) = kc.TabBackColorHot )
+    dim as ulong c0
+    tkTest_Check( "built-in: the X appears on the hot tab", tkTest_TonesIn( h, k->x + rx.left, k->y + rx.top, rx.right - rx.left, rx.bottom - rx.top, c0 ) > 2 )
+    tkTabBar_GetTabParts( k, 0, rp, rt, ri, rx )
+    tkTest_Check( "built-in: the left glyph is drawn", tkTest_TonesIn( h, k->x + ri.left, k->y + ri.top, ri.right - ri.left, ri.bottom - ri.top, c0 ) > 2 )
+    tkTest_Check( "built-in: the accent bar tops the active tab", tkTest_PixelAt( h, k->x + (rp.left + rp.right) \ 2, k->y + rp.top ) = kc.AccentColor )
+    tkTabBar_SetKeyboard( k, true )
+    tkHost_SetFocus( h, k )
+    tkTest_Check( "keyboard opt-in: focusable", tkHost_GetFocus( h ) = k )
+    gSel = 0
+    tkTest_PushKey( h, SDLK_RIGHT )
+    tkTest_Check( "Right selects the next tab and notifies", tkTabBar_GetCurSel( k ) = 1 andalso gSel = 1 andalso gSelOld = 0 )
+    tkTest_PushKey( h, SDLK_END )
+    tkTest_Check( "End selects the last", tkTabBar_GetCurSel( k ) = 3 )
+    tkTest_PushKey( h, SDLK_RIGHT )
+    tkTest_Check( "Right at the end: nothing", tkTabBar_GetCurSel( k ) = 3 andalso gSel = 2 )
+    tkTest_PushKey( h, SDLK_HOME ) : tkTest_PushKey( h, SDLK_LEFT )
+    tkTest_Check( "Home, then Left at the start", tkTabBar_GetCurSel( k ) = 0 andalso gSel = 3 )
+    dim as TK_MSG km
+    km.msg = TKM_KEYDOWN : km.key = SDLK_TAB
+    tkTest_Check( "Tab is not claimed (the host moves focus)", tkWidget_Send( k, @km ) = false )
+    tkTabBar_SetKeyboard( k, false )
+    tkTest_Check( "keyboard off: no longer focusable", k->isFocusable = false )
+
+    ' ---- H: theme + pinning -------------------------------------------------------------
+    tkTheme_Apply( tkTheme_Light() )
+    tkTabBar_GetColors( k, @kc )
+    tkTest_Check( "theme reaches an unpinned bar", kc.BackColor = tkTheme_Light().Window andalso kc.BorderColor = tkTheme_Light().Border andalso kc.TabBackColor = tkTheme_Light().Surface )
+    dim as ulong oldB = tkTabBar_SetBorderColor( b, &hFFFF0000ul )
+    tkTest_Check( "SetBorderColor returns the previous colour", oldB = tkTheme_Light().Border )
+    tkTheme_Apply( tkTheme_Dark() )
+    tkTest_Check( "SetBorderColor pinned", tkTabBar_GetBorderColor( b ) = &hFFFF0000ul )
+    tkTabBar_UnpinColors( b )
+    tkTest_Check( "unpin: back to the theme", tkTabBar_GetBorderColor( b ) = tkTheme_Dark().Border )
+
+    ' ---- I: tooltips ---------------------------------------------------------------------
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 400 )
+    tkTabBar_SetHoverTime( b, 150 )
+    dim as TK_TIP ptr tp = tkTabBar_GetTooltipHandle( b )
+    tkTest_PushMotion( h, TabCX( b, 2 ), TabCY( b, 2 ) )
+    tkTest_Check( "tip appears (default text = the caption)", WaitTip( h, tp, true, 1500 ) )
+    tkTest_PushMotion( h, TabCX( b, 3 ), TabCY( b, 3 ) )
+    tkTest_Check( "a new tab hides the tip at once", tkTooltip_IsVisible( tp ) = false )
+    tkTest_PushMotion( h, 2, h->root->ch - 2 )
+    tkTest_Check( "tip hides on leave", WaitTip( h, tp, false, 800 ) )
+
+    ' ---- J: rescale ------------------------------------------------------------------------
+    tkTabBar_SetTabMinWidth( b, 3, tkHost_Scale( h, 200 ) )
+    dim as long mw0 = tkTabBar_GetTabMinWidth( b, 3 ), p0 = tkTabBar_GetPadding( b ), i0 = tkTabBar_GetIconWidth( b )
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkTest_Check( "rescale: padding, icon, min width x2", tkTabBar_GetPadding( b ) = p0 * 2 andalso tkTabBar_GetIconWidth( b ) = i0 * 2 andalso tkTabBar_GetTabMinWidth( b, 3 ) = mw0 * 2, _
+                  tkTabBar_GetPadding( b ) & " " & tkTabBar_GetIconWidth( b ) & " " & tkTabBar_GetTabMinWidth( b, 3 ) )
+    tkTest_Check( "rescale: border at least 1", tkTabBar_GetBorderWidth( b ) >= 1 )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+
+    tkHost_Destroy( h )
+end sub
+
+
+' ==========================================================================================
+if tkTest_Init() = false then end 99
+
+RunPass( 1.0 )
+RunPass( 1.75 )
+
+tkTest_Begin( "cross-pass" )
+tkTest_Check( "tab width scales with the scale", (gTabW(0) > 0) andalso (gTabW(1) > gTabW(0) * 1.55) andalso (gTabW(1) < gTabW(0) * 1.95), gTabW(0) & " -> " & gTabW(1) )
+dim as long nFail = tkTest_Report( "tkTabBar" )
+tkTest_Quit()
+end nFail

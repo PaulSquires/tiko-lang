@@ -1,0 +1,1365 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkTooltip -- vendor PsTooltip on tkControls, plus tkTipHost (vendor PsTipHost, the per-control
+' helper every control uses to own its tip lazily).
+'
+' WHAT IS THE SAME: the API, the layout (glyph cell + title row + wrapped message, the size
+' formula), the painter (body, frame, balloon stem "house"), the placement law
+' (ComputeOrigin / StemOnTop / ComputeStem), the fade ramp, the decision table (ShouldShow) and
+' the tick -- dwell, reshow-versus-initial delay, click suppression, auto-pop, the veto that
+' suppresses the rest of the hover, one tip on screen at a time.
+'
+' WHAT CHANGED, because there is no HWND:
+'   * The handle is a TK_TIP ptr. The tip is not a widget; its window is a TK_SURF_TOOLTIP
+'     popup surface created when it shows and closed when it hides (Wayland cannot re-show an
+'     unmapped popup). It is transparent, so the rounded corners and the stem band need no
+'     window region.
+'   * It watches its control through a hidden, zero-size LISTENER child of that control. The
+'     listener carries the clock (a host timer), and receives the control's scale and theme
+'     broadcasts and its destruction -- so a tip detaches itself when its control goes away.
+'   * The clock runs only while the cursor is over an attached control or a tip is up/fading:
+'     tkHost's hot-changed hook wakes it. An idle window costs nothing (vendor polled at 100 ms).
+'   * "Over" is the surface's hot widget (a descendant of the attached one counts), not
+'     WindowFromPoint; "button down" is the surface's own button mask.
+'   * Coordinates are the attached surface's WINDOW PIXELS where vendor used screen pixels.
+'   * The fade is SDL_SetWindowOpacity; where unsupported (Wayland) the tip appears at once.
+'   * A tip window is NOT click-through: an SDL window cannot be HTTRANSPARENT. Cursor
+'     placement keeps it clear of the cursor; moving onto it leaves the control and hides it.
+' Dropped: the message callback (the tip window receives nothing worth observing),
+' GetSystemFont (SPI_GETNONCLIENTMETRICS), the comctl32 backend. See PORT.md.
+#module "tkTooltip"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+using tkHost
+using tkPaint
+using tkTheme
+
+public const TKTOOLTIP_DEFAULT_PADX = 10
+public const TKTOOLTIP_DEFAULT_PADY = 7
+public const TKTOOLTIP_DEFAULT_CURVATURE = 6     ' corner ellipse DIAMETER
+public const TKTOOLTIP_DEFAULT_STEMW = 14
+public const TKTOOLTIP_DEFAULT_STEMH = 7
+public const TKTOOLTIP_DEFAULT_GLYPHCELL = 20
+public const TKTOOLTIP_DEFAULT_GLYPHGAP = 8
+public const TKTOOLTIP_DEFAULT_TITLEGAP = 4
+public const TKTOOLTIP_DEFAULT_MOVETOL = 3
+public const TKTOOLTIP_DEFAULT_FADEMS = 120
+public const TKTOOLTIP_CLOCK_IDLE_MS = 100
+public const TKTOOLTIP_CLOCK_FADE_MS = 15
+
+public enum
+    TIP_STYLE_RECT    = 0
+    TIP_STYLE_BALLOON = 1
+end enum
+
+public enum
+    TIP_ALIGN_CURSOR = 0         ' below-right of the cursor, cleared by the cursor's height
+    TIP_ALIGN_BELOW  = 1         ' below the anchor, flipping above when there is no room
+    TIP_ALIGN_ABOVE  = 2         ' above the anchor, flipping below when there is no room
+end enum
+
+public enum
+    TIP_PART_CLIENT = 0
+    TIP_PART_BODY   = 1
+    TIP_PART_GLYPH  = 2
+    TIP_PART_TITLE  = 3
+    TIP_PART_TEXT   = 4
+    TIP_PART_STEM   = 5
+end enum
+
+' tkTipHost_SetDelay's selector (vendor used TTDT_*).
+public enum
+    TK_TIPDELAY_INITIAL = 0
+    TK_TIPDELAY_AUTOPOP
+    TK_TIPDELAY_RESHOW
+end enum
+
+' Vendor's dark defaults, value for value.
+public type TKTOOLTIP_COLORS
+    BackColor    as ulong = &hFF2D323Aul    ' ( 45, 50, 58)
+    BorderColor  as ulong = &hFF4E545Eul    ' ( 78, 84, 94)
+    ForeColor    as ulong = &hFFD4D9E2ul    ' (212,217,226)
+    TitleColor   as ulong = &hFFFFFFFFul
+    GlyphColor   as ulong = &hFF569CD6ul    ' ( 86,156,214)
+end type
+
+public type TK_TIP as TK_TIP_
+
+public type TKTOOLTIP_PAINTINFO
+    hTooltip     as TK_TIP ptr
+    hAttached    as TK_WIDGET ptr
+    b            as TK_PAINT ptr
+    rcClient     as TKRECT              ' the whole window, INCLUDING the stem band
+    rcBody       as TKRECT              ' the rounded frame (rcClient minus the stem band)
+    rcGlyph      as TKRECT
+    rcTitle      as TKRECT
+    rcText       as TKRECT
+    ptStem(0 to 2) as TKPOINT
+    bHasStem     as boolean
+    bStemOnTop   as boolean
+    wszText      as ustring             ' the RESOLVED message
+    wszTitle     as ustring
+    wszGlyph     as ustring
+    nStyle       as long
+    nCurvature   as long
+    nBorderWidth as long
+    nToolIndex   as long
+    nTextFlags   as long                ' the TK_DT_* flags the message was MEASURED with
+end type
+
+public type TIP_PaintCallbackSub as sub( byval p as TKTOOLTIP_PAINTINFO ptr )
+public type TIP_TooltipCallbackFunc as function( byval hTooltip as TK_TIP ptr, byval hAttached as TK_WIDGET ptr, _
+                                                 byval idx as long ) as ustring
+public type TIP_ShowCallbackFunc as function( byval hTooltip as TK_TIP ptr, byval hAttached as TK_WIDGET ptr, _
+                                              byval idx as long, byval bShowing as boolean ) as boolean
+
+public type TK_TIP_
+    hSurf            as TK_HOST ptr       ' the tip's popup surface while shown, else 0
+    hAttached        as TK_WIDGET ptr
+    pListener        as TK_WIDGET ptr     ' hidden child of hAttached: clock, broadcasts, destroy
+    bColorsPinned    as boolean
+    wszText          as ustring
+    wszTitle         as ustring
+    wszGlyph         as ustring
+    wszTipBuf        as ustring           ' the RESOLVED message (never the authored field)
+    nToolIndex       as long = -1
+    pTextFont        as TTF_Font ptr      ' borrowed
+    pTitleFont       as TTF_Font ptr
+    pGlyphFont       as TTF_Font ptr
+    colors           as TKTOOLTIP_COLORS
+    nStyle           as long
+    nMaxWidth        as long
+    nPadX            as long
+    nPadY            as long
+    nCurvature       as long
+    nBorderWidth     as long = 1
+    nStemW           as long
+    nStemH           as long
+    nGlyphCell       as long
+    nGlyphGap        as long
+    nTitleGap        as long
+    nInitialDelay    as long = 500
+    nAutoPopDelay    as long = 5000
+    nReshowDelay     as long = 100
+    nFadeTime        as long = TKTOOLTIP_DEFAULT_FADEMS
+    nMoveTolerance   as long
+    bLayoutDirty     as boolean = true
+    nIdealW          as long
+    nIdealH          as long
+    rcBody           as TKRECT
+    rcGlyph          as TKRECT
+    rcTitle          as TKRECT
+    rcText           as TKRECT
+    nTextFlags       as long
+    ptStem(0 to 2)   as TKPOINT
+    bHasStem         as boolean
+    bStemOnTop       as boolean
+    ptLastX          as long
+    ptLastY          as long
+    tRestSince       as longint          ' 0 = not resting
+    tShownAt         as longint
+    tHiddenAt        as longint
+    tFadeStart       as longint
+    nFadePhase       as long             ' 0 settled, 1 fading in, 2 fading out
+    nAlpha           as long = 255
+    bVisible         as boolean
+    bSuppressed      as boolean
+    nClockMs         as long             ' 0 = clock stopped
+    PaintCallback    as TIP_PaintCallbackSub
+    TooltipCallback  as TIP_TooltipCallbackFunc
+    ShowCallback     as TIP_ShowCallbackFunc
+    declare sub LayoutTooltip()
+    declare sub Refresh()
+end type
+
+
+' ---- registry, defaults, the one visible tip ------------------------------------------------
+dim shared as TK_TIP ptr gTips(0 to 255)
+dim shared as long gnTips
+dim shared as TK_TIP ptr gVisible
+dim shared as boolean gHooked
+
+dim shared as TKTOOLTIP_COLORS gDefColors
+dim shared as boolean gHasDefColors, gHasDefFonts, gHasDefStyle, gHasDefMaxW
+dim shared as boolean gHasDefInitial, gHasDefAutoPop, gHasDefReshow
+dim shared as TTF_Font ptr gDefFontText, gDefFontTitle, gDefFontGlyph
+dim shared as long gDefStyle, gDefMaxWidth, gDefInitial, gDefAutoPop, gDefReshow
+
+' The clock. tkTooltip_TickForTest pins it to its injected time for the length of the tick,
+' so a show, hide or fade started INSIDE that tick is stamped on the same timeline the test is
+' driving (vendor read GetTickCount there, which only agrees with a test that also uses it).
+dim shared as longint gNowPinned
+
+private function NowMs() as longint
+    if gNowPinned <> 0 then return gNowPinned
+    return SDL_GetTicks()
+end function
+
+declare sub TIP_TickOne( byval pTip as TK_TIP ptr, byval cx as long, byval cy as long, _
+                         byval bOver as boolean, byval bBtn as boolean, byval tNow as longint )
+declare sub TIP_HideCore( byval pTip as TK_TIP ptr, byval bAllowFade as boolean )
+declare sub TIP_ApplyClockRate( byval pTip as TK_TIP ptr )
+
+
+' ==========================================================================================
+' PURE FUNCTIONS -- vendor's, unchanged except for the point/rect types.
+' ==========================================================================================
+public function tkTooltip_ComputeOrigin( byref rcAnchor as TKRECT, byval tipW as long, byval tipH as long, _
+                                         byref rcWork as TKRECT, byval nAlign as long, _
+                                         byval nCursorOffset as long ) as TKPOINT
+    dim as long x, y
+    select case nAlign
+        case TIP_ALIGN_ABOVE
+            x = rcAnchor.left : y = rcAnchor.top - tipH
+        case TIP_ALIGN_BELOW
+            x = rcAnchor.left : y = rcAnchor.bottom
+        case else
+            x = rcAnchor.left : y = rcAnchor.top + nCursorOffset
+    end select
+    if x + tipW > rcWork.right then x = rcWork.right - tipW
+    if x < rcWork.left then x = rcWork.left
+    ' FLIP past the anchor rather than clamping back over it
+    if nAlign = TIP_ALIGN_ABOVE then
+        if y < rcWork.top then
+            dim as long yBelow = rcAnchor.bottom
+            if yBelow + tipH <= rcWork.bottom then y = yBelow else y = rcWork.top
+        end if
+    else
+        if y + tipH > rcWork.bottom then
+            dim as long yAbove = rcAnchor.top - tipH
+            if yAbove >= rcWork.top then y = yAbove else y = rcWork.bottom - tipH
+        end if
+    end if
+    ' a FULL clamp on both edges after the flip; bottom first so a too-tall tip pins to the top
+    if y + tipH > rcWork.bottom then y = rcWork.bottom - tipH
+    if y < rcWork.top then y = rcWork.top
+    dim as TKPOINT pt
+    pt.x = x : pt.y = y
+    return pt
+end function
+
+public function tkTooltip_StemOnTop( byref rcAnchor as TKRECT, byref ptOrigin as TKPOINT, byval nAlign as long ) as boolean
+    return ptOrigin.y >= rcAnchor.top
+end function
+
+public function tkTooltip_ComputeStem( byval cxClient as long, byval cyClient as long, byval bStemOnTop as boolean, _
+                                       byval nStemW as long, byval nStemH as long, byval nTargetX as long, _
+                                       byval nCurvature as long, byval pts as TKPOINT ptr ) as boolean
+    if pts = 0 then return false
+    if (nStemW < 2) orelse (nStemH < 1) then return false
+    dim as long nHalf = nStemW \ 2
+    dim as long nRadius = nCurvature \ 2
+    dim as long nMinBx = nRadius + nHalf
+    dim as long nMaxBx = cxClient - nRadius - nHalf
+    if nMinBx > nMaxBx then return false
+    dim as long bx = nTargetX
+    if bx < nMinBx then bx = nMinBx
+    if bx > nMaxBx then bx = nMaxBx
+    if bStemOnTop then
+        pts[0].x = bx - nHalf : pts[0].y = nStemH
+        pts[1].x = bx : pts[1].y = 0
+        pts[2].x = bx + nHalf : pts[2].y = nStemH
+    else
+        pts[0].x = bx - nHalf : pts[0].y = cyClient - nStemH
+        pts[1].x = bx : pts[1].y = cyClient
+        pts[2].x = bx + nHalf : pts[2].y = cyClient - nStemH
+    end if
+    return true
+end function
+
+public function tkTooltip_ComputeAlpha( byval nElapsed as long, byval nFadeMs as long, byval bFadingIn as boolean ) as long
+    if nFadeMs <= 0 then return iif( bFadingIn, 255, 0 )
+    dim as long t = nElapsed
+    if t < 0 then t = 0
+    if t > nFadeMs then t = nFadeMs
+    dim as long a = (255 * t) \ nFadeMs
+    return iif( bFadingIn, a, 255 - a )
+end function
+
+public function tkTooltip_ShouldShow( byval bOver as boolean, byval bResting as boolean, byval bHasText as boolean, _
+                                      byval bButtonDown as boolean, byval bSuppressed as boolean ) as boolean
+    if bOver = false then return false
+    if bResting = false then return false
+    if bHasText = false then return false
+    if bButtonDown then return false
+    if bSuppressed then return false
+    return true
+end function
+
+
+' ==========================================================================================
+' Layout -- vendor's LayoutTooltip with SDL_ttf measuring. Band rects are BODY-LOCAL.
+' ==========================================================================================
+private function FontOf( byval pTip as TK_TIP ptr ) as TTF_Font ptr
+    if pTip->pTextFont then return pTip->pTextFont
+    if pTip->hAttached andalso pTip->hAttached->pHost then return pTip->hAttached->pHost->pDefaultFont
+    return 0
+end function
+
+sub TK_TIP_.LayoutTooltip()
+    this.bLayoutDirty = false
+    dim as TTF_Font ptr fText = FontOf( @this )
+    dim as TTF_Font ptr fTitle = iif( this.pTitleFont <> 0, this.pTitleFont, fText )
+    if fText = 0 then this.bLayoutDirty = true : exit sub
+    dim as long nBorder = this.nBorderWidth
+
+    ' the message: wrap only when a max width was set
+    dim as long flags = TK_DT_LEFT or TK_DT_TOP
+    dim as long nWrapW = &h3FFFFFFF
+    if this.nMaxWidth > 0 then
+        nWrapW = this.nMaxWidth - (this.nPadX * 2) - (nBorder * 2)
+        if nWrapW < 16 then nWrapW = 16
+        flags or= TK_DT_WORDBREAK
+    end if
+    this.nTextFlags = flags
+
+    dim as long nTextW = 0, nTextH = 0
+    if len( this.wszTipBuf ) then
+        dim as string u8 = this.wszTipBuf
+        dim as long st(), en()
+        dim as long n = tkText_Wrap( fText, u8, nWrapW, st(), en() )
+        for i as long = 0 to n - 1
+            dim as string ln = mid( u8, st(i) + 1, en(i) - st(i) )
+            dim as long lw = tkText_WidthU8( fText, ln )
+            if lw > nTextW then nTextW = lw
+        next
+        if n > 0 then nTextH = (n - 1) * tkText_LineSkip( fText ) + tkText_Height( fText )
+    end if
+
+    dim as long nTitleW = 0, nTitleH = 0
+    if len( this.wszTitle ) then
+        nTitleW = tkText_Width( fTitle, this.wszTitle )
+        nTitleH = tkText_Height( fTitle )
+    end if
+
+    ' THE GLYPH CELL IS DECLARED, NOT MEASURED
+    dim as long nGlyphW = 0, nGlyphH = 0
+    if len( this.wszGlyph ) then nGlyphW = this.nGlyphCell : nGlyphH = this.nGlyphCell
+
+    dim as boolean bTitleRow = (nGlyphW > 0) orelse (nTitleW > 0)
+    dim as long nRowW = 0, nRowH = 0
+    if bTitleRow then
+        nRowW = nTitleW
+        if nGlyphW > 0 then
+            nRowW += nGlyphW
+            if nTitleW > 0 then nRowW += this.nGlyphGap
+        end if
+        nRowH = nTitleH
+        if nGlyphH > nRowH then nRowH = nGlyphH
+    end if
+
+    dim as long nContentW = iif( nRowW > nTextW, nRowW, nTextW )
+    dim as long nContentH = nRowH
+    if nTextH > 0 then
+        if nRowH > 0 then nContentH += this.nTitleGap
+        nContentH += nTextH
+    end if
+
+    dim as long nBodyW = nContentW + (this.nPadX * 2) + (nBorder * 2)
+    dim as long nBodyH = nContentH + (this.nPadY * 2) + (nBorder * 2)
+    dim as long nStemBand = iif( this.nStyle = TIP_STYLE_BALLOON, this.nStemH, 0 )
+    this.nIdealW = nBodyW
+    this.nIdealH = nBodyH + nStemBand
+    ' until a show decides the stem side, the body sits at the top
+    if this.bVisible = false then tkRect_Set( this.rcBody, 0, 0, nBodyW, nBodyH )
+
+    tkRect_SetEmpty( this.rcGlyph ) : tkRect_SetEmpty( this.rcTitle ) : tkRect_SetEmpty( this.rcText )
+    dim as long x0 = nBorder + this.nPadX, y0 = nBorder + this.nPadY
+    if bTitleRow then
+        if nGlyphW > 0 then
+            dim as long gy = y0 + ((nRowH - nGlyphH) \ 2)
+            tkRect_Set( this.rcGlyph, x0, gy, x0 + nGlyphW, gy + nGlyphH )
+        end if
+        if nTitleW > 0 then
+            dim as long tx = x0
+            if nGlyphW > 0 then tx += nGlyphW + this.nGlyphGap
+            dim as long ty = y0 + ((nRowH - nTitleH) \ 2)
+            tkRect_Set( this.rcTitle, tx, ty, x0 + nContentW, ty + nTitleH )
+        end if
+    end if
+    if nTextH > 0 then
+        dim as long ty = y0
+        if nRowH > 0 then ty += nRowH + this.nTitleGap
+        tkRect_Set( this.rcText, x0, ty, x0 + nContentW, ty + nTextH )
+    end if
+end sub
+
+sub TK_TIP_.Refresh()
+    this.bLayoutDirty = true
+    if this.hSurf then tkHost_Invalidate( this.hSurf )
+end sub
+
+private sub TIP_InvalidateText( byval pTip as TK_TIP ptr )
+    pTip->wszTipBuf = ""
+    pTip->Refresh()
+end sub
+
+private sub TIP_BandRects( byval pTip as TK_TIP ptr, byref rcG as TKRECT, byref rcTi as TKRECT, byref rcTx as TKRECT )
+    rcG = pTip->rcGlyph : rcTi = pTip->rcTitle : rcTx = pTip->rcText
+    dim as long dx = pTip->rcBody.left, dy = pTip->rcBody.top
+    if tkRect_IsEmpty( rcG ) = false then tkRect_Offset( rcG, dx, dy )
+    if tkRect_IsEmpty( rcTi ) = false then tkRect_Offset( rcTi, dx, dy )
+    if tkRect_IsEmpty( rcTx ) = false then tkRect_Offset( rcTx, dx, dy )
+end sub
+
+' Authored text wins, then the callback, then nothing. NO CAPTION FALLBACK.
+private function TIP_ResolveText( byval pTip as TK_TIP ptr ) as ustring
+    if len( pTip->wszText ) then return pTip->wszText
+    if pTip->TooltipCallback then return pTip->TooltipCallback( pTip, pTip->hAttached, pTip->nToolIndex )
+    return ""
+end function
+
+' Could this tip have text, WITHOUT running the callback?
+private function TIP_HasText( byval pTip as TK_TIP ptr ) as boolean
+    return (len( pTip->wszText ) > 0) orelse (pTip->TooltipCallback <> 0)
+end function
+
+
+' ==========================================================================================
+' Rendering
+' ==========================================================================================
+private function PenDrawn( byval pTip as TK_TIP ptr ) as long
+    dim as long n = pTip->nBorderWidth
+    if pTip->hAttached andalso pTip->hAttached->pHost then n = tkHost_Scale( pTip->hAttached->pHost, n )
+    if n < 1 then n = 1
+    return n
+end function
+
+' The stem triangle plus a skirt reaching nSkirt pixels INTO the body: filling it after the
+' frame erases the frame's edge where the stem meets it, so the balloon reads as one shape.
+private sub TIP_StemHouse( byval pTip as TK_TIP ptr, byval nSkirt as long, byval pts as TKPOINT ptr )
+    if pTip->bStemOnTop then
+        pts[0] = pTip->ptStem(1)
+        pts[1] = pTip->ptStem(2)
+        pts[2].x = pTip->ptStem(2).x : pts[2].y = pTip->ptStem(2).y + nSkirt
+        pts[3].x = pTip->ptStem(0).x : pts[3].y = pTip->ptStem(0).y + nSkirt
+        pts[4] = pTip->ptStem(0)
+    else
+        pts[0] = pTip->ptStem(1)
+        pts[1] = pTip->ptStem(0)
+        pts[2].x = pTip->ptStem(0).x : pts[2].y = pTip->ptStem(0).y - nSkirt
+        pts[3].x = pTip->ptStem(2).x : pts[3].y = pTip->ptStem(2).y - nSkirt
+        pts[4] = pTip->ptStem(2)
+    end if
+end sub
+
+private sub TIP_DefaultRender( byval pTip as TK_TIP ptr, byval p as TKTOOLTIP_PAINTINFO ptr )
+    dim as TK_PAINT ptr b = p->b
+    dim as long nPen = PenDrawn( pTip )
+    b->SetBackColor( pTip->colors.BackColor )
+    b->PaintRoundRect( @p->rcBody, p->nCurvature )
+    if p->nBorderWidth > 0 then
+        b->SetPenColor( pTip->colors.BorderColor )
+        b->PaintRoundOutline( @p->rcBody, p->nCurvature, nPen )
+    end if
+    if p->bHasStem then
+        dim as TKPOINT house(0 to 4)
+        TIP_StemHouse( pTip, nPen + 1, @house(0) )
+        b->SetBackColor( pTip->colors.BackColor )
+        b->PaintPolygon( @house(0), 5, 0 )
+        if p->nBorderWidth > 0 then
+            b->SetPenColor( pTip->colors.BorderColor )
+            b->PaintLine( nPen, p->ptStem(0).x, p->ptStem(0).y, p->ptStem(1).x, p->ptStem(1).y )
+            b->PaintLine( nPen, p->ptStem(1).x, p->ptStem(1).y, p->ptStem(2).x, p->ptStem(2).y )
+        end if
+    end if
+    dim as TTF_Font ptr fText = FontOf( pTip )
+    dim as TTF_Font ptr fTitle = iif( pTip->pTitleFont <> 0, pTip->pTitleFont, fText )
+    dim as TTF_Font ptr fGlyph = iif( pTip->pGlyphFont <> 0, pTip->pGlyphFont, fText )
+    if len( p->wszGlyph ) andalso (tkRect_IsEmpty( p->rcGlyph ) = false) then
+        b->SetFont( fGlyph ) : b->SetForeColor( pTip->colors.GlyphColor )
+        b->PaintText( p->wszGlyph, @p->rcGlyph, TK_DT_CENTER )
+    end if
+    if len( p->wszTitle ) andalso (tkRect_IsEmpty( p->rcTitle ) = false) then
+        b->SetFont( fTitle ) : b->SetForeColor( pTip->colors.TitleColor )
+        b->PaintText( p->wszTitle, @p->rcTitle, TK_DT_LEFT or TK_DT_ELLIPSIS )
+    end if
+    if len( p->wszText ) andalso (tkRect_IsEmpty( p->rcText ) = false) then
+        b->SetFont( fText ) : b->SetForeColor( pTip->colors.ForeColor )
+        b->PaintTextEx( p->wszText, @p->rcText, p->nTextFlags )
+    end if
+end sub
+
+' The one renderer: the tip's surface paint AND the offscreen probes run this.
+private sub TIP_Render( byval pTip as TK_TIP ptr, byval b as TK_PAINT ptr )
+    dim as TKTOOLTIP_PAINTINFO p
+    p.hTooltip = pTip
+    p.hAttached = pTip->hAttached
+    p.b = b
+    tkRect_Set( p.rcClient, 0, 0, pTip->nIdealW, pTip->nIdealH )
+    p.rcBody = pTip->rcBody
+    TIP_BandRects( pTip, p.rcGlyph, p.rcTitle, p.rcText )
+    for i as long = 0 to 2 : p.ptStem(i) = pTip->ptStem(i) : next
+    p.bHasStem = pTip->bHasStem
+    p.bStemOnTop = pTip->bStemOnTop
+    p.wszText = pTip->wszTipBuf
+    p.wszTitle = pTip->wszTitle
+    p.wszGlyph = pTip->wszGlyph
+    p.nStyle = pTip->nStyle
+    p.nCurvature = pTip->nCurvature
+    p.nBorderWidth = pTip->nBorderWidth
+    p.nToolIndex = pTip->nToolIndex
+    p.nTextFlags = pTip->nTextFlags
+    if pTip->PaintCallback then pTip->PaintCallback( @p ) else TIP_DefaultRender( pTip, @p )
+end sub
+
+private sub TipSurfacePaint( byval h as TK_HOST ptr, byval p as TK_PAINT ptr )
+    dim as TK_TIP ptr pTip = cast( TK_TIP ptr, h->pUser )
+    if pTip = 0 then exit sub
+    if pTip->bLayoutDirty then pTip->LayoutTooltip()
+    TIP_Render( pTip, p )
+end sub
+
+
+' ==========================================================================================
+' Show / hide
+' ==========================================================================================
+private sub TIP_CloseSurface( byval pTip as TK_TIP ptr )
+    if pTip->hSurf then
+        dim as TK_HOST ptr s = pTip->hSurf
+        pTip->hSurf = 0
+        s->pUser = 0
+        tkHost_Close( s )
+    end if
+end sub
+
+private sub TIP_FinishHide( byval pTip as TK_TIP ptr, byval tNow as longint )
+    TIP_CloseSurface( pTip )
+    pTip->bVisible = false
+    pTip->nFadePhase = 0
+    pTip->tHiddenAt = tNow
+    if gVisible = pTip then gVisible = 0
+    if pTip->ShowCallback then pTip->ShowCallback( pTip, pTip->hAttached, pTip->nToolIndex, false )
+end sub
+
+sub TIP_HideCore( byval pTip as TK_TIP ptr, byval bAllowFade as boolean )
+    if pTip = 0 then exit sub
+    if pTip->bVisible = false then pTip->nFadePhase = 0 : exit sub
+    if bAllowFade andalso (pTip->nFadeTime > 0) then
+        if pTip->nFadePhase <> 2 then
+            pTip->nFadePhase = 2
+            ' back-date the ramp so it continues from the CURRENT alpha (an interruptible fade)
+            pTip->tFadeStart = NowMs() - ((255 - pTip->nAlpha) * pTip->nFadeTime) \ 255
+            TIP_ApplyClockRate( pTip )
+        end if
+        exit sub
+    end if
+    TIP_FinishHide( pTip, NowMs() )
+    TIP_ApplyClockRate( pTip )
+end sub
+
+private sub SetOpacity( byval pTip as TK_TIP ptr, byval a as long )
+    pTip->nAlpha = a
+    if pTip->hSurf then SDL_SetWindowOpacity( pTip->hSurf->win, a / 255.0 )
+end sub
+
+' rcAnchor in the attached surface's window pixels.
+private function TIP_ShowCore( byval pTip as TK_TIP ptr, byref rcAnchor as TKRECT, byval nAlign as long ) as boolean
+    if (pTip = 0) orelse (pTip->hAttached = 0) then return false
+    dim as TK_HOST ptr h = pTip->hAttached->pHost
+    if h = 0 then return false
+    pTip->wszTipBuf = TIP_ResolveText( pTip )
+    if len( pTip->wszTipBuf ) = 0 then
+        if pTip->bVisible then TIP_HideCore( pTip, false )
+        return false
+    end if
+    pTip->bLayoutDirty = true
+    pTip->LayoutTooltip()
+    if pTip->bLayoutDirty then return false
+
+    dim as TKRECT rcWork
+    tkHost_WorkRect( h, rcWork )
+    dim as TKRECT rcPlace = rcAnchor
+    if (nAlign = TIP_ALIGN_CURSOR) andalso (pTip->nStyle = TIP_STYLE_BALLOON) then
+        ' shift so the stem, clamped clear of the corner, lands ON the cursor
+        dim as long nInset = (pTip->nCurvature \ 2) + (pTip->nStemW \ 2)
+        rcPlace.left -= nInset : rcPlace.right -= nInset
+    end if
+    dim as TKPOINT ptOrigin = tkTooltip_ComputeOrigin( rcPlace, pTip->nIdealW, pTip->nIdealH, rcWork, nAlign, _
+                                                       tkHost_Scale( h, 22 ) )
+    pTip->bStemOnTop = tkTooltip_StemOnTop( rcAnchor, ptOrigin, nAlign )
+    dim as long tx, ty
+    if nAlign = TIP_ALIGN_CURSOR then
+        tx = rcAnchor.left : ty = rcAnchor.top
+    else
+        tx = (rcAnchor.left + rcAnchor.right) \ 2
+        ty = iif( pTip->bStemOnTop, rcAnchor.bottom, rcAnchor.top )
+    end if
+    dim as long nStemBand = iif( pTip->nStyle = TIP_STYLE_BALLOON, pTip->nStemH, 0 )
+    if pTip->bStemOnTop then
+        tkRect_Set( pTip->rcBody, 0, nStemBand, pTip->nIdealW, pTip->nIdealH )
+    else
+        tkRect_Set( pTip->rcBody, 0, 0, pTip->nIdealW, pTip->nIdealH - nStemBand )
+    end if
+    pTip->bHasStem = false
+    if pTip->nStyle = TIP_STYLE_BALLOON then
+        pTip->bHasStem = tkTooltip_ComputeStem( pTip->nIdealW, pTip->nIdealH, pTip->bStemOnTop, pTip->nStemW, _
+                                                pTip->nStemH, tx - ptOrigin.x, pTip->nCurvature, @pTip->ptStem(0) )
+    end if
+
+    ' the veto: after the text is resolved and the tip sized, before anything is shown
+    if pTip->ShowCallback then
+        if pTip->ShowCallback( pTip, pTip->hAttached, pTip->nToolIndex, true ) = false then return false
+    end if
+    ' one tip on screen at a time
+    if (gVisible <> 0) andalso (gVisible <> pTip) then TIP_HideCore( gVisible, false )
+
+    dim as longint tNow = NowMs()
+    dim as boolean bWasVisible = pTip->bVisible
+    if bWasVisible = false then
+        TIP_CloseSurface( pTip )
+        pTip->hSurf = tkHost_CreatePopup( h, ptOrigin.x, ptOrigin.y, pTip->nIdealW, pTip->nIdealH, _
+                                          TK_SURF_TOOLTIP, SDL_WINDOW_TRANSPARENT )
+        if pTip->hSurf = 0 then return false
+        pTip->hSurf->pUser = pTip
+        pTip->hSurf->clrBack = 0              ' fully transparent: the body is the shape
+        pTip->hSurf->OnPaint = @TipSurfacePaint
+    else
+        tkHost_Invalidate( pTip->hSurf )
+    end if
+    if pTip->nFadeTime > 0 then
+        if bWasVisible then
+            pTip->tFadeStart = tNow - (pTip->nAlpha * pTip->nFadeTime) \ 255
+        else
+            pTip->tFadeStart = tNow
+            SetOpacity( pTip, 0 )
+        end if
+        pTip->nFadePhase = 1
+    else
+        pTip->nFadePhase = 0
+        SetOpacity( pTip, 255 )
+    end if
+    if bWasVisible = false then tkHost_Show( pTip->hSurf )
+    pTip->bVisible = true
+    pTip->tShownAt = tNow
+    gVisible = pTip
+    TIP_ApplyClockRate( pTip )
+    return true
+end function
+
+
+' ==========================================================================================
+' The tick and the clock
+' ==========================================================================================
+' Over the attached control? Its surface's hot widget is it or a descendant -- or, while the
+' mouse is captured (hot does not move then), the cursor is inside its rect.
+private function TIP_Over( byval pTip as TK_TIP ptr ) as boolean
+    dim as TK_WIDGET ptr a = pTip->hAttached
+    if (a = 0) orelse (a->pHost = 0) then return false
+    if tkWidget_IsVisible( a ) = false then return false
+    dim as TK_HOST ptr h = a->pHost
+    if tkWidget_IsAncestorOf( a, h->pHot ) then return true
+    if h->pCapture andalso tkWidget_IsAncestorOf( a, h->pCapture ) then
+        dim as TKRECT r
+        tkWidget_AbsRect( a, r )
+        return tkRect_Contains( r, h->lastX, h->lastY )
+    end if
+    return false
+end function
+
+' ONE TICK OF THE STATE MACHINE -- vendor's TIP_TickOne. Every input is a parameter, which is
+' what tkTooltip_TickForTest drives.
+sub TIP_TickOne( byval pTip as TK_TIP ptr, byval cx as long, byval cy as long, _
+                 byval bOver as boolean, byval bBtn as boolean, byval tNow as longint )
+    if pTip->nFadePhase <> 0 then
+        dim as boolean bFadeIn = (pTip->nFadePhase = 1)
+        dim as long nElapsed = tNow - pTip->tFadeStart
+        dim as long nA = tkTooltip_ComputeAlpha( nElapsed, pTip->nFadeTime, bFadeIn )
+        if nA <> pTip->nAlpha then SetOpacity( pTip, nA )
+        if nElapsed >= pTip->nFadeTime then
+            pTip->nFadePhase = 0
+            if bFadeIn = false then TIP_FinishHide( pTip, tNow )
+        end if
+    end if
+    if pTip->hAttached = 0 then exit sub
+
+    if bOver = false then
+        ' leaving the tool clears the click suppression (comctl32's rule)
+        pTip->bSuppressed = false
+        pTip->tRestSince = 0
+        if pTip->bVisible then TIP_HideCore( pTip, true )
+        exit sub
+    end if
+    if bBtn then
+        pTip->bSuppressed = true
+        pTip->tRestSince = 0
+        if pTip->bVisible then TIP_HideCore( pTip, true )
+        exit sub
+    end if
+
+    dim as boolean bMoved = (abs( cx - pTip->ptLastX ) > pTip->nMoveTolerance) orelse (abs( cy - pTip->ptLastY ) > pTip->nMoveTolerance)
+    if bMoved then
+        pTip->ptLastX = cx : pTip->ptLastY = cy
+        ' restart the dwell only while HIDDEN; a tip that is up does not chase the cursor
+        if pTip->bVisible = false then pTip->tRestSince = tNow
+    end if
+
+    if pTip->bVisible then
+        if (pTip->nAutoPopDelay > 0) andalso (tNow - pTip->tShownAt >= pTip->nAutoPopDelay) then
+            TIP_HideCore( pTip, true )
+            pTip->bSuppressed = true
+        end if
+        exit sub
+    end if
+
+    if pTip->tRestSince = 0 then
+        pTip->tRestSince = tNow
+        pTip->ptLastX = cx : pTip->ptLastY = cy
+        exit sub
+    end if
+
+    ' a tip dismissed a moment ago comes back on the SHORT delay
+    dim as long nDelay = pTip->nInitialDelay
+    if (pTip->tHiddenAt <> 0) andalso (tNow - pTip->tHiddenAt < pTip->nInitialDelay * 2) then nDelay = pTip->nReshowDelay
+    dim as boolean bResting = (tNow - pTip->tRestSince >= nDelay)
+    if tkTooltip_ShouldShow( bOver, bResting, TIP_HasText( pTip ), bBtn, pTip->bSuppressed ) = false then exit sub
+
+    ' A REFUSED SHOW SUPPRESSES THE REST OF THIS HOVER
+    dim as TKRECT rcAnchor
+    tkRect_Set( rcAnchor, cx, cy, cx, cy )
+    if TIP_ShowCore( pTip, rcAnchor, TIP_ALIGN_CURSOR ) = false then pTip->bSuppressed = true
+end sub
+
+' The clock lives on the listener: 15 ms while fading, 100 ms while the cursor is over the
+' control or the tip is up, stopped otherwise.
+sub TIP_ApplyClockRate( byval pTip as TK_TIP ptr )
+    if (pTip = 0) orelse (pTip->pListener = 0) then exit sub
+    dim as long want = 0
+    if pTip->nFadePhase <> 0 then
+        want = TKTOOLTIP_CLOCK_FADE_MS
+    elseif pTip->bVisible orelse TIP_Over( pTip ) then
+        want = TKTOOLTIP_CLOCK_IDLE_MS
+    end if
+    if want = pTip->nClockMs then exit sub
+    pTip->nClockMs = want
+    if want = 0 then
+        tkWidget_KillTimer( pTip->pListener, TK_TIMER_TIPSHOW )
+    else
+        tkWidget_SetTimer( pTip->pListener, TK_TIMER_TIPSHOW, want )
+    end if
+end sub
+
+private sub TIP_ClockTick( byval pTip as TK_TIP ptr )
+    dim as TK_HOST ptr h = iif( pTip->hAttached <> 0, pTip->hAttached->pHost, cast( TK_HOST ptr, 0 ) )
+    if h = 0 then exit sub
+    TIP_TickOne( pTip, cint( h->lastX ), cint( h->lastY ), TIP_Over( pTip ), h->buttonsDown <> 0, NowMs() )
+    TIP_ApplyClockRate( pTip )
+end sub
+
+' The host's hot widget moved: wake the clock of every tip whose control it entered.
+private sub OnHotChanged( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr )
+    for i as long = 0 to gnTips - 1
+        dim as TK_TIP ptr t = gTips(i)
+        if (t->hAttached <> 0) andalso (t->nClockMs = 0) then
+            if tkWidget_IsAncestorOf( t->hAttached, w ) then TIP_ApplyClockRate( t )
+        end if
+    next
+end sub
+
+public declare sub tkTooltip_Rescale( byval hTooltip as TK_TIP ptr, byval fOld as single, byval fNew as single )
+public declare sub tkTooltip_ApplyTheme( byval hTooltip as TK_TIP ptr, byref t as TKTHEME_COLORS )
+public declare sub tkTooltip_Detach( byval hTooltip as TK_TIP ptr )
+
+' The hidden child of the attached control: the clock, the broadcasts, the control's death.
+private function ListenerProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TK_TIP ptr pTip = cast( TK_TIP ptr, w->pData )
+    if pTip = 0 then return false
+    select case m->msg
+    case TKM_TIMER
+        if m->timerId = TK_TIMER_TIPSHOW then TIP_ClockTick( pTip ) : return true
+    case TKM_SCALECHANGED
+        tkTooltip_Rescale( pTip, m->fOld, m->fNew )
+        return true
+    case TKM_THEMECHANGED
+        tkTooltip_ApplyTheme( pTip, tkTheme_Get() )
+        return true
+    case TKM_DESTROY
+        ' the control (and so this listener) is going: stand down
+        pTip->pListener = 0
+        pTip->nClockMs = 0
+        if pTip->bVisible then TIP_HideCore( pTip, false )
+        pTip->hAttached = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ==========================================================================================
+' Public API -- creation and attachment
+' ==========================================================================================
+public declare sub tkTooltip_ApplyDefaults( byval hTooltip as TK_TIP ptr )
+public declare sub tkTooltip_Attach( byval hTooltip as TK_TIP ptr, byval hAttach as TK_WIDGET ptr )
+
+' Creates the tip AND attaches it to hAttach. You own the result: tkTooltip_Destroy it.
+public function tkTooltip_Create( byval hAttach as TK_WIDGET ptr ) as TK_TIP ptr
+    if (hAttach = 0) orelse (hAttach->pHost = 0) then return 0
+    if gHooked = false then tkHost_SetHotChangedHook( @OnHotChanged ) : gHooked = true
+    dim as TK_TIP ptr pTip = new TK_TIP
+    dim as TK_HOST ptr h = hAttach->pHost
+    ' DPI-scale every geometry default ONCE, here; setters take raw pixels afterwards
+    pTip->nPadX = tkHost_Scale( h, TKTOOLTIP_DEFAULT_PADX )
+    pTip->nPadY = tkHost_Scale( h, TKTOOLTIP_DEFAULT_PADY )
+    pTip->nCurvature = tkHost_Scale( h, TKTOOLTIP_DEFAULT_CURVATURE )
+    pTip->nStemW = tkHost_Scale( h, TKTOOLTIP_DEFAULT_STEMW )
+    pTip->nStemH = tkHost_Scale( h, TKTOOLTIP_DEFAULT_STEMH )
+    pTip->nGlyphCell = tkHost_Scale( h, TKTOOLTIP_DEFAULT_GLYPHCELL )
+    pTip->nGlyphGap = tkHost_Scale( h, TKTOOLTIP_DEFAULT_GLYPHGAP )
+    pTip->nTitleGap = tkHost_Scale( h, TKTOOLTIP_DEFAULT_TITLEGAP )
+    pTip->nMoveTolerance = tkHost_Scale( h, TKTOOLTIP_DEFAULT_MOVETOL )
+    ' comctl32's derivation from the double-click time (500 ms: SDL has no query for it)
+    pTip->nInitialDelay = 500 : pTip->nAutoPopDelay = 5000 : pTip->nReshowDelay = 100
+    tkTooltip_ApplyDefaults( pTip )
+    if gnTips <= ubound( gTips ) then gTips(gnTips) = pTip : gnTips += 1
+    tkTooltip_Attach( pTip, hAttach )
+    return pTip
+end function
+
+public sub tkTooltip_Destroy( byval hTooltip as TK_TIP ptr )
+    if hTooltip = 0 then exit sub
+    tkTooltip_Detach( hTooltip )
+    for i as long = 0 to gnTips - 1
+        if gTips(i) = hTooltip then
+            for j as long = i to gnTips - 2 : gTips(j) = gTips(j + 1) : next
+            gnTips -= 1
+            exit for
+        end if
+    next
+    if gVisible = hTooltip then gVisible = 0
+    delete hTooltip
+end sub
+
+public sub tkTooltip_Attach( byval hTooltip as TK_TIP ptr, byval hAttach as TK_WIDGET ptr )
+    if hTooltip = 0 then exit sub
+    if hTooltip->bVisible then TIP_HideCore( hTooltip, false )
+    if hTooltip->pListener then
+        hTooltip->pListener->pData = 0
+        tkWidget_Destroy( hTooltip->pListener )
+        hTooltip->pListener = 0
+    end if
+    hTooltip->nClockMs = 0
+    hTooltip->hAttached = hAttach
+    hTooltip->tRestSince = 0
+    hTooltip->bSuppressed = false
+    if hAttach then
+        hTooltip->pListener = tkWidget_CreateChild( hAttach, 0, @ListenerProc, hTooltip )
+        hTooltip->pListener->isVisible = false        ' never hit, never painted, never focused
+        TIP_ApplyClockRate( hTooltip )
+    end if
+end sub
+
+public sub tkTooltip_Detach( byval hTooltip as TK_TIP ptr )
+    tkTooltip_Attach( hTooltip, 0 )
+end sub
+
+public function tkTooltip_GetAttached( byval hTooltip as TK_TIP ptr ) as TK_WIDGET ptr
+    if hTooltip = 0 then return 0
+    return hTooltip->hAttached
+end function
+
+
+' ---- content ---------------------------------------------------------------------------------
+public sub tkTooltip_SetText( byval hTooltip as TK_TIP ptr, byval wszText as ustring )
+    if hTooltip = 0 then exit sub
+    hTooltip->wszText = wszText
+    TIP_InvalidateText( hTooltip )
+end sub
+
+public function tkTooltip_GetText( byval hTooltip as TK_TIP ptr ) as ustring
+    if hTooltip = 0 then return ""
+    return hTooltip->wszText
+end function
+
+public sub tkTooltip_SetTitle( byval hTooltip as TK_TIP ptr, byval wszTitle as ustring )
+    if hTooltip = 0 then exit sub
+    hTooltip->wszTitle = wszTitle
+    hTooltip->Refresh()
+end sub
+
+public function tkTooltip_GetTitle( byval hTooltip as TK_TIP ptr ) as ustring
+    if hTooltip = 0 then return ""
+    return hTooltip->wszTitle
+end function
+
+public sub tkTooltip_SetGlyph( byval hTooltip as TK_TIP ptr, byval wszGlyph as ustring )
+    if hTooltip = 0 then exit sub
+    hTooltip->wszGlyph = wszGlyph
+    hTooltip->Refresh()
+end sub
+
+public function tkTooltip_GetGlyph( byval hTooltip as TK_TIP ptr ) as ustring
+    if hTooltip = 0 then return ""
+    return hTooltip->wszGlyph
+end function
+
+' The per-item selector. A NO-OP SET IS FREE (hosts call it from every mouse move); a real
+' change hides a visible tip without a fade and clears any suppression -- a new item is a new
+' offer.
+public sub tkTooltip_SetToolIndex( byval hTooltip as TK_TIP ptr, byval idx as long )
+    if hTooltip = 0 then exit sub
+    if hTooltip->nToolIndex = idx then exit sub
+    hTooltip->nToolIndex = idx
+    TIP_InvalidateText( hTooltip )
+    if hTooltip->bVisible then TIP_HideCore( hTooltip, false )
+    hTooltip->tRestSince = 0
+    hTooltip->bSuppressed = false
+end sub
+
+public function tkTooltip_GetToolIndex( byval hTooltip as TK_TIP ptr ) as long
+    if hTooltip = 0 then return -1
+    return hTooltip->nToolIndex
+end function
+
+
+' ---- appearance --------------------------------------------------------------------------------
+public sub tkTooltip_SetColors( byval hTooltip as TK_TIP ptr, byval pColors as TKTOOLTIP_COLORS ptr )
+    if (hTooltip = 0) orelse (pColors = 0) then exit sub
+    hTooltip->colors = *pColors
+    hTooltip->bColorsPinned = true
+    if hTooltip->hSurf then tkHost_Invalidate( hTooltip->hSurf )
+end sub
+
+public sub tkTooltip_GetColors( byval hTooltip as TK_TIP ptr, byval pColors as TKTOOLTIP_COLORS ptr )
+    if (hTooltip = 0) orelse (pColors = 0) then exit sub
+    *pColors = hTooltip->colors
+end sub
+
+public function tkTooltip_ThemeColors( byref t as TKTHEME_COLORS ) as TKTOOLTIP_COLORS
+    dim as TKTOOLTIP_COLORS c
+    c.BackColor = t.Popup
+    c.BorderColor = t.Border
+    c.ForeColor = t.PopupText
+    c.TitleColor = t.TextStrong
+    c.GlyphColor = t.Accent
+    return c
+end function
+
+public sub tkTooltip_ApplyTheme( byval hTooltip as TK_TIP ptr, byref t as TKTHEME_COLORS )
+    if (hTooltip = 0) orelse hTooltip->bColorsPinned then exit sub
+    dim as TKTOOLTIP_COLORS c = tkTooltip_ThemeColors( t )
+    tkTooltip_SetColors( hTooltip, @c )
+    hTooltip->bColorsPinned = false
+end sub
+
+public sub tkTooltip_UnpinColors( byval hTooltip as TK_TIP ptr )
+    if hTooltip = 0 then exit sub
+    hTooltip->bColorsPinned = false
+    tkTooltip_ApplyTheme( hTooltip, tkTheme_Get() )
+end sub
+
+public sub tkTooltip_SetFonts( byval hTooltip as TK_TIP ptr, byval fText as TTF_Font ptr, _
+                               byval fTitle as TTF_Font ptr = 0, byval fGlyph as TTF_Font ptr = 0 )
+    if hTooltip = 0 then exit sub
+    hTooltip->pTextFont = fText
+    hTooltip->pTitleFont = fTitle
+    hTooltip->pGlyphFont = fGlyph
+    hTooltip->Refresh()
+end sub
+
+public sub tkTooltip_ApplyFonts( byval hTooltip as TK_TIP ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
+    if hTooltip = 0 then exit sub
+    if (fText = 0) andalso (fGlyph = 0) then exit sub
+    tkTooltip_SetFonts( hTooltip, iif( fText <> 0, fText, hTooltip->pTextFont ), hTooltip->pTitleFont, _
+                        iif( fGlyph <> 0, fGlyph, hTooltip->pGlyphFont ) )
+end sub
+
+' Every stored pixel metric times fNew/fOld; the border (a pen) stays as it is.
+public sub tkTooltip_Rescale( byval hTooltip as TK_TIP ptr, byval fOld as single, byval fNew as single )
+    if (hTooltip = 0) orelse (fOld <= 0) orelse (fNew <= 0) orelse (fOld = fNew) then exit sub
+    dim as single k = fNew / fOld
+    with *hTooltip
+        .nMaxWidth = cint( .nMaxWidth * k ) : .nPadX = cint( .nPadX * k ) : .nPadY = cint( .nPadY * k )
+        .nCurvature = cint( .nCurvature * k ) : .nStemW = cint( .nStemW * k ) : .nStemH = cint( .nStemH * k )
+        .nGlyphCell = cint( .nGlyphCell * k ) : .nGlyphGap = cint( .nGlyphGap * k ) : .nTitleGap = cint( .nTitleGap * k )
+        .nMoveTolerance = cint( .nMoveTolerance * k )
+    end with
+    hTooltip->Refresh()
+end sub
+
+public sub tkTooltip_SetStyle( byval hTooltip as TK_TIP ptr, byval nStyle as long )
+    if (hTooltip = 0) orelse (hTooltip->nStyle = nStyle) then exit sub
+    hTooltip->nStyle = nStyle
+    hTooltip->Refresh()
+end sub
+
+public function tkTooltip_GetStyle( byval hTooltip as TK_TIP ptr ) as long
+    if hTooltip = 0 then return TIP_STYLE_RECT
+    return hTooltip->nStyle
+end function
+
+public sub tkTooltip_SetMaxWidth( byval hTooltip as TK_TIP ptr, byval nMaxWidth as long )
+    if (hTooltip = 0) orelse (hTooltip->nMaxWidth = nMaxWidth) then exit sub
+    hTooltip->nMaxWidth = nMaxWidth
+    hTooltip->Refresh()
+end sub
+
+public function tkTooltip_GetMaxWidth( byval hTooltip as TK_TIP ptr ) as long
+    if hTooltip = 0 then return 0
+    return hTooltip->nMaxWidth
+end function
+
+public sub tkTooltip_SetPadding( byval hTooltip as TK_TIP ptr, byval nX as long, byval nY as long )
+    if hTooltip = 0 then exit sub
+    if nX >= 0 then hTooltip->nPadX = nX
+    if nY >= 0 then hTooltip->nPadY = nY
+    hTooltip->Refresh()
+end sub
+
+public sub tkTooltip_SetCurvature( byval hTooltip as TK_TIP ptr, byval nCurvature as long )
+    if hTooltip = 0 then exit sub
+    hTooltip->nCurvature = iif( nCurvature < 0, 0, nCurvature )
+    hTooltip->Refresh()
+end sub
+
+public sub tkTooltip_SetBorderWidth( byval hTooltip as TK_TIP ptr, byval nBorderWidth as long )
+    if hTooltip = 0 then exit sub
+    hTooltip->nBorderWidth = iif( nBorderWidth < 0, 0, nBorderWidth )
+    hTooltip->Refresh()
+end sub
+
+public sub tkTooltip_SetStemSize( byval hTooltip as TK_TIP ptr, byval nW as long, byval nH as long )
+    if hTooltip = 0 then exit sub
+    if nW >= 0 then hTooltip->nStemW = nW
+    if nH >= 0 then hTooltip->nStemH = nH
+    hTooltip->Refresh()
+end sub
+
+public sub tkTooltip_SetGlyphCell( byval hTooltip as TK_TIP ptr, byval nCell as long, byval nGap as long )
+    if hTooltip = 0 then exit sub
+    if nCell >= 0 then hTooltip->nGlyphCell = nCell
+    if nGap >= 0 then hTooltip->nGlyphGap = nGap
+    hTooltip->Refresh()
+end sub
+
+
+' ---- timing --------------------------------------------------------------------------------------
+public sub tkTooltip_SetInitialDelay( byval hTooltip as TK_TIP ptr, byval nMs as long )
+    if hTooltip then hTooltip->nInitialDelay = iif( nMs < 0, 0, nMs )
+end sub
+public sub tkTooltip_SetAutoPopDelay( byval hTooltip as TK_TIP ptr, byval nMs as long )
+    if hTooltip then hTooltip->nAutoPopDelay = iif( nMs < 0, 0, nMs )
+end sub
+public sub tkTooltip_SetReshowDelay( byval hTooltip as TK_TIP ptr, byval nMs as long )
+    if hTooltip then hTooltip->nReshowDelay = iif( nMs < 0, 0, nMs )
+end sub
+public sub tkTooltip_SetFadeTime( byval hTooltip as TK_TIP ptr, byval nMs as long )
+    if hTooltip then hTooltip->nFadeTime = iif( nMs < 0, 0, nMs )
+end sub
+public sub tkTooltip_SetMoveTolerance( byval hTooltip as TK_TIP ptr, byval nPixels as long )
+    if hTooltip then hTooltip->nMoveTolerance = iif( nPixels < 0, 0, nPixels )
+end sub
+
+
+' ---- process-wide defaults ------------------------------------------------------------------------
+public sub tkTooltip_SetDefaultColors( byval pColors as TKTOOLTIP_COLORS ptr )
+    if pColors = 0 then exit sub
+    gDefColors = *pColors : gHasDefColors = true
+end sub
+
+public sub tkTooltip_SetDefaultFonts( byval fText as TTF_Font ptr, byval fTitle as TTF_Font ptr = 0, _
+                                      byval fGlyph as TTF_Font ptr = 0 )
+    gDefFontText = fText : gDefFontTitle = fTitle : gDefFontGlyph = fGlyph : gHasDefFonts = true
+end sub
+
+public sub tkTooltip_SetDefaultStyle( byval nStyle as long )
+    gDefStyle = nStyle : gHasDefStyle = true
+end sub
+
+public sub tkTooltip_SetDefaultMaxWidth( byval nMaxWidth as long )
+    gDefMaxWidth = nMaxWidth : gHasDefMaxW = true
+end sub
+
+' A negative argument leaves that delay alone.
+public sub tkTooltip_SetDefaultDelays( byval nInitialMs as long, byval nAutoPopMs as long = -1, byval nReshowMs as long = -1 )
+    if nInitialMs >= 0 then gDefInitial = nInitialMs : gHasDefInitial = true
+    if nAutoPopMs >= 0 then gDefAutoPop = nAutoPopMs : gHasDefAutoPop = true
+    if nReshowMs >= 0 then gDefReshow = nReshowMs : gHasDefReshow = true
+end sub
+
+public sub tkTooltip_ClearDefaults()
+    gHasDefColors = false : gHasDefFonts = false : gHasDefStyle = false : gHasDefMaxW = false
+    gHasDefInitial = false : gHasDefAutoPop = false : gHasDefReshow = false
+    gDefFontText = 0 : gDefFontTitle = 0 : gDefFontGlyph = 0
+end sub
+
+' Through the public setters, so their dirty-marking cannot be forgotten.
+public sub tkTooltip_ApplyDefaults( byval hTooltip as TK_TIP ptr )
+    if hTooltip = 0 then exit sub
+    if gHasDefColors then tkTooltip_SetColors( hTooltip, @gDefColors )
+    if gHasDefFonts then tkTooltip_SetFonts( hTooltip, gDefFontText, gDefFontTitle, gDefFontGlyph )
+    if gHasDefStyle then tkTooltip_SetStyle( hTooltip, gDefStyle )
+    if gHasDefMaxW then tkTooltip_SetMaxWidth( hTooltip, gDefMaxWidth )
+    if gHasDefInitial then tkTooltip_SetInitialDelay( hTooltip, gDefInitial )
+    if gHasDefAutoPop then tkTooltip_SetAutoPopDelay( hTooltip, gDefAutoPop )
+    if gHasDefReshow then tkTooltip_SetReshowDelay( hTooltip, gDefReshow )
+end sub
+
+
+' ---- showing and hiding ---------------------------------------------------------------------------
+' At the current cursor position (the attached surface's last mouse position).
+public function tkTooltip_Show( byval hTooltip as TK_TIP ptr ) as boolean
+    if (hTooltip = 0) orelse (hTooltip->hAttached = 0) then return false
+    dim as TK_HOST ptr h = hTooltip->hAttached->pHost
+    dim as TKRECT rc
+    tkRect_Set( rc, cint( h->lastX ), cint( h->lastY ), cint( h->lastX ), cint( h->lastY ) )
+    return TIP_ShowCore( hTooltip, rc, TIP_ALIGN_CURSOR )
+end function
+
+' Against rcAnchor in the ATTACHED CONTROL's local coordinates (vendor: a screen rect).
+public function tkTooltip_ShowForRect( byval hTooltip as TK_TIP ptr, byref rcAnchor as TKRECT, _
+                                       byval nAlign as long = TIP_ALIGN_BELOW ) as boolean
+    if (hTooltip = 0) orelse (hTooltip->hAttached = 0) then return false
+    dim as TKRECT a
+    tkWidget_AbsRect( hTooltip->hAttached, a )
+    dim as TKRECT rc = rcAnchor
+    tkRect_Offset( rc, a.left, a.top )
+    return TIP_ShowCore( hTooltip, rc, nAlign )
+end function
+
+public sub tkTooltip_Hide( byval hTooltip as TK_TIP ptr )
+    TIP_HideCore( hTooltip, true )
+end sub
+
+public function tkTooltip_IsVisible( byval hTooltip as TK_TIP ptr ) as boolean
+    if hTooltip = 0 then return false
+    return hTooltip->bVisible
+end function
+
+' The tip's own surface while shown (0 otherwise), e.g. to assert where it went.
+public function tkTooltip_Surface( byval hTooltip as TK_TIP ptr ) as TK_HOST ptr
+    if hTooltip = 0 then return 0
+    return hTooltip->hSurf
+end function
+
+
+' ---- callbacks -------------------------------------------------------------------------------------
+public sub tkTooltip_SetPaintCallback( byval hTooltip as TK_TIP ptr, byval userfunc as TIP_PaintCallbackSub )
+    if hTooltip = 0 then exit sub
+    hTooltip->PaintCallback = userfunc
+    hTooltip->Refresh()
+end sub
+
+public sub tkTooltip_SetTooltipCallback( byval hTooltip as TK_TIP ptr, byval userfunc as TIP_TooltipCallbackFunc )
+    if hTooltip = 0 then exit sub
+    hTooltip->TooltipCallback = userfunc
+    TIP_InvalidateText( hTooltip )
+end sub
+
+public sub tkTooltip_SetShowCallback( byval hTooltip as TK_TIP ptr, byval userfunc as TIP_ShowCallbackFunc )
+    if hTooltip then hTooltip->ShowCallback = userfunc
+end sub
+
+
+' ---- geometry and introspection -------------------------------------------------------------------
+private sub EnsureLayout( byval pTip as TK_TIP ptr )
+    if len( pTip->wszTipBuf ) = 0 then pTip->wszTipBuf = TIP_ResolveText( pTip ) : pTip->bLayoutDirty = true
+    if pTip->bLayoutDirty then pTip->LayoutTooltip()
+end sub
+
+public sub tkTooltip_GetIdealSize( byval hTooltip as TK_TIP ptr, byref nW as long, byref nH as long )
+    nW = 0 : nH = 0
+    if hTooltip = 0 then exit sub
+    EnsureLayout( hTooltip )
+    nW = hTooltip->nIdealW : nH = hTooltip->nIdealH
+end sub
+
+public function tkTooltip_GetPartRect( byval hTooltip as TK_TIP ptr, byval nPart as long ) as TKRECT
+    dim as TKRECT rc
+    if hTooltip = 0 then return rc
+    EnsureLayout( hTooltip )
+    dim as TKRECT rcG, rcTi, rcTx
+    TIP_BandRects( hTooltip, rcG, rcTi, rcTx )
+    select case nPart
+    case TIP_PART_CLIENT : tkRect_Set( rc, 0, 0, hTooltip->nIdealW, hTooltip->nIdealH )
+    case TIP_PART_BODY : rc = hTooltip->rcBody
+    case TIP_PART_GLYPH : rc = rcG
+    case TIP_PART_TITLE : rc = rcTi
+    case TIP_PART_TEXT : rc = rcTx
+    case TIP_PART_STEM
+        if hTooltip->bHasStem then
+            if hTooltip->bStemOnTop then
+                tkRect_Set( rc, 0, 0, hTooltip->nIdealW, hTooltip->rcBody.top )
+            else
+                tkRect_Set( rc, 0, hTooltip->rcBody.bottom, hTooltip->nIdealW, hTooltip->nIdealH )
+            end if
+        end if
+    end select
+    return rc
+end function
+
+
+' ---- test seam and render probes ----------------------------------------------------------------
+' One tick of the state machine with injected inputs (cursor in the attached surface's
+' window pixels), instead of the clock and the real mouse.
+public sub tkTooltip_TickForTest( byval hTooltip as TK_TIP ptr, byval cx as long, byval cy as long, _
+                                  byval bOver as boolean, byval bButtonDown as boolean, byval tNow as longint )
+    if hTooltip = 0 then exit sub
+    gNowPinned = tNow
+    TIP_TickOne( hTooltip, cx, cy, bOver, bButtonDown, tNow )
+    gNowPinned = 0
+end sub
+
+' Render the tip OFFSCREEN (a target texture on the attached surface's renderer) with its real
+' painter and read one part back. Returns the surface of the part, or 0.
+private function TIP_RenderPart( byval pTip as TK_TIP ptr, byval nPart as long ) as SDL_Surface ptr
+    if (pTip = 0) orelse (pTip->hAttached = 0) then return 0
+    EnsureLayout( pTip )
+    dim as TKRECT rcPart = tkTooltip_GetPartRect( pTip, nPart )
+    if tkRect_IsEmpty( rcPart ) orelse (pTip->nIdealW <= 0) orelse (pTip->nIdealH <= 0) then return 0
+    dim as SDL_Renderer ptr r = pTip->hAttached->pHost->renderer
+    dim as SDL_Texture ptr tgt = SDL_CreateTexture( r, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, pTip->nIdealW, pTip->nIdealH )
+    if tgt = 0 then return 0
+    dim as SDL_Texture ptr old = SDL_GetRenderTarget( r )
+    SDL_SetRenderTarget( r, tgt )
+    SDL_SetRenderDrawColor( r, 0, 0, 0, 0 )
+    SDL_RenderClear( r )
+    dim as TK_PAINT p
+    p.renderer = r
+    p.engine = pTip->hAttached->pHost->engine
+    p.fScale = pTip->hAttached->pHost->fScale
+    p.Begin( 0, 0, pTip->nIdealW, pTip->nIdealH )
+    TIP_Render( pTip, @p )
+    SDL_SetRenderClipRect( r, 0 )
+    dim as SDL_Rect sr
+    sr.x = rcPart.left : sr.y = rcPart.top : sr.w = rcPart.right - rcPart.left : sr.h = rcPart.bottom - rcPart.top
+    dim as SDL_Surface ptr s0 = SDL_RenderReadPixels( r, @sr )
+    SDL_SetRenderTarget( r, old )
+    SDL_DestroyTexture( tgt )
+    if s0 = 0 then return 0
+    dim as SDL_Surface ptr s = SDL_ConvertSurface( s0, SDL_PIXELFORMAT_ARGB8888 )
+    SDL_DestroySurface( s0 )
+    return s
+end function
+
+public function tkTooltip_CountRenderedTones( byval hTooltip as TK_TIP ptr, byval nPart as long ) as long
+    dim as SDL_Surface ptr s = TIP_RenderPart( hTooltip, nPart )
+    if s = 0 then return 0
+    dim tones(0 to 255) as ulong
+    dim as long n = 0
+    for y as long = 0 to s->h - 1
+        dim as ulong ptr row = cast( ulong ptr, cast( ubyte ptr, s->pixels ) + y * s->pitch )
+        for x as long = 0 to s->w - 1
+            dim as ulong c = row[x]
+            dim as boolean f = false
+            for t as long = 0 to n - 1
+                if tones(t) = c then f = true : exit for
+            next
+            if (f = false) andalso (n < 256) then tones(n) = c : n += 1
+        next
+    next
+    SDL_DestroySurface( s )
+    return n
+end function
+
+public function tkTooltip_HashRenderedPart( byval hTooltip as TK_TIP ptr, byval nPart as long ) as ulong
+    dim as SDL_Surface ptr s = TIP_RenderPart( hTooltip, nPart )
+    if s = 0 then return 0
+    dim as ulong hv = &h811C9DC5ul
+    for y as long = 0 to s->h - 1
+        dim as ubyte ptr row = cast( ubyte ptr, s->pixels ) + y * s->pitch
+        for x as long = 0 to s->w * 4 - 1
+            hv = (hv xor row[x]) * &h01000193ul
+        next
+    next
+    SDL_DestroySurface( s )
+    return hv
+end function
+
+
+' ==========================================================================================
+' tkTipHost -- vendor PsTipHost: a control's tip, created lazily, with the delays it was asked
+' for stored as well as pushed (so they survive the tip being created later). Only the tk
+' backend exists, so SetMode / GetMode / SysHandle are gone (PORT.md).
+' ==========================================================================================
+public type TKTIPHOST_STATE
+    pTip        as TK_TIP ptr
+    hCtrl       as TK_WIDGET ptr
+    TipCallback as TIP_TooltipCallbackFunc
+    nInitialMs  as long = -1
+    nAutoPopMs  as long = -1
+    nReshowMs   as long = -1
+    bTracked    as boolean
+end type
+
+private sub TipHost_PushDelays( byval pHost as TKTIPHOST_STATE ptr )
+    if pHost->pTip = 0 then exit sub
+    if pHost->nInitialMs >= 0 then tkTooltip_SetInitialDelay( pHost->pTip, pHost->nInitialMs )
+    if pHost->nAutoPopMs >= 0 then tkTooltip_SetAutoPopDelay( pHost->pTip, pHost->nAutoPopMs )
+    if pHost->nReshowMs >= 0 then tkTooltip_SetReshowDelay( pHost->pTip, pHost->nReshowMs )
+end sub
+
+' Make sure the control has its tip; TRUE when it does.
+public function tkTipHost_Ensure( byval pHost as TKTIPHOST_STATE ptr, byval hCtrl as TK_WIDGET ptr, _
+                                  byval TipCallback as TIP_TooltipCallbackFunc = 0 ) as boolean
+    if (pHost = 0) orelse (hCtrl = 0) then return false
+    pHost->hCtrl = hCtrl
+    if TipCallback <> 0 then pHost->TipCallback = TipCallback
+    if pHost->pTip = 0 then
+        pHost->pTip = tkTooltip_Create( hCtrl )
+        if pHost->pTip = 0 then return false
+        TipHost_PushDelays( pHost )
+    end if
+    if pHost->TipCallback then tkTooltip_SetTooltipCallback( pHost->pTip, pHost->TipCallback )
+    return true
+end function
+
+public sub tkTipHost_Destroy( byval pHost as TKTIPHOST_STATE ptr )
+    if pHost = 0 then exit sub
+    if pHost->pTip then tkTooltip_Destroy( pHost->pTip )
+    pHost->pTip = 0
+end sub
+
+public function tkTipHost_Tip( byval pHost as TKTIPHOST_STATE ptr ) as TK_TIP ptr
+    if pHost = 0 then return 0
+    return pHost->pTip
+end function
+
+public sub tkTipHost_SetToolIndex( byval pHost as TKTIPHOST_STATE ptr, byval idx as long )
+    if (pHost <> 0) andalso (pHost->pTip <> 0) then tkTooltip_SetToolIndex( pHost->pTip, idx )
+end sub
+
+' Hide a visible tip now (TTM_POP).
+public sub tkTipHost_Pop( byval pHost as TKTIPHOST_STATE ptr )
+    if (pHost <> 0) andalso (pHost->pTip <> 0) then TIP_HideCore( pHost->pTip, false )
+end sub
+
+public sub tkTipHost_SetTracked( byval pHost as TKTIPHOST_STATE ptr, byval bTracked as boolean )
+    if pHost then pHost->bTracked = bTracked
+end sub
+
+public function tkTipHost_IsTracked( byval pHost as TKTIPHOST_STATE ptr ) as boolean
+    if pHost = 0 then return false
+    return pHost->bTracked
+end function
+
+' Show text at once against rcAnchor (control-local), bypassing the dwell -- the tracked tip
+' a control drives itself (a scrollbar thumb's position, a splitter's size).
+public sub tkTipHost_TrackShow( byval pHost as TKTIPHOST_STATE ptr, byref rcAnchor as TKRECT, byval wszText as ustring )
+    if (pHost = 0) orelse (pHost->pTip = 0) then exit sub
+    if len( wszText ) = 0 then TIP_HideCore( pHost->pTip, false ) : exit sub
+    pHost->pTip->wszText = wszText
+    TIP_InvalidateText( pHost->pTip )
+    tkTooltip_ShowForRect( pHost->pTip, rcAnchor, TIP_ALIGN_BELOW )
+end sub
+
+public sub tkTipHost_TrackHide( byval pHost as TKTIPHOST_STATE ptr )
+    if (pHost <> 0) andalso (pHost->pTip <> 0) then TIP_HideCore( pHost->pTip, false )
+end sub
+
+' Stored as well as pushed, so a delay set before the tip exists still applies when it does.
+public sub tkTipHost_SetDelay( byval pHost as TKTIPHOST_STATE ptr, byval nWhich as long, byval nMs as long )
+    if pHost = 0 then exit sub
+    if nMs < 0 then nMs = 0
+    select case nWhich
+    case TK_TIPDELAY_INITIAL : pHost->nInitialMs = nMs
+    case TK_TIPDELAY_AUTOPOP : pHost->nAutoPopMs = nMs
+    case TK_TIPDELAY_RESHOW : pHost->nReshowMs = nMs
+    case else : exit sub
+    end select
+    TipHost_PushDelays( pHost )
+end sub

@@ -1,0 +1,537 @@
+' tkCheckBox self-test. Real windows, real SDL event queue: every input claim is made by
+' PUSHING the SDL event a user would have produced and pumping the host, so the dispatch path
+' under test is the one the demo runs. Two passes, scale pinned at 1.0 and at 1.75.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkCheckBox"
+#import "vendor/tkControls/tkTest"
+using tkCheckBox
+using tkTooltip
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as long gChanges, gLastState
+dim shared as TK_WIDGET ptr gLastCtl
+dim shared as boolean gAgreed
+dim shared as boolean gSuppressDown, gSuppressEnter
+dim shared as long gIdealW(0 to 1)
+
+' Pinned, all distinct, so a pixel names the mood and state that painted it.
+const as ulong C_BACK = &hFF102030ul, C_FORE = &hFFE0E0E0ul
+const as ulong C_BOX = &hFF2050F0ul, C_BOXHOT = &hFF20F050ul, C_BOXPRESS = &hFFF02020ul, C_BOXDIS = &hFF505050ul
+const as ulong C_CHK = &hFF30C0C0ul, C_CHKHOT = &hFFC0C030ul, C_CHKPRESS = &hFFC030C0ul, C_CHKDIS = &hFF404860ul
+const as ulong C_RING = &hFFFF8000ul
+
+
+sub OnChanged( byval hCheckBox as TK_WIDGET ptr, byval isChecked as boolean )
+    gChanges += 1
+    gLastState = iif( isChecked, 1, 0 )
+    gLastCtl = hCheckBox
+    ' fired AFTER the state is updated, so the getter agrees with the argument
+    gAgreed = (tkCheckBox_GetChecked( hCheckBox ) = isChecked)
+    ' SetChecked inside the handler must not recurse (it is silent)
+    tkCheckBox_SetChecked( hCheckBox, isChecked )
+end sub
+
+function OnMessage( byval m as TKCHECKBOX_MESSAGEINFO ptr ) as boolean
+    if gSuppressDown andalso (m->msg = TKM_LBUTTONDOWN) then return true
+    if gSuppressEnter andalso (m->msg = TKM_KEYDOWN) andalso (m->key = SDLK_RETURN) then return true
+    return false
+end function
+
+function OnTip( byval hCheckBox as TK_WIDGET ptr ) as ustring
+    return "tip from callback"
+end function
+
+function WaitTip( byval h as TK_HOST ptr, byval tp as TK_WIDGET ptr, byval want as boolean, byval ms as long ) as boolean
+    dim as double t0 = timer
+    dim as SDL_Event e
+    while (timer - t0) * 1000 < ms
+        if SDL_WaitEventTimeout( @e, 20 ) then tkHost_Dispatch( h, @e )
+        if h->bDirty then tkHost_Render( h )
+        if tkTooltip_IsVisible( tkCheckBox_GetTooltipHandle( tp ) ) = want then return true
+    wend
+    return false
+end function
+
+' The colour of the box's left edge, mid-height (a crisp straight stroke), after a real render.
+function BoxEdge( byval h as TK_HOST ptr, byval w as TK_WIDGET ptr ) as ulong
+    dim as TKRECT rb, a
+    tkCheckBox_GetBoxRect( w, rb )
+    tkWidget_AbsRect( w, a )
+    tkHost_RenderTo( h, false )
+    return tkTest_PixelAt( h, a.left + rb.left, a.top + (rb.top + rb.bottom) \ 2 )
+end function
+
+function PinnedColors() as TKCHECKBOX_COLORS
+    dim as TKCHECKBOX_COLORS c
+    c.BackColor = C_BACK : c.BackColorHot = C_BACK : c.BackColorPressed = C_BACK : c.BackColorDisabled = C_BACK
+    c.ForeColor = C_FORE : c.ForeColorHot = C_FORE : c.ForeColorPressed = C_FORE : c.ForeColorDisabled = C_FORE
+    c.BoxColor = C_BOX : c.BoxColorHot = C_BOXHOT : c.BoxColorPressed = C_BOXPRESS : c.BoxColorDisabled = C_BOXDIS
+    c.BoxColorChecked = C_CHK : c.BoxColorCheckedHot = C_CHKHOT
+    c.BoxColorCheckedPressed = C_CHKPRESS : c.BoxColorCheckedDisabled = C_CHKDIS
+    c.FocusRingColor = C_RING
+    return c
+end function
+
+' ==========================================================================================
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    dim as TK_HOST ptr h = tkHost_Create( "tkCheckBox selftest", 700, 520, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    tkTest_Check( "scale pinned", h->fScale = fScale, "" & h->fScale )
+    dim as TTF_Font ptr fText = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
+    dim as TTF_Font ptr fGlyph = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_ICONS, 12 )
+    tkTest_Check( "fonts opened", (fText <> 0) andalso (fGlyph <> 0) )
+
+    ' ---- A: layout before sizing, then the README formula ------------------------------
+    dim as TK_WIDGET ptr a = tkCheckBox_Create( tkHost_Root( h ), 101 )
+    tkCheckBox_SetFont( a, fText ) : tkCheckBox_SetGlyphFont( a, fGlyph )
+    tkCheckBox_SetText( a, "Enable dark mode" )
+    tkCheckBox_SetCheckChangedCallback( a, @OnChanged )
+    tkTest_Check( "created unchecked, enabled, id = ctrlId", tkCheckBox_GetChecked( a ) = false andalso tkCheckBox_GetEnabled( a ) andalso tkCheckBox_GetID( a ) = 101 )
+    tkTest_Check( "default glyphs E739 / E73A", tkCheckBox_GetGlyphUnchecked( a ) = wchr( TK_ICON_CHECKBOX ) andalso tkCheckBox_GetGlyphChecked( a ) = wchr( TK_ICON_CHECKBOX_CHECKED ) )
+    tkTest_Check( "default box style VECTOR", tkCheckBox_GetBoxStyle( a ) = CHK_BOXSTYLE_VECTOR )
+    dim as long iw, ih
+    tkCheckBox_GetIdealSize( a, iw, ih )
+    tkTest_Check( "ideal size valid before sizing", (iw > 0) andalso (ih > 0), iw & "x" & ih )
+    dim as TKRECT rc
+    tkTest_Check( "rect query FALSE before sizing", tkCheckBox_GetBoxRect( a, rc ) = false )
+
+    dim as long pl, pt, pr, pb, gap, bw, bh, fg, ft, tw, nTextH
+    tkCheckBox_GetPadding( a, pl, pt, pr, pb )
+    gap = tkCheckBox_GetBoxGap( a )
+    tkCheckBox_GetBoxSize( a, bw, bh )
+    tkCheckBox_GetFocusRing( a, fg, ft )
+    tkCheckBox_GetTextSize( a, tw, nTextH )
+    tkTest_Check( "defaults scaled at create", pl = tkHost_Scale( h, 4 ) andalso pt = tkHost_Scale( h, 2 ) andalso gap = tkHost_Scale( h, 8 ) _
+           andalso bw = tkHost_Scale( h, 16 ) andalso bh = tkHost_Scale( h, 16 ) andalso fg = tkHost_Scale( h, 2 ) _
+           andalso tkCheckBox_GetFocusCurvature( a ) = tkHost_Scale( h, 4 ), pl & " " & gap & " " & bw & " " & fg )
+    tkTest_Check( "ring thickness NOT scaled", ft = 1 )
+    tkTest_Check( "caption measured", tw > 0 andalso nTextH > 0, tw & "x" & nTextH )
+    dim as long rp = fg + ft
+    dim as long contentH = iif( nTextH > bh, nTextH, bh )
+    tkTest_Check( "idealW = 2rp+pl+box+gap+text+pr", iw = 2 * rp + pl + bw + gap + tw + pr, iw & " vs " & (2 * rp + pl + bw + gap + tw + pr) )
+    tkTest_Check( "idealH = 2rp+pt+max(text,box)+pb", ih = 2 * rp + pt + contentH + pb, ih & " vs " & (2 * rp + pt + contentH + pb) )
+    gIdealW(iif( fScale > 1.5, 1, 0 )) = iw
+
+    tkWidget_SetPos( a, tkHost_Scale( h, 20 ), tkHost_Scale( h, 20 ), iw, ih )
+    dim as TKRECT rCont, rb, rt, rv
+    tkTest_Check( "rect query TRUE once sized", tkCheckBox_GetContentRect( a, rCont ) )
+    tkCheckBox_GetBoxRect( a, rb ) : tkCheckBox_GetTextRect( a, rt ) : tkCheckBox_GetVisualRect( a, rv )
+    tkTest_Check( "rcContent = client deflated by ringPad", rCont.left = rp andalso rCont.top = rp andalso rCont.right = iw - rp andalso rCont.bottom = ih - rp, tkRect_Str( rCont ) )
+    tkTest_Check( "rcBox pinned at padLeft, declared size", rb.left = rp + pl andalso (rb.right - rb.left) = bw andalso (rb.bottom - rb.top) = bh, tkRect_Str( rb ) )
+    tkTest_Check( "rcBox v-centred", rb.top = rp + ((ih - 2 * rp - bh) \ 2), tkRect_Str( rb ) )
+    tkTest_Check( "rcText = box.right+gap .. content.right-padRight", rt.left = rb.right + gap andalso rt.right = iw - rp - pr, tkRect_Str( rt ) )
+    tkTest_Check( "caption span = caption width at ideal", (rt.right - rt.left) = tw, "" & (rt.right - rt.left) )
+    tkTest_Check( "rcText height = text height", (rt.bottom - rt.top) = nTextH )
+    tkTest_Check( "rcVisual = full client at ideal", rv.left = 0 andalso rv.top = 0 andalso rv.right = iw andalso rv.bottom = ih, tkRect_Str( rv ) )
+
+    ' ---- B: the box on the right ---------------------------------------------------------
+    tkCheckBox_SetBoxAlign( a, CHK_BOXALIGN_RIGHT )
+    dim as long iw2, ih2
+    tkCheckBox_GetIdealSize( a, iw2, ih2 )
+    tkTest_Check( "BOXALIGN_RIGHT: ideal size unchanged", iw2 = iw andalso ih2 = ih )
+    tkCheckBox_GetBoxRect( a, rb ) : tkCheckBox_GetTextRect( a, rt )
+    tkTest_Check( "BOXALIGN_RIGHT: box pinned at padRight", rb.right = iw - rp - pr, tkRect_Str( rb ) )
+    tkTest_Check( "BOXALIGN_RIGHT: span = padLeft .. box.left-gap", rt.left = rp + pl andalso rt.right = rb.left - gap, tkRect_Str( rt ) )
+    dim as long wide = iw + tkHost_Scale( h, 100 )
+    tkWidget_SetSize( a, wide, ih )
+    tkCheckBox_GetBoxRect( a, rb ) : tkCheckBox_GetTextRect( a, rt )
+    tkTest_Check( "row width: box follows the right edge", rb.right = wide - rp - pr, tkRect_Str( rb ) )
+    tkTest_Check( "row width: span takes the slack", (rt.right - rt.left) = tw + tkHost_Scale( h, 100 ), tkRect_Str( rt ) )
+    tkCheckBox_SetBoxAlign( a, 7 )
+    tkTest_Check( "SetBoxAlign out of range ignored", tkCheckBox_GetBoxAlign( a ) = CHK_BOXALIGN_RIGHT )
+    tkCheckBox_SetBoxAlign( a, CHK_BOXALIGN_LEFT )
+    tkWidget_SetSize( a, iw, ih )
+    tkCheckBox_SetTextAlign( a, CHK_TEXTALIGN_RIGHT )
+    tkCheckBox_SetTextAlign( a, -1 )
+    tkTest_Check( "SetTextAlign out of range ignored", tkCheckBox_GetTextAlign( a ) = CHK_TEXTALIGN_RIGHT )
+    tkCheckBox_SetTextAlign( a, CHK_TEXTALIGN_LEFT )
+
+    ' ---- C: no caption, starving, setters that do / do not move the ideal size ----------
+    dim as TK_WIDGET ptr nc = tkCheckBox_Create( tkHost_Root( h ), 102 )
+    tkCheckBox_SetFont( nc, fText )
+    tkCheckBox_GetIdealSize( nc, iw2, ih2 )
+    tkTest_Check( "no caption: idealW has no gap", iw2 = 2 * rp + pl + bw + pr, "" & iw2 )
+    tkTest_Check( "no caption: idealH from the box alone", ih2 = 2 * rp + pt + bh + pb, "" & ih2 )
+    tkWidget_SetPos( nc, tkHost_Scale( h, 20 ), tkHost_Scale( h, 80 ), iw2, ih2 )
+    tkTest_Check( "no caption: rcText EMPTY, query still TRUE", tkCheckBox_GetTextRect( nc, rt ) andalso tkRect_IsEmpty( rt ) )
+    tkCheckBox_SetCheckChangedCallback( nc, @OnChanged )
+
+    tkCheckBox_SetGlyphChecked( nc, wchr( TK_ICON_CHECKMARK ) ) : tkCheckBox_SetBoxStyle( nc, CHK_BOXSTYLE_GLYPH )
+    dim as long iw3, ih3
+    tkCheckBox_GetIdealSize( nc, iw3, ih3 )
+    tkTest_Check( "glyph / style setters never move the ideal size", iw3 = iw2 andalso ih3 = ih2 )
+    tkCheckBox_SetBoxStyle( nc, 9 )
+    tkTest_Check( "SetBoxStyle out of range ignored", tkCheckBox_GetBoxStyle( nc ) = CHK_BOXSTYLE_GLYPH )
+    tkCheckBox_SetBoxStyle( nc, CHK_BOXSTYLE_VECTOR ) : tkCheckBox_SetGlyphChecked( nc, TKCHECKBOX_GLYPH_CHECKED )
+
+    tkCheckBox_SetFocusRing( nc, fg + 3, 2 )
+    tkCheckBox_GetIdealSize( nc, iw3, ih3 )
+    tkTest_Check( "SetFocusRing moves the ideal size by 2x the band", iw3 = iw2 + 2 * 4 andalso ih3 = ih2 + 2 * 4, iw2 & " -> " & iw3 )
+    tkCheckBox_SetFocusRing( nc, fg, 1 )
+    tkCheckBox_SetPadding( nc, -5, -5, -5, -5 )
+    dim as long q1, q2, q3, q4
+    tkCheckBox_GetPadding( nc, q1, q2, q3, q4 )
+    tkTest_Check( "negative padding clamps to 0", q1 = 0 andalso q2 = 0 andalso q3 = 0 andalso q4 = 0 )
+    tkCheckBox_SetPadding( nc, pl, pt, pr, pb )
+    tkCheckBox_SetBoxSize( nc, -1, -1 )
+    tkCheckBox_GetBoxSize( nc, q1, q2 )
+    tkTest_Check( "negative box size clamps to 0", q1 = 0 andalso q2 = 0 )
+    tkCheckBox_SetBoxSize( nc, bw, bh )
+    tkWidget_SetPos( nc, tkHost_Scale( h, 20 ), tkHost_Scale( h, 80 ), iw2, ih2 )
+
+    ' starved: the box keeps its size and padding, the span collapses to zero width
+    dim as TK_WIDGET ptr el = tkCheckBox_Create( tkHost_Root( h ), 103 )
+    tkCheckBox_SetFont( el, fText )
+    tkCheckBox_SetText( el, "Automatically restore the previous session" )
+    dim as long iwE, ihE
+    tkCheckBox_GetIdealSize( el, iwE, ihE )
+    tkWidget_SetPos( el, tkHost_Scale( h, 20 ), tkHost_Scale( h, 400 ), tkHost_Scale( h, 20 ), ihE )
+    tkCheckBox_GetBoxRect( el, rb ) : tkCheckBox_GetTextRect( el, rt )
+    tkTest_Check( "starved: box keeps declared size", (rb.right - rb.left) = bw )
+    tkTest_Check( "starved: span degenerate, not negative", rt.right = rt.left, tkRect_Str( rt ) )
+    dim as long iwS, ihS
+    tkCheckBox_GetIdealSize( el, iwS, ihS )
+    tkTest_Check( "starving never changes the ideal size", iwS = iwE andalso ihS = ihE )
+
+    ' ---- D: moods and colours, pure functions ------------------------------------------
+    tkTest_Check( "mood disabled wins", tkCheckBox_ResolveMood( false, true, true ) = CHK_MOOD_DISABLED )
+    tkTest_Check( "mood pressed > hot", tkCheckBox_ResolveMood( true, true, true ) = CHK_MOOD_PRESSED )
+    tkTest_Check( "mood hot", tkCheckBox_ResolveMood( true, false, true ) = CHK_MOOD_HOT )
+    tkTest_Check( "mood idle", tkCheckBox_ResolveMood( true, false, false ) = CHK_MOOD_IDLE )
+    dim as TKCHECKBOX_COLORS pc = PinnedColors()
+    dim as ulong cb, cf, cx
+    tkCheckBox_ResolveColors( @pc, CHK_MOOD_HOT, true, cb, cf, cx )
+    tkTest_Check( "checked selects the box set within the mood", cx = C_CHKHOT )
+    tkCheckBox_ResolveColors( @pc, CHK_MOOD_DISABLED, false, cb, cf, cx )
+    tkTest_Check( "disabled unchecked box colour", cx = C_BOXDIS )
+    dim as ulong cb2, cf2
+    tkCheckBox_ResolveColors( @pc, CHK_MOOD_DISABLED, true, cb2, cf2, cx )
+    tkTest_Check( "isChecked touches nothing but the box", cb2 = cb andalso cf2 = cf andalso cx = C_CHKDIS )
+
+    ' ---- E: input through the real dispatch --------------------------------------------
+    tkHost_Pump( h )
+    gChanges = 0
+    tkTest_PushMotion( h, tkTest_CX( a ), tkTest_CY( a ) )
+    tkTest_Check( "hot on enter", tkCheckBox_GetHot( a ) )
+    tkTest_PushButton( h, true, tkTest_CX( a ), tkTest_CY( a ) )
+    tkTest_Check( "press takes capture", tkHost_GetCapture( h ) = a )
+    tkTest_Check( "press focuses", tkCheckBox_GetFocused( a ) )
+    tkTest_Check( "press alone does not toggle", tkCheckBox_GetChecked( a ) = false andalso gChanges = 0 )
+    tkTest_PushButton( h, false, tkTest_CX( a ), tkTest_CY( a ) )
+    tkTest_Check( "release inside toggles on", tkCheckBox_GetChecked( a ) andalso gChanges = 1 andalso gLastState = 1 andalso gLastCtl = a, "" & gChanges )
+    tkTest_Check( "callback fired AFTER the update", gAgreed )
+    tkTest_Check( "capture released", tkHost_GetCapture( h ) = 0 )
+
+    ' clicking the CAPTION toggles too: the whole client is the hit area
+    tkCheckBox_GetTextRect( a, rt )
+    dim as TKRECT aa
+    tkWidget_AbsRect( a, aa )
+    tkTest_Click( h, aa.left + (rt.left + rt.right) \ 2, aa.top + (rt.top + rt.bottom) \ 2 )
+    tkTest_Check( "caption click toggles off", tkCheckBox_GetChecked( a ) = false andalso gChanges = 2 andalso gLastState = 0, "" & gChanges )
+
+    ' press, slide off, release: nothing
+    gChanges = 0
+    tkTest_PushButton( h, true, tkTest_CX( a ), tkTest_CY( a ) )
+    tkTest_PushMotion( h, aa.right + tkHost_Scale( h, 200 ), tkTest_CY( a ) )
+    tkTest_Check( "slide off: capture KEPT", tkHost_GetCapture( h ) = a )
+    tkTest_Check( "slide off: gesture live, not hot", tkCheckBox_GetPressed( a ) andalso tkCheckBox_GetHot( a ) = false )
+    tkTest_PushButton( h, false, aa.right + tkHost_Scale( h, 200 ), tkTest_CY( a ) )
+    tkTest_Check( "release outside: no toggle", gChanges = 0 andalso tkCheckBox_GetChecked( a ) = false, "" & gChanges )
+
+    ' press, slide off, slide back, release: toggles
+    tkTest_PushButton( h, true, tkTest_CX( a ), tkTest_CY( a ) )
+    tkTest_PushMotion( h, aa.right + 50, tkTest_CY( a ) )
+    tkTest_PushMotion( h, tkTest_CX( a ), tkTest_CY( a ) )
+    tkTest_Check( "slide back: re-armed hot", tkCheckBox_GetHot( a ) andalso tkCheckBox_GetPressed( a ) )
+    tkTest_PushButton( h, false, tkTest_CX( a ), tkTest_CY( a ) )
+    tkTest_Check( "re-armed release toggles", gChanges = 1 andalso tkCheckBox_GetChecked( a ), "" & gChanges )
+
+    ' a rapid second click is a second toggle, not a swallowed double click
+    gChanges = 0
+    tkTest_Click( h, tkTest_CX( a ), tkTest_CY( a ), SDL_BUTTON_LEFT, 1 )
+    tkTest_Click( h, tkTest_CX( a ), tkTest_CY( a ), SDL_BUTTON_LEFT, 2 )
+    tkTest_Check( "double click = two toggles", gChanges = 2 andalso tkCheckBox_GetChecked( a ), "" & gChanges )
+
+    ' the right button is reported, never acted on
+    gChanges = 0
+    tkTest_Click( h, tkTest_CX( a ), tkTest_CY( a ), SDL_BUTTON_RIGHT )
+    tkTest_Check( "right click does not toggle", gChanges = 0 )
+
+    ' window-level leave clears hot
+    tkTest_PushMotion( h, tkTest_CX( a ), tkTest_CY( a ) )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+    tkTest_Check( "window leave clears hot", tkCheckBox_GetHot( a ) = false )
+
+    ' capture lost to deactivation cancels the press
+    tkTest_PushButton( h, true, tkTest_CX( a ), tkTest_CY( a ) )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_FOCUS_LOST )
+    tkTest_Check( "focus lost: capture gone, press cancelled", tkHost_GetCapture( h ) = 0 andalso tkCheckBox_GetPressed( a ) = false )
+    gChanges = 0
+    tkTest_PushButton( h, false, tkTest_CX( a ), tkTest_CY( a ) )
+    tkTest_Check( "release after cancelled press: no toggle", gChanges = 0, "" & gChanges )
+
+    ' keyboard: Space, Enter, keypad Enter; nothing else
+    tkCheckBox_SetChecked( a, false )
+    gChanges = 0
+    tkHost_SetFocus( h, a )
+    tkTest_PushKey( h, SDLK_SPACE )
+    tkTest_Check( "Space toggles", gChanges = 1 andalso tkCheckBox_GetChecked( a ) )
+    tkTest_PushKey( h, SDLK_RETURN ) : tkTest_PushKey( h, SDLK_KP_ENTER )
+    tkTest_Check( "Enter and keypad Enter toggle", gChanges = 3 andalso tkCheckBox_GetChecked( a ), "" & gChanges )
+    tkTest_PushKey( h, SDLK_A ) : tkTest_PushKey( h, SDLK_X )
+    tkTest_Check( "other keys do nothing", gChanges = 3 )
+
+    ' the README's Enter veto through the message callback
+    gSuppressEnter = true
+    tkCheckBox_SetMessageCallback( a, @OnMessage )
+    tkTest_PushKey( h, SDLK_RETURN )
+    tkTest_Check( "message callback vetoes Enter", gChanges = 3 )
+    tkTest_PushKey( h, SDLK_SPACE )
+    tkTest_Check( "...but not Space", gChanges = 4 )
+    gSuppressEnter = false
+    tkCheckBox_SetMessageCallback( a, 0 )
+
+    ' Tab order skips the disabled one
+    dim as TK_WIDGET ptr d = tkCheckBox_Create( tkHost_Root( h ), 104 )
+    tkCheckBox_SetFont( d, fText ) : tkCheckBox_SetText( d, "Cannot change this" )
+    tkCheckBox_SetCheckChangedCallback( d, @OnChanged )
+    tkCheckBox_SetChecked( d, true )
+    tkCheckBox_GetIdealSize( d, iw2, ih2 )
+    tkWidget_SetPos( d, tkHost_Scale( h, 20 ), tkHost_Scale( h, 140 ), iw2, ih2 )
+    tkCheckBox_SetEnabled( d, false )
+    tkTest_Check( "disable keeps the checked state", tkCheckBox_GetChecked( d ) andalso tkCheckBox_GetEnabled( d ) = false )
+    tkHost_SetFocus( h, a )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "Tab a -> no-caption box", tkHost_GetFocus( h ) = nc )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "Tab -> starved box", tkHost_GetFocus( h ) = el )
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "Tab skips disabled, wraps to a", tkHost_GetFocus( h ) = a )
+    tkTest_PushKey( h, SDLK_TAB, SDL_KMOD_LSHIFT )
+    tkTest_Check( "Shift+Tab back", tkHost_GetFocus( h ) = el )
+
+    ' disabled swallows everything, Toggle included
+    gChanges = 0
+    tkTest_PushMotion( h, tkTest_CX( d ), tkTest_CY( d ) )
+    tkTest_Click( h, tkTest_CX( d ), tkTest_CY( d ) )
+    tkCheckBox_Toggle( d )
+    tkTest_Check( "disabled: no toggle by mouse or Toggle", gChanges = 0 andalso tkCheckBox_GetChecked( d ), "" & gChanges )
+    tkTest_Check( "disabled: never hot", tkCheckBox_GetHot( d ) = false )
+
+    ' setters are silent; Toggle is the one notifying action
+    gChanges = 0
+    tkCheckBox_SetChecked( a, true ) : tkCheckBox_SetChecked( a, false ) : tkCheckBox_SetChecked( a, false )
+    tkCheckBox_SetText( a, "Enable dark mode" ) : tkCheckBox_SetEnabled( a, false ) : tkCheckBox_SetEnabled( a, true )
+    tkCheckBox_SetBoxAlign( a, CHK_BOXALIGN_LEFT ) : tkCheckBox_SetID( a, 555 ) : tkCheckBox_SetItemData( a, 42 )
+    tkTest_Check( "setters are silent", gChanges = 0 andalso tkCheckBox_GetChecked( a ) = false )
+    tkTest_Check( "ID / ItemData stored", tkCheckBox_GetID( a ) = 555 andalso tkCheckBox_GetItemData( a ) = 42 )
+    tkCheckBox_Toggle( a )
+    tkTest_Check( "Toggle flips AND notifies", gChanges = 1 andalso tkCheckBox_GetChecked( a ) andalso gLastState = 1 )
+    tkCheckBox_SetChecked( a, false )
+
+    ' a message callback may suppress the press; focus still moves
+    gSuppressDown = true
+    tkCheckBox_SetMessageCallback( nc, @OnMessage )
+    tkHost_SetFocus( h, a )
+    gChanges = 0
+    tkTest_PushButton( h, true, tkTest_CX( nc ), tkTest_CY( nc ) )
+    tkTest_Check( "suppressed press: no capture", tkHost_GetCapture( h ) = 0 )
+    tkTest_Check( "suppressed press: focus moved anyway", tkHost_GetFocus( h ) = nc )
+    tkTest_PushButton( h, false, tkTest_CX( nc ), tkTest_CY( nc ) )
+    tkTest_Check( "suppressed press: no toggle", gChanges = 0 )
+    gSuppressDown = false
+    tkCheckBox_SetMessageCallback( nc, 0 )
+
+    ' ---- F: pixels -----------------------------------------------------------------------
+    tkHost_SetFocus( h, 0 )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+    tkCheckBox_SetColors( nc, @pc )
+    tkCheckBox_SetChecked( nc, false )
+    tkTest_Check( "unchecked idle: box edge = BoxColor", BoxEdge( h, nc ) = C_BOX, hex( BoxEdge( h, nc ) ) )
+    dim as TKRECT rn, an
+    tkCheckBox_GetBoxRect( nc, rn )
+    tkWidget_AbsRect( nc, an )
+    dim as long side = rn.right - rn.left
+    dim as long inset = tkCheckBox_VectorPen( side ) + 1
+    dim as ulong c0
+    tkHost_RenderTo( h, false )
+    dim as long nIn = tkTest_TonesIn( h, an.left + rn.left + inset, an.top + rn.top + inset, side - 2 * inset, side - 2 * inset, c0 )
+    tkTest_Check( "unchecked vector box: hollow (interior = back)", nIn = 1 andalso (c0 or &hFF000000ul) = C_BACK, nIn & " " & hex( c0 ) )
+
+    tkCheckBox_SetChecked( nc, true )
+    tkTest_Check( "checked idle: box edge = BoxColorChecked", BoxEdge( h, nc ) = C_CHK, hex( BoxEdge( h, nc ) ) )
+    dim as ulong cFill = tkTest_PixelAt( h, an.left + rn.left + (side * 30) \ 100, an.top + rn.top + (side * 20) \ 100 )
+    tkTest_Check( "checked vector box: filled", cFill = C_CHK, hex( cFill ) )
+    ' the tick is knocked out in the back colour: a pixel on its stroke is nearer back than fill
+    dim as ulong cTick = tkTest_PixelAt( h, an.left + rn.left + (side * 42) \ 100, an.top + rn.top + (side * 78) \ 100 )
+    tkTest_Check( "checked vector box: tick knocked out", cTick <> C_CHK andalso (cTick and &hFFul) < &hA0ul, hex( cTick ) )
+
+    ' hot and pressed reach the pixels; sliding off shows the IDLE box, not the pressed one
+    tkCheckBox_SetChecked( nc, false )
+    tkTest_PushMotion( h, tkTest_CX( nc ), tkTest_CY( nc ) )
+    tkTest_Check( "hot: box edge = BoxColorHot", BoxEdge( h, nc ) = C_BOXHOT, hex( BoxEdge( h, nc ) ) )
+    tkTest_PushButton( h, true, tkTest_CX( nc ), tkTest_CY( nc ) )
+    tkTest_Check( "pressed: box edge = BoxColorPressed", BoxEdge( h, nc ) = C_BOXPRESS, hex( BoxEdge( h, nc ) ) )
+    tkTest_PushMotion( h, an.right + tkHost_Scale( h, 150 ), tkTest_CY( nc ) )
+    tkTest_Check( "slid off: un-flashed to BoxColor", BoxEdge( h, nc ) = C_BOX, hex( BoxEdge( h, nc ) ) )
+    tkTest_PushButton( h, false, an.right + tkHost_Scale( h, 150 ), tkTest_CY( nc ) )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+
+    ' disabled checked still reads as ticked: its own colour
+    tkCheckBox_SetChecked( nc, true )
+    tkCheckBox_SetEnabled( nc, false )
+    tkTest_Check( "disabled checked: BoxColorCheckedDisabled", BoxEdge( h, nc ) = C_CHKDIS, hex( BoxEdge( h, nc ) ) )
+    tkCheckBox_SetEnabled( nc, true )
+    tkCheckBox_SetChecked( nc, false )
+
+    ' focus ring: an outline on rcVisual's edge, only while focused
+    dim as TKRECT rvn
+    tkCheckBox_GetVisualRect( nc, rvn )
+    tkHost_RenderTo( h, false )
+    dim as ulong cNoRing = tkTest_PixelAt( h, an.left + (rvn.left + rvn.right) \ 2, an.top + rvn.top )
+    tkHost_SetFocus( h, nc )
+    tkHost_RenderTo( h, false )
+    dim as ulong cRing = tkTest_PixelAt( h, an.left + (rvn.left + rvn.right) \ 2, an.top + rvn.top )
+    tkTest_Check( "focus ring drawn only when focused", cNoRing = C_BACK andalso cRing = C_RING, hex( cNoRing ) & " " & hex( cRing ) )
+    tkHost_SetFocus( h, 0 )
+
+    ' render probes
+    tkTest_Check( "probe tones: control > 1", tkCheckBox_CountRenderedTones( a, CHK_PART_CONTROL ) > 1 )
+    tkTest_Check( "probe tones: caption > 1", tkCheckBox_CountRenderedTones( a, CHK_PART_TEXT ) > 1 )
+    tkTest_Check( "probe: empty part answers 0", tkCheckBox_CountRenderedTones( nc, CHK_PART_TEXT ) = 0 )
+    dim as ulong hOff = tkCheckBox_HashRenderedPart( nc, CHK_PART_BOX )
+    tkCheckBox_SetChecked( nc, true )
+    dim as ulong hOn = tkCheckBox_HashRenderedPart( nc, CHK_PART_BOX )
+    tkTest_Check( "probe hash: state reaches the pixels", hOff <> 0 andalso hOn <> 0 andalso hOff <> hOn )
+    ' flatten the box colours: now only the GLYPH can move a pixel (README's isolation idiom)
+    dim as TKCHECKBOX_COLORS flat = pc
+    flat.BoxColorChecked = C_BOX : flat.BoxColorCheckedHot = C_BOX : flat.BoxColorCheckedPressed = C_BOX
+    flat.BoxColorHot = C_BOX : flat.BoxColorPressed = C_BOX
+    tkCheckBox_SetColors( nc, @flat )
+    tkCheckBox_SetGlyphFont( nc, fGlyph )
+    tkCheckBox_SetBoxStyle( nc, CHK_BOXSTYLE_GLYPH )
+    dim as ulong gOn = tkCheckBox_HashRenderedPart( nc, CHK_PART_BOX )
+    tkTest_Check( "glyph style paints the font glyph (>1 tone)", tkCheckBox_CountRenderedTones( nc, CHK_PART_BOX ) > 1 )
+    tkCheckBox_SetGlyphChecked( nc, wchr( TK_ICON_CHECKMARK ) )
+    dim as ulong gOn2 = tkCheckBox_HashRenderedPart( nc, CHK_PART_BOX )
+    tkTest_Check( "glyph swap reaches the pixels (flat colours)", gOn <> gOn2 )
+    tkCheckBox_SetBoxStyle( nc, CHK_BOXSTYLE_VECTOR )
+    tkCheckBox_SetGlyphChecked( nc, TKCHECKBOX_GLYPH_CHECKED )
+    tkCheckBox_SetColors( nc, @pc )
+    tkCheckBox_SetChecked( nc, false )
+
+    ' ellipsis: the starved caption never paints past its span
+    tkWidget_SetSize( el, (iwE * 55) \ 100, ihE )
+    dim as TKRECT re, rce, ae
+    tkCheckBox_GetTextRect( el, re ) : tkCheckBox_GetContentRect( el, rce )
+    tkWidget_AbsRect( el, ae )
+    tkHost_RenderTo( h, false )
+    dim as long nRight = tkTest_TonesIn( h, ae.left + re.right, ae.top + re.top, rce.right - re.right, re.bottom - re.top, c0 )
+    tkTest_Check( "ellipsis: nothing painted past the span", nRight = 1, "" & nRight )
+    tkTest_Check( "ellipsis: caption drawn", tkTest_TonesIn( h, ae.left + re.left, ae.top + re.top, re.right - re.left, re.bottom - re.top, c0 ) > 2 )
+
+    ' AutoSize follows the caption and keeps the top-left
+    dim as long x0 = el->x, y0 = el->y
+    tkCheckBox_SetAutoSize( el, true )
+    tkCheckBox_GetIdealSize( el, iw2, ih2 )
+    tkTest_Check( "AutoSize sizes to ideal, top-left kept", el->cw = iw2 andalso el->ch = ih2 andalso el->x = x0 andalso el->y = y0 )
+    tkCheckBox_SetText( el, "Go" )
+    tkCheckBox_GetIdealSize( el, iw3, ih3 )
+    tkTest_Check( "AutoSize follows SetText", el->cw = iw3 andalso iw3 < iw2, el->cw & " vs " & iw3 )
+    tkCheckBox_SetAutoSize( el, false )
+
+    ' ---- G: the per-monitor scale path ---------------------------------------------------
+    dim as long w0, h0, w1, h1, bw1, bh1, fg1, ft1
+    tkCheckBox_GetIdealSize( a, w0, h0 )
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkCheckBox_GetIdealSize( a, w1, h1 )
+    tkCheckBox_GetBoxSize( a, bw1, bh1 )
+    tkCheckBox_GetFocusRing( a, fg1, ft1 )
+    tkTest_Check( "rescale: ideal width ~ x2", (w1 > w0 * 1.85) andalso (w1 < w0 * 2.15), w0 & " -> " & w1 )
+    tkTest_Check( "rescale: box doubled", bw1 = 2 * bw andalso bh1 = 2 * bh, bw & " -> " & bw1 )
+    tkTest_Check( "rescale: ring gap doubled, thickness not", fg1 = 2 * fg andalso ft1 = 1, fg1 & " " & ft1 )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkCheckBox_GetIdealSize( a, w1, h1 )
+    tkTest_Check( "rescale back: ideal size restored", w1 = w0 andalso h1 = h0, w0 & " / " & w1 )
+
+    ' ---- H: the tooltip is a real popup window ------------------------------------------
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 400 )                 ' the X11 settle (see tkButton)
+    dim as TK_WIDGET ptr tp = tkCheckBox_Create( tkHost_Root( h ), 105 )
+    tkCheckBox_SetTooltipCallback( tp, @OnTip )
+    tkCheckBox_SetHoverTime( tp, 200 )
+    tkCheckBox_GetIdealSize( tp, iw2, ih2 )
+    tkWidget_SetPos( tp, tkHost_Scale( h, 400 ), tkHost_Scale( h, 20 ), iw2, ih2 )
+    tkTest_PushMotion( h, tkTest_CX( tp ), tkTest_CY( tp ) )
+    ' 3 s, not 1.5: returns the moment the tip shows; the slack is for a loaded machine
+    ' (one Wayland miss at 1.5 s while parallel suites ran, not reproduced in six reruns).
+    tkTest_Check( "tooltip popup appears after hover time", WaitTip( h, tp, true, 3000 ), *SDL_GetError() )
+    tkTest_PushMotion( h, 2, 2 )
+    tkTest_Check( "tooltip hides on leave", WaitTip( h, tp, false, 500 ) )
+    tkCheckBox_SetTooltipText( tp, "own text" )
+    tkTest_Check( "tooltip text stored", tkCheckBox_GetTooltipText( tp ) = "own text" )
+    tkTest_Check( "the tooltip handle is the control's tkTooltip", tkCheckBox_GetTooltipHandle( tp ) <> 0 andalso tkTooltip_GetAttached( tkCheckBox_GetTooltipHandle( tp ) ) = tp )
+
+    ' ---- I: theme, pinning, fonts ---------------------------------------------------------
+    dim as TKCHECKBOX_COLORS cc
+    tkTheme_Apply( tkTheme_Light() )
+    tkCheckBox_GetColors( a, @cc )
+    tkTest_Check( "theme reaches an unpinned control", cc.BackColor = tkTheme_Light().Window andalso cc.BoxColorChecked = tkTheme_Light().Accent _
+           andalso cc.BoxColor = tkTheme_Light().TextDim andalso cc.FocusRingColor = tkTheme_Light().FocusRing )
+    tkCheckBox_GetColors( nc, @cc )
+    tkTest_Check( "SetColors pinned: theme left it alone", cc.BoxColor = C_BOX )
+    tkCheckBox_UnpinColors( nc )
+    tkCheckBox_GetColors( nc, @cc )
+    tkTest_Check( "unpin hands it back to the current theme", cc.BackColor = tkTheme_Light().Window )
+    tkTheme_Apply( tkTheme_Dark() )
+    tkCheckBox_GetColors( nc, @cc )
+    tkTest_Check( "unpinned follows the next theme", cc.BoxColorChecked = tkTheme_Dark().Accent )
+
+    dim as TTF_Font ptr fBig = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 16 )
+    dim as long wSmall, wBig, hh2
+    tkCheckBox_SetFont( tp, fText ) : tkCheckBox_SetText( tp, "Caption" )
+    tkCheckBox_GetIdealSize( tp, wSmall, hh2 )
+    tkCheckBox_ApplyFonts( tp, fBig, 0 )
+    tkCheckBox_GetIdealSize( tp, wBig, hh2 )
+    tkTest_Check( "ApplyFonts re-measures with the new caption font", wBig > wSmall andalso tkCheckBox_GetFont( tp ) = fBig, wSmall & " -> " & wBig )
+    tkCheckBox_ApplyFonts( tp, 0, fGlyph )
+    tkTest_Check( "ApplyFonts 0 keeps the caption font", tkCheckBox_GetFont( tp ) = fBig andalso tkCheckBox_GetGlyphFont( tp ) = fGlyph )
+
+    tkHost_Destroy( h )
+end sub
+
+
+' ---- with NO font anywhere, text measures zero and the box alone sets the size ----------
+sub RunNoFont()
+    tkTest_Begin( "no font" )
+    dim as TK_HOST ptr h = tkHost_Create( "tkCheckBox selftest", 320, 200, "", 1 )
+    dim as TK_WIDGET ptr a = tkCheckBox_Create( tkHost_Root( h ), 1 )
+    tkCheckBox_SetText( a, "Enable dark mode" )
+    dim as long iw, ih, tw, nTextH
+    tkCheckBox_GetIdealSize( a, iw, ih )
+    tkCheckBox_GetTextSize( a, tw, nTextH )
+    tkTest_Check( "no font: caption measures 0", tw = 0 andalso nTextH = 0, tw & "x" & nTextH )
+    tkTest_Check( "no font: still a box-sized ideal", iw > 0 andalso ih > 0, iw & "x" & ih )
+    tkHost_Destroy( h )
+end sub
+
+
+' ==========================================================================================
+if tkTest_Init() = false then end 99
+
+RunNoFont()
+RunPass( 1.0 )
+RunPass( 1.75 )
+
+tkTest_Begin( "cross-pass" )
+tkTest_Check( "ideal width scales with the scale", (gIdealW(0) > 0) andalso (gIdealW(1) > gIdealW(0) * 1.6) andalso (gIdealW(1) < gIdealW(0) * 1.9), gIdealW(0) & " -> " & gIdealW(1) )
+dim as long nFail = tkTest_Report( "tkCheckBox" )
+tkTest_Quit()
+end nFail

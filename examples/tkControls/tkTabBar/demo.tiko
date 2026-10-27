@@ -1,0 +1,230 @@
+' tkTabBar demo: the Win32 demo's two bars (tiko-lang/examples/PsControls/PsTabBar/frmMain.tiko)
+' -- each with its own paint callback, the second blue with wider padding -- and the "<" ">"
+' buttons driving the first one through Navigate / CanNavigate. A third bar shows the PsPlatform
+' additions: the built-in painter (no callback), per-tab glyphs, a non-closable tab, and the
+' opt-in keyboard (Tab to it, then Left / Right / Home / End).
+'
+'   demo                     interactive
+'   demo --shot out.bmp      render once, save the window, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkTabBar"
+#import "vendor/tkControls/tkButton"
+using tkTabBar
+using tkButton
+using tkTooltip
+using tkHost
+using tkPaint
+
+' The Win32 demo's THEME_TYPE, value for value.
+const as ulong T_FORE = &hFFBEC4CEul, T_BACK = &hFF21252Bul, T_PANEL = &hFF1E2227ul
+const as ulong T_BACKHOT = &hFF2C313Aul, T_FOREHOT = &hFFFFFFFFul, T_FORESEL = &hFFFFFFFFul, T_BACKSEL = &hFF264F78ul
+const as ulong T_FOCUS = &hFF569CD6ul, T_DIM = &hFF5A606Aul
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gBar1, gBar2, gBar3, gNavL, gNavR
+dim shared as TTF_Font ptr gFont9, gFont10, gGlyph9
+
+private function BarName( byval b as TK_WIDGET ptr ) as string
+    if b = gBar1 then return "bar1"
+    if b = gBar2 then return "bar2"
+    return "bar3"
+end function
+
+sub Paint1( byval p as TKTABBAR_PAINTINFO ptr )
+    dim as ulong backclr = T_BACK, foreclr = T_FORE
+    if p->isDragging then
+        backclr = T_BACKSEL : foreclr = T_FORESEL
+    elseif p->isSelected then
+        backclr = T_BACKHOT : foreclr = T_FORESEL
+    elseif p->isHot then
+        backclr = T_BACKHOT : foreclr = T_FOREHOT
+    end if
+    p->b->SetColors( foreclr, backclr )
+    p->b->PaintRect( @p->rc )
+    p->b->SetFont( gFont10 )
+    p->b->PaintText( p->wszCaption, @p->rcText, TK_DT_LEFT )
+    if p->isHot orelse p->isHotClose then
+        if p->isHotClose then p->b->SetColors( T_FORESEL, backclr ) else p->b->SetColors( T_DIM, backclr )
+        p->b->SetFont( gGlyph9 )
+        p->b->PaintText( wchr( TK_ICON_CLOSE ), @p->rcClose, TK_DT_CENTER )
+    end if
+end sub
+
+sub Paint2( byval p as TKTABBAR_PAINTINFO ptr )
+    dim as ulong backclr = T_BACKSEL, foreclr = T_FORESEL
+    if p->isDragging then
+        backclr = T_BACKHOT
+    elseif p->isSelected orelse p->isHot then
+        backclr = T_FOCUS
+    end if
+    p->b->SetColors( foreclr, backclr )
+    p->b->PaintRect( @p->rc )
+    p->b->SetFont( gFont10 )
+    p->b->PaintText( p->wszCaption, @p->rcText, TK_DT_LEFT )
+    if p->isHot orelse p->isHotClose then
+        p->b->SetColors( iif( p->isHotClose, T_FOCUS, T_FORESEL ), backclr )
+        if p->isHotClose then p->b->SetColors( T_BACKSEL, backclr )
+        p->b->SetFont( gGlyph9 )
+        p->b->PaintText( wchr( TK_ICON_CLOSE ), @p->rcClose, TK_DT_CENTER )
+    end if
+end sub
+
+sub UpdateNav()
+    tkButton_SetEnabled( gNavL, tkTabBar_CanNavigate( gBar1, -1 ) )
+    tkButton_SetEnabled( gNavR, tkTabBar_CanNavigate( gBar1, 1 ) )
+end sub
+
+sub OnSel( byval b as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long )
+    print BarName( b ) & " selchange " & idxOld & " -> " & idxNew
+end sub
+
+sub OnClose( byval b as TK_WIDGET ptr, byval idx as long )
+    print BarName( b ) & " close request idx=" & idx & " (" & tkTabBar_GetText( b, idx ) & ") -> host deletes"
+    tkTabBar_DeleteTab( b, idx )
+end sub
+
+sub OnReorder( byval b as TK_WIDGET ptr, byval idxFrom as long, byval idxTo as long )
+    print BarName( b ) & " reorder " & idxFrom & " -> " & idxTo
+end sub
+
+function OnMessage( byval m as TKTABBAR_MESSAGEINFO ptr ) as boolean
+    if (m->msg = TKM_LBUTTONUP) andalso (m->idx <> -1) then
+        print BarName( m->hTabBar ) & " click idx=" & m->idx & " itemData=" & tkTabBar_GetItemData( m->hTabBar, m->idx )
+    end if
+    return false
+end function
+
+function OnTip( byval b as TK_WIDGET ptr, byval idx as long ) as ustring
+    dim as ustring s = tkTabBar_GetText( b, idx )
+    if len( s ) = 0 then return ""
+    return "Tab " & idx & " -> " & s
+end function
+
+sub OnNav( byval hButton as TK_WIDGET ptr, byval id as long )
+    tkTabBar_Navigate( gBar1, iif( hButton = gNavL, -1, 1 ) )
+    UpdateNav()
+end sub
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    ' the Win32 demo polled CanNavigate every 250 ms; here every repaint asks
+    UpdateNav()
+    dim as TKRECT rc
+    dim as long y0 = 2 * tkHost_Scale( h, 36 ) + tkHost_Scale( h, 48 )
+    tkRect_Set( rc, tkHost_Scale( h, 8 ), y0, tkHost_Scale( h, 790 ), y0 + tkHost_Scale( h, 20 ) )
+    b->SetColors( T_DIM, T_PANEL )
+    b->SetFont( gFont9 )
+    b->PaintText( "bar3: built-in painter, glyphs, a non-closable tab, opt-in keyboard (Tab here, then arrows) -- PsPlatform", @rc, TK_DT_LEFT )
+end sub
+
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long nHeight = tkHost_Scale( h, 36 ), nBtn = tkHost_Scale( h, 28 ), k8 = tkHost_Scale( h, 8 )
+    tkWidget_SetPos( gBar1, 0, 0, pw, nHeight )
+    tkWidget_SetPos( gBar2, 0, nHeight, pw, nHeight )
+    tkWidget_SetPos( gNavL, k8, nHeight * 2 + k8, nBtn, nBtn )
+    tkWidget_SetPos( gNavR, k8 + nBtn + tkHost_Scale( h, 4 ), nHeight * 2 + k8, nBtn, nBtn )
+    tkWidget_SetPos( gBar3, 0, nHeight * 2 + tkHost_Scale( h, 72 ), pw, nHeight )
+end sub
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr s = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if s then
+        SDL_SaveBMP( s, strptr( path ) )
+        print "shot: " & path & "  " & s->w & "x" & s->h & "  scale=" & gHost->fScale
+        SDL_DestroySurface( s )
+    end if
+end sub
+
+private sub Wire( byval b as TK_WIDGET ptr )
+    tkTabBar_SetMessageCallback( b, @OnMessage )
+    tkTabBar_SetTooltipCallback( b, @OnTip )
+    tkTabBar_SetSelChangeCallback( b, @OnSel )
+    tkTabBar_SetCloseCallback( b, @OnClose )
+    tkTabBar_SetReorderCallback( b, @OnReorder )
+    tkTabBar_SetFont( b, gFont10 )
+end sub
+
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkTabBar on SDL3", 800, 400, tkHost_FontDir() & TK_FONT_UI, forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = T_PANEL
+gFont9 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 9 )
+gFont10 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 10 )
+gGlyph9 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_ICONS, 9 )
+if (gFont10 = 0) orelse (gGlyph9 = 0) then print "fonts: " & *SDL_GetError() : end 1
+tkTooltip_SetDefaultFonts( gFont9 )
+
+gBar1 = tkTabBar_Create( tkHost_Root( gHost ), 1001 )
+Wire( gBar1 )
+tkTabBar_SetPaintCallback( gBar1, @Paint1 )
+tkTabBar_SetBackColor( gBar1, T_BACK )
+dim as string names1(0 to 8) = { "main.bas", "frmMain.inc", "PsTabBar.bi", "PsTabBar.inc", "a.bi", _
+                                 "PsVScrollBar.inc", "PsBufferPaint.bi", "REFACTOR_PLAN.md", "README.md" }
+for i as long = 0 to 8
+    tkTabBar_AddTab( gBar1, names1(i), 1001 + i )
+next
+tkTabBar_SetTabMinWidth( gBar1, 4, tkHost_Scale( gHost, 110 ) )
+tkTabBar_SetBorderColor( gBar1, T_FOCUS )
+tkTabBar_SetCurSel( gBar1, 0 )
+
+gBar2 = tkTabBar_Create( tkHost_Root( gHost ), 1002 )
+Wire( gBar2 )
+tkTabBar_SetPaintCallback( gBar2, @Paint2 )
+tkTabBar_SetBackColor( gBar2, T_BACKSEL )
+tkTabBar_SetPadding( gBar2, tkHost_Scale( gHost, 20 ) )
+tkTabBar_AddTab( gBar2, "second instance", 2001 )
+tkTabBar_AddTab( gBar2, "notes.txt", 2002 )
+tkTabBar_AddTab( gBar2, "todo.md", 2003 )
+tkTabBar_SetBorderColor( gBar2, T_FORESEL )
+tkTabBar_SetCurSel( gBar2, 1 )
+
+gNavL = tkButton_Create( tkHost_Root( gHost ), 1101 )
+gNavR = tkButton_Create( tkHost_Root( gHost ), 1102 )
+tkButton_SetText( gNavL, "<" ) : tkButton_SetText( gNavR, ">" )
+tkButton_SetFont( gNavL, gFont10 ) : tkButton_SetFont( gNavR, gFont10 )
+tkButton_SetPadding( gNavL, 0, 0, 0, 0 ) : tkButton_SetPadding( gNavR, 0, 0, 0, 0 )
+tkButton_SetClickCallback( gNavL, @OnNav ) : tkButton_SetClickCallback( gNavR, @OnNav )
+
+gBar3 = tkTabBar_Create( tkHost_Root( gHost ), 1003 )
+Wire( gBar3 )
+tkTabBar_SetGlyphFont( gBar3, gGlyph9 )
+tkTabBar_SetKeyboard( gBar3, true )
+tkTabBar_AddTab( gBar3, "Explorer", 3001 ) : tkTabBar_SetGlyph( gBar3, 0, wchr( TK_ICON_FOLDER ) )
+tkTabBar_AddTab( gBar3, "Search", 3002 ) : tkTabBar_SetGlyph( gBar3, 1, wchr( TK_ICON_SEARCH ) )
+tkTabBar_AddTab( gBar3, "Output (pinned)", 3003 ) : tkTabBar_SetGlyph( gBar3, 2, wchr( TK_ICON_CONSOLE ) )
+tkTabBar_SetClosable( gBar3, 2, false )
+tkTabBar_AddTab( gBar3, "Debug", 3004 ) : tkTabBar_SetGlyph( gBar3, 3, wchr( TK_ICON_BUG ) )
+tkTabBar_SetCurSel( gBar3, 0 )
+
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkHost_Show( gHost )
+
+dim as string shot = ArgValue( "--shot" )
+if len( shot ) then
+    tkHost_Pump( gHost )
+    SaveShot( shot )
+else
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

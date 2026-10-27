@@ -1,0 +1,147 @@
+' tkApp demo: the starter (tiko-lang/examples/PsControls/PsApp and PsAppWorker in one): a form
+' with a text box, a theme switch, a modal About box, and a worker thread reporting progress
+' through tkApp_RunOnUI.
+'
+'   demo                     interactive
+'   demo --shot out.bmp      render once, save the window, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkApp"
+#import "vendor/tkControls/tkButton"
+#import "vendor/tkControls/tkTextBox"
+#import "vendor/tkControls/tkProgressBar"
+using tkApp
+using tkButton
+using tkTextBox
+using tkProgressBar
+using tkTheme
+using tkHost
+using tkPaint
+
+const IDC_TEXT = 100, IDC_THEME = 101, IDC_ABOUT = 102, IDC_WORK = 103, IDC_BAR = 104, IDC_OK = 200
+
+dim shared as TK_FORM ptr gMain
+dim shared as TK_WIDGET ptr gText, gBtnTheme, gBtnAbout, gBtnWork, gBar
+dim shared as ustring gStatus
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+' ---- the worker: another thread, which never touches a widget ----------------------------
+sub Ui_Progress( byval payload as any ptr )
+    dim as long n = cast( long, cast( integer, payload ) )
+    tkProgressBar_SetPos( gBar, n )
+    gStatus = iif( n >= 100, "worker done", "worker: " & n & "%" )
+    tkForm_Invalidate( gMain )
+end sub
+
+function Worker( byval data_ as any ptr ) as long
+    for i as long = 1 to 100
+        SDL_Delay( 20 )
+        tkApp_RunOnUI( @Ui_Progress, cast( any ptr, cast( integer, i ) ) )
+    next
+    return 0
+end function
+
+' ---- the About box -----------------------------------------------------------------------
+dim shared as TK_FORM ptr gAbout
+
+sub About_Ok( byval hButton as TK_WIDGET ptr, byval id as long )
+    tkForm_EndModal( gAbout, TKAPP_IDOK )
+end sub
+
+sub About_Size( byval f as TK_FORM ptr, byval cx as long, byval cy as long )
+    dim as TK_WIDGET ptr ok = f->wForm->pLast
+    tkWidget_SetPos( ok, cx - tkForm_Scale( f, 96 ), cy - tkForm_Scale( f, 44 ), tkForm_Scale( f, 84 ), tkForm_Scale( f, 30 ) )
+end sub
+
+sub About_Paint( byval f as TK_FORM ptr, byval b as TK_PAINT ptr )
+    dim as TKRECT r
+    tkRect_Set( r, tkForm_Scale( f, 16 ), tkForm_Scale( f, 12 ), f->wForm->cw - tkForm_Scale( f, 16 ), tkForm_Scale( f, 40 ) )
+    b->SetFont( tkForm_Font( f, TKFONT_UI_LARGE ) )
+    b->SetForeColor( tkApp_Theme().TextStrong )
+    b->PaintText( "tkApp starter", @r, TK_DT_LEFT )
+    r.top = r.bottom : r.bottom += tkForm_Scale( f, 24 )
+    b->SetFont( tkForm_Font( f, TKFONT_UI ) )
+    b->SetForeColor( tkApp_Theme().TextDim )
+    b->PaintText( "tkControls on SDL3 + SDL_ttf.  Esc or OK closes.", @r, TK_DT_LEFT )
+end sub
+
+sub Main_Click( byval hButton as TK_WIDGET ptr, byval id as long )
+    select case id
+    case IDC_THEME
+        tkApp_SetThemeMode( iif( tkApp_Theme().IsDark, TKAPP_THEME_LIGHT, TKAPP_THEME_DARK ) )
+    case IDC_ABOUT
+        gAbout = tkApp_NewForm( "About", 360, 150, gMain )
+        tkForm_OnSize( gAbout, @About_Size )
+        tkForm_OnPaint( gAbout, @About_Paint )
+        dim as TK_WIDGET ptr ok = tkButton_Create( tkForm_Widget( gAbout ), IDC_OK )
+        tkButton_SetText( ok, "OK" )
+        tkButton_SetClickCallback( ok, @About_Ok )
+        dim as long r = tkForm_ShowModal( gAbout )
+        gStatus = "About closed with " & iif( r = TKAPP_IDOK, "OK", "Cancel" )
+        tkForm_Invalidate( gMain )
+    case IDC_WORK
+        SDL_DetachThread( SDL_CreateThreadRuntime( @Worker, "worker", 0, 0, 0 ) )
+    end select
+end sub
+
+sub Main_Size( byval f as TK_FORM ptr, byval cx as long, byval cy as long )
+    dim as long m = tkForm_Scale( f, 16 ), bh = tkForm_Scale( f, 30 ), bw = tkForm_Scale( f, 120 )
+    tkWidget_SetPos( gText, m, m, cx - 2 * m, tkForm_Scale( f, 30 ) )
+    dim as long y = m + tkForm_Scale( f, 46 )
+    tkWidget_SetPos( gBtnTheme, m, y, bw, bh )
+    tkWidget_SetPos( gBtnAbout, m + bw + m \ 2, y, bw, bh )
+    tkWidget_SetPos( gBtnWork, m + 2 * (bw + m \ 2), y, bw, bh )
+    tkWidget_SetPos( gBar, m, y + bh + m, cx - 2 * m, tkForm_Scale( f, 14 ) )
+end sub
+
+sub Main_Paint( byval f as TK_FORM ptr, byval b as TK_PAINT ptr )
+    dim as TKRECT r
+    tkRect_Set( r, tkForm_Scale( f, 16 ), f->wForm->ch - tkForm_Scale( f, 34 ), f->wForm->cw, f->wForm->ch - tkForm_Scale( f, 8 ) )
+    b->SetFont( tkForm_Font( f, TKFONT_UI ) )
+    b->SetForeColor( tkApp_Theme().Accent )
+    b->PaintText( gStatus, @r, TK_DT_LEFT )
+end sub
+
+' ---- main --------------------------------------------------------------------------------
+dim as TKAPP_OPTIONS opts
+' a shot pins the theme: Windows and WSLg need not agree on the system's, and shots must compare
+if len( ArgValue( "--shot" ) ) then opts.ThemeMode = TKAPP_THEME_DARK
+if tkApp_Init( opts ) = false then print "tkApp_Init: " & *SDL_GetError() : end 1
+gMain = tkApp_NewForm( "tkApp on SDL3", 560, 240, 0, val( ArgValue( "--scale" ) ) )
+tkForm_OnSize( gMain, @Main_Size )
+tkForm_OnPaint( gMain, @Main_Paint )
+gText = tkTextBox_Create( tkForm_Widget( gMain ), IDC_TEXT )
+tkTextBox_SetCueBannerText( gText, "Type here; Tab walks the controls" )
+gBtnTheme = tkButton_Create( tkForm_Widget( gMain ), IDC_THEME )
+tkButton_SetText( gBtnTheme, "Light / Dark" )
+gBtnAbout = tkButton_Create( tkForm_Widget( gMain ), IDC_ABOUT )
+tkButton_SetText( gBtnAbout, "About..." )
+gBtnWork = tkButton_Create( tkForm_Widget( gMain ), IDC_WORK )
+tkButton_SetText( gBtnWork, "Run worker" )
+for i as long = 0 to 2
+    tkButton_SetClickCallback( iif( i = 0, gBtnTheme, iif( i = 1, gBtnAbout, gBtnWork ) ), @Main_Click )
+next
+gBar = tkProgressBar_Create( tkForm_Widget( gMain ), IDC_BAR )
+tkProgressBar_SetRange( gBar, 0, 100 )
+gStatus = "Theme mode follows the system until you switch it."
+
+dim as string shot = ArgValue( "--shot" )
+if len( shot ) then
+    tkProgressBar_SetPos( gBar, 40 )
+    tkForm_Show( gMain )
+    tkApp_Pump()
+    dim as TK_HOST ptr h = tkForm_Host( gMain )
+    tkHost_Render( h )
+    tkHost_RenderTo( h, false )
+    dim as SDL_Surface ptr s = SDL_RenderReadPixels( h->renderer, 0 )
+    if s then SDL_SaveBMP( s, strptr( shot ) ) : print "shot: " & shot & "  " & s->w & "x" & s->h : SDL_DestroySurface( s )
+    tkApp_Shutdown()
+else
+    end tkApp_Run( gMain )
+end if

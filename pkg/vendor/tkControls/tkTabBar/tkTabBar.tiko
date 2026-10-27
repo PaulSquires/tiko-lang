@@ -1,0 +1,1222 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkTabBar -- PsTabBar on SDL3 + SDL_ttf, a port of pkg/vendor/PsControls/PsTabBar/PsTabBar.tiko
+' onto tkHost.
+'
+' WHAT IS UNCHANGED, by design: a tab BAR, not a container; the no-shrink width formula
+' (measured with SDL_ttf instead of GetTextExtentPoint32); the five derived rects and the
+' asymmetric rcPaint deflation; first-visible scrolling with scroll-into-view and back-fill;
+' select on DOWN unless on the "X"; the matched close gesture (left on the X, middle anywhere);
+' live drag-to-reorder gated on the direction of travel, hover pinned to the dragged tab; the
+' chrome drawn after the callbacks; silent setters; the index fix-ups on insert/delete/move.
+'
+' WHAT IS ADDED, from PsPlatform's PsTabBar: a BUILT-IN PAINTER used when no paint callback is
+' set (vendor draws no tabs without one), with a per-tab left glyph and a per-tab closable
+' flag; and an OPT-IN keyboard (Left/Right/Home/End select, notifying) for a host that makes
+' the bar a Tab stop. Clicks still never take focus, as vendor.
+'
+' WHAT IS GONE, because the HWND is gone: TCM_NAVIGATE / TCM_CANNAVIGATE (the SendMessage
+' doors; the functions stay), the 100 ms hot-track poll, WM_MOUSEHOVER, WM_SETCURSOR (the
+' widget's cursor field does it), the comctl32 tooltip, CS_DBLCLKS, PsRegistry. See PORT.md.
+#module "tkTabBar"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkTooltip" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkTooltip
+
+public const TKTABBAR_DEFAULT_PADDING = 8
+public const TKTABBAR_DEFAULT_ICONWIDTH = 20
+' SM_CXDRAG's Windows default, stated rather than queried (no portable equivalent).
+public const TKTABBAR_DRAG_THRESHOLD = 4
+
+' Vendor's two colour properties (BackColor, BorderColor), plus the built-in painter's.
+public type TKTABBAR_COLORS
+    BackColor            as ulong = &hFF21252Bul    ' the whole client, filled first
+    BorderColor          as ulong = &hFF444A56ul    ' bottom rule + the active tab's border
+    TabBackColor         as ulong = &hFF2C313Aul    ' --- built-in painter only ---
+    TabBackColorHot      as ulong = &hFF373D48ul
+    TabBackColorSelected as ulong = &hFF21252Bul
+    TabBackColorDrag     as ulong = &hFF264F78ul
+    TextColor            as ulong = &hFF969CA6ul
+    TextColorHot         as ulong = &hFFE2E6EEul
+    TextColorSelected    as ulong = &hFFFFFFFFul
+    CloseColor           as ulong = &hFF969CA6ul
+    CloseColorHot        as ulong = &hFFE2E6EEul
+    AccentColor          as ulong = &hFF569CD6ul
+    FocusRingColor       as ulong = &hFF61AFEFul
+end type
+
+public type TKTABBAR_TABINFO
+    Text      as ustring
+    itemData  as integer
+    nMinWidth as long
+    wszGlyph  as ustring          ' built-in painter's left icon (PsPlatform)
+    bClosable as boolean = true   ' FALSE: no X drawn, no close gesture (PsPlatform)
+    ' --- derived by LayoutTabs ---
+    nWidth    as long
+    rc        as TKRECT
+    rcPaint   as TKRECT
+    rcText    as TKRECT
+    rcIcon    as TKRECT
+    rcClose   as TKRECT
+end type
+
+public type TKTABBAR_PAINTINFO
+    hTabBar    as TK_WIDGET ptr
+    itemID     as long
+    b          as TK_PAINT ptr
+    rc         as TKRECT            ' the border-DEFLATED paint area: fill THIS
+    rcText     as TKRECT
+    rcIcon     as TKRECT
+    rcClose    as TKRECT
+    isSelected as boolean
+    isHot      as boolean
+    isHotClose as boolean
+    isPressed  as boolean
+    isDragging as boolean
+    isFocused  as boolean           ' the bar has keyboard focus (opt-in keyboard)
+    wszCaption as ustring
+end type
+
+public type TKTABBAR_MESSAGEINFO
+    hTabBar as TK_WIDGET ptr
+    msg     as long                 ' TKM_*
+    x       as single
+    y       as single
+    clicks  as long                 ' TKM_LBUTTONDOWN: 2 = vendor's WM_LBUTTONDBLCLK
+    wheelY  as single               ' TKM_MOUSEWHEEL
+    idx     as long
+end type
+
+public type TB_PaintCallbackSub as sub( byval p as TKTABBAR_PAINTINFO ptr )
+public type TB_MessageCallbackFunc as function( byval m as TKTABBAR_MESSAGEINFO ptr ) as boolean
+public type TB_TooltipCallbackFunc as function( byval hTabBar as TK_WIDGET ptr, byval idx as long ) as ustring
+public type TB_SelChangeCallbackSub as sub( byval hTabBar as TK_WIDGET ptr, byval idxOld as long, byval idxNew as long )
+public type TB_CloseCallbackSub as sub( byval hTabBar as TK_WIDGET ptr, byval idx as long )
+public type TB_ReorderCallbackSub as sub( byval hTabBar as TK_WIDGET ptr, byval idxFrom as long, byval idxTo as long )
+
+public type TKTABBAR_STATE
+    hWin              as TK_WIDGET ptr
+    id                as long
+    bColorsPinned     as boolean
+    tip               as TKTIPHOST_STATE
+    tabs(any)         as TKTABBAR_TABINFO
+    tabCount          as long
+    nLastHotIdx       as long = -1
+    bLastHotClose     as boolean
+    nPressedIdx       as long = -1
+    bPressedClose     as boolean
+    nPressedMidIdx    as long = -1
+    bDragging         as boolean
+    ptPressX          as long
+    ptPressY          as long
+    nLastDragX        as long
+    colors            as TKTABBAR_COLORS
+    pTabFont          as TTF_Font ptr      ' borrowed
+    pGlyphFont        as TTF_Font ptr      ' borrowed; the built-in painter's X and left glyphs
+    bKeyboard         as boolean
+    isFocused         as boolean
+    PaintCallback     as TB_PaintCallbackSub
+    MessageCallback   as TB_MessageCallbackFunc
+    TooltipCallback   as TB_TooltipCallbackFunc
+    SelChangeCallback as TB_SelChangeCallbackSub
+    CloseCallback     as TB_CloseCallbackSub
+    ReorderCallback   as TB_ReorderCallbackSub
+    nPadding          as long
+    nIconWidth        as long
+    nBorderWidth      as long
+    bLayoutDirty      as boolean = true
+    nCurSel           as long = -1
+    nFirstVisible     as long
+    bEnsureVisible    as boolean
+
+    declare sub      LayoutTabs()
+    declare sub      MoveTab( byval idxFrom as long, byval idxTo as long )
+    declare function GetCount() as long
+    declare function InsertTabAt( byval idx as long ) as TKTABBAR_TABINFO ptr
+    declare function DeleteTabAt( byval idx as long ) as boolean
+    declare function IsValidTab( byval idx as long ) as boolean
+    declare sub      ClearAll()
+    declare sub      CancelGesture()
+    declare sub      Refresh()
+end type
+
+
+' The vendor LayoutTabs, unchanged except where the width comes from (SDL_ttf).
+'   width = max( textW + 2*iconW + 2*padding + 2*border, nMinWidth )
+sub TKTABBAR_STATE.LayoutTabs()
+    this.bLayoutDirty = false
+    if (this.hWin = 0) orelse (this.tabCount = 0) then exit sub
+    dim as long clientW = this.hWin->cw
+    dim as long clientH = this.hWin->ch
+    if (clientW <= 0) orelse (clientH <= 0) then
+        this.bLayoutDirty = true
+        exit sub
+    end if
+
+    dim as TTF_Font ptr fUse = this.pTabFont
+    if fUse = 0 then fUse = this.hWin->pHost->pDefaultFont
+    for i as long = 0 to this.tabCount - 1
+        dim as long textW = tkText_Width( fUse, this.tabs(i).Text )
+        dim as long nW = textW + (this.nIconWidth * 2) + (this.nPadding * 2) + (this.nBorderWidth * 2)
+        if nW < this.tabs(i).nMinWidth then nW = this.tabs(i).nMinWidth
+        this.tabs(i).nWidth = nW
+    next
+
+    if this.nFirstVisible < 0 then this.nFirstVisible = 0
+    if this.nFirstVisible > this.tabCount - 1 then this.nFirstVisible = this.tabCount - 1
+
+    ' scroll-into-view, consumed HERE where measured widths exist
+    if this.bEnsureVisible then
+        this.bEnsureVisible = false
+        if this.IsValidTab( this.nCurSel ) then
+            if this.nCurSel < this.nFirstVisible then
+                this.nFirstVisible = this.nCurSel
+            else
+                dim as long totalW = 0
+                for i as long = this.nCurSel to this.nFirstVisible step -1
+                    totalW += this.tabs(i).nWidth
+                    if totalW > clientW then
+                        this.nFirstVisible = i + 1
+                        if this.nFirstVisible > this.nCurSel then this.nFirstVisible = this.nCurSel
+                        exit for
+                    end if
+                next
+            end if
+        end if
+    end if
+
+    ' back-fill: pull earlier tabs into view while the whole tail still fits
+    dim as long tailW = 0
+    for i as long = this.nFirstVisible to this.tabCount - 1
+        tailW += this.tabs(i).nWidth
+    next
+    while (this.nFirstVisible > 0) andalso (tailW + this.tabs(this.nFirstVisible - 1).nWidth <= clientW)
+        this.nFirstVisible -= 1
+        tailW += this.tabs(this.nFirstVisible).nWidth
+    wend
+
+    dim as long x = 0
+    dim as long bw = this.nBorderWidth
+    for i as long = 0 to this.tabCount - 1
+        with this.tabs(i)
+            if i < this.nFirstVisible then
+                tkRect_SetEmpty( .rc ) : tkRect_SetEmpty( .rcPaint ) : tkRect_SetEmpty( .rcText )
+                tkRect_SetEmpty( .rcIcon ) : tkRect_SetEmpty( .rcClose )
+                continue for
+            end if
+            tkRect_Set( .rc, x, 0, x + .nWidth, clientH )
+            ' the asymmetric deflation: the active tab's paint area runs to the client bottom
+            dim as TKRECT rp = .rc
+            rp.left += bw : rp.top += bw : rp.right -= bw
+            if i <> this.nCurSel then rp.bottom -= bw
+            .rcPaint = rp
+            ' v-centred on the SYMMETRIC height, so nothing moves with the selection
+            dim as long cyMid = ((.rc.top + bw) + (.rc.bottom - bw)) \ 2
+            dim as long iconTop = cyMid - (this.nIconWidth \ 2)
+            tkRect_Set( .rcIcon, rp.left + this.nPadding, iconTop, rp.left + this.nPadding + this.nIconWidth, iconTop + this.nIconWidth )
+            tkRect_Set( .rcClose, rp.right - this.nPadding - this.nIconWidth, iconTop, rp.right - this.nPadding, iconTop + this.nIconWidth )
+            tkRect_Set( .rcText, .rcIcon.right, .rc.top + bw, .rcClose.left, .rc.bottom - bw )
+            x += .nWidth
+        end with
+    next
+end sub
+
+function TKTABBAR_STATE.GetCount() as long
+    return this.tabCount
+end function
+
+function TKTABBAR_STATE.IsValidTab( byval idx as long ) as boolean
+    return (idx >= 0) andalso (idx < this.tabCount)
+end function
+
+' A mutation mid-press invalidates the gesture: the pressed slot no longer means what the
+' finger meant.
+sub TKTABBAR_STATE.CancelGesture()
+    this.nPressedIdx = -1
+    this.bPressedClose = false
+    this.nPressedMidIdx = -1
+    if this.bDragging then
+        this.bDragging = false
+        tkWidget_SetCursor( this.hWin, TK_CURSOR_ARROW )
+    end if
+end sub
+
+function TKTABBAR_STATE.InsertTabAt( byval idx as long ) as TKTABBAR_TABINFO ptr
+    if idx < 0 then idx = 0
+    if idx > this.tabCount then idx = this.tabCount
+    dim as long cap = ubound( this.tabs ) + 1
+    if this.tabCount >= cap then
+        dim as long newcap = iif( cap = 0, 16, cap * 2 )
+        redim preserve this.tabs( 0 to newcap - 1 )
+    end if
+    for i as long = this.tabCount to idx + 1 step -1
+        this.tabs(i) = this.tabs(i - 1)
+    next
+    with this.tabs(idx)
+        .Text = "" : .itemData = 0 : .nMinWidth = 0 : .wszGlyph = "" : .bClosable = true : .nWidth = 0
+        tkRect_SetEmpty( .rc ) : tkRect_SetEmpty( .rcPaint ) : tkRect_SetEmpty( .rcText )
+        tkRect_SetEmpty( .rcIcon ) : tkRect_SetEmpty( .rcClose )
+    end with
+    this.tabCount += 1
+    ' Stored indices follow the shift; adding a tab never selects it.
+    if (this.tabCount > 1) andalso (idx <= this.nFirstVisible) then this.nFirstVisible += 1
+    if idx <= this.nCurSel then this.nCurSel += 1
+    if (this.nLastHotIdx <> -1) andalso (idx <= this.nLastHotIdx) then this.nLastHotIdx += 1
+    this.CancelGesture()
+    this.Refresh()
+    return @this.tabs(idx)
+end function
+
+function TKTABBAR_STATE.DeleteTabAt( byval idx as long ) as boolean
+    if this.IsValidTab( idx ) = false then return false
+    for i as long = idx to this.tabCount - 2
+        this.tabs(i) = this.tabs(i + 1)
+    next
+    this.tabs(this.tabCount - 1).Text = ""
+    this.tabs(this.tabCount - 1).wszGlyph = ""
+    this.tabCount -= 1
+    if this.nLastHotIdx >= this.tabCount then this.nLastHotIdx = -1
+    if idx < this.nFirstVisible then this.nFirstVisible -= 1
+    ' deleting the selected tab selects NOTHING: the control never guesses
+    if idx = this.nCurSel then
+        this.nCurSel = -1
+    elseif idx < this.nCurSel then
+        this.nCurSel -= 1
+    end if
+    this.CancelGesture()
+    this.Refresh()
+    return true
+end function
+
+' The third index-fixup site. Selection and hover follow the TAB; the scroll position stays.
+sub TKTABBAR_STATE.MoveTab( byval idxFrom as long, byval idxTo as long )
+    if (this.IsValidTab( idxFrom ) = false) orelse (this.IsValidTab( idxTo ) = false) then exit sub
+    if idxFrom = idxTo then exit sub
+    dim as TKTABBAR_TABINFO tmp = this.tabs(idxFrom)
+    if idxTo > idxFrom then
+        for i as long = idxFrom to idxTo - 1
+            this.tabs(i) = this.tabs(i + 1)
+        next
+    else
+        for i as long = idxFrom to idxTo + 1 step -1
+            this.tabs(i) = this.tabs(i - 1)
+        next
+    end if
+    this.tabs(idxTo) = tmp
+    dim as long lo = iif( idxFrom < idxTo, idxFrom, idxTo )
+    dim as long hi = iif( idxFrom < idxTo, idxTo, idxFrom )
+    dim as long nShift = iif( idxTo > idxFrom, -1, 1 )
+    if this.nCurSel = idxFrom then
+        this.nCurSel = idxTo
+    elseif (this.nCurSel >= lo) andalso (this.nCurSel <= hi) then
+        this.nCurSel += nShift
+    end if
+    if this.nLastHotIdx = idxFrom then
+        this.nLastHotIdx = idxTo
+    elseif (this.nLastHotIdx >= lo) andalso (this.nLastHotIdx <= hi) then
+        this.nLastHotIdx += nShift
+    end if
+    this.Refresh()
+end sub
+
+sub TKTABBAR_STATE.ClearAll()
+    for i as long = 0 to this.tabCount - 1
+        this.tabs(i).Text = "" : this.tabs(i).wszGlyph = ""
+    next
+    this.tabCount = 0
+    this.nLastHotIdx = -1
+    this.bLastHotClose = false
+    this.nCurSel = -1
+    this.nFirstVisible = 0
+    this.bEnsureVisible = false
+    this.CancelGesture()
+    this.Refresh()
+end sub
+
+sub TKTABBAR_STATE.Refresh()
+    this.bLayoutDirty = true
+    tkWidget_Invalidate( this.hWin )
+end sub
+
+
+private function GetTabBarPointer( byval hTabBar as TK_WIDGET ptr ) as TKTABBAR_STATE ptr
+    if hTabBar = 0 then return 0
+    return cast( TKTABBAR_STATE ptr, hTabBar->pData )
+end function
+
+private function InClient( byval pBar as TKTABBAR_STATE ptr, byval x as single, byval y as single ) as boolean
+    return (x >= 0) andalso (y >= 0) andalso (x < pBar->hWin->cw) andalso (y < pBar->hWin->ch)
+end function
+
+' The tab under (x, y), widget-local; -1 over empty bar area or outside the control.
+private function TabAt( byval pBar as TKTABBAR_STATE ptr, byval x as single, byval y as single ) as long
+    if InClient( pBar, x, y ) = false then return -1
+    if pBar->bLayoutDirty then pBar->LayoutTabs()
+    for i as long = 0 to pBar->tabCount - 1
+        if tkRect_Contains( pBar->tabs(i).rc, x, y ) then return i
+    next
+    return -1
+end function
+
+' On tab idx's close "X" -- a closable tab only (PsPlatform's bClosable).
+private function OnClose( byval pBar as TKTABBAR_STATE ptr, byval idx as long, byval x as single, byval y as single ) as boolean
+    if pBar->IsValidTab( idx ) = false then return false
+    if pBar->tabs(idx).bClosable = false then return false
+    return tkRect_Contains( pBar->tabs(idx).rcClose, x, y )
+end function
+
+private function CallMessage( byval pBar as TKTABBAR_STATE ptr, byval m as TK_MSG ptr, byval idx as long ) as boolean
+    if pBar->MessageCallback = 0 then return false
+    dim as TKTABBAR_MESSAGEINFO mi
+    mi.hTabBar = pBar->hWin
+    mi.msg = m->msg
+    mi.x = m->x
+    mi.y = m->y
+    mi.clicks = m->clicks
+    mi.wheelY = m->wheelY
+    mi.idx = idx
+    return pBar->MessageCallback( @mi )
+end function
+
+private function ResolveTooltipText( byval pBar as TKTABBAR_STATE ptr, byval idx as long ) as ustring
+    if (pBar = 0) orelse (pBar->IsValidTab( idx ) = false) then return ""
+    if pBar->TooltipCallback then return pBar->TooltipCallback( pBar->hWin, idx )
+    return pBar->tabs(idx).Text
+end function
+
+private function TipText( byval t as TK_TIP ptr, byval a as TK_WIDGET ptr, byval idx as long ) as ustring
+    return ResolveTooltipText( GetTabBarPointer( a ), idx )
+end function
+
+' A user selection: state first, then the callback (which may call SetCurSel safely).
+private sub ChooseTab( byval pBar as TKTABBAR_STATE ptr, byval idx as long )
+    if (pBar->IsValidTab( idx ) = false) orelse (idx = pBar->nCurSel) then exit sub
+    dim as long idxOld = pBar->nCurSel
+    pBar->nCurSel = idx
+    pBar->bEnsureVisible = true
+    pBar->Refresh()
+    if pBar->SelChangeCallback then pBar->SelChangeCallback( pBar->hWin, idxOld, idx )
+end sub
+
+' The built-in painter (PsPlatform's, in vendor's rects): used when no paint callback is set.
+'   dragging > selected > hot > normal; the X shows on the hot or the selected tab.
+private sub PaintTabDefault( byval pBar as TKTABBAR_STATE ptr, byval p as TKTABBAR_PAINTINFO ptr )
+    dim as TK_PAINT ptr b = p->b
+    dim as ulong backclr = pBar->colors.TabBackColor, foreclr = pBar->colors.TextColor
+    if p->isDragging then
+        backclr = pBar->colors.TabBackColorDrag : foreclr = pBar->colors.TextColorSelected
+    elseif p->isSelected then
+        backclr = pBar->colors.TabBackColorSelected : foreclr = pBar->colors.TextColorSelected
+    elseif p->isHot then
+        backclr = pBar->colors.TabBackColorHot : foreclr = pBar->colors.TextColorHot
+    end if
+    b->SetBackColor( backclr )
+    b->PaintRect( @p->rc )
+    if p->isSelected then
+        ' a top accent bar: a second cue beside the fill, so the state survives a flat theme
+        dim as TKRECT mk = p->rc
+        mk.bottom = mk.top + tkHost_Scale( pBar->hWin->pHost, 2 )
+        b->SetBackColor( pBar->colors.AccentColor )
+        b->PaintRect( @mk )
+    end if
+    dim as TTF_Font ptr fText = pBar->pTabFont
+    if fText = 0 then fText = pBar->hWin->pHost->pDefaultFont
+    dim as TTF_Font ptr fGlyph = pBar->pGlyphFont
+    dim as TKTABBAR_TABINFO ptr pt = @pBar->tabs(p->itemID)
+    if (len( pt->wszGlyph ) > 0) andalso (fGlyph <> 0) then
+        b->SetFont( fGlyph )
+        b->SetColors( foreclr, backclr )
+        b->PaintText( pt->wszGlyph, @p->rcIcon, TK_DT_CENTER )
+    end if
+    b->SetFont( fText )
+    b->SetColors( foreclr, backclr )
+    b->PaintText( p->wszCaption, @p->rcText, TK_DT_LEFT )
+    dim as boolean bShowX = pt->bClosable andalso (p->isHot orelse p->isSelected orelse p->isHotClose)
+    if bShowX then
+        b->SetColors( iif( p->isHotClose, pBar->colors.CloseColorHot, pBar->colors.CloseColor ), backclr )
+        if fGlyph then
+            b->SetFont( fGlyph )
+            b->PaintText( wchr( TK_ICON_CLOSE ), @p->rcClose, TK_DT_CENTER )       ' ChromeClose
+        else
+            b->SetFont( fText )
+            b->PaintText( wchr( &hD7 ), @p->rcClose, TK_DT_CENTER )         ' multiplication sign
+        end if
+    end if
+    if p->isFocused andalso p->isSelected then
+        dim as TKRECT rf = p->rc
+        dim as long k = tkHost_Scale( pBar->hWin->pHost, 2 )
+        tkRect_Inflate( rf, -k, -k )
+        b->SetPenColor( pBar->colors.FocusRingColor )
+        b->PaintRoundOutline( @rf, 0, 1 )
+    end if
+end sub
+
+private sub OnPaint( byval pBar as TKTABBAR_STATE ptr, byval b as TK_PAINT ptr )
+    if pBar->bLayoutDirty then pBar->LayoutTabs()
+    dim as TKRECT rcC
+    tkRect_Set( rcC, 0, 0, pBar->hWin->cw, pBar->hWin->ch )
+    b->SetBackColor( pBar->colors.BackColor )
+    b->PaintRect( @rcC )
+
+    dim as TKTABBAR_PAINTINFO p
+    p.hTabBar = pBar->hWin
+    p.b = b
+    p.isFocused = pBar->isFocused
+    for i as long = 0 to pBar->tabCount - 1
+        if tkRect_IsEmpty( pBar->tabs(i).rc ) then continue for        ' scrolled off the left
+        if pBar->tabs(i).rc.left >= rcC.right then exit for            ' past the right edge
+        p.itemID = i
+        p.rc = pBar->tabs(i).rcPaint
+        p.rcText = pBar->tabs(i).rcText
+        p.rcIcon = pBar->tabs(i).rcIcon
+        p.rcClose = pBar->tabs(i).rcClose
+        p.isSelected = (i = pBar->nCurSel)
+        p.isHot = (i = pBar->nLastHotIdx)
+        p.isHotClose = (i = pBar->nLastHotIdx) andalso pBar->bLastHotClose
+        p.isPressed = (i = pBar->nPressedIdx)
+        p.isDragging = (i = pBar->nPressedIdx) andalso pBar->bDragging
+        p.wszCaption = pBar->tabs(i).Text
+        if pBar->PaintCallback then
+            pBar->PaintCallback( @p )
+        else
+            PaintTabDefault( pBar, @p )
+        end if
+    next
+
+    ' The chrome, AFTER the callbacks: the bottom rule as two segments skipping the active
+    ' tab, and the active tab's three-sided border.
+    if pBar->nBorderWidth > 0 then
+        dim as long bw = pBar->nBorderWidth
+        b->SetBackColor( pBar->colors.BorderColor )
+        dim as TKRECT rcSel
+        if pBar->IsValidTab( pBar->nCurSel ) then rcSel = pBar->tabs(pBar->nCurSel).rc
+        dim as TKRECT rs
+        if tkRect_IsEmpty( rcSel ) then
+            tkRect_Set( rs, rcC.left, rcC.bottom - bw, rcC.right, rcC.bottom ) : b->PaintRect( @rs )
+        else
+            if rcSel.left > rcC.left then
+                tkRect_Set( rs, rcC.left, rcC.bottom - bw, rcSel.left, rcC.bottom ) : b->PaintRect( @rs )
+            end if
+            if rcSel.right < rcC.right then
+                tkRect_Set( rs, rcSel.right, rcC.bottom - bw, rcC.right, rcC.bottom ) : b->PaintRect( @rs )
+            end if
+            tkRect_Set( rs, rcSel.left, rcSel.top, rcSel.left + bw, rcSel.bottom ) : b->PaintRect( @rs )
+            tkRect_Set( rs, rcSel.left, rcSel.top, rcSel.right, rcSel.top + bw ) : b->PaintRect( @rs )
+            tkRect_Set( rs, rcSel.right - bw, rcSel.top, rcSel.right, rcSel.bottom ) : b->PaintRect( @rs )
+        end if
+    end if
+end sub
+
+private sub ClearHot( byval pBar as TKTABBAR_STATE ptr )
+    if pBar->nLastHotIdx <> -1 then
+        pBar->nLastHotIdx = -1
+        pBar->bLastHotClose = false
+        tkWidget_Invalidate( pBar->hWin )
+    end if
+    tkTipHost_SetToolIndex( @pBar->tip, -1 )
+end sub
+
+private sub EndDrag( byval pBar as TKTABBAR_STATE ptr )
+    if pBar->bDragging = false then exit sub
+    pBar->bDragging = false
+    tkWidget_SetCursor( pBar->hWin, TK_CURSOR_ARROW )
+    tkWidget_Invalidate( pBar->hWin )
+end sub
+
+private sub Rescale( byval pBar as TKTABBAR_STATE ptr, byval fOld as single, byval fNew as single )
+    if (fOld <= 0) orelse (fNew <= 0) then exit sub
+    dim as single k = fNew / fOld
+    pBar->nPadding = cint( pBar->nPadding * k )
+    pBar->nIconWidth = cint( pBar->nIconWidth * k )
+    if pBar->nBorderWidth > 0 then
+        pBar->nBorderWidth = cint( pBar->nBorderWidth * k )
+        if pBar->nBorderWidth < 1 then pBar->nBorderWidth = 1
+    end if
+    for i as long = 0 to pBar->tabCount - 1
+        pBar->tabs(i).nMinWidth = cint( pBar->tabs(i).nMinWidth * k )
+    next
+    pBar->Refresh()
+end sub
+
+public declare sub tkTabBar_ApplyTheme( byval hTabBar as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+public declare function tkTabBar_ThemeColors( byref t as TKTHEME_COLORS ) as TKTABBAR_COLORS
+public declare function tkTabBar_Navigate( byval hTabBar as TK_WIDGET ptr, byval nDirection as long ) as long
+
+private function tkTabBar_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( w )
+    if pBar = 0 then return false
+    dim as TK_HOST ptr h = w->pHost
+
+    select case m->msg
+    case TKM_PAINT
+        OnPaint( pBar, m->pPaint )
+        return true
+
+    case TKM_SIZE
+        pBar->Refresh()
+        return true
+
+    case TKM_SCALECHANGED
+        Rescale( pBar, m->fOld, m->fNew )
+        return true
+
+    case TKM_THEMECHANGED
+        tkTabBar_ApplyTheme( w, tkTheme_Get() )
+        return true
+
+    case TKM_MOUSEMOVE
+        dim as long idx = TabAt( pBar, m->x, m->y )
+        ' Hover is SUSPENDED while dragging: it stays pinned to the dragged tab.
+        if pBar->bDragging = false then
+            dim as boolean hotClose = OnClose( pBar, idx, m->x, m->y )
+            if idx <> pBar->nLastHotIdx then
+                pBar->nLastHotIdx = idx
+                pBar->bLastHotClose = hotClose
+                tkWidget_Invalidate( w )
+                tkTipHost_SetToolIndex( @pBar->tip, idx )
+            elseif hotClose <> pBar->bLastHotClose then
+                pBar->bLastHotClose = hotClose
+                tkWidget_Invalidate( w )
+            end if
+        end if
+        ' a callback TRUE stops this move driving a live drag (vendor)
+        if CallMessage( pBar, m, idx ) then return true
+        ' Drag-to-reorder: a live left press (not on the X) past the threshold; live exchange
+        ' on entering an adjacent tab, gated on the direction of travel (no oscillation).
+        if (pBar->nPressedIdx <> -1) andalso (pBar->bPressedClose = false) then
+            dim as long ptX = fix( m->x ), ptY = fix( m->y )
+            if pBar->bDragging = false then
+                dim as long nThresh = tkHost_Scale( h, TKTABBAR_DRAG_THRESHOLD )
+                if (abs( ptX - pBar->ptPressX ) >= nThresh) orelse (abs( ptY - pBar->ptPressY ) >= nThresh) then
+                    pBar->bDragging = true
+                    pBar->nLastHotIdx = pBar->nPressedIdx
+                    pBar->bLastHotClose = false
+                    pBar->nLastDragX = ptX
+                    tkWidget_SetCursor( w, TK_CURSOR_SIZEALL )
+                    tkTipHost_Pop( @pBar->tip )
+                    tkWidget_Invalidate( w )
+                end if
+            end if
+            if pBar->bDragging andalso (idx <> -1) andalso (idx <> pBar->nPressedIdx) then
+                dim as boolean doMove
+                if idx > pBar->nPressedIdx then
+                    doMove = (ptX > pBar->nLastDragX)
+                else
+                    doMove = (ptX < pBar->nLastDragX)
+                end if
+                if doMove then
+                    dim as long idxFrom = pBar->nPressedIdx
+                    pBar->MoveTab( idxFrom, idx )
+                    pBar->nPressedIdx = idx
+                    if pBar->ReorderCallback then pBar->ReorderCallback( w, idxFrom, idx )
+                end if
+            end if
+            if pBar->bDragging then pBar->nLastDragX = ptX
+        end if
+        return true
+
+    case TKM_MOUSELEAVE
+        if pBar->bDragging = false then ClearHot( pBar )
+        CallMessage( pBar, m, -1 )
+        return true
+
+    case TKM_LBUTTONDOWN
+        ' A clicks = 2 press is vendor's WM_LBUTTONDBLCLK: the same bookkeeping, reported.
+        ' No focus taken -- a tab must not pull the caret out of the host's editor.
+        tkHost_SetCapture( w )
+        tkTipHost_Pop( @pBar->tip )
+        dim as long idx = TabAt( pBar, m->x, m->y )
+        if CallMessage( pBar, m, idx ) then return true
+        if idx <> -1 then
+            pBar->nPressedIdx = idx
+            pBar->bPressedClose = OnClose( pBar, idx, m->x, m->y )
+            pBar->ptPressX = fix( m->x ) : pBar->ptPressY = fix( m->y )
+            tkWidget_Invalidate( w )
+            ' select on DOWN, unless the press is on the X
+            if pBar->bPressedClose = false then ChooseTab( pBar, idx )
+        end if
+        return true
+
+    case TKM_LBUTTONUP
+        ' save-then-clear BEFORE releasing: CAPTURECHANGED must find nothing to cancel
+        dim as long pressedIdx = pBar->nPressedIdx
+        dim as boolean pressedClose = pBar->bPressedClose
+        pBar->nPressedIdx = -1
+        pBar->bPressedClose = false
+        EndDrag( pBar )
+        if tkHost_GetCapture( h ) = w then tkHost_ReleaseCapture( h )
+        dim as long idx = TabAt( pBar, m->x, m->y )
+        tkWidget_Invalidate( w )
+        CallMessage( pBar, m, idx )                     ' result IGNORED
+        if pressedClose andalso (pressedIdx <> -1) andalso (pressedIdx = idx) then
+            if OnClose( pBar, idx, m->x, m->y ) andalso (pBar->CloseCallback <> 0) then pBar->CloseCallback( w, idx )
+        end if
+        return true
+
+    case TKM_MBUTTONDOWN
+        tkHost_SetCapture( w )
+        dim as long idx = TabAt( pBar, m->x, m->y )
+        if CallMessage( pBar, m, idx ) then return true
+        ' a tab that refuses to close (PsPlatform) does not arm the middle-click either
+        if (idx <> -1) andalso pBar->tabs(idx).bClosable then pBar->nPressedMidIdx = idx else pBar->nPressedMidIdx = -1
+        return true
+
+    case TKM_MBUTTONUP
+        dim as long pressedMid = pBar->nPressedMidIdx
+        pBar->nPressedMidIdx = -1
+        if tkHost_GetCapture( h ) = w then tkHost_ReleaseCapture( h )
+        dim as long idx = TabAt( pBar, m->x, m->y )
+        CallMessage( pBar, m, idx )                     ' result IGNORED
+        if (pressedMid <> -1) andalso (pressedMid = idx) andalso (pBar->CloseCallback <> 0) then pBar->CloseCallback( w, idx )
+        return true
+
+    case TKM_RBUTTONDOWN
+        ' observer only: no press semantics, no capture
+        CallMessage( pBar, m, TabAt( pBar, m->x, m->y ) )
+        return true
+
+    case TKM_MOUSEWHEEL
+        if m->wheelY = 0 then return false
+        if CallMessage( pBar, m, TabAt( pBar, m->x, m->y ) ) then return true
+        tkTabBar_Navigate( w, iif( m->wheelY > 0, -1, 1 ) )     ' wheel up = left
+        return true
+
+    case TKM_CAPTURECHANGED
+        ' the gesture is dead; a drag ends WITHOUT restoring the order (live = already notified)
+        pBar->nPressedIdx = -1
+        pBar->bPressedClose = false
+        pBar->nPressedMidIdx = -1
+        EndDrag( pBar )
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_SETFOCUS, TKM_KILLFOCUS
+        pBar->isFocused = (m->msg = TKM_SETFOCUS)
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_KEYDOWN
+        ' PsPlatform's keyboard, reachable only when the host opted in (SetKeyboard).
+        if (pBar->bKeyboard = false) orelse (pBar->tabCount = 0) then return false
+        select case m->key
+        case SDLK_LEFT
+            if pBar->nCurSel > 0 then ChooseTab( pBar, pBar->nCurSel - 1 ) else ChooseTab( pBar, 0 )
+            return true
+        case SDLK_RIGHT
+            if pBar->nCurSel < pBar->tabCount - 1 then ChooseTab( pBar, pBar->nCurSel + 1 )
+            return true
+        case SDLK_HOME
+            ChooseTab( pBar, 0 )
+            return true
+        case SDLK_END
+            ChooseTab( pBar, pBar->tabCount - 1 )
+            return true
+        end select
+        return false
+
+    case TKM_ENABLE
+        if m->bFlag = false then
+            pBar->CancelGesture()
+            ClearHot( pBar )
+        end if
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_DESTROY
+        tkTipHost_Destroy( @pBar->tip )
+        delete pBar
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ========================================================================================
+' Public API
+' ========================================================================================
+' A child of hParent (or tkHost_Root( h )). Created zero-sized. Never focusable unless the
+' host opts into the keyboard (tkTabBar_SetKeyboard).
+public function tkTabBar_Create( byval hParent as TK_WIDGET ptr, byval CtrlID as long ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TK_HOST ptr pHost = hParent->pHost
+    dim as TKTABBAR_STATE ptr pBar = new TKTABBAR_STATE
+    pBar->id = CtrlID
+    pBar->nPadding = tkHost_Scale( pHost, TKTABBAR_DEFAULT_PADDING )
+    pBar->nIconWidth = tkHost_Scale( pHost, TKTABBAR_DEFAULT_ICONWIDTH )
+    pBar->nBorderWidth = tkHost_Scale( pHost, 1 )
+    if pBar->nBorderWidth < 1 then pBar->nBorderWidth = 1
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @tkTabBar_Proc, pBar )
+    pBar->hWin = w
+    pBar->colors = tkTabBar_ThemeColors( tkTheme_Get() )
+    tkTipHost_Ensure( @pBar->tip, w, @TipText )
+    return w
+end function
+
+public function tkTabBar_AddTab( byval hTabBar as TK_WIDGET ptr, byval Text as ustring, byval itemData as integer = 0 ) as long
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return -1
+    dim as TKTABBAR_TABINFO ptr pTab = pBar->InsertTabAt( pBar->tabCount )
+    pTab->Text = Text
+    pTab->itemData = itemData
+    return pBar->tabCount - 1
+end function
+
+' idx clamped to [0, count]; returns the index used.
+public function tkTabBar_InsertTab( byval hTabBar as TK_WIDGET ptr, byval idx as long, byval Text as ustring, byval itemData as integer = 0 ) as long
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return -1
+    dim as long at_ = idx
+    if at_ < 0 then at_ = 0
+    if at_ > pBar->tabCount then at_ = pBar->tabCount
+    dim as TKTABBAR_TABINFO ptr pTab = pBar->InsertTabAt( at_ )
+    pTab->Text = Text
+    pTab->itemData = itemData
+    return at_
+end function
+
+public function tkTabBar_DeleteTab( byval hTabBar as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return false
+    return pBar->DeleteTabAt( idx )
+end function
+
+' Silent: no reorder callback.
+public function tkTabBar_MoveTab( byval hTabBar as TK_WIDGET ptr, byval idxFrom as long, byval idxTo as long ) as boolean
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return false
+    if (pBar->IsValidTab( idxFrom ) = false) orelse (pBar->IsValidTab( idxTo ) = false) then return false
+    pBar->MoveTab( idxFrom, idxTo )
+    return true
+end function
+
+public sub tkTabBar_Clear( byval hTabBar as TK_WIDGET ptr )
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar then pBar->ClearAll()
+end sub
+
+public function tkTabBar_GetCount( byval hTabBar as TK_WIDGET ptr ) as long
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return 0
+    return pBar->tabCount
+end function
+
+public function tkTabBar_IsValidTab( byval hTabBar as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return false
+    return pBar->IsValidTab( idx )
+end function
+
+public function tkTabBar_GetText( byval hTabBar as TK_WIDGET ptr, byval idx as long ) as ustring
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if (pBar = 0) orelse (pBar->IsValidTab( idx ) = false) then return ""
+    return pBar->tabs(idx).Text
+end function
+
+' Re-lays out: the caption drives the width.
+public function tkTabBar_SetText( byval hTabBar as TK_WIDGET ptr, byval idx as long, byval Text as ustring ) as boolean
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if (pBar = 0) orelse (pBar->IsValidTab( idx ) = false) then return false
+    pBar->tabs(idx).Text = Text
+    pBar->Refresh()
+    return true
+end function
+
+public function tkTabBar_GetItemData( byval hTabBar as TK_WIDGET ptr, byval idx as long ) as integer
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if (pBar = 0) orelse (pBar->IsValidTab( idx ) = false) then return 0
+    return pBar->tabs(idx).itemData
+end function
+
+public function tkTabBar_SetItemData( byval hTabBar as TK_WIDGET ptr, byval idx as long, byval itemData as integer ) as boolean
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if (pBar = 0) orelse (pBar->IsValidTab( idx ) = false) then return false
+    pBar->tabs(idx).itemData = itemData
+    return true
+end function
+
+' PsPlatform: the built-in painter's left icon glyph ("" leaves the square blank).
+public function tkTabBar_SetGlyph( byval hTabBar as TK_WIDGET ptr, byval idx as long, byval Glyph as ustring ) as boolean
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if (pBar = 0) orelse (pBar->IsValidTab( idx ) = false) then return false
+    pBar->tabs(idx).wszGlyph = Glyph
+    tkWidget_Invalidate( hTabBar )
+    return true
+end function
+
+public function tkTabBar_GetGlyph( byval hTabBar as TK_WIDGET ptr, byval idx as long ) as ustring
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if (pBar = 0) orelse (pBar->IsValidTab( idx ) = false) then return ""
+    return pBar->tabs(idx).wszGlyph
+end function
+
+' PsPlatform: FALSE = no X is drawn and neither close gesture fires (the rect stays reserved).
+public function tkTabBar_SetClosable( byval hTabBar as TK_WIDGET ptr, byval idx as long, byval bClosable as boolean ) as boolean
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if (pBar = 0) orelse (pBar->IsValidTab( idx ) = false) then return false
+    pBar->tabs(idx).bClosable = bClosable
+    if bClosable = false then
+        if pBar->nLastHotIdx = idx then pBar->bLastHotClose = false
+        if pBar->nPressedIdx = idx then pBar->bPressedClose = false
+    end if
+    tkWidget_Invalidate( hTabBar )
+    return true
+end function
+
+public function tkTabBar_GetClosable( byval hTabBar as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if (pBar = 0) orelse (pBar->IsValidTab( idx ) = false) then return false
+    return pBar->tabs(idx).bClosable
+end function
+
+public sub tkTabBar_Refresh( byval hTabBar as TK_WIDGET ptr )
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar then pBar->Refresh()
+end sub
+
+public function tkTabBar_GetCurSel( byval hTabBar as TK_WIDGET ptr ) as long
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return -1
+    return pBar->nCurSel
+end function
+
+' -1 clears. A valid index is scrolled into view at the next layout. SILENT.
+public function tkTabBar_SetCurSel( byval hTabBar as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return false
+    if (idx <> -1) andalso (pBar->IsValidTab( idx ) = false) then return false
+    pBar->nCurSel = idx
+    if idx <> -1 then pBar->bEnsureVisible = true
+    pBar->Refresh()
+    return true
+end function
+
+public function tkTabBar_GetFirstVisible( byval hTabBar as TK_WIDGET ptr ) as long
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return 0
+    if pBar->bLayoutDirty then pBar->LayoutTabs()
+    return pBar->nFirstVisible
+end function
+
+' Cancels a pending scroll-into-view: the last explicit instruction wins.
+public function tkTabBar_SetFirstVisible( byval hTabBar as TK_WIDGET ptr, byval idx as long ) as boolean
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if (pBar = 0) orelse (pBar->IsValidTab( idx ) = false) then return false
+    pBar->nFirstVisible = idx
+    pBar->bEnsureVisible = false
+    pBar->Refresh()
+    return true
+end function
+
+public function tkTabBar_CanNavigate( byval hTabBar as TK_WIDGET ptr, byval nDirection as long ) as boolean
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if (pBar = 0) orelse (pBar->tabCount = 0) then return false
+    if (nDirection <> -1) andalso (nDirection <> 1) then return false
+    if pBar->bLayoutDirty then pBar->LayoutTabs()
+    if pBar->bLayoutDirty then return false             ' no geometry yet
+    if nDirection = -1 then return (pBar->nFirstVisible > 0)
+    if pBar->nFirstVisible >= pBar->tabCount - 1 then return false
+    return (pBar->tabs(pBar->tabCount - 1).rc.right > hTabBar->cw)
+end function
+
+public function tkTabBar_Navigate( byval hTabBar as TK_WIDGET ptr, byval nDirection as long ) as long
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return -1
+    if tkTabBar_CanNavigate( hTabBar, nDirection ) then
+        pBar->nFirstVisible += iif( nDirection < 0, -1, 1 )
+        pBar->Refresh()
+    end if
+    return pBar->nFirstVisible
+end function
+
+public function tkTabBar_GetTabMinWidth( byval hTabBar as TK_WIDGET ptr, byval idx as long ) as long
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if (pBar = 0) orelse (pBar->IsValidTab( idx ) = false) then return 0
+    return pBar->tabs(idx).nMinWidth
+end function
+
+' A floor, not a fixed width. Raw pixels.
+public function tkTabBar_SetTabMinWidth( byval hTabBar as TK_WIDGET ptr, byval idx as long, byval nMinWidth as long ) as boolean
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if (pBar = 0) orelse (pBar->IsValidTab( idx ) = false) then return false
+    pBar->tabs(idx).nMinWidth = iif( nMinWidth < 0, 0, nMinWidth )
+    pBar->Refresh()
+    return true
+end function
+
+public function tkTabBar_GetPadding( byval hTabBar as TK_WIDGET ptr ) as long
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return 0
+    return pBar->nPadding
+end function
+
+public sub tkTabBar_SetPadding( byval hTabBar as TK_WIDGET ptr, byval nPadding as long )
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then exit sub
+    pBar->nPadding = iif( nPadding < 0, 0, nPadding )
+    pBar->Refresh()
+end sub
+
+public function tkTabBar_GetIconWidth( byval hTabBar as TK_WIDGET ptr ) as long
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return 0
+    return pBar->nIconWidth
+end function
+
+public sub tkTabBar_SetIconWidth( byval hTabBar as TK_WIDGET ptr, byval nIconWidth as long )
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then exit sub
+    pBar->nIconWidth = iif( nIconWidth < 0, 0, nIconWidth )
+    pBar->Refresh()
+end sub
+
+public function tkTabBar_GetBorderWidth( byval hTabBar as TK_WIDGET ptr ) as long
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return 0
+    return pBar->nBorderWidth
+end function
+
+' 0 is legal: no chrome at all.
+public sub tkTabBar_SetBorderWidth( byval hTabBar as TK_WIDGET ptr, byval nBorderWidth as long )
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then exit sub
+    pBar->nBorderWidth = iif( nBorderWidth < 0, 0, nBorderWidth )
+    pBar->Refresh()
+end sub
+
+public function tkTabBar_GetTabRect( byval hTabBar as TK_WIDGET ptr, byval idx as long, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if (pBar = 0) orelse (pBar->IsValidTab( idx ) = false) then return false
+    if pBar->bLayoutDirty then pBar->LayoutTabs()
+    rc = pBar->tabs(idx).rc
+    return true
+end function
+
+public function tkTabBar_GetTabParts( byval hTabBar as TK_WIDGET ptr, byval idx as long, byref rcPaint as TKRECT, _
+                                      byref rcText as TKRECT, byref rcIcon as TKRECT, byref rcClose as TKRECT ) as boolean
+    tkRect_SetEmpty( rcPaint ) : tkRect_SetEmpty( rcText ) : tkRect_SetEmpty( rcIcon ) : tkRect_SetEmpty( rcClose )
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if (pBar = 0) orelse (pBar->IsValidTab( idx ) = false) then return false
+    if pBar->bLayoutDirty then pBar->LayoutTabs()
+    rcPaint = pBar->tabs(idx).rcPaint
+    rcText = pBar->tabs(idx).rcText
+    rcIcon = pBar->tabs(idx).rcIcon
+    rcClose = pBar->tabs(idx).rcClose
+    return true
+end function
+
+' The tab at a widget-local point, or -1 (forces a pending layout).
+public function tkTabBar_HitTest( byval hTabBar as TK_WIDGET ptr, byval x as long, byval y as long ) as long
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return -1
+    return TabAt( pBar, x, y )
+end function
+
+public function tkTabBar_GetHotTab( byval hTabBar as TK_WIDGET ptr ) as long
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return -1
+    return pBar->nLastHotIdx
+end function
+
+public function tkTabBar_GetHotClose( byval hTabBar as TK_WIDGET ptr ) as boolean
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return false
+    return pBar->bLastHotClose
+end function
+
+public function tkTabBar_IsDragging( byval hTabBar as TK_WIDGET ptr ) as boolean
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return false
+    return pBar->bDragging
+end function
+
+public function tkTabBar_GetBackColor( byval hTabBar as TK_WIDGET ptr ) as ulong
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return 0
+    return pBar->colors.BackColor
+end function
+
+' Returns the previous colour; PINS; does NOT repaint (vendor) -- call Refresh.
+public function tkTabBar_SetBackColor( byval hTabBar as TK_WIDGET ptr, byval clr as ulong ) as ulong
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return 0
+    dim as ulong oldClr = pBar->colors.BackColor
+    pBar->colors.BackColor = clr
+    pBar->bColorsPinned = true
+    return oldClr
+end function
+
+public function tkTabBar_GetBorderColor( byval hTabBar as TK_WIDGET ptr ) as ulong
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return 0
+    return pBar->colors.BorderColor
+end function
+
+' Returns the previous colour; PINS; repaints.
+public function tkTabBar_SetBorderColor( byval hTabBar as TK_WIDGET ptr, byval clr as ulong ) as ulong
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return 0
+    dim as ulong oldClr = pBar->colors.BorderColor
+    pBar->colors.BorderColor = clr
+    pBar->bColorsPinned = true
+    tkWidget_Invalidate( hTabBar )
+    return oldClr
+end function
+
+' The whole colour set, built-in painter included (tk addition). SetColors PINS.
+public sub tkTabBar_GetColors( byval hTabBar as TK_WIDGET ptr, byval pColors as TKTABBAR_COLORS ptr )
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if (pBar = 0) orelse (pColors = 0) then exit sub
+    *pColors = pBar->colors
+end sub
+
+public sub tkTabBar_SetColors( byval hTabBar as TK_WIDGET ptr, byval pColors as TKTABBAR_COLORS ptr )
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if (pBar = 0) orelse (pColors = 0) then exit sub
+    pBar->colors = *pColors
+    pBar->bColorsPinned = true
+    tkWidget_Invalidate( hTabBar )
+end sub
+
+' vendor PsTabBar_ApplyTheme's two roles (Window, Border), plus PsPlatform's painter roles.
+public function tkTabBar_ThemeColors( byref t as TKTHEME_COLORS ) as TKTABBAR_COLORS
+    dim as TKTABBAR_COLORS c
+    c.BackColor = t.Window
+    c.BorderColor = t.Border
+    c.TabBackColor = t.Surface
+    c.TabBackColorHot = t.SurfaceHot
+    c.TabBackColorSelected = t.Window
+    c.TabBackColorDrag = t.Selected
+    c.TextColor = t.TextDim
+    c.TextColorHot = t.TextHot
+    c.TextColorSelected = t.TextStrong
+    c.CloseColor = t.TextDim
+    c.CloseColorHot = t.TextHot
+    c.AccentColor = t.Accent
+    c.FocusRingColor = t.FocusRing
+    return c
+end function
+
+public sub tkTabBar_ApplyTheme( byval hTabBar as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if (pBar = 0) orelse pBar->bColorsPinned then exit sub
+    pBar->colors = tkTabBar_ThemeColors( t )
+    tkWidget_Invalidate( hTabBar )
+end sub
+
+public sub tkTabBar_UnpinColors( byval hTabBar as TK_WIDGET ptr )
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then exit sub
+    pBar->bColorsPinned = false
+    tkTabBar_ApplyTheme( hTabBar, tkTheme_Get() )
+end sub
+
+public function tkTabBar_GetFont( byval hTabBar as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return 0
+    return pBar->pTabFont
+end function
+
+' Borrowed. Re-lays out: the widths are measured with it.
+public function tkTabBar_SetFont( byval hTabBar as TK_WIDGET ptr, byval f as TTF_Font ptr ) as boolean
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return false
+    pBar->pTabFont = f
+    pBar->Refresh()
+    return true
+end function
+
+' The built-in painter's glyph font (the X and the left icons). Borrowed.
+public sub tkTabBar_SetGlyphFont( byval hTabBar as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then exit sub
+    pBar->pGlyphFont = f
+    tkWidget_Invalidate( hTabBar )
+end sub
+
+public sub tkTabBar_ApplyFonts( byval hTabBar as TK_WIDGET ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then exit sub
+    if fText then pBar->pTabFont = fText
+    if fGlyph then pBar->pGlyphFont = fGlyph
+    pBar->Refresh()
+end sub
+
+' PsPlatform's keyboard, opt-in: TRUE makes the bar a Tab stop that answers Left / Right /
+' Home / End (a USER selection: SelChange fires). Clicks still never take focus.
+public sub tkTabBar_SetKeyboard( byval hTabBar as TK_WIDGET ptr, byval bOn as boolean )
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then exit sub
+    pBar->bKeyboard = bOn
+    hTabBar->isFocusable = bOn
+    if (bOn = false) andalso (tkHost_GetFocus( hTabBar->pHost ) = hTabBar) then tkHost_SetFocus( hTabBar->pHost, 0 )
+end sub
+
+public function tkTabBar_GetKeyboard( byval hTabBar as TK_WIDGET ptr ) as boolean
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return false
+    return pBar->bKeyboard
+end function
+
+public function tkTabBar_GetTooltipHandle( byval hTabBar as TK_WIDGET ptr ) as TK_TIP ptr
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then return 0
+    return tkTipHost_Tip( @pBar->tip )
+end function
+
+public sub tkTabBar_SetHoverTime( byval hTabBar as TK_WIDGET ptr, byval milliseconds as long )
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar then tkTipHost_SetDelay( @pBar->tip, TK_TIPDELAY_INITIAL, milliseconds )
+end sub
+
+public sub tkTabBar_SetAutoPopTime( byval hTabBar as TK_WIDGET ptr, byval milliseconds as long )
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar then tkTipHost_SetDelay( @pBar->tip, TK_TIPDELAY_AUTOPOP, milliseconds )
+end sub
+
+public sub tkTabBar_SetReshowTime( byval hTabBar as TK_WIDGET ptr, byval milliseconds as long )
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar then tkTipHost_SetDelay( @pBar->tip, TK_TIPDELAY_RESHOW, milliseconds )
+end sub
+
+public sub tkTabBar_SetPaintCallback( byval hTabBar as TK_WIDGET ptr, byval usersub as TB_PaintCallbackSub )
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar = 0 then exit sub
+    pBar->PaintCallback = usersub
+    tkWidget_Invalidate( hTabBar )
+end sub
+
+public sub tkTabBar_SetMessageCallback( byval hTabBar as TK_WIDGET ptr, byval userfunc as TB_MessageCallbackFunc )
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar then pBar->MessageCallback = userfunc
+end sub
+
+public sub tkTabBar_SetTooltipCallback( byval hTabBar as TK_WIDGET ptr, byval userfunc as TB_TooltipCallbackFunc )
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar then pBar->TooltipCallback = userfunc
+end sub
+
+public sub tkTabBar_SetSelChangeCallback( byval hTabBar as TK_WIDGET ptr, byval usersub as TB_SelChangeCallbackSub )
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar then pBar->SelChangeCallback = usersub
+end sub
+
+public sub tkTabBar_SetCloseCallback( byval hTabBar as TK_WIDGET ptr, byval usersub as TB_CloseCallbackSub )
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar then pBar->CloseCallback = usersub
+end sub
+
+public sub tkTabBar_SetReorderCallback( byval hTabBar as TK_WIDGET ptr, byval usersub as TB_ReorderCallbackSub )
+    dim as TKTABBAR_STATE ptr pBar = GetTabBarPointer( hTabBar )
+    if pBar then pBar->ReorderCallback = usersub
+end sub

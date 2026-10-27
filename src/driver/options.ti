@@ -80,7 +80,7 @@ namespace Tko
     '' found (tiko-vendor RFC-0001 D1); and a vendor package's .dll / .so is copied beside the
     '' output (RFC-0002 V13). Each can be turned off.
     OPT( OPT_NORPATH,   "-norpath",   OPTK_FLAG,  OPTCAT_OUTPUT,  "",         "no $ORIGIN run path when a Linux link takes a shared library" )
-    OPT( OPT_NOCOPYLIBS, "-nocopylibs", OPTK_FLAG, OPTCAT_OUTPUT, "",         "do not copy a vendor package's dynamic library beside the output" )
+    OPT( OPT_NOCOPYLIBS, "-nocopylibs", OPTK_FLAG, OPTCAT_OUTPUT, "",         "do not copy vendor libraries or modules' runtime files beside the output" )
 
     OPT( OPT_OUTPUT,    "-o",         OPTK_VALUE, OPTCAT_OUTPUT,  "file",     "output path" )
     OPT( OPT_EXEOUT,    "-x",         OPTK_VALUE, OPTCAT_OUTPUT,  "file",     "the linked output's path, as fbc's -x: over -o, the last one winning; ignored with -c" )

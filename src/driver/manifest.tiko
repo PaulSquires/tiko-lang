@@ -12,7 +12,9 @@
 ''     [defines]                  NAME = "value": the package's modules see NAME
 ''     [dependencies.x.defines]   the root's say over dependency x's defines
 ''     [vendor.<module>]          links = ["static", "dynamic"]: the link modes the module
-''                                ships, for '#import ... link' (tiko-vendor RFC-0002 V7, V10)
+''                                ships, for '#import ... link' (tiko-vendor RFC-0002 V7, V10);
+''                                runtime = ["..."]: files copied beside a program that
+''                                imports the module, relative to its directory
 
 #import "std/containers"
 #import "std/fs"
@@ -266,14 +268,23 @@ private function BuildName_( byref n as string ) as boolean
     return true
 end function
 
-'' [target.x], [target.x.defines], [profile.x]: "" when the header is one, else why not.
+'' The OS tables of a target: [target.x.windows], [target.x.linux], [target.x.macos] hold the
+'' array keys that are true of a build for that OS only -- a '.rc' that a Linux build refuses
+'' (TKO0108), a library one platform has. They add to the target's own; another OS's are dropped.
+private function OsTable_( byref s as string ) as boolean
+    return (s = "windows") orelse (s = "linux") orelse (s = "macos")
+end function
+
+'' [target.x], [target.x.defines], [target.x.<os>], [profile.x]: "" when the header is one,
+'' else why not.
 private function BuildTable_( byref m as Manifest, byref table_ as string ) as string
     dim as boolean isT = (left( table_, 7 ) = "target.")
     if (isT = false) andalso (left( table_, 8 ) <> "profile.") then return "unknown table [" & table_ & "]"
     dim as string rest = mid( table_, iif( isT, 8, 9 ) )
     dim as int32 dt = instr( rest, "." )
     if dt > 0 then
-        if (isT = false) orelse (mid( rest, dt + 1 ) <> "defines") then return "unknown table [" & table_ & "]"
+        dim as string sub_ = mid( rest, dt + 1 )
+        if (isT = false) orelse ((sub_ <> "defines") andalso (OsTable_( sub_ ) = false)) then return "unknown table [" & table_ & "]"
         rest = left( rest, dt - 1 )
     end if
     if BuildName_( rest ) = false then
@@ -294,11 +305,34 @@ private function BuildTable_( byref m as Manifest, byref table_ as string ) as s
     return ""
 end function
 
+'' [vendor.<module>] runtime = ["fonts/x.ttf", "lib/x"]: "" when it is one, else why not. Each
+'' entry is a path below the module's directory -- '..' may climb out of it, as '#foreignlib'
+'' "../lib/x" does -- never an absolute one, which would tie the package to one machine.
+private function RuntimeKey_ _
+    ( byref m as Manifest, byref table_ as string, byref v as string, byref kind as string ) as string
+    if kind <> "a" then return "'runtime' in [" & table_ & "] is an array of strings"
+    if len( v ) = 0 then return "'runtime' in [" & table_ & "] is empty"
+    dim as int32 st = 1
+    while st <= len( v )
+        dim as int32 nl_ = instr( st, v, chr( 10 ) )
+        if nl_ = 0 then nl_ = len( v ) + 1
+        dim as string one = mid( v, st, nl_ - st )
+        st = nl_ + 1
+        dim as uint8 c0 = one[0]
+        if (c0 = 47) orelse (c0 = 92) orelse (instr( one, ":" ) > 0) then
+            return "'runtime' in [" & table_ & "] holds paths relative to the module's directory, not '" & one & "'"
+        end if
+    wend
+    m.vendorRtMods.Push( mid( table_, 8 ) )
+    m.vendorRtFiles.Push( v )
+    return ""
+end function
+
 private function OneOf_( byref v as string, byref allowed as string ) as boolean
     return instr( "|" & allowed & "|", "|" & v & "|" ) > 0
 end function
 
-'' One 'key = value' inside a [target.x] / [target.x.defines] / [profile.x] table.
+'' One 'key = value' inside a [target.x] / [target.x.defines] / [target.x.<os>] / [profile.x] table.
 private function BuildKey_ _
     ( byref m as Manifest, byref table_ as string, byref k as string, byref v as string, _
       byref kind as string ) as string
@@ -307,6 +341,18 @@ private function BuildKey_ _
     dim as string rest = mid( table_, iif( isT, 8, 9 ) )
     dim as int32 dt = instr( rest, "." )
     if dt > 0 then
+        dim as string sub_ = mid( rest, dt + 1 )
+        if OsTable_( sub_ ) then
+            select case k
+            case "sources", "resources", "libs", "libpaths", "options"
+            case else
+                return "unknown key '" & k & "' in [" & table_ & "]: an OS table holds sources, " & _
+                       "resources, libs, libpaths and options"
+            end select
+            if kind <> "a" then return "'" & k & "' in [" & table_ & "] is an array of strings"
+            m.tgtName.Push( left( rest, dt - 1 ) ) : m.tgtKey.Push( k & "@" & sub_ ) : m.tgtVal.Push( v )
+            return ""
+        end if
         if kind <> "s" then return "a define's value is a string"
         m.tgtName.Push( left( rest, dt - 1 ) ) : m.tgtKey.Push( "define" ) : m.tgtVal.Push( k & "=" & v )
         return ""
@@ -453,7 +499,9 @@ function LoadManifest _
                     if kind <> "s" then why = "a define's value is a string" else m.defines.Push( k & "=" & v )
                 case else
                     if left( table_, 7 ) = "vendor." then
-                        if k <> "links" then
+                        if k = "runtime" then
+                            why = RuntimeKey_( m, table_, v, kind )
+                        elseif k <> "links" then
                             why = "unknown key '" & k & "' in [" & table_ & "]"
                         elseif kind <> "a" then
                             why = "'links' in [" & table_ & "] is an array of strings"

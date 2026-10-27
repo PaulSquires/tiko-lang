@@ -1,0 +1,196 @@
+' tkNumericUpDown demo: the vendor demo's six rows plus the plain textbox Tab must reach
+' (tiko-lang/examples/PsControls/PsNumericUpDown), so the two can be put side by side.
+'
+'   demo                     interactive
+'   demo --shot out.bmp      render once (row 0 focused, row 2's + hot), save the window, exit
+'   demo --scale 1.75        pin the scale instead of asking the display
+#import "vendor/tkControls/tkNumericUpDown"
+using tkNumericUpDown
+using tkTextBox
+using tkTheme
+using tkHost
+using tkPaint
+
+const as long SPIN_COUNT = 6, ROW_HEIGHT = 48, ROW_TOP = 14, ROW_MARGIN = 22
+const as ulong T_FORE = &hFFBEC4CEul, T_FOREDIS = &hFF5A606Aul, T_BACK = &hFF21252Bul
+const as ulong T_BACKHOT = &hFF2C313Aul, T_SELECT = &hFF264F78ul, T_FOCUS = &hFF569CD6ul
+
+dim shared as TK_HOST ptr gHost
+dim shared as TK_WIDGET ptr gSpin(0 to SPIN_COUNT - 1), gPlain
+dim shared as ustring gLabel(0 to SPIN_COUNT - 1)
+dim shared as TTF_Font ptr gFont10
+
+private function RowTop( byval i as long ) as long
+    return tkHost_Scale( gHost, ROW_TOP ) + i * tkHost_Scale( gHost, ROW_HEIGHT )
+end function
+
+sub Form_Paint( byval h as TK_HOST ptr, byval b as TK_PAINT ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long margin = tkHost_Scale( h, ROW_MARGIN ), rh = tkHost_Scale( h, ROW_HEIGHT )
+    b->SetFont( gFont10 )
+    b->SetColors( T_FORE, T_BACK )
+    dim as TKRECT rc
+    for i as long = 0 to SPIN_COUNT
+        dim as ustring lbl = "Plain tkTextBox   (Tab should reach it, and come back)"
+        if i < SPIN_COUNT then lbl = gLabel(i)
+        tkRect_Set( rc, margin, RowTop( i ), pw - margin, RowTop( i ) + rh )
+        b->PaintText( lbl, @rc, TK_DT_LEFT )
+    next
+end sub
+
+sub Form_Size( byval h as TK_HOST ptr )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as long margin = tkHost_Scale( h, ROW_MARGIN ), rh = tkHost_Scale( h, ROW_HEIGHT )
+    for i as long = 0 to SPIN_COUNT - 1
+        dim as long iw, ih
+        tkNumericUpDown_GetIdealSize( gSpin(i), iw, ih )
+        tkWidget_SetPos( gSpin(i), pw - margin - iw, RowTop( i ) + (rh - ih) \ 2, iw, ih )
+    next
+    dim as long w = tkHost_Scale( h, 160 ), hh = tkHost_Scale( h, 30 )
+    tkWidget_SetPos( gPlain, pw - margin - w, RowTop( SPIN_COUNT ) + (rh - hh) \ 2, w, hh )
+end sub
+
+sub OnChanged( byval hCtrl as TK_WIDGET ptr, byval v as double )
+    print "ValueChanged  ctrl=" & hCtrl->ctrlId & "  value=" & v
+end sub
+
+' Row 3's own renderer: square corners and cells; it still does not own the number.
+sub FlatPaint( byval p as TKNUMERICUPDOWN_PAINTINFO ptr )
+    p->b->SetBackColor( T_BACKHOT )
+    p->b->PaintRect( @p->rcFrame )
+    for iPart as long = NUD_PART_MINUS to NUD_PART_PLUS step NUD_PART_PLUS - NUD_PART_MINUS
+        dim as TKRECT rcCell
+        dim as boolean bAtLimit
+        if iPart = NUD_PART_MINUS then rcCell = p->rcMinus : bAtLimit = p->bAtMin else rcCell = p->rcPlus : bAtLimit = p->bAtMax
+        dim as ulong clrBack = T_BACKHOT, clrGlyph = T_FORE
+        if (p->isEnabled = false) orelse bAtLimit then
+            clrGlyph = T_FOREDIS
+        elseif p->pressedPart = iPart then
+            clrBack = T_SELECT : clrGlyph = &hFFFFFFFFul
+        elseif p->hotPart = iPart then
+            clrBack = T_FOCUS : clrGlyph = &hFFFFFFFFul
+        end if
+        p->b->SetBackColor( clrBack )
+        p->b->PaintRect( @rcCell )
+        p->b->SetBackColor( clrGlyph )
+        if iPart = NUD_PART_MINUS then
+            p->b->PaintRect( @p->rcMinusBar )
+        else
+            p->b->PaintRect( @p->rcPlusBarH )
+            p->b->PaintRect( @p->rcPlusBarV )
+        end if
+    next
+    p->b->SetPenColor( iif( p->isFocused, T_FOCUS, T_FOREDIS ) )
+    p->b->PaintRoundOutline( @p->rcFrame, 0, 1 )
+end sub
+
+private function ArgValue( byref name_ as string ) as string
+    for i as long = 1 to 20
+        if command( i ) = "" then exit for
+        if command( i ) = name_ then return command( i + 1 )
+    next
+    return ""
+end function
+
+private sub SaveShot( byref path as string )
+    tkHost_Render( gHost )
+    tkHost_RenderTo( gHost, false )
+    dim as SDL_Surface ptr sf = SDL_RenderReadPixels( gHost->renderer, 0 )
+    if sf then
+        SDL_SaveBMP( sf, strptr( path ) )
+        print "shot: " & path & "  " & sf->w & "x" & sf->h & "  scale=" & gHost->fScale
+        SDL_DestroySurface( sf )
+    end if
+end sub
+
+
+' ---- main --------------------------------------------------------------------------------
+if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : end 1
+if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : end 1
+
+dim as single forced = val( ArgValue( "--scale" ) )
+gHost = tkHost_Create( "tkNumericUpDown on SDL3", 660, 380, tkHost_FontDir() & TK_FONT_UI, forced )
+if gHost = 0 then print "host: " & *SDL_GetError() : end 1
+gHost->clrBack = T_BACK
+gFont10 = tkHost_OpenFont( gHost, tkHost_FontDir() & TK_FONT_UI, 10 )
+if gFont10 = 0 then print "fonts: " & *SDL_GetError() : end 1
+
+gLabel(0) = "Font size   (integers, 6..72)"
+gLabel(1) = "Line height   (2 decimals, step 0.25)"
+gLabel(2) = "Opacity %   (custom colours, PgUp/PgDn = 25)"
+gLabel(3) = "Retries   (1..3, starts AT the max -- custom painter)"
+gLabel(4) = "Zoom %   (disabled)"
+gLabel(5) = "Preset   (read-only: buttons yes, typing no)"
+
+dim as TK_WIDGET ptr root = tkHost_Root( gHost )
+for i as long = 0 to SPIN_COUNT - 1
+    gSpin(i) = tkNumericUpDown_Create( root, 1000 + i )
+    tkNumericUpDown_SetFont( gSpin(i), gFont10 )
+    tkNumericUpDown_SetValueChangedCallback( gSpin(i), @OnChanged )
+next
+tkNumericUpDown_SetRange( gSpin(0), 6, 72 )
+tkNumericUpDown_SetValue( gSpin(0), 16 )
+tkNumericUpDown_SetDecimalPlaces( gSpin(1), 2 )
+tkNumericUpDown_SetRange( gSpin(1), 0.5, 3 )
+tkNumericUpDown_SetIncrement( gSpin(1), 0.25 )
+tkNumericUpDown_SetLargeIncrement( gSpin(1), 1 )
+tkNumericUpDown_SetValue( gSpin(1), 1.5 )
+dim as TKNUMERICUPDOWN_COLORS clrs
+tkNumericUpDown_GetColors( gSpin(2), @clrs )
+clrs.ButtonBackColorHot = tkRGB( 62, 140, 90 )
+clrs.ButtonBackColorPressed = tkRGB( 42, 100, 64 )
+clrs.FocusBorderColor = tkRGB( 120, 200, 150 )
+clrs.GlyphColorHot = tkRGB( 255, 255, 255 )
+tkNumericUpDown_SetColors( gSpin(2), @clrs )
+tkNumericUpDown_SetRange( gSpin(2), 0, 100 )
+tkNumericUpDown_SetIncrement( gSpin(2), 5 )
+tkNumericUpDown_SetLargeIncrement( gSpin(2), 25 )
+tkNumericUpDown_SetValue( gSpin(2), 80 )
+tkNumericUpDown_SetPaintCallback( gSpin(3), @FlatPaint )
+tkNumericUpDown_SetRange( gSpin(3), 1, 3 )
+tkNumericUpDown_SetValue( gSpin(3), 3 )
+tkNumericUpDown_SetRange( gSpin(4), 25, 400 )
+tkNumericUpDown_SetValue( gSpin(4), 100 )
+tkNumericUpDown_SetEnabled( gSpin(4), false )
+tkNumericUpDown_SetRange( gSpin(5), 1, 5 )
+tkNumericUpDown_SetValue( gSpin(5), 2 )
+tkNumericUpDown_SetReadOnly( gSpin(5), true )
+
+gPlain = tkTextBox_Create( root, 2000 )
+tkTextBox_SetFont( gPlain, gFont10 )
+tkTextBox_SetMargins( gPlain, tkHost_Scale( gHost, 6 ), tkHost_Scale( gHost, 6 ) )
+tkTextBox_SetCueBannerText( gPlain, "ordinary text" )
+
+dim as long iw, ih
+tkNumericUpDown_GetIdealSize( gSpin(0), iw, ih )
+print "row 0 ideal size: " & iw & "x" & ih
+
+gHost->OnPaint = @Form_Paint
+gHost->OnSize = @Form_Size
+Form_Size( gHost )
+tkHost_SetFocus( gHost, gSpin(0) )
+tkHost_Show( gHost )
+
+dim as string shot = ArgValue( "--shot" )
+if len( shot ) then
+    ' row 2's "+" hot, as the cursor would leave it
+    dim as TKRECT rcP, a
+    tkNumericUpDown_GetPlusRect( gSpin(2), rcP )
+    tkWidget_AbsRect( gSpin(2), a )
+    dim as SDL_Event e
+    e.type = SDL_EVENT_MOUSE_MOTION
+    e.motion.windowID = gHost->winId
+    e.motion.x = (a.left + (rcP.left + rcP.right) \ 2) / gHost->fDensity
+    e.motion.y = (a.top + (rcP.top + rcP.bottom) \ 2) / gHost->fDensity
+    SDL_PushEvent( @e )
+    tkHost_Pump( gHost )
+    SaveShot( shot )
+else
+    tkHost_Run( gHost )
+end if
+
+tkHost_Destroy( gHost )
+TTF_Quit()
+SDL_Quit()

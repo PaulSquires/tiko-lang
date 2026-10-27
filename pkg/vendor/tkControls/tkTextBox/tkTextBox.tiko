@@ -1,0 +1,2104 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkTextBox -- PsTextBox on SDL3 + SDL_ttf. Vendor PsTextBox wraps a Win32 RichEdit50W, so
+' there is no editor to port from it: the EDITOR here is PsPlatform's self-drawn one
+' (ui/controls/PsTextBox.inc) and the API and the "Behaviour and limits" are vendor's.
+'
+' THE MODEL (PsPlatform's): ONE UTF-8 string with LF line breaks; the visual lines are DERIVED
+' (rebuilt lazily when the text, the width or the font changes). Every offset is a UTF-8 BYTE
+' offset, always snapped to a codepoint boundary -- the public selection API included (see
+' PORT.md: for ASCII text it is vendor's character index). Every mutation goes through one
+' primitive, TbReplace, so undo, the length limit, the numeric filter and the change
+' notification each exist exactly once.
+'
+' THE CONTRACT (vendor's): single-line or multiline fixed at create; multiline word-wraps and
+' never scrolls horizontally; the scroll state is exposed in LINES for an external scrollbar
+' (an embedded tkVScrollBar is an opt-in extra); programmatic setters are silent, user edits
+' and Cut/Copy/Paste/Undo notify; a single-line ENTER is always claimed; numeric mode is
+' single-line only and reformats on focus loss; the right-click menu is a tkPopupMenu rebuilt
+' on every open.
+'
+' GONE with the HWND: the RichEdit handle and the message door, WM_GETDLGCODE, the WM_CHAR
+' swallows (SDL never beeps: ESCAPE is no longer claimed), FilterMessage (the host routes the
+' menu's keys), and the TM_PLAINTEXT/undo dance behind SetTextAlign. See PORT.md.
+#module "tkTextBox"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkPopupMenu" public
+#import "../tkVScrollBar" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkPopupMenu
+using tkVScrollBar
+
+public enum
+    TXT_ALIGN_LEFT = 0
+    TXT_ALIGN_CENTER
+    TXT_ALIGN_RIGHT
+end enum
+
+' Reported to the message callback just before the context menu would open (vendor's
+' WM_CONTEXTMENU): TRUE suppresses the menu.
+public const TKTEXTBOX_MSG_CONTEXTMENU = 1000
+
+public const TKTEXTBOX_CARET_BLINK_MS = 530      ' GetCaretBlinkTime's default
+public const TKTEXTBOX_MAX_UNDO = 100
+public const TKTEXTBOX_WHEEL_LINES = 3           ' SPI_GETWHEELSCROLLLINES' default
+
+' The context menu's command ids (vendor PSTEXTBOX_IDM_*).
+public enum
+    TKTEXTBOX_IDM_CUT = 1
+    TKTEXTBOX_IDM_COPY
+    TKTEXTBOX_IDM_PASTE
+    TKTEXTBOX_IDM_SELECTALL
+end enum
+
+' Vendor has no colour struct (one property per colour); this one carries the same six plus
+' the selection and disabled ink a self-drawn editor needs. The defaults are the dark theme's.
+public type TKTEXTBOX_COLORS
+    ForeColor         as ulong = &hFFC8CDD6ul
+    BackColor         as ulong = &hFF2C313Aul
+    CueColor          as ulong = &hFF969CA6ul
+    BorderColor       as ulong = &hFF444A56ul
+    FocusBorderColor  as ulong = &hFF61AFEFul
+    OuterBackColor    as ulong = &hFF21252Bul
+    SelBackColor      as ulong = &hFF264F78ul
+    SelForeColor      as ulong = &hFFFFFFFFul
+    ForeColorDisabled as ulong = &hFF606670ul
+end type
+
+public type TKTEXTBOX_MESSAGEINFO
+    hTextBox as TK_WIDGET ptr
+    msg      as long                    ' TKM_* or TKTEXTBOX_MSG_CONTEXTMENU
+    x        as single
+    y        as single
+    key      as long
+    mods     as long
+    wheelY   as single                  ' TKM_MOUSEWHEEL: notches, positive = away
+    text     as string                  ' TKM_CHAR / TKM_IMECOMPOSE: UTF-8
+end type
+
+public type TXT_ChangeCallbackSub as sub( byval hTextBox as TK_WIDGET ptr )
+public type TXT_FocusCallbackSub as sub( byval hTextBox as TK_WIDGET ptr, byval bGotFocus as boolean )
+public type TXT_EnterPressedCallbackSub as sub( byval hTextBox as TK_WIDGET ptr )
+public type TXT_ScrollChangedCallbackSub as sub( byval hTextBox as TK_WIDGET ptr )
+public type TXT_MessageCallbackFunc as function( byval m as TKTEXTBOX_MESSAGEINFO ptr ) as boolean
+
+public type TKTB_UNDO
+    sText   as string
+    nCaret  as long
+    nAnchor as long
+end type
+
+public type TKTEXTBOX_STATE
+    hWin            as TK_WIDGET ptr
+    id              as long
+    bMultiline      as boolean
+    sText           as string              ' UTF-8, LF only
+    nCaret          as long                ' byte offset
+    nAnchor         as long
+    nScrollX        as long                ' single-line: pixels scrolled off the left
+    nTopLine        as long                ' multiline: first visible visual line
+    nDesiredX       as long = -1           ' Up/Down keep a column (-1 = take the caret's)
+    lineStart(any)  as long                ' visual lines, DERIVED
+    lineEnd(any)    as long
+    nLineCount      as long
+    bLinesValid     as boolean
+    nLinesW         as long                ' the width the lines were wrapped at
+    bReadOnly       as boolean
+    bModified       as boolean
+    bSelectOnFocus  as boolean
+    nLimit          as long                ' CHARACTERS (codepoints); 0 = none
+    chPassword      as long
+    sMask           as string              ' chPassword as UTF-8
+    nTextAlign      as long = TXT_ALIGN_LEFT
+    bNumeric        as boolean
+    nDecimals       as long = 2
+    bZeroWhenEmpty  as boolean
+    colors          as TKTEXTBOX_COLORS
+    bColorsPinned   as boolean
+    nBorderWidth    as long = 1            ' a pen width: never scaled
+    nCornerRadius   as long                ' RADIUS (the paint takes the diameter)
+    nMarginLeft     as long
+    nMarginRight    as long
+    pTextFont       as TTF_Font ptr        ' borrowed
+    pCueFont        as TTF_Font ptr        ' borrowed; 0 = the text font
+    wszCue          as ustring
+    wszMenuCut       as ustring = "Cut"
+    wszMenuCopy      as ustring = "Copy"
+    wszMenuPaste     as ustring = "Paste"
+    wszMenuSelectAll as ustring = "Select All"
+    pMenu           as TK_MENU ptr
+    undoStack(any)  as TKTB_UNDO
+    nUndoCount      as long
+    nUndoPos        as long
+    bTypingRun      as boolean             ' consecutive typing coalesces into one undo step
+    bSelecting      as boolean
+    bCaretOn        as boolean = true
+    nCaretBlinkMs   as long = TKTEXTBOX_CARET_BLINK_MS
+    bFocused        as boolean
+    sComp           as string              ' the IME pre-edit, UTF-8 ("" = not composing)
+    nCompCursor     as long                ' byte offset of the IME cursor inside sComp
+    fWheelAccum     as single
+    nLastTotal      as long = -1           ' the scroll state last reported
+    nLastPage       as long = -1
+    nLastFirst      as long = -1
+    hScroll         as TK_WIDGET ptr       ' the opt-in embedded tkVScrollBar
+    bShowScroll     as boolean
+    nScrollW        as long
+    rcEdit          as TKRECT              ' the client inset by the border (vendor's child rect)
+    rcText          as TKRECT              ' the formatting rect: margins off, line centred
+    ChangeCallback        as TXT_ChangeCallbackSub
+    FocusCallback         as TXT_FocusCallbackSub
+    EnterPressedCallback  as TXT_EnterPressedCallbackSub
+    MessageCallback       as TXT_MessageCallbackFunc
+    ScrollChangedCallback as TXT_ScrollChangedCallbackSub
+end type
+
+dim shared as TKTEXTBOX_STATE ptr gMenuTarget      ' whose menu is open (vendor gTB_ContextMenuTarget)
+
+
+private function TB( byval h as TK_WIDGET ptr ) as TKTEXTBOX_STATE ptr
+    if h = 0 then return 0
+    if h->pData = 0 then return 0
+    return cast( TKTEXTBOX_STATE ptr, h->pData )
+end function
+
+private function TbFont( byval t as TKTEXTBOX_STATE ptr ) as TTF_Font ptr
+    if t->pTextFont then return t->pTextFont
+    return t->hWin->pHost->pDefaultFont
+end function
+
+private function TbLineH( byval t as TKTEXTBOX_STATE ptr ) as long
+    dim as long n = tkText_LineSkip( TbFont( t ) )
+    return iif( n < 1, 1, n )
+end function
+
+' ---- UTF-8 boundaries --------------------------------------------------------------------
+private function TbIsCont( byref s as string, byval n as long ) as boolean
+    if (n <= 0) orelse (n >= len( s )) then return false
+    return (s[n] and &hC0) = &h80
+end function
+
+private function TbSnap( byref s as string, byval n as long ) as long
+    if n <= 0 then return 0
+    if n >= len( s ) then return len( s )
+    while TbIsCont( s, n )
+        n -= 1
+    wend
+    return n
+end function
+
+private function TbNext( byref s as string, byval n as long ) as long
+    if n < 0 then n = 0
+    if n >= len( s ) then return len( s )
+    n += 1
+    while TbIsCont( s, n )
+        n += 1
+    wend
+    return n
+end function
+
+private function TbPrev( byref s as string, byval n as long ) as long
+    if n <= 0 then return 0
+    if n > len( s ) then n = len( s )
+    n -= 1
+    while TbIsCont( s, n )
+        n -= 1
+    wend
+    return n
+end function
+
+' Codepoints in s[a, b).
+private function TbCount( byref s as string, byval a as long, byval b as long ) as long
+    dim as long n = 0
+    for i as long = a to b - 1
+        if (s[i] and &hC0) <> &h80 then n += 1
+    next
+    return n
+end function
+
+' The first nChars codepoints of s, as bytes.
+private function TbTakeChars( byref s as string, byval nChars as long ) as long
+    dim as long i = 0
+    while (i < len( s )) andalso (nChars > 0)
+        i = TbNext( s, i )
+        nChars -= 1
+    wend
+    return i
+end function
+
+' Word classes for Ctrl+arrows and double-click (PsPlatform): space, punctuation, word.
+private function TbClass( byref s as string, byval n as long ) as long
+    if (n < 0) orelse (n >= len( s )) then return 0
+    dim as long c = s[n]
+    if c > 127 then return 2
+    if (c = 32) orelse (c = 9) orelse (c = 10) then return 0
+    if (c >= 48) andalso (c <= 57) then return 2
+    if (c >= 65) andalso (c <= 90) then return 2
+    if (c >= 97) andalso (c <= 122) then return 2
+    if c = 95 then return 2
+    return 1
+end function
+
+private function TbWordStart( byref s as string, byval n as long ) as long
+    n = TbSnap( s, n )
+    if n <= 0 then return 0
+    dim as long k = TbPrev( s, n )
+    dim as long cls = TbClass( s, k )
+    while (k > 0) andalso (cls = 0)
+        k = TbPrev( s, k )
+        cls = TbClass( s, k )
+    wend
+    while k > 0
+        dim as long pk = TbPrev( s, k )
+        if TbClass( s, pk ) <> cls then exit while
+        k = pk
+    wend
+    return k
+end function
+
+private function TbWordEnd( byref s as string, byval n as long ) as long
+    dim as long L = len( s )
+    n = TbSnap( s, n )
+    if n >= L then return L
+    dim as long cls = TbClass( s, n )
+    dim as long k = n
+    while (k < L) andalso (TbClass( s, k ) = cls)
+        k = TbNext( s, k )
+    wend
+    while (k < L) andalso (TbClass( s, k ) = 0) andalso (s[k] <> 10)
+        k = TbNext( s, k )
+    wend
+    return k
+end function
+
+private function TbUtf8Of( byval cp as long ) as string
+    dim as ustring u = wchr( cp )
+    dim as string s = u
+    return s
+end function
+
+' A single-line control keeps only the first line (RichEdit's rule); a multiline one
+' normalises CRLF and a lone CR to LF.
+private function TbClean( byval t as TKTEXTBOX_STATE ptr, byref s as string ) as string
+    if t->bMultiline = false then
+        dim as long i = 0
+        while i < len( s )
+            if (s[i] = 13) orelse (s[i] = 10) then return left( s, i )
+            i += 1
+        wend
+        return s
+    end if
+    dim as string o = ""
+    for i as long = 0 to len( s ) - 1
+        dim as long c = s[i]
+        if c = 13 then
+            if (i + 1 < len( s )) andalso (s[i + 1] = 10) then continue for
+            o &= chr( 10 )
+        else
+            o &= chr( c )
+        end if
+    next
+    return o
+end function
+
+' Vendor's FormatNumeric without the thousands separators: tiko has no format().
+private function TbFormatFixed( byval v as double, byval places as long ) as string
+    if places < 0 then places = 0
+    dim as double a = abs( v ) * (10 ^ places)
+    dim as ulongint n = fix( a + 0.5 + a * 1e-12 )
+    dim as string digits = str( n )
+    if places > 0 then
+        while len( digits ) <= places
+            digits = "0" & digits
+        wend
+        digits = left( digits, len( digits ) - places ) & "." & right( digits, places )
+    end if
+    if (v < 0) andalso (n <> 0) then digits = "-" & digits
+    return digits
+end function
+
+' Vendor's IsValidNumericText: optional leading minus, digits, at most one period followed by
+' at most nDecimals digits (none at all when nDecimals = 0). "" and "-" are valid partials.
+private function TbIsNumeric( byval t as TKTEXTBOX_STATE ptr, byref s as string ) as boolean
+    dim as long periodAt = -1
+    for i as long = 0 to len( s ) - 1
+        dim as long c = s[i]
+        if (c >= 48) andalso (c <= 57) then
+        elseif c = 45 then
+            if i <> 0 then return false
+        elseif c = 46 then
+            if t->nDecimals = 0 then return false
+            if periodAt >= 0 then return false
+            periodAt = i
+        else
+            return false
+        end if
+    next
+    if periodAt >= 0 then
+        if (len( s ) - periodAt - 1) > t->nDecimals then return false
+    end if
+    return true
+end function
+
+
+' ==========================================================================================
+' Geometry
+' ==========================================================================================
+' rcEdit = the client inset by the border (vendor's RichEdit child); rcText = rcEdit with the
+' margins and the embedded scrollbar's strip taken off, and on a single-line control narrowed
+' vertically to the one centred line (vendor's EM_SETRECT centring).
+private sub TbLayout( byval t as TKTEXTBOX_STATE ptr )
+    dim as TK_WIDGET ptr w = t->hWin
+    dim as long bw = t->nBorderWidth
+    tkRect_Set( t->rcEdit, bw, bw, w->cw - bw, w->ch - bw )
+    if t->rcEdit.right < t->rcEdit.left then t->rcEdit.right = t->rcEdit.left
+    if t->rcEdit.bottom < t->rcEdit.top then t->rcEdit.bottom = t->rcEdit.top
+    dim as long sbw = 0
+    if t->bMultiline andalso t->bShowScroll then sbw = t->nScrollW
+    t->rcText = t->rcEdit
+    t->rcText.left += t->nMarginLeft
+    t->rcText.right -= t->nMarginRight + sbw
+    if t->rcText.right < t->rcText.left then t->rcText.right = t->rcText.left
+    if t->bMultiline = false then
+        dim as long fh = tkText_Height( TbFont( t ) )
+        dim as long eh = t->rcEdit.bottom - t->rcEdit.top
+        t->rcText.top = t->rcEdit.top + ((eh - fh) \ 2)
+        t->rcText.bottom = t->rcText.top + fh
+    end if
+    if t->hScroll then
+        tkWidget_Show( t->hScroll, t->bMultiline andalso t->bShowScroll )
+        if t->bMultiline andalso t->bShowScroll then
+            tkWidget_SetPos( t->hScroll, t->rcEdit.right - sbw, t->rcEdit.top, sbw, t->rcEdit.bottom - t->rcEdit.top )
+        end if
+    end if
+end sub
+
+private sub TbAddLine( byval t as TKTEXTBOX_STATE ptr, byval a as long, byval b as long )
+    if t->nLineCount > ubound( t->lineStart ) then
+        dim as long n = iif( t->nLineCount < 16, 32, t->nLineCount * 2 )
+        redim preserve t->lineStart( 0 to n - 1 )
+        redim preserve t->lineEnd( 0 to n - 1 )
+    end if
+    t->lineStart(t->nLineCount) = a
+    t->lineEnd(t->nLineCount) = b
+    t->nLineCount += 1
+end sub
+
+private function TbLinesPerPage( byval t as TKTEXTBOX_STATE ptr ) as long
+    dim as long h = t->rcText.bottom - t->rcText.top
+    if h <= 0 then return 0
+    return h \ TbLineH( t )
+end function
+
+' Multiline: wrap at the last space that fits, mid-word only when one word is wider than the
+' line (PsPlatform's RebuildLines, measured with TTF_MeasureString). Tabs measure as spaces.
+private sub TbRebuildLines( byval t as TKTEXTBOX_STATE ptr )
+    dim as long avail = t->rcText.right - t->rcText.left
+    t->bLinesValid = true
+    t->nLinesW = avail
+    t->nLineCount = 0
+    dim as long L = len( t->sText )
+    if t->bMultiline = false then
+        TbAddLine( t, 0, L )
+        exit sub
+    end if
+    dim as TTF_Font ptr f = TbFont( t )
+    dim as boolean bWrap = (f <> 0) andalso (avail > 0)
+    dim as long p = 0
+    do
+        dim as long hardEnd = p
+        while (hardEnd < L) andalso (t->sText[hardEnd] <> 10)
+            hardEnd += 1
+        wend
+        if bWrap = false then
+            TbAddLine( t, p, hardEnd )
+        else
+            dim as long segStart = p
+            do
+                dim as string seg = mid( t->sText, segStart + 1, hardEnd - segStart )
+                for k as long = 0 to len( seg ) - 1
+                    if seg[k] = 9 then seg[k] = 32
+                next
+                dim as long mw = 0
+                dim as uinteger fit = 0
+                if len( seg ) then TTF_MeasureString( f, strptr( seg ), len( seg ), avail, @mw, @fit )
+                if (len( seg ) = 0) orelse (fit >= len( seg )) then
+                    TbAddLine( t, segStart, hardEnd )
+                    exit do
+                end if
+                dim as long nCut = segStart + fit
+                dim as long brk = -1
+                dim as long kb = nCut
+                while kb > segStart
+                    if (t->sText[kb - 1] = 32) orelse (t->sText[kb - 1] = 9) then brk = kb : exit while
+                    kb -= 1
+                wend
+                if brk > segStart then
+                    nCut = brk
+                else
+                    nCut = TbSnap( t->sText, nCut )
+                    if nCut <= segStart then nCut = TbNext( t->sText, segStart )
+                end if
+                ' a run of spaces at the break stays on this line, so the next starts on ink
+                while (nCut < hardEnd) andalso (t->sText[nCut] = 32)
+                    nCut += 1
+                wend
+                TbAddLine( t, segStart, nCut )
+                segStart = nCut
+                if segStart >= hardEnd then exit do
+            loop
+        end if
+        if hardEnd >= L then exit do
+        p = hardEnd + 1
+    loop
+    if t->nLineCount = 0 then TbAddLine( t, 0, 0 )
+    dim as long maxTop = t->nLineCount - TbLinesPerPage( t )
+    if maxTop < 0 then maxTop = 0
+    if t->nTopLine > maxTop then t->nTopLine = maxTop
+    if t->nTopLine < 0 then t->nTopLine = 0
+end sub
+
+private sub TbEnsureLines( byval t as TKTEXTBOX_STATE ptr )
+    TbLayout( t )
+    if t->bLinesValid andalso (t->nLinesW = t->rcText.right - t->rcText.left) then exit sub
+    TbRebuildLines( t )
+end sub
+
+private sub TbTextChanged( byval t as TKTEXTBOX_STATE ptr )
+    t->bLinesValid = false
+    t->nDesiredX = -1
+end sub
+
+' A wrap break belongs to the line it ENDS (the caret sits after what was just typed).
+private function TbLineOf( byval t as TKTEXTBOX_STATE ptr, byval off as long ) as long
+    for i as long = 0 to t->nLineCount - 1
+        if (off >= t->lineStart(i)) andalso (off <= t->lineEnd(i)) then return i
+    next
+    return iif( t->nLineCount > 0, t->nLineCount - 1, 0 )
+end function
+
+private function TbComposing( byval t as TKTEXTBOX_STATE ptr ) as boolean
+    return (len( t->sComp ) > 0) andalso (t->chPassword = 0)
+end function
+
+' What is DRAWN for visual line ln: the mask for a password, tabs as spaces, and the IME
+' pre-edit inserted at the caret on the caret's own line.
+private function TbDisp( byval t as TKTEXTBOX_STATE ptr, byval ln as long ) as string
+    if (ln < 0) orelse (ln >= t->nLineCount) then return ""
+    dim as long a = t->lineStart(ln), b = t->lineEnd(ln)
+    dim as string raw = mid( t->sText, a + 1, b - a )
+    for k as long = 0 to len( raw ) - 1
+        if (raw[k] = 9) orelse (raw[k] = 10) then raw[k] = 32
+    next
+    if t->chPassword <> 0 then
+        dim as string m = ""
+        for k as long = 1 to TbCount( raw, 0, len( raw ) )
+            m &= t->sMask
+        next
+        return m
+    end if
+    if TbComposing( t ) andalso (TbLineOf( t, t->nCaret ) = ln) then
+        dim as long rel = t->nCaret - a
+        raw = left( raw, rel ) & t->sComp & mid( raw, rel + 1 )
+    end if
+    return raw
+end function
+
+' An absolute offset as a byte index into TbDisp( ln ). The caret itself maps BEFORE the
+' pre-edit.
+private function TbDispIdx( byval t as TKTEXTBOX_STATE ptr, byval ln as long, byval off as long ) as long
+    dim as long a = t->lineStart(ln), b = t->lineEnd(ln)
+    if off < a then off = a
+    if off > b then off = b
+    if t->chPassword <> 0 then return TbCount( t->sText, a, off ) * len( t->sMask )
+    dim as long rel = off - a
+    if TbComposing( t ) andalso (off > t->nCaret) andalso (TbLineOf( t, t->nCaret ) = ln) then rel += len( t->sComp )
+    return rel
+end function
+
+private function TbRawFromDisp( byval t as TKTEXTBOX_STATE ptr, byval ln as long, byval idx as long ) as long
+    dim as long a = t->lineStart(ln), b = t->lineEnd(ln)
+    if t->chPassword <> 0 then
+        dim as long k = idx \ iif( len( t->sMask ) > 0, len( t->sMask ), 1 )
+        dim as long i = a
+        while (i < b) andalso (k > 0)
+            i = TbNext( t->sText, i ) : k -= 1
+        wend
+        return i
+    end if
+    if TbComposing( t ) andalso (TbLineOf( t, t->nCaret ) = ln) then
+        dim as long cap = t->nCaret - a
+        if idx > cap then
+            if idx < cap + len( t->sComp ) then idx = cap else idx -= len( t->sComp )
+        end if
+    end if
+    dim as long o = a + idx
+    if o > b then o = b
+    return TbSnap( t->sText, o )
+end function
+
+' Where a visual line's text starts: alignment while the line fits, the horizontal scroll on a
+' single-line control.
+private function TbOriginX( byval t as TKTEXTBOX_STATE ptr, byval ln as long ) as long
+    dim as long x = t->rcText.left
+    if t->bMultiline = false then x -= t->nScrollX
+    if t->nTextAlign = TXT_ALIGN_LEFT then return x
+    dim as long tw = tkText_WidthU8( TbFont( t ), TbDisp( t, ln ) )
+    dim as long aw = t->rcText.right - t->rcText.left
+    if tw >= aw then return x
+    if t->nTextAlign = TXT_ALIGN_CENTER then return t->rcText.left + ((aw - tw) \ 2)
+    return t->rcText.left + (aw - tw)
+end function
+
+private function TbLineTop( byval t as TKTEXTBOX_STATE ptr, byval ln as long ) as long
+    if t->bMultiline = false then return t->rcText.top
+    return t->rcText.top + (ln - t->nTopLine) * TbLineH( t )
+end function
+
+' The caret point of offset off (widget pixels): x on its own visual line, y the line's top.
+private sub TbPoint( byval t as TKTEXTBOX_STATE ptr, byval off as long, byref px as long, byref py as long, _
+                     byval bWithComp as boolean = false )
+    TbEnsureLines( t )
+    off = TbSnap( t->sText, off )
+    dim as long ln = TbLineOf( t, off )
+    dim as long idx = TbDispIdx( t, ln, off )
+    if bWithComp andalso TbComposing( t ) andalso (off = t->nCaret) then idx += t->nCompCursor
+    px = TbOriginX( t, ln ) + tkText_IndexToX( TbFont( t ), TbDisp( t, ln ), idx )
+    py = TbLineTop( t, ln )
+end sub
+
+private function TbOffsetOnLine( byval t as TKTEXTBOX_STATE ptr, byval ln as long, byval px as long ) as long
+    if ln < 0 then ln = 0
+    if ln >= t->nLineCount then ln = t->nLineCount - 1
+    if ln < 0 then return 0
+    dim as long rel = px - TbOriginX( t, ln )
+    dim as long idx = 0
+    if rel > 0 then idx = tkText_XToIndex( TbFont( t ), TbDisp( t, ln ), rel )
+    return TbRawFromDisp( t, ln, idx )
+end function
+
+private function TbOffsetFromPoint( byval t as TKTEXTBOX_STATE ptr, byval px as long, byval py as long ) as long
+    TbEnsureLines( t )
+    dim as long ln = 0
+    if t->bMultiline then
+        ln = t->nTopLine
+        if py >= t->rcText.top then ln = t->nTopLine + ((py - t->rcText.top) \ TbLineH( t ))
+    end if
+    return TbOffsetOnLine( t, ln, px )
+end function
+
+' The caret's painted rect; FALSE when it is scrolled out of the text rect.
+private function TbCaretRect( byval t as TKTEXTBOX_STATE ptr, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as long cx, cy
+    TbPoint( t, t->nCaret, cx, cy, true )
+    dim as long cwid = cint( t->hWin->pHost->fScale )
+    if cwid < 1 then cwid = 1
+    if (cx < t->rcText.left) orelse (cx > t->rcText.right) then return false
+    if cx > t->rcText.right - cwid then cx = t->rcText.right - cwid
+    if cx < t->rcText.left then cx = t->rcText.left
+    dim as long fh = tkText_Height( TbFont( t ) )
+    if t->bMultiline then
+        if (cy < t->rcText.top) orelse (cy >= t->rcText.bottom) then return false
+    end if
+    tkRect_Set( rc, cx, cy, cx + cwid, cy + fh )
+    return fh > 0
+end function
+
+private sub TbSetTop( byval t as TKTEXTBOX_STATE ptr, byval n as long )
+    TbEnsureLines( t )
+    dim as long maxTop = t->nLineCount - TbLinesPerPage( t )
+    if maxTop < 0 then maxTop = 0
+    if n > maxTop then n = maxTop
+    if n < 0 then n = 0
+    if n = t->nTopLine then exit sub
+    t->nTopLine = n
+    tkWidget_Invalidate( t->hWin )
+end sub
+
+' By the MINIMUM, on both axes, so a caret already visible never shunts the view.
+private sub TbEnsureCaretVisible( byval t as TKTEXTBOX_STATE ptr )
+    TbEnsureLines( t )
+    dim as long aw = t->rcText.right - t->rcText.left
+    if aw <= 0 then exit sub
+    if t->bMultiline then
+        dim as long ln = TbLineOf( t, t->nCaret )
+        dim as long perPage = TbLinesPerPage( t )
+        if perPage < 1 then perPage = 1
+        if ln < t->nTopLine then
+            TbSetTop( t, ln )
+        elseif ln >= t->nTopLine + perPage then
+            TbSetTop( t, ln - perPage + 1 )
+        end if
+        t->nScrollX = 0
+        exit sub
+    end if
+    dim as TTF_Font ptr f = TbFont( t )
+    dim as string d = TbDisp( t, 0 )
+    dim as long tw = tkText_WidthU8( f, d )
+    if tw <= aw then t->nScrollX = 0 : exit sub
+    dim as long idx = TbDispIdx( t, 0, t->nCaret )
+    if TbComposing( t ) then idx += t->nCompCursor
+    dim as long cx = tkText_IndexToX( f, d, idx )
+    if cx < t->nScrollX then
+        t->nScrollX = cx
+    elseif cx > t->nScrollX + aw - 1 then
+        t->nScrollX = cx - aw + 1
+    end if
+    if t->nScrollX > tw - aw + 1 then t->nScrollX = tw - aw + 1
+    if t->nScrollX < 0 then t->nScrollX = 0
+end sub
+
+' The vertical scroll state (vendor GetVScrollInfo's three numbers); the embedded bar follows
+' it, and the callback hears of a CHANGE when bNotify (vendor relays EN_UPDATE: it fires for a
+' programmatic SetText too -- re-read the numbers, not "the user scrolled").
+private sub TbScrollInfo( byval t as TKTEXTBOX_STATE ptr, byref nTotal as long, byref nPage as long, byref nFirst as long )
+    nTotal = 0 : nPage = 0 : nFirst = 0
+    TbEnsureLines( t )
+    if (t->rcText.bottom - t->rcText.top <= 0) orelse (t->rcText.right - t->rcText.left <= 0) then exit sub
+    nTotal = t->nLineCount
+    nPage = TbLinesPerPage( t )
+    nFirst = iif( t->bMultiline, t->nTopLine, 0 )
+end sub
+
+private sub TbScrollState( byval t as TKTEXTBOX_STATE ptr, byval bNotify as boolean )
+    if t->bMultiline = false then exit sub
+    dim as long nT, nP, nF
+    TbScrollInfo( t, nT, nP, nF )
+    if t->hScroll andalso t->bShowScroll then tkVScrollBar_SetRange( t->hScroll, nT, nP, nF )
+    dim as boolean bChanged = (nT <> t->nLastTotal) orelse (nP <> t->nLastPage) orelse (nF <> t->nLastFirst)
+    t->nLastTotal = nT : t->nLastPage = nP : t->nLastFirst = nF
+    if bNotify andalso bChanged andalso (t->ScrollChangedCallback <> 0) then t->ScrollChangedCallback( t->hWin )
+end sub
+
+
+' ==========================================================================================
+' Editing: the one primitive, undo, the clipboard
+' ==========================================================================================
+private sub TbNotifyChange( byval t as TKTEXTBOX_STATE ptr )
+    if t->ChangeCallback then t->ChangeCallback( t->hWin )
+end sub
+
+private sub TbResetUndo( byval t as TKTEXTBOX_STATE ptr )
+    t->nUndoCount = 0 : t->nUndoPos = 0 : t->bTypingRun = false
+end sub
+
+' The CURRENT state, before an edit. Typing coalesces: consecutive typed characters are one
+' step, broken by whitespace, a caret move or any other edit.
+private sub TbPushUndo( byval t as TKTEXTBOX_STATE ptr, byval bTyping as boolean )
+    if bTyping andalso t->bTypingRun andalso (t->nUndoPos = t->nUndoCount) andalso (t->nUndoPos > 0) then exit sub
+    t->nUndoCount = t->nUndoPos
+    if t->nUndoCount >= TKTEXTBOX_MAX_UNDO then
+        for i as long = 0 to TKTEXTBOX_MAX_UNDO - 2
+            t->undoStack(i) = t->undoStack(i + 1)
+        next
+        t->nUndoCount = TKTEXTBOX_MAX_UNDO - 1
+    end if
+    if t->nUndoCount > ubound( t->undoStack ) then redim preserve t->undoStack( 0 to TKTEXTBOX_MAX_UNDO - 1 )
+    t->undoStack(t->nUndoCount).sText = t->sText
+    t->undoStack(t->nUndoCount).nCaret = t->nCaret
+    t->undoStack(t->nUndoCount).nAnchor = t->nAnchor
+    t->nUndoCount += 1
+    t->nUndoPos = t->nUndoCount
+end sub
+
+' THE EDIT PRIMITIVE: replace the selection with ins (UTF-8). Clean, limit, numeric vet,
+' undo snapshot, caret, scroll, notify. FALSE when nothing changed (or the edit was refused).
+private function TbReplace( byval t as TKTEXTBOX_STATE ptr, byref insIn as string, byval bNotify as boolean, _
+                            byval bTyping as boolean = false ) as boolean
+    dim as string ins = TbClean( t, insIn )
+    dim as long lo = iif( t->nCaret < t->nAnchor, t->nCaret, t->nAnchor )
+    dim as long hi = iif( t->nCaret > t->nAnchor, t->nCaret, t->nAnchor )
+    if t->nLimit > 0 then
+        dim as long room = t->nLimit - (TbCount( t->sText, 0, len( t->sText ) ) - TbCount( t->sText, lo, hi ))
+        if room < 0 then room = 0
+        if TbCount( ins, 0, len( ins ) ) > room then ins = left( ins, TbTakeChars( ins, room ) )
+    end if
+    if (hi = lo) andalso (len( ins ) = 0) then return false
+    if t->bNumeric then
+        dim as string pro = left( t->sText, lo ) & ins & mid( t->sText, hi + 1 )
+        if TbIsNumeric( t, pro ) = false then return false
+    end if
+    TbPushUndo( t, bTyping )
+    t->sText = left( t->sText, lo ) & ins & mid( t->sText, hi + 1 )
+    t->nCaret = lo + len( ins )
+    t->nAnchor = t->nCaret
+    t->bTypingRun = bTyping andalso (len( ins ) > 0) andalso (TbClass( ins, len( ins ) - 1 ) <> 0)
+    t->bModified = true
+    TbTextChanged( t )
+    TbEnsureCaretVisible( t )
+    tkWidget_Invalidate( t->hWin )
+    TbScrollState( t, true )
+    if bNotify then TbNotifyChange( t )
+    return true
+end function
+
+private sub TbSetTextCore( byval t as TKTEXTBOX_STATE ptr, byref s as string )
+    t->sText = TbClean( t, s )
+    t->nCaret = len( t->sText ) : t->nAnchor = t->nCaret
+    t->nScrollX = 0 : t->nTopLine = 0
+    t->bModified = false
+    TbResetUndo( t )
+    TbTextChanged( t )
+    TbEnsureCaretVisible( t )
+    tkWidget_Invalidate( t->hWin )
+    TbScrollState( t, true )
+end sub
+
+private function TbHasSel( byval t as TKTEXTBOX_STATE ptr ) as boolean
+    return t->nCaret <> t->nAnchor
+end function
+
+private function TbSelText( byval t as TKTEXTBOX_STATE ptr ) as string
+    dim as long lo = iif( t->nCaret < t->nAnchor, t->nCaret, t->nAnchor )
+    dim as long hi = iif( t->nCaret > t->nAnchor, t->nCaret, t->nAnchor )
+    return mid( t->sText, lo + 1, hi - lo )
+end function
+
+private sub TbBreakRun( byval t as TKTEXTBOX_STATE ptr )
+    t->bTypingRun = false
+end sub
+
+' A password field does not copy (RichEdit's ES_PASSWORD rule, and PsPlatform's).
+private function TbCopy( byval t as TKTEXTBOX_STATE ptr ) as boolean
+    if (TbHasSel( t ) = false) orelse (t->chPassword <> 0) then return false
+    dim as ustring u = TbSelText( t )
+    tkHost_SetClipboardText( u )
+    return true
+end function
+
+private function TbCut( byval t as TKTEXTBOX_STATE ptr ) as boolean
+    if t->bReadOnly then return false
+    if TbCopy( t ) = false then return false
+    TbBreakRun( t )
+    return TbReplace( t, "", true )
+end function
+
+' Numeric mode vets the whole paste (first line only, as a single-line control keeps): the
+' prospective text is valid or nothing lands -- TbReplace refuses it whole.
+private function TbPaste( byval t as TKTEXTBOX_STATE ptr ) as boolean
+    if t->bReadOnly then return false
+    if tkHost_HasClipboardText() = false then return false
+    dim as ustring u = tkHost_GetClipboardText()
+    dim as string s = u
+    if len( s ) = 0 then return false
+    TbBreakRun( t )
+    return TbReplace( t, s, true )
+end function
+
+private function TbUndo( byval t as TKTEXTBOX_STATE ptr ) as boolean
+    if (t->bReadOnly) orelse (t->nUndoPos <= 0) then return false
+    dim as string sNow = t->sText
+    dim as long cNow = t->nCaret, aNow = t->nAnchor
+    t->nUndoPos -= 1
+    t->sText = t->undoStack(t->nUndoPos).sText
+    t->nCaret = t->undoStack(t->nUndoPos).nCaret
+    t->nAnchor = t->undoStack(t->nUndoPos).nAnchor
+    t->undoStack(t->nUndoPos).sText = sNow
+    t->undoStack(t->nUndoPos).nCaret = cNow
+    t->undoStack(t->nUndoPos).nAnchor = aNow
+    t->bTypingRun = false
+    t->bModified = true
+    TbTextChanged( t )
+    TbEnsureCaretVisible( t )
+    tkWidget_Invalidate( t->hWin )
+    TbScrollState( t, true )
+    TbNotifyChange( t )
+    return true
+end function
+
+private function TbRedo( byval t as TKTEXTBOX_STATE ptr ) as boolean
+    if (t->bReadOnly) orelse (t->nUndoPos >= t->nUndoCount) then return false
+    dim as string sNow = t->sText
+    dim as long cNow = t->nCaret, aNow = t->nAnchor
+    t->sText = t->undoStack(t->nUndoPos).sText
+    t->nCaret = t->undoStack(t->nUndoPos).nCaret
+    t->nAnchor = t->undoStack(t->nUndoPos).nAnchor
+    t->undoStack(t->nUndoPos).sText = sNow
+    t->undoStack(t->nUndoPos).nCaret = cNow
+    t->undoStack(t->nUndoPos).nAnchor = aNow
+    t->nUndoPos += 1
+    t->bTypingRun = false
+    t->bModified = true
+    TbTextChanged( t )
+    TbEnsureCaretVisible( t )
+    tkWidget_Invalidate( t->hWin )
+    TbScrollState( t, true )
+    TbNotifyChange( t )
+    return true
+end function
+
+private sub TbSetSel( byval t as TKTEXTBOX_STATE ptr, byval nStart as long, byval nEnd as long )
+    dim as long L = len( t->sText )
+    if nEnd < 0 then nEnd = L
+    if nStart < 0 then nStart = 0
+    if nStart > L then nStart = L
+    if nEnd > L then nEnd = L
+    t->nAnchor = TbSnap( t->sText, nStart )
+    t->nCaret = TbSnap( t->sText, nEnd )
+    t->nDesiredX = -1
+    TbBreakRun( t )
+    TbEnsureCaretVisible( t )
+    tkWidget_Invalidate( t->hWin )
+    TbScrollState( t, true )
+end sub
+
+private sub TbMoveCaret( byval t as TKTEXTBOX_STATE ptr, byval nTo as long, byval bExtend as boolean )
+    dim as long L = len( t->sText )
+    if nTo < 0 then nTo = 0
+    if nTo > L then nTo = L
+    t->nCaret = TbSnap( t->sText, nTo )
+    t->nDesiredX = -1
+    if bExtend = false then t->nAnchor = t->nCaret
+    TbBreakRun( t )
+    TbEnsureCaretVisible( t )
+    tkWidget_Invalidate( t->hWin )
+    TbScrollState( t, true )
+end sub
+
+' Up/Down/PageUp/PageDown: the target LINE, then the offset nearest the DESIRED x on it -- kept
+' across consecutive vertical moves (PsPlatform's PsTbVertical).
+private sub TbVertical( byval t as TKTEXTBOX_STATE ptr, byval key as long, byval bExtend as boolean )
+    TbEnsureLines( t )
+    dim as long ln = TbLineOf( t, t->nCaret )
+    if t->nDesiredX < 0 then
+        dim as long cx, cy
+        TbPoint( t, t->nCaret, cx, cy )
+        t->nDesiredX = cx
+    end if
+    dim as long perPage = TbLinesPerPage( t )
+    if perPage < 1 then perPage = 1
+    dim as long target = ln
+    select case key
+    case SDLK_UP : target = ln - 1
+    case SDLK_DOWN : target = ln + 1
+    case SDLK_PAGEUP : target = ln - perPage
+    case SDLK_PAGEDOWN : target = ln + perPage
+    end select
+    dim as long saveX = t->nDesiredX
+    dim as long nTo
+    if target < 0 then
+        nTo = 0
+    elseif target >= t->nLineCount then
+        nTo = len( t->sText )
+    else
+        ' the desired x is in the CURRENT view; a PageUp/Down scrolls the view by the same
+        ' page first, so the column lands on the same screen row
+        if (key = SDLK_PAGEUP) orelse (key = SDLK_PAGEDOWN) then TbSetTop( t, t->nTopLine + (target - ln) )
+        nTo = TbOffsetOnLine( t, target, saveX )
+    end if
+    t->nCaret = nTo
+    if bExtend = false then t->nAnchor = t->nCaret
+    TbBreakRun( t )
+    TbEnsureCaretVisible( t )
+    t->nDesiredX = saveX
+    tkWidget_Invalidate( t->hWin )
+    TbScrollState( t, true )
+end sub
+
+
+' ==========================================================================================
+' Caret blink, focus, numeric reformat
+' ==========================================================================================
+private sub TbRestartBlink( byval t as TKTEXTBOX_STATE ptr )
+    if t->bFocused = false then exit sub
+    t->bCaretOn = true
+    if t->nCaretBlinkMs > 0 then tkWidget_SetTimer( t->hWin, TK_TIMER_CARET, t->nCaretBlinkMs )
+    tkWidget_Invalidate( t->hWin )
+end sub
+
+' On focus loss a non-empty value takes exactly nDecimals ("5." -> "5.00"); empty stays empty
+' unless ZeroWhenEmpty. Silent.
+private sub TbNumericReformat( byval t as TKTEXTBOX_STATE ptr )
+    if t->bNumeric = false then exit sub
+    if (len( t->sText ) = 0) andalso (t->bZeroWhenEmpty = false) then exit sub
+    dim as string fmt = TbFormatFixed( val( t->sText ), t->nDecimals )
+    if fmt <> t->sText then TbSetTextCore( t, fmt )
+end sub
+
+' The IME candidate window goes to the caret (tkHost_SetTextInputArea, SDL_SetTextInputArea).
+private sub TbSyncInputArea( byval t as TKTEXTBOX_STATE ptr )
+    if t->bFocused = false then exit sub
+    dim as TKRECT rc
+    if TbCaretRect( t, rc ) = false then
+        dim as long cx, cy
+        TbPoint( t, t->nCaret, cx, cy, true )
+        tkRect_Set( rc, cx, cy, cx + 1, cy + tkText_Height( TbFont( t ) ) )
+    end if
+    dim as TKRECT rcArea = t->rcText
+    rcArea.top = rc.top : rcArea.bottom = rc.bottom
+    tkHost_SetTextInputArea( t->hWin, rcArea, rc.left - rcArea.left )
+end sub
+
+
+' ==========================================================================================
+' The context menu
+' ==========================================================================================
+private sub TbMenuSelect( byval hPopup as TK_MENU ptr, byval id as long )
+    dim as TKTEXTBOX_STATE ptr t = gMenuTarget
+    gMenuTarget = 0
+    if t = 0 then exit sub
+    select case id
+    case TKTEXTBOX_IDM_CUT : TbCut( t )
+    case TKTEXTBOX_IDM_COPY : TbCopy( t )
+    case TKTEXTBOX_IDM_PASTE : TbPaste( t )
+    case TKTEXTBOX_IDM_SELECTALL : TbSetSel( t, 0, -1 )
+    end select
+end sub
+
+' Rebuilt from the selection, the clipboard and the read-only state on every open; nothing
+' qualifying = no menu at all. (x, y) in the widget's own pixels.
+private function TbShowMenu( byval t as TKTEXTBOX_STATE ptr, byval x as long, byval y as long ) as boolean
+    if t->pMenu = 0 then return false
+    dim as TK_MENU ptr m = t->pMenu
+    tkPopupMenu_Clear( m )
+    dim as boolean bSel = TbHasSel( t )
+    if bSel andalso (t->bReadOnly = false) andalso (t->chPassword = 0) then tkPopupMenu_AddItem( m, TKTEXTBOX_IDM_CUT, t->wszMenuCut )
+    if bSel andalso (t->chPassword = 0) then tkPopupMenu_AddItem( m, TKTEXTBOX_IDM_COPY, t->wszMenuCopy )
+    if tkHost_HasClipboardText() andalso (t->bReadOnly = false) then
+        if tkPopupMenu_GetItemCount( m ) > 0 then tkPopupMenu_AddSeparator( m )
+        tkPopupMenu_AddItem( m, TKTEXTBOX_IDM_PASTE, t->wszMenuPaste )
+    end if
+    if len( t->sText ) > 0 then
+        if tkPopupMenu_GetItemCount( m ) > 0 then tkPopupMenu_AddSeparator( m )
+        tkPopupMenu_AddItem( m, TKTEXTBOX_IDM_SELECTALL, t->wszMenuSelectAll )
+    end if
+    if tkPopupMenu_GetItemCount( m ) = 0 then return false
+    dim as TKRECT a
+    tkWidget_AbsRect( t->hWin, a )
+    gMenuTarget = t
+    tkPopupMenu_SetSelectCallback( m, @TbMenuSelect )
+    return tkPopupMenu_Show( m, a.left + x, a.top + y )
+end function
+
+
+' ==========================================================================================
+' Paint
+' ==========================================================================================
+private sub TbPaintLineText( byval t as TKTEXTBOX_STATE ptr, byval b as TK_PAINT ptr, byref d as string, _
+                             byval ox as long, byval ty as long, byval clr as ulong )
+    if len( d ) = 0 then exit sub
+    dim as ustring u = d
+    dim as TKRECT rc
+    tkRect_Set( rc, ox, ty, ox + tkText_WidthU8( TbFont( t ), d ) + 1, ty + tkText_Height( TbFont( t ) ) )
+    b->SetFont( TbFont( t ) )
+    b->SetForeColor( clr )
+    b->PaintText( u, @rc, TK_DT_LEFT or TK_DT_TOP or TK_DT_NOCLIP )
+end sub
+
+private sub TbOnPaint( byval t as TKTEXTBOX_STATE ptr, byval b as TK_PAINT ptr )
+    TbEnsureLines( t )
+    dim as TK_WIDGET ptr w = t->hWin
+    dim as TKRECT rcAll
+    tkRect_Set( rcAll, 0, 0, w->cw, w->ch )
+    ' the outer fill under the whole client, then the frame
+    b->SetBackColor( t->colors.OuterBackColor )
+    b->PaintRect( @rcAll )
+    b->SetBackColor( t->colors.BackColor )
+    if t->nBorderWidth > 0 then
+        b->SetPenColor( iif( t->bFocused, t->colors.FocusBorderColor, t->colors.BorderColor ) )
+        b->PaintRoundBorderRect( @rcAll, 2 * t->nCornerRadius, t->nBorderWidth )
+    else
+        b->PaintRoundRect( @rcAll, 2 * t->nCornerRadius )
+    end if
+
+    dim as TTF_Font ptr f = TbFont( t )
+    dim as boolean bEnabled = tkWidget_IsEnabled( w )
+    dim as TKRECT rcClip = t->rcEdit
+    rcClip.left = t->rcText.left : rcClip.right = t->rcText.right
+    b->PushClip( @rcClip )
+
+    if (len( t->sText ) = 0) andalso (TbComposing( t ) = false) then
+        ' the cue banner, focused or not (vendor's rule)
+        if len( t->wszCue ) then
+            dim as TTF_Font ptr fc = iif( t->pCueFont <> 0, t->pCueFont, f )
+            b->SetFont( fc )
+            b->SetForeColor( t->colors.CueColor )
+            dim as TKRECT rcCue = t->rcText
+            if t->bMultiline then
+                b->PaintTextEx( t->wszCue, @rcCue, TK_DT_LEFT or TK_DT_TOP or TK_DT_WORDBREAK )
+            else
+                rcCue.bottom = rcCue.top + tkText_Height( fc )
+                b->PaintText( t->wszCue, @rcCue, TK_DT_LEFT or TK_DT_TOP or TK_DT_NOCLIP )
+            end if
+        end if
+    elseif f then
+        dim as long lh = TbLineH( t )
+        dim as long fh = tkText_Height( f )
+        dim as long selLo = iif( t->nCaret < t->nAnchor, t->nCaret, t->nAnchor )
+        dim as long selHi = iif( t->nCaret > t->nAnchor, t->nCaret, t->nAnchor )
+        ' RichEdit hides the selection without focus (no ES_NOHIDESEL); it is kept, not lost
+        dim as boolean bSel = (selHi > selLo) andalso t->bFocused
+        dim as long nRows = iif( t->bMultiline, TbLinesPerPage( t ) + 1, 1 )
+        dim as long caretLn = TbLineOf( t, t->nCaret )
+        for k as long = 0 to nRows - 1
+            dim as long ln = iif( t->bMultiline, t->nTopLine + k, 0 )
+            if ln >= t->nLineCount then exit for
+            dim as string d = TbDisp( t, ln )
+            dim as long ox = TbOriginX( t, ln )
+            dim as long ty = TbLineTop( t, ln )
+            dim as ulong clr = iif( bEnabled, t->colors.ForeColor, t->colors.ForeColorDisabled )
+            TbPaintLineText( t, b, d, ox, ty, clr )
+            if bSel then
+                dim as long a = t->lineStart(ln), e = t->lineEnd(ln)
+                dim as long lo = iif( selLo > a, selLo, a )
+                dim as long hi = iif( selHi < e, selHi, e )
+                dim as boolean bWhole = (selLo <= a) andalso (selHi > e)
+                if (hi > lo) orelse bWhole then
+                    dim as long x1 = ox + tkText_IndexToX( f, d, TbDispIdx( t, ln, lo ) )
+                    dim as long x2 = ox + tkText_IndexToX( f, d, TbDispIdx( t, ln, hi ) )
+                    if bWhole orelse (t->bMultiline andalso (selHi > e)) then x2 = t->rcText.right
+                    if x1 < t->rcText.left then x1 = t->rcText.left
+                    if x2 > t->rcText.right then x2 = t->rcText.right
+                    if x2 > x1 then
+                        dim as TKRECT rcSel
+                        tkRect_Set( rcSel, x1, ty, x2, ty + iif( t->bMultiline, lh, fh ) )
+                        b->SetBackColor( t->colors.SelBackColor )
+                        b->PaintRect( @rcSel )
+                        ' the selected span again, in the selection ink, clipped to the band
+                        b->PushClip( @rcSel )
+                        TbPaintLineText( t, b, d, ox, ty, t->colors.SelForeColor )
+                        b->PopClip()
+                    end if
+                end if
+            end if
+            ' the IME pre-edit: underlined where it sits
+            if TbComposing( t ) andalso (ln = caretLn) then
+                dim as long i0 = TbDispIdx( t, ln, t->nCaret )
+                dim as long x1 = ox + tkText_IndexToX( f, d, i0 )
+                dim as long x2 = ox + tkText_IndexToX( f, d, i0 + len( t->sComp ) )
+                dim as long uy = ty + fh - 1
+                dim as long uh = cint( w->pHost->fScale )
+                if uh < 1 then uh = 1
+                dim as TKRECT rcU
+                tkRect_Set( rcU, x1, uy - uh + 1, x2, uy + 1 )
+                b->SetBackColor( t->colors.ForeColor )
+                b->PaintRect( @rcU )
+            end if
+        next
+    end if
+    b->PopClip()
+
+    if t->bFocused andalso t->bCaretOn andalso ((TbHasSel( t ) = false) orelse TbComposing( t )) then
+        dim as TKRECT rcCar
+        if TbCaretRect( t, rcCar ) then
+            b->PushClip( @t->rcEdit )
+            b->SetBackColor( t->colors.ForeColor )
+            b->PaintRect( @rcCar )
+            b->PopClip()
+        end if
+    end if
+end sub
+
+
+' ==========================================================================================
+' The proc
+' ==========================================================================================
+public declare sub tkTextBox_ApplyTheme( byval hTextBox as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+
+private function TbCallMessage( byval t as TKTEXTBOX_STATE ptr, byval m as TK_MSG ptr, byval msg as long = 0 ) as boolean
+    if t->MessageCallback = 0 then return false
+    dim as TKTEXTBOX_MESSAGEINFO mi
+    mi.hTextBox = t->hWin
+    mi.msg = iif( msg <> 0, msg, m->msg )
+    mi.x = m->x : mi.y = m->y
+    mi.key = m->key : mi.mods = m->mods
+    mi.wheelY = m->wheelY
+    mi.text = m->text
+    return t->MessageCallback( @mi )
+end function
+
+private function TbOnKey( byval t as TKTEXTBOX_STATE ptr, byval m as TK_MSG ptr ) as boolean
+    dim as long k = m->key
+    dim as boolean bShift = (m->mods and SDL_KMOD_SHIFT) <> 0
+    dim as boolean bCtrl = (m->mods and SDL_KMOD_CTRL) <> 0
+    dim as boolean bAlt = (m->mods and SDL_KMOD_ALT) <> 0
+    dim as long L = len( t->sText )
+    ' a key press while composing belongs to the IME
+    if TbComposing( t ) then return true
+
+    if bCtrl andalso (bAlt = false) then
+        select case k
+        case SDLK_A : TbSetSel( t, 0, -1 ) : return true
+        case SDLK_C : TbCopy( t ) : return true
+        case SDLK_X : TbCut( t ) : return true
+        case SDLK_V : TbPaste( t ) : return true
+        case SDLK_Z
+            if bShift then TbRedo( t ) else TbUndo( t )
+            return true
+        case SDLK_Y : TbRedo( t ) : return true
+        end select
+    end if
+
+    select case k
+    case SDLK_LEFT
+        if bCtrl then
+            TbMoveCaret( t, TbWordStart( t->sText, t->nCaret ), bShift )
+        elseif TbHasSel( t ) andalso (bShift = false) then
+            TbMoveCaret( t, iif( t->nCaret < t->nAnchor, t->nCaret, t->nAnchor ), false )
+        else
+            TbMoveCaret( t, TbPrev( t->sText, t->nCaret ), bShift )
+        end if
+        return true
+    case SDLK_RIGHT
+        if bCtrl then
+            TbMoveCaret( t, TbWordEnd( t->sText, t->nCaret ), bShift )
+        elseif TbHasSel( t ) andalso (bShift = false) then
+            TbMoveCaret( t, iif( t->nCaret > t->nAnchor, t->nCaret, t->nAnchor ), false )
+        else
+            TbMoveCaret( t, TbNext( t->sText, t->nCaret ), bShift )
+        end if
+        return true
+    case SDLK_UP, SDLK_DOWN, SDLK_PAGEUP, SDLK_PAGEDOWN
+        if t->bMultiline = false then return false
+        TbVertical( t, k, bShift )
+        return true
+    case SDLK_HOME, SDLK_END
+        TbEnsureLines( t )
+        dim as long nTo = iif( k = SDLK_HOME, 0, L )
+        if t->bMultiline andalso (bCtrl = false) then
+            dim as long ln = TbLineOf( t, t->nCaret )
+            nTo = iif( k = SDLK_HOME, t->lineStart(ln), t->lineEnd(ln) )
+            ' a soft-wrapped line's End stops BEFORE the spaces that carried the break
+            if (k = SDLK_END) andalso (ln < t->nLineCount - 1) andalso (t->lineEnd(ln) = t->lineStart(ln + 1)) then
+                while (nTo > t->lineStart(ln)) andalso (t->sText[nTo - 1] = 32)
+                    nTo -= 1
+                wend
+            end if
+        end if
+        TbMoveCaret( t, nTo, bShift )
+        return true
+    case SDLK_BACKSPACE
+        if t->bReadOnly then return true
+        TbBreakRun( t )
+        if TbHasSel( t ) = false then t->nAnchor = iif( bCtrl, TbWordStart( t->sText, t->nCaret ), TbPrev( t->sText, t->nCaret ) )
+        TbReplace( t, "", true )
+        return true
+    case SDLK_DELETE
+        if bShift then TbCut( t ) : return true              ' Shift+Delete is Cut
+        if t->bReadOnly then return true
+        TbBreakRun( t )
+        if TbHasSel( t ) = false then t->nAnchor = iif( bCtrl, TbWordEnd( t->sText, t->nCaret ), TbNext( t->sText, t->nCaret ) )
+        TbReplace( t, "", true )
+        return true
+    case SDLK_INSERT
+        if bCtrl then TbCopy( t ) : return true
+        if bShift then TbPaste( t ) : return true
+        return false
+    case SDLK_RETURN, SDLK_KP_ENTER
+        if t->bMultiline then
+            if t->bReadOnly then return true
+            TbBreakRun( t )
+            TbReplace( t, chr( 10 ), true )
+            return true
+        end if
+        ' single-line: ALWAYS claimed, callback or not (vendor)
+        if t->EnterPressedCallback then t->EnterPressedCallback( t->hWin )
+        return true
+    case SDLK_TAB
+        ' single-line: unclaimed, so the host moves focus; multiline inserts a tab character
+        if (t->bMultiline = false) orelse t->bReadOnly orelse bCtrl then return false
+        TbBreakRun( t )
+        TbReplace( t, chr( 9 ), true )
+        return true
+    case SDLK_APPLICATION
+        dim as long cx, cy
+        TbPoint( t, t->nCaret, cx, cy )
+        TbShowMenu( t, cx, cy + tkText_Height( TbFont( t ) ) )
+        return true
+    case SDLK_F10
+        if bShift then
+            dim as long cx, cy
+            TbPoint( t, t->nCaret, cx, cy )
+            TbShowMenu( t, cx, cy + tkText_Height( TbFont( t ) ) )
+            return true
+        end if
+        return false
+    end select
+    ' a printable key is the editor's (its text arrives as TKM_CHAR)
+    if (bCtrl = false) andalso (bAlt = false) andalso (k >= 32) andalso (k < 127) then return true
+    return false
+end function
+
+private function TbProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKTEXTBOX_STATE ptr t = TB( w )
+    if t = 0 then return false
+    dim as TK_HOST ptr h = w->pHost
+
+    ' host observation with veto, before the control acts (vendor's message callback)
+    select case m->msg
+    case TKM_KEYDOWN, TKM_KEYUP, TKM_CHAR, TKM_IMECOMPOSE, TKM_LBUTTONDOWN, TKM_LBUTTONUP, TKM_RBUTTONDOWN, _
+         TKM_RBUTTONUP, TKM_MBUTTONDOWN, TKM_MBUTTONUP, TKM_MOUSEMOVE, TKM_MOUSEWHEEL, TKM_SETFOCUS, TKM_KILLFOCUS
+        if TbCallMessage( t, m ) then
+            ' a vetoed focus change still has to track focus for the frame and the caret
+            if (m->msg = TKM_SETFOCUS) orelse (m->msg = TKM_KILLFOCUS) then
+                t->bFocused = (m->msg = TKM_SETFOCUS)
+                tkWidget_Invalidate( w )
+            end if
+            return true
+        end if
+    end select
+
+    select case m->msg
+    case TKM_PAINT
+        TbOnPaint( t, m->pPaint )
+        return true
+
+    case TKM_SIZE
+        TbLayout( t )
+        TbEnsureCaretVisible( t )
+        tkWidget_Invalidate( w )
+        TbScrollState( t, true )
+        return true
+
+    case TKM_SCALECHANGED
+        if (m->fOld > 0) andalso (m->fNew > 0) then
+            dim as single k = m->fNew / m->fOld
+            t->nMarginLeft = cint( t->nMarginLeft * k )
+            t->nMarginRight = cint( t->nMarginRight * k )
+            t->nCornerRadius = cint( t->nCornerRadius * k )
+            t->nScrollW = cint( t->nScrollW * k )
+        end if
+        if t->pMenu then tkPopupMenu_Rescale( t->pMenu, m->fOld, m->fNew )
+        TbTextChanged( t )
+        TbEnsureCaretVisible( t )
+        tkWidget_Invalidate( w )
+        TbScrollState( t, true )
+        return true
+
+    case TKM_THEMECHANGED
+        tkTextBox_ApplyTheme( w, tkTheme_Get() )
+        if t->pMenu then tkPopupMenu_ApplyTheme( t->pMenu, tkTheme_Get() )
+        return true
+
+    case TKM_LBUTTONDOWN
+        tkHost_SetFocus( h, w )
+        TbRestartBlink( t )
+        TbEnsureLines( t )
+        dim as long o = TbOffsetFromPoint( t, cint( m->x ), cint( m->y ) )
+        t->nDesiredX = -1
+        TbBreakRun( t )
+        if m->clicks >= 2 then
+            ' the word under the cursor
+            TbSetSel( t, TbWordStart( t->sText, TbNext( t->sText, o ) ), TbWordEnd( t->sText, o ) )
+            return true
+        end if
+        t->nCaret = o
+        ' Shift+click extends (button messages carry no modifiers: ask SDL)
+        if (SDL_GetModState() and SDL_KMOD_SHIFT) = 0 then t->nAnchor = o
+        t->bSelecting = true
+        tkHost_SetCapture( w )
+        TbEnsureCaretVisible( t )
+        tkWidget_Invalidate( w )
+        TbScrollState( t, true )
+        return true
+
+    case TKM_MOUSEMOVE
+        if t->bSelecting = false then return true
+        ' dragging past an edge scrolls, one step per move
+        if t->bMultiline then
+            if m->y < t->rcText.top then
+                TbSetTop( t, t->nTopLine - 1 )
+            elseif m->y > t->rcText.bottom then
+                TbSetTop( t, t->nTopLine + 1 )
+            end if
+        else
+            if m->x < t->rcText.left then
+                t->nScrollX -= tkHost_Scale( h, 8 )
+                if t->nScrollX < 0 then t->nScrollX = 0
+            elseif m->x > t->rcText.right then
+                t->nScrollX += tkHost_Scale( h, 8 )
+            end if
+        end if
+        t->nCaret = TbOffsetFromPoint( t, cint( m->x ), cint( m->y ) )
+        TbEnsureCaretVisible( t )
+        tkWidget_Invalidate( w )
+        TbScrollState( t, true )
+        return true
+
+    case TKM_LBUTTONUP
+        if t->bSelecting then
+            t->bSelecting = false
+            if tkHost_GetCapture( h ) = w then tkHost_ReleaseCapture( h )
+        end if
+        return true
+
+    case TKM_CAPTURECHANGED
+        t->bSelecting = false
+        return true
+
+    case TKM_RBUTTONDOWN
+        tkHost_SetFocus( h, w )
+        return true
+
+    case TKM_RBUTTONUP
+        ' vendor's WM_CONTEXTMENU follows the right button's release
+        if TbCallMessage( t, m, TKTEXTBOX_MSG_CONTEXTMENU ) then return true
+        TbShowMenu( t, cint( m->x ), cint( m->y ) )
+        return true
+
+    case TKM_MOUSEWHEEL
+        if t->bMultiline = false then return false
+        t->fWheelAccum += m->wheelY
+        dim as long nNotches = fix( t->fWheelAccum )
+        if nNotches <> 0 then
+            t->fWheelAccum -= nNotches
+            TbSetTop( t, t->nTopLine - nNotches * TKTEXTBOX_WHEEL_LINES )
+            TbScrollState( t, true )
+        end if
+        return true
+
+    case TKM_TIMER
+        if m->timerId <> TK_TIMER_CARET then return false
+        if t->bFocused = false then tkWidget_KillTimer( w, TK_TIMER_CARET ) : return true
+        t->bCaretOn = (t->bCaretOn = false)
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_SETFOCUS
+        t->bFocused = true
+        if t->bSelectOnFocus then
+            t->nAnchor = 0 : t->nCaret = len( t->sText )
+            TbEnsureCaretVisible( t )
+        end if
+        TbRestartBlink( t )
+        if t->FocusCallback then t->FocusCallback( w, true )
+        TbSyncInputArea( t )
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_KILLFOCUS
+        t->bFocused = false
+        t->bSelecting = false
+        t->sComp = "" : t->nCompCursor = 0
+        tkWidget_KillTimer( w, TK_TIMER_CARET )
+        t->bCaretOn = false
+        TbNumericReformat( t )                 ' silently, BEFORE the focus callback
+        if t->FocusCallback then t->FocusCallback( w, false )
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_KEYDOWN
+        if tkWidget_IsEnabled( w ) = false then return false
+        TbRestartBlink( t )
+        dim as boolean bClaimed = TbOnKey( t, m )
+        TbSyncInputArea( t )
+        return bClaimed
+
+    case TKM_CHAR
+        TbRestartBlink( t )
+        if len( t->sComp ) then t->sComp = "" : t->nCompCursor = 0 : TbTextChanged( t ) : tkWidget_Invalidate( w )
+        if t->bReadOnly then return true
+        ' control characters arrive as keys, never as text
+        dim as string s = ""
+        for i as long = 0 to len( m->text ) - 1
+            if (m->text[i] >= 32) andalso (m->text[i] <> 127) then s &= chr( m->text[i] )
+        next
+        if len( s ) then TbReplace( t, s, true, true )
+        TbSyncInputArea( t )
+        return true
+
+    case TKM_IMECOMPOSE
+        ' the pre-edit is drawn inline at the caret; nStart is its cursor in CHARACTERS
+        if t->bReadOnly then return true
+        t->sComp = m->text
+        dim as long nCur = m->nStart
+        if (nCur < 0) orelse (nCur > TbCount( t->sComp, 0, len( t->sComp ) )) then nCur = TbCount( t->sComp, 0, len( t->sComp ) )
+        t->nCompCursor = TbTakeChars( t->sComp, nCur )
+        TbTextChanged( t )
+        TbEnsureCaretVisible( t )
+        TbRestartBlink( t )
+        TbSyncInputArea( t )
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_ENABLE
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_DESTROY
+        if gMenuTarget = t then gMenuTarget = 0
+        if t->pMenu then tkPopupMenu_Destroy( t->pMenu )
+        delete t
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+' The embedded bar drives the view: a user scroll, so it notifies.
+private sub TbBarScrolled( byval hSB as TK_WIDGET ptr, byval newPos as integer )
+    dim as TKTEXTBOX_STATE ptr t = TB( tkWidget_Parent( hSB ) )
+    if t = 0 then exit sub
+    TbSetTop( t, newPos )
+    TbScrollState( t, true )
+end sub
+
+
+' ==========================================================================================
+' Public API -- vendor's surface, HWND replaced by the widget pointer
+' ==========================================================================================
+public declare function tkTextBox_ThemeColors( byref t as TKTHEME_COLORS ) as TKTEXTBOX_COLORS
+
+' bMultiline is fixed for the control's lifetime.
+public function tkTextBox_Create( byval hParent as TK_WIDGET ptr, byval CtrlID as long, byval bMultiline as boolean = false ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TKTEXTBOX_STATE ptr t = new TKTEXTBOX_STATE
+    t->id = CtrlID
+    t->bMultiline = bMultiline
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, CtrlID, @TbProc, t )
+    w->isFocusable = true
+    w->bWantsText = true
+    w->cursor = TK_CURSOR_IBEAM
+    t->hWin = w
+    t->nScrollW = tkHost_Scale( w->pHost, TKVSCROLL_DEFAULT_WIDTH )
+    t->colors = tkTextBox_ThemeColors( tkTheme_Get() )
+    t->pMenu = tkPopupMenu_Create( w->pHost, CtrlID )
+    return w
+end function
+
+public function tkTextBox_GetMultiline( byval hTextBox as TK_WIDGET ptr ) as boolean
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return false
+    return t->bMultiline
+end function
+
+public function tkTextBox_HasFocus( byval hTextBox as TK_WIDGET ptr ) as boolean
+    if TB( hTextBox ) = 0 then return false
+    return tkHost_GetFocus( hTextBox->pHost ) = hTextBox
+end function
+
+public function tkTextBox_GetID( byval hTextBox as TK_WIDGET ptr ) as long
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return 0
+    return t->id
+end function
+
+' ---- text ----------------------------------------------------------------------------------
+public function tkTextBox_GetText( byval hTextBox as TK_WIDGET ptr ) as ustring
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return ""
+    dim as ustring u = t->sText
+    return u
+end function
+
+' SILENT; clears the modify flag and the undo history.
+public function tkTextBox_SetText( byval hTextBox as TK_WIDGET ptr, byval Text as ustring ) as boolean
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return false
+    dim as string s = Text
+    TbSetTextCore( t, s )
+    return true
+end function
+
+' In UTF-8 BYTES -- the end offset for SetSel (see PORT.md).
+public function tkTextBox_GetTextLength( byval hTextBox as TK_WIDGET ptr ) as integer
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return 0
+    return len( t->sText )
+end function
+
+public function tkTextBox_GetSelText( byval hTextBox as TK_WIDGET ptr ) as ustring
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return ""
+    dim as ustring u = TbSelText( t )
+    return u
+end function
+
+' SILENT, but undoable (vendor).
+public function tkTextBox_ReplaceSel( byval hTextBox as TK_WIDGET ptr, byval Text as ustring ) as boolean
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return false
+    dim as string s = Text
+    TbBreakRun( t )
+    TbReplace( t, s, false )
+    return true
+end function
+
+public function tkTextBox_Clear( byval hTextBox as TK_WIDGET ptr ) as boolean
+    return tkTextBox_SetText( hTextBox, "" )
+end function
+
+' ---- selection: UTF-8 byte offsets, snapped to character boundaries ------------------------
+public sub tkTextBox_GetSel( byval hTextBox as TK_WIDGET ptr, byref nStart as integer, byref nEnd as integer )
+    nStart = 0 : nEnd = 0
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then exit sub
+    nStart = iif( t->nCaret < t->nAnchor, t->nCaret, t->nAnchor )
+    nEnd = iif( t->nCaret > t->nAnchor, t->nCaret, t->nAnchor )
+end sub
+
+' nEnd = -1 selects through the end. The caret goes to nEnd.
+public sub tkTextBox_SetSel( byval hTextBox as TK_WIDGET ptr, byval nStart as integer, byval nEnd as integer )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t then TbSetSel( t, nStart, nEnd )
+end sub
+
+public sub tkTextBox_SelectAll( byval hTextBox as TK_WIDGET ptr )
+    tkTextBox_SetSel( hTextBox, 0, -1 )
+end sub
+
+' The caret offset (the moving end of the selection).
+public function tkTextBox_GetCaret( byval hTextBox as TK_WIDGET ptr ) as integer
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return 0
+    return t->nCaret
+end function
+
+' ---- edit behaviour ------------------------------------------------------------------------
+' In CHARACTERS; 0 = no limit. Lowering it never truncates what is there.
+public function tkTextBox_GetLimitText( byval hTextBox as TK_WIDGET ptr ) as integer
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return 0
+    return t->nLimit
+end function
+
+public sub tkTextBox_SetLimitText( byval hTextBox as TK_WIDGET ptr, byval nLimit as integer )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t then t->nLimit = iif( nLimit < 0, 0, nLimit )
+end sub
+
+public function tkTextBox_GetReadOnly( byval hTextBox as TK_WIDGET ptr ) as boolean
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return false
+    return t->bReadOnly
+end function
+
+public function tkTextBox_SetReadOnly( byval hTextBox as TK_WIDGET ptr, byval bReadOnly as boolean ) as boolean
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return false
+    t->bReadOnly = bReadOnly
+    tkWidget_Invalidate( hTextBox )
+    return true
+end function
+
+public function tkTextBox_GetModify( byval hTextBox as TK_WIDGET ptr ) as boolean
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return false
+    return t->bModified
+end function
+
+public sub tkTextBox_SetModify( byval hTextBox as TK_WIDGET ptr, byval bModified as boolean )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t then t->bModified = bModified
+end sub
+
+' The codepoint shown for each character; 0 = off. Single-line only (ES_PASSWORD's rule).
+public sub tkTextBox_SetPasswordChar( byval hTextBox as TK_WIDGET ptr, byval wchChar as integer )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if (t = 0) orelse t->bMultiline then exit sub
+    t->chPassword = wchChar
+    t->sMask = iif( wchChar <> 0, TbUtf8Of( wchChar ), "" )
+    TbTextChanged( t )
+    TbEnsureCaretVisible( t )
+    tkWidget_Invalidate( hTextBox )
+end sub
+
+public function tkTextBox_GetPasswordChar( byval hTextBox as TK_WIDGET ptr ) as integer
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return 0
+    return t->chPassword
+end function
+
+public function tkTextBox_GetSelectOnFocus( byval hTextBox as TK_WIDGET ptr ) as boolean
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return false
+    return t->bSelectOnFocus
+end function
+
+public sub tkTextBox_SetSelectOnFocus( byval hTextBox as TK_WIDGET ptr, byval bSelect as boolean )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t then t->bSelectOnFocus = bSelect
+end sub
+
+public sub tkTextBox_GetMargins( byval hTextBox as TK_WIDGET ptr, byref nLeft as integer, byref nRight as integer )
+    nLeft = 0 : nRight = 0
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then exit sub
+    nLeft = t->nMarginLeft : nRight = t->nMarginRight
+end sub
+
+' Raw pixels.
+public sub tkTextBox_SetMargins( byval hTextBox as TK_WIDGET ptr, byval nLeft as integer, byval nRight as integer )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then exit sub
+    t->nMarginLeft = iif( nLeft < 0, 0, nLeft )
+    t->nMarginRight = iif( nRight < 0, 0, nRight )
+    TbTextChanged( t )
+    TbEnsureCaretVisible( t )
+    tkWidget_Invalidate( hTextBox )
+    TbScrollState( t, true )
+end sub
+
+' ---- clipboard and undo: these NOTIFY, as Ctrl+X/C/V/Z do ----------------------------------
+public sub tkTextBox_Cut( byval hTextBox as TK_WIDGET ptr )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t then TbCut( t )
+end sub
+
+public sub tkTextBox_Copy( byval hTextBox as TK_WIDGET ptr )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t then TbCopy( t )
+end sub
+
+public sub tkTextBox_Paste( byval hTextBox as TK_WIDGET ptr )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t then TbPaste( t )
+end sub
+
+public function tkTextBox_CanPaste( byval hTextBox as TK_WIDGET ptr ) as boolean
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if (t = 0) orelse t->bReadOnly then return false
+    return tkHost_HasClipboardText()
+end function
+
+public function tkTextBox_Undo( byval hTextBox as TK_WIDGET ptr ) as boolean
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return false
+    return TbUndo( t )
+end function
+
+public function tkTextBox_CanUndo( byval hTextBox as TK_WIDGET ptr ) as boolean
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return false
+    return t->nUndoPos > 0
+end function
+
+public function tkTextBox_Redo( byval hTextBox as TK_WIDGET ptr ) as boolean
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return false
+    return TbRedo( t )
+end function
+
+public function tkTextBox_CanRedo( byval hTextBox as TK_WIDGET ptr ) as boolean
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return false
+    return t->nUndoPos < t->nUndoCount
+end function
+
+' ---- numeric mode (single-line only) -------------------------------------------------------
+public function tkTextBox_GetNumericMode( byval hTextBox as TK_WIDGET ptr ) as boolean
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return false
+    return t->bNumeric
+end function
+
+' A no-op on a multiline control. Does not reformat what is there.
+public sub tkTextBox_SetNumericMode( byval hTextBox as TK_WIDGET ptr, byval bEnable as boolean )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if (t = 0) orelse t->bMultiline then exit sub
+    t->bNumeric = bEnable
+end sub
+
+public function tkTextBox_GetDecimalPlaces( byval hTextBox as TK_WIDGET ptr ) as integer
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return 0
+    return t->nDecimals
+end function
+
+public sub tkTextBox_SetDecimalPlaces( byval hTextBox as TK_WIDGET ptr, byval nPlaces as integer )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t then t->nDecimals = iif( nPlaces < 0, 0, nPlaces )
+end sub
+
+' Empty, "-" and "." read as 0.
+public function tkTextBox_GetValue( byval hTextBox as TK_WIDGET ptr ) as double
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return 0
+    return val( t->sText )
+end function
+
+' Formatted to DecimalPlaces, no thousands separators. SILENT.
+public function tkTextBox_SetValue( byval hTextBox as TK_WIDGET ptr, byval nValue as double ) as boolean
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return false
+    TbSetTextCore( t, TbFormatFixed( nValue, t->nDecimals ) )
+    return true
+end function
+
+public function tkTextBox_GetZeroWhenEmpty( byval hTextBox as TK_WIDGET ptr ) as boolean
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return false
+    return t->bZeroWhenEmpty
+end function
+
+' Stamps the formatted zero at once when numeric, empty and NOT focused (a focused box may be
+' mid-entry; its focus loss stamps it).
+public sub tkTextBox_SetZeroWhenEmpty( byval hTextBox as TK_WIDGET ptr, byval bEnable as boolean )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then exit sub
+    t->bZeroWhenEmpty = bEnable
+    if bEnable andalso t->bNumeric andalso (len( t->sText ) = 0) andalso (t->bFocused = false) then
+        TbSetTextCore( t, TbFormatFixed( 0, t->nDecimals ) )
+    end if
+end sub
+
+' ---- multiline scrolling, in LINES ---------------------------------------------------------
+' A partial line at the bottom is not counted in nLinesPerPage. All three are 0 before the
+' control has usable geometry; a single-line control reports one line, first visible 0.
+public sub tkTextBox_GetVScrollInfo( byval hTextBox as TK_WIDGET ptr, byref nTotalLines as integer, _
+                                     byref nLinesPerPage as integer, byref nFirstVisibleLine as integer )
+    nTotalLines = 0 : nLinesPerPage = 0 : nFirstVisibleLine = 0
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then exit sub
+    dim as long a, b, c
+    TbScrollInfo( t, a, b, c )
+    nTotalLines = a : nLinesPerPage = b : nFirstVisibleLine = c
+end sub
+
+' nLine becomes the first visible line, clamped. SILENT (the receiving end of a scrollbar).
+public sub tkTextBox_ScrollToLine( byval hTextBox as TK_WIDGET ptr, byval nLine as integer )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if (t = 0) orelse (t->bMultiline = false) then exit sub
+    TbSetTop( t, nLine )
+    TbScrollState( t, false )
+end sub
+
+' The opt-in embedded tkVScrollBar (vendor shows none; PsPlatform always does). Multiline only;
+' its strip is reserved whether a thumb is needed or not, so text never re-wraps on its account.
+public sub tkTextBox_SetScrollBarVisible( byval hTextBox as TK_WIDGET ptr, byval bShow as boolean )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if (t = 0) orelse (t->bMultiline = false) then exit sub
+    if bShow andalso (t->hScroll = 0) then
+        t->hScroll = tkVScrollBar_Create( hTextBox, 0 )
+        tkVScrollBar_SetScrollCallback( t->hScroll, @TbBarScrolled )
+    end if
+    t->bShowScroll = bShow
+    TbTextChanged( t )
+    TbLayout( t )
+    TbEnsureCaretVisible( t )
+    tkWidget_Invalidate( hTextBox )
+    t->nLastTotal = -1
+    TbScrollState( t, true )
+end sub
+
+public function tkTextBox_GetScrollBar( byval hTextBox as TK_WIDGET ptr ) as TK_WIDGET ptr
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return 0
+    return t->hScroll
+end function
+
+' ---- geometry (vendor reached these through the EM_* door) ----------------------------------
+' The formatting rect, widget pixels: the client less the border and the margins; on a
+' single-line control, the one vertically centred line.
+public function tkTextBox_GetTextRect( byval hTextBox as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return false
+    TbLayout( t )
+    rc = t->rcText
+    return (hTextBox->cw > 0) andalso (hTextBox->ch > 0)
+end function
+
+' EM_POSFROMCHAR: the caret point of offset nOffset, widget pixels (y = the line's top).
+public sub tkTextBox_PosFromChar( byval hTextBox as TK_WIDGET ptr, byval nOffset as integer, byref x as long, byref y as long )
+    x = 0 : y = 0
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t then TbPoint( t, nOffset, x, y )
+end sub
+
+' EM_CHARFROMPOS: the offset nearest (x, y), widget pixels.
+public function tkTextBox_CharFromPos( byval hTextBox as TK_WIDGET ptr, byval x as long, byval y as long ) as integer
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return 0
+    return TbOffsetFromPoint( t, x, y )
+end function
+
+' Where the caret is painted; FALSE when scrolled out of view.
+public function tkTextBox_GetCaretRect( byval hTextBox as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return false
+    return TbCaretRect( t, rc )
+end function
+
+' Is the caret drawn in this half of the blink?
+public function tkTextBox_GetCaretVisible( byval hTextBox as TK_WIDGET ptr ) as boolean
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return false
+    return t->bFocused andalso t->bCaretOn
+end function
+
+' Half-period in ms; 0 = a steady caret.
+public sub tkTextBox_SetCaretBlink( byval hTextBox as TK_WIDGET ptr, byval nMs as long )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then exit sub
+    t->nCaretBlinkMs = iif( nMs < 0, 0, nMs )
+    tkWidget_KillTimer( hTextBox, TK_TIMER_CARET )
+    t->bCaretOn = true
+    TbRestartBlink( t )
+end sub
+
+public function tkTextBox_GetCaretBlink( byval hTextBox as TK_WIDGET ptr ) as long
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return 0
+    return t->nCaretBlinkMs
+end function
+
+' The IME pre-edit being composed ("" when none), UTF-8 as a ustring.
+public function tkTextBox_GetComposition( byval hTextBox as TK_WIDGET ptr ) as ustring
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return ""
+    dim as ustring u = t->sComp
+    return u
+end function
+
+' ---- appearance ----------------------------------------------------------------------------
+public function tkTextBox_GetFont( byval hTextBox as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return 0
+    return t->pTextFont
+end function
+
+public function tkTextBox_SetFont( byval hTextBox as TK_WIDGET ptr, byval f as TTF_Font ptr ) as boolean
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return false
+    t->pTextFont = f
+    TbTextChanged( t )
+    TbEnsureCaretVisible( t )
+    tkWidget_Invalidate( hTextBox )
+    TbScrollState( t, true )
+    return true
+end function
+
+public sub tkTextBox_GetColors( byval hTextBox as TK_WIDGET ptr, byval pColors as TKTEXTBOX_COLORS ptr )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if (t = 0) orelse (pColors = 0) then exit sub
+    *pColors = t->colors
+end sub
+
+' Copies the struct and PINS it.
+public sub tkTextBox_SetColors( byval hTextBox as TK_WIDGET ptr, byval pColors as TKTEXTBOX_COLORS ptr )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if (t = 0) orelse (pColors = 0) then exit sub
+    t->colors = *pColors
+    t->bColorsPinned = true
+    tkWidget_Invalidate( hTextBox )
+end sub
+
+' One colour by its field, pinning (each vendor Set*Color pins). Returns the previous.
+private function TbSetColor( byval hTextBox as TK_WIDGET ptr, byval nField as long, byval clr as ulong ) as ulong
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return 0
+    dim as ulong ptr p = @t->colors.ForeColor
+    dim as ulong old = p[nField]
+    p[nField] = clr
+    t->bColorsPinned = true
+    tkWidget_Invalidate( hTextBox )
+    return old
+end function
+
+private function TbGetColor( byval hTextBox as TK_WIDGET ptr, byval nField as long ) as ulong
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return 0
+    dim as ulong ptr p = @t->colors.ForeColor
+    return p[nField]
+end function
+
+public function tkTextBox_GetForeColor( byval hTextBox as TK_WIDGET ptr ) as ulong
+    return TbGetColor( hTextBox, 0 )
+end function
+public function tkTextBox_SetForeColor( byval hTextBox as TK_WIDGET ptr, byval clr as ulong ) as ulong
+    return TbSetColor( hTextBox, 0, clr )
+end function
+public function tkTextBox_GetBackColor( byval hTextBox as TK_WIDGET ptr ) as ulong
+    return TbGetColor( hTextBox, 1 )
+end function
+public function tkTextBox_SetBackColor( byval hTextBox as TK_WIDGET ptr, byval clr as ulong ) as ulong
+    return TbSetColor( hTextBox, 1, clr )
+end function
+public function tkTextBox_GetCueBannerColor( byval hTextBox as TK_WIDGET ptr ) as ulong
+    return TbGetColor( hTextBox, 2 )
+end function
+public sub tkTextBox_SetCueBannerColor( byval hTextBox as TK_WIDGET ptr, byval clr as ulong )
+    TbSetColor( hTextBox, 2, clr )
+end sub
+public function tkTextBox_GetBorderColor( byval hTextBox as TK_WIDGET ptr ) as ulong
+    return TbGetColor( hTextBox, 3 )
+end function
+public sub tkTextBox_SetBorderColor( byval hTextBox as TK_WIDGET ptr, byval clr as ulong )
+    TbSetColor( hTextBox, 3, clr )
+end sub
+public function tkTextBox_GetFocusBorderColor( byval hTextBox as TK_WIDGET ptr ) as ulong
+    return TbGetColor( hTextBox, 4 )
+end function
+public sub tkTextBox_SetFocusBorderColor( byval hTextBox as TK_WIDGET ptr, byval clr as ulong )
+    TbSetColor( hTextBox, 4, clr )
+end sub
+public function tkTextBox_GetOuterBackColor( byval hTextBox as TK_WIDGET ptr ) as ulong
+    return TbGetColor( hTextBox, 5 )
+end function
+public sub tkTextBox_SetOuterBackColor( byval hTextBox as TK_WIDGET ptr, byval clr as ulong )
+    TbSetColor( hTextBox, 5, clr )
+end sub
+
+public function tkTextBox_GetCueBannerText( byval hTextBox as TK_WIDGET ptr ) as ustring
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return ""
+    return t->wszCue
+end function
+
+public sub tkTextBox_SetCueBannerText( byval hTextBox as TK_WIDGET ptr, byval Text as ustring )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then exit sub
+    t->wszCue = Text
+    tkWidget_Invalidate( hTextBox )
+end sub
+
+public function tkTextBox_GetCueBannerFont( byval hTextBox as TK_WIDGET ptr ) as TTF_Font ptr
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return 0
+    return t->pCueFont
+end function
+
+' 0 falls back to the text font.
+public sub tkTextBox_SetCueBannerFont( byval hTextBox as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then exit sub
+    t->pCueFont = f
+    tkWidget_Invalidate( hTextBox )
+end sub
+
+' Is the cue banner showing right now? (empty buffer, a cue set, not composing)
+public function tkTextBox_ShowsCue( byval hTextBox as TK_WIDGET ptr ) as boolean
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return false
+    return (len( t->sText ) = 0) andalso (len( t->wszCue ) > 0) andalso (TbComposing( t ) = false)
+end function
+
+public function tkTextBox_GetTextAlign( byval hTextBox as TK_WIDGET ptr ) as long
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return TXT_ALIGN_LEFT
+    return t->nTextAlign
+end function
+
+' Between the margins, while the line fits. An unrecognised value falls back to LEFT. Costs
+' nothing here -- the undo history survives (vendor had to rewrite the buffer).
+public sub tkTextBox_SetTextAlign( byval hTextBox as TK_WIDGET ptr, byval nAlign as long )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then exit sub
+    select case nAlign
+    case TXT_ALIGN_LEFT, TXT_ALIGN_CENTER, TXT_ALIGN_RIGHT
+    case else
+        nAlign = TXT_ALIGN_LEFT
+    end select
+    t->nTextAlign = nAlign
+    tkWidget_Invalidate( hTextBox )
+end sub
+
+public function tkTextBox_GetBorderWidth( byval hTextBox as TK_WIDGET ptr ) as integer
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return 0
+    return t->nBorderWidth
+end function
+
+' 0 = no border at all. Raw pixels, never scaled.
+public sub tkTextBox_SetBorderWidth( byval hTextBox as TK_WIDGET ptr, byval nWidth as integer )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then exit sub
+    t->nBorderWidth = iif( nWidth < 0, 0, nWidth )
+    TbTextChanged( t )
+    TbEnsureCaretVisible( t )
+    tkWidget_Invalidate( hTextBox )
+    TbScrollState( t, true )
+end sub
+
+public function tkTextBox_GetCornerRadius( byval hTextBox as TK_WIDGET ptr ) as integer
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return 0
+    return t->nCornerRadius
+end function
+
+' A RADIUS in raw pixels; 0 = square.
+public sub tkTextBox_SetCornerRadius( byval hTextBox as TK_WIDGET ptr, byval nRadius as integer )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then exit sub
+    t->nCornerRadius = iif( nRadius < 0, 0, nRadius )
+    tkWidget_Invalidate( hTextBox )
+end sub
+
+' The roles vendor PsTextBox_ApplyTheme hands each setter, plus the selection and disabled ink.
+public function tkTextBox_ThemeColors( byref t as TKTHEME_COLORS ) as TKTEXTBOX_COLORS
+    dim as TKTEXTBOX_COLORS c
+    c.BackColor = t.Surface : c.ForeColor = t.Text : c.CueColor = t.TextDim
+    c.BorderColor = t.Border : c.FocusBorderColor = t.FocusRing : c.OuterBackColor = t.Window
+    c.SelBackColor = t.Selected : c.SelForeColor = t.SelectedText : c.ForeColorDisabled = t.TextDisabled
+    return c
+end function
+
+public sub tkTextBox_ApplyTheme( byval hTextBox as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKTEXTBOX_STATE ptr p = TB( hTextBox )
+    if (p = 0) orelse p->bColorsPinned then exit sub
+    p->colors = tkTextBox_ThemeColors( t )
+    tkWidget_Invalidate( hTextBox )
+end sub
+
+public sub tkTextBox_UnpinColors( byval hTextBox as TK_WIDGET ptr )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then exit sub
+    t->bColorsPinned = false
+    tkTextBox_ApplyTheme( hTextBox, tkTheme_Get() )
+end sub
+
+' The form's fonts: no glyph font (vendor).
+public sub tkTextBox_ApplyFonts( byval hTextBox as TK_WIDGET ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
+    if fText then tkTextBox_SetFont( hTextBox, fText )
+end sub
+
+' ---- the context menu ----------------------------------------------------------------------
+' An empty SelectAllText keeps the current label.
+public sub tkTextBox_SetMenuText( byval hTextBox as TK_WIDGET ptr, byval CutText as ustring, byval CopyText as ustring, _
+                                  byval PasteText as ustring, byval SelectAllText as ustring = "" )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then exit sub
+    t->wszMenuCut = CutText : t->wszMenuCopy = CopyText : t->wszMenuPaste = PasteText
+    if len( SelectAllText ) then t->wszMenuSelectAll = SelectAllText
+end sub
+
+' The control's tkPopupMenu: stable for its lifetime; style it with tkPopupMenu's setters.
+' The ITEMS are rebuilt on every open.
+public function tkTextBox_GetContextMenu( byval hTextBox as TK_WIDGET ptr ) as TK_MENU ptr
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t = 0 then return 0
+    return t->pMenu
+end function
+
+' Whichever tkTextBox menu is open, anywhere. SILENT.
+public sub tkTextBox_CloseContextMenu()
+    if gMenuTarget andalso gMenuTarget->pMenu then tkPopupMenu_CloseChain( gMenuTarget->pMenu )
+    gMenuTarget = 0
+end sub
+
+' ---- callbacks -----------------------------------------------------------------------------
+public sub tkTextBox_SetChangeCallback( byval hTextBox as TK_WIDGET ptr, byval usersub as TXT_ChangeCallbackSub )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t then t->ChangeCallback = usersub
+end sub
+
+public sub tkTextBox_SetFocusCallback( byval hTextBox as TK_WIDGET ptr, byval usersub as TXT_FocusCallbackSub )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t then t->FocusCallback = usersub
+end sub
+
+public sub tkTextBox_SetEnterPressedCallback( byval hTextBox as TK_WIDGET ptr, byval usersub as TXT_EnterPressedCallbackSub )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t then t->EnterPressedCallback = usersub
+end sub
+
+public sub tkTextBox_SetMessageCallback( byval hTextBox as TK_WIDGET ptr, byval userfunc as TXT_MessageCallbackFunc )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t then t->MessageCallback = userfunc
+end sub
+
+public sub tkTextBox_SetScrollChangedCallback( byval hTextBox as TK_WIDGET ptr, byval usersub as TXT_ScrollChangedCallbackSub )
+    dim as TKTEXTBOX_STATE ptr t = TB( hTextBox )
+    if t then t->ScrollChangedCallback = usersub
+end sub

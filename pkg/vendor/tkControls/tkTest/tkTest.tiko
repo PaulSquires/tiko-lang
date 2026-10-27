@@ -1,0 +1,279 @@
+' tkTest -- the shared self-test kit for tkControls. Every input claim in a control's selftest
+' is made by PUSHING the SDL event a user would have produced and pumping the host, so the
+' dispatch path under test is the one an application runs. Coordinates given to the pushers
+' are WINDOW PIXELS; they are converted to SDL window coordinates (pixels / density) here.
+#module "tkTest"
+
+#import "../tkHost" public
+using tkHost
+using tkPaint
+
+#ifdef TIKO_OS_LINUX
+    public const TK_TEST_FONTDIR = "/mnt/c/Windows/Fonts/"
+#else
+    public const TK_TEST_FONTDIR = "C:\Windows\Fonts\"
+#endif
+
+dim shared as long gPass, gFail
+dim shared as string gPassName
+' SDL_EVENT_TEXT_INPUT / TEXT_EDITING carry a POINTER: the text must outlive the push until the
+' pump has run, so it lives here rather than in the pusher's frame.
+dim shared as string gPushText
+
+public sub tkTest_Begin( byref passName as const string )
+    gPassName = passName
+end sub
+
+public sub tkTest_Check( byref name_ as const string, byval ok as boolean, byref detail as const string = "" )
+    if ok then
+        gPass += 1
+    else
+        gFail += 1
+        print "FAIL  [" & gPassName & "] " & name_ & "   " & detail
+    end if
+end sub
+
+public function tkTest_Passed() as long
+    return gPass
+end function
+
+public function tkTest_Failed() as long
+    return gFail
+end function
+
+' Prints the one summary line the battery greps for, returns the failure count (the exit code).
+public function tkTest_Report( byref title as string ) as long
+    print title & " selftest: " & gPass & " passed, " & gFail & " failed"
+    return gFail
+end function
+
+' SDL + SDL_ttf up, or a reason. Every selftest starts here.
+public function tkTest_Init() as boolean
+    if SDL_Init( SDL_INIT_VIDEO ) = false then print "SDL_Init: " & *SDL_GetError() : return false
+    if TTF_Init() = false then print "TTF_Init: " & *SDL_GetError() : return false
+    print "video driver: " & *SDL_GetCurrentVideoDriver()
+    ' X11 delivers REAL pointer events to a window or popup that maps under the physical cursor
+    ' (an enter plus a motion), which race the synthetic ones a test pushes -- a submenu opened by
+    ' the keyboard came up with the row under the real cursor hover-selected (measured, 1 run in
+    ' 8). Park the real pointer in a corner, clear of every test window. Wayland sends none.
+    if *SDL_GetCurrentVideoDriver() = "x11" then SDL_WarpMouseGlobal( 1, 1 )
+    return true
+end function
+
+public sub tkTest_Quit()
+    TTF_Quit()
+    SDL_Quit()
+end sub
+
+' ---- synthetic input ---------------------------------------------------------------------
+public sub tkTest_PushMotion( byval h as TK_HOST ptr, byval px as single, byval py as single )
+    dim as SDL_Event e
+    e.type = SDL_EVENT_MOUSE_MOTION
+    e.motion.windowID = h->winId
+    e.motion.x = px / h->fDensity : e.motion.y = py / h->fDensity
+    SDL_PushEvent( @e )
+    tkHost_Pump( h )
+end sub
+
+public sub tkTest_PushButton( byval h as TK_HOST ptr, byval bDown as boolean, byval px as single, byval py as single, _
+                              byval button as long = SDL_BUTTON_LEFT, byval clicks as long = 1 )
+    dim as SDL_Event e
+    e.type = iif( bDown, SDL_EVENT_MOUSE_BUTTON_DOWN, SDL_EVENT_MOUSE_BUTTON_UP )
+    e.button.windowID = h->winId
+    e.button.button = button
+    e.button.down = bDown
+    e.button.clicks = clicks
+    e.button.x = px / h->fDensity : e.button.y = py / h->fDensity
+    SDL_PushEvent( @e )
+    tkHost_Pump( h )
+end sub
+
+' Press and release at one point.
+public sub tkTest_Click( byval h as TK_HOST ptr, byval px as single, byval py as single, _
+                         byval button as long = SDL_BUTTON_LEFT, byval clicks as long = 1 )
+    tkTest_PushButton( h, true, px, py, button, clicks )
+    tkTest_PushButton( h, false, px, py, button, clicks )
+end sub
+
+public sub tkTest_PushWheel( byval h as TK_HOST ptr, byval px as single, byval py as single, _
+                             byval dx as single, byval dy as single )
+    dim as SDL_Event e
+    e.type = SDL_EVENT_MOUSE_WHEEL
+    e.wheel.windowID = h->winId
+    e.wheel.x = dx : e.wheel.y = dy
+    e.wheel.direction = SDL_MOUSEWHEEL_NORMAL
+    e.wheel.mouse_x = px / h->fDensity : e.wheel.mouse_y = py / h->fDensity
+    SDL_PushEvent( @e )
+    tkHost_Pump( h )
+end sub
+
+public sub tkTest_PushKey( byval h as TK_HOST ptr, byval key as long, byval mods as long = 0, byval bDown as boolean = true, _
+                           byval scancode as long = 0 )
+    dim as SDL_Event e
+    e.type = iif( bDown, SDL_EVENT_KEY_DOWN, SDL_EVENT_KEY_UP )
+    e.key.windowID = h->winId
+    e.key.key = key
+    e.key.mod_ = mods
+    e.key.scancode = scancode
+    e.key.down = bDown
+    SDL_PushEvent( @e )
+    tkHost_Pump( h )
+end sub
+
+' Typed text, as the OS delivers it after a key: UTF-8.
+public sub tkTest_PushText( byval h as TK_HOST ptr, byref s as ustring )
+    gPushText = s
+    dim as SDL_Event e
+    e.type = SDL_EVENT_TEXT_INPUT
+    e.text.windowID = h->winId
+    e.text.text = strptr( gPushText )
+    SDL_PushEvent( @e )
+    tkHost_Pump( h )
+end sub
+
+' A drop from the OS, as SDL delivers one: BEGIN, a FILE per path (or one TEXT), COMPLETE at the
+' window-pixel point. The strings must outlive the pump, so they live here.
+dim shared as string gDropData( 0 to 15 )
+public sub tkTest_PushDrop( byval h as TK_HOST ptr, byref items as string, byval px as single, byval py as single, _
+                            byval bText as boolean = false )
+    dim as SDL_Event e
+    e.type = SDL_EVENT_DROP_BEGIN
+    e.drop.windowID = h->winId
+    SDL_PushEvent( @e )
+    dim as string rest = items
+    dim as long n = 0
+    while (len( rest ) > 0) andalso (n <= ubound( gDropData ))
+        dim as long nl = iif( bText, 0, instr( rest, chr( 10 ) ) )
+        if nl then
+            gDropData(n) = left( rest, nl - 1 ) : rest = mid( rest, nl + 1 )
+        else
+            gDropData(n) = rest : rest = ""
+        end if
+        dim as SDL_Event f
+        f.type = iif( bText, SDL_EVENT_DROP_TEXT, SDL_EVENT_DROP_FILE )
+        f.drop.windowID = h->winId
+        f.drop.x = px / h->fDensity : f.drop.y = py / h->fDensity
+        f.drop.data = strptr( gDropData(n) )
+        SDL_PushEvent( @f )
+        n += 1
+    wend
+    dim as SDL_Event c
+    c.type = SDL_EVENT_DROP_COMPLETE
+    c.drop.windowID = h->winId
+    c.drop.x = px / h->fDensity : c.drop.y = py / h->fDensity
+    SDL_PushEvent( @c )
+    tkHost_Pump( h )
+end sub
+
+public sub tkTest_PushEditing( byval h as TK_HOST ptr, byref s as ustring, byval nStart as long, byval nLen as long )
+    gPushText = s
+    dim as SDL_Event e
+    e.type = SDL_EVENT_TEXT_EDITING
+    e.edit.windowID = h->winId
+    e.edit.text = strptr( gPushText )
+    e.edit.start = nStart
+    e.edit.length = nLen
+    SDL_PushEvent( @e )
+    tkHost_Pump( h )
+end sub
+
+public sub tkTest_PushWindowEvent( byval h as TK_HOST ptr, byval t as Uint32 )
+    dim as SDL_Event e
+    e.type = t
+    e.window.windowID = h->winId
+    SDL_PushEvent( @e )
+    tkHost_Pump( h )
+end sub
+
+' ---- geometry ------------------------------------------------------------------------------
+' Centre of a widget, window pixels.
+public function tkTest_CX( byval w as TK_WIDGET ptr ) as single
+    dim as TKRECT a
+    tkWidget_AbsRect( w, a )
+    return (a.left + a.right) / 2
+end function
+
+public function tkTest_CY( byval w as TK_WIDGET ptr ) as single
+    dim as TKRECT a
+    tkWidget_AbsRect( w, a )
+    return (a.top + a.bottom) / 2
+end function
+
+' ---- time -----------------------------------------------------------------------------------
+' Pump real time for ms: timers fire, popups map. ALSO THE X11 SETTLE: mapping a window there
+' delivers a real enter plus a motion at the physical cursor, which must land BEFORE a test's
+' synthetic hover, not after it.
+public sub tkTest_PumpFor( byval h as TK_HOST ptr, byval ms as long )
+    dim as double t0 = timer
+    dim as SDL_Event e
+    while (timer - t0) * 1000 < ms
+        if SDL_WaitEventTimeout( @e, 10 ) then
+            tkHost_Dispatch( h, @e )
+            tkHost_Reap()
+        end if
+        tkHost_Pump( h )
+    wend
+end sub
+
+' ---- pixels ---------------------------------------------------------------------------------
+private function ReadRect( byval h as TK_HOST ptr, byval x as long, byval y as long, byval w as long, _
+                           byval hh as long ) as SDL_Surface ptr
+    if (w <= 0) orelse (hh <= 0) then return 0
+    dim as SDL_Rect r
+    r.x = x : r.y = y : r.w = w : r.h = hh
+    dim as SDL_Surface ptr s0 = SDL_RenderReadPixels( h->renderer, @r )
+    if s0 = 0 then return 0
+    dim as SDL_Surface ptr s = SDL_ConvertSurface( s0, SDL_PIXELFORMAT_ARGB8888 )
+    SDL_DestroySurface( s0 )
+    return s
+end function
+
+' Distinct colours in a window-pixel rect of the back buffer (render with tkHost_RenderTo( h,
+' false ) first). c0 = the first colour met, top-left first.
+public function tkTest_TonesIn( byval h as TK_HOST ptr, byval x as long, byval y as long, byval w as long, _
+                                byval hh as long, byref c0 as ulong ) as long
+    dim as SDL_Surface ptr s = ReadRect( h, x, y, w, hh )
+    if s = 0 then return 0
+    dim tones(0 to 63) as ulong
+    dim as long n = 0
+    for yy as long = 0 to s->h - 1
+        dim as ulong ptr row = cast( ulong ptr, cast( ubyte ptr, s->pixels ) + yy * s->pitch )
+        for xx as long = 0 to s->w - 1
+            dim as ulong c = row[xx] and &h00FFFFFFul
+            dim as boolean f = false
+            for t as long = 0 to n - 1
+                if tones(t) = c then f = true : exit for
+            next
+            if (f = false) andalso (n < 64) then tones(n) = c : n += 1
+        next
+    next
+    if n > 0 then c0 = tones(0)
+    SDL_DestroySurface( s )
+    return n
+end function
+
+' The colour at one window pixel (alpha forced opaque).
+public function tkTest_PixelAt( byval h as TK_HOST ptr, byval x as long, byval y as long ) as ulong
+    dim as SDL_Surface ptr s = ReadRect( h, x, y, 1, 1 )
+    if s = 0 then return 0
+    dim as ulong c = *cast( ulong ptr, s->pixels ) or &hFF000000ul
+    SDL_DestroySurface( s )
+    return c
+end function
+
+' FNV-1a 64 over the RGB of a rect: a pinned digest moving is a rendering change.
+public function tkTest_HashRect( byval h as TK_HOST ptr, byval x as long, byval y as long, byval w as long, _
+                                 byval hh as long ) as ulongint
+    dim as ulongint hv = &hCBF29CE484222325ull
+    dim as SDL_Surface ptr s = ReadRect( h, x, y, w, hh )
+    if s = 0 then return 0
+    for yy as long = 0 to s->h - 1
+        dim as ubyte ptr row = cast( ubyte ptr, s->pixels ) + yy * s->pitch
+        for xx as long = 0 to s->w * 4 - 1
+            if (xx and 3) = 3 then continue for            ' skip alpha
+            hv = (hv xor row[xx]) * &h100000001B3ull
+        next
+    next
+    SDL_DestroySurface( s )
+    return hv
+end function

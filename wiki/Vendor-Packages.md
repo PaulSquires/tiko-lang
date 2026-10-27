@@ -84,8 +84,25 @@ public #include once "sqlite3-residue.ti"
 - **`TIKO_LINK_STATIC`** or **`TIKO_LINK_DYNAMIC`** (each `1`) is defined in the module when an importer wrote `link`; with no `link` anywhere, neither is, and the module's `#else` decides. The mode is part of the module's cache entry, so changing it rebuilds the module.
 - **`sqlite3.ti`** is the C header translated by `tiko c2t ... --shared-macro "SQLITE_API=__attribute__((dllimport))"`: a variable the library exports is written twice, `extern import` for a dynamic link on Windows and plain `extern` otherwise.
 - **`sqlite3-residue.ti`** is written by hand: what the translation could not carry (`SQLITE_STATIC` and `SQLITE_TRANSIENT`, which are pointers), each with the reason.
-- **`tiko.toml`** says what the package ships: `[vendor.sqlite3] links = ["static", "dynamic"]`.
+- **`tiko.toml`** says what the package ships: `[vendor.sqlite3] links = ["static", "dynamic"]`, and what a module needs beside the program at run time: `runtime = [...]` (below).
 - **`lib/`** holds the library files. They are not part of the source: `build/vendorfetch.sh` downloads them, or builds them from the library's source where no binary is published, each archive pinned by version and SHA-256, from the module's `fetch.toml`.
+
+### Files a module needs at run time
+
+Some modules need files that no link names: a font they draw with, a library they load themselves with `SDL_LoadObject` or `dylibload`. The package lists them in its `tiko.toml`, in the module's table:
+
+```toml
+[vendor.ui]
+runtime = ["fonts/ui.ttf", "fonts/ui-mono.ttf", "lib/editcore"]
+```
+
+- Each entry is a path relative to the **module's** directory, as `#foreignlib "lib/x"` is. It may climb out of it with `..`; an absolute path is `TKO0144`.
+- An entry whose file name has **no extension** is a shared library, spelled as the target spells one: `lib/editcore` is `lib/editcore.dll` for windows-x86_64 and `lib/libeditcore.so` for linux-x86_64.
+- After a link that succeeds, each listed file of **each module the program imports** is copied into the output's directory, flat, under its own file name. A copy already there with the same size and no older is left alone. A module of the package that the program does not import brings nothing.
+- A listed file that is not there is `TKO0176`, before anything is compiled: `module 'vendor.ui' needs 'lib/editcore' at run time, and there is no '.../pkg/vendor/ui/lib/libeditcore.so'`.
+- A module the module cache supplies brings its files too: they are read from the manifest, not from the compile.
+- [`tiko build`](Category-Tiko-Build)'s `copy_to` copies them along with the program, and `-nocopylibs` turns the copy off.
+- A table may hold `links`, `runtime` or both, and any package's `tiko.toml` may have one, not only `vendor`'s: `[vendor.core]` in a package `widgets` is its module `widgets/core`, and `[vendor.widgets]` its root module.
 
 ### A header read in two places
 
@@ -99,7 +116,7 @@ A public header is read twice: once in the module, and again in every program th
 
 | Option | Effect |
 | --- | --- |
-| `-nocopylibs` | do not copy a vendor package's dynamic library beside the output |
+| `-nocopylibs` | do not copy a vendor package's dynamic library, or a module's runtime files, beside the output |
 | `-norpath` | no `$ORIGIN` run path on a linux-x86_64 link that takes a shared library |
 
 ## Diagnostics
@@ -110,7 +127,8 @@ A public header is read twice: once in the module, and again in every program th
 | `TKO0155` | `link` on a package that ships no library |
 | `TKO0156` | a link mode the package does not ship |
 | `TKO0157` | two imports of one module with different link modes |
-| `TKO0171` | the dynamic library could not be copied beside the output |
+| `TKO0171` | the dynamic library, or a runtime file, could not be copied beside the output |
+| `TKO0176` | a file a module's `runtime` lists is not there |
 | `TKO0369` | `public #include` outside a module file |
 | `TKO0370` | a macro a public header consulted differs between the module and the importer |
 

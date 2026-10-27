@@ -1,0 +1,504 @@
+' tkStatusBar self-test. Real windows, real SDL event queue: every input claim is made by
+' PUSHING the SDL event a user would have produced and pumping the host. Two passes, scale
+' pinned at 1.0 and at 1.75.
+'
+'   selftest            exit code = number of failures
+#import "vendor/tkControls/tkStatusBar"
+#import "vendor/tkControls/tkTest"
+using tkStatusBar
+using tkTooltip
+using tkTheme
+using tkTest
+using tkHost
+using tkPaint
+
+dim shared as long gDownIdx, gDownCount, gDownClicks, gUpIdx, gUpCount
+dim shared as long gRDownIdx, gRDownCount, gRUpCount, gLeaveIdx, gLeaveCount
+dim shared as long gMoveIdx, gMoveHot, gHoverIdx, gHoverCount
+dim shared as long gClickIdx, gClickCount, gClickClicks
+dim shared as boolean gSuppressUp
+dim shared as long gPaintCalls, gPaintHot
+dim shared as long gPad(0 to 1)
+
+function OnMsg( byval m as TKSTATUSBAR_MESSAGEINFO ptr ) as boolean
+    select case m->msg
+    case TKM_LBUTTONDOWN
+        gDownIdx = m->idx : gDownCount += 1 : gDownClicks = m->clicks
+    case TKM_LBUTTONUP
+        gUpIdx = m->idx : gUpCount += 1
+        if gSuppressUp then return true
+    case TKM_RBUTTONDOWN
+        gRDownIdx = m->idx : gRDownCount += 1
+    case TKM_RBUTTONUP
+        gRUpCount += 1
+    case TKM_MOUSELEAVE
+        gLeaveIdx = m->idx : gLeaveCount += 1
+    case TKM_MOUSEMOVE
+        gMoveIdx = m->idx : gMoveHot = tkStatusBar_GetHot( m->hStatusBar )
+    case TKSB_MOUSEHOVER
+        gHoverIdx = m->idx : gHoverCount += 1
+    end select
+    return false
+end function
+
+sub OnClick( byval hBar as TK_WIDGET ptr, byval idx as long, byval clicks as long )
+    gClickIdx = idx : gClickCount += 1 : gClickClicks = clicks
+end sub
+
+function OnTip( byval hBar as TK_WIDGET ptr, byval idx as long ) as ustring
+    dim as ustring s = tkStatusBar_GetText( hBar, idx )
+    if len( s ) = 0 then return ""
+    return "Panel " & idx & " -> " & s
+end function
+
+function PanelColor( byval i as long ) as ulong
+    return tkRGB( 40 + 40 * i, 200 - 30 * i, 90 )
+end function
+
+sub OnPaintPanel( byval p as TKSTATUSBAR_PAINTINFO ptr )
+    gPaintCalls += 1
+    if p->isHot then gPaintHot = p->itemID
+    p->b->SetBackColor( PanelColor( p->itemID ) )
+    p->b->PaintRect( @p->rc )
+end sub
+
+' The README's formula, recomputed independently and compared rect for rect.
+function LayoutMatches( byval bar as TK_WIDGET ptr, byval f as TTF_Font ptr, byref detail as string ) as boolean
+    dim as long n = tkStatusBar_GetCount( bar )
+    detail = ""
+    if n = 0 then return true
+    dim as long pad = tkStatusBar_GetPadding( bar )
+    dim as long spring = tkStatusBar_GetExpandPanel( bar )
+    dim wE( 0 to n - 1 ) as long
+    dim as long total = 0
+    for i as long = 0 to n - 1
+        dim as long nw = tkText_Width( f, tkStatusBar_GetText( bar, i ) ) + 2 * pad
+        if nw < tkStatusBar_GetPanelMinWidth( bar, i ) then nw = tkStatusBar_GetPanelMinWidth( bar, i )
+        wE(i) = nw
+        total += nw
+    next
+    dim as long leftover = bar->cw - total
+    if (leftover > 0) andalso (spring >= 0) andalso (spring < n) then wE(spring) += leftover
+    dim as long xPos = 0
+    dim as boolean ok = true
+    for i as long = 0 to n - 1
+        dim as TKRECT rc
+        tkStatusBar_GetPanelRect( bar, i, rc )
+        if (rc.left <> xPos) orelse (rc.right <> xPos + wE(i)) orelse (rc.top <> 0) orelse (rc.bottom <> bar->ch) then
+            ok = false
+            detail &= " [" & i & ": " & tkRect_Str( rc ) & " want " & xPos & ".." & (xPos + wE(i)) & "]"
+        end if
+        xPos += wE(i)
+    next
+    return ok
+end function
+
+' A panel's rect in WINDOW pixels.
+sub PanelAbs( byval bar as TK_WIDGET ptr, byval i as long, byref a as TKRECT )
+    dim as TKRECT rc, ab
+    tkStatusBar_GetPanelRect( bar, i, rc )
+    tkWidget_AbsRect( bar, ab )
+    tkRect_Set( a, ab.left + rc.left, ab.top + rc.top, ab.left + rc.right, ab.top + rc.bottom )
+end sub
+
+function PanelW( byval bar as TK_WIDGET ptr, byval i as long ) as long
+    dim as TKRECT rc
+    tkStatusBar_GetPanelRect( bar, i, rc )
+    return rc.right - rc.left
+end function
+
+function WaitTip( byval h as TK_HOST ptr, byval bar as TK_WIDGET ptr, byval want as boolean, byval ms as long ) as boolean
+    dim as double t0 = timer
+    dim as SDL_Event e
+    while (timer - t0) * 1000 < ms
+        if SDL_WaitEventTimeout( @e, 20 ) then tkHost_Dispatch( h, @e )
+        if h->bDirty then tkHost_Render( h )
+        if tkTooltip_IsVisible( tkStatusBar_GetTooltipHandle( bar ) ) = want then return true
+    wend
+    return false
+end function
+
+' ==========================================================================================
+sub RunPass( byval fScale as single )
+    tkTest_Begin( "scale " & fScale )
+    gDownCount = 0 : gUpCount = 0 : gRDownCount = 0 : gRUpCount = 0 : gLeaveCount = 0
+    gHoverCount = 0 : gClickCount = 0 : gPaintCalls = 0
+    dim as TK_HOST ptr h = tkHost_Create( "tkStatusBar selftest", 800, 400, tkHost_FontDir() & TK_FONT_UI, fScale )
+    if h = 0 then tkTest_Check( "host created", false, *SDL_GetError() ) : exit sub
+    tkTest_Check( "scale pinned", h->fScale = fScale, "" & h->fScale )
+    dim as TTF_Font ptr fText = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 10 )
+    tkTest_Check( "font opened", fText <> 0 )
+    dim as long pw, ph
+    tkHost_PixelSize( h, pw, ph )
+    dim as string d
+
+    ' ---- A: defaults, layout before sizing ---------------------------------------------
+    dim as TK_WIDGET ptr bar = tkStatusBar_Create( tkHost_Root( h ), 100 )
+    tkTest_Check( "padding default scaled at create", tkStatusBar_GetPadding( bar ) = cint( 8 * fScale ), "" & tkStatusBar_GetPadding( bar ) )
+    gPad(iif( fScale > 1.5, 1, 0 )) = tkStatusBar_GetPadding( bar )
+    tkTest_Check( "empty: count 0, no spring, no font", tkStatusBar_GetCount( bar ) = 0 andalso tkStatusBar_GetExpandPanel( bar ) = -1 andalso tkStatusBar_GetFont( bar ) = 0 )
+    tkTest_Check( "never focusable", bar->isFocusable = false )
+    tkTest_Check( "AddPanel returns indices", tkStatusBar_AddPanel( bar, "Ready", 1001 ) = 0 andalso tkStatusBar_AddPanel( bar, "", 1002 ) = 1 )
+    tkStatusBar_AddPanel( bar, "Ln 1, Col 1", 1003 )
+    tkStatusBar_AddPanel( bar, "CRLF", 1004 )
+    tkTest_Check( "5th panel index 4", tkStatusBar_AddPanel( bar, "UTF-8", 1005 ) = 4 )
+    tkTest_Check( "SetFont TRUE", tkStatusBar_SetFont( bar, fText ) andalso tkStatusBar_GetFont( bar ) = fText )
+    tkTest_Check( "SetExpandPanel(1)", tkStatusBar_SetExpandPanel( bar, 1 ) andalso tkStatusBar_GetExpandPanel( bar ) = 1 )
+    tkTest_Check( "SetPanelMinWidth(2)", tkStatusBar_SetPanelMinWidth( bar, 2, tkHost_Scale( h, 110 ) ) andalso tkStatusBar_GetPanelMinWidth( bar, 2 ) = tkHost_Scale( h, 110 ) )
+    dim as TKRECT rc
+    tkTest_Check( "before sizing: GetPanelRect TRUE, rect empty", tkStatusBar_GetPanelRect( bar, 0, rc ) andalso tkRect_IsEmpty( rc ), tkRect_Str( rc ) )
+    tkTest_Check( "invalid index: GetPanelRect FALSE", tkStatusBar_GetPanelRect( bar, 5, rc ) = false andalso tkRect_IsEmpty( rc ) )
+
+    dim as long barH = tkHost_Scale( h, 24 )
+    tkWidget_SetPos( bar, 0, ph - barH, pw, barH )
+    tkTest_Check( "layout = README formula", LayoutMatches( bar, fText, d ), d )
+    dim as long pad = tkStatusBar_GetPadding( bar )
+    dim as long w0 = tkText_Width( fText, "Ready" ) + 2 * pad
+    tkTest_Check( "auto panel = text + 2*padding", PanelW( bar, 0 ) = w0, PanelW( bar, 0 ) & " vs " & w0 )
+    tkTest_Check( "floor panel = nMinWidth (text narrower)", PanelW( bar, 2 ) = tkHost_Scale( h, 110 ), "" & PanelW( bar, 2 ) )
+    dim as long others = w0 + tkHost_Scale( h, 110 ) + (tkText_Width( fText, "CRLF" ) + 2 * pad) + (tkText_Width( fText, "UTF-8" ) + 2 * pad)
+    tkTest_Check( "spring = client - the rest", PanelW( bar, 1 ) = pw - others, PanelW( bar, 1 ) & " vs " & (pw - others) )
+    tkStatusBar_GetPanelRect( bar, 4, rc )
+    tkTest_Check( "right group flush with the edge", rc.right = pw, rc.right & " vs " & pw )
+    tkTest_Check( "every panel full height", rc.top = 0 andalso rc.bottom = barH )
+
+    ' the floor is not a fixed width
+    tkStatusBar_SetText( bar, 2, "Ln 12345, Col 67890 (selection 999)" )
+    dim as long wLong = tkText_Width( fText, "Ln 12345, Col 67890 (selection 999)" ) + 2 * pad
+    tkTest_Check( "floor: long text grows past it", wLong > tkHost_Scale( h, 110 ) andalso PanelW( bar, 2 ) = wLong, PanelW( bar, 2 ) & " vs " & wLong )
+    tkTest_Check( "floor: layout still the formula", LayoutMatches( bar, fText, d ), d )
+    tkStatusBar_SetText( bar, 2, "Ln 1, Col 1" )
+
+    ' GetItemRect is the last COMPUTED rect; GetPanelRect forces the layout
+    dim as TKRECT rOld = tkStatusBar_GetItemRect( bar, 3 )
+    tkStatusBar_SetText( bar, 3, "CRLF + LF + CR" )
+    dim as TKRECT rStale = tkStatusBar_GetItemRect( bar, 3 )
+    tkTest_Check( "GetItemRect stale after a mutator", rStale.left = rOld.left andalso rStale.right = rOld.right, tkRect_Str( rStale ) )
+    tkTest_Check( "GetPanelRect fresh", PanelW( bar, 3 ) = tkText_Width( fText, "CRLF + LF + CR" ) + 2 * pad, "" & PanelW( bar, 3 ) )
+    tkStatusBar_GetPanelRect( bar, 4, rc )
+    tkTest_Check( "auto-size: spring gave way, group still flush", rc.right = pw andalso LayoutMatches( bar, fText, d ), d )
+    tkStatusBar_SetText( bar, 3, "CRLF" )
+    tkTest_Check( "invalid index: GetItemRect empty", tkRect_IsEmpty( tkStatusBar_GetItemRect( bar, 9 ) ) )
+
+    ' overflow: nothing shrinks, panels run past the edge
+    tkWidget_SetSize( bar, tkHost_Scale( h, 150 ), barH )
+    tkTest_Check( "overflow: spring at natural width", PanelW( bar, 1 ) = 2 * pad, "" & PanelW( bar, 1 ) )
+    tkStatusBar_GetPanelRect( bar, 4, rc )
+    tkTest_Check( "overflow: runs past the right edge", rc.right > bar->cw andalso LayoutMatches( bar, fText, d ), rc.right & " " & d )
+    tkTest_Check( "overflow: HitTest past the last visible", tkStatusBar_HitTest( bar, bar->cw, 2 ) = -1 )
+    tkWidget_SetSize( bar, pw, barH )
+
+    ' padding is a layout input
+    tkStatusBar_SetPadding( bar, tkHost_Scale( h, 20 ) )
+    tkTest_Check( "SetPadding re-lays-out", tkStatusBar_GetPadding( bar ) = tkHost_Scale( h, 20 ) andalso PanelW( bar, 0 ) = tkText_Width( fText, "Ready" ) + 2 * tkHost_Scale( h, 20 ) andalso LayoutMatches( bar, fText, d ), d )
+    tkStatusBar_SetPadding( bar, -3 )
+    tkTest_Check( "SetPadding clamps at 0", tkStatusBar_GetPadding( bar ) = 0 )
+    tkStatusBar_SetPadding( bar, pad )
+    tkTest_Check( "SetPanelMinWidth clamps at 0", tkStatusBar_SetPanelMinWidth( bar, 3, -5 ) andalso tkStatusBar_GetPanelMinWidth( bar, 3 ) = 0 )
+    tkTest_Check( "SetPanelMinWidth invalid FALSE", tkStatusBar_SetPanelMinWidth( bar, 7, 10 ) = false andalso tkStatusBar_GetPanelMinWidth( bar, 7 ) = 0 )
+
+    ' a hidden panel: width 0, its neighbours meet, never hit (tk addition)
+    tkTest_Check( "SetPanelVisible(3, FALSE)", tkStatusBar_SetPanelVisible( bar, 3, false ) andalso (tkStatusBar_GetPanelVisible( bar, 3 ) = false) )
+    dim as TKRECT r2h, r3h, r4h
+    tkStatusBar_GetPanelRect( bar, 2, r2h )
+    tkStatusBar_GetPanelRect( bar, 3, r3h )
+    tkStatusBar_GetPanelRect( bar, 4, r4h )
+    tkTest_Check( "hidden: width 0, its neighbours meet", (r3h.right = r3h.left) andalso (r4h.left = r2h.right) andalso (r4h.right = pw), tkRect_Str( r3h ) )
+    tkTest_Check( "hidden: the next panel is hit where it was", tkStatusBar_HitTest( bar, r4h.left + 1, 2 ) = 4 )
+    tkTest_Check( "SetPanelVisible invalid FALSE", tkStatusBar_SetPanelVisible( bar, 9, false ) = false )
+    tkStatusBar_SetPanelVisible( bar, 3, true )
+    tkTest_Check( "shown again: the formula", tkStatusBar_GetPanelVisible( bar, 3 ) andalso LayoutMatches( bar, fText, d ), d )
+
+    ' the spring is a stored index, kept honest
+    tkTest_Check( "insert at 0 -> 0", tkStatusBar_InsertPanel( bar, 0, "A", 7 ) = 0 )
+    tkTest_Check( "insert before spring shifts it", tkStatusBar_GetExpandPanel( bar ) = 2 )
+    tkTest_Check( "insert clamps high", tkStatusBar_InsertPanel( bar, 999, "Z" ) = 6 )
+    tkTest_Check( "insert after spring leaves it", tkStatusBar_GetExpandPanel( bar ) = 2 )
+    tkTest_Check( "insert clamps low", tkStatusBar_InsertPanel( bar, -5, "B" ) = 0 andalso tkStatusBar_GetExpandPanel( bar ) = 3 )
+    tkTest_Check( "inserted itemData", tkStatusBar_GetItemData( bar, 1 ) = 7 andalso tkStatusBar_GetText( bar, 1 ) = "A" )
+    tkStatusBar_DeletePanel( bar, 0 ) : tkStatusBar_DeletePanel( bar, 0 )
+    tkTest_Check( "delete before spring shifts it down", tkStatusBar_GetExpandPanel( bar ) = 1 )
+    tkTest_Check( "delete after spring leaves it", tkStatusBar_DeletePanel( bar, 5 ) andalso tkStatusBar_GetExpandPanel( bar ) = 1 andalso tkStatusBar_GetCount( bar ) = 5 )
+    tkTest_Check( "delete invalid FALSE", tkStatusBar_DeletePanel( bar, 99 ) = false andalso tkStatusBar_DeletePanel( bar, -1 ) = false )
+    tkTest_Check( "SetExpandPanel invalid refused, spring kept", tkStatusBar_SetExpandPanel( bar, 99 ) = false andalso tkStatusBar_GetExpandPanel( bar ) = 1 )
+    tkTest_Check( "delete the spring clears it", tkStatusBar_DeletePanel( bar, 1 ) andalso tkStatusBar_GetExpandPanel( bar ) = -1 )
+    tkStatusBar_InsertPanel( bar, 1, "", 1002 )
+    tkStatusBar_GetPanelRect( bar, 4, rc )
+    tkTest_Check( "no spring: bar stops short", rc.right < pw andalso LayoutMatches( bar, fText, d ), rc.right & d )
+    tkTest_Check( "SetExpandPanel(-1) TRUE", tkStatusBar_SetExpandPanel( bar, -1 ) andalso tkStatusBar_GetExpandPanel( bar ) = -1 )
+    tkStatusBar_SetExpandPanel( bar, 1 )
+    tkStatusBar_SetPanelMinWidth( bar, 2, tkHost_Scale( h, 110 ) )
+    tkTest_Check( "rebuilt bar = formula", LayoutMatches( bar, fText, d ), d )
+    tkTest_Check( "item data / text, invalid index", tkStatusBar_GetItemData( bar, 0 ) = 1001 andalso tkStatusBar_GetItemData( bar, 9 ) = 0 _
+                  andalso tkStatusBar_GetText( bar, 9 ) = "" andalso tkStatusBar_SetText( bar, 9, "x" ) = false andalso tkStatusBar_SetItemData( bar, 9, 1 ) = false )
+
+    ' Clear drops everything, spring included
+    dim as TK_WIDGET ptr bc = tkStatusBar_Create( tkHost_Root( h ), 101 )
+    tkStatusBar_AddPanel( bc, "x" ) : tkStatusBar_AddPanel( bc, "y" ) : tkStatusBar_SetExpandPanel( bc, 1 )
+    tkStatusBar_Clear( bc )
+    tkTest_Check( "Clear: count 0, spring -1", tkStatusBar_GetCount( bc ) = 0 andalso tkStatusBar_GetExpandPanel( bc ) = -1 )
+    tkWidget_Destroy( bc )
+
+    ' ---- B: input through the real dispatch --------------------------------------------
+    tkStatusBar_SetMessageCallback( bar, @OnMsg )
+    tkStatusBar_SetClickCallback( bar, @OnClick )
+    tkHost_Pump( h )
+    dim as TKRECT a
+    dim as long nOK = 0
+    dim as string sBad
+    for i as long = 0 to 4
+        gDownIdx = -9 : gUpIdx = -9 : gClickIdx = -9
+        PanelAbs( bar, i, a )
+        tkTest_Click( h, (a.left + a.right) / 2, (a.top + a.bottom) / 2 )
+        if (gDownIdx = i) andalso (gUpIdx = i) andalso (gClickIdx = i) then nOK += 1 else sBad &= " " & i & ":" & gDownIdx & "/" & gUpIdx & "/" & gClickIdx
+    next
+    tkTest_Check( "click on each panel delivers its index (down, up, click)", nOK = 5, sBad )
+    ' the boundary pixels: a panel's left pixel is its own, the pixel before is the neighbour's
+    PanelAbs( bar, 3, a )
+    gClickIdx = -9
+    tkTest_Click( h, a.left + 0.5, (a.top + a.bottom) / 2 )
+    tkTest_Check( "click on panel 3's left pixel -> 3", gClickIdx = 3, "" & gClickIdx )
+    tkTest_Click( h, a.left - 0.5, (a.top + a.bottom) / 2 )
+    tkTest_Check( "click one pixel left of it -> 2", gClickIdx = 2, "" & gClickIdx )
+    tkTest_Click( h, a.right - 0.5, (a.top + a.bottom) / 2 )
+    tkTest_Check( "click on panel 3's right pixel -> 3", gClickIdx = 3, "" & gClickIdx )
+    dim as long nHit = 0
+    for i as long = 0 to 4
+        tkStatusBar_GetPanelRect( bar, i, rc )
+        if (tkStatusBar_HitTest( bar, rc.left, 1 ) = i) andalso (tkStatusBar_HitTest( bar, rc.right - 1, barH - 1 ) = i) then nHit += 1
+    next
+    tkTest_Check( "HitTest at both edges of every panel", nHit = 5, "" & nHit )
+    tkTest_Check( "HitTest off the control -> -1", tkStatusBar_HitTest( bar, 5, -1 ) = -1 andalso tkStatusBar_HitTest( bar, 5, barH ) = -1 )
+
+    ' no capture, no focus; press on 3, drag to 4, release fires 4
+    PanelAbs( bar, 3, a )
+    gClickIdx = -9
+    tkTest_PushButton( h, true, (a.left + a.right) / 2, (a.top + a.bottom) / 2 )
+    tkTest_Check( "press takes NO capture", tkHost_GetCapture( h ) = 0 )
+    tkTest_Check( "press takes NO focus", tkHost_GetFocus( h ) <> bar )
+    PanelAbs( bar, 4, a )
+    tkTest_PushMotion( h, (a.left + a.right) / 2, (a.top + a.bottom) / 2 )
+    tkTest_PushButton( h, false, (a.left + a.right) / 2, (a.top + a.bottom) / 2 )
+    tkTest_Check( "press on 3, release on 4 fires 4", gClickIdx = 4, "" & gClickIdx )
+    ' press inside, release outside: no up reaches the bar
+    dim as long nUp0 = gUpCount, nClick0 = gClickCount
+    tkTest_PushButton( h, true, (a.left + a.right) / 2, (a.top + a.bottom) / 2 )
+    tkTest_PushMotion( h, (a.left + a.right) / 2, a.top - tkHost_Scale( h, 40 ) )
+    tkTest_PushButton( h, false, (a.left + a.right) / 2, a.top - tkHost_Scale( h, 40 ) )
+    tkTest_Check( "release outside: no up, no click", gUpCount = nUp0 andalso gClickCount = nClick0, gUpCount & " " & gClickCount )
+    ' double click
+    PanelAbs( bar, 0, a )
+    tkTest_Click( h, (a.left + a.right) / 2, (a.top + a.bottom) / 2, SDL_BUTTON_LEFT, 1 )
+    tkTest_Click( h, (a.left + a.right) / 2, (a.top + a.bottom) / 2, SDL_BUTTON_LEFT, 2 )
+    tkTest_Check( "double click: DOWN reported with clicks = 2", gDownClicks = 2 andalso gDownIdx = 0, gDownClicks & " " & gDownIdx )
+    tkTest_Check( "double click: click callback gets clicks = 2", gClickClicks = 2 andalso gClickIdx = 0, "" & gClickClicks )
+    ' right button: down reported, up not, no click
+    nClick0 = gClickCount
+    PanelAbs( bar, 2, a )
+    tkTest_Click( h, (a.left + a.right) / 2, (a.top + a.bottom) / 2, SDL_BUTTON_RIGHT )
+    tkTest_Check( "right down reported with its panel", gRDownIdx = 2 andalso gRDownCount = 1, gRDownIdx & " " & gRDownCount )
+    tkTest_Check( "right up NOT reported, no click", gRUpCount = 0 andalso gClickCount = nClick0 )
+    ' the message callback's TRUE suppresses the control's own handling (the click)
+    gSuppressUp = true
+    nUp0 = gUpCount : nClick0 = gClickCount
+    tkTest_Click( h, (a.left + a.right) / 2, (a.top + a.bottom) / 2 )
+    tkTest_Check( "suppressed up: seen, no click", gUpCount = nUp0 + 1 andalso gClickCount = nClick0 )
+    gSuppressUp = false
+
+    ' hot tracking
+    PanelAbs( bar, 3, a )
+    tkTest_PushMotion( h, (a.left + a.right) / 2, (a.top + a.bottom) / 2 )
+    tkTest_Check( "hot follows the cursor (3)", tkStatusBar_GetHot( bar ) = 3 )
+    tkTest_Check( "MOUSEMOVE called after the hot update", gMoveIdx = 3 andalso gMoveHot = 3, gMoveIdx & " " & gMoveHot )
+    tkTest_Check( "tip tool index follows the hot panel", tkTooltip_GetToolIndex( tkStatusBar_GetTooltipHandle( bar ) ) = 3 )
+    PanelAbs( bar, 0, a )
+    tkTest_PushMotion( h, (a.left + a.right) / 2, (a.top + a.bottom) / 2 )
+    tkTest_Check( "hot moves (0)", tkStatusBar_GetHot( bar ) = 0 )
+    gLeaveCount = 0
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+    tkTest_Check( "leave clears hot", tkStatusBar_GetHot( bar ) = -1 )
+    tkTest_Check( "MOUSELEAVE reported with idx -1", gLeaveCount = 1 andalso gLeaveIdx = -1, gLeaveCount & " " & gLeaveIdx )
+    ' keyboard: never a tabstop
+    tkTest_PushKey( h, SDLK_TAB )
+    tkTest_Check( "Tab never lands on the bar", tkHost_GetFocus( h ) <> bar )
+    ' disabled: hot cleared, nothing reaches it
+    tkTest_PushMotion( h, (a.left + a.right) / 2, (a.top + a.bottom) / 2 )
+    tkWidget_Enable( bar, false )
+    tkTest_Check( "disable clears hot", tkStatusBar_GetHot( bar ) = -1 )
+    nClick0 = gClickCount
+    tkTest_Click( h, (a.left + a.right) / 2, (a.top + a.bottom) / 2 )
+    tkTest_Check( "disabled: no click", gClickCount = nClick0 )
+    tkWidget_Enable( bar, true )
+
+    ' insert/delete clears a hot index that would now name another panel
+    tkTest_PushMotion( h, (a.left + a.right) / 2, (a.top + a.bottom) / 2 )
+    tkStatusBar_InsertPanel( bar, 0, "new" )
+    tkTest_Check( "insert clears hot", tkStatusBar_GetHot( bar ) = -1 )
+    tkStatusBar_DeletePanel( bar, 0 )
+
+    ' setters are silent: no message, no click
+    dim as long nMsgs0 = gDownCount + gUpCount + gClickCount + gLeaveCount
+    tkStatusBar_SetText( bar, 0, "Ready" ) : tkStatusBar_SetItemData( bar, 0, 1001 ) : tkStatusBar_SetExpandPanel( bar, 1 )
+    tkStatusBar_SetPadding( bar, pad ) : tkStatusBar_Refresh( bar )
+    tkTest_Check( "setters are silent", gDownCount + gUpCount + gClickCount + gLeaveCount = nMsgs0 )
+
+    ' ---- C: pixels -----------------------------------------------------------------------
+    ' a second bar on the BUILT-IN painter (no paint callback), no spring, clickable
+    dim as TK_WIDGET ptr b2 = tkStatusBar_Create( tkHost_Root( h ), 102 )
+    tkStatusBar_SetFont( b2, fText )
+    tkStatusBar_AddPanel( b2, "Alpha" ) : tkStatusBar_AddPanel( b2, "Beta" ) : tkStatusBar_AddPanel( b2, "Gamma" )
+    tkStatusBar_SetClickCallback( b2, @OnClick )
+    tkWidget_SetPos( b2, 0, ph - 2 * barH - tkHost_Scale( h, 10 ), pw, barH )
+    tkTest_Check( "b2 layout = formula (no spring)", LayoutMatches( b2, fText, d ), d )
+    dim as TKSTATUSBAR_COLORS cc
+    tkStatusBar_GetColors( b2, @cc )
+    tkTest_Check( "colours from the theme at create", cc.BackColor = tkTheme_Get().Window andalso cc.DividerColor = tkTheme_Get().Divider )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+    tkHost_RenderTo( h, false )
+    dim as TKRECT a0, a1, a2
+    PanelAbs( b2, 0, a0 ) : PanelAbs( b2, 1, a1 ) : PanelAbs( b2, 2, a2 )
+    dim as long midY = (a0.top + a0.bottom) \ 2
+    tkTest_Check( "built-in: idle panel = BackColor", tkTest_PixelAt( h, a0.left + 1, midY ) = cc.BackColor, hex( tkTest_PixelAt( h, a0.left + 1, midY ) ) )
+    tkTest_Check( "built-in: divider at the panel's right pixel", tkTest_PixelAt( h, a0.right - 1, midY ) = cc.DividerColor, hex( tkTest_PixelAt( h, a0.right - 1, midY ) ) )
+    tkTest_Check( "built-in: divider inset from the top", tkTest_PixelAt( h, a0.right - 1, a0.top ) = cc.BackColor )
+    tkTest_Check( "built-in: no divider after the last panel", tkTest_PixelAt( h, a2.right - 1, midY ) = cc.BackColor )
+    dim as ulong c0
+    tkTest_Check( "built-in: caption drawn inside the padding", tkTest_TonesIn( h, a0.left + pad, a0.top, a0.right - a0.left - 2 * pad, a0.bottom - a0.top, c0 ) > 2 )
+    tkTest_Check( "built-in: the left padding is clear", tkTest_TonesIn( h, a0.left, a0.top, pad, a0.bottom - a0.top, c0 ) = 1 )
+    tkTest_Check( "gap past the last panel = BackColor only", tkTest_TonesIn( h, a2.right, a2.top, pw - a2.right, barH, c0 ) = 1 andalso c0 = (cc.BackColor and &h00FFFFFFul) )
+    tkTest_PushMotion( h, (a1.left + a1.right) / 2, midY )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "built-in: hot clickable panel filled BackColorHot", tkTest_PixelAt( h, a1.left + 1, midY ) = cc.BackColorHot, hex( tkTest_PixelAt( h, a1.left + 1, midY ) ) )
+    tkTest_Check( "built-in: its neighbour is not", tkTest_PixelAt( h, a0.left + 1, midY ) = cc.BackColor )
+    tkStatusBar_SetClickCallback( b2, 0 )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "built-in: not clickable -> no hot fill", tkTest_PixelAt( h, a1.left + 1, midY ) = cc.BackColor )
+    tkStatusBar_SetClickCallback( b2, @OnClick )
+
+    ' the paint callback owns every pixel inside a panel, once per panel
+    tkStatusBar_SetPaintCallback( bar, @OnPaintPanel )
+    PanelAbs( bar, 3, a )
+    tkTest_PushMotion( h, (a.left + a.right) / 2, (a.top + a.bottom) / 2 )
+    gPaintCalls = 0 : gPaintHot = -1
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "paint callback once per panel", gPaintCalls = 5, "" & gPaintCalls )
+    tkTest_Check( "paint callback told which is hot", gPaintHot = 3 )
+    dim as long nCol = 0
+    for i as long = 0 to 4
+        PanelAbs( bar, i, a )
+        if tkTest_PixelAt( h, (a.left + a.right) \ 2, (a.top + a.bottom) \ 2 ) = PanelColor( i ) then nCol += 1
+    next
+    tkTest_Check( "each panel painted in its own rect", nCol = 5, "" & nCol )
+    tkWidget_SetSize( bar, tkHost_Scale( h, 150 ), barH )
+    gPaintCalls = 0
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "overflow: panels past the edge not painted", gPaintCalls < 5 andalso gPaintCalls >= 1, "" & gPaintCalls )
+    tkWidget_SetSize( bar, pw, barH )
+    tkStatusBar_SetPaintCallback( bar, 0 )
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_MOUSE_LEAVE )
+
+    ' ---- D: theme, pinning ---------------------------------------------------------------
+    tkHost_RenderTo( h, false )
+    dim as ulong clrWas = tkStatusBar_GetBackColor( bar )
+    dim as ulong prevClr = tkStatusBar_SetBackColor( bar, &hFF112233ul )
+    tkTest_Check( "SetBackColor returns the previous colour", prevClr = clrWas andalso clrWas = tkTheme_Get().Window, hex( prevClr ) )
+    tkTest_Check( "SetBackColor does not repaint", h->bDirty = false )
+    tkTest_Check( "GetBackColor", tkStatusBar_GetBackColor( bar ) = &hFF112233ul )
+    tkStatusBar_SetItemData( bar, 0, 42 )
+    tkTest_Check( "SetItemData does not repaint", h->bDirty = false )
+    tkStatusBar_SetItemData( bar, 0, 1001 )
+    tkStatusBar_SetText( bar, 0, "Ready" )
+    tkTest_Check( "SetText repaints", h->bDirty = true )
+    tkTheme_Apply( tkTheme_Light() )
+    tkStatusBar_GetColors( b2, @cc )
+    tkTest_Check( "theme reaches an unpinned bar", cc.BackColor = tkTheme_Light().Window andalso cc.BackColorHot = tkTheme_Light().SurfaceHot _
+                  andalso cc.ForeColor = tkTheme_Light().TextDim andalso cc.DividerColor = tkTheme_Light().Divider )
+    tkTest_Check( "SetBackColor pinned the bar", tkStatusBar_GetBackColor( bar ) = &hFF112233ul )
+    tkHost_RenderTo( h, false )
+    tkTest_Check( "pixels follow the theme", tkTest_PixelAt( h, a2.right + 2, midY ) = tkTheme_Light().Window )
+    tkStatusBar_UnpinColors( bar )
+    tkTest_Check( "unpin hands it back to the theme", tkStatusBar_GetBackColor( bar ) = tkTheme_Light().Window )
+    dim as TKSTATUSBAR_COLORS cp = tkStatusBar_ThemeColors( tkTheme_Light() )
+    cp.BackColor = &hFF445566ul
+    tkStatusBar_SetColors( b2, @cp )
+    tkTheme_Apply( tkTheme_Dark() )
+    tkTest_Check( "SetColors pins", tkStatusBar_GetBackColor( b2 ) = &hFF445566ul )
+    tkTest_Check( "dark back on the unpinned bar", tkStatusBar_GetBackColor( bar ) = tkTheme_Dark().Window )
+    tkStatusBar_UnpinColors( b2 )
+    tkTest_Check( "unpin b2", tkStatusBar_GetBackColor( b2 ) = tkTheme_Dark().Window )
+
+    ' ---- E: the per-monitor scale path --------------------------------------------------
+    dim as long pad0 = tkStatusBar_GetPadding( bar ), min0 = tkStatusBar_GetPanelMinWidth( bar, 2 )
+    h->fScaleForced = fScale * 2
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkTest_Check( "rescale: padding x2", tkStatusBar_GetPadding( bar ) = cint( pad0 * 2 ), pad0 & " -> " & tkStatusBar_GetPadding( bar ) )
+    tkTest_Check( "rescale: min width x2", tkStatusBar_GetPanelMinWidth( bar, 2 ) = cint( min0 * 2 ), min0 & " -> " & tkStatusBar_GetPanelMinWidth( bar, 2 ) )
+    tkTest_Check( "rescale: layout = formula with the re-sized font", LayoutMatches( bar, fText, d ), d )
+    tkTest_Check( "rescale: auto panel grew ~x2", PanelW( bar, 0 ) > w0 * 1.8, w0 & " -> " & PanelW( bar, 0 ) )
+    h->fScaleForced = fScale
+    tkTest_PushWindowEvent( h, SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED )
+    tkTest_Check( "rescale back", tkStatusBar_GetPadding( bar ) = pad0 andalso tkStatusBar_GetPanelMinWidth( bar, 2 ) = min0 )
+
+    ' ---- F: the tooltip (a real popup) and the hover message -----------------------------
+    tkHost_Show( h )
+    tkTest_PumpFor( h, 400 )
+    tkStatusBar_SetTooltipCallback( bar, @OnTip )
+    tkStatusBar_SetHoverTime( bar, 150 )
+    gHoverCount = 0 : gHoverIdx = -9
+    PanelAbs( bar, 0, a )
+    tkTest_PushMotion( h, (a.left + a.right) / 2, (a.top + a.bottom) / 2 )
+    tkTest_Check( "tip appears over panel 0", WaitTip( h, bar, true, 1500 ), *SDL_GetError() )
+    dim as TK_TIP ptr tp = tkStatusBar_GetTooltipHandle( bar )
+    tkTest_Check( "tip text from the callback", tp->wszTipBuf = "Panel 0 -> Ready", tp->wszTipBuf )
+    tkTest_Check( "hover message once, with its panel", gHoverCount = 1 andalso gHoverIdx = 0, gHoverCount & " " & gHoverIdx )
+    PanelAbs( bar, 1, a )
+    tkTest_PushMotion( h, (a.left + a.right) / 2, (a.top + a.bottom) / 2 )
+    tkTest_Check( "moving to another panel hides the tip", WaitTip( h, bar, false, 500 ) )
+    tkTest_PumpFor( h, 400 )
+    tkTest_Check( "empty callback text suppresses the spring tip", tkTooltip_IsVisible( tp ) = false )
+    tkTest_PushMotion( h, 2, 2 )
+    WaitTip( h, bar, false, 300 )
+    ' no callback: the panel's own Text
+    tkStatusBar_SetHoverTime( b2, 150 )
+    PanelAbs( b2, 1, a )
+    tkTest_PushMotion( h, (a.left + a.right) / 2, (a.top + a.bottom) / 2 )
+    tkTest_Check( "b2 tip appears", WaitTip( h, b2, true, 1500 ) )
+    tkTest_Check( "no callback: the panel's own text", tkStatusBar_GetTooltipHandle( b2 )->wszTipBuf = "Beta", tkStatusBar_GetTooltipHandle( b2 )->wszTipBuf )
+    tkTest_PushMotion( h, 2, 2 )
+    WaitTip( h, b2, false, 500 )
+
+    ' ApplyFonts re-measures
+    dim as TTF_Font ptr fBig = tkHost_OpenFont( h, tkHost_FontDir() & TK_FONT_UI, 16 )
+    dim as long wSmall = PanelW( b2, 0 )
+    tkStatusBar_ApplyFonts( b2, fBig, 0 )
+    tkTest_Check( "ApplyFonts re-measures", PanelW( b2, 0 ) > wSmall andalso LayoutMatches( b2, fBig, d ), wSmall & " -> " & PanelW( b2, 0 ) )
+    tkTest_Check( "the tooltip handle is the bar's", tkTooltip_GetAttached( tp ) = bar )
+
+    tkHost_Destroy( h )
+end sub
+
+
+' ---- with NO font anywhere, text measures zero: every panel is 2*padding ----------------
+sub RunNoFont()
+    tkTest_Begin( "no font" )
+    dim as TK_HOST ptr h = tkHost_Create( "tkStatusBar selftest", 320, 200, "", 1 )
+    dim as TK_WIDGET ptr bar = tkStatusBar_Create( tkHost_Root( h ), 1 )
+    tkStatusBar_AddPanel( bar, "Ready" ) : tkStatusBar_AddPanel( bar, "CRLF" )
+    tkWidget_SetPos( bar, 0, 170, 320, 24 )
+    tkTest_Check( "no font: panel = 2*padding", PanelW( bar, 0 ) = 16 andalso PanelW( bar, 1 ) = 16, PanelW( bar, 0 ) & " " & PanelW( bar, 1 ) )
+    tkHost_Destroy( h )
+end sub
+
+
+' ==========================================================================================
+if tkTest_Init() = false then end 99
+
+RunNoFont()
+RunPass( 1.0 )
+RunPass( 1.75 )
+
+tkTest_Begin( "cross-pass" )
+tkTest_Check( "padding scales with the scale", gPad(0) = 8 andalso gPad(1) = 14, gPad(0) & " -> " & gPad(1) )
+dim as long nFail = tkTest_Report( "tkStatusBar" )
+tkTest_Quit()
+end nFail

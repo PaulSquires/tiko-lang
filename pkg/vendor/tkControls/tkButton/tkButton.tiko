@@ -1,0 +1,1055 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkButton -- PsButton on SDL3 + SDL_ttf, a port of pkg/vendor/PsControls/PsButton/PsButton.tiko onto
+' tkHost. Feasibility prototype; see examples/tkControls/FINDINGS.md.
+'
+' WHAT IS UNCHANGED, by design: the layout model (LayoutButton is the Win32 function with GDI
+' measuring swapped for SDL_ttf), the four moods and their precedence, the colours, the four
+' callbacks, the press/slide-off/release gesture, silent setters with tkButton_Click as the
+' one notifying action, AutoSize, and GetIdealSize being valid before the control is sized.
+'
+' WHAT IS GONE, because the HWND is gone: WM_SETTEXT/GETTEXT (no generic window text),
+' WM_GETDLGCODE (the host owns Tab), the WM_CHAR swallow (SDL never beeps), the 100 ms hover
+' poll (the host GUARANTEES the leave), TTM_* access to a comctl32 tooltip, and PsRegistry.
+#module "tkButton"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+#import "../tkTooltip" public
+using tkHost
+using tkPaint
+using tkTheme
+using tkTooltip
+
+public enum
+    BTN_ALIGN_LEFT = 0
+    BTN_ALIGN_CENTER
+    BTN_ALIGN_RIGHT
+end enum
+
+public enum
+    BTN_MOOD_IDLE = 0
+    BTN_MOOD_HOT
+    BTN_MOOD_PRESSED
+    BTN_MOOD_DISABLED
+end enum
+
+public enum
+    BTN_PART_BUTTON = 0
+    BTN_PART_TEXT
+    BTN_PART_ICONLEFT
+    BTN_PART_ICONRIGHT
+end enum
+
+public const as long TKBUTTON_DEFAULT_PADLEFT     = 12
+public const as long TKBUTTON_DEFAULT_PADRIGHT    = 12
+public const as long TKBUTTON_DEFAULT_PADTOP      = 6
+public const as long TKBUTTON_DEFAULT_PADBOTTOM   = 6
+public const as long TKBUTTON_DEFAULT_ICONGAP     = 8
+public const as long TKBUTTON_DEFAULT_ICONWIDTH   = 16
+public const as long TKBUTTON_DEFAULT_ICONHEIGHT  = 16
+public const as long TKBUTTON_DEFAULT_CURVATURE   = 12
+public const as long TKBUTTON_DEFAULT_BORDERTHICK = 1
+public const as long TKBUTTON_DEFAULT_FOCUSGAP    = 2
+public const as long TKBUTTON_DEFAULT_FOCUSTHICK  = 1
+
+' The Win32 control's dark defaults, value for value (COLORREF BGR(r,g,b) -> tkRGB(r,g,b)).
+public type TKBUTTON_COLORS
+    BackColor           as ulong = &hFF2C313Aul    ' ( 44, 49, 58)
+    ForeColor           as ulong = &hFFC8CDD6ul    ' (200,205,214)
+    BorderColor         as ulong = &hFF2C313Aul
+    IconColor           as ulong = &hFFC8CDD6ul
+    BackColorHot        as ulong = &hFF373D48ul    ' ( 55, 61, 72)
+    ForeColorHot        as ulong = &hFFE2E6EEul    ' (226,230,238)
+    BorderColorHot      as ulong = &hFF373D48ul
+    IconColorHot        as ulong = &hFFE2E6EEul
+    BackColorPressed    as ulong = &hFF264F78ul    ' ( 38, 79,120)
+    ForeColorPressed    as ulong = &hFFFFFFFFul
+    BorderColorPressed  as ulong = &hFF264F78ul
+    IconColorPressed    as ulong = &hFFFFFFFFul
+    BackColorDisabled   as ulong = &hFF282C33ul    ' ( 40, 44, 51)
+    ForeColorDisabled   as ulong = &hFF606670ul    ' ( 96,102,112)
+    BorderColorDisabled as ulong = &hFF282C33ul
+    IconColorDisabled   as ulong = &hFF606670ul
+    FocusRingColor      as ulong = &hFF61AFEFul    ' ( 97,175,239)
+    DefaultBorderColor  as ulong = &hFF61AFEFul
+end type
+
+public type TKBUTTON_PAINTINFO
+    hButton       as TK_WIDGET ptr
+    b             as TK_PAINT ptr
+    rcClient      as TKRECT
+    rcButton      as TKRECT
+    rcIconLeft    as TKRECT
+    rcText        as TKRECT            ' the caption SPAN between the icon blocks, not the ink
+    rcIconRight   as TKRECT
+    rcVisual      as TKRECT
+    isHot         as boolean
+    isPressed     as boolean
+    isEnabled     as boolean
+    isFocused     as boolean
+    isDefault     as boolean
+    wszText       as ustring
+    wszGlyphLeft  as ustring
+    wszGlyphRight as ustring
+    pImageLeft    as SDL_Texture ptr
+    pImageRight   as SDL_Texture ptr
+    nTextAlign    as long
+end type
+
+public type TKBUTTON_MESSAGEINFO
+    hButton as TK_WIDGET ptr
+    msg     as long                    ' TKM_*
+    x       as single
+    y       as single
+    key     as long
+end type
+
+public type BTN_PaintCallbackSub as sub( byval p as TKBUTTON_PAINTINFO ptr )
+public type BTN_MessageCallbackFunc as function( byval m as TKBUTTON_MESSAGEINFO ptr ) as boolean
+public type BTN_TooltipCallbackFunc as function( byval hButton as TK_WIDGET ptr ) as ustring
+public type BTN_ClickCallbackSub as sub( byval hButton as TK_WIDGET ptr, byval id as long )
+
+public type TKBUTTON_STATE
+    hWin            as TK_WIDGET ptr
+    id              as long
+    itemData        as integer
+    wszText         as ustring
+    wszGlyphLeft    as ustring
+    wszGlyphRight   as ustring
+    pImageLeft      as SDL_Texture ptr     ' OWNED; a slot is a glyph or an image, never both
+    pImageRight     as SDL_Texture ptr
+    wszTooltip      as ustring
+    tip             as TKTIPHOST_STATE     ' the tooltip, created with the button (tkTipHost)
+    bColorsPinned   as boolean             ' the host set colours itself: themes leave them alone
+    isEnabled       as boolean = true
+    isHot           as boolean
+    isFocused       as boolean
+    isPressed       as boolean
+    isDefault       as boolean
+    colors          as TKBUTTON_COLORS
+    pTextFont       as TTF_Font ptr        ' borrowed
+    pGlyphFont      as TTF_Font ptr        ' borrowed
+    nTextAlign      as long = BTN_ALIGN_CENTER
+    bAutoSize       as boolean
+    nPadLeft        as long
+    nPadRight       as long
+    nPadTop         as long
+    nPadBottom      as long
+    nIconGap        as long
+    nIconWidth      as long
+    nIconHeight     as long
+    nCurvature      as long
+    nBorderThick    as long = TKBUTTON_DEFAULT_BORDERTHICK
+    nFocusGap       as long
+    nFocusThick     as long = TKBUTTON_DEFAULT_FOCUSTHICK
+    nTextWidth      as long
+    nTextHeight     as long
+    nIdealW         as long
+    nIdealH         as long
+    rcButton        as TKRECT
+    rcIconLeft      as TKRECT
+    rcText          as TKRECT
+    rcIconRight     as TKRECT
+    rcVisual        as TKRECT
+    bLayoutDirty    as boolean = true
+    PaintCallback   as BTN_PaintCallbackSub
+    MessageCallback as BTN_MessageCallbackFunc
+    TooltipCallback as BTN_TooltipCallbackFunc
+    ClickCallback   as BTN_ClickCallbackSub
+
+    declare sub      LayoutButton()
+    declare function RingPad() as long
+    declare function HasText() as boolean
+    declare function HasIconLeft() as boolean
+    declare function HasIconRight() as boolean
+    declare sub      CancelPress()
+    declare sub      Refresh()
+end type
+
+
+function TKBUTTON_STATE.RingPad() as long
+    return this.nFocusGap + this.nFocusThick
+end function
+
+function TKBUTTON_STATE.HasText() as boolean
+    return (len( this.wszText ) > 0)
+end function
+
+function TKBUTTON_STATE.HasIconLeft() as boolean
+    return (len( this.wszGlyphLeft ) > 0) orelse (this.pImageLeft <> 0)
+end function
+
+function TKBUTTON_STATE.HasIconRight() as boolean
+    return (len( this.wszGlyphRight ) > 0) orelse (this.pImageRight <> 0)
+end function
+
+sub TKBUTTON_STATE.CancelPress()
+    this.isPressed = false
+end sub
+
+sub TKBUTTON_STATE.Refresh()
+    this.bLayoutDirty = true
+    tkWidget_Invalidate( this.hWin )
+end sub
+
+
+' The Win32 LayoutButton, unchanged except for where the two numbers come from: the caption
+' width is TTF_GetStringSize and the ONE text height is TTF_GetFontHeight (tmHeight). With no
+' caption font the host's default font measures, as DEFAULT_GUI_FONT did.
+sub TKBUTTON_STATE.LayoutButton()
+    this.bLayoutDirty = false
+    if this.hWin = 0 then exit sub
+
+    dim as TTF_Font ptr fUse = this.pTextFont
+    if fUse = 0 then fUse = this.hWin->pHost->pDefaultFont
+    this.nTextHeight = tkText_Height( fUse )
+
+    dim as boolean bText = this.HasText()
+    dim as boolean bLeft = this.HasIconLeft()
+    dim as boolean bRght = this.HasIconRight()
+
+    this.nTextWidth = 0
+    if bText then this.nTextWidth = tkText_Width( fUse, this.wszText )
+
+    dim as long nRingPad = this.RingPad()
+    dim as long leftBlock = 0
+    if bLeft then
+        leftBlock = this.nIconWidth
+        if bText then leftBlock += this.nIconGap
+    end if
+    dim as long rightBlock = 0
+    if bRght then
+        rightBlock = this.nIconWidth
+        if bText then rightBlock += this.nIconGap
+    end if
+    dim as long contentH = 0
+    if bText then contentH = this.nTextHeight
+    if bLeft orelse bRght then
+        if this.nIconHeight > contentH then contentH = this.nIconHeight
+    end if
+    dim as long textW = 0
+    if bText then textW = this.nTextWidth
+
+    this.nIdealW = (2 * nRingPad) + this.nPadLeft + leftBlock + textW + rightBlock + this.nPadRight
+    this.nIdealH = (2 * nRingPad) + this.nPadTop + contentH + this.nPadBottom
+
+    dim as long clientW = this.hWin->cw
+    dim as long clientH = this.hWin->ch
+    if (clientW <= 0) orelse (clientH <= 0) then
+        this.bLayoutDirty = true
+        exit sub
+    end if
+
+    tkRect_Set( this.rcButton, 0, 0, clientW, clientH )
+    tkRect_Inflate( this.rcButton, -nRingPad, -nRingPad )
+    dim as long btnH = this.rcButton.bottom - this.rcButton.top
+
+    if bLeft then
+        dim as long xL = this.rcButton.left + this.nPadLeft
+        dim as long yL = this.rcButton.top + ((btnH - this.nIconHeight) \ 2)
+        tkRect_Set( this.rcIconLeft, xL, yL, xL + this.nIconWidth, yL + this.nIconHeight )
+    else
+        tkRect_SetEmpty( this.rcIconLeft )
+    end if
+
+    if bRght then
+        dim as long xR = this.rcButton.right - this.nPadRight - this.nIconWidth
+        dim as long yR = this.rcButton.top + ((btnH - this.nIconHeight) \ 2)
+        tkRect_Set( this.rcIconRight, xR, yR, xR + this.nIconWidth, yR + this.nIconHeight )
+    else
+        tkRect_SetEmpty( this.rcIconRight )
+    end if
+
+    if bText then
+        dim as long tLeft  = this.rcButton.left + this.nPadLeft + leftBlock
+        dim as long tRight = this.rcButton.right - this.nPadRight - rightBlock
+        if tRight < tLeft then tRight = tLeft
+        dim as long tTop = this.rcButton.top + ((btnH - this.nTextHeight) \ 2)
+        tkRect_Set( this.rcText, tLeft, tTop, tRight, tTop + this.nTextHeight )
+    else
+        tkRect_SetEmpty( this.rcText )
+    end if
+
+    this.rcVisual = this.rcButton
+    tkRect_Inflate( this.rcVisual, nRingPad, nRingPad )
+end sub
+
+
+public function tkButton_ResolveMood( byval isEnabled as boolean, byval isPressed as boolean, byval isHot as boolean ) as long
+    if isEnabled = false then return BTN_MOOD_DISABLED
+    if isPressed then return BTN_MOOD_PRESSED
+    if isHot then return BTN_MOOD_HOT
+    return BTN_MOOD_IDLE
+end function
+
+public sub tkButton_ResolveColors( byval pColors as TKBUTTON_COLORS ptr, byval nMood as long, byval isDefault as boolean, _
+                                   byref clrBack as ulong, byref clrFore as ulong, byref clrBorder as ulong, byref clrIcon as ulong )
+    if pColors = 0 then exit sub
+    with *pColors
+        select case nMood
+        case BTN_MOOD_DISABLED
+            clrBack = .BackColorDisabled : clrFore = .ForeColorDisabled
+            clrBorder = .BorderColorDisabled : clrIcon = .IconColorDisabled
+        case BTN_MOOD_PRESSED
+            clrBack = .BackColorPressed : clrFore = .ForeColorPressed
+            clrBorder = .BorderColorPressed : clrIcon = .IconColorPressed
+        case BTN_MOOD_HOT
+            clrBack = .BackColorHot : clrFore = .ForeColorHot
+            clrBorder = .BorderColorHot : clrIcon = .IconColorHot
+        case else
+            clrBack = .BackColor : clrFore = .ForeColor
+            clrBorder = .BorderColor : clrIcon = .IconColor
+        end select
+        if isDefault then clrBorder = .DefaultBorderColor
+    end with
+end sub
+
+
+private function GetButtonPointer( byval hButton as TK_WIDGET ptr ) as TKBUTTON_STATE ptr
+    if hButton = 0 then return 0
+    return cast( TKBUTTON_STATE ptr, hButton->pData )
+end function
+
+private function tkButton_CallMessage( byval pBtn as TKBUTTON_STATE ptr, byval m as TK_MSG ptr ) as boolean
+    if (pBtn = 0) orelse (pBtn->MessageCallback = 0) then return false
+    dim as TKBUTTON_MESSAGEINFO mi
+    mi.hButton = pBtn->hWin
+    mi.msg = m->msg
+    mi.x = m->x
+    mi.y = m->y
+    mi.key = m->key
+    return pBtn->MessageCallback( @mi )
+end function
+
+' The control's own text, else the callback, else nothing -- no caption fallback.
+private function tkButton_ResolveTooltipText( byval pBtn as TKBUTTON_STATE ptr ) as ustring
+    if pBtn = 0 then return ""
+    if len( pBtn->wszTooltip ) then return pBtn->wszTooltip
+    if pBtn->TooltipCallback then return pBtn->TooltipCallback( pBtn->hWin )
+    return ""
+end function
+
+private sub tkButton_RenderDefault( byval pBtn as TKBUTTON_STATE ptr, byval b as TK_PAINT ptr, byval p as TKBUTTON_PAINTINFO ptr )
+    if (pBtn = 0) orelse (b = 0) orelse (p = 0) then exit sub
+    if tkRect_IsEmpty( p->rcButton ) then exit sub
+
+    dim as long nMood = tkButton_ResolveMood( p->isEnabled, p->isPressed, p->isHot )
+    dim as ulong clrBack, clrFore, clrBorder, clrIcon
+    tkButton_ResolveColors( @pBtn->colors, nMood, p->isDefault, clrBack, clrFore, clrBorder, clrIcon )
+
+    dim as TKRECT rcBtn = p->rcButton
+    b->SetBackColor( clrBack )
+    if pBtn->nBorderThick > 0 then
+        b->SetPenColor( clrBorder )
+        b->PaintRoundBorderRect( @rcBtn, pBtn->nCurvature, pBtn->nBorderThick )
+    else
+        b->PaintRoundRect( @rcBtn, pBtn->nCurvature )
+    end if
+
+    dim as TTF_Font ptr fText = pBtn->pTextFont
+    if fText = 0 then fText = pBtn->hWin->pHost->pDefaultFont
+    dim as TTF_Font ptr fGlyph = pBtn->pGlyphFont
+    if fGlyph = 0 then fGlyph = fText
+
+    if tkRect_IsEmpty( p->rcIconLeft ) = false then
+        if p->pImageLeft then
+            b->PaintImage( p->pImageLeft, @p->rcIconLeft )
+        else
+            b->SetFont( fGlyph )
+            b->SetColors( clrIcon, clrBack )
+            b->PaintText( p->wszGlyphLeft, @p->rcIconLeft, TK_DT_CENTER )
+        end if
+    end if
+
+    if tkRect_IsEmpty( p->rcIconRight ) = false then
+        if p->pImageRight then
+            b->PaintImage( p->pImageRight, @p->rcIconRight )
+        else
+            b->SetFont( fGlyph )
+            b->SetColors( clrIcon, clrBack )
+            b->PaintText( p->wszGlyphRight, @p->rcIconRight, TK_DT_CENTER )
+        end if
+    end if
+
+    if tkRect_IsEmpty( p->rcText ) = false then
+        dim as long nAlign = TK_DT_CENTER
+        select case p->nTextAlign
+        case BTN_ALIGN_LEFT
+            nAlign = TK_DT_LEFT
+        case BTN_ALIGN_RIGHT
+            nAlign = TK_DT_RIGHT
+        end select
+        b->SetFont( fText )
+        b->SetColors( clrFore, clrBack )
+        b->PaintText( p->wszText, @p->rcText, nAlign or TK_DT_ELLIPSIS )
+    end if
+
+    ' Outline, never filled; curvature grown by the band so the two curves stay concentric.
+    if p->isFocused andalso (pBtn->nFocusThick > 0) then
+        b->SetPenColor( pBtn->colors.FocusRingColor )
+        b->PaintRoundOutline( @p->rcVisual, pBtn->nCurvature + (2 * pBtn->RingPad()), pBtn->nFocusThick )
+    end if
+end sub
+
+private sub tkButton_FillPaintInfo( byval pBtn as TKBUTTON_STATE ptr, byval b as TK_PAINT ptr, byval p as TKBUTTON_PAINTINFO ptr )
+    p->hButton = pBtn->hWin
+    p->b = b
+    tkRect_Set( p->rcClient, 0, 0, pBtn->hWin->cw, pBtn->hWin->ch )
+    p->rcButton = pBtn->rcButton
+    p->rcIconLeft = pBtn->rcIconLeft
+    p->rcText = pBtn->rcText
+    p->rcIconRight = pBtn->rcIconRight
+    p->rcVisual = pBtn->rcVisual
+    p->isHot = pBtn->isHot
+    p->isPressed = pBtn->isPressed
+    p->isEnabled = pBtn->isEnabled
+    p->isFocused = pBtn->isFocused
+    p->isDefault = pBtn->isDefault
+    p->wszText = pBtn->wszText
+    p->wszGlyphLeft = pBtn->wszGlyphLeft
+    p->wszGlyphRight = pBtn->wszGlyphRight
+    p->pImageLeft = pBtn->pImageLeft
+    p->pImageRight = pBtn->pImageRight
+    p->nTextAlign = pBtn->nTextAlign
+end sub
+
+private sub tkButton_OnPaint( byval pBtn as TKBUTTON_STATE ptr, byval b as TK_PAINT ptr )
+    if pBtn->bLayoutDirty then pBtn->LayoutButton()
+    ' The client takes the resolved mood's background, so a paint callback that draws only a
+    ' foreground still sits on the right colour.
+    dim as long nMood = tkButton_ResolveMood( pBtn->isEnabled, pBtn->isPressed, pBtn->isHot )
+    dim as ulong clrFill, clrFore, clrBorder, clrIcon
+    tkButton_ResolveColors( @pBtn->colors, nMood, pBtn->isDefault, clrFill, clrFore, clrBorder, clrIcon )
+    ' Unlike an HWND the widget has no opaque client of its own: what is under the rounded
+    ' corners is the FORM. Win32 PsButton painted the client in the mood colour, which reads as
+    ' square corners on a contrasting form. Kept, for parity -- see FINDINGS.
+    b->SetBackColor( clrFill )
+    dim as TKRECT rcC
+    tkRect_Set( rcC, 0, 0, pBtn->hWin->cw, pBtn->hWin->ch )
+    b->PaintRect( @rcC )
+
+    dim as TKBUTTON_PAINTINFO p
+    tkButton_FillPaintInfo( pBtn, b, @p )
+    if pBtn->PaintCallback then
+        pBtn->PaintCallback( @p )
+    else
+        tkButton_RenderDefault( pBtn, b, @p )
+    end if
+end sub
+
+private sub tkButton_TipCancel( byval pBtn as TKBUTTON_STATE ptr )
+    tkTipHost_Pop( @pBtn->tip )
+end sub
+
+' The tip's text source: the button's own text, else its callback, else nothing.
+private function tkButton_TipText( byval t as TK_TIP ptr, byval a as TK_WIDGET ptr, byval idx as long ) as ustring
+    return tkButton_ResolveTooltipText( GetButtonPointer( a ) )
+end function
+
+private sub tkButton_ClearHot( byval pBtn as TKBUTTON_STATE ptr )
+    tkButton_TipCancel( pBtn )
+    if pBtn->isHot then
+        pBtn->isHot = false
+        tkWidget_Invalidate( pBtn->hWin )
+    end if
+end sub
+
+sub tkButton_ApplyAutoSize( byval pBtn as TKBUTTON_STATE ptr )
+    if (pBtn = 0) orelse (pBtn->bAutoSize = false) then exit sub
+    if pBtn->bLayoutDirty then pBtn->LayoutButton()
+    if (pBtn->nIdealW <= 0) orelse (pBtn->nIdealH <= 0) then exit sub
+    tkWidget_SetSize( pBtn->hWin, pBtn->nIdealW, pBtn->nIdealH )
+end sub
+
+private sub tkButton_FireClick( byval pBtn as TKBUTTON_STATE ptr )
+    if (pBtn = 0) orelse (pBtn->isEnabled = false) orelse (pBtn->ClickCallback = 0) then exit sub
+    pBtn->ClickCallback( pBtn->hWin, pBtn->id )
+end sub
+
+private sub tkButton_Rescale( byval pBtn as TKBUTTON_STATE ptr, byval fOld as single, byval fNew as single )
+    if (fOld <= 0) orelse (fNew <= 0) then exit sub
+    dim as single k = fNew / fOld
+    pBtn->nPadLeft    = cint( pBtn->nPadLeft * k )
+    pBtn->nPadRight   = cint( pBtn->nPadRight * k )
+    pBtn->nPadTop     = cint( pBtn->nPadTop * k )
+    pBtn->nPadBottom  = cint( pBtn->nPadBottom * k )
+    pBtn->nIconGap    = cint( pBtn->nIconGap * k )
+    pBtn->nIconWidth  = cint( pBtn->nIconWidth * k )
+    pBtn->nIconHeight = cint( pBtn->nIconHeight * k )
+    pBtn->nCurvature  = cint( pBtn->nCurvature * k )
+    pBtn->nFocusGap   = cint( pBtn->nFocusGap * k )
+    pBtn->Refresh()
+    tkButton_ApplyAutoSize( pBtn )
+end sub
+
+
+public declare sub tkButton_ApplyTheme( byval hButton as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+public declare function tkButton_ThemeColors( byref t as TKTHEME_COLORS ) as TKBUTTON_COLORS
+
+' The WndProc, case for case where a case survived. See the Win32 file for the reasoning
+' behind each; only what CHANGED is commented here.
+private function tkButton_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( w )
+    if pBtn = 0 then return false
+    dim as TK_HOST ptr h = w->pHost
+
+    select case m->msg
+    case TKM_PAINT
+        tkButton_OnPaint( pBtn, m->pPaint )
+        return true
+
+    case TKM_SIZE
+        pBtn->Refresh()
+        return true
+
+    case TKM_SCALECHANGED
+        tkButton_Rescale( pBtn, m->fOld, m->fNew )
+        return true
+
+    case TKM_THEMECHANGED
+        tkButton_ApplyTheme( w, tkTheme_Get() )
+        return true
+
+    case TKM_MOUSEMOVE
+        if pBtn->isEnabled = false then return true
+        ' "Over" is now a rect test on the widget's own coordinates; there is no
+        ' TrackMouseEvent to arm and no poll timer, because the host owns the leave.
+        dim as boolean bOver = (m->x >= 0) andalso (m->x < w->cw) andalso (m->y >= 0) andalso (m->y < w->ch)
+        ' (The tooltip watches the hover itself -- tkTooltip -- so there is no timer here.)
+        if bOver <> pBtn->isHot then
+            pBtn->isHot = bOver
+            tkWidget_Invalidate( w )
+        end if
+        tkButton_CallMessage( pBtn, m )
+        return true
+
+    case TKM_MOUSELEAVE
+        if pBtn->isPressed = false then tkButton_ClearHot( pBtn )
+        tkButton_CallMessage( pBtn, m )
+        return true
+
+    case TKM_LBUTTONDOWN
+        if pBtn->isEnabled = false then return true
+        tkHost_SetFocus( h, w )
+        tkButton_TipCancel( pBtn )
+        if tkButton_CallMessage( pBtn, m ) then return true
+        tkHost_SetCapture( w )
+        pBtn->isPressed = true
+        pBtn->isHot = true
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_LBUTTONUP
+        ' SNAPSHOT BEFORE RELEASING: the host, like Win32, sends TKM_CAPTURECHANGED
+        ' synchronously, and that handler cancels the press.
+        dim as boolean bWasPressed = pBtn->isPressed
+        if tkHost_GetCapture( h ) = w then tkHost_ReleaseCapture( h )
+        dim as boolean bInside = (m->x >= 0) andalso (m->x < w->cw) andalso (m->y >= 0) andalso (m->y < w->ch)
+        pBtn->CancelPress()
+        ' The cursor may have been released outside: with capture gone, hot follows reality.
+        if bInside = false then pBtn->isHot = false
+        tkWidget_Invalidate( w )
+        tkButton_CallMessage( pBtn, m )            ' result IGNORED
+        if bWasPressed andalso bInside then tkButton_FireClick( pBtn )
+        return true
+
+    case TKM_CAPTURECHANGED
+        pBtn->CancelPress()
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_RBUTTONDOWN, TKM_RBUTTONUP
+        tkButton_CallMessage( pBtn, m )
+        return true
+
+    case TKM_SETFOCUS, TKM_KILLFOCUS
+        dim as boolean bFocused = (m->msg = TKM_SETFOCUS)
+        if bFocused <> pBtn->isFocused then
+            pBtn->isFocused = bFocused
+            tkWidget_Invalidate( w )
+        end if
+        tkButton_CallMessage( pBtn, m )
+        return true
+
+    case TKM_KEYDOWN
+        if pBtn->isEnabled = false then return true
+        if tkButton_CallMessage( pBtn, m ) then return true
+        select case m->key
+        case SDLK_SPACE, SDLK_RETURN, SDLK_KP_ENTER
+            tkButton_FireClick( pBtn )
+            return true
+        end select
+        return false
+
+    case TKM_ENABLE
+        pBtn->isEnabled = m->bFlag
+        if pBtn->isEnabled = false then
+            pBtn->isHot = false
+            pBtn->CancelPress()
+            tkButton_TipCancel( pBtn )
+        end if
+        tkWidget_Invalidate( w )
+        return true
+
+    case TKM_DESTROY
+        tkTipHost_Destroy( @pBtn->tip )
+        if pBtn->pImageLeft then SDL_DestroyTexture( pBtn->pImageLeft )
+        if pBtn->pImageRight then SDL_DestroyTexture( pBtn->pImageRight )
+        delete pBtn
+        w->pData = 0
+        return true
+    end select
+    return false
+end function
+
+
+' ========================================================================================
+' Public API -- the Win32 surface, HWND replaced by the widget pointer.
+' ========================================================================================
+' A child of hParent -- a widget, or tkHost_Root( h ) for a top-level button (vendor: hWndParent).
+public function tkButton_Create( byval hParent as TK_WIDGET ptr, byval ctrlId as long ) as TK_WIDGET ptr
+    if hParent = 0 then return 0
+    dim as TK_HOST ptr pHost = hParent->pHost
+    dim as TKBUTTON_STATE ptr pBtn = new TKBUTTON_STATE
+    pBtn->id = ctrlId
+    ' Creation-time defaults are scaled; the two thicknesses never are.
+    pBtn->nPadLeft    = tkHost_Scale( pHost, TKBUTTON_DEFAULT_PADLEFT )
+    pBtn->nPadRight   = tkHost_Scale( pHost, TKBUTTON_DEFAULT_PADRIGHT )
+    pBtn->nPadTop     = tkHost_Scale( pHost, TKBUTTON_DEFAULT_PADTOP )
+    pBtn->nPadBottom  = tkHost_Scale( pHost, TKBUTTON_DEFAULT_PADBOTTOM )
+    pBtn->nIconGap    = tkHost_Scale( pHost, TKBUTTON_DEFAULT_ICONGAP )
+    pBtn->nIconWidth  = tkHost_Scale( pHost, TKBUTTON_DEFAULT_ICONWIDTH )
+    pBtn->nIconHeight = tkHost_Scale( pHost, TKBUTTON_DEFAULT_ICONHEIGHT )
+    pBtn->nCurvature  = tkHost_Scale( pHost, TKBUTTON_DEFAULT_CURVATURE )
+    pBtn->nFocusGap   = tkHost_Scale( pHost, TKBUTTON_DEFAULT_FOCUSGAP )
+    dim as TK_WIDGET ptr w = tkWidget_CreateChild( hParent, ctrlId, @tkButton_Proc, pBtn )
+    w->isFocusable = true
+    pBtn->hWin = w
+    ' The current theme, as a PsApp program's PsRegistry applied it at create (the dark preset
+    ' gives exactly the struct defaults).
+    pBtn->colors = tkButton_ThemeColors( tkTheme_Get() )
+    tkTipHost_Ensure( @pBtn->tip, w, @tkButton_TipText )
+    return w
+end function
+
+public function tkButton_GetText( byval hButton as TK_WIDGET ptr ) as ustring
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then return ""
+    return pBtn->wszText
+end function
+
+public sub tkButton_SetText( byval hButton as TK_WIDGET ptr, byval Text as ustring )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then exit sub
+    pBtn->wszText = Text
+    pBtn->Refresh()
+    tkButton_ApplyAutoSize( pBtn )
+end sub
+
+private sub FreeImage( byref p as SDL_Texture ptr )
+    if p then SDL_DestroyTexture( p ) : p = 0
+end sub
+
+public sub tkButton_SetGlyphLeft( byval hButton as TK_WIDGET ptr, byval Glyph as ustring )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then exit sub
+    pBtn->wszGlyphLeft = Glyph
+    if len( Glyph ) then FreeImage( pBtn->pImageLeft )
+    pBtn->Refresh()
+    tkButton_ApplyAutoSize( pBtn )
+end sub
+
+public sub tkButton_SetGlyphRight( byval hButton as TK_WIDGET ptr, byval Glyph as ustring )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then exit sub
+    pBtn->wszGlyphRight = Glyph
+    if len( Glyph ) then FreeImage( pBtn->pImageRight )
+    pBtn->Refresh()
+    tkButton_ApplyAutoSize( pBtn )
+end sub
+
+' IMG_LoadTexture: .png / .bmp / .jpg / .ico through SDL_image. The texture belongs to the
+' host's renderer, which is a constraint the GDI+ image never had: it cannot be drawn into the
+' tooltip window, or any other window, without being loaded again there.
+private function LoadImageSlot( byval pBtn as TKBUTTON_STATE ptr, byref slot as SDL_Texture ptr, _
+                                byref glyph as ustring, byref Path as ustring ) as long
+    FreeImage( slot )
+    if len( Path ) = 0 then
+        pBtn->Refresh()
+        tkButton_ApplyAutoSize( pBtn )
+        return 0
+    end if
+    dim as string p8 = Path
+    slot = IMG_LoadTexture( pBtn->hWin->pHost->renderer, strptr( p8 ) )
+    if slot then
+        SDL_SetTextureScaleMode( slot, SDL_SCALEMODE_LINEAR )
+        glyph = ""
+    end if
+    pBtn->Refresh()
+    tkButton_ApplyAutoSize( pBtn )
+    return iif( slot <> 0, 1, 0 )
+end function
+
+public function tkButton_SetImageLeft( byval hButton as TK_WIDGET ptr, byval Path as ustring ) as long
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then return 0
+    return LoadImageSlot( pBtn, pBtn->pImageLeft, pBtn->wszGlyphLeft, Path )
+end function
+
+public function tkButton_SetImageRight( byval hButton as TK_WIDGET ptr, byval Path as ustring ) as long
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then return 0
+    return LoadImageSlot( pBtn, pBtn->pImageRight, pBtn->wszGlyphRight, Path )
+end function
+
+public function tkButton_GetID( byval hButton as TK_WIDGET ptr ) as long
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then return 0
+    return pBtn->id
+end function
+
+public sub tkButton_SetID( byval hButton as TK_WIDGET ptr, byval id as long )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn then pBtn->id = id
+end sub
+
+public function tkButton_GetEnabled( byval hButton as TK_WIDGET ptr ) as boolean
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then return false
+    return pBtn->isEnabled
+end function
+
+public sub tkButton_SetEnabled( byval hButton as TK_WIDGET ptr, byval isEnabled as boolean )
+    if hButton then tkWidget_Enable( hButton, isEnabled )
+end sub
+
+public function tkButton_GetFocused( byval hButton as TK_WIDGET ptr ) as boolean
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then return false
+    return pBtn->isFocused
+end function
+
+public function tkButton_GetHot( byval hButton as TK_WIDGET ptr ) as boolean
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then return false
+    return pBtn->isHot
+end function
+
+public function tkButton_GetPressed( byval hButton as TK_WIDGET ptr ) as boolean
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then return false
+    return pBtn->isPressed
+end function
+
+public function tkButton_GetDefault( byval hButton as TK_WIDGET ptr ) as boolean
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then return false
+    return pBtn->isDefault
+end function
+
+public sub tkButton_SetDefault( byval hButton as TK_WIDGET ptr, byval isDefault as boolean )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if (pBtn = 0) orelse (pBtn->isDefault = isDefault) then exit sub
+    pBtn->isDefault = isDefault
+    tkWidget_Invalidate( hButton )
+end sub
+
+public sub tkButton_Click( byval hButton as TK_WIDGET ptr )
+    tkButton_FireClick( GetButtonPointer( hButton ) )
+end sub
+
+public sub tkButton_SetTextAlign( byval hButton as TK_WIDGET ptr, byval nTextAlign as long )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then exit sub
+    select case nTextAlign
+    case BTN_ALIGN_LEFT, BTN_ALIGN_CENTER, BTN_ALIGN_RIGHT
+        pBtn->nTextAlign = nTextAlign
+        tkWidget_Invalidate( hButton )
+    end select
+end sub
+
+public sub tkButton_SetPadding( byval hButton as TK_WIDGET ptr, byval l as long, byval t as long, byval r as long, byval b as long )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then exit sub
+    pBtn->nPadLeft = iif( l < 0, 0, l ) : pBtn->nPadTop = iif( t < 0, 0, t )
+    pBtn->nPadRight = iif( r < 0, 0, r ) : pBtn->nPadBottom = iif( b < 0, 0, b )
+    pBtn->Refresh()
+    tkButton_ApplyAutoSize( pBtn )
+end sub
+
+public sub tkButton_GetPadding( byval hButton as TK_WIDGET ptr, byref l as long, byref t as long, byref r as long, byref b as long )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then exit sub
+    l = pBtn->nPadLeft : t = pBtn->nPadTop : r = pBtn->nPadRight : b = pBtn->nPadBottom
+end sub
+
+public function tkButton_GetIconGap( byval hButton as TK_WIDGET ptr ) as long
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then return 0
+    return pBtn->nIconGap
+end function
+
+public sub tkButton_GetIconSize( byval hButton as TK_WIDGET ptr, byref iw as long, byref ih as long )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then exit sub
+    iw = pBtn->nIconWidth : ih = pBtn->nIconHeight
+end sub
+
+public sub tkButton_GetFocusRing( byval hButton as TK_WIDGET ptr, byref nGap as long, byref nThick as long )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then exit sub
+    nGap = pBtn->nFocusGap : nThick = pBtn->nFocusThick
+end sub
+
+public sub tkButton_SetCornerCurvature( byval hButton as TK_WIDGET ptr, byval nCurvature as long )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then exit sub
+    pBtn->nCurvature = iif( nCurvature < 0, 0, nCurvature )
+    tkWidget_Invalidate( hButton )
+end sub
+
+public sub tkButton_SetAutoSize( byval hButton as TK_WIDGET ptr, byval bAutoSize as boolean )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then exit sub
+    pBtn->bAutoSize = bAutoSize
+    tkButton_ApplyAutoSize( pBtn )
+end sub
+
+' Valid BEFORE the control has been sized: the measuring pass precedes the zero-client bail.
+public sub tkButton_GetIdealSize( byval hButton as TK_WIDGET ptr, byref nWidth as long, byref nHeight as long )
+    nWidth = 0 : nHeight = 0
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then exit sub
+    if pBtn->bLayoutDirty then pBtn->LayoutButton()
+    nWidth = pBtn->nIdealW : nHeight = pBtn->nIdealH
+end sub
+
+public sub tkButton_GetTextWidth( byval hButton as TK_WIDGET ptr, byref tw as long, byref th as long )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then exit sub
+    if pBtn->bLayoutDirty then pBtn->LayoutButton()
+    tw = pBtn->nTextWidth : th = pBtn->nTextHeight
+end sub
+
+private function GetPart( byval hButton as TK_WIDGET ptr, byval nPart as long, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then return false
+    if pBtn->bLayoutDirty then pBtn->LayoutButton()
+    if pBtn->bLayoutDirty then return false
+    select case nPart
+    case BTN_PART_TEXT
+        rc = pBtn->rcText
+    case BTN_PART_ICONLEFT
+        rc = pBtn->rcIconLeft
+    case BTN_PART_ICONRIGHT
+        rc = pBtn->rcIconRight
+    case -1
+        rc = pBtn->rcVisual
+    case else
+        rc = pBtn->rcButton
+    end select
+    return true
+end function
+
+public function tkButton_GetButtonRect( byval hButton as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return GetPart( hButton, BTN_PART_BUTTON, rc )
+end function
+public function tkButton_GetTextRect( byval hButton as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return GetPart( hButton, BTN_PART_TEXT, rc )
+end function
+public function tkButton_GetIconLeftRect( byval hButton as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return GetPart( hButton, BTN_PART_ICONLEFT, rc )
+end function
+public function tkButton_GetIconRightRect( byval hButton as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return GetPart( hButton, BTN_PART_ICONRIGHT, rc )
+end function
+public function tkButton_GetVisualRect( byval hButton as TK_WIDGET ptr, byref rc as TKRECT ) as boolean
+    return GetPart( hButton, -1, rc )
+end function
+
+public sub tkButton_GetColors( byval hButton as TK_WIDGET ptr, byval pColors as TKBUTTON_COLORS ptr )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if (pBtn = 0) orelse (pColors = 0) then exit sub
+    *pColors = pBtn->colors
+end sub
+
+' Copies the struct and PINS it: a theme change leaves this button alone until UnpinColors.
+public sub tkButton_SetColors( byval hButton as TK_WIDGET ptr, byval pColors as TKBUTTON_COLORS ptr )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if (pBtn = 0) orelse (pColors = 0) then exit sub
+    pBtn->colors = *pColors
+    pBtn->bColorsPinned = true
+    tkWidget_Invalidate( hButton )
+end sub
+
+' The button's colours from the theme's roles (vendor PsButton_ThemeColors).
+public function tkButton_ThemeColors( byref t as TKTHEME_COLORS ) as TKBUTTON_COLORS
+    dim as TKBUTTON_COLORS c
+    c.BackColor = t.Surface : c.ForeColor = t.Text : c.BorderColor = t.Surface : c.IconColor = t.Text
+    c.BackColorHot = t.SurfaceHot : c.ForeColorHot = t.TextHot : c.BorderColorHot = t.SurfaceHot : c.IconColorHot = t.TextHot
+    c.BackColorPressed = t.Selected : c.ForeColorPressed = t.SelectedText
+    c.BorderColorPressed = t.Selected : c.IconColorPressed = t.SelectedText
+    c.BackColorDisabled = t.SurfaceDisabled : c.ForeColorDisabled = t.TextDisabled
+    c.BorderColorDisabled = t.SurfaceDisabled : c.IconColorDisabled = t.TextDisabled
+    c.FocusRingColor = t.FocusRing : c.DefaultBorderColor = t.FocusRing
+    return c
+end function
+
+public sub tkButton_ApplyTheme( byval hButton as TK_WIDGET ptr, byref t as TKTHEME_COLORS )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if (pBtn = 0) orelse pBtn->bColorsPinned then exit sub
+    pBtn->colors = tkButton_ThemeColors( t )
+    tkWidget_Invalidate( hButton )
+end sub
+
+' Hands the button back to the theme, which is applied at once.
+public sub tkButton_UnpinColors( byval hButton as TK_WIDGET ptr )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then exit sub
+    pBtn->bColorsPinned = false
+    tkButton_ApplyTheme( hButton, tkTheme_Get() )
+end sub
+
+' The form's fonts (tkApp): either may be 0 to keep the current one.
+public sub tkButton_ApplyFonts( byval hButton as TK_WIDGET ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then exit sub
+    if fText then pBtn->pTextFont = fText
+    if fGlyph then pBtn->pGlyphFont = fGlyph
+    pBtn->Refresh()
+    tkButton_ApplyAutoSize( pBtn )
+end sub
+
+public sub tkButton_SetFont( byval hButton as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then exit sub
+    pBtn->pTextFont = f
+    pBtn->Refresh()
+    tkButton_ApplyAutoSize( pBtn )
+end sub
+
+public sub tkButton_SetGlyphFont( byval hButton as TK_WIDGET ptr, byval f as TTF_Font ptr )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then exit sub
+    pBtn->pGlyphFont = f
+    tkWidget_Invalidate( hButton )
+end sub
+
+public sub tkButton_SetTooltipText( byval hButton as TK_WIDGET ptr, byval Text as ustring )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn then pBtn->wszTooltip = Text
+end sub
+
+public function tkButton_GetTooltipText( byval hButton as TK_WIDGET ptr ) as ustring
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then return ""
+    return pBtn->wszTooltip
+end function
+
+' The button's tkTooltip, for any tkTooltip_* call (title, glyph, style, colours). Owned here.
+public function tkButton_GetTooltipHandle( byval hButton as TK_WIDGET ptr ) as TK_TIP ptr
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then return 0
+    return tkTipHost_Tip( @pBtn->tip )
+end function
+
+' The three delays, stored as well as pushed (tkTipHost).
+public sub tkButton_SetHoverTime( byval hButton as TK_WIDGET ptr, byval ms as long )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn then tkTipHost_SetDelay( @pBtn->tip, TK_TIPDELAY_INITIAL, ms )
+end sub
+
+public sub tkButton_SetAutoPopTime( byval hButton as TK_WIDGET ptr, byval ms as long )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn then tkTipHost_SetDelay( @pBtn->tip, TK_TIPDELAY_AUTOPOP, ms )
+end sub
+
+public sub tkButton_SetReshowTime( byval hButton as TK_WIDGET ptr, byval ms as long )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn then tkTipHost_SetDelay( @pBtn->tip, TK_TIPDELAY_RESHOW, ms )
+end sub
+
+public sub tkButton_SetPaintCallback( byval hButton as TK_WIDGET ptr, byval usersub as BTN_PaintCallbackSub )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then exit sub
+    pBtn->PaintCallback = usersub
+    tkWidget_Invalidate( hButton )
+end sub
+
+public sub tkButton_SetMessageCallback( byval hButton as TK_WIDGET ptr, byval userfunc as BTN_MessageCallbackFunc )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn then pBtn->MessageCallback = userfunc
+end sub
+
+public sub tkButton_SetTooltipCallback( byval hButton as TK_WIDGET ptr, byval userfunc as BTN_TooltipCallbackFunc )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn then pBtn->TooltipCallback = userfunc
+end sub
+
+public sub tkButton_SetClickCallback( byval hButton as TK_WIDGET ptr, byval usersub as BTN_ClickCallbackSub )
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn then pBtn->ClickCallback = usersub
+end sub
+
+
+' Render the WHOLE WINDOW with isFocused forced on, read back the button's part rect with
+' SDL_RenderReadPixels, and count distinct colours (capped at 64). The Win32 version needed a
+' private DIB and a cached memDC to dodge GDI+ batching; here the render target can simply be
+' read before it is presented -- but it is the whole frame, not the control alone.
+public function tkButton_CountRenderedTones( byval hButton as TK_WIDGET ptr, byval nPart as long ) as long
+    dim as TKBUTTON_STATE ptr pBtn = GetButtonPointer( hButton )
+    if pBtn = 0 then return 0
+    dim as TKRECT rc
+    if GetPart( hButton, nPart, rc ) = false then return 0
+    if tkRect_IsEmpty( rc ) then return 0
+    if rc.left < 0 then rc.left = 0
+    if rc.top < 0 then rc.top = 0
+    if rc.right > hButton->cw then rc.right = hButton->cw
+    if rc.bottom > hButton->ch then rc.bottom = hButton->ch
+    if tkRect_IsEmpty( rc ) then return 0
+
+    dim as TK_HOST ptr h = hButton->pHost
+    dim as boolean bSaved = pBtn->isFocused
+    pBtn->isFocused = true
+    dim as TKRECT a
+    tkWidget_AbsRect( hButton, a )
+    dim as TK_PAINT wp
+    wp.renderer = h->renderer
+    wp.engine = h->engine
+    wp.Begin( a.left, a.top, hButton->cw, hButton->ch )
+    tkButton_OnPaint( pBtn, @wp )
+    pBtn->isFocused = bSaved
+    SDL_SetRenderClipRect( h->renderer, 0 )
+
+    dim as SDL_Rect r
+    r.x = a.left + rc.left : r.y = a.top + rc.top
+    r.w = rc.right - rc.left : r.h = rc.bottom - rc.top
+    dim as SDL_Surface ptr s0 = SDL_RenderReadPixels( h->renderer, @r )
+    if s0 = 0 then return 0
+    dim as SDL_Surface ptr s = SDL_ConvertSurface( s0, SDL_PIXELFORMAT_ARGB8888 )
+    SDL_DestroySurface( s0 )
+    if s = 0 then return 0
+    h->bDirty = true                 ' the probe drew into the back buffer; repaint honestly
+
+    dim tones(0 to 63) as ulong
+    dim as long nTones = 0
+    for y as long = 0 to s->h - 1
+        dim as ulong ptr row = cast( ulong ptr, cast( ubyte ptr, s->pixels ) + y * s->pitch )
+        for x as long = 0 to s->w - 1
+            dim as ulong c = row[x] and &h00FFFFFFul
+            dim as boolean bFound = false
+            for t as long = 0 to nTones - 1
+                if tones(t) = c then bFound = true : exit for
+            next
+            if (bFound = false) andalso (nTones < 64) then tones(nTones) = c : nTones += 1
+        next
+    next
+    SDL_DestroySurface( s )
+    return nTones
+end function

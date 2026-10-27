@@ -20,10 +20,17 @@
 '' fbc itself ships for that case, on both platforms.
 ''
 '' It is CORRECT rather than merely acceptable: every read and every write of
-'' the flags word in the whole runtime goes through this function, so the mutex
-'' is a complete critical section rather than a partial one. What it costs is
-'' speed, on a call that runs twice in the life of a thread -- once at exit and
-'' once if it is detached.
+'' the flags word in the whole runtime goes through this function -- a read is an
+'' OR of 0 (fb_ThreadWait) -- so the mutex is a complete critical section rather
+'' than a partial one. What it costs is speed, on a call that runs twice in the
+'' life of a thread -- once at exit and once if it is detached.
+''
+'' AND THE MUTEX IS NEVER DESTROYED (TK-005). fb_TlsExit runs from fb_hRtExit, and
+'' a thread can still be in its threadproc then -- a goroutine's pool worker the
+'' scheduler abandoned, a THREADCREATE nobody waited for -- about to take this lock
+'' for its EXITED bit. Destroying the mutex under it meant locking freed memory: a
+'' heap the next free found corrupt (tkEdit, helgrind). The process is ending, so
+'' the one mutex is left for the OS to reclaim.
 ''
 '' Without ENABLE_MT there is nothing to serialise and the update is a plain
 '' read-modify-write, exactly as in fbc.
@@ -65,9 +72,8 @@ sub tkort_AllocateMainFBThread alias "fb_AllocateMainFBThread" ( )
 end sub
 
 #ifdef ENABLE_MT
+'' KEPT, AND EMPTY: see the file header. fb_TlsExit calls it, as fbc's does.
 sub tkort_CloseAtomicFBThreadFlagMutex alias "fb_CloseAtomicFBThreadFlagMutex" ( )
-	fb_MutexDestroy( tkort_threadFlagMutex )
-	tkort_threadFlagMutex = nullptr
 end sub
 #endif
 

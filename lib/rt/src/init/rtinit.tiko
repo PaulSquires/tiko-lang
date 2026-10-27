@@ -85,6 +85,16 @@
 '' is NULL and would change the call's meaning. See the file header.
 dim shared as zstring * 2 tkort_locale_env
 
+'' fb_hRtExit has begun tearing the runtime down. Read by the signal handler (tkort_RtGone):
+'' a fatal signal after this is a library's clean-up, and exit( ) must not run again (TK-004).
+dim shared as int32 tkort_tearingDown
+
+extern "c"   '' NON-FBCALL: internal to tiko-rt, for error/signals.tiko; fbc has no such entry.
+function tkort_RtGone alias "tkort_RtGone" ( ) as int32
+	return tkort_tearingDown
+end function
+end extern
+
 extern "c"   '' NON-FBCALL: libc, and fbc's own internals, all declared plain.
 	declare function crt_setlocale alias "setlocale" _
 		( byval category as int32, byval locale as zstring ptr ) as zstring ptr
@@ -173,6 +183,9 @@ sub tkort_hRtExit alias "fb_hRtExit" ( )
 
 	tkort_is_inicnt -= 1
 	if( tkort_is_inicnt <> 0 ) then exit sub
+
+	'' From here a fatal signal must not run exit( ) again (error/signals.tiko, TK-004).
+	tkort_tearingDown = 1
 
 	'' THE ORDER BELOW IS LOAD-BEARING -- see the file header.
 

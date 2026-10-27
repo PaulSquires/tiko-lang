@@ -112,3 +112,15 @@ tests/vendor/**/*.o
 /examples/PsControls/*/sample.png
 /examples/PsControls/*/sample.bmp
 /examples/PsControls/**/*.link
+
+# vendor/tkControls: its bundled fonts (fetched, like lib/) and scintk's build output; the
+# examples' module cache, screenshots and link records
+/pkg/vendor/tkControls/fonts/
+/pkg/vendor/tkControls/tkCodeEdit/scintk/bin/
+/pkg/vendor/tkControls/tkCodeEdit/scintk/out/
+/examples/tkControls/out/
+/examples/tkControls/linux-lib/
+/examples/tkControls/**/*.bmp
+/examples/tkControls/**/*.ttf
+/examples/tkControls/**/*-LICENSE.txt
+/examples/tkControls/**/*.link

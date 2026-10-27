@@ -1,0 +1,12 @@
+# build-os: the TK-003 fixture -- a target whose resource is Windows-only and whose define is Linux-only.
+[package]
+name = "osdemo"
+
+[target.app]
+main = "src/main.tiko"
+
+[target.app.windows]
+resources = ["res/app.rc"]
+
+[target.app.linux]
+options = ["-d", "LINUXONLY=1"]

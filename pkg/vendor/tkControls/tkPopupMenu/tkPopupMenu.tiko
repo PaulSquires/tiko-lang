@@ -1,0 +1,1017 @@
+'    Copyright (C) 2016-2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' tkPopupMenu -- vendor PsPopupMenu on tkControls.
+'
+' THE SAME: create once and show many times; rows of mixed height (separators are short) laid
+' out by a running y; the three cells per row; lazy layout; one chain open per process; hover IS
+' selection, with a 250 ms rest opening (or closing) a submenu and a click opening it at once;
+' the parent's highlight pinned while its submenu is open; mouse-owned selections cleared on
+' leave, keyboard-owned ones kept; execution on the left-button release over an enabled command
+' row, AFTER the whole chain is closed; the keyboard table (Down/Up wrapping, Home/End,
+' Right/Left in and out of submenus, Enter, Escape); a click outside closes the chain AND still
+' reaches its target; the colours, the separator rule, the border painted last.
+'
+' WHAT CHANGED:
+'   * The handle is a TK_MENU ptr. While a level is open it is a TK_SURF_POPUP surface holding
+'     one widget; a submenu's surface is owned by its parent's, so tkHost's chain rule keeps a
+'     press inside the chain from closing it. Closed, a level has no window at all.
+'   * There is NO message filter to install: tkHost routes keys to the innermost open popup and
+'     applies the outside-click rule itself (with the click passed through, vendor's rule).
+'   * Coordinates: Show / ShowForRect take the OWNER surface's window pixels (vendor: screen).
+'   * SetNotifyWindow + CPM_NOTIFY_COMMAND / CPM_NOTIFY_CLOSED become SetClosedCallback (the
+'     command already has the select callback). Same events, same "user dismissals only".
+'   * Theme and DPI are refreshed when a menu SHOWS (and while it is open, from the broadcast):
+'     a closed menu has nothing on screen to keep current.
+'   * A key hook (tkPopupMenu_SetKeyHook) is consulted before the built-in keyboard table --
+'     the seam tkMenuBar uses for Left/Right at the root, which vendor's PsMenuBar filled by
+'     pre-filtering the message pump.
+' See PORT.md.
+#module "tkPopupMenu"
+
+#import "../tkHost" public
+#import "../tkTheme" public
+using tkHost
+using tkPaint
+using tkTheme
+
+public const TKPOPUPMENU_HOVER_MS = 250
+public const TKPOPUPMENU_DEFAULT_ITEMHEIGHT = 24
+public const TKPOPUPMENU_DEFAULT_SEPHEIGHT = 9
+public const TKPOPUPMENU_DEFAULT_SEPTHICKNESS = 1
+public const TKPOPUPMENU_DEFAULT_CHECKCOL = 30
+public const TKPOPUPMENU_DEFAULT_CHEVRONCOL = 20
+public const TKPOPUPMENU_DEFAULT_ACCELGAP = 24
+public const TKPOPUPMENU_DEFAULT_HPADDING = 2
+public const TKPOPUPMENU_DEFAULT_VPADDING = 8
+
+public const PM_ALIGN_BELOW = 1
+public const PM_ALIGN_RIGHT = 2
+
+' Closed-callback reasons (vendor's CPM_NOTIFY_CLOSED wParam).
+public const PM_CLOSED_OTHER = 0
+public const PM_CLOSED_ESCAPE = 1
+
+public type TKPOPUPMENU_COLORS
+    BackColor         as ulong
+    ForeColor         as ulong
+    BackColorHot      as ulong
+    ForeColorHot      as ulong
+    ForeColorDisabled as ulong
+    BorderColor       as ulong
+    SeparatorColor    as ulong = &hFF808080ul    ' the one non-zero default (vendor's)
+end type
+
+public type TK_MENU as TK_MENU_
+
+public type TKPOPUPMENU_PAINTINFO
+    hPopup      as TK_MENU ptr
+    itemID      as long             ' the row index
+    id          as long             ' the row's command id (0 for separators)
+    b           as TK_PAINT ptr
+    rc          as TKRECT           ' the full row -- fill this
+    rcCheck     as TKRECT
+    rcText      as TKRECT           ' caption LEFT, accelerator RIGHT, same rect
+    rcChevron   as TKRECT
+    isSeparator as boolean
+    isDisabled  as boolean
+    isChecked   as boolean
+    hasSubMenu  as boolean
+    isHot       as boolean
+    wszCaption  as ustring
+    wszAccel    as ustring
+end type
+
+public type PM_SelectCallbackSub as sub( byval hPopup as TK_MENU ptr, byval id as long )
+public type PM_InitPopupCallbackSub as sub( byval hPopup as TK_MENU ptr )
+public type PM_PaintItemCallbackSub as sub( byval p as TKPOPUPMENU_PAINTINFO ptr )
+public type PM_ClosedCallbackSub as sub( byval hPopup as TK_MENU ptr, byval nReason as long )
+' TRUE = the key was handled; the built-in table is skipped. Consulted on the INNERMOST level
+' with that level's handle (and the root's hook is the one consulted).
+public type PM_KeyHookFunc as function( byval hRoot as TK_MENU ptr, byval hInner as TK_MENU ptr, byval key as long ) as boolean
+
+public type TKPM_ITEM
+    id          as long
+    wszCaption  as ustring
+    wszAccel    as ustring
+    isSeparator as boolean
+    isDisabled  as boolean
+    isChecked   as boolean
+    pSub        as TK_MENU ptr        ' OWNED
+    rc          as TKRECT
+end type
+
+public type TK_MENU_
+    pOwner            as TK_HOST ptr      ' the surface a root shows on
+    ctrlId            as long
+    items(any)        as TKPM_ITEM
+    itemCount         as long
+    colors            as TKPOPUPMENU_COLORS
+    bColorsPinned     as boolean
+    pTextFont         as TTF_Font ptr     ' borrowed
+    pGlyphFont        as TTF_Font ptr
+    wszCheckGlyph     as ustring
+    wszChevronGlyph   as ustring
+    nItemHeight       as long
+    nSeparatorHeight  as long
+    nSeparatorThickness as long = TKPOPUPMENU_DEFAULT_SEPTHICKNESS
+    nCheckColWidth    as long
+    nChevronColWidth  as long
+    nAccelGap         as long
+    nHPadding         as long
+    nVPadding         as long
+    nBorderWidth      as long
+    nMinWidth         as long
+    fScale            as single           ' the scale the pixel metrics are in
+    bLayoutDirty      as boolean = true
+    nIdealW           as long
+    nIdealH           as long
+    nCurSel           as long = -1
+    bHoverSel         as boolean
+    pParentLevel      as TK_MENU ptr
+    nParentItem       as long = -1
+    pOpenChild        as TK_MENU ptr
+    pSurf             as TK_HOST ptr      ' while open
+    pWidget           as TK_WIDGET ptr    ' the one widget in pSurf
+    bClosingOurselves as boolean
+    SelectCallback    as PM_SelectCallbackSub
+    InitPopupCallback as PM_InitPopupCallbackSub
+    PaintItemCallback as PM_PaintItemCallbackSub
+    ClosedCallback    as PM_ClosedCallbackSub
+    KeyHook           as PM_KeyHookFunc
+    declare sub LayoutItems()
+    declare function HitTest( byval x as single, byval y as single ) as long
+    declare function NextSelectable( byval nFrom as long, byval nDir as long ) as long
+    declare function FindItem( byval id as long ) as long
+    declare function IsValidItem( byval idx as long ) as boolean
+    declare sub Refresh()
+end type
+
+dim shared as TK_MENU ptr gOpenRoot
+
+
+' ==========================================================================================
+' Layout and lookup -- vendor's, with SDL_ttf measuring.
+' ==========================================================================================
+private function TextFontOf( byval m as TK_MENU ptr ) as TTF_Font ptr
+    if m->pTextFont then return m->pTextFont
+    if m->pOwner then return m->pOwner->pDefaultFont
+    return 0
+end function
+
+sub TK_MENU_.LayoutItems()
+    this.bLayoutDirty = false
+    dim as TTF_Font ptr f = TextFontOf( @this )
+    if f = 0 then this.bLayoutDirty = true : exit sub
+    dim as long maxCaptionW = 0, maxAccelW = 0
+    dim as boolean bHasAccel = false
+    for i as long = 0 to this.itemCount - 1
+        if this.items(i).isSeparator then continue for
+        dim as long w = tkText_Width( f, this.items(i).wszCaption )
+        if w > maxCaptionW then maxCaptionW = w
+        if len( this.items(i).wszAccel ) then
+            bHasAccel = true
+            w = tkText_Width( f, this.items(i).wszAccel )
+            if w > maxAccelW then maxAccelW = w
+        end if
+    next
+    ' the accel block is spent only when some row shows an accelerator
+    dim as long accelBlock = iif( bHasAccel, this.nAccelGap + maxAccelW, 0 )
+    dim as long contentW = this.nCheckColWidth + maxCaptionW + accelBlock + this.nChevronColWidth
+    if contentW < this.nMinWidth then contentW = this.nMinWidth
+    dim as long x = this.nBorderWidth + this.nHPadding
+    dim as long y = this.nBorderWidth + this.nVPadding
+    for i as long = 0 to this.itemCount - 1
+        dim as long rowH = iif( this.items(i).isSeparator, this.nSeparatorHeight, this.nItemHeight )
+        tkRect_Set( this.items(i).rc, x, y, x + contentW, y + rowH )
+        y += rowH
+    next
+    this.nIdealW = contentW + (this.nHPadding * 2) + (this.nBorderWidth * 2)
+    this.nIdealH = y + this.nVPadding + this.nBorderWidth
+end sub
+
+function TK_MENU_.HitTest( byval x as single, byval y as single ) as long
+    for i as long = 0 to this.itemCount - 1
+        if tkRect_Contains( this.items(i).rc, x, y ) then return i
+    next
+    return -1
+end function
+
+' Next selectable row from nFrom in direction nDir, skipping separators and disabled rows,
+' WRAPPING. -1 when there is none.
+function TK_MENU_.NextSelectable( byval nFrom as long, byval nDir as long ) as long
+    if this.itemCount = 0 then return -1
+    if (nDir <> 1) andalso (nDir <> -1) then return -1
+    dim as long idx = nFrom
+    for k as long = 1 to this.itemCount
+        idx += nDir
+        if idx < 0 then idx = this.itemCount - 1
+        if idx > this.itemCount - 1 then idx = 0
+        if (this.items(idx).isSeparator = false) andalso (this.items(idx).isDisabled = false) then return idx
+    next
+    return -1
+end function
+
+function TK_MENU_.FindItem( byval id as long ) as long
+    if id = 0 then return -1
+    for i as long = 0 to this.itemCount - 1
+        if this.items(i).id = id then return i
+    next
+    return -1
+end function
+
+function TK_MENU_.IsValidItem( byval idx as long ) as boolean
+    return (idx >= 0) andalso (idx < this.itemCount)
+end function
+
+sub TK_MENU_.Refresh()
+    this.bLayoutDirty = true
+    if this.pSurf then tkHost_Invalidate( this.pSurf )
+end sub
+
+private function AppendItem( byval m as TK_MENU ptr ) as long
+    if m->itemCount > ubound( m->items ) then redim preserve m->items( 0 to iif( m->itemCount < 16, 15, m->itemCount * 2 - 1 ) )
+    dim as long idx = m->itemCount
+    with m->items(idx)
+        .id = 0 : .wszCaption = "" : .wszAccel = ""
+        .isSeparator = false : .isDisabled = false : .isChecked = false : .pSub = 0
+        tkRect_SetEmpty( .rc )
+    end with
+    m->itemCount += 1
+    return idx
+end function
+
+' Find a command id anywhere in the tree under m, depth-first; the level that owns it in pLevel.
+private function FindItemDeep( byval m as TK_MENU ptr, byval id as long, byref pLevel as TK_MENU ptr ) as long
+    pLevel = 0
+    if m = 0 then return -1
+    dim as long idx = m->FindItem( id )
+    if idx <> -1 then pLevel = m : return idx
+    for i as long = 0 to m->itemCount - 1
+        if m->items(i).pSub then
+            idx = FindItemDeep( m->items(i).pSub, id, pLevel )
+            if idx <> -1 then return idx
+        end if
+    next
+    return -1
+end function
+
+private function RootOf( byval m as TK_MENU ptr ) as TK_MENU ptr
+    for k as long = 1 to 32
+        if m = 0 then return 0
+        if m->pParentLevel = 0 then return m
+        m = m->pParentLevel
+    next
+    return m
+end function
+
+private function Innermost( byval m as TK_MENU ptr ) as TK_MENU ptr
+    for k as long = 1 to 32
+        if (m = 0) orelse (m->pOpenChild = 0) then return m
+        m = m->pOpenChild
+    next
+    return m
+end function
+
+private sub CellRects( byval m as TK_MENU ptr, byref rcRow as TKRECT, byref rcCheck as TKRECT, _
+                       byref rcText as TKRECT, byref rcChevron as TKRECT )
+    tkRect_Set( rcCheck, rcRow.left, rcRow.top, rcRow.left + m->nCheckColWidth, rcRow.bottom )
+    tkRect_Set( rcChevron, rcRow.right - m->nChevronColWidth, rcRow.top, rcRow.right, rcRow.bottom )
+    tkRect_Set( rcText, rcCheck.right, rcRow.top, rcChevron.left, rcRow.bottom )
+end sub
+
+
+' ==========================================================================================
+' Theme, scale -- refreshed at show time and from the broadcast while open
+' ==========================================================================================
+public function tkPopupMenu_ThemeColors( byref t as TKTHEME_COLORS ) as TKPOPUPMENU_COLORS
+    dim as TKPOPUPMENU_COLORS c
+    c.BackColor = t.Popup
+    c.ForeColor = t.PopupText
+    c.BackColorHot = t.Selected
+    c.ForeColorHot = t.SelectedText
+    c.ForeColorDisabled = t.TextDisabled
+    c.BorderColor = t.Border
+    c.SeparatorColor = t.Divider
+    return c
+end function
+
+public sub tkPopupMenu_ApplyTheme( byval hPopup as TK_MENU ptr, byref t as TKTHEME_COLORS )
+    if (hPopup = 0) orelse hPopup->bColorsPinned then exit sub
+    hPopup->colors = tkPopupMenu_ThemeColors( t )
+    if hPopup->pSurf then tkHost_Invalidate( hPopup->pSurf )
+end sub
+
+' Every metric times fNew/fOld; the separator rule's thickness stays a hairline.
+public sub tkPopupMenu_Rescale( byval hPopup as TK_MENU ptr, byval fOld as single, byval fNew as single )
+    if (hPopup = 0) orelse (fOld <= 0) orelse (fNew <= 0) orelse (fOld = fNew) then exit sub
+    dim as single k = fNew / fOld
+    with *hPopup
+        .nItemHeight = cint( .nItemHeight * k ) : .nSeparatorHeight = cint( .nSeparatorHeight * k )
+        .nCheckColWidth = cint( .nCheckColWidth * k ) : .nChevronColWidth = cint( .nChevronColWidth * k )
+        .nAccelGap = cint( .nAccelGap * k ) : .nHPadding = cint( .nHPadding * k ) : .nVPadding = cint( .nVPadding * k )
+        .nMinWidth = cint( .nMinWidth * k )
+        .nBorderWidth = cint( .nBorderWidth * k )
+        if .nBorderWidth < 1 then .nBorderWidth = 1
+        .fScale = fNew
+    end with
+    hPopup->Refresh()
+end sub
+
+' Bring a level's metrics to the scale of the surface it is about to open on.
+private sub SyncScale( byval m as TK_MENU ptr, byval h as TK_HOST ptr )
+    if (h <> 0) andalso (m->fScale <> h->fScale) then tkPopupMenu_Rescale( m, m->fScale, h->fScale )
+    if m->bColorsPinned = false then m->colors = tkPopupMenu_ThemeColors( tkTheme_Get() )
+end sub
+
+
+' ==========================================================================================
+' Painting
+' ==========================================================================================
+private sub DefaultPaintItem( byval m as TK_MENU ptr, byval p as TKPOPUPMENU_PAINTINFO ptr )
+    dim as TK_PAINT ptr b = p->b
+    if p->isSeparator then
+        b->SetBackColor( m->colors.BackColor )
+        b->PaintRect( @p->rc )
+        dim as long inset = m->nItemHeight \ 2          ' tracks the ITEM height, not the separator's
+        dim as long yMid = (p->rc.top + p->rc.bottom) \ 2
+        b->SetPenColor( m->colors.SeparatorColor )
+        b->PaintLine( m->nSeparatorThickness, p->rc.left + inset, yMid, p->rc.right - inset, yMid )
+        exit sub
+    end if
+    dim as ulong backclr, foreclr
+    if p->isDisabled then
+        backclr = m->colors.BackColor : foreclr = m->colors.ForeColorDisabled
+    elseif p->isHot then
+        backclr = m->colors.BackColorHot : foreclr = m->colors.ForeColorHot
+    else
+        backclr = m->colors.BackColor : foreclr = m->colors.ForeColor
+    end if
+    b->SetColors( foreclr, backclr )
+    b->PaintRect( @p->rc )
+    dim as TTF_Font ptr fText = TextFontOf( m )
+    dim as TTF_Font ptr fGlyph = iif( m->pGlyphFont <> 0, m->pGlyphFont, fText )
+    if p->isChecked then
+        b->SetFont( fGlyph )
+        b->PaintText( m->wszCheckGlyph, @p->rcCheck, TK_DT_CENTER )
+    end if
+    b->SetFont( fText )
+    b->PaintText( p->wszCaption, @p->rcText, TK_DT_LEFT )
+    if len( p->wszAccel ) then b->PaintText( p->wszAccel, @p->rcText, TK_DT_RIGHT )
+    if p->hasSubMenu then
+        b->SetFont( fGlyph )
+        b->PaintText( m->wszChevronGlyph, @p->rcChevron, TK_DT_CENTER )
+    end if
+end sub
+
+private sub PaintMenu( byval m as TK_MENU ptr, byval b as TK_PAINT ptr, byval cw as long, byval ch as long )
+    if m->bLayoutDirty then m->LayoutItems()
+    dim as TKRECT rcC
+    tkRect_Set( rcC, 0, 0, cw, ch )
+    b->SetBackColor( m->colors.BackColor )
+    b->PaintRect( @rcC )
+    dim as TKPOPUPMENU_PAINTINFO p
+    p.hPopup = m
+    p.b = b
+    for i as long = 0 to m->itemCount - 1
+        p.itemID = i
+        p.id = m->items(i).id
+        p.rc = m->items(i).rc
+        CellRects( m, p.rc, p.rcCheck, p.rcText, p.rcChevron )
+        p.isSeparator = m->items(i).isSeparator
+        p.isDisabled = m->items(i).isDisabled
+        p.isChecked = m->items(i).isChecked
+        p.hasSubMenu = (m->items(i).pSub <> 0)
+        p.isHot = (i = m->nCurSel)
+        p.wszCaption = m->items(i).wszCaption
+        p.wszAccel = m->items(i).wszAccel
+        if m->PaintItemCallback then m->PaintItemCallback( @p ) else DefaultPaintItem( m, @p )
+    next
+    ' the border AFTER the rows, as four filled strips, so it is authoritative
+    if m->nBorderWidth > 0 then
+        dim as long bw = m->nBorderWidth
+        dim as TKRECT s
+        b->SetBackColor( m->colors.BorderColor )
+        tkRect_Set( s, 0, 0, cw, bw ) : b->PaintRect( @s )
+        tkRect_Set( s, 0, ch - bw, cw, ch ) : b->PaintRect( @s )
+        tkRect_Set( s, 0, 0, bw, ch ) : b->PaintRect( @s )
+        tkRect_Set( s, cw - bw, 0, cw, ch ) : b->PaintRect( @s )
+    end if
+end sub
+
+
+' ==========================================================================================
+' Hide, close, execute, open
+' ==========================================================================================
+' Hide one level: open descendants first (innermost outward), then this one, then unlink it
+' from its parent. SILENT -- notifications are the callers' decision.
+private sub HideLevel( byval m as TK_MENU ptr )
+    if m = 0 then exit sub
+    if m->pOpenChild then HideLevel( m->pOpenChild )
+    m->pOpenChild = 0
+    if m->pWidget then tkWidget_KillTimer( m->pWidget, TK_TIMER_HOVER )
+    if m->pSurf then
+        m->bClosingOurselves = true
+        dim as TK_HOST ptr s = m->pSurf
+        m->pSurf = 0 : m->pWidget = 0
+        tkHost_Close( s )
+        m->bClosingOurselves = false
+    end if
+    m->nCurSel = -1
+    m->bHoverSel = false
+    if m->pParentLevel then
+        if m->pParentLevel->pOpenChild = m then m->pParentLevel->pOpenChild = 0
+        m->pParentLevel = 0
+        m->nParentItem = -1
+    end if
+    if gOpenRoot = m then gOpenRoot = 0
+end sub
+
+' Close the whole chain containing m. bNotify: the root's closed callback (user dismissals only).
+private sub CloseChain( byval m as TK_MENU ptr, byval nReason as long, byval bNotify as boolean )
+    dim as TK_MENU ptr root = RootOf( m )
+    if root = 0 then exit sub
+    dim as PM_ClosedCallbackSub cb = root->ClosedCallback
+    HideLevel( root )
+    if bNotify andalso (cb <> 0) then cb( root, nReason )
+end sub
+
+' Capture the id, close the WHOLE chain, then tell the host: closed-before-dispatch, so a
+' handler can open a dialog or another menu without fighting a live popup.
+private sub ExecuteItem( byval m as TK_MENU ptr, byval idx as long )
+    if (m = 0) orelse (m->IsValidItem( idx ) = false) then exit sub
+    with m->items(idx)
+        if .isSeparator orelse .isDisabled orelse (.pSub <> 0) then exit sub
+    end with
+    dim as long id = m->items(idx).id
+    dim as TK_MENU ptr root = RootOf( m )
+    dim as PM_SelectCallbackSub cb = iif( root <> 0, root->SelectCallback, cast( PM_SelectCallbackSub, 0 ) )
+    HideLevel( root )
+    if cb then cb( root, id )
+end sub
+
+declare function ShowCore( byval m as TK_MENU ptr, byval anchorHost as TK_HOST ptr, byref rcAnchor as TKRECT, _
+                           byval nAlign as long ) as boolean
+
+private sub SetSel( byval m as TK_MENU ptr, byval idx as long )
+    if m->nCurSel = idx then exit sub
+    m->nCurSel = idx
+    if m->pSurf then tkHost_Invalidate( m->pSurf )
+end sub
+
+private sub OpenSubMenu( byval parent as TK_MENU ptr, byval idx as long, byval bSelectFirst as boolean )
+    if (parent = 0) orelse (parent->IsValidItem( idx ) = false) orelse (parent->pSurf = 0) then exit sub
+    dim as TK_MENU ptr sm = parent->items(idx).pSub
+    if (sm = 0) orelse parent->items(idx).isDisabled then exit sub
+    if parent->bLayoutDirty then parent->LayoutItems()
+    if parent->pOpenChild andalso (parent->pOpenChild <> sm) then HideLevel( parent->pOpenChild )
+    sm->pParentLevel = parent
+    sm->nParentItem = idx
+    parent->pOpenChild = sm
+    SetSel( parent, idx )
+    parent->bHoverSel = false          ' the pin is not hover-owned
+    dim as TKRECT rcAnchor = parent->items(idx).rc
+    if ShowCore( sm, parent->pSurf, rcAnchor, PM_ALIGN_RIGHT ) = false then
+        parent->pOpenChild = 0 : sm->pParentLevel = 0
+        exit sub
+    end if
+    if bSelectFirst then SetSel( sm, sm->NextSelectable( -1, 1 ) )
+end sub
+
+' The keyboard table, on the innermost open level. EVERY key is consumed while a chain is open.
+private sub HandleKey( byval m as TK_MENU ptr, byval key as long )
+    dim as TK_MENU ptr root = RootOf( m )
+    dim as TK_MENU ptr inner = Innermost( root )
+    if inner = 0 then exit sub
+    ' the keyboard takes over: a pending mouse rest on any level is void
+    dim as TK_MENU ptr lv = root
+    while lv
+        if lv->pWidget then tkWidget_KillTimer( lv->pWidget, TK_TIMER_HOVER )
+        lv = lv->pOpenChild
+    wend
+    if root->KeyHook then
+        if root->KeyHook( root, inner, key ) then exit sub
+    end if
+    select case key
+    case SDLK_DOWN
+        SetSel( inner, inner->NextSelectable( inner->nCurSel, 1 ) ) : inner->bHoverSel = false
+    case SDLK_UP
+        dim as long nFrom = iif( inner->nCurSel = -1, inner->itemCount, inner->nCurSel )
+        SetSel( inner, inner->NextSelectable( nFrom, -1 ) ) : inner->bHoverSel = false
+    case SDLK_HOME
+        SetSel( inner, inner->NextSelectable( -1, 1 ) ) : inner->bHoverSel = false
+    case SDLK_END
+        SetSel( inner, inner->NextSelectable( inner->itemCount, -1 ) ) : inner->bHoverSel = false
+    case SDLK_RIGHT
+        dim as long idx = inner->nCurSel
+        if inner->IsValidItem( idx ) then
+            if (inner->items(idx).pSub <> 0) andalso (inner->items(idx).isDisabled = false) then OpenSubMenu( inner, idx, true )
+        end if
+    case SDLK_LEFT
+        if inner <> root then HideLevel( inner )
+    case SDLK_RETURN, SDLK_KP_ENTER
+        dim as long idx = inner->nCurSel
+        if inner->IsValidItem( idx ) then
+            if inner->items(idx).pSub then
+                if inner->items(idx).isDisabled = false then OpenSubMenu( inner, idx, true )
+            else
+                ExecuteItem( inner, idx )
+            end if
+        end if
+    case SDLK_ESCAPE
+        if inner <> root then HideLevel( inner ) else CloseChain( root, PM_CLOSED_ESCAPE, true )
+    end select
+end sub
+
+' The one widget in an open level's surface.
+private function MenuProc( byval w as TK_WIDGET ptr, byval msg as TK_MSG ptr ) as boolean
+    dim as TK_MENU ptr m = cast( TK_MENU ptr, w->pData )
+    if m = 0 then return false
+    select case msg->msg
+    case TKM_PAINT
+        PaintMenu( m, msg->pPaint, w->cw, w->ch )
+        return true
+
+    case TKM_THEMECHANGED
+        tkPopupMenu_ApplyTheme( m, tkTheme_Get() )
+        return true
+
+    case TKM_MOUSEMOVE
+        ' hover IS selection; any movement makes the selection mouse-owned
+        dim as long idx = m->HitTest( msg->x, msg->y )
+        if idx <> m->nCurSel then
+            SetSel( m, idx )
+            tkWidget_SetTimer( w, TK_TIMER_HOVER, TKPOPUPMENU_HOVER_MS )
+        end if
+        m->bHoverSel = true
+        return true
+
+    case TKM_TIMER
+        if msg->timerId <> TK_TIMER_HOVER then return false
+        tkWidget_KillTimer( w, TK_TIMER_HOVER )
+        ' The rest is the MOUSE resting: it acts only on a mouse-owned selection. Acting on a
+        ' keyboard-chosen row reopened a submenu Escape had just closed when the timer armed by
+        ' an earlier mouse move fired late (measured on Wayland, 1 run in 3).
+        if m->bHoverSel = false then return true
+        ' the cursor rested on a row: open its submenu, or close a stale sibling's
+        dim as long idx = m->nCurSel
+        if m->IsValidItem( idx ) then
+            dim as TK_MENU ptr sm = m->items(idx).pSub
+            if (sm <> 0) andalso (m->items(idx).isDisabled = false) then
+                if m->pOpenChild <> sm then OpenSubMenu( m, idx, false )
+            elseif m->pOpenChild then
+                HideLevel( m->pOpenChild )
+            end if
+        end if
+        return true
+
+    case TKM_MOUSELEAVE
+        ' the pin rule: with a submenu open the selection stays on its parent row; otherwise a
+        ' MOUSE-owned highlight clears and a keyboard-owned one stays
+        if m->pOpenChild then
+            dim as long nPin = m->pOpenChild->nParentItem
+            if m->nCurSel <> nPin then SetSel( m, nPin ) : m->bHoverSel = false
+        elseif (m->nCurSel <> -1) andalso m->bHoverSel then
+            SetSel( m, -1 )
+            m->bHoverSel = false
+        end if
+        return true
+
+    case TKM_LBUTTONDOWN
+        dim as long idx = m->HitTest( msg->x, msg->y )
+        if m->IsValidItem( idx ) then
+            dim as TK_MENU ptr sm = m->items(idx).pSub
+            if (sm <> 0) andalso (m->items(idx).isDisabled = false) andalso (m->pOpenChild <> sm) then OpenSubMenu( m, idx, false )
+        end if
+        return true
+
+    case TKM_LBUTTONUP
+        dim as long idx = m->HitTest( msg->x, msg->y )
+        if m->IsValidItem( idx ) then ExecuteItem( m, idx )
+        return true
+
+    case TKM_KEYDOWN
+        HandleKey( m, msg->key )
+        return true
+
+    case TKM_KEYUP, TKM_CHAR
+        return true                    ' stray typing must not reach anything behind the menu
+    end select
+    return false
+end function
+
+' The host closed a level's surface on its own (a press outside the chain, the application
+' losing focus): a USER dismissal. The root's closing notifies once.
+private sub OnSurfaceClosed( byval h as TK_HOST ptr )
+    dim as TK_MENU ptr m = cast( TK_MENU ptr, h->pUser )
+    if (m = 0) orelse m->bClosingOurselves then exit sub
+    m->pSurf = 0 : m->pWidget = 0
+    if m->pParentLevel then
+        ' a submenu closed under a parent that stays open (a press in the parent level)
+        if m->pParentLevel->pOpenChild = m then m->pParentLevel->pOpenChild = 0
+        m->pParentLevel = 0 : m->nParentItem = -1
+        m->nCurSel = -1
+        exit sub
+    end if
+    dim as PM_ClosedCallbackSub cb = m->ClosedCallback
+    HideLevel( m )
+    if cb then cb( m, PM_CLOSED_OTHER )
+end sub
+
+' The one show path. anchorHost: the surface rcAnchor is in (the owner for a root, the parent
+' level's surface for a submenu). Fires InitPopup, lays out, places (flipping a submenu to the
+' anchor's other side and a BELOW popup above its anchor when there is no room), opens.
+function ShowCore( byval m as TK_MENU ptr, byval anchorHost as TK_HOST ptr, byref rcAnchor as TKRECT, _
+                   byval nAlign as long ) as boolean
+    if (m = 0) orelse (anchorHost = 0) then return false
+    if m->pParentLevel = 0 then
+        if (gOpenRoot <> 0) andalso (gOpenRoot <> m) then CloseChain( gOpenRoot, 0, false )
+        if m->pSurf then HideLevel( m )
+    end if
+    SyncScale( m, anchorHost )
+    if m->InitPopupCallback then m->InitPopupCallback( m )
+    if m->bLayoutDirty then m->LayoutItems()
+    if m->bLayoutDirty then return false
+    dim as long w = m->nIdealW, hh = m->nIdealH
+    dim as long x, y
+    select case nAlign
+    case PM_ALIGN_BELOW
+        x = rcAnchor.left : y = rcAnchor.bottom - 1        ' merge with the anchor's edge
+    case PM_ALIGN_RIGHT
+        x = rcAnchor.right : y = rcAnchor.top
+    case else
+        x = rcAnchor.left : y = rcAnchor.top
+    end select
+    dim as TKRECT wk
+    tkHost_WorkRect( anchorHost, wk )
+    if x + w > wk.right then x = iif( nAlign = PM_ALIGN_RIGHT, rcAnchor.left - w, wk.right - w )
+    if x < wk.left then x = wk.left
+    if y + hh > wk.bottom then
+        if nAlign = PM_ALIGN_BELOW then
+            dim as long yAbove = rcAnchor.top - hh
+            y = iif( yAbove >= wk.top, yAbove, wk.top )
+        else
+            y = wk.bottom - hh
+        end if
+    end if
+    if y < wk.top then y = wk.top
+
+    m->nCurSel = -1
+    m->bHoverSel = false
+    m->pOpenChild = 0
+    m->pSurf = tkHost_CreatePopup( anchorHost, x, y, w, hh, TK_SURF_POPUP )
+    if m->pSurf = 0 then return false
+    m->pSurf->bPassDismissClick = true            ' vendor: the outside click still reaches its target
+    m->pSurf->pUser = m
+    m->pSurf->OnClosed = @OnSurfaceClosed
+    m->pWidget = tkWidget_Create( m->pSurf, m->ctrlId, @MenuProc, m )
+    m->pWidget->isFocusable = true
+    tkWidget_SetPos( m->pWidget, 0, 0, w, hh )
+    tkHost_Show( m->pSurf )
+    tkHost_SetFocus( m->pSurf, m->pWidget )
+    if m->pParentLevel = 0 then gOpenRoot = m
+    return true
+end function
+
+
+' ==========================================================================================
+' Public API
+' ==========================================================================================
+' A menu for `hOwner` (the surface a root shows on). Closed, zero-sized, no window yet.
+public function tkPopupMenu_Create( byval hOwner as TK_HOST ptr, byval CtrlID as long = 0 ) as TK_MENU ptr
+    dim as TK_MENU ptr m = new TK_MENU
+    m->pOwner = hOwner
+    m->ctrlId = CtrlID
+    m->fScale = iif( hOwner <> 0, hOwner->fScale, 1.0 )
+    m->nItemHeight = tkHost_Scale( hOwner, TKPOPUPMENU_DEFAULT_ITEMHEIGHT )
+    m->nSeparatorHeight = tkHost_Scale( hOwner, TKPOPUPMENU_DEFAULT_SEPHEIGHT )
+    m->nCheckColWidth = tkHost_Scale( hOwner, TKPOPUPMENU_DEFAULT_CHECKCOL )
+    m->nChevronColWidth = tkHost_Scale( hOwner, TKPOPUPMENU_DEFAULT_CHEVRONCOL )
+    m->nAccelGap = tkHost_Scale( hOwner, TKPOPUPMENU_DEFAULT_ACCELGAP )
+    m->nHPadding = tkHost_Scale( hOwner, TKPOPUPMENU_DEFAULT_HPADDING )
+    m->nVPadding = tkHost_Scale( hOwner, TKPOPUPMENU_DEFAULT_VPADDING )
+    m->nBorderWidth = tkHost_Scale( hOwner, 1 )
+    if m->nBorderWidth < 1 then m->nBorderWidth = 1
+    m->wszCheckGlyph = wchr( &h2713 )
+    m->wszChevronGlyph = wchr( &h203A )
+    m->colors = tkPopupMenu_ThemeColors( tkTheme_Get() )
+    return m
+end function
+
+' Destroys the menu and every submenu attached to it (ownership was transferred).
+public sub tkPopupMenu_Destroy( byval hPopup as TK_MENU ptr )
+    if hPopup = 0 then exit sub
+    HideLevel( hPopup )
+    for i as long = 0 to hPopup->itemCount - 1
+        if hPopup->items(i).pSub then tkPopupMenu_Destroy( hPopup->items(i).pSub ) : hPopup->items(i).pSub = 0
+    next
+    if gOpenRoot = hPopup then gOpenRoot = 0
+    delete hPopup
+end sub
+
+public function tkPopupMenu_AddItem( byval hPopup as TK_MENU ptr, byval id as long, byval Caption as ustring, _
+                                     byval Accel as ustring = "", byval bDisabled as boolean = false, _
+                                     byval bChecked as boolean = false ) as long
+    if hPopup = 0 then return -1
+    dim as long idx = AppendItem( hPopup )
+    with hPopup->items(idx)
+        .id = id : .wszCaption = Caption : .wszAccel = Accel
+        .isDisabled = bDisabled : .isChecked = bChecked
+    end with
+    hPopup->Refresh()
+    return idx
+end function
+
+public function tkPopupMenu_AddSeparator( byval hPopup as TK_MENU ptr ) as long
+    if hPopup = 0 then return -1
+    dim as long idx = AppendItem( hPopup )
+    hPopup->items(idx).isSeparator = true
+    hPopup->Refresh()
+    return idx
+end function
+
+public function tkPopupMenu_GetItemCount( byval hPopup as TK_MENU ptr ) as long
+    if hPopup = 0 then return 0
+    return hPopup->itemCount
+end function
+
+' Note the default: without Accel, the row's accelerator text is CLEARED (vendor's contract).
+public function tkPopupMenu_SetItemText( byval hPopup as TK_MENU ptr, byval id as long, byval Caption as ustring, _
+                                         byval Accel as ustring = "" ) as boolean
+    dim as TK_MENU ptr lv
+    dim as long idx = FindItemDeep( hPopup, id, lv )
+    if idx = -1 then return false
+    lv->items(idx).wszCaption = Caption
+    lv->items(idx).wszAccel = Accel
+    lv->Refresh()
+    return true
+end function
+
+public function tkPopupMenu_SetItemEnabled( byval hPopup as TK_MENU ptr, byval id as long, byval bEnabled as boolean ) as boolean
+    dim as TK_MENU ptr lv
+    dim as long idx = FindItemDeep( hPopup, id, lv )
+    if idx = -1 then return false
+    lv->items(idx).isDisabled = (bEnabled = false)
+    if lv->pSurf then tkHost_Invalidate( lv->pSurf )
+    return true
+end function
+
+public function tkPopupMenu_GetItemEnabled( byval hPopup as TK_MENU ptr, byval id as long ) as boolean
+    dim as TK_MENU ptr lv
+    dim as long idx = FindItemDeep( hPopup, id, lv )
+    if idx = -1 then return false
+    return lv->items(idx).isDisabled = false
+end function
+
+public function tkPopupMenu_SetItemChecked( byval hPopup as TK_MENU ptr, byval id as long, byval bChecked as boolean ) as boolean
+    dim as TK_MENU ptr lv
+    dim as long idx = FindItemDeep( hPopup, id, lv )
+    if idx = -1 then return false
+    lv->items(idx).isChecked = bChecked
+    if lv->pSurf then tkHost_Invalidate( lv->pSurf )
+    return true
+end function
+
+public function tkPopupMenu_GetItemChecked( byval hPopup as TK_MENU ptr, byval id as long ) as boolean
+    dim as TK_MENU ptr lv
+    dim as long idx = FindItemDeep( hPopup, id, lv )
+    if idx = -1 then return false
+    return lv->items(idx).isChecked
+end function
+
+' Removes the row and DESTROYS its submenu. Rows below shift up.
+public function tkPopupMenu_DeleteItem( byval hPopup as TK_MENU ptr, byval id as long ) as boolean
+    dim as TK_MENU ptr lv
+    dim as long idx = FindItemDeep( hPopup, id, lv )
+    if idx = -1 then return false
+    if lv->items(idx).pSub then
+        if lv->pOpenChild = lv->items(idx).pSub then HideLevel( lv->pOpenChild )
+        tkPopupMenu_Destroy( lv->items(idx).pSub )
+    end if
+    for i as long = idx to lv->itemCount - 2
+        lv->items(i) = lv->items(i + 1)
+    next
+    lv->itemCount -= 1
+    lv->items(lv->itemCount).pSub = 0
+    if lv->nCurSel >= lv->itemCount then lv->nCurSel = -1
+    lv->Refresh()
+    return true
+end function
+
+' Every row of THIS level (and the submenus attached to them).
+public sub tkPopupMenu_Clear( byval hPopup as TK_MENU ptr )
+    if hPopup = 0 then exit sub
+    if hPopup->pOpenChild then HideLevel( hPopup->pOpenChild )
+    for i as long = 0 to hPopup->itemCount - 1
+        if hPopup->items(i).pSub then tkPopupMenu_Destroy( hPopup->items(i).pSub ) : hPopup->items(i).pSub = 0
+    next
+    hPopup->itemCount = 0
+    hPopup->nCurSel = -1
+    hPopup->Refresh()
+end sub
+
+' OWNERSHIP TRANSFERS: the parent destroys the submenu. Attaching over one destroys the old one.
+public function tkPopupMenu_SetItemSubMenu( byval hPopup as TK_MENU ptr, byval id as long, byval hSubMenu as TK_MENU ptr ) as boolean
+    dim as TK_MENU ptr lv
+    dim as long idx = FindItemDeep( hPopup, id, lv )
+    if idx = -1 then return false
+    if (lv->items(idx).pSub <> 0) andalso (lv->items(idx).pSub <> hSubMenu) then tkPopupMenu_Destroy( lv->items(idx).pSub )
+    lv->items(idx).pSub = hSubMenu
+    lv->Refresh()
+    return true
+end function
+
+public function tkPopupMenu_GetItemSubMenu( byval hPopup as TK_MENU ptr, byval id as long ) as TK_MENU ptr
+    dim as TK_MENU ptr lv
+    dim as long idx = FindItemDeep( hPopup, id, lv )
+    if idx = -1 then return 0
+    return lv->items(idx).pSub
+end function
+
+' Top-left at (x, y) in the OWNER surface's window pixels (the context-menu door).
+public function tkPopupMenu_Show( byval hPopup as TK_MENU ptr, byval x as long, byval y as long ) as boolean
+    if (hPopup = 0) orelse (hPopup->pOwner = 0) then return false
+    dim as TKRECT rc
+    tkRect_Set( rc, x, y, x, y )
+    return ShowCore( hPopup, hPopup->pOwner, rc, 0 )
+end function
+
+' Against rcAnchor in the OWNER surface's window pixels; PM_ALIGN_BELOW or PM_ALIGN_RIGHT.
+public function tkPopupMenu_ShowForRect( byval hPopup as TK_MENU ptr, byref rcAnchor as TKRECT, byval nAlign as long ) as boolean
+    if (hPopup = 0) orelse (hPopup->pOwner = 0) then return false
+    return ShowCore( hPopup, hPopup->pOwner, rcAnchor, nAlign )
+end function
+
+' This level and its open descendants; SILENT.
+public sub tkPopupMenu_Hide( byval hPopup as TK_MENU ptr )
+    HideLevel( hPopup )
+end sub
+
+' The whole chain containing hPopup, from any level; SILENT.
+public sub tkPopupMenu_CloseChain( byval hPopup as TK_MENU ptr )
+    CloseChain( hPopup, 0, false )
+end sub
+
+public function tkPopupMenu_IsOpen( byval hPopup as TK_MENU ptr ) as boolean
+    return (hPopup <> 0) andalso (hPopup->pSurf <> 0)
+end function
+
+' The root of the chain open right now, or 0.
+public function tkPopupMenu_GetOpenRoot() as TK_MENU ptr
+    return gOpenRoot
+end function
+
+public function tkPopupMenu_GetCurSel( byval hPopup as TK_MENU ptr ) as long
+    if hPopup = 0 then return -1
+    return hPopup->nCurSel
+end function
+
+' -1 clears; FALSE for any other out-of-range index. Does NOT refuse separators/disabled rows.
+public function tkPopupMenu_SetCurSel( byval hPopup as TK_MENU ptr, byval idx as long ) as boolean
+    if hPopup = 0 then return false
+    if (idx <> -1) andalso (hPopup->IsValidItem( idx ) = false) then return false
+    SetSel( hPopup, idx )
+    hPopup->bHoverSel = false
+    return true
+end function
+
+public function tkPopupMenu_SelectFirst( byval hPopup as TK_MENU ptr ) as boolean
+    if hPopup = 0 then return false
+    dim as long idx = hPopup->NextSelectable( -1, 1 )
+    if idx = -1 then return false
+    SetSel( hPopup, idx )
+    hPopup->bHoverSel = false
+    return true
+end function
+
+' Open a row's submenu now (as Right / Enter would), optionally selecting its first row.
+public function tkPopupMenu_OpenSubMenu( byval hPopup as TK_MENU ptr, byval idx as long, byval bSelectFirst as boolean ) as boolean
+    if (hPopup = 0) orelse (hPopup->pSurf = 0) then return false
+    OpenSubMenu( hPopup, idx, bSelectFirst )
+    return hPopup->pOpenChild <> 0
+end function
+
+public function tkPopupMenu_GetItemRect( byval hPopup as TK_MENU ptr, byval idx as long, byref rc as TKRECT ) as boolean
+    tkRect_SetEmpty( rc )
+    if hPopup = 0 then return false
+    if hPopup->bLayoutDirty then hPopup->LayoutItems()
+    if hPopup->IsValidItem( idx ) = false then return false
+    rc = hPopup->items(idx).rc
+    return true
+end function
+
+public function tkPopupMenu_HitTest( byval hPopup as TK_MENU ptr, byval x as long, byval y as long ) as long
+    if hPopup = 0 then return -1
+    if hPopup->bLayoutDirty then hPopup->LayoutItems()
+    return hPopup->HitTest( x, y )
+end function
+
+public function tkPopupMenu_GetIdealSize( byval hPopup as TK_MENU ptr, byref nWidth as long, byref nHeight as long ) as boolean
+    nWidth = 0 : nHeight = 0
+    if hPopup = 0 then return false
+    if hPopup->bLayoutDirty then hPopup->LayoutItems()
+    if hPopup->bLayoutDirty then return false
+    nWidth = hPopup->nIdealW : nHeight = hPopup->nIdealH
+    return true
+end function
+
+public function tkPopupMenu_SetMinWidth( byval hPopup as TK_MENU ptr, byval nMinWidth as long ) as boolean
+    if hPopup = 0 then return false
+    hPopup->nMinWidth = iif( nMinWidth < 0, 0, nMinWidth )
+    hPopup->Refresh()
+    return true
+end function
+
+public sub tkPopupMenu_SetItemHeight( byval hPopup as TK_MENU ptr, byval nItemHeight as long )
+    if hPopup = 0 then exit sub
+    hPopup->nItemHeight = iif( nItemHeight < 1, 1, nItemHeight )
+    hPopup->Refresh()
+end sub
+
+public sub tkPopupMenu_SetSeparatorHeight( byval hPopup as TK_MENU ptr, byval nSeparatorHeight as long )
+    if hPopup = 0 then exit sub
+    hPopup->nSeparatorHeight = iif( nSeparatorHeight < 1, 1, nSeparatorHeight )
+    hPopup->Refresh()
+end sub
+
+' Do NOT DPI-scale: a hairline stays a hairline.
+public sub tkPopupMenu_SetSeparatorThickness( byval hPopup as TK_MENU ptr, byval nThickness as long )
+    if hPopup = 0 then exit sub
+    hPopup->nSeparatorThickness = iif( nThickness < 1, 1, nThickness )
+    hPopup->Refresh()
+end sub
+
+public sub tkPopupMenu_SetColors( byval hPopup as TK_MENU ptr, byval pColors as TKPOPUPMENU_COLORS ptr )
+    if (hPopup = 0) orelse (pColors = 0) then exit sub
+    hPopup->colors = *pColors
+    hPopup->bColorsPinned = true
+    if hPopup->pSurf then tkHost_Invalidate( hPopup->pSurf )
+end sub
+
+public sub tkPopupMenu_GetColors( byval hPopup as TK_MENU ptr, byval pColors as TKPOPUPMENU_COLORS ptr )
+    if (hPopup = 0) orelse (pColors = 0) then exit sub
+    *pColors = hPopup->colors
+end sub
+
+public sub tkPopupMenu_UnpinColors( byval hPopup as TK_MENU ptr )
+    if hPopup = 0 then exit sub
+    hPopup->bColorsPinned = false
+    tkPopupMenu_ApplyTheme( hPopup, tkTheme_Get() )
+end sub
+
+' The caption font is also the MEASURING font. Both borrowed.
+public sub tkPopupMenu_SetFonts( byval hPopup as TK_MENU ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr = 0 )
+    if hPopup = 0 then exit sub
+    hPopup->pTextFont = fText
+    hPopup->pGlyphFont = fGlyph
+    hPopup->Refresh()
+end sub
+
+public sub tkPopupMenu_ApplyFonts( byval hPopup as TK_MENU ptr, byval fText as TTF_Font ptr, byval fGlyph as TTF_Font ptr )
+    if hPopup = 0 then exit sub
+    if fText then hPopup->pTextFont = fText
+    if fGlyph then hPopup->pGlyphFont = fGlyph
+    hPopup->Refresh()
+end sub
+
+public sub tkPopupMenu_SetGlyphs( byval hPopup as TK_MENU ptr, byval wszCheck as ustring, byval wszChevron as ustring )
+    if hPopup = 0 then exit sub
+    hPopup->wszCheckGlyph = wszCheck
+    hPopup->wszChevronGlyph = wszChevron
+    if hPopup->pSurf then tkHost_Invalidate( hPopup->pSurf )
+end sub
+
+' Only the chain ROOT's select callback is consulted.
+public sub tkPopupMenu_SetSelectCallback( byval hPopup as TK_MENU ptr, byval usersub as PM_SelectCallbackSub )
+    if hPopup then hPopup->SelectCallback = usersub
+end sub
+
+' Each level has its own; fired as THIS level becomes visible.
+public sub tkPopupMenu_SetInitPopupCallback( byval hPopup as TK_MENU ptr, byval usersub as PM_InitPopupCallbackSub )
+    if hPopup then hPopup->InitPopupCallback = usersub
+end sub
+
+public sub tkPopupMenu_SetPaintItemCallback( byval hPopup as TK_MENU ptr, byval usersub as PM_PaintItemCallbackSub )
+    if hPopup = 0 then exit sub
+    hPopup->PaintItemCallback = usersub
+    if hPopup->pSurf then tkHost_Invalidate( hPopup->pSurf )
+end sub
+
+' User dismissals without a command (vendor's CPM_NOTIFY_CLOSED): PM_CLOSED_ESCAPE for Escape
+' at the root, PM_CLOSED_OTHER for an outside press or the application losing focus.
+public sub tkPopupMenu_SetClosedCallback( byval hPopup as TK_MENU ptr, byval usersub as PM_ClosedCallbackSub )
+    if hPopup then hPopup->ClosedCallback = usersub
+end sub
+
+public sub tkPopupMenu_SetKeyHook( byval hPopup as TK_MENU ptr, byval userfunc as PM_KeyHookFunc )
+    if hPopup then hPopup->KeyHook = userfunc
+end sub
+
+' The open level's surface (0 when closed), e.g. to push events at it in a test.
+public function tkPopupMenu_Surface( byval hPopup as TK_MENU ptr ) as TK_HOST ptr
+    if hPopup = 0 then return 0
+    return hPopup->pSurf
+end function
