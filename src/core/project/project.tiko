@@ -100,7 +100,9 @@ public function LoadManifest( byref path as const ustring ) as ManifestResult
     return ParseManifest( r.Value( ), path )
 end function
 
-' A new project's tiko.toml: a package and one target whose main is mainFile (a name in the folder).
+' A new project's tiko.toml: a package and one target whose main is mainFile (a name in the folder),
+' with every other table tiko reads there empty, to be filled in (author 2026-10-27); tiko builds it
+' as it is (probed). [vendor.<module>] is left out: it has no name until there is a module.
 ' The target's name keeps letters, digits, - and _ (a bare TOML key); anything else becomes '_'.
 public function NewManifestText( byref pkg as const ustring, byref target as const ustring, _
                                  byref mainFile as const ustring ) as ustring
@@ -117,8 +119,16 @@ public function NewManifestText( byref pkg as const ustring, byref target as con
            "name = " & tomlget.Quoted( pkg ) & nl & _
            "version = '0.1.0'" & nl & _
            nl & _
+           "[dependencies]" & nl & _
+           nl & _
+           "[defines]" & nl & _
+           nl & _
            "[target." & tn & "]" & nl & _
-           "main = " & tomlget.Quoted( mainFile ) & nl
+           "main = " & tomlget.Quoted( mainFile ) & nl & _
+           nl & _
+           "[profile.debug]" & nl & _
+           nl & _
+           "[profile.release]" & nl
 end function
 
 ' ---------------------------------------------------------------------- the editor's state

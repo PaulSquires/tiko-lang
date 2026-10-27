@@ -59,6 +59,19 @@ public sub Run( byref c as tally.Checker )
     dim as project.ManifestResult nr = project.ParseManifest( project.NewManifestText( "demo", "demo", "demo.tiko" ), "tiko.toml" )
     c.Check( nr.IsOk( ) andalso (nr.Value( ).Package = "demo") andalso (nr.Value( ).Targets.Count( ) = 1) andalso _
              (nr.Value( ).Targets[0].Main = "demo.tiko"), "NewManifestText reads back" )
+    scope   ' every table, empty ones too, so they are there to fill in
+        dim as ustring mt = project.NewManifestText( "demo", "demo", "demo.tiko" )
+        dim as boolean all_ = true
+        dim as ustring tables = "[package] [dependencies] [defines] [target.demo] [profile.debug] [profile.release]"
+        dim as long st = 1
+        while st <= len( tables )
+            dim as long sp = instr( st, tables, " " )
+            if sp = 0 then sp = len( tables ) + 1
+            if instr( mt, mid( tables, st, sp - st ) & nl ) = 0 then all_ = false
+            st = sp + 1
+        wend
+        c.Check( all_, "NewManifestText writes every table" )
+    end scope
 
     ' the options file: every key, round trip, written only when it changes
     dim as project.ProjectOptions o
