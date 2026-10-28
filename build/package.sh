@@ -984,8 +984,9 @@ SEED_STATE=$( awk -v h="$HOST" '$1 == h { print $2 " (" $3 ", sha256 " $4 ")" }'
 [ -n "${TKO_SEED:-}" ] && SEED_STATE="TKO_SEED=$TKO_SEED (the lock pins $SEED_STATE)"
 [ -z "${TKO_SEED:-}" ] && [ -n "${TKO_ORACLE_FBC:-}" ] && SEED_STATE="TKO_ORACLE_FBC=$TKO_ORACLE_FBC -- NOT a release build (the lock pins $SEED_STATE)"
 
-NFILES=$( cd "$OUT" && find . -type f ! -name MANIFEST.txt | wc -l )
-SIZE=$( du -sh "$OUT" | cut -f1 )
+# tr: BSD wc and du pad their numbers (macOS), GNU's do not.
+NFILES=$( cd "$OUT" && find . -type f ! -name MANIFEST.txt | wc -l | tr -d ' ' )
+SIZE=$( du -sh "$OUT" | cut -f1 | tr -d ' ' )
 
 {
     say "tiko toolchain -- $HOST"
