@@ -58,7 +58,15 @@ extern "c"
 	declare function c_fclose alias "fclose" ( byval f as any ptr ) as long
 	declare function c_fwrite alias "fwrite" ( byval b as any ptr, byval sz as uinteger, byval n as uinteger, byval f as any ptr ) as uinteger
 	declare function c_remove alias "remove" ( byval p as zstring ptr ) as long
-	declare function c_mkdir_ alias "mkdir" ( byval p as zstring ptr, ... ) as long
+	'' NOT VARIADIC: mkdir is not a variadic function, and on Apple arm64 a '...' argument
+	'' goes on the STACK while mkdir reads its mode from a register -- the directory came
+	'' out with a garbage mode and every DIR below listed nothing (docs/tiko-macos M5,
+	'' darwinlane). One declaration per call shape instead.
+	#ifdef __FB_WIN32__
+		declare function c_mkdir_ alias "mkdir" ( byval p as zstring ptr ) as long
+	#else
+		declare function c_mkdir_ alias "mkdir" ( byval p as zstring ptr, byval mode as ulong ) as long
+	#endif
 	declare function c_rmdir_ alias "rmdir" ( byval p as zstring ptr ) as long
 end extern
 
@@ -95,8 +103,7 @@ sub killFile( byref name_ as string )
 	c_remove( strptr( full ) )
 end sub
 
-'' mkdir TAKES A MODE ON POSIX AND NOT ON WINDOWS, which is why it is declared
-'' variadic above -- one declaration, two call shapes.
+'' mkdir TAKES A MODE ON POSIX AND NOT ON WINDOWS: two declarations above.
 #ifdef __FB_WIN32__
 	c_mkdir_( @SCRATCH )
 #else
