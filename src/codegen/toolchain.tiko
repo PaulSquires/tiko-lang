@@ -668,6 +668,11 @@ function LinkExe _
     for i as int32 = 0 to t.libPaths.Count - 1
         cmd += " -L" & Q( t.libPaths[i] )
     next
+    '' HOMEBREW'S LIBRARIES, AFTER THE USER'S PATHS (docs/tiko-macos M7): ld64 searches
+    '' /usr/lib and /usr/local/lib but not /opt/homebrew/lib, where Apple Silicon's Homebrew
+    '' puts what a 'system:' library such as vendor/SDL3's '-lSDL3' names -- measured, 'library
+    '' not found' without it. Only where Homebrew is installed, so no other link changes.
+    if macho andalso FileExists_( "/opt/homebrew/bin/brew" ) then cmd += " -L" & Q( "/opt/homebrew/lib" )
     '' EACH ONE ONLY IF IT IS THERE. A '-p' path need not carry the runtime:
     '' lib/gfx/lib/<target> holds libtkogfx.a and nothing else, and naming a
     '' libfb.a that does not exist fails the link with clang's own 'no such file

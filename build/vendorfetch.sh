@@ -19,9 +19,9 @@
 #   TKO_VENDOR_MIRROR   a base URL tried first, by file name -- the tiko-lang release assets
 #                       the archives are mirrored as; upstream is the fallback
 #   TKO_CLANG, TKO_AR   the compiler and archiver ('cbuild'); default the LLVM install on
-#                       Windows, clang / llvm-ar (else ar) on Linux
+#                       Windows, clang / llvm-ar (else ar) on Linux and macOS
 #   CXX                 the C++ compiler a 'script' entry's script uses; default clang++
-#                       beside TKO_CLANG on Windows, the script's own choice on Linux
+#                       beside TKO_CLANG on Windows, the script's own choice elsewhere
 #
 # An entry whose outputs are newer than its fetch.toml is skipped, so a rerun does nothing.
 set -e
@@ -48,6 +48,11 @@ case "$(uname -s)" in
         HOST=linux; TRIPLE=x86_64-pc-linux-gnu
         CLANG=${TKO_CLANG:-${CLANG:-clang}}
         AR=${TKO_AR:-$(command -v llvm-ar || command -v ar)} ;;
+    Darwin)
+        # The SDK is clang's own business here: Apple's clang (and Homebrew's) find it.
+        HOST=macos; TRIPLE=arm64-apple-macosx13.0
+        CLANG=${TKO_CLANG:-${CLANG:-clang}}
+        AR=${TKO_AR:-$(command -v llvm-ar || command -v ar)} ;;
     *) die "unsupported host '$(uname -s)'" ;;
 esac
 CACHE=${TKO_VENDOR_CACHE:-$ROOT/build/.vendorfetch}
@@ -66,7 +71,12 @@ toml( ) {
         }' "$1" | tr -d '\r'
 }
 
-sha_of( ) { sha256sum "$1" | cut -d' ' -f1; }
+# macOS has no sha256sum; its shasum is the same digest.
+if command -v sha256sum >/dev/null 2>&1; then
+    sha_of( ) { sha256sum "$1" | cut -d' ' -f1; }
+else
+    sha_of( ) { shasum -a 256 "$1" | cut -d' ' -f1; }
+fi
 
 # is_archive <url>: true for what unpack opens.
 is_archive( ) { case "$1" in *.zip|*.tar.gz|*.tgz) return 0 ;; *) return 1 ;; esac; }
@@ -173,6 +183,11 @@ entry( ) {
                 "$CLANG" --target=$TRIPLE -shared -fuse-ld=lld -o "$_mdir/$_sh" \
                     -Wl,-implib:"$_imp" \
                     $_objs $(_get libs) || die "$_mod: linking $_sh failed"
+            elif [ "$HOST" = macos ]; then
+                # THE INSTALL NAME IS @rpath/<its own name>, the soname's counterpart: a program
+                # records it, and finds the copy beside it through its '@loader_path' run path.
+                # shellcheck disable=SC2086
+                "$CLANG" --target=$TRIPLE -dynamiclib -Wl,-install_name,"@rpath/$(basename "$_sh")"                     -o "$_mdir/$_sh" $_objs $(_get libs) || die "$_mod: linking $_sh failed"
             else
                 # THE SONAME IS THE FILE'S OWN NAME: a program records it as NEEDED, and the
                 # copy tiko puts beside the program (RFC-0002 V13) is found by it through $ORIGIN.

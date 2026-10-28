@@ -12,8 +12,8 @@
 # SIL Open Font License 1.1, Fluent UI System Icons under MIT.
 #
 # SCINTK (lib/) is tkCodeEdit's Scintilla, built from tkCodeEdit/scintk by its own build.sh --
-# clang++ on Windows (vendorfetch.sh sets CXX), g++ on Linux. tkCodeEdit loads it at run time;
-# 'runtime' copies it beside the program.
+# clang++ on Windows (vendorfetch.sh sets CXX), g++ on Linux, clang++ on macOS. tkCodeEdit
+# loads it at run time; 'runtime' copies it beside the program.
 
 [windows.1]
 kind = "script"
@@ -128,6 +128,65 @@ sha256 = "17e14e952734fa82431212cc16841571d35de9ad787091e099e505e72a42ea14"
 to = "fonts/FluentSystemIcons-Regular.ttf"
 
 [linux.8]
+kind = "copy"
+url = "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/463d58b8186f874ab2f51cf0a08b4ff5097c912f/LICENSE"
+sha256 = "69bc45dc42b9acb96a69823adbc6ae538374e3c0bde169b855b32c48eaaef52f"
+to = "fonts/FluentSystemIcons-LICENSE.txt"
+
+[macos.1]
+kind = "script"
+script = "tkCodeEdit/scintk/build.sh"
+from = "tkCodeEdit/scintk/bin/macos/libscintk.dylib"
+to = "lib/libscintk.dylib"
+
+[macos.2]
+kind = "copy"
+url = "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip"
+sha256 = "9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e"
+from = "extras/ttf/Inter-Regular.ttf"
+to = "fonts/Inter-Regular.ttf"
+
+[macos.3]
+kind = "copy"
+url = "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip"
+sha256 = "9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e"
+from = "extras/ttf/Inter-Bold.ttf"
+to = "fonts/Inter-Bold.ttf"
+
+[macos.9]
+kind = "copy"
+url = "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip"
+sha256 = "9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e"
+from = "extras/ttf/Inter-Italic.ttf"
+to = "fonts/Inter-Italic.ttf"
+
+[macos.4]
+kind = "copy"
+url = "https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip"
+sha256 = "9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e"
+from = "LICENSE.txt"
+to = "fonts/Inter-LICENSE.txt"
+
+[macos.5]
+kind = "copy"
+url = "https://github.com/microsoft/cascadia-code/releases/download/v2407.24/CascadiaCode-2407.24.zip"
+sha256 = "e67a68ee3386db63f48b9054bd196ea752bc6a4ebb4df35adce6733da50c8474"
+from = "ttf/static/CascadiaMono-Regular.ttf"
+to = "fonts/CascadiaMono-Regular.ttf"
+
+[macos.6]
+kind = "copy"
+url = "https://raw.githubusercontent.com/microsoft/cascadia-code/v2407.24/LICENSE"
+sha256 = "51882cd3cdba4e16f220f44ddb08a635c38c44ea6e0975db2574f4be6f958238"
+to = "fonts/CascadiaMono-LICENSE.txt"
+
+[macos.7]
+kind = "copy"
+url = "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/463d58b8186f874ab2f51cf0a08b4ff5097c912f/fonts/FluentSystemIcons-Regular.ttf"
+sha256 = "17e14e952734fa82431212cc16841571d35de9ad787091e099e505e72a42ea14"
+to = "fonts/FluentSystemIcons-Regular.ttf"
+
+[macos.8]
 kind = "copy"
 url = "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/463d58b8186f874ab2f51cf0a08b4ff5097c912f/LICENSE"
 sha256 = "69bc45dc42b9acb96a69823adbc6ae538374e3c0bde169b855b32c48eaaef52f"

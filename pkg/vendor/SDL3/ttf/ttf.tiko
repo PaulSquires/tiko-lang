@@ -7,14 +7,14 @@
 ''
 '' THE LIBRARY: as vendor/SDL3's -- 'link dynamic' alone. On Windows ../lib/SDL3_ttf.dll,
 '' beside SDL3.dll, copied beside the program; on Linux the system's, '-lSDL3_ttf' from
-'' the distribution's development package.
+'' the distribution's development package, and on macOS Homebrew's (brew install sdl3_ttf).
 #module "ttf"
 
 #import "vendor/SDL3" public
 
 public #include once "SDL_ttf.ti"
 
-#ifdef TIKO_OS_LINUX
+#if defined( TIKO_OS_LINUX ) or defined( TIKO_OS_MACOS )
     #foreignlib SDL3_ttf dynamic "system:SDL3_ttf"
 #else
     #foreignlib SDL3_ttf dynamic "../lib/SDL3_ttf"

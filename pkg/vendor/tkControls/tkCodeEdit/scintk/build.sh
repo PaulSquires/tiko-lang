@@ -1,7 +1,8 @@
 #!/bin/bash
 # Build scintk: Scintilla 5.5.7 + Lexilla (LexTiko) + PlatTk + ScintillaTk, as ONE shared library
 # with the C++ runtime linked in statically, so nothing of it reaches the tiko link.
-#   bash build.sh            Windows (Git Bash, clang++ -> scintk.dll) or Linux (g++ -> libscintk.so)
+#   bash build.sh            Windows (Git Bash, clang++ -> scintk.dll), Linux (g++ -> libscintk.so)
+#                            or macOS (clang++ -> libscintk.dylib)
 # Incremental by timestamp. Output: bin/<os>/ beside this script.
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -20,6 +21,11 @@ if [ "$OS" = windows ]; then
     FLAGS="-std=c++17 -O2 --target=x86_64-pc-windows-msvc -fms-runtime-lib=static -D_CRT_SECURE_NO_WARNINGS -DNOMINMAX"
     LIB=$OUT/scintk.dll
     O=obj
+elif [ "$OS" = macos ]; then
+    CXX=${CXX:-clang++}
+    FLAGS="-std=c++17 -O2 -fPIC -fvisibility=hidden"
+    LIB=$OUT/libscintk.dylib
+    O=o
 else
     CXX=${CXX:-g++}
     FLAGS="-std=c++17 -O2 -fPIC -fvisibility=hidden"
@@ -44,6 +50,9 @@ for s in "${srcs[@]}"; do
 done
 if [ "$OS" = windows ]; then
     "$CXX" --target=x86_64-pc-windows-msvc -fms-runtime-lib=static -shared -fuse-ld=lld -o "$LIB" "${objs[@]}"
+elif [ "$OS" = macos ]; then
+    # libc++ is the system's on macOS (no static one ships), so only the install name is ours.
+    "$CXX" -dynamiclib -Wl,-install_name,@rpath/libscintk.dylib -o "$LIB" "${objs[@]}"
 else
     "$CXX" -shared -o "$LIB" "${objs[@]}" -static-libstdc++ -static-libgcc -Wl,-z,noexecstack
 fi

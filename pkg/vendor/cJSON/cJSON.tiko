@@ -22,7 +22,8 @@
 ''
 '' THE LIBRARY: with 'link static' cJSON is linked into the program; with 'link dynamic' -- and
 '' when no '#import' says, which is this package's default -- the shared library, which tiko
-'' copies beside the program: cJSON.dll, or cJSON_linux_x86_64.so on Linux.
+'' copies beside the program: cJSON.dll, cJSON_linux_x86_64.so on Linux, or
+'' cJSON_macos_arm64.dylib on macOS.
 #module "cJSON"
 
 public #include once "cJSON.ti"

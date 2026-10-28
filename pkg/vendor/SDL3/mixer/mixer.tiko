@@ -7,14 +7,14 @@
 ''
 '' THE LIBRARY: as vendor/SDL3's -- 'link dynamic' alone. On Windows ../lib/SDL3_mixer.dll,
 '' beside SDL3.dll, copied beside the program; on Linux the system's, '-lSDL3_mixer' from
-'' the distribution's development package.
+'' the distribution's development package, and on macOS Homebrew's (brew install sdl3_mixer).
 #module "mixer"
 
 #import "vendor/SDL3" public
 
 public #include once "SDL_mixer.ti"
 
-#ifdef TIKO_OS_LINUX
+#if defined( TIKO_OS_LINUX ) or defined( TIKO_OS_MACOS )
     #foreignlib SDL3_mixer dynamic "system:SDL3_mixer"
 #else
     #foreignlib SDL3_mixer dynamic "../lib/SDL3_mixer"
