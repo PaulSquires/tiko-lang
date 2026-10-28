@@ -2,13 +2,13 @@
 # release.sh -- archive, hash, smoke-test and (only when asked) publish a toolchain release.
 #
 #   bash build/release.sh --notes <notes.md> [--sha <commit>] [--prev <dir>]
-#                         [--editor <dir>] [--no-tkedit] [--publish [--latest]]
+#                         [--editor <dir>] [--no-tkedit] [--no-mac] [--publish [--latest]]
 #
 # THE RECIPE THAT LIVED IN MEMORY NOTES (review BLD-06, 2026-10-24), as one script. It does
 # not package: run build/package.sh --verify for each host first (Windows here, Linux under
-# WSL), at the SAME commit. Then this:
+# WSL, and on the Mac in ~/dev/tiko-lang), at the SAME commit. Then this:
 #
-#   1. refuses unless both toolchains' MANIFEST.txt name the commit (default HEAD);
+#   1. refuses unless every toolchain's MANIFEST.txt names the commit (default HEAD);
 #   2. zips toolchains/tiko-windows with C:/Windows/System32/tar.exe (bsdtar) -- Git Bash's
 #      bare tar.exe is GNU tar, whose '-a -cf x.zip' writes an uncompressed TAR named .zip --
 #      and checks the result is a zip;
@@ -17,6 +17,10 @@
 #      both archives carry the editor beside the toolchain: toolchains/tkedit-<host> (made by
 #      package.sh) as tkedit/, so each unpacks to tiko-<host>/ and tkedit/ (--no-tkedit: not;
 #      the zip adds a staged copy named tkedit, as System32's bsdtar cannot rename with -s);
+#   3b. tars toolchains/tiko-macos ON THE MAC (docs/tiko-macos M9), over ssh to TKO_MAC_HOST
+#      (default 'mac', options in TKO_MAC_SSH_OPTS): bsdtar, owner 0, no extended attributes
+#      or AppleDouble files, 644/755 as above; copied back here. The archive is tiko-macos/
+#      alone -- no tkedit on macOS yet (docs/tiko-macos D-M9-2). --no-mac leaves it out;
 #   4. writes SHA256SUMS and appends the hashes to a copy of the notes;
 #   5. smoke-tests each archive extracted into an empty directory with no TKO_* variable:
 #      hello.tiko compiled and run, and tkedit/ holds the program at its root with fonts/;
@@ -24,13 +28,13 @@
 #      archive gained and lost;
 #   7. with --editor <dir>, mirrors tiko-windows into <dir> (the editor's toolchain copy);
 #   8. with --publish, and only then, 'gh release create toolchain-<short> --target <full sha>'
-#      -- a short sha is HTTP 422 -- with the two archives. --latest marks it Latest.
+#      -- a short sha is HTTP 422 -- with the archives. --latest marks it Latest.
 #
 # Everything lands in build/.release/<short>/. Nothing is published without --publish.
 set -o pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT" || exit 2
-NOTES="" SHA="" PREV="" EDITOR="" PUBLISH=0 LATEST=0 TKEDIT=1
+NOTES="" SHA="" PREV="" EDITOR="" PUBLISH=0 LATEST=0 TKEDIT=1 MAC=1
 while [ $# -gt 0 ]; do
     case "$1" in
         --notes)   shift; NOTES=$1 ;;
@@ -40,7 +44,8 @@ while [ $# -gt 0 ]; do
         --publish) PUBLISH=1 ;;
         --latest)  LATEST=1 ;;
         --no-tkedit) TKEDIT=0 ;;
-        -h|--help) sed -n '2,29p' "$0"; exit 0 ;;
+        --no-mac)  MAC=0 ;;
+        -h|--help) sed -n '2,33p' "$0"; exit 0 ;;
         *) echo "release: unknown argument '$1'" >&2; exit 2 ;;
     esac
     shift
@@ -57,6 +62,14 @@ TKWIN=toolchains/tkedit-windows
 TKLNX=toolchains/tkedit-linux
 OUT=build/.release/$SHORT
 mkdir -p "$OUT"
+MACH=${TKO_MAC_HOST:-mac}
+MSSH=${TKO_MAC_SSH_OPTS:-}
+# A REMOTE STEP IS A FILE, run by a login zsh: a non-login ssh shell has no Homebrew on PATH,
+# and variables in an inline ssh command expand on the wrong side (build/aapcslane.sh).
+on_mac( ) {
+    scp -q -o BatchMode=yes $MSSH "$1" "$MACH:tkm/$(basename "$1")" || return 1
+    ssh -o BatchMode=yes $MSSH "$MACH" zsh -l "tkm/$(basename "$1")" < /dev/null
+}
 
 # 1. both hosts packaged at this commit
 for t in "$WIN" "$LNX"; do
@@ -65,6 +78,17 @@ for t in "$WIN" "$LNX"; do
     grep -q " FAIL" "$t/MANIFEST.txt" && die "$t/MANIFEST.txt records a FAIL -- read its verification section"
 done
 note "both MANIFESTs name $SHORT"
+if [ "$MAC" = "1" ]; then
+    cat > "$OUT/mac-check.sh" <<EOF
+cd ~/dev/tiko-lang/toolchains/tiko-macos || exit 2
+grep -q "$SHORT" MANIFEST.txt || exit 3
+grep -q " FAIL" MANIFEST.txt && exit 4
+exit 0
+EOF
+    on_mac "$OUT/mac-check.sh"; rc=$?
+    [ $rc = 0 ] || die "the Mac's toolchains/tiko-macos: none (2), MANIFEST not at $SHORT (3) or a FAIL in it (4) -- rc $rc"
+    note "the Mac's MANIFEST names $SHORT"
+fi
 if [ "$TKEDIT" = "1" ]; then
     [ -f "$TKWIN/tkedit.exe" ] || die "no $TKWIN/tkedit.exe -- package.sh packages it (or pass --no-tkedit)"
     [ -f "$TKLNX/tkedit" ] || die "no $TKLNX/tkedit -- package.sh under WSL packages it (or pass --no-tkedit)"
@@ -110,8 +134,29 @@ MSYS_NO_PATHCONV=1 wsl.exe -e sh "/mnt/c${ROOT#/c}/$WSLSH" || die "WSL tar faile
 [ -s "$TGZ" ] || die "no $TGZ"
 note "tar.gz $(du -h "$TGZ" | cut -f1)"
 
+# 3b. the macOS tar.gz, on the Mac
+MTGZ=""
+if [ "$MAC" = "1" ]; then
+    MTGZ=$OUT/tiko-macos-arm64-$SHORT.tar.gz
+    cat > "$OUT/tar-macos.sh" <<EOF
+set -e
+rm -rf ~/tkrel-$SHORT && mkdir -p ~/tkrel-$SHORT
+cp -R ~/dev/tiko-lang/toolchains/tiko-macos ~/tkrel-$SHORT/tiko-macos
+cd ~/tkrel-$SHORT
+xattr -cr tiko-macos
+find tiko-macos -type f -exec chmod 644 {} +
+find tiko-macos -type d -exec chmod 755 {} +
+chmod 755 tiko-macos/bin/tiko
+COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata --uid 0 --gid 0 -czf tiko-macos-arm64-$SHORT.tar.gz tiko-macos
+EOF
+    on_mac "$OUT/tar-macos.sh" || die "the Mac's tar failed"
+    scp -q -o BatchMode=yes $MSSH "$MACH:tkrel-$SHORT/tiko-macos-arm64-$SHORT.tar.gz" "$MTGZ" || die "scp of the macOS archive"
+    [ -s "$MTGZ" ] || die "no $MTGZ"
+    note "macOS tar.gz $(du -h "$MTGZ" | cut -f1)"
+fi
+
 # 4. hashes, and the notes with them
-( cd "$OUT" && sha256sum "$(basename "$ZIP")" "$(basename "$TGZ")" > SHA256SUMS ) || die "sha256sum"
+( cd "$OUT" && sha256sum "$(basename "$ZIP")" "$(basename "$TGZ")" ${MTGZ:+"$(basename "$MTGZ")"} > SHA256SUMS ) || die "sha256sum"
 { cat "$NOTES"; echo; echo "### SHA-256"; echo; echo '```text'; cat "$OUT/SHA256SUMS"; echo '```'; } > "$OUT/notes.md"
 note "SHA256SUMS and notes.md written"
 
@@ -140,6 +185,21 @@ EOF
 got=$(MSYS_NO_PATHCONV=1 wsl.exe -e sh "/mnt/c${ROOT#/c}/$OUT/smoke-linux.sh" | tr -d '\r') || die "Linux smoke: $got"
 [ "$got" = "hello from tiko" ] || die "Linux smoke printed '$got'"
 note "smoke linux-x86_64: ok"
+# AS A NEW USER WOULD: a fresh HOME, PATH the system's alone, no TKO_*. The compiler finds
+# Homebrew's clang by its own default (docs/tiko-macos D6), not through PATH.
+if [ "$MAC" = "1" ]; then
+    cat > "$OUT/smoke-macos.sh" <<EOF
+set -e
+rm -rf ~/tksmoke-$SHORT && mkdir -p ~/tksmoke-$SHORT/home && cd ~/tksmoke-$SHORT
+tar -xzf ~/tkrel-$SHORT/tiko-macos-arm64-$SHORT.tar.gz
+echo 'print "hello from tiko"' > hello.tiko
+env -i HOME=\$PWD/home PATH=/usr/bin:/bin tiko-macos/bin/tiko hello.tiko -o hello
+./hello
+EOF
+    got=$(on_mac "$OUT/smoke-macos.sh") || die "macOS smoke: $got"
+    [ "$got" = "hello from tiko" ] || die "macOS smoke printed '$got'"
+    note "smoke macos-arm64: ok"
+fi
 
 # 6. what changed against the previous release
 if [ -n "$PREV" ]; then
@@ -165,7 +225,7 @@ if [ "$PUBLISH" = "1" ]; then
     command -v gh > /dev/null 2>&1 || die "no gh"
     flags=""; [ "$LATEST" = "1" ] && flags="--latest"
     gh release create "toolchain-$SHORT" --target "$SHA" --title "toolchain-$SHORT" \
-        --notes-file "$OUT/notes.md" $flags "$ZIP" "$TGZ" || die "gh release create"
+        --notes-file "$OUT/notes.md" $flags "$ZIP" "$TGZ" ${MTGZ:+"$MTGZ"} || die "gh release create"
     note "published toolchain-$SHORT"
 else
     note "not published (pass --publish); everything is in $OUT"

@@ -139,7 +139,15 @@ case "$(uname -s)" in
         # The compiler's own default on Linux -- see src/codegen/toolchain.tiko.
         CLANG_DEFAULT=/usr/bin/clang
         ;;
-    *)  die "unsupported host '$(uname -s)' -- this packages Windows or Linux" ;;
+    Darwin)
+        # Apple Silicon (docs/tiko-macos D1): the compiler under bin/, as on Linux.
+        HOST=macos; EXT=""; BINSUB="bin/"
+        TARGETS="macos-arm64"
+        DEFTARGET=macos-arm64
+        # Homebrew's LLVM (docs/tiko-macos D6) -- see src/codegen/toolchain.tiko.
+        CLANG_DEFAULT=/opt/homebrew/opt/llvm/bin/clang
+        ;;
+    *)  die "unsupported host '$(uname -s)' -- this packages Windows, Linux or macOS" ;;
 esac
 
 # WHICH TARGETS HAVE A GRAPHICS LIBRARY. windows-x86_64 alone, and lib/gfx/build
@@ -166,7 +174,7 @@ if [ -z "$TPINC" ]; then
     . "$ROOT/build/defaultseed.sh"
     if [ "$HOST" = "windows" ]; then _sw=1; else _sw=0; fi
     if _seed=$( default_seed "$ROOT" "$_sw" ); then
-        _sd=$( dirname "$_seed" ); [ "$HOST" = "linux" ] && _sd=$( dirname "$_sd" )
+        _sd=$( dirname "$_seed" ); [ "$HOST" = "windows" ] || _sd=$( dirname "$_sd" )
         [ -d "$_sd/inc" ] && TPINC="$_sd/inc"
     fi
 fi
@@ -536,7 +544,8 @@ fi
 # NOT FATAL, as the graphics library is not: a user without fbcunit has lost the
 # test library, not the compiler. The manifest records each target either way.
 FBCU="$ROOT/tests/vendor/fbc-tests/fbcunit"
-FBCU_AR=${TKO_AR:-$( command -v llvm-ar 2>/dev/null || echo "/c/Program Files/LLVM/bin/llvm-ar.exe" )}
+# On macOS Homebrew's LLVM is deliberately not on PATH (docs/tiko-macos D6): its llvm-ar is named.
+FBCU_AR=${TKO_AR:-$( command -v llvm-ar 2>/dev/null || { [ "$HOST" = "macos" ] && echo /opt/homebrew/opt/llvm/bin/llvm-ar; } || echo "/c/Program Files/LLVM/bin/llvm-ar.exe" )}
 FBCU_STATE=""
 for t in $TARGETS; do
     _fo="$OUT/.fbcunit.$t"
@@ -992,6 +1001,16 @@ SIZE=$( du -sh "$OUT" | cut -f1 )
     say "            .ll -> .o step and the link. Install LLVM, and point at it"
     say "            by setting TKO_CLANG if it is not at the default"
     say "            $CLANG_DEFAULT."
+    if [ "$HOST" = "macos" ]; then
+        say "            On macOS: 'brew install llvm'. Homebrew's clang is not put on"
+        say "            PATH, and tiko does not need it there."
+        say "Xcode's Command Line Tools REQUIRED ('xcode-select --install'): the"
+        say "            macOS SDK and Apple's linker, ld64, which every link uses."
+        say "Optional, from Homebrew: openssl@3 for std/tls and std/http, and sdl3"
+        say "            (sdl3_image, sdl3_ttf, sdl3_mixer) for vendor/SDL3."
+        say "A DOWNLOADED ARCHIVE is quarantined by macOS, and its unsigned compiler is"
+        say "            then refused: 'xattr -dr com.apple.quarantine tiko-macos'."
+    fi
     say
     say "-- libraries, per target -----------------------------------------------"
     say "lib/<target>/     tiko-rt: libfb.a and libfbmt.a, plus libtkogfx.a"
