@@ -5,7 +5,7 @@
 '    License, v. 2.0. If a copy of the MPL was not distributed with this
 '    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 '
-' parser -- tikoParser (.dll / .so, D3), loaded at run time, and a worker that scans in the
+' parser -- parser.dll / parser.so (tiko's front end, D3), loaded at run time, and a worker that scans in the
 ' background. The C contract is tiko-lang's src/api/tikoparser.ti, version 4; the records here
 ' mirror it. Its strings are UTF-16 on EVERY OS (the library reads and writes uint16, not the
 ' host's wchar_t), so they are ushort here and no wstring is involved.
@@ -168,10 +168,10 @@ public type Library
                            byref o as const ScanOptions ) as ScanResult
 end type
 
-' tikoParser.dll / tikoParser.so in dir_, its version checked against the contract.
+' parser.dll / parser.so in dir_, its version checked against the contract.
 function Library.Load( byref dir_ as const ustring ) as boolean
     if h then return true
-    dim as string path = fs.PathJoin( dir_, platform.SharedLibraryFile( "tikoParser" ) )
+    dim as string path = fs.PathJoin( dir_, platform.SharedLibraryFile( "parser" ) )
     if fs.IsFile( path ) = false then
         err_ = path & ": no such file"
         return false

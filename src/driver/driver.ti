@@ -200,7 +200,7 @@ namespace Tko.Driver
     '' restart IS a second Run( ) -- main.tiko stays one line, and the whole compiler
     '' remains reachable in-process.
     '' 'scanOut', when given, is a Tko.Scan.ScanResult the run fills instead of printing --
-    '' how tikoParser.dll (src/api) drives a scan through the same command line as a CLI run.
+    '' how parser.dll (src/api) drives a scan through the same command line as a CLI run.
     '' 'buildOut', when given, is the Tko.Build.Observer of a 'tiko build' (src/build).
     declare function Run _
         ( byref args as Tko.StrVec, byval restartDepth as int32 = 0, _

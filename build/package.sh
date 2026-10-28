@@ -187,7 +187,7 @@ if [ "$DO_BUILD" = "1" ]; then
     # concurrently, each into its own obj/<target>/<config> tree.
     mkdir -p "$ROOT/lib/rt/obj" "$ROOT/lib/gfx/obj"
     note "building the compiler [$CFG]"
-    # --no-dll: the editor's tikoParser.dll ships with the editor, not in a toolchain.
+    # --no-dll: the editor's parser.dll ships with the editor, not in a toolchain.
     if ! sh "$ROOT/build/build.sh" "$CFG" --no-dll >"$ROOT/lib/rt/obj/package-tiko.log" 2>&1; then
         tail -20 "$ROOT/lib/rt/obj/package-tiko.log" >&2
         die "the compiler build failed -- lib/rt/obj/package-tiko.log"
@@ -870,8 +870,8 @@ if [ "$DO_TKEDIT" = "1" ]; then
     if ! TKO_EDITOR_DIR=/nonexistent sh "$ROOT/build/build.sh" Release --dll >>"$_tklog" 2>&1; then
         _tkfail="tikoParser did not build"
     fi
-    _tkp="$ROOT/bin/tikoParser.dll"
-    [ "$HOST" = "windows" ] || _tkp="$ROOT/bin/tikoParser.so"
+    _tkp="$ROOT/bin/parser.dll"
+    [ "$HOST" = "windows" ] || _tkp="$ROOT/bin/parser.so"
     [ -n "$_tkfail" ] || [ -f "$_tkp" ] || _tkfail="no $_tkp after the build"
     # Linux has no SDL3 of its own and the toolchain ships none: tkControls' build-linux-libs.sh
     # builds one, kept (gitignored) in examples/tkControls/linux-lib, linked against and shipped.

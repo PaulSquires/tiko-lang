@@ -52,8 +52,8 @@ public function PrimaryModifierName( ) as ustring
     return "Ctrl"
 end function
 
-' The file name a shared library has here: tikoParser -> tikoParser.dll / .so / .dylib (tiko-lang's
-' build.sh writes bin/tikoParser.so on Linux, with no "lib" prefix).
+' The file name a shared library has here: parser -> parser.dll / .so / .dylib (tiko-lang's
+' build.sh writes bin/parser.so on Linux, with no "lib" prefix).
 public function SharedLibraryFile( byref base_ as const ustring ) as ustring
     select case CurrentOs( )
     case Os.Windows : return base_ & ".dll"

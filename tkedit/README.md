@@ -60,7 +60,7 @@ TKO_MODCACHE=/c/dev/tiko-lang/tkedit/out/modcache /c/dev/tiko-lang/toolchains/ti
 ```
 
 `bin/` is the run folder (`bin/tkedit.exe` beside the SDL libraries and `scintk.dll`, which the
-build copies in, and `tikoParser.dll`, which the test scripts do); it is not tracked. To regenerate the key
+build copies in, and `parser.dll`, which the test scripts do); it is not tracked. To regenerate the key
 reference after changing `src/core/cmdids`:
 
 ```bash

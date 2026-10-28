@@ -1,4 +1,4 @@
-'' tkpdump.tiko -- a HOST for tikoParser.dll: it loads the DLL the way an editor does, by
+'' tkpdump.tiko -- a HOST for parser.dll: it loads the DLL the way an editor does, by
 '' DYLIBLOAD and the export names in src/api/tikoparser.ti, and checks what only an
 '' in-process host can see.
 ''

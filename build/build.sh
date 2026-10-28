@@ -4,7 +4,7 @@
 #   build/build.sh [Debug|Release|RelWithDebInfo|MinSizeRel] [--test-runner] [--no-dll] [--oracle]
 #   build/build.sh [Release|MinSizeRel] --dll
 #
-# A compiler build also builds the editor's bin/tikoParser.dll and copies it beside
+# A compiler build also builds the editor's bin/parser.dll and copies it beside
 # tiko-editor.exe ($TKO_EDITOR_DIR, default C:\dev\tiko-editor-tiko), which loads it from
 # there. '--no-dll' skips both; '--dll' builds the DLL alone.
 #
@@ -15,7 +15,7 @@ set -e
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 CFG=${1:-Debug}
-# '--dll' anywhere: build the editor's tikoParser.dll INSTEAD of the compiler (below).
+# '--dll' anywhere: build the editor's parser.dll INSTEAD of the compiler (below).
 # '--no-dll': the compiler without it -- for the gate, bootstrap and packaging, which
 # have no use for an editor's scanner and should not pay for one.
 DLL=0
@@ -214,11 +214,11 @@ compile_units( ) {
     [ "$cu_fail" = "0" ] || exit 1
 }
 
-# THE EDITOR'S DLL, bin/tikoParser.dll (src/api; contract src/api/tikoparser.ti): the
+# THE EDITOR'S DLL, bin/parser.dll (src/api; contract src/api/tikoparser.ti): the
 # compiler's own sources less the main module, plus the entry points. Built INSTEAD of the
 # compiler, so bin/tiko and the build stamp are not touched. NEVER WITH -exx: a failed
 # runtime check ends the PROCESS, and in a DLL the process is the editor. fbc writes the
-# import library bin/libtikoParser.dll.a beside it.
+# import library bin/libparser.dll.a beside it.
 #
 # THE EDITOR LOADS IT FROM BESIDE tiko-editor.exe, so a Windows build copies it there. A
 # failed copy is a WARNING, never a failed build: the usual cause is a running editor,
@@ -231,13 +231,13 @@ build_dll( ) {
     # mixed multithreading). Saying it gives the same link and no warning.
     DLLFLAGS="$DLLFLAGS -mt"
     LIBSRC=$(echo "$SOURCES" | tail -n +2)
-    echo "build: tikoParser.dll [$CFG] with $STAGE0"
+    echo "build: parser.dll [$CFG] with $STAGE0"
     if [ "$SEEDED" = "1" ]; then
         ( cd "$ROOT" && "$STAGE0" -dll $LIBSRC src/api/tikoparser.tiko -i src $DLLFLAGS \
-            -o "bin/tikoParser$( [ "$HOSTWIN" = "1" ] && echo .dll || echo .so )" )
+            -o "bin/parser$( [ "$HOSTWIN" = "1" ] && echo .dll || echo .so )" )
     else
         compile_units "$ROOT/build/obj/$CFG-dll" "" "$DLLFLAGS" $LIBSRC src/api/tikoparser.tiko
-        ( cd "$ROOT" && "$STAGE0" -dll $OBJS $DLLFLAGS -x "bin/tikoParser$( [ "$HOSTWIN" = "1" ] && echo .dll || echo .so )" )
+        ( cd "$ROOT" && "$STAGE0" -dll $OBJS $DLLFLAGS -x "bin/parser$( [ "$HOSTWIN" = "1" ] && echo .dll || echo .so )" )
     fi
     [ "$HOSTWIN" = "1" ] || return 0
     EDITOR=${TKO_EDITOR_DIR:-/c/dev/tiko-editor-tiko}
@@ -245,13 +245,13 @@ build_dll( ) {
     # in the editor's process and overflowed its stack on deep input (audit F-53); it stays
     # in bin/. 'build/build.sh Release --dll' is the one that updates the editor.
     if [ "$CFG" = "Debug" ]; then
-        echo "build: Debug tikoParser.dll stays in bin/ -- the editor takes a Release one (build.sh Release --dll)"
+        echo "build: Debug parser.dll stays in bin/ -- the editor takes a Release one (build.sh Release --dll)"
     elif [ ! -d "$EDITOR" ]; then
-        echo "build: no editor at $EDITOR -- tikoParser.dll stays in bin/ (set TKO_EDITOR_DIR)"
-    elif cp -f "$ROOT/bin/tikoParser.dll" "$EDITOR/tikoParser.dll"; then
-        echo "build: tikoParser.dll -> $EDITOR"
+        echo "build: no editor at $EDITOR -- parser.dll stays in bin/ (set TKO_EDITOR_DIR)"
+    elif cp -f "$ROOT/bin/parser.dll" "$EDITOR/parser.dll"; then
+        echo "build: parser.dll -> $EDITOR"
     else
-        echo "build: WARNING: could not copy tikoParser.dll to $EDITOR -- is tiko-editor running?" >&2
+        echo "build: WARNING: could not copy parser.dll to $EDITOR -- is tiko-editor running?" >&2
     fi
 }
 

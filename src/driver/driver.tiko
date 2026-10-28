@@ -788,7 +788,7 @@ function Run _
     '' are computed on demand from 'target' and no layout is cached.
     ctx.types.Attach( @ctx.names, Tko.TargetLayoutFor( ctx.options.target ) )
 
-    '' THE EDITOR SCAN (src/driver/scan.tiko): into the caller's result when tikoParser.dll
+    '' THE EDITOR SCAN (src/driver/scan.tiko): into the caller's result when parser.dll
     '' asked, into this one -- to be printed -- for '--dump-scan'.
     dim as Tko.Scan.ScanResult localScan
     if scanOut <> nullptr then

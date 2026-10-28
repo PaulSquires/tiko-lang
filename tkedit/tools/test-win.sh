@@ -31,8 +31,8 @@ run() {      # run <name> <dir> <command...>
 build src/core && run coreall "$ROOT/src/core" ./tests/bin/coreall.exe
 if [ "${1:-}" != core ] && build src/app; then
     # scintk.dll: vendor/tkControls' runtime copies it beside the exe (pkg/vendor/tiko.toml)
-    # code intelligence (P5): tikoParser.dll (tiko-lang build/build.sh Release --dll)
-    TKP=${TIKOPARSER:-/c/dev/tiko-editor-tiko/tikoParser.dll}
+    # code intelligence (P5): parser.dll (tiko-lang build/build.sh Release --dll)
+    TKP=${TIKOPARSER:-/c/dev/tiko-editor-tiko/parser.dll}
     [ -f "$TKP" ] && cp -f "$TKP" "$ROOT/bin/"
     # the self-test builds sample programs with this tiko (P4; a Windows path for the program)
     export TKEDIT_TIKO=$(cygpath -w "$TIKO")

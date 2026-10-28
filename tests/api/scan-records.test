@@ -1,4 +1,4 @@
-'' THE EDITOR SCAN (src/driver/scan.bas; tikoParser.dll): every record kind, attributed to
+'' THE EDITOR SCAN (src/driver/scan.bas; parser.dll): every record kind, attributed to
 '' the file that declares it, with the spelling as written, the type as text, the owner,
 '' the body's line range and the flags the editor keys its features on.
 '' TEST: cli

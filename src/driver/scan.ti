@@ -1,6 +1,6 @@
 '' scan.ti -- THE EDITOR SCAN: the front end run for its SYMBOLS, not for code.
 ''
-'' What tikoParser.dll (src/api) and '--dump-scan' share. A scan runs a unit through
+'' What parser.dll (src/api) and '--dump-scan' share. A scan runs a unit through
 '' preprocess, parse, Collect, Resolve and Check -- never MIR -- and harvests the symbol
 '' table into flat records an editor can index: kind, name as written, type as text,
 '' owner, file and line, the body's line range, a few flags, and how often each symbol is

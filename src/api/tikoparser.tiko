@@ -1,4 +1,4 @@
-'' tikoparser.tiko -- tikoParser.dll's entry points: tiko's front end, for an editor.
+'' tikoparser.tiko -- parser.dll's entry points: tiko's front end, for an editor.
 ''
 '' The contract is api/tikoparser.ti. This file only TRANSLATES: a host's call becomes the
 '' command line a scan is ('--dump-scan', '-i' per include path, '-d' per define, the

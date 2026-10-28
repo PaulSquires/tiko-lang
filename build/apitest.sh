@@ -1,5 +1,5 @@
 #!/bin/sh
-# apitest.sh -- the in-process checks for the editor's tikoParser.dll (src/api).
+# apitest.sh -- the in-process checks for the editor's parser.dll (src/api).
 #
 #   build/apitest.sh            (after build/build.sh --dll; Windows only)
 #
@@ -15,7 +15,7 @@ case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) ;;
     *) echo "apitest: Windows only (the harness loads a .dll)"; exit 0 ;;
 esac
-DLL=bin/tikoParser.dll
+DLL=bin/parser.dll
 [ -f "$DLL" ] || { echo "apitest: $DLL not built -- build/build.sh --dll" >&2; exit 3; }
 
 # THE HARNESS IS BUILT BY THE STAGE0 build.sh USES: TKO_SEED, else build/defaultseed.sh's
@@ -80,7 +80,7 @@ STDINC=$(cygpath -w "$ROOT/toolchains/tiko-windows/inc")
 printf '#import "std/strings"
 print strings.Reverse( "tiko" )
 ' > "$HOST/usestd.tiko"
-out=$(TKP_INCDIR="$STDINC" TKP_PKGDIR=$(cygpath -w "$ROOT/pkg") "$HOST/tkpdump.exe" "$HOST/tikoParser.dll" "$HOST/usestd.tiko" dump 2>&1)
+out=$(TKP_INCDIR="$STDINC" TKP_PKGDIR=$(cygpath -w "$ROOT/pkg") "$HOST/tkpdump.exe" "$HOST/parser.dll" "$HOST/usestd.tiko" dump 2>&1)
 if echo "$out" | grep -qE "k13 strings" && echo "$out" | grep -qF "diags: 0"; then
     echo "ok    #import std/strings through pkgDir"
 else
@@ -92,7 +92,7 @@ if [ -n "$ALIAS" ] && [ "$( echo "$out" | grep -cE "k2 Replace as u?string  @[0-
 else
     echo "FAIL  strings.Replace as a member of strings (alias record '$ALIAS')"; echo "$out" | grep -E "k13 strings|Replace" | sed 's/^/      /'; FAIL=1
 fi
-out=$(TKP_INCDIR="$STDINC" "$HOST/tkpdump.exe" "$HOST/tikoParser.dll" "$HOST/usestd.tiko" dump 2>&1)
+out=$(TKP_INCDIR="$STDINC" "$HOST/tkpdump.exe" "$HOST/parser.dll" "$HOST/usestd.tiko" dump 2>&1)
 if echo "$out" | grep -qE "k13 strings"; then
     echo "FAIL  std/strings resolved with no pkgDir -- this check proves nothing"; FAIL=1
 else

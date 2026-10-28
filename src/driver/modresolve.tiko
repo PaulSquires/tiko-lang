@@ -145,7 +145,7 @@ end sub
 '' THE TOOLCHAIN'S PACKAGE TREE: --pkg-dir, else TKO_PKG, else <exe-dir>/pkg, else
 '' <exe-dir>/../pkg -- the same two layouts the default include directory is found in
 '' (cmdline.tiko). --pkg-dir is for a host whose executable is not tiko's: in the editor's
-'' tikoParser.dll, <exe-dir> is the editor's folder.
+'' parser.dll, <exe-dir> is the editor's folder.
 private function PkgDir_( byref ctx as Tko.CompilerContext ) as string
     if len( ctx.options.pkgDir ) > 0 then return NormPath( ctx.options.pkgDir )
     dim as string env_ = environ( "TKO_PKG" )

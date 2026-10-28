@@ -52,8 +52,8 @@ fi
 if [ "${1:-}" != core ] && build src/app; then
     # the self-test builds sample programs with this tiko (P4)
     export TKEDIT_TIKO=$TIKO
-    # code intelligence (P5): tikoParser.so (tiko-lang build/build.sh --dll under Linux)
-    TKP=${TIKOPARSER:-$HOME/tkpbuild/bin/tikoParser.so}
+    # code intelligence (P5): parser.so (tiko-lang build/build.sh --dll under Linux)
+    TKP=${TIKOPARSER:-$HOME/tkpbuild/bin/parser.so}
     [ -f "$TKP" ] && cp -f "$TKP" "$E/bin/"
     for drv in x11 wayland; do
         run tkEdit "$E/bin" $drv ./tkedit --selftest

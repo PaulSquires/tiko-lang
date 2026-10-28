@@ -144,7 +144,7 @@ private function Import_ _
     chain.Push( header )
     '' A QUOTED HEADER IS LOOKED FOR BESIDE THE FILE THAT NAMES IT, as C's '#include "x"'
     '' is and as '#include' and '#foreignlib' are here -- not only in the working
-    '' directory. tikoParser.dll runs inside the EDITOR, whose working directory is its
+    '' directory. parser.dll runs inside the EDITOR, whose working directory is its
     '' own: '#cinclude "raylib\include\raylib.h"' imported under 'tiko build', run from
     '' the source's folder, and was TKO0336 to the editor's scan, so not one raylib name
     '' reached completion. The folder goes to clang as -iquote, after the working

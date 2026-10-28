@@ -1,4 +1,4 @@
-'' tikoparser.ti -- THE CONTRACT of tikoParser.dll: tiko's front end, for an editor.
+'' tikoparser.ti -- THE CONTRACT of parser.dll: tiko's front end, for an editor.
 ''
 '' An editor hands the DLL a source file (or its unsaved text) and gets back every symbol
 '' the file and everything it includes or imports declares: kind, name as written, type as

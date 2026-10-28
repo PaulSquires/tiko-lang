@@ -4,7 +4,7 @@ rem
 rem   build\build.bat [Debug^|Release^|RelWithDebInfo^|MinSizeRel] [--test-runner] [--no-dll] [--oracle]
 rem   build\build.bat [Release^|MinSizeRel] --dll
 rem
-rem A compiler build also builds the editor's bin\tikoParser.dll and copies it beside
+rem A compiler build also builds the editor's bin\parser.dll and copies it beside
 rem tiko-editor.exe (%TKO_EDITOR_DIR%, default C:\dev\tiko-editor-tiko). '--no-dll' skips both.
 rem
 rem The Linux peer is build/build.sh and is kept line-for-line analogous.
@@ -18,7 +18,7 @@ if "%CFG%"=="" set "CFG=Debug"
 if "%CFG%"=="--test-runner" set "CFG=Debug"
 if "%CFG%"=="--no-dll" set "CFG=Debug"
 if "%CFG%"=="--oracle" set "CFG=Debug"
-rem '--dll' anywhere: build the editor's tikoParser.dll INSTEAD of the compiler (below).
+rem '--dll' anywhere: build the editor's parser.dll INSTEAD of the compiler (below).
 set "DLL=0"
 set "NODLL=0"
 set "TESTRUNNER=0"
@@ -136,9 +136,9 @@ goto :compiler
     set "LIBSRC="
     for %%f in (!SOURCES!) do if /i not "%%~nf"=="!MAINMOD!" set "LIBSRC=!LIBSRC! %%f"
     set "DLLFLAGS=!FLAGS:-exx=!"
-    echo build: tikoParser.dll [%CFG%] with %STAGE0%
+    echo build: parser.dll [%CFG%] with %STAGE0%
     pushd "%ROOT%"
-    "%STAGE0%" -dll !LIBSRC! src\api\tikoparser.tiko -i src !INCOPT! !DLLFLAGS! !OUTOPT! "bin\tikoParser.dll"
+    "%STAGE0%" -dll !LIBSRC! src\api\tikoparser.tiko -i src !INCOPT! !DLLFLAGS! !OUTOPT! "bin\parser.dll"
     if errorlevel 1 ( popd & exit /b 1 )
     popd
     rem Beside tiko-editor.exe, which loads it from there. A failed copy (a running editor
@@ -146,14 +146,14 @@ goto :compiler
     set "EDITOR=%TKO_EDITOR_DIR%"
     if "!EDITOR!"=="" set "EDITOR=C:\dev\tiko-editor-tiko"
     if not exist "!EDITOR!\" (
-        echo build: no editor at !EDITOR! -- tikoParser.dll stays in bin\ ^(set TKO_EDITOR_DIR^)
+        echo build: no editor at !EDITOR! -- parser.dll stays in bin\ ^(set TKO_EDITOR_DIR^)
         exit /b 0
     )
-    copy /y "%ROOT%\bin\tikoParser.dll" "!EDITOR!\tikoParser.dll" >nul 2>&1
+    copy /y "%ROOT%\bin\parser.dll" "!EDITOR!\parser.dll" >nul 2>&1
     if errorlevel 1 (
-        echo build: WARNING: could not copy tikoParser.dll to !EDITOR! -- is tiko-editor running? 1>&2
+        echo build: WARNING: could not copy parser.dll to !EDITOR! -- is tiko-editor running? 1>&2
     ) else (
-        echo build: tikoParser.dll -^> !EDITOR!
+        echo build: parser.dll -^> !EDITOR!
     )
     exit /b 0
 
