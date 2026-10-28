@@ -51,6 +51,8 @@ case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) HOSTWIN=1; EXT=".exe" ;;
     *)                    HOSTWIN=0; EXT="" ;;
 esac
+# The editor's parser library: a DLL, a .so, or on macOS a .dylib.
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) DLLEXT=.dll ;; Darwin) DLLEXT=.dylib ;; *) DLLEXT=.so ;; esac
 
 # stage0: overridable, because the pinned commit moves at phase boundaries only.
 #
@@ -235,10 +237,10 @@ build_dll( ) {
     echo "build: parser.dll [$CFG] with $STAGE0"
     if [ "$SEEDED" = "1" ]; then
         ( cd "$ROOT" && "$STAGE0" -dll $LIBSRC src/api/tikoparser.tiko -i src $DLLFLAGS \
-            -o "bin/parser$( [ "$HOSTWIN" = "1" ] && echo .dll || echo .so )" )
+            -o "bin/parser$DLLEXT" )
     else
         compile_units "$ROOT/build/obj/$CFG-dll" "" "$DLLFLAGS" $LIBSRC src/api/tikoparser.tiko
-        ( cd "$ROOT" && "$STAGE0" -dll $OBJS $DLLFLAGS -x "bin/parser$( [ "$HOSTWIN" = "1" ] && echo .dll || echo .so )" )
+        ( cd "$ROOT" && "$STAGE0" -dll $OBJS $DLLFLAGS -x "bin/parser$DLLEXT" )
     fi
     [ "$HOSTWIN" = "1" ] || return 0
     EDITOR=${TKO_EDITOR_DIR:-$ROOT/tkedit/bin}
