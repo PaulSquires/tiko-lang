@@ -76,6 +76,21 @@ public type SymbolSet
     m_sibling as Array( of long )
 end type
 
+' A completion list's pseudo-kinds beside SymKind's own: a picker row's glyph and colour.
+public const KIND_KEYWORD = -1
+public const KIND_STDTYPE = -2                 ' a type tiko names itself (long, ustring ...)
+
+' One row of a completion list (tka/completion's picker): the name to insert, what it is (a
+' SymKind or a KIND_*), the detail column -- a function's result, a variable's, field's or
+' parameter's type, "" for a sub or a type -- and whether "(" may commit it (a procedure that
+' takes parameters). A copy: nothing in it points back into a set a rescan may replace.
+public type Completion
+    Name      as ustring
+    Kind      as long
+    Detail    as ustring
+    HasParams as boolean
+end type
+
 ' Where a symbol is: which set, which record.
 public type SymRef
     SetNo as long = -1
@@ -182,6 +197,11 @@ public type Database
     declare function CallTip( byref name_ as const ustring, byref qualifier as const ustring = "", _
                               byref file as const ustring = "", byval ln as long = 0 ) as ustring
     declare function TypeNames( byref prefix as const ustring ) as Array( of ustring )
+    ' the same three lists as rows with a kind, a detail and HasParams
+    declare function CompletionItems( byref prefix as const ustring, byref file as const ustring, byval ln as long ) as Array( of Completion )
+    declare function MemberItems( byref qualifier as const ustring, byref file as const ustring, byval ln as long ) as Array( of Completion )
+    declare function TypeItems( byref prefix as const ustring ) as Array( of Completion )
+    declare function ItemOf( byval setNo as long, byval i as long ) as Completion
     declare function EnclosingProc( byval setNo as long, byref file as const ustring, byval ln as long ) as long
     ' tkEdit's lists (F4, Ctrl+P): every definition once, however many sets hold it
     declare function Procedures( byref file as const ustring ) as Array( of SymRef )   ' with a body, by line
@@ -383,33 +403,60 @@ function Database.Members( byref typeRef as const SymRef ) as Array( of SymRef )
     return out_
 end function
 
-' Names out of a list, once each, sorted case-insensitively.
-private function Sorted( byref names as Array( of ustring ) ) as Array( of ustring )
-    dim as Map( of ustring, ustring ) seen
+' Rows out of a list, once per name (the first wins), sorted case-insensitively by name.
+public function SortCompletions( byref rows as const Array( of Completion ) ) as Array( of Completion )
+    dim as Map( of ustring, boolean ) seen
     dim as Array( of ustring ) keys
-    for each n as ustring in names
-        dim as ustring k = lcase( n )
-        if seen.Contains( k ) = false then
-            seen.Put( k, n )
-            ' insertion sort: completion lists are short
-            dim as long at = keys.Count( )
-            while (at > 0) andalso (keys[at - 1] > k)
-                at -= 1
-            wend
-            keys.Insert( at, k )
-        end if
-    next
-    dim as Array( of ustring ) out_
-    for each k as ustring in keys
-        out_.Push( seen[k] )
+    dim as Array( of Completion ) out_
+    for each r as Completion in rows
+        dim as ustring k = lcase( r.Name )
+        if seen.Contains( k ) then continue for
+        seen.Put( k, true )
+        ' insertion sort: completion lists are short
+        dim as long at = keys.Count( )
+        while (at > 0) andalso (keys[at - 1] > k)
+            at -= 1
+        wend
+        keys.Insert( at, k )
+        out_.Insert( at, r )
     next
     return out_
 end function
 
+' The names of a list of rows.
+public function CompletionNames( byref rows as const Array( of Completion ) ) as Array( of ustring )
+    dim as Array( of ustring ) out_
+    for each r as Completion in rows
+        out_.Push( r.Name )
+    next
+    return out_
+end function
+
+' Record i of set setNo as a completion row.
+function Database.ItemOf( byval setNo as long, byval i as long ) as Completion
+    dim as Completion r
+    dim byref as Sym y = m_sets[setNo].Syms[i]
+    r.Name = y.Name
+    r.Kind = y.Kind
+    if y.Kind <> SymKind.TypeDef then r.Detail = y.TypeText    ' a TYPE's text is what it extends
+    if (y.Kind = SymKind.SubProc) orelse (y.Kind = SymKind.FunctionProc) then
+        dim as long c = m_sets[setNo].FirstChild( i )
+        while c >= 0
+            dim byref as Sym q = m_sets[setNo].Syms[c]
+            if (q.Kind = SymKind.Param) andalso ((q.Flags and FLAG_INSTANCE) = 0) then
+                r.HasParams = true
+                exit while
+            end if
+            c = m_sets[setNo].NextSibling( c )
+        wend
+    end if
+    return r
+end function
+
 ' The names an identifier starting with prefix could be at (file, ln): locals and parameters of
 ' the enclosing procedure, then every global. Case-insensitive prefix; sorted, once each.
-function Database.Completions( byref prefix as const ustring, byref file as const ustring, byval ln as long ) as Array( of ustring )
-    dim as Array( of ustring ) found
+function Database.CompletionItems( byref prefix as const ustring, byref file as const ustring, byval ln as long ) as Array( of Completion )
+    dim as Array( of Completion ) found
     dim as ustring pre = lcase( prefix )
     dim as long n = len( pre )
     for k as long = 0 to m_sets.Count( ) - 1
@@ -417,29 +464,33 @@ function Database.Completions( byref prefix as const ustring, byref file as cons
         if p >= 0 then
             dim as long c = m_sets[k].FirstChild( p )
             while c >= 0
-                dim as Sym y = m_sets[k].Syms[c]
-                if ((y.Flags and FLAG_INSTANCE) = 0) andalso (lcase( left( y.Name, n ) ) = pre) then found.Push( y.Name )
+                dim byref as Sym y = m_sets[k].Syms[c]
+                if ((y.Flags and FLAG_INSTANCE) = 0) andalso (lcase( left( y.Name, n ) ) = pre) then found.Push( this.ItemOf( k, c ) )
                 c = m_sets[k].NextSibling( c )
             wend
         end if
         for i as long = 0 to m_sets[k].Syms.Count( ) - 1
             dim byref as Sym y = m_sets[k].Syms[i]
             if IsGlobalKind( y.Kind ) andalso ((y.Flags and FLAG_LOCAL) = 0) andalso (y.Parent < 0) _
-               andalso (lcase( left( y.Name, n ) ) = pre) then found.Push( y.Name )
+               andalso (lcase( left( y.Name, n ) ) = pre) then found.Push( this.ItemOf( k, i ) )
         next
     next
-    return Sorted( found )
+    return SortCompletions( found )
+end function
+
+function Database.Completions( byref prefix as const ustring, byref file as const ustring, byval ln as long ) as Array( of ustring )
+    return CompletionNames( this.CompletionItems( prefix, file, ln ) )
 end function
 
 ' What follows "qualifier." : the members of its type, or a namespace's children.
-function Database.MemberNames( byref qualifier as const ustring, byref file as const ustring, byval ln as long ) as Array( of ustring )
-    dim as Array( of ustring ) found
+function Database.MemberItems( byref qualifier as const ustring, byref file as const ustring, byval ln as long ) as Array( of Completion )
+    dim as Array( of Completion ) found
     dim as SymRef t = this.TypeRefOf( qualifier, file, ln )
     if t.IsValid( ) then
         for each m as SymRef in this.Members( t )
-            found.Push( this.Item( m ).Name )
+            found.Push( this.ItemOf( m.SetNo, m.Index ) )
         next
-        return Sorted( found )
+        return SortCompletions( found )
     end if
     for k as long = 0 to m_sets.Count( ) - 1
         dim as long i = m_sets[k].First( qualifier )
@@ -447,30 +498,38 @@ function Database.MemberNames( byref qualifier as const ustring, byref file as c
             if m_sets[k].Syms[i].Kind = SymKind.NamespaceDef then
                 dim as long c = m_sets[k].FirstChild( i )
                 while c >= 0
-                    found.Push( m_sets[k].Syms[c].Name )
+                    found.Push( this.ItemOf( k, c ) )
                     c = m_sets[k].NextSibling( c )
                 wend
             end if
             i = m_sets[k].NextSame( i )
         wend
     next
-    return Sorted( found )
+    return SortCompletions( found )
+end function
+
+function Database.MemberNames( byref qualifier as const ustring, byref file as const ustring, byval ln as long ) as Array( of ustring )
+    return CompletionNames( this.MemberItems( qualifier, file, ln ) )
 end function
 
 ' The TYPE / UNION / ENUM / alias names starting with prefix (what follows "as ").
-function Database.TypeNames( byref prefix as const ustring ) as Array( of ustring )
-    dim as Array( of ustring ) found
+function Database.TypeItems( byref prefix as const ustring ) as Array( of Completion )
+    dim as Array( of Completion ) found
     dim as ustring pre = lcase( prefix )
     for k as long = 0 to m_sets.Count( ) - 1
         for i as long = 0 to m_sets[k].Syms.Count( ) - 1
             dim byref as Sym y = m_sets[k].Syms[i]
             select case y.Kind
             case SymKind.TypeDef, SymKind.UnionDef, SymKind.EnumDef, SymKind.TypeAlias
-                if lcase( left( y.Name, len( pre ) ) ) = pre then found.Push( y.Name )
+                if lcase( left( y.Name, len( pre ) ) ) = pre then found.Push( this.ItemOf( k, i ) )
             end select
         next
     next
-    return Sorted( found )
+    return SortCompletions( found )
+end function
+
+function Database.TypeNames( byref prefix as const ustring ) as Array( of ustring )
+    return CompletionNames( this.TypeItems( prefix ) )
 end function
 
 ' The old BuildCalltip: "Name(a as long, byref s as string, [n as long]) as long".
@@ -503,6 +562,53 @@ function Database.CallTip( byref name_ as const ustring, byref qualifier as cons
     tip &= ")"
     if (pr.Kind = SymKind.FunctionProc) andalso (len( pr.TypeText ) > 0) then tip &= " as " & pr.TypeText
     return tip
+end function
+
+' A calltip this long or longer is shown one parameter per line (tiko-editor-tiko's FormatCodetip).
+public const CALLTIP_WRAP = 75
+
+' A long calltip broken one parameter per line, the old editor's shape:
+'     Name( _
+'       a as long, _
+'       b as string _
+'     ) as long
+' A short one, or one with no parameters, as it is (runs of blanks made one). Only the list's own
+' brackets break it: a parameter's "()" or a default's "f(1, 2)" stays on its line.
+public function FormatCallTip( byref tip as const ustring ) as ustring
+    dim as ustring t = tip
+    while instr( t, "  " )
+        t = strings.Replace( t, "  ", " " )
+    wend
+    if len( t ) < CALLTIP_WRAP then return t
+    dim as long a = instr( t, "(" )
+    if a = 0 then return t
+    ' the list's ")", and its top-level commas
+    dim as long depth = 0, z = 0
+    dim as Array( of long ) commas
+    for i as long = a + 1 to len( t )
+        dim as ustring ch = mid( t, i, 1 )
+        if (ch = "(") orelse (ch = "[") then
+            depth += 1
+        elseif (ch = ")") orelse (ch = "]") then
+            if depth = 0 then z = i : exit for
+            depth -= 1
+        elseif (ch = ",") andalso (depth = 0) then
+            commas.Push( i )
+        end if
+    next
+    if z = 0 then return t
+    if len( trim( mid( t, a + 1, z - a - 1 ) ) ) = 0 then return t
+    dim as ustring o = rtrim( left( t, a ) ) & " _" & chr( 10 )
+    dim as long from_ = a + 1
+    commas.Push( z )
+    for k as long = 0 to commas.Count( ) - 1
+        dim as long upto = commas[k]
+        o &= "  " & trim( mid( t, from_, upto - from_ ) )
+        if k < commas.Count( ) - 1 then o &= ","
+        o &= " _" & chr( 10 )
+        from_ = upto + 1
+    next
+    return o & mid( t, z )
 end function
 
 ' ---------------------------------------------------------------- tkEdit's lists

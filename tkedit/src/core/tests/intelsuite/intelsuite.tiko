@@ -66,10 +66,41 @@ public sub Run( byref c as tally.Checker )
     c.Same( Joined( db.Completions( "q", "c:\p\main.tiko", 12 ) ), "q", "a local completes inside" )
     c.Same( Joined( db.Completions( "q", "c:\p\main.tiko", 25 ) ), "", "...and not outside" )
     c.Same( Joined( db.TypeNames( "po" ) ), "Point|Point3", "type names" )
-    c.Same( db.CallTip( "Twice" ), "Twice(n as long, [k as long]) as long", "the calltip" )
+    ' the picker's rows: kind, detail, whether "(" commits
+    dim as Array( of symboldb.Completion ) its = db.CompletionItems( "", "c:\p\main.tiko", 12 )
+    dim as ustring desc
+    for each it as symboldb.Completion in its
+        if len( desc ) then desc &= "|"
+        desc &= it.Name & ":" & it.Kind & ":" & it.Detail & ":"
+        if it.HasParams then desc &= "P" else desc &= "-"
+    next
+    c.Same( desc, "Draw:1::P|LIMIT:10:long:-|p:3:Point:-|Point:4::-|Point3:4::-|q:9:Point3:-|Twice:2:long:P", _
+            "CompletionItems: kind, detail (a TYPE's base is not one), params" )
+    dim as Array( of symboldb.Completion ) mits = db.MemberItems( "q", "c:\p\main.tiko", 12 )
+    c.Check( (mits.Count( ) = 4) andalso (mits[0].Name = "Len") andalso (mits[0].Kind = symboldb.SymKind.FunctionProc) _
+             andalso (mits[0].Detail = "double") andalso (mits[0].HasParams = false), "MemberItems: Len, a function without parameters" )
+    c.SameNum( db.TypeItems( "po" ).Count( ), 2, "TypeItems" )
+    dim as Array( of symboldb.Completion ) mix
+    dim as symboldb.Completion kw
+    kw.Name = "point" : kw.Kind = symboldb.KIND_KEYWORD
+    mix.Push( kw ) : mix.Push( its[3] )
+    kw.Name = "dim"
+    mix.Push( kw )
+    dim as Array( of symboldb.Completion ) sm = symboldb.SortCompletions( mix )
+    c.Check( (sm.Count( ) = 2) andalso (sm[0].Name = "dim") andalso (sm[1].Kind = symboldb.KIND_KEYWORD), _
+             "SortCompletions: case-blind, once per name, the first wins" )
+    c.Same( db.CallTip( "Twice" ),"Twice(n as long, [k as long]) as long", "the calltip" )
     c.Same( db.CallTip( "Draw" ), "Draw(byref p as Point)", "a sub's calltip" )
     c.Same( db.CallTip( "LIMIT" ), "", "a constant has no calltip" )
     c.Same( symboldb.BaseTypeName( "const Node ptr" ), "Node", "BaseTypeName" )
+    ' long calltips one parameter per line (tiko-editor-tiko's FormatCodetip)
+    c.Same( symboldb.FormatCallTip( "Foo(x as long) as long" ), "Foo(x as long) as long", "a short calltip as it is" )
+    c.Same( symboldb.FormatCallTip( "Foo(" & space( 80 ) & ") as long" ), "Foo( ) as long", "no parameters: not broken (blanks made one)" )
+    dim as ustring lt = symboldb.FormatCallTip( "MyVeryLongFunctionName(byref wszFirstParameter as const ustring, " & _
+                                               "nSecond as long, [arr() as long]) as boolean" )
+    c.Same( lt, "MyVeryLongFunctionName( _" & chr( 10 ) & "  byref wszFirstParameter as const ustring, _" & chr( 10 ) & _
+                "  nSecond as long, _" & chr( 10 ) & "  [arr() as long] _" & chr( 10 ) & ") as boolean", _
+            "a long one: a parameter per line, a parameter's () kept" )
 
     ' tkEdit's lists: definitions once each, procedures by line, qualified names
     dim as Array( of symboldb.SymRef ) defs = db.Definitions( )

@@ -48,6 +48,7 @@
 #import "tkc/textstream"
 #import "tkc/themes"
 #import "tka/chrome"
+#import "tka/completion"
 #import "tka/documents"
 #import "tka/editor"
 #import "tka/findstrip"
@@ -352,6 +353,7 @@ public type Window
     Message as ustring                  ' the message panel's text
     BuildMessage as ustring             ' the last build's: kept past the next key
     Chooser as popuplist.Picker
+    Completer as completion.Picker      ' the code-completion list (tka/completion)
     Choosing as PickKind
     Finder as findstrip.Strip
     FindLo as longint                   ' "Sel": the selection the strip opened over
@@ -455,7 +457,9 @@ public type Window
     declare sub ReloadSettings( )
     declare sub ReloadLanguage( )
     declare sub AttachCjkFallbacks( )
-    declare function TypeCompletions( byref prefix as const ustring ) as Array( of ustring )
+    declare function TypeCompletions( byref prefix as const ustring ) as Array( of symboldb.Completion )
+    declare sub OpenCompletions( byval v as editor.CodeView ptr, byref items as const Array( of symboldb.Completion ), _
+                                 byval lenTyped as long )
     declare sub LabelEditMenu( )
     declare sub SyncSettingsFile( )
     declare sub ApplyStatusPanels( )
@@ -772,7 +776,7 @@ function Window.Create( byval forcedScale as single ) as boolean
         ' completion list or calltip, which Esc closes first
         if (m->key = SDLK_ESCAPE) andalso (mw->Finder.isOpen orelse mw->OutputShown) then
             if mw->DocOfWidget( tkHost_GetFocus( h ) ) then
-                if mw->View( ).CompletionsShown( ) orelse mw->View( ).CallTipShown( ) then return false
+                if mw->Completer.IsOpen( ) orelse mw->View( ).CallTipShown( ) then return false
             end if
             if mw->Finder.isOpen then mw->OnFind( findstrip.FindAction.CloseStrip )
             if mw->OutputShown then mw->ShowOutput( false )
@@ -1672,7 +1676,11 @@ function Window.NewView( byref v as editor.CodeView ) as boolean
         dim as Window ptr mw = WindowOfWidget( h )
         if mw = 0 then exit sub
         select case n->code
-        case SCN_UPDATEUI, SCN_FOCUSIN : mw->ShowStatus( )
+        case SCN_UPDATEUI, SCN_FOCUSIN
+            mw->ShowStatus( )
+            if mw->Completer.IsOpen( ) andalso (mw->Completer.Target <> 0) then
+                if mw->Completer.Target->Widget( ) = h then mw->Completer.Sync( )
+            end if
         case SCN_CHARADDED
             mw->OnCharAdded( h, n->ch )
             mw->CodeTips( h, n->ch )
@@ -3322,22 +3330,6 @@ private sub SplitQualified( byref before as const ustring, byref word as ustring
     end if
 end sub
 
-' Sorted case-blind, each name once.
-private function SortNames( byref names as const Array( of ustring ) ) as Array( of ustring )
-    dim as Array( of ustring ) keys, out_
-    for each n as ustring in names
-        dim as ustring k = lcase( n )
-        dim as long at = keys.Count( )
-        while (at > 0) andalso (keys[at - 1] > k)
-            at -= 1
-        wend
-        if (at > 0) andalso (keys[at - 1] = k) then continue for
-        keys.Insert( at, k )
-        out_.Insert( at, n )
-    next
-    return out_
-end function
-
 ' The toolchain's pkg folder beside the compiler: #import "std/..." resolves there.
 function Window.PkgDir( ) as ustring
     dim as ustring c = this.CompilerPath( )
@@ -3548,7 +3540,7 @@ sub Window.CodeTips( byval hEdit as TK_WIDGET ptr, byval ch as long )
         SplitQualified( left( before, len( before ) - 1 ), word, qual )
         if len( word ) then
             dim as ustring tip = Db.CallTip( word, qual, d->Path, ln )
-            if len( tip ) then v->ShowCallTip( tip )
+            if len( tip ) then v->ShowCallTip( symboldb.FormatCallTip( tip ) )
         end if
         exit sub
     end if
@@ -3560,35 +3552,48 @@ sub Window.CodeTips( byval hEdit as TK_WIDGET ptr, byval ch as long )
         dim as ustring before = v->TextBeforeCaret( )
         dim as ustring word, qual
         SplitQualified( left( before, len( before ) - 1 ), word, qual )
-        if len( word ) then
-            dim as Array( of ustring ) items = Db.MemberNames( word, d->Path, ln )
-            if items.Count( ) then v->ShowCompletions( 0, items )
-        end if
+        if len( word ) then this.OpenCompletions( v, Db.MemberItems( word, d->Path, ln ), 0 )
         exit sub
     end if
     if ch = 32 then
         ' the space after "as" (dim p as _): the types, tiko's and the scans' (author 2026-10-28)
-        if AfterAs( v->TextBeforeCaret( ) ) then
-            dim as Array( of ustring ) items = this.TypeCompletions( "" )
-            if items.Count( ) then v->ShowCompletions( 0, items )
-        end if
+        if AfterAs( v->TextBeforeCaret( ) ) then this.OpenCompletions( v, this.TypeCompletions( "" ), 0 )
         exit sub
     end if
     if IsIdentCharU( ch ) = false then exit sub
-    if v->CompletionsShown( ) then exit sub                     ' Scintilla filters as typing goes on
+    if Completer.IsOpen( ) then
+        Completer.Sync( )                                       ' the picker filters as typing goes on
+        exit sub
+    end if
     this.ShowCompletionsAt( v, d, 3 )
+end sub
+
+' The picker on items for the lenTyped characters before the caret (tka/completion), in the
+' view's colours and the UI's font.
+sub Window.OpenCompletions( byval v as editor.CodeView ptr, byref items as const Array( of symboldb.Completion ), _
+                            byval lenTyped as long )
+    if (v = 0) orelse (items.Count( ) = 0) then exit sub
+    Completer.Look = Look
+    Completer.Font = tkForm_Font( form, TKFONT_UI )
+    Completer.GlyphFont = tkForm_Font( form, TKFONT_UI_BOLD )
+    Completer.Open( v, items, v->Position( ) - lenTyped )
 end sub
 
 ' The types a declaration can name after "as" whose names start with prefix: tiko's own (and const,
 ' function and sub, which may follow "as" too) and every type, union, enum and alias the scans
 ' found; sorted, each once.
-function Window.TypeCompletions( byref prefix as const ustring ) as Array( of ustring )
-    dim as Array( of ustring ) items = Db.TypeNames( prefix )
+function Window.TypeCompletions( byref prefix as const ustring ) as Array( of symboldb.Completion )
+    dim as Array( of symboldb.Completion ) items = Db.TypeItems( prefix )
     dim as ustring lp = lcase( prefix )
     for each k as ustring in strings.Split( TIKO_TYPES, " " )
-        if left( k, len( lp ) ) = lp then items.Push( k )
+        if left( k, len( lp ) ) <> lp then continue for
+        dim as symboldb.Completion r
+        r.Name = k
+        r.Kind = symboldb.KIND_STDTYPE
+        if (k = "const") orelse (k = "function") orelse (k = "sub") then r.Kind = symboldb.KIND_KEYWORD
+        items.Push( r )
     next
-    return SortNames( items )
+    return symboldb.SortCompletions( items )
 end function
 
 ' The names that start like the word before the caret: the scan's, the outline's procedures,
@@ -3598,28 +3603,38 @@ sub Window.ShowCompletionsAt( byval v as editor.CodeView ptr, byval d as DocRef,
     dim as ustring word, qual
     SplitQualified( before, word, qual )
     if len( word ) < minLen then exit sub
-    dim as Array( of ustring ) items
+    dim as Array( of symboldb.Completion ) items
     if len( qual ) then
-        items = Db.MemberNames( qual, d->Path, v->CaretLine( ) )
+        items = Db.MemberItems( qual, d->Path, v->CaretLine( ) )
     elseif instr( lcase( right( before, len( word ) + 4 ) ), "as " ) = 1 then
         items = this.TypeCompletions( word )
     else
-        items = Db.Completions( word, d->Path, v->CaretLine( ) )
+        items = Db.CompletionItems( word, d->Path, v->CaretLine( ) )
         if Db.HasFile( d->Path ) = false then
+            ' no scan yet: the outline's procedures
             for each hh as SymHit in this.ProcsOf( d )
-                if lcase( left( hh.Name, len( word ) ) ) = lcase( word ) then items.Push( hh.Name )
+                if lcase( left( hh.Name, len( word ) ) ) <> lcase( word ) then continue for
+                dim as symboldb.Completion r
+                r.Name = hh.Name
+                r.Kind = symboldb.SymKind.FunctionProc
+                if hh.Kind = "sub" then r.Kind = symboldb.SymKind.SubProc
+                items.Push( r )
             next
         end if
         dim as ustring lw = lcase( word )
         for each k as ustring in strings.Split( Look.Words.Words1, " " )
-            if left( k, len( lw ) ) = lw then items.Push( k )
+            if left( k, len( lw ) ) <> lw then continue for
+            dim as symboldb.Completion r
+            r.Name = k
+            r.Kind = symboldb.KIND_KEYWORD
+            items.Push( r )
             if items.Count( ) > 300 then exit for
         next
+        items = symboldb.SortCompletions( items )
     end if
-    items = SortNames( items )
     if items.Count( ) = 0 then exit sub
-    if (items.Count( ) = 1) andalso (lcase( items[0] ) = lcase( word )) andalso (minLen > 0) then exit sub
-    v->ShowCompletions( len( word ), items )
+    if (items.Count( ) = 1) andalso (lcase( items[0].Name ) = lcase( word )) andalso (minLen > 0) then exit sub
+    this.OpenCompletions( v, items, len( word ) )
 end sub
 
 ' ================================================================ P6: Find in Project

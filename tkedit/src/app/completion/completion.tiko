@@ -1,0 +1,565 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' completion -- the code-completion picker (tiko-editor-tiko's frmAutoComplete, ported): a popup
+' under the word being typed, one row per name in three columns -- the kind's glyph in the kind's
+' colour, the name, and the detail (a function's result, a variable's type) dimmed and right-
+' aligned. It replaces Scintilla's own list, which shows names only.
+'
+' The editor keeps the caret: every key the picker does not use goes on to the editor's widget
+' (the main window's accelerators first), so typing goes on into the document and the owner calls
+' Sync after each change to filter the rows by the word typed so far (case-blind prefix).
+'   Up / Down / PgUp / PgDn / Home / End   move
+'   Enter, Tab                             commit: the word typed is replaced by the row's name
+'   Esc                                    cancel
+'   Left / Right                           cancel, and the caret still moves
+'   "("                                    commits a row that takes parameters, then goes on to
+'                                          the editor (so the calltip shows); otherwise cancels
+'   another non-identifier character       cancels, then goes on
+' A click or a double click on a row selects or commits it; a click elsewhere cancels (and lands).
+#module "completion"
+
+#import "std/containers"
+#import "tkc/symboldb"
+#import "tka/editor"
+#import "vendor/tkControls/tkHost"
+#import "vendor/tkControls/tkKeys"
+#import "vendor/tkControls/tkPaint"
+#import "vendor/tkControls/tkPopupMenu"
+#import "vendor/tkControls/tkTheme"
+using containers
+using tkHost
+using tkKeys
+using tkPaint
+using tkPopupMenu
+using tkTheme
+
+' the old frmAutoComplete's metrics, unscaled
+public const VISIBLE_ROWS = 9
+public const GLYPH_WIDTH = 22
+public const COLUMN_GAP = 16
+public const PAD_RIGHT = 8
+public const MIN_WIDTH = 220
+public const MAX_WIDTH = 560
+public const ROW_HEIGHT = 20
+const SCROLL_WIDTH = 4
+
+' One glyph per kind (frmAutoComplete's): drawn as shapes, so no font has to hold them -- but the
+' procedure's f, which is a letter.
+public enum GlyphShape explicit
+    Proc = 1            ' f       sub, function
+    Square              ' type, union, alias, namespace
+    Triangle            ' enum
+    Circle              ' variable, constant, parameter, field, enum value
+    Diamond             ' keyword, tiko's own type, #define
+end enum
+
+public function ShapeOf( byval kind as long ) as GlyphShape
+    select case kind
+    case symboldb.SymKind.SubProc, symboldb.SymKind.FunctionProc : return GlyphShape.Proc
+    case symboldb.SymKind.TypeDef, symboldb.SymKind.UnionDef, symboldb.SymKind.TypeAlias, symboldb.SymKind.NamespaceDef
+        return GlyphShape.Square
+    case symboldb.SymKind.EnumDef : return GlyphShape.Triangle
+    case symboldb.KIND_KEYWORD, symboldb.KIND_STDTYPE, symboldb.SymKind.Define : return GlyphShape.Diamond
+    end select
+    return GlyphShape.Circle
+end function
+
+' &hRRGGBB, opaque
+private function Argb( byval rgb as long ) as ulong
+    return &hFF000000ul or (culng( rgb ) and &hFFFFFFul)
+end function
+
+private function ForeOf( byref s as const editor.Style, byref k as const editor.Look ) as ulong
+    if s.Fore >= 0 then return Argb( s.Fore )
+    if k.Text.Fore >= 0 then return Argb( k.Text.Fore )
+    return Argb( k.CallTipFore )
+end function
+
+' The kind's colour, from the editor's own: procedures as Keyword2, types as Keyword3, enums as
+' numbers, keywords and tiko's types as Keyword1, the rest as text (frmAutoComplete's choice).
+public function KindColor( byval kind as long, byref k as const editor.Look ) as ulong
+    select case kind
+    case symboldb.SymKind.SubProc, symboldb.SymKind.FunctionProc : return ForeOf( k.Keyword2, k )
+    case symboldb.SymKind.TypeDef, symboldb.SymKind.UnionDef, symboldb.SymKind.TypeAlias, symboldb.SymKind.NamespaceDef
+        return ForeOf( k.Keyword3, k )
+    case symboldb.SymKind.EnumDef, symboldb.SymKind.EnumValue : return ForeOf( k.Numbers, k )
+    case symboldb.KIND_KEYWORD, symboldb.KIND_STDTYPE, symboldb.SymKind.Define : return ForeOf( k.Keyword1, k )
+    end select
+    return Argb( k.CallTipFore )
+end function
+
+public type Picker
+    ' ---- set before Open
+    Look      as editor.Look              ' the colours: the view's
+    Font      as TTF_Font ptr             ' names and details; 0 = the popup's default
+    GlyphFont as TTF_Font ptr             ' the procedure's f (bold); 0 = Font
+
+    ' ---- while open
+    Target      as editor.CodeView ptr
+    Owner     as TK_HOST ptr
+    Pop       as TK_HOST ptr
+    List      as TK_WIDGET ptr
+    WordStart as longint                  ' where the word being completed begins
+    Typed     as ustring                  ' the word as it stands
+    All       as Array( of symboldb.Completion )
+    Rows      as Array( of symboldb.Completion )   ' All filtered by Typed
+    Sel       as long
+    Top       as long
+    Hot       as long = -1
+    X         as long                     ' the popup in owner pixels
+    Y         as long
+    W         as long
+    H         as long
+    gen       as long                     ' counts opens: did a key's command reopen it?
+    replacing as boolean                  ' a new popup replaces the old: its close is no cancel
+
+    declare function Open( byval v as editor.CodeView ptr, byref items as const Array( of symboldb.Completion ), _
+                           byval start_ as longint ) as boolean
+    declare sub Close( )
+    declare function IsOpen( ) as boolean
+    declare sub Sync( )                   ' the document changed or the caret moved
+    declare sub Commit( )
+    declare sub Move( byval delta as long )
+    declare sub MoveTo( byval i as long )
+    declare function Count( ) as long
+    declare function Selected( ) as ustring           ' "" = none
+    declare function Row( byval i as long ) as symboldb.Completion
+    declare function RowHeight( ) as long
+    declare function ShownRows( ) as long
+    declare sub GlyphCenter( byval i as long, byref cx as long, byref cy as long )   ' popup pixels; row i shown
+    declare sub Filter( )
+    declare function Place( ) as boolean
+    declare function Key( byval m as TK_MSG ptr ) as boolean
+    declare function Text( byval m as TK_MSG ptr ) as boolean
+end type
+
+private function PickerOf( byval h as TK_HOST ptr ) as Picker ptr
+    if h = 0 then return 0
+    return h->pUser
+end function
+
+private function IsIdentChar( byval c as ulong ) as boolean
+    return ((c >= 48) andalso (c <= 57)) orelse ((c >= 65) andalso (c <= 90)) orelse _
+           ((c >= 97) andalso (c <= 122)) orelse (c = 95)
+end function
+
+function Picker.RowHeight( ) as long
+    dim as long rh = tkHost_Scale( Owner, ROW_HEIGHT )
+    if Font then
+        dim as long fh = tkText_Height( Font ) + tkHost_Scale( Owner, 4 )
+        if fh > rh then rh = fh
+    end if
+    return rh
+end function
+
+function Picker.ShownRows( ) as long
+    dim as long n = Rows.Count( )
+    if n > VISIBLE_ROWS then n = VISIBLE_ROWS
+    return n
+end function
+
+function Picker.Count( ) as long
+    return Rows.Count( )
+end function
+
+function Picker.Row( byval i as long ) as symboldb.Completion
+    dim as symboldb.Completion none_
+    if (i < 0) orelse (i >= Rows.Count( )) then return none_
+    return Rows[i]
+end function
+
+function Picker.Selected( ) as ustring
+    if (this.IsOpen( ) = false) orelse (Sel < 0) orelse (Sel >= Rows.Count( )) then return ""
+    return Rows[Sel].Name
+end function
+
+function Picker.IsOpen( ) as boolean
+    return (Pop <> 0) andalso tkHost_IsOpen( Pop )
+end function
+
+' Rows = All filtered by the word typed: a case-blind prefix, in All's (sorted) order. The
+' selection stays on its name when it still matches.
+sub Picker.Filter( )
+    dim as ustring keep = ""
+    if (Sel >= 0) andalso (Sel < Rows.Count( )) then keep = lcase( Rows[Sel].Name )
+    dim as ustring pre = lcase( Typed )
+    dim as long n = len( pre ), exact = -1
+    Rows.Clear( )
+    Sel = -1 : Top = 0 : Hot = -1
+    for each r as symboldb.Completion in All
+        if lcase( left( r.Name, n ) ) = pre then
+            if (len( keep ) > 0) andalso (lcase( r.Name ) = keep) then Sel = Rows.Count( )
+            if (exact < 0) andalso (left( r.Name, n ) = Typed) then exact = Rows.Count( )
+            Rows.Push( r )
+        end if
+    next
+    ' else the first that matches as typed, case and all ("Sh": Show before shared), else the first
+    if Sel < 0 then Sel = iif( exact >= 0, exact, 0 )
+    this.MoveTo( Sel )
+end sub
+
+sub Picker.MoveTo( byval i as long )
+    dim as long n = Rows.Count( )
+    if n = 0 then Sel = -1 : exit sub
+    if i < 0 then i = 0
+    if i >= n then i = n - 1
+    Sel = i
+    dim as long vis = this.ShownRows( )
+    if Sel < Top then Top = Sel
+    if Sel >= Top + vis then Top = Sel - vis + 1
+    if List then tkWidget_Invalidate( List )
+end sub
+
+sub Picker.Move( byval delta as long )
+    this.MoveTo( Sel + delta )
+end sub
+
+sub Picker.GlyphCenter( byval i as long, byref cx as long, byref cy as long )
+    dim as long bw = tkHost_Scale( Owner, 1 )
+    cx = bw + tkHost_Scale( Owner, GLYPH_WIDTH ) \ 2
+    cy = bw + (i - Top) * this.RowHeight( ) + this.RowHeight( ) \ 2
+end sub
+
+' A glyph: the shape in the kind's colour, centred in rc.
+private sub PaintGlyph( byval b as TK_PAINT ptr, byval p as Picker ptr, byref r as const symboldb.Completion, _
+                        byref rc as const TKRECT, byval clr as ulong )
+    dim as long cx = (rc.left + rc.right) \ 2, cy = (rc.top + rc.bottom) \ 2
+    dim as long s = (rc.bottom - rc.top) * 2 \ 5          ' the shape's half size
+    if s < 3 then s = 3
+    b->SetBackColor( clr )
+    b->SetPenColor( clr )
+    select case ShapeOf( r.Kind )
+    case GlyphShape.Proc
+        dim as TTF_Font ptr f = p->GlyphFont
+        if f = 0 then f = p->Font
+        if f then b->SetFont( f )
+        b->SetForeColor( clr )
+        dim as TKRECT rt = rc
+        b->PaintText( wchr( &h0192 ), @rt, TK_DT_CENTER or TK_DT_VCENTER )
+        if p->Font then b->SetFont( p->Font )
+    case GlyphShape.Square
+        dim as TKRECT q
+        dim as long h = s * 3 \ 4
+        tkRect_Set( q, cx - h, cy - h, cx + h, cy + h )
+        b->PaintRect( @q )
+    case GlyphShape.Triangle
+        dim as TKPOINT pts( 0 to 2 )
+        pts( 0 ).x = cx : pts( 0 ).y = cy - s * 3 \ 4
+        pts( 1 ).x = cx + s * 3 \ 4 : pts( 1 ).y = cy + s * 3 \ 4
+        pts( 2 ).x = cx - s * 3 \ 4 : pts( 2 ).y = cy + s * 3 \ 4
+        b->PaintPolygon( @pts( 0 ), 3 )
+    case GlyphShape.Circle
+        dim as TKRECT q
+        dim as long h = s * 2 \ 3
+        tkRect_Set( q, cx - h, cy - h, cx + h, cy + h )
+        b->PaintEllipse( @q )
+    case else
+        dim as TKPOINT pts( 0 to 3 )
+        pts( 0 ).x = cx : pts( 0 ).y = cy - s
+        pts( 1 ).x = cx + s : pts( 1 ).y = cy
+        pts( 2 ).x = cx : pts( 2 ).y = cy + s
+        pts( 3 ).x = cx - s : pts( 3 ).y = cy
+        b->PaintPolygon( @pts( 0 ), 4 )
+    end select
+end sub
+
+private sub PaintList( byval w as TK_WIDGET ptr, byval b as TK_PAINT ptr )
+    dim as Picker ptr p = PickerOf( w->pHost )
+    if p = 0 then exit sub
+    dim byref as editor.Look k = p->Look
+    dim as ulong back_ = Argb( k.CallTipBack ), fore = Argb( k.CallTipFore )
+    dim as ulong dim_ = ForeOf( k.Comments, k )
+    dim as TKPOPUPMENU_COLORS mc = tkPopupMenu_ThemeColors( tkTheme_Get( ) )
+    dim as TKRECT rc
+    tkRect_Set( rc, 0, 0, w->cw, w->ch )
+    b->SetBackColor( back_ )
+    b->PaintRect( @rc )
+    if p->Font then b->SetFont( p->Font )
+    dim as long bw = tkHost_Scale( p->Owner, 1 ), rh = p->RowHeight( )
+    dim as long gw = tkHost_Scale( p->Owner, GLYPH_WIDTH ), gap = tkHost_Scale( p->Owner, COLUMN_GAP )
+    dim as long padR = tkHost_Scale( p->Owner, PAD_RIGHT ), sw = 0
+    if p->Rows.Count( ) > VISIBLE_ROWS then sw = tkHost_Scale( p->Owner, SCROLL_WIDTH )
+    dim as long right_ = w->cw - bw - sw
+    for r as long = 0 to p->ShownRows( ) - 1
+        dim as long i = p->Top + r
+        if i >= p->Rows.Count( ) then exit for
+        dim byref as symboldb.Completion it = p->Rows[i]
+        dim as TKRECT rr
+        tkRect_Set( rr, bw, bw + r * rh, right_, bw + (r + 1) * rh )
+        dim as ulong rb = back_, rf = fore, rd = dim_
+        if i = p->Sel then
+            rb = Argb( k.Selection ) : rf = ForeOf( k.Text, k ) : rd = rf
+        elseif i = p->Hot then
+            rb = Argb( k.CaretLineBack )
+        end if
+        b->SetBackColor( rb )
+        b->PaintRect( @rr )
+        dim as TKRECT rg
+        tkRect_Set( rg, rr.left, rr.top, rr.left + gw, rr.bottom )
+        PaintGlyph( b, p, it, rg, KindColor( it.Kind, k ) )
+        ' the detail at the right, as much as fits beside a name of its own width
+        dim as long nameRight = rr.right - padR
+        if len( it.Detail ) then
+            dim as long dw = tkText_Width( p->Font, it.Detail )
+            dim as long room = (rr.right - padR) - (rr.left + gw) - tkText_Width( p->Font, it.Name ) - gap
+            if dw > room then dw = room
+            if dw > 0 then
+                dim as TKRECT rt
+                tkRect_Set( rt, rr.right - padR - dw, rr.top, rr.right - padR, rr.bottom )
+                b->SetForeColor( rd )
+                b->PaintText( it.Detail, @rt, TK_DT_RIGHT or TK_DT_VCENTER or TK_DT_ELLIPSIS )
+                nameRight = rt.left - gap
+            end if
+        end if
+        dim as TKRECT rn
+        tkRect_Set( rn, rr.left + gw, rr.top, nameRight, rr.bottom )
+        b->SetForeColor( rf )
+        b->PaintText( it.Name, @rn, TK_DT_LEFT or TK_DT_VCENTER or TK_DT_ELLIPSIS )
+    next
+    ' where the shown rows are among them all
+    if sw then
+        dim as long trackH = w->ch - 2 * bw, n = p->Rows.Count( )
+        dim as long th = trackH * VISIBLE_ROWS \ n
+        if th < tkHost_Scale( p->Owner, 12 ) then th = tkHost_Scale( p->Owner, 12 )
+        dim as long ty = bw + (trackH - th) * p->Top \ (n - VISIBLE_ROWS)
+        dim as TKRECT rs
+        tkRect_Set( rs, right_, ty, right_ + sw, ty + th )
+        b->SetBackColor( dim_ )
+        b->PaintRect( @rs )
+    end if
+    b->SetPenColor( mc.BorderColor )
+    b->PaintRoundOutline( @rc, 0, 1 )
+end sub
+
+private function ListProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as Picker ptr p = PickerOf( w->pHost )
+    if p = 0 then return false
+    select case m->msg
+    case TKM_PAINT
+        PaintList( w, m->pPaint )
+        return true
+    case TKM_KEYDOWN
+        return p->Key( m )
+    case TKM_KEYUP
+        if p->Target then tkWidget_Send( p->Target->Widget( ), m )
+        return true
+    case TKM_CHAR, TKM_IMECOMPOSE
+        return p->Text( m )
+    case TKM_LBUTTONDOWN
+        dim as long bw = tkHost_Scale( p->Owner, 1 )
+        dim as long r = cint( m->y - bw ) \ p->RowHeight( )
+        if (r < 0) orelse (r >= p->ShownRows( )) then return true
+        p->MoveTo( p->Top + r )
+        if m->clicks >= 2 then p->Commit( )
+        return true
+    case TKM_MOUSEMOVE
+        dim as long bw = tkHost_Scale( p->Owner, 1 )
+        dim as long r = cint( m->y - bw ) \ p->RowHeight( ), hot = -1
+        if (r >= 0) andalso (r < p->ShownRows( )) then hot = p->Top + r
+        if hot <> p->Hot then p->Hot = hot : tkWidget_Invalidate( w )
+        return true
+    case TKM_MOUSELEAVE
+        if p->Hot >= 0 then p->Hot = -1 : tkWidget_Invalidate( w )
+        return true
+    case TKM_MOUSEWHEEL
+        dim as long n = p->Rows.Count( ), vis = p->ShownRows( )
+        p->Top -= cint( m->wheelY ) * 3
+        if p->Top > n - vis then p->Top = n - vis
+        if p->Top < 0 then p->Top = 0
+        tkWidget_Invalidate( w )
+        return true
+    end select
+    return false
+end function
+
+' A key down: the picker's own, or on to the main window's accelerators and then the editor.
+function Picker.Key( byval m as TK_MSG ptr ) as boolean
+    dim as boolean plain = (m->mods and (SDL_KMOD_CTRL or SDL_KMOD_ALT or SDL_KMOD_GUI or SDL_KMOD_SHIFT)) = 0
+    if plain then
+        select case m->key
+        case SDLK_UP : this.Move( -1 ) : return true
+        case SDLK_DOWN : this.Move( 1 ) : return true
+        case SDLK_PAGEUP : this.Move( -VISIBLE_ROWS ) : return true
+        case SDLK_PAGEDOWN : this.Move( VISIBLE_ROWS ) : return true
+        case SDLK_HOME : this.MoveTo( 0 ) : return true
+        case SDLK_END : this.MoveTo( Rows.Count( ) - 1 ) : return true
+        case SDLK_RETURN, SDLK_KP_ENTER, SDLK_TAB : this.Commit( ) : return true
+        case SDLK_ESCAPE : this.Close( ) : return true
+        case SDLK_LEFT, SDLK_RIGHT
+            dim as editor.CodeView ptr v = Target
+            this.Close( )
+            if v then tkWidget_Send( v->Widget( ), m )
+            return true
+        end select
+    end if
+    ' a command's key (Ctrl+S ...) is the main window's; one that did not reopen the list closes it
+    dim as TK_HOST ptr o = Owner
+    dim as long g = gen
+    if (o <> 0) andalso (o->OnPreKey <> 0) then
+        if o->OnPreKey( o, m ) then
+            if gen = g then this.Close( )
+            return true
+        end if
+    end if
+    if Target then tkWidget_Send( Target->Widget( ), m )     ' Backspace, Delete ...: Sync follows
+    return true
+end function
+
+' Typed text: identifier characters go on (and Sync filters); then "(" commits a row that takes
+' parameters, anything else cancels -- and goes on, with whatever follows it. One event may hold
+' several characters (an input method's, a test's).
+function Picker.Text( byval m as TK_MSG ptr ) as boolean
+    dim as editor.CodeView ptr v = Target
+    if v = 0 then return true
+    if m->msg <> TKM_CHAR then
+        tkWidget_Send( v->Widget( ), m )
+        return true
+    end if
+    dim as string tx = m->text
+    dim as long k = 0
+    while (k < len( tx )) andalso IsIdentChar( tx[k] )
+        k += 1
+    wend
+    dim as TK_MSG part = *m
+    if k > 0 then
+        part.text = left( tx, k )
+        tkWidget_Send( v->Widget( ), @part )
+    end if
+    if k = len( tx ) then return true
+    if this.IsOpen( ) then
+        if (tx[k] = 40) andalso (Sel >= 0) andalso (Sel < Rows.Count( )) andalso Rows[Sel].HasParams then
+            this.Commit( )
+        else
+            this.Close( )
+        end if
+    end if
+    part.text = mid( tx, k + 1 )
+    tkWidget_Send( v->Widget( ), @part )
+    return true
+end function
+
+' The selected name in place of the word typed; the list closes first.
+sub Picker.Commit( )
+    dim as editor.CodeView ptr v = Target
+    dim as ustring nm = this.Selected( )
+    dim as longint a = WordStart
+    this.Close( )
+    if (v = 0) orelse (len( nm ) = 0) then exit sub
+    v->ReplaceRange( a, v->Position( ), nm )
+end sub
+
+' The caret moved or the text changed: the word from WordStart to the caret filters the rows.
+' The caret before the word, on another line, or past a non-identifier character: closed. No
+' row left: closed.
+sub Picker.Sync( )
+    if (this.IsOpen( ) = false) orelse (Target = 0) then exit sub
+    dim as longint c = Target->Position( )
+    if (c < WordStart) orelse (Target->LineOf( c ) <> Target->LineOf( WordStart )) then this.Close( ) : exit sub
+    dim as ustring t = Target->TextBetween( WordStart, c )
+    for i as long = 0 to len( t ) - 1
+        if IsIdentChar( t[i] ) = false then this.Close( ) : exit sub
+    next
+    if t = Typed then exit sub
+    dim as long shownBefore = this.ShownRows( )
+    Typed = t
+    this.Filter( )
+    if Rows.Count( ) = 0 then this.Close( ) : exit sub
+    if this.ShownRows( ) <> shownBefore then
+        this.Place( )                     ' fewer (or more) rows: a popup of the new height
+    elseif List then
+        tkWidget_Invalidate( List )
+    end if
+end sub
+
+' The popup for the current rows, under the word's start (above it when the display ends first).
+' A popup has no resize on every backend (Wayland), so a new height is a new popup.
+function Picker.Place( ) as boolean
+    if (Target = 0) orelse (Owner = 0) then return false
+    dim as long rh = this.RowHeight( ), bw = tkHost_Scale( Owner, 1 )
+    H = this.ShownRows( ) * rh + 2 * bw
+    dim as TKRECT a
+    tkWidget_AbsRect( Target->Widget( ), a )
+    dim as long px, py
+    Target->PointOf( WordStart, px, py )
+    dim as TKRECT anchor
+    dim as long ax = a.left + px - tkHost_Scale( Owner, GLYPH_WIDTH ) - bw   ' the names line up with the word
+    tkRect_Set( anchor, ax, a.top + py, ax + W, a.top + py + Target->LineHeight( ) )
+    tkHost_PlacePopup( Owner, anchor, W, H, false, X, Y )
+    dim as TK_HOST ptr old = Pop
+    Pop = tkHost_CreatePopup( Owner, X, Y, W, H )
+    if old then
+        replacing = true
+        tkHost_Close( old )
+        replacing = false
+    end if
+    if Pop = 0 then List = 0 : return false
+    Pop->pUser = @this
+    Pop->clrBack = Argb( Look.CallTipBack )
+    if Font then Pop->pDefaultFont = Font
+    Pop->bPassDismissClick = true         ' a click in the editor closes the list and lands
+    Pop->OnClosed = sub( byval h as TK_HOST ptr )
+        dim as Picker ptr p = PickerOf( h )
+        if (p = 0) orelse (p->Pop <> h) then exit sub    ' a replaced popup
+        p->Pop = 0
+        p->List = 0
+        p->Target = 0
+    end sub
+    List = tkWidget_Create( Pop, 1, @ListProc, 0 )
+    List->isFocusable = true
+    tkWidget_SetPos( List, 0, 0, W, H )
+    tkHost_Show( Pop )
+    tkHost_SetFocus( Pop, List )
+    return true
+end function
+
+' Opens on items (sorted, as symboldb.SortCompletions leaves them) for the word from start_ to
+' the caret; FALSE when no row matches it.
+function Picker.Open( byval v as editor.CodeView ptr, byref items as const Array( of symboldb.Completion ), _
+                      byval start_ as longint ) as boolean
+    if v = 0 then return false
+    dim as TK_HOST ptr o = v->Widget( )->pHost
+    if o = 0 then return false
+    Target = v
+    Owner = o
+    WordStart = start_
+    Typed = v->TextBetween( start_, v->Position( ) )
+    All = items
+    Sel = 0
+    this.Filter( )
+    if Rows.Count( ) = 0 then
+        this.Close( )
+        Target = 0
+        return false
+    end if
+    ' the width: every row's name and detail (the first 300), within MIN_WIDTH .. MAX_WIDTH
+    dim as long nw = 0, dw = 0, i = 0
+    for each r as symboldb.Completion in All
+        dim as long x = tkText_Width( Font, r.Name )
+        if x > nw then nw = x
+        if len( r.Detail ) then
+            x = tkText_Width( Font, r.Detail )
+            if x > dw then dw = x
+        end if
+        i += 1
+        if i >= 300 then exit for
+    next
+    W = tkHost_Scale( o, 1 ) * 2 + tkHost_Scale( o, GLYPH_WIDTH ) + nw + tkHost_Scale( o, PAD_RIGHT ) + tkHost_Scale( o, SCROLL_WIDTH )
+    if dw > 0 then W += tkHost_Scale( o, COLUMN_GAP ) + dw
+    if W < tkHost_Scale( o, MIN_WIDTH ) then W = tkHost_Scale( o, MIN_WIDTH )
+    if W > tkHost_Scale( o, MAX_WIDTH ) then W = tkHost_Scale( o, MAX_WIDTH )
+    gen += 1
+    return this.Place( )
+end function
+
+sub Picker.Close( )
+    dim as TK_HOST ptr p = Pop
+    Pop = 0
+    List = 0
+    Target = 0
+    if p then tkHost_Close( p )
+end sub

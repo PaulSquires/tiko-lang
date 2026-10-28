@@ -31,6 +31,8 @@
 #import "tks/parser"
 #import "tka/mainwin"
 #import "tka/chrome"
+#import "tka/completion"
+#import "tkc/symboldb"
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkTest"
 #import "vendor/tkControls/tkPaint"
@@ -1737,7 +1739,9 @@ private sub IntelFiles( byref dir_ as const ustring, byref mainF as ustring, byr
         "function Twice( byval n as long ) as long" & nl & "    return n * 2" & nl & "end function" & nl & nl & _
         "sub Show( byref p as Point )" & nl & "    print p.x" & nl & "end sub" & nl & nl & _
         "dim as Point pt" & nl & "pt.x = Twice( 3 )" & nl & "Show( pt )" & nl )
-    fs.WriteAllText( utilF, "function Helper( ) as long" & nl & "    return 7" & nl & "end function" & nl )
+    fs.WriteAllText( utilF, "function Helper( ) as long" & nl & "    return 7" & nl & "end function" & nl & nl & _
+        "function LongSignature( byref firstParameter as const ustring, byval secondParameter as long, " & _
+        "byval thirdParameter as double ) as boolean" & nl & "    return true" & nl & "end function" & nl )
 end sub
 
 public sub IntelPass( byref t as Tally, byval sc as single )
@@ -1775,7 +1779,7 @@ public sub IntelPass( byref t as Tally, byval sc as single )
     t.Check( RowCells( mw, 0 ) = "Twice|function|6", P( sc, "Name | Kind | Line: " & RowCells( mw, 0 ) ) )
     t.Check( RowCells( mw, 1 ) = "Show|sub|10", P( sc, "in source order: " & RowCells( mw, 1 ) ) )
     PopKey( mw, SDLK_TAB, SDL_SCANCODE_TAB )
-    t.Check( mw.Chooser.IsOpen( ) andalso mw.FuncsAll andalso (mw.Chooser.ShownCount( ) = 3), _
+    t.Check( mw.Chooser.IsOpen( ) andalso mw.FuncsAll andalso (mw.Chooser.ShownCount( ) = 4), _
              P( sc, strings.Format( "Tab: every open buffer ({})", mw.Chooser.ShownCount( ) ) ) )
     t.Check( mw.Chooser.Cue = "Go to function in any open file (TAB active file)", P( sc, "and the cue says Tab goes back: " & mw.Chooser.Cue ) )
     t.Check( mw.Chooser.Columns.Count( ) = 4, P( sc, "with a File column" ) )
@@ -1804,7 +1808,7 @@ public sub IntelPass( byref t as Tally, byval sc as single )
     PopKey( mw, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL )
     t.Check( mw.Chooser.IsOpen( ) = false, P( sc, "Ctrl+P again closed it" ) )
     Chord( h, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL )
-    t.Check( mw.Chooser.ShownCount( ) = 6, P( sc, strings.Format( "2 files + Point, Twice, Show, Helper ({})", mw.Chooser.ShownCount( ) ) ) )
+    t.Check( mw.Chooser.ShownCount( ) = 7, P( sc, strings.Format( "2 files + Point, Twice, Show, Helper, LongSignature ({})", mw.Chooser.ShownCount( ) ) ) )
     if mw.Chooser.Pop then
         tkTest_PushText( mw.Chooser.Pop, "twi" )
         tkTest_PumpFor( h, 40 )
@@ -1836,21 +1840,67 @@ public sub IntelPass( byref t as Tally, byval sc as single )
     Chord( h, SDLK_PAGEUP, SDL_SCANCODE_PAGEUP, SDL_KMOD_CTRL )
     t.Check( mw.View( ).CaretLine( ) = 6, P( sc, "Ctrl+PgUp: the previous" ) )
 
-    ' ---- typing: members after ".", names after three letters, the calltip after "("
+    ' ---- typing: the picker (tka/completion) -- members after ".", names after three letters, the
+    ' calltip after "("; the keys reach the picker, and what it does not use goes on to the editor
     v = @mw.View( )
     v->SetPosition( v->Length( ) )
+    dim byref as completion.Picker cp = mw.Completer
     tkTest_PushText( h, "pt." )
     tkTest_PumpFor( h, 40 )
-    t.Check( v->CompletionsShown( ), P( sc, "'pt.' lists Point's members" ) )
-    t.Check( lcase( v->CompletionSelected( ) ) = "x", P( sc, "x first: " & v->CompletionSelected( ) ) )
-    v->CancelCompletions( )
-    tkTest_PushText( h, "y = Twi" )
+    t.Check( cp.IsOpen( ) andalso (cp.Count( ) = 2), P( sc, strings.Format( "'pt.' lists Point's two members ({})", cp.Count( ) ) ) )
+    t.Check( cp.Selected( ) = "x", P( sc, "x first: " & cp.Selected( ) ) )
+    t.Check( (cp.Row( 0 ).Kind = symboldb.SymKind.Field) andalso (cp.Row( 0 ).Detail = "long"), _
+             P( sc, "a field, its type the detail: " & cp.Row( 0 ).Detail ) )
+    t.Check( v->CompletionsShown( ) = false, P( sc, "Scintilla's own list is not used" ) )
+    ' where: under the word's line (above it when the display ends first), the names in line with
+    ' the word, two rows tall, MIN_WIDTH .. MAX_WIDTH wide
+    scope
+        dim as TKRECT a
+        tkWidget_AbsRect( v->Widget( ), a )
+        dim as long px, py
+        v->PointOf( cp.WordStart, px, py )
+        dim as long bw = tkHost_Scale( h, 1 )
+        dim as long nameX = a.left + px
+        dim as boolean under = (cp.Y = a.top + py + v->LineHeight( )) orelse (cp.Y + cp.H = a.top + py)
+        t.Check( under, P( sc, strings.Format( "under the line: popup y {} line {}..{}", cp.Y, a.top + py, a.top + py + v->LineHeight( ) ) ) )
+        t.Check( cp.X + bw + tkHost_Scale( h, completion.GLYPH_WIDTH ) = nameX, _
+                 P( sc, strings.Format( "the names start at the word: popup x {} word x {}", cp.X, nameX ) ) )
+        t.Check( cp.H = 2 * cp.RowHeight( ) + 2 * bw, P( sc, strings.Format( "two rows tall: {}", cp.H ) ) )
+        t.Check( (cp.W >= tkHost_Scale( h, completion.MIN_WIDTH )) andalso (cp.W <= tkHost_Scale( h, completion.MAX_WIDTH )), _
+                 P( sc, strings.Format( "width {} within the limits", cp.W ) ) )
+    end scope
+    Chord( h, SDLK_DOWN, SDL_SCANCODE_DOWN, 0 )
+    t.Check( cp.Selected( ) = "y", P( sc, "Down: y" ) )
+    Chord( h, SDLK_HOME, SDL_SCANCODE_HOME, 0 )
+    t.Check( cp.Selected( ) = "x", P( sc, "Home: x" ) )
+    Chord( h, SDLK_END, SDL_SCANCODE_END, 0 )
+    t.Check( cp.Selected( ) = "y", P( sc, "End: y" ) )
+    Chord( h, SDLK_UP, SDL_SCANCODE_UP, 0 )
+    t.Check( cp.Selected( ) = "x", P( sc, "Up: x" ) )
+    tkTest_PushText( h, "Y" )
     tkTest_PumpFor( h, 40 )
-    t.Check( v->CompletionsShown( ) andalso (v->CompletionSelected( ) = "Twice"), P( sc, "'Twi' offers Twice: " & v->CompletionSelected( ) ) )
-    v->CancelCompletions( )
-    tkTest_PushText( h, "ce(" )
+    t.Check( cp.IsOpen( ) andalso (cp.Count( ) = 1) andalso (cp.Selected( ) = "y"), _
+             P( sc, strings.Format( "typing 'Y' filters, case-blind: {} row(s), {}", cp.Count( ), cp.Selected( ) ) ) )
+    t.Check( cp.H = cp.RowHeight( ) + 2 * tkHost_Scale( h, 1 ), P( sc, "and the popup is one row tall" ) )
+    Chord( h, SDLK_BACKSPACE, SDL_SCANCODE_BACKSPACE, 0 )
+    t.Check( cp.IsOpen( ) andalso (cp.Count( ) = 2) andalso (right( v->TextBeforeCaret( ), 3 ) = "pt."), _
+             P( sc, strings.Format( "Backspace went on to the editor: both again ({})", cp.Count( ) ) ) )
+    Chord( h, SDLK_DOWN, SDL_SCANCODE_DOWN, 0 )
+    dim as long lines_ = v->LineCount( )
+    Chord( h, SDLK_RETURN, SDL_SCANCODE_RETURN, 0 )
+    t.Check( (cp.IsOpen( ) = false) andalso (right( v->TextBeforeCaret( ), 4 ) = "pt.y") andalso (v->LineCount( ) = lines_), _
+             P( sc, "Enter committed y, and no new line: " & v->TextBeforeCaret( ) ) )
+    tkTest_PushText( h, " = Twi" )
     tkTest_PumpFor( h, 40 )
+    t.Check( cp.IsOpen( ) andalso (cp.Selected( ) = "Twice"), P( sc, "'Twi' offers Twice: " & cp.Selected( ) ) )
+    t.Check( (cp.Row( 0 ).Kind = symboldb.SymKind.FunctionProc) andalso (cp.Row( 0 ).Detail = "long") andalso cp.Row( 0 ).HasParams, _
+             P( sc, "a function: its result the detail, it takes parameters" ) )
+    tkTest_PushText( h, "c(" )
+    tkTest_PumpFor( h, 40 )
+    t.Check( (cp.IsOpen( ) = false) andalso (right( v->TextBeforeCaret( ), 6 ) = "Twice("), _
+             P( sc, "'(' committed Twice (it takes parameters) and went on: " & v->TextBeforeCaret( ) ) )
     t.Check( v->CallTipShown( ), P( sc, "'Twice(' shows the calltip" ) )
+    dim as long shortTipH = 0
     ' in the theme's popup colours, not Scintilla's light ones (dark theme: popup #252526, text #D4D4D4)
     scope
         dim as long ctBack = tkCodeEdit_Send( v->Widget( ), SCI_STYLEGETBACK, STYLE_CALLTIP )
@@ -1862,6 +1912,8 @@ public sub IntelPass( byref t as Tally, byval sc as single )
             tkTest_PumpFor( h, 30 )
             tkHost_RenderTo( tp, false )
             px = tkTest_PixelAt( tp, 2, 2 ) and &hFFFFFFul
+            dim as long tw
+            SDL_GetWindowSizeInPixels( tp->win, @tw, @shortTipH )
         end if
         t.Check( (tp <> 0) andalso (px = &h252526), P( sc, "and it is drawn so: &h" & hex( px ) ) )
     end scope
@@ -1870,43 +1922,106 @@ public sub IntelPass( byref t as Tally, byval sc as single )
     t.Check( v->CallTipShown( ) = false, P( sc, "')' closes it" ) )
     tkTest_PushText( h, " + Sh" )
     tkTest_PumpFor( h, 40 )
-    t.Check( v->CompletionsShown( ) = false, P( sc, "two letters list nothing" ) )
+    t.Check( cp.IsOpen( ) = false, P( sc, "two letters list nothing" ) )
     Chord( h, SDLK_SPACE, SDL_SCANCODE_SPACE, SDL_KMOD_CTRL )
-    t.Check( v->CompletionsShown( ) andalso (v->CompletionSelected( ) = "Show"), P( sc, "Ctrl+Space does: " & v->CompletionSelected( ) ) )
-    v->CancelCompletions( )
+    t.Check( cp.IsOpen( ) andalso (cp.Selected( ) = "Show"), P( sc, "Ctrl+Space does: " & cp.Selected( ) ) )
+    Chord( h, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE, 0 )
+    t.Check( (cp.IsOpen( ) = false) andalso (right( v->TextBeforeCaret( ), 2 ) = "Sh"), P( sc, "Esc closed it, the text as typed" ) )
+    Chord( h, SDLK_SPACE, SDL_SCANCODE_SPACE, SDL_KMOD_CTRL )
+    dim as longint before_ = v->Position( )
+    Chord( h, SDLK_LEFT, SDL_SCANCODE_LEFT, 0 )
+    t.Check( (cp.IsOpen( ) = false) andalso (v->Position( ) = before_ - 1), P( sc, "Left closed it and still moved the caret" ) )
+    Chord( h, SDLK_RIGHT, SDL_SCANCODE_RIGHT, 0 )
+    Chord( h, SDLK_SPACE, SDL_SCANCODE_SPACE, SDL_KMOD_CTRL )
+    if cp.IsOpen( ) then
+        ' a click in the editor closes it, and lands there
+        dim as TKRECT a
+        tkWidget_AbsRect( v->Widget( ), a )
+        tkTest_Click( h, a.left + (a.right - a.left) \ 2, a.top + tkHost_Scale( h, 10 ) )
+        tkTest_PumpFor( h, 40 )
+    end if
+    t.Check( (cp.IsOpen( ) = false) andalso (v->CaretLine( ) = 1), _
+             P( sc, strings.Format( "a click outside closed it, and moved the caret (line {})", v->CaretLine( ) ) ) )
+    v->SetPosition( v->Length( ) )
+    tkTest_PushText( h, " + Hel" )
+    tkTest_PumpFor( h, 40 )
+    t.Check( cp.IsOpen( ) andalso (cp.Selected( ) = "Helper") andalso (cp.Row( 0 ).HasParams = false), P( sc, "'Hel' offers Helper, which takes none" ) )
+    tkTest_PushText( h, "(" )
+    tkTest_PumpFor( h, 40 )
+    t.Check( (cp.IsOpen( ) = false) andalso (right( v->TextBeforeCaret( ), 4 ) = "Hel("), _
+             P( sc, "so '(' does not commit it: " & v->TextBeforeCaret( ) ) )
+    tkTest_PushText( h, ")" )
+    tkTest_PumpFor( h, 40 )
     ' keywords complete too: three letters of one offer it; a keyword typed in full is the only match
     ' and lists nothing (Enter must start a line, not accept it), but Ctrl+Space shows it
     Chord( h, SDLK_RETURN, SDL_SCANCODE_RETURN, 0 )
     tkTest_PushText( h, "dec" )
     tkTest_PumpFor( h, 60 )
-    t.Check( v->CompletionsShown( ) andalso (v->CompletionSelected( ) = "declare"), P( sc, "'dec' offers the keyword declare: " & v->CompletionSelected( ) ) )
-    v->CancelCompletions( )
+    t.Check( cp.IsOpen( ) andalso (cp.Selected( ) = "declare") andalso (cp.Row( 0 ).Kind = symboldb.KIND_KEYWORD), _
+             P( sc, "'dec' offers the keyword declare: " & cp.Selected( ) ) )
+    cp.Close( )
     Chord( h, SDLK_RETURN, SDL_SCANCODE_RETURN, 0 )
     tkTest_PushText( h, "dim" )
     tkTest_PumpFor( h, 60 )
-    t.Check( v->CompletionsShown( ) = false, P( sc, "'dim' typed in full lists nothing" ) )
+    t.Check( cp.IsOpen( ) = false, P( sc, "'dim' typed in full lists nothing" ) )
     Chord( h, SDLK_SPACE, SDL_SCANCODE_SPACE, SDL_KMOD_CTRL )
-    t.Check( v->CompletionsShown( ) andalso (v->CompletionSelected( ) = "dim"), P( sc, "Ctrl+Space after it lists dim: " & v->CompletionSelected( ) ) )
-    v->CancelCompletions( )
+    t.Check( cp.IsOpen( ) andalso (cp.Selected( ) = "dim"), P( sc, "Ctrl+Space after it lists dim: " & cp.Selected( ) ) )
+    cp.Close( )
     ' the space after "as" lists the types: tiko's and the scans' (Point is this file's); "has " does not
     Chord( h, SDLK_RETURN, SDL_SCANCODE_RETURN, 0 )
     tkTest_PushText( h, "dim q as " )
     tkTest_PumpFor( h, 60 )
-    t.Check( v->CompletionsShown( ), P( sc, "the space after 'dim q as' lists the types" ) )
+    t.Check( cp.IsOpen( ) andalso (cp.Count( ) > 20), P( sc, strings.Format( "the space after 'dim q as' lists the types ({})", cp.Count( ) ) ) )
+    scope
+        dim as long k = -1
+        for i as long = 0 to cp.Count( ) - 1
+            if cp.Row( i ).Name = "long" then k = i
+        next
+        t.Check( (k >= 0) andalso (cp.Row( k ).Kind = symboldb.KIND_STDTYPE), P( sc, "long among them, as tiko's own type" ) )
+    end scope
     tkTest_PushText( h, "Po" )
     tkTest_PumpFor( h, 60 )
-    t.Check( v->CompletionsShown( ) andalso (v->CompletionSelected( ) = "Point"), P( sc, "the scan's own type Point is among them: " & v->CompletionSelected( ) ) )
-    v->CancelCompletions( )
+    t.Check( cp.IsOpen( ) andalso (cp.Count( ) = 1) andalso (cp.Selected( ) = "Point"), P( sc, "the scan's own type Point is among them: " & cp.Selected( ) ) )
+    ' the kind's colour, by pixel: a type's square in the theme's Keyword3
+    if cp.IsOpen( ) then
+        dim as long gx, gy
+        cp.GlyphCenter( 0, gx, gy )
+        tkTest_PumpFor( h, 30 )
+        tkHost_RenderTo( cp.Pop, false )
+        dim as ulong gp = tkTest_PixelAt( cp.Pop, gx, gy ) and &hFFFFFFul
+        dim as ulong want = completion.KindColor( symboldb.SymKind.TypeDef, mw.Look ) and &hFFFFFFul
+        t.Check( gp = want, P( sc, "the type's glyph is Keyword3: &h" & hex( gp ) & " want &h" & hex( want ) ) )
+        dim as long nx = gx + tkHost_Scale( h, completion.GLYPH_WIDTH )
+        t.Check( (tkTest_PixelAt( cp.Pop, cp.W - tkHost_Scale( h, 3 ), gy ) and &hFFFFFFul) = (mw.Look.Selection and &hFFFFFF), _
+                 P( sc, "the selected row in the selection colour" ) )
+    end if
+    cp.Close( )
     Chord( h, SDLK_RETURN, SDL_SCANCODE_RETURN, 0 )
     tkTest_PushText( h, "dim r as lon" )
     tkTest_PumpFor( h, 60 )
-    t.Check( v->CompletionsShown( ) andalso (v->CompletionSelected( ) = "long"), P( sc, "and tiko's: 'as lon' offers long: " & v->CompletionSelected( ) ) )
-    v->CancelCompletions( )
+    t.Check( cp.IsOpen( ) andalso (cp.Selected( ) = "long"), P( sc, "and tiko's: 'as lon' offers long: " & cp.Selected( ) ) )
+    Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, 0 )
+    t.Check( (cp.IsOpen( ) = false) andalso (right( v->TextBeforeCaret( ), 8 ) = " as long"), P( sc, "Tab commits: " & v->TextBeforeCaret( ) ) )
     Chord( h, SDLK_RETURN, SDL_SCANCODE_RETURN, 0 )
     tkTest_PushText( h, "x = has " )
     tkTest_PumpFor( h, 60 )
-    t.Check( v->CompletionsShown( ) = false, P( sc, "'has ' lists nothing" ) )
-    v->CancelCompletions( )
+    t.Check( cp.IsOpen( ) = false, P( sc, "'has ' lists nothing" ) )
+    ' a long signature's calltip: one parameter per line (symboldb.FormatCallTip), so taller
+    Chord( h, SDLK_RETURN, SDL_SCANCODE_RETURN, 0 )
+    tkTest_PushText( h, "LongSignature(" )
+    tkTest_PumpFor( h, 60 )
+    cp.Close( )
+    scope
+        dim as TK_HOST ptr tp = tkCodeEdit_CallTipPopup( )
+        dim as long tw, th
+        if tp then
+            tkTest_PumpFor( h, 30 )
+            SDL_GetWindowSizeInPixels( tp->win, @tw, @th )
+        end if
+        t.Check( v->CallTipShown( ) andalso (shortTipH > 0) andalso (th >= 3 * shortTipH), _
+                 P( sc, strings.Format( "LongSignature's calltip, a line per parameter: {} px tall, one line {}", th, shortTipH ) ) )
+    end scope
+    v->CancelCallTip( )
     v->SetSavePoint( )
     ' ---- not in a file that is not source: the same typing in notes.txt lists nothing
     dim as ustring notesF = fs.PathJoin( dir_, "notes.txt" )
@@ -1918,7 +2033,7 @@ public sub IntelPass( byref t as Tally, byval sc as single )
     tkTest_PushText( h, " Twi" )
     tkTest_PumpFor( h, 40 )
     Chord( h, SDLK_SPACE, SDL_SCANCODE_SPACE, SDL_KMOD_CTRL )
-    t.Check( (v->CompletionsShown( ) = false) andalso (v->CallTipShown( ) = false), P( sc, "notes.txt: no completion list, typed or asked for" ) )
+    t.Check( (mw.Completer.IsOpen( ) = false) andalso (v->CallTipShown( ) = false), P( sc, "notes.txt: no completion list, typed or asked for" ) )
     v->SetSavePoint( )
     mw.Destroy( )
 

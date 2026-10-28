@@ -188,10 +188,7 @@ public type CodeView
     declare function WordAtCaret( ) as ustring
 
     ' ---- code intelligence: the autocompletion list, codetips, auto-insert
-    declare sub ShowCompletions( byval lenEntered as long, byref items as const Array( of ustring ) )
     declare function CompletionsShown( ) as boolean
-    declare sub CancelCompletions( )
-    declare function CompletionSelected( ) as ustring
     declare sub ShowCallTip( byref tip as const ustring )
     declare function CallTipShown( ) as boolean
     declare sub CancelCallTip( )
@@ -199,6 +196,9 @@ public type CodeView
     declare sub SetIndentText( byval ln as long, byref indent_ as const ustring )
     declare sub InsertLineAfter( byval ln as long, byref lineText as const ustring )
     declare function TextBeforeCaret( ) as ustring
+    declare function TextBetween( byval a as longint, byval z as longint ) as ustring
+    declare sub ReplaceRange( byval a as longint, byval z as longint, byref s as const ustring )   ' caret after it
+    declare sub PointOf( byval p as longint, byref x as long, byref y as long )   ' p's top left, view pixels
     declare function WordUnderCaret( ) as ustring
 
     ' ---- the formatter's edits: one undo step each, the view kept where it was
@@ -813,39 +813,11 @@ function CodeView.WordAtCaret( ) as ustring
     return TextRange( w, a, z )
 end function
 
-' Scintilla's autocompletion list: lenEntered characters before the caret are the typed part,
-' items are shown in the order given (sorted, any case) and matched ignoring case.
-sub CodeView.ShowCompletions( byval lenEntered as long, byref items as const Array( of ustring ) )
-    if (w = 0) orelse (items.Count( ) = 0) then exit sub
-    dim as ustring list_
-    for i as long = 0 to items.Count( ) - 1
-        if i then list_ &= " "
-        list_ &= items[i]
-    next
-    tkCodeEdit_Send( w, SCI_AUTOCSETIGNORECASE, 1 )
-    tkCodeEdit_Send( w, SCI_AUTOCSETSEPARATOR, 32 )
-    tkCodeEdit_Send( w, SCI_AUTOCSETMAXHEIGHT, 12 )
-    dim as string l8 = list_
-    tkCodeEdit_SendText( w, SCI_AUTOCSHOW, lenEntered, l8 )
-end sub
-
+' Scintilla's own autocompletion list is up: never, now tka/completion is the list (the self-test
+' checks).
 function CodeView.CompletionsShown( ) as boolean
     if w = 0 then return false
     return tkCodeEdit_Send( w, SCI_AUTOCACTIVE ) <> 0
-end function
-
-sub CodeView.CancelCompletions( )
-    if w then tkCodeEdit_Send( w, SCI_AUTOCCANCEL )
-end sub
-
-' The list's selected item, as Scintilla would insert it.
-function CodeView.CompletionSelected( ) as ustring
-    if (w = 0) orelse (this.CompletionsShown( ) = false) then return ""
-    dim as integer n = tkCodeEdit_Send( w, SCI_AUTOCGETCURRENTTEXT, 0, 0 )
-    if n <= 0 then return ""
-    dim as string b = space( n + 1 )
-    tkCodeEdit_Send( w, SCI_AUTOCGETCURRENTTEXT, 0, cast( integer, strptr( b ) ) )
-    return *cast( zstring ptr, strptr( b ) )
 end function
 
 ' A codetip at the caret.
@@ -891,6 +863,30 @@ sub CodeView.InsertLineAfter( byval ln as long, byref lineText as const ustring 
     dim as integer e = tkCodeEdit_Send( w, SCI_GETLINEENDPOSITION, ln )
     dim as string t8 = this.EolText( ) & lineText
     tkCodeEdit_SendText( w, SCI_INSERTTEXT, e, t8 )
+end sub
+
+' The text in [a, z) (bytes).
+function CodeView.TextBetween( byval a as longint, byval z as longint ) as ustring
+    if w = 0 then return ""
+    return TextRange( w, a, z )
+end function
+
+' [a, z) replaced by s, as one undo step; the caret after it.
+sub CodeView.ReplaceRange( byval a as longint, byval z as longint, byref s as const ustring )
+    if w = 0 then exit sub
+    dim as string s8 = s
+    tkCodeEdit_Send( w, SCI_SETTARGETSTART, a )
+    tkCodeEdit_Send( w, SCI_SETTARGETEND, z )
+    tkCodeEdit_SendText( w, SCI_REPLACETARGET, len( s8 ), s8 )
+    tkCodeEdit_Send( w, SCI_GOTOPOS, a + len( s8 ) )
+end sub
+
+' Where position p is drawn: the top left of its character cell, in the view's pixels.
+sub CodeView.PointOf( byval p as longint, byref x as long, byref y as long )
+    x = 0 : y = 0
+    if w = 0 then exit sub
+    x = tkCodeEdit_Send( w, SCI_POINTXFROMPOSITION, 0, p )
+    y = tkCodeEdit_Send( w, SCI_POINTYFROMPOSITION, 0, p )
 end sub
 
 ' The text of the caret's line up to the caret.
