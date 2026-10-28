@@ -511,6 +511,9 @@ function Picker.Place( ) as boolean
     end sub
     List = tkWidget_Create( Pop, 1, @ListProc, 0 )
     List->isFocusable = true
+    ' X11 / Wayland give the popup the keyboard focus, and SDL drops text for a window that has
+    ' not started text input: without this, keys reach the picker but typed characters do not
+    List->bWantsText = true
     tkWidget_SetPos( List, 0, 0, W, H )
     tkHost_Show( Pop )
     tkHost_SetFocus( Pop, List )
