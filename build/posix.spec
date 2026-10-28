@@ -920,6 +920,16 @@ STRUCT( struct_kevent, struct kevent )
     F_INT( data, data )
     F_PTR( udata, udata )
 END_STRUCT
+/* std/net's netdarwin.tiko: a datagram's full length is recvmsg's MSG_TRUNC in msg_flags */
+STRUCT( struct_msghdr, struct msghdr )
+    F_PTR( msg_name, msg_name )
+    F_INT( msg_namelen, msg_namelen )
+    F_PTR( msg_iov, msg_iov )
+    F_INT( msg_iovlen, msg_iovlen )
+    F_PTR( msg_control, msg_control )
+    F_INT( msg_controllen, msg_controllen )
+    F_INT( msg_flags, msg_flags )
+END_STRUCT
 STRUCT( struct_statfs, struct statfs )
     F_INT( f_flags, f_flags )
     F_CHARS( f_fstypename, f_fstypename )

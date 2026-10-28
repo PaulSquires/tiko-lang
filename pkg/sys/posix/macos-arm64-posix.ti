@@ -929,6 +929,25 @@ end type
 #assert offsetof( struct_kevent, fflags ) = 12
 #assert offsetof( struct_kevent, data ) = 16
 #assert offsetof( struct_kevent, udata ) = 24
+type struct_msghdr
+    msg_name as any ptr
+    msg_namelen as uint32
+    __pad0( 0 to 3 ) as uint8
+    msg_iov as any ptr
+    msg_iovlen as int32
+    __pad1( 0 to 3 ) as uint8
+    msg_control as any ptr
+    msg_controllen as uint32
+    msg_flags as int32
+end type
+#assert sizeof( struct_msghdr ) = 48
+#assert offsetof( struct_msghdr, msg_name ) = 0
+#assert offsetof( struct_msghdr, msg_namelen ) = 8
+#assert offsetof( struct_msghdr, msg_iov ) = 16
+#assert offsetof( struct_msghdr, msg_iovlen ) = 24
+#assert offsetof( struct_msghdr, msg_control ) = 32
+#assert offsetof( struct_msghdr, msg_controllen ) = 40
+#assert offsetof( struct_msghdr, msg_flags ) = 44
 type struct_statfs
     __pad0( 0 to 63 ) as uint8
     f_flags as uint32

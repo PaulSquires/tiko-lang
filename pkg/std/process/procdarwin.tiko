@@ -1,0 +1,48 @@
+#module "process"
+#ifdef __FB_UNIX__
+#include once "../../sys/posix/posix.ti"
+using posix
+#endif
+'' std/process: procdarwin -- what only Darwin has: the three proclinux.tiko lists.
+''
+''     hErrno( )                  *__error( )
+''     hEnviron( )                *_NSGetEnviron( )
+''     hPipeCloexec( fds )        pipe( ), then fcntl( F_SETFD, FD_CLOEXEC ) on both ends
+''
+'' NOT ATOMIC, as pipe2 is: a fork in another thread between the two calls could inherit
+'' the pipe. proclinux.tiko's header suggests POSIX_SPAWN_CLOEXEC_DEFAULT to close that race,
+'' but on Darwin it closes EVERY descriptor no file action names -- an inherited stdin,
+'' stdout or stderr included -- so it is not used (docs/tiko-macos M7).
+
+#ifdef __FB_DARWIN__
+
+extern "C"
+    declare function tkpd_error alias "__error" ( ) as long ptr
+    declare function tkpd_NSGetEnviron alias "_NSGetEnviron" ( ) as zstring ptr ptr ptr
+    declare function tkpd_pipe alias "pipe" ( byval fds as long ptr ) as long
+    declare function tkpd_fcntl alias "fcntl" ( byval fd as long, byval cmd as long, ... ) as long
+    declare function tkpd_close alias "close" ( byval fd as long ) as long
+end extern
+
+private function hErrno( ) as long
+    return *tkpd_error( )
+end function
+
+private function hEnviron( ) as zstring ptr ptr
+    return *tkpd_NSGetEnviron( )
+end function
+
+private function hPipeCloexec( byval fds as long ptr ) as long
+    if( tkpd_pipe( fds ) <> 0 ) then return -1
+    if( ( tkpd_fcntl( fds[0], F_SETFD, FD_CLOEXEC ) = -1 ) orelse _
+        ( tkpd_fcntl( fds[1], F_SETFD, FD_CLOEXEC ) = -1 ) ) then
+        dim as long e = hErrno( )
+        tkpd_close( fds[0] )
+        tkpd_close( fds[1] )
+        *tkpd_error( ) = e
+        return -1
+    end if
+    return 0
+end function
+
+#endif
