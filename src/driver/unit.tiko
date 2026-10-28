@@ -574,6 +574,7 @@ function CompileUnit _
             dim as Tko.Codegen.DebugFrontend dfe
             dfe.types = @ctx.types : dfe.syms = @syms
             dfe.udts = @udts : dfe.names = @ctx.names
+            dfe.triple = td.triple : dfe.staticsForm = @ctx.dbgStaticsForm
             tPh = timer
             dim as Tko.Codegen.EmitResult er = _
                 Tko.Codegen.EmitLlvm( mm, ctx.names, td, @ctx.sources, _
