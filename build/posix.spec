@@ -27,6 +27,7 @@
 #include <locale.h>
 #include <langinfo.h>
 #include <stdlib.h>
+#include <limits.h>
 #include <fenv.h>
 #include <termios.h>
 #include <netdb.h>
