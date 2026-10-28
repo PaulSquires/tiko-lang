@@ -92,6 +92,16 @@ public sub Run( byref c as tally.Checker )
     c.Same( db.CallTip( "Twice" ),"Twice(n as long, [k as long]) as long", "the calltip" )
     c.Same( db.CallTip( "Draw" ), "Draw(byref p as Point)", "a sub's calltip" )
     c.Same( db.CallTip( "LIMIT" ), "", "a constant has no calltip" )
+    ' the built-ins' calltips (keywords/codetips.txt)
+    dim as symboldb.Intrinsics intr
+    intr.Parse( "' Codetips for built in FB keywords. The key must be stored in uppercase." & chr( 13 ) & chr( 10 ) & _
+                "LEFT=Left(string, n)" & chr( 13 ) & chr( 10 ) & chr( 13 ) & chr( 10 ) & _
+                "MID=Mid(str, start [,n])  " & chr( 10 ) & "TIMER=Timer()" & chr( 10 ) & "=nothing" )
+    c.SameNum( intr.Count( ), 3, "codetips: the comment, the blank line and a line with no name skipped" )
+    c.Same( intr.CallTip( "mid" ), "Mid(str, start [,n])", "codetips: looked up case-blind, the CR and trailing blanks gone" )
+    c.Same( intr.CallTip( "Right" ), "", "codetips: none for a name not listed" )
+    c.Check( symboldb.TipHasParams( intr.CallTip( "Left" ) ), "TipHasParams: Left(string, n)" )
+    c.Check( symboldb.TipHasParams( intr.CallTip( "TIMER" ) ) = false, "TipHasParams: Timer() takes none" )
     c.Same( symboldb.BaseTypeName( "const Node ptr" ), "Node", "BaseTypeName" )
     ' long calltips one parameter per line (tiko-editor-tiko's FormatCodetip)
     c.Same( symboldb.FormatCallTip( "Foo(x as long) as long" ), "Foo(x as long) as long", "a short calltip as it is" )

@@ -50,4 +50,5 @@ the name `tiko-studio` → `tkEdit` (incl. `platform.APP_NAME` and the run-scrip
 | `tools/test-win.sh`, `tools/test-linux.sh`, `tools/idiom.sh` | `tools/` | tkEdit's paths, exe and build folder (`$HOME/tebuild`); tikoParser copied only when present |
 | `fonts/` | `fonts/` | README points at `mainwin.AppOptions` |
 | `keywords/tiko.txt`, `keywords/extra.txt` | `settings/keywords/freebasic_keywords.txt`, `extra_keywords.txt` | renamed |
+| `keywords/codetips.txt` | **tiko-editor-tiko `33172d82`** `settings/keywords/codetips.ini` | renamed, LF line ends; read by `symboldb.Intrinsics` (the old `LoadCodetipsFB` / `FindIntrinsicCalltip`) |
 | `.gitattributes`, `.gitignore` | same | — |

@@ -220,6 +220,13 @@ private function WordsOf( byref path as const ustring ) as ustring
     return o
 end function
 
+' A file's text; "" when it cannot be read.
+private function TextOf( byref path as const ustring ) as ustring
+    dim as textstream.TextFileResult r = textstream.ReadText( path )
+    if r.IsOk( ) = false then return ""
+    return r.Value( ).Text
+end function
+
 ' <resources>/keywords: tiko.txt (the language), extra.txt (the user's own words).
 public function LoadKeywords( byref resourceDir as const ustring ) as editor.Keywords
     dim as editor.Keywords k
@@ -392,6 +399,7 @@ public type Window
     NoParser as boolean                 ' set before Create: the outline only (the self-test)
     Scanner as parser.Scanner
     Db as symboldb.Database
+    Intr as symboldb.Intrinsics         ' the built-ins' calltips (keywords/codetips.txt)
     Nav as navhistory.History
     scanTimer as long
     scanGen as long
@@ -626,6 +634,7 @@ function Window.Create( byval forcedScale as single ) as boolean
     ResourceDir = platform.ResourceDir( ).ValueOr( platform.ExeDir( ) )
     if len( ConfigDir ) = 0 then ConfigDir = platform.ConfigDir( ).ValueOr( fs.PathJoin( ResourceDir, "config" ) )
     Words = LoadKeywords( ResourceDir )
+    Intr.Parse( TextOf( fs.PathJoin( fs.PathJoin( ResourceDir, "keywords" ), "codetips.txt" ) ) )
 
     Prefs = settings.DefaultSettings( )
     Theme = themes.DarkTheme( )
@@ -3540,6 +3549,7 @@ sub Window.CodeTips( byval hEdit as TK_WIDGET ptr, byval ch as long )
         SplitQualified( left( before, len( before ) - 1 ), word, qual )
         if len( word ) then
             dim as ustring tip = Db.CallTip( word, qual, d->Path, ln )
+            if (len( tip ) = 0) andalso (len( qual ) = 0) then tip = Intr.CallTip( word )   ' Left, Mid ...
             if len( tip ) then v->ShowCallTip( symboldb.FormatCallTip( tip ) )
         end if
         exit sub
@@ -3627,6 +3637,7 @@ sub Window.ShowCompletionsAt( byval v as editor.CodeView ptr, byval d as DocRef,
             dim as symboldb.Completion r
             r.Name = k
             r.Kind = symboldb.KIND_KEYWORD
+            r.HasParams = symboldb.TipHasParams( Intr.CallTip( k ) )    ' "(" commits Mid as it does a procedure
             items.Push( r )
             if items.Count( ) > 300 then exit for
         next

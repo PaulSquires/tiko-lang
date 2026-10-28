@@ -564,6 +564,45 @@ function Database.CallTip( byref name_ as const ustring, byref qualifier as cons
     return tip
 end function
 
+' The built-in procedures' calltips (Left, Mid, Instr ...), which no scan finds: keywords/codetips.txt
+' (tiko-editor-tiko's codetips.ini), one NAME=tip a line; a blank line, a comment or a line without
+' "=" is skipped. Looked up case-blind.
+public type Intrinsics
+    declare sub Parse( byref text as const ustring )
+    declare function CallTip( byref name_ as const ustring ) as ustring   ' "" = none
+    declare function Count( ) as long
+    m_tips as Map( of ustring, ustring )
+end type
+
+sub Intrinsics.Parse( byref text as const ustring )
+    m_tips.Clear( )
+    for each row as ustring in strings.Split( strings.Replace( text, chr( 13 ), "" ), chr( 10 ) )
+        dim as ustring t = trim( row )
+        dim as long i = instr( t, "=" )
+        if (i < 2) orelse (left( t, 1 ) = "'") then continue for
+        dim as ustring k = ucase( trim( left( t, i - 1 ) ) )
+        dim as ustring v = trim( mid( t, i + 1 ) )
+        m_tips.Put( k, v )
+    next
+end sub
+
+function Intrinsics.CallTip( byref name_ as const ustring ) as ustring
+    dim as ustring k = ucase( name_ ), tip
+    if m_tips.TryGet( k, tip ) then return tip
+    return ""
+end function
+
+function Intrinsics.Count( ) as long
+    return m_tips.Count( )
+end function
+
+' Does a calltip take arguments: something between its "(" and ")" ("Timer()" does not).
+public function TipHasParams( byref tip as const ustring ) as boolean
+    dim as long a = instr( tip, "(" )
+    if a = 0 then return false
+    return left( trim( mid( tip, a + 1 ) ), 1 ) <> ")"
+end function
+
 ' A calltip this long or longer is shown one parameter per line (tiko-editor-tiko's FormatCodetip).
 public const CALLTIP_WRAP = 75
 
