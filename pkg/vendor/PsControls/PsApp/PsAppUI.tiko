@@ -10,10 +10,6 @@
 
 #module "PsApp"
 
-#ifndef TIKO_OS_WINDOWS
-    #error "vendor/PsControls is Windows-only (Win32 controls): build for -target windows-x86_64, or use vendor/tkControls"
-#endif
-
 #import "sys/win"
 
 ' A window belongs to the thread that created it, so a worker -- a raw thread or a std/tasks
