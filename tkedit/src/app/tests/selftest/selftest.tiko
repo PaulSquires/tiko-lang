@@ -913,6 +913,17 @@ end sub
 ' the caret, the recent files -- written by one window and restored by the next.
 ' ================================================================ the tab strip ([ui] tab_strip)
 
+' Clicks the middle of a split bar (bar: mw.splitBar or mw.splitFoot); clicks = 2 makes it a double
+' click, the first press and release then the second, as SDL reports one.
+private sub ClickSplitBar( byref mw as mainwin.Window, byval bar as TK_WIDGET ptr, byval clicks as long )
+    if bar = 0 then exit sub
+    dim as TK_HOST ptr h = tkForm_Host( mw.form )
+    dim as single px = bar->x + bar->cw \ 2, py = bar->y + bar->ch \ 2
+    tkTest_Click( h, px, py, SDL_BUTTON_LEFT, 1 )
+    if clicks = 2 then tkTest_Click( h, px, py, SDL_BUTTON_LEFT, 2 )
+    tkTest_PumpFor( h, 60 )
+end sub
+
 ' Clicks the middle of tab idx's rect, or of its X when onClose, in window pixels.
 private sub ClickTab( byref mw as mainwin.Window, byval idx as long, byval onClose as boolean = false )
     dim as TKRECT rp, rt, ri, rx
@@ -1031,6 +1042,16 @@ public sub TabsPass( byref t as Tally, byval sc as single )
         if mw.Docs[i] = mw.Active( ) then sel = i
     next
     t.Check( tkTabBar_GetCurSel( mw.tabs ) = sel, P( sc, "the focused pane's buffer is the selected tab" ) )
+    ' a double click on the bar closes the split, as Ctrl+\ again (author 2026-10-27); one click does not
+    ClickSplitBar( mw, mw.splitBar, 1 )
+    t.Check( mw.Split = session.SplitMode.Vertical, P( sc, "one click on the left/right bar keeps the split" ) )
+    ClickSplitBar( mw, mw.splitBar, 2 )
+    t.Check( (mw.Split = session.SplitMode.None) andalso (mw.Pane2 = 0) andalso (mw.splitBar = 0) andalso (mw.splitFoot = 0) andalso _
+             (tkWidget_IsVisible( mw.status2 ) = false), P( sc, "a double click on the left/right bar closed the split" ) )
+    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL )
+    ClickSplitBar( mw, mw.splitFoot, 2 )
+    t.Check( mw.Split = session.SplitMode.None, P( sc, "so does one on its part through the status row" ) )
+    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL )
     Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
     v1 = mw.Pane1->Main.Widget( )
     v2 = mw.Pane2->Main.Widget( )
@@ -1039,7 +1060,10 @@ public sub TabsPass( byref t as Tally, byval sc as single )
     t.Check( (mw.Split = session.SplitMode.Horizontal) andalso (v1->y = th) andalso (v1->ch = h1) andalso (mw.status->y = th + h1) andalso _
              (v2->y = th + h1 + sh + bar) andalso (v2->y + v2->ch = cy - sh), _
              P( sc, strings.Format( "top/bottom under the strip: {} {} / status {} / {} {}", v1->y, v1->ch, mw.status->y, v2->y, v2->ch ) ) )
-    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    dim as long ratio0 = cint( mw.SplitRatio * 1000 )
+    ClickSplitBar( mw, mw.splitBar, 2 )
+    t.Check( (mw.Split = session.SplitMode.None) andalso (mw.Pane2 = 0) andalso (mw.splitBar = 0), P( sc, "a double click on the top/bottom bar closed the split" ) )
+    t.Check( cint( mw.SplitRatio * 1000 ) = ratio0, P( sc, "and moved nothing on the way (the ratio kept)" ) )
 
     ' ---- more tabs than fit: the < > buttons at the strip's right end, greyed at either end; they
     ' and the wheel scroll the tabs one at a time

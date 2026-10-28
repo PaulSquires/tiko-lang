@@ -406,6 +406,7 @@ public type Window
     lastTitle as ustring
     splitBar as TK_WIDGET ptr
     splitFoot as TK_WIDGET ptr          ' a left/right split's bar through the status row, between the two
+    splitDblClick as boolean            ' a double click's press landed on a split bar; its release unsplits
     NormalX as long                     ' the window's last place while neither maximized nor minimized
     NormalY as long
     NormalW as long
@@ -579,6 +580,31 @@ private function WindowOfWidget( byval w as TK_WIDGET ptr ) as Window ptr
     dim as TK_FORM ptr f = tkForm_FromWidget( w )
     if f = 0 then return 0
     return f->Tag
+end function
+
+private sub UnsplitLater( byval payload as any ptr )
+    dim as Window ptr mw = payload
+    if mw = 0 then exit sub
+    if mw->Split <> session.SplitMode.None then mw->ToggleSplit( mw->Split )
+end sub
+
+' A double click on a split bar closes the split, as its key again (author 2026-10-27). Not at the
+' press: the bar holds the mouse until the release, and closing the split destroys it. The press
+' is claimed (no drag); its release queues the close, which runs once the bar has let go.
+private function SplitBarMessage( byval m as TKSPLITTER_MESSAGEINFO ptr ) as boolean
+    dim as Window ptr mw = WindowOfWidget( m->hSplitter )
+    if mw = 0 then return false
+    if (m->msg = TKM_LBUTTONDOWN) andalso (m->clicks = 2) then
+        mw->splitDblClick = true
+        return true
+    end if
+    if m->msg = TKM_LBUTTONUP then
+        if mw->splitDblClick then
+            mw->splitDblClick = false
+            tkApp_RunOnUI( @UnsplitLater, mw )
+        end if
+    end if
+    return false
 end function
 
 function Window.Create( byval forcedScale as single ) as boolean
@@ -1954,11 +1980,13 @@ sub Window.ToggleSplit( byval mode as session.SplitMode )
             mw->Layout( )
         end sub
         tkSplitter_SetPosChangedCallback( splitBar, moved )
+        tkSplitter_SetMessageCallback( splitBar, @SplitBarMessage )
         if splitFoot then tkWidget_Destroy( splitFoot )
         splitFoot = 0
         if mode = session.SplitMode.Vertical then
             splitFoot = tkSplitter_Create( tkForm_Widget( form ), ID_SPLIT2, orient )
             tkSplitter_SetPosChangedCallback( splitFoot, moved )
+            tkSplitter_SetMessageCallback( splitFoot, @SplitBarMessage )
         end if
     end if
     this.Layout( )
