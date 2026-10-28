@@ -626,11 +626,6 @@ function Window.Create( byval forcedScale as single ) as boolean
     form = tkApp_NewForm( appinfo.WindowTitle( ), DEFAULT_CX, DEFAULT_CY, 0, forcedScale )
     if form = 0 then return false
     form->Tag = @this
-    ' The close button must ask only OnClose. By default SDL also queues a QUIT behind the close
-    ' request of its last window; the question box's modal loop (CloseAll -> CloseDoc -> Ask) then
-    ' takes that QUIT, ends with 0 (Cancel) and re-posts it, and the main loop quits anyway: the box
-    ' flashes and unsaved buffers are lost (author 2026-10-27). Read when a close is requested.
-    SDL_SetHint( SDL_HINT_QUIT_ON_LAST_WINDOW_CLOSE, "0" )
     ' opened on the window's host, which resizes it when the DPI changes and closes it with the window
     AskIcon = tkHost_OpenFont( tkForm_Host( form ), fs.PathJoin( ResourceDir, "fonts", FONT_GLYPH ), ASK_ICON_PT )
     ' the title bar's icon, every platform; on Windows the .exe's own (res/tkEdit.rc) is the taskbar's

@@ -165,6 +165,8 @@ public sub Pass( byref t as Tally, byval sc as single )
     ' the .desktop file names it
     dim as const zstring ptr vd = SDL_GetCurrentVideoDriver( )
     if (vd = 0) orelse (*vd <> "wayland") then t.Check( mw.HasIcon, P( sc, "the window icon is icons/tkedit.png" ) )
+    ' vendor/tkControls' tkHost_Create turns SDL's QUIT-on-last-close off (tiko-lang 2b326d97f); before it,
+    ' a dirty buffer's save question lost to that QUIT at the close button
     t.Check( SDL_GetHintBoolean( SDL_HINT_QUIT_ON_LAST_WINDOW_CLOSE, true ) = false, _
              P( sc, "the close button queues no QUIT behind OnClose (a dirty buffer's question would lose to it)" ) )
     t.Check( strings.EndsWith( tkForm_RoleFile( mw.form, TKFONT_UI ), mainwin.FONT_UI ), P( sc, "UI font is Inter" ) )
