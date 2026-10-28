@@ -36,6 +36,7 @@
 #import "vendor/tkControls/tkPaint"
 #import "vendor/tkControls/tkPopupMenu"
 #import "vendor/tkControls/tkButton"
+#import "vendor/tkControls/tkCodeEdit"
 #import "vendor/tkControls/tkMessageBox"
 #import "vendor/tkControls/tkStatusBar"
 #import "vendor/tkControls/tkTextBox"
@@ -45,6 +46,7 @@
 #import "std/containers"
 using containers
 using cmdids
+using tkCodeEdit
 using tkApp
 using tkHost
 using tkTest
@@ -1849,6 +1851,20 @@ public sub IntelPass( byref t as Tally, byval sc as single )
     tkTest_PushText( h, "ce(" )
     tkTest_PumpFor( h, 40 )
     t.Check( v->CallTipShown( ), P( sc, "'Twice(' shows the calltip" ) )
+    ' in the theme's popup colours, not Scintilla's light ones (dark theme: popup #252526, text #D4D4D4)
+    scope
+        dim as long ctBack = tkCodeEdit_Send( v->Widget( ), SCI_STYLEGETBACK, STYLE_CALLTIP )
+        dim as long ctFore = tkCodeEdit_Send( v->Widget( ), SCI_STYLEGETFORE, STYLE_CALLTIP )
+        t.Check( (ctBack = &h262525) andalso (ctFore = &hD4D4D4), P( sc, "the calltip's style is the theme's popup: back &h" & hex( ctBack ) & " fore &h" & hex( ctFore ) ) )
+        dim as TK_HOST ptr tp = tkCodeEdit_CallTipPopup( )
+        dim as ulong px = 0
+        if tp then
+            tkTest_PumpFor( h, 30 )
+            tkHost_RenderTo( tp, false )
+            px = tkTest_PixelAt( tp, 2, 2 ) and &hFFFFFFul
+        end if
+        t.Check( (tp <> 0) andalso (px = &h252526), P( sc, "and it is drawn so: &h" & hex( px ) ) )
+    end scope
     tkTest_PushText( h, "1)" )
     tkTest_PumpFor( h, 40 )
     t.Check( v->CallTipShown( ) = false, P( sc, "')' closes it" ) )
@@ -1857,6 +1873,20 @@ public sub IntelPass( byref t as Tally, byval sc as single )
     t.Check( v->CompletionsShown( ) = false, P( sc, "two letters list nothing" ) )
     Chord( h, SDLK_SPACE, SDL_SCANCODE_SPACE, SDL_KMOD_CTRL )
     t.Check( v->CompletionsShown( ) andalso (v->CompletionSelected( ) = "Show"), P( sc, "Ctrl+Space does: " & v->CompletionSelected( ) ) )
+    v->CancelCompletions( )
+    ' keywords complete too: three letters of one offer it; a keyword typed in full is the only match
+    ' and lists nothing (Enter must start a line, not accept it), but Ctrl+Space shows it
+    Chord( h, SDLK_RETURN, SDL_SCANCODE_RETURN, 0 )
+    tkTest_PushText( h, "dec" )
+    tkTest_PumpFor( h, 60 )
+    t.Check( v->CompletionsShown( ) andalso (v->CompletionSelected( ) = "declare"), P( sc, "'dec' offers the keyword declare: " & v->CompletionSelected( ) ) )
+    v->CancelCompletions( )
+    Chord( h, SDLK_RETURN, SDL_SCANCODE_RETURN, 0 )
+    tkTest_PushText( h, "dim" )
+    tkTest_PumpFor( h, 60 )
+    t.Check( v->CompletionsShown( ) = false, P( sc, "'dim' typed in full lists nothing" ) )
+    Chord( h, SDLK_SPACE, SDL_SCANCODE_SPACE, SDL_KMOD_CTRL )
+    t.Check( v->CompletionsShown( ) andalso (v->CompletionSelected( ) = "dim"), P( sc, "Ctrl+Space after it lists dim: " & v->CompletionSelected( ) ) )
     v->CancelCompletions( )
     v->SetSavePoint( )
     ' ---- not in a file that is not source: the same typing in notes.txt lists nothing

@@ -92,6 +92,10 @@ public type Look
     ErrorColor    as long
     WarningColor  as long
     Bookmark      as long
+    ' the call tip: Scintilla's own colours are light, whatever the theme
+    CallTipBack      as long = &h252526
+    CallTipFore      as long = &hD4D4D4
+    CallTipHighlight as long = &h569CD6  ' the parameter being typed
 end type
 
 
@@ -1258,6 +1262,11 @@ sub CodeView.ApplyLook( byref k as const Look )
     tkCodeEdit_Send( w, SCI_INDICSETSTYLE, INDIC_FIND, INDIC_ROUNDBOX )
     tkCodeEdit_Send( w, SCI_INDICSETFORE, INDIC_FIND, Bgr( k.FindMatch ) )
     tkCodeEdit_Send( w, SCI_INDICSETALPHA, INDIC_FIND, 80 )
+    ' the call tip in the theme's popup colours (author 2026-10-28: Scintilla's light ones showed on the
+    ' dark theme); Scintilla puts back and fore into STYLE_CALLTIP too
+    tkCodeEdit_Send( w, SCI_CALLTIPSETBACK, Bgr( k.CallTipBack ) )
+    tkCodeEdit_Send( w, SCI_CALLTIPSETFORE, Bgr( k.CallTipFore ) )
+    tkCodeEdit_Send( w, SCI_CALLTIPSETFOREHLT, Bgr( k.CallTipHighlight ) )
     tkCodeEdit_Send( w, SCI_INDICSETSTYLE, INDIC_BRACE, INDIC_BOX )
     tkCodeEdit_Send( w, SCI_INDICSETFORE, INDIC_BRACE, Bgr( k.Brace ) )
     tkCodeEdit_Send( w, SCI_BRACEHIGHLIGHTINDICATOR, 1, INDIC_BRACE )

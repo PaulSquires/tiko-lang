@@ -113,5 +113,11 @@ public function LookOf( byref t as themes.Theme, byref s as const settings.Edito
     k.ErrorColor = t.ErrorColor
     k.WarningColor = t.WarningColor
     k.Bookmark = t.Bookmark
+    ' the call tip as the popups are: the popup colour, the UI text; the parameter being typed in the
+    ' keyword colour (the accent is too dark to read on the dark popup)
+    k.CallTipBack = t.Popup
+    k.CallTipFore = t.Fg
+    k.CallTipHighlight = t.Keyword.Fore
+    if k.CallTipHighlight < 0 then k.CallTipHighlight = t.Accent
     return k
 end function
