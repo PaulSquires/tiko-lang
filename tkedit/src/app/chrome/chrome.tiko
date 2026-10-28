@@ -79,6 +79,7 @@ public function LookOf( byref t as themes.Theme, byref s as const settings.Edito
     dim as editor.Look k
     k.FontFile = fontFile
     k.FontSize = s.FontSize
+    k.ExtraLineSpacing = s.ExtraLineSpacing
     k.TabSize = s.TabSize
     k.UseTabs = s.UseTabs
     k.LineNumbers = s.LineNumbers

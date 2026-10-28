@@ -21,6 +21,7 @@ private sub SettingsChecks( byref c as tally.Checker )
     c.Begin( "settings" )
     dim as settings.EditorSettings d = settings.DefaultSettings( )
     c.SameNum( d.FontSize, 11, "font_size default" )
+    c.SameNum( d.ExtraLineSpacing, 2, "extra_line_spacing default: 2 (author 2026-10-28)" )
     c.SameNum( d.TabSize, 4, "tab_size default" )
     c.Check( d.LineNumbers andalso d.CaretLine andalso (d.UseTabs = false) andalso (d.FoldMargin = false), "editor flags default" )
     c.Same( d.Theme, "dark", "theme default" )
@@ -34,6 +35,7 @@ private sub SettingsChecks( byref c as tally.Checker )
     dim as ustring dt = settings.ToToml( d )
     c.Check( (instr( dt, nl & "font_size = 11" & nl ) > 0) andalso (instr( dt, nl & "tab_size = 4" & nl ) > 0), _
              "ToToml sets every key" )
+    c.Check( instr( dt, nl & "extra_line_spacing = 2 " ) > 0, "extra_line_spacing written, with its comment" )
     c.Check( (instr( dt, "# font_size" ) = 0) andalso (instr( dt, "# [[builds]]" ) = 0) andalso (instr( dt, "# name" ) = 0), _
              "and comments none out" )
     c.Check( instr( dt, nl & "[statusbar]" & nl & "show_project = true" ) > 0, "with the [statusbar] switches" )
@@ -48,7 +50,7 @@ private sub SettingsChecks( byref c as tally.Checker )
         c.Same( settings.ToToml( v ), dt, "and writes the same file again" )
     end if
 
-    dim as ustring txt = "version = 1" & nl & "[editor]" & nl & "font_size = 14" & nl & "tab_size = 99" & nl & _
+    dim as ustring txt = "version = 1" & nl & "[editor]" & nl & "font_size = 14" & nl & "tab_size = 99" & nl & "extra_line_spacing = 99" & nl & _
         "use_tabs = true" & nl & "wrap = 'yes'" & nl & "[ui]" & nl & "theme = 'light'" & nl & "language = ' DE '" & nl & "tab_strip = false" & nl & _
         "[statusbar]" & nl & "show_keys = false" & nl & _
         "[files]" & nl & "new_eol = 'lf'" & nl & "new_encoding = 'utf8bom'" & nl & _
@@ -62,6 +64,7 @@ private sub SettingsChecks( byref c as tally.Checker )
         dim as settings.EditorSettings s = r.Value( )
         c.SameNum( s.FontSize, 14, "font_size read" )
         c.SameNum( s.TabSize, 16, "tab_size clamped to 16" )
+        c.SameNum( s.ExtraLineSpacing, 20, "extra_line_spacing clamped to 20" )
         c.Check( s.UseTabs, "use_tabs read" )
         c.Check( s.Wrap = false, "a mistyped wrap keeps its default" )
         c.Same( s.Theme, "light", "theme read" )

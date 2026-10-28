@@ -11,7 +11,7 @@
 ' parses but says something else -- a key missing, a comment of the user's -- before it is opened.
 '
 '     version = 1
-'     [editor]   font, font_size, tab_size, use_tabs, line_numbers, whitespace, wrap, caret_line,
+'     [editor]   font, font_size, extra_line_spacing, tab_size, use_tabs, line_numbers, whitespace, wrap, caret_line,
 '                indent_guides, fold_margin, auto_indent, auto_end, codetips
 '     [ui]       theme, font_size, language (en | es | fr | de | zh; docs/tkEdit/I18N.md), tab_strip
 '     [statusbar] show_project, show_settings, show_keys
@@ -52,6 +52,7 @@ public type EditorSettings
     ' [editor]
     Font         as ustring              ' "" = the bundled JetBrains Mono; else a .ttf path
     FontSize     as long = 11
+    ExtraLineSpacing as long = 2         ' pixels above and below each line, 0..20 (tiko-editor-tiko's; author 2026-10-28)
     TabSize      as long = 4
     UseTabs      as boolean
     LineNumbers  as boolean = true
@@ -145,6 +146,7 @@ public function FromToml( byref root as config.TomlValue ) as EditorSettings
     dim as config.TomlValue e = tomlget.Table( root, "editor" )
     s.Font = tomlget.GetStr( e, "font", s.Font )
     s.FontSize = Clamp( tomlget.GetInt( e, "font_size", s.FontSize ), 6, 72 )
+    s.ExtraLineSpacing = Clamp( tomlget.GetInt( e, "extra_line_spacing", s.ExtraLineSpacing ), 0, 20 )
     s.TabSize = Clamp( tomlget.GetInt( e, "tab_size", s.TabSize ), 1, 16 )
     s.UseTabs = tomlget.GetBool( e, "use_tabs", s.UseTabs )
     s.LineNumbers = tomlget.GetBool( e, "line_numbers", s.LineNumbers )
@@ -254,6 +256,7 @@ public function ToToml( byref s as const EditorSettings ) as ustring
         "[editor]" & nl & _
         KeyLine( "font", tomlget.Quoted( s.Font ), "'' = the bundled JetBrains Mono; else a .ttf path" ) & _
         KeyLine( "font_size", str( s.FontSize ) ) & _
+        KeyLine( "extra_line_spacing", str( s.ExtraLineSpacing ), "pixels added above and below each line, 0 .. 20" ) & _
         KeyLine( "tab_size", str( s.TabSize ) ) & _
         KeyLine( "use_tabs", BoolText( s.UseTabs ) ) & _
         KeyLine( "line_numbers", BoolText( s.LineNumbers ) ) & _

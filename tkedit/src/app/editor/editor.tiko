@@ -59,6 +59,7 @@ end type
 public type Look
     FontFile     as ustring
     FontSize     as long = 11
+    ExtraLineSpacing as long = 2        ' pixels above and below each line, unscaled
     TabSize      as long = 4
     UseTabs      as boolean
     LineNumbers  as boolean = true
@@ -1202,6 +1203,9 @@ sub CodeView.ApplyLook( byref k as const Look )
     end if
 
     if len( k.FontFile ) then tkCodeEdit_SetFont( w, k.FontFile, k.FontSize )
+    ' extra line spacing, above and below each line alike (tiko-editor-tiko's), at the view's DPI
+    tkCodeEdit_Send( w, SCI_SETEXTRAASCENT, cint( k.ExtraLineSpacing * sc ) )
+    tkCodeEdit_Send( w, SCI_SETEXTRADESCENT, cint( k.ExtraLineSpacing * sc ) )
     StyleSet( w, STYLE_DEFAULT, k.Text, k.Text )
     tkCodeEdit_Send( w, SCI_STYLECLEARALL )             ' every style starts as the default
 

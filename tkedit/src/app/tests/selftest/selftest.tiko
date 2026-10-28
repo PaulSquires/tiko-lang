@@ -365,6 +365,17 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     t.Check( StripToolsMatch( mw ), P( sc, "and the find strip's buttons follow its new back colour" ) )
     t.Check( mw.Look.Text.Back = &hFFFFFF, P( sc, "and to the view's background" ) )
     t.Check( mw.Message = "", P( sc, "no message: " & mw.Message ) )
+    ' extra_line_spacing (default 2): pixels above and below each line, at the window's DPI
+    scope
+        dim as long lineH2 = mw.View( ).LineHeight( )
+        mw.View( ).SetText( "version = 1" & nl & "[editor]" & nl & "tab_size = 2" & nl & "line_numbers = false" & nl & _
+                         "font_size = 20" & nl & "extra_line_spacing = 0" & nl & "[ui]" & nl & "theme = 'light'" & nl )
+        Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+        dim as long want = 2 * cint( 2 * tkHost_Scale( h, 1000 ) / 1000 )
+        t.Check( (mw.Look.ExtraLineSpacing = 0) andalso (lineH2 - mw.View( ).LineHeight( ) = want), _
+                 P( sc, strings.Format( "extra_line_spacing 0: lines {} px, were {} at the default 2 (2 x {} px less)", _
+                                        mw.View( ).LineHeight( ), lineH2, want \ 2 ) ) )
+    end scope
     ' a broken file changes nothing and says where
     mw.View( ).SetText( "[editor" & nl & "tab_size = 8" & nl )
     Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
