@@ -491,7 +491,10 @@ function Picker.Place( ) as boolean
     tkRect_Set( anchor, ax, a.top + py, ax + W, a.top + py + Target->LineHeight( ) )
     tkHost_PlacePopup( Owner, anchor, W, H, false, X, Y )
     dim as TK_HOST ptr old = Pop
-    Pop = tkHost_CreatePopup( Owner, X, Y, W, H )
+    ' never the keyboard focus: the editor keeps it and its text input (the keys come here
+    ' through tkHost's top-popup routing). A popup that takes it on X11 / Wayland has no text
+    ' input, and a key still held as it maps (Wayland) is sent to it again.
+    Pop = tkHost_CreatePopup( Owner, X, Y, W, H, TK_SURF_POPUP, SDL_WINDOW_NOT_FOCUSABLE )
     if old then
         replacing = true
         tkHost_Close( old )
@@ -511,9 +514,6 @@ function Picker.Place( ) as boolean
     end sub
     List = tkWidget_Create( Pop, 1, @ListProc, 0 )
     List->isFocusable = true
-    ' X11 / Wayland give the popup the keyboard focus, and SDL drops text for a window that has
-    ' not started text input: without this, keys reach the picker but typed characters do not
-    List->bWantsText = true
     tkWidget_SetPos( List, 0, 0, W, H )
     tkHost_Show( Pop )
     tkHost_SetFocus( Pop, List )

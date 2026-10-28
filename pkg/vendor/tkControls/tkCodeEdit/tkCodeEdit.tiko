@@ -1278,7 +1278,8 @@ private sub LbShow cdecl ( byval user as any ptr, byval lb as any ptr, byval x a
     ListClose()
     dim as long px, py
     PopupAt( t, x, w, h, px, py )
-    dim as TK_HOST ptr ph = tkHost_CreatePopup( t->hWin->pHost, px, py, w, h )
+    ' never the keyboard focus: the editor keeps it and its text input; tkHost routes the keys here
+    dim as TK_HOST ptr ph = tkHost_CreatePopup( t->hWin->pHost, px, py, w, h, TK_SURF_POPUP, SDL_WINDOW_NOT_FOCUSABLE )
     if ph = 0 then exit sub
     ph->bPassDismissClick = true          ' a click in the editor both closes the list and lands
     ph->OnClosed = @ListClosed
@@ -1286,9 +1287,6 @@ private sub LbShow cdecl ( byval user as any ptr, byval lb as any ptr, byval x a
     gList.hf = TeOpen( t->sFontPath, "", cint( t->nFontPt * 96 * t->hWin->pHost->fScale / 72 ) )
     gList.w = tkWidget_Create( ph, 1, @ListProc, 0 )
     gList.w->isFocusable = true
-    ' X11 / Wayland give the popup the keyboard focus, and SDL drops text for a window that has
-    ' not started text input: without this, keys reach the list but typed characters do not
-    gList.w->bWantsText = true
     tkWidget_SetPos( gList.w, 0, 0, w, h )
     ListEnsureVisible()
     tkHost_Show( ph )
@@ -1393,16 +1391,14 @@ private sub CtShow cdecl ( byval user as any ptr, byval editor as any ptr, byval
     TipClose()
     dim as long px, py
     PopupAt( t, x, w, h, px, py )
-    dim as TK_HOST ptr ph = tkHost_CreatePopup( t->hWin->pHost, px, py, w, h )
+    ' never the keyboard focus: the editor keeps it and its text input; tkHost routes the keys here
+    dim as TK_HOST ptr ph = tkHost_CreatePopup( t->hWin->pHost, px, py, w, h, TK_SURF_POPUP, SDL_WINDOW_NOT_FOCUSABLE )
     if ph = 0 then exit sub
     ph->bPassDismissClick = true
     ph->OnClosed = @TipClosed
     gTip.owner = t : gTip.popup = ph : gTip.bDirty = true
     gTip.w = tkWidget_Create( ph, 1, @TipProc, 0 )
     gTip.w->isFocusable = true
-    ' X11 / Wayland give the popup the keyboard focus, and SDL drops text for a window that has
-    ' not started text input: without this, keys reach the tip but typed characters do not
-    gTip.w->bWantsText = true
     tkWidget_SetPos( gTip.w, 0, 0, w, h )
     tkHost_Show( ph )
     tkHost_SetFocus( ph, gTip.w )
