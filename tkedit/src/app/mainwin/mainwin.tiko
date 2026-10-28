@@ -34,6 +34,7 @@
 #import "tkc/cmdids"
 #import "tkc/docencoding"
 #import "tkc/i18n"
+#import "tkc/instance"
 #import "tkc/keybind"
 #import "tkc/mru"
 #import "tkc/navhistory"
@@ -119,6 +120,8 @@ const ID_SCRATCH = 106
 const SEARCH_LIMIT = 5000              ' Find in Project stops counting there
 const ID_VIEW = 200                      ' views are ID_VIEW + n
 const DISK_CHECK_MS = 1000
+const INBOX_POLL_MS = 200               ' a second launch's files (tkc/instance)
+const HANDOFF_MS = 2000                 ' how long a second launch waits for the first to take them
 
 ' The status line's panels, left to right (PLAN.md, Window).
 public enum StatusPanel explicit
@@ -198,6 +201,23 @@ public function AppOptions( ) as TKAPP_OPTIONS
     end if
     opts.ThemeMode = TKAPP_THEME_NONE          ' the theme file decides (Window.ReloadTheme)
     return opts
+end function
+
+' A second launch ([ui] single_instance, author 2026-10-28): when another tkEdit holds the lock,
+' `named` goes to it (tkc/instance) and the answer is TRUE -- this process has nothing left to do.
+' FALSE = carry on with a window of its own, holding `g` when it could be had. Runs before SDL.
+public function HandedOff( byref g as fs.FileLock, byref named as Array( of ustring ) ) as boolean
+    dim as fs.FsResultUStr cd = platform.ConfigDir( )
+    if cd.IsOk( ) = false then return false
+    dim as settings.SettingsResult s = settings.LoadSettings( fs.PathJoin( cd.Value( ), settings.SETTINGS_FILE ) )
+    if s.IsOk( ) andalso ( s.Value( ).SingleInstance = false ) then return false
+    if instance.Claim( g, cd.Value( ) ) then return false
+    platform.AllowForeground( )                 ' this launch has the foreground; the first may take it
+    select case instance.HandOff( g, cd.Value( ), named, HANDOFF_MS )
+    case instance.HandOffResult.Taken, instance.HandOffResult.Left
+        return true                             ' Left: the first is busy (a modal) and reads it after
+    end select
+    return false                                ' Retracted: the first went away and g is held now
 end function
 
 ' A keyword file's words, lower case, one space apart (LexTiko's list format).
@@ -304,7 +324,7 @@ private function LaunchProgram( byref argv as const Array( of ustring ), byref w
     return ch->Spawn( c ).IsOk( )
 end function
 
-private function PickPerson( byval f as TK_FORM ptr, byval kind as long, byref suggest as const ustring ) as ustring
+private function PickNow( byval f as TK_FORM ptr, byval kind as long, byref suggest as const ustring ) as ustring
     dim as string filters = i18n.Tr( "dialog.filter_sources_projects", "tiko sources and projects" ) & "|tiko;ti;bas;bi;inc;tkedit|" & _
                             i18n.Tr( "dialog.filter_sources", "tiko sources" ) & "|tiko;ti;bas;bi;inc|" & _
                             i18n.Tr( "dialog.filter_projects", "tkEdit projects" ) & "|tkedit|TOML|toml|" & _
@@ -328,6 +348,15 @@ private function PickPerson( byval f as TK_FORM ptr, byval kind as long, byref s
         return all_
     end if
     return tkFileDialog_OpenFile( tkForm_Host( f ), filters, where )
+end function
+
+' The file dialogs pump the window's events while they wait, so CheckInbox waits too.
+private function PickPerson( byval f as TK_FORM ptr, byval kind as long, byref suggest as const ustring ) as ustring
+    dim as Window ptr mw = f->Tag
+    if mw then mw->modalDepth += 1
+    dim as ustring r = PickNow( f, kind, suggest )
+    if mw then mw->modalDepth -= 1
+    return r
 end function
 
 public type Window
@@ -431,6 +460,9 @@ public type Window
     editMenu as TK_MENU ptr             ' a view's right-click menu
     accel as TK_KEYMAP ptr
     diskTimer as long
+    inboxTimer as long                  ' reads <config>/inbox while this window is the first tkEdit
+    Guard as fs.FileLock ptr            ' main's instance.lock (ServeInbox); 0 = none
+    modalDepth as long                  ' > 0 while an ask box or a file dialog runs
     untitled as long
     viewIds as long
 
@@ -463,6 +495,10 @@ public type Window
     declare function KeysFile( ) as ustring
     declare function SessionFile( ) as ustring
     declare sub ReloadSettings( )
+    declare sub ServeInbox( byval g as fs.FileLock ptr )
+    declare sub SyncInstance( )
+    declare sub CheckInbox( byval maxAgeMs as longint )
+    declare sub Raise( )
     declare sub ReloadLanguage( )
     declare sub AttachCjkFallbacks( )
     declare function TypeCompletions( byref prefix as const ustring ) as Array( of symboldb.Completion )
@@ -587,7 +623,10 @@ private function AskPerson( byval f as TK_FORM ptr, byref text as const ustring,
     if mw then icon = mw->AskIcon
     dim as TK_WIDGET ptr box = NewAskBox( tkForm_Widget( f ), text, buttons, icon )
     if box = 0 then return 0
-    return tkMessageBox_DoModal( box )
+    if mw then mw->modalDepth += 1              ' timers still fire in the modal loop: CheckInbox waits
+    dim as long r = tkMessageBox_DoModal( box )
+    if mw then mw->modalDepth -= 1
+    return r
 end function
 
 private function WindowOfHost( byval h as TK_HOST ptr ) as Window ptr
@@ -830,6 +869,9 @@ end sub
 sub Window.Destroy( )
     if diskTimer then tkApp_KillTimer( diskTimer )
     diskTimer = 0
+    if inboxTimer then tkApp_KillTimer( inboxTimer )
+    inboxTimer = 0
+    Guard = 0
     if compilerTimer then tkApp_KillTimer( compilerTimer )
     compilerTimer = 0
     if buildTimer then tkApp_KillTimer( buildTimer )
@@ -1379,8 +1421,64 @@ sub Window.ReloadSettings( )
     this.ReloadLanguage( )
     this.ApplyStatusPanels( )
     this.ReloadTheme( )
+    this.SyncInstance( )                        ' [ui] single_instance may have changed
     this.Layout( )                              ' [ui] tab_strip may have come or gone
     this.ShowStatus( )
+end sub
+
+' ---- one tkEdit ([ui] single_instance, tkc/instance)
+
+' Main hands over its instance.lock once the window is up (held or not: settings.toml decides,
+' now and on every reload). Messages posted while this one was starting are opened now.
+sub Window.ServeInbox( byval g as fs.FileLock ptr )
+    Guard = g
+    this.SyncInstance( )
+    if inboxTimer then this.CheckInbox( instance.STALE_MS )
+end sub
+
+' Takes or lets go of the lock, and starts or stops the inbox timer, as [ui] single_instance says.
+' Another tkEdit holding the lock leaves this one a window of its own.
+sub Window.SyncInstance( )
+    if Guard = 0 then exit sub
+    if Prefs.SingleInstance then
+        if Guard->IsHeld( ) = false then
+            if instance.Claim( *Guard, ConfigDir ) = false then exit sub
+        end if
+        if inboxTimer = 0 then
+            inboxTimer = tkApp_SetTimer( INBOX_POLL_MS, sub( byval id as long, byval payload as any ptr )
+                cast( Window ptr, payload )->CheckInbox( 0 )
+            end sub, @this )
+        end if
+    else
+        Guard->Release( )
+        if inboxTimer then tkApp_KillTimer( inboxTimer )
+        inboxTimer = 0
+    end if
+end sub
+
+' What other launches handed over: their files (a project's tiko.toml first, as on the command
+' line), then the window to the front -- also for a launch that named none. Not while a modal runs.
+sub Window.CheckInbox( byval maxAgeMs as longint )
+    if (form = 0) orelse (modalDepth > 0) then exit sub
+    dim as Array( of instance.InboxMessage ) got = instance.Take( ConfigDir, instance.NowMs( ), maxAgeMs )
+    if got.Count( ) = 0 then exit sub
+    for each m as instance.InboxMessage in got
+        for each f as ustring in m.Files
+            if project.IsManifest( f ) andalso fs.IsFile( f ) then this.OpenFile( f )
+        next
+        for each f as ustring in m.Files
+            if (project.IsManifest( f ) = false) andalso fs.IsFile( f ) then this.OpenFile( f )
+        next
+    next
+    this.Raise( )
+end sub
+
+' To the front; restored first only when minimized (a maximized window stays maximized).
+sub Window.Raise( )
+    if form = 0 then exit sub
+    dim as SDL_Window ptr w = tkForm_Host( form )->win
+    if ( SDL_GetWindowFlags( w ) and SDL_WINDOW_MINIMIZED ) <> 0 then SDL_RestoreWindow( w )
+    SDL_RaiseWindow( w )
 end sub
 
 ' settings.toml's language: its catalog becomes the program's and the window's text follows. A code

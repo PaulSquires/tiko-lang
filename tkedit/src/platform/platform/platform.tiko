@@ -332,3 +332,21 @@ public function TitleBarIsDark( byval nativeWindow as any ptr ) as boolean
     return false
 #endif
 end function
+
+' ---- a second launch (tkc/instance) ----------------------------------------------------------
+
+#if defined( TIKO_OS_WINDOWS )
+#inclib "user32"
+extern "C"
+    declare function tsp_AllowSetForegroundWindow stdcall alias "AllowSetForegroundWindow" ( byval pid as ulong ) as long
+end extern
+#endif
+
+' Lets the running tkEdit take the foreground when it opens what this launch handed over: Windows
+' gives it only to a process the foreground one allows (ASFW_ANY), and this launch holds it.
+' Elsewhere nothing to do: X11 raises on request, a Wayland compositor decides for itself.
+public sub AllowForeground( )
+#if defined( TIKO_OS_WINDOWS )
+    tsp_AllowSetForegroundWindow( &hFFFFFFFFul )             ' ASFW_ANY
+#endif
+end sub

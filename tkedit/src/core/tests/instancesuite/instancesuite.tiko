@@ -1,0 +1,108 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+' instancesuite -- tkc/instance in a temp config folder: the lock is exclusive and comes back
+' after Release, Post + Take round-trip paths with spaces and non-ASCII, Take deletes, orders
+' oldest first and drops stale messages, HandOff leaves the message while the lock is held and
+' withdraws it once the lock is free.
+#module "instancesuite"
+
+#import "std/containers"
+#import "std/fs"
+#import "std/config"
+#import "tkc/tomlget"
+#import "tkc/instance"
+#import "../tally"
+using containers
+
+' A message as Post writes one, at a chosen time.
+private sub PostAt( byref cfg as const ustring, byref nm as const ustring, byval t as longint, byval f as ustring )
+    dim as config.TomlValue root = config.TomlValue.NewTable( )
+    tomlget.SetInt( root, "version", instance.INBOX_VERSION )
+    tomlget.SetInt( root, "time", t )
+    dim as Array( of ustring ) fl
+    fl.Push( f )
+    tomlget.SetStrings( root, "files", fl )
+    fs.WriteAtomic( fs.PathJoin( instance.InboxPath( cfg ), nm ), config.ToTomlText( root ).Value( ) )
+end sub
+
+private function InboxCount( byref cfg as const ustring ) as long
+    dim as long n
+    for each r in fs.ReadDir( instance.InboxPath( cfg ) )
+        if r.IsOk( ) then n += 1
+    next
+    return n
+end function
+
+public sub Run( byref c as tally.Checker )
+    c.Begin( "instance" )
+    dim as fs.FsResultUStr tmp = fs.CreateTempDir( "instancesuite" )
+    c.Check( tmp.IsOk( ), "a temp folder" )
+    if tmp.IsOk( ) = false then exit sub
+    dim as ustring cfg = fs.PathJoin( tmp.Value( ), "config" )
+
+    ' the lock
+    dim as fs.FileLock first_, second_
+    c.Check( instance.Claim( first_, cfg ), "the first claim takes the lock (and makes the folder)" )
+    c.Check( instance.Claim( second_, cfg ) = false, "a second claim fails while the first holds it" )
+    first_.Release( )
+    c.Check( instance.Claim( second_, cfg ), "after Release the lock can be taken again" )
+    second_.Release( )
+
+    ' Post + Take
+    dim as Array( of ustring ) files
+    files.Push( fs.PathJoin( tmp.Value( ), "with space.tiko" ) )
+    files.Push( fs.PathJoin( tmp.Value( ), "caf" & wchr( &hE9 ) & wchr( &h4E2D ) & ".ti" ) )
+    dim as ustring p = instance.Post( cfg, files )
+    c.Check( len( p ) > 0 andalso fs.IsFile( p ), "Post writes a message" )
+    dim as Array( of instance.InboxMessage ) got = instance.Take( cfg, instance.NowMs( ), 0 )
+    c.SameNum( got.Count( ), 1, "Take reads the one message" )
+    if got.Count( ) = 1 then
+        c.SameNum( got[0].Files.Count( ), 2, "both files came across" )
+        if got[0].Files.Count( ) = 2 then
+            c.Same( got[0].Files[0], files[0], "a path with a space" )
+            c.Same( got[0].Files[1], files[1], "a non-ASCII path" )
+        end if
+    end if
+    c.SameNum( InboxCount( cfg ), 0, "Take deletes what it read" )
+    dim as Array( of ustring ) none_
+    instance.Post( cfg, none_ )
+    got = instance.Take( cfg, instance.NowMs( ), 0 )
+    c.Check( got.Count( ) = 1 andalso got[0].Files.Count( ) = 0, "an empty message (raise only) is a message" )
+
+    ' order and age
+    PostAt( cfg, "b.toml", 2000, "two" )
+    PostAt( cfg, "a.toml", 3000, "three" )
+    PostAt( cfg, "c.toml", 1000, "one" )
+    PostAt( cfg, ".x.tmp", 500, "half-written" )
+    fs.WriteAtomic( fs.PathJoin( instance.InboxPath( cfg ), "bad.toml" ), "this is = = not toml" )
+    got = instance.Take( cfg, 3000, 0 )
+    c.SameNum( got.Count( ), 3, "three messages; a dot file is skipped, a bad one dropped" )
+    if got.Count( ) = 3 then
+        c.Same( got[0].Files[0] & got[1].Files[0] & got[2].Files[0], "onetwothree", "oldest first" )
+    end if
+    c.SameNum( InboxCount( cfg ), 1, "only the dot file is left" )
+    fs.RemoveFile( fs.PathJoin( instance.InboxPath( cfg ), ".x.tmp" ) )
+    PostAt( cfg, "old.toml", 1000, "old" )
+    PostAt( cfg, "new.toml", 40000, "new" )
+    got = instance.Take( cfg, 40000, instance.STALE_MS )
+    c.Check( got.Count( ) = 1 andalso got[0].Files[0] = "new", "a message older than STALE_MS is dropped" )
+    c.SameNum( InboxCount( cfg ), 0, "the stale one is deleted too" )
+
+    ' HandOff
+    c.Check( instance.Claim( first_, cfg ), "a first for the hand-off" )
+    dim as instance.HandOffResult h = instance.HandOff( second_, cfg, files, 150 )
+    c.SameNum( h, instance.HandOffResult.Left, "nobody reads it, the lock is held: Left" )
+    c.SameNum( InboxCount( cfg ), 1, "the message waits in the inbox" )
+    c.Check( second_.IsHeld( ) = false, "Left does not hold the lock" )
+    instance.Take( cfg, instance.NowMs( ), 0 )
+    first_.Release( )
+    h = instance.HandOff( second_, cfg, files, 150 )
+    c.SameNum( h, instance.HandOffResult.Retracted, "the lock is free: Retracted" )
+    c.SameNum( InboxCount( cfg ), 0, "the message is withdrawn" )
+    c.Check( second_.IsHeld( ), "Retracted leaves the lock held" )
+    c.Check( instance.Claim( first_, cfg ) = false, "so nobody else can claim it" )
+    second_.Release( )
+
+    fs.RemoveDirAll( tmp.Value( ) )
+end sub

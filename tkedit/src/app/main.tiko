@@ -23,6 +23,22 @@ using tkApp
 using tkHost
 using tkCodeEdit
 
+' Files (or a project's tiko.toml) named on the command line take the place of the last session's files and
+' project; the window's place and the recent list come back either way.
+dim as Array( of ustring ) named
+dim as long i = 1
+while len( command( i ) )
+    dim as ustring a = command( i )
+    dim as ustring f = fs.AbsolutePath( a ).ValueOr( a )
+    if fs.IsFile( f ) then named.Push( f )
+    i += 1
+wend
+' One tkEdit ([ui] single_instance): another one running takes the files, and this launch ends here.
+dim as fs.FileLock instanceLock
+if command( 1 ) <> "--selftest" then
+    if mainwin.HandedOff( instanceLock, named ) then end 0
+end if
+
 dim as TKAPP_OPTIONS opts = mainwin.AppOptions( )
 if tkApp_Init( opts ) = false then
     print "tkEdit: SDL could not start: "; *SDL_GetError( )
@@ -43,6 +59,7 @@ if command( 1 ) = "--selftest" then
     selftest.BuildPass( t, 1.0 )
     selftest.IntelPass( t, 1.0 )
     selftest.PolishPass( t, 1.0 )
+    selftest.InboxPass( t, 1.0 )
     tkApp_Shutdown( )
     print strings.Format( "tkEdit [{}] selftest: {} passed, {} failed", platform.OsName( ), t.passed, t.failed )
     end t.failed
@@ -53,16 +70,6 @@ if theWindow.Create( ) = false then
     print "tkEdit: the main window could not be created: "; *SDL_GetError( ); " "; tkCodeEdit_LibraryError( )
     end 1
 end if
-' Files (or a project's tiko.toml) named on the command line take the place of the last session's files and
-' project; the window's place and the recent list come back either way.
-dim as Array( of ustring ) named
-dim as long i = 1
-while len( command( i ) )
-    dim as ustring a = command( i )
-    dim as ustring f = fs.AbsolutePath( a ).ValueOr( a )
-    if fs.IsFile( f ) then named.Push( f )
-    i += 1
-wend
 theWindow.RestoreSession( named.Count( ) = 0 )
 for each f as ustring in named
     if project.IsManifest( f ) then theWindow.OpenFile( f )     ' a project first: it closes what is open
@@ -72,4 +79,5 @@ for each f as ustring in named
 next
 theWindow.Show( )
 theWindow.EnsureCompilerSoon( )          ' no compiler found: ask for one (author 2026-10-27)
+theWindow.ServeInbox( @instanceLock )
 end tkApp_Run( theWindow.form )

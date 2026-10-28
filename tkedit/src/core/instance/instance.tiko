@@ -1,0 +1,138 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' instance -- one tkEdit per user ([ui] single_instance, author 2026-10-28). The first holds
+' <config>/instance.lock (std fs.FileLock: the OS frees it when the process dies, so a crash leaves
+' no owner behind). A second launch posts its files to <config>/inbox/<pid>-<ms>.toml and exits
+' once the first has taken them; the first reads the inbox on a UI timer (mainwin.CheckInbox).
+'
+'     version = 1
+'     time = <unix ms>        when it was posted
+'     files = [...]           full paths, resolved in the sender's working folder; [] = raise only
+#module "instance"
+
+#import "std/fs"
+#import "std/os"
+#import "std/config"
+#import "std/chrono"
+#import "std/containers"
+#import "tkc/tomlget"
+using containers
+
+public const LOCK_FILE = "instance.lock"
+public const INBOX_DIR = "inbox"
+public const INBOX_VERSION = 1
+public const STALE_MS = 30000          ' a message this old when the first starts is dropped unread
+
+public enum HandOffResult explicit
+    Taken = 0              ' the first read the message
+    Left = 1               ' not read yet, but the first still holds the lock: it will be
+    Retracted = 2          ' no first any more: the message is withdrawn and `guard` is held now
+    Failed = 3             ' the message could not be written
+end enum
+
+public type InboxMessage
+    Time  as longint
+    Files as Array( of ustring )
+end type
+
+public function LockPath( byref configDir as const ustring ) as ustring
+    return fs.PathJoin( configDir, LOCK_FILE )
+end function
+
+public function InboxPath( byref configDir as const ustring ) as ustring
+    return fs.PathJoin( configDir, INBOX_DIR )
+end function
+
+public function NowMs( ) as longint
+    return chrono.WallClock.UtcNow( ).UnixMilliseconds
+end function
+
+' Takes the lock if nobody holds it. False = another tkEdit has it (or the folder cannot be made).
+public function Claim( byref guard as fs.FileLock, byref configDir as const ustring ) as boolean
+    if fs.IsDir( configDir ) = false then
+        if fs.CreateDirAll( configDir ).IsOk( ) = false then return false
+    end if
+    return guard.Acquire( LockPath( configDir ), true, 0 ).IsOk( )
+end function
+
+' Writes one message atomically (WriteAtomic's temporary is a dot file, which Take skips).
+' Returns its path, "" when it could not be written.
+public function Post( byref configDir as const ustring, byref files as Array( of ustring ) ) as ustring
+    dim as ustring dir_ = InboxPath( configDir )
+    if fs.IsDir( dir_ ) = false then
+        if fs.CreateDirAll( dir_ ).IsOk( ) = false then return ""
+    end if
+    dim as longint t = NowMs( )
+    dim as config.TomlValue root = config.TomlValue.NewTable( )
+    tomlget.SetInt( root, "version", INBOX_VERSION )
+    tomlget.SetInt( root, "time", t )
+    tomlget.SetStrings( root, "files", files )
+    dim as config.ConfigResultText txt = config.ToTomlText( root )
+    if txt.IsOk( ) = false then return ""
+    dim as ustring p = fs.PathJoin( dir_, str( os.ProcessId( ) ) & "-" & str( t ) & ".toml" )
+    if fs.WriteAtomic( p, txt.Value( ) ).IsOk( ) = false then return ""
+    return p
+end function
+
+' Posts `files`, then waits up to timeoutMs for the first to take them. When the lock comes free
+' meanwhile (the first quit or died) the message is withdrawn and `guard` is left held.
+public function HandOff( byref guard as fs.FileLock, byref configDir as const ustring, _
+        byref files as Array( of ustring ), byval timeoutMs as long ) as HandOffResult
+    dim as ustring p = Post( configDir, files )
+    if len( p ) = 0 then return HandOffResult.Failed
+    dim as longint t0 = NowMs( )
+    do
+        if fs.Exists( p ) = false then return HandOffResult.Taken
+        if guard.Acquire( LockPath( configDir ), true, 0 ).IsOk( ) then
+            if fs.Exists( p ) = false then          ' taken just before the first let go
+                guard.Release( )
+                return HandOffResult.Taken
+            end if
+            fs.RemoveFile( p )
+            return HandOffResult.Retracted
+        end if
+        if NowMs( ) - t0 >= timeoutMs then exit do
+        sleep 25, 1
+    loop
+    return HandOffResult.Left
+end function
+
+' Reads and deletes every message in the inbox, oldest first. maxAgeMs > 0 drops (deletes unread)
+' the ones posted more than that before atMs. A file that does not parse is deleted too.
+public function Take( byref configDir as const ustring, byval atMs as longint, byval maxAgeMs as longint ) _
+        as Array( of InboxMessage )
+    dim as Array( of InboxMessage ) got
+    dim as ustring dir_ = InboxPath( configDir )
+    if fs.IsDir( dir_ ) = false then return got
+    dim as Array( of ustring ) paths
+    for each r in fs.ReadDir( dir_ )
+        if r.IsOk( ) = false then continue for
+        dim as fs.DirEntry e = r.Value( )
+        dim as ustring nm = e.Name( )
+        if e.IsFile( ) andalso ( left( nm, 1 ) <> "." ) andalso ( lcase( right( nm, 5 ) ) = ".toml" ) then
+            paths.Push( fs.PathJoin( dir_, nm ) )
+        end if
+    next
+    for each p as ustring in paths
+        dim as config.ConfigResultToml r = config.LoadToml( p )
+        fs.RemoveFile( p )
+        if r.IsOk( ) = false then continue for
+        dim as config.TomlValue root = r.Value( )
+        dim as InboxMessage m
+        m.Time = tomlget.GetInt( root, "time", 0 )
+        if ( maxAgeMs > 0 ) andalso ( atMs - m.Time > maxAgeMs ) then continue for
+        m.Files = tomlget.GetStrings( root, "files" )
+        ' oldest first: insert before the first later one
+        dim as long at = got.Count( )
+        while ( at > 0 ) andalso ( got[at - 1].Time > m.Time )
+            at -= 1
+        wend
+        got.Insert( at, m )
+    next
+    return got
+end function

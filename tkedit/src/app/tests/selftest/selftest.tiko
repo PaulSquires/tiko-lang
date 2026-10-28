@@ -19,6 +19,7 @@
 #import "tkc/cmdids"
 #import "tkc/docencoding"
 #import "tkc/i18n"
+#import "tkc/instance"
 #import "tkc/keybind"
 #import "tkc/project"
 #import "tkc/runargs"
@@ -2143,6 +2144,77 @@ public sub PolishPass( byref t as Tally, byval sc as single )
     mw.Finder.SetPhrase( "Need[l]e\(" )
     StripKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
     t.Check( mw.Found.Count( ) = 4, P( sc, strings.Format( "a regex: the four calls and declarations ({})", mw.Found.Count( ) ) ) )
+
+    for each d as DocRef in mw.Docs
+        d->Main.SetSavePoint( )
+    next
+    mw.Destroy( )
+end sub
+
+' ---- one tkEdit ([ui] single_instance): what a second launch posts to the inbox opens here, the
+' timer waits while a modal runs, and the setting takes and lets go of the lock live.
+public sub InboxPass( byref t as Tally, byval sc as single )
+    dim as mainwin.Window mw
+    mw.ConfigDir = FreshConfig( )
+    mw.Ask = @ScriptedAsk
+    mw.Pick = @ScriptedPick
+    t.Check( mw.Create( sc ), P( sc, "inbox: main window created" ) )
+    if mw.form = 0 then exit sub
+    mw.Show( )
+    dim as TK_HOST ptr h = tkForm_Host( mw.form )
+    dim as fs.FileLock g
+    mw.ServeInbox( @g )
+    t.Check( g.IsHeld( ) andalso (mw.inboxTimer <> 0), P( sc, "the first window holds the lock and reads the inbox" ) )
+    dim as fs.FileLock other
+    t.Check( instance.Claim( other, mw.ConfigDir ) = false, P( sc, "a second launch cannot claim it" ) )
+    tkTest_PumpFor( h, 100 )
+
+    dim as ustring dir_ = Files( )
+    dim as ustring pathA = fs.PathJoin( dir_, "in a.tiko" ), pathB = fs.PathJoin( dir_, "inb.ti" )
+    WriteBytes( pathA, "dim a as long" & chr( 10 ) )
+    WriteBytes( pathB, "dim b as long" & chr( 10 ) )
+    dim as Array( of ustring ) handed
+    handed.Push( pathA )
+    handed.Push( pathB )
+    handed.Push( fs.PathJoin( dir_, "gone.tiko" ) )             ' deleted since: skipped
+    t.Check( len( instance.Post( mw.ConfigDir, handed ) ) > 0, P( sc, "a message posted" ) )
+    tkTest_PumpFor( h, 600 )
+    t.Check( (mw.Docs.Count( ) = 2) andalso (mw.FindOpen( pathA ) <> 0) andalso (mw.FindOpen( pathB ) <> 0), _
+             P( sc, strings.Format( "both files open, the missing one skipped ({} buffers)", mw.Docs.Count( ) ) ) )
+    t.Check( lcase( mw.ActivePath( ) ) = lcase( pathB ), P( sc, "the last one handed over is active" ) )
+    t.Check( instance.Take( mw.ConfigDir, instance.NowMs( ), 0 ).Count( ) = 0, P( sc, "the inbox is empty again" ) )
+
+    dim as Array( of ustring ) none_
+    instance.Post( mw.ConfigDir, none_ )
+    tkTest_PumpFor( h, 600 )
+    t.Check( (mw.Docs.Count( ) = 2) andalso (instance.Take( mw.ConfigDir, instance.NowMs( ), 0 ).Count( ) = 0), _
+             P( sc, "a launch with no files: taken, no new buffer" ) )
+
+    ' a modal up: the message waits
+    dim as ustring pathC = fs.PathJoin( dir_, "c.tiko" )
+    WriteBytes( pathC, "dim c as long" & chr( 10 ) )
+    dim as Array( of ustring ) one_
+    one_.Push( pathC )
+    mw.modalDepth = 1
+    instance.Post( mw.ConfigDir, one_ )
+    tkTest_PumpFor( h, 600 )
+    t.Check( mw.FindOpen( pathC ) = 0, P( sc, "while a modal runs the message waits" ) )
+    mw.modalDepth = 0
+    tkTest_PumpFor( h, 600 )
+    t.Check( mw.FindOpen( pathC ) <> 0, P( sc, "and opens once it closes" ) )
+
+    ' the setting, live
+    dim as settings.EditorSettings st = mw.Prefs
+    st.SingleInstance = false
+    settings.WriteFile( mw.SettingsFile( ), st )
+    mw.ReloadSettings( )
+    t.Check( (g.IsHeld( ) = false) andalso (mw.inboxTimer = 0), P( sc, "single_instance = false lets go of the lock" ) )
+    t.Check( instance.Claim( other, mw.ConfigDir ), P( sc, "so another launch could have it" ) )
+    other.Release( )
+    st.SingleInstance = true
+    settings.WriteFile( mw.SettingsFile( ), st )
+    mw.ReloadSettings( )
+    t.Check( g.IsHeld( ) andalso (mw.inboxTimer <> 0), P( sc, "single_instance = true takes it again" ) )
 
     for each d as DocRef in mw.Docs
         d->Main.SetSavePoint( )

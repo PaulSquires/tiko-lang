@@ -11,6 +11,9 @@ Spec and records: `C:\dev\docs\tkEdit` (PLAN.md, KEYS.md, CONFIG.md, FINDINGS.md
 tkEdit [files...]        restores the last session (or project), then opens the files
 ```
 
+One tkEdit per user: launched again while one runs, it hands its files to that window (a bare launch
+brings the window to the front) and exits; `[ui] single_instance = false` gives each launch its own window.
+
 - **Buffers:** Ctrl+E lists them, Ctrl+Tab switches to the last one at once (keep Ctrl down and press Tab
   again for older ones), the status line's file name lists them too. Ctrl+\ and Ctrl+Shift+\
   split the window; Ctrl+Tilde moves between the panes and the output pane.
