@@ -66,6 +66,7 @@
 #import "vendor/tkControls/tkSplitter"
 #import "vendor/tkControls/tkStatusBar"
 #import "vendor/tkControls/tkTabBar"
+#import "vendor/tkControls/tkToolbar"
 #import "vendor/tkControls/tkTheme"
 using containers
 using outcome
@@ -82,6 +83,7 @@ using tkPopupMenu
 using tkSplitter
 using tkStatusBar
 using tkTabBar
+using tkToolbar
 using tkTheme
 
 public const FONT_UI = "Inter-Regular.ttf"
@@ -98,6 +100,11 @@ const ID_STATUS2 = 107
 const ID_SPLIT2 = 108
 const ID_TABS = 109
 const TABS_CY = 28                        ' the tab strip, unscaled
+const ID_TABNAV = 110
+const TABS_GLYPH_LEFT = &hF2AA            ' PsIcons (tools/add-psicons.py): Fluent's chevrons
+const TABS_GLYPH_RIGHT = &hF2B0
+const TABS_NAV_LEFT = 1                   ' the < > buttons' ids
+const TABS_NAV_RIGHT = 2
 const ID_SPLIT = 103
 const ID_FINDSTRIP = 104
 const ID_OUTPUT = 105
@@ -395,6 +402,7 @@ public type Window
     status as TK_WIDGET ptr             ' pane 1's status line (the only one, unsplit)
     status2 as TK_WIDGET ptr            ' pane 2's, while split
     tabs as TK_WIDGET ptr               ' [ui] tab_strip: a tab per buffer in open order, above the panes
+    tabNav as TK_WIDGET ptr             ' its < > buttons, at its right end while the tabs overflow
     lastTitle as ustring
     splitBar as TK_WIDGET ptr
     splitFoot as TK_WIDGET ptr          ' a left/right split's bar through the status row, between the two
@@ -421,6 +429,8 @@ public type Window
     declare function TabsHeight( ) as long                     ' 0 when [ui] tab_strip is off
     declare sub SyncTabs( )
     declare sub TabsReordered( )
+    declare sub LayoutTabs( )
+    declare sub ScrollTabs( byval dir_ as long )
     declare function BottomHeight( ) as long                   ' the status line, and the strip above it
     declare function OutputHeight( ) as long                   ' 0 when the pane is hidden
     declare sub SetMessage( byref s as const ustring )
@@ -638,7 +648,26 @@ function Window.Create( byval forcedScale as single ) as boolean
         if len( d->Path ) then return d->Path
         return d->DisplayName( )
     end function )
+    ' the wheel scrolls the tabs, as the bar would itself, and the < > buttons follow
+    tkTabBar_SetMessageCallback( tabs, function( byval m as TKTABBAR_MESSAGEINFO ptr ) as boolean
+        if (m->msg <> TKM_MOUSEWHEEL) orelse (m->wheelY = 0) then return false
+        dim as Window ptr mw = WindowOfWidget( m->hTabBar )
+        if mw = 0 then return false
+        if m->wheelY > 0 then mw->ScrollTabs( -1 ) else mw->ScrollTabs( 1 )   ' wheel up = left
+        return true
+    end function )
     tkWidget_Show( tabs, false )
+    ' the < > buttons (author 2026-10-27): shown while the tabs do not all fit, greyed at either end
+    tabNav = tkToolbar_Create( root, ID_TABNAV )
+    tkToolbar_SetGlyphFont( tabNav, tkForm_Font( form, TKFONT_GLYPH ) )
+    tkToolbar_AddItem( tabNav, TBR_KIND_COMMAND, wchr( TABS_GLYPH_LEFT ), "", TABS_NAV_LEFT )
+    tkToolbar_AddItem( tabNav, TBR_KIND_COMMAND, wchr( TABS_GLYPH_RIGHT ), "", TABS_NAV_RIGHT )
+    tkToolbar_SetClickCallback( tabNav, sub( byval hBar as TK_WIDGET ptr, byval idx as long, byval cid as long )
+        dim as Window ptr mw = WindowOfWidget( hBar )
+        if mw = 0 then exit sub
+        if cid = TABS_NAV_LEFT then mw->ScrollTabs( -1 ) else mw->ScrollTabs( 1 )
+    end sub )
+    tkWidget_Show( tabNav, false )
 
     ' a view's right-click menu: commands by id, through Execute like their keys
     editMenu = tkPopupMenu_Create( tkForm_Host( form ) )
@@ -818,10 +847,7 @@ sub Window.Layout( )
     end if
     tkWidget_Show( Out.frame, OutputShown )
     dim as long top = this.TabsHeight( )         ' the tab strip, above the panes
-    if tabs then
-        tkWidget_Show( tabs, top > 0 )
-        if top > 0 then tkWidget_SetPos( tabs, 0, 0, cx, top )
-    end if
+    this.LayoutTabs( )
     dim as long ah = bottom - fh - oh - top      ' the panes' area, from y = top
     dim as boolean split_ = this.IsSplit( )
     dim as TK_WIDGET ptr v1 = 0, v2 = 0
@@ -906,6 +932,7 @@ sub Window.SyncTabs( )
         if tkTabBar_GetItemData( tabs, i ) <> cast( integer, Docs[i] ) then same = false
     next
     if same = false then tkTabBar_Clear( tabs )
+    dim as boolean changed = (same = false)
     dim as long sel = -1
     for i as long = 0 to n - 1
         dim as DocRef d = Docs[i]
@@ -915,10 +942,44 @@ sub Window.SyncTabs( )
             tkTabBar_AddTab( tabs, txt, cast( integer, d ) )
         elseif tkTabBar_GetText( tabs, i ) <> txt then
             tkTabBar_SetText( tabs, i, txt )
+            changed = true
         end if
         if d = this.Active( ) then sel = i
     next
-    if tkTabBar_GetCurSel( tabs ) <> sel then tkTabBar_SetCurSel( tabs, sel )
+    if tkTabBar_GetCurSel( tabs ) <> sel then
+        tkTabBar_SetCurSel( tabs, sel )          ' scrolled into view at its next layout
+        changed = true
+    end if
+    if changed then this.LayoutTabs( )           ' the < > buttons may come, go or change state
+end sub
+
+' The strip across the top and, while its tabs do not all fit, the < > buttons at its right end,
+' each greyed when there is nothing more that way.
+sub Window.LayoutTabs( )
+    if tabs = 0 then exit sub
+    dim as long top = this.TabsHeight( )
+    tkWidget_Show( tabs, top > 0 )
+    if top = 0 then
+        tkWidget_Show( tabNav, false )
+        exit sub
+    end if
+    dim as long cx = tkForm_Widget( form )->cw
+    tkWidget_SetPos( tabs, 0, 0, cx, top )
+    dim as boolean over = tkTabBar_CanNavigate( tabs, -1 ) orelse tkTabBar_CanNavigate( tabs, 1 )
+    if over then
+        dim as long nw = tkToolbar_GetIdealWidth( tabNav )
+        tkWidget_SetPos( tabs, 0, 0, cx - nw, top )
+        tkWidget_SetPos( tabNav, cx - nw, 0, nw, top )
+        tkToolbar_SetEnabled( tabNav, 0, tkTabBar_CanNavigate( tabs, -1 ) )
+        tkToolbar_SetEnabled( tabNav, 1, tkTabBar_CanNavigate( tabs, 1 ) )
+    end if
+    tkWidget_Show( tabNav, over )
+end sub
+
+' One tab left (-1) or right (1), by the buttons or the wheel.
+sub Window.ScrollTabs( byval dir_ as long )
+    tkTabBar_Navigate( tabs, dir_ )
+    this.LayoutTabs( )
 end sub
 
 ' A tab was dragged: the buffers take the tabs' order (open order: Ctrl+Tab, the tabs, the session).
@@ -1448,6 +1509,16 @@ sub Window.ReloadTheme( )
     tkStatusBar_SetColors( status, @sbc )
     tkStatusBar_SetColors( status2, @sbc )
     Out.ApplyColors( )
+    ' the tab strip in the theme's colours, its selected tab without the accent bar along its top:
+    ' the bar takes the tab's own colour (author 2026-10-27). Pinned, so set again at every theme.
+    if tabs then
+        dim as TKTABBAR_COLORS tbc = tkTabBar_ThemeColors( tc )
+        tbc.AccentColor = tbc.TabBackColorSelected
+        tkTabBar_SetColors( tabs, @tbc )
+        dim as TKTOOLBAR_COLORS nc = tkToolbar_ThemeColors( tc )
+        nc.BackColor = tbc.BackColor
+        tkToolbar_SetColors( tabNav, @nc )
+    end if
     this.ApplyLook( )
     tkForm_Invalidate( form )
 end sub

@@ -25,7 +25,7 @@ private sub SettingsChecks( byref c as tally.Checker )
     c.Check( d.LineNumbers andalso d.CaretLine andalso (d.UseTabs = false) andalso (d.FoldMargin = false), "editor flags default" )
     c.Same( d.Theme, "dark", "theme default" )
     c.Same( d.Language, "en", "language default" )
-    c.Check( d.TabStrip = false, "tab_strip default: off" )
+    c.Check( d.TabStrip, "tab_strip default: on" )
     c.SameNum( d.Builds.Count( ), 2, "two default builds" )
     c.Same( d.DefaultBuild( ), "Debug", "Debug is the default build" )
 
@@ -49,7 +49,7 @@ private sub SettingsChecks( byref c as tally.Checker )
     end if
 
     dim as ustring txt = "version = 1" & nl & "[editor]" & nl & "font_size = 14" & nl & "tab_size = 99" & nl & _
-        "use_tabs = true" & nl & "wrap = 'yes'" & nl & "[ui]" & nl & "theme = 'light'" & nl & "language = ' DE '" & nl & "tab_strip = true" & nl & _
+        "use_tabs = true" & nl & "wrap = 'yes'" & nl & "[ui]" & nl & "theme = 'light'" & nl & "language = ' DE '" & nl & "tab_strip = false" & nl & _
         "[statusbar]" & nl & "show_keys = false" & nl & _
         "[files]" & nl & "new_eol = 'lf'" & nl & "new_encoding = 'utf8bom'" & nl & _
         "[compiler]" & nl & "tiko = 'C:/t/tiko.exe'" & nl & "includes = ['a', 'b']" & nl & _
@@ -66,7 +66,7 @@ private sub SettingsChecks( byref c as tally.Checker )
         c.Check( s.Wrap = false, "a mistyped wrap keeps its default" )
         c.Same( s.Theme, "light", "theme read" )
         c.Same( s.Language, "de", "language read, trimmed and lower-cased" )
-        c.Check( s.TabStrip, "tab_strip read" )
+        c.Check( s.TabStrip = false, "tab_strip read" )
         c.Check( (s.ShowKeysPanel = false) andalso s.ShowProjectPanel andalso s.ShowSettingsPanel, "[statusbar] read, the rest defaults" )
         c.Check( s.NewLineEnd = settings.NewEol.Lf, "new_eol read" )
         c.Check( s.NewEncoding = docencoding.FileEncoding.Utf8Bom, "new_encoding read" )
@@ -85,7 +85,7 @@ private sub SettingsChecks( byref c as tally.Checker )
                      "and reads back its values" )
             c.Same( w.Tiko, s.Tiko, "a quote and backslashes survive" )
             c.Same( w.Language, "de", "language survives" )
-            c.Check( w.TabStrip, "tab_strip survives" )
+            c.Check( w.TabStrip = false, "tab_strip survives" )
             c.Check( (w.Includes.Count( ) = 2) andalso (w.Includes[1] = "b"), "includes survive" )
             c.Check( (w.Builds.Count( ) = 2) andalso (w.DefaultBuild( ) = "Dbg") andalso (w.Builds[0].Options = "-O3"), _
                      "builds survive" )

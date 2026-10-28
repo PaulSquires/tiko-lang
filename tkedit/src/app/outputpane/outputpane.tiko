@@ -189,6 +189,11 @@ sub Pane.ApplyColors( )
     c.BackColor = t.Window
     c.OuterBackColor = t.Window
     tkTextBox_SetColors( logBox, @c )
+    ' the tabs without the selected tab's accent bar along its top, as tkEdit's tab strip (author
+    ' 2026-10-27): the bar takes the tab's own colour
+    dim as TKTABBAR_COLORS tbc = tkTabBar_ThemeColors( t )
+    tbc.AccentColor = tbc.TabBackColorSelected
+    tkTabBar_SetColors( tabs, @tbc )
 end sub
 
 sub Pane.Relabel( )

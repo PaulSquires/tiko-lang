@@ -177,12 +177,12 @@ public sub Pass( byref t as Tally, byval sc as single )
     t.Check( title = appinfo.WindowTitle( "untitled1" ), P( sc, "title is '" & title & "'" ) )
     t.Check( tkApp_Theme( ).IsDark, P( sc, "the dark theme reached the controls" ) )
 
-    ' ---- the layout: the view fills all but one status row (no menu, no tabs, no panel)
+    ' ---- the layout: the view fills all but one status row (no menu, no panel; the tab strip, on by default, across the top)
     dim as TK_WIDGET ptr v = mw.View( ).Widget( )
-    dim as long sh = tkForm_Scale( mw.form, mainwin.STATUS_CY )
+    dim as long sh = tkForm_Scale( mw.form, mainwin.STATUS_CY ), top = mw.TabsHeight( )
     t.Check( mw.StatusHeight( ) = sh, P( sc, strings.Format( "status row {} px", mw.StatusHeight( ) ) ) )
-    t.Check( (v->x = 0) andalso (v->y = 0) andalso (v->cw = cx) andalso (v->ch = cy - sh), _
-             P( sc, strings.Format( "view at {},{} {}x{}, want 0,0 {}x{}", v->x, v->y, v->cw, v->ch, cx, cy - sh ) ) )
+    t.Check( (v->x = 0) andalso (v->y = top) andalso (v->cw = cx) andalso (v->ch = cy - sh - top), _
+             P( sc, strings.Format( "view at {},{} {}x{}, want 0,{} {}x{}", v->x, v->y, v->cw, v->ch, top, cx, cy - sh - top ) ) )
     t.Check( (mw.status->x = 0) andalso (mw.status->y = cy - sh) andalso (mw.status->cw = cx) andalso (mw.status->ch = sh), _
              P( sc, strings.Format( "status at {},{} {}x{}", mw.status->x, mw.status->y, mw.status->cw, mw.status->ch ) ) )
     t.Check( tkHost_GetFocus( h ) = v, P( sc, "the view has the focus" ) )
@@ -238,7 +238,7 @@ public sub Pass( byref t as Tally, byval sc as single )
     t.Check( (tkHost_GetFocus( h ) = v) andalso mw.Finder.isOpen, P( sc, "the view has the focus, the strip still open" ) )
     Chord( h, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE, 0 )
     t.Check( mw.Finder.isOpen = false, P( sc, "Esc in the view closed it" ) )
-    t.Check( (v->y = 0) andalso (v->ch = cy - sh), P( sc, strings.Format( "the view is back: y {} h {}", v->y, v->ch ) ) )
+    t.Check( (v->y = top) andalso (v->ch = cy - sh - top), P( sc, strings.Format( "the view is back: y {} h {}", v->y, v->ch ) ) )
     t.Check( mw.View( ).Text( ) = "dim x as long" & mw.View( ).EolText( ), P( sc, "Esc typed nothing" ) )
 
     ' ---- a message goes at the next key; a build's stays
@@ -277,11 +277,11 @@ public sub Pass( byref t as Tally, byval sc as single )
     ClickPanel( mw, mainwin.StatusPanel.Message )
     t.Check( mw.OutputShown andalso tkWidget_IsVisible( mw.Out.frame ), P( sc, "the message panel showed the output pane" ) )
     ClickPanel( mw, mainwin.StatusPanel.Message )
-    t.Check( (mw.OutputShown = false) andalso (v->ch = cy - sh), P( sc, "and hid it" ) )
+    t.Check( (mw.OutputShown = false) andalso (v->ch = cy - sh - top), P( sc, "and hid it" ) )
     ClickPanel( mw, mainwin.StatusPanel.Message )
     mw.View( ).Focus( )
     Chord( h, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE, 0 )
-    t.Check( (mw.OutputShown = false) andalso (v->ch = cy - sh), P( sc, "Esc, the focus in the view, hid it too" ) )
+    t.Check( (mw.OutputShown = false) andalso (v->ch = cy - sh - top), P( sc, "Esc, the focus in the view, hid it too" ) )
 
     ' ---- the view's right-click menu: ten commands, what cannot be done greyed; Select All runs
     tkTest_Click( h, v->x + v->cw \ 2, v->y + v->ch \ 2, SDL_BUTTON_RIGHT )
@@ -783,7 +783,7 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     ' ---- split: another buffer in pane 2 (never the same one), a status line under each pane, the
     ' caption naming the focused pane's buffer
     dim as long cx = h->root->cw, cy = h->root->ch
-    dim as long sh = mw.StatusHeight( ), bar = tkForm_Scale( mw.form, mainwin.SPLIT_BAR )
+    dim as long top = mw.TabsHeight( ), sh = mw.StatusHeight( ), bar = tkForm_Scale( mw.form, mainwin.SPLIT_BAR )
     dim as DocRef splitA = mw.FindOpen( pathA ), splitB = mw.FindOpen( pathB )
     t.Check( mw.Pane1 = splitA, P( sc, "a.tiko before the split: " & mw.ActivePath( ) ) )
     Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL )
@@ -792,11 +792,11 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     if mw.Pane2 = 0 then exit sub
     dim as TK_WIDGET ptr v1 = mw.Pane1->Main.Widget( ), v2 = mw.Pane2->Main.Widget( )
     dim as long w1 = cint( (cx - bar) * 0.5 )
-    t.Check( (v1->x = 0) andalso (v1->cw = w1) andalso (v1->ch = cy - sh), P( sc, strings.Format( "pane 1 at {} {}x{}", v1->x, v1->cw, v1->ch ) ) )
-    t.Check( (v2->x = w1 + bar) andalso (v2->cw = cx - w1 - bar) andalso (v2->ch = cy - sh) andalso tkWidget_IsVisible( v2 ), _
+    t.Check( (v1->x = 0) andalso (v1->cw = w1) andalso (v1->ch = cy - sh - top), P( sc, strings.Format( "pane 1 at {} {}x{}", v1->x, v1->cw, v1->ch ) ) )
+    t.Check( (v2->x = w1 + bar) andalso (v2->cw = cx - w1 - bar) andalso (v2->ch = cy - sh - top) andalso tkWidget_IsVisible( v2 ), _
              P( sc, strings.Format( "pane 2 at {} {}x{}", v2->x, v2->cw, v2->ch ) ) )
     t.Check( (mw.splitBar <> 0) andalso (mw.splitBar->x = w1) andalso (mw.splitBar->cw = bar), P( sc, "the bar between them" ) )
-    t.Check( (mw.splitBar->y = 0) andalso (mw.splitBar->ch = cy) andalso (mw.splitFoot <> 0) andalso (mw.splitFoot->x = w1) andalso _
+    t.Check( (mw.splitBar->y = top) andalso (mw.splitBar->ch = cy - top) andalso (mw.splitFoot <> 0) andalso (mw.splitFoot->x = w1) andalso _
              (mw.splitFoot->y = cy - sh), P( sc, strings.Format( "the bar runs to the bottom: {} {}h", mw.splitBar->y, mw.splitBar->ch ) ) )
     t.Check( (mw.status->x = 0) andalso (mw.status->y = cy - sh) andalso (mw.status->cw = w1) andalso _
              tkWidget_IsVisible( mw.status2 ) andalso (mw.status2->x = w1 + bar) andalso (mw.status2->y = cy - sh) andalso _
@@ -836,15 +836,15 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
     v1 = mw.Pane1->Main.Widget( )
     v2 = mw.Pane2->Main.Widget( )
-    dim as long h1 = cint( (cy - sh - sh - bar) * 0.5 )
-    t.Check( (mw.Split = session.SplitMode.Horizontal) andalso (v1->y = 0) andalso (v1->ch = h1) andalso (v1->cw = cx) andalso _
-             (mw.status->y = h1) andalso (mw.status->cw = cx) andalso (v2->y = h1 + sh + bar) andalso (v2->ch = cy - sh - h1 - sh - bar) andalso _
+    dim as long h1 = cint( (cy - top - sh - sh - bar) * 0.5 )
+    t.Check( (mw.Split = session.SplitMode.Horizontal) andalso (v1->y = top) andalso (v1->ch = h1) andalso (v1->cw = cx) andalso _
+             (mw.status->y = top + h1) andalso (mw.status->cw = cx) andalso (v2->y = top + h1 + sh + bar) andalso (v2->ch = cy - top - sh - h1 - sh - bar) andalso _
              (mw.status2->y = cy - sh) andalso (mw.status2->cw = cx), _
              P( sc, strings.Format( "Ctrl+Shift+\ switched to top/bottom: {} {} / status {} / {} {} / status {}", v1->y, v1->ch, mw.status->y, v2->y, v2->ch, mw.status2->y ) ) )
     Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
     t.Check( (mw.Split = session.SplitMode.None) andalso (mw.Pane2 = 0) andalso (tkWidget_IsVisible( mw.status2 ) = false), P( sc, "the same key again unsplit" ) )
     dim as TK_WIDGET ptr vv = mw.View( ).Widget( )
-    t.Check( (vv->x = 0) andalso (vv->y = 0) andalso (vv->cw = cx) andalso (vv->ch = cy - sh) andalso (mw.status->cw = cx) andalso _
+    t.Check( (vv->x = 0) andalso (vv->y = top) andalso (vv->cw = cx) andalso (vv->ch = cy - sh - top) andalso (mw.status->cw = cx) andalso _
              (mw.status->y = cy - sh), P( sc, "one pane and one status line fill the window again" ) )
     t.Check( lcase( mw.ActivePath( ) ) = lcase( pathB ), P( sc, "keeping the buffer that had the focus: " & mw.ActivePath( ) ) )
 
@@ -953,15 +953,13 @@ public sub TabsPass( byref t as Tally, byval sc as single )
     mw.OpenFile( pathB )
     mw.OpenFile( pathC )
 
-    ' ---- off by default: no strip, the editor from the top as before
-    dim as TK_WIDGET ptr vv = mw.View( ).Widget( )
-    t.Check( (mw.TabsHeight( ) = 0) andalso (tkWidget_IsVisible( mw.tabs ) = false) andalso (vv->y = 0) andalso (vv->ch = cy - sh), _
-             P( sc, strings.Format( "tab_strip off by default: no strip, the editor at y {}", vv->y ) ) )
-
-    ' ---- on: the strip across the top, the editor below it, down to the status line
-    SetTabStrip( mw, true )
+    ' ---- on by default (a new settings.toml): the strip across the top, the editor below it, down
+    ' to the status line; three tabs fit, so no < > buttons
+    t.Check( instr( fs.ReadAllText( mw.SettingsFile( ) ).ValueOr( "" ), chr( 10 ) & "tab_strip = true" ) > 0, _
+             P( sc, "a new settings.toml says tab_strip = true" ) )
     dim as long th = tkForm_Scale( mw.form, 28 )
-    vv = mw.View( ).Widget( )
+    dim as TK_WIDGET ptr vv = mw.View( ).Widget( )
+    t.Check( tkWidget_IsVisible( mw.tabNav ) = false, P( sc, "three tabs fit: no < > buttons" ) )
     t.Check( tkWidget_IsVisible( mw.tabs ) andalso (mw.tabs->x = 0) andalso (mw.tabs->y = 0) andalso (mw.tabs->cw = cx) andalso (mw.tabs->ch = th), _
              P( sc, strings.Format( "tab_strip on: the strip at 0,0 {}x{}", mw.tabs->cw, mw.tabs->ch ) ) )
     t.Check( (vv->y = th) andalso (vv->ch = cy - sh - th) andalso (mw.status->y = cy - sh), _
@@ -970,6 +968,28 @@ public sub TabsPass( byref t as Tally, byval sc as single )
              (tkTabBar_GetText( mw.tabs, 2 ) = "c.tiko") andalso (tkTabBar_GetCurSel( mw.tabs ) = 2), _
              P( sc, strings.Format( "a tab per buffer in open order, the active selected ({} tabs, sel {})", tkTabBar_GetCount( mw.tabs ), tkTabBar_GetCurSel( mw.tabs ) ) ) )
     t.Check( (tkTabBar_GetClosable( mw.tabs, 0 ) = true) andalso (tkTabBar_GetGlyph( mw.tabs, 0 ) = ""), P( sc, "every tab has its X" ) )
+    ' no accent bar on the selected tab: drawn in the tab's own colour, so the 2 px along its top
+    ' are the tab's fill (pixels, at the selected tab's top row)
+    scope
+        dim as TKTABBAR_COLORS tbc
+        tkTabBar_GetColors( mw.tabs, @tbc )
+        dim as TKRECT rp, rt, ri, rx
+        tkTabBar_GetTabParts( mw.tabs, tkTabBar_GetCurSel( mw.tabs ), rp, rt, ri, rx )
+        tkTest_PumpFor( h, 30 )
+        dim as long px = mw.tabs->x + (rp.left + rp.right) \ 2
+        dim as ulong topPx = tkTest_PixelAt( h, px, mw.tabs->y + rp.top ) and &hFFFFFFul
+        dim as ulong midPx = tkTest_PixelAt( h, px, mw.tabs->y + rp.bottom - tkForm_Scale( mw.form, 4 ) ) and &hFFFFFFul
+        t.Check( (tbc.AccentColor = tbc.TabBackColorSelected) andalso (topPx = midPx) andalso (topPx = (tbc.TabBackColorSelected and &hFFFFFFul)), _
+                 P( sc, "the selected tab has no accent bar: top &h" & hex( topPx ) & ", fill &h" & hex( midPx ) ) )
+    end scope
+
+    ' the output pane's tabs likewise (colours only: in the self-test the pane's pixels read back as
+    ' one flat colour, so a pixel check there would prove nothing)
+    scope
+        dim as TKTABBAR_COLORS oc
+        tkTabBar_GetColors( mw.Out.tabs, @oc )
+        t.Check( oc.AccentColor = oc.TabBackColorSelected, P( sc, "the output pane's selected tab has no accent bar" ) )
+    end scope
 
     ' ---- a click shows that buffer; an edit marks its tab
     ClickTab( mw, 0 )
@@ -1021,10 +1041,50 @@ public sub TabsPass( byref t as Tally, byval sc as single )
              P( sc, strings.Format( "top/bottom under the strip: {} {} / status {} / {} {}", v1->y, v1->ch, mw.status->y, v2->y, v2->ch ) ) )
     Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
 
+    ' ---- more tabs than fit: the < > buttons at the strip's right end, greyed at either end; they
+    ' and the wheel scroll the tabs one at a time
+    dim as ustring many( 0 to 23 )
+    for i as long = 0 to 23
+        many( i ) = fs.PathJoin( dir_, "a_rather_long_file_name_" & i & ".tiko" )
+        WriteBytes( many( i ), "dim x as long" & chr( 10 ) )
+        mw.OpenFile( many( i ) )
+    next
+    tkTest_PumpFor( h, 60 )
+    dim as long nw = tkToolbar_GetIdealWidth( mw.tabNav )
+    t.Check( tkWidget_IsVisible( mw.tabNav ) andalso (mw.tabNav->x = cx - nw) andalso (mw.tabNav->y = 0) andalso (mw.tabNav->ch = th) andalso _
+             (mw.tabs->cw = cx - nw), P( sc, strings.Format( "{} tabs overflow: the buttons at {} ({} wide), the tabs {} wide", _
+                                                       tkTabBar_GetCount( mw.tabs ), mw.tabNav->x, nw, mw.tabs->cw ) ) )
+    dim as long lastSel = tkTabBar_GetCurSel( mw.tabs )
+    dim as TKRECT rs
+    tkTabBar_GetTabRect( mw.tabs, lastSel, rs )
+    t.Check( (lastSel = mw.Docs.Count( ) - 1) andalso (rs.right <= mw.tabs->cw) andalso (rs.left >= 0), _
+             P( sc, strings.Format( "the last opened is selected and in view ({}-{} of {})", rs.left, rs.right, mw.tabs->cw ) ) )
+    t.Check( tkToolbar_GetEnabled( mw.tabNav, 0 ) andalso (tkToolbar_GetEnabled( mw.tabNav, 1 ) = false), _
+             P( sc, "scrolled to the end: < works, > greyed" ) )
+    dim as long first0 = tkTabBar_GetFirstVisible( mw.tabs )
+    dim as TKRECT rb
+    tkToolbar_GetItemRect( mw.tabNav, 0, rb )
+    tkTest_Click( h, mw.tabNav->x + (rb.left + rb.right) \ 2, mw.tabNav->y + (rb.top + rb.bottom) \ 2 )
+    tkTest_PumpFor( h, 60 )
+    t.Check( (tkTabBar_GetFirstVisible( mw.tabs ) = first0 - 1) andalso tkToolbar_GetEnabled( mw.tabNav, 1 ), _
+             P( sc, strings.Format( "a click on < scrolls one tab left ({} -> {}), > works again", first0, tkTabBar_GetFirstVisible( mw.tabs ) ) ) )
+    tkTest_PushWheel( h, mw.tabs->x + mw.tabs->cw \ 2, mw.tabs->y + mw.tabs->ch \ 2, 0, 1 )
+    tkTest_PumpFor( h, 60 )
+    t.Check( tkTabBar_GetFirstVisible( mw.tabs ) = first0 - 2, P( sc, strings.Format( "the wheel up scrolls one more left ({})", tkTabBar_GetFirstVisible( mw.tabs ) ) ) )
+    tkTabBar_SetFirstVisible( mw.tabs, 0 )
+    mw.LayoutTabs( )
+    t.Check( (tkToolbar_GetEnabled( mw.tabNav, 0 ) = false) andalso tkToolbar_GetEnabled( mw.tabNav, 1 ), P( sc, "at the start: < greyed, > works" ) )
+    for i as long = 0 to 23
+        mw.CloseDoc( mw.FindOpen( many( i ) ) )
+    next
+    mw.ShowStatus( )
+    t.Check( (tkWidget_IsVisible( mw.tabNav ) = false) andalso (mw.tabs->cw = cx), P( sc, "closed again, all fit: the buttons gone, the tabs full width" ) )
+
     ' ---- off again: gone, the editor back at the top
     SetTabStrip( mw, false )
     vv = mw.View( ).Widget( )
-    t.Check( (tkWidget_IsVisible( mw.tabs ) = false) andalso (vv->y = 0) andalso (vv->ch = cy - sh), P( sc, "tab_strip off: the strip gone, the editor at the top" ) )
+    t.Check( (tkWidget_IsVisible( mw.tabs ) = false) andalso (tkWidget_IsVisible( mw.tabNav ) = false) andalso (vv->y = 0) andalso (vv->ch = cy - sh), _
+             P( sc, "tab_strip off: the strip gone, the editor at the top" ) )
 
     for each d as DocRef in mw.Docs
         d->Main.SetSavePoint( )
@@ -1134,7 +1194,7 @@ public sub FindPass( byref t as Tally, byval sc as single )
     mw.View( ).SetLineEnding( docencoding.LineEnd.Lf, false )
     mw.View( ).SetText( "alpha beta alpha" & nl & "ALPHA gamma" & nl & "alpha" & nl )
     dim as long cx = h->root->cw, cy = h->root->ch
-    dim as long rowH = tkForm_Scale( mw.form, findstrip.ROW_CY ), sh = mw.StatusHeight( )
+    dim as long rowH = tkForm_Scale( mw.form, findstrip.ROW_CY ), sh = mw.StatusHeight( ), top = mw.TabsHeight( )
 
     ' ---- Ctrl+F: the strip above the status line, typing finds as it goes
     Chord( h, SDLK_F, SDL_SCANCODE_F, SDL_KMOD_CTRL )
@@ -1143,7 +1203,7 @@ public sub FindPass( byref t as Tally, byval sc as single )
              P( sc, strings.Format( "the status line stays at the bottom: {} {}", mw.status->y, mw.status->ch ) ) )
     dim as TK_WIDGET ptr fr = mw.Finder.frame
     t.Check( (fr->y = cy - sh - rowH) andalso (fr->ch = rowH) andalso (fr->cw = cx), P( sc, strings.Format( "one row above it: {} {}x{}", fr->y, fr->cw, fr->ch ) ) )
-    t.Check( mw.View( ).Widget( )->ch = cy - sh - rowH, P( sc, "the view ends above the strip" ) )
+    t.Check( mw.View( ).Widget( )->ch = cy - sh - rowH - top, P( sc, "the view ends above the strip" ) )
     t.Check( StripToolsMatch( mw ), P( sc, "the buttons share the strip's back colour" ) )
     t.Check( StripGlyphsDrawn( mw ), P( sc, "prev / next / close are in the toolbar's glyph font" ) )
     t.Check( tkHost_GetFocus( h ) = mw.Finder.findBox, P( sc, "the find box has the focus" ) )
@@ -1471,9 +1531,9 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     t.Check( v->CaretLine( ) = 2, P( sc, strings.Format( "the caret went to the first error, line {}", v->CaretLine( ) ) ) )
     t.Check( v->SquiggleAt( v->SelectionStart( ) ) <> 0, P( sc, "a squiggle under it" ) )
     dim as long cy = h->root->cw * 0 + h->root->ch
-    dim as long oh = tkForm_Scale( mw.form, outputpane.PANE_CY ), sh = mw.StatusHeight( )
+    dim as long oh = tkForm_Scale( mw.form, outputpane.PANE_CY ), sh = mw.StatusHeight( ), top = mw.TabsHeight( )
     t.Check( (mw.Out.frame->y = cy - sh - oh) andalso (mw.Out.frame->ch = oh), P( sc, strings.Format( "the pane above the status line: {} {}", mw.Out.frame->y, mw.Out.frame->ch ) ) )
-    t.Check( v->Widget( )->ch = cy - sh - oh, P( sc, "the view ends above the pane" ) )
+    t.Check( v->Widget( )->ch = cy - sh - oh - top, P( sc, "the view ends above the pane" ) )
     Chord( h, SDLK_PAGEDOWN, SDL_SCANCODE_PAGEDOWN, SDL_KMOD_ALT )
     t.Check( mw.View( ).CaretLine( ) = 3, P( sc, strings.Format( "Alt+PgDn: the next diagnostic, line {}", mw.View( ).CaretLine( ) ) ) )
     Chord( h, SDLK_PAGEDOWN, SDL_SCANCODE_PAGEDOWN, SDL_KMOD_ALT )
@@ -1485,7 +1545,7 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     Chord( h, SDLK_GRAVE, SDL_SCANCODE_GRAVE, SDL_KMOD_CTRL )
     t.Check( tkHost_GetFocus( h ) = mw.View( ).Widget( ), P( sc, "and back to the editor" ) )
     Chord( h, SDLK_F9, SDL_SCANCODE_F9, SDL_KMOD_CTRL )
-    t.Check( (mw.OutputShown = false) andalso (mw.View( ).Widget( )->ch = cy - sh), P( sc, "Ctrl+F9 hides the pane" ) )
+    t.Check( (mw.OutputShown = false) andalso (mw.View( ).Widget( )->ch = cy - sh - top), P( sc, "Ctrl+F9 hides the pane" ) )
 
     ' ---- F5: fixed, built and run
     mw.View( ).ReplaceAllText( good )
