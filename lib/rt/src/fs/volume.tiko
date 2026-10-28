@@ -362,6 +362,8 @@ end function
 '' hOsMountClose, hIsRealMount and hOsFsHasLinks.
 #if defined( __FB_LINUX__ )
 	#include once "volumelinux.tiko"
+#elseif defined( __FB_DARWIN__ )
+	#include once "volumedarwin.tiko"
 #else
 	#error "fs/volume: no mount-table backend for this OS"
 #endif

@@ -45,6 +45,8 @@
 '' The file name libX11 is loaded by: TKORT_X11_LIBNAME, one per OS.
 #if defined( __FB_LINUX__ )
 	#include once "x11liblinux.tiko"
+#elseif defined( __FB_DARWIN__ )
+	#include once "x11libdarwin.tiko"
 #else
 	#error "io/xfocus: no libX11 name for this OS"
 #endif

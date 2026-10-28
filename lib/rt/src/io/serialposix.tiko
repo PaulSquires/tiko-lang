@@ -168,6 +168,8 @@ end sub
 '' hOsSerialApplySpeed, one set per OS.
 #if defined( __FB_LINUX__ )
 	#include once "seriallinux.tiko"
+#elseif defined( __FB_DARWIN__ )
+	#include once "serialdarwin.tiko"
 #else
 	#error "io/serialposix: no serial device or speed backend for this OS"
 #endif

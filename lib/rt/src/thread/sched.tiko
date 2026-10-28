@@ -214,11 +214,8 @@ end sub
 '' ALL ZERO BYTES IS A VALID MUTEX where the binding says
 '' PTHREAD_MUTEX_INITIALIZER is all zero (glibc), so .bss is the static
 '' initialiser and there is nothing to run. Where it is not (macOS), a
-'' zero-filled mutex does not lock, so such a target must not build until M5
-'' gives this one a real initialiser.
-#if PTHREAD_MUTEX_INITIALIZER_IS_ZERO = 0
-	#error "thread/sched: a zero-filled pthread_mutex_t is not a valid mutex on this libc (M5)"
-#endif
+'' zero-filled mutex does not lock, so there the storage below starts as the
+'' initializer does (M5).
 
 extern "c"   '' NON-FBCALL: libpthread.
 	declare function c_pthread_mutex_lock2 alias "pthread_mutex_lock" _
@@ -227,7 +224,16 @@ extern "c"   '' NON-FBCALL: libpthread.
 		( byval m as pthread_mutex_t ptr ) as int32
 end extern
 
-dim shared as pthread_mutex_t tkort_hOnceMx
+#if PTHREAD_MUTEX_INITIALIZER_IS_ZERO = 0
+	'' NOT ZERO HERE (macOS): PTHREAD_MUTEX_INITIALIZER is a signature word and then zero
+	'' bytes, measured (docs/tiko-macos FACTS). So the storage is initialised to exactly
+	'' that -- still static, still nothing to run lazily -- and named as the mutex.
+	#assert sizeof( pthread_mutex_t ) = 64
+	dim shared as int64 tkort_hOnceMx_words( 0 to 7 ) = { PTHREAD_MUTEX_SIG_INIT, 0, 0, 0, 0, 0, 0, 0 }
+	#define tkort_hOnceMx (*cptr( pthread_mutex_t ptr, @tkort_hOnceMx_words(0) ))
+#else
+	dim shared as pthread_mutex_t tkort_hOnceMx
+#endif
 
 private sub tkort_hLockOnce( )
 	c_pthread_mutex_lock2( @tkort_hOnceMx )

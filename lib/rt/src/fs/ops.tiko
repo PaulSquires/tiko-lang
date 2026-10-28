@@ -660,6 +660,8 @@ end extern
 '' and hOsRandom( buf, n ), one per OS.
 #if defined( __FB_LINUX__ )
 	#include once "opslinux.tiko"
+#elseif defined( __FB_DARWIN__ )
+	#include once "opsdarwin.tiko"
 #else
 	#error "fs/ops: no exclusive-rename or random-bytes backend for this OS"
 #endif

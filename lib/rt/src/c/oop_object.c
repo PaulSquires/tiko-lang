@@ -75,8 +75,15 @@ tkort_rtti __fb_ZTS6Object = { 0, "6OBJECT", 0 };
 static tkort_basevt Object_VT = { 0, &__fb_ZTS6Object };
 
 /* The mangled name carries a '$', which is not a portable C identifier
-** character, so the symbol is set with an asm label rather than spelled. */
+** character, so the symbol is set with an asm label rather than spelled.
+** AN asm LABEL IS TAKEN LITERALLY, so on Mach-O, where every C name gets a leading
+** '_' -- tiko's reference to this one included (LLVM's m:o mangling) -- the label
+** must carry it too (docs/tiko-macos RFC-0001 section 2, the underscore audit). */
+#if defined( __APPLE__ )
+void tkort_ObjectCtor( void *this_ ) __asm__( "__ZN10fb_Object$C1Ev" );
+#else
 void tkort_ObjectCtor( void *this_ ) __asm__( "_ZN10fb_Object$C1Ev" );
+#endif
 
 void tkort_ObjectCtor( void *this_ )
 {

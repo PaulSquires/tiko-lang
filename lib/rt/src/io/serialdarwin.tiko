@@ -1,0 +1,35 @@
+'' serialdarwin.tiko -- io/serialposix's serial facts on macOS: none yet.
+''
+'' #INCLUDED by io/serialposix.tiko's POSIX branch, never compiled on its own and not
+'' in build/sources.txt. It provides the three procedures seriallinux.tiko does,
+''
+''     hOsSerialDevName( byval iPort as int32, byval pszDevice as zstring ptr,
+''                       byval dst as zstring ptr )
+''     hOsSerialSpeed( byval speed as uint32 ) as uint32
+''     hOsSerialApplySpeed( byval t as struct_termios ptr, byval code_ as uint32 )
+''
+'' SERIAL PORTS ARE NOT SUPPORTED ON macOS YET (docs/tiko-macos M5, D-M5-1): every speed
+'' is BADSPEED_, so OPEN COM fails with an error instead of opening a line it cannot set
+'' up. A real backend is /dev/cu.<name> nodes and cfsetispeed/cfsetospeed with the
+'' numeric rate -- Darwin's Bnnnn constants ARE the rate, not c_cflag bits.
+
+#if defined( __FB_DARWIN__ )
+
+private function hOsSerialSpeed( byval speed as uint32 ) as uint32
+	return BADSPEED_
+end function
+
+private sub hOsSerialApplySpeed( byval t as struct_termios ptr, byval code_ as uint32 )
+end sub
+
+private sub hOsSerialDevName _
+	( byval iPort as int32, byval pszDevice as zstring ptr, byval dst as zstring ptr )
+	'' A literal path stays itself; COMn names nothing, so its open fails.
+	if( iPort = 0 ) then
+		strcpy( dst, pszDevice )
+	else
+		sprintf( dst, @"/dev/cu.tiko-COM%d", iPort )
+	end if
+end sub
+
+#endif

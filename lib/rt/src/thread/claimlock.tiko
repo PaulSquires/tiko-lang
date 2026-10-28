@@ -145,10 +145,7 @@ end extern
 '' PTHREAD_MUTEX_INITIALIZER is ALL ZERO BYTES (glibc) .bss initialises it and
 '' there is nothing to do lazily. Where it is not -- macOS's initializer carries
 '' a signature word -- a zero-filled mutex is invalid and locking it does not
-'' lock, so such a target must not build until M5 gives it a real initialiser.
-#if PTHREAD_MUTEX_INITIALIZER_IS_ZERO = 0
-	#error "thread/claimlock: a zero-filled pthread_mutex_t is not a valid mutex on this libc (M5)"
-#endif
+'' lock, so there the storage below starts as that initializer does (M5).
 
 extern "c"   '' NON-FBCALL: libpthread.
 	declare function c_pthread_mutex_lock alias "pthread_mutex_lock" _
@@ -157,7 +154,16 @@ extern "c"   '' NON-FBCALL: libpthread.
 		( byval m as pthread_mutex_t ptr ) as int32
 end extern
 
-dim shared as pthread_mutex_t tkort_claimmx
+#if PTHREAD_MUTEX_INITIALIZER_IS_ZERO = 0
+	'' NOT ZERO HERE (macOS): PTHREAD_MUTEX_INITIALIZER is a signature word and then zero
+	'' bytes, measured (docs/tiko-macos FACTS). So the storage is initialised to exactly
+	'' that -- still static, still nothing to run lazily -- and named as the mutex.
+	#assert sizeof( pthread_mutex_t ) = 64
+	dim shared as int64 tkort_claimmx_words( 0 to 7 ) = { PTHREAD_MUTEX_SIG_INIT, 0, 0, 0, 0, 0, 0, 0 }
+	#define tkort_claimmx (*cptr( pthread_mutex_t ptr, @tkort_claimmx_words(0) ))
+#else
+	dim shared as pthread_mutex_t tkort_claimmx
+#endif
 
 extern "rtlib"   '' FBCALL, as above.
 

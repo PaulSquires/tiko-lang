@@ -1,0 +1,314 @@
+'' watchdarwin.tiko -- fs/watch's backend on macOS: kqueue EVFILT_VNODE plus a snapshot
+'' of each watched directory.
+''
+'' #INCLUDED by fs/watch.tiko's POSIX branch, never compiled on its own and not in
+'' build/sources.txt. It provides what watchlinux.tiko does,
+''
+''     FB_FSWATCH                   the watcher, holding the shared change queue as q
+''     hOsWatchClose( w )           release what the watcher holds, except w itself
+''     fb_UStrFsWatchStart, fb_FsWatchPoll
+''
+'' and uses hFsNarrow, hJoin and hPushChange from the includer.
+''
+'' KQUEUE SAYS THAT A DIRECTORY CHANGED, NOT WHAT. Each watched directory is opened
+'' O_EVTONLY and registered for NOTE_WRITE (an entry was added, removed or renamed),
+'' NOTE_DELETE and NOTE_RENAME (the directory itself went), with EV_CLEAR so one change is
+'' one event. The names come from a snapshot: every entry's name, kind, size and
+'' modification time, taken at Start and again after each event, and the difference is
+'' what is reported -- a new name CREATED, a lost one DELETED, a changed size or time
+'' MODIFIED, with the full path, as on Linux. A directory created while watching
+'' recursively gets its own watch, as on Linux.
+''
+'' WHERE THIS DIFFERS FROM LINUX (docs/tiko-macos FACTS, M5; FSEvents would close both and
+'' is an M7 question):
+''   - a rename is DELETED + CREATED; kqueue has no rename cookie to pair them with;
+''   - rewriting a file without adding or removing an entry changes nothing in its
+''     directory, so it raises no event here; it is reported as MODIFIED the next time
+''     anything in that directory does.
+''
+'' EVFILT_VNODE, EV_*, NOTE_*, O_EVTONLY and struct_kevent come from the posix binding,
+'' measured on the Mac by build/posixgen.sh.
+
+#if defined( __FB_DARWIN__ )
+
+type FB_FSWATCHENT
+	as zstring ptr nm
+	as int32       isdir
+	as int64       size
+	as int64       msec
+	as int64       mnsec
+end type
+
+type FB_FSWATCHDIR
+	as int32             fd           '' -1 once the directory itself is gone
+	as zstring * FB_FSWATCH_PATHMAX path_
+	as FB_FSWATCHENT ptr ents
+	as int32             nents
+end type
+
+const FB_FSWATCH_EVENTS = 64
+
+type FB_FSWATCH
+	as int32        kq
+	as int32        recursive
+
+	as FB_FSWATCHDIR dirs( 0 to FB_FSWATCH_MAXWATCH - 1 )
+	as int32        ndirs
+
+	as FB_FSWATCHQ  q
+
+	as struct_kevent evs( 0 to FB_FSWATCH_EVENTS - 1 )
+end type
+
+extern "c"   '' NON-FBCALL: libc.
+	declare function u_kqueue alias "kqueue" ( ) as int32
+	declare function u_kevent alias "kevent" ( byval kq as int32, byval changelist as const struct_kevent ptr, _
+		byval nchanges as int32, byval eventlist as struct_kevent ptr, byval nevents as int32, _
+		byval timeout as const struct_timespec ptr ) as int32
+	declare function u_open alias "open" ( byval p as zstring ptr, byval flags as int32, ... ) as int32
+	declare function u_close alias "close" ( byval fd as int32 ) as int32
+	declare function u_opendir alias "opendir" ( byval p as zstring ptr ) as any ptr
+	declare function u_readdir alias "readdir" ( byval d as any ptr ) as struct_dirent ptr
+	declare function u_closedir alias "closedir" ( byval d as any ptr ) as int32
+	declare function u_lstat alias "lstat" ( byval p as zstring ptr, byval st as struct_stat ptr ) as int32
+	declare function u_strdup alias "strdup" ( byval s as const zstring ptr ) as zstring ptr
+end extern
+
+private sub hFreeSnap( byval d as FB_FSWATCHDIR ptr )
+	for i as int32 = 0 to d->nents - 1
+		free( d->ents[i].nm )
+	next
+	free( d->ents )
+	d->ents = nullptr
+	d->nents = 0
+end sub
+
+'' The directory's entries now, '.' and '..' left out; links are not followed.
+private sub hSnap( byval path_ as zstring ptr, byval outv as FB_FSWATCHENT ptr ptr, byval outn as int32 ptr )
+	dim as any ptr dh = any
+	dim as struct_dirent ptr e = any
+	dim as zstring ptr nm = any
+	dim as zstring * FB_FSWATCH_PATHMAX child = any
+	dim as struct_stat st = any
+	dim as FB_FSWATCHENT ptr v = nullptr, nv = any
+	dim as int32 n = 0, cap = 0
+
+	*outv = nullptr
+	*outn = 0
+	dh = u_opendir( path_ )
+	if( dh = nullptr ) then exit sub
+	do
+		e = u_readdir( dh )
+		if( e = nullptr ) then exit do
+		nm = @e->d_name
+		if( nm[0] = 46 ) then                       '' '.'
+			if( nm[1] = 0 ) then continue do
+			if( (nm[1] = 46) andalso (nm[2] = 0) ) then continue do
+		end if
+		hJoin( @child, FB_FSWATCH_PATHMAX, path_, nm )
+		if( u_lstat( @child, @st ) <> 0 ) then continue do
+		if( n >= cap ) then
+			cap = iif( cap = 0, 32, cap * 2 )
+			nv = realloc( v, cap * sizeof( FB_FSWATCHENT ) )
+			if( nv = nullptr ) then exit do
+			v = nv
+		end if
+		v[n].nm = u_strdup( nm )
+		v[n].isdir = iif( (st.st_mode and S_IFMT) = S_IFDIR, 1, 0 )
+		v[n].size = st.st_size
+		v[n].msec = st.st_mtim.tv_sec
+		v[n].mnsec = st.st_mtim.tv_nsec
+		n += 1
+	loop
+	u_closedir( dh )
+	*outv = v
+	*outn = n
+end sub
+
+private function hFind( byval v as FB_FSWATCHENT ptr, byval n as int32, byval nm as zstring ptr ) as int32
+	for i as int32 = 0 to n - 1
+		if( strcmp( v[i].nm, nm ) = 0 ) then return i
+	next
+	return -1
+end function
+
+private function hAddWatch( byval w as FB_FSWATCH ptr, byval path_ as zstring ptr ) as int32
+	dim as int32 fd = any, ix = any
+	dim as struct_kevent kev = any
+
+	if( w->ndirs >= FB_FSWATCH_MAXWATCH ) then return -1
+	fd = u_open( path_, O_EVTONLY )
+	if( fd < 0 ) then return -1
+
+	ix = w->ndirs
+	memset( @kev, 0, sizeof( struct_kevent ) )
+	kev.ident = cast( uint64, fd )
+	kev.filter = EVFILT_VNODE
+	kev.flags = EV_ADD or EV_ENABLE or EV_CLEAR
+	kev.fflags = NOTE_WRITE or NOTE_DELETE or NOTE_RENAME or NOTE_EXTEND or NOTE_LINK
+	kev.udata = cast( any ptr, cast( integer, ix ) )
+	if( u_kevent( w->kq, @kev, 1, nullptr, 0, nullptr ) < 0 ) then
+		u_close( fd )
+		return -1
+	end if
+
+	w->dirs(ix).fd = fd
+	hJoin( @w->dirs(ix).path_, FB_FSWATCH_PATHMAX, path_, nullptr )
+	hSnap( path_, @w->dirs(ix).ents, @w->dirs(ix).nents )
+	w->ndirs += 1
+	return ix
+end function
+
+'' One watch per directory, symbolic links not followed: watchlinux.tiko's rule.
+private sub hAddTree( byval w as FB_FSWATCH ptr, byval path_ as zstring ptr, byval depth as int32 )
+	dim as int32 ix = any
+	dim as zstring * FB_FSWATCH_PATHMAX child = any
+
+	if( depth > 64 ) then exit sub
+	ix = hAddWatch( w, path_ )
+	if( ix < 0 ) then exit sub
+	if( w->recursive = 0 ) then exit sub
+	for i as int32 = 0 to w->dirs(ix).nents - 1
+		if( w->dirs(ix).ents[i].isdir <> 0 ) then
+			hJoin( @child, FB_FSWATCH_PATHMAX, @w->dirs(ix).path_, w->dirs(ix).ents[i].nm )
+			hAddTree( w, @child, depth + 1 )
+		end if
+	next
+end sub
+
+'' Directory ix changed: report the difference between its snapshot and now.
+private sub hRescan( byval w as FB_FSWATCH ptr, byval ix as int32 )
+	dim as FB_FSWATCHENT ptr nv = any
+	dim as int32 nn = any, j = any
+	dim as zstring * FB_FSWATCH_PATHMAX full = any
+	dim as FB_FSWATCHDIR ptr d = @w->dirs(ix)
+	dim as boolean changed = any
+
+	hSnap( @d->path_, @nv, @nn )
+	for i as int32 = 0 to d->nents - 1
+		if( hFind( nv, nn, d->ents[i].nm ) < 0 ) then
+			hJoin( @full, FB_FSWATCH_PATHMAX, @d->path_, d->ents[i].nm )
+			hPushChange( @w->q, FB_FSCHANGE_DELETED, @full )
+		end if
+	next
+	for i as int32 = 0 to nn - 1
+		hJoin( @full, FB_FSWATCH_PATHMAX, @d->path_, nv[i].nm )
+		j = hFind( d->ents, d->nents, nv[i].nm )
+		if( j < 0 ) then
+			hPushChange( @w->q, FB_FSCHANGE_CREATED, @full )
+			'' dirs() is a fixed array inside w, so d stays valid as hAddTree appends.
+			if( (w->recursive <> 0) andalso (nv[i].isdir <> 0) ) then hAddTree( w, @full, 0 )
+		elseif( nv[i].isdir = 0 ) then
+			changed = (nv[i].size <> d->ents[j].size)
+			if( changed = false ) then changed = (nv[i].msec <> d->ents[j].msec)
+			if( changed = false ) then changed = (nv[i].mnsec <> d->ents[j].mnsec)
+			if( changed ) then hPushChange( @w->q, FB_FSCHANGE_MODIFIED, @full )
+		end if
+	next
+	hFreeSnap( d )
+	d->ents = nv
+	d->nents = nn
+end sub
+
+'' closing the kqueue drops every registration; each directory descriptor is closed too
+private sub hOsWatchClose( byval w as FB_FSWATCH ptr )
+	for i as int32 = 0 to w->ndirs - 1
+		if( w->dirs(i).fd >= 0 ) then u_close( w->dirs(i).fd )
+		hFreeSnap( @w->dirs(i) )
+	next
+	if( w->kq >= 0 ) then u_close( w->kq )
+end sub
+
+extern "rtlib"
+
+function tkort_UStrFsWatchStart alias "fb_UStrFsWatchStart" _
+	( byval p as FBUSTRING ptr, byval recursive as int32, byval out_ as FB_FSWATCH ptr ptr ) as int32
+
+	dim as zstring ptr path_ = any
+	dim as FB_FSWATCH ptr w = any
+	dim as int32 r = any
+
+	*out_ = nullptr
+
+	path_ = hFsNarrow( p )
+	if( path_ = nullptr ) then return FB_FS_UNKNOWN
+
+	w = calloc( 1, sizeof( FB_FSWATCH ) )
+	if( w = nullptr ) then
+		free( path_ )
+		return FB_FS_UNKNOWN
+	end if
+
+	w->kq = u_kqueue( )
+	if( w->kq < 0 ) then
+		r = tkrt_FsMapOsError( )
+		free( path_ )
+		free( w )
+		return r
+	end if
+
+	w->recursive = recursive
+	hAddTree( w, path_, 0 )
+
+	free( path_ )
+
+	if( w->ndirs = 0 ) then
+		u_close( w->kq )
+		free( w )
+		return FB_FS_NOT_FOUND
+	end if
+
+	*out_ = w
+	return FB_FS_OK
+end function
+
+function tkort_FsWatchPoll alias "fb_FsWatchPoll" _
+	( byval w as FB_FSWATCH ptr, byval timeoutms as int32 ) as int32
+
+	dim as struct_timespec ts = any
+	dim as struct_timespec ptr tsp = nullptr
+	dim as int32 n = any, ix = any
+
+	if( w = nullptr ) then return FB_FS_UNKNOWN
+	if( w->q.nread < w->q.nitems ) then return FB_FS_OK
+
+	'' poll( )'s convention, which the Linux backend hands straight to poll: a negative
+	'' timeout waits for ever.
+	if( timeoutms >= 0 ) then
+		ts.tv_sec = timeoutms \ 1000
+		ts.tv_nsec = cast( int64, timeoutms mod 1000 ) * 1000000
+		tsp = @ts
+	end if
+
+	do
+		n = u_kevent( w->kq, nullptr, 0, @w->evs(0), FB_FSWATCH_EVENTS, tsp )
+		if( n < 0 ) then
+			if( errno = EINTR ) then continue do
+			return tkrt_FsMapOsError( )
+		end if
+		exit do
+	loop
+	if( n = 0 ) then return FB_FS_EXHAUSTED
+
+	w->q.nitems = 0
+	w->q.nread = 0
+
+	for k as int32 = 0 to n - 1
+		ix = cast( int32, cast( integer, w->evs(k).udata ) )
+		if( (ix < 0) orelse (ix >= w->ndirs) ) then continue for
+		if( (w->evs(k).fflags and (NOTE_DELETE or NOTE_RENAME)) <> 0 ) then
+			'' The directory itself went; its parent's snapshot reports that. Stop watching it.
+			if( w->dirs(ix).fd >= 0 ) then u_close( w->dirs(ix).fd )
+			w->dirs(ix).fd = -1
+			hFreeSnap( @w->dirs(ix) )
+		elseif( w->dirs(ix).fd >= 0 ) then
+			hRescan( w, ix )
+		end if
+	next
+
+	return iif( w->q.nitems > 0, FB_FS_OK, FB_FS_EXHAUSTED )
+end function
+
+end extern
+
+#endif

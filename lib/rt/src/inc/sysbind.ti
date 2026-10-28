@@ -33,6 +33,12 @@
 	'' measured by build/posixgen.sh on the target's own host (D2 of docs/tiko-macos RFC-0001).
 	#include once "inc/sysbind/linux-x86_64-posix.ti"
 	using posix
+#elseif defined( __FB_DARWIN__ )
+	'' Hand-derived until tiko runs on the Mac (see the file), and the posix layer measured
+	'' there by build/posixgen.sh against the macOS SDK.
+	#include once "inc/sysbind/macos-arm64.ti"
+	#include once "inc/sysbind/macos-arm64-posix.ti"
+	using posix
 #else
 	#error "inc/sysbind.ti: no C library binding for this target"
 #endif
@@ -49,6 +55,20 @@ extern "C"   '' NON-FBCALL: the C library, not rtlib entry points.
 	#define errno (*__errno_location( ))
 
 	'' jmp_buf is the posix binding's: its size and alignment measured, 200 and 8 here.
+
+#elseif defined( __FB_DARWIN__ )
+
+	'' Darwin's streams are three variables under other names, and its errno is __error( ):
+	'' measured on the Mac with nm -u of a C file naming them (docs/tiko-macos FACTS
+	'' "Darwin APIs"). The alias is the C name; Mach-O adds the '_' itself.
+	extern stdin alias "__stdinp" as FILE ptr
+	extern stdout alias "__stdoutp" as FILE ptr
+	extern stderr alias "__stderrp" as FILE ptr
+
+	declare function __error( ) as int32 ptr
+	#define errno (*__error( ))
+
+	'' jmp_buf is the posix binding's: 192 bytes here, measured.
 
 #elseif defined( __FB_WIN32__ )
 

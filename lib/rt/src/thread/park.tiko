@@ -40,6 +40,8 @@
 #ifdef __FB_UNIX__
 	#if defined( __FB_LINUX__ )
 		#include once "parklinux.tiko"
+	#elseif defined( __FB_DARWIN__ )
+		#include once "parkdarwin.tiko"
 	#else
 		#error "thread/park: no monotonic condition-variable backend for this OS"
 	#endif

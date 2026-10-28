@@ -71,7 +71,11 @@ RT_TARGETS="win64 linux-x86_64"
 # MSVC-ABI archive cannot link there. RFC-0006 section 5 is the open question of
 # what replaces that, and until it is answered this target is built and not
 # validated. Nothing should be shipped from it.
-RT_BUILD_ONLY_TARGETS="windows-x86_64"
+#
+# macos-arm64 (docs/tiko-macos RFC-0001) is build-only for the same reason as ARM64 above:
+# fbc has no aarch64, so there is nothing to gate it against. Its oracle is tiko's own
+# linux-x86_64 output, compared by lib/rt/build/darwinlane.sh on the Mac.
+RT_BUILD_ONLY_TARGETS="windows-x86_64 macos-arm64"
 
 # Include path: tiko-rt's own src/, then tiko-lang's inc/ (phase H, 2026-10-10), which
 # supplies crt/long.bi -- the only header lint lets through. It was fbc-modern's src/inc
@@ -109,10 +113,16 @@ rt_is_buildable( ) {
 # THE TRIPLE FOR A TARGET THAT DOES NOT RETARGET, which is what the C residue
 # needs: the FreeBASIC modules get their triple from fbc, but a .c compiled here
 # has to be told. Kept beside rt_clang_triple so the two cannot drift.
+#
+# EVERY TARGET BY NAME. An unknown one used to fall through to the Windows triple, which
+# would have compiled a new target's C files for MinGW without a word (docs/tiko-macos
+# RFC-0001 section 1 lists that fall-through among the hazards).
 rt_target_triple( ) {
     case "$1" in
-        linux-x86_64) echo "x86_64-pc-linux-gnu" ;;
-        *)            echo "x86_64-w64-windows-gnu" ;;
+        linux-x86_64)          echo "x86_64-pc-linux-gnu" ;;
+        macos-arm64)           echo "arm64-apple-macosx13.0" ;;
+        win64|windows-x86_64)  echo "x86_64-w64-windows-gnu" ;;
+        *) echo "rt_target_triple: no triple for target '$1'" >&2; return 1 ;;
     esac
 }
 

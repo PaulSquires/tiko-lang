@@ -93,6 +93,8 @@
 	'' hOsFreePhysBytes are per OS.
 	#if defined( __FB_LINUX__ )
 		#include once "hostinfolinux.tiko"
+	#elseif defined( __FB_DARWIN__ )
+		#include once "hostinfodarwin.tiko"
 	#else
 		#error "sys/hostinfo: no executable-path or free-memory backend for this OS"
 	#endif
