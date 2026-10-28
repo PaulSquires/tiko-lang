@@ -4,9 +4,9 @@
 #   build/build.sh [Debug|Release|RelWithDebInfo|MinSizeRel] [--test-runner] [--no-dll] [--oracle]
 #   build/build.sh [Release|MinSizeRel] --dll
 #
-# A compiler build also builds the editor's bin/parser.dll and copies it beside
-# tiko-editor.exe ($TKO_EDITOR_DIR, default C:\dev\tiko-editor-tiko), which loads it from
-# there. '--no-dll' skips both; '--dll' builds the DLL alone.
+# A compiler build also builds the editor's bin/parser.dll and copies it beside tkEdit
+# ($TKO_EDITOR_DIR, default tkedit/bin in this tree), which loads it from there. '--no-dll'
+# skips both; '--dll' builds the DLL alone.
 #
 # The Windows peer is build/build.bat and is kept line-for-line analogous.
 # Configuration flags live here and nowhere else (docs/plan/02 section 3).
@@ -220,9 +220,10 @@ compile_units( ) {
 # runtime check ends the PROCESS, and in a DLL the process is the editor. fbc writes the
 # import library bin/libparser.dll.a beside it.
 #
-# THE EDITOR LOADS IT FROM BESIDE tiko-editor.exe, so a Windows build copies it there. A
-# failed copy is a WARNING, never a failed build: the usual cause is a running editor,
-# which holds the DLL open, and the compiler that was just built is still good.
+# THE EDITOR LOADS IT FROM BESIDE ITS EXE, so a Windows build copies it there: tkEdit's
+# tkedit/bin, or $TKO_EDITOR_DIR (another editor, or /nonexistent for none). A failed copy is
+# a WARNING, never a failed build: the usual cause is a running editor, which holds the DLL
+# open, and the compiler that was just built is still good.
 build_dll( ) {
     DLLFLAGS=$(echo "$FLAGS" | sed 's/-exx//')
     # '-mt' SAID, not inferred: tikoparser.tiko starts a thread, and fbc marks the object
@@ -240,7 +241,7 @@ build_dll( ) {
         ( cd "$ROOT" && "$STAGE0" -dll $OBJS $DLLFLAGS -x "bin/parser$( [ "$HOSTWIN" = "1" ] && echo .dll || echo .so )" )
     fi
     [ "$HOSTWIN" = "1" ] || return 0
-    EDITOR=${TKO_EDITOR_DIR:-/c/dev/tiko-editor-tiko}
+    EDITOR=${TKO_EDITOR_DIR:-$ROOT/tkedit/bin}
     # ONLY AN OPTIMISED DLL GOES INTO THE EDITOR. A Debug build is ~44 MB, runs -O 0 frames
     # in the editor's process and overflowed its stack on deep input (audit F-53); it stays
     # in bin/. 'build/build.sh Release --dll' is the one that updates the editor.
@@ -251,7 +252,7 @@ build_dll( ) {
     elif cp -f "$ROOT/bin/parser.dll" "$EDITOR/parser.dll"; then
         echo "build: parser.dll -> $EDITOR"
     else
-        echo "build: WARNING: could not copy parser.dll to $EDITOR -- is tiko-editor running?" >&2
+        echo "build: WARNING: could not copy parser.dll to $EDITOR -- is the editor running?" >&2
     fi
 }
 

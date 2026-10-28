@@ -4,8 +4,8 @@ rem
 rem   build\build.bat [Debug^|Release^|RelWithDebInfo^|MinSizeRel] [--test-runner] [--no-dll] [--oracle]
 rem   build\build.bat [Release^|MinSizeRel] --dll
 rem
-rem A compiler build also builds the editor's bin\parser.dll and copies it beside
-rem tiko-editor.exe (%TKO_EDITOR_DIR%, default C:\dev\tiko-editor-tiko). '--no-dll' skips both.
+rem A compiler build also builds the editor's bin\parser.dll and copies it beside tkEdit
+rem (%TKO_EDITOR_DIR%, default tkedit\bin in this tree). '--no-dll' skips both.
 rem
 rem The Linux peer is build/build.sh and is kept line-for-line analogous.
 rem Configuration flags live here and nowhere else (docs/plan/02 section 3).
@@ -141,17 +141,18 @@ goto :compiler
     "%STAGE0%" -dll !LIBSRC! src\api\tikoparser.tiko -i src !INCOPT! !DLLFLAGS! !OUTOPT! "bin\parser.dll"
     if errorlevel 1 ( popd & exit /b 1 )
     popd
-    rem Beside tiko-editor.exe, which loads it from there. A failed copy (a running editor
-    rem holds the DLL open) warns and does not fail the build -- see build.sh.
+    rem Beside the editor's exe (tkEdit's tkedit\bin, or TKO_EDITOR_DIR), which loads it from
+    rem there. A failed copy (a running editor holds the DLL open) warns and does not fail the
+    rem build -- see build.sh.
     set "EDITOR=%TKO_EDITOR_DIR%"
-    if "!EDITOR!"=="" set "EDITOR=C:\dev\tiko-editor-tiko"
+    if "!EDITOR!"=="" set "EDITOR=%ROOT%\tkedit\bin"
     if not exist "!EDITOR!\" (
         echo build: no editor at !EDITOR! -- parser.dll stays in bin\ ^(set TKO_EDITOR_DIR^)
         exit /b 0
     )
     copy /y "%ROOT%\bin\parser.dll" "!EDITOR!\parser.dll" >nul 2>&1
     if errorlevel 1 (
-        echo build: WARNING: could not copy parser.dll to !EDITOR! -- is tiko-editor running? 1>&2
+        echo build: WARNING: could not copy parser.dll to !EDITOR! -- is the editor running? 1>&2
     ) else (
         echo build: parser.dll -^> !EDITOR!
     )

@@ -6,8 +6,8 @@
 '    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 '
 ' fuzzy -- the fuzzy matcher behind Search Symbol and the file pickers: a port of fzy
-' (https://github.com/jhawthorn/fzy), by way of tiko-editor-tiko's edc/fuzzy. tools/oracle/run-fuzzy.sh
-' holds it to that module's scores and positions.
+' (https://github.com/jhawthorn/fzy), by way of tiko-editor-tiko's edc/fuzzy, whose scores and
+' positions it matched when ported (tests/fuzzysuite).
 '
 ' Score: the best alignment of needle's characters, in order and without case, inside haystack.
 ' A match right after a separator (/ - _ space .) or at a lower->upper camel step scores a bonus,

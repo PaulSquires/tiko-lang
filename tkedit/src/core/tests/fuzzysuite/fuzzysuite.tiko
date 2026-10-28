@@ -1,8 +1,9 @@
 '    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
 '    Copyright (C) 2026 Paul Squires, PlanetSquires Software
 '
-' fuzzysuite -- tkc/fuzzy: matching, the ordering fzy promises, positions. Exact scores against
-' tiko-editor-tiko's edc/fuzzy are the oracle's job (tools/oracle/run-fuzzy.sh).
+' fuzzysuite -- tkc/fuzzy: matching, the ordering fzy promises, positions. Its exact scores matched
+' tiko-editor-tiko's edc/fuzzy when it was ported; that editor is being retired, so this suite is
+' the check now.
 #module "fuzzysuite"
 
 #import "std/containers"

@@ -864,8 +864,8 @@ if [ "$DO_TKEDIT" = "1" ]; then
     _tklog="$ROOT/lib/rt/obj/package-tkedit.log"
     mkdir -p "$ROOT/lib/rt/obj"; : > "$_tklog"
     _tkfail=""
-    # the editor's scanner, tikoParser: build.sh --dll builds it ALONE (bin/ keeps the
-    # compiler), and would copy it into tiko-editor-tiko when that folder exists -- not here
+    # the editor's scanner, parser.dll: build.sh --dll builds it ALONE (bin/ keeps the
+    # compiler), and would copy it into this tree's tkedit/bin -- not here
     note "building tikoParser for tkedit"
     if ! TKO_EDITOR_DIR=/nonexistent sh "$ROOT/build/build.sh" Release --dll >>"$_tklog" 2>&1; then
         _tkfail="tikoParser did not build"
