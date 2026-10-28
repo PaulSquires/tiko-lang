@@ -618,6 +618,12 @@ end function
 function TimeoutPrefix_( ) as string
     dim as int32 limit = TestTimeoutSecs_( )
     if limit <= 0 then return ""
+    '' macOS HAS NO timeout(1): perl forks the child, KILLs it at the deadline and exits as
+    '' the shell would -- 137 when killed, which is mapped to 124 below as on Linux.
+    #ifdef __FB_DARWIN__
+        return "perl -e '$t = shift; $p = fork; if( !$p ) { exec @ARGV } $SIG{ALRM} = sub { kill 9, $p }; " & _
+               "alarm $t; waitpid $p, 0; exit( ($? & 127) ? 128 + ($? & 127) : $? >> 8 )' " & limit & " "
+    #endif
     return "timeout -s KILL " & limit & " "
 end function
 
