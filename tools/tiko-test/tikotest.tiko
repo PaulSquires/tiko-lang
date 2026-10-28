@@ -780,6 +780,32 @@ function IsHostTarget_( byval tgt as string ) as boolean
     #endif
 end function
 
+'' THE RUNTIME A TEST NAMES, WHEN THIS HOST CANNOT HAVE IT (docs/tiko-macos M8, D-M8-1): its
+'' 'ENV: TKO_LIBPATH=' directory, if that directory is missing and is for a target whose
+'' programs this host cannot run. 781 tests link for windows-x86_64 against
+'' build/obj/rtlib/windows-x86_64, which build/test.sh makes on Windows alone, so off Windows
+'' each one failed at its link -- on Linux too -- and buried what failed for a reason. They
+'' are SKIPPED there instead, and counted. On Windows the directory is the host's own, so a
+'' missing one is still a failure, as it must be. "" when the test can run.
+function MissingRuntime_( byref tc as TestCase ) as string
+    for each e_ as string in tc.env
+        if left( e_, 12 ) <> "TKO_LIBPATH=" then continue for
+        dim as string d = mid( e_, 13 )
+        dim as string tgt = ""
+        if (instr( d, "windows-x86_64" ) > 0) orelse (instr( d, "win64" ) > 0) then
+            tgt = "windows-x86_64"
+        elseif instr( d, "linux-x86_64" ) > 0 then
+            tgt = "linux-x86_64"
+        elseif instr( d, "macos-arm64" ) > 0 then
+            tgt = "macos-arm64"
+        end if
+        if len( tgt ) = 0 then continue for
+        if IsHostTarget_( tgt ) then continue for
+        if fs.IsDir( d ) = false then return d
+    next
+    return ""
+end function
+
 '' THE RUNNER'S '-target', placed where the command line can take it: first, except after a
 '' SUBCOMMAND ('tiko build ...'), which must itself be first (tiko-build RFC-0001 §4.1).
 function WithTarget_( byval tgt as string, byval rest as string ) as string
@@ -1393,6 +1419,7 @@ Sort( files )
 '' EVERY TEST IS PARSED FIRST, and the ones that cannot be are counted here rather
 '' than inside a worker: a parse failure is a property of the file, not of the run.
 dim as int32 skipped = 0
+dim as int32 noRuntime = 0
 dim as Array( of Job ) parJobs
 dim as Array( of Job ) serJobs
 
@@ -1415,6 +1442,13 @@ for each path as string in files
     if tc->kind = "skip" then
         skipped += 1
         if opts.verbose then print "SKIP " & path
+        delete tc
+        continue for
+    end if
+    dim as string noRt = MissingRuntime_( *tc )
+    if len( noRt ) > 0 then
+        skipped += 1 : noRuntime += 1
+        if opts.verbose then print "SKIP " & path & ": no " & noRt & " on this host"
         delete tc
         continue for
     end if
@@ -1478,7 +1512,8 @@ wend
 
 print
 print "tiko-test " & RUNNER_VERSION & ": " & passed & " passed, " & _
-      failed & " failed, " & skipped & " skipped"
+      failed & " failed, " & skipped & " skipped" & _
+      iif( noRuntime > 0, " (" & noRuntime & " need a runtime this host lacks)", "" )
 
 if failed > 0 then end 1
 end 0

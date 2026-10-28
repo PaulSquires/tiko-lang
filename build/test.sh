@@ -161,6 +161,7 @@ case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) rt_overlay windows-x86_64 windows ;;
     Linux)                rt_overlay linux-x86_64 linux ;;
     Darwin)               rt_overlay macos-arm64 macos ;;
+    Darwin)               rt_overlay macos-arm64 macos ;;
 esac
 
 cd "$ROOT"
