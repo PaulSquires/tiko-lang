@@ -544,8 +544,12 @@ fi
 # NOT FATAL, as the graphics library is not: a user without fbcunit has lost the
 # test library, not the compiler. The manifest records each target either way.
 FBCU="$ROOT/tests/vendor/fbc-tests/fbcunit"
+FBCU_AR=${TKO_AR:-$( command -v llvm-ar 2>/dev/null || echo "/c/Program Files/LLVM/bin/llvm-ar.exe" )}
 # On macOS Homebrew's LLVM is deliberately not on PATH (docs/tiko-macos D6): its llvm-ar is named.
-FBCU_AR=${TKO_AR:-$( command -v llvm-ar 2>/dev/null || { [ "$HOST" = "macos" ] && echo /opt/homebrew/opt/llvm/bin/llvm-ar; } || echo "/c/Program Files/LLVM/bin/llvm-ar.exe" )}
+# An 'if', not a '{ ...; }' inside the '$( )' above: macOS's /bin/sh (bash 3.2) cannot parse that.
+if [ -z "${TKO_AR:-}" ] && [ "$HOST" = "macos" ] && ! command -v llvm-ar > /dev/null 2>&1; then
+    FBCU_AR=/opt/homebrew/opt/llvm/bin/llvm-ar
+fi
 FBCU_STATE=""
 for t in $TARGETS; do
     _fo="$OUT/.fbcunit.$t"
