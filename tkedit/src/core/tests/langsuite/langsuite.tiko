@@ -146,8 +146,8 @@ public sub Run( byref c as tally.Checker )
         keys.Put( "commands." & t.Item( i ).Name, t.Item( i ).Description )
     next
 
-    dim as ustring codes( 0 to 2 ) = { "es", "fr", "de" }
-    for ci as long = 0 to 2
+    dim as ustring codes( 0 to 3 ) = { "es", "fr", "de", "zh" }
+    for ci as long = 0 to 3
         dim as ustring code = codes( ci )
         dim as ustring path = fs.PathJoin( root, i18n.LANG_DIR, code & ".toml" )
         dim as i18n.CatalogResult cr = i18n.LoadCatalog( path, code )

@@ -61,6 +61,11 @@ sub PlatformSuite( byref c as tally.Checker )
     c.Check( cfg.IsOk( ), "ConfigDir resolves" )
     if cfg.IsOk( ) then c.Check( strings.EndsWith( cfg.Value( ), "tkEdit" ), "ConfigDir ends in tkEdit" )
     c.Check( platform.SystemFontDirs( ).Count( ) >= 1, "SystemFontDirs not empty" )
+    dim as ustring cjk = platform.SystemCjkFont( )
+    c.Check( (len( cjk ) = 0) orelse fs.IsFile( cjk ), "SystemCjkFont is none or a file: " & cjk )
+#if defined( TIKO_OS_WINDOWS )
+    c.Check( len( cjk ) > 0, "Windows has a CJK face (Microsoft YaHei or SimSun)" )
+#endif
 
     c.Begin( "appinfo" )
     c.Check( appinfo.VersionText( ) = "0.1.0", "VersionText" )

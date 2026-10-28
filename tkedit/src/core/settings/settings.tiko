@@ -13,7 +13,7 @@
 '     version = 1
 '     [editor]   font, font_size, tab_size, use_tabs, line_numbers, whitespace, wrap, caret_line,
 '                indent_guides, fold_margin, auto_indent, auto_end, codetips
-'     [ui]       theme, font_size, language (en | es | fr | de; docs/tkEdit/I18N.md), tab_strip
+'     [ui]       theme, font_size, language (en | es | fr | de | zh; docs/tkEdit/I18N.md), tab_strip
 '     [statusbar] show_project, show_settings, show_keys
 '     [files]    new_eol (native | crlf | lf), new_encoding (utf8 | utf8bom | utf16 | ansi),
 '                save_before_build, trim_trailing
@@ -269,7 +269,7 @@ public function ToToml( byref s as const EditorSettings ) as ustring
         "[ui]" & nl & _
         KeyLine( "theme", tomlget.Quoted( s.Theme ), "themes/<name>.toml: beside the program, or in this folder" ) & _
         KeyLine( "font_size", str( s.UiFontSize ) ) & _
-        KeyLine( "language", tomlget.Quoted( s.Language ), "en | es | fr | de: lang/<code>.toml beside the program, or in this folder" ) & _
+        KeyLine( "language", tomlget.Quoted( s.Language ), "en | es | fr | de | zh: lang/<code>.toml beside the program, or in this folder" ) & _
         KeyLine( "tab_strip", BoolText( s.TabStrip ), "a tab per open buffer above the editor" ) & _
         nl & _
         "[statusbar]" & nl & _

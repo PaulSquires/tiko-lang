@@ -90,6 +90,7 @@ public const FONT_UI = "Inter-Regular.ttf"
 public const FONT_UI_BOLD = "Inter-Bold.ttf"
 public const FONT_MONO = "JetBrainsMono-Regular.ttf"
 public const FONT_GLYPH = "PsIcons.ttf"
+public const FONT_CJK = "NotoSansSC-tkEdit.otf"   ' the zh catalog's characters (tools/make-cjk-font.py)
 public const ASK_ICON_PT = 32                 ' the question box's icon (author 2026-10-27); its cell grows to fit
 public const DEFAULT_CX = 960
 public const DEFAULT_CY = 640
@@ -327,6 +328,7 @@ public type Window
     ' ---- the App state
     ResourceDir as ustring
     HasIcon as boolean                                         ' icons/tkedit.png set as the window icon
+    CjkFont as TTF_Font ptr             ' FONT_CJK at the UI role's size, its first fallback; 0 = not found
     AskIcon as TTF_Font ptr             ' PsIcons at ASK_ICON_PT for question boxes; the host owns it (DPI, close)
     Prefs as settings.EditorSettings
     Keys as keybind.KeyMap
@@ -448,6 +450,7 @@ public type Window
     declare function SessionFile( ) as ustring
     declare sub ReloadSettings( )
     declare sub ReloadLanguage( )
+    declare sub AttachCjkFallbacks( )
     declare sub LabelEditMenu( )
     declare sub SyncSettingsFile( )
     declare sub ApplyStatusPanels( )
@@ -628,6 +631,7 @@ function Window.Create( byval forcedScale as single ) as boolean
     form->Tag = @this
     ' opened on the window's host, which resizes it when the DPI changes and closes it with the window
     AskIcon = tkHost_OpenFont( tkForm_Host( form ), fs.PathJoin( ResourceDir, "fonts", FONT_GLYPH ), ASK_ICON_PT )
+    this.AttachCjkFallbacks( )
     ' the title bar's icon, every platform; on Windows the .exe's own (res/tkEdit.rc) is the taskbar's
     ' and Explorer's, and SDL starts from it
     dim as string icon8 = fs.PathJoin( ResourceDir, "icons", "tkedit.png" )
@@ -1387,6 +1391,31 @@ sub Window.ReloadLanguage( )
     this.LabelEditMenu( )
     Finder.Relabel( )
     Out.Relabel( )
+end sub
+
+' Chinese in the interface (I18N.md): Inter has no CJK glyph, so every UI role's font gets two
+' SDL_ttf fallbacks, consulted for a character it lacks -- the bundled subset of Noto Sans SC (every
+' character of lang/zh.toml), then the system's CJK face when there is one (a Chinese file name).
+' Opened on the window's host at the role's size, so they follow a DPI change with it; popups and
+' dialogs draw with these same font objects, so they have the fallbacks too.
+sub Window.AttachCjkFallbacks( )
+    dim as TK_HOST ptr h = tkForm_Host( form )
+    dim as ustring files( 0 to 1 )
+    files( 0 ) = fs.PathJoin( ResourceDir, "fonts", FONT_CJK )
+    files( 1 ) = platform.SystemCjkFont( )
+    dim as long roles( 0 to 3 ) = { TKFONT_UI, TKFONT_UI_SMALL, TKFONT_UI_BOLD, TKFONT_UI_LARGE }
+    for r as long = 0 to 3
+        dim as TTF_Font ptr roleFont = tkForm_Font( form, roles( r ) )
+        if roleFont = 0 then continue for
+        for k as long = 0 to 1
+            if len( files( k ) ) = 0 then continue for
+            if fs.IsFile( files( k ) ) = false then continue for
+            dim as TTF_Font ptr fb = tkHost_OpenFont( h, files( k ), tkForm_RolePoints( form, roles( r ) ) )
+            if fb = 0 then continue for
+            TTF_AddFallbackFont( roleFont, fb )
+            if (r = 0) andalso (k = 0) then CjkFont = fb
+        next
+    next
 end sub
 
 ' The right-click menu's rows in the interface's language: menu.<command name>.

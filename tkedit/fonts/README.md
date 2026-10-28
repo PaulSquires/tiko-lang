@@ -9,8 +9,10 @@ not for redistribution, so none of them ships here.
 | `Inter-Regular.ttf`, `Inter-Bold.ttf` | UI, UI bold | SIL OFL 1.1 (`OFL-Inter.txt`) | rsms/inter v4.1 release zip, `extras/ttf/` (SHA-256 below) |
 | `JetBrainsMono-Regular.ttf` | editor / mono | SIL OFL 1.1 (`OFL-JetBrainsMono.txt`) | JetBrains/JetBrainsMono v2.304 release zip, `fonts/ttf/` (SHA-256 below) |
 | `PsIcons.ttf` | icons | MIT (`LICENSE-FluentSystemIcons.txt`) | PsPlatform `assets/fonts`: a subset of Fluent UI System Icons remapped onto tiko's Segoe codepoints by `build-psicons.py` there. New icons are added with that script; the glyphs vendor/tkControls draws at Fluent codepoints (the message box's question, info and close: U+F63D, U+F4A3, U+F369) with `tools/add-psicons.py`. |
+| `NotoSansSC-tkEdit.otf` | Chinese in the UI: a fallback behind every UI role | SIL OFL 1.1 (`OFL-NotoSansSC.txt`) | notofonts/noto-cjk tag `Sans2.004`, `Sans/SubsetOTF/SC/NotoSansSC-Regular.otf` (SHA-256 below), cut by `tools/make-cjk-font.py` to the characters of `lang/zh.toml` (~60 KB) and renamed "Noto Sans SC tkEdit" (OFL: a modified font drops the reserved name). Rerun the script when `lang/zh.toml` changes; the self-test fails on a character the font lacks. |
 
 SHA-256:
 - Inter-Regular.ttf `40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82`
 - Inter-Bold.ttf `288316099b1e0a47a4716d159098005eef7c0066921f34e3200393dbdb01947f`
+- NotoSansSC-Regular.otf (the subset's source) `faa6c9df652116dde789d351359f3d7e5d2285a2b2a1f04a2d7244df706d5ea9`
 - JetBrainsMono-Regular.ttf `a0bf60ef0f83c5ed4d7a75d45838548b1f6873372dfac88f71804491898d138f` (zip `6f6376c6ed2960ea8a963cd7387ec9d76e3f629125bc33d1fdcd7eb7012f7bbf`)
