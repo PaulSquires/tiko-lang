@@ -12,10 +12,6 @@
 '' TEST: cli
 '' ARGS: -mt --dump-ir -i toolchains/tiko-windows/inc tests/mir/src/spawn-conv-arg.bas
 '' EXPECT-EXIT: 0
-'' std ON macos-arm64 STOPS AT ITS PER-OS FILES (std/os, std/fs: no Darwin hErrno yet) until
-'' docs/tiko-macos M7 writes them; the posix binding they need first is M5's, and is there.
-'' EXPECT-EXIT[macos-arm64]: 1
-'' EXPECT-OUT[macos-arm64]: 'herrno' is not declared
 '' EXPECT-OUT: call void _ZN4VIEWC1ER7COUNTED(
 '' EXPECT-OUT: call void _ZN4VIEWaSERKS_(
 '' EXPECT-OUT: call void _ZN3STD5TASKS8SendChanIiEC1ER7ChannelIiE(

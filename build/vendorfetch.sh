@@ -187,7 +187,8 @@ entry( ) {
                 # THE INSTALL NAME IS @rpath/<its own name>, the soname's counterpart: a program
                 # records it, and finds the copy beside it through its '@loader_path' run path.
                 # shellcheck disable=SC2086
-                "$CLANG" --target=$TRIPLE -dynamiclib -Wl,-install_name,"@rpath/$(basename "$_sh")"                     -o "$_mdir/$_sh" $_objs $(_get libs) || die "$_mod: linking $_sh failed"
+                "$CLANG" --target=$TRIPLE -dynamiclib -Wl,-install_name,"@rpath/$(basename "$_sh")" \
+                    -o "$_mdir/$_sh" $_objs $(_get libs) || die "$_mod: linking $_sh failed"
             else
                 # THE SONAME IS THE FILE'S OWN NAME: a program records it as NEEDED, and the
                 # copy tiko puts beside the program (RFC-0002 V13) is found by it through $ORIGIN.
