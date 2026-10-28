@@ -1,10 +1,16 @@
-'' macos-arm64: NO SECTIONS. Mach-O has one __mod_init_func and no numbered ones, so every
-'' structor goes in LLVM's lists with its number, in declaration order; LLVM stable-sorts
-'' each list by number. See src/codegen/llvmstructors.tiko.
+'' macos-arm64: THE UNNUMBERED IN LLVM'S LISTS, THE NUMBERED AS RECORDS. Mach-O has one
+'' __mod_init_func, and ld64 orders it by object, ignoring the number, so a numbered
+'' structor is a { number, function } record in __DATA,__tko_ctors / __tko_dtors, kept by
+'' @llvm.used; tiko-rt's fbrt0.o sorts and runs them before every unnumbered constructor
+'' and after every unnumbered destructor. See src/codegen/llvmstructors.tiko and
+'' lib/rt/src/c/fbrt0.c.
 '' TEST: cli
 '' ARGS: -target macos-arm64 --emit-ir tests/codegen/src/structor-order.bas
 '' EXPECT-EXIT: 0
-'' EXPECT-OUT: @llvm.global_ctors = appending global [6 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 200, ptr @"P200", ptr null }, { i32, ptr, ptr } { i32 101, ptr @"P101", ptr null }, { i32, ptr, ptr } { i32 65535, ptr @"A1", ptr null }, { i32, ptr, ptr } { i32 65535, ptr @"B2", ptr null }, { i32, ptr, ptr } { i32 65535, ptr @"C3", ptr null }, { i32, ptr, ptr } { i32 65535, ptr @"P65535", ptr null }]
-'' EXPECT-OUT: @llvm.global_dtors = appending global [3 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 101, ptr @"Q101", ptr null }, { i32, ptr, ptr } { i32 65535, ptr @"D1", ptr null }, { i32, ptr, ptr } { i32 65535, ptr @"D2", ptr null }]
+'' EXPECT-OUT: @__tko_ctor.0 = internal global { i64, ptr } { i64 200, ptr @"P200" }, section "__DATA,__tko_ctors", align 8
+'' EXPECT-OUT: @__tko_ctor.1 = internal global { i64, ptr } { i64 101, ptr @"P101" }, section "__DATA,__tko_ctors", align 8
+'' EXPECT-OUT: @__tko_dtor.2 = internal global { i64, ptr } { i64 101, ptr @"Q101" }, section "__DATA,__tko_dtors", align 8
+'' EXPECT-OUT: @llvm.global_ctors = appending global [4 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @"A1", ptr null }, { i32, ptr, ptr } { i32 65535, ptr @"B2", ptr null }, { i32, ptr, ptr } { i32 65535, ptr @"C3", ptr null }, { i32, ptr, ptr } { i32 65535, ptr @"P65535", ptr null }]
+'' EXPECT-OUT: @llvm.global_dtors = appending global [2 x { i32, ptr, ptr }] [{ i32, ptr, ptr } { i32 65535, ptr @"D1", ptr null }, { i32, ptr, ptr } { i32 65535, ptr @"D2", ptr null }]
+'' EXPECT-OUT: @llvm.used = appending global [3 x ptr] [ptr @__tko_ctor.0, ptr @__tko_ctor.1, ptr @__tko_dtor.2], section "llvm.metadata"
 '' EXPECT-NOT: section ".
-'' EXPECT-NOT: @llvm.used

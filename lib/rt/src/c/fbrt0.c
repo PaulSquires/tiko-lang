@@ -23,9 +23,96 @@
 ** fbc's section names.
 **
 ** MSVC HAS ITS OWN, msvcinit.c, pulled in by /INCLUDE; this file is empty there.
+** MACH-O has its own branch below: no priorities across objects, so this object also
+** runs the program's numbered structors.
 */
 
-#ifndef TKORT_MSVC
+#if defined( TKORT_MSVC )
+
+/* msvcinit.c */
+
+#elif defined( __APPLE__ )
+
+/* MACH-O HAS NO PRIORITIES ACROSS OBJECTS.  ld64 runs every object's constructors in
+** link order and ignores the number (measured on the Mac, docs/tiko-macos FACTS "M2 on
+** the Mac"), so priority 100 above every module constructor would mean nothing here.
+** What orders this one is its PLACE: LinkExe names fbrt0.o first, so its constructor runs
+** before any other object's.
+**
+** AND THAT IS WHERE THE PROGRAM'S NUMBERED STRUCTORS RUN.  tiko does not put a numbered
+** constructor or destructor ('constructor 101', the root's 65534 module init and drain)
+** in LLVM's lists on Mach-O: it writes a { number, function } record into
+** __DATA,__tko_ctors or __tko_dtors (src/codegen/llvmstructors.tiko).  ld64 gathers every
+** object's records into one section and names its bounds section$start / section$end --
+** zero-length, not missing, when no object has one.  They run here, in
+** linux-x86_64's order whatever the link order:
+**
+**   start   fb_hRtInit; the numbered constructors, ascending, ties in record (link) order;
+**           then, after this returns, every object's unnumbered constructors
+**   exit    every unnumbered destructor; the numbered ones, descending, ties reversed;
+**           fb_hRtExit
+**
+** THE EXIT HANDLER IS REGISTERED FIRST OF ALL, before fb_hRtInit: atexit is last in,
+** first out, and the unnumbered destructors are __cxa_atexit'ed when their objects'
+** constructors run, after this one -- so it runs after all of them, and after any
+** handler the runtime registers while it runs, as the gnu .fini_array entry does. */
+
+#include <stdlib.h>
+
+struct tko_rec { long long prio; void ( *fn )( void ); };
+
+extern const struct tko_rec tko_ctors_start __asm( "section$start$__DATA$__tko_ctors" );
+extern const struct tko_rec tko_ctors_end   __asm( "section$end$__DATA$__tko_ctors" );
+extern const struct tko_rec tko_dtors_start __asm( "section$start$__DATA$__tko_dtors" );
+extern const struct tko_rec tko_dtors_end   __asm( "section$end$__DATA$__tko_dtors" );
+
+void fb_hRtInit( void );
+void fb_hRtExit( void );
+
+/* Every record of [b, e) by number: ascending with ties in record order, or descending
+** with ties reversed.  No allocation: one pass per distinct number, and there are few. */
+static void fb_hRunRecs( const struct tko_rec *b, const struct tko_rec *e, int down )
+{
+	long long last = 0;
+	int started = 0;
+	for( ;; ) {
+		long long next = 0;
+		int found = 0;
+		for( const struct tko_rec *r = b; r < e; r++ ) {
+			int beyond = !started || ( down ? r->prio < last : r->prio > last );
+			if( beyond && ( !found || ( down ? r->prio > next : r->prio < next ) ) ) {
+				next = r->prio;
+				found = 1;
+			}
+		}
+		if( !found ) return;
+		if( down ) {
+			for( const struct tko_rec *r = e; r-- > b; )
+				if( r->prio == next ) r->fn( );
+		} else {
+			for( const struct tko_rec *r = b; r < e; r++ )
+				if( r->prio == next ) r->fn( );
+		}
+		last = next;
+		started = 1;
+	}
+}
+
+static void fb_hDoExit( void )
+{
+	fb_hRunRecs( &tko_dtors_start, &tko_dtors_end, 1 );
+	fb_hRtExit( );
+}
+
+__attribute__(( constructor( 100 ) ))
+static void fb_hDoInit( void )
+{
+	atexit( fb_hDoExit );
+	fb_hRtInit( );
+	fb_hRunRecs( &tko_ctors_start, &tko_ctors_end, 0 );
+}
+
+#else
 
 void fb_hRtInit( void );
 void fb_hRtExit( void );
