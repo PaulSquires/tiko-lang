@@ -913,6 +913,7 @@ CONST( NOTE_LINK )
 CONST( NOTE_REVOKE )
 CONST( O_EVTONLY )
 CONST( MNT_NOWAIT )
+CONST( MNT_RDONLY )
 /* the first word of PTHREAD_MUTEX_INITIALIZER; the rest of it is zero (FACTS, M0), so a static
    mutex is this word and zeros (thread/claimlock.tiko, thread/sched.tiko) */
 CONST_AS( PTHREAD_MUTEX_SIG_INIT, _PTHREAD_MUTEX_SIG_init )

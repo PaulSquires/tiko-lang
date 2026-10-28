@@ -914,6 +914,7 @@ const NOTE_LINK = 16
 const NOTE_REVOKE = 64
 const O_EVTONLY = 32768
 const MNT_NOWAIT = 2
+const MNT_RDONLY = 1
 const PTHREAD_MUTEX_SIG_INIT = 850045863
 type struct_kevent
     ident as uint64
