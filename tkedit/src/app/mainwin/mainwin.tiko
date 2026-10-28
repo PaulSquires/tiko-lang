@@ -90,6 +90,10 @@ public const FONT_UI = "Inter-Regular.ttf"
 public const FONT_UI_BOLD = "Inter-Bold.ttf"
 public const FONT_MONO = "JetBrainsMono-Regular.ttf"
 public const FONT_GLYPH = "PsIcons.ttf"
+' The types tiko names itself, offered after "as" (TypeCompletions); lower case, as keywords complete.
+public const TIKO_TYPES = "any boolean byte double integer long longint short single string ubyte uinteger " & _
+                          "ulong ulongint ushort ustring wstring zstring int8 uint8 int16 uint16 int32 uint32 " & _
+                          "int64 uint64 float32 float64 const function sub"
 public const FONT_CJK = "NotoSansSC-tkEdit.otf"   ' the zh catalog's characters (tools/make-cjk-font.py)
 public const ASK_ICON_PT = 32                 ' the question box's icon (author 2026-10-27); its cell grows to fit
 public const DEFAULT_CX = 960
@@ -451,6 +455,7 @@ public type Window
     declare sub ReloadSettings( )
     declare sub ReloadLanguage( )
     declare sub AttachCjkFallbacks( )
+    declare function TypeCompletions( byref prefix as const ustring ) as Array( of ustring )
     declare sub LabelEditMenu( )
     declare sub SyncSettingsFile( )
     declare sub ApplyStatusPanels( )
@@ -3289,6 +3294,17 @@ private function IsIdentCharU( byval c as ulong ) as boolean
            ((c >= 97) andalso (c <= 122)) orelse (c = 95)
 end function
 
+' The text before the caret ends with the word "as" and one space ("dim p as "), not in a comment:
+' the place for a type. "has " is not it.
+private function AfterAs( byref before as const ustring ) as boolean
+    dim as long n = len( before )
+    if n < 3 then return false
+    if lcase( right( before, 3 ) ) <> "as " then return false
+    if (n > 3) andalso IsIdentCharU( before[n - 4] ) then return false
+    if instr( before, "'" ) > 0 then return false              ' a comment (or a string with one: no list)
+    return true
+end function
+
 ' "a.b.word" before the caret -> word "word", qualifier "b".
 private sub SplitQualified( byref before as const ustring, byref word as ustring, byref qualifier as ustring )
     dim as long i = len( before )
@@ -3550,10 +3566,30 @@ sub Window.CodeTips( byval hEdit as TK_WIDGET ptr, byval ch as long )
         end if
         exit sub
     end if
+    if ch = 32 then
+        ' the space after "as" (dim p as _): the types, tiko's and the scans' (author 2026-10-28)
+        if AfterAs( v->TextBeforeCaret( ) ) then
+            dim as Array( of ustring ) items = this.TypeCompletions( "" )
+            if items.Count( ) then v->ShowCompletions( 0, items )
+        end if
+        exit sub
+    end if
     if IsIdentCharU( ch ) = false then exit sub
     if v->CompletionsShown( ) then exit sub                     ' Scintilla filters as typing goes on
     this.ShowCompletionsAt( v, d, 3 )
 end sub
+
+' The types a declaration can name after "as" whose names start with prefix: tiko's own (and const,
+' function and sub, which may follow "as" too) and every type, union, enum and alias the scans
+' found; sorted, each once.
+function Window.TypeCompletions( byref prefix as const ustring ) as Array( of ustring )
+    dim as Array( of ustring ) items = Db.TypeNames( prefix )
+    dim as ustring lp = lcase( prefix )
+    for each k as ustring in strings.Split( TIKO_TYPES, " " )
+        if left( k, len( lp ) ) = lp then items.Push( k )
+    next
+    return SortNames( items )
+end function
 
 ' The names that start like the word before the caret: the scan's, the outline's procedures,
 ' the keywords. minLen: how much must be typed first (Ctrl+Space: 0).
@@ -3566,7 +3602,7 @@ sub Window.ShowCompletionsAt( byval v as editor.CodeView ptr, byval d as DocRef,
     if len( qual ) then
         items = Db.MemberNames( qual, d->Path, v->CaretLine( ) )
     elseif instr( lcase( right( before, len( word ) + 4 ) ), "as " ) = 1 then
-        items = Db.TypeNames( word )
+        items = this.TypeCompletions( word )
     else
         items = Db.Completions( word, d->Path, v->CaretLine( ) )
         if Db.HasFile( d->Path ) = false then
