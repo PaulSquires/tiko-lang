@@ -25,8 +25,8 @@ SelectAll = "Tout sélectionner"
 
 [cue]
 symbol = "Rechercher un symbole ou un fichier"
-function = "Aller à une fonction de ce fichier"
-function_all = "Aller à une fonction d'un fichier ouvert"
+function = "Aller à une fonction de ce fichier (TAB tous les fichiers)"
+function_all = "Aller à une fonction d'un fichier ouvert (TAB fichier actif)"
 buffer = "Choisir un tampon"
 recent = "Ouvrir un fichier récent"
 encoding = "Choisir l'encodage"

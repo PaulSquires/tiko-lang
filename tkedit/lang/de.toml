@@ -25,8 +25,8 @@ SelectAll = "Alles auswählen"
 
 [cue]
 symbol = "Symbol oder Datei suchen"
-function = "Zu einer Funktion dieser Datei"
-function_all = "Zu einer Funktion einer offenen Datei"
+function = "Zu einer Funktion dieser Datei (TAB alle Dateien)"
+function_all = "Zu einer Funktion einer offenen Datei (TAB aktive Datei)"
 buffer = "Puffer wählen"
 recent = "Zuletzt geöffnete Datei öffnen"
 encoding = "Kodierung wählen"

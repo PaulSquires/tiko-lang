@@ -63,7 +63,8 @@ public type Picker
     Filter   as boolean = true           ' show the query box
     MaxRows  as long = 12
     AcceptOnCtrlUp as boolean
-    Toggle   as TK_CHORD                 ' a chord that calls OnToggle instead (F4 again); key 0 = none
+    Toggle   as TK_CHORD                 ' a chord that calls OnToggle instead (Tab in Functions); key 0 = none
+    CloseKey as TK_CHORD                 ' a chord that closes it (the opening command's own key); key 0 = none
     OnToggle as PickedProc               ' tag = 0
     SeedQuery as ustring                 ' the query box's text when it opens
     Cue      as ustring                  ' the query box's cue banner: what is asked for
@@ -216,8 +217,12 @@ function Picker.Open( byval owner as TK_HOST ptr, byref rows_ as const Array( of
         dim as Picker ptr p = PickerOf( h )
         if (p = 0) orelse (m->msg <> TKM_KEYDOWN) then return false
         dim as boolean shift_ = (m->mods and SDL_KMOD_SHIFT) <> 0
+        dim as TK_CHORD c = tkKeys_FromMsg( m )
+        if (p->CloseKey.key <> 0) andalso (c.key = p->CloseKey.key) andalso (c.mods = p->CloseKey.mods) then
+            p->Close( )
+            return true
+        end if
         if (p->Toggle.key <> 0) andalso (p->OnToggle <> 0) then
-            dim as TK_CHORD c = tkKeys_FromMsg( m )
             if (c.key = p->Toggle.key) andalso (c.mods = p->Toggle.mods) then
                 p->OnToggle( p->Payload, 0 )
                 return true

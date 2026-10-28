@@ -1234,12 +1234,13 @@ function Window.Execute( byval id as Cmd ) as boolean
             this.OpenChooser( PickKind.Symbols )
         end if
     case Cmd.FunctionList
+        ' again closes it, as Ctrl+P its list; Tab inside it flips the scope (author 2026-10-27)
         if Chooser.IsOpen( ) andalso (Choosing = PickKind.Functions) then
-            FuncsAll = (FuncsAll = false)              ' again: this buffer / every open buffer
+            Chooser.Close( )
         else
             FuncsAll = false
+            this.OpenChooser( PickKind.Functions )
         end if
-        this.OpenChooser( PickKind.Functions )
     case Cmd.OutputPane : this.ShowOutput( OutputShown = false )
     case Cmd.Compile : this.StartBuild( build.BuildAction.Compile )
     case Cmd.BuildExecute : this.StartBuild( build.BuildAction.BuildExecute )
@@ -2217,6 +2218,7 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
     Chooser.SeedQuery = keep
     Chooser.MaxRows = 12
     Chooser.Toggle.key = 0
+    Chooser.CloseKey.key = 0
     Chooser.Columns.Clear( )
     Chooser.Columns.Push( 18 )
     Chooser.Columns.Push( 220 )
@@ -2285,9 +2287,9 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
             rows.Push( Row( kindText, Hits[i].Name, where_, i ) )
         next
     case PickKind.Functions
-        Chooser.Cue = i18n.Tr( "cue.function", "Go to function in this file" )
-        if FuncsAll then Chooser.Cue = i18n.Tr( "cue.function_all", "Go to function in any open file" )
-        ' F4: the active buffer's procedures; F4 again (inside the list) every open buffer's
+        Chooser.Cue = i18n.Tr( "cue.function", "Go to function in this file (TAB all files)" )
+        if FuncsAll then Chooser.Cue = i18n.Tr( "cue.function_all", "Go to function in any open file (TAB active file)" )
+        ' the active buffer's procedures; Tab (inside the list) every open buffer's, and back
         Hits.Clear( )
         Chooser.Columns.Clear( )
         Chooser.Columns.Push( 260 )
@@ -2318,10 +2320,11 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
             r.Tag = i
             rows.Push( r )
         next
-        ' its own key again flips this buffer / every open buffer (D11; the author kept it 2026-10-27)
+        ' Tab flips this buffer / every open buffer (D11, author 2026-10-27: was its own key again,
+        ' which now closes it); Shift+Tab still moves up, Down moves down
         dim as TK_CHORD tc
-        dim as string fk = Keys.Effective( Cmd.FunctionList )
-        if len( fk ) andalso tkKeys_Parse( fk, tc ) then Chooser.Toggle = tc
+        if tkKeys_Parse( "Tab", tc ) then Chooser.Toggle = tc
+        this.CloseOnOwnKey( Cmd.FunctionList )
         Chooser.OnToggle = sub( byval payload as any ptr, byval tag as long )
             dim as Window ptr mw = payload
             mw->FuncsAll = (mw->FuncsAll = false)
@@ -2443,10 +2446,7 @@ sub Window.CloseOnOwnKey( byval id as Cmd )
     dim as TK_CHORD tc
     dim as string k = Keys.Effective( id )
     if (len( k ) = 0) orelse (tkKeys_Parse( k, tc ) = false) then exit sub
-    Chooser.Toggle = tc
-    Chooser.OnToggle = sub( byval payload as any ptr, byval tag as long )
-        cast( Window ptr, payload )->Chooser.Close( )
-    end sub
+    Chooser.CloseKey = tc
 end sub
 
 sub Window.Chosen( byval tag as long )
