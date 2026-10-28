@@ -169,6 +169,30 @@ sub RunPass( byval fScale as single )
     tkTest_Check( "' starts a comment", tkCodeEdit_Send( ed, SCI_GETSTYLEAT, 15 ) = SCE_B_COMMENT, str( tkCodeEdit_Send( ed, SCI_GETSTYLEAT, 15 ) ) )
     tkTest_Check( "x is an identifier", tkCodeEdit_Send( ed, SCI_GETSTYLEAT, 4 ) = SCE_B_IDENTIFIER )
 
+    ' block strings, tiko's """ literals (LexTiko, from the editor's lexer 2026-10-27): both fences
+    ' and the body are a string, code after the closer is code again, and a lex that starts inside
+    ' the block knows it from the line state
+    '   0: dim s as string = """      the opener at 18
+    '  22:   dim inside               'dim' at 24, in the body
+    '  35: """ : dim y                the closer at 35, 'dim' at 41
+    '  47: dim z
+    tkCodeEdit_SetText( ed, "dim s as string = """"""" & chr( 10 ) & "  dim inside" & chr( 10 ) & _
+                            """"""" : dim y" & chr( 10 ) & "dim z" )
+    tkCodeEdit_Send( ed, SCI_COLOURISE, 0, -1 )
+    tkTest_Check( "a block string's opener is a string", tkCodeEdit_Send( ed, SCI_GETSTYLEAT, 18 ) = SCE_B_STRING, str( tkCodeEdit_Send( ed, SCI_GETSTYLEAT, 18 ) ) )
+    tkTest_Check( "a keyword in its body is string", tkCodeEdit_Send( ed, SCI_GETSTYLEAT, 24 ) = SCE_B_STRING, str( tkCodeEdit_Send( ed, SCI_GETSTYLEAT, 24 ) ) )
+    tkTest_Check( "its closer is a string", tkCodeEdit_Send( ed, SCI_GETSTYLEAT, 35 ) = SCE_B_STRING, str( tkCodeEdit_Send( ed, SCI_GETSTYLEAT, 35 ) ) )
+    tkTest_Check( "code after the closer is code", (tkCodeEdit_Send( ed, SCI_GETSTYLEAT, 41 ) = SCE_B_KEYWORD) andalso _
+                  (tkCodeEdit_Send( ed, SCI_GETSTYLEAT, 47 ) = SCE_B_KEYWORD), _
+                  str( tkCodeEdit_Send( ed, SCI_GETSTYLEAT, 41 ) ) & " " & str( tkCodeEdit_Send( ed, SCI_GETSTYLEAT, 47 ) ) )
+    tkTest_Check( "the opener's line says the next starts in a block", tkCodeEdit_Send( ed, SCI_GETLINESTATE, 0 ) = 1 )
+    tkCodeEdit_Send( ed, SCI_STARTSTYLING, 22, 0 )
+    tkCodeEdit_Send( ed, SCI_SETSTYLING, 12, SCE_B_DEFAULT )
+    tkCodeEdit_Send( ed, SCI_COLOURISE, 22, -1 )
+    tkTest_Check( "a lex from inside the block keeps it a string", tkCodeEdit_Send( ed, SCI_GETSTYLEAT, 24 ) = SCE_B_STRING, str( tkCodeEdit_Send( ed, SCI_GETSTYLEAT, 24 ) ) )
+    tkCodeEdit_SetText( ed, "dim x as long ' note" & chr( 10 ) & "x = 1" )
+    tkCodeEdit_Send( ed, SCI_COLOURISE, 0, -1 )
+
     ' ---- pixels: the view is painted, coloured by style, at the widget's place ----
     tkHost_RenderTo( h, false )
     dim as TKRECT a

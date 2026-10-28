@@ -11,6 +11,10 @@ alternative — pinning a clean upstream tarball and carrying the modifications 
 the delta legible but makes every upgrade a merge, and this tree has already diverged in ways
 that are not a patch series.
 
+**Since then:** `lexilla/lexers/LexTiko.cxx` took tiko's `"""` block strings (78 lines, additions only) from
+`tiko-editor-tiko` `src/scintilla_modified` (commit `30902852`) on 2026-10-27, before that editor's retirement;
+the rest of Scintilla and Lexilla matched it then. tkCodeEdit's self-test checks the block strings.
+
 ## How it differs from upstream, so far as is known
 
 - **`lexilla/lexers/` contains exactly one lexer: `LexTiko.cxx`.** Upstream ships well over a

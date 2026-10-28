@@ -39,6 +39,45 @@ bool IsVBComment(Accessor &styler, Sci_Position pos, Sci_Position len) {
 	return len > 0 && styler[pos] == '\'';
 }
 
+// tiko BLOCK STRINGS (tiko-lang RFC-0001, docs/tiko-strings):
+//     dim as string s = """
+//         body, verbatim
+//     """
+// The opener is """ followed only by spaces/tabs to the end of its line ("""abc""" stays an
+// ordinary string). The closer is the first later line that starts -- after spaces/tabs --
+// with """; the rest of that line is ordinary code. The whole block is styled SCE_B_STRING.
+// A line's LINE STATE is 1 when the NEXT line starts inside a block, which is how a lex that
+// begins mid-document knows where it is.
+
+// """ at pos, then only blanks to end of line (or of the document).
+bool IsBlockOpener(Accessor &styler, Sci_Position pos) {
+	if (styler.SafeGetCharAt(pos, '\n') != '\"' || styler.SafeGetCharAt(pos + 1, '\n') != '\"' ||
+	    styler.SafeGetCharAt(pos + 2, '\n') != '\"') {
+		return false;
+	}
+	for (Sci_Position p = pos + 3; ; p++) {
+		const char c = styler.SafeGetCharAt(p, '\n');
+		if (c == ' ' || c == '\t') {
+			continue;
+		}
+		return c == '\r' || c == '\n';
+	}
+}
+
+// For the line starting at lineStart: the position just past its closing """, or -1 if the
+// line is not a closer.
+Sci_Position BlockCloserEnd(Accessor &styler, Sci_Position lineStart) {
+	Sci_Position p = lineStart;
+	while (styler.SafeGetCharAt(p, '\n') == ' ' || styler.SafeGetCharAt(p, '\n') == '\t') {
+		p++;
+	}
+	if (styler.SafeGetCharAt(p, '\n') == '\"' && styler.SafeGetCharAt(p + 1, '\n') == '\"' &&
+	    styler.SafeGetCharAt(p + 2, '\n') == '\"') {
+		return p + 3;
+	}
+	return -1;
+}
+
 // Identifier characters
 constexpr bool IsTypeCharacter(int ch) noexcept {
 	return ch == '%' || ch == '&' || ch == '@' || ch == '!' || ch == '#' || ch == '$';
@@ -242,9 +281,40 @@ void LexerVB::Lex(Sci_PositionU startPos, Sci_Position length, int initStyle, ID
 		initStyle = SCE_B_DEFAULT;
 	}
 
+	// Inside a block string? Scintilla always starts a lex at a line start, so the previous
+	// line's state answers it. An ordinary string never crosses a line end, so a STRING
+	// initStyle that is NOT a block is a leftover and is dropped.
+	const Sci_Position lineFirst = styler.GetLine(startPos);
+	bool inBlock = (lineFirst > 0) && (styler.GetLineState(lineFirst - 1) == 1);
+	Sci_Position closerEnd = -1;
+	if (inBlock) {
+		initStyle = SCE_B_STRING;
+	} else if (initStyle == SCE_B_STRING) {
+		initStyle = SCE_B_DEFAULT;
+	}
+
 	StyleContext sc(startPos, length, initStyle, styler);
 
 	for (; sc.More(); sc.Forward()) {
+
+		// A block string's body: everything is string until the closer's """ is passed.
+		if (inBlock) {
+			if (sc.atLineStart) {
+				closerEnd = BlockCloserEnd(styler, sc.currentPos);
+			}
+			if (closerEnd >= 0 && static_cast<Sci_Position>(sc.currentPos) >= closerEnd) {
+				// Past the closer: this character is ordinary code again.
+				inBlock = false;
+				closerEnd = -1;
+				sc.SetState(SCE_B_DEFAULT);
+			} else {
+				if (sc.atLineEnd) {
+					styler.SetLineState(sc.currentLine, 1);
+					visibleChars = 0;
+				}
+				continue;
+			}
+		}
 
 		// Determine if the current state should terminate.
 		if (sc.state == SCE_B_MULTILINECOMMENT) {
@@ -302,6 +372,12 @@ void LexerVB::Lex(Sci_PositionU startPos, Sci_Position length, int initStyle, ID
 				sc.Forward();   // Eat the * so it isn't used for the end of the comment
 			} else if (sc.ch == '\'') {
 				sc.SetState(SCE_B_COMMENT);
+			} else if (sc.ch == '\"' && IsBlockOpener(styler, sc.currentPos)) {
+				// A block string's opener: the block branch above takes every character
+				// from here to the closer.
+				sc.SetState(SCE_B_STRING);
+				inBlock = true;
+				closerEnd = -1;
 			} else if (sc.ch == '\"') {
 				sc.SetState(SCE_B_STRING);
 			} else if (sc.ch == '#' && visibleChars == 0) {
@@ -333,6 +409,8 @@ void LexerVB::Lex(Sci_PositionU startPos, Sci_Position length, int initStyle, ID
 
 		if (sc.atLineEnd) {
 			visibleChars = 0;
+			// 1 = the next line starts inside a block string (an opener ended this line).
+			styler.SetLineState(sc.currentLine, inBlock ? 1 : 0);
 		}
 		if (!IsASpace(sc.ch)) {
 			visibleChars++;
