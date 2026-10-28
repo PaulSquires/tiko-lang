@@ -257,6 +257,18 @@ end function
 ''
 '' Only the four arithmetic operators and unary minus, which is what a floating
 '' constant expression is made of. A mixed expression folds in DOUBLE, as fbc's does.
+'' A NaN THE FOLDER MAKES IS x86's, WHATEVER CPU THE COMPILER RUNS ON. An invalid operation
+'' (0/0, INF-INF, 0*INF) gives the CPU's DEFAULT NaN: x86's is 0xFFF8..., the negative one
+'' fbc folds to ('-__builtin_nan'), and arm64's is 0x7FF8... -- measured on the Mac
+'' (docs/tiko-macos M8), where every target's folded 0/0 came out positive. So a NaN that no
+'' operand brought in gets the sign bit, and one that an operand did keeps its own.
+private function X86NaN_( byval d as float64, byval l as float64, byval r as float64 ) as float64
+    if d = d then return d                       '' not a NaN
+    if (l <> l) orelse (r <> r) then return d    '' propagated from an operand
+    dim as uint64 bits = *cast( uint64 ptr, @d ) or &h8000000000000000ull
+    return *cast( float64 ptr, @bits )
+end function
+
 function ConstFloatOf _
     ( byref ast as Tko.AstArena, byval id as Tko.NodeId, byref outd as float64, _
       byval depth as int32 = 0, byval syms as Tko.SymbolTable ptr = nullptr, _
@@ -310,9 +322,9 @@ function ConstFloatOf _
             return false
         end if
         select case cast( Tko.TokenKind, bp->op )
-        case Tko.TK_PLUS  : outd = l + r
-        case Tko.TK_MINUS : outd = l - r
-        case Tko.TK_STAR  : outd = l * r
+        case Tko.TK_PLUS  : outd = X86NaN_( l + r, l, r )
+        case Tko.TK_MINUS : outd = X86NaN_( l - r, l, r )
+        case Tko.TK_STAR  : outd = X86NaN_( l * r, l, r )
         case Tko.TK_SLASH
             '' DIVIDING BY ZERO IS AN ANSWER IN FLOATING POINT, not an error: IEEE
             '' gives +/-INF and 0/0 gives a NaN, and fbc FOLDS all of them -- measured,
@@ -321,7 +333,7 @@ function ConstFloatOf _
             '' INF and NaN constant unfolded, so a STATIC or SHARED initialised from
             '' one had no image at all: 32 declines in numbers/infnan.bas, which is
             '' the file that exists to test exactly these values.
-            outd = l / r
+            outd = X86NaN_( l / r, l, r )
         '' '^' IS A FLOAT OPERATOR AND ITS RESULT IS A DOUBLE. '2^63' is how the
         '' corpus writes every power-of-two boundary -- numbers/cast_f2ll.bas writes
         '' six of them -- and with no case for it the whole constant was unknown.

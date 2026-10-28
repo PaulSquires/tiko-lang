@@ -1224,6 +1224,7 @@ type Job
     as TestCase ptr tc
     as int32 state          '' 0 pending, 1 passed, 2 failed
     as string why
+    as string noRt          '' a runtime it names that this host cannot have (hosts.tiko)
 end type
 
 '' IS THIS TEST SAFE TO RUN BESIDE ANOTHER? See the note at the top of this file for
@@ -1413,16 +1414,9 @@ for each path as string in files
         delete tc
         continue for
     end if
-    dim as string noRt = MissingRuntime_( *tc )
-    if len( noRt ) > 0 then
-        skipped += 1 : noRuntime += 1
-        if opts.verbose then print "SKIP " & path & ": no " & noRt & " on this host"
-        delete tc
-        continue for
-    end if
-
     dim as Job j
     j.path = path
+    j.noRt = MissingRuntime_( *tc )
     j.tc = tc
     j.state = 0
     if (nWorkers > 1) andalso IsParallelSafe_( *tc ) then
@@ -1456,18 +1450,21 @@ while (pi < parJobs.Count) orelse (si < serJobs.Count)
 
     dim as string path_ = ""
     dim as int32 state = 0
-    dim as string why = ""
+    dim as string why = "", noRt = ""
     if takePar then
-        path_ = parJobs[pi].path : state = parJobs[pi].state : why = parJobs[pi].why
+        path_ = parJobs[pi].path : state = parJobs[pi].state : why = parJobs[pi].why : noRt = parJobs[pi].noRt
         pi += 1
     else
-        path_ = serJobs[si].path : state = serJobs[si].state : why = serJobs[si].why
+        path_ = serJobs[si].path : state = serJobs[si].state : why = serJobs[si].why : noRt = serJobs[si].noRt
         si += 1
     end if
 
     if state = 1 then
         passed += 1
         if opts.verbose then print "PASS " & path_
+    elseif len( noRt ) > 0 then
+        skipped += 1 : noRuntime += 1
+        if opts.verbose then print "SKIP " & path_ & ": failed, and needs " & noRt
     else
         failed += 1
         dim as Failure f
@@ -1481,7 +1478,7 @@ wend
 print
 print "tiko-test " & RUNNER_VERSION & ": " & passed & " passed, " & _
       failed & " failed, " & skipped & " skipped" & _
-      iif( noRuntime > 0, " (" & noRuntime & " need a runtime this host lacks)", "" )
+      iif( noRuntime > 0, " (" & noRuntime & " failed needing a runtime this host lacks)", "" )
 
 if failed > 0 then end 1
 end 0

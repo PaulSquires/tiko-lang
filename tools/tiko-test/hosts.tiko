@@ -18,10 +18,11 @@ end function
 '' THE RUNTIME A TEST NAMES, WHEN THIS HOST CANNOT HAVE IT (docs/tiko-macos M8, D-M8-1): its
 '' 'ENV: TKO_LIBPATH=' directory, if that directory is missing and is for a target whose
 '' programs this host cannot run. 781 tests link for windows-x86_64 against
-'' build/obj/rtlib/windows-x86_64, which build/test.sh makes on Windows alone, so off Windows
-'' each one failed at its link -- on Linux too -- and buried what failed for a reason. They
-'' are SKIPPED there instead, and counted. On Windows the directory is the host's own, so a
-'' missing one is still a failure, as it must be. "" when the test can run.
+'' build/obj/rtlib/windows-x86_64, which build/test.sh makes on Windows alone. Such a test is
+'' still RUN -- a compile error or a '-c' passes without the runtime, 32 of them on Linux --
+'' but if it FAILS it is counted as skipped, not failed: off Windows each one failing at its
+'' link buried the failures that mean something. On Windows the directory is the host's own,
+'' so a failure there is a failure. "" when the test can run.
 function MissingRuntime_( byref tc as TestCase ) as string
     for each e_ as string in tc.env
         if left( e_, 12 ) <> "TKO_LIBPATH=" then continue for
