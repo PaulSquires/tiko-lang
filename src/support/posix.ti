@@ -11,6 +11,8 @@
 
 #if defined( __FB_LINUX__ )
     #include once "../../lib/rt/src/inc/sysbind/linux-x86_64-posix.ti"
+#elseif defined( __FB_DARWIN__ )
+    #include once "../../lib/rt/src/inc/sysbind/macos-arm64-posix.ti"
 #else
     #error "support/posix.ti: no posix binding for this host"
 #endif

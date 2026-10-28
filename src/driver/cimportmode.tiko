@@ -33,6 +33,19 @@ private function WriteBytes_( byref path_ as string, byref text as string ) as b
 end function
 
 '' The one hint that fixes each target's commonest failure: a header clang could not find.
+#ifdef __FB_DARWIN__
+private function DarwinSdk_( ) as string
+    dim as string sdk = environ( "TKO_SDKROOT" )
+    if len( sdk ) = 0 then sdk = environ( "SDKROOT" )
+    if len( sdk ) then return sdk
+    dim as string clt = "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"
+    dim as int32 fh = freefile
+    if open( clt & "/SDKSettings.json" for input as #fh ) <> 0 then return ""
+    close #fh
+    return clt
+end function
+#endif
+
 function NotFoundHint( byref ctx as Tko.CompilerContext ) as string
     select case ctx.options.target
     case Tko.TARGET_WINDOWS_X86_64
@@ -67,6 +80,15 @@ sub FillOptions _
         io.copts.Push( ctx.options.cOpts[i] )
     next
     io.csysroot = ctx.options.cSysroot
+#ifdef __FB_DARWIN__
+    '' ON THE MAC, NO -csysroot MEANS THE SDK THE LINK USES (codegen/toolchain.tiko LinkExe):
+    '' TKO_SDKROOT, SDKROOT, then the Command Line Tools'. Homebrew's libclang would otherwise
+    '' read its own built-in SDK, an older one (measured: 15.4 against 26.5, docs/tiko-macos
+    '' FACTS "Spikes"). Only on a Darwin host: the SDK never leaves the Mac.
+    if (len( io.csysroot ) = 0) andalso (ctx.options.target = Tko.TARGET_MACOS_ARM64) then
+        io.csysroot = DarwinSdk_( )
+    end if
+#endif
     io.noMacros = ctx.options.cNoMacros
     io.targetName = Tko.TargetName( ctx.options.target )
     io.triple = td.triple
