@@ -44,10 +44,20 @@
 	#define IOUNLOCK()
 #endif
 
+'' PACKED, AS fbc's IS -- the pointer at offset 2 -- EXCEPT ON DARWIN, where ld64 refuses an
+'' unaligned pointer in arm64 data ('pointer not aligned', docs/tiko-macos M8): there the
+'' compiler emits the record unpacked, the pointer at 8 (codegen/llvmglobal.tiko).
+#ifdef __FB_DARWIN__
+type FB_DATADESC
+	as int16    length
+	as any ptr  item
+end type
+#else
 type FB_DATADESC field = 1
 	as int16    length
 	as any ptr  item
 end type
+#endif
 
 const FB_DATATYPE_LINK = -1
 

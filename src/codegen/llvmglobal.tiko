@@ -149,7 +149,15 @@ private sub EmitGlobal( byref e as EmitCtx, byref g as MirGlobal )
     '' A DATA BLOCK is a packed array of { int16 TYPE; ptr NODE }. PACKED, because the
     '' pair is 2 + 8 bytes with no padding between entries -- an unpacked struct would
     '' align each one to 8 and the runtime walks the block by stride.
+    '' EXCEPT ON MACH-O: ld64 refuses an unaligned pointer in arm64 data -- measured, every
+    '' program with a DATA statement failed to link, "pointer not aligned in '_$data3'+0x16"
+    '' (docs/tiko-macos M8). There the record is unpacked, the pointer at 8, a 16-byte
+    '' stride, and tiko-rt's FB_DATADESC is declared to match (lib/rt/src/data).
     if g.isData then
+        dim as boolean unpacked = (e.tgt->objFormat = OBJ_MACHO)
+        dim as string rty = iif( unpacked, "{ i16, ptr }", "<{ i16, ptr }>" )
+        dim as string lb = iif( unpacked, "{ i16 ", "<{ i16 " )
+        dim as string rb = iif( unpacked, " }", " }>" )
         dim as string body
         for i as int32 = 0 to g.dataCount - 1
             if i > 0 then body += ", "
@@ -163,9 +171,9 @@ private sub EmitGlobal( byref e as EmitCtx, byref g as MirGlobal )
                 end if
                 p = "ptr " & GlobalName( e, e.m->globals[dr].name )
             end if
-            body += "<{ i16, ptr }> <{ i16 " & str( dt ) & ", " & p & " }>"
+            body += rty & " " & lb & str( dt ) & ", " & p & rb
         next
-        e.outp += nm & " = global [" & str( g.dataCount ) & " x <{ i16, ptr }>] [" & _
+        e.outp += nm & " = global [" & str( g.dataCount ) & " x " & rty & "] [" & _
                   body & "], align 8" & chr( 10 )
         return
     end if

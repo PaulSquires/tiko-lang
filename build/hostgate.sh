@@ -30,6 +30,9 @@
 #   HOSTGATE_WK     the work directory (default ${TMPDIR:-/tmp}/hostgate)
 #   RUNTIMEOUT      seconds a program may run (default 180: math/core.bas walks 2^32 floats)
 set -u
+# BYTES, NOT CHARACTERS: macOS tr and sed refuse a program's non-UTF-8 output otherwise
+# ("Illegal byte sequence") and the record is cut short.
+export LC_ALL=C
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
 EXT=; case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) EXT=.exe ;; esac
