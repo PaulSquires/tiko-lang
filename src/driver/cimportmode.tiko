@@ -85,7 +85,7 @@ sub FillOptions _
     '' TKO_SDKROOT, SDKROOT, then the Command Line Tools'. Homebrew's libclang would otherwise
     '' read its own built-in SDK, an older one (measured: 15.4 against 26.5, docs/tiko-macos
     '' FACTS "Spikes"). Only on a Darwin host: the SDK never leaves the Mac.
-    if (len( io.csysroot ) = 0) andalso (ctx.options.target = Tko.TARGET_MACOS_ARM64) then
+    if (len( io.csysroot ) = 0) andalso (Tko.TargetOs( ctx.options.target ) = Tko.OS_DARWIN) then
         io.csysroot = DarwinSdk_( )
     end if
 #endif
