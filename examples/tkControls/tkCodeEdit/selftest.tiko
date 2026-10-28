@@ -347,6 +347,34 @@ sub RunPass( byval fScale as single )
     tkHost_Pump( h )
     tkTest_Check( "CALLTIPCANCEL closes it", tkCodeEdit_CallTipPopup() = 0 )
 
+    ' its border is flat and in its own colours (scintk, 2026-10-28): on a dark tip (#252526, text
+    ' #D4D4D4) every side is the same colour, 15% from the back to the text -- not Scintilla's silver
+    ' top and left and black right and bottom
+    tkCodeEdit_Send( ed, SCI_CALLTIPSETBACK, &h262525 )
+    tkCodeEdit_Send( ed, SCI_CALLTIPSETFORE, &hD4D4D4 )
+    tkCodeEdit_SendText( ed, SCI_CALLTIPSHOW, 4, "foo( a as long, b as string )" )
+    tkHost_Pump( h )
+    tp = tkCodeEdit_CallTipPopup()
+    if tp then
+        dim as long tw, th
+        tkHost_PixelSize( tp, tw, th )
+        tkHost_RenderTo( tp, false )
+        dim as ulong bl = tkTest_PixelAt( tp, 0, th \ 2 ) and &hFFFFFFul
+        dim as ulong bt = tkTest_PixelAt( tp, tw \ 2, 0 ) and &hFFFFFFul
+        dim as ulong br = tkTest_PixelAt( tp, tw - 1, th \ 2 ) and &hFFFFFFul
+        dim as ulong bb = tkTest_PixelAt( tp, tw \ 2, th - 1 ) and &hFFFFFFul
+        dim as long g = (bl shr 8) and &hFF
+        tkTest_Check( "a dark tip's border is flat: every side one colour", (bl = bt) andalso (bl = br) andalso (bl = bb), _
+                      hex( bl ) & " " & hex( bt ) & " " & hex( br ) & " " & hex( bb ) )
+        tkTest_Check( "and between its back and its text, near the back (no white frame)", (g > &h25) andalso (g < &h50), hex( bl ) )
+    else
+        tkTest_Check( "the dark tip opens", false )
+    end if
+    tkCodeEdit_Send( ed, SCI_CALLTIPCANCEL )
+    tkCodeEdit_Send( ed, SCI_CALLTIPSETBACK, &hFFFFFF )
+    tkCodeEdit_Send( ed, SCI_CALLTIPSETFORE, &h808080 )
+    tkHost_Pump( h )
+
     ' ---- the context menu: Scintilla's, as a tkPopupMenu ----
     tkCodeEdit_SetText( ed, "select me" )
     PosPoint( ed, 3, px, py )

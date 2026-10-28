@@ -185,6 +185,11 @@ public:
 		std::unique_ptr<Surface> surf = PlatTk_SurfaceForTarget(target);
 		surf->SetMode(SurfaceMode(CodePage(), false));
 		(void)w; (void)h;
+		// A FLAT BORDER IN THE TIP'S OWN COLOURS, not Scintilla's raised one (silver top and left,
+		// black right and bottom, fixed): on a dark tip the silver read as a white frame (tkEdit,
+		// 2026-10-28). 15% of the way from the tip's back toward its text, whatever the theme.
+		ct.colourLight = ct.colourBG.MixedWith(ct.colourUnSel, 0.15);
+		ct.colourShade = ct.colourLight;
 		ct.PaintCT(surf.get());
 		surf->Release();
 	}
