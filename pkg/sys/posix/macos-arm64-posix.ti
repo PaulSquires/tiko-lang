@@ -221,6 +221,7 @@ const CLOCKS_PER_SEC = 1000000
 '' ---- sysconf
 
 const _SC_PAGESIZE = 29
+const _PC_CASE_SENSITIVE = 11
 const _SC_NPROCESSORS_ONLN = 58
 const _SC_NPROCESSORS_CONF = 57
 const _SC_PHYS_PAGES = 200

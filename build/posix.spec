@@ -282,6 +282,10 @@ CONST( CLOCKS_PER_SEC )
 
 SECTION( "sysconf" )
 CONST( _SC_PAGESIZE )
+/* lib/rt fs/volume: whether a volume is case-sensitive, where the OS can say (Darwin) */
+#ifdef _PC_CASE_SENSITIVE
+CONST( _PC_CASE_SENSITIVE )
+#endif
 CONST( _SC_NPROCESSORS_ONLN )
 CONST( _SC_NPROCESSORS_CONF )
 CONST( _SC_PHYS_PAGES )

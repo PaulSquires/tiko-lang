@@ -39,6 +39,9 @@ end type
 
 extern "c"   '' NON-FBCALL: libc.
 	declare function u_getmntinfo alias "getmntinfo" ( byval mntbufp as struct_statfs ptr ptr, byval flags as int32 ) as int32
+	'' fs/volume.tiko's Darwin branch: the volume a path lives on, and whether it is case-sensitive.
+	declare function u_statfs alias "statfs" ( byval p as zstring ptr, byval st as struct_statfs ptr ) as int32
+	declare function u_pathconf alias "pathconf" ( byval p as zstring ptr, byval name_ as int32 ) as integer
 end extern
 
 private function hParseMountInfo( byval e as FB_FSMOUNT ptr, byval mountpoint as zstring ptr ptr, _
