@@ -19,8 +19,8 @@
 #      the zip adds a staged copy named tkedit, as System32's bsdtar cannot rename with -s);
 #   3b. tars toolchains/tiko-macos ON THE MAC (docs/tiko-macos M9), over ssh to TKO_MAC_HOST
 #      (default 'mac', options in TKO_MAC_SSH_OPTS): bsdtar, owner 0, no extended attributes
-#      or AppleDouble files, 644/755 as above; copied back here. The archive is tiko-macos/
-#      alone -- no tkedit on macOS yet (docs/tiko-macos D-M9-2). --no-mac leaves it out;
+#      or AppleDouble files, 644/755 as above; copied back here. It unpacks to tiko-macos/
+#      and tkedit/ (the Mac's toolchains/tkedit-macos), as the others do. --no-mac leaves it out;
 #   4. writes SHA256SUMS and appends the hashes to a copy of the notes;
 #   5. smoke-tests each archive extracted into an empty directory with no TKO_* variable:
 #      hello.tiko compiled and run, and tkedit/ holds the program at its root with fonts/;
@@ -83,10 +83,13 @@ if [ "$MAC" = "1" ]; then
 cd ~/dev/tiko-lang/toolchains/tiko-macos || exit 2
 grep -q "$SHORT" MANIFEST.txt || exit 3
 grep -q " FAIL" MANIFEST.txt && exit 4
+[ "$TKEDIT" = "1" ] || exit 0
+[ -f ../tkedit-macos/tkedit ] || exit 5
+grep -q "^tkedit  *\.\./tkedit-macos" MANIFEST.txt || exit 6
 exit 0
 EOF
     on_mac "$OUT/mac-check.sh"; rc=$?
-    [ $rc = 0 ] || die "the Mac's toolchains/tiko-macos: none (2), MANIFEST not at $SHORT (3) or a FAIL in it (4) -- rc $rc"
+    [ $rc = 0 ] || die "the Mac's toolchains/tiko-macos: none (2), MANIFEST not at $SHORT (3), a FAIL in it (4), no tkedit-macos/tkedit (5) or no tkedit line (6; or pass --no-tkedit) -- rc $rc"
     note "the Mac's MANIFEST names $SHORT"
 fi
 if [ "$TKEDIT" = "1" ]; then
@@ -142,12 +145,14 @@ if [ "$MAC" = "1" ]; then
 set -e
 rm -rf ~/tkrel-$SHORT && mkdir -p ~/tkrel-$SHORT
 cp -R ~/dev/tiko-lang/toolchains/tiko-macos ~/tkrel-$SHORT/tiko-macos
+[ -z "$TKDIRS" ] || cp -R ~/dev/tiko-lang/toolchains/tkedit-macos ~/tkrel-$SHORT/tkedit
 cd ~/tkrel-$SHORT
-xattr -cr tiko-macos
-find tiko-macos -type f -exec chmod 644 {} +
-find tiko-macos -type d -exec chmod 755 {} +
+xattr -cr tiko-macos $TKDIRS
+find tiko-macos $TKDIRS -type f -exec chmod 644 {} +
+find tiko-macos $TKDIRS -type d -exec chmod 755 {} +
 chmod 755 tiko-macos/bin/tiko
-COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata --uid 0 --gid 0 -czf tiko-macos-arm64-$SHORT.tar.gz tiko-macos
+[ -z "$TKDIRS" ] || chmod 755 tkedit/tkedit
+COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata --uid 0 --gid 0 -czf tiko-macos-arm64-$SHORT.tar.gz tiko-macos $TKDIRS
 EOF
     on_mac "$OUT/tar-macos.sh" || die "the Mac's tar failed"
     scp -q -o BatchMode=yes $MSSH "$MACH:tkrel-$SHORT/tiko-macos-arm64-$SHORT.tar.gz" "$MTGZ" || die "scp of the macOS archive"
@@ -192,6 +197,7 @@ if [ "$MAC" = "1" ]; then
 set -e
 rm -rf ~/tksmoke-$SHORT && mkdir -p ~/tksmoke-$SHORT/home && cd ~/tksmoke-$SHORT
 tar -xzf ~/tkrel-$SHORT/tiko-macos-arm64-$SHORT.tar.gz
+[ -z "$TKDIRS" ] || { test -x tkedit/tkedit && test -d tkedit/fonts && test ! -d tkedit/bin; }
 echo 'print "hello from tiko"' > hello.tiko
 env -i HOME=\$PWD/home PATH=/usr/bin:/bin tiko-macos/bin/tiko hello.tiko -o hello
 ./hello

@@ -883,11 +883,15 @@ if [ "$DO_TKEDIT" = "1" ]; then
     if ! TKO_EDITOR_DIR=/nonexistent sh "$ROOT/build/build.sh" Release --dll >>"$_tklog" 2>&1; then
         _tkfail="tikoParser did not build"
     fi
-    _tkp="$ROOT/bin/parser.dll"
-    [ "$HOST" = "windows" ] || _tkp="$ROOT/bin/parser.so"
+    case $HOST in
+        windows) _tkp="$ROOT/bin/parser.dll" ;;
+        macos)   _tkp="$ROOT/bin/parser.dylib" ;;
+        *)       _tkp="$ROOT/bin/parser.so" ;;
+    esac
     [ -n "$_tkfail" ] || [ -f "$_tkp" ] || _tkfail="no $_tkp after the build"
     # Linux has no SDL3 of its own and the toolchain ships none: tkControls' build-linux-libs.sh
     # builds one, kept (gitignored) in examples/tkControls/linux-lib, linked against and shipped.
+    # macOS links Homebrew's (absolute install names), which the user installs: nothing shipped.
     _tkopts=""
     if [ "$HOST" = "linux" ]; then
         _tklib=${TK_LINUX_LIB:-$ROOT/examples/tkControls/linux-lib}
@@ -909,7 +913,7 @@ if [ "$DO_TKEDIT" = "1" ]; then
     if [ -z "$_tkfail" ]; then
         rm -rf "$TKD"; mkdir -p "$TKD/licences"
         cp -f "$_tkrel/tkedit$EXT" "$TKD/"
-        for f in "$_tkrel"/*.dll "$_tkrel"/*.so "$_tkrel"/*.so.*; do
+        for f in "$_tkrel"/*.dll "$_tkrel"/*.so "$_tkrel"/*.so.* "$_tkrel"/*.dylib; do
             [ -f "$f" ] && cp -f "$f" "$TKD/"
         done
         cp -f "$_tkp" "$TKD/"
@@ -925,12 +929,18 @@ if [ "$DO_TKEDIT" = "1" ]; then
         note "tkedit -> $TKD"
         TKEDIT_STATE="../tkedit-$HOST, built by this compiler (the archive's tkedit/)"
         # --verify: its self-test, compiling with this toolchain. It writes scratch files under
-        # <its folder>/out/, removed after. Off Windows it needs a display (WSLg has one).
+        # <its folder>/out/, removed after. On Linux it needs a display (WSLg has one); macOS's
+        # is the logged-in desktop (over ssh too), and macOS has no timeout(1): perl's alarm.
         if [ "$DO_VERIFY" = "1" ]; then
-            if [ "$HOST" = "windows" ] || [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
+            if [ "$HOST" != "linux" ] || [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
                 note "verifying tkedit: its self-test"
-                _tkres=$( cd "$TKD" && env -u LD_LIBRARY_PATH TKEDIT_TIKO="$OUT/${BINSUB}tiko$EXT" SDL_VIDEO_DRIVER=${SDL_VIDEO_DRIVER:-} \
-                          timeout 600 "./tkedit$EXT" --selftest 2>&1 | grep ' selftest: ' | tail -1 )
+                if [ "$HOST" = "macos" ]; then
+                    _tkres=$( cd "$TKD" && TKEDIT_TIKO="$OUT/${BINSUB}tiko$EXT" \
+                              perl -e 'alarm 600; exec @ARGV' ./tkedit --selftest 2>&1 | grep ' selftest: ' | tail -1 )
+                else
+                    _tkres=$( cd "$TKD" && env -u LD_LIBRARY_PATH TKEDIT_TIKO="$OUT/${BINSUB}tiko$EXT" SDL_VIDEO_DRIVER=${SDL_VIDEO_DRIVER:-} \
+                              timeout 600 "./tkedit$EXT" --selftest 2>&1 | grep ' selftest: ' | tail -1 )
+                fi
                 rm -rf "$TKD/out"
                 if echo "$_tkres" | grep -q ' 0 failed'; then
                     TKEDIT_STATE="$TKEDIT_STATE; self-test: ${_tkres#*selftest: }"
@@ -1012,9 +1022,10 @@ SIZE=$( du -sh "$OUT" | cut -f1 | tr -d ' ' )
         say "Xcode's Command Line Tools REQUIRED ('xcode-select --install'): the"
         say "            macOS SDK and Apple's linker, ld64, which every link uses."
         say "Optional, from Homebrew: openssl@3 for std/tls and std/http, and sdl3"
-        say "            (sdl3_image, sdl3_ttf, sdl3_mixer) for vendor/SDL3."
-        say "A DOWNLOADED ARCHIVE is quarantined by macOS, and its unsigned compiler is"
-        say "            then refused: 'xattr -dr com.apple.quarantine tiko-macos'."
+        say "            (sdl3_image, sdl3_ttf, sdl3_mixer) for vendor/SDL3 -- and for tkedit,"
+        say "            which links Homebrew's sdl3, sdl3_ttf and sdl3_image and ships none."
+        say "A DOWNLOADED ARCHIVE is quarantined by macOS, and its unsigned programs are"
+        say "            then refused: 'xattr -dr com.apple.quarantine tiko-macos tkedit'."
     fi
     say
     say "-- libraries, per target -----------------------------------------------"
