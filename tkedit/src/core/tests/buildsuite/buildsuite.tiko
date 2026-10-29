@@ -334,9 +334,15 @@ private sub SiblingTests( byref c as tally.Checker )
     fs.CreateDirAll( fs.PathJoin( ed, "fonts" ) )
     dim as platform.Os win = platform.Os.Windows, lnx = platform.Os.Linux
     c.Same( build.SiblingCompiler( ed, win ), "", "SiblingCompiler: nothing beside it" )
-    ' tkEdit's own folder is never looked in
+    ' tkEdit's own folder: where a release archive puts it (tiko-lang/, tkedit beside tiko), looked
+    ' in first; removed again for the older side-by-side layout below
     fs.WriteAllText( fs.PathJoin( ed, "tiko.exe" ), "" )
-    c.Same( build.SiblingCompiler( ed, win ), "", "SiblingCompiler: not in tkEdit's own folder" )
+    c.Same( build.SiblingCompiler( ed, win ), fs.PathJoin( ed, "tiko.exe" ), "SiblingCompiler: tkEdit's own folder" )
+    c.Same( build.SiblingCompiler( ed, lnx ), "", "SiblingCompiler: tiko.exe in its folder is not Linux's" )
+    fs.WriteAllText( fs.PathJoin( ed, "tiko" ), "" )
+    c.Same( build.SiblingCompiler( ed, lnx ), fs.PathJoin( ed, "tiko" ), "SiblingCompiler: bin/tiko beside bin/tkedit" )
+    fs.RemoveFile( fs.PathJoin( ed, "tiko" ) )
+    fs.RemoveFile( fs.PathJoin( ed, "tiko.exe" ) )
     ' a folder not named tiko* is looked in too, but after the tiko* ones
     fs.CreateDirAll( fs.PathJoin( root, "aaa" ) )
     fs.WriteAllText( fs.PathJoin( root, "aaa", "tiko.exe" ), "" )

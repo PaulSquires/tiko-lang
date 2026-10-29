@@ -9,24 +9,25 @@
 # WSL, and on the Mac in ~/dev/tiko-lang), at the SAME commit. Then this:
 #
 #   1. refuses unless every toolchain's MANIFEST.txt names the commit (default HEAD);
-#   2. zips toolchains/tiko-windows with C:/Windows/System32/tar.exe (bsdtar) -- Git Bash's
+#   EVERY ARCHIVE HOLDS ONE FOLDER, tiko-lang/, on every OS (author 2026-10-29), with the one-file
+#   tkedit beside the compiler: tiko-lang/tkedit.exe next to tiko.exe; tiko-lang/bin/tkedit next to
+#   bin/tiko; on macOS tiko-lang/bin/tkEdit.app. The archive names are unchanged. (--no-tkedit: the
+#   compiler alone.)
+#   2. zips toolchains/tiko-windows, staged as tiko-lang, with C:/Windows/System32/tar.exe (bsdtar) -- Git Bash's
 #      bare tar.exe is GNU tar, whose '-a -cf x.zip' writes an uncompressed TAR named .zip --
 #      and checks the result is a zip;
 #   3. tars toolchains/tiko-linux under WSL from a copy in ~/tkrel-<sha>, 644 for files and
-#      755 for bin/tiko, owner 0 (tarring from /mnt/c gives every file 777);
-#      both archives carry the editor beside the toolchain: toolchains/tkedit-<host> (made by
-#      package.sh) as tkedit/, so each unpacks to tiko-<host>/ and tkedit/ (--no-tkedit: not;
-#      the zip adds a staged copy named tkedit, as System32's bsdtar cannot rename with -s);
+#      755 for bin/tiko and bin/tkedit, owner 0 (tarring from /mnt/c gives every file 777);
 #   3b. tars toolchains/tiko-macos ON THE MAC (docs/tiko-macos M9), over ssh to TKO_MAC_HOST
 #      (default 'mac', options in TKO_MAC_SSH_OPTS): bsdtar, owner 0, no extended attributes
-#      or AppleDouble files, 644/755 as above; copied back here. It unpacks to tiko-macos/
-#      and tkedit/ (the Mac's toolchains/tkedit-macos), as the others do. --no-mac leaves it out;
+#      or AppleDouble files, 644/755 as above; copied back here. It unpacks to tiko-lang/, as the
+#      others do, tkEdit.app in its bin/. --no-mac leaves it out;
 #   4. writes SHA256SUMS and appends the hashes to a copy of the notes;
 #   5. smoke-tests each archive extracted into an empty directory with no TKO_* variable:
-#      hello.tiko compiled and run, and tkedit/ holds the program alone -- tkedit.exe / tkedit,
-#      or on macOS tkEdit.app, whose signature verifies (tkedit is one file, docs/tkEdit/SINGLE-FILE.md);
+#      hello.tiko compiled and run, tiko-lang/ the archive's only folder, and tkedit beside the
+#      compiler -- on macOS a tkEdit.app whose signature verifies (one file: docs/tkEdit/SINGLE-FILE.md);
 #   6. with --prev <dir> holding the previous release's two archives, prints the files each
-#      archive gained and lost;
+#      archive gained and lost, below the top folder (so an older tiko-windows/ compares as tiko-lang/);
 #   7. with --editor <dir>, mirrors tiko-windows into <dir> (the editor's toolchain copy);
 #   8. with --publish, and only then, 'gh release create toolchain-<short> --target <full sha>'
 #      -- a short sha is HTTP 422 -- with the archives. --latest marks it Latest.
@@ -105,15 +106,15 @@ ZIP=$OUT/tiko-windows-x86_64-$SHORT.zip
 BSDTAR=/c/Windows/System32/tar.exe
 [ -x "$BSDTAR" ] || die "no $BSDTAR (bsdtar) -- the GNU tar in Git Bash cannot write a zip"
 rm -f "$ZIP"
+# EVERY ARCHIVE HOLDS ONE FOLDER, tiko-lang/, whatever the OS (author 2026-10-29), with the one-file
+# tkedit beside the compiler: tiko-lang/tkedit.exe next to tiko.exe. System32's bsdtar has no -s to
+# rename, so tiko-windows is staged under that name in $OUT and archived from there.
+rm -rf "$OUT/stage" && mkdir -p "$OUT/stage" && cp -r "$WIN" "$OUT/stage/tiko-lang" || die "staging tiko-lang"
 if [ "$TKEDIT" = "1" ]; then
-    # tkedit-windows goes in as tkedit/: System32's bsdtar has no -s to rename, so a copy named
-    # tkedit is staged in $OUT and added from there with -C
-    rm -rf "$OUT/stage" && mkdir -p "$OUT/stage" && cp -r "$TKWIN" "$OUT/stage/tkedit" || die "staging tkedit"
-    ( cd toolchains && "$BSDTAR" -a -cf "$ROOT/$ZIP" tiko-windows -C "$ROOT/$OUT/stage" tkedit ) || die "zip failed"
-    rm -rf "$OUT/stage"
-else
-    ( cd toolchains && "$BSDTAR" -a -cf "$ROOT/$ZIP" tiko-windows ) || die "zip failed"
+    cp -f "$TKWIN/tkedit.exe" "$OUT/stage/tiko-lang/" || die "staging tkedit.exe"
 fi
+( cd "$OUT/stage" && "$BSDTAR" -a -cf "$ROOT/$ZIP" tiko-lang ) || die "zip failed"
+rm -rf "$OUT/stage"
 file "$ZIP" | grep -q "Zip archive" || die "$ZIP is not a zip archive"
 note "zip $(du -h "$ZIP" | cut -f1)"
 
@@ -125,14 +126,14 @@ TKDIRS=""
 cat > "$WSLSH" <<EOF
 set -e
 rm -rf ~/tkrel-$SHORT && mkdir -p ~/tkrel-$SHORT
-cp -r "/mnt/c${ROOT#/c}/$LNX" ~/tkrel-$SHORT/tiko-linux
-[ -z "$TKDIRS" ] || cp -a "/mnt/c${ROOT#/c}/$TKLNX" ~/tkrel-$SHORT/tkedit
+cp -r "/mnt/c${ROOT#/c}/$LNX" ~/tkrel-$SHORT/tiko-lang
+[ -z "$TKDIRS" ] || cp -a "/mnt/c${ROOT#/c}/$TKLNX/tkedit" ~/tkrel-$SHORT/tiko-lang/bin/tkedit
 cd ~/tkrel-$SHORT
-find tiko-linux $TKDIRS -type f -exec chmod 644 {} +
-find tiko-linux $TKDIRS -type d -exec chmod 755 {} +
-chmod 755 tiko-linux/bin/tiko
-[ -z "$TKDIRS" ] || chmod 755 tkedit/tkedit
-tar -czf "/mnt/c${ROOT#/c}/$TGZ" --owner=0 --group=0 tiko-linux $TKDIRS
+find tiko-lang -type f -exec chmod 644 {} +
+find tiko-lang -type d -exec chmod 755 {} +
+chmod 755 tiko-lang/bin/tiko
+[ -z "$TKDIRS" ] || chmod 755 tiko-lang/bin/tkedit
+tar -czf "/mnt/c${ROOT#/c}/$TGZ" --owner=0 --group=0 tiko-lang
 EOF
 MSYS_NO_PATHCONV=1 wsl.exe -e sh "/mnt/c${ROOT#/c}/$WSLSH" || die "WSL tar failed"
 [ -s "$TGZ" ] || die "no $TGZ"
@@ -145,15 +146,15 @@ if [ "$MAC" = "1" ]; then
     cat > "$OUT/tar-macos.sh" <<EOF
 set -e
 rm -rf ~/tkrel-$SHORT && mkdir -p ~/tkrel-$SHORT
-cp -R ~/dev/tiko-lang/toolchains/tiko-macos ~/tkrel-$SHORT/tiko-macos
-[ -z "$TKDIRS" ] || cp -R ~/dev/tiko-lang/toolchains/tkedit-macos ~/tkrel-$SHORT/tkedit
+cp -R ~/dev/tiko-lang/toolchains/tiko-macos ~/tkrel-$SHORT/tiko-lang
+[ -z "$TKDIRS" ] || cp -R ~/dev/tiko-lang/toolchains/tkedit-macos/tkEdit.app ~/tkrel-$SHORT/tiko-lang/bin/tkEdit.app
 cd ~/tkrel-$SHORT
-xattr -cr tiko-macos $TKDIRS
-find tiko-macos $TKDIRS -type f -exec chmod 644 {} +
-find tiko-macos $TKDIRS -type d -exec chmod 755 {} +
-chmod 755 tiko-macos/bin/tiko
-[ -z "$TKDIRS" ] || chmod 755 tkedit/tkEdit.app/Contents/MacOS/tkedit
-COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata --uid 0 --gid 0 -czf tiko-macos-arm64-$SHORT.tar.gz tiko-macos $TKDIRS
+xattr -cr tiko-lang
+find tiko-lang -type f -exec chmod 644 {} +
+find tiko-lang -type d -exec chmod 755 {} +
+chmod 755 tiko-lang/bin/tiko
+[ -z "$TKDIRS" ] || chmod 755 tiko-lang/bin/tkEdit.app/Contents/MacOS/tkedit
+COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata --uid 0 --gid 0 -czf tiko-macos-arm64-$SHORT.tar.gz tiko-lang
 EOF
     on_mac "$OUT/tar-macos.sh" || die "the Mac's tar failed"
     scp -q -o BatchMode=yes $MSSH "$MACH:tkrel-$SHORT/tiko-macos-arm64-$SHORT.tar.gz" "$MTGZ" || die "scp of the macOS archive"
@@ -172,20 +173,21 @@ rm -rf "$SMOKE" && mkdir -p "$SMOKE/win"
 printf 'print "hello from tiko"\n' > "$SMOKE/hello.tiko"
 ( cd "$SMOKE/win" && "$BSDTAR" -xf "$ROOT/$ZIP" ) || die "zip does not extract"
 got=$( cd "$SMOKE" && env -u TKO_INCLUDE -u TKO_LIBPATH -u TKO_PKG \
-       win/tiko-windows/tiko.exe hello.tiko -o hello.exe && ./hello.exe ) || die "Windows smoke: $got"
+       win/tiko-lang/tiko.exe hello.tiko -o hello.exe && ./hello.exe ) || die "Windows smoke: $got"
 [ "$got" = "hello from tiko" ] || die "Windows smoke printed '$got'"
+[ "$(ls -A "$SMOKE/win")" = "tiko-lang" ] || die "Windows smoke: the zip holds more than tiko-lang/: $(ls -A "$SMOKE/win" | tr '\n' ' ')"
 if [ "$TKEDIT" = "1" ]; then
-    [ -f "$SMOKE/win/tkedit/tkedit.exe" ] && [ "$(ls -A "$SMOKE/win/tkedit" | wc -l)" = 1 ] \
-        || die "Windows smoke: tkedit/ in the zip is not tkedit.exe alone"
+    [ -f "$SMOKE/win/tiko-lang/tkedit.exe" ] || die "Windows smoke: no tiko-lang/tkedit.exe beside tiko.exe"
 fi
 note "smoke windows-x86_64: ok"
 cat > "$OUT/smoke-linux.sh" <<EOF
 set -e
 rm -rf ~/tksmoke-$SHORT && mkdir -p ~/tksmoke-$SHORT && cd ~/tksmoke-$SHORT
 tar -xzf "/mnt/c${ROOT#/c}/$TGZ"
-[ -z "$TKDIRS" ] || { test -x tkedit/tkedit && test "\$(ls -A tkedit | wc -l)" = 1; }
+test "\$(ls -A)" = "tiko-lang"
+[ -z "$TKDIRS" ] || test -x tiko-lang/bin/tkedit
 printf 'print "hello from tiko"\n' > hello.tiko
-env -u TKO_INCLUDE -u TKO_LIBPATH -u TKO_PKG tiko-linux/bin/tiko hello.tiko -o hello
+env -u TKO_INCLUDE -u TKO_LIBPATH -u TKO_PKG tiko-lang/bin/tiko hello.tiko -o hello
 ./hello
 EOF
 got=$(MSYS_NO_PATHCONV=1 wsl.exe -e sh "/mnt/c${ROOT#/c}/$OUT/smoke-linux.sh" | tr -d '\r') || die "Linux smoke: $got"
@@ -198,9 +200,10 @@ if [ "$MAC" = "1" ]; then
 set -e
 rm -rf ~/tksmoke-$SHORT && mkdir -p ~/tksmoke-$SHORT/home && cd ~/tksmoke-$SHORT
 tar -xzf ~/tkrel-$SHORT/tiko-macos-arm64-$SHORT.tar.gz
-[ -z "$TKDIRS" ] || { test -x tkedit/tkEdit.app/Contents/MacOS/tkedit && test "\$(ls -A tkedit | wc -l)" = 1 && codesign --verify --deep --strict tkedit/tkEdit.app; }
+test "\$(ls -A | grep -v '^home\$')" = "tiko-lang"
+[ -z "$TKDIRS" ] || { test -x tiko-lang/bin/tkEdit.app/Contents/MacOS/tkedit && codesign --verify --deep --strict tiko-lang/bin/tkEdit.app; }
 echo 'print "hello from tiko"' > hello.tiko
-env -i HOME=\$PWD/home PATH=/usr/bin:/bin tiko-macos/bin/tiko hello.tiko -o hello
+env -i HOME=\$PWD/home PATH=/usr/bin:/bin tiko-lang/bin/tiko hello.tiko -o hello
 ./hello
 EOF
     got=$(on_mac "$OUT/smoke-macos.sh") || die "macOS smoke: $got"
@@ -214,8 +217,8 @@ if [ -n "$PREV" ]; then
         p=$(ls "$PREV"/*."$kind" 2>/dev/null | head -1)
         n=$(ls "$OUT"/*."$kind" | head -1)
         [ -n "$p" ] || { note "no previous .$kind in $PREV"; continue; }
-        "$BSDTAR" -tf "$p" | sort > "$OUT/prev.$kind.txt"
-        "$BSDTAR" -tf "$n" | sort > "$OUT/new.$kind.txt"
+        "$BSDTAR" -tf "$p" | sed 's|^[^/]*/||' | sort > "$OUT/prev.$kind.txt"
+        "$BSDTAR" -tf "$n" | sed 's|^[^/]*/||' | sort > "$OUT/new.$kind.txt"
         note ".$kind: +$(comm -13 "$OUT/prev.$kind.txt" "$OUT/new.$kind.txt" | wc -l) files, -$(comm -23 "$OUT/prev.$kind.txt" "$OUT/new.$kind.txt" | wc -l) files (lists in $OUT)"
     done
 fi

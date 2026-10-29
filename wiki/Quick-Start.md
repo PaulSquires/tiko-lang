@@ -4,27 +4,23 @@ tiko is distributed as a **toolchain**: the compiler, its headers, its runtime l
 
 ## What you need
 
-- **A toolchain.** Download the newest release titled *tiko toolchains* from [Releases](https://github.com/PaulSquires/tiko-lang/releases): `tiko-windows-x86_64-<commit>.zip` for Windows, `tiko-linux-x86_64-<commit>.tar.gz` for Linux, `tiko-macos-arm64-<commit>.tar.gz` for macOS on Apple Silicon. Unpack it anywhere; it holds one directory, `tiko-windows/`, `tiko-linux/` or `tiko-macos/`.
+- **A toolchain.** Download the newest release titled *tiko toolchains* from [Releases](https://github.com/PaulSquires/tiko-lang/releases): `tiko-windows-x86_64-<commit>.zip` for Windows, `tiko-linux-x86_64-<commit>.tar.gz` for Linux, `tiko-macos-arm64-<commit>.tar.gz` for macOS on Apple Silicon. Unpack it anywhere; it holds one directory, `tiko-lang/`, on every system.
+- **tkEdit**, the editor, comes in the same directory, beside the compiler: `tiko-lang\tkedit.exe` on Windows, `tiko-lang/bin/tkedit` on Linux, `tiko-lang/bin/tkEdit.app` on macOS. It is one file -- its fonts, themes and libraries are inside it -- and it finds the compiler next to itself.
 - **clang 18 or newer.** It is not bundled: tiko uses it to compile and to link. tiko takes the first it finds of `TKO_CLANG`, then `C:\Program Files\LLVM\bin\clang.exe` on Windows, `/usr/bin/clang` on Linux or `/opt/homebrew/opt/llvm/bin/clang` on macOS, then `clang` on `PATH`.
 
 ## Compile a program
 
 ```bat
-tiko-windows\tiko.exe hello.tiko
+tiko-lang\tiko.exe hello.tiko
 hello.exe
 ```
 
 ```bash
-tiko-linux/bin/tiko hello.tiko
+tiko-lang/bin/tiko hello.tiko
 ./hello
 ```
 
-```bash
-tiko-macos/bin/tiko hello.tiko
-./hello
-```
-
-No flags are needed. tiko finds its headers and libraries relative to its own executable, and the default target is the host's: `windows-x86_64` on Windows, `linux-x86_64` on Linux, `macos-arm64` on macOS.
+The same on Linux and macOS. No flags are needed. tiko finds its headers and libraries relative to its own executable, and the default target is the host's: `windows-x86_64` on Windows, `linux-x86_64` on Linux, `macos-arm64` on macOS.
 
 ## Installing on macOS
 
@@ -35,7 +31,7 @@ tiko runs on Apple Silicon Macs with macOS 13 or newer.
 - **Clear the download quarantine before the first run.** A browser marks what it downloads, and macOS then refuses the unsigned compiler: it hangs rather than failing. Unpack, then:
 
 ```bash
-xattr -dr com.apple.quarantine tiko-macos
+xattr -dr com.apple.quarantine tiko-lang
 ```
 
 An archive fetched with `curl` or `gh release download` is not marked.

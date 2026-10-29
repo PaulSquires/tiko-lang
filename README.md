@@ -247,7 +247,8 @@ downloads it and checks its SHA-256 before unpacking anything.
 looks for it at `C:\Program Files\LLVM\bin\clang.exe`, `/usr/bin/clang` or, on macOS, Homebrew's
 `/opt/homebrew/opt/llvm/bin/clang` (`brew install llvm`), or wherever `TKO_CLANG` points. macOS
 also needs Xcode's Command Line Tools (`xcode-select --install`), and a downloaded archive's
-quarantine cleared before the first run: `xattr -dr com.apple.quarantine tiko-macos`.
+quarantine cleared before the first run: `xattr -dr com.apple.quarantine tiko-lang` (a release
+archive unpacks to `tiko-lang/` on every system, tkEdit beside the compiler).
 
 ```bash
 tiko hello.tiko          # hello.exe on Windows, ./hello on Linux and macOS

@@ -16,7 +16,7 @@
 # The output is toolchains/tiko-windows or toolchains/tiko-linux: what an end user
 # unpacks, as opposed to bin/tiko, which is what build/build.sh produces for
 # developing the compiler. Beside it, toolchains/tkedit-<host>: the editor, ready to
-# run, which a release archive carries as tkedit/.
+# run, which a release archive puts beside the compiler in tiko-lang/ (build/release.sh).
 #
 # ---------------------------------------------------------------- what it is NOT
 #
@@ -856,10 +856,11 @@ fi
 
 # ---------------------------------------------------------------- the editor
 #
-# TKEDIT SHIPS BESIDE THE TOOLCHAIN (the author's order, 2026-10-27): a release archive
-# unpacks to tiko-<host>/ and tkedit/ side by side, and tkedit finds the compiler there by
-# itself (tkedit/src/core/build: SiblingCompiler). Both hosts package into one toolchains/,
-# so the folder is tkedit-<host> here; build/release.sh names it tkedit/ in the archive.
+# TKEDIT SHIPS WITH THE TOOLCHAIN (the author's orders, 2026-10-27 and 2026-10-29): a release
+# archive unpacks to ONE folder, tiko-lang/, with tkedit beside the compiler (tkedit.exe next to
+# tiko.exe, bin/tkedit or bin/tkEdit.app next to bin/tiko), and tkedit finds the compiler in its
+# own folder (tkedit/src/core/build: SiblingCompiler). Here every host packages into one
+# toolchains/, so the editor is staged apart, as tkedit-<host>; build/release.sh puts it in.
 #
 # ONE FILE (docs/tkEdit/SINGLE-FILE.md): tkedit links in SDL, SDL_ttf, SDL_image, scintk and its
 # scanner, and carries its fonts, themes, catalogs, keyword lists and licences inside itself
@@ -947,7 +948,7 @@ PLIST
             _tkexe="$TKD/tkedit$EXT"
         fi
         note "tkedit -> $TKD"
-        TKEDIT_STATE="../tkedit-$HOST, built by this compiler (the archive's tkedit/)"
+        TKEDIT_STATE="../tkedit-$HOST, built by this compiler (the archive puts it beside the compiler)"
         # --verify: its self-test, compiling with this toolchain. It writes scratch files under
         # <its folder>/out/, removed after. On Linux it needs a display (WSLg has one); macOS's
         # is the logged-in desktop (over ssh too), and macOS has no timeout(1): perl's alarm.
