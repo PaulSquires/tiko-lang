@@ -38,6 +38,11 @@ function Pad2( byval n as long ) as string
 end function
 
 ' dd.mm.yyyy, both ways -- a pair that round-trips
+' A popup's pixel size is the wanted one rounded to the window's density grid.
+function OnGrid( byval pop as TK_HOST ptr, byval got as long, byval want as long ) as boolean
+    return abs( got - want ) < pop->fDensity
+end function
+
 sub MyFormat( byval hCtrl as TK_WIDGET ptr, byval pDate as TKDATE ptr, byref sOut as ustring )
     sOut = Pad2( pDate->wDay ) & "." & Pad2( pDate->wMonth ) & "." & pDate->wYear
 end sub
@@ -81,7 +86,7 @@ end sub
 
 ' Type into the focused field: select all, then the text, then Enter.
 sub TypeAndEnter( byval h as TK_HOST ptr, byref s as ustring )
-    tkTest_PushKey( h, SDLK_A, SDL_KMOD_CTRL )
+    tkTest_PushKey( h, SDLK_A, TK_KMOD_PRIMARY )
     if len( s ) then
         tkTest_PushText( h, s )
     else
@@ -199,7 +204,7 @@ sub RunPass( byval fScale as single )
     tkTest_Check( "empty (not allowed) reverts to the last valid text", tkDatePicker_HasDate( c ) andalso (tkTextBox_GetText( tb ) = "20.03.2026") andalso (gChanged = 2) )
     tkDatePicker_SetAllowEmpty( c, true )
     ' focus leaving the field commits too
-    tkTest_PushKey( h, SDLK_A, SDL_KMOD_CTRL )
+    tkTest_PushKey( h, SDLK_A, TK_KMOD_PRIMARY )
     tkTest_PushText( h, "21.03.2026" )
     tkTest_Click( h, tkTest_CX( other ), tkTest_CY( other ) )
     tkDatePicker_GetDate( c, st )
@@ -237,7 +242,9 @@ sub RunPass( byval fScale as single )
         tkTest_Check( "seeded: the selected date's month, the selection", (ny = 2026) andalso (nm = 3) andalso Same( sel, D( 2026, 3, 20 ) ) )
         dim as long cw, ch
         tkCalendar_GetIdealSize( cal, cw, ch )
-        tkTest_Check( "popup = calendar ideal + the hairline frame", (pop->root->cw = cw + 2) andalso (pop->root->ch = ch + 2), pop->root->cw & "x" & pop->root->ch & " cal " & cw & "x" & ch )
+        ' a window is a whole number of SDL units: on a density-2 (Retina) display an odd pixel size
+        ' comes out one pixel larger
+        tkTest_Check( "popup = calendar ideal + the hairline frame", OnGrid( pop, pop->root->cw, cw + 2 ) andalso OnGrid( pop, pop->root->ch, ch + 2 ), pop->root->cw & "x" & pop->root->ch & " cal " & cw & "x" & ch )
         tkTest_Check( "the popup sits below the control", tkDatePicker_GetFooterHandle( c ) = 0 )
         tkTest_Check( "the calendar owns the popup's focus", pop->pFocus = cal )
         tkTest_Check( "seeded: 1 panel, Sunday start", (tkCalendar_GetPanelCount( cal ) = 1) andalso (tkCalendar_GetWeekStart( cal ) = CAL_SUNDAY) )
@@ -302,7 +309,7 @@ sub RunPass( byval fScale as single )
     tkTest_Check( "the band appears on an open calendar, silently", (ft <> 0) andalso tkDatePicker_IsDroppedDown( c ) andalso (gDropOpen = 1) andalso (gDropClose = 0), gOrder )
     if ft then
         tkTest_Check( "the band is FOOTERH tall", ft->ch = tkHost_Scale( h, 30 ) )
-        tkTest_Check( "the popup grew by the band, in place", (pop->root->ch = cal->ch + 2 + ft->ch) andalso (tkDatePicker_GetPopup( c ) = pop), pop->root->ch & " cal " & cal->ch )
+        tkTest_Check( "the popup grew by the band, in place", OnGrid( pop, pop->root->ch, cal->ch + 2 + ft->ch ) andalso (tkDatePicker_GetPopup( c ) = pop), pop->root->ch & " cal " & cal->ch )
         tkTest_Check( "the band draws its caption", tkDatePicker_TestFooterTones( c ) > 2 )
         tkTest_Click( pop, tkTest_CX( ft ), tkTest_CY( ft ) )
         tkTest_PumpFor( h, 30 )

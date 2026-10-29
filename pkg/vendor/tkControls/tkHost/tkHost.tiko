@@ -78,6 +78,16 @@ public const TK_ICON_ALIGN_RIGHT = &hF7A1
 public const TK_ICON_BOLD = &hF7A4
 public const TK_ICON_LIKE = &hF81F
 
+' The command modifier as an SDL_Keymod mask: Cmd on macOS, Ctrl elsewhere. A control's command
+' chords (copy, paste, undo, select all, word moves, add to a selection) test this, never
+' SDL_KMOD_CTRL, so a Mac keyboard drives them with Cmd -- the rule tkCodeEdit (Scintilla's Ctrl)
+' and tkKeys_Primary follow too.
+#if defined( TIKO_OS_MACOS )
+public const TK_KMOD_PRIMARY = SDL_KMOD_GUI
+#else
+public const TK_KMOD_PRIMARY = SDL_KMOD_CTRL
+#endif
+
 ' Where the bundled fonts are: the program's own directory, with its separator.
 public function tkHost_FontDir() as ustring
     dim as const zstring ptr base_ = SDL_GetBasePath()

@@ -8,8 +8,10 @@
 using tkHost
 using tkPaint
 
-#ifdef TIKO_OS_LINUX
+#if defined( TIKO_OS_LINUX )
     public const TK_TEST_FONTDIR = "/mnt/c/Windows/Fonts/"
+#elseif defined( TIKO_OS_MACOS )
+    public const TK_TEST_FONTDIR = "/System/Library/Fonts/"
 #else
     public const TK_TEST_FONTDIR = "C:\Windows\Fonts\"
 #endif

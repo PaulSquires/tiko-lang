@@ -1,6 +1,7 @@
 ' tkFontList self-test: the Windows fonts folder (reached through /mnt/c under WSL) has known
 ' faces -- Segoe UI, Consolas and its bold, Cascadia Mono, the MS Gothic collection -- and the
-' platform's own folders are scanned too.
+' platform's own folders are scanned too. On macOS the same claims are made of
+' /System/Library/Fonts: Helvetica, Menlo, Courier New and its bold, the Heiti collection.
 '
 '   selftest            exit code = number of failures
 #import "std/containers"
@@ -11,6 +12,28 @@ using tkFontList
 using tkTest
 using tkHost
 
+#if defined( TIKO_OS_MACOS )
+const UI_FAMILY = "Helvetica"
+const MONO_1 = "Menlo"
+const MONO_2 = "Courier New"
+const PAIR_FAMILY = "Courier New"
+const PAIR_REGULAR = "courier new.ttf"
+const PAIR_BOLD = "courier new bold.ttf"
+const TTC_1 = "Heiti SC", TTC_1_TAIL = "stheiti light.ttc|heiti sc"
+const TTC_2 = "Heiti TC", TTC_2_TAIL = "stheiti light.ttc|heiti tc"
+const NO_BOLD = "Hiragino Maru Gothic Pro"
+#else
+const UI_FAMILY = "Segoe UI"
+const MONO_1 = "Consolas"
+const MONO_2 = "Cascadia Mono"
+const PAIR_FAMILY = "Consolas"
+const PAIR_REGULAR = "consola.ttf"
+const PAIR_BOLD = "consolab.ttf"
+const TTC_1 = "MS Gothic", TTC_1_TAIL = "msgothic.ttc|ms gothic"
+const TTC_2 = "MS UI Gothic", TTC_2_TAIL = "msgothic.ttc|ms ui gothic"
+const NO_BOLD = "MS UI Gothic"
+#endif
+
 if tkTest_Init() = false then end 99
 tkTest_Begin( "fonts" )
 dim as string winDir = left( TK_TEST_FONTDIR, len( TK_TEST_FONTDIR ) - 1 )
@@ -20,21 +43,21 @@ tkTest_Check( "a fonts folder has faces", n > 50, str( n ) )
 dim as Array( of string ) all = tkFontList_Families()
 dim as Array( of string ) mono = tkFontList_Families( true )
 tkTest_Check( "families are fewer than faces", (all.Count() > 10) andalso (all.Count() < n) )
-tkTest_Check( "Segoe UI is a family", IndexOf( all, "Segoe UI" ) >= 0 )
-tkTest_Check( "Consolas is fixed pitch", IndexOf( mono, "Consolas" ) >= 0 )
-tkTest_Check( "Cascadia Mono is fixed pitch", IndexOf( mono, "Cascadia Mono" ) >= 0 )
-tkTest_Check( "Segoe UI is not", IndexOf( mono, "Segoe UI" ) < 0 )
+tkTest_Check( UI_FAMILY & " is a family", IndexOf( all, UI_FAMILY ) >= 0 )
+tkTest_Check( MONO_1 & " is fixed pitch", IndexOf( mono, MONO_1 ) >= 0 )
+tkTest_Check( MONO_2 & " is fixed pitch", IndexOf( mono, MONO_2 ) >= 0 )
+tkTest_Check( UI_FAMILY & " is not", IndexOf( mono, UI_FAMILY ) < 0 )
 dim as boolean sorted = true
 for i as long = 1 to all.Count() - 1
     if all.At( i - 1 ) > all.At( i ) then sorted = false
 next
 tkTest_Check( "families come sorted", sorted )
-dim as string fReg = lcase( tkFontList_Find( "Consolas" ) ), fBold = lcase( tkFontList_Find( "consolas", true ) )
-tkTest_Check( "Consolas regular is consola.ttf", right( fReg, 11 ) = "consola.ttf", fReg )
-tkTest_Check( "Consolas bold is consolab.ttf (case-insensitive family)", right( fBold, 12 ) = "consolab.ttf", fBold )
-dim as string g1 = tkFontList_Find( "MS Gothic" ), g2 = tkFontList_Find( "MS UI Gothic" )
-tkTest_Check( "a .ttc face is path|family", (lcase( right( g1, 22 ) ) = "msgothic.ttc|ms gothic") andalso (lcase( right( g2, 25 ) ) = "msgothic.ttc|ms ui gothic"), g1 & " / " & g2 )
-tkTest_Check( "a missing bold falls back to regular", lcase( tkFontList_Find( "MS UI Gothic", true ) ) = lcase( g2 ) )
+dim as string fReg = lcase( tkFontList_Find( PAIR_FAMILY ) ), fBold = lcase( tkFontList_Find( lcase( PAIR_FAMILY ), true ) )
+tkTest_Check( PAIR_FAMILY & " regular is " & PAIR_REGULAR, right( fReg, len( PAIR_REGULAR ) + 1 ) = "/" & PAIR_REGULAR orelse right( fReg, len( PAIR_REGULAR ) + 1 ) = "\" & PAIR_REGULAR, fReg )
+tkTest_Check( PAIR_FAMILY & " bold is " & PAIR_BOLD & " (case-insensitive family)", right( fBold, len( PAIR_BOLD ) ) = PAIR_BOLD, fBold )
+dim as string g1 = tkFontList_Find( TTC_1 ), g2 = tkFontList_Find( TTC_2 )
+tkTest_Check( "a .ttc face is path|family", (lcase( right( g1, len( TTC_1_TAIL ) ) ) = TTC_1_TAIL) andalso (lcase( right( g2, len( TTC_2_TAIL ) ) ) = TTC_2_TAIL), g1 & " / " & g2 )
+tkTest_Check( "a missing bold falls back to regular", lcase( tkFontList_Find( NO_BOLD, true ) ) = lcase( tkFontList_Find( NO_BOLD ) ) )
 tkTest_Check( "an unknown family is empty", tkFontList_Find( "No Such Family" ) = "" )
 ' the platform's own folders
 dim as long nSys = tkFontList_Scan( "" )

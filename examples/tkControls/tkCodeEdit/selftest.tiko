@@ -15,6 +15,20 @@ using tkTest
 using tkHost
 using tkPaint
 
+' The system faces the font checks use: a regular + bold file pair, and a CJK collection
+' (a .ttc) with its family.
+#if defined( TIKO_OS_MACOS )
+const FONT_REGULAR = TK_TEST_FONTDIR & "Supplemental/Courier New.ttf"
+const FONT_BOLD = TK_TEST_FONTDIR & "Supplemental/Courier New Bold.ttf"
+const FONT_CJK = TK_TEST_FONTDIR & "Hiragino Sans GB.ttc"
+const FONT_CJK_FAMILY = "Hiragino Sans GB"
+#else
+const FONT_REGULAR = TK_TEST_FONTDIR & "consola.ttf"
+const FONT_BOLD = TK_TEST_FONTDIR & "consolab.ttf"
+const FONT_CJK = TK_TEST_FONTDIR & "msgothic.ttc"
+const FONT_CJK_FAMILY = "MS Gothic"
+#endif
+
 dim shared as long gModified, gCharAdded, gUpdateUI, gTipClicks, gScaleCalls, gMenuCalls, gMenuX
 dim shared as string gGate              ' the gate's numbers, printed at the end
 dim shared as string gRendererName
@@ -132,28 +146,28 @@ sub RunPass( byval fScale as single )
     tkTest_Check( "End moves the caret", tkCodeEdit_Send( ed, SCI_GETCURRENTPOS ) = 8 )
     tkTest_PushKey( h, SDLK_BACKSPACE )
     tkTest_Check( "Backspace deletes", tkCodeEdit_GetText( ed ) = "abchell" )
-    tkTest_PushKey( h, SDLK_Z, SDL_KMOD_CTRL )
+    tkTest_PushKey( h, SDLK_Z, TK_KMOD_PRIMARY )
     tkTest_Check( "Ctrl+Z undoes", tkCodeEdit_GetText( ed ) = "abchello", tkCodeEdit_GetText( ed ) )
     tkTest_PushKey( h, SDLK_RETURN )
     tkTest_Check( "Enter inserts a line", tkCodeEdit_Send( ed, SCI_GETLINECOUNT ) = 2 )
-    tkTest_PushKey( h, SDLK_A, SDL_KMOD_CTRL )
+    tkTest_PushKey( h, SDLK_A, TK_KMOD_PRIMARY )
     tkTest_Check( "Ctrl+A selects all", (tkCodeEdit_Send( ed, SCI_GETSELECTIONSTART ) = 0) andalso _
                   (tkCodeEdit_Send( ed, SCI_GETSELECTIONEND ) = tkCodeEdit_Send( ed, SCI_GETLENGTH )) )
     ' a key Scintilla does not map bubbles on (the application's accelerator)
     dim as ustring sBefore = tkCodeEdit_GetText( ed )
-    tkTest_PushKey( h, SDLK_B, SDL_KMOD_CTRL )
+    tkTest_PushKey( h, SDLK_B, TK_KMOD_PRIMARY )
     tkTest_Check( "Ctrl+B changes nothing (not in Scintilla's key map)", tkCodeEdit_GetText( ed ) = sBefore )
 
     ' ---- the clipboard: the desktop's, through tkHost ----
     tkCodeEdit_SetText( ed, "copy me" )
     tkCodeEdit_Send( ed, SCI_SELECTALL )
-    tkTest_PushKey( h, SDLK_C, SDL_KMOD_CTRL )
+    tkTest_PushKey( h, SDLK_C, TK_KMOD_PRIMARY )
     tkTest_Check( "Ctrl+C reaches the desktop clipboard", tkHost_GetClipboardText() = "copy me", tkHost_GetClipboardText() )
     tkHost_SetClipboardText( "pasted" )
     tkCodeEdit_Send( ed, SCI_DOCUMENTEND )
-    tkTest_PushKey( h, SDLK_V, SDL_KMOD_CTRL )
+    tkTest_PushKey( h, SDLK_V, TK_KMOD_PRIMARY )
     tkTest_Check( "Ctrl+V pastes from it", tkCodeEdit_GetText( ed ) = "copy mepasted", tkCodeEdit_GetText( ed ) )
-    tkTest_PushKey( h, SDLK_Z, SDL_KMOD_CTRL )
+    tkTest_PushKey( h, SDLK_Z, TK_KMOD_PRIMARY )
     tkTest_Check( "one Ctrl+Z undoes one paste", tkCodeEdit_GetText( ed ) = "copy me", tkCodeEdit_GetText( ed ) )
 
     ' ---- the tiko lexer ----
@@ -488,7 +502,7 @@ sub RunPass( byval fScale as single )
     PosPoint( ed, 1, px, py )
     tkTest_Click( h, px, py )
     PosPoint( ed, 9, px, py )
-    SDL_SetModState( SDL_KMOD_CTRL )
+    SDL_SetModState( TK_KMOD_PRIMARY )
     tkTest_Click( h, px, py )
     SDL_SetModState( SDL_KMOD_NONE )
     tkTest_Check( "Ctrl+click adds a caret", tkCodeEdit_Send( ed, SCI_GETSELECTIONS ) = 2, str( tkCodeEdit_Send( ed, SCI_GETSELECTIONS ) ) )
@@ -521,7 +535,7 @@ sub RunPass( byval fScale as single )
     tkCodeEdit_Send( ed, SCI_SETMULTIPLESELECTION, 0 )
 
     ' ---- faces: a family maps to files, bold is its own file ----
-    tkCodeEdit_SetFontFace( "TestFace", TK_TEST_FONTDIR & "consola.ttf", TK_TEST_FONTDIR & "consolab.ttf" )
+    tkCodeEdit_SetFontFace( "TestFace", FONT_REGULAR, FONT_BOLD )
     tkCodeEdit_SendText( ed, SCI_STYLESETFONT, STYLE_DEFAULT, "TestFace" )
     tkCodeEdit_Send( ed, SCI_STYLECLEARALL )
     tkCodeEdit_Send( ed, SCI_STYLESETBOLD, SCE_B_KEYWORD, 1 )
@@ -543,14 +557,14 @@ sub RunPass( byval fScale as single )
     tkTest_Check( "an unknown family falls back to the default file", Ink( h, xa, a.top, xb - xa, lh ) > 0 )
     tkCodeEdit_SetFont( ed, sMono, 10 )
 
-    ' ---- fallback: a CJK glyph Cascadia lacks, from MS Gothic (face of a .ttc) ----
-    tkCodeEdit_SetFallbackFonts( TK_TEST_FONTDIR & "msgothic.ttc|MS Gothic" )
+    ' ---- fallback: a CJK glyph Cascadia lacks, from a CJK face of a .ttc ----
+    tkCodeEdit_SetFallbackFonts( FONT_CJK & "|" & FONT_CJK_FAMILY )
     dim as ustring uJa = wchr( &h65E5 ) & "a"
     dim as string sJa = uJa
     tkCodeEdit_MeasureWidths( sMono, px10, sJa, p64() )
     dim as TTF_Font ptr fo2 = TTF_OpenFont( strptr( sMono ), px10 )
     dim as SDL_PropertiesID pr = SDL_CreateProperties()
-    dim as string sGothic = TK_TEST_FONTDIR & "msgothic.ttc"
+    dim as string sGothic = FONT_CJK
     SDL_SetStringProperty( pr, TTF_PROP_FONT_CREATE_FILENAME_STRING, strptr( sGothic ) )
     SDL_SetFloatProperty( pr, TTF_PROP_FONT_CREATE_SIZE_FLOAT, px10 )
     dim as TTF_Font ptr fg = TTF_OpenFontWithProperties( pr )
