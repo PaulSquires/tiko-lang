@@ -3,6 +3,8 @@
     const TEMP_VAR = "TEMP"
 #elseif defined( __FB_LINUX__ )
     const TEMP_VAR = "TMPDIR"
+#elseif defined( __FB_DARWIN__ )
+    const TEMP_VAR = "TMPDIR"
 #else
     #error "ex15-03: this platform is not supported"
 #endif

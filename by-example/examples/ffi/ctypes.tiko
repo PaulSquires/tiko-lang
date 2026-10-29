@@ -16,3 +16,6 @@ print "wchar_t   wstring"; sizeof( wstring * 1 )
 #ifdef __FB_LINUX__
     print "built for Linux"
 #endif
+#ifdef __FB_DARWIN__
+    print "built for macOS"
+#endif

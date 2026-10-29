@@ -29,4 +29,4 @@ print local_.ToString( ), local_.Equals( net.ParseSocketAddress( "127.0.0.1:8080
 
 '' A name is looked up; an address written as text comes back as itself.
 var r = net.Resolve( "127.0.0.1", 80 )
-print r.Value( ).Count( ), r.Value( ).items( 0 ).ToString( )
+print r.Value( ).Count( ), r.Value( )[ 0 ].ToString( )

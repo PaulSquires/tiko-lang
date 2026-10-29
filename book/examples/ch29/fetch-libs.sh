@@ -3,6 +3,9 @@
 #
 #   bash fetch-libs.sh          on Windows (Git Bash): the windows-x86_64 files
 #                               on Linux:              the linux-x86_64 files
+#                               on macOS:              the macos-arm64 files -- SQLite only:
+#                               raylib, GLFW and SDL link Apple's frameworks, which tiko
+#                               cannot link yet, so their listings are Windows and Linux
 #
 # Run it once on each platform you build for; both can share one tree, because
 # every library file carries its target in its name. Nothing it writes is
@@ -28,6 +31,7 @@ SDL_VER=3.4.18
 case "$(uname -s)" in
   MINGW*|MSYS*) target=windows_x86_64 ;;
   Linux)        target=linux_x86_64 ;;
+  Darwin)       target=macos_arm64 ;;
   *) echo "fetch-libs: unsupported platform $(uname -s)" >&2; exit 1 ;;
 esac
 
@@ -37,7 +41,12 @@ mkdir -p "$dl" vendor/sqlite vendor/raylib vendor/glfw vendor/sdl3
 fetch() { # fetch <url> <sha256>: download once into vendor/.downloads, verify
   local url="$1" sum="$2" file="$dl/${1##*/}"
   [[ -f "$file" ]] || curl -fsSL -o "$file" "$url"
-  echo "$sum *$file" | sha256sum -c --quiet - || { rm -f "$file"; exit 1; }
+  # macOS has no sha256sum; its shasum checks the same line.
+  if command -v sha256sum > /dev/null; then
+    echo "$sum *$file" | sha256sum -c --quiet - || { rm -f "$file"; exit 1; }
+  else
+    echo "$sum *$file" | shasum -a 256 -c --quiet - || { rm -f "$file"; exit 1; }
+  fi
   printf '%s\n' "$file"
 }
 
@@ -169,8 +178,28 @@ linux() {
   cp -L "$b/sdl/libSDL3.so.0" libSDL3.so.0
 }
 
+# ------------------------------------------------------------------ macOS
+macos() {
+  local a s b
+  b="${TMPDIR:-/tmp}/tiko-book-ch29"; mkdir -p "$b"
+
+  echo "== SQLite $SQLITE_VER"
+  a="$(unpack "$(fetch https://sqlite.org/2026/sqlite-autoconf-$SQLITE_VER.tar.gz \
+      134ec0802dda5795816e25d25872d20b312cb3973438c49b30bc40b7705ea9ed)")"
+  s="$a/sqlite-autoconf-$SQLITE_VER"
+  cp "$s/sqlite3.h" vendor/sqlite/
+  clang -O2 -c -o "$b/sqlite3.o" "$s/sqlite3.c"
+  rm -f vendor/sqlite/sqlite3-static_$target.a
+  ar rcs vendor/sqlite/sqlite3-static_$target.a "$b/sqlite3.o"
+  # The install name is the name the program will look for when it starts.
+  clang -dynamiclib -install_name @rpath/libsqlite3.0.dylib \
+      -o vendor/sqlite/sqlite3_$target.dylib "$b/sqlite3.o"
+  cp vendor/sqlite/sqlite3_$target.dylib libsqlite3.0.dylib
+}
+
 case "$target" in
   windows_x86_64) windows ;;
   linux_x86_64)   linux ;;
+  macos_arm64)    macos ;;
 esac
 echo "fetch-libs: done for $target"

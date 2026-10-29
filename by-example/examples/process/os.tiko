@@ -4,9 +4,9 @@
 
 '' Every argument, including an empty one.
 dim args as containers.Array( of ustring ) = os.Args( )
-print "arguments:"; args.num - 1
-for i as int32 = 1 to args.num - 1
-    print "  ["; args.items( i ); "]"
+print "arguments:"; args.Count( ) - 1
+for i as int32 = 1 to args.Count( ) - 1
+    print "  ["; args[ i ]; "]"
 next
 
 '' Not set, and set to nothing, are different answers.
@@ -25,4 +25,6 @@ os.UnsetEnv( "BYEXAMPLE_NAME" )
 print "after unset: ["; os.ExpandEnv( "$BYEXAMPLE_NAME" ); "]"
 
 '' The system it runs on.
-print "os known? "; cbool( os.OS_NAME = "windows" orelse os.OS_NAME = "linux" ); ", arch: "; os.ARCH_NAME
+dim as boolean known = cbool( os.OS_NAME = "windows" orelse _
+                              os.OS_NAME = "linux" orelse os.OS_NAME = "macos" )
+print "os known? "; known; ", arch: "; os.ARCH_NAME

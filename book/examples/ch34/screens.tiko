@@ -63,7 +63,7 @@ Dump( scr )
 
 '' Back to the date: Tab round to it, rub out the 32, save again.
 Press( app, tui.TUIKEY_TAB )
-Press( app, tui.TUIKEY_END_ )
+Press( app, tui.TUIKEY_END )
 Press( app, tui.TUIKEY_BACKSPACE ) : Press( app, tui.TUIKEY_BACKSPACE )
 TypeText( app, "13" )
 Press( app, tui.TUIKEY_ENTER )
