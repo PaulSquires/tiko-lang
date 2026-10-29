@@ -11,7 +11,8 @@
 ' to tkHost as "mem:<file>" (tkHost_AddFontData), before the first window or font.
 '
 ' A NEW DATA FILE is one '#embed' line and one table row here; the file stays where it is in
-' tkedit/ (or pkg/ for a library's licence) and is a build dependency like a source file.
+' tkedit/ and is a build dependency like a source file. Every path stays inside tkedit/ (a library's
+' licence is copied into tkedit/licences), so a copy of tkedit/ alone builds, as the Linux battery's does.
 ' keywords/extra.txt is not here: it ships empty (an empty file cannot be embedded) and holds the
 ' user's own words, so only a copy in the config folder counts (mainwin.LoadKeywords).
 #module "assets"
@@ -42,10 +43,10 @@ using tkHost
 #embed Asset20 "../../../licences/HarfBuzz.txt"  ' licences/HarfBuzz.txt
 #embed Asset21 "../../../licences/SDL3_ttf.txt"  ' licences/SDL3_ttf.txt
 #embed Asset22 "../../../licences/SDL3_image.txt"  ' licences/SDL3_image.txt
-#embed Asset23 "../../../../pkg/vendor/SDL3/LICENSE"  ' licences/SDL3.txt
-#embed Asset24 "../../../../pkg/vendor/tkControls/LICENSE"  ' licences/MPL-2.0.txt
-#embed Asset25 "../../../../pkg/vendor/tkControls/tkCodeEdit/scintk/vendor/scintilla/License.txt"  ' licences/Scintilla.txt
-#embed Asset26 "../../../../pkg/vendor/tkControls/tkCodeEdit/scintk/vendor/lexilla/License.txt"  ' licences/Lexilla.txt
+#embed Asset23 "../../../licences/SDL3.txt"  ' licences/SDL3.txt
+#embed Asset24 "../../../licences/MPL-2.0.txt"  ' licences/MPL-2.0.txt
+#embed Asset25 "../../../licences/Scintilla.txt"  ' licences/Scintilla.txt
+#embed Asset26 "../../../licences/Lexilla.txt"  ' licences/Lexilla.txt
 
 ' Every bundled file and font, once, first thing in the program.
 public sub Register( )
