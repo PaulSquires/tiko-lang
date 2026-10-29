@@ -30,5 +30,6 @@ seealso	Category-Filesystem	Filesystem library guide
 seealso	Category-File-Streams	File streams guide
 seealso	Category-File-I-O-Functions	File I/O functions
 seealso	Category-Config	Config: INI and TOML files
+seealso	Category-Embed	Embed: a file's bytes inside the program
 seealso	Category-Result	Result
 seealso	Category-Operating-System-Functions	Operating system functions (Kill, FileExists, Dir)

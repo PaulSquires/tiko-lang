@@ -38,6 +38,8 @@ Each of these is a diagnostic, not a silent difference:
 
 **A `"""` that ends its line opens a [block string](Category-Block-Strings) in tiko.** In fbc it is a string missing its closing quote: warning 12, and the value is one `"`. tiko reads every line up to one that starts with `"""` as the string's text instead, or reports `TKO0207` when none follows. This is the only spelling whose meaning changed: `"""abc"""` is still the five-character `"abc"` and `""""` is still one quote, in both compilers. No line of the vendored fbc suite (its 2,709 `.bas` files and 41 `.bi` files) or of `pkg/` opens one.
 
+**`#embed` at the start of a line is a [directive](Category-Embed) in tiko.** In fbc it is `error 17: Syntax error`. Nothing else changes meaning: `embed` is an ordinary name in both compilers, and `#embed` in the middle of a line is a file number in both, so `print #embed, "x"` writes to file number `embed`.
+
 **tiko accepts some programs that fbc rejects.** What was confirmed:
 
 | Program | fbc 1.20 | tiko |
