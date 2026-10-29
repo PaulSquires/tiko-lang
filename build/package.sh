@@ -962,6 +962,10 @@ PLIST
                               timeout 600 "$_tkexe" --selftest 2>&1 | grep ' selftest: ' | tail -1 )
                 fi
                 rm -rf "$TKD/out"
+                # NOTHING MAY WRITE INSIDE THE BUNDLE: one added file and the signature fails
+                if [ "$HOST" = "macos" ] && ! codesign --verify --deep --strict "$TKD/tkEdit.app" >>"$_tklog" 2>&1; then
+                    _tkres="the self-test wrote inside tkEdit.app: codesign --verify fails"
+                fi
                 if echo "$_tkres" | grep -q ' 0 failed'; then
                     TKEDIT_STATE="$TKEDIT_STATE; self-test: ${_tkres#*selftest: }"
                     VERIFY_LINES="$VERIFY_LINES

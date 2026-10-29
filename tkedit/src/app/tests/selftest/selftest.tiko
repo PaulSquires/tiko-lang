@@ -110,9 +110,10 @@ private function StripGlyphsDrawn( byref mw as mainwin.Window ) as boolean
     return TTF_FontHasGlyph( g, &hE70E ) andalso TTF_FontHasGlyph( g, &hE70D ) andalso TTF_FontHasGlyph( g, &hE711 )
 end function
 
-' A fresh, empty config folder for one pass.
+' A fresh, empty config folder for one pass. Under the install folder (platform.InstallDir), never
+' inside a macOS bundle: a file written in tkEdit.app breaks its signature.
 private function FreshConfig( ) as ustring
-    dim as ustring res = platform.ResourceDir( ).ValueOr( platform.ExeDir( ) )
+    dim as ustring res = platform.ResourceDir( ).ValueOr( platform.InstallDir( ) )
     dim as ustring cfg = fs.PathJoin( res, "out", "selftest", "config" )
     fs.RemoveDirAll( cfg )
     fs.CreateDirAll( cfg )
@@ -636,7 +637,7 @@ private function ScriptedPick( byval f as TK_FORM ptr, byval kind as long, byref
 end function
 
 private function Files( ) as ustring
-    dim as ustring res = platform.ResourceDir( ).ValueOr( platform.ExeDir( ) )
+    dim as ustring res = platform.ResourceDir( ).ValueOr( platform.InstallDir( ) )
     dim as ustring d = fs.PathJoin( res, "out", "selftest", "files" )
     fs.RemoveDirAll( d )
     fs.CreateDirAll( d )
