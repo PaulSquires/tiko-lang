@@ -29,7 +29,7 @@ The bound name may then be used in place of a string literal in a
 | --- | --- |
 | `name` | An identifier, visible to the end of the compilation unit and inherited by including files |
 | `static` / `dynamic` | Required. Constrains which file extensions are eligible; a file of the other kind is an error, never a fallback |
-| `"spec"` | `"system:foo"` passes `foo` to the linker as `-lfoo`; anything else is a library base name resolved relative to this file, or an absolute path |
+| `"spec"` | `"system:foo"` passes `foo` to the linker as `-lfoo`; `"framework:Foo"` links the macOS framework `Foo` (`-framework Foo`) on macos-arm64 and is ignored on every other target; anything else is a library base name resolved relative to this file, or an absolute path |
 
 ## Resolution
 
