@@ -9,19 +9,32 @@
 '' that SHOULD be: a literal newline inside a constant is legal and unreadable, and a
 '' stray quote or backslash ends or corrupts the string. Escaping conservatively costs
 '' nothing and removes the whole question.
+''
+'' SIZED ONCE AND FILLED IN PLACE: '\XX' is at most three bytes per input byte. A '#embed'
+'' hands this megabytes (docs/tiko-embed RFC-0001), and the old append of one byte at a time
+'' was only ever fine for the short images that were all it saw before.
 private function CString( byref b as string ) as string
-    dim as string r = "c"""
+    dim as string hx = "0123456789ABCDEF"
+    dim as string r = space( len( b ) * 3 + 3 )
+    dim as ubyte ptr o = cast( ubyte ptr, strptr( r ) )
+    o[0] = 99 : o[1] = 34      '' c"
+    dim as int32 n = 2
     for i as int32 = 0 to len( b ) - 1
         dim as int32 ch = b[i]
         dim as boolean plain = (ch >= 32) andalso (ch <= 126)
         if (ch = 34) orelse (ch = 92) then plain = false
         if plain then
-            r += chr( ch )
+            o[n] = ch
+            n += 1
         else
-            r += "\" & hex( ch, 2 )
+            o[n] = 92
+            o[n + 1] = hx[ch shr 4]
+            o[n + 2] = hx[ch and 15]
+            n += 3
         end if
     next
-    return r & """"
+    o[n] = 34
+    return left( r, n + 1 )
 end function
 
 '' A wide literal's code units, as an array of the target's wchar. THE WIDTH IS THE
@@ -364,6 +377,6 @@ sub EmitVarGlobal _
 
     dim as string gdbg = ""
     if (e.dbg <> nullptr) andalso (g.isExternal = false) then gdbg = DbgGlobal( *e.dbg, g.sym, e.names->Spelling( g.name ), g.isInternal )
-    e.outp += nm & " = " & VarLinkage( e, g ) & "global " & ty & " " & init_ & _
+    e.outp += nm & " = " & VarLinkage( e, g ) & iif( g.readOnly, "constant ", "global " ) & ty & " " & init_ & _
               ", align " & str( AlignOf( e, vt, g.size ) ) & gdbg & chr( 10 )
 end sub

@@ -1,0 +1,7 @@
+'' AN EXTERN CONST ARRAY IS NOT TKO0692: 'extern a( 0 to 3 ) as const ubyte' has nothing to
+'' initialise. A module's interface writes exactly this for a public const array, so every
+'' importer of one -- every public '#embed' (docs/tiko-embed RFC-0001) -- was refused.
+'' TEST: cli
+'' ARGS: --frontend-only tests/symbols/src/extern-const-array.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-MAX-DIAG: 0

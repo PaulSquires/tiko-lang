@@ -1446,6 +1446,7 @@ function Lower _
     dim as Ctx c
     c.srcMgr = inp.fe.src
     c.diags = inp.fe.diags : c.moduleFile = inp.moduleFile
+    c.embedLocs = inp.embedLocs : c.embedPaths = inp.embedPaths : c.embedSizes = inp.embedSizes
     c.udts = inp.udts
     c.vts = inp.vts
     c.ast = inp.fe.ast

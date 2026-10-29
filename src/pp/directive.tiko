@@ -86,9 +86,7 @@ declare sub PpModTki( byref e as PpEngine, byval at as SourceLoc )
 declare sub PpModHermNote( byref e as PpEngine, byval from as FileId, byval got as FileId )
 declare sub PpModHermSkip( byref e as PpEngine, byval got as FileId )
 
-'' Resolution order: the INCLUDING file's directory, then the working directory, then
-'' the -i paths and the toolchain's inc/ -- fbc's order, measured (T97). The first is
-'' what makes a library's internal includes work wherever it is used from.
+'' Resolution order: PpQuotedCandidates_ (ppforeignlib.tiko), the first that loads.
 private sub PpInclude( byref e as PpEngine, byval at as SourceLoc, byval once as boolean )
     dim as Token t
     if PeekOnLine( e, t ) = false then
@@ -115,67 +113,23 @@ private sub PpInclude( byref e as PpEngine, byval at as SourceLoc, byval once as
         return
     end if
 
-    dim as string spelled = SpellOf( e, t )
-    dim as int32 a = instr( spelled, """" )
-    dim as int32 b = instrrev( spelled, """" )
-    dim as string rel = ""
-    if (a > 0) andalso (b > a) then rel = mid( spelled, a + 1, b - a - 1 )
+    dim as string rel = PpQuotedText_( e, t )
     Advance( e )
     SkipToEol( e )
 
-    '' The directory of the INCLUDING file. Done by hand rather than through
-    '' PathSplit, which wants an Array( of ustring ) and would cost more than it saves.
-    ''
-    '' A '#line' NAME IS WHAT A RELATIVE INCLUDE RESOLVES AGAINST -- measured, and it
-    '' surprised me: after '#line 5 "sub/fake.bas"', '#include "h.bi"' picks sub/h.bi
-    '' and falls back to the working directory only when that does not exist. The
-    '' generator that emitted the '#line' is describing where the text came FROM, and
-    '' fbc takes it at its word.
     dim as DecodedLoc d = e.src->Decode( at )
-    dim as string here = e.src->ShownPathOf( d )
-    dim as string dir_ = ""
-    for i as int32 = len( here ) to 1 step -1
-        dim as uint8 c = here[i - 1]
-        dim as boolean isSep = (c = 47) orelse (c = 92)
-        if isSep then
-            dir_ = left( here, i )
-            exit for
-        end if
-    next
-
     dim as FileId got = FILE_NONE
     dim as ustring why = ""
-
-    '' A LEADING SLASH IS NOT A ROOT HERE. AfxNova writes '#include once "/crt/string.bi"'
-    '' and '"/fbc-int/array.bi"'; fbc finds both under its include path (measured,
-    '' scratchpad afx/inc1.bas), where joining the absolute spelling found nothing.
-    dim as ustring relJ = rel
-    if len( rel ) > 1 then
-        if (left( rel, 1 ) = "/") orelse (left( rel, 1 ) = "\") then relJ = mid( rel, 2 )
-    end if
-    dim as ustring firstTry = fs.PathJoin( dir_, relJ )
-    got = e.src->LoadFile( firstTry, why )
+    '' Each candidate missed is recorded, so a module cache entry notices a header that
+    '' appears there later and would win.
+    dim as containers.Array( of ustring ) cands
     dim as StrVec missed_
-    if got = FILE_NONE then missed_.Push( firstTry )
-
-    '' THE WORKING DIRECTORY COMES SECOND, before every -i directory and the toolchain's
-    '' inc/ -- fbc's order, measured (T97): with 'a.bi' in the working directory and in
-    '' an -i directory, fbc takes the working directory's, and a 'datetime.bi' there wins
-    '' over the toolchain's own. It was tried last, after both. Recorded when missed, so a
-    '' module cache entry notices a header that appears there later and would win.
-    if got = FILE_NONE then
-        got = e.src->LoadFile( rel, why )
-        if got = FILE_NONE then missed_.Push( rel )
-    end if
-
-    if got = FILE_NONE then
-        for each p as string in *e.cfg->includePaths
-            dim as ustring cand = fs.PathJoin( p, relJ )
-            got = e.src->LoadFile( cand, why )
-            if got <> FILE_NONE then exit for
-            missed_.Push( cand )
-        next
-    end if
+    PpQuotedCandidates_( e, at, rel, cands )
+    for each cand as ustring in cands
+        got = e.src->LoadFile( cand, why )
+        if got <> FILE_NONE then exit for
+        missed_.Push( cand )
+    next
 
     if got = FILE_NONE then
         Report( e, TKO0301, at, rel )
@@ -1068,6 +1022,9 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
 
     case "cinclude"
         PpCInclude( e, at, word )
+
+    case "embed"
+        PpEmbed( e, at )
 
     case "foreignlib"
         '' #foreignlib ID (STATIC|DYNAMIC) "spec" (, "spec")*

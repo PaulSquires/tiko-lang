@@ -56,6 +56,7 @@ namespace Tko
         as int32                  modLinkMode
         as FileIdVec              unitFilesRead
         as StrVec                 unitProbesMissed   '' include candidates that were absent
+        as StrVec                 unitEmbedPaths     '' '#embed' files, absolute (docs/tiko-embed)
         as boolean                unitThreadRtl
         as boolean                unitUsesClock      '' expanded __DATE__ / __TIME__: never stored
     end type

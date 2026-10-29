@@ -63,3 +63,7 @@ tests/** -text
 # text and LF like the rest of the tree; the static GUID archives are binary.
 lib/implib/*.def text eol=lf
 lib/implib/static/*.lib binary
+
+# #embed fixtures are bytes: never convert their line endings.
+tests/**/embed/** -text
+tests/**/embedmod/** -text

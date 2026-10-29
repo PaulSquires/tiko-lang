@@ -249,6 +249,10 @@ function CompileUnit _
     for each m_ as string in pr.probesMissed
         ctx.unit.unitProbesMissed.Push( m_ )
     next
+    ctx.unit.unitEmbedPaths.Clear( )
+    for each ep_ as string in pr.embedPaths
+        ctx.unit.unitEmbedPaths.Push( ep_ )
+    next
     ctx.unit.unitThreadRtl = false
     ctx.unit.unitUsesClock = pr.usesClock
 
@@ -442,6 +446,7 @@ function CompileUnit _
         dim as Tko.Mir.LowerInput lin
         lin.fe = fu : lin.udts = @udts : lin.vts = @vts
         lin.isMainModule = isMain : lin.moduleName = modName : lin.moduleFile = cast( int32, id )
+        lin.embedLocs = @pr.embedLocs : lin.embedPaths = @pr.embedPaths : lin.embedSizes = @pr.embedSizes
         Tko.Mir.Lower( lin, mm, lst )
         ctx.timing.Add( Tko.PH_LOWER, tPh )
         '' THE THREAD-SAFE RUNTIME IS CHOSEN HERE, not on the command line

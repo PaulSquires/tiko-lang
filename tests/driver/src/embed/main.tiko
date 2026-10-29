@@ -1,0 +1,22 @@
+'' #embed round trip (docs/tiko-embed RFC-0001): every byte value, the NUL after the last
+'' element, a text file used in place as a zstring, one found through an -i path, and one a
+'' HEADER embeds relative to its own folder rather than to this file's.
+#include once "sub/hdr.ti"
+#embed AllBytes "data/all.bin"
+#embed Hello "data/hello.txt"
+#embed FromInc "incdata.bin"
+
+dim as ulongint s = 0
+for i as long = 0 to ubound( AllBytes )
+    s += AllBytes(i)
+next
+print "all " & lbound( AllBytes ) & " " & ubound( AllBytes ) & " " & s & " " & AllBytes(255) & " " & AllBytes(ubound( AllBytes ))
+print "nul " & *cast( ubyte ptr, @AllBytes(ubound( AllBytes )) + 1 )
+print "text [" & *cast( zstring ptr, @Hello(0) ) & "] " & (ubound( Hello ) + 1)
+print "inc " & ubound( FromInc ) & " " & FromInc(2)
+print "hdr " & chr( HdrData(0), HdrData(3) ) & " " & ubound( HdrData )
+'' 'embed' is still an ordinary name, and '#embed' in mid-line still a file number.
+dim as long embed = 1
+open cons for output as #embed
+print #embed, "fileno ok"
+close #embed
