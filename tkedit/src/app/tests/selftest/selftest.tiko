@@ -963,6 +963,14 @@ public sub BufferPass( byref t as Tally, byval sc as single )
              P( sc, strings.Format( "e.tiko, deleted, is not offered ({} shown, {} in the list)", mw.Chooser.ShownCount( ), mw.Recent.Count( ) ) ) )
     PopKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
 
+    ' ---- a drop from the OS opens the file (and on macOS a Finder Open With arrives this way);
+    ' last, because the file joins the recent list the checks above count
+    dim as ustring pathDrop = fs.PathJoin( dir_, "dropped.tiko" )
+    WriteBytes( pathDrop, "dim dropped as long" & chr( 10 ) )
+    tkTest_PushDrop( h, pathDrop, 40, 40 )
+    tkTest_PumpFor( h, 100 )
+    t.Check( lcase( mw.ActivePath( ) ) = lcase( pathDrop ), P( sc, "a dropped file opens: " & mw.ActivePath( ) ) )
+
     mw.Destroy( )
 end sub
 

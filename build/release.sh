@@ -23,7 +23,8 @@
 #      and tkedit/ (the Mac's toolchains/tkedit-macos), as the others do. --no-mac leaves it out;
 #   4. writes SHA256SUMS and appends the hashes to a copy of the notes;
 #   5. smoke-tests each archive extracted into an empty directory with no TKO_* variable:
-#      hello.tiko compiled and run, and tkedit/ holds the program at its root with fonts/;
+#      hello.tiko compiled and run, and tkedit/ holds the program alone -- tkedit.exe / tkedit,
+#      or on macOS tkEdit.app, whose signature verifies (tkedit is one file, docs/tkEdit/SINGLE-FILE.md);
 #   6. with --prev <dir> holding the previous release's two archives, prints the files each
 #      archive gained and lost;
 #   7. with --editor <dir>, mirrors tiko-windows into <dir> (the editor's toolchain copy);
@@ -84,12 +85,12 @@ cd ~/dev/tiko-lang/toolchains/tiko-macos || exit 2
 grep -q "$SHORT" MANIFEST.txt || exit 3
 grep -q " FAIL" MANIFEST.txt && exit 4
 [ "$TKEDIT" = "1" ] || exit 0
-[ -f ../tkedit-macos/tkedit ] || exit 5
+[ -f ../tkedit-macos/tkEdit.app/Contents/MacOS/tkedit ] || exit 5
 grep -q "^tkedit  *\.\./tkedit-macos" MANIFEST.txt || exit 6
 exit 0
 EOF
     on_mac "$OUT/mac-check.sh"; rc=$?
-    [ $rc = 0 ] || die "the Mac's toolchains/tiko-macos: none (2), MANIFEST not at $SHORT (3), a FAIL in it (4), no tkedit-macos/tkedit (5) or no tkedit line (6; or pass --no-tkedit) -- rc $rc"
+    [ $rc = 0 ] || die "the Mac's toolchains/tiko-macos: none (2), MANIFEST not at $SHORT (3), a FAIL in it (4), no tkedit-macos/tkEdit.app (5) or no tkedit line (6; or pass --no-tkedit) -- rc $rc"
     note "the Mac's MANIFEST names $SHORT"
 fi
 if [ "$TKEDIT" = "1" ]; then
@@ -151,7 +152,7 @@ xattr -cr tiko-macos $TKDIRS
 find tiko-macos $TKDIRS -type f -exec chmod 644 {} +
 find tiko-macos $TKDIRS -type d -exec chmod 755 {} +
 chmod 755 tiko-macos/bin/tiko
-[ -z "$TKDIRS" ] || chmod 755 tkedit/tkedit
+[ -z "$TKDIRS" ] || chmod 755 tkedit/tkEdit.app/Contents/MacOS/tkedit
 COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata --uid 0 --gid 0 -czf tiko-macos-arm64-$SHORT.tar.gz tiko-macos $TKDIRS
 EOF
     on_mac "$OUT/tar-macos.sh" || die "the Mac's tar failed"
@@ -174,15 +175,15 @@ got=$( cd "$SMOKE" && env -u TKO_INCLUDE -u TKO_LIBPATH -u TKO_PKG \
        win/tiko-windows/tiko.exe hello.tiko -o hello.exe && ./hello.exe ) || die "Windows smoke: $got"
 [ "$got" = "hello from tiko" ] || die "Windows smoke printed '$got'"
 if [ "$TKEDIT" = "1" ]; then
-    [ -f "$SMOKE/win/tkedit/tkedit.exe" ] && [ -d "$SMOKE/win/tkedit/fonts" ] && [ ! -d "$SMOKE/win/tkedit/bin" ] \
-        || die "Windows smoke: no tkedit/tkedit.exe with fonts/ (and no bin/) in the zip"
+    [ -f "$SMOKE/win/tkedit/tkedit.exe" ] && [ "$(ls -A "$SMOKE/win/tkedit" | wc -l)" = 1 ] \
+        || die "Windows smoke: tkedit/ in the zip is not tkedit.exe alone"
 fi
 note "smoke windows-x86_64: ok"
 cat > "$OUT/smoke-linux.sh" <<EOF
 set -e
 rm -rf ~/tksmoke-$SHORT && mkdir -p ~/tksmoke-$SHORT && cd ~/tksmoke-$SHORT
 tar -xzf "/mnt/c${ROOT#/c}/$TGZ"
-[ -z "$TKDIRS" ] || { test -x tkedit/tkedit && test -d tkedit/fonts && test ! -d tkedit/bin; }
+[ -z "$TKDIRS" ] || { test -x tkedit/tkedit && test "\$(ls -A tkedit | wc -l)" = 1; }
 printf 'print "hello from tiko"\n' > hello.tiko
 env -u TKO_INCLUDE -u TKO_LIBPATH -u TKO_PKG tiko-linux/bin/tiko hello.tiko -o hello
 ./hello
@@ -197,7 +198,7 @@ if [ "$MAC" = "1" ]; then
 set -e
 rm -rf ~/tksmoke-$SHORT && mkdir -p ~/tksmoke-$SHORT/home && cd ~/tksmoke-$SHORT
 tar -xzf ~/tkrel-$SHORT/tiko-macos-arm64-$SHORT.tar.gz
-[ -z "$TKDIRS" ] || { test -x tkedit/tkedit && test -d tkedit/fonts && test ! -d tkedit/bin; }
+[ -z "$TKDIRS" ] || { test -x tkedit/tkEdit.app/Contents/MacOS/tkedit && test "\$(ls -A tkedit | wc -l)" = 1 && codesign --verify --deep --strict tkedit/tkEdit.app; }
 echo 'print "hello from tiko"' > hello.tiko
 env -i HOME=\$PWD/home PATH=/usr/bin:/bin tiko-macos/bin/tiko hello.tiko -o hello
 ./hello

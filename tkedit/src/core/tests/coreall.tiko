@@ -63,6 +63,7 @@ sub PlatformSuite( byref c as tally.Checker )
     c.Check( platform.PrimaryModifierName( ) = "Ctrl", "Primary is Ctrl off macOS" )
 #endif
     c.Check( fs.IsDir( platform.ExeDir( ) ), "ExeDir is a folder" )
+    c.Same( platform.InstallDir( ), platform.ExeDir( ), "InstallDir: a program outside a bundle is its own folder" )
     c.Check( fs.IsFile( fs.PathJoin( platform.ExeDir( ), fs.PathFileName( command( 0 ) ) ) ) _
              orelse fs.IsFile( fs.PathJoin( platform.ExeDir( ), fs.PathFileName( command( 0 ) ) & ".exe" ) ), _
              "ExeDir holds this program" )

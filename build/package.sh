@@ -195,7 +195,7 @@ if [ "$DO_BUILD" = "1" ]; then
     # concurrently, each into its own obj/<target>/<config> tree.
     mkdir -p "$ROOT/lib/rt/obj" "$ROOT/lib/gfx/obj"
     note "building the compiler [$CFG]"
-    # --no-dll: the editor's parser.dll ships with the editor, not in a toolchain.
+    # --no-dll: no editor DLL -- tkedit links its scanner in (build.sh --lib, below).
     if ! sh "$ROOT/build/build.sh" "$CFG" --no-dll >"$ROOT/lib/rt/obj/package-tiko.log" 2>&1; then
         tail -20 "$ROOT/lib/rt/obj/package-tiko.log" >&2
         die "the compiler build failed -- lib/rt/obj/package-tiko.log"
@@ -861,10 +861,12 @@ fi
 # itself (tkedit/src/core/build: SiblingCompiler). Both hosts package into one toolchains/,
 # so the folder is tkedit-<host> here; build/release.sh names it tkedit/ in the archive.
 #
-# RELEASE BINARIES AND WHAT THEY LOAD, NOTHING ELSE: the program and its shared libraries in
-# the folder's ROOT (no bin/: the author's order) beside fonts/ icons/ keywords/ lang/ themes/,
-# and licences/. No source, no README, and not vendor/tkControls' own fonts, which its
-# runtime copies beside every program but tkedit never loads (it has its own in fonts/).
+# ONE FILE (docs/tkEdit/SINGLE-FILE.md): tkedit links in SDL, SDL_ttf, SDL_image, scintk and its
+# scanner, and carries its fonts, themes, catalogs, keyword lists and licences inside itself
+# ('tkedit --export-resources DIR' writes them out, '--licences' prints the notices). So the folder
+# holds tkedit.exe / tkedit alone, and on macOS tkEdit.app: Contents/MacOS/tkedit, Info.plist and
+# Resources/tkEdit.icns (the .icns made from icons/tkedit.png with sips + iconutil), signed ad hoc
+# (SINGLE-FILE SF3, SF5).
 #
 # BUILT BY THE TOOLCHAIN JUST PACKAGED, so this is one more check that it works. A failure
 # is recorded as FAIL rather than ending the run: the toolchain itself is good, and
@@ -889,42 +891,61 @@ if [ "$DO_TKEDIT" = "1" ]; then
         *)     _tkp="$ROOT/bin/parser_${HOST}_x86_64.a" ;;
     esac
     [ -n "$_tkfail" ] || [ -f "$_tkp" ] || _tkfail="no $_tkp after the build"
-    # Linux has no SDL3 of its own and the toolchain ships none: tkControls' build-linux-libs.sh
-    # builds one, kept (gitignored) in examples/tkControls/linux-lib, linked against and shipped.
-    # macOS links Homebrew's (absolute install names), which the user installs: nothing shipped.
-    _tkopts=""
-    if [ "$HOST" = "linux" ]; then
-        _tklib=${TK_LINUX_LIB:-$ROOT/examples/tkControls/linux-lib}
-        [ -f "$_tklib/libSDL3.so" ] || die "no SDL3 for tkedit at $_tklib -- run examples/tkControls/tools/build-linux-libs.sh, or set TK_LINUX_LIB (or pass --no-tkedit)"
-        _tkopts="-p $_tklib"
-    fi
     if [ -z "$_tkfail" ]; then
         note "building tkedit with the packaged compiler"
         rm -rf "$TKSRC/src/app/out/release"
-        # LD_LIBRARY_PATH for the LINK only: GNU ld finds libSDL3_ttf's own needs (libharfbuzz)
-        # through it. The self-test below runs without it -- tkedit must find them beside itself.
-        if ! ( cd "$TKSRC/src/app" && TKO_MODCACHE="$TKSRC/out/modcache-package" LD_LIBRARY_PATH="${_tklib:-}" \
-                 "$OUT/${BINSUB}tiko$EXT" build --profile release ${_tkopts:+--options "$_tkopts"} ) >>"$_tklog" 2>&1; then
+        if ! ( cd "$TKSRC/src/app" && TKO_MODCACHE="$TKSRC/out/modcache-package" \
+                 "$OUT/${BINSUB}tiko$EXT" build --profile release ) >>"$_tklog" 2>&1; then
             _tkfail="the build failed -- lib/rt/obj/package-tkedit.log"
         fi
     fi
     _tkrel="$TKSRC/src/app/out/release"
     [ -n "$_tkfail" ] || [ -f "$_tkrel/tkedit$EXT" ] || _tkfail="no $_tkrel/tkedit$EXT"
     if [ -z "$_tkfail" ]; then
-        rm -rf "$TKD"; mkdir -p "$TKD/licences"
-        cp -f "$_tkrel/tkedit$EXT" "$TKD/"
-        for f in "$_tkrel"/*.dll "$_tkrel"/*.so "$_tkrel"/*.so.* "$_tkrel"/*.dylib; do
-            [ -f "$f" ] && cp -f "$f" "$TKD/"
-        done
-        [ "$HOST" = "linux" ] && cp -a "$_tklib"/lib*.so* "$TKD/"
-        for d in fonts icons keywords lang themes; do
-            cp -r "$TKSRC/$d" "$TKD/$d"
-        done
-        rm -f "$TKD/fonts/README.md"
-        cp -f "$ROOT/pkg/vendor/SDL3/LICENSE" "$TKD/licences/SDL3.txt"
-        cp -f "$ROOT/pkg/vendor/tkControls/LICENSE" "$TKD/licences/MPL-2.0.txt"
-        cp -f "$ROOT/pkg/vendor/tkControls/tkCodeEdit/scintk/vendor/scintilla/License.txt" "$TKD/licences/Scintilla.txt"
-        cp -f "$ROOT/pkg/vendor/tkControls/tkCodeEdit/scintk/vendor/lexilla/License.txt" "$TKD/licences/Lexilla.txt"
+        rm -rf "$TKD"; mkdir -p "$TKD"
+        if [ "$HOST" = "macos" ]; then
+            _app="$TKD/tkEdit.app/Contents"
+            mkdir -p "$_app/MacOS" "$_app/Resources"
+            cp -f "$_tkrel/tkedit" "$_app/MacOS/tkedit"
+            _tkver=$( sed -n 's/^version *= *"\(.*\)"/\1/p' "$TKSRC/src/app/tiko.toml" | head -1 )
+            cat > "$_app/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>                 <string>tkEdit</string>
+    <key>CFBundleDisplayName</key>          <string>tkEdit</string>
+    <key>CFBundleIdentifier</key>           <string>com.planetsquires.tkedit</string>
+    <key>CFBundleExecutable</key>           <string>tkedit</string>
+    <key>CFBundleIconFile</key>             <string>tkEdit</string>
+    <key>CFBundlePackageType</key>          <string>APPL</string>
+    <key>CFBundleShortVersionString</key>   <string>${_tkver:-0.1.0}</string>
+    <key>CFBundleVersion</key>              <string>${_tkver:-0.1.0}</string>
+    <key>LSMinimumSystemVersion</key>       <string>13.0</string>
+    <key>NSHighResolutionCapable</key>      <true/>
+</dict>
+</plist>
+PLIST
+            # the Finder and Dock icon: icons/tkedit.png at each size an .icns holds, up to its own
+            _iset="$ROOT/lib/rt/obj/tkEdit.iconset"
+            rm -rf "$_iset" && mkdir -p "$_iset"
+            for _sz in 16 32 64 128 256; do
+                sips -z $_sz $_sz "$TKSRC/icons/tkedit.png" --out "$_iset/icon_${_sz}x${_sz}.png" >/dev/null 2>&1
+            done
+            cp -f "$_iset/icon_32x32.png" "$_iset/icon_16x16@2x.png"
+            cp -f "$_iset/icon_64x64.png" "$_iset/icon_32x32@2x.png"
+            cp -f "$_iset/icon_256x256.png" "$_iset/icon_128x128@2x.png"
+            rm -f "$_iset/icon_64x64.png"
+            iconutil -c icns "$_iset" -o "$_app/Resources/tkEdit.icns" >>"$_tklog" 2>&1 \
+                || _tkfail="iconutil could not make tkEdit.icns"
+            # SIGNED AD HOC (SINGLE-FILE SF5): arm64 runs nothing unsigned; no Developer ID yet
+            codesign --force --deep -s - "$TKD/tkEdit.app" >>"$_tklog" 2>&1 || _tkfail="codesign failed"
+            codesign --verify --deep --strict "$TKD/tkEdit.app" >>"$_tklog" 2>&1 || _tkfail="codesign --verify failed"
+            _tkexe="$_app/MacOS/tkedit"
+        else
+            cp -f "$_tkrel/tkedit$EXT" "$TKD/"
+            _tkexe="$TKD/tkedit$EXT"
+        fi
         note "tkedit -> $TKD"
         TKEDIT_STATE="../tkedit-$HOST, built by this compiler (the archive's tkedit/)"
         # --verify: its self-test, compiling with this toolchain. It writes scratch files under
@@ -935,10 +956,10 @@ if [ "$DO_TKEDIT" = "1" ]; then
                 note "verifying tkedit: its self-test"
                 if [ "$HOST" = "macos" ]; then
                     _tkres=$( cd "$TKD" && TKEDIT_TIKO="$OUT/${BINSUB}tiko$EXT" \
-                              perl -e 'alarm 600; exec @ARGV' ./tkedit --selftest 2>&1 | grep ' selftest: ' | tail -1 )
+                              perl -e 'alarm 600; exec @ARGV' "$_tkexe" --selftest 2>&1 | grep ' selftest: ' | tail -1 )
                 else
                     _tkres=$( cd "$TKD" && env -u LD_LIBRARY_PATH TKEDIT_TIKO="$OUT/${BINSUB}tiko$EXT" SDL_VIDEO_DRIVER=${SDL_VIDEO_DRIVER:-} \
-                              timeout 600 "./tkedit$EXT" --selftest 2>&1 | grep ' selftest: ' | tail -1 )
+                              timeout 600 "$_tkexe" --selftest 2>&1 | grep ' selftest: ' | tail -1 )
                 fi
                 rm -rf "$TKD/out"
                 if echo "$_tkres" | grep -q ' 0 failed'; then

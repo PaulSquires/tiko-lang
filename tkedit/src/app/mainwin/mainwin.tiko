@@ -671,7 +671,7 @@ function Window.Create( byval forcedScale as single ) as boolean
     if Ask = 0 then Ask = @AskPerson
     if Pick = 0 then Pick = @PickPerson
     if Launch = 0 then Launch = @LaunchProgram
-    ResourceDir = platform.ResourceDir( ).ValueOr( platform.ExeDir( ) )
+    ResourceDir = platform.ResourceDir( ).ValueOr( platform.InstallDir( ) )
     if len( ConfigDir ) = 0 then ConfigDir = platform.ConfigDir( ).ValueOr( fs.PathJoin( ResourceDir, "config" ) )
     Words = LoadKeywords( ConfigDir )
     Intr.Parse( TextOf( bundled.Locate( "keywords/codetips.txt", ConfigDir ) ) )
