@@ -28,7 +28,7 @@ next
 
 ## Why It Exists
 
-std/fs is tiko's filesystem library: paths, file information, directories and files, behind one import and with the same behaviour on windows-x86_64 and linux-x86_64.
+std/fs is tiko's filesystem library: paths, file information, directories and files, behind one import and with the same behaviour on windows-x86_64, linux-x86_64 and macos-arm64.
 
 This page covers the filesystem and its paths. Reading and writing what is inside a file -- whole files, open files, streams and text -- is on [File Streams](Category-File-Streams).
 
@@ -312,11 +312,11 @@ There is deliberately no IsSymlink( p ) predicate: the answer depends on whether
 
 Not every platform has every time, and the library says so rather than inventing one:
 
-| | Windows | Linux |
-| --- | --- | --- |
-| Modified | always | always |
-| Created | always | statx birth time, where available |
-| Accessed | always | always |
+| | Windows | Linux | macOS |
+| --- | --- | --- | --- |
+| Modified | always | always | always |
+| Created | always | statx birth time, where available | always (the file's birth time) |
+| Accessed | always | always | always |
 
 HasCreated( ) and HasAccessed( ) report availability. When false the getter is exactly 0 and means nothing. There is no HasModified -- modification time is universal. st_ctime is the inode change time, not a birth time, and is deliberately not reported as CreatedUtc.
 
@@ -324,12 +324,12 @@ Access time is often stale on both platforms -- NTFS LastAccess updates are freq
 
 IsReadOnly and IsHidden are the portable two, and they mean different things underneath:
 
-| | Windows | Linux |
-| --- | --- | --- |
-| IsReadOnly | FILE_ATTRIBUTE_READONLY | no write bit for this user |
-| IsHidden | FILE_ATTRIBUTE_HIDDEN | the name begins with `.` |
+| | Windows | Linux | macOS |
+| --- | --- | --- | --- |
+| IsReadOnly | FILE_ATTRIBUTE_READONLY | no write bit for this user | no write bit for this user |
+| IsHidden | FILE_ATTRIBUTE_HIDDEN | the name begins with `.` | the name begins with `.` |
 
-A dotfile is hidden on Linux and not on Windows. That divergence is real.
+A dotfile is hidden on Linux and macOS and not on Windows. That divergence is real.
 
 ### Identity, Owner And Instants
 

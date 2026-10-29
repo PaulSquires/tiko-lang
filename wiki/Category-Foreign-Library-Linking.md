@@ -37,9 +37,8 @@ Target tags and an extension are appended to the base name, most specific
 first: `<base>_<os>_<arch><ext>`, `<base>_<os><ext>`, `<base>_<arch><ext>`,
 `<base><ext>`.
 
-`<os>` is one of `windows`, `cygwin`, `linux`, `android`, `darwin`, `dos`,
-`freebsd`, `openbsd`, `netbsd`, `dragonfly`, `solaris`. `<arch>` is one of
-`x86`, `x86_64`, `arm`, `aarch64`.
+`<os>` is the target's: `windows`, `linux` or `macos`. `<arch>` is `x86_64`
+or `arm64`. A library built for macos-arm64 is therefore `<base>_macos_arm64`.
 
 `<ext>` is `.a`/`.lib` for `static`; `.dll.a`/`.lib`/`.dll`, `.dylib` or `.so`
 for `dynamic`, by target.

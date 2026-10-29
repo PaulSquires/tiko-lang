@@ -21,9 +21,10 @@ files rather than windows. It joins:
 This is not a Windows programming primer. Where a Win32 call appears, the text says in a sentence
 what it does and moves on.
 
-```admonish info title="On Linux"
+```admonish info title="On Linux and macOS"
 The window is Windows-only: PsControls draws with GDI and GDI+. The text-file module and its test,
-`filetest`, compile and run on Linux like every other listing, and so do the exercise solutions.
+`filetest`, compile and run on Linux and macOS like every other listing, and so do the exercise
+solutions.
 ```
 
 ![tpad with a short file open, in the dark theme.](img/ch35-tpad.png)

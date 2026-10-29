@@ -147,6 +147,17 @@ ar rcs vendor/greet/greet-static_linux_x86_64.a greet.o
 
 `-Wl,-soname,libgreet.so` records the name the program will ask for when it starts, and the `cp` puts a file with that name next to the program (section 12).
 
+**On macOS:**
+
+```bash
+clang -dynamiclib -O2 -DGREET_DLL vendor/greet/greet.c -install_name @rpath/libgreet.dylib -o vendor/greet/greet_macos_arm64.dylib
+cp vendor/greet/greet_macos_arm64.dylib libgreet.dylib
+clang -c -O2 vendor/greet/greet.c -o greet.o
+ar rcs vendor/greet/greet-static_macos_arm64.a greet.o
+```
+
+`-install_name @rpath/libgreet.dylib` plays the part of the soname: it is the name the program asks for, found through the program's run path (section 12).
+
 You now have:
 
 ```
@@ -158,6 +169,9 @@ greet-app/
     vendor/greet/greet-static_windows_x86_64.lib   Windows: static library
     vendor/greet/greet_linux_x86_64.so         Linux: shared library
     vendor/greet/greet-static_linux_x86_64.a   Linux: static library
+    libgreet.dylib                             macOS: loaded when the program runs
+    vendor/greet/greet_macos_arm64.dylib       macOS: shared library
+    vendor/greet/greet-static_macos_arm64.a    macOS: static library
 ```
 
 The static library is called `greet-static` because on Windows a static library and an import library are both `.lib` files, so they cannot share a name.
@@ -321,12 +335,12 @@ dir/base_<arch><ext>
 dir/base<ext>
 ```
 
-| | Windows | Linux |
-|---|---|---|
-| `<os>` | `windows` | `linux` |
-| `<arch>` | `x86_64` | `x86_64` |
-| `<ext>` for `static` | `.a`, then `.lib` | `.a` |
-| `<ext>` for `dynamic` | `.dll.a`, then `.lib`, then `.dll` | `.so` |
+| | Windows | Linux | macOS |
+|---|---|---|---|
+| `<os>` | `windows` | `linux` | `macos` |
+| `<arch>` | `x86_64` | `x86_64` | `arm64` |
+| `<ext>` for `static` | `.a`, then `.lib` | `.a` | `.a` |
+| `<ext>` for `dynamic` | `.dll.a`, then `.lib`, then `.dll` | `.so` | `.dylib` |
 
 Every ending for the kind is tried at each step, and the first file that exists is used.
 
@@ -395,6 +409,12 @@ An import library or `.dll.a` with a matching name is found before the `.dll`, a
 ```
 
 `$ORIGIN` means *the folder this program is in*, and `-Wl` passes the option to the linker. Now `./hello` runs with no `LD_LIBRARY_PATH`, from any folder, as long as `libgreet.so` is next to it. The `#ifdef` matters: Windows' linker has no `-rpath`.
+
+**macOS** loads a library by its install name, here `@rpath/libgreet.dylib`. A program that links a `.dylib` file from `#foreignlib` gets the run path `@loader_path`, *the folder this program is in*, with nothing written: `./hello` runs as long as `libgreet.dylib` is next to it. Without it, the program stops before it starts:
+
+```
+dyld[<pid>]: Library not loaded: @rpath/libgreet.dylib
+```
 
 ## 13. Naming the library in a declaration
 

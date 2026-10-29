@@ -54,8 +54,8 @@ language (tuples, iterators, lambdas, `defer`, concurrency), the standard librar
 programming: C interop with `#cinclude`, and building and shipping. It ends with three complete
 projects: a command-line search tool, a concurrent pipeline and a terminal-UI ledger.
 
-Every listing in the book is a real program, compiled and run on Windows and Linux with its
-output checked. The book is being written.
+Every listing in the book is a real program, compiled and run on Windows, Linux and macOS with
+its output checked. The book is being written.
 
 - **Read it online:** [tiko-lang.net/book](https://tiko-lang.net/book/), an mdBook.
 - **Download the PDF:** [the-tiko-programming-language.pdf](https://tiko-lang.net/book/the-tiko-programming-language.pdf).
@@ -68,7 +68,7 @@ output checked. The book is being written.
 *Rust by Example*. Each page is one runnable example followed by the output it printed, plus a
 few activities to try. Sections run from printing, values and control flow through procedures,
 types and objects to the standard library, concurrency and calling C. Every example is compiled
-and run on Windows and Linux before it is published.
+and run on Windows, Linux and macOS before it is published.
 
 - **Read it online:** [tiko-lang.net/by-example](https://tiko-lang.net/by-example/), an mdBook.
 
@@ -93,7 +93,7 @@ and run on Windows and Linux before it is published.
   math, exact money types, structured logging and a terminal UI toolkit all ship with the
   compiler.
 - **Written in itself.** The tiko compiler is a tiko program. Built by itself twice, it produces
-  byte-identical binaries on both Windows and Linux.
+  byte-identical binaries on Windows, Linux and macOS.
 
 ## A tour in four snippets
 
@@ -194,8 +194,8 @@ Every diagnostic has a stable `TKOnnnn` id, a location and a caret. Add
 
 | | |
 | --- | --- |
-| **Compiles to** | Native x86-64 executables, DLLs / shared objects and static libraries, through LLVM |
-| **Platforms** | Windows x86-64 (MSVC ABI, no Visual Studio needed) and Linux x86-64 |
+| **Compiles to** | Native x86-64 and arm64 executables, DLLs / shared objects / dylibs and static libraries, through LLVM |
+| **Platforms** | Windows x86-64 (MSVC ABI, no Visual Studio needed), Linux x86-64, and macOS on Apple Silicon (arm64, macOS 13 or newer) |
 | **Types** | Static, with inference (`var`), fixed-width names (`int32`, `uint8`, `float64`, …), generics, tuples, UDTs with methods, properties, operator overloading, single inheritance and virtual methods |
 | **Memory** | Deterministic: scope-based destruction, `defer`, `SharedPtr` / `WeakPtr`; no GC |
 | **Errors** | `Result( of T, E )` and `Optional( of T )`, plus runtime checks up to array bounds and null pointers with `-exx` |
@@ -228,27 +228,29 @@ Reference pages for each are in the [Feature Index](wiki/Feature-Index.md).
 
 ## Getting started
 
-tiko is **pre-1.0** (`0.1.0-dev`). Prebuilt toolchains for Windows and Linux x86-64 are on the
-[Releases](https://github.com/PaulSquires/tiko-lang/releases) page: unpack one anywhere. To
-build a toolchain yourself for the machine you are on, run this from Git Bash on
-Windows, or from Linux:
+tiko is **pre-1.0** (`0.1.0-dev`). Prebuilt toolchains for Windows and Linux x86-64 and for
+macOS on Apple Silicon are on the [Releases](https://github.com/PaulSquires/tiko-lang/releases)
+page: unpack one anywhere. To build a toolchain yourself for the machine you are on, run this
+from Git Bash on Windows, or from Linux or macOS:
 
 ```bash
 sh seed/fetch-seed.sh
 bash build/package.sh --verify
 ```
 
-This produces `toolchains/tiko-windows/` or `toolchains/tiko-linux/`. The toolchain is a
+This produces `toolchains/tiko-windows/`, `toolchains/tiko-linux/` or `toolchains/tiko-macos/`. The toolchain is a
 self-contained directory: move it anywhere, and it finds its own headers and libraries. Building
 it needs a **seed**, the earlier tiko release `seed/seed.lock` pins: `seed/fetch-seed.sh`
 downloads it and checks its SHA-256 before unpacking anything.
 
 **You need clang 18 or newer,** which tiko uses to assemble and link. It is not bundled. tiko
-looks for it at `C:\Program Files\LLVM\bin\clang.exe` or `/usr/bin/clang`, or wherever
-`TKO_CLANG` points.
+looks for it at `C:\Program Files\LLVM\bin\clang.exe`, `/usr/bin/clang` or, on macOS, Homebrew's
+`/opt/homebrew/opt/llvm/bin/clang` (`brew install llvm`), or wherever `TKO_CLANG` points. macOS
+also needs Xcode's Command Line Tools (`xcode-select --install`), and a downloaded archive's
+quarantine cleared before the first run: `xattr -dr com.apple.quarantine tiko-macos`.
 
 ```bash
-tiko hello.tiko          # hello.exe on Windows, ./hello on Linux
+tiko hello.tiko          # hello.exe on Windows, ./hello on Linux and macOS
 tiko -O2 app.tiko        # optimised
 tiko -g -exx app.tiko    # debug info and full runtime checks
 tiko -mt app.tiko        # the thread-safe runtime, required by spawn and channels
@@ -259,11 +261,11 @@ Source files are `.tiko` and headers are `.ti`. `tiko --help` lists every option
 ## Status
 
 - **Self-hosting.** Built by itself twice, the compiler is byte-identical at `-O0` and `-O2`,
-  on Windows and on Linux.
+  on Windows and on Linux, and at `-O0` on macOS.
 - **Tested.** 1,058 suite tests pass. Behaviour is checked differentially: 2,000
   fuzz-generated programs print the same output as under the reference implementation.
-- **Not there yet:** macOS and ARM64 targets, installers, a package
-  manager, and CodeView debug info. Graphics links on Windows only.
+- **Not there yet:** ARM64 on Linux and Windows, installers, a package manager, and CodeView
+  debug info. Graphics links on Windows only.
 
 ## Coming from FreeBASIC
 

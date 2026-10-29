@@ -12,7 +12,7 @@ This tutorial shows you how to use a C library from tiko with `#cinclude`. You w
 
 **Header.** A C library describes itself in a *header*, a `.h` file. It lists the library's functions, the types they use, and its constants. It holds no code.
 
-**Library.** The code itself is in a *library* file: a `.lib` or `.dll` on Windows, a `.a` or `.so` on Linux.
+**Library.** The code itself is in a *library* file: a `.lib` or `.dll` on Windows, a `.a` or `.so` on Linux, a `.a` or `.dylib` on macOS.
 
 **Binding.** Before tiko can call a C function, it must know the function's name, its parameters and its result. A *binding* is the list of those declarations, written in tiko.
 

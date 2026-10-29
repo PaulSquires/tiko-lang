@@ -72,6 +72,8 @@ Across the vendored fbc suite, every line tiko gives `TKO0968` (22) or `TKO0970`
 
 **Graphics links on `windows-x86_64` only.** libtkogfx is built for that ABI alone.
 
+**`macos-arm64` is a tiko target, named `-target macos-arm64`.** `-target darwin` is refused (`TKO0103`). It defines `__FB_DARWIN__`, `__FB_UNIX__`, `__FB_ARM__` and `__FB_64BIT__`, and not `__FB_X86__`, so code under `#ifdef __FB_X86__` is left out there. `WSTRING` is 4 bytes, as on Linux. There is no graphics library.
+
 **`#pragma msbitfields` is accepted and does nothing.** In fbc 1.20 it stops a bitfield from sharing a unit with the ordinary field before it: `short s : 4, byte c, long i : 7` is 8 bytes with `i` at bit 32, where both compilers say 4 bytes and bit 24 without it. tiko keeps the 4-byte layout under the pragma. It is not MSVC's rule either -- fbc still packs `byte a : 3, long b : 5` into one byte, where MSVC uses 8 -- and `type T extern "c"` is how tiko lays a type out as C does.
 
 ## What is the same
@@ -84,7 +86,7 @@ Across the vendored fbc suite, every line tiko gives `TKO0968` (22) or `TKO0970`
 ## How it is verified
 
 - fbc's own test corpus is vendored (2,709 `.bas` files) and run differentially: programs, fbcunit suites and the test sources are each built by both compilers and compared.
-- tiko compiles itself to a byte-identical fixpoint on windows-x86_64 and linux-x86_64.
+- tiko compiles itself to a byte-identical fixpoint on windows-x86_64, linux-x86_64 and macos-arm64.
 
 ## Licensing
 

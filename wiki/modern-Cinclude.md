@@ -86,11 +86,11 @@ so a program never reads a struct through a wrong layout. In the binding, the re
 
 1. in `TKO_LIBCLANG`, alone, when that variable is set;
 2. beside the clang that tiko compiles with;
-3. where the LLVM installer or a Linux distribution puts it.
+3. where the LLVM installer, a Linux distribution or Homebrew puts it (`/opt/homebrew/opt/llvm/lib` on macOS).
 
 Every tiko install already needs LLVM, and LLVM ships libclang. When none opens, the directive is `TKO0335: #cinclude needs libclang`, saying what was tried. A program with no `#cinclude` still builds.
 
-**C headers for the target.** On **windows-x86_64**, headers are imported against the installed **Visual Studio Build Tools** (*Desktop development with C++*) and **Windows SDK**, because almost every header includes the C runtime's. On **linux-x86_64**, against the system's C headers (`build-essential` on Ubuntu).
+**C headers for the target.** On **windows-x86_64**, headers are imported against the installed **Visual Studio Build Tools** (*Desktop development with C++*) and **Windows SDK**, because almost every header includes the C runtime's. On **linux-x86_64**, against the system's C headers (`build-essential` on Ubuntu). On **macos-arm64**, against the macOS SDK from Xcode's Command Line Tools.
 
 ```
 tiko --cimport-probe stddef.h

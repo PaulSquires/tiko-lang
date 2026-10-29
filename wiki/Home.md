@@ -33,7 +33,7 @@ tiko is a compiled, statically typed programming language for building fast, sel
 
 It starts with the basics (types, control flow, procedures, arrays and strings), then builds abstractions (types, objects, modules, generics, errors, testing). It goes on to the advanced language (tuples, iterators, lambdas, `defer`, concurrency), the standard library, and systems programming: C interop with `#cinclude`, and building and shipping. It ends with three complete projects: a command-line search tool, a concurrent pipeline and a terminal-UI ledger.
 
-Every listing in the book is a real program, compiled and run on Windows and Linux with its output checked. The book is being written.
+Every listing in the book is a real program, compiled and run on Windows, Linux and macOS with its output checked. The book is being written.
 
 - **Read it online:** [tiko-lang.net/book](https://tiko-lang.net/book/), an mdBook.
 - **Download the PDF:** [the-tiko-programming-language.pdf](https://tiko-lang.net/book/the-tiko-programming-language.pdf).

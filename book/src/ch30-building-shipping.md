@@ -8,12 +8,13 @@ about the command line that does all of that, and about what a shipped program d
 
 ## Targets
 
-tiko builds for two targets, chosen with `-target`:
+tiko builds for three targets, chosen with `-target`:
 
 | Target | Builds | Default on |
 |---|---|---|
 | `windows-x86_64` | a Windows x86-64 executable, linked against Microsoft's Universal C Runtime | Windows |
 | `linux-x86_64` | a Linux x86-64 executable, linked against the system's C library | Linux |
+| `macos-arm64` | a macOS executable for Apple Silicon, linked by Apple's linker against the macOS SDK | macOS |
 
 The compiler turns tiko into LLVM's intermediate form and hands it to **clang**, which produces
 machine code and drives the linker. tiko looks for clang in the place LLVM installs it, then on
@@ -38,8 +39,14 @@ On Linux:
 {{#include ../examples/ch30/target.linux-x86_64.out}}
 ```
 
-The predefined symbols are how a program adapts to its target: `__FB_WIN32__` and `__FB_LINUX__`
-for the platform, `__FB_MSVC__` when the C runtime is Microsoft's, `__FB_BACKEND__` for the code
+On macOS:
+
+```text
+{{#include ../examples/ch30/target.macos-arm64.out}}
+```
+
+The predefined symbols are how a program adapts to its target: `__FB_WIN32__`, `__FB_LINUX__`
+and `__FB_DARWIN__` for the platform, `__FB_MSVC__` when the C runtime is Microsoft's, `__FB_BACKEND__` for the code
 generator. Code inside an `#ifdef` that does not apply is never compiled, so it may call
 functions that do not exist on the other platform.
 
@@ -118,7 +125,7 @@ includes. The linker searched the current directory for `libmathlib.a`; `-p dir`
 program using it loads when it starts, so it is stored once and can be replaced without
 rebuilding the programs. On Windows that file is `mathlib.dll`, and beside it tiko writes
 `libmathlib.dll.a`, an **import library** that tells the linker what the DLL contains. On Linux
-it is `libmathlib.so`. The program links it exactly as it linked the static one, with
+it is `libmathlib.so`, and on macOS `libmathlib.dylib`. The program links it exactly as it linked the static one, with
 `#inclib "mathlib"`.
 
 **`export`** after a procedure's declaration puts it in the library's table of exported names.
@@ -133,7 +140,10 @@ the `PATH`. Linux looks in the system's library directories and in `LD_LIBRARY_P
 executable records no directory of its own — run from beside the library, the client still fails
 with `error while loading shared libraries: libmathlib.so: cannot open shared object file`. This
 chapter's listing runs it with `LD_LIBRARY_PATH=.`; a shipped program installs the library where
-the system looks, or ships a script that sets the variable.
+the system looks, or ships a script that sets the variable. macOS loads the library by the name
+it gives itself, `@rpath/libmathlib.dylib`, and stops the program with `dyld: Library not loaded`
+until it is found: `DYLD_LIBRARY_PATH=.` does that, as the listing does, and so does a run path
+in the program, `#cmdline "-Wl -rpath,@loader_path"`, which keeps the library beside it.
 ```
 
 A variable that a C DLL exports is reached with **`extern import`**, which tells the compiler to
@@ -354,7 +364,15 @@ the executable, so there is no tiko DLL to ship: the executable, plus any DLLs a
 its own, is the whole program. On Linux the same program needs `libc.so.6`, `libm.so.6` and
 `libtinfo.so.6`, the C library, the maths library and the terminal database, which every desktop
 and server distribution installs. A program built on one Linux distribution runs on others with
-the same or a newer C library — build on the oldest one to be supported.
+the same or a newer C library — build on the oldest one to be supported. On macOS a tiko program
+needs `libSystem` and `libncurses`, which are part of the system, and runs on macOS 13 or newer.
+
+```admonish info title="On macOS"
+**A program that reaches another Mac through a browser arrives quarantined.** tiko's programs
+are signed ad hoc by Apple's linker, not notarised, and a quarantined one is refused: it does not
+start. Clearing the mark lets it run: `xattr -d com.apple.quarantine program`. A program copied
+with `scp`, a USB stick or `curl` is not marked.
+```
 
 **The runtime's licence travels with the executable**, because its code is inside. tiko's runtime
 is licensed under the LGPL 2.1 with a **static-linking exception**, the same terms as FreeBASIC's
@@ -376,14 +394,15 @@ and that licence's conditions apply.
 
 ## Summary
 
-- `-target windows-x86_64` (Windows' default) or `linux-x86_64`. `TKO_CLANG`, `TKO_LIBPATH` and
+- `-target windows-x86_64` (Windows' default), `linux-x86_64` or `macos-arm64`. `TKO_CLANG`, `TKO_LIBPATH` and
   `TKO_INCLUDE` point the compiler at other tools, runtimes and headers.
 - `-c` compiles to an object file; the first file named is main unless `-m` says otherwise; the
   other modules' top levels run first, as constructors.
-- `-lib` builds `libname.a`; `-dll` builds a DLL and `libname.dll.a`, or `libname.so`, with the
-  procedures marked `export`. Link either with `#inclib` or `-l`.
+- `-lib` builds `libname.a`; `-dll` builds a DLL and `libname.dll.a`, or `libname.so`, or
+  `libname.dylib`, with the procedures marked `export`. Link either with `#inclib` or `-l`.
 - A shared library must be found at run time: beside the program on Windows, in the system's
-  directories or `LD_LIBRARY_PATH` on Linux.
+  directories or `LD_LIBRARY_PATH` on Linux, through `DYLD_LIBRARY_PATH` or an `@loader_path`
+  run path on macOS.
 - `-s gui` builds a Windows program with no console; a `.rc` on the command line adds
   resources.
 - `-exx` and `-g` for checked builds, `-O2`/`-O3` for release; `#cmdline` keeps the options in

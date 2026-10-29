@@ -4,8 +4,8 @@ tiko is distributed as a **toolchain**: the compiler, its headers, its runtime l
 
 ## What you need
 
-- **A toolchain.** Download the newest release titled *tiko toolchains* from [Releases](https://github.com/PaulSquires/tiko-lang/releases): `tiko-windows-x86_64-<commit>.zip` for Windows, `tiko-linux-x86_64-<commit>.tar.gz` for Linux. Unpack it anywhere; it holds one directory, `tiko-windows/` or `tiko-linux/`.
-- **clang 18 or newer.** It is not bundled: tiko uses it to compile and to link. tiko takes the first it finds of `TKO_CLANG`, then `C:\Program Files\LLVM\bin\clang.exe` on Windows or `/usr/bin/clang` on Linux, then `clang` on `PATH`.
+- **A toolchain.** Download the newest release titled *tiko toolchains* from [Releases](https://github.com/PaulSquires/tiko-lang/releases): `tiko-windows-x86_64-<commit>.zip` for Windows, `tiko-linux-x86_64-<commit>.tar.gz` for Linux, `tiko-macos-arm64-<commit>.tar.gz` for macOS on Apple Silicon. Unpack it anywhere; it holds one directory, `tiko-windows/`, `tiko-linux/` or `tiko-macos/`.
+- **clang 18 or newer.** It is not bundled: tiko uses it to compile and to link. tiko takes the first it finds of `TKO_CLANG`, then `C:\Program Files\LLVM\bin\clang.exe` on Windows, `/usr/bin/clang` on Linux or `/opt/homebrew/opt/llvm/bin/clang` on macOS, then `clang` on `PATH`.
 
 ## Compile a program
 
@@ -19,7 +19,28 @@ tiko-linux/bin/tiko hello.tiko
 ./hello
 ```
 
-No flags are needed. tiko finds its headers and libraries relative to its own executable, and the default target is the host's: `windows-x86_64` on Windows, `linux-x86_64` on Linux.
+```bash
+tiko-macos/bin/tiko hello.tiko
+./hello
+```
+
+No flags are needed. tiko finds its headers and libraries relative to its own executable, and the default target is the host's: `windows-x86_64` on Windows, `linux-x86_64` on Linux, `macos-arm64` on macOS.
+
+## Installing on macOS
+
+tiko runs on Apple Silicon Macs with macOS 13 or newer.
+
+- **Xcode's Command Line Tools:** `xcode-select --install`. Every link uses the macOS SDK and Apple's linker from them.
+- **Homebrew's LLVM:** `brew install llvm`. Homebrew does not put this clang on `PATH`, and tiko does not need it there: it looks in `/opt/homebrew/opt/llvm/bin` itself.
+- **Clear the download quarantine before the first run.** A browser marks what it downloads, and macOS then refuses the unsigned compiler: it hangs rather than failing. Unpack, then:
+
+```bash
+xattr -dr com.apple.quarantine tiko-macos
+```
+
+An archive fetched with `curl` or `gh release download` is not marked.
+
+Optional, also from Homebrew: `openssl@3` for [std/tls and std/http](Category-Http), and `sdl3` (with `sdl3_image`, `sdl3_ttf`, `sdl3_mixer`) for [vendor/SDL3](Vendor-Packages). There is no graphics library on macOS (`SCREEN`, `PSET`), as on Linux.
 
 ## A first tour
 
@@ -70,7 +91,7 @@ cleaned up
 
 ## Building a toolchain from source
 
-Only needed to work on the compiler itself. From Git Bash on Windows, or from Linux or WSL:
+Only needed to work on the compiler itself. From Git Bash on Windows, or from Linux, WSL or macOS:
 
 ```bash
 git clone https://github.com/PaulSquires/tiko-lang.git

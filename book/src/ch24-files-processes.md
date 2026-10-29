@@ -264,7 +264,7 @@ On Linux:
 | `PathIsAbsolute( p )`, `PathStartsWith( p, prefix )` | tests |
 | `PathRelativeTo( p, base )` | `p` written relative to `base` |
 
-The separator is `\` on Windows and `/` on Linux, and the functions use the platform's own when
+The separator is `\` on Windows and `/` on Linux and macOS, and the functions use the platform's own when
 they build a path. A name that begins with a dot, `.gitignore`, has no extension: its stem is the
 whole name.
 
@@ -394,18 +394,18 @@ again rather than as an exact log.
 {{#include ../examples/ch24/userdirs.out}}
 ```
 
-| Function | Windows | Linux |
-|---|---|---|
-| `HomeDir( )` | the user's profile folder | `$HOME`, else the user's account entry |
-| `ConfigDir( )` | `AppData\Roaming` | `$XDG_CONFIG_HOME`, else `~/.config` |
-| `DataDir( )` | `AppData\Local` | `$XDG_DATA_HOME`, else `~/.local/share` |
-| `CacheDir( )` | `AppData\Local` | `$XDG_CACHE_HOME`, else `~/.cache` |
-| `StateDir( )` | `AppData\Local` | `$XDG_STATE_HOME`, else `~/.local/state` |
-| `ExecutablePath( )` | the program's own file | the program's own file |
+| Function | Windows | Linux | macOS |
+|---|---|---|---|
+| `HomeDir( )` | the user's profile folder | `$HOME`, else the user's account entry | `$HOME`, else the user's account entry |
+| `ConfigDir( )` | `AppData\Roaming` | `$XDG_CONFIG_HOME`, else `~/.config` | `$XDG_CONFIG_HOME`, else `~/Library/Application Support` |
+| `DataDir( )` | `AppData\Local` | `$XDG_DATA_HOME`, else `~/.local/share` | `$XDG_DATA_HOME`, else `~/Library/Application Support` |
+| `CacheDir( )` | `AppData\Local` | `$XDG_CACHE_HOME`, else `~/.cache` | `$XDG_CACHE_HOME`, else `~/Library/Caches` |
+| `StateDir( )` | `AppData\Local` | `$XDG_STATE_HOME`, else `~/.local/state` | `$XDG_STATE_HOME`, else `~/Library/Application Support` |
+| `ExecutablePath( )` | the program's own file | the program's own file | the program's own file |
 
 **Nothing is created and no program name is added.** Each call says where the directory should
-be; join your own program's name, and `CreateDirAll` it before writing there. On Linux an `XDG_`
-variable counts only when it holds an absolute path. `ExecutablePath( )` is the full path of the
+be; join your own program's name, and `CreateDirAll` it before writing there. On Linux and macOS an
+`XDG_` variable counts only when it holds an absolute path. `ExecutablePath( )` is the full path of the
 running program however it was started, which `command( 0 )` is not — the way to find a file
 installed beside the program. `ExpandHome` replaces a leading `~` with the home directory and leaves
 every other path as it is.
@@ -673,8 +673,8 @@ The module also answers questions about the machine: `OS_NAME` and `ARCH_NAME` (
 container or under an affinity mask is fewer than the machine has. That is the number to size a
 pool of workers by.
 
-**Set the environment before starting threads.** On Linux, changing a variable while another
-thread reads the environment is not safe, whichever function does it.
+**Set the environment before starting threads.** On Linux and macOS, changing a variable while
+another thread reads the environment is not safe, whichever function does it.
 
 ### Running other programs
 
@@ -694,7 +694,7 @@ thread reads the environment is not safe, whichever function does it.
 | `run program` | a program | nothing: the current program ends |
 | `open pipe "command" for input as #f` | a command whose output the program reads | — |
 
-`shell` goes through `cmd.exe` on Windows and `/bin/sh` on Linux, so the command line is in that
+`shell` goes through `cmd.exe` on Windows and `/bin/sh` on Linux and macOS, so the command line is in that
 shell's language; `exec` starts a program with no shell in between, which is safer when an argument
 came from a user. `open pipe … for input` reads what the command prints, a line at a time, as if it
 were a file; `for output` sends lines to its input instead.
@@ -714,7 +714,7 @@ anything else is a failure whose number the caller can test — `$?` in a Unix s
 in `cmd.exe`, or the return of `shell` and `exec` in another tiko program. A program that can fail
 should say so through its exit code, not only through what it prints.
 
-`os.Exit_( n )` from `std/os` is `end n` under a name a procedure can pass around, and `os.Abort( )`
+`os.ExitWith( n )` from `std/os` is `end n` under a name a procedure can pass around, and `os.Abort( )`
 ends the program at once, skipping every destructor and every buffered write.
 
 ### Stopping cleanly on Ctrl-C
@@ -738,7 +738,7 @@ where it is safe to stop; nothing of yours runs at the moment the key is pressed
 
 `os.Interrupted( )` asks without waiting, `os.WaitInterrupt( ms )` waits, and `os.LastInterrupt( )`
 says which kind arrived: `INT_CTRL_C`, `INT_BREAK` (Ctrl-Break, Windows), `INT_TERMINATE` (`SIGTERM`
-on Linux; the console window closing, logoff or shutdown on Windows) or `INT_HANGUP` (`SIGHUP`).
+on Linux and macOS; the console window closing, logoff or shutdown on Windows) or `INT_HANGUP` (`SIGHUP`).
 **A second Ctrl-C ends the program at once**, with code 130, so a program that is stuck can still
 be stopped; `os.CatchInterrupt( false )` turns that off. On Windows a closing console window gives
 the program about five seconds before the system ends it regardless.

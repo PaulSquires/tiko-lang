@@ -3,6 +3,7 @@
 - [Home](Home)
 - [What Is tiko-lang](What-Is-tiko-lang)
 - [Quick Start](Quick-Start)
+- [Installing on macOS](Quick-Start#installing-on-macos)
 - [Feature Index](Feature-Index)
 - [Compatibility](Compatibility)
 - [FAQ](tiko-lang-FAQ)

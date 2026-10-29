@@ -13,18 +13,18 @@ expects them, not beside its executable or in the current directory.
 {{#include ../../examples/files/userdirs.out}}
 ```
 
-| Function | Windows | Linux |
-|---|---|---|
-| `HomeDir( )` | the user's profile folder | `$HOME`, else the user's account entry |
-| `ConfigDir( )` | `AppData\Roaming` | `$XDG_CONFIG_HOME`, else `~/.config` |
-| `DataDir( )` | `AppData\Local` | `$XDG_DATA_HOME`, else `~/.local/share` |
-| `CacheDir( )` | `AppData\Local` | `$XDG_CACHE_HOME`, else `~/.cache` |
-| `StateDir( )` | `AppData\Local` | `$XDG_STATE_HOME`, else `~/.local/state` |
+| Function | Windows | Linux | macOS |
+|---|---|---|---|
+| `HomeDir( )` | the user's profile folder | `$HOME`, else the user's account entry | `$HOME`, else the user's account entry |
+| `ConfigDir( )` | `AppData\Roaming` | `$XDG_CONFIG_HOME`, else `~/.config` | `$XDG_CONFIG_HOME`, else `~/Library/Application Support` |
+| `DataDir( )` | `AppData\Local` | `$XDG_DATA_HOME`, else `~/.local/share` | `$XDG_DATA_HOME`, else `~/Library/Application Support` |
+| `CacheDir( )` | `AppData\Local` | `$XDG_CACHE_HOME`, else `~/.cache` | `$XDG_CACHE_HOME`, else `~/Library/Caches` |
+| `StateDir( )` | `AppData\Local` | `$XDG_STATE_HOME`, else `~/.local/state` | `$XDG_STATE_HOME`, else `~/Library/Application Support` |
 
 **Nothing is created and no program name is added.** Join your own program's
 name and create the directory with `CreateDirAll` before writing there. None
-of the answers ends with a separator. On Linux an `XDG_` variable counts only
-when it holds an absolute path.
+of the answers ends with a separator. On Linux and macOS an `XDG_` variable
+counts only when it holds an absolute path.
 
 `ExecutablePath( )` is the full path of the running program, however it was
 started, which `command( 0 )` is not. `PathParent` of it is the directory the
