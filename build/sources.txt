@@ -41,6 +41,7 @@ src/symbols/semsweep.tiko
 src/symbols/semlate.tiko
 src/symbols/semdecl.tiko
 src/symbols/semproc.tiko
+src/symbols/methodassign.tiko
 src/symbols/semassign.tiko
 src/symbols/redimrank.tiko
 src/types/udtlayout.tiko

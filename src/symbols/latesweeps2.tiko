@@ -1440,6 +1440,7 @@ sub RunLateSweeps2_ ( byref c as Ctx )
     CheckAnyPtrDeref_( c )      '' anyptrderef.tiko
     CheckBranchTargets_( c )    '' branchtarget.tiko (T95)
     CheckSetterOnlyReads_( c )  '' setteronly.tiko
+    CheckMethodAssigns_( c )    '' methodassign.tiko
     CheckConstObjectCalls_( c ) '' constcall.tiko
     CheckStaticThis_( c )       '' staticthis.tiko
     CheckBraceLists_( c )       '' braceinit.tiko

@@ -281,6 +281,14 @@ function LowerAddr _
         dim as boolean gotPa = LowerPropertyGet_( c, id, ppa )
         c.stmt.propAddrWanted = pw0
         if gotPa then return ppa
+        '' ...AND OVER A BYREF METHOD NAMED WITHOUT PARENTHESES. 'g.R = 3' and '@g.R' over
+        '' 'function R( ) byref as long' call R and use what it returns, as 'g.R( ) = 3' does
+        '' (fbc-modern 1.20); tiko stored through R's own code. Check refuses any other
+        '' method there (symbols/methodassign.tiko), so the arity is the bare call's.
+        if (c.ast->StmtOf( bpn )->op = cast( uint16, Tko.KW_FUNCTION )) andalso (bps->kind = cast( uint8, Tko.SYM_PROC )) then
+            dim as MirValue bra = LowerCallParts( c, id, bpg, 0, 0, MT_PTR, true )
+            if bra.kind <> cast( uint8, MV_NONE ) then return bra
+        end if
     end if
 
 

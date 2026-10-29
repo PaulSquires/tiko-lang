@@ -1037,6 +1037,10 @@
     '' fbc's 214: 'T.m( )' over a non-static member, with no object to call it on --
     '' symbols/staticcall.tiko.
     DIAG( TKO0999, SEV_ERROR,   "'%0' is not a static member; call it through an object of its type" )
+    '' fbc's 1 (3 when the method takes no argument) for 'obj.F = v' over a method that is
+    '' not a property, and its 317 for a bare or qualified SUB name assigned --
+    '' symbols/methodassign.tiko and resolveamb.tiko. %1 is "sub" or "function".
+    DIAG( TKO0601, SEV_ERROR,   "'%0' is a %1, not a property: call it as '%0( ... )' instead of assigning to it" )
 
 #endmacro
 
