@@ -5,7 +5,7 @@ tiko is distributed as a **toolchain**: the compiler, its headers, its runtime l
 ## What you need
 
 - **A toolchain.** Download the newest release titled *tiko toolchains* from [Releases](https://github.com/PaulSquires/tiko-lang/releases): `tiko-windows-x86_64-<commit>.zip` for Windows, `tiko-linux-x86_64-<commit>.tar.gz` for Linux, `tiko-macos-arm64-<commit>.tar.gz` for macOS on Apple Silicon. Unpack it anywhere; it holds one directory, `tiko-lang/`, on every system.
-- **tkEdit**, the editor, comes in the same directory, beside the compiler: `tiko-lang\tkedit.exe` on Windows, `tiko-lang/bin/tkedit` on Linux, `tiko-lang/bin/tkEdit.app` on macOS. It is one file -- its fonts, themes and libraries are inside it -- and it finds the compiler next to itself.
+- **tkEdit**, the editor, comes in the same directory, beside the compiler: `tiko-lang\tkedit.exe` on Windows, `tiko-lang/tkedit` on Linux, `tiko-lang/tkEdit.app` on macOS -- in the top of the directory on every system. It is one file -- its fonts, themes and libraries are inside it -- and it finds the compiler next to itself or in `bin/`.
 - **clang 18 or newer.** It is not bundled: tiko uses it to compile and to link. tiko takes the first it finds of `TKO_CLANG`, then `C:\Program Files\LLVM\bin\clang.exe` on Windows, `/usr/bin/clang` on Linux or `/opt/homebrew/opt/llvm/bin/clang` on macOS, then `clang` on `PATH`.
 
 ## Compile a program

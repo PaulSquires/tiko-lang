@@ -857,9 +857,9 @@ fi
 # ---------------------------------------------------------------- the editor
 #
 # TKEDIT SHIPS WITH THE TOOLCHAIN (the author's orders, 2026-10-27 and 2026-10-29): a release
-# archive unpacks to ONE folder, tiko-lang/, with tkedit beside the compiler (tkedit.exe next to
-# tiko.exe, bin/tkedit or bin/tkEdit.app next to bin/tiko), and tkedit finds the compiler in its
-# own folder (tkedit/src/core/build: SiblingCompiler). Here every host packages into one
+# archive unpacks to ONE folder, tiko-lang/, with tkedit in its root (tkedit.exe next to
+# tiko.exe, tkedit or tkEdit.app in the root above bin/tiko), and tkedit finds the compiler in its
+# own folder or its bin/ (tkedit/src/core/build: SiblingCompiler). Here every host packages into one
 # toolchains/, so the editor is staged apart, as tkedit-<host>; build/release.sh puts it in.
 #
 # ONE FILE (docs/tkEdit/SINGLE-FILE.md): tkedit links in SDL, SDL_ttf, SDL_image, scintk and its

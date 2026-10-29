@@ -10,22 +10,22 @@
 #
 #   1. refuses unless every toolchain's MANIFEST.txt names the commit (default HEAD);
 #   EVERY ARCHIVE HOLDS ONE FOLDER, tiko-lang/, on every OS (author 2026-10-29), with the one-file
-#   tkedit beside the compiler: tiko-lang/tkedit.exe next to tiko.exe; tiko-lang/bin/tkedit next to
-#   bin/tiko; on macOS tiko-lang/bin/tkEdit.app. The archive names are unchanged. (--no-tkedit: the
+#   tkedit in its root: tiko-lang/tkedit.exe next to tiko.exe; tiko-lang/tkedit above bin/tiko; on
+#   macOS tiko-lang/tkEdit.app. The archive names are unchanged. (--no-tkedit: the
 #   compiler alone.)
 #   2. zips toolchains/tiko-windows, staged as tiko-lang, with C:/Windows/System32/tar.exe (bsdtar) -- Git Bash's
 #      bare tar.exe is GNU tar, whose '-a -cf x.zip' writes an uncompressed TAR named .zip --
 #      and checks the result is a zip;
 #   3. tars toolchains/tiko-linux under WSL from a copy in ~/tkrel-<sha>, 644 for files and
-#      755 for bin/tiko and bin/tkedit, owner 0 (tarring from /mnt/c gives every file 777);
+#      755 for bin/tiko and tkedit, owner 0 (tarring from /mnt/c gives every file 777);
 #   3b. tars toolchains/tiko-macos ON THE MAC (docs/tiko-macos M9), over ssh to TKO_MAC_HOST
 #      (default 'mac', options in TKO_MAC_SSH_OPTS): bsdtar, owner 0, no extended attributes
 #      or AppleDouble files, 644/755 as above; copied back here. It unpacks to tiko-lang/, as the
 #      others do, tkEdit.app in its bin/. --no-mac leaves it out;
 #   4. writes SHA256SUMS and appends the hashes to a copy of the notes;
 #   5. smoke-tests each archive extracted into an empty directory with no TKO_* variable:
-#      hello.tiko compiled and run, tiko-lang/ the archive's only folder, and tkedit beside the
-#      compiler -- on macOS a tkEdit.app whose signature verifies (one file: docs/tkEdit/SINGLE-FILE.md);
+#      hello.tiko compiled and run, tiko-lang/ the archive's only folder, and tkedit in its
+#      root -- on macOS a tkEdit.app whose signature verifies (one file: docs/tkEdit/SINGLE-FILE.md);
 #   6. with --prev <dir> holding the previous release's two archives, prints the files each
 #      archive gained and lost, below the top folder (so an older tiko-windows/ compares as tiko-lang/);
 #   7. with --editor <dir>, mirrors tiko-windows into <dir> (the editor's toolchain copy);
@@ -127,12 +127,12 @@ cat > "$WSLSH" <<EOF
 set -e
 rm -rf ~/tkrel-$SHORT && mkdir -p ~/tkrel-$SHORT
 cp -r "/mnt/c${ROOT#/c}/$LNX" ~/tkrel-$SHORT/tiko-lang
-[ -z "$TKDIRS" ] || cp -a "/mnt/c${ROOT#/c}/$TKLNX/tkedit" ~/tkrel-$SHORT/tiko-lang/bin/tkedit
+[ -z "$TKDIRS" ] || cp -a "/mnt/c${ROOT#/c}/$TKLNX/tkedit" ~/tkrel-$SHORT/tiko-lang/tkedit
 cd ~/tkrel-$SHORT
 find tiko-lang -type f -exec chmod 644 {} +
 find tiko-lang -type d -exec chmod 755 {} +
 chmod 755 tiko-lang/bin/tiko
-[ -z "$TKDIRS" ] || chmod 755 tiko-lang/bin/tkedit
+[ -z "$TKDIRS" ] || chmod 755 tiko-lang/tkedit
 tar -czf "/mnt/c${ROOT#/c}/$TGZ" --owner=0 --group=0 tiko-lang
 EOF
 MSYS_NO_PATHCONV=1 wsl.exe -e sh "/mnt/c${ROOT#/c}/$WSLSH" || die "WSL tar failed"
@@ -147,13 +147,13 @@ if [ "$MAC" = "1" ]; then
 set -e
 rm -rf ~/tkrel-$SHORT && mkdir -p ~/tkrel-$SHORT
 cp -R ~/dev/tiko-lang/toolchains/tiko-macos ~/tkrel-$SHORT/tiko-lang
-[ -z "$TKDIRS" ] || cp -R ~/dev/tiko-lang/toolchains/tkedit-macos/tkEdit.app ~/tkrel-$SHORT/tiko-lang/bin/tkEdit.app
+[ -z "$TKDIRS" ] || cp -R ~/dev/tiko-lang/toolchains/tkedit-macos/tkEdit.app ~/tkrel-$SHORT/tiko-lang/tkEdit.app
 cd ~/tkrel-$SHORT
 xattr -cr tiko-lang
 find tiko-lang -type f -exec chmod 644 {} +
 find tiko-lang -type d -exec chmod 755 {} +
 chmod 755 tiko-lang/bin/tiko
-[ -z "$TKDIRS" ] || chmod 755 tiko-lang/bin/tkEdit.app/Contents/MacOS/tkedit
+[ -z "$TKDIRS" ] || chmod 755 tiko-lang/tkEdit.app/Contents/MacOS/tkedit
 COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata --uid 0 --gid 0 -czf tiko-macos-arm64-$SHORT.tar.gz tiko-lang
 EOF
     on_mac "$OUT/tar-macos.sh" || die "the Mac's tar failed"
@@ -185,7 +185,7 @@ set -e
 rm -rf ~/tksmoke-$SHORT && mkdir -p ~/tksmoke-$SHORT && cd ~/tksmoke-$SHORT
 tar -xzf "/mnt/c${ROOT#/c}/$TGZ"
 test "\$(ls -A)" = "tiko-lang"
-[ -z "$TKDIRS" ] || test -x tiko-lang/bin/tkedit
+[ -z "$TKDIRS" ] || test -x tiko-lang/tkedit
 printf 'print "hello from tiko"\n' > hello.tiko
 env -u TKO_INCLUDE -u TKO_LIBPATH -u TKO_PKG tiko-lang/bin/tiko hello.tiko -o hello
 ./hello
@@ -201,7 +201,7 @@ set -e
 rm -rf ~/tksmoke-$SHORT && mkdir -p ~/tksmoke-$SHORT/home && cd ~/tksmoke-$SHORT
 tar -xzf ~/tkrel-$SHORT/tiko-macos-arm64-$SHORT.tar.gz
 test "\$(ls -A | grep -v '^home\$')" = "tiko-lang"
-[ -z "$TKDIRS" ] || { test -x tiko-lang/bin/tkEdit.app/Contents/MacOS/tkedit && codesign --verify --deep --strict tiko-lang/bin/tkEdit.app; }
+[ -z "$TKDIRS" ] || { test -x tiko-lang/tkEdit.app/Contents/MacOS/tkedit && codesign --verify --deep --strict tiko-lang/tkEdit.app; }
 echo 'print "hello from tiko"' > hello.tiko
 env -i HOME=\$PWD/home PATH=/usr/bin:/bin tiko-lang/bin/tiko hello.tiko -o hello
 ./hello

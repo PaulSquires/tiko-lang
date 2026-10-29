@@ -731,9 +731,9 @@ private function SubFolders( byref dir_ as const ustring, byref skip as const us
 end function
 
 ' The compiler that came with tkEdit. A release archive holds ONE folder, tiko-lang/, with tkedit
-' beside the compiler (author 2026-10-29): tiko-lang/tkedit.exe next to tiko.exe, tiko-lang/bin/tkedit
-' (macOS: bin/tkEdit.app) next to bin/tiko -- so editorRoot itself (platform.InstallDir: the folder
-' holding tkedit or its .app) is looked in first. Then, as the older archives had a toolchain and
+' in its root (author 2026-10-29): tiko-lang/tkedit.exe next to tiko.exe, tiko-lang/tkedit (macOS:
+' tiko-lang/tkEdit.app) above bin/tiko -- so editorRoot itself (platform.InstallDir: the folder
+' holding tkedit or its .app) is looked in first, then its bin/. Then, as the older archives had a toolchain and
 ' tkedit/ side by side (author 2026-10-27), every other folder beside editorRoot -- those named tiko*
 ' first, each group in name order -- for tiko (tiko.exe on Windows) in it or one folder down
 ' (tiko-linux/bin/tiko). "" when there is none.
@@ -745,6 +745,7 @@ public function SiblingCompiler( byref editorRoot as const ustring, byval os_ as
         root = left( root, len( root ) - 1 )
     wend
     if fs.IsFile( fs.PathJoin( root, exe ) ) then return fs.PathJoin( root, exe )
+    if fs.IsFile( fs.PathJoin( root, "bin", exe ) ) then return fs.PathJoin( root, "bin", exe )
     dim as ustring parent = fs.PathParent( root )
     if (len( parent ) = 0) orelse (fs.IsDir( parent ) = false) then return ""
     dim as Array( of ustring ) all_ = SubFolders( parent, fs.PathFileName( root ), os_ )
