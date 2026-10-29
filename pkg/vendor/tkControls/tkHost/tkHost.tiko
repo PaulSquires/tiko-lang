@@ -400,10 +400,61 @@ private sub SizeFont( byval h as TK_HOST ptr, byval f as TTF_Font ptr, byval pt 
     TTF_SetFontSizeDPI( f, pt, dpi, dpi )
 end sub
 
+' FONTS FROM MEMORY. A program that carries its fonts inside itself ('#embed') registers each under
+' a name, and every font tkHost, tkApp and tkCodeEdit open takes that name where it takes a file
+' path -- exactly that name, nothing derived from it. The convention is "mem:<file name>", so
+' tkApp's FontDir = "mem:" finds them by their usual file names. The bytes stay the caller's: they
+' must outlive every font opened from them (an '#embed' array lives as long as the program).
+dim shared as string gMemFontName()
+dim shared as const any ptr gMemFontData()
+dim shared as integer gMemFontSize()
+
+public sub tkHost_AddFontData( byref name_ as string, byval pData as const any ptr, byval nBytes as integer )
+    dim as long n = ubound( gMemFontName ) + 1
+    for i as long = 0 to n - 1
+        if gMemFontName(i) = name_ then
+            gMemFontData(i) = pData : gMemFontSize(i) = nBytes
+            return
+        end if
+    next
+    redim preserve gMemFontName( 0 to n ) : redim preserve gMemFontData( 0 to n ) : redim preserve gMemFontSize( 0 to n )
+    gMemFontName(n) = name_ : gMemFontData(n) = pData : gMemFontSize(n) = nBytes
+end sub
+
+' TRUE when 'name_' was registered: a font open takes it as a font that is there.
+public function tkHost_HasFontData( byref name_ as string ) as boolean
+    for i as long = 0 to ubound( gMemFontName )
+        if gMemFontName(i) = name_ then return true
+    next
+    return false
+end function
+
+' A font file or a registered name, at 'pt' points (unscaled) and face 'face' of a collection.
+' The one place a font is opened from a name, so a registered one is honoured everywhere.
+public function tkHost_OpenFontFace( byref path as string, byval pt as single, byval face as long ) as TTF_Font ptr
+    dim as SDL_PropertiesID props = SDL_CreateProperties()
+    if props = 0 then return 0
+    dim as long k = -1
+    for i as long = 0 to ubound( gMemFontName )
+        if gMemFontName(i) = path then k = i : exit for
+    next
+    if k >= 0 then
+        SDL_SetPointerProperty( props, TTF_PROP_FONT_CREATE_IOSTREAM_POINTER, SDL_IOFromConstMem( gMemFontData(k), gMemFontSize(k) ) )
+        SDL_SetBooleanProperty( props, TTF_PROP_FONT_CREATE_IOSTREAM_AUTOCLOSE_BOOLEAN, true )
+    else
+        SDL_SetStringProperty( props, TTF_PROP_FONT_CREATE_FILENAME_STRING, strptr( path ) )
+    end if
+    SDL_SetFloatProperty( props, TTF_PROP_FONT_CREATE_SIZE_FLOAT, pt )
+    SDL_SetNumberProperty( props, TTF_PROP_FONT_CREATE_FACE_NUMBER, face )
+    dim as TTF_Font ptr f = TTF_OpenFontWithProperties( props )
+    SDL_DestroyProperties( props )
+    return f
+end function
+
 public function tkHost_OpenFont( byval h as TK_HOST ptr, byref path as ustring, byval pt as single ) as TTF_Font ptr
     if h = 0 then return 0
     dim as string p8 = path
-    dim as TTF_Font ptr f = TTF_OpenFont( strptr( p8 ), pt )
+    dim as TTF_Font ptr f = tkHost_OpenFontFace( p8, pt, 0 )
     if f = 0 then return 0
     SizeFont( h, f, pt )
     dim as long n = ubound( h->fonts ) + 1

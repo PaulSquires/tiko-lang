@@ -540,6 +540,17 @@ public:
 // a Surface for LogPixelsY, and a Surface carries no editor, so the DPI is a
 // process value (PlatTk's g_dpiY); Use() makes it this editor's before the
 // call. That is what lets two editors on monitors of different scale coexist.
+// LINKED STATICALLY INTO A WINDOWS PROGRAM (SCITK_STATIC, the archive build.sh makes for
+// tiko's 'link static'), nothing has initialised the static C++ runtime's per-thread
+// exception data: libcmt's startup does that, and a tiko program starts through tiko-rt
+// instead. The first throw then crashed. tiko-rt does run C++ static constructors, so one
+// here initialises it before any entry point is called. The DLL build must not: its own
+// startup already has, and initialising twice is not supported.
+#if defined(_WIN32) && defined(SCITK_STATIC)
+extern "C" bool __cdecl __vcrt_initialize();
+[[maybe_unused]] static const bool g_vcrtReady = __vcrt_initialize();
+#endif
+
 static ScintillaTk *Use(void *p) {
 	ScintillaTk *sci = static_cast<ScintillaTk *>(p);
 	if (sci->dpi > 0) SciTk_SetDpi(sci->dpi);

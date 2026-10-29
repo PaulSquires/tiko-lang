@@ -118,6 +118,7 @@ tests/vendor/**/*.o
 # examples' module cache, screenshots and link records
 /pkg/vendor/tkControls/fonts/
 /pkg/vendor/tkControls/tkCodeEdit/scintk/bin/
+/pkg/vendor/SDL3/static/bin/
 /pkg/vendor/tkControls/tkCodeEdit/scintk/out/
 /examples/tkControls/out/
 /examples/tkControls/linux-lib/

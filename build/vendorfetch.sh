@@ -11,8 +11,11 @@
 # it ('copy': where upstream publishes the binary) or compiles C sources with clang into a
 # static archive and/or a shared library ('cbuild': where it does not). A host makes its own
 # binaries, as package.sh makes its own toolchain. A 'copy' whose url is a single file, not an
-# archive, copies that file. 'script' needs no download: it runs a build script committed in
-# the package (vendor/tkControls' scintk) and copies what it made.
+# archive, copies that file. 'script' runs a build script committed in the package
+# (vendor/tkControls' scintk, vendor/SDL3's static libraries) and copies what it made; its
+# optional 'inputs' -- 'url sha256 url sha256 ...' -- are fetched and verified first, like any
+# download, and handed to the script as TKO_VENDOR_INPUTS (the local paths, in order), with
+# TKO_VENDOR_HOST (windows, linux, macos) and TKO_VENDOR_CACHE.
 #
 #   TKO_VENDOR_CACHE    where downloads are kept (default build/.vendorfetch); one already
 #                       there with the right SHA-256 is not downloaded again
@@ -119,6 +122,14 @@ entry( ) {
         # sees only fetch.toml, not the sources the script compiles.
         _scr="$ROOT/pkg/vendor/$_mod/$(_get script)"; _from="$ROOT/pkg/vendor/$_mod/$(_get from)"; _to=$(_get to)
         [ -f "$_scr" ] && [ -n "$_to" ] || die "$_mod [$_tab]: 'script' needs script, from and to"
+        TKO_VENDOR_INPUTS=
+        set -- $(_get inputs)
+        while [ $# -ge 2 ]; do
+            TKO_VENDOR_INPUTS="$TKO_VENDOR_INPUTS $(fetch "$1" "$2")"
+            shift 2
+        done
+        [ $# -eq 0 ] || die "$_mod [$_tab]: 'inputs' must be url sha256 pairs"
+        export TKO_VENDOR_INPUTS TKO_VENDOR_HOST=$HOST TKO_VENDOR_CACHE=$CACHE
         bash "$_scr" >/dev/null || die "$_mod [$_tab]: $(_get script) failed"
         [ -f "$_from" ] || die "$_mod [$_tab]: $(_get script) made no $(_get from)"
         mkdir -p "$(dirname "$_mdir/$_to")"

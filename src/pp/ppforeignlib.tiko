@@ -75,6 +75,9 @@ private function ForeignLibResolve_ _
     if lcase( left( spec, 7 ) ) = "system:" then
         return mid( spec, 8 )
     end if
+    '' ...NOR 'framework:Name', a macOS framework: kept whole, and the Mach-O link writes it
+    '' '-framework Name' (codegen/toolchain.tiko). A static SDL3 needs a dozen (Cocoa, Metal...).
+    if lcase( left( spec, 10 ) ) = "framework:" then return spec
 
     '' SOURCE-RELATIVE, not relative to the working directory: a binding written in
     '' a header must find the library sitting beside that header whoever includes it.

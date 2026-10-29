@@ -1101,7 +1101,7 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
             '' which the link turns into '-l' and the target's own lookup. Pushed with
             '' the files it was handed to the linker as a path named 'winmm' -- clang,
             '' "no such file or directory" -- where fbc links it (measured, 1.20).
-            if lcase( left( spec, 7 ) ) = "system:" then
+            if (lcase( left( spec, 7 ) ) = "system:") orelse (lcase( left( spec, 10 ) ) = "framework:") then
                 e.outp->incLibs.Push( got )
             else
                 e.outp->foreignLibFiles.Push( got )

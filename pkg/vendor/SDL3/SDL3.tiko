@@ -1,24 +1,44 @@
 '' vendor/SDL3 -- SDL 3 (Simple DirectMedia Layer), the C library, as one import:
 ''
-''     #import "vendor/SDL3" link dynamic        (or neither)
+''     #import "vendor/SDL3" link dynamic        (or neither, or 'link static')
 ''
 '' Every routine, type and constant of SDL3's headers is then callable as SDL documents it,
 '' unqualified -- SDL_Init, SDL_INIT_VIDEO. The headers are SDL.ti and the SDL_*.ti it
 '' includes: the sdl3-freebasic binding (GaBurdis, MIT) for SDL 3.4.4, committed, with its
 '' include paths made the package's own and its '#inclib' replaced by the #foreignlib below.
 ''
-'' THE LIBRARY: SDL publishes no static library, so this package ships 'link dynamic' alone --
-'' also its default when no '#import' says. On Windows it is lib/SDL3.dll, copied beside the
+'' THE LIBRARY, 'link dynamic' -- the default when no '#import' says. On Windows it is lib/SDL3.dll, copied beside the
 '' program. SDL publishes no Linux binary, so there the toolchain ships none and the program
 '' links the system's -- '-lSDL3', which the distribution's SDL3 development package (e.g.
 '' libsdl3-dev) provides -- and loads it from the system's library folders as any other.
+''
+'' 'link static' puts SDL inside the program: lib/SDL3_<os>_<arch>.a, which SDL does not publish
+'' and static/build.sh builds on every host (fetch.toml). The program then needs only what the
+'' operating system has -- the libraries named below, and on Linux the X11 / Wayland / GL
+'' libraries SDL loads itself at run time. On Windows the link also takes Visual Studio's
+'' libvcruntime.lib and oldnames.lib: the archive is built against the static C runtime.
 '' macOS is the same with Homebrew's ('brew install sdl3'), which tiko's link finds in
 '' /opt/homebrew/lib.
 #module "SDL3"
 
 public #include once "SDL.ti"
 
-#if defined( TIKO_OS_LINUX ) or defined( TIKO_OS_MACOS )
+#ifdef TIKO_LINK_STATIC
+    #ifdef TIKO_OS_WINDOWS
+        #foreignlib SDL3 static "lib/SDL3", "system:setupapi", "system:winmm", "system:imm32", _
+            "system:version", "system:ole32", "system:oleaut32", "system:shell32", "system:uuid", _
+            "system:advapi32", "system:cfgmgr32", "system:libvcruntime", "system:oldnames"
+    #elseifdef TIKO_OS_MACOS
+        #foreignlib SDL3 static "lib/SDL3", "framework:Cocoa", "framework:IOKit", _
+            "framework:ForceFeedback", "framework:Carbon", "framework:CoreAudio", _
+            "framework:AudioToolbox", "framework:AVFoundation", "framework:Foundation", _
+            "framework:GameController", "framework:Metal", "framework:QuartzCore", _
+            "framework:CoreHaptics", "framework:CoreVideo", "framework:UniformTypeIdentifiers", _
+            "framework:CoreMedia", "system:iconv"
+    #else
+        #foreignlib SDL3 static "lib/SDL3", "system:m", "system:dl", "system:pthread", "system:rt"
+    #endif
+#elseif defined( TIKO_OS_LINUX ) or defined( TIKO_OS_MACOS )
     #foreignlib SDL3 dynamic "system:SDL3"
 #else
     #foreignlib SDL3 dynamic "lib/SDL3"

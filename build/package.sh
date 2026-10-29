@@ -395,7 +395,7 @@ rm -f "$OUT"/pkg/vendor/*/fetch.toml
 # vendor/tkControls also fetches fonts/, and builds scintk (tkCodeEdit/scintk) in place: the
 # tree's build output is not shipped, only its source and what vendorfetch.sh copies to lib/.
 rm -rf "$OUT/pkg/vendor/tkControls/fonts" "$OUT/pkg/vendor/tkControls/tkCodeEdit/scintk/bin" \
-       "$OUT/pkg/vendor/tkControls/tkCodeEdit/scintk/out"
+       "$OUT/pkg/vendor/tkControls/tkCodeEdit/scintk/out" "$OUT/pkg/vendor/SDL3/static/bin"
 sh "$ROOT/build/vendorfetch.sh" --out "$OUT/pkg" || die "vendorfetch.sh failed: the vendor packages have no binaries"
 for _vm in "$OUT"/pkg/vendor/*/; do
     _vft="$ROOT/pkg/vendor/$( basename "$_vm" )/fetch.toml"

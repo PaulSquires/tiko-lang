@@ -1,0 +1,10 @@
+# tkStatic: the vendor libraries LINKED IN and fonts from MEMORY -- the single-file build.
+# tiko build (writes selftest.exe here; out/ is the cache). '-nocopylibs' copies nothing beside
+# it, so a check that passes ran on code inside the one file.
+[package]
+name = "tkstatic-tests"
+
+[target.selftest]
+main    = "selftest.tiko"
+output  = "selftest.exe"
+options = ["-nocopylibs"]

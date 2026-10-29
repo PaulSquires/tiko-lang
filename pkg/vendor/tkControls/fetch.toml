@@ -191,3 +191,24 @@ kind = "copy"
 url = "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/463d58b8186f874ab2f51cf0a08b4ff5097c912f/LICENSE"
 sha256 = "69bc45dc42b9acb96a69823adbc6ae538374e3c0bde169b855b32c48eaaef52f"
 to = "fonts/FluentSystemIcons-LICENSE.txt"
+
+# SCINTK STATIC (tkCodeEdit's 'link static'): build.sh's archive of the same objects, which
+# '#foreignlib ... static "../lib/scintk"' probes as scintk_<os>_<arch>.a.
+
+[windows.10]
+kind = "script"
+script = "tkCodeEdit/scintk/build.sh"
+from = "tkCodeEdit/scintk/bin/windows/scintk_windows_x86_64.a"
+to = "lib/scintk_windows_x86_64.a"
+
+[linux.10]
+kind = "script"
+script = "tkCodeEdit/scintk/build.sh"
+from = "tkCodeEdit/scintk/bin/linux/scintk_linux_x86_64.a"
+to = "lib/scintk_linux_x86_64.a"
+
+[macos.10]
+kind = "script"
+script = "tkCodeEdit/scintk/build.sh"
+from = "tkCodeEdit/scintk/bin/macos/scintk_macos_arm64.a"
+to = "lib/scintk_macos_arm64.a"

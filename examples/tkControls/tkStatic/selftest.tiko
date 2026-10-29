@@ -1,0 +1,61 @@
+' tkStatic self-test: SDL3, SDL3_ttf, SDL3_image and scintk LINKED INTO the program ('link
+' static'), and its fonts and an image read from MEMORY ('#embed' + tkHost_AddFontData) -- what a
+' single-file program is made of. Built with -nocopylibs (tiko.toml): no library or font sits
+' beside the executable, so every check below ran on code and data inside it.
+'
+'   selftest            exit code = number of failures
+#import "vendor/SDL3" link static
+#import "vendor/SDL3/ttf" link static
+#import "vendor/SDL3/image" link static
+#import "vendor/tkControls/tkCodeEdit" link static
+#import "vendor/tkControls/tkTest"
+using tkCodeEdit
+using tkHost
+using tkTest
+
+#embed InterRegular "../../../pkg/vendor/tkControls/fonts/Inter-Regular.ttf"
+#embed CascadiaMono "../../../pkg/vendor/tkControls/fonts/CascadiaMono-Regular.ttf"
+#embed AppImage "../shot-win.png"
+
+if tkTest_Init() = false then end 1
+tkTest_Begin( "static" )
+
+tkHost_AddFontData( "mem:Inter-Regular.ttf", @InterRegular(0), ubound( InterRegular ) + 1 )
+tkHost_AddFontData( "mem:CascadiaMono-Regular.ttf", @CascadiaMono(0), ubound( CascadiaMono ) + 1 )
+tkTest_Check( "registered names are fonts that are there", tkHost_HasFontData( "mem:Inter-Regular.ttf" ) )
+tkTest_Check( "an unregistered name is not", tkHost_HasFontData( "mem:nope.ttf" ) = false )
+
+dim as TK_HOST ptr h = tkHost_Create( "tkStatic", 480, 240, "mem:Inter-Regular.ttf", 1.0 )
+tkTest_Check( "a host with its default font from memory", (h <> 0) andalso (h->pDefaultFont <> 0) )
+if h = 0 then end tkTest_Report( "tkStatic" )
+
+dim as TTF_Font ptr f = tkHost_OpenFont( h, "mem:Inter-Regular.ttf", 12 )
+dim as string fam = ""
+if f then fam = *TTF_GetFontFamilyName( f )
+tkTest_Check( "tkHost_OpenFont from memory: family Inter", fam = "Inter", fam )
+
+' SDL_image, linked in, decoding the embedded PNG.
+dim as SDL_Surface ptr ic = IMG_Load_IO( SDL_IOFromConstMem( @AppImage(0), ubound( AppImage ) + 1 ), true )
+tkTest_Check( "IMG_Load_IO of the embedded PNG", (ic <> 0) andalso (ic->w > 0), iif( ic, str( ic->w ), *SDL_GetError() ) )
+if ic then SDL_DestroySurface( ic )
+
+' scintk, linked in: no library to load, the table filled from the program's own symbols.
+dim as TK_WIDGET ptr ed = tkCodeEdit_Create( h->root, 1 )
+tkTest_Check( "tkCodeEdit_Create with scintk linked in", ed <> 0, tkCodeEdit_LibraryError() )
+if ed then
+    tkWidget_SetPos( ed, 8, 8, 464, 224 )
+    tkCodeEdit_SetFont( ed, "mem:CascadiaMono-Regular.ttf", 14 )
+    tkCodeEdit_SetText( ed, "print ""hello""" & chr( 10 ) & "dim as long x = 42" )
+    tkTest_Check( "text round-trips through Scintilla", tkCodeEdit_GetText( ed ) = "print ""hello""" & chr( 10 ) & "dim as long x = 42" )
+    tkTest_Check( "the tiko lexer is in the archive", tkCodeEdit_SetLexer( ed, "tiko" ) )
+    ' Text drawn with the font from memory: several tones where the first line is.
+    tkHost_RenderTo( h, false )
+    dim as ulong c0
+    dim as long tones = tkTest_TonesIn( h, 40, 8, 200, 22, c0 )
+    tkTest_Check( "the first line is drawn (font from memory)", tones >= 3, str( tones ) & " tones" )
+end if
+
+tkHost_Destroy( h )
+dim as long nFail = tkTest_Report( "tkStatic" )
+tkTest_Quit( )
+end nFail

@@ -731,6 +731,12 @@ function LinkExe _
     next
 
     for i as int32 = 0 to t.libs.Count - 1
+        '' A MACOS FRAMEWORK ('#foreignlib ... "framework:Cocoa"'), which no other object format
+        '' has: '-framework Cocoa' on Mach-O, nothing elsewhere -- a package guards its own.
+        if lcase( left( t.libs[i], 10 ) ) = "framework:" then
+            if macho then cmd += " -framework " & Q( mid( t.libs[i], 11 ) )
+            continue for
+        end if
         '' 'msvcrt' IS A REQUEST FOR THE C RUNTIME, and on this target the C runtime is
         '' ucrtbase, which the system list below always links. crt.bi writes
         '' '#inclib "msvcrt"' -- right for win64, where it is the CRT fbc links too.
