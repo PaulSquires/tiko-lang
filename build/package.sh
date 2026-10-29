@@ -877,16 +877,16 @@ if [ "$DO_TKEDIT" = "1" ]; then
     _tklog="$ROOT/lib/rt/obj/package-tkedit.log"
     mkdir -p "$ROOT/lib/rt/obj"; : > "$_tklog"
     _tkfail=""
-    # the editor's scanner, parser.dll: build.sh --dll builds it ALONE (bin/ keeps the
-    # compiler), and would copy it into this tree's tkedit/bin -- not here
+    # the editor's scanner, LINKED INTO tkedit (docs/tkEdit/SINGLE-FILE.md S4): build.sh --lib builds
+    # bin/parser_<os>_<arch>.a with THE COMPILER JUST PACKAGED -- the one that builds tkedit below, so
+    # each std module is one copy at tkedit's link (bin/ keeps the tree's compiler untouched)
     note "building tikoParser for tkedit"
-    if ! TKO_EDITOR_DIR=/nonexistent sh "$ROOT/build/build.sh" Release --dll >>"$_tklog" 2>&1; then
+    if ! TKO_SEED="$OUT/${BINSUB}tiko$EXT" sh "$ROOT/build/build.sh" Release --lib >>"$_tklog" 2>&1; then
         _tkfail="tikoParser did not build"
     fi
     case $HOST in
-        windows) _tkp="$ROOT/bin/parser.dll" ;;
-        macos)   _tkp="$ROOT/bin/parser.dylib" ;;
-        *)       _tkp="$ROOT/bin/parser.so" ;;
+        macos) _tkp="$ROOT/bin/parser_macos_arm64.a" ;;
+        *)     _tkp="$ROOT/bin/parser_${HOST}_x86_64.a" ;;
     esac
     [ -n "$_tkfail" ] || [ -f "$_tkp" ] || _tkfail="no $_tkp after the build"
     # Linux has no SDL3 of its own and the toolchain ships none: tkControls' build-linux-libs.sh
@@ -916,7 +916,6 @@ if [ "$DO_TKEDIT" = "1" ]; then
         for f in "$_tkrel"/*.dll "$_tkrel"/*.so "$_tkrel"/*.so.* "$_tkrel"/*.dylib; do
             [ -f "$f" ] && cp -f "$f" "$TKD/"
         done
-        cp -f "$_tkp" "$TKD/"
         [ "$HOST" = "linux" ] && cp -a "$_tklib"/lib*.so* "$TKD/"
         for d in fonts icons keywords lang themes; do
             cp -r "$TKSRC/$d" "$TKD/$d"

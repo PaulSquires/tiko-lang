@@ -4,10 +4,11 @@
 # From Windows, as a script file through a login shell (Homebrew is not on a non-login PATH):
 #   ssh mac zsh -l <script that runs this>
 # Builds in place: the Mac checkout is its own clone, so bin/ and out/ are never shared with
-# Windows. The compiler is $TIKO, else the tree's bin/tiko (build/build.sh, which also makes
-# bin/parser.dylib), else the toolchain's; it reads THIS tree's pkg/, whose vendor/tkControls
-# fonts and libscintk.dylib build/vendorfetch.sh puts in place. SDL3 + SDL3_ttf + SDL3_image are
-# Homebrew's. The window opens on the logged-in desktop: the Mac must be awake and unlocked.
+# Windows. The compiler is $TIKO, else the tree's bin/tiko (build/build.sh), else the toolchain's;
+# the scanner tkEdit links in, bin/parser_macos_arm64.a, is built with it (parserlib below). It reads
+# THIS tree's pkg/, whose static SDL3 archives, vendor/tkControls fonts and scintk build/vendorfetch.sh
+# puts in place -- tkEdit links them in, so no Homebrew SDL3 is needed at run time.
+# The window opens on the logged-in desktop: the Mac must be awake and unlocked.
 SRC=$(cd "$(dirname "$0")/.." && pwd)
 TREE=$(cd "$SRC/.." && pwd)
 if [ -z "${TIKO:-}" ]; then
@@ -44,11 +45,19 @@ run() {      # run <name> <dir> <command...>
     [ $rc -eq 0 ] || bad=$((bad+1))
 }
 
+# tkEdit LINKS IN the scanner (svc/parser): tiko-lang's bin/parser_<os>_<arch>.a, which must be built by
+# THIS compiler (its std module objects are one copy at the link). Made here when it is missing or older
+# than the compiler; a log of the build goes to out/parserlib.log.
+parserlib() {
+    local lib=$TREE/bin/parser_macos_arm64.a
+    [ -f "$lib" ] && [ "$lib" -nt "$TIKO" ] && return 0
+    mkdir -p "$SRC/out"
+    ( cd "$TREE" && TKO_SEED="$TIKO" bash build/build.sh Release --lib ) > "$SRC/out/parserlib.log" 2>&1 \
+        || { echo "parser library: BUILD FAILED (out/parserlib.log)"; bad=$((bad+1)); return 1; }
+}
+
 build src/core && run coreall "$SRC/src/core" ./tests/bin/coreall.exe
-if [ "${1:-}" != core ] && build src/app; then
-    # code intelligence (P5): parser.dylib, which tiko-lang's build/build.sh writes to bin/
-    TKP=${TIKOPARSER:-$TREE/bin/parser.dylib}
-    [ -f "$TKP" ] && cp -f "$TKP" "$SRC/bin/"
+if [ "${1:-}" != core ] && parserlib && build src/app; then
     # the self-test builds sample programs with this tiko (P4)
     export TKEDIT_TIKO=$TIKO
     run tkEdit "$SRC/bin" ./tkedit --selftest
