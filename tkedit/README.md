@@ -2,7 +2,8 @@
 
 A minimalist, keyboard-driven editor for the tiko language, on tkControls (SDL3 + SDL_ttf): one
 editor fills the window, no toolbar and no tabs, a menu bar that shows only on Ctrl+Shift+M, and
-configuration in TOML files only. Windows and Linux; macOS when tiko runs tkControls apps there.
+configuration in TOML files only. Windows, Linux and macOS (Apple Silicon); on a Mac every Ctrl
+chord below is Cmd.
 Spec and records: `C:\dev\docs\tkEdit` (PLAN.md, KEYS.md, CONFIG.md, FINDINGS.md).
 
 ## Using it
@@ -48,6 +49,13 @@ bash tools/test-win.sh
 
 ```bash
 MSYS_NO_PATHCONV=1 wsl.exe -e bash /mnt/c/dev/tiko-lang/tkedit/tools/test-linux.sh
+```
+
+On the Mac, from its own tiko-lang clone (a tree `bin/tiko` from `build/build.sh`, which also
+writes `bin/parser.dylib`; SDL3 from Homebrew):
+
+```bash
+bash tkedit/tools/test-mac.sh
 ```
 
 ```bash

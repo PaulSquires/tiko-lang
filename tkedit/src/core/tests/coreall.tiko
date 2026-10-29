@@ -52,8 +52,15 @@ sub PlatformSuite( byref c as tally.Checker )
 #elseif defined( TIKO_OS_LINUX )
     c.Check( os_ = platform.Os.Linux, "CurrentOs is Linux" )
     c.Check( platform.SharedLibraryFile( "parser" ) = "parser.so", "SharedLibraryFile .so" )
+#elseif defined( TIKO_OS_MACOS )
+    c.Check( os_ = platform.Os.MacOS, "CurrentOs is MacOS" )
+    c.Check( platform.SharedLibraryFile( "parser" ) = "parser.dylib", "SharedLibraryFile .dylib" )
 #endif
+#if defined( TIKO_OS_MACOS )
+    c.Check( platform.PrimaryModifierName( ) = "Cmd", "Primary is Cmd on macOS" )
+#else
     c.Check( platform.PrimaryModifierName( ) = "Ctrl", "Primary is Ctrl off macOS" )
+#endif
     c.Check( fs.IsDir( platform.ExeDir( ) ), "ExeDir is a folder" )
     c.Check( fs.IsFile( fs.PathJoin( platform.ExeDir( ), fs.PathFileName( command( 0 ) ) ) ) _
              orelse fs.IsFile( fs.PathJoin( platform.ExeDir( ), fs.PathFileName( command( 0 ) ) & ".exe" ) ), _

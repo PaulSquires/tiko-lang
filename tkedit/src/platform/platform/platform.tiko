@@ -227,7 +227,9 @@ public function TerminalArgv( byref exe as const ustring, byref args as const Ar
     if CurrentOs( ) = Os.MacOS then
         dim as ustring script = fs.PathJoin( scriptDir, "tkEdit-run.command" )
         fs.WriteAllText( script, body )
-        argv.Push( "/usr/bin/open" ) : argv.Push( "-a" ) : argv.Push( "Terminal" ) : argv.Push( script )
+        ' Terminal.app runs a .command only when it is executable, and std/fs sets no mode bits
+        argv.Push( "/bin/sh" ) : argv.Push( "-c" )
+        argv.Push( "chmod +x '" & script & "' && exec /usr/bin/open -a Terminal '" & script & "'" )
         return argv
     end if
     dim as ustring script = fs.PathJoin( scriptDir, "tkEdit-run.sh" )

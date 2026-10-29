@@ -66,6 +66,14 @@ using tkTheme
 
 private type DocRef as documents.Document ptr
 
+' The modifier a command chord is pushed with: tkEdit's Primary, Cmd on macOS. Its own, not
+' vendor/tkControls' TK_KMOD_PRIMARY, so the test builds against a toolchain packaged before it.
+#if defined( TIKO_OS_MACOS )
+const KMOD_PRIMARY = SDL_KMOD_GUI
+#else
+const KMOD_PRIMARY = SDL_KMOD_CTRL
+#endif
+
 ' The self-test's score. Each failing check prints one FAIL line.
 public type Tally
     passed as long
@@ -238,7 +246,7 @@ public sub Pass( byref t as Tally, byval sc as single )
     t.Check( mw.Finder.isOpen andalso (mw.Finder.Mode = findstrip.StripMode.GoTo), P( sc, "a third opened it again" ) )
     Chord( h, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE, 0 )
     t.Check( mw.Finder.isOpen = false, P( sc, "Esc in the box closed it" ) )
-    Chord( h, SDLK_F, SDL_SCANCODE_F, SDL_KMOD_CTRL )
+    Chord( h, SDLK_F, SDL_SCANCODE_F, KMOD_PRIMARY )
     t.Check( mw.Finder.isOpen andalso (mw.Finder.Mode = findstrip.StripMode.Find), P( sc, "Ctrl+F opened Find" ) )
     mw.View( ).Focus( )
     tkTest_PumpFor( h, 30 )
@@ -337,18 +345,20 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
         if mw.IsImplemented( cast( Cmd, i ) ) = false then greyed += 1
     next
     t.Check( greyed = 0, P( sc, strings.Format( "every command is implemented ({} not)", greyed ) ) )
-    t.Check( mw.ShortcutText( Cmd.FileSave ) = "Ctrl+S", P( sc, "Save shows " & mw.ShortcutText( Cmd.FileSave ) ) )
-    t.Check( mw.ShortcutText( Cmd.SplitLeftRight ) = "Ctrl+\", P( sc, "Split shows " & mw.ShortcutText( Cmd.SplitLeftRight ) ) )
+    ' the Primary modifier by this platform's name: Ctrl, Cmd on macOS
+    dim as ustring prim = platform.PrimaryModifierName( )
+    t.Check( mw.ShortcutText( Cmd.FileSave ) = prim & "+S", P( sc, "Save shows " & mw.ShortcutText( Cmd.FileSave ) ) )
+    t.Check( mw.ShortcutText( Cmd.SplitLeftRight ) = prim & "+\", P( sc, "Split shows " & mw.ShortcutText( Cmd.SplitLeftRight ) ) )
 
     ' ---- keys: an edit command, and one P1 cannot do yet
     tkTest_PushText( h, "abc" )
     tkTest_PumpFor( h, 30 )
-    Chord( h, SDLK_D, SDL_SCANCODE_D, SDL_KMOD_CTRL )
+    Chord( h, SDLK_D, SDL_SCANCODE_D, KMOD_PRIMARY )
     t.Check( mw.View( ).LineCount( ) = 2, P( sc, strings.Format( "Ctrl+D duplicated the line ({} lines)", mw.View( ).LineCount( ) ) ) )
     mw.View( ).SetText( "" )                                     ' unmodified: closing it asks nothing
 
     ' ---- settings.toml: Ctrl+Comma opens it; saving applies it
-    Chord( h, SDLK_COMMA, SDL_SCANCODE_COMMA, SDL_KMOD_CTRL )
+    Chord( h, SDLK_COMMA, SDL_SCANCODE_COMMA, KMOD_PRIMARY )
     t.Check( lcase( mw.ActivePath( ) ) = lcase( sf ), P( sc, "Ctrl+Comma opened settings.toml: " & mw.ActivePath( ) ) )
     t.Check( mw.View( ).IsHighlighted( ) = false, P( sc, "not coloured: not a source file" ) )
     t.Check( left( mw.View( ).Text( ), 17 ) = "# tkEdit settings", P( sc, "its text is in the view" ) )
@@ -356,7 +366,7 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     dim as long pts0 = mw.View( ).FontSize( ), lineH0 = mw.View( ).LineHeight( )
     mw.View( ).SetText( "version = 1" & nl & "[editor]" & nl & "tab_size = 2" & nl & "line_numbers = false" & nl & _
                      "font_size = 20" & nl & "[ui]" & nl & "theme = 'light'" & nl )
-    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, KMOD_PRIMARY )
     t.Check( mw.View( ).FontSize( ) = 20, P( sc, strings.Format( "font_size applied to the view: {} pt (was {})", mw.View( ).FontSize( ), pts0 ) ) )
     t.Check( mw.View( ).LineHeight( ) > lineH0, P( sc, strings.Format( "and drawn bigger: lines {} px (were {})", mw.View( ).LineHeight( ), lineH0 ) ) )
     t.Check( instr( fs.ReadAllText( sf ).ValueOr( "" ), "tab_size = 2" ) > 0, P( sc, "Ctrl+S wrote settings.toml" ) )
@@ -371,7 +381,7 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
         dim as long lineH2 = mw.View( ).LineHeight( )
         mw.View( ).SetText( "version = 1" & nl & "[editor]" & nl & "tab_size = 2" & nl & "line_numbers = false" & nl & _
                          "font_size = 20" & nl & "extra_line_spacing = 0" & nl & "[ui]" & nl & "theme = 'light'" & nl )
-        Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+        Chord( h, SDLK_S, SDL_SCANCODE_S, KMOD_PRIMARY )
         dim as long want = 2 * cint( 2 * tkHost_Scale( h, 1000 ) / 1000 )
         t.Check( (mw.Look.ExtraLineSpacing = 0) andalso (lineH2 - mw.View( ).LineHeight( ) = want), _
                  P( sc, strings.Format( "extra_line_spacing 0: lines {} px, were {} at the default 2 (2 x {} px less)", _
@@ -379,50 +389,50 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     end scope
     ' a broken file changes nothing and says where
     mw.View( ).SetText( "[editor" & nl & "tab_size = 8" & nl )
-    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, KMOD_PRIMARY )
     t.Check( instr( mw.Message, settings.SETTINGS_FILE & ":1:" ) = 1, P( sc, "a parse error names file and line: " & mw.Message ) )
     t.Check( mw.StatusText( mainwin.StatusPanel.Message ) = mw.Message, P( sc, "in the message panel" ) )
     t.Check( (mw.Prefs.TabSize = 2) andalso (mw.Theme.Name = "light"), P( sc, "and the previous settings stay" ) )
 
     ' ---- keybindings.toml: Ctrl+K; a rebinding is live at once, its shortcut text follows
     mw.View( ).SetText( "version = 1" & nl & "[ui]" & nl & "theme = 'light'" & nl )
-    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, KMOD_PRIMARY )
     ' closed and opened again, it lists every key at the value in force
     mw.Execute( Cmd.FileClose )
-    Chord( h, SDLK_COMMA, SDL_SCANCODE_COMMA, SDL_KMOD_CTRL )
+    Chord( h, SDLK_COMMA, SDL_SCANCODE_COMMA, KMOD_PRIMARY )
     dim as ustring st2 = mw.View( ).Text( )
     t.Check( (lcase( mw.ActivePath( ) ) = lcase( sf )) andalso (instr( st2, "theme = 'light'" ) > 0) andalso _
              (instr( st2, nl & "tab_size = 4" & nl ) > 0) andalso (instr( st2, nl & "[[builds]]" & nl ) > 0) andalso _
              (instr( st2, "# tab_size" ) = 0), P( sc, "reopened, settings.toml sets every key at its value" ) )
     t.Check( mw.View( ).IsModified( ) = false, P( sc, "and is unmodified" ) )
-    Chord( h, SDLK_K, SDL_SCANCODE_K, SDL_KMOD_CTRL )
+    Chord( h, SDLK_K, SDL_SCANCODE_K, KMOD_PRIMARY )
     t.Check( lcase( mw.ActivePath( ) ) = lcase( kf ), P( sc, "Ctrl+K opened keybindings.toml" ) )
     mw.View( ).SetText( "format = 1" & nl & "[bindings]" & nl & "DuplicateLine = 'Primary+Shift+D'" & nl & _
                      "DeleteLine = 'Primary+S'" & nl )
-    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, KMOD_PRIMARY )
     t.Check( mw.Keys.Effective( Cmd.DuplicateLine ) = "Primary+Shift+D", P( sc, "the rebinding applied" ) )
     t.Check( instr( mw.Message, "FileSave and DeleteLine share Primary+S" ) > 0, P( sc, "a shared chord is reported: " & mw.Message ) )
-    t.Check( mw.ShortcutText( Cmd.DuplicateLine ) = "Ctrl+Shift+D", P( sc, "the shortcut text shows the new chord" ) )
+    t.Check( mw.ShortcutText( Cmd.DuplicateLine ) = platform.PrimaryModifierName( ) & "+Shift+D", P( sc, "the shortcut text shows the new chord" ) )
     dim as long before = mw.View( ).LineCount( )
-    Chord( h, SDLK_D, SDL_SCANCODE_D, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    Chord( h, SDLK_D, SDL_SCANCODE_D, KMOD_PRIMARY or SDL_KMOD_SHIFT )
     t.Check( mw.View( ).LineCount( ) = before + 1, P( sc, strings.Format( "Ctrl+Shift+D duplicates now ({} -> {})", before, mw.View( ).LineCount( ) ) ) )
-    Chord( h, SDLK_D, SDL_SCANCODE_D, SDL_KMOD_CTRL )
+    Chord( h, SDLK_D, SDL_SCANCODE_D, KMOD_PRIMARY )
     t.Check( mw.View( ).LineCount( ) = before + 1, P( sc, "and Ctrl+D does not" ) )
     ' FileSave and DeleteLine share Ctrl+S: the first in the table wins, so Save still saves
     mw.View( ).SetText( "format = 1" & nl & "[bindings]" & nl )
-    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, KMOD_PRIMARY )
     t.Check( mw.Keys.Effective( Cmd.DuplicateLine ) = "Primary+D", P( sc, "an emptied file restores the defaults" ) )
     mw.Execute( Cmd.FileClose )
-    Chord( h, SDLK_K, SDL_SCANCODE_K, SDL_KMOD_CTRL )
+    Chord( h, SDLK_K, SDL_SCANCODE_K, KMOD_PRIMARY )
     dim as ustring kt2 = mw.View( ).Text( )
     t.Check( (lcase( mw.ActivePath( ) ) = lcase( kf )) andalso (instr( kt2, nl & "DuplicateLine = 'Primary+D'" & nl ) > 0) andalso _
              (instr( kt2, nl & "FileSave = 'Primary+S'" & nl ) > 0) andalso (instr( kt2, "# FileSave" ) = 0), _
              P( sc, "reopened, keybindings.toml lists every command at its chord" ) )
 
     ' ---- [statusbar] switches hide the Project, Settings and Keys panels
-    Chord( h, SDLK_COMMA, SDL_SCANCODE_COMMA, SDL_KMOD_CTRL )
+    Chord( h, SDLK_COMMA, SDL_SCANCODE_COMMA, KMOD_PRIMARY )
     mw.View( ).SetText( "version = 1" & nl & "[ui]" & nl & "theme = 'light'" & nl & "[statusbar]" & nl & "show_project = false" & nl & "show_keys = false" & nl )
-    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, KMOD_PRIMARY )
     scope
         dim as TKRECT rpj, rst, rky
         tkStatusBar_GetPanelRect( mw.status, mainwin.StatusPanel.Project, rpj )
@@ -442,7 +452,7 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
                         "[output]" & nl & "tab_results = 'Ergebnisse'" & nl & "[find]" & nl & "tool_replace = 'Ersetzen'" & nl & _
                         "[cue]" & nl & "buffer = 'Puffer w" & wchr( &hE4 ) & "hlen'" & nl )
     mw.View( ).SetText( "version = 1" & nl & "[ui]" & nl & "theme = 'light'" & nl & "language = 'de'" & nl )
-    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, KMOD_PRIMARY )
     t.Check( lcase( mw.LangPath ) = lcase( lf ), P( sc, "language = 'de' found the config folder's de.toml: " & mw.LangPath ) )
     t.Check( mw.StatusText( mainwin.StatusPanel.Project ) = "Projekt", P( sc, "the Project panel in German: " & mw.StatusText( mainwin.StatusPanel.Project ) ) )
     t.Check( left( mw.StatusText( mainwin.StatusPanel.Position ), 2 ) = "Z ", P( sc, "the position in German: " & mw.StatusText( mainwin.StatusPanel.Position ) ) )
@@ -457,15 +467,15 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     mw.Chooser.Close( )
     t.Check( mw.OpenFile( lf ), P( sc, "open de.toml" ) )
     mw.View( ).SetText( "[status]" & nl & "project = 'Vorhaben'" & nl )
-    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, KMOD_PRIMARY )
     t.Check( mw.StatusText( mainwin.StatusPanel.Project ) = "Vorhaben", P( sc, "saving the catalog applies it: " & mw.StatusText( mainwin.StatusPanel.Project ) ) )
     t.Check( left( mw.StatusText( mainwin.StatusPanel.Position ), 3 ) = "Ln ", P( sc, "a key taken out of it is English again" ) )
     mw.Execute( Cmd.FileClose )
-    Chord( h, SDLK_COMMA, SDL_SCANCODE_COMMA, SDL_KMOD_CTRL )
+    Chord( h, SDLK_COMMA, SDL_SCANCODE_COMMA, KMOD_PRIMARY )
     t.Check( lcase( mw.ActivePath( ) ) = lcase( sf ), P( sc, "back on settings.toml" ) )
     ' a shipped catalog (no copy in the config folder): lang/fr.toml beside the program
     mw.View( ).SetText( "version = 1" & nl & "[ui]" & nl & "theme = 'light'" & nl & "language = 'fr'" & nl )
-    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, KMOD_PRIMARY )
     t.Check( lcase( mw.LangPath ) = lcase( fs.PathJoin( mw.ResourceDir, "lang", "fr.toml" ) ), P( sc, "language = 'fr': the shipped catalog: " & mw.LangPath ) )
     t.Check( (mw.StatusText( mainwin.StatusPanel.Project ) = "Projet") andalso (tkTabBar_GetText( mw.Out.tabs, 0 ) = "R" & wchr( &hE9 ) & "sultats"), _
              P( sc, "in French: " & mw.StatusText( mainwin.StatusPanel.Project ) & ", " & tkTabBar_GetText( mw.Out.tabs, 0 ) ) )
@@ -538,7 +548,7 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     ' to the bundled subset of Noto Sans SC (fonts/NotoSansSC-tkEdit.otf), which must hold every
     ' character the catalog uses (tools/make-cjk-font.py cuts it from lang/zh.toml)
     mw.View( ).SetText( "version = 1" & nl & "[ui]" & nl & "theme = 'light'" & nl & "language = 'zh'" & nl )
-    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, KMOD_PRIMARY )
     t.Check( lcase( mw.LangPath ) = lcase( fs.PathJoin( mw.ResourceDir, "lang", "zh.toml" ) ) andalso (len( mw.Message ) = 0), _
              P( sc, "language = 'zh': the shipped catalog, no warning: " & mw.LangPath & " " & mw.Message ) )
     t.Check( mw.StatusText( mainwin.StatusPanel.Project ) = wchr( &h9879, &h76EE ), P( sc, "the Project panel in Chinese: " & mw.StatusText( mainwin.StatusPanel.Project ) ) )
@@ -561,33 +571,33 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
                  P( sc, "the UI fonts draw Chinese through their fallbacks" ) )
     end scope
     mw.View( ).SetText( "version = 1" & nl & "[ui]" & nl & "theme = 'light'" & nl & "language = 'xx'" & nl )
-    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, KMOD_PRIMARY )
     t.Check( mw.StatusText( mainwin.StatusPanel.Project ) = "Project", P( sc, "a code with no catalog is English" ) )
     t.Check( instr( mw.Message, "no lang/xx.toml; English" ) > 0, P( sc, "and says so: " & mw.Message ) )
     mw.View( ).SetText( "version = 1" & nl & "[ui]" & nl & "theme = 'light'" & nl )
-    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, KMOD_PRIMARY )
     t.Check( tkStatusBar_GetPanelVisible( mw.status, mainwin.StatusPanel.Project ) andalso tkStatusBar_GetPanelVisible( mw.status, mainwin.StatusPanel.Keys ), _
              P( sc, "the keys gone: shown again" ) )
     t.Check( (mw.StatusText( mainwin.StatusPanel.Project ) = "Project") andalso (i18n.CurrentCode( ) = "en"), P( sc, "the language gone: English" ) )
     t.Check( (tkTabBar_GetText( mw.Out.tabs, 0 ) = "Results") andalso (tkToolbar_GetText( mw.Finder.rtools, 0 ) = "Replace"), _
              P( sc, "and the tab and the tool back in English" ) )
-    Chord( h, SDLK_K, SDL_SCANCODE_K, SDL_KMOD_CTRL )                    ' back to keybindings.toml, as before
+    Chord( h, SDLK_K, SDL_SCANCODE_K, KMOD_PRIMARY )                    ' back to keybindings.toml, as before
 
     ' ---- the Settings and Keys panels open their files
     mw.View( ).SetText( "format = 1" & nl & "[bindings]" & nl )
-    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, KMOD_PRIMARY )
     ClickPanel( mw, mainwin.StatusPanel.Settings )
     t.Check( lcase( mw.ActivePath( ) ) = lcase( sf ), P( sc, "the Settings panel opened settings.toml: " & mw.ActivePath( ) ) )
     ClickPanel( mw, mainwin.StatusPanel.Keys )
     t.Check( lcase( mw.ActivePath( ) ) = lcase( kf ), P( sc, "the Keys panel opened keybindings.toml: " & mw.ActivePath( ) ) )
 
     ' ---- the theme file: Ctrl+Shift+T copies the shipped one into the config folder; saving applies it
-    Chord( h, SDLK_T, SDL_SCANCODE_T, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    Chord( h, SDLK_T, SDL_SCANCODE_T, KMOD_PRIMARY or SDL_KMOD_SHIFT )
     dim as ustring tf = fs.PathJoin( cfg, "themes", "light.toml" )
     t.Check( lcase( mw.ActivePath( ) ) = lcase( tf ), P( sc, "Ctrl+Shift+T opened the user's light.toml: " & mw.ActivePath( ) ) )
     t.Check( instr( mw.View( ).Text( ), "name = ""light""" ) > 0, P( sc, "a copy of the shipped theme" ) )
     mw.View( ).SetText( "[editor]" & nl & "bg = '#fafafa'" & nl & "[ui]" & nl & "bg = '#fdfdfd'" & nl )
-    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, KMOD_PRIMARY )
     t.Check( mw.Look.Text.Back = &hFAFAFA, P( sc, "the saved theme applied (&h" & hex( mw.Look.Text.Back ) & ")" ) )
     t.Check( lcase( mw.Theme.Path ) = lcase( tf ), P( sc, "the user's copy wins" ) )
 
@@ -697,7 +707,7 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     WriteBytes( pathE, "dim e as long" & chr( 10 ) )
     WriteBytes( pathF, "dim f as long" & chr( 10 ) )
     gPickPath = pathE & wchr( 10 ) & pathF
-    Chord( h, SDLK_O, SDL_SCANCODE_O, SDL_KMOD_CTRL )
+    Chord( h, SDLK_O, SDL_SCANCODE_O, KMOD_PRIMARY )
     t.Check( (mw.Docs.Count( ) = 5) andalso (mw.FindOpen( pathE ) <> 0) andalso (mw.FindOpen( pathF ) <> 0), _
              P( sc, strings.Format( "Ctrl+O opened both picked files ({} buffers)", mw.Docs.Count( ) ) ) )
     mw.CloseDoc( mw.FindOpen( pathF ) )
@@ -705,7 +715,7 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     mw.ShowDoc( mw.FindOpen( pathC ) )
 
     ' ---- Ctrl+E: the buffer list, filtered by typing, Enter picks
-    Chord( h, SDLK_E, SDL_SCANCODE_E, SDL_KMOD_CTRL )
+    Chord( h, SDLK_E, SDL_SCANCODE_E, KMOD_PRIMARY )
     t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Buffers), P( sc, "Ctrl+E opened the buffer list" ) )
     t.Check( (mw.Chooser.Query <> 0) andalso (tkTextBox_GetCueBannerText( mw.Chooser.Query ) = "Select edit buffer") andalso _
              tkTextBox_ShowsCue( mw.Chooser.Query ), P( sc, "its query box's cue: Select edit buffer" ) )
@@ -742,7 +752,7 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     t.Check( (mw.Chooser.IsOpen( ) = false) andalso (lcase( mw.ActivePath( ) ) = lcase( pathB )), P( sc, "Enter showed b.tiko: " & mw.ActivePath( ) ) )
     t.Check( tkHost_GetFocus( h ) = mw.View( ).Widget( ), P( sc, "and the view has the focus" ) )
     ' one click on a row picks it (rows: the most recent first -- b, c, a)
-    Chord( h, SDLK_E, SDL_SCANCODE_E, SDL_KMOD_CTRL )
+    Chord( h, SDLK_E, SDL_SCANCODE_E, KMOD_PRIMARY )
     if (mw.Chooser.Pop <> 0) andalso (mw.Chooser.List <> 0) then
         dim as TKRECT la
         tkWidget_AbsRect( mw.Chooser.List, la )
@@ -755,22 +765,23 @@ public sub BufferPass( byref t as Tally, byval sc as single )
 
     ' ---- Ctrl+Tab: the next buffer in open order (a, b, c) at once, no popup, wrapping at the end;
     ' Ctrl+Shift+Tab the one before, wrapping at the start
-    Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL )
+    Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, KMOD_PRIMARY )
     t.Check( (mw.Chooser.IsOpen( ) = false) andalso (lcase( mw.ActivePath( ) ) = lcase( pathC )), P( sc, "Ctrl+Tab showed c: " & mw.ActivePath( ) ) )
     t.Check( tkHost_GetFocus( h ) = mw.View( ).Widget( ), P( sc, "and the view has the focus" ) )
-    Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL )
+    Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, KMOD_PRIMARY )
     t.Check( lcase( mw.ActivePath( ) ) = lcase( pathA ), P( sc, "Ctrl+Tab on the last wrapped to a: " & mw.ActivePath( ) ) )
-    Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, KMOD_PRIMARY or SDL_KMOD_SHIFT )
     t.Check( lcase( mw.ActivePath( ) ) = lcase( pathC ), P( sc, "Ctrl+Shift+Tab on the first wrapped to c: " & mw.ActivePath( ) ) )
-    Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, KMOD_PRIMARY or SDL_KMOD_SHIFT )
     t.Check( lcase( mw.ActivePath( ) ) = lcase( pathB ), P( sc, "Ctrl+Shift+Tab: b: " & mw.ActivePath( ) ) )
-    Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, KMOD_PRIMARY or SDL_KMOD_SHIFT )
     t.Check( (mw.Chooser.IsOpen( ) = false) andalso (lcase( mw.ActivePath( ) ) = lcase( pathA )), P( sc, "Ctrl+Shift+Tab: a: " & mw.ActivePath( ) ) )
 
     ' ---- the status panels: the buffer's tooltip is its full path; encoding, line ending, build pick
     t.Check( lcase( mw.StatusTip( mainwin.StatusPanel.Buffer ) ) = lcase( pathA ), P( sc, "the buffer panel's tooltip: " & mw.StatusTip( mainwin.StatusPanel.Buffer ) ) )
     t.Check( mw.StatusTip( mainwin.StatusPanel.Encoding ) = "", P( sc, "no tooltip on the others" ) )
-    t.Check( (mw.StatusTip( mainwin.StatusPanel.Settings ) = "Ctrl+Comma") andalso (mw.StatusTip( mainwin.StatusPanel.Keys ) = "Ctrl+K"), _
+    t.Check( (mw.StatusTip( mainwin.StatusPanel.Settings ) = platform.PrimaryModifierName( ) & "+Comma") andalso _
+             (mw.StatusTip( mainwin.StatusPanel.Keys ) = platform.PrimaryModifierName( ) & "+K"), _
              P( sc, "Settings' and Keys' tooltips: their keys: " & mw.StatusTip( mainwin.StatusPanel.Settings ) & " / " & mw.StatusTip( mainwin.StatusPanel.Keys ) ) )
     ClickPanel( mw, mainwin.StatusPanel.Encoding )
     t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Encoding), P( sc, "the encoding panel opens a chooser" ) )
@@ -787,7 +798,7 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     PopKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
     t.Check( mw.StatusText( mainwin.StatusPanel.LineEnding ) = "CRLF", P( sc, "converted to CRLF" ) )
     t.Check( mw.View( ).Text( ) = "dim a as long" & chr( 13, 10 ), P( sc, "the line break converted in the text" ) )
-    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, KMOD_PRIMARY )
     t.Check( ReadBytes( pathA ) = chr( &hEF, &hBB, &hBF ) & "dim a as long" & chr( 13, 10 ), P( sc, "saved with a BOM and CRLF" ) )
     ClickPanel( mw, mainwin.StatusPanel.Build )
     t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Build), P( sc, "the build panel opens a chooser" ) )
@@ -830,7 +841,7 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     dim as long top = mw.TabsHeight( ), sh = mw.StatusHeight( ), bar = tkForm_Scale( mw.form, mainwin.SPLIT_BAR )
     dim as DocRef splitA = mw.FindOpen( pathA ), splitB = mw.FindOpen( pathB )
     t.Check( mw.Pane1 = splitA, P( sc, "a.tiko before the split: " & mw.ActivePath( ) ) )
-    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL )
+    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, KMOD_PRIMARY )
     t.Check( (mw.Split = session.SplitMode.Vertical) andalso (mw.Pane2 <> 0) andalso (mw.Pane2 <> mw.Pane1), _
              P( sc, "Ctrl+\ split left/right with another buffer in pane 2" ) )
     if mw.Pane2 = 0 then exit sub
@@ -855,11 +866,11 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     dim as ustring p2name = mw.Pane2->Path
     if len( p2name ) = 0 then p2name = mw.Pane2->DisplayName( )
     t.Check( title = "tkEdit - " & p2name, P( sc, "the caption names pane 2's, its full path: " & title ) )
-    Chord( h, SDLK_GRAVE, SDL_SCANCODE_GRAVE, SDL_KMOD_CTRL )
+    Chord( h, SDLK_GRAVE, SDL_SCANCODE_GRAVE, KMOD_PRIMARY )
     title = *SDL_GetWindowTitle( h->win )
     t.Check( (mw.InPane2 = false) andalso (tkHost_GetFocus( h ) = v1) andalso (title = "tkEdit - " & pathA), _
              P( sc, "Ctrl+Tilde moved the focus to pane 1, the caption with it: " & title ) )
-    Chord( h, SDLK_GRAVE, SDL_SCANCODE_GRAVE, SDL_KMOD_CTRL )
+    Chord( h, SDLK_GRAVE, SDL_SCANCODE_GRAVE, KMOD_PRIMARY )
     t.Check( mw.InPane2 andalso (tkHost_GetFocus( h ) = v2), P( sc, "and back to pane 2" ) )
     mw.ShowDoc( splitB )
     v2 = mw.Pane2->Main.Widget( )
@@ -874,10 +885,10 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     ClickPanel2( mw, mainwin.StatusPanel.Buffer )
     t.Check( mw.InPane2 andalso mw.Chooser.IsOpen( ), P( sc, "a click on pane 2's status line focuses pane 2" ) )
     PopKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
-    Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, SDL_KMOD_CTRL )
+    Chord( h, SDLK_TAB, SDL_SCANCODE_TAB, KMOD_PRIMARY )
     t.Check( (mw.Pane2 <> splitA) andalso (mw.Pane1 = splitA), P( sc, "Ctrl+Tab in pane 2 passes over pane 1's buffer" ) )
     mw.ShowDoc( splitB )
-    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, KMOD_PRIMARY or SDL_KMOD_SHIFT )
     v1 = mw.Pane1->Main.Widget( )
     v2 = mw.Pane2->Main.Widget( )
     dim as long h1 = cint( (cy - top - sh - sh - bar) * 0.5 )
@@ -885,7 +896,7 @@ public sub BufferPass( byref t as Tally, byval sc as single )
              (mw.status->y = top + h1) andalso (mw.status->cw = cx) andalso (v2->y = top + h1 + sh + bar) andalso (v2->ch = cy - top - sh - h1 - sh - bar) andalso _
              (mw.status2->y = cy - sh) andalso (mw.status2->cw = cx), _
              P( sc, strings.Format( "Ctrl+Shift+\ switched to top/bottom: {} {} / status {} / {} {} / status {}", v1->y, v1->ch, mw.status->y, v2->y, v2->ch, mw.status2->y ) ) )
-    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, KMOD_PRIMARY or SDL_KMOD_SHIFT )
     t.Check( (mw.Split = session.SplitMode.None) andalso (mw.Pane2 = 0) andalso (tkWidget_IsVisible( mw.status2 ) = false), P( sc, "the same key again unsplit" ) )
     dim as TK_WIDGET ptr vv = mw.View( ).Widget( )
     t.Check( (vv->x = 0) andalso (vv->y = top) andalso (vv->cw = cx) andalso (vv->ch = cy - sh - top) andalso (mw.status->cw = cx) andalso _
@@ -893,22 +904,22 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     t.Check( lcase( mw.ActivePath( ) ) = lcase( pathB ), P( sc, "keeping the buffer that had the focus: " & mw.ActivePath( ) ) )
 
     ' ---- new, save as, close with and without saving
-    Chord( h, SDLK_N, SDL_SCANCODE_N, SDL_KMOD_CTRL )
+    Chord( h, SDLK_N, SDL_SCANCODE_N, KMOD_PRIMARY )
     t.Check( (mw.Docs.Count( ) = 4) andalso mw.Active( )->IsNew( ), P( sc, "Ctrl+N: an untitled buffer" ) )
     tkTest_PushText( h, "print 1" )
     tkTest_PumpFor( h, 30 )
     dim as ustring pathD = fs.PathJoin( dir_, "d.tiko" )
     gPickPath = pathD
-    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, KMOD_PRIMARY )
     t.Check( (lcase( mw.ActivePath( ) ) = lcase( pathD )) andalso (fs.ReadAllText( pathD ).ValueOr( "" ) = "print 1"), P( sc, "Ctrl+S on an untitled buffer saved it as d.tiko" ) )
     tkTest_PushText( h, "!" )
     tkTest_PumpFor( h, 30 )
     gAsked = 0
     Answer( MBX_IDCANCEL )
-    Chord( h, SDLK_W, SDL_SCANCODE_W, SDL_KMOD_CTRL )
+    Chord( h, SDLK_W, SDL_SCANCODE_W, KMOD_PRIMARY )
     t.Check( (gAsked = 1) andalso (mw.FindOpen( pathD ) <> 0), P( sc, "Ctrl+W on a modified buffer asked; Cancel kept it" ) )
     Answer( MBX_IDNO )
-    Chord( h, SDLK_W, SDL_SCANCODE_W, SDL_KMOD_CTRL )
+    Chord( h, SDLK_W, SDL_SCANCODE_W, KMOD_PRIMARY )
     t.Check( (mw.FindOpen( pathD ) = 0) andalso (fs.ReadAllText( pathD ).ValueOr( "" ) = "print 1"), P( sc, "Don't Save closed it, the file untouched" ) )
     t.Check( mw.Docs.Count( ) = 3, P( sc, strings.Format( "three buffers again ({})", mw.Docs.Count( ) ) ) )
 
@@ -927,7 +938,7 @@ public sub BufferPass( byref t as Tally, byval sc as single )
              P( sc, "the modified buffer reloaded, nothing asked: " & left( da->Main.Text( ), 8 ) ) )
 
     ' ---- Ctrl+Shift+O: the recent files (settings.toml among them: the build pick opened it; e and f)
-    Chord( h, SDLK_O, SDL_SCANCODE_O, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    Chord( h, SDLK_O, SDL_SCANCODE_O, KMOD_PRIMARY or SDL_KMOD_SHIFT )
     t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Recent) andalso (mw.Chooser.ShownCount( ) = 7), _
              P( sc, strings.Format( "Ctrl+Shift+O lists the recent files ({})", mw.Chooser.ShownCount( ) ) ) )
     t.Check( (mw.Chooser.Query <> 0) andalso (tkTextBox_GetCueBannerText( mw.Chooser.Query ) = "Open recent file"), P( sc, "cue: Open recent file" ) )
@@ -941,7 +952,7 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     PopKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
     ' a recent file deleted from disk is not offered (still in the list)
     fs.RemoveFile( pathE )
-    Chord( h, SDLK_O, SDL_SCANCODE_O, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    Chord( h, SDLK_O, SDL_SCANCODE_O, KMOD_PRIMARY or SDL_KMOD_SHIFT )
     dim as boolean showsE = false
     for k as long = 0 to mw.Chooser.Rows.Count( ) - 1
         if mw.Chooser.Rows[k].Cells[1] = "e.tiko" then showsE = true
@@ -1031,6 +1042,9 @@ public sub TabsPass( byref t as Tally, byval sc as single )
         dim as TKRECT rp, rt, ri, rx
         tkTabBar_GetTabParts( mw.tabs, tkTabBar_GetCurSel( mw.tabs ), rp, rt, ri, rx )
         tkTest_PumpFor( h, 30 )
+        ' read a frame rendered and NOT presented: after a present the back buffer is undefined
+        ' (Metal's comes back black)
+        tkHost_RenderTo( h, false )
         dim as long px = mw.tabs->x + (rp.left + rp.right) \ 2
         dim as ulong topPx = tkTest_PixelAt( h, px, mw.tabs->y + rp.top ) and &hFFFFFFul
         dim as ulong midPx = tkTest_PixelAt( h, px, mw.tabs->y + rp.bottom - tkForm_Scale( mw.form, 4 ) ) and &hFFFFFFul
@@ -1052,7 +1066,7 @@ public sub TabsPass( byref t as Tally, byval sc as single )
     tkTest_PushText( h, "x" )
     tkTest_PumpFor( h, 30 )
     t.Check( tkTabBar_GetText( mw.tabs, 0 ) = "a.tiko *", P( sc, "an edit marks the tab: " & tkTabBar_GetText( mw.tabs, 0 ) ) )
-    Chord( h, SDLK_N, SDL_SCANCODE_N, SDL_KMOD_CTRL )
+    Chord( h, SDLK_N, SDL_SCANCODE_N, KMOD_PRIMARY )
     t.Check( (tkTabBar_GetCount( mw.tabs ) = 4) andalso (tkTabBar_GetCurSel( mw.tabs ) = 3), P( sc, "Ctrl+N adds a tab, selected" ) )
     mw.CloseDoc( mw.Active( ) )
     t.Check( tkTabBar_GetCount( mw.tabs ) = 3, P( sc, "closing it some other way takes its tab" ) )
@@ -1077,7 +1091,7 @@ public sub TabsPass( byref t as Tally, byval sc as single )
 
     ' ---- split: both panes and the bar start below the strip; a tab shows its buffer in the focused pane
     mw.OpenFile( pathB )
-    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL )
+    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, KMOD_PRIMARY )
     dim as TK_WIDGET ptr v1 = mw.Pane1->Main.Widget( ), v2 = mw.Pane2->Main.Widget( )
     t.Check( (mw.Split = session.SplitMode.Vertical) andalso (v1->y = th) andalso (v2->y = th) andalso (mw.splitBar->y = th) andalso _
              (v1->ch = cy - sh - th), P( sc, strings.Format( "left/right: both panes below the strip ({} {} bar {})", v1->y, v2->y, mw.splitBar->y ) ) )
@@ -1092,11 +1106,11 @@ public sub TabsPass( byref t as Tally, byval sc as single )
     ClickSplitBar( mw, mw.splitBar, 2 )
     t.Check( (mw.Split = session.SplitMode.None) andalso (mw.Pane2 = 0) andalso (mw.splitBar = 0) andalso (mw.splitFoot = 0) andalso _
              (tkWidget_IsVisible( mw.status2 ) = false), P( sc, "a double click on the left/right bar closed the split" ) )
-    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL )
+    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, KMOD_PRIMARY )
     ClickSplitBar( mw, mw.splitFoot, 2 )
     t.Check( mw.Split = session.SplitMode.None, P( sc, "so does one on its part through the status row" ) )
-    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL )
-    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, KMOD_PRIMARY )
+    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, KMOD_PRIMARY or SDL_KMOD_SHIFT )
     v1 = mw.Pane1->Main.Widget( )
     v2 = mw.Pane2->Main.Widget( )
     dim as long bar = mw.splitBar->ch
@@ -1265,7 +1279,7 @@ public sub FindPass( byref t as Tally, byval sc as single )
     dim as long rowH = tkForm_Scale( mw.form, findstrip.ROW_CY ), sh = mw.StatusHeight( ), top = mw.TabsHeight( )
 
     ' ---- Ctrl+F: the strip above the status line, typing finds as it goes
-    Chord( h, SDLK_F, SDL_SCANCODE_F, SDL_KMOD_CTRL )
+    Chord( h, SDLK_F, SDL_SCANCODE_F, KMOD_PRIMARY )
     t.Check( mw.Finder.isOpen andalso (mw.Finder.Mode = findstrip.StripMode.Find), P( sc, "Ctrl+F opened the find strip" ) )
     t.Check( tkWidget_IsVisible( mw.status ) andalso (mw.status->y = cy - sh) andalso (mw.status->ch = sh), _
              P( sc, strings.Format( "the status line stays at the bottom: {} {}", mw.status->y, mw.status->ch ) ) )
@@ -1307,15 +1321,15 @@ public sub FindPass( byref t as Tally, byval sc as single )
 
     ' ---- Ctrl+H: two rows; Replace one, Replace All in one undo step
     mw.View( ).SetPosition( 0 )
-    Chord( h, SDLK_H, SDL_SCANCODE_H, SDL_KMOD_CTRL )
+    Chord( h, SDLK_H, SDL_SCANCODE_H, KMOD_PRIMARY )
     t.Check( mw.Finder.isOpen andalso (mw.Finder.Mode = findstrip.StripMode.Replace) andalso (fr->ch = rowH * 2) _
              andalso (fr->y = cy - sh - rowH * 2), P( sc, strings.Format( "Ctrl+H: two rows ({} at {})", fr->ch, fr->y ) ) )
     mw.Finder.SetReplacement( "omega" )
     mw.Finder.SetPhrase( "alpha" )
     mw.OnFind( findstrip.FindAction.Changed )         ' the first match selected, as typing does
-    Chord( h, SDLK_R, SDL_SCANCODE_R, SDL_KMOD_CTRL )
+    Chord( h, SDLK_R, SDL_SCANCODE_R, KMOD_PRIMARY )
     t.Check( left( mw.View( ).Text( ), 5 ) = "omega", P( sc, "Ctrl+R replaced one: " & left( mw.View( ).Text( ), 16 ) ) )
-    StripKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN, SDL_KMOD_CTRL or SDL_KMOD_ALT )
+    StripKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN, KMOD_PRIMARY or SDL_KMOD_ALT )
     t.Check( mw.Finder.status = "3 replaced", P( sc, "Ctrl+Alt+Enter replaced the rest: " & mw.Finder.status ) )
     t.Check( mw.View( ).Text( ) = "omega beta omega" & nl & "omega gamma" & nl & "omega" & nl, P( sc, "every alpha is omega" ) )
     mw.View( ).Undo( )
@@ -1325,7 +1339,7 @@ public sub FindPass( byref t as Tally, byval sc as single )
     ' ---- "Sel": a multi-line selection limits Replace All to it
     mw.View( ).SetText( "x x" & nl & "x x" & nl & "x x" & nl )
     mw.View( ).SetSelection( 0, 8 )                                    ' lines 1-2
-    Chord( h, SDLK_H, SDL_SCANCODE_H, SDL_KMOD_CTRL )
+    Chord( h, SDLK_H, SDL_SCANCODE_H, KMOD_PRIMARY )
     t.Check( mw.Finder.Options( ).InSelection, P( sc, "a multi-line selection turns Sel on" ) )
     mw.Finder.SetPhrase( "x" )
     mw.Finder.SetReplacement( "yy" )
@@ -1336,7 +1350,7 @@ public sub FindPass( byref t as Tally, byval sc as single )
 
     ' ---- Ctrl+G: go to line, and to line:column
     mw.View( ).SetText( "one" & nl & "two" & nl & "three" & nl & "four" & nl )
-    Chord( h, SDLK_G, SDL_SCANCODE_G, SDL_KMOD_CTRL )
+    Chord( h, SDLK_G, SDL_SCANCODE_G, KMOD_PRIMARY )
     t.Check( mw.Finder.isOpen andalso (mw.Finder.Mode = findstrip.StripMode.GoTo) andalso (fr->ch = rowH), P( sc, "Ctrl+G: one row, Go to Line" ) )
     t.Check( mw.Finder.status = "1 - 5", P( sc, "it says the range: " & mw.Finder.status ) )
     tkTest_PushText( h, "9" )
@@ -1350,9 +1364,9 @@ public sub FindPass( byref t as Tally, byval sc as single )
 
     ' ---- bookmarks: toggle, next, previous, the list, clear
     mw.View( ).GoToLine( 0 )
-    Chord( h, SDLK_F2, SDL_SCANCODE_F2, SDL_KMOD_CTRL )
+    Chord( h, SDLK_F2, SDL_SCANCODE_F2, KMOD_PRIMARY )
     mw.View( ).GoToLine( 3 )
-    Chord( h, SDLK_F2, SDL_SCANCODE_F2, SDL_KMOD_CTRL )
+    Chord( h, SDLK_F2, SDL_SCANCODE_F2, KMOD_PRIMARY )
     t.Check( mw.View( ).Bookmarks( ).Count( ) = 2, P( sc, "Ctrl+F2 twice: two bookmarks" ) )
     mw.View( ).GoToLine( 1 )
     Chord( h, SDLK_F2, SDL_SCANCODE_F2, 0 )
@@ -1366,7 +1380,7 @@ public sub FindPass( byref t as Tally, byval sc as single )
              P( sc, strings.Format( "Shift+F4 lists them ({})", mw.Chooser.ShownCount( ) ) ) )
     PopKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
     t.Check( mw.View( ).CaretLine( ) = 1, P( sc, "picking one goes there" ) )
-    Chord( h, SDLK_F2, SDL_SCANCODE_F2, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    Chord( h, SDLK_F2, SDL_SCANCODE_F2, KMOD_PRIMARY or SDL_KMOD_SHIFT )
     t.Check( mw.View( ).Bookmarks( ).Count( ) = 0, P( sc, "Ctrl+Shift+F2 cleared them" ) )
 
     ' ---- typing: Enter indents, and closes the block it opened
@@ -1380,11 +1394,11 @@ public sub FindPass( byref t as Tally, byval sc as single )
     t.Check( (mw.View( ).CaretLine( ) = 2) andalso (mw.View( ).CaretColumn( ) = 5), P( sc, "the caret on the indented line" ) )
 
     ' ---- the Edit keys belong to the strip's box while it has the focus
-    Chord( h, SDLK_F, SDL_SCANCODE_F, SDL_KMOD_CTRL )
+    Chord( h, SDLK_F, SDL_SCANCODE_F, KMOD_PRIMARY )
     tkTest_PushText( h, "abc" )
     tkTest_PumpFor( h, 30 )
     dim as long lines0 = mw.View( ).LineCount( )
-    Chord( h, SDLK_D, SDL_SCANCODE_D, SDL_KMOD_CTRL )
+    Chord( h, SDLK_D, SDL_SCANCODE_D, KMOD_PRIMARY )
     t.Check( mw.View( ).LineCount( ) = lines0, P( sc, "Ctrl+D in the find box did not duplicate an editor line" ) )
     StripKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
 
@@ -1480,7 +1494,7 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     dim as DocRef sdoc = mw.Active( )
     dim as ustring sText = sdoc->Main.Text( )
     sdoc->Main.ReplaceAllText( sText & nl & nl )                         ' an edit: modified, not saved
-    Chord( h, SDLK_F5, SDL_SCANCODE_F5, SDL_KMOD_CTRL )
+    Chord( h, SDLK_F5, SDL_SCANCODE_F5, KMOD_PRIMARY )
     t.Check( WaitBuild( mw ) andalso mw.BuildSucceeded andalso (lcase( mw.BuildMain ) = lcase( mainF )), _
              P( sc, "settings.toml in front: Ctrl+F5 built main.tiko: " & mw.BuildMain ) )
     t.Check( sdoc->IsModified( ) andalso (instr( fs.ReadAllText( mw.SettingsFile( ) ).ValueOr( "" ), sText & nl & nl ) = 0), _
@@ -1507,7 +1521,7 @@ public sub BuildPass( byref t as Tally, byval sc as single )
         if (k > 0) andalso (e > k) then pt = left( pt, k - 1 ) & "command_line = 'x y'" & mid( pt, e )
         mw.View( ).ReplaceAllText( pt )
     end scope
-    Chord( h, SDLK_S, SDL_SCANCODE_S, SDL_KMOD_CTRL )
+    Chord( h, SDLK_S, SDL_SCANCODE_S, KMOD_PRIMARY )
     t.Check( mw.ProjOpen andalso (mw.ProjOpts.CommandLine = "x y") andalso (lcase( mw.ProjOpts.Manifest ) = lcase( pf )), _
              P( sc, "saving the hand edit applied it: command line '" & mw.ProjOpts.CommandLine & "'" ) )
     mw.ShowDoc( mw.FindOpen( mainF ) )
@@ -1519,7 +1533,7 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     t.Check( instr( title, "[" & fs.PathJoin( "hello", project.MANIFEST_FILE ) & "]" ) > 0, P( sc, "the title names the project: " & title ) )
 
     ' ---- Ctrl+F5: a build that works; the pane stays hidden
-    Chord( h, SDLK_F5, SDL_SCANCODE_F5, SDL_KMOD_CTRL )
+    Chord( h, SDLK_F5, SDL_SCANCODE_F5, KMOD_PRIMARY )
     t.Check( mw.IsBuilding( ), P( sc, "Ctrl+F5 started a build" ) )
     t.Check( WaitBuild( mw ), P( sc, "the build ended" ) )
     t.Check( mw.BuildSucceeded, P( sc, "built: " & mw.Message ) )
@@ -1542,7 +1556,7 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     end if
 
     ' ---- Run Arguments (Ctrl+Shift+F5): the row holds the command line; Enter sets it
-    Chord( h, SDLK_F5, SDL_SCANCODE_F5, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    Chord( h, SDLK_F5, SDL_SCANCODE_F5, KMOD_PRIMARY or SDL_KMOD_SHIFT )
     t.Check( mw.Finder.isOpen andalso (mw.Finder.Mode = findstrip.StripMode.Args) andalso (mw.Finder.Phrase( ) = "x y"), _
              P( sc, "Ctrl+Shift+F5: the Arguments row, the command line in it: " & mw.Finder.Phrase( ) ) )
     mw.Finder.SetPhrase( "one ""two words""" )
@@ -1561,6 +1575,9 @@ public sub BuildPass( byref t as Tally, byval sc as single )
             t.Check( strings.EndsWith( gLaunched[0], "tkEdit-run.cmd" ), P( sc, "through a .cmd: " & gLaunched[0] ) )
             dim as ustring body = fs.ReadAllText( gLaunched[0] ).ValueOr( "" )
             t.Check( instr( body, """one"" ""two words""" ) > 0, P( sc, "with the command line's arguments" ) )
+        elseif platform.CurrentOs( ) = platform.Os.MacOS then
+            t.Check( (left( gLaunched[0], 11 ) = "/bin/sh|-c|") andalso (instr( gLaunched[0], "&& exec /usr/bin/open -a Terminal '" ) > 0) _
+                     andalso strings.EndsWith( gLaunched[0], "tkEdit-run.command'" ), P( sc, "in Terminal.app: " & gLaunched[0] ) )
         else
             t.Check( (left( gLaunched[0], 13 ) = "/bin/true|-e|") andalso strings.EndsWith( gLaunched[0], "tkEdit-run.sh" ), _
                      P( sc, "in the terminal: " & gLaunched[0] ) )
@@ -1570,7 +1587,7 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     ' ---- a build that fails: the pane, Results, the first error, a squiggle
     dim as editor.CodeView ptr v = @mw.View( )
     v->ReplaceAllText( "print ""a""" & nl & "NoSuchThing( 1 )" & nl & "print undefinedvariable" & nl )   ' an edit: SetText would be a save point
-    Chord( h, SDLK_F5, SDL_SCANCODE_F5, SDL_KMOD_CTRL )
+    Chord( h, SDLK_F5, SDL_SCANCODE_F5, KMOD_PRIMARY )
     t.Check( WaitBuild( mw ), P( sc, "the failing build ended" ) )
     t.Check( mw.BuildSucceeded = false, P( sc, "it failed: " & mw.Message ) )
     t.Check( left( mw.Message, 12 ) = "Build failed" orelse (left( mw.Message, 6 ) = "error "), P( sc, "the message says so: " & mw.Message ) )
@@ -1608,11 +1625,11 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     t.Check( mw.View( ).CaretLine( ) = 2, P( sc, "and it wraps" ) )
     Chord( h, SDLK_PAGEUP, SDL_SCANCODE_PAGEUP, SDL_KMOD_ALT )
     t.Check( mw.View( ).CaretLine( ) = 3, P( sc, "Alt+PgUp: the previous" ) )
-    Chord( h, SDLK_GRAVE, SDL_SCANCODE_GRAVE, SDL_KMOD_CTRL )
+    Chord( h, SDLK_GRAVE, SDL_SCANCODE_GRAVE, KMOD_PRIMARY )
     t.Check( mw.OutputHasFocus( ), P( sc, "Ctrl+Tilde reaches the output pane" ) )
-    Chord( h, SDLK_GRAVE, SDL_SCANCODE_GRAVE, SDL_KMOD_CTRL )
+    Chord( h, SDLK_GRAVE, SDL_SCANCODE_GRAVE, KMOD_PRIMARY )
     t.Check( tkHost_GetFocus( h ) = mw.View( ).Widget( ), P( sc, "and back to the editor" ) )
-    Chord( h, SDLK_F9, SDL_SCANCODE_F9, SDL_KMOD_CTRL )
+    Chord( h, SDLK_F9, SDL_SCANCODE_F9, KMOD_PRIMARY )
     t.Check( (mw.OutputShown = false) andalso (mw.View( ).Widget( )->ch = cy - sh - top), P( sc, "Ctrl+F9 hides the pane" ) )
 
     ' ---- F5: fixed, built and run
@@ -1625,7 +1642,7 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     t.Check( (mw.Diags.Count( ) = 0) andalso (mw.View( ).SquiggleAt( 0 ) = 0), P( sc, "the squiggles and rows are gone" ) )
 
     ' ---- Ctrl+Alt+F5: clean, then build
-    Chord( h, SDLK_F5, SDL_SCANCODE_F5, SDL_KMOD_CTRL or SDL_KMOD_ALT )
+    Chord( h, SDLK_F5, SDL_SCANCODE_F5, KMOD_PRIMARY or SDL_KMOD_ALT )
     t.Check( WaitBuild( mw ) andalso mw.BuildSucceeded, P( sc, "Ctrl+Alt+F5 rebuilt: " & mw.Message ) )
     t.Check( (instr( mw.Out.LogText( ), " clean " ) > 0) andalso (instr( mw.Out.LogText( ), " build " ) > 0), P( sc, "clean, then build, in the log" ) )
 
@@ -1656,14 +1673,14 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     ' ---- Run Arguments without a project: the file's own, kept in runargs.toml
     t.Check( mw.CloseProject( ), P( sc, "closed again" ) )
     mw.OpenFile( mainF )
-    Chord( h, SDLK_F5, SDL_SCANCODE_F5, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    Chord( h, SDLK_F5, SDL_SCANCODE_F5, KMOD_PRIMARY or SDL_KMOD_SHIFT )
     t.Check( mw.Finder.isOpen andalso (mw.Finder.Phrase( ) = ""), P( sc, "no project: the row is empty for main.tiko" ) )
     mw.Finder.SetPhrase( "-v 3" )
     StripKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
     dim as ustring rf = fs.PathJoin( cfg, runargs.RUNARGS_FILE )
     t.Check( (mw.RunStore.Get( mainF ) = "-v 3") andalso fs.IsFile( rf ), P( sc, "set for main.tiko, in runargs.toml" ) )
     t.Check( mw.RunArgsNow( ) = "-v 3", P( sc, "and what Run passes" ) )
-    Chord( h, SDLK_F5, SDL_SCANCODE_F5, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    Chord( h, SDLK_F5, SDL_SCANCODE_F5, KMOD_PRIMARY or SDL_KMOD_SHIFT )
     mw.Finder.SetPhrase( "" )
     StripKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
     t.Check( (mw.RunStore.Get( mainF ) = "") andalso (fs.IsFile( rf ) = false), P( sc, "empty cleared it, and the file went" ) )
@@ -1784,7 +1801,7 @@ public sub IntelPass( byref t as Tally, byval sc as single )
 
     ' ---- Ctrl+Shift+P: this buffer's procedures; Tab: every open buffer's, with the file; Tab: back;
     ' Ctrl+Shift+P in the list closes it (author 2026-10-27)
-    Chord( h, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    Chord( h, SDLK_P, SDL_SCANCODE_P, KMOD_PRIMARY or SDL_KMOD_SHIFT )
     t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Functions), P( sc, "Ctrl+Shift+P opened the functions list" ) )
     t.Check( mw.Chooser.Cue = "Go to function in this file (TAB all files)", P( sc, "the cue says what Tab does: " & mw.Chooser.Cue ) )
     t.Check( mw.Chooser.ShownCount( ) = 2, P( sc, strings.Format( "two in main.tiko ({})", mw.Chooser.ShownCount( ) ) ) )
@@ -1803,9 +1820,9 @@ public sub IntelPass( byref t as Tally, byval sc as single )
     PopKey( mw, SDLK_TAB, SDL_SCANCODE_TAB )
     t.Check( (mw.FuncsAll = false) andalso (mw.Chooser.QueryText( ) = "help") andalso (mw.Chooser.ShownCount( ) = 0), _
              P( sc, "Tab again: back to this buffer, the query kept" ) )
-    PopKey( mw, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    PopKey( mw, SDLK_P, SDL_SCANCODE_P, KMOD_PRIMARY or SDL_KMOD_SHIFT )
     t.Check( mw.Chooser.IsOpen( ) = false, P( sc, "Ctrl+Shift+P in the list closes it" ) )
-    Chord( h, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    Chord( h, SDLK_P, SDL_SCANCODE_P, KMOD_PRIMARY or SDL_KMOD_SHIFT )
     PopKey( mw, SDLK_TAB, SDL_SCANCODE_TAB )
     if mw.Chooser.Pop then
         tkTest_PushText( mw.Chooser.Pop, "help" )
@@ -1815,11 +1832,11 @@ public sub IntelPass( byref t as Tally, byval sc as single )
     t.Check( (lcase( mw.ActivePath( ) ) = lcase( utilF )) andalso (mw.View( ).CaretLine( ) = 1), P( sc, "Enter opened util.tiko at Helper" ) )
 
     ' ---- Ctrl+P: files and definitions, fuzzy
-    Chord( h, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL )
+    Chord( h, SDLK_P, SDL_SCANCODE_P, KMOD_PRIMARY )
     t.Check( mw.Chooser.IsOpen( ) andalso (mw.Choosing = mainwin.PickKind.Symbols), P( sc, "Ctrl+P opened Search Symbol" ) )
-    PopKey( mw, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL )
+    PopKey( mw, SDLK_P, SDL_SCANCODE_P, KMOD_PRIMARY )
     t.Check( mw.Chooser.IsOpen( ) = false, P( sc, "Ctrl+P again closed it" ) )
-    Chord( h, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL )
+    Chord( h, SDLK_P, SDL_SCANCODE_P, KMOD_PRIMARY )
     t.Check( mw.Chooser.ShownCount( ) = 7, P( sc, strings.Format( "2 files + Point, Twice, Show, Helper, LongSignature ({})", mw.Chooser.ShownCount( ) ) ) )
     if mw.Chooser.Pop then
         tkTest_PushText( mw.Chooser.Pop, "twi" )
@@ -1845,11 +1862,11 @@ public sub IntelPass( byref t as Tally, byval sc as single )
 
     ' ---- Ctrl+PgDn / Ctrl+PgUp
     mw.View( ).GoToLine( 0 )
-    Chord( h, SDLK_PAGEDOWN, SDL_SCANCODE_PAGEDOWN, SDL_KMOD_CTRL )
+    Chord( h, SDLK_PAGEDOWN, SDL_SCANCODE_PAGEDOWN, KMOD_PRIMARY )
     t.Check( mw.View( ).CaretLine( ) = 6, P( sc, "Ctrl+PgDn: the next function" ) )
-    Chord( h, SDLK_PAGEDOWN, SDL_SCANCODE_PAGEDOWN, SDL_KMOD_CTRL )
+    Chord( h, SDLK_PAGEDOWN, SDL_SCANCODE_PAGEDOWN, KMOD_PRIMARY )
     t.Check( mw.View( ).CaretLine( ) = 10, P( sc, "and the next" ) )
-    Chord( h, SDLK_PAGEUP, SDL_SCANCODE_PAGEUP, SDL_KMOD_CTRL )
+    Chord( h, SDLK_PAGEUP, SDL_SCANCODE_PAGEUP, KMOD_PRIMARY )
     t.Check( mw.View( ).CaretLine( ) = 6, P( sc, "Ctrl+PgUp: the previous" ) )
 
     ' ---- typing: the picker (tka/completion) -- members after ".", names after three letters, the
@@ -1935,16 +1952,16 @@ public sub IntelPass( byref t as Tally, byval sc as single )
     tkTest_PushText( h, " + Sh" )
     tkTest_PumpFor( h, 40 )
     t.Check( cp.IsOpen( ) = false, P( sc, "two letters list nothing" ) )
-    Chord( h, SDLK_SPACE, SDL_SCANCODE_SPACE, SDL_KMOD_CTRL )
+    Chord( h, SDLK_SPACE, SDL_SCANCODE_SPACE, KMOD_PRIMARY )
     t.Check( cp.IsOpen( ) andalso (cp.Selected( ) = "Show"), P( sc, "Ctrl+Space does: " & cp.Selected( ) ) )
     Chord( h, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE, 0 )
     t.Check( (cp.IsOpen( ) = false) andalso (right( v->TextBeforeCaret( ), 2 ) = "Sh"), P( sc, "Esc closed it, the text as typed" ) )
-    Chord( h, SDLK_SPACE, SDL_SCANCODE_SPACE, SDL_KMOD_CTRL )
+    Chord( h, SDLK_SPACE, SDL_SCANCODE_SPACE, KMOD_PRIMARY )
     dim as longint before_ = v->Position( )
     Chord( h, SDLK_LEFT, SDL_SCANCODE_LEFT, 0 )
     t.Check( (cp.IsOpen( ) = false) andalso (v->Position( ) = before_ - 1), P( sc, "Left closed it and still moved the caret" ) )
     Chord( h, SDLK_RIGHT, SDL_SCANCODE_RIGHT, 0 )
-    Chord( h, SDLK_SPACE, SDL_SCANCODE_SPACE, SDL_KMOD_CTRL )
+    Chord( h, SDLK_SPACE, SDL_SCANCODE_SPACE, KMOD_PRIMARY )
     if cp.IsOpen( ) then
         ' a click in the editor closes it, and lands there
         dim as TKRECT a
@@ -1976,7 +1993,7 @@ public sub IntelPass( byref t as Tally, byval sc as single )
     tkTest_PushText( h, "dim" )
     tkTest_PumpFor( h, 60 )
     t.Check( cp.IsOpen( ) = false, P( sc, "'dim' typed in full lists nothing" ) )
-    Chord( h, SDLK_SPACE, SDL_SCANCODE_SPACE, SDL_KMOD_CTRL )
+    Chord( h, SDLK_SPACE, SDL_SCANCODE_SPACE, KMOD_PRIMARY )
     t.Check( cp.IsOpen( ) andalso (cp.Selected( ) = "dim"), P( sc, "Ctrl+Space after it lists dim: " & cp.Selected( ) ) )
     cp.Close( )
     ' the space after "as" lists the types: tiko's and the scans' (Point is this file's); "has " does not
@@ -2044,7 +2061,7 @@ public sub IntelPass( byref t as Tally, byval sc as single )
     tkTest_PumpFor( h, 40 )
     tkTest_PushText( h, " Twi" )
     tkTest_PumpFor( h, 40 )
-    Chord( h, SDLK_SPACE, SDL_SCANCODE_SPACE, SDL_KMOD_CTRL )
+    Chord( h, SDLK_SPACE, SDL_SCANCODE_SPACE, KMOD_PRIMARY )
     t.Check( (mw.Completer.IsOpen( ) = false) andalso (v->CallTipShown( ) = false), P( sc, "notes.txt: no completion list, typed or asked for" ) )
     v->SetSavePoint( )
     mw.Destroy( )
@@ -2062,7 +2079,7 @@ public sub IntelPass( byref t as Tally, byval sc as single )
     m2.OpenFile( utilF )
     m2.OpenFile( mainF )
     t.Check( m2.Scanner.running = false, P( sc, "outline: no scanner" ) )
-    Chord( h2, SDLK_P, SDL_SCANCODE_P, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    Chord( h2, SDLK_P, SDL_SCANCODE_P, KMOD_PRIMARY or SDL_KMOD_SHIFT )
     t.Check( m2.Chooser.IsOpen( ) andalso (m2.Chooser.ShownCount( ) = 2), P( sc, strings.Format( "outline: F4 lists two ({})", m2.Chooser.ShownCount( ) ) ) )
     PopKey( m2, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
     m2.View( ).GoToLine( 15, 2 )                                  ' "Show( pt )"
@@ -2097,7 +2114,7 @@ public sub PolishPass( byref t as Tally, byval sc as single )
     mw.OpenFile( mainF )
     mw.NewProject( )                              ' a tiko.toml there: its folder's files are the project's
     mw.View( ).ReplaceAllText( "#include ""lib.ti""" & nl & "print Needle( ) + Needle( )" & nl )   ' unsaved
-    Chord( h, SDLK_F, SDL_SCANCODE_F, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    Chord( h, SDLK_F, SDL_SCANCODE_F, KMOD_PRIMARY or SDL_KMOD_SHIFT )
     t.Check( mw.Finder.isOpen andalso (mw.Finder.Mode = findstrip.StripMode.Project), P( sc, "Ctrl+Shift+F: the strip, In files" ) )
     mw.Finder.SetPhrase( "needle" )
     StripKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
@@ -2127,14 +2144,14 @@ public sub PolishPass( byref t as Tally, byval sc as single )
         tkTest_PumpFor( h, 60 )
     end scope
     t.Check( (lcase( mw.ActivePath( ) ) = lcase( libF )) andalso (mw.View( ).CaretLine( ) = 1), P( sc, "one click on a match in an unopened file opens it there: " & mw.ActivePath( ) ) )
-    Chord( h, SDLK_F, SDL_SCANCODE_F, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    Chord( h, SDLK_F, SDL_SCANCODE_F, KMOD_PRIMARY or SDL_KMOD_SHIFT )
     dim as editor.FindOptions o = mw.Finder.Options( )
     o.MatchCase = true
     mw.Finder.SetOptions( o )
     mw.Finder.SetPhrase( "needle" )
     StripKey( mw, SDLK_RETURN, SDL_SCANCODE_RETURN )
     t.Check( mw.Found.Count( ) = 1, P( sc, strings.Format( "Match Case: only the comment ({})", mw.Found.Count( ) ) ) )
-    Chord( h, SDLK_F, SDL_SCANCODE_F, SDL_KMOD_CTRL or SDL_KMOD_SHIFT )
+    Chord( h, SDLK_F, SDL_SCANCODE_F, KMOD_PRIMARY or SDL_KMOD_SHIFT )
     o.MatchCase = false
     o.Regex = true
     mw.Finder.SetOptions( o )
