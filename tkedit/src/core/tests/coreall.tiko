@@ -31,6 +31,7 @@
 #import "./i18nsuite"
 #import "./langsuite"
 #import "./instancesuite"
+#import "./bundledsuite"
 
 ' Is suite `name` wanted on this command line?
 function Wanted( byref name_ as const ustring ) as boolean
@@ -99,6 +100,7 @@ if Wanted( "project" ) then projectsuite.Run( c )
 if Wanted( "i18n" ) then i18nsuite.Run( c )
 if Wanted( "langs" ) then langsuite.Run( c )
 if Wanted( "instance" ) then instancesuite.Run( c )
+if Wanted( "bundled" ) then bundledsuite.Run( c )
 
 print strings.Format( "coreall [{}] selftest: {} passed, {} failed", platform.OsName( ), c.Passed, c.Failed )
 end c.Failed

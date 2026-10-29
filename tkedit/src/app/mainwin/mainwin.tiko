@@ -30,6 +30,7 @@
 #import "tkp/platform"
 #import "tkc/appinfo"
 #import "tkc/autoinsert"
+#import "tkc/bundled"
 #import "tkc/build"
 #import "tkc/cmdids"
 #import "tkc/docencoding"
@@ -182,18 +183,17 @@ public type DocRef as documents.Document ptr
 ' Starting a program (Run): argv[0] is the program. The self-test records instead.
 public type LaunchProc as function( byref argv as const Array( of ustring ), byref workDir as const ustring ) as boolean
 
-' tkApp's fonts: the bundled ones in <resources>/fonts (D16). The UI font size is read from the
-' user's settings.toml here, before any window exists, so it applies from the next start.
+' tkApp's fonts: the bundled ones (D16), inside the program -- tka/assets registered each with
+' tkHost as "mem:<file>", so "mem:" is the folder tkApp appends their names to. The UI font size
+' is read from the user's settings.toml here, before any window exists, so it applies from the
+' next start.
 public function AppOptions( ) as TKAPP_OPTIONS
     dim as TKAPP_OPTIONS opts
-    dim as Optional( of ustring ) res = platform.ResourceDir( )
-    if res.HasValue( ) then
-        opts.FontDir = fs.PathJoin( res.Value( ), "fonts" ) & "/"     ' tkApp appends the file name
-        opts.FontUIFile = FONT_UI
-        opts.FontUIBoldFile = FONT_UI_BOLD
-        opts.FontMonoFile = FONT_MONO
-        opts.GlyphFontFile = FONT_GLYPH
-    end if
+    opts.FontDir = "mem:"
+    opts.FontUIFile = FONT_UI
+    opts.FontUIBoldFile = FONT_UI_BOLD
+    opts.FontMonoFile = FONT_MONO
+    opts.GlyphFontFile = FONT_GLYPH
     dim as fs.FsResultUStr sp = settings.SettingsPath( )
     if sp.IsOk( ) then
         dim as settings.SettingsResult s = settings.LoadSettings( sp.Value( ) )
@@ -220,9 +220,10 @@ public function HandedOff( byref g as fs.FileLock, byref named as Array( of ustr
     return false                                ' Retracted: the first went away and g is held now
 end function
 
-' A keyword file's words, lower case, one space apart (LexTiko's list format).
+' A keyword file's words, lower case, one space apart (LexTiko's list format). A file or a
+' bundled: name (tkc/bundled).
 private function WordsOf( byref path as const ustring ) as ustring
-    dim as textstream.TextFileResult r = textstream.ReadText( path )
+    dim as textstream.TextFileResult r = bundled.ReadText( path )
     if r.IsOk( ) = false then return ""
     dim as ustring s = lcase( r.Value( ).Text )
     dim as ustring o
@@ -240,19 +241,19 @@ private function WordsOf( byref path as const ustring ) as ustring
     return o
 end function
 
-' A file's text; "" when it cannot be read.
+' A file's (or a bundled: name's) text; "" when it cannot be read.
 private function TextOf( byref path as const ustring ) as ustring
-    dim as textstream.TextFileResult r = textstream.ReadText( path )
+    dim as textstream.TextFileResult r = bundled.ReadText( path )
     if r.IsOk( ) = false then return ""
     return r.Value( ).Text
 end function
 
-' <resources>/keywords: tiko.txt (the language), extra.txt (the user's own words).
-public function LoadKeywords( byref resourceDir as const ustring ) as editor.Keywords
+' keywords/tiko.txt (the language): the config folder's copy when there is one, else the bundled
+' one; keywords/extra.txt (the user's own words): the config folder's, or none.
+public function LoadKeywords( byref configDir as const ustring ) as editor.Keywords
     dim as editor.Keywords k
-    dim as ustring d = fs.PathJoin( resourceDir, "keywords" )
-    k.Words1 = WordsOf( fs.PathJoin( d, "tiko.txt" ) )
-    k.Words3 = WordsOf( fs.PathJoin( d, "extra.txt" ) )
+    k.Words1 = WordsOf( bundled.Locate( "keywords/tiko.txt", configDir ) )
+    k.Words3 = WordsOf( bundled.Locate( "keywords/extra.txt", configDir ) )
     return k
 end function
 
@@ -672,8 +673,8 @@ function Window.Create( byval forcedScale as single ) as boolean
     if Launch = 0 then Launch = @LaunchProgram
     ResourceDir = platform.ResourceDir( ).ValueOr( platform.ExeDir( ) )
     if len( ConfigDir ) = 0 then ConfigDir = platform.ConfigDir( ).ValueOr( fs.PathJoin( ResourceDir, "config" ) )
-    Words = LoadKeywords( ResourceDir )
-    Intr.Parse( TextOf( fs.PathJoin( fs.PathJoin( ResourceDir, "keywords" ), "codetips.txt" ) ) )
+    Words = LoadKeywords( ConfigDir )
+    Intr.Parse( TextOf( bundled.Locate( "keywords/codetips.txt", ConfigDir ) ) )
 
     Prefs = settings.DefaultSettings( )
     Theme = themes.DarkTheme( )
@@ -687,12 +688,16 @@ function Window.Create( byval forcedScale as single ) as boolean
     if form = 0 then return false
     form->Tag = @this
     ' opened on the window's host, which resizes it when the DPI changes and closes it with the window
-    AskIcon = tkHost_OpenFont( tkForm_Host( form ), fs.PathJoin( ResourceDir, "fonts", FONT_GLYPH ), ASK_ICON_PT )
+    AskIcon = tkHost_OpenFont( tkForm_Host( form ), "mem:" & FONT_GLYPH, ASK_ICON_PT )
     this.AttachCjkFallbacks( )
     ' the title bar's icon, every platform; on Windows the .exe's own (res/tkEdit.rc) is the taskbar's
     ' and Explorer's, and SDL starts from it
-    dim as string icon8 = fs.PathJoin( ResourceDir, "icons", "tkedit.png" )
-    dim as SDL_Surface ptr icon = IMG_Load( strptr( icon8 ) )
+    dim as const any ptr iconData
+    dim as integer iconSize
+    dim as SDL_Surface ptr icon = 0
+    if bundled.Bytes( "icons/tkedit.png", iconData, iconSize ) then
+        icon = IMG_Load_IO( SDL_IOFromConstMem( iconData, iconSize ), true )
+    end if
     if icon then
         HasIcon = SDL_SetWindowIcon( tkForm_Host( form )->win, icon )
         SDL_DestroySurface( icon )
@@ -1394,7 +1399,7 @@ end function
 
 function Window.FontFile( ) as ustring
     if (len( Prefs.Font ) > 0) andalso fs.IsFile( Prefs.Font ) then return Prefs.Font
-    return fs.PathJoin( ResourceDir, "fonts", FONT_MONO )
+    return "mem:" & FONT_MONO                  ' tka/assets
 end function
 
 sub Window.ApplyLook( )
@@ -1489,7 +1494,7 @@ sub Window.ReloadLanguage( )
     dim as ustring note = ""
     LangPath = ""
     if Prefs.Language <> i18n.DEFAULT_LANGUAGE then
-        LangPath = i18n.FindCatalog( Prefs.Language, ConfigDir, ResourceDir )
+        LangPath = i18n.FindCatalog( Prefs.Language, ConfigDir, "" )
         if len( LangPath ) = 0 then
             note = strings.Format( "{}: no {}/{}.toml; English", settings.SETTINGS_FILE, i18n.LANG_DIR, Prefs.Language )
         else
@@ -1517,7 +1522,7 @@ end sub
 sub Window.AttachCjkFallbacks( )
     dim as TK_HOST ptr h = tkForm_Host( form )
     dim as ustring files( 0 to 1 )
-    files( 0 ) = fs.PathJoin( ResourceDir, "fonts", FONT_CJK )
+    files( 0 ) = "mem:" & FONT_CJK            ' tka/assets
     files( 1 ) = platform.SystemCjkFont( )
     dim as long roles( 0 to 3 ) = { TKFONT_UI, TKFONT_UI_SMALL, TKFONT_UI_BOLD, TKFONT_UI_LARGE }
     for r as long = 0 to 3
@@ -1525,7 +1530,7 @@ sub Window.AttachCjkFallbacks( )
         if roleFont = 0 then continue for
         for k as long = 0 to 1
             if len( files( k ) ) = 0 then continue for
-            if fs.IsFile( files( k ) ) = false then continue for
+            if (tkHost_HasFontData( files( k ) ) = false) andalso (fs.IsFile( files( k ) ) = false) then continue for
             dim as TTF_Font ptr fb = tkHost_OpenFont( h, files( k ), tkForm_RolePoints( form, roles( r ) ) )
             if fb = 0 then continue for
             TTF_AddFallbackFont( roleFont, fb )
@@ -1652,7 +1657,7 @@ end sub
 
 ' The theme settings.toml names: the user's copy, else the shipped one, else the built-in dark.
 sub Window.ReloadTheme( )
-    dim as ustring path = themes.FindTheme( Prefs.Theme, ConfigDir, ResourceDir )
+    dim as ustring path = themes.FindTheme( Prefs.Theme, ConfigDir, "" )
     if len( path ) = 0 then
         Theme = themes.DarkTheme( )
         if lcase( Prefs.Theme ) <> themes.DEFAULT_THEME then Message = strings.Format( i18n.Tr( "message.theme_not_found", "theme '{}' not found; using dark" ), Prefs.Theme )
@@ -1696,14 +1701,14 @@ function Window.EditableThemeFile( ) as ustring
     dim as ustring dir_ = fs.PathJoin( ConfigDir, themes.THEME_DIR )
     dim as ustring mine = fs.PathJoin( dir_, Prefs.Theme & ".toml" )
     if fs.IsFile( mine ) then return mine
-    dim as ustring shipped = themes.FindTheme( Prefs.Theme, "", ResourceDir )
-    if len( shipped ) = 0 then shipped = themes.FindTheme( themes.DEFAULT_THEME, "", ResourceDir )
+    dim as ustring shipped = themes.FindTheme( Prefs.Theme, "", "" )
+    if len( shipped ) = 0 then shipped = themes.FindTheme( themes.DEFAULT_THEME, "", "" )
     if len( shipped ) = 0 then
         this.SetMessage( i18n.Tr( "message.no_theme_file", "no theme file to copy" ) )
         return ""
     end if
     fs.CreateDirAll( dir_ )
-    if fs.CopyFile( shipped, mine ).IsOk( ) = false then
+    if bundled.CopyTo( shipped, mine ) = false then
         this.SetMessage( strings.Format( i18n.Tr( "message.cannot_write", "cannot write {}" ), mine ) )
         return ""
     end if

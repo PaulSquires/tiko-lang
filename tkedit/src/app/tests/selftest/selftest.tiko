@@ -14,6 +14,7 @@
 #import "std/process"
 #import "std/strings"
 #import "tkp/platform"
+#import "tkc/bundled"
 #import "tkc/appinfo"
 #import "tkc/build"
 #import "tkc/cmdids"
@@ -184,8 +185,9 @@ public sub Pass( byref t as Tally, byval sc as single )
              P( sc, "the close button queues no QUIT behind OnClose (a dirty buffer's question would lose to it)" ) )
     t.Check( strings.EndsWith( tkForm_RoleFile( mw.form, TKFONT_UI ), mainwin.FONT_UI ), P( sc, "UI font is Inter" ) )
     t.Check( strings.EndsWith( tkForm_RoleFile( mw.form, TKFONT_MONO ), mainwin.FONT_MONO ), P( sc, "mono font is JetBrains Mono" ) )
-    ' the code view's own font (Scintilla's): tkEdit's JetBrains Mono, never vendor/tkControls' bundled mono
-    t.Check( strings.EndsWith( mw.Look.FontFile, mainwin.FONT_MONO ) andalso fs.IsFile( mw.Look.FontFile ), _
+    ' the code view's own font (Scintilla's): tkEdit's JetBrains Mono, never vendor/tkControls' bundled mono --
+    ' carried inside the program (tka/assets), so a registered name, not a file
+    t.Check( strings.EndsWith( mw.Look.FontFile, mainwin.FONT_MONO ) andalso tkHost_HasFontData( mw.Look.FontFile ), _
              P( sc, "the code view's font is JetBrains Mono: " & mw.Look.FontFile ) )
     t.Check( strings.EndsWith( tkApp_GlyphFace( ), mainwin.FONT_GLYPH ), P( sc, "glyph font is '" & tkApp_GlyphFace( ) & "'" ) )
     dim as ustring title = *SDL_GetWindowTitle( h->win )
@@ -473,10 +475,10 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     mw.Execute( Cmd.FileClose )
     Chord( h, SDLK_COMMA, SDL_SCANCODE_COMMA, KMOD_PRIMARY )
     t.Check( lcase( mw.ActivePath( ) ) = lcase( sf ), P( sc, "back on settings.toml" ) )
-    ' a shipped catalog (no copy in the config folder): lang/fr.toml beside the program
+    ' a shipped catalog (no copy in the config folder): lang/fr.toml, carried inside the program
     mw.View( ).SetText( "version = 1" & nl & "[ui]" & nl & "theme = 'light'" & nl & "language = 'fr'" & nl )
     Chord( h, SDLK_S, SDL_SCANCODE_S, KMOD_PRIMARY )
-    t.Check( lcase( mw.LangPath ) = lcase( fs.PathJoin( mw.ResourceDir, "lang", "fr.toml" ) ), P( sc, "language = 'fr': the shipped catalog: " & mw.LangPath ) )
+    t.Check( mw.LangPath = bundled.PREFIX & "lang/fr.toml", P( sc, "language = 'fr': the shipped catalog: " & mw.LangPath ) )
     t.Check( (mw.StatusText( mainwin.StatusPanel.Project ) = "Projet") andalso (tkTabBar_GetText( mw.Out.tabs, 0 ) = "R" & wchr( &hE9 ) & "sultats"), _
              P( sc, "in French: " & mw.StatusText( mainwin.StatusPanel.Project ) & ", " & tkTabBar_GetText( mw.Out.tabs, 0 ) ) )
     t.Check( len( mw.Message ) = 0, P( sc, "the shipped catalog loads without a warning: " & mw.Message ) )
@@ -549,11 +551,11 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     ' character the catalog uses (tools/make-cjk-font.py cuts it from lang/zh.toml)
     mw.View( ).SetText( "version = 1" & nl & "[ui]" & nl & "theme = 'light'" & nl & "language = 'zh'" & nl )
     Chord( h, SDLK_S, SDL_SCANCODE_S, KMOD_PRIMARY )
-    t.Check( lcase( mw.LangPath ) = lcase( fs.PathJoin( mw.ResourceDir, "lang", "zh.toml" ) ) andalso (len( mw.Message ) = 0), _
+    t.Check( (mw.LangPath = bundled.PREFIX & "lang/zh.toml") andalso (len( mw.Message ) = 0), _
              P( sc, "language = 'zh': the shipped catalog, no warning: " & mw.LangPath & " " & mw.Message ) )
     t.Check( mw.StatusText( mainwin.StatusPanel.Project ) = wchr( &h9879, &h76EE ), P( sc, "the Project panel in Chinese: " & mw.StatusText( mainwin.StatusPanel.Project ) ) )
     scope
-        dim as ustring zt = fs.ReadAllText( fs.PathJoin( mw.ResourceDir, "lang", "zh.toml" ) ).ValueOr( "" )
+        dim as ustring zt = bundled.ReadAllText( bundled.PREFIX & "lang/zh.toml" ).ValueOr( "" )
         dim as long nCjk = 0, nMissing = 0
         dim as ustring firstMissing = ""
         for i as long = 1 to len( zt )

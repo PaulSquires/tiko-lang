@@ -8,12 +8,24 @@
 '   tkEdit [files...]     run it, restoring the last session, then opening the files
 '   tkEdit --selftest     drive the real window at scale 1.0 and 1.75, print what it saw;
 '                         exit code = failures, last line " selftest: N passed, M failed"
+'   tkEdit --export-resources DIR   write every file tkEdit carries (themes, languages, keyword
+'                         lists, fonts, licences) below DIR, to read or to copy into the config folder
+'   tkEdit --licences     print the licences of tkEdit's fonts and of the libraries inside it
+'
+' ONE FILE (docs/tkEdit/SINGLE-FILE.md): SDL, SDL_ttf, SDL_image and scintk are linked in, and the
+' data files are '#embed'ded (tka/assets) -- nothing is looked for beside the program.
 '' std/* before anything that brings in vendor/SDL3 (Linux: crt/stdio.bi, tkControls FINDINGS)
 #import "std/containers"
 #import "std/fs"
 #import "std/strings"
 #import "tkp/platform"
+#import "tkc/bundled"
 #import "tkc/project"
+#import "vendor/SDL3" link static
+#import "vendor/SDL3/ttf" link static
+#import "vendor/SDL3/image" link static
+#import "vendor/tkControls/tkCodeEdit" link static
+#import "tka/assets"
 #import "tka/mainwin"
 #import "./tests/selftest"
 #import "vendor/tkControls/tkApp"
@@ -22,6 +34,27 @@ using containers
 using tkApp
 using tkHost
 using tkCodeEdit
+
+assets.Register( )      ' before any font, theme or catalog is asked for
+
+if command( 1 ) = "--export-resources" then
+    if len( command( 2 ) ) = 0 then print "tkEdit --export-resources DIR" : end 2
+    dim as long nBad
+    dim as long nDone = bundled.ExportAll( command( 2 ), nBad )
+    print "tkEdit: "; nDone; " files written below "; command( 2 ); iif( nBad > 0, ", " & nBad & " could not be", "" )
+    end iif( nBad > 0, 1, 0 )
+end if
+if command( 1 ) = "--licences" then
+    dim as Array( of ustring ) lics = bundled.Names( "licences" )
+    for each f as ustring in bundled.Names( "fonts" )
+        if lcase( right( f, 4 ) ) = ".txt" then lics.Push( f )
+    next
+    for each f as ustring in lics
+        print "==== "; f; " ===="
+        print bundled.ReadAllText( bundled.PREFIX & f ).ValueOr( "" )
+    next
+    end 0
+end if
 
 ' Files (or a project's tiko.toml) named on the command line take the place of the last session's files and
 ' project; the window's place and the recent list come back either way.

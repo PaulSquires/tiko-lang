@@ -19,6 +19,7 @@
 #import "std/containers"
 #import "std/outcome"
 #import "std/strings"
+#import "tkc/bundled"
 using containers
 using outcome
 
@@ -250,7 +251,7 @@ public function ParseTheme( byref text as const ustring, byref name_ as const us
 end function
 
 public function LoadTheme( byref path as const ustring, byref name_ as const ustring ) as ThemeResult
-    dim as fs.FsResultUStr r = fs.ReadAllText( path )
+    dim as fs.FsResultUStr r = bundled.ReadAllText( path )     ' a file, or a bundled: name
     if r.IsOk( ) = false then return Fail( of Theme, ustring )( r.Failure( ).Message( ) )
     dim as ThemeResult t = ParseTheme( r.Value( ), name_ )
     if t.IsOk( ) = false then return Fail( of Theme, ustring )( path & ": " & t.Failure( ) )
@@ -259,13 +260,17 @@ public function LoadTheme( byref path as const ustring, byref name_ as const ust
     return Ok( of Theme, ustring )( v )
 end function
 
-' The file a theme name means: the user's copy wins over the shipped one; "" = neither exists.
+' The file a theme name means: the user's copy wins over the shipped one -- a folder's when
+' resourceDir names one, else the copy tkEdit carries (tkc/bundled, "bundled:themes/<name>.toml");
+' "" = none.
 public function FindTheme( byref name_ as const ustring, byref configDir as const ustring, _
                            byref resourceDir as const ustring ) as ustring
     dim as ustring f = name_ & ".toml"
     dim as ustring u = fs.PathJoin( configDir, THEME_DIR, f )
     if (len( configDir ) > 0) andalso fs.IsFile( u ) then return u
-    dim as ustring s = fs.PathJoin( resourceDir, THEME_DIR, f )
-    if fs.IsFile( s ) then return s
-    return ""
+    if len( resourceDir ) > 0 then
+        dim as ustring s = fs.PathJoin( resourceDir, THEME_DIR, f )
+        if fs.IsFile( s ) then return s
+    end if
+    return bundled.Locate( THEME_DIR & "/" & f, "" )
 end function
