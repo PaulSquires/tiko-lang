@@ -27,7 +27,7 @@ if [ "$OS" = windows ]; then
     O=obj
 elif [ "$OS" = macos ]; then
     CXX=${CXX:-clang++}
-    FLAGS="-std=c++17 -O2 -fPIC -fvisibility=hidden"
+    FLAGS="-std=c++17 -O2 -fPIC -fvisibility=hidden -mmacosx-version-min=13.0"
     LIB=$OUT/libscintk.dylib
     O=o
 else
@@ -56,7 +56,7 @@ if [ "$OS" = windows ]; then
     "$CXX" --target=x86_64-pc-windows-msvc -fms-runtime-lib=static -shared -fuse-ld=lld -o "$LIB" "${objs[@]}"
 elif [ "$OS" = macos ]; then
     # libc++ is the system's on macOS (no static one ships), so only the install name is ours.
-    "$CXX" -dynamiclib -Wl,-install_name,@rpath/libscintk.dylib -o "$LIB" "${objs[@]}"
+    "$CXX" -mmacosx-version-min=13.0 -dynamiclib -Wl,-install_name,@rpath/libscintk.dylib -o "$LIB" "${objs[@]}"
 else
     "$CXX" -shared -o "$LIB" "${objs[@]}" -static-libstdc++ -static-libgcc -Wl,-z,noexecstack
 fi
