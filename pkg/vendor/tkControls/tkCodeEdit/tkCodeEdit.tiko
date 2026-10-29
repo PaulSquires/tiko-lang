@@ -1399,7 +1399,12 @@ private sub CtShow cdecl ( byval user as any ptr, byval editor as any ptr, byval
     gTip.owner = t : gTip.popup = ph : gTip.bDirty = true
     gTip.w = tkWidget_Create( ph, 1, @TipProc, 0 )
     gTip.w->isFocusable = true
-    tkWidget_SetPos( gTip.w, 0, 0, w, h )
+    ' the window's REAL size: a whole number of SDL units, one pixel more than w or h when the
+    ' density is 2 (Retina) and the size is odd. scintk paints the tip to fill it.
+    dim as long rw = w, rh = h
+    tkHost_PixelSize( ph, rw, rh )
+    if (rw <= 0) orelse (rh <= 0) then rw = w : rh = h
+    tkWidget_SetPos( gTip.w, 0, 0, rw, rh )
     tkHost_Show( ph )
     tkHost_SetFocus( ph, gTip.w )
 end sub

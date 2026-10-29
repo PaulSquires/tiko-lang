@@ -184,13 +184,30 @@ public:
 	void TkPaintCallTip(void *target, int w, int h) {
 		std::unique_ptr<Surface> surf = PlatTk_SurfaceForTarget(target);
 		surf->SetMode(SurfaceMode(CodePage(), false));
-		(void)w; (void)h;
+		// THE TIP IS AS LARGE AS ITS WINDOW. A window is a whole number of SDL units, so on a
+		// density-2 (Retina) display an odd pixel size comes out one larger than CallTipStart's,
+		// and PaintCT, which fills and frames its own rect, left that strip unpainted.
+		if (w > 0 && h > 0) {
+			const PRectangle rc = ct.wCallTip.GetPosition();
+			ct.wCallTip.SetPosition(PRectangle(rc.left, rc.top, rc.left + w, rc.top + h));
+		}
 		// A FLAT BORDER IN THE TIP'S OWN COLOURS, not Scintilla's raised one (silver top and left,
 		// black right and bottom, fixed): on a dark tip the silver read as a white frame (tkEdit,
 		// 2026-10-28). 15% of the way from the tip's back toward its text, whatever the theme.
 		ct.colourLight = ct.colourBG.MixedWith(ct.colourUnSel, 0.15);
 		ct.colourShade = ct.colourLight;
 		ct.PaintCT(surf.get());
+#if defined(__APPLE__)
+		// CallTip.cxx draws no border under __APPLE__ (Cocoa's help tags have none) and fills only
+		// inside it, so the 1-pixel edge was never painted. scintk is not Cocoa: the same frame here.
+		if (w > 2 && h > 2) {
+			const XYPOSITION fw = static_cast<XYPOSITION>(w), fh = static_cast<XYPOSITION>(h);
+			surf->FillRectangle(PRectangle(0, 0, fw, 1), ct.colourLight);
+			surf->FillRectangle(PRectangle(0, fh - 1, fw, fh), ct.colourShade);
+			surf->FillRectangle(PRectangle(0, 1, 1, fh - 1), ct.colourLight);
+			surf->FillRectangle(PRectangle(fw - 1, 1, fw, fh - 1), ct.colourShade);
+		}
+#endif
 		surf->Release();
 	}
 	void TkCallTipClick(Point pt) {
