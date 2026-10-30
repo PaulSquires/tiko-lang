@@ -221,8 +221,7 @@ Reference pages for each are in the [Feature Index](wiki/Feature-Index.md).
 - **[tiko-lsp](https://github.com/PaulSquires/tiko-lsp):** a language server with completion,
   hover, go-to-definition, rename, signature help, semantic highlighting, inlay hints,
   formatting and quick fixes. It works in any LSP editor and ships with a tree-sitter grammar.
-- **[tiko-editor](https://github.com/PaulSquires/tiko-editor):** a native Windows editor with an
-  integrated debugger.
+- **tkedit:** a cross platform, gui multi buffer editor, packaged with every toolchain.
 - **Debugging:** `-g` emits DWARF with variables and types, which gdb and lldb can read.
 - **Testing:** the toolchain ships a unit-test framework.
 
