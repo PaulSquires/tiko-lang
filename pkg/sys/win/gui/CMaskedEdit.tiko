@@ -27,7 +27,8 @@
 
 #module "gui"
 #import "sys/win"
-using win
+#import "std/strings"
+using win, strings
 #include once "gui.ti"
 
 #include once "windows.bi"
@@ -1047,7 +1048,7 @@ SUB CMaskedEdit.OnCharDelete (BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYVAL 
          DIM nBeginOld AS LONG, nEndOld AS LONG
          nBeginOld = Edit.GetSelStart(m_hCtl)
          nEndOld = Edit.GetSelEnd(m_hCtl)
-         this. DoUpdate(TRUE, nBeginOld, nEndOld)
+         this.DoUpdate(TRUE, nBeginOld, nEndOld)
       END IF
    END IF
 END SUB
@@ -1107,7 +1108,7 @@ FUNCTION CMaskedEdit.SetText (BYREF ustrText AS USTRING, BYVAL bSetMaskedCharsOn
       FOR i AS LONG = 1 TO LEN(m_strInputTemplate)
          IF MID(ustr, i, 1) = MID(m_strInputTemplate, i, 1) THEN MID(ustr, i, 1) = "_"
       NEXT
-      ustr = StrRemove(ustr, "_")
+      ustr = strings.Remove(ustr, "_")
    END IF
    FUNCTION = this.SetText(ustr)
 END FUNCTION
@@ -1122,7 +1123,7 @@ FUNCTION CMaskedEdit.GetText (BYVAL bGetMaskedCharsOnly AS BOOLEAN = FALSE) AS U
       FOR i AS LONG = 1 TO LEN(m_strInputTemplate)
          IF MID(ustr, i, 1) = MID(m_strInputTemplate, i, 1) THEN MID(ustr, i, 1) = "_"
       NEXT
-      ustr = StrRemove(ustr, "_")
+      ustr = strings.Remove(ustr, "_")
    END IF
    RETURN ustr
 END FUNCTION
@@ -1137,7 +1138,7 @@ FUNCTION CMaskedEdit.GetTextLength (BYVAL bGetMaskedCharsOnly AS BOOLEAN = FALSE
       FOR i AS LONG = 1 TO LEN(m_strInputTemplate)
          IF MID(ustr, i, 1) = MID(m_strInputTemplate, i, 1) THEN MID(ustr, i, 1) = "_"
       NEXT
-      ustr = StrRemove(ustr, "_")
+      ustr = strings.Remove(ustr, "_")
    END IF
    RETURN LEN(ustr)
 END FUNCTION
