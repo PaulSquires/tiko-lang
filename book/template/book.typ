@@ -1,8 +1,14 @@
 $-- book.typ -- the pandoc template for the typst build. Variables it expects:
-$--   syntax   path to tiko.sublime-syntax, relative to the generated .typ
 $--   draft    set in --draft builds: adds a watermark and shows chapter status
 $--   trim     page size, e.g. "7in x 9.25in" (informational; the size is set below)
-$definitions.typst()$
+// What pandoc's typst output presupposes -- defined here rather than taken from pandoc's
+// definitions.typst partial, which pandoc 3.4 ships and 3.12 (Homebrew, on macOS) does not.
+#let horizontalrule = [
+  #line(start: (25%, 0%), end: (75%, 0%))
+]
+#let endnote(num, contents) = [
+  #stack(dir: ltr, spacing: 3pt, super[#num], contents)
+]
 
 // ---------------------------------------------------------------- page and type
 // The current chapter's number, for the running header; none in the preface and the
@@ -77,9 +83,9 @@ $definitions.typst()$
 #show table.cell.where(y: 0): set text(weight: "bold")
 
 // ---------------------------------------------------------------- code
-$if(syntax)$
-#set raw(syntaxes: "$syntax$")
-$endif$
+// The path is written here, not passed in: pandoc 3.12 escapes a metadata value's leading
+// "." when it substitutes it, and typst 0.15 refuses the backslash that leaves.
+#set raw(syntaxes: "../template/tiko.sublime-syntax")
 #show raw: set text(font: "DejaVu Sans Mono", size: 8.6pt)
 #show raw.where(block: true): it => block(
   width: 100%,

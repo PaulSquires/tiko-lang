@@ -5,7 +5,7 @@
 '    License, v. 2.0. If a copy of the MPL was not distributed with this
 '    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 '
-' parser -- parser.dll / parser.so (tiko's front end, D3), loaded at run time, and a worker that scans in the
+' parser -- tiko's front end (D3), LINKED IN, and a worker that scans in the
 ' background. The C contract is tiko-lang's src/api/tikoparser.ti, version 4; the records here
 ' mirror it. Its strings are UTF-16 on EVERY OS (the library reads and writes uint16, not the
 ' host's wchar_t), so they are ushort here and no wstring is involved.
@@ -168,33 +168,34 @@ public type Library
                            byref o as const ScanOptions ) as ScanResult
 end type
 
-' parser.dll / parser.so in dir_, its version checked against the contract.
+' THE SCANNER IS LINKED IN: tkEdit is one file (docs/tkEdit/SINGLE-FILE.md). The archive is
+' tiko-lang's bin/parser_<os>_<arch>.a, which 'build/build.sh Release --lib' makes, and it must be
+' built by the compiler that builds tkEdit: it carries that compiler's std module objects, and at
+' the link each std module is one copy. The table is filled from its symbols, and the version
+' check stays -- a stale archive is the one way the contract can still disagree.
+#foreignlib TKPARSER static "../../../../bin/parser"
+extern "C"
+    declare function TikoParserVersion cdecl alias "TIKOPARSER_VERSION" ( ) as long
+    declare function TikoParserScan cdecl alias "TIKOPARSER_SCAN" ( byval file as ushort ptr, _
+        byval options as TKP_OPTIONS ptr, byval ppResult as TKP_RESULT ptr ptr ) as long
+    declare function TikoParserScanText cdecl alias "TIKOPARSER_SCAN_TEXT" ( byval text as zstring ptr, _
+        byval name_ as ushort ptr, byval options as TKP_OPTIONS ptr, byval ppResult as TKP_RESULT ptr ptr ) as long
+    declare sub TikoParserFree cdecl alias "TIKOPARSER_FREE" ( byval pResult as TKP_RESULT ptr )
+end extern
+
+' Ready to scan; dir_ is not used (the library is inside the program). FALSE only when the
+' archive linked in is another version of the contract.
 function Library.Load( byref dir_ as const ustring ) as boolean
     if h then return true
-    dim as string path = fs.PathJoin( dir_, platform.SharedLibraryFile( "parser" ) )
-    if fs.IsFile( path ) = false then
-        err_ = path & ": no such file"
-        return false
-    end if
-    h = dylibload( path )
-    if h = 0 then
-        err_ = path & ": it would not load"
-        return false
-    end if
-    fnVersion = dylibsymbol( h, "TIKOPARSER_VERSION" )
-    fnScan = dylibsymbol( h, "TIKOPARSER_SCAN" )
-    fnScanText = dylibsymbol( h, "TIKOPARSER_SCAN_TEXT" )
-    fnFree = dylibsymbol( h, "TIKOPARSER_FREE" )
-    if (fnVersion = 0) orelse (fnScan = 0) orelse (fnScanText = 0) orelse (fnFree = 0) then
-        err_ = path & ": an entry point is missing"
-        dylibfree( h ) : h = 0
-        return false
-    end if
+    fnVersion = @TikoParserVersion
+    fnScan = @TikoParserScan
+    fnScanText = @TikoParserScanText
+    fnFree = @TikoParserFree
     if fnVersion( ) <> TKP_VERSION then
-        err_ = path & ": version " & fnVersion( ) & ", this editor reads " & TKP_VERSION
-        dylibfree( h ) : h = 0
+        err_ = "the scanner linked in is version " & fnVersion( ) & ", this editor reads " & TKP_VERSION
         return false
     end if
+    h = cast( any ptr, fnVersion )             ' loaded
     return true
 end function
 

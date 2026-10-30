@@ -67,8 +67,19 @@ PIN_VERSION="$(awk '/^  version:/ { gsub(/"/, "", $2); print $2; exit }' book.ya
 WIN_ROOT="$(yaml_get windows root)";  WIN_EXE="$(yaml_get windows exe)"
 LIN_ROOT="$(yaml_get linux root)";    LIN_EXE="$(yaml_get linux exe)"
 WSL_DISTRO="$(yaml_get linux wsl_distro)"
+MAC_ROOT="$(yaml_get macos root)";    MAC_EXE="$(yaml_get macos exe)"
+
+# THE MAC (docs/tiko-macos M10, D-M10-2). macos-arm64 programs run on a Mac, so that target is
+# checked THERE, natively: on a Darwin host it is the local target, as windows-x86_64 is on
+# Windows. From Windows, '--target macos-arm64' alone sends this tree to the Mac over ssh
+# (TKO_MAC_HOST, default 'mac'; options in TKO_MAC_SSH_OPTS), runs this script there, and
+# brings its out/ back -- reports and logs, not programs -- as out/macos-arm64/.
+# The pin's macos root is relative to the tree there, beside a toolchains/ that links to
+# ~/dev/tiko-lang/toolchains.
+ON_MAC=0; [[ "$(uname -s)" == Darwin ]] && ON_MAC=1
 
 targets=(windows-x86_64 linux-x86_64)
+(( ON_MAC )) && targets=(macos-arm64)
 chapters=(); list_only=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -83,11 +94,41 @@ done
 # The roots in book.yaml are relative to this book directory, which lives inside the
 # compiler's repository -- so a clone anywhere works. The Linux side needs the same place
 # spelled as WSL sees it.
+# --target macos-arm64 FROM WINDOWS: the run happens on the Mac.
+if (( ! ON_MAC )) && [[ " ${targets[*]} " == *" macos-arm64 "* ]]; then
+  [[ ${#targets[@]} -eq 1 ]] || { echo "check-listings: macos-arm64 runs on the Mac -- ask for it alone" >&2; exit 2; }
+  mh="${TKO_MAC_HOST:-mac}"; mo="${TKO_MAC_SSH_OPTS:-}"; here="$(basename "$root")"
+  # shellcheck disable=SC2086
+  tar -cf - --exclude=./out -C "$root" . | ssh -o BatchMode=yes $mo "$mh" \
+    "mkdir -p tkm/harness && ln -sfn ~/dev/tiko-lang/toolchains tkm/harness/toolchains && rm -rf tkm/harness/$here && mkdir -p tkm/harness/$here && tar -xf - -C tkm/harness/$here" \
+    || { echo "check-listings: could not send the tree to $mh" >&2; exit 2; }
+  mkdir -p out/run out/mac-out.tmp
+  # A script FILE, run by a login zsh: a non-login ssh shell has no Homebrew on PATH.
+  printf 'cd ~/tkm/harness/%s && bash tools/check-listings.sh --target macos-arm64 %s\n' "$here" "${chapters[*]:-}" > out/mac-run.sh
+  # shellcheck disable=SC2086
+  scp -q -o BatchMode=yes $mo out/mac-run.sh "$mh:tkm/harness/mac-run-$here.sh" || exit 2
+  # shellcheck disable=SC2086
+  ssh -o BatchMode=yes $mo "$mh" zsh -l "tkm/harness/mac-run-$here.sh" < /dev/null; rrc=$?
+  # THE MAC'S out/, its programs left there: reports and logs, into out/macos-arm64/.
+  rm -rf out/macos-arm64
+  # shellcheck disable=SC2086
+  ssh -o BatchMode=yes $mo "$mh" "cd tkm/harness/$here/out && tar -cf - --exclude=bin --exclude=macos-arm64 ." < /dev/null | tar -xf - -C out/mac-out.tmp
+  mv out/mac-out.tmp out/macos-arm64
+  rm -f out/mac-run.sh
+  echo "check-listings: the Mac's reports and logs are in out/macos-arm64/"
+  exit $rrc
+fi
+
 to_wsl() { cygpath -w "$1" 2>/dev/null | sed -E 's|^([A-Za-z]):|/mnt/\L\1|; s|\\|/|g'; }
 
-win_tiko="$(cd "$root/$WIN_ROOT" && pwd)/$WIN_EXE"
-lin_tiko="$(to_wsl "$(cd "$root/$LIN_ROOT" && pwd)")/$LIN_EXE"
-book_wsl="$(cygpath -w "$root" 2>/dev/null | sed -E 's|^([A-Za-z]):|/mnt/\L\1|; s|\\|/|g')"
+win_tiko=""; lin_tiko=""; mac_tiko=""; book_wsl=""
+if (( ON_MAC )); then
+  mac_tiko="$(cd "$root/$MAC_ROOT" 2>/dev/null && pwd)/$MAC_EXE"
+else
+  win_tiko="$(cd "$root/$WIN_ROOT" && pwd)/$WIN_EXE"
+  lin_tiko="$(to_wsl "$(cd "$root/$LIN_ROOT" && pwd)")/$LIN_EXE"
+  book_wsl="$(cygpath -w "$root" 2>/dev/null | sed -E 's|^([A-Za-z]):|/mnt/\L\1|; s|\\|/|g')"
+fi
 
 # A stale toolchain yields a plausible number, not an error. Assert the pin first.
 assert_pin() {
@@ -116,10 +157,15 @@ assert_manifest() {
   fi
 }
 
-assert_manifest "windows" "$(cygpath -u "$WIN_ROOT" 2>/dev/null || echo "$WIN_ROOT")/MANIFEST.txt" \
-  "$(awk '/^  windows:/,/^  linux:/' book.yaml | awk '/commit:/ { gsub(/"/, "", $2); print $2; exit }')"
-assert_manifest "linux" "$(cygpath -u "${LIN_ROOT/\/mnt\/c/C:}" 2>/dev/null || echo "$LIN_ROOT")/MANIFEST.txt" \
-  "$(awk '/^  linux:/,/^  targets:/' book.yaml | awk '/commit:/ { gsub(/"/, "", $2); print $2; exit }')"
+if (( ON_MAC )); then
+  assert_manifest "macos" "$MAC_ROOT/MANIFEST.txt" \
+    "$(awk '/^  macos:/,/^  targets:/' book.yaml | awk '/commit:/ { gsub(/"/, "", $2); print $2; exit }')"
+else
+  assert_manifest "windows" "$(cygpath -u "$WIN_ROOT" 2>/dev/null || echo "$WIN_ROOT")/MANIFEST.txt" \
+    "$(awk '/^  windows:/,/^  linux:/' book.yaml | awk '/commit:/ { gsub(/"/, "", $2); print $2; exit }')"
+  assert_manifest "linux" "$(cygpath -u "${LIN_ROOT/\/mnt\/c/C:}" 2>/dev/null || echo "$LIN_ROOT")/MANIFEST.txt" \
+    "$(awk '/^  linux:/,/^  targets:/' book.yaml | awk '/commit:/ { gsub(/"/, "", $2); print $2; exit }')"
+fi
 
 for t in "${targets[@]}"; do
   case "$t" in
@@ -130,6 +176,10 @@ for t in "${targets[@]}"; do
       v="$(wsl -d "$WSL_DISTRO" -- "$lin_tiko" --version 2>&1 | head -1 | tr -d '\r')"
       [[ -n "$v" ]] || { echo "check-listings: no tiko at $lin_tiko (WSL $WSL_DISTRO)" >&2; exit 2; }
       assert_pin "$lin_tiko" "$v" ;;
+    macos-arm64)
+      (( ON_MAC )) || { echo "check-listings: macos-arm64 runs on the Mac" >&2; exit 2; }
+      [[ -x "$mac_tiko" ]] || { echo "check-listings: no tiko at $mac_tiko" >&2; exit 2; }
+      assert_pin "$mac_tiko" "$("$mac_tiko" --version 2>&1 | head -1)" ;;
     *) echo "check-listings: unknown target $t" >&2; exit 2 ;;
   esac
 done
@@ -137,7 +187,7 @@ done
 # ------------------------------------------------------------------ listings
 meta_get() { [[ -f "$1" ]] && sed -nE "s/^$2:[[:space:]]*//p" "$1" | head -1; }
 
-mapfile -t all < <(find examples \( -name '*.tiko' -o -name '*.bas' \) | sed 's|\\|/|g' | sort)
+all=(); while IFS= read -r _l; do all+=("$_l"); done < <(find examples \( -name '*.tiko' -o -name '*.bas' \) | sed 's|\\|/|g' | sort)
 listings=()
 for f in "${all[@]}"; do
   # The chapter is the first directory under examples/: a listing may sit deeper, in a
@@ -199,6 +249,13 @@ for f in "${listings[@]}"; do
     if [[ -n "$only_targets" && "$only_targets" != *"$t"* ]]; then results+=("n/a"); continue; fi
 
     outdir="out/bin/$t"; mkdir -p "$outdir"
+    # LOCAL: compiled and run here. windows-x86_64 on Windows, macos-arm64 on a Mac.
+    is_local=0; ltiko=""; xext=""
+    case "$t" in
+      windows-x86_64) is_local=1; ltiko="$win_tiko"; xext=".exe" ;;
+      macos-arm64)    is_local=1; ltiko="$mac_tiko" ;;
+    esac
+    abs_exe() { if [[ "$t" == windows-x86_64 ]]; then cygpath -m "$root/$1"; else printf '%s' "$root/$1"; fi; }
     log="out/run/$name.$t.log"; rm -f "$log"
 
     # The prebuild commands, each a tiko invocation in the listing's directory.
@@ -206,8 +263,8 @@ for f in "${listings[@]}"; do
     if [[ -n "$prebuild" ]]; then
       IFS=';' read -ra pre_cmds <<< "$prebuild"
       for pc in "${pre_cmds[@]}"; do
-        if [[ "$t" == windows-x86_64 ]]; then
-          ( cd "$dir" && eval "\"$win_tiko\" $pc" ) >> "$log" 2>&1 || pre_ok=0
+        if (( is_local )); then
+          ( cd "$dir" && eval "\"$ltiko\" $pc" ) >> "$log" 2>&1 || pre_ok=0
         else
           wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && '$lin_tiko' $pc" >> "$log" 2>&1 || pre_ok=0
         fi
@@ -221,19 +278,19 @@ for f in "${listings[@]}"; do
     [[ -n "$output" ]] && rm -f "$dir/$output"
     if [[ -n "$project" ]]; then
       # A project builds where its tiko.toml is, into its own out/debug.
-      if [[ "$t" == windows-x86_64 ]]; then
-        exe="$dir/out/debug/$project.exe"; rm -f "$exe"
-        ( cd "$dir" && "$win_tiko" build "$project" ) >> "$log" 2>&1; crc=$?
+      if (( is_local )); then
+        exe="$dir/out/debug/$project$xext"; rm -f "$exe"
+        ( cd "$dir" && "$ltiko" build "$project" ) >> "$log" 2>&1; crc=$?
       else
         exe="$dir/out/debug/$project"; rm -f "$exe"
         wsl -d "$WSL_DISTRO" -- bash -c "cd '$book_wsl/$dir' && '$lin_tiko' build $project" >> "$log" 2>&1; crc=$?
       fi
-    elif [[ "$t" == windows-x86_64 ]]; then
-      exe="$outdir/$name.exe"; rm -f "$exe"
+    elif (( is_local )); then
+      exe="$outdir/$name$xext"; rm -f "$exe"
       if [[ "$cwd" == listing ]]; then
-        ( cd "$dir" && "$win_tiko" "${local_srcs[@]}" -o "$(cygpath -m "$root/$exe")" ) >> "$log" 2>&1; crc=$?
+        ( cd "$dir" && "$ltiko" "${local_srcs[@]}" -o "$(abs_exe "$exe")" ) >> "$log" 2>&1; crc=$?
       else
-        "$win_tiko" "${srcs[@]}" -o "$exe" > "$log" 2>&1; crc=$?
+        "$ltiko" "${srcs[@]}" -o "$exe" > "$log" 2>&1; crc=$?
       fi
     else
       exe="$outdir/$name"; rm -f "$exe"
@@ -260,7 +317,7 @@ for f in "${listings[@]}"; do
     fi
 
     args=""; [[ -f "$base.args" ]] && args="$(head -1 "$base.args")"
-    if [[ "$t" == windows-x86_64 ]]; then
+    if (( is_local )); then
       # Run from the listing's own directory, so a program can open a data file that sits
       # beside it -- which is where a reader would keep it, and how they would run it.
       # One quoted eval: the .args line is parsed once, as a shell would, so a '*' inside
@@ -288,7 +345,9 @@ for f in "${listings[@]}"; do
       b="$(basename "$s")"
       got="${got//$book_wsl\/$s/$b}"
       got="${got//$s/$b}"
-      got="${got//${s//\//\\}/$b}"
+      # Hoisted: bash 3.2 (macOS) refuses a substitution nested in another.
+      sw="${s//\//\\}"
+      got="${got//$sw/$b}"
     done
 
     want_rc=0; [[ -f "$base.exit" ]] && want_rc="$(head -1 "$base.exit")"
@@ -337,5 +396,10 @@ done
   (( wide )) && echo; (( wide )) && echo "$wide listing(s) exceed 72 columns."; } >> "$report"
 
 echo "check-listings: $pass passed, $fail failed, $blockedn blocked (${#listings[@]} listings) -- $report"
+# EVERY LISTING COUNTED, or the run says so: on the Mac a shell error once ended the loop and
+# the run reported 0 passed, 0 failed -- and exit 0.
+if (( pass + fail + blockedn != ${#listings[@]} )); then
+  echo "check-listings: only $(( pass + fail + blockedn )) of ${#listings[@]} were checked" >&2; exit 2
+fi
 (( fail == 0 )) || exit 1
 exit 0

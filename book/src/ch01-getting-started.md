@@ -27,6 +27,18 @@ The compiler is `tiko.exe` at the root. Beside it, `inc\` holds the headers and
 The compiler is `bin/tiko`, with headers under `inc/` and libraries in `lib/linux-x86_64`.
 ```
 
+````admonish info title="On macOS"
+The compiler is `bin/tiko`, with headers under `inc/` and libraries in `lib/macos-arm64`. It runs
+on Apple Silicon Macs with macOS 13 or newer.
+
+A browser marks what it downloads, and macOS then refuses the unsigned compiler: it hangs instead
+of running. Clear the mark once, right after unpacking:
+
+```bash
+xattr -dr com.apple.quarantine tiko-macos
+```
+````
+
 Check that it runs:
 
 ```bash
@@ -43,7 +55,9 @@ tiko contains no assembler and no linker. It emits LLVM IR, then runs `clang` to
 an object file and `lld` to link it. **You need LLVM 18 or newer installed**, and it is not
 bundled.
 
-On Windows, install the LLVM package; on Linux, your distribution's `clang` package. Then check:
+On Windows, install the LLVM package; on Linux, your distribution's `clang` package; on macOS,
+Homebrew's (`brew install llvm`), together with Xcode's Command Line Tools
+(`xcode-select --install`), which hold the SDK and the linker every macOS link uses. Then check:
 
 ```bash
 clang --version
@@ -56,8 +70,8 @@ four places, and takes the first that exists:
 |---|---|---|
 | 1 | The path you pass on the command line | Someone who names a compiler has a reason, and it is never second-guessed |
 | 2 | The `TKO_CLANG` environment variable | Settles it for a whole shell or a CI job |
-| 3 | The conventional install: `C:\Program Files\LLVM\bin\clang.exe`, or `/usr/bin/clang` | See the pitfall below |
-| 4 | `PATH` | Catches a portable LLVM, a scoop or Homebrew install, or anything under `/usr/local` |
+| 3 | The conventional install: `C:\Program Files\LLVM\bin\clang.exe`, `/usr/bin/clang`, or Homebrew's `/opt/homebrew/opt/llvm/bin/clang` on macOS | See the pitfall below |
+| 4 | `PATH` | Catches a portable LLVM, a scoop install, or anything under `/usr/local` |
 
 So a clang on `PATH` is found — but only when there is no clang at the conventional location.
 

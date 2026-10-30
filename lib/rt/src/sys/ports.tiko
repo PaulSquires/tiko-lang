@@ -73,7 +73,9 @@
 
 #include once "inc/rterror.ti"
 
-#if defined( __FB_WIN32__ )
+'' WINDOWS AND macOS: no user-mode port I/O, so INP and OUT are an illegal function call
+'' (docs/tiko-macos M5, D-M5-1).
+#if defined( __FB_WIN32__ ) or defined( __FB_DARWIN__ )
 
 extern "rtlib"   '' FBCALL.
 	declare function tkrt_ErrorSetNum4 alias "fb_ErrorSetNum" ( byval e as int32 ) as int32

@@ -1,0 +1,84 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' assets -- every file tkEdit used to find beside itself, inside it instead ('#embed',
+' docs/tkEdit/SINGLE-FILE.md): fonts, icon, keyword lists, languages, themes, and the licences
+' of what it is made of. Register hands each to tkc/bundled under its old path, and each font
+' to tkHost as "mem:<file>" (tkHost_AddFontData), before the first window or font.
+'
+' A NEW DATA FILE is one '#embed' line and one table row here; the file stays where it is in
+' tkedit/ and is a build dependency like a source file. Every path stays inside tkedit/ (a library's
+' licence is copied into tkedit/licences), so a copy of tkedit/ alone builds, as the Linux battery's does.
+' keywords/extra.txt is not here: it ships empty (an empty file cannot be embedded) and holds the
+' user's own words, so only a copy in the config folder counts (mainwin.LoadKeywords).
+#module "assets"
+
+#import "tkc/bundled"
+#import "vendor/tkControls/tkHost"
+using tkHost
+
+#embed Asset00 "../../../fonts/Inter-Regular.ttf"  ' fonts/Inter-Regular.ttf
+#embed Asset01 "../../../fonts/Inter-Bold.ttf"  ' fonts/Inter-Bold.ttf
+#embed Asset02 "../../../fonts/JetBrainsMono-Regular.ttf"  ' fonts/JetBrainsMono-Regular.ttf
+#embed Asset03 "../../../fonts/PsIcons.ttf"  ' fonts/PsIcons.ttf
+#embed Asset04 "../../../fonts/NotoSansSC-tkEdit.otf"  ' fonts/NotoSansSC-tkEdit.otf
+#embed Asset05 "../../../fonts/OFL-Inter.txt"  ' fonts/OFL-Inter.txt
+#embed Asset06 "../../../fonts/OFL-JetBrainsMono.txt"  ' fonts/OFL-JetBrainsMono.txt
+#embed Asset07 "../../../fonts/OFL-NotoSansSC.txt"  ' fonts/OFL-NotoSansSC.txt
+#embed Asset08 "../../../fonts/LICENSE-FluentSystemIcons.txt"  ' fonts/LICENSE-FluentSystemIcons.txt
+#embed Asset09 "../../../icons/tkedit.png"  ' icons/tkedit.png
+#embed Asset10 "../../../keywords/tiko.txt"  ' keywords/tiko.txt
+#embed Asset12 "../../../keywords/codetips.txt"  ' keywords/codetips.txt
+#embed Asset13 "../../../lang/de.toml"  ' lang/de.toml
+#embed Asset14 "../../../lang/es.toml"  ' lang/es.toml
+#embed Asset15 "../../../lang/fr.toml"  ' lang/fr.toml
+#embed Asset16 "../../../lang/zh.toml"  ' lang/zh.toml
+#embed Asset17 "../../../themes/dark.toml"  ' themes/dark.toml
+#embed Asset18 "../../../themes/light.toml"  ' themes/light.toml
+#embed Asset19 "../../../licences/FreeType-FTL.txt"  ' licences/FreeType-FTL.txt
+#embed Asset20 "../../../licences/HarfBuzz.txt"  ' licences/HarfBuzz.txt
+#embed Asset21 "../../../licences/SDL3_ttf.txt"  ' licences/SDL3_ttf.txt
+#embed Asset22 "../../../licences/SDL3_image.txt"  ' licences/SDL3_image.txt
+#embed Asset23 "../../../licences/SDL3.txt"  ' licences/SDL3.txt
+#embed Asset24 "../../../licences/MPL-2.0.txt"  ' licences/MPL-2.0.txt
+#embed Asset25 "../../../licences/Scintilla.txt"  ' licences/Scintilla.txt
+#embed Asset26 "../../../licences/Lexilla.txt"  ' licences/Lexilla.txt
+
+' Every bundled file and font, once, first thing in the program.
+public sub Register( )
+    bundled.Add( "fonts/Inter-Regular.ttf", @Asset00(0), ubound( Asset00 ) + 1 )
+    tkHost_AddFontData( "mem:Inter-Regular.ttf", @Asset00(0), ubound( Asset00 ) + 1 )
+    bundled.Add( "fonts/Inter-Bold.ttf", @Asset01(0), ubound( Asset01 ) + 1 )
+    tkHost_AddFontData( "mem:Inter-Bold.ttf", @Asset01(0), ubound( Asset01 ) + 1 )
+    bundled.Add( "fonts/JetBrainsMono-Regular.ttf", @Asset02(0), ubound( Asset02 ) + 1 )
+    tkHost_AddFontData( "mem:JetBrainsMono-Regular.ttf", @Asset02(0), ubound( Asset02 ) + 1 )
+    bundled.Add( "fonts/PsIcons.ttf", @Asset03(0), ubound( Asset03 ) + 1 )
+    tkHost_AddFontData( "mem:PsIcons.ttf", @Asset03(0), ubound( Asset03 ) + 1 )
+    bundled.Add( "fonts/NotoSansSC-tkEdit.otf", @Asset04(0), ubound( Asset04 ) + 1 )
+    tkHost_AddFontData( "mem:NotoSansSC-tkEdit.otf", @Asset04(0), ubound( Asset04 ) + 1 )
+    bundled.Add( "fonts/OFL-Inter.txt", @Asset05(0), ubound( Asset05 ) + 1 )
+    bundled.Add( "fonts/OFL-JetBrainsMono.txt", @Asset06(0), ubound( Asset06 ) + 1 )
+    bundled.Add( "fonts/OFL-NotoSansSC.txt", @Asset07(0), ubound( Asset07 ) + 1 )
+    bundled.Add( "fonts/LICENSE-FluentSystemIcons.txt", @Asset08(0), ubound( Asset08 ) + 1 )
+    bundled.Add( "icons/tkedit.png", @Asset09(0), ubound( Asset09 ) + 1 )
+    bundled.Add( "keywords/tiko.txt", @Asset10(0), ubound( Asset10 ) + 1 )
+    bundled.Add( "keywords/codetips.txt", @Asset12(0), ubound( Asset12 ) + 1 )
+    bundled.Add( "lang/de.toml", @Asset13(0), ubound( Asset13 ) + 1 )
+    bundled.Add( "lang/es.toml", @Asset14(0), ubound( Asset14 ) + 1 )
+    bundled.Add( "lang/fr.toml", @Asset15(0), ubound( Asset15 ) + 1 )
+    bundled.Add( "lang/zh.toml", @Asset16(0), ubound( Asset16 ) + 1 )
+    bundled.Add( "themes/dark.toml", @Asset17(0), ubound( Asset17 ) + 1 )
+    bundled.Add( "themes/light.toml", @Asset18(0), ubound( Asset18 ) + 1 )
+    bundled.Add( "licences/FreeType-FTL.txt", @Asset19(0), ubound( Asset19 ) + 1 )
+    bundled.Add( "licences/HarfBuzz.txt", @Asset20(0), ubound( Asset20 ) + 1 )
+    bundled.Add( "licences/SDL3_ttf.txt", @Asset21(0), ubound( Asset21 ) + 1 )
+    bundled.Add( "licences/SDL3_image.txt", @Asset22(0), ubound( Asset22 ) + 1 )
+    bundled.Add( "licences/SDL3.txt", @Asset23(0), ubound( Asset23 ) + 1 )
+    bundled.Add( "licences/MPL-2.0.txt", @Asset24(0), ubound( Asset24 ) + 1 )
+    bundled.Add( "licences/Scintilla.txt", @Asset25(0), ubound( Asset25 ) + 1 )
+    bundled.Add( "licences/Lexilla.txt", @Asset26(0), ubound( Asset26 ) + 1 )
+end sub

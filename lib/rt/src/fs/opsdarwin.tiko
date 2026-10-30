@@ -1,0 +1,40 @@
+'' opsdarwin.tiko -- fs/ops's exclusive rename and random bytes on macOS.
+''
+'' #INCLUDED by fs/ops.tiko's POSIX branch, never compiled on its own and not in
+'' build/sources.txt. It provides the two procedures opslinux.tiko does,
+''
+''     hOsRenameExclusive( byval sp as zstring ptr, byval dp as zstring ptr ) as int32
+''     hOsRandom( byval buf as uint8 ptr, byval n as uinteger ) as integer
+''
+'' with the same contracts. Both calls were measured on the Mac (docs/tiko-macos FACTS
+'' "Darwin APIs"): renamex_np( RENAME_EXCL ) onto an existing file fails with EEXIST, and
+'' getentropy returns 0; both are available on macOS 13.
+''
+'' A FILESYSTEM THAT CANNOT DO IT says ENOTSUP on Darwin, where Linux says EINVAL or ENOSYS;
+'' the includer falls back to link( ) + unlink( ) only on those two, so ENOTSUP is reported
+'' as EINVAL.
+''
+'' getentropy FILLS AT MOST 256 BYTES A CALL and returns 0, not a count: the count is
+'' returned here, and tkort_FsRandomBytes loops for the rest.
+
+#if defined( __FB_DARWIN__ )
+
+extern "c"   '' NON-FBCALL: libc.
+	declare function u_renamex_np alias "renamex_np" _
+		( byval from_ as const zstring ptr, byval to_ as const zstring ptr, byval flags as uint32 ) as int32
+	declare function u_getentropy alias "getentropy" ( byval buf as any ptr, byval n as uinteger ) as int32
+end extern
+
+private function hOsRenameExclusive( byval sp as zstring ptr, byval dp as zstring ptr ) as int32
+	if( u_renamex_np( sp, dp, RENAME_EXCL ) = 0 ) then return 0
+	if( errno = ENOTSUP ) then errno = EINVAL
+	return -1
+end function
+
+private function hOsRandom( byval buf as uint8 ptr, byval n as uinteger ) as integer
+	dim as uinteger k = iif( n > 256, cast( uinteger, 256 ), n )
+	if( u_getentropy( buf, k ) <> 0 ) then return -1
+	return cast( integer, k )
+end function
+
+#endif

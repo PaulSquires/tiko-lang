@@ -1,0 +1,24 @@
+#module "numeric"
+'' std/numeric: randomdarwin -- CryptoBytes' Darwin half: getentropy( ), at most 256 bytes a
+'' call (measured on the Mac; available on macOS 13 -- docs/tiko-macos FACTS "Darwin APIs").
+'' Darwin has no getrandom.
+
+#ifdef __FB_DARWIN__
+
+extern "c"
+    declare function c_getentropy alias "getentropy" ( byval as any ptr, byval as uinteger ) as long
+end extern
+
+private function hOsRandomBytes( byval dst as any ptr, byval nbytes as ulong ) as boolean
+    dim as ubyte ptr p = dst
+    dim as ulong left_ = nbytes
+    while( left_ > 0 )
+        dim as ulong k = iif( left_ > 256, 256ul, left_ )
+        if( c_getentropy( p, k ) <> 0 ) then return false
+        p += k
+        left_ -= k
+    wend
+    return true
+end function
+
+#endif

@@ -1,0 +1,16 @@
+'' printerdarwin.tiko -- io/printerposix's parallel-port device node on macOS.
+''
+'' #INCLUDED by io/printerposix.tiko's POSIX branch, never compiled on its own and
+'' not in build/sources.txt. It provides the constant printerlinux.tiko does,
+''
+''     TKORT_LPT_DEVFMT    the sprintf format of the node for LPTn, given n - 1
+''
+'' Darwin has no parallel ports (docs/tiko-macos M5, D-M5-1): the name is Linux's, which
+'' does not exist there, so fopen fails and OPEN "LPTn:" reports FILE NOT FOUND -- as it
+'' does on a Linux box with no printer port.
+
+#if defined( __FB_DARWIN__ )
+
+const TKORT_LPT_DEVFMT = "/dev/lp%d"
+
+#endif

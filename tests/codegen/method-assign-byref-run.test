@@ -1,0 +1,19 @@
+'' 'obj.R = v' over a BYREF method that needs no argument calls it and stores through what it
+'' returns -- through '.', '->', '+=', a 'with', an all-default parameter -- and '@g.R' is the
+'' referent's address; a property setter and 'T.SF = v' / 'ns.NF = v' inside their own
+'' function are unchanged. tiko stored through R's code address and segfaulted, and '@g.R'
+'' was R's code. Expected output is fbc-modern's.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/method-assign-byref.bas -o tests/codegen/methodassignbyref.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/methodassignbyref.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  3
+'' EXPECT-RUN-OUT:  5
+'' EXPECT-RUN-OUT:  7
+'' EXPECT-RUN-OUT:  8
+'' EXPECT-RUN-OUT:  9
+'' EXPECT-RUN-OUT: -1
+'' EXPECT-RUN-OUT:  11
+'' EXPECT-RUN-OUT:  10            6

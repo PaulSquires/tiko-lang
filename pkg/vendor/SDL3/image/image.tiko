@@ -7,14 +7,18 @@
 ''
 '' THE LIBRARY: as vendor/SDL3's -- 'link dynamic' alone. On Windows ../lib/SDL3_image.dll,
 '' beside SDL3.dll, copied beside the program; on Linux the system's, '-lSDL3_image' from
-'' the distribution's development package.
+'' the distribution's development package, and on macOS Homebrew's (brew install sdl3_image).
 #module "image"
 
 #import "vendor/SDL3" public
 
 public #include once "SDL_image.ti"
 
-#ifdef TIKO_OS_LINUX
+'' 'link static': ../lib/SDL3_image_<os>_<arch>.a from ../static/build.sh, decoding through stb
+'' (PNG, JPEG, BMP, GIF, TGA and the other formats SDL_image builds in); no AVIF, JXL, TIFF, WebP.
+#ifdef TIKO_LINK_STATIC
+    #foreignlib SDL3_image static "../lib/SDL3_image"
+#elseif defined( TIKO_OS_LINUX ) or defined( TIKO_OS_MACOS )
     #foreignlib SDL3_image dynamic "system:SDL3_image"
 #else
     #foreignlib SDL3_image dynamic "../lib/SDL3_image"

@@ -53,7 +53,7 @@ dim as HelloApp app
 dim as TuiRunResult r = TuiRun( app, TuiTermOptionsDefault( ) )
 ```
 
-The module is a library and nothing else: every line of it is tiko, with no compiler change and no runtime C. It drives the terminal by declaring the Win32 and libc entry points it needs. It runs on both of tiko's targets, windows-x86_64 and linux-x86_64.
+The module is a library and nothing else: every line of it is tiko, with no compiler change and no runtime C. It drives the terminal by declaring the Win32 and libc entry points it needs. It runs on all of tiko's targets: windows-x86_64, linux-x86_64 and macos-arm64.
 
 ## What You Get
 
@@ -254,7 +254,7 @@ Mouse and focus events are off by default because a program that does not use th
 
 **The defer goes at procedure scope.** tiko's `defer` fires at the end of the enclosing block, so a `defer` written inside the IF that checked Enter would restore the terminal before your loop ran.
 
-The module also installs a last-resort restore -- SetConsoleCtrlHandler on Windows, a signal handler on Linux -- so a crash or a Ctrl+Break does not leave the user's shell in raw mode with the cursor hidden. The leave sequence is pre-rendered into a fixed async-signal-safe buffer for exactly that path.
+The module also installs a last-resort restore -- SetConsoleCtrlHandler on Windows, a signal handler on Linux and macOS -- so a crash or a Ctrl+Break does not leave the user's shell in raw mode with the cursor hidden. The leave sequence is pre-rendered into a fixed async-signal-safe buffer for exactly that path.
 
 **Do not PRINT inside a session.** On Linux a stray PRINT can emit CSI 6n and block. Ordinary PRINT is safe only after TuiRun returns, which it does with the terminal fully restored.
 

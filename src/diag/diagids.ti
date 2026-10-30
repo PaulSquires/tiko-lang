@@ -209,6 +209,12 @@
     DIAG( TKO0338, SEV_ERROR,   "%0 defines '%1', which an earlier #cinclude in this unit left opaque; #cinclude %0 first" )
     DIAG( TKO0339, SEV_WARNING, "#cinclude could not write its cache entry under '%0'; the binding is used from memory" )
     DIAG( TKO0340, SEV_ERROR,   "'public #cinclude' needs the binding cache, which -cnocache turns off: %0 is not a file an importer can include" )
+    '' '#embed NAME "file"' (docs/tiko-embed RFC-0001, src/pp/ppforeignlib.tiko, mir/lowerembed.tiko).
+    DIAG( TKO0341, SEV_ERROR,   "cannot open embed file '%0'" )
+    DIAG( TKO0342, SEV_ERROR,   "malformed '#embed': %0" )
+    DIAG( TKO0344, SEV_ERROR,   "embed file '%0' is empty; an array cannot have no elements" )
+    DIAG( TKO0345, SEV_ERROR,   "embed file '%0' is %1 bytes; the limit is 256 MiB" )
+    DIAG( TKO0346, SEV_ERROR,   "embed file '%0' changed during the build: %1 bytes when read, %2 when first seen" )
     '' '#module', '#import', '#export' (ADR 0017, src/pp/ppmodule.tiko).
     DIAG( TKO0360, SEV_ERROR,   "'#module' must be the first directive in the file" )
     DIAG( TKO0361, SEV_ERROR,   "'#module ""%0""' does not match its directory '%1'" )
@@ -1031,6 +1037,10 @@
     '' fbc's 214: 'T.m( )' over a non-static member, with no object to call it on --
     '' symbols/staticcall.tiko.
     DIAG( TKO0999, SEV_ERROR,   "'%0' is not a static member; call it through an object of its type" )
+    '' fbc's 1 (3 when the method takes no argument) for 'obj.F = v' over a method that is
+    '' not a property, and its 317 for a bare or qualified SUB name assigned --
+    '' symbols/methodassign.tiko and resolveamb.tiko. %1 is "sub" or "function".
+    DIAG( TKO0601, SEV_ERROR,   "'%0' is a %1, not a property: call it as '%0( ... )' instead of assigning to it" )
 
 #endmacro
 

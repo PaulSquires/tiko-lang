@@ -1,0 +1,3 @@
+#import "acme/res"
+print "logo " & ubound( res.Logo ) & " " & chr( res.Logo(0), res.Logo(ubound( res.Logo )) )
+print "secret " & res.SecretSum( )

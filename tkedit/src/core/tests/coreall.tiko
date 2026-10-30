@@ -31,6 +31,7 @@
 #import "./i18nsuite"
 #import "./langsuite"
 #import "./instancesuite"
+#import "./bundledsuite"
 
 ' Is suite `name` wanted on this command line?
 function Wanted( byref name_ as const ustring ) as boolean
@@ -52,9 +53,17 @@ sub PlatformSuite( byref c as tally.Checker )
 #elseif defined( TIKO_OS_LINUX )
     c.Check( os_ = platform.Os.Linux, "CurrentOs is Linux" )
     c.Check( platform.SharedLibraryFile( "parser" ) = "parser.so", "SharedLibraryFile .so" )
+#elseif defined( TIKO_OS_MACOS )
+    c.Check( os_ = platform.Os.MacOS, "CurrentOs is MacOS" )
+    c.Check( platform.SharedLibraryFile( "parser" ) = "parser.dylib", "SharedLibraryFile .dylib" )
 #endif
+#if defined( TIKO_OS_MACOS )
+    c.Check( platform.PrimaryModifierName( ) = "Cmd", "Primary is Cmd on macOS" )
+#else
     c.Check( platform.PrimaryModifierName( ) = "Ctrl", "Primary is Ctrl off macOS" )
+#endif
     c.Check( fs.IsDir( platform.ExeDir( ) ), "ExeDir is a folder" )
+    c.Same( platform.InstallDir( ), platform.ExeDir( ), "InstallDir: a program outside a bundle is its own folder" )
     c.Check( fs.IsFile( fs.PathJoin( platform.ExeDir( ), fs.PathFileName( command( 0 ) ) ) ) _
              orelse fs.IsFile( fs.PathJoin( platform.ExeDir( ), fs.PathFileName( command( 0 ) ) & ".exe" ) ), _
              "ExeDir holds this program" )
@@ -92,6 +101,7 @@ if Wanted( "project" ) then projectsuite.Run( c )
 if Wanted( "i18n" ) then i18nsuite.Run( c )
 if Wanted( "langs" ) then langsuite.Run( c )
 if Wanted( "instance" ) then instancesuite.Run( c )
+if Wanted( "bundled" ) then bundledsuite.Run( c )
 
 print strings.Format( "coreall [{}] selftest: {} passed, {} failed", platform.OsName( ), c.Passed, c.Failed )
 end c.Failed

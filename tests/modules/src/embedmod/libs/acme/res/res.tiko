@@ -1,0 +1,13 @@
+'' A module's '#embed's: one public, read by the importer through the interface (an extern
+'' with its bounds; the bytes stay in this module's object), one private, used here.
+#module "res"
+public #embed Logo "logo.bin"
+#embed Secret "secret.bin"
+
+public function SecretSum( ) as long
+    dim as long s = 0
+    for i as long = 0 to ubound( Secret )
+        s += Secret(i)
+    next
+    return s
+end function

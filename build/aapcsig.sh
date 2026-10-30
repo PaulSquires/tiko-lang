@@ -11,8 +11,8 @@
 #
 # WHY: no Mac is needed. The registers an argument travels in are decided by the IR
 # signature, so matching clang's -- the platform's own C compiler -- is the static half
-# of the ABI. The running half (a C library called and calling back) needs a Mac; see
-# docs/tiko-macos, M3.
+# of the ABI. The running half (a C library called and calling back) needs a Mac:
+# build/aapcslane.sh.
 #
 # Needs clang (TKO_CLANG, else on PATH) and python. Exits 1 on any difference.
 

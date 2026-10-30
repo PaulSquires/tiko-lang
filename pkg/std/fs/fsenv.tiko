@@ -226,23 +226,38 @@ private function hXdg( byref name_ as const string, byref fallback as const ustr
     return Ok( of ustring, FsError )( PathJoin( h.Value( ), fallback ) )
 end function
 
+'' ON macOS THE FALLBACKS ARE APPLE'S OWN PLACES (docs/tiko-macos M7, D-M7-3): config, data and
+'' state in ~/Library/Application Support -- Apple has no separate state directory -- and caches
+'' in ~/Library/Caches. An XDG_* variable that is set still wins, as everywhere else.
+#ifdef __FB_DARWIN__
+const FSE_CONFIG = "Library/Application Support"
+const FSE_DATA = "Library/Application Support"
+const FSE_CACHE = "Library/Caches"
+const FSE_STATE = "Library/Application Support"
+#else
+const FSE_CONFIG = ".config"
+const FSE_DATA = ".local/share"
+const FSE_CACHE = ".cache"
+const FSE_STATE = ".local/state"
+#endif
+
 public function ConfigDir( ) as FsResultUStr
-    return hXdg( "XDG_CONFIG_HOME", ".config", "ConfigDir" )
+    return hXdg( "XDG_CONFIG_HOME", FSE_CONFIG, "ConfigDir" )
 end function
 
 public function DataDir( ) as FsResultUStr
-    return hXdg( "XDG_DATA_HOME", ".local/share", "DataDir" )
+    return hXdg( "XDG_DATA_HOME", FSE_DATA, "DataDir" )
 end function
 
 public function CacheDir( ) as FsResultUStr
-    return hXdg( "XDG_CACHE_HOME", ".cache", "CacheDir" )
+    return hXdg( "XDG_CACHE_HOME", FSE_CACHE, "CacheDir" )
 end function
 
 public function StateDir( ) as FsResultUStr
-    return hXdg( "XDG_STATE_HOME", ".local/state", "StateDir" )
+    return hXdg( "XDG_STATE_HOME", FSE_STATE, "StateDir" )
 end function
 
-'' ExecutablePath is fslinux.tiko's: /proc/self/exe is Linux's alone.
+'' ExecutablePath is fslinux.tiko's (/proc/self/exe) and fsmacos.tiko's (_NSGetExecutablePath).
 
 #else
     #error "fs/fsenv: no backend for this target"

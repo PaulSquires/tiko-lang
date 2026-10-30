@@ -5,6 +5,9 @@
 #ifdef __FB_LINUX__
     print "platform: Linux"
 #endif
+#ifdef __FB_DARWIN__
+    print "platform: macOS"
+#endif
 #ifdef __FB_MSVC__
     print "C runtime: Microsoft's Universal CRT"
 #else

@@ -41,6 +41,7 @@ src/symbols/semsweep.tiko
 src/symbols/semlate.tiko
 src/symbols/semdecl.tiko
 src/symbols/semproc.tiko
+src/symbols/methodassign.tiko
 src/symbols/semassign.tiko
 src/symbols/redimrank.tiko
 src/types/udtlayout.tiko
@@ -68,6 +69,7 @@ src/mir/lowerlabel.tiko
 src/mir/lowereach.tiko
 src/mir/eightbyte.tiko
 src/mir/lowerstore.tiko
+src/mir/lowerembed.tiko
 src/mir/lowerparam.tiko
 src/mir/lowercallemit.tiko
 src/mir/lowerboundchk.tiko

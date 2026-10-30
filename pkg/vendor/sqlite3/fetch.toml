@@ -5,13 +5,15 @@
 #   kind = "copy"    'from' (a path inside the archive) copied to 'to'
 #   kind = "cbuild"  the C 'sources' under 'dir' compiled with clang and 'cflags', archived
 #                    to 'static' and/or linked to 'shared' (an ELF one gets its own file
-#                    name as its soname, so the copy beside a program is the one it loads;
-#                    a Windows one is a DLL linked with lld, exporting what its sources
+#                    name as its soname, a Mach-O one '@rpath/' and its file name as its
+#                    install name, so the copy beside a program is the one it loads; a
+#                    Windows one is a DLL linked with lld, exporting what its sources
 #                    dllexport)
 #
 # THE NAMES are what '#foreignlib SQLITE ... "lib/sqlite3"' probes: sqlite3_<os>_x86_64.a
 # for static; on Windows the DLL keeps its own name, sqlite3.dll -- the name inside it, which
-# a program's import names -- and on Linux the shared object is sqlite3_linux_x86_64.so.
+# a program's import names -- on Linux the shared object is sqlite3_linux_x86_64.so, and on
+# macOS the dynamic library is sqlite3_macos_arm64.dylib.
 version = "3.54.0"
 
 [windows.1]
@@ -40,3 +42,13 @@ cflags = "-O2 -fPIC"
 static = "lib/sqlite3_linux_x86_64.a"
 shared = "lib/sqlite3_linux_x86_64.so"
 libs = "-lm"
+
+[macos.1]
+kind = "cbuild"
+url = "https://sqlite.org/2026/sqlite-autoconf-3540000.tar.gz"
+sha256 = "134ec0802dda5795816e25d25872d20b312cb3973438c49b30bc40b7705ea9ed"
+dir = "sqlite-autoconf-3540000"
+sources = "sqlite3.c"
+cflags = "-O2"
+static = "lib/sqlite3_macos_arm64.a"
+shared = "lib/sqlite3_macos_arm64.dylib"

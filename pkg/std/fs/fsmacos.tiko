@@ -1,0 +1,77 @@
+#module "fs"
+#import "std/outcome"
+using outcome
+#ifdef __FB_DARWIN__
+#include once "../../sys/posix/posix.ti"
+using posix
+#endif
+'' std/fs: fsmacos -- the Darwin-only pieces of std/fs's POSIX code
+''
+'' NAMED TO SORT AFTER fsenv.tiko, as fslinux.tiko does: a module's files are read in name
+'' order, and fsenv's 'declare ExecutablePath' must come before this definition -- a
+'' declaration after the definition is TKO0677 (it was fsdarwin.tiko, and was refused).
+''
+'' The three fslinux.tiko provides on Linux, with the spellings its header names, each
+'' measured on the Mac (docs/tiko-macos FACTS "Darwin APIs"):
+''
+''   private hErrno( ) as long              *__error( ) -- Darwin's errno accessor
+''   private hSyncData( fd ) as long        fcntl( fd, F_FULLFSYNC ): Darwin's fsync does not
+''                                          flush the drive's cache, and it has no fdatasync
+''   public ExecutablePath( )               _NSGetExecutablePath( ), then realpath( ): dyld's
+''                                          path may hold symlinks and '..'
+''
+'' libc only, as in the files that call these: std/fs is compiled into tiko by the pinned
+'' seed (fsfile.tiko's header). F_FULLFSYNC is the posix binding's, measured by
+'' build/posixgen.sh.
+
+#ifdef __FB_DARWIN__
+
+extern "C"
+    declare function fsd_error alias "__error" ( ) as long ptr
+    declare function fsd_fcntl alias "fcntl" ( byval fd as long, byval cmd as long, ... ) as long
+    declare function fsd_NSGetExecutablePath alias "_NSGetExecutablePath" _
+        ( byval buf as zstring ptr, byval bufsize as ulong ptr ) as long
+    declare function fsd_realpath alias "realpath" ( byval p as const zstring ptr, byval resolved as zstring ptr ) as zstring ptr
+    declare sub fsd_free alias "free" ( byval p as any ptr )
+end extern
+
+'' errno of the calling thread.
+private function hErrno( ) as long
+    return *fsd_error( )
+end function
+
+'' The data, to the medium: F_FULLFSYNC. A filesystem that cannot (some network ones)
+'' refuses it, and then fsync's weaker promise is the best there is -- fcntl reports the
+'' refusal and the caller sees it, as it would see fdatasync's on Linux.
+private function hSyncData( byval fd as long ) as long
+    return fsd_fcntl( fd, F_FULLFSYNC )
+end function
+
+'' dyld's path of the running image, then the real path of that.
+public function ExecutablePath( ) as FsResultUStr
+    dim as ulong cap = 1024
+    dim as zstring ptr buf = callocate( cap + 1, 1 )
+    if( buf = nullptr ) then return FsFail( of ustring )( FS_NO_SPACE, "ExecutablePath", "" )
+    if( fsd_NSGetExecutablePath( buf, @cap ) <> 0 ) then
+        '' Too small: cap now holds the size it needs.
+        deallocate( buf )
+        buf = callocate( cap + 1, 1 )
+        if( buf = nullptr ) then return FsFail( of ustring )( FS_NO_SPACE, "ExecutablePath", "" )
+        if( fsd_NSGetExecutablePath( buf, @cap ) <> 0 ) then
+            deallocate( buf )
+            return FsFail( of ustring )( FS_NAME_TOO_LONG, "ExecutablePath", "" )
+        end if
+    end if
+    dim as zstring ptr real_ = fsd_realpath( buf, nullptr )
+    deallocate( buf )
+    if( real_ = nullptr ) then
+        dim as long c = FsMapOsError( ), o = FsOsError( )
+        return Fail( of ustring, FsError )( FsError( cast( FsErrorCode, c ), o, "ExecutablePath", "" ) )
+    end if
+    dim as string s = *real_
+    fsd_free( real_ )
+    dim as ustring r = s
+    return Ok( of ustring, FsError )( r )
+end function
+
+#endif

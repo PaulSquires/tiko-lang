@@ -1,0 +1,25 @@
+'' statdarwin.tiko -- fs/stat's birth time on macOS: st_birthtimespec.
+''
+'' #INCLUDED by fs/stat.tiko's POSIX branch, never compiled on its own and not in
+'' build/sources.txt. It provides the procedure statlinux.tiko does,
+''
+''     hTryBirthTime( byval path_ as zstring ptr, byval follow as int32,
+''                    byval out_ as FB_FSINFO ptr )
+''
+'' Darwin's struct stat carries the birth time itself (the posix binding's st_birthtim, at
+'' offset 80, measured), so this is one more stat( ) -- or lstat( ) when follow = 0 -- and
+'' no syscall. A zero birth time means the filesystem keeps none, and leaves HAS_CTIME clear.
+
+#if defined( __FB_DARWIN__ )
+
+private sub hTryBirthTime( byval path_ as zstring ptr, byval follow as int32, byval out_ as FB_FSINFO ptr )
+	dim as struct_stat st = any
+	dim as int32 r = iif( follow = 0, u_lstat( path_, @st ), u_stat( path_, @st ) )
+	if( r <> 0 ) then exit sub
+	if( st.st_birthtim.tv_sec = 0 andalso st.st_birthtim.tv_nsec = 0 ) then exit sub
+
+	out_->ctime = hUnixToTicks( st.st_birthtim.tv_sec, cast( int64, st.st_birthtim.tv_nsec ) )
+	out_->flags or= FB_FSFLAG_HAS_CTIME
+end sub
+
+#endif

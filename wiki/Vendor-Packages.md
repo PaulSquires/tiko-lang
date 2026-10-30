@@ -36,9 +36,9 @@ Every routine, type and constant of the library's C header is callable as the li
 | Package | Library | Link modes |
 | --- | --- | --- |
 | `vendor/sqlite3` | SQLite 3.54.0 | `static`, `dynamic` (the default) |
-| `vendor/SDL3` | SDL 3.4.4 | `dynamic` (the default) |
-| `vendor/SDL3/image` | SDL3_image 3.4.4 (brings `vendor/SDL3`) | `dynamic` (the default) |
-| `vendor/SDL3/ttf` | SDL3_ttf 3.2.2 (brings `vendor/SDL3`) | `dynamic` (the default) |
+| `vendor/SDL3` | SDL 3.4.4 (static: 3.4.14) | `static`, `dynamic` (the default) |
+| `vendor/SDL3/image` | SDL3_image 3.4.4 (brings `vendor/SDL3`) | `static`, `dynamic` (the default) |
+| `vendor/SDL3/ttf` | SDL3_ttf 3.2.2 with FreeType 2.14.3 and HarfBuzz 14.3.0 (brings `vendor/SDL3`) | `static`, `dynamic` (the default) |
 | `vendor/SDL3/mixer` | SDL3_mixer 3.2.4 (brings `vendor/SDL3`) | `dynamic` (the default) |
 | `vendor/raylib6` | raylib 6.2 | `static`, `dynamic` (the default) |
 | `vendor/raylib6/raymath` | raylib's raymath (brings `vendor/raylib6`) | chosen on `vendor/raylib6` |
@@ -48,21 +48,46 @@ Every routine, type and constant of the library's C header is callable as the li
 
 **`vendor/PsControls/<control>`** is tiko source, not a C library: owner-drawn Win32 controls, one module each, with no library and so no `link`. See [PsControls](Category-PsControls).
 
-**`vendor/tkControls/<control>`** is tiko source as well: owner-drawn controls on SDL3 for Windows and Linux, one module each. It links no library of its own (`vendor/SDL3` does) but has runtime files: its fonts, copied beside every program that imports it, and the scintk library for `tkCodeEdit`. See [tkControls](Category-tkControls).
+**`vendor/tkControls/<control>`** is tiko source as well: owner-drawn controls on SDL3 for Windows and Linux, one module each. On macOS they run with Homebrew's SDL3. It links no library of its own (`vendor/SDL3` does) but has runtime files: its fonts, copied beside every program that imports it, and the scintk library for `tkCodeEdit`. `vendor/tkControls/tkCodeEdit` takes `link static`, which puts scintk inside the program. See [tkControls](Category-tkControls).
 
 **The SDL packages on linux-x86_64 link the system's libraries.** SDL publishes no Linux binaries, so the toolchain ships none: a program is linked with `-lSDL3` (and `-lSDL3_image`, `-lSDL3_ttf`, `-lSDL3_mixer` for those packages) and loads `libSDL3.so.0` and the others from the system's library folders, like any library the distribution installs. Install the distribution's development packages (`libsdl3-dev`, `libsdl3-image-dev`, `libsdl3-ttf-dev`, `libsdl3-mixer-dev` on Debian and Ubuntu; `SDL3-devel` and the like on Fedora) to build; without one the link fails with `cannot find -lSDL3`. Nothing is copied beside the program.
 
+**On macos-arm64 the SDL packages link Homebrew's** (`brew install sdl3 sdl3_image sdl3_ttf sdl3_mixer`), the same way: `-lSDL3`, found in `/opt/homebrew/lib`, which the link searches after your own paths. Nothing is copied beside the program.
+
+**`vendor/raylib6` is not available on macos-arm64** yet. Importing it there stops with an `#error` that says so.
+
 `vendor/SDL3/image`, `vendor/SDL3/ttf` and `vendor/SDL3/mixer` -- modules inside `vendor/SDL3`, their libraries in its `lib/` -- each import `vendor/SDL3` publicly: one `#import` brings SDL's own names too, and links SDL3 as well.
+
+### SDL linked in
+
+`link static` puts SDL inside the program, on every target: the toolchain builds SDL3, SDL3_ttf and SDL3_image as archives itself. Each module's mode is its own, so a program that wants all of it inside writes `link static` on each:
+
+```freebasic
+#import "vendor/SDL3" link static
+#import "vendor/SDL3/ttf" link static
+#import "vendor/SDL3/image" link static
+#import "vendor/tkControls/tkCodeEdit" link static     ' scintk too
+```
+
+The program then needs only what the operating system provides. SDL still loads the display libraries itself when it starts (X11 or Wayland and GL on Linux), as it does when linked dynamically.
+
+| Target | What the link adds |
+| --- | --- |
+| windows-x86_64 | system libraries (`setupapi`, `winmm`, `imm32`, `version`, `ole32`, `oleaut32`, `shell32`, `uuid`, `advapi32`, `cfgmgr32`) and the static C and C++ runtime: Visual Studio's `libvcruntime.lib`, `oldnames.lib` and `libcpmt.lib` must be installed on the machine that links |
+| linux-x86_64 | `libm`, `libdl`, `libpthread`, `librt`, and the system's `libstdc++` (HarfBuzz and scintk are C++) |
+| macos-arm64 | the system frameworks SDL uses (Cocoa, Metal, IOKit and others), `libiconv` and `libc++` |
+
+`vendor/SDL3/image` linked in decodes through its built-in codecs: PNG, JPEG, BMP, GIF, TGA and the other formats SDL_image carries itself; AVIF, JPEG XL, TIFF and WebP are not included. `vendor/SDL3/mixer` is dynamic only.
 
 ## `link static` and `link dynamic`
 
 - **`link static`** links the library's archive into the program. Nothing else is needed at run time.
-- **`link dynamic`** links the shared library (`sqlite3.dll`, `sqlite3_linux_x86_64.so`) and **copies it beside the program**, under the name the program will load it by: a DLL's own name, and an ELF library's soname (`libraylib.so.620`). A copy already there with the same size and no older is left alone, and one that was deleted is put back by the next build. [`tiko build`](Category-Tiko-Build)'s `copy_to` copies the library along with the program. `-nocopylibs` turns the copy off.
+- **`link dynamic`** links the shared library (`sqlite3.dll`, `sqlite3_linux_x86_64.so`, `sqlite3_macos_arm64.dylib`) and **copies it beside the program**, under the name the program will load it by: a DLL's own name, an ELF library's soname (`libraylib.so.620`), and a macOS library's install name (`@rpath/sqlite3_macos_arm64.dylib`). A copy already there with the same size and no older is left alone, and one that was deleted is put back by the next build. [`tiko build`](Category-Tiko-Build)'s `copy_to` copies the library along with the program. `-nocopylibs` turns the copy off.
 - **No `link`** leaves the choice to the package: each one names its default. `vendor/sqlite3`'s is dynamic.
 
 One program links a library one way. Two imports asking for different modes are `TKO0157`, with a note at the other import; an import without `link` goes along with one that has it. A mode the package does not ship is `TKO0156`, and `link` on a package that ships no library -- any source-only package -- is `TKO0155`.
 
-On linux-x86_64 a program that links a shared library from `#foreignlib` gets a run path of `$ORIGIN`, so the copy beside it is the one it finds. `LD_LIBRARY_PATH` still wins, and an `-rpath` the program passes with [`-Wl`](Compiler-Option-Wl) stands. `-norpath` turns it off.
+On linux-x86_64 a program that links a shared library from `#foreignlib` gets a run path of `$ORIGIN`, so the copy beside it is the one it finds. `LD_LIBRARY_PATH` still wins, and an `-rpath` the program passes with [`-Wl`](Compiler-Option-Wl) stands. `-norpath` turns it off. On macos-arm64 the same run path is `@loader_path`.
 
 ## Inside a vendor package
 

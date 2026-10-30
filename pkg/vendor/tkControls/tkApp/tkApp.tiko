@@ -140,6 +140,7 @@ end function
 private function FileThere( byref path as ustring ) as boolean
     if len( path ) = 0 then return false
     dim as string p8 = path
+    if tkHost_HasFontData( p8 ) then return true      ' a font registered from memory (tkHost_AddFontData)
     return SDL_GetPathInfo( strptr( p8 ), 0 )
 end function
 

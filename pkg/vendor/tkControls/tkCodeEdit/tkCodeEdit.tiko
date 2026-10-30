@@ -520,18 +520,14 @@ dim shared as TKCE_FONT ptr gFonts( 0 to 63 )
 ' A font file at a pixel size; face names one face of a .ttc COLLECTION. The wrong name FAILS
 ' rather than opening face 0, which would render another typeface and report success (PlatPs's
 ' rule: msgothic.ttc's face 0 is MS Gothic, not the MS UI Gothic a user may have picked).
+' Through tkHost_OpenFontFace, so a font the program registered from memory opens by its name.
 private function OpenFace( byref sPath as string, byref sFace as string, byval px as single ) as TTF_Font ptr
-    if len( sFace ) = 0 then return TTF_OpenFont( strptr( sPath ), px )
-    dim as SDL_PropertiesID props = SDL_CreateProperties()
-    if props = 0 then return 0
-    SDL_SetStringProperty( props, TTF_PROP_FONT_CREATE_FILENAME_STRING, strptr( sPath ) )
-    SDL_SetFloatProperty( props, TTF_PROP_FONT_CREATE_SIZE_FLOAT, px )
+    if len( sFace ) = 0 then return tkHost_OpenFontFace( sPath, px, 0 )
     dim as TTF_Font ptr found = 0
     dim as long nFaces = 1
     dim as long idx = 0
     while (idx < nFaces) andalso (idx < 64)
-        SDL_SetNumberProperty( props, TTF_PROP_FONT_CREATE_FACE_NUMBER, idx )
-        dim as TTF_Font ptr f = TTF_OpenFontWithProperties( props )
+        dim as TTF_Font ptr f = tkHost_OpenFontFace( sPath, px, idx )
         if f = 0 then exit while
         if idx = 0 then nFaces = TTF_GetNumFontFaces( f )
         dim as const zstring ptr fam = TTF_GetFontFamilyName( f )
@@ -539,7 +535,6 @@ private function OpenFace( byref sPath as string, byref sFace as string, byval p
         TTF_CloseFont( f )
         idx += 1
     wend
-    SDL_DestroyProperties( props )
     return found
 end function
 
@@ -838,11 +833,117 @@ const SCINTK_FILE = "libscintk.dylib"
 const SCINTK_FILE = "libscintk.so"
 #endif
 
+#ifdef TIKO_LINK_STATIC
+' scintk LINKED IN ('#import "vendor/tkControls/tkCodeEdit" link static'): the same table, filled
+' from the program's own symbols, so nothing below here knows the difference. Each entry is
+' declared only to take its address; the table's own types say how it is called.
+#ifdef TIKO_OS_WINDOWS
+    #foreignlib SCINTK static "../lib/scintk", "system:libvcruntime"
+#elseifdef TIKO_OS_MACOS
+    #foreignlib SCINTK static "../lib/scintk", "system:c++"
+#else
+    #foreignlib SCINTK static "../lib/scintk", "system:stdc++"
+#endif
+extern "C"
+    declare sub SciTk_Create_ cdecl alias "SciTk_Create" ( )
+    declare sub SciTk_Destroy_ cdecl alias "SciTk_Destroy" ( )
+    declare sub SciTk_Send_ cdecl alias "SciTk_Send" ( )
+    declare sub SciTk_Paint_ cdecl alias "SciTk_Paint" ( )
+    declare sub SciTk_SetSize_ cdecl alias "SciTk_SetSize" ( )
+    declare sub SciTk_Cursor_ cdecl alias "SciTk_Cursor" ( )
+    declare sub SciTk_KeyDown_ cdecl alias "SciTk_KeyDown" ( )
+    declare sub SciTk_TextInput_ cdecl alias "SciTk_TextInput" ( )
+    declare sub SciTk_MouseDown_ cdecl alias "SciTk_MouseDown" ( )
+    declare sub SciTk_MouseMove_ cdecl alias "SciTk_MouseMove" ( )
+    declare sub SciTk_MouseUp_ cdecl alias "SciTk_MouseUp" ( )
+    declare sub SciTk_SetFocus_ cdecl alias "SciTk_SetFocus" ( )
+    declare sub SciTk_SetInvalidateCallback_ cdecl alias "SciTk_SetInvalidateCallback" ( )
+    declare sub SciTk_SetNotifyCallback_ cdecl alias "SciTk_SetNotifyCallback" ( )
+    declare sub SciTk_SetClipboardHooks_ cdecl alias "SciTk_SetClipboardHooks" ( )
+    declare sub SciTk_SetTickerCallback_ cdecl alias "SciTk_SetTickerCallback" ( )
+    declare sub SciTk_Tick_ cdecl alias "SciTk_Tick" ( )
+    declare sub SciTk_SetTextApi_ cdecl alias "SciTk_SetTextApi" ( )
+    declare sub SciTk_SetDrawApi_ cdecl alias "SciTk_SetDrawApi" ( )
+    declare sub SciTk_SetDpi_ cdecl alias "SciTk_SetDpi" ( )
+    declare sub SciTk_SetFontPath_ cdecl alias "SciTk_SetFontPath" ( )
+    declare sub SciTk_CreateLexer_ cdecl alias "SciTk_CreateLexer" ( )
+    declare sub SciTk_AbiVersion_ cdecl alias "SciTk_AbiVersion" ( )
+    declare sub SciTk_NotificationSize_ cdecl alias "SciTk_NotificationSize" ( )
+    declare sub SciTk_SetCallTipHost_ cdecl alias "SciTk_SetCallTipHost" ( )
+    declare sub SciTk_PaintCallTip_ cdecl alias "SciTk_PaintCallTip" ( )
+    declare sub SciTk_CallTipClick_ cdecl alias "SciTk_CallTipClick" ( )
+    declare sub SciTk_ImeCompose_ cdecl alias "SciTk_ImeCompose" ( )
+    declare sub SciTk_CaretRect_ cdecl alias "SciTk_CaretRect" ( )
+    declare sub SciTk_SetEditorDpi_ cdecl alias "SciTk_SetEditorDpi" ( )
+    declare sub SciTk_SetListBoxHost_ cdecl alias "SciTk_SetListBoxHost" ( )
+    declare sub SciTk_LbCount_ cdecl alias "SciTk_LbCount" ( )
+    declare sub SciTk_LbText_ cdecl alias "SciTk_LbText" ( )
+    declare sub SciTk_LbSelection_ cdecl alias "SciTk_LbSelection" ( )
+    declare sub SciTk_LbRowHeight_ cdecl alias "SciTk_LbRowHeight" ( )
+    declare sub SciTk_LbSetSelection_ cdecl alias "SciTk_LbSetSelection" ( )
+    declare sub SciTk_LbActivate_ cdecl alias "SciTk_LbActivate" ( )
+    declare sub SciTk_SetMenuHost_ cdecl alias "SciTk_SetMenuHost" ( )
+    declare sub SciTk_MenuCommand_ cdecl alias "SciTk_MenuCommand" ( )
+    declare sub SciTk_ContextMenu_ cdecl alias "SciTk_ContextMenu" ( )
+    declare sub SciTk_SetFontResolver_ cdecl alias "SciTk_SetFontResolver" ( )
+    declare sub SciTk_SetFallbackChain_ cdecl alias "SciTk_SetFallbackChain" ( )
+end extern
+
+private function Need( byref name_ as string ) as any ptr
+    select case name_
+    case "SciTk_Create" : return @SciTk_Create_
+    case "SciTk_Destroy" : return @SciTk_Destroy_
+    case "SciTk_Send" : return @SciTk_Send_
+    case "SciTk_Paint" : return @SciTk_Paint_
+    case "SciTk_SetSize" : return @SciTk_SetSize_
+    case "SciTk_Cursor" : return @SciTk_Cursor_
+    case "SciTk_KeyDown" : return @SciTk_KeyDown_
+    case "SciTk_TextInput" : return @SciTk_TextInput_
+    case "SciTk_MouseDown" : return @SciTk_MouseDown_
+    case "SciTk_MouseMove" : return @SciTk_MouseMove_
+    case "SciTk_MouseUp" : return @SciTk_MouseUp_
+    case "SciTk_SetFocus" : return @SciTk_SetFocus_
+    case "SciTk_SetInvalidateCallback" : return @SciTk_SetInvalidateCallback_
+    case "SciTk_SetNotifyCallback" : return @SciTk_SetNotifyCallback_
+    case "SciTk_SetClipboardHooks" : return @SciTk_SetClipboardHooks_
+    case "SciTk_SetTickerCallback" : return @SciTk_SetTickerCallback_
+    case "SciTk_Tick" : return @SciTk_Tick_
+    case "SciTk_SetTextApi" : return @SciTk_SetTextApi_
+    case "SciTk_SetDrawApi" : return @SciTk_SetDrawApi_
+    case "SciTk_SetDpi" : return @SciTk_SetDpi_
+    case "SciTk_SetFontPath" : return @SciTk_SetFontPath_
+    case "SciTk_CreateLexer" : return @SciTk_CreateLexer_
+    case "SciTk_AbiVersion" : return @SciTk_AbiVersion_
+    case "SciTk_NotificationSize" : return @SciTk_NotificationSize_
+    case "SciTk_SetCallTipHost" : return @SciTk_SetCallTipHost_
+    case "SciTk_PaintCallTip" : return @SciTk_PaintCallTip_
+    case "SciTk_CallTipClick" : return @SciTk_CallTipClick_
+    case "SciTk_ImeCompose" : return @SciTk_ImeCompose_
+    case "SciTk_CaretRect" : return @SciTk_CaretRect_
+    case "SciTk_SetEditorDpi" : return @SciTk_SetEditorDpi_
+    case "SciTk_SetListBoxHost" : return @SciTk_SetListBoxHost_
+    case "SciTk_LbCount" : return @SciTk_LbCount_
+    case "SciTk_LbText" : return @SciTk_LbText_
+    case "SciTk_LbSelection" : return @SciTk_LbSelection_
+    case "SciTk_LbRowHeight" : return @SciTk_LbRowHeight_
+    case "SciTk_LbSetSelection" : return @SciTk_LbSetSelection_
+    case "SciTk_LbActivate" : return @SciTk_LbActivate_
+    case "SciTk_SetMenuHost" : return @SciTk_SetMenuHost_
+    case "SciTk_MenuCommand" : return @SciTk_MenuCommand_
+    case "SciTk_ContextMenu" : return @SciTk_ContextMenu_
+    case "SciTk_SetFontResolver" : return @SciTk_SetFontResolver_
+    case "SciTk_SetFallbackChain" : return @SciTk_SetFallbackChain_
+    end select
+    if len( gLib.sError ) = 0 then gLib.sError = "scintk has no " & name_
+    return 0
+end function
+#else
 private function Need( byref name_ as string ) as any ptr
     dim as any ptr p = SDL_LoadFunction( gLib.so, strptr( name_ ) )
     if (p = 0) andalso (len( gLib.sError ) = 0) then gLib.sError = SCINTK_FILE & " has no " & name_
     return p
 end function
+#endif
 
 ' Once per process. TRUE when every entry point resolved and the ABI matches.
 private function LoadLib() as boolean
@@ -851,9 +952,11 @@ private function LoadLib() as boolean
     dim as const zstring ptr base_ = SDL_GetBasePath()
     dim as string sPath = SCINTK_FILE
     if base_ then sPath = *base_ & SCINTK_FILE
+#ifndef TIKO_LINK_STATIC
     gLib.so = SDL_LoadObject( strptr( sPath ) )
     if gLib.so = 0 then gLib.so = SDL_LoadObject( SCINTK_FILE )
     if gLib.so = 0 then gLib.sError = "cannot load " & sPath & ": " & *SDL_GetError() : return false
+#endif
     gLib.Create = Need( "SciTk_Create" )
     gLib.Destroy = Need( "SciTk_Destroy" )
     gLib.Send = Need( "SciTk_Send" )
@@ -1399,7 +1502,12 @@ private sub CtShow cdecl ( byval user as any ptr, byval editor as any ptr, byval
     gTip.owner = t : gTip.popup = ph : gTip.bDirty = true
     gTip.w = tkWidget_Create( ph, 1, @TipProc, 0 )
     gTip.w->isFocusable = true
-    tkWidget_SetPos( gTip.w, 0, 0, w, h )
+    ' the window's REAL size: a whole number of SDL units, one pixel more than w or h when the
+    ' density is 2 (Retina) and the size is odd. scintk paints the tip to fill it.
+    dim as long rw = w, rh = h
+    tkHost_PixelSize( ph, rw, rh )
+    if (rw <= 0) orelse (rh <= 0) then rw = w : rh = h
+    tkWidget_SetPos( gTip.w, 0, 0, rw, rh )
     tkHost_Show( ph )
     tkHost_SetFocus( ph, gTip.w )
 end sub

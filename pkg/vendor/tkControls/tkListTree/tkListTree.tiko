@@ -1241,7 +1241,7 @@ private function LtMakeMsg( byval p as TKLISTTREE_STATE ptr, byval m as TK_MSG p
     dim as SDL_Keymod km = SDL_GetModState()
     mi.hList = p->hWin : mi.msg = m->msg : mi.x = m->x : mi.y = m->y
     mi.clicks = m->clicks : mi.wheelY = m->wheelY : mi.idx = idx
-    mi.isCtrl = ((km and SDL_KMOD_CTRL) <> 0)
+    mi.isCtrl = ((km and TK_KMOD_PRIMARY) <> 0)             ' Cmd on macOS
     mi.isShift = ((km and SDL_KMOD_SHIFT) <> 0)
     return mi
 end function
@@ -1398,7 +1398,7 @@ end function
 private function LtKeyDown( byval p as TKLISTTREE_STATE ptr, byval m as TK_MSG ptr ) as boolean
     if p->bDragActive andalso (m->key = SDLK_ESCAPE) then LtCancelDrag( p ) : return true
     dim as boolean isShift = ((m->mods and SDL_KMOD_SHIFT) <> 0)
-    dim as boolean isCtrl = ((m->mods and SDL_KMOD_CTRL) <> 0)
+    dim as boolean isCtrl = ((m->mods and TK_KMOD_PRIMARY) <> 0)     ' Cmd on macOS
     dim as integer curVis = p->ModelToVisible( p->focusRow )
     if curVis < 0 then curVis = 0
     dim as integer perPage = LtItemsPerPage( p )

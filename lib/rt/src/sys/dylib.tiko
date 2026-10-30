@@ -206,6 +206,8 @@ end extern
 '' The filename conventions, tried in order -- per OS: tkort_libfmt.
 #if defined( __FB_LINUX__ )
 	#include once "dyliblinux.tiko"
+#elseif defined( __FB_DARWIN__ )
+	#include once "dylibdarwin.tiko"
 #else
 	#error "sys/dylib: no shared-library naming table for this OS"
 #endif

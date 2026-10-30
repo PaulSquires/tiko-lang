@@ -2,7 +2,8 @@
 
 A minimalist, keyboard-driven editor for the tiko language, on tkControls (SDL3 + SDL_ttf): one
 editor fills the window, no toolbar and no tabs, a menu bar that shows only on Ctrl+Shift+M, and
-configuration in TOML files only. Windows and Linux; macOS when tiko runs tkControls apps there.
+configuration in TOML files only. Windows, Linux and macOS (Apple Silicon); on a Mac every Ctrl
+chord below is Cmd.
 Spec and records: `C:\dev\docs\tkEdit` (PLAN.md, KEYS.md, CONFIG.md, FINDINGS.md).
 
 ## Using it
@@ -35,7 +36,7 @@ brings the window to the front) and exits; `[ui] single_instance = false` gives 
 | `src/core` | `tkc` | GUI-free modules, console-tested by `tests/coreall`; `tests/keysdoc` writes KEYS.md |
 | `src/svc` | `tks` | background work: the tikoParser scanner, the build runner |
 | `src/app` | `tka` | the window, on tiko's `vendor/tkControls` (it comes with the toolchain) |
-| `fonts/`, `icons/`, `keywords/`, `lang/`, `themes/` | | resources found beside `bin/`; `lang/` = the es / fr / de catalogs |
+| `fonts/`, `icons/`, `keywords/`, `lang/`, `themes/`, `licences/` | | data built INTO the program (`src/app/assets`, `#embed`); `lang/` = the es / fr / de / zh catalogs |
 | `src/app/res` | | `tkEdit.rc` + `tkedit.ico`: the exe's icon (Windows); `tools/make-icon.py` draws both icons |
 
 Copied modules and their source: [PROVENANCE.md](PROVENANCE.md).
@@ -50,6 +51,13 @@ bash tools/test-win.sh
 MSYS_NO_PATHCONV=1 wsl.exe -e bash /mnt/c/dev/tiko-lang/tkedit/tools/test-linux.sh
 ```
 
+On the Mac, from its own tiko-lang clone (a tree `bin/tiko` from `build/build.sh`, which also
+writes `bin/parser.dylib`; SDL3 from Homebrew):
+
+```bash
+bash tkedit/tools/test-mac.sh
+```
+
 ```bash
 bash tools/idiom.sh
 ```
@@ -62,8 +70,9 @@ A release build (the test scripts build debug) writes `bin/tkedit.exe` too, from
 TKO_MODCACHE=/c/dev/tiko-lang/tkedit/out/modcache /c/dev/tiko-lang/toolchains/tiko-windows/tiko.exe build --profile release
 ```
 
-`bin/` is the run folder (`bin/tkedit.exe` beside the SDL libraries and `scintk.dll`, which the
-build copies in, and `parser.dll`, which the test scripts do); it is not tracked. To regenerate the key
+`bin/` is the run folder (`bin/tkedit.exe`, one file: SDL, SDL_ttf, SDL_image and scintk are linked
+in and its data is embedded -- `tkedit --export-resources DIR` writes it out, `tkedit --licences`
+prints the notices -- plus `parser.dll`, which the test scripts copy in); it is not tracked. To regenerate the key
 reference after changing `src/core/cmdids`:
 
 ```bash

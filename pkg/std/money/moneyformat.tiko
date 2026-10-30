@@ -88,8 +88,20 @@ using outcome
 #include once "fblimits.bi"
 #include once "fblimits.bi"
 
+'' THE CATEGORY NUMBER IS THE TARGET'S, NOT THE HEADER'S. crt/locale.bi's LC_MONETARY is
+'' glibc's 4, and on Darwin 4 is LC_NUMERIC: the user's locale would have moved the
+'' decimal point instead of the currency (docs/tiko-macos M7). Darwin's comes from the
+'' posix binding, measured there (3), and is taken BEFORE crt/locale.bi is included:
+'' the header #defines LC_MONETARY, and the macro rewrites even 'posix.LC_MONETARY'.
+#ifdef __FB_DARWIN__
+    #include once "../../sys/posix/posix.ti"
+    const MNY_LC_MONETARY = posix.LC_MONETARY
+#endif
 #ifdef __FB_UNIX__
     #include once "crt/locale.bi"
+#endif
+#if defined( __FB_UNIX__ ) and not defined( __FB_DARWIN__ )
+    const MNY_LC_MONETARY = LC_MONETARY
 #endif
 
 '' The Windows NLS entry points, self-declared -- see the note above.
@@ -462,10 +474,10 @@ mnySnap_.Loaded = true
 '' zstring and is not NULL, so the two cases are split.
 dim as zstring ptr pName
 if len( mnyWanted_ ) = 0 then
-    pName = setlocale( LC_MONETARY, "" )
+    pName = setlocale( MNY_LC_MONETARY, "" )
 else
     dim as string want = mnyWanted_
-    pName = setlocale( LC_MONETARY, want )
+    pName = setlocale( MNY_LC_MONETARY, want )
 end if
 if pName = nullptr then exit sub
 mnySnap_.LocaleName = *pName

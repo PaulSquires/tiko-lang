@@ -34,6 +34,13 @@ mkdir -p "$W/examples/tkControls" "$W/build"
 cp "$TREE/build/vendorfetch.sh" "$W/build/"
 TKO_VENDOR_CACHE=${TKO_VENDOR_CACHE:-$HOME/.cache/tko-vendorfetch} sh "$W/build/vendorfetch.sh" --module tkControls \
     || { echo "vendorfetch.sh failed: no fonts or libscintk.so"; exit 1; }
+# tkStatic links SDL3 statically: vendor/SDL3's archives (static/build.sh; a finished build is
+# kept in the cache, so only the first run on a host pays for it).
+case " ${names[*]} " in
+    *" tkStatic "*|"  ")
+        TKO_VENDOR_CACHE=${TKO_VENDOR_CACHE:-$HOME/.cache/tko-vendorfetch} sh "$W/build/vendorfetch.sh" --module SDL3 \
+            || { echo "vendorfetch.sh failed: no static SDL3"; exit 1; } ;;
+esac
 export XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir EGL_LOG_LEVEL=fatal
 [ -n "$LIB" ] && export LD_LIBRARY_PATH=$LIB
 export TKO_PKG=$W/pkg

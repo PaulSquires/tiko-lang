@@ -22,6 +22,7 @@ examples/ch29/vendor/**
 !examples/ch29/vendor/**/
 !examples/ch29/vendor/**/*.ti
 examples/ch29/*.so.*
+examples/ch29/*.dylib
 examples/ch29/raylib-rpath
 # Chapter 31's chain listing builds its Linux child beside it (prebuild:).
 examples/ch31/chain/child

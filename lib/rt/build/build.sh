@@ -200,8 +200,8 @@ build_one( ) {
     "$TKORT_NM" --defined-only $objs > "$objdir/.ours" 2>/dev/null || true
     : > "$objdir/.theirs"
     awk '
-        FILENAME == ARGV[1] { n = split($2, p, /[/\\]/); src[p[n]] = $1; order[++no] = p[n]; next }
-        /:$/                { c = $0; sub(/:$/, "", c); n = split(c, p, /[/\\]/); c = p[n]; next }
+        FILENAME == ARGV[1] { n = split($2, p, /[\/\\]/); src[p[n]] = $1; order[++no] = p[n]; next }
+        /:$/                { c = $0; sub(/:$/, "", c); n = split(c, p, /[\/\\]/); c = p[n]; next }
         NF == 3 {
             # C, A COMMON SYMBOL, DEFINES THE NAME TOO: the gcc and gas64 backends of fbc,
             # and tiko, measured alike, emit an uninitialised extern+dim as one; only

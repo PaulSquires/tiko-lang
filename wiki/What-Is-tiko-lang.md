@@ -22,7 +22,7 @@ tiko is honest about where it stops:
 
 - **No compile-time memory safety.** Runtime checks (bounds, null pointers) are available with `-exx`, but there is no borrow checker.
 - **Goroutines are not green threads.** `spawn` queues a call on a pool of operating-system threads.
-- **No macOS or ARM64 target yet.**
+- **ARM64 on macOS only.** There is no Linux or Windows ARM64 target, and there is no graphics library on macOS or Linux.
 - **No inline `ASM`.** It is refused with `TKO0407` rather than miscompiled.
 - **Not every dialect.** `#lang "qb"`, `"fblite"` and `"deprecated"` are refused (`TKO0317`), and so is `GOSUB` (`TKO0409`).
 - **`__FB_MIN_VERSION__`.** tiko does not define it. tiko identifies itself with `__TIKO_COMPILER__` instead. See [`__TIKO_COMPILER__`](Category-Tiko-Compiler-Define).
@@ -33,8 +33,9 @@ tiko is honest about where it stops:
 | --- | --- |
 | `windows-x86_64` | The default on Windows. Links against `ucrtbase.dll` and needs no Visual Studio. The only target with graphics. |
 | `linux-x86_64` | The default on Linux. |
+| `macos-arm64` | The default on macOS (Apple Silicon, macOS 13 or newer). It links with Apple's linker and SDK, so on a Mac. |
 
-x86-64 is the only architecture. `-m32` and `-target win32` are refused (`TKO0104`, `TKO0103`). There is **one backend**: LLVM IR through clang. See [LLVM Backend](Category-LLVM-Backend).
+x86-64 everywhere, and ARM64 on macOS. `-m32` and `-target win32` are refused (`TKO0104`, `TKO0103`). There is **one backend**: LLVM IR through clang. See [LLVM Backend](Category-LLVM-Backend).
 
 ## Where the syntax comes from
 
@@ -46,9 +47,9 @@ One consequence is useful. tiko still compiles FreeBASIC 1.20 code (`#lang "fb"`
 
 The repository's `README.md` and `HANDOFF.md` carry the measured state. Among them:
 
-- tiko compiles itself to a byte-identical fixpoint on windows-x86_64 and linux-x86_64.
+- tiko compiles itself to a byte-identical fixpoint on windows-x86_64, linux-x86_64 and macos-arm64.
 
-tiko is pre-1.0, and there are no binary releases yet.
+tiko is pre-1.0. Prebuilt toolchains for all three are published as [Releases](https://github.com/PaulSquires/tiko-lang/releases).
 
 ## Where to go next
 

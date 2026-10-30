@@ -1,0 +1,2 @@
+#import "vendor/raylib6"
+InitWindow( 320, 200, "x" )

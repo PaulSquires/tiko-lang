@@ -4,8 +4,8 @@
 
 '' Every argument, split as the shell passed it; an empty one is kept.
 dim args as containers.Array( of ustring ) = os.Args( )
-for i as int32 = 1 to args.num - 1
-    print i; ": ["; args.items( i ); "]"
+for i as int32 = 1 to args.Count( ) - 1
+    print i; ": ["; args[ i ]; "]"
 next
 
 '' GetEnv tells a variable that is not set from one set to nothing.

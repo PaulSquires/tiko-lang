@@ -57,7 +57,9 @@
 ** constructors run, after this one -- so it runs after all of them, and after any
 ** handler the runtime registers while it runs, as the gnu .fini_array entry does. */
 
-#include <stdlib.h>
+/* atexit, declared by hand: with no #include the runtime cross-builds for macOS on
+** Windows, where the macOS SDK's headers are not (and may not be) present. */
+int atexit( void ( *fn )( void ) );
 
 struct tko_rec { long long prio; void ( *fn )( void ); };
 

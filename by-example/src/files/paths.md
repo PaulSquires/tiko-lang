@@ -2,7 +2,7 @@
 
 A path is a `ustring`, and the `Path` functions take it apart and build it
 without touching the disk. They accept either separator, `/` or `\`, on
-Windows; on Linux only `/` separates.
+Windows; on Linux and macOS only `/` separates.
 
 ```tiko
 {{#include ../../examples/files/paths.tiko}}
@@ -33,7 +33,7 @@ of the name. `PathComponents` drops a `.` but keeps a `..`, because what `..`
 means depends on links on the disk; `PathNormalize` removes both, without
 looking.
 
-`PathJoin` writes `\` on Windows and `/` on Linux, which is why the example
+`PathJoin` writes `\` on Windows and `/` on Linux and macOS, which is why the example
 compares joined paths rather than printing them. `PathEquals` compares the way
 the platform does: on Windows it ignores case and treats both separators alike.
 

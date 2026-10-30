@@ -1,0 +1,27 @@
+'' multikeydarwin.tiko -- io/multikeyposix's console-keyboard route on macOS: none.
+''
+'' #INCLUDED by io/multikeyposix.tiko's POSIX branch, after its shared state, never
+'' compiled on its own and not in build/sources.txt. It provides the three procedures
+'' multikeylinux.tiko does,
+''
+''     hOsKbConsoleInit( ) as int32
+''     hOsKbConsoleExit( )
+''     hOsKbConsoleGfx( byval gfx as int32 )
+''
+'' Darwin has no virtual console and init/hinitposix never selects INIT_CONSOLE there, so
+'' the keyboard is never taken: Init refuses (-1, nothing taken) and the other two do
+'' nothing (docs/tiko-macos M5, D-M5-1).
+
+#if defined( __FB_DARWIN__ )
+
+private function hOsKbConsoleInit( ) as int32
+	return -1
+end function
+
+private sub hOsKbConsoleExit( )
+end sub
+
+private sub hOsKbConsoleGfx( byval gfx as int32 )
+end sub
+
+#endif

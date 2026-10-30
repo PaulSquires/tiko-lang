@@ -28,6 +28,13 @@
 '' argument on top of a directed mode surviving an optimiser change.
 
 
+'' ARM64 HAS ONE ENCODING, THE ARCHITECTURE'S: FPCR's rounding field (bits 22-23) and FPSR's
+'' cumulative flags. No probe is needed, and the x87 one below would mislead: '&h400' is not
+'' an arm64 mode, fesetround refuses it, and the _RC_ mapping would be taken. The values are
+'' the posix binding's, measured on the Mac (docs/tiko-macos FACTS "POSIX layout", M7).
+#if defined( __FB_ARM__ ) and defined( __FB_UNIX__ )
+#include once "../../sys/posix/posix.ti"
+#endif
 
 extern "c"
     declare function c_fegetround   alias "fegetround"   ( ) as long
@@ -89,13 +96,23 @@ end enum
 dim shared as boolean fenv_crt_is_rc_ = false
 
 sub fenv_detect_ constructor
+#if not ( defined( __FB_ARM__ ) and defined( __FB_UNIX__ ) )
     dim as long saved = c_fegetround( )
     fenv_crt_is_rc_ = ( c_fesetround( &h400 ) <> 0 )
     c_fesetround( saved )
+#endif
 end sub
 
 '' _RC_NEAR / _RC_DOWN / _RC_UP / _RC_CHOP
 function fenv_round_out_( byval m as long ) as long
+#if defined( __FB_ARM__ ) and defined( __FB_UNIX__ )
+    select case m
+    case ROUND_TOWARD_NEGATIVE : return posix.FE_DOWNWARD
+    case ROUND_TOWARD_POSITIVE : return posix.FE_UPWARD
+    case ROUND_TOWARD_ZERO     : return posix.FE_TOWARDZERO
+    case else                  : return posix.FE_TONEAREST
+    end select
+#endif
     if( fenv_crt_is_rc_ = false ) then return m
     select case m
     case ROUND_TOWARD_NEGATIVE : return &h100
@@ -106,6 +123,14 @@ function fenv_round_out_( byval m as long ) as long
 end function
 
 function fenv_round_in_( byval m as long ) as long
+#if defined( __FB_ARM__ ) and defined( __FB_UNIX__ )
+    select case m
+    case posix.FE_DOWNWARD   : return ROUND_TOWARD_NEGATIVE
+    case posix.FE_UPWARD     : return ROUND_TOWARD_POSITIVE
+    case posix.FE_TOWARDZERO : return ROUND_TOWARD_ZERO
+    case else                : return ROUND_TO_NEAREST
+    end select
+#endif
     if( fenv_crt_is_rc_ = false ) then return m
     select case m
     case &h100 : return ROUND_TOWARD_NEGATIVE
@@ -120,6 +145,15 @@ end function
 '' feclearexcept / fetestexcept / feraiseexcept, and the answer is tested for
 '' non-zero rather than decoded.
 function fenv_exc_out_( byval flags as long ) as long
+#if defined( __FB_ARM__ ) and defined( __FB_UNIX__ )
+    dim as long a = 0
+    if( (flags and FP_INVALID  ) <> 0 ) then a or= posix.FE_INVALID
+    if( (flags and FP_DIVBYZERO) <> 0 ) then a or= posix.FE_DIVBYZERO
+    if( (flags and FP_OVERFLOW ) <> 0 ) then a or= posix.FE_OVERFLOW
+    if( (flags and FP_UNDERFLOW) <> 0 ) then a or= posix.FE_UNDERFLOW
+    if( (flags and FP_INEXACT  ) <> 0 ) then a or= posix.FE_INEXACT
+    return a
+#endif
     if( fenv_crt_is_rc_ = false ) then return flags
     dim as long r = 0
     if( (flags and FP_INVALID  ) <> 0 ) then r or= &h10

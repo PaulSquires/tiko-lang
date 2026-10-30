@@ -469,6 +469,8 @@ end sub
 '' and fb_FsWatchPoll, one per OS.
 #if defined( __FB_LINUX__ )
 	#include once "watchlinux.tiko"
+#elseif defined( __FB_DARWIN__ )
+	#include once "watchdarwin.tiko"
 #else
 	#error "fs/watch: no change-notification backend for this OS"
 #endif

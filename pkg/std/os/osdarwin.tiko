@@ -1,0 +1,81 @@
+#module "os"
+#import "std/containers"
+#import "std/outcome"
+#ifdef __FB_UNIX__
+#include once "../../sys/posix/posix.ti"
+using posix
+#endif
+using containers
+using outcome
+'' std/os: osdarwin -- what only Darwin has: the five oslinux.tiko lists, the Darwin way.
+'' Every call was measured on the Mac (docs/tiko-macos FACTS "Darwin APIs"); constants are
+'' the posix binding's.
+''
+''     Args( )                _NSGetArgc / _NSGetArgv: the arguments as given, empty ones too
+''     hErrno( )              *__error( )
+''     hEnviron( )            *_NSGetEnviron( ) -- a program, unlike a dylib, may also say
+''                            'environ', but the accessor is right in both
+''     hAffinityCount( )      0: Darwin has no affinity API, so the caller falls back to
+''                            the CPU count
+''     hPipeNonBlockCloexec   pipe( ), then fcntl on both ends: Darwin has no pipe2
+
+#ifdef __FB_DARWIN__
+
+extern "C"
+    declare function tkos_error alias "__error" ( ) as long ptr
+    declare function tkos_NSGetArgc alias "_NSGetArgc" ( ) as long ptr
+    declare function tkos_NSGetArgv alias "_NSGetArgv" ( ) as zstring ptr ptr ptr
+    declare function tkos_NSGetEnviron alias "_NSGetEnviron" ( ) as zstring ptr ptr ptr
+    declare function tkos_pipe alias "pipe" ( byval fds as long ptr ) as long
+    declare function tkos_fcntl alias "fcntl" ( byval fd as long, byval cmd as long, ... ) as long
+    declare function tkosd_close alias "close" ( byval fd as long ) as long
+end extern
+
+private function hErrno( ) as long
+    return *tkos_error( )
+end function
+
+private function hEnviron( ) as zstring ptr ptr
+    return *tkos_NSGetEnviron( )
+end function
+
+'' ---- arguments
+
+public function Args( ) as Array( of ustring )
+    dim as Array( of ustring ) r
+    dim as long n = *tkos_NSGetArgc( )
+    dim as zstring ptr ptr v = *tkos_NSGetArgv( )
+    for i as long = 0 to n - 1
+        dim as ustring a = *v[i]
+        r.Push( a )
+    next
+    return r
+end function
+
+'' ---- host facts
+
+private function hAffinityCount( ) as long
+    return 0
+end function
+
+'' ---- interrupts
+
+'' CatchInterrupt's self-pipe, both ends non-blocking and close-on-exec. Not atomic as
+'' pipe2 is: a fork in another thread between the two calls could inherit the pipe.
+private function hPipeNonBlockCloexec( byval fds as long ptr ) as long
+    if( tkos_pipe( fds ) <> 0 ) then return -1
+    for i as long = 0 to 1
+        dim as long fl = tkos_fcntl( fds[i], F_GETFL )
+        if( ( fl = -1 ) orelse ( tkos_fcntl( fds[i], F_SETFL, fl or O_NONBLOCK ) = -1 ) orelse _
+            ( tkos_fcntl( fds[i], F_SETFD, FD_CLOEXEC ) = -1 ) ) then
+            dim as long e = hErrno( )
+            tkosd_close( fds[0] )
+            tkosd_close( fds[1] )
+            *tkos_error( ) = e
+            return -1
+        end if
+    next
+    return 0
+end function
+
+#endif

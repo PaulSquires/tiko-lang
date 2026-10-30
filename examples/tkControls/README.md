@@ -21,10 +21,12 @@ screenshot.
 | `tpad` | the Notepad Tutorial on tkControls; `tpad --selftest` |
 | `tkApp`, `tkHost`, `tkPaint`, `tkTheme`, `tkKeys` | the framework and the core |
 | every other `tk*` | one control each |
-| `tools/` | `run-all.sh` (the Windows battery), `run-linux.sh` (X11 + Wayland under WSLg), `shots.sh` + `bmpdiff.py` (screenshots), `build-linux-libs.sh` |
+| `tools/` | `run-all.sh` (the Windows battery), `run-linux.sh` (X11 + Wayland under WSLg), `run-mac.sh` (cocoa, run on the Mac), `shots.sh` + `bmpdiff.py` (screenshots), `build-linux-libs.sh` |
 
 On Linux the programs link the system's SDL3, SDL3_ttf and SDL3_image; a distribution without
-SDL3 packages can build them with `tools/build-linux-libs.sh`.
+SDL3 packages can build them with `tools/build-linux-libs.sh`. On macOS they link Homebrew's
+(`brew install sdl3 sdl3_ttf sdl3_image`), and a control's command chords take Cmd where
+Windows and Linux take Ctrl (`TK_KMOD_PRIMARY`).
 
 `FINDINGS.md` and `PORTING.md` are the notes from porting PsControls to SDL3: what was
 measured, the traps, and the rules every control follows. They were written when the package

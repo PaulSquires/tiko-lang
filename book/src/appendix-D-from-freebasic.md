@@ -157,9 +157,11 @@ The usual mistakes, side by side:
   are not in their statement's position they are ordinary names, as they are in fbc 1.20.
 - **The ten fixed-width type names**, `int8` to `float64`, are predeclared typedefs. A program's own
   declaration of one replaces tiko's.
-- **Graphics is Windows-only.** The Linux toolchain ships no graphics library, so a program that
-  uses `screen` builds on Windows only.
-- **tiko targets x86-64 only**, on Windows and Linux. `-m32` is `TKO0104`.
+- **Graphics is Windows-only.** The Linux and macOS toolchains ship no graphics library, so a
+  program that uses `screen` builds on Windows only.
+- **tiko targets x86-64 on Windows and Linux, and arm64 on macOS** (`macos-arm64`, Apple
+  Silicon). There it defines `__FB_DARWIN__`, `__FB_UNIX__` and `__FB_ARM__`, and not
+  `__FB_X86__`. `-m32` is `TKO0104`.
 
 ## What fbc 1.20 does not have
 

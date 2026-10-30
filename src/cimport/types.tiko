@@ -127,6 +127,12 @@ private function Builtin_( byref x as CImp, byval t as CXType, byref why as stri
         why = "clang does not expose this type (" & ClangText( *x.api, x.api->getTypeSpelling( t ) ) & ")"
         return ""
     case else
+        '' A KIND THIS IMPORTER DOES NOT KNOW, OVER A BUILTIN IT DOES: clang 22 and later give sizeof's
+        '' result its own sugar, '__size_t' (and '__ptrdiff_t'), with a type kind of its own, and the
+        '' macOS SDK's string.h declares strlen, memcpy and eleven more with it. Measured on the Mac
+        '' (docs/tiko-macos M10): all thirteen were skipped. The canonical type is the builtin under it.
+        dim as CXType ct = x.api->getCanonicalType( t )
+        if ct.kind <> t.kind then return Builtin_( x, ct, why )
         why = "no FreeBASIC type for C type '" & ClangText( *x.api, x.api->getTypeSpelling( t ) ) & "'"
         return ""
     end select

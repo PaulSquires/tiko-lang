@@ -120,8 +120,25 @@ function FindTools _
     '' AppendDefaultLibDir -- because only there is the target final, and because
     '' TKO_LIBPATH read HERE could only ever have been reached when no -p was given,
     '' which a bundled default would have made impossible.
+    ''
+    '' EACH DIRECTORY ONCE, the first time it is given. A second copy finds nothing the first
+    '' did not, and it named the runtime archive twice: build/bootstrap.sh passes the seed's
+    '' lib/<target> with -p, and the seed then adds the same directory as its own bundled
+    '' default. lld says nothing; ld64 warns 'ignoring duplicate libraries', and bootstrap
+    '' fails any build that prints a diagnostic (docs/tiko-macos M6).
     for i as int32 = 0 to libOpt.Count - 1
-        t.libPaths.Push( libOpt[i] )
+        dim as string pth = libOpt[i]
+        while (len( pth ) > 1) andalso ((right( pth, 1 ) = "/") orelse (right( pth, 1 ) = "\"))
+            pth = left( pth, len( pth ) - 1 )
+        wend
+        dim as boolean seen = false
+        for j as int32 = 0 to t.libPaths.Count - 1
+            if t.libPaths[j] = pth then
+                seen = true
+                exit for
+            end if
+        next
+        if seen = false then t.libPaths.Push( pth )
     next
     t.found = true
     return t
@@ -141,6 +158,82 @@ end function
 '' the closing quote was escaped and the next argument swallowed (audit F-49).
 private function Q( byref s as string ) as string
     return Tko.Spawn.QuoteArg( s )
+end function
+
+'' WHICH LIST A STATIC'S DEBUG VARIABLE BELONGS IN IS THE CLANG'S DECISION, and the two
+'' answers exclude each other (measured on the Mac with Apple clang 21, Homebrew 22.1 and
+'' 23.1, and LLVM 21.1 on Windows -- docs/tiko-macos FACTS "M6"): LLVM 21 and 22 accept a
+'' function-local DIGlobalVariable only in the DICompileUnit's globals and reject it in a
+'' DISubprogram's retainedNodes; LLVM 23 the reverse. Neither rejection fails the compile,
+'' not even under -Werror -- clang prints "ignoring invalid debug info" and DROPS the
+'' module's debug info -- so the exit code says nothing.
+''
+'' SO THE CLANG IS ASKED, NOT ITS VERSION READ: Apple's clang numbers itself apart from
+'' LLVM. A one-static module in the retainedNodes form is compiled back to IR; the
+'' DIGlobalVariable survives only where that form is the accepted one. The driver asks
+'' once per compilation, and only for a '-g' build with a static local in it.
+private function ProbeTempDir_( ) as string
+    dim as string d = environ( "TMPDIR" )
+    if len( d ) = 0 then d = environ( "TEMP" )
+    if len( d ) = 0 then d = environ( "TMP" )
+    #ifdef __FB_WIN32__
+        if len( d ) = 0 then d = "."
+    #else
+        if len( d ) = 0 then d = "/tmp"
+    #endif
+    while (len( d ) > 1) andalso ((right( d, 1 ) = "/") orelse (right( d, 1 ) = "\"))
+        d = left( d, len( d ) - 1 )
+    wend
+    return d
+end function
+
+function DebugStaticsInSubprogram( byref triple as string ) as boolean
+    dim as boolean wants = false
+    dim as string clang_ = FoundClang( )
+    if len( clang_ ) = 0 then return false
+    dim as string nl = chr( 10 )
+    dim as string base_ = ProbeTempDir_( ) & "/tiko-diprobe-" & hex( cast( ulong, timer * 1000 ) )
+    dim as string src_ = base_ & ".ll", out_ = base_ & ".out.ll"
+    dim as int32 fh = freefile
+    if open( src_ for output as #fh ) <> 0 then return false
+    print #fh, "@f.x = internal global i32 0, align 4, !dbg !0" & nl & _
+               "define i32 @f() !dbg !2 {" & nl & _
+               "  %v = load i32, ptr @f.x, align 4" & nl & _
+               "  ret i32 %v, !dbg !9" & nl & "}" & nl & _
+               "!llvm.dbg.cu = !{!7}" & nl & _
+               "!llvm.module.flags = !{!10, !11}" & nl & _
+               "!0 = !DIGlobalVariableExpression(var: !1, expr: !DIExpression())" & nl & _
+               "!1 = distinct !DIGlobalVariable(name: ""x"", scope: !2, file: !3, line: 1, type: !6, isLocal: true, isDefinition: true)" & nl & _
+               "!2 = distinct !DISubprogram(name: ""f"", scope: !3, file: !3, line: 1, type: !4, scopeLine: 1, spFlags: DISPFlagDefinition, unit: !7, retainedNodes: !8)" & nl & _
+               "!3 = !DIFile(filename: ""p.bas"", directory: ""."")" & nl & _
+               "!4 = !DISubroutineType(types: !5)" & nl & _
+               "!5 = !{!6}" & nl & _
+               "!6 = !DIBasicType(name: ""long"", size: 32, encoding: DW_ATE_signed)" & nl & _
+               "!7 = distinct !DICompileUnit(language: DW_LANG_C99, file: !3, producer: ""tiko-lang"", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug)" & nl & _
+               "!8 = !{!0}" & nl & _
+               "!9 = !DILocation(line: 1, column: 1, scope: !2)" & nl & _
+               "!10 = !{i32 7, !""Dwarf Version"", i32 4}" & nl & _
+               "!11 = !{i32 2, !""Debug Info Version"", i32 3}"
+    close #fh
+    dim as Tko.Spawn.Proc p = Tko.Spawn.Start( clang_, "-target " & Q( triple ) & _
+        " -Wno-override-module -S -emit-llvm " & Q( src_ ) & " -o " & Q( out_ ), true )
+    if Tko.Spawn.Wait( p ) = 0 then
+        fh = freefile
+        if open( out_ for input as #fh ) = 0 then
+            dim as string ln_
+            while eof( fh ) = false
+                line input #fh, ln_
+                if instr( ln_, "DIGlobalVariable(" ) > 0 then
+                    wants = true
+                    exit while
+                end if
+            wend
+            close #fh
+        end if
+    end if
+    kill src_
+    kill out_
+    return wants
 end function
 
 '' True the first time 'key' is offered, false after. A SET: it was one string of
@@ -575,6 +668,11 @@ function LinkExe _
     for i as int32 = 0 to t.libPaths.Count - 1
         cmd += " -L" & Q( t.libPaths[i] )
     next
+    '' HOMEBREW'S LIBRARIES, AFTER THE USER'S PATHS (docs/tiko-macos M7): ld64 searches
+    '' /usr/lib and /usr/local/lib but not /opt/homebrew/lib, where Apple Silicon's Homebrew
+    '' puts what a 'system:' library such as vendor/SDL3's '-lSDL3' names -- measured, 'library
+    '' not found' without it. Only where Homebrew is installed, so no other link changes.
+    if macho andalso FileExists_( "/opt/homebrew/bin/brew" ) then cmd += " -L" & Q( "/opt/homebrew/lib" )
     '' EACH ONE ONLY IF IT IS THERE. A '-p' path need not carry the runtime:
     '' lib/gfx/lib/<target> holds libtkogfx.a and nothing else, and naming a
     '' libfb.a that does not exist fails the link with clang's own 'no such file
@@ -633,6 +731,12 @@ function LinkExe _
     next
 
     for i as int32 = 0 to t.libs.Count - 1
+        '' A MACOS FRAMEWORK ('#foreignlib ... "framework:Cocoa"'), which no other object format
+        '' has: '-framework Cocoa' on Mach-O, nothing elsewhere -- a package guards its own.
+        if lcase( left( t.libs[i], 10 ) ) = "framework:" then
+            if macho then cmd += " -framework " & Q( mid( t.libs[i], 11 ) )
+            continue for
+        end if
         '' 'msvcrt' IS A REQUEST FOR THE C RUNTIME, and on this target the C runtime is
         '' ucrtbase, which the system list below always links. crt.bi writes
         '' '#inclib "msvcrt"' -- right for win64, where it is the CRT fbc links too.

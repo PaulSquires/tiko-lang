@@ -126,6 +126,11 @@ namespace Tko.Mir
         as boolean               isMainModule = true
         as string                moduleName
         as int32                  moduleFile = -1
+        '' THE UNIT'S '#embed's (docs/tiko-embed RFC-0001), parallel arrays from the
+        '' preprocessor: the directive's location, the file, its size then. 0 = none.
+        as containers.Array( of uint32 ) ptr  embedLocs
+        as containers.Array( of string ) ptr  embedPaths
+        as containers.Array( of int64 ) ptr   embedSizes
     end type
     declare function Lower _
         ( byref inp as LowerInput, byref m as MirModule, byref st as LowerStats ) as int32

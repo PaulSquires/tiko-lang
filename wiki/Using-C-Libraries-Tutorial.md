@@ -12,11 +12,11 @@ Most of the code a program might want already exists as a C library: databases, 
 
 ## 1. What you need
 
-| | Windows | Linux |
-|---|---|---|
-| tiko and LLVM | as for any tiko program | as for any tiko program |
-| C headers for `#cinclude` | **Visual Studio Build Tools**, with *Desktop development with C++* and the Windows SDK | your distribution's C compiler (`build-essential` on Ubuntu) |
-| building libraries from source | CMake | CMake, plus the library's `-dev` packages |
+| | Windows | Linux | macOS |
+|---|---|---|---|
+| tiko and LLVM | as for any tiko program | as for any tiko program | as for any tiko program (Homebrew's `llvm`) |
+| C headers for `#cinclude` | **Visual Studio Build Tools**, with *Desktop development with C++* and the Windows SDK | your distribution's C compiler (`build-essential` on Ubuntu) | Xcode's **Command Line Tools**, which every macOS link needs anyway |
+| building libraries from source | CMake | CMake, plus the library's `-dev` packages | CMake, or the library from Homebrew |
 
 tiko itself does not need Visual Studio, but `#cinclude` does. On Windows, clang reads the C runtime's headers (`stdio.h` and the rest) from the Visual Studio installation, and almost every library header includes one. Without the Build Tools you see this:
 
@@ -28,12 +28,12 @@ the directory with -cinclude
 
 ## 2. The files in a library package
 
-| File | Windows | Linux | Used by |
-|---|---|---|---|
-| header | `name.h` | `name.h` | `#cinclude`, when you compile |
-| static library | `name.lib` | `libname.a` | the linker: the code is **copied into** your program |
-| import library | `name.lib` or `namedll.lib` | (none) | the linker: says which DLL holds each function |
-| shared library | `name.dll` | `libname.so.N` | your program, **every time it starts** |
+| File | Windows | Linux | macOS | Used by |
+|---|---|---|---|---|
+| header | `name.h` | `name.h` | `name.h` | `#cinclude`, when you compile |
+| static library | `name.lib` | `libname.a` | `libname.a` | the linker: the code is **copied into** your program |
+| import library | `name.lib` or `namedll.lib` | (none) | (none) | the linker: says which DLL holds each function |
+| shared library | `name.dll` | `libname.so.N` | `libname.N.dylib` | your program, **every time it starts** |
 
 On Windows, a static library and an import library are both `.lib`. The package's documentation, or the file size, tells you which is which: raylib's static `raylib.lib` is 5 MB, and its import library `raylibdll.lib` is 400 KB.
 
@@ -69,6 +69,14 @@ All four libraries in these tutorials allow both. Check the licence of any other
   ```
 
   The program and its `.so` files can then be copied anywhere together. `-Wl` passes its value to the linker, split at commas. In a shell, single-quote it so the shell leaves `$ORIGIN` alone: `tiko game.tiko -Wl '-rpath,$ORIGIN'`. In `#cmdline` or in `tiko.toml`'s `options`, no quoting is needed. Put `#cmdline` lines that only make sense on Linux inside `#ifdef __FB_LINUX__`: on Windows, `-Wl` talks to `lld-link`, which has no `-rpath`.
+
+- **macOS** loads a library by its **install name**, recorded in the program when it links. Homebrew's libraries name their own absolute path (`/opt/homebrew/opt/sdl3/lib/libSDL3.0.dylib`), so they load from there. A library you build names `@rpath/libname.dylib`, and a program that links a `.dylib` from `#foreignlib` has the run path `@loader_path`, its own directory: put the library beside the program. If it is missing, dyld stops the program before it starts (exit 134):
+
+  ```
+  dyld[<pid>]: Library not loaded: @rpath/libname.dylib
+  ```
+
+  Headers and libraries installed by Homebrew are under `/opt/homebrew/include` and `/opt/homebrew/lib`. A macOS link searches `/opt/homebrew/lib` after your own paths, so `system:` libraries from Homebrew need no `-p`.
 
 > ⚠️ **A missing library is not always an error on Linux.** If the system has its own copy under the same soname, the program silently loads that one. A program linked with SQLite 3.54.0 prints `SQLite 3.54.0` with `LD_LIBRARY_PATH=.` and `SQLite 3.45.1` without it, because Ubuntu 24.04 ships 3.45.1. An rpath of `$ORIGIN` puts your copy first. Ask the library for its version when it matters.
 

@@ -12,7 +12,9 @@ __FB_DARWIN__
 
 ## Description
 
-Define without a value created at compile time in the Darwin version of the compiler, or when the *[-target darwin](Compiler-Option-Target)* command line option is used. It can be used to compile parts of the program only if the target is Darwin.
+Define without a value, created when compiling for macOS: the `macos-arm64` target, the default on a Mac, or *[-target macos-arm64](Compiler-Option-Target)* on any host. It can be used to compile parts of the program only for macOS.
+
+`__FB_UNIX__`, `__FB_ARM__` and `__FB_64BIT__` are defined with it; `__FB_LINUX__` and `__FB_X86__` are not. [`TIKO_OS_MACOS`](Category-Tiko-Compiler-Define) is tiko's own name for the same test.
 
 ## Remarks
 
@@ -23,6 +25,8 @@ Define without a value created at compile time in the Darwin version of the comp
 ### See also
 
 - [`__FB_LINUX__`](Fb-Linux)
+- [`TIKO_OS_MACOS`](Category-Tiko-Compiler-Define)
+- [Installing on macOS](Quick-Start#installing-on-macos)
 - [`__FB_WIN32__`](Fb-Win32)
 - [`__FB_UNIX__`](Fb-Unix)
 - [Compiler Option: -target](Compiler-Option-Target)
@@ -32,11 +36,11 @@ Define without a value created at compile time in the Darwin version of the comp
 ```freebasic
 #ifdef __FB_DARWIN__
 
-  '...instructions only for Darwin...
+  '...instructions only for macOS...
 
 #else
 
-  '...instructions not for Darwin...
+  '...instructions not for macOS...
 
 #endif
 ```

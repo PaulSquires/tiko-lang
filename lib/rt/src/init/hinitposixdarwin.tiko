@@ -1,0 +1,18 @@
+'' hinitposixdarwin.tiko -- init/hinitposix's port-I/O permission on macOS: none.
+''
+'' #INCLUDED by init/hinitposix.tiko's POSIX branch, never compiled on its own and not
+'' in build/sources.txt. It provides the procedure hinitposixlinux.tiko does,
+''
+''     hOsPortPermission( ) as int32
+''
+'' Darwin has no ioperm and no user-mode port access, so the answer is always 0 (not
+'' granted). src/sys/ports.tiko does not ask on Darwin anyway: INP and OUT are an
+'' illegal function call there, as on Windows.
+
+#if defined( __FB_DARWIN__ )
+
+private function hOsPortPermission( ) as int32
+	return 0
+end function
+
+#endif

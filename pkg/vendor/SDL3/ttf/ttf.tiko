@@ -1,20 +1,31 @@
 '' vendor/SDL3/ttf -- SDL3_ttf 3.2.2, SDL 3's TrueType font library (TTF_*), as one import:
 ''
-''     #import "vendor/SDL3/ttf" link dynamic        (or neither)
+''     #import "vendor/SDL3/ttf" link dynamic        (or neither, or 'link static')
 ''
 '' It brings vendor/SDL3 with it: SDL's own names come across too, and SDL3 is linked.
 '' The header is SDL_ttf.ti beside this file, the sdl3-freebasic binding (GaBurdis, MIT).
 ''
 '' THE LIBRARY: as vendor/SDL3's -- 'link dynamic' alone. On Windows ../lib/SDL3_ttf.dll,
 '' beside SDL3.dll, copied beside the program; on Linux the system's, '-lSDL3_ttf' from
-'' the distribution's development package.
+'' the distribution's development package, and on macOS Homebrew's (brew install sdl3_ttf).
+'' 'link static': ../lib/SDL3_ttf_<os>_<arch>.a, built by ../static/build.sh with FreeType and
+'' HarfBuzz inside it; HarfBuzz is C++, so Linux and macOS link the system C++ library too.
+'' Write 'link static' on vendor/SDL3 as well -- each module's mode is its own.
 #module "ttf"
 
 #import "vendor/SDL3" public
 
 public #include once "SDL_ttf.ti"
 
-#ifdef TIKO_OS_LINUX
+#ifdef TIKO_LINK_STATIC
+    #ifdef TIKO_OS_WINDOWS
+        #foreignlib SDL3_ttf static "../lib/SDL3_ttf"
+    #elseifdef TIKO_OS_MACOS
+        #foreignlib SDL3_ttf static "../lib/SDL3_ttf", "system:c++"
+    #else
+        #foreignlib SDL3_ttf static "../lib/SDL3_ttf", "system:stdc++", "system:m"
+    #endif
+#elseif defined( TIKO_OS_LINUX ) or defined( TIKO_OS_MACOS )
     #foreignlib SDL3_ttf dynamic "system:SDL3_ttf"
 #else
     #foreignlib SDL3_ttf dynamic "../lib/SDL3_ttf"

@@ -31,8 +31,17 @@ EXT=; case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) EXT=.exe ;; esac
 TKO=${TKO:-$ROOT/bin/tiko$EXT}
 case "$EXT" in
     .exe) TC=$ROOT/toolchains/tiko-windows; LIBT=windows-x86_64 ;;
-    *)    TC=$ROOT/toolchains/tiko-linux;   LIBT=linux-x86_64 ;;
+    *)    if [ "$(uname -s)" = Darwin ]; then TC=$ROOT/toolchains/tiko-macos; LIBT=macos-arm64
+          else TC=$ROOT/toolchains/tiko-linux; LIBT=linux-x86_64; fi ;;
 esac
+# A RUN WITH A TIME LIMIT. macOS has no timeout(1): Homebrew's coreutils call it gtimeout, and
+# without either perl's alarm survives the exec -- a hang is still a result, not a stall.
+run_limited( ) {
+    _t=$1; shift
+    if command -v timeout > /dev/null 2>&1; then timeout "$_t" "$@"
+    elif command -v gtimeout > /dev/null 2>&1; then gtimeout "$_t" "$@"
+    else perl -e 'alarm shift; exec @ARGV' "$_t" "$@"; fi
+}
 export TKO_LIBPATH="$TC/lib/$LIBT"
 CU=$ROOT/tests/vendor/fbc-tests/fbcunit
 DRV=$CU/tests/tests.bas
@@ -100,7 +109,7 @@ for f in $LIST; do
     elif [ $brc -eq 0 ]; then
         d=$(dirname "$f")
         mkdir -p "$WK/rd/$d"; cp "$d"/* "$WK/rd/$d"/ 2>/dev/null
-        ( cd "$WK/rd/$d" && timeout "$RUNTIMEOUT" "$exe" </dev/null >"$WK/run.txt" 2>&1 )
+        ( cd "$WK/rd/$d" && run_limited "$RUNTIMEOUT" "$exe" </dev/null >"$WK/run.txt" 2>&1 )
         rec="$rec run=$?"
         out=$(norm < "$WK/run.txt")
     else

@@ -1,0 +1,16 @@
+'' x11libdarwin.tiko -- the file name libX11 is dlopen'd by on macOS.
+''
+'' #INCLUDED by io/multikeyposix.tiko and io/xfocus.tiko, never compiled on its own and
+'' not in build/sources.txt. It provides the constant x11liblinux.tiko does,
+''
+''     TKORT_X11_LIBNAME    the name handed to fb_hDynLoad
+''
+'' macOS ships no X11. XQuartz, when it is installed, puts libX11 at this path; when it is
+'' not, the load fails and the X11 helpers stay off, as they do on a Linux box without
+'' libX11 -- no X11 is the normal case here (docs/tiko-macos M5, D-M5-1).
+
+#if defined( __FB_DARWIN__ )
+
+const TKORT_X11_LIBNAME = "/opt/X11/lib/libX11.dylib"
+
+#endif

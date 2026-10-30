@@ -39,6 +39,13 @@ namespace Tko.Codegen
         as Tko.SymbolTable ptr syms
         as Tko.UdtLayouts ptr  udts
         as Tko.Interner ptr    names
+        '' WHERE A FUNCTION-LOCAL STATIC'S DIGlobalVariableExpression IS LISTED, which is the
+        '' clang's decision (codegen/toolchain.ti DebugStaticsInSubprogram): -1 not asked yet,
+        '' 0 the compile unit's globals, 1 its procedure's retainedNodes. Asked the first
+        '' time a static is described, of the clang for 'triple', and kept in the driver's
+        '' context, so a compilation asks once. nullptr: always the globals.
+        as int32 ptr staticsForm
+        as string triple
     end type
 
     type DbgSpMap as containers.Map( of uint32, int32 )
@@ -66,6 +73,7 @@ namespace Tko.Codegen
         as containers.Array( of uint32 ) spSym
         as containers.Array( of int32 )  spId
         as containers.Array( of uint8 ) spDone      '' ...and whether its text has been written
+        as containers.Array( of string ) spRetained '' ...and ', !N' for each static it retains
         '' ...and procSym -> its index in those three: a scan per subprogram was F squared.
         as DbgSpMap  spAt
         as string   globals         '' ', !N' for each DIGlobalVariableExpression

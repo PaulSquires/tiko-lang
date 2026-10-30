@@ -9,12 +9,12 @@ using containers
 using outcome
 '' std/os: osposix -- the POSIX side: libc throughout.  Every constant and struct
 '' layout is the target's, from sys/posix.  What only one OS has -- Args, errno,
-'' environ, the affinity mask, pipe2 -- is that OS's file: oslinux.tiko.
+'' environ, the affinity mask, pipe2 -- is that OS's file: oslinux.tiko, osdarwin.tiko.
 
 #ifdef __FB_UNIX__
 
-#if not defined( __FB_LINUX__ )
-    #error "std/os: no per-OS file for this target (oslinux.tiko is Linux's)"
+#if not ( defined( __FB_LINUX__ ) or defined( __FB_DARWIN__ ) )
+    #error "std/os: no per-OS file for this target (oslinux.tiko, osdarwin.tiko)"
 #endif
 
 #include once "fbatomic.bi"

@@ -3,6 +3,7 @@
 #
 #   build/build.sh [Debug|Release|RelWithDebInfo|MinSizeRel] [--test-runner] [--no-dll] [--oracle]
 #   build/build.sh [Release|MinSizeRel] --dll
+#   TKO_SEED=<tkEdit's compiler> build/build.sh Release --lib
 #
 # A compiler build also builds the editor's bin/parser.dll and copies it beside tkEdit
 # ($TKO_EDITOR_DIR, default tkedit/bin in this tree), which loads it from there. '--no-dll'
@@ -19,12 +20,14 @@ CFG=${1:-Debug}
 # '--no-dll': the compiler without it -- for the gate, bootstrap and packaging, which
 # have no use for an editor's scanner and should not pay for one.
 DLL=0
+LIB=0
 NODLL=0
 TESTRUNNER=0
 ORACLE=0
 for a in "$@"; do
     case "$a" in
         --dll)         DLL=1 ;;
+        --lib)         LIB=1 ;;
         --no-dll)      NODLL=1 ;;
         --test-runner) TESTRUNNER=1 ;;
         --oracle)      ORACLE=1 ;;
@@ -41,7 +44,7 @@ if [ "$ORACLE" = "1" ] || [ "$CFG" = "MinSizeRel" ]; then
     exit 2
 fi
 case "$CFG" in
-    --dll)                CFG=Release ;;
+    --dll|--lib)          CFG=Release ;;
     --no-dll|--test-runner|--oracle) CFG=Debug ;;
 esac
 
@@ -51,6 +54,8 @@ case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) HOSTWIN=1; EXT=".exe" ;;
     *)                    HOSTWIN=0; EXT="" ;;
 esac
+# The editor's parser library: a DLL, a .so, or on macOS a .dylib.
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) DLLEXT=.dll ;; Darwin) DLLEXT=.dylib ;; *) DLLEXT=.so ;; esac
 
 # stage0: overridable, because the pinned commit moves at phase boundaries only.
 #
@@ -235,10 +240,10 @@ build_dll( ) {
     echo "build: parser.dll [$CFG] with $STAGE0"
     if [ "$SEEDED" = "1" ]; then
         ( cd "$ROOT" && "$STAGE0" -dll $LIBSRC src/api/tikoparser.tiko -i src $DLLFLAGS \
-            -o "bin/parser$( [ "$HOSTWIN" = "1" ] && echo .dll || echo .so )" )
+            -o "bin/parser$DLLEXT" )
     else
         compile_units "$ROOT/build/obj/$CFG-dll" "" "$DLLFLAGS" $LIBSRC src/api/tikoparser.tiko
-        ( cd "$ROOT" && "$STAGE0" -dll $OBJS $DLLFLAGS -x "bin/parser$( [ "$HOSTWIN" = "1" ] && echo .dll || echo .so )" )
+        ( cd "$ROOT" && "$STAGE0" -dll $OBJS $DLLFLAGS -x "bin/parser$DLLEXT" )
     fi
     [ "$HOSTWIN" = "1" ] || return 0
     EDITOR=${TKO_EDITOR_DIR:-$ROOT/tkedit/bin}
@@ -255,6 +260,29 @@ build_dll( ) {
         echo "build: WARNING: could not copy parser.dll to $EDITOR -- is the editor running?" >&2
     fi
 }
+
+# THE EDITOR'S SCANNER AS A STATIC ARCHIVE, bin/parser_<os>_<arch>.a -- what tkEdit links in
+# (tkedit/src/svc/parser; it is one file, docs/tkEdit/SINGLE-FILE.md). The same sources and
+# flags as the DLL. BUILD IT WITH THE COMPILER THAT BUILDS tkEdit (TKO_SEED): the archive holds
+# that compiler's std module objects, and at tkEdit's link each std module is ONE copy -- one
+# from another compiler would be taken silently in place of tkEdit's own.
+build_lib( ) {
+    LIBFLAGS="$(echo "$FLAGS" | sed 's/-exx//') -mt"
+    LIBSRC=$(echo "$SOURCES" | tail -n +2)
+    case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) _os=windows ;; Darwin) _os=macos ;; *) _os=linux ;; esac
+    case "$(uname -m)" in arm64|aarch64) _arch=arm64 ;; *) _arch=x86_64 ;; esac
+    _out="bin/parser_${_os}_${_arch}.a"
+    echo "build: $_out [$CFG] with $STAGE0"
+    rm -f "$ROOT/$_out"
+    ( cd "$ROOT" && "$STAGE0" -lib $LIBSRC src/api/tikoparser.tiko -i src $LIBFLAGS -o "$_out" )
+    [ -f "$ROOT/$_out" ] || { echo "build: no $_out" >&2; exit 1; }
+}
+
+if [ "$LIB" = "1" ]; then
+    build_lib
+    echo "build: ok"
+    exit 0
+fi
 
 if [ "$DLL" = "1" ]; then
     build_dll

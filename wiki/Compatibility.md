@@ -38,6 +38,8 @@ Each of these is a diagnostic, not a silent difference:
 
 **A `"""` that ends its line opens a [block string](Category-Block-Strings) in tiko.** In fbc it is a string missing its closing quote: warning 12, and the value is one `"`. tiko reads every line up to one that starts with `"""` as the string's text instead, or reports `TKO0207` when none follows. This is the only spelling whose meaning changed: `"""abc"""` is still the five-character `"abc"` and `""""` is still one quote, in both compilers. No line of the vendored fbc suite (its 2,709 `.bas` files and 41 `.bi` files) or of `pkg/` opens one.
 
+**`#embed` at the start of a line is a [directive](Category-Embed) in tiko.** In fbc it is `error 17: Syntax error`. Nothing else changes meaning: `embed` is an ordinary name in both compilers, and `#embed` in the middle of a line is a file number in both, so `print #embed, "x"` writes to file number `embed`.
+
 **tiko accepts some programs that fbc rejects.** What was confirmed:
 
 | Program | fbc 1.20 | tiko |
@@ -72,6 +74,8 @@ Across the vendored fbc suite, every line tiko gives `TKO0968` (22) or `TKO0970`
 
 **Graphics links on `windows-x86_64` only.** libtkogfx is built for that ABI alone.
 
+**`macos-arm64` is a tiko target, named `-target macos-arm64`.** `-target darwin` is refused (`TKO0103`). It defines `__FB_DARWIN__`, `__FB_UNIX__`, `__FB_ARM__` and `__FB_64BIT__`, and not `__FB_X86__`, so code under `#ifdef __FB_X86__` is left out there. `WSTRING` is 4 bytes, as on Linux. There is no graphics library.
+
 **`#pragma msbitfields` is accepted and does nothing.** In fbc 1.20 it stops a bitfield from sharing a unit with the ordinary field before it: `short s : 4, byte c, long i : 7` is 8 bytes with `i` at bit 32, where both compilers say 4 bytes and bit 24 without it. tiko keeps the 4-byte layout under the pragma. It is not MSVC's rule either -- fbc still packs `byte a : 3, long b : 5` into one byte, where MSVC uses 8 -- and `type T extern "c"` is how tiko lays a type out as C does.
 
 ## What is the same
@@ -84,7 +88,7 @@ Across the vendored fbc suite, every line tiko gives `TKO0968` (22) or `TKO0970`
 ## How it is verified
 
 - fbc's own test corpus is vendored (2,709 `.bas` files) and run differentially: programs, fbcunit suites and the test sources are each built by both compilers and compared.
-- tiko compiles itself to a byte-identical fixpoint on windows-x86_64 and linux-x86_64.
+- tiko compiles itself to a byte-identical fixpoint on windows-x86_64, linux-x86_64 and macos-arm64.
 
 ## Licensing
 

@@ -1,0 +1,3 @@
+platform: macOS
+pointers: 64 bits
+a path:   logs/today.txt

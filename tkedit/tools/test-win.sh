@@ -28,13 +28,19 @@ run() {      # run <name> <dir> <command...>
     [ $rc -eq 0 ] || bad=$((bad+1))
 }
 
+# tkEdit LINKS IN the scanner (svc/parser): tiko-lang's bin/parser_<os>_<arch>.a, which must be built by
+# THIS compiler (its std module objects are one copy at the link). Made here when it is missing or older
+# than the compiler; a log of the build goes to out/parserlib.log.
+parserlib() {
+    local lib=$ROOT/../bin/parser_windows_x86_64.a
+    [ -f "$lib" ] && [ "$lib" -nt "$TIKO" ] && return 0
+    mkdir -p "$ROOT/out"
+    ( cd "$ROOT/.." && TKO_SEED="$TIKO" bash build/build.sh Release --lib ) > "$ROOT/out/parserlib.log" 2>&1 \
+        || { echo "parser library: BUILD FAILED (out/parserlib.log)"; bad=$((bad+1)); return 1; }
+}
+
 build src/core && run coreall "$ROOT/src/core" ./tests/bin/coreall.exe
-if [ "${1:-}" != core ] && build src/app; then
-    # scintk.dll: vendor/tkControls' runtime copies it beside the exe (pkg/vendor/tiko.toml)
-    # code intelligence (P5): parser.dll, which tiko-lang's build/build.sh Release --dll writes
-    # to bin/ (and copies here)
-    TKP=${TIKOPARSER:-$ROOT/../bin/parser.dll}
-    [ -f "$TKP" ] && cp -f "$TKP" "$ROOT/bin/"
+if [ "${1:-}" != core ] && parserlib && build src/app; then
     # the self-test builds sample programs with this tiko (P4; a Windows path for the program)
     export TKEDIT_TIKO=$(cygpath -w "$TIKO")
     run tkEdit "$ROOT/bin" ./tkedit.exe --selftest

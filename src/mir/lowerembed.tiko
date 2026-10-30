@@ -1,0 +1,61 @@
+'' lowerembed.tiko -- the bytes of a '#embed' (docs/tiko-embed RFC-0001).
+''
+'' The preprocessor wrote 'dim shared as const ubyte NAME( 0 to N - 1 ) = { 0 }' with every
+'' token at the directive's location (pp/ppforeignlib.tiko), so the initialiser's '{' stands there
+'' too. A global whose initialiser stands at a recorded location takes the FILE as its byte
+'' image, read here and nowhere earlier: the front end -- and so the editor's parser.dll, which
+'' stops before lowering -- needed only the size.
+''
+'' ONE BYTE MORE THAN THE ARRAY: a NUL the bounds do not include, so a text file is usable as a
+'' zstring where it lies (RFC E2). READ-ONLY: emitted as an LLVM constant, so it lands in the
+'' read-only data section on every object format.
+
+#import "std/containers"
+#import "std/fs"
+#include once "lowerall.ti"
+
+namespace Tko.Mir
+
+using Tko
+
+function EmbedGlobal( byref c as Ctx, byval g as int32, byval init as Tko.NodeId ) as boolean
+    if c.embedLocs = nullptr then return false
+    if (init = Tko.NODE_NONE) orelse (g < 0) then return false
+    if c.ast->Kind( init ) <> Tko.N_INITIALIZER then return false
+    dim as uint32 at = cast( uint32, c.ast->Loc( init ) )
+    dim as int32 k = -1
+    for i as int32 = 0 to c.embedLocs->Count - 1
+        if (*c.embedLocs)[i] = at then
+            k = i
+            exit for
+        end if
+    next
+    if k < 0 then return false
+
+    dim as ustring path_ = (*c.embedPaths)[k]
+    dim as int64 seen = (*c.embedSizes)[k]
+    dim as Tko.ByteBuf raw
+    dim as fs.FsResultI64 r = fs.ReadAllBytes( path_, raw )
+    dim as Tko.DiagnosticEngine ptr de = cast( Tko.DiagnosticEngine ptr, c.diags )
+    if r.IsOk( ) = false then
+        if de <> nullptr then de->Report( Tko.TKO0341, Tko.PointRange( cast( Tko.SourceLoc, at ) ), path_ )
+        return false
+    end if
+    '' THE SIZE THE BOUNDS WERE MADE FROM. A file rewritten between the preprocessor's stat
+    '' and this read would otherwise give an array whose bounds and bytes disagree.
+    if cast( int64, raw.Count ) <> seen then
+        if de <> nullptr then de->Report( Tko.TKO0346, Tko.PointRange( cast( Tko.SourceLoc, at ) ), _
+                                          path_, str( raw.Count ), str( seen ) )
+        return false
+    end if
+
+    dim as string img = string( raw.Count + 1, 0 )
+    if raw.Count > 0 then memcpy( strptr( img ), @raw[0], raw.Count )
+    c.m->globals[g].size = len( img )
+    c.m->globals[g].initBytes = img
+    c.m->globals[g].hasInit = true
+    c.m->globals[g].readOnly = true
+    return true
+end function
+
+end namespace

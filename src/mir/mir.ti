@@ -624,6 +624,8 @@ namespace Tko.Mir
         as InternId initRelocFn
         as string   initBytes
         as boolean  hasInit
+        '' EMITTED AS AN LLVM 'constant', so it lands in read-only data: a '#embed''s bytes.
+        as boolean  readOnly
         '' THE NEXT GLOBAL WITH THE SAME NAME, index plus one, 0 for none. See
         '' MirModule.globalByName.
         as int32     nextSameName

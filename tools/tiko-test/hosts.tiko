@@ -1,0 +1,43 @@
+'' hosts.tiko -- which targets this host can run, and which runtimes it cannot have.
+'' Included by tikotest.tiko; split out at the 1500-line lint cap.
+
+'' CAN THIS HOST RUN WHAT A BUILD FOR tgt PRODUCES? Both Windows targets' programs run on
+'' Windows (win64 links MinGW's CRT, windows-x86_64 the UCRT; both are PE executables),
+'' linux-x86_64's on Linux and macos-arm64's on a Mac. Anything else would need an
+'' emulator, and is skipped.
+function IsHostTarget_( byval tgt as string ) as boolean
+    #if defined( __FB_WIN32__ )
+        return (tgt = "win64") orelse (tgt = "windows-x86_64")
+    #elseif defined( __FB_DARWIN__ )
+        return (tgt = "macos-arm64")
+    #else
+        return (tgt = "linux-x86_64")
+    #endif
+end function
+
+'' THE RUNTIME A TEST NAMES, WHEN THIS HOST CANNOT HAVE IT (docs/tiko-macos M8, D-M8-1): its
+'' 'ENV: TKO_LIBPATH=' directory, if that directory is missing and is for a target whose
+'' programs this host cannot run. 781 tests link for windows-x86_64 against
+'' build/obj/rtlib/windows-x86_64, which build/test.sh makes on Windows alone. Such a test is
+'' still RUN -- a compile error or a '-c' passes without the runtime, 32 of them on Linux --
+'' but if it FAILS it is counted as skipped, not failed: off Windows each one failing at its
+'' link buried the failures that mean something. On Windows the directory is the host's own,
+'' so a failure there is a failure. "" when the test can run.
+function MissingRuntime_( byref tc as TestCase ) as string
+    for each e_ as string in tc.env
+        if left( e_, 12 ) <> "TKO_LIBPATH=" then continue for
+        dim as string d = mid( e_, 13 )
+        dim as string tgt = ""
+        if (instr( d, "windows-x86_64" ) > 0) orelse (instr( d, "win64" ) > 0) then
+            tgt = "windows-x86_64"
+        elseif instr( d, "linux-x86_64" ) > 0 then
+            tgt = "linux-x86_64"
+        elseif instr( d, "macos-arm64" ) > 0 then
+            tgt = "macos-arm64"
+        end if
+        if len( tgt ) = 0 then continue for
+        if IsHostTarget_( tgt ) then continue for
+        if fs.IsDir( d ) = false then return d
+    next
+    return ""
+end function

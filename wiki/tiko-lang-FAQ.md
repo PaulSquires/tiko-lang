@@ -13,13 +13,14 @@ No. It is a separate compiler with its own frontend, its own typed IR and an LLV
 If it is `#lang "fb"` code, that is the aim. The known exceptions are listed on [Compatibility](Compatibility). They include `qb`/`fblite`/`deprecated` dialect code and inline `ASM`, each refused with a diagnostic. Code that must know it is being built by tiko tests `#ifdef __TIKO_COMPILER__`.
 
 **Do I have to build anything?**
-Normally not. Toolchains are published ready-built as GitHub [Releases](https://github.com/PaulSquires/tiko-lang/releases) -- the newest one titled *tiko toolchains* -- with one archive per host: `tiko-windows-x86_64-<commit>.zip` and `tiko-linux-x86_64-<commit>.tar.gz`. Unpack the one for your host and it is ready; the only other thing it needs is clang, to run (see *Which backends?* below). Building tiko from its source is for working on the compiler itself: `bash build/package.sh --verify` builds a toolchain for your host, compiling tiko with the seed -- the earlier tiko release `sh seed/fetch-seed.sh` fetches. See [Quick Start](Quick-Start).
+Normally not. Toolchains are published ready-built as GitHub [Releases](https://github.com/PaulSquires/tiko-lang/releases) -- the newest one titled *tiko toolchains* -- with one archive per host: `tiko-windows-x86_64-<commit>.zip`, `tiko-linux-x86_64-<commit>.tar.gz` and `tiko-macos-arm64-<commit>.tar.gz`. Unpack the one for your host -- it holds one directory, `tiko-lang/`, with the compiler and the tkEdit editor -- and it is ready; the only other thing it needs is clang, to run (see *Which backends?* below). Building tiko from its source is for working on the compiler itself: `bash build/package.sh --verify` builds a toolchain for your host, compiling tiko with the seed -- the earlier tiko release `sh seed/fetch-seed.sh` fetches. See [Quick Start](Quick-Start).
 
 **Which targets are supported?**
 - `windows-x86_64`: the default on Windows, and it needs no Visual Studio.
 - `linux-x86_64`: the default on Linux.
+- `macos-arm64`: the default on macOS (Apple Silicon, macOS 13 or newer). Programs for it link on a Mac, because the link needs Apple's linker and SDK; elsewhere `-c` compiles an object.
 
-x86-64 only: `-m32` and `-target win32` are refused. There is no macOS or ARM64 target.
+ARM64 means macOS only: there is no Linux or Windows ARM64 target. `-m32` and `-target win32` are refused.
 
 **Which backends?**
 One: tiko emits LLVM IR and runs clang. There is no `-gen` switch. clang 18 or newer must be installed; tiko takes `TKO_CLANG` first, then the default install path, then `clang` on `PATH`. See [LLVM Backend](Category-LLVM-Backend).
@@ -40,7 +41,7 @@ None at all. `Array`, `Map`, `Set`, `LinkedList`, `OrderedMap` and `OrderedSet` 
 `GetIterator( )` returning something with `IsValid( )`, `Value( )` and `MoveNext( )`. That is the whole contract — structural, with no base class, interface or registration. See [Iterator Protocol](Category-Iterators).
 
 **Why `USTRING` when `WSTRING` exists?**
-- `WSTRING` is 2 bytes on Windows and 4 on Linux. It is fixed-length, and appending walks to the terminator, which is O(n²).
+- `WSTRING` is 2 bytes on Windows and 4 on Linux and macOS. It is fixed-length, and appending walks to the terminator, which is O(n²).
 - `USTRING` is dynamic and UTF-16 on every target. It keeps its length in the descriptor, so `LEN` is O(1) and appending is amortised O(1).
 - Conversion to and from `STRING` is UTF-8 on every target, instead of going through the C locale.
 

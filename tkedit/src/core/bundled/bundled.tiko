@@ -1,0 +1,164 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' bundled -- the files tkEdit carries inside itself (docs/tkEdit/SINGLE-FILE.md): its themes,
+' languages, keyword lists, icon, fonts and licences, '#embed'ded by tka/assets and registered
+' here under their path below the old install folder ("themes/dark.toml"). GUI-free, so the core
+' suites test it with bytes of their own.
+'
+' A FILE IS ASKED FOR BY THAT PATH, and Locate answers where it is: the user's copy in the config
+' folder wins, then a folder of loose files when the caller names one (the core suites; tkEdit
+' itself names none), then the bundled copy, spelled "bundled:<path>". Everything that reads a
+' located file -- ReadAllText, ReadText, CopyTo -- takes either spelling, so a caller passes the
+' answer on without asking which it was.
+'
+' The bytes stay the caller's ('#embed' arrays live as long as the program); nothing is copied.
+#module "bundled"
+
+#import "std/fs"
+#import "std/containers"
+#import "std/outcome"
+#import "tkc/textstream"
+using containers
+using outcome
+
+public const PREFIX = "bundled:"
+
+dim shared as Array( of ustring ) gName
+dim shared as Array( of any ptr ) gData
+dim shared as Array( of integer ) gSize
+
+private function IndexOf( byref rel as const ustring ) as long
+    for i as long = 0 to gName.Count( ) - 1
+        if gName[i] = rel then return i
+    next
+    return -1
+end function
+
+' The bundled path a located name means, "" when it is a real file's.
+private function RelOf( byref path as const ustring ) as ustring
+    if left( path, len( PREFIX ) ) <> PREFIX then return ""
+    return mid( path, len( PREFIX ) + 1 )
+end function
+
+' Registers `rel` ("themes/dark.toml": forward slashes, no leading one); again replaces it.
+public sub Add( byref rel as const ustring, byval p as const any ptr, byval n as integer )
+    dim as long k = IndexOf( rel )
+    if k >= 0 then
+        gData[k] = cast( any ptr, p ) : gSize[k] = n
+        return
+    end if
+    dim as ustring r_ = rel                  ' Push takes a non-const reference
+    dim as any ptr p_ = cast( any ptr, p )
+    gName.Push( r_ ) : gData.Push( p_ ) : gSize.Push( n )
+end sub
+
+public function Has( byref rel as const ustring ) as boolean
+    return IndexOf( rel ) >= 0
+end function
+
+' The bytes of a bundled path or a located "bundled:" name; FALSE when there are none.
+public function Bytes( byref name_ as const ustring, byref p as const any ptr, byref n as integer ) as boolean
+    dim as ustring rel = RelOf( name_ )
+    if len( rel ) = 0 then rel = name_
+    dim as long k = IndexOf( rel )
+    if k < 0 then return false
+    p = gData[k] : n = gSize[k]
+    return true
+end function
+
+' Every bundled path below `dir` ("themes"), in registration order.
+public function Names( byref dir_ as const ustring ) as Array( of ustring )
+    dim as Array( of ustring ) r
+    dim as ustring pre = dir_ & "/"
+    for i as long = 0 to gName.Count( ) - 1
+        if (len( dir_ ) = 0) orelse (left( gName[i], len( pre ) ) = pre) then r.Push( gName[i] )
+    next
+    return r
+end function
+
+' <dir_>/<rel>, one segment at a time: the platform's separators, as fs.PathJoin( d, "a", "b" ) has.
+private function JoinRel( byref dir_ as const ustring, byref rel as const ustring ) as ustring
+    dim as ustring r = dir_
+    dim as long st = 1
+    while st <= len( rel )
+        dim as long e = instr( st, rel, "/" )
+        if e = 0 then e = len( rel ) + 1
+        if e > st then r = fs.PathJoin( r, mid( rel, st, e - st ) )
+        st = e + 1
+    wend
+    return r
+end function
+
+' Where `rel` is: <configDir>/<rel>, else <looseDir>/<rel>, else "bundled:<rel>"; "" = nowhere.
+' An empty configDir or looseDir is not looked in.
+public function Locate( byref rel as const ustring, byref configDir as const ustring, _
+                        byref looseDir as const ustring = "" ) as ustring
+    if len( configDir ) > 0 then
+        dim as ustring u = JoinRel( configDir, rel )
+        if fs.IsFile( u ) then return u
+    end if
+    if len( looseDir ) > 0 then
+        dim as ustring s = JoinRel( looseDir, rel )
+        if fs.IsFile( s ) then return s
+    end if
+    if Has( rel ) then return PREFIX & rel
+    return ""
+end function
+
+private function ToArray( byval p as const any ptr, byval n as integer ) as Array( of ubyte )
+    dim as Array( of ubyte ) b
+    b.Reserve( n )
+    dim as const ubyte ptr q = p
+    for i as integer = 0 to n - 1
+        dim as ubyte v = q[i]
+        b.Push( v )
+    next
+    return b
+end function
+
+' A located file's text, decoded as fs.ReadAllText decodes a real one (UTF-8, a BOM dropped).
+public function ReadAllText( byref path as const ustring ) as fs.FsResultUStr
+    dim as const any ptr p
+    dim as integer n
+    if (len( RelOf( path ) ) = 0) orelse (Bytes( path, p, n ) = false) then return fs.ReadAllText( path )
+    dim as Result( of textstream.TextFile, ustring ) d = textstream.DecodeBytes( ToArray( p, n ) )
+    if d.IsOk( ) = false then return fs.FsFail( of ustring )( fs.FS_INVALID_DATA, "ReadAllText", path )
+    return Ok( of ustring, fs.FsError )( d.Value( ).Text )
+end function
+
+' A located file as textstream.ReadText reads a real one: its text and the encoding found.
+public function ReadText( byref path as const ustring ) as textstream.TextFileResult
+    dim as const any ptr p
+    dim as integer n
+    if (len( RelOf( path ) ) = 0) orelse (Bytes( path, p, n ) = false) then return textstream.ReadText( path )
+    dim as Result( of textstream.TextFile, ustring ) d = textstream.DecodeBytes( ToArray( p, n ) )
+    if d.IsOk( ) = false then return fs.FsFail( of textstream.TextFile )( fs.FS_INVALID_DATA, "ReadText", path )
+    return Ok( of textstream.TextFile, fs.FsError )( d.Value( ) )
+end function
+
+' A located file copied to `dest` (a user's editable copy of a shipped theme). Bytes, unchanged.
+public function CopyTo( byref path as const ustring, byref dest as const ustring ) as boolean
+    dim as const any ptr p
+    dim as integer n
+    if (len( RelOf( path ) ) = 0) orelse (Bytes( path, p, n ) = false) then return fs.CopyFile( path, dest ).IsOk( )
+    dim as Array( of ubyte ) b = ToArray( p, n )
+    return fs.WriteAllBytes( dest, b ).IsOk( )
+end function
+
+' Every bundled file written below `dir_` at its path (tkEdit --export-resources). The number
+' written; a file that could not be is skipped and counted in `failed`.
+public function ExportAll( byref dir_ as const ustring, byref failed as long ) as long
+    dim as long done = 0
+    failed = 0
+    for i as long = 0 to gName.Count( ) - 1
+        dim as ustring dest = JoinRel( dir_, gName[i] )
+        fs.CreateDirAll( fs.PathParent( dest ) )
+        if CopyTo( PREFIX & gName[i], dest ) then done += 1 else failed += 1
+    next
+    return done
+end function

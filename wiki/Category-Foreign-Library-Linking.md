@@ -29,7 +29,7 @@ The bound name may then be used in place of a string literal in a
 | --- | --- |
 | `name` | An identifier, visible to the end of the compilation unit and inherited by including files |
 | `static` / `dynamic` | Required. Constrains which file extensions are eligible; a file of the other kind is an error, never a fallback |
-| `"spec"` | `"system:foo"` passes `foo` to the linker as `-lfoo`; anything else is a library base name resolved relative to this file, or an absolute path |
+| `"spec"` | `"system:foo"` passes `foo` to the linker as `-lfoo`; `"framework:Foo"` links the macOS framework `Foo` (`-framework Foo`) on macos-arm64 and is ignored on every other target; anything else is a library base name resolved relative to this file, or an absolute path |
 
 ## Resolution
 
@@ -37,9 +37,8 @@ Target tags and an extension are appended to the base name, most specific
 first: `<base>_<os>_<arch><ext>`, `<base>_<os><ext>`, `<base>_<arch><ext>`,
 `<base><ext>`.
 
-`<os>` is one of `windows`, `cygwin`, `linux`, `android`, `darwin`, `dos`,
-`freebsd`, `openbsd`, `netbsd`, `dragonfly`, `solaris`. `<arch>` is one of
-`x86`, `x86_64`, `arm`, `aarch64`.
+`<os>` is the target's: `windows`, `linux` or `macos`. `<arch>` is `x86_64`
+or `arm64`. A library built for macos-arm64 is therefore `<base>_macos_arm64`.
 
 `<ext>` is `.a`/`.lib` for `static`; `.dll.a`/`.lib`/`.dll`, `.dylib` or `.so`
 for `dynamic`, by target.

@@ -19,6 +19,12 @@
 '' or libraylib.so.620 on Linux.
 #module "raylib6"
 
+'' NOT ON macOS YET (docs/tiko-macos D-M7-2): raylib there links Apple's frameworks -- Cocoa,
+'' IOKit, OpenGL -- and '#foreignlib' has no way to name a framework.
+#ifdef TIKO_OS_MACOS
+    #error "vendor/raylib6 on macOS needs framework linking, not yet supported"
+#endif
+
 public #include once "raylib.ti"
 
 #ifdef TIKO_LINK_STATIC

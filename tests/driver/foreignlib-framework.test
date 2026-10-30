@@ -1,0 +1,11 @@
+'' A '#foreignlib' "framework:" SPEC (a macOS framework, as a static vendor/SDL3 names a dozen)
+'' joins the system libraries, becomes '-framework <Name>' on a Mach-O link and nothing on any
+'' other: this Windows link takes the spec's winmm, skips Cocoa, and runs.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/driver/src/foreignlib-framework.bas -o tests/driver/foreignlibframework.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/foreignlibframework.exe
+'' EXPECT-FILE-HAS: tests/driver/foreignlibframework.exe :: WINMM.dll
+'' RUN: tests/driver/foreignlibframework.exe
+'' EXPECT-RUN-OUT: ok

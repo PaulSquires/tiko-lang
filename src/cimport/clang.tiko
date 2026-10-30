@@ -58,6 +58,14 @@ private sub Candidates_( byref clangExe as string, cand() as string, byref n as 
     '' loader looks for in the current directory first -- one planted there ran (audit F-75).
     if len( DirOf_( clangExe ) ) then cand( n ) = DirOf_( clangExe ) & "libclang.dll" : n += 1
     cand( n ) = "C:\Program Files\LLVM\bin\libclang.dll" : n += 1
+#elseif defined( __FB_DARWIN__ )
+    '' Homebrew's clang is /opt/homebrew/opt/llvm/bin/clang, whose ../lib holds
+    '' libclang.dylib; then Homebrew's and the Command Line Tools' fixed places (both
+    '' measured on the Mac, docs/tiko-macos M6).
+    dim as string cdir = DirOf_( RealPath_( clangExe ) )
+    if len( cdir ) then cand( n ) = cdir & "../lib/libclang.dylib" : n += 1
+    cand( n ) = "/opt/homebrew/opt/llvm/lib/libclang.dylib" : n += 1
+    cand( n ) = "/Library/Developer/CommandLineTools/usr/lib/libclang.dylib" : n += 1
 #else
     '' /usr/bin/clang -> /usr/lib/llvm-18/bin/clang, whose ../lib holds libclang.so.1.
     dim as string cdir = DirOf_( RealPath_( clangExe ) )

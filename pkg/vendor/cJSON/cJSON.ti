@@ -1,9 +1,9 @@
 '' =============================================================================
 '' cJSON.ti -- tiko header translated by c2t (tiko 0.1.0-dev) from the C header "cJSON.h"
 ''   source sha256 : 25b0145150d500498e4d209cec69c18c42cf818bffcc54690be3b895a2a16dee
-''   clang         : clang version 21.1.0
-''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu
-''   options       : --verify
+''   clang         : Homebrew clang version 23.1.4
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0
+''   options       : --verify --macos-sysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
 ''
 '' Generated from C. Search for C2T-TODO and translate those parts by hand.
 ''
@@ -59,28 +59,27 @@
 ''   parameter  cJSON_SetValuestring.object -> cJSON_SetValuestring.object_   (tiko reserved word)
 ''   parameter  cJSON_free.object -> cJSON_free.object_   (tiko reserved word)
 ''
-'' 21 items need manual translation:
-''   line 116  cJSON.h:35  C2T-TODO(conditional)  __WINDOWS__
-''   line 139  cJSON.h:56  C2T-TODO(macro)  CJSON_STDCALL
-''   line 145  cJSON.h:59  C2T-TODO(conditional)  #if
-''   line 152  cJSON.h:61  C2T-TODO(conditional)  #endif
-''   line 157  cJSON.h:63  C2T-TODO(conditional)  #if
-''   line 160  cJSON.h:64  C2T-TODO(conditional)  CJSON_PUBLIC
-''   line 163  cJSON.h:65  C2T-TODO(conditional)  #elif
-''   line 167  cJSON.h:66  C2T-TODO(function-like-macro)  CJSON_PUBLIC
-''   line 171  cJSON.h:67  C2T-TODO(conditional)  #elif
-''   line 174  cJSON.h:68  C2T-TODO(conditional)  CJSON_PUBLIC
-''   line 177  cJSON.h:69  C2T-TODO(conditional)  #endif
-''   line 180  cJSON.h:70  C2T-TODO(conditional)  #else
-''   line 188  cJSON.h:74  C2T-TODO(conditional)  #if
-''   line 191  cJSON.h:75  C2T-TODO(conditional)  CJSON_PUBLIC
-''   line 194  cJSON.h:76  C2T-TODO(conditional)  #else
-''   line 201  cJSON.h:78  C2T-TODO(conditional)  #endif
-''   line 204  cJSON.h:79  C2T-TODO(conditional)  #endif
-''   line 405  cJSON.h:281  C2T-TODO(function-like-macro)  cJSON_SetIntValue
-''   line 409  cJSON.h:284  C2T-TODO(function-like-macro)  cJSON_SetNumberValue
-''   line 415  cJSON.h:289  C2T-TODO(function-like-macro)  cJSON_SetBoolValue
-''   line 423  cJSON.h:296  C2T-TODO(function-like-macro)  cJSON_ArrayForEach
+'' 20 items need manual translation:
+''   line 115  cJSON.h:35  C2T-TODO(conditional)  __WINDOWS__
+''   line 144  cJSON.h:59  C2T-TODO(conditional)  #if
+''   line 151  cJSON.h:61  C2T-TODO(conditional)  #endif
+''   line 156  cJSON.h:63  C2T-TODO(conditional)  #if
+''   line 159  cJSON.h:64  C2T-TODO(conditional)  CJSON_PUBLIC
+''   line 162  cJSON.h:65  C2T-TODO(conditional)  #elif
+''   line 166  cJSON.h:66  C2T-TODO(function-like-macro)  CJSON_PUBLIC
+''   line 170  cJSON.h:67  C2T-TODO(conditional)  #elif
+''   line 173  cJSON.h:68  C2T-TODO(conditional)  CJSON_PUBLIC
+''   line 176  cJSON.h:69  C2T-TODO(conditional)  #endif
+''   line 179  cJSON.h:70  C2T-TODO(conditional)  #else
+''   line 187  cJSON.h:74  C2T-TODO(conditional)  #if
+''   line 190  cJSON.h:75  C2T-TODO(conditional)  CJSON_PUBLIC
+''   line 193  cJSON.h:76  C2T-TODO(conditional)  #else
+''   line 200  cJSON.h:78  C2T-TODO(conditional)  #endif
+''   line 203  cJSON.h:79  C2T-TODO(conditional)  #endif
+''   line 404  cJSON.h:281  C2T-TODO(function-like-macro)  cJSON_SetIntValue
+''   line 408  cJSON.h:284  C2T-TODO(function-like-macro)  cJSON_SetNumberValue
+''   line 414  cJSON.h:289  C2T-TODO(function-like-macro)  cJSON_SetBoolValue
+''   line 422  cJSON.h:296  C2T-TODO(function-like-macro)  cJSON_ArrayForEach
 '' =============================================================================
 
 /'
@@ -136,8 +135,8 @@ then using the CJSON_API_VISIBILITY flag to "export" the same symbols the way CJ
 
 '' c2t: export macro CJSON_CDECL (decoration, stripped where used)
 #if defined(TIKO_OS_WINDOWS)
-'' C2T-TODO(macro) cJSON.h:56 -- 'CJSON_STDCALL': '__stdcall' is nothing tiko declares
-'' #define CJSON_STDCALL __stdcall
+'' C2T-NOTE(decoration) cJSON.h:56 -- '__stdcall' means nothing to tiko: defined, empty
+#define CJSON_STDCALL
 #endif
 
 /' export symbols by default, this is necessary for copy pasting the C and header file '/
@@ -180,24 +179,24 @@ then using the CJSON_API_VISIBILITY flag to "export" the same symbols the way CJ
 '' C2T-TODO(conditional) cJSON.h:70 -- the passes translate it differently
 '' #else /* !__WINDOWS__ */
 '' c2t: export macro CJSON_CDECL (decoration, stripped where used)
-#if defined(TIKO_OS_LINUX)
+#if not (defined(TIKO_OS_WINDOWS))
 #define CJSON_STDCALL
 #endif
 
-#if defined(TIKO_OS_LINUX)
+#if not (defined(TIKO_OS_WINDOWS))
 '' C2T-TODO(conditional) cJSON.h:74 -- inside a conditional that stays a TODO
 '' #if (defined(__GNUC__) || defined(__SUNPRO_CC) || defined (__SUNPRO_C)) && defined(CJSON_API_VISIBILITY)
 #endif
 '' C2T-TODO(conditional) cJSON.h:75 -- inside a conditional that stays a TODO
 '' #define CJSON_PUBLIC(type)   __attribute__((visibility("default"))) type
-#if defined(TIKO_OS_LINUX)
+#if not (defined(TIKO_OS_WINDOWS))
 '' C2T-TODO(conditional) cJSON.h:76 -- inside a conditional that stays a TODO
 '' #else
 #endif
-#if defined(TIKO_OS_LINUX)
+#if not (defined(TIKO_OS_WINDOWS))
 #define CJSON_PUBLIC(type) (type)
 #endif
-#if defined(TIKO_OS_LINUX)
+#if not (defined(TIKO_OS_WINDOWS))
 '' C2T-TODO(conditional) cJSON.h:78 -- inside a conditional that stays a TODO
 '' #endif
 #endif

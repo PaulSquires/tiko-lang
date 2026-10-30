@@ -1080,7 +1080,9 @@ function UdpSocket.JoinMulticast( byref group as const IpAddress ) as NetResultB
             if( hSockaddr( t, cptr( ubyte ptr, @sa ) ) = 0 ) then return NetFail( of boolean )( NET_INVALID_ADDRESS, 0, "JoinMulticast", subj )
             mr.ipv6mr_interface = sa.sin6_scope_id
         end if
-        rc = tkn_setsockopt( this.hFd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, @mr, sizeof( struct_ipv6_mreq ) )
+        '' IPV6_JOIN_GROUP, the POSIX name: Linux's IPV6_ADD_MEMBERSHIP is the same value (20),
+        '' and Darwin has only this one (12).
+        rc = tkn_setsockopt( this.hFd, IPPROTO_IPV6, IPV6_JOIN_GROUP, @mr, sizeof( struct_ipv6_mreq ) )
     end if
 #else
     #error "net/netsock: no backend for this target"

@@ -1,0 +1,87 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' bundledsuite -- tkc/bundled with bytes of its own (docs/tkEdit/SINGLE-FILE.md): registration,
+' Locate's order (config folder, loose folder, bundled copy), the readers taking either spelling,
+' CopyTo, ExportAll, and FindTheme / FindCatalog falling back to a bundled file.
+#module "bundledsuite"
+
+#import "std/containers"
+#import "std/outcome"
+#import "std/fs"
+#import "tkc/bundled"
+#import "tkc/textstream"
+#import "tkc/themes"
+#import "tkc/i18n"
+#import "../tally"
+using containers
+using outcome
+
+#embed SampleTheme "../../../../themes/light.toml"
+
+dim shared as string gText
+
+public sub Run( byref c as tally.Checker )
+    c.Begin( "bundled" )
+    dim as string nl = chr( 10 )
+    gText = "name = 'probe'" & nl & "[ui]" & nl
+    bundled.Add( "themes/probe.toml", strptr( gText ), len( gText ) )
+    bundled.Add( "themes/light.toml", @SampleTheme(0), ubound( SampleTheme ) + 1 )
+    bundled.Add( "lang/xx.toml", strptr( gText ), len( gText ) )
+    c.Check( bundled.Has( "themes/probe.toml" ), "a registered path is there" )
+    c.Check( bundled.Has( "themes/nope.toml" ) = false, "an unregistered one is not" )
+    c.SameNum( bundled.Names( "themes" ).Count( ), 2, "Names( themes ): the two themes" )
+    c.SameNum( bundled.Names( "lang" ).Count( ), 1, "Names( lang ): one catalog" )
+    dim as const any ptr p
+    dim as integer n
+    c.Check( bundled.Bytes( "themes/probe.toml", p, n ) andalso (n = len( gText )), "Bytes by path" )
+    c.Check( bundled.Bytes( bundled.PREFIX & "themes/probe.toml", p, n ), "Bytes by located name" )
+
+    ' Locate: nothing else there -> the bundled copy
+    c.Same( bundled.Locate( "themes/probe.toml", "" ), bundled.PREFIX & "themes/probe.toml", "Locate: the bundled copy" )
+    c.Same( bundled.Locate( "themes/nope.toml", "" ), "", "Locate: nowhere" )
+    c.Same( bundled.ReadAllText( bundled.PREFIX & "themes/probe.toml" ).ValueOr( "?" ), gText, "ReadAllText of a bundled file" )
+    dim as textstream.TextFileResult tr = bundled.ReadText( bundled.PREFIX & "themes/probe.toml" )
+    c.Check( tr.IsOk( ) andalso (tr.Value( ).Text = gText), "ReadText of a bundled file" )
+
+    dim as fs.FsResultUStr tmp = fs.CreateTempDir( "bundledsuite" )
+    c.Check( tmp.IsOk( ), "a temporary folder" )
+    if tmp.IsOk( ) then
+        dim as ustring cfg = fs.PathJoin( tmp.Value( ), "cfg" )
+        dim as ustring loose = fs.PathJoin( tmp.Value( ), "loose" )
+        fs.CreateDirAll( fs.PathJoin( cfg, "themes" ) )
+        fs.CreateDirAll( fs.PathJoin( loose, "themes" ) )
+        dim as ustring mine = fs.PathJoin( cfg, "themes", "probe.toml" )
+        dim as ustring theirs = fs.PathJoin( loose, "themes", "probe.toml" )
+        fs.WriteAllText( theirs, "loose" )
+        c.Same( bundled.Locate( "themes/probe.toml", cfg, loose ), theirs, "Locate: a loose folder before the bundled copy" )
+        fs.WriteAllText( mine, "mine" )
+        c.Same( bundled.Locate( "themes/probe.toml", cfg, loose ), mine, "Locate: the config folder first" )
+        c.Same( bundled.ReadAllText( mine ).ValueOr( "?" ), "mine", "ReadAllText of a real file" )
+
+        ' CopyTo: a bundled file's bytes, unchanged
+        dim as ustring dest = fs.PathJoin( tmp.Value( ), "copy.toml" )
+        c.Check( bundled.CopyTo( bundled.PREFIX & "themes/probe.toml", dest ), "CopyTo a bundled file" )
+        c.Same( fs.ReadAllText( dest ).ValueOr( "?" ), gText, "the copy holds its bytes" )
+
+        ' ExportAll: every file at its path
+        dim as long nBad
+        dim as ustring ex = fs.PathJoin( tmp.Value( ), "export" )
+        c.SameNum( bundled.ExportAll( ex, nBad ), 3, "ExportAll writes the three" )
+        c.SameNum( nBad, 0, "none failed" )
+        c.Check( fs.IsFile( fs.PathJoin( ex, "themes", "light.toml" ) ), "an exported file is at its path" )
+        fs.RemoveDirAll( tmp.Value( ) )
+    end if
+
+    ' FindTheme / FindCatalog: no folder at all -> the bundled copy, which LoadTheme reads
+    dim as ustring tf = themes.FindTheme( "light", "", "" )
+    c.Same( tf, bundled.PREFIX & "themes/light.toml", "FindTheme: the bundled theme" )
+    dim as themes.ThemeResult lt = themes.LoadTheme( tf, "light" )
+    c.Check( lt.IsOk( ), "LoadTheme reads a bundled theme" )
+    c.Same( i18n.FindCatalog( "XX", "", "" ), bundled.PREFIX & "lang/xx.toml", "FindCatalog: the bundled catalog, any case" )
+    c.Same( themes.FindTheme( "nope", "", "" ), "", "FindTheme: an unknown theme has none" )
+end sub

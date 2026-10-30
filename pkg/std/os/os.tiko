@@ -138,6 +138,13 @@ public const ARCH_NAME as string = "x86_64"
     #else
     #error "std/os: no ARCH_NAME for this Linux target"
     #endif
+#elseif defined( __FB_DARWIN__ )
+public const OS_NAME as string = "macos"
+    #if defined( __FB_ARM__ ) and defined( __FB_64BIT__ )
+public const ARCH_NAME as string = "arm64"
+    #else
+    #error "std/os: no ARCH_NAME for this macOS target"
+    #endif
 #else
     #error "std/os: no OS_NAME for this target"
 #endif

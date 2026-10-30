@@ -56,6 +56,7 @@ namespace Tko
         as int32                  modLinkMode
         as FileIdVec              unitFilesRead
         as StrVec                 unitProbesMissed   '' include candidates that were absent
+        as StrVec                 unitEmbedPaths     '' '#embed' files, absolute (docs/tiko-embed)
         as boolean                unitThreadRtl
         as boolean                unitUsesClock      '' expanded __DATE__ / __TIME__: never stored
     end type
@@ -92,6 +93,9 @@ namespace Tko
         '' exit code tells the two apart -- 1 for the program, 3/4/5 for the machine --
         '' and 'the engine holds an error' no longer can, now that both are diagnostics.
         as int32              toolErrors
+        '' '-g': where a function-local static's debug variable is listed, the clang's answer
+        '' (codegen/llvmdebug.ti DebugFrontend.staticsForm); -1 until a module first needs it.
+        as int32              dbgStaticsForm = -1
 
         '' SHARED BY EVERY COMPILATION UNIT OF THIS INVOCATION: the lexed token vectors,
         '' and the literal pool their tokens index. A header included by all 92 of

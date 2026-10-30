@@ -1,0 +1,46 @@
+'' hostinfodarwin.tiko -- sys/hostinfo's macOS answers: the executable's path through
+'' _NSGetExecutablePath and free physical memory through sysctl.
+''
+'' #INCLUDED by sys/hostinfo.tiko's POSIX branch, never compiled on its own and
+'' not in build/sources.txt. It provides the three procedures hostinfolinux.tiko does,
+''
+''     hOsExeLink( byval dst as zstring ptr, byval maxlen as integer ) as integer
+''     hOsExeLinkByPid( byval dst as zstring ptr, byval maxlen as integer ) as integer
+''     hOsFreePhysBytes( ) as uinteger
+''
+'' with readlink's contract for the first two: at most maxlen - 1 bytes, NOT terminated,
+'' the length or a negative number. Darwin has no procfs, so both names are one call:
+'' _NSGetExecutablePath (dyld's, measured on the Mac -- docs/tiko-macos FACTS "Darwin
+'' APIs"), which writes a terminated path and fails when the buffer is too small.
+''
+'' FREE MEMORY is vm.page_free_count pages of _SC_PAGESIZE bytes: both measured on the
+'' Mac (8156 pages, 16384 bytes -- Apple Silicon's pages are 16 KB, not 4).
+
+#if defined( __FB_DARWIN__ )
+
+extern "c"   '' NON-FBCALL: libc / dyld.
+	declare function u_NSGetExecutablePath alias "_NSGetExecutablePath" _
+		( byval buf as zstring ptr, byval bufsize as uint32 ptr ) as int32
+	declare function u_sysctlbyname alias "sysctlbyname" ( byval name_ as const zstring ptr, _
+		byval oldp as any ptr, byval oldlenp as uinteger ptr, byval newp as any ptr, byval newlen as uinteger ) as int32
+end extern
+
+private function hOsExeLink( byval dst as zstring ptr, byval maxlen as integer ) as integer
+	dim as uint32 size_ = cast( uint32, maxlen )
+	if( maxlen < 2 ) then return -1
+	if( u_NSGetExecutablePath( dst, @size_ ) <> 0 ) then return -1
+	return strlen( dst )
+end function
+
+private function hOsExeLinkByPid( byval dst as zstring ptr, byval maxlen as integer ) as integer
+	return hOsExeLink( dst, maxlen )
+end function
+
+private function hOsFreePhysBytes( ) as uinteger
+	dim as uint32 pages = 0
+	dim as uinteger sz = sizeof( uint32 )
+	if( u_sysctlbyname( @"vm.page_free_count", @pages, @sz, nullptr, 0 ) <> 0 ) then return 0
+	return cast( uinteger, pages ) * cast( uinteger, u_sysconf( _SC_PAGESIZE ) )
+end function
+
+#endif

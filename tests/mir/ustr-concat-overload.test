@@ -2,8 +2,5 @@
 '' TEST: cli
 '' ARGS: --dump-ir -i toolchains/tiko-windows/inc tests/mir/src/ustr-concat-overload.bas
 '' EXPECT-EXIT: 0
-'' std/fs ON macos-arm64 STOPS AT ITS POSIX BINDING until docs/tiko-macos M5 generates it on the Mac.
-'' EXPECT-EXIT[macos-arm64]: 1
-'' EXPECT-OUT[macos-arm64]: sys/posix: no binding for this target yet
 '' EXPECT-OUT: verify: ok
 '' EXPECT-OUT: 0 statements not lowered
