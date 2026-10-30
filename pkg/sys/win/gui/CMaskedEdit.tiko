@@ -545,7 +545,7 @@ SUB CMaskedEdit.OnCharPrintchar(BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYVA
    DIM chChar AS USHORT = nChar
    IF iswprint(chChar) = FALSE THEN RETURN
    ' // Processing ES_UPPERCASE and ES_LOWERCASE styles
-   DIM dwStyle AS DWORD = GetWindowStyle(m_hCtl)   ' windowsx.bi's macro
+   DIM dwStyle AS DWORD = GetWindowStyle(m_hCtl)   ' windowsx.bi's macro (RFC-0001 5.1.1)
    IF (dwStyle AND ES_UPPERCASE) = ES_UPPERCASE THEN
       chChar = towupper(chChar)
    ELSEIF (dwStyle AND ES_LOWERCASE) = ES_LOWERCASE THEN
