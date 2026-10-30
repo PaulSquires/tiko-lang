@@ -218,14 +218,6 @@ records with their strings. Unlike lldb, gdb honours the declared lower bound: i
 the element the program calls `rs( 1 )`, `"north"`.
 ```
 
-### The debugger in the editor
-
-tiko-editor's debugger drives `lldb-dap`, the same engine behind a protocol editors speak. It runs
-a `-g` build of your program in a console of its own and shows the state in tiko's terms rather
-than C's: a string as its text, an array with its declared bounds and its elements under the
-indices the program uses, a `byref` parameter as the value it refers to. Breakpoints, stepping,
-the call stack, watches and hover tips work as they do in any debugger.
-
 ## Warnings and the diagnostics workflow
 
 An error stops the build. A **warning** does not: the program is built, and it runs. That is
@@ -283,7 +275,8 @@ The first line names the format and its version. Each record is the kind — aft
 `-Wno-` have been applied — the id, the absolute path, the start and end of the range (line and
 column, the end exclusive), and the message. The `end` record carries the error count, the warning
 count and the exit code; a file with no `end` record means the compiler did not finish. The
-console output is unchanged. This is what tiko-editor reads after every build.
+console output is unchanged. This is what tkEdit reads after every build, to list the errors
+and underline them in the source.
 
 ## Looking inside a build
 
