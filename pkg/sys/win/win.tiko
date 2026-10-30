@@ -619,7 +619,7 @@ END FUNCTION
 
 ' ========================================================================================
 ' The same, for narrow text: a literal, a STRING or a ZSTRING, read as UTF-8, as tiko's
-' literals are. Without it, once the name is SetWindowText (RFC-0001 rule K), a bare
+' literals are. Without it, once the name is SetWindowText, a bare
 ' SetWindowText(hwnd, "Some text") would bind Windows' SetWindowTextA and send ANSI. An
 ' explicit ZSTRING PTR (@sz, STRPTR(s)) still reaches SetWindowTextA, the API's own form.
 ' ========================================================================================
