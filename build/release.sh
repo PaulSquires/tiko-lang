@@ -2,7 +2,8 @@
 # release.sh -- archive, hash, smoke-test and (only when asked) publish a toolchain release.
 #
 #   bash build/release.sh --notes <notes.md> [--sha <commit>] [--prev <dir>]
-#                         [--editor <dir>] [--no-tkedit] [--no-mac] [--publish [--latest]]
+#                         [--editor <dir>] [--no-tkedit] [--lsp <dir>] [--no-lsp] [--no-mac]
+#                         [--publish [--latest]]
 #
 # THE RECIPE THAT LIVED IN MEMORY NOTES (review BLD-06, 2026-10-24), as one script. It does
 # not package: run build/package.sh --verify for each host first (Windows here, Linux under
@@ -13,6 +14,13 @@
 #   tkedit in its root: tiko-lang/tkedit.exe next to tiko.exe; tiko-lang/tkedit above bin/tiko; on
 #   macOS tiko-lang/tkEdit.app. The archive names are unchanged. (--no-tkedit: the
 #   compiler alone.)
+#   THE LANGUAGE SERVER RIDES ALONG (author 2026-10-30): tiko-lang/tiko-lsp.exe next to tiko.exe,
+#   tiko-lang/bin/tiko-lsp next to bin/tiko -- so a tiko on the PATH puts tiko-lsp there too --
+#   and its licence as licences/LICENSE-tiko-lsp. It is taken from tiko-lsp's OWN release
+#   archives, the binaries that passed that repository's gates (its release/build-*.sh):
+#   --lsp <dir> holds tiko-lsp-windows-x86_64.zip and tiko-lsp-linux-x86_64.tar.gz (default
+#   ../tiko-lsp/dist); the Mac's is ~/dev/tiko-lsp/dist/tiko-lsp-macos-arm64.tar.gz there.
+#   --no-lsp leaves it out.
 #   2. zips toolchains/tiko-windows, staged as tiko-lang, with C:/Windows/System32/tar.exe (bsdtar) -- Git Bash's
 #      bare tar.exe is GNU tar, whose '-a -cf x.zip' writes an uncompressed TAR named .zip --
 #      and checks the result is a zip;
@@ -26,6 +34,7 @@
 #   5. smoke-tests each archive extracted into an empty directory with no TKO_* variable:
 #      hello.tiko compiled and run, tiko-lang/ the archive's only folder, and tkedit in its
 #      root -- on macOS a tkEdit.app whose signature verifies (one file: docs/tkEdit/SINGLE-FILE.md);
+#      and tiko-lsp beside the compiler, answering --version;
 #   6. with --prev <dir> holding the previous release's two archives, prints the files each
 #      archive gained and lost, below the top folder (so an older tiko-windows/ compares as tiko-lang/);
 #   7. with --editor <dir>, mirrors tiko-windows into <dir> (the editor's toolchain copy);
@@ -36,7 +45,7 @@
 set -o pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT" || exit 2
-NOTES="" SHA="" PREV="" EDITOR="" PUBLISH=0 LATEST=0 TKEDIT=1 MAC=1
+NOTES="" SHA="" PREV="" EDITOR="" PUBLISH=0 LATEST=0 TKEDIT=1 MAC=1 LSP=1 LSPDIR=
 while [ $# -gt 0 ]; do
     case "$1" in
         --notes)   shift; NOTES=$1 ;;
@@ -47,7 +56,9 @@ while [ $# -gt 0 ]; do
         --latest)  LATEST=1 ;;
         --no-tkedit) TKEDIT=0 ;;
         --no-mac)  MAC=0 ;;
-        -h|--help) sed -n '2,33p' "$0"; exit 0 ;;
+        --lsp)     shift; LSPDIR=$1 ;;
+        --no-lsp)  LSP=0 ;;
+        -h|--help) sed -n '2,42p' "$0"; exit 0 ;;
         *) echo "release: unknown argument '$1'" >&2; exit 2 ;;
     esac
     shift
@@ -64,6 +75,9 @@ TKWIN=toolchains/tkedit-windows
 TKLNX=toolchains/tkedit-linux
 OUT=build/.release/$SHORT
 mkdir -p "$OUT"
+LSPDIR=${LSPDIR:-../tiko-lsp/dist}
+LSPWIN=$LSPDIR/tiko-lsp-windows-x86_64.zip
+LSPLNX=$LSPDIR/tiko-lsp-linux-x86_64.tar.gz
 MACH=${TKO_MAC_HOST:-mac}
 MSSH=${TKO_MAC_SSH_OPTS:-}
 # A REMOTE STEP IS A FILE, run by a login zsh: a non-login ssh shell has no Homebrew on PATH,
@@ -85,13 +99,16 @@ if [ "$MAC" = "1" ]; then
 cd ~/dev/tiko-lang/toolchains/tiko-macos || exit 2
 grep -q "$SHORT" MANIFEST.txt || exit 3
 grep -q " FAIL" MANIFEST.txt && exit 4
-[ "$TKEDIT" = "1" ] || exit 0
+if [ "$TKEDIT" = "1" ]; then
 [ -f ../tkedit-macos/tkEdit.app/Contents/MacOS/tkedit ] || exit 5
 grep -q "^tkedit  *\.\./tkedit-macos" MANIFEST.txt || exit 6
+fi
+[ "$LSP" = "1" ] || exit 0
+[ -f ~/dev/tiko-lsp/dist/tiko-lsp-macos-arm64.tar.gz ] || exit 7
 exit 0
 EOF
     on_mac "$OUT/mac-check.sh"; rc=$?
-    [ $rc = 0 ] || die "the Mac's toolchains/tiko-macos: none (2), MANIFEST not at $SHORT (3), a FAIL in it (4), no tkedit-macos/tkEdit.app (5) or no tkedit line (6; or pass --no-tkedit) -- rc $rc"
+    [ $rc = 0 ] || die "the Mac's toolchains/tiko-macos: none (2), MANIFEST not at $SHORT (3), a FAIL in it (4), no tkedit-macos/tkEdit.app (5), no tkedit line (6; or pass --no-tkedit) or no ~/dev/tiko-lsp/dist/tiko-lsp-macos-arm64.tar.gz (7; build it there with release/build-macos.sh, or pass --no-lsp) -- rc $rc"
     note "the Mac's MANIFEST names $SHORT"
 fi
 if [ "$TKEDIT" = "1" ]; then
@@ -99,6 +116,11 @@ if [ "$TKEDIT" = "1" ]; then
     [ -f "$TKLNX/tkedit" ] || die "no $TKLNX/tkedit -- package.sh under WSL packages it (or pass --no-tkedit)"
     grep -q "^tkedit  *\.\./tkedit-windows" "$WIN/MANIFEST.txt" || die "$WIN/MANIFEST.txt has no tkedit line: $TKWIN is not from this packaging"
     grep -q "^tkedit  *\.\./tkedit-linux" "$LNX/MANIFEST.txt" || die "$LNX/MANIFEST.txt has no tkedit line: $TKLNX is not from this packaging"
+fi
+if [ "$LSP" = "1" ]; then
+    [ -f "$LSPWIN" ] || die "no $LSPWIN -- build it in tiko-lsp with release/build-windows.sh (or pass --lsp <dir>, or --no-lsp)"
+    [ -f "$LSPLNX" ] || die "no $LSPLNX -- build it in tiko-lsp with release/build-linux.sh under WSL (or pass --lsp <dir>, or --no-lsp)"
+    note "tiko-lsp from $LSPDIR"
 fi
 
 # 2. the Windows zip
@@ -113,6 +135,13 @@ rm -rf "$OUT/stage" && mkdir -p "$OUT/stage" && cp -r "$WIN" "$OUT/stage/tiko-la
 if [ "$TKEDIT" = "1" ]; then
     cp -f "$TKWIN/tkedit.exe" "$OUT/stage/tiko-lang/" || die "staging tkedit.exe"
 fi
+if [ "$LSP" = "1" ]; then
+    rm -rf "$OUT/lsp-win" && mkdir -p "$OUT/lsp-win" || die "staging tiko-lsp"
+    ( cd "$OUT/lsp-win" && "$BSDTAR" -xf "$ROOT/$LSPWIN" ) || die "$LSPWIN does not extract"
+    cp -f "$OUT/lsp-win/tiko-lsp.exe" "$OUT/stage/tiko-lang/" || die "staging tiko-lsp.exe"
+    cp -f "$OUT/lsp-win/LICENSE" "$OUT/stage/tiko-lang/licences/LICENSE-tiko-lsp" || die "staging tiko-lsp's licence"
+    rm -rf "$OUT/lsp-win"
+fi
 ( cd "$OUT/stage" && "$BSDTAR" -a -cf "$ROOT/$ZIP" tiko-lang ) || die "zip failed"
 rm -rf "$OUT/stage"
 file "$ZIP" | grep -q "Zip archive" || die "$ZIP is not a zip archive"
@@ -123,16 +152,25 @@ TGZ=$OUT/tiko-linux-x86_64-$SHORT.tar.gz
 WSLSH=$OUT/tar-linux.sh
 TKDIRS=""
 [ "$TKEDIT" = "1" ] && TKDIRS="tkedit"
+LSPGZ=""
+[ "$LSP" = "1" ] && LSPGZ="/mnt/c${ROOT#/c}/$LSPLNX"
 cat > "$WSLSH" <<EOF
 set -e
 rm -rf ~/tkrel-$SHORT && mkdir -p ~/tkrel-$SHORT
 cp -r "/mnt/c${ROOT#/c}/$LNX" ~/tkrel-$SHORT/tiko-lang
 [ -z "$TKDIRS" ] || cp -a "/mnt/c${ROOT#/c}/$TKLNX/tkedit" ~/tkrel-$SHORT/tiko-lang/tkedit
+if [ -n "$LSPGZ" ]; then
+    mkdir -p ~/tkrel-$SHORT/lsp && tar -xzf "$LSPGZ" -C ~/tkrel-$SHORT/lsp
+    cp ~/tkrel-$SHORT/lsp/tiko-lsp ~/tkrel-$SHORT/tiko-lang/bin/tiko-lsp
+    cp ~/tkrel-$SHORT/lsp/LICENSE ~/tkrel-$SHORT/tiko-lang/licences/LICENSE-tiko-lsp
+    rm -rf ~/tkrel-$SHORT/lsp
+fi
 cd ~/tkrel-$SHORT
 find tiko-lang -type f -exec chmod 644 {} +
 find tiko-lang -type d -exec chmod 755 {} +
 chmod 755 tiko-lang/bin/tiko
 [ -z "$TKDIRS" ] || chmod 755 tiko-lang/tkedit
+[ -z "$LSPGZ" ] || chmod 755 tiko-lang/bin/tiko-lsp
 tar -czf "/mnt/c${ROOT#/c}/$TGZ" --owner=0 --group=0 tiko-lang
 EOF
 MSYS_NO_PATHCONV=1 wsl.exe -e sh "/mnt/c${ROOT#/c}/$WSLSH" || die "WSL tar failed"
@@ -148,12 +186,19 @@ set -e
 rm -rf ~/tkrel-$SHORT && mkdir -p ~/tkrel-$SHORT
 cp -R ~/dev/tiko-lang/toolchains/tiko-macos ~/tkrel-$SHORT/tiko-lang
 [ -z "$TKDIRS" ] || cp -R ~/dev/tiko-lang/toolchains/tkedit-macos/tkEdit.app ~/tkrel-$SHORT/tiko-lang/tkEdit.app
+if [ "$LSP" = "1" ]; then
+    mkdir -p ~/tkrel-$SHORT/lsp && tar -xzf ~/dev/tiko-lsp/dist/tiko-lsp-macos-arm64.tar.gz -C ~/tkrel-$SHORT/lsp
+    cp ~/tkrel-$SHORT/lsp/tiko-lsp ~/tkrel-$SHORT/tiko-lang/bin/tiko-lsp
+    cp ~/tkrel-$SHORT/lsp/LICENSE ~/tkrel-$SHORT/tiko-lang/licences/LICENSE-tiko-lsp
+    rm -rf ~/tkrel-$SHORT/lsp
+fi
 cd ~/tkrel-$SHORT
 xattr -cr tiko-lang
 find tiko-lang -type f -exec chmod 644 {} +
 find tiko-lang -type d -exec chmod 755 {} +
 chmod 755 tiko-lang/bin/tiko
 [ -z "$TKDIRS" ] || chmod 755 tiko-lang/tkEdit.app/Contents/MacOS/tkedit
+[ "$LSP" = "1" ] && chmod 755 tiko-lang/bin/tiko-lsp
 COPYFILE_DISABLE=1 tar --no-xattrs --no-mac-metadata --uid 0 --gid 0 -czf tiko-macos-arm64-$SHORT.tar.gz tiko-lang
 EOF
     on_mac "$OUT/tar-macos.sh" || die "the Mac's tar failed"
@@ -179,6 +224,10 @@ got=$( cd "$SMOKE" && env -u TKO_INCLUDE -u TKO_LIBPATH -u TKO_PKG \
 if [ "$TKEDIT" = "1" ]; then
     [ -f "$SMOKE/win/tiko-lang/tkedit.exe" ] || die "Windows smoke: no tiko-lang/tkedit.exe beside tiko.exe"
 fi
+if [ "$LSP" = "1" ]; then
+    lsp=$("$SMOKE/win/tiko-lang/tiko-lsp.exe" --version 2>&1) || die "Windows smoke: tiko-lsp.exe --version failed: $lsp"
+    case "$lsp" in "tiko-lsp "*) note "smoke windows-x86_64: $lsp" ;; *) die "Windows smoke: tiko-lsp --version said '$lsp'" ;; esac
+fi
 note "smoke windows-x86_64: ok"
 cat > "$OUT/smoke-linux.sh" <<EOF
 set -e
@@ -186,6 +235,7 @@ rm -rf ~/tksmoke-$SHORT && mkdir -p ~/tksmoke-$SHORT && cd ~/tksmoke-$SHORT
 tar -xzf "/mnt/c${ROOT#/c}/$TGZ"
 test "\$(ls -A)" = "tiko-lang"
 [ -z "$TKDIRS" ] || test -x tiko-lang/tkedit
+[ -z "$LSPGZ" ] || tiko-lang/bin/tiko-lsp --version 2>&1 | grep -q '^tiko-lsp '
 printf 'print "hello from tiko"\n' > hello.tiko
 env -u TKO_INCLUDE -u TKO_LIBPATH -u TKO_PKG tiko-lang/bin/tiko hello.tiko -o hello
 ./hello
@@ -202,6 +252,7 @@ rm -rf ~/tksmoke-$SHORT && mkdir -p ~/tksmoke-$SHORT/home && cd ~/tksmoke-$SHORT
 tar -xzf ~/tkrel-$SHORT/tiko-macos-arm64-$SHORT.tar.gz
 test "\$(ls -A | grep -v '^home\$')" = "tiko-lang"
 [ -z "$TKDIRS" ] || { test -x tiko-lang/tkEdit.app/Contents/MacOS/tkedit && codesign --verify --deep --strict tiko-lang/tkEdit.app; }
+[ "$LSP" != "1" ] || { codesign --verify --strict tiko-lang/bin/tiko-lsp && tiko-lang/bin/tiko-lsp --version 2>&1 | grep -q '^tiko-lsp '; }
 echo 'print "hello from tiko"' > hello.tiko
 env -i HOME=\$PWD/home PATH=/usr/bin:/bin tiko-lang/bin/tiko hello.tiko -o hello
 ./hello
