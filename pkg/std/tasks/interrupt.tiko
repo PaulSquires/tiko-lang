@@ -2,8 +2,6 @@
 #import "std/os"
 '' std/tasks: interrupt -- tasks.InterruptContext, a Context cancelled by Ctrl-C
 ''
-'' C:\dev\docs\tiko-stdlib\RFC-0001 section 8.5.
-''
 ''     dim ctx as Context = InterruptContext( )
 ''     while( ctx.IsCancelled( ) = FALSE )
 ''         '' ... one unit of work ...

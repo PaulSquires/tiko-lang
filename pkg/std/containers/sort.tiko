@@ -79,7 +79,7 @@
 '' A member needing '<' on T would therefore make Array( of T ) fail to
 '' instantiate for every T without one.  A generic PROCEDURE is instantiated
 '' only where it is called, so the requirement lands on the call site that
-'' actually sorts.  See docs/generics/generics.txt, KNOWN LIMITS.
+'' actually sorts.
 ''
 '' WHY THE NAMES ARE ALL DIFFERENT.  There is no overloading of generic
 '' procedures -- a second 'Sort' of any signature is error 4, Duplicated

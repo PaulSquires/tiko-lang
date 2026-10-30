@@ -9,11 +9,11 @@ using posix
 using containers
 using outcome
 '' std/net: netsock -- Resolve, TcpStream, TcpListener, UdpSocket.  ws2_32 on
-'' Windows, libc on POSIX, both declared here (RFC-0001 S12); the BSD calls are the
+'' Windows, libc on POSIX, both declared here; the BSD calls are the
 '' same on both, so one body serves both and only the declarations, the constants
 '' and a few helpers differ.  On POSIX every constant and struct is sys/posix's, and
 '' what is Linux-only (errno's accessor, SOCK_CLOEXEC, accept4, MSG_NOSIGNAL, MSG_TRUNC
-'' as a receive flag) is netlinux.tiko's.  Rules: RFC-0001 section 15.3.
+'' as a receive flag) is netlinux.tiko's.
 
 #ifdef __FB_WIN32__
 
@@ -106,7 +106,7 @@ private function hLastErr( ) as long
     return tkn_WSAGetLastError( )
 end function
 
-'' WSAStartup once per process, whichever thread gets there first (D6); never
+'' WSAStartup once per process, whichever thread gets there first; never
 '' cleaned up.  0, or the WSAStartup error.
 private function hStartup( ) as long
     if( FB.AtomicLoadLong( @tkn_wsaState ) = 2 ) then return 0
@@ -340,7 +340,7 @@ private function hMapErr( byval e as long ) as NetErrorCode
     return NET_UNKNOWN
 end function
 
-'' Stream I/O reports fs.FsError (D2).
+'' Stream I/O reports fs.FsError.
 private function hFsFail( byval e as long, byref op as const ustring ) as fs.FsResultI64
     dim as fs.FsErrorCode c = fs.FS_UNKNOWN
     select case e

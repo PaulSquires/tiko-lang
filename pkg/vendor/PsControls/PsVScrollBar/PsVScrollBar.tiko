@@ -195,7 +195,7 @@ public declare sub      PsVScrollBar_SetScrollCallback( byval hSB as HWND, byval
 '         PsVScrollBar_HandleWheelDelta( hSB, cast(short, hiword(wParam)) )
 '
 ' The cast matters: loword/hiword yield UNSIGNED words, so a delta read without it turns
-' ~-120 into ~65416 and the direction silently inverts (see C:\dev\Learnings.md).
+' ~-120 into ~65416 and the direction silently inverts.
 ' Returns TRUE if the position actually moved.
 '
 ' ROUTING, worth knowing: Windows sends wheel messages to the FOCUSED window, and this
@@ -264,7 +264,7 @@ end function
 '     PsVScrollBar_HandleWheelDelta( hSB, cast(short, hiword(wParam)) )
 '
 ' The cast matters -- loword/hiword yield UNSIGNED words, so a scroll-up delta read without
-' it becomes ~65416 and the direction silently inverts (see C:\dev\Learnings.md).
+' it becomes ~65416 and the direction silently inverts.
 '
 ' SIGN: for WM_MOUSEWHEEL a POSITIVE delta means the wheel moved away from the user, which
 ' scrolls UP, which DECREASES nPos. That is the opposite of PsHScrollBar, whose horizontal
@@ -519,7 +519,7 @@ function PsVScrollBar_WndProc( _
         ' A wheel, or a two-finger trackpad swipe, with the cursor over the bar. All the
         ' work (and the sign) lives in HandleWheelDelta, which a host can also call to
         ' route a gesture made over the content. The signed-word cast is not optional --
-        ' hiword is unsigned (Learnings.md).
+        ' hiword is unsigned.
         '
         ' Reaching us at all depends on "scroll inactive windows when I hover over them"
         ' (on by default), since this control never takes focus -- see the ROUTING note above
@@ -682,7 +682,7 @@ public sub PsVScrollBar_ApplyTheme( byval hSB as HWND, byref t as PSTHEME_COLORS
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). The scrollbar stores no pixel metric of its own: the range
+' Per-monitor DPI. The scrollbar stores no pixel metric of its own: the range
 ' is in the host's units, the thumb rect is derived from range and track (Recalc) and the
 ' minimum thumb height is scaled at use. So the CWindow takes the new DPI -- which Recalc's
 ' ScaleX/ScaleY then follow -- and the thumb is re-derived; the host re-sizes the track.

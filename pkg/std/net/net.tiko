@@ -18,8 +18,6 @@ using outcome
 ''     dim u as net.NetResultUrl = net.ParseUrl( "https://example.com/a%20b?q=1#top" )
 ''     if u.IsOk( ) then print u.Value( ).Path, u.Value( ).Query( ).Get( "q" ).ValueOr( "" )
 ''
-'' C:\dev\docs\tiko-stdlib\RFC-0001 section 15.
-''
 ''   addresses     IpAddress (v4 or v6, with a zone), SocketAddress (an IpAddress and a
 ''                 port), ParseIp, ParseSocketAddress, Ipv4, Loopback, AnyAddress.  Parsing
 ''                 is strict: a v4 part with a leading zero is refused.  v6 prints as

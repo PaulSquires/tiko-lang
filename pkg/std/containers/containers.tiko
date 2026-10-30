@@ -1,5 +1,5 @@
 #module "containers"
-'' std/containers: containers -- the FreeBASIC standard containers (RFC-0004)
+'' std/containers: containers -- the FreeBASIC standard containers
 ''
 ''     #import "std/containers"
 ''     using containers
@@ -11,8 +11,8 @@
 ''     dim byKey as OrderedMap( of string, long )
 ''     dim sorted as OrderedSet( of long )
 ''
-'' Six containers, written in ordinary FreeBASIC on top of generics
-'' (RFC-0001), the iterator protocol (RFC-0002) and FOR EACH (RFC-0003).  None of
+'' Six containers, written in ordinary FreeBASIC on top of generics,
+'' the iterator protocol and FOR EACH.  None of
 '' them is built into the compiler and none gets special treatment from it: a
 '' better one written by anybody else is on exactly equal footing.
 ''

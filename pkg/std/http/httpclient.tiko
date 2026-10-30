@@ -642,7 +642,7 @@ private function hOpen( byref cl as Client, byref req0 as const Request, byref r
         dim as net.Url nxt = nu.Value( )
         nxt.Fragment = ""
         '' CREDENTIALS DO NOT FOLLOW a redirect to another host, nor one from https down to
-        '' http, where they would cross the wire in the clear (review ROB-08).
+        '' http, where they would cross the wire in the clear.
         if( ( lcase( nxt.Host ) <> lcase( u.Host ) ) orelse _
             ( ( lcase( u.Scheme ) = "https" ) andalso ( lcase( nxt.Scheme ) <> "https" ) ) ) then
             req.Header.Remove( "Authorization" )

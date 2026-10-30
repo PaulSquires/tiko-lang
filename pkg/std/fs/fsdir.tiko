@@ -5,8 +5,6 @@ using outcome
 using containers
 '' std/fs: fsdir -- fs.DirEntry, fs.DirIterator, fs.ReadDir
 ''
-'' Specified in C:\dev\docs\filesystem\RFC-0004-iteration.md.
-''
 '' THE DEFECT THIS FIXES. Dir/DirNext keeps ONE CURSOR PER THREAD -- the TLS
 '' FB_DIRCTX in rtlib/win32/file_dir.c and rtlib/unix/file_dir.c -- so a second
 '' Dir( ) on the same thread silently resets the first. The obvious recursive
@@ -15,7 +13,7 @@ using containers
 '' handle: nesting, recursion, two concurrent scans on one thread, and scans on
 '' many threads are all simply correct.
 ''
-'' CONFORMS TO THE ITERATOR PROTOCOL in docs/for_each/iterator-protocol.txt, so
+'' CONFORMS TO THE ITERATOR PROTOCOL, so
 '' `for each` walks a directory. The protocol is STRUCTURAL -- a type is
 '' iterable because name lookup finds GetIterator, IsValid, Value and MoveNext.
 '' A typo in any of those reads as "not iterable" rather than as a diagnostic,
@@ -26,7 +24,7 @@ using containers
 '' a device that went away. Making the failure an ELEMENT puts it where the loop
 '' already looks:
 ''
-''     for each r in fs.ReadDir( "C:\dev" )
+''     for each r in fs.ReadDir( "C:\projects" )
 ''         if( r.IsOk( ) ) then print r.Value( ).Name( ) else print "skipped"
 ''     next
 ''
@@ -94,7 +92,7 @@ end extern
 '' The kind predicates are FREE -- WIN32_FIND_DATAW carries the attributes and
 '' the reparse tag, and dirent carries d_type -- and the answer is LSTAT-SHAPED:
 '' a symlink reports IsSymlink, not the kind of its target. That is what makes
-'' the walk's symlink rule expressible in phase 3.
+'' the walk's symlink rule expressible.
 public type DirEntry
     declare const function Name       ( ) as ustring
     declare const function Path       ( ) as ustring
@@ -309,8 +307,7 @@ end function
 '' produce a sorted listing, and let the caller delete or rename entries while
 '' working through them. Mutating a directory's structure during iteration
 '' invalidates the iterator, and on Windows the underlying behaviour is
-'' explicitly undefined. RemoveDirAll in phase 3 will use this, not the
-'' iterator, for exactly that reason.
+'' explicitly undefined.
 public declare function ListDir overload ( byref p as const ustring, entries as Array( of DirEntry ) ) as FsResultLong
 
 public function ListDir( byref p as const ustring, entries as Array( of DirEntry ) ) as FsResultLong
@@ -331,7 +328,7 @@ end function
 
 '' ================================================================== WalkDir
 ''
-'' Recursive, pre-order, and specified in RFC-0004 section 5.
+'' Recursive and pre-order.
 ''
 '' IT DOES NOT HOLD A STACK OF DirIterators, and that is forced rather than
 '' chosen. containers.Array reallocates on growth and COPIES its elements, and a
@@ -343,13 +340,11 @@ end function
 '' The trade is real and worth naming: this buffers one directory's entries per
 '' level of the current path instead of holding one handle per level. It cannot
 '' exhaust a handle limit and cannot be broken by a container reallocation.
-'' RFC-0004 section 5 rule 8 is amended to match.
 ''
 '' PRE-ORDER falls out of the stack discipline: pop an entry, yield it, and
 '' push its children in REVERSE so the first child is popped next.
 
-'' What a WalkOptions.Filter answers for one entry, as bit flags (C:\dev\docs\tiko-fs\RFC-0001
-'' section 11).
+'' What a WalkOptions.Filter answers for one entry, as bit flags.
 public enum WalkDecision
     WALK_SKIP    = 0          '' neither yield it nor walk into it
     WALK_YIELD   = 1          '' hand this entry to the caller
@@ -373,7 +368,7 @@ public type WalkOptions
     as boolean StopOnError        '' default FALSE
     as long    MaxDepth           '' default 0 = unbounded
 
-    '' RFC-0001 section 11 -- all default to the behaviour above:
+    '' These all default to the behaviour above:
     as WalkFilter Filter          '' nullptr = WALK_ALL for every entry
     as any ptr    FilterUser      '' passed to Filter untouched
     as boolean    ContentsFirst   '' FALSE; TRUE = a directory AFTER its contents
@@ -408,7 +403,7 @@ FBFSDIR_EXTERN
         ( byref p as const ustring, byref vol as ulongint, byref id as ulongint ) as long
 end extern
 
-'' PRUNING (RFC-0001 section 11). Two ways, for two kinds of loop:
+'' PRUNING. Two ways, for two kinds of loop:
 ''
 ''   - WalkOptions.Filter, consulted for EVERY entry the walk reaches, returns
 ''     WalkDecision bits. An entry is yielded only when the options AND the filter

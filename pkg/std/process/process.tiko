@@ -13,8 +13,6 @@ using outcome
 ''     dim st as process.ProcResultStatus = process.Run( process.Command( "tiko" ).Arg( "--version" ) )
 ''     if st.IsOk( ) then print st.Value( ).Code( )
 ''
-'' C:\dev\docs\tiko-stdlib\RFC-0001 section 9.
-''
 ''   Command       a value: the program, its arguments, directory, environment
 ''                 changes and what its stdin/stdout/stderr are.  Every setter returns
 ''                 the Command, so calls chain.  Copyable and reusable.

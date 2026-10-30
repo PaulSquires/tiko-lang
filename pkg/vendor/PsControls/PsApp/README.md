@@ -212,5 +212,3 @@ fonts in variables, read `f->Font( role )` again there: the old handles are dele
 - **The theme is automatic.** Every control is themed as it is created. Calling one of its colour
   setters pins its colours (see [PsTheme](../PsTheme/README.md)). A form without `OnPaint` paints
   the theme's `Window` role.
-
-Specified in `C:\dev\docs\tiko-psapp\RFC-0001-psapp.md`.

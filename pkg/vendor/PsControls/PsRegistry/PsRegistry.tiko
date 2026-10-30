@@ -41,7 +41,7 @@ using PsTheme
 ' toggle handler gets it, and a popup row walked after it would treat that click as an outside
 ' click and close the chain. Every API that hands a popup to an owner therefore removes its row.
 '
-' THEME AND FONTS (RFC-0001 P3). Every themable control also gives its row a theme proc
+' THEME AND FONTS. Every themable control also gives its row a theme proc
 ' (Ps<X>_ApplyTheme) and a font proc (Ps<X>_ApplyFonts) -- a control with no filter gets a row for
 ' them alone. The registry holds the current theme: PsRegistry_SetTheme applies it to every row,
 ' and a row that gains a theme proc while a theme is current gets it at once, so a control is
@@ -58,7 +58,7 @@ public type PSREG_GlobalFilterProc as function( byval pMsg as MSG ptr ) as boole
 public type PSREG_DismissProc      as sub( byval h as HWND )
 public type PSREG_ThemeProc        as sub( byval h as HWND, byref t as PSTHEME_COLORS )
 public type PSREG_FontProc         as sub( byval h as HWND, byval hTextFont as HFONT, byval hGlyphFont as HFONT )
-' A control's per-monitor DPI step (RFC-0001 P4): every stored pixel metric times newDpi/oldDpi.
+' A control's per-monitor DPI step: every stored pixel metric times newDpi/oldDpi.
 public type PSREG_RescaleProc      as sub( byval h as HWND, byval oldDpi as long, byval newDpi as long )
 ' Installed by PsApp: hands a newly registered control the fonts -- and, under per-monitor DPI,
 ' the DPI -- of the form it is on.

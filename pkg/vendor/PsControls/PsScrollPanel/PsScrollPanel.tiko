@@ -146,7 +146,7 @@ public type PSSCROLLPANEL_STATE
     ' The one GDI resource this control owns: the brush handed back to WM_CTLCOLOR*.
     ' Recreated by SetColors, deleted at WM_NCDESTROY. NOT named hBrush -- FreeBASIC is
     ' case-insensitive, so a member called hBrush would shadow the TYPE name HBRUSH inside
-    ' every member procedure of this type (PsSplitter's hBarCursor trap; see Learnings.md).
+    ' every member procedure of this type (PsSplitter's hBarCursor trap).
     hBackBrushObj  as HBRUSH
     PaintCallback    as SCP_PaintCallbackSub
     MessageCallback  as SCP_MessageCallbackFunc
@@ -306,7 +306,7 @@ public declare function PsScrollPanel_GetScrollBar( byval hScp as HWND ) as HWND
 '   SetPos / ScrollBy  clamped, applied, silent.
 '   EnsureVisible      scroll the MINIMUM distance that brings hChild fully into view; a
 '                      child taller than the viewport is top-aligned. Silent, and it never
-'                      calls SetFocus (see Learnings.md on layout routines that steal it).
+'                      calls SetFocus (a layout routine must not steal focus).
 '   Recalc             force a full layout pass -- the layout callback, the page geometry
 '                      and the scrollbar sync. Call it after adding or moving children.
 ' ----------------------------------------------------------------------------------------
@@ -370,11 +370,11 @@ public declare function PsScrollPanel_IsThumbVisible( byval hScp as HWND ) as bo
 '         PsScrollPanel_HandleWheelDelta( hScp, cast(short, hiword(wParam)) )
 '
 ' The cast matters: loword/hiword yield UNSIGNED words, so a delta read without it turns
-' ~-120 into ~65416 and the direction silently inverts (see C:\dev\Learnings.md).
+' ~-120 into ~65416 and the direction silently inverts.
 '
 ' THE UNIT. This control's range is in PIXELS, but the system's wheel setting
 ' (SPI_GETWHEELSCROLLLINES) counts LINES. Feeding that number to a pixel range gives three
-' pixels a notch and a gesture that feels dead -- the exact PsHScrollBar bug in Learnings.md.
+' pixels a notch and a gesture that feels dead -- the exact PsHScrollBar bug.
 ' So the conversion happens here: one notch = system lines x SetLineHeight (default 20,
 ' DPI-scaled). Set LineHeight to your settings row's pitch and a notch moves whole rows.
 ' ----------------------------------------------------------------------------------------
@@ -858,7 +858,7 @@ function PsScrollPanel_PanelProc( _
             return lResult
         end if
         ' cast(short, ...): hiword is UNSIGNED, and a delta read without this turns ~-120
-        ' into ~65416, silently inverting the direction. See C:\dev\Learnings.md.
+        ' into ~65416, silently inverting the direction.
         PsScrollPanel_HandleWheelDelta( pScp->hWin, cast(short, hiword(wParam)) )
         return 0
 
@@ -1223,7 +1223,7 @@ public sub PsScrollPanel_ApplyTheme( byval hScp as HWND, byref t as PSTHEME_COLO
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). The content height and the scroll position are pixels of the
+' Per-monitor DPI. The content height and the scroll position are pixels of the
 ' page, so both are scaled (the same content stays at the top of the viewport). ScrollBarWidth
 ' and LineHeight are stored UNSCALED and scaled at use, so they stay. The page's CWindow takes
 ' the new DPI with the container's. The host's controls on the page are the host's; the owned

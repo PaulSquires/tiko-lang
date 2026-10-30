@@ -5,18 +5,15 @@ using outcome
 using containers
 '' std/tui: tuiwidgets -- the core widget catalogue
 ''
-'' RFC-0008 sections 1 and 2 -- C:\dev\docs\tui\RFC-0008-widget-catalogue.md.
-''
 '' Block, Paragraph, List, Table, Tabs, Gauge, Spinner, Scrollbar. Drawn from
-'' Ratatui and from AfxNova's Ps* control family, which is the densest column in
-'' the comparison matrix and the best evidence of what a real FreeBASIC
-'' application needs.
+'' Ratatui and from AfxNova's Ps* control family, the best evidence of what a real
+'' FreeBASIC application needs.
 ''
 '' ---------------------------------------------------------------------------
 '' EVERY WIDGET MUST TOLERATE A ZERO-SIZE AREA
 ''
-'' Not a defensive nicety: phase 4 measured the success-criterion dashboard at
-'' 40x12 and the memory panel came out with height 0. A widget that assumes at
+'' Not a defensive nicety: a dashboard measured at 40x12 had its memory panel
+'' come out with height 0. A widget that assumes at
 '' least one row is a widget that faults on a small terminal.
 ''
 '' ---------------------------------------------------------------------------
@@ -26,7 +23,7 @@ using containers
 '' struct passed in by pointer. That is the honest consequence of immediate
 '' mode: if the widget is rebuilt every frame, it cannot be where the selection
 '' lives. The widget NEVER deletes that pointer -- the one exception to
-'' RFC-0007's ownership rule, and the reason the rule is written down.
+'' TuiWidget's ownership rule, and the reason the rule is written down.
 
 
 #ifdef __FB_WIN32__
@@ -456,7 +453,7 @@ sub TuiTable.Render( byref f as TuiFrame, byval area as TuiRect )
     dim as long top = area.y
     dim as long h = area.h
     if( showHeader andalso ( h > 0 ) ) then
-        '' column widths come from the SAME RFC-0006 solver -- there is not a
+        '' column widths come from the SAME tuilayout.tiko solver -- there is not a
         '' second sizing algorithm in this module
         dim as TuiRectArray cols = TuiSplitH( TuiRectOf( area.x, top, area.w, 1 ), widths )
         f.FillRect( TuiRectOf( area.x, top, area.w, 1 ), " ", headerStyle )

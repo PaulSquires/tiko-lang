@@ -39,7 +39,7 @@ bool IsVBComment(Accessor &styler, Sci_Position pos, Sci_Position len) {
 	return len > 0 && styler[pos] == '\'';
 }
 
-// tiko BLOCK STRINGS (tiko-lang RFC-0001, docs/tiko-strings):
+// tiko BLOCK STRINGS:
 //     dim as string s = """
 //         body, verbatim
 //     """

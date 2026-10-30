@@ -18,9 +18,7 @@ using containers
 ''     fs.maxbackups = 5
 ''     lg.AddSink( @fs )
 ''
-'' RFC-0004 section 5 -- C:\dev\docs\logging\RFC-0004-sinks.md. Phase 3.
-''
-'' UTF-8, ALWAYS, NO BOM (RFC-0004 section 3). A log that is UTF-8 on one
+'' UTF-8, ALWAYS, NO BOM. A log that is UTF-8 on one
 '' machine and CP-1252 on another cannot be concatenated, and the JSON
 '' renderer's output is only JSON as UTF-8.
 ''
@@ -122,7 +120,7 @@ private:
     m_closed   as boolean
     m_size     as longint           '' size at open + bytes written since
     m_day      as longint           '' local day of the last record; 0 = none yet
-    m_thr      as hLogThrottle      '' RFC-0005 rule 3: one report a second
+    m_thr      as hLogThrottle      '' one report a second
     m_why      as ustring           '' the last failure, for the report
     m_os       as long              '' its OS code, 0 when there is none
     #ifdef __FB_WIN32__
@@ -326,7 +324,7 @@ end function
 '' One write of the whole record. Windows: WriteFile is unbuffered in this
 '' process, so the bytes reach the OS here and survive the process dying.
 '' POSIX: OPEN is stdio-buffered, so flushevery pushes the buffer to the OS
-'' after every record -- the deliberate performance loss of RFC-0004 section 5.
+'' after every record -- the deliberate performance loss.
 function FileSink.hWriteBytes( byref u8 as string ) as boolean
     if( len( u8 ) = 0 ) then return TRUE
     #ifdef __FB_WIN32__
@@ -459,8 +457,8 @@ end function
 '' ONE MUTEX PER SINK, HELD ACROSS THE WHOLE WRITE -- rotation included. Two
 '' loggers on one file serialise; two files do not contend.
 '' Every failure is COUNTED -- DroppedCount or RotateFailures -- and REPORTED
-'' through OnLogError, after the lock is released (RFC-0005 rule 1) and at most
-'' once a second (rule 3).
+'' through OnLogError, after the lock is released and at most
+'' once a second.
 sub FileSink.Write( byref r as LogRecord )
     dim as long savederr = err
     dim as ustring why

@@ -18,8 +18,6 @@ using containers
 ''     acc.Add( x )                             ' one pass, constant space
 ''     print acc.Mean( ), acc.StdDev( )
 ''
-'' Specified by C:\dev\docs\math\RFC-0006-statistics.md.  Phase 7.
-''
 '' WHY SUMMATION IS THE INTERESTING PART.
 ''
 ''     dim as single total = 0
@@ -65,8 +63,7 @@ public function Sum overload ( byref a as Array( of T ) ) as double
         '' silently degraded to NaiveSum.
         ''
         '' THAT COMPILER BUG IS NOW FIXED (ast-optimize.bas, hOptAssocADD
-        '' and hOptAssocMUL now exclude floating point -- see
-        '' docs/fp-reassociation-bug.md), so the parenthesised form would
+        '' and hOptAssocMUL now exclude floating point), so the parenthesised form would
         '' work today.  The named form is kept anyway: it is clearer about
         '' what the compensation term is, it costs nothing, and it does not
         '' depend on an optimiser decision to stay correct.

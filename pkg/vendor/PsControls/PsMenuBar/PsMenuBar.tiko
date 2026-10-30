@@ -107,7 +107,7 @@ public type PSMENUBAR_STATE
     bMenuOpen         as boolean = false
     colors            as PSMENUBAR_COLORS
     ' Caller-supplied font (caller owns it). NOT named hFont -- the HFONT shadowing
-    ' trap (see C:\dev\Learnings.md).
+    ' trap.
     hBarFont          as HFONT
     nPadding          as long = PSMENUBAR_DEFAULT_PADDING   ' DPI-scaled at Create
     bLayoutDirty      as boolean = true
@@ -819,7 +819,7 @@ public sub PsMenuBar_ApplyFonts( byval hMenuBar as HWND, byval hTextFont as HFON
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). The one stored pixel metric, nPadding -- the scaled Create
+' Per-monitor DPI. The one stored pixel metric, nPadding -- the scaled Create
 ' default or whatever the host set since -- times newDpi/oldDpi; the item widths are a
 ' LayoutItems cache and are re-measured. The bar's own CWindow takes the new DPI so later
 ' ScaleX calls agree. The dropdowns are PsPopupMenus with their own registry rows and are

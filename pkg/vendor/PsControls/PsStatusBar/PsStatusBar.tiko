@@ -37,7 +37,7 @@ public const PSSTATUSBAR_HOTTRACK_MS = 100
 public const PSSTATUSBAR_DEFAULT_PADDING = 8
 
 ' type and array to hold values related to the statusbar panels
-' NOTE: "width" is a FreeBASIC reserved word (see C:\dev\Learnings.md) and produces errors
+' NOTE: "width" is a FreeBASIC reserved word and produces errors
 ' that never name the real problem -- hence nMinWidth / nWidth throughout.
 ' NOTE: no isHot here. Hover is transient and single-valued, so the control's nLastHotIdx
 ' is the one source of truth; a per-panel copy would be a second one to keep in sync.
@@ -108,7 +108,7 @@ public type PSSTATUSBAR_STATE
     ' Caller-supplied font (caller owns it). NOT named hFont: FreeBASIC is case-insensitive,
     ' so a member called hFont would shadow the TYPE name HFONT inside every member
     ' procedure of this type, and "dim as HFONT x" there fails with a misleading
-    ' "error 14: Expected identifier, found 'HFONT'". See C:\dev\Learnings.md.
+    ' "error 14: Expected identifier, found 'HFONT'".
     hPanelFont      as HFONT
     PaintCallback   as SB_PaintCallbackSub
     MessageCallback as SB_MessageCallbackFunc
@@ -827,7 +827,7 @@ public sub PsStatusBar_ApplyFonts( byval hStatusBarControl as HWND, byval hTextF
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). The padding (scaled at Create, or the host's since) and every
+' Per-monitor DPI. The padding (scaled at Create, or the host's since) and every
 ' panel's minimum width are pixels, so they are scaled; the panel rects are layout's and are
 ' simply re-derived. The font is not ours: PsApp hands the new one over after this.
 ' ========================================================================================

@@ -15,12 +15,10 @@ using outcome
 ''     if( r.IsOk( ) = false ) then print r.Failure( ).Message( ) : end 1
 ''     defer term.Leave( )
 ''
-'' RFC-0002 -- C:\dev\docs\tui\RFC-0002-backend-and-capabilities.md.
-''
 '' The only file in the module that touches the operating system. NO NEW RTLIB C
 '' AND NO COMPILER CHANGE: every call below is a Win32 or libc declaration
-'' written in FreeBASIC, and every one was compiled, linked and run during the
-'' phase-0 probe pass.
+'' written in FreeBASIC, and every one was compiled, linked and run in a probe
+'' first.
 ''
 '' ---------------------------------------------------------------------------
 '' THE RULE THAT DECIDED THIS FILE'S EXISTENCE
@@ -353,7 +351,7 @@ constructor TuiTerminal( )
     m_caps = DetectCaps( )
 end constructor
 
-'' Restore layer 2 of 3 -- covers unwinding. RFC-0002 section 5.
+'' Restore layer 2 of 3 -- covers unwinding.
 destructor TuiTerminal( )
     if( m_active ) then Leave( )
 end destructor
@@ -506,7 +504,7 @@ end function
 '' -------------------------------------------------------------- enter / leave
 
 #ifdef __FB_WIN32__
-'' RFC-0002 section 3. The console input mode Enter( ) will install, as a PURE
+'' The console input mode Enter( ) will install, as a PURE
 '' function of the mode it found and the options asked for -- so it can be
 '' asserted without a console.
 ''
@@ -515,7 +513,7 @@ end function
 '' asking for mouse:=TRUE sees nothing at all. Clearing ENABLE_QUICK_EDIT_MODE
 '' is IGNORED unless ENABLE_EXTENDED_FLAGS is set in the same call.
 ''
-'' The phase-2 mouse tests could not have caught this: they inject INPUT_RECORDs
+'' The mouse tests could not have caught this: they inject INPUT_RECORDs
 '' with WriteConsoleInputW, which bypasses the console's own mouse handling.
 public function TuiWin32InputMode _
     ( _
@@ -748,7 +746,7 @@ end function
 '' -------------------------------------------------------------- resize
 
 '' Consumes the pending-resize flag. On Windows the resize arrives as an input
-'' record instead, so this always reports FALSE there -- RFC-0004 section 6.
+'' record instead, so this always reports FALSE there.
 function TuiTerminal.TakeResize( ) as boolean
     #ifdef __FB_WIN32__
         return FALSE

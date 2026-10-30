@@ -4,7 +4,7 @@
 #import "std/codec"
 using containers
 using outcome
-'' std/net: neturl -- Url, QueryValues, ParseUrl, ParseQuery (RFC-0001 section 15.4).
+'' std/net: neturl -- Url, QueryValues, ParseUrl, ParseQuery.
 '' No sockets, no OS calls.
 ''
 '' The grammar is RFC 3986's with Go net/url's leniency, and so are the escaping

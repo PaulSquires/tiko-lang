@@ -10,25 +10,22 @@
 ''     lg.Info( "server started" )
 ''     lg.Warn( ).AddText( "user", u ).AddInt( "attempts", n ).Msg( "login failed" )
 ''
-'' Specified in C:\dev\docs\logging\. Mirrors std/containers' containers.tiko and
-'' std/fs' fs.tiko: one #import gets the whole module.
+'' Mirrors std/containers' containers.tiko and std/fs' fs.tiko: one #import gets the whole module.
 ''
 '' LIBRARY ONLY. No compiler change and no logging C in the runtime -- unlike
 '' std/fs, every line of this module is FreeBASIC.
 ''
-'' | File            | RFC     | What it is                                  |
-'' |-----------------|---------|---------------------------------------------|
-'' | logrecord.tiko  | 0001    | LogLevel, LogValue, LogField, LogRecord     |
-'' | logrender.tiko  | 0003    | Renderer, TextRenderer, JsonRenderer        |
-'' | logerror.tiko   | 0005    | OnLogError, the OS plumbing                 |
-'' | logsink.tiko    | 0004    | Sink, ConsoleSink                           |
-'' | logfile.tiko    | 0004    | FileSink, RotatePolicy                      |
-'' | logasync.tiko   | 0005    | AsyncSink, OverflowPolicy                   |
-'' | logger.tiko     | 0002    | Logger, LogEvent                            |
-'' | logdefault.tiko | 0002    | DefaultLogger( ), LogInit, LogShutdown      |
-'' | logmacros.tiko  | 0002    | LogInfo( m ), LogEventWarn( f, m ), ...     |
-''
-'' PHASES 1-6.
+'' | File            | What it is                                  |
+'' |-----------------|---------------------------------------------|
+'' | logrecord.tiko  | LogLevel, LogValue, LogField, LogRecord     |
+'' | logrender.tiko  | Renderer, TextRenderer, JsonRenderer        |
+'' | logerror.tiko   | OnLogError, the OS plumbing                 |
+'' | logsink.tiko    | Sink, ConsoleSink                           |
+'' | logfile.tiko    | FileSink, RotatePolicy                      |
+'' | logasync.tiko   | AsyncSink, OverflowPolicy                   |
+'' | logger.tiko     | Logger, LogEvent                            |
+'' | logdefault.tiko | DefaultLogger( ), LogInit, LogShutdown      |
+'' | logmacros.tiko  | LogInfo( m ), LogEventWarn( f, m ), ...     |
 ''
 '' THE MACROS ARE PART OF THE MODULE: logmacros.tiko's logs.LogInfo( m ) and the rest, with
 '' call-site capture and compile-time elision, exported and used qualified. (As fb/logmacros.bi

@@ -2819,7 +2819,7 @@ public sub PsDatePicker_ApplyFonts( byval hCtrl as HWND, byval hTextFont as HFON
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' Per-monitor DPI. Every stored pixel metric -- the scaled Create defaults and
 ' whatever the host set since -- times newDpi/oldDpi; nBorderThick and nDividerThick stay as
 ' they are (hairlines, never scaled). The control's own CWindow takes the new DPI, and the
 ' control-OWNED default icon font is re-created at the new size (a host or PsApp icon font

@@ -9,7 +9,7 @@ using outcome
 '' socket, a proxy tunnel or a test pipe serve alike.  The client asks SChannel for
 '' manual validation and checks the chain itself (CertGetCertificateChain, then the
 '' SSL chain policy), which is how extra roots and InsecureSkipVerify work.
-'' Declared here (RFC-0001 S12); SCH_CREDENTIALS needs Windows 10 1809.
+'' Declared here; SCH_CREDENTIALS needs Windows 10 1809.
 
 #ifdef __FB_WIN32__
 

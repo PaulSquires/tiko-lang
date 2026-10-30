@@ -13,8 +13,6 @@ using outcome
 ''         print "cannot amortize: "; pmt.Failure( ).Message( )
 ''     end if
 ''
-'' Specified by C:\dev\docs\finance\RFC-0001-errors.md.  Phase 1.
-''
 '' A SMALL VALUE TYPE, NOT std/fs' FsError SHAPE.  FsError carries an OS error
 '' number, an operation name and up to two paths, because a filesystem failure
 '' is ABOUT a file.  A finance failure is about a COMPUTATION: there is no path

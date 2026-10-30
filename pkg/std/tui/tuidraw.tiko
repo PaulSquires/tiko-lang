@@ -9,18 +9,6 @@ using containers
 ''     c.Dot( 12, 30, TuiRgb( 90, 160, 255 ) )
 ''     c.Blit( *f, area )
 ''
-'' RFC-0008 section 3 -- C:\dev\docs\tui\RFC-0008-widget-catalogue.md.
-''
-'' ---------------------------------------------------------------------------
-'' WHY THIS IS PHASE 6 AND NOT AFTER PHASE 8
-''
-'' It was scheduled as "deferred" in the first draft of ranked-gaps.md, on the
-'' reasoning that charts are self-contained and easy to add later. That was
-'' right about the coupling and wrong about the requirement: the agreed success
-'' criterion for this module is a btop-style dashboard, and that screen is
-'' roughly half chart. A module that shipped everything else would render the
-'' frames, tables and labels of that screen and leave five holes in it.
-''
 '' ---------------------------------------------------------------------------
 '' THE BRAILLE BIT ORDER IS NOT RASTER ORDER
 ''
@@ -570,7 +558,7 @@ sub TuiMeter.Render( byref f as TuiFrame, byval area as TuiRect )
 
         '' Hoisted to explicit boolean locals: mixing the bare boolean
         '' `partialCells` with comparison results in one andalso chain is
-        '' warning 38. RFC-0001 section 3.
+        '' warning 38.
         dim as boolean isFilled = ( i < whole ) andalso ( isGap = FALSE )
         dim as boolean atWhole = ( i = whole )
         dim as boolean hasPart = ( part > 0 )

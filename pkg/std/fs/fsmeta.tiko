@@ -9,13 +9,11 @@ using outcome
 '' std/fs: fsmeta -- FileId and SameFile, owner changes, times as Instant, and times set
 '' on a symbolic link itself
 ''
-'' Specified in C:\dev\docs\tiko-fs\RFC-0001-files-and-streams.md section 10.
-''
 '' IDENTITY IS NOT A FileInfo FIELD. On Windows the 128-bit file id needs an open handle
 '' (GetFileInformationByHandleEx), so putting it in FileInfo would make every Stat open
 '' the file. GetFileId asks for it when it is wanted.
 ''
-'' The OS is called from here, as fsfile.tiko does (RFC-0001 F19): no new runtime entry
+'' The OS is called from here, as fsfile.tiko does: no new runtime entry
 '' point, so the pinned seed builds it; native errors still go through the runtime's
 '' fb_FsMapOsError.
 

@@ -19,8 +19,6 @@ using containers
 ''         print row.Period_, row.Expense_.ToStringFixed( 2 ), row.SwitchedToStraightLine_
 ''     next
 ''
-'' Specified by C:\dev\docs\finance\RFC-0007-depreciation.md.  Phase 6.
-''
 '' EXACT Decimal THROUGHOUT -- the one surface in this module with NO double
 '' path at all.  No method here needs a power: declining balance applies its
 '' factor ONE PERIOD AT A TIME as a Decimal multiply rather than raising it to
@@ -341,7 +339,7 @@ end function
 
 '' UNITS OF PRODUCTION has no schedule form: a schedule would need a per-period
 '' units array, which is a different signature.  The single-period function
-'' called in the caller's own loop is the whole feature -- RFC-0007 section 5.
+'' called in the caller's own loop is the whole feature.
 public function DepreciationUnitsOfProduction overload _
     ( _
         byref t as DepreciationTerms, byref unitsThisPeriod as Decimal, _

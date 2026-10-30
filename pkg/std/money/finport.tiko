@@ -24,8 +24,6 @@ using containers
 '' return are offsets from element 0 with no lbound to subtract -- a caller that
 '' used to pass a 1-based array must re-base it.
 ''
-'' Specified by C:\dev\docs\finance\RFC-0008-portfolio.md.  Phase 7.
-''
 '' DOUBLE THROUGHOUT, and this is the one surface in the module where that is
 '' the right answer rather than a compromise.  Three reasons, stated once here
 '' instead of per function:
@@ -45,8 +43,7 @@ using containers
 '' returning a double there would throw away precision for nothing.
 ''
 '' SAMPLE OR POPULATION -- THE CHOICE, MADE AND STATED.  This is the classic
-'' statistics bug and the RFC's own delegation table had it wrong until the
-'' implementation checked:
+'' statistics bug:
 ''
 ''     Volatility, DownsideDeviation, TrackingError   SAMPLE  ( n - 1 )
 ''     Beta                                            sample covariance
@@ -58,11 +55,10 @@ using containers
 '' For Beta what matters is NOT which convention but THAT BOTH LEGS USE THE
 '' SAME ONE.  Beta is a regression slope, Cov(a,b)/Var(b); the n-1 factors
 '' cancel, so sample-over-sample and population-over-population give the
-'' IDENTICAL number.  Mixing them -- sample covariance over POPULATION variance,
-'' which is what the RFC first specified -- scales the answer by (n-1)/n and is
-'' wrong.  std/numeric has no population covariance to pair with
-'' VariancePopulation anyway, so the sample pair is both correct and the only
-'' one available.  See C:\dev\docs\finance\amendments.md.
+'' IDENTICAL number.  Mixing them -- sample covariance over POPULATION variance --
+'' scales the answer by (n-1)/n and is wrong.  std/numeric has no population
+'' covariance to pair with VariancePopulation anyway, so the sample pair is both
+'' correct and the only one available.
 ''
 '' DOWNSIDE DEVIATION DOES NOT DELEGATE TO StdDev, and cannot.  StdDev measures
 '' spread about the MEAN and divides by n-1; downside deviation measures
@@ -361,7 +357,7 @@ end function
 '' The index of the peak the worst drawdown fell FROM, and of its trough.
 ''
 '' OPTIONAL, not Result: a series that never drew down has NO peak and NO
-'' trough, and that is the finding rather than a failure -- RFC-0001 section 6.
+'' trough, and that is the finding rather than a failure.
 function hPortDrawdownIndex overload ( byref periodReturns as Array( of double ), byval wantPeak as boolean ) as Optional( of long )
     dim as Optional( of long ) absent
     if( hPortCheck( periodReturns, 1 ) <> FIN_OK ) then return absent
@@ -473,9 +469,7 @@ end function
 '' SAMPLE COVARIANCE OVER SAMPLE VARIANCE.  The n-1 factors cancel, so this is
 '' the regression slope and is identical to the population pair.  WHAT MATTERS
 '' IS THAT BOTH LEGS AGREE -- mixing sample covariance with population variance
-'' scales the answer by (n-1)/n, which is the classic error this docset's
-'' RFC-0008 section 5 warns about and which its own first delegation table
-'' committed.
+'' scales the answer by (n-1)/n, which is the classic error.
 public function Beta overload ( byref assetReturns as Array( of double ), byref benchmarkReturns as Array( of double ) ) as FinResultDbl
     dim as FinanceErrorCode bad = hPortCheckPair( assetReturns, benchmarkReturns, 2 )
     if( bad <> FIN_OK ) then return FinFailDbl( bad )

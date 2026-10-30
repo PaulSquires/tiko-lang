@@ -5,10 +5,8 @@ using outcome
 using containers
 '' std/fs: fsvolume -- fs.DiskSpace, fs.VolumeInfo, fs.GetVolumes
 ''
-'' Specified in C:\dev\docs\filesystem\RFC-0008-volumes.md.
-''
 '' THE PATH IS ANY PATH ON THE VOLUME, not a volume name.
-'' GetDiskSpace( "C:\dev\tiko" ) reports the volume holding it. That is what
+'' GetDiskSpace( "C:\projects\app" ) reports the volume holding it. That is what
 '' GetVolumePathNameW and statvfs both accept, and what callers actually have.
 ''
 '' AvailableBytes IS THE ONE TO USE. FreeBytes counts space the caller may not

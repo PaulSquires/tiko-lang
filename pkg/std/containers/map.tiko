@@ -1,7 +1,7 @@
 #module "containers"
 '' std/containers: map -- containers.Map( of TK, TV ), an open-addressed hash map
 ''
-'' RFC-0004 §3 (there called Dictionary).  Replaces CDicObj.inc, which obtains a
+'' Replaces CDicObj.inc, which obtains a
 '' dictionary by instantiating Scripting.Dictionary over COM -- Windows-only,
 '' CoInitialize per instance, every key and value a VARIANT, every lookup a
 '' late-bound IDispatch call.

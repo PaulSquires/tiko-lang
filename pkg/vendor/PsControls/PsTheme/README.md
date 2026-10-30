@@ -43,7 +43,7 @@ with `PSAPP_OPTIONS.ThemeMode` or `app.SetThemeMode( PSAPP_THEME_LIGHT )`.
 
 | Function | Theme |
 |---|---|
-| `PsTheme_Dark( )` | The family's built-in look. Every control's default colours are dark, and this preset is those defaults expressed as roles. A control default that uses a shade the roles do not have moves to the nearest role (RFC-0001 appendix A lists each one). |
+| `PsTheme_Dark( )` | The family's built-in look. Every control's default colours are dark, and this preset is those defaults expressed as roles. A control default that uses a shade the roles do not have moves to the nearest role. |
 | `PsTheme_Light( )` | Light |
 | `PsTheme_System( )` | Dark or Light, following Windows. `PsTheme_SystemIsDark( )` tells you which. |
 
@@ -74,5 +74,3 @@ pinned and never themed.
 
 Without a theme (no PsApp, or `PSAPP_THEME_NONE`), nothing changes: controls keep their
 built-in colours, exactly as before.
-
-Specified in `C:\dev\docs\tiko-psapp\RFC-0001-psapp.md` §8.

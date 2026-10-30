@@ -1,7 +1,7 @@
 # tkCodeEdit: port notes (from PsPlatform's src/scintilla)
 
-tkCodeEdit is a Scintilla 5.5.7 editor as a tkControls widget, built for tiko-studio (plan P1,
-`C:\dev\docs\tiko-studio\PLAN.md`). It has no vendor PsControls twin: the source is PsPlatform's
+tkCodeEdit is a Scintilla 5.5.7 editor as a tkControls widget, built for tiko-studio. It has
+no vendor PsControls twin: the source is PsPlatform's
 Scintilla platform layer, which ran Scintilla on Blend2D + FreeType + HarfBuzz.
 
 ## Two halves
@@ -69,9 +69,9 @@ the library calls, and it is the widget.
 - `SciTk_CreateLexer` exports Lexilla's `CreateLexer`, so there is no second library.
 - `SciTk_Cursor` reports Scintilla's pointer per view; the host shows it.
 - `SciTk_AbiVersion` and `SciTk_NotificationSize` are checked at load.
-- On macOS, Cmd reaches Scintilla's key map as Ctrl (tiko-studio D8: the Primary modifier).
+- On macOS, Cmd reaches Scintilla's key map as Ctrl (the Primary modifier).
 
-## P2 (2026-10-25): the rest of the editor
+## The rest of the editor (2026-10-25)
 
 - **The autocompletion list** is Scintilla's ListBox model (scintk `SciTk_Lb*`) shown as a tkHost
   POPUP surface:
@@ -140,7 +140,7 @@ the library calls, and it is the widget.
 - A real input method, a real second monitor, and an OS drag into or out of the editor are
   untested. Drags inside the editor are tested.
 
-## Measured (P1 gate, 2026-10-25, examples/tkControls/tkCodeEdit)
+## Measured (first gate, 2026-10-25, examples/tkControls/tkCodeEdit)
 
 | | Windows (D3D11) | Linux X11 (WSLg GL) | Linux Wayland (WSLg GL) |
 | --- | --- | --- | --- |
@@ -154,9 +154,9 @@ the library calls, and it is the widget.
 A/B plant: giving only a codepoint's LAST byte its position failed 4 checks (combining and CJK
 at both scales); reverted, 102/102.
 
-## Measured (P2, 2026-10-25)
+## Measured (the rest of the editor, 2026-10-25)
 
-`examples/tkControls/tkCodeEdit`: **198/198 on Windows, X11 and Wayland.** The 96 checks added in P2 cover:
+`examples/tkControls/tkCodeEdit`: **198/198 on Windows, X11 and Wayland.** The 96 checks added for the rest of the editor cover:
 - the list: show, Down, Enter, double click, Escape, typing to filter, a click outside;
 - the call tip: painted, highlight repaint, click notification, cancel;
 - the context menu: 9 items, Select All; plus a host callback that replaces it;
@@ -169,6 +169,6 @@ at both scales); reverted, 102/102.
 - the CJK fallback, measured against SDL_ttf and drawn;
 - a DPI restyle and back.
 
-The P1 gate numbers held, with Linux's worst unseen page at 9.7–10.8 ms.
+The first gate's numbers held, with Linux's worst unseen page at 9.7–10.8 ms.
 
 A/B plant: popups not forwarding keys failed 10 checks; reverted, 198/198.

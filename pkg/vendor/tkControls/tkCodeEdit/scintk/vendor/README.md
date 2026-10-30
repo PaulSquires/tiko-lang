@@ -5,7 +5,7 @@
 | Scintilla | **5.5.7** (`version.txt` = 557) | https://www.scintilla.org |
 | Lexilla | **5.4.5** (`version.txt` = 545) | https://www.scintilla.org/Lexilla.html |
 
-Copied from `C:\dev\tiko_editor\scintilla_modified` on 2026-08-05, which is the tree tiko builds
+Copied from tiko-editor's `scintilla_modified` tree on 2026-08-05, which is the tree tiko builds
 against today. **It is a fork and is treated as ours**, which was a deliberate decision: the
 alternative — pinning a clean upstream tarball and carrying the modifications as patches — keeps
 the delta legible but makes every upgrade a merge, and this tree has already diverged in ways

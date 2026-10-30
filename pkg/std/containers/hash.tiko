@@ -1,7 +1,7 @@
 #module "containers"
 '' std/containers: hash -- the hash contract for containers.Map and containers.Set
 ''
-'' RFC-0004 §4.  A key type K is hashable if 'HashOf( k )' resolves and 'k = k'
+'' A key type K is hashable if 'HashOf( k )' resolves and 'k = k'
 '' compares.  Overloads are supplied here for every built-in type; a user type is
 '' made hashable by extending Hashable and giving it a HashOf( ) member -- see
 '' Hashable at the end of this file:
@@ -22,8 +22,8 @@
 '' The converse is not required -- two different keys may collide, and the
 '' containers handle that.
 ''
-'' Why an overloaded function rather than a 'HashCode( )' member, which is what
-'' RFC-0004 §4 describes: a member cannot be added to 'long' or 'string', and a
+'' Why an overloaded function rather than a 'HashCode( )' member: a member cannot
+'' be added to 'long' or 'string', and a
 '' generic body cannot branch on its type parameter.  'typeof( T )' inside a
 '' generic sees the type parameter, not what it is bound to --
 ''
@@ -36,7 +36,7 @@
 '' in scope.
 ''
 '' A key type with no matching overload fails at the instantiation site naming
-'' HashOf, which is the unconstrained-generics diagnostic RFC-0001 describes.
+'' HashOf, which is the usual unconstrained-generics diagnostic.
 ''
 '' EVERY OVERLOAD BELOW IS PUBLIC, defined once: std/containers is one module. As fb/hash.bi they
 '' were 'PRIVATE', as HashBytes and HashInt were: that was header-only code with no .bas behind

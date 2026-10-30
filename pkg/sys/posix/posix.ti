@@ -9,8 +9,8 @@
 ''     dim st as struct_stat
 ''     if( lstat( p, @st ) = 0 ) andalso ( ( st.st_mode and S_IFMT ) = S_IFDIR ) then ...
 ''
-'' INTERNAL. It exists so pkg/std carries no OS value of its own (docs/tiko-macos RFC-0001 §4,
-'' decision D2): every O_, AT_, errno, signal, termios, socket, locale and fenv constant, and
+'' INTERNAL. It exists so pkg/std carries no OS value of its own:
+'' every O_, AT_, errno, signal, termios, socket, locale and fenv constant, and
 '' every struct the std modules hand to libc (struct_stat, struct_termios, struct_sockaddr_in,
 '' ...), comes from <target>-posix.ti beside this file. build/posixgen.sh writes that file on
 '' the target's own host, from build/posix.spec, by compiling and running a C probe -- the

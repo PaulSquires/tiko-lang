@@ -65,7 +65,7 @@ end type
 ' One panel. Everything above the DERIVED line is authored; everything below belongs to
 ' LayoutPanels and is never set from outside.
 '
-' NOTE: "width" is a FreeBASIC reserved word (see C:\dev\Learnings.md) and produces errors
+' NOTE: "width" is a FreeBASIC reserved word and produces errors
 ' that never name the real problem -- hence nCellWidth / nPadLeft throughout.
 ' NOTE: neither isHot NOR isSelected lives here. Both are single-valued facts, so the
 ' control owns them (nLastHotIdx, nCurSel) as one source of truth. This differs from
@@ -134,7 +134,7 @@ public type SEL_PaintPanelCallbackSub as sub( byval p as PSSELECTBAR_PAINTINFO p
 ' CAUTION: the result is honored for every message EXCEPT WM_LBUTTONUP, where it is
 ' IGNORED. The control holds mouse capture across a press, and the up-message is what
 ' releases it: a callback that suppressed it would strand capture and route every
-' subsequent click to this control (the PsListBox bug recorded in Learnings.md).
+' subsequent click to this control (the PsListBox bug).
 ' Suppressing WM_LBUTTONDOWN suppresses the press, never the capture bookkeeping.
 public type SEL_MessageCallbackFunc as function( byval m as PSSELECTBAR_MESSAGEINFO ptr ) as boolean
 
@@ -179,7 +179,7 @@ public type PSSELECTBAR_STATE
     '     press/cancel gesture (press a panel, slide off, release, selection does not move)
     '     consumes the guaranteed down->up pairing, which is the family's test for taking
     '     capture. It pays the full price: snapshot the pressed index BEFORE releasing
-    '     (ReleaseCapture sends WM_CAPTURECHANGED synchronously -- Learnings.md), release
+    '     (ReleaseCapture sends WM_CAPTURECHANGED synchronously), release
     '     on the up-message before any callback runs, WM_CAPTURECHANGED cancels the press,
     '     WM_DESTROY releases, and no callback may suppress an up-message.
     '     There is no bPressedInside flag: "the cursor is still on the pressed panel" is
@@ -189,7 +189,7 @@ public type PSSELECTBAR_STATE
     ' Caller-supplied font (caller owns it). NOT named hFont: FreeBASIC is case-insensitive,
     ' so a member called hFont would shadow the TYPE name HFONT inside every member
     ' procedure of this type, and "dim as HFONT x" there fails with a misleading
-    ' "error 14: Expected identifier, found 'HFONT'". See C:\dev\Learnings.md.
+    ' "error 14: Expected identifier, found 'HFONT'".
     hPanelFont        as HFONT
     ' --- Layout. Panel rects are derived, never set from outside; LayoutPanels() owns them.
     '     Layout is lazy: mutators mark it dirty, the next paint (or any rect query) runs
@@ -1033,7 +1033,7 @@ public sub PsSelectBar_ApplyFonts( byval hSelectBar as HWND, byval hTextFont as 
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' Per-monitor DPI. Every stored pixel metric -- the scaled Create defaults and
 ' whatever the host set since -- times newDpi/oldDpi, and so is every per-panel padding
 ' override that is set (the -1 inherit sentinel is left alone). The text height, the cell
 ' widths and the run width are LayoutPanels caches and are re-derived. The bar's own CWindow
@@ -1384,7 +1384,7 @@ end sub
 ' family learned to pay it:
 '   - WM_LBUTTONUP SNAPSHOTS the pressed index, THEN releases capture. ReleaseCapture sends
 '     WM_CAPTURECHANGED synchronously and that handler cancels the press, so reading the
-'     index afterwards would always find -1 and no click would ever fire (Learnings.md);
+'     index afterwards would always find -1 and no click would ever fire;
 '   - the release happens before any callback runs;
 '   - the message callback's result is IGNORED for WM_LBUTTONUP, so it cannot strand it;
 '   - WM_CAPTURECHANGED cancels the press (anything can steal capture at any time);
@@ -1504,7 +1504,7 @@ function PsSelectBar_WndProc( _
         ' The two share a handler, and that is REQUIRED rather than tidy. With CS_DBLCLKS
         ' on the class, the second of two rapid clicks arrives as WM_LBUTTONDBLCLK INSTEAD
         ' OF a second WM_LBUTTONDOWN -- it substitutes for it, it is not an extra message
-        ' on top (Learnings.md). A control that took capture only on the DOWN would
+        ' on top. A control that took capture only on the DOWN would
         ' therefore see the trailing WM_LBUTTONUP release a capture it never took, and a
         ' quick A -> B -> A would silently drop a selection change.
         '

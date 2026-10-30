@@ -4,7 +4,7 @@
 #import "std/fs"
 using containers
 using outcome
-'' std/config: configini -- IniFile, ParseIni, LoadIni, SaveIni (RFC-0001 section 12.1).
+'' std/config: configini -- IniFile, ParseIni, LoadIni, SaveIni.
 '' The dialect is in config.tiko's banner.
 
 public enum IniDuplicates

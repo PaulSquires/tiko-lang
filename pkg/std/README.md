@@ -2,11 +2,11 @@
 
 The tiko standard package: modules shipped with the compiler, imported as
 `#import "std/strings"`. `std` always resolves here, never to a project's own package of
-that name (RFC-0007 §3, §5).
+that name.
 
 ## The modules
 
-Each module is a **real module** (ADR 0017): compiled once, cached, initialised in import
+Each module is a **real module**: compiled once, cached, initialised in import
 order, and the one copy of its code. Until 2026-10-10 they were facades over header
 libraries in `inc/fb`; that directory is gone, and its code lives here.
 
@@ -46,7 +46,7 @@ libraries in `inc/fb`; that directory is gone, and its code lives here.
 - **`spawn` and `select channel` need `#import "std/tasks"`** in the file that uses them, and
   `-mt` (TKO0423 says so).
 
-**How a std procedure fails** (review LIB-03, 2026-10-24). One rule, so a caller knows from
+**How a std procedure fails.** One rule, so a caller knows from
 a signature what failing looks like:
 - **A failure the caller can recover from -- input from outside the program, a file, a socket,
   a parse -- is a value.** Either a `Result( of T, E )` whose `E` is the module's own error type

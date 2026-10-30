@@ -1,8 +1,6 @@
 #module "containers"
 '' std/containers: heap -- containers.PriorityQueue( of T ) and PriorityQueueBy( of T, TLess )
 ''
-'' C:\dev\docs\tiko-stdlib\RFC-0001 section 4.1.
-''
 ''     dim q as containers.PriorityQueue( of long )
 ''     q.Push( 5 ) : q.Push( 1 ) : q.Push( 3 )
 ''     print q.Pop( )                      '' 1 -- smallest first

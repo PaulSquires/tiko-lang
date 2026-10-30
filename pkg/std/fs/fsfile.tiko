@@ -7,18 +7,15 @@ using posix
 using outcome
 '' std/fs: fsfile -- OpenOptions and File, the open-file handle
 ''
-'' Specified in C:\dev\docs\tiko-fs\RFC-0001-files-and-streams.md section 6.
-''
 '' File is a Stream over an operating-system handle -- a HANDLE on Windows, a file
 '' descriptor on POSIX -- that it owns. It is UNBUFFERED: every Read and Write is one
 '' system call (wrap a BufferedReader or BufferedWriter for many small ones). It is
 '' NOT COPYABLE: two File values would close one handle twice. It is made by an Open
 '' method on a File that already exists, and its destructor closes it.
 ''
-'' THE OS IS CALLED FROM HERE, NOT THROUGH tiko-rt (RFC-0001 section 3.1, the
-'' author's decision for P3). std/fs is compiled into tiko itself by the pinned seed,
-'' which links the seed's runtime; a File built on new runtime entry points could not
-'' land until a seed carrying them was cut. kernel32 and libc are in every link, so
+'' THE OS IS CALLED FROM HERE, NOT THROUGH tiko-rt. std/fs is compiled into tiko itself by the
+'' pinned seed, which links the seed's runtime; a File built on new runtime entry points
+'' could not land until a seed carrying them was cut. kernel32 and libc are in every link, so
 '' declaring them here builds with any seed. On POSIX every constant and struct comes
 '' from sys/posix, and what is Linux-only (errno's accessor, fdatasync) is in
 '' fslinux.tiko. The error mapping is still the runtime's
@@ -27,7 +24,7 @@ using outcome
 ''
 '' Not thread-safe, except ReadAt and WriteAt, which may run concurrently on one File:
 '' pread/pwrite on POSIX, and on Windows a per-File lock around the positioned call and
-'' the restoring of the file pointer (section 6.4).
+'' the restoring of the file pointer.
 
 
 
@@ -74,7 +71,7 @@ constructor OpenOptions( )
     this.Truncate = FALSE
     this.Create = FALSE
     this.CreateNew = FALSE
-    '' PERMISSIVE, as Linux behaves and as Rust defaults (RFC-0001 F13): a file open
+    '' PERMISSIVE, as Linux behaves and as Rust defaults: a file open
     '' here does not stop another program reading, writing or deleting it.
     this.ShareRead = TRUE
     this.ShareWrite = TRUE
@@ -344,7 +341,7 @@ end function
 function File.Open( byref p as const ustring, byref opts as const OpenOptions ) as FsResultBool
     if( this.m_h <> -1 ) then return FsFail( of boolean )( FS_IN_USE, "Open", p )
 
-    '' Validation before any system call (RFC-0001 section 6.1) -- Rust's rule set.
+    '' Validation before any system call -- Rust's rule set.
     dim as boolean wr = opts.Write orelse opts.Append
     dim as boolean bad = FALSE
     if( ( opts.Read = FALSE ) andalso ( wr = FALSE ) ) then bad = TRUE
@@ -484,7 +481,7 @@ end function
 
 '' A new file named <prefix><16 hex digits> from the CSPRNG, created EXCLUSIVELY and
 '' opened Read + Write, in `dir` -- the system temp directory when `dir` is empty.
-'' NEVER DELETED AUTOMATICALLY (RFC-0001 F12): `defer fs.RemoveFile( f.Path( ) )`.
+'' NEVER DELETED AUTOMATICALLY: `defer fs.RemoveFile( f.Path( ) )`.
 function File.OpenTemp( byref dir as const ustring, byref prefix as const ustring ) as FsResultBool
     if( this.m_h <> -1 ) then return FsFail( of boolean )( FS_IN_USE, "OpenTemp", dir )
 
@@ -660,7 +657,7 @@ function File.ReadAt( byval pos_ as longint, byval buf as ubyte ptr, byval n as 
 
 #ifdef __FB_WIN32__
     '' ReadFile at an OVERLAPPED offset MOVES the pointer of a synchronous handle, so
-    '' it is saved and restored, under the File's lock (RFC-0001 section 6.4).
+    '' it is saved and restored, under the File's lock.
     dim as any ptr h = cast( any ptr, this.m_h )
     dim as FbfOverlapped ov
     ov.Offset = cast( ulong, pos_ and &hFFFFFFFFll )
@@ -895,7 +892,7 @@ function File.hLock( byval exclusive as boolean, byval wait_ as boolean, byref o
 #ifdef __FB_WIN32__
     dim as any ptr h = cast( any ptr, this.m_h )
     dim as FbfOverlapped ov
-    '' CONVERSION IS NOT ATOMIC ON WINDOWS (RFC-0001 F18): the held lock is released
+    '' CONVERSION IS NOT ATOMIC ON WINDOWS: the held lock is released
     '' first, so another process may take the file in between.
     if( this.m_lock <> 0 ) then
         fbf_UnlockFileEx( h, 0, &hFFFFFFFFul, &hFFFFFFFFul, @ov )

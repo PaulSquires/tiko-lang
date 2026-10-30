@@ -4,26 +4,22 @@
 ''     #import "std/money"
 ''     using money
 ''
-'' Specified by C:\dev\docs\finance\ -- README.md is the index, and each file
-'' names the RFC that specifies it.
-''
 '' AN OVERVIEW, AND NOTHING ELSE.  This file declares no type and no function;
 '' the parts are the module's other files, the way std/fs and std/logs are
 '' laid out, and one #import gets them all.  (As fb/finance.bi this was an
 '' umbrella that included the part headers in dependency order.)
 ''
-''     Phase  File               RFC   What it is
-''     -----  -----------------  ----  ------------------------------------
-''       1    finerror.tiko      0001  FinanceError, the codes, the aliases
-''       1    fincore.tiko       0002  conventions, day count, the rate kernel
-''       2    fintvm.tiko        0004  present/future value, payment, term
-''       3    finsolve.tiko      0003  the root finder
-''       4    finloan.tiko       0005  loans, schedules, amortization
-''       5    fincash.tiko       0006  NPV, IRR, MIRR, payback
-''       6    findeprec.tiko     0007  depreciation
-''       7    finport.tiko       0008  returns and risk
+''     File               What it is
+''     -----------------  ------------------------------------
+''     finerror.tiko      FinanceError, the codes, the aliases
+''     fincore.tiko       conventions, day count, the rate kernel
+''     fintvm.tiko        present/future value, payment, term
+''     finsolve.tiko      the root finder
+''     finloan.tiko       loans, schedules, amortization
+''     fincash.tiko       NPV, IRR, MIRR, payback
+''     findeprec.tiko     depreciation
+''     finport.tiko       returns and risk
 ''
-'' All seven phases are built.
 '' std/money also holds currency.tiko, decimal.tiko and moneyformat.tiko, which were headers of
 '' their own.
 

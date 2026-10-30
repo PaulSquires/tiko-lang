@@ -19,8 +19,6 @@ using outcome
 ''         print r.Failure( ).Message( )
 ''     end if
 ''
-'' C:\dev\docs\tiko-stdlib\RFC-0002 (HTTP client and TLS).
-''
 ''   Client        holds the settings (TimeoutMs, MaxRedirects, MaxBodyBytes,
 ''                 KeepAlive, UserAgent, DefaultHeader, TlsOptions) and the idle
 ''                 connections it may reuse.  Send( Request ) reads the whole body

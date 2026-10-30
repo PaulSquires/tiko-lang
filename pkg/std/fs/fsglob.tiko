@@ -5,8 +5,6 @@ using outcome
 using containers
 '' std/fs: fsglob -- fs.MatchPattern and fs.Glob
 ''
-'' Specified in C:\dev\docs\filesystem\RFC-0006-glob.md.
-''
 '' TWO FUNCTIONS, and only one of them touches the disk. MatchPattern is pure
 '' and belongs with fspath.tiko in spirit; it lives here because the grammar it
 '' implements is this file's subject. Glob is MatchPattern plus WalkDir plus a
@@ -68,7 +66,7 @@ end extern
 ''
 '' The pattern is split at the LAST COMPONENT CONTAINING NO WILDCARD; that
 '' prefix is the walk root and everything after it is the pattern to match
-'' against. So "C:\dev\tiko\src\*.bas" walks src, not the whole volume -- which
+'' against. So "C:\projects\app\src\*.bas" walks src, not the whole volume -- which
 '' is the difference between a glob and a full-disk scan.
 public declare function GlobRoot overload ( byref pattern as const ustring, byval gram as long = FB_PATH_NATIVE ) as ustring
 

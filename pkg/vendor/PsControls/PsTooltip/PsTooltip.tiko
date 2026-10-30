@@ -40,8 +40,8 @@ using PsTheme
 '
 '       pBtn->hToolTip = PsTooltip_Create( hCtrl )        ' was PsButton_AddTooltip( hCtrl )
 '
-'   IT DOES NOT SUBCLASS THE ATTACHED CONTROL. comctl32 uses TTF_SUBCLASS, and Learnings.md
-'   records that extra subclass as a contributing cause of the unreliable WM_MOUSELEAVE that
+'   IT DOES NOT SUBCLASS THE ATTACHED CONTROL. comctl32 uses TTF_SUBCLASS, and
+'   that extra subclass is a contributing cause of the unreliable WM_MOUSELEAVE that
 '   forces every hot-tracking sibling to carry a 100 ms poll timer. This control watches the
 '   cursor instead, so it adds nothing to that pressure.
 '
@@ -234,7 +234,7 @@ public type TIP_MessageCallbackFunc as function( byval m as PSTOOLTIP_MESSAGEINF
 ' Note that this is a real behaviour change from PsListBox, PsColumnHeader, PsStatusBar and
 ' PsTabBar, which fall back to the ITEM's own text and therefore sprout a tip on every row
 ' repeating what is already under the cursor -- tiko carries three separate callbacks that
-' exist only to return "" and turn that off (Learnings.md). A host that wants the old
+' exist only to return "" and turn that off. A host that wants the old
 ' behaviour returns the item text from here.
 public type TIP_TooltipCallbackFunc as function( byval hTooltip as HWND, _
                                           byval hAttached as HWND, _
@@ -293,7 +293,7 @@ public type PSTOOLTIP_STATE
     ' --- fonts. BORROWED, never created and never deleted here. -----------------------------
     ' Not one of these may be called hFont: FreeBASIC is case-insensitive and a field named
     ' hFont shadows the HFONT type for the rest of the type body, so the SECOND such field
-    ' fails to compile with an error naming the type (Learnings.md; PsDatePicker hit it with
+    ' fails to compile with an error naming the type (PsDatePicker hit it with
     ' exactly three font fields).
     hTextFont        as HFONT
     hTitleFont       as HFONT
@@ -623,7 +623,7 @@ public declare function PsTooltip_HashRenderedPart( byval hTooltip as HWND, byva
 ' obvious spelling fails with `error 11: Expected constant`. PsDatePicker's pattern.
 '
 ' Everything goes through a `dim as string` first: `print` on a
-' `string & wstring` concat interleaves nulls (Learnings.md).
+' `string & wstring` concat interleaves nulls.
 ' ========================================================================================
 dim shared gTIP_Trace as long = -1
 
@@ -656,7 +656,7 @@ end sub
 ' registry BACKWARDS and evicts dead entries as it goes, and compaction only ever shifts
 ' entries ABOVE the removal point, all of which have already been visited. Swap-with-last
 ' would move an unvisited entry down into a slot the walk has passed, silently skipping it for
-' that tick. The rationale was re-tested rather than inherited (CLAUDE.md); the conclusion
+' that tick. The rationale was re-tested rather than inherited; the conclusion
 ' happens to agree, the reasoning does not.
 '
 ' SINGLE-THREADED. UI thread only.
@@ -992,7 +992,7 @@ end function
 
 ' Written as a ladder rather than one andalso chain on purpose: FreeBASIC's warning 38 fires
 ' on any andalso chain mixing bare booleans with anything else, and the always-safe shape is
-' to test each one alone (Learnings.md).
+' to test each one alone.
 public function PsTooltip_ShouldShow( _
             byval bOver as boolean, _
             byval bResting as boolean, _
@@ -2038,7 +2038,7 @@ end function
 '
 ' A NO-OP SET IS FREE. Hosts call this from their WM_MOUSEMOVE, which re-runs constantly, so a
 ' setter that reset state unconditionally would keep tearing down a tip that should stay up --
-' PsHScrollBar's SetWheelStep bug (Learnings.md), applied before it could happen again.
+' PsHScrollBar's SetWheelStep bug, applied before it could happen again.
 public sub PsTooltip_SetToolIndex( byval hTooltip as HWND, byval idx as long )
     dim as PSTOOLTIP_STATE ptr pTip = GetTooltipPointer(hTooltip)
     if pTip = 0 then exit sub
@@ -2122,7 +2122,7 @@ public sub PsTooltip_ApplyFonts( byval hTooltip as HWND, byval hTextFont as HFON
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric of THIS tip -- the scaled Create
+' Per-monitor DPI. Every stored pixel metric of THIS tip -- the scaled Create
 ' defaults and whatever the host (or ApplyDefaults) set since, the wrap width included -- times
 ' newDpi/oldDpi. The border width stays: it is a pen width the painter scales itself. The
 ' process-wide defaults (gTIP_Def*) are the host's and are left alone. The layout is re-derived
@@ -2469,7 +2469,7 @@ public sub PsTooltip_GetIdealSize( byval hTooltip as HWND, byref nW as long, byr
     dim as PSTOOLTIP_STATE ptr pTip = GetTooltipPointer(hTooltip)
     if pTip = 0 then exit sub
     ' Force the pending layout. An assertion that reads DERIVED state must force the
-    ' derivation first, or it reads the previous text's numbers (Learnings.md, PsDatePicker).
+    ' derivation first, or it reads the previous text's numbers (see PsDatePicker).
     if len( pTip->wszTipBuf ) = 0 then pTip->wszTipBuf = TIP_ResolveText( pTip )
     if pTip->bLayoutDirty then pTip->LayoutTooltip()
     nW = pTip->nIdealW

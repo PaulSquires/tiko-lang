@@ -1,6 +1,6 @@
 # tkFileDialog: notes
 
-tkFileDialog is new in tkControls (tiko-studio P3, PLAN.md deficiency 4). It replaces tiko-editor's
+tkFileDialog is new in tkControls (built for tiko-studio). It replaces tiko-editor's
 COM `IFileOpenDialog` and tpad's hand-rolled pump around `SDL_ShowOpenFileDialog`.
 
 **What it is:**

@@ -7,8 +7,6 @@
 ''     dim as TuiRect r = TuiRectOf( 0, 0, 80, 24 )
 ''     dim as TuiStyle st = TuiStyleOf( TuiRgb( 255, 128, 0 ), TuiDefaultColor( ), TUIATTR_BOLD )
 ''
-'' RFC-0001 -- C:\dev\docs\tui\RFC-0001-geometry-and-style.md.
-''
 '' Geometry, colour, attributes and style. NOTHING HERE DOES I/O, takes a lock,
 '' or can fail. Everything is a value type and every operation is total -- which
 '' is what lets TuiCell hold a TuiStyle inside an Array( of TuiCell ) and get a
@@ -22,9 +20,9 @@
 ''
 '' The obvious layout is a tag plus a union of { index, rgb }. It saves nothing:
 '' sizeof( TuiColor ) = 4 as written, which is already the size of the largest
-'' alternative. docs/logging separately found that a ustring inside a UNION is
+'' alternative. std/logs separately found that a ustring inside a UNION is
 '' `error 161`, so unions in this family of types have a track record of costing
-'' a redesign for no gain. RFC-0001 section 2.
+'' a redesign for no gain.
 ''
 '' ---------------------------------------------------------------------------
 '' RESERVED NAMES
@@ -95,7 +93,7 @@ function TuiRect.Contains( byval px as long, byval py as long ) as boolean
     return TRUE
 end function
 
-'' Clamps rather than going negative -- RFC-0001 section 1.
+'' Clamps rather than going negative.
 function TuiRect.Intersect( byval o as TuiRect ) as TuiRect
     dim as long nx = iif( x > o.x, x, o.x )
     dim as long ny = iif( y > o.y, y, o.y )
@@ -127,7 +125,7 @@ end function
 
 '' Free constructors. FreeBASIC's `type( a, b, c, d )` literal works for these
 '' plain aggregates, but a named function reads better at a call site that is
-'' already dense with numbers, and it is what the RFC's examples use.
+'' already dense with numbers.
 public function TuiRectOf( byval x as long, byval y as long, _
                             byval w as long, byval h as long ) as TuiRect
     dim as TuiRect r
@@ -223,7 +221,7 @@ end function
 
 '' The sixteen, as TuiColor values. Functions rather than `dim shared` because
 '' a shared in a header included by two modules gave TWO of them -- the same
-'' constraint that stopped docs/logging making a process-wide default logger.
+'' constraint that stopped fb/logdefault.bi making a process-wide default logger.
 public enum TuiAnsiIndex
     TUIC_BLACK = 0   : TUIC_RED       : TUIC_GREEN   : TUIC_YELLOW
     TUIC_BLUE        : TUIC_MAGENTA   : TUIC_CYAN    : TUIC_WHITE
@@ -275,7 +273,7 @@ end enum
 '' `mask` is what makes composition work. Without it, "underline the selected
 '' row" cannot be expressed as a style: a TuiStyle with only TUIATTR_UNDERLINE
 '' set would also assert NOT bold and NOT italic, and would silently clear
-'' whatever the base had. RFC-0001 section 4.
+'' whatever the base had.
 public type TuiStyle
     as TuiColor fg, bg
     as ushort attrs
@@ -418,7 +416,7 @@ public function TuiLuminance( byval r as long, byval g as long, byval b as long 
     return ( 0.2126 * r + 0.7152 * g + 0.0722 * b ) / 255.0
 end function
 
-'' RFC-0001 section 5. Applied at WRITE time in the backend, never at style
+'' Applied at WRITE time in the backend, never at style
 '' construction, so a TuiStyle stays a faithful record of what was asked for and
 '' one buffer renders correctly on two different terminals.
 public function TuiDowngrade( byval c as TuiColor, byval depth as TuiColorDepth ) as TuiColor
@@ -495,8 +493,7 @@ end function
 
 '' A plain value, passed explicitly to the widgets that use it. THERE IS NO
 '' AMBIENT CURRENT THEME -- a FreeBASIC header could not make a process-wide
-'' singleton, and docs/logging paid for discovering that mid-implementation.
-'' rationale.md section 9.
+'' singleton, and std/logs paid for discovering that mid-implementation.
 ''
 '' `dim_` carries the underscore because Dim is a keyword.
 public type TuiTheme
@@ -554,7 +551,7 @@ end function
 ''
 '' `prev` is the style the terminal is currently in. Only the DIFFERENCE is
 '' emitted, which is where most of the diff renderer's byte reduction comes
-'' from -- more than from the cell comparison itself. RFC-0003 section 5.
+'' from -- more than from the cell comparison itself.
 public function TuiSgrColor( byval c as TuiColor, byval isFg as boolean ) as string
     dim as long base_ = iif( isFg, 30, 40 )
 

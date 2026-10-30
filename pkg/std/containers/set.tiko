@@ -1,7 +1,7 @@
 #module "containers"
 '' std/containers: set -- containers.Set( of T ), a hash set
 ''
-'' RFC-0004 §5.  A Map with the value machinery removed rather than a wrapper
+'' A Map with the value machinery removed rather than a wrapper
 '' around one, so a Set costs one slot per element instead of two.
 ''
 ''     dim seen as containers.Set( of long )

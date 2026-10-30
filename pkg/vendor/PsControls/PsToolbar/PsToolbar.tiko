@@ -165,7 +165,7 @@ end type
 ' One item. Everything above the DERIVED line is authored; everything below belongs to
 ' LayoutItems and is never set from outside.
 '
-' NOTE: "width" is a FreeBASIC reserved word (see C:\dev\Learnings.md) and produces errors
+' NOTE: "width" is a FreeBASIC reserved word and produces errors
 ' that never name the real problem -- hence nIconWidth / nCellWidth throughout.
 ' NOTE: no isHot here. Hover is transient and single-valued, so the control's nLastHotIdx is
 ' the one source of truth. The same argument does NOT apply to isSelected: selection is
@@ -287,7 +287,7 @@ public type TBR_PaintItemCallbackSub as sub( byval p as PSTOOLBAR_PAINTINFO ptr 
 ' CAUTION: the result is honored for every message EXCEPT WM_LBUTTONUP, where it is IGNORED.
 ' The control holds mouse capture across a press on an ACTION zone, and the up-message is
 ' what releases it: a callback that suppressed it would strand capture and route every
-' subsequent click to this control (the PsListBox bug recorded in Learnings.md). Suppressing
+' subsequent click to this control (the PsListBox bug). Suppressing
 ' WM_LBUTTONDOWN suppresses the press, never the capture bookkeeping.
 public type TBR_MessageCallbackFunc as function( byval m as PSTOOLBAR_MESSAGEINFO ptr ) as boolean
 
@@ -450,7 +450,7 @@ public type PSTOOLBAR_STATE
     HoverTime          as long = 250
     ' --- Transient interaction state. UNLIKE PsIconPanel THE ITEM SET HERE IS DYNAMIC, so
     '     every one of these indices can be invalidated by an Insert / Delete / Clear and
-    '     MUST be fixed up there. CLAUDE.md calls stale stored indices the family's most
+    '     MUST be fixed up there. Stale stored indices are the family's most
     '     repeated bug class; PsToolbar_FixupIndices is the single place that pays for it.
     nLastHotIdx        as long = -1       ' item the mouse was last over
     nHotZone           as long = TBR_ZONE_NONE   ' which zone of it
@@ -481,7 +481,6 @@ public type PSTOOLBAR_STATE
     ' NOT named hFont: FreeBASIC is case-insensitive, so a member called hFont would shadow
     ' the TYPE name HFONT inside every member procedure of this type, and "dim as HFONT x"
     ' there fails with a misleading "error 14: Expected identifier, found 'HFONT'".
-    ' See C:\dev\Learnings.md.
     hTextFont          as HFONT
     hGlyphFont         as HFONT
     ' --- Layout. Item rects are DERIVED, never set from outside; LayoutItems() owns them.
@@ -1103,8 +1102,8 @@ end function
 ' Insert a fresh slot at idx, shuffling the tail up. idx = itemCount appends.
 '
 ' THE ITEM SET IS DYNAMIC HERE, unlike PsIconPanel -- so every stored index this control
-' keeps has to move with the items. That is what FixupIndices exists for, and CLAUDE.md
-' names stale stored indices the family's most repeated bug class.
+' keeps has to move with the items. That is what FixupIndices exists for, and stale
+' stored indices are the family's most repeated bug class.
 function PSTOOLBAR_STATE.InsertItemSlot( byval idx as long ) as PSTOOLBAR_ITEM ptr
     if idx < 0 then return null
     if idx > this.itemCount then return null
@@ -2625,7 +2624,7 @@ function PsToolbar_WndProc( _
             ' button's divider changes which half lights up without changing the item.
             ' Each term is hoisted to a boolean local first. A relational operator on two
             ' longs yields an INTEGER in FreeBASIC while one on two booleans yields a
-            ' BOOLEAN, and mixing those in an orelse chain is warning 38 (Learnings.md).
+            ' BOOLEAN, and mixing those in an orelse chain is warning 38.
             dim as boolean bItemChanged = (idx <> pTB->nLastHotIdx)
             dim as boolean bZoneChanged = (nZone <> pTB->nHotZone)
             dim as boolean bOvrChanged  = (bOverHot <> pTB->bOverflowHot)
@@ -2888,7 +2887,7 @@ public function PsToolbar_Create( byval hWndParent as HWND, byval CtrlID as long
     ' PsButton fix. This control genuinely IS a container -- a TBR_KIND_CONTROL cell holds a
     ' host child that must be reachable by Tab -- and it is safe here for a reason PsButton
     ' could not use: this control takes no WS_TABSTOP of its own, so it can never be the
-    ' childless leaf the dialog manager recurses into and then skips. See Learnings.md.
+    ' childless leaf the dialog manager recurses into and then skips.
     '
     ' MEASURED, not assumed: the resulting exstyle is &h10000 (CONTROLPARENT alone) whether
     ' this argument is passed or left to CWindow's WS_EX_CONTROLPARENT OR WS_EX_WINDOWEDGE
@@ -3648,7 +3647,7 @@ public sub PsToolbar_ApplyFonts( byval hToolbar as HWND, byval hTextFont as HFON
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' Per-monitor DPI. Every stored pixel metric -- the scaled Create defaults and
 ' whatever the host set since, nCurvature and a declared nSepHeight included -- times
 ' newDpi/oldDpi, and so is every per-item value that is set: the padding and icon-size
 ' overrides (the -1 / 0 inherit sentinels are left alone) and a CONTROL cell's declared
@@ -4206,8 +4205,8 @@ end function
 ' ========================================================================================
 ' Self-test.  Gated on PSTOOLBAR_SELFTEST=1.
 '
-' Every number is asserted, never eyeballed -- CLAUDE.md's rule, and Learnings.md records
-' several "verifications" that were invalid because they were done by eye.
+' Every number is asserted, never eyeballed -- several past "verifications" were invalid
+' because they were done by eye.
 '
 ' TWO RULES THIS FILE FOLLOWS BECAUSE THE FAMILY LEARNED THEM THE HARD WAY:
 '
@@ -4291,7 +4290,7 @@ public sub PsToolbar_RunSelfTest( byval hWndParent as HWND )
 
     dim as string sD                     ' every trace string is built here first: PRINT on a
                                          ' string & wstring concat
-                                         ' interleaves nulls (Learnings.md).
+                                         ' interleaves nulls.
 
     ' ====================================================================================
     ' PART A -- PsToolbar_ComputeCellWidth. Pure: no window, no DC, no layout.
@@ -4901,7 +4900,7 @@ public sub PsToolbar_RunSelfTest( byval hWndParent as HWND )
 
 
     ' ====================================================================================
-    ' PART H -- the dynamic item set. CLAUDE.md calls stale stored indices the family's most
+    ' PART H -- the dynamic item set. Stale stored indices are the family's most
     ' repeated bug class, and this control is the first sibling to carry BOTH a dynamic set
     ' and a derived visible set.
     '

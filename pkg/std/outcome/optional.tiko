@@ -65,7 +65,7 @@ public type Optional( of T )
     declare function Value( ) byref as T
     declare function ValueOr( byref dflt as T ) byref as T
     declare sub Clear( )
-    '' Holds v from now on -- what Some( v ) builds. The fields are private (review LIB-04).
+    '' Holds v from now on -- what Some( v ) builds. The fields are private.
     declare sub Assign( byref v as T )
 end type
 

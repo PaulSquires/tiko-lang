@@ -7,8 +7,6 @@ using containers
 '' std/fs: fstext -- BufferedReader, BufferedWriter, TextReader, TextWriter, ReadLines,
 '' and the whole-file additions (size limits, AppendAllBytes)
 ''
-'' Specified in C:\dev\docs\tiko-fs\RFC-0001-files-and-streams.md sections 7 and 8.
-''
 '' A WRAPPER DOES NOT OWN WHAT IT WRAPS. BufferedReader, BufferedWriter, TextReader and
 '' TextWriter keep a POINTER to the Stream they were given, so that stream must outlive
 '' the wrapper -- the same lifetime rule a defer-managed handle has. Each wrapper owns
@@ -16,16 +14,15 @@ using containers
 ''
 '' LINES ARE ReadAllLines' LINES, everywhere here: a line ends at LF; one CR before the
 '' LF is dropped; a CR anywhere else is text; the last line needs no LF; and a final LF
-'' is not followed by an empty line. (RFC-0001 section 7.3 first proposed lone CR as a
-'' line end too, and said to follow ReadAllLines if it did not -- it does not.)
+'' is not followed by an empty line.
 ''
-'' TEXT IS DECODED BY ReadAllText's RULES (section 7.3): a UTF-8, UTF-16LE or UTF-16BE BOM
+'' TEXT IS DECODED BY ReadAllText's RULES: a UTF-8, UTF-16LE or UTF-16BE BOM
 '' is honoured and consumed, no BOM means UTF-8, and invalid UTF-8 becomes U+FFFD -- or,
 '' under TEXT_STRICT, fails with FS_INVALID_DATA. UTF-8 lines are cut at the LF BYTE,
 '' which no multi-byte sequence contains, so a sequence split across two reads of the
 '' inner stream is simply joined before it is decoded.
 ''
-'' OR BY A NAMED ENCODING (C:\dev\docs\tiko-fs\RFC-0002, P3): TextReader( s, enc ) reads as
+'' OR BY A NAMED ENCODING: TextReader( s, enc ) reads as
 '' ReadAllText( p, enc ) does -- only a BOM that matches enc is skipped -- and
 '' TextReader( s, opts ) detects as ReadAllText( p, found, opts ) does, from the first
 '' opts.PrefixBytes bytes (64 KiB; the buffer's size at most). A code page and BINARY are
@@ -500,7 +497,7 @@ end function
 '' Rule 1: looks at the first bytes -- reading until there are four or the data ends
 '' -- and consumes a BOM. With an encoding given, only that encoding's BOM; detecting,
 '' first reads up to the prefix and judges it. Under the old rules a UTF-32 BOM is
-'' FS_UNSUPPORTED, as ReadAllText's is (RFC-0002 E12); an encoding given is believed.
+'' FS_UNSUPPORTED, as ReadAllText's is; an encoding given is believed.
 function TextReader.hStart( byref failure as FsError ) as boolean
     if( this.m_enc <> 0 ) then return TRUE
     dim as long want = 4
@@ -735,7 +732,7 @@ public type TextWriter
     '' default: a Write that cannot encode a character fails and writes NOTHING.
     declare constructor( byref inner as Stream, byval enc as TextEncoding, byval mode as TextErrorMode = TEXT_STRICT )
 
-    '' Platform-native by default (RFC-0001 F15): CRLF on Windows, LF on Linux. Only
+    '' Platform-native by default: CRLF on Windows, LF on Linux. Only
     '' WriteLine uses it; Write writes s exactly as given.
     as ustring NewLine
 
@@ -1021,7 +1018,7 @@ end function
 
 '' ---------------------------------------------------- whole-file additions
 ''
-'' RFC-0001 section 8. maxBytes is checked against the open file's size BEFORE anything
+'' maxBytes is checked against the open file's size BEFORE anything
 '' is read, and again while reading, so a file that grows meanwhile still stops at
 '' maxBytes + 1 bytes: FS_TOO_LARGE either way.
 
@@ -1065,8 +1062,8 @@ public function ReadAllBytes( byref p as const ustring, buf as Array( of ubyte )
 end function
 
 '' ReadAllText's text, from at most maxBytes bytes: the same decoding (MemoryStream's
-'' ToUtf8Text, which the P2 suite holds equal to ReadAllText), and ReadAllText's refusal
-'' of a UTF-32 BOM (RFC-0002 E12).
+'' ToUtf8Text, which the test suite holds equal to ReadAllText), and ReadAllText's refusal
+'' of a UTF-32 BOM.
 public function ReadAllText( byref p as const ustring, byval maxBytes as longint ) as FsResultUStr
     dim as Array( of ubyte ) b
     dim as FsResultI64 r = ReadAllBytes( p, b, maxBytes )

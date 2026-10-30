@@ -1,7 +1,7 @@
 #module "tasks"
 '' std/tasks: select -- the runtime half of the SELECT statement
 ''
-'' RFC-0004 (C:\dev\docs\goroutines\RFC-0004-select.md).  These types exist so
+'' These types exist so
 '' that the SELECT statement has something to lower to; they are not meant to be
 '' written by hand, and the shape below is what parser-select.bas generates.
 ''
@@ -144,7 +144,7 @@ public function SelectAddRecv( of T ) _
     sc.cases( idx ).ownsslot = FALSE
 
     '' A nil channel is permanently not-ready, which is how a case is
-    '' disabled (RFC-0002 section 7).  It is registered with a NULL core and
+    '' disabled.  It is registered with a NULL core and
     '' simply never polled or enqueued.
     if( ch.Handle( ) = nullptr ) then
         sc.cases( idx ).core = nullptr
@@ -156,8 +156,8 @@ public function SelectAddRecv( of T ) _
     return TRUE
 end function
 
-'' The value to send is copied HERE, once, before anything blocks -- RFC-0004
-'' section 3 step 1.  The caller may modify its original freely afterwards.
+'' The value to send is copied HERE, once, before anything blocks.  The caller
+'' may modify its original freely afterwards.
 public function SelectAddSend( of T ) _
     ( _
         byref sc as SelectCtx, byval idx as long, _

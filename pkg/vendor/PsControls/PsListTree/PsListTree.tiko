@@ -151,7 +151,7 @@ public type PSLISTTREE_ROWINFO
 end type
 
 ' fbc cannot parse `redim rows(i).cells(...)` (a member array reached through an array
-' element); a member procedure redim'ing `this.cells` parses fine -- see Learnings.md.
+' element); a member procedure redim'ing `this.cells` parses fine.
 sub PSLISTTREE_ROWINFO.EnsureCells( byval n as integer )
     if n <= 0 then exit sub
     if ubound(this.cells) < n - 1 then redim preserve this.cells( 0 to n - 1 )
@@ -244,7 +244,7 @@ public type BeginLabelEditCallbackFunc as function( byval hListControl as HWND, 
 ' Fired when the user COMMITS an edit (Enter / focus loss), with the edited text. Return
 ' FALSE to reject it (the row keeps its old caption); TRUE (or unset) writes newText into
 ' the row. Not fired on cancel (Esc). newText is byval -- never byref const (a copied
-' const DWSTRING corrupted the heap under AfxNova; see Learnings.md).
+' const DWSTRING corrupted the heap under AfxNova).
 public type EndLabelEditCallbackFunc as function( byval hListControl as HWND, byval row as integer, byval newText as ustring ) as boolean
 
 ' The USER expanded or collapsed a node -- by clicking its twisty, by Left/Right, or by
@@ -315,7 +315,7 @@ public type PSLISTTREE_STATE
                                           ' WM_LBUTTONUP, disarmed by any fresh WM_LBUTTONDOWN
     bSwallowNextChar as boolean = false   ' armed in WM_KEYDOWN for a claimed key that produces a
                                           ' WM_CHAR (Space); the WM_CHAR arm consumes it so the
-                                          ' system does not beep (the CLAUDE.md WM_CHAR rule)
+                                          ' system does not beep
     ' --- Drag-and-drop reordering (opt-in). The gesture is the ONLY thing in this control
     '     that takes mouse capture, and it does so only while a drag is actually active. ---
     bDragReorder    as boolean = false    ' host opt-in; nothing below runs when false
@@ -342,7 +342,7 @@ public type PSLISTTREE_STATE
     nBorderWidth    as integer = 0        ' 0 = no border drawn
     ' Named hRowFont, NOT hFont: a field named hFont case-insensitively shadows the HFONT
     ' type within this TYPE body, so a SECOND `... as HFONT` field (hTwistyFont below) would
-    ' fail to compile. Renaming the row-font field frees the type name (Learnings.md,
+    ' fail to compile. Renaming the row-font field frees the type name (see
     ' PsDatePicker). Public surface is unchanged -- PsListTree_SetFont still sets this.
     hRowFont        as HFONT              ' caller-supplied font for row text (caller owns it)
     ' --- Tree appearance. Both switches default OFF and every field is zero-effect until a
@@ -4469,7 +4469,7 @@ public sub PsListTree_ApplyFonts( byval hListControl as HWND, byval hTextFont as
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). RowHeight, IndentWidth, TwistyWidth, HeaderHeight and
+' Per-monitor DPI. RowHeight, IndentWidth, TwistyWidth, HeaderHeight and
 ' ScrollBarWidth are stored UNSCALED and scaled at use, so they stay; their pixel caches
 ' (row height, indent, twisty band) are dropped and re-derived at the new DPI. The editor's
 ' text inset is a host pixel value, so it is scaled. The border is a hairline (never scaled).
@@ -5209,7 +5209,7 @@ public function PsListTree_Create( byval hWndParent as HWND, byval CtrlID as int
     pList->idc_ListTree = CtrlID
     ' Default twisty glyphs: Segoe Fluent Icons ChevronDown (expanded) / ChevronRight
     ' (collapsed). Only drawn when ShowTwisty is on and a symbol font is set (SetTwistyFont);
-    ' a host can swap them with SetTwistyGlyphs. wchr(), not an escaped literal (Learnings.md).
+    ' a host can swap them with SetTwistyGlyphs. wchr(), not an escaped literal.
     pList->wszGlyphExpanded  = wchr( &hE70D )
     pList->wszGlyphCollapsed = wchr( &hE76C )
 

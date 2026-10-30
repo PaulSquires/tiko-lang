@@ -4,7 +4,7 @@
 '' Everything else netsock.tiko says to the OS on POSIX is POSIX, written against
 '' sys/posix there; only what has no POSIX spelling is here, as the smallest
 '' module-private names, so a second POSIX target supplies the same five and nothing
-'' more. The Darwin sibling (netdarwin.tiko, M5) must provide:
+'' more. The Darwin sibling (netdarwin.tiko) must provide:
 ''
 ''   hLastErr( ) as long                  errno -- *__error( )
 ''   hSocket( v6, type_ ) as integer      a socket nothing inherits, -1 on failure --

@@ -21,9 +21,9 @@
 **Dropped:** `SetupBitmap`, `getMemDC`, `rcClient*`, `PaintClientRect` (a widget fills its own
 rect), `PaintIconButton` (no caller in the family), `SetSmoothingMode` (always AA).
 
-## Text caching: measured and REJECTED (2026-10-25, tiko-studio P3)
+## Text caching: measured and REJECTED (2026-10-25, for tiko-studio)
 
-The plan assumed `DrawU8` (a new `TTF_Text` per call) plus `tkText_WidthU8` (`TTF_GetStringSize`,
+The assumption was that `DrawU8` (a new `TTF_Text` per call) plus `tkText_WidthU8` (`TTF_GetStringSize`,
 which shapes again) made text the cost of a frame. tkCodeEdit's run cache had paid off. The same
 cache here (shaped runs keyed engine+font+colour+bytes, widths keyed font+bytes, each flushed whole
 at 8,192) was measured with `examples/tkControls/tkPaint/bench`: 400 labels a frame, rendered without presenting.
@@ -38,6 +38,6 @@ at 8,192) was measured with `examples/tkControls/tkPaint/bench`: 400 labels a fr
 Short UI labels are cheap to shape. The lookup (a key built and hashed per label) costs more than
 it saves, and churn through the cap is ruinous. tkCodeEdit keeps its own cache: Scintilla's runs
 are longer and repeat across a whole view. **No cache in tkPaint.** 400 labels at 2.5–4 ms a
-frame is within budget. The same numbers answer the plan's "host dirty / texture cache" item: a
+frame is within budget. The same numbers answer the "host dirty / texture cache" question: a
 whole-window repaint of an IDE-sized frame is not the bottleneck, so that is not built either.
 `bench.exe` stays as the instrument for the next time.

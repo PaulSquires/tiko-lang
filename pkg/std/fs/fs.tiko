@@ -1,8 +1,8 @@
 #module "fs"
 '' std/fs: filesystem -- the modern filesystem module, in one #import
 ''
-'' Specified in C:\dev\docs\filesystem\. Mirrors std/containers' containers.tiko: this
-'' file is the module's overview and declares nothing but std/path's old names below.
+'' Mirrors std/containers' containers.tiko: this file is the module's overview and declares
+'' nothing but std/path's old names below.
 ''
 '' Every name is the module's and nothing is added to the global
 '' namespace, so a program that already defines its own PathJoin, FsError or
@@ -12,31 +12,15 @@
 '' FileExists, FileLen, FileCopy, Kill, Name, MkDir and RmDir are untouched and
 '' undeprecated; a program using them compiles and behaves exactly as before.
 '' The only new consequence is that a better option now sits next to them.
-''
-'' ALL SEVEN PHASES EXIST TODAY, RFC-0001 through RFC-0009.
 
 
 #if __FB_LANG__ <> "fb"
     #error "std/fs requires -lang fb (it uses namespaces)"
 #endif
 
-'' Phase 1 -- RFC-0001, RFC-0002
+'' Streams -- fsstream.tiko (Stream, MemoryStream, Copy)
 
-'' Phase 2 -- RFC-0003, RFC-0004
-
-'' Phase 3 -- RFC-0005
-
-'' Phase 4 -- RFC-0006
-
-'' Phase 5 -- RFC-0007
-
-'' Phase 6 -- RFC-0008
-
-'' Phase 7 -- RFC-0009
-
-'' Streams -- C:\dev\docs\tiko-fs\RFC-0001 section 5 (fsstream: Stream, MemoryStream, Copy)
-
-'' std/path's names, kept when std/path was folded into std/fs (RFC-0009 M30): each is the
+'' std/path's names, kept when std/path was folded into std/fs: each is the
 '' function it names, as an exported macro -- 'fs.JoinPath( a, b )' is 'fs.PathJoin( a, b )'.
 '' Exported macros are used qualified only: 'using fs' brings PathJoin, not JoinPath.
 #define Separator PathSeparator

@@ -17,24 +17,22 @@ using outcome
 ''         print r.Value( ).Name
 ''     next
 ''
-'' C:\dev\docs\tiko-fs\RFC-0002-text-encodings.md section 5.11, decisions E14-E21.
-''
-'' RECORD n IS 1-BASED (E15), at ( n - 1 ) * the record length, which is sizeof( T )
-'' unless RecordFile.Open is given a longer one for a file with padded records (E18).
+'' RECORD n IS 1-BASED, at ( n - 1 ) * the record length, which is sizeof( T )
+'' unless RecordFile.Open is given a longer one for a file with padded records.
 '' Reading a record that is not all there -- past the end, or a partial last record -- is
-'' Ok( FALSE ) and leaves the record untouched (E16); RecordCount does not count a partial
-'' record. Writing past the end GROWS the file (E17), the gap reading as zeros, as legacy
+'' Ok( FALSE ) and leaves the record untouched; RecordCount does not count a partial
+'' record. Writing past the end GROWS the file, the gap reading as zeros, as legacy
 '' PUT does; Append is the spelling that cannot leave a gap.
 ''
-'' T MUST BE PLAIN DATA (E19): numbers, fixed-length zstring * N / wstring * N, and nested
+'' T MUST BE PLAIN DATA: numbers, fixed-length zstring * N / wstring * N, and nested
 '' TYPEs of those. A string, ustring, pointer or dynamic array writes the ADDRESS it
 '' holds, which means nothing when the file is read back, and an object with a vtable
-'' writes its vtable pointer. Nothing can check this at compile time (RFC-0002 U5), so
+'' writes its vtable pointer. Nothing can check this at compile time, so
 '' it is the caller's rule. The bytes are T's bytes as they are in memory: use `field = 1`
 '' for a layout without padding, and std/codec's Get/Put LE/BE helpers for a format that
 '' must read the same on another machine.
 ''
-'' NO RECORD LOCKS (E21): File.Lock locks the whole file.
+'' NO RECORD LOCKS: File.Lock locks the whole file.
 
 #if __FB_LANG__ <> "fb"
     #error "std/fs requires -lang fb (it uses namespaces)"
@@ -201,12 +199,12 @@ end sub
 
 '' A file of records of T, opened once. DO NOT COPY ONE: it owns its File. (File itself
 '' refuses a copy with TKO0633; through a generic type the copy compiles today and only
-'' fails to link -- RFC-0002 section 10.5.)
+'' fails to link.)
 public type RecordFile( of T )
     '' Read + write, created if missing -- legacy OPEN ... FOR RANDOM -- unless opts say
     '' otherwise. The record length is sizeof( T ) unless given; a longer one reads files
     '' whose records are padded. (Four overloads rather than a default argument: a method
-    '' of a generic type loses its defaults today -- RFC-0002 section 10.5.)
+    '' of a generic type loses its defaults today.)
     declare function Open overload ( byref p as const ustring ) as FsResultBool
     declare function Open overload ( byref p as const ustring, byval recordLen as long ) as FsResultBool
     declare function Open overload ( byref p as const ustring, byref opts as const OpenOptions ) as FsResultBool
@@ -214,7 +212,7 @@ public type RecordFile( of T )
         byval recordLen as long ) as FsResultBool
     declare function Close( ) as FsResultBool
     '' Not const, nor is anything here: a const method of a generic type is not
-    '' instantiated across a module boundary today (RFC-0002 section 10.5).
+    '' instantiated across a module boundary today.
     declare function IsOpen( ) as boolean
     declare function RecordLength( ) as long
 

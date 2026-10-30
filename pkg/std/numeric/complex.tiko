@@ -11,16 +11,15 @@ using outcome
 ''     print CToString( z * z )        '' -7+24i
 ''     dim as Complex w = CExp( z )
 ''
-'' Specified by C:\dev\docs\math\RFC-0009-complex.md, which supersedes RFC-0007
-'' s5.  Complex numbers used to live in fb/vector.bi; they were removed from it
+'' Complex numbers used to live in fb/vector.bi; they were removed from it
 '' when this file was written, as fb/complex.bi.  Both are std/numeric now, so
 '' one #import gets both -- vector.tiko and complex.tiko are files of the same
 '' module.
 ''
 '' EVERY FUNCTION CARRIES A 'C' PREFIX.  Exp, Log, Sqr, Sin, Cos, Tan, Abs, Atn
 '' and Str are FreeBASIC intrinsics, and a function of one of those names in
-'' namespace FB SHADOWS the intrinsic for every later header -- measured during
-'' phase 8, where it broke fb/random.bi -- after which the intrinsic cannot be
+'' namespace FB SHADOWS the intrinsic for every later header -- measured when it
+'' broke fb/random.bi -- after which the intrinsic cannot be
 '' called back.  So the transcendentals must be prefixed, and given that, the
 '' prefix is applied uniformly: a mixed scheme would require the reader to know
 '' which of 'Sin' and 'Real' is an intrinsic in order to guess the spelling.
@@ -29,7 +28,7 @@ using outcome
 '' the prefix exists to separate functions from intrinsics.
 ''
 '' 'CStr' is a FreeBASIC keyword, so AfxNova's CStr( z ) is CToString( z ) here
-'' -- which also names what it is: the round-tripping form from RFC-0004, not
+'' -- which also names what it is: the round-tripping form (see mathtext.tiko), not
 '' STR.
 ''
 '' DOUBLE ONLY.  No Complexf.  Both source libraries are double-only, and with
@@ -38,7 +37,7 @@ using outcome
 ''
 '' TWO SOURCES, AND WHAT EACH CONTRIBUTED.  Both MIT.
 ''
-''   C:\dev\AfxNova\src\AfxComplex.inc -- BREADTH.  The sec/csc/cot families,
+''   AfxNova's src/AfxComplex.inc -- BREADTH.  The sec/csc/cot families,
 ''   all twelve inverses, the hyperbolics, CNthRoot, CLogAbs, the real-argument
 ''   variants and the polar string form.  (c) Jose Roca, MIT.
 ''

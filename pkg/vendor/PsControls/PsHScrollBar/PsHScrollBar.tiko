@@ -190,7 +190,7 @@ public declare sub      PsHScrollBar_SetScrollCallback( byval hSB as HWND, byval
 '         PsHScrollBar_HandleWheelDelta( hSB, cast(short, hiword(wParam)) )
 '
 ' The cast matters: loword/hiword yield UNSIGNED words, so a delta read without it turns
-' ~-120 into ~65416 and the direction silently inverts (see C:\dev\Learnings.md).
+' ~-120 into ~65416 and the direction silently inverts.
 ' Returns TRUE if the position actually moved.
 '
 ' ROUTING, worth knowing: Windows sends wheel messages to the FOCUSED window, and this
@@ -259,7 +259,7 @@ end function
 '     PsHScrollBar_HandleWheelDelta( hSB, cast(short, hiword(wParam)) )
 '
 ' The cast matters -- loword/hiword yield UNSIGNED words, so a swipe-left delta read without
-' it becomes ~65416 and the direction silently inverts (see C:\dev\Learnings.md).
+' it becomes ~65416 and the direction silently inverts.
 '
 ' SIGN -- THE TRAP IN THIS FILE: for WM_MOUSEHWHEEL a POSITIVE delta means "scroll RIGHT",
 ' which INCREASES nPos. That is the OPPOSITE of PsVScrollBar, where a positive WM_MOUSEWHEEL
@@ -504,7 +504,7 @@ function PsHScrollBar_WndProc( _
         ' A horizontal two-finger trackpad swipe (or a tilt wheel) with the cursor over the
         ' bar. All the work -- and the inverted sign relative to PsVScrollBar -- lives in
         ' HandleWheelDelta, which a host can also call to route a swipe made over the
-        ' content. The signed-word cast is not optional: hiword is unsigned (Learnings.md).
+        ' content. The signed-word cast is not optional: hiword is unsigned.
         '
         ' Reaching us at all depends on "scroll inactive windows when I hover over them"
         ' (on by default), since this control never takes focus -- see the ROUTING note above
@@ -664,7 +664,7 @@ public sub PsHScrollBar_ApplyTheme( byval hSB as HWND, byref t as PSTHEME_COLORS
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). The scrollbar stores no pixel metric of its own: the range
+' Per-monitor DPI. The scrollbar stores no pixel metric of its own: the range
 ' is in the host's units, the thumb rect is derived from range and track (Recalc) and the
 ' minimum thumb width is scaled at use. So the CWindow takes the new DPI -- which Recalc's
 ' ScaleX/ScaleY then follow -- and the thumb is re-derived; the host re-sizes the track.

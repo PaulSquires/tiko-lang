@@ -2,7 +2,7 @@
 '' std/chrono: zones, locale and interop, the USTRING overloads, and the clocks (split from
 '' chrono.tiko, which was fb/chrono.bi, at the 1500-line cap).
 
-'' ================================== zones, locale, interop (RFC-0007)
+'' ============================================= zones, locale, interop
 ''
 '' In scope: UTC, the OS local zone, explicit fixed offsets.
 '' OUT of scope: the IANA tz database, named zones, DST-ambiguity policies.
@@ -58,7 +58,7 @@ function DateTime.ToLocal( ) as DateTime
     return DateTime.FromInstant( i, cshort( fb_DtZoneOffsetAt( i.Ticks ) ) )
 end function
 
-'' -- calendar-preserving arithmetic (RFC-0007 section 2) ---------------
+'' -- calendar-preserving arithmetic ------------------------------------
 ''
 '' AddDays( 1 ) is exact tick arithmetic: 86400 seconds, which does NOT keep
 '' the wall-clock time across a DST boundary.  These operate on the civil
@@ -91,12 +91,12 @@ function DateTime.AddCalendarYears( byval n as long ) as DateTime
     return this.AddCalendarMonths( n * 12 )
 end function
 
-'' -- locale formatting (RFC-0007 section 3) ----------------------------
+'' -- locale formatting -------------------------------------------------
 ''
 '' HONEST LIMITATION: this output is whatever the machine's locale says and
 '' CANNOT be asserted by exact string.  Its tests check non-emptiness, valid
 '' UTF-8, ordering and distinctness -- and nothing more.  Anything written to
-'' a file should use the RFC-0006 pattern formatter, which is invariant.
+'' a file should use the custom pattern formatter, which is invariant.
 function DateTime.ToLocaleDateString( byval style as long ) as ustring
     dim as zstring * 256 buf
     if this.IsValid = false then return ""
@@ -135,11 +135,11 @@ function DateTime.WeekdayName( byval dow as long, byval abbreviated as boolean )
     return left( buf, n )
 end function
 
-'' -- interop converters (RFC-0007 section 4) ---------------------------
+'' -- interop converters ------------------------------------------------
 ''
 '' The bridge that lets existing code migrate one function at a time.  Every
 '' one of these is a single addition (and at most one division), which is the
-'' whole reason RFC-0001 chose this epoch and tick size.
+'' whole reason this epoch and tick size were chosen.
 
 function Instant.FromUnixSeconds( byval v as longint ) as Instant
     if v > 2147483647000ll then return Instant.Invalid( )
@@ -237,7 +237,7 @@ property DateTime.OleDate( ) as double
 end property
 
 
-'' ============================================ USTRING overloads (phase 8)
+'' ====================================================== USTRING overloads
 ''
 '' Thin by construction.  The C layer already emits UTF-8 on both platforms,
 '' and FreeBASIC decodes STRING -> USTRING as UTF-8 and encodes back the
@@ -321,7 +321,7 @@ end function
 
 '' =============================================================== WallClock
 ''
-'' RFC-0003 section 2.  The wall clock: what time is it.  It CAN jump backwards
+'' The wall clock: what time is it.  It CAN jump backwards
 '' -- NTP corrections, DST, a user setting the clock -- so it is the wrong tool
 '' for measuring elapsed time.  Use Stopwatch for that.
 '' A namespace rather than a TYPE: FreeBASIC will not accept a TYPE with no
@@ -357,7 +357,7 @@ end namespace
 
 '' =============================================================== Stopwatch
 ''
-'' RFC-0003 section 3.  The monotonic clock: how long since.  Never jumps, so
+'' The monotonic clock: how long since.  Never jumps, so
 '' unlike TIMER it stays correct across an NTP correction or a DST shift.
 ''
 '' ACCUMULATES rather than recomputing from two stored timestamps, so
@@ -457,7 +457,7 @@ end function
 
 '' ================================================================ CpuClock
 ''
-'' RFC-0003 section 4.  How much CPU this process or thread has consumed --
+'' How much CPU this process or thread has consumed --
 '' which a SLEEP does not advance, and that is the whole point.
 '' A namespace, for the same reason as WallClock above.
 namespace CpuClock

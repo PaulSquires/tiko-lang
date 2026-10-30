@@ -1086,7 +1086,7 @@ type TKCE_STATE
     NotifyCallback as TKCODEEDIT_NotifySub
     ContextMenuCallback as TKCODEEDIT_ContextMenuSub
     ScaleCallback  as TKCODEEDIT_ScaleSub
-    ' measurements (tiko-studio P1 gate): the last re-render of the view and their count
+    ' measurements: the last re-render of the view and their count
     fLastPaintMs as double
     nPaints      as long
     nBlits       as long
@@ -1166,7 +1166,7 @@ private function SciKey( byval k as long ) as long
 end function
 
 ' SDL_Keymod -> Scintilla KeyMod. On macOS Cmd is the command key, so it reaches Scintilla's key
-' map as Ctrl (tiko-studio D8: the Primary modifier).
+' map as Ctrl (the Primary modifier).
 private function SciMods( byval m as long ) as long
     dim as long r = 0
     if (m and SDL_KMOD_SHIFT) then r or= 1
@@ -1784,7 +1784,7 @@ end function
 public function tkCodeEdit_SendText( byval hEdit as TK_WIDGET ptr, byval msg as ulong, byval wp as uinteger, _
                                      byref s as ustring ) as integer
     ' "" must still be a pointer to a NUL: an empty string's strptr is 0, and Scintilla ignores
-    ' SCI_SETTEXT( 0 ) -- SetText( "" ) left the old document in place (found by the P2 tests)
+    ' SCI_SETTEXT( 0 ) -- SetText( "" ) left the old document in place (found by the tests)
     dim as string u8 = s & chr( 0 )
     return tkCodeEdit_Send( hEdit, msg, wp, cast( integer, strptr( u8 ) ) )
 end function
@@ -1803,9 +1803,10 @@ public sub tkCodeEdit_SetText( byval hEdit as TK_WIDGET ptr, byref s as ustring 
     tkCodeEdit_SendText( hEdit, SCI_SETTEXT, 0, s )
 end sub
 
-' The font every style uses (P1: one file; per-style faces are P2), in points at the surface's
-' scale -- Scintilla converts with SciTk_SetDpi's 96 x scale. 'sFile' is const: only read, and a
-' caller's const object may hand its field straight in (tiko refuses that for a non-const byref).
+' The font every style uses (one file; per-style faces are tkCodeEdit_SetFontFace's), in
+' points at the surface's scale -- Scintilla converts with SciTk_SetDpi's 96 x scale. 'sFile'
+' is const: only read, and a caller's const object may hand its field straight in (tiko refuses
+' that for a non-const byref).
 public sub tkCodeEdit_SetFont( byval hEdit as TK_WIDGET ptr, byref sFile as const ustring, byval nPoints as long )
     dim as TKCE_STATE ptr t = CE( hEdit )
     if t = 0 then exit sub

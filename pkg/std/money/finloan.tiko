@@ -19,8 +19,6 @@ using containers
 ''                            row.ClosingBalance_.ToStringFixed( 2 )
 ''     next                       ' the final ClosingBalance_ is EXACTLY zero
 ''
-'' Specified by C:\dev\docs\finance\RFC-0005-loans.md.  Phase 4.
-''
 '' THE SIGN CONVENTION IS INVERTED HERE, ON PURPOSE.  fintvm.tiko uses
 '' cash-flow signs, where a payment is negative.  THIS FILE DOES NOT: the
 '' principal is positive, the payment is positive, the interest is positive, and
@@ -33,7 +31,7 @@ using containers
 '' The bridge is ONE private helper, hLoanToAnnuity, which negates on the way
 '' into fintvm.tiko and back out.  It is named here so that a reader who diffs
 '' the two files and notices the inconsistency finds the DECISION rather than
-'' guessing at an accident.  RFC-0005 section 2 argues it.
+'' guessing at an accident.
 ''
 '' ONE CODE PATH FOR BOTH MARKETS.  LoanTermsUsMortgage and
 '' LoanTermsCanadianMortgage fill THE SAME RECORD and differ in ONE FIELD --
@@ -43,7 +41,7 @@ using containers
 '' know which enum their country uses, NOT because the arithmetic differs.
 ''
 '' THE ROUNDING ALGORITHM IS NORMATIVE, and it is why this file is long.  Nine
-'' numbered steps, in hAdvance below, each carrying the RFC-0005 section 6 step
+'' numbered steps, in hAdvance below, each carrying the number of the step
 '' it implements.  The load-bearing one is step 3: PRINCIPAL IS THE RESIDUAL,
 '' Payment - Interest, never computed independently.  That single line is the
 '' difference between "payment = interest + principal" being an IDENTITY and
@@ -103,7 +101,8 @@ public function LoanTermsMake overload _
 end function
 
 '' THE SAME RECORD AS THE CANADIAN ONE BELOW, differing in Compounding_ and
-'' nothing else.  That is the whole point of RFC-0002 section 2.
+'' nothing else.  That is the whole point of compounding and payment frequency
+'' being two parameters (fincore.tiko).
 public function LoanTermsUsMortgage overload _
     ( byref principal as Decimal, byref nominalAnnualRate as Decimal, byval termYears as long ) as LoanTerms
 
@@ -234,8 +233,8 @@ end function
 ''
 '' For an ordinary frequency this is RatePerPaymentFromNominal outright.  For an
 '' ACCELERATED one that funnel returns the MONTHLY rate -- so the monthly rate
-'' is converted to the true biweekly or weekly rate here.  RFC-0005 section 4.1
-'' step 3, and the step everybody forgets: accruing at monthly rates while
+'' is converted to the true biweekly or weekly rate here -- the step everybody
+'' forgets: accruing at monthly rates while
 '' posting biweekly overstates the saving.
 function hLoanAccrualRate overload ( byref t as LoanTerms ) as FinResultDec
     dim as FinResultDec r = RatePerPaymentFromNominal( t.NominalAnnualRate_, _
@@ -259,7 +258,7 @@ function hLoanAccrualRate overload ( byref t as LoanTerms ) as FinResultDec
 end function
 
 '' THE BRIDGE between this file's statement signs and fintvm.tiko's
-'' cash-flow signs.  Named in RFC-0005 section 2 so the inconsistency between
+'' cash-flow signs.  Named in the note at the top so the inconsistency between
 '' the two files reads as a decision rather than an accident.
 function hLoanToAnnuity overload _
     ( byref t as LoanTerms, byref rate as Decimal, byval periods as long ) as AnnuityTerms
@@ -278,7 +277,7 @@ end function
 '' the Canadian convention crosses the double boundary ONCE, in the rate
 '' conversion, after which the annuity is again exact.
 ''
-'' RFC-0005 section 6 step 1: computed unrounded, then ROUNDED EXACTLY ONCE.
+'' Step 1: computed unrounded, then ROUNDED EXACTLY ONCE.
 '' It is deliberately NOT rounded up "to be safe" -- rounding up systematically
 '' overcharges, and over 360 periods that is real money the borrower does not
 '' owe.  The residue is absorbed by the final payment, step 5.
@@ -290,7 +289,7 @@ public function LoanPayment overload ( byref t as LoanTerms ) as FinResultDec
     if( rate.IsOk( ) = FALSE ) then return rate
 
     if( hLoanIsAccelerated( t.PaymentFrequency_ ) ) then
-        '' RFC-0005 section 4.1 steps 1 and 2: the ORDINARY MONTHLY payment,
+        '' The ORDINARY MONTHLY payment,
         '' divided by two or four.  Not an annuity over 26 periods -- that
         '' would be ordinary biweekly, a different and cheaper product.
         dim as FinResultDec monthly = RatePerPaymentFromNominal( t.NominalAnnualRate_, _
@@ -358,8 +357,8 @@ function AmortizationIterator.hExtraFor( byval period as long ) as Decimal
     function = total
 end function
 
-'' RFC-0005 section 6, all nine steps.  The step numbers in the comments are
-'' the RFC's, and a later phase may not silently reorder them.
+'' All nine steps of the rounding algorithm.  The step numbers in the comments
+'' are normative, and a later change may not silently reorder them.
 sub AmortizationIterator.hAdvance( )
     if( this.m_live = FALSE ) then exit sub
     if( this.m_period > this.m_maxPeriods ) then

@@ -51,7 +51,7 @@ between opens), `WM_GETDLGCODE` and the WM_CHAR swallow, the 100 ms hover poll a
 `CS_DBLCLKS`, PsRegistry, `Rescale(oldDpi, newDpi)` (`TKM_SCALECHANGED` scales every stored
 metric, the list's too, and closes an open list).
 
-## EDITABLE mode (2026-10-25, tiko-studio P3)
+## EDITABLE mode (2026-10-25, for tiko-studio)
 
 Win32's `CBS_DROPDOWN`, which vendor's PsComboBox never had: `tkComboBox_SetEditable( c, true )`.
 - **The edit.** A single-line tkTextBox (no border, the combo's colours) lies over the text

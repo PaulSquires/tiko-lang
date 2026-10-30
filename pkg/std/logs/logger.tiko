@@ -9,8 +9,6 @@ using chrono
 using containers
 '' std/logs: logger -- std/logs' front end
 ''
-'' RFC-0002 -- C:\dev\docs\logging\RFC-0002-logger.md.
-''
 '' What a call site touches. Everything here is either a level test or a field
 '' append; no I/O happens in this file. Logger.Emit hands a finished LogRecord
 '' to the sinks.
@@ -42,8 +40,8 @@ using containers
 '' ---------------------------------------------------------------------------
 '' THE DEFAULT LOGGER IS NOT HERE
 ''
-'' logs.DefaultLogger( ), LogInit and LogShutdown of RFC-0002 section 6 are in
-'' logdefault.tiko (phase 4). As a header that file could not make the object --
+'' logs.DefaultLogger( ), LogInit and LogShutdown are in
+'' logdefault.tiko. As a header that file could not make the object --
 '' a `dim shared` in a .bi included by two modules gave two of them, so the
 '' program defined it with FB_LOG_IMPLEMENT( ); std/logs, one module, now does.
 
@@ -159,7 +157,7 @@ end property
 ''
 '' What it does NOT avoid is evaluating the ARGUMENTS at the call site. That is
 '' irreducible at runtime in a language without lazy arguments, and it is what
-'' logmacros.tiko (phase 5) exists to remove.
+'' logmacros.tiko exists to remove.
 function LoggerType.Enabled( byval lv as LogLevel ) as boolean
     return ( lv >= this.m_minlevel )
 end function
@@ -197,7 +195,7 @@ end function
 '' methods -- Error, Log and the rest -- keep their names: being an intrinsic is
 '' not enough to block a member name, only being a keyword or a statement is.
 ''
-'' RFC-0002 section 5. Returns a NEW Logger by value carrying the parent's
+'' Returns a NEW Logger by value carrying the parent's
 '' level, sinks and inherited fields PLUS the new one. The parent is untouched
 '' and the child does not alias it -- the generic member deep-copies.
 ''
@@ -244,7 +242,7 @@ function LoggerType.Log( byval lv as LogLevel ) as LogEvent
 
     '' Inherited fields first, call-site fields after -- so "most specific
     '' last" is available to any renderer that wants last-wins. Reserved in
-    '' one go because every LogValue is 40 bytes (RFC-0001 section 1).
+    '' one go because every LogValue is 40 bytes.
     dim as long n = this.m_fields.Count( )
     if( n > 0 ) then
         e.m_rec.fields.Reserve( n + 4 )

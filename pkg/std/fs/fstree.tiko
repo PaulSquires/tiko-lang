@@ -9,8 +9,6 @@ using outcome
 using containers
 '' std/fs: fstree -- RemoveDirAll on handle-relative primitives
 ''
-'' Specified in C:\dev\docs\tiko-fs\RFC-0001-files-and-streams.md sections 9.2 and 15.
-''
 '' THE HAZARD THIS CLOSES (CVE-2022-21658 in Rust's std, the same shape): a path-based
 '' rm -rf lists a directory, then walks into each subdirectory BY NAME. Between the two,
 '' another process can swap a subdirectory for a symbolic link to somewhere else, and
@@ -34,7 +32,7 @@ using containers
 ''      this file, p as a link to a directory deleted everything in the link's TARGET --
 ''      measured on both platforms -- which is the hazard above in its plainest form.)
 ''
-'' The OS is called from here (RFC-0001 F19); native errors still go through the
+'' The OS is called from here; native errors still go through the
 '' runtime's fb_FsMapOsError.
 
 

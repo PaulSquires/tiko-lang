@@ -4,47 +4,43 @@
 ''     #import "std/tui"
 ''     using tui
 ''
-'' C:\dev\docs\tui\README.md is the index; each file names its RFC.
-''
 '' Mirrors std/logs: one #import pulls the whole module in, so a caller does
 '' not have to know which type lives in which file.
 ''
-'' PHASE 1 ships the value layer, the backend and the renderer:
+'' The value layer, the backend and the renderer:
 ''
-''     tuicore.tiko     RFC-0001   TuiRect, TuiColor, TuiStyle, the SGR encoder
-''     tuiterm.tiko     RFC-0002   TuiTerminal -- raw mode, capabilities, restore
-''     tuibuffer.tiko   RFC-0003   TuiCell, TuiBuffer, TuiFrame, TuiScreen, the diff
+''     tuicore.tiko     TuiRect, TuiColor, TuiStyle, the SGR encoder
+''     tuiterm.tiko     TuiTerminal -- raw mode, capabilities, restore
+''     tuibuffer.tiko   TuiCell, TuiBuffer, TuiFrame, TuiScreen, the diff
 ''
-'' PHASE 2 adds input, PHASE 3 the column-width table:
+'' Input and the column-width table:
 ''
-''     tuiinput.tiko    RFC-0004   TuiEvent, the VT grammar, TuiInput, PollEvent
-''     tuiwidth.tiko    RFC-0005   TuiCharWidth, TuiStringWidth, TuiTruncate, TuiWrap
-''     tuiwidthtab.tiko            GENERATED from the UCD -- do not edit by hand
+''     tuiinput.tiko    TuiEvent, the VT grammar, TuiInput, PollEvent
+''     tuiwidth.tiko    TuiCharWidth, TuiStringWidth, TuiTruncate, TuiWrap
+''     tuiwidthtab.tiko GENERATED from the UCD -- do not edit by hand
 ''
-'' PHASE 4 adds layout:
+'' Layout:
 ''
-''     tuilayout.tiko   RFC-0006   TuiConstraint, TuiSplitH/V, padding, centring
+''     tuilayout.tiko   TuiConstraint, TuiSplitH/V, padding, centring
 ''
-'' PHASE 5 adds widgets:
+'' Widgets:
 ''
-''     tuiwidget.tiko   RFC-0007   TuiWidget, TuiFocusRing, TuiButton/TuiButtonOf, TuiStack
-''     tuiwidgets.tiko  RFC-0008   Block, Paragraph, List, Table, Tabs, Gauge, Spinner, Scrollbar
+''     tuiwidget.tiko   TuiWidget, TuiFocusRing, TuiButton/TuiButtonOf, TuiStack
+''     tuiwidgets.tiko  Block, Paragraph, List, Table, Tabs, Gauge, Spinner, Scrollbar
 ''
-'' PHASE 6 adds charts:
+'' Charts:
 ''
-''     tuidraw.tiko     RFC-0008   TuiCanvas (braille), TuiGraph, TuiSparkline,
-''                                 TuiBarChart, TuiMeter
+''     tuidraw.tiko     TuiCanvas (braille), TuiGraph, TuiSparkline,
+''                      TuiBarChart, TuiMeter
 ''
-'' PHASE 7 adds input widgets and overlays:
+'' Input widgets and overlays:
 ''
-''     tuiform.tiko     RFC-0008   TextInput, TextArea, Checkbox, RadioGroup, Select
-''     tuichrome.tiko   RFC-0008   Popup, MessageBox, MenuBar, StatusBar, Tree
+''     tuiform.tiko     TextInput, TextArea, Checkbox, RadioGroup, Select
+''     tuichrome.tiko   Popup, MessageBox, MenuBar, StatusBar, Tree
 ''
-'' PHASE 8 adds the application loop:
+'' The application loop:
 ''
-''     tuiapp.tiko      RFC-0009   TuiApp, TuiCmd, TuiRun, TuiRenderOnce
-''
-'' The module is complete.
+''     tuiapp.tiko      TuiApp, TuiCmd, TuiRun, TuiRenderOnce
 ''
 '' ---------------------------------------------------------------------------
 '' ONE RULE BEFORE ANY OTHER
@@ -52,6 +48,6 @@
 '' Inside a TUI session, DO NOT USE PRINT, LOCATE, COLOR, CLS, INKEY, GETMOUSE
 '' OR SCREEN. On linux-x86_64 a bare PRINT emits ESC[?1h ESC= ESC[6n and blocks
 '' waiting for a cursor-position report; under a pty with no responder it hangs.
-'' All output goes through TuiTerminal. RFC-0002 section 7.
+'' All output goes through TuiTerminal.
 
 

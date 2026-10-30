@@ -1662,7 +1662,7 @@ end function
 ' that looks off by one is far more likely to be the API's real behaviour than a typo.
 '
 ' Reports assertions RUN as well as failed: a harness that only counts failures cannot
-' tell "all passed" from "barely executed" (Learnings.md).
+' tell "all passed" from "barely executed".
 ' ========================================================================================
 namespace PsBufferPaintSelfTest
     dim shared as long gRun, gFail
@@ -1748,7 +1748,7 @@ public sub PsBufferPaint_RunSelfTest( byval hwnd as HWND )
     ' The same CWindow PaintLine scales through, so the pen-thickness assertions can derive
     ' their expected pixel spans exactly the way the code does -- ScaleY() stored in a LONG,
     ' then the pen centred at pos - (penWidth \ 2) -- rather than hardcoding 96-DPI pixels
-    ' that fail on any DPI-aware process at a non-96 scale (see Learnings.md).
+    ' that fail on any DPI-aware process at a non-96 scale.
     dim as CWindow ptr pWin = CWindowPtr( hwnd )
 
     dim as HDC hScreen = GetDC( null )
