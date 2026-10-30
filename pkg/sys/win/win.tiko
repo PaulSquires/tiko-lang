@@ -24,6 +24,12 @@
 ' ########################################################################################
 
 #module "win"
+' The Windows-only guard comes BEFORE the #import: win.ti carries it too, but
+' std/fs is imported first, and on Linux crt/errno.bi then fails before win.ti
+' is reached -- the user sees an errno error instead of what is wrong.
+#ifndef TIKO_OS_WINDOWS
+#error "sys/win is Windows-only: build for -target windows-x86_64"
+#endif
 #import "std/fs"
 #include once "win.ti"
 
