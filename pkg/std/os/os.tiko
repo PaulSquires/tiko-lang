@@ -14,8 +14,6 @@ using outcome
 ''     dim home as Optional( of ustring ) = os.GetEnv( "HOME" )
 ''     print os.OS_NAME, os.Hostname( ).ValueOr( "?" ), os.CpuCount( )
 ''
-'' C:\dev\docs\tiko-stdlib\RFC-0001 section 8.
-''
 ''   arguments     Args( ) -- argv[0] included, Unicode on both OSes.  Windows splits
 ''                 GetCommandLineW by the CommandLineToArgvW rules; Linux reads
 ''                 /proc/self/cmdline.

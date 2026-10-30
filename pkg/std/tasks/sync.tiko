@@ -1,7 +1,7 @@
 #module "tasks"
 '' std/tasks: sync -- tasks.WaitGroup and tasks.Context
 ''
-'' RFC-0005 (C:\dev\docs\goroutines\RFC-0005-sync.md).  The two small pieces
+'' The two small pieces
 '' that make goroutines and channels usable: a way to wait for a fan-out, and a
 '' way to ask it to stop.
 ''
@@ -290,7 +290,7 @@ end sub
 '' Cancel is IDEMPOTENT, unlike Channel.Close.  A context is routinely cancelled
 '' by both a timeout and an explicit Cancel, so "two parties" is the normal case
 '' here rather than a bug.  This is the only place this design diverges from
-'' RFC-0002 section 6, and it is deliberate.
+'' the channel rules, and it is deliberate.
 sub hCtxCancel( byval s as CtxState ptr, byval isdeadline as boolean )
     if( s = nullptr ) then exit sub
 
@@ -423,7 +423,7 @@ end function
 '' The background context has no Done channel, and returning a NIL channel is
 '' exactly right: a nil channel is permanently not-ready, so a Done case on a
 '' context that can never be cancelled is permanently disabled, which is what it
-'' means (RFC-0002 section 7).
+'' means.
 function Context.Done( ) as Channel( of boolean )
     if( this.st = nullptr ) then
         dim as Channel( of boolean ) nilch

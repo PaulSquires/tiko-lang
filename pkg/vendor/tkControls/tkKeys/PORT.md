@@ -2,7 +2,7 @@
 
 tkKeys is new in tkControls, with no Ps twin. Win32 gave tiko-editor accelerator tables
 (`CreateAcceleratorTable` / `TranslateAccelerator`) and the "Ctrl+S" text in keybindings.ini;
-SDL has neither. Built for tiko-studio P3, `C:\dev\docs\tiko-studio\PLAN.md` deficiency 6.
+SDL has neither. Built for tiko-studio.
 
 **What it is:**
 - **The chord.** `TK_CHORD`: an SDL keycode plus `TKKEY_SHIFT/CTRL/ALT/GUI`, with left and

@@ -122,7 +122,7 @@ public type PSTEXTBOX_STATE
     nTextAlign      as long = TXT_ALIGN_LEFT
     ' Caller-supplied fonts (caller owns them; the control never deletes an HFONT).
     ' NOT named hFont: a member called hFont would shadow the HFONT type inside member
-    ' procedures (FreeBASIC is case-insensitive -- see C:\dev\Learnings.md).
+    ' procedures (FreeBASIC is case-insensitive).
     hTextFont       as HFONT              ' 0 = stock DEFAULT_GUI_FONT
     hCueFont        as HFONT              ' 0 = use hTextFont
     CueText         as ustring           ' drawn whenever the buffer is empty ("" = none)
@@ -1085,7 +1085,7 @@ public sub PsTextBox_GetVScrollInfo( byval hTextBoxControl as HWND, byref nTotal
     ReleaseDC( hRichEdit, hdc )
 
     dim as integer lineHeight = tm.tmHeight + tm.tmExternalLeading
-    if lineHeight <= 0 then exit sub         ' guard BEFORE dividing (see Learnings.md)
+    if lineHeight <= 0 then exit sub         ' guard BEFORE dividing
     nLinesPerPage = rectHeight \ lineHeight
 end sub
 
@@ -1350,7 +1350,7 @@ public sub PsTextBox_ApplyFonts( byval hTextBoxControl as HWND, byval hTextFont 
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). The stored pixel metrics -- the two EM_SETMARGINS values and
+' Per-monitor DPI. The stored pixel metrics -- the two EM_SETMARGINS values and
 ' the corner radius -- times newDpi/oldDpi. nBorderWidth stays as it is: it is the frame's
 ' pen width, which PaintRoundBorderRect DPI-scales itself. The control's own CWindow takes the
 ' new DPI so that pen agrees. The fonts are not ours: PsApp hands new ones over after this.
@@ -1609,7 +1609,7 @@ function PsTextBoxRichEdit_SubclassProc ( _
             ' user-interaction-notifies split the other callbacks follow (the
             ' programmatic ScrollToLine stays silent).
             if (pTextBox <> null) andalso (pTextBox->bMultiline = true) then
-                ' The delta is a SIGNED word in the high word (see C:\dev\Learnings.md);
+                ' The delta is a SIGNED word in the high word;
                 ' positive = wheel away = scroll up. Accumulate so high-precision
                 ' wheels (deltas below one 120 notch) still add up to full notches.
                 pTextBox->nWheelAccum += cast(short, hiword(_wParam))

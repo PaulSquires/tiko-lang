@@ -149,7 +149,7 @@ public type TOG_PaintCallbackSub as sub( byval p as PSTOGGLE_PAINTINFO ptr )
 '   WM_LBUTTONUP        - the control holds mouse capture across a press and the up-message
 '                         is what releases it: a callback that suppressed it would strand
 '                         capture and route every subsequent click to this control (the
-'                         PsListBox bug recorded in Learnings.md). Suppressing
+'                         PsListBox bug). Suppressing
 '                         WM_LBUTTONDOWN suppresses the press, never the capture bookkeeping.
 '   WM_SETFOCUS         - focus is a FACT the system reports, not an action to veto. The
 '   WM_KILLFOCUS          state is already updated by the time you are called; there is
@@ -188,7 +188,7 @@ public type PSTOGGLE_STATE
     '     press/cancel gesture (press, slide off the control, release, the state does NOT
     '     flip) consumes the guaranteed down->up pairing, which is the family's test for
     '     taking capture. It pays the full price: snapshot the press BEFORE releasing
-    '     (ReleaseCapture sends WM_CAPTURECHANGED synchronously -- Learnings.md), release on
+    '     (ReleaseCapture sends WM_CAPTURECHANGED synchronously), release on
     '     the up-message before any callback runs, WM_CAPTURECHANGED cancels the press,
     '     WM_DESTROY releases, and no callback may suppress an up-message.
     '     There is no bPressedInside flag: "the cursor is still inside" is exactly isHot,
@@ -294,7 +294,7 @@ sub PSTOGGLE_STATE.LayoutToggle()
     ' NOT named ringPad: FreeBASIC is case-insensitive, so a local with the same name as the
     ' RingPad() member is a duplicate definition inside a member procedure -- and the error
     ' points at the DIM, never at the method it collides with. Same family of trap as the
-    ' hFont/HFONT shadowing recorded in C:\dev\Learnings.md.
+    ' hFont/HFONT shadowing.
     dim as long nRingPad = this.RingPad()
     dim as long knobDia  = this.KnobDiameter()
     dim as long visualW  = this.nTrackWidth + (2 * nRingPad)
@@ -707,8 +707,7 @@ end sub
 ' family learned to pay it:
 '   - WM_LBUTTONUP SNAPSHOTS isPressed, THEN releases capture. ReleaseCapture sends
 '     WM_CAPTURECHANGED synchronously and that handler cancels the press, so reading the
-'     flag afterwards would always find FALSE and no click would ever flip anything
-'     (Learnings.md);
+'     flag afterwards would always find FALSE and no click would ever flip anything;
 '   - the release happens before any callback runs;
 '   - the message callback's result is IGNORED for WM_LBUTTONUP, so it cannot strand it;
 '   - WM_CAPTURECHANGED cancels the press (anything can steal capture at any time);
@@ -1016,7 +1015,6 @@ public function PsToggle_Create( byval hWndParent as HWND, byval CtrlID as long 
     ' and PsScrollPanel all NEED WS_EX_CONTROLPARENT, because their tabstop lives on an inner
     ' child; passing 0 there would make them unreachable instead. The test is "does this
     ' window have children the dialog manager should find?", not "is this a control?".
-    ' Full write-up in C:\dev\Learnings.md.
     dim as HWND hCtrl = _
             pWindow->Create( hWndParent, "", @PsToggle_WndProc, _
             0, 0, 0, 0, WS_CHILD or WS_TABSTOP or WS_CLIPSIBLINGS or WS_CLIPCHILDREN, _
@@ -1323,7 +1321,7 @@ public sub PsToggle_UnpinColors( byval hToggle as HWND )
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' Per-monitor DPI. Every stored pixel metric -- the scaled Create defaults and
 ' whatever the host set since -- times newDpi/oldDpi; nBorderThick and nFocusThick stay as
 ' they are (they were never scaled). The toggle's own CWindow takes the new DPI so later
 ' ScaleX calls agree. The toggle has no font.

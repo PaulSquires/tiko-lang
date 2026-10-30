@@ -42,8 +42,6 @@ using PsTheme
 ' it imports. Per message: the registry's filters, the app's own filters, the active form's
 ' accelerators, IsDialogMessage on the form that owns the message, then Translate/Dispatch.
 ' Modal forms (PsForm.ShowModal) run the same pump.
-'
-' Specified in C:\dev\docs\tiko-psapp\RFC-0001-psapp.md.
 
 public enum PSAPP_DPIMODE
     PSAPP_DPI_SYSTEM = 0          ' system-aware: one DPI for the whole process

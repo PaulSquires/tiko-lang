@@ -5,10 +5,8 @@ using outcome
 using containers
 '' std/fs: fspath -- fs.Path* , the pure path algebra
 ''
-'' Specified in C:\dev\docs\filesystem\RFC-0002-path.md.
-''
 '' PURE. Nothing here touches the filesystem. A path is manipulated AS A STRING;
-'' whether it names anything is fsinfo.tiko's question (RFC-0003). That is why
+'' whether it names anything is fsinfo.tiko's question. That is why
 '' AbsolutePath and CanonicalPath are NOT here: the line this file draws is
 '' syscalls, not subject matter.
 ''
@@ -16,8 +14,7 @@ using containers
 '' have to pick one of STRING and USTRING and force a conversion at every
 '' boundary with the other; every path is already a string when it arrives from
 '' COMMAND or a config file and when it leaves to OPEN or SHELL; and the type is
-'' additive later over these functions, while the reverse is not true. See
-'' C:\dev\docs\filesystem\rationale.md.
+'' additive later over these functions, while the reverse is not true.
 ''
 '' THREE OVERLOADS PER FUNCTION, resolved on the FIRST argument alone, with
 '' EVERY LATER PARAMETER A USTRING in all three -- the rule std/strings' string.tiko
@@ -39,7 +36,7 @@ using containers
 '' unpaired surrogates in file names. Through the STRING family such a path does
 '' not survive the round trip, which means you cannot then open, delete or walk
 '' it. Use the USTRING family for paths that came FROM the filesystem; the
-'' STRING family is for literals and interop. RFC-0001 section 5.
+'' STRING family is for literals and interop.
 ''
 '' THE `gram` PARAMETER selects the path grammar and defaults to the host's.
 '' It is public so that fbc_tests.filesystem.path can evaluate Windows rules on
@@ -78,7 +75,7 @@ FBFSPATH_EXTERN
     '' Drive-relative "C:foo" and rooted-no-drive "\foo" are both FALSE.
     '' They name a path relative to a per-drive or per-process current
     '' directory, and treating either as absolute is a real bug with real
-    '' consequences (RFC-0002 section 1.2).
+    '' consequences.
     public declare function PathIsAbsolute overload alias "fb_UStrPathIsAbsolute" _
         ( byref p as const ustring, byval gram as long = FB_PATH_NATIVE ) as boolean
 
@@ -87,7 +84,7 @@ FBFSPATH_EXTERN
 
     '' Lexical, case-insensitive under the Windows grammar. Two different
     '' paths naming ONE file through a symlink compare UNEQUAL --
-    '' CanonicalPath (RFC-0003) answers that question instead.
+    '' CanonicalPath (fsinfo) answers that question instead.
     public declare function PathEquals overload alias "fb_UStrPathEquals" _
         ( byref a as const ustring, byref b as const ustring, byval gram as long = FB_PATH_NATIVE ) as boolean
 
@@ -187,7 +184,7 @@ end function
 '' ------------------------------------------------------------------ PathSplit
 ''
 '' Does NOT include the root as a component; PathRoot supplies the rest. The
-'' round trip is normative (RFC-0002 section 3 rule 12): PathRoot joined with
+'' round trip holds: PathRoot joined with
 '' these components reconstructs PathNormalize exactly.
 public declare function PathSplit overload _
     ( _
@@ -280,7 +277,7 @@ end function
 '' A COMPILE-TIME, PER-PLATFORM answer, and deliberately not a per-volume one.
 '' Lexical path comparison must be deterministic and must not do IO. The
 '' per-volume question -- "will these two names collide on this disk" -- is
-'' VolumeInfo.IsCaseSensitive in RFC-0008, and the two genuinely disagree: an
+'' VolumeInfo.IsCaseSensitive (fsvolume), and the two genuinely disagree: an
 '' NTFS directory with per-directory case sensitivity enabled (WSL sets this),
 '' or a case-insensitive filesystem mounted on Linux.
 public function PathIsCaseSensitive( byval gram as long ) as boolean
@@ -325,7 +322,7 @@ FBFS_PATH1_OVERLOADS( PathToNative )
 '' seven decomposition functions above follow: string in -> string out,
 '' wstring/ustring in -> ustring out (std/strings' string.tiko).
 ''
-'' THEY DID NOT HAVE IT. Until the phase-8 audit both returned `ustring` even
+'' THEY DID NOT ALWAYS HAVE IT. Both once returned `ustring` even
 '' for a STRING argument, so `dim as string p = PathJoin( a, b )` compiled and
 '' worked but round-tripped through UTF-16 on the way, while the neighbouring
 '' PathParent( a ) returned a STRING directly. Same family, two rules, and
@@ -374,10 +371,9 @@ FBFS_CHGEXT_OVERLOADS( wstring, ustring )
 
 
 
-'' ======================================================== RFC-0001 section 12
+'' ============================================================= Path additions
 ''
-'' Path additions, specified in C:\dev\docs\tiko-fs\RFC-0001-files-and-streams.md
-'' section 12. Pure, like everything above: no syscalls, either grammar on either host.
+'' Pure, like everything above: no syscalls, either grammar on either host.
 
 '' ---------------------------------------------------------- PathComponents
 

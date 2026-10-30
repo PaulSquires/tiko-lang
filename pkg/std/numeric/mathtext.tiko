@@ -16,8 +16,6 @@ using outcome
 ''     print ToString( 0.1 + 0.2 )          ' 0.30000000000000004
 ''     print str( 0.1 + 0.2 )               ' 0.3   <- and does NOT read back
 ''
-'' Specified by C:\dev\docs\math\RFC-0004-text.md.  Phase 5.
-''
 '' TWO DEFECTS, NEITHER OF THEM FIXED IN PLACE.  'VAL' and 'STR' are unchanged,
 '' in every dialect; these are neighbours with different names.
 ''
@@ -66,7 +64,7 @@ end enum
 
 '' Validate the shape ourselves, then hand the digits to strtod for the
 '' correctly-rounded conversion.  The VALIDATION is this library's; the last
-'' bit of the conversion is the platform strtod's, and RFC-0008 classes it
+'' bit of the conversion is the platform strtod's, and this library classes it
 '' accordingly rather than claiming a correctly-rounded parser of our own.
 function hTrim( byref s as string ) as string
     dim as long a = 1, b = len( s )
@@ -346,15 +344,14 @@ end function
 '' the two values are different and a format that prints them the same is
 '' lying.
 ''
-'' HOW IT IS DONE, AND WHAT THAT COSTS.  RFC-0004 s3 specifies Ryu.  This
+'' HOW IT IS DONE, AND WHAT THAT COSTS.  Not Ryu.  This
 '' implements the SHORTEST-CORRECT loop instead: format at increasing
 '' precision, parse back, stop at the first precision that reproduces the input
 '' bit for bit.  The RESULT is identical -- both produce the shortest
 '' round-tripping representation -- but this costs up to 17 snprintf/strtod
 '' pairs where Ryu costs one pass.  It is a few dozen lines rather than a few
 '' thousand, and it cannot be subtly wrong in a way the round-trip test would
-'' not catch, because the round trip IS the algorithm.  RFC-0004 is amended to
-'' record the substitution.
+'' not catch, because the round trip IS the algorithm.
 '' ===========================================================================
 
 public function ToString overload ( byval v as double ) as string

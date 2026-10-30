@@ -8,8 +8,6 @@ using outcome
 '' std/fs: fsenv -- where a program keeps things: the home, config, data, cache and
 '' state directories, the running executable, and ~ expansion
 ''
-'' Specified in C:\dev\docs\tiko-fs\RFC-0001-files-and-streams.md section 13.
-''
 '' NOTHING IS CREATED AND NO APPLICATION NAME IS ADDED. Each call says where the
 '' directory SHOULD be; the caller joins its own name and creates what it needs.
 ''

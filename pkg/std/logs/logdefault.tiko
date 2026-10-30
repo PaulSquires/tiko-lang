@@ -17,8 +17,6 @@ using containers
 ''     ...
 ''     logs.LogShutdown( )
 ''
-'' RFC-0002 section 6 -- C:\dev\docs\logging\RFC-0002-logger.md. Phase 4.
-''
 '' ---------------------------------------------------------------------------
 '' ONE LOGGER PER PROCESS, BECAUSE THIS IS A MODULE
 ''
@@ -34,7 +32,7 @@ using containers
 '' ---------------------------------------------------------------------------
 '' WHY DefaultLogger( ) AND NOT Log( )
 ''
-'' RFC-0002 section 6 named it FB.DefaultLogger( ), and phase 4 shipped that -- tested only
+'' The name Log( ) was tried first -- tested only
 '' from OUTSIDE namespace FB, where a bare log( x ) still means the logarithm. INSIDE
 '' namespace FB the namespace's own Log( ) is found first, so every log( x ) there
 '' became a call to the logger: fb/random.bi, fb/complex.bi and fb/fintvm.bi all
@@ -64,7 +62,7 @@ end function
 '' once to add more sinks. Configuration-time, like Logger.AddSink: not safe
 '' against concurrent logging.
 ''
-'' THE FB_LOG ENVIRONMENT VARIABLE (RFC-0002 section 9), read here: FB_LOG=debug,
+'' THE FB_LOG ENVIRONMENT VARIABLE, read here: FB_LOG=debug,
 '' FB_LOG=WRN or FB_LOG=20 sets the level instead of 'lv' -- an operator can turn
 '' logging up without a rebuild. An UNPARSEABLE value is ignored and 'lv' stands:
 '' a typo in an environment variable must not silently turn logging off.

@@ -5,8 +5,6 @@ using outcome
 using containers
 '' std/tui: tuichrome -- overlays and chrome
 ''
-'' RFC-0008 section 5 -- C:\dev\docs\tui\RFC-0008-widget-catalogue.md.
-''
 '' Popup, MessageBox, MenuBar, StatusBar, Tree.
 ''
 '' ---------------------------------------------------------------------------
@@ -14,13 +12,13 @@ using containers
 ''
 '' A modal's HandleEvent returns TRUE for EVERY event it does not otherwise use,
 '' so nothing behind it sees input. That is the entire implementation, and it is
-'' why RFC-0007's consumed-boolean is the whole propagation model: a richer
+'' why tuiwidget.tiko's consumed-boolean is the whole propagation model: a richer
 '' scheme would need a capture stack to say the same thing.
 ''
 '' ---------------------------------------------------------------------------
 '' A POPUP DRAWS IN A LAYER
 ''
-'' RFC-0003 section 4. What is beneath it is intact when it is dismissed,
+'' What is beneath it is intact when it is dismissed,
 '' because the layer composites down into one frame and the whole frame is then
 '' diffed as one image. The widget underneath never has to know a popup
 '' happened.

@@ -15,8 +15,6 @@ using outcome
 ''
 ''     print PopCount( &b1011ul )           '' 3
 ''
-'' Specified by C:\dev\docs\math\RFC-0002-integer.md.  Phases 2 and 4.
-''
 '' THIS IS THE HEADER THAT CLOSES DEFECTS rather than adding conveniences.  Two
 '' FreeBASIC operators are silently wrong and neither of them changes:
 ''
@@ -62,7 +60,7 @@ using FB
 '' exact match always exists and mixing cannot arise.)
 
 '' ===========================================================================
-'' RFC-0002 s2 -- division and modulo
+'' Division and modulo
 ''
 '' Three conventions exist and languages disagree about which is the default,
 '' so all three are named explicitly and none of them is spelled 'Mod'.
@@ -158,7 +156,7 @@ __FB_MI_DIVMOD_TUPLE( longint )
 __FB_MI_DIVMOD_TUPLE( ulongint )
 
 '' ===========================================================================
-'' RFC-0002 s3 -- exponentiation, roots and number theory
+'' Exponentiation, roots and number theory
 '' ===========================================================================
 
 '' Exponentiation by squaring ON THE INTEGER TYPE.  A negative exponent is a
@@ -303,7 +301,7 @@ function = culng( LCM( culngint( a ), culngint( b ) ) )
 end function
 
 '' ===========================================================================
-'' RFC-0002 s4 -- checked, saturating and wrapping arithmetic
+'' Checked, saturating and wrapping arithmetic
 ''
 '' 'Optional', not 'Result': there is exactly one reason an operation here
 '' fails and its name is in the function name, so an error value would carry no
@@ -314,8 +312,8 @@ end function
 '' THE LIMITATION, STATED PLAINLY.  These protect the call sites you thought
 '' about.  Overflow bugs live at the call sites nobody thought about, which is
 '' why Rust traps by default in debug builds and Swift traps always.  The
-'' global '-checked' mode that would actually catch them is declined on cost in
-'' C:\dev\docs\math\rationale.md s6.  This does not pretend to be that.
+'' global '-checked' mode that would actually catch them is declined on cost.
+'' This does not pretend to be that.
 '' ===========================================================================
 
 #macro __FB_MI_CHECKED_SIGNED( T, MINV, MAXV )
@@ -526,7 +524,7 @@ __FB_MI_CHECKED_UNSIGNED( ulong,    MAX_VALUE_ULONG )
 __FB_MI_CHECKED_UNSIGNED( ulongint, MAX_VALUE_ULONGINT )
 
 '' ===========================================================================
-'' RFC-0002 s5 -- the bit family
+'' The bit family
 ''
 '' THE PORTABLE IMPLEMENTATION IS THE CONTRACT.  Per-backend intrinsics are an
 '' optimisation underneath a defined result, not the definition.  Two reasons:

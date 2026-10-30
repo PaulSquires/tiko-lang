@@ -8,8 +8,6 @@
 ''
 ''     ...  INFO   server started  (C:\src\main.bas:12 MAIN)
 ''
-'' RFC-0002 section 8 -- C:\dev\docs\logging\RFC-0002-logger.md. Phase 5.
-''
 '' Two things only a macro can do, because only a macro is expanded AT THE CALL:
 ''
 ''   1. CALL-SITE CAPTURE. __FILE__, __LINE__ and __FUNCTION__ inside an exported
@@ -21,7 +19,7 @@
 ''      program, not skipped at run time.
 ''
 '' A level that is compiled in is still filtered at run time by the logger's
-'' MinLevel. Then the event builds nothing (phase 1), but the MESSAGE EXPRESSION
+'' MinLevel. Then the event builds nothing, but the MESSAGE EXPRESSION
 '' is an argument and is evaluated: logs.LogDebug( "x=" & x ) concatenates whether
 '' or not DEBUG is on. Wrapping the call in an IF would skip that, and was
 '' rejected: a macro that expands to a single-line IF steals the ELSE of a
@@ -34,7 +32,7 @@
 '' 'logs.Error' could never be written: ERROR is a keyword.
 ''
 '' LOG_MIN_LEVEL IS THE MODULE'S SETTING. A module never sees its importer's -d
-'' options (ADR 0017), so 'tiko -d LOG_MIN_LEVEL=30' reaches nothing here: it is
+'' options, so 'tiko -d LOG_MIN_LEVEL=30' reaches nothing here: it is
 '' set in pkg/std's tiko.toml [defines], and 10 -- everything -- when unset.
 
 

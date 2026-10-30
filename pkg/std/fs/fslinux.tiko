@@ -6,8 +6,8 @@ using outcome
 '' Everything else std/fs says to the OS on POSIX is POSIX, written against sys/posix in
 '' the file that uses it; only what has no POSIX spelling is here -- two private helpers
 '' and the one public function that is Linux through and through -- so a second POSIX
-'' target supplies the same three and nothing more. The Darwin sibling (fsdarwin.tiko,
-'' M5) must provide:
+'' target supplies the same three and nothing more. The Darwin sibling (fsdarwin.tiko)
+'' must provide:
 ''
 ''   private hErrno( ) as long              errno       -- *__error( )
 ''   private hSyncData( fd ) as long        durable data flush, 0 or -1 with errno set --

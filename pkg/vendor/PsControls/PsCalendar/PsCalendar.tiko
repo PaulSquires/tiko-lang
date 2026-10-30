@@ -3015,7 +3015,7 @@ public sub PsCalendar_ApplyFonts( byval hCtrl as HWND, byval hTextFont as HFONT,
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' Per-monitor DPI. Every stored pixel metric -- the scaled Create defaults and
 ' whatever the host set since -- times newDpi/oldDpi. The three THICKNESS values stay as they
 ' are: PaintLine and PaintRoundOutline scale those pens through the CWindow, which is why the
 ' control's own CWindow takes the new DPI here. The fonts are not ours: PsApp hands new ones

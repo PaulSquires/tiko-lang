@@ -16,8 +16,6 @@ using containers
 ''         if( e.Value( ).key.code = TUIKEY_ESCAPE ) then exit do
 ''     loop
 ''
-'' RFC-0004 -- C:\dev\docs\tui\RFC-0004-input-and-events.md.
-''
 '' ---------------------------------------------------------------------------
 '' NOTE `keys` AND NOT `inp` IN THAT EXAMPLE. `INP` is a FreeBASIC intrinsic --
 '' the QB port-input function -- so `dim as TuiInput inp` is
@@ -25,13 +23,12 @@ using containers
 '' because it is not a member; it bites at the CALL SITE, in user code.
 ''
 '' ---------------------------------------------------------------------------
-'' THE PARSER IS A SEPARATE TYPE, AND THAT IS AN AMENDMENT
+'' THE PARSER IS A SEPARATE TYPE
 ''
-'' RFC-0004 section 3 specified `PollEvent( t, timeoutMs )` with the parse state
-'' living inside TuiTerminal. Phase 2 ships `PollEvent( t, inp, timeoutMs )` with
-'' the state in a TuiInput the caller owns, for one reason: THE RFC'S OWN GATE IS
-'' A TABLE OF BYTE SEQUENCES MAPPED TO EXPECTED EVENTS, and that gate is
-'' untestable if the only way to reach the parser is through a real terminal.
+'' `PollEvent( t, inp, timeoutMs )` keeps the parse state in a TuiInput the caller
+'' owns, not inside TuiTerminal, for one reason: THE PARSER'S GATE IS A TABLE OF
+'' BYTE SEQUENCES MAPPED TO EXPECTED EVENTS, and that gate is untestable if the
+'' only way to reach the parser is through a real terminal.
 '' TuiInput.Feed( ) takes bytes from anywhere, so the grammar is tested without a
 '' tty, on both targets, against one shared table.
 ''
@@ -669,8 +666,7 @@ public function TuiFromRecord( byref rec as INPUT_RECORD, byref outEv as TuiEven
             '' composed character arrives with vk = 0 and a real char.
             '' Hoisted to explicit boolean locals. Mixing a bare boolean with
             '' comparison results in one andalso chain is warning 38,
-            '' "Suspicious logic operation" -- the trap RFC-0001 section 3
-            '' documents and this file was violating.
+            '' "Suspicious logic operation".
             dim as boolean noVk = ( vk = 0 )
             dim as boolean hasCh = ( ch <> 0 )
             if( noVk andalso hasCh andalso ( isSurrogate = FALSE ) ) then

@@ -2,7 +2,7 @@
 #include once "fberror.bi"
 '' std/containers: array -- containers.Array( of T ), a growable array
 ''
-'' RFC-0004 §2 (there called Vector).  Replaces the 'redim preserve' append
+'' Replaces the 'redim preserve' append
 '' idiom, which reallocates and copies on EVERY call and is therefore O(n²) over
 '' a loop:
 ''
@@ -45,7 +45,7 @@ public const ARRAY_MIN_CAPACITY as long = 8
 
 '' ----------------------------------------------------------------- iterator
 ''
-'' RFC-0002: IsValid / Value / MoveNext, so 'for each' works.  Value( ) returns
+'' The iterator protocol: IsValid / Value / MoveNext, so 'for each' works.  Value( ) returns
 '' BYREF, so 'for each byref v in a' can modify elements in place.
 ''
 '' Holds a pointer to the array, not a copy of it -- an iterator is created per
@@ -159,7 +159,7 @@ end sub
 
 '' AN INDEX IS CHECKED AGAINST Count, NOT AGAINST THE STORAGE: 'a[ Count ]' named a slot
 '' Reserve had allocated and nothing had constructed, and even '-exx' only caught an
-'' index past the CAPACITY, under a range nobody wrote (review LIB-01). One unsigned
+'' index past the CAPACITY, under a range nobody wrote. One unsigned
 '' compare, so a negative index is caught by the same test. Runtime error 6.
 operator Array( of T ).[] ( byval i as long ) byref as T
     if( cast( ulong, i ) >= cast( ulong, this.num ) ) then error( FB.FB_RTERROR_OUTOFBOUNDS )

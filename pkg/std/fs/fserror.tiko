@@ -3,8 +3,6 @@
 using outcome
 '' std/fs: fserror -- fs.FsError, and the Result convention for the filesystem
 ''
-'' Specified in C:\dev\docs\filesystem\RFC-0001-errors.md.
-''
 '' Every filesystem operation that can fail returns Result( of T, FsError ) and
 '' never sets err(), never raises, and never returns a magic value. Every
 '' operation that CANNOT fail returns its value directly. The split is visible
@@ -81,7 +79,7 @@ public enum FsErrorCode
     FS_UNSUPPORTED          '' the platform or filesystem cannot do this
     FS_UNKNOWN              '' mapped to nothing; OsCode( ) is the real answer
 
-    '' APPENDED AFTER FS_UNKNOWN (C:\dev\docs\tiko-fs\RFC-0001 section 4), so every
+    '' APPENDED AFTER FS_UNKNOWN, so every
     '' value above keeps the number a program may have stored.
     FS_CLOSED               '' an operation on a file that is not open
     FS_UNEXPECTED_EOF       '' the data ended before the amount asked for
@@ -93,7 +91,7 @@ public enum FsErrorCode
     FS_BROKEN_PIPE          '' a write to a pipe with no reader
     FS_INVALID_ARGUMENT     '' contradictory options, a negative offset, a zero size
 
-    '' APPENDED FOR SOCKETS (C:\dev\docs\tiko-stdlib\RFC-0001 D2): std/net's TcpStream
+    '' APPENDED FOR SOCKETS: std/net's TcpStream
     '' reports through fs.Stream.  Until tiko-rt's table knows them, FsErrorMessage says
     '' "unknown error" for these two and FsError.Message( ) supplies the text itself.
     FS_TIMED_OUT            '' a read or write timeout ran out
@@ -118,7 +116,7 @@ end extern
 '' The error itself. It OWNS its strings: an FsError outlives the call that
 '' produced it -- that is the entire point of returning one -- so it cannot
 '' borrow the caller's path. That is why it is a few hundred bytes rather than a
-'' word, and why RFC-0004 returns the directory walk's element BYREF.
+'' word, and why the directory walk (fsdir) returns its element BYREF.
 public type FsError
     '' Default-constructible because Result default-constructs both slots
     '' (std/outcome). A default FsError is not meaningful; it is FS_UNKNOWN.

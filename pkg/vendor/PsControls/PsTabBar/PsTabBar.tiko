@@ -52,7 +52,7 @@ public const TCM_NAVIGATE = (WM_USER + 100)
 public const TCM_CANNAVIGATE = (WM_USER + 101)
 
 ' type and array to hold values related to the tab bar's tabs
-' NOTE: "width" is a FreeBASIC reserved word (see C:\dev\Learnings.md) and produces errors
+' NOTE: "width" is a FreeBASIC reserved word and produces errors
 ' that never name the real problem -- hence nMinWidth / nWidth throughout.
 ' NOTE: no isHot here. Hover is transient and single-valued, so the control's nLastHotIdx
 ' is the one source of truth; a per-tab copy would be a second one to keep in sync.
@@ -131,10 +131,10 @@ public type TB_PaintCallbackSub as sub( byval p as PSTABBAR_PAINTINFO ptr )
 '
 ' CAUTION: the result is honored for every message EXCEPT WM_LBUTTONUP and WM_MBUTTONUP,
 ' where it is IGNORED. The control holds mouse capture across a press (unlike PsStatusBar,
-' and deliberately -- the close-X cancel semantics and Phase 5's drag both consume the
+' and deliberately -- the close-X cancel semantics and the drag-reorder both consume the
 ' guaranteed down->up pairing), and the up-message is what releases it: a callback that
 ' suppressed it would strand capture and route every subsequent click to this control
-' (the PsListBox bug recorded in Learnings.md). Suppressing WM_LBUTTONDOWN suppresses
+' (the PsListBox bug). Suppressing WM_LBUTTONDOWN suppresses
 ' selection and the press, never the capture bookkeeping.
 public type TB_MessageCallbackFunc as function( byval m as PSTABBAR_MESSAGEINFO ptr ) as boolean
 
@@ -185,7 +185,7 @@ public type PSTABBAR_STATE
     hotTimerOn      as boolean = false    ' is the hot-tracking safety-net timer running?
     ' --- Press state (mouse capture). The control TAKES capture on a press -- unlike
     '     PsStatusBar, and deliberately: the close-X cancel semantics (press the X, slide
-    '     off, release, nothing happens) and Phase 5's drag both consume the guaranteed
+    '     off, release, nothing happens) and the drag-reorder both consume the guaranteed
     '     down->up pairing. It pays PsVScrollBar's full price: release on the up-message
     '     unconditionally, WM_CAPTURECHANGED cancels the press, WM_DESTROY releases,
     '     and no callback may suppress an up-message. Any tab mutation cancels a live
@@ -215,7 +215,7 @@ public type PSTABBAR_STATE
     ' Caller-supplied font (caller owns it). NOT named hFont: FreeBASIC is case-insensitive,
     ' so a member called hFont would shadow the TYPE name HFONT inside every member
     ' procedure of this type, and "dim as HFONT x" there fails with a misleading
-    ' "error 14: Expected identifier, found 'HFONT'". See C:\dev\Learnings.md.
+    ' "error 14: Expected identifier, found 'HFONT'".
     hTabFont      as HFONT
     PaintCallback     as TB_PaintCallbackSub
     MessageCallback   as TB_MessageCallbackFunc
@@ -264,7 +264,7 @@ end type
 ' Tabs scrolled off the left (i < nFirstVisible) get EMPTY rects, not stale ones:
 ' hit-testing loops every tab, so a leftover rect would still answer hover and clicks.
 '
-' rcPaint is rc deflated by the border the control draws (Phase 3), and the deflation is
+' rcPaint is rc deflated by the border the control draws, and the deflation is
 ' deliberately ASYMMETRIC:
 '   - left/top/right on EVERY tab: reserving space a border MAY occupy is what stops the
 '     caption jumping sideways the moment a tab is selected (same argument as the
@@ -313,7 +313,7 @@ sub PSTABBAR_STATE.LayoutTabs()
         end if
         ' The border is part of the spend: rcPaint is deflated by it on both sides, so a
         ' width that omits it clips the last 2*bw pixels of every caption (found by
-        ' screenshot in Phase 3 -- the geometry trace matched the formula, but the
+        ' screenshot -- the geometry trace matched the formula, but the
         ' formula was short).
         dim as integer nW = textW + (this.nIconWidth * 2) + (this.nPadding * 2) + (this.nBorderWidth * 2)
         if nW < this.tabs(i).nMinWidth then nW = this.tabs(i).nMinWidth
@@ -674,7 +674,7 @@ public declare function PsTabBar_GetTabParts( byval hTabBar as HWND, byval idx a
 '
 '   SetCurSel accepts -1 to clear. A valid index is scrolled into view on the next layout
 '   (so tiko opening a file never selects a tab the user cannot see). Programmatic
-'   SetCurSel does NOT fire the selection-change notification (Phase 4) -- only user
+'   SetCurSel does NOT fire the selection-change notification -- only user
 '   interaction does, following Win32's TCM_SETCURSEL / TCN_SELCHANGE precedent; this also
 '   stops a host calling SetCurSel from inside its own handler from recursing.
 '
@@ -700,7 +700,7 @@ public declare function PsTabBar_CanNavigate( byval hTabBar as HWND, byval nDire
 ' ----------------------------------------------------------------------------------------
 ' Appearance.  The font is borrowed, never owned: keep it alive and destroy it yourself.
 '
-'   BorderColor/BorderWidth style the chrome the CONTROL draws (Phase 3): the full-width
+'   BorderColor/BorderWidth style the chrome the CONTROL draws: the full-width
 '   bottom line, broken under the active tab, and the active tab's 3-sided border. The
 '   border width is also a LAYOUT input -- it is what rcPaint is deflated by.
 ' ----------------------------------------------------------------------------------------
@@ -1384,7 +1384,7 @@ public sub PsTabBar_ApplyFonts( byval hTabBar as HWND, byval hTextFont as HFONT,
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). Padding, icon width and border width (all scaled at Create,
+' Per-monitor DPI. Padding, icon width and border width (all scaled at Create,
 ' or the host's since) and every tab's minimum width are pixels, so they are scaled; a border
 ' that was there stays at least one pixel. The tab rects are layout's and are re-derived. The
 ' font is not ours: PsApp hands the new one over after this.
@@ -1854,7 +1854,7 @@ function PsTabBar_WndProc( _
         if pTabBar then
             m.idx = GetHotTabBarTab(hwnd)
             ' Result IGNORED: this message just released the capture, and a callback
-            ' must never be able to strand that (Learnings.md, the PsListBox bug).
+            ' must never be able to strand that (the PsListBox bug).
             if pTabBar->MessageCallback then pTabBar->MessageCallback( @m )
             ' Close fires only on a MATCHED gesture: pressed this tab's X, and released
             ' still on this tab's X. Capture is what routed the outside-release here as

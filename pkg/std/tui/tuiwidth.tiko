@@ -7,8 +7,6 @@ using containers
 ''     print TuiStringWidth( cjk )           '' 4 for two ideographs
 ''     dim as ustring cut = TuiTruncate( long_, 10 )
 ''
-'' RFC-0005 -- C:\dev\docs\tui\RFC-0005-unicode-width.md.
-''
 '' ---------------------------------------------------------------------------
 '' THE PROBLEM IN ONE LINE
 ''
@@ -32,7 +30,7 @@ using containers
 '' That is a documented limit, not a bug to be filed later. The reason it is not
 '' worth fixing is not only cost: TERMINALS DISAGREE WITH EACH OTHER about these
 '' widths, so perfect segmentation would still misalign against a terminal that
-'' measured them differently. rationale.md section 6.
+'' measured them differently.
 
 
 
@@ -49,7 +47,7 @@ public type TuiStringArray as Array( of ustring )
 '' passed per call: mixing the two answers within one frame guarantees
 '' misalignment.
 ''
-'' It returns a POINTER for the reason recorded in phase 1: `@F( )` on a
+'' It returns a POINTER because `@F( )` on a
 '' byref-returning function yields the PROCEDURE's address, silently. And the
 '' state is a `static` in a function of std/tui, so a program has one. (As a
 '' header it was in a `private` function, so each translation unit that

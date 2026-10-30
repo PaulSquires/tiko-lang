@@ -5,8 +5,6 @@ using outcome
 using containers
 '' std/tui: tuiform -- the input widgets
 ''
-'' RFC-0008 section 4 -- C:\dev\docs\tui\RFC-0008-widget-catalogue.md.
-''
 '' TextInput, TextArea, Checkbox, RadioGroup, Select.
 ''
 '' ---------------------------------------------------------------------------
@@ -192,8 +190,8 @@ sub TuiTextInput.Render( byref f as TuiFrame, byval area as TuiRect )
     '' SetCell assigns the style outright, so drawing the placeholder with a
     '' style whose bg is "default" ERASES the field's background -- a focused
     '' input rendered its blue fill, then punched a black hole through it
-    '' exactly the width of the placeholder. Patch( ) is what RFC-0001 section
-    '' 4's mask exists for: the placeholder contributes a foreground and
+    '' exactly the width of the placeholder. Patch( ) is what TuiStyle's
+    '' mask exists for: the placeholder contributes a foreground and
     '' inherits everything it does not name.
     if( len( state->text ) = 0 ) then
         if( len( placeholder ) > 0 ) then
@@ -660,8 +658,8 @@ public type TuiSelectState
     as long highlight
 end type
 
-'' When open, this draws into a LAYER -- it is a popup and follows RFC-0003
-'' section 4's rules, so what is beneath it survives dismissal.
+'' When open, this draws into a LAYER -- it is a popup and follows the same
+'' layer rules as Popup, so what is beneath it survives dismissal.
 public type TuiSelect extends TuiWidget
     as TuiStringArray options
     as TuiSelectState ptr state

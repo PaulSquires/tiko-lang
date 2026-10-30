@@ -84,7 +84,7 @@ public type OrderedPair( of TK, TV )
     as TV value
 end type
 
-'' RFC-0002: IsValid / Value / MoveNext.
+'' The iterator protocol: IsValid / Value / MoveNext.
 ''
 '' Holds the node, not an index, so it survives insertions elsewhere in the
 '' tree.  Value( ) is BY VALUE, matching MapIterator: the pair is assembled here

@@ -178,8 +178,8 @@ public type NUD_PaintCallbackSub as sub( byval p as PSNUMERICUPDOWN_PAINTINFO pt
 ' CAUTION: the result is IGNORED for two messages.
 '   WM_LBUTTONUP  - the control holds mouse capture across a button press and the up-message
 '                   is what releases it: a callback that suppressed it would strand capture
-'                   and route every subsequent click here (the PsListBox bug recorded in
-'                   Learnings.md). Suppressing WM_LBUTTONDOWN suppresses the press, never
+'                   and route every subsequent click here (the PsListBox bug).
+'                   Suppressing WM_LBUTTONDOWN suppresses the press, never
 '                   the capture bookkeeping.
 '   WM_KILLFOCUS  - focus loss is what COMMITS a typed value. Suppressing it would leave the
 '                   control displaying text it has not accepted. (WM_SETFOCUS may be
@@ -220,7 +220,7 @@ public type PSNUMERICUPDOWN_STATE
     '     press/cancel gesture (press, slide off the button, release, the value does NOT
     '     step) consumes the guaranteed down->up pairing, which is the family's test for
     '     taking capture. It pays the full price: snapshot the press BEFORE releasing
-    '     (ReleaseCapture sends WM_CAPTURECHANGED synchronously -- Learnings.md), release on
+    '     (ReleaseCapture sends WM_CAPTURECHANGED synchronously), release on
     '     the up-message before any callback runs, WM_CAPTURECHANGED cancels the press and
     '     kills the repeat timer, WM_DESTROY releases, and no callback may suppress an
     '     up-message. ---
@@ -987,7 +987,7 @@ end sub
 '      rectangular fill would square off the two corners it covers. Extending it inward puts
 '      its own inner rounding somewhere harmless -- past the divider, inside the child's
 '      clipped-away rect -- so only the outer, wanted rounding survives.
-'   4. the dividers, then the glyphs, as filled RECTANGLES. Learnings.md: an antialiased 1px
+'   4. the dividers, then the glyphs, as filled RECTANGLES: an antialiased 1px
 '      axis-aligned rule comes out grey and blurry, and a stated extent sidesteps both the
 '      smoothing and the endpoint-inclusion question. Reserve AA for curves.
 '   5. the frame OUTLINE last, over everything -- PaintRoundOutline, not
@@ -1232,7 +1232,7 @@ private function NUD_OnTextBoxMessage( byval m as PSTEXTBOX_MESSAGEINFO ptr ) as
         end select
 
     case WM_MOUSEWHEEL
-        ' The delta is a SIGNED word in the high word (Learnings.md).
+        ' The delta is a SIGNED word in the high word.
         return NUD_HandleWheel( pNud, hCtrl, cast(short, hiword(m->wParam)) )
 
     end select
@@ -1250,7 +1250,7 @@ end function
 '
 ' THE CONTROL TAKES MOUSE CAPTURE on a button press, and pays the family's full price for it:
 ' snapshot before releasing (ReleaseCapture sends WM_CAPTURECHANGED synchronously, so reading
-' the flag afterwards always finds it cleared -- Learnings.md), release on the up-message
+' the flag afterwards always finds it cleared), release on the up-message
 ' before any callback runs, WM_CAPTURECHANGED cancels the press, WM_DESTROY releases, and the
 ' message callback's result is IGNORED for WM_LBUTTONUP so nothing can strand it.
 '
@@ -2100,7 +2100,7 @@ public sub PsNumericUpDown_ApplyFonts( byval hCtrl as HWND, byval hTextFont as H
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' Per-monitor DPI. Every stored pixel metric -- the scaled Create defaults and
 ' whatever the host set since -- times newDpi/oldDpi; nBorderThick and nDividerThick stay as
 ' they are (hairlines, never scaled). The embedded PsTextBox has its own registry row and
 ' rescales itself, its margins included, so they are NOT pushed to it from here (that would

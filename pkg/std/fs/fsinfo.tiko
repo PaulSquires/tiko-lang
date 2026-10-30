@@ -6,8 +6,6 @@ using outcome
 using containers
 '' std/fs: fsinfo -- fs.FileInfo and the metadata calls
 ''
-'' Specified in C:\dev\docs\filesystem\RFC-0003-metadata.md.
-''
 '' ONE STAT, ALL THE FACTS. Learning whether p is a directory, how big it is and
 '' when it changed costs FileExists + FileAttr + FileLen + FileDateTime today:
 '' four traversals of one path, four race windows, and FileLen opens the file so
@@ -66,14 +64,14 @@ public type FileInfo
     declare const function HasCreated  ( ) as boolean
     declare const function HasAccessed ( ) as boolean
 
-    '' -- the same times as chrono.Instant (C:\dev\docs\tiko-fs\RFC-0001 section 10.3):
+    '' -- the same times as chrono.Instant:
     '' FileInfo's ticks ARE Instant's ticks -- 100 ns since 0001-01-01 UTC -- so
     '' nothing is converted. NOT DateTime.FromFileTime, which counts from 1601.
     declare const function Modified    ( ) as chrono.Instant
     declare const function Created     ( ) as chrono.Instant    '' meaningful when HasCreated( )
     declare const function Accessed    ( ) as chrono.Instant    '' meaningful when HasAccessed( )
 
-    '' -- owner, POSIX (section 10.2): Windows has SIDs, which are out of scope
+    '' -- owner, POSIX: Windows has SIDs, which are out of scope
     declare const function HasOwner    ( ) as boolean
     declare const function OwnerUid    ( ) as ulong             '' 0 unless HasOwner( )
     declare const function OwnerGid    ( ) as ulong
@@ -83,7 +81,7 @@ public type FileInfo
     declare const function IsHidden    ( ) as boolean
 
     '' Raw dwFileAttributes on Windows, st_mode on POSIX. The escape hatch
-    '' for everything RFC-0007 has not portably abstracted; code using it is
+    '' for everything std/fs has not portably abstracted; code using it is
     '' by definition platform-specific.
     declare const function NativeAttributes( ) as ulong
 
@@ -95,7 +93,7 @@ public type FileInfo
     as ulong    m_attrs
     as long     m_kind
     as long     m_flags
-    '' APPENDED with FB_FSINFO's own (section 10.2), so every field above keeps its
+    '' APPENDED with FB_FSINFO's own, so every field above keeps its
     '' offset and a runtime with the shorter struct still fills them correctly.
     as ulong    m_uid
     as ulong    m_gid
@@ -237,7 +235,7 @@ public declare function LStat overload ( byref p as const ustring ) as FsResultI
 '' On POSIX, hiddenness is a NAMING CONVENTION, not a filesystem attribute, and
 '' FileInfo does not carry the name -- so the flag cannot come from the stat and
 '' is derived here from the path's leaf. This is the one field that is not
-'' purely a property of the object, and RFC-0003 section 2.2 calls it out
+'' purely a property of the object, and it is called out here
 '' because it would otherwise look like a bug.
 sub hApplyHidden( byref p as const ustring, byref fi as FileInfo )
     #if not defined( __FB_WIN32__ )
@@ -305,8 +303,8 @@ public function IsDir( byref p as const ustring ) as boolean
     return fi.IsDirectory( )
 end function
 
-'' TryExists: Exists that can say "I don't know" (C:\dev\docs\tiko-fs\RFC-0001
-'' section 9.4, defect D4) -- Rust's fs::exists. Ok( TRUE ) when the stat succeeds;
+'' TryExists: Exists that can say "I don't know" -- Rust's fs::exists.
+'' Ok( TRUE ) when the stat succeeds;
 '' Ok( FALSE ) only when the answer really is "absent": NOT_FOUND, or NOT_A_DIRECTORY
 '' (a component of the path is a file, so nothing can be below it); every other
 '' failure -- access denied, a link loop, an IO error -- is returned as the failure it
@@ -373,7 +371,7 @@ public function CanonicalPath( byref p as const ustring ) as FsResultUStr
     return Ok( of ustring, FsError )( r )
 end function
 
-'' allowMissing = TRUE (C:\dev\docs\tiko-fs\RFC-0001 section 12): the longest prefix of p that EXISTS
+'' allowMissing = TRUE: the longest prefix of p that EXISTS
 '' is canonicalised -- links resolved -- and the missing rest appended, lexically
 '' normalised. Python 3.15's realpath( strict = ALLOW_MISSING ): a path can be made
 '' canonical before the file it names is created. Any failure other than "not there"

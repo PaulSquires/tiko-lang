@@ -16,8 +16,6 @@ using outcome
 ''                                   DecimalZero( ), PAY_END_OF_PERIOD )
 ''     var pmt = PaymentAmount( terms )      ' NEGATIVE -- see the sign note
 ''
-'' Specified by C:\dev\docs\finance\RFC-0004-time-value-of-money.md.  Phase 2.
-''
 '' ONE IDENTITY, FIVE REARRANGEMENTS.  Everything here is a rearrangement of
 ''
 ''     PV + PMT * a( i, n, timing ) + FV * v( i, n ) = 0
@@ -41,8 +39,7 @@ using outcome
 '' deliberately uses the OPPOSITE convention -- a mortgage statement shows a
 '' positive payment against a positive balance, because that is what a
 '' statement looks like -- and bridges the two in one private helper.  If you
-'' are diffing the two files and the signs disagree, that is the reason, and
-'' RFC-0005 section 2 argues it.
+'' are diffing the two files and the signs disagree, that is the reason.
 ''
 '' THE TWO LUMP-SUM FUNCTIONS ARE NOT PART OF THE IDENTITY.  PresentValueOfLump
 '' and FutureValueOfLump are a multiply by the discount or growth factor and
@@ -426,7 +423,7 @@ function hTvmRateObjective( byval i as double, byval ctx as any ptr ) as double
 end function
 
 '' DOUBLE KERNEL.  The answer is rounded back at FIN_RATE_SCALE, after which
-'' everything downstream of it is exact again -- RFC-0002 section 6.4.
+'' everything downstream of it is exact again.
 ''
 '' The seed is the Kellison approximation, which is close enough on any
 '' ordinary loan that the Newton fast path usually finishes in a few
@@ -435,7 +432,7 @@ end function
 ''
 '' AN ORDINARY ANNUITY HAS EXACTLY ONE ROOT, because the cash flows change sign
 '' exactly once, so finsolve.tiko's multiple-roots caveat does not arise here.
-'' Said explicitly so a reader does not carry that worry over from RFC-0003.
+'' Said explicitly so a reader does not carry that worry over from finsolve.tiko.
 public function SolveRatePerPeriod overload _
     (  byref t as AnnuityTerms, byref opt as FinSolverOptions ) as FinResultDec
 

@@ -24,9 +24,6 @@ using outcome
 '' goes on, where the sign goes -- is used by default, and every one of them can
 '' be OVERRIDDEN or SUPPRESSED individually.
 ''
-'' Design record, including the oracle behind the composition table:
-'' C:\dev\docs\money\design.md
-''
 '' ---------------------------------------------------------------------------
 '' WHERE THE SETTINGS COME FROM
 ''
@@ -264,7 +261,7 @@ end sub
 '' PUBLIC, and directly comparable to strfmon(3): the thirty
 '' (precedes, sepBySpace, signPosn) cells were generated from glibc under WSL
 '' rather than transcribed from a paraphrase, and the suite asserts all thirty
-'' against this function. See design.md section 5.
+'' against this function.
 ''
 ''   sepBySpace = 1  a space sits immediately beside the NUMBER, on the
 ''                   symbol's side of it

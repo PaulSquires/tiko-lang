@@ -1,8 +1,6 @@
 #module "containers"
 '' std/containers: algo -- searching and rearranging an Array( of T )
 ''
-'' C:\dev\docs\tiko-stdlib\RFC-0001 section 4.4.
-''
 ''     dim v as containers.Array( of long ) = { 1, 3, 3, 7 }
 ''     print containers.LowerBound( v, 3 )          '' 1
 ''     print containers.BinarySearch( v, 5 )        '' -4: absent, would go at index 3

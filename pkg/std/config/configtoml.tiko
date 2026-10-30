@@ -4,7 +4,7 @@
 #import "std/chrono"
 using containers
 using outcome
-'' std/config: configtoml -- TomlValue, the TOML document tree (RFC-0001 section 12.2).
+'' std/config: configtoml -- TomlValue, the TOML document tree.
 ''
 '' A table's entries are its children, each carrying its own key, in insertion order;
 '' lookup by key is a linear scan, which is what a configuration file's tables can afford.

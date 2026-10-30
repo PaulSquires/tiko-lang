@@ -6,8 +6,8 @@ using containers
 using outcome
 '' std/tls: tlsunix -- the OpenSSL 3 engine, loaded at run time (C long is integer: LP64).  libssl.so.3 and
 '' libcrypto.so.3 are opened with DYLIBLOAD on the first handshake and never
-'' closed; nothing is linked, so a program that never shakes hands never needs them
-'' (RFC-0002 H1).  The SSL object talks to two memory BIOs and this file pumps them
+'' closed; nothing is linked, so a program that never shakes hands never needs them.
+'' The SSL object talks to two memory BIOs and this file pumps them
 '' through the transport fs.Stream, as tlswin.tiko pumps SSPI's buffers.
 
 #ifdef __FB_UNIX__
@@ -114,7 +114,7 @@ private function hLoadAll( ) as boolean
     return k
 end function
 
-'' Loads the libraries once per process, whichever thread gets there first (D6).
+'' Loads the libraries once per process, whichever thread gets there first.
 private function hLoad( ) as boolean
     if( FB.AtomicLoadLong( @tko_sslState ) = 2 ) then return TRUE
     if( FB.AtomicCasLong( @tko_sslState, 0, 1 ) = 0 ) then

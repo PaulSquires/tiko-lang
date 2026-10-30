@@ -12,7 +12,7 @@ using outcome
 ''     print codec.PercentEncode( "a b&c" )                 '' a%20b%26c
 ''     print codec.Base64DecodeText( "aGVsbG8=" ).Value( )  '' hello
 ''
-'' C:\dev\docs\tiko-stdlib\RFC-0001 section 5.  Four families:
+'' Four families:
 ''
 ''   base64, base32, hex    RFC 4648.  Encode bytes as text, decode text to bytes.
 ''   percent-encoding       RFC 3986 and HTML form encoding, for URLs.

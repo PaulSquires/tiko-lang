@@ -22,8 +22,6 @@ using outcome
 ''     var r = FinSolveRoot( @myObjective, @c, opt )
 ''     if( r.IsOk( ) ) then print r.Value( ).Root_        ' 1.41421356...
 ''
-'' Specified by C:\dev\docs\finance\RFC-0003-solvers.md.  Phase 3.
-''
 '' ONE MACHINE, NOT ONE PER CALL SITE.  An implied loan rate, an IRR, a dated
 '' IRR and a bond yield are the same problem: find the rate at which a
 '' discounted balance is zero.  Written four times they acquire four tolerance
@@ -40,7 +38,7 @@ using outcome
 '' depends on it.  Step 3 brackets, step 4 is Brent, and given a bracket Brent
 '' cannot fail to converge.
 ''
-'' DOUBLE THROUGHOUT, per RFC-0002 section 6.  A root is an approximation by
+'' DOUBLE THROUGHOUT.  A root is an approximation by
 '' nature; carrying it in Decimal would be precision theatre.  Callers round the
 '' answer back at FIN_RATE_SCALE.
 ''
@@ -62,18 +60,18 @@ using outcome
 '' nearest to the seed.  The Newton fast path can and does step straight past
 '' one root to another -- on (x-3)(x+1)(x-7) from a seed of 1.0 it lands
 '' exactly on 7 in a single step -- and the bracket expansion returns the first
-'' sign change it meets, which is usually but not always the closest.  RFC-0003
-'' section 5's position stands: a series with several roots is ILL-POSED rather
+'' sign change it meets, which is usually but not always the closest.
+'' A series with several roots is ILL-POSED rather
 '' than hard, this returns one of them, and MIRR is the well-posed alternative.
 '' What is guaranteed is that the value returned IS a root to Tolerance_, never
 '' which one.
 ''
-'' WHAT THIS HEADER CANNOT PRE-CHECK.  RFC-0003 section 4.0 lists four cheap
+'' WHAT THIS HEADER CANNOT PRE-CHECK.  A series root-find has four cheap
 '' pre-checks.  Only the LAST of them -- bad bounds -- is visible from here: the
 '' other three are about a caller's SERIES, which reaches the solver as an
 '' opaque `any ptr`.  Empty series, no sign change and unordered dates are
-'' therefore the CALLER's to detect, before calling, and fincash.tiko does so
-'' in phase 5.  Recorded here so the division of labour is a decision rather
+'' therefore the CALLER's to detect, before calling, and fincash.tiko does so.
+'' Recorded here so the division of labour is a decision rather
 '' than an omission.
 
 

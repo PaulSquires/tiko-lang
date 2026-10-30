@@ -5,8 +5,6 @@ using outcome
 using containers
 '' std/fs: fsstream -- Stream, the byte-stream base type; MemoryStream; Copy
 ''
-'' Specified in C:\dev\docs\tiko-fs\RFC-0001-files-and-streams.md section 5.
-''
 '' ONE BASE TYPE, NOT Reader + Writer + Seeker. tiko types have single inheritance
 '' and no interfaces, so a File that both reads and writes could not extend two
 '' bases. Stream carries every operation, says which ones work through CanRead,
@@ -24,7 +22,7 @@ using containers
 '' boolean: a virtual call returning a Result was miscompiled by tiko, and the seed
 '' compiles std/fs into tiko itself. Fixed in ca9b3d75; seed-5 is pinned.)
 ''
-'' THE CONTRACT, which every Stream is tested against (RFC-0001 section 5.1):
+'' THE CONTRACT, which every Stream is tested against:
 ''
 ''   1. Read may return FEWER bytes than asked. Ok( 0 ) for n > 0 means end of
 ''      data, and nothing else does. n = 0 returns Ok( 0 ) and touches nothing.
@@ -40,7 +38,7 @@ using containers
 ''   8. A stream is not thread-safe unless its own documentation says so.
 ''
 '' NO RUNTIME CALLS. Everything here is tiko over memcpy/memset, so the seed that
-'' builds tiko itself can always link it (RFC-0001 section 3.1).
+'' builds tiko itself can always link it.
 
 
 
@@ -426,8 +424,8 @@ end function
 ''   2. no BOM means UTF-8;
 ''   3. invalid UTF-8 is replaced with U+FFFD, not rejected. UTF-16 is taken unit
 ''      for unit, lone surrogates included, and an odd trailing byte is dropped.
-'' A UTF-32 BOM is the one place it cannot follow the readers: they refuse it
-'' (RFC-0002 E12), and this returns a string, not a Result, so it decodes it as
+'' A UTF-32 BOM is the one place it cannot follow the readers: they refuse it,
+'' and this returns a string, not a Result, so it decodes it as
 '' before. ReadAllText( p, maxBytes ), built on this, makes the check first.
 const function MemoryStream.ToUtf8Text( ) as ustring
     dim as longint n = this.m_len

@@ -12,8 +12,6 @@ using outcome
 ''
 ''     dim as Currency each_ = line_ / 7            ' rounded half-to-even
 ''
-'' Specified by C:\dev\docs\math\RFC-0003-currency.md.  Phase 3.
-''
 '' A LONGINT SCALED BY 10,000.  Fifteen digits left of the decimal point, four
 '' to the right, every value in range exactly representable:
 ''
@@ -500,7 +498,7 @@ public function CurrencyParse overload ( byref s as string ) as Optional( of Cur
         if( fdigits = 0 ) then return None( of Currency )( )       '' "1." is not a number
     end if
 
-    '' the whole string must be consumed -- strict, like RFC-0004's TryParse
+    '' the whole string must be consumed -- strict, like std/numeric's TryParseDouble
     if( i <= n ) then return None( of Currency )( )
 
     for k as long = fdigits + 1 to 4

@@ -16,7 +16,7 @@ using outcome
 ''     var r = uuids.Parse( "{F81D4FAE-7DEC-11D0-A765-00A0C91E6BF6}" )
 ''     if r.IsOk( ) then print r.Value( ).ToString( )
 ''
-'' C:\dev\docs\tiko-stdlib\RFC-0001 section 7.  A Uuid is 16 bytes, in the
+'' A Uuid is 16 bytes, in the
 '' order they are written.  Two kinds are generated:
 ''
 ''   NewV4( )   122 random bits from the operating system's CSPRNG

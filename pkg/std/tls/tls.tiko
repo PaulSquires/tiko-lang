@@ -21,8 +21,6 @@ using outcome
 ''         print r.Failure( ).Message( )
 ''     end if
 ''
-'' C:\dev\docs\tiko-stdlib\RFC-0002 (HTTP client and TLS).
-''
 ''   TlsConfig     a value: the lowest protocol version (TLS 1.2 by default), extra
 ''                 trusted roots on top of the system's (AddRootPem / AddRootFile),
 ''                 InsecureSkipVerify, and a server's certificate chain and private

@@ -21,8 +21,6 @@ using containers
 
 '' std/fs: fsops -- whole-file IO, bulk directory operations, temp, atomic replace
 ''
-'' Specified in C:\dev\docs\filesystem\RFC-0005-operations.md.
-''
 '' THE RITUAL THIS REPLACES appears in every FB program ever written:
 ''
 ''     dim as integer f = freefile
@@ -93,8 +91,8 @@ FBFSOPS_EXTERN
     declare function FsCreateTempDirRaw alias "fb_UStrFsCreateTempDir" _
         ( byref prefix as const ustring, byref status as long ) as ustring
 
-    '' The minimum slice of RFC-0007 that RemoveDirAll needs; phase 5
-    '' replaces it with the full SetReadOnly.
+    '' The runtime's read-only switch; fslink.tiko's SetReadOnly is the public
+    '' call over it.
     public declare function FsSetReadOnlyRaw alias "fb_UStrFsSetReadOnly" _
         ( byref p as const ustring, byval v as long ) as long
 end extern
@@ -114,7 +112,7 @@ public declare function WriteAllBytes overload ( byref p as const ustring, buf a
 public declare function AppendAllText overload ( byref p as const ustring, byref s as const ustring ) as FsResultBool
 declare function FsSplitLines( byref s as const ustring, lines as Array( of ustring ) ) as long
 
-'' RFC-0002 E12: TRUE when the file at p starts with a UTF-32 BOM. The runtime's decoder
+'' TRUE when the file at p starts with a UTF-32 BOM. The runtime's decoder
 '' reads FF FE 00 00 as UTF-16LE and 00 00 FE FF as UTF-8, and either way the text then
 '' starts with U+0000 -- so ReadAllText opens the file again to look only in that case.
 private function hFileHasUtf32Bom( byref p as const ustring ) as boolean
@@ -341,9 +339,9 @@ extern "C"
 end extern
 #endif
 
-'' CreateDirAll with the mode EVERY directory it creates gets, before the umask (C:\dev\docs\tiko-fs\RFC-0001
-'' section 12; Python 3.15's parent_mode, one value for all). Ignored on Windows, where it
-'' is CreateDirAll. libc's mkdir is called from here, as fsfile.tiko calls the OS (F19).
+'' CreateDirAll with the mode EVERY directory it creates gets, before the umask (Python
+'' 3.15's parent_mode, one value for all). Ignored on Windows, where it
+'' is CreateDirAll. libc's mkdir is called from here, as fsfile.tiko calls the OS.
 public function CreateDirAll( byref p as const ustring, byval posixMode as ulong ) as FsResultBool
 #ifdef __FB_WIN32__
     return CreateDirAll( p )
@@ -463,8 +461,8 @@ end function
 '' destination usually does not exist yet, and CanonicalPath requires every
 '' component to exist. Documented rather than silently approximate.
 ''
-'' Does NOT preserve timestamps or permissions in phase 3. RFC-0007 adds an
-'' options record; until then this is stated, not silently true.
+'' Does NOT preserve timestamps or permissions; the CopyOptions overload in fslink.tiko
+'' does. This is stated, not silently true.
 public function CopyDir( byref src as const ustring, byref dst as const ustring ) as FsResultI64
     dim as ustring asrc, adst
 
@@ -531,7 +529,7 @@ public function ReplaceFile( byref target as const ustring, byref replacement as
     return Ok( of boolean, FsError )( TRUE )
 end function
 
-'' WHAT "ATOMIC" BUYS (C:\dev\docs\tiko-fs\RFC-0001 section 9.1): a reader sees the old
+'' WHAT "ATOMIC" BUYS: a reader sees the old
 '' file or the new one, never a partial -- AND, once this returns Ok, the new
 '' contents survive power loss.
 ''
@@ -668,12 +666,12 @@ end function
 '' opportunity. Creation is atomic (CREATE_NEW / O_EXCL) and the name comes
 '' from the platform CSPRNG, never from Rnd.
 ''
-'' NEITHER IS DELETED AUTOMATICALLY, by decision (C:\dev\docs\tiko-fs\RFC-0001, F12):
+'' NEITHER IS DELETED AUTOMATICALLY, by decision:
 '' cleanup is the caller's, and `defer fs.RemoveFile( path )` says so where it
 '' happens. A file that vanished when a variable went out of scope would be a
 '' surprise. RemoveDirAll is there for the directory case.
 ''
-'' THE DEFAULT PREFIX IS "tiko" (it was "fb" until RFC-0001, F14). Only the name
+'' THE DEFAULT PREFIX IS "tiko" (it used to be "fb"). Only the name
 '' changes; a program that looked for its leftovers by the old prefix passes "fb".
 public function CreateTempFile( byref prefix as const ustring ) as FsResultUStr
     dim as long status = FS_OK

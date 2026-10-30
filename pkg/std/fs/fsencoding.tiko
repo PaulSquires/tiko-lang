@@ -5,8 +5,8 @@
 ''     fs.WriteAllText( p, s, fs.Utf16LE( ) )                 '' FF FE, then UTF-16LE
 ''     dim as ustring t = fs.ReadAllText( p, fs.Ansi( ) ).Value( )
 ''
-'' C:\dev\docs\tiko-fs\RFC-0002-text-encodings.md, decision E2: the transcoder and the
-'' type live in std/codec, and std/fs re-exports them so that a program reading files
+'' The transcoder and the type live in std/codec, and std/fs re-exports them so that a
+'' program reading files
 '' needs one #import. `#import ... public` would re-export them as fs.codec.Utf16LE( );
 '' these aliases and one-line forwarders make them fs.Utf16LE( ) and, after `using fs`,
 '' plain Utf16LE( ). fs.TextEncoding IS codec.TextEncoding, so either name works with
@@ -63,8 +63,8 @@ end function
 
 '' TRUE when q[0 .. n-1] starts with a UTF-32 BOM: FF FE 00 00 (little-endian) or
 '' 00 00 FE FF (big-endian). The readers that choose an encoding themselves refuse such a
-'' file with FS_UNSUPPORTED (RFC-0002 E12) rather than call it UTF-16LE or UTF-8. A reader
-'' given an explicit encoding believes the caller instead (E5).
+'' file with FS_UNSUPPORTED rather than call it UTF-16LE or UTF-8. A reader
+'' given an explicit encoding believes the caller instead.
 function FsUtf32Bom( byval q as const ubyte ptr, byval n as longint ) as boolean
     if( n < 4 ) then return FALSE
     if( ( q[0] = &hFF ) andalso ( q[1] = &hFE ) andalso ( q[2] = 0 ) andalso ( q[3] = 0 ) ) then return TRUE

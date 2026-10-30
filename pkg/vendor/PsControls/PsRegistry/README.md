@@ -62,5 +62,3 @@ deferred until it ends.
 
 Calling every filter for every message is cheap and safe. Each one stands down at its first
 comparison unless its own popup is open, and only one popup chain can be open in a process.
-
-Specified in `C:\dev\docs\tiko-psapp\RFC-0001-psapp.md` §5.

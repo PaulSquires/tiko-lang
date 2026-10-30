@@ -1,8 +1,6 @@
 #module "containers"
 '' std/containers: deque -- containers.Deque( of T ), a double-ended queue
 ''
-'' C:\dev\docs\tiko-stdlib\RFC-0001 section 4.2.
-''
 ''     dim d as containers.Deque( of long )
 ''     d.PushBack( 2 ) : d.PushFront( 1 ) : d.PushBack( 3 )
 ''     print d[ 0 ], d.PopBack( )          '' 1  3

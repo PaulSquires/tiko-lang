@@ -66,7 +66,7 @@ public const CCOLHDR_DEFAULT_MINWIDTH = 16
 public const CCOLHDR_FILL_LAST = -2
 public const CCOLHDR_FILL_NONE = -1
 
-' NOTE: "width" is a FreeBASIC reserved word (see C:\dev\Learnings.md) and produces
+' NOTE: "width" is a FreeBASIC reserved word and produces
 ' errors that never name the real problem -- hence nMinWidth / nWidth throughout.
 ' NOTE: no isHot here. Hover is transient and single-valued, so the control's
 ' nLastHotIdx / nHotDividerIdx are the one source of truth.
@@ -109,7 +109,7 @@ public type HDR_PaintCallbackSub as sub( byval p as PSCOLUMNHEADER_PAINTINFO ptr
 ' Observe mouse messages. Return TRUE if you handled it and want the control's default
 ' handling suppressed, FALSE to let it proceed. The result is IGNORED for WM_LBUTTONUP:
 ' the control holds mouse capture across a press, and the up-message is the capture's
-' exit -- a callback that suppressed it would strand the capture (see Learnings.md).
+' exit -- a callback that suppressed it would strand the capture.
 public type HDR_MessageCallbackFunc as function( byval m as PSCOLUMNHEADER_MESSAGEINFO ptr ) as boolean
 
 ' Supply the tooltip text for a column, on demand (only when a tip is about to show).
@@ -150,7 +150,7 @@ public type PSCOLUMNHEADER_STATE
     hotTimerOn        as boolean = false  ' is the hot-tracking safety-net timer running?
     BackColor         as COLORREF
     ' Caller-supplied font (caller owns it). NOT named hFont: a member called hFont would
-    ' shadow the TYPE name HFONT inside every member procedure (see Learnings.md).
+    ' shadow the TYPE name HFONT inside every member procedure.
     hHeaderFont       as HFONT
     ' Fill designation: CCOLHDR_FILL_LAST (default) / CCOLHDR_FILL_NONE / explicit index.
     ' A stored index gets the same insert/delete fixups as PsStatusBar's spring panel.
@@ -843,7 +843,7 @@ public sub PsColumnHeader_ApplyFonts( byval hHeader as HWND, byval hTextFont as 
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). Every column's stored width and minimum width, the padding
+' Per-monitor DPI. Every column's stored width and minimum width, the padding
 ' (scaled at Create, or the host's since) and the horizontal scroll offset are pixels, so
 ' they are scaled, column by column; the rects are layout's and are re-derived. The gutter
 ' and the default minimum are scaled at use. The font is not ours: PsApp hands the new one
@@ -1372,7 +1372,7 @@ function PsColumnHeader_WndProc( _
             dim as integer ptY = cast( short, hiword(lParam) )
             m.idx = pHdr->HitTestColumn( ptX, ptY )
             ' Result IGNORED: this message just released the capture, and a callback
-            ' must never be able to strand that (Learnings.md, the PsListBox bug).
+            ' must never be able to strand that (the PsListBox bug).
             if pHdr->MessageCallback then pHdr->MessageCallback( @m )
             PsColumnHeader_InvalidateColumn( pHdr, pressedIdx )    ' isPressed off (no-op -1)
             PsColumnHeader_InvalidateColumn( pHdr, dragIdx )       ' isResizing off (no-op -1)
@@ -1433,7 +1433,7 @@ function PsColumnHeader_WndProc( _
                 KillTimer( hwnd, IDT_CCOLHDR_HOTTRACK )
                 pHdr->hotTimerOn = false
             end if
-            ' Never leave a capture stranded (phase 2 press/drag holds it).
+            ' Never leave a capture stranded (a press/drag holds it).
             pHdr->CancelPress()
         end if
 

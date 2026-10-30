@@ -92,7 +92,7 @@ public type SPL_PaintCallbackSub as sub( byval p as PSSPLITTER_PAINTINFO ptr )
 ' ONE ASYMMETRY, AND IT IS DELIBERATE: the result is IGNORED for WM_LBUTTONUP. The control
 ' holds the mouse capture for the duration of a drag and that up-message is the capture's
 ' exit; a callback allowed to suppress it would strand the capture and every subsequent
-' click in the app would be routed here. See C:\dev\Learnings.md.
+' click in the app would be routed here.
 '
 ' Claiming WM_LBUTTONDBLCLK is the supported way to implement collapse/restore on a
 ' double-click: no drag starts, and the trailing WM_LBUTTONUP is harmless.
@@ -128,7 +128,7 @@ public type PSSPLITTER_STATE
     ' hCursor: FreeBASIC is case-insensitive, so a member called hCursor would shadow the
     ' TYPE name HCURSOR inside every member procedure of this type, and "dim as HCURSOR x"
     ' there fails with a misleading "error 14: Expected identifier". Same trap as
-    ' PsStatusBar's hPanelFont/HFONT. See C:\dev\Learnings.md.
+    ' PsStatusBar's hPanelFont/HFONT.
     hBarCursor     as HCURSOR
     ' --- Appearance (used by the default paint; a PaintCallback overrides entirely) ---
     BackColor      as COLORREF = BGR(53,59,69)
@@ -472,7 +472,7 @@ function PsSplitter_WndProc( _
         ' WM_LBUTTONDBLCLK REPLACES the second WM_LBUTTONDOWN (the class carries
         ' CS_DBLCLKS): the sequence is down, up, dblclk, up. So the dblclk must run the
         ' SAME capture bookkeeping as the down, or the trailing up would release a capture
-        ' that was never taken. See C:\dev\Learnings.md.
+        ' that was never taken.
         if pSpl = 0 then return 0
         ' Capture goes first, before any host callback runs, so the down->up pairing is
         ' guaranteed no matter what the host does with the message.
@@ -728,7 +728,7 @@ public sub PsSplitter_ApplyTheme( byval hSplit as HWND, byref t as PSTHEME_COLOR
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). The position and the drag limits are pixels in the parent's
+' Per-monitor DPI. The position and the drag limits are pixels in the parent's
 ' client space, so all three are scaled -- except the "unbounded" &h7FFFFFFF maximum a host
 ' that never called SetRange still has, which stays the sentinel (MulDiv would overflow it).
 ' The bar is then moved to the scaled position silently, as SetPos does; the host's own layout

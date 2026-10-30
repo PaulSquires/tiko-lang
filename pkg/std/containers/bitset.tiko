@@ -1,8 +1,6 @@
 #module "containers"
 '' std/containers: bitset -- containers.BitSet, a growable set of bit indices
 ''
-'' C:\dev\docs\tiko-stdlib\RFC-0001 section 4.3.
-''
 ''     dim b as containers.BitSet
 ''     b.Set( 3 ) : b.Set( 70 )
 ''     print b.Test( 70 ), b.CountOnes( )          '' true  2

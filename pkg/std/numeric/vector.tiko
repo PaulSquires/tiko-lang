@@ -11,8 +11,6 @@
 ''     dim as Mat4 mvp = proj * view * model
 ''     dim as Vec3 p = TransformPoint( mvp, v )
 ''
-'' Specified by C:\dev\docs\math\RFC-0007-vectors.md.  Phase 8.
-''
 '' COMPLEX NUMBERS ARE NOT HERE any more: they moved to their own file of this
 '' module, complex.tiko.  They used to be generated from the same macro text as
 '' Vec/Mat/Quat on the grounds that they are the same kind of object; that was
@@ -20,8 +18,6 @@
 '' wants Dot should not pay for twelve inverse hyperbolic functions.
 ''
 ''     (std/numeric's own complex.tiko)  ' Complex, CAbs, CExp, CSqrt, ...
-''
-'' See C:\dev\docs\math\RFC-0009-complex.md, which supersedes RFC-0007 s5.
 ''
 '' WHY THE TYPES ARE CONCRETE.  'Vec( of T, N )' is not expressible: FB
 '' generics take TYPE parameters only, and there is no mechanism for binding a

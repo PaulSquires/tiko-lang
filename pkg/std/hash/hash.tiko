@@ -19,7 +19,7 @@ using outcome
 ''     mac.UpdateText( "message" )
 ''     print mac.FinishHex( )
 ''
-'' C:\dev\docs\tiko-stdlib\RFC-0001 section 6.  Every algorithm is a type that
+'' Every algorithm is a type that
 '' extends Hasher, so code that hashes a stream takes 'byref h as Hasher' and
 '' works with any of them:
 ''

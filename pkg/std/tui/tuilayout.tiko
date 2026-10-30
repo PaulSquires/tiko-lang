@@ -8,8 +8,6 @@ using containers
 ''     cs.Push( TuiFill( ) )
 ''     var parts = TuiSplitH( f->Area( ), cs )
 ''
-'' RFC-0006 -- C:\dev\docs\tui\RFC-0006-layout.md.
-''
 '' Pure arithmetic on TuiRect. No widgets, no I/O, no state -- a split is a
 '' function of a rectangle and a constraint list, recomputed every frame. That
 '' is what immediate mode buys: nothing to invalidate, nothing to keep in sync
@@ -77,7 +75,7 @@ end function
 '' AtLeast and AtMost, not Min and Max: fb/tuilayout.bi spelled them TuiMin_ and TuiMax_ to dodge
 '' FB.Min and FB.Max from fb/math.bi -- FreeBASIC identifiers are case-insensitive, so that was a
 '' collision WITHIN namespace FB and the Tui prefix did not save it. A public name does not carry
-'' an underscore to dodge one (review LIB-05); it says what the constraint is.
+'' an underscore to dodge one; it says what the constraint is.
 public function TuiAtLeast( byval n as long ) as TuiConstraint
     return TuiConstraintOf( TUICON_MIN, n )
 end function
@@ -93,7 +91,6 @@ end function
 '' ============================================================== the solver
 
 '' Divides `total` among the constraints, returning one size per constraint.
-'' RFC-0006 section 3, step by step.
 public function TuiSolve( byval total as long, byref cs as TuiConstraintArray ) as Array( of long )
     dim as Array( of long ) size_
     dim as long n = cs.Count( )
@@ -175,12 +172,12 @@ public function TuiSolve( byval total as long, byref cs as TuiConstraintArray ) 
         '' that is what MIN means; LENGTH shrinks last.
         dim as long deficit = -r
 
-        '' RIGHT TO LEFT within each pass. RFC-0006 fixes the pass ORDER but
+        '' RIGHT TO LEFT within each pass. The pass ORDER is fixed, but it
         '' says nothing about direction, and the difference is visible: a row
         '' of Length(12) + Fill + Length(9) squeezed into 15 columns gives
         '' [12,0,3] shrinking rightwards and [6,0,9] shrinking leftwards. The
         '' leading panel is almost always the primary one, so it is the last to
-        '' give up cells. Recorded as a phase-4 amendment.
+        '' give up cells.
         for pass as long = 0 to 4
             if( deficit <= 0 ) then exit for
             for i as long = n - 1 to 0 step -1
@@ -207,13 +204,13 @@ public function TuiSolve( byval total as long, byref cs as TuiConstraintArray ) 
             next
         next
 
-        '' THE RFC'S SHRINK ORDER CAN STILL LEAVE US OVER, and phase 4 found
-        '' it: if the MIN floors alone exceed the total -- three Min_( 40 ) in
-        '' a 100-cell row -- every listed pass reaches its floor with the
-        '' deficit unpaid. RFC-0006's post-condition is unconditional, so a
-        '' final pass takes the rest from the right, ignoring floors. A MIN
-        '' that cannot be honoured is better reported as a short rectangle
-        '' than as a layout that overflows its parent.
+        '' THE SHRINK ORDER CAN STILL LEAVE US OVER: if the MIN floors alone
+        '' exceed the total -- three Min_( 40 ) in a 100-cell row -- every
+        '' listed pass reaches its floor with the deficit unpaid. The solver's
+        '' post-condition is unconditional, so a final pass takes the rest from
+        '' the right, ignoring floors. A MIN that cannot be honoured is better
+        '' reported as a short rectangle than as a layout that overflows its
+        '' parent.
         if( deficit > 0 ) then
             for i as long = n - 1 to 0 step -1
                 if( deficit <= 0 ) then exit for
@@ -264,8 +261,8 @@ end function
 '' ============================================================== padding
 
 '' All of these CLAMP rather than going negative -- padding a 2-column rectangle
-'' by 2 gives width 0, not -2. RFC-0001 section 1 established that an empty
-'' rectangle is legal, and this is where that pays.
+'' by 2 gives width 0, not -2. An empty rectangle is
+'' legal, and this is where that pays.
 public function TuiPad( byval r as TuiRect, byval m as TuiMargin ) as TuiRect
     return r.Inner( m )
 end function

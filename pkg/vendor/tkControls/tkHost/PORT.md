@@ -1,5 +1,5 @@
 
-## OS drops (2026-10-25, tiko-studio P3)
+## OS drops (2026-10-25, for tiko-studio)
 
 Win32's WM_DROPFILES had no twin: SDL's `SDL_EVENT_DROP_*` were not handled. Now:
 - tkHost collects a drop: BEGIN, then one FILE or TEXT per item.

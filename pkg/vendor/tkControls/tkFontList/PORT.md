@@ -1,6 +1,6 @@
 # tkFontList: notes
 
-tkFontList is new in tkControls (tiko-studio P3, PLAN.md deficiency 7). It replaces
+tkFontList is new in tkControls (built for tiko-studio). It replaces
 tiko-editor's `EnumFontFamilies`: SDL_ttf opens files and lists none, and fontconfig is not a
 dependency tkControls takes.
 

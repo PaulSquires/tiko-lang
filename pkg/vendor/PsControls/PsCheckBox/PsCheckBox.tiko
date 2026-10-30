@@ -244,8 +244,8 @@ public type CHK_PaintCallbackSub as sub( byval p as PSCHECKBOX_PAINTINFO ptr )
 ' CAUTION: the result is IGNORED for three messages.
 '   WM_LBUTTONUP        - the control holds mouse capture across a press and the up-message is
 '                         what releases it: a callback that suppressed it would strand capture
-'                         and route every subsequent click to this control (the PsListBox bug
-'                         recorded in Learnings.md). Suppressing WM_LBUTTONDOWN suppresses the
+'                         and route every subsequent click to this control (the PsListBox
+'                         bug). Suppressing WM_LBUTTONDOWN suppresses the
 '                         press, never the capture bookkeeping.
 '   WM_SETFOCUS         - focus is a FACT the system reports, not an action to veto. The state
 '   WM_KILLFOCUS          is already updated by the time you are called; there is nothing left
@@ -313,7 +313,7 @@ public type PSCHECKBOX_STATE
     '     gesture (press, slide off the control, release, the state does NOT flip) consumes the
     '     guaranteed down->up pairing, which is the family's test for taking capture. It pays
     '     the full price: snapshot the press BEFORE releasing (ReleaseCapture sends
-    '     WM_CAPTURECHANGED synchronously -- Learnings.md), release on the up-message before any
+    '     WM_CAPTURECHANGED synchronously), release on the up-message before any
     '     callback runs, WM_CAPTURECHANGED cancels the press, WM_DESTROY releases, and no
     '     callback may suppress an up-message.
     '     There is no bPressedInside flag: "the cursor is still inside" is exactly isHot, and
@@ -322,7 +322,7 @@ public type PSCHECKBOX_STATE
     ' Caller-supplied fonts (caller owns both). NOT named hFont: FreeBASIC is case-insensitive,
     ' so a member called hFont would shadow the TYPE name HFONT inside every member procedure of
     ' this type, and "dim as HFONT x" there fails with a misleading "error 14: Expected
-    ' identifier, found 'HFONT'". See C:\dev\Learnings.md.
+    ' identifier, found 'HFONT'".
     '
     ' TWO fonts, because the caption font is never the icon font. hTextFont is the MEASURING
     ' font and drives the layout; hGlyphFont is a paint-time input only (PsIconPanel's rule) and
@@ -338,7 +338,7 @@ public type PSCHECKBOX_STATE
     nPadRight         as long = PSCHECKBOX_DEFAULT_PADRIGHT
     nPadBottom        as long = PSCHECKBOX_DEFAULT_PADBOTTOM
     nBoxGap           as long = PSCHECKBOX_DEFAULT_BOXGAP
-    ' NOTE: "width" is a FreeBASIC reserved word (see C:\dev\Learnings.md) and produces errors
+    ' NOTE: "width" is a FreeBASIC reserved word and produces errors
     ' that never name the real problem -- hence nBoxWidth throughout.
     nBoxWidth         as long = PSCHECKBOX_DEFAULT_BOXWIDTH
     nBoxHeight        as long = PSCHECKBOX_DEFAULT_BOXHEIGHT
@@ -935,7 +935,7 @@ public declare sub      PsCheckBox_SetCheckChangedCallback( byval hCheckBox as H
 '   flood defect lives on -- is actually exercised, and both build their PAINTINFO with the same
 '   routine WM_PAINT uses, because a probe that hand-builds that struct and leaves one field
 '   zeroed silently skips the thing it is measuring; that produced a near-miss false PASS the
-'   first time this was written elsewhere in the family (Learnings.md). Both return 0 if the
+'   first time this was written elsewhere in the family. Both return 0 if the
 '   control has no geometry yet.
 '
 '   RunSelfTest - geometry, colour-resolution, notify-contract, window-text, Tab-reachability and
@@ -1631,7 +1631,7 @@ public function PsCheckBox_Create( byval hWndParent as HWND, byval CtrlID as lon
     ' only dwStyle silently declares itself a CONTAINER. The dialog manager then descends into
     ' it hunting for tabstops, finds no children, and SKIPS IT: the control becomes unreachable
     ' by Tab. That shipped in PsButton's first commit and was then found in PsToggle and PsComboBox
-    ' too; see C:\dev\Learnings.md. It is ASSERTED in the self-test below, not merely remembered.
+    ' too. It is ASSERTED in the self-test below, not merely remembered.
     '
     ' A leaf control must be a tab ITEM, not a tab container. WS_EX_WINDOWEDGE goes with it -- it
     ' is a raised-border hint that means nothing to a window drawing its own chrome.
@@ -2084,7 +2084,7 @@ public sub PsCheckBox_ApplyFonts( byval hCheckBox as HWND, byval hTextFont as HF
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' Per-monitor DPI. Every stored pixel metric -- the scaled Create defaults and
 ' whatever the host set since -- times newDpi/oldDpi; nFocusThick stays as it is (it was
 ' never scaled). The checkbox's own CWindow takes the new DPI so later ScaleX calls agree.
 ' The fonts are not ours: PsApp hands new ones over after this.
@@ -2260,7 +2260,7 @@ end function
 ' the number of distinct colours in it (capped at 64) and an FNV-1a hash of its pixels. Both
 ' public probes are thin wrappers over this, so they cannot disagree about what was rendered.
 '
-' THREE THINGS HERE ARE LOAD-BEARING, and all three come from the write-ups in Learnings.md:
+' THREE THINGS HERE ARE LOAD-BEARING:
 '
 '   1. The PAINTINFO is filled by PsCheckBox_FillPaintInfo -- the SAME routine WM_PAINT uses. The
 '      first version of this probe elsewhere in the family hand-built the struct and left
@@ -2485,7 +2485,7 @@ public sub PsCheckBox_RunSelfTest( byval hWndParent as HWND )
 
     dim as string sD                     ' every trace string is built here first: PRINT on a
                                          ' string & wstring concat interleaves
-                                         ' nulls (Learnings.md).
+                                         ' nulls.
     dim as long w, hh
     dim as RECT rcCon, rcBox, rcTxt, rcVis
 

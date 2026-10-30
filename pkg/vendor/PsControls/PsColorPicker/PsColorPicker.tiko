@@ -345,8 +345,7 @@ end type
 
 
 ' ----------------------------------------------------------------------------------------
-' Callbacks. CLR_ prefix -- unclaimed across the family (checked against the list in
-' CLAUDE.md's control-idiom section).
+' Callbacks. CLR_ prefix -- unclaimed across the family.
 ' ----------------------------------------------------------------------------------------
 
 ' The value changed. nPhase says whether this is one of many during a drag or a settled
@@ -368,7 +367,7 @@ public type CLR_TabChangedCallbackSub as sub( byval hCtrl as HWND, byval nTab as
 '   WM_LBUTTONUP        - the control holds mouse capture across a matrix drag and the
 '                         up-message is what releases it: a callback that suppressed it would
 '                         strand capture and route every subsequent click here (the PsListBox
-'                         bug recorded in Learnings.md).
+'                         bug).
 '   WM_SETFOCUS         - focus is a FACT the system reports, not an action to veto. It is
 '   WM_KILLFOCUS          also what COMMITS a half-typed field, so suppressing it would
 '                         silently discard the user's typing.
@@ -484,7 +483,7 @@ public type PSCOLORPICKER_STATE
     wszFieldLabel(0 to CLR_FIELD_COUNT - 1) as ustring
     colors           as PSCOLORPICKER_COLORS
     ' NOT named hFont: FreeBASIC is case-insensitive, so a member called hFont shadows the
-    ' TYPE name HFONT inside every member procedure of this type (C:\dev\Learnings.md).
+    ' TYPE name HFONT inside every member procedure of this type.
     hTextFont        as HFONT
 
     ' --- Layout inputs. All pixels; DPI-scaled once at Create EXCEPT the two pens. ---
@@ -621,7 +620,7 @@ function PsColorPicker_HSLtoRGB( _
     ' fRed / fGrn / fBlu, NOT fr / fg / fb. "fb" is FreeBASIC's own namespace name and using it
     ' as a variable fails with "error 120: Expected period ('.')", which names the syntax it was
     ' expecting rather than the collision -- the same class of unhelpful message this family has
-    ' already hit with `width`, `step` and `hFont` (C:\dev\Learnings.md).
+    ' already hit with `width`, `step` and `hFont`.
     dim as double fRed, fGrn, fBlu
 
     if s = 0.0 then
@@ -2586,7 +2585,7 @@ end function
 ' NOTE WHAT IT DOES NOT TOUCH: nBodySel, nFocusField and the caret. The family's hover safety
 ' net assumes hover is the only writer of the highlight, and a control with keyboard-driven
 ' selection on top of that pattern gets its selection erased ~100ms after every keypress -- the
-' trap recorded in Learnings.md against PsMenuBar. Keeping hover state and selection state
+' trap against PsMenuBar. Keeping hover state and selection state
 ' disjoint is what makes this control safe, and the self-test asserts it.
 ' ========================================================================================
 private sub PsColorPicker_ClearHot( byval pClr as PSCOLORPICKER_STATE ptr, byval hwnd as HWND )
@@ -2596,7 +2595,7 @@ private sub PsColorPicker_ClearHot( byval pClr as PSCOLORPICKER_STATE ptr, byval
         pClr->hotTimerOn = false
     end if
     ' Hoisted rather than chained inline: mixing a comparison result with a boolean field in one
-    ' orelse chain trips fbc's warning 38, which is a real rule and not noise (C:\dev\Learnings.md).
+    ' orelse chain trips fbc's warning 38, which is a real rule and not noise.
     dim as boolean bHotAny = ((pClr->nHotTab >= 0) orelse (pClr->nHotSwatch >= 0) orelse _
                               (pClr->nHotField >= 0))
     dim as boolean bAny = (bHotAny orelse pClr->bOKHot)
@@ -3077,7 +3076,7 @@ function PsColorPicker_WndProc( _
         ' a matching WM_CHAR; anything that reaches DefWindowProc unconsumed beeps. Enter and
         ' Escape both produce one (13 and 27), so both are claimed here and swallowed in the
         ' WM_CHAR arm below. The keystroke works either way -- the beep is the only symptom, and
-        ' no assertion can hear it (see Learnings.md in the workspace root).
+        ' no assertion can hear it.
         if pMsg->message = WM_CHAR then
             if pClr->nFocusField >= 0 then return DLGC_WANTCHARS or DLGC_WANTALLKEYS
             dim as long chDlg = clng( pMsg->wParam )
@@ -3824,7 +3823,7 @@ public sub PsColorPicker_ApplyFonts( byval hCtrl as HWND, byval hTextFont as HFO
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' Per-monitor DPI. Every stored pixel metric -- the scaled Create defaults and
 ' whatever the host set since -- times newDpi/oldDpi. nBorderThick and nFocusThick stay as
 ' they are (PaintRoundOutline scales those pens through the CWindow, which is why the
 ' picker's own CWindow takes the new DPI here); the matrix and list row COUNTS are not pixels.
@@ -3881,7 +3880,7 @@ function PsColorPicker_GetFont( byval hCtrl as HWND ) as HFONT
 end function
 
 ' byval, never "byref as const". Under AfxNova a const-qualified DWSTRING reference that was
-' then COPIED corrupted the process heap (0xC0000374, C:\dev\Learnings.md). Nobody has
+' then COPIED corrupted the process heap (0xC0000374). Nobody has
 ' measured a const ustring reference; every string parameter in this family stays byval.
 sub PsColorPicker_SetOKText( byval hCtrl as HWND, byval Text as ustring )
     dim as PSCOLORPICKER_STATE ptr pClr = GetColorPickerPointer( hCtrl )
@@ -3996,7 +3995,7 @@ end sub
 
 
 ' Force the pending layout, then hand back a copy. An assertion that reads a lazily-derived rect
-' without forcing it measures the value from BEFORE the change it is testing (C:\dev\Learnings.md).
+' without forcing it measures the value from BEFORE the change it is testing.
 private function PsColorPicker_PartRect( byval pClr as PSCOLORPICKER_STATE ptr, byval nPart as long ) as RECT
     dim as RECT rc
     SetRectEmpty( @rc )
@@ -4119,7 +4118,7 @@ end sub
 ' Render one part OFFSCREEN with the control's current painter and measure it two ways: the
 ' number of distinct colours in it (capped at 64) and an FNV-1a hash of its pixels.
 '
-' THREE THINGS HERE ARE LOAD-BEARING, all three from write-ups in Learnings.md:
+' THREE THINGS HERE ARE LOAD-BEARING:
 '
 '   1. The render goes through PsColorPicker_RenderDefault (or the host's callback) -- THE SAME
 '      path WM_PAINT uses, with the PAINTINFO built by the same FillPaintInfo. A version of this
@@ -4707,7 +4706,7 @@ public sub PsColorPicker_RunSelfTest( byval hWndParent as HWND )
         ' THE FAMILY'S TAB BUG, ASSERTED RATHER THAN REMEMBERED. CWindow.Create defaults
         ' dwExStyle to WS_EX_CONTROLPARENT OR WS_EX_WINDOWEDGE; a leaf control that inherits that
         ' declares itself a container, the dialog manager descends into it, finds no children and
-        ' SKIPS it. That shipped in PsButton, PsToggle and PsComboBox (C:\dev\Learnings.md).
+        ' SKIPS it. That shipped in PsButton, PsToggle and PsComboBox.
         dim as LONG_PTR nEx = GetWindowLongPtr( h, GWL_EXSTYLE )
         dim as boolean bNoCP = ((nEx and WS_EX_CONTROLPARENT) = 0)
         CLRTest_Check( "the control is a tab ITEM, not a tab CONTAINER (no WS_EX_CONTROLPARENT)", _
@@ -5291,8 +5290,7 @@ public sub PsColorPicker_RunSelfTest( byval hWndParent as HWND )
         ' DELIBERATELY IN THE MIDDLE OF THE LIST. The first version of this case parked the
         ' viewport near the END, where ClampScroll pins it to the last page -- so a break that
         ' made EnsureSelVisible re-centre on EVERY call produced the identical number and the case
-        ' passed under both implementations. A test whose input is degenerate proves nothing
-        ' (C:\dev\Learnings.md, PsOptionButton).
+        ' passed under both implementations. A test whose input is degenerate proves nothing.
         dim as long nMid = 60
         PsColorPicker_SetColor( h, PsColorPicker_WebColorAt( nMid ) )
         pClr->nScrollTop = nMid - 5

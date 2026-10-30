@@ -274,8 +274,8 @@ public type OPT_PaintCallbackSub as sub( byval p as PSOPTIONBUTTON_PAINTINFO ptr
 ' CAUTION: the result is IGNORED for three messages.
 '   WM_LBUTTONUP        - the control holds mouse capture across a press and the up-message is
 '                         what releases it: a callback that suppressed it would strand capture
-'                         and route every subsequent click to this control (the PsListBox bug
-'                         recorded in Learnings.md). Suppressing WM_LBUTTONDOWN suppresses the
+'                         and route every subsequent click to this control (the PsListBox
+'                         bug). Suppressing WM_LBUTTONDOWN suppresses the
 '                         press, never the capture bookkeeping.
 '   WM_SETFOCUS         - focus is a FACT the system reports, not an action to veto. The state
 '   WM_KILLFOCUS          is already updated by the time you are called; there is nothing left
@@ -359,7 +359,7 @@ public type PSOPTIONBUTTON_STATE
     '     gesture (press, slide off the control, release, nothing gets checked) consumes the
     '     guaranteed down->up pairing, which is the family's test for taking capture. It pays
     '     the full price: snapshot the press BEFORE releasing (ReleaseCapture sends
-    '     WM_CAPTURECHANGED synchronously -- Learnings.md), release on the up-message before any
+    '     WM_CAPTURECHANGED synchronously), release on the up-message before any
     '     callback runs, WM_CAPTURECHANGED cancels the press, WM_DESTROY releases, and no
     '     callback may suppress an up-message.
     '     There is no bPressedInside flag: "the cursor is still inside" is exactly isHot, and
@@ -368,7 +368,7 @@ public type PSOPTIONBUTTON_STATE
     ' Caller-supplied font (caller owns it). NOT named hFont: FreeBASIC is case-insensitive, so
     ' a member called hFont would shadow the TYPE name HFONT inside every member procedure of
     ' this type, and "dim as HFONT x" there fails with a misleading "error 14: Expected
-    ' identifier, found 'HFONT'". See C:\dev\Learnings.md.
+    ' identifier, found 'HFONT'".
     '
     ' ONE font, not two. PsCheckBox needs a second (icon) font because its box is a glyph; this
     ' control draws the circle as geometry, so there is no glyph font and no missing-glyph
@@ -383,7 +383,7 @@ public type PSOPTIONBUTTON_STATE
     nPadRight         as long = PSOPTIONBUTTON_DEFAULT_PADRIGHT
     nPadBottom        as long = PSOPTIONBUTTON_DEFAULT_PADBOTTOM
     nBoxGap           as long = PSOPTIONBUTTON_DEFAULT_BOXGAP
-    ' NOTE: "width" is a FreeBASIC reserved word (see C:\dev\Learnings.md) and produces errors
+    ' NOTE: "width" is a FreeBASIC reserved word and produces errors
     ' that never name the real problem -- hence nBoxWidth throughout.
     nBoxWidth         as long = PSOPTIONBUTTON_DEFAULT_BOXWIDTH
     nBoxHeight        as long = PSOPTIONBUTTON_DEFAULT_BOXHEIGHT
@@ -1114,7 +1114,7 @@ private function PsOptionButton_GroupCheckedOf( byval hParent as HWND, byval nGr
         if p then
             ' Hoisted to a boolean local rather than chained inline: "(a = b) andalso c" mixes a
             ' comparison result with a boolean field and trips fbc's warning 38, which is a real
-            ' rule and not noise (C:\dev\Learnings.md).
+            ' rule and not noise.
             dim as boolean bInGroup = ((p->hParent = hParent) andalso (p->nGroupID = nGroupID))
             if bInGroup andalso p->isChecked then
                 return p
@@ -1144,7 +1144,7 @@ end function
 '
 ' Note this only ever writes WS_TABSTOP. It never touches focus: moving a style bit must not
 ' move the caret, and a SetFocus buried in a routine like this one is the "layout function that
-' steals focus" trap recorded in C:\dev\Learnings.md.
+' steals focus" trap.
 ' ========================================================================================
 sub PsOptionButton_SyncTabStop( byval hParent as HWND, byval nGroupID as long )
 
@@ -1176,7 +1176,7 @@ sub PsOptionButton_SyncTabStop( byval hParent as HWND, byval nGroupID as long )
         if p = 0 then continue for
         if (p->hParent <> hParent) orelse (p->nGroupID <> nGroupID) then continue for
         ' IsWindow, not "<> 0". A handle stored across time can be dead, and this routine runs
-        ' from WM_NCDESTROY while a form is tearing down. See C:\dev\Learnings.md.
+        ' from WM_NCDESTROY while a form is tearing down.
         if IsWindow( p->hWin ) = 0 then continue for
 
         dim as LONG_PTR nStyle = GetWindowLongPtr( p->hWin, GWL_STYLE )
@@ -1419,7 +1419,7 @@ end function
 ' NOTE WHAT IT DOES NOT TOUCH: isChecked and isFocused. The family's hover safety net assumes
 ' hover is the only writer of the highlight, and a control that grows KEYBOARD-driven selection
 ' on top of that pattern gets its selection erased ~100ms after every keypress -- the trap
-' recorded in Learnings.md against PsMenuBar. This control is exactly that sibling. It is safe
+' against PsMenuBar. This control is exactly that sibling. It is safe
 ' because the arrow keys write isChecked and the system writes isFocused, and neither is hover
 ' state; keeping it that way is a live constraint, not an accident, and the self-test asserts it.
 ' ========================================================================================
@@ -1712,7 +1712,7 @@ function PsOptionButton_WndProc( _
         ' NOTE FOR HOSTS ON A PsScrollPanel: focusing on the DOWN is what fights
         ' PsScrollPanel_SetAutoScrollToFocus -- the reveal tick scrolls the control out from
         ' under a still-held cursor and re-targets the click. tiko's Options dialog turns that
-        ' setting off for exactly this reason (see Learnings.md). It is recorded here because
+        ' setting off for exactly this reason. It is recorded here because
         ' the symptom appears in the host, never in this file.
         SetFocus( hwnd )
 
@@ -2019,7 +2019,7 @@ public function PsOptionButton_Create( _
     ' only dwStyle silently declares itself a CONTAINER. The dialog manager then descends into
     ' it hunting for tabstops, finds no children, and SKIPS IT: the control becomes unreachable
     ' by Tab. That shipped in PsButton's first commit and was then found in PsToggle and
-    ' PsComboBox too; see C:\dev\Learnings.md. It is ASSERTED in the self-test below, not merely
+    ' PsComboBox too. It is ASSERTED in the self-test below, not merely
     ' remembered.
     '
     ' A leaf control must be a tab ITEM, not a tab container. WS_EX_WINDOWEDGE goes with it -- it
@@ -2186,7 +2186,7 @@ end sub
 public function PsOptionButton_GetText( byval hOptionButton as HWND ) as ustring
     dim as PSOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer(hOptionButton)
     ' ONE return style for the whole function. A function returning an object with constructors
-    ' cannot mix "return x" with "function = x" / "exit function" (C:\dev\Learnings.md).
+    ' cannot mix "return x" with "function = x" / "exit function".
     dim as ustring wszOut
     if pOpt then wszOut = pOpt->wszText
     return wszOut
@@ -2194,7 +2194,7 @@ end function
 
 public sub PsOptionButton_SetText( byval hOptionButton as HWND, byval Text as ustring )
     ' byval, never "byref as const". Under AfxNova a const-qualified DWSTRING reference that was
-    ' then COPIED corrupted the process heap (0xC0000374, C:\dev\Learnings.md). Nobody has
+    ' then COPIED corrupted the process heap (0xC0000374). Nobody has
     ' measured a const ustring reference; every string parameter in this family stays byval.
     dim as PSOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer(hOptionButton)
     if pOpt = 0 then exit sub
@@ -2471,7 +2471,7 @@ private function PsOptionButton_GetRectCommon( byval hOptionButton as HWND, byre
     dim as PSOPTIONBUTTON_STATE ptr pOpt = GetOptionButtonPointer(hOptionButton)
     if pOpt = 0 then return false
     ' Force the derivation before reading it. An assertion that reads a lazily-derived rect
-    ' without this measures the value from BEFORE the change it is testing (C:\dev\Learnings.md).
+    ' without this measures the value from BEFORE the change it is testing.
     if pOpt->bLayoutDirty then pOpt->LayoutOptionButton()
     select case nWhich
     case 0 : rc = pOpt->rcContent
@@ -2576,7 +2576,7 @@ public sub PsOptionButton_ApplyFonts( byval hOptionButton as HWND, byval hTextFo
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' Per-monitor DPI. Every stored pixel metric -- the scaled Create defaults and
 ' whatever the host set since -- times newDpi/oldDpi (a derived nDotSize of 0 stays 0). The
 ' two pens, nRingThick and nFocusThick, stay as they are: PaintRoundOutline scales them at
 ' paint time from the CWindow DPI, which takes the new value here. The font is not ours:
@@ -2742,7 +2742,7 @@ end function
 ' the number of distinct colours in it (capped at 64) and an FNV-1a hash of its pixels. Both
 ' public probes are thin wrappers over this, so they cannot disagree about what was rendered.
 '
-' THREE THINGS HERE ARE LOAD-BEARING, and all three come from write-ups in Learnings.md:
+' THREE THINGS HERE ARE LOAD-BEARING:
 '
 '   1. The PAINTINFO is filled by PsOptionButton_FillPaintInfo -- the SAME routine WM_PAINT
 '      uses. A version of this probe elsewhere in the family hand-built the struct and left
@@ -3303,7 +3303,7 @@ public sub PsOptionButton_RunSelfTest( byval hWndParent as HWND )
         OPTTest_Check( "wide cell: the circle is h-centred in the cell", _
                        abs( (rcCirc.left - rcBox.left) - (rcBox.right - rcCirc.right) ) <= 1, sD )
 
-        ' A TALL cell, the mirrored case. Learnings.md: a single-sided test of a mirrored pair
+        ' A TALL cell, the mirrored case. A single-sided test of a mirrored pair
         ' passes with the mirror inverted.
         PsOptionButton_SetBoxSize( h, 16, 40 )
         PsOptionButton_GetBoxRect( h, rcBox )
@@ -3611,7 +3611,7 @@ public sub PsOptionButton_RunSelfTest( byval hWndParent as HWND )
 
     ' ---- 25. ARROW NAVIGATION: both directions, mirrored, wrapping at both ends ------------------
     scope
-        ' Learnings.md: a single-sided test of a mirrored pair passes with the mirror inverted.
+        ' A single-sided test of a mirrored pair passes with the mirror inverted.
         ' So every claim below is made twice, with the input mirrored too.
         PsOptionButton_SetChecked( a1, true )
 
@@ -3704,7 +3704,7 @@ public sub PsOptionButton_RunSelfTest( byval hWndParent as HWND )
 
     ' ---- 29. THE HOVER SAFETY NET MUST NOT ERASE KEYBOARD STATE ------------------------------------
     scope
-        ' Learnings.md (PsMenuBar): the family's hover pattern assumes hover is the only writer of
+        ' The PsMenuBar trap: the family's hover pattern assumes hover is the only writer of
         ' the highlight, and a control that grows keyboard selection on top of it gets that
         ' selection erased ~100ms after every keypress by the poll. This control is exactly that
         ' sibling, so the separation is asserted rather than assumed.

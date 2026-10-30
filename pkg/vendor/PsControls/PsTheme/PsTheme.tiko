@@ -20,7 +20,7 @@
 '
 ' PsTheme_Dark() is the family's built-in look: every control's default colours are dark, and
 ' the Dark preset is those defaults expressed as roles (a control whose defaults use a shade the
-' roles do not have moves to the nearest role; RFC-0001 appendix A lists the differences).
+' roles do not have moves to the nearest role).
 ' PsTheme_Light() is new. PsTheme_System() follows the Windows app mode (Settings > Colours).
 '
 ' The registry (vendor/PsControls/PsRegistry) holds the current theme and applies it to every

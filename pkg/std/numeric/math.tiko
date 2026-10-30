@@ -20,9 +20,8 @@
 '' Decimal's bridge -- and a program that only wants Round and Clamp should not
 '' pay for them.  Import std/money beside this one when you need them.
 ''
-'' Specified by C:\dev\docs\math\RFC-0001-core.md.  This file is phase 1:
-'' constants, selection, rounding, the libm surface under FreeBASIC names, and
-'' floating-point classification.
+'' This file holds constants, selection, rounding, the libm surface under
+'' FreeBASIC names, and floating-point classification.
 ''
 '' NOTHING HERE IS A KEYWORD.  'min', 'max', 'round' and 'clamp' are all legal
 '' identifiers in FreeBASIC and twenty years of code uses them as variable
@@ -48,7 +47,7 @@
 '' body cannot branch on what its type parameter is bound to.  Dispatch has to
 '' be ordinary overload resolution.
 ''
-'' EXACT vs BOUNDED (RFC-0008).  Rounding, classification, selection and the
+'' EXACT vs BOUNDED.  Rounding, classification, selection and the
 '' constants are EXACT -- bit-identical on every target under every backend.
 '' Everything delegating to libm is BOUNDED: accurate to a stated ULP bound,
 '' with the platform libm named as the dependency.  Results from the second
@@ -488,7 +487,7 @@ end function
 ''
 '' RoundHalfEven is implemented rather than delegated to C's 'rint', because
 '' rint honours the CURRENT rounding mode and would therefore stop being
-'' deterministic the moment RFC-0008's fenv surface exists.  Rounding is in the
+'' deterministic the moment fenv.tiko's SetRoundingMode is called.  Rounding is in the
 '' exact class and has to be identical on every target regardless.
 '' ---------------------------------------------------------------------------
 
@@ -610,7 +609,7 @@ end function
 '' ---------------------------------------------------------------------------
 '' The libm surface under FreeBASIC names.
 ''
-'' BOUNDED, not exact (RFC-0008 s3).  Accuracy is the platform's; results are
+'' BOUNDED, not exact.  Accuracy is the platform's; results are
 '' not guaranteed identical across win64, win32 and linux-x86_64.
 '' ---------------------------------------------------------------------------
 
@@ -656,7 +655,7 @@ __FB_MATH_BINARY( NextAfter, c_nextafter, c_nextafterf )
 
 '' Pow is NOT a replacement for '^'.  It is the double-to-double operation under
 '' a name, for callers who want an explicit float power.  Integer exponentiation
-'' is IPow in RFC-0002; '^' is untouched.
+'' is IPow in mathint.tiko; '^' is untouched.
 __FB_MATH_BINARY( Pow, c_pow, c_powf )
 
 public function Fma overload ( byval x as double, byval y as double, byval z as double ) as double
@@ -690,7 +689,7 @@ public function Modf overload ( byval x as double, byref ipart as double ) as do
 end function
 
 '' Ulp( x ) is the distance to the next representable value AWAY FROM ZERO.  It
-'' has no libm equivalent and exists because RFC-0008's accuracy claims are
+'' has no libm equivalent and exists because the BOUNDED accuracy claims are
 '' stated in ulps and a caller has to be able to check them.
 
 public function Ulp overload ( byval x as double ) as double

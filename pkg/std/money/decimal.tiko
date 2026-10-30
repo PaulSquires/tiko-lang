@@ -1116,7 +1116,7 @@ end operator
 '' ===========================================================================
 '' Parsing
 ''
-'' STRICT, like CurrencyParse and RFC-0004's TryParse family: the whole string
+'' STRICT, like CurrencyParse and std/numeric's TryParse family: the whole string
 '' must be consumed, and MORE THAN 28 DECIMAL PLACES IS AN ERROR RATHER THAN A
 '' TRUNCATION.  Silently discarding a digit the caller wrote is how a decimal
 '' type loses money.  There is no exponent syntax -- 'DecimalFromScaled' says

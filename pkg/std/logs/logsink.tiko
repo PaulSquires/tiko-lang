@@ -11,13 +11,10 @@ using chrono
 using containers
 '' std/logs: logsink -- std/logs' sinks
 ''
-'' RFC-0004 -- C:\dev\docs\logging\RFC-0004-sinks.md.
-''
 '' A sink owns a destination. It holds the lock, it owns the encoding, and it is
 '' the only thing in this module that touches the outside world.
 ''
-'' Phase 1 ships ConsoleSink. FileSink and rotation (phase 3) are in
-'' logfile.tiko.
+'' This file has ConsoleSink; FileSink and rotation are in logfile.tiko.
 ''
 '' ---------------------------------------------------------------------------
 '' WHY THERE IS NO -mt REQUIREMENT
@@ -35,7 +32,7 @@ using containers
 ''
 ''   Write  takes the RECORD, not rendered text, so a sink chooses its own
 ''          renderer and a later AsyncSink can defer rendering to its worker.
-''          IT CANNOT FAIL -- no return value, no raise (RFC-0005 section 1).
+''          IT CANNOT FAIL -- no return value, no raise.
 ''   Flush  makes what has been written as durable as this sink can. Safe on an
 ''          already-flushed or already-closed sink.
 ''   Close  flushes and releases. IDEMPOTENT: LogShutdown and a destructor will
@@ -90,7 +87,7 @@ private:
     m_closed    as boolean
     m_isconsole as boolean
     m_target    as ConsoleTarget
-    m_thr       as hLogThrottle      '' RFC-0005 rule 3: one report a second
+    m_thr       as hLogThrottle      '' one report a second
     m_buf       as ustring           '' reused across records; Render appends
     #ifdef __FB_WIN32__
         m_k32 as hLogK32
@@ -112,7 +109,7 @@ constructor ConsoleSink( byval target as ConsoleTarget, byval r as Renderer ptr 
     this.hInit( target, r )
 end constructor
 
-'' RFC-0004 section 4. STDERR BY DEFAULT: logs are diagnostics, not output, and
+'' STDERR BY DEFAULT: logs are diagnostics, not output, and
 '' a program whose stdout is piped into another program must not have its log
 '' lines land in the pipe.
 sub ConsoleSink.hInit( byval target as ConsoleTarget, byval r as Renderer ptr )
@@ -146,7 +143,7 @@ sub ConsoleSink.hInit( byval target as ConsoleTarget, byval r as Renderer ptr )
             this.m_isconsole = ( this.m_k32.pGetFileType( this.m_h ) = FB_LOG_FILE_TYPE_CHAR )
         end if
 
-        '' Test 3 of RFC-0004 section 4: on a Windows build too old to accept
+        '' On a Windows build too old to accept
         '' virtual-terminal processing the sequences would print as literal
         '' garbage, so colour is only on if enabling it actually worked.
         if( this.m_isconsole ) then
@@ -205,7 +202,7 @@ function ConsoleSink.DroppedCount( ) as ulongint
     return this.m_dropped
 end function
 
-'' RFC-0004 section 3. On Windows a console gets WIDE text, bypassing the
+'' On Windows a console gets WIDE text, bypassing the
 '' console code page: a console at CP437 would otherwise mangle every non-ASCII
 '' character in a record. Everything else gets UTF-8.
 function ConsoleSink.hName( ) as ustring
@@ -266,8 +263,8 @@ end function
 '' nothing reports it.
 ''
 '' A record that is not written is DROPPED, counted, and REPORTED through
-'' OnLogError -- after the lock is released (RFC-0005 rule 1), at most once a
-'' second (rule 3).
+'' OnLogError -- after the lock is released, at most once a
+'' second.
 sub ConsoleSink.Write( byref r as LogRecord )
     dim as ustring why
     dim as long os = 0

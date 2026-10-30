@@ -14,7 +14,7 @@ using containers
 ''     print strings.Format( "{:*^9}", "hi" )                  '' ***hi****
 ''
 '' The grammar, the format-spec mini-language and the output are C++20 std::format's, wherever
-'' tiko has the type. The design, every deviation and why: docs/tiko-strings/RFC-0002-format.md.
+'' tiko has the type.
 ''
 '' ---------------------------------------------------------------------------
 '' THE FORMAT STRING

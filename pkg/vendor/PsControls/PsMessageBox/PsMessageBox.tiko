@@ -217,7 +217,7 @@ public type MBX_PaintCallbackSub as sub( byval p as MBX_PAINTINFO ptr )
 ' CAUTION: the result is IGNORED for three messages.
 '   WM_LBUTTONUP        - the box holds mouse capture across a press on the X, and the
 '                         up-message is what releases it: a callback that suppressed it would
-'                         strand capture (the PsListBox bug recorded in Learnings.md).
+'                         strand capture (the PsListBox bug).
 '   WM_CLOSE            - a modal box MUST be able to end. Suppressing the close would leave the
 '                         nested message loop spinning with the parent disabled, which is an
 '                         unrecoverable hang rather than a refused action. Veto the dismissal by
@@ -263,7 +263,7 @@ public type PSMESSAGEBOX_STATE
     btnColors       as PSBUTTON_COLORS  ' pushed into every button as it is added
     ' Caller-supplied fonts (caller owns all three). NOT named hFont: FreeBASIC is
     ' case-insensitive, so a member called hFont would shadow the TYPE name HFONT inside every
-    ' member procedure of this type. See C:\dev\Learnings.md.
+    ' member procedure of this type.
     '
     ' hTextFont is the MEASURING font -- it drives the wrap and therefore the box's height.
     hTextFont       as HFONT
@@ -283,7 +283,7 @@ public type PSMESSAGEBOX_STATE
     nBodyPadY       as long = PSMESSAGEBOX_DEFAULT_BODYPADY
     nFooterPadX     as long = PSMESSAGEBOX_DEFAULT_FOOTERPADX
     nFooterPadY     as long = PSMESSAGEBOX_DEFAULT_FOOTERPADY
-    ' NOTE: "width" is a FreeBASIC reserved word (see C:\dev\Learnings.md) and produces errors
+    ' NOTE: "width" is a FreeBASIC reserved word and produces errors
     ' that never name the real problem -- hence nIconWidth, nBoxWidth and friends throughout.
     nIconWidth      as long = PSMESSAGEBOX_DEFAULT_ICONWIDTH
     nIconHeight     as long = PSMESSAGEBOX_DEFAULT_ICONHEIGHT
@@ -653,8 +653,8 @@ end function
 '
 ' IT IS A CONTAINER, AND THAT IS WHY IT CARRIES WS_EX_CONTROLPARENT
 '   The exact opposite of the PsButton fix. The tabstops here are the child buttons, so the dialog
-'   manager MUST descend into this window. Do not "correct" this to 0; see the per-sibling table
-'   in C:\dev\Learnings.md, and the self-test, which asserts the flag both ways.
+'   manager MUST descend into this window. Do not "correct" this to 0; see
+'   the self-test, which asserts the flag both ways.
 '
 ' THE PARENT IS DISABLED FOR THE DURATION
 '   EnableWindow(hParent, FALSE) at the top of DoModal, restored BEFORE the box is destroyed --
@@ -839,7 +839,7 @@ public declare sub      PsMessageBox_SetMessageCallback( byval hMsgBox as HWND, 
 '                 The PAINTINFO is built by the same routine WM_PAINT uses, because a probe that
 '                 hand-builds that struct and leaves one field zeroed silently skips the thing it
 '                 is measuring -- that produced a near-miss false PASS the first time this was
-'                 written for PsButton (Learnings.md). Returns 0 if the box has no geometry yet,
+'                 written for PsButton. Returns 0 if the box has no geometry yet,
 '                 so call it AFTER PsMessageBox_LayoutForTest.
 '
 '   LayoutForTest - size the box to its ideal size WITHOUT showing it or entering the modal
@@ -1054,7 +1054,7 @@ end sub
 ' Fill a PAINTINFO from the box's current state and geometry. One place, so the WM_PAINT path
 ' and the offscreen tone probe cannot describe the box differently -- a probe that hand-built
 ' this struct and left one field zeroed silently skipped the thing it was measuring the first
-' time this pattern was written for PsButton (Learnings.md).
+' time this pattern was written for PsButton.
 ' ========================================================================================
 private sub PsMessageBox_FillPaintInfo( _
             byval pBox as PSMESSAGEBOX_STATE ptr, _
@@ -1429,7 +1429,7 @@ public function PsMessageBox_Create( byval hWndParent as HWND ) as HWND
     ' drawing its own chrome.
     '
     ' The test is "does this window have children the dialog manager should find?", not "is this
-    ' a control?". See the per-sibling table in C:\dev\Learnings.md, and the self-test, which
+    ' a control?". See the self-test, which
     ' asserts this window HAS the flag and its buttons do NOT.
     dim as HWND hCtrl = _
             pWindow->Create( hWndParent, "", @PsMessageBox_WndProc, _
@@ -1943,7 +1943,7 @@ public sub PsMessageBox_ApplyFonts( byval hMsgBox as HWND, byval hTextFont as HF
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). Every layout input -- the scaled Create defaults and whatever
+' Per-monitor DPI. Every layout input -- the scaled Create defaults and whatever
 ' the host set since -- times newDpi/oldDpi; the border and divider THICKNESS values stay as
 ' they are (they were never scaled). The footer buttons are PsButtons with their own Rescale.
 ' The layout stays lazy (Refresh), so the measuring pass runs after the buttons and the new
@@ -2191,7 +2191,7 @@ end function
 '
 '   4. IsDialogMessage IS OURS. It is what makes Tab walk the buttons, and it is why the host has
 '      no pump obligation at all. It only acts once a DESCENDANT has focus, hence the explicit
-'      SetFocus before the loop -- the second half of the PsButton Tab bug in Learnings.md.
+'      SetFocus before the loop -- the second half of the PsButton Tab bug.
 ' ========================================================================================
 public function PsMessageBox_DoModal( byval hMsgBox as HWND ) as long
     dim as PSMESSAGEBOX_STATE ptr pBox = GetMessageBoxPointer(hMsgBox)
@@ -2472,7 +2472,7 @@ private sub MBXTest_Check( byval sName as string, byval bOK as boolean, byval sD
         gMBX_FailCount += 1
     end if
     ' Built as a plain STRING first: print on a string & wstring concat
-    ' interleaves nulls (C:\dev\Learnings.md).
+    ' interleaves nulls.
     s &= sName & "   [" & sDetail & "]"
     print s
 end sub

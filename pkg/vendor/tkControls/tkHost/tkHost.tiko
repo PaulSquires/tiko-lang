@@ -1505,7 +1505,7 @@ public sub tkHost_Dispatch( byval h as TK_HOST ptr, byval e as SDL_Event ptr )
     dim as SDL_WindowID wid = EventWindow( e )
     dim as TK_HOST ptr target = iif( wid <> 0, HostOfWindow( wid ), cast( TK_HOST ptr, 0 ) )
     ' TK_TRACE=1: one line per event -- the trace that separates "SDL never sent it" from "it
-    ' went elsewhere" (Learnings.md).
+    ' went elsewhere".
     if gTrace = 1 then
         print "ev " & hex( e->type ) & " win=" & wid & " host=" & iif( target <> 0, target->kind, -1 ) & _
               iif( e->type = SDL_EVENT_MOUSE_MOTION, " xy=" & e->motion.x & "," & e->motion.y, "" )

@@ -13,7 +13,7 @@ using com
 #include once "win/objidl.bi"
 #include once "win/oaidl.bi"
 
-' The COM base types -- ComUnknown, ComUnknown_, LPCOMUNKNOWN -- are sys/win/com's (RFC-0001 5.4).
+' The COM base types -- ComUnknown, ComUnknown_, LPCOMUNKNOWN -- are sys/win/com's.
 
 PUBLIC TYPE EventRegistrationToken
    value AS __int64

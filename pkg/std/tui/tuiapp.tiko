@@ -20,9 +20,7 @@ using containers
 ''     dim as MyApp app
 ''     dim as Result( of long, TuiError ) r = TuiRun( app, TuiTermOptionsDefault( ) )
 ''
-'' RFC-0009 -- C:\dev\docs\tui\RFC-0009-app-loop-and-async.md.
-''
-'' OPTIONAL. Everything in RFCs 0001-0008 works without it -- that is the
+'' OPTIONAL. Everything in the other std/tui files works without it -- that is the
 '' Ratatui style, and it stays available. This file is for programs that would
 '' otherwise write the same loop again.
 ''
@@ -98,7 +96,7 @@ end function
 
 '' There is deliberately NO TUICMD_BATCH. A batch needs a variable-length list
 '' inside a value type returned by value from every Update, and FreeBASIC has no
-'' varargs of any kind -- docs/logging hit exactly this and answered it with a
+'' varargs of any kind -- std/logs hit exactly this and answered it with a
 '' chained builder. Here the honest answer is that the three things a batch
 '' would combine are already ordered by the loop: QUIT ends it, TICK schedules,
 '' and a redraw happens anyway.
@@ -106,7 +104,7 @@ end function
 '' ============================================================== the tick event
 
 '' TUIEVENT_TICK is delivered by the loop, not by the input parser, so it lives
-'' here rather than in RFC-0004's enum.
+'' here rather than in tuiinput.tiko's enum.
 public const TUIEVENT_TICK = 250
 
 public function TuiTickEvent( ) as TuiEvent
@@ -119,7 +117,7 @@ end function
 
 '' Init RETURNS A COMMAND, as Bubbletea's does.
 ''
-'' RFC-0009 section 1 declared it `sub`, which made it impossible for an
+'' An earlier design declared it `sub`, which made it impossible for an
 '' application to schedule anything at startup: the only way to arm a tick was
 '' to return TuiTick from Update in response to a TUIEVENT_TICK that could never
 '' arrive. examples/dashboard.bas looked correct and its graphs never moved.
@@ -175,7 +173,7 @@ public function TuiRun overload( byref app as TuiApp, _
 
     '' THE DEFER IS AT PROCEDURE SCOPE. Inside the `if` that checked Enter it
     '' would fire at END IF, restoring the terminal before the loop ran --
-    '' measured in phase 1, not assumed.
+    '' measured, not assumed.
     defer term.Leave( )
 
     dim as TuiScreen scr
@@ -246,7 +244,7 @@ public function TuiRun overload( byref app as TuiApp, _
             if( runOpts.quitOnCtrlC ) then
                 '' Hoisted to explicit boolean locals: IsChar( ) and HasMod( )
                 '' return bare booleans, and mixing those with comparison
-                '' results in one andalso chain is warning 38. RFC-0001 s3.
+                '' results in one andalso chain is warning 38.
                 dim as boolean isKey = ( tev.kind = TUIEVENT_KEY )
                 dim as boolean isC = ( tev.key.ch = 99 )        '' asc( "c" )
                 dim as boolean wasChar = tev.key.IsChar( )
@@ -328,7 +326,7 @@ end function
 ''
 '' This exists because the loop above cannot be unit-tested -- it needs a tty --
 '' while the thing worth testing is that an app's View produces the right
-'' frame. It is also what the phase-8 performance measurement drives.
+'' frame. It is also what the performance measurement drives.
 public function TuiRenderOnce( byref app as TuiApp, byref scr as TuiScreen, _
                                 byval depth as TuiColorDepth = TUIDEPTH_TRUECOLOR ) as string
     dim as TuiFrame ptr f = scr.BeginFrame( )

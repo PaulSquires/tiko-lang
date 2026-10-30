@@ -26,8 +26,6 @@ end extern
 ''     var u = RatePerPaymentFromNominal( DecimalParse( "0.0595" ).Value( ), _
 ''                                        COMPOUND_MONTHLY, PAY_MONTHLY )
 ''
-'' Specified by C:\dev\docs\finance\RFC-0002-interest-and-rates.md.  Phase 1.
-''
 '' COMPOUNDING AND PAYMENT FREQUENCY ARE TWO PARAMETERS, NOT ONE.  This is the
 '' central decision of the module and everything else follows from it.  A loan
 '' has two frequencies: how often interest COMPOUNDS, which is a property of
@@ -181,8 +179,7 @@ end enum
 '' from one another.
 ''
 '' Excel's basis 0 is a NASD variant that additionally adjusts for the last day
-'' of February.  It is NOT reproduced here and this file does not claim it:
-'' see C:\dev\docs\finance\amendments.md.
+'' of February.  It is NOT reproduced here and this file does not claim it.
 public enum DayCount
     DAYCOUNT_ACTUAL_365_FIXED
     DAYCOUNT_ACTUAL_360
@@ -260,7 +257,7 @@ end function
 '' deterministically and identically to .NET, and capping anyway would throw
 '' away four correct digits for nothing.
 ''
-'' This matters for a claim RFC-0002 section 7.1 makes and the tests assert:
+'' This matters for a claim the tests assert:
 '' under the US convention the rate per payment is EXACTLY j/m.  Capping the
 '' division made that false for any j/m with a non-terminating expansion --
 '' 0.0595/12 among them.  Measured, then fixed.
@@ -631,7 +628,7 @@ end function
 '' ===========================================================================
 '' THE FUNNEL
 ''
-'' Every loan function in RFC-0005 goes through this one.  Given a nominal
+'' Every loan function in finloan.tiko goes through this one.  Given a nominal
 '' annual rate quoted at compounding frequency m, and payments made p times a
 '' year, the rate per payment is
 ''
@@ -648,7 +645,7 @@ end function
 '' FOR THE ACCELERATED FREQUENCIES this returns the rate for the UNDERLYING
 '' MONTHLY period, because that is what the accelerated product is defined
 '' against -- the payment is the monthly one divided by two or by four.
-'' RFC-0005 section 4.1 specifies how it is then split and re-accrued.  Said
+'' finloan.tiko is where it is then split and re-accrued.  Said
 '' here because returning a monthly rate from a call given a biweekly frequency
 '' is otherwise a surprise.
 '' ===========================================================================

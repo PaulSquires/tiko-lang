@@ -185,7 +185,7 @@ public type PSPOPUPMENU_STATE
     colors            as PSPOPUPMENU_COLORS
     ' Caller-supplied fonts (caller owns them). NOT named hFont: FreeBASIC is
     ' case-insensitive, so a member called hFont would shadow the TYPE name HFONT inside
-    ' every member procedure of this type (see C:\dev\Learnings.md).
+    ' every member procedure of this type.
     hTextFont         as HFONT            ' captions + accel text; also the measuring font
     hGlyphFont        as HFONT            ' check/chevron glyphs; 0 = use hTextFont
     wszCheckGlyph     as ustring         ' default chr(&h2713) "checkmark"
@@ -1546,7 +1546,7 @@ public sub PsPopupMenu_ApplyFonts( byval hPopup as HWND, byval hTextFont as HFON
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' Per-monitor DPI. Every stored pixel metric -- the scaled Create defaults and
 ' whatever the host set since, nMinWidth included -- times newDpi/oldDpi; the border keeps
 ' Create's one-pixel floor. nSeparatorThickness stays as it is: PaintLine scales it at paint
 ' time from the CWindow DPI, which takes the new value here. An OPEN chain is not re-laid-out

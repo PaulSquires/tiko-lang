@@ -3519,7 +3519,7 @@ public sub PsChart_ApplyFonts( byval hChart as HWND, byval hTextFont as HFONT, b
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' Per-monitor DPI. Every stored pixel metric -- the scaled Create defaults and
 ' whatever the host set since -- times newDpi/oldDpi: the chrome metrics, each series' marker
 ' size and each point's pie explode offset. The hairlines (nAxisThick, nGridThick,
 ' nPieSliceGap) and the series line widths stay as they are: every one of them is a pen width

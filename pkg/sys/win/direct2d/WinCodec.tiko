@@ -10,7 +10,7 @@ using com
 #include once "win/propidl.bi"
 #include once "win/ocidl.bi"
 
-' The COM base types -- ComUnknown, ComUnknown_, LPCOMUNKNOWN -- are sys/win/com's (RFC-0001 5.4).
+' The COM base types -- ComUnknown, ComUnknown_, LPCOMUNKNOWN -- are sys/win/com's.
 
 #ifndef __tk_IStream_INTERFACE_DEFINED__
 #define __tk_IStream_INTERFACE_DEFINED__

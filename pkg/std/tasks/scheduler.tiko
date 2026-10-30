@@ -1,12 +1,10 @@
 #module "tasks"
-'' THE MODULE'S OWN GUARD (T75): its headers tested 'defined( __FB_MT__ )', which is always
+'' THE MODULE'S OWN GUARD: its headers tested 'defined( __FB_MT__ )', which is always
 '' true -- __FB_MT__ is 0 or -1 -- so a build without -mt compiled and then crashed or hung.
 #if __FB_MT__ = 0
     #error "std/tasks needs the multithreaded runtime: build with -mt"
 #endif
 '' std/tasks: scheduler -- tasks.Spawn, the goroutine scheduler
-''
-'' RFC-0003 (C:\dev\docs\goroutines\RFC-0003-spawn.md) section 5.
 ''
 ''     sub Worker( byval ctx as any ptr )
 ''         '' ...
@@ -14,12 +12,12 @@
 ''
 ''     tasks.Spawn( @Worker, @somecontext )
 ''
-'' This is the library form, and it is what the 'spawn' STATEMENT will lower to
-'' in phase 4.  It is public because the statement has to be tested against
-'' something that already works, and because a caller who has already built
-'' their own context has no reason to be forced through the statement.
+'' This is the library form of the 'spawn' STATEMENT.  It is public because the
+'' statement has to be tested against something that already works, and because a
+'' caller who has already built their own context has no reason to be forced
+'' through the statement.
 ''
-'' PREFER THE STATEMENT once it exists.  'tasks.Spawn( @Worker, @ctx )' puts the
+'' PREFER THE STATEMENT.  'tasks.Spawn( @Worker, @ctx )' puts the
 '' entire lifetime of 'ctx' on the caller: it must outlive the goroutine, and
 '' nothing checks that.  'spawn Worker( a, b )' evaluates and COPIES the
 '' arguments at the spawn point, so the question does not arise.  A pointer to a
@@ -66,7 +64,7 @@
 
 '' ------------------------------------------------- the 'spawn' lowering half
 ''
-'' RFC-0003 section 4.  These two exist so that the 'spawn' STATEMENT has
+'' These two exist so that the 'spawn' STATEMENT has
 '' something to lower to; they are not meant to be written by hand.
 ''
 '' WHY A VIRTUAL CALL RATHER THAN A TYPED THUNK.  The obvious lowering is a

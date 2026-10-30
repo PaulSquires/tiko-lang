@@ -16,8 +16,6 @@ using outcome
 ''     dim ini as config.ConfigResultIni = config.ParseIni( !"[db]\nhost = localhost\n" )
 ''     print ini.Value( ).Get( "db", "host" ).ValueOr( "?" )
 ''
-'' C:\dev\docs\tiko-stdlib\RFC-0001 section 12.
-''
 ''   TomlValue     one TOML value: a string, integer (longint), float, boolean, one of the
 ''                 four date-time kinds, an array or a table.  A copyable value -- copying
 ''                 a table copies the whole tree.  Tables keep their keys in insertion order.
@@ -39,7 +37,7 @@ using outcome
 '' Fractional seconds are kept to chrono's 100 ns; further digits are dropped (the TOML spec
 '' allows it).  The date-time accessors hand back chrono values, so a date outside chrono's
 '' years 1..9999 parses but its AsDateTime/AsLocalDate is empty.  Positions in errors are
-'' 1-based lines and UTF-16 columns.  Not here (RFC section 12.2): TomlToJson/JsonToToml --
+'' 1-based lines and UTF-16 columns.  Not here: TomlToJson/JsonToToml --
 '' there is no std/json.
 
 #if __FB_LANG__ <> "fb"

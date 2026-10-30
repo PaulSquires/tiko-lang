@@ -9,8 +9,6 @@
 ''     print rng.NextDouble( )                  ' [0, 1)
 ''     print rng.NextNormal( 0.0, 1.0 )
 ''
-'' Specified by C:\dev\docs\math\RFC-0005-random.md.  Phase 6.
-''
 '' RND AND RANDOMIZE ARE UNTOUCHED, in every dialect.  This is a separate
 '' surface, deliberately unconnected to them.
 ''

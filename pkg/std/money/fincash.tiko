@@ -21,8 +21,6 @@ using containers
 '' containers.Array is ZERO-BASED, so t = 0 is flows[ 0 ] with no lbound to think about
 '' -- a caller that used to pass a 1-based array must re-base it.
 ''
-'' Specified by C:\dev\docs\finance\RFC-0006-cash-flows.md.  Phase 5.
-''
 '' flows(0) IS AT t = 0, AND EXCEL'S IS NOT.  Excel's NPV( rate, values )
 '' discounts its FIRST value by one period, so a flow at time zero has to be
 '' added outside the call -- `initial + NPV( rate, rest )` -- and forgetting to
@@ -31,12 +29,12 @@ using containers
 '' HERE flows(0) IS UNDISCOUNTED, which is the textbook definition and the one
 '' every other implementation agrees with.  This is a deliberate divergence from
 '' the oracle the tests use, so it is stated loudly here, and the test that pins
-'' it against Excel applies the shift EXPLICITLY with a comment naming RFC-0006
-'' section 2.  An implementation that silently matched Excel would be wrong; one
+'' it against Excel applies the shift EXPLICITLY, with a comment saying why.  An
+'' implementation that silently matched Excel would be wrong; one
 '' that silently differed would be a trap.
 ''
-'' THE THREE SERIES PRE-CHECKS LIVE HERE, NOT IN THE SOLVER.  RFC-0003 section
-'' 4.0 lists four; finsolve.tiko can only make the fourth, because a caller's
+'' THE THREE SERIES PRE-CHECKS LIVE HERE, NOT IN THE SOLVER.  Of the four
+'' pre-checks, finsolve.tiko can only make the fourth, because a caller's
 '' series reaches it as an opaque `any ptr`.  So empty, no-sign-change and
 '' unordered-dates are detected HERE, before the solver is ever called:
 ''
@@ -96,7 +94,7 @@ public function CashFlowAt overload ( byref amount as Decimal, byval period as l
 end function
 
 '' ===========================================================================
-'' Pre-checks -- RFC-0003 section 4.0, the three the solver cannot make
+'' Pre-checks -- the three the solver cannot make
 '' ===========================================================================
 
 function hCashCheckSeries overload ( byref flows as Array( of Decimal ) ) as FinanceErrorCode
@@ -153,11 +151,10 @@ end function
 
 '' EXACT -- integer exponents throughout.
 ''
-'' RFC-0006 section 4: ONE RUNNING DISCOUNT FACTOR, multiplied once per flow,
+'' ONE RUNNING DISCOUNT FACTOR, multiplied once per flow,
 '' rather than a GrowthFactor call per term.  One multiply and one division per
 '' flow, and because each step reduces to FIN_WORK_SCALE the accumulated error
-'' stays inside RFC-0002 section 6.3's bound rather than growing with the series
-'' length.
+'' stays bounded rather than growing with the series length.
 public function NetPresentValue overload ( byref flows as Array( of Decimal ), byref rate as Decimal ) as FinResultDec
     dim as FinanceErrorCode bad = hCashCheckSeries( flows )
     if( bad <> FIN_OK ) then return FinFailDec( bad )
@@ -223,8 +220,8 @@ end function
 ''
 '' MULTIPLE ROOTS ARE NOT AN ERROR.  A series with more than one sign change can
 '' have several internal rates of return; this returns ONE of them, and NOT
-'' necessarily the one nearest any seed -- see the note at the top and RFC-0003
-'' section 5.  ModifiedInternalRateOfReturn is the well-posed alternative.
+'' necessarily the one nearest any seed -- see the note at the top and
+'' finsolve.tiko.  ModifiedInternalRateOfReturn is the well-posed alternative.
 public function InternalRateOfReturn overload ( byref flows as Array( of Decimal ), byref opt as FinSolverOptions ) as FinResultDec
     dim as FinanceErrorCode bad = hCashCheckSeries( flows )
     if( bad <> FIN_OK ) then return FinFailDec( bad )
@@ -244,7 +241,7 @@ public function InternalRateOfReturn overload ( byref flows as Array( of Decimal
 
     dim as FinSolverOptions use_ = opt
     if( IsNaN( use_.Guess_ ) ) then
-        '' RFC-0003 section 4.1's domain seed: ( inflow / |outflow| )^(1/n) - 1,
+        '' The domain seed: ( inflow / |outflow| )^(1/n) - 1,
         '' clamped.  A bad seed costs iterations, never correctness.
         dim as double inflow = 0.0, outflow = 0.0
         for k as long = 0 to n - 1
@@ -415,7 +412,7 @@ end function
 ''
 '' OPTIONAL, NOT Result.  An investment that never returns its outlay has NO
 '' payback period -- that is the finding, not a failure, and there is no
-'' sub-reason worth printing.  RFC-0001 section 6's test for Optional.
+'' sub-reason worth printing.
 ''
 '' An EMPTY array is a caller bug rather than a finding, and Optional has
 '' nowhere to say so; it returns absence.  That asymmetry is accepted and

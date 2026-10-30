@@ -1,7 +1,7 @@
 #module "containers"
 '' std/containers: linkedlist -- containers.LinkedList( of T ), a doubly-linked list
 ''
-'' RFC-0004 §6 (there called List).  Included because Array cannot give O(1)
+'' Included because Array cannot give O(1)
 '' insertion at the front, and because a LinkedList iterator stays valid across
 '' insertions elsewhere in the list.
 ''
@@ -269,7 +269,7 @@ function LinkedListIterator( of T ).Value( ) byref as T
     return n->value
 end function
 
-'' EXHAUSTED STAYS EXHAUSTED. RFC-0002 defines MoveNext only while IsValid, but
+'' EXHAUSTED STAYS EXHAUSTED. The iterator protocol defines MoveNext only while IsValid, but
 '' the slot-based iterators (Array, Set, Map) tolerate an extra step for free
 '' because their cursor is an index that simply runs off the end -- so a caller
 '' who steps one too many times gets a crash from the node-based containers and

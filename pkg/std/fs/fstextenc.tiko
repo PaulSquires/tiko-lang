@@ -10,7 +10,7 @@ using containers
 ''     dim as ustring t = fs.ReadAllText( p, fs.Ansi( ) ).Value( )    '' the ANSI code page
 ''     fs.AppendAllText( log_, line_, fs.Utf16LE( ) )                 '' the BOM once, when new
 ''
-'' C:\dev\docs\tiko-fs\RFC-0002-text-encodings.md, phase P2. Each call here is an
+'' Each call here is an
 '' OVERLOAD: ReadAllText( p ), WriteAllText( p, s ) and the rest keep their bytes, and
 '' WriteAllText( p, s, Utf8( ) ) writes exactly what WriteAllText( p, s ) does.
 ''
@@ -18,24 +18,24 @@ using containers
 '' codec.EncodeText then WriteAllBytes, AppendAllBytes or WriteAtomic's byte overload. No
 '' runtime entry point is new.
 ''
-'' READING BELIEVES THE CALLER (E5). The encoding named is the one used; a BOM that
+'' READING BELIEVES THE CALLER. The encoding named is the one used; a BOM that
 '' matches it is skipped, and any other leading bytes are text -- an ANSI read of a file
 '' that starts EF BB BF gives the three characters, as FileSystemObject does. Bytes that
 '' do not decode become U+FFFD, or under TEXT_STRICT fail with FS_INVALID_DATA.
 ''
-'' WRITING IS STRICT BY DEFAULT (E7). A character the encoding cannot hold fails with
+'' WRITING IS STRICT BY DEFAULT. A character the encoding cannot hold fails with
 '' FS_INVALID_DATA and the file is NOT touched: the text is encoded in full before the
 '' file is opened. Under TEXT_REPLACE it becomes '?', the write succeeds, and the result's
 '' VALUE IS FALSE -- "written, but not exactly". TRUE means every character was written as
 '' it was. A BOM is written when the encoding's Bom says so: Utf16LE( ) and Utf16BE( ) by
-'' default, Utf8( TRUE ) when asked, a code page and BINARY never (E8).
+'' default, Utf8( TRUE ) when asked, a code page and BINARY never.
 ''
-'' DETECTING (E6): ReadAllText( p, found, opts ) takes a BOM if there is one, else valid
+'' DETECTING: ReadAllText( p, found, opts ) takes a BOM if there is one, else valid
 '' UTF-8 (an empty file is UTF-8), else opts.Fallback -- Ansi( ) for the editor's rule,
 '' BinaryMode( ) to lose nothing -- and says in `found` which it used. A UTF-32 BOM is
 '' FS_UNSUPPORTED. The whole file is judged; TextReader( s, opts ) judges a prefix.
 ''
-'' APPENDING CHECKS THE BOM (E10). A file that starts with a BOM for a different UTF
+'' APPENDING CHECKS THE BOM. A file that starts with a BOM for a different UTF
 '' fails with FS_INVALID_DATA and is left as it was. A new or empty file gets the BOM; a
 '' file with text in it never gets another. Code pages and BINARY have no BOM, so there
 '' is nothing to check.
@@ -110,7 +110,7 @@ private function hEncode( byref s as const ustring, byval enc as TextEncoding, b
     return TRUE
 end function
 
-'' ---------------------------------------------------- Stream and MemoryStream (E11)
+'' ---------------------------------------------------------- Stream and MemoryStream
 
 '' s in enc: exactly the bytes WriteAllText( p, s, enc ) would put in a file, BOM
 '' included when enc.Bom says so. Text written in PIECES wants the BOM once, so pass the
@@ -130,7 +130,7 @@ end function
 
 '' Every byte, whatever the position, decoded in enc -- the text ReadAllText( p, enc,
 '' mode ) gives for a file holding the same bytes: a BOM matching enc is skipped, and
-'' anything else is text (E5).
+'' anything else is text.
 const function MemoryStream.ToText( byval enc as TextEncoding, byval mode as TextErrorMode ) as FsResultUStr
     dim as boolean strict = ( mode = TEXT_STRICT )
     dim as codec.EncResultText t = codec.DecodeText( this.m_buf, this.m_len, enc, strict )

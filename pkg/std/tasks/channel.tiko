@@ -1,7 +1,7 @@
 #module "tasks"
 '' std/tasks: channel -- tasks.Channel( of T ), a typed thread-safe queue
 ''
-'' RFC-0002 (C:\dev\docs\goroutines\RFC-0002-channels.md).  Go's hchan,
+'' Go's hchan,
 '' transliterated: a lock, a ring buffer, two waiter lists, and a direct
 '' handoff path that bypasses the buffer.
 ''
@@ -16,7 +16,7 @@
 '' rather than through the buffer.  That is what makes the rendezvous an
 '' ordering point as well as a handoff, and implementing it as a one-element
 '' buffer -- which passes every round-trip test -- silently destroys the
-'' guarantee (RFC-0002 section 4).
+'' guarantee.
 ''
 '' COPIES SHARE.  A Channel is a refcounted handle to a channel, not a channel.
 '' Handing a copy to each of four workers gives four handles on ONE queue, which
@@ -52,12 +52,12 @@ using FB
 
 '' ------------------------------------------------------------------ waiter
 ''
-'' RFC-0002 section 5.  A waiter record is owned by the WAITING THREAD and
+'' A waiter record is owned by the WAITING THREAD and
 '' lives in its frame; the channel's queues hold pointers to records they do
 '' not own.  That inversion is the whole of what makes SELECT addable later:
 '' one waiter can appear in N channels' queues.  Parking waiters on a
-'' channel-owned condition variable would pass every test in phase 2 and make
-'' phase 5 a rewrite.
+'' channel-owned condition variable would pass every plain Send and Receive
+'' test and make SELECT a rewrite.
 ''
 '' 'slot' points at the counterparty's storage -- the sender's value, or the
 '' receiver's output variable -- so a handoff is one copy with no staging.
@@ -65,8 +65,7 @@ using FB
 '' ChanWaiter( of T ), so a 'ChanWaiterCore ptr' and a 'ChanWaiter( of T ) ptr'
 '' are the same address and either can be cast to the other.
 ''
-'' This split is what SELECT needs and is the reason RFC-0002 section 5 made the
-'' waiter discipline normative in phase 2.  One SELECT registers ONE record in
+'' This split is what SELECT needs.  One SELECT registers ONE record in
 '' the queues of several channels, and those channels have different element
 '' types -- so the queue links, the parker and the claim flag cannot live in a
 '' type that mentions T.  Only the value slot can.
@@ -167,7 +166,7 @@ public type Channel( of T )
 
     declare function GetIterator( ) as ChannelIterator( of T )
     '' The shared state, opaque, for SELECT and the channel helpers: read-only, because
-    '' the field is private (review LIB-04). NULL for a nil channel.
+    '' the field is private. NULL for a nil channel.
     declare function Handle( ) as any ptr
 
     '' NEVER CALL THIS.  It exists so that generated code can SPELL the element
@@ -207,7 +206,7 @@ end sub
 
 '' Unlink a record from whichever queue holds it.  O(list), and required: a
 '' waiter that gave up -- a timeout, or another SELECT case firing -- must be
-'' able to remove itself (RFC-0002 section 5, invariant 4).
+'' able to remove itself.
 sub hUnlink( byval s as ChanCore ptr, byval w as ChanWaiterCore ptr, byval issend as boolean )
     if( w->prevw ) then w->prevw->nextw = w->nextw
     if( w->nextw ) then w->nextw->prevw = w->prevw
@@ -225,9 +224,9 @@ end sub
 '' Claim a record, i.e. win the right to wake it.  Returns FALSE if somebody
 '' else already has it.
 ''
-'' THE CLAIM LOCK IS PROCESS-WIDE, and it has to be.  Through phase 2 a waiter
-'' was only ever in ONE channel's queue, so the channel's own lock protected the
-'' flag.  A SELECT puts one record in several queues, so two threads holding two
+'' THE CLAIM LOCK IS PROCESS-WIDE, and it has to be.  Without SELECT a waiter
+'' would only ever be in ONE channel's queue, and the channel's own lock would protect
+'' the flag.  A SELECT puts one record in several queues, so two threads holding two
 '' DIFFERENT channel locks can reach the same record; nothing either of them
 '' holds excludes the other.  Go does this with a compare-and-swap and
 '' FreeBASIC has no atomics, so it is a mutex -- held across a read and a write
@@ -435,8 +434,7 @@ end function
 '' No stale-permit loop is needed, and that is a property of the protocol
 '' rather than luck: a waker CLAIMS under the lock before it unparks, and this
 '' function checks 'claimed' under the lock.  So an unpark without a claim
-'' cannot happen, and a park cannot miss one -- the permit is sticky
-'' (RFC-0001 section 3).
+'' cannot happen, and a park cannot miss one -- the permit is sticky.
 function Channel( of T ).hWait( byref w as ChanWaiter( of T ), byval issend as boolean, _
                                 byval timed as boolean, byval ms as ulong ) as boolean
     dim as ChanState( of T ) ptr s = cptr( ChanState( of T ) ptr, this.st )
@@ -938,7 +936,7 @@ end function
 
 '' ------------------------------------------------- directional channels
 ''
-'' RFC-0005 section 3.  One-way views, so a procedure signature can state which
+'' One-way views, so a procedure signature can state which
 '' end it takes and the compiler enforces it:
 ''
 ''     sub Producer( byval out as SendChan( of long ) )    '' cannot receive

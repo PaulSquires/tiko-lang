@@ -11,7 +11,7 @@ using outcome
 ''     print codec.DecodeText( b, codec.Utf16LE( ) ).Value( )          '' café
 ''     codec.EncodeText( wchr( &h2603 ), codec.Ansi( ), b )            '' fails: ENC_UNMAPPABLE
 ''
-'' C:\dev\docs\tiko-fs\RFC-0002-text-encodings.md. std/fs takes the same TextEncoding
+'' std/fs takes the same TextEncoding
 '' for its files (fs.ReadAllText( p, fs.Utf16LE( ) ) and the rest); this is the in-memory
 '' half, over Array( of ubyte ) or a pointer and a length.
 ''

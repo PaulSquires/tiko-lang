@@ -144,7 +144,7 @@ end type
 '
 ' `id` is a HOST PAYLOAD and is never used as a command id. The dropdown addresses rows by
 ' (model index + 1), so a host is free to use whatever id space it likes without colliding
-' with anything -- the trap recorded in Learnings.md under "Replacing TrackPopupMenu".
+' with anything -- the trap hit when PsPopupMenu replaced TrackPopupMenu.
 public type PSCOMBOBOX_ITEM
     wszText   as ustring
     id        as long = 0        ' free-form host id
@@ -286,7 +286,7 @@ public type PSCOMBOBOX_STATE
     ' Caller-supplied font (caller owns it). NOT named hFont: FreeBASIC is case-insensitive,
     ' so a member called hFont would shadow the TYPE name HFONT inside every member procedure
     ' of this type, and "dim as HFONT x" there fails with a misleading "error 14: Expected
-    ' identifier, found 'HFONT'". See C:\dev\Learnings.md.
+    ' identifier, found 'HFONT'".
     hTextFont         as HFONT
     ' --- Layout inputs. All pixels; DPI-scaled once at Create, raw thereafter. ---
     ' Never read this directly to decide whether to draw a caption -- CBO_TEXT_WHENSELECTED
@@ -1084,8 +1084,8 @@ end sub
 ' THE ROW ID IS (model index + 1), NOT the item's own id. Two reasons, and neither is
 ' cosmetic. PsPopupMenu reserves id 0 for separators, so a zero-based index cannot be used
 ' directly; and the host's `id` field is a free-form payload that would otherwise enter the
-' command stream -- exactly the collision recorded in Learnings.md under "Replacing
-' TrackPopupMenu with PsPopupMenu", where menu ids that had only ever been return values
+' command stream -- exactly the collision hit when
+' PsPopupMenu replaced TrackPopupMenu, where menu ids that had only ever been return values
 ' started re-triggering the command that opened the menu.
 '
 ' Exactly one row is checked. PsPopupMenu has no CheckMenuRadioItem equivalent, so the mutual
@@ -1811,7 +1811,6 @@ public function PsComboBox_Create( byval hWndParent as HWND, byval CtrlID as lon
     ' and PsScrollPanel all NEED WS_EX_CONTROLPARENT, because their tabstop lives on an inner
     ' child; passing 0 there would make them unreachable instead. The test is "does this
     ' window have children the dialog manager should find?", not "is this a control?".
-    ' Full write-up in C:\dev\Learnings.md.
     dim as HWND hCtrl = _
             pWindow->Create( hWndParent, "", @PsComboBox_WndProc, _
             0, 0, 0, 0, WS_CHILD or WS_TABSTOP or WS_CLIPSIBLINGS or WS_CLIPCHILDREN, _
@@ -2525,7 +2524,7 @@ public sub PsComboBox_ApplyFonts( byval hCombo as HWND, byval hTextFont as HFONT
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' Per-monitor DPI. Every stored pixel metric -- the scaled Create defaults and
 ' whatever the host set since -- times newDpi/oldDpi. nBorderThick and nFocusThick stay as
 ' they are (they were never scaled), and so does nChevronThick, which PaintLine scales at
 ' paint time from the CWindow DPI. The combobox's own CWindow takes the new DPI so later
@@ -2682,8 +2681,8 @@ end function
 ' ========================================================================================
 ' Geometry self-test, run with PSCOMBOBOX_SELFTEST=1.
 '
-' Every number is asserted, never eyeballed -- CLAUDE.md's rule, and Learnings.md records
-' several "verifications" that were invalid because they were done by eye. Expectations are
+' Every number is asserted, never eyeballed -- several past "verifications" were invalid
+' because they were done by eye. Expectations are
 ' computed from what the control ACTUALLY reports for its own defaults (which are DPI-scaled
 ' at Create), so this cannot produce a false failure on a high-DPI display.
 '
@@ -2740,7 +2739,7 @@ public sub PsComboBox_RunSelfTest( byval hWndParent as HWND )
 
     dim as string sD                     ' every trace string is built here first: PRINT on a
                                          ' string & wstring concat
-                                         ' interleaves nulls (Learnings.md).
+                                         ' interleaves nulls.
     dim as long w, h1, cw, ch
     dim as RECT rcBtn, rcTxt, rcChev, rcVis
 

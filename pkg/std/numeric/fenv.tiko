@@ -13,10 +13,6 @@
 ''     '' ... computation ...
 ''     if( TestFpException( FP_OVERFLOW ) ) then ...
 ''
-'' Specified by C:\dev\docs\math\RFC-0008-precision.md section 4.  Phase 9,
-'' last of the scheduled items, because very few FB programs need directed
-'' rounding.
-''
 '' THE HAZARD, STATED RATHER THAN HIDDEN.  The optimiser is entitled to move
 '' floating-point operations across a call, and moving one across a
 '' rounding-mode change silently produces the wrong answer.  C solves this with

@@ -17,25 +17,23 @@ using containers
 ''     ...
 ''     aq.Close( )          '' drains, stops the worker, closes the file -- CALL IT
 ''
-'' RFC-0005 sections 4-7 -- C:\dev\docs\logging\RFC-0005-errors-async.md. Phase 6.
-''
 '' A Sink that wraps a Sink. The calling thread copies the RECORD into a bounded
 '' queue and returns; ONE worker thread takes records off in order and calls the
 '' inner sink's Write. That is why Sink.Write takes a record and not text: the
 '' rendering happens on the worker, and the caller pays for a copy and a lock.
 ''
 '' ---------------------------------------------------------------------------
-'' NOT std/tasks' Channel (fb/channel.bi), WHICH THE RFC NAMED
+'' WHY NOT std/tasks' Channel (fb/channel.bi)
 ''
 '' tasks.Channel runs on the goroutine scheduler (std/tasks), which needs -mt
 '' and a scheduler started; this module promised a logger that needs neither. The
 '' queue here is a ring of LogRecord copies under one mutex, with three condition
 '' variables -- room, a record, and empty-and-idle -- and the worker is a plain
-'' threadcreate. FIFO, one worker, three policies: everything section 4 asks of the
+'' threadcreate. FIFO, one worker, three policies: all this sink needs from a
 '' channel.
 ''
 '' ---------------------------------------------------------------------------
-'' WHAT IS GUARANTEED (RFC-0005 section 7)
+'' WHAT IS GUARANTEED
 ''
 '' A CLEAN SHUTDOWN LOSES NOTHING: Close( ) stops accepting, lets the worker drain
 '' the queue, joins it, then flushes and closes the inner sink. Flush( ) waits for
@@ -121,7 +119,7 @@ destructor AsyncSink( )
     this.m_drained = nullptr : this.m_notFull = nullptr : this.m_notEmpty = nullptr : this.m_lock = nullptr
 end destructor
 
-'' ONE WORKER, so delivery is FIFO (RFC-0005 section 6). It leaves only when it has
+'' ONE WORKER, so delivery is FIFO. It leaves only when it has
 '' been told to stop AND the queue is empty: that is the drain Close( ) promises.
 sub AsyncSink.hWork( )
     mutexlock( this.m_lock )
@@ -152,7 +150,7 @@ sub AsyncSink.hWork( )
 end sub
 
 '' THE CALLER'S SIDE: copy, queue, return. When the queue is full the policy
-'' decides (RFC-0005 section 5), and there is no default that loses a record
+'' decides, and there is no default that loses a record
 '' silently: both dropping policies count and report.
 sub AsyncSink.Write( byref r as LogRecord )
     dim as ustring why

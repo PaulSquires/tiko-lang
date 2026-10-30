@@ -5,8 +5,8 @@
 ''     EastAsianWidth.txt
 ''     extracted/DerivedGeneralCategory.txt
 ''
-'' Regenerate rather than edit. RFC-0005 section 4 requires it, for the reason
-'' that a hand-edited width table is a table nobody will ever trust again.
+'' Regenerate rather than edit: a hand-edited width table is a table nobody
+'' will ever trust again.
 ''
 '' Three sorted, merged range sets, searched by binary search in tuiwidth.tiko:
 ''

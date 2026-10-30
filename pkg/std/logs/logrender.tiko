@@ -7,8 +7,6 @@ using chrono
 using containers
 '' std/logs: logrender -- std/logs' renderers
 ''
-'' RFC-0003 -- C:\dev\docs\logging\RFC-0003-renderers.md.
-''
 '' A renderer turns a LogRecord into text. It does NO I/O, holds no lock, opens
 '' nothing, and can fail at nothing. Sinks own destinations; renderers own
 '' formats. The split is what makes "write to a file" and "write JSON"
@@ -18,12 +16,10 @@ using containers
 '' reuse one buffer across records. The rendered form carries its own trailing
 '' newline: a sink writes exactly what it is given.
 ''
-'' ustring in, ustring out. ENCODING TO BYTES IS THE SINK'S JOB (RFC-0004
-'' section 3), which is what keeps the console's code-page problem and the
-'' file's UTF-8 rule out of the format definition.
+'' ustring in, ustring out. ENCODING TO BYTES IS THE SINK'S JOB, which is what keeps the
+'' console's code-page problem and the file's UTF-8 rule out of the format definition.
 ''
-'' TextRenderer is for a human (phase 1); JsonRenderer is for everything else
-'' (phase 2).
+'' TextRenderer is for a human; JsonRenderer is for everything else.
 
 
 
@@ -50,7 +46,7 @@ end enum
 
 public type TextRenderer extends Renderer
     stamp     as TextStamp    '' default TS_ISO_UTC
-    colour    as boolean      '' default FALSE -- the SINK decides, section 5
+    colour    as boolean      '' default FALSE -- the SINK decides
     showsite  as boolean      '' default FALSE
     levelwide as boolean      '' default TRUE: pad the level for column alignment
 
@@ -74,7 +70,7 @@ end constructor
 destructor TextRenderer( )
 end destructor
 
-'' RFC-0003 section 5. The renderer emits the sequences; it never decides
+'' The renderer emits the SGR sequences; it never decides
 '' WHETHER to. It cannot: it does not know where the bytes are going, and a file
 '' full of ESC[32m is the standard way this is got wrong.
 function hLevelSgr( byval lv as LogLevel ) as ustring
@@ -143,7 +139,7 @@ function hStampText( byref r as LogRecord, byval mode as TextStamp, byref monoba
     return ""
 end function
 
-'' RFC-0003 section 2: quoted only if the value would otherwise be ambiguous.
+'' Quoted only if the value would otherwise be ambiguous.
 function hNeedsQuote( byref v as ustring ) as boolean
     if( len( v ) = 0 ) then return TRUE
     for i as integer = 0 to len( v ) - 1
@@ -216,8 +212,8 @@ end sub
 '' a LINE format: a record that spans lines is unparseable by every tool that
 '' consumes one.
 ''
-'' The eleven rules of RFC-0003 section 4 are numbered in the comments below
-'' and asserted one block each in tests/logging/render_json.bas.
+'' The renderer follows eleven rules, numbered in the comments below and
+'' asserted one block each in tests/logging/render_json.bas.
 public type JsonRenderer extends Renderer
     timekey  as ustring       '' default "time"
     levelkey as ustring       '' default "level"
@@ -315,7 +311,7 @@ end sub
 '' The threshold is fixed, not adaptive: 2^53 itself is exact and stays a
 '' number; 2^53 + 1 does not.
 ''
-'' The RFC said this of LK_UINT; it is applied to LK_INT as well, in both
+'' This holds for LK_UINT; it is applied to LK_INT as well, in both
 '' directions, because -2^53 - 1 loses its low bit exactly as 2^53 + 1 does.
 const hJsonMaxSafe = 9007199254740992ll
 

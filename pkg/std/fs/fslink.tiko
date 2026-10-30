@@ -5,8 +5,6 @@ using outcome
 using containers
 '' std/fs: fslink -- symbolic links, hard links, permissions and attributes
 ''
-'' Specified in C:\dev\docs\filesystem\RFC-0007-links-permissions.md.
-''
 '' ARGUMENT ORDER IS (target, link) -- the thing that EXISTS first, matching
 '' ln -s, symlink(2) and Python. It is the opposite of CreateSymbolicLinkW.
 '' Getting it backwards silently creates a dangling link pointing at the wrong
@@ -24,7 +22,7 @@ using containers
 ''   3. GetWin32Attributes / Set...  -- FS_UNSUPPORTED on POSIX
 ''
 '' FS_UNSUPPORTED is the right code for the off-platform calls, and is why
-'' RFC-0001 distinguishes it from FS_ACCESS_DENIED: it means THIS WILL NEVER
+'' std/fs distinguishes it from FS_ACCESS_DENIED: it means THIS WILL NEVER
 '' WORK HERE, so a caller can branch on it once at startup rather than treating
 '' it as a transient failure.
 ''
@@ -123,7 +121,7 @@ public function CreateHardLink( byref target as const ustring, byref lnk as cons
 end function
 
 '' Returns the target AS STORED -- unresolved, possibly relative, possibly
-'' dangling. It does NOT canonicalize; CanonicalPath (RFC-0003) is that call,
+'' dangling. It does NOT canonicalize; CanonicalPath (fsinfo) is that call,
 '' and the two answer different questions. Conflating them would make a
 '' dangling link unreadable.
 ''
@@ -174,10 +172,8 @@ public declare function SetHidden overload ( byref p as const ustring, byval v a
 '' uses GetPosixMode/SetPosixMode. The lossiness is asserted as lossiness in the
 '' suite rather than asserted away.
 ''
-'' This is the same entry point RemoveDirAll has used since phase 3 -- rm -rf
-'' must clear the attribute or it fails partway through a checked-out
-'' repository. Phase 5 gives it a public name; there was never a private copy
-'' to delete.
+'' rm -rf must clear the attribute or it fails partway through a checked-out
+'' repository, which is why RemoveDirAll clears it too.
 public function SetReadOnly( byref p as const ustring, byval v as boolean ) as FsResultBool
     dim as long r = FsSetReadOnlyRaw( p, iif( v, 1, 0 ) )
 
@@ -286,15 +282,14 @@ end function
 
 '' ------------------------------------------------------ CopyDir options
 ''
-'' RFC-0007 section 3. This overload lives HERE rather than in fsops.tiko because
+'' This overload lives HERE rather than in fsops.tiko because
 '' preserving permissions and timestamps needs this file's API, and putting it
 '' the other way round would make fsops.tiko depend on fslink.tiko while
 '' fslink.tiko already depends on fsops.tiko.
 ''
-'' THE NO-OPTIONS OVERLOAD IN fsops.tiko KEEPS ITS PHASE-3 BEHAVIOUR EXACTLY, so
-'' nothing that compiled before this phase changes meaning now. That is the
-'' contract RFC-0007 section 3 makes, and phase 3's CopyDir tests still pass
-'' unchanged -- which is what proves it.
+'' THE NO-OPTIONS OVERLOAD IN fsops.tiko KEEPS ITS ORIGINAL BEHAVIOUR EXACTLY, so
+'' nothing that compiled before the options existed changes meaning. Its CopyDir
+'' tests still pass unchanged -- which is what proves it.
 
 public type CopyOptions
     '' Constructed, not zero-initialised: CopySymlinksAsLinks defaults TRUE

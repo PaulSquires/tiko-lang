@@ -13,8 +13,6 @@ using containers
 ''     dim v as LogValue = LogValue( 42ll )
 ''     print LogValueToText( v )          '' 42
 ''
-'' RFC-0001 -- C:\dev\docs\logging\RFC-0001-record.md.
-''
 '' Levels, values, fields and the record. NOTHING HERE DOES I/O, takes a lock,
 '' or can fail. Everything is a value type and every operation is total.
 ''
@@ -34,14 +32,14 @@ using containers
 '' descriptor whether or not it is a string. sizeof( LogValue ) = 40 on win64,
 '' the same for an integer field as for a string one. That is why LogEvent
 '' reserves its field array rather than growing it one push at a time, and it is
-'' why the tag set below is CLOSED -- see RFC-0001 section 2.
+'' why the tag set below is CLOSED.
 
 
 
 
 '' ============================================================== LogLevel
 ''
-'' RFC-0001 section 3. SPACED BY TEN so a program can define its own level
+'' SPACED BY TEN so a program can define its own level
 '' between two of these and have every comparison, filter and renderer keep
 '' working. Go's log/slog is the only mainstream design that got this right.
 ''
@@ -60,7 +58,7 @@ end enum
 
 '' The nine value tags. Closed: a renderer can `select case` over this with no
 '' `case else` meaning "I do not know what this is", and adding a tenth is a
-'' change to RFC-0001 and to every renderer in the same commit.
+'' change to every renderer in the same commit.
 public enum LogKind
     LK_NULL = 0
     LK_BOOL
@@ -170,7 +168,7 @@ public type LogFieldArray as Array( of LogField )
 
 '' ============================================================== LogRecord
 ''
-'' RFC-0001 section 5. TWO CLOCKS, deliberately.
+'' TWO CLOCKS, deliberately.
 ''
 '' `stamp` is UTC and absolute, so it correlates with anything outside this
 '' process. `mono` is a monotonic reading, because THE WALL CLOCK CAN GO
@@ -229,7 +227,7 @@ public function LevelNameShort( byval lv as LogLevel ) as ustring
 end function
 
 '' Case-insensitive, and it also accepts the short form and a bare number, so
-'' that FB_LOG=warn, FB_LOG=WRN and FB_LOG=40 all work (RFC-0002 section 9).
+'' that FB_LOG=warn, FB_LOG=WRN and FB_LOG=40 all work.
 public function LevelFromName( byref s as ustring, byref result as LogLevel ) as boolean
     dim as string t = ucase( trim( str( s ) ) )
     select case t
@@ -259,7 +257,7 @@ public function LevelFromName( byref s as ustring, byref result as LogLevel ) as
     return FALSE
 end function
 
-'' RFC-0001 section 3. Notice(5), Alert(1) and Emergency(0) have no source
+'' Notice(5), Alert(1) and Emergency(0) have no source
 '' level: that is the documented lossy direction, and it is the same choice
 '' every six-level library makes.
 public function LevelToSyslog( byval lv as LogLevel ) as long
@@ -279,7 +277,7 @@ public declare function LogDoubleText( byval d as double ) as string
 
 '' A FINITE DOUBLE AS THE SHORTEST TEXT THAT READS BACK AS THE SAME VALUE.
 ''
-'' Not STR. Phase 1 used STR on the claim that it round-trips, and it does not:
+'' Not STR. An earlier version used STR on the claim that it round-trips, and it does not:
 '' STR is 16 significant digits, so str( 0.1 + 0.2 ) is "0.3" and two different
 '' values log as the same text. std/numeric's ToString (mathtext.tiko) is the
 '' shortest-correct form, and both renderers use it, so the text line and the

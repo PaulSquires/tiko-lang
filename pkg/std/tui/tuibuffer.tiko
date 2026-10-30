@@ -10,8 +10,6 @@ using containers
 ''     term.Write( scr.Render( depth ) )
 ''     term.Flush( )
 ''
-'' RFC-0003 -- C:\dev\docs\tui\RFC-0003-buffer-and-renderer.md.
-''
 '' Depends on tuicore.tiko only. Does NO I/O itself: Render( ) returns the byte
 '' string, and tuiterm.tiko writes it.
 ''
@@ -22,17 +20,15 @@ using containers
 '' is DROPPED SILENTLY; a widget handed a zero-width area draws nothing and that
 '' is correct behaviour, not an error to report. A Result on the single hottest,
 '' most-repeated call in the library would be ignored at every call site, and an
-'' ignored Result is worse than an honest sub. rationale.md section 5.
+'' ignored Result is worse than an honest sub.
 
 
 
 
 '' ============================================================== width
 ''
-'' The phase-1 placeholder that lived here -- a handful of hand-written
-'' double-width ranges -- is gone. TuiCharWidth, TuiDecodeAt and TuiStringWidth
-'' now come from tuiwidth.tiko, over the full East-Asian-Width table generated
-'' from the UCD. RFC-0005.
+'' TuiCharWidth, TuiDecodeAt and TuiStringWidth come from tuiwidth.tiko, over the
+'' full East-Asian-Width table generated from the UCD.
 
 '' ============================================================== the cell
 
@@ -87,7 +83,7 @@ public function TuiCellBlank( byval st as TuiStyle ) as TuiCell
 end function
 
 '' The alias is REQUIRED -- a generic does not instantiate directly in a TYPE
-'' field. docs/logging hit the same rule with LogFieldArray.
+'' field. std/logs hit the same rule with LogFieldArray.
 public type TuiCellArray as Array( of TuiCell )
 
 '' ============================================================== the buffer
@@ -140,7 +136,7 @@ end function
 
 '' Returns a POINTER, not a byref. `@buf.At( x, y )` on a byref-returning
 '' function does not yield the cell's address -- it yields the PROCEDURE's
-'' address, silently, with no diagnostic. Measured during phase 1; the same
+'' address, silently, with no diagnostic. Measured; the same
 '' wart forced tuiterm.tiko's TuiSaved( ) to return a pointer.
 function TuiBuffer.At( byval x as long, byval y as long ) as TuiCell ptr
     if( InBounds( x, y ) = FALSE ) then return nullptr

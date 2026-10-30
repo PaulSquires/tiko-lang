@@ -28,8 +28,6 @@ end extern
 ''     end sub
 ''     logs.SetLogErrorHandler( @MyHandler )
 ''
-'' RFC-0005 sections 1-3 -- C:\dev\docs\logging\RFC-0005-errors-async.md. Phase 4.
-''
 '' A LOG CALL CANNOT FAIL, so when a sink cannot write, something else has to
 '' say so -- a log file dead since Tuesday that says nothing is the worst
 '' failure this module could have. That something is ONE PROCESS-WIDE HANDLER,
@@ -60,9 +58,9 @@ end extern
 '' then fail with `error 4: Duplicated definition` -- and most of the programs
 '' that want a logger are Win32 programs. Measured, not guessed.
 ''
-'' Phase 1 declared them inside `namespace FB` with an ALIAS to the real export.
+'' An earlier version declared them inside `namespace FB` with an ALIAS to the real export.
 '' That coexists with windows.bi under gas64 and tiko, but NOT under -gen gcc,
-'' where two prototypes for one C symbol conflict -- so since phase 3 the Win32
+'' where two prototypes for one C symbol conflict -- so the Win32
 '' entry points are resolved with dylibsymbol instead (hLogK32, below). The
 '' POSIX ones keep their aliases: their C types match crt/unistd.bi's.
 ''
@@ -73,7 +71,7 @@ end extern
 #ifdef __FB_WIN32__
 '' KERNEL32 IS REACHED THROUGH POINTERS, NOT DECLARATIONS.
 ''
-'' Phase 1 declared these `extern "windows"` with an alias, and that clashes
+'' An earlier version declared these `extern "windows"` with an alias, and that clashes
 '' under -gen gcc -- fbc's default backend on win64. A program that includes
 '' windows.bi AND calls WriteFile itself gets TWO C prototypes for one
 '' symbol, with different parameter types:
@@ -161,7 +159,7 @@ end extern
 
 '' ============================================================== OnLogError
 ''
-'' RFC-0005 section 2. The handler's own failures are SWALLOWED -- ERR is
+'' The handler's own failures are SWALLOWED -- ERR is
 '' restored after it returns -- because the error reporter for the error
 '' reporter does not exist.
 public type LogErrorHandler as sub( byref sinkname as ustring, byref reason as ustring, byval oscode as long )
@@ -225,7 +223,7 @@ return cast( LogErrorHandler, hLogErrHandler )
 end function
 
 
-'' What a sink calls, OUTSIDE ITS LOCK (rule 1): a handler that logs -- and
+'' What a sink calls, OUTSIDE ITS LOCK: a handler that logs -- and
 '' handlers will -- would otherwise re-enter a held mutex and deadlock.
 sub hLogReport( byref sinkname as ustring, byref reason as ustring, byval oscode as long )
 if( hLogErrMode = 0 ) then

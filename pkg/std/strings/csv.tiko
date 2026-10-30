@@ -4,8 +4,7 @@
 #import "std/fs"
 using containers
 using outcome
-'' std/strings -- the CSV writer: JoinCsvRow and CsvWriter, the other half of SplitCsv
-'' (C:\dev\docs\tiko-stdlib\RFC-0001 section 12.3).
+'' std/strings -- the CSV writer: JoinCsvRow and CsvWriter, the other half of SplitCsv.
 ''
 ''     dim as containers.Array( of ustring ) row
 ''     row.Push( "name" ) : row.Push( "a, b" ) : row.Push( !"say \"hi\"" )

@@ -1148,8 +1148,8 @@ end function
 ' Called from every place that can change the answer. The rule is deliberately NOT "is the
 ' window visible": IsWindowVisible walks the ancestor chain, so a control created on a
 ' parent that has not been shown yet reports hidden, and a bar set to indeterminate during
-' form construction would never start (this is the trap PsScrollPanel hit, recorded in
-' Learnings.md). Hiding is tracked from WM_SHOWWINDOW instead, which only ever fires on a
+' form construction would never start (this is the trap PsScrollPanel hit).
+' Hiding is tracked from WM_SHOWWINDOW instead, which only ever fires on a
 ' real transition.
 ' ========================================================================================
 private sub PRG_SyncMarqueeTimer( byval pBar as PSPROGRESSBAR_STATE ptr, byval hwnd as HWND )
@@ -1899,7 +1899,7 @@ public sub PsProgressBar_ApplyFonts( byval hProgressBar as HWND, byval hTextFont
 end sub
 
 ' ========================================================================================
-' Per-monitor DPI (RFC-0001 P4). Every stored pixel metric -- the scaled Create defaults and
+' Per-monitor DPI. Every stored pixel metric -- the scaled Create defaults and
 ' whatever the host set since -- times newDpi/oldDpi, the marquee step included (it is a
 ' pixel distance per tick). nBorderThick and nCurvature stay as they are: both are documented
 ' as never DPI-scaled (the curvature is a sentinel or a host-chosen corner size). The bar's
@@ -2192,7 +2192,7 @@ end function
 ' Self-test.  Gated on PSPROGRESSBAR_SELFTEST=1.  Geometry dump on PSPROGRESSBAR_TRACE=1.
 '
 ' Reports assertions RUN as well as failed: a harness that only counts failures cannot tell
-' "all passed" from "barely executed" (Learnings.md).
+' "all passed" from "barely executed".
 '
 ' NOTE what the bulk of this exercises. Better than a third of it drives the three PURE
 ' functions with no window in sight -- a full marquee period for both styles, every degenerate
@@ -2222,7 +2222,7 @@ private sub PRGTest_Check( byval sName as string, byval bOK as boolean, byval sD
 end sub
 
 ' Trace output goes through a "dim as string" first. print on a
-' string & wstring concat interleaves nulls (Learnings.md).
+' string & wstring concat interleaves nulls.
 private sub PRGTest_TraceRect( byval sName as string, byref rc as RECT )
     if environ("PSPROGRESSBAR_TRACE") <> "1" then exit sub
     dim as string s = "  TRACE " & sName & " = (" & str(rc.left) & "," & str(rc.top) & _

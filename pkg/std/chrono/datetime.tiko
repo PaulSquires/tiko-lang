@@ -9,7 +9,7 @@
 '' ISO 8601 text without losing what the writer meant, and it is what
 '' DateTimeOffset (C#) and OffsetDateTime (java.time) both do.
 ''
-'' Three offset states, per RFC-0001 section 2.1:
+'' Three offset states:
 ''     0                        explicitly UTC          renders as Z
 ''     -1080 .. 1080            a known fixed offset    renders as +05:30
 ''     DT_OFFSET_UNSPECIFIED    naive; nobody said      renders bare
@@ -63,7 +63,7 @@ public type DateTime
 
     '' Exact tick arithmetic.  AddDays( 1 ) adds exactly 86400 seconds and so
     '' does NOT preserve the wall-clock time across a DST boundary; that is
-    '' AddCalendarDays, in RFC-0007.  AddMonths / AddYears are RFC-0004.
+    '' AddCalendarDays.  AddMonths / AddYears are calendar arithmetic, below.
     declare function Add            ( byref s as TimeSpan ) as DateTime
     declare function Subtract       ( byref s as TimeSpan ) as DateTime
     declare function AddTicks       ( byval n as longint ) as DateTime
@@ -73,13 +73,13 @@ public type DateTime
     declare function AddSeconds     ( byval n as double  ) as DateTime
     declare function AddMilliseconds( byval n as double  ) as DateTime
 
-    '' Calendar arithmetic (RFC-0004).  Takes a plain LONG, not a TimeSpan,
+    '' Calendar arithmetic.  Takes a plain LONG, not a TimeSpan,
     '' because months and years are not fixed-length units -- keeping the two
     '' kinds of arithmetic visibly separate is the whole point.
     declare function AddMonths( byval n as long ) as DateTime
     declare function AddYears ( byval n as long ) as DateTime
 
-    '' Calendar utilities (RFC-0004 section 3)
+    '' Calendar utilities
     declare static function IsLeapYear ( byval y as long ) as boolean
     declare static function DaysInMonth( byval y as long, byval mo as long ) as long
     declare static function DaysInYear ( byval y as long ) as long
@@ -113,16 +113,16 @@ public type DateTime
     declare static function TryParse   ( byref s as string, byref result as DateTime ) as boolean
     declare static function ParseIso   ( byref s as string ) as DateTime
 
-    '' Custom patterns (RFC-0006).  Output depends only on the value and the
+    '' Custom patterns.  Output depends only on the value and the
     '' pattern -- names are invariant English, never the OS locale, so this is
-    '' safe to write to a file.  Locale formatting is RFC-0007.
+    '' safe to write to a file.  Locale formatting is the ToLocale* family.
     declare function ToString ( byref pattern as string ) as string
     declare function TryFormat( byref pattern as string, byref result as string ) as boolean
     declare static function TryParseExact( byref s as string, byref pattern as string, _
                                            byref result as DateTime ) as boolean
     declare static function ParseExact   ( byref s as string, byref pattern as string ) as DateTime
 
-    '' Calendar-preserving arithmetic (RFC-0007 section 2).  "Same time
+    '' Calendar-preserving arithmetic.  "Same time
     '' tomorrow" -- unlike AddDays( 1 ), which is exactly 86400 seconds.
     '' They differ twice a year and the names say which is which.
     declare function AddCalendarDays  ( byval n as long ) as DateTime
@@ -131,8 +131,8 @@ public type DateTime
 
     declare function ToLocal( ) as DateTime
 
-    '' Locale formatting (RFC-0007 section 3).  Output is whatever the
-    '' machine says; use RFC-0006 patterns for anything written to a file.
+    '' Locale formatting.  Output is whatever the
+    '' machine says; use custom patterns for anything written to a file.
     '' USTRING, because month, weekday and zone names are routinely
     '' non-ASCII: as a STRING they reached the console in its code page.
     declare function ToLocaleDateString( byval style as long = lsShort ) as ustring
@@ -142,7 +142,7 @@ public type DateTime
     declare static function MonthName  ( byval mo as long, byval abbreviated as boolean = false ) as ustring
     declare static function WeekdayName( byval dow as long, byval abbreviated as boolean = false ) as ustring
 
-    '' Interop (RFC-0007 section 4)
+    '' Interop
     declare static function FromUnixSeconds     ( byval v as longint ) as DateTime
     declare static function FromUnixMilliseconds( byval v as longint ) as DateTime
     declare static function FromSerial          ( byval d as double  ) as DateTime
@@ -155,7 +155,7 @@ public type DateTime
     declare property OleDate         ( ) as double
     declare static function FromOleDate  ( byval d as double ) as DateTime
 
-    '' ------------------------------------------------ USTRING (phase 8)
+    '' ---------------------------------------------------------- USTRING
     '' Text that takes no text in -- ToIsoString, ToString( ), the locale
     '' family -- comes back as USTRING, the language's default string.
     '' Anything taking text overloads on it: a STRING pattern or input gives
@@ -547,7 +547,7 @@ function DateTime.FromJulianDay( byval jd as double ) as DateTime
     return DateTime.FromTicks( t, DT_OFFSET_UNSPECIFIED )
 end function
 
-'' RFC-0004 section 1: two offset-bearing values compare as INSTANTS; two naive
+'' Two offset-bearing values compare as INSTANTS; two naive
 '' values compare as civil readings; one of each is not comparable, because
 '' there is no defensible answer.
 function DateTime.CompareTo( byref o as DateTime ) as long
@@ -618,7 +618,7 @@ public operator >= ( byref a as DateTime, byref b as DateTime ) as boolean
     return a.CompareTo( b ) >= 0
 end operator
 
-'' ============================================== ISO 8601 / RFC 3339 (0005)
+'' ===================================================== ISO 8601 / RFC 3339
 ''
 '' Emission is CANONICAL: one value produces exactly one string.  All the
 '' variety ISO 8601 permits is accepted on input only.
@@ -641,7 +641,7 @@ function DateTime.ToString( ) as ustring
     return this.ToIsoString( )
 end function
 
-'' THE PLAIN FORMS ASSERT (pkg/std/README.md, review LIB-03): ParseIso and ParseExact are for
+'' THE PLAIN FORMS ASSERT (pkg/std/README.md): ParseIso and ParseExact are for
 '' text known to be valid, and bad text is runtime error 1 -- the value is still Invalid( ),
 '' for an 'on error' handler that resumes. TryParseIso / TryParseExact are what answer false.
 function DateTime.TryParseIso( byref s as string, byref result as DateTime ) as boolean
@@ -735,7 +735,7 @@ function LocalTime.ParseIso( byref s as string ) as LocalTime
     return r
 end function
 
-'' ------------------------------------------- custom patterns (RFC-0006)
+'' ------------------------------------------------------ custom patterns
 ''
 '' A ONE-CHARACTER pattern is a named constant format, not a field:
 ''     "o"/"O"  round-trip ISO 8601, byte-identical to ToIsoString

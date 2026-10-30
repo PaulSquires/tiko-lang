@@ -11,8 +11,6 @@ using containers
 ''         declare function Kind( ) as ustring override
 ''     end type
 ''
-'' RFC-0007 -- C:\dev\docs\tui\RFC-0007-widget-protocol.md.
-''
 '' ---------------------------------------------------------------------------
 '' A TYPE WITH ONLY METHODS DOES NOT COMPILE
 ''
@@ -88,7 +86,7 @@ destructor TuiWidget( )
 end destructor
 
 '' The alias is REQUIRED -- a generic does not instantiate directly in a TYPE
-'' field. docs/logging hit the same rule with LogFieldArray.
+'' field. std/logs hit the same rule with LogFieldArray.
 public type TuiWidgetPtrArray as Array( of TuiWidget ptr )
 
 '' ============================================================== focus
@@ -277,7 +275,7 @@ end function
 
 '' ============================================================== container
 
-'' TuiStack splits its area with RFC-0006 and renders each child into its part.
+'' TuiStack splits its area with the tuilayout.tiko solver and renders each child into its part.
 ''
 '' IT OWNS ITS CHILDREN and deletes them. Pushing the address of a stack
 '' variable into it hands it a pointer it will `delete` -- that is the one
@@ -337,7 +335,7 @@ sub TuiStack.Render( byref f as TuiFrame, byval area as TuiRect )
         if( i >= parts.Count( ) ) then exit for
         lastRects.Push( parts[i] )
         '' A zero-size part is legal and is still offered to the child, which
-        '' must tolerate it -- phase 4 showed a 40x12 terminal collapsing a
+        '' must tolerate it -- a 40x12 terminal can collapse a
         '' panel to height 0.
         children[i]->Render( f, parts[i] )
     next
