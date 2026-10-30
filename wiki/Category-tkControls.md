@@ -29,7 +29,7 @@ A module that comes in through another one's import is named only after that one
 
 On Linux, import any `std/*` module **before** the tkControls ones.
 
-Runnable demos and a self-test for every control are in the toolchain's `examples/tkControls/`, one folder each, built with [`tiko build`](Category-Tiko-Build). `examples/tkControls/tpad` is the [Notepad Tutorial](Notepad-Tutorial) rebuilt on tkControls, running on Windows and Linux.
+Runnable demos and a self-test for every control are in the toolchain's `examples/tkControls/`, one folder each, built with [`tiko build`](Category-Tiko-Build). `examples/tkControls/tpad` is the program of the [Notepad2 Tutorial](Notepad2-Tutorial): the [Notepad Tutorial](Notepad-Tutorial)'s text editor rebuilt on tkControls, running on Windows and Linux.
 
 ## The application framework
 
@@ -127,5 +127,6 @@ Each control's page lists its own differences. The PsControls page of the same c
 - [PsControls](Category-PsControls)
 - [Vendor Packages](Vendor-Packages)
 - [SDL3 Tutorial](SDL3-Tutorial)
+- [Notepad2 Tutorial](Notepad2-Tutorial)
 - [Notepad Tutorial](Notepad-Tutorial)
 - [tiko build](Category-Tiko-Build)

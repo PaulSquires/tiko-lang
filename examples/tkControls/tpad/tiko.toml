@@ -1,4 +1,4 @@
-# tpad, the wiki's Notepad Tutorial, on tkControls: `tiko build tpad`
+# tpad on tkControls: `tiko build tpad` writes tpad.exe
 [package]
 name = "tpad"
 

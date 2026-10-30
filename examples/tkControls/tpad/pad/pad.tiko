@@ -1,7 +1,6 @@
 #module "pad"
-'' textfile (and with it std/fs) comes FIRST: on Linux, std/fs imported after vendor/SDL3
-'' re-reads crt/stdio.bi with SEEK_SET already a macro, and its #define fails (a tiko-lang
-'' bug, Linux only; see README.md).
+'' textfile, and with it std/fs, comes before every tkControls module:
+'' on Linux, std/* must be imported before vendor/SDL3.
 #import "../textfile"
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkMenuBar"
@@ -26,9 +25,9 @@ using tkMessageBox
 using tkButton
 using tkCheckBox
 
-'' The window of tpad, the wiki's Notepad Tutorial, on tkControls: the
+'' The window of tpad, the Notepad Tutorial's editor, on tkControls: the
 '' same Editor, the same commands, the same one Execute. What changed is
-'' only what a window is made of -- see the README beside this file.
+'' only what a window is made of.
 
 '' Every command the menus and the keyboard can give.
 public enum Cmd

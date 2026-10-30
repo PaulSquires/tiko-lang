@@ -14,14 +14,14 @@ using tkTextBox
 using tkStatusBar
 using tkMessageBox
 
-'' tpad, the wiki's Notepad Tutorial, on tkControls (SDL3 + SDL_ttf):
+'' tpad, the Notepad Tutorial's editor, on tkControls (SDL3 + SDL_ttf):
 '' the same program on Windows and Linux.
 ''
 ''   tpad [file]                 run it
 ''   tpad --selftest             drive the real window, print what it saw
 ''   tpad --shot out.bmp [file]  render once (dark theme) and save it
 
-'' ---- the self-test (the wiki's, with SDL events for Win32 messages) ----
+'' ---- the self-test (the Notepad Tutorial's, with SDL events for Win32 messages) ----
 
 '' The person, scripted: what the test answers to each question.
 function ScriptedAsk( byval f as TK_FORM ptr, byref text as ustring, _

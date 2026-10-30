@@ -70,6 +70,7 @@ from	vendor/PsControls/PsPopupMenu	import	PsPopupMenu
 from	vendor/PsControls/PsColumnHeader	import	PsColumnHeader
 from	vendor/PsControls/PsTipHost	import	PsTipHost
 ignore	Notepad-Tutorial	a tutorial, not a function
+ignore	Notepad2-Tutorial	a tutorial, not a function
 ignore	SDL3-Tutorial	a tutorial, not a function
 seealso	Category-tkControls	tkControls guide
 from	vendor/tkControls/tkApp	import	tkApp
