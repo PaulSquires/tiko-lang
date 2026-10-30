@@ -18,7 +18,7 @@ The module also holds the small types the whole family uses: `TKRECT` and `TKPOI
 using tkPaint
 ```
 
-Every control imports it through [tkHost](tkHost), so after any control's `#import`, `using tkPaint` is enough. It re-exports `vendor/SDL3/ttf` and `vendor/SDL3/image`. On Linux, put any `std/*` import before the tkControls ones.
+Every control imports it through [tkHost](tkHost), so after any control's `#import`, `using tkPaint` is enough. It re-exports `vendor/SDL3/ttf` and `vendor/SDL3/image`.
 
 ## Example
 

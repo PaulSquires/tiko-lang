@@ -18,7 +18,7 @@ In a [tkApp](tkApp) program use `tkApp_SetTheme` or `tkApp_SetThemeMode` instead
 using tkTheme
 ```
 
-Every control and [tkApp](tkApp) import tkTheme publicly, so `using tkTheme` usually needs no `#import` of its own. It re-exports [tkHost](tkHost). On Linux, put any `std/*` import before the tkControls ones.
+Every control and [tkApp](tkApp) import tkTheme publicly, so `using tkTheme` usually needs no `#import` of its own. It re-exports [tkHost](tkHost).
 
 ## Example
 

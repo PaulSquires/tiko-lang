@@ -26,7 +26,6 @@
 ' take the form's UI font as the surface default instead).
 #module "tkApp"
 
-' tkFontList first: it brings std/fs, and on Linux std/* must come before vendor/SDL3 (FINDINGS)
 #import "../tkFontList"
 #import "../tkHost" public
 #import "../tkTheme" public

@@ -18,7 +18,7 @@ using tkHost
 using tkPaint
 ```
 
-tkImage re-exports [tkHost](tkHost), and through it [tkPaint](tkPaint), which holds `TK_IMGFIT_*`. On Linux, put any `std/*` import before the tkControls ones.
+tkImage re-exports [tkHost](tkHost), and through it [tkPaint](tkPaint), which holds `TK_IMGFIT_*`.
 
 ## Example
 

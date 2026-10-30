@@ -1,5 +1,4 @@
 #cmdline "-s gui"
-'' std/* before anything that brings in vendor/SDL3: see pad.tiko
 #import "std/fs"
 #import "std/strings"
 #import "./pad"

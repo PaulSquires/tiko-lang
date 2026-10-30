@@ -15,7 +15,7 @@ using tkTest
 using tkHost
 ```
 
-tkTest re-exports [tkHost](tkHost). On Linux, put any `std/*` import before the tkControls ones.
+tkTest re-exports [tkHost](tkHost).
 
 ## Example
 

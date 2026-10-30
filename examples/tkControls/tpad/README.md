@@ -61,13 +61,11 @@ pushed.
 
 ## Bugs found
 
-- **tiko-lang, Linux only:** importing `vendor/SDL3` (any tk module) *before* `std/fs` fails
-  in the toolchain's own `crt/stdio.bi` (`#define SEEK_SET 0`: "expected an identifier").
-  The header is read a second time with `SEEK_SET` already a macro, and the name is expanded
-  inside its own `#define`.
-  - Reproduce: `#import "vendor/SDL3"` then `#import "std/fs"`. The other order builds.
-  - Workaround here: `pad.tiko` imports `../textfile` first, and `tpad.tiko` imports `std/*`
-    before `./pad`.
+- **tiko-lang, Linux and macOS (fixed):** importing `vendor/SDL3` (any tk module) *before*
+  `std/fs` failed with "expected an identifier" at crt/stdio.bi's `#define SEEK_SET 0`:
+  std/fs's interface replays sys/posix's binding, whose `const SEEK_SET = 0` the importer's
+  crt macro turned into `const 0 = 0`. The binding now declares such a constant between
+  `#pragma push_macro` and `pop_macro`, and the imports may come in any order.
 - **Naming:** a local named `fb` collides with tiko's `FB` namespace (identifiers are
   case-insensitive), so the Find box's struct is `box`.
 

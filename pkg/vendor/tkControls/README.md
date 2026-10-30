@@ -18,7 +18,7 @@ using tkButton
 ```
 
 Every module imports `vendor/tkControls/tkHost` (the widget core) and, through it,
-`vendor/SDL3/ttf` and `vendor/SDL3/image`. On Linux, import any `std/*` module before them.
+`vendor/SDL3/ttf` and `vendor/SDL3/image`.
 
 **Fonts come with the package**: Inter (text), Cascadia Mono (code) and Fluent UI System Icons
 (glyphs), copied beside every program that imports tkHost. `tkHost_FontDir() & TK_FONT_UI` is

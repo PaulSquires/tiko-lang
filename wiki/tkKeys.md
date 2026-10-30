@@ -17,7 +17,7 @@ using tkKeys
 using tkHost
 ```
 
-tkKeys re-exports [tkHost](tkHost) and imports `std/containers` for its maps. On Linux, put any `std/*` import of your own before the tkControls ones.
+tkKeys re-exports [tkHost](tkHost) and imports `std/containers` for its maps.
 
 ## Example
 

@@ -14,7 +14,6 @@
 '
 ' ONE FILE (docs/tkEdit/SINGLE-FILE.md): SDL, SDL_ttf, SDL_image and scintk are linked in, and the
 ' data files are '#embed'ded (tka/assets) -- nothing is looked for beside the program.
-'' std/* before anything that brings in vendor/SDL3 (Linux: crt/stdio.bi, tkControls FINDINGS)
 #import "std/containers"
 #import "std/fs"
 #import "std/strings"

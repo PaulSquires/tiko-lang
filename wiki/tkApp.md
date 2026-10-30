@@ -19,7 +19,7 @@ using tkHost
 using tkButton
 ```
 
-tkApp re-exports [tkHost](tkHost) and [tkTheme](tkTheme), and tkHost re-exports [tkPaint](tkPaint) with `vendor/SDL3/ttf` and `vendor/SDL3/image`, so `using tkHost`, `using tkPaint` and `using tkTheme` work without importing them yourself. On Linux, put any `std/*` import before the tkControls ones.
+tkApp re-exports [tkHost](tkHost) and [tkTheme](tkTheme), and tkHost re-exports [tkPaint](tkPaint) with `vendor/SDL3/ttf` and `vendor/SDL3/image`, so `using tkHost`, `using tkPaint` and `using tkTheme` work without importing them yourself.
 
 ## Example
 

@@ -18,7 +18,7 @@ using containers
 using tkFontList
 ```
 
-`tkFontList_Families` returns an `Array( of string )`, so import `std/containers` to declare one. tkFontList imports `std/fs` and `std/containers` itself and re-exports [tkHost](tkHost). On Linux, put every `std/*` import before the tkControls ones, as above.
+`tkFontList_Families` returns an `Array( of string )`, so import `std/containers` to declare one. tkFontList imports `std/fs` and `std/containers` itself and re-exports [tkHost](tkHost).
 
 ## Example
 

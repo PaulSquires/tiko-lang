@@ -17,7 +17,7 @@ using tkHost
 using tkPaint
 ```
 
-Every tkControls module imports tkHost publicly, so after any control's `#import`, `using tkHost` works without a line of its own. tkHost re-exports [tkPaint](tkPaint), which re-exports `vendor/SDL3/ttf` and `vendor/SDL3/image`. On Linux, put any `std/*` import before the tkControls ones.
+Every tkControls module imports tkHost publicly, so after any control's `#import`, `using tkHost` works without a line of its own. tkHost re-exports [tkPaint](tkPaint), which re-exports `vendor/SDL3/ttf` and `vendor/SDL3/image`.
 
 ## Example
 

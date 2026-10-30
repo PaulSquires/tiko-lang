@@ -17,7 +17,7 @@ using tkCodeEdit
 using tkHost
 ```
 
-The module also carries Scintilla's and Lexilla's interface constants (`SCI_*`, `SCN_*`, `SC_*`, `STYLE_*`, `INDIC_*`, `SCE_B_*`, `SCLEX_TIKO`), declared in a second file of the same module, so the one `#import` and `using tkCodeEdit` bring them too. tkCodeEdit re-exports [tkHost](tkHost) and [tkTheme](tkTheme) and imports `std/containers` itself. On Linux, put any `std/*` import of your own before the tkControls ones.
+The module also carries Scintilla's and Lexilla's interface constants (`SCI_*`, `SCN_*`, `SC_*`, `STYLE_*`, `INDIC_*`, `SCE_B_*`, `SCLEX_TIKO`), declared in a second file of the same module, so the one `#import` and `using tkCodeEdit` bring them too. tkCodeEdit re-exports [tkHost](tkHost) and [tkTheme](tkTheme) and imports `std/containers` itself.
 
 ## Example
 

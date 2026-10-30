@@ -20,7 +20,7 @@ using tkFileDialog
 using tkHost
 ```
 
-The answer is an `Array( of ustring )`, so import `std/containers` to name it. tkFileDialog re-exports [tkHost](tkHost). On Linux, put every `std/*` import before the tkControls ones, as above.
+The answer is an `Array( of ustring )`, so import `std/containers` to name it. tkFileDialog re-exports [tkHost](tkHost).
 
 ## Example
 

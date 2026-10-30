@@ -191,8 +191,6 @@ end sub
 
 ```freebasic
 #module "pad"
-'' textfile, and with it std/fs, comes before every tkControls module:
-'' on Linux, std/* must be imported before vendor/SDL3.
 #import "../textfile"
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkMenuBar"
@@ -717,7 +715,6 @@ A change of display scale re-sizes the fonts the controls were given and changes
 
 ```freebasic
 #cmdline "-s gui"
-'' std/* before anything that brings in vendor/SDL3: see pad.tiko
 #import "std/fs"
 #import "std/strings"
 #import "./pad"
@@ -780,8 +777,6 @@ end tkApp_Run( ed->form )
 ```
 
 `-s gui` means no console window on Windows. `tkApp_Run` shows the main window and runs the event loop until it closes.
-
-> ⚠️ **On Linux, import `std/*` before the tkControls modules.** `tpad.tiko` imports `std/fs` and `std/strings` first, and `pad.tiko` imports `textfile`, which imports `std/fs`, before any control. In the other order the program does not compile on Linux.
 
 `--shot` renders the window once, in the dark theme at a scale of 1.75, and saves it as a bitmap: the picture at the top of this page was made with it. `TPAD_SCALE` pins the scale of an ordinary run, which is useful for trying the layout at a scale the display does not have.
 

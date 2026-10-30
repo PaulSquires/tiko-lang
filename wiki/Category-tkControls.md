@@ -27,8 +27,6 @@ Every module imports [tkHost](tkHost), the widget core, and through it `vendor/S
 
 A module that comes in through another one's import is named only after that one's `using`: write `using tkButton` before `using tkHost`, and `using tkHost` before `using tkPaint`. The other order stops with `TKO0923`.
 
-On Linux, import any `std/*` module **before** the tkControls ones.
-
 Runnable demos and a self-test for every control are in the toolchain's `examples/tkControls/`, one folder each, built with [`tiko build`](Category-Tiko-Build). `examples/tkControls/tpad` is the program of the [Notepad2 Tutorial](Notepad2-Tutorial): the [Notepad Tutorial](Notepad-Tutorial)'s text editor rebuilt on tkControls, running on Windows and Linux.
 
 ## The application framework

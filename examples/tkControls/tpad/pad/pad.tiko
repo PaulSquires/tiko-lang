@@ -1,6 +1,4 @@
 #module "pad"
-'' textfile, and with it std/fs, comes before every tkControls module:
-'' on Linux, std/* must be imported before vendor/SDL3.
 #import "../textfile"
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkMenuBar"
