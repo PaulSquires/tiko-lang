@@ -80,7 +80,7 @@ and run on Windows, Linux and macOS before it is published.
   clang. Across the ten Benchmarks Game programs, written to the same algorithm in tiko, C, Rust,
   Go and Zig, it is on par with C on eight of them, on Windows and on Linux
   ([bench/](bench/README.md)).
-- **Tiny, dependency-free executables.** Hello world is a 23 KB `.exe` that imports only
+- **Tiny, dependency-free executables.** Hello world is a 25 KB `.exe` that imports only
   `kernel32.dll` and `ucrtbase.dll`, both part of Windows. You don't install a runtime and you
   don't need Visual Studio.
 - **No garbage collector, no pauses.** Strings and containers free themselves at the end of
