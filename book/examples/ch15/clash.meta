@@ -1,2 +1,1 @@
-modules: clashother.tiko
-expect: compile-error TKO0116
+expect: compile-error TKO0600

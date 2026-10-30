@@ -26,7 +26,7 @@ The features of the older dialects are refused by **both** compilers in `-lang f
 one error 146, "Only valid in -lang deprecated or fblite or qb", and tiko `TKO0409` (`TKO0944` for a
 line number):
 
-| Construct | Write instead (Chapter 31) |
+| Construct | Write instead (Chapter 32) |
 |---|---|
 | `gosub` / `return`, `on k gosub` | a `sub` |
 | line numbers, `10 print 1` | a label, `here:` |
@@ -49,7 +49,7 @@ warning TKO0797: 'threadcall' is not supported: 'hello' will not run, and the th
 
 The fbc build used for these measurements did not run the procedure either: it also
 returned a handle of 0, without a warning. Use `threadcreate` with a parameter block, or `spawn`
-(Chapter 22).
+(Chapter 23).
 
 ## assert
 
@@ -151,7 +151,7 @@ The usual mistakes, side by side:
 - **A virtual call's object is evaluated once.** fbc evaluates the object expression of a virtual
   method call twice: `GetP( )->VM( )` calls `GetP` twice under fbc and once under tiko. Only a
   program whose object expression has a side effect can tell.
-- **A `"""` that ends its line starts a block string** (Chapter 8). In fbc it is a string missing
+- **A `"""` that ends its line starts a block string** (Chapter 9). In fbc it is a string missing
   its closing quote, warning 12. `"""abc"""` and `""""` mean what they always meant, in both.
 - **`defer` is a contextual keyword**, and so are the other words in Appendix A's list. Where they
   are not in their statement's position they are ordinary names, as they are in fbc 1.20.

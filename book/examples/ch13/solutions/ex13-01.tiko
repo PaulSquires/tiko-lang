@@ -1,55 +1,66 @@
-'' ex13-01.tiko -- a new shape joins the loop without the loop changing.
+'' ex13-01.tiko -- money in whole cents.
+''
+'' Cents are an int64, so adding prices is exact. The operators make
+'' Money read like a number while refusing what a number allows but
+'' money does not: there is no Money * Money.
 
-type Shape extends Object
-    declare abstract function Area( ) as float64
-    declare virtual function Kind( ) as ustring
-    declare function Describe( ) as ustring
+type Money
+    cents as int64
+    declare operator cast( ) as string
 end type
 
-function Shape.Kind( ) as ustring
-    return "shape"
+function Dollars( byval d as int64, byval c as int64 ) as Money
+    dim as Money m
+    m.cents = d * 100 + iif( d < 0, -c, c )
+    return m
 end function
 
-function Shape.Describe( ) as ustring
-    return Kind( ) & ", area " & Area( )
-end function
+operator + ( byref a as Money, byref b as Money ) as Money
+    dim as Money r
+    r.cents = a.cents + b.cents
+    return r
+end operator
 
-type Circle extends Shape
-    declare function Area( ) as float64 override
-    declare function Kind( ) as ustring override
-    r as float64
-end type
+operator - ( byref a as Money, byref b as Money ) as Money
+    dim as Money r
+    r.cents = a.cents - b.cents
+    return r
+end operator
 
-function Circle.Area( ) as float64
-    return 3.14159 * r * r
-end function
+'' Scaling by a COUNT makes sense; multiplying money by money does not.
+operator * ( byref a as Money, byval n as int32 ) as Money
+    dim as Money r
+    r.cents = a.cents * n
+    return r
+end operator
 
-function Circle.Kind( ) as ustring
-    return "circle"
-end function
+operator < ( byref a as Money, byref b as Money ) as boolean
+    return a.cents < b.cents
+end operator
 
-'' The new one. Nothing above this line was edited.
-type Triangle extends Shape
-    declare function Area( ) as float64 override
-    declare function Kind( ) as ustring override
-    base_ as float64
-    height as float64
-end type
+operator = ( byref a as Money, byref b as Money ) as boolean
+    return a.cents = b.cents
+end operator
 
-function Triangle.Area( ) as float64
-    return base_ * height / 2
-end function
+operator Money.cast( ) as string
+    dim as int64 v = abs( cents )
+    dim as string sign = iif( cents < 0, "-", "" )
+    dim as string pence = right( "0" & ( v mod 100 ), 2 )
+    return sign & "$" & ( v \ 100 ) & "." & pence
+end operator
 
-function Triangle.Kind( ) as ustring
-    return "triangle"
-end function
+dim as Money coffee = Dollars( 3, 75 )
+dim as Money cake = Dollars( 4, 5 )
+dim as Money budget = Dollars( 20, 0 )
 
-dim as Circle c
-c.r = 2
-dim as Triangle t
-t.base_ = 3 : t.height = 4
-dim as Shape ptr all( 0 to 1 ) = { @c, @t }
+dim as Money order_ = coffee * 3 + cake
+print "3 coffees and a cake: "; order_
+print "left in the budget:   "; budget - order_
+print "over budget?          "; budget < order_
 
-for i as int32 = lbound( all ) to ubound( all )
-    print all( i )->Describe( )
-next
+'' A thousand ten-cent additions, exactly.
+dim as Money dime = Dollars( 0, 10 ), total
+for i as int32 = 1 to 1000 : total = total + dime : next
+print "1000 dimes: "; total; ",  exactly $100: "; _
+      total = Dollars( 100, 0 )
+print "refund:     "; Dollars( 0, 0 ) - coffee

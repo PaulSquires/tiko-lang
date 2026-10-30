@@ -1,27 +1,24 @@
-'' Exercise 18-1: tests for Clamp, including both edges.
-#include once "fbcunit.bi"
+#import "std/outcome"
 
-function Clamp( byval v as int32, byval lo as int32, _
-                byval hi as int32 ) as int32
-    if v < lo then return lo
-    if v > hi then return hi
-    return v
+'' A whole number, written as digits with an optional leading minus.
+function ToInt( byval s as ustring ) as outcome.Optional( of int32 )
+    var t = trim( s )
+    var first = iif( left( t, 1 ) = "-", 2, 1 )
+    if len( t ) < first then return outcome.None( of int32 )( )
+    for i as int32 = first to len( t )
+        var c = mid( t, i, 1 )
+        if ( c < "0" ) orelse ( c > "9" ) then
+            return outcome.None( of int32 )( )
+        end if
+    next
+    return outcome.Some( of int32 )( valint( t ) )
 end function
 
-SUITE( clamping )
-    TEST( inside_is_unchanged )
-        CU_ASSERT_EQUAL( Clamp( 5, 0, 10 ), 5 )
-    END_TEST
-
-    TEST( edges_are_inside )
-        CU_ASSERT_EQUAL( Clamp( 0, 0, 10 ), 0 )
-        CU_ASSERT_EQUAL( Clamp( 10, 0, 10 ), 10 )
-    END_TEST
-
-    TEST( outside_is_pulled_in )
-        CU_ASSERT_EQUAL( Clamp( -3, 0, 10 ), 0 )
-        CU_ASSERT_EQUAL( Clamp( 99, 0, 10 ), 10 )
-    END_TEST
-END_SUITE
-
-end iif( fbcu.run_tests( ), 0, 1 )
+dim entries( 0 to 5 ) as ustring = _
+    { "12", "x", " 30 ", "-4", "", "7a" }
+dim as int32 total = 0, refused = 0
+for each e as ustring in entries
+    var n = ToInt( e )
+    if n.HasValue( ) then total += n.Value( ) else refused += 1
+next
+print "total:"; total; ", refused:"; refused

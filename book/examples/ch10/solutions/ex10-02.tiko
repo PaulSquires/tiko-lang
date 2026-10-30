@@ -1,53 +1,28 @@
-'' ex10-02.tiko -- reverse a linked list in place.
+'' ex10-02.tiko -- the same fields, ordered two ways.
 ''
-'' Three pointers walk the list once: the node already reversed, the
-'' current node, and the one after it -- saved before current's link
-'' is overwritten, or the rest of the list is lost.
+'' Ordering fields largest first is the cheapest layout optimisation
+'' there is: no code changes, and the type gets smaller.
 
-type Node
-    value as int32
-    next_ as Node ptr
+type Careless
+    active  as boolean        '' 1 byte
+    id      as int64          '' 8
+    level   as uint8          '' 1
+    score   as float64        '' 8
+    flags   as uint16         '' 2
+    count   as int32          '' 4
 end type
 
-function Reverse( byval head as Node ptr ) as Node ptr
-    dim as Node ptr done_ = nullptr
-    dim as Node ptr cur = head
-    do while cur <> nullptr
-        dim as Node ptr after = cur->next_   '' save it first
-        cur->next_ = done_
-        done_ = cur
-        cur = after
-    loop
-    return done_
-end function
+type Careful
+    id      as int64
+    score   as float64
+    count   as int32
+    flags   as uint16
+    active  as boolean
+    level   as uint8
+end type
 
-sub Show( byref label as ustring, byval p as Node ptr )
-    print label;
-    do while p <> nullptr
-        print p->value;
-        p = p->next_
-    loop
-    print
-end sub
+print "Careless:"; sizeof( Careless ); " bytes"
+print "Careful: "; sizeof( Careful ); " bytes"
 
-'' Build 1 -> 2 -> 3 -> 4 by appending at the tail.
-dim as Node ptr head = nullptr, tail = nullptr
-for i as int32 = 1 to 4
-    dim as Node ptr n = new Node
-    n->value = i
-    if head = nullptr then head = n else tail->next_ = n
-    tail = n
-next
-
-Show( "before:", head )
-head = Reverse( head )
-Show( "after: ", head )
-
-'' Reversing an empty list, or a single node, must also work.
-Show( "empty: ", Reverse( 0 ) )
-
-do while head <> nullptr
-    dim as Node ptr after = head->next_
-    delete head
-    head = after
-loop
+print "a million of each would take"; sizeof( Careless ) * 1000000; _
+      " vs"; sizeof( Careful ) * 1000000; " bytes"

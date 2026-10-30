@@ -34,7 +34,7 @@ $--   trim     page size, e.g. "7in x 9.25in" (informational; the size is set be
       let n = counter(page).get().first()
       set text(size: 8pt, style: "italic", fill: luma(40%))
       // The book title takes only its own width and the chapter side the rest: with two
-      // equal columns 'Chapter 17: Errors: Optional, Result and Runtime Checks' wrapped.
+      // equal columns 'Chapter 18: Errors: Optional, Result and Runtime Checks' wrapped.
       if calc.even(n) {
         grid(columns: (auto, 1fr), column-gutter: 1em,
           align(left)[$title$], align(right)[#chap])

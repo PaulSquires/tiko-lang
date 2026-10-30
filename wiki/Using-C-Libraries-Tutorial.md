@@ -4,7 +4,7 @@
 
 > 📘 **Step by step, one library each:** [SQLite](SQLite-Tutorial) · [raylib](Raylib-Tutorial) · [GLFW](GLFW-Tutorial) · [SDL3](SDL3-Tutorial)
 >
-> 📖 **In the book:** [Chapter 29, Using C Libraries](https://tiko-lang.net/book/ch29-c-libraries.html) covers the same ground in one chapter. Every program on these pages is one of its listings, compiled and run on Windows and Linux with tiko.
+> 📖 **In the book:** [Chapter 30, Using C Libraries](https://tiko-lang.net/book/ch30-c-libraries.html) covers the same ground in one chapter. Every program on these pages is one of its listings, compiled and run on Windows and Linux with tiko.
 
 Most of the code a program might want already exists as a C library: databases, graphics, sound, compression, networking. tiko uses a C library directly. [`#cinclude`](modern-Cinclude) reads the library's own header, so you write no declarations, and [`#foreignlib`](Category-Foreign-Library-Linking) links the library's file. This page covers what is the same for every library. The four tutorials above then take one library each from its download page to a running program.
 
@@ -224,7 +224,7 @@ A program then needs one line, `#import "raylib"`. Install the module for every 
 - [#cinclude](modern-Cinclude) and the [#cinclude Tutorial](modern-Cinclude-tutorial)
 - [Foreign Library Linking](Category-Foreign-Library-Linking) and the [#foreignlib Tutorial](modern-Foreignlib-tutorial)
 - [tiko build](Category-Tiko-Build), for `tiko.toml`
-- [Chapter 28, Interfacing with C](https://tiko-lang.net/book/ch28-interfacing-c.html): types, strings and callbacks across the boundary
+- [Chapter 29, Interfacing with C](https://tiko-lang.net/book/ch29-interfacing-c.html): types, strings and callbacks across the boundary
 
 ---
 

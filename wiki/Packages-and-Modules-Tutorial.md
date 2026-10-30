@@ -378,7 +378,7 @@ peek.tiko(3,17): error TKO0860: 'words_' is not public in module 'main.textstats
   never collide — in your code, or in the linker.
 
 The full rules — visibility levels, re-exporting with `public`, exported macros and generics,
-initialisation order — are in [Chapter 14 of the book](https://tiko-lang.net/book/ch14-modules-packages.html).
+initialisation order — are in [Chapter 15 of the book](https://tiko-lang.net/book/ch15-modules-packages.html).
 
 ---
 
@@ -768,7 +768,7 @@ private function Secret_( … ) as …         '' private: this module's own obj
 
 ### See also
 
-- [Chapter 14 of the book: Modules and Packages](https://tiko-lang.net/book/ch14-modules-packages.html) — every rule, in depth
+- [Chapter 15 of the book: Modules and Packages](https://tiko-lang.net/book/ch15-modules-packages.html) — every rule, in depth
 - [Vendor Packages](Vendor-Packages) — the C libraries the toolchain ships, and how a vendor package is made
 - [tiko c2t Tutorial](C2t-Tutorial) — translating a C header of your own
 - [tiko build](Category-Tiko-Build) — building a project from its `tiko.toml`

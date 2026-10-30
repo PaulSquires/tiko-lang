@@ -1,5 +1,3 @@
-counter: init
-left: init
-right: init
-main: hits = 2
-counter: done
+one (3)
+three (5)
+  counter destroyed after 2 calls

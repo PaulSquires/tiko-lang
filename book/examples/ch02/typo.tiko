@@ -1,0 +1,6 @@
+'' Every block is closed and every statement is complete,
+'' so the editor underlines nothing. The compiler still
+'' refuses it: `totl` was never declared.
+
+dim as int32 total = 10
+print totl

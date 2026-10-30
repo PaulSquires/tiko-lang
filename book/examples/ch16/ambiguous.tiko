@@ -1,0 +1,14 @@
+namespace Report
+    function Title( ) as ustring
+        return "Report"
+    end function
+end namespace
+
+namespace Archive
+    function Title( ) as ustring
+        return "Archive"
+    end function
+end namespace
+
+using Report, Archive
+print Title( )

@@ -1,3 +1,7 @@
-a has 5, b has 6, c has 4
-popping a: 50 40 30 20 10
-b's top is still 99
+  grew to 4
+  grew to 8
+  grew to 16
+  grew to 32
+count 20, capacity 32
+first 3, last 60
+released: items is null: true

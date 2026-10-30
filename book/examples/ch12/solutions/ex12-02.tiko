@@ -1,45 +1,53 @@
-'' ex12-02.tiko -- a counter that runs downwards.
+'' ex12-02.tiko -- three views of one value.
 ''
-'' The for protocol does not assume a direction: next decides whether
-'' to continue, so a type that counts down simply tests the other way.
+'' A temperature is stored once, in kelvin. Every other scale is a
+'' property computed from it, so the three can never disagree -- and
+'' the one setter that matters refuses impossible values.
 
-type Countdown
-    declare constructor( byval n as int32 )
-    declare operator for( )
-    declare operator step( )
-    declare operator next( byref last as Countdown ) as integer
-    declare operator cast( ) as string
-    value as int32
+type Temperature
+    declare property Kelvin( ) as float64
+    declare property Kelvin( byval k as float64 )
+    declare property Celsius( ) as float64
+    declare property Celsius( byval c as float64 )
+    declare property Fahrenheit( ) as float64
+    declare property Fahrenheit( byval f as float64 )
+  private:
+    k_ as float64
 end type
 
-constructor Countdown( byval n as int32 )
-    value = n
-end constructor
+property Temperature.Kelvin( ) as float64
+    return k_
+end property
 
-operator Countdown.for( )
-end operator
+property Temperature.Kelvin( byval k as float64 )
+    if k < 0 then k = 0          '' nothing is colder than 0 K
+    k_ = k
+end property
 
-operator Countdown.step( )
-    value -= 1
-end operator
+'' The other setters convert and go through Kelvin, so the check
+'' lives in exactly one place.
+property Temperature.Celsius( ) as float64
+    return k_ - 273.15
+end property
 
-operator Countdown.next( byref last as Countdown ) as integer
-    return value >= last.value
-end operator
+property Temperature.Celsius( byval c as float64 )
+    this.Kelvin = c + 273.15
+end property
 
-operator Countdown.cast( ) as string
-    if value = 0 then return "liftoff"
-    return str( value )
-end operator
+property Temperature.Fahrenheit( ) as float64
+    return this.Celsius * 9 / 5 + 32
+end property
 
-for t as Countdown = Countdown( 5 ) to Countdown( 0 )
-    print t; " ";
-next
-print
+property Temperature.Fahrenheit( byval f as float64 )
+    this.Celsius = ( f - 32 ) * 5 / 9
+end property
 
-'' A range that starts below its end runs zero times, as for does.
-dim as int32 passes = 0
-for t as Countdown = Countdown( 0 ) to Countdown( 3 )
-    passes += 1
-next
-print "passes from 0 down to 3:"; passes
+dim as Temperature t
+t.Celsius = 100
+print "100 C ="; t.Fahrenheit; " F ="; t.Kelvin; " K"
+
+t.Fahrenheit = 32
+print " 32 F ="; t.Celsius; " C"
+
+t.Celsius = -1000
+print "asked for -1000 C, got "; t.Celsius; " C ="; t.Kelvin; " K"

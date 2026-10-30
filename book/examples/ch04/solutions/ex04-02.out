@@ -1,5 +1,7 @@
-2 ^ 3 ^ 2       = 64   (left, so 64)
-1 shl 2 + 3     = 7    (shl first, so 7)
-a \ b \ c       = 2
-a \ (b \ c)     = 8
-not ready andalso not busy = false
+value   cint   int   fix
+ 2.4      2     2     2
+ 2.5      2     2     2
+ 2.6      3     2     2
+-2.4     -2    -3    -2
+-2.5     -2    -3    -2
+-2.6     -3    -3    -2

@@ -1,21 +1,23 @@
-#import "std/chrono"
+'' Exercise 24-1: count the files in a tree by extension.
+#import "std/fs"
+#import "std/containers"
 
-'' Working days from 'first' up to, not including, 'last'.
-function WorkingDays( byval first as chrono.LocalDate, _
-                      byval last as chrono.LocalDate ) as int32
-    dim as int32 count = 0
-    var d = first
-    do while d < last
-        if d.DayOfWeek( ) <= 5 then count += 1
-        d = d.AddDays( 1 )
-    loop
-    return count
-end function
+var root = fs.CreateTempDir( "ex" ).Value( )
+fs.CreateDirAll( fs.PathJoin( root, "a", "b" ) )
+fs.WriteAllText( fs.PathJoin( root, "one.txt" ), "" )
+fs.WriteAllText( fs.PathJoin( root, "a", "two.txt" ), "" )
+fs.WriteAllText( fs.PathJoin( root, "a", "b", "three.tiko" ), "" )
+fs.WriteAllText( fs.PathJoin( root, "a", "b", "noext" ), "" )
 
-var a = chrono.LocalDate( 2025, 3, 3 )
-print "one week: "; WorkingDays( a, a.AddDays( 7 ) )
-print "March:    "; WorkingDays( chrono.LocalDate( 2025, 3, 1 ), _
-                                   chrono.LocalDate( 2025, 4, 1 ) )
-print "2025:     "; WorkingDays( chrono.LocalDate( 2025, 1, 1 ), _
-                                   chrono.LocalDate( 2026, 1, 1 ) )
-print "same day: "; WorkingDays( a, a )
+dim byExt as containers.OrderedMap( of ustring, int32 )
+for each r in fs.WalkDir( root )
+    if r.IsOk( ) andalso r.Value( ).IsFile( ) then
+        var ext = fs.PathExtension( r.Value( ).Name( ) )
+        if len( ext ) = 0 then ext = "(none)"
+        byExt[ ext ] += 1
+    end if
+next
+for each (ext, n) in byExt.Pairs( )
+    print ext; n
+next
+fs.RemoveDirAll( root )

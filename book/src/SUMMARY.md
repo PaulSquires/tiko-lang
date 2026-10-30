@@ -6,58 +6,59 @@
 # Basics
 
 - [1. Getting Started](ch01-getting-started.md)
-- [2. A Tour of tiko](ch02-a-tour-of-tiko.md)
-- [3. Types, Variables and Constants](ch03-types-variables.md)
-- [4. Operators and Expressions](ch04-operators.md)
-- [5. Control Flow, Scope and defer](ch05-control-flow.md)
-- [6. Procedures](ch06-procedures.md)
-- [7. Arrays](ch07-arrays.md)
-- [8. Strings and Text](ch08-strings-and-text.md)
+- [2. Editors: tkEdit and the Language Server](ch02-editors.md)
+- [3. A Tour of tiko](ch03-a-tour-of-tiko.md)
+- [4. Types, Variables and Constants](ch04-types-variables.md)
+- [5. Operators and Expressions](ch05-operators.md)
+- [6. Control Flow, Scope and defer](ch06-control-flow.md)
+- [7. Procedures](ch07-procedures.md)
+- [8. Arrays](ch08-arrays.md)
+- [9. Strings and Text](ch09-strings-and-text.md)
 
 # Building Abstractions
 
-- [9. User-Defined Types and Layout](ch09-user-defined-types.md)
-- [10. Pointers, References and Memory](ch10-pointers-memory.md)
-- [11. Objects](ch11-objects.md)
-- [12. Operator Overloading](ch12-operator-overloading.md)
-- [13. Inheritance and Polymorphism](ch13-inheritance.md)
-- [14. Modules and Packages](ch14-modules-packages.md)
-- [15. Namespaces, Headers and the Preprocessor](ch15-namespaces-preprocessor.md)
-- [16. Generics](ch16-generics.md)
-- [17. Errors: Optional, Result and Runtime Checks](ch17-errors.md)
-- [18. Testing, Debugging and Tooling](ch18-testing-debugging.md)
+- [10. User-Defined Types and Layout](ch10-user-defined-types.md)
+- [11. Pointers, References and Memory](ch11-pointers-memory.md)
+- [12. Objects](ch12-objects.md)
+- [13. Operator Overloading](ch13-operator-overloading.md)
+- [14. Inheritance and Polymorphism](ch14-inheritance.md)
+- [15. Modules and Packages](ch15-modules-packages.md)
+- [16. Namespaces, Headers and the Preprocessor](ch16-namespaces-preprocessor.md)
+- [17. Generics](ch17-generics.md)
+- [18. Errors: Optional, Result and Runtime Checks](ch18-errors.md)
+- [19. Testing, Debugging and Tooling](ch19-testing-debugging.md)
 
 # Advanced Language
 
-- [19. Tuples, Iterators and For Each](ch19-tuples-iterators.md)
-- [20. Lambdas and Closures](ch20-lambdas-closures.md)
-- [21. Resource Management](ch21-resource-management.md)
-- [22. Concurrency](ch22-concurrency.md)
+- [20. Tuples, Iterators and For Each](ch20-tuples-iterators.md)
+- [21. Lambdas and Closures](ch21-lambdas-closures.md)
+- [22. Resource Management](ch22-resource-management.md)
+- [23. Concurrency](ch23-concurrency.md)
 
 # The Standard Library
 
-- [23. Containers and Sorting](ch23-containers.md)
-- [24. Files, Processes and the Environment](ch24-files-processes.md)
-- [25. Dates and Times](ch25-dates-times.md)
-- [26. Numbers](ch26-numbers.md)
-- [27. Logging, Terminal UIs and SQLite](ch27-logging-tui-sqlite.md)
+- [24. Containers and Sorting](ch24-containers.md)
+- [25. Files, Processes and the Environment](ch25-files-processes.md)
+- [26. Dates and Times](ch26-dates-times.md)
+- [27. Numbers](ch27-numbers.md)
+- [28. Logging, Terminal UIs and SQLite](ch28-logging-tui-sqlite.md)
 
 # Systems Programming
 
-- [28. Interfacing with C](ch28-interfacing-c.md)
-- [29. Using C Libraries](ch29-c-libraries.md)
-- [30. Building and Shipping](ch30-building-shipping.md)
+- [29. Interfacing with C](ch29-interfacing-c.md)
+- [30. Using C Libraries](ch30-c-libraries.md)
+- [31. Building and Shipping](ch31-building-shipping.md)
 
 # Legacy
 
-- [31. Classic BASIC and Compatibility](ch31-classic-basic.md)
+- [32. Classic BASIC and Compatibility](ch32-classic-basic.md)
 
 # Projects
 
-- [32. Capstone: a CLI Search Tool](ch32-tsearch.md)
-- [33. Capstone: a Concurrent Pipeline](ch33-thash.md)
-- [34. Capstone: a TUI Ledger](ch34-tledger.md)
-- [35. Capstone: a Notepad for Windows](ch35-tpad.md)
+- [33. Capstone: a CLI Search Tool](ch33-tsearch.md)
+- [34. Capstone: a Concurrent Pipeline](ch34-thash.md)
+- [35. Capstone: a TUI Ledger](ch35-tledger.md)
+- [36. Capstone: a Notepad for Windows](ch36-tpad.md)
 
 # Appendices
 

@@ -11,18 +11,18 @@
 *.tmp
 book/
 out/
-# Chapter 28 vendors a prebuilt C library per target (rebuilt by its build.sh).
-!examples/ch28/geom/*.a
-!examples/ch28/geom/*.lib
-# Chapter 29's libraries are downloaded and built by examples/ch29/fetch-libs.sh,
+# Chapter 29 vendors a prebuilt C library per target (rebuilt by its build.sh).
+!examples/ch29/geom/*.a
+!examples/ch29/geom/*.lib
+# Chapter 30's libraries are downloaded and built by examples/ch30/fetch-libs.sh,
 # never committed: vendor/, and the runtime libraries it copies beside the listings.
 # The tiko headers translate.sh makes from their C headers ARE committed: they are
 # source, as a project using a C library keeps them.
-examples/ch29/vendor/**
-!examples/ch29/vendor/**/
-!examples/ch29/vendor/**/*.ti
-examples/ch29/*.so.*
-examples/ch29/*.dylib
-examples/ch29/raylib-rpath
-# Chapter 31's chain listing builds its Linux child beside it (prebuild:).
-examples/ch31/chain/child
+examples/ch30/vendor/**
+!examples/ch30/vendor/**/
+!examples/ch30/vendor/**/*.ti
+examples/ch30/*.so.*
+examples/ch30/*.dylib
+examples/ch30/raylib-rpath
+# Chapter 32's chain listing builds its Linux child beside it (prebuild:).
+examples/ch32/chain/child

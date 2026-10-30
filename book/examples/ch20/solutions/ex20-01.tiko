@@ -1,12 +1,11 @@
-'' Exercise 20-1: count the words at least minLen long, with ForEach
-'' and a closure that captures its count byref and its limit byval.
-#import "std/containers"
+'' Exercise 19-1: quotient and remainder from one call.
+function DivMod( byval a as int32, byval b as int32 ) _
+        as (quotient as int32, remainder as int32)
+    return (a \ b, a mod b)
+end function
 
-dim words as containers.Array( of ustring ) = _
-    { "a", "closure", "is", "a", "value", "with", "captures" }
-dim as int32 minLen = 4, longWords = 0
-containers.ForEach( words, _
-    sub[ byval minLen, byref longWords ]( byref w as ustring )
-        if len( w ) >= minLen then longWords += 1
-    end sub )
-print longWords; " words of"; minLen; " letters or more"
+var (q, r) = DivMod( 47, 5 )
+print "47 = 5 *"; q; " +"; r
+
+var hours = DivMod( 135, 60 )
+print hours.quotient; " h"; hours.remainder; " min"

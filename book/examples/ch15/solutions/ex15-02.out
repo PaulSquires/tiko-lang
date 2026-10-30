@@ -1,2 +1,5 @@
-orders and invoices:
- 1 2 1 3
+counter: init
+left: init
+right: init
+main: hits = 2
+counter: done

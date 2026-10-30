@@ -1,36 +1,27 @@
-'' Exercise 34-1: spending by category, largest first, over the
-'' whole ledger.
-#import "../ledger"
-#import "../ui"
+'' Exercise 33-1: equal hashes are a strong hint, not a proof. Compare
+'' the bytes before calling two files copies.
+#import "std/fs"
 #import "std/containers"
-#import "std/money"
 
-ledger.OpenLedger( ":memory:" )
-dim problems as containers.Array( of ustring )
-ledger.ImportCsv( "../bank.csv", problems )
-
-dim txns as ui.TxnArray
-ledger.ListTxns( txns )
-dim byCat as containers.OrderedMap( of ustring, money.Decimal )
-for each t in txns
-    if t.amount.IsNegative( ) then
-        byCat[ t.category ] = byCat[ t.category ] + t.amount
-    end if
-next
-
-'' Most negative first: a simple selection, the map is small.
-dim cats as containers.Array( of ustring )
-for each kv in byCat
-    cats.Push( kv.key )
-next
-for i as int32 = 0 to cats.Count( ) - 2
-    for j as int32 = i + 1 to cats.Count( ) - 1
-        if byCat[ cats[ j ] ] < byCat[ cats[ i ] ] then
-            swap cats[ i ], cats[ j ]
-        end if
+function SameBytes( byref a as ustring, byref b as ustring ) as boolean
+    dim as containers.Array( of ubyte ) x, y
+    if fs.ReadAllBytes( a, x ).IsOk( ) = false then return false
+    if fs.ReadAllBytes( b, y ).IsOk( ) = false then return false
+    if x.Count( ) <> y.Count( ) then return false
+    for i as int32 = 0 to x.Count( ) - 1
+        if x[ i ] <> y[ i ] then return false
     next
-next
-for each c in cats
-    print left( c & space( 12 ), 12 ); ui.MoneyCell( byCat[ c ], 12 )
-next
-ledger.CloseLedger( )
+    return true
+end function
+
+'' Every pair thash reports for sample/, then one it does not.
+print SameBytes( "../sample/photos/lighthouse.img", _
+                 "../sample/archive/2025/IMG_0042.img" )
+print SameBytes( "../sample/photos/lighthouse.img", _
+                 "../sample/photos/lighthouse-copy.img" )
+print SameBytes( "../sample/docs/readme.txt", _
+                 "../sample/archive/2025/readme.txt" )
+print SameBytes( "../sample/docs/notes.txt", _
+                 "../sample/archive/notes-old.txt" )
+print SameBytes( "../sample/photos/lighthouse.img", _
+                 "../sample/photos/harbour.img" )

@@ -37,16 +37,16 @@ TOKEN_TEXT = {
 # The words FBC-Modern added without reserving them. Each was compiled as a variable, a
 # procedure, a field, a local and a namespace member, and every one of those compiles.
 CONTEXTUAL = [
-    ("channel", "`select channel` (Chapter 22)"),
-    ("defer", "`defer` statement, when a name, a keyword other than `as`, or the end of the statement follows (Chapter 5)"),
-    ("each", "`for each` (Chapter 19)"),
+    ("channel", "`select channel` (Chapter 23)"),
+    ("defer", "`defer` statement, when a name, a keyword other than `as`, or the end of the statement follows (Chapter 6)"),
+    ("each", "`for each` (Chapter 20)"),
     ("from", "`case receive v from ch` in `select channel`"),
     ("in", "`for each x in …`"),
-    ("of", "type arguments: `Array( of int32 )` (Chapter 16)"),
-    ("override", "after a method's declaration: `declare sub M( ) override` (Chapter 13)"),
+    ("of", "type arguments: `Array( of int32 )` (Chapter 17)"),
+    ("override", "after a method's declaration: `declare sub M( ) override` (Chapter 14)"),
     ("receive", "`case receive` in `select channel`"),
     ("send", "`case send v to ch` in `select channel`"),
-    ("spawn", "`spawn Proc( args )` (Chapter 22)"),
+    ("spawn", "`spawn Proc( args )` (Chapter 23)"),
     ("timeout", "`case timeout ms` in `select channel`"),
 ]
 
@@ -201,7 +201,7 @@ def main() -> int:
         "## Fixed-width type names {#app-kw-fixed}",
         "",
         "tiko predeclares ten type names that fbc does not have. They are typedefs, not "
-        "reserved words (Chapter 3): a program's own declaration of one of them replaces "
+        "reserved words (Chapter 4): a program's own declaration of one of them replaces "
         "tiko's without a diagnostic, so code that already declares `INT32` — as "
         "`win/basetsd.bi` does — compiles unchanged.",
         "",
@@ -216,7 +216,7 @@ def main() -> int:
         "## The predeclared constant {#app-kw-nullptr}",
         "",
         "tiko predeclares one constant that fbc does not have, `const nullptr as any ptr = 0`: "
-        "the null pointer, as a pointer (Chapter 10). It is replaced on the same terms as the "
+        "the null pointer, as a pointer (Chapter 11). It is replaced on the same terms as the "
         "type names above, so a program's own `nullptr` — fbc's own test suite has a field by "
         "that name — compiles unchanged.",
         "",
@@ -238,7 +238,7 @@ def main() -> int:
     L += [
         "",
         "The table is FreeBASIC's, measured operator pair by operator pair against fbc, and "
-        "several rows differ from C and from intuition (Chapter 4). Each line below prints the "
+        "several rows differ from C and from intuition (Chapter 5). Each line below prints the "
         "same with tiko and with fbc-modern:",
         "",
         "```text",

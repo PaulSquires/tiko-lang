@@ -4,7 +4,7 @@
 
 > 📘 **Start with:** [PsControls](Category-PsControls) and [PsApp](PsApp), the controls and the framework these steps use.
 >
-> 📖 **In the book:** [Chapter 35, Capstone: a Notepad for Windows](https://tiko-lang.net/book/ch35-tpad.html), which explains every step in more depth. The code on this page is the book's, and it is compiled and run with every build of the book.
+> 📖 **In the book:** [Chapter 36, Capstone: a Notepad for Windows](https://tiko-lang.net/book/ch36-tpad.html), which explains every step in more depth. The code on this page is the book's, and it is compiled and run with every build of the book.
 
 This tutorial builds **`tpad`**, a plain-text editor in the shape of Windows Notepad: a menu bar, the text, a scroll bar, a status bar with the line and column, Find, and a question before unsaved work is thrown away. It is about 800 lines of tiko, a sixth of them a self-test, and the release build is one 309 KB executable that needs nothing Windows does not already have.
 

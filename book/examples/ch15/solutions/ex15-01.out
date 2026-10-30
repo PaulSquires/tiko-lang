@@ -1,6 +1,6 @@
-CUBE( 1 + 1 ) = 8
-100 \ CUBE( 2 ) = 12
-NextTwo called: 1
-NextTwo called: 2
-NextTwo called: 3
-CUBE( NextTwo( ) ) = 8
+Celsius, Fahrenheit, and back again:
+-10            14           -10
+ 0             32            0
+ 10            50            10
+ 20            68            20
+ 30            86            30

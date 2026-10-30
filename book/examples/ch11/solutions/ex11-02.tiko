@@ -1,53 +1,53 @@
-'' ex11-02.tiko -- three views of one value.
+'' ex11-02.tiko -- reverse a linked list in place.
 ''
-'' A temperature is stored once, in kelvin. Every other scale is a
-'' property computed from it, so the three can never disagree -- and
-'' the one setter that matters refuses impossible values.
+'' Three pointers walk the list once: the node already reversed, the
+'' current node, and the one after it -- saved before current's link
+'' is overwritten, or the rest of the list is lost.
 
-type Temperature
-    declare property Kelvin( ) as float64
-    declare property Kelvin( byval k as float64 )
-    declare property Celsius( ) as float64
-    declare property Celsius( byval c as float64 )
-    declare property Fahrenheit( ) as float64
-    declare property Fahrenheit( byval f as float64 )
-  private:
-    k_ as float64
+type Node
+    value as int32
+    next_ as Node ptr
 end type
 
-property Temperature.Kelvin( ) as float64
-    return k_
-end property
+function Reverse( byval head as Node ptr ) as Node ptr
+    dim as Node ptr done_ = nullptr
+    dim as Node ptr cur = head
+    do while cur <> nullptr
+        dim as Node ptr after = cur->next_   '' save it first
+        cur->next_ = done_
+        done_ = cur
+        cur = after
+    loop
+    return done_
+end function
 
-property Temperature.Kelvin( byval k as float64 )
-    if k < 0 then k = 0          '' nothing is colder than 0 K
-    k_ = k
-end property
+sub Show( byref label as ustring, byval p as Node ptr )
+    print label;
+    do while p <> nullptr
+        print p->value;
+        p = p->next_
+    loop
+    print
+end sub
 
-'' The other setters convert and go through Kelvin, so the check
-'' lives in exactly one place.
-property Temperature.Celsius( ) as float64
-    return k_ - 273.15
-end property
+'' Build 1 -> 2 -> 3 -> 4 by appending at the tail.
+dim as Node ptr head = nullptr, tail = nullptr
+for i as int32 = 1 to 4
+    dim as Node ptr n = new Node
+    n->value = i
+    if head = nullptr then head = n else tail->next_ = n
+    tail = n
+next
 
-property Temperature.Celsius( byval c as float64 )
-    this.Kelvin = c + 273.15
-end property
+Show( "before:", head )
+head = Reverse( head )
+Show( "after: ", head )
 
-property Temperature.Fahrenheit( ) as float64
-    return this.Celsius * 9 / 5 + 32
-end property
+'' Reversing an empty list, or a single node, must also work.
+Show( "empty: ", Reverse( 0 ) )
 
-property Temperature.Fahrenheit( byval f as float64 )
-    this.Celsius = ( f - 32 ) * 5 / 9
-end property
-
-dim as Temperature t
-t.Celsius = 100
-print "100 C ="; t.Fahrenheit; " F ="; t.Kelvin; " K"
-
-t.Fahrenheit = 32
-print " 32 F ="; t.Celsius; " C"
-
-t.Celsius = -1000
-print "asked for -1000 C, got "; t.Celsius; " C ="; t.Kelvin; " K"
+do while head <> nullptr
+    dim as Node ptr after = head->next_
+    delete head
+    head = after
+loop

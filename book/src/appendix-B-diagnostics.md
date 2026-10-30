@@ -586,4 +586,4 @@ Text like ‹arg1› marks where the compiler substitutes a name, type or path.
 | `TKO0998` | error | '‹arg1›' cannot be a member of a union: ‹arg2› |
 | `TKO0999` | error | '‹arg1›' is not a static member; call it through an object of its type |
 
-<!-- 538 rows, generated 2026-10-28 from src/diag/diagids.ti at 42d891dd2 -->
+<!-- 538 rows, generated 2026-10-30 from src/diag/diagids.ti at 42d891dd2 -->

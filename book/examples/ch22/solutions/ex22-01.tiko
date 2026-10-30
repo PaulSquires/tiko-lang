@@ -1,25 +1,36 @@
-'' Exercise 22-1: sum an array in four parallel chunks.
-#import "std/tasks"
-#cmdline "-mt"
+'' Exercise 21-1: a scratch file that deletes itself.
+type ScratchFile
+    declare constructor( byref fileName as ustring )
+    declare destructor( )
+    declare function Path( ) as ustring
+private:
+    declare constructor( byref other as ScratchFile )
+    declare operator let( byref other as ScratchFile )
+    dim name_ as ustring
+end type
 
-sub SumRange( byval first as int32, byval last as int32, _
-              byval out_ as tasks.SendChan( of int64 ) )
-    dim as int64 s = 0
-    for i as int32 = first to last
-        s += i
-    next
-    out_.Send( s )
-end sub
+constructor ScratchFile( byref fileName as ustring )
+    name_ = fileName
+    dim as int32 f = freefile( )
+    open name_ for output as #f
+    print #f, "scratch"
+    close #f
+end constructor
 
-dim partials as tasks.Channel( of int64 ) = _
-    tasks.Channel( of int64 )( 4 )
-const N = 1000000
-for k as int32 = 0 to 3
-    spawn SumRange( k * ( N \ 4 ) + 1, ( k + 1 ) * ( N \ 4 ), partials )
-next
-dim as int64 total = 0, part
-for k as int32 = 0 to 3
-    partials.Receive( part )
-    total += part
-next
-print "sum 1..1000000 ="; total
+destructor ScratchFile( )
+    kill name_
+end destructor
+
+function ScratchFile.Path( ) as ustring
+    return name_
+end function
+
+function Exists( byref path as ustring ) as ustring
+    return iif( len( dir( path ) ) > 0, "yes", "no" )
+end function
+
+scope
+    dim tmp as ScratchFile = ScratchFile( "scratch.tmp" )
+    print "exists inside: "; Exists( tmp.Path( ) )
+end scope
+print "exists after:  "; Exists( "scratch.tmp" )

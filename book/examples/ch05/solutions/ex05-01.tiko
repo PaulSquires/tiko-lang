@@ -1,13 +1,18 @@
-'' ex05-01.tiko -- FizzBuzz. if/elseif is the natural shape here, because each
-'' test is a different question; select case suits one value against many.
-for i as int32 = 1 to 15
-    if ( i mod 15 ) = 0 then
-        print "FizzBuzz"
-    elseif ( i mod 3 ) = 0 then
-        print "Fizz"
-    elseif ( i mod 5 ) = 0 then
-        print "Buzz"
-    else
-        print i
-    end if
-next
+'' ex05-01.tiko -- a mask built from named bit positions.
+const FlagRead  = 0
+const FlagWrite = 1
+const FlagExec  = 2
+
+dim as uint32 perms = 0
+perms = bitset( perms, FlagRead )
+perms = bitset( perms, FlagWrite )
+
+print "perms      = " & bin( perms )
+print "readable   = " & cbool( bit( perms, FlagRead ) <> 0 )
+print "executable = " & cbool( bit( perms, FlagExec ) <> 0 )
+
+'' The same thing with a mask instead of the helpers.
+const MaskRead  = 1 shl FlagRead
+const MaskWrite = 1 shl FlagWrite
+dim as uint32 both = MaskRead or MaskWrite
+print "mask form  = " & bin( both ) & "  same? " & cbool( both = perms )

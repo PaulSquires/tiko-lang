@@ -1,18 +1,20 @@
-'' ex04-01.tiko -- a mask built from named bit positions.
-const FlagRead  = 0
-const FlagWrite = 1
-const FlagExec  = 2
+'' ex04-01.tiko -- type maxima, and where overflow bites.
+#import "std/numeric"
 
-dim as uint32 perms = 0
-perms = bitset( perms, FlagRead )
-perms = bitset( perms, FlagWrite )
+print "int8  max " & 127
+print "int16 max " & 32767
+print "int32 max " & 2147483647
+print "int64 max " & 9223372036854775807
 
-print "perms      = " & bin( perms )
-print "readable   = " & cbool( bit( perms, FlagRead ) <> 0 )
-print "executable = " & cbool( bit( perms, FlagExec ) <> 0 )
+dim as int32 top = 2147483647
 
-'' The same thing with a mask instead of the helpers.
-const MaskRead  = 1 shl FlagRead
-const MaskWrite = 1 shl FlagWrite
-dim as uint32 both = MaskRead or MaskWrite
-print "mask form  = " & bin( both ) & "  same? " & cbool( both = perms )
+'' The ARITHMETIC does not wrap: it is done wider than int32.
+print "top + 1 as an expression: " & ( top + 1 )
+
+'' Storing the result back into an int32 is where the value is lost.
+dim as int32 back = top + 1
+print "stored back into int32  : " & back
+
+'' AddChecked says so instead: an Optional with nothing in it.
+var checked = numeric.AddChecked( top, 1 )
+print "AddChecked has a value  : " & checked.HasValue( )

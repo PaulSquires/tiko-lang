@@ -1,36 +1,12 @@
-'' Exercise 21-1: a scratch file that deletes itself.
-type ScratchFile
-    declare constructor( byref fileName as ustring )
-    declare destructor( )
-    declare function Path( ) as ustring
-private:
-    declare constructor( byref other as ScratchFile )
-    declare operator let( byref other as ScratchFile )
-    dim name_ as ustring
-end type
+'' Exercise 20-1: count the words at least minLen long, with ForEach
+'' and a closure that captures its count byref and its limit byval.
+#import "std/containers"
 
-constructor ScratchFile( byref fileName as ustring )
-    name_ = fileName
-    dim as int32 f = freefile( )
-    open name_ for output as #f
-    print #f, "scratch"
-    close #f
-end constructor
-
-destructor ScratchFile( )
-    kill name_
-end destructor
-
-function ScratchFile.Path( ) as ustring
-    return name_
-end function
-
-function Exists( byref path as ustring ) as ustring
-    return iif( len( dir( path ) ) > 0, "yes", "no" )
-end function
-
-scope
-    dim tmp as ScratchFile = ScratchFile( "scratch.tmp" )
-    print "exists inside: "; Exists( tmp.Path( ) )
-end scope
-print "exists after:  "; Exists( "scratch.tmp" )
+dim words as containers.Array( of ustring ) = _
+    { "a", "closure", "is", "a", "value", "with", "captures" }
+dim as int32 minLen = 4, longWords = 0
+containers.ForEach( words, _
+    sub[ byval minLen, byref longWords ]( byref w as ustring )
+        if len( w ) >= minLen then longWords += 1
+    end sub )
+print longWords; " words of"; minLen; " letters or more"

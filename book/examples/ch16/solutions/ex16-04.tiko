@@ -1,0 +1,21 @@
+'' ex16-04.tiko -- two Areas, kept apart by their namespaces.
+namespace Disc
+    function Area( byval r as float64 ) as float64
+        return 3.14159 * r * r
+    end function
+end namespace
+
+namespace Rect
+    function Area( byval w as float64, _
+                   byval h as float64 ) as float64
+        return w * h
+    end function
+end namespace
+
+sub DiscReport( )
+    using Disc
+    print "disc of radius 2:"; Area( 2 )
+end sub
+
+DiscReport( )
+print "rectangle 2 by 3:"; Rect.Area( 2, 3 )

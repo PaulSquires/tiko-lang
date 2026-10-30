@@ -1,0 +1,2 @@
+modules: clashother.tiko
+expect: compile-error TKO0116

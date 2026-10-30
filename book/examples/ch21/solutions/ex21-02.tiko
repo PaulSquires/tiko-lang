@@ -1,20 +1,14 @@
-'' Exercise 21-2: a cache that observes and never keeps alive.
+'' Exercise 20-2: sort by name length, then alphabetically.
+#import "std/containers"
 
-#import "std/memory"
-type Image
-    name as ustring
-end type
-
-dim cached as memory.WeakPtr( of Image )
-
-scope
-    var img = memory.MakeShared( of Image )( )
-    img->name = "logo.png"
-    cached = img
-    var hit = cached.Lock( )
-    if hit.IsNull( ) = false then print "cache hit: "; hit->name
-end scope
-
-var miss = cached.Lock( )
-print "after the last owner: null "; miss.IsNull( ); _
-      ", expired "; cached.Expired( )
+dim names as containers.Array( of ustring ) = _
+    { "grace", "ada", "edsger", "alan", "barbara", "ken" }
+containers.SortBy( names, _
+    function( byref a as ustring, byref b as ustring ) as boolean
+        if len( a ) <> len( b ) then return len( a ) < len( b )
+        return a < b
+    end function )
+for each n in names
+    print n; " ";
+next
+print

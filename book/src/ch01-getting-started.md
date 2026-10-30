@@ -149,11 +149,11 @@ hello, tiko
 Two things in those four lines are worth naming now, because every later chapter assumes them.
 
 **`ustring` is the string type.** It holds UTF-16 text, its length is O(1), and it behaves the
-same on every platform. Chapter 8 covers text properly, including the older `string` type that
+same on every platform. Chapter 9 covers text properly, including the older `string` type that
 holds bytes and the two cases where you still want it.
 
 **Types say their width.** `int32`, `int64`, `float64` and their siblings mean what they say on
-every target — no guessing whether `int` is 32 or 64 bits today. Chapter 3 lists all ten, plus
+every target — no guessing whether `int` is 32 or 64 bits today. Chapter 4 lists all ten, plus
 `integer`, the pointer-sized type that deliberately has no fixed-width name.
 
 ## Choosing a target
@@ -172,7 +172,7 @@ tiko hello.tiko -target windows-x86_64 -o hello
 ```
 
 Targets are not interchangeable at link time: an object file or static library built for one will
-not link into a program for the other. Chapter 30 covers what each target links and
+not link into a program for the other. Chapter 31 covers what each target links and
 how to ship the result.
 
 ## Reading a diagnostic
@@ -233,27 +233,27 @@ Running it stops at the bad index rather than carrying on with a corrupted array
 The process exits with status 6. Without `-exx` the same program writes 42 somewhere it should
 not and prints `not reached`, which is the outcome the check exists to prevent.
 
-The check covers every array, including the ones that grow while the program runs, which Chapter 7
+The check covers every array, including the ones that grow while the program runs, which Chapter 8
 introduces. The null-pointer check is partial: it catches `*p`, but not yet `p->field` or `p[i]`,
-which Chapter 10 covers.
+which Chapter 11 covers.
 
 There are three levels, and they stack: `-e` enables error checking, `-ex` adds to it, and `-exx`
-adds array bounds and null-pointer checks on top. Chapter 17 comes back to them alongside the
+adds array bounds and null-pointer checks on top. Chapter 18 comes back to them alongside the
 error-handling model.
 
 ## An editor
 
 None of this book requires a particular editor; every example is a file and a command line. But
-two tools exist and both are worth the five minutes:
+two tools come with tiko, and both are worth the five minutes:
 
-- **tiko-editor** is a Windows IDE for tiko: build configurations, a formatter, jump-to-error from
-  the build output, and a debugger.
-- **tiko-lsp** is a language server that speaks LSP 3.17 over stdio, which gives diagnostics,
-  go-to-definition, completion, rename and formatting in any editor that speaks LSP. It ships
-  ready-made support for VS Code, Sublime Text, Neovim and Zed. A tree-sitter grammar,
-  `tree-sitter-tiko`, provides highlighting for editors that want one.
+- **tkEdit** is the editor in the `tiko-lang` folder. It builds and runs your program with one key,
+  lists the compiler's errors and takes you to each one, and shows a procedure's parameters as you
+  type its call.
+- **tiko-lsp** is tiko's language server. It gives the editor you already use — VS Code, Zed,
+  Neovim, Sublime Text and others — errors as you type, completion, go to definition, rename and
+  formatting.
 
-Chapter 18 comes back to both, together with testing and the debugger.
+Chapter 2 sets up both.
 
 ## Looking things up
 

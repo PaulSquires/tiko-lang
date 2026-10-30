@@ -1,5 +1,35 @@
-#import "./left"
-#import "./right"
-#import "./counter"
+'' ex14-02.tiko -- a plugin that counts, owned and deleted by its host.
 
-print "main: hits ="; counter.hits
+type Plugin extends Object
+    declare abstract function Name( ) as ustring
+    declare abstract function Apply( byref text as ustring ) as ustring
+    declare virtual destructor( )
+end type
+
+destructor Plugin( )
+end destructor
+
+type Counter extends Plugin
+    declare destructor( )
+    declare function Name( ) as ustring override
+    declare function Apply( byref text as ustring ) as ustring override
+    calls as int32
+end type
+
+destructor Counter( )
+    print "  counter destroyed after"; calls; " calls"
+end destructor
+
+function Counter.Name( ) as ustring
+    return "counter"
+end function
+
+function Counter.Apply( byref text as ustring ) as ustring
+    calls += 1
+    return text & " (" & len( text ) & ")"
+end function
+
+dim as Plugin ptr p = new Counter
+print p->Apply( "one" )
+print p->Apply( "three" )
+delete p               '' through Plugin ptr: Counter's destructor runs

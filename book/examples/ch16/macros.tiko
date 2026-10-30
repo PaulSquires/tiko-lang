@@ -1,0 +1,20 @@
+#define LIMIT 100
+#define SQUARE( x ) ( ( x ) * ( x ) )
+#define AS_TEXT( x ) #x
+#define PASTE( prefix, n ) prefix##n
+
+#macro SWAP_VALUES( a, b )
+    scope
+        var t_ = a
+        a = b
+        b = t_
+    end scope
+#endmacro
+
+dim as int32 width1 = 3, width2 = 8
+print "limit:"; LIMIT
+print "square of 1 + 2:"; SQUARE( 1 + 2 )
+print "as text: "; AS_TEXT( width1 + width2 )
+print "pasted:"; PASTE( width, 2 )
+SWAP_VALUES( width1, width2 )
+print "after the swap:"; width1; width2

@@ -1,45 +1,32 @@
-'' ex10-01.tiko -- a growable buffer that doubles when it fills.
+'' ex10-01.tiko -- a type laid out to match a fixed binary format.
 ''
-'' Growing by one element per append copies the whole buffer every
-'' time. Doubling copies it only when it fills, so appending n items
-'' costs O(n) in total instead of O(n^2).
+'' A 16-byte record header: magic (4), version (2), flags (2),
+'' payload length (4), checksum (4). The spec says no padding, so the
+'' type must be packed -- and the program checks that the compiler
+'' agrees with the spec, instead of trusting it.
 
-type IntBuffer
-    items    as int32 ptr
-    count    as int32
-    capacity as int32
+type RecordHeader field = 1
+    magic    as uint32
+    version  as uint16
+    flags    as uint16
+    length   as uint32
+    checksum as uint32
 end type
 
-sub AddItem( byref b as IntBuffer, byval v as int32 )
-    if b.count = b.capacity then
-        dim as int32 newCap = iif( b.capacity = 0, 4, b.capacity * 2 )
-        dim as int32 ptr grown = reallocate( b.items, _
-                                             newCap * sizeof( int32 ) )
-        if grown = nullptr then
-            print "out of memory"
-            end 1
-        end if
-        b.items = grown
-        b.capacity = newCap
-        print "  grew to"; newCap
-    end if
-    b.items[b.count] = v
-    b.count += 1
+sub Expect( byref what as ustring, byval got as integer, _
+            byval want as integer )
+    dim as ustring verdict = "ok"
+    if got <> want then verdict = "WRONG"
+    print what; " ="; got; "  (spec says"; want; ")  "; verdict
 end sub
 
-sub Release( byref b as IntBuffer )
-    deallocate( b.items )
-    b.items = nullptr
-    b.count = 0
-    b.capacity = 0
-end sub
+Expect( "sizeof          ", sizeof( RecordHeader ), 16 )
+Expect( "offset magic    ", offsetof( RecordHeader, magic ), 0 )
+Expect( "offset version  ", offsetof( RecordHeader, version ), 4 )
+Expect( "offset flags    ", offsetof( RecordHeader, flags ), 6 )
+Expect( "offset length   ", offsetof( RecordHeader, length ), 8 )
+Expect( "offset checksum ", offsetof( RecordHeader, checksum ), 12 )
 
-dim as IntBuffer b
-for i as int32 = 1 to 20
-    AddItem( b, i * 3 )
-next
-
-print "count"; b.count; ", capacity"; b.capacity
-print "first"; b.items[0]; ", last"; b.items[b.count - 1]
-Release( b )
-print "released: items is null: "; cbool( b.items = nullptr )
+'' This layout happens to need no padding even without field = 1,
+'' because every field already falls on a multiple of its own size.
+'' The field = 1 is there for the day someone inserts a uint8.

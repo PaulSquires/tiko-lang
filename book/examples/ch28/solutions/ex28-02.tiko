@@ -1,21 +1,20 @@
-'' strtol reports where it stopped, so a loop can read number after
-'' number and tell where the text stopped being numbers. It returns a
-'' C long, which is clong: 4 bytes on Windows, 8 on Linux.
-#include once "crt/long.bi"
+'' The minimum level comes from the command line, by name.
+#import "std/logs"
 
-extern "C"
-    declare function strtol( byval s as const zstring ptr, _
-                             byval endp as zstring ptr ptr, _
-                             byval base_ as int32 ) as clong
-end extern
+dim tr as logs.TextRenderer
+tr.stamp = logs.TS_NONE
+dim con as logs.ConsoleSink = logs.ConsoleSink( logs.CT_STDOUT, @tr )
+dim lg as logs.Logger
+lg.AddSink( @con )
 
-dim as string text = "12 -7 0x1F 99 apples"
-dim as zstring ptr p = strptr( text )
-do
-    dim as zstring ptr stop_
-    dim as clong n = strtol( p, @stop_, 0 )
-    if stop_ = p then exit do
-    print "read " & n
-    p = stop_
-loop
-print "stopped at: """; *p; """"
+'' A name that is not a level leaves the default, INFO, in place.
+dim as logs.LogLevel wanted = logs.LOG_INFO
+if logs.LevelFromName( command( 1 ), wanted ) = false then
+    print "unknown level '"; command( 1 ); "', using INFO"
+end if
+lg.MinLevel = wanted
+
+lg.Debug( "debug detail" )
+lg.Info( "normal operation" )
+lg.Warn( "disk 90% full" )
+lg.Error( "write failed" )

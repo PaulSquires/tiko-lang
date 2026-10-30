@@ -507,7 +507,7 @@ a 5 by 5 square has area 25
 
 ### A binding module
 
-A binding can also be a [module](https://tiko-lang.net/book/ch14-modules-packages.html). Inside a module, write **`public #cinclude`**, and every program that imports the module sees the header's names. A plain `#cinclude` inside a module keeps them private to the module.
+A binding can also be a [module](https://tiko-lang.net/book/ch15-modules-packages.html). Inside a module, write **`public #cinclude`**, and every program that imports the module sees the header's names. A plain `#cinclude` inside a module keeps them private to the module.
 
 `modules/shapes/shapes.tiko`:
 

@@ -1,31 +1,25 @@
-'' Exercise 23-1: the three most frequent words.
-#import "std/containers"
+'' Exercise 22-1: sum an array in four parallel chunks.
+#import "std/tasks"
+#cmdline "-mt"
 
-type WordCount
-    word as ustring
-    n as int32
-end type
+sub SumRange( byval first as int32, byval last as int32, _
+              byval out_ as tasks.SendChan( of int64 ) )
+    dim as int64 s = 0
+    for i as int32 = first to last
+        s += i
+    next
+    out_.Send( s )
+end sub
 
-dim text( 0 to 11 ) as ustring = { "a", "rose", "is", "a", "rose", _
-    "is", "a", "rose", "and", "a", "rose", "too" }
-
-dim counts as containers.Map( of ustring, int32 )
-for each t in text
-    counts[ t ] += 1
+dim partials as tasks.Channel( of int64 ) = _
+    tasks.Channel( of int64 )( 4 )
+const N = 1000000
+for k as int32 = 0 to 3
+    spawn SumRange( k * ( N \ 4 ) + 1, ( k + 1 ) * ( N \ 4 ), partials )
 next
-
-dim ranked as containers.Array( of WordCount )
-for each (word, n) in counts.Pairs( )
-    dim wc as WordCount
-    wc.word = word : wc.n = n
-    ranked.Push( wc )
+dim as int64 total = 0, part
+for k as int32 = 0 to 3
+    partials.Receive( part )
+    total += part
 next
-'' Most frequent first; ties alphabetically, so the order is fixed.
-containers.SortBy( ranked, function( byref a as WordCount, _
-                                     byref b as WordCount ) as boolean
-    if a.n <> b.n then return a.n > b.n
-    return a.word < b.word
-end function )
-for i as int32 = 0 to 2
-    print ranked[i].word; ranked[i].n
-next
+print "sum 1..1000000 ="; total

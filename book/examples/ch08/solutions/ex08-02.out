@@ -1,6 +1,7 @@
-key = [host]  value = [example.org]
-key = [port]  value = [8080]
-(blank line skipped)
-key = [motto]  value = [live = learn]
-no '=' in [nokeyhere] -- skipped
-key = [empty]  value = []
+original (2 rows, 3 columns):
+   1 2 3
+   4 5 6
+transposed (3 rows, 2 columns):
+   1 4
+   2 5
+   3 6

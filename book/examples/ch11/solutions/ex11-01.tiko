@@ -1,85 +1,45 @@
-'' ex11-01.tiko -- a stack that owns its storage, and copies safely.
+'' ex11-01.tiko -- a growable buffer that doubles when it fills.
+''
+'' Growing by one element per append copies the whole buffer every
+'' time. Doubling copies it only when it fills, so appending n items
+'' costs O(n) in total instead of O(n^2).
 
-type IntStack
-    declare constructor( )
-    declare constructor( byref other as const IntStack )
-    declare operator let( byref other as const IntStack )
-    declare destructor( )
-    declare sub Push( byval v as int32 )
-    declare function Pop( ) as int32
-    declare property Count( ) as int32
-  private:
-    declare sub CopyFrom( byref other as const IntStack )
-    items_ as int32 ptr
-    count_ as int32
-    cap_   as int32
+type IntBuffer
+    items    as int32 ptr
+    count    as int32
+    capacity as int32
 end type
 
-constructor IntStack( )
-end constructor
-
-'' Both copy paths share one helper, so they cannot drift apart.
-sub IntStack.CopyFrom( byref other as const IntStack )
-    count_ = other.count_
-    cap_ = other.count_
-    items_ = nullptr
-    if cap_ > 0 then
-        items_ = allocate( cap_ * sizeof( int32 ) )
-        for i as int32 = 0 to count_ - 1
-            items_[i] = other.items_[i]
-        next
-    end if
-end sub
-
-constructor IntStack( byref other as const IntStack )
-    CopyFrom( other )
-end constructor
-
-operator IntStack.let( byref other as const IntStack )
-    if @this = @other then exit operator
-    deallocate( items_ )
-    CopyFrom( other )
-end operator
-
-destructor IntStack( )
-    deallocate( items_ )
-end destructor
-
-sub IntStack.Push( byval v as int32 )
-    if count_ = cap_ then
-        dim as int32 newCap = iif( cap_ = 0, 4, cap_ * 2 )
-        dim as int32 ptr grown = reallocate( items_, _
+sub AddItem( byref b as IntBuffer, byval v as int32 )
+    if b.count = b.capacity then
+        dim as int32 newCap = iif( b.capacity = 0, 4, b.capacity * 2 )
+        dim as int32 ptr grown = reallocate( b.items, _
                                              newCap * sizeof( int32 ) )
-        if grown = nullptr then end 1
-        items_ = grown
-        cap_ = newCap
+        if grown = nullptr then
+            print "out of memory"
+            end 1
+        end if
+        b.items = grown
+        b.capacity = newCap
+        print "  grew to"; newCap
     end if
-    items_[count_] = v
-    count_ += 1
+    b.items[b.count] = v
+    b.count += 1
 end sub
 
-function IntStack.Pop( ) as int32
-    if count_ = 0 then return 0
-    count_ -= 1
-    return items_[count_]
-end function
+sub Release( byref b as IntBuffer )
+    deallocate( b.items )
+    b.items = nullptr
+    b.count = 0
+    b.capacity = 0
+end sub
 
-property IntStack.Count( ) as int32
-    return count_
-end property
+dim as IntBuffer b
+for i as int32 = 1 to 20
+    AddItem( b, i * 3 )
+next
 
-dim as IntStack a
-for i as int32 = 1 to 5 : a.Push( i * 10 ) : next
-
-dim as IntStack b = a           '' copy constructor
-b.Push( 99 )
-
-dim as IntStack c
-c = a                           '' operator let
-c.Pop( )
-
-print "a has"; a.Count; ", b has"; b.Count; ", c has"; c.Count
-print "popping a:";
-do while a.Count > 0 : print a.Pop( ); : loop
-print
-print "b's top is still"; b.Pop( )
+print "count"; b.count; ", capacity"; b.capacity
+print "first"; b.items[0]; ", last"; b.items[b.count - 1]
+Release( b )
+print "released: items is null: "; cbool( b.items = nullptr )

@@ -1,25 +1,34 @@
-'' Exercise 35-2: a word count for the status bar. A word is a run of
-'' characters that are not spaces, tabs or line breaks.
-#import "../textfile"
+'' Exercise 34-2: a quick-entry line, "date;payee;category;amount",
+'' checked by the same ParseTxn the import and the form use.
+#import "../ledger"
+#import "../ui"
 
-function CountWords( byref text as const ustring ) as int32
-    dim as int32 n
-    dim as boolean inWord = false
-    for i as int32 = 1 to len( text )
-        select case asc( text, i )
-        case 32, 9, 10, 13
-            inWord = false
-        case else
-            if inWord = false then n += 1
-            inWord = true
-        end select
+function QuickEntry( byref line_ as ustring, byref t as ledger.Txn ) _
+                     as ustring
+    dim as ustring f( 0 to 3 )
+    dim as int32 at_ = 1
+    for k as int32 = 0 to 3
+        dim as int32 semi = instr( at_, line_, ";" )
+        if k = 3 then semi = len( line_ ) + 1
+        if semi = 0 then return "expected four fields"
+        f( k ) = mid( line_, at_, semi - at_ )
+        at_ = semi + 1
     next
-    return n
+    if instr( f( 3 ), ";" ) > 0 then return "expected four fields"
+    return ledger.ParseTxn( f( 0 ), f( 1 ), f( 2 ), f( 3 ), t )
 end function
 
-dim as ustring samples( ... ) = { "", "one", "  two  words ", _
-    !"three\nlines\r\nhere", !"tab\tseparated\t\t" }
-for each s as ustring in samples
-    print CountWords( textfile.ToLf( s ) ); " words,"; len( s ); _
-          " characters"
+dim as ustring tries( ... ) = { "2026-04-02;Corner Cafe;Food;-4.75", _
+                                "2026-04-02;Corner Cafe", _
+                                "2026-04-02;Corner Cafe;food;-4.75;x", _
+                                "2026-04-02;Corner Cafe;food;4,75" }
+for i as int32 = 0 to ubound( tries )
+    dim t as ledger.Txn
+    var why = QuickEntry( tries( i ), t )
+    if len( why ) > 0 then
+        print "refused: "; why
+    else
+        print t.day.ToIsoString( ); " "; t.payee; _
+              " ("; t.category; ")"; ui.MoneyCell( t.amount, 9 )
+    end if
 next

@@ -3,7 +3,7 @@
 #
 #   tools/check-listings.sh                    both targets, all chapters
 #   tools/check-listings.sh --target windows-x86_64
-#   tools/check-listings.sh ch01 ch05          only those chapters
+#   tools/check-listings.sh ch01 ch06          only those chapters
 #   tools/check-listings.sh --list             show what would run
 #
 # A listing is examples/chNN/name.tiko (or name.bas, for legacy material). Beside it:
@@ -18,7 +18,7 @@
 #                 targets: windows-x86_64          restrict to one target
 #                 expect: compile-error TKO0413
 #                 modules: a.bas b.bas         extra sources in the same directory
-#                 forward: ch15                records a use-before-define
+#                 forward: ch16                records a use-before-define
 #                 cwd: listing                 compile in the listing's own directory, as a
 #                                              reader would -- for a #cmdline -cinclude, which
 #                                              is relative to the working directory
@@ -191,7 +191,7 @@ all=(); while IFS= read -r _l; do all+=("$_l"); done < <(find examples \( -name 
 listings=()
 for f in "${all[@]}"; do
   # The chapter is the first directory under examples/: a listing may sit deeper, in a
-  # project of its own (ch14/app/main.tiko) or among the solutions.
+  # project of its own (ch15/app/main.tiko) or among the solutions.
   rel="${f#examples/}"; chap="${rel%%/*}"
   if [[ ${#chapters[@]} -gt 0 ]]; then
     keep=0; for c in "${chapters[@]}"; do [[ "$chap" == "$c" ]] && keep=1; done

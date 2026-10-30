@@ -1,20 +1,20 @@
-'' ex03-01.tiko -- type maxima, and where overflow bites.
-#import "std/numeric"
+'' ex03-01.tiko -- report the longest word as well as the most common.
+#import "std/containers"
+#import "std/fs"
+#import "std/strings"
 
-print "int8  max " & 127
-print "int16 max " & 32767
-print "int32 max " & 2147483647
-print "int64 max " & 9223372036854775807
+var loaded = fs.ReadAllText( "../words.txt" )
+if loaded.IsOk( ) = false then
+    print "cannot read words.txt"
+    end 1
+end if
 
-dim as int32 top = 2147483647
+var flat = strings.Replace( loaded.Value( ), !"\n", " " )
+var words = strings.Split( flat, " " )
 
-'' The ARITHMETIC does not wrap: it is done wider than int32.
-print "top + 1 as an expression: " & ( top + 1 )
+dim as ustring longest
+for each w in words
+    if len( w ) > len( longest ) then longest = w
+next
 
-'' Storing the result back into an int32 is where the value is lost.
-dim as int32 back = top + 1
-print "stored back into int32  : " & back
-
-'' AddChecked says so instead: an Optional with nothing in it.
-var checked = numeric.AddChecked( top, 1 )
-print "AddChecked has a value  : " & checked.HasValue( )
+print "longest word: " & longest & " (" & len( longest ) & " letters)"

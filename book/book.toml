@@ -21,6 +21,44 @@ additional-css = ["./mdbook-admonish.css", "src/theme/tiko.css"]
 additional-js = ["src/theme/tiko-highlight.js"]
 copy-fonts = true
 
+[output.html.redirect]
+# Chapter 2 (Editors: tkEdit and the Language Server) was inserted on 2026-10-30 and every later
+# chapter moved up one: a link anyone saved to an old page still lands on the chapter.
+"/ch02-a-tour-of-tiko.html" = "ch03-a-tour-of-tiko.html"
+"/ch03-types-variables.html" = "ch04-types-variables.html"
+"/ch04-operators.html" = "ch05-operators.html"
+"/ch05-control-flow.html" = "ch06-control-flow.html"
+"/ch06-procedures.html" = "ch07-procedures.html"
+"/ch07-arrays.html" = "ch08-arrays.html"
+"/ch08-strings-and-text.html" = "ch09-strings-and-text.html"
+"/ch09-user-defined-types.html" = "ch10-user-defined-types.html"
+"/ch10-pointers-memory.html" = "ch11-pointers-memory.html"
+"/ch11-objects.html" = "ch12-objects.html"
+"/ch12-operator-overloading.html" = "ch13-operator-overloading.html"
+"/ch13-inheritance.html" = "ch14-inheritance.html"
+"/ch14-modules-packages.html" = "ch15-modules-packages.html"
+"/ch15-namespaces-preprocessor.html" = "ch16-namespaces-preprocessor.html"
+"/ch16-generics.html" = "ch17-generics.html"
+"/ch17-errors.html" = "ch18-errors.html"
+"/ch18-testing-debugging.html" = "ch19-testing-debugging.html"
+"/ch19-tuples-iterators.html" = "ch20-tuples-iterators.html"
+"/ch20-lambdas-closures.html" = "ch21-lambdas-closures.html"
+"/ch21-resource-management.html" = "ch22-resource-management.html"
+"/ch22-concurrency.html" = "ch23-concurrency.html"
+"/ch23-containers.html" = "ch24-containers.html"
+"/ch24-files-processes.html" = "ch25-files-processes.html"
+"/ch25-dates-times.html" = "ch26-dates-times.html"
+"/ch26-numbers.html" = "ch27-numbers.html"
+"/ch27-logging-tui-sqlite.html" = "ch28-logging-tui-sqlite.html"
+"/ch28-interfacing-c.html" = "ch29-interfacing-c.html"
+"/ch29-c-libraries.html" = "ch30-c-libraries.html"
+"/ch30-building-shipping.html" = "ch31-building-shipping.html"
+"/ch31-classic-basic.html" = "ch32-classic-basic.html"
+"/ch32-tsearch.html" = "ch33-tsearch.html"
+"/ch33-thash.html" = "ch34-thash.html"
+"/ch34-tledger.html" = "ch35-tledger.html"
+"/ch35-tpad.html" = "ch36-tpad.html"
+
 [output.html.fold]
 enable = true
 level = 1

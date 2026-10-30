@@ -1,0 +1,18 @@
+'' The program Chapter 2 edits: a type, a procedure that
+'' uses it, and two built-ins.
+
+type Rect
+    w as int32
+    h as int32
+end type
+
+function Area( byref r as Rect ) as int32
+    return r.w * r.h
+end function
+
+dim as Rect box
+box.w = 3
+box.h = 4
+
+dim as ustring label = "box"
+print ucase( left( label, 1 ) ) & ": " & Area( box )

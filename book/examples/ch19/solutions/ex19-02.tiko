@@ -1,49 +1,18 @@
-'' Exercise 19-2: Range( from, upTo, stepBy ) walks like a for loop.
-type RangeIterator
-    at as int32
-    upTo as int32
-    stepBy as int32
-    declare function IsValid( ) as boolean
-    declare function Value( ) as int32
-    declare sub MoveNext( )
-end type
+'' Exercise 18-2: TRACEVAL( x ) shows an expression as written
+'' and its value. '#' turns a macro argument into a string.
+#define TRACING
+#include once "../trace.ti"
 
-function RangeIterator.IsValid( ) as boolean
-    if stepBy > 0 then return at <= upTo
-    return at >= upTo
+#ifdef TRACING
+    #define TRACEVAL( x ) TRACE( #x & " = " & ( x ) )
+#else
+    #define TRACEVAL( x )
+#endif
+
+function Area( byval w as float64, byval h as float64 ) as float64
+    TRACEVAL( w * h )
+    return w * h
 end function
 
-function RangeIterator.Value( ) as int32
-    return at
-end function
-
-sub RangeIterator.MoveNext( )
-    at += stepBy
-end sub
-
-type Range
-    from as int32
-    upTo as int32
-    stepBy as int32
-    declare function GetIterator( ) as RangeIterator
-end type
-
-function Range.GetIterator( ) as RangeIterator
-    return type( from, upTo, stepBy )
-end function
-
-dim evens as Range = type( 0, 10, 2 )
-for each n in evens
-    print n;
-next
-print
-dim down as Range = type( 3, 1, -1 )
-for each n in down
-    print n;
-next
-print
-dim none as Range = type( 5, 1, 1 )
-for each n in none
-    print n;
-next
-print "(empty)"
+var a = Area( 2.5, 4 )
+TRACEVAL( a / 2 )

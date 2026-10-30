@@ -35,7 +35,7 @@ before it is lexed.
 **Preprocessor** (`src/pp`). Pulls tokens from the lexer and gives the parser one stream: macros
 expanded, `#include`d files spliced in, `#if` branches chosen. It is also where `#import` is
 handled: the imported module's **interface** — a `.tki` file, written in tiko source — is spliced in
-as a frame of its own, with the headers its public declarations need (Chapter 14).
+as a frame of its own, with the headers its public declarations need (Chapter 15).
 
 **Parser** (`src/parser`). Recursive descent, statement by statement, into an **AST** kept in an
 arena: nodes are indices, not pointers. Operator precedence comes from one table, `prectable.bi`,
@@ -78,7 +78,7 @@ modules a program imports in dependency order, and runs everything above. A modu
 once and **cached** — its object and its interface, keyed by its sources, its options and the
 interfaces of everything it imports — so a second build that
 imports `std/containers` does not compile it again. `#cmdline` restarts the driver with the new
-options. `#cinclude` (Chapter 28) loads libclang the first time a program uses it, to read the C
+options. `#cinclude` (Chapter 29) loads libclang the first time a program uses it, to read the C
 header itself.
 
 **Diagnostics** (`src/diag`). Every message the compiler can emit is one row in one table,
@@ -125,7 +125,7 @@ It is **ABI-compatible with `libfb`**: the same `FBSTRING` and array descriptor 
 `fb_*` function names and signatures. That is what makes tiko's runtime errors fbc's, number for
 number, and lets an object fbc compiled call into it. The toolchain ships two builds of it,
 `libfb.a` and the thread-safe `libfbmt.a`, and the driver picks the second by itself when a program
-creates a thread, whether or not `-mt` was given (Chapter 22). Linux adds position-independent
+creates a thread, whether or not `-mt` was given (Chapter 23). Linux adds position-independent
 variants for shared libraries. tiko-rt is built with tiko, like the compiler, and is licensed
 LGPL-2.1-or-later with the static-linking exception: a program tiko compiles may carry any licence.
 

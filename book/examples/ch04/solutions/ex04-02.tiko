@@ -1,11 +1,8 @@
-'' ex04-02.tiko -- where parentheses change the answer.
-print "2 ^ 3 ^ 2       = " & ( 2 ^ 3 ^ 2 ) & "   (left, so 64)"
-print "1 shl 2 + 3     = " & ( 1 shl 2 + 3 ) & "    (shl first, so 7)"
+'' ex04-02.tiko -- rounding, compared side by side over a few values.
+dim as float64 v( 5 ) = { 2.4, 2.5, 2.6, -2.4, -2.5, -2.6 }
 
-'' These two need them: the grouping is otherwise not what is meant.
-dim as int32 a = 8, b = 2, c = 2
-print "a \ b \ c       = " & ( a \ b \ c )
-print "a \ (b \ c)     = " & ( a \ ( b \ c ) )
-
-dim as boolean ready = true, busy = true
-print "not ready andalso not busy = " & ( not ready andalso not busy )
+print "value   cint   int   fix"
+for i as int32 = 0 to 5
+    print using "##.# ###### ##### #####"; v( i ); cint( v( i ) ); _
+                                           int( v( i ) ); fix( v( i ) )
+next

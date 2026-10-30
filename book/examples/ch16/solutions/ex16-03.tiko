@@ -1,32 +1,12 @@
-'' ex16-03.tiko -- making a type usable as a Map key: '=' and HashOf.
-#import "std/containers"
-using containers
+'' ex16-03.tiko -- where this platform keeps temporary files.
+#if defined( __FB_WIN32__ )
+    const TEMP_VAR = "TEMP"
+#elseif defined( __FB_LINUX__ )
+    const TEMP_VAR = "TMPDIR"
+#elseif defined( __FB_DARWIN__ )
+    const TEMP_VAR = "TMPDIR"
+#else
+    #error "ex16-03: this platform is not supported"
+#endif
 
-type Version_ extends Hashable
-    as int32 major, minor
-    declare constructor( byval major as int32 = 0, _
-                         byval minor as int32 = 0 )
-    declare function HashOf( ) as ulongint override
-end type
-
-constructor Version_( byval major as int32, byval minor as int32 )
-    this.major = major : this.minor = minor
-end constructor
-
-function Version_.HashOf( ) as ulongint
-    return containers.HashOf( major ) * 31 + containers.HashOf( minor )
-end function
-
-operator = ( byref a as Version_, byref b as Version_ ) as boolean
-    return ( a.major = b.major ) andalso ( a.minor = b.minor )
-end operator
-
-dim names as Map( of Version_, ustring )
-dim as Version_ v1 = Version_( 1, 0 ), v2 = Version_( 2, 5 )
-dim as Version_ again = Version_( 1, 0 )
-
-names[ v1 ] = "first release"
-names[ v2 ] = "current"
-
-print "distinct keys: " & names.Count
-print "1.0 is still: " & names[ again ]
+print "temporary files: the "; TEMP_VAR; " variable"

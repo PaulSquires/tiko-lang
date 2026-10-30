@@ -1,15 +1,33 @@
-'' Exercise 23-2: when is the next booking at or after a given time?
-#import "std/containers"
+'' Exercise 22-2: fan-in. Two producers share one channel, and a
+'' WaitGroup decides when it is closed.
+#import "std/tasks"
+#cmdline "-mt"
 
-dim booked as containers.OrderedSet( of int32 ) = { 900, 1000, 1400 }
-dim asks( 0 to 2 ) as int32 = { 930, 1000, 1500 }
-dim as int32 nxt
-for each a in asks
-    if booked.Contains( a ) then
-        print a; " is booked"
-    elseif booked.TryCeiling( a, nxt ) then
-        print a; " is free until"; nxt
-    else
-        print a; " is free for the rest of the day"
-    end if
+sub Produce( byval first as int32, _
+             byval out_ as tasks.SendChan( of int32 ), _
+             byval wg as tasks.WaitGroup ptr )
+    for i as int32 = first to first + 2
+        out_.Send( i )
+    next
+    wg->Done( )
+end sub
+
+sub CloseAfter( byval wg as tasks.WaitGroup ptr, _
+                byval merged as tasks.Channel( of int32 ) )
+    wg->Wait( )
+    merged.Close( )
+end sub
+
+dim merged as tasks.Channel( of int32 ) = tasks.Channel( of int32 )( 0 )
+dim wg as tasks.WaitGroup
+wg.Add( 2 )
+spawn Produce( 1, merged, @wg )
+spawn Produce( 100, merged, @wg )
+spawn CloseAfter( @wg, merged )
+
+dim as int32 total = 0, count = 0
+for each v in merged
+    total += v
+    count += 1
 next
+print count; " values, total"; total

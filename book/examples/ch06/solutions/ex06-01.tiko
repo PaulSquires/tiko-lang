@@ -1,32 +1,13 @@
-'' ex06-01.tiko -- two answers out of one procedure, using byref.
-''
-'' A function returns one value. When a procedure has to report two,
-'' byref parameters are the tool this chapter gives you: the caller
-'' owns the variables, and the procedure writes into them.
-
-sub MinMax( byval a as int32, byval b as int32, byval c as int32, _
-            byref lo as int32, byref hi as int32 )
-    lo = a
-    if b < lo then lo = b
-    if c < lo then lo = c
-
-    hi = a
-    if b > hi then hi = b
-    if c > hi then hi = c
-end sub
-
-dim as int32 smallest, largest
-
-MinMax( 7, 2, 9, smallest, largest )
-print "7, 2, 9   -> lo ="; smallest; " hi ="; largest
-
-MinMax( 4, 4, 4, smallest, largest )
-print "4, 4, 4   -> lo ="; smallest; " hi ="; largest
-
-MinMax( -1, -8, -3, smallest, largest )
-print "-1, -8, -3 -> lo ="; smallest; " hi ="; largest
-
-'' The three value parameters are byval, so the caller's numbers are
-'' safe; the two report parameters are byref, so the writes get out.
-'' Leaving the keywords off would have given byval for all five, and
-'' smallest and largest would never change.
+'' ex06-01.tiko -- FizzBuzz. if/elseif is the natural shape here, because each
+'' test is a different question; select case suits one value against many.
+for i as int32 = 1 to 15
+    if ( i mod 15 ) = 0 then
+        print "FizzBuzz"
+    elseif ( i mod 3 ) = 0 then
+        print "Fizz"
+    elseif ( i mod 5 ) = 0 then
+        print "Buzz"
+    else
+        print i
+    end if
+next

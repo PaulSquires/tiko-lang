@@ -1,6 +1,4 @@
-'' clash.tiko -- two files, each with a sub called Init.
-sub Init( )
-    print "report ready"
-end sub
+#include once "headers/csv.ti"
+#include once "headers/ini.ti"
 
-Init( )
+print Parse( "a,b,c" )

@@ -1,32 +1,40 @@
-'' ex09-01.tiko -- a type laid out to match a fixed binary format.
-''
-'' A 16-byte record header: magic (4), version (2), flags (2),
-'' payload length (4), checksum (4). The spec says no padding, so the
-'' type must be packed -- and the program checks that the compiler
-'' agrees with the spec, instead of trusting it.
+'' ex09-01.tiko -- title-case a sentence, then check the answer
+'' against the one the standard library gives.
 
-type RecordHeader field = 1
-    magic    as uint32
-    version  as uint16
-    flags    as uint16
-    length   as uint32
-    checksum as uint32
-end type
+#import "std/strings"
 
-sub Expect( byref what as ustring, byval got as integer, _
-            byval want as integer )
-    dim as ustring verdict = "ok"
-    if got <> want then verdict = "WRONG"
-    print what; " ="; got; "  (spec says"; want; ")  "; verdict
-end sub
+function TitleCase( byref text as ustring ) as ustring
+    dim as ustring built = ""
+    dim as boolean atWordStart = true
 
-Expect( "sizeof          ", sizeof( RecordHeader ), 16 )
-Expect( "offset magic    ", offsetof( RecordHeader, magic ), 0 )
-Expect( "offset version  ", offsetof( RecordHeader, version ), 4 )
-Expect( "offset flags    ", offsetof( RecordHeader, flags ), 6 )
-Expect( "offset length   ", offsetof( RecordHeader, length ), 8 )
-Expect( "offset checksum ", offsetof( RecordHeader, checksum ), 12 )
+    for i as int32 = 1 to len( text )
+        dim as ustring ch = mid( text, i, 1 )
 
-'' This layout happens to need no padding even without field = 1,
-'' because every field already falls on a multiple of its own size.
-'' The field = 1 is there for the day someone inserts a uint8.
+        if ch = " " then
+            atWordStart = true
+            built &= ch
+        elseif atWordStart then
+            built &= ucase( ch )
+            atWordStart = false
+        else
+            built &= lcase( ch )
+        end if
+    next
+
+    return built
+end function
+
+dim as ustring cases( 1 to 4 ) = { "the quick brown fox", _
+                                   "ALL CAPS SHOUTING", _
+                                   "  leading and  double  spaces", _
+                                   "" }
+
+for i as int32 = lbound( cases ) to ubound( cases )
+    dim as ustring mine = TitleCase( cases( i ) )
+    dim as ustring theirs = strings.MCase( cases( i ) )
+    print "in    : ["; cases( i ); "]"
+    print "mine  : ["; mine; "]"
+    print "MCase : ["; theirs; "]"
+    print "agree : "; cbool( mine = theirs )
+    print
+next

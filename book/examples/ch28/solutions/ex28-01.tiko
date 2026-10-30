@@ -1,28 +1,35 @@
-'' Bind C's bsearch and find values in a sorted array.
-type Compare as function cdecl( byval a as const any ptr, _
-                                byval b as const any ptr ) as int32
+'' Total sales per region, largest first, from an in-memory table.
+#import "vendor/sqlite3"
 
-extern "C"
-    declare function bsearch( byval key as const any ptr, _
-                              byval base_ as const any ptr, _
-                              byval n as uinteger, _
-                              byval size as uinteger, _
-                              byval cmp as Compare ) as any ptr
-end extern
+dim db as sqlite3 ptr
+sqlite3_open( ":memory:", @db )
+sqlite3_exec( db, "create table sale( region text, amount integer )", _
+    nullptr, nullptr, nullptr )
 
-function ByValue cdecl( byval a as const any ptr, _
-                        byval b as const any ptr ) as int32
-    return *cptr( const int32 ptr, a ) - *cptr( const int32 ptr, b )
-end function
-
-dim primes( 0 to 7 ) as int32 = { 2, 3, 5, 7, 11, 13, 17, 19 }
-dim tests( ... ) as int32 = { 7, 8, 19, 1 }
-for i as int32 = 0 to ubound( tests )
-    dim as int32 ptr hit = bsearch( @tests( i ), @primes( 0 ), 8, _
-                                    sizeof( int32 ), @ByValue )
-    if hit <> nullptr then
-        print tests( i ); " found at index"; hit - @primes( 0 )
-    else
-        print tests( i ); " not found"
-    end if
+dim as string regions( ... ) = { "north", "south", "north", "east", _
+                                 "south", "north" }
+dim as int64 amounts( ... ) = { 120, 80, 45, 200, 30, 15 }
+dim ins as sqlite3_stmt ptr
+sqlite3_prepare_v2( db, "insert into sale values( ?, ? )", -1, @ins, _
+    nullptr )
+for i as int32 = 0 to ubound( regions )
+    sqlite3_bind_text( ins, 1, regions( i ), -1, SQLITE_TRANSIENT )
+    sqlite3_bind_int64( ins, 2, amounts( i ) )
+    sqlite3_step( ins )
+    sqlite3_reset( ins )
 next
+sqlite3_finalize( ins )
+
+dim sel as sqlite3_stmt ptr
+sqlite3_prepare_v2( db, "select region, sum( amount ) as total, " & _
+    "count(*) as n from sale group by region order by total desc", _
+    -1, @sel, nullptr )
+do while sqlite3_step( sel ) = SQLITE_ROW
+    dim as string region = _
+        *cast( zstring ptr, sqlite3_column_text( sel, 0 ) )
+    print left( region & space( 8 ), 8 ); _
+          sqlite3_column_int64( sel, 1 ); _
+          " in"; sqlite3_column_int64( sel, 2 ); " sales"
+loop
+sqlite3_finalize( sel )
+sqlite3_close( db )

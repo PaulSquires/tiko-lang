@@ -1,28 +1,15 @@
-#import "std/fs"
+'' Exercise 23-2: when is the next booking at or after a given time?
+#import "std/containers"
 
-'' Exercise 24-2: sell stock, refusing to go below zero.
-type Item
-    id as int32
-    qty as int32
-end type
-
-function Sell( byref stock as fs.RecordFile( of Item ), byval rec as int32, _
-               byval n as int32 ) as boolean
-    dim it as Item
-    var got = stock.GetRecord( rec, it )
-    if got.ValueOr( false ) = false then return false   '' failed, or no record
-    if it.qty < n then return false
-    it.qty -= n
-    return stock.PutRecord( rec, it ).IsOk( )
-end function
-
-dim stock as fs.RecordFile( of Item )
-stock.Open( "ex.dat" )
-dim it as Item
-it.id = 1 : it.qty = 5
-stock.Append( it )
-print Sell( stock, 1, 3 ); Sell( stock, 1, 3 ); Sell( stock, 2, 1 )
-stock.GetRecord( 1, it )
-print "left:"; it.qty
-stock.Close( )
-fs.RemoveFile( "ex.dat" )
+dim booked as containers.OrderedSet( of int32 ) = { 900, 1000, 1400 }
+dim asks( 0 to 2 ) as int32 = { 930, 1000, 1500 }
+dim as int32 nxt
+for each a in asks
+    if booked.Contains( a ) then
+        print a; " is booked"
+    elseif booked.TryCeiling( a, nxt ) then
+        print a; " is free until"; nxt
+    else
+        print a; " is free for the rest of the day"
+    end if
+next

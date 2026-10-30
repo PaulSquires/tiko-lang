@@ -1,34 +1,42 @@
-'' Exercise 34-2: a quick-entry line, "date;payee;category;amount",
-'' checked by the same ParseTxn the import and the form use.
-#import "../ledger"
-#import "../ui"
+'' Exercise 33-2: two walkers, one per directory, feeding one channel.
+'' Neither walker closes it: a third goroutine, CloseWhenDone, waits on
+'' the WaitGroup until both have finished, and then closes it.
+#import "std/tasks"
+#cmdline "-mt"
+#import "std/fs"
+#import "std/containers"
 
-function QuickEntry( byref line_ as ustring, byref t as ledger.Txn ) _
-                     as ustring
-    dim as ustring f( 0 to 3 )
-    dim as int32 at_ = 1
-    for k as int32 = 0 to 3
-        dim as int32 semi = instr( at_, line_, ";" )
-        if k = 3 then semi = len( line_ ) + 1
-        if semi = 0 then return "expected four fields"
-        f( k ) = mid( line_, at_, semi - at_ )
-        at_ = semi + 1
+sub Walk( byval root as ustring, _
+          byval paths as tasks.SendChan( of ustring ), _
+          byval wg as tasks.WaitGroup ptr )
+    for each r in fs.WalkDir( root )
+        if r.IsOk( ) andalso r.Value( ).IsFile( ) then
+            paths.Send( r.Value( ).Name( ) )
+        end if
     next
-    if instr( f( 3 ), ";" ) > 0 then return "expected four fields"
-    return ledger.ParseTxn( f( 0 ), f( 1 ), f( 2 ), f( 3 ), t )
-end function
+    wg->Done( )
+end sub
 
-dim as ustring tries( ... ) = { "2026-04-02;Corner Cafe;Food;-4.75", _
-                                "2026-04-02;Corner Cafe", _
-                                "2026-04-02;Corner Cafe;food;-4.75;x", _
-                                "2026-04-02;Corner Cafe;food;4,75" }
-for i as int32 = 0 to ubound( tries )
-    dim t as ledger.Txn
-    var why = QuickEntry( tries( i ), t )
-    if len( why ) > 0 then
-        print "refused: "; why
-    else
-        print t.day.ToIsoString( ); " "; t.payee; _
-              " ("; t.category; ")"; ui.MoneyCell( t.amount, 9 )
-    end if
+sub CloseWhenDone( byval wg as tasks.WaitGroup ptr, _
+                   byval paths as tasks.Channel( of ustring ) )
+    wg->Wait( )
+    paths.Close( )
+end sub
+
+var paths = tasks.Channel( of ustring )( 4 )
+dim wg as tasks.WaitGroup
+wg.Add( )
+spawn Walk( "../sample/docs", paths, @wg )
+wg.Add( )
+spawn Walk( "../sample/photos", paths, @wg )
+spawn CloseWhenDone( @wg, paths )
+
+'' The two walkers interleave, so sort before printing.
+dim names as containers.Array( of ustring )
+for each p in paths
+    names.Push( p )
+next
+containers.Sort( names )
+for each n in names
+    print n
 next

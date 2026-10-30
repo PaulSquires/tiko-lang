@@ -1,24 +1,36 @@
-#import "std/outcome"
+'' ex17-01.tiko -- a generic Queue, first in first out.
+type Queue( of T )
+    public:
+        declare sub Enqueue( byval item as T )
+        declare function Dequeue( ) as T
+        declare property Count( ) as int32
+    private:
+        as T items( any )
+        as int32 head_, count_
+end type
 
-'' A whole number, written as digits with an optional leading minus.
-function ToInt( byval s as ustring ) as outcome.Optional( of int32 )
-    var t = trim( s )
-    var first = iif( left( t, 1 ) = "-", 2, 1 )
-    if len( t ) < first then return outcome.None( of int32 )( )
-    for i as int32 = first to len( t )
-        var c = mid( t, i, 1 )
-        if ( c < "0" ) orelse ( c > "9" ) then
-            return outcome.None( of int32 )( )
-        end if
-    next
-    return outcome.Some( of int32 )( valint( t ) )
+sub Queue( of T ).Enqueue( byval item as T )
+    if this.head_ + this.count_ > ubound( this.items ) then
+        redim preserve this.items( ( this.head_ + this.count_ ) * 2 + 3 )
+    end if
+    this.items( this.head_ + this.count_ ) = item
+    this.count_ += 1
+end sub
+
+function Queue( of T ).Dequeue( ) as T
+    dim as T item = this.items( this.head_ )
+    this.head_ += 1
+    this.count_ -= 1
+    return item
 end function
 
-dim entries( 0 to 5 ) as ustring = _
-    { "12", "x", " 30 ", "-4", "", "7a" }
-dim as int32 total = 0, refused = 0
-for each e as ustring in entries
-    var n = ToInt( e )
-    if n.HasValue( ) then total += n.Value( ) else refused += 1
-next
-print "total:"; total; ", refused:"; refused
+property Queue( of T ).Count( ) as int32
+    return this.count_
+end property
+
+dim q as Queue( of ustring )
+q.Enqueue( "one" )
+q.Enqueue( "two" )
+print q.Dequeue( )
+print q.Dequeue( )
+print "count: " & q.Count

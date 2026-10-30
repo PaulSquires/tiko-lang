@@ -1,7 +1,6 @@
-  grew to 4
-  grew to 8
-  grew to 16
-  grew to 32
-count 20, capacity 32
-first 3, last 60
-released: items is null: true
+sizeof           = 16  (spec says 16)  ok
+offset magic     = 0  (spec says 0)  ok
+offset version   = 4  (spec says 4)  ok
+offset flags     = 6  (spec says 6)  ok
+offset length    = 8  (spec says 8)  ok
+offset checksum  = 12  (spec says 12)  ok

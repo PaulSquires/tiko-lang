@@ -1,35 +1,45 @@
-'' ex13-02.tiko -- a plugin that counts, owned and deleted by its host.
+'' ex13-02.tiko -- a counter that runs downwards.
+''
+'' The for protocol does not assume a direction: next decides whether
+'' to continue, so a type that counts down simply tests the other way.
 
-type Plugin extends Object
-    declare abstract function Name( ) as ustring
-    declare abstract function Apply( byref text as ustring ) as ustring
-    declare virtual destructor( )
+type Countdown
+    declare constructor( byval n as int32 )
+    declare operator for( )
+    declare operator step( )
+    declare operator next( byref last as Countdown ) as integer
+    declare operator cast( ) as string
+    value as int32
 end type
 
-destructor Plugin( )
-end destructor
+constructor Countdown( byval n as int32 )
+    value = n
+end constructor
 
-type Counter extends Plugin
-    declare destructor( )
-    declare function Name( ) as ustring override
-    declare function Apply( byref text as ustring ) as ustring override
-    calls as int32
-end type
+operator Countdown.for( )
+end operator
 
-destructor Counter( )
-    print "  counter destroyed after"; calls; " calls"
-end destructor
+operator Countdown.step( )
+    value -= 1
+end operator
 
-function Counter.Name( ) as ustring
-    return "counter"
-end function
+operator Countdown.next( byref last as Countdown ) as integer
+    return value >= last.value
+end operator
 
-function Counter.Apply( byref text as ustring ) as ustring
-    calls += 1
-    return text & " (" & len( text ) & ")"
-end function
+operator Countdown.cast( ) as string
+    if value = 0 then return "liftoff"
+    return str( value )
+end operator
 
-dim as Plugin ptr p = new Counter
-print p->Apply( "one" )
-print p->Apply( "three" )
-delete p               '' through Plugin ptr: Counter's destructor runs
+for t as Countdown = Countdown( 5 ) to Countdown( 0 )
+    print t; " ";
+next
+print
+
+'' A range that starts below its end runs zero times, as for does.
+dim as int32 passes = 0
+for t as Countdown = Countdown( 0 ) to Countdown( 3 )
+    passes += 1
+next
+print "passes from 0 down to 3:"; passes

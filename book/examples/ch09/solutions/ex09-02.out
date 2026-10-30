@@ -1,3 +1,6 @@
-Careless: 40 bytes
-Careful:  24 bytes
-a million of each would take 40000000 vs 24000000 bytes
+key = [host]  value = [example.org]
+key = [port]  value = [8080]
+(blank line skipped)
+key = [motto]  value = [live = learn]
+no '=' in [nokeyhere] -- skipped
+key = [empty]  value = []

@@ -4,7 +4,7 @@
 
 > 📘 **Start with:** [Using C Libraries](Using-C-Libraries-Tutorial), the ideas these steps rely on.
 >
-> 📖 **In the book:** [Chapter 29, SQLite](https://tiko-lang.net/book/ch29-c-libraries.html#sqlite). Measured with SQLite 3.54.0 and tiko, on Windows and Linux.
+> 📖 **In the book:** [Chapter 30, SQLite](https://tiko-lang.net/book/ch30-c-libraries.html#sqlite). Measured with SQLite 3.54.0 and tiko, on Windows and Linux.
 
 [SQLite](https://sqlite.org) is a complete SQL database in a library. There is no server, and a database is one ordinary file. This tutorial uses SQLite's own C interface from tiko, linked dynamically and statically, kept inside a project or installed for the whole machine.
 

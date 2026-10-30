@@ -1,38 +1,38 @@
-'' ex08-02.tiko -- read a key=value block, one pair per line.
+'' ex08-02.tiko -- transpose a matrix into a second array.
 ''
-'' The work is all in deciding where a line ends and where the first
-'' '=' is. Splitting on '=' would be wrong: a value may contain one,
-'' so the key is everything before the FIRST separator and the value
-'' is everything after it, however many more there are.
+'' The transposed array's dimensions are the original's, swapped, so
+'' its bounds come from ubound( m, 2 ) and ubound( m, 1 ) -- reversed.
+'' Writing them out by hand is how a transpose gets subtly wrong.
 
-#import "std/strings"
+sub Show( byref label as ustring, m( , ) as int32 )
+    print label
+    for r as int32 = lbound( m, 1 ) to ubound( m, 1 )
+        print "  ";
+        for c as int32 = lbound( m, 2 ) to ubound( m, 2 )
+            print m( r, c );
+        next
+        print
+    next
+end sub
 
-dim as ustring config = _
-    "host = example.org" & chr( 10 ) & _
-    "port=8080" & chr( 10 ) & _
-    "  " & chr( 10 ) & _
-    "motto = live = learn" & chr( 10 ) & _
-    "nokeyhere" & chr( 10 ) & _
-    "empty ="
-
-var lines = strings.Split( config, chr( 10 ) )
-
-for i as int32 = 0 to lines.Count( ) - 1
-    dim as ustring line_ = trim( lines[ i ] )
-
-    if len( line_ ) = 0 then
-        print "(blank line skipped)"
-        continue for
-    end if
-
-    dim as int32 at = instr( line_, "=" )
-    if at = 0 then
-        print "no '=' in ["; line_; "] -- skipped"
-        continue for
-    end if
-
-    dim as ustring key = trim( left( line_, at - 1 ) )
-    dim as ustring value = trim( mid( line_, at + 1 ) )
-
-    print "key = ["; key; "]  value = ["; value; "]"
+dim as int32 m( 1 to 2, 1 to 3 )
+dim as int32 n = 1
+for r as int32 = 1 to 2
+    for c as int32 = 1 to 3
+        m( r, c ) = n
+        n += 1
+    next
 next
+
+dim as int32 t( )
+redim t( lbound( m, 2 ) to ubound( m, 2 ), _
+         lbound( m, 1 ) to ubound( m, 1 ) )
+
+for r as int32 = lbound( m, 1 ) to ubound( m, 1 )
+    for c as int32 = lbound( m, 2 ) to ubound( m, 2 )
+        t( c, r ) = m( r, c )
+    next
+next
+
+Show( "original (2 rows, 3 columns):", m( ) )
+Show( "transposed (3 rows, 2 columns):", t( ) )

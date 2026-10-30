@@ -49,52 +49,53 @@ parts:
   - name: "Basics"
     chapters:
       - { n: 1,  file: chapters/01-getting-started.md,   status: drafted }
-      - { n: 2,  file: src/ch02-a-tour-of-tiko.md,       status: drafted }
-      - { n: 3,  file: src/ch03-types-variables.md,      status: drafted }
-      - { n: 4,  file: src/ch04-operators.md,            status: drafted }
-      - { n: 5,  file: src/ch05-control-flow.md,         status: drafted }
-      - { n: 6,  file: src/ch06-procedures.md,          status: drafted }
-      - { n: 7,  file: src/ch07-arrays.md,               status: drafted }
-      - { n: 8,  file: src/ch08-strings-and-text.md,    status: drafted }
+      - { n: 2,  file: src/ch02-editors.md,              status: drafted }
+      - { n: 3,  file: src/ch03-a-tour-of-tiko.md,       status: drafted }
+      - { n: 4,  file: src/ch04-types-variables.md,      status: drafted }
+      - { n: 5,  file: src/ch05-operators.md,            status: drafted }
+      - { n: 6,  file: src/ch06-control-flow.md,         status: drafted }
+      - { n: 7,  file: src/ch07-procedures.md,          status: drafted }
+      - { n: 8,  file: src/ch08-arrays.md,               status: drafted }
+      - { n: 9,  file: src/ch09-strings-and-text.md,    status: drafted }
   - name: "Building Abstractions"
     chapters:
-      - { n: 9,  file: src/ch09-user-defined-types.md,   status: drafted }
-      - { n: 10, file: src/ch10-pointers-memory.md,       status: drafted }
-      - { n: 11, file: src/ch11-objects.md,               status: drafted }
-      - { n: 12, file: src/ch12-operator-overloading.md,  status: drafted }
-      - { n: 13, file: src/ch13-inheritance.md,            status: drafted }
-      - { n: 14, file: src/ch14-modules-packages.md,      status: drafted }
-      - { n: 15, file: src/ch15-namespaces-preprocessor.md, status: drafted }
-      - { n: 16, file: src/ch16-generics.md,              status: drafted }
-      - { n: 17, file: src/ch17-errors.md,               status: drafted }
-      - { n: 18, file: src/ch18-testing-debugging.md,     status: drafted }
+      - { n: 10,  file: src/ch10-user-defined-types.md,   status: drafted }
+      - { n: 11, file: src/ch11-pointers-memory.md,       status: drafted }
+      - { n: 12, file: src/ch12-objects.md,               status: drafted }
+      - { n: 13, file: src/ch13-operator-overloading.md,  status: drafted }
+      - { n: 14, file: src/ch14-inheritance.md,            status: drafted }
+      - { n: 15, file: src/ch15-modules-packages.md,      status: drafted }
+      - { n: 16, file: src/ch16-namespaces-preprocessor.md, status: drafted }
+      - { n: 17, file: src/ch17-generics.md,              status: drafted }
+      - { n: 18, file: src/ch18-errors.md,               status: drafted }
+      - { n: 19, file: src/ch19-testing-debugging.md,     status: drafted }
   - name: "Advanced Language"
     chapters:
-      - { n: 19, file: src/ch19-tuples-iterators.md,     status: drafted }
-      - { n: 20, file: src/ch20-lambdas-closures.md,      status: drafted }
-      - { n: 21, file: src/ch21-resource-management.md,  status: drafted }
-      - { n: 22, file: src/ch22-concurrency.md,          status: drafted }
+      - { n: 20, file: src/ch20-tuples-iterators.md,     status: drafted }
+      - { n: 21, file: src/ch21-lambdas-closures.md,      status: drafted }
+      - { n: 22, file: src/ch22-resource-management.md,  status: drafted }
+      - { n: 23, file: src/ch23-concurrency.md,          status: drafted }
   - name: "The Standard Library"
     chapters:
-      - { n: 23, file: src/ch23-containers.md,           status: drafted }
-      - { n: 24, file: src/ch24-files-processes.md,     status: drafted }
-      - { n: 25, file: src/ch25-dates-times.md,         status: drafted }
-      - { n: 26, file: src/ch26-numbers.md,             status: drafted }
-      - { n: 27, file: src/ch27-logging-tui-sqlite.md,  status: drafted }
+      - { n: 24, file: src/ch24-containers.md,           status: drafted }
+      - { n: 25, file: src/ch25-files-processes.md,     status: drafted }
+      - { n: 26, file: src/ch26-dates-times.md,         status: drafted }
+      - { n: 27, file: src/ch27-numbers.md,             status: drafted }
+      - { n: 28, file: src/ch28-logging-tui-sqlite.md,  status: drafted }
   - name: "Systems Programming"
     chapters:
-      - { n: 28, file: src/ch28-interfacing-c.md,       status: drafted }
-      - { n: 29, file: src/ch29-c-libraries.md,         status: drafted }
-      - { n: 30, file: src/ch30-building-shipping.md,   status: drafted }
+      - { n: 29, file: src/ch29-interfacing-c.md,       status: drafted }
+      - { n: 30, file: src/ch30-c-libraries.md,         status: drafted }
+      - { n: 31, file: src/ch31-building-shipping.md,   status: drafted }
   - name: "Legacy"
     chapters:
-      - { n: 31, file: src/ch31-classic-basic.md,       status: drafted }
+      - { n: 32, file: src/ch32-classic-basic.md,       status: drafted }
   - name: "Projects"
     chapters:
-      - { n: 32, file: src/ch32-tsearch.md,             status: drafted }
-      - { n: 33, file: src/ch33-thash.md,               status: drafted }
-      - { n: 34, file: src/ch34-tledger.md,             status: drafted }
-      - { n: 35, file: src/ch35-tpad.md,                status: drafted }
+      - { n: 33, file: src/ch33-tsearch.md,             status: drafted }
+      - { n: 34, file: src/ch34-thash.md,               status: drafted }
+      - { n: 35, file: src/ch35-tledger.md,             status: drafted }
+      - { n: 36, file: src/ch36-tpad.md,                status: drafted }
 
 appendices:
   - { id: A, file: src/appendix-A-keywords.md,   status: generated, generated: true }

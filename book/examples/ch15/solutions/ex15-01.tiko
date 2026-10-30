@@ -1,16 +1,6 @@
-'' ex15-01.tiko -- CUBE, and an argument with a side effect.
-#define CUBE( x ) ( ( x ) * ( x ) * ( x ) )
+#import "./temp"
 
-function NextTwo( ) as int32
-    static as int32 calls = 0
-    calls += 1
-    print "NextTwo called:"; calls
-    return 2
-end function
-
-print "CUBE( 1 + 1 ) ="; CUBE( 1 + 1 )
-print "100 \ CUBE( 2 ) ="; 100 \ CUBE( 2 )
-
-'' The argument is pasted in three times, so it runs three times.
-var c = CUBE( NextTwo( ) )
-print "CUBE( NextTwo( ) ) ="; c
+print "Celsius, Fahrenheit, and back again:"
+for c as int32 = -10 to 30 step 10
+    print c, temp.CToF( c ), temp.FToC( temp.CToF( c ) )
+next

@@ -4,7 +4,7 @@
 
 > 📘 **Start with:** [Using C Libraries](Using-C-Libraries-Tutorial), the ideas these steps rely on.
 >
-> 📖 **In the book:** [Chapter 29, SDL3](https://tiko-lang.net/book/ch29-c-libraries.html#sdl3). Measured with SDL 3.4.18, on Windows and Linux.
+> 📖 **In the book:** [Chapter 30, SDL3](https://tiko-lang.net/book/ch30-c-libraries.html#sdl3). Measured with SDL 3.4.18, on Windows and Linux.
 
 [SDL](https://libsdl.org), the *Simple DirectMedia Layer*, is the broadest of the common game libraries. It covers windows, a 2D renderer, a GPU interface, audio, gamepads, cameras, file dialogs, threads and timers, on desktop and mobile alike. SDL3 is its current version.
 

@@ -1,12 +1,21 @@
-#import "std/money"
+#import "std/chrono"
 
-'' 1000.00 at 4% a year, interest credited and rounded to cents yearly.
-var balance = money.DecimalParse( "1000.00" ).Value( )
-var rate = money.DecimalParse( "0.04" ).Value( )
-for year as int32 = 1 to 10
-    var interest = ( balance * rate ).Round( 2 )
-    balance = balance + interest
-    print "year"; right( space( 3 ) & year, 3 ); "  interest "; _
-          right( space( 6 ) & interest.ToStringFixed( 2 ), 6 ); _
-          "  balance "; balance.ToStringFixed( 2 )
-next
+'' Working days from 'first' up to, not including, 'last'.
+function WorkingDays( byval first as chrono.LocalDate, _
+                      byval last as chrono.LocalDate ) as int32
+    dim as int32 count = 0
+    var d = first
+    do while d < last
+        if d.DayOfWeek( ) <= 5 then count += 1
+        d = d.AddDays( 1 )
+    loop
+    return count
+end function
+
+var a = chrono.LocalDate( 2025, 3, 3 )
+print "one week: "; WorkingDays( a, a.AddDays( 7 ) )
+print "March:    "; WorkingDays( chrono.LocalDate( 2025, 3, 1 ), _
+                                   chrono.LocalDate( 2025, 4, 1 ) )
+print "2025:     "; WorkingDays( chrono.LocalDate( 2025, 1, 1 ), _
+                                   chrono.LocalDate( 2026, 1, 1 ) )
+print "same day: "; WorkingDays( a, a )

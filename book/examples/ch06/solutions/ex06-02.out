@@ -1,5 +1,9 @@
-int32:    42
-float64:  2.5
-ustring: text
-int32:    7
-int32:    5
+guard around the defer:
+    acquired
+    released
+  work happens here, already released
+
+guard before the defer:
+    acquired
+  work happens here, still held
+    released
