@@ -43,7 +43,17 @@
    carries the header to every importer (its libc declares name these types), and there a
    bare 'const O_RDONLY' would forbid crt.bi's '#define O_RDONLY' (TKO0371) -- a qualified
    posix.O_RDONLY does not (pkg/sys/posix/posix.ti says more). Constants are untyped, as the
-   hand-written ones they replace were, so an expression using one keeps the type it had. */
+   hand-written ones they replace were, so an expression using one keeps the type it had.
+
+   A CONSTANT WHOSE NAME IS ALREADY A MACRO is declared between '#pragma push_macro' and
+   'pop_macro'. An importer that read a crt header first -- itself, or through vendor/SDL3's
+   interface -- has '#define SEEK_SET 0', and a std module's interface, replaying this header
+   there, read 'const 0 = 0' (TKO0406). Now the macro is set aside for the one declaration,
+   posix.SEEK_SET exists in every importer -- an interface's own constants name it -- and the
+   importer's SEEK_SET is its own again on the next line (src/pp/pppushmacro.tiko). The
+   '#ifdef' keeps the pragmas out of every compile where the name is no macro: the module's
+   own, tiko-rt's, tiko's -- and so out of the seed, which predates them. Types and fields
+   need nothing: no crt macro has their names. */
 
 #if defined( __linux__ )
 #define _GNU_SOURCE 1
@@ -66,15 +76,20 @@
     unsigned char: 1, unsigned short: 1, unsigned int: 1, unsigned long: 1, \
     unsigned long long: 1, default: 0 )
 
+/* A constant whose name the reader holds as a macro is declared between push_macro and
+   pop_macro (above); one whose name is no macro is the plain '#else' line. */
 static void put_value( const char *name, int is_unsigned, long long sv, unsigned long long uv )
 {
-    printf( "const %s = ", name );
+    char v[32];
     if( is_unsigned ) {
-        if( uv <= 0x7FFFFFFFull ) printf( "%llu\n", uv );
-        else                      printf( "&h%llX\n", uv );
+        if( uv <= 0x7FFFFFFFull ) snprintf( v, sizeof v, "%llu", uv );
+        else                      snprintf( v, sizeof v, "&h%llX", uv );
     } else {
-        printf( "%lld\n", sv );
+        snprintf( v, sizeof v, "%lld", sv );
     }
+    printf( "#ifdef %s\n#pragma push_macro( \"%s\" )\n#undef %s\nconst %s = %s\n"
+            "#pragma pop_macro( \"%s\" )\n#else\nconst %s = %s\n#endif\n",
+            name, name, name, name, v, name, name, v );
 }
 
 #define CONST_AS( FB, X ) \

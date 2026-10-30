@@ -1,0 +1,7 @@
+'' crt's macros arrive first (crtpub), then std/fs and std/net, whose interfaces replay the
+'' posix binding: its constants of the same names must not be macro-expanded there.
+#import "crtpub"
+#import "std/fs"
+#import "std/net"
+'' The importer's macros are still its own afterwards.
+print fs.Exists( "." ), SEEK_END, CLOCKS_PER_SEC, crtpub.CrtPubReady

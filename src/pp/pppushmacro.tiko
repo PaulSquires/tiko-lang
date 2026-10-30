@@ -1,0 +1,97 @@
+'' pppushmacro.tiko -- '#pragma push_macro( "NAME" )' and '#pragma pop_macro( "NAME" )': save
+'' a macro as it stands and put it back. #included by directive.tiko.
+''
+'' fbc has neither. The C compilers do (MSVC, GCC, clang), and these are their meanings:
+''
+''     push_macro( "X" )    X's definition -- or that it has none -- goes on a stack; X is
+''                          unchanged
+''     pop_macro( "X" )     the last one pushed for X comes back: defined as it was, or
+''                          undefined
+''     pop_macro( "X" )     with nothing pushed for X: TKO0318
+''
+'' The name may also be written bare, 'push_macro( X )': it is never expanded.
+''
+'' WHY TIKO HAS THEM: a header that has to declare a name its reader may hold as a macro.
+'' sys/posix's binding is read again in every importer of a std module -- the module's
+'' interface replays it -- and an importer that read crt/stdio.bi first, itself or through
+'' vendor/SDL3, has '#define SEEK_SET 0', so 'const SEEK_SET = 0' read 'const 0 = 0'
+'' (TKO0406). build/posixgen.c writes every constant as
+''
+''     #pragma push_macro( "SEEK_SET" )
+''     #undef SEEK_SET
+''     const SEEK_SET = 0
+''     #pragma pop_macro( "SEEK_SET" )
+''
+'' and posix.SEEK_SET is declared while the reader's macro is its own again on the next line.
+''
+'' THE RESTORE IS EXACT: the macro comes back as it was saved, with the location it was
+'' defined at, and without the checks a '#define' makes (TKO0305, TKO0371). So a module
+'' header's hermetic region (ppmodhdr.tiko) finds nothing of its own to park.
+
+'' The NAME of '( "NAME" )' or '( NAME )', interned as an identifier is; INTERN_NONE, and
+'' TKO0316, when the line has neither.
+private function PragmaMacroName_ _
+    ( byref e as PpEngine, byval at as SourceLoc, byref verb as string ) as InternId
+    dim as InternId id = INTERN_NONE
+    dim as Token t
+    if PeekOnLine( e, t ) andalso (Tk( t ) = TK_LPAREN) then
+        Advance( e )
+        if PeekOnLine( e, t ) then
+            if Tk( t ) = TK_STRING_LIT then
+                dim as string s = SpellOf( e, t )
+                dim as int32 a = instr( s, """" )
+                dim as int32 b = instrrev( s, """" )
+                if b > a + 1 then id = e.names->GetString( Text.LowerAscii( mid( s, a + 1, b - a - 1 ) ) )
+            elseif Tk( t ) = TK_IDENT then
+                id = cast( InternId, t.literal )
+            end if
+        end if
+    end if
+    if id = INTERN_NONE then Report( e, TKO0316, at, "pragma " & verb )
+    return id
+end function
+
+'' '#pragma push_macro': the macro as it stands -- isDefined false for none -- on the stack.
+private sub PpPushMacro( byref e as PpEngine, byval at as SourceLoc )
+    dim as InternId id = PragmaMacroName_( e, at, "push_macro" )
+    if id = INTERN_NONE then return
+    dim as PpMacro saved
+    dim as PpMacro ptr m = MacroFor( e, id )
+    if m <> nullptr then saved = *m
+    saved.name = id
+    e.pushedMacs.names.Push( cast( uint32, id ) )
+    e.pushedMacs.macs.Push( saved )
+end sub
+
+'' '#pragma pop_macro': the innermost entry for the name comes back. Shifted down rather
+'' than popped, because it is not always the stack's top -- two names can interleave.
+private sub PpPopMacro( byref e as PpEngine, byval at as SourceLoc )
+    dim as InternId id = PragmaMacroName_( e, at, "pop_macro" )
+    if id = INTERN_NONE then return
+    dim as int32 k = e.pushedMacs.names.Count - 1
+    while (k >= 0) andalso (cast( InternId, e.pushedMacs.names[k] ) <> id)
+        k -= 1
+    wend
+    if k < 0 then
+        Report( e, TKO0318, at, "pop_macro( """ & e.names->Spelling( id ) & """ )" )
+        return
+    end if
+    dim as PpMacro saved = e.pushedMacs.macs[k]
+    for i as int32 = k to e.pushedMacs.names.Count - 2
+        e.pushedMacs.names[i] = e.pushedMacs.names[i + 1]
+        e.pushedMacs.macs[i] = e.pushedMacs.macs[i + 1]
+    next
+    e.pushedMacs.names.Pop( )
+    e.pushedMacs.macs.Pop( )
+
+    dim as PpMacro ptr m = MacroFor( e, id )
+    if saved.isDefined = false then
+        if m <> nullptr then PpModJournal( e, m ) : m->isDefined = false
+        return
+    end if
+    '' Defined when it was pushed, so it has a slot: #undef keeps one.
+    dim as int32 slot = SlotOf( e, id )
+    if slot = 0 then return
+    PpModJournal( e, @e.macros[slot - 1] )
+    e.macros[slot - 1] = saved
+end sub

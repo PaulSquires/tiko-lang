@@ -233,6 +233,7 @@ type PpEngine
     as int32                   optionValue( 0 to 1 )
     as int32                   optionDepth( 0 to 1 )
     as int32                   optionStack( 0 to (2 * PP_OPTION_STACK_MAX) - 1 )
+    as PpPushedMacros          pushedMacs    '' '#pragma push_macro' / 'pop_macro'
     as PpModState             modst         '' '#module' / '#import' / '#export': ppmodule.tiko
     as PpIndexes              ix            '' lookup indexes beside the lists above: ppindex.tiko
 end type

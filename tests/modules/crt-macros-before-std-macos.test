@@ -1,0 +1,13 @@
+'' CRT'S MACROS BEFORE A STD MODULE, macos-arm64: a module whose interface carries crt/stdio.bi,
+'' errno.bi, fcntl.bi, time.bi and locale.bi -- as vendor/SDL3's does -- is imported before
+'' std/fs and std/net. Their interfaces replay sys/posix's binding, whose constants share those
+'' macros' names; each is '#ifndef' guarded (build/posixgen.c), so 'const SEEK_SET = 0' is not
+'' read as 'const 0 = 0' (TKO0406). Compile only.
+'' TEST: cli
+'' ENV: TKO_PKG=pkg
+'' ENV: TKO_MODCACHE=build/.crtfirst-macos/mc
+'' CLEAN: build/.crtfirst-macos
+'' ARGS: -target macos-arm64 -c -i tests/modules/src/crtfirst/libs tests/modules/src/crtfirst/app/main.tiko -o build/.crtfirst-macos/main.o
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0
+'' EXPECT-FILE: build/.crtfirst-macos/main.o

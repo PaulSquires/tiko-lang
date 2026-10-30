@@ -127,6 +127,13 @@ namespace Tko
 
     type MacroVec as containers.Array( of PpMacro )
 
+    '' '#pragma push_macro' / 'pop_macro' (pppushmacro.tiko): each push, innermost last -- the
+    '' name, and its macro as it stood then, isDefined false for none.
+    type PpPushedMacros
+        as IdVec    names
+        as MacroVec macs
+    end type
+
     '' ONE '#import' LINE, as the preprocessor read it (ADR 0017; RFC-0001). The form is
     '' checked here -- quoting, '/' separators, segments, 'as', 'public'. Where the path
     '' leads is the driver's question (src/driver/modresolve.tiko), because it needs the

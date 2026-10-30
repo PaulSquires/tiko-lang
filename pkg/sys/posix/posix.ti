@@ -30,6 +30,12 @@
 '' everyone, which no macro of crt.bi collides with, and the including module says
 '' 'using posix' to write it bare.
 ''
+'' AN IMPORTER WITH crt's MACROS ALREADY -- it read a crt header first, itself or through
+'' vendor/SDL3's interface -- reads this header with '#define SEEK_SET 0' in force. So a
+'' constant whose name is a macro there is declared between '#pragma push_macro' and
+'' 'pop_macro' (build/posixgen.c): posix.SEEK_SET exists, which the std interfaces' own
+'' constants name, and the importer's macro is its own again after it.
+''
 '' NAMES ARE C's. A constant keeps its macro's name (O_CREAT, EINTR, TIOCGWINSZ); a struct is
 '' struct_<tag> (struct_stat), so it can never collide with the C function of the same name
 '' -- stat(), sigaction(), flock() -- in tiko's case-insensitive namespace; a C typedef keeps

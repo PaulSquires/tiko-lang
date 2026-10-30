@@ -77,6 +77,7 @@ private function PpAlreadyOnce( byref e as PpEngine, byval file as FileId ) as b
 end function
 
 #include once "pp/ppforeignlib.tiko"
+#include once "pp/pppushmacro.tiko"
 
 '' A module's public headers (ppmodhdr.tiko, included by ppmodule.tiko after this file).
 declare sub PpModMarkPublic _
@@ -768,6 +769,12 @@ private sub PpDirective( byref e as PpEngine, byref hashTok as Token )
         select case opt
         case "private", "profile"
             PragmaOption( e, at, opt, isPush, isPop )
+            SkipToEol( e )
+        case "push_macro"
+            PpPushMacro( e, at )
+            SkipToEol( e )
+        case "pop_macro"
+            PpPopMacro( e, at )
             SkipToEol( e )
         case "reserve"
             '' '#pragma reserve [ ( asm [, extern] ) ] name'. Only the two options exist;

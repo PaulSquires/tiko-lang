@@ -62,6 +62,7 @@ src/parser/parser.tiko parser/typeref.tiko
 src/parser/parser.tiko parser/undef.tiko
 src/pp/directive.tiko pp/ppdefines.tiko
 src/pp/directive.tiko pp/ppforeignlib.tiko
+src/pp/directive.tiko pp/pppushmacro.tiko
 src/pp/macro.tiko pp/macrobare.tiko
 src/pp/macro.tiko pp/macrobuiltin.tiko
 src/pp/pp.tiko pp/directive.tiko

@@ -1,0 +1,6 @@
+'' '#pragma pop_macro' with nothing pushed for that name: TKO0318.
+'' TEST: cli
+'' ARGS: --pp-only tests/pp/src/pragma-pop-macro-empty.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: TKO0318
+'' EXPECT-OUT: pop_macro( "b" )

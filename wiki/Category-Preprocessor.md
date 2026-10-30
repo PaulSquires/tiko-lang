@@ -20,6 +20,7 @@
 - [#line](procedures-Line)
 - [#Macro...#Endmacro](Macro-Endmacro)
 - [#pragma](Pragma)
+- [#pragma push_macro / pop_macro](Pragma-Push-Macro)
 - [#Pragma Reserve](Pragma-Reserve)
 - [#print](freebasic-Print)
 - [#undef](Undef)

@@ -1,0 +1,7 @@
+'' '#pragma push_macro' / 'pop_macro' (src/pp/pppushmacro.tiko): save a macro, put it back.
+'' fbc has neither; the meanings are the C compilers'. The source asserts with '#error', and
+'' declares 'px.SEEK_SET' while SEEK_SET is the reader's macro -- 'const 0 = 7' without them.
+'' TEST: cli
+'' ARGS: --dump-ir tests/pp/src/pragma-push-macro.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: TKO0

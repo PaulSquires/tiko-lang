@@ -33,6 +33,7 @@ Allows the setting of compiler options inside the source code.
 
 ### See also
 
+- [`#pragma push_macro / pop_macro`](Pragma-Push-Macro): save a macro and put it back
 - [`#Pragma Reserve`](Pragma-Reserve)
 - [`#include`](procedures-Include)
 

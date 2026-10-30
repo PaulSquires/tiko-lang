@@ -1,0 +1,11 @@
+#module "crtpub"
+'' Its interface carries crt's headers, macros and all, to every importer -- as vendor/SDL3's
+'' carries crt/stdio.bi: SEEK_SET, EPERM, O_RDONLY, CLOCKS_PER_SEC and LC_ALL become the
+'' importer's macros before any later #import is read.
+public #include once "crt/stdio.bi"
+public #include once "crt/errno.bi"
+public #include once "crt/fcntl.bi"
+public #include once "crt/time.bi"
+public #include once "crt/locale.bi"
+
+public const CrtPubReady = 1
