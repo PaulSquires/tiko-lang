@@ -58,6 +58,12 @@ On Linux:
 {{#include ../examples/ch28/ctypes.linux-x86_64.out}}
 ```
 
+On macOS:
+
+```text
+{{#include ../examples/ch28/ctypes.macos-arm64.out}}
+```
+
 Most C types have one tiko equivalent on both platforms:
 
 | C | tiko |
@@ -74,20 +80,20 @@ Most C types have one tiko equivalent on both platforms:
 
 Two do not:
 
-- **C's `long` is 4 bytes on Windows and 8 on Linux.** Use `clong` and `culong` from
+- **C's `long` is 4 bytes on Windows and 8 on Linux and macOS.** Use `clong` and `culong` from
   `crt/long.bi`, which follow the platform. Writing `int32` for a `long` works on Windows and
-  breaks on Linux.
-- **`wchar_t` is 2 bytes on Windows (UTF-16) and 4 on Linux (UTF-32).** tiko's `wstring` follows
-  the same rule, so a `wstring ptr` is a `wchar_t *` on both.
+  breaks everywhere else.
+- **`wchar_t` is 2 bytes on Windows (UTF-16) and 4 on Linux and macOS (UTF-32).** tiko's
+  `wstring` follows the same rule, so a `wstring ptr` is a `wchar_t *` everywhere.
 
 ```admonish danger title="Pitfall"
 **`long` is not `int32`.** A C function returning `long` declared `as int32` loses the top half of
-every value on Linux, and nothing complains — the Windows build, where the two agree, works. The
+every value on Linux and macOS, and nothing complains — the Windows build, where the two agree, works. The
 solution to exercise 2 uses `strtol`, which returns `long`, for that reason.
 ```
 
 `__FB_MSVC__` is defined when the program is built against Microsoft's C runtime — the default
-on Windows, the `windows-x86_64` target. `__FB_WIN32__` and `__FB_LINUX__` name the platform. The
+on Windows, the `windows-x86_64` target. `__FB_WIN32__`, `__FB_LINUX__` and `__FB_DARWIN__` name the platform. The
 `crt/` headers (`crt/string.bi`, `crt/stdlib.bi`, `crt/math.bi` and the rest, or all of them at
 once through `crt.bi`) declare the C runtime by hand, ready to use.
 
@@ -420,8 +426,8 @@ or `nullptr`; assigning it to a function pointer of the right type makes it call
 **`dylibfree`** closes the library, after which every address taken from it is invalid.
 
 The names differ by platform: `name.dll` on Windows, `libname.so` (often with a version, as in
-`libm.so.6`) on Linux. The listing loads the C runtime's maths library on each — `ucrtbase.dll`
-and `libm.so.6` — and calls its `cos`.
+`libm.so.6`) on Linux, `libname.dylib` on macOS. The listing loads the C runtime's maths library
+on each — `ucrtbase.dll`, `libm.so.6` and `libm.dylib` — and calls its `cos`.
 
 `dylibsymbol` returns an untyped address, so the function pointer's type is a promise exactly as a
 `declare` is. Nothing checks it. A plugin system typically agrees on one entry point with a fixed

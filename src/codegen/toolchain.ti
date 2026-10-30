@@ -86,6 +86,13 @@ namespace Tko.Codegen
     '' '--version' and the driver's TKO0124 can never name a clang the build would not use.
     declare function FoundClang( ) as string
 
+    '' '-g': WHERE A FUNCTION-LOCAL STATIC'S DEBUG VARIABLE IS LISTED. True: in its
+    '' procedure's DISubprogram retainedNodes, which LLVM 23 requires and LLVM 21 and 22
+    '' REJECT; false: in the DICompileUnit's globals, the other way round. Asked of the
+    '' clang FoundClang names; the driver keeps the answer per compilation (docs/tiko-macos
+    '' FACTS "M6").
+    declare function DebugStaticsInSubprogram( byref triple as string ) as boolean
+
     '' A RESOURCE SCRIPT TO A '.res'. Windows only: there is no such thing to link
     '' into an ELF binary, and a '.rc' passed with a Linux target is a mistake worth
     '' reporting rather than a file to ignore.

@@ -11,17 +11,20 @@
 # it ('copy': where upstream publishes the binary) or compiles C sources with clang into a
 # static archive and/or a shared library ('cbuild': where it does not). A host makes its own
 # binaries, as package.sh makes its own toolchain. A 'copy' whose url is a single file, not an
-# archive, copies that file. 'script' needs no download: it runs a build script committed in
-# the package (vendor/tkControls' scintk) and copies what it made.
+# archive, copies that file. 'script' runs a build script committed in the package
+# (vendor/tkControls' scintk, vendor/SDL3's static libraries) and copies what it made; its
+# optional 'inputs' -- 'url sha256 url sha256 ...' -- are fetched and verified first, like any
+# download, and handed to the script as TKO_VENDOR_INPUTS (the local paths, in order), with
+# TKO_VENDOR_HOST (windows, linux, macos) and TKO_VENDOR_CACHE.
 #
 #   TKO_VENDOR_CACHE    where downloads are kept (default build/.vendorfetch); one already
 #                       there with the right SHA-256 is not downloaded again
 #   TKO_VENDOR_MIRROR   a base URL tried first, by file name -- the tiko-lang release assets
 #                       the archives are mirrored as; upstream is the fallback
 #   TKO_CLANG, TKO_AR   the compiler and archiver ('cbuild'); default the LLVM install on
-#                       Windows, clang / llvm-ar (else ar) on Linux
+#                       Windows, clang / llvm-ar (else ar) on Linux and macOS
 #   CXX                 the C++ compiler a 'script' entry's script uses; default clang++
-#                       beside TKO_CLANG on Windows, the script's own choice on Linux
+#                       beside TKO_CLANG on Windows, the script's own choice elsewhere
 #
 # An entry whose outputs are newer than its fetch.toml is skipped, so a rerun does nothing.
 set -e
@@ -48,6 +51,11 @@ case "$(uname -s)" in
         HOST=linux; TRIPLE=x86_64-pc-linux-gnu
         CLANG=${TKO_CLANG:-${CLANG:-clang}}
         AR=${TKO_AR:-$(command -v llvm-ar || command -v ar)} ;;
+    Darwin)
+        # The SDK is clang's own business here: Apple's clang (and Homebrew's) find it.
+        HOST=macos; TRIPLE=arm64-apple-macosx13.0
+        CLANG=${TKO_CLANG:-${CLANG:-clang}}
+        AR=${TKO_AR:-$(command -v llvm-ar || command -v ar)} ;;
     *) die "unsupported host '$(uname -s)'" ;;
 esac
 CACHE=${TKO_VENDOR_CACHE:-$ROOT/build/.vendorfetch}
@@ -66,7 +74,12 @@ toml( ) {
         }' "$1" | tr -d '\r'
 }
 
-sha_of( ) { sha256sum "$1" | cut -d' ' -f1; }
+# macOS has no sha256sum; its shasum is the same digest.
+if command -v sha256sum >/dev/null 2>&1; then
+    sha_of( ) { sha256sum "$1" | cut -d' ' -f1; }
+else
+    sha_of( ) { shasum -a 256 "$1" | cut -d' ' -f1; }
+fi
 
 # is_archive <url>: true for what unpack opens.
 is_archive( ) { case "$1" in *.zip|*.tar.gz|*.tgz) return 0 ;; *) return 1 ;; esac; }
@@ -109,6 +122,14 @@ entry( ) {
         # sees only fetch.toml, not the sources the script compiles.
         _scr="$ROOT/pkg/vendor/$_mod/$(_get script)"; _from="$ROOT/pkg/vendor/$_mod/$(_get from)"; _to=$(_get to)
         [ -f "$_scr" ] && [ -n "$_to" ] || die "$_mod [$_tab]: 'script' needs script, from and to"
+        TKO_VENDOR_INPUTS=
+        set -- $(_get inputs)
+        while [ $# -ge 2 ]; do
+            TKO_VENDOR_INPUTS="$TKO_VENDOR_INPUTS $(fetch "$1" "$2")"
+            shift 2
+        done
+        [ $# -eq 0 ] || die "$_mod [$_tab]: 'inputs' must be url sha256 pairs"
+        export TKO_VENDOR_INPUTS TKO_VENDOR_HOST=$HOST TKO_VENDOR_CACHE=$CACHE
         bash "$_scr" >/dev/null || die "$_mod [$_tab]: $(_get script) failed"
         [ -f "$_from" ] || die "$_mod [$_tab]: $(_get script) made no $(_get from)"
         mkdir -p "$(dirname "$_mdir/$_to")"
@@ -173,6 +194,12 @@ entry( ) {
                 "$CLANG" --target=$TRIPLE -shared -fuse-ld=lld -o "$_mdir/$_sh" \
                     -Wl,-implib:"$_imp" \
                     $_objs $(_get libs) || die "$_mod: linking $_sh failed"
+            elif [ "$HOST" = macos ]; then
+                # THE INSTALL NAME IS @rpath/<its own name>, the soname's counterpart: a program
+                # records it, and finds the copy beside it through its '@loader_path' run path.
+                # shellcheck disable=SC2086
+                "$CLANG" --target=$TRIPLE -dynamiclib -Wl,-install_name,"@rpath/$(basename "$_sh")" \
+                    -o "$_mdir/$_sh" $_objs $(_get libs) || die "$_mod: linking $_sh failed"
             else
                 # THE SONAME IS THE FILE'S OWN NAME: a program records it as NEEDED, and the
                 # copy tiko puts beside the program (RFC-0002 V13) is found by it through $ORIGIN.

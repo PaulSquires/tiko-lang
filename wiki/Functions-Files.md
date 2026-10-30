@@ -417,6 +417,7 @@ Jump to: [Read or write a whole file](#read-or-write-a-whole-file) · [Check tha
 - [File streams guide](Category-File-Streams)
 - [File I/O functions](Category-File-I-O-Functions)
 - [Config: INI and TOML files](Category-Config)
+- [Embed: a file's bytes inside the program](Category-Embed)
 - [Result](Category-Result)
 - [Operating system functions (Kill, FileExists, Dir)](Category-Operating-System-Functions)
 

@@ -449,6 +449,14 @@ function ModuleCacheDeps( byref ctx as Tko.CompilerContext, byref dl as string )
         if len( st ) = 0 then return false
         dl &= st & chr( 9 ) & p & Nl_( )
     next
+    '' '#embed' FILES ARE READ WITHOUT BEING LEXED, so they are not in unitFilesRead, and
+    '' are stamped the same way: size and mtime (docs/tiko-embed RFC-0001 section 5.6).
+    for each ep_ as string in ctx.unit.unitEmbedPaths
+        if done_.Add( ep_ ) = false then continue for
+        dim as string st = Tko.DiskCache.Stamp( ep_ )
+        if len( st ) = 0 then return false
+        dl &= st & chr( 9 ) & ep_ & Nl_( )
+    next
     for each m_ as string in ctx.unit.unitProbesMissed
         dim as string ap_ = AbsPath( m_ )
         if done_.Add( "-" & ap_ ) = false then continue for

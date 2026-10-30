@@ -362,6 +362,8 @@ end function
 '' hOsMountClose, hIsRealMount and hOsFsHasLinks.
 #if defined( __FB_LINUX__ )
 	#include once "volumelinux.tiko"
+#elseif defined( __FB_DARWIN__ )
+	#include once "volumedarwin.tiko"
 #else
 	#error "fs/volume: no mount-table backend for this OS"
 #endif
@@ -389,7 +391,8 @@ private sub hFillVolume( byval mountpoint as zstring ptr, byval fstype as zstrin
 
 	'' POSIX filesystems are case-sensitive except for the ones that are not,
 	'' and there is no portable probe -- so this reports the common truth and a
-	'' caller who must be sure does an actual create-and-test.
+	'' caller who must be sure does an actual create-and-test. (Darwin can say:
+	'' fb_FsVolumeInfo overrides it there.)
 	out_->flags or= FB_FSVOL_CASESENS
 
 	'' BEST EFFORT, and asymmetric on purpose: a FALSE here is reliable, a TRUE
@@ -464,6 +467,18 @@ function tkort_UStrFsVolumeInfo alias "fb_UStrFsVolumeInfo" _
 
 	free( path_ )
 
+#ifdef __FB_DARWIN__
+	'' DARWIN'S FIRMLINKS SPLIT THE ANSWER IN TWO (docs/tiko-macos M7, stdsuite fsvolume).
+	'' realpath( "/tmp/x" ) is /private/tmp/x, whose longest mount prefix is "/" -- the
+	'' sealed, read-only system volume -- while the file lives on /System/Volumes/Data,
+	'' spliced into "/" by a firmlink. So the ROOT stays the mount table's (it must be a
+	'' prefix of the path, and only "/" is), but READ-ONLY and CASE come from statfs and
+	'' pathconf on the path: the filesystem that really holds it.
+	dim as struct_statfs sfs = any
+	dim as int32 haveSfs = iif( u_statfs( res, @sfs ) = 0, 1, 0 )
+	dim as integer caseSens = u_pathconf( res, _PC_CASE_SENSITIVE )
+#endif
+
 	if( hOsMountOpen( @m ) = 0 ) then
 		free( res )
 		return FB_FS_UNSUPPORTED
@@ -496,6 +511,15 @@ function tkort_UStrFsVolumeInfo alias "fb_UStrFsVolumeInfo" _
 	if( found = 0 ) then return FB_FS_NOT_FOUND
 
 	hFillVolume( @bestmp, @bestfs, out_ )
+#ifdef __FB_DARWIN__
+	if( haveSfs <> 0 ) then
+		out_->flags and= not FB_FSVOL_READONLY
+		if( (sfs.f_flags and MNT_RDONLY) <> 0 ) then out_->flags or= FB_FSVOL_READONLY
+	end if
+	'' APFS and HFS+ are case-INSENSITIVE unless formatted otherwise; pathconf says 1 or 0, and
+	'' an error (-1) keeps the POSIX truth hFillVolume wrote.
+	if( caseSens = 0 ) then out_->flags and= not FB_FSVOL_CASESENS
+#endif
 	return FB_FS_OK
 end function
 

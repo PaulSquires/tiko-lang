@@ -16,7 +16,7 @@
 # The output is toolchains/tiko-windows or toolchains/tiko-linux: what an end user
 # unpacks, as opposed to bin/tiko, which is what build/build.sh produces for
 # developing the compiler. Beside it, toolchains/tkedit-<host>: the editor, ready to
-# run, which a release archive carries as tkedit/.
+# run, which a release archive puts beside the compiler in tiko-lang/ (build/release.sh).
 #
 # ---------------------------------------------------------------- what it is NOT
 #
@@ -139,7 +139,15 @@ case "$(uname -s)" in
         # The compiler's own default on Linux -- see src/codegen/toolchain.tiko.
         CLANG_DEFAULT=/usr/bin/clang
         ;;
-    *)  die "unsupported host '$(uname -s)' -- this packages Windows or Linux" ;;
+    Darwin)
+        # Apple Silicon (docs/tiko-macos D1): the compiler under bin/, as on Linux.
+        HOST=macos; EXT=""; BINSUB="bin/"
+        TARGETS="macos-arm64"
+        DEFTARGET=macos-arm64
+        # Homebrew's LLVM (docs/tiko-macos D6) -- see src/codegen/toolchain.tiko.
+        CLANG_DEFAULT=/opt/homebrew/opt/llvm/bin/clang
+        ;;
+    *)  die "unsupported host '$(uname -s)' -- this packages Windows, Linux or macOS" ;;
 esac
 
 # WHICH TARGETS HAVE A GRAPHICS LIBRARY. windows-x86_64 alone, and lib/gfx/build
@@ -166,7 +174,7 @@ if [ -z "$TPINC" ]; then
     . "$ROOT/build/defaultseed.sh"
     if [ "$HOST" = "windows" ]; then _sw=1; else _sw=0; fi
     if _seed=$( default_seed "$ROOT" "$_sw" ); then
-        _sd=$( dirname "$_seed" ); [ "$HOST" = "linux" ] && _sd=$( dirname "$_sd" )
+        _sd=$( dirname "$_seed" ); [ "$HOST" = "windows" ] || _sd=$( dirname "$_sd" )
         [ -d "$_sd/inc" ] && TPINC="$_sd/inc"
     fi
 fi
@@ -187,7 +195,7 @@ if [ "$DO_BUILD" = "1" ]; then
     # concurrently, each into its own obj/<target>/<config> tree.
     mkdir -p "$ROOT/lib/rt/obj" "$ROOT/lib/gfx/obj"
     note "building the compiler [$CFG]"
-    # --no-dll: the editor's parser.dll ships with the editor, not in a toolchain.
+    # --no-dll: no editor DLL -- tkedit links its scanner in (build.sh --lib, below).
     if ! sh "$ROOT/build/build.sh" "$CFG" --no-dll >"$ROOT/lib/rt/obj/package-tiko.log" 2>&1; then
         tail -20 "$ROOT/lib/rt/obj/package-tiko.log" >&2
         die "the compiler build failed -- lib/rt/obj/package-tiko.log"
@@ -387,7 +395,7 @@ rm -f "$OUT"/pkg/vendor/*/fetch.toml
 # vendor/tkControls also fetches fonts/, and builds scintk (tkCodeEdit/scintk) in place: the
 # tree's build output is not shipped, only its source and what vendorfetch.sh copies to lib/.
 rm -rf "$OUT/pkg/vendor/tkControls/fonts" "$OUT/pkg/vendor/tkControls/tkCodeEdit/scintk/bin" \
-       "$OUT/pkg/vendor/tkControls/tkCodeEdit/scintk/out"
+       "$OUT/pkg/vendor/tkControls/tkCodeEdit/scintk/out" "$OUT/pkg/vendor/SDL3/static/bin"
 sh "$ROOT/build/vendorfetch.sh" --out "$OUT/pkg" || die "vendorfetch.sh failed: the vendor packages have no binaries"
 for _vm in "$OUT"/pkg/vendor/*/; do
     _vft="$ROOT/pkg/vendor/$( basename "$_vm" )/fetch.toml"
@@ -537,6 +545,11 @@ fi
 # test library, not the compiler. The manifest records each target either way.
 FBCU="$ROOT/tests/vendor/fbc-tests/fbcunit"
 FBCU_AR=${TKO_AR:-$( command -v llvm-ar 2>/dev/null || echo "/c/Program Files/LLVM/bin/llvm-ar.exe" )}
+# On macOS Homebrew's LLVM is deliberately not on PATH (docs/tiko-macos D6): its llvm-ar is named.
+# An 'if', not a '{ ...; }' inside the '$( )' above: macOS's /bin/sh (bash 3.2) cannot parse that.
+if [ -z "${TKO_AR:-}" ] && [ "$HOST" = "macos" ] && ! command -v llvm-ar > /dev/null 2>&1; then
+    FBCU_AR=/opt/homebrew/opt/llvm/bin/llvm-ar
+fi
 FBCU_STATE=""
 for t in $TARGETS; do
     _fo="$OUT/.fbcunit.$t"
@@ -843,15 +856,18 @@ fi
 
 # ---------------------------------------------------------------- the editor
 #
-# TKEDIT SHIPS BESIDE THE TOOLCHAIN (the author's order, 2026-10-27): a release archive
-# unpacks to tiko-<host>/ and tkedit/ side by side, and tkedit finds the compiler there by
-# itself (tkedit/src/core/build: SiblingCompiler). Both hosts package into one toolchains/,
-# so the folder is tkedit-<host> here; build/release.sh names it tkedit/ in the archive.
+# TKEDIT SHIPS WITH THE TOOLCHAIN (the author's orders, 2026-10-27 and 2026-10-29): a release
+# archive unpacks to ONE folder, tiko-lang/, with tkedit in its root (tkedit.exe next to
+# tiko.exe, tkedit or tkEdit.app in the root above bin/tiko), and tkedit finds the compiler in its
+# own folder or its bin/ (tkedit/src/core/build: SiblingCompiler). Here every host packages into one
+# toolchains/, so the editor is staged apart, as tkedit-<host>; build/release.sh puts it in.
 #
-# RELEASE BINARIES AND WHAT THEY LOAD, NOTHING ELSE: the program and its shared libraries in
-# the folder's ROOT (no bin/: the author's order) beside fonts/ icons/ keywords/ lang/ themes/,
-# and licences/. No source, no README, and not vendor/tkControls' own fonts, which its
-# runtime copies beside every program but tkedit never loads (it has its own in fonts/).
+# ONE FILE (docs/tkEdit/SINGLE-FILE.md): tkedit links in SDL, SDL_ttf, SDL_image, scintk and its
+# scanner, and carries its fonts, themes, catalogs, keyword lists and licences inside itself
+# ('tkedit --export-resources DIR' writes them out, '--licences' prints the notices). So the folder
+# holds tkedit.exe / tkedit alone, and on macOS tkEdit.app: Contents/MacOS/tkedit, Info.plist and
+# Resources/tkEdit.icns (the .icns made from icons/tkedit.png with sips + iconutil), signed ad hoc
+# (SINGLE-FILE SF3, SF5).
 #
 # BUILT BY THE TOOLCHAIN JUST PACKAGED, so this is one more check that it works. A failure
 # is recorded as FAIL rather than ending the run: the toolchain itself is good, and
@@ -864,61 +880,93 @@ if [ "$DO_TKEDIT" = "1" ]; then
     _tklog="$ROOT/lib/rt/obj/package-tkedit.log"
     mkdir -p "$ROOT/lib/rt/obj"; : > "$_tklog"
     _tkfail=""
-    # the editor's scanner, parser.dll: build.sh --dll builds it ALONE (bin/ keeps the
-    # compiler), and would copy it into this tree's tkedit/bin -- not here
+    # the editor's scanner, LINKED INTO tkedit (docs/tkEdit/SINGLE-FILE.md S4): build.sh --lib builds
+    # bin/parser_<os>_<arch>.a with THE COMPILER JUST PACKAGED -- the one that builds tkedit below, so
+    # each std module is one copy at tkedit's link (bin/ keeps the tree's compiler untouched)
     note "building tikoParser for tkedit"
-    if ! TKO_EDITOR_DIR=/nonexistent sh "$ROOT/build/build.sh" Release --dll >>"$_tklog" 2>&1; then
+    if ! TKO_SEED="$OUT/${BINSUB}tiko$EXT" sh "$ROOT/build/build.sh" Release --lib >>"$_tklog" 2>&1; then
         _tkfail="tikoParser did not build"
     fi
-    _tkp="$ROOT/bin/parser.dll"
-    [ "$HOST" = "windows" ] || _tkp="$ROOT/bin/parser.so"
+    case $HOST in
+        macos) _tkp="$ROOT/bin/parser_macos_arm64.a" ;;
+        *)     _tkp="$ROOT/bin/parser_${HOST}_x86_64.a" ;;
+    esac
     [ -n "$_tkfail" ] || [ -f "$_tkp" ] || _tkfail="no $_tkp after the build"
-    # Linux has no SDL3 of its own and the toolchain ships none: tkControls' build-linux-libs.sh
-    # builds one, kept (gitignored) in examples/tkControls/linux-lib, linked against and shipped.
-    _tkopts=""
-    if [ "$HOST" = "linux" ]; then
-        _tklib=${TK_LINUX_LIB:-$ROOT/examples/tkControls/linux-lib}
-        [ -f "$_tklib/libSDL3.so" ] || die "no SDL3 for tkedit at $_tklib -- run examples/tkControls/tools/build-linux-libs.sh, or set TK_LINUX_LIB (or pass --no-tkedit)"
-        _tkopts="-p $_tklib"
-    fi
     if [ -z "$_tkfail" ]; then
         note "building tkedit with the packaged compiler"
         rm -rf "$TKSRC/src/app/out/release"
-        # LD_LIBRARY_PATH for the LINK only: GNU ld finds libSDL3_ttf's own needs (libharfbuzz)
-        # through it. The self-test below runs without it -- tkedit must find them beside itself.
-        if ! ( cd "$TKSRC/src/app" && TKO_MODCACHE="$TKSRC/out/modcache-package" LD_LIBRARY_PATH="${_tklib:-}" \
-                 "$OUT/${BINSUB}tiko$EXT" build --profile release ${_tkopts:+--options "$_tkopts"} ) >>"$_tklog" 2>&1; then
+        if ! ( cd "$TKSRC/src/app" && TKO_MODCACHE="$TKSRC/out/modcache-package" \
+                 "$OUT/${BINSUB}tiko$EXT" build --profile release ) >>"$_tklog" 2>&1; then
             _tkfail="the build failed -- lib/rt/obj/package-tkedit.log"
         fi
     fi
     _tkrel="$TKSRC/src/app/out/release"
     [ -n "$_tkfail" ] || [ -f "$_tkrel/tkedit$EXT" ] || _tkfail="no $_tkrel/tkedit$EXT"
     if [ -z "$_tkfail" ]; then
-        rm -rf "$TKD"; mkdir -p "$TKD/licences"
-        cp -f "$_tkrel/tkedit$EXT" "$TKD/"
-        for f in "$_tkrel"/*.dll "$_tkrel"/*.so "$_tkrel"/*.so.*; do
-            [ -f "$f" ] && cp -f "$f" "$TKD/"
-        done
-        cp -f "$_tkp" "$TKD/"
-        [ "$HOST" = "linux" ] && cp -a "$_tklib"/lib*.so* "$TKD/"
-        for d in fonts icons keywords lang themes; do
-            cp -r "$TKSRC/$d" "$TKD/$d"
-        done
-        rm -f "$TKD/fonts/README.md"
-        cp -f "$ROOT/pkg/vendor/SDL3/LICENSE" "$TKD/licences/SDL3.txt"
-        cp -f "$ROOT/pkg/vendor/tkControls/LICENSE" "$TKD/licences/MPL-2.0.txt"
-        cp -f "$ROOT/pkg/vendor/tkControls/tkCodeEdit/scintk/vendor/scintilla/License.txt" "$TKD/licences/Scintilla.txt"
-        cp -f "$ROOT/pkg/vendor/tkControls/tkCodeEdit/scintk/vendor/lexilla/License.txt" "$TKD/licences/Lexilla.txt"
+        rm -rf "$TKD"; mkdir -p "$TKD"
+        if [ "$HOST" = "macos" ]; then
+            _app="$TKD/tkEdit.app/Contents"
+            mkdir -p "$_app/MacOS" "$_app/Resources"
+            cp -f "$_tkrel/tkedit" "$_app/MacOS/tkedit"
+            _tkver=$( sed -n 's/^version *= *"\(.*\)"/\1/p' "$TKSRC/src/app/tiko.toml" | head -1 )
+            cat > "$_app/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>                 <string>tkEdit</string>
+    <key>CFBundleDisplayName</key>          <string>tkEdit</string>
+    <key>CFBundleIdentifier</key>           <string>com.planetsquires.tkedit</string>
+    <key>CFBundleExecutable</key>           <string>tkedit</string>
+    <key>CFBundleIconFile</key>             <string>tkEdit</string>
+    <key>CFBundlePackageType</key>          <string>APPL</string>
+    <key>CFBundleShortVersionString</key>   <string>${_tkver:-0.1.0}</string>
+    <key>CFBundleVersion</key>              <string>${_tkver:-0.1.0}</string>
+    <key>LSMinimumSystemVersion</key>       <string>13.0</string>
+    <key>NSHighResolutionCapable</key>      <true/>
+</dict>
+</plist>
+PLIST
+            # the Finder and Dock icon: icons/tkedit.png at each size an .icns holds, up to its own
+            _iset="$ROOT/lib/rt/obj/tkEdit.iconset"
+            rm -rf "$_iset" && mkdir -p "$_iset"
+            for _sz in 16 32 64 128 256; do
+                sips -z $_sz $_sz "$TKSRC/icons/tkedit.png" --out "$_iset/icon_${_sz}x${_sz}.png" >/dev/null 2>&1
+            done
+            cp -f "$_iset/icon_32x32.png" "$_iset/icon_16x16@2x.png"
+            cp -f "$_iset/icon_64x64.png" "$_iset/icon_32x32@2x.png"
+            cp -f "$_iset/icon_256x256.png" "$_iset/icon_128x128@2x.png"
+            rm -f "$_iset/icon_64x64.png"
+            iconutil -c icns "$_iset" -o "$_app/Resources/tkEdit.icns" >>"$_tklog" 2>&1 \
+                || _tkfail="iconutil could not make tkEdit.icns"
+            # SIGNED AD HOC (SINGLE-FILE SF5): arm64 runs nothing unsigned; no Developer ID yet
+            codesign --force --deep -s - "$TKD/tkEdit.app" >>"$_tklog" 2>&1 || _tkfail="codesign failed"
+            codesign --verify --deep --strict "$TKD/tkEdit.app" >>"$_tklog" 2>&1 || _tkfail="codesign --verify failed"
+            _tkexe="$_app/MacOS/tkedit"
+        else
+            cp -f "$_tkrel/tkedit$EXT" "$TKD/"
+            _tkexe="$TKD/tkedit$EXT"
+        fi
         note "tkedit -> $TKD"
-        TKEDIT_STATE="../tkedit-$HOST, built by this compiler (the archive's tkedit/)"
+        TKEDIT_STATE="../tkedit-$HOST, built by this compiler (the archive puts it beside the compiler)"
         # --verify: its self-test, compiling with this toolchain. It writes scratch files under
-        # <its folder>/out/, removed after. Off Windows it needs a display (WSLg has one).
+        # <its folder>/out/, removed after. On Linux it needs a display (WSLg has one); macOS's
+        # is the logged-in desktop (over ssh too), and macOS has no timeout(1): perl's alarm.
         if [ "$DO_VERIFY" = "1" ]; then
-            if [ "$HOST" = "windows" ] || [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
+            if [ "$HOST" != "linux" ] || [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
                 note "verifying tkedit: its self-test"
-                _tkres=$( cd "$TKD" && env -u LD_LIBRARY_PATH TKEDIT_TIKO="$OUT/${BINSUB}tiko$EXT" SDL_VIDEO_DRIVER=${SDL_VIDEO_DRIVER:-} \
-                          timeout 600 "./tkedit$EXT" --selftest 2>&1 | grep ' selftest: ' | tail -1 )
+                if [ "$HOST" = "macos" ]; then
+                    _tkres=$( cd "$TKD" && TKEDIT_TIKO="$OUT/${BINSUB}tiko$EXT" \
+                              perl -e 'alarm 600; exec @ARGV' "$_tkexe" --selftest 2>&1 | grep ' selftest: ' | tail -1 )
+                else
+                    _tkres=$( cd "$TKD" && env -u LD_LIBRARY_PATH TKEDIT_TIKO="$OUT/${BINSUB}tiko$EXT" SDL_VIDEO_DRIVER=${SDL_VIDEO_DRIVER:-} \
+                              timeout 600 "$_tkexe" --selftest 2>&1 | grep ' selftest: ' | tail -1 )
+                fi
                 rm -rf "$TKD/out"
+                # NOTHING MAY WRITE INSIDE THE BUNDLE: one added file and the signature fails
+                if [ "$HOST" = "macos" ] && ! codesign --verify --deep --strict "$TKD/tkEdit.app" >>"$_tklog" 2>&1; then
+                    _tkres="the self-test wrote inside tkEdit.app: codesign --verify fails"
+                fi
                 if echo "$_tkres" | grep -q ' 0 failed'; then
                     TKEDIT_STATE="$TKEDIT_STATE; self-test: ${_tkres#*selftest: }"
                     VERIFY_LINES="$VERIFY_LINES
@@ -971,8 +1019,9 @@ SEED_STATE=$( awk -v h="$HOST" '$1 == h { print $2 " (" $3 ", sha256 " $4 ")" }'
 [ -n "${TKO_SEED:-}" ] && SEED_STATE="TKO_SEED=$TKO_SEED (the lock pins $SEED_STATE)"
 [ -z "${TKO_SEED:-}" ] && [ -n "${TKO_ORACLE_FBC:-}" ] && SEED_STATE="TKO_ORACLE_FBC=$TKO_ORACLE_FBC -- NOT a release build (the lock pins $SEED_STATE)"
 
-NFILES=$( cd "$OUT" && find . -type f ! -name MANIFEST.txt | wc -l )
-SIZE=$( du -sh "$OUT" | cut -f1 )
+# tr: BSD wc and du pad their numbers (macOS), GNU's do not.
+NFILES=$( cd "$OUT" && find . -type f ! -name MANIFEST.txt | wc -l | tr -d ' ' )
+SIZE=$( du -sh "$OUT" | cut -f1 | tr -d ' ' )
 
 {
     say "tiko toolchain -- $HOST"
@@ -992,6 +1041,17 @@ SIZE=$( du -sh "$OUT" | cut -f1 )
     say "            .ll -> .o step and the link. Install LLVM, and point at it"
     say "            by setting TKO_CLANG if it is not at the default"
     say "            $CLANG_DEFAULT."
+    if [ "$HOST" = "macos" ]; then
+        say "            On macOS: 'brew install llvm'. Homebrew's clang is not put on"
+        say "            PATH, and tiko does not need it there."
+        say "Xcode's Command Line Tools REQUIRED ('xcode-select --install'): the"
+        say "            macOS SDK and Apple's linker, ld64, which every link uses."
+        say "Optional, from Homebrew: openssl@3 for std/tls and std/http, and sdl3"
+        say "            (sdl3_image, sdl3_ttf, sdl3_mixer) for vendor/SDL3 -- and for tkedit,"
+        say "            which links Homebrew's sdl3, sdl3_ttf and sdl3_image and ships none."
+        say "A DOWNLOADED ARCHIVE is quarantined by macOS, and its unsigned programs are"
+        say "            then refused: 'xattr -dr com.apple.quarantine tiko-macos tkedit'."
+    fi
     say
     say "-- libraries, per target -----------------------------------------------"
     say "lib/<target>/     tiko-rt: libfb.a and libfbmt.a, plus libtkogfx.a"

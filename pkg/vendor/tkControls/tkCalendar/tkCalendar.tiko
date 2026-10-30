@@ -1604,7 +1604,7 @@ private function tkCalendar_Proc( byval w as TK_WIDGET ptr, byval m as TK_MSG pt
         if CAL_CallMessage( pCal, m ) then return true
         dim as TKDATE stWas = pCal->stAnchor
         dim as long eWas = pCal->eView
-        dim as boolean bCtrl = ((m->mods and SDL_KMOD_CTRL) <> 0)
+        dim as boolean bCtrl = ((m->mods and TK_KMOD_PRIMARY) <> 0)     ' Cmd on macOS
         dim as boolean bAte = CAL_KeyDown( pCal, m->key, bCtrl )
         CAL_NotifyViewIfMoved( pCal, stWas, eWas )
         return bAte

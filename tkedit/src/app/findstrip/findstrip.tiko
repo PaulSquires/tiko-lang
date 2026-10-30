@@ -25,12 +25,14 @@
 #import "tkc/i18n"
 #import "tka/editor"
 #import "vendor/tkControls/tkApp"
+#import "vendor/tkControls/tkKeys"
 #import "vendor/tkControls/tkPaint"
 #import "vendor/tkControls/tkTextBox"
 #import "vendor/tkControls/tkToolbar"
 using containers
 using tkApp
 using tkHost
+using tkKeys
 using tkPaint
 using tkTheme
 using tkTextBox
@@ -187,7 +189,9 @@ private function BoxKeys( byval m as TKTEXTBOX_MESSAGEINFO ptr ) as boolean
         st->Fire( FindAction.CloseStrip )
         return true
     case SDLK_RETURN, SDLK_KP_ENTER
-        dim as boolean ctrlAlt = ((m->mods and SDL_KMOD_CTRL) <> 0) andalso ((m->mods and SDL_KMOD_ALT) <> 0)
+        ' Primary+Alt: Ctrl+Alt, Cmd+Alt on macOS
+        dim as long km = tkKeys_ModsFromSDL( m->mods )
+        dim as boolean ctrlAlt = ((km and tkKeys_Primary( )) <> 0) andalso ((km and TKKEY_ALT) <> 0)
         if st->Mode = StripMode.GoTo then
             st->Fire( FindAction.GoToLine )
         elseif st->Mode = StripMode.Project then

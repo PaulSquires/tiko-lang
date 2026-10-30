@@ -1,0 +1,18 @@
+'' parkdarwin.tiko -- thread/park's monotonic condition variable on macOS: there is none.
+''
+'' #INCLUDED by thread/park.tiko on a POSIX target, never compiled on its own and
+'' not in build/sources.txt. It provides the procedure parklinux.tiko does,
+''
+''     hCondSetMonotonic( byval attr as pthread_condattr_t ptr ) as int32
+''
+'' macOS has no pthread_condattr_setclock -- naming it is a link error, not a refusal --
+'' so this returns nonzero without touching attr, and the parker falls back to
+'' CLOCK_REALTIME, as thread/park.tiko already does for any OS that refuses.
+
+#if defined( __FB_DARWIN__ )
+
+private function hCondSetMonotonic( byval attr as pthread_condattr_t ptr ) as int32
+	return -1
+end function
+
+#endif

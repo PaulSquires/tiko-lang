@@ -3,6 +3,7 @@
 #import "std/containers"
 #include once "codegen/llvmdebug.ti"
 #include once "support/text.ti"
+#include once "codegen/toolchain.ti"
 
 namespace Tko.Codegen
 
@@ -119,6 +120,7 @@ private function SpFor_( byref d as DebugInfo, byval procSym as uint32 ) as int3
     d.spSym.Push( procSym )
     d.spId.Push( id )
     d.spDone.Push( 0 )
+    d.spRetained.Push( "" )
     return id
 end function
 
@@ -141,6 +143,13 @@ private function QualifiedName_( byref d as DebugInfo, byval s as Tko.Symbol ptr
         guard += 1
     wend
     return r
+end function
+
+'' The statics subprogram 'at' retains, as its field, or "" when there are none.
+private function RetainedNodes_( byref d as DebugInfo, byval at as int32 ) as string
+    if (at < 0) orelse (at >= d.spRetained.Count) then return ""
+    if len( d.spRetained[at] ) = 0 then return ""
+    return ", retainedNodes: !{" & mid( d.spRetained[at], 3 ) & "}"
 end function
 
 function DbgSubprogram _
@@ -168,11 +177,16 @@ function DbgSubprogram _
     '' and 'Twice' was 'TWICE'. main and the module constructors keep theirs.
     dim as string lk = ""
     if nm = linkName then lk = ", linkageName: " & MetaStr_( linkName )
+    dim as string rn = ""
+    if procSym <> 0 then
+        dim as int32 at2 = -1
+        if d.spAt.TryGet( procSym, at2 ) then rn = RetainedNodes_( d, at2 )
+    end if
     DefineNode_( d, id, "distinct !DISubprogram(name: " & MetaStr_( nm ) & lk & _
                        ", scope: !" & str( fm ) & ", file: !" & str( fm ) & _
                        ", line: " & str( ln ) & ", type: !" & str( d.typeId ) & _
                        ", scopeLine: " & str( ln ) & _
-                       ", spFlags: DISPFlagDefinition, unit: !" & str( d.cuId ) & ")" )
+                       ", spFlags: DISPFlagDefinition, unit: !" & str( d.cuId ) & rn & ")" )
     d.curSp = id
     d.curFile = fm
     d.locLine = -1
@@ -274,7 +288,21 @@ function DbgGlobal _
                                   iif( isLocal, "true", "false" ) & ", isDefinition: true)" )
     dim as int32 ge = NewNode_( d, "!DIGlobalVariableExpression(var: !" & str( gv ) & _
                                   ", expr: !DIExpression())" )
-    d.globals += ", !" & str( ge )
+    '' AND WHICH LIST IT GOES IN: the compile unit's globals, or -- where the clang wants it,
+    '' LLVM 23 on -- its procedure's retainedNodes (DbgSubprogram, DbgFinish).
+    dim as int32 form = 0
+    if (owner <> 0) andalso (d.fe->staticsForm <> nullptr) then
+        if *d.fe->staticsForm < 0 then
+            *d.fe->staticsForm = iif( DebugStaticsInSubprogram( d.fe->triple ), 1, 0 )
+        end if
+        form = *d.fe->staticsForm
+    end if
+    dim as int32 at = -1
+    if (owner <> 0) andalso (form = 1) andalso d.spAt.TryGet( owner, at ) then
+        d.spRetained[at] += ", !" & str( ge )
+    else
+        d.globals += ", !" & str( ge )
+    end if
     return ", !dbg !" & str( ge )
 end function
 
@@ -297,7 +325,8 @@ function DbgFinish( byref d as DebugInfo ) as string
                                        ", scope: !" & str( fl ) & ", file: !" & str( fl ) & _
                                        ", line: " & str( ln ) & ", type: !" & str( d.typeId ) & _
                                        ", scopeLine: " & str( ln ) & _
-                                       ", spFlags: DISPFlagDefinition, unit: !" & str( d.cuId ) & ")" )
+                                       ", spFlags: DISPFlagDefinition, unit: !" & str( d.cuId ) & _
+                                       RetainedNodes_( d, i ) & ")" )
         next
     end if
     '' C99, because FreeBASIC has no DWARF language code and a debugger then evaluates

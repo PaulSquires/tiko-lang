@@ -35,6 +35,12 @@
         declare function getrusage( byval who as int32, byval usage as any ptr ) as int32
         declare function readlink( byval path_ as zstring ptr, byval buf as zstring ptr, _
                                    byval size as uinteger ) as integer
+    #ifdef __FB_DARWIN__
+        declare function NSGetExecutablePath_ alias "_NSGetExecutablePath" _
+            ( byval buf as zstring ptr, byval bufsize as uint32 ptr ) as int32
+        declare function realpath_ alias "realpath" _
+            ( byval p as zstring ptr, byval resolved as zstring ptr ) as zstring ptr
+    #endif
     end extern
 #endif
 
@@ -72,6 +78,15 @@ function SelfPath( ) as string
     dim as string u8 = space( need - 1 )
     WideCharToMultiByte( 65001, 0, @wbuf, -1, strptr( u8 ), need, nullptr, nullptr )
     return u8
+#elseif defined( __FB_DARWIN__ )
+    '' NO /proc ON DARWIN: dyld's path of the image, then its real path -- without one,
+    '' DiskCache.CompilerStamp is "" and the module and unit caches quietly turn off.
+    '' Measured on the Mac (docs/tiko-macos FACTS "Darwin APIs").
+    dim as zstring * 4097 raw, real_
+    dim as uint32 size_ = 4096
+    if NSGetExecutablePath_( @raw, @size_ ) <> 0 then return ""
+    if realpath_( @raw, @real_ ) = nullptr then return raw
+    return real_
 #else
     dim as zstring * 4097 buf
     dim as integer n = readlink( "/proc/self/exe", @buf, 4096 )

@@ -34,6 +34,13 @@ the machine, on Windows and on Linux. The programs are the libraries' own first 
 translated into tiko, so you can put them beside the library's documentation and read the two
 together.
 
+```admonish info title="On macOS"
+The SQLite programs run on macOS too: `fetch-libs.sh` builds SQLite's static archive and its
+`.dylib` there. raylib, GLFW and SDL link Apple's frameworks — Cocoa, IOKit, OpenGL — and tiko
+cannot name a framework on its link line yet, so their programs in this chapter are for Windows
+and Linux. On a Mac, the toolchain's `vendor/SDL3` links Homebrew's SDL instead.
+```
+
 Every listing in this chapter was compiled and run on both platforms, against exactly the
 versions in the table.
 

@@ -1,0 +1,9 @@
+'' vendor/raylib6 IS REFUSED ON macOS (docs/tiko-macos D-M7-2): raylib there links Apple's
+'' frameworks, which '#foreignlib' cannot name, so the module says so before anything else.
+'' TEST: cli
+'' ENV: TKO_PKG=pkg
+'' ENV: TKO_MODCACHE=build/.vmac/mc
+'' ARGS: -target macos-arm64 -c tests/modules/src/vmacos/raylib.tiko -o build/.vmac/raylib.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: error TKO0309: #error: "vendor/raylib6 on macOS needs framework linking, not yet supported"
+'' EXPECT-NO-FILE: build/.vmac/raylib.o

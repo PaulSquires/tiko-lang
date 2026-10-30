@@ -1,0 +1,5 @@
+#embed Missing "embed-nope.bin"
+#embed Empty "embed-empty.bin"
+#embed "embed-empty.bin"
+#embed NoPath
+#embed Extra "embed-errors.tiko" more

@@ -1,1 +1,2 @@
 env: LD_LIBRARY_PATH=.
+targets: windows-x86_64 linux-x86_64

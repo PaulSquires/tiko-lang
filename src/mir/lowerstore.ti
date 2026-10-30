@@ -167,6 +167,9 @@ declare sub EmitDimensionCheck_ _
     '' A DIM SHARED / STATIC initialiser: a compile-time value, not a store on entry.
     declare sub InitSharedGlobal _
         ( byref c as Ctx, byval sid as Tko.SymbolId, byval init as Tko.NodeId )
+    '' A '#embed''s global: the file as its image (lowerembed.tiko). FALSE: not one.
+    declare function EmbedGlobal _
+        ( byref c as Ctx, byval g as int32, byval init as Tko.NodeId ) as boolean
 
 end namespace
 

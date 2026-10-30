@@ -1,8 +1,9 @@
 # Targets
 
-tiko builds for two targets, `windows-x86_64` and `linux-x86_64`. Each is the
-default on its own platform, and `-target` names one explicitly. Both are
-64-bit x86-64 systems, and tiko's types have the same sizes on each:
+tiko builds for three targets, `windows-x86_64`, `linux-x86_64` and
+`macos-arm64`. Each is the default on its own platform, and `-target` names one
+explicitly. All three are 64-bit, two on x86-64 and one on Apple Silicon, and
+tiko's types have the same sizes on each:
 
 ```tiko
 {{#include ../../examples/building/targets.tiko}}
@@ -14,8 +15,8 @@ default on its own platform, and `-target` names one explicitly. Both are
 {{#include ../../examples/building/targets.out}}
 ```
 
-`integer` is the size of a pointer, 8 bytes on both. `long` is 4 bytes on both
-targets, even though the C type of that name is 8 bytes on Linux: a program
+`integer` is the size of a pointer, 8 bytes on all three. `long` is 4 bytes on
+every target, even though the C type of that name is 8 bytes on Linux and macOS: a program
 that uses tiko's types gets the same layout everywhere. Where a program must
 differ between the platforms, [platform detection](../preprocessor/platform.md)
 chooses the code for each.
@@ -24,6 +25,7 @@ chooses the code for each.
 |---|---|---|
 | `windows-x86_64` | a Windows executable | Microsoft's Universal C Runtime |
 | `linux-x86_64` | a Linux executable | the system's C library |
+| `macos-arm64` | a macOS executable, for Apple Silicon | the system's C library, linked by Apple's linker with the macOS SDK |
 
 ### Cross-compiling
 

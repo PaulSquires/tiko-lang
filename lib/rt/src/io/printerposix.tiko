@@ -68,6 +68,8 @@
 '' The parallel-port device node's name: TKORT_LPT_DEVFMT, one per OS.
 #if defined( __FB_LINUX__ )
 	#include once "printerlinux.tiko"
+#elseif defined( __FB_DARWIN__ )
+	#include once "printerdarwin.tiko"
 #else
 	#error "io/printerposix: no parallel-port device name for this OS"
 #endif

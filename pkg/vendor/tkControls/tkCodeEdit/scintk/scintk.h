@@ -36,7 +36,9 @@
 
 #include <stdint.h>
 
-#if defined(_WIN32)
+#if defined(_WIN32) && defined(SCITK_STATIC)
+#  define SCITK_API              /* linked into the program: nothing to export from it */
+#elif defined(_WIN32)
 #  define SCITK_API __declspec(dllexport)
 #else
 #  define SCITK_API __attribute__((visibility("default")))

@@ -60,6 +60,10 @@
 #include <linux/vt.h>
 #include <linux/keyboard.h>
 #endif
+#if defined( __APPLE__ )
+#include <sys/event.h>
+#include <sys/mount.h>
+#endif
 
 /* 1 when PTHREAD_MUTEX_INITIALIZER is all zero bytes, so a zero-filled 'dim shared' mutex is
    a valid unlocked one (glibc); 0 when it carries a signature word (Darwin), and such a mutex
@@ -278,6 +282,10 @@ CONST( CLOCKS_PER_SEC )
 
 SECTION( "sysconf" )
 CONST( _SC_PAGESIZE )
+/* lib/rt fs/volume: whether a volume is case-sensitive, where the OS can say (Darwin) */
+#ifdef _PC_CASE_SENSITIVE
+CONST( _PC_CASE_SENSITIVE )
+#endif
 CONST( _SC_NPROCESSORS_ONLN )
 CONST( _SC_NPROCESSORS_CONF )
 CONST( _SC_PHYS_PAGES )
@@ -887,5 +895,52 @@ CONST( FE_OVERFLOW )
 CONST( FE_UNDERFLOW )
 CONST( FE_INEXACT )
 CONST( FE_ALL_EXCEPT )
+
+#if defined( __APPLE__ )
+SECTION( "Darwin: kqueue (fs/watch) and getmntinfo (fs/volume)" )
+CONST( EVFILT_VNODE )
+CONST( EV_ADD )
+CONST( EV_ENABLE )
+CONST( EV_CLEAR )
+CONST( EV_DELETE )
+CONST( EV_ERROR )
+CONST( NOTE_WRITE )
+CONST( NOTE_DELETE )
+CONST( NOTE_RENAME )
+CONST( NOTE_EXTEND )
+CONST( NOTE_ATTRIB )
+CONST( NOTE_LINK )
+CONST( NOTE_REVOKE )
+CONST( O_EVTONLY )
+CONST( MNT_NOWAIT )
+CONST( MNT_RDONLY )
+/* the first word of PTHREAD_MUTEX_INITIALIZER; the rest of it is zero (FACTS, M0), so a static
+   mutex is this word and zeros (thread/claimlock.tiko, thread/sched.tiko) */
+CONST_AS( PTHREAD_MUTEX_SIG_INIT, _PTHREAD_MUTEX_SIG_init )
+STRUCT( struct_kevent, struct kevent )
+    F_INT( ident, ident )
+    F_INT( filter, filter )
+    F_INT( flags, flags )
+    F_INT( fflags, fflags )
+    F_INT( data, data )
+    F_PTR( udata, udata )
+END_STRUCT
+/* std/net's netdarwin.tiko: a datagram's full length is recvmsg's MSG_TRUNC in msg_flags */
+STRUCT( struct_msghdr, struct msghdr )
+    F_PTR( msg_name, msg_name )
+    F_INT( msg_namelen, msg_namelen )
+    F_PTR( msg_iov, msg_iov )
+    F_INT( msg_iovlen, msg_iovlen )
+    F_PTR( msg_control, msg_control )
+    F_INT( msg_controllen, msg_controllen )
+    F_INT( msg_flags, msg_flags )
+END_STRUCT
+STRUCT( struct_statfs, struct statfs )
+    F_INT( f_flags, f_flags )
+    F_CHARS( f_fstypename, f_fstypename )
+    F_CHARS( f_mntonname, f_mntonname )
+    F_CHARS( f_mntfromname, f_mntfromname )
+END_STRUCT
+#endif
 
 #endif

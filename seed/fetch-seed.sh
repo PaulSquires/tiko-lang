@@ -36,6 +36,7 @@ if [ -z "$HOST" ]; then
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*) HOST=windows ;;
         Linux)                HOST=linux ;;
+        Darwin)               HOST=macos ;;
         *) fail "unknown host $(uname -s); pass --host" ;;
     esac
 fi
@@ -85,12 +86,12 @@ case "$ASSET" in
 esac
 rm -rf "$DL"
 
-# The archive holds one top-level directory (tiko-windows/ or tiko-linux/).
+# The archive holds one top-level directory (tiko-windows/, tiko-linux/ or tiko-macos/).
 TOP=$(ls -1 "$OUTD" | head -1)
 if [ -f "$OUTD/$TOP/tiko.exe" ]; then C="$OUTD/$TOP/tiko.exe"; else C="$OUTD/$TOP/bin/tiko"; fi
 [ -f "$C" ] || fail "no compiler in the unpacked seed ($OUTD/$TOP)"
 # Run it only on its own host: a seed fetched for the other one cannot start here.
-case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) ME=windows ;; Linux) ME=linux ;; *) ME=other ;; esac
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) ME=windows ;; Linux) ME=linux ;; Darwin) ME=macos ;; *) ME=other ;; esac
 if [ "$ME" = "$HOST" ]; then
     echo "fetch-seed: $($C --version 2>&1 | head -1)"
 else

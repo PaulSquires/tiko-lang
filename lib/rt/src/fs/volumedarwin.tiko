@@ -1,0 +1,89 @@
+'' volumedarwin.tiko -- fs/volume's mount table and filesystem-type names on macOS:
+'' getmntinfo( ).
+''
+'' #INCLUDED by fs/volume.tiko's POSIX branch, never compiled on its own and not in
+'' build/sources.txt. It provides the names volumelinux.tiko does,
+''
+''     FB_FSMOUNTS, FB_FSMOUNT, FB_FSMOUNT_PATHMAX
+''     hOsMountOpen( m ) as int32, hOsMountNext( m, e ) as int32, hOsMountClose( m )
+''     hParseMountInfo( e, mp, fs, src ) as int32
+''     hIsRealMount( src ) as int32, hOsFsHasLinks( fstype ) as int32
+''
+'' with the same contracts.
+''
+'' THE TABLE IS LIBC'S. getmntinfo( MNT_NOWAIT ) returns a count and points at an array of
+'' struct statfs it owns and reuses on the next call, so a walk is an index into it and an
+'' entry is a pointer to one element; there is nothing to close. Measured on the Mac
+'' (docs/tiko-macos FACTS "Darwin APIs"): 11 mounts, the first "/" of type "apfs". The
+'' struct's layout -- f_mntonname at 88, f_fstypename at 72, f_mntfromname at 1112, 2168
+'' bytes -- is the posix binding's, measured by build/posixgen.sh.
+''
+'' A REAL MOUNT is one whose source is a device path (/dev/disk3s1s1); devfs, autofs's
+'' "map auto_home" and the like are not -- volumelinux.tiko's rule, unchanged. The types
+'' that cannot hold a symbolic link have Darwin's own names: msdos, exfat, cd9660.
+
+#if defined( __FB_DARWIN__ )
+
+'' A mount point is f_mntonname: MAXPATHLEN bytes, terminator included.
+const FB_FSMOUNT_PATHMAX = 1024
+
+type FB_FSMOUNTS
+	as struct_statfs ptr tab
+	as int32 n
+	as int32 i
+end type
+
+type FB_FSMOUNT
+	as struct_statfs ptr st
+end type
+
+extern "c"   '' NON-FBCALL: libc.
+	declare function u_getmntinfo alias "getmntinfo" ( byval mntbufp as struct_statfs ptr ptr, byval flags as int32 ) as int32
+	'' fs/volume.tiko's Darwin branch: the volume a path lives on, and whether it is case-sensitive.
+	declare function u_statfs alias "statfs" ( byval p as zstring ptr, byval st as struct_statfs ptr ) as int32
+	declare function u_pathconf alias "pathconf" ( byval p as zstring ptr, byval name_ as int32 ) as integer
+end extern
+
+private function hParseMountInfo( byval e as FB_FSMOUNT ptr, byval mountpoint as zstring ptr ptr, _
+                                  byval fstype as zstring ptr ptr, byval source as zstring ptr ptr ) as int32
+	*mountpoint = @e->st->f_mntonname
+	*fstype = @e->st->f_fstypename
+	*source = @e->st->f_mntfromname
+	if( e->st->f_mntonname[0] = 0 ) then return 0
+	return 1
+end function
+
+private function hIsRealMount( byval source as zstring ptr ) as int32
+	if( source = nullptr ) then return 0
+	return iif( source[0] = 47, 1, 0 )
+end function
+
+'' The FAT family and ISO 9660, by their Darwin type names.
+private function hOsFsHasLinks( byval fstype as zstring ptr ) as int32
+	if( (u_strncmp( fstype, @"msdos", 5 ) <> 0) andalso _
+	    (u_strncmp( fstype, @"exfat", 5 ) <> 0) andalso _
+	    (u_strncmp( fstype, @"cd9660", 6 ) <> 0) ) then
+		return 1
+	end if
+	return 0
+end function
+
+private function hOsMountOpen( byval m as FB_FSMOUNTS ptr ) as int32
+	m->tab = nullptr
+	m->i = 0
+	m->n = u_getmntinfo( @m->tab, MNT_NOWAIT )
+	return iif( (m->n > 0) andalso (m->tab <> nullptr), 1, 0 )
+end function
+
+private function hOsMountNext( byval m as FB_FSMOUNTS ptr, byval e as FB_FSMOUNT ptr ) as int32
+	if( m->i >= m->n ) then return 0
+	e->st = @m->tab[m->i]
+	m->i += 1
+	return 1
+end function
+
+private sub hOsMountClose( byval m as FB_FSMOUNTS ptr )
+	'' libc owns the array.
+end sub
+
+#endif

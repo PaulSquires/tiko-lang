@@ -1,0 +1,21 @@
+'' dylibdarwin.tiko -- sys/dylib's shared-library filename conventions on macOS.
+''
+'' #INCLUDED by sys/dylib.tiko's POSIX branch, never compiled on its own and not
+'' in build/sources.txt. It provides the table dyliblinux.tiko does,
+''
+''     tkort_libfmt( ) as zstring ptr
+''
+'' the snprintf formats fb_DylibLoad tries in order, terminated by a 0 entry.
+''
+'' Darwin's own suffix is .dylib; a .so still loads through dlopen, and fbc's Darwin
+'' list keeps it as the fallback, after the .dylib spelling of each form (read from
+'' fbc's unix/sys_dylib.c; the order is the one the Linux table already follows).
+
+#if defined( __FB_DARWIN__ )
+
+'' The filename conventions, tried in order. A trailing 0 terminates the table.
+dim shared as zstring ptr tkort_libfmt( 0 to 8 ) = { _
+	@"%s", @"lib%s", @"lib%s.dylib", @"lib%s.so", _
+	@"./%s", @"./lib%s", @"./lib%s.dylib", @"./lib%s.so", 0 }
+
+#endif

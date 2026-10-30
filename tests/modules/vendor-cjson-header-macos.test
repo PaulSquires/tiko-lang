@@ -1,0 +1,7 @@
+'' THE COMMITTED vendor/cJSON HEADERS: cJSON.ti and utils' cJSON_Utils.ti, translated by
+'' 'tiko c2t' from cJSON 1.7.19's headers, and the hand-written cJSON-residue.ti compile for
+'' macos-arm64 as an importer reads them. The library is not needed: nothing is linked.
+'' TEST: cli
+'' ARGS: -target macos-arm64 -c tests/modules/src/vcjson/hdr.tiko -o build/.vcjh-macos-arm64.o
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: build/.vcjh-macos-arm64.o

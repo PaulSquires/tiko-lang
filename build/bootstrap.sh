@@ -100,7 +100,9 @@ fi
 [ -d "$TKO_BOOT_INC" ] || { echo "bootstrap: no header directory $TKO_BOOT_INC (set TKO_BOOT_INC)" >&2; exit 3; }
 
 if [ -z "$TARGET" ]; then
-    if [ "$HOSTWIN" = "1" ]; then TARGET="windows-x86_64"; else TARGET="linux-x86_64"; fi
+    if [ "$HOSTWIN" = "1" ]; then TARGET="windows-x86_64"
+    elif [ "$(uname -s)" = "Darwin" ]; then TARGET="macos-arm64"
+    else TARGET="linux-x86_64"; fi
 fi
 # THE SEED'S NAME FOR THE TARGET. windows-x86_64 was win64-msvc until 2026-10-12, and a
 # seed from before then knows only the old name -- for -target and for its lib/ directory.
@@ -125,6 +127,7 @@ if [ -z "$TKO_BOOT_LIBDIRS" ]; then
         win64)        TKO_BOOT_LIBDIRS="$ROOT/toolchains/tiko-windows/lib/win64"
                       [ -d "$ROOT/toolchains/tiko-windows/lib/win64-fb" ] && TKO_BOOT_LIBDIRS="$TKO_BOOT_LIBDIRS $ROOT/toolchains/tiko-windows/lib/win64-fb" ;;
         linux-x86_64) TKO_BOOT_LIBDIRS="$ROOT/lib/rt/lib/linux-x86_64" ;;
+        macos-arm64)  TKO_BOOT_LIBDIRS="$ROOT/lib/rt/lib/macos-arm64" ;;
         *) echo "bootstrap: unknown target '$TARGET'" >&2; exit 2 ;;
     esac
 fi

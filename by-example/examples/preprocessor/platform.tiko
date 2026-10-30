@@ -1,5 +1,5 @@
-'' One source, two platforms: the compiler predefines a symbol for the
-'' platform it builds for, and the branch for the other is never
+'' One source, three platforms: the compiler predefines a symbol for the
+'' platform it builds for, and the branches for the others are never
 '' compiled.
 #if defined( __FB_WIN32__ )
     const PLATFORM = "Windows"
@@ -9,8 +9,12 @@
     const PLATFORM = "Linux"
     const PATH_SEP = "/"
     const TEMP_VAR = "TMPDIR"
+#elseif defined( __FB_DARWIN__ )
+    const PLATFORM = "macOS"
+    const PATH_SEP = "/"
+    const TEMP_VAR = "TMPDIR"
 #else
-    #error "this program supports Windows and Linux only"
+    #error "this program supports Windows, Linux and macOS only"
 #endif
 
 print "platform:      "; PLATFORM

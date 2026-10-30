@@ -647,6 +647,8 @@ end sub
 '' The birth time: hTryBirthTime( path_, follow, out_ ), one per OS.
 #if defined( __FB_LINUX__ )
 	#include once "statlinux.tiko"
+#elseif defined( __FB_DARWIN__ )
+	#include once "statdarwin.tiko"
 #else
 	#error "fs/stat: no birth-time backend for this OS"
 #endif

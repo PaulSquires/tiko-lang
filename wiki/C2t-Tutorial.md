@@ -695,6 +695,7 @@ The ones you will use first:
 | `-I <dir>` | The header includes other headers of the library that are in another folder. |
 | `-D NAME[=value]` | The library's documentation says to define something before including it. The `#define` is also written into the `.ti`, so tiko sees what C saw. |
 | `--verify` | You want proof the types match C. tiko compiles the translation for both systems and compares every struct's size, alignment and field offsets, and every integer constant, with Clang's. Something that differs is marked as a TODO instead of being left wrong. |
+| `--macos-sysroot <sdk>` | You want a macOS reading too: on a Mac, `--macos-sysroot $(xcrun --show-sdk-path)` adds a third pass for macos-arm64. |
 | `--sysroot <dir>` | You are on Windows, and the header includes a system header such as `<stdio.h>`: the Linux reading needs Linux's headers. The WSL root works, `--sysroot //wsl.localhost/Ubuntu`. `minigeo.h` includes only headers built into tiko, so it needs none. |
 
 **One header per run.** If the library has several headers that include each other, translate each

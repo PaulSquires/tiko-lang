@@ -18,8 +18,8 @@ using outcome
 
 #ifdef __FB_UNIX__
 
-#if not defined( __FB_LINUX__ )
-    #error "std/process: no per-OS file for this target (proclinux.tiko is Linux's)"
+#if not ( defined( __FB_LINUX__ ) or defined( __FB_DARWIN__ ) )
+    #error "std/process: no per-OS file for this target (proclinux.tiko, procdarwin.tiko)"
 #endif
 
 extern "C"

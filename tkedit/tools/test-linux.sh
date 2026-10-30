@@ -49,12 +49,21 @@ run() {      # run <name> <dir> <driver> <command...>
 if build src/core; then
     run coreall "$E/src/core" none ./tests/bin/coreall.exe
 fi
-if [ "${1:-}" != core ] && build src/app; then
+# tkEdit LINKS IN the scanner (svc/parser): tiko-lang's bin/parser_linux_x86_64.a, which must be built by
+# THIS compiler (its std module objects are one copy at the link). Made in the checkout when it is missing
+# or older than the compiler, then copied to the build folder's bin/, where svc/parser's '#foreignlib'
+# looks (four folders above it, as in the checkout).
+parserlib() {
+    local lib=$SRC/../bin/parser_linux_x86_64.a
+    if ! { [ -f "$lib" ] && [ "$lib" -nt "$TIKO" ]; }; then
+        ( cd "$SRC/.." && TKO_SEED="$TIKO" bash build/build.sh Release --lib ) > "$W/parserlib.log" 2>&1 \
+            || { echo "parser library: BUILD FAILED ($W/parserlib.log)"; bad=$((bad+1)); return 1; }
+    fi
+    mkdir -p "$W/bin" && cp -f "$lib" "$W/bin/"
+}
+if [ "${1:-}" != core ] && parserlib && build src/app; then
     # the self-test builds sample programs with this tiko (P4)
     export TKEDIT_TIKO=$TIKO
-    # code intelligence (P5): parser.so (tiko-lang build/build.sh --dll under Linux)
-    TKP=${TIKOPARSER:-$HOME/tkpbuild/bin/parser.so}
-    [ -f "$TKP" ] && cp -f "$TKP" "$E/bin/"
     for drv in x11 wayland; do
         run tkEdit "$E/bin" $drv ./tkedit --selftest
     done

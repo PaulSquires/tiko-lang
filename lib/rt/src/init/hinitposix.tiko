@@ -270,6 +270,8 @@ end sub
 '' Port-I/O permission: hOsPortPermission( ), one per OS.
 #if defined( __FB_LINUX__ )
 	#include once "hinitposixlinux.tiko"
+#elseif defined( __FB_DARWIN__ )
+	#include once "hinitposixdarwin.tiko"
 #else
 	#error "init/hinitposix: no port-permission backend for this OS"
 #endif

@@ -1171,6 +1171,11 @@ sub CheckArrayDeclShapes_( byref c as Ctx )
             '' and the corpus scan caught that. A const element with nothing to set it
             '' from is what is refused.
             if ip->b <> NODE_NONE then continue for
+            '' ...NOR AN EXTERN, which never has an initialiser: the storage and its value are
+            '' the defining module's. fbc compiles 'extern a( 0 to 3 ) as const ubyte' clean
+            '' (fbc-modern 1.20, 2026-10-29), and a module's interface writes exactly that for a
+            '' public const array -- every '#embed' an importer read was refused here.
+            if (s->flags and SYMF_EXTERN) <> 0 then continue for
             if constEl then
                 c.diags->Report( TKO0692, PointRange( c.ast->Loc( item ) ), _
                                  c.names->Spelling( s->name ) )

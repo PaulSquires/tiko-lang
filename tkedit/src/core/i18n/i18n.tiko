@@ -19,6 +19,7 @@
 #import "std/config"
 #import "std/containers"
 #import "std/outcome"
+#import "tkc/bundled"
 using containers
 using outcome
 
@@ -83,7 +84,7 @@ public function ParseCatalog( byref text as const ustring, byref code as const u
 end function
 
 public function LoadCatalog( byref path as const ustring, byref code as const ustring ) as CatalogResult
-    dim as fs.FsResultUStr r = fs.ReadAllText( path )
+    dim as fs.FsResultUStr r = bundled.ReadAllText( path )     ' a file, or a bundled: name
     if r.IsOk( ) = false then return Fail( of Catalog, ustring )( r.Failure( ).Message( ) )
     dim as CatalogResult c = ParseCatalog( r.Value( ), code )
     if c.IsOk( ) = false then return Fail( of Catalog, ustring )( path & ": " & c.Failure( ) )
@@ -92,15 +93,19 @@ public function LoadCatalog( byref path as const ustring, byref code as const us
     return Ok( of Catalog, ustring )( v )
 end function
 
-' The file a language code means: the user's copy wins over the shipped one; "" = neither exists.
+' The file a language code means: the user's copy wins over the shipped one -- a folder's when
+' resourceDir names one, else the copy tkEdit carries (tkc/bundled, "bundled:lang/<code>.toml");
+' "" = none.
 public function FindCatalog( byref code as const ustring, byref configDir as const ustring, _
                              byref resourceDir as const ustring ) as ustring
     dim as ustring f = lcase( code ) & ".toml"
     dim as ustring u = fs.PathJoin( configDir, LANG_DIR, f )
     if (len( configDir ) > 0) andalso fs.IsFile( u ) then return u
-    dim as ustring s = fs.PathJoin( resourceDir, LANG_DIR, f )
-    if fs.IsFile( s ) then return s
-    return ""
+    if len( resourceDir ) > 0 then
+        dim as ustring s = fs.PathJoin( resourceDir, LANG_DIR, f )
+        if fs.IsFile( s ) then return s
+    end if
+    return bundled.Locate( LANG_DIR & "/" & f, "" )
 end function
 
 dim shared as Catalog active

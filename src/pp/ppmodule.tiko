@@ -136,7 +136,8 @@ sub PpModNoteHeader( byref e as PpEngine, byval from as FileId, byval got as Fil
 end sub
 
 '' 'public #cinclude "x.h"' AT THE START OF A LINE (book work item T101), and 'public #include
-'' "x.ti"' (tiko-vendor RFC-0002 V1): 'public' is consumed and the directive runs with
+'' "x.ti"' (tiko-vendor RFC-0002 V1), and 'public #embed NAME "f"' (docs/tiko-embed RFC-0001,
+'' whose declaration it makes public): 'public' is consumed and the directive runs with
 '' cincPublic set. False, touching nothing, for anything else -- 'public' starting an
 '' ordinary declaration included.
 function PpModPublicCInclude( byref e as PpEngine, byref t as Token ) as boolean
@@ -146,7 +147,7 @@ function PpModPublicCInclude( byref e as PpEngine, byref t as Token ) as boolean
     if Tk( f->toks->At( f->pos + 1 ) ) <> TK_HASH then return false
     dim as Token w = f->toks->At( f->pos + 2 )
     dim as string word = Text.LowerAscii( SpellOf( e, w ) )
-    if (word <> "cinclude") andalso (word <> "include") then return false
+    if (word <> "cinclude") andalso (word <> "include") andalso (word <> "embed") then return false
     Advance( e )
     dim as Token h
     PeekTok( e, h )

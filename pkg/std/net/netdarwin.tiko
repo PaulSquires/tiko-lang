@@ -1,0 +1,86 @@
+#module "net"
+'' std/net: netdarwin -- the Darwin pieces of std/net's POSIX code: the five netlinux.tiko
+'' lists, with the spellings its header names. Darwin has no SOCK_CLOEXEC, no accept4 and
+'' no MSG_TRUNC as an input flag (measured: docs/tiko-macos FACTS "Darwin APIs"); its
+'' SDK does define MSG_NOSIGNAL, but whether a macOS 13 kernel honours it was not measured,
+'' so SIGPIPE is kept off per socket with SO_NOSIGPIPE, which was.
+''
+''   hLastErr( )            *__error( )
+''   hSocket( v6, type_ )   socket( ), then FD_CLOEXEC and SO_NOSIGPIPE
+''   hAccept( fd )          accept( ), then the same on the new socket
+''   TKN_MSG_NOSIGNAL       0
+''   hRecvDgram( ... )      recvmsg( ); the full length when MSG_TRUNC comes back set
+''
+'' FD_CLOEXEC IS NOT ATOMIC here, as SOCK_CLOEXEC is on Linux: a fork in another thread
+'' between socket( ) and fcntl( ) could inherit the descriptor.
+''
+'' libc only, as in netsock.tiko.
+
+#ifdef __FB_DARWIN__
+#include once "../../sys/posix/posix.ti"
+using posix
+
+extern "C"
+    declare function tknd_error alias "__error" ( ) as long ptr
+    declare function tknd_socket alias "socket" ( byval af as long, byval type_ as long, byval proto as long ) as long
+    declare function tknd_accept alias "accept" ( byval fd as long, byval sa as any ptr, byval n as socklen_t ptr ) as long
+    declare function tknd_close alias "close" ( byval fd as long ) as long
+    declare function tknd_fcntl alias "fcntl" ( byval fd as long, byval cmd as long, ... ) as long
+    declare function tknd_setsockopt alias "setsockopt" ( byval fd as long, byval level as long, byval name_ as long, _
+        byval v as const any ptr, byval n as socklen_t ) as long
+    declare function tknd_recvmsg alias "recvmsg" ( byval fd as long, byval m as struct_msghdr ptr, byval flags as long ) as integer
+end extern
+
+'' SO_NOSIGPIPE does the flag's job, per socket.
+const TKN_MSG_NOSIGNAL = 0
+
+function hLastErr( ) as long
+    return *tknd_error( )
+end function
+
+'' Close-on-exec and no SIGPIPE, on a socket already open; closed on failure.
+private function hSocketFlags_( byval fd as long ) as long
+    dim as long one = 1
+    if( ( tknd_fcntl( fd, F_SETFD, FD_CLOEXEC ) = -1 ) orelse _
+        ( tknd_setsockopt( fd, SOL_SOCKET, SO_NOSIGPIPE, @one, sizeof( one ) ) = -1 ) ) then
+        dim as long e = *tknd_error( )
+        tknd_close( fd )
+        *tknd_error( ) = e
+        return -1
+    end if
+    return fd
+end function
+
+function hSocket( byval v6 as boolean, byval type_ as long ) as integer
+    dim as long fd = tknd_socket( iif( v6, AF_INET6, AF_INET ), type_, 0 )
+    if( fd < 0 ) then return -1
+    return hSocketFlags_( fd )
+end function
+
+function hAccept( byval fd as integer ) as long
+    dim as long c = tknd_accept( fd, nullptr, nullptr )
+    if( c < 0 ) then return -1
+    return hSocketFlags_( c )
+end function
+
+'' One datagram. recvmsg reports MSG_TRUNC in msg_flags when it did not fit; the full
+'' length is then not known from this call, so n + 1 says "larger than n" -- which is all
+'' the caller asks of the Linux answer, the real length.
+function hRecvDgram( byval fd as integer, byval p as ubyte ptr, byval n as long, byval sa as any ptr, _
+        byval sn as socklen_t ptr ) as integer
+    dim as struct_iovec iov
+    iov.iov_base = p
+    iov.iov_len = n
+    dim as struct_msghdr m
+    m.msg_name = sa
+    m.msg_namelen = iif( sn <> nullptr, *sn, 0 )
+    m.msg_iov = @iov
+    m.msg_iovlen = 1
+    dim as integer got = tknd_recvmsg( fd, @m, 0 )
+    if( got < 0 ) then return got
+    if( sn <> nullptr ) then *sn = m.msg_namelen
+    if( ( m.msg_flags and MSG_TRUNC ) <> 0 ) then return cast( integer, n ) + 1
+    return got
+end function
+
+#endif

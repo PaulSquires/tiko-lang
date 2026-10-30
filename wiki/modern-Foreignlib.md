@@ -46,12 +46,12 @@ dir/base_<arch><ext>
 dir/base<ext>
 ```
 
-| | windows-x86_64 | linux-x86_64 |
-|---|---|---|
-| `<os>` | `windows` | `linux` |
-| `<arch>` | `x86_64` | `x86_64` |
-| `<ext>`, `static` | `.a`, `.lib` | `.a` |
-| `<ext>`, `dynamic` | `.dll.a`, `.lib`, `.dll` | `.so` |
+| | windows-x86_64 | linux-x86_64 | macos-arm64 |
+|---|---|---|---|
+| `<os>` | `windows` | `linux` | `macos` |
+| `<arch>` | `x86_64` | `x86_64` | `arm64` |
+| `<ext>`, `static` | `.a`, `.lib` | `.a` | `.a` |
+| `<ext>`, `dynamic` | `.dll.a`, `.lib`, `.dll` | `.so` | `.dylib` |
 
 Every ending for the kind is tried at each step, and the first file that exists is used. It is passed to the linker by its exact file name.
 
@@ -101,7 +101,7 @@ Declaring the same name again with an **identical** set is allowed, which is wha
 - **The kind is not checked for `system:` specs.** tiko does not look for the file, so the linker takes whatever it finds. On Linux it prefers `libfoo.so` over `libfoo.a` when both exist.
 - **A `.dll` with no import library** (windows-x86_64). When a `dynamic` spec matches only a `.dll`, tiko reads the DLL's export table and makes an import library for it while linking, with `llvm-dlltool` from clang's LLVM directory, and deletes it with the other intermediate files. The import library names the DLL as the DLL names itself, not by its file name, so a renamed copy in `vendor/` still loads the original beside the program. A file that is not a 64-bit x86-64 DLL is `TKO0172`. A `.dll.a` or `.lib` of a matching name is found first and used as it is.
 - **Separately compiled modules carry their own libraries.** The resolved library file and its absolute directory are recorded in the object file, so a module compiled with `-c` links correctly later, from any working directory.
-- **Running the program is up to you.** A dynamically linked program needs its DLL beside the `.exe` on Windows, and its `.so` on the loader's path on Linux (`LD_LIBRARY_PATH`, the system's library directories, or an rpath such as `#cmdline "-Wl -rpath,$ORIGIN"`). `#foreignlib` does not copy library files.
+- **Running the program is up to you.** A dynamically linked program needs its DLL beside the `.exe` on Windows, its `.so` on the loader's path on Linux (`LD_LIBRARY_PATH`, the system's library directories, or an rpath such as `#cmdline "-Wl -rpath,$ORIGIN"`), and on macOS its `.dylib` where its install name points (a program that links a `.dylib` file from `#foreignlib` gets the run path `@loader_path`, so `@rpath/<name>` resolves beside it). `#foreignlib` does not copy library files.
 - `#inclib` and `#libpath` work alongside it and can be used in the same program. `#libpath` is relative to the working directory, which is why a shipped binding uses `#foreignlib` instead.
 
 ## Working with `#cinclude`

@@ -1289,7 +1289,7 @@ function Run _
                     end if
                     ctx.timing.Add( Tko.PH_LINK, tLink )
                 end if
-                '' A vendor package's .dll / .so beside the program (tiko-vendor RFC-0002 V13) --
+                '' A vendor package's .dll / .so / .dylib beside the program (tiko-vendor RFC-0002 V13) --
                 '' after the link step, not in it, so an up-to-date link still puts back one deleted.
                 dim as string cpSrc, cpDst
                 dim as boolean wantLibs = (toolExit = Tko.EXIT_OK) andalso (ctx.options.noCopyLibs = false)

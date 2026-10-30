@@ -1,0 +1,16 @@
+'' #EMBED, COMPILED AND RUN (docs/tiko-embed RFC-0001): every byte value 0-255 three times
+'' plus 00 00 22 5C, so bounds, checksum and the last byte are exact; the NUL after the last
+'' element; a text file read in place as a zstring; a file found through -i; and one a header
+'' embeds relative to ITS folder. 'embed' stays a name and '#embed' mid-line a file number.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i tests/driver/src/embed/inc tests/driver/src/embed/main.tiko -o tests/driver/embed-run.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/embed-run.exe
+'' RUN: tests/driver/embed-run.exe
+'' EXPECT-RUN-OUT: all 0 771 98046 255 92
+'' EXPECT-RUN-OUT: nul 0
+'' EXPECT-RUN-OUT: text [hello, embed] 12
+'' EXPECT-RUN-OUT: inc 2 3
+'' EXPECT-RUN-OUT: hdr H! 3
+'' EXPECT-RUN-OUT: fileno ok

@@ -1,6 +1,6 @@
 # Platform detection
 
-A program that runs on Windows and Linux sometimes has to do things
+A program that runs on Windows, Linux and macOS sometimes has to do things
 differently on each: a path separator, the name of an environment variable, a
 system call that exists on only one of them. The compiler predefines a symbol
 for the platform it is building for, and conditional compilation picks the
@@ -25,11 +25,18 @@ targets.
 {{#include ../../examples/preprocessor/platform.linux-x86_64.out}}
 ```
 
+**Output on macos-arm64**
+
+```text
+{{#include ../../examples/preprocessor/platform.macos-arm64.out}}
+```
+
 | Symbol | Defined when building for |
 |---|---|
 | `__FB_WIN32__` | Windows (the name is historical: it is defined for 64-bit Windows) |
 | `__FB_LINUX__` | Linux |
-| `__FB_UNIX__` | Linux, and other Unix-like systems |
+| `__FB_DARWIN__` | macOS |
+| `__FB_UNIX__` | Linux, macOS, and other Unix-like systems |
 | `__FB_64BIT__` | every 64-bit target, which today is every target |
 | `__TIKO_COMPILER__` | always, by tiko |
 

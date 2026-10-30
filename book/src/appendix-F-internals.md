@@ -58,16 +58,19 @@ so that what comes out is plain code over plain values. A verifier checks every 
 it goes on. This is the biggest directory in the compiler.
 
 **The ABI pass** (`src/codegen`). Rewrites each signature and call for the target's calling
-convention — the Microsoft x64 convention on Windows, System V on Linux — so the IR that follows
+convention — the Microsoft x64 convention on Windows, System V on Linux, Apple's AAPCS64 on
+macOS — so the IR that follows
 has no implicit ABI behaviour: which structures travel in registers, which by hidden pointer, how
 a function returns one. `--dump-ir` shows MIR after this pass, so what will really be passed is
 visible without reading LLVM.
 
 **LLVM IR and clang**. The emitter writes LLVM IR as text, one `.ll` file per unit, and clang
 compiles it. clang is not bundled: tiko runs whatever `TKO_CLANG` names, else
-`C:\Program Files\LLVM\bin\clang.exe` on Windows or `/usr/bin/clang` on Linux, else the first
+`C:\Program Files\LLVM\bin\clang.exe` on Windows, `/usr/bin/clang` on Linux or Homebrew's
+`/opt/homebrew/opt/llvm/bin/clang` on macOS, else the first
 clang on the `PATH`, and it needs clang 18 or newer. The link
-goes through clang with lld, or on Linux the system linker when there is no `ld.lld`.
+goes through clang with lld, or on Linux the system linker when there is no `ld.lld`; on macOS
+it goes through Apple's linker with the macOS SDK.
 `-O1` to `-O3` are clang's optimisations; tiko's own optimiser is deliberately thin.
 
 **The driver** (`src/driver`). Reads the command line, decides what is being built, builds the

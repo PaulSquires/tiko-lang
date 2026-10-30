@@ -525,12 +525,35 @@ private sub ResolveAmbiguous _
         '' assignment to the procedure itself, and the program segfaulted at that line. A
         '' PROPERTY is a setter call, and another overload of the current function is its own
         '' result, so neither is judged.
-        if (isResult = false) andalso bareName andalso (s <> nullptr) then
+        ''
+        '' ...AND SO IS A QUALIFIED ONE: 'T.SF = 3' and 'ns.NF = 2' are 317 outside the
+        '' function and its result inside (fbc-modern 1.20, 2026-10-29). An OBJECT'S method
+        '' is methodassign.tiko's. A SUB's name is never a target -- 317 too, and tiko
+        '' lowered it to TKO0994.
+        dim as boolean qualName = false
+        if c.ast->Kind( sp->a ) = Tko.N_MEMBER then
+            dim as Tko.Symbol ptr qs = c.syms->SymbolAt( c.info->RefOf( c.ast->BinaryOf( sp->a )->lhs ) )
+            if qs <> nullptr then
+                select case cast( Tko.SymbolKind, qs->kind )
+                case Tko.SYM_UDT, Tko.SYM_NAMESPACE, Tko.SYM_TYPEDEF
+                    qualName = true
+                end select
+            end if
+        end if
+        if (isResult = false) andalso (bareName orelse qualName) andalso (s <> nullptr) then
             if s->kind = cast( uint8, Tko.SYM_PROC ) then
+                dim as Tko.NodeId sn = sp->a    '' the name, not the qualifier
+                if qualName then sn = c.ast->BinaryOf( sp->a )->rhs
                 dim as Tko.NodeId fpn = cast( Tko.NodeId, s->payload )
                 dim as boolean isFunc = false
                 if (fpn <> Tko.NODE_NONE) andalso (c.ast->Kind( fpn ) = Tko.N_PROC) then
                     isFunc = (StmtOf( c, fpn )->op = cast( uint16, Tko.KW_FUNCTION ))
+                    if StmtOf( c, fpn )->op = cast( uint16, Tko.KW_SUB ) then
+                        c.diags->Report( Tko.TKO0601, Tko.PointRange( c.ast->Loc( sn ) ), _
+                                         c.names->Spelling( s->name ), "sub" )
+                        c.info->SetAmbiguous( id, Tko.AMB_ERROR )
+                        return
+                    end if
                 end if
                 dim as boolean ownOverload = false
                 dim as Tko.SymbolId ov = sid
@@ -540,7 +563,7 @@ private sub ResolveAmbiguous _
                     ov = c.syms->SymbolAt( ov )->nextOverload
                 next
                 if isFunc andalso (ownOverload = false) then
-                    c.diags->Report( Tko.TKO0939, Tko.PointRange( c.ast->Loc( sp->a ) ), _
+                    c.diags->Report( Tko.TKO0939, Tko.PointRange( c.ast->Loc( sn ) ), _
                                      c.names->Spelling( s->name ) )
                     c.info->SetAmbiguous( id, Tko.AMB_ERROR )
                     return

@@ -11,6 +11,6 @@ wend
 
 if os.Interrupted( ) then
     print "stopped early after"; done_; " steps"
-    os.Exit_( 130 )
+    os.ExitWith( 130 )
 end if
 print "finished all"; done_; " steps"

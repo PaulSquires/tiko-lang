@@ -18,13 +18,13 @@ UNICODE = "1"
 links = ["static", "dynamic"]
 
 [vendor.SDL3]
-links = ["dynamic"]
+links = ["static", "dynamic"]
 
 [vendor.SDL3.image]
-links = ["dynamic"]
+links = ["static", "dynamic"]
 
 [vendor.SDL3.ttf]
-links = ["dynamic"]
+links = ["static", "dynamic"]
 
 [vendor.SDL3.mixer]
 links = ["dynamic"]
@@ -47,4 +47,5 @@ links = ["static", "dynamic"]
 runtime = ["../fonts/Inter-Regular.ttf", "../fonts/Inter-Bold.ttf", "../fonts/Inter-Italic.ttf", "../fonts/CascadiaMono-Regular.ttf", "../fonts/FluentSystemIcons-Regular.ttf", "../fonts/Inter-LICENSE.txt", "../fonts/CascadiaMono-LICENSE.txt", "../fonts/FluentSystemIcons-LICENSE.txt"]
 
 [vendor.tkControls.tkCodeEdit]
+links = ["static", "dynamic"]
 runtime = ["../lib/scintk"]

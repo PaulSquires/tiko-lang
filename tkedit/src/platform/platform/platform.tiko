@@ -69,6 +69,20 @@ public function ExeDir( ) as ustring
     return fs.PathParent( r.Value( ) )
 end function
 
+' THE FOLDER tkEdit IS INSTALLED IN: the program's own, or on macOS the one holding its bundle
+' (<dir>/tkEdit.app/Contents/MacOS/tkedit) -- where a compiler beside it is looked for
+' (build.SiblingCompiler), as an archive unpacks tiko-<host>/ next to tkedit/.
+public function InstallDir( ) as ustring
+    dim as ustring here = ExeDir( )
+    if CurrentOs( ) = Os.MacOS then
+        dim as ustring contents = fs.PathParent( here )
+        dim as ustring app = fs.PathParent( contents )
+        if (fs.PathFileName( here ) = "MacOS") andalso (fs.PathFileName( contents ) = "Contents") andalso _
+           (lcase( right( app, 4 ) ) = ".app") then return fs.PathParent( app )
+    end if
+    return here
+end function
+
 ' The installation's resource root: the folder holding fonts/ and settings/. A dev build runs from
 ' <repo>/bin, so the exe folder's parent is tried after the exe folder itself; a macOS bundle
 ' keeps them in Contents/Resources.
@@ -227,7 +241,9 @@ public function TerminalArgv( byref exe as const ustring, byref args as const Ar
     if CurrentOs( ) = Os.MacOS then
         dim as ustring script = fs.PathJoin( scriptDir, "tkEdit-run.command" )
         fs.WriteAllText( script, body )
-        argv.Push( "/usr/bin/open" ) : argv.Push( "-a" ) : argv.Push( "Terminal" ) : argv.Push( script )
+        ' Terminal.app runs a .command only when it is executable, and std/fs sets no mode bits
+        argv.Push( "/bin/sh" ) : argv.Push( "-c" )
+        argv.Push( "chmod +x '" & script & "' && exec /usr/bin/open -a Terminal '" & script & "'" )
         return argv
     end if
     dim as ustring script = fs.PathJoin( scriptDir, "tkEdit-run.sh" )

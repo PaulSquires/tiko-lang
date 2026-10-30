@@ -1,0 +1,10 @@
+'' #EMBED IN A MODULE (docs/tiko-embed RFC-0001 §5.3): 'public #embed' reaches the importer
+'' through the interface, with its bounds; a private one is the module's own.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i tests/modules/src/embedmod/libs tests/modules/src/embedmod/app/main.tiko -o tests/modules/embedmod.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/modules/embedmod.exe
+'' RUN: tests/modules/embedmod.exe
+'' EXPECT-RUN-OUT: logo 3 LO
+'' EXPECT-RUN-OUT: secret 18

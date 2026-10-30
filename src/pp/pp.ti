@@ -349,6 +349,13 @@ namespace Tko
         '' a file created at one of them later SHADOWS the header the unit read, which a
         '' cache keyed on what was read cannot see (audit Phase 5, negative dependencies).
         as StrVec      probesMissed
+        '' EVERY '#embed' (docs/tiko-embed RFC-0001, ppforeignlib.tiko): the directive's location,
+        '' which the '{' of the declaration it wrote carries; the file's absolute path; and its
+        '' size when the preprocessor looked. Lowering fills that global from the file, and the
+        '' module cache records the path as a dependency the way it records an included file.
+        as IdVec       embedLocs
+        as StrVec      embedPaths
+        as containers.Array( of int64 ) embedSizes
         '' THE MACROS A MODULE '#export's (RFC-0004 §6), as they were when exported: the
         '' name as written, whether it is a '#macro' block and takes arguments, its
         '' parameters (folded ids, a run of expParamCount[k] from expParamFirst[k]) and its

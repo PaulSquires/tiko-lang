@@ -17,6 +17,7 @@ Looking for a function by what it does? The [Function Finder](Function-Finder) g
 - [Defer](Category-Defer) — 1 pages
 - [Lambdas](Category-Lambdas) — 1 pages
 - [Block Strings](Category-Block-Strings) — 1 pages
+- [Embed](Category-Embed) — 1 pages
 - [Typed Variadics](Category-Typed-Variadics) — 1 pages
 - [Foreign Library Linking](Category-Foreign-Library-Linking) — 3 pages
 - [C Header Import](Category-C-Header-Import) — 2 pages

@@ -1,1 +1,2 @@
 env: LD_LIBRARY_PATH=. XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir EGL_LOG_LEVEL=fatal GALLIUM_DRIVER=d3d12
+targets: windows-x86_64 linux-x86_64

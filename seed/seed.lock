@@ -16,15 +16,16 @@
 # later than it reaches the language. Advance this file at release points, together with
 # seed/chain.txt.
 #
-# PINNED: seed-6, published 2026-10-18 (UTC), built by seed-5 with no fbc. Both archives are
-# the toolchains package.sh --verify produced from 58c73ab2 (byte-identical to release
-# toolchain-58c73ab2) -- the first whose compiler appends a ustring expression to a string with
-# &= correctly, returns the right arm of an iif over two ustrings, and does not crash on Linux
-# in parallel builds or with a warm module cache. Bootstrapped from each archive: stage1 ==
-# stage2 == stage3 on both hosts; the release notes list the rest. The seeds before it are in
-# chain.txt.
+# PINNED: seed-7, built 2026-10-28 from 42d891dd: the first with a macos line. All three archives
+# are the toolchains package.sh --verify produced from 42d891dd (byte-identical to release
+# toolchain-42d891dd); windows and linux were built by seed-6, macos by the M6 native compiler
+# (docs/tiko-macos). Bootstrapped from each archive with --gate: stage1 == stage2 == stage3 and
+# the suite against stage2 fails exactly what it fails against stage1, on all three hosts --
+# the first Linux seed in a while to reproduce master (seed-6 had stopped: stage1 != stage2).
+# The seeds before it are in chain.txt.
 # build/defaultseed.sh prefers seed/cache/<host> -- where fetch-seed.sh unpacks this -- over
 # any locally packaged toolchain.
 
-windows  seed-6  tiko-seed-windows-x86_64-58c73ab2.zip  42981b9ab305e084c0754d19c142942ef49c4c7377244edb84141206360b9a23  58c73ab2a0353f74ac90248dc22fba91de9e1280
-linux    seed-6  tiko-seed-linux-x86_64-58c73ab2.tar.gz  32b3dcab34aff66839a12ba643cb447ab3268d12cdcaf0efbfb06d2b0ecaade2  58c73ab2a0353f74ac90248dc22fba91de9e1280
+windows  seed-7  tiko-seed-windows-x86_64-42d891dd.zip  be51d30618d01bd43bf63a50576436487605b053d48079f22c73cb4b34384eda  42d891dd258660cb0df28db6588a87d0e54b1d1f
+linux    seed-7  tiko-seed-linux-x86_64-42d891dd.tar.gz  278ce9dfc938ce61caf296bab1961e06c2a7419abf4db88dfe36fae5a36fbef6  42d891dd258660cb0df28db6588a87d0e54b1d1f
+macos    seed-7  tiko-seed-macos-arm64-42d891dd.tar.gz  6a1718c253e2e93aaf9dd4662014484e184fc95bab5ec2ed9e7e7a11830a9a32  42d891dd258660cb0df28db6588a87d0e54b1d1f

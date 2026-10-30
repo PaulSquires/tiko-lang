@@ -660,6 +660,8 @@ end extern
 '' and hOsRandom( buf, n ), one per OS.
 #if defined( __FB_LINUX__ )
 	#include once "opslinux.tiko"
+#elseif defined( __FB_DARWIN__ )
+	#include once "opsdarwin.tiko"
 #else
 	#error "fs/ops: no exclusive-rename or random-bytes backend for this OS"
 #endif
@@ -701,11 +703,27 @@ end function
 
 '' The temp directory as a PLAIN STRING, with no descriptor allocated -- see the
 '' file header.
+''
+'' NO TRAILING SEPARATOR, which is the documented answer and what /tmp already is: macOS
+'' sets TMPDIR to /var/folders/<..>/T/ -- WITH the slash -- and handing that back made
+'' every path joined onto it carry '//' (docs/tiko-macos M5, darwinlane fsops-parity).
+'' The trimmed copy lives in a static buffer, as getenv's own answer does.
+dim shared as zstring * 1024 tkort_tmpdirbuf
+
 private function hTempDirNarrow( ) as zstring ptr
 	dim as zstring ptr t = u_getenv( @"TMPDIR" )
+	dim as integer n = any
 	if( t = nullptr ) then return @"/tmp"
 	if( t[0] = 0 ) then return @"/tmp"
-	return t
+	n = strlen( t )
+	if( (n < 2) orelse (t[n - 1] <> 47) ) then return t     '' '/' alone, or nothing to trim
+	if( n >= 1024 ) then return t                         '' too long to copy: as it was
+	memcpy( @tkort_tmpdirbuf, t, n + 1 )
+	while( (n > 1) andalso (tkort_tmpdirbuf[n - 1] = 47) )
+		n -= 1
+		tkort_tmpdirbuf[n] = 0
+	wend
+	return @tkort_tmpdirbuf
 end function
 
 extern "rtlib"

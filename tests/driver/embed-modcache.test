@@ -1,0 +1,15 @@
+'' AN EMBEDDED FILE IS A CACHE DEPENDENCY (docs/tiko-embed RFC-0001 §5.6): it goes into the
+'' module's deps.txt like an included file, so rewriting it rebuilds the module that embeds
+'' it, and the program sees the new bytes and the new bounds.
+'' TEST: cli
+'' ENV: TKO_MODCACHE=build/.mct-embed/cache
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' CLEAN: build/.mct-embed
+'' COPY: tests/modules/src/embedmod => build/.mct-embed
+'' STEP: -v -target windows-x86_64 -i build/.mct-embed/libs build/.mct-embed/app/main.tiko -o build/.mct-embed/app.exe
+'' WRITE: build/.mct-embed/libs/acme/res/logo.bin :: NEWLOGO!
+'' ARGS: -v -target windows-x86_64 -i build/.mct-embed/libs build/.mct-embed/app/main.tiko -o build/.mct-embed/app.exe
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: module acme.res: miss (a file it read changed)
+'' RUN: build/.mct-embed/app.exe
+'' EXPECT-RUN-OUT: logo 7 N!

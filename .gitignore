@@ -104,6 +104,7 @@ tests/vendor/**/*.o
 /examples/**/*.dll
 /examples/**/*.so
 /examples/**/*.so.*
+/examples/**/*.dylib
 # ...except the WebView2 loader the WebView2 examples need to start, which is not built
 !/examples/win64/WebView2 Examples/WebView2Loader.dll
 
@@ -117,6 +118,7 @@ tests/vendor/**/*.o
 # examples' module cache, screenshots and link records
 /pkg/vendor/tkControls/fonts/
 /pkg/vendor/tkControls/tkCodeEdit/scintk/bin/
+/pkg/vendor/SDL3/static/bin/
 /pkg/vendor/tkControls/tkCodeEdit/scintk/out/
 /examples/tkControls/out/
 /examples/tkControls/linux-lib/

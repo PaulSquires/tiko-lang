@@ -21,6 +21,12 @@ platform, and the difference is the point.
 {{#include ../../examples/ffi/ctypes.linux-x86_64.out}}
 ```
 
+**Output** on macOS:
+
+```text
+{{#include ../../examples/ffi/ctypes.macos-arm64.out}}
+```
+
 | C | tiko |
 |---|---|
 | `char`, `unsigned char` | `byte`, `uint8` |
@@ -34,15 +40,15 @@ platform, and the difference is the point.
 | `long`, `unsigned long` | `clong`, `culong`, from `crt/long.bi` |
 | `wchar_t *` | `wstring ptr` |
 
-**C's `long` is 4 bytes on Windows and 8 on Linux.** `clong` and `culong`
-follow the platform. **`wchar_t` is 2 bytes on Windows and 4 on Linux**, and
-tiko's `wstring` follows the same rule, so a `wstring ptr` is a `wchar_t *` on
-both.
+**C's `long` is 4 bytes on Windows and 8 on Linux and macOS.** `clong` and
+`culong` follow the platform. **`wchar_t` is 2 bytes on Windows and 4 on Linux
+and macOS**, and tiko's `wstring` follows the same rule, so a `wstring ptr` is a
+`wchar_t *` everywhere.
 
 ```admonish danger title="Pitfall"
 **`long` is not `int32`.** A C function returning `long` declared `as int32`
 works on Windows, where the two agree, and loses the top half of every value
-on Linux. Nothing complains.
+on Linux and macOS. Nothing complains.
 ```
 
 `__FB_WIN32__` and `__FB_LINUX__` are defined on their platforms, for the rare

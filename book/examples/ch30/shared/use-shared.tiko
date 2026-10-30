@@ -1,5 +1,6 @@
-'' Links mathlib.dll through libmathlib.dll.a on Windows, or
-'' libmathlib.so on Linux. The library must be found again at run time.
+'' Links mathlib.dll through libmathlib.dll.a on Windows, libmathlib.so on
+'' Linux, or libmathlib.dylib on macOS. The library must be found again at
+'' run time.
 #inclib "mathlib"
 
 declare function Gcd( byval a as int64, byval b as int64 ) as int64

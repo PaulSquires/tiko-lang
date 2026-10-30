@@ -190,9 +190,10 @@ end function
 
 '' A VENDOR PACKAGE'S DYNAMIC LIBRARIES, BESIDE THE OUTPUT (tiko-vendor RFC-0002 V13). The
 '' library stays in the toolchain's pkg/vendor/<module>/lib, where neither Windows' loader nor
-'' an ELF $ORIGIN looks, so a 'link dynamic' program would not start: measured, both exit
-'' 'cannot open shared object' / 0xC0000135. Each linked file under pkg/vendor that is a
-'' '.dll' or a '.so' -- or a Windows import library with its '.dll' beside it -- is copied
+'' an ELF $ORIGIN or a Mach-O @loader_path looks, so a 'link dynamic' program would not
+'' start: measured, they exit 'cannot open shared object' / 0xC0000135 / dyld's 'Library not
+'' loaded'. Each linked file under pkg/vendor that is a '.dll', a '.so' or a '.dylib' -- or
+'' a Windows import library with its '.dll' beside it -- is copied
 '' into the output's directory, unless a copy there has the same size and is no older.
 '' Then each file of ctx.runtimeFiles, under its own name. False at the first copy that fails,
 '' naming it.
@@ -211,7 +212,8 @@ function CopyVendorLibs _
         if SamePath_( left( src, len( vdir ) ), vdir ) = false then continue for
         dim as string low = Tko.Text.LowerAscii( src )
         dim as string run_ = ""
-        if (right( low, 4 ) = ".dll") orelse (right( low, 3 ) = ".so") orelse (instr( low, ".so." ) > 0) then
+        if (right( low, 4 ) = ".dll") orelse (right( low, 3 ) = ".so") orelse (instr( low, ".so." ) > 0) _
+           orelse (right( low, 6 ) = ".dylib") then
             run_ = src
         elseif right( low, 6 ) = ".dll.a" then
             run_ = left( src, len( src ) - 2 )
@@ -224,7 +226,9 @@ function CopyVendorLibs _
         '' sqlite3.dll stored as sqlite3_windows_x86_64.dll is still loaded as sqlite3.dll. An ELF
         '' library's is its soname, which the program records as NEEDED: raylib's release .so,
         '' stored as raylib_linux_x86_64.so, is looked for as libraylib.so.620. (A library a
-        '' vendor package builds itself gets its file name as its soname, so it keeps that.)
+        '' vendor package builds itself gets its file name as its soname, so it keeps that --
+        '' and so does every '.dylib': vendorfetch.sh gives it '@rpath/' and its file name as
+        '' its install name, the name dyld looks for.)
         dim as string nm = mid( run_, instrrev( run_, "/" ) + 1 )
         dim as string lrun = Tko.Text.LowerAscii( run_ )
         if right( lrun, 4 ) = ".dll" then

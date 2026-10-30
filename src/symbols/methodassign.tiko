@@ -1,0 +1,97 @@
+'' methodassign.tiko -- ASSIGNING TO A METHOD THAT IS NOT A PROPERTY.
+''
+''
+'' Measured on fbc-modern 1.20, 2026-10-29, over 'function F( byval u as long ) as long',
+'' 'sub S( byval u as long )' and 'function G( ) as long' members: 'g.F = 2', 'g.S = 1',
+'' 'pg->F = 2', '(g).F = 2', '.F = 2' inside a 'with' and 'this.F = 3' inside F itself are
+'' error 1, "Argument count mismatch", and 'g.G = 3' is error 3. Only a PROPERTY is set
+'' that way. tiko stored the value through the method's code address -- 'g.F = 2' was a
+'' GPF at run time (AfxNova's 'graphics.SetPageUnit = UnitWorld'), and 'g.S = 1' was
+'' TKO0994.
+''
+'' A BYREF RESULT IS THE EXCEPTION: 'g.R = 3' over 'function R( ) byref as long' calls R
+'' and stores through what it returns -- and so does 'g.R = 3' over 'R( byval u as long =
+'' 0 )', where every parameter has a default. Lowering does that (LowerAddr).
+''
+'' A QUALIFIED name -- 'T.SF = 3', 'ns.NF = 2' -- is resolveamb.tiko's: inside the function
+'' it is the result, outside it fbc's 317.
+
+#import "std/containers"
+#include once "symbols/sem.ti"
+#include once "diag/diagids.ti"
+#include once "symbols/check.ti"
+#include once "types/udtlayout.ti"
+
+namespace Tko.Sem
+
+#include once "symbols/visctx.ti"
+#include once "symbols/semcalls.ti"
+
+'' 'sid' (or another overload of it) is a BYREF function that needs no argument.
+private function ByrefParenless_ ( byref c as Ctx, byval sid as SymbolId ) as boolean
+    dim as Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = nullptr then return false
+    dim as SymbolId cur = c.syms->LookupLocal( s->parent, s->name )
+    if cur = SYMBOL_NONE then cur = sid
+    for guard as int32 = 0 to 255
+        dim as Symbol ptr os = c.syms->SymbolAt( cur )
+        if os = nullptr then exit for
+        dim as NodeId pn = cast( NodeId, os->payload )
+        if (os->kind = cast( uint8, SYM_PROC )) andalso (pn <> NODE_NONE) andalso (c.ast->Kind( pn ) = N_PROC) then
+            dim as StmtPayload ptr pp = c.ast->StmtOf( pn )
+            if (pp->op = cast( uint16, KW_FUNCTION )) andalso ((c.ast->Flags( pn ) and NF_BYREF) <> 0) then
+                dim as boolean needs = false
+                for i as int32 = 0 to pp->count - 1
+                    dim as NodeId prm = c.ast->ChildAt( pp->first, i )
+                    if c.ast->Kind( prm ) <> N_PARAM then continue for
+                    if c.ast->StmtOf( prm )->op = cast( uint16, TK_ELLIPSIS ) then needs = true : exit for
+                    if (c.ast->Flags( prm ) and NF_VARIADIC) <> 0 then needs = true : exit for
+                    if c.ast->StmtOf( prm )->b = NODE_NONE then needs = true : exit for
+                next
+                if needs = false then return true
+            end if
+        end if
+        cur = os->nextOverload
+    next
+    return false
+end function
+
+sub CheckMethodAssigns_ ( byref c as Ctx )
+    dim as int32 total = c.ast->Count( )
+    for n as int32 = 1 to total - 1
+        dim as NodeId id = cast( NodeId, n )
+        if c.ast->Kind( id ) <> N_AMBIGUOUS then continue for
+        dim as StmtPayload ptr sp = c.ast->StmtOf( id )
+        if sp->op = 0 then continue for   '' a call statement
+        dim as NodeId tgt = sp->a
+        if (tgt = NODE_NONE) orelse (c.ast->Kind( tgt ) <> N_MEMBER) then continue for
+        '' A TYPE OR NAMESPACE QUALIFIER names no object: resolveamb.tiko's.
+        dim as Symbol ptr ls = c.syms->SymbolAt( c.info->RefOf( c.ast->BinaryOf( tgt )->lhs ) )
+        if ls <> nullptr then
+            select case cast( SymbolKind, ls->kind )
+            case SYM_UDT, SYM_NAMESPACE, SYM_TYPEDEF, SYM_ENUM
+                continue for
+            end select
+        end if
+        dim as SymbolId sid = c.info->RefOf( tgt )
+        if sid = SYMBOL_NONE then sid = c.info->RefOf( c.ast->BinaryOf( tgt )->rhs )
+        dim as Symbol ptr s = c.syms->SymbolAt( sid )
+        if s = nullptr then continue for
+        if s->kind <> cast( uint8, SYM_PROC ) then continue for
+        dim as NodeId pn = cast( NodeId, s->payload )
+        if (pn = NODE_NONE) orelse (c.ast->Kind( pn ) <> N_PROC) then continue for
+        dim as string what
+        select case cast( TokenKind, c.ast->StmtOf( pn )->op )
+        case KW_SUB      : what = "sub"
+        case KW_FUNCTION : what = "function"
+        case else        : continue for   '' a property is a setter call
+        end select
+        if ByrefParenless_( c, sid ) then continue for
+        '' At the method's NAME, where fbc's caret would be, not at the '.'.
+        dim as NodeId rn = c.ast->BinaryOf( tgt )->rhs
+        if rn = NODE_NONE then rn = tgt
+        c.diags->Report( TKO0601, PointRange( c.ast->Loc( rn ) ), c.names->Spelling( s->name ), what )
+    next
+end sub
+
+end namespace

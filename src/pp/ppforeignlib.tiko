@@ -1,4 +1,5 @@
-'' ppforeignlib.tiko -- resolving a '#foreignlib' spec to a library file.
+'' ppforeignlib.tiko -- the files a directive names: a '#foreignlib' spec resolved to a library
+'' file, the quoted-path search '#include' and '#embed' share, and '#embed' itself.
 ''
 '' Included from directive.tiko, above PpInclude. Split out at the 1500-line lint cap.
 
@@ -74,6 +75,9 @@ private function ForeignLibResolve_ _
     if lcase( left( spec, 7 ) ) = "system:" then
         return mid( spec, 8 )
     end if
+    '' ...NOR 'framework:Name', a macOS framework: kept whole, and the Mach-O link writes it
+    '' '-framework Name' (codegen/toolchain.tiko). A static SDL3 needs a dozen (Cocoa, Metal...).
+    if lcase( left( spec, 10 ) ) = "framework:" then return spec
 
     '' SOURCE-RELATIVE, not relative to the working directory: a binding written in
     '' a header must find the library sitting beside that header whoever includes it.
@@ -138,3 +142,169 @@ private function ForeignLibResolve_ _
     next
     return ""
 end function
+
+'' ------------------------------------------------------------ #embed
+'' '#embed NAME "file"' (docs/tiko-embed RFC-0001), and the quoted-path search it shares
+'' with '#include "..."'.
+''
+'' THE DIRECTIVE IS A DECLARATION. '[public] #embed NAME "file"' becomes, where it stands,
+''
+''     [public] dim shared as const ubyte NAME( 0 to N - 1 ) = { 0 }
+''
+'' -- a declaration every later pass already knows, with a short initialiser that fbc and
+'' tiko both zero-fill. The bytes never become tokens: the tokens written here all carry the
+'' directive's own location, so the '{' does too, and lowering (mir/lowerembed.tiko) finds the
+'' initialiser by that location and fills the global from the file. The obvious alternative,
+'' writing the bytes out as '{ 77, 90, 144, ... }', costs about 280 bytes of compiler memory
+'' per byte embedded -- 783 MB for a 2.8 MB file, measured (RFC §3).
+''
+'' NOT ALLOWED INSIDE A PROCEDURE OR A TYPE, and nothing here has to say so: the declaration
+'' written is a 'dim shared', which the parser already refuses there.
+
+const EMBED_MAX_BYTES = 268435456     '' 256 MiB (RFC E3)
+
+'' The text between a string literal token's quotes, as '#include' reads its path.
+private function PpQuotedText_( byref e as PpEngine, byref t as Token ) as string
+    dim as string spelled = SpellOf( e, t )
+    dim as int32 a = instr( spelled, """" )
+    dim as int32 b = instrrev( spelled, """" )
+    if (a > 0) andalso (b > a) then return mid( spelled, a + 1, b - a - 1 )
+    return ""
+end function
+
+'' THE PLACES A QUOTED PATH IS LOOKED FOR, in order: the INCLUDING file's directory, then
+'' the working directory, then the -i paths and the toolchain's inc/ -- fbc's order for
+'' '#include', measured (T97). The first is what makes a library's internal includes work
+'' wherever it is used from. '#include' and '#embed' both search exactly this list.
+''
+'' A '#line' NAME IS WHAT A RELATIVE PATH RESOLVES AGAINST -- measured, and it surprised me:
+'' after '#line 5 "sub/fake.bas"', '#include "h.bi"' picks sub/h.bi and falls back to the
+'' working directory only when that does not exist. The generator that emitted the '#line' is
+'' describing where the text came FROM, and fbc takes it at its word.
+''
+'' A LEADING SLASH IS NOT A ROOT EXCEPT AS WRITTEN. AfxNova writes '#include once
+'' "/crt/string.bi"' and '"/fbc-int/array.bi"'; fbc finds both under its include path
+'' (measured, scratchpad afx/inc1.bas), where joining the absolute spelling found nothing. So
+'' the directory joins drop it, and only the second candidate, the path as written, keeps it.
+''
+'' THE WORKING DIRECTORY COMES SECOND, before every -i directory and the toolchain's inc/ --
+'' fbc's order, measured (T97): with 'a.bi' in the working directory and in an -i directory,
+'' fbc takes the working directory's, and a 'datetime.bi' there wins over the toolchain's own.
+private sub PpQuotedCandidates_ _
+    ( byref e as PpEngine, byval at as SourceLoc, byref rel as string, byref cands as containers.Array( of ustring ) )
+
+    '' The directory of the INCLUDING file. Done by hand rather than through PathSplit,
+    '' which wants an Array( of ustring ) and would cost more than it saves.
+    dim as DecodedLoc d = e.src->Decode( at )
+    dim as string here = e.src->ShownPathOf( d )
+    dim as string dir_ = ""
+    for i as int32 = len( here ) to 1 step -1
+        dim as uint8 c = here[i - 1]
+        dim as boolean isSep = (c = 47) orelse (c = 92)
+        if isSep then
+            dir_ = left( here, i )
+            exit for
+        end if
+    next
+
+    dim as ustring relJ = rel
+    if len( rel ) > 1 then
+        if (left( rel, 1 ) = "/") orelse (left( rel, 1 ) = "\") then relJ = mid( rel, 2 )
+    end if
+    cands.Push( fs.PathJoin( dir_, relJ ) )
+    cands.Push( rel )
+    for each p as string in *e.cfg->includePaths
+        cands.Push( fs.PathJoin( p, relJ ) )
+    next
+end sub
+
+'' '[public] #embed NAME "file"'. 'public' arrives as cincPublic, set by PpModPublicCInclude.
+private sub PpEmbed( byref e as PpEngine, byval at as SourceLoc )
+    dim as boolean isPublic = e.modst.cincPublic
+    dim as Token nt
+    dim as boolean haveName = PeekOnLine( e, nt )
+    if haveName then haveName = (Tk( nt ) = TK_IDENT)
+    if haveName = false then
+        Report( e, TKO0342, at, "a name must follow '#embed'" )
+        SkipToEol( e )
+        return
+    end if
+    '' The name AS WRITTEN, not as interned: it is spelled into the declaration, and from
+    '' there into a module's interface and its link name.
+    dim as string nm = SpellOf( e, nt )
+    Advance( e )
+
+    dim as Token pt
+    dim as boolean havePath = PeekOnLine( e, pt )
+    if havePath then havePath = (Tk( pt ) = TK_STRING_LIT)
+    if havePath = false then
+        Report( e, TKO0342, at, "a quoted file name must follow '" & nm & "'" )
+        SkipToEol( e )
+        return
+    end if
+    dim as string rel = PpQuotedText_( e, pt )
+    Advance( e )
+    dim as Token extra
+    if PeekOnLine( e, extra ) then
+        Report( e, TKO0342, extra.loc, "nothing may follow the file name" )
+        SkipToEol( e )
+        return
+    end if
+    if len( rel ) = 0 then
+        Report( e, TKO0342, pt.loc, "the file name is empty" )
+        return
+    end if
+
+    '' EXISTENCE BY STAT, NEVER BY LOADING: '#include' probes with LoadFile, which would read
+    '' a binary into the source manager and decode it as text. The bytes are lowering's to read.
+    dim as containers.Array( of ustring ) cands
+    PpQuotedCandidates_( e, at, rel, cands )
+    dim as ustring found = ""
+    dim as StrVec missed_
+    for each cnd as ustring in cands
+        if fs.IsFile( cnd ) then
+            found = cnd
+            exit for
+        end if
+        missed_.Push( cnd )
+    next
+    if len( found ) = 0 then
+        Report( e, TKO0341, at, rel )
+        return
+    end if
+    '' Recorded as '#include' records them: a file created at a missed candidate later would
+    '' be found instead, and a cache entry has to notice.
+    for each m_ as string in missed_
+        e.outp->probesMissed.Push( m_ )
+    next
+
+    dim as fs.FsResultUStr abs_ = fs.AbsolutePath( found )
+    dim as ustring ap = found
+    if abs_.IsOk( ) then ap = fs.PathNormalize( abs_.Value( ) )
+    dim as fs.FsResultInfo st = fs.Stat( ap )
+    if st.IsOk( ) = false then
+        Report( e, TKO0341, at, rel )
+        return
+    end if
+    dim as int64 size_ = st.Value( ).Size( )
+    if size_ = 0 then
+        Report( e, TKO0344, at, rel )
+        return
+    end if
+    if size_ > EMBED_MAX_BYTES then
+        Report( e, TKO0345, at, rel, str( size_ ) )
+        return
+    end if
+
+    e.outp->embedLocs.Push( cast( uint32, at ) )
+    e.outp->embedPaths.Push( ap )
+    e.outp->embedSizes.Push( size_ )
+
+    dim as string raw = "dim shared as const ubyte " & nm & "( 0 to " & str( size_ - 1 ) & " ) = { 0 }"
+    if isPublic then raw = "public " & raw
+    dim as TokenVec tv
+    RelexInto( e, raw, at, tv )
+    for i as int32 = 0 to tv.Count - 1
+        EmitTok( e, tv[i] )
+    next
+end sub

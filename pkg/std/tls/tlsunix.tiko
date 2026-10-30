@@ -61,11 +61,36 @@ private function hSym( byval lib_ as any ptr, byref nm as const string, byref ok
     return p
 end function
 
-private function hLoadAll( ) as boolean
+'' OPENSSL 3, LOADED AT RUN TIME. On macOS from Homebrew (docs/tiko-macos M7, D-M7-1): Apple
+'' Silicon's prefix, then Intel's, then the bare name for dyld's own search -- libcrypto and
+'' libssl as a PAIR from one place. NEVER /usr/lib/libssl.dylib: that is LibreSSL behind an
+'' unversioned name, and dyld aborts a process that loads it so.
+#ifdef __FB_DARWIN__
+const TKO_LIBSSL_NAME = "OpenSSL 3 (brew install openssl@3)"
+private function hLoadLibs( ) as boolean
+    dim as string dirs( 0 to 2 ) = { "/opt/homebrew/opt/openssl@3/lib/", "/usr/local/opt/openssl@3/lib/", "" }
+    for i as long = 0 to 2
+        tko_libcrypto = dylibload( dirs( i ) & "libcrypto.3.dylib" )
+        if( tko_libcrypto = nullptr ) then continue for
+        tko_libssl = dylibload( dirs( i ) & "libssl.3.dylib" )
+        if( tko_libssl <> nullptr ) then return TRUE
+        dylibfree( tko_libcrypto )
+        tko_libcrypto = nullptr
+    next
+    return FALSE
+end function
+#else
+const TKO_LIBSSL_NAME = "libssl.so.3"
+private function hLoadLibs( ) as boolean
     tko_libcrypto = dylibload( "libcrypto.so.3" )
     if( tko_libcrypto = nullptr ) then return FALSE
     tko_libssl = dylibload( "libssl.so.3" )
-    if( tko_libssl = nullptr ) then return FALSE
+    return ( tko_libssl <> nullptr )
+end function
+#endif
+
+private function hLoadAll( ) as boolean
+    if( hLoadLibs( ) = FALSE ) then return FALSE
     dim as boolean k = TRUE
     dim as any ptr s = tko_libssl, c = tko_libcrypto
     tko_TLS_client_method = hSym( s, "TLS_client_method", k )
@@ -267,7 +292,7 @@ private function hContext( byref s as TlsStream, byval e as TkoEng ptr, byref cf
 end function
 
 function TlsEngOpen( byref s as TlsStream, byref cfg as const TlsConfig, byref op as const ustring ) as TlsResultBool
-    if( hLoad( ) = FALSE ) then return TlsFail( TLS_UNAVAILABLE, 0, op, s.hName, "libssl.so.3 not found" )
+    if( hLoad( ) = FALSE ) then return TlsFail( TLS_UNAVAILABLE, 0, op, s.hName, TKO_LIBSSL_NAME & " not found" )
     dim as TkoEng ptr e = new TkoEng
     e->cap = 16384 + 512
     e->buf = allocate( e->cap )

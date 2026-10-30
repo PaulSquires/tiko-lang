@@ -1139,6 +1139,7 @@ sub InitSharedGlobal _
     end if
 
     if gt = MT_AGG then
+        if EmbedGlobal( c, g, init ) then return     '' '#embed': the file is the image
         '' TRIED BEFORE THE BYTE IMAGE: an address is not a byte image, and the
         '' fold below would refuse each word one at a time.
         if GlobalPtrArrayInit_( c, g, c.m->globals[g].frontendType, init ) then

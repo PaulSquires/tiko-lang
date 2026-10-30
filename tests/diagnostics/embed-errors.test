@@ -1,0 +1,11 @@
+'' #EMBED'S OWN ERRORS (docs/tiko-embed RFC-0001 §6): a file that is not there, an empty file
+'' (no empty array exists), and each malformed shape -- no name, no path, a token after it.
+'' TEST: cli
+'' ARGS: --frontend-only tests/diagnostics/src/embed-errors.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: embed-errors.tiko(1,1): error TKO0341: cannot open embed file 'embed-nope.bin'
+'' EXPECT-OUT: embed-errors.tiko(2,1): error TKO0344: embed file 'embed-empty.bin' is empty; an array cannot have no elements
+'' EXPECT-OUT: embed-errors.tiko(3,1): error TKO0342: malformed '#embed': a name must follow '#embed'
+'' EXPECT-OUT: embed-errors.tiko(4,1): error TKO0342: malformed '#embed': a quoted file name must follow 'NoPath'
+'' EXPECT-OUT: embed-errors.tiko(5,34): error TKO0342: malformed '#embed': nothing may follow the file name
+'' EXPECT-MAX-DIAG: 5

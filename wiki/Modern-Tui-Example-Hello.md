@@ -9,7 +9,7 @@ One centred box, a keypress counter and a clean exit. Ninety lines, and every pa
 ## Build and run
 
 ```freebasic
-tiko hello.tiko        ' windows-x86_64 on Windows, linux-x86_64 on Linux
+tiko hello.tiko        ' windows-x86_64 on Windows, linux-x86_64 on Linux, macos-arm64 on macOS
 ```
 
 Run it from a REAL TERMINAL. Redirected output is rejected with an honest error rather than a dashboard drawn into a pipe. tiko builds it with no diagnostics for windows-x86_64 and win64, and compiles it for linux-x86_64 with `-c` (built, not run: it is interactive).

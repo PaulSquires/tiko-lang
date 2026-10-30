@@ -1,0 +1,8 @@
+ 1: [alpha]
+ 2: [two words]
+ 3: []
+REPORT_MODE set? true, value []
+UNSET_VARIABLE_XYZ set? false
+mode: draft, file: draft.txt
+SetEnv 'A=B': invalid argument
+cpus > 0? true, page:  16384

@@ -46,7 +46,8 @@ using outcome
 '' later.  Accept imports the private key into the user's key store under a
 '' generated name for the life of the stream and deletes it afterwards, because
 '' SChannel cannot use a key that exists only in this process.  Linux: OpenSSL 3,
-'' loaded at run time from libssl.so.3 and libcrypto.so.3 -- nothing is linked, a
+'' loaded at run time from libssl.so.3 and libcrypto.so.3 (on macOS Homebrew's openssl@3, its
+'' libssl.3.dylib and libcrypto.3.dylib) -- nothing is linked, a
 '' program that never shakes hands never needs them, and without them every
 '' handshake fails with TLS_UNAVAILABLE.
 ''
@@ -67,7 +68,7 @@ end extern
 
 public enum TlsErrorCode
     TLS_OK = 0
-    TLS_UNAVAILABLE             '' no TLS library: libssl.so.3 missing, SChannel refused credentials
+    TLS_UNAVAILABLE             '' no TLS library: libssl.so.3 (macOS: openssl@3) missing, SChannel refused credentials
     TLS_CONNECT_FAILED          '' ConnectHost: the TCP connection failed (Detail( ) says why)
     TLS_TRANSPORT               '' the transport failed or closed during the handshake
     TLS_TIMED_OUT               '' the transport timed out during the handshake

@@ -1,9 +1,9 @@
 '' =============================================================================
 '' sqlite3.ti -- tiko header translated by c2t (tiko 0.1.0-dev) from the C header "sqlite3.h"
 ''   source sha256 : cd20a2877bc82b94e36c1093b727dd87cfa3c1d581aac6e240925535cbd90166
-''   clang         : clang version 21.1.0
-''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, x86_64-pc-windows-msvc -DSQLITE_API=__attribute__((dllimport)), x86_64-pc-linux-gnu -DSQLITE_API=__attribute__((dllimport))
-''   options       : --verify --shared-macro SQLITE_API=__attribute__((dllimport))
+''   clang         : Homebrew clang version 23.1.4
+''   passes        : x86_64-pc-windows-msvc, x86_64-pc-linux-gnu, arm64-apple-macosx13.0, x86_64-pc-windows-msvc -DSQLITE_API=__attribute__((dllimport)), x86_64-pc-linux-gnu -DSQLITE_API=__attribute__((dllimport)), arm64-apple-macosx13.0 -DSQLITE_API=__attribute__((dllimport))
+''   options       : --verify --shared-macro SQLITE_API=__attribute__((dllimport)) --macos-sysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
 ''
 '' Generated from C. Search for C2T-TODO and translate those parts by hand.
 ''

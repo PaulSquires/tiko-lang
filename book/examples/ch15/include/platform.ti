@@ -6,6 +6,8 @@
     const PLATFORM = "Windows"
 #elseif defined( __FB_LINUX__ )
     const PLATFORM = "Linux"
+#elseif defined( __FB_DARWIN__ )
+    const PLATFORM = "macOS"
 #else
     #error "platform.ti: this platform is not supported"
 #endif
