@@ -1,0 +1,107 @@
+# Windows programming pages. One row per page, per task it belongs to. Tab-separated; see finder.py for the rules.
+page	name	qualifier	task	from	rank	summary
+SysWin-Program-Basics	Program basics	-	start	sys/win	-	Reads the command line, shows message boxes, pumps messages and explains Windows errors.
+SysWin-Windows-Version	Windows version and system	-	system	sys/win	-	Reports the Windows version, build, edition and bitness, and the version of any file.
+SysWin-System-Folders	System folders	-	system	sys/win	-	Returns the paths of the Windows, system and temporary folders and of known folders.
+SysWin-Window-Text-and-Styles	Window text and styles	-	window	sys/win	-	Reads and sets a window's text, class, styles and icon, and redraws windows.
+SysWin-Window-Size-and-Position	Window size and position	-	window	sys/win	2	Reads and sets a window's position and size in pixels, and centres windows and controls.
+SysWin-Finding-Windows	Finding windows	-	window	sys/win	-	Finds a control's form, top-level windows, controls by id, and the windows of a process.
+SysWin-Dark-Mode	Dark mode	-	window	sys/win	-	Gives windows a dark title bar and rounded corners, and reads the light or dark setting.
+SysWin-Display-and-DPI	Display, screen and DPI	-	window	sys/win	-	Measures the desktop, the screen, the work area and monitors, and scales values for DPI.
+SysWin-Units	Units	-	window	sys/win	-	Converts between pixels, points, twips, HiMetric units, DIPs and dialog units.
+SysWin-Fonts	Fonts	-	gdi	sys/win	-	Creates fonts, reads the fonts Windows uses and changes the font of a window or control.
+SysWin-Clipboard	Clipboard	-	system	sys/win	-	Puts text and other data on the clipboard, reads it back and empties the clipboard.
+SysWin-Bitmaps	Bitmaps	-	gdi	sys/win	-	Creates, loads, saves and draws bitmaps, captures the screen and saves icons.
+SysWin-Paths-and-Files	Paths and files	-	system	sys/win	-	Splits paths into folder, name and extension, and detects UTF-16 and UTF-8 text.
+SysWin-Resources	Resources	-	system	sys/win	-	Reads raw data embedded in a program's resources into a string or out to a file.
+SysWin-Common-Dialogs	Common dialogs	-	dialogs	sys/win	-	Shows the open, save, folder and colour dialogs, and opens Control Panel applets.
+SysWin-Internet	Internet	-	system	sys/win	-	Reads the connection state, combines and cleans URLs, and finds browsers and mail.
+SysWin-Strings	Strings	-	system	sys/win	-	Converts case by locale, translates between code pages, formats sizes and splits fields.
+SysWin-Colors	Colours	-	gdi	sys/win	-	Names the web colours twice: as `RGB_*` values for GDI and as `ARGB_*` values for GDI+.
+CWindow	CWindow	-	start	sys/win/gui	1	Creates a main window, adds controls to it and runs its message loop, scaled for DPI.
+CTabPage	CTabPage	-	controls	sys/win/gui	-	Creates a window that serves as one page of a tab control.
+CDialog	CDialog	-	start	sys/win/gui	-	Creates dialog boxes in memory, fills them with controls and shows them modal or modeless.
+SysWin-Gui-Procedures	gui macros and helpers	-	start	sys/win/gui	-	Extracts control ids, notification codes and pointers from window-message parameters.
+CXpButton	CXpButton	-	controls	sys/win/gui	-	Creates a push button that draws itself, with images, toggle behaviour and custom colours.
+CMaskedEdit	CMaskedEdit	-	controls	sys/win/gui	-	Creates an edit control that accepts input only in a set shape, such as a phone number.
+CMemBmp	CMemBmp	-	gdi	sys/win/gui	-	Creates an off-screen bitmap to draw on with GDI or GDI+, then save, print or display.
+CGraphCtx	CGraphCtx	-	gdi	sys/win/gui	-	Creates a graphic control: a child window that keeps and repaints what you draw on it.
+CPrint	CPrint	-	dialogs	sys/win/gui	-	Chooses a printer, measures its page, reads and changes its settings, and prints.
+SysWin-Gui-File-Dialogs	File dialogs	-	dialogs	sys/win/gui	-	Shows the Windows Open and Save dialogs and reads the files the user picked.
+CIFileDialogCustomize	CIFileDialogCustomize	-	dialogs	sys/win/gui	-	Adds check boxes, lists, buttons and other controls to an open or save dialog.
+SysWin-Gui-File-Dialog-Events	File dialog events	-	dialogs	sys/win/gui	-	Handles the events of an open or save dialog and of the controls added to it.
+CExplorerBrowser	CExplorerBrowser	-	dialogs	sys/win/gui	-	Hosts a Windows Explorer folder view in your window and reports where the user navigates.
+SysWin-Gui-Button	Button	-	controls	sys/win/gui	-	Checks, clicks and labels push buttons, check boxes, radio buttons and split buttons.
+SysWin-Gui-Label	Label	-	controls	sys/win/gui	-	Sets and reads the text, icon, bitmap, cursor or metafile of a static control.
+SysWin-Gui-Edit	Edit	-	controls	sys/win/gui	-	Reads, changes, selects and formats the text of single-line and multiline edit controls.
+SysWin-Gui-Combo	Combo	-	controls	sys/win/gui	-	Adds, finds, selects and reads the items of a combo box, and sets its list and edit box.
+SysWin-Gui-CBEx	CBEx	-	controls	sys/win/gui	-	Inserts, reads and changes the items of a ComboBoxEx control, a combo box with images.
+SysWin-Gui-ListBox	ListBox	-	controls	sys/win/gui	-	Adds, finds, selects and reads the items of a list box control.
+SysWin-Gui-ListView	ListView	-	controls	sys/win/gui	3	Adds columns and rows to a list view and reads, selects, sorts and groups its items.
+SysWin-Gui-TreeView	TreeView	-	controls	sys/win/gui	-	Adds, finds, expands, selects and styles the items of a tree view control.
+SysWin-Gui-Header	Header	-	controls	sys/win/gui	-	Adds, reads, sizes and reorders the columns of a header control.
+SysWin-Gui-TabCtl	TabCtl	-	controls	sys/win/gui	-	Adds, selects, renames and removes the tabs of a tab control, and manages its tab pages.
+SysWin-Gui-ToolBar	ToolBar	-	controls	sys/win/gui	-	Adds, changes and queries the buttons of a toolbar control and the images they show.
+SysWin-Gui-Rebar	Rebar	-	controls	sys/win/gui	-	Inserts, moves, sizes and queries the bands of a rebar, the container for toolbars.
+SysWin-Gui-Menu	Menu	-	controls	sys/win/gui	-	Builds menu bars, drop-down and shortcut menus, and reads and changes their items.
+SysWin-Gui-StatusBar	StatusBar	-	controls	sys/win/gui	-	Divides a status bar into parts and sets and reads their text, icons and tooltips.
+SysWin-Gui-ToolTip	ToolTip	-	controls	sys/win/gui	-	Creates tooltips for controls and windows and sets their text, timing, colours and place.
+SysWin-Gui-ProgBar	ProgBar	-	controls	sys/win/gui	-	Sets the range, position, step, colours and state of a progress bar control.
+SysWin-Gui-TrackBar	TrackBar	-	controls	sys/win/gui	-	Reads and sets a trackbar's position, range, tick marks, selection and buddy windows.
+SysWin-Gui-UpDown	UpDown	-	controls	sys/win/gui	-	Reads and sets an up-down control's position, range, base, buddy window and acceleration.
+SysWin-Gui-Pager	Pager	-	controls	sys/win/gui	-	Sets what a pager control scrolls, and reads and sets its position, buttons and colours.
+SysWin-Gui-MonthCal	MonthCal	-	controls	sys/win/gui	-	Reads and sets the selected date, range, today and colours of a month calendar control.
+SysWin-Gui-DTP	DTP	-	controls	sys/win/gui	-	Reads and sets the date and time, range, format and drop-down calendar of a date picker.
+SysWin-Gui-Animate	Animate	-	controls	sys/win/gui	-	Opens, plays, stops and closes silent AVI clips in an animation control.
+SysWin-Gui-HotKey	HotKey	-	controls	sys/win/gui	-	Reads and sets the key combination in a hot key control, and the combinations it refuses.
+SysWin-Gui-IPAddress	IPAddress	-	controls	sys/win/gui	-	Reads, sets and clears the address in an IP address control, and limits its four fields.
+SysWin-Gui-PropSheet	PropSheet	-	controls	sys/win/gui	-	Creates an animation control, and names the wizard-button requests of a property sheet.
+SysWin-Gui-ScrollBar	ScrollBar	-	controls	sys/win/gui	-	Shows, hides, enables and positions a scroll bar control, and reads and sets its range.
+SysWin-Gui-SysLink	SysLink	-	controls	sys/win/gui	-	Measures a SysLink control, reads and sets its links, and finds the link at a point.
+DVARIANT	DVARIANT	-	com	sys/win/com	-	Holds a COM `VARIANT` and converts it to and from tiko numbers, strings, dates and arrays.
+DSafeArray	DSafeArray	-	com	sys/win/com	-	Holds a COM `SAFEARRAY` and destroys it, with all its elements, when it goes out of scope.
+BSTRING	BSTRING	-	com	sys/win/com	-	Wraps a COM `BSTR` string and frees it when the variable goes out of scope.
+CInt96	CInt96	-	com	sys/win/com	-	Stores a 96-bit signed integer in a COM `DECIMAL` and does arithmetic on it.
+CDispInvoke	CDispInvoke	-	com	sys/win/com	-	Calls the methods and properties of a COM Automation object by name.
+SysWin-Com-Procedures	COM procedures	-	com	sys/win/com	-	Creates COM objects and handles GUIDs, reference counts, event connections and variants.
+CRichEditCtx	CRichEditCtx	-	richedit	sys/win/richedit	-	Creates a rich edit control in a CWindow and reads and sets its options and formatting.
+CRichEditCtx-Editing	CRichEditCtx-Editing	-	richedit	sys/win/richedit	-	Selects, finds, inserts and replaces text in a rich edit control, and undoes edits.
+CRichEditCtx-Document	CRichEditCtx-Document	-	richedit	sys/win/richedit	-	Loads, saves and formats rich edit text, and drives its Text Object Model document.
+SysWin-RichEdit-Control	RichEdit	-	richedit	sys/win/richedit	-	Sends rich edit messages to a control by its handle: text, selection, formatting and RTF.
+CTextFont2	CTextFont2	-	richedit	sys/win/richedit	-	Reads and sets the character formatting of rich edit text: font, size, colour and effects.
+CTextPara2	CTextPara2	-	richedit	sys/win/richedit	-	Reads and sets paragraph formatting in rich edit text: indents, spacing, tabs and lists.
+CTextRange2	CTextRange2	-	richedit	sys/win/richedit	-	Reads, edits, searches and formats a span of rich edit text through the Text Object Model.
+CTextSelection2	CTextSelection2	-	richedit	sys/win/richedit	-	Reads and changes the selection of a rich edit control through the Text Object Model.
+CTextRow	CTextRow	-	richedit	sys/win/richedit	-	Inserts table rows into rich edit text and reads and changes row and cell properties.
+CTextStory	CTextStory	-	richedit	sys/win/richedit	-	Reads and replaces the text of a rich edit story and gives ranges over it.
+CRichEditOleCallback	CRichEditOleCallback	-	richedit	sys/win/richedit	-	Answers a rich edit control's OLE questions, so that pictures and objects can be pasted.
+SysWin-RichEdit-TOM	Text Object Model	-	richedit	sys/win/richedit	-	Lists the Text Object Model interfaces and constants, and the base of the TOM classes.
+CGpGraphics	CGpGraphics	-	gdiplus	sys/win/gdiplus	4	Draws lines, shapes, text and images with GDI+ on a window, a device context or an image.
+CGpPen	CGpPen	-	gdiplus	sys/win/gdiplus	-	Draws lines and outlines in GDI+ with a colour or brush, a width, dashes and caps.
+SysWin-GdiPlus-Brushes	GDI+ brushes	-	gdiplus	sys/win/gdiplus	-	Fills shapes and text in GDI+ with a colour, a hatch pattern, an image or a gradient.
+SysWin-GdiPlus-Line-Caps	GDI+ line caps	-	gdiplus	sys/win/gdiplus	-	Draws arrow heads and shapes of your own at the ends of lines drawn with a GDI+ pen.
+CGpGraphicsPath	CGpGraphicsPath	-	gdiplus	sys/win/gdiplus	-	Builds shapes from lines, curves and text, and walks the points they are made of.
+CGpRegion	CGpRegion	-	gdiplus	sys/win/gdiplus	-	Combines rectangles and paths into areas for filling, clipping and hit-testing in GDI+.
+CGpMatrix	CGpMatrix	-	gdiplus	sys/win/gdiplus	-	Moves, scales, rotates and shears points with a GDI+ affine transformation matrix.
+SysWin-GdiPlus-Images	GDI+ images	-	gdiplus	sys/win/gdiplus	-	Loads, creates, edits and saves images with GDI+: bitmaps, metafiles and cached bitmaps.
+CGpImageAttributes	CGpImageAttributes	-	gdiplus	sys/win/gdiplus	-	Adjusts the colours of an image as it is drawn: colour matrices, gamma, keys, remapping.
+SysWin-GdiPlus-Effects	GDI+ effects	-	gdiplus	sys/win/gdiplus	-	Blurs, sharpens, tints and corrects the colours of bitmaps with the GDI+ effect classes.
+SysWin-GdiPlus-Fonts	GDI+ fonts	-	gdiplus	sys/win/gdiplus	-	Creates GDI+ fonts and font families and lists the fonts installed or loaded from files.
+CGpStringFormat	CGpStringFormat	-	gdiplus	sys/win/gdiplus	-	Sets how GDI+ lays out text in a rectangle: alignment, wrapping, trimming and tab stops.
+SysWin-GdiPlus-Procedures	GDI+ procedures and types	-	gdiplus	sys/win/gdiplus	-	Starts GDI+, builds colours and rectangles, and converts, saves and prints images.
+CD2D1Factory	CD2D1Factory	-	direct2d	sys/win/direct2d	-	Creates the Direct2D factory that makes render targets, geometries and stroke styles.
+SysWin-Direct2D-Stroke-Styles	Direct2D stroke styles and multithreading	-	direct2d	sys/win/direct2d	-	Holds Direct2D stroke styles, reads back their settings and locks a multithreaded factory.
+CID2D1RenderTarget	CID2D1RenderTarget	-	direct2d	sys/win/direct2d	-	Draws shapes, bitmaps and text with Direct2D and creates the brushes and bitmaps it uses.
+SysWin-Direct2D-Render-Targets	Direct2D render targets	-	direct2d	sys/win/direct2d	-	Draws into windows, device contexts and bitmaps, and saves and restores drawing state.
+SysWin-Direct2D-Brushes	Direct2D brushes	-	direct2d	sys/win/direct2d	-	Paints shapes, lines and text in Direct2D with a colour, a gradient, a bitmap or an image.
+SysWin-Direct2D-Bitmaps	Direct2D bitmaps and colour contexts	-	direct2d	sys/win/direct2d	-	Holds pixel images for a Direct2D render target, and the colour profiles they are in.
+CID2D1Geometry	CID2D1Geometry	-	direct2d	sys/win/direct2d	-	Measures, hit-tests and reshapes Direct2D geometries; the base class of every shape.
+SysWin-Direct2D-Geometries	Direct2D geometries	-	direct2d	sys/win/direct2d	-	Builds Direct2D shapes from rectangles, ellipses, lines, curves and arcs.
+SysWin-Direct2D-Helpers	Direct2D helpers	-	direct2d	sys/win/direct2d	-	Builds the points, rectangles, colours, matrices and property records Direct2D calls take.
+SysWin-Direct2D-Interfaces	Direct2D interfaces and types	-	direct2d	sys/win/direct2d	-	Lists the Direct2D interfaces, structures and enumerations that sys/win/direct2d declares.
+SysWin-DirectWrite-Interfaces	DirectWrite interfaces and types	-	direct2d	sys/win/direct2d	-	Lists the DirectWrite interfaces, enumerations and structures of sys/win/direct2d.
+SysWin-DXGI-Interfaces	DXGI interfaces and types	-	direct2d	sys/win/direct2d	-	Lists the DXGI interfaces, enumerations and structures of sys/win/direct2d.
+SysWin-WIC-Interfaces	WIC interfaces and types	-	direct2d	sys/win/direct2d	-	Lists the WIC interfaces, enumerations and structures of sys/win/direct2d.
+CWebView2	CWebView2	-	webview2	sys/win/webview2	-	Hosts a Microsoft Edge browser in a window and drives it from tiko code.
+SysWin-WebView2-Events	WebView2 event handlers	-	webview2	sys/win/webview2	-	Implements the WebView2 callback interfaces as classes to extend, one per event or result.
+SysWin-WebView2-Interfaces	WebView2 interfaces and types	-	webview2	sys/win/webview2	-	Lists the WebView2 interfaces, enumerations and structures that sys/win/webview2 declares.

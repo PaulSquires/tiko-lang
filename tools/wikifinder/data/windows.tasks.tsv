@@ -1,0 +1,22 @@
+# Windows programming: task headings in display order, pages to skip, see-also links.
+#   task    <task id>  <heading>
+#   ignore  <page>  <reason>
+#   seealso <page>  <label>
+task	start	Start a Windows program
+task	window	Measure, move and style windows
+task	controls	Add controls
+task	dialogs	Show file, folder and print dialogs
+task	system	Read system information, folders, text and the clipboard
+task	gdi	Use fonts, colours and bitmaps
+task	richedit	Edit rich text
+task	gdiplus	Draw with GDI+
+task	direct2d	Draw with Direct2D and DirectWrite
+task	com	Call COM objects and use variants
+task	webview2	Show web pages in a window
+ignore	SysWin-Gui	an overview page, not a function
+ignore	SysWin-Com	an overview page, not a function
+ignore	SysWin-RichEdit	an overview page, not a function
+ignore	SysWin-GdiPlus	an overview page, not a function
+ignore	SysWin-Direct2D	an overview page, not a function
+ignore	SysWin-WebView2	an overview page, not a function
+seealso	Category-Sys-Win	sys/win guide

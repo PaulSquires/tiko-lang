@@ -60,6 +60,7 @@
 - [Terminal TUI Library](Category-Terminal-TUI-Library)
 - [PsControls](Category-PsControls)
 - [tkControls](Category-tkControls)
+- [sys/win](Category-Sys-Win)
 - [Goroutines and Channels](Category-Goroutines-and-Channels)
 - [LLVM Backend](Category-LLVM-Backend)
 - [tiko build](Category-Tiko-Build)

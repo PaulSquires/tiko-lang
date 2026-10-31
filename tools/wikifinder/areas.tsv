@@ -21,6 +21,7 @@ area	finance	Money and finance	Functions-Finance	calculate interest, returns and
 area	logging	Logging	Functions-Logging	write log messages to the console, files or your own sinks	Category-Logging
 area	encoding	Encoding, hashes and IDs	Functions-Encoding	encode and decode Base64, hex and percent-encoding; hash and checksum data; generate UUIDs	Category-Codec Category-Hash Category-UUID
 area	network	Networking	Functions-Network	look up hosts, connect over TCP and UDP, parse and build URLs, fetch web pages over HTTP and HTTPS	Category-Net Category-Http
+area	windows	Windows programming	Functions-Windows	build Win32 programs with windows, dialogs and common controls; draw with GDI+ and Direct2D; host COM and WebView2	Category-Sys-Win
 
 from	built-in	builtin	-
 from	std/chrono	import	chrono
@@ -43,4 +44,11 @@ from	std/strings	import	strings
 from	std/tasks	import	tasks
 from	std/tui	import	tui
 from	std/uuids	import	uuids
+from	sys/win	import	win
+from	sys/win/gui	import	gui
+from	sys/win/com	import	com
+from	sys/win/richedit	import	richedit
+from	sys/win/gdiplus	import	gdiplus
+from	sys/win/direct2d	import	direct2d
+from	sys/win/webview2	import	webview2
 from	string.bi	include	-

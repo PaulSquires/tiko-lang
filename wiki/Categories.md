@@ -57,6 +57,7 @@ Looking for a function by what it does? The [Function Finder](Function-Finder) g
 - [Terminal TUI Library](Category-Terminal-TUI-Library) — 257 pages
 - [PsControls](Category-PsControls) — 30 pages
 - [tkControls](Category-tkControls) — 38 pages
+- [sys/win](Category-Sys-Win) — 111 pages
 - [Goroutines and Channels](Category-Goroutines-and-Channels) — 13 pages
 - [LLVM Backend](Category-LLVM-Backend) — 1 pages
 - [tiko build](Category-Tiko-Build) — 1 pages
