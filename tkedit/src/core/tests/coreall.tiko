@@ -81,6 +81,17 @@ sub PlatformSuite( byref c as tally.Checker )
     c.Check( appinfo.VersionText( ) = "0.1.0", "VersionText" )
     c.Check( appinfo.WindowTitle( ) = "tkEdit 0.1.0", "WindowTitle, no document" )
     c.Check( appinfo.WindowTitle( "a.tiko" ) = "tkEdit - a.tiko", "WindowTitle with a document" )
+    ' the exe's version resource says the same version (src/app/res/tkEdit.rc; tree = 4 levels up)
+    dim as ustring root = platform.ExeDir( )
+    for k as long = 1 to 4
+        root = fs.PathParent( root )
+    next
+    dim as ustring rc = fs.ReadAllText( fs.PathJoin( root, "src/app/res/tkEdit.rc" ) ).ValueOr( "" )
+    dim as ustring nums = strings.Format( "{},{},{},0", appinfo.VERSION_MAJOR, appinfo.VERSION_MINOR, appinfo.VERSION_PATCH )
+    c.Check( instr( rc, "FILEVERSION     " & nums ) > 0, "tkEdit.rc FILEVERSION " & nums )
+    c.Check( instr( rc, "PRODUCTVERSION  " & nums ) > 0, "tkEdit.rc PRODUCTVERSION " & nums )
+    c.Check( instr( rc, """FileVersion"",      """ & appinfo.VersionText( ) & """" ) > 0, "tkEdit.rc FileVersion string" )
+    c.Check( instr( rc, """ProductVersion"",   """ & appinfo.VersionText( ) & """" ) > 0, "tkEdit.rc ProductVersion string" )
 end sub
 
 dim as tally.Checker c
