@@ -945,6 +945,6 @@ Its output:
 
 - [PsApp](PsApp)
 - [PsTextBox](PsTextBox), [PsStatusBar](PsStatusBar), [PsMenuBar](PsMenuBar), [PsMessageBox](PsMessageBox)
-- [Notepad2 Tutorial](Notepad2-Tutorial): this program on [tkControls](Category-tkControls), for Windows and Linux
+- [Notepad2 Tutorial](Notepad2-Tutorial): this program on [tkControls](Category-tkControls), for Windows, Linux and macOS
 - [tiko build](Category-Tiko-Build)
 - [Filesystem](Category-Filesystem)

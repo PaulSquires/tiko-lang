@@ -6,7 +6,7 @@
 >
 > 🪟 **The same program on PsControls:** the [Notepad Tutorial](Notepad-Tutorial). This page follows it step by step, so the two can be read side by side.
 
-This tutorial builds **`tpad`** again, the plain-text editor of the [Notepad Tutorial](Notepad-Tutorial): a menu bar, the text, a scroll bar, a status bar with the line and column, Find, and a question before unsaved work is thrown away. This time it is built on **tkControls**, which draw into SDL3 windows, so **one source builds and runs on Windows and Linux**.
+This tutorial builds **`tpad`** again, the plain-text editor of the [Notepad Tutorial](Notepad-Tutorial): a menu bar, the text, a scroll bar, a status bar with the line and column, Find, and a question before unsaved work is thrown away. This time it is built on **tkControls**, which draw into SDL3 windows, so **one source builds and runs on Windows, Linux and macOS**.
 
 Most of the program does not change. The document module is the same file, word for word. The `Editor`, the commands and the one `Execute` are the same. What changes is what a window is made of: widgets instead of window handles, SDL events instead of Win32 messages. The program is about 800 lines of tiko, a sixth of them a self-test, and the self-test prints exactly what the PsControls one prints.
 
@@ -439,6 +439,14 @@ function AddMenu( byval f as TK_FORM ptr, byval bar as TK_WIDGET ptr, _
     return m
 end function
 
+'' The command key, as the menus spell it: Cmd on macOS, Ctrl
+'' elsewhere. TK_KMOD_PRIMARY is the same key as a modifier mask.
+#if defined( TIKO_OS_MACOS )
+const PrimaryKey = "Cmd+"
+#else
+const PrimaryKey = "Ctrl+"
+#endif
+
 sub BuildMenus( byval f as TK_FORM ptr, byval ed as Editor ptr )
     dim as TK_WIDGET ptr bar = tkMenuBar_Create( tkForm_Widget( f ), 100 )
     ed->bar = bar
@@ -447,33 +455,33 @@ sub BuildMenus( byval f as TK_FORM ptr, byval ed as Editor ptr )
             Execute( EditorOf( h ), id )
         end sub )
     dim as TK_MENU ptr m = AddMenu( f, bar, "File" )
-    tkPopupMenu_AddItem( m, CmdNew, "New", "Ctrl+N" )
-    tkPopupMenu_AddItem( m, CmdOpen, "Open...", "Ctrl+O" )
-    tkPopupMenu_AddItem( m, CmdSave, "Save", "Ctrl+S" )
-    tkPopupMenu_AddItem( m, CmdSaveAs, "Save As...", "Ctrl+Shift+S" )
+    tkPopupMenu_AddItem( m, CmdNew, "New", PrimaryKey & "N" )
+    tkPopupMenu_AddItem( m, CmdOpen, "Open...", PrimaryKey & "O" )
+    tkPopupMenu_AddItem( m, CmdSave, "Save", PrimaryKey & "S" )
+    tkPopupMenu_AddItem( m, CmdSaveAs, "Save As...", PrimaryKey & "Shift+S" )
     tkPopupMenu_AddSeparator( m )
     tkPopupMenu_AddItem( m, CmdExit, "Exit" )
     m = AddMenu( f, bar, "Edit" )
-    tkPopupMenu_AddItem( m, CmdUndo, "Undo", "Ctrl+Z" )
+    tkPopupMenu_AddItem( m, CmdUndo, "Undo", PrimaryKey & "Z" )
     tkPopupMenu_AddSeparator( m )
-    tkPopupMenu_AddItem( m, CmdCut, "Cut", "Ctrl+X" )
-    tkPopupMenu_AddItem( m, CmdCopy, "Copy", "Ctrl+C" )
-    tkPopupMenu_AddItem( m, CmdPaste, "Paste", "Ctrl+V" )
-    tkPopupMenu_AddItem( m, CmdSelectAll, "Select All", "Ctrl+A" )
+    tkPopupMenu_AddItem( m, CmdCut, "Cut", PrimaryKey & "X" )
+    tkPopupMenu_AddItem( m, CmdCopy, "Copy", PrimaryKey & "C" )
+    tkPopupMenu_AddItem( m, CmdPaste, "Paste", PrimaryKey & "V" )
+    tkPopupMenu_AddItem( m, CmdSelectAll, "Select All", PrimaryKey & "A" )
     tkPopupMenu_AddSeparator( m )
-    tkPopupMenu_AddItem( m, CmdFind, "Find...", "Ctrl+F" )
+    tkPopupMenu_AddItem( m, CmdFind, "Find...", PrimaryKey & "F" )
     tkPopupMenu_AddItem( m, CmdFindNext, "Find Next", "F3" )
 
     '' There is no accelerator table: the text box handles Ctrl+Z, X, C,
-    '' V and A and leaves every other key unclaimed, so the keys only tpad
-    '' knows bubble up to the form.
+    '' V and A (Cmd on macOS) and leaves every other key unclaimed, so the
+    '' keys only tpad knows bubble up to the form.
     tkForm_OnKeyDown( f, _
         function( byval f as TK_FORM ptr, byval key as long, _
                   byval mods as long ) as boolean
-            dim as boolean ctrl = (mods and SDL_KMOD_CTRL) <> 0
+            dim as boolean primary = (mods and TK_KMOD_PRIMARY) <> 0
             dim as boolean shift = (mods and SDL_KMOD_SHIFT) <> 0
             dim as long id = 0
-            if ctrl then
+            if primary then
                 select case key
                 case SDLK_N : id = CmdNew
                 case SDLK_O : id = CmdOpen
@@ -490,7 +498,7 @@ sub BuildMenus( byval f as TK_FORM ptr, byval ed as Editor ptr )
 end sub
 ```
 
-The text box handles Ctrl+Z, X, C, V and A itself, and **leaves every other key unclaimed**, so a key it does not use bubbles up to the form. `tkForm_OnKeyDown` turns Ctrl+N, Ctrl+O, Ctrl+S, Ctrl+Shift+S, Ctrl+F and F3 into commands; returning `true` says the key was used. Menus, keys and the self-test all end in the one `Execute`:
+The text box handles Ctrl+Z, X, C, V and A itself, and **leaves every other key unclaimed**, so a key it does not use bubbles up to the form. `tkForm_OnKeyDown` turns Ctrl+N, Ctrl+O, Ctrl+S, Ctrl+Shift+S, Ctrl+F and F3 into commands; returning `true` says the key was used. On macOS the command key is Cmd instead of Ctrl: `TK_KMOD_PRIMARY`, from `tkHost`, is Cmd there and Ctrl elsewhere, the text box tests it too, and `PrimaryKey` spells the menus to match. Menus, keys and the self-test all end in the one `Execute`:
 
 ```freebasic
 '' The one place a command is carried out, wherever it came from.
@@ -730,7 +738,7 @@ using tkStatusBar
 using tkMessageBox
 
 '' tpad, the Notepad Tutorial's editor, on tkControls (SDL3 + SDL_ttf):
-'' the same program on Windows and Linux.
+'' the same program on Windows, Linux and macOS.
 ''
 ''   tpad [file]                 run it
 ''   tpad --selftest             drive the real window, print what it saw
@@ -787,7 +795,7 @@ tiko build tpad
 ./tpad.exe notes.txt
 ```
 
-The first build compiles the tkControls modules the program imports; later builds compile only what changed. The build copies what the program needs at run time beside it: the bundled fonts and their licences and, on Windows, the SDL3, SDL3_ttf and SDL3_image libraries. On Linux the program uses the system's SDL3 libraries; see [tkControls](Category-tkControls) for what to install. `tiko build tpad --profile release` writes an optimised build: on Windows `tpad.exe` is 331,776 bytes, and that folder is the whole installation.
+The first build compiles the tkControls modules the program imports; later builds compile only what changed. The build copies what the program needs at run time beside it: the bundled fonts and their licences and, on Windows, the SDL3, SDL3_ttf and SDL3_image libraries. On Linux and macOS the program uses the system's SDL3 libraries (on macOS, Homebrew's: `brew install sdl3 sdl3_ttf sdl3_image`); see [tkControls](Category-tkControls) for what to install. `tiko build tpad --profile release` writes an optimised build: on Windows `tpad.exe` is 331,776 bytes, and that folder is the whole installation.
 
 ## 8. Testing the window with nobody at it
 
@@ -932,7 +940,7 @@ function SelfTest( byval ed as pad.Editor ptr ) as long
 end function
 ```
 
-Its output, the same on Windows and Linux, and line for line the same as the [Notepad Tutorial](Notepad-Tutorial#8-testing-the-window-with-nobody-at-it)'s:
+Its output, the same on Windows, Linux and macOS, and line for line the same as the [Notepad Tutorial](Notepad-Tutorial#8-testing-the-window-with-nobody-at-it)'s:
 
 ```text
 == a new window

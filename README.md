@@ -212,7 +212,7 @@ Every diagnostic has a stable `TKOnnnn` id, a location and a caret. Add
 | Values | `Result`, `Optional`, `SharedPtr`, `WeakPtr`, `ustring` (UTF-16 on every platform) |
 | System | filesystem (paths, directory walks, globbing, file watching, memory mapping), date and time with time zones and a monotonic clock |
 | Numbers | math, statistics, vectors and matrices, seeded random streams, exact `Currency` and `Decimal`, finance functions |
-| Apps | structured logging, a terminal UI toolkit |
+| Apps | structured logging, a terminal UI toolkit, [tkControls](wiki/Category-tkControls.md) (cross platform GUI library), [PsControls](wiki/Category-PsControls.md) (Windows only GUI library) |
 
 Reference pages for each are in the [Feature Index](wiki/Feature-Index.md).
 

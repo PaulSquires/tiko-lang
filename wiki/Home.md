@@ -24,7 +24,7 @@ tiko is a compiled, statically typed programming language for building fast, sel
 | [Packages and Modules Tutorial](Packages-and-Modules-Tutorial) | `#import` the standard library, a C library from `vendor` with `link static` or `link dynamic`, and modules of your own |
 | [tiko c2t Tutorial](C2t-Tutorial) | Translate a C library's header with `tiko c2t`, then use it with `#include` and `#foreignlib` |
 | [Notepad Tutorial](Notepad-Tutorial) | A Windows text editor from PsControls and PsApp: menus, status bar, Find, unsaved-changes prompt, and a self-test that drives the window |
-| [Notepad2 Tutorial](Notepad2-Tutorial) | The same text editor from tkControls and tkApp, built from one source for Windows and Linux: SDL3 windows, the same commands, and the same self-test |
+| [Notepad2 Tutorial](Notepad2-Tutorial) | The same text editor from tkControls and tkApp, built from one source for Windows, Linux and macOS: SDL3 windows, the same commands, and the same self-test |
 
 ## The book
 

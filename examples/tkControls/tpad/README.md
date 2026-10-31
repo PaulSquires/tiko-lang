@@ -2,8 +2,8 @@
 
 The wiki's [Notepad Tutorial](https://github.com/PaulSquires/tiko-lang/wiki/Notepad-Tutorial)
 (the book's Chapter 35), rebuilt on tkControls instead of PsControls. It has the same three
-files, the same `Editor`, the same commands and the one `Execute`. It now runs on Windows
-**and Linux**.
+files, the same `Editor`, the same commands and the one `Execute`. It now runs on Windows,
+**Linux and macOS**.
 
 ```text
 examples/tkControls/tpad/
@@ -20,7 +20,11 @@ examples/tkControls/tpad/
 **byte-identical to the wiki's** (`expected.txt`) on:
 - Windows (D3D11);
 - Linux X11;
-- Linux Wayland (WSLg).
+- Linux Wayland (WSLg);
+- macOS on Apple Silicon (Metal, Homebrew SDL3).
+
+The command keys are Cmd on macOS and Ctrl elsewhere (`TK_KMOD_PRIMARY`), and the menus
+say which. The self-test presses no modifier, so that choice is not in its output.
 
 The output covers the layout, Open, the keys and typing, Find Next (including the "Cannot
 find" question), Save and the bytes on disk, the Save / Don't Save / Cancel questions, the

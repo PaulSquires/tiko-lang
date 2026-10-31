@@ -2,9 +2,9 @@
 
 # tkControls
 
-> **In tiko.** Owner-drawn controls on **SDL3 and SDL_ttf**, for **Windows and Linux**, written in tiko. They ship with the toolchain as modules of the `vendor` package, source only: `#import "vendor/tkControls/tkButton"` and nothing on the command line.
+> **In tiko.** Owner-drawn controls on **SDL3 and SDL_ttf**, for **Windows, Linux and macOS**, written in tiko. They ship with the toolchain as modules of the `vendor` package, source only: `#import "vendor/tkControls/tkButton"` and nothing on the command line.
 
-tkControls is the cross-platform twin of [PsControls](Category-PsControls): the same controls, the same callbacks and the same silent setters, drawn into SDL windows instead of Win32 ones. One program builds and runs on both systems unchanged. The two families are separate and never share names: `tkButton_SetText` here, `PsButton_SetText` there.
+tkControls is the cross-platform twin of [PsControls](Category-PsControls): the same controls, the same callbacks and the same silent setters, drawn into SDL windows instead of Win32 ones. One program builds and runs on all three systems unchanged. The two families are separate and never share names: `tkButton_SetText` here, `PsButton_SetText` there.
 
 Every control draws itself. There is no system control underneath, so a window looks the same on every machine and can be themed to any palette, dark ones included.
 
@@ -27,7 +27,7 @@ Every module imports [tkHost](tkHost), the widget core, and through it `vendor/S
 
 A module that comes in through another one's import is named only after that one's `using`: write `using tkButton` before `using tkHost`, and `using tkHost` before `using tkPaint`. The other order stops with `TKO0923`.
 
-Runnable demos and a self-test for every control are in the toolchain's `examples/tkControls/`, one folder each, built with [`tiko build`](Category-Tiko-Build). `examples/tkControls/tpad` is the program of the [Notepad2 Tutorial](Notepad2-Tutorial): the [Notepad Tutorial](Notepad-Tutorial)'s text editor rebuilt on tkControls, running on Windows and Linux.
+Runnable demos and a self-test for every control are in the toolchain's `examples/tkControls/`, one folder each, built with [`tiko build`](Category-Tiko-Build). `examples/tkControls/tpad` is the program of the [Notepad2 Tutorial](Notepad2-Tutorial): the [Notepad Tutorial](Notepad-Tutorial)'s text editor rebuilt on tkControls, running on Windows, Linux and macOS.
 
 ## The application framework
 
@@ -114,7 +114,7 @@ Each control's page lists its own differences. The PsControls page of the same c
 ## Requirements
 
 - **Windows or Linux** (x86-64).
-- **SDL3, SDL3_ttf and SDL3_image.** On Windows the toolchain ships them and copies them beside the program. On Linux the program links the system's libraries: install the distribution's SDL3 development packages. See [Vendor Packages](Vendor-Packages).
+- **SDL3, SDL3_ttf and SDL3_image.** On Windows the toolchain ships them and copies them beside the program. On Linux the program links the system's libraries: install the distribution's SDL3 development packages. On macOS it links Homebrew's: `brew install sdl3 sdl3_ttf sdl3_image`. See [Vendor Packages](Vendor-Packages).
 
 ## Licence
 

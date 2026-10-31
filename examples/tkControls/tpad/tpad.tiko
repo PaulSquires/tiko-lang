@@ -14,7 +14,7 @@ using tkStatusBar
 using tkMessageBox
 
 '' tpad, the Notepad Tutorial's editor, on tkControls (SDL3 + SDL_ttf):
-'' the same program on Windows and Linux.
+'' the same program on Windows, Linux and macOS.
 ''
 ''   tpad [file]                 run it
 ''   tpad --selftest             drive the real window, print what it saw
