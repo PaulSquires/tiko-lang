@@ -1,0 +1,12 @@
+'' RUN: SLEEP releases the I/O lock before it sleeps, as fbc's fb_Sleep does (hook_sleep.c reads
+'' the hook under FB_LOCK, then FB_UNLOCKs and sleeps). tiko-rt held the lock for the whole
+'' sleep, so one thread's SLEEP stalled every other thread's console I/O and SLEEP for its full
+'' length -- under contention on Linux and macOS, for seconds (AWT-001). Deterministic here: the
+'' worker is 20 ms into a 99 ms SLEEP when the main thread times a SLEEP 1 of its own.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/sleep-unlocked.bas -o tests/codegen/sleepunlocked.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/sleepunlocked.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: sleep 1 did not wait for the other thread

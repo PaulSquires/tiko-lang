@@ -15,6 +15,8 @@
 ''
 '' fb_DevScrnInit_NoOpen runs BEFORE the lock in the ones that touch the handle:
 '' it has to exist before its fields do, and creating it takes the lock itself.
+''
+'' SLEEP alone RELEASES THE LOCK BEFORE CALLING -- it blocks; see tkort_Sleep.
 
 #include once "inc/descriptors.ti"
 #include once "inc/ctx.ti"
@@ -170,11 +172,15 @@ function tkort_ReadXY alias "fb_ReadXY" _
 	return res
 end function
 
+'' THE LOCK COVERS READING THE HOOK, NOT THE SLEEP -- fbc's hook_sleep.c unlocks before
+'' sleeping. Held across it, one thread's SLEEP stalls every other thread's console I/O and
+'' SLEEP; four threads looping SLEEP 5 kept the main thread out of its SLEEP 30 for 32 s on
+'' Linux, an unfair mutex re-taken before the waiter woke (AWT-001).
 sub tkort_Sleep alias "fb_Sleep" ( byval msecs as int32 )
 	TKORT_IOLOCK()
 	dim as FB_SLEEPPROC p = TKORT_HOOKPTR( FB_SLEEPPROC, TKORT_HK_SLEEP )
-	if( p <> nullptr ) then p( msecs ) else tkrt_ConsoleSleep( msecs )
 	TKORT_IOUNLOCK()
+	if( p <> nullptr ) then p( msecs ) else tkrt_ConsoleSleep( msecs )
 end sub
 
 function tkort_IsRedirected alias "fb_IsRedirected" ( byval is_input as int32 ) as int32
