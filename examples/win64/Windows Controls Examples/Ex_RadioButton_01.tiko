@@ -12,12 +12,6 @@
 #import "sys/win/gui"
 using win, gui
 
-DECLARE FUNCTION wWinMain (BYVAL hInstance AS HINSTANCE, _
-                           BYVAL hPrevInstance AS HINSTANCE, _
-                           BYVAL pwszCmdLine AS WSTRING PTR, _
-                           BYVAL nCmdShow AS LONG) AS LONG
-   END wWinMain(GetModuleHandleW(NULL), NULL, wCommand(), SW_NORMAL)
-
 ' // Forward declaration
 DECLARE FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM, BYVAL lParam AS LPARAM) AS LRESULT
 
@@ -29,10 +23,7 @@ CONST IDC_OPTION3 = 1003
 ' ========================================================================================
 ' Main
 ' ========================================================================================
-FUNCTION wWinMain (BYVAL hInstance AS HINSTANCE, _
-                   BYVAL hPrevInstance AS HINSTANCE, _
-                   BYVAL pwszCmdLine AS WSTRING PTR, _
-                   BYVAL nCmdShow AS LONG) AS LONG
+FUNCTION main (BYVAL nCmdShow AS LONG = SW_NORMAL) AS LONG
 
    ' // Set process DPI aware
    SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)
@@ -90,10 +81,10 @@ FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM
       ' // Sent when the user selects a command item from a menu, when a control sends a
       ' // notification message to its parent window, or when an accelerator keystroke is translated.
       CASE WM_COMMAND
-         SELECT CASE gui.CBCTL(wParam, lParam)
+         SELECT CASE CBCTL(wParam, lParam)
             CASE IDCANCEL
                ' // If ESC key pressed, close the application by sending an WM_CLOSE message
-               IF gui.CBCTLMSG(wParam, lParam) = BN_CLICKED THEN SendMessageW(hwnd, WM_CLOSE, 0, 0)
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN SendMessageW(hwnd, WM_CLOSE, 0, 0)
          END SELECT
          RETURN 0
 
@@ -108,4 +99,10 @@ FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM
    FUNCTION = DefWindowProcW(hwnd, uMsg, wParam, lParam)
 
 END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' // Call main() and return the error code to the OS
+' ========================================================================================
+END main()
 ' ========================================================================================

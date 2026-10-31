@@ -32,6 +32,7 @@ using win
 #include once "win/uxtheme.bi"
 #include once "win/richedit.bi"
 #include once "../colors.ti"
+public #include "macros.ti"
 
 #ifndef ANCHORPROPERTY
 ' // Layout manager - Anchor properties

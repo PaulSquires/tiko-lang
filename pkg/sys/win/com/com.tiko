@@ -28,8 +28,8 @@
 using win
 #include once "com.ti"
 
-#ifndef __tk_IUnknown_INTERFACE_DEFINED__
-#define __tk_IUnknown_INTERFACE_DEFINED__
+#ifndef __ComUnknown_INTERFACE_DEFINED__
+#define __ComUnknown_INTERFACE_DEFINED__
 PUBLIC TYPE ComUnknown AS ComUnknown_
 PUBLIC TYPE ComUnknown_ EXTENDS OBJECT
 	DECLARE ABSTRACT FUNCTION QueryInterface (BYVAL riid AS REFIID, BYVAL ppvObject AS LPVOID PTR) AS HRESULT
@@ -39,8 +39,8 @@ END TYPE
 PUBLIC TYPE LPCOMUNKNOWN AS ComUnknown PTR
 #endif
 
-#ifndef __tk_IDispatch_INTERFACE_DEFINED__
-#define __tk_IDispatch_INTERFACE_DEFINED__
+#ifndef __ComDispatch_INTERFACE_DEFINED__
+#define __ComDispatch_INTERFACE_DEFINED__
 PUBLIC TYPE ComDispatch AS ComDispatch_
 PUBLIC TYPE ComDispatch_  EXTENDS ComUnknown
    DECLARE ABSTRACT FUNCTION GetTypeInfoCount (BYVAL pctinfo AS UINT PTR) as HRESULT
@@ -90,7 +90,7 @@ END FUNCTION
 ' Remarks: I have needed to call the UuidCreate function dynamically because, at the time
 ' of writing, the library for the RPCRT4.DLL seems broken and the linker fails.
 ' ========================================================================================
-PUBLIC FUNCTION Guid (BYVAL pwszGuidText AS WSTRING PTR = NULL) AS GUID
+PUBLIC FUNCTION GetGuid (BYVAL pwszGuidText AS WSTRING PTR = NULL) AS GUID
    DIM rguid AS GUID
    IF pwszGuidText = NULL THEN
       ' // Generate a new guid
@@ -316,8 +316,8 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION NewCom OVERLOAD (BYREF wszLibName AS CONST WSTRING, BYREF wszClsid AS CONST WSTRING, BYREF wszIid AS CONST WSTRING, BYREF wszLicKey AS WSTRING = "") AS ANY PTR
    DIM rclsid AS CLSID, riid AS IID
-   rclsid = Guid(wszClsid)
-   riid = Guid(wszIid)
+   rclsid = GetGuid(wszClsid)
+   riid = GetGuid(wszIid)
    RETURN NewCom(wszLibName, rclsid, riid, wszLicKey)
 END FUNCTION
 ' ========================================================================================

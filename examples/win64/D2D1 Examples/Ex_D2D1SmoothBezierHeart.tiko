@@ -2,7 +2,7 @@
 ' Microsoft Windows
 ' Contents: D2D1 - Smooth bezier heart
 ' Compiler: tiko-lang
-' Copyright (c) 2026 José Roca. Freeware. Use at your own risk.
+' Copyright (c) 2026 JosÃ© Roca. Freeware. Use at your own risk.
 ' THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
 ' EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
 ' MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
@@ -88,14 +88,14 @@ FUNCTION RenderScene (BYVAL hMemDC AS HDC, BYVAL nWidth AS LONG, BYVAL nHeight A
             ' === Begin heart ===
             pSink->BeginFigure(D2D1_Point2F(topX,topY), D2D1_FIGURE_BEGIN_FILLED)
 
-            ' Left Bézier curve
+            ' Left BÃ©zier curve
             DIM B1 AS D2D1_BEZIER_SEGMENT
             B1.point1 = D2D1_Point2F(lcX,lcY)
             B1.point2 = D2D1_Point2F(lmX,lmY)
             B1.point3 = D2D1_Point2F(bx,by)
             pSink->AddBezier(B1)
 
-            ' Right Bézier curve
+            ' Right BÃ©zier curve
             DIM B2 AS D2D1_BEZIER_SEGMENT
             B2.point1 = D2D1_Point2F(rmX,rmY)
             B2.point2 = D2D1_Point2F(rcX,rcY)
@@ -173,7 +173,7 @@ FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM
    SELECT CASE uMsg
 
       ' // If an application processes this message, it should return zero to continue
-      ' // creation of the window. If the application returns –1, the window is destroyed
+      ' // creation of the window. If the application returns â€“1, the window is destroyed
       ' // and the CreateWindowExW function returns a NULL handle.
       CASE WM_CREATE
          EnableDarkModeForWindow(hwnd)

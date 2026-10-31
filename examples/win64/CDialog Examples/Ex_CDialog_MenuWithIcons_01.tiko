@@ -12,7 +12,7 @@
 #import "sys/win/gui"
 #import "sys/win/gdiplus"
 using win, gui, gdiplus
-
+' // Resource file
 #cmdline "Ex_CDialog_MenuWithIcons_01.rc"
 
 ' // Forward declaration

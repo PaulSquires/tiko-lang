@@ -29,7 +29,7 @@
 using win
 #include "com.ti"
 #include once "win/wtypes.bi"
-#INCLUDE ONCE "/crt/wchar.bi"
+#include once "/crt/wchar.bi"
 #include once "win/Ole2.bi"
 
 ' ########################################################################################

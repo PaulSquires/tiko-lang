@@ -546,11 +546,22 @@ PUBLIC SUB SetLeftMargin (BYVAL hEdit AS HWND, BYVAL nWidth AS WORD)
 END SUB
 ' ========================================================================================
 ' ========================================================================================
+PUBLIC SUB SetLeftMarginForDpi (BYVAL hEdit AS HWND, BYVAL nWidth AS WORD)
+   SendMessageW(hEdit, EM_SETMARGINS, EC_LEFTMARGIN, MAKELONG(Edit.Scale(nWidth), 0))
+END SUB
+' ========================================================================================
+
+' ========================================================================================
 ' * Sets the width of the right margin for an edit control. The message redraws the control
 ' to reflect the new margin.
 ' ========================================================================================
 PUBLIC SUB SetRightMargin (BYVAL hEdit AS HWND, BYVAL nWidth AS WORD)
    SendMessageW(hEdit, EM_SETMARGINS, EC_RIGHTMARGIN, MAKELONG(0, nWidth))
+END SUB
+' ========================================================================================
+' ========================================================================================
+PUBLIC SUB SetRightMarginForDpi (BYVAL hEdit AS HWND, BYVAL nWidth AS WORD)
+   SendMessageW(hEdit, EM_SETMARGINS, EC_RIGHTMARGIN, MAKELONG(0, Edit.Scale(nWidth)))
 END SUB
 ' ========================================================================================
 

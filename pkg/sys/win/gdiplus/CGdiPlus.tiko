@@ -26,10 +26,12 @@
 
 #module "gdiplus"
 #include once "gdiplus.ti"
+public #include "pixelformat.ti"
 
 #ifdef GDIP_WMF_RECORD_TO_EMFPLUS
 #export GDIP_WMF_RECORD_TO_EMFPLUS
 #endif
+
 #ifdef GpSolidBrush
 #export GpSolidBrush
 #endif
@@ -48,90 +50,93 @@
 #ifdef GpTextureBrush
 #export GpTextureBrush
 #endif
-#ifdef PixelFormatIndexed
-#export PixelFormatIndexed
-#endif
-#ifdef PixelFormatGDI
-#export PixelFormatGDI
-#endif
-#ifdef PixelFormatAlpha
-#export PixelFormatAlpha
-#endif
-#ifdef PixelFormatPAlpha
-#export PixelFormatPAlpha
-#endif
-#ifdef PixelFormatExtended
-#export PixelFormatExtended
-#endif
-#ifdef PixelFormatCanonical
-#export PixelFormatCanonical
-#endif
-#ifdef PixelFormatUndefined
-#export PixelFormatUndefined
-#endif
-#ifdef PixelFormatDontCare
-#export PixelFormatDontCare
-#endif
-#ifdef PixelFormat1bppIndexed
-#export PixelFormat1bppIndexed
-#endif
-#ifdef PixelFormat4bppIndexed
-#export PixelFormat4bppIndexed
-#endif
-#ifdef PixelFormat8bppIndexed
-#export PixelFormat8bppIndexed
-#endif
-#ifdef PixelFormat16bppGrayScale
-#export PixelFormat16bppGrayScale
-#endif
-#ifdef PixelFormat16bppRGB555
-#export PixelFormat16bppRGB555
-#endif
-#ifdef PixelFormat16bppRGB565
-#export PixelFormat16bppRGB565
-#endif
-#ifdef PixelFormat16bppARGB1555
-#export PixelFormat16bppARGB1555
-#endif
-#ifdef PixelFormat24bppRGB
-#export PixelFormat24bppRGB
-#endif
-#ifdef PixelFormat32bppRGB
-#export PixelFormat32bppRGB
-#endif
-#ifdef PixelFormat32bppARGB
-#export PixelFormat32bppARGB
-#endif
-#ifdef PixelFormat32bppPARGB
-#export PixelFormat32bppPARGB
-#endif
-#ifdef PixelFormat48bppRGB
-#export PixelFormat48bppRGB
-#endif
-#ifdef PixelFormat64bppARGB
-#export PixelFormat64bppARGB
-#endif
-#ifdef PixelFormat64bppPARGB
-#export PixelFormat64bppPARGB
-#endif
-#ifdef PixelFormatMax
-#export PixelFormatMax
-#endif
-#ifdef GetPixelFormatSize
-#export GetPixelFormatSize
-#endif
-#ifdef IsAlphaPixelFormat
-#export IsAlphaPixelFormat
-#endif
-#ifdef IsCanonicalPixelFormat
-#export IsCanonicalPixelFormat
-#endif
-#ifdef IsExtendedPixelFormat
-#export IsExtendedPixelFormat
-#endif
-#ifdef IsIndexedPixelFormat
-#export IsIndexedPixelFormat
-#endif
+
+' // Moved to pixelformat.ti
+'#ifdef PixelFormatIndexed
+'#export PixelFormatIndexed
+'#endif
+'#ifdef PixelFormatGDI
+'#export PixelFormatGDI
+'#endif
+'#ifdef PixelFormatAlpha
+'#export PixelFormatAlpha
+'#endif
+'#ifdef PixelFormatPAlpha
+'#export PixelFormatPAlpha
+'#endif
+'#ifdef PixelFormatExtended
+'#export PixelFormatExtended
+'#endif
+'#ifdef PixelFormatCanonical
+'#export PixelFormatCanonical
+'#endif
+'#ifdef PixelFormatUndefined
+'#export PixelFormatUndefined
+'#endif
+'#ifdef PixelFormatDontCare
+'#export PixelFormatDontCare
+'#endif
+'#ifdef PixelFormat1bppIndexed
+'#export PixelFormat1bppIndexed
+'#endif
+'#ifdef PixelFormat4bppIndexed
+'#export PixelFormat4bppIndexed
+'#endif
+'#ifdef PixelFormat8bppIndexed
+'#export PixelFormat8bppIndexed
+'#endif
+'#ifdef PixelFormat16bppGrayScale
+'#export PixelFormat16bppGrayScale
+'#endif
+'#ifdef PixelFormat16bppRGB555
+'#export PixelFormat16bppRGB555
+'#endif
+'#ifdef PixelFormat16bppRGB565
+'#export PixelFormat16bppRGB565
+'#endif
+'#ifdef PixelFormat16bppARGB1555
+'#export PixelFormat16bppARGB1555
+'#endif
+'#ifdef PixelFormat24bppRGB
+'#export PixelFormat24bppRGB
+'#endif
+'#ifdef PixelFormat32bppRGB
+'#export PixelFormat32bppRGB
+'#endif
+'#ifdef PixelFormat32bppARGB
+'#export PixelFormat32bppARGB
+'#endif
+'#ifdef PixelFormat32bppPARGB
+'#export PixelFormat32bppPARGB
+'#endif
+'#ifdef PixelFormat48bppRGB
+'#export PixelFormat48bppRGB
+'#endif
+'#ifdef PixelFormat64bppARGB
+'#export PixelFormat64bppARGB
+'#endif
+'#ifdef PixelFormat64bppPARGB
+'#export PixelFormat64bppPARGB
+'#endif
+'#ifdef PixelFormatMax
+'#export PixelFormatMax
+'#endif
+
+'#ifdef GetPixelFormatSize
+'#export GetPixelFormatSize
+'#endif
+'#ifdef IsAlphaPixelFormat
+'#export IsAlphaPixelFormat
+'#endif
+'#ifdef IsCanonicalPixelFormat
+'#export IsCanonicalPixelFormat
+'#endif
+'#ifdef IsExtendedPixelFormat
+'#export IsExtendedPixelFormat
+'#endif
+'#ifdef IsIndexedPixelFormat
+'#export IsIndexedPixelFormat
+'#endif
 
 #include once "win/ddraw.bi"
 

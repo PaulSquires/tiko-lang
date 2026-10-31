@@ -16,12 +16,6 @@ using win, gui, gdiplus
 
 #cmdline "Ex_SplitButton_01.rc"
 
-DECLARE FUNCTION wWinMain (BYVAL hInstance AS HINSTANCE, _
-                           BYVAL hPrevInstance AS HINSTANCE, _
-                           BYVAL pwszCmdLine AS WSTRING PTR, _
-                           BYVAL nCmdShow AS LONG) AS LONG
-   END wWinMain(GetModuleHandleW(NULL), NULL, wCommand(), SW_NORMAL)
-
 ' // Forward declaration
 DECLARE FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM, BYVAL lParam AS LPARAM) AS LRESULT
 
@@ -33,10 +27,7 @@ CONST IDC_MENUCOMMAND3 = 28002
 ' ========================================================================================
 ' Main
 ' ========================================================================================
-FUNCTION wWinMain (BYVAL hInstance AS HINSTANCE, _
-                   BYVAL hPrevInstance AS HINSTANCE, _
-                   BYVAL pwszCmdLine AS WSTRING PTR, _
-                   BYVAL nCmdShow AS LONG) AS LONG
+FUNCTION main (BYVAL nCmdShow AS LONG = SW_NORMAL) AS LONG
 
    ' // Set process DPI aware
    SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)
@@ -57,6 +48,7 @@ FUNCTION wWinMain (BYVAL hInstance AS HINSTANCE, _
    DIM cx AS LONG = 16 * pWindow.DPI \ 96
    DIM hImageList AS HIMAGELIST = ImageList_Create(cx, cx, ILC_COLOR32 OR ILC_MASK, 1, 0)
    ' // --> Remember to change the path and name of the icon
+   DIM hInstance AS HINSTANCE = GetModuleHandleW(NULL)
    AddIconFromRes(hImageList, hInstance, "IDI_SHUTDOWN_48")
    ' // Fill a BUTTON_IMAGELIST structure and set the image list
    DIM bi AS BUTTON_IMAGELIST = (hImageList, (3, 3, 3, 3), BUTTON_IMAGELIST_ALIGN_LEFT)
@@ -93,17 +85,17 @@ FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM
       ' // Sent when the user selects a command item from a menu, when a control sends a
       ' // notification message to its parent window, or when an accelerator keystroke is translated.
       CASE WM_COMMAND
-         SELECT CASE gui.CBCTL(wParam, lParam)
+         SELECT CASE CBCTL(wParam, lParam)
             CASE IDCANCEL
                ' // If ESC key pressed, close the application by sending an WM_CLOSE message
-               IF gui.CBCTLMSG(wParam, lParam) = BN_CLICKED THEN SendMessageW(hwnd, WM_CLOSE, 0, 0)
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN SendMessageW(hwnd, WM_CLOSE, 0, 0)
          END SELECT
          RETURN 0
 
       CASE WM_NOTIFY
          ' // Processs notify messages sent by the split button
          DIM tDropDown AS NMBCDROPDOWN
-         gui.CBNMTYPESET(tDropDown, wParam, lParam)
+         CBNMTYPESET(tDropDown, wParam, lParam)
          IF tDropDown.hdr.idFrom = IDC_SPLITBUTTON THEN
             IF tDropDown.hdr.code = BCN_DROPDOWN THEN
                ' // Get the screen coordinates of the button
@@ -128,7 +120,7 @@ FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM
                DestroyMenu hSplitMenu
             ELSEIF tDropDown.hdr.code = BCN_HOTITEMCHANGE THEN
                DIM tHotItem AS NMBCHOTITEM
-               gui.CBNMTYPESET(tHotItem, wParam, lParam)
+               CBNMTYPESET(tHotItem, wParam, lParam)
                IF (tHotItem.dwFlags AND HICF_ENTERING) THEN
                   SetWindowTextW(hwnd, "Mouse entering the button")
                ELSEIF (tHotItem.dwFlags AND HICF_LEAVING) THEN
@@ -149,4 +141,10 @@ FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM
    FUNCTION = DefWindowProcW(hwnd, uMsg, wParam, lParam)
 
 END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' // Call main() and return the error code to the OS
+' ========================================================================================
+END main()
 ' ========================================================================================

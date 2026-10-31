@@ -160,6 +160,13 @@ FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM
 '               s = pRichEdit->GetRtf
 '               print s
                ' // -------------------------------------------------------------
+               ' // Print rtf text
+               ' // -------------------------------------------------------------
+'               SCOPE
+'                  DIM pPrint AS CPrint
+'                  DIM b AS BOOLEAN = pPrint.PrintRtf(hRichEdit, pRichEdit->DocName)
+'               END SCOPE
+               ' // -------------------------------------------------------------
                ' // * Save rtf contents to a file
                ' // -------------------------------------------------------------
                'DIM uDoc AS USTRING = GetExePath & "\" & "TestRtf.rtf"

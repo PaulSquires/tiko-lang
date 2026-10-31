@@ -1,6 +1,6 @@
 ' ########################################################################################
 ' Microsoft Windows
-' File: GraphicsPathIterNextPathType.bas
+' Contents: GDI+ - FontFamilyIsAvailable example
 ' Compiler: tiko-lang
 ' Copyright (c) 2026 José Roca. Freeware. Use at your own risk.
 ' THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
@@ -19,59 +19,29 @@ CONST IDC_GRCTX = 1001
 DECLARE FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM, BYVAL lParam AS LPARAM) AS LRESULT
 
 ' ========================================================================================
-' Using NextPathType to group points by type.
-' Helps you understand how a path is constructed—lines vs. curves.
-' Enables selective rendering, editing, or flattening based on segment type.
+' The following example creates a FontFamily object. If the FontFamily object is created
+' successfully, the example draws text.
 ' ========================================================================================
-SUB Example_NextPathType (BYVAL hdc AS HDC)
+SUB Example_IsAvailable (BYVAL hdc AS HDC)
 
    ' // Create a graphics object from the window device context
    DIM graphics AS CGpGraphics = hdc
    ' // Set the scale transform
    graphics.ScaleTransformForDpi
 
-   ' // Create a GraphicsPath with grouped types
-   DIM path AS CGpGraphicsPath
-   path.AddLine(20, 20, 120, 20)
-   path.AddLine(120, 20, 70, 100)
-   path.AddLine(70, 100, 20, 20)
-   path.AddBezier(150, 30, 180, 10, 210, 50, 240, 30)
+   ' // Create a FontFamily object
+   DIM myFontFamily AS CGpFontFamily = "arial"
 
-   ' // Create a GraphicsPathIterator
-   DIM iterator AS CGpGraphicsPathIterator = @path
+   ' // Check to see if myFontFamily is available.
+   DIM isAvailable AS BOOLEAN = myFontFamily.IsAvailable
 
-   ' // Create font and brush for displaying segment info
-   DIM fontFamily AS CGpFontFamily = CGpFontFamily("Arial")
-   DIM font AS CGpFont = CGpFont(@fontFamily, PointsToPixels(12, TRUE), FontStyleRegular)
-   DIM brush AS CGpSolidBrush = ARGB_BLACK
-
-   ' // Iterate through path segments grouped by type
-   DIM resultCount AS LONG, pathType AS BYTE
-   DIM startIdx AS LONG, endIdx AS LONG
-   DIM yOffset AS SINGLE = 10.0
-   DIM segmentIndex AS LONG = 1
-
-   DO
-      resultCount = iterator.NextPathType(@pathType, @startIdx, @endIdx)
-      IF resultCount = 0 THEN EXIT DO
-      DIM typeName AS STRING
-      SELECT CASE pathType AND &H07
-         CASE PathPointTypeStart
-            typeName = "Start"
-         CASE PathPointTypeLine
-            typeName = "Line"
-         CASE PathPointTypeBezier
-            typeName = "Bezier"
-         CASE ELSE
-            typeName = "Unknown"
-      END SELECT
-      DIM info AS STRING = "Segment " & segmentIndex & ": Type=" & typeName & _
-                           ", Start=" & startIdx & ", End=" & endIdx
-      DIM layout AS GpRectF = (10.0, yOffset, 400.0, 20.0)
-      graphics.DrawString(info, -1, @font, @layout, @brush)
-      yOffset += 20.0
-      segmentIndex += 1
-   LOOP
+   ' // If myFontFamily is available, draw text.
+   IF isAvailable THEN
+      DIM solidBrush AS CGpSolidBrush = ARGB_BLACK
+      DIM font AS CGpFont = CGpFont(@myFontFamily, PointsToPixels(16, TRUE))
+      DIM wszText AS WSTRING * 260 = "myFontFamily is available"
+      graphics.DrawString(@wszText, -1, @font, 0, 0, @solidbrush)
+   END IF
 
 END SUB
 ' ========================================================================================
@@ -86,12 +56,12 @@ FUNCTION main (BYVAL nCmdShow AS LONG = SW_SHOW) AS LONG
    ' // Enable visual styles without including a manifest file
    EnableVisualStyles
 
-   ' // Create the main window
+   ' // Creates the main window
    DIM pWindow AS CWindow = "MyClassName"
-   pWindow.Create(NULL, "GDI+ GraphicsPathIterNextPathType", @WndProc)
-   ' // Size it by setting the wanted width and height of its client area
+   pWindow.Create(NULL, "GDI+ FontFamilyIsAvailable", @WndProc)
+   ' // Sizes it by setting the wanted width and height of its client area
    pWindow.SetClientSize(400, 250)
-   ' // Center the window
+   ' // Centers the window
    pWindow.Center
 
    ' // Add a graphic control
@@ -103,7 +73,7 @@ FUNCTION main (BYVAL nCmdShow AS LONG = SW_SHOW) AS LONG
    ' // Get the memory device context of the graphic control
    DIM hdc AS HDC = pGraphCtx.GetMemDc
    ' // Draw the graphics
-   Example_NextPathType(hdc)
+   Example_IsAvailable(hdc)
 
    ' // Displays the window and dispatches the Windows messages
    FUNCTION = pWindow.DoEvents(nCmdShow)

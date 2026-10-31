@@ -27,16 +27,3 @@
 #include once "win/windowsx.bi"
 #include once "win/DwmApi.bi"
 #include once "win/wininet.bi"
-
-' // For compatibility with the Power Basic syntax
-#ifndef DDT_CBMACROS
-#define CBHNDL(wp, lp) cast(HWND, lp)
-#define CBCTL(wp, lp) LOWORD(wp)
-#define CBCTLMSG(wp, lp) HIWORD(wp)
-#define CBNMCODE(wp, lp) LOWORD(wp) 
-#define CBNMHWND(wp, lp) cast(HWND, lp)
-#define CBNMID(wp, lp) HIWORD(wp)
-#define CBNMHDR(wp, lp) cast(NMHDR PTR, lp)
-#define CBNMSGPTR(msg, wp, lp) cast(msg PTR, CBNMHDR(wp, lp))
-#define CBNMTYPESET(tp, wp, lp) memcpy @tp, CAST(ANY PTR, lp), SIZEOF(tp)
-#endif

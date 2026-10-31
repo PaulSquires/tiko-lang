@@ -1272,30 +1272,31 @@ PUBLIC type MetafileHeader
 	LogicalDpiY as INT_
 end type
 
-PUBLIC type PixelFormat as INT_
-#define PixelFormatIndexed cast(INT_, &h00010000)
-#define PixelFormatGDI cast(INT_, &h00020000)
-#define PixelFormatAlpha cast(INT_, &h00040000)
-#define PixelFormatPAlpha cast(INT_, &h00080000)
-#define PixelFormatExtended cast(INT_, &h00100000)
-#define PixelFormatCanonical cast(INT_, &h00200000)
-#define PixelFormatUndefined cast(INT_, 0)
-#define PixelFormatDontCare cast(INT_, 0)
-#define PixelFormat1bppIndexed cast(INT_, ((1 or (1 shl 8)) or PixelFormatIndexed) or PixelFormatGDI)
-#define PixelFormat4bppIndexed cast(INT_, ((2 or (4 shl 8)) or PixelFormatIndexed) or PixelFormatGDI)
-#define PixelFormat8bppIndexed cast(INT_, ((3 or (8 shl 8)) or PixelFormatIndexed) or PixelFormatGDI)
-#define PixelFormat16bppGrayScale cast(INT_, (4 or (16 shl 8)) or PixelFormatExtended)
-#define PixelFormat16bppRGB555 cast(INT_, (5 or (16 shl 8)) or PixelFormatGDI)
-#define PixelFormat16bppRGB565 cast(INT_, (6 or (16 shl 8)) or PixelFormatGDI)
-#define PixelFormat16bppARGB1555 cast(INT_, ((7 or (16 shl 8)) or PixelFormatAlpha) or PixelFormatGDI)
-#define PixelFormat24bppRGB cast(INT_, (8 or (24 shl 8)) or PixelFormatGDI)
-#define PixelFormat32bppRGB cast(INT_, (9 or (32 shl 8)) or PixelFormatGDI)
-#define PixelFormat32bppARGB cast(INT_, (((10 or (32 shl 8)) or PixelFormatAlpha) or PixelFormatGDI) or PixelFormatCanonical)
-#define PixelFormat32bppPARGB cast(INT_, (((11 or (32 shl 8)) or PixelFormatAlpha) or PixelFormatPAlpha) or PixelFormatGDI)
-#define PixelFormat48bppRGB cast(INT_, (12 or (48 shl 8)) or PixelFormatExtended)
-#define PixelFormat64bppARGB cast(INT_, (((13 or (64 shl 8)) or PixelFormatAlpha) or PixelFormatCanonical) or PixelFormatExtended)
-#define PixelFormat64bppPARGB cast(INT_, (((14 or (64 shl 8)) or PixelFormatAlpha) or PixelFormatPAlpha) or PixelFormatExtended)
-#define PixelFormatMax cast(INT_, 15)
+' // Moved to pixelformat.ti
+'PUBLIC type PixelFormat as INT_
+'#define PixelFormatIndexed cast(INT_, &h00010000)
+'#define PixelFormatGDI cast(INT_, &h00020000)
+'#define PixelFormatAlpha cast(INT_, &h00040000)
+'#define PixelFormatPAlpha cast(INT_, &h00080000)
+'#define PixelFormatExtended cast(INT_, &h00100000)
+'#define PixelFormatCanonical cast(INT_, &h00200000)
+'#define PixelFormatUndefined cast(INT_, 0)
+'#define PixelFormatDontCare cast(INT_, 0)
+'#define PixelFormat1bppIndexed cast(INT_, ((1 or (1 shl 8)) or PixelFormatIndexed) or PixelFormatGDI)
+'#define PixelFormat4bppIndexed cast(INT_, ((2 or (4 shl 8)) or PixelFormatIndexed) or PixelFormatGDI)
+'#define PixelFormat8bppIndexed cast(INT_, ((3 or (8 shl 8)) or PixelFormatIndexed) or PixelFormatGDI)
+'#define PixelFormat16bppGrayScale cast(INT_, (4 or (16 shl 8)) or PixelFormatExtended)
+'#define PixelFormat16bppRGB555 cast(INT_, (5 or (16 shl 8)) or PixelFormatGDI)
+'#define PixelFormat16bppRGB565 cast(INT_, (6 or (16 shl 8)) or PixelFormatGDI)
+'#define PixelFormat16bppARGB1555 cast(INT_, ((7 or (16 shl 8)) or PixelFormatAlpha) or PixelFormatGDI)
+'#define PixelFormat24bppRGB cast(INT_, (8 or (24 shl 8)) or PixelFormatGDI)
+'#define PixelFormat32bppRGB cast(INT_, (9 or (32 shl 8)) or PixelFormatGDI)
+'#define PixelFormat32bppARGB cast(INT_, (((10 or (32 shl 8)) or PixelFormatAlpha) or PixelFormatGDI) or PixelFormatCanonical)
+'#define PixelFormat32bppPARGB cast(INT_, (((11 or (32 shl 8)) or PixelFormatAlpha) or PixelFormatPAlpha) or PixelFormatGDI)
+'#define PixelFormat48bppRGB cast(INT_, (12 or (48 shl 8)) or PixelFormatExtended)
+'#define PixelFormat64bppARGB cast(INT_, (((13 or (64 shl 8)) or PixelFormatAlpha) or PixelFormatCanonical) or PixelFormatExtended)
+'#define PixelFormat64bppPARGB cast(INT_, (((14 or (64 shl 8)) or PixelFormatAlpha) or PixelFormatPAlpha) or PixelFormatExtended)
+'#define PixelFormatMax cast(INT_, 15)
 
 PUBLIC type PaletteFlags as long
 PUBLIC enum
@@ -1391,8 +1392,9 @@ end type
 PUBLIC type GpColorMatrix AS ColorMatrix
 ' // Use an array (0 TO 4, 0 TO 4) AS SINGLE, and pass @array(0, 0)
 
-#define GetPixelFormatSize(pixfmt) cast(UINT, (cast(UINT, (pixfmt)) and &hff00u) shr 8)
-#define IsAlphaPixelFormat(pixfmt) cast(BOOL, -(((pixfmt) and cast(INT_, &h00040000)) <> 0))
-#define IsCanonicalPixelFormat(pixfmt) cast(BOOL, -(((pixfmt) and cast(INT_, &h00200000)) <> 0))
-#define IsExtendedPixelFormat(pixfmt) cast(BOOL, -(((pixfmt) and cast(INT_, &h00100000)) <> 0))
-#define IsIndexedPixelFormat(pixfmt) cast(BOOL, -(((pixfmt) and cast(INT_, &h00010000)) <> 0))
+' // Moved to pixelformat.ti
+'#define GetPixelFormatSize(pixfmt) cast(UINT, (cast(UINT, (pixfmt)) and &hff00u) shr 8)
+'#define IsAlphaPixelFormat(pixfmt) cast(BOOL, -(((pixfmt) and cast(INT_, &h00040000)) <> 0))
+'#define IsCanonicalPixelFormat(pixfmt) cast(BOOL, -(((pixfmt) and cast(INT_, &h00200000)) <> 0))
+'#define IsExtendedPixelFormat(pixfmt) cast(BOOL, -(((pixfmt) and cast(INT_, &h00100000)) <> 0))
+'#define IsIndexedPixelFormat(pixfmt) cast(BOOL, -(((pixfmt) and cast(INT_, &h00010000)) <> 0))

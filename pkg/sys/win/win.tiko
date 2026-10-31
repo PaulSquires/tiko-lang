@@ -1245,6 +1245,21 @@ END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
+' * Sets the rendering policy for the window non-client area.
+' - hWin: Handle of the window
+' - policy: The non-client area rendering policy.
+'   - DWMNCRP_USEWINDOWSTYLE: The non-client rendering area is rendered based on the window style.
+'   - DWMNCRP_DISABLED: The non-client area rendering is disabled; the window style is ignored.
+'   - DWMNCRP_ENABLED: The non-client area rendering is enabled; the window style is ignored.
+' ========================================================================================
+PUBLIC FUNCTION SetRenderingPolicy (BYVAL hWin AS HWND, BYVAL policy AS LONG = DWMNCRP_USEWINDOWSTYLE) AS HRESULT
+   FUNCTION = DwmSetWindowAttribute(hWin, DWMWA_NCRENDERING_POLICY, @policy, SIZEOF(policy))
+   ' Redraw the non-client area
+   SetWindowPos hWin, 0, 0, 0, 0, 0, SWP_NOMOVE OR SWP_NOSIZE OR SWP_NOZORDER OR SWP_NOACTIVATE OR SWP_FRAMECHANGED
+END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
 ' * Adjusts the bounding rectangle of a window based on the desired size of the client area.
 ' Parameters:
 ' - hWin = The window handle.

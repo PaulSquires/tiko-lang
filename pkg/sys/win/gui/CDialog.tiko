@@ -25,40 +25,12 @@
 
 #module "gui"
 #include once "gui.ti"
-
-#ifdef CBHNDL
-#export CBHNDL
-#endif
-#ifdef CBCTL
-#export CBCTL
-#endif
-#ifdef CBCTLMSG
-#export CBCTLMSG
-#endif
-#ifdef CBNMCODE
-#export CBNMCODE
-#endif
-#ifdef CBNMHWND
-#export CBNMHWND
-#endif
-#ifdef CBNMID
-#export CBNMID
-#endif
-#ifdef CBNMHDR
-#export CBNMHDR
-#endif
-#ifdef CBNMSGPTR
-#export CBNMSGPTR
-#endif
-#ifdef CBNMTYPESET
-#export CBNMTYPESET
-#endif
-
 #include once "windows.bi"
 #include once "win/commctrl.bi"
 #include once "win/uxtheme.bi"
 #include once "win/richedit.bi"
 #include once "../colors.ti"
+public #include "macros.ti"
 
 #ifndef ANCHORPOINT
 #define ANCHORPOINT

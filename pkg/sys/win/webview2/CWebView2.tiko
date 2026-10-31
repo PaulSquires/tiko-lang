@@ -15,8 +15,9 @@
 
 #module "webview2"
 #import "sys/win"
+#import "std/strings"
 #include once "webview2.ti"
-using win
+using win, strings
 #include once "win/wincrypt.bi"
 
 PUBLIC TYPE CWebView2
@@ -503,8 +504,8 @@ FUNCTION CWebView2.LoadImageAsDataURL(BYREF ustrPath AS USTRING) AS STRING
    END SELECT
 
    ' // Remove carriage returns and line feeds, if any
-   b64 = StrReplace(b64, CHR(13), "")
-   b64 = StrReplace(b64, CHR(10), "")
+   b64 = strings.Replace(b64, CHR(13), "")
+   b64 = strings.Replace(b64, CHR(10), "")
 
    ' // Compose data URL
    DIM strSrc AS STRING = "data:" & mime & ";base64," & b64

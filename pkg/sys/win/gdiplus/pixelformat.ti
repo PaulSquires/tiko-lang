@@ -1,0 +1,34 @@
+' The following constants, defined in Gdipluspixelformats.h, specify various pixel formats used in bitmaps.
+
+#pragma once
+
+type PixelFormat as INT_
+CONST AS INT_ PixelFormatIndexed = &h00010000
+CONST AS INT_ PixelFormatGDI = &h00020000
+CONST AS INT_ PixelFormatAlpha = &h00040000
+CONST AS INT_ PixelFormatPAlpha = &h00080000
+CONST AS INT_ PixelFormatExtended = &h00100000
+CONST AS INT_ PixelFormatCanonical = &h00200000
+CONST AS INT_ PixelFormatUndefined = 0
+CONST AS INT_ PixelFormatDontCare = 0
+CONST AS INT_ PixelFormat1bppIndexed = ((1 or (1 shl 8)) or PixelFormatIndexed) or PixelFormatGDI
+CONST AS INT_ PixelFormat4bppIndexed = ((2 or (4 shl 8)) or PixelFormatIndexed) or PixelFormatGDI
+CONST AS INT_ PixelFormat8bppIndexed = ((3 or (8 shl 8)) or PixelFormatIndexed) or PixelFormatGDI
+CONST AS INT_ PixelFormat16bppGrayScale = (4 or (16 shl 8)) or PixelFormatExtended
+CONST AS INT_ PixelFormat16bppRGB555 = (5 or (16 shl 8)) or PixelFormatGDI
+CONST AS INT_ PixelFormat16bppRGB565 = (6 or (16 shl 8)) or PixelFormatGDI
+CONST AS INT_ PixelFormat16bppARGB1555 = ((7 or (16 shl 8)) or PixelFormatAlpha) or PixelFormatGDI
+CONST AS INT_ PixelFormat24bppRGB = (8 or (24 shl 8)) or PixelFormatGDI
+CONST AS INT_ PixelFormat32bppRGB = (9 or (32 shl 8)) or PixelFormatGDI
+CONST AS INT_ PixelFormat32bppARGB = (((10 or (32 shl 8)) or PixelFormatAlpha) or PixelFormatGDI) or PixelFormatCanonical
+CONST AS INT_ PixelFormat32bppPARGB = (((11 or (32 shl 8)) or PixelFormatAlpha) or PixelFormatPAlpha) or PixelFormatGDI
+CONST AS INT_ PixelFormat48bppRGB = (12 or (48 shl 8)) or PixelFormatExtended
+CONST AS INT_ PixelFormat64bppARGB = (((13 or (64 shl 8)) or PixelFormatAlpha) or PixelFormatCanonical) or PixelFormatExtended
+CONST AS INT_ PixelFormat64bppPARGB = (((14 or (64 shl 8)) or PixelFormatAlpha) or PixelFormatPAlpha) or PixelFormatExtended
+CONST AS INT_ PixelFormatMax = 15
+
+#define GetPixelFormatSize(pixfmt) cast(UINT, (cast(UINT, (pixfmt)) and &hff00u) shr 8)
+#define IsAlphaPixelFormat(pixfmt) cast(BOOL, -(((pixfmt) and cast(INT_, &h00040000)) <> 0))
+#define IsCanonicalPixelFormat(pixfmt) cast(BOOL, -(((pixfmt) and cast(INT_, &h00200000)) <> 0))
+#define IsExtendedPixelFormat(pixfmt) cast(BOOL, -(((pixfmt) and cast(INT_, &h00100000)) <> 0))
+#define IsIndexedPixelFormat(pixfmt) cast(BOOL, -(((pixfmt) and cast(INT_, &h00010000)) <> 0))

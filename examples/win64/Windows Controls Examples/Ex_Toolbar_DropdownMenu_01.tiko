@@ -12,14 +12,8 @@
 #import "sys/win/gui"
 #import "sys/win/gdiplus"
 using win, gui, gdiplus
-
+' // Resource file
 #cmdline "Ex_Toolbar_HDPI.rc"
-
-DECLARE FUNCTION wWinMain (BYVAL hInstance AS HINSTANCE, _
-                           BYVAL hPrevInstance AS HINSTANCE, _
-                           BYVAL pwszCmdLine AS WSTRING PTR, _
-                           BYVAL nCmdShow AS LONG) AS LONG
-   END wWinMain(GetModuleHandleW(NULL), NULL, wCommand(), SW_NORMAL)
 
 CONST IDC_TOOLBAR = 1001
 enum
@@ -35,10 +29,7 @@ DECLARE FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam A
 ' ========================================================================================
 ' Main
 ' ========================================================================================
-FUNCTION wWinMain (BYVAL hInstance AS HINSTANCE, _
-                   BYVAL hPrevInstance AS HINSTANCE, _
-                   BYVAL pwszCmdLine AS WSTRING PTR, _
-                   BYVAL nCmdShow AS LONG) AS LONG
+FUNCTION main (BYVAL nCmdShow AS LONG = SW_NORMAL) AS LONG
 
    ' // Set process DPI aware
    SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)
@@ -62,6 +53,7 @@ FUNCTION wWinMain (BYVAL hInstance AS HINSTANCE, _
 
    ' // Creates an image list for the toolbar
    DIM hNormalImageList AS HIMAGELIST
+   DIM hInstance AS HINSTANCE = GetModuleHandleW(NULL)
    hNormalImageList = ImageList_Create(cx, cx, ILC_COLOR32 OR ILC_MASK, 4, 0)
    IF hNormalImageList THEN
       AddIconFromRes(hNormalImageList, hInstance, "IDI_ARROW_LEFT")
@@ -122,10 +114,10 @@ FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM
          EXIT FUNCTION
 
       CASE WM_COMMAND
-         SELECT CASE gui.CBCTL(wParam, lParam)
+         SELECT CASE CBCTL(wParam, lParam)
             CASE IDCANCEL
                ' // If ESC key pressed, close the application sending an WM_CLOSE message
-               IF gui.CBCTLMSG(wParam, lParam) = BN_CLICKED THEN
+               IF CBCTLMSG(wParam, lParam) = BN_CLICKED THEN
                   SendMessageW hwnd, WM_CLOSE, 0, 0
                END IF
             CASE IDM_LEFTARROW
@@ -209,4 +201,10 @@ FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM
    FUNCTION = DefWindowProcW(hWnd, uMsg, wParam, lParam)
 
 END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' // Call main() and return the error code to the OS
+' ========================================================================================
+END main()
 ' ========================================================================================

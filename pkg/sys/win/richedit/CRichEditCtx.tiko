@@ -4108,7 +4108,7 @@ FUNCTION CRichEditCtx.GetDocumentInterface () AS ITextDocument2 PTR
    m_Result = SendMessageW(hRichEdit, EM_GETOLEINTERFACE, 0, cast(LPARAM, @pUnk))
    ' // Retrieve a pointer to its ITextDocument2 interface
    IF pUnk THEN
-      DIM IID_ITextDocument2_ AS IID = Guid(IID_ITextDocument2)
+      DIM IID_ITextDocument2_ AS IID = GetGuid(IID_ITextDocument2)
       m_Result = IUnknown_QueryInterface(pUnk, @IID_ITextDocument2_, @pTextDocument2)
       SafeRelease(pUnk)
    END IF

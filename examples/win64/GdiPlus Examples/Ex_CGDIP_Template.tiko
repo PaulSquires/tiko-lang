@@ -1,6 +1,7 @@
 ' ########################################################################################
 ' Microsoft Windows
-' Contents: GDI+ - FontFamilyIsAvailable example
+' Contents: GDI+ - Template
+' The GDI+ examples use the following templatem using the CWindow framework.
 ' Compiler: tiko-lang
 ' Copyright (c) 2026 José Roca. Freeware. Use at your own risk.
 ' THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
@@ -8,46 +9,26 @@
 ' MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 ' ########################################################################################
 
-#import "tkl/tkCore"
-#import "tkl/tkGui"
-#import "tkl/gdiplus"
-using tkCore, tkGui, gdiplus
+#import "sys/win"
+#import "sys/win/gui"
+#import "sys/win/gdiplus"
+using win, gui, gdiplus
 
 CONST IDC_GRCTX = 1001
-
-DECLARE FUNCTION wWinMain (BYVAL hInstance AS HINSTANCE, _
-                           BYVAL hPrevInstance AS HINSTANCE, _
-                           BYVAL pwszCmdLine AS WSTRING PTR, _
-                           BYVAL nCmdShow AS LONG) AS LONG
-
-   END wWinMain(GetModuleHandleW(NULL), NULL, wCOMMAND(), SW_NORMAL)
 
 DECLARE FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM, BYVAL lParam AS LPARAM) AS LRESULT
 
 ' ========================================================================================
-' The following example creates a FontFamily object. If the FontFamily object is created
-' successfully, the example draws text.
+' Put here your code
 ' ========================================================================================
-SUB Example_IsAvailable (BYVAL hdc AS HDC)
+SUB Example_Code (BYVAL hdc AS HDC)
 
    ' // Create a graphics object from the window device context
    DIM graphics AS CGpGraphics = hdc
    ' // Set the scale transform
    graphics.ScaleTransformForDpi
 
-   ' // Create a FontFamily object
-   DIM myFontFamily AS CGpFontFamily = "arial"
-
-   ' // Check to see if myFontFamily is available.
-   DIM isAvailable AS BOOLEAN = myFontFamily.IsAvailable
-
-   ' // If myFontFamily is available, draw text.
-   IF isAvailable THEN
-      DIM solidBrush AS CGpSolidBrush = ARGB_BLACK
-      DIM font AS CGpFont = CGpFont(@myFontFamily, tkGdipPointsToPixels(16, TRUE))
-      DIM wszText AS WSTRING * 260 = "myFontFamily is available"
-      graphics.DrawString(@wszText, -1, @font, 0, 0, @solidbrush)
-   END IF
+   ' // Put your code here
 
 END SUB
 ' ========================================================================================
@@ -55,21 +36,18 @@ END SUB
 ' ========================================================================================
 ' Main
 ' ========================================================================================
-FUNCTION wWinMain (BYVAL hInstance AS HINSTANCE, _
-                   BYVAL hPrevInstance AS HINSTANCE, _
-                   BYVAL pwszCmdLine AS WSTRING PTR, _
-                   BYVAL nCmdShow AS LONG) AS LONG
+FUNCTION main (BYVAL nCmdShow AS LONG = SW_SHOW) AS LONG
 
    ' // Set process DPI aware
    SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE)
    ' // Enable visual styles without including a manifest file
-   tkEnableVisualStyles
+   EnableVisualStyles
 
    ' // Creates the main window
    DIM pWindow AS CWindow = "MyClassName"
-   pWindow.Create(NULL, "GDI+ FontFamilyIsAvailable", @WndProc)
+   pWindow.Create(NULL, "GDI+ Template", @WndProc)
    ' // Sizes it by setting the wanted width and height of its client area
-   pWindow.SetClientSize(400, 250)
+   pWindow.SetClientSize(430, 250)
    ' // Centers the window
    pWindow.Center
 
@@ -77,12 +55,12 @@ FUNCTION wWinMain (BYVAL hInstance AS HINSTANCE, _
    DIM pGraphCtx AS CGraphCtx = CGraphCtx(@pWindow, IDC_GRCTX, "", 0, 0, pWindow.ClientWidth, pWindow.ClientHeight)
    pGraphCtx.Clear RGB_WHITE
    ' // Anchor the control
-   pWindow.AnchorControl(pGraphCtx.hWindow, TK_ANCHOR_HEIGHT_WIDTH)
+   pWindow.AnchorControl(pGraphCtx.hWindow, ANCHOR_HEIGHT_WIDTH)
 
    ' // Get the memory device context of the graphic control
    DIM hdc AS HDC = pGraphCtx.GetMemDc
    ' // Draw the graphics
-   Example_IsAvailable(hdc)
+   Example_Code(hdc)
 
    ' // Displays the window and dispatches the Windows messages
    FUNCTION = pWindow.DoEvents(nCmdShow)
@@ -101,12 +79,12 @@ FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM
       ' // creation of the window. If the application returns –1, the window is destroyed
       ' // and the CreateWindowExW function returns a NULL handle.
       CASE WM_CREATE
-         tkEnableDarkModeForWindow(hwnd)
+         EnableDarkModeForWindow(hwnd)
          RETURN 0
 
       ' // Theme has changed
       CASE WM_THEMECHANGED
-         tkEnableDarkModeForWindow(hwnd)
+         EnableDarkModeForWindow(hwnd)
          RETURN 0
 
       CASE WM_COMMAND
@@ -130,4 +108,10 @@ FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM
    FUNCTION = DefWindowProcW(hwnd, uMsg, wParam, lParam)
 
 END FUNCTION
+' ========================================================================================
+
+' ========================================================================================
+' // Call main() and return the error code to the OS
+' ========================================================================================
+END main()
 ' ========================================================================================
