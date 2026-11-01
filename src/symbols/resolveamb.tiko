@@ -338,8 +338,32 @@ private function PropertyNameSym_ _
         if ms->kind = cast( uint8, Tko.SYM_PROC ) then return msid
     end if
 
+    '' '(*p).Opt( 1 ) = 2': the head walk stops at the parentheses, so the variable is looked
+    '' for under them and a dereference.
+    if hs = nullptr then
+        dim as Tko.NodeId bn = c.ast->BinaryOf( callee )->lhs
+        for g as int32 = 0 to 7
+            if bn = Tko.NODE_NONE then exit for
+            if c.ast->Kind( bn ) = Tko.N_PAREN then
+                if c.ast->ListOf( bn )->count <> 1 then exit for
+                bn = cast( Tko.NodeId, c.ast->ChildSlot( c.ast->ListOf( bn )->first ) )
+            elseif c.ast->Kind( bn ) = Tko.N_DEREF then
+                bn = c.ast->UnaryOf( bn )->operand
+            else
+                exit for
+            end if
+        next
+        if bn <> Tko.NODE_NONE then hs = c.syms->SymbolAt( c.info->RefOf( bn ) )
+    end if
     if hs = nullptr then return headSid
     dim as Tko.TypeId bt = c.types->Unqualify( hs->type_ )
+    '' ...THROUGH A BYREF PARAMETER OR A POINTER: 'r.Opt( 1 ) = 2' over 'byref r as T', and
+    '' 'p->Opt( 1 ) = 2' and '(*p).Opt( 1 ) = 2' over a 'T ptr', whose head is 'p'. The UDT
+    '' alone was looked through, so the call was never marked a setter target and Check
+    '' reported TKO0632 -- sys/win's CRichEditCtx.TypographyOptions and EditStyle through a
+    '' pointer (FINDINGS 5.8). fbc sets all three.
+    if c.types->Kind( bt ) = Tko.TK_REFERENCE then bt = c.types->Unqualify( c.types->Inner( bt ) )
+    if c.types->Kind( bt ) = Tko.TK_POINTER then bt = c.types->Unqualify( c.types->Inner( bt ) )
     if c.types->Kind( bt ) <> Tko.TK_UDT then return headSid
     dim as Tko.InternId tn = c.types->NameOf( bt )
     if tn = 0 then return headSid

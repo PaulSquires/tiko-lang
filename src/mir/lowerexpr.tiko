@@ -376,13 +376,13 @@ function LowerExpr _
                     UdtMemberNamed_( c, c.types->Unqualify( aoT ), "@" )
                 if aoOp <> Tko.SYMBOL_NONE then
                     dim as MirValue aoSelf = LowerAddr( c, ap->operand )
-                    if aoSelf.kind <> cast( uint8, MV_NONE ) then
-                        dim as containers.Array( of uint32 ) aoArgs
-                        aoArgs.Push( cast( uint32, aoSelf.kind ) )
-                        aoArgs.Push( cast( uint32, aoSelf.id ) )
-                        if MemberVSlot_( c, aoOp ) >= 0 then return EmitMemberCall( c, aoOp, aoSelf, MT_PTR )   '' a VIRTUAL '@' through the vptr (virtual.bas)
-                        return EmitDirectCall_( c, aoOp, MT_PTR, aoArgs )
-                    end if
+                    '' ...AS A MEMBER CALL, receiver first. A direct call declared the callee
+                    '' from its parameter list with no hidden 'this', which a definition in this
+                    '' module hid by being found first; over a type IMPORTED from a module every
+                    '' '@obj' was 'calls TTadEv with 1 arguments, which declares 0' (TKO0993) --
+                    '' BSTRING and every Direct2D wrapper in sys/win. A virtual one goes through
+                    '' the vptr (virtual.bas); EmitMemberCall asks.
+                    if aoSelf.kind <> cast( uint8, MV_NONE ) then return EmitMemberCall( c, aoOp, aoSelf, MT_PTR )
                 end if
             end if
         end if

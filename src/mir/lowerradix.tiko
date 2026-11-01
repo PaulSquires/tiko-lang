@@ -49,8 +49,13 @@ function LowerRadixCall_ _
 
     '' SPACE and STRING first: their argument is a COUNT, not a value to render, and
     '' neither takes a width.
+    '' ...AND BOTH ARE NARROW, so a WIDE caller is refused them as it is 'hex': WideOperand_ took
+    '' fb_SPACE's descriptor as UTF-16, and 'Show( space( 3 ) )' over 'byval p as wstring ptr'
+    '' printed len 3, asc 27936 where fbc prints 32 (FINDINGS 5.10). Refused, the caller widens
+    '' the narrow result as it widens any other.
     if nm = "space" then
         if cp->count <> 1 then return false
+        if wantWide then return false
         dim as MirValue n0 = LowerNumArg_( c, a0, MT_I64 )
         if n0.kind = cast( uint8, MV_NONE ) then return false
         dim as containers.Array( of uint32 ) sa
@@ -65,6 +70,7 @@ function LowerRadixCall_ _
     if (nm = "string") orelse (nm = "wstring") then
         if cp->count <> 2 then return false
         dim as boolean fillWide = (nm = "wstring")
+        if wantWide andalso (fillWide = false) then return false
         '' THE FILL FIRST: string( G( 1 ), G( 2 ) + 64 ) and string( G( 1 ), GStr( 2 ) )
         '' are both 21 to fbc.
         dim as boolean isStr = (c.ast->Kind( a1 ) = Tko.N_STRING_LIT)

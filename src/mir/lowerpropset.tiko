@@ -16,6 +16,25 @@ private sub EmitPropSetCall_ _
     EmitStructorCall( c, sset, -1, @self_, @args )
 end sub
 
+'' The wide encoding SETTER'S VALUE gets for a 'wstring' parameter -- see LowerPropertySet_. The
+'' ustring temporaries the call path makes are released with the statement's other strings.
+private function SetterWideArg_ _
+    ( byref c as Ctx, byval value as Tko.NodeId, byval pt as Tko.TypeId, byref outv as MirValue ) as boolean
+    dim as Tko.TypeId u = c.types->Unqualify( pt )
+    if c.types->Kind( u ) = Tko.TK_REFERENCE then u = c.types->Unqualify( c.types->Inner( u ) )
+    if c.types->Kind( u ) <> Tko.TK_BUILTIN then return false
+    if c.types->BuiltinOf( u ) <> Tko.TY_WSTRING then return false
+    dim as containers.Array( of uint32 ) tt, tty
+    dim as boolean ok = UdtWideArg_( c, value, outv, tt, tty )
+    if ok = false then ok = WideArgOperand_( c, value, outv, tt, tty )
+    if (ok = false) andalso IsNarrowStrArg_( c, c.info->TypeOf_( value ) ) then ok = NarrowToWideTemp_( c, value, outv )
+    for i as int32 = 0 to tt.Count - 1
+        c.f->locals[cast( int32, tt[i] )].frontendType = cast( Tko.TypeId, tty[i] )
+        c.strTemps.Push( tt[i] )
+    next
+    return ok andalso (outv.kind <> cast( uint8, MV_NONE ))
+end function
+
 '' 't.V = x': the SETTER, called with the value after the receiver.
 function LowerPropertySet_ _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
@@ -72,6 +91,16 @@ function LowerPropertySet_ _
                 gotV = UserCastToWide_( c, value, v )
             end if
         end if
+    end if
+    '' A 'BYREF AS WSTRING' SETTER TAKES WIDE CHARACTERS, encoded as a call's argument is
+    '' (lowercall.tiko): a wide lvalue's own address, a ustring's UTF-16 data, a narrow value
+    '' widened into a temporary. Nothing here owned the shape, so 't.Name = w' over a 'wstring * 32'
+    '' passed the LOADED buffer (clang refused the module, TKO0113), a ustring passed its
+    '' descriptor's bytes, and '= "Arial"' passed narrow bytes the setter read as UTF-16 --
+    '' sys/win's CWindow.DefaultFontName and CRichEditCtx.Text. fbc-modern 1.20 prints the text
+    '' for all three. FINDINGS 5.1.
+    if (gotV = false) andalso (pt <> Tko.TYPE_NONE) then
+        if SetterWideArg_( c, value, pt, v ) then gotV = true
     end if
     if (gotV = false) andalso (pt <> Tko.TYPE_NONE) then
         if IsStringType( c, pt ) andalso IsUdtValue_( c, value ) then

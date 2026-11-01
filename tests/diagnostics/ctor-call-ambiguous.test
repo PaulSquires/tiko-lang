@@ -1,0 +1,12 @@
+'' TKO0660, fbc's 98: an explicit 'T( args )' that two constructors take equally -- a pointer
+'' constant against two pointer types, two literals against '( const wstring, wstring = "" )' and
+'' two const wstrings -- in an initialiser and as an argument. Lowering had no single pick and
+'' stopped on TKO0994 -- sys/win's CDispInvoke, CGpMetafile, CGpTextureBrush (FINDINGS 5.5).
+'' Lines identical to fbc-modern 1.20's; 'TT( @w )' picks one.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/ctor-call-ambiguous.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: ctor-call-ambiguous.bas(17,18): error TKO0660
+'' EXPECT-OUT: ctor-call-ambiguous.bas(18,18): error TKO0660
+'' EXPECT-OUT: ctor-call-ambiguous.bas(19,6): error TKO0660
+'' EXPECT-MAX-DIAG: 3

@@ -83,9 +83,9 @@ END FUNCTION
 ' ========================================================================================
 ' Sets the display of a date and time picker (DTP) control based on a given format string.
 ' ========================================================================================
-PUBLIC SUB SetFormat (BYVAL hDtp AS HWND, BYVAL pwsz AS WSTRING PTR) AS BOOLEAN
+PUBLIC FUNCTION SetFormat (BYVAL hDtp AS HWND, BYVAL pwsz AS WSTRING PTR) AS BOOLEAN
    RETURN SendMessageW(hDtp, DTM_SETFORMATW, 0, cast(LPARAM, pwsz))
-END SUB
+END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================

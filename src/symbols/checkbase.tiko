@@ -332,11 +332,21 @@ private function UdtArgInert_ _
     '' with no report, and lowering stopped on TKO0994 -- fbc-modern 1.20 says 99 there.
     if (h = "(") orelse (h = "$") orelse (h = "~") then return false
     dim as Tko.TypeId t = u
+    dim as boolean ownCast = false
     for guard as int32 = 0 to 31
         if (t = Tko.TYPE_NONE) orelse (c.types->Kind( t ) <> Tko.TK_UDT) then exit for
         dim as Tko.SymbolId cs = UdtMemberSym_( c, t, "cast" )
         if cs <> Tko.SYMBOL_NONE then
-            if t <> u then return false
+            '' A BASE'S CAST IS HIDDEN BY THE TYPE'S OWN, so only an inherited one with none in
+            '' front of it is a conversion this scoring may not model. Giving up on both left a
+            '' sys/win Direct2D wrapper -- its own CAST plus the base's -- passed to an overload set
+            '' over 'ID2D1Geometry ptr' with no report, and lowering stopped on TKO0994 where
+            '' fbc-modern 1.20 says 99 (FINDINGS 5.6).
+            if t <> u then
+                if ownCast then exit for
+                return false
+            end if
+            ownCast = true
             if UdtCastsScored_( c, cs ) = false then return false
         end if
         t = c.types->BaseOf( t )

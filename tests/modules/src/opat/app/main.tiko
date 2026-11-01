@@ -1,0 +1,20 @@
+#import "opat"
+using opat
+
+dim shared x as integer = 42
+dim t as TT
+dim pp as integer ptr ptr = @t
+*pp = @x
+print *t.p
+
+sub Fill (byval q as integer ptr ptr)
+    static y as integer = 7
+    *q = @y
+end sub
+
+sub f ()
+    dim t2 as TT
+    Fill( @t2 )
+    print *t2.p
+end sub
+f()

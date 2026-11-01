@@ -230,7 +230,18 @@ function LowerArrayInit _
         '' A UDT ELEMENT runs its numeric cast -- '{ m, m }' into a long array is fbc's 3 and 3.
         dim as boolean udtNum = IsUdtValue_( c, e ) andalso (emt <> MT_AGG) andalso (emt <> MT_PTR) andalso (emt <> MT_VOID)
         dim as MirValue ev
-        if udtNum then ev = LowerNumArg_( c, e, emt ) else ev = LowerExpr( c, e )
+        '' ...AND A POINTER ELEMENT ITS POINTER CAST: '{ x1, x2 }' into an 'integer ptr' array, as
+        '' 'dim s as integer ptr = x1' already does. LowerExpr has no value for the object, so the
+        '' declaration stopped on TKO0994 -- sys/win's '{ objs }' of ID2D1StrokeStyle wrappers
+        '' (FINDINGS 5.5d). fbc-modern 1.20 stores each cast's result.
+        dim as boolean udtPtr = (emt = MT_PTR) andalso IsUdtValue_( c, e )
+        if udtNum then
+            ev = LowerNumArg_( c, e, emt )
+        elseif udtPtr andalso UserConvToScalar_( c, e, el, ev ) then
+            udtNum = true   '' converted: stored as it is
+        else
+            ev = LowerExpr( c, e )
+        end if
         if ev.kind = cast( uint8, MV_NONE ) then return false
 
         dim as MirInst fa

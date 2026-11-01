@@ -282,6 +282,8 @@
     '' fbc's error 17, "Syntax error, found ','": a TYPE extends ONE base. tiko read the base
     '' and silently dropped the rest of the line.
     DIAG( TKO0427, SEV_ERROR,   "a type extends one base type" )
+    '' fbc's 17, "found 'as'": 'sub F( ) as long' -- parser/decl.tiko.
+    DIAG( TKO0598, SEV_ERROR,   "a sub has no result type; declare it as a function to return a value" )
 
     '' ------------------------------------------------------------------ semantic
     DIAG( TKO0600, SEV_ERROR,   "'%0' is already declared in this scope" )
@@ -1041,6 +1043,10 @@
     '' not a property, and its 317 for a bare or qualified SUB name assigned --
     '' symbols/methodassign.tiko and resolveamb.tiko. %1 is "sub" or "function".
     DIAG( TKO0601, SEV_ERROR,   "'%0' is a %1, not a property: call it as '%0( ... )' instead of assigning to it" )
+    '' fbc's 1, 7, 24 and 195 for 'obj.P = v' or 'obj.P( i ) = v' over a property with no setter
+    '' of that shape -- a getter alone, or a setter taking another number of indexes --
+    '' symbols/methodassign.tiko. %1 is "a value" or "N index(es) and a value".
+    DIAG( TKO0680, SEV_ERROR,   "property '%0' has no setter taking %1, so it cannot be assigned this way" )
 
 #endmacro
 

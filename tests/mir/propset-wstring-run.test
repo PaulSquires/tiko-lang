@@ -1,0 +1,17 @@
+'' A 'BYREF AS WSTRING' PROPERTY SETTER TAKES WIDE CHARACTERS, encoded as a call's argument is.
+'' 't.Name = w' over a 'wstring * 32' passed the loaded buffer and clang refused the module
+'' (TKO0113), a ustring passed its descriptor, and a narrow literal or string its bytes, which the
+'' setter read as UTF-16 -- sys/win's CWindow.DefaultFontName, CRichEditCtx.Text (FINDINGS 5.1).
+'' Output measured with fbc-modern 1.20 (2026-10-31).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/mir/src/propset-wstring-run.bas -o tests/mir/propsetwstrrun.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/mir/propsetwstrrun.exe
+'' RUN: tests/mir/propsetwstrrun.exe
+'' EXPECT-RUN-OUT: 5 65 108
+'' EXPECT-RUN-OUT: 8 83 73
+'' EXPECT-RUN-OUT: 3 76 116
+'' EXPECT-RUN-OUT: 7 67 114
+'' EXPECT-RUN-OUT: 9 83 33
+'' EXPECT-RUN-OUT: 5 67 116

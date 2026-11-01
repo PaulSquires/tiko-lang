@@ -1,0 +1,12 @@
+'' A MEMBER 'operator @' ON A TYPE IMPORTED FROM A MODULE is a member call, receiver first. It
+'' went out as a direct call declared without the hidden 'this' -- 'calls TTadEv with 1
+'' arguments, which declares 0' (TKO0993) -- for every '@bs' over sys/win's BSTRING and every
+'' Direct2D wrapper (FINDINGS 5.2). In one file the definition was found first and hid it.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i tests/modules/src/opat/libs tests/modules/src/opat/app/main.tiko -o tests/modules/addrofopimport.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/modules/addrofopimport.exe
+'' RUN: tests/modules/addrofopimport.exe
+'' EXPECT-RUN-OUT:  42
+'' EXPECT-RUN-OUT:  7

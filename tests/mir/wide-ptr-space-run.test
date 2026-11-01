@@ -1,0 +1,15 @@
+'' 'space( n )' AND 'string( n, c )' ARE NARROW, so a 'wstring ptr' parameter gets them widened.
+'' The wide operand path took fb_SPACE's and fb_StrFill's descriptors as UTF-16 text -- len 3,
+'' asc 27936 for 'space( 3 )' (FINDINGS 5.10). Output measured with fbc-modern 1.20.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/mir/src/wide-ptr-space-run.bas -o tests/mir/wideptrspacerun.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/mir/wideptrspacerun.exe
+'' RUN: tests/mir/wideptrspacerun.exe
+'' EXPECT-RUN-OUT: 5 120 120
+'' EXPECT-RUN-OUT: 4 65 65
+'' EXPECT-RUN-OUT: 3 32 32
+'' EXPECT-RUN-OUT: 3 108 116
+'' EXPECT-RUN-OUT: 2 121 121
+'' EXPECT-RUN-OUT: 2 119 119

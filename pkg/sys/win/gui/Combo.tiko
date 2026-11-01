@@ -242,14 +242,14 @@ END FUNCTION
 ' Gets the starting and ending character positions of the current selection in the edit
 ' control of a combo box.
 ' ========================================================================================
-PUBLIC SUB GetEditSel OVERLOAD (BYVAL hCombo AS HWND, BYREF dwStart AS DWORD, BYREF dwEnd AS DWORD) AS DWORD
+PUBLIC FUNCTION GetEditSel OVERLOAD (BYVAL hCombo AS HWND, BYREF dwStart AS DWORD, BYREF dwEnd AS DWORD) AS DWORD
    RETURN SendMessageW(hCombo, CB_GETEDITSEL, CAST(WPARAM, @dwStart), CAST(LPARAM, @dwEnd))
-END SUB
+END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC SUB GetEditSel OVERLOAD (BYVAL hCombo AS HWND, BYVAL pdwStart AS DWORD PTR, BYVAL pdwEnd AS DWORD PTR) AS DWORD
+PUBLIC FUNCTION GetEditSel OVERLOAD (BYVAL hCombo AS HWND, BYVAL pdwStart AS DWORD PTR, BYVAL pdwEnd AS DWORD PTR) AS DWORD
    RETURN SendMessageW(hCombo, CB_GETEDITSEL, CAST(WPARAM, pdwStart), CAST(LPARAM, pdwEnd))
-END SUB
+END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================

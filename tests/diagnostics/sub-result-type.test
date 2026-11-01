@@ -1,0 +1,10 @@
+'' TKO0598, fbc's 17: a SUB declared or defined with a result type, at module level and in a
+'' type. tiko compiled the body's 'return 5' as a bare RETURN -- sys/win's Combo.GetEditSel and
+'' DTP.SetFormat (FINDINGS 5.14). Lines identical to fbc-modern 1.20's.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/sub-result-type.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: sub-result-type.bas(2,18): error TKO0598
+'' EXPECT-OUT: sub-result-type.bas(4,10): error TKO0598
+'' EXPECT-OUT: sub-result-type.bas(9,22): error TKO0598
+'' EXPECT-MAX-DIAG: 3

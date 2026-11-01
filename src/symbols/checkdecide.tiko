@@ -272,7 +272,17 @@ private sub DecideCtorCall_( byref c as Ctx, byval id as Tko.NodeId, byval cp as
     next
     dim as Tko.SymbolId first_ = Tko.Check.StructorNamed( *c.syms, *c.types, *c.names, t, "__ctor" )
     if first_ = Tko.SYMBOL_NONE then return
-    dim as Tko.SymbolId pick = Tko.Check.PickStructor( *c.ast, *c.syms, *c.types, *c.names, *c.info, first_, argT )
+    dim as int32 ties = 0
+    dim as Tko.SymbolId pick = Tko.Check.PickStructor( *c.ast, *c.syms, *c.types, *c.names, *c.info, first_, argT, @ties )
+    '' TWO CONSTRUCTORS TAKING THE ARGUMENTS EQUALLY -- fbc's 98, measured on fbc-modern 1.20 over
+    '' 'T( NULL )' against a 'wstring ptr' and an 'integer ptr' constructor, and 'T( "x", "y" )'
+    '' against '( byref as const wstring, byref as wstring = "" )' beside two const wstrings
+    '' (sys/win's CDispInvoke, CGpMetafile and CGpTextureBrush). Lowering had no single pick and
+    '' stopped with TKO0994, "this N_VAR was not compiled" (FINDINGS 5.5).
+    if (pick = Tko.SYMBOL_NONE) andalso (ties > 0) then
+        c.diags->Report( Tko.TKO0660, Tko.PointRange( c.ast->Loc( id ) ), c.names->Spelling( c.types->NameOf( t ) ) )
+        return
+    end if
     if pick = Tko.SYMBOL_NONE then pick = Tko.Check.LoneScalarStructor( *c.ast, *c.syms, *c.types, *c.info, first_, argT )
     c.info->SetDecision( id, pick )
     '' ONE UDT ARGUMENT NO CONSTRUCTOR TAKES -- fbc's 99, measured over 'T( w )' with W unrelated

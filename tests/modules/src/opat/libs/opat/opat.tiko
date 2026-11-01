@@ -1,0 +1,11 @@
+#module "opat"
+
+'' A member 'operator @' -- BSTRING's and every sys/win Direct2D wrapper's shape.
+public type TT
+    p as integer ptr
+    declare operator @ () as integer ptr ptr
+end type
+
+operator TT.@ () as integer ptr ptr
+    return @p
+end operator

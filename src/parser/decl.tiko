@@ -901,7 +901,11 @@ private function ParseProc _
     '' fb/result.bi, fb/optional.bi and every conversion operator declared that way.
     '' Nothing said so -- an untyped result is not a diagnostic.
     dim as boolean byrefRet = ByrefResult_( p )
+    '' A SUB HAS NO RESULT: fbc's 17. tiko kept the type and compiled 'return 5' as a bare RETURN
+    '' (sys/win's Combo.GetEditSel, FINDINGS 5.14). The type is still read, and dropped.
+    dim as Tko.Token subAs = Cur( p )
     if Accept( p, Tko.KW_AS ) then sp.a = ResultTypeRef_( p, sp )
+    if (kw = Tko.KW_SUB) andalso (sp.a <> Tko.NODE_NONE) then p.diags->Report( Tko.TKO0598, Tko.PointRange( subAs.loc ) ) : sp.a = Tko.NODE_NONE
     CheckPropertyShape_( p, sp, kw, t.loc )
 
     '' Trailing modifiers: static, const, export, alias "x", lib "y", cdecl ...

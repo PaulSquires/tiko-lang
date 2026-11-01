@@ -94,4 +94,102 @@ sub CheckMethodAssigns_ ( byref c as Ctx )
     next
 end sub
 
+'' ASSIGNING A PROPERTY THAT HAS NO SETTER OF THAT SHAPE. Measured on fbc-modern 1.20,
+'' 2026-10-31, over a type with getters 'G( ) as long' and 'IG( byval i ) as long' and setters
+'' 'S( byval v )' and 'Q( byval i, byval v )': 'x.G = 5', 'x.S( 1 ) = 5', 'x.IG( 1 ) = 5',
+'' 'p->G = 5' and '.G = 5' in a 'with' are error 24, 'x.Q = 5' is 1, 'x.Q( 1, 2 ) = 5' is 7,
+'' and 'x.P = 5' over 'P( ) as long' beside 'P( byval v ) as long' -- a setter WITH a result,
+'' which is an indexed getter -- is 195, "PROPERTY has no SET method/accessor". tiko stored
+'' through the getter's code address (a segfault at run time: sys/win's CWebView2 settings and
+'' CRichEditCtx.CaretType), or met a statement it could not lower (TKO0994), or a verifier
+'' fault when one procedure both set and read it (TKO0993). FINDINGS 5.3, 5.4, 5.7.
+''
+'' fbc accepts 'x.IG = 5' when IG has no other overload, and it does nothing; tiko reports it.
+'' A BYREF GETTER of the same index count is kept as tiko already lowers it -- it stores through
+'' what the getter returns.
+
+'' The parameters a property procedure takes, and how many of the trailing ones have defaults.
+private function PropParams_ ( byref c as Ctx, byval pn as NodeId, byref defaults as int32 ) as int32
+    dim as StmtPayload ptr pp = c.ast->StmtOf( pn )
+    dim as int32 np = 0
+    defaults = 0
+    for i as int32 = 0 to pp->count - 1
+        dim as NodeId prm = c.ast->ChildAt( pp->first, i )
+        if c.ast->Kind( prm ) <> N_PARAM then continue for
+        np += 1
+        if c.ast->StmtOf( prm )->b = NODE_NONE then defaults = 0 else defaults += 1
+    next
+    return np
+end function
+
+'' Whether some overload of property 'sid' takes 'k' indexes and a value -- or is a byref getter
+'' taking 'k'. TRUE, too, when the chain holds anything that is not a property procedure.
+private function PropAssignable_ ( byref c as Ctx, byval sid as SymbolId, byval k as int32 ) as boolean
+    dim as Symbol ptr s = c.syms->SymbolAt( sid )
+    if s = nullptr then return true
+    dim as SymbolId cur = c.syms->LookupLocal( s->parent, s->name )
+    if cur = SYMBOL_NONE then cur = sid
+    for guard as int32 = 0 to 255
+        dim as Symbol ptr os = c.syms->SymbolAt( cur )
+        if os = nullptr then exit for
+        if os->kind = cast( uint8, SYM_PROC ) then
+            dim as NodeId pn = cast( NodeId, os->payload )
+            if (pn = NODE_NONE) orelse (c.ast->Kind( pn ) <> N_PROC) then return true
+            if c.ast->StmtOf( pn )->op <> cast( uint16, KW_PROPERTY ) then return true
+            dim as int32 dflt
+            dim as int32 np = PropParams_( c, pn, dflt )
+            if os->type_ = TYPE_NONE then
+                '' A setter: its last parameter is the value; defaults may stand in for indexes.
+                if (np >= 1) andalso (k <= np - 1) andalso (k >= np - 1 - dflt) then return true
+            elseif (c.ast->Flags( pn ) and NF_BYREF) <> 0 then
+                if (k <= np) andalso (k >= np - dflt) then return true
+            end if
+        end if
+        cur = os->nextOverload
+    next
+    return false
+end function
+
+sub CheckPropertyAssigns_ ( byref c as Ctx )
+    dim as int32 total = c.ast->Count( )
+    for n as int32 = 1 to total - 1
+        dim as NodeId id = cast( NodeId, n )
+        if c.ast->Kind( id ) <> N_AMBIGUOUS then continue for
+        dim as StmtPayload ptr sp = c.ast->StmtOf( id )
+        if sp->op = 0 then continue for   '' a call statement
+        dim as NodeId tgt = sp->a
+        if tgt = NODE_NONE then continue for
+        dim as int32 k = 0
+        if c.ast->Kind( tgt ) = N_CALL then
+            k = c.ast->ListOf( tgt )->count
+            if k = 0 then continue for    '' 'x.P( ) = v' is TKO0875's
+            tgt = c.ast->ListOf( tgt )->target
+            if tgt = NODE_NONE then continue for
+        end if
+        if c.ast->Kind( tgt ) <> N_MEMBER then continue for
+        dim as Symbol ptr ls = c.syms->SymbolAt( c.info->RefOf( c.ast->BinaryOf( tgt )->lhs ) )
+        if ls <> nullptr then
+            select case cast( SymbolKind, ls->kind )
+            case SYM_UDT, SYM_NAMESPACE, SYM_TYPEDEF, SYM_ENUM
+                continue for
+            end select
+        end if
+        dim as SymbolId sid = c.info->RefOf( tgt )
+        if sid = SYMBOL_NONE then sid = c.info->RefOf( c.ast->BinaryOf( tgt )->rhs )
+        dim as Symbol ptr s = c.syms->SymbolAt( sid )
+        if s = nullptr then continue for
+        if s->kind <> cast( uint8, SYM_PROC ) then continue for
+        dim as NodeId pn = cast( NodeId, s->payload )
+        if (pn = NODE_NONE) orelse (c.ast->Kind( pn ) <> N_PROC) then continue for
+        if c.ast->StmtOf( pn )->op <> cast( uint16, KW_PROPERTY ) then continue for
+        if PropAssignable_( c, sid, k ) then continue for
+        dim as string what = "a value"
+        if k = 1 then what = "one index and a value"
+        if k > 1 then what = str( k ) & " indexes and a value"
+        dim as NodeId rn = c.ast->BinaryOf( tgt )->rhs
+        if rn = NODE_NONE then rn = tgt
+        c.diags->Report( TKO0680, PointRange( c.ast->Loc( rn ) ), c.names->Spelling( s->name ), what )
+    next
+end sub
+
 end namespace

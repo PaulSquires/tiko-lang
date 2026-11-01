@@ -1,0 +1,18 @@
+'' TKO0680, fbc's 1, 7, 24, 99 and 195: assigning a property that has no setter of that shape --
+'' a getter alone, a setter with another number of indexes, or 'P( v ) as long' (a setter WITH a
+'' result, which is an indexed getter) -- through an object, a pointer and a 'with'. tiko stored
+'' through the getter's address (a segfault), stopped on TKO0994, or with a read beside it hit a
+'' verifier fault (TKO0993) -- sys/win's CWebView2 settings and CRichEditCtx.CaretType
+'' (FINDINGS 5.3, 5.4, 5.7). Lines identical to fbc-modern 1.20's errors; see methodassign.tiko.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/property-no-setter.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: property-no-setter.bas(19,7): error TKO0680
+'' EXPECT-OUT: property-no-setter.bas(20,7): error TKO0680
+'' EXPECT-OUT: property-no-setter.bas(21,7): error TKO0680
+'' EXPECT-OUT: property-no-setter.bas(22,7): error TKO0680
+'' EXPECT-OUT: property-no-setter.bas(23,7): error TKO0680
+'' EXPECT-OUT: property-no-setter.bas(24,7): error TKO0680
+'' EXPECT-OUT: property-no-setter.bas(26,8): error TKO0680
+'' EXPECT-OUT: property-no-setter.bas(28,10): error TKO0680
+'' EXPECT-MAX-DIAG: 8
