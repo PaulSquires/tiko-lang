@@ -13,7 +13,9 @@
 ' tab bar. Pane 1 shows one buffer, pane 2 (after a split) another -- never the same one -- and
 ' each pane has a status line of its own under it (author 2026-10-27).
 ' Views of buffers no pane shows are hidden. Docs is the open order, which Ctrl+Tab walks; Mru
-' holds the buffers most recently shown first. There is always at least one buffer (an untitled one).
+' holds the buffers most recently shown first. There is always at least one buffer: with none open,
+' an empty untitled one (Blank) that no tab, list or status line shows -- the start panel stands
+' in its pane's place instead, a few commands with their keys (tka/startpanel, author 2026-11-02).
 '
 ' Configuration is files only (D15): settings.toml, keybindings.toml and the theme are opened as
 ' buffers like any text, and saving one re-applies it at once. A file that does not parse leaves
@@ -56,6 +58,7 @@
 #import "tka/findstrip"
 #import "tka/outputpane"
 #import "tka/popuplist"
+#import "tka/startpanel"
 #import "tks/parser"
 #import "tks/runner"
 #import "vendor/tkControls/tkApp"
@@ -101,6 +104,13 @@ public const TIKO_TYPES = "any boolean byte double integer long longint short si
                           "int64 uint64 float32 float64 const function sub"
 public const FONT_CJK = "NotoSansSC-tkEdit.otf"   ' the zh catalog's characters (tools/make-cjk-font.py)
 public const ASK_ICON_PT = 32                 ' the question box's icon (author 2026-10-27); its cell grows to fit
+public const START_ICON_PT = 14               ' the start panel's icons
+' The start panel's icons: PsIcons copies of Fluent's (tools/add-psicons.py)
+public const GLYPH_NEW_FILE = &hE4DB          ' document_add
+public const GLYPH_ALL_COMMANDS = &hF79F      ' text_align_left
+public const GLYPH_RECENT = &hF47E            ' history
+public const GLYPH_OPEN_FILE = &hE4E6         ' document_arrow_right
+public const GLYPH_SETTINGS = &hF6A9          ' settings
 public const DEFAULT_CX = 960
 public const DEFAULT_CY = 640
 public const STATUS_CY = 24              ' one status row, unscaled
@@ -124,6 +134,7 @@ const ID_FINDSTRIP = 104
 const ID_OUTPUT = 105
 const BUILD_POLL_MS = 40
 const ID_SCRATCH = 106
+const ID_START = 115
 const SEARCH_LIMIT = 5000              ' Find in Project stops counting there
 const ID_VIEW = 200                      ' views are ID_VIEW + n
 const DISK_CHECK_MS = 1000
@@ -388,6 +399,9 @@ public type Window
     Mru as Array( of DocRef )           ' most recently shown first
     Pane1 as DocRef
     Pane2 as DocRef                     ' 0 = not split
+    Blank as DocRef                     ' held while no buffer is open: the start panel covers it; 0 = none
+    Start as startpanel.Panel
+    StartIcon as TTF_Font ptr           ' PsIcons at START_ICON_PT; the host owns it
     Split as session.SplitMode
     SplitRatio as double = 0.5
     InPane2 as boolean                  ' the second pane has the focus
@@ -486,7 +500,7 @@ public type Window
     declare function StatusText( byval p as StatusPanel ) as ustring
     declare function StatusTip( byval p as StatusPanel, byval second as boolean = false ) as ustring   ' "" = none
     declare function StatusHeight( ) as long
-    declare function TabsHeight( ) as long                     ' 0 when [ui] tab_strip is off
+    declare function TabsHeight( ) as long                     ' 0 when [ui] tab_strip is off, or the start panel shows
     declare sub SyncTabs( )
     declare sub TabsReordered( )
     declare sub LayoutTabs( )
@@ -533,6 +547,9 @@ public type Window
     declare function View( ) byref as editor.CodeView           ' the focused pane's view
     declare function ActivePath( ) as ustring
     declare function NewDocument( ) as DocRef
+    declare function ShowsStart( ) as boolean                    ' no buffer open: the start panel
+    declare sub SyncStart( )
+    declare sub FocusEditor( )                                   ' the focused pane's view, or the start panel
     declare function OpenFile( byref path as const ustring ) as boolean     ' a tiko.toml opens the project
     declare function OpenText( byref path as const ustring ) as boolean     ' any file, as text
     declare function SourceDoc( ) as DocRef
@@ -810,6 +827,12 @@ function Window.Create( byval forcedScale as single ) as boolean
     Finder.OnAction = sub( byval owner as any ptr, byval a as findstrip.FindAction )
         cast( Window ptr, owner )->OnFind( a )
     end sub
+    Start.Create( root, ID_START, @this )
+    StartIcon = tkHost_OpenFont( tkForm_Host( form ), "mem:" & FONT_GLYPH, START_ICON_PT )
+    Start.IconFont = StartIcon
+    Start.OnRun = sub( byval owner as any ptr, byval tag as long )
+        cast( Window ptr, owner )->Execute( cast( Cmd, tag ) )
+    end sub
 
     this.ReloadSettings( )                      ' the theme and the look with it
     this.SyncSettingsFile( )
@@ -821,6 +844,7 @@ function Window.Create( byval forcedScale as single ) as boolean
     dim as DocRef d = this.NewDocument( )
     if d = 0 then return false
     Pane1 = d
+    Blank = d                                   ' the start panel, until a file opens
     this.Touch( d )
 
     tkForm_OnSize( form, sub( byval f as TK_FORM ptr, byval cx as long, byval cy as long )
@@ -887,7 +911,7 @@ sub Window.Show( )
     if form = 0 then exit sub
     tkForm_Show( form )
     if StartMax then SDL_MaximizeWindow( tkForm_Host( form )->win )
-    this.View( ).Focus( )
+    this.FocusEditor( )
 end sub
 
 sub Window.Destroy( )
@@ -963,7 +987,8 @@ sub Window.Layout( )
     dim as long ah = bottom - fh - oh - top      ' the panes' area, from y = top
     dim as boolean split_ = this.IsSplit( )
     dim as TK_WIDGET ptr v1 = 0, v2 = 0
-    if Pane1 then v1 = Pane1->Main.Widget( )
+    dim as boolean start_ = this.ShowsStart( )
+    if Pane1 andalso (start_ = false) then v1 = Pane1->Main.Widget( )
     if split_ then v2 = Pane2->Main.Widget( )
     for each d as DocRef in Docs
         dim as TK_WIDGET ptr w = d->Main.Widget( )
@@ -972,6 +997,11 @@ sub Window.Layout( )
     tkWidget_Show( status2, split_ )
     if splitBar then tkWidget_Show( splitBar, split_ )
     if splitFoot then tkWidget_Show( splitFoot, split_ andalso (Split = session.SplitMode.Vertical) )
+    tkWidget_Show( Start.frame, start_ )
+    if start_ then
+        tkWidget_SetPos( Start.frame, 0, top, cx, ah )   ' the panes' place: never split (ToggleSplit)
+        tkWidget_SetPos( status, 0, bottom, cx, sh )
+    end if
     if v1 = 0 then
         this.SyncBars( )                         ' no pane: no bars
         exit sub
@@ -1034,7 +1064,7 @@ sub Window.ShowStatus( )
 end sub
 
 function Window.TabsHeight( ) as long
-    if (tabs = 0) orelse (Prefs.TabStrip = false) then return 0
+    if (tabs = 0) orelse (Prefs.TabStrip = false) orelse this.ShowsStart( ) then return 0   ' no tab to show
     return tkForm_Scale( form, TABS_CY )
 end function
 
@@ -1133,13 +1163,19 @@ sub Window.FillStatus( byval bar as TK_WIDGET ptr, byval d as DocRef, byval focu
     case docencoding.LineEnd.Cr : eol = "CR"
     end select
     tkStatusBar_SetText( bar, StatusPanel.LineEnding, eol )
+    if d = Blank then                            ' the start panel: no buffer to tell of
+        tkStatusBar_SetText( bar, StatusPanel.Buffer, "" )
+        tkStatusBar_SetText( bar, StatusPanel.Position, "" )
+        tkStatusBar_SetText( bar, StatusPanel.Encoding, "" )
+        tkStatusBar_SetText( bar, StatusPanel.LineEnding, "" )
+    end if
 end sub
 
 sub Window.ShowTitle( )
     if form = 0 then exit sub
     dim as DocRef d = this.Active( )
     dim as ustring title = appinfo.WindowTitle( )
-    if d then
+    if d andalso (d <> Blank) then
         dim as ustring nm = d->DisplayName( )
         if len( d->Path ) then nm = d->Path       ' the full path (author 2026-10-27)
         if ProjOpen then nm &= " [" & fs.PathJoin( Proj.Name( ), project.MANIFEST_FILE ) & "]"   ' hello\tiko.toml
@@ -1186,6 +1222,12 @@ function Window.NewStatusBar( byval root as TK_WIDGET ptr, byval id as long ) as
         if mw = 0 then exit sub
         dim as boolean second = (hBar = mw->status2)
         if second <> mw->InPane2 then mw->FocusPane( second )
+        if mw->ShowsStart( ) then                ' the buffer's panels are empty: nothing to act on
+            select case idx
+            case StatusPanel.Buffer, StatusPanel.Position, StatusPanel.Encoding, StatusPanel.LineEnding
+                exit sub
+            end select
+        end if
         select case idx
         case StatusPanel.Buffer : mw->OpenChooser( PickKind.Buffers, true )   ' where Ctrl+E opens it (author)
         case StatusPanel.Message : mw->Execute( Cmd.OutputPane )
@@ -1270,12 +1312,30 @@ function Window.Execute( byval id as Cmd ) as boolean
                                          i18n.Tr( "commands." & ci.Name, ci.Description ) ) )
         return false
     end if
+    if this.ShowsStart( ) then
+        ' no buffer: what acts on one does nothing (Blank is not one)
+        select case id
+        case Cmd.FileNew, Cmd.FileOpen, Cmd.FileRecent, Cmd.FileCloseAll, Cmd.FileSaveAll, Cmd.Settings, _
+             Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit, Cmd.SearchSymbol, Cmd.FindInProject, _
+             Cmd.GoBack, Cmd.GoForward, Cmd.OutputPane, Cmd.CycleFocus, Cmd.ProjectNew, Cmd.ProjectClose, _
+             Cmd.BuildExecute, Cmd.Compile, Cmd.RebuildAll, Cmd.RunExe, Cmd.RunArguments, Cmd.BuildConfig, _
+             Cmd.NextDiagnostic, Cmd.PrevDiagnostic
+        case else
+            return false
+        end select
+    end if
     this.SyncFocus( )
     dim as editor.CodeView ptr v = @this.View( )
     select case id
     case Cmd.FileNew
-        dim as DocRef d = this.NewDocument( )
-        if d then this.ShowDoc( d )
+        if this.ShowsStart( ) then
+            Blank = 0                            ' the buffer under the start panel is the new one
+            this.Layout( )
+            this.FocusEditor( )
+        else
+            dim as DocRef d = this.NewDocument( )
+            if d then this.ShowDoc( d )
+        end if
     case Cmd.FileOpen
         dim as ustring dir_ = ""
         if len( this.ActivePath( ) ) then dir_ = fs.PathParent( this.ActivePath( ) )
@@ -1540,6 +1600,7 @@ sub Window.ReloadLanguage( )
     this.LabelEditMenu( )
     Finder.Relabel( )
     Out.Relabel( )
+    this.SyncStart( )
 end sub
 
 ' Chinese in the interface (I18N.md): Inter has no CJK glyph, so every UI role's font gets two
@@ -1673,6 +1734,7 @@ sub Window.ReloadKeys( )
         end if
     next
     this.RebuildAccelerators( )
+    this.SyncStart( )                           ' its keycaps
     if notes.Count( ) = 0 then
         Message = ""
     elseif notes.Count( ) = 1 then
@@ -1710,6 +1772,7 @@ sub Window.ReloadTheme( )
     tkStatusBar_SetColors( status2, @sbc )
     this.ColourBars( )
     Out.ApplyColors( )
+    Start.BackColor = chrome.Argb( Theme.EdBg )   ' the empty editor's
     ' the tab strip in the theme's colours, its selected tab without the accent bar along its top:
     ' the bar takes the tab's own colour (author 2026-10-27). Pinned, so set again at every theme.
     if tabs then
@@ -1865,8 +1928,9 @@ sub Window.ColourBars( )
     next
 end sub
 
-' pane 0 = Pane1, 1 = Pane2 while split; 0 = none.
+' pane 0 = Pane1, 1 = Pane2 while split; 0 = none (Blank under the start panel is none).
 function Window.PaneDoc( byval pane as long ) as DocRef
+    if this.ShowsStart( ) then return 0
     if pane = 0 then return Pane1
     if this.IsSplit( ) then return Pane2
     return 0
@@ -2033,6 +2097,50 @@ function Window.NewDocument( ) as DocRef
     return d
 end function
 
+' Blank in pane 1: no buffer is open, and the start panel stands in the panes' place. Never split:
+' Execute refuses a split then, and opening a file closes Blank (OpenText).
+function Window.ShowsStart( ) as boolean
+    return (Blank <> 0) andalso (Pane1 = Blank)
+end function
+
+' The start panel's rows (author 2026-11-02): each command's name in the interface's language and
+' its chord in force, a keycap a part ("Ctrl", "Shift", "O"). Show All Commands is keybindings.toml,
+' which lists every command at its keys.
+sub Window.SyncStart( )
+    dim as Array( of startpanel.Row ) rows
+    dim as Cmd ids( 0 to 4 ) = { Cmd.FileNew, Cmd.KeyboardShortcuts, Cmd.FileRecent, Cmd.FileOpen, Cmd.Settings }
+    dim as ulong glyphs( 0 to 4 ) = { GLYPH_NEW_FILE, GLYPH_ALL_COMMANDS, GLYPH_RECENT, GLYPH_OPEN_FILE, GLYPH_SETTINGS }
+    dim as ustring labels( 0 to 4 )
+    labels( 0 ) = i18n.Tr( "start.new_file", "New File" )
+    labels( 1 ) = i18n.Tr( "start.all_commands", "Show All Commands" )
+    labels( 2 ) = i18n.Tr( "start.open_recent", "Open Recent" )
+    labels( 3 ) = i18n.Tr( "start.open_file", "Open File" )
+    labels( 4 ) = i18n.Tr( "start.settings", "Show Settings" )
+    for i as long = 0 to 4
+        dim as startpanel.Row r
+        r.Glyph = glyphs( i )
+        r.Label = labels( i )
+        r.Tag = clng( ids( i ) )
+        dim as keybind.ChordResult c = Keys.Vocab( ).ParseChord( Keys.Effective( ids( i ) ) )
+        if c.IsOk( ) andalso (len( c.Value( ).KeyName ) > 0) then
+            if c.Value( ).Primary then r.Keys.Push( platform.PrimaryModifierName( ) )
+            if c.Value( ).Alt then r.Keys.Push( "Alt" )
+            if c.Value( ).Shift then r.Keys.Push( "Shift" )
+            r.Keys.Push( c.Value( ).KeyName )
+        end if
+        rows.Push( r )
+    next
+    Start.SetRows( rows )
+end sub
+
+sub Window.FocusEditor( )
+    if this.ShowsStart( ) then
+        tkHost_SetFocus( tkForm_Host( form ), Start.frame )
+    else
+        this.View( ).Focus( )
+    end if
+end sub
+
 ' The open buffer holding path (compared as the file system compares), or 0.
 function Window.FindOpen( byref path as const ustring ) as DocRef
     dim as ustring given = path
@@ -2064,7 +2172,7 @@ sub Window.ShowDoc( byval d as DocRef )
     end if
     this.Touch( d )
     this.Layout( )
-    this.View( ).Focus( )
+    this.FocusEditor( )
     this.ShowStatus( )
 end sub
 
@@ -2174,10 +2282,11 @@ function Window.SaveAll( ) as boolean
 end function
 
 ' Close d, asking to save it when modified. A pane that showed it shows the most recent buffer the
-' other pane does not; with none, the split closes; the last buffer closed leaves an untitled one.
-' FALSE = the person cancelled.
+' other pane does not; with none, the split closes; the last buffer closed leaves Blank, under the
+' start panel. FALSE = the person cancelled.
 function Window.CloseDoc( byval d as DocRef ) as boolean
     if d = 0 then return true
+    if d = Blank then Blank = 0
     if d->IsModified( ) then
         select case Ask( form, strings.Format( i18n.Tr( "ask.save_changes", "{}: save the changes?" ), d->DisplayName( ) ), MBX_BTN_SAVE_DONTSAVE_CANCEL )
         case MBX_IDYES
@@ -2227,6 +2336,8 @@ function Window.CloseDoc( byval d as DocRef ) as boolean
         if (nxt = 0) andalso (d = Pane1) then
             nxt = this.NewDocument( )
             Mru.Push( nxt )
+            Blank = nxt                          ' none left: the start panel (author 2026-11-02)
+            if Finder.isOpen then Finder.Close( )   ' nothing to search
         end if
         if Pane1 = d then Pane1 = nxt
         if Pane2 = d then Pane2 = nxt
@@ -2234,7 +2345,7 @@ function Window.CloseDoc( byval d as DocRef ) as boolean
     d->DestroyViews( )
     delete d
     this.Layout( )
-    this.View( ).Focus( )
+    this.FocusEditor( )
     this.ShowTitle( )
     this.ShowStatus( )
     return true
@@ -2243,7 +2354,7 @@ end function
 function Window.CloseAll( ) as boolean
     while Docs.Count( ) > 0
         dim as DocRef d = Docs[Docs.Count( ) - 1]
-        if (Docs.Count( ) = 1) andalso d->IsNew( ) andalso (d->IsModified( ) = false) then exit while
+        if d = Blank then exit while             ' the last closed: the start panel is up
         if this.CloseDoc( d ) = false then return false
     wend
     return true
@@ -2311,14 +2422,14 @@ sub Window.ToggleSplit( byval mode as session.SplitMode )
         end if
     end if
     this.Layout( )
-    this.View( ).Focus( )
+    this.FocusEditor( )
     this.ShowStatus( )
 end sub
 
 sub Window.FocusPane( byval second as boolean )
     if (Split = session.SplitMode.None) orelse (Pane2 = 0) then second = false
     InPane2 = second
-    this.View( ).Focus( )
+    this.FocusEditor( )
     this.Touch( this.Active( ) )
     this.ShowTitle( )
     this.ShowStatus( )
@@ -2413,7 +2524,7 @@ sub Window.ApplyState( byref st as const session.SessionState, byref base_ as co
     dim as DocRef a = 0
     if len( st.Active ) then a = this.FindOpen( session.FullPath( base_, st.Active ) )
     if a then this.ShowDoc( a )
-    if (st.Split <> session.SplitMode.None) andalso (Pane1 <> 0) then
+    if (st.Split <> session.SplitMode.None) andalso (Pane1 <> 0) andalso (this.ShowsStart( ) = false) then
         SplitRatio = st.SplitRatio
         this.ToggleSplit( st.Split )
         dim as DocRef b = 0
@@ -2799,7 +2910,7 @@ sub Window.Chosen( byval tag as long )
             this.View( ).GoToLine( bh.Line )
         end if
     end select
-    this.View( ).Focus( )
+    this.FocusEditor( )
     this.ShowStatus( )
 end sub
 
@@ -3513,7 +3624,7 @@ sub Window.JumpTo( byref file as const ustring, byval ln as long, byval col as l
         exit sub
     end if
     if ln >= 0 then this.View( ).GoToLine( ln, col, selChars )      ' -1: where it was
-    this.View( ).Focus( )
+    this.FocusEditor( )
     Nav.NoteArrival( this.Here( ) )
 end sub
 
@@ -3550,7 +3661,7 @@ sub Window.ShowOutput( byval visible as boolean )
     if OutputShown = visible then exit sub
     OutputShown = visible
     this.Layout( )
-    if visible = false then this.View( ).Focus( )
+    if visible = false then this.FocusEditor( )
 end sub
 
 ' Ctrl+Tilde: pane 1, pane 2 (when split), the output pane (when shown), round again.

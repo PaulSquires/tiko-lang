@@ -209,3 +209,10 @@ RunArguments = "Argumentos de ejecución..."
 BuildConfig = "Configuración de compilación..."
 NextDiagnostic = "Diagnóstico siguiente"
 PrevDiagnostic = "Diagnóstico anterior"
+
+[start]
+new_file = "Nuevo archivo"
+all_commands = "Mostrar todos los comandos"
+open_recent = "Abrir reciente"
+open_file = "Abrir archivo"
+settings = "Mostrar ajustes"

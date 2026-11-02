@@ -211,3 +211,10 @@ RunArguments = "运行参数……"
 BuildConfig = "生成配置……"
 NextDiagnostic = "下一条诊断"
 PrevDiagnostic = "上一条诊断"
+
+[start]
+new_file = "新建文件"
+all_commands = "显示所有命令"
+open_recent = "打开最近的文件"
+open_file = "打开文件"
+settings = "显示设置"

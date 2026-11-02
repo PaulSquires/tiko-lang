@@ -34,6 +34,7 @@
 #import "tka/mainwin"
 #import "tka/chrome"
 #import "tka/completion"
+#import "tka/startpanel"
 #import "tkc/symboldb"
 #import "vendor/tkControls/tkApp"
 #import "vendor/tkControls/tkTest"
@@ -208,8 +209,20 @@ public sub Pass( byref t as Tally, byval sc as single )
              P( sc, "the code view's font is JetBrains Mono: " & mw.Look.FontFile ) )
     t.Check( strings.EndsWith( tkApp_GlyphFace( ), mainwin.FONT_GLYPH ), P( sc, "glyph font is '" & tkApp_GlyphFace( ) & "'" ) )
     dim as ustring title = *SDL_GetWindowTitle( h->win )
-    t.Check( title = appinfo.WindowTitle( "untitled1" ), P( sc, "title is '" & title & "'" ) )
+    t.Check( title = appinfo.WindowTitle( ), P( sc, "no buffer: the title is '" & title & "'" ) )
     t.Check( tkApp_Theme( ).IsDark, P( sc, "the dark theme reached the controls" ) )
+
+    ' ---- no buffer yet: the start panel (StartPass has the rest); a click on its New File makes one
+    t.Check( mw.ShowsStart( ) andalso tkWidget_IsVisible( mw.Start.frame ), P( sc, "the start panel shows" ) )
+    dim as TKRECT nr
+    if mw.Start.RowRect( 0, nr ) then
+        tkTest_Click( h, mw.Start.frame->x + (nr.left + nr.right) \ 2, mw.Start.frame->y + (nr.top + nr.bottom) \ 2 )
+        tkTest_PumpFor( h, 60 )
+    end if
+    t.Check( (mw.ShowsStart( ) = false) andalso (tkWidget_IsVisible( mw.Start.frame ) = false) andalso (mw.Docs.Count( ) = 1), _
+             P( sc, "a click on New File put it away, one buffer" ) )
+    title = *SDL_GetWindowTitle( h->win )
+    t.Check( title = appinfo.WindowTitle( "untitled1" ), P( sc, "title is '" & title & "'" ) )
 
     ' ---- the layout: the view fills all but one status row (no menu, no panel; the tab strip, on by default, across the top)
     dim as TK_WIDGET ptr v = mw.View( ).Widget( )
@@ -348,6 +361,7 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     mw.Show( )
     dim as TK_HOST ptr h = tkForm_Host( mw.form )
     tkTest_PumpFor( h, 150 )
+    mw.Execute( Cmd.FileNew )                   ' out of the start panel: a buffer to type in
     dim as ustring nl = wchr( 10 )
 
     ' ---- first run: both files written, every key set
@@ -1299,6 +1313,7 @@ public sub FindPass( byref t as Tally, byval sc as single )
     mw.Show( )
     dim as TK_HOST ptr h = tkForm_Host( mw.form )
     tkTest_PumpFor( h, 150 )
+    mw.Execute( Cmd.FileNew )                   ' out of the start panel: a buffer to type in
     dim as ustring nl = chr( 10 )
     mw.View( ).SetLineEnding( docencoding.LineEnd.Lf, false )
     mw.View( ).SetText( "alpha beta alpha" & nl & "ALPHA gamma" & nl & "alpha" & nl )
@@ -2278,6 +2293,7 @@ public sub ScrollPass( byref t as Tally, byval sc as single )
     mw.Show( )
     dim as TK_HOST ptr h = tkForm_Host( mw.form )
     tkTest_PumpFor( h, 150 )
+    mw.Execute( Cmd.FileNew )                   ' out of the start panel: a buffer to type in
     dim as long cx = tkForm_Widget( mw.form )->cw
     dim as long vw = tkForm_Scale( mw.form, mainwin.VBAR_CX ), hh = tkForm_Scale( mw.form, mainwin.HBAR_CY )
     dim as TK_WIDGET ptr vb = mw.vbar( 0 ), hb = mw.hbar( 0 )
@@ -2392,5 +2408,126 @@ public sub ScrollPass( byref t as Tally, byval sc as single )
     for each d as DocRef in mw.Docs
         d->Main.SetSavePoint( )
     next
+    mw.Destroy( )
+end sub
+
+' No buffer open (author 2026-11-02): the start panel in the panes' place -- five commands, centred,
+' each with the keys in force; a click, or Up/Down and Enter, runs one; what needs a buffer does
+' nothing; closing the last buffer brings it back.
+public sub StartPass( byref t as Tally, byval sc as single )
+    dim as mainwin.Window mw
+    mw.ConfigDir = FreshConfig( )
+    mw.Ask = @ScriptedAsk
+    mw.Pick = @ScriptedPick
+    t.Check( mw.Create( sc ), P( sc, "start: main window created" ) )
+    if mw.form = 0 then exit sub
+    mw.Show( )
+    dim as TK_HOST ptr h = tkForm_Host( mw.form )
+    tkTest_PumpFor( h, 150 )
+    dim as TK_WIDGET ptr sp = mw.Start.frame
+    dim as long cx = h->root->cw, cy = h->root->ch, sh = mw.StatusHeight( )
+
+    ' ---- in the panes' place, no tab strip, no view, no bars; the focus is its own
+    t.Check( mw.ShowsStart( ) andalso (mw.Docs.Count( ) = 1) andalso (mw.TabsHeight( ) = 0) andalso (tkWidget_IsVisible( mw.tabs ) = false), _
+             P( sc, "start: shown at the start, one (blank) buffer, no tab strip" ) )
+    t.Check( tkWidget_IsVisible( sp ) andalso (sp->x = 0) andalso (sp->y = 0) andalso (sp->cw = cx) andalso (sp->ch = cy - sh), _
+             P( sc, strings.Format( "start: at {},{} {}x{}, want 0,0 {}x{}", sp->x, sp->y, sp->cw, sp->ch, cx, cy - sh ) ) )
+    t.Check( (tkWidget_IsVisible( mw.Pane1->Main.Widget( ) ) = false) andalso (tkWidget_IsVisible( mw.vbar( 0 ) ) = false) andalso _
+             (tkWidget_IsVisible( mw.hbar( 0 ) ) = false), P( sc, "start: the blank buffer's view and its bars hidden" ) )
+    t.Check( tkHost_GetFocus( h ) = sp, P( sc, "start: the panel has the focus" ) )
+    t.Check( (mw.StatusText( mainwin.StatusPanel.Buffer ) = "") andalso (mw.StatusText( mainwin.StatusPanel.Position ) = "") andalso _
+             (mw.StatusText( mainwin.StatusPanel.Encoding ) = "") andalso (mw.StatusText( mainwin.StatusPanel.LineEnding ) = "") andalso _
+             (mw.StatusText( mainwin.StatusPanel.Build ) = "Debug"), P( sc, "start: the buffer's status panels empty, the build's not" ) )
+    dim as ustring title = *SDL_GetWindowTitle( h->win )
+    t.Check( title = appinfo.WindowTitle( ), P( sc, "start: the title names no buffer: " & title ) )
+
+    ' ---- the rows: the commands, their names, their keys as the key map has them, their icons
+    dim as Cmd want( 0 to 4 ) = { Cmd.FileNew, Cmd.KeyboardShortcuts, Cmd.FileRecent, Cmd.FileOpen, Cmd.Settings }
+    dim as ustring names_( 0 to 4 ) = { "New File", "Show All Commands", "Open Recent", "Open File", "Show Settings" }
+    t.Check( mw.Start.Rows.Count( ) = 5, P( sc, strings.Format( "start: five rows ({})", mw.Start.Rows.Count( ) ) ) )
+    for i as long = 0 to mw.Start.Rows.Count( ) - 1
+        if i > 4 then exit for
+        dim as startpanel.Row r = mw.Start.Rows[i]
+        dim as ustring caps = ""
+        for each k as ustring in r.Keys
+            if len( caps ) then caps &= "+"
+            caps &= k
+        next
+        t.Check( (r.Tag = clng( want( i ) )) andalso (r.Label = names_( i )) andalso (caps = mw.ShortcutText( want( i ) )) andalso _
+                 (len( caps ) > 0), P( sc, strings.Format( "start: row {} '{}' keys {}", i, r.Label, caps ) ) )
+        t.Check( (mw.StartIcon <> 0) andalso TTF_FontHasGlyph( mw.StartIcon, r.Glyph ), _
+                 P( sc, strings.Format( "start: PsIcons has row {}'s icon U+{}", i, hex( r.Glyph ) ) ) )
+    next
+
+    ' ---- the block centred, the rows stacked, the keycaps right-aligned in each row
+    dim as TKRECT r0, rn, rk
+    mw.Start.RowRect( 0, r0 )
+    mw.Start.RowRect( mw.Start.Rows.Count( ) - 1, rn )
+    dim as long rowH = tkForm_Scale( mw.form, startpanel.ROW_CY ), pad = tkForm_Scale( mw.form, startpanel.ROW_PAD )
+    t.Check( (abs( r0.left - (sp->cw - r0.right) ) <= 1) andalso (abs( r0.top - (sp->ch - rn.bottom) ) <= 1) andalso _
+             (r0.left > 0) andalso (r0.top > 0), _
+             P( sc, strings.Format( "start: centred: {} left {} right, {} above {} below", r0.left, sp->cw - r0.right, r0.top, sp->ch - rn.bottom ) ) )
+    dim as boolean stacked = true, aligned = true
+    for i as long = 0 to mw.Start.Rows.Count( ) - 1
+        dim as TKRECT ri
+        mw.Start.RowRect( i, ri )
+        if (ri.top <> r0.top + i * rowH) orelse (ri.bottom - ri.top <> rowH) orelse (ri.left <> r0.left) orelse (ri.right <> r0.right) then stacked = false
+        mw.Start.KeysRect( i, rk )
+        if (rk.right <> ri.right - pad) orelse (rk.top < ri.top) orelse (rk.bottom > ri.bottom) orelse (rk.left <= ri.left + pad) then aligned = false
+    next
+    t.Check( stacked, P( sc, "start: the rows stacked, one height, one width" ) )
+    t.Check( aligned, P( sc, "start: each row's keycaps end at its right, inside it" ) )
+    tkHost_RenderTo( h, false )
+    dim as ulong bg = tkTest_PixelAt( h, sp->x + 2, sp->y + 2 ) and &hFFFFFFul
+    t.Check( bg = (chrome.Argb( mw.Theme.EdBg ) and &hFFFFFFul), P( sc, strings.Format( "start: the editor's background (&h{})", hex( bg ) ) ) )
+    dim as ulong c0
+    t.Check( tkTest_TonesIn( h, sp->x + r0.left, sp->y + r0.top, r0.right - r0.left, rn.bottom - r0.top, c0 ) > 2, _
+             P( sc, "start: the rows are drawn" ) )
+
+    ' ---- what needs a buffer does nothing
+    tkTest_PushText( h, "x" )
+    tkTest_PumpFor( h, 30 )
+    Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, KMOD_PRIMARY )
+    Chord( h, SDLK_E, SDL_SCANCODE_E, KMOD_PRIMARY )
+    Chord( h, SDLK_W, SDL_SCANCODE_W, KMOD_PRIMARY )
+    t.Check( mw.ShowsStart( ) andalso (mw.Docs.Count( ) = 1) andalso (mw.Pane1->Main.Length( ) = 0) andalso (mw.Pane2 = 0) andalso _
+             (mw.Chooser.IsOpen( ) = false), P( sc, "start: typing, Ctrl+\, Ctrl+E and Ctrl+W did nothing" ) )
+
+    ' ---- Down Down Enter: Show All Commands, keybindings.toml; closing it brings the panel back
+    Chord( h, SDLK_DOWN, SDL_SCANCODE_DOWN, 0 )
+    Chord( h, SDLK_DOWN, SDL_SCANCODE_DOWN, 0 )
+    t.Check( mw.Start.Sel = 1, P( sc, strings.Format( "start: Down twice: row 1 ({})", mw.Start.Sel ) ) )
+    Chord( h, SDLK_RETURN, SDL_SCANCODE_RETURN, 0 )
+    t.Check( (mw.ShowsStart( ) = false) andalso (mw.Docs.Count( ) = 1) andalso (lcase( mw.ActivePath( ) ) = lcase( mw.KeysFile( ) )) andalso _
+             (tkWidget_IsVisible( sp ) = false) andalso (mw.TabsHeight( ) > 0), _
+             P( sc, "start: Enter opened keybindings.toml in the blank's place, tabs back" ) )
+    Chord( h, SDLK_F, SDL_SCANCODE_F, KMOD_PRIMARY )
+    t.Check( mw.Finder.isOpen, P( sc, "start: Ctrl+F in keybindings.toml opened the find strip" ) )
+    Chord( h, SDLK_W, SDL_SCANCODE_W, KMOD_PRIMARY )
+    t.Check( mw.ShowsStart( ) andalso (mw.Docs.Count( ) = 1) andalso tkWidget_IsVisible( sp ) andalso (tkHost_GetFocus( h ) = sp) andalso _
+             (mw.Finder.isOpen = false) andalso (sp->ch = cy - sh), P( sc, "start: closing the last buffer brought it back, focused, the strip closed" ) )
+
+    ' ---- Ctrl+N: the blank buffer becomes a new one, in front, typed into
+    Chord( h, SDLK_N, SDL_SCANCODE_N, KMOD_PRIMARY )
+    t.Check( (mw.ShowsStart( ) = false) andalso (mw.Docs.Count( ) = 1) andalso mw.Active( )->IsNew( ) andalso _
+             (tkHost_GetFocus( h ) = mw.View( ).Widget( )), P( sc, "start: Ctrl+N: one untitled buffer, focused" ) )
+    tkTest_PushText( h, "y" )
+    tkTest_PumpFor( h, 30 )
+    t.Check( mw.View( ).Text( ) = "y", P( sc, "start: and typed into: '" & mw.View( ).Text( ) & "'" ) )
+    Answer( MBX_IDNO )                              ' don't save
+    Chord( h, SDLK_W, SDL_SCANCODE_W, KMOD_PRIMARY )
+    t.Check( mw.ShowsStart( ), P( sc, "start: closed unsaved: the panel again" ) )
+
+    ' ---- a key changed in keybindings.toml changes its keycaps
+    dim as ustring kt = fs.ReadAllText( mw.KeysFile( ) ).ValueOr( "" )
+    t.Check( instr( kt, "FileNew = 'Primary+N'" ) > 0, P( sc, "start: keybindings.toml binds FileNew" ) )
+    fs.WriteAtomic( mw.KeysFile( ), strings.Replace( kt, "FileNew = 'Primary+N'", "FileNew = 'Primary+Alt+J'" ) )
+    mw.ReloadKeys( )
+    dim as ustring caps0 = ""
+    for each k as ustring in mw.Start.Rows[0].Keys
+        caps0 &= "[" & k & "]"
+    next
+    t.Check( caps0 = "[" & platform.PrimaryModifierName( ) & "][Alt][J]", P( sc, "start: New File's keys follow the file: " & caps0 ) )
+
     mw.Destroy( )
 end sub

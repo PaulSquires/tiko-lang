@@ -1,0 +1,294 @@
+'    tkEdit - a minimalist keyboard-driven editor for the tiko compiler
+'    Copyright (C) 2026 Paul Squires, PlanetSquires Software
+'
+'    This Source Code Form is subject to the terms of the Mozilla Public
+'    License, v. 2.0. If a copy of the MPL was not distributed with this
+'    file, You can obtain one at https://mozilla.org/MPL/2.0/.
+'
+' startpanel -- what the panes' place shows while no buffer is open (author 2026-11-02), after VS
+' Code's empty editor: a few commands, each an icon, its name and the keys that run it, in a block
+' centred in the place:
+'
+'     [+]  New File            [Ctrl] + [N]
+'     [=]  Show All Commands   [Ctrl] + [K]
+'
+' A click on a row runs it (the press and its release on the same row); Up and Down move the
+' highlight, Enter or Space runs the highlighted row. The rows -- their text, their keys and what
+' running one means -- are the owner's (SetRows, OnRun); the panel only draws them and reports.
+#module "startpanel"
+
+#import "std/containers"
+#import "vendor/tkControls/tkApp"
+#import "vendor/tkControls/tkPaint"
+using containers
+using tkApp
+using tkHost
+using tkPaint
+using tkTheme
+
+public type Row
+    Glyph as ulong                      ' the icon: a codepoint of the icon font
+    Label as ustring
+    Keys as Array( of ustring )         ' a keycap each ("Ctrl", "Shift", "O"); none = no keys shown
+    Tag as long                         ' the owner's: what the row runs
+end type
+
+public type RunSub as sub( byval owner as any ptr, byval tag as long )
+
+' unscaled pixels
+public const ROW_CY = 36
+public const ROW_PAD = 10               ' the highlight beyond the block, left and right
+const ICON_CX = 30                      ' the icon's cell, the name after it
+const GAP_CX = 48                       ' the longest name to the widest keys
+const CAP_CY = 22
+const CAP_PAD = 6                       ' a keycap's text from its sides
+const PLUS_CX = 16                      ' the "+" between two keycaps
+const CAP_ROUND = 6
+
+public type Panel
+    owner as any ptr
+    OnRun as RunSub
+    frame as TK_WIDGET ptr
+    Rows as Array( of Row )
+    BackColor as ulong                  ' the editor's background (the owner's theme)
+    IconFont as TTF_Font ptr            ' 0 = the form's large glyphs
+    Hot as long = -1                    ' the row under the mouse
+    Sel as long = -1                    ' the keyboard's row; -1 until Up or Down
+    pressed as long = -1                ' the row the button went down on
+
+    declare sub Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ as any ptr )
+    declare sub SetRows( byref rows_ as const Array( of Row ) )
+    declare function RowRect( byval i as long, byref rc as TKRECT ) as boolean   ' frame pixels
+    declare function RowAt( byval x as long, byval y as long ) as long          ' -1 = none
+    declare function KeysRect( byval i as long, byref rc as TKRECT ) as boolean  ' its keycaps, together
+    declare sub Run( byval i as long )
+    declare sub Paint( byval p as TK_PAINT ptr )
+    declare function Px( byval v as long ) as long
+    declare function LabelFont( ) as TTF_Font ptr
+    declare function KeyFont( ) as TTF_Font ptr
+    declare function GlyphFont( ) as TTF_Font ptr
+    declare function CapWidth( byref k as const ustring ) as long
+    declare function KeysWidth( byval i as long ) as long
+    declare function BlockWidth( ) as long
+    declare function BlockLeft( ) as long
+    declare function BlockTop( ) as long
+end type
+
+private function FrameProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as Panel ptr p = w->pData
+    if p = 0 then return false
+    select case m->msg
+    case TKM_PAINT
+        p->Paint( m->pPaint )
+        return true
+    case TKM_SIZE, TKM_THEMECHANGED, TKM_SCALECHANGED, TKM_SETFOCUS, TKM_KILLFOCUS
+        tkWidget_Invalidate( w )
+        return false
+    case TKM_MOUSEMOVE
+        dim as long i = p->RowAt( m->x, m->y )
+        if i <> p->Hot then
+            p->Hot = i
+            tkWidget_SetCursor( w, iif( i >= 0, TK_CURSOR_HAND, TK_CURSOR_ARROW ) )
+            tkWidget_Invalidate( w )
+        end if
+        return true
+    case TKM_MOUSELEAVE
+        if p->Hot >= 0 then
+            p->Hot = -1
+            tkWidget_Invalidate( w )
+        end if
+        return true
+    case TKM_LBUTTONDOWN
+        tkHost_SetFocus( w->pHost, w )
+        p->pressed = p->RowAt( m->x, m->y )
+        return true
+    case TKM_LBUTTONUP
+        dim as long i = p->RowAt( m->x, m->y )
+        dim as long was = p->pressed
+        p->pressed = -1
+        if (i >= 0) andalso (i = was) then p->Run( i )
+        return true
+    case TKM_KEYDOWN
+        dim as long n = p->Rows.Count( )
+        if n = 0 then return false
+        select case m->key
+        case SDLK_DOWN
+            p->Sel = iif( p->Sel < 0, 0, (p->Sel + 1) mod n )
+        case SDLK_UP
+            p->Sel = iif( p->Sel < 0, n - 1, (p->Sel + n - 1) mod n )
+        case SDLK_RETURN, SDLK_KP_ENTER, SDLK_SPACE
+            if p->Sel >= 0 then p->Run( p->Sel )
+            return true
+        case else
+            return false
+        end select
+        tkWidget_Invalidate( w )
+        return true
+    end select
+    return false
+end function
+
+sub Panel.Create( byval parent as TK_WIDGET ptr, byval id as long, byval owner_ as any ptr )
+    owner = owner_
+    frame = tkWidget_CreateChild( parent, id, @FrameProc, @this )
+    frame->isFocusable = true
+    tkWidget_Show( frame, false )
+end sub
+
+sub Panel.SetRows( byref rows_ as const Array( of Row ) )
+    Rows = rows_
+    if Sel >= Rows.Count( ) then Sel = -1
+    Hot = -1
+    if frame then tkWidget_Invalidate( frame )
+end sub
+
+function Panel.Px( byval v as long ) as long
+    dim as TK_FORM ptr f = tkForm_FromWidget( frame )
+    if f = 0 then return v
+    return tkForm_Scale( f, v )
+end function
+
+function Panel.LabelFont( ) as TTF_Font ptr
+    dim as TK_FORM ptr f = tkForm_FromWidget( frame )
+    if f = 0 then return 0
+    return tkForm_Font( f, TKFONT_UI_LARGE )
+end function
+
+function Panel.KeyFont( ) as TTF_Font ptr
+    dim as TK_FORM ptr f = tkForm_FromWidget( frame )
+    if f = 0 then return 0
+    return tkForm_Font( f, TKFONT_UI )
+end function
+
+function Panel.GlyphFont( ) as TTF_Font ptr
+    if IconFont then return IconFont
+    dim as TK_FORM ptr f = tkForm_FromWidget( frame )
+    if f = 0 then return 0
+    return tkForm_Font( f, TKFONT_GLYPH_LARGE )
+end function
+
+' A keycap: its text and a pad either side, never narrower than it is tall.
+function Panel.CapWidth( byref k as const ustring ) as long
+    dim as ustring s = k
+    dim as long cw = tkText_Width( this.KeyFont( ), s ) + 2 * this.Px( CAP_PAD )
+    if cw < this.Px( CAP_CY ) then cw = this.Px( CAP_CY )
+    return cw
+end function
+
+function Panel.KeysWidth( byval i as long ) as long
+    dim as long w = 0
+    for k as long = 0 to Rows[i].Keys.Count( ) - 1
+        if k > 0 then w += this.Px( PLUS_CX )
+        w += this.CapWidth( Rows[i].Keys[k] )
+    next
+    return w
+end function
+
+' The icon, the longest name, the gap and the widest keys.
+function Panel.BlockWidth( ) as long
+    dim as long lw = 0, kw = 0
+    for i as long = 0 to Rows.Count( ) - 1
+        dim as ustring s = Rows[i].Label
+        dim as long w = tkText_Width( this.LabelFont( ), s )
+        if w > lw then lw = w
+        w = this.KeysWidth( i )
+        if w > kw then kw = w
+    next
+    return this.Px( ICON_CX ) + lw + this.Px( GAP_CX ) + kw
+end function
+
+function Panel.BlockLeft( ) as long
+    return (frame->cw - this.BlockWidth( )) \ 2
+end function
+
+function Panel.BlockTop( ) as long
+    return (frame->ch - Rows.Count( ) * this.Px( ROW_CY )) \ 2
+end function
+
+function Panel.RowRect( byval i as long, byref rc as TKRECT ) as boolean
+    if (frame = 0) orelse (i < 0) orelse (i >= Rows.Count( )) then return false
+    dim as long x = this.BlockLeft( ), y = this.BlockTop( ) + i * this.Px( ROW_CY )
+    tkRect_Set( rc, x - this.Px( ROW_PAD ), y, x + this.BlockWidth( ) + this.Px( ROW_PAD ), y + this.Px( ROW_CY ) )
+    return true
+end function
+
+function Panel.KeysRect( byval i as long, byref rc as TKRECT ) as boolean
+    if this.RowRect( i, rc ) = false then return false
+    dim as long right_ = rc.right - this.Px( ROW_PAD )
+    dim as long mid_ = (rc.top + rc.bottom) \ 2
+    tkRect_Set( rc, right_ - this.KeysWidth( i ), mid_ - this.Px( CAP_CY ) \ 2, right_, mid_ - this.Px( CAP_CY ) \ 2 + this.Px( CAP_CY ) )
+    return true
+end function
+
+function Panel.RowAt( byval x as long, byval y as long ) as long
+    dim as TKRECT rc
+    for i as long = 0 to Rows.Count( ) - 1
+        this.RowRect( i, rc )
+        if (x >= rc.left) andalso (x < rc.right) andalso (y >= rc.top) andalso (y < rc.bottom) then return i
+    next
+    return -1
+end function
+
+sub Panel.Run( byval i as long )
+    if (i < 0) orelse (i >= Rows.Count( )) orelse (OnRun = 0) then exit sub
+    OnRun( owner, Rows[i].Tag )
+end sub
+
+' The editor's background; the highlighted row (the mouse's, else the keyboard's while the panel has
+' the focus) in the theme's hot face; each row's icon, name and keycaps -- the keys right-aligned.
+sub Panel.Paint( byval p as TK_PAINT ptr )
+    dim as TKTHEME_COLORS tc = tkTheme_Get( )
+    dim as TKRECT rc
+    tkRect_Set( rc, 0, 0, frame->cw, frame->ch )
+    p->SetBackColor( BackColor )
+    p->PaintRect( @rc )
+    dim as long lit = Hot
+    if (lit < 0) andalso (tkHost_GetFocus( frame->pHost ) = frame) then lit = Sel
+    dim as TTF_Font ptr gf = this.GlyphFont( ), lf = this.LabelFont( ), kf = this.KeyFont( )
+    for i as long = 0 to Rows.Count( ) - 1
+        dim as TKRECT rr
+        this.RowRect( i, rr )
+        if i = lit then
+            p->SetBackColor( tc.SurfaceHot )
+            p->PaintRoundRect( @rr, this.Px( CAP_ROUND ) )
+        end if
+        dim as long x = rr.left + this.Px( ROW_PAD )
+        ' the icon, at the left of its cell
+        dim as ustring g = wchr( Rows[i].Glyph )
+        dim as TKRECT ri
+        tkRect_Set( ri, x, rr.top, x + this.Px( ICON_CX ), rr.bottom )
+        p->SetFont( gf )
+        p->PaintChar( g, @ri, tc.Text )
+        ' the name
+        dim as ustring s = Rows[i].Label
+        dim as TKRECT rl
+        tkRect_Set( rl, x + this.Px( ICON_CX ), rr.top, rr.right, rr.bottom )
+        p->SetFont( lf )
+        p->SetForeColor( tc.Text )
+        p->PaintText( s, @rl, TK_DT_LEFT )
+        ' the keycaps
+        dim as TKRECT rk
+        if this.KeysRect( i, rk ) = false then continue for
+        p->SetFont( kf )
+        dim as long kx = rk.left
+        for k as long = 0 to Rows[i].Keys.Count( ) - 1
+            if k > 0 then
+                dim as ustring plus = "+"
+                dim as TKRECT rp
+                tkRect_Set( rp, kx, rk.top, kx + this.Px( PLUS_CX ), rk.bottom )
+                p->SetForeColor( tc.TextDim )
+                p->PaintText( plus, @rp, TK_DT_CENTER )
+                kx += this.Px( PLUS_CX )
+            end if
+            dim as ustring cap = Rows[i].Keys[k]
+            dim as TKRECT rc2
+            tkRect_Set( rc2, kx, rk.top, kx + this.CapWidth( cap ), rk.bottom )
+            p->SetBackColor( tc.Surface )
+            p->SetPenColor( tc.Border )
+            p->PaintRoundBorderRect( @rc2, this.Px( CAP_ROUND ), 1 )
+            p->SetForeColor( tc.Text )
+            p->PaintText( cap, @rc2, TK_DT_CENTER )
+            kx = rc2.right
+        next
+    next
+end sub
