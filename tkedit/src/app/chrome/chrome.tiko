@@ -35,6 +35,14 @@ public function StatusText( byref t as themes.Theme ) as ulong
     return Argb( Mix( t.StatusBarFg, t.Popup, 0.25 ) )
 end function
 
+' The views' scrollbars, flat as tiko-editor's: the editor's background for the track, a thumb a
+' fifth of the way to its text colour (no hover brightening), the theme's border for the divider.
+public sub ScrollBarColors( byref t as themes.Theme, byref track as ulong, byref thumb as ulong, byref divider as ulong )
+    track = Argb( t.EdBg )
+    thumb = Argb( Mix( t.EdBg, t.EdFg, 0.2 ) )
+    divider = Argb( t.Border )
+end sub
+
 public function PaletteOf( byref t as themes.Theme ) as TKTHEME_COLORS
     dim as TKTHEME_COLORS p
     p.IsDark = t.IsDark( )

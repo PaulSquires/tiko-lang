@@ -66,6 +66,7 @@
 #import "vendor/tkControls/tkMessageBox"
 #import "vendor/tkControls/tkPaint"
 #import "vendor/tkControls/tkPopupMenu"
+#import "vendor/tkControls/tkScrollBar"
 #import "vendor/tkControls/tkSplitter"
 #import "vendor/tkControls/tkStatusBar"
 #import "vendor/tkControls/tkTabBar"
@@ -83,6 +84,7 @@ using tkListTree
 using tkMessageBox
 using tkPaint
 using tkPopupMenu
+using tkScrollBar
 using tkSplitter
 using tkStatusBar
 using tkTabBar
@@ -109,6 +111,10 @@ const ID_SPLIT2 = 108
 const ID_TABS = 109
 const TABS_CY = 28                        ' the tab strip, unscaled
 const ID_TABNAV = 110
+const ID_VBAR = 111                       ' 111-114: the panes' vertical scrollbars, then their horizontal ones
+const TIMER_RELAYOUT = TK_TIMER_APP       ' on hbar( 0 ): a Layout after a vertical bar came or went
+public const VBAR_CX = 13                 ' a view's vertical bar: 12 and its divider (tiko-editor), unscaled
+public const HBAR_CY = 12                 ' its horizontal bar, unscaled
 const TABS_GLYPH_LEFT = &hF2AA            ' PsIcons (tools/add-psicons.py): Fluent's chevrons
 const TABS_GLYPH_RIGHT = &hF2B0
 const TABS_NAV_LEFT = 1                   ' the < > buttons' ids
@@ -453,6 +459,10 @@ public type Window
     splitBar as TK_WIDGET ptr
     splitFoot as TK_WIDGET ptr          ' a left/right split's bar through the status row, between the two
     splitDblClick as boolean            ' a double click's press landed on a split bar; its release unsplits
+    vbar( 0 to 1 ) as TK_WIDGET ptr     ' each pane's scrollbars (0 = pane 1): tkCodeEdit has none
+    hbar( 0 to 1 ) as TK_WIDGET ptr
+    viewProc as tkWidgetProc            ' the views' and the horizontal bars' own procs, wrapped by HoverProc
+    hbarProc as tkWidgetProc
     NormalX as long                     ' the window's last place while neither maximized nor minimized
     NormalY as long
     NormalW as long
@@ -550,6 +560,9 @@ public type Window
     declare function FindOptionsNow( ) as editor.FindOptions
     declare sub OnCharAdded( byval hEdit as TK_WIDGET ptr, byval ch as long )
     declare sub OnMarginClick( byval hEdit as TK_WIDGET ptr, byval margin as long, byval position as longint )
+    declare sub SyncBars( )
+    declare sub SyncHover( )
+    declare sub OnBarScroll( byval bar as TK_WIDGET ptr, byval newPos as long )
 
     ' ---- projects and builds
     declare function OpenProject( byref path as const ustring ) as boolean
@@ -614,6 +627,11 @@ public type Window
     declare sub AfterSave( byval d as DocRef )
     declare function FontFile( ) as ustring
     declare function NewView( byref v as editor.CodeView ) as boolean
+    declare sub CreateBars( byval root as TK_WIDGET ptr )
+    declare sub ColourBars( )
+    declare function PaneDoc( byval pane as long ) as DocRef
+    declare function VBarWanted( byval pane as long, byval viewHeight as long ) as boolean
+    declare sub PlacePane( byval pane as long, byval x as long, byval y as long, byval cx as long, byval cy as long )
     declare sub Touch( byval d as DocRef )
     declare sub SyncFocus( )
 end type
@@ -707,6 +725,7 @@ function Window.Create( byval forcedScale as single ) as boolean
     status = this.NewStatusBar( root, ID_STATUS )
     status2 = this.NewStatusBar( root, ID_STATUS2 )
     tkWidget_Show( status2, false )
+    this.CreateBars( root )
 
     ' the tab strip ([ui] tab_strip, author 2026-10-27): a click shows that buffer in the focused
     ' pane, as Ctrl+E does; the X (or a middle click) closes it, asking first if it is modified;
@@ -898,6 +917,9 @@ sub Window.Destroy( )
     accel = 0
     if editMenu then tkPopupMenu_Destroy( editMenu )
     editMenu = 0
+    for pane as long = 0 to 1                    ' unwrapped: HoverProc finds its Window through the form
+        if hbar( pane ) then hbar( pane )->proc = hbarProc
+    next
     if form then tkForm_Destroy( form )
     form = 0
 end sub
@@ -950,20 +972,24 @@ sub Window.Layout( )
     tkWidget_Show( status2, split_ )
     if splitBar then tkWidget_Show( splitBar, split_ )
     if splitFoot then tkWidget_Show( splitFoot, split_ andalso (Split = session.SplitMode.Vertical) )
-    if v1 = 0 then exit sub
+    if v1 = 0 then
+        this.SyncBars( )                         ' no pane: no bars
+        exit sub
+    end if
     tkWidget_Show( v1, true )
     if split_ = false then
-        tkWidget_SetPos( v1, 0, top, cx, ah )
+        this.PlacePane( 0, 0, top, cx, ah )
         tkWidget_SetPos( status, 0, bottom, cx, sh )
+        this.SyncBars( )
         exit sub
     end if
     dim as long bar = tkForm_Scale( form, SPLIT_BAR )
     tkWidget_Show( v2, true )
     if Split = session.SplitMode.Vertical then
         dim as long w1 = cint( (cx - bar) * SplitRatio )
-        tkWidget_SetPos( v1, 0, top, w1, ah )
+        this.PlacePane( 0, 0, top, w1, ah )
         tkWidget_SetPos( splitBar, w1, top, bar, ah )
-        tkWidget_SetPos( v2, w1 + bar, top, cx - w1 - bar, ah )
+        this.PlacePane( 1, w1 + bar, top, cx - w1 - bar, ah )
         ' the bar goes on through the status row, between the two status lines (author 2026-10-27);
         ' the output pane and the find strip, full width, sit over it
         tkWidget_SetPos( status, 0, bottom, w1, sh )
@@ -974,13 +1000,14 @@ sub Window.Layout( )
         tkSplitter_SetRange( splitFoot, tkForm_Scale( form, 60 ), cx - bar - tkForm_Scale( form, 60 ) )
     else
         dim as long h1 = cint( (ah - sh - bar) * SplitRatio )
-        tkWidget_SetPos( v1, 0, top, cx, h1 )
+        this.PlacePane( 0, 0, top, cx, h1 )
         tkWidget_SetPos( status, 0, top + h1, cx, sh )
         tkWidget_SetPos( splitBar, 0, top + h1 + sh, cx, bar )
-        tkWidget_SetPos( v2, 0, top + h1 + sh + bar, cx, ah - h1 - sh - bar )
+        this.PlacePane( 1, 0, top + h1 + sh + bar, cx, ah - h1 - sh - bar )
         tkWidget_SetPos( status2, 0, bottom, cx, sh )
         tkSplitter_SetRange( splitBar, top + sh + tkForm_Scale( form, 40 ), top + ah - bar - tkForm_Scale( form, 40 ) )
     end if
+    this.SyncBars( )
 end sub
 
 sub Window.SetMessage( byref s as const ustring )
@@ -1364,6 +1391,7 @@ function Window.Execute( byval id as Cmd ) as boolean
     case Cmd.FoldAll : v->FoldAll( true )
     case Cmd.UnfoldAll : v->FoldAll( false )
     end select
+    this.SyncBars( )                             ' a fold shows or hides rows without a scroll
     this.ShowStatus( )
     return true
 end function
@@ -1680,6 +1708,7 @@ sub Window.ReloadTheme( )
     sbc.ForeColor = chrome.StatusText( Theme )   ' dimmer than the theme's status text
     tkStatusBar_SetColors( status, @sbc )
     tkStatusBar_SetColors( status2, @sbc )
+    this.ColourBars( )
     Out.ApplyColors( )
     ' the tab strip in the theme's colours, its selected tab without the accent bar along its top:
     ' the bar takes the tab's own colour (author 2026-10-27). Pinned, so set again at every theme.
@@ -1779,6 +1808,144 @@ function Window.DocOfWidget( byval w as TK_WIDGET ptr ) as DocRef
     return 0
 end function
 
+' ---- the panes' scrollbars: tiko-editor's frmEditorScroll on tkScrollBar. Each pane has a vertical
+' bar in LINE units (rows as shown) and a horizontal one in PIXELS; the views report scrolling through
+' SCN_UPDATEUI (SyncBars), the bars report the user's through OnBarScroll. The vertical bar is there
+' while the pane's rows overflow it -- always, while split; the horizontal one only while the mouse is
+' over the pane's view or the bar itself and there is somewhere to scroll, or while it is being dragged.
+
+' The views' and the horizontal bars' procs, wrapped: the mouse entering or leaving either shows or
+' hides the pane's horizontal bar (tiko-editor tested this on every message in its pump; tkHost tells
+' a widget when the mouse comes and goes), and so does the end of a drag on the bar. hbar( 0 ) also
+' carries SyncBars' Layout: a timer of a widget goes with it, where a posted call could outlive the Window.
+private function HoverProc( byval w as TK_WIDGET ptr, byval m as TK_MSG ptr ) as boolean
+    dim as Window ptr mw = WindowOfWidget( w )
+    if mw = 0 then return false
+    if (m->msg = TKM_TIMER) andalso (m->timerId = TIMER_RELAYOUT) then
+        tkWidget_KillTimer( w, TIMER_RELAYOUT )
+        mw->Layout( )
+        return true
+    end if
+    dim as tkWidgetProc own = mw->viewProc
+    if (w = mw->hbar( 0 )) orelse (w = mw->hbar( 1 )) then own = mw->hbarProc
+    dim as boolean r = own( w, m )
+    select case m->msg
+    case TKM_MOUSEENTER, TKM_MOUSELEAVE, TKM_LBUTTONUP, TKM_CAPTURECHANGED
+        mw->SyncHover( )
+    end select
+    return r
+end function
+
+sub Window.CreateBars( byval root as TK_WIDGET ptr )
+    for i as long = 0 to 3
+        dim as TK_WIDGET ptr b = tkScrollBar_Create( root, ID_VBAR + i, i < 2 )
+        tkScrollBar_SetScrollCallback( b, sub( byval hSB as TK_WIDGET ptr, byval newPos as integer )
+            dim as Window ptr mw = WindowOfWidget( hSB )
+            if mw then mw->OnBarScroll( hSB, newPos )
+        end sub )
+        tkWidget_Show( b, false )
+        if i < 2 then
+            vbar( i ) = b
+        else
+            hbarProc = b->proc
+            b->proc = @HoverProc
+            hbar( i - 2 ) = b
+        end if
+    next
+end sub
+
+' Flat, in the editor's colours (chrome.ScrollBarColors); the vertical bar's divider on its left.
+sub Window.ColourBars( )
+    dim as ulong track, thumb, divider
+    chrome.ScrollBarColors( Theme, track, thumb, divider )
+    for pane as long = 0 to 1
+        tkScrollBar_SetColors( vbar( pane ), track, thumb, thumb )
+        tkScrollBar_SetDividerColor( vbar( pane ), divider )
+        tkScrollBar_SetColors( hbar( pane ), track, thumb, thumb )
+    next
+end sub
+
+' pane 0 = Pane1, 1 = Pane2 while split; 0 = none.
+function Window.PaneDoc( byval pane as long ) as DocRef
+    if pane = 0 then return Pane1
+    if this.IsSplit( ) then return Pane2
+    return 0
+end function
+
+function Window.VBarWanted( byval pane as long, byval viewHeight as long ) as boolean
+    dim as DocRef d = this.PaneDoc( pane )
+    if d = 0 then return false
+    if this.IsSplit( ) then return true
+    dim as long rowH = d->Main.LineHeight( )
+    if rowH < 1 then rowH = 1
+    return d->Main.DisplayLines( ) > viewHeight \ rowH
+end function
+
+' A pane's view and its bars in x, y, cx, cy: the vertical bar down the right, the full height,
+' while wanted; under the view the horizontal bar's strip, kept whether the bar shows or not, so the
+' view does not change height each time it comes and goes (tiko-editor's frmMain_PositionMainDoc*).
+sub Window.PlacePane( byval pane as long, byval x as long, byval y as long, byval cx as long, byval cy as long )
+    dim as DocRef d = this.PaneDoc( pane )
+    if d = 0 then exit sub
+    dim as long hh = tkForm_Scale( form, HBAR_CY )
+    dim as long vw = 0
+    if this.VBarWanted( pane, cy - hh ) then vw = tkForm_Scale( form, VBAR_CX )
+    tkWidget_SetPos( d->Main.Widget( ), x, y, cx - vw, cy - hh )
+    tkWidget_SetPos( hbar( pane ), x, y + cy - hh, cx - vw, hh )
+    tkWidget_SetPos( vbar( pane ), x + cx - vw, y, vw, cy )
+    tkWidget_Show( vbar( pane ), vw > 0 )
+end sub
+
+' Each pane's view into its bars' ranges. Called from SCN_UPDATEUI, which Scintilla raises as it
+' paints: a vertical bar that should come or go is left to a Layout on the next tick, never one mid-paint.
+sub Window.SyncBars( )
+    if form = 0 then exit sub
+    for pane as long = 0 to 1
+        dim as DocRef d = this.PaneDoc( pane )
+        if d = 0 then
+            tkWidget_Show( vbar( pane ), false )
+            tkWidget_Show( hbar( pane ), false )
+            continue for
+        end if
+        dim as editor.CodeView ptr v = @d->Main
+        tkScrollBar_SetRange( vbar( pane ), v->DisplayLines( ), v->LinesOnScreen( ), v->FirstLine( ) )
+        dim as long total, page
+        v->HScrollRange( total, page )
+        tkScrollBar_SetRange( hbar( pane ), total, page, v->XOffset( ) )
+        ' the wheel's three a notch are CHARACTERS; the range is pixels (tiko-editor: zoom follows)
+        tkScrollBar_SetWheelStep( hbar( pane ), 3 * v->CharWidth( ) )
+        if (vbar( pane )->isVisible <> this.VBarWanted( pane, v->Widget( )->ch )) andalso _
+           (tkWidget_HasTimer( hbar( 0 ), TIMER_RELAYOUT ) = false) then
+            tkWidget_SetTimer( hbar( 0 ), TIMER_RELAYOUT, 1 )
+        end if
+    next
+    this.SyncHover( )
+end sub
+
+sub Window.SyncHover( )
+    if form = 0 then exit sub
+    dim as TK_WIDGET ptr hot = tkForm_Host( form )->pHot
+    for pane as long = 0 to 1
+        dim as DocRef d = this.PaneDoc( pane )
+        dim as boolean show_ = false
+        if d then
+            dim as boolean over = (hot <> 0) andalso ((hot = d->Main.Widget( )) orelse (hot = hbar( pane )))
+            show_ = (over andalso tkScrollBar_NeedsThumb( hbar( pane ) )) orelse tkScrollBar_IsDragging( hbar( pane ) )
+        end if
+        tkWidget_Show( hbar( pane ), show_ )
+    next
+end sub
+
+' The user moved a bar: its pane's view follows. The view's SCN_UPDATEUI pushes the same position back.
+sub Window.OnBarScroll( byval bar as TK_WIDGET ptr, byval newPos as long )
+    for pane as long = 0 to 1
+        dim as DocRef d = this.PaneDoc( pane )
+        if d = 0 then continue for
+        if bar = vbar( pane ) then d->Main.SetFirstLine( newPos )
+        if bar = hbar( pane ) then d->Main.SetXOffset( newPos )
+    next
+end sub
+
 ' A Scintilla view, styled, reporting caret moves to the status line; hidden until a pane shows it.
 function Window.NewView( byref v as editor.CodeView ) as boolean
     viewIds += 1
@@ -1790,6 +1957,7 @@ function Window.NewView( byref v as editor.CodeView ) as boolean
         select case n->code
         case SCN_UPDATEUI, SCN_FOCUSIN
             mw->ShowStatus( )
+            mw->SyncBars( )                      ' scrolled, typed, resized: the bars follow
             if mw->Completer.IsOpen( ) andalso (mw->Completer.Target <> 0) then
                 if mw->Completer.Target->Widget( ) = h then mw->Completer.Sync( )
             end if
@@ -1802,12 +1970,15 @@ function Window.NewView( byref v as editor.CodeView ) as boolean
                 mw->lastEditTicks = SDL_GetTicks( )
             end if
         case SCN_MARGINCLICK : mw->OnMarginClick( h, n->margin, n->position )
+        case SCN_ZOOM : mw->SyncBars( )          ' the rows' height, so the page
         end select
     end sub )
     tkCodeEdit_SetContextMenuCallback( v.Widget( ), sub( byval hEdit as TK_WIDGET ptr, byval x as long, byval y as long )
         dim as Window ptr mw = WindowOfWidget( hEdit )
         if mw then mw->ShowEditMenu( hEdit, x, y )
     end sub )
+    viewProc = v.Widget( )->proc                 ' every view's is tkCodeEdit's one proc
+    v.Widget( )->proc = @HoverProc
     tkWidget_Show( v.Widget( ), false )
     return true
 end function
@@ -2806,6 +2977,7 @@ sub Window.OnMarginClick( byval hEdit as TK_WIDGET ptr, byval margin as long, by
         v->ToggleBookmark( ln )
     elseif margin = 2 then
         v->FoldLineAt( ln )
+        this.SyncBars( )
     end if
 end sub
 

@@ -131,6 +131,14 @@ public type CodeView
     declare sub SetFirstLine( byval ln as long )
     declare sub Focus( )
 
+    ' ---- the scrollbars' ranges (tkCodeEdit has none: mainwin's tkScrollBars ask these)
+    declare function DisplayLines( ) as long              ' rows as shown: folds closed, wraps counted
+    declare function LinesOnScreen( ) as long             ' whole rows the view shows
+    declare function XOffset( ) as long                   ' pixels the text is scrolled sideways
+    declare sub SetXOffset( byval x as long )
+    declare sub HScrollRange( byref total as long, byref page as long )   ' text-area pixels
+    declare function CharWidth( ) as long                 ' pixels, the default style's "n"
+
     ' ---- the Edit and View menus
     declare sub Undo( )
     declare sub Redo( )
@@ -358,6 +366,60 @@ end function
 sub CodeView.SetFirstLine( byval ln as long )
     if w then tkCodeEdit_Send( w, SCI_SETFIRSTVISIBLELINE, ln )
 end sub
+
+' Scintilla's own vertical range: the first row runs 0 .. DisplayLines - LinesOnScreen (it ends at
+' the last line), so a bar of total DisplayLines, page LinesOnScreen, pos FirstLine matches it.
+function CodeView.DisplayLines( ) as long
+    if w = 0 then return 0
+    return tkCodeEdit_Send( w, SCI_VISIBLEFROMDOCLINE, tkCodeEdit_Send( w, SCI_GETLINECOUNT ) )
+end function
+
+function CodeView.LinesOnScreen( ) as long
+    if w = 0 then return 0
+    return tkCodeEdit_Send( w, SCI_LINESONSCREEN )
+end function
+
+function CodeView.XOffset( ) as long
+    if w = 0 then return 0
+    return tkCodeEdit_Send( w, SCI_GETXOFFSET )
+end function
+
+sub CodeView.SetXOffset( byval x as long )
+    if w then tkCodeEdit_Send( w, SCI_SETXOFFSET, x )
+end sub
+
+' The horizontal range, as tiko-editor measured it (frmEditorHScroll_NeedScrollBar): total = the
+' widest line on screen, page = the text area's width (the view less its margins), both from where
+' column 0 is drawn. total is floored at page + XOffset, so a view scrolled right past every line
+' on screen can still be dragged back to 0.
+sub CodeView.HScrollRange( byref total as long, byref page as long )
+    total = 0
+    page = 0
+    if w = 0 then exit sub
+    dim as long first = tkCodeEdit_Send( w, SCI_GETFIRSTVISIBLELINE )
+    dim as long rows = tkCodeEdit_Send( w, SCI_LINESONSCREEN )
+    dim as long lines = tkCodeEdit_Send( w, SCI_GETLINECOUNT )
+    dim as long xo = tkCodeEdit_Send( w, SCI_GETXOFFSET )
+    dim as long ln0 = tkCodeEdit_Send( w, SCI_DOCLINEFROMVISIBLE, first )
+    ' POINTXFROMPOSITION is view-relative: column 0 sits at the margins' width less the offset
+    dim as long textLeft = tkCodeEdit_Send( w, SCI_POINTXFROMPOSITION, 0, tkCodeEdit_Send( w, SCI_POSITIONFROMLINE, ln0 ) ) + xo
+    page = w->cw - textLeft
+    if page < 0 then page = 0
+    dim as long prev = -1
+    for r as long = 0 to rows                    ' the partly shown last row too
+        dim as long ln = tkCodeEdit_Send( w, SCI_DOCLINEFROMVISIBLE, first + r )
+        if (ln >= lines) orelse (ln = prev) then continue for      ' a wrapped line's further rows
+        prev = ln
+        dim as long x = tkCodeEdit_Send( w, SCI_POINTXFROMPOSITION, 0, tkCodeEdit_Send( w, SCI_GETLINEENDPOSITION, ln ) ) + xo - textLeft
+        if x > total then total = x
+    next
+    if page + xo > total then total = page + xo
+end sub
+
+function CodeView.CharWidth( ) as long
+    if w = 0 then return 0
+    return tkCodeEdit_SendText( w, SCI_TEXTWIDTH, STYLE_DEFAULT, "n" )
+end function
 
 sub CodeView.Focus( )
     if w = 0 then exit sub
