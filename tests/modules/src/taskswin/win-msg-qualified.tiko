@@ -1,4 +1,5 @@
-'' 'win.MSG' qualified names sys/win's Msg FUNCTION -- windows.bi's MSG is not in win.
+'' 'win.MsgBox' qualifies sys/win's MsgBox FUNCTION; 'win.MSG' names nothing in win -- windows.bi's MSG is not in it.
 #import "sys/win"
 using win
-dim a as win.MSG
+dim a as win.MsgBox
+dim b as win.MSG

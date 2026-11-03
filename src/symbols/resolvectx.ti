@@ -67,6 +67,7 @@ type Ctx
     as containers.Map( of uint32, int32 ) rtlSeen  '' LOCATIONS reported TKO0813 -- resolvertl.tiko
     as containers.Array( of uint32 )  rtlUndef     '' runtime names an '#undef' freed -- resolvertl.tiko
     as containers.Map( of uint32, int32 ) genArgSeen  '' LOCATIONS reported TKO0815/0816 -- resolvetype.tiko; a set, as rtlSeen
+    as containers.Map( of uint32, int32 ) procTypeSeen  '' NODES reported TKO0997 -- resolvetype.tiko; a set, as rtlSeen
     '' GOTOs, DEFERs and what TKO0827 reported, in walk order -- resolvedefer.tiko.
     as containers.Array( of uint32 )  xgName, xgNode, xgProc, xgSeq
     as containers.Array( of uint32 )  xdScope, xdNode, xdProc, xdSeq

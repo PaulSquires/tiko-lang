@@ -871,9 +871,13 @@ function ResolveTypeRefAt_ _
         if sid <> Tko.SYMBOL_NONE then
             dim as Tko.Symbol ptr ps_ = c.syms->SymbolAt( sid )
             if (ps_ <> nullptr) andalso (ps_->kind = cast( uint8, Tko.SYM_PROC )) then
-                '' Once: a declaration's type is resolved more than once, and the ref set
-                '' here is what the second visit finds.
-                if c.info->RefOf( id ) <> sid then
+                '' Once: a declaration's type is resolved more than once. NOT by the ref set
+                '' below, which outlives the discovery pass of a unit that declares a generic
+                '' (genericdiscover.tiko): that pass's report was rolled back and the real pass
+                '' found the ref and said nothing -- every 'dim a as win.MsgBox' compiled, as
+                '' did 'dim a as F' in any file with a 'type Box( of T )' in it.
+                if c.procTypeSeen.Contains( cast( uint32, id ) ) = false then
+                    c.procTypeSeen.Put( cast( uint32, id ), 1 )
                     dim as string pn = c.names->Spelling( sp->name )
                     if sp->ownerName <> 0 then pn = c.names->Spelling( sp->ownerName ) & "." & pn
                     c.diags->Report( Tko.TKO0997, Tko.PointRange( c.ast->Loc( id ) ), pn )

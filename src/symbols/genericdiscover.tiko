@@ -50,6 +50,7 @@ sub DiscoverInstantiations_ _
     '' 'dim b as Box' were reported nowhere.
     c.rtlSeen.Clear( )
     c.genArgSeen.Clear( )
+    c.procTypeSeen.Clear( )
     DeferCrossingReset_( c )
     for i as int32 = 0 to deep.Count - 1
         diags.pending.Push( deep[i] )

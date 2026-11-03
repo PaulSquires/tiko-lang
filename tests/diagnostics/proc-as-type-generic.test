@@ -1,0 +1,11 @@
+'' A procedure named as a type in a unit that DECLARES A GENERIC is still fbc's error 14
+'' (fbc-modern 1.20, 2026-11-03). Such a unit is walked twice -- a discovery pass whose
+'' diagnostics are rolled back, then the real one -- and TKO0997 was kept to one report per
+'' node by the ref the first pass set, so the real pass said nothing and 'dim a as F'
+'' compiled. Reported exactly once.
+'' TEST: cli
+'' ARGS: -c tests/diagnostics/src/proc-as-type-generic.bas -o tests/diagnostics/src/proc-as-type-generic.o
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: proc-as-type-generic.bas(7,10): error TKO0997: 'f' is a procedure, not a type
+'' EXPECT-NOT: TKO0808
+'' EXPECT-MAX-DIAG: 1

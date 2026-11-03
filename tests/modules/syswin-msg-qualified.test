@@ -1,8 +1,12 @@
-'' TKO0997: 'win.MSG' is sys/win's Msg function, a procedure and not a type. It declared a
-'' 4-byte variable where windows.bi's MSG is 48; spell the struct tagMSG (or MSG with the
-'' program's own '#include "windows.bi"').
+'' TKO0997: 'win.MsgBox' is sys/win's MsgBox function, a procedure and not a type. It declared
+'' a 4-byte variable; spell the struct tagMSG (or MSG with the program's own
+'' '#include "windows.bi"'). The test named 'win.MSG', sys/win's Msg function until it became
+'' MsgBox -- that now names nothing in win, which is TKO0808. sys/win declares generics, so
+'' this unit is walked twice (genericdiscover.tiko), and TKO0997's once-per-node guard, the
+'' ref the first walk set, silenced the second: neither line was reported once Msg was gone.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -c -i toolchains/tiko-windows/inc tests/modules/src/taskswin/win-msg-qualified.tiko -o tests/modules/src/taskswin/win-msg-qualified.o
 '' EXPECT-EXIT: 1
-'' EXPECT-OUT: win-msg-qualified.tiko(4,10): error TKO0997: 'win.msg' is a procedure, not a type
-'' EXPECT-MAX-DIAG: 1
+'' EXPECT-OUT: win-msg-qualified.tiko(4,10): error TKO0997: 'win.msgbox' is a procedure, not a type
+'' EXPECT-OUT: win-msg-qualified.tiko(5,10): error TKO0808: the type 'win.msg' is not declared
+'' EXPECT-MAX-DIAG: 2
