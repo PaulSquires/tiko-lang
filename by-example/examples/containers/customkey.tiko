@@ -14,7 +14,7 @@ end constructor
 
 '' Hash exactly the fields that '=' compares.
 function Cell.HashOf( ) as uint64
-    return containers.HashOf( row ) xor ( containers.HashOf( col ) shl 1 )
+    return containers.HashInt( containers.HashOf( row ) ) xor containers.HashOf( col )
 end function
 
 operator = ( byref a as Cell, byref b as Cell ) as boolean

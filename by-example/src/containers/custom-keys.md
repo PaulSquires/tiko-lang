@@ -20,7 +20,9 @@ its `HashOf( )`:
 under, with the same fields, and the map finds it: the two are equal, so they
 hash the same and land in the same place. `containers.HashOf` has an overload
 for every built-in type, so a key's hash is usually built from the hashes of
-its fields, combined so that `( 2, 3 )` and `( 3, 2 )` do not come out equal.
+its fields, combined so that `( 2, 3 )` and `( 3, 2 )` do not come out equal:
+`containers.HashInt` scrambles the row's hash before the `xor`, so the row and
+the column are not interchangeable.
 
 One rule makes it work: **equal keys must produce equal hashes.** Compute the
 hash from exactly the fields that `=` compares. A hash that used a field `=`

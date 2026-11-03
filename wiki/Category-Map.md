@@ -114,7 +114,7 @@ type PairKey extends Hashable
 end type
 
 function PairKey.HashOf( ) as ulongint
-    return containers.HashOf( a ) xor ( containers.HashOf( b ) shl 1 )
+    return containers.HashInt( containers.HashOf( a ) ) xor containers.HashOf( b )
 end function
 
 operator = ( byref x as PairKey, byref y as PairKey ) as boolean
@@ -123,6 +123,8 @@ end operator
 ```
 
 Derive the hash only from the fields '=' compares, or equal keys will hash differently.
+
+Combine field hashes by passing all but one through containers.HashInt, a 64-bit mixer. The integer overloads return the value itself -- the map does its own spreading, with a multiplicative step when it picks a slot -- so a plain 'HashOf( a ) xor ( HashOf( b ) shl 1 )' gives ( 2, 0 ) and ( 0, 1 ) the same hash. That is still correct, since the map compares keys with '=', but every such pair shares a probe chain.
 
 A key type that is neither fails when Map is instantiated, naming HashOf inside the module:
 

@@ -14,7 +14,7 @@ constructor Cell( byval row as int32, byval col as int32 )
 end constructor
 
 function Cell.HashOf( ) as uint64
-    return containers.HashOf( row ) xor ( containers.HashOf( col ) shl 1 )
+    return containers.HashInt( containers.HashOf( row ) ) xor containers.HashOf( col )
 end function
 
 '' ...and '='.

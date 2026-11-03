@@ -204,7 +204,9 @@ stored:
 are equal, so they hash equally and land in the same place. The hash is the key's own `HashOf( )`,
 an override of the abstract one in `containers.Hashable`, which every key type extends; the module's
 `containers.HashOf` already has an overload for every built-in type, which is what
-`containers.HashOf( row )` calls.
+`containers.HashOf( row )` calls. `containers.HashInt` scrambles the row's hash before the two
+are combined with `xor`, so that the row and the column are not interchangeable: `( 2, 3 )` and
+`( 3, 2 )` get different hashes.
 
 One rule makes it work: **equal keys must produce equal hashes.** Compute the hash from exactly the
 fields that `=` compares. A hash that included a field `=` ignores would put two equal keys in
