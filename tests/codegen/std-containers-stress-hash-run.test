@@ -1,4 +1,4 @@
-'' RUN: std/containers stress, hash -- Map and Set: random operations checked against a plain-array model, fill/drain/refill, churn at 11 steady sizes, keys forced to collide, string keys with counted values, a 500K fill.
+'' RUN: std/containers stress, hash -- Map and Set: random operations checked against a plain-array model, fill/drain/refill, churn at 11 steady sizes, keys forced to collide, string keys with counted values, a 500K fill, structured integer keys (strides, dense runs) spread across slots.
 '' SCALE 1 here (no argument); 'stdcstresshash.exe 5' for a heavier run. Prints per-section timings.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 tests/codegen/src/std-containers-stress-hash.tiko -o tests/codegen/stdcstresshash.exe

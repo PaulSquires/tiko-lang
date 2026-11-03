@@ -79,9 +79,15 @@ public function HashBytes _
     function = h
 end function
 
-'' Integer mixing (splitmix64's finaliser).  An identity hash is fine for a
-'' chaining table and bad for an open-addressed one: consecutive keys land in
-'' consecutive slots and probe sequences pile up.
+'' 2^64 / phi, odd.  Map and Set take a key's home slot as the top bits of
+'' 'HashOf( k ) * CONTAINERS_FIB_MULT' (Fibonacci hashing, Map.HomeOf), so the
+'' containers do their own final mixing and a hash need not mix its low bits.
+const CONTAINERS_FIB_MULT as ulongint = 11400714819323198485ull
+
+'' Integer mixing (splitmix64's finaliser).  The integer HashOf overloads do
+'' not call it -- see below -- but it is the tool for COMBINING hashes in
+'' a user type's HashOf( ), where a weak 'a xor ( b shl 1 )' of two identity
+'' hashes collides on small values.
 public function HashInt( byval v as ulongint ) as ulongint
     dim as ulongint h = v
     h xor= h shr 30
@@ -93,49 +99,54 @@ public function HashInt( byval v as ulongint ) as ulongint
 end function
 
 '' ---------------------------------------------------------------- integers
+''
+'' THE IDENTITY, zero-extended.  Map and Set mix in HomeOf, and Fibonacci hashing
+'' spreads a dense run of small integers into nearly distinct slots, where a
+'' random-looking mix (splitmix, as these were) collides at the load factor's
+'' rate.  Measured on the Benchmarks Game k-nucleotide port: 8.02 s -> 7.18 s.
 
 public function HashOf overload ( byval v as byte ) as ulongint
-    function = HashInt( culngint( cast( ubyte, v ) ) )
+    function = culngint( cast( ubyte, v ) )
 end function
 
 public function HashOf overload ( byval v as ubyte ) as ulongint
-    function = HashInt( culngint( v ) )
+    function = culngint( v )
 end function
 
 public function HashOf overload ( byval v as short ) as ulongint
-    function = HashInt( culngint( cast( ushort, v ) ) )
+    function = culngint( cast( ushort, v ) )
 end function
 
 public function HashOf overload ( byval v as ushort ) as ulongint
-    function = HashInt( culngint( v ) )
+    function = culngint( v )
 end function
 
 public function HashOf overload ( byval v as long ) as ulongint
-    function = HashInt( culngint( cast( ulong, v ) ) )
+    function = culngint( cast( ulong, v ) )
 end function
 
 public function HashOf overload ( byval v as ulong ) as ulongint
-    function = HashInt( culngint( v ) )
+    function = culngint( v )
 end function
 
 public function HashOf overload ( byval v as integer ) as ulongint
-    function = HashInt( culngint( cast( uinteger, v ) ) )
+    function = culngint( cast( uinteger, v ) )
 end function
 
 public function HashOf overload ( byval v as uinteger ) as ulongint
-    function = HashInt( culngint( v ) )
+    function = culngint( v )
 end function
 
 public function HashOf overload ( byval v as longint ) as ulongint
-    function = HashInt( cast( ulongint, v ) )
+    function = cast( ulongint, v )
 end function
 
 public function HashOf overload ( byval v as ulongint ) as ulongint
-    function = HashInt( v )
+    function = v
 end function
 
 public function HashOf overload ( byval v as boolean ) as ulongint
-    function = HashInt( iif( v, 1ull, 0ull ) )
+    function = iif( v, 1ull, 0ull )
 end function
 
 '' ------------------------------------------------------------------ floats
@@ -224,8 +235,11 @@ end function
 ''         declare function HashOf( ) as ulongint override
 ''     end type
 ''     function PairKey.HashOf( ) as ulongint
-''         return containers.HashOf( a ) xor ( containers.HashOf( b ) shl 1 )
+''         return containers.HashInt( containers.HashOf( a ) ) xor containers.HashOf( b )
 ''     end function
+''
+'' Mix one side with HashInt: the integer hashes are the identity, so a bare
+'' 'HashOf( a ) xor ( HashOf( b ) shl 1 )' maps (2, 0) and (0, 1) to one code.
 ''
 '' NOT A GENERIC FALLBACK, HashOf( of K )( k ) calling k.HashOf( ): a generic candidate that
 '' matches exactly is preferred to an overload needing a conversion (measured, fbc-modern), so

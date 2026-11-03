@@ -522,5 +522,71 @@ scope
     Done( "H6", 4 * N )
 end scope
 
+'' ======================================================== H7 structured integer keys
+''
+'' The integer HashOf overloads are the identity and Map / Set pick the home slot by
+'' Fibonacci hashing (HomeOf).  Two properties, read through the slot protocol as the
+'' longest run of USED slots (wrapping):
+''   - keys in a power-of-two stride do not pile up: a low-bit mask of an identity
+''     hash puts every multiple of 2^17 in slot 0, one run of all n;
+''   - a dense run of small keys lands in nearly distinct slots: the k-nucleotide
+''     shape (8.02 s -> 7.18 s), where splitmix scattered them into runs of ~40.
+function LongestRunMap( byref m as Map( of longint, long ) ) as long
+    dim as long best = 0, cur = 0
+    for i as long = 0 to 2 * m.Capacity( ) - 1
+        if( m.SlotUsed( i mod m.Capacity( ) ) ) then
+            cur += 1
+            if( cur > best ) then best = cur
+        else
+            cur = 0
+        end if
+    next
+    return best
+end function
+
+function LongestRunSet( byref s as Set( of longint ) ) as long
+    dim as long best = 0, cur = 0
+    for i as long = 0 to 2 * s.Capacity( ) - 1
+        if( s.SlotUsed( i mod s.Capacity( ) ) ) then
+            cur += 1
+            if( cur > best ) then best = cur
+        else
+            cur = 0
+        end if
+    next
+    return best
+end function
+
+scope
+    Section( "H7 structured integer keys" )
+    dim as long N = 49152                '' 0.75 of 65536: the densest a table gets
+    dim as longint strides( ... ) = { 1, -1, 3, 1000, 1ll shl 8, 1ll shl 17, 1ll shl 20, 1ll shl 32, 1ll shl 40 }
+    for si as long = lbound( strides ) to ubound( strides )
+        dim as longint stride = strides( si )
+        dim m as Map( of longint, long )
+        dim s as Set( of longint )
+        for i as long = 0 to N - 1
+            m.Put( clngint( i ) * stride, i )
+            s.Add( clngint( i ) * stride )
+        next
+        dim as long bad = 0
+        for i as long = 0 to N - 1
+            dim as long v
+            if( m.TryGet( clngint( i ) * stride, v ) = false orelse v <> i ) then bad += 1
+            if( s.Contains( clngint( i ) * stride ) = false ) then bad += 1
+        next
+        CHECK( "H7 stride " & stride & " every key (" & bad & ")", bad = 0 )
+        CHECK( "H7 stride " & stride & " counts", m.Count( ) = N andalso s.Count( ) = N )
+        dim as long rm = LongestRunMap( m ), rs = LongestRunSet( s )
+        CHECK( "H7 stride " & stride & " Map longest run " & rm, rm <= 200 )
+        CHECK( "H7 stride " & stride & " Set longest run " & rs, rs <= 200 )
+        if( stride = 1 ) then
+            CHECK( "H7 dense keys Map longest run " & rm, rm <= 8 )
+            CHECK( "H7 dense keys Set longest run " & rs, rs <= 8 )
+        end if
+    next
+    Done( "H7", 4 * N * ( ubound( strides ) + 1 ) )
+end scope
+
 print "stress-hash: " & checks & " checks, " & fails & " failed"
 end iif( fails = 0, 0, 1 )

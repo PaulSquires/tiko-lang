@@ -18,8 +18,8 @@
 '' must compare, and EQUAL ELEMENTS MUST HASH EQUAL.
 ''
 '' Same implementation as Map -- open addressing, linear probing, power-of-two
-'' capacity, tombstones on removal, load factor 0.75 -- and the same unspecified,
-'' unstable iteration order.
+'' capacity, Fibonacci hashing for the home slot, tombstones on removal, load
+'' factor 0.75 -- and the same unspecified, unstable iteration order.
 
 
 
@@ -49,6 +49,8 @@ public type Set( of T )
     as long num                         '' live elements
     as long used                        '' live + tombstones, for the load factor
     as long cap_                        '' slots allocated -- see Capacity( )
+    as long shift_                      '' 64 - log2( cap_ ) -- see HomeOf( )
+    declare function HomeOf( byref v as T ) as long
 
     public:
     declare function Count( ) as long
@@ -99,6 +101,12 @@ function Set( of T ).SlotValue( byval slot as long ) byref as T
     return this.elems( slot )
 end function
 
+'' The slot v's probe chain starts at: Fibonacci hashing, as Map.HomeOf -- the
+'' integer HashOf overloads are the identity and this multiply is their mixing.
+function Set( of T ).HomeOf( byref v as T ) as long
+    return cast( long, ( HashOf( v ) * CONTAINERS_FIB_MULT ) shr this.shift_ )
+end function
+
 '' The slot holding v, or -1.  Probing stops at the first EMPTY slot; a
 '' tombstone means "keep going", which is why removal cannot blank a slot -- it
 '' would cut the chain and hide everything that collided past it.
@@ -109,7 +117,7 @@ function Set( of T ).FindSlot( byref v as T ) as long
     end if
 
     dim as long mask = cap - 1
-    dim as long i = cast( long, HashOf( v ) and cast( ulongint, mask ) )
+    dim as long i = this.HomeOf( v )
 
     for probe as long = 0 to cap-1
         select case this.state( i )
@@ -172,6 +180,12 @@ sub Set( of T ).Reserve( byval n as long )
     redim this.elems( 0 to want-1 )
     redim this.state( 0 to want-1 )
     this.cap_ = want
+    this.shift_ = 64
+    dim as longint w = want
+    while( w > 1 )
+        w shr= 1
+        this.shift_ -= 1
+    wend
 
     this.num = 0
     this.used = 0
@@ -179,7 +193,7 @@ sub Set( of T ).Reserve( byval n as long )
     dim as long mask = this.cap_ - 1
     for i as long = 0 to oldcap-1
         if( oldstate( i ) = SET_USED ) then
-            dim as long j = cast( long, HashOf( oldelems( i ) ) and cast( ulongint, mask ) )
+            dim as long j = this.HomeOf( oldelems( i ) )
             while( this.state( j ) <> SET_EMPTY )
                 j = (j + 1) and mask
             wend
@@ -218,7 +232,7 @@ function Set( of T ).Add( byref v as T ) as boolean
 
     dim as long cap = this.Capacity( )
     dim as long mask = cap - 1
-    dim as long i = cast( long, HashOf( vv ) and cast( ulongint, mask ) )
+    dim as long i = this.HomeOf( vv )
     dim as long firsttomb = -1
 
     for probe as long = 0 to cap-1
