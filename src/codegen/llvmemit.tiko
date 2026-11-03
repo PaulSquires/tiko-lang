@@ -94,6 +94,17 @@ private function GlobalName( byref e as EmitCtx, byval nm as Tko.InternId ) as s
     return "@""" & e.names->Spelling( nm ) & """"
 end function
 
+'' A FRAME RECORD ON MACH-O. Apple's arm64 ABI has x29 point at a valid frame record, and
+'' clang puts "frame-pointer"="non-leaf" on every function it compiles there (Apple clang 21;
+'' Homebrew 23 writes non-leaf-no-reserve, and both accept non-leaf). IR handed to clang gets
+'' no such attribute unless it is written, so every tiko function saved x29 and never set it,
+'' and a macOS crash report showed the faulting frame and main with nothing between. clang
+'' writes none for COFF or ELF x86-64 at -O2, so neither does this (measured 2026-11-03).
+private function FrameAttr_( byref e as EmitCtx ) as string
+    if e.tgt->objFormat = OBJ_MACHO then return " ""frame-pointer""=""non-leaf"""
+    return ""
+end function
+
 '' VALUES ARE NAMED, NOT NUMBERED. LLVM requires UNNAMED values to be numbered in
 '' strict sequence from the function's first argument, so a numbered scheme has to
 '' count parameters, allocas and every instruction that happens to yield a value, and
@@ -1207,7 +1218,7 @@ private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
         e.dbgLine = 0
     end if
     e.outp += "define " & linkage & iif( f->isHidden, "hidden ", "" ) & ret & " " & GlobalName( e, f->name ) & _
-              "(" & ParamList( e, f, true ) & ") nounwind uwtable(sync)" & cmdt & dbgAttr & " {" & chr( 10 )
+              "(" & ParamList( e, f, true ) & ") nounwind uwtable(sync)" & FrameAttr_( e ) & cmdt & dbgAttr & " {" & chr( 10 )
 
     '' Per-function value bookkeeping. Sized to nextTemp because that is the highest
     '' temp the function can name.

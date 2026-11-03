@@ -99,7 +99,7 @@ private function ModStackIr_( byref e as EmitCtx ) as string
     if cd then r &= "$" & q & "__tko_modfinin" & q & " = comdat any" & nl
     r &= fn & " = linkonce_odr global i32 0" & iif( cd, ", comdat", "" ) & ", align 4" & nl
     if cd then r &= "$" & q & "__tko_modfini_push" & q & " = comdat any" & nl
-    r &= "define linkonce_odr void @" & q & "__tko_modfini_push" & q & "(ptr %f) nounwind" & iif( cd, " comdat", "" ) & " {" & nl
+    r &= "define linkonce_odr void @" & q & "__tko_modfini_push" & q & "(ptr %f) nounwind" & FrameAttr_( e ) & iif( cd, " comdat", "" ) & " {" & nl
     r &= "entry:" & nl
     r &= "  %n = load i32, ptr " & fn & nl
     r &= "  %full = icmp sge i32 %n, 1024" & nl
@@ -112,7 +112,7 @@ private function ModStackIr_( byref e as EmitCtx ) as string
     r &= "  br label %out" & nl
     r &= "out:" & nl & "  ret void" & nl & "}" & nl
     if cd then r &= "$" & q & "__tko_modfini_drain" & q & " = comdat any" & nl
-    r &= "define linkonce_odr void @" & q & "__tko_modfini_drain" & q & "()" & iif( cd, " comdat", "" ) & " {" & nl
+    r &= "define linkonce_odr void @" & q & "__tko_modfini_drain" & q & "()" & FrameAttr_( e ) & iif( cd, " comdat", "" ) & " {" & nl
     r &= "entry:" & nl & "  br label %loop" & nl
     r &= "loop:" & nl
     r &= "  %n = load i32, ptr " & fn & nl
@@ -151,12 +151,12 @@ private function ModUnitIr_ _
     dim as string fini = ModSym_( "__tko_modfini$", m.modChain )
     dim as string r = ModStackIr_( e ) & ModInitDecls_( m )
     r &= done_ & " = internal global i1 false" & nl
-    r &= "define internal void " & fini & "() {" & nl & "entry:" & nl
+    r &= "define internal void " & fini & "()" & FrameAttr_( e ) & " {" & nl & "entry:" & nl
     for k as int32 = 0 to dtors.Count - 1
         r &= "  call void " & GlobalName( e, m.functions[dtors[k]]->name ) & "()" & nl
     next
     r &= "  ret void" & nl & "}" & nl
-    r &= "define void " & ModSym_( "__tko_modinit$", m.modChain ) & "() {" & nl & "entry:" & nl
+    r &= "define void " & ModSym_( "__tko_modinit$", m.modChain ) & "()" & FrameAttr_( e ) & " {" & nl & "entry:" & nl
     r &= "  %d = load i1, ptr " & done_ & nl
     r &= "  br i1 %d, label %out, label %run" & nl & "run:" & nl
     r &= "  store i1 true, ptr " & done_ & nl
@@ -332,7 +332,7 @@ private function StructorLists_( byref e as EmitCtx, byref m as MirModule ) as s
     if (modUnit = false) andalso (m.modInits.Count > 0) then
         dim as string nl = chr( 10 )
         r += ModStackIr_( e ) & ModInitDecls_( m )
-        r += "define internal void " & ModSym_( "__tko_initall", "" ) & "() {" & nl & "entry:" & nl
+        r += "define internal void " & ModSym_( "__tko_initall", "" ) & "()" & FrameAttr_( e ) & " {" & nl & "entry:" & nl
         for each ch as string in m.modInits
             r += "  call void " & ModSym_( "__tko_modinit$", ch ) & "()" & nl
         next

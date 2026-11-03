@@ -1,0 +1,10 @@
+'' macos-arm64: "frame-pointer"="non-leaf" on every definition, as Apple clang writes for C
+'' (Apple's arm64 ABI wants x29 at a valid frame record). Without it every tiko function saved
+'' x29 and never set it, and a macOS crash report showed the faulting frame and main, nothing
+'' between (tkEdit's tkTooltip crash, 2026-11-03).
+'' TEST: cli
+'' ARGS: -target macos-arm64 --emit-ir tests/codegen/src/frame-pointer.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: define i32 @"OUTER"(i32 %p0) nounwind uwtable(sync) "frame-pointer"="non-leaf" {
+'' EXPECT-OUT: define i32 @"INNER"(i32 %p0) nounwind uwtable(sync) "frame-pointer"="non-leaf" {
+'' EXPECT-OUT: define i32 @"main"(i32 %p0, ptr %p1) nounwind uwtable(sync) "frame-pointer"="non-leaf" {

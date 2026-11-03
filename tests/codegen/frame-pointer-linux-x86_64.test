@@ -1,0 +1,7 @@
+'' linux-x86_64: no frame-pointer attribute, as clang writes none for ELF x86-64 at -O2 (see
+'' frame-pointer-macos-arm64.test).
+'' TEST: cli
+'' ARGS: -target linux-x86_64 --emit-ir tests/codegen/src/frame-pointer.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: define i32 @"OUTER"(i32 %p0) nounwind uwtable(sync) {
+'' EXPECT-NOT: frame-pointer
