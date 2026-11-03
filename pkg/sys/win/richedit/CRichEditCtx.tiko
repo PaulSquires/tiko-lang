@@ -2123,8 +2123,17 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CRichEditCtx.GetLine (BYVAL which AS DWORD) AS USTRING
    m_Result = 0
-   DIM buffer AS USTRING = MKI(32765) + STRING(32765, 0)
+   ' // EM_GETLINE takes the buffer size, in WCHARs, from the buffer's first WCHAR and
+   ' // writes no terminating null; EM_LINELENGTH leaves out the end-of-paragraph mark
+   ' // that EM_GETLINE copies, hence the +2
+   DIM nIndex AS LONG = SendMessageW(m_hRichEdit, EM_LINEINDEX, which, 0)
+   IF nIndex = -1 THEN RETURN ""
+   DIM cch AS LONG = SendMessageW(m_hRichEdit, EM_LINELENGTH, nIndex, 0) + 2
+   IF cch > 65535 THEN cch = 65535
+   DIM buffer AS USTRING = WSPACE(cch)
+   *CAST(WORD PTR, STRPTR(buffer)) = cch
    DIM n AS LONG = SendMessageW(m_hRichEdit, EM_GETLINE, which, cast(LPARAM, STRPTR(buffer)))
+   IF n <= 0 THEN RETURN ""
    RETURN LEFT(buffer, n)
 END FUNCTION
 ' ========================================================================================

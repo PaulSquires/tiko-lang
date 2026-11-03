@@ -532,8 +532,9 @@ PUBLIC FUNCTION CalcHorizontalExtent (BYVAL hListBox AS HWND) AS LONG
    FOR i = 0 TO cItems - 1
       ' // Get the text of the item
       DIM cbLen AS LONG = SendMessageW(hListBox, LB_GETTEXTLEN, i, 0)
-      IF cbLen = 0 THEN CONTINUE FOR
-      DIM pbuffer AS WSTRING PTR = CAllocate(cbLen * 2)
+      IF cbLen <= 0 THEN CONTINUE FOR
+      ' // LB_GETTEXTLEN excludes the terminating null that LB_GETTEXT writes
+      DIM pbuffer AS WSTRING PTR = CAllocate((cbLen + 1) * 2)
       SendMessageW(hListBox, LB_GETTEXT, i, CAST(LPARAM, pbuffer))
       ' // Computes the width and height of the text
       DIM tsize AS SIZE
