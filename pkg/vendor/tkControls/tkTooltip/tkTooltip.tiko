@@ -515,6 +515,21 @@ private sub TipSurfacePaint( byval h as TK_HOST ptr, byval p as TK_PAINT ptr )
     TIP_Render( pTip, p )
 end sub
 
+' The surface closed from OUTSIDE: an owner closing takes its popups with it (tkHost_Close), and
+' DestroyNow frees them before it destroys the owner's widgets. hSurf then pointed at a freed
+' surface, and the TKM_DESTROY the attached widget got next closed it again -- a use-after-free
+' that crashed tkEdit's self-test on macOS, where the memory was reused. The tip is hidden from
+' here on. TIP_CloseSurface clears pUser before its own close, so this sees only the outside ones.
+private sub TipSurfaceClosed( byval h as TK_HOST ptr )
+    dim as TK_TIP ptr pTip = cast( TK_TIP ptr, h->pUser )
+    if (pTip = 0) orelse (pTip->hSurf <> h) then exit sub
+    h->pUser = 0
+    pTip->hSurf = 0
+    pTip->bVisible = false
+    pTip->nFadePhase = 0
+    if gVisible = pTip then gVisible = 0
+end sub
+
 
 ' ==========================================================================================
 ' Show / hide
@@ -619,6 +634,7 @@ private function TIP_ShowCore( byval pTip as TK_TIP ptr, byref rcAnchor as TKREC
         pTip->hSurf->pUser = pTip
         pTip->hSurf->clrBack = 0              ' fully transparent: the body is the shape
         pTip->hSurf->OnPaint = @TipSurfacePaint
+        pTip->hSurf->OnClosed = @TipSurfaceClosed
     else
         tkHost_Invalidate( pTip->hSurf )
     end if

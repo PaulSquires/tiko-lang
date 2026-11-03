@@ -278,6 +278,28 @@ sub RunPass( byval fScale as single )
     tkWidget_Destroy( a )
     tkTest_Check( "control destroyed -> tip detached and hidden", tkTooltip_GetAttached( t ) = 0 andalso tkTooltip_IsVisible( t ) = false )
     tkTooltip_Destroy( t )
+
+    ' ---- the OWNER's close takes the tip's surface, and the tip lets go of it ----------------------
+    ' tkHost_Close closes an owner's popups, and its destroy frees them before it destroys the owner's
+    ' widgets -- the attached one's TKM_DESTROY then hid the tip through the freed surface (tkEdit's
+    ' self-test crashed on macOS, where the memory was reused).
+    dim as TK_HOST ptr h3 = tkHost_Create( "tkTooltip owner", 320, 240, tkHost_FontDir() & TK_FONT_UI, fScale )
+    dim as TK_WIDGET ptr b = tkWidget_Create( h3, 1, @PlainProc, 0 )
+    tkWidget_SetPos( b, 0, 0, tkHost_Scale( h3, 120 ), tkHost_Scale( h3, 40 ) )
+    tkHost_Show( h3 )
+    tkTest_PumpFor( h3, 100 )
+    dim as TK_TIP ptr t3 = tkTooltip_Create( b )
+    tkTooltip_SetFonts( t3, tkHost_OpenFont( h3, tkHost_FontDir() & TK_FONT_UI, 9 ) )
+    tkTooltip_SetFadeTime( t3, 0 )
+    tkTooltip_SetText( t3, "owned" )
+    tkRect_Set( rcA, 0, 0, b->cw, b->ch )
+    tkTooltip_ShowForRect( t3, rcA, TIP_ALIGN_BELOW )
+    tkTest_Check( "owner test: the tip shown on the owner", tkTooltip_IsVisible( t3 ) andalso (tkTooltip_Surface( t3 ) <> 0) )
+    tkHost_Close( h3 )
+    tkTest_Check( "owner closed -> the tip let go of its surface", (tkTooltip_Surface( t3 ) = 0) andalso (tkTooltip_IsVisible( t3 ) = false) )
+    tkHost_Destroy( h3 )
+    tkTest_Check( "owner destroyed -> the tip detached", tkTooltip_GetAttached( t3 ) = 0 )
+    tkTooltip_Destroy( t3 )
     tkHost_Pump( h )
     tkHost_Destroy( h )
 end sub
