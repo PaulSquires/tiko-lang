@@ -3,6 +3,8 @@
 '' 8 no EMPTY slot ended a probe, and every later Put / Add dropped its key and returned FALSE
 '' (found by the tiko-lsp document store, which lost documents after ~8 open/close cycles). The
 '' fix rehashes at the same size while live entries fill at most half, doubled past that.
+'' Removal has since become backward-shift deletion, with no tombstones at all, so the steady
+'' churn stays at capacity 8 (6 of 8 live is the load factor) where the same-size rehash doubled.
 '' TEST: cli
 '' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/containers-tombstones.bas -o tests/modules/stdcontainerstomb.exe
 '' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
@@ -10,5 +12,5 @@
 '' RUN: tests/modules/stdcontainerstomb.exe
 '' EXPECT-RUN-EXIT: 0
 '' EXPECT-RUN-OUT: single 0 0 0 8
-'' EXPECT-RUN-OUT: steady 0 5 5 16
+'' EXPECT-RUN-OUT: steady 0 5 5 8
 '' EXPECT-RUN-OUT: indexer 0 0 8

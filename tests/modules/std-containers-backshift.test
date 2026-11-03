@@ -1,0 +1,21 @@
+'' std/containers Map and Set: backward-shift deletion (no tombstones), the per-slot
+'' fingerprint, and inserts that copy the key and value only when the table grows. PlacedKey
+'' chooses its own home slot and fingerprint, so the slot layout after a removal is asserted
+'' exactly -- a run shifted back across the end of the table, and a run that must not move.
+'' And a stored string keeps its character buffer through every growth and backward shift.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i toolchains/tiko-windows/inc tests/modules/src/stdfacade/containers-backshift.bas -o tests/modules/stdcontainersbackshift.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/modules/stdcontainersbackshift.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: inverse ok
+'' EXPECT-RUN-OUT: wrap cap 8: 2 3 4 - - - - 1
+'' EXPECT-RUN-OUT: wrap after: 3 4 - - - - - 2
+'' EXPECT-RUN-OUT: wrap found 0 3
+'' EXPECT-RUN-OUT: stay: 2 3 - - - - - -
+'' EXPECT-RUN-OUT: fingerprints 0 4
+'' EXPECT-RUN-OUT: alias 0 301 601
+'' EXPECT-RUN-OUT: bulk 0 3333 3333
+'' EXPECT-RUN-OUT: stable 0 -1 2000 2000
+'' EXPECT-RUN-OUT: self 100 100 0

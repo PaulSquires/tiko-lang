@@ -80,7 +80,7 @@ public function HashBytes _
 end function
 
 '' 2^64 / phi, odd.  Map and Set take a key's home slot as the top bits of
-'' 'HashOf( k ) * CONTAINERS_FIB_MULT' (Fibonacci hashing, Map.HomeOf), so the
+'' 'HashOf( k ) * CONTAINERS_FIB_MULT' (Fibonacci hashing, Map.Mix), so the
 '' containers do their own final mixing and a hash need not mix its low bits.
 const CONTAINERS_FIB_MULT as ulongint = 11400714819323198485ull
 
@@ -100,7 +100,7 @@ end function
 
 '' ---------------------------------------------------------------- integers
 ''
-'' THE IDENTITY, zero-extended.  Map and Set mix in HomeOf, and Fibonacci hashing
+'' THE IDENTITY, zero-extended.  Map and Set mix in Mix( ), and Fibonacci hashing
 '' spreads a dense run of small integers into nearly distinct slots, where a
 '' random-looking mix (splitmix, as these were) collides at the load factor's
 '' rate.  Measured on the Benchmarks Game k-nucleotide port: 8.02 s -> 7.18 s.
