@@ -2592,15 +2592,10 @@ Microsoft Learn: [LVM_SETICONSPACING](https://learn.microsoft.com/en-us/windows/
 ```freebasic
 sub GetWorkAreas overload( byval hListView as HWND, byval nWorkAreas as long, byval prc as RECT ptr )
 sub GetWorkAreas overload( byval hListView as HWND, byval nWorkAreas as long, byref rc as RECT )
-function GetWorkAreas overload( byval hListView as HWND, byval nWorkAreas as long ) as ( long, long, long, long )
 ```
 
 Reads `nWorkAreas` working areas: rectangles of the icon view that items are arranged in. The
 `RECT` forms write `nWorkAreas` rectangles, so pass the first element of an array that large.
-The tuple form reads into a single local rectangle and returns it: call it with
-`nWorkAreas` = 1 only.
-
-**Returns** the tuple form returns the first area's four edges.
 
 **Example**
 

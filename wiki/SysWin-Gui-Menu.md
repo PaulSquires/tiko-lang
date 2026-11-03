@@ -1343,14 +1343,11 @@ Microsoft Learn: [TrackPopupMenu](https://learn.microsoft.com/en-us/windows/win3
 ### TrackPopupMenu
 
 ```freebasic
-function TrackPopupMenu( byval hMenu as HMENU, byval uFlags as UINT, byval x as long, byval y as long, byval hwnd as HWND, byval prc as RECT ptr = NULL ) as boolean
+function TrackPopupMenu( byval hMenu as HMENU, byval uFlags as UINT, byval x as long, byval y as long, byval hwnd as HWND, byval prc as RECT ptr = NULL ) as long
 ```
 
 Shows a shortcut menu like [ContextMenu](#contextmenu), with the Windows argument order.
-`prc` is ignored by Windows. The result is a `boolean`, so with `TPM_RETURNCMD` it only says
-whether an item was chosen, not which: use [ContextMenu](#contextmenu) to get the identifier.
-
-**Returns** `true` on success (or, with `TPM_RETURNCMD`, when an item was chosen).
+`prc` is ignored by Windows.
 
 **Example**
 
@@ -1365,14 +1362,11 @@ Microsoft Learn: [TrackPopupMenu](https://learn.microsoft.com/en-us/windows/win3
 ### TrackPopupMenuEx
 
 ```freebasic
-function TrackPopupMenuEx( byval hMenu as HMENU, byval uFlags as UINT, byval x as long, byval y as long, byval hwnd as HWND, byval ptpm as TPMPARAMS ptr = NULL ) as boolean
+function TrackPopupMenuEx( byval hMenu as HMENU, byval uFlags as UINT, byval x as long, byval y as long, byval hwnd as HWND, byval ptpm as TPMPARAMS ptr = NULL ) as long
 ```
 
 Shows a shortcut menu like [TrackPopupMenu](#trackpopupmenu), and keeps it clear of the
-rectangle in `ptpm` (for instance the button that opened it). Like
-[TrackPopupMenu](#trackpopupmenu) it returns a `boolean`.
-
-**Returns** `true` on success (or, with `TPM_RETURNCMD`, when an item was chosen).
+rectangle in `ptpm` (for instance the button that opened it).
 
 **Example**
 

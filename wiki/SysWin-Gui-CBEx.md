@@ -176,17 +176,13 @@ Microsoft Learn: [CBEM_DELETEITEM](https://learn.microsoft.com/en-us/windows/win
 ```freebasic
 function GetItem overload( byval hComboEx as HWND, byval pCBItem as COMBOBOXEXITEMW ptr ) as boolean
 function GetItem overload( byval hComboEx as HWND, byref CBItem as COMBOBOXEXITEMW ) as boolean
-function GetItem overload( byval hComboEx as HWND ) as COMBOBOXEXITEMW
 ```
 
 Reads the attributes of item `iItem` that `mask` names. For the text, point `pszText` at a buffer
 and put its size in characters in `cchTextMax`. An `iItem` of -1 reads the item shown in the
 selection field (the text typed into a drop-down ComboBoxEx).
 
-The third form asks with an empty structure, `mask` 0, so it reads nothing: the item it returns
-is all zeros and `GetLastError()` is 1. Use one of the first two forms.
-
-**Returns** `true` on success (first two forms), or the structure (third form).
+**Returns** `true` on success or false otherwise.
 
 **Example**
 

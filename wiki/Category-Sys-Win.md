@@ -141,7 +141,6 @@ Start with the [sys/win/gui overview](SysWin-Gui).
 | [Animate](SysWin-Gui-Animate) | Opens, plays, stops and closes silent AVI clips in an animation control. |
 | [HotKey](SysWin-Gui-HotKey) | Reads and sets the key combination in a hot key control, and the combinations it refuses. |
 | [IPAddress](SysWin-Gui-IPAddress) | Reads, sets and clears the address in an IP address control, and limits its four fields. |
-| [PropSheet](SysWin-Gui-PropSheet) | Creates an animation control, and names the wizard-button requests of a property sheet. |
 | [ScrollBar](SysWin-Gui-ScrollBar) | Shows, hides, enables and positions a scroll bar control, and reads and sets its range. |
 | [SysLink](SysWin-Gui-SysLink) | Measures a SysLink control, reads and sets its links, and finds the link at a point. |
 

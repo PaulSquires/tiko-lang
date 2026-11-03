@@ -447,7 +447,6 @@ Microsoft Learn: [IExplorerBrowser::SetFolderSettings](https://learn.microsoft.c
 
 ```freebasic
 function Advise( byval psbe as IExplorerBrowserEvents ptr, byval pdwCookie as DWORD ptr ) as HRESULT
-function Advise( byval psbe as IExplorerBrowserEvents ptr ) as DWORD
 ```
 
 Attaches an event handler; the browser adds a reference to it. The class does not remember the
