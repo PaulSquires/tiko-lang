@@ -15,40 +15,40 @@ arithmetic order. Every output is verified before it is timed, against a Python 
 
 | Program | tiko | C | Rust | Go | Zig |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `binary-trees` | 19.63 (1.08) | 18.14 | 20.12 (1.11) | 7.78 (0.43) | 10.54 (0.58) |
-| `fannkuch-redux` | 28.82 (0.99) | 29.04 | 27.46 (0.95) | 23.24 (0.80) | 25.85 (0.89) |
-| `fasta` | 2.80 (1.06) | 2.65 | 2.73 (1.03) | 3.09 (1.17) | 2.58 (0.97) |
-| `k-nucleotide` | 7.51 (1.89) | 3.98 | 2.98 (0.75) | 11.68 (2.93) | 5.80 (1.46) |
-| `mandelbrot` | 9.09 (1.01) | 8.99 | 9.28 (1.03) | 9.63 (1.07) | 9.23 (1.03) |
-| `n-body` | 1.76 (0.99) | 1.78 | 1.38 (0.77) | 2.60 (1.46) | 1.37 (0.77) |
-| `pidigits` | 0.46 (1.07) | 0.44 | 0.47 (1.08) | 1.15 (2.65) | 0.47 (1.08) |
-| `regex-redux` | 1.91 (1.01) | 1.88 | 0.74 (0.39) | 16.97 (9.00) | 1.85 (0.98) |
-| `reverse-complement` | 0.62 (1.09) | 0.57 | 0.72 (1.26) | 0.78 (1.37) | 0.54 (0.95) |
-| `spectral-norm` | 1.00 (1.07) | 0.93 | 0.97 (1.04) | 1.02 (1.09) | 0.93 (1.00) |
+| `binary-trees` | 16.34 (0.96) | 16.99 | 16.94 (1.00) | 6.73 (0.40) | 9.87 (0.58) |
+| `fannkuch-redux` | 23.51 (0.93) | 25.24 | 26.62 (1.05) | 23.01 (0.91) | 25.70 (1.02) |
+| `fasta` | 2.79 (1.06) | 2.63 | 2.63 (1.00) | 2.99 (1.13) | 2.61 (0.99) |
+| `k-nucleotide` | 5.85 (1.47) | 3.97 | 2.98 (0.75) | 11.59 (2.92) | 5.80 (1.46) |
+| `mandelbrot` | 9.05 (1.01) | 8.95 | 9.31 (1.04) | 9.66 (1.08) | 9.22 (1.03) |
+| `n-body` | 1.74 (0.98) | 1.77 | 1.37 (0.78) | 2.57 (1.45) | 1.37 (0.77) |
+| `pidigits` | 0.46 (1.03) | 0.44 | 0.47 (1.06) | 1.12 (2.53) | 0.47 (1.05) |
+| `regex-redux` | 1.92 (1.02) | 1.88 | 0.74 (0.39) | 16.98 (9.03) | 1.84 (0.98) |
+| `reverse-complement` | 0.64 (1.10) | 0.58 | 0.71 (1.24) | 0.76 (1.33) | 0.53 (0.92) |
+| `spectral-norm` | 0.99 (1.05) | 0.94 | 0.95 (1.01) | 0.99 (1.06) | 0.93 (0.99) |
 
 ### Ubuntu 24.04 under WSL2 (linux-x86_64)
 
 | Program | tiko | C | Rust | Go | Zig |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `binary-trees` | 6.55 (0.85) | 7.68 | 5.87 (0.76) | 14.50 (1.89) | 9.94 (1.29) |
-| `fannkuch-redux` | 23.66 (0.94) | 25.15 | 27.15 (1.08) | 22.66 (0.90) | 25.66 (1.02) |
-| `fasta` | 2.81 (1.09) | 2.59 | 2.72 (1.05) | 2.97 (1.15) | 2.63 (1.02) |
-| `k-nucleotide` | 7.37 (1.86) | 3.96 | 2.97 (0.75) | 11.26 (2.85) | 5.72 (1.45) |
-| `mandelbrot` | 8.98 (1.00) | 8.97 | 9.54 (1.06) | 9.50 (1.06) | 9.40 (1.05) |
-| `n-body` | 1.73 (0.96) | 1.81 | 1.38 (0.76) | 2.57 (1.42) | 1.37 (0.76) |
-| `pidigits` | 0.43 (1.00) | 0.43 | 0.44 (1.02) | 0.98 (2.27) | 0.42 (0.97) |
-| `regex-redux` | 1.11 (1.00) | 1.11 | 0.66 (0.60) | 16.61 (14.93) | 1.08 (0.98) |
-| `reverse-complement` | 0.48 (1.38) | 0.35 | 0.49 (1.42) | 0.60 (1.72) | 0.33 (0.95) |
-| `spectral-norm` | 1.05 (1.08) | 0.97 | 0.96 (1.00) | 1.02 (1.05) | 0.92 (0.95) |
+| `binary-trees` | 6.77 (0.94) | 7.22 | 6.03 (0.83) | 14.72 (2.04) | 10.12 (1.40) |
+| `fannkuch-redux` | 22.77 (0.90) | 25.20 | 27.31 (1.08) | 23.08 (0.92) | 26.21 (1.04) |
+| `fasta` | 2.88 (1.09) | 2.64 | 2.87 (1.09) | 3.12 (1.18) | 2.67 (1.01) |
+| `k-nucleotide` | 5.90 (1.44) | 4.10 | 3.02 (0.74) | 11.54 (2.82) | 5.90 (1.44) |
+| `mandelbrot` | 9.24 (1.00) | 9.22 | 9.69 (1.05) | 9.70 (1.05) | 9.56 (1.04) |
+| `n-body` | 1.67 (0.92) | 1.81 | 1.36 (0.75) | 2.55 (1.41) | 1.39 (0.77) |
+| `pidigits` | 0.45 (0.99) | 0.45 | 0.46 (1.02) | 0.99 (2.17) | 0.43 (0.94) |
+| `regex-redux` | 1.18 (1.02) | 1.15 | 0.70 (0.61) | 16.98 (14.73) | 1.11 (0.97) |
+| `reverse-complement` | 0.47 (1.44) | 0.32 | 0.47 (1.43) | 0.63 (1.93) | 0.34 (1.05) |
+| `spectral-norm` | 1.03 (1.05) | 0.98 | 0.97 (0.99) | 1.02 (1.04) | 0.95 (0.97) |
 
 Fastest of three runs, in seconds; the ratio to C is in brackets, so below 1.00 is faster than
-C. Measured 2026-10-18 on one laptop (Intel Core Ultra 7 256V), each process pinned to one CPU
+C. Measured 2026-11-02 on one laptop (Intel Core Ultra 7 256V), each process pinned to one CPU
 (a P-core on Windows; under WSL2 the pin fixes a vCPU, not a core).
 
 | Language | Compiler | Flags |
 | --- | --- | --- |
-| tiko | the packaged toolchain at `05f59ff8` | `-O2` |
-| C | clang 21.1.0 on Windows, 19.1.1 on Linux -- the clang tiko itself uses | `-O2` |
+| tiko | the packaged toolchain at `fb063dfd4` | `-O2` |
+| C | clang 21.1.0 on Windows, 18.1.3 on Linux -- the clang tiko itself uses | `-O2` |
 | Rust | rustc 1.98.0 | `-C opt-level=3` |
 | Go | go 1.27.2 | defaults |
 | Zig | zig 0.17.0 | `-O ReleaseFast -mcpu baseline` |
@@ -64,10 +64,11 @@ tiko and C go through the same clang, so the gap between them is what the langua
 library cost. On eight of the ten programs tiko is within 9% of C on both targets, and faster on
 some. The two exceptions are both library, not code generation:
 
-- **k-nucleotide, 1.9x.** It counts with `std/containers` `Map`. The same algorithm with a
-  hand-written table in tiko runs at C's speed; what is left is the map's integer hash (a full
-  splitmix mixer) and its lookup, which is a real call per update -- tiko does not inline across
-  modules yet.
+- **k-nucleotide, 1.5x** (1.9x before `9edff823f`). It counts with `std/containers` `Map`. The
+  same algorithm with a hand-written table in tiko runs at C's speed; what is left is that every
+  `m[ k ] += 1` is two real calls -- the map's indexer, which LLVM declines to inline, and the
+  key's `HashOf`, which lives in another module (tiko does not inline across modules yet).
+  Computing the hash inside the map instead took the run from 6.0 s to 5.4 s in a test build.
 - **reverse-complement on Linux, 1.4x** (1.1x on Windows). tiko's arrays are zero-filled when
   they are dimensioned and `redim preserve` copies, where C's `malloc` leaves memory untouched
   and glibc's `realloc` grows a large block without copying it; switching the two output arrays to
@@ -79,15 +80,15 @@ some. The two exceptions are both library, not code generation:
 million 16-byte nodes, so it measures memory management.
 
 - C, tiko and Rust call the system allocator once per node: the Universal CRT's heap on Windows,
-  which is slow per call (18-20 s), and glibc's on Linux, whose per-thread cache is fast (6-8 s).
+  which is slow per call (16-20 s), and glibc's on Linux, whose per-thread cache is fast (6-8 s).
 - Zig's default allocator in a release build is its own (`smp_allocator`): per-size pools, no
   locking. Built against the C runtime, where its default becomes `malloc`, the same Zig program
   takes 18.5 s on Windows -- slower than C.
 - Go never frees a node: allocation is a pointer bump and the garbage collector reclaims whole
   dead trees, cheaply, because nearly all of them die young. But its collector needs room to
   run beside the program: with `GOMAXPROCS=1` Go takes about 15 s on both systems. On Windows
-  the Go runtime ignores the CPU pin when it picks `GOMAXPROCS` (8), which is the 7.8 s above;
-  on Linux it honours it (1), which is the 14.5 s. Unpinned on Linux it takes 6.8 s.
+  the Go runtime ignores the CPU pin when it picks `GOMAXPROCS` (8), which is the 6.7 s above;
+  on Linux it honours it (1), which is the 14.7 s. Unpinned on Linux it takes 6.8 s.
 
 **n-body: Rust and Zig vectorize.** Their references promise the optimizer that two bodies never
 overlap, so LLVM computes the x, y and z updates two doubles at a time: Rust's version has 399
@@ -96,17 +97,20 @@ of it (1.89 s to 1.77 s, against Rust's 1.36 s in the same measurement). tiko is
 
 **k-nucleotide: the hash tables.** Rust uses std's `HashMap` (a SwissTable) with a cheap
 multiplicative hasher in place of the default SipHash, which resists hash flooding and is slow;
-Zig its `AutoHashMap`; C a small open-addressing table of its own; Go its built-in map.
+Zig its `AutoHashMap`; C a small open-addressing table of its own; Go its built-in map. tiko's
+`Map` is open-addressed too, and like C's it picks a key's slot from the high bits of the key
+times 2^64/phi: the k-mer keys are small dense integers, which that spreads over nearly distinct
+slots where a random-looking hash collides at the load factor's rate.
 
 **regex-redux: the regex engines.** Rust's `regex` crate (finite automata with literal
 prefilters, no backtracking) is fastest. C, tiko and Zig all run PCRE2's JIT, so they tie. Go's
 `regexp` guarantees linear time and has no JIT, and is 9-15x slower here.
 
 **pidigits: GMP.** Everything but Go calls the same GMP, whose inner loops are hand-written
-assembly; Go's pure-Go `math/big` is 2.3-2.7x slower.
+assembly; Go's pure-Go `math/big` is 2.2-2.5x slower.
 
 **fannkuch-redux varies run to run.** It is 25-30 s of integer work, and between runs on this
-machine Go and Zig have measured anywhere from 0.80x to 1.02x of C. Read a difference under
+machine Go and Zig have measured anywhere from 0.80x to 1.04x of C. Read a difference under
 about 10% there as noise.
 
 ### Not covered
