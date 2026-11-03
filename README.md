@@ -286,6 +286,15 @@ What differs, what is refused and why is on
 | [Packages and Modules Tutorial](wiki/Packages-and-Modules-Tutorial.md) | `#import`, the standard library and splitting a program into modules |
 | [bench/](bench/README.md) | the benchmarks and how to run them |
 
+## Contributing
+
+Bug reports, reproductions, tests, documentation and patches are welcome. Ask questions in
+[Discussions](https://github.com/PaulSquires/tiko-lang/discussions) and report bugs in
+[Issues](https://github.com/PaulSquires/tiko-lang/issues); for a new feature, start a discussion
+before writing it. Every fix comes with a test, and a pull request passes the suite and the lint
+and builds in all three configurations. [CONTRIBUTING.md](CONTRIBUTING.md) covers building from the
+seed, the test suite, code style and the compatibility rules.
+
 ## Licence
 
 The compiler is **GPL v2 or later**. The runtime and graphics libraries are **LGPL v2.1 or later
