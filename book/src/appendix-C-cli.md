@@ -173,4 +173,4 @@ A subcommand is the first word on the command line. It builds a project from its
 | `--build-only-unit ‹n›` | internal to 'tiko build': compile root n alone into the cache, and link nothing |
 | `--bootstrap-subset-check` | reject constructs outside the self-hosting subset |
 
-<!-- 93 options, generated 2026-10-30 from src/driver/options.ti at 42d891dd2 -->
+<!-- 93 options, generated 2026-11-04 from src/driver/options.ti at 49c4a7b7f -->
