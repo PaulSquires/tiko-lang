@@ -198,7 +198,7 @@ end main()
 | [GetEditStyleEx, SetEditStyleEx](#geteditstyleex-seteditstyleex) | Reads or sets the `SES_EX_*` edit styles. |
 | [GetTypographyOptions, SetTypographyOptions](#gettypographyoptions-settypographyoptions) | Reads or sets advanced typography. |
 | [AutoUrlDetect, GetAutoUrlDetect](#autourldetect-getautourldetect) | Turns URL detection on or off, or reads it. |
-| [GetEllipsisMode, SetElipsisMode](#getellipsismode-setelipsismode) | Reads or sets how text that does not fit is cut. |
+| [GetEllipsisMode, SetEllipsisMode](#getellipsismode-setellipsismode) | Reads or sets how text that does not fit is cut. |
 | [GetEllipsisState](#getellipsisstate) | Tells whether an ellipsis is showing. |
 | [GetTouchOptions, SetTouchOptions](#gettouchoptions-settouchoptions) | Reads or sets the touch options. |
 | [GetWordWrapMode, SetWordWrapMode](#getwordwrapmode-setwordwrapmode) | Reads or sets the word wrap and word break options. |
@@ -208,7 +208,7 @@ end main()
 | [CallAutocorrectProc](#callautocorrectproc) | Runs the autocorrect procedure. |
 | [GetPunctuation, SetPunctuation](#getpunctuation-setpunctuation) | Reads or sets the punctuation characters for Asian text. |
 | [GetPageRotate, SetPageRotate](#getpagerotate-setpagerotate) | Reads or sets the text layout. |
-| [GetStoryTpe, SetStoryType](#getstorytpe-setstorytype) | Reads or sets a story's type. |
+| [GetStoryType, SetStoryType](#getstorytype-setstorytype) | Reads or sets a story's type. |
 | [SetUIAName](#setuianame) | Sets the name UI Automation reports. |
 | [SetPalette](#setpalette) | Sets the palette the control draws with. |
 | [SetOleCallback](#setolecallback) | Gives the control an `IRichEditOleCallback` object. |
@@ -1573,16 +1573,16 @@ print richedit.RichEdit.GetAutoUrlDetect( hCtrl )   ' 1
 
 Microsoft Learn: [EM_AUTOURLDETECT](https://learn.microsoft.com/en-us/windows/win32/controls/em-autourldetect), [EM_GETAUTOURLDETECT](https://learn.microsoft.com/en-us/windows/win32/controls/em-getautourldetect)
 
-### GetEllipsisMode, SetElipsisMode
+### GetEllipsisMode, SetEllipsisMode
 
 ```freebasic
 function GetEllipsisMode( byval hRichEdit as HWND, byval pmode as DWORD ptr ) as DWORD
-function SetElipsisMode( byval hRichEdit as HWND, byval fMode as DWORD ) as DWORD
+function SetEllipsisMode( byval hRichEdit as HWND, byval fMode as DWORD ) as DWORD
 ```
 
 The ellipsis mode says how text that does not fit is cut: `ELLIPSIS_NONE`, `ELLIPSIS_END` (at
 any character) or `ELLIPSIS_WORD` (at a word). `GetEllipsisMode` stores it in `*pmode`;
-`SetElipsisMode` (spelt with one *l*) sets it.
+`SetEllipsisMode` sets it.
 
 **Returns** nonzero on success.
 
@@ -1590,7 +1590,7 @@ any character) or `ELLIPSIS_WORD` (at a word). `GetEllipsisMode` stores it in `*
 
 ```freebasic
 dim nMode as DWORD
-richedit.RichEdit.SetElipsisMode( hCtrl, ELLIPSIS_END )
+richedit.RichEdit.SetEllipsisMode( hCtrl, ELLIPSIS_END )
 richedit.RichEdit.GetEllipsisMode( hCtrl, @nMode )   ' nMode is ELLIPSIS_END
 ```
 
@@ -1603,7 +1603,7 @@ function GetEllipsisState( byval hRichEdit as HWND ) as DWORD
 ```
 
 Tells whether the control is showing an ellipsis now, because text was cut under the
-[ellipsis mode](#getellipsismode-setelipsismode).
+[ellipsis mode](#getellipsismode-setellipsismode).
 
 **Returns** nonzero when an ellipsis is showing.
 
@@ -1808,22 +1808,22 @@ if richedit.RichEdit.GetPageRotate( hCtrl ) = EPR_0 then print "horizontal text"
 
 Microsoft Learn: [EM_GETPAGEROTATE](https://learn.microsoft.com/en-us/windows/win32/controls/em-getpagerotate), [EM_SETPAGEROTATE](https://learn.microsoft.com/en-us/windows/win32/controls/em-setpagerotate)
 
-### GetStoryTpe, SetStoryType
+### GetStoryType, SetStoryType
 
 ```freebasic
-function GetStoryTpe( byval hRichEdit as HWND, byval Index as DWORD ) as DWORD
+function GetStoryType( byval hRichEdit as HWND, byval Index as DWORD ) as DWORD
 function SetStoryType( byval hRichEdit as HWND, byval Index as long, byval dwType as DWORD ) as DWORD
 ```
 
 Read or set the type of story `Index` of the document (a story is a separate stream of text, such
-as the main text or a footnote). The getter is spelt `GetStoryTpe`.
+as the main text or a footnote).
 
 **Returns** the story type (for `SetStoryType`, the new type).
 
 **Example**
 
 ```freebasic
-dim nType as DWORD = richedit.RichEdit.GetStoryTpe( hCtrl, 0 )
+dim nType as DWORD = richedit.RichEdit.GetStoryType( hCtrl, 0 )
 ```
 
 Microsoft Learn: [EM_GETSTORYTYPE](https://learn.microsoft.com/en-us/windows/win32/controls/em-getstorytype), [EM_SETSTORYTYPE](https://learn.microsoft.com/en-us/windows/win32/controls/em-setstorytype)
