@@ -422,13 +422,13 @@ END NAMESPACE
 ' ========================================================================================
 ' Sets the characteristics of a rebar control. Returns TRUE or FALSE.
 ' ========================================================================================
-#if _WIN32_WINNT = &h0602
+'#if _WIN32_WINNT = &h0602
 NAMESPACE Rebar
 PUBLIC FUNCTION SetBandWidth (BYVAL hRebar AS HWND, BYVAL uBand AS DWORD, BYVAL nWidth AS DWORD) AS BOOLEAN
    RETURN SendMessageW(hRebar, RB_SETBANDWIDTH, uBand, nWidth)
 END FUNCTION
 END NAMESPACE
-#endif
+'#endif
 ' ========================================================================================
 
 NAMESPACE Rebar
@@ -488,7 +488,7 @@ END FUNCTION
 ' Sets a rebar control's parent window.
 ' Returns the handle to the previous parent window, or NULL if there is no previous parent.
 ' ========================================================================================
-PUBLIC FUNCTION SetParent (BYVAL hRebar AS HWND, BYVAL hwndParent AS hWND) AS HWND
+PUBLIC FUNCTION SetParent (BYVAL hRebar AS HWND, BYVAL hwndParent AS HWND) AS HWND
    RETURN cast(HWND, SendMessageW(hRebar, RB_SETPARENT, cast(WPARAM, hwndParent), 0))
 END FUNCTION
 ' ========================================================================================

@@ -1672,7 +1672,7 @@ END TYPE
 ' Inherited interface = IWICImagingFactory
 ' ########################################################################################
 'EXTERN_C const IID IID_IWICImagingFactory2
-PUBLIC DIM SHARED IID_IWICImagingFactory2 AS GUID = TYPE<GUID>(&h7B816B45, &h1996, &h4476, {&hB1, &h32, &hDE, &h9E, &h24, &h7C, &hBA, &hF0})
+PUBLIC DIM SHARED IID_IWICImagingFactory2 AS GUID = TYPE<GUID>(&h7B816B45, &h1996, &h4476, {&hB1, &h32, &hDE, &h9E, &h24, &h7C, &h8A, &hF0})
 
 #ifndef __IWICImagingFactory2_INTERFACE_DEFINED__
 #define __IWICImagingFactory2_INTERFACE_DEFINED__
@@ -1690,14 +1690,14 @@ END TYPE
 ' ========================================================================================
 ' Obtains a IWICBitmapSource in the desired pixel format from a given IWICBitmapSource.
 ' ========================================================================================
-PUBLIC DECLARE FUNCTION WICConvertBitmapSource LIB "d2d1" ALIAS "WICConvertBitmapSource" (BYREF dstFormat AS WICPixelFormatGUID, _
+PUBLIC DECLARE FUNCTION WICConvertBitmapSource LIB "Windowscodecs" ALIAS "WICConvertBitmapSource" (BYREF dstFormat AS WICPixelFormatGUID, _
    BYVAL pISrc AS IWICBitmapSource PTR, BYREF ppIDst AS IWICBitmapSource PTR) AS HRESULT
 ' ========================================================================================
 
 ' ========================================================================================
 ' Returns a IWICBitmapSource that is backed by the pixels of a Windows Graphics Device Interface (GDI) section handle.
 ' ========================================================================================
-PUBLIC DECLARE FUNCTION WICCreateBitmapFromSection LIB "d2d1" ALIAS "WICCreateBitmapFromSection" (BYVAL width AS UINT, _
+PUBLIC DECLARE FUNCTION WICCreateBitmapFromSection LIB "Windowscodecs" ALIAS "WICCreateBitmapFromSection" (BYVAL width AS UINT, _
    BYVAL height AS UINT, BYREF pixelFormat AS WICPixelFormatGUID, BYVAL hSection AS HANDLE, BYVAL stride AS UINT, _
    BYVAL offset AS UINT, BYREF ppIBitmap AS IWICBitmap PTR) AS HRESULT
 ' ========================================================================================
@@ -1705,7 +1705,7 @@ PUBLIC DECLARE FUNCTION WICCreateBitmapFromSection LIB "d2d1" ALIAS "WICCreateBi
 ' ========================================================================================
 ' Returns a IWICBitmapSource that is backed by the pixels of a Windows Graphics Device Interface (GDI) section handle.
 ' ========================================================================================
-PUBLIC DECLARE FUNCTION WICCreateBitmapFromSectionEx LIB "d2d1" ALIAS "WICCreateBitmapFromSectionEx" (BYVAL width AS UINT, _
+PUBLIC DECLARE FUNCTION WICCreateBitmapFromSectionEx LIB "Windowscodecs" ALIAS "WICCreateBitmapFromSectionEx" (BYVAL width AS UINT, _
    BYVAL height AS UINT, BYREF pixelFormat AS WICPixelFormatGUID, BYVAL hSection AS HANDLE, BYVAL stride AS UINT, _
    BYVAL offset AS UINT, BYVAL desiredAccessLevel AS WICSectionAccessLevel, BYREF ppIBitmap AS IWICBitmap PTR) AS HRESULT
 ' ========================================================================================
@@ -1713,20 +1713,20 @@ PUBLIC DECLARE FUNCTION WICCreateBitmapFromSectionEx LIB "d2d1" ALIAS "WICCreate
 ' ========================================================================================
 ' Obtains the short name associated with a given GUID.
 ' ========================================================================================
-PUBLIC DECLARE FUNCTION WICMapGuidToShortName LIB "d2d1" ALIAS "WICMapGuidToShortName" (BYREF guid AS GUID, _
+PUBLIC DECLARE FUNCTION WICMapGuidToShortName LIB "Windowscodecs" ALIAS "WICMapGuidToShortName" (BYREF guid AS GUID, _
    BYVAL cchName AS UINT, BYREF wszName AS WSTRING, BYREF cchActual AS UINT) AS HRESULT
 ' ========================================================================================
 
 ' ========================================================================================
 ' Obtains the GUID associated with the given short name.
 ' ========================================================================================
-PUBLIC DECLARE FUNCTION WICMapShortNameToGuid LIB "d2d1" ALIAS "WICMapShortNameToGuid" (BYREF wszName AS WSTRING, BYREF guid AS GUID) AS HRESULT
+PUBLIC DECLARE FUNCTION WICMapShortNameToGuid LIB "Windowscodecs" ALIAS "WICMapShortNameToGuid" (BYREF wszName AS WSTRING, BYREF guid AS GUID) AS HRESULT
 ' ========================================================================================
 
 ' ========================================================================================
 ' Obtains the name associated with a given schema.
 ' ========================================================================================
-PUBLIC DECLARE FUNCTION WICMapSchemaToName LIB "d2d1" ALIAS "WICMapSchemaToName" (BYREF guidMetadataFormat AS GUID, _
+PUBLIC DECLARE FUNCTION WICMapSchemaToName LIB "Windowscodecs" ALIAS "WICMapSchemaToName" (BYREF guidMetadataFormat AS GUID, _
    BYREF wszSchema AS WSTRING, BYVAL cchName AS UINT, BYREF wszName AS WSTRING, BYREF cchActual AS UINT) AS HRESULT
 ' ========================================================================================
 

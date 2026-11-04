@@ -110,7 +110,7 @@ END FUNCTION
 ' ========================================================================================
 ' Returns the alpha component of an ARGB color.
 ' ========================================================================================
-PUBLIC FUNCTION GDIP_GetAlpha (BYVAL argbcolor AS COLORREF) AS BYTE
+PUBLIC FUNCTION GDIP_GetAlpha (BYVAL argbcolor AS COLORREF) AS UBYTE
    DIM clr AS GDIP_BGRA
    clr.color = argbcolor
    RETURN clr.alpha
@@ -120,7 +120,7 @@ END FUNCTION
 ' ========================================================================================
 ' Returns the red component of an ARGB color.
 ' ========================================================================================
-PUBLIC FUNCTION GDIP_GetRed (BYVAL argbcolor AS COLORREF) AS BYTE
+PUBLIC FUNCTION GDIP_GetRed (BYVAL argbcolor AS COLORREF) AS UBYTE
    DIM clr AS GDIP_BGRA
    clr.color = argbcolor
    RETURN clr.red
@@ -130,7 +130,7 @@ END FUNCTION
 ' ========================================================================================
 ' Returns the green component of an ARGB color.
 ' ========================================================================================
-PUBLIC FUNCTION GDIP_GetGreen (BYVAL argbcolor AS COLORREF) AS BYTE
+PUBLIC FUNCTION GDIP_GetGreen (BYVAL argbcolor AS COLORREF) AS UBYTE
    DIM clr AS GDIP_BGRA
    clr.color = argbcolor
    RETURN clr.green
@@ -140,7 +140,7 @@ END FUNCTION
 ' ========================================================================================
 ' Returns the blue component of an ARGB color.
 ' ========================================================================================
-PUBLIC FUNCTION GDIP_GetBlue (BYVAL argbcolor AS COLORREF) AS BYTE
+PUBLIC FUNCTION GDIP_GetBlue (BYVAL argbcolor AS COLORREF) AS UBYTE
    DIM clr AS GDIP_BGRA
    clr.color = argbcolor
    RETURN clr.blue
@@ -256,9 +256,9 @@ END FUNCTION
 ' =====================================================================================
 ' Returns the description of a GdiPlus status code.
 ' =====================================================================================
-PUBLIC FUNCTION StatusStr (BYVAL status AS GpStatus) AS STRING
+PUBLIC FUNCTION StatusStr (BYVAL status AS GpStatus) AS USTRING
 
-   DIM strMsg AS STRING * 260 = "Unknown"
+   DIM strMsg AS USTRING = "Unknown"
 
    SELECT CASE status
       CASE Ok                        : strMsg = "Ok"
@@ -346,7 +346,7 @@ PUBLIC FUNCTION GetImageSizeFromFile (BYREF wszFileName AS WSTRING, BYVAL nWidth
    IF LEN(wszFileName) = 0 THEN RETURN E_INVALIDARG
    ' // Initialize Gdiplus
    DIM token AS ULONG_PTR = Init
-   IF token = NULL THEN EXIT FUNCTION
+   IF token = NULL THEN RETURN GdiplusNotInitialized
    DIM hr AS LONG, pImage AS GpImage PTR
    ' // Load the image
    hr = GdipLoadImageFromFile(wszFileName, @pImage)
@@ -389,6 +389,7 @@ PUBLIC FUNCTION ImageFromFile2 (BYREF wszFileName AS WSTRING, _
    ' // Initialize Gdiplus
    DIM token AS ULONG_PTR = Init
    IF token = NULL THEN EXIT FUNCTION
+   defer Uninit(token)
    ' // Load the image from file
    GdipLoadImageFromFile(wszFileName, @pImage)
    IF pImage = NULL THEN EXIT FUNCTION
@@ -881,7 +882,7 @@ PUBLIC FUNCTION SaveImageToFile (BYVAL pImage AS GpImage PTR, BYREF wszFileName 
    IF pImage = NULL OR LEN(TRIM(wszFileName)) = 0 THEN RETURN InvalidParameter
    ' // Initialize Gdiplus
    DIM token AS ULONG_PTR = Init
-   IF token = 0 THEN EXIT FUNCTION
+   IF token = NULL THEN RETURN GdiplusNotInitialized
    DIM clsidEncoder AS GUID = GetEncoderClsid(wszMimeType)
    FUNCTION = GdipSaveImageToFile(pImage, @wszFileName, @clsidEncoder, NULL)
    ' // Shutdown Gdiplus
@@ -938,6 +939,7 @@ PUBLIC FUNCTION SaveHBITMAPToFile (BYVAL hbmp AS HBITMAP, BYREF wszFileName AS W
    IF hbmp = NULL OR LEN(TRIM(wszFileName)) = 0 THEN RETURN InvalidParameter
    ' // Initialize Gdiplus
    DIM token AS ULONG_PTR = Init
+   IF token = NULL THEN RETURN GdiplusNotInitialized
    ' // Create a Bitmap object from an HBITMAP
    DIM pBitmap AS GpBitmap PTR
    GdipCreateBitmapFromHBITMAP(hbmp, NULL, @pBitmap)
@@ -946,7 +948,6 @@ PUBLIC FUNCTION SaveHBITMAPToFile (BYVAL hbmp AS HBITMAP, BYREF wszFileName AS W
       FUNCTION = GdipSaveImageToFile(CAST(GpImage PTR, pBitmap), @wszFileName, @clsidEncoder, NULL)
       GdipDisposeImage(cast(GpImage PTR, pBitmap))
    END IF
-   IF token = 0 THEN EXIT FUNCTION
    ' // Shutdown Gdiplus
    GdiplusShutdown token
 END FUNCTION
@@ -972,80 +973,76 @@ PUBLIC FUNCTION PrintHBITMAP (BYVAL hbmp AS HBITMAP, BYVAL bStretch AS BOOLEAN =
    ' // Initialize Gdiplus
    DIM token AS ULONG_PTR = Init
    IF token = NULL THEN EXIT FUNCTION
+   defer Uninit(token)
    DIM hPrinter AS HANDLE
    DIM pbufferDoc AS UBYTE PTR
    DIM pBitmap AS GpBitmap PTR
    DIM pGraphics AS GpGraphics PTR
 
-   ' // Note: Using a DO... LOOP, with an EXIT DO before LOOP, to avoid the use of GOTO.
-   DO
-      ' // Get the name of the default printer
-      DIM wszPrinterName AS WSTRING * MAX_PATH
-      GetProfileStringW("WINDOWS", "DEVICE", "", wszPrinterName, SIZEOF(wszPrinterName) \ 1)
-      DIM nPos AS LONG = INSTR(wszPrinterName, ",")
-      IF nPos THEN wszPrinterName = LEFT(wszPrinterName, nPos - 1)
-      IF wszPrinterName = "" THEN EXIT DO
-      ' // Open the printer
-      IF OpenPrinterW(wszPrinterName, @hPrinter, NULL) = 0 THEN EXIT DO
-      ' // Allocate a buffer of the correct size
-      DIM dwNeeded AS DWORD = DocumentPropertiesW(NULL, hPrinter, wszPrinterName, NULL, NULL, 0)
-      pbufferDoc = CAllocate(1, dwNeeded)
-      ' // Retrieve the printer configuration data
-      DIM nRet AS LONG = DocumentPropertiesW(NULL, hPrinter, wszPrinterName, CAST(PDEVMODEW, pbufferDoc), NULL, DM_OUT_BUFFER)
-      IF nRet <> IDOK THEN EXIT DO
-      ' // Cast it to a DEVMODEW structure
-      DIM pDevMode AS DEVMODEW PTR = CAST(DEVMODEW PTR, pbufferDoc)
-      ' // Create a device context for the printer
-      DIM hDC AS .HDC = CreateDCW(wszPrinterName, wszPrinterName, NULL, pDevMode)
-      IF hDC = NULL THEN EXIT DO
-      ' // Create a graphics object from the printer DC
-      GdipCreateFromHDC(hDC, @pGraphics)
-      IF pGraphics = NULL THEN EXIT DO
-      ' // Create a Bitmap object from an HBITMAP
-      GdipCreateBitmapFromHBITMAP(hbmp, NULL, @pBitmap)
-      IF pBitmap = NULL THEN EXIT DO
-      ' // Stretching
-      DIM cx AS SINGLE, cy AS SINGLE
-      IF bStretch THEN GdipSetInterpolationMode(pGraphics, nStretchMode)
-      ' // Get the DPIs of the printer
-      DIM dpiX AS SINGLE, dpiY AS SINGLE
-      GdipGetDpiX(pGraphics, @dpiX)
-      GdipGetDpiY(pGraphics, @dpiY)
-      ' // Calculate the width and height according to the DPIs of the printer
-      cx = GetDeviceCaps(hdc, HORZRES) / (dpiX / 100)
-      cy = GetDeviceCaps(hdc, VERTRES) / (dpiY / 100)
-      ' // Print the bitmap
-      DIM di AS DOCINFOW
-      DIM wszDocName AS WSTRING * 260 = "Printing bitmap"
-      di.cbSize = SIZEOF(DOCINFOW)
-      di.lpszDocName = @wszDocName
-      DIM hr AS LONG = StartDocW(hDC, @di)
-      IF hr <= 0 THEN EXIT DO
-      DIM i AS LONG
-      FOR i = 1 TO pDevMode->dmCopies
-         IF StartPage(hDC) THEN
-            ' // Draw the image
-            IF bStretch THEN
-               GdipDrawImageRect(pGraphics, CAST(GpImage PTR, pBitmap), 0, 0, cx, cy)
-            ELSE
-               GdipDrawImage(pGraphics, CAST(GpImage PTR, pBitmap), 0, 0)
-            END IF
-            EndPage(hDC)
+   ' // Get the name of the default printer
+   DIM wszPrinterName AS WSTRING * MAX_PATH
+   GetProfileStringW("WINDOWS", "DEVICE", "", wszPrinterName, SIZEOF(wszPrinterName) \ 2)
+   DIM nPos AS LONG = INSTR(wszPrinterName, ",")
+   IF nPos THEN wszPrinterName = LEFT(wszPrinterName, nPos - 1)
+   IF wszPrinterName = "" THEN RETURN FALSE
+   ' // Open the printer
+   IF OpenPrinterW(wszPrinterName, @hPrinter, NULL) = 0 THEN RETURN FALSE
+   defer ClosePrinter(hPrinter)
+   ' // Allocate a buffer of the correct size
+   DIM dwNeeded AS DWORD = DocumentPropertiesW(NULL, hPrinter, wszPrinterName, NULL, NULL, 0)
+   pbufferDoc = CAllocate(1, dwNeeded)
+   IF pbufferDoc = NULL THEN RETURN FALSE
+   defer Delete(pbufferDoc)
+   ' // Retrieve the printer configuration data
+   DIM nRet AS LONG = DocumentPropertiesW(NULL, hPrinter, wszPrinterName, CAST(PDEVMODEW, pbufferDoc), NULL, DM_OUT_BUFFER)
+   IF nRet <> IDOK THEN RETURN FALSE
+   ' // Cast it to a DEVMODEW structure
+   DIM pDevMode AS DEVMODEW PTR = CAST(DEVMODEW PTR, pbufferDoc)
+   defer Delete(pDevMode)
+   ' // Create a device context for the printer
+   DIM hDC AS .HDC = CreateDCW(wszPrinterName, wszPrinterName, NULL, pDevMode)
+   IF hDC = NULL THEN RETURN FALSE
+   defer DeleteDC(hDC)
+   ' // Create a graphics object from the printer DC
+   GdipCreateFromHDC(hDC, @pGraphics)
+   IF pGraphics = NULL THEN RETURN FALSE
+   defer GdipDeleteGraphics(pGraphics)
+   ' // Create a Bitmap object from an HBITMAP
+   GdipCreateBitmapFromHBITMAP(hbmp, NULL, @pBitmap)
+   IF pBitmap = NULL THEN RETURN FALSE
+   defer GdipDisposeImage(cast(GpImage PTR, pBitmap))
+   ' // Stretching
+   DIM cx AS SINGLE, cy AS SINGLE
+   IF bStretch THEN GdipSetInterpolationMode(pGraphics, nStretchMode)
+   ' // Get the DPIs of the printer
+   DIM dpiX AS SINGLE, dpiY AS SINGLE
+   GdipGetDpiX(pGraphics, @dpiX)
+   GdipGetDpiY(pGraphics, @dpiY)
+   ' // Calculate the width and height according to the DPIs of the printer
+   cx = GetDeviceCaps(hdc, HORZRES) / (dpiX / 100)
+   cy = GetDeviceCaps(hdc, VERTRES) / (dpiY / 100)
+   ' // Print the bitmap
+   DIM di AS DOCINFOW
+   DIM wszDocName AS WSTRING * 260 = "Printing bitmap"
+   di.cbSize = SIZEOF(DOCINFOW)
+   di.lpszDocName = @wszDocName
+   DIM hr AS LONG = StartDocW(hDC, @di)
+   IF hr <= 0 THEN RETURN FALSE
+   DIM i AS LONG
+   FOR i = 1 TO pDevMode->dmCopies
+      IF StartPage(hDC) THEN
+         ' // Draw the image
+         IF bStretch THEN
+            GdipDrawImageRect(pGraphics, CAST(GpImage PTR, pBitmap), 0, 0, cx, cy)
+         ELSE
+            GdipDrawImage(pGraphics, CAST(GpImage PTR, pBitmap), 0, 0)
          END IF
-      NEXT
-      EndDoc(hDC)
-      FUNCTION = TRUE
-      EXIT DO
-   LOOP
+         EndPage(hDC)
+      END IF
+   NEXT
+   EndDoc(hDC)
 
-   IF pBitmap THEN GdipDisposeImage(cast(GpImage PTR, pBitmap))
-   IF pGraphics THEN GdipDeleteGraphics(pGraphics)
-   ' // Finished with the printer
-   IF hPrinter THEN ClosePrinter(hPrinter)
-   ' // Cleanup
-   IF pbufferDoc THEN Delete(pbufferDoc)
-   ' // Shutdown Gdiplus
-   GdiplusShutdown token
+   RETURN TRUE
 
 END FUNCTION
 ' ========================================================================================
@@ -1114,6 +1111,8 @@ PUBLIC FUNCTION LoadTexture OVERLOAD (BYREF wszFileName AS WSTRING, BYREF Textur
       EXIT DO
    LOOP
 
+   ' // Free the thumbnail
+   IF pThumb THEN GdipDisposeImage pThumb
    ' // Free the image
    IF pImage THEN GdipDisposeImage pImage
    ' // Shutdown Gdiplus
@@ -1264,6 +1263,7 @@ PUBLIC FUNCTION ImageStreamFromRes (BYVAL hInstance AS HINSTANCE, BYREF wszImage
    ' // Initialize Gdiplus
    DIM token AS ULONG_PTR = Init
    IF token = NULL THEN EXIT FUNCTION
+   defer Uninit(token)
 
    ' // Find the resource
    IF LEFT(wszImageName, 1) = "#" THEN

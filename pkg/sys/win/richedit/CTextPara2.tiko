@@ -139,7 +139,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CTextPara2.CanChange (BYVAL pPara AS ITextPara2 PTR) AS LONG
    DIM Value AS LONG
-   m_Result = m_pTextPara2->lpvtbl->CanChange(m_pTextPara2, @Value)
+   m_Result = m_pTextPara2->lpvtbl->CanChange(pPara, @Value)
    RETURN Value
 END FUNCTION
 ' ========================================================================================
@@ -196,7 +196,7 @@ END FUNCTION
 ' Sets the paragraph alignment.
 ' ========================================================================================
 FUNCTION CTextPara2.SetAlignment (BYVAL Value AS LONG) AS HRESULT
-   m_Result = m_pTextPara2->lpvtbl->SetStyle(m_pTextPara2, Value)
+   m_Result = m_pTextPara2->lpvtbl->SetAlignment(m_pTextPara2, Value)
    RETURN m_Result
 END FUNCTION
 ' ========================================================================================
@@ -391,7 +391,7 @@ END FUNCTION
 ' Sets the type of list to be used for paragraphs.
 ' ========================================================================================
 FUNCTION CTextPara2.SetListType (BYVAL Value AS LONG) AS HRESULT
-   m_Result = m_pTextPara2->lpvtbl->SetListTab(m_pTextPara2, Value)
+   m_Result = m_pTextPara2->lpvtbl->SetListType(m_pTextPara2, Value)
    RETURN m_Result
 END FUNCTION
 ' ========================================================================================

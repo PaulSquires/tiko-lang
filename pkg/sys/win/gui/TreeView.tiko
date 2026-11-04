@@ -471,6 +471,7 @@ END FUNCTION
 ' * Sets the text of the specified item.
 ' ========================================================================================
 PUBLIC FUNCTION SetItemText (BYVAL hTreeView AS HWND, BYVAL hItem AS HTREEITEM, BYVAL pwszText AS WSTRING PTR) AS BOOLEAN
+  IF pwszText = NULL THEN RETURN FALSE
    DIM tvi AS TVITEMW
    tvi.hitem = hItem
    tvi.mask = TVIF_TEXT
@@ -483,6 +484,7 @@ END FUNCTION
 ' * Sets the text of the specified item.
 ' ========================================================================================
 PUBLIC FUNCTION SetText (BYVAL hTreeView AS HWND, BYVAL hItem AS HTREEITEM, BYVAL pwszText AS WSTRING PTR) AS BOOLEAN
+   IF pwszText = NULL THEN RETURN FALSE
    DIM tvi AS TVITEMW
    tvi.hitem = hItem
    tvi.mask = TVIF_TEXT
@@ -623,7 +625,8 @@ END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
-' * Retrieves some or all of a treeview item's state attributes.
+' * Retrieves the last expanded item in the tree. This does not retrieve the last item
+' visible in the tree-view window. 
 ' ========================================================================================
 PUBLIC FUNCTION GetLastVisible (BYVAL hTreeView AS HWND) AS HTREEITEM
    RETURN TreeView.GetNextItem(hTreeView, NULL, TVGN_LASTVISIBLE)
@@ -765,17 +768,15 @@ PUBLIC FUNCTION GetInsertMarkColor (BYVAL hTreeView AS HWND) AS COLORREF
 END FUNCTION
 ' ========================================================================================
 
-' ========================================================================================
+'' ========================================================================================
 ' * Retrieves the current height of the treeview items.
 ' ========================================================================================
 PUBLIC FUNCTION GetItemHeight (BYVAL hTreeView AS HWND) AS LONG
    RETURN SendMessageW(hTreeView, TVM_GETITEMHEIGHT, 0, 0)
 END FUNCTION
 ' ========================================================================================
-END NAMESPACE
 
-#if _WIN32_WINNT >= &h0600
-NAMESPACE TreeView
+'#if _WIN32_WINNT >= &h0600
 ' ========================================================================================
 ' Retrieves the largest possible bounding rectangle that constitutes the "hit zone" for a
 ' specified part of an item.
@@ -807,10 +808,8 @@ PUBLIC FUNCTION GetItemPartRect OVERLOAD (BYVAL hTreeView AS HWND, BYVAL hItem A
    RETURN rc
 END FUNCTION
 ' ========================================================================================
-END NAMESPACE
-#endif
+'#endif
 
-NAMESPACE TreeView
 ' ========================================================================================
 ' Retrieves the bounding rectangle for a treeview item and indicates whether the item is visible.
 ' ========================================================================================
@@ -994,8 +993,8 @@ END FUNCTION
 
 ' ========================================================================================
 ' Sets the normal or state image list for a treeview control and redraws the control
-' using the new images. When the TreeView control is destroyed, any attached ImageList is
-' automatically destroyed.
+' using the new images. The tree-view control will not destroy the image list specified
+' with this message. Your application must destroy the image list when it is no longer needed.
 ' ========================================================================================
 PUBLIC FUNCTION SetImageList (BYVAL hTreeView AS HWND, BYVAL himl AS HIMAGELIST, BYVAL iImage AS LONG = TVSIL_NORMAL) AS HIMAGELIST
    RETURN CAST(HIMAGELIST, SendMessageW(hTreeView, TVM_SETIMAGELIST, iImage, CAST(LPARAM, himl)))
@@ -1066,10 +1065,8 @@ PUBLIC FUNCTION SetToolTips (BYVAL hTreeView AS HWND, BYVAL hwndTT AS HWND) AS H
    RETURN CAST(HWND, SendMessageW(hTreeView, TVM_SETTOOLTIPS, CAST(WPARAM, hwndTT), 0))
 END FUNCTION
 ' ========================================================================================
-END NAMESPACE
 
-#if _WIN32_WINNT >= &h0600
-NAMESPACE TreeView
+'#if _WIN32_WINNT >= &h0600
 ' ========================================================================================
 ' Shows the infotip for a specified item in a treeview control.
 ' ========================================================================================
@@ -1077,10 +1074,8 @@ PUBLIC FUNCTION ShowInfoTip (BYVAL hTreeView AS HWND, BYVAL hitem AS HTREEITEM) 
    RETURN SendMessageW(hTreeView, TVM_SHOWINFOTIP, 0, CAST(LPARAM, hitem))
 END FUNCTION
 ' ========================================================================================
-END NAMESPACE
-#endif
+'#endif
 
-NAMESPACE TreeView
 ' ========================================================================================
 ' Sorts the child items of the specified parent item in a treeview control.
 ' ========================================================================================
@@ -1111,4 +1106,5 @@ PUBLIC FUNCTION RemoveDarkMode(BYVAL hTreeView AS HWND) AS HRESULT
    RETURN SetWindowTheme(hTreeView, NULL, NULL)
 END FUNCTION
 ' ========================================================================================
+
 END NAMESPACE

@@ -118,7 +118,7 @@ FUNCTION CMaskedEdit.CMaskedEditProc ( _
          DIM pthis AS CMaskedEdit PTR = CAST(CMaskedEdit PTR, dwRefData)
          IF pthis = NULL THEN EXIT FUNCTION
          IF LEN(pthis->m_strMask) <> 0 AND LEN(pthis->m_strInputTemplate) <> 0 THEN
-            pthis->OnKeyDown(wParam, HIWORD(lParam), LOWORD(lParam))
+            pthis->OnKeyDown(wParam, LOWORD(lParam), HIWORD(lParam))
             EXIT FUNCTION
          END IF
 
@@ -164,7 +164,7 @@ FUNCTION CMaskedEdit.CMaskedEditProc ( _
          pthis->m_strUndo = pthis->GetText(FALSE)
          IF LEN(pthis->m_strMask) <> 0 AND LEN(pthis->m_strInputTemplate) <> 0 THEN
             IF iswprint(wParam) <> 0 AND (GetKeyState(VK_CONTROL) AND &H80) <> &H80 THEN
-               pthis->OnCharPrintchar(wParam, HIWORD(lParam), LOWORD(lParam))
+               pthis->OnCharPrintchar(wParam, LOWORD(lParam), HIWORD(lParam))
             END IF
             EXIT FUNCTION
          END IF
@@ -695,7 +695,7 @@ SUB CMaskedEdit.OnKeyDown(BYVAL nChar AS UINT, BYVAL nRepCnt AS UINT, BYVAL nFla
          RETURN
 
       CASE VK_HOME
-         ' // Set the cursor at the end of the text
+         ' // Set the cursor at the beginning of the text
          IF GetKeyState(VK_CONTROL) AND &h80 THEN
             Edit.SetSel(m_hCtl, 1, 1)
             RETURN
@@ -1149,7 +1149,7 @@ END FUNCTION
 ' ########################################################################################
 
 ' ========================================================================================
-' Retrieves a pointer to the CRichEditCtrl class from the handle of the RichEdit control.
+' Retrieves a pointer to the CMaskedEdit class from the handle of the Masked Edit control.
 ' hMaskedEdit = Handle of the Masked Edit control.
 ' Usage example:
 ' DIM hMasKedEdit AS HWND = GetDlgItem(<parent handle>, <identifier of the control>)

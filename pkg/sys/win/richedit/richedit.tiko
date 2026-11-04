@@ -239,7 +239,7 @@ END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
-' Retrieves the current ellipsis mode.
+' Retrieves the current ellipsis state.
 ' ========================================================================================
 PUBLIC FUNCTION GetEllipsisState (BYVAL hRichEdit AS HWND) AS DWORD
    FUNCTION = SendMessageW(hRichEdit, EM_GETELLIPSISSTATE, 0, 0)
@@ -476,7 +476,7 @@ END FUNCTION
 ' ========================================================================================
 ' Gets the story type.
 ' ========================================================================================
-PUBLIC FUNCTION GetStoryTpe (BYVAL hRichEdit AS HWND, BYVAL Index AS DWORD) AS DWORD
+PUBLIC FUNCTION GetStoryType (BYVAL hRichEdit AS HWND, BYVAL Index AS DWORD) AS DWORD
    FUNCTION = SendMessageW(hRichEdit, EM_GETSTORYTYPE, Index, 0)
 END FUNCTION
 ' ========================================================================================
@@ -821,9 +821,9 @@ END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
-' Sets the current extended edit style flags.
+' Sets the current ellipsis mode
 ' ========================================================================================
-PUBLIC FUNCTION SetElipsisMode (BYVAL hRichEdit AS HWND, BYVAL fMode AS DWORD) AS DWORD
+PUBLIC FUNCTION SetEllipsisMode (BYVAL hRichEdit AS HWND, BYVAL fMode AS DWORD) AS DWORD
    FUNCTION = SendMessageW(hRichEdit, EM_SETELLIPSISMODE, 0, fMode)
 END FUNCTION
 ' ========================================================================================
@@ -1010,6 +1010,8 @@ END SUB
 ' ========================================================================================
 
 ' ========================================================================================
+' Sets the story type.
+' ========================================================================================
 PUBLIC FUNCTION SetStoryType (BYVAL hRichEdit AS HWND, BYVAL Index AS LONG, BYVAL dwType AS DWORD) AS DWORD
    FUNCTION = SendMessageW(hRichEdit, EM_SETSTORYTYPE, Index, dwType)
 END FUNCTION
@@ -1061,7 +1063,7 @@ END FUNCTION
 ' Sets the text mode or undo level of a rich edit control.
 ' ========================================================================================
 PUBLIC FUNCTION SetTextMode (BYVAL hRichEdit AS HWND, BYVAL pvalues AS LONG) AS LONG
-   FUNCTION = SendMessageW(hRichEdit, EM_SETTEXTMODE, 0, pvalues)
+   FUNCTION = SendMessageW(hRichEdit, EM_SETTEXTMODE, pvalues, 0)
 END FUNCTION
 ' ========================================================================================
 
@@ -1082,7 +1084,7 @@ END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
-' Sets the maximum number of actions that can stored in the undo queue.
+' Sets the name of a rich edit control for UI Automation (UIA).
 ' ========================================================================================
 PUBLIC FUNCTION SetUIAName (BYVAL hRichEdit AS HWND, BYVAL pwszName AS WSTRING PTR) AS DWORD
    FUNCTION = SendMessageW(hRichEdit, EM_SETUIANAME, 0, cast(LPARAM, pwszName))

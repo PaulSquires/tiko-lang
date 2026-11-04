@@ -493,10 +493,10 @@ FUNCTION CDialog.ControlAdd ( _
          IF dwStyle = BS_FLAT THEN dwStyle = WS_VISIBLE OR WS_TABSTOP OR BS_PUSHBUTTON OR BS_CENTER OR BS_VCENTER OR BS_FLAT
          IF dwStyle = BS_DEFPUSHBUTTON THEN dwStyle = WS_VISIBLE OR WS_TABSTOP OR BS_CENTER OR BS_VCENTER OR BS_DEFPUSHBUTTON
          IF dwStyle = BS_OWNERDRAW THEN dwStyle = WS_VISIBLE OR WS_TABSTOP OR BS_OWNERDRAW
-         #if _WIN32_WINNT = &h0602
+'         #if _WIN32_WINNT >= &h0602
          IF dwStyle = BS_SPLITBUTTON THEN dwStyle = WS_VISIBLE OR WS_TABSTOP OR BS_CENTER OR BS_VCENTER OR BS_SPLITBUTTON
          IF dwStyle = BS_DEFSPLITBUTTON THEN dwStyle = WS_VISIBLE OR WS_TABSTOP OR BS_CENTER OR BS_VCENTER OR BS_DEFSPLITBUTTON
-         #endif
+'         #endif
       CASE "CUSTOMBUTTON", "OWNERDRAWBUTTON", "BUTTONOWNERDRAW"
          ' Adds an ownerdraw button to the window.
          wsClassName = "Button"
@@ -753,7 +753,7 @@ FUNCTION CDialog.ControlAdd ( _
          .SendMessageW hCtl, PBM_SETRANGE32, 0, 100
          ' // Set the default initial value
          .SendMessageW hCtl, PBM_SETPOS, 0, 0
-      CASE "TRACKBAR", "MSCTLS_TRACKBAR32"
+      CASE "TRACKBAR", "MSCTLS_TRACKBAR32", "SLIDER"
          ' // Set the default range values
          .SendMessageW hCtl, TBM_SETRANGEMIN, CTRUE, 0
          .SendMessageW hCtl, TBM_SETRANGEMAX, CTRUE, 100
@@ -763,7 +763,7 @@ FUNCTION CDialog.ControlAdd ( _
          ' // Set the default base
          .SendMessageW hCtl, UDM_SETBASE, 10, 0
          ' // Set the default range values
-         .SendMessageW hCtl, UDM_SETRANGE32, 100, 0
+         .SendMessageW hCtl, UDM_SETRANGE32, 0, 100
          ' // Set the default initial value
          .SendMessageW hCtl, UDM_SETPOS32, 0, 0
          ' // Correct for Windows using a default size for the updown control
@@ -814,7 +814,11 @@ FUNCTION CDialog.ControlAdd ( _
             END IF
          END IF
          ' // Sets the image and deletes the old one
-         IF hImage THEN DeleteObject(CAST(HGDIOBJ, SendMessageW(hCtl, BM_SETIMAGE, nType, CAST(LPARAM, hImage))))
+         IF nType = IMAGE_BITMAP THEN
+            DeleteObject(CAST(HGDIOBJ, SendMessageW(hCtl, BM_SETIMAGE, nType, CAST(LPARAM, hImage))))
+         ELSE
+            DestroyIcon(CAST(HGDIOBJ, SendMessageW(hCtl, BM_SETIMAGE, nType, CAST(LPARAM, hImage))))
+         END IF
       CASE "SIZEBAR", "SIZEBOX", "SIZEGRIP"
          nWidth = GetSystemMetrics(SM_CXVSCROLL)
          nHeight = GetSystemMetrics(SM_CYHSCROLL)
@@ -2125,11 +2129,16 @@ END FUNCTION
 ' Sets the font that a control is to use when drawing text.
 ' ========================================================================================
 SUB CDialog.ControlSetFont (BYVAL cId AS LONG, BYVAL hFont AS HFONT, BYVAL fRedraw AS BOOLEAN = TRUE)
+   ' // Get the handle of the font used by the control
+   DIM hCurFont AS HFONT = CAST(HFONT, SendMessageW(GetDlgItem(m_hDlg, cId), WM_GETFONT, 0, 0))
+   ' // Set the new font
    DIM hCtl AS HWND = GetDlgItem(m_hDlg, cId)
    DIM hDC AS HDC = GetDC(hCtl)
-   DeleteObject(SelectObject(hDC, CAST(HGDIOBJ, hFont)))
+   SelectObject(hDC, CAST(HGDIOBJ, hFont))
    ReleaseDC(hCtl, hDC)
    SendMessageW(hCtl, WM_SETFONT, CAST(WPARAM, hFont), fRedraw)
+   ' // Delete the old font
+   IF hCurFont DeleteObject(CAST(HGDIOBJ, hCurFont))
 END SUB
 ' ========================================================================================
 
@@ -2458,8 +2467,8 @@ SUB CDialog.DialogSetIcon (BYREF wszImage AS WSTRING)
       END IF
    END IF
    ' // Sets the images and deletes the old ones
-   IF hImage THEN DeleteObject(CAST(HGDIOBJ, SendMessageW(m_hDlg, WM_SETICON, ICON_BIG, CAST(LPARAM, hImage))))
-   IF hImage THEN DeleteObject(CAST(HGDIOBJ, SendMessageW(m_hDlg, WM_SETICON, ICON_SMALL, CAST(LPARAM, hImage))))
+   IF hImage THEN DestroyIcon(CAST(HICON, SendMessageW(m_hDlg, WM_SETICON, ICON_BIG, CAST(LPARAM, hImage))))
+   IF hImage THEN DestroyIcon(CAST(HICON, SendMessageW(m_hDlg, WM_SETICON, ICON_SMALL, CAST(LPARAM, hImage))))
 END SUB
 ' =====================================================================================
 
@@ -2512,8 +2521,11 @@ FUNCTION CDialog.ControlSetImage (BYVAL cId AS LONG, BYREF wszImage AS WSTRING) 
       END IF
    END IF
    ' // Sets the image and deletes the old one
-   DIM h AS HANDLE
-   IF hImage THEN DeleteObject(CAST(HGDIOBJ, SendMessageW(hCtl, STM_SETIMAGE, nType, CAST(LPARAM, hImage))))
+   IF nType = IMAGE_BITMAP THEN
+      DeleteObject(CAST(HGDIOBJ, SendMessageW(hCtl, STM_SETIMAGE, nType, CAST(LPARAM, hImage))))
+   ELSE
+      DestroyIcon(CAST(HICON, SendMessageW(hCtl, STM_SETIMAGE, nType, CAST(LPARAM, hImage))))
+   END IF
    RETURN TRUE
 END FUNCTION
 ' ========================================================================================
@@ -3121,7 +3133,7 @@ END FUNCTION
 ' ========================================================================================
 SUB CDialog.DialogResetScrollBars
    ScrollWindow(m_hDlg, m_HScrollPos * m_HorzUnits, 0, NULL, NULL)
-   ScrollWindow(m_hDlg, 0, m_VScrollPos * m_HorzUnits, NULL, NULL)
+   ScrollWindow(m_hDlg, 0, m_VScrollPos * m_VertUnits, NULL, NULL)
    m_HScrollPos = 0
    m_VScrollPos = 0
    SetScrollPos(m_hDlg, SB_HORZ, m_HScrollPos, CTRUE)
@@ -3182,7 +3194,7 @@ SUB CDialog.DialogOnVScroll (BYVAL wParam AS WPARAM, BYVAL lParam AS LPARAM)
    nInc = MAX(-m_VScrollPos, MIN(nInc, m_VScrollMax - m_VScrollPos))
    IF nInc THEN
       m_VScrollPos += nInc
-      iMove = -m_HorzUnits * nInc
+      iMove = -m_VertUnits * nInc
       ScrollWindow(m_hDlg, 0, iMove, NULL, NULL)
       SetScrollPos(m_hDlg, SB_VERT, m_VScrollPos, CTRUE)
    END IF

@@ -138,6 +138,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CGpFont.GetFamily (BYVAL pFamily AS CGpFontFamily PTR) AS GpStatus
    IF pFamily = NULL THEN RETURN SetStatus(InvalidParameter)
+   IF pFamily->m_pFontFamily THEN GdipDeleteFontFamily(pFamily->m_pFontFamily)
    RETURN SetStatus(GdipGetFamily(m_pFont, @pFamily->m_pFontFamily))
 END FUNCTION
 ' ========================================================================================
@@ -251,7 +252,7 @@ END FUNCTION
 FUNCTION CGpFontFamily.GenericSansSerif (BYVAL pFontFamily AS CGpFontFamily PTR) AS GpStatus
    IF pFontFamily = NULL THEN RETURN SetStatus(InvalidParameter)
    IF pFontFamily->m_pFontFamily THEN GdipDeleteFontFamily(pFontFamily->m_pFontFamily)
-   m_Status = GdipGetGenericFontFamilySansSerif(@pFontFamily->m_pFontFamily)
+   RETURN GdipGetGenericFontFamilySansSerif(@pFontFamily->m_pFontFamily)
 END FUNCTION
 ' =====================================================================================
 
@@ -261,7 +262,7 @@ END FUNCTION
 FUNCTION CGpFontFamily.GenericSerif (BYVAL pFontFamily AS CGpFontFamily PTR) AS GpStatus
    IF pFontFamily = NULL THEN RETURN SetStatus(InvalidParameter)
    IF pFontFamily->m_pFontFamily THEN GdipDeleteFontFamily(pFontFamily->m_pFontFamily)
-   m_Status = GdipGetGenericFontFamilySerif(@pFontFamily->m_pFontFamily)
+   RETURN GdipGetGenericFontFamilySerif(@pFontFamily->m_pFontFamily)
 END FUNCTION
 ' =====================================================================================
 
@@ -271,7 +272,7 @@ END FUNCTION
 FUNCTION CGpFontFamily.GenericMonospace (BYVAL pFontFamily AS CGpFontFamily PTR) AS GpStatus
    IF pFontFamily = NULL THEN RETURN SetStatus(InvalidParameter)
    IF pFontFamily->m_pFontFamily THEN GdipDeleteFontFamily(pFontFamily->m_pFontFamily)
-   m_Status = GdipGetGenericFontFamilyMonospace(@pFontFamily->m_pFontFamily)
+   RETURN GdipGetGenericFontFamilyMonospace(@pFontFamily->m_pFontFamily)
 END FUNCTION
 ' =====================================================================================
 

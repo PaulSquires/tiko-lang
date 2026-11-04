@@ -317,7 +317,7 @@ END FUNCTION
 ' ========================================================================================
 ' Assigns an image list to a tab control.
 ' ========================================================================================
-PUBLIC FUNCTION SetImageList (BYVAL hTab AS HWND, BYVAL himl AS HIMAGELIST) AS BOOLEAN
+PUBLIC FUNCTION SetImageList (BYVAL hTab AS HWND, BYVAL himl AS HIMAGELIST) AS HIMAGELIST
     RETURN SendMessageW(hTab, TCM_SETIMAGELIST, 0, CAST(LPARAM, himl))
 END FUNCTION
 ' ========================================================================================
@@ -384,6 +384,7 @@ END SUB
 ' Returns TRUE if successful, or FALSE otherwise.
 ' ========================================================================================
 PUBLIC FUNCTION SetText (BYVAL hTab AS HWND, BYVAL nTabIndex AS DWORD, BYVAL pwszText AS WSTRING PTR) AS BOOLEAN
+   IF pwszText = NULL THEN RETURN FALSE
    DIM ttc_item AS TCITEMW
    ttc_item.mask = TCIF_TEXT
    ttc_item.pszText = pwszText

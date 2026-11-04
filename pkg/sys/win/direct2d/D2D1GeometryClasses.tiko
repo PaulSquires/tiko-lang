@@ -1856,13 +1856,10 @@ END CONSTRUCTOR
 CONSTRUCTOR CID2D1PathGeometry1 (BYVAL pPathGeometry1 AS ID2D1PathGeometry1 PTR)
    m_pPathGeometry1 = pPathGeometry1
    IF m_pPathGeometry1 THEN m_pPathGeometry1->AddRef
-   IF m_pPathGeometry THEN
-      m_pPathGeometry->Release
-   END iF
-   IF m_pGeometry THEN
-      m_pGeometry->Release
-   END iF
+   IF m_pPathGeometry THEN m_pPathGeometry->Release
    m_pPathGeometry = m_pPathGeometry1
+   IF m_pPathGeometry1 THEN m_pPathGeometry1->AddRef
+   IF m_pGeometry THEN m_pGeometry->Release
    m_pGeometry = m_pPathGeometry1
 END CONSTRUCTOR
 ' ========================================================================================

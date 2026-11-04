@@ -342,7 +342,7 @@ END SUB
 ' ========================================================================================
 ' ========================================================================================
 PUBLIC SUB SetUnicodeFormat (BYVAL hStatusBar AS HWND, BYVAL fFormat AS BOOLEAN)
-   SendMessageW(hStatusBar, SB_SETTIPTEXTW, cast(WPARAM, fFormat), 0)
+   SendMessageW(hStatusBar, TBM_SETUNICODEFORMAT, cast(WPARAM, fFormat), 0)
 END SUB
 ' ========================================================================================
 

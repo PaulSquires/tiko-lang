@@ -206,7 +206,7 @@ END FUNCTION
 
 ' ========================================================================================
 FUNCTION CIOpenFileDialog.Advise (BYVAL pfde as IFileDialogEvents PTR) AS DWORD
-   IF pfde = NULL THEN RETURN E_POINTER
+   IF pfde = NULL THEN RETURN 0
    DIM dwCookie AS DWORD
    DIM hr AS HRESULT = m_IFileOpenDialog->lpvtbl->Advise(m_IFileOpenDialog, pfde, @dwCookie)
    SetLastError(hr)
@@ -273,7 +273,10 @@ FUNCTION CIOpenFileDialog.GetFolder (BYVAL sigdnName AS SIGDN = SIGDN_NORMALDISP
       psi->lpvtbl->Release(psi)
    END IF
    SetLastError hr
-   RETURN *pwszName
+   IF pwszName = NULL THEN RETURN ""
+   DIM ustrName AS USTRING = *pwszName
+   CoTaskMemFree pwszName
+   RETURN ustrName
 END FUNCTION
 ' ========================================================================================
 
@@ -288,7 +291,10 @@ FUNCTION CIOpenFileDialog.GetCurrentSelection (BYVAL sigdnName AS SIGDN = SIGDN_
       psi->lpvtbl->Release(psi)
    END IF
    SetLastError hr
-   RETURN *pwszName
+   IF pwszName = NULL THEN RETURN ""
+   DIM ustrName AS USTRING = *pwszName
+   CoTaskMemFree pwszName
+   RETURN ustrName
 END FUNCTION
 ' ========================================================================================
 
@@ -306,7 +312,10 @@ END FUNCTION
 FUNCTION CIOpenFileDialog.GetFileName () AS USTRING
    DIM pwszName AS WSTRING PTR
    SetLastError(m_IFileOpenDialog->lpvtbl->GetFileName(m_IFileOpenDialog, @pwszName))
-   RETURN *pwszName
+   IF pwszName = NULL THEN RETURN ""
+   DIM ustrName AS USTRING = *pwszName
+   CoTaskMemFree pwszName
+   RETURN ustrName
 END FUNCTION
 ' ========================================================================================
 
@@ -354,7 +363,10 @@ FUNCTION CIOpenFileDialog.GetResultString (BYVAL sigdnName AS SIGDN = SIGDN_NORM
       psi->lpvtbl->Release(psi)
    END IF
    SetLastError hr
-   RETURN *pwszName
+   IF pwszName = NULL THEN RETURN ""
+   DIM ustrName AS USTRING = *pwszName
+   CoTaskMemFree pwszName
+   RETURN ustrName
 END FUNCTION
 ' ========================================================================================
 
@@ -606,8 +618,8 @@ FUNCTION CIOpenFileDialog.SetCancelButtonLabel (BYVAL pwszLabel AS LPCWSTR) AS H
    DIM pFileDialog2 AS IFileDialog2 PTR
    DIM hr AS HRESULT = m_IFileOpenDialog->lpvtbl->QueryInterface(m_IFileOpenDialog, @IID_IFileDialog2, @pFileDialog2)
    IF pFileDialog2 THEN
-      pFileDialog2->lpvtbl->SetCancelButtonLabel(pFileDialog2, pwszLabel)
-      m_IFileOpenDialog->lpvtbl->Release(m_IFileOpenDialog)
+      hr = pFileDialog2->lpvtbl->SetCancelButtonLabel(pFileDialog2, pwszLabel)
+      pFileDialog2->lpvtbl->Release(pFileDialog2)
    END IF
    RETURN hr
 END FUNCTION
@@ -620,8 +632,8 @@ FUNCTION CIOpenFileDialog.SetNavigationRoot (BYVAL psi AS IShellItem PTR) AS HRE
    DIM pFileDialog2 AS IFileDialog2 PTR
    DIM hr AS HRESULT = m_IFileOpenDialog->lpvtbl->QueryInterface(m_IFileOpenDialog, @IID_IFileDialog2, @pFileDialog2)
    IF pFileDialog2 THEN
-      pFileDialog2->lpvtbl->SetNavigationRoot(pFileDialog2, psi)
-      m_IFileOpenDialog->lpvtbl->Release(m_IFileOpenDialog)
+      hr = pFileDialog2->lpvtbl->SetNavigationRoot(pFileDialog2, psi)
+      pFileDialog2->lpvtbl->Release(pFileDialog2)
    END IF
    RETURN hr
 END FUNCTION
@@ -869,7 +881,10 @@ FUNCTION CISaveFileDialog.GetFolder (BYVAL sigdnName AS SIGDN = SIGDN_NORMALDISP
       psi->lpvtbl->Release(psi)
    END IF
    SetLastError hr
-   RETURN *pwszName
+   IF pwszName = NULL THEN RETURN ""
+   DIM ustrName AS USTRING = *pwszName
+   CoTaskMemFree pwszName
+   RETURN ustrName
 END FUNCTION
 ' ========================================================================================
 
@@ -884,7 +899,10 @@ FUNCTION CISaveFileDialog.GetCurrentSelection (BYVAL sigdnName AS SIGDN = SIGDN_
       psi->lpvtbl->Release(psi)
    END IF
    SetLastError hr
-   RETURN *pwszName
+   IF pwszName = NULL THEN RETURN ""
+   DIM ustrName AS USTRING = *pwszName
+   CoTaskMemFree pwszName
+   RETURN ustrName
 END FUNCTION
 ' ========================================================================================
 
@@ -902,7 +920,10 @@ END FUNCTION
 FUNCTION CISaveFileDialog.GetFileName () AS USTRING
    DIM pwszName AS WSTRING PTR
    SetLastError(m_IFileSaveDialog->lpvtbl->GetFileName(m_IFileSaveDialog, @pwszName))
-   RETURN *pwszName
+   IF pwszName = NULL THEN RETURN ""
+   DIM ustrName AS USTRING = *pwszName
+   CoTaskMemFree pwszName
+   RETURN ustrName
 END FUNCTION
 ' ========================================================================================
 
@@ -950,7 +971,10 @@ FUNCTION CISaveFileDialog.GetResultString (BYVAL sigdnName AS SIGDN = SIGDN_NORM
       psi->lpvtbl->Release(psi)
    END IF
    SetLastError hr
-   RETURN *pwszName
+   IF pwszName = NULL THEN RETURN ""
+   DIM ustrName AS USTRING = *pwszName
+   CoTaskMemFree pwszName
+   RETURN ustrName
 END FUNCTION
 ' ========================================================================================
 
@@ -1090,7 +1114,7 @@ FUNCTION CISaveFileDialog.SetCancelButtonLabel (BYVAL pwszLabel AS LPCWSTR) AS H
    DIM pFileDialog2 AS IFileDialog2 PTR
    DIM hr AS HRESULT = m_IFileSaveDialog->lpvtbl->QueryInterface(m_IFileSaveDialog, @IID_IFileDialog2, @pFileDialog2)
    IF pFileDialog2 THEN
-      pFileDialog2->lpvtbl->SetCancelButtonLabel(pFileDialog2, pwszLabel)
+      hr = pFileDialog2->lpvtbl->SetCancelButtonLabel(pFileDialog2, pwszLabel)
       pFileDialog2->lpvtbl->Release(pFileDialog2)
    END IF
    RETURN hr
@@ -1105,7 +1129,7 @@ FUNCTION CISaveFileDialog.SetNavigationRoot (BYVAL psi AS IShellItem PTR) AS HRE
    DIM pFileDialog2 AS IFileDialog2 PTR
    DIM hr AS HRESULT = m_IFileSaveDialog->lpvtbl->QueryInterface(m_IFileSaveDialog, @IID_IFileDialog2, @pFileDialog2)
    IF pFileDialog2 THEN
-      pFileDialog2->lpvtbl->SetNavigationRoot(pFileDialog2, psi)
+      hr = pFileDialog2->lpvtbl->SetNavigationRoot(pFileDialog2, psi)
       pFileDialog2->lpvtbl->Release(pFileDialog2)
    END IF
    RETURN hr

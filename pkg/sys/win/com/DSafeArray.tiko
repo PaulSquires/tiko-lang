@@ -1159,7 +1159,12 @@ FUNCTION DSafeArray.GetStr (BYVAL prgIndices AS LONG PTR) AS BSTRING
    IF vt <> VT_BSTR THEN RETURN ""
    DIM bs AS WBSTR
    SafeArrayGetElement(m_psa, prgIndices, @bs)
-   RETURN bs
+   DIM ustr AS USTRING
+   IF bs THEN
+      ustr = *bs
+      SysFreeString bs
+   END IF
+   RETURN ustr
 END FUNCTION
 ' =====================================================================================
 
@@ -1184,7 +1189,12 @@ FUNCTION DSafeArray.GetStr (BYVAL idx AS LONG) AS BSTRING
    IF vt <> VT_BSTR THEN RETURN ""
    DIM bs AS WBSTR
    SafeArrayGetElement(m_psa, @idx, @bs)
-   RETURN bs
+   DIM ustr AS USTRING
+   IF bs THEN
+      ustr = *bs
+      SysFreeString bs
+   END IF
+   RETURN ustr
 END FUNCTION
 ' =====================================================================================
 
@@ -1214,7 +1224,12 @@ FUNCTION DSafeArray.GetStr (BYVAL cElem AS LONG, BYVAL cDim AS LONG) AS BSTRING
    DIM rgIdx(1) AS LONG = {cElem, cDim}
    DIM bs AS WBSTR
    SafeArrayGetElement(m_psa, @rgIdx(0), @bs)
-   RETURN bs
+   DIM ustr AS USTRING
+   IF bs THEN
+      ustr = *bs
+      SysFreeString bs
+   END IF
+   RETURN ustr
 END FUNCTION
 ' =====================================================================================
 
@@ -1928,7 +1943,7 @@ FUNCTION DSafeArray.DeleteStringElement (BYVAL nPos AS LONG) AS HRESULT
       ' // Save the element to be deleted
       DIM pTemp AS WBSTR = pvData[cElem]
       ' // Move all the elements from nPos + 1 up
-      FOR i AS LONG = cElem TO cElements - 1 STEP 1
+      FOR i AS LONG = cElem TO cElements - 2 STEP 1
          pvData[i] = pvData[i + 1]
       NEXT
       ' // Copy the element to be deleted to the end of the array
@@ -1963,7 +1978,7 @@ FUNCTION DSafeArray.DeleteVariantElement (BYVAL nPos AS LONG) AS HRESULT
       ' // Save the element to be deleted
       DIM pTemp AS VARIANT = pvData[cElem]
       ' // Move all the elements from nPos + 1 up
-      FOR i AS LONG = cElem TO cElements - 1 STEP 1
+      FOR i AS LONG = cElem TO cElements - 2 STEP 1
          pvData[i] = pvData[i + 1]
       NEXT
       ' // Copy the element to be deleted to the end of the array
@@ -2178,13 +2193,14 @@ PUBLIC FUNCTION FileReadAllLinesA (BYREF wszFileName AS WSTRING, BYREF szDelimit
    DIM hFile AS HANDLE = CreateFileW(@wszFileName, GENERIC_READ, FILE_SHARE_READ, NULL, _
                          OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL)
    IF hFile = INVALID_HANDLE_VALUE THEN RETURN _dsa
+   defer CloseHandle(hFile)
    ' // Get the size of the file
    dwFileSize = GetFileSize(hFile, @dwHighSize)
    DIM pBuffer AS UBYTE PTR
    pBuffer = CAllocate(1, dwFileSize)
    IF pBuffer = NULL THEN RETURN _dsa
+   defer DeAllocate(pBuffer)
    DIM bSuccess AS LONG = ReadFile(hFile, pBuffer, dwFileSize, @dwBytesRead, NULL)
-   CloseHandle(hFile)
    IF bSuccess = FALSE THEN RETURN _dsa
    ' // Get the number of lines
    DIM nLen AS LONG = LEN(szDelimiter)
@@ -2233,7 +2249,6 @@ PUBLIC FUNCTION FileReadAllLinesA (BYREF wszFileName AS WSTRING, BYREF szDelimit
       pstr += nLen
       _pstr = pstr
    LOOP
-   DeAllocate(pBuffer)
    RETURN dsa
 END FUNCTION
 ' ========================================================================================
@@ -2251,13 +2266,14 @@ PUBLIC FUNCTION FileReadAllLinesW (BYREF wszFileName AS WSTRING, BYREF wszDelimi
    DIM hFile AS HANDLE = CreateFileW(@wszFileName, GENERIC_READ, FILE_SHARE_READ, NULL, _
                          OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL)
    IF hFile = INVALID_HANDLE_VALUE THEN RETURN _dsa
+   defer CloseHandle(hFile)
    ' // Get the size of the file
    dwFileSize = GetFileSize(hFile, @dwHighSize)
    DIM pBuffer AS UBYTE PTR
    pBuffer = CAllocate(1, dwFileSize)
    IF pBuffer = NULL THEN RETURN _dsa
+   defer DeAllocate(pBuffer)
    DIM bSuccess AS LONG = ReadFile(hFile, pBuffer, dwFileSize, @dwBytesRead, NULL)
-   CloseHandle(hFile)
    IF bSuccess = FALSE THEN RETURN _dsa
    ' // Get the number of lines
    DIM nLen AS LONG = LEN(wszDelimiter) * 2
@@ -2301,7 +2317,6 @@ PUBLIC FUNCTION FileReadAllLinesW (BYREF wszFileName AS WSTRING, BYREF wszDelimi
       pstr += nLen
       _pstr = pstr
    LOOP
-   DeAllocate(pBuffer)
    RETURN dsa
 END FUNCTION
 ' ========================================================================================

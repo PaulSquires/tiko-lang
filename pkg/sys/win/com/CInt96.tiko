@@ -218,8 +218,8 @@ END OPERATOR
 ' ========================================================================================
 OPERATOR CInt96.CAST () AS VARIANT
    DIM v AS VARIANT
-   v.vt = VT_DECIMAL
    v.decVal = m_int96
+   v.vt = VT_DECIMAL
    RETURN v
 END OPERATOR
 ' ========================================================================================
@@ -576,8 +576,8 @@ END OPERATOR
 ' ========================================================================================
 FUNCTION CInt96.ToVar () AS VARIANT
    DIM v AS VARIANT
-   v.vt = VT_DECIMAL
    v.decVal = m_int96
+   v.vt = VT_DECIMAL
    RETURN v
 END FUNCTION
 ' ========================================================================================

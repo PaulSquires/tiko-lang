@@ -169,8 +169,10 @@ END DESTRUCTOR
 FUNCTION CTextRange2.GetText (BYVAL Flags AS LONG = tomUseCRLF) AS USTRING
    DIM pText AS WBSTR, ustrText AS USTRING
    m_Result = m_pTextRange2->lpvtbl->GetText2(m_pTextRange2, Flags, @pText)
-   ustrText = *pText
-   SysFreeString pText
+   IF pText THEN
+      ustrText = *pText
+      SysFreeString pText
+   END IF
    RETURN ustrText
 END FUNCTION
 ' ========================================================================================
@@ -926,8 +928,11 @@ END FUNCTION
 FUNCTION CTextRange2.GetURL () AS USTRING
    DIM bstrUrl AS WBSTR
    m_Result = m_pTextRange2->lpvtbl->GetURL(m_pTextRange2, @bstrUrl)
-   DIM ustrUrl AS USTRING = *bstrUrl
-   SysFreeString bstrUrl
+   DIM ustrUrl AS USTRING
+   IF bstrUrl THEN
+      ustrUrl= *bstrUrl
+      SysFreeString bstrUrl
+   END IF
    RETURN ustrUrl
 END FUNCTION
 ' ========================================================================================
@@ -1141,6 +1146,7 @@ FUNCTION CTextRange2.GetRtf () AS STRING
    v.ppunkVal = cast(IUnknown PTR PTR, @pData)
    m_Result = this.Copy(@v)
    IF m_Result <> S_OK OR pData = NULL THEN Return ""
+   defer pData->lpvtbl->Release(pData)
    ' // Decode RTF data
    DIM fe AS FORMATETC
    fe.cfFormat = RegisterClipboardFormat(CF_RTF)
@@ -1155,14 +1161,16 @@ FUNCTION CTextRange2.GetRtf () AS STRING
    IF m_Result = S_OK THEN
       ' // Lock the memory location of the string and get a pointer to it
       DIM pszMsg AS ZSTRING PTR = cast(LPSTR, GlobalLock(stm.hGlobal))
+      defer GlobalUnlock(stm.hGlobal)
+      IF pszMsg = NULL THEN RETURN ""
+'      defer GlobalFree(pszMsg)
       strRtf = *pszMsg
-      IF stm.pUnkForRelease THEN
+      IF stm.pUnkForRelease = NULL THEN
          ReleaseStgMedium(@stm)
       ELSE
-         GlobalFree(pszMsg)
+         stm.pUnkForRelease->lpvtbl->Release(stm.pUnkForRelease)
       END IF
    END IF
-   IF pData THEN pData->lpvtbl->Release(pData)
    RETURN strRtf
 END FUNCTION
 ' ========================================================================================

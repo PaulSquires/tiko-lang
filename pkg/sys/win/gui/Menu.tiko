@@ -77,9 +77,10 @@ PUBLIC FUNCTION Destroy OVERLOAD (BYVAL hwnd AS HWND) AS BOOLEAN
    ' // Detach the menu from the dialog
    ..SetMenu(hwnd, NULL)
    ' // Destroy the menu
-   RETURN ..DestroyMenu(hMenu)
+   DIM bRes AS BOOLEAN = ..DestroyMenu(hMenu)
    ' // Redraw the menu bar
-   ..DrawMenuBar(hwnd)
+   IF bRes THEN ..DrawMenuBar(hwnd)
+   RETURN bRes
 END FUNCTION
 ' ========================================================================================
 
@@ -660,9 +661,9 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION GetRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU, BYVAL prcmenu AS RECT PTR) AS LONG
    DIM i AS LONG, nRes AS LONG, rc AS RECT
-   FOR i = 1 TO ..GetMenuItemCount(hmenu)
+   FOR i = 0 TO ..GetMenuItemCount(hmenu) - 1
       nRes = ..GetMenuItemRect(hwnd, hmenu, i, @rc)
-      IF nRes = -1 THEN nRes = GetLastError : EXIT FOR
+      IF nRes = 0 THEN nRes = GetLastError : EXIT FOR
       ..UnionRect prcmenu, prcmenu, @rc
    NEXT
    RETURN nRes
@@ -671,9 +672,9 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION GetRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU, BYREF rcmenu AS RECT) AS LONG
    DIM i AS LONG, nRes AS LONG, rc AS RECT
-   FOR i = 1 TO ..GetMenuItemCount(hmenu)
+   FOR i = 0 TO ..GetMenuItemCount(hmenu) - 1
       nRes = ..GetMenuItemRect(hwnd, hmenu, i, @rc)
-      IF nRes = -1 THEN nRes = GetLastError : EXIT FOR
+      IF nRes = 0 THEN nRes = GetLastError : EXIT FOR
       ..UnionRect @rcmenu, @rcmenu, @rc
    NEXT
    RETURN nRes
@@ -682,9 +683,9 @@ END FUNCTION
 ' ========================================================================================
 'PUBLIC FUNCTION Menu.GetRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU) AS RECT
 '   DIM i AS LONG, nRes AS LONG, rc AS RECT, rcMenu AS RECT
-'   FOR i = 1 TO ..GetMenuItemCount(hmenu)
+'   FOR i = 0 TO ..GetMenuItemCount(hmenu) - 1
 '      nRes = ..GetMenuItemRect(hwnd, hmenu, i, @rc)
-'      IF nRes = -1 THEN nRes = GetLastError : EXIT FOR
+'      IF nRes = 0 THEN nRes = GetLastError : EXIT FOR
 '      ..UnionRect @rcMenu, @rcMenu, @rc
 '   NEXT
 '   RETURN rcMenu
@@ -693,9 +694,9 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION GetRect OVERLOAD (BYVAL hwnd AS HWND, BYVAL hmenu AS HMENU) AS (LONG, LONG, LONG, LONG)
    DIM i AS LONG, nRes AS LONG, rc AS RECT, rcMenu AS RECT
-   FOR i = 1 TO ..GetMenuItemCount(hmenu)
+   FOR i = 0 TO ..GetMenuItemCount(hmenu) - 1
       nRes = ..GetMenuItemRect(hwnd, hmenu, i, @rc)
-      IF nRes = -1 THEN nRes = GetLastError : EXIT FOR
+      IF nRes = 0 THEN nRes = GetLastError : EXIT FOR
       ..UnionRect @rcMenu, @rcMenu, @rc
    NEXT
    RETURN (rcMenu.left, rcMenu.top, rcMenu.right, rcMenu.bottom)
@@ -794,7 +795,7 @@ PUBLIC FUNCTION DeleteItem (BYVAL hMenu AS HMENU, BYVAL item AS LONG, BYVAL fByP
    DIM uFlags AS UINT
    IF fByPosition = TRUE THEN uFlags = MF_BYPOSITION ELSE uFlags = MF_BYCOMMAND
    DIM bRes AS BOOLEAN
-   bRes = ..RemoveMenu(hMenu, item, uFlags)
+   bRes = ..DeleteMenu(hMenu, item, uFlags)
    ' Redraw the menu bar to reflect the changes
    IF bRes THEN ..DrawMenuBar(Menu.OwnerWindow(hMenu))
    RETURN bRes
@@ -819,7 +820,7 @@ PUBLIC FUNCTION DeleteMenu (BYVAL hMenu AS HMENU, BYVAL uPositiom AS DWORD, BYVA
    DIM uFlags AS UINT
    IF fByPosition = TRUE THEN uFlags = MF_BYPOSITION ELSE uFlags = MF_BYCOMMAND
    DIM bRes AS BOOLEAN
-   bRes = ..RemoveMenu(hMenu, uPositiom, uFlags)
+   bRes = ..DeleteMenu(hMenu, uPositiom, uFlags)
    ' Redraw the menu bar to reflect the changes
    IF bRes THEN ..DrawMenuBar(Menu.OwnerWindow(hMenu))
    RETURN bRes
@@ -1202,7 +1203,7 @@ END FUNCTION
 ' =====================================================================================
 PUBLIC FUNCTION GetDefaultItem (BYVAL hMenu AS HMENU, BYVAL gmdiFlags AS UINT = 0, BYVAL fByPosition AS BOOLEAN = TRUE) AS LONG
    IF gmdiFlags = 0 THEN gmdiFlags = GMDI_GOINTOPOPUPS
-   RETURN ..GetMenuDefaultItem(hMenu, gmdiFlags, fByPosition) + 1
+   RETURN ..GetMenuDefaultItem(hMenu, fByPosition, gmdiFlags)
 END FUNCTION
 ' =====================================================================================
 
@@ -1277,7 +1278,7 @@ END FUNCTION
 ' the menu. The shortcut menu can appear anywhere on the screen. 
 ' ========================================================================================
 PUBLIC FUNCTION TrackPopupMenu (BYVAL hMenu AS HMENU, BYVAL uFlags AS UINT, BYVAL x AS LONG, BYVAL y AS LONG, _
-BYVAL hwnd AS HWND, BYVAL prc AS RECT PTR = NULL) AS BOOLEAN
+BYVAL hwnd AS HWND, BYVAL prc AS RECT PTR = NULL) AS LONG
    RETURN ..TrackPopupMenu(hMenu, uFlags, x, y, 0, hwnd, prc)
 END FUNCTION
 ' ========================================================================================
@@ -1287,7 +1288,7 @@ END FUNCTION
 ' the menu. The shortcut menu can appear anywhere on the screen. 
 ' ========================================================================================
 PUBLIC FUNCTION TrackPopupMenuEx (BYVAL hMenu AS HMENU, BYVAL uFlags AS UINT, BYVAL x AS LONG, BYVAL y AS LONG, _
-BYVAL hwnd AS HWND, BYVAL ptpm AS TPMPARAMS PTR = NULL) AS BOOLEAN
+BYVAL hwnd AS HWND, BYVAL ptpm AS TPMPARAMS PTR = NULL) AS LONG
    RETURN ..TrackPopupMenuEx(hMenu, uFlags, x, y, hwnd, ptpm)
 END FUNCTION
 ' ========================================================================================

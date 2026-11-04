@@ -617,7 +617,7 @@ END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
-' * Retrieves the number of rows of buttons in a toolbar with the TBSTYLE_WRAPABLE style.
+' * Retrieves the maximum number of text rows that can be displayed on a toolbar button.
 ' ========================================================================================
 PUBLIC FUNCTION GetTextRows (BYVAL hToolbar AS HWND) AS DWORD
    RETURN SendMessageW(hToolbar, TB_GETTEXTROWS, 0, 0)
@@ -1033,7 +1033,7 @@ END SUB
 ' Returns a COLORREF value that contains the previous insertion mark color.
 ' ========================================================================================
 PUBLIC FUNCTION SetInsertMarkColor (BYVAL hToolbar AS HWND, BYVAL clrInsertMark AS COLORREF) AS COLORREF
-   RETURN SendMessageW(hToolbar, TB_SETINSERTMARKCOLOR, cast(WPARAM, clrInsertMark), 0)
+   RETURN SendMessageW(hToolbar, TB_SETINSERTMARKCOLOR, 0, cast(LPARAM, clrInsertMark))
 END FUNCTION
 ' ========================================================================================
 
@@ -1132,7 +1132,7 @@ END SUB
 ' Minimum Operating System: Windows XP.
 ' ========================================================================================
 PUBLIC SUB SetWindowTheme (BYVAL hToolbar AS HWND, BYVAL pwszTheme AS WSTRING PTR)
-   SendMessageW(hToolbar, TB_SETWINDOWTHEME, CAST(WPARAM, pwszTheme), 0)
+   SendMessageW(hToolbar, TB_SETWINDOWTHEME, 0, CAST(LPARAM, pwszTheme))
 END SUB
 ' ========================================================================================
 
@@ -1152,13 +1152,13 @@ END SUB
 PUBLIC FUNCTION GetObject (BYVAL hToolbar AS HWND) AS IDropTarget PTR
    DIM ppvObject AS IDropTarget PTR
    DIM IID_IDropTarget AS GUID = (&h00000122, &h0000, &h0000, {&hC0, &h00, &h00, &h00, &h00, &h00, &h00, &h46})
-   DIM hr AS HRESULT = SendMessageW(hToolbar, TB_GETOBJECT, CAST(WPARAM, @IID_IDropTarget), CAST(LPARAM, ppvObject))
-   IF hr <> S_OK THEN RETURN ppvObject
+   SetLastError(SendMessageW(hToolbar, TB_GETOBJECT, CAST(WPARAM, @IID_IDropTarget), CAST(LPARAM, @ppvObject)))
+   RETURN ppvObject
 END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
-' * Retrieves the display text of a button on a toolbar.
+' ** Retrieves the display text of a button on a toolbar.
 ' Returns the length, in characters, of the string pointed to by lParam. The length does
 ' not include the terminating null character. If unsuccessful, the return value is -1.
 ' idButton = Command identifier of the button whose text is to be retrieved.
@@ -1181,7 +1181,7 @@ PUBLIC FUNCTION GetButtonText OVERLOAD (BYVAL hToolbar AS HWND, BYVAL idButton A
    IF cbLen < 1 THEN RETURN ""
    DIM ustrText AS USTRING = WSPACE(cbLen + 1)
    SetLastError(SendMessageW(hToolbar, TB_GETBUTTONTEXTW, cast(WPARAM, idButton), CAST(LPARAM, STRPTR(ustrText))))
-   RETURN ustrText
+   RETURN LEFT(ustrText, cbLen)
 END FUNCTION
 ' ========================================================================================
 

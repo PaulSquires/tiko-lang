@@ -157,10 +157,14 @@ PUBLIC FUNCTION GetCueBannerText OVERLOAD (BYVAL hCombo AS HWND, BYVAL pwszText 
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION GetCueBannerText OVERLOAD (BYVAL hCombo AS HWND, BYVAL cchText AS DWORD = MAX_PATH) AS USTRING
+PUBLIC FUNCTION GetCueBannerText OVERLOAD (BYVAL hCombo AS HWND, BYVAL cchText AS DWORD = 260) AS USTRING
    DIM ustrText AS USTRING = WSPACE(cchText + 1)
-   SetLastError(SendMessageW(hCombo, CB_GETCUEBANNER, cast(WPARAM, STRPTR(ustrText)), LEN(ustrText)))
-   RETURN ustrText
+   DIM bRes AS BOOLEAN = SendMessageW(hCombo, CB_GETCUEBANNER, cast(WPARAM, STRPTR(ustrText)), LEN(ustrText))
+   IF bRes = FALSE THEN RETURN ""
+   ' / Remove the trailing null
+   ustrText = LEFT(ustrText, cchText)
+   ' // Trim trailing spaces
+   RETURN RTRIM(ustrText)
 END FUNCTION
 ' ========================================================================================
 
@@ -396,7 +400,7 @@ END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
-' Sets the maximum allowable width, in pixels, of the list box of a combo box with the
+' Sets the minimum allowable width, in pixels, of the list box of a combo box with the
 ' CBS_DROPDOWN or CBS_DROPDOWNLIST style.
 ' ========================================================================================
 PUBLIC FUNCTION SetDroppedWidth (BYVAL hCombo AS HWND, BYVAL nWidth AS LONG) AS LONG
@@ -537,17 +541,17 @@ END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
-' * Retrieves the text in a combobox control.
+' ** Retrieves the text in a combobox control.
 ' ========================================================================================
 PUBLIC FUNCTION GetText OVERLOAD (BYVAL hCombo AS HWND) AS USTRING
    DIM nLen AS LONG = GetWindowTextLengthW(hCombo)
    DIM ustrText AS USTRING = WSPACE(nLen + 1)
    SetLastError(GetWindowTextW(hCombo, ustrText, nLen +  1))
-   RETURN ustrText
+   RETURN LEFT(ustrText, nLen)
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-' * Gets a string from a list in a combo box.
+' ** Gets a string from a list in a combo box.
 ' - hCombo: A handle to the combobox.
 ' - index: The zero-based index of the item.
 ' ========================================================================================
@@ -555,7 +559,7 @@ PUBLIC FUNCTION GetText OVERLOAD (BYVAL hCombo AS HWND, BYVAL index AS LONG) AS 
    DIM nLen AS LONG = SendMessageW(hCombo, CB_GETLBTEXTLEN, index, 0)
    DIM ustrText AS USTRING = WSPACE(nLen + 1)
    SetLastError(SendMessageW(hCombo, CB_GETLBTEXT, index, CAST(LPARAM, STRPTR(ustrText))))
-   RETURN ustrText
+   RETURN LEFT(ustrText, nLen)
 END FUNCTION
 ' ========================================================================================
 
@@ -656,13 +660,6 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION GetItem OVERLOAD (BYVAL hComboEx AS HWND, BYREF CBItem AS COMBOBOXEXITEMW) AS BOOLEAN
    RETURN SendMessageW(hComboEx, CBEM_GETITEMW, 0, cast(LPARAM, @CBItem))
-END FUNCTION
-' ========================================================================================
-' ========================================================================================
-PUBLIC FUNCTION GetItem OVERLOAD (BYVAL hComboEx AS HWND) AS COMBOBOXEXITEMW
-   DIM item AS COMBOBOXEXITEMW
-   SetLastError(SendMessageW(hComboEx, CBEM_GETITEMW, 0, cast(LPARAM, @item)))
-   RETURN item
 END FUNCTION
 ' ========================================================================================
 

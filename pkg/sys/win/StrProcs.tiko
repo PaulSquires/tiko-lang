@@ -196,7 +196,7 @@ END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
-' * Converts a time interval, specified in milliseconds, to a string.
+' ** Converts a time interval, specified in milliseconds, to a string.
 ' Parameters:
 ' - dwTimeMS: The time interval, in milliseconds.
 ' - digits  : The maximum number of significant digits to be represented in the output
@@ -212,8 +212,8 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION StrFromTimeInterval OVERLOAD (BYVAL dwTimeMS AS DWORD, BYVAL digits AS LONG) AS USTRING
    DIM ustr AS USTRING = WSPACE(260)
-   StrFromTimeIntervalW(STRPTR(ustr), 260, dwTimeMS, digits)
-   RETURN ustr
+   DIM cbLen AS LONG = StrFromTimeIntervalW(STRPTR(ustr), 260, dwTimeMS, digits)
+   RETURN LEFT(ustr, cbLen)
 END FUNCTION
 ' ========================================================================================
 

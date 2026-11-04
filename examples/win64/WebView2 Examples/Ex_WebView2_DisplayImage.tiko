@@ -91,7 +91,7 @@ FUNCTION WndProc (BYVAL hwnd AS HWND, BYVAL uMsg AS UINT, BYVAL wParam AS WPARAM
       CASE WM_SIZE
          ' // Set the bound of the WebView2 control
          DIM hLabel AS HWND = GetDLgItem(hwnd, IDC_LABEL)
-         DIM pWebView2 AS CWebView2 PTR =  CWebView2Ptr(hWnd)
+         DIM pWebView2 AS CWebView2 PTR =  CWebView2Ptr(hLabel)
          IF pWebView2 THEN
             DIM rc AS RECT
             IF GetClientRect(hLabel, @rc) THEN

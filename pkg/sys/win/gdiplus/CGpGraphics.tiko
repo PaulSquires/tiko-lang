@@ -70,16 +70,19 @@ END DESTRUCTOR
 ' Creates a Graphics object that is associated with a specified device context.
 ' ========================================================================================
 FUNCTION CGpGraphics.FromHDC (BYVAL hdc AS HDC) AS GpStatus
+   IF m_pGraphics THEN GdipDeleteGraphics(m_pGraphics)
    RETURN SetStatus(GdipCreateFromHDC(hdc, @m_pGraphics))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CGpGraphics.FromHDC (BYVAL hdc AS HDC, BYVAL hDevice AS HANDLE) AS GpStatus
+   IF m_pGraphics THEN GdipDeleteGraphics(m_pGraphics)
    RETURN SetStatus(GdipCreateFromHDC2(hdc, hDevice, @m_pGraphics))
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CGpGraphics.FromHWND (BYVAL hwnd AS HWND, BYVAL icm AS BOOLEAN = FALSE) AS GpStatus
+   IF m_pGraphics THEN GdipDeleteGraphics(m_pGraphics)
    IF icm THEN
       RETURN SetStatus(GdipCreateFromHWNDICM(hwnd, @m_pGraphics))
    ELSE
@@ -89,6 +92,7 @@ END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
 FUNCTION CGpGraphics.FromImage (BYVAL pImage AS CGpImage PTR) AS GpStatus
+   IF m_pGraphics THEN GdipDeleteGraphics(m_pGraphics)
    RETURN SetStatus(GdipGetImageGraphicsContext(pImage->m_pImage, @m_pGraphics))
 END FUNCTION
 ' ========================================================================================

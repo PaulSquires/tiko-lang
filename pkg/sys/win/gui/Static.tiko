@@ -63,7 +63,7 @@ END FUNCTION
 ' Deletes a cursor associated with a static control. Returns TRUE or FALSE.
 ' ========================================================================================
 PUBLIC FUNCTION DeleteCursor (BYVAL hStatic AS HWND) AS BOOLEAN
-   RETURN DeleteObject(cast(HGDIOBJ, SendMessageW(hStatic, STM_SETIMAGE, cast(WPARAM, IMAGE_CURSOR), 0)))
+   RETURN DestroyCursor(cast(HCURSOR, SendMessageW(hStatic, STM_SETIMAGE, cast(WPARAM, IMAGE_CURSOR), 0)))
 END FUNCTION
 ' ========================================================================================
 
@@ -71,7 +71,7 @@ END FUNCTION
 ' Deletes an enhanced metafile associated with a static control. Returns TRUE or FALSE.
 ' ========================================================================================
 PUBLIC FUNCTION DeleteEnhancedMetafile (BYVAL hStatic AS HWND) AS BOOLEAN
-   RETURN DeleteObject(cast(HGDIOBJ, SendMessageW(hStatic, STM_SETIMAGE, cast(WPARAM, IMAGE_ENHMETAFILE), 0)))
+   RETURN DeleteEnhMetaFile(cast(HENHMETAFILE, SendMessageW(hStatic, STM_SETIMAGE, cast(WPARAM, IMAGE_ENHMETAFILE), 0)))
 END FUNCTION
 ' ========================================================================================
 
@@ -79,7 +79,7 @@ END FUNCTION
 ' Deletes an icon associated with a static control. Returns TRUE o FALSE.
 ' ========================================================================================
 PUBLIC FUNCTION DeleteIcon (BYVAL hStatic AS HWND) AS BOOLEAN
-   RETURN DeleteObject(cast(HGDIOBJ, SendMessageW(hStatic, STM_SETICON, 0, 0)))
+   RETURN DestroyIcon(cast(HICON, SendMessageW(hStatic, STM_SETICON, 0, 0)))
 END FUNCTION
 ' ========================================================================================
 
@@ -87,7 +87,11 @@ END FUNCTION
 ' Deletes an image associated with a static control. Returns TRUE or FALSE.
 ' ========================================================================================
 PUBLIC FUNCTION DeleteImage (BYVAL hStatic AS HWND, BYVAL nType AS LONG) AS BOOLEAN
-   RETURN DeleteObject(cast(HGDIOBJ, SendMessageW(hStatic, STM_SETIMAGE, cast(WPARAM, nType), 0)))
+   IF nType = IMAGE_BITMAP THEN
+      RETURN DeleteObject(cast(HGDIOBJ, SendMessageW(hStatic, STM_SETIMAGE, cast(WPARAM, nType), 0)))
+   ELSE
+      RETURN DestroyIcon(cast(HGDIOBJ, SendMessageW(hStatic, STM_SETIMAGE, cast(WPARAM, nType), 0)))
+   END IF
 END FUNCTION
 ' ========================================================================================
 
@@ -173,22 +177,23 @@ END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
-' * Gets the text of a static control.
+' ** Gets the text of a static control.
 ' ========================================================================================
 PUBLIC FUNCTION GetText (BYVAL hStatic AS HWND) AS USTRING
    DIM nLen AS LONG, buffer AS USTRING
    nLen = GetWindowTextLength(hStatic)
    buffer = WSPACE(nLen + 1)
    GetWindowTextW hStatic, STRPTR(buffer), nLen + 1
-   RETURN buffer
+   RETURN LEFT(buffer, nLen)
 END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
 ' * Sets the text of a static control.
 ' ========================================================================================
-PUBLIC FUNCTION SetText (BYVAL hStatic AS HWND, BYVAL pwszText AS WSTRING PTR) AS BOOLEAN
+PUBLIC FUNCTION SetText OVERLOAD (BYVAL hStatic AS HWND, BYVAL pwszText AS WSTRING PTR) AS BOOLEAN
    RETURN SetWindowTextW(hStatic, pwszText)
 END FUNCTION
 ' ========================================================================================
+
 END NAMESPACE

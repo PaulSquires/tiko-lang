@@ -79,7 +79,7 @@ END FUNCTION
 ' ========================================================================================
 END NAMESPACE
 
-#if _WIN32_WINNT >= &h0600
+'#if _WIN32_WINNT >= &h0600
 NAMESPACE Header
 ' ========================================================================================
 ' Gets the item in a header control that has the focus.
@@ -89,7 +89,7 @@ PUBLIC FUNCTION GetFocusedItem (BYVAL hHeader AS HWND) AS LONG
 END FUNCTION
 ' ========================================================================================
 END NAMESPACE
-#endif
+'#endif
 
 NAMESPACE Header
 ' ========================================================================================
@@ -278,7 +278,7 @@ END FUNCTION
 
 ' ========================================================================================
 ' Gets the coordinates of the drop-down overflow area for a specified header control.
-' The header control must be of type HDF_SPLITBUTTON.
+' The header control must be of type HDS_OVERFLOW.
 ' ========================================================================================
 PUBLIC FUNCTION GetOverflowRect OVERLOAD (BYVAL hHeader AS HWND, BYVAL prc AS RECT PTR) AS BOOLEAN
    IF prc = NULL THEN RETURN FALSE
@@ -395,7 +395,7 @@ END FUNCTION
 ' ========================================================================================
 END NAMESPACE
 
-#if _WIN32_WINNT >= &h0600
+'#if _WIN32_WINNT >= &h0600
 NAMESPACE Header
 ' ========================================================================================
 ' Sets the focus to a specified item in a header control.
@@ -405,7 +405,7 @@ PUBLIC FUNCTION SetFocusedItem (BYVAL hHeader AS HWND, BYVAL iItem AS LONG) AS B
 END FUNCTION
 ' ========================================================================================
 END NAMESPACE
-#endif
+'#endif
 
 NAMESPACE Header
 ' ========================================================================================

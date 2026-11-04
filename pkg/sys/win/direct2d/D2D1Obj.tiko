@@ -1311,7 +1311,7 @@ CONSTRUCTOR CD2D1Factory7 (BYVAL factoryType AS D2D1_FACTORY_TYPE)
    ' // Create ID2D1Factory7
    SetLastError(D2D1CreateFactory(factoryType, IID_ID2D1Factory7, BYVAL NULL, m_pFactory7))
    ' // Release inherited factories
-   IF m_pFactory6 THEN m_pFactory6->Release END IF
+   IF m_pFactory6 THEN m_pFactory6->Release
    IF m_pFactory5 THEN m_pFactory5->Release
    IF m_pFactory4 THEN m_pFactory4->Release
    IF m_pFactory3 THEN m_pFactory3->Release
@@ -1485,7 +1485,7 @@ END OPERATOR
 ' ========================================================================================
 ' Returns the address of the underlying ID2D1Factory8  interface pointer
 ' ========================================================================================
-PUBLIC OPERATOR CD2D1Factory8 .@ () AS ID2D1Factory8  PTR PTR
+PUBLIC OPERATOR CD2D1Factory8.@ () AS ID2D1Factory8  PTR PTR
    RETURN @m_pFactory8
 END OPERATOR
 ' ========================================================================================

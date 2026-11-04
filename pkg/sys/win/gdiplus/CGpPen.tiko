@@ -175,6 +175,7 @@ END FUNCTION
 ' * Gets the custom start cap currently set for this Pen object.
 ' =====================================================================================
 FUNCTION CGpPen.GetCustomStartCap (BYVAL pCustomLineCap AS CGpCustomLineCap PTR) AS GpStatus
+   IF pCustomLineCap->m_pCustomLineCap THEN GdipDeleteCustomLineCap(pCustomLineCap->m_pCustomLineCap)
    RETURN SetStatus(GdipGetPenCustomStartCap(m_pPen, @pCustomLineCap->m_pCustomLineCap))
 END FUNCTION
 ' =====================================================================================
@@ -191,6 +192,7 @@ END FUNCTION
 ' * Gets the custom end cap currently set for this Pen object.
 ' =====================================================================================
 FUNCTION CGpPen.GetCustomEndCap (BYVAL pCustomLineCap AS CGpCustomLineCap PTR) AS GpStatus
+   IF pCustomLineCap->m_pCustomLineCap THEN GdipDeleteCustomLineCap(pCustomLineCap->m_pCustomLineCap)
    RETURN SetStatus(GdipGetPenCustomEndCap(m_pPen, @pCustomLineCap->m_pCustomLineCap))
 END FUNCTION
 ' =====================================================================================
@@ -332,6 +334,7 @@ END FUNCTION
 ' =====================================================================================
 FUNCTION CGpPen.GetBrush (BYVAL pBrush AS CGpBrush PTR) AS GpStatus
    IF pBrush = NULL THEN RETURN SetStatus(InvalidParameter)
+   IF pBrush->m_pBrush THEN GdipDeleteBrush(pBrush->m_pBrush)
    RETURN SetStatus(GdipGetPenBrushFill(m_pPen, @pBrush->m_pBrush))
 END FUNCTION
 ' =====================================================================================

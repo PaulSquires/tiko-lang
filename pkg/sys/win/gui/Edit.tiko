@@ -132,7 +132,7 @@ END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
-' * Gets the text that is displayed as the textual cue, or tip, in an edit control.
+' ** Gets the text that is displayed as the textual cue, or tip, in an edit control.
 ' To use this method, you must provide a manifest specifying Comctl32.dll version 6.0.
 ' ========================================================================================
 PUBLIC FUNCTION GetCueBannerText OVERLOAD (BYVAL hEdit AS HWND, BYVAL pwszText AS WSTRING PTR, BYVAL cchText AS DWORD) AS BOOLEAN
@@ -140,10 +140,15 @@ PUBLIC FUNCTION GetCueBannerText OVERLOAD (BYVAL hEdit AS HWND, BYVAL pwszText A
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-PUBLIC FUNCTION GetCueBannerText OVERLOAD (BYVAL hEdit AS HWND, BYVAL cchText AS DWORD) AS USTRING
+' ========================================================================================
+PUBLIC FUNCTION GetCueBannerText OVERLOAD (BYVAL hEdit AS HWND, BYVAL cchText AS DWORD = 260) AS USTRING
    DIM ustrText AS USTRING = WSPACE(cchText + 1)
-   SetLastError(SendMessageW(hEdit, EM_GETCUEBANNER, cast(WPARAM, STRPTR(ustrText)), LEN(ustrText)))
-   RETURN ustrText
+   DIM bRes AS BOOLEAN = SendMessageW(hEdit, EM_GETCUEBANNER, cast(WPARAM, STRPTR(ustrText)), LEN(ustrText))
+   IF bRes = FALSE THEN RETURN ""
+   ' / Remove the trailing null
+   ustrText = LEFT(ustrText, cchText)
+   ' // Trim trailing spaces
+   RETURN RTRIM(ustrText)
 END FUNCTION
 ' ========================================================================================
 
@@ -346,13 +351,13 @@ END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
-' * Retrieves the text in a button control.
+' ** Retrieves the text in an edit control.
 ' ========================================================================================
 PUBLIC FUNCTION GetText (BYVAL hEdit AS HWND) AS USTRING
    DIM nLen AS LONG = GetWindowTextLengthW(hEdit)
    DIM ustrText AS USTRING = WSPACE(nLen + 1)
    SetLastError(GetWindowTextW(hEdit, ustrText, nLen +  1))
-   RETURN ustrText
+   RETURN LEFT(ustrText, nLen)
 END FUNCTION
 ' ========================================================================================
 
@@ -385,7 +390,7 @@ END FUNCTION
 
 ' ========================================================================================
 ' * Sets the text limit of an edit control. The text limit is the maximum amount of text, in
-' bytes, that the user can type into the edit control.
+' characters, that the user can type into the edit control.
 ' ========================================================================================
 PUBLIC SUB LimitText (BYVAL hEdit AS HWND, BYVAL chMax AS DWORD)
    SendMessageW hEdit, EM_LIMITTEXT, chMax, 0
@@ -537,7 +542,7 @@ END SUB
 ' ========================================================================================
 ' Sets the margins scaled according the DPI (dots per pixel) being used by the desktop.
 ' Usage example:
-' Edit.SetMargins(hEdit1, 30, 100)
+' Edit.SetMarginsForDpi(hEdit1, 30, 100)
 ' ========================================================================================
 PUBLIC SUB SetMarginsForDpi (BYVAL hEdit AS HWND, BYVAL leftMarginWidth AS LONG, BYVAL rightMarginWidth AS LONG)
    SendMessageW(hEdit, EM_SETMARGINS, EC_LEFTMARGIN OR EC_RIGHTMARGIN, MAKELONG(Edit.Scale(leftMarginWidth), Edit.Scale(rightMarginWidth)))

@@ -80,8 +80,8 @@ END TYPE
 ' Creates an instance of the IFileDialogCustomize interface.
 ' ========================================================================================
 CONSTRUCTOR CIFileDialogCustomize (BYVAL pIFileDialogCustomize AS IFileDialogCustomize PTR, BYVAL fAddRef AS BOOLEAN = TRUE)
-   IF pIFileDialogCustomize = NULL THEN EXIT CONSTRUCTOR
    CoInitialize NULL
+   IF pIFileDialogCustomize = NULL THEN EXIT CONSTRUCTOR
    m_pIFileDialogCustomize = pIFileDialogCustomize
    IF fAddRef THEN m_pIFileDialogCustomize->lpvtbl->AddRef(m_pIFileDialogCustomize)
 END CONSTRUCTOR
@@ -91,8 +91,8 @@ END CONSTRUCTOR
 ' Creates an instance of the IFileDialogCustomize interface.
 ' ========================================================================================
 CONSTRUCTOR CIFileDialogCustomize (BYVAL pIFileDialog AS IFileDialog PTR)
-   IF pIFileDialog = NULL THEN EXIT CONSTRUCTOR
    CoInitialize NULL
+   IF pIFileDialog = NULL THEN EXIT CONSTRUCTOR
    DIM hr AS HRESULT = pIFileDialog->lpvtbl->QueryInterface(pIFileDialog, @IID_IFileDialogCustomize, @m_pIFileDialogCustomize)
    IF m_pIFileDialogCustomize = NULL THEN EXIT CONSTRUCTOR
 END CONSTRUCTOR
@@ -337,6 +337,6 @@ END FUNCTION
 ' Declares a visual group in the dialog. Subsequent calls to any "add" method add those elements to this group
 ' ========================================================================================
 FUNCTION CIFileDialogCustomize.StartVisualGroup (BYVAL dwIDCtl AS DWORD, BYVAL pwszLabel AS WSTRING PTR) AS HRESULT
-   RETURN m_pIFileDialogCustomize->lpvtbl->AddText(m_pIFileDialogCustomize, dwIDCtl, pwszLabel)
+   RETURN m_pIFileDialogCustomize->lpvtbl->StartVisualGroup(m_pIFileDialogCustomize, dwIDCtl, pwszLabel)
 END FUNCTION
 ' ========================================================================================

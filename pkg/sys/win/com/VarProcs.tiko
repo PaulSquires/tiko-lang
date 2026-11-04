@@ -84,7 +84,7 @@ END FUNCTION
 ' Extracts the contents of a VARIANT and returns them as a USTRING.
 ' When pvarIn contains an array, each element of the array is appended to the resulting
 ' string separated with a semicolon and a space.
-' For variants that contains an array of bytes, use tkVariantToBuffer.
+' For variants that contains an array of bytes, use VariantToBuffer.
 ' Parameters:
 ' - pvarIn = Pointer to the variant.
 ' - bClear = Clear the contents of the variant (TRUE or FALSE).

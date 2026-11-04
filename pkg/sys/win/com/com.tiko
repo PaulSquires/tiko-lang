@@ -188,8 +188,8 @@ END FUNCTION
 ' ========================================================================================
 PUBLIC FUNCTION NewCom OVERLOAD (BYREF wszClsID AS CONST WSTRING, BYREF wszIID AS CONST WSTRING) AS ANY PTR
    DIM classID AS CLSID, riid AS IID, pUnk AS ANY PTR
-   CLSIDFromProgID(wszClsID, @classID)
-   CLSIDFromProgID(wszIID, @riid)
+   CLSIDFromString(wszClsID, @classID)
+   CLSIDFromString(wszIID, @riid)
    CoCreateInstance(@classID, NULL, CLSCTX_INPROC_SERVER, @riid, @pUnk)
    RETURN pUnk
 END FUNCTION
@@ -294,7 +294,7 @@ PUBLIC FUNCTION NewCom OVERLOAD (BYREF wszLibName AS CONST WSTRING, BYREF rclsid
       END IF
    ELSE
       ' // Request a reference to the IClassFactory2 interface
-      hr = pfnDllGetClassObject(@rclsid, @IID_IClassFactory, @pIClassFactory2)
+      hr = pfnDllGetClassObject(@rclsid, @IID_IClassFactory2, @pIClassFactory2)
       IF hr <> S_OK THEN EXIT FUNCTION
       ' // Create a licensed instance of the server or control
       hr = pIClassFactory2->lpVtbl->CreateInstanceLic(pIClassFactory2, NULL, NULL, @riid, @wszLicKey, @pDisp)
@@ -524,8 +524,8 @@ PUBLIC FUNCTION GetOleErrorInfo () AS USTRING
    IF hr = S_OK THEN
       ustrInfo = *bstrDescription
       SysFreeString bstrDescription
-      SafeRelease(pErrorInfo)
    END IF
+   SafeRelease(pErrorInfo)
    RETURN ustrInfo
 END FUNCTION
 ' ========================================================================================
@@ -615,7 +615,7 @@ PUBLIC FUNCTION OleCreateFont ( _
    tf.fUnderline = fUnderline
    tf.fStrikethrough = fStrikethrough
    DIM pFont AS IFont PTR
-   OleCreateFontIndirect(@tf, @IID_IUnknown, @pFont)
+   OleCreateFontIndirect(@tf, @IID_IFont, @pFont)
    RETURN pFont
 
 END FUNCTION

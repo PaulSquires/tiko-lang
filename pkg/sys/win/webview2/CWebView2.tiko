@@ -121,7 +121,7 @@ PUBLIC TYPE CWebView2
    DECLARE FUNCTION RemoveContentLoading (BYVAL token AS EventRegistrationToken) AS HRESULT
    DECLARE FUNCTION AddSourceChanged (BYVAL eventHandler AS ICoreWebView2SourceChangedEventHandler PTR, BYVAL token AS EventRegistrationToken PTR) AS HRESULT
    DECLARE FUNCTION RemoveSourceChanged (BYVAL token AS EventRegistrationToken) AS HRESULT
-   DECLARE FUNCTION AddHistoryChanged (BYVAL eventHandler AS ICoreWebView2SourceChangedEventHandler PTR, BYVAL token AS EventRegistrationToken PTR) AS HRESULT
+   DECLARE FUNCTION AddHistoryChanged (BYVAL eventHandler AS ICoreWebView2HistoryChangedEventHandler PTR, BYVAL token AS EventRegistrationToken PTR) AS HRESULT
    DECLARE FUNCTION RemoveHistoryChanged (BYVAL token AS EventRegistrationToken) AS HRESULT
    DECLARE FUNCTION AddScriptDialogOpening (BYVAL eventHandler AS ICoreWebView2ScriptDialogOpeningEventHandler PTR, BYVAL token AS EventRegistrationToken PTR) AS HRESULT
    DECLARE FUNCTION RemoveScriptDialogOpening (BYVAL token AS EventRegistrationToken) AS HRESULT
@@ -202,6 +202,8 @@ END TYPE
 ' Default constructor.
 ' ========================================================================================
 CONSTRUCTOR CWebView2
+   ' // Initialize the COM library
+   CoInitialize NULL
 END CONSTRUCTOR
 ' ========================================================================================
 
@@ -245,7 +247,7 @@ CONSTRUCTOR CWebView2 (BYVAL hWin AS HWND, BYREF ustrUserDataFolder AS USTRING)
    DIM pEnv AS CWebView2CreateCoreWebView2EnvironmentCompletedHandlerInternal PTR
    pEnv = NEW CWebView2CreateCoreWebView2EnvironmentCompletedHandlerInternal(@this)
    DIM hr AS HRESULT
-   IF VARPTR(ustrUserDataFolder) = NULL THEN
+   IF ustrUserDataFolder = "" THEN
       hr = CreateCoreWebView2Environment(cast(ANY PTR, pEnv))
    ELSE
       hr = CreateCoreWebView2EnvironmentWithOptions(NULL, ustrUserDataFolder, NULL, cast(ANY PTR, pEnv))
@@ -935,7 +937,7 @@ END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
-' Determines whether running JavaScript is enabled in all future navigations in the WebView.
+' 	Controls if JavaScript execution is enabled in all future navigations in the WebView.
 ' ========================================================================================
 PROPERTY CWebView2.IsScriptEnabled () AS BOOLEAN
    IF m_pCoreWebView2 = NULL THEN m_Result = E_POINTER : RETURN FALSE
@@ -1287,8 +1289,8 @@ END FUNCTION
 ' ========================================================================================
 ' Add an event handler for the HistoryChanged event.
 ' ========================================================================================
-FUNCTION CWebView2.AddHistoryChanged (BYVAL eventHandler AS ICoreWebView2SourceChangedEventHandler PTR, BYVAL token AS EventRegistrationToken PTR) AS HRESULT
-   m_Result = m_pCoreWebView2->add_SourceChanged(eventHandler, token)
+FUNCTION CWebView2.AddHistoryChanged (BYVAL eventHandler AS ICoreWebView2HistoryChangedEventHandler PTR, BYVAL token AS EventRegistrationToken PTR) AS HRESULT
+   m_Result = m_pCoreWebView2->add_HistoryChanged(eventHandler, token)
    RETURN m_Result
 END FUNCTION
 ' ========================================================================================
@@ -1296,7 +1298,7 @@ END FUNCTION
 ' Remove an event handler previously added with add_HistoryChanged.
 ' ========================================================================================
 FUNCTION CWebView2.RemoveHistoryChanged (BYVAL token AS EventRegistrationToken) AS HRESULT
-   m_Result = m_pCoreWebView2->remove_SourceChanged(token)
+   m_Result = m_pCoreWebView2->remove_HistoryChanged(token)
    RETURN m_Result
 END FUNCTION
 ' ========================================================================================
@@ -1405,7 +1407,7 @@ END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
-' Adds an event handler for the AcceleratorKeyPressed event.
+' 	Notifies when the ContainsFullScreenElement property changes.
 ' ========================================================================================
 FUNCTION CWebView2.AddContainsFullScreenElementChanged (BYVAL eventHandler AS ICoreWebView2ContainsFullScreenElementChangedEventHandler PTR, BYVAL token AS EventRegistrationToken PTR) AS HRESULT
    m_Result = m_pCoreWebView2->add_ContainsFullScreenElementChanged(eventHandler, token)
@@ -1577,9 +1579,6 @@ FUNCTION CWebView2.RemoveWebResourceRequestedFilter (BYVAL uri AS LPCWSTR, BYVAL
    RETURN m_Result
 END FUNCTION
 ' ========================================================================================
-
-
-'++++++++++++
 
 ' ########################################################################################
 ' CWebView2CreateCoreWebView2EnvironmentCompletedHandlerInternal class
@@ -1867,7 +1866,7 @@ FUNCTION CWebView2WebMessageReceivedEventHandlerInternal.Invoke (BYVAL sender AS
          m_hdr.hwndFrom = m_pWebView2->m_hwnd
          m_hdr.idFrom = GetDlgCtrlId(m_pWebView2->m_hwnd)
          m_hdr.code = NM_WV2_IMAGEREADY
-         PostMessageW m_pWebView2->GetTopLevelWindow, WM_NOTIFY, cast(WPARAM, @m_hdr), cast(LPARAM, m_pWebView2)
+         PostMessageW m_pWebView2->GetTopLevelWindow, WM_NOTIFY, cast(WPARAM, m_pWebView2), cast(LPARAM, @m_hdr)
       END IF
    END IF
    RETURN S_OK

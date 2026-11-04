@@ -141,7 +141,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CPrint.GetDefaultPrinter () AS USTRING
    DIM buffer AS WSTRING * MAX_PATH
-   GetProfileStringW "WINDOWS", "DEVICE", "", buffer, SIZEOF(buffer)
+   GetProfileStringW "WINDOWS", "DEVICE", "", buffer, SIZEOF(buffer) \ 2
    RETURN win.ParseStr(buffer, 1, ",")
 END FUNCTION
 ' ========================================================================================
@@ -151,7 +151,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CPrint.GetDefaultPrinterDriver () AS USTRING
    DIM buffer AS WSTRING * MAX_PATH
-   GetProfileStringW "WINDOWS", "DEVICE", "", buffer, SIZEOF(buffer)
+   GetProfileStringW "WINDOWS", "DEVICE", "", buffer, SIZEOF(buffer) \ 2
    RETURN win.ParseStr(buffer, 2, ",")
 END FUNCTION
 ' ========================================================================================
@@ -161,7 +161,7 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CPrint.GetDefaultPrinterPort () AS USTRING
    DIM buffer AS WSTRING * MAX_PATH
-   GetProfileStringW "WINDOWS", "DEVICE", "", buffer, SIZEOF(buffer)
+   GetProfileStringW "WINDOWS", "DEVICE", "", buffer, SIZEOF(buffer) \ 2
    RETURN win.ParseStr(buffer, 3, ",")
 END FUNCTION
 ' ========================================================================================
@@ -439,6 +439,7 @@ FUNCTION CPrint.GetDocumentProperties (BYVAL dmField AS DWORD) AS LONG
       ' // Return the requested value
       SELECT CASE dmField
          CASE DM_COLLATE       : RETURN pDevMode->dmCollate
+         CASE DM_COLOR         : RETURN pDevMode->dmColor
          CASE DM_COPIES        : RETURN pDevMode->dmCopies
          CASE DM_ORIENTATION   : RETURN pDevMode->dmOrientation
          CASE DM_PAPERSIZE     : RETURN pDevMode->dmPaperSize
@@ -449,6 +450,8 @@ FUNCTION CPrint.GetDocumentProperties (BYVAL dmField AS DWORD) AS LONG
          CASE DM_PAPERWIDTH    : RETURN pDevMode->dmPaperWidth
          CASE DM_DUPLEX        : RETURN pDevMode->dmDuplex
       END SELECT
+   ELSE
+      ClosePrinter(hPrinter)
    END IF
    RETURN nRet
 END FUNCTION
@@ -561,7 +564,7 @@ END FUNCTION
 ' the document the required number of times.
 ' ========================================================================================
 PROPERTY CPrint.Collate () AS BOOLEAN
-   RETURN DeviceCapabilitiesW(m_wszPrinterName, NULL, DC_COLLATE, NULL, NULL)
+   RETURN CBOOL(DeviceCapabilitiesW(m_wszPrinterName, NULL, DC_COLLATE, NULL, NULL))
 END PROPERTY
 ' ========================================================================================
 ' ========================================================================================
@@ -585,7 +588,7 @@ END PROPERTY
 ' If the printer supports color mode, the return value is TRUE; otherwise, the return value is FALSE.
 ' ========================================================================================
 PROPERTY CPrint.Color () AS BOOLEAN
-   RETURN DeviceCapabilitiesW(m_wszPrinterName, NULL, DC_COLORDEVICE, NULL, NULL)
+   RETURN CBOOL(DeviceCapabilitiesW(m_wszPrinterName, NULL, DC_COLORDEVICE, NULL, NULL))
 END PROPERTY
 ' ========================================================================================
 ' ========================================================================================
@@ -628,7 +631,7 @@ END PROPERTY
 ' If the printer supports duplex printing, the return value is TRUE; otherwise, the return value is FALSE.
 ' ========================================================================================
 PROPERTY CPrint.Duplex () AS BOOLEAN
-   RETURN DeviceCapabilitiesW(m_wszPrinterName, NULL, DC_DUPLEX, NULL, NULL)
+   RETURN CBOOL(DeviceCapabilitiesW(m_wszPrinterName, NULL, DC_DUPLEX, NULL, NULL))
 END PROPERTY
 ' ========================================================================================
 
@@ -1159,6 +1162,8 @@ FUNCTION CPrint.PrintRtf (BYVAL hRichEdit AS HWND, BYREF wszDocName AS WSTRING) 
 
    ' // Free cached information
    SendMessageW(hRichEdit, EM_FORMATRANGE, FALSE, NULL)
+   ' // Restore target device
+   SendMessageW(hRichEdit, EM_SETTARGETDEVICE, 0, 0)
 
    ' // If printing has been successful, end the print job
    IF fSuccess THEN

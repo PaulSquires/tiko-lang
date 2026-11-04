@@ -31,7 +31,7 @@
 #include once "win/Windowsx.bi"
 ' // include files for Windows standard controls
 
-NAMESPACE PropSheet
+NAMESPACE Animate
 ' ========================================================================================
 ' Creates an animation control. Animate_Create calls the CreateWindow function to create
 ' the animation control.
@@ -40,8 +40,6 @@ PUBLIC FUNCTION Create (BYVAL hParent AS HWND, BYVAL id AS LONG_PTR, BYVAL dwSty
    RETURN CreateWindowW("SysAnimate32", NULL, dwStyle, 0, 0, 0, 0, hParent, cast(HMENU, id), hInstance, NULL)
 END FUNCTION
 ' ========================================================================================
-END NAMESPACE
-NAMESPACE Animate
 ' ========================================================================================
 ' Opens an AVI clip and displays its first frame in an animation control. You can use this
 ' macro or send the ACM_OPEN message explicitly.
@@ -131,7 +129,7 @@ END FUNCTION
 ' For a list of modifier flag values, see the description of the HotKey_GetHotKey function.
 ' ========================================================================================
 PUBLIC SUB SetHotKey (BYVAL hHotKey AS HWND, BYVAL vkCode AS SHORT, BYVAL fMods AS SHORT)
-   SendMessageW(hHotKey, HKM_SETHOTKEY, MAKELONG(vkCode, fMods), 0)
+   SendMessageW(hHotKey, HKM_SETHOTKEY, MAKEWORD(vkCode, fMods), 0)
 END SUB
 ' ========================================================================================
 
@@ -184,9 +182,9 @@ END FUNCTION
 ' ========================================================================================
 ' Determines if all fields in the IP address control are blank.
 ' ========================================================================================
-PUBLIC SUB IsBlank (BYVAL hIPM AS HWND)
-   SendMessageW(hIPM, IPM_ISBLANK, 0, 0)
-END SUB
+PUBLIC FUNCTION IsBlank (BYVAL hIPM AS HWND) AS BOOLEAN
+   RETURN CBOOL(SendMessageW(hIPM, IPM_ISBLANK, 0, 0))
+END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
@@ -232,7 +230,7 @@ END FUNCTION
 
 ' ========================================================================================
 ' Retrieves the preferred height of a link for the control's current width.
-' Note: It is the same message that LM_GETIDEALHEIGHT with sifferent values.
+' Note: It is the same message that LM_GETIDEALHEIGHT with different values.
 ' ========================================================================================
 PUBLIC FUNCTION GetIdealSize OVERLOAD (BYVAL hLM AS HWND, BYVAL cxMaxWidth AS LONG, BYVAL psize AS SIZE PTR) AS LONG
    RETURN SendMessageW(hLM, LM_GETIDEALHEIGHT, cxMaxWidth, cast(LPARAM, psize))
@@ -367,7 +365,7 @@ END FUNCTION
 END NAMESPACE
 
 
-#if _WIN32_WINNT = &h0602
+'#if _WIN32_WINNT = &h0602
 
 ' ########################################################################################
 '                                    *** PROPSHEET ***
@@ -411,4 +409,4 @@ END SUB
 ' ========================================================================================
 END NAMESPACE
 
-#endif
+'#endif

@@ -226,11 +226,11 @@ FUNCTION CExplorerBrowser.Advise (BYVAL psbe AS IExplorerBrowserEvents PTR, BYVA
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-FUNCTION CExplorerBrowser.Advise (BYVAL psbe AS IExplorerBrowserEvents PTR) AS DWORD
-   DIM dwCookie AS DWORD
-   m_Result = m_pExplorer->lpvtbl->Advise(m_pExplorer, psbe, @dwCookie)
-   RETURN dwCookie
-END FUNCTION
+'FUNCTION CExplorerBrowser.Advise (BYVAL psbe AS IExplorerBrowserEvents PTR) AS DWORD
+'   DIM dwCookie AS DWORD
+'   m_Result = m_pExplorer->lpvtbl->Advise(m_pExplorer, psbe, @dwCookie)
+'   RETURN dwCookie
+'END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================

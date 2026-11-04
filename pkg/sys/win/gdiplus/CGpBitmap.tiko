@@ -60,7 +60,10 @@ END CONSTRUCTOR
 CONSTRUCTOR CGpImage (BYVAL hInst AS HINSTANCE, BYREF wszImageName AS WSTRING)
    m_pStream = ImageStreamFromRes(hInst, wszImageName)
    IF m_pStream = 0 THEN EXIT CONSTRUCTOR
-   IF GdipLoadImageFromStream(m_pStream, @m_pImage) <> S_OK THEN m_pStream->lpVtbl->Release(m_pStream)
+   IF GdipLoadImageFromStream(m_pStream, @m_pImage) <> S_OK THEN
+      m_pStream->lpVtbl->Release(m_pStream)
+      m_pStream = NULL
+   END IF
 END CONSTRUCTOR
 ' ========================================================================================
 
@@ -541,7 +544,10 @@ END CONSTRUCTOR
 CONSTRUCTOR CGpBitmap (BYVAL hInst AS HINSTANCE, BYREF wszImageName AS WSTRING)
    m_pStream = ImageStreamFromRes(hInst, wszImageName)
    IF m_pStream = 0 THEN EXIT CONSTRUCTOR
-   IF GdipLoadImageFromStream(m_pStream, @m_pImage) <> S_OK THEN m_pStream->lpVtbl->Release(m_pStream)
+   IF GdipLoadImageFromStream(m_pStream, @m_pImage) <> S_OK THEN
+      m_pStream->lpVtbl->Release(m_pStream)
+      m_pStream = NULL
+   END IF
 END CONSTRUCTOR
 ' ========================================================================================
 

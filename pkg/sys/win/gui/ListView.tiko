@@ -216,17 +216,23 @@ END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
-' * Gets the text of a list-view control's column.
+' ** Gets the text of a list-view control's column.
 ' ========================================================================================
-PUBLIC FUNCTION GetColumnText (BYVAL hListView AS HWND, BYVAL iCol AS LONG, BYVAL cchTextMax AS LONG = MAX_PATH + 1) AS USTRING
+PUBLIC FUNCTION GetColumnText (BYVAL hListView AS HWND, BYVAL iCol AS LONG, BYVAL cchTextMax AS LONG = 260) AS USTRING
+   IF cchTextMax < 1 THEN RETURN ""
    DIM ustrText AS USTRING
-   IF cchTextMax < 1 THEN cchTextMax = MAX_PATH + 1
    ustrText = WSPACE(cchTextMax + 1)
    DIM lvc AS LVCOLUMNW
    lvc.mask = LVCF_TEXT
    lvc.cchTextMax = cchTextMax + 1
    lvc.pszText = STRPTR(ustrText)
-   IF SendMessageW(hListView, LVM_GETCOLUMNW, iCol, CAST(LPARAM, @lvc)) THEN RETURN ustrText
+   IF SendMessageW(hListView, LVM_GETCOLUMNW, iCol, CAST(LPARAM, @lvc)) THEN
+      ' / Remove the trailing null
+      ustrText = LEFT(ustrText, cchTextMax)
+      ' // Trim trailing spaces
+      RETURN RTRIM(ustrText)
+   END IF
+   RETURN ustrText
 END FUNCTION
 ' ========================================================================================
 
@@ -601,29 +607,28 @@ END FUNCTION
 ' ========================================================================================
 ' Gets the text of a list-view item or subitem.
 ' ========================================================================================
-PUBLIC SUB GetItemText (BYVAL hListView AS HWND, BYVAL i AS LONG, BYVAL iSubItem AS LONG, BYVAL pwszText AS WSTRING PTR, BYVAL cchTextMax AS LONG  = MAX_PATH + 1)
+PUBLIC SUB GetItemText OVERLOAD (BYVAL hListView AS HWND, BYVAL i AS LONG, BYVAL iSubItem AS LONG, BYVAL pwszText AS WSTRING PTR, BYVAL cchTextMax AS LONG = 260)
    DIM lvi AS LVITEMW
    lvi.iSubItem = iSubItem
    lvi.cchTextMax = cchTextMax
    lvi.pszText = pwszText
-   SetLastError(SendMessageW(hListView, LVM_GETITEMTEXTW, i, CAST(LPARAM, @lvi)))
+   SendMessageW(hListView, LVM_GETITEMTEXTW, i, CAST(LPARAM, @lvi))
 END SUB
 ' ========================================================================================
 ' ========================================================================================
-' * Gets the text of a list-view item or subitem.
+' ** Gets the text of a list-view item or subitem.
 ' ========================================================================================
-PUBLIC FUNCTION GetText (BYVAL hListView AS HWND, BYVAL item AS LONG, BYVAL iSubItem AS LONG, BYVAL cchTextMax AS LONG = MAX_PATH + 1) AS USTRING
-   DIM ustrText AS USTRING
+PUBLIC FUNCTION GetItemText OVERLOAD (BYVAL hListView AS HWND, BYVAL i AS LONG, BYVAL iSubItem AS LONG, BYVAL cchTextMax AS LONG = 260) AS USTRING
+   IF cchTextMax < 1 THEN RETURN ""
+   DIM ustrText AS USTRING = WSPACE(cchTextMax + 1)
    DIM lvi AS LVITEMW
    DIM nLen AS LONG
-   IF cchTextMax < 1 THEN cchTextMax = MAX_PATH + 1
-   ustrText = WSPACE(cchTextMax + 1)
    lvi.mask = LVIF_TEXT
-   lvi.iItem = item
+'   lvi.iItem = item
    lvi.iSubItem = iSubItem
    lvi.cchTextMax = cchTextMax + 1
    lvi.pszText = STRPTR(ustrText)
-   nLen = SendMessageW(hListView, LVM_GETITEMTEXTW, 0, CAST(LPARAM, @lvi))
+   nLen = SendMessageW(hListView, LVM_GETITEMTEXTW, i, CAST(LPARAM, @lvi))
    IF nLen = 0 THEN RETURN ""
    RETURN LEFT(ustrText, nLen)
 END FUNCTION
@@ -886,7 +891,7 @@ END FUNCTION
 ' ========================================================================================
 ' Gets the working areas from a list-view control.
 ' ========================================================================================
-PUBLIC SUB GetWorkAreas OVERLOAD (BYVAL hListView AS HWND, BYVAL nWorkAreas AS LONG, BYVAL prc AS RECT PTR)
+PUBLIC SUB GetWorkAreas  (BYVAL hListView AS HWND, BYVAL nWorkAreas AS LONG, BYVAL prc AS RECT PTR)
    SendMessageW hListView, LVM_GETWORKAREAS, nWorkAreas, CAST(LPARAM, prc)
 END SUB
 ' ========================================================================================
@@ -894,20 +899,6 @@ END SUB
 PUBLIC SUB GetWorkAreas OVERLOAD (BYVAL hListView AS HWND, BYVAL nWorkAreas AS LONG, BYREF rc AS RECT)
    SendMessageW hListView, LVM_GETWORKAREAS, nWorkAreas, CAST(LPARAM, @rc)
 END SUB
-' ========================================================================================
-' ========================================================================================
-'PUBLIC FUNCTION ListView.GetWorkAreas OVERLOAD (BYVAL hListView AS HWND, BYVAL nWorkAreas AS LONG) AS RECT
-'   DIM rc AS RECT
-'   SendMessageW hListView, LVM_GETWORKAREAS, nWorkAreas, CAST(LPARAM, @rc)
-'   RETURN rc
-'END FUNCTION
-' ========================================================================================
-' ========================================================================================
-PUBLIC FUNCTION GetWorkAreas OVERLOAD (BYVAL hListView AS HWND, BYVAL nWorkAreas AS LONG) AS (LONG, LONG, LONG, LONG)
-   DIM rc AS RECT
-   SendMessageW hListView, LVM_GETWORKAREAS, nWorkAreas, CAST(LPARAM, @rc)
-   RETURN (rc.left, rc.top, rc.right, rc.bottom)
-END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
@@ -1477,17 +1468,10 @@ END SUB
 ' ========================================================================================
 ' * Changes the text of a list-view item or subitem.
 ' ========================================================================================
-PUBLIC FUNCTION SetItemText (BYVAL hListView AS HWND, BYVAL i AS LONG, BYVAL iSubItem AS LONG, BYREF pwszText AS WSTRING PTR) AS BOOLEAN
+PUBLIC FUNCTION SetItemText (BYVAL hListView AS HWND, BYVAL i AS LONG, BYVAL iSubItem AS LONG, BYVAL pwszText AS WSTRING PTR) AS BOOLEAN
    DIM lvi AS LVITEMW
    lvi.iSubItem = iSubItem
    lvi.pszText = pwszText
-   RETURN SendMessageW(hListView, LVM_SETITEMTEXTW, i, CAST(LPARAM, @lvi))
-END FUNCTION
-' ========================================================================================
-' ========================================================================================
-PUBLIC FUNCTION SetText (BYVAL hListView AS HWND, BYVAL i AS LONG, BYREF wszText AS WSTRING) AS BOOLEAN
-   DIM lvi AS LVITEMW
-   lvi.pszText = @wszText
    RETURN SendMessageW(hListView, LVM_SETITEMTEXTW, i, CAST(LPARAM, @lvi))
 END FUNCTION
 ' ========================================================================================
@@ -1871,13 +1855,17 @@ PUBLIC FUNCTION SetHeaderFont ( _
 
    DIM hLvHeader AS HWND
    DIM hLvHeaderFont AS HFONT
-   DIM hOldFont AS HFONT
+   DIM hCurFont AS HFONT
    DIM lf AS LOGFONTW
    DIM hDC AS HDC
 
    ' // Get the handle of the header
    hLvHeader = CAST(HWND, SendMessageW(hListView, LVM_GETHEADER, 0, 0))
    IF hLvHeader = 0 THEN RETURN NULL
+
+   ' // Get the handle of the font used by the header
+   hCurFont = CAST(HFONT, SendMessageW(hLvHeader, WM_GETFONT, 0, 0))
+   IF hCurFont = NULL THEN RETURN NULL
 
    ' // Create the font
    hDC = GetDC(HWND_DESKTOP)
@@ -1901,10 +1889,10 @@ PUBLIC FUNCTION SetHeaderFont ( _
 
    ' // Select the font
    hDC = GetDC(hLvHeader)
-   hOldFont = SelectObject(hDC, hLvHeaderFont)
+   SelectObject(hDC, hLvHeaderFont)
    ReleaseDC (hLvHeader, hDC)
    SendMessageW(CAST(HWND, hLvHeader), WM_SETFONT, CAST(WPARAM, hLvHeaderFont), TRUE)
-   IF hOldFont THEN DeleteObject(hOldFont)
+   DeleteObject(CAST(HGDIOBJ, hCurFont))
    RETURN hLvHeaderFont
 
 END FUNCTION
@@ -1929,7 +1917,6 @@ PUBLIC FUNCTION ModifyHeaderFont ( _
    DIM hLvHeader AS HWND
    DIM hLvHeaderFont AS HFONT
    DIM hCurFont AS HFONT
-   DIM hOldFont AS HFONT
    DIM lf AS LOGFONTW
    DIM hDC AS HDC
 
@@ -1962,10 +1949,10 @@ PUBLIC FUNCTION ModifyHeaderFont ( _
 
    ' // Select the font
    hDC = GetDC(hLvHeader)
-   hOldFont = SelectObject(hDC, hLvHeaderFont)
+   SelectObject(hDC, hLvHeaderFont)
    ReleaseDC (hLvHeader, hDC)
    SendMessageW(hLvHeader, WM_SETFONT, CAST(WPARAM, hLvHeaderFont), TRUE)
-   IF hOldFont THEN DeleteObject(hOldFont)
+   DeleteObject(CAST(HGDIOBJ, hCurFont))
    RETURN hLvHeaderFont
 
 END FUNCTION

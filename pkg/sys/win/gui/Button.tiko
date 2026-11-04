@@ -145,7 +145,12 @@ END FUNCTION
 ' Returns TRUE or FALSE.
 ' ========================================================================================
 PUBLIC FUNCTION DeleteImage (BYVAL hButton AS HWND, BYVAL ImageType AS DWORD) AS BOOLEAN
-   RETURN DeleteObject(cast(HGDIOBJ, SendMessageW(hButton, BM_SETIMAGE, cast(WPARAM, ImageType), cast(LPARAM, NULL))))
+   IF ImageType <> IMAGE_BITMAP AND ImageType <> IMAGE_ICON THEN RETURN FALSE
+   IF ImageType = IMAGE_BITMAP THEN
+      RETURN DeleteObject(cast(HGDIOBJ, SendMessageW(hButton, BM_SETIMAGE, cast(WPARAM, ImageType), cast(LPARAM, NULL))))
+   ELSE
+      RETURN DestroyIcon(cast(HICON, SendMessageW(hButton, BM_SETIMAGE, cast(WPARAM, ImageType), cast(LPARAM, NULL))))
+   END IF
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
@@ -161,7 +166,7 @@ END FUNCTION
 ' Returns TRUE or FALSE.
 ' ========================================================================================
 PUBLIC FUNCTION DeleteIcon (BYVAL hButton AS HWND) AS BOOLEAN
-   RETURN DeleteObject(cast(HGDIOBJ, SendMessageW(hButton, BM_SETIMAGE, cast(WPARAM, IMAGE_ICON), cast(LPARAM, NULL))))
+   RETURN DestroyIcon(cast(HICON, SendMessageW(hButton, BM_SETIMAGE, cast(WPARAM, IMAGE_ICON), cast(LPARAM, NULL))))
 END FUNCTION
 ' ========================================================================================
 
@@ -181,13 +186,13 @@ END FUNCTION
 ' ========================================================================================
 
 ' ========================================================================================
-' * Gets the text of a button.
+' ** Gets the text of a button.
 ' ========================================================================================
 PUBLIC FUNCTION GetText OVERLOAD (BYVAL hButton AS HWND) AS USTRING
    DIM nLen AS LONG = GetWindowTextLengthW(hButton)
    DIM ustrText AS USTRING = WSPACE(nLen + 1)
    GetWindowTextW(hButton, ustrText, nLen + 1)
-   RETURN ustrText
+   RETURN LEFT(ustrText, nLen)
 END FUNCTION
 ' ========================================================================================
 

@@ -675,7 +675,7 @@ END FUNCTION
 ' =====================================================================================
 FUNCTION CGpPathGradientBrush.SetGraphicsPath (BYVAL pGraphPath AS CGpGraphicsPath PTR) AS GpStatus
    IF pGraphPath = NULL THEN RETURN SetStatus(InvalidParameter)
-   RETURN SetStatus(GdipGetPathGradientPath(cast(GpPathGradient PTR, m_pBrush), pGraphPath->m_pPath))
+   RETURN SetStatus(GdipSetPathGradientPath(cast(GpPathGradient PTR, m_pBrush), pGraphPath->m_pPath))
 END FUNCTION
 ' =====================================================================================
 
@@ -778,7 +778,7 @@ END FUNCTION
 ' Sets the preset colors and the blend positions of this path gradient brush.
 ' =====================================================================================
 FUNCTION CGpPathGradientBrush.SetInterpolationColors (BYVAL presetColors AS ARGB PTR, BYVAL blendPositions AS SINGLE PTR, BYVAL nCount AS INT_) AS GpStatus
-   IF VARPTR(presetColors) = NULL OR nCount <= 0 THEN RETURN SetStatus(InvalidParameter)
+   IF nCount <= 0 THEN RETURN SetStatus(InvalidParameter)
    RETURN SetStatus(GdipSetPathGradientPresetBlend(cast(GpPathGradient PTR, m_pBrush), presetColors, blendPositions, nCount))
 END FUNCTION
 ' =====================================================================================
@@ -787,7 +787,7 @@ END FUNCTION
 ' Sets the number of preset colors currently specified for this path gradient brush.
 ' =====================================================================================
 FUNCTION CGpPathGradientBrush.GetInterpolationColors (BYVAL presetColors AS ARGB PTR, BYVAL blendPositions AS SINGLE PTR, BYVAL nCount AS INT_) AS GpStatus
-   IF VARPTR(presetColors) = NULL OR nCount <= 0 THEN RETURN SetStatus(InvalidParameter)
+   IF nCount <= 0 THEN RETURN SetStatus(InvalidParameter)
    RETURN SetStatus(GdipGetPathGradientPresetBlend(cast(GpPathGradient PTR, m_pBrush), presetColors, blendPositions, nCount))
 END FUNCTION
 ' =====================================================================================

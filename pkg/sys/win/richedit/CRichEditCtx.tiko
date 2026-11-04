@@ -175,7 +175,7 @@ PUBLIC TYPE CRichEditCtx EXTENDS CTextObjectBase
       DECLARE FUNCTION DisplayBand (BYREF rc AS .RECT) AS BOOLEAN
       DECLARE SUB EmptyUndoBuffer ()
       DECLARE FUNCTION ExGetSel () AS CHARRANGE
-      DECLARE SUB ExGetSel (BYREF cpMin AS LONG, BYVAL cpMax AS LONG)
+      DECLARE SUB ExGetSel (BYREF cpMin AS LONG, BYREF cpMax AS LONG)
       DECLARE SUB ExLimitText (BYVAL dwLimit AS DWORD)
       DECLARE FUNCTION ExLineFromChar (BYVAL iIndex AS LONG) AS LONG
       DECLARE FUNCTION ExSetSel (BYREF cr AS CHARRANGE) AS DWORD
@@ -530,11 +530,11 @@ FUNCTION CRichEditCtx.CRichEditCtxProc ( _
                IF pRichEdit = NULL THEN RETURN 0
                IF pRichEdit->AcceptTab = FALSE THEN
                   IF HIWORD(.GetKeyState(VK_SHIFT)) = 0 THEN
-                     '// Set the focus in the previous control that has the WS_TABSTOP style
-                     .SetFocus .GetNextDlgTabItem(GetParent(hwnd), hwnd, 0)
-                  ELSE
                      '// Set the focus in the next control that has the WS_TABSTOP style
-                     .SetFocus .GetNextDlgTabItem(GetParent(hwnd), hwnd, -1)
+                     ..SetFocus .GetNextDlgTabItem(GetParent(hwnd), hwnd, 0)
+                  ELSE
+                     '// Set the focus in the previous control that has the WS_TABSTOP style
+                     ..SetFocus .GetNextDlgTabItem(GetParent(hwnd), hwnd, -1)
                   END IF
                END IF
                RETURN 0
@@ -546,7 +546,7 @@ FUNCTION CRichEditCtx.CRichEditCtxProc ( _
          EXIT FUNCTION
 
       ' // Returns the class pointer
-      CASE WM_USER + 100
+      CASE WM_USER + 1000
          RETURN dwRefData
 
    END SELECT
@@ -654,16 +654,19 @@ FUNCTION CRichEditCtx.SetWysiwygPrint (BYREF wszPrinterName AS WSTRING = "") AS 
    IF LEN(_wszPrinterName) = 0 THEN
       ' // Get the default printer
       DIM buffer AS WSTRING * MAX_PATH
-      GetProfileStringW "WINDOWS", "DEVICE", "", buffer, SIZEOF(buffer)
+      GetProfileStringW "WINDOWS", "DEVICE", "", buffer, SIZEOF(buffer) \ 2
       _wszPrinterName = ParseStr(buffer, 1, ",")
    END IF
    ' // Create a device context for the printer
    DIM hDCPrinter AS HDC = CreateDCW(NULL, _wszPrinterName, NULL, NULL)
+   IF hDCPrinter = NULL THEN RETURN FALSE
    ' // Calculate the width in twips
    DIM cx AS LONG, cy AS LONG
    cx = (GetDeviceCaps(hDCPrinter, HORZRES) * 1440) \ GetDeviceCaps(hDCPrinter, LOGPIXELSX)
    ' // Set the target device and line width
    m_Result = SendMessageW(m_hRichEdit, EM_SETTARGETDEVICE, cast(WPARAM, hDCPrinter), cx)
+   ' // Delete the printer DC
+   DeleteDC hDCPrinter
    IF m_Result THEN m_Result = 0 : RETURN TRUE
    IF m_Result = 0 THEN m_Result = E_FAIL: RETURN FALSE
 END FUNCTION
@@ -676,6 +679,7 @@ FUNCTION CRichEditCtx.RestoreTargetDevice () AS BOOLEAN
    m_Result = 0
    DIM hDC AS HDC = GetDC(m_hRichEdit)
    m_Result = SendMessageW(m_hRichEdit, EM_SETTARGETDEVICE, cast(WPARAM, hDC), 0)
+   ReleaseDC m_hRichEdit, hDC
    RETURN CBOOL(m_Result)
 END FUNCTION
 ' ========================================================================================
@@ -1934,7 +1938,7 @@ FUNCTION CRichEditCtx.ExGetSel () AS CHARRANGE
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-SUB CRichEditCtx.ExGetSel (BYREF cpMin AS LONG, BYVAL cpMax AS LONG)
+SUB CRichEditCtx.ExGetSel (BYREF cpMin AS LONG, BYREF cpMax AS LONG)
    DIM cr AS CHARRANGE = TYPE<CHARRANGE>(cpMin, cpMax)
    m_Result = SendMessageW(m_hRichEdit, EM_EXGETSEL, 0, cast(LPARAM, @cr))
    IF VARPTR(cpMin) THEN cpMin = cr.cpMin
@@ -2345,13 +2349,13 @@ FUNCTION CRichEditCtx.GetRawText () AS STRING
    m_Result = 0
    DIM gtlex AS .GETTEXTLENGTHEX = TYPE<.GETTEXTLENGTHEX>(GT_RAWTEXT, CP_ACP)
    DIM cb AS LONG = SendMessageW(m_hRichEdit, EM_GETTEXTLENGTHEX, cast(WPARAM, @gtlex), 0)
-   DIM gtex AS .GETTEXTEX
+   DIM gtex AS ..GETTEXTEX
    gtex.cb = cb
    gtex.flags = GT_RAWTEXT
    gtex.codepage = CP_ACP
    DIM buffer AS STRING = SPACE(cb)
    m_Result = SendMessageW(m_hRichEdit, EM_GETTEXTEX, cast(WPARAM, @gtex), cast(LPARAM, STRPTR(buffer)))
-   RETURN buffer
+   RETURN LEFT(buffer, INSTR(buffer, CHR(0)) - 1)
 END FUNCTION
 ' ========================================================================================
 
@@ -3562,6 +3566,7 @@ FUNCTION CRichEditCtx.InsertObject ( _
    DIM pRichEditOle AS IRichEditOle PTR
    m_Result = SendMessageW(m_hRichEdit, EM_GETOLEINTERFACE, 0, cast(LPARAM, @pRichEditOle))
    IF pRichEditOle = NULL THEN RETURN FALSE
+   defer SafeRelease(pRichEditOle)
 
    ' // Create structured storage
    DIM pLockBytes AS ILockBytes PTR
@@ -3573,6 +3578,7 @@ FUNCTION CRichEditCtx.InsertObject ( _
       STGM_SHARE_EXCLUSIVE OR STGM_CREATE OR STGM_READWRITE, 0, @pStorage)
    SafeRelease(pLockBytes)
    IF FAILED(m_Result) THEN RETURN FALSE
+   defer SafeRelease(pStorage)
 
    ' // Set up the data format
    DIM formatEtc AS FORMATETC
@@ -3586,6 +3592,7 @@ FUNCTION CRichEditCtx.InsertObject ( _
    DIM pClientSite AS IOleClientSite PTR
    m_Result = pRichEditOle->lpvtbl->GetClientSite(pRichEditOle, @pClientSite)
    IF FAILED(m_Result) THEN RETURN FALSE
+   defer SafeRelease(pClientSite)
 
    ' // Create the object and retrieve its IUnknown interface
    DIM pUnk AS IUnknown PTR
@@ -3598,17 +3605,15 @@ FUNCTION CRichEditCtx.InsertObject ( _
    m_Result = pUnk->lpvtbl->QueryInterface(pUnk, @IID_IOleObject, @pObject)
    SafeRelease(pUnk)
    IF FAILED(m_Result) THEN RETURN FALSE
+   defer SafeRelease(pObject)
 
    ' // To ensure that references are counted correctly, notify the object that it is contained
    DIM clsid AS CLSID
-   OleSetContainedObject(cast(IUnknown PTR, pObject), TRUE)
+   m_Result = OleSetContainedObject(cast(IUnknown PTR, pObject), TRUE)
+   IF FAILED(m_Result) THEN RETURN FALSE
    ' // Get the object class identifier
    m_Result = pObject->lpvtbl->GetUserClassID(pObject, @clsid)
-   IF FAILED(m_Result) THEN
-      SafeRelease(pObject)
-      SafeRelease(pStorage)
-      RETURN FALSE
-   END IF
+   IF FAILED(m_Result) THEN RETURN FALSE
 
    ' // Set up object info
    DIM reobject AS REOBJECT
@@ -3632,10 +3637,6 @@ FUNCTION CRichEditCtx.InsertObject ( _
 
    ' // Insert the object
    m_Result = pRichEditOle->lpvtbl->InsertObject(pRichEditOle, @reobject)
-   SafeRelease(pClientSite)
-   SafeRelease(pObject)
-   SafeRelease(pStorage)
-   SafeRelease(pRichEditOle)
    IF FAILED(m_Result) THEN RETURN FALSE
    
    ' // Return success
@@ -4142,7 +4143,7 @@ END FUNCTION
 ' Example:
 ' DIM dv AS DVARIANT = GetExePath & $"\Test.rtf"
 ' pRichEditCtrl.OpenDoc(dv)
-' Default code page is CP_UNICODE (1200).
+' Default code page is CP_ACP
 ' If it is an ansi text file, pass CP_ANSI.
 ' If it UTF8 pass CP_UTF8.
 ' ========================================================================================
@@ -4594,6 +4595,7 @@ END FUNCTION
 ' instance receives are forwarded to the message filter.
 ' ========================================================================================
 FUNCTION CRichEditCtx.AttachMsgFilter (BYVAL pFilter AS IUnknown PTR) AS HRESULT
+   IF pFilter = NULL THEN m_Result = E_FAIL: RETURN m_Result
    m_Result = m_pTextDocument2->lpvtbl->AttachMsgFilter(m_pTextDocument2, pFilter)
    RETURN m_Result
 END FUNCTION
@@ -4613,9 +4615,9 @@ END FUNCTION
 ' Gets the call manager.
 ' ========================================================================================
 FUNCTION CRichEditCtx.GetCallManager () AS IUnknown PTR
-   DIM pVoid AS IUnknown PTR
-   m_Result = m_pTextDocument2->lpvtbl->GetCallManager(m_pTextDocument2, @pVoid)
-   RETURN pVoid
+   DIM pvoid AS IUnknown PTR
+   m_Result = m_pTextDocument2->lpvtbl->GetCallManager(m_pTextDocument2, @pvoid)
+   RETURN pvoid
 END FUNCTION
 ' ========================================================================================
 
@@ -4888,7 +4890,7 @@ END FUNCTION
 ' DIM pRichEdit AS CRichEditCtx PTR = CRichEditCtxPtr(CAST(HWND, lParam))
 ' ========================================================================================
 PUBLIC FUNCTION CRichEditCtxPtr OVERLOAD (BYVAL hRichEdit AS HWND) AS CRichEditCtx PTR
-   DIM pRichEditCtx AS CRichEditCtx PTR = CAST(CRichEditCtx PTR, SendMessageW(hRichEdit, WM_USER + 100, 0, 0))
+   DIM pRichEditCtx AS CRichEditCtx PTR = CAST(CRichEditCtx PTR, SendMessageW(hRichEdit, WM_USER + 1000, 0, 0))
    RETURN pRichEditCtx
 END FUNCTION
 ' ========================================================================================
@@ -4899,7 +4901,7 @@ END FUNCTION
 ' cID = Identifier of the rich edit control.
 ' ========================================================================================
 PUBLIC FUNCTION CRichEditCtxPtr OVERLOAD (BYVAL hParent AS HWND, BYVAL cID AS LONG) AS CRichEditCtx PTR
-   DIM pRichEditCtx AS CRichEditCtx PTR = CAST(CRichEditCtx PTR, SendMessageW(GetDlgItem(hParent, cID), WM_USER + 100, 0, 0))
+   DIM pRichEditCtx AS CRichEditCtx PTR = CAST(CRichEditCtx PTR, SendMessageW(GetDlgItem(hParent, cID), WM_USER + 1000, 0, 0))
    RETURN pRichEditCtx
 END FUNCTION
 ' ========================================================================================

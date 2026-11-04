@@ -177,7 +177,7 @@ CONSTRUCTOR CGraphCtx (BYVAL pWindow AS CWindow PTR, BYVAL cID AS LONG_PTR, BYRE
    ' WS_CLIPSIBLINGS styles. Additionally, the window class attribute should not include
    ' the CS_PARENTDC style.
    ' // Make sure that the control has the WS_CHILD, WS_CLIPCHILDREN and WS_CLIPSIBLINGS styles
-   IF wszTitle = "OPENGL" THEN dwStyle = dwStyle OR WS_CLIPCHILDREN OR WS_CLIPSIBLINGS
+   IF UCASE(wszTitle) = "OPENGL" THEN dwStyle = dwStyle OR WS_CLIPCHILDREN OR WS_CLIPSIBLINGS
    IF pWindow THEN m_hCtl = pWindow->AddControl(wszClassName, pWindow->hWindow, cID, wszTitle, x, y, nWidth, nHeight, dwStyle, dwExStyle, lpParam)
    IF m_hCtl THEN
       .SetWindowLongPtrW m_hCtl, 0, CAST(LONG_PTR, @this)
@@ -255,13 +255,15 @@ END CONSTRUCTOR
 ' ========================================================================================
 DESTRUCTOR CGraphCtx
    ' // Restore the original bitmap
-   .SelectObject(m_hMemDc, m_hOldBmp)
+   ..SelectObject(m_hMemDc, m_hOldBmp)
    ' // OpenGL: Release the device and rendering contexts
    IF m_hMemDc THEN this.MakeNotCurrent
    IF m_hRC THEN this.DeleteContext
    ' // Destroys the bitmap and the memory device context
-   IF m_hBmp THEN .DeleteObject(m_hBmp)
-   IF m_hMemDc THEN .DeleteDC(m_hMemDc)
+   IF m_hBmp THEN ..DeleteObject(m_hBmp)
+   IF m_hMemDc THEN ..DeleteDC(m_hMemDc)
+   ' // Destroys the font
+   IF m_hFont THEN ..DeleteObject m_hFont
 END DESTRUCTOR
 ' ========================================================================================
 
@@ -1224,7 +1226,10 @@ END FUNCTION
 ' OpenGL: Delete context
 ' ========================================================================================
 FUNCTION CGraphCtx.DeleteContext () AS BOOLEAN
-   FUNCTION = wglDeleteContext(m_hRC)
+   IF m_hRC THEN
+      FUNCTION = wglDeleteContext(m_hRC)
+      m_hRC = NULL
+   END IF
 END FUNCTION
 ' ========================================================================================
 

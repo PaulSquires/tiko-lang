@@ -92,9 +92,9 @@ PUBLIC TYPE CXpButton
       DECLARE FUNCTION GetTextFormat () AS DWORD
       DECLARE SUB SetCursor (BYVAL hCursor AS HCURSOR)
       DECLARE FUNCTION GetCursor () AS HCURSOR
-      DECLARE SUB SetToggle (BYVAL fState AS LONG, BYVAL fRedraw AS LONG = FALSE)
+      DECLARE SUB SetToggle (BYVAL fToggle AS LONG, BYVAL fRedraw AS LONG = FALSE)
       DECLARE FUNCTION GetToggle () AS LONG
-      DECLARE SUB SetToggleState (BYVAL fToggle AS LONG, BYVAL fRedraw AS LONG = FALSE)
+      DECLARE SUB SetToggleState (BYVAL fState AS LONG, BYVAL fRedraw AS LONG = FALSE)
       DECLARE FUNCTION GetToggleState () AS LONG
       DECLARE SUB SetImageSize (BYVAL nWidth AS LONG, BYVAL nHeight AS LONG, BYVAL fRedraw AS LONG = FALSE)
       DECLARE SUB SetImageWidth (BYVAL nWidth AS LONG, BYVAL fRedraw AS LONG = FALSE)
@@ -234,8 +234,10 @@ CONSTRUCTOR CXpButton (BYVAL pWindow AS CWindow PTR, BYVAL cID AS LONG_PTR, BYRE
    m_hCursor = LoadCursor(NULL, IDC_ARROW)
 
    ' // Scaling
-   m_rx = pWindow->rxRatio
-   m_ry = pWindow->ryRatio
+   IF pWindow THEN
+      m_rx = pWindow->rxRatio
+      m_ry = pWindow->ryRatio
+   END IF
 
    ' // Default text color
    m_TextForeColor = GetSysColor(COLOR_BTNTEXT)
@@ -261,9 +263,27 @@ END CONSTRUCTOR
 ' ========================================================================================
 DESTRUCTOR CXpButton
    ' // Deletes the images
-   IF m_hImage THEN DeleteObject m_hImage
-   IF m_hHotImage THEN DeleteObject m_hHotImage
-   IF m_hDisabledImage THEN DeleteObject m_hDisabledImage
+   IF m_hImage THEN
+      IF ImageType = IMAGE_BITMAP THEN
+         DeleteObject m_hImage
+      ELSE
+         DestroyIcon m_hImage
+      END IF
+   END IF
+   IF m_hHotImage THEN
+      IF ImageType = IMAGE_BITMAP THEN
+         DeleteObject m_hHotImage
+      ELSE
+         DestroyIcon m_hHotImage
+      END IF
+   END IF
+   IF m_hDisabledImage THEN
+      IF ImageType = IMAGE_BITMAP THEN
+         DeleteObject m_hDisabledImage
+      ELSE
+         DestroyIcon m_hDisabledImage
+      END IF
+   END IF
    ' // Deletes the brushes
    IF m_hBkBrush THEN DeleteObject m_hBkBrush
    IF m_hBkBrushDown THEN DeleteObject m_hBkBrushDown
@@ -658,7 +678,7 @@ END SUB
 
 ' ========================================================================================
 ' Gets the button toggle state
-' Returns CTRUE if the button is toggled or FALSE otherwise.
+' Returns CTRUE if it is a toggle button or FALSE otherwise.
 ' ========================================================================================
 FUNCTION CXpButton.GetToggle () AS LONG
    FUNCTION = m_bIsToggle
@@ -1134,13 +1154,31 @@ SUB CXpButton.SetImage (BYVAL hImage AS HANDLE, BYVAL nImageType AS LONG, BYVAL 
    ' // Destroys the old image
    SELECT CASE nImageState
       CASE XPBI_NORMAL
-         IF m_hImage THEN DeleteObject m_hImage
+         IF m_hImage THEN
+            IF ImageType = IMAGE_BITMAP THEN
+               DeleteObject m_hImage
+            ELSE
+               DestroyIcon m_hImage
+            END IF
+         END IF
          m_hImage = hImage
       CASE XPBI_HOT
-         IF m_hHotImage THEN DeleteObject m_hHotImage
+         IF m_hHotImage THEN
+            IF ImageType = IMAGE_BITMAP THEN
+               DeleteObject m_hHotImage
+            ELSE
+               DestroyIcon m_hHotImage
+            END IF
+         END IF
          m_hHotImage = hImage
       CASE XPBI_DISABLED
-         IF m_hDisabledImage THEN DeleteObject m_hDisabledImage
+         IF m_hDisabledImage THEN
+            IF ImageType = IMAGE_BITMAP THEN
+               DeleteObject m_hDisabledImage
+            ELSE
+               DestroyIcon m_hDisabledImage
+            END IF
+         END IF
          m_hDisabledImage = hImage
    END SELECT
    ' // Image type

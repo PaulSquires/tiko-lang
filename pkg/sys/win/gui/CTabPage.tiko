@@ -305,7 +305,7 @@ END NAMESPACE
 
 ' ========================================================================================
 ' Returns a pointer to the CTabPage class given the handle of the tab control to which the
-' tab page is associated and the zero-based tab index. If nTabIdx is ommited, the function
+' tab page is associated and the zero-based tab index. If nTabIdx is -1, the function
 ' will return the pointer of the selected tab, if any.
 ' ========================================================================================
 PUBLIC FUNCTION CTabPagePtr (BYVAL hTab AS HWND, BYVAL idx AS LONG) AS CTabPage PTR

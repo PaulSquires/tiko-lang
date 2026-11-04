@@ -132,10 +132,10 @@ PUBLIC Dim Shared ImageFormatEXIF          As GUID = Type(&hB96B3CB2, &h0728, &h
 PUBLIC Dim Shared ImageFormatGIF           As GUID = Type(&hB96B3CB0, &h0728, &h11D3, {&h9D, &h7B, &h00, &h00, &hF8, &h1E, &hF3, &h2E})
 PUBLIC Dim Shared ImageFormatIcon          As GUID = Type(&hB96B3CB5, &h0728, &h11D3, {&h9D, &h7B, &h00, &h00, &hF8, &h1E, &hF3, &h2E})
 PUBLIC Dim Shared ImageFormatJPEG          As GUID = Type(&hB96B3CAE, &h0728, &h11D3, {&h9D, &h7B, &h00, &h00, &hF8, &h1E, &hF3, &h2E})
-PUBLIC Dim Shared ImageFormatMemoryBMP     As GUID = Type(&hB96B3CB4, &h0728, &h11D3, {&h9D, &h7B, &h00, &h00, &hF8, &h1E, &hF3, &h2E})
+PUBLIC Dim Shared ImageFormatMemoryBMP     As GUID = Type(&hb96b3caa, &h0728, &h11D3, {&h9D, &h7B, &h00, &h00, &hF8, &h1E, &hF3, &h2E})
 PUBLIC Dim Shared ImageFormatPNG           As GUID = Type(&hB96B3CAF, &h0728, &h11D3, {&h9D, &h7B, &h00, &h00, &hF8, &h1E, &hF3, &h2E})
 PUBLIC Dim Shared ImageFormatTIFF          As GUID = Type(&hB96B3CB1, &h0728, &h11D3, {&h9D, &h7B, &h00, &h00, &hF8, &h1E, &hF3, &h2E})
-PUBLIC Dim Shared ImageFormatUndefined     As GUID = Type(&hB96B3CAA, &h0728, &h11D3, {&h9D, &h7B, &h00, &h00, &hF8, &h1E, &hF3, &h2E})
+PUBLIC Dim Shared ImageFormatUndefined     As GUID = Type(&hB96B3CA9, &h0728, &h11D3, {&h9D, &h7B, &h00, &h00, &hF8, &h1E, &hF3, &h2E})
 PUBLIC Dim Shared ImageFormatWMF           As GUID = Type(&hB96B3CAD, &h0728, &h11D3, {&h9D, &h7B, &h00, &h00, &hF8, &h1E, &hF3, &h2E})
 
 ' // Frame Dimension GUIDs
@@ -1116,9 +1116,9 @@ PUBLIC Dim Shared BlurEffectGuid As GUID = Type(&h633C80A4, &h1843, &h482B, {&h9
 ' BrightnessContrastEffect - {D3A1DBE1-8EC4-4c17-9F4C-EA97AD1C343D}
 PUBLIC Dim Shared BrightnessContrastEffectGuid As GUID = Type(&hD3A1DBE1, &h8EC4, &h4c17, {&h9F, &h4C, &hEA, &h97, &hAD, &h1C, &h34, &h3D})
 ' ColorBalanceEffect - {537E597D-251E-48da-9664-29CA496B70F8}
-PUBLIC Dim Shared ColorBalanceEffectGuid As GUID = Type(&h537E597D, &h251E, &h48DA, {&h96, &h64, &h29, &hCA, &h49, &h68, &h70, &hF8})
+PUBLIC Dim Shared ColorBalanceEffectGuid As GUID = Type(&h537E597D, &h251E, &h48DA, {&h96, &h64, &h29, &hCA, &h49, &h6B, &h70, &hF8})
 ' ColorCurveEffect - {DD6A0022-58E4-4a67-9D9B-D48EB881A53D}
-PUBLIC Dim Shared ColorCurveEffectGuid As GUID = Type(&hDD6A0022, &h58E4, &h4a67, {&h90, &h98, &hD4, &h8E, &hB8, &h81, &hA5, &h3D})
+PUBLIC Dim Shared ColorCurveEffectGuid As GUID = Type(&hDD6A0022, &h58E4, &h4a67, {&h9D, &h9B, &hD4, &h8E, &hB8, &h81, &hA5, &h3D})
 ' ColorLUTEffect - {A7CE72A9-0F7F-40d7-B3CC-D0C02D5C3212}
 PUBLIC Dim Shared ColorLUTEffectGuid As GUID = Type(&hA7CE72A9, &h0F7F, &h40d7, {&hB3, &hCC, &hD0, &hC0, &h2D, &h5C, &h32, &h12})
 ' ColorMatrixEffect - {718F2615-7933-40e3-A511-5F68FE14DD74}

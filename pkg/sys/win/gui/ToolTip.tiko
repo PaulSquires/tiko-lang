@@ -268,7 +268,7 @@ PUBLIC SUB GetText OVERLOAD (BYVAL hTooltip AS HWND, BYVAL numChars AS DWORD, BY
 END SUB
 ' ========================================================================================
 ' ========================================================================================
-' * Retrieves the information a ToolTip control maintains about a tool.
+' ** Retrieves the information a ToolTip control maintains about a tool.
 ' - hTooltip: Handle of the ToolTip control.
 ' - hwnd: Handle to the window that contains the tool.
 ' - numChars: Maximum number of characters to return.
@@ -297,8 +297,9 @@ PUBLIC FUNCTION GetText OVERLOAD (BYVAL hTooltip AS HWND, BYVAL hwnd AS HWND, BY
    ' Now retrieve the text
    DIM ustrText AS USTRING = WSPACE(numChars + 1)
    ti.lpszText = STRPTR(ustrText)
-   SendMessageW(hTooltip, TTM_GETTEXTW, numChars, cast(LPARAM, @ti))
-   RETURN ustrText
+   SendMessageW(hTooltip, TTM_GETTEXTW, numChars + 1, cast(LPARAM, @ti))
+   ustrText = LEFT(ustrText, numChars)
+   RETURN RTRIM(ustrText, " ")
 END FUNCTION
 ' ========================================================================================
 
@@ -662,7 +663,7 @@ PUBLIC FUNCTION AddTooltip (BYVAL hwnd AS HWND, BYREF wszText AS CONST WSTRING =
    DIM dwStyle AS DWORD = WS_POPUP OR TTS_ALWAYSTIP
    IF bBalloon THEN dwStyle = dwStyle OR TTS_BALLOON
    DIM hTooltip AS ..HWND
-   hTooltip = CreateWindowExW(0, "tooltips_class32", "", dwStyle, 0, 0, 0, 0, NULL, NULL, NULL, NULL)
+   hTooltip = CreateWindowExW(0, "tooltips_class32", "", dwStyle, 0, 0, 0, 0, hwnd, NULL, NULL, NULL)
    IF hTooltip = NULL THEN EXIT FUNCTION
    ' // You must explicitly define a tooltip control as topmost. Otherwise, it might be covered by the parent window.
    SetWindowPos(hTooltip, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE OR SWP_NOSIZE OR SWP_NOACTIVATE)

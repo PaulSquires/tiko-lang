@@ -84,7 +84,7 @@ Public:
    DECLARE FUNCTION GetName () AS USTRING
    DECLARE FUNCTION SetName (BYREF wszFontName AS WSTRING) AS HRESULT
    DECLARE PROPERTY Name () AS USTRING
-   DECLARE PROPERTY Name (BYREF dwsFontName AS USTRING)
+   DECLARE PROPERTY Name (BYREF ustrFontName AS USTRING)
    DECLARE FUNCTION GetOutline () AS LONG
    DECLARE FUNCTION SetOutline (BYVAL Value AS LONG) AS HRESULT
    DECLARE PROPERTY Outline () AS LONG
@@ -290,7 +290,7 @@ FUNCTION CTextFont2.GetDuplicate2 () AS ITextFont2 PTR
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-' Sets whether characters are displayed with double horizontal lines through the center.
+' Sets the properties of this object by copying the properties of another text font object.
 ' ========================================================================================
 FUNCTION CTextFont2.SetDuplicate2 (BYVAL pFont AS ITextFont2 PTR) AS HRESULT
    m_Result = m_pTextFont2->lpvtbl->SetDuplicate2(m_pTextFont2, pFont)
@@ -307,7 +307,7 @@ PROPERTY CTextFont2.Duplicate2 () AS ITextFont2 PTR
 END PROPERTY
 ' ========================================================================================
 ' ========================================================================================
-' Sets whether characters are displayed with double horizontal lines through the center.
+' Sets the properties of this object by copying the properties of another text font object.
 ' ========================================================================================
 PROPERTY CTextFont2.Duplicate2 (BYVAL pFont AS ITextFont2 PTR)
    m_Result = m_pTextFont2->lpvtbl->SetDuplicate2(m_pTextFont2, pFont)
@@ -766,8 +766,10 @@ END PROPERTY
 FUNCTION CTextFont2.GetName () AS USTRING
    DIM pName AS WBSTR, ustrName AS USTRING
    m_Result = m_pTextFont2->lpvtbl->GetName(m_pTextFont2, @pName)
-   ustrName = *pName
-   SysFreeString pName
+   IF pName THEN
+      ustrName = *pName
+      SysFreeString pName
+   END IF
    RETURN ustrName
 END FUNCTION
 ' ========================================================================================
@@ -1868,7 +1870,7 @@ FUNCTION CTextFont2.GetProperty (BYVAL nType AS LONG) AS LONG
 END FUNCTION
 ' ========================================================================================
 ' ========================================================================================
-' Sets the additional character format effects.
+' Sets the value of the specified property.
 ' ========================================================================================
 FUNCTION CTextFont2.SetProperty (BYVAL nType AS LONG, BYVAL Value AS LONG) AS HRESULT
    m_Result = m_pTextFont2->lpvtbl->SetProperty(m_pTextFont2, nType, Value)
@@ -1885,7 +1887,7 @@ PROPERTY CTextFont2.Property_ (BYVAL nType AS LONG) AS LONG
 END PROPERTY
 ' ========================================================================================
 ' ========================================================================================
-' Sets the additional character format effects.
+' Sets the value of the specified property.
 ' ========================================================================================
 PROPERTY CTextFont2.Property_ (BYVAL nType AS LONG, BYVAL Value AS LONG)
    m_Result = m_pTextFont2->lpvtbl->SetProperty(m_pTextFont2, nType, Value)
@@ -1893,7 +1895,7 @@ END PROPERTY
 ' ========================================================================================
 
 ' ========================================================================================
-' Gets the additional character format effects.
+' Gets the property type and value of the specified extra property.
 ' ========================================================================================
 FUNCTION CTextFont2.GetPropertyInfo (BYVAL Index AS LONG, BYVAL pType AS LONG PTR, BYVAL pValue AS LONG PTR) AS HRESULT
    IF m_pTextFont2 = NULL THEN m_Result = E_POINTER: RETURN m_Result
@@ -1901,8 +1903,6 @@ FUNCTION CTextFont2.GetPropertyInfo (BYVAL Index AS LONG, BYVAL pType AS LONG PT
    RETURN m_Result
 END FUNCTION
 ' ========================================================================================
-' ========================================================================================
-' Gets the additional character format effects.
 ' ========================================================================================
 FUNCTION CTextFont2.PropertyInfo (BYVAL Index AS LONG, BYVAL pType AS LONG PTR, BYVAL pValue AS LONG PTR) AS HRESULT
    IF m_pTextFont2 = NULL THEN m_Result = E_POINTER: RETURN m_Result

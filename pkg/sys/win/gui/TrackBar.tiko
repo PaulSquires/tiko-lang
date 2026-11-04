@@ -132,7 +132,7 @@ END FUNCTION
 ' ========================================================================================
 ' Retrieves the address of an array that contains the positions of the tick marks for a trackbar.
 ' ========================================================================================
-PUBLIC FUNCTION GetPTics (BYVAL hTrackbar AS HWND) AS DWORD
+PUBLIC FUNCTION GetPTics (BYVAL hTrackbar AS HWND) AS LONG_PTR
    RETURN SendMessageW(hTrackbar, TBM_GETPTICS, 0, 0)
 END FUNCTION
 ' ========================================================================================
@@ -274,8 +274,8 @@ END SUB
 ' ========================================================================================
 ' Sets the range of minimum and maximum logical positions for the slider in a trackbar.
 ' ========================================================================================
-PUBLIC SUB SetRange (BYVAL hTrackbar AS HWND, BYVAL lMinimum AS LONG, BYVAL lMaximum AS LONG, BYVAL fRedraw AS BOOLEAN = FALSE)
-   SendMessageW(hTrackbar, TBM_SETRANGE, fRedraw, MAKELONG(lMinimum, lMaximum))
+PUBLIC SUB SetRange (BYVAL hTrackbar AS HWND, BYVAL lMinimum AS SHORT, BYVAL lMaximum AS SHORT, BYVAL fRedraw AS BOOLEAN = FALSE)
+   SendMessageW(hTrackbar, TBM_SETRANGE, fRedraw, MAKEWORD(lMinimum, lMaximum))
 END SUB
 ' ========================================================================================
 

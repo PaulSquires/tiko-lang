@@ -102,10 +102,8 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CIFileDialogControlEvents.Release () AS ULONG
    refCount -= 1
-   IF refCount = 0 THEN
-      Delete @this
-   END IF
-   RETURN refCount
+   FUNCTION = refCount
+   IF refCount = 0 THEN Delete @this
 END FUNCTION
 ' =====================================================================================
 
@@ -230,10 +228,8 @@ END FUNCTION
 ' ========================================================================================
 FUNCTION CIFileDialogEvents.Release () AS ULONG
    refCount -= 1
-   IF refCount = 0 THEN
-      Delete @this
-   END IF
-   RETURN refCount
+   FUNCTION = refCount
+   IF refCount = 0 THEN Delete @this
 END FUNCTION
 ' =====================================================================================
 
