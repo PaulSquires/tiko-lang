@@ -36,6 +36,11 @@ jobs:
       # Windows and 388 s on Linux in a Debug build, alone. 300 killed it.
       TKO_TEST_TIMEOUT: "900"
     steps:
+      # THE BYTES AS COMMITTED, as tiko-lang's own checkouts have them (core.autocrlf false).
+      # The runner's default, true, turned pkg/sys/posix/*.ti into CRLF while .gitattributes
+      # keeps lib/rt LF, and lint's byte compare of the two copies failed on identical blobs.
+      - name: No line-ending conversion
+        run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
       - name: Fetch the pinned seed
         run: sh seed/fetch-seed.sh --host windows
