@@ -164,6 +164,8 @@ if [ -n "$LSPGZ" ]; then
     cp ~/tkrel-$SHORT/lsp/tiko-lsp ~/tkrel-$SHORT/tiko-lang/bin/tiko-lsp
     cp ~/tkrel-$SHORT/lsp/LICENSE ~/tkrel-$SHORT/tiko-lang/licences/LICENSE-tiko-lsp
     rm -rf ~/tkrel-$SHORT/lsp
+    # tiko-lsp links libtinfo too: drop its symbol versions, as package.sh does for tiko and tkedit
+    python3 "/mnt/c${ROOT#/c}/build/elfunversion.py" ~/tkrel-$SHORT/tiko-lang/bin/tiko-lsp libtinfo.so.6
 fi
 cd ~/tkrel-$SHORT
 find tiko-lang -type f -exec chmod 644 {} +

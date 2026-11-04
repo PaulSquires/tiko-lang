@@ -74,6 +74,17 @@ note( ) { echo "package: [$(( $(date +%s) - T0 ))s] $*"; }
 # is why the Windows manifest never showed it.
 say( ) { printf '%s\n' "$*"; }
 
+# LIBTINFO WITHOUT ITS SYMBOL VERSIONS (2026-11-04). tiko's runtime links libtinfo, and linked
+# here -- Ubuntu, whose libtinfo versions every symbol -- an executable requires
+# NCURSES6_TINFO_5.0.19991023 of it. Fedora's and Arch's libtinfo carry no versions, so glibc
+# printed 'libtinfo.so.6: no version information available (required by .../tiko)' on every
+# start there. build/elfunversion.py drops that requirement; the unversioned references bind to
+# the default version where libtinfo is versioned, so nothing changes on Debian or Ubuntu.
+unversion_tinfo( ) {
+    command -v python3 >/dev/null 2>&1 || return 1
+    python3 "$ROOT/build/elfunversion.py" "$1" libtinfo.so.6 >/dev/null
+}
+
 usage( ) {
     sed -n '2,53p' "$0" | sed 's/^# \{0,1\}//'
     exit 0
@@ -298,6 +309,8 @@ note "examples -> examples/ ($( ls "$OUT/examples" | tr '\n' ' '))"
 
 note "compiler -> ${BINSUB}tiko$EXT"
 cp -f "$TIKO" "$OUT/${BINSUB}tiko$EXT"
+[ "$HOST" != "linux" ] || unversion_tinfo "$OUT/${BINSUB}tiko" || \
+    die "could not drop libtinfo's symbol versions from ${BINSUB}tiko (python3 and build/elfunversion.py)"
 
 # The headers. The compiler finds these itself: AppendDefaultIncludeDir looks at
 # <exe-dir>/inc and then <exe-dir>/../inc, which is exactly why the Windows binary
@@ -945,6 +958,8 @@ PLIST
             _tkexe="$_app/MacOS/tkedit"
         else
             cp -f "$_tkrel/tkedit$EXT" "$TKD/"
+            [ "$HOST" != "linux" ] || unversion_tinfo "$TKD/tkedit" || \
+                _tkfail="could not drop libtinfo's symbol versions from tkedit"
             _tkexe="$TKD/tkedit$EXT"
         fi
         note "tkedit -> $TKD"
