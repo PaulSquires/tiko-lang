@@ -1,5 +1,7 @@
 '' A unicode-escape literal for a byval DWSTRING parameter reaches the wstring ptr constructor widened. See the source's header.
 '' TEST: cli
+'' NEEDS: toolchains/tiko-windows/inc/AfxNova
+''     (only the Windows toolchain bundles AfxNova)
 '' ARGS: --dump-ir -i toolchains/tiko-windows/inc tests/driver/src/escape-literal-dwstring-arg.bas
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: verify: ok

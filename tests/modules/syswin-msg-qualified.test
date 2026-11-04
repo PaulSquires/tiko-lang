@@ -5,6 +5,8 @@
 '' this unit is walked twice (genericdiscover.tiko), and TKO0997's once-per-node guard, the
 '' ref the first walk set, silenced the second: neither line was reported once Msg was gone.
 '' TEST: cli
+'' NEEDS: toolchains/tiko-windows/inc
+''     (named by -i below)
 '' ARGS: -target windows-x86_64 -c -i toolchains/tiko-windows/inc tests/modules/src/taskswin/win-msg-qualified.tiko -o tests/modules/src/taskswin/win-msg-qualified.o
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: win-msg-qualified.tiko(4,10): error TKO0997: 'win.msgbox' is a procedure, not a type

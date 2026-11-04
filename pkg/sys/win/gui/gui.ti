@@ -16,7 +16,7 @@
 #include once "win/psapi.bi"
 #include once "win/shlobj.bi"
 #include once "win/shlwapi.bi"
-#include once "win/KnownFolders.bi"
+#include once "win/knownfolders.bi"
 #include once "win/commdlg.bi"
 #include once "win/cderr.bi"
 #include once "win/iphlpapi.bi"

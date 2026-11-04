@@ -1,5 +1,7 @@
 '' The translation of tests/c2t/src/includes.h compiles, for each target in TARGETS.
 '' TEST: cli
+'' HOSTS[windows-x86_64]: windows
+''     (that target's import reads the Windows SDK's stdio.h)
 '' CLEAN: build/.c2t/compile-includes
 '' STEP: c2t tests/c2t/src/inc/base.h --verify -o build/.c2t/compile-includes/base.ti
 '' STEP: c2t tests/c2t/src/inc/sub/util.h --verify -o build/.c2t/compile-includes/sub/util.ti

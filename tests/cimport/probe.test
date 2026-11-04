@@ -8,6 +8,8 @@
 '' returns a CXCursor, CXType, CXString or CXSourceLocation by value, and the visitor
 '' receives cursors by value. build/bootstrap.sh's stage 2 must print the same bytes.
 '' TEST: cli
+'' HOSTS[macos-arm64]: windows macos
+''     (with no macOS SDK, a Linux host's own /usr/include answers the probe)
 '' ARGS: --cimport-probe tests/cimport/src/probe.h
 '' EXPECT-EXIT: 0
 '' EXPECT-NOT: diag 3

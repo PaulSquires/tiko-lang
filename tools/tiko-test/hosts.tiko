@@ -41,3 +41,55 @@ function MissingRuntime_( byref tc as TestCase ) as string
     next
     return ""
 end function
+
+'' THIS HOST'S NAME, as a HOSTS: line spells it.
+function HostName_( ) as string
+    #if defined( __FB_WIN32__ )
+        return "windows"
+    #elseif defined( __FB_DARWIN__ )
+        return "macos"
+    #else
+        return "linux"
+    #endif
+end function
+
+'' WHAT THIS HOST CANNOT GIVE A TEST, or a target's run of it: "" when nothing. Two directives:
+''
+''     '' HOSTS: windows macos       the hosts it runs on -- an SDK or tool only they have
+''     '' HOSTS[macos-arm64]: ...    the same, for that target's run alone
+''     '' NEEDS: path                a file or directory it reads, which this checkout may
+''                                   lack (toolchains/ is gitignored, and CI lays out only
+''                                   the host's own toolchain)
+''
+'' tgt = "" asks about the whole test, before it runs; a target asks about that run, which is
+'' then not made. Either way it is reported as skipped, not failed: a Linux runner has no
+'' Windows SDK, and a failure for that reason buried the ones that mean something.
+function Unmet_( byref tc as TestCase, byval tgt as string ) as string
+    for each h_ as string in tc.hosts
+        dim as int32 tb = instr( h_, chr( 9 ) )
+        if left( h_, tb - 1 ) <> tgt then continue for
+        dim as string list = " " & mid( h_, tb + 1 ) & " "
+        if instr( list, " " & HostName_( ) & " " ) = 0 then return "a " & Trim_( list ) & " host"
+    next
+    if len( tgt ) > 0 then return ""
+    for each n_ as string in tc.needs
+        if fs.Exists( n_ ) = false then return n_
+    next
+    return ""
+end function
+
+'' THE FIRST LINES A FAILED RUN PRINTED, for a failure that names only an exit code: on a CI
+'' runner nobody can rerun the test by hand to see why tiko-lang exited 5.
+function FirstLines_( byref s as string ) as string
+    dim as string r = "", ln = ""
+    dim as int32 n = 0, at = 1
+    while (at <= len( s )) andalso (n < 4)
+        dim as int32 nl = instr( at, s, chr( 10 ) )
+        if nl = 0 then nl = len( s ) + 1
+        ln = rtrim( mid( s, at, nl - at ), chr( 13 ) )
+        at = nl + 1
+        if len( Trim_( ln ) ) = 0 then continue while
+        r &= chr( 10 ) & "  " & ln : n += 1
+    wend
+    return r
+end function

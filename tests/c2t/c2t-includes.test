@@ -2,6 +2,8 @@
 '' Everything after the clang line is asserted byte for byte; the tiko and clang versions
 '' in the banner depend on the host, so only the lines around them are.
 '' TEST: cli
+'' HOSTS: windows
+''     (the Windows SDK's headers (windows.h, the UCRT's stdio.h): only a Windows host has them)
 '' CLEAN: build/.c2t/includes
 '' STEP: c2t tests/c2t/src/inc/base.h --verify -o build/.c2t/includes/base.ti
 '' STEP: c2t tests/c2t/src/inc/sub/util.h --verify -o build/.c2t/includes/sub/util.ti

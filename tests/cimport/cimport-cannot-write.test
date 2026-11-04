@@ -1,6 +1,8 @@
 '' A binding that cannot be written -- here, into a directory that does not exist -- is
 '' TKO0121, after the import itself succeeded.
 '' TEST: cli
+'' HOSTS[macos-arm64]: windows macos
+''     (with no macOS SDK, a Linux host's own /usr/include answers the import)
 '' ARGS: -cimport tests/cimport/src/shapes.h -cimport-out tests/cimport/src/no-such-dir/shapes.bi
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: error TKO0121: cannot write the binding 'tests/cimport/src/no-such-dir/shapes.bi'

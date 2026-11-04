@@ -24,6 +24,8 @@
 ''                              path's last component matches any run of characters;
 ''                              a content check wants exactly one file to match
 ''     '' EXPECT-MAX-DIAG: 3        at most N ': error TKO' lines -- the recovery gate
+''     '' HOSTS: windows macos      run only on these hosts; HOSTS[t]: that target's run only.
+''     '' NEEDS: path               ...and only where that path exists (hosts.tiko: Unmet_)
 ''     '' RUN: path                 after a build for one of the HOST's targets, run the
 ''                              program the build made; it must exit 0 (or the
 ''                              EXPECT-RUN-EXIT status). Skipped, not failed, for any
@@ -147,6 +149,8 @@ type TestCase
     '' THE STEPS, in order, each 'KIND' TAB 'rest': CLEAN, COPY, WRITE, STEP, STEP-OUT,
     '' STEP-NOT. See the header.
     as Array( of string ) steps
+    as Array( of string ) hosts    '' HOSTS[t]: as '<t>' TAB '<hosts>'; '' for the whole test
+    as Array( of string ) needs    '' NEEDS: paths
 end type
 
 type Options
@@ -412,6 +416,11 @@ function ParseTest( byval path as string, byref tc as TestCase ) as boolean
             tc.expectFile.Push( Trim_( mid( ln, 13 ) ) )
         elseif StartsWith( ln, "ENV:" ) then
             tc.env.Push( Trim_( mid( ln, 5 ) ) )
+        elseif StartsWith( ln, "HOSTS" ) andalso (instr( ln, ":" ) > 0) then
+            dim as int32 hc = instr( ln, ":" )
+            tc.hosts.Push( trim( mid( left( ln, hc - 1 ), 6 ), any "[] " ) & chr( 9 ) & Trim_( mid( ln, hc + 1 ) ) )
+        elseif StartsWith( ln, "NEEDS:" ) then
+            tc.needs.Push( Trim_( mid( ln, 7 ) ) )
         elseif StartsWith( ln, "RUN:" ) then
             tc.runExe = Trim_( mid( ln, 5 ) )
         elseif StartsWith( ln, "EXPECT-RUN-EXIT:" ) then
@@ -982,6 +991,7 @@ function RunOne _
     dim as int32 rc = 0
     for ti as int32 = 0 to tc.targets.Count - 1
         dim as string tgt = tc.targets[ti]
+        if len( Unmet_( tc, tgt ) ) > 0 then continue for
         '' EVERY NAMED FILE IS REMOVED FIRST. Without this a test asserting that
         '' a build produced something would pass on the artefact left by the
         '' PREVIOUS run -- including a run of an older compiler that could still
@@ -1050,7 +1060,7 @@ function CheckOne_ _
         end if
     next
     if haveExit andalso (rc <> wantExit) then
-        why = "exit code " & rc & ", expected " & wantExit
+        why = "exit code " & rc & ", expected " & wantExit & FirstLines_( outText )
         return false
     end if
     '' A TARGET THAT EXITS OTHERWISE THAN THE TEST DOES (EXPECT-EXIT[t]) is one that does not
@@ -1408,9 +1418,10 @@ for each path as string in files
         delete tc
         continue for
     end if
-    if tc->kind = "skip" then
+    dim as string unmet = Unmet_( *tc, "" )
+    if (tc->kind = "skip") orelse (len( unmet ) > 0) then
         skipped += 1
-        if opts.verbose then print "SKIP " & path
+        if opts.verbose then print "SKIP " & path & ": " & unmet
         delete tc
         continue for
     end if

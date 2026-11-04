@@ -30,7 +30,7 @@ using win
 #include "com.ti"
 #include once "win/wtypes.bi"
 #include once "/crt/wchar.bi"
-#include once "win/Ole2.bi"
+#include once "win/ole2.bi"
 
 ' ########################################################################################
 '                                *** BSTRING CLASS ***

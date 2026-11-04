@@ -3,6 +3,8 @@
 '' '__attribute__(( ... ))', as rlgl.h's APIENTRY and WINGDIAPI -- is defined, empty, under
 '' C2T-NOTE(decoration), so a header's '#if !defined( ... )' still sees it.
 '' TEST: cli
+'' HOSTS: windows
+''     (the Windows SDK's headers (windows.h, the UCRT's stdio.h): only a Windows host has them)
 '' CLEAN: build/.c2t/glinc
 '' ARGS: c2t tests/c2t/src/glinc.h --verify -o build/.c2t/glinc/glinc.ti
 '' EXPECT-EXIT: 0

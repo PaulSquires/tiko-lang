@@ -3,6 +3,8 @@
 '' '#cinclude once "stdio.h"' was TKO0743. tiko-rt now defines these (msvccrt.c), and the
 '' importer declares them. See NoSymbol_ in src/cimport/decls.bas.
 '' TEST: cli
+'' HOSTS: windows
+''     (the Windows SDK's headers (windows.h, the UCRT's stdio.h): only a Windows host has them)
 '' ARGS: -target windows-x86_64 -cimport tests/driver/src/ucrt-stdio.h -cimport-out -
 '' EXPECT-EXIT: 0
 '' EXPECT-OUT: declare function printf cdecl alias "printf"
