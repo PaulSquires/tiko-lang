@@ -9,10 +9,10 @@
 # the suite builds lib/rt for itself this step goes.
 name: ci
 
-# MANUAL ONLY while the repository is private (author, 2026-10-24): Actions minutes on a
-# private repository are billed. Restore 'push: branches: [master]' and 'pull_request:'
-# above 'workflow_dispatch:' when the repository goes public.
 on:
+  push:
+    branches: [master]
+  pull_request:
   workflow_dispatch:
 
 permissions:
