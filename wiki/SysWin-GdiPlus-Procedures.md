@@ -65,13 +65,13 @@ function main() as long
         dim rc as GpRectF = GDIP_RECTF( 20, 20, 160, 60 )
         g.FillRectangle( @fill, @rc )
         st = SaveImageToPng( bmp.m_pImage, "box.png" )
-        print "SaveImageToPng: "; rtrim( StatusStr( st ) )
+        print "SaveImageToPng: "; StatusStr( st )
     end scope
     dim as DWORD w, h
     st = GetImageSizeFromFile( "box.png", @w, @h )
     print "GetImageSizeFromFile: " & rtrim( StatusStr( st ) ) & ", " & w & " x " & h
     st = GetImageSizeFromFile( "missing.png", @w, @h )
-    print "missing file: "; rtrim( StatusStr( st ) )
+    print "missing file: "; StatusStr( st )
     ' a grey GDI bitmap made from the file
     dim hbm as HBITMAP = BitmapFromFile( "box.png", 0, true )
     if hbm then print "grey HBITMAP created" else print "BitmapFromFile failed"
@@ -211,22 +211,18 @@ Microsoft Learn: [GetFileVersionInfoW](https://learn.microsoft.com/en-us/windows
 ### StatusStr
 
 ```freebasic
-function StatusStr( byval status as GpStatus ) as string
+function StatusStr( byval status as GpStatus ) as ustring
 ```
 
 Returns the English description of a GDI+ status code: `"Ok"`, `"Invalid parameter"`,
 `"Out of memory"`, `"File not found"` …, or `"Unknown"` for any other value.
-
-The text comes back **padded with spaces to 260 characters**; `rtrim` it before joining it to
-other text.
 
 **Returns** the description.
 
 **Example**
 
 ```freebasic
-print "[" & rtrim( StatusStr( InvalidParameter ) ) & "]"   ' [Invalid parameter]
-print len( StatusStr( Ok ) )                               ' 260
+print "[" & StatusStr( InvalidParameter ) & "]"   ' [Invalid parameter]
 ```
 
 Microsoft Learn: [Status](https://learn.microsoft.com/en-us/windows/win32/api/gdiplustypes/ne-gdiplustypes-status)

@@ -713,20 +713,16 @@ into `pBuffer`, which must be big enough: the control does not know its size, so
 [GetButtonTextLength](#getbuttontextlength) first and allow one more character for the
 terminating null.
 
-The second form returns a `ustring`, or "" for a button without text. The string it returns is
-**one character longer than the text**: it ends with a null character, so `len()` of the text
-of a button labelled `&Open` is 6. The extra character is harmless at the end of a string
-passed to Windows; trim it with `left()` before comparing or joining text after it.
+The second form returns a `ustring`, or "" for a button without text.
 
 **Returns** the length of the text in characters, or -1 when the button has no text (first form);
-the text (second form).
+the text, or an empty string on failure (second form).
 
 **Example**
 
 ```freebasic
-dim s as ustring = ToolBar.GetButtonText( hCtrl, 1001 )
-s = left( s, ToolBar.GetButtonTextLength( hCtrl, 1001 ) )   ' without the trailing null
-print "["; s; "]"
+dim s as ustring = ToolBar.GetButtonText( hToolbar, 1001 )
+print s
 ```
 
 Microsoft Learn: [TB_GETBUTTONTEXT](https://learn.microsoft.com/en-us/windows/win32/controls/tb-getbuttontext)
@@ -1579,11 +1575,6 @@ Microsoft Learn: [TB_GETINSERTMARKCOLOR](https://learn.microsoft.com/en-us/windo
 function SetInsertMarkColor( byval hToolbar as HWND, byval clrInsertMark as COLORREF ) as COLORREF
 ```
 
-Meant to set the colour of the insertion mark. As written it sends `clrInsertMark` in the
-message's `wParam`, while the toolbar takes the colour from `lParam`, which is 0: whatever colour
-you pass, the mark becomes black (0). To set a colour, send the message yourself, as in the
-example.
-
 **Returns** the previous colour.
 
 **Example**
@@ -1759,11 +1750,6 @@ Microsoft Learn: [TB_SETCOLORSCHEME](https://learn.microsoft.com/en-us/windows/w
 ```freebasic
 sub SetWindowTheme( byval hToolbar as HWND, byval pwszTheme as wstring ptr )
 ```
-
-Meant to give the toolbar the visual style named `pwszTheme`. As written it sends the name in
-the message's `wParam`, while the toolbar takes it from `lParam`, which is left 0. To change the
-style, send the message with the name in `lParam`, as in the example, or call the Windows
-`SetWindowTheme`, as [SetDarkMode](#setdarkmode-removedarkmode) does.
 
 **Example**
 

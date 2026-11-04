@@ -627,21 +627,19 @@ Microsoft Learn: [CB_LIMITTEXT](https://learn.microsoft.com/en-us/windows/win32/
 
 ```freebasic
 function GetCueBannerText overload( byval hCombo as HWND, byval pwszText as wstring ptr, byval cchText as DWORD ) as boolean
-function GetCueBannerText overload( byval hCombo as HWND, byval cchText as DWORD = MAX_PATH ) as ustring
+function GetCueBannerText overload( byval hCombo as HWND, byval cchText as DWORD = 260) as ustring
 ```
 
 Reads the cue banner set with [SetCueBannerText](#setcuebannertext). The first form fills your
-buffer of `cchText` characters. The second returns a string of `cchText + 1` characters (261 by
-default): the hint, a null character and spaces to the end; cut it at the null.
+buffer of `cchText` characters (including the trailing null). The second returns a string of a maximum of `cchText` characters (260 by default).
 
-**Returns** `true` on success (first form); the padded string, with the message's result in
-`GetLastError()` (second form).
+**Returns** `true` on success (first form); the padded string (second form).
 
 **Example**
 
 ```freebasic
-dim sCue as ustring = Combo.GetCueBannerText( hCtrl )
-print left( sCue, instr( sCue, chr(0) ) - 1 )
+dim sCue as ustring = Combo.GetCueBannerText( hCombo )
+print sCue
 ```
 
 Microsoft Learn: [CB_GETCUEBANNER](https://learn.microsoft.com/en-us/windows/win32/controls/cb-getcuebanner)

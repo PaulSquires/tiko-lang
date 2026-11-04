@@ -327,15 +327,13 @@ Microsoft Learn: [EM_EMPTYUNDOBUFFER](https://learn.microsoft.com/en-us/windows/
 
 ```freebasic
 function ExGetSel() as CHARRANGE
-sub ExGetSel( byref cpMin as long, byval cpMax as long )
+sub ExGetSel( byref cpMin as long, byref cpMax as long )
 ```
 
 Reads the selection. `cpMin` is the first selected character and `cpMax` the position after the
 last one; when nothing is selected both are the caret position.
 
-The first form returns both in a `CHARRANGE`. The second writes the start into `cpMin`, but its
-`cpMax` is taken by value, so the end never reaches the caller: use the first form, or
-[GetSel](#getsel), when you need the end.
+The first form returns both in a `CHARRANGE`. The second writes the start into `cpMin` and the end in cpMax.
 
 **Returns** the selection (first form).
 
@@ -881,9 +879,7 @@ Microsoft Learn: [EM_GETTEXTLENGTHEX](https://learn.microsoft.com/en-us/windows/
 function GetRawText() as string
 ```
 
-Returns the text exactly as the control stores it (`GT_RAWTEXT`), in the ANSI code page. The
-string is [GetRawTextLength](#getrawtextlength) bytes long whatever the text: the text, a null
-byte, and spaces up to that length (31 characters came back as 62 bytes). Cut it at the null.
+Returns the text exactly as the control stores it (`GT_RAWTEXT`), in the ANSI code page.
 
 **Returns** the buffer.
 
@@ -892,7 +888,6 @@ byte, and spaces up to that length (31 characters came back as 62 bytes). Cut it
 ```freebasic
 dim pRichEdit as CRichEditCtx ptr = CRichEditCtxPtr( hCtrl )
 dim sRaw as string = pRichEdit->GetRawText()
-sRaw = left( sRaw, instr( sRaw, chr(0) ) - 1 )
 ```
 
 Microsoft Learn: [EM_GETTEXTEX](https://learn.microsoft.com/en-us/windows/win32/controls/em-gettextex)

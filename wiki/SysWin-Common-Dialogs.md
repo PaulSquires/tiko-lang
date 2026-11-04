@@ -56,8 +56,8 @@ function WndProc( byval hwnd as HWND, byval uMsg as UINT, byval wParam as WPARAM
                 select case CBCTL( wParam, lParam )
                     case 100
                         dim flags as DWORD = OFN_FILEMUSTEXIST or OFN_HIDEREADONLY
-                        dim file as ustring = rtrim( OpenFileDialog( hwnd, "Open a text file", "", "", _
-                            "Text files (*.txt)|*.txt|All files (*.*)|*.*", "txt", @flags ) )
+                        dim file as ustring = OpenFileDialog( hwnd, "Open a text file", "", "", _
+                            "Text files (*.txt)|*.txt|All files (*.*)|*.*", "txt", @flags )
                         if len( file ) then SetWindowText( hwnd, file )
                     case 101
                         dim clr as long = ChooseColorDialog( hwnd, BGR( 255, 255, 255 ) )
@@ -157,16 +157,13 @@ With one file chosen, the result is its full path. With `OFN_ALLOWMULTISELECT` a
 it is a comma-separated list: the folder first, then each file name, `C:\Docs,a.txt,b.txt`; split
 it with [ParseStr](SysWin-Strings#parsestr) (a comma inside a file name splits it too).
 
-The text is followed by one or two null characters that `len()` counts. Pass the result
-through `rtrim()`, which stops at the first null, before you compare it or split it.
-
 **Returns** the path or the list, or `""` when the user cancelled or the buffer was too small.
 
 **Example**
 
 ```freebasic
 dim flags as DWORD = OFN_FILEMUSTEXIST or OFN_HIDEREADONLY or OFN_ALLOWMULTISELECT
-dim picked as ustring = rtrim( OpenFileDialog( hwnd, "", "", "", "Images|*.bmp;*.png", "png", @flags ) )
+dim picked as ustring = OpenFileDialog( hwnd, "", "", "", "Images|*.bmp;*.png", "png", @flags )
 if ParseCount( picked ) > 1 then print ParseCount( picked ) - 1; " files in "; ParseStr( picked, 1 )
 ```
 
@@ -183,19 +180,13 @@ Shows the Save As dialog and returns the path the user chose. The parameters are
 Add `OFN_OVERWRITEPROMPT` to `*pdwFlags` to have the dialog ask before an existing file is
 replaced.
 
-`hwndOwner` is accepted but not passed on: the dialog opens without an owner, so your window
-stays usable while it is shown and the dialog is not kept over it.
-
-The returned `ustring` is 260 characters long: the path, a null character, then padding. Pass
-it through `rtrim()`, which stops at the null.
-
 **Returns** the path, or `""` when the user cancelled.
 
 **Example**
 
 ```freebasic
 dim flags as DWORD = OFN_OVERWRITEPROMPT or OFN_HIDEREADONLY
-dim target as ustring = rtrim( SaveFileDialog( hwnd, "Export", "report.csv", "", "CSV files|*.csv", "csv", @flags ) )
+dim target as ustring = SaveFileDialog( hwnd, "Export", "report.csv", "", "CSV files|*.csv", "csv", @flags )
 if len( target ) then print "exporting to "; target
 ```
 

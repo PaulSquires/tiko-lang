@@ -853,8 +853,7 @@ function GetCueBannerText overload( byval hEdit as HWND, byval cchText as DWORD 
 ```
 
 Reads the cue banner, the grey hint set with [SetCueBannerText](#setcuebannertext). The first
-form fills your buffer of `cchText` characters. The second returns a string of a maximum of `cchText`
-characters.
+form fills your buffer of `cchText` characters (including the traling null). The second returns a string of a maximum of `cchText` characters.
 
 | Parameter | Meaning |
 | --- | --- |

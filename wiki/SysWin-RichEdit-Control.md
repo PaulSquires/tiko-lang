@@ -613,10 +613,6 @@ function SetTextMode( byval hRichEdit as HWND, byval pvalues as long ) as long
 `TM_SINGLELEVELUNDO` or `TM_MULTILEVELUNDO` and `TM_SINGLECODEPAGE` or `TM_MULTICODEPAGE`. A new
 `RichEdit50W` control reads 42 (`TM_RICHTEXT or TM_MULTILEVELUNDO or TM_MULTICODEPAGE`).
 
-`SetTextMode` sends `pvalues` as the message's second parameter (`lParam`), while the control reads
-the mode from the first: the call returns 0 and leaves the mode as it was. To change the mode,
-send the message with the mode in `wParam` while the control is empty, as the example does.
-
 **Returns** (`GetTextMode`) the `TM_*` flags; (`SetTextMode`) 0.
 
 **Example**

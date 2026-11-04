@@ -515,15 +515,10 @@ Microsoft Learn: [WM_SETFONT](https://learn.microsoft.com/en-us/windows/win32/wi
 sub SetUnicodeFormat( byval hStatusBar as HWND, byval fFormat as boolean )
 ```
 
-Despite its name, this sends `SB_SETTIPTEXTW`, not `SB_SETUNICODEFORMAT`: it sets the tooltip
-text of the part numbered `fFormat` to nothing, so `false` clears the tip of part 0. The bar's
-character format does not change; a bar created by a Unicode program already uses Unicode. To
-change the format, send `SB_SETUNICODEFORMAT` yourself.
-
 **Example**
 
 ```freebasic
-StatusBar.SetUnicodeFormat( hCtrl, false )   ' part 0 loses its tooltip text
+StatusBar.SetUnicodeFormat( hCtrl, false )
 SendMessageW( hCtrl, SB_SETUNICODEFORMAT, true, 0 )
 ```
 

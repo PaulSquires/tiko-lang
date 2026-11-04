@@ -2162,13 +2162,6 @@ procedure: when the page posts the string `image-ready`
 (`window.chrome.webview.postMessage('image-ready')`, for instance from an image's `onload`), it
 posts a `WM_NOTIFY` to the host's top-level window. Other messages are ignored.
 
-This `WM_NOTIFY` is laid out differently from a control's: **`wParam`** holds the address of the
-`NMHDR` (kept in the handler, in `m_hdr`) and **`lParam`** the `CWebView2`. In the `NMHDR`,
-`hwndFrom` is the host window, `idFrom` its control id, and `code` is `&hFFFFFFFF`, the value
-the module calls `NM_WV2_IMAGEREADY`. That name stays inside the module, so a program uses the
-number or a constant of its own; it is the same value as the common controls'
-`NM_OUTOFMEMORY`, so check `hwndFrom` as well.
-
 #### Constructor
 
 Registers the handler on `pWebView2` with [AddWebMessageReceived](#addwebmessagereceived-removewebmessagereceived),

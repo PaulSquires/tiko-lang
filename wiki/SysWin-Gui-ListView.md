@@ -152,10 +152,8 @@ end main()
 | [GetCallbackMask](#getcallbackmask) | Returns the states the application keeps itself. |
 | [SetCallbackMask](#setcallbackmask) | Sets the states the application keeps itself. |
 | **Text** | |
-| [GetText](#gettext) | Returns the text of a subitem of item 0. |
 | [GetItemText](#getitemtext) | Copies the text of an item or subitem into a buffer. |
 | [SetItemText](#setitemtext) | Sets the text of an item or subitem. |
-| [SetText](#settext) | Sets the text of an item. |
 | [GetStringWidth](#getstringwidth) | Measures a text in the control's font. |
 | [EditLabel](#editlabel) | Starts in-place editing of an item's text. |
 | [CancelEditLabel](#canceleditlabel) | Cancels in-place editing. |
@@ -412,23 +410,17 @@ Microsoft Learn: [LVM_SETCOLUMN](https://learn.microsoft.com/en-us/windows/win32
 ### GetColumnText
 
 ```freebasic
-function GetColumnText( byval hListView as HWND, byval iCol as long, byval cchTextMax as long = MAX_PATH + 1 ) as ustring
+function GetColumnText( byval hListView as HWND, byval iCol as long, byval cchTextMax as long = 260 ) as ustring
 ```
 
-Returns the title of column `iCol`, reading at most `cchTextMax` characters (a value below 1
-means `MAX_PATH + 1`).
-
-The `ustring` keeps the length of the buffer it was read into, `cchTextMax + 1` characters: the
-title, a null character and padding. Cut it at the null before comparing or joining it, as
-below.
+Returns the title of column `iCol`, reading at most `cchTextMax` characters.
 
 **Returns** the title in a buffer-sized `ustring`, or an empty string on failure.
 
 **Example**
 
 ```freebasic
-dim ustrTitle as ustring = ListView.GetColumnText( hCtrl, 1 )
-ustrTitle = *cast( wstring ptr, strptr( ustrTitle ) )   ' keep the text before the null
+dim ustrTitle as ustring = ListView.GetColumnText( hListView, 1 )
 print ustrTitle
 ```
 
@@ -935,31 +927,6 @@ if ListView.GetItem( hCtrl, lvi ) then print "lParam"; lvi.lParam
 
 Microsoft Learn: [LVM_GETITEM](https://learn.microsoft.com/en-us/windows/win32/controls/lvm-getitem)
 
-### SetItem
-
-```freebasic
-function SetItem overload( byval hListView as HWND, byval pitem as LVITEMW ptr ) as boolean
-function SetItem overload( byval hListView as HWND, byref item as LVITEMW ) as boolean
-```
-
-Changes the attributes of an item or subitem that the structure's `mask` names.
-
-Both forms send the ANSI message, although they take an `LVITEMW`: state, image, indent,
-`lParam` and group are set correctly, but a text in `pszText` is read as 8-bit characters and
-comes out wrong. Set text with [SetItemText](#setitemtext).
-
-**Returns** `true` on success.
-
-**Example**
-
-```freebasic
-dim lvi as LVITEMW
-lvi.mask = LVIF_IMAGE : lvi.iItem = 0 : lvi.iImage = 3
-ListView.SetItem( hCtrl, lvi )
-```
-
-Microsoft Learn: [LVM_SETITEM](https://learn.microsoft.com/en-us/windows/win32/controls/lvm-setitem)
-
 ### GetItemCount
 
 ```freebasic
@@ -1166,51 +1133,32 @@ ListView.SetCallbackMask( hCtrl, LVIS_SELECTED or LVIS_FOCUSED )
 
 Microsoft Learn: [LVM_SETCALLBACKMASK](https://learn.microsoft.com/en-us/windows/win32/controls/lvm-setcallbackmask)
 
-### GetText
-
-```freebasic
-function GetText( byval hListView as HWND, byval item as long, byval iSubItem as long, byval cchTextMax as long = MAX_PATH + 1 ) as ustring
-```
-
-Meant to return the text of subitem `iSubItem` of item `item`, but it puts `item` only in the
-structure, which the control does not read for this message, and asks for item 0. It therefore
-returns the text of **item 0** whatever `item` is. For any other row use
-[GetItemText](#getitemtext).
-
-**Returns** the text of subitem `iSubItem` of item 0, or an empty string.
-
-**Example**
-
-```freebasic
-print ListView.GetText( hCtrl, 0, 1 )   ' column 1 of the first row
-```
-
-Microsoft Learn: [LVM_GETITEMTEXT](https://learn.microsoft.com/en-us/windows/win32/controls/lvm-getitemtext)
-
 ### GetItemText
 
 ```freebasic
-sub GetItemText( byval hListView as HWND, byval i as long, byval iSubItem as long, byval pwszText as wstring ptr, byval cchTextMax as long = MAX_PATH + 1 )
+sub GetItemText( byval hListView as HWND, byval i as long, byval iSubItem as long, byval pwszText as wstring ptr, byval cchTextMax as long = 260 )
+function GetItemText( byval hListView as HWND, byval i as long, byval iSubItem as long, byval cchTextMax as long = 260 ) as ustring
 ```
 
 Copies the text of subitem `iSubItem` of item `i` into `pwszText`, at most `cchTextMax`
-characters including the terminating null. Subitem 0 is the item's own text.
+characters including the terminating null.
 
 | Parameter | Meaning |
 | --- | --- |
-| `i` | The item. |
-| `iSubItem` | The subitem (column); 0 for the item's text. |
+| `i` | The zero-based item. |
+| `iSubItem` | The zerp-based subitem (column). |
 | `pwszText` | The buffer that receives the text. |
-| `cchTextMax` | The size of the buffer in characters. The default assumes `MAX_PATH + 1`: pass the real size of a smaller buffer. |
+| `cchTextMax` | The size of the buffer in characters. The default assumes 260: pass the real size of a smaller buffer. |
 
-`GetLastError()` afterwards holds the number of characters copied.
-
-**Example**
+**Examples**
 
 ```freebasic
 dim wszText as wstring * 260
-ListView.GetItemText( hCtrl, 3, 1, @wszText, 260 )
+ListView.GetItemText( hListView, 3, 1, @wszText, 260 )
 dim ustrText as ustring = wszText
+```
+```freebasic
+print ListView.GetItemText( hListView, 0, 1 )   ' column 1 of the first row
 ```
 
 Microsoft Learn: [LVM_GETITEMTEXT](https://learn.microsoft.com/en-us/windows/win32/controls/lvm-getitemtext)
@@ -1221,11 +1169,10 @@ Microsoft Learn: [LVM_GETITEMTEXT](https://learn.microsoft.com/en-us/windows/win
 function SetItemText( byval hListView as HWND, byval i as long, byval iSubItem as long, byref pwszText as wstring ptr ) as boolean
 ```
 
-Sets the text of subitem `iSubItem` of item `i`; subitem 0 is the item's own text.
+Sets the text of subitem `iSubItem` of item `i`.
 
 `pwszText` is taken by reference as a `wstring ptr`. Pass a `ustring`, a wide literal written
-`wstr("...")` or the address of a `wstring` buffer. A plain literal such as `"text"` also
-compiles but stores unreadable characters.
+`wstr("...")` or the address of a `wstring` buffer.
 
 **Returns** `true` on success.
 
@@ -1235,24 +1182,6 @@ compiles but stores unreadable characters.
 dim ustrSize as ustring = "12 KB"
 ListView.SetItemText( hCtrl, 0, 1, ustrSize )
 ListView.SetItemText( hCtrl, 0, 2, wstr("rocky") )
-```
-
-Microsoft Learn: [LVM_SETITEMTEXT](https://learn.microsoft.com/en-us/windows/win32/controls/lvm-setitemtext)
-
-### SetText
-
-```freebasic
-function SetText( byval hListView as HWND, byval i as long, byref wszText as wstring ) as boolean
-```
-
-Sets the text of item `i` itself (subitem 0). Any literal, `ustring` or `wstring` works.
-
-**Returns** `true` on success.
-
-**Example**
-
-```freebasic
-ListView.SetText( hCtrl, 0, "Mercury" )
 ```
 
 Microsoft Learn: [LVM_SETITEMTEXT](https://learn.microsoft.com/en-us/windows/win32/controls/lvm-setitemtext)

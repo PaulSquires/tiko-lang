@@ -292,10 +292,6 @@ significant digits:
 | 74000 | 1 | `1 min` |
 | 3725000 | 6 | `1 hr 2 min 5 sec` |
 
-The returned `ustring` is always 260 characters long: a leading space, the text, a null
-character and padding. Pass it through `trim()`, which drops the space and stops at the null.
-The Windows function of the same name, which fills a buffer, is still there with four arguments.
-
 **Returns** the text, padded as described.
 
 **Example**

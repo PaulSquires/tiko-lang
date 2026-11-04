@@ -111,11 +111,7 @@ Microsoft Learn: [HKM_GETHOTKEY](https://learn.microsoft.com/en-us/windows/win32
 sub SetHotKey( byval hHotKey as HWND, byval vkCode as short, byval fMods as short )
 ```
 
-Puts the key `vkCode` in the control. The function places `fMods` in the high word of the
-request, where the control does not look for it, so only the key arrives: after
-`HotKey.SetHotKey( h, VK_F5, HOTKEYF_CONTROL )` the control holds plain F5 (`&h74`). To set a
-key with modifiers, send the request with the two packed in the low word:
-`SendMessageW( h, HKM_SETHOTKEY, MAKEWORD( vk, mods ), 0 )`.
+Puts the key `vkCode` in the control.
 
 | Parameter | Meaning |
 | --- | --- |
