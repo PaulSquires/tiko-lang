@@ -1,7 +1,7 @@
 '' The translation of tests/c2t/src/glinc.h compiles, for each target in TARGETS.
 '' TEST: cli
-'' HOSTS[windows-x86_64]: windows
-''     (that target's import reads the Windows SDK's windows.h)
+'' HOSTS: windows
+''     (its c2t step imports for x86_64-pc-windows-msvc, whatever the target: the Windows SDK's windows.h)
 '' CLEAN: build/.c2t/compile-glinc
 '' STEP-EXIT: 0
 '' STEP: c2t tests/c2t/src/glinc.h --verify -o build/.c2t/compile-glinc/glinc.ti

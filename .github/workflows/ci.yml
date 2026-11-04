@@ -32,7 +32,9 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       TKO_EDITOR_DIR: /c/nonexistent
-      TKO_TEST_TIMEOUT: "300"
+      # vendor-pscontrols-public-helpers compiles all of vendor/PsControls cold: 253 s on
+      # Windows and 388 s on Linux in a Debug build, alone. 300 killed it.
+      TKO_TEST_TIMEOUT: "900"
     steps:
       - uses: actions/checkout@v4
       - name: Fetch the pinned seed
@@ -60,7 +62,9 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       TKO_EDITOR_DIR: /nonexistent
-      TKO_TEST_TIMEOUT: "300"
+      # vendor-pscontrols-public-helpers compiles all of vendor/PsControls cold: 253 s on
+      # Windows and 388 s on Linux in a Debug build, alone. 300 killed it.
+      TKO_TEST_TIMEOUT: "900"
     steps:
       - uses: actions/checkout@v4
       - name: LLVM 18
