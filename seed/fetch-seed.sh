@@ -86,8 +86,12 @@ case "$ASSET" in
 esac
 rm -rf "$DL"
 
-# The archive holds one top-level directory (tiko-windows/, tiko-linux/ or tiko-macos/).
+# The archive holds one top-level directory: tiko-windows/, tiko-linux/ or tiko-macos/ up
+# to seed-7, tiko-lang/ from seed-8 on (a seed is a toolchain release's archives, renamed,
+# and those unpack to tiko-lang/ on every OS). The second is renamed to the first, the
+# layout build/defaultseed.sh, defaultseed.bat and ci.yml look for.
 TOP=$(ls -1 "$OUTD" | head -1)
+if [ "$TOP" = "tiko-lang" ]; then mv "$OUTD/tiko-lang" "$OUTD/tiko-$HOST" || fail "cannot rename tiko-lang/"; TOP=tiko-$HOST; fi
 if [ -f "$OUTD/$TOP/tiko.exe" ]; then C="$OUTD/$TOP/tiko.exe"; else C="$OUTD/$TOP/bin/tiko"; fi
 [ -f "$C" ] || fail "no compiler in the unpacked seed ($OUTD/$TOP)"
 # Run it only on its own host: a seed fetched for the other one cannot start here.
