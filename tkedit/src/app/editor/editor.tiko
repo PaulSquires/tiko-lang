@@ -151,7 +151,7 @@ public type CodeView
     declare sub DuplicateLine( )
     declare sub MoveLinesUp( )
     declare sub MoveLinesDown( )
-    declare sub CommentLines( byval add as boolean )
+    declare sub CommentLines( byval add as boolean, byval twoMarks as boolean )
     declare sub Indent( )                                 ' Scintilla's Tab / Shift+Tab
     declare sub Unindent( )
     declare sub NewLineBelow( )                           ' a new line under the caret's, caret on it
@@ -519,9 +519,10 @@ sub CodeView.SelectLine( )
     tkCodeEdit_Send( w, SCI_SETSEL, a, z )
 end sub
 
-' Comment Block / UnComment Block: a "' " at the start of each selected line's text, or that
-' mark taken away -- one undo step.
-sub CodeView.CommentLines( byval add as boolean )
+' Comment Block / UnComment Block: "'' " (twoMarks, tiko's style) or "' " at the start of each
+' selected line's text, or the marks there taken away -- one or two, whichever the line has, and the
+' space after them -- one undo step.
+sub CodeView.CommentLines( byval add as boolean, byval twoMarks as boolean )
     if w = 0 then exit sub
     dim as integer a = tkCodeEdit_Send( w, SCI_GETSELECTIONSTART )
     dim as integer z = tkCodeEdit_Send( w, SCI_GETSELECTIONEND )
@@ -529,14 +530,17 @@ sub CodeView.CommentLines( byval add as boolean )
     dim as integer l2 = tkCodeEdit_Send( w, SCI_LINEFROMPOSITION, z )
     ' a selection ending at the very start of a line does not take that line
     if (l2 > l1) andalso (tkCodeEdit_Send( w, SCI_POSITIONFROMLINE, l2 ) = z) then l2 -= 1
+    dim as ustring mark = "' "
+    if twoMarks then mark = "'' "
     tkCodeEdit_Send( w, SCI_BEGINUNDOACTION )
     for ln as integer = l1 to l2
         dim as integer p = tkCodeEdit_Send( w, SCI_GETLINEINDENTPOSITION, ln )
         if add then
-            tkCodeEdit_SendText( w, SCI_INSERTTEXT, p, "' " )
+            tkCodeEdit_SendText( w, SCI_INSERTTEXT, p, mark )
         elseif tkCodeEdit_Send( w, SCI_GETCHARAT, p ) = asc( "'" ) then
             dim as integer n = 1
-            if tkCodeEdit_Send( w, SCI_GETCHARAT, p + 1 ) = asc( " " ) then n = 2
+            if tkCodeEdit_Send( w, SCI_GETCHARAT, p + n ) = asc( "'" ) then n += 1
+            if tkCodeEdit_Send( w, SCI_GETCHARAT, p + n ) = asc( " " ) then n += 1
             tkCodeEdit_Send( w, SCI_DELETERANGE, p, n )
         end if
     next

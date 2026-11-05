@@ -408,6 +408,28 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     Chord( h, SDLK_D, SDL_SCANCODE_D, KMOD_PRIMARY )
     t.Check( left( mw.View( ).Text( ), 12 ) = "one" & nl & "one" & nl & "two" & nl, _
              P( sc, "a selection ending at a line start left that line out" ) )
+
+    ' ---- Comment / Uncomment: '' by default (tiko style), ' when double_comment is off; Uncomment
+    ' takes either away, with the space after it
+    dim as ustring plain = "a" & nl & "    b" & nl & "c"
+    t.Check( mw.Prefs.DoubleComment, P( sc, "double_comment is on by default" ) )
+    mw.View( ).SetText( plain )
+    mw.View( ).SelectAll( )
+    mw.Execute( Cmd.CommentBlock )
+    t.Check( mw.View( ).Text( ) = "'' a" & nl & "    '' b" & nl & "'' c", P( sc, "Comment inserted '' on each line: " & mw.View( ).Text( ) ) )
+    mw.View( ).SelectAll( )
+    mw.Execute( Cmd.UncommentBlock )
+    t.Check( mw.View( ).Text( ) = plain, P( sc, "Uncomment took the '' away: " & mw.View( ).Text( ) ) )
+    mw.Prefs.DoubleComment = false
+    mw.View( ).SelectAll( )
+    mw.Execute( Cmd.CommentBlock )
+    t.Check( mw.View( ).Text( ) = "' a" & nl & "    ' b" & nl & "' c", P( sc, "double_comment off: Comment inserted ': " & mw.View( ).Text( ) ) )
+    mw.View( ).SetText( "'' a" & nl & "' b" & nl & "'c" & nl & "''d" & nl & "e" )
+    mw.View( ).SelectAll( )
+    mw.Execute( Cmd.UncommentBlock )
+    t.Check( mw.View( ).Text( ) = "a" & nl & "b" & nl & "c" & nl & "d" & nl & "e", _
+             P( sc, "Uncomment took one or two marks away, either setting: " & mw.View( ).Text( ) ) )
+    mw.Prefs.DoubleComment = true
     mw.View( ).SetText( "" )                                     ' unmodified: closing it asks nothing
 
     ' ---- settings.toml: Ctrl+Comma opens it; saving applies it

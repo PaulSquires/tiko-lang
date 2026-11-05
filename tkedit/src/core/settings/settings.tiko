@@ -12,7 +12,7 @@
 '
 '     version = 1
 '     [editor]   font, font_size, extra_line_spacing, tab_size, use_tabs, line_numbers, whitespace, wrap, caret_line,
-'                indent_guides, fold_margin, auto_indent, auto_end, codetips
+'                indent_guides, fold_margin, auto_indent, auto_end, codetips, double_comment
 '     [ui]       theme, font_size, language (en | es | fr | de | zh; docs/tkEdit/I18N.md), tab_strip,
 '                single_instance
 '     [statusbar] show_project, show_settings, show_keys
@@ -65,6 +65,7 @@ public type EditorSettings
     AutoIndent   as boolean = true
     AutoEnd      as boolean = true
     CodeTips     as boolean = true
+    DoubleComment as boolean = true      ' Comment Block inserts '' (tiko's style guide), else '
     ' [ui]
     Theme        as ustring = "dark"
     UiFontSize   as long = 10
@@ -160,6 +161,7 @@ public function FromToml( byref root as config.TomlValue ) as EditorSettings
     s.AutoIndent = tomlget.GetBool( e, "auto_indent", s.AutoIndent )
     s.AutoEnd = tomlget.GetBool( e, "auto_end", s.AutoEnd )
     s.CodeTips = tomlget.GetBool( e, "codetips", s.CodeTips )
+    s.DoubleComment = tomlget.GetBool( e, "double_comment", s.DoubleComment )
     dim as config.TomlValue u = tomlget.Table( root, "ui" )
     s.Theme = tomlget.GetStr( u, "theme", s.Theme )
     s.UiFontSize = Clamp( tomlget.GetInt( u, "font_size", s.UiFontSize ), 6, 32 )
@@ -271,6 +273,7 @@ public function ToToml( byref s as const EditorSettings ) as ustring
         KeyLine( "auto_indent", BoolText( s.AutoIndent ) ) & _
         KeyLine( "auto_end", BoolText( s.AutoEnd ), "Enter after 'sub f()' inserts 'end sub'" ) & _
         KeyLine( "codetips", BoolText( s.CodeTips ), "completion and calltips" ) & _
+        KeyLine( "double_comment", BoolText( s.DoubleComment ), "Comment Block inserts two comment marks (tiko style), false = one" ) & _
         nl & _
         "[ui]" & nl & _
         KeyLine( "theme", tomlget.Quoted( s.Theme ), "themes/<name>.toml: beside the program, or in this folder" ) & _
