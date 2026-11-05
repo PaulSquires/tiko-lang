@@ -5,4 +5,5 @@
 '' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
 '' EXPECT-EXIT: 0
 '' RUN: tests/std/filesystem/fsvolume.exe
-'' EXPECT-RUN-OUT: 45        45         0  fbc_tests.filesystem.fsvolume                 13
+'' Host-dependent: the assert count follows the machine's volumes (five per drive).
+'' EXPECT-RUN-OUT: fbc_tests.filesystem.fsvolume                 13

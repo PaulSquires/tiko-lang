@@ -139,6 +139,14 @@ PATCHES = {
 # Contains( of T ) were one overload set in one namespace; as two modules, a bare call under
 # both 'using's is TKO0919 (ambiguous), which is the module rule, so the port qualifies it.
 #
+# SUITES WHOSE ASSERT COUNT DESCRIBES THE MACHINE, not the code: their .test matches the
+# summary from the suite name on (name + test count), and a failure still shows as fbcunit's
+# exit 1. A recorded count passed on the author's box and failed on the UTC, two-drive CI runner.
+HOST_DEPENDENT = {
+    "chrono/zones.bas": "the assert count follows the machine's zone (no DST, e.g. a UTC CI runner, skips nine).",
+    "filesystem/fsvolume.bas": "the assert count follows the machine's volumes (five per drive).",
+}
+
 # THE LOGEVENT FIELD METHODS ARE Add<kind> in std/logs -- AddText, AddInt, ... -- where
 # fb/logging.bi spelled them Str, Int_, UInt, Dbl, Bool, Ptr_, Time, Span and Val. The
 # old names collided with keywords and intrinsics; see pkg/std/logs/logger.tiko.
@@ -393,6 +401,10 @@ def test_for(rel, base, has_mod2):
         if mode == "SUITE":
             for ln in body.split("\n"):
                 if re.match(r"\s+\d+\s+\d+\s+\d+\s+fbc_tests\.", ln):
+                    if rel in HOST_DEPENDENT:
+                        # the counts are the recording machine's; match from the suite name on
+                        t.append("'' Host-dependent: %s" % HOST_DEPENDENT[rel])
+                        ln = ln[ln.index("fbc_tests."):]
                     t.append("'' EXPECT-RUN-OUT: %s" % ln.strip())
     return "\n".join(t) + "\n"
 
