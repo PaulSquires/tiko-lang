@@ -43,5 +43,6 @@ public sub Run( byref c as tally.Checker )
     next
     c.SameNum( total, n, "the six menus hold every command" )
     c.Same( cmdids.GroupName( t.Info( cmdids.Cmd.BufferList ).Group ), "View", "BufferList is in View" )
+    c.Same( cmdids.GroupName( t.Info( cmdids.Cmd.ShowMenu ).Group ), "View", "ShowMenu is in View" )
     c.Check( t.Info( cmdids.Cmd.FileSave ).SepBefore, "a separator above Save" )
 end sub

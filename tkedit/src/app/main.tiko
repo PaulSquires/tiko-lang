@@ -85,6 +85,8 @@ if command( 1 ) = "--selftest" then
     selftest.BufferPass( t, 1.0 )
     selftest.TabsPass( t, 1.0 )
     selftest.TabsPass( t, 1.75 )
+    selftest.MenuPass( t, 1.0 )
+    selftest.MenuPass( t, 1.75 )
     selftest.SessionPass( t, 1.0 )
     selftest.FindPass( t, 1.0 )
     selftest.FindPass( t, 1.75 )

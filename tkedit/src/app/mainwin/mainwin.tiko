@@ -6,8 +6,8 @@
 '    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 '
 ' mainwin -- the main window and the App state it owns (PLAN.md, Window). One editor pane fills
-' the window, or two after a split; the status line sits at the bottom; there is no menu. Every
-' command goes through Execute( Cmd ).
+' the window, or two after a split; the status line sits at the bottom; the menu bar ([ui]
+' show_menu, Ctrl+Shift+M) along the top. Every command goes through Execute( Cmd ).
 '
 ' BUFFERS (D3): every open file is a documents.Document with its own Scintilla view; there is no
 ' tab bar. Pane 1 shows one buffer, pane 2 (after a split) another -- never the same one -- and
@@ -66,6 +66,7 @@
 #import "vendor/tkControls/tkFileDialog"
 #import "vendor/tkControls/tkKeys"
 #import "vendor/tkControls/tkListTree"
+#import "vendor/tkControls/tkMenuBar"
 #import "vendor/tkControls/tkMessageBox"
 #import "vendor/tkControls/tkPaint"
 #import "vendor/tkControls/tkPopupMenu"
@@ -84,6 +85,7 @@ using tkCodeEdit
 using tkFileDialog
 using tkKeys
 using tkListTree
+using tkMenuBar
 using tkMessageBox
 using tkPaint
 using tkPopupMenu
@@ -120,6 +122,8 @@ const ID_STATUS2 = 107
 const ID_SPLIT2 = 108
 const ID_TABS = 109
 const TABS_CY = 28                        ' the tab strip, unscaled
+const MENUBAR_CY = 26                     ' the menu bar ([ui] show_menu), unscaled
+const ID_MENUBAR = 102
 const ID_TABNAV = 110
 const ID_VBAR = 111                       ' 111-114: the panes' vertical scrollbars, then their horizontal ones
 const TIMER_RELAYOUT = TK_TIMER_APP       ' on hbar( 0 ): a Layout after a vertical bar came or went
@@ -467,6 +471,7 @@ public type Window
     form as TK_FORM ptr
     status as TK_WIDGET ptr             ' pane 1's status line (the only one, unsplit)
     status2 as TK_WIDGET ptr            ' pane 2's, while split
+    menuBar as TK_WIDGET ptr            ' [ui] show_menu: one menu per command group, along the top
     tabs as TK_WIDGET ptr               ' [ui] tab_strip: a tab per buffer in open order, above the panes
     tabNav as TK_WIDGET ptr             ' its < > buttons, at its right end while the tabs overflow
     lastTitle as ustring
@@ -500,6 +505,7 @@ public type Window
     declare function StatusText( byval p as StatusPanel ) as ustring
     declare function StatusTip( byval p as StatusPanel, byval second as boolean = false ) as ustring   ' "" = none
     declare function StatusHeight( ) as long
+    declare function MenuHeight( ) as long                     ' 0 when [ui] show_menu is off
     declare function TabsHeight( ) as long                     ' 0 when [ui] tab_strip is off, or the start panel shows
     declare sub SyncTabs( )
     declare sub TabsReordered( )
@@ -514,6 +520,9 @@ public type Window
     declare function Execute( byval id as Cmd ) as boolean       ' FALSE = not available (yet)
     declare function IsImplemented( byval id as Cmd ) as boolean
     declare function ShortcutText( byval id as Cmd ) as ustring  ' "Ctrl+S", "" = none
+    declare function CanRun( byval id as Cmd ) as boolean        ' Execute would act: a menu row not greyed
+    declare sub BuildMenus( )                                    ' the menu bar's text and shortcuts
+    declare sub SetShowMenu( byval onOff as boolean )            ' now, and kept in settings.toml
 
     ' ---- configuration
     declare function SettingsFile( ) as ustring
@@ -743,6 +752,27 @@ function Window.Create( byval forcedScale as single ) as boolean
     status2 = this.NewStatusBar( root, ID_STATUS2 )
     tkWidget_Show( status2, false )
     this.CreateBars( root )
+
+    ' the menu bar ([ui] show_menu, author 2026-11-05): one menu per command group, rows in table
+    ' order with the chord in force beside each; a row runs its command through Execute, as its key
+    menuBar = tkMenuBar_Create( root, ID_MENUBAR )
+    tkMenuBar_ApplyFonts( menuBar, tkForm_Font( form, TKFONT_UI ), tkForm_Font( form, TKFONT_GLYPH ) )
+    tkMenuBar_SetCommandCallback( menuBar, sub( byval hBar as TK_WIDGET ptr, byval id as long )
+        dim as Window ptr mw = WindowOfWidget( hBar )
+        if mw = 0 then exit sub
+        mw->Execute( cast( Cmd, id ) )
+        mw->FocusEditor( )
+    end sub )
+    ' each time a menu opens: what would do nothing now (no buffer: the start panel) is greyed
+    tkMenuBar_SetInitPopupCallback( menuBar, sub( byval hBar as TK_WIDGET ptr, byval idx as long, byval hPopup as TK_MENU ptr )
+        dim as Window ptr mw = WindowOfWidget( hBar )
+        if mw = 0 then exit sub
+        dim as cmdids.CommandTable t
+        for each id as Cmd in t.InGroup( cast( MenuGroup, idx ) )
+            tkPopupMenu_SetItemEnabled( hPopup, clng( id ), mw->CanRun( id ) )
+        next
+    end sub )
+    tkWidget_Show( menuBar, false )
 
     ' the tab strip ([ui] tab_strip, author 2026-10-27): a click shows that buffer in the focused
     ' pane, as Ctrl+E does; the X (or a middle click) closes it, asking first if it is modified;
@@ -982,7 +1012,9 @@ sub Window.Layout( )
         tkWidget_SetPos( Out.frame, 0, bottom - fh - oh, cx, oh )
     end if
     tkWidget_Show( Out.frame, OutputShown )
-    dim as long top = this.TabsHeight( )         ' the tab strip, above the panes
+    dim as long top = this.MenuHeight( ) + this.TabsHeight( )   ' the menu bar and the tab strip, above the panes
+    tkWidget_Show( menuBar, this.MenuHeight( ) > 0 )
+    if this.MenuHeight( ) > 0 then tkWidget_SetPos( menuBar, 0, 0, cx, this.MenuHeight( ) )
     this.LayoutTabs( )
     dim as long ah = bottom - fh - oh - top      ' the panes' area, from y = top
     dim as boolean split_ = this.IsSplit( )
@@ -1063,6 +1095,11 @@ sub Window.ShowStatus( )
     this.SyncTabs( )
 end sub
 
+function Window.MenuHeight( ) as long
+    if (menuBar = 0) orelse (Prefs.ShowMenu = false) then return 0
+    return tkForm_Scale( form, MENUBAR_CY )
+end function
+
 function Window.TabsHeight( ) as long
     if (tabs = 0) orelse (Prefs.TabStrip = false) orelse this.ShowsStart( ) then return 0   ' no tab to show
     return tkForm_Scale( form, TABS_CY )
@@ -1100,23 +1137,23 @@ sub Window.SyncTabs( )
     if changed then this.LayoutTabs( )           ' the < > buttons may come, go or change state
 end sub
 
-' The strip across the top and, while its tabs do not all fit, the < > buttons at its right end,
+' The strip across the top (under the menu bar) and, while its tabs do not all fit, the < > buttons at its right end,
 ' each greyed when there is nothing more that way.
 sub Window.LayoutTabs( )
     if tabs = 0 then exit sub
-    dim as long top = this.TabsHeight( )
+    dim as long top = this.TabsHeight( ), y = this.MenuHeight( )
     tkWidget_Show( tabs, top > 0 )
     if top = 0 then
         tkWidget_Show( tabNav, false )
         exit sub
     end if
     dim as long cx = tkForm_Widget( form )->cw
-    tkWidget_SetPos( tabs, 0, 0, cx, top )
+    tkWidget_SetPos( tabs, 0, y, cx, top )
     dim as boolean over = tkTabBar_CanNavigate( tabs, -1 ) orelse tkTabBar_CanNavigate( tabs, 1 )
     if over then
         dim as long nw = tkToolbar_GetIdealWidth( tabNav )
-        tkWidget_SetPos( tabs, 0, 0, cx - nw, top )
-        tkWidget_SetPos( tabNav, cx - nw, 0, nw, top )
+        tkWidget_SetPos( tabs, 0, y, cx - nw, top )
+        tkWidget_SetPos( tabNav, cx - nw, y, nw, top )
         tkToolbar_SetEnabled( tabNav, 0, tkTabBar_CanNavigate( tabs, -1 ) )
         tkToolbar_SetEnabled( tabNav, 1, tkTabBar_CanNavigate( tabs, 1 ) )
     end if
@@ -1285,7 +1322,7 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
          Cmd.CommentBlock, Cmd.UncommentBlock, Cmd.IndentBlock, Cmd.UnindentBlock, _
          Cmd.ToUpperCase, Cmd.ToLowerCase, Cmd.ToMixedCase
         return true
-    case Cmd.BufferList, Cmd.BufferNext, Cmd.BufferPrev, Cmd.SplitLeftRight, _
+    case Cmd.ShowMenu, Cmd.BufferList, Cmd.BufferNext, Cmd.BufferPrev, Cmd.SplitLeftRight, _
          Cmd.SplitTopBottom, Cmd.CycleFocus, Cmd.ZoomIn, Cmd.ZoomOut, Cmd.ZoomReset, Cmd.FoldToggle, _
          Cmd.FoldBelow, Cmd.FoldAll, Cmd.UnfoldAll, Cmd.BuildConfig
         return true
@@ -1305,6 +1342,22 @@ function Window.IsImplemented( byval id as Cmd ) as boolean
     return false
 end function
 
+' Implemented, and -- while no buffer is open (the start panel) -- one that does not act on a
+' buffer (Blank is not one). Execute does nothing for the rest; the menus grey them.
+function Window.CanRun( byval id as Cmd ) as boolean
+    if this.IsImplemented( id ) = false then return false
+    if this.ShowsStart( ) = false then return true
+    select case id
+    case Cmd.FileNew, Cmd.FileOpen, Cmd.FileRecent, Cmd.FileCloseAll, Cmd.FileSaveAll, Cmd.Settings, _
+         Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit, Cmd.SearchSymbol, Cmd.FindInProject, _
+         Cmd.GoBack, Cmd.GoForward, Cmd.OutputPane, Cmd.CycleFocus, Cmd.ProjectNew, Cmd.ProjectClose, _
+         Cmd.BuildExecute, Cmd.Compile, Cmd.RebuildAll, Cmd.RunExe, Cmd.RunArguments, Cmd.BuildConfig, _
+         Cmd.NextDiagnostic, Cmd.PrevDiagnostic, Cmd.ShowMenu
+        return true
+    end select
+    return false
+end function
+
 function Window.Execute( byval id as Cmd ) as boolean
     if this.IsImplemented( id ) = false then
         dim as cmdids.CommandInfo ci = Keys.Commands( ).Info( id )
@@ -1312,18 +1365,7 @@ function Window.Execute( byval id as Cmd ) as boolean
                                          i18n.Tr( "commands." & ci.Name, ci.Description ) ) )
         return false
     end if
-    if this.ShowsStart( ) then
-        ' no buffer: what acts on one does nothing (Blank is not one)
-        select case id
-        case Cmd.FileNew, Cmd.FileOpen, Cmd.FileRecent, Cmd.FileCloseAll, Cmd.FileSaveAll, Cmd.Settings, _
-             Cmd.KeyboardShortcuts, Cmd.ThemeFile, Cmd.AppExit, Cmd.SearchSymbol, Cmd.FindInProject, _
-             Cmd.GoBack, Cmd.GoForward, Cmd.OutputPane, Cmd.CycleFocus, Cmd.ProjectNew, Cmd.ProjectClose, _
-             Cmd.BuildExecute, Cmd.Compile, Cmd.RebuildAll, Cmd.RunExe, Cmd.RunArguments, Cmd.BuildConfig, _
-             Cmd.NextDiagnostic, Cmd.PrevDiagnostic
-        case else
-            return false
-        end select
-    end if
+    if this.CanRun( id ) = false then return false   ' no buffer: what acts on one does nothing
     this.SyncFocus( )
     dim as editor.CodeView ptr v = @this.View( )
     select case id
@@ -1364,6 +1406,7 @@ function Window.Execute( byval id as Cmd ) as boolean
         dim as ustring f = this.EditableThemeFile( )
         if len( f ) then this.OpenFile( f )
     case Cmd.AppExit : tkForm_Close( form )
+    case Cmd.ShowMenu : this.SetShowMenu( Prefs.ShowMenu = false )
     case Cmd.BufferList : this.OpenChooser( PickKind.Buffers, true )   ' Ctrl+E: where Ctrl+P opens (author)
     case Cmd.BufferNext : this.CycleBuffer( true )
     case Cmd.BufferPrev : this.CycleBuffer( false )
@@ -1456,6 +1499,69 @@ function Window.Execute( byval id as Cmd ) as boolean
     return true
 end function
 
+' ================================================================ the menu bar
+
+' A menu's title in the interface's language: menubar.<group>.
+private function MenuTitle( byval g as MenuGroup ) as ustring
+    select case g
+    case MenuGroup.File : return i18n.Tr( "menubar.File", "File" )
+    case MenuGroup.Edit : return i18n.Tr( "menubar.Edit", "Edit" )
+    case MenuGroup.Search : return i18n.Tr( "menubar.Search", "Search" )
+    case MenuGroup.View : return i18n.Tr( "menubar.View", "View" )
+    case MenuGroup.Project : return i18n.Tr( "menubar.Project", "Project" )
+    case MenuGroup.Build : return i18n.Tr( "menubar.Build", "Build" )
+    end select
+    return GroupName( g )
+end function
+
+' One menu per group, rows in table order with the chord in force beside each, a separator where
+' the table says. Rebuilt whenever keybindings.toml or the language changes; a row's id is its
+' command's.
+sub Window.BuildMenus( )
+    if menuBar = 0 then exit sub
+    dim as TK_HOST ptr h = tkForm_Host( form )
+    dim as cmdids.CommandTable t
+    dim as boolean fresh = (tkMenuBar_GetItemCount( menuBar ) = 0)
+    for g as long = 0 to clng( MenuGroup.Count_ ) - 1
+        dim as TK_MENU ptr m
+        if fresh then
+            dim as long i = tkMenuBar_AddItem( menuBar, MenuTitle( cast( MenuGroup, g ) ), g )
+            m = tkPopupMenu_Create( h )
+            tkMenuBar_SetDropDown( menuBar, i, m )
+        else
+            tkMenuBar_SetItemText( menuBar, g, MenuTitle( cast( MenuGroup, g ) ) )
+            m = tkMenuBar_GetDropDown( menuBar, g )
+            tkPopupMenu_Clear( m )
+        end if
+        for each id as Cmd in t.InGroup( cast( MenuGroup, g ) )
+            dim as cmdids.CommandInfo ci = t.Info( id )
+            if ci.SepBefore andalso (tkPopupMenu_GetItemCount( m ) > 0) then tkPopupMenu_AddSeparator( m )
+            tkPopupMenu_AddItem( m, clng( id ), i18n.Tr( "commands." & ci.Name, ci.Description ), _
+                                 this.ShortcutText( id ), this.IsImplemented( id ) = false )
+        next
+    next
+end sub
+
+' Ctrl+Shift+M: the menu bar comes or goes now, and settings.toml's [ui] show_menu says so from now
+' on (an open copy reloads). A settings.toml that does not parse is the person's to fix: the
+' choice holds for this run only.
+sub Window.SetShowMenu( byval onOff as boolean )
+    if (menuBar <> 0) andalso (onOff = false) then tkMenuBar_CloseMenu( menuBar )
+    Prefs.ShowMenu = onOff
+    this.Layout( )
+    dim as settings.SettingsResult r = settings.LoadSettings( this.SettingsFile( ) )
+    if r.IsOk( ) = false then
+        this.SetMessage( strings.Format( i18n.Tr( "message.menu_not_saved", "{} does not parse: show_menu is not saved" ), settings.SETTINGS_FILE ) )
+        exit sub
+    end if
+    dim as settings.EditorSettings st = r.Value( )
+    st.ShowMenu = onOff
+    if settings.WriteFile( this.SettingsFile( ), st ) then
+        dim as DocRef d = this.FindOpen( this.SettingsFile( ) )
+        if d then d->Reload( )
+    end if
+end sub
+
 ' ================================================================ accelerators
 
 sub Window.RebuildAccelerators( )
@@ -1515,7 +1621,7 @@ sub Window.ReloadSettings( )
     this.ApplyStatusPanels( )
     this.ReloadTheme( )
     this.SyncInstance( )                        ' [ui] single_instance may have changed
-    this.Layout( )                              ' [ui] tab_strip may have come or gone
+    this.Layout( )                              ' [ui] show_menu, tab_strip may have come or gone
     this.ShowStatus( )
 end sub
 
@@ -1598,6 +1704,7 @@ sub Window.ReloadLanguage( )
     i18n.Use( cat )
     if (len( note ) > 0) andalso (len( Message ) = 0) then Message = note
     this.LabelEditMenu( )
+    this.BuildMenus( )
     Finder.Relabel( )
     Out.Relabel( )
     this.SyncStart( )
@@ -1734,6 +1841,7 @@ sub Window.ReloadKeys( )
         end if
     next
     this.RebuildAccelerators( )
+    this.BuildMenus( )                          ' the shortcuts beside the rows
     this.SyncStart( )                           ' its keycaps
     if notes.Count( ) = 0 then
         Message = ""
@@ -2405,7 +2513,7 @@ sub Window.ToggleSplit( byval mode as session.SplitMode )
             else
                 ' pane 1's status line sits between pane 1 and the bar
                 dim as long sh = mw->StatusHeight( )
-                dim as long top = mw->TabsHeight( )
+                dim as long top = mw->MenuHeight( ) + mw->TabsHeight( )
                 dim as long ah = root->ch - mw->BottomHeight( ) - mw->OutputHeight( ) - top
                 if ah > sh + bar then mw->SplitRatio = (newPos - top - sh) / (ah - sh - bar)
             end if
@@ -2852,7 +2960,7 @@ sub Window.OpenChooser( byval kind as PickKind, byval atTop as boolean )
     dim as long ph = n * tkForm_Scale( form, popuplist.ROW_CY ) + tkForm_Scale( form, 4 )
     if Chooser.Filter then ph += tkForm_Scale( form, 26 )
     if (kind = PickKind.Symbols) orelse (kind = PickKind.Functions) orelse atTop then
-        Chooser.Open( h, rows, (cx - w) \ 2, tkForm_Scale( form, 32 ), w, sel )
+        Chooser.Open( h, rows, (cx - w) \ 2, this.MenuHeight( ) + tkForm_Scale( form, 32 ), w, sel )
     else
         dim as StatusPanel anchor = StatusPanel.Buffer
         select case kind

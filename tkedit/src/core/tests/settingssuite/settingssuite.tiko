@@ -26,6 +26,7 @@ private sub SettingsChecks( byref c as tally.Checker )
     c.Check( d.LineNumbers andalso d.CaretLine andalso (d.UseTabs = false) andalso (d.FoldMargin = false), "editor flags default" )
     c.Same( d.Theme, "dark", "theme default" )
     c.Same( d.Language, "en", "language default" )
+    c.Check( d.ShowMenu, "show_menu default: on" )
     c.Check( d.TabStrip, "tab_strip default: on" )
     c.Check( d.SingleInstance, "single_instance default: on" )
     c.Check( d.DoubleComment, "double_comment default: on (tiko style)" )
@@ -54,7 +55,7 @@ private sub SettingsChecks( byref c as tally.Checker )
     end if
 
     dim as ustring txt = "version = 1" & nl & "[editor]" & nl & "font_size = 14" & nl & "tab_size = 99" & nl & "extra_line_spacing = 99" & nl & _
-        "use_tabs = true" & nl & "wrap = 'yes'" & nl & "double_comment = false" & nl & "[ui]" & nl & "theme = 'light'" & nl & "language = ' DE '" & nl & "tab_strip = false" & nl & "single_instance = false" & nl & _
+        "use_tabs = true" & nl & "wrap = 'yes'" & nl & "double_comment = false" & nl & "[ui]" & nl & "theme = 'light'" & nl & "language = ' DE '" & nl & "show_menu = false" & nl & "tab_strip = false" & nl & "single_instance = false" & nl & _
         "[statusbar]" & nl & "show_keys = false" & nl & _
         "[files]" & nl & "new_eol = 'lf'" & nl & "new_encoding = 'utf8bom'" & nl & _
         "[compiler]" & nl & "tiko = 'C:/t/tiko.exe'" & nl & "includes = ['a', 'b']" & nl & _
@@ -73,6 +74,7 @@ private sub SettingsChecks( byref c as tally.Checker )
         c.Check( s.Wrap = false, "a mistyped wrap keeps its default" )
         c.Same( s.Theme, "light", "theme read" )
         c.Same( s.Language, "de", "language read, trimmed and lower-cased" )
+        c.Check( s.ShowMenu = false, "show_menu read" )
         c.Check( s.TabStrip = false, "tab_strip read" )
         c.Check( s.SingleInstance = false, "single_instance read" )
         c.Check( (s.ShowKeysPanel = false) andalso s.ShowProjectPanel andalso s.ShowSettingsPanel, "[statusbar] read, the rest defaults" )
@@ -93,6 +95,7 @@ private sub SettingsChecks( byref c as tally.Checker )
                      "and reads back its values" )
             c.Same( w.Tiko, s.Tiko, "a quote and backslashes survive" )
             c.Same( w.Language, "de", "language survives" )
+            c.Check( w.ShowMenu = false, "show_menu survives" )
             c.Check( w.TabStrip = false, "tab_strip survives" )
             c.Check( w.SingleInstance = false, "single_instance survives" )
             c.Check( (w.Includes.Count( ) = 2) andalso (w.Includes[1] = "b"), "includes survive" )

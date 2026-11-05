@@ -19,7 +19,7 @@ private function Changed( byref name_ as const ustring ) as boolean
     select case name_
     case "FileRecent", "Settings", "KeyboardShortcuts", "ThemeFile", "ReplaceOne", "GoToLine", "FileSaveAs", "ToUpperCase", "ToLowerCase", "ToMixedCase", _
          "FunctionList", "ProjectNew", "ProjectClose", "MoveLineUp", "MoveLineDown", _
-         "BufferList", "BufferNext", "BufferPrev", "CycleFocus", "BuildConfig", _
+         "ShowMenu", "BufferList", "BufferNext", "BufferPrev", "CycleFocus", "BuildConfig", _
          "NextDiagnostic", "PrevDiagnostic"
         return true
     end select
@@ -62,7 +62,8 @@ s &= nl & "## Fixed keys (not rebindable)" & nl & nl & _
     "  filters. In the functions list, its own key (F4) again switches between this buffer and every" & nl & _
     "  open buffer. The Ctrl+Tab switcher shows each buffer as soon as Ctrl+Tab / Tab reaches it;" & nl & _
     "  letting go of Ctrl keeps it, Esc goes back to the one before." & nl & _
-    "- Menu bar: Left / Right between menus, Esc or a command hides it again." & nl & _
+    "- Menu bar ([ui] show_menu, Ctrl+Shift+M shows or hides it): click a title to open its menu, Left /" & nl & _
+    "  Right between menus, Esc closes. Every row shows its chord in force; what would do nothing now is greyed." & nl & _
     "- Completion list: Enter or Tab inserts, Esc closes." & nl & _
     "- Scintilla's own letter chords (Ctrl+Z/Y/X/C/V/A/L/T/D/U and their Shift forms) are cleared, so" & nl & _
     "  keybindings.toml is the only keymap: an unbound chord does nothing." & nl & _

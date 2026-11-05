@@ -6,8 +6,8 @@
 '    file, You can obtain one at https://mozilla.org/MPL/2.0/.
 '
 ' cmdids -- every tkEdit command: the Cmd enum and its table (name, menu group, description,
-' default keys). The table drives three things: the key map (tkc/keybind), the hidden menu bar
-' (one menu per group, rows in table order, a separator where SepBefore says) and KEYS.md.
+' default keys). The table drives three things: the key map (tkc/keybind), the menu bar
+' ([ui] show_menu; one menu per group, rows in table order, a separator where SepBefore says) and KEYS.md.
 '
 ' A command is persisted by its NAME, never its number: keybindings.toml says FileSave =
 ' 'Primary+S', so reordering this enum invalidates nothing. Default keys say "Primary": Ctrl on
@@ -76,6 +76,7 @@ public enum Cmd explicit
     BookmarkClearAll
     BookmarksList
     ' View
+    ShowMenu
     FunctionList
     BufferList
     BufferNext
@@ -106,7 +107,7 @@ public enum Cmd explicit
     Last_                   ' not a command: the count
 end enum
 
-' The hidden menu bar's menus, left to right.
+' The menu bar's menus, left to right.
 public enum MenuGroup explicit
     File = 0
     Edit
@@ -270,6 +271,7 @@ constructor CommandTable( )
     this.Def( Cmd.BookmarksList, "BookmarksList", g, "Bookmarks...", "Shift+F4" )
 
     g = MenuGroup.View
+    this.Def( Cmd.ShowMenu, "ShowMenu", g, "Menu Bar", "Primary+Shift+M" )
     this.Def( Cmd.FunctionList, "FunctionList", g, "Functions...", "Primary+Shift+P", true )
     this.Def( Cmd.BufferList, "BufferList", g, "Buffers...", "Primary+E" )
     this.Def( Cmd.BufferNext, "BufferNext", g, "Next Buffer", "Primary+Tab" )

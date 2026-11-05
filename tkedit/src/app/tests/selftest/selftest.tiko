@@ -49,6 +49,7 @@
 #import "vendor/tkControls/tkTabBar"
 #import "vendor/tkControls/tkToolbar"
 #import "vendor/tkControls/tkListTree"
+#import "vendor/tkControls/tkMenuBar"
 #import "std/containers"
 using containers
 using cmdids
@@ -64,6 +65,7 @@ using tkMessageBox
 using tkStatusBar
 using tkTextBox
 using tkListTree
+using tkMenuBar
 using tkTabBar
 using tkToolbar
 using tkTheme
@@ -226,7 +228,7 @@ public sub Pass( byref t as Tally, byval sc as single )
 
     ' ---- the layout: the view fills all but one status row (no menu, no panel; the tab strip, on by default, across the top)
     dim as TK_WIDGET ptr v = mw.View( ).Widget( )
-    dim as long sh = tkForm_Scale( mw.form, mainwin.STATUS_CY ), top = mw.TabsHeight( )
+    dim as long sh = tkForm_Scale( mw.form, mainwin.STATUS_CY ), top = mw.MenuHeight( ) + mw.TabsHeight( )
     t.Check( mw.StatusHeight( ) = sh, P( sc, strings.Format( "status row {} px", mw.StatusHeight( ) ) ) )
     t.Check( (v->x = 0) andalso (v->y = top) andalso (PaneCW( mw, v ) = cx) andalso (PaneCH( mw, v ) = cy - sh - top), _
              P( sc, strings.Format( "pane at {},{} {}x{}, want 0,{} {}x{}", v->x, v->y, PaneCW( mw, v ), PaneCH( mw, v ), top, cx, cy - sh - top ) ) )
@@ -816,7 +818,7 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     dim as long popW = 0, popH = 0
     SDL_GetWindowSize( mw.Chooser.Pop->win, @popW, @popH )
     dim as single dd = h->fDensity
-    t.Check( (abs( popX * dd - (h->root->cw - popW * dd) / 2 ) <= 2) andalso (abs( popY * dd - tkForm_Scale( mw.form, 32 ) ) <= 2), _
+    t.Check( (abs( popX * dd - (h->root->cw - popW * dd) / 2 ) <= 2) andalso (abs( popY * dd - (mw.MenuHeight( ) + tkForm_Scale( mw.form, 32 )) ) <= 2), _
              P( sc, strings.Format( "Ctrl+E: centred at the top, like Search Symbol: {},{} {}x{}", popX, popY, popW, popH ) ) )
     if mw.Chooser.Pop then
         tkTest_PushText( mw.Chooser.Pop, "b.t" )
@@ -903,7 +905,7 @@ public sub BufferPass( byref t as Tally, byval sc as single )
         dim as long qx = 0, qy = 0, qw = 0, qh = 0
         SDL_GetWindowPosition( mw.Chooser.Pop->win, @qx, @qy )
         SDL_GetWindowSize( mw.Chooser.Pop->win, @qw, @qh )
-        t.Check( (abs( qx * h->fDensity - (h->root->cw - qw * h->fDensity) / 2 ) <= 2) andalso (abs( qy * h->fDensity - tkForm_Scale( mw.form, 32 ) ) <= 2), _
+        t.Check( (abs( qx * h->fDensity - (h->root->cw - qw * h->fDensity) / 2 ) <= 2) andalso (abs( qy * h->fDensity - (mw.MenuHeight( ) + tkForm_Scale( mw.form, 32 )) ) <= 2), _
                  P( sc, strings.Format( "and opens centred at the top, like Ctrl+E: {},{} {}x{}", qx, qy, qw, qh ) ) )
     end scope
     t.Check( mw.StatusText( mainwin.StatusPanel.Buffer ) = "a.tiko (+2 more)", P( sc, "the panel counts the other buffers: " & mw.StatusText( mainwin.StatusPanel.Buffer ) ) )
@@ -913,7 +915,7 @@ public sub BufferPass( byref t as Tally, byval sc as single )
     ' ---- split: another buffer in pane 2 (never the same one), a status line under each pane, the
     ' caption naming the focused pane's buffer
     dim as long cx = h->root->cw, cy = h->root->ch
-    dim as long top = mw.TabsHeight( ), sh = mw.StatusHeight( ), bar = tkForm_Scale( mw.form, mainwin.SPLIT_BAR )
+    dim as long top = mw.MenuHeight( ) + mw.TabsHeight( ), sh = mw.StatusHeight( ), bar = tkForm_Scale( mw.form, mainwin.SPLIT_BAR )
     dim as DocRef splitA = mw.FindOpen( pathA ), splitB = mw.FindOpen( pathB )
     t.Check( mw.Pane1 = splitA, P( sc, "a.tiko before the split: " & mw.ActivePath( ) ) )
     Chord( h, SDLK_BACKSLASH, SDL_SCANCODE_BACKSLASH, KMOD_PRIMARY )
@@ -1021,7 +1023,7 @@ public sub BufferPass( byref t as Tally, byval sc as single )
         dim as long rx = 0, ry = 0, rw = 0, rh = 0
         SDL_GetWindowPosition( mw.Chooser.Pop->win, @rx, @ry )
         SDL_GetWindowSize( mw.Chooser.Pop->win, @rw, @rh )
-        t.Check( (abs( rx * h->fDensity - (h->root->cw - rw * h->fDensity) / 2 ) <= 2) andalso (abs( ry * h->fDensity - tkForm_Scale( mw.form, 32 ) ) <= 2), _
+        t.Check( (abs( rx * h->fDensity - (h->root->cw - rw * h->fDensity) / 2 ) <= 2) andalso (abs( ry * h->fDensity - (mw.MenuHeight( ) + tkForm_Scale( mw.form, 32 )) ) <= 2), _
                  P( sc, strings.Format( "centred at the top, like Search Symbol: {},{} {}x{}", rx, ry, rw, rh ) ) )
     end scope
     PopKey( mw, SDLK_ESCAPE, SDL_SCANCODE_ESCAPE )
@@ -1106,11 +1108,12 @@ public sub TabsPass( byref t as Tally, byval sc as single )
     ' to the status line; three tabs fit, so no < > buttons
     t.Check( instr( fs.ReadAllText( mw.SettingsFile( ) ).ValueOr( "" ), chr( 10 ) & "tab_strip = true" ) > 0, _
              P( sc, "a new settings.toml says tab_strip = true" ) )
-    dim as long th = tkForm_Scale( mw.form, 28 )
+    dim as long th = tkForm_Scale( mw.form, 28 ), mh = mw.MenuHeight( )
     dim as TK_WIDGET ptr vv = mw.View( ).Widget( )
     t.Check( tkWidget_IsVisible( mw.tabNav ) = false, P( sc, "three tabs fit: no < > buttons" ) )
-    t.Check( tkWidget_IsVisible( mw.tabs ) andalso (mw.tabs->x = 0) andalso (mw.tabs->y = 0) andalso (mw.tabs->cw = cx) andalso (mw.tabs->ch = th), _
-             P( sc, strings.Format( "tab_strip on: the strip at 0,0 {}x{}", mw.tabs->cw, mw.tabs->ch ) ) )
+    t.Check( tkWidget_IsVisible( mw.tabs ) andalso (mw.tabs->x = 0) andalso (mw.tabs->y = mh) andalso (mw.tabs->cw = cx) andalso (mw.tabs->ch = th), _
+             P( sc, strings.Format( "tab_strip on: the strip at 0,{} {}x{} (under the menu bar)", mw.tabs->y, mw.tabs->cw, mw.tabs->ch ) ) )
+    th += mh                                     ' from here: the strip's bottom edge
     t.Check( (vv->y = th) andalso (PaneCH( mw, vv ) = cy - sh - th) andalso (mw.status->y = cy - sh), _
              P( sc, strings.Format( "the editor below it: y {} height {}", vv->y, PaneCH( mw, vv ) ) ) )
     t.Check( (tkTabBar_GetCount( mw.tabs ) = 3) andalso (tkTabBar_GetText( mw.tabs, 0 ) = "a.tiko") andalso _
@@ -1197,7 +1200,7 @@ public sub TabsPass( byref t as Tally, byval sc as single )
     v1 = mw.Pane1->Main.Widget( )
     v2 = mw.Pane2->Main.Widget( )
     dim as long bar = mw.splitBar->ch
-    dim as long h1 = cint( (cy - th - sh - sh - bar) * 0.5 )
+    dim as long h1 = cint( (cy - th - sh - sh - bar) * mw.SplitRatio )   ' as Layout rounds it
     t.Check( (mw.Split = session.SplitMode.Horizontal) andalso (v1->y = th) andalso (PaneCH( mw, v1 ) = h1) andalso (mw.status->y = th + h1) andalso _
              (v2->y = th + h1 + sh + bar) andalso (v2->y + PaneCH( mw, v2 ) = cy - sh), _
              P( sc, strings.Format( "top/bottom under the strip: {} {} / status {} / {} {}", v1->y, PaneCH( mw, v1 ), mw.status->y, v2->y, PaneCH( mw, v2 ) ) ) )
@@ -1216,7 +1219,7 @@ public sub TabsPass( byref t as Tally, byval sc as single )
     next
     tkTest_PumpFor( h, 60 )
     dim as long nw = tkToolbar_GetIdealWidth( mw.tabNav )
-    t.Check( tkWidget_IsVisible( mw.tabNav ) andalso (mw.tabNav->x = cx - nw) andalso (mw.tabNav->y = 0) andalso (mw.tabNav->ch = th) andalso _
+    t.Check( tkWidget_IsVisible( mw.tabNav ) andalso (mw.tabNav->x = cx - nw) andalso (mw.tabNav->y = mh) andalso (mw.tabNav->ch = th - mh) andalso _
              (mw.tabs->cw = cx - nw), P( sc, strings.Format( "{} tabs overflow: the buttons at {} ({} wide), the tabs {} wide", _
                                                        tkTabBar_GetCount( mw.tabs ), mw.tabNav->x, nw, mw.tabs->cw ) ) )
     dim as long lastSel = tkTabBar_GetCurSel( mw.tabs )
@@ -1245,11 +1248,11 @@ public sub TabsPass( byref t as Tally, byval sc as single )
     mw.ShowStatus( )
     t.Check( (tkWidget_IsVisible( mw.tabNav ) = false) andalso (mw.tabs->cw = cx), P( sc, "closed again, all fit: the buttons gone, the tabs full width" ) )
 
-    ' ---- off again: gone, the editor back at the top
+    ' ---- off again: gone, the editor back under the menu bar
     SetTabStrip( mw, false )
     vv = mw.View( ).Widget( )
-    t.Check( (tkWidget_IsVisible( mw.tabs ) = false) andalso (tkWidget_IsVisible( mw.tabNav ) = false) andalso (vv->y = 0) andalso (PaneCH( mw, vv ) = cy - sh), _
-             P( sc, "tab_strip off: the strip gone, the editor at the top" ) )
+    t.Check( (tkWidget_IsVisible( mw.tabs ) = false) andalso (tkWidget_IsVisible( mw.tabNav ) = false) andalso (vv->y = mh) andalso (PaneCH( mw, vv ) = cy - sh - mh), _
+             P( sc, "tab_strip off: the strip gone, the editor under the menu bar" ) )
 
     for each d as DocRef in mw.Docs
         d->Main.SetSavePoint( )
@@ -1360,7 +1363,7 @@ public sub FindPass( byref t as Tally, byval sc as single )
     mw.View( ).SetLineEnding( docencoding.LineEnd.Lf, false )
     mw.View( ).SetText( "alpha beta alpha" & nl & "ALPHA gamma" & nl & "alpha" & nl )
     dim as long cx = h->root->cw, cy = h->root->ch
-    dim as long rowH = tkForm_Scale( mw.form, findstrip.ROW_CY ), sh = mw.StatusHeight( ), top = mw.TabsHeight( )
+    dim as long rowH = tkForm_Scale( mw.form, findstrip.ROW_CY ), sh = mw.StatusHeight( ), top = mw.MenuHeight( ) + mw.TabsHeight( )
 
     ' ---- Ctrl+F: the strip above the status line, typing finds as it goes
     Chord( h, SDLK_F, SDL_SCANCODE_F, KMOD_PRIMARY )
@@ -1700,7 +1703,7 @@ public sub BuildPass( byref t as Tally, byval sc as single )
     t.Check( v->CaretLine( ) = 2, P( sc, strings.Format( "the caret went to the first error, line {}", v->CaretLine( ) ) ) )
     t.Check( v->SquiggleAt( v->SelectionStart( ) ) <> 0, P( sc, "a squiggle under it" ) )
     dim as long cy = h->root->cw * 0 + h->root->ch
-    dim as long oh = tkForm_Scale( mw.form, outputpane.PANE_CY ), sh = mw.StatusHeight( ), top = mw.TabsHeight( )
+    dim as long oh = tkForm_Scale( mw.form, outputpane.PANE_CY ), sh = mw.StatusHeight( ), top = mw.MenuHeight( ) + mw.TabsHeight( )
     t.Check( (mw.Out.frame->y = cy - sh - oh) andalso (mw.Out.frame->ch = oh), P( sc, strings.Format( "the pane above the status line: {} {}", mw.Out.frame->y, mw.Out.frame->ch ) ) )
     t.Check( PaneCH( mw, v->Widget( ) ) = cy - sh - oh - top, P( sc, "the view ends above the pane" ) )
     Chord( h, SDLK_PAGEDOWN, SDL_SCANCODE_PAGEDOWN, SDL_KMOD_ALT )
@@ -2456,6 +2459,134 @@ end sub
 ' No buffer open (author 2026-11-02): the start panel in the panes' place -- five commands, centred,
 ' each with the keys in force; a click, or Up/Down and Enter, runs one; what needs a buffer does
 ' nothing; closing the last buffer brings it back.
+' ================================================================ the menu bar ([ui] show_menu)
+
+' Clicks the middle of the menu bar's item idx; the pump after it fires the dropdown's init-popup.
+private sub ClickMenuTitle( byref mw as mainwin.Window, byval idx as long )
+    dim as TKRECT rc
+    tkMenuBar_GetItemRect( mw.menuBar, idx, rc )
+    tkTest_Click( tkForm_Host( mw.form ), mw.menuBar->x + (rc.left + rc.right) \ 2, mw.menuBar->y + (rc.top + rc.bottom) \ 2 )
+    tkTest_PumpFor( tkForm_Host( mw.form ), 60 )
+end sub
+
+' The row index of command id in the menu of its group: rows in table order, a separator where the
+' table says (none above a menu's first row).
+private function MenuRow( byval id as Cmd ) as long
+    dim as cmdids.CommandTable t
+    dim as long r = 0
+    for each c as Cmd in t.InGroup( t.Info( id ).Group )
+        if t.Info( c ).SepBefore andalso (r > 0) then r += 1
+        if c = id then return r
+        r += 1
+    next
+    return -1
+end function
+
+' Clicks command id's row in the open dropdown m.
+private sub ClickMenuRow( byref mw as mainwin.Window, byval m as TK_MENU ptr, byval id as Cmd )
+    dim as TKRECT ir
+    dim as TK_HOST ptr ms = tkPopupMenu_Surface( m )
+    if (ms <> 0) andalso tkPopupMenu_GetItemRect( m, MenuRow( id ), ir ) then
+        tkTest_Click( ms, (ir.left + ir.right) \ 2, (ir.top + ir.bottom) \ 2 )
+    end if
+    tkTest_PumpFor( tkForm_Host( mw.form ), 60 )
+end sub
+
+public sub MenuPass( byref t as Tally, byval sc as single )
+    dim as mainwin.Window mw
+    mw.ConfigDir = FreshConfig( )
+    mw.Ask = @ScriptedAsk
+    mw.Pick = @ScriptedPick
+    t.Check( mw.Create( sc ), P( sc, "menu: main window created" ) )
+    if mw.form = 0 then exit sub
+    mw.Show( )
+    dim as TK_HOST ptr h = tkForm_Host( mw.form )
+    tkTest_PumpFor( h, 150 )
+    dim as long cx = h->root->cw, cy = h->root->ch, sh = mw.StatusHeight( )
+    dim as long mh = tkForm_Scale( mw.form, 26 )
+
+    ' ---- on by default (a new settings.toml): along the top, six menus, the start panel below it
+    t.Check( instr( fs.ReadAllText( mw.SettingsFile( ) ).ValueOr( "" ), chr( 10 ) & "show_menu = true" ) > 0, _
+             P( sc, "menu: a new settings.toml says show_menu = true" ) )
+    t.Check( tkWidget_IsVisible( mw.menuBar ) andalso (mw.menuBar->x = 0) andalso (mw.menuBar->y = 0) andalso _
+             (mw.menuBar->cw = cx) andalso (mw.menuBar->ch = mh) andalso (mw.MenuHeight( ) = mh), _
+             P( sc, strings.Format( "menu: the bar at {},{} {}x{}, want 0,0 {}x{}", mw.menuBar->x, mw.menuBar->y, mw.menuBar->cw, mw.menuBar->ch, cx, mh ) ) )
+    t.Check( (tkMenuBar_GetItemCount( mw.menuBar ) = 6) andalso (tkMenuBar_GetItemText( mw.menuBar, 0 ) = "File") andalso _
+             (tkMenuBar_GetItemText( mw.menuBar, 5 ) = "Build"), _
+             P( sc, strings.Format( "menu: six menus, File .. Build ({})", tkMenuBar_GetItemCount( mw.menuBar ) ) ) )
+    dim as cmdids.CommandTable ct
+    dim as boolean rowsOk = true
+    for g as long = 0 to clng( MenuGroup.Count_ ) - 1
+        dim as Array( of Cmd ) ids = ct.InGroup( cast( MenuGroup, g ) )
+        dim as TK_MENU ptr m = tkMenuBar_GetDropDown( mw.menuBar, g )
+        dim as long last_ = MenuRow( ids[ids.Count( ) - 1] )
+        if (m = 0) orelse (tkPopupMenu_GetItemCount( m ) <> last_ + 1) then rowsOk = false
+    next
+    t.Check( rowsOk, P( sc, "menu: every command a row of its group's menu, the separators between" ) )
+    t.Check( mw.Start.frame->y = mh, P( sc, strings.Format( "menu: the start panel under it ({})", mw.Start.frame->y ) ) )
+
+    ' ---- File opens on a click; with no buffer what acts on one is greyed
+    ClickMenuTitle( mw, 0 )
+    dim as TK_MENU ptr fm = tkMenuBar_GetDropDown( mw.menuBar, 0 )
+    t.Check( tkMenuBar_IsMenuOpen( mw.menuBar ) andalso tkPopupMenu_IsOpen( fm ), P( sc, "menu: a click on File opened it" ) )
+    t.Check( tkPopupMenu_GetItemEnabled( fm, Cmd.FileNew ) andalso tkPopupMenu_GetItemEnabled( fm, Cmd.FileOpen ) andalso _
+             (tkPopupMenu_GetItemEnabled( fm, Cmd.FileSave ) = false) andalso (tkPopupMenu_GetItemEnabled( fm, Cmd.FileClose ) = false), _
+             P( sc, "menu: start panel: New and Open work, Save and Close greyed" ) )
+    ' a row runs its command: New, the start panel gives way to the buffer
+    ClickMenuRow( mw, fm, Cmd.FileNew )
+    t.Check( (tkPopupMenu_IsOpen( fm ) = false) andalso (mw.ShowsStart( ) = false), P( sc, "menu: File > New ran and closed the menu" ) )
+    ClickMenuTitle( mw, 0 )
+    t.Check( tkPopupMenu_GetItemEnabled( fm, Cmd.FileSave ), P( sc, "menu: with a buffer, Save works" ) )
+    tkMenuBar_CloseMenu( mw.menuBar )
+    tkTest_PumpFor( h, 60 )
+
+    ' ---- under it the tab strip, then the editor
+    dim as TK_WIDGET ptr v = mw.View( ).Widget( )
+    dim as long top = mh + mw.TabsHeight( )
+    t.Check( (mw.tabs->y = mh) andalso (v->y = top) andalso (PaneCH( mw, v ) = cy - sh - top), _
+             P( sc, strings.Format( "menu: the tabs at {}, the editor at {} h {}", mw.tabs->y, v->y, PaneCH( mw, v ) ) ) )
+
+    ' ---- View > Output: a row runs the same command as its key
+    ClickMenuTitle( mw, clng( MenuGroup.View ) )
+    ClickMenuRow( mw, tkMenuBar_GetDropDown( mw.menuBar, clng( MenuGroup.View ) ), Cmd.OutputPane )
+    t.Check( mw.OutputShown, P( sc, "menu: View > Output showed the output pane" ) )
+    mw.ShowOutput( false )
+
+    ' ---- the Menu Bar row has its chord in force
+    t.Check( mw.ShortcutText( Cmd.ShowMenu ) <> "", P( sc, "menu: Menu Bar has a chord (" & mw.ShortcutText( Cmd.ShowMenu ) & ")" ) )
+
+    ' ---- Ctrl+Shift+M hides it and says so in settings.toml; again brings it back
+    Chord( h, SDLK_M, SDL_SCANCODE_M, KMOD_PRIMARY or SDL_KMOD_SHIFT )
+    v = mw.View( ).Widget( )
+    t.Check( (tkWidget_IsVisible( mw.menuBar ) = false) andalso (mw.MenuHeight( ) = 0) andalso (mw.tabs->y = 0) andalso _
+             (v->y = mw.TabsHeight( )), P( sc, strings.Format( "menu: Ctrl+Shift+M hid it: tabs at {}, editor at {}", mw.tabs->y, v->y ) ) )
+    t.Check( instr( fs.ReadAllText( mw.SettingsFile( ) ).ValueOr( "" ), chr( 10 ) & "show_menu = false" ) > 0, _
+             P( sc, "menu: and settings.toml says show_menu = false" ) )
+    Chord( h, SDLK_M, SDL_SCANCODE_M, KMOD_PRIMARY or SDL_KMOD_SHIFT )
+    t.Check( tkWidget_IsVisible( mw.menuBar ) andalso (mw.tabs->y = mh) andalso _
+             (instr( fs.ReadAllText( mw.SettingsFile( ) ).ValueOr( "" ), chr( 10 ) & "show_menu = true" ) > 0), _
+             P( sc, "menu: again: back, and settings.toml says true" ) )
+
+    ' ---- settings.toml show_menu = false, saved: gone
+    fs.WriteAtomic( mw.SettingsFile( ), "version = 1" & chr( 10 ) & "[ui]" & chr( 10 ) & "show_menu = false" & chr( 10 ) )
+    mw.ReloadSettings( )
+    tkTest_PumpFor( h, 60 )
+    t.Check( (tkWidget_IsVisible( mw.menuBar ) = false) andalso (mw.tabs->y = 0), P( sc, "menu: show_menu = false in settings.toml hides it" ) )
+
+    ' ---- the titles and rows in the interface's language
+    fs.WriteAtomic( mw.SettingsFile( ), "version = 1" & chr( 10 ) & "[ui]" & chr( 10 ) & "language = 'de'" & chr( 10 ) )
+    mw.ReloadSettings( )
+    tkTest_PumpFor( h, 60 )
+    t.Check( tkWidget_IsVisible( mw.menuBar ) andalso (tkMenuBar_GetItemText( mw.menuBar, 0 ) = "Datei") andalso _
+             (tkMenuBar_GetItemText( mw.menuBar, clng( MenuGroup.View ) ) = "Ansicht"), _
+             P( sc, strings.Format( "menu: de: {} .. {}", tkMenuBar_GetItemText( mw.menuBar, 0 ), tkMenuBar_GetItemText( mw.menuBar, clng( MenuGroup.View ) ) ) ) )
+
+    for each d as DocRef in mw.Docs
+        d->Main.SetSavePoint( )
+    next
+    mw.Destroy( )
+end sub
+
 public sub StartPass( byref t as Tally, byval sc as single )
     dim as mainwin.Window mw
     mw.ConfigDir = FreshConfig( )
@@ -2472,8 +2603,9 @@ public sub StartPass( byref t as Tally, byval sc as single )
     ' ---- in the panes' place, no tab strip, no view, no bars; the focus is its own
     t.Check( mw.ShowsStart( ) andalso (mw.Docs.Count( ) = 1) andalso (mw.TabsHeight( ) = 0) andalso (tkWidget_IsVisible( mw.tabs ) = false), _
              P( sc, "start: shown at the start, one (blank) buffer, no tab strip" ) )
-    t.Check( tkWidget_IsVisible( sp ) andalso (sp->x = 0) andalso (sp->y = 0) andalso (sp->cw = cx) andalso (sp->ch = cy - sh), _
-             P( sc, strings.Format( "start: at {},{} {}x{}, want 0,0 {}x{}", sp->x, sp->y, sp->cw, sp->ch, cx, cy - sh ) ) )
+    dim as long mh = mw.MenuHeight( )
+    t.Check( tkWidget_IsVisible( sp ) andalso (sp->x = 0) andalso (sp->y = mh) andalso (sp->cw = cx) andalso (sp->ch = cy - sh - mh), _
+             P( sc, strings.Format( "start: at {},{} {}x{}, want 0,{} {}x{}", sp->x, sp->y, sp->cw, sp->ch, mh, cx, cy - sh - mh ) ) )
     t.Check( (tkWidget_IsVisible( mw.Pane1->Main.Widget( ) ) = false) andalso (tkWidget_IsVisible( mw.vbar( 0 ) ) = false) andalso _
              (tkWidget_IsVisible( mw.hbar( 0 ) ) = false), P( sc, "start: the blank buffer's view and its bars hidden" ) )
     t.Check( tkHost_GetFocus( h ) = sp, P( sc, "start: the panel has the focus" ) )
@@ -2547,7 +2679,7 @@ public sub StartPass( byref t as Tally, byval sc as single )
     t.Check( mw.Finder.isOpen, P( sc, "start: Ctrl+F in keybindings.toml opened the find strip" ) )
     Chord( h, SDLK_W, SDL_SCANCODE_W, KMOD_PRIMARY )
     t.Check( mw.ShowsStart( ) andalso (mw.Docs.Count( ) = 1) andalso tkWidget_IsVisible( sp ) andalso (tkHost_GetFocus( h ) = sp) andalso _
-             (mw.Finder.isOpen = false) andalso (sp->ch = cy - sh), P( sc, "start: closing the last buffer brought it back, focused, the strip closed" ) )
+             (mw.Finder.isOpen = false) andalso (sp->ch = cy - sh - mh), P( sc, "start: closing the last buffer brought it back, focused, the strip closed" ) )
 
     ' ---- Ctrl+N: the blank buffer becomes a new one, in front, typed into
     Chord( h, SDLK_N, SDL_SCANCODE_N, KMOD_PRIMARY )
