@@ -95,17 +95,37 @@ function FindTools _
             exit for
         end if
     next
-    dim as string arName = "llvm-ar"
-    dim as string rcName = "llvm-rc"
-    dim as string dlltoolName = "llvm-dlltool"
+    '' ...WITH CLANG'S VERSION SUFFIX. Debian and Ubuntu install 'clang-18' and 'llvm-ar-18' in
+    '' /usr/bin, and the unsuffixed names only under /usr/lib/llvm-18/bin. CI sets
+    '' TKO_CLANG=/usr/bin/clang-18, so '/usr/bin/llvm-ar' was looked for, did not exist, and
+    '' every '-lib' build was TKO0115 'archiving failed (exit -1)' (driver/output-kinds and
+    '' staticlib-members, Linux CI only). The suffixed tool first, the plain one if it is absent.
+    dim as string clangBase = lcase( mid( t.clangExe, cut_ + 1 ) )
+    if right( clangBase, 4 ) = ".exe" then clangBase = left( clangBase, len( clangBase ) - 4 )
+    dim as string ver
+    if left( clangBase, 6 ) = "clang-" then
+        ver = mid( clangBase, 7 )
+        for i as int32 = 0 to len( ver ) - 1
+            if (ver[i] < asc( "0" )) orelse (ver[i] > asc( "9" )) then ver = "" : exit for
+        next
+    end if
     #ifdef __FB_WIN32__
-        arName += ".exe"
-        rcName += ".exe"
-        dlltoolName += ".exe"
+        const EXE_ = ".exe"
+    #else
+        const EXE_ = ""
     #endif
-    t.arExe = left( t.clangExe, cut_ ) & arName
-    t.rcExe = left( t.clangExe, cut_ ) & rcName
-    t.dlltoolExe = left( t.clangExe, cut_ ) & dlltoolName
+    dim as string toolDir = left( t.clangExe, cut_ )
+    t.arExe = toolDir & "llvm-ar" & EXE_
+    t.rcExe = toolDir & "llvm-rc" & EXE_
+    t.dlltoolExe = toolDir & "llvm-dlltool" & EXE_
+    if len( ver ) > 0 then
+        if FileExists_( toolDir & "llvm-ar-" & ver & EXE_ ) then t.arExe = toolDir & "llvm-ar-" & ver & EXE_
+        if FileExists_( toolDir & "llvm-rc-" & ver & EXE_ ) then t.rcExe = toolDir & "llvm-rc-" & ver & EXE_
+        if FileExists_( toolDir & "llvm-dlltool-" & ver & EXE_ ) then t.dlltoolExe = toolDir & "llvm-dlltool-" & ver & EXE_
+    end if
+    '' TKO_AR, WHEN SET, IS THE ARCHIVER -- as it already is to build/toolchain.sh, vendorfetch.sh
+    '' and the runtime's build, which CI sets it for. Not second-guessed, as TKO_CLANG is not.
+    if len( environ( "TKO_AR" ) ) > 0 then t.arExe = environ( "TKO_AR" )
 
     if FileExists_( t.clangExe ) = false then
         t.why = "clang not found at '" & t.clangExe & "'" & _
@@ -306,6 +326,13 @@ function CompileRc _
     return Exec_( t, t.rcExe, "-fo " & Q( resPath ) & " " & Q( rcPath ) )
 end function
 
+'' WHY THERE IS NO ARCHIVER, or "" when there is one. 'exit -1' named nothing: a missing
+'' llvm-ar was indistinguishable from one that would not start.
+function ArchiverWhy( byref t as ToolPaths ) as string
+    if FileExists_( t.arExe ) then return ""
+    return "llvm-ar not found at '" & t.arExe & "' -- set TKO_AR to the archiver to use"
+end function
+
 '' 'rcs': replace members, create the archive, write an index. The index is what
 '' lets a linker resolve out of it without reading every member, and an archive
 '' without one links only by accident of member order.
@@ -313,7 +340,7 @@ function ArchiveLib _
     ( byref t as ToolPaths, byref objs as Tko.StrVec, _
       byref outPath as string ) as int32
 
-    if FileExists_( t.arExe ) = false then return -1
+    if FileExists_( t.arExe ) = false then return -1     '' ArchiverWhy says which
     '' The archive is REPLACED, not added to. 'rcs' updates members in place, so a
     '' stale one from a previous build with a name no longer produced would survive
     '' and keep resolving symbols the sources no longer define.

@@ -106,6 +106,7 @@ namespace Tko.Codegen
     declare function ArchiveLib _
         ( byref t as ToolPaths, byref objs as Tko.StrVec, _
           byref outPath as string ) as int32
+    declare function ArchiverWhy( byref t as ToolPaths ) as string
 
     '' '.ll' to '.o'. Returns the process exit code; 0 is success.
     declare function CompileIr _

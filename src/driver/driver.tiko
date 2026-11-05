@@ -604,6 +604,9 @@ private function ArchiveAll _
     if tools.found = false then
         return ToolFail_( ctx, Tko.EXIT_NO_TOOLCHAIN, Tko.TKO0111, tools.why )
     end if
+    '' NO ARCHIVER is a missing toolchain, said with its path -- not TKO0115's bare 'exit -1'.
+    dim as string arWhy = Tko.Codegen.ArchiverWhy( tools )
+    if len( arWhy ) > 0 then return ToolFail_( ctx, Tko.EXIT_NO_TOOLCHAIN, Tko.TKO0111, arWhy )
 
     dim as int32 rc = Tko.Codegen.ArchiveLib( tools, objs, ctx.options.outputPath )
     if rc <> 0 then
