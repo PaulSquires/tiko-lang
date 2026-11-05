@@ -388,6 +388,26 @@ public sub ConfigPass( byref t as Tally, byval sc as single )
     tkTest_PumpFor( h, 30 )
     Chord( h, SDLK_D, SDL_SCANCODE_D, KMOD_PRIMARY )
     t.Check( mw.View( ).LineCount( ) = 2, P( sc, strings.Format( "Ctrl+D duplicated the line ({} lines)", mw.View( ).LineCount( ) ) ) )
+    ' a selection: every line it touches, below the last, the selection kept; one undo step
+    mw.View( ).SetLineEnding( docencoding.LineEnd.Lf, false )
+    mw.View( ).SetText( "one" & nl & "two" & nl & "three" & nl & "four" )
+    mw.View( ).SetSelection( 1, 5 )                              ' "ne" + nl + "t"
+    Chord( h, SDLK_D, SDL_SCANCODE_D, KMOD_PRIMARY )
+    t.Check( mw.View( ).Text( ) = "one" & nl & "two" & nl & "one" & nl & "two" & nl & "three" & nl & "four", _
+             P( sc, "Ctrl+D duplicated both selected lines: " & mw.View( ).Text( ) ) )
+    t.Check( (mw.View( ).SelectionStart( ) = 1) andalso (mw.View( ).SelectionEnd( ) = 5), _
+             P( sc, strings.Format( "the selection stayed put ({}-{})", mw.View( ).SelectionStart( ), mw.View( ).SelectionEnd( ) ) ) )
+    mw.View( ).Undo( )
+    t.Check( mw.View( ).Text( ) = "one" & nl & "two" & nl & "three" & nl & "four", P( sc, "one Undo took it back" ) )
+    ' ending at a line's start does not take that line; the last line has no break of its own
+    mw.View( ).SetSelection( 8, 18 )                             ' "three" + nl + "four", to the end
+    Chord( h, SDLK_D, SDL_SCANCODE_D, KMOD_PRIMARY )
+    t.Check( mw.View( ).Text( ) = "one" & nl & "two" & nl & "three" & nl & "four" & nl & "three" & nl & "four", _
+             P( sc, "Ctrl+D duplicated the last lines: " & mw.View( ).Text( ) ) )
+    mw.View( ).SetSelection( 0, 4 )                              ' "one" + nl: line 2 not taken
+    Chord( h, SDLK_D, SDL_SCANCODE_D, KMOD_PRIMARY )
+    t.Check( left( mw.View( ).Text( ), 12 ) = "one" & nl & "one" & nl & "two" & nl, _
+             P( sc, "a selection ending at a line start left that line out" ) )
     mw.View( ).SetText( "" )                                     ' unmodified: closing it asks nothing
 
     ' ---- settings.toml: Ctrl+Comma opens it; saving applies it

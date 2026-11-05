@@ -440,7 +440,36 @@ sub CodeView.SelectAll( ) : if w then tkCodeEdit_Send( w, SCI_SELECTALL )
 end sub
 sub CodeView.DeleteLine( ) : if w then tkCodeEdit_Send( w, SCI_LINEDELETE )
 end sub
-sub CodeView.DuplicateLine( ) : if w then tkCodeEdit_Send( w, SCI_LINEDUPLICATE )
+' Duplicate Line: every line the selection touches (the caret's line when nothing is selected),
+' copied in below the last of them -- one undo step, the selection left where it was.
+sub CodeView.DuplicateLine( )
+    if w = 0 then exit sub
+    dim as integer anchor = tkCodeEdit_Send( w, SCI_GETANCHOR )
+    dim as integer caret = tkCodeEdit_Send( w, SCI_GETCURRENTPOS )
+    dim as integer a = tkCodeEdit_Send( w, SCI_GETSELECTIONSTART )
+    dim as integer z = tkCodeEdit_Send( w, SCI_GETSELECTIONEND )
+    dim as integer l1 = tkCodeEdit_Send( w, SCI_LINEFROMPOSITION, a )
+    dim as integer l2 = tkCodeEdit_Send( w, SCI_LINEFROMPOSITION, z )
+    ' a selection ending at the very start of a line does not take that line
+    if (l2 > l1) andalso (tkCodeEdit_Send( w, SCI_POSITIONFROMLINE, l2 ) = z) then l2 -= 1
+    dim as integer p = tkCodeEdit_Send( w, SCI_POSITIONFROMLINE, l1 )
+    dim as integer e = tkCodeEdit_Send( w, SCI_GETLINEENDPOSITION, l2 )
+    dim as ustring eol
+    select case tkCodeEdit_Send( w, SCI_GETEOLMODE )
+    case SC_EOL_CRLF : eol = !"\r\n"
+    case SC_EOL_CR   : eol = !"\r"
+    case else        : eol = !"\n"
+    end select
+    tkCodeEdit_Send( w, SCI_BEGINUNDOACTION )
+    ' [p, e) selected and duplicated puts the copy right after it; a break between the two
+    ' makes it lines (an empty [p, e) would duplicate the caret's line instead, so no call)
+    if e > p then
+        tkCodeEdit_Send( w, SCI_SETSEL, p, e )
+        tkCodeEdit_Send( w, SCI_SELECTIONDUPLICATE )
+    end if
+    tkCodeEdit_SendText( w, SCI_INSERTTEXT, e, eol )
+    tkCodeEdit_Send( w, SCI_SETSEL, anchor, caret )
+    tkCodeEdit_Send( w, SCI_ENDUNDOACTION )
 end sub
 sub CodeView.MoveLinesUp( ) : if w then tkCodeEdit_Send( w, SCI_MOVESELECTEDLINESUP )
 end sub
