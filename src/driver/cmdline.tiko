@@ -63,6 +63,7 @@ constructor DriverOptions( )
     this.debugInfo = false
     this.threadSafe = false
     this.guiSubsystem = false
+    this.stackSize = 2097152
     this.optLevel = 0
     this.showHelp = false
     this.helpCategory = ""
@@ -590,6 +591,18 @@ function Parse _
                 diags.ReportGlobal( Tko.TKO0106, value, "-s" )
                 ok = false
             end select
+
+        '' '-t <KB>': THE STACK OF A WINDOWS EXECUTABLE, fbc's option with fbc's rule, measured
+        '' over fbc-modern 1.20 from the PE header: the value is read as valint reads it ('abc'
+        '' is 0, '12x' is 12, '&h100' is 256) and multiplied by 1024; a NEGATIVE one changes
+        '' nothing, so '-t 100 -t -5' keeps 100 KB; under 64 KB becomes 64 KB. The default,
+        '' 2 MB, is fbc's for a 64-bit target. A '#cmdline "-t ..."' comes later and wins.
+        case Tko.OPT_STACK
+            dim as int64 bytes = clngint( valint( value ) ) * 1024
+            if bytes >= 0 then
+                if bytes < 65536 then bytes = 65536
+                opts.stackSize = bytes
+            end if
 
         case Tko.OPT_WERROR   : opts.warningsAsErrors = true
         case Tko.OPT_PIC      : opts.pic = true

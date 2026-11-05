@@ -687,6 +687,7 @@ private function LinkAll _
     tools.stripSymbols = (ctx.options.debugInfo = false)
     tools.threadSafe = Tko.LinkThreadSafe( ctx )
     tools.guiSubsystem = ctx.options.guiSubsystem
+    tools.stackSize = ctx.options.stackSize
 
     '' THE IMPORT LIBRARY'S NAME FOLLOWS THE OUTPUT, not the source. Measured:
     '' 'fbc -dll thing.bas -x custom.dll' writes libcustom.dll.a. So it is built

@@ -1,0 +1,10 @@
+'' '-t' BELOW 64 KB IS 64 KB, fbc's 64-bit minimum: 'fbc -t 1' links '--stack 65536,65536'
+'' (fbc-modern 1.20, measured; '-t 0' and '-t abc' too).
+'' TEST: cli
+'' ARGS: -t 1 -target windows-x86_64 tests/driver/src/pe-stack.bas -o tests/driver/pestackmin.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/pestackmin.exe
+'' RUN: tests/driver/pestackmin.exe
+'' EXPECT-RUN-OUT: reserve=65536;
+'' EXPECT-RUN-OUT: commit=65536;

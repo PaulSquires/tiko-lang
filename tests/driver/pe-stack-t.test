@@ -1,0 +1,10 @@
+'' '-t <KB>' IS fbc's STACK SIZE: reserve and commit both, in KB. fbc-modern 1.20,
+'' measured from the PE header: '-t 4096' gives 4194304 and 4194304.
+'' TEST: cli
+'' ARGS: -t 4096 -target windows-x86_64 tests/driver/src/pe-stack.bas -o tests/driver/pestackt.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/pestackt.exe
+'' RUN: tests/driver/pestackt.exe
+'' EXPECT-RUN-OUT: reserve=4194304;
+'' EXPECT-RUN-OUT: commit=4194304;

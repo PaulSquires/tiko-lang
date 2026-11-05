@@ -1,0 +1,10 @@
+'' A NEGATIVE '-t' CHANGES NOTHING, fbc's rule: '-t -5' alone keeps the 2 MB default, and
+'' after '-t 100' it keeps 100 KB (fbc-modern 1.20, measured '--stack 102400,102400').
+'' TEST: cli
+'' ARGS: -t 100 -t -5 -target windows-x86_64 tests/driver/src/pe-stack.bas -o tests/driver/pestackneg.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/driver/pestackneg.exe
+'' RUN: tests/driver/pestackneg.exe
+'' EXPECT-RUN-OUT: reserve=102400;
+'' EXPECT-RUN-OUT: commit=102400;

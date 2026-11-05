@@ -1,0 +1,15 @@
+'' A WINDOWS EXECUTABLE GETS fbc's STACK: 2 MB reserved and 2 MB committed. fbc hands ld
+'' '--stack 2097152,2097152' on every Windows link (fbc-modern 1.20, '-v' and the PE
+'' header); tiko named no stack and got lld's 1 MB, and a program fbc runs -- a decfloat
+'' library computing pi to 10,000 digits -- died with 0xC00000FD. The program reads the
+'' numbers out of its own PE header, which is what the loader sizes the stack from.
+'' TEST: cli
+'' ARGS: -v -target windows-x86_64 tests/driver/src/pe-stack.bas -o tests/driver/pestackdef.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: -Xlinker -stack:2097152,2097152
+'' EXPECT-FILE: tests/driver/pestackdef.exe
+'' RUN: tests/driver/pestackdef.exe
+'' EXPECT-RUN-OUT: magic=20B;
+'' EXPECT-RUN-OUT: reserve=2097152;
+'' EXPECT-RUN-OUT: commit=2097152;

@@ -639,6 +639,21 @@ function LinkExe _
             cmd += " -Wl,--subsystem,windows"
         end if
     end if
+    '' THE STACK, which fbc gives ld as '--stack R,R' on every Windows link -- 2 MB reserved
+    '' AND committed by default, '-t' otherwise, a DLL's link included. lld's own default is
+    '' 1 MB, and a program fbc ran (a 10,000-digit decfloat pi) died there with 0xC00000FD.
+    '' MinGW's spelling goes through -Xlinker, not -Wl, whose comma split would make the
+    '' commit an input file. ELF and Mach-O take nothing, as with fbc: on Linux its '-t'
+    '' leaves the link line and the binary byte-identical, and the main thread's stack is
+    '' the shell's 'ulimit -s' (measured, fbc-modern-linux under WSL, 2026-11-05).
+    if (target.objFormat = OBJ_COFF) andalso (t.stackSize > 0) then
+        dim as string ss = str( t.stackSize ) & "," & str( t.stackSize )
+        if target.layout.isMsvc then
+            cmd += " -Xlinker -stack:" & ss
+        else
+            cmd += " -Xlinker --stack -Xlinker " & ss
+        end if
+    end if
     '' fbrt0.o, THE RUNTIME'S CONSTRUCTOR, which fbc names on every gnu link and this
     '' did not. Measured with 'fbc -v': crt2.o, crtbegin.o, then fbrt0.o, on win64 for
     '' an EXE and a DLL alike and on Linux for an EXE; a Linux shared library takes

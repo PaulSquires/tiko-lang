@@ -111,6 +111,7 @@ namespace Tko
     OPT( OPT_M64,       "-m64",       OPTK_FLAG,  OPTCAT_TARGET,  "",         "64-bit target (the only supported width)" )
     OPT( OPT_M32,       "-m32",       OPTK_FLAG,  OPTCAT_TARGET,  "",         "rejected: 32-bit is not supported (x86-64 only)" )
     OPT( OPT_SUBSYS,    "-s",         OPTK_VALUE, OPTCAT_TARGET,  "console|gui", "Windows subsystem of an executable; console is the default" )
+    OPT( OPT_STACK,     "-t",         OPTK_VALUE, OPTCAT_TARGET,  "kbytes",   "stack reserve and commit of a Windows executable or DLL, in KB (default 2048, minimum 64)" )
 
     OPT( OPT_WERROR,    "-Werror",    OPTK_FLAG,  OPTCAT_DIAG,    "",         "treat warnings as errors" )
     OPT( OPT_WNO,       "-Wno-",      OPTK_JOINED,OPTCAT_DIAG,    "id",       "suppress one diagnostic id" )
@@ -277,6 +278,7 @@ namespace Tko
         as boolean debugInfo
         as boolean threadSafe    '' -mt as WRITTEN; the link's answer is LinkThreadSafe( ctx )
         as boolean guiSubsystem  '' -s gui; console (false) is fbc's default too
+        as int64   stackSize     '' -t, in BYTES: a Windows link's stack reserve and commit; 2 MB default
         as int32    optLevel
 
         as boolean showHelp
