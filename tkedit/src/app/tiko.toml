@@ -2,7 +2,7 @@
 # "vendor/tkControls/<module>": it comes with the toolchain). Imported modules: "tka/<module>".
 [package]
 name = "tka"
-version = "0.1.1"
+version = "0.1.2"
 
 [dependencies]
 tkp = { path = "../platform" }
