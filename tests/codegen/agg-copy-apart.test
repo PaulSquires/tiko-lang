@@ -1,0 +1,10 @@
+'' A 2008-byte aggregate copy is never a first-class '[N x i8]' value: an adjacent load/store is one
+'' memcpy, and one with a string temporary's destructor between them copies through a shadow slot
+'' in the entry block. As a value, clang's instruction selection spent ~49 s on each 5008-byte copy.
+'' TEST: cli
+'' ARGS: --emit-ir tests/codegen/src/agg-copy-apart.bas
+'' EXPECT-EXIT: 0
+'' EXPECT-OUT: .agg = alloca [2008 x i8], align 8
+'' EXPECT-OUT: call void @llvm.memcpy.p0.p0.i64(ptr %s3, ptr %s2, i64 2008, i1 false)
+'' EXPECT-NOT: = load [2008 x i8]
+'' EXPECT-NOT: store [2008 x i8]

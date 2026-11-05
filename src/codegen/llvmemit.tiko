@@ -47,6 +47,8 @@ type EmitCtx
     '' "an aggregate value with no size", which is the largest single class the
     '' codegen scan reports.
     as containers.Array( of int32 )   tempAggSize
+    '' A LARGE AGGREGATE LOAD WRITTEN AS A MEMCPY -- see llvmaggcopy.tiko's MarkAggCopies_.
+    as containers.Array( of int32 )   tempShadow
     '' WHERE THE EMITTER IS, so an ICE names it. "an aggregate value with no size" is
     '' true and useless on its own: the corpus file it came from has three thousand
     '' instructions and the message pointed at none of them.
@@ -932,7 +934,7 @@ end sub
 '' stack slot, so a split entry block writes every 'alloca' line first and each one's
 '' debug declaration where it always was. A block below the threshold -- every block of
 '' every ordinary procedure -- is written exactly as before.
-#include once "codegen/llvmaggcopy.tiko"   '' FuseBigAggCopy_
+#include once "codegen/llvmaggcopy.tiko"   '' MarkAggCopies_, EmitAggShadows_, EmitAggCopy_
 
 const SPLIT_INSTS_ = 1000
 
@@ -940,6 +942,7 @@ private sub EmitBlock _
     ( byref e as EmitCtx, byref b as MirBlock, byval bi as int32 )
 
     e.outp += BlockName( bi ) & ":" & chr( 10 )
+    if bi = 0 then EmitAggShadows_( e )
     dim as boolean split = (b.insts.Count > SPLIT_INSTS_)
     if split andalso (bi = 0) then
         e.allocaPart = 1
@@ -957,11 +960,10 @@ private sub EmitBlock _
             e.outp += nx & ":" & chr( 10 )
             run_ = 0
         end if
-        if i + 1 < b.insts.Count then
-            if FuseBigAggCopy_( e, b.insts[i], b.insts[i + 1], bi, i + 1 ) then
-                i += 1 : run_ += 2
-                continue for
-            end if
+        dim as int32 took = EmitAggCopy_( e, b, i )
+        if took > 0 then
+            i += took - 1 : run_ += took
+            continue for
         end if
         EmitInst( e, b.insts[i] )
         run_ += 1
@@ -1227,13 +1229,16 @@ private sub EmitFunction( byref e as EmitCtx, byval f as MirFunction ptr )
     e.allocaSlot.Clear( )
     e.tempTy.Clear( )
     e.tempAggSize.Clear( )
+    e.tempShadow.Clear( )
     for i as int32 = 0 to f->nextTemp
         e.constText.Push( "" )
         e.isConst.Push( 0 )
         e.allocaSlot.Push( -1 )
         e.tempTy.Push( cast( uint8, MT_VOID ) )
         e.tempAggSize.Push( 0 )
+        e.tempShadow.Push( 0 )
     next
+    MarkAggCopies_( e )
 
     for bi as int32 = 0 to f->blocks.Count - 1
         EmitBlock( e, f->blocks[bi], bi )

@@ -1,0 +1,13 @@
+'' RUN: a 2008-byte aggregate copied through a shadow slot (a string temporary destroyed between
+'' the load and the store) and by an adjacent memcpy keeps every byte, and a later write to the
+'' source does not reach the copy. Expected output measured with fbc-modern.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/agg-copy-apart.bas -o tests/codegen/aggcopyapart.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/aggcopyapart.exe
+'' RUN: tests/codegen/aggcopyapart.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  2 42 42 1539
+'' EXPECT-RUN-OUT:  1 7 7 1504
+'' EXPECT-RUN-OUT:  3 123 126 1620 0

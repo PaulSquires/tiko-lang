@@ -1,46 +1,140 @@
 '' llvmaggcopy.tiko -- a large aggregate copy as llvm.memcpy.
 ''
 '' Split out of llvmemit.tiko at the 1500-line cap and included from it in place, after the
-'' private helpers it uses (Line, ValStr, AggSizeOfAddr).
+'' private helpers it uses (Line, ValStr, AggSizeOfAddr, TempName).
 
 '' A LARGE AGGREGATE COPY IS A MEMCPY. MIR copies a UDT as 'load agg' then 'store agg', and LLVM's
-'' instruction selector expands a first-class aggregate value element by element: over a 82,120-byte
-'' POD -- 'work = p' in a chess engine's search -- clang crashed outright (fbc-examples r3ir04;
-'' 64,136 bytes compiled). Only the adjacent pair whose loaded value nothing else reads is fused, so
-'' no memory can change between the two and no other reader loses its value.
-const BIG_AGG_COPY_ = 4096
+'' instruction selector expands a first-class aggregate value element by element, at a cost that
+'' grows far faster than the size: measured with clang 21 at -O2 on one copy, 512 bytes 0.1 s,
+'' 1024 bytes 0.8 s, 2000 bytes 3 s, 5008 bytes 49 s -- and over a 82,120-byte POD ('work = p' in a
+'' chess engine's search) clang crashed outright (fbc-examples r3ir04).
+''
+'' TWO SHAPES, decided once per function by MarkAggCopies_:
+''
+''   ADJACENT   the load's value is read once, by the store right after it: one memcpy, source to
+''              destination. Nothing can run between the two, so nothing can change the source.
+''   APART      the value is read only by stores, but something runs in between -- the destructor
+''              of a temporary string, as in 'this.d = f( str( x ) )', which is
+''              'load sret; fb_StrDelete; store'. The load copies into a SHADOW SLOT in the entry
+''              block, each store copies out of it: exactly the value the load saw, whatever ran
+''              between. A decfloat library's 16 such 5008-byte copies kept clang busy for minutes.
+''
+'' A loaded value with any other reader -- a by-value argument, a return -- stays first-class.
+const BIG_AGG_COPY_ = 512
 
-private function TempReadElsewhere_ _
-    ( byref e as EmitCtx, byval tid as uint32, byval skipB as int32, byval skipI as int32 ) as boolean
+'' Per temp: 0 none, -size an ADJACENT copy, +size an APART copy through '%tN.agg'.
+private sub MarkAggCopies_( byref e as EmitCtx )
+    dim as boolean anyBig = false
     for bi as int32 = 0 to e.f->blocks.Count - 1
         dim as MirBlock ptr bk = @e.f->blocks[bi]
         for ii as int32 = 0 to bk->insts.Count - 1
-            if (bi = skipB) andalso (ii = skipI) then continue for
             dim as MirInst ptr q = @bk->insts[ii]
-            if (q->a.kind = cast( uint8, MV_TEMP )) andalso (q->a.id = tid) then return true
-            if (q->b.kind = cast( uint8, MV_TEMP )) andalso (q->b.id = tid) then return true
+            if (cast( MirOp, q->op ) = M_LOAD) andalso (cast( MirType, q->ty ) = MT_AGG) then
+                if AggSizeOfAddr( e, q->a, q->imm ) >= BIG_AGG_COPY_ then anyBig = true : exit for
+            end if
+        next
+        if anyBig then exit for
+    next
+    if anyBig = false then return
+
+    '' EVERY READ OF EVERY TEMP, and how many of them are the VALUE a store writes.
+    dim as int32 n = e.tempShadow.Count
+    dim as containers.Array( of int32 ) reads, asValue
+    for t as int32 = 0 to n - 1
+        reads.Push( 0 ) : asValue.Push( 0 )
+    next
+    for bi as int32 = 0 to e.f->blocks.Count - 1
+        dim as MirBlock ptr bk = @e.f->blocks[bi]
+        for ii as int32 = 0 to bk->insts.Count - 1
+            dim as MirInst ptr q = @bk->insts[ii]
+            if q->a.kind = cast( uint8, MV_TEMP ) then
+                if q->a.id < n then reads[q->a.id] += 1
+            end if
+            if q->b.kind = cast( uint8, MV_TEMP ) then
+                if q->b.id < n then
+                    reads[q->b.id] += 1
+                    if cast( MirOp, q->op ) = M_STORE then asValue[q->b.id] += 1
+                end if
+            end if
             for k as int32 = 0 to q->count - 1
                 dim as int32 ak = (q->first + k) * 2
                 if (ak < 0) orelse (ak + 1 >= e.m->argPool.Count) then exit for
-                if (e.m->argPool[ak] = cast( uint32, MV_TEMP )) andalso (e.m->argPool[ak + 1] = tid) then return true
+                if (e.m->argPool[ak] = cast( uint32, MV_TEMP )) andalso (e.m->argPool[ak + 1] < n) then
+                    reads[e.m->argPool[ak + 1]] += 1
+                end if
             next
         next
-        if (bk->cond.kind = cast( uint8, MV_TEMP )) andalso (bk->cond.id = tid) then return true
-        if (bk->ret2.kind = cast( uint8, MV_TEMP )) andalso (bk->ret2.id = tid) then return true
+        if bk->cond.kind = cast( uint8, MV_TEMP ) then
+            if bk->cond.id < n then reads[bk->cond.id] += 1
+        end if
+        if bk->ret2.kind = cast( uint8, MV_TEMP ) then
+            if bk->ret2.id < n then reads[bk->ret2.id] += 1
+        end if
     next
-    return false
-end function
 
-private function FuseBigAggCopy_ _
-    ( byref e as EmitCtx, byref ld as MirInst, byref st as MirInst, byval bi as int32, byval si as int32 ) as boolean
-    if cast( MirOp, ld.op ) <> M_LOAD then return false
-    if cast( MirType, ld.ty ) <> MT_AGG then return false
-    if cast( MirOp, st.op ) <> M_STORE then return false
-    if (st.b.kind <> cast( uint8, MV_TEMP )) orelse (st.b.id <> ld.result) then return false
-    dim as int32 sz = AggSizeOfAddr( e, ld.a, ld.imm )
-    if sz < BIG_AGG_COPY_ then return false
-    if TempReadElsewhere_( e, ld.result, bi, si ) then return false
-    Line( e, "call void @llvm.memcpy.p0.p0.i64(ptr " & ValStr( e, st.a ) & ", ptr " & ValStr( e, ld.a ) & _
-             ", i64 " & str( sz ) & ", i1 false)" )
-    return true
+    for bi as int32 = 0 to e.f->blocks.Count - 1
+        dim as MirBlock ptr bk = @e.f->blocks[bi]
+        for ii as int32 = 0 to bk->insts.Count - 1
+            dim as MirInst ptr q = @bk->insts[ii]
+            if cast( MirOp, q->op ) <> M_LOAD then continue for
+            if cast( MirType, q->ty ) <> MT_AGG then continue for
+            dim as uint32 t = q->result
+            if t >= n then continue for
+            if (reads[t] = 0) orelse (reads[t] <> asValue[t]) then continue for
+            dim as int32 sz = AggSizeOfAddr( e, q->a, q->imm )
+            if sz < BIG_AGG_COPY_ then continue for
+            e.tempShadow[t] = sz
+            if (reads[t] = 1) andalso (ii + 1 < bk->insts.Count) then
+                dim as MirInst ptr nx = @bk->insts[ii + 1]
+                if (cast( MirOp, nx->op ) = M_STORE) andalso (nx->b.kind = cast( uint8, MV_TEMP )) _
+                   andalso (nx->b.id = t) then e.tempShadow[t] = -sz
+            end if
+        next
+    next
+end sub
+
+'' The shadow slots, written straight after the entry block's label: only an alloca there is a
+'' static stack slot.
+private sub EmitAggShadows_( byref e as EmitCtx )
+    for t as int32 = 0 to e.tempShadow.Count - 1
+        if e.tempShadow[t] > 0 then
+            Line( e, TempName( cast( uint32, t ) ) & ".agg = alloca [" & str( e.tempShadow[t] ) & " x i8], align " & _
+                     str( e.tgt->layout.maxAlign ) )
+        end if
+    next
+end sub
+
+private sub AggMemcpy_( byref e as EmitCtx, byref dst as string, byref src as string, byval sz as int32 )
+    Line( e, "call void @llvm.memcpy.p0.p0.i64(ptr " & dst & ", ptr " & src & ", i64 " & str( sz ) & ", i1 false)" )
+end sub
+
+'' How many of the block's instructions from 'i' on this wrote as a memcpy: 0 (none, emit as
+'' usual), 1, or 2 for an adjacent pair.
+private function EmitAggCopy_( byref e as EmitCtx, byref b as MirBlock, byval i as int32 ) as int32
+    dim as MirInst ptr q = @b.insts[i]
+    dim as MirOp op = cast( MirOp, q->op )
+    dim as uint32 t
+    if op = M_LOAD then
+        t = q->result
+    elseif (op = M_STORE) andalso (q->b.kind = cast( uint8, MV_TEMP )) then
+        t = q->b.id
+    else
+        return 0
+    end if
+    if t >= e.tempShadow.Count then return 0
+    dim as int32 sz = e.tempShadow[t]
+    if sz = 0 then return 0
+    e.curOpCode = op : e.curRes = q->result : e.curOpSet = true
+    if q->dbgLine > 0 then e.dbgLine = q->dbgLine
+    if op = M_STORE then
+        '' Only an APART copy's store gets here: an ADJACENT one went with its load.
+        AggMemcpy_( e, ValStr( e, q->a ), TempName( t ) & ".agg", sz )
+        return 1
+    end if
+    if sz < 0 then
+        AggMemcpy_( e, ValStr( e, b.insts[i + 1].a ), ValStr( e, q->a ), -sz )
+        return 2
+    end if
+    AggMemcpy_( e, TempName( t ) & ".agg", ValStr( e, q->a ), sz )
+    return 1
 end function
