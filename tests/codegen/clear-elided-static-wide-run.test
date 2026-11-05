@@ -1,0 +1,18 @@
+'' RUN: CLEAR WITH ITS FILL VALUE LEFT OUT, AND STATIC INITIALISERS FBC FOLDS. 'clear a, , 4' is
+'' 'memset( (void*)&A$0, 0, 4ull )' under fbc -- the elided value is 0 -- and tiko declined it,
+'' TKO0994 (Rosetta Code's Memory allocation). 'static as wstring * 8 w = wchr( &h2581 ) & ...'
+'' and 'static as integer n = len( chr( 65 ) )' passed the static-initialiser check as constant
+'' and then folded to nothing, TKO0994 (Sparkline in unicode): a wchr code above 255 has no
+'' place in the byte carrier, and len( ) did not fold over chr. fbc-modern 1.20, 2026-11-05;
+'' output identical to fbc's, the astral code a surrogate pair.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/clear-elided-static-wide.bas -o tests/codegen/clearelidedstaticwide.exe
+'' ENV: TKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/clearelidedstaticwide.exe
+'' RUN: tests/codegen/clearelidedstaticwide.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: -4294967296
+'' EXPECT-RUN-OUT:  0
+'' EXPECT-RUN-OUT:  2960165 1 2 35535756832
+'' EXPECT-RUN-OUT:  2 3

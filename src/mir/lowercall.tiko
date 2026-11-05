@@ -183,6 +183,7 @@ private function PathEntryCallee_( byref c as Ctx, byval callee as Tko.SymbolId 
     if callee = Tko.SYMBOL_NONE then return false
     dim as Tko.Symbol ptr sym = c.syms->SymbolAt( callee )
     if sym = nullptr then return false
+    if sym->kind <> cast( uint8, Tko.SYM_PROC ) then return false   '' TRUE's payload is -1, not a node ('true 1')
     dim as Tko.NodeId pn = cast( Tko.NodeId, sym->payload )
     if pn = Tko.NODE_NONE then return false
     if c.ast->Kind( pn ) <> Tko.N_PROC then return false

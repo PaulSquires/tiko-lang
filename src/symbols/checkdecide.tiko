@@ -228,7 +228,12 @@ private sub DecideProcAddrs_( byref c as Ctx )
             if c.info->AmbiguousOf( n ) = Tko.AMB_ASSIGN then
                 if (ap->a <> Tko.NODE_NONE) andalso (ap->b <> Tko.NODE_NONE) then DecideProcAddr_( c, ap->b, c.info->TypeOf_( ap->a ) )
             elseif c.info->AmbiguousOf( n ) = Tko.AMB_CALL then
-                if ap->a <> Tko.NODE_NONE then
+                '' ...A PROCEDURE'S, as the N_CALL arm below asks. 'true 1' heads the call with
+                '' the builtin const TRUE, whose payload is its value -1, not a node: read as
+                '' one, ProcParamTypeAt_ indexed the AST at -1 and the compiler aborted.
+                dim as Tko.Symbol ptr acs = nullptr
+                if ap->a <> Tko.NODE_NONE then acs = c.syms->SymbolAt( c.info->RefOf( ap->a ) )
+                if (acs <> nullptr) andalso (acs->kind = cast( uint8, Tko.SYM_PROC )) then
                     dim as Tko.SymbolId cal = c.info->RefOf( ap->a )
                     for k as int32 = 0 to ap->count - 1
                         DecideProcAddr_( c, c.ast->ChildAt( ap->first, k ), ProcParamTypeAt_( c, cal, k ) )

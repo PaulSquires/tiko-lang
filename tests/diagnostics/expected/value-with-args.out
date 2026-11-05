@@ -1,0 +1,48 @@
+tests/diagnostics/src/value-with-args.bas(16,1): error TKO0617: cannot modify 'true': it is a constant
+     |
+  16 | true, 1
+     | ^
+tests/diagnostics/src/value-with-args.bas(17,1): error TKO0617: cannot modify 'false': it is a constant
+     |
+  17 | false 1
+     | ^
+tests/diagnostics/src/value-with-args.bas(18,1): error TKO0617: cannot modify 'x': it is a constant
+     |
+  18 | X 1
+     | ^
+tests/diagnostics/src/value-with-args.bas(19,1): error TKO0617: cannot modify 'k': it is a constant
+     |
+  19 | K, 1
+     | ^
+tests/diagnostics/src/value-with-args.bas(20,1): error TKO0874: a value alone is not a statement; expected '='
+     |
+  20 | v, 1
+     | ^
+tests/diagnostics/src/value-with-args.bas(21,1): error TKO0874: a value alone is not a statement; expected '='
+     |
+  21 | a( 1 ), 2
+     | ^
+tests/diagnostics/src/value-with-args.bas(22,1): error TKO0874: a value alone is not a statement; expected '='
+     |
+  22 | t1.f, 1
+     | ^
+tests/diagnostics/src/value-with-args.bas(23,1): error TKO0874: a value alone is not a statement; expected '='
+     |
+  23 | pf 1
+     | ^
+tests/diagnostics/src/value-with-args.bas(24,1): error TKO0652: a literal cannot be assigned to
+     |
+  24 | "a" 1
+     | ^
+tests/diagnostics/src/value-with-args.bas(25,1): error TKO0652: a literal cannot be assigned to
+     |
+  25 | "a"
+     | ^
+tests/diagnostics/src/value-with-args.bas(26,10): error TKO0874: a value alone is not a statement; expected '='
+     |
+  26 | print 1: 1
+     |          ^
+tests/diagnostics/src/value-with-args.bas(27,10): error TKO0874: a value alone is not a statement; expected '='
+     |
+  27 | print 1: 2.5
+     |          ^

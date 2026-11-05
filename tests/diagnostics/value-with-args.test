@@ -1,0 +1,9 @@
+'' A VALUE, CONSTANT OR LITERAL GIVEN ARGUMENTS AS IF CALLED, OR A LITERAL ALONE, opening a
+'' statement: fbc's 119 for a constant, enum member, TRUE, FALSE or string literal, its 10 for a
+'' variable, array element, field or procedure pointer, its 24 for a number mid-line (fbc-modern
+'' 1.20, 2026-11-05). tiko stopped on TKO0994 -- and 'true, 1' aborted the compiler itself,
+'' reading TRUE's value -1 as an AST node (Rosetta Code's JSON page).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/value-with-args.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/value-with-args.out

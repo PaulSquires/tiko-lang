@@ -473,6 +473,11 @@ declare function EmitRtl _
         ( byref c as Ctx, byval id as Tko.NodeId, byref outText as string, _
           byval depth as int32 = 0, _
           byval scope_ as Tko.ScopeId = Tko.SCOPE_GLOBAL ) as boolean
+    declare function ConstWideUnitsOf_ _
+        ( byref c as Ctx, byval id as Tko.NodeId, byref units as containers.Array( of uint32 ), _
+          byval scope_ as Tko.ScopeId = Tko.SCOPE_GLOBAL, byval depth as int32 = 0 ) as boolean
+    declare function WideUnitsImage_ _
+        ( byref c as Ctx, byval g as int32, byref units as containers.Array( of uint32 ) ) as boolean
 
 
     declare function IsUStringType( byref c as Ctx, byval t as Tko.TypeId ) as boolean

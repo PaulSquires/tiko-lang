@@ -43,6 +43,31 @@ private function ValueIsArray_ ( byref c as Ctx, byval vs as Symbol ptr, byval t
     return false
 end function
 
+'' A VALUE GIVEN ARGUMENTS, AS IF IT WERE CALLED -- 'v 1', 'v, 1', 'a(1), 2', 't.f, 1', 'pf 1',
+'' 'true, 1', 'x 1' over a CONST, '"a" 1'. Measured on fbc-modern 1.20, 2026-11-05: a variable,
+'' parameter, field, array or procedure pointer at the head is error 10, "Expected '='"; a
+'' constant, an enum member, TRUE, FALSE or a string literal is error 119, "Cannot modify a
+'' constant". tiko lowered nothing and stopped on TKO0994 -- and over TRUE, whose payload is
+'' its value, the compiler indexed the AST at -1 and aborted. Rosetta Code's JSON page, whose
+'' FreeBASIC section holds a JSON file, reached all of these.
+private sub CheckValueWithArgs_ ( byref c as Ctx, byval id as NodeId, byval a as NodeId )
+    select case c.ast->Kind( a )
+    case N_STRING_LIT
+        c.diags->Report( TKO0652, PointRange( c.ast->Loc( a ) ) )
+    case N_INT_LIT, N_FLOAT_LIT     '' mid-line: one opening a line is a line number, TKO0944
+        c.diags->Report( TKO0874, PointRange( c.ast->Loc( id ) ) )
+    case N_IDENT, N_MEMBER
+        dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( a ) )
+        if s = nullptr then return
+        select case cast( SymbolKind, s->kind )
+        case SYM_CONSTANT, SYM_ENUMCONST
+            c.diags->Report( TKO0617, PointRange( c.ast->Loc( a ) ), c.names->Spelling( s->name ) )
+        case SYM_VARIABLE, SYM_PARAMETER, SYM_FIELD
+            c.diags->Report( TKO0874, PointRange( c.ast->Loc( id ) ) )
+        end select
+    end select
+end sub
+
 private sub CheckValueStmt_ ( byref c as Ctx, byval id as NodeId )
     select case c.info->AmbiguousOf( id )
     case AMB_CALL, AMB_UNRESOLVED
@@ -50,13 +75,21 @@ private sub CheckValueStmt_ ( byref c as Ctx, byval id as NodeId )
         return
     end select
     dim as StmtPayload ptr sp = c.ast->StmtOf( id )
-    '' 'Foo 1, 2' has arguments, and a value with arguments is some other error.
-    if (sp->count > 0) orelse (sp->b <> NODE_NONE) then return
+    '' 'Foo 1, 2' has arguments: legal over a procedure, judged above over anything else.
+    if (sp->count > 0) orelse (sp->b <> NODE_NONE) then
+        if sp->a <> NODE_NONE then CheckValueWithArgs_( c, id, sp->a )
+        return
+    end if
     dim as NodeId a = sp->a
     if a = NODE_NONE then return
     dim as boolean bad = false
     select case c.ast->Kind( a )
-    case N_INDEX, N_DEREF, N_PAREN
+    '' A LITERAL ALONE -- '"a"' is fbc's 119, 'print 1: 1' its 24 and '1.5' opening a line its
+    '' 146 (fbc-modern 1.20, 2026-11-05). tiko lowered nothing and stopped on TKO0994.
+    case N_STRING_LIT
+        c.diags->Report( TKO0652, PointRange( c.ast->Loc( a ) ) )
+        return
+    case N_INDEX, N_DEREF, N_PAREN, N_INT_LIT, N_FLOAT_LIT
         bad = true
     case N_IDENT, N_MEMBER
         dim as Symbol ptr s = c.syms->SymbolAt( c.info->RefOf( a ) )

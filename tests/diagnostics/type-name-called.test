@@ -1,0 +1,9 @@
+'' A SCALAR TYPEDEF OR ENUM NAME CALLED WHERE A VALUE IS NEEDED is TKO0971, as it is uncalled:
+'' 's = sock( 1, 2, 3 )' over 'type SOCK as uinteger' is fbc's error 42 (winsock2.bi's SOCKET in
+'' Rosetta Code's Distributed programming; fbc-modern 1.20, 2026-11-05), and so are 'print
+'' sock( 1 )', 'g sock( 1 )', 'E( 1 )' and 'int32( 5 )'. tiko stopped on TKO0994. A statement
+'' that opens with one is TKO0602's alone; a UDT's name called is its constructor.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/type-name-called.bas
+'' EXPECT-EXIT: 1
+'' GOLDEN: expected/type-name-called.out

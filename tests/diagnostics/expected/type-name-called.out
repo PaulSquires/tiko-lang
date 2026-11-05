@@ -1,0 +1,24 @@
+tests/diagnostics/src/type-name-called.bas(22,1): error TKO0602: 'sock' is a typedef, not a procedure
+     |
+  22 | sock( 1 )
+     | ^
+tests/diagnostics/src/type-name-called.bas(17,5): error TKO0971: 'sock' is a type, not a value
+     |
+  17 | s = sock( 1, 2, 3 )
+     |     ^
+tests/diagnostics/src/type-name-called.bas(18,7): error TKO0971: 'sock' is a type, not a value
+     |
+  18 | print sock( 1 )
+     |       ^
+tests/diagnostics/src/type-name-called.bas(19,3): error TKO0971: 'sock' is a type, not a value
+     |
+  19 | g sock( 1 )
+     |   ^
+tests/diagnostics/src/type-name-called.bas(20,18): error TKO0971: 'e' is a type, not a value
+     |
+  20 | dim e1 as long = E( 1 )
+     |                  ^
+tests/diagnostics/src/type-name-called.bas(21,17): error TKO0971: 'int32' is a type, not a value
+     |
+  21 | dim i as long = int32( 5 )
+     |                 ^

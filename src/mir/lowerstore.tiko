@@ -1110,6 +1110,11 @@ sub InitSharedGlobal _
         fconst = ConstStringTextOf_( c, flit, ftxt )
     end if
     if fconst then fconst = (fsk >= 1) andalso (fsk <= 4)
+    '' ...AND WIDE TEXT THE BYTE CARRIER CANNOT HOLD: 'wchr( &h2581 )' (ConstWideUnitsOf_).
+    dim as containers.Array( of uint32 ) fwu
+    if (fconst = false) andalso (fsk = 2) andalso ConstWideUnitsOf_( c, flit, fwu, VarScopeOf_( c, sid ) ) then
+        if WideUnitsImage_( c, g, fwu ) then return
+    end if
     if fconst then
         '' N, from the type's own element count -- StrSwapKind_ answers the ENCODED
         '' length tag, which is not a count.

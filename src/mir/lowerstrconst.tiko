@@ -368,4 +368,82 @@ function NarrowConstAsWide_ _
     return true
 end function
 
+'' A WIDE CONSTANT AS ITS UNITS, for what the byte carrier above cannot hold: a 'wchr' code
+'' above 255. ConstStringTextOf_ declines 'wchr( &h2581 )' rather than truncate it, but the
+'' static-initialiser check counts it constant, so 'static as wstring * 8 w = wchr( &h2581 ) &
+'' wchr( &h41 )' (Rosetta Code's Sparkline in unicode) stopped on TKO0994. fbc folds it to
+'' the image '{ 0x2581, 0x0041 }' (fbc-modern 1.20, 2026-11-05: len 2, asc 9601 and 65).
+'' Concatenation, parentheses, 'chr'/'wchr' over constants, and any text the byte folder
+'' does take, one unit per byte as InitSharedGlobal widens it. A code above &hFFFF is a
+'' surrogate pair where wchar is 16 bits.
+function ConstWideUnitsOf_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byref units as containers.Array( of uint32 ), _
+      byval scope_ as Tko.ScopeId = Tko.SCOPE_GLOBAL, byval depth as int32 = 0 ) as boolean
+
+    if (id = Tko.NODE_NONE) orelse (depth > 4096) then return false
+    dim as string bt
+    if ConstStringTextOf_( c, id, bt, 1, scope_ ) then
+        for i as int32 = 0 to len( bt ) - 1
+            units.Push( cast( uint32, bt[i] ) )
+        next
+        return true
+    end if
+    select case c.ast->Kind( id )
+    case Tko.N_PAREN
+        dim as Tko.ListPayload ptr pp = c.ast->ListOf( id )
+        if pp->count <> 1 then return false
+        return ConstWideUnitsOf_( c, cast( Tko.NodeId, c.ast->ChildSlot( pp->first ) ), units, scope_, depth + 1 )
+    case Tko.N_BINARY
+        dim as Tko.BinaryPayload ptr bp = c.ast->BinaryOf( id )
+        dim as Tko.TokenKind op = cast( Tko.TokenKind, bp->op )
+        if (op <> Tko.TK_AMP) andalso (op <> Tko.TK_PLUS) then return false
+        if ConstWideUnitsOf_( c, bp->lhs, units, scope_, depth + 1 ) = false then return false
+        return ConstWideUnitsOf_( c, bp->rhs, units, scope_, depth + 1 )
+    case Tko.N_CALL
+        dim as Tko.ListPayload ptr wp = c.ast->ListOf( id )
+        if (wp->target = Tko.NODE_NONE) orelse (wp->count < 1) then return false
+        if c.ast->Kind( wp->target ) <> Tko.N_IDENT then return false
+        if LowerSpelling_( c.ix, *c.names, c.ast->IdentOf( wp->target )->name ) <> "wchr" then return false
+        for i as int32 = 0 to wp->count - 1
+            dim as Tko.Check.ConstVal cv = Tko.Check.ConstOf( *c.ast, c.ast->ChildAt( wp->first, i ), _
+                *c.srcMgr, *c.names, c.types->target.pointerBits, c.syms, scope_ )
+            if (cv.known = false) orelse (cv.value < 0) orelse (cv.value > &h10FFFF) then return false
+            dim as uint32 cp = cast( uint32, cv.value )
+            if (cp > &hFFFF) andalso (c.types->target.wcharBytes = 2) then
+                cp -= &h10000
+                units.Push( &hD800 + (cp shr 10) )
+                units.Push( &hDC00 + (cp and &h3FF) )
+            else
+                units.Push( cp )
+            end if
+        next
+        return true
+    end select
+    return false
+end function
+
+'' Global 'g', a 'wstring * N', initialised from 'units': N-1 usable, zero-filled, one wchar each.
+function WideUnitsImage_ _
+    ( byref c as Ctx, byval g as int32, byref units as containers.Array( of uint32 ) ) as boolean
+
+    dim as Tko.TypeId t = c.types->Unqualify( c.m->globals[g].frontendType )
+    if c.types->Kind( t ) <> Tko.TK_ARRAY then return false
+    dim as int32 usable = c.types->ElemCount( t ) - 1
+    dim as int32 wb = c.types->target.wcharBytes
+    if (usable < 0) orelse ((wb <> 2) andalso (wb <> 4)) then return false
+    dim as string img
+    for i as int32 = 0 to iif( units.Count < usable, units.Count, usable ) - 1
+        for k as int32 = 0 to wb - 1
+            img += chr( (units[i] shr (k * 8)) and 255 )
+        next
+    next
+    while len( img ) < c.m->globals[g].size
+        img += chr( 0 )
+    wend
+    if len( img ) <> c.m->globals[g].size then return false
+    c.m->globals[g].initBytes = img
+    c.m->globals[g].hasInit = true
+    return true
+end function
+
 end namespace

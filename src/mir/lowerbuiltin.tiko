@@ -230,6 +230,10 @@ function LowerBuiltinProc _
                 if i = 0 then return false
             case RTL_WIDTH, RTL_PCOPY
                 dflt = -1
+            '' 'clear a, , 4' FILLS WITH ZERO -- measured, 'memset( (void*)&A$0, 0, 4ull )',
+            '' and the same for 'clear (a, , 8)'. Only the fill value may be left out.
+            case RTL_MEMSET
+                if i <> 1 then return false
             case else
                 return false
             end select
