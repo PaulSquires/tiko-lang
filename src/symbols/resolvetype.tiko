@@ -28,7 +28,7 @@ private function TemplateTypeParam_ _
             if isNode andalso (dn > 0) andalso (cast( int32, dn ) <= c.ast->Count( )) then
                 dim as Tko.NodeId plist = Tko.NODE_NONE
                 select case c.ast->Kind( dn )
-                case Tko.N_TYPE
+                case Tko.N_TYPE, Tko.N_INTERFACE
                     plist = StmtOf( c, dn )->b
                 case Tko.N_PROC
                     if (StmtOf( c, dn )->extra and Tko.PF_GENERIC_PROC) <> 0 then
@@ -274,7 +274,7 @@ private sub GenericArgsCheck_ _
     if (gs->flags and Tko.SYMF_GENERIC_INST) <> 0 then return
     dim as Tko.NodeId gn = cast( Tko.NodeId, gs->payload )
     if gn = Tko.NODE_NONE then return
-    if c.ast->Kind( gn ) <> Tko.N_TYPE then return
+    if (c.ast->Kind( gn ) <> Tko.N_TYPE) andalso (c.ast->Kind( gn ) <> Tko.N_INTERFACE) then return
     dim as Tko.NodeId plist = StmtOf( c, gn )->b
     if plist = Tko.NODE_NONE then return
     if c.ast->Kind( plist ) <> Tko.N_BLOCK then return

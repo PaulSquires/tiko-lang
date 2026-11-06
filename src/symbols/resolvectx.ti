@@ -205,6 +205,14 @@ declare sub InstantiatePending_( byref c as Ctx )
 declare function InstantiateGeneric_ _
     ( byref c as Ctx, byval id as Tko.NodeId, byval sp as Tko.StmtPayload ptr, _
       byval scope_ as Tko.ScopeId, byval gsid as Tko.SymbolId ) as Tko.TypeId
+'' genericiface.tiko -- a generic interface's instance, its members re-parsed (§11.5).
+declare sub InstantiateIfaceMembers_ _
+    ( byref c as Ctx, byval gnode as Tko.NodeId, byval iin as Tko.ScopeId, _
+      byval argFirst as int32, byval argCount as int32 )
+declare sub InstClassImplements_( byref c as Ctx, byval gnode as Tko.NodeId, byval iin as Tko.ScopeId )
+declare sub NoteConstraints_ _
+    ( byref c as Ctx, byval plist as Tko.NodeId, byval home as Tko.ScopeId, _
+      byref argTypes as containers.Array( of uint32 ), byval at_ as Tko.NodeId, byval gname as Tko.InternId )
 '' resolvedefer.tiko -- generic.tiko empties the lists after its discovery pass.
 declare sub DeferCrossingReset_ ( byref c as Ctx )
 

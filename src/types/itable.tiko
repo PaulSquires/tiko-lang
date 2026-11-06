@@ -278,6 +278,8 @@ private sub ImplementOne_ _
     dim as TypeId cls = s->type_
     dim as string cname = types.Name( cls )
     dim as NodeId dn = cast( NodeId, s->payload )
+    dim as int32 standIn = 0                    '' a generic class's instance: genericiface.tiko
+    if syms.instImplDecl.TryGet( cast( uint32, sid ), standIn ) then dn = cast( NodeId, standIn )
     dim as StmtPayload ptr sp = ast.StmtOf( dn )
 
     '' The interfaces it lists (TKO1002, TKO1006), and everything they inherit.
@@ -462,7 +464,7 @@ sub ComputeImplementations _
         if s = nullptr then continue for
         if s->kind <> cast( uint8, SYM_UDT ) then continue for
         if (s->type_ = TYPE_NONE) orelse types.IsInterface( s->type_ ) then continue for
-        if IsClassDecl_( ast, s ) = false then continue for
+        if (IsClassDecl_( ast, s ) = false) andalso (syms.instImplDecl.Contains( cast( uint32, i ) ) = false) then continue for
         todo.Put( cast( uint32, s->type_ ), i )
     next
     dim as boolean progress = true
@@ -555,12 +557,36 @@ function IfaceInheritedMember _
     return SYMBOL_NONE
 end function
 
+'' A CONSTRAINED GENERIC'S ARGUMENTS (docs/tiko-interfaces §11.6), recorded at each instantiation
+'' by symbols/genericiface.tiko: the argument is the interface, inherits it, or implements it.
+private sub CheckConstraints_ _
+    ( byref syms as SymbolTable, byref types as TypeContext, byref names as Interner, _
+      byref diags as DiagnosticEngine )
+    dim as containers.Map( of uint32, int32 ) notIface                    '' constraint locations
+    for i as int32 = 0 to syms.constraintChecks.Count - 6 step 6
+        dim as SourceLoc cl = cast( SourceLoc, syms.constraintChecks[i] )
+        dim as TypeId at = types.Unqualify( cast( TypeId, syms.constraintChecks[i + 1] ) )
+        dim as TypeId it = cast( TypeId, syms.constraintChecks[i + 2] )
+        if types.IsInterface( it ) = false then
+            if notIface.Contains( cast( uint32, cl ) ) then continue for
+            notIface.Put( cast( uint32, cl ), 1 )
+            diags.Report( TKO1002, PointRange( cl ), types.Name( it ) )
+            continue for
+        end if
+        if (at = it) orelse (types.IfaceConvLinks( at, it ) >= 0) then continue for
+        diags.Report( TKO1022, PointRange( cast( SourceLoc, syms.constraintChecks[i + 3] ) ), types.Name( at ), _
+                      types.Name( it ), names.Spelling( cast( InternId, syms.constraintChecks[i + 4] ) ) & _
+                      "( of " & names.Spelling( cast( InternId, syms.constraintChecks[i + 5] ) ) & " )" )
+    next
+end sub
+
 sub ComputeFrontInterfaces( byref u as FrontUnit )
     dim as Interfaces own
     dim as Interfaces ptr ifs = cast( Interfaces ptr, u.ifaces )
     if ifs = nullptr then ifs = @own
     ComputeInterfaces( *u.ast, *u.syms, *u.types, *u.info, *u.names, *u.diags, *ifs )
     ComputeImplementations( *u.ast, *u.syms, *u.types, *u.info, *u.names, *u.diags, *ifs )
+    CheckConstraints_( *u.syms, *u.types, *u.names, *u.diags )
 end sub
 
 function DumpInterfaces _

@@ -404,6 +404,12 @@ namespace Tko
         '' for the name (JoinTwin). Resolve gives each twin its original's result type.
         as containers.Array( of uint32 ) joinOrig
         as containers.Array( of uint32 ) joinCopy
+        '' A GENERIC CLASS'S INSTANCE -> the stand-in N_TYPE its 'implements' are read from
+        '' (symbols/genericiface.tiko, docs/tiko-interfaces §11.5).
+        as containers.Map( of uint32, int32 ) instImplDecl
+        '' A CONSTRAINED GENERIC'S INSTANTIATIONS, checked once the implementations are known:
+        '' (constraint at, argument, interface, where, generic, parameter) per constraint (genericiface.tiko).
+        as containers.Array( of uint32 ) constraintChecks
         '' WHERE DECLARESYM LAST APPENDED TO THE OVERLOAD CHAIN IT REACHED FROM A SYMBOL, by
         '' SymbolId, 0 for none: k overloads of one name walked the chain from its head each
         '' time, k^2 (LOOKUPS.md M8). A chain only grows at its end, so the walk resumes from

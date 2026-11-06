@@ -589,6 +589,27 @@ function ItabFor_( byref c as Ctx, byref self_ as MirValue, byref itab as MirVal
     return true
 end function
 
+'' A RECEIVER THAT IS THE ADDRESS OF AN INTERFACE VALUE, as the property paths pass one -- they
+'' take 'n.Name' as a member access on 'n' and hand over its address (mir/lowerpropset.tiko).
+'' For a member of an interface that is two words to split, as IfaceReceiver_ splits them: the
+'' object goes on as the receiver and the itable is remembered beside it. Anything else, and a
+'' receiver already split, is returned as it came.
+function IfaceSelf_( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue ) as MirValue
+    dim as MirValue have
+    if ItabFor_( c, self_, have ) then return self_
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sym )
+    if s = nullptr then return self_
+    dim as Tko.SymScope ptr os = c.syms->ScopeAt( s->parent )
+    if os = nullptr then return self_
+    dim as Tko.Symbol ptr owner = c.syms->SymbolAt( os->owner )
+    if (owner = nullptr) orelse (c.types->IsInterface( owner->type_ ) = false) then return self_
+    dim as MirValue obj = LowerExprLoad( c, self_, MT_PTR )
+    dim as MirValue itab = LowerExprLoad( c, AddrPlus_( c, self_, PtrBytes_( c ) ), MT_PTR )
+    if (obj.kind = cast( uint8, MV_NONE )) orelse (itab.kind = cast( uint8, MV_NONE )) then return self_
+    c.itabFor.Put( ValKey_( obj ), ValKey_( itab ) )
+    return obj
+end function
+
 '' The slot a call through an interface value reaches: the callee's position in Slots(I) of
 '' the RECEIVER's static interface, or -1 when the call is not through one.
 function IfaceSlotOf_ _

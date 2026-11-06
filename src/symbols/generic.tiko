@@ -85,7 +85,7 @@ function InstantiateGeneric_ _
     if gs->kind <> cast( uint8, Tko.SYM_UDT ) then return Tko.TYPE_NONE
     dim as Tko.NodeId gn = cast( Tko.NodeId, gs->payload )
     if gn = Tko.NODE_NONE then return Tko.TYPE_NONE
-    if c.ast->Kind( gn ) <> Tko.N_TYPE then return Tko.TYPE_NONE
+    if (c.ast->Kind( gn ) <> Tko.N_TYPE) andalso (c.ast->Kind( gn ) <> Tko.N_INTERFACE) then return Tko.TYPE_NONE
     dim as Tko.StmtPayload ptr gp = StmtOf( c, gn )
     if gp->b = Tko.NODE_NONE then return Tko.TYPE_NONE
     if c.ast->Kind( gp->b ) <> Tko.N_BLOCK then return Tko.TYPE_NONE
@@ -179,6 +179,7 @@ function InstantiateGeneric_ _
     dim as Tko.ScopeId iin = c.syms->OpenScope( Tko.SCOPEK_TYPE, ghome, isid )
     isym->inner = iin
     isym->type_ = c.types->NamedType( Tko.TK_UDT, inm, cast( uint32, ghome ) )
+    if c.ast->Kind( gn ) = Tko.N_INTERFACE then c.types->SetInterface( isym->type_ )    '' docs/tiko-interfaces §11.5
     '' FOR THE MANGLER, which spells this 3BoxI8FBSTRINGE by the DECLARED name.
     scope
         dim as Tko.InternId gspell = StmtOf( c, gn )->rawName
@@ -234,6 +235,7 @@ function InstantiateGeneric_ _
     gs = c.syms->SymbolAt( gsid )
     if gs = nullptr then return Tko.TYPE_NONE
 
+    NoteConstraints_( c, StmtOf( c, gn )->b, ghome, argTypes, id, gname )    '' §11.6: genericiface.tiko
     '' THE MEMBERS, AFTER THE WALK. See Ctx.pendInst for why this cannot happen here.
     dim as int32 argFirst = c.pendInstArgs.Count
     for i as int32 = 0 to spCount - 1
@@ -825,6 +827,7 @@ function InstantiateProcAt_ _
     c.pendProcChain.Push( cast( uint32, c.instChain + 1 ) )
     c.pendProcFrame.Push( cast( uint32, _
         InstFrameFor_( c, at_, gname, argTypes, c.curInstFrame ) ) )
+    NoteConstraints_( c, StmtOf( c, gn )->c, home, argTypes, iif( at_ = Tko.NODE_NONE, gn, at_ ), gname )
     return isid
 end function
 
@@ -1298,9 +1301,7 @@ private function TypeBodyProcMods_ _
     next
     return 0
 end function
-
 #include once "symbols/genericdefaults.tiko"
-
 private sub InstantiateMembers_ _
     ( byref c as Ctx, byval gnode as Tko.NodeId, byval gname as Tko.InternId, _
       byval inm as Tko.InternId, byval iin as Tko.ScopeId, byval scope_ as Tko.ScopeId, _
@@ -1309,7 +1310,7 @@ private sub InstantiateMembers_ _
     if c.parser = nullptr then return
     dim as Tko.ParserState ptr p0 = cast( Tko.ParserState ptr, c.parser )
     if p0->toks = nullptr then return
-
+    if c.ast->Kind( gnode ) = Tko.N_INTERFACE then InstantiateIfaceMembers_( c, gnode, iin, argFirst, argCount ) : return
     '' The table is scanned to its length AS IT IS NOW. Resolving one member may
     '' instantiate another generic, which appends -- and those entries belong to that
     '' generic, not this one. Taking the count first keeps this loop over its own work.
@@ -1489,7 +1490,7 @@ private sub InstantiateMembers_ _
         next
         c.diags->LeaveInst( c.curInstFrame )
     next
-
+    InstClassImplements_( c, gnode, iin )       '' its 'implements', per instance: genericiface.tiko
     while c.gparamName.Count > gmark
         c.gparamName.Pop( )
         c.gparamType.Pop( )

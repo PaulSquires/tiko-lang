@@ -1,0 +1,288 @@
+'' genericiface.tiko -- AN INSTANCE OF A GENERIC INTERFACE (docs/tiko-interfaces §11.5).
+''
+'' 'IComparer( of string )' is instantiated by InstantiateGeneric_ like any generic UDT: a
+'' SYM_UDT of its own, its two hidden fields, its type TF_INTERFACE. What a generic TYPE
+'' gets next -- its out-of-line member definitions re-parsed -- an interface has none of:
+'' its members are the declarations inside its body. So the WHOLE DECLARATION is re-parsed
+'' from the token range ParseInterfaceDecl_ recorded, and the fresh node becomes the
+'' instance's: its member declarations are collected into the instance's scope and resolved
+'' with the type parameters bound, and its 'inherits' list resolved the same way. From then
+'' on the instance is an ordinary, non-generic interface to everything after Resolve --
+'' ComputeInterfaces reads it off the symbol's payload as it reads any other.
+
+#import "std/containers"
+#include once "symbols/resolvectx.ti"
+#include once "symbols/collect.ti"
+#include once "parser/parser.ti"
+
+namespace Tko.Resolve
+
+sub InstantiateIfaceMembers_ _
+    ( byref c as Ctx, byval gnode as Tko.NodeId, byval iin as Tko.ScopeId, _
+      byval argFirst as int32, byval argCount as int32 )
+
+    dim as Tko.ParserState ptr p0 = cast( Tko.ParserState ptr, c.parser )
+    dim as Tko.SymScope ptr isc = c.syms->ScopeAt( iin )
+    if isc = nullptr then return
+    dim as Tko.SymbolId isid = isc->owner
+
+    '' The recorded range of the generic's own declaration.
+    dim as int32 tok0 = -1
+    for i as int32 = 0 to c.ast->tokenRanges.Count - 3 step 3
+        if cast( Tko.NodeId, c.ast->tokenRanges[i] ) = gnode then
+            tok0 = cast( int32, c.ast->tokenRanges[i + 1] )
+            exit for
+        end if
+    next
+    if tok0 < 0 then return
+
+    '' THE TYPE PARAMETERS, bound for the members' signatures, as InstantiateMembers_ binds them.
+    dim as int32 gmark = c.gparamName.Count
+    dim as Tko.NodeId plist = StmtOf( c, gnode )->b
+    if (plist <> Tko.NODE_NONE) andalso (c.ast->Kind( plist ) = Tko.N_BLOCK) then
+        dim as Tko.ListPayload ptr pl = c.ast->ListOf( plist )
+        for i as int32 = 0 to argCount - 1
+            if i >= pl->count then exit for
+            dim as Tko.NodeId pn = c.ast->ChildAt( pl->first, i )
+            if c.ast->Kind( pn ) <> Tko.N_IDENT then continue for
+            c.gparamName.Push( cast( uint32, c.ast->IdentOf( pn )->name ) )
+            c.gparamType.Push( c.pendInstArgs[argFirst + i] )
+        next
+    end if
+
+    '' A PARSER OF ITS OWN over the same buffer -- see InstantiateMembers_.
+    dim as Tko.ParserState q
+    q.toks = p0->toks
+    q.stream = nullptr
+    q.litPool = p0->litPool
+    q.ast = c.ast
+    q.src = c.srcMgr
+    q.names = c.names
+    q.diags = c.diags
+    q.pos = tok0
+    q.silent = true
+    q.lambdaSeq = p0->lambdaSeq
+    q.procNames = p0->procNames
+    q.memberProcNames = p0->memberProcNames
+    dim as Tko.NodeId fresh = Tko.Parse.Statement( q )
+    p0->lambdaSeq = q.lambdaSeq
+
+    if (fresh <> Tko.NODE_NONE) andalso (c.ast->Kind( fresh ) = Tko.N_INTERFACE) then
+        '' NOT A GENERIC ANY MORE: ComputeInterfaces passes over a template (b set).
+        StmtOf( c, fresh )->b = Tko.NODE_NONE
+        dim as Tko.Symbol ptr isym = c.syms->SymbolAt( isid )
+        if isym <> nullptr then isym->payload = cast( int32, fresh )
+        c.info->Resize( c.ast->Count( ) )
+        c.info->SetScope( fresh, iin )
+        c.info->SetRef( fresh, isid )
+
+        '' Read once: Collect and the walk below can move the arena the payload lives in.
+        dim as int32 mFirst = StmtOf( c, fresh )->first, mCount = StmtOf( c, fresh )->count
+        for i as int32 = 0 to mCount - 1
+            dim as Tko.NodeId m = cast( Tko.NodeId, c.ast->ChildSlot( mFirst + i ) )
+            if c.ast->Kind( m ) <> Tko.N_PROC then continue for
+            c.info->Resize( c.ast->Count( ) )
+            Tko.Collect.One( *c.ast, m, iin, *c.syms, *c.names, *c.types, *c.diags, *c.info )
+        next
+        c.info->Resize( c.ast->Count( ) )
+        WalkStmt( c, StmtOf( c, fresh )->c, iin )         '' 'inherits IBase( of T )'
+        for i as int32 = 0 to mCount - 1
+            dim as Tko.NodeId m = cast( Tko.NodeId, c.ast->ChildSlot( mFirst + i ) )
+            if c.ast->Kind( m ) <> Tko.N_PROC then continue for
+            WalkStmt( c, m, iin )
+        next
+    end if
+
+    while c.gparamName.Count > gmark
+        c.gparamName.Pop( )
+        c.gparamType.Pop( )
+    wend
+end sub
+
+'' ---------------------------------------------------------------- a generic class's instance
+'' 'class Box( of T )' with 'implements IGet( of T )' and a method 'implements IGet( of T ).Get'
+'' (§11.5): one mapping, and one itable, PER INSTANCE. The generic's 'implements' lists name
+'' T, and SemanticInfo keys a type by node, so the template's typerefs cannot carry what
+'' each instance resolves them to. Each instance gets its own: a typeref node per entry
+'' with the instance's type set on it, a list per instantiated method (on its fresh
+'' definition node, which is what the instance's SYM_PROC points at), and a STAND-IN N_TYPE
+'' whose children are those definitions and whose list is the type's. ComputeImplementations
+'' reads the stand-in in place of the generic's declaration (SymbolTable.instImplDecl).
+
+'' A typeref node with no spelling, its type given.
+private function TypedRef_( byref c as Ctx, byval loc as Tko.SourceLoc, byval t as Tko.TypeId ) as Tko.NodeId
+    dim as Tko.StmtPayload tp
+    c.ast->PushStmt( tp )
+    dim as Tko.AstNode rec
+    rec.kind = cast( uint16, Tko.N_TYPEREF ) : rec.loc = loc
+    rec.data = cast( uint32, c.ast->StmtPoolCount( ) - 1 )
+    c.ast->PushNode( rec )
+    dim as Tko.NodeId n = cast( Tko.NodeId, c.ast->NodePoolCount( ) - 1 )
+    c.info->Resize( c.ast->NodePoolCount( ) )
+    c.info->SetType( n, t )
+    return n
+end function
+
+private function ListNode_( byref c as Ctx, byval loc as Tko.SourceLoc, byref items as Tko.NodeIdVec ) as Tko.NodeId
+    dim as Tko.ListPayload lp
+    lp.first = c.ast->ChildPoolCount( )
+    lp.count = items.Count
+    for i as int32 = 0 to items.Count - 1
+        c.ast->PushChild( items[i] )
+    next
+    c.ast->PushList( lp )
+    dim as Tko.AstNode rec
+    rec.kind = cast( uint16, Tko.N_BLOCK ) : rec.loc = loc
+    rec.data = cast( uint32, c.ast->ListPoolCount( ) - 1 )
+    c.ast->PushNode( rec )
+    return cast( Tko.NodeId, c.ast->NodePoolCount( ) - 1 )
+end function
+
+'' The generic's list 'lst' re-resolved for the instance: every 'stride'-th entry is a type
+'' (the interface); with stride 2 the one after it, the member's name, is shared as written.
+private function InstList_ _
+    ( byref c as Ctx, byval lst as Tko.NodeId, byval stride as int32, byval iin as Tko.ScopeId ) as Tko.NodeId
+    dim as Tko.NodeIdVec items
+    dim as int32 lFirst = c.ast->ListOf( lst )->first, lCount = c.ast->ListOf( lst )->count
+    for i as int32 = 0 to lCount - 1
+        dim as Tko.NodeId tr = cast( Tko.NodeId, c.ast->ChildSlot( lFirst + i ) )
+        if (i mod stride) = 0 then
+            dim as Tko.TypeId t = ResolveTypeRef( c, tr, iin )
+            tr = TypedRef_( c, c.ast->Loc( tr ), t )
+        end if
+        items.Push( cast( uint32, tr ) )
+    next
+    return ListNode_( c, c.ast->Loc( lst ), items )
+end function
+
+'' The declaration inside the generic that an instantiated definition defines: its name, and
+'' as many parameters. Overloads with one count between them take the first.
+private function TemplateDecl_( byref c as Ctx, byval gnode as Tko.NodeId, byval def as Tko.NodeId ) as Tko.NodeId
+    dim as Tko.InternId nm = StmtOf( c, def )->name
+    dim as int32 np = StmtOf( c, def )->count
+    dim as int32 gFirst = StmtOf( c, gnode )->first, gCount = StmtOf( c, gnode )->count
+    for i as int32 = 0 to gCount - 1
+        dim as Tko.NodeId m = cast( Tko.NodeId, c.ast->ChildSlot( gFirst + i ) )
+        if c.ast->Kind( m ) <> Tko.N_PROC then continue for
+        if StmtOf( c, m )->name <> nm then continue for
+        if StmtOf( c, m )->count <> np then continue for
+        if Tko.ImplementsOf( *c.ast, m ) = Tko.NODE_NONE then continue for
+        return m
+    next
+    return Tko.NODE_NONE
+end function
+
+sub InstClassImplements_( byref c as Ctx, byval gnode as Tko.NodeId, byval iin as Tko.ScopeId )
+    if c.ast->Kind( gnode ) <> Tko.N_TYPE then return
+    dim as Tko.SymScope ptr isc = c.syms->ScopeAt( iin )
+    if isc = nullptr then return
+    dim as Tko.SymbolId isid = isc->owner
+    dim as boolean any_ = (Tko.ImplementsOf( *c.ast, gnode ) <> Tko.NODE_NONE)
+
+    '' The instance's methods: each SYM_PROC in its scope, every overload.
+    dim as Tko.NodeIdVec defs
+    dim as Tko.SymbolId cur = isc->firstSym
+    while cur <> Tko.SYMBOL_NONE
+        dim as Tko.SymbolId ov = cur
+        while ov <> Tko.SYMBOL_NONE
+            dim as Tko.Symbol ptr ms = c.syms->SymbolAt( ov )
+            if ms = nullptr then exit while
+            if ms->kind <> cast( uint8, Tko.SYM_PROC ) then exit while
+            dim as Tko.NodeId dn = cast( Tko.NodeId, ms->payload )
+            if (dn <> Tko.NODE_NONE) andalso (c.ast->Kind( dn ) = Tko.N_PROC) then
+                dim as boolean seen = false
+                for k as int32 = 0 to defs.Count - 1
+                    if defs[k] = cast( uint32, dn ) then seen = true
+                next
+                if seen = false then defs.Push( cast( uint32, dn ) )
+            end if
+            ov = ms->nextOverload
+        wend
+        dim as Tko.Symbol ptr cs = c.syms->SymbolAt( cur )
+        if cs = nullptr then exit while
+        cur = cs->nextInScope
+    wend
+
+    for k as int32 = 0 to defs.Count - 1
+        dim as Tko.NodeId def = cast( Tko.NodeId, defs[k] )
+        dim as Tko.NodeId td = TemplateDecl_( c, gnode, def )
+        if td = Tko.NODE_NONE then continue for
+        if Tko.ImplementsOf( *c.ast, def ) <> Tko.NODE_NONE then continue for
+        Tko.RecordImplements( *c.ast, def, InstList_( c, Tko.ImplementsOf( *c.ast, td ), 2, iin ) )
+        any_ = true
+    next
+    if any_ = false then return
+
+    dim as Tko.NodeId tl = Tko.ImplementsOf( *c.ast, gnode )
+    if tl <> Tko.NODE_NONE then tl = InstList_( c, tl, 1, iin )
+    dim as Tko.StmtPayload sp
+    sp.first = c.ast->ChildPoolCount( )
+    sp.count = defs.Count
+    for k as int32 = 0 to defs.Count - 1
+        c.ast->PushChild( defs[k] )
+    next
+    c.ast->PushStmt( sp )
+    dim as Tko.AstNode rec
+    rec.kind = cast( uint16, Tko.N_TYPE ) : rec.loc = c.ast->Loc( gnode )
+    rec.data = cast( uint32, c.ast->StmtPoolCount( ) - 1 )
+    c.ast->PushNode( rec )
+    dim as Tko.NodeId standIn = cast( Tko.NodeId, c.ast->NodePoolCount( ) - 1 )
+    c.info->Resize( c.ast->NodePoolCount( ) )
+    if tl <> Tko.NODE_NONE then Tko.RecordImplements( *c.ast, standIn, tl )
+    c.syms->instImplDecl.Put( cast( uint32, isid ), cast( int32, standIn ) )
+end sub
+
+'' ---------------------------------------------------------------- constraints (§11.6)
+'' 'function Max( of T as IComparable )( ... )', 'type SortedMap( of K as { IComparable,
+'' IHashable }, V )'. An instantiation's arguments are held to their parameters' constraints
+'' ONCE, at the instantiation, with one message -- not by an error deep inside the body. The
+'' constraint is resolved here, with the parameters bound (it may name one: 'of T as
+'' IComparable( of T )'). Whether the argument implements it is not known until Check
+'' computes the implementations, so the pair is recorded in SymbolTable.constraintChecks and
+'' judged there (types/itable.tiko) -- and so is a constraint that is no interface
+'' (TKO1002): an instantiation made during discovery, before the walk, reports nothing.
+sub NoteConstraints_ _
+    ( byref c as Ctx, byval plist as Tko.NodeId, byval home as Tko.ScopeId, _
+      byref argTypes as containers.Array( of uint32 ), byval at_ as Tko.NodeId, byval gname as Tko.InternId )
+
+    if (plist = Tko.NODE_NONE) orelse (c.ast->Kind( plist ) <> Tko.N_BLOCK) then return
+    dim as int32 pFirst = c.ast->ListOf( plist )->first, pCount = c.ast->ListOf( plist )->count
+    dim as boolean any_ = false
+    for i as int32 = 0 to pCount - 1
+        if Tko.ImplementsOf( *c.ast, c.ast->ChildAt( pFirst, i ) ) <> Tko.NODE_NONE then any_ = true
+    next
+    if any_ = false then return
+
+    dim as int32 gmark = c.gparamName.Count
+    for i as int32 = 0 to pCount - 1
+        if i >= argTypes.Count then exit for
+        dim as Tko.NodeId pn = c.ast->ChildAt( pFirst, i )
+        if c.ast->Kind( pn ) <> Tko.N_IDENT then continue for
+        c.gparamName.Push( cast( uint32, c.ast->IdentOf( pn )->name ) )
+        c.gparamType.Push( argTypes[i] )
+    next
+    for i as int32 = 0 to pCount - 1
+        if i >= argTypes.Count then exit for
+        dim as Tko.NodeId pn = c.ast->ChildAt( pFirst, i )
+        dim as Tko.NodeId cl = Tko.ImplementsOf( *c.ast, pn )
+        if cl = Tko.NODE_NONE then continue for
+        dim as int32 cFirst = c.ast->ListOf( cl )->first, cCount = c.ast->ListOf( cl )->count
+        for j as int32 = 0 to cCount - 1
+            dim as Tko.NodeId ctr = cast( Tko.NodeId, c.ast->ChildSlot( cFirst + j ) )
+            dim as Tko.TypeId it = ResolveTypeRef( c, ctr, home )
+            if it = Tko.TYPE_NONE then continue for                    '' Resolve said why
+            c.syms->constraintChecks.Push( cast( uint32, c.ast->Loc( ctr ) ) )
+            c.syms->constraintChecks.Push( argTypes[i] )
+            c.syms->constraintChecks.Push( cast( uint32, c.types->Unqualify( it ) ) )
+            c.syms->constraintChecks.Push( cast( uint32, c.ast->Loc( at_ ) ) )
+            c.syms->constraintChecks.Push( cast( uint32, gname ) )
+            c.syms->constraintChecks.Push( cast( uint32, c.ast->IdentOf( pn )->name ) )
+        next
+    next
+    while c.gparamName.Count > gmark
+        c.gparamName.Pop( )
+        c.gparamType.Pop( )
+    wend
+end sub
+
+end namespace

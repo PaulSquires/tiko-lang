@@ -1,0 +1,13 @@
+'' RUN: interface properties (docs/tiko-interfaces Phase 5a) -- see the source.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/iface-props.bas -o tests/codegen/ifaceprops.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: verify:
+'' EXPECT-FILE: tests/codegen/ifaceprops.exe
+'' RUN: tests/codegen/ifaceprops.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: Rex            Rex
+'' EXPECT-RUN-OUT:  10            17
+'' EXPECT-RUN-OUT:  8             8
+'' EXPECT-RUN-OUT:  210           105

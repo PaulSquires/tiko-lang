@@ -1,0 +1,11 @@
+'' A GENERIC INTERFACE AND A GENERIC CLASS THROUGH A MODULE INTERFACE (docs/tiko-interfaces
+'' §11.5). The importer re-reads both, implements one instance of the interface on a type of
+'' its own -- 'getters.IGet( of long ).Get', a member named after a qualified generic -- and
+'' converts an instance of the class to another instance.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i tests/modules/src/igenmod/libs tests/modules/src/igenmod/app/main.bas -o tests/modules/igenmod.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/modules/igenmod.exe
+'' RUN: tests/modules/igenmod.exe
+'' EXPECT-RUN-OUT:  7             cell

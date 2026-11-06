@@ -118,6 +118,7 @@ function EmitMemberCallArgs_ _
     if pn = Tko.NODE_NONE then return none_
     if c.ast->Kind( pn ) <> Tko.N_PROC then return none_
     if self_.kind = cast( uint8, MV_NONE ) then return none_
+    if vslot >= 0 then self_ = IfaceSelf_( c, sym, self_ )   '' an interface's property: loweritab.tiko
 
     '' A UDT RESULT THAT TRAVELS THROUGH A HIDDEN POINTER needs somewhere to land, and
     '' the CALLER provides it: a temporary passed as ARGUMENT ZERO, before the

@@ -30,6 +30,7 @@ src/symbols/collectdump.tiko
 src/symbols/resolve.tiko
 src/symbols/resolveacc.tiko
 src/symbols/generic.tiko
+src/symbols/genericiface.tiko
 src/symbols/generictypedef.tiko
 src/symbols/mangle.tiko
 src/symbols/constfold.tiko

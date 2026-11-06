@@ -217,6 +217,7 @@ declare function IsBaseOf_ _
     declare function LowerIfaceIs_ _
         ( byref c as Ctx, byval lhs as Tko.NodeId, byval rhs as Tko.NodeId, byref outv as MirValue ) as boolean
     declare function ItabFor_( byref c as Ctx, byref self_ as MirValue, byref itab as MirValue ) as boolean
+    declare function IfaceSelf_( byref c as Ctx, byval sym as Tko.SymbolId, byref self_ as MirValue ) as MirValue
     declare function IfaceSlotOf_( byref c as Ctx, byval target as Tko.NodeId, byval callee as Tko.SymbolId ) as int32
     declare function LowerIfaceCompare_ _
         ( byref c as Ctx, byval id as Tko.NodeId, byval bp as Tko.BinaryPayload ptr, _

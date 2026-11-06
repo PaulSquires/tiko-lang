@@ -1,0 +1,15 @@
+'' RUN: generic constraints over interfaces (docs/tiko-interfaces Phase 5c) -- see the source.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/iface-constraints.bas -o tests/codegen/ifaceconstraints.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: verify:
+'' EXPECT-FILE: tests/codegen/ifaceconstraints.exe
+'' RUN: tests/codegen/ifaceconstraints.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  9
+'' EXPECT-RUN-OUT: best #3
+'' EXPECT-RUN-OUT: best #9
+'' EXPECT-RUN-OUT: best #9
+'' EXPECT-RUN-OUT:  5
+'' EXPECT-RUN-OUT: [tag]         [tag]         [#9]          [#5]

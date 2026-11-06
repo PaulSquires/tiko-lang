@@ -67,8 +67,24 @@ function ParseTypeParams( byref p as Tko.ParserState ) as Tko.NodeId
         else
             seen.Push( cast( uint32, nid ) )
         end if
-        names.Push( cast( uint32, MakeIdent( p, nt ) ) )
+        dim as Tko.NodeId pid = MakeIdent( p, nt )
+        names.Push( cast( uint32, pid ) )
         Advance( p )
+        '' 'of T as IComparable' / 'of K as { IComparable, IHashable }' -- A CONSTRAINT
+        '' (docs/tiko-interfaces §11.6), kept in the 'implements' side table on the name.
+        if Accept( p, Tko.KW_AS ) then
+            dim as Tko.NodeIdVec cons
+            dim as boolean braced = Accept( p, Tko.TK_LBRACE )
+            do
+                dim as int32 b0 = p.pos
+                dim as Tko.NodeId ctr = TypeRef( p )
+                if p.pos = b0 then exit do
+                cons.Push( cast( uint32, ctr ) )
+                if (braced = false) orelse (Accept( p, Tko.TK_COMMA ) = false) then exit do
+            loop
+            if braced then Expect( p, Tko.TK_RBRACE, "}" )
+            if cons.Count > 0 then Tko.RecordImplements( *p.ast, pid, MakeList( p, Tko.N_BLOCK, nt.loc, Tko.NODE_NONE, cons ) )
+        end if
         if Accept( p, Tko.TK_COMMA ) = false then exit do
     loop
     Expect( p, Tko.TK_RPAREN, ")" )
@@ -379,6 +395,7 @@ end function
 '' InterfaceHere; the cursor is on the contextual word. 'c' holds the 'inherits' list.
 private function ParseInterfaceDecl_( byref p as Tko.ParserState ) as Tko.NodeId
     dim as Tko.Token t = Cur( p )
+    dim as int32 tok0 = p.pos                           '' a generic is re-parsed from here
     Advance( p )
     dim as Tko.StmtPayload sp
     sp.rawName = RawSpelling( p )
@@ -453,7 +470,9 @@ private function ParseInterfaceDecl_( byref p as Tko.ParserState ) as Tko.NodeId
         ErrorNode( p, Tko.TKO0405, "INTERFACE" )
         p.diags->AddNote( Tko.TKO0905, Tko.PointRange( t.loc ), "INTERFACE" )
     end if
-    return MakeStmt( p, Tko.N_INTERFACE, t.loc, sp )
+    dim as Tko.NodeId inode = MakeStmt( p, Tko.N_INTERFACE, t.loc, sp )
+    if sp.b <> Tko.NODE_NONE then p.ast->RecordTokens( inode, tok0, p.pos )
+    return inode
 end function
 
 private function ParseEnumDecl( byref p as Tko.ParserState ) as Tko.NodeId

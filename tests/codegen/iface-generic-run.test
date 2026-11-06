@@ -1,0 +1,17 @@
+'' RUN: generic interfaces and a generic class implementing them (docs/tiko-interfaces Phase 5b)
+'' -- see the source.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/iface-generic.bas -o tests/codegen/ifacegeneric.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: verify:
+'' EXPECT-FILE: tests/codegen/ifacegeneric.exe
+'' RUN: tests/codegen/ifacegeneric.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  42             1
+'' EXPECT-RUN-OUT: get 42
+'' EXPECT-RUN-OUT: cell42
+'' EXPECT-RUN-OUT:  42            16
+'' EXPECT-RUN-OUT: Box(7)        Box(hi)
+'' EXPECT-RUN-OUT:  7            hi
+'' EXPECT-RUN-OUT: -1             0

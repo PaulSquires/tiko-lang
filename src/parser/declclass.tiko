@@ -200,7 +200,27 @@ sub ProcImplementsClause _
     dim as Tko.Token it = Cur( p )
     Advance( p )
     dim as Tko.NodeIdVec written, items
-    TypeRefList_( p, written )
+    '' A GENERIC INTERFACE'S MEMBER, 'IComparer( of string ).Compare' (§11.5): TypeRef stops
+    '' after the argument list, so the '.Compare' is read here and the pair made directly.
+    do
+        dim as int32 before = p.pos
+        dim as Tko.NodeId tr = TypeRef( p )
+        if p.pos = before then exit do
+        if (Peek( p ) = Tko.TK_DOT) andalso HasTok( p, p.pos + 1 ) then
+            dim as Tko.TokenKind nk = cast( Tko.TokenKind, p.toks->At( p.pos + 1 ).kind )
+            if (nk = Tko.TK_IDENT) orelse Tko.IsKeywordKind( nk ) then       '' '.Get', '.Put'
+                Advance( p )
+                dim as Tko.StmtPayload gm
+                gm.name = p.names->Fold( p.ast->IdentOf( MakeIdent( p, Cur( p ) ) )->name )
+                items.Push( cast( uint32, tr ) )
+                items.Push( cast( uint32, MakeStmt( p, Tko.N_TYPEREF, Cur( p ).loc, gm ) ) )
+                Advance( p )
+                tr = Tko.NODE_NONE
+            end if
+        end if
+        if tr <> Tko.NODE_NONE then written.Push( cast( uint32, tr ) )
+        if Accept( p, Tko.TK_COMMA ) = false then exit do
+    loop
     '' EACH ENTRY BECOMES A PAIR: a typeref naming the interface, then one naming the member.
     '' TypeRef read 'ns.IFoo.Bar' as the type 'Bar' qualified by 'ns.ifoo'; the qualifier is
     '' split at its last dot so Resolve can bind the interface like any other typeref, and

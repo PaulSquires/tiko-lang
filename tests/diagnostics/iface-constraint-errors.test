@@ -1,0 +1,13 @@
+'' Generic constraints (docs/tiko-interfaces §11.6), checked once at each instantiation. Rock has
+'' a 'Show' but does not implement IShow -- nominal, not structural -- so ShowIt and Holder refuse
+'' it (TKO1022); a constraint naming a type that is no interface is TKO1002, once; a constraint
+'' may name its own parameter, and 'long' is no IComparable( of long ). Holder( of IShow ) is
+'' clean: the interface itself satisfies its own constraint.
+'' TEST: cli
+'' ARGS: --frontend-only tests/diagnostics/src/iface-constraint-errors.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: iface-constraint-errors.bas(23,13): error TKO1022: type argument 'rock' does not implement 'ishow', which 'showit( of t )' requires
+'' EXPECT-OUT: iface-constraint-errors.bas(24,8): error TKO1022: type argument 'rock' does not implement 'ishow', which 'holder( of t )' requires
+'' EXPECT-OUT: iface-constraint-errors.bas(15,31): error TKO1002: 'rock' is not an interface
+'' EXPECT-OUT: iface-constraint-errors.bas(26,8): error TKO1022: type argument 'long' does not implement 'icomparable( of long )', which 'sorted( of k )' requires
+'' EXPECT-MAX-DIAG: 4

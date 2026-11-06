@@ -1,0 +1,15 @@
+'' Generic interfaces (docs/tiko-interfaces §11.5). A generic interface named with the wrong
+'' number of arguments, or none, is a generic used wrongly (TKO0816, TKO0815). A generic class
+'' is checked PER INSTANCE: Bad( of long ) maps 'Get' cleanly and Bad( of string ) does not,
+'' Miss( of double ) maps nothing; a plain type's mapping is checked against the instance.
+'' TEST: cli
+'' ARGS: --frontend-only tests/diagnostics/src/iface-generic-errors.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: iface-generic-errors.bas(18,8): error TKO0816: 'iget' takes 1 type argument(s), and 2 are written here
+'' EXPECT-OUT: iface-generic-errors.bas(19,8): error TKO0815: 'iget' is generic; write its type arguments, as 'iget( of ... )'
+'' EXPECT-OUT: iface-generic-errors.bas(23,66): error TKO1001: 'plain.get' cannot implement 'iget( of long ).get': the return types differ
+'' EXPECT-OUT: iface-generic-errors.bas(21,16): error TKO1000: 'plain' does not implement 'iget( of long ).get'
+'' EXPECT-OUT: iface-generic-errors.bas(7,61): error TKO1001: 'bad( of string ).get' cannot implement 'iget( of string ).get': the return types differ
+'' EXPECT-OUT: iface-generic-errors.bas(5,16): error TKO1000: 'bad( of string )' does not implement 'iget( of string ).get'
+'' EXPECT-OUT: iface-generic-errors.bas(13,16): error TKO1000: 'miss( of double )' does not implement 'iget( of double ).get'
+'' EXPECT-MAX-DIAG: 7
