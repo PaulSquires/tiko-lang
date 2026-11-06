@@ -18,12 +18,9 @@
 	#inclib "winmm"
 	#inclib "user32"
 #elseif defined(__FB_LINUX__) and not defined(__FB_JS__)
-	#libpath "/usr/X11R6/lib"
-	#inclib "X11"
-	#inclib "Xext"
-	#inclib "Xpm"
-	#inclib "Xrandr"
-	#inclib "Xrender"
+	'' tiko: no X11 library is linked. libtkogfx loads libX11, libXext and
+	'' libXrandr when a window opens (lib/gfx/driver/x11/xlib.ti), so a program
+	'' that includes this header links without the X11 development packages.
 	#inclib "pthread"
 #endif
 
