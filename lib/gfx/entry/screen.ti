@@ -188,7 +188,16 @@ private function ScreenOpen( byval mode as long, byval w as long, byval h as lon
     '' Event y is in MODE rows, so the window divides by the doubling it presents.
     TheScreen.wnd.scanline = 1
     if mode > 0 then TheScreen.wnd.scanline = ModeTable(mode).scanline_size
-    if WindowOpen( TheScreen.wnd, TheScreen.present, w, h, TheTitle ) = 0 then
+    '' THE NULL DRIVER -- a framebuffer and no window -- chosen exactly as gfxlib2's
+    '' set_mode chooses it (gfx_screen.c): for GFX_NULL, or when the driver NAME is
+    '' "null" in any case, the name being SET_DRIVER_NAME's if one is set and the
+    '' FBGFX environment variable's otherwise. Measured against gfxlib2: all three
+    '' draw, answer "Null" and have no window handle; an unknown name opens the
+    '' ordinary window, and a SET name outranks FBGFX (tools/gate-entry.bas).
+    dim as string drvName = TheDriverName
+    if len( drvName ) = 0 then drvName = environ( "FBGFX" )
+    TheScreen.headless = iif( (flags = -1) orelse (lcase( drvName ) = "null"), 1, 0 )
+    if WindowOpen( TheScreen.wnd, TheScreen.present, w, h, TheTitle, TheScreen.headless ) = 0 then
         '' isOpen is still 0, so ScreenTeardown would skip the lot -- free by
         '' hand, and close the half-made window (WindowClose is safe either way).
         WindowClose( TheScreen.wnd )

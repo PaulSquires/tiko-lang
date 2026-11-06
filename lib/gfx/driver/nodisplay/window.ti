@@ -6,10 +6,10 @@
 '' INCLUDED BY driver/window.ti, the platform seam, on every target that has no
 '' driver of its own -- today Linux and macOS (docs/graphics RFC-0012: X11 is
 '' phase L1, Cocoa M1). It keeps every promise the seam lists, and the one that
-'' matters is WindowOpen: it REFUSES. gfxlib2 does the same when no driver in its
-'' list loads, so SCREEN answers an error instead of drawing into a framebuffer
-'' nobody can see. Everything that does not need a window -- IMAGECREATE, PUT and
-'' GET on images, BLOAD/BSAVE of buffers -- works as on any other platform.
+'' matters is WindowOpen: a WINDOW it REFUSES, as gfxlib2 does when no driver in
+'' its list loads, so SCREEN answers an error instead of drawing into a
+'' framebuffer nobody can see. The NULL DRIVER -- GFX_NULL, or FBGFX=null -- it
+'' opens, and everything that needs no window works as on any other platform.
 
 #pragma once
 
@@ -24,6 +24,9 @@ end sub
 
 namespace TkoGfx
 
+'' GET_DRIVER_NAME for a window -- never asked, since no window opens.
+const PLATFORM_DRIVER_NAME = ""
+
 type GfxWindow extends WindowBase
     unused_     as long
 end type
@@ -37,7 +40,10 @@ end sub
 
 private function WindowOpen( _
         byref w as GfxWindow, byref s as Surface, _
-        byval cw as long, byval ch as long, byref caption as string ) as long
+        byval cw as long, byval ch as long, byref caption as string, _
+        byval headless as long = 0 ) as long
+    '' The null driver is the one this platform has.
+    if headless then return WindowBaseOpen( w, s, cw, ch, caption )
     return 0
 end function
 

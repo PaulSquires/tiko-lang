@@ -65,6 +65,9 @@ namespace TkoGfx
 
 const WINDOW_CLASS_NAME = "TKOGFX_WINDOW"
 
+'' GET_DRIVER_NAME for a window: GDI is what presents it.
+const PLATFORM_DRIVER_NAME = "GDI"
+
 '' Poll period of the presenter thread, matching gfxlib2's fixed Sleep(10).
 '' NOT vsync -- the GDI path never waits for one.
 const WINDOW_FRAME_MS = 10
@@ -567,10 +570,17 @@ end function
 '' Returns 1 on success, 0 on failure. Safe to call WindowClose either way.
 private function WindowOpen( _
         byref w as GfxWindow, byref s as Surface, _
-        byval cw as long, byval ch as long, byref caption as string ) as long
+        byval cw as long, byval ch as long, byref caption as string, _
+        byval headless as long = 0 ) as long
 
     w.hwnd = nullptr : w.thread = nullptr : w.ready = nullptr
     if WindowBaseOpen( w, s, cw, ch, caption ) = 0 then return 0
+    '' THE NULL DRIVER: no window, no thread and no lock. WindowLock, WindowClose
+    '' and the rest all test for exactly these being absent.
+    if headless then
+        w.lock_ready = 0
+        return 1
+    end if
     w.hinst = GetModuleHandle( nullptr )
 
     InitializeCriticalSection( @w.lock_ )

@@ -11,7 +11,12 @@
 '' WHAT EVERY PLATFORM PROVIDES, in namespace TkoGfx:
 ''
 ''     type GfxWindow extends WindowBase       its own handles, locks, threads
-''     WindowOpen( w, s, cw, ch, caption )      1 = open, 0 = failed; WindowClose is safe after either
+''     WindowOpen( w, s, cw, ch, caption, headless = 0 )
+''                                               1 = open, 0 = failed; WindowClose is safe after
+''                                               either. HEADLESS is the null driver: the
+''                                               WindowBase state and nothing else -- no
+''                                               window, thread, lock or handle.
+''     PLATFORM_DRIVER_NAME                      what GET_DRIVER_NAME answers for a window
 ''     WindowClose( w )                          joins whatever WindowOpen started
 ''     WindowLock( w ) / WindowUnlock( w )       the frame lock -- SCREENLOCK's
 ''     WindowSetTitle( w, title, held )

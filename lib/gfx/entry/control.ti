@@ -210,7 +210,8 @@ end sub
 '' any screen has opened and "" before one has. GET_DRIVER_NAME answers the
 '' driver of the OPEN screen, not one SET_DRIVER_NAME asked for, and "" with no
 '' screen. There is no GL, so GET_GL_EXTENSIONS is always "". SET_DRIVER_NAME is
-'' accepted and chooses nothing: there is one driver.
+'' kept for the next SCREEN, where only "null" chooses anything: the platform has
+'' one windowed driver, and an unknown name falls back to it as gfxlib2's does.
 sub TkoGfxControl_s alias "fb_GfxControl_s" ( byval what as long, byval param as any ptr )
     if param = nullptr then exit sub
     select case what
@@ -220,13 +221,15 @@ sub TkoGfxControl_s alias "fb_GfxControl_s" ( byval what as long, byval param as
         TkoGfx.StrAssignOut( param, t )
     case TkoGfx.GET_DRIVER_NAME
         dim as string d
-        if TkoGfx.TheScreen.isOpen then d = TkoGfx.DRIVER_NAME
+        if TkoGfx.TheScreen.isOpen then d = TkoGfx.ScreenDriverName( )
         TkoGfx.StrAssignOut( param, d )
     case TkoGfx.GET_GL_EXTENSIONS
         TkoGfx.StrAssignOut( param, "" )
     case TkoGfx.SET_WINDOW_TITLE
         TkoGfx.SetTitleFrom( param )
     case TkoGfx.SET_DRIVER_NAME
+        TkoGfx.TheDriverName = left( TkoGfx.StrFromDescriptor( param ), 63 )
+        RtlStrDelTemp( param )
     end select
 end sub
 

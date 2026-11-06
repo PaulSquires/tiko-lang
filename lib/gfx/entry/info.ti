@@ -15,16 +15,21 @@
 '' empty driver name. With one open it describes the screen, and the refresh
 '' rate is still the desktop's: gfxlib2's windowed drivers never set their own.
 ''
-'' THE DRIVER NAME IS "GDI", which is what presents the frame here. gfxlib2 on
-'' the same machine answers "Direct2D", the driver it picked; a program that
-'' compares the name against a driver it asked for with SCREENCONTROL
-'' SET_DRIVER_NAME gets the truthful answer rather than an echo.
+'' THE DRIVER NAME IS THE PLATFORM'S -- "GDI" on Windows, which is what presents
+'' the frame -- or "Null" for a screen with no window, gfxlib2's own name for its
+'' null driver. gfxlib2 on the same machine answers "Direct2D" for a window, the
+'' driver it picked; a program that compares the name against a driver it asked
+'' for with SCREENCONTROL SET_DRIVER_NAME gets the truthful answer, not an echo.
 
 #pragma once
 
 namespace TkoGfx
 
-const DRIVER_NAME = "GDI"
+'' The OPEN screen's driver. "" with none open is the callers' business.
+private function ScreenDriverName( ) as string
+    if TheScreen.headless then return "Null"
+    return PLATFORM_DRIVER_NAME
+end function
 
 '' Write `s` into a caller's STRING, gfxlib2's way: fb_hStrDelTemp first, and
 '' the write only when that answers non-zero. A TEMPORARY descriptor -- what fbc
@@ -56,7 +61,7 @@ private sub ScreenInfoAll( byref w as integer, byref h as integer, _
     bpp   = TheScreen.present.bpp
     pitch = TheScreen.present.pitch
     rate  = TheScreen.refresh
-    drv   = DRIVER_NAME
+    drv   = ScreenDriverName( )
 end sub
 
 '' IMAGEINFO's answers at full width. Returns the runtime error.

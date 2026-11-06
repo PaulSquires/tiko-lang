@@ -989,6 +989,62 @@ scope
     Emit( "screen reloads the default palette", cast( ulongint, cast( ulong, v ) ) )
 end scope
 
+'' ---- THE NULL DRIVER: a framebuffer and no window ----
+''
+'' gfxlib2 picks its "Null" driver for GFX_NULL, or when the driver NAME is "null"
+'' -- SCREENCONTROL SET_DRIVER_NAME's if one is set, else the FBGFX environment
+'' variable, any case. It draws as usual and has no window: GET_WINDOW_HANDLE is 0.
+'' An unknown name falls back to the ordinary driver. Ours opened a window for all
+'' of them. Last in the file because the env case cannot be taken back exactly.
+''
+'' The WINDOWED answers are compared only as "has a window": gfxlib2 names its
+'' Direct2D driver and ours GDI, by design (entry/info.ti).
+function StrDigest( byref s as string ) as ulongint
+    dim as ulongint acc = 14695981039346656037ull
+    for i as integer = 0 to len( s ) - 1
+        acc = (acc xor cast( ulongint, s[i] )) * 1099511628211ull
+    next
+    return acc
+end function
+
+function DriverAnswer( byval windowed_only as long ) as ulongint
+    dim as string d
+    screencontrol GET_DRIVER_NAME, d
+    dim as integer hw
+    screencontrol GET_WINDOW_HANDLE, hw
+    dim as long iw, ih, idp, ibpp, ipitch, irate
+    dim as string iname
+    screeninfo iw, ih, idp, ibpp, ipitch, irate, iname
+    if windowed_only then return iif( hw <> 0, 1, 0 )
+    return StrDigest( d & "|" & iname & "|" & iif( hw <> 0, 1, 0 ) )
+end function
+
+scope
+    screenres W, H, 32, , GFX_NULL
+    Blank( ) : pset ( 5, 6 ), &hFF8040 : line ( 1, 1 )-( 40, 30 ), &h00FF00, B
+    Report( "gfx_null draws" )
+    Emit( "gfx_null names the null driver and has no window", DriverAnswer( 0 ) )
+
+    screencontrol SET_DRIVER_NAME, "NuLL"
+    screenres W, H, 32
+    Emit( "set_driver_name null is the null driver", DriverAnswer( 0 ) )
+
+    screencontrol SET_DRIVER_NAME, "nosuch"
+    screenres W, H, 32
+    Emit( "an unknown driver name still opens a window", DriverAnswer( 1 ) )
+
+    screencontrol SET_DRIVER_NAME, ""
+    setenviron "FBGFX=null"
+    screenres W, H, 32
+    Emit( "fbgfx=null is the null driver", DriverAnswer( 0 ) )
+
+    screencontrol SET_DRIVER_NAME, "nosuch"
+    screenres W, H, 32
+    Emit( "set_driver_name outranks fbgfx", DriverAnswer( 1 ) )
+    screencontrol SET_DRIVER_NAME, ""
+    setenviron "FBGFX="
+end scope
+
 screen 0
 
 print Log_;

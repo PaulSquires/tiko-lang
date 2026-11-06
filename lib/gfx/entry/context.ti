@@ -99,6 +99,7 @@ type ScreenState
     gstate       as long           '' GFXSTATE_* -- what SCREENCONTROL reports
     lock_count   as long           '' SCREENLOCK nesting
     isOpen       as long
+    headless     as long           '' the null driver: a framebuffer, no window
 end type
 
 dim shared as ScreenState TheScreen
@@ -108,6 +109,11 @@ dim shared as ScreenState TheScreen
 '' (__fb_window_title) and only fills in the exe's name when nothing was set.
 dim shared as zstring * 256 TheTitle
 dim shared as long TheTitleSet
+
+'' SCREENCONTROL SET_DRIVER_NAME's, "" for none -- gfxlib2's __fb_gfx_driver_name,
+'' which an empty string clears (gfx_control.c). Only "null" chooses anything here:
+'' entry/screen.ti's ScreenOpen says why.
+dim shared as zstring * 64 TheDriverName
 
 type GfxContext
     surf     as Surface
