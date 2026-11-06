@@ -66,6 +66,7 @@ sub Run( byref u as FrontUnit )
     CheckExternInitAndDefaultCtor_( c )
     CheckUnionMembers_( c )
     CheckVirtualNeedsObject_( c )
+    ApplyIfaceWraps_( c )            '' last: it grows the AST pools -- semiface.tiko
 end sub
 
 end namespace

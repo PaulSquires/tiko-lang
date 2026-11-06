@@ -55,6 +55,7 @@ declare function IsTestIfaceJudged_ ( byref c as Ctx, byval id as NodeId, byval 
 declare function IfaceCompareJudged_ ( byref c as Ctx, byval id as NodeId, byref opnm as string, byval lt as TypeId, byval rt as TypeId ) as boolean   '' semiface.tiko
 declare function IfaceDeleteRefused_ ( byref c as Ctx, byval v as NodeId, byval u as TypeId ) as boolean   '' semiface.tiko
 declare sub CheckIfaceForeign_ ( byref c as Ctx )   '' semiface.tiko
+declare sub ApplyIfaceWraps_ ( byref c as Ctx )   '' semiface.tiko
 declare sub JudgeConversion_ _
     ( byref c as Ctx, byval at as NodeId, byval lt as TypeId, byval rt as TypeId, _
       byval byAssign as boolean )

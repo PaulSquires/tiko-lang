@@ -65,7 +65,21 @@ end function
 '' IN PLACE -- its record moves to a new node, and 'v' turns into the call -- so every path
 '' that reads the value (an initialiser, an assignment, an argument, a return) reaches the
 '' one lowering that builds a reference, LowerIfaceConv_ in mir/loweritab.tiko.
+''
+'' RECORDED HERE, DONE AFTER THE WALK (ApplyIfaceWraps_). The rewrite pushes nodes, payloads
+'' and children, and the walk and the sweeps hold StmtPayload and ListPayload pointers into
+'' those pools across the judgement that asks for it: a pool that grew under them left them
+'' reading freed memory. Windows' heap still held the old bytes; macOS's did not, and the
+'' walk skipped statements -- 'zoo( 1 ) = @t' was never converted, and ran as a raw copy.
 private sub WrapIfaceConv_( byref c as Ctx, byval v as NodeId, byval it as TypeId )
+    if v = NODE_NONE then return
+    if c.ifaceWrapAt.Contains( cast( uint32, v ) ) then return
+    c.ifaceWrapAt.Put( cast( uint32, v ), c.ifaceWraps.Count )
+    c.ifaceWraps.Push( cast( uint32, v ) )
+    c.ifaceWraps.Push( cast( uint32, it ) )
+end sub
+
+private sub DoWrapIfaceConv_( byref c as Ctx, byval v as NodeId, byval it as TypeId )
     if v = NODE_NONE then return
     dim as AstNode moved = *c.ast->NodeAt( v )
     c.ast->PushNode( moved )
@@ -102,6 +116,14 @@ private sub WrapIfaceConv_( byref c as Ctx, byval v as NodeId, byval it as TypeI
     c.info->SetType( trNode, it )
     c.info->SetType( v, it )
     c.info->SetRef( v, SYMBOL_NONE )
+end sub
+
+sub ApplyIfaceWraps_( byref c as Ctx )
+    for i as int32 = 0 to c.ifaceWraps.Count - 2 step 2
+        DoWrapIfaceConv_( c, cast( NodeId, c.ifaceWraps[i] ), cast( TypeId, c.ifaceWraps[i + 1] ) )
+    next
+    c.ifaceWraps.Clear( )
+    c.ifaceWrapAt.Clear( )
 end sub
 
 '' True when one side is an interface: the conversion was judged here, and refused with

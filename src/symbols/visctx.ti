@@ -66,4 +66,9 @@ type Ctx
     '' THE -e FLAGS (Options.errFlags: 8 = array bounds): TKO0960 is an error only under
     '' -exx / -earray, as fbc's 92 is (constsubscript.tiko).
     as int32                 errFlags
+    '' CONVERSIONS TO AN INTERFACE, made explicit AFTER the walk (semiface.tiko ApplyIfaceWraps_):
+    '' (value node, interface) pairs. Rewriting in place pushes AST nodes, and the walk holds
+    '' payload pointers into the pools that would move under it.
+    as containers.Array( of uint32 ) ifaceWraps
+    as containers.Map( of uint32, int32 ) ifaceWrapAt
 end type
