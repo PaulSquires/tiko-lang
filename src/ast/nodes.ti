@@ -368,6 +368,13 @@ namespace Tko
     '' 'type ... extends object' (or the 'inherits' base) builds; only 'end class', the
     '' body's 'inherits' line and the dump read the bit.
     const PF_CLASS          as uint32 = &h04000000
+    '' AN AUTO-PROPERTY'S SYNTHESISED ACCESSOR (docs/tiko-properties R8): 'declare property N as T
+    '' get, set' in a TYPE. The parser writes the trivial bodies after 'end type' in every unit that
+    '' sees the type, so they are emitted weak, as an implicit constructor is (autoprop.tiko).
+    const PF_AUTOPROP       as uint32 = &h08000000
+    '' ...and its SETTER when the clause is 'get' or 'get, init': only the type's own constructors
+    '' may call it (propaccess.tiko, TKO0596).
+    const PF_INIT_ONLY      as uint32 = &h10000000
     '' N_VAR's OWN 'extra' (its items carry KW_REDIM in theirs): 'extern import' -- a variable
     '' a DLL exports, reached through its import pointer (T85). See llvmglobal.tiko.
     const VF_DLLIMPORT      as uint32 = &h00000001

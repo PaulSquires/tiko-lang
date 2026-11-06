@@ -121,6 +121,36 @@ private function UdtCatAssignViaLet_ _
     return true
 end function
 
+'' 's &= v' AND 's += v' OVER A NARROW STRING PROPERTY: the getter's text into a temporary, the value
+'' appended to it, the setter called with it -- the get, operate, set that PropertyCompound_ does for
+'' a number. LowerAddr of such a property is the GETTER'S CODE, and the append wrote there: the
+'' program crashed (docs/tiko-properties D8). The receiver and any index are evaluated by the get
+'' and again by the set.
+private function PropStrCatAssign_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId ) as boolean
+    dim as MirValue cur0
+    if StrDescriptorOf_( c, target, cur0 ) = false then return false
+    dim as int32 slot = NewTempLocal( c, MT_AGG, c.types->target.stringBytes )
+    if slot < 0 then return false
+    dim as MirValue tmp
+    tmp.kind = cast( uint8, MV_LOCAL ) : tmp.ty = cast( uint8, MT_PTR ) : tmp.id = slot
+    ZeroStrDescriptor( c, tmp )
+    dim as containers.Array( of uint32 ) aa
+    PushStrArg( aa, tmp ) : PushStrArg( aa, cur0 )
+    aa.Push( cast( uint32, MV_CONST_INT ) ) : aa.Push( 0 )
+    EmitRtl( c, RTL_STR_ASSIGN, aa )
+    dim as containers.Array( of uint32 ) ca
+    PushStrArg( ca, tmp )
+    if EmitStrTerm( c, ca, value ) = false then return false
+    ca.Push( cast( uint32, MV_CONST_INT ) ) : ca.Push( 0 )
+    EmitRtl( c, RTL_STR_CONCAT_ASSIGN, ca )
+    if PropertySetValue_( c, target, tmp ) = false then return false
+    dim as containers.Array( of uint32 ) dd
+    dd.Push( cast( uint32, tmp.kind ) ) : dd.Push( cast( uint32, tmp.id ) )
+    EmitRtl( c, RTL_STR_DELETE, dd )
+    return true
+end function
+
 function LowerConcatAssignStmt _
     ( byref c as Ctx, byval target as Tko.NodeId, byval value as Tko.NodeId, _
       byval op as Tko.TokenKind ) as boolean
@@ -132,6 +162,11 @@ function LowerConcatAssignStmt _
         return UdtCatAssignViaLet_( c, target, value, c.types->Unqualify( tt ) )
     end if
 
+    if IsStringType( c, tt ) andalso IsSettableProperty_( c, target ) then
+        '' A ustring or wide property is not modelled: declined, never written through the getter.
+        if IsUStringType( c, tt ) orelse (StrTermFlavour_( c, value ) = STF_WIDE) then return false
+        return PropStrCatAssign_( c, target, value )
+    end if
     if IsStringType( c, tt ) then
         dim as MirValue dst = LowerAddr( c, target )
         if dst.kind = cast( uint8, MV_NONE ) then return false

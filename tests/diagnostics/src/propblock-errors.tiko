@@ -1,0 +1,20 @@
+'' Property blocks (docs/tiko-properties R9): what is refused. See propblock-errors.test.
+type T
+    n as long
+    declare property A( ) byref as long
+    declare property B( ) as long
+    declare property B( byval value as long )
+end type
+property T.A byref as long
+    get
+        value = n
+    end get
+end property
+property T.B as long
+    get
+        property = n
+    end get
+    set
+        n = value
+    end set
+end property

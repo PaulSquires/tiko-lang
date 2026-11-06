@@ -411,7 +411,10 @@ private sub LowerAssign _
                     if tlslot >= 0 then
                         if LowerUdtParenInit_( c, tlslot, tlt, value ) then return
                     end if
-                else
+                elseif IsSettableProperty_( c, target ) = false then
+                    '' NOT A PROPERTY: its LowerAddr is the GETTER'S CODE, and 's.Origin = type<Pt>( 5, 6 )'
+                    '' built the literal there and crashed (docs/tiko-properties D9). The setter path
+                    '' below takes it.
                     dim as MirValue tlda = LowerAddr( c, target )
                     if tlda.kind <> cast( uint8, MV_NONE ) then
                         if LowerUdtParenInit_( c, -1, tlt, value, @tlda ) then return

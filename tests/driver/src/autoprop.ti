@@ -1,0 +1,6 @@
+'' Shared by autoprop-a.tiko and autoprop-b.tiko: both write the accessors (autoprop-two-modules.test).
+type Pt
+    declare property X as long get, set
+    declare property Label as string = "pt" get, set
+end type
+declare sub Show( byref p as Pt )

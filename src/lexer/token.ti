@@ -165,6 +165,9 @@ namespace Tko
     '' THE "'" THAT STARTS A MACRO ARGUMENT'S COMMENT TEXT -- ApostArgText_ (ppspell.tiko). Text
     '' while it is an argument; a comment again once it reaches a statement (EmitTok, pp.bas).
     const TF_APOST_TEXT    as uint16 = &h4000
+    '' AN AUTO-PROPERTY, ITS TEXT: on the clause's 'get' once the bodies are owed -- so a
+    '' generic's re-parse writes them only once -- and on every token of those bodies (autoprop.tiko).
+    const TF_AUTOPROP      as uint16 = &h8000
 
     enum SuffixChar
         SUFC_NONE = 0

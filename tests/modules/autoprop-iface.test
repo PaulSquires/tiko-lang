@@ -1,0 +1,13 @@
+'' docs/tiko-properties R8 ACROSS A MODULE INTERFACE. The interface carries each TYPE verbatim, its
+'' accessor clauses with it, and leaves the synthesised bodies out (TF_AUTOPROP, tkiemit.tiko): the
+'' importer writes its own and the weak copies fold -- a generic type's included, whose members are
+'' otherwise written whole. A private setter stays private to the module's own methods.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -i tests/modules/src/autoprop/libs tests/modules/src/autoprop/app/main.tiko -o tests/modules/autoprop.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: duplicate symbol
+'' RUN: tests/modules/autoprop.exe
+'' EXPECT-RUN-OUT: pt 42
+'' EXPECT-RUN-OUT: q 42
+'' EXPECT-RUN-OUT:  7 vw

@@ -559,6 +559,20 @@ private function RefuseSecondBody_ _
     '' 'sub foo.bar( )' is fbc's _ZNK3FOO3BAREv for both. The body mangled without the K and the
     '' calls found nothing to link to (structs/const_method.bas, virtual/virtual.bas).
     sp->extra or= (StmtOf( w, cast( Tko.NodeId, fs->payload ) )->extra and Tko.PF_CONST)
+    '' AN AUTO-PROPERTY'S ACCESSORS ARE SYNTHESISED (parser/autoprop.tiko) at the declaration's own
+    '' location, which no body written by hand can share: that one is marked for weak linkage, and any
+    '' other is refused -- the clause is all or nothing (docs/tiko-properties R8).
+    dim as Tko.NodeId apd = cast( Tko.NodeId, fs->payload )
+    if (StmtOf( w, apd )->extra and Tko.PF_AUTOPROP) <> 0 then
+        if loc = w.ast->Loc( apd ) then
+            sp->extra or= Tko.PF_AUTOPROP
+        else
+            w.duplicates += 1
+            w.diags->Report( Tko.TKO0594, Tko.PointRange( loc ), w.names->Spelling( nm ) )
+            w.diags->AddNote( Tko.TKO0901, Tko.PointRange( fs->loc ) )
+            return true
+        end if
+    end if
     if (fs->flags and Tko.SYMF_MEMBER_BODY) = 0 then
         fs->flags or= Tko.SYMF_MEMBER_BODY
         return false

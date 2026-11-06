@@ -1,0 +1,4 @@
+#include once "autoprop.ti"
+sub Show( byref p as Pt )
+    print p.Label; p.X
+end sub

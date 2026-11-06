@@ -1,0 +1,79 @@
+'' Property blocks (docs/tiko-properties R9): get/set sections, run. See propblock-run.test.
+type Temp
+    private:
+    c as double
+    public:
+    declare property Celsius( ) as double
+    declare property Celsius( byval value as double )
+    declare property Fahrenheit( ) as double
+    declare property Fahrenheit( byval value as double )
+    declare property Item( byval i as long ) as long
+    declare property Item( byval i as long, byval value as long )
+    declare property Kelvin( ) as double
+    a( 3 ) as long
+end type
+
+property Temp.Celsius as double
+    get
+        value = c
+    end get
+    set
+        if value < -273.15 then value = -273.15
+        c = value
+    end set
+end property
+
+property Temp.Fahrenheit as double
+    get
+        return c * 9 / 5 + 32
+    end get
+    set
+        c = ( value - 32 ) * 5 / 9
+    end set
+end property
+
+property Temp.Item( byval i as long ) as long
+    get
+        if i < 0 orelse i > 3 then exit property
+        value = a( i )
+    end get
+    set
+        a( i ) = value
+    end set
+end property
+
+property Temp.Kelvin as double
+    get
+        value = c + 273.15
+    end get
+end property
+
+type Box( of T )
+    v as T
+    declare property V1( ) as T
+    declare property V1( byval value as T )
+end type
+property Box( of T ).V1 as T
+    get
+        value = v
+    end get
+    set
+        v = value
+    end set
+end property
+
+dim as Temp t
+t.Celsius = 100
+print t.Celsius; t.Fahrenheit; t.Kelvin
+t.Fahrenheit = 32
+print t.Celsius
+t.Celsius = -500
+print t.Celsius
+t.Item( 2 ) = 42
+print t.Item( 2 ); t.Item( 9 )
+t.Item( 2 ) += 1
+print t.Item( 2 )
+dim as Box( of string ) b
+b.V1 = "x"
+b.V1 &= "y"
+print b.V1

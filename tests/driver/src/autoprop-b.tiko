@@ -1,0 +1,7 @@
+#include once "autoprop.ti"
+dim as Pt a
+a.X = 41
+a.X += 1
+Show( a )
+a.Label = "q"
+Show( a )

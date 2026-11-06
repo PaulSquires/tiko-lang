@@ -1,0 +1,255 @@
+'' propblock.tiko -- THE PROPERTY BLOCK (docs/tiko-properties/REVIEW.md R9; decision Q5, Q6).
+''
+''     property Temp.Celsius as double            '' an index list may follow the name
+''         get
+''             value = c                          '' the result; 'return c' is the same
+''         end get
+''         set
+''             c = value                          '' the incoming value
+''         end set
+''     end property
+''
+'' One definition holding both accessors -- either may be left out. It defines exactly the two
+'' procedures the split form does, so mangling, vtable slots, overloading, generics and the
+'' type's own 'declare property' lines need nothing new. It is REWRITTEN, in the token buffer and
+'' before the procedure parser reads it, into that split form:
+''
+''     property Temp.Celsius( ) as double
+''         dim as double value                    '' starts at the type's default
+''         value = c
+''         return value                           '' 'exit property' is 'return value' too
+''     end property
+''     property Temp.Celsius( byval value as double )
+''         c = value
+''     end property
+''
+'' 'return x' in the GET section therefore wins over 'value', as fbc's 'return' wins over
+'' 'function ='. Recognised only when 'get' or 'set' stands ALONE on the first line of the body,
+'' so a split-form getter whose body starts 'get #1, , x' is the I/O statement it always was.
+''
+'' 'property' INSIDE A SECTION is refused (TKO0593): in a block it names a backing field
+'' (decision Q6), and a property defined by hand has none. A 'byref' result is refused too: the
+'' getter's 'value' is a local, and a reference to it would outlive it.
+
+#import "std/containers"
+#include once "parser/parser.ti"
+#include once "support/text.ti"
+
+namespace Tko.Parse
+
+private function Kind_( byref p as ParserState, byval i as int32 ) as Tko.TokenKind
+    if HasTok( p, i ) = false then return Tko.TK_EOF
+    return cast( Tko.TokenKind, p.toks->At( i ).kind )
+end function
+
+private function IsWord_( byref p as ParserState, byval i as int32, byref w as string ) as boolean
+    if Kind_( p, i ) <> Tko.TK_IDENT then return false
+    return (Tko.Text.LowerAscii( p.names->Spelling( p.toks->At( i ).ident ) ) = w)
+end function
+
+'' 'get' or 'set' standing alone on its line at 'i': 1 for get, 2 for set, 0 otherwise.
+private function SectionAt_( byref p as ParserState, byval i as int32 ) as int32
+    if Kind_( p, i + 1 ) <> Tko.TK_EOL then return 0
+    if Kind_( p, i ) = Tko.KW_GET then return 1
+    if IsWord_( p, i, "set" ) then return 2
+    return 0
+end function
+
+'' 'end get' / 'end set' at 'i': the same codes.
+private function SectionEndAt_( byref p as ParserState, byval i as int32 ) as int32
+    if Kind_( p, i ) <> Tko.KW_END then return 0
+    if Kind_( p, i + 1 ) = Tko.KW_GET then return 1
+    if IsWord_( p, i + 1, "set" ) then return 2
+    return 0
+end function
+
+private function NextLine_( byref p as ParserState, byval i as int32 ) as int32
+    while (Kind_( p, i ) <> Tko.TK_EOL) andalso (Kind_( p, i ) <> Tko.TK_EOF)
+        i += 1
+    wend
+    while Kind_( p, i ) = Tko.TK_EOL
+        i += 1
+    wend
+    return i
+end function
+
+private sub Tok_( byref v as Tko.TokenVec, byval k as Tko.TokenKind, byval at as Tko.SourceLoc, _
+                  byval ident as Tko.InternId = 0, byval lineStart as boolean = false )
+    dim as Tko.Token t
+    t.kind = cast( uint16, k )
+    t.flags = Tko.TF_SYNTHESISED or Tko.TF_SPACE_BEFORE
+    if lineStart then t.flags or= Tko.TF_AT_LINE_START
+    t.loc = at
+    t.ident = ident
+    v.Push( t )
+end sub
+
+private sub Span_( byref p as ParserState, byref v as Tko.TokenVec, byval i0 as int32, byval i1 as int32 )
+    for i as int32 = i0 to i1 - 1
+        v.Push( p.toks->At( i ) )
+    next
+end sub
+
+private sub BlockError_( byref p as ParserState, byval id as Tko.DiagId, byval at as Tko.SourceLoc )
+    if p.silent then exit sub
+    p.diags->Report( id, Tko.PointRange( at ) )
+end sub
+
+'' At a definition's 'property': when a get/set block follows its header, the block is replaced in
+'' the buffer by the split form and the procedure parser reads that. Nothing changes otherwise.
+sub PropertyBlock( byref p as ParserState )
+    dim as int32 p0 = p.pos
+    if Kind_( p, p0 ) <> Tko.KW_PROPERTY then exit sub
+    '' THE HEADER: 'property' NAME{.NAME | ( of ... )} [ ( params ) ] [ byref ] as TYPE, one line.
+    dim as int32 i = p0 + 1
+    dim as int32 nameEnd = -1, par0 = -1, par1 = -1, asAt = -1, byrefAt = -1
+    dim as int32 depth = 0
+    do
+        dim as Tko.TokenKind k = Kind_( p, i )
+        if (k = Tko.TK_EOL) orelse (k = Tko.TK_EOF) then exit do
+        if depth = 0 then
+            if (k = Tko.TK_LPAREN) andalso (IsWord_( p, i + 1, "of" ) = false) andalso (par0 < 0) andalso (asAt < 0) then
+                nameEnd = i : par0 = i
+            elseif (k = Tko.KW_BYREF) andalso (asAt < 0) then
+                byrefAt = i
+            elseif (k = Tko.KW_AS) andalso (asAt < 0) then
+                asAt = i
+                if nameEnd < 0 then nameEnd = iif( byrefAt >= 0, byrefAt, i )
+            end if
+        end if
+        if k = Tko.TK_LPAREN then depth += 1
+        if k = Tko.TK_RPAREN then
+            depth -= 1
+            if (depth = 0) andalso (par0 >= 0) andalso (par1 < 0) then par1 = i
+        end if
+        i += 1
+    loop
+    if (asAt < 0) orelse (nameEnd <= p0 + 1) then exit sub
+    dim as int32 hdrEol = i
+    dim as int32 body0 = NextLine_( p, hdrEol )
+    if SectionAt_( p, body0 ) = 0 then exit sub
+
+    '' THE SECTIONS, to 'end property'. Nothing between them but blank lines.
+    dim as int32 g0 = -1, g1 = -1, s0 = -1, s1 = -1, endAt = -1
+    dim as int32 at_ = body0
+    do
+        dim as int32 sec = SectionAt_( p, at_ )
+        if sec = 0 then
+            if (Kind_( p, at_ ) = Tko.KW_END) andalso (Kind_( p, at_ + 1 ) = Tko.KW_PROPERTY) then endAt = at_
+            exit do
+        end if
+        dim as int32 bodyAt = NextLine_( p, at_ )
+        dim as int32 j = bodyAt
+        do
+            if Kind_( p, j ) = Tko.TK_EOF then exit sub
+            if SectionEndAt_( p, j ) <> 0 then exit do
+            if (Kind_( p, j ) = Tko.KW_END) andalso (Kind_( p, j + 1 ) = Tko.KW_PROPERTY) then exit sub
+            j += 1
+        loop
+        if SectionEndAt_( p, j ) <> sec then exit sub
+        if sec = 1 then
+            if g0 >= 0 then exit sub
+            g0 = bodyAt : g1 = j
+        else
+            if s0 >= 0 then exit sub
+            s0 = bodyAt : s1 = j
+        end if
+        at_ = NextLine_( p, j )
+    loop
+    if endAt < 0 then exit sub
+
+    dim as Tko.SourceLoc at = p.toks->At( body0 ).loc
+    if byrefAt >= 0 then BlockError_( p, Tko.TKO0592, p.toks->At( byrefAt ).loc )
+    '' 'property' in a section, other than 'exit property' and 'end property'.
+    for q as int32 = body0 to endAt - 1
+        if Kind_( p, q ) <> Tko.KW_PROPERTY then continue for
+        dim as Tko.TokenKind pk = Kind_( p, q - 1 )
+        if (pk = Tko.KW_END) orelse (pk = Tko.KW_EXIT) then continue for
+        BlockError_( p, Tko.TKO0593, p.toks->At( q ).loc )
+        exit for
+    next
+
+    dim as Tko.InternId valueNm = p.names->GetString( "value" )
+    dim as Tko.TokenVec v
+    if g0 >= 0 then
+        '' property NAME( [params] ) as T
+        Span_( p, v, p0, nameEnd )
+        Tok_( v, Tko.TK_LPAREN, at )
+        if par0 >= 0 then Span_( p, v, par0 + 1, par1 )
+        Tok_( v, Tko.TK_RPAREN, at )
+        Span_( p, v, asAt, hdrEol )
+        Tok_( v, Tko.TK_EOL, at )
+        '' dim as T value
+        Tok_( v, Tko.KW_DIM, at, 0, true )
+        Span_( p, v, asAt, hdrEol )
+        Tok_( v, Tko.TK_IDENT, at, valueNm )
+        Tok_( v, Tko.TK_EOL, at )
+        '' the body, 'exit property' read as 'return value'
+        dim as int32 q = g0
+        while q < g1
+            if (Kind_( p, q ) = Tko.KW_EXIT) andalso (Kind_( p, q + 1 ) = Tko.KW_PROPERTY) then
+                dim as Tko.Token et = p.toks->At( q )
+                Tok_( v, Tko.KW_RETURN, et.loc, 0, (et.flags and Tko.TF_AT_LINE_START) <> 0 )
+                Tok_( v, Tko.TK_IDENT, et.loc, valueNm )
+                q += 2
+            else
+                v.Push( p.toks->At( q ) )
+                q += 1
+            end if
+        wend
+        '' return value : end property
+        Tok_( v, Tko.KW_RETURN, at, 0, true )
+        Tok_( v, Tko.TK_IDENT, at, valueNm )
+        Tok_( v, Tko.TK_EOL, at )
+        Tok_( v, Tko.KW_END, at, 0, true )
+        Tok_( v, Tko.KW_PROPERTY, at )
+        if s0 >= 0 then Tok_( v, Tko.TK_EOL, at )
+    end if
+    if s0 >= 0 then
+        '' property NAME( [params,] byval value as T )
+        Span_( p, v, p0, nameEnd )
+        Tok_( v, Tko.TK_LPAREN, at )
+        if par0 >= 0 then
+            if par1 > par0 + 1 then
+                Span_( p, v, par0 + 1, par1 )
+                Tok_( v, Tko.TK_COMMA, at )
+            end if
+        end if
+        Tok_( v, Tko.KW_BYVAL, at )
+        Tok_( v, Tko.TK_IDENT, at, valueNm )
+        Span_( p, v, asAt, hdrEol )
+        Tok_( v, Tko.TK_RPAREN, at )
+        Tok_( v, Tko.TK_EOL, at )
+        Span_( p, v, s0, s1 )
+        Tok_( v, Tko.KW_END, at, 0, true )
+        Tok_( v, Tko.KW_PROPERTY, at )
+    end if
+
+    '' [p0, endAt + 2) -- through the 'property' of 'end property' -- becomes 'v'. Only lookahead
+    '' lies past p0; '#pragma private' positions after the block move with it.
+    dim as int32 cut = endAt + 2
+    dim as int32 delta = v.Count - (cut - p0)
+    dim as Tko.TokenVec tail_
+    for q as int32 = cut to p.toks->Count - 1
+        tail_.Push( p.toks->At( q ) )
+    next
+    p.toks->SetCount( p0 )
+    for q as int32 = 0 to v.Count - 1
+        p.toks->Push( v[q] )
+    next
+    for q as int32 = 0 to tail_.Count - 1
+        p.toks->Push( tail_[q] )
+    next
+    if p.stream <> nullptr then
+        dim as Tko.PpStream ptr st = cast( Tko.PpStream ptr, p.stream )
+        if st->outp <> nullptr then
+            for q as int32 = 0 to st->outp->privateAt.Count - 2 step 2
+                if cast( int32, st->outp->privateAt[q] ) >= cut then
+                    st->outp->privateAt[q] = cast( uint32, cast( int32, st->outp->privateAt[q] ) + delta )
+                end if
+            next
+        end if
+    end if
+end sub
+
+end namespace

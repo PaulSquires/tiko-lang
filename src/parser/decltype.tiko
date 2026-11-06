@@ -153,6 +153,7 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
     '' TypeInfo.rawName. Harmless everywhere else: nothing reads it unless the
     '' declaration is marked foreign.
     sp.rawName = RawSpelling( p )
+    dim as int32 own0 = p.pos     '' the owner's name, which auto-property bodies repeat
     if fieldClause orelse (DeclName( p, sp.name ) = false) then
         '' An ANONYMOUS union or type, which is legal inside another aggregate and
         '' nowhere else. Its members belong to the enclosing type, so it carries no
@@ -241,6 +242,7 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
             Expect( p, Tko.TK_RPAREN, ")" )
         end if
     end if
+    dim as int32 own1 = iif( sp.b <> Tko.NODE_NONE, p.pos, own0 + 1 )
     ParseCLayoutClause_( p, sp )
     ParseFieldClause( p, sp )
     ParseCLayoutClause_( p, sp )
@@ -288,6 +290,7 @@ private function ParseTypeDecl( byref p as Tko.ParserState ) as Tko.NodeId
     '' Only a GENERIC is recorded. An ordinary TYPE is never re-parsed, and the table
     '' is scanned linearly, so keeping every type in it would cost for nothing.
     if isGeneric then p.ast->RecordTokens( tn, typeTok0, p.pos )
+    AutoPropBodies( p, own0, own1 )   '' after the range: a generic's re-parse must not see them
     return tn
 end function
 
@@ -966,6 +969,7 @@ private function Declaration_( byref p as Tko.ParserState ) as Tko.NodeId
 
     case Tko.KW_SUB, Tko.KW_FUNCTION, Tko.KW_PROPERTY, Tko.KW_CONSTRUCTOR, _
          Tko.KW_DESTRUCTOR, Tko.KW_OPERATOR
+        if k = Tko.KW_PROPERTY then PropertyBlock( p )   '' a get/set block becomes the split form
         return MarkPrivate( p, ParseProc( p, false ), procVis )
 
     case Tko.KW_USING

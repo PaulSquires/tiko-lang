@@ -1,0 +1,8 @@
+'' docs/tiko-properties R9: a block's getter returns its local 'value', so a 'byref' result is
+'' refused (8); 'property' in a section names a backing field in a block (decision Q6), which a
+'' property written by hand does not have (15).
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/propblock-errors.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: propblock-errors.tiko(8,14): error TKO0592
+'' EXPECT-OUT: propblock-errors.tiko(15,9): error TKO0593

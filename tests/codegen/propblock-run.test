@@ -1,0 +1,16 @@
+'' docs/tiko-properties R9, RUN: the property block -- 'value' as the getter's result and as the
+'' setter's incoming value (written to, clamped, in 'set'), 'return' in 'get', an indexed property
+'' whose 'exit property' returns 'value', a get-only block, a generic type's block, and '+=' / '&='
+'' through blocks. tiko-only syntax: each line was checked by hand.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/propblock.tiko -o tests/codegen/propblock.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/propblock.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  100 212 373.15
+'' EXPECT-RUN-OUT:  0
+'' EXPECT-RUN-OUT: -273.15
+'' EXPECT-RUN-OUT:  42 0
+'' EXPECT-RUN-OUT:  43
+'' EXPECT-RUN-OUT: xy

@@ -1,0 +1,18 @@
+'' docs/tiko-properties R8, RUN: auto-properties -- 'get, set', a private setter with an initialiser,
+'' 'get, init' and 'get' assigned in the constructor, a UDT-typed one written through 'with', a const
+'' object, '+=' / '&=' / '*=' and swap over them, a generic and a namespaced type. And D8, D9 on a
+'' property written by hand: '&=' / '+=' over a string property crashed (the append went to the
+'' getter's address), and 'o.P = type<Pt>( 3, 4 )' built the literal there. tiko-only syntax, so
+'' there is no fbc output to match: each line was checked by hand.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/autoprop.tiko -o tests/codegen/autoprop.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/autoprop.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: Ann! 19 7 12 1 9
+'' EXPECT-RUN-OUT: Ann! Lee
+'' EXPECT-RUN-OUT:  9 18 14
+'' EXPECT-RUN-OUT:  7 5 hi!
+'' EXPECT-RUN-OUT:  3
+'' EXPECT-RUN-OUT: abcde 3 4

@@ -241,6 +241,7 @@ declare function TypeScopeOf_ ( byref c as Ctx, byval path as InternId ) as Scop
 declare sub RecordChosenOverloads_( byref c as Ctx )
 declare sub RecordPropertyStores_( byref c as Ctx )
 declare sub CheckPropertyUses_( byref c as Ctx )
+declare function IsInitOnlySetter_( byref c as Ctx, byval sid as SymbolId ) as boolean
 declare sub RecordFirstRedims_( byref c as Ctx )
 declare sub Walk_ _
     ( byref c as Ctx, byval id as NodeId, byval here as TypeId, _

@@ -1,0 +1,16 @@
+'' A module exporting types with auto-properties (autoprop-iface.test), one of them generic.
+#module "shapes"
+public type Pt
+    declare property X as long get, set
+    declare property Label as string = "pt" get, private set
+    declare sub Rename( byval s as string )
+end type
+sub Pt.Rename( byval s as string )
+    this.Label = s
+end sub
+public type Box( of T )
+    declare property V as T get, set
+end type
+public sub Show( byref p as Pt )
+    print p.Label; p.X
+end sub

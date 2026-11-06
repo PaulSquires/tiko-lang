@@ -1350,6 +1350,7 @@ private function ParseAggregateBody _
             members.Push( cast( uint32, MakeStmt( p, Tko.N_FIELD, ft.loc, fp ) ) )
             StrayAfterField_( p )
         elseif IsDeclarationStart( k ) then
+            if AutoPropMember( p, members, vis ) then EndOfStatement( p ) : continue do   '' autoprop.tiko
             dim as Tko.NodeId mn = Declaration( p )
             '' Only an N_PROC carries a StmtPayload whose 'extra' is the modifier set;
             '' reaching into stmts[] for any other kind would land on another node's

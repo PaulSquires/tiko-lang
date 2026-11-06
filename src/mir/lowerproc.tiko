@@ -197,6 +197,9 @@ sub LowerProc _
     if f->isWeak = false then
         if Tko.Mangle.IsInstName( *c.types, sp->name ) then f->isWeak = true
     end if
+    '' ...AND SO IS AN AUTO-PROPERTY'S ACCESSOR: every unit that reads the TYPE writes it
+    '' (parser/autoprop.tiko), as every unit that needs one synthesises an implicit constructor.
+    if (sp->extra and Tko.PF_AUTOPROP) <> 0 then f->isWeak = true
     dim as MirFunction ptr savedF = c.f
     dim as int32 savedB = c.curBlock
     dim as Tko.SymbolId savedSym = c.curProcSym

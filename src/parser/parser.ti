@@ -34,6 +34,15 @@ namespace Tko.Parse
     '' A syntactic type reference: 'integer', 'Foo ptr ptr', 'sub( byval as long )'.
     declare function TypeRef( byref p as Tko.ParserState ) as Tko.NodeId
 
+    '' AUTO-PROPERTIES -- autoprop.tiko: a TYPE member 'declare property N as T get, set', and the
+    '' accessor bodies it owes, written after 'end type' from the owner's name tokens.
+    declare function AutoPropMember _
+        ( byref p as Tko.ParserState, byref members as Tko.NodeIdVec, byval vis as uint32 ) as boolean
+    declare sub AutoPropBodies( byref p as Tko.ParserState, byval own0 as int32, byval own1 as int32 )
+    '' THE PROPERTY BLOCK -- propblock.tiko: 'property T.P as X' with 'get' / 'set' sections, rewritten
+    '' in the buffer into the split form before the procedure parser reads it.
+    declare sub PropertyBlock( byref p as Tko.ParserState )
+
     '' The procedures the builtin prelude declares, as "|name|name|...|" -- prelude.tiko.
     declare function PreludeProcSpellings( ) as string
 

@@ -1,0 +1,20 @@
+'' docs/tiko-properties R8: auto-properties refused. An init-only one ('get, init' or 'get') is
+'' assigned only in its own type's constructors -- not a method (14), not a derived type's
+'' constructor (21), not outside (25, 26); a private setter is refused outside (24, 27); a broken
+'' clause (29-32), one inside a union (36) and an accessor written by hand (42) are refused, each
+'' alone.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/autoprop-errors.tiko
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: autoprop-errors.tiko(14,9): error TKO0596
+'' EXPECT-OUT: autoprop-errors.tiko(21,9): error TKO0596
+'' EXPECT-OUT: autoprop-errors.tiko(24,2): error TKO0625
+'' EXPECT-OUT: autoprop-errors.tiko(25,2): error TKO0596
+'' EXPECT-OUT: autoprop-errors.tiko(26,2): error TKO0596
+'' EXPECT-OUT: autoprop-errors.tiko(27,2): error TKO0625
+'' EXPECT-OUT: autoprop-errors.tiko(29,37): error TKO0595
+'' EXPECT-OUT: autoprop-errors.tiko(30,36): error TKO0595
+'' EXPECT-OUT: autoprop-errors.tiko(32,5): error TKO0595
+'' EXPECT-OUT: autoprop-errors.tiko(36,9): error TKO0595
+'' EXPECT-OUT: autoprop-errors.tiko(42,1): error TKO0594
+'' EXPECT-MAX-DIAG: 12

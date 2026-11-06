@@ -51,6 +51,9 @@ type Ctx
     '' The SETTER a compound assignment to a property also calls, judged beside the getter --
     '' see RecordPropertyStores_ (propaccess.tiko). A plain '=' rewrites chosenFor instead.
     as NodeIdVec             propSetFor
+    '' The PROCEDURE the walk is in, NODE_NONE at module level: an init-only setter is for its
+    '' type's constructors (CheckInitOnly_, semwalk.tiko).
+    as NodeId                curProc
     as NodeId                root
     '' THE SYMBOL TABLE BY FOLDED NAME, for the owner-path sweeps -- see OwnerIndex.
     as OwnerIndex            owners

@@ -1,0 +1,44 @@
+'' Auto-properties (docs/tiko-properties R8): what is refused. See autoprop-errors.test.
+type Person
+    declare property Age as long = 18 get, private set
+    declare property Id as long get, init
+    declare property Tag as long get
+    declare constructor( )
+    declare sub Poke( )
+end type
+constructor Person( )
+    this.Id = 1
+    Tag = 2
+end constructor
+sub Person.Poke( )
+    this.Id = 3
+    this.Age = 4
+end sub
+type Kid extends Person
+    declare constructor( )
+end type
+constructor Kid( )
+    this.Id = 5
+end constructor
+dim as Person p
+p.Age = 1
+p.Id = 2
+p.Tag += 1
+p.Age += 1
+type A
+    declare property X as long get, foo
+    declare property Y as long get set
+    private:
+    declare property Z as long get, public set
+end type
+type B
+    union
+        declare property Q as long get, set
+    end union
+end type
+type C
+    declare property W as long get, set
+end type
+property C.W( ) as long
+    return 1
+end property

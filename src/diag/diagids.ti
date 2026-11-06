@@ -1072,6 +1072,16 @@
     DIAG( TKO0680, SEV_ERROR,   "property '%0' has no setter taking %1, so it cannot be assigned this way" )
     '' docs/tiko-properties D1, D2, D6 -- symbols/propaccess.tiko. fbc-modern 1.20 refuses all
     '' three shapes (99, 24, 196); tiko lowers a SCALAR property swap as get, get, set, set.
+    '' Auto-properties (docs/tiko-properties R8): a malformed accessor clause -- autoprop.tiko -- and
+    '' an init-only one ('get' or 'get, init') assigned outside its type's constructors -- propaccess.tiko.
+    '' The property block (docs/tiko-properties R9) -- propblock.tiko: a 'byref' result, whose getter
+    '' would return a reference to its local 'value', and 'property' in a section, which in a block
+    '' names a backing field (decision Q6) that a property written by hand does not have.
+    DIAG( TKO0592, SEV_ERROR,   "a property block's getter returns 'value', a local: it cannot return byref" )
+    DIAG( TKO0593, SEV_ERROR,   "in a get/set block 'property' names a backing field, and this property has none: use 'value' or 'return'" )
+    DIAG( TKO0594, SEV_ERROR,   "'%0' is an auto-property: its accessors are synthesised and cannot be written by hand" )
+    DIAG( TKO0595, SEV_ERROR,   "auto-property '%0': %1" )
+    DIAG( TKO0596, SEV_ERROR,   "property '%0' is init-only: only a constructor of '%1' may assign it" )
     DIAG( TKO0597, SEV_ERROR,   "'swap' over the %0 property '%1' is not supported; swap through a temporary" )
     DIAG( TKO0599, SEV_ERROR,   "property '%0' has no address: its getter returns a value, not a reference" )
     DIAG( TKO0859, SEV_ERROR,   "property '%0' is read without parentheses: '()' would be an index" )

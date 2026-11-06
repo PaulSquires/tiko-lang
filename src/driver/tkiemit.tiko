@@ -501,6 +501,12 @@ sub Level_( byref w as TkiWriter_, byref i as int32, byval sc as Tko.ScopeId, _
             i = StmtEnd_( w, i ) + 1
             continue while
         end if
+        '' AN AUTO-PROPERTY'S SYNTHESISED BODY (parser/autoprop.tiko) is never written: the TYPE
+        '' carries its accessor clause verbatim, and the importer writes its own bodies from it.
+        if ((*w.toks)[i].flags and Tko.TF_AUTOPROP) <> 0 then
+            i = e
+            continue while
+        end if
         if InModule_( w, i ) then
             if GenericBody_( w, i ) then
                 later.Push( i )

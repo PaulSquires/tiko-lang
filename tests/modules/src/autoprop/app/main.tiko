@@ -1,0 +1,16 @@
+'' Imports apmod/shapes: its types' accessors are written again here, from the clause the
+'' interface carries, and fold with the module's own at the link.
+#import "apmod/shapes"
+using shapes
+dim as Pt a
+a.X = 41
+a.X += 1
+Show( a )
+a.Rename( "q" )
+Show( a )
+dim as Box( of long ) b
+b.V = 7
+dim as Box( of string ) s
+s.V = "v"
+s.V &= "w"
+print b.V; " "; s.V

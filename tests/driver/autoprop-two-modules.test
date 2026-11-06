@@ -1,0 +1,11 @@
+'' docs/tiko-properties R8: TWO MODULES INCLUDING ONE TYPE WITH AUTO-PROPERTIES LINK. Each unit that
+'' reads the type writes the accessors after its 'end type', so both define them; they are weak, as
+'' an implicit constructor is, and the linker keeps one. Run too, so the copy kept is shown to work.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/driver/src/autoprop-a.tiko tests/driver/src/autoprop-b.tiko -o tests/driver/autoprop2.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: duplicate symbol
+'' RUN: tests/driver/autoprop2.exe
+'' EXPECT-RUN-OUT: pt 42
+'' EXPECT-RUN-OUT: q 42

@@ -490,3 +490,25 @@ function PropertySwap_ _
     if SwapSideSet_( c, b, ib, sb, selfB, idxB, addrB, va, ta ) = false then return 0
     return 1
 end function
+
+'' A PROPERTY WITH A SETTER -- 'o.P', 'o.P( i )', a bare 'P' in a method -- for a caller in
+'' another unit: see PropStrCatAssign_ (lowerconcat.tiko).
+function IsSettableProperty_( byref c as Ctx, byval e as Tko.NodeId ) as boolean
+    return SwapPropOperand_( c, e )
+end function
+
+'' The SETTER of 'target' called with a value already lowered -- for a string, the address of a
+'' descriptor the caller owns. The setter is chosen by the property's own type, as
+'' PropertyCompound_ chooses it.
+function PropertySetValue_ _
+    ( byref c as Ctx, byval target as Tko.NodeId, byref v as MirValue ) as boolean
+    dim as MirValue self_
+    dim as int32 sFirst, sCount
+    dim as Tko.SymbolId sset = PropertyAt_( c, target, 1, self_, sFirst, sCount, target )
+    if sset = Tko.SYMBOL_NONE then return false
+    dim as containers.Array( of uint32 ) args
+    if PushPropIndexArgs_( c, sset, sFirst, sCount, args ) = false then return false
+    args.Push( cast( uint32, v.kind ) ) : args.Push( cast( uint32, v.id ) )
+    EmitPropSetCall_( c, target, sset, self_, args )
+    return true
+end function

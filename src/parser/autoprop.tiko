@@ -1,0 +1,325 @@
+'' autoprop.tiko -- AUTO-PROPERTIES (docs/tiko-properties/REVIEW.md R8; author's decisions Q1, Q2).
+''
+''     type Person
+''         declare property Name as string get, set
+''         declare property Age as long = 18 get, private set
+''         declare property Id as long get, init
+''     end type
+''
+'' A declaration that ends in an ACCESSOR CLAUSE is a hidden field plus the trivial accessors. The
+'' clause is all or nothing: every accessor it lists is synthesised, and none may be written by
+'' hand (decision 2026-11-06; a property with logic is an ordinary FB property over a field of its
+'' own). What it becomes, inside the TYPE:
+''
+''     <name>@prop as T [= init]                       private, a name no source can spell
+''     declare const property Name( ) as T            the section's visibility
+''     declare property Name( byval value as T )      the clause's visibility for SET
+''
+'' and after 'end type', in the token buffer, the two bodies -- read back by the ordinary
+'' procedure parser, so a GENERIC type's are re-parsed per instantiation like any member's:
+''
+''     const property Owner.Name( ) as T : return this.<name>@prop : end property
+''     property Owner.Name( byval value as T ) : this.<name>@prop = value : end property
+''
+'' Their tokens carry the NAME's location, which is what Collect knows them by: a body bound to a
+'' PF_AUTOPROP declaration at the declaration's own location is synthesised, any other is written
+'' by hand and refused (TKO0594, collectproc.tiko).
+''
+'' Every unit that reads the type writes them, so they are emitted WEAK (PF_AUTOPROP, as an
+'' implicit constructor is) and a module interface, which carries the TYPE verbatim, leaves them
+'' out (TF_AUTOPROP; driver/tkiemit.tiko): the importer writes its own.
+''
+'' 'get' alone and 'get, init' are the same thing: the setter exists but only the type's own
+'' constructors may call it (PF_INIT_ONLY, symbols/propaccess.tiko), and an initialiser on the
+'' declaration is the field's.
+
+#import "std/containers"
+#include once "parser/parser.ti"
+#include once "support/text.ti"
+
+namespace Tko.Parse
+
+const AP_STRIDE = 4      '' name token, type's first token, type's end token, field name
+
+private function TokKind_( byref p as ParserState, byval i as int32 ) as Tko.TokenKind
+    if HasTok( p, i ) = false then return Tko.TK_EOF
+    return cast( Tko.TokenKind, p.toks->At( i ).kind )
+end function
+
+'' The word at 'i' when it is an identifier, lower case; "" otherwise.
+private function WordAt_( byref p as ParserState, byval i as int32 ) as string
+    if TokKind_( p, i ) <> Tko.TK_IDENT then return ""
+    return Tko.Text.LowerAscii( p.names->Spelling( p.toks->At( i ).ident ) )
+end function
+
+private function VisRank_( byval vis as uint32 ) as int32
+    if (vis and Tko.PF_MEMB_PRIVATE) <> 0 then return 2
+    if (vis and Tko.PF_MEMB_PROTECTED) <> 0 then return 1
+    return 0
+end function
+
+private sub ClauseError_( byref p as ParserState, byval at as Tko.SourceLoc, byref nm as string, byref why as string )
+    if p.silent then exit sub
+    p.diags->Report( Tko.TKO0595, Tko.PointRange( at ), nm, why )
+    p.silent = true
+end sub
+
+private sub SkipLine_( byref p as ParserState )
+    while (Peek( p ) <> Tko.TK_EOL) andalso (Peek( p ) <> Tko.TK_EOF)
+        Advance( p )
+    wend
+end sub
+
+'' 'declare property NAME as ... get ...': a top-level GET before the line ends, after an AS that
+'' follows the name directly. GET cannot occur in a type or an initialiser, and FB's own
+'' 'declare property P as long' -- no parentheses, no clause -- is left to the procedure parser.
+private function IsAutoProp_( byref p as ParserState, byref getAt as int32 ) as boolean
+    if Peek( p ) <> Tko.KW_DECLARE then return false
+    dim as int32 i = p.pos + 1
+    if TokKind_( p, i ) <> Tko.KW_PROPERTY then return false
+    dim as Tko.TokenKind nk = TokKind_( p, i + 1 )
+    if (nk <> Tko.TK_IDENT) andalso (Tko.IsKeywordKind( nk ) = false) then return false   '' 'Name' is a keyword
+    if TokKind_( p, i + 2 ) <> Tko.KW_AS then return false
+    dim as int32 depth = 0
+    i += 3
+    do
+        dim as Tko.TokenKind k = TokKind_( p, i )
+        select case k
+        case Tko.TK_EOL, Tko.TK_EOF : return false
+        case Tko.TK_LPAREN : depth += 1
+        case Tko.TK_RPAREN : depth -= 1
+        case Tko.KW_GET
+            if depth = 0 then getAt = i : return true
+        end select
+        i += 1
+    loop
+end function
+
+function AutoPropMember _
+    ( byref p as ParserState, byref members as Tko.NodeIdVec, byval vis as uint32 ) as boolean
+
+    dim as int32 getAt = -1
+    if IsAutoProp_( p, getAt ) = false then return false
+    p.silent = false                               '' each member is a statement of its own
+    dim as Tko.Token declTok = Cur( p )
+    Advance( p )                                   '' declare
+    Advance( p )                                   '' property
+    dim as int32 nameAt = p.pos
+    dim as Tko.Token nameTok = Cur( p )
+    '' A KEYWORD SPELLS ITSELF -- 'Name', 'Color' -- as DeclName reads one.
+    dim as Tko.InternId nm = nameTok.ident
+    if cast( Tko.TokenKind, nameTok.kind ) <> Tko.TK_IDENT then
+        nm = p.names->GetString( Tko.Text.LowerAscii( Tko.TokenKindText( cast( Tko.TokenKind, nameTok.kind ) ) ) )
+    end if
+    dim as string spelled = p.names->Spelling( nm )
+    Advance( p )                                   '' the name
+    Advance( p )                                   '' as
+
+    '' THE TYPE IS READ THREE TIMES, one node for the field and one for each accessor, so no later
+    '' pass finds one node under two parents.
+    dim as int32 ty0 = p.pos
+    dim as Tko.NodeId tyField = TypeRef( p )
+    dim as int32 ty1 = p.pos
+    p.pos = ty0 : dim as Tko.NodeId tyGet = TypeRef( p )
+    p.pos = ty0 : dim as Tko.NodeId tySet = TypeRef( p )
+    p.pos = ty1
+
+    dim as Tko.NodeId init_ = Tko.NODE_NONE
+    if Accept( p, Tko.TK_EQ ) orelse Accept( p, Tko.TK_FATARROW ) then init_ = Expression( p )
+
+    '' THE CLAUSE: 'get', 'get, set' or 'get, init', with an optional access word before the second.
+    dim as boolean initOnly = true
+    dim as uint32 setVis = vis
+    if p.pos <> getAt then
+        ClauseError_( p, Cur( p ).loc, spelled, "expected 'get' after the type" )
+        SkipLine_( p )
+        return true
+    end if
+    Advance( p )                                   '' get
+    if Accept( p, Tko.TK_COMMA ) then
+        select case Peek( p )
+        case Tko.KW_PRIVATE   : setVis = Tko.PF_MEMB_PRIVATE : Advance( p )
+        case Tko.KW_PROTECTED : setVis = Tko.PF_MEMB_PROTECTED : Advance( p )
+        case Tko.KW_PUBLIC    : setVis = 0 : Advance( p )
+        end select
+        dim as string w = WordAt_( p, p.pos )
+        if w = "set" then
+            initOnly = false
+        elseif w <> "init" then
+            ClauseError_( p, Cur( p ).loc, spelled, "expected 'set' or 'init' after 'get,'" )
+            SkipLine_( p )
+            return true
+        end if
+        Advance( p )
+        if VisRank_( setVis ) < VisRank_( vis ) then
+            ClauseError_( p, declTok.loc, spelled, "the setter cannot be more visible than the getter" )
+        end if
+    end if
+    if Peek( p ) <> Tko.TK_EOL andalso Peek( p ) <> Tko.TK_EOF then
+        ClauseError_( p, Cur( p ).loc, spelled, "nothing may follow the accessor clause" )
+        SkipLine_( p )
+    end if
+    '' MISPLACED, it still declares its members -- an empty union is not the error to report -- but
+    '' owes no bodies.
+    dim as boolean placed = (p.aggDepth = 1) andalso (p.aggUnion = false)
+    if placed = false then
+        ClauseError_( p, declTok.loc, spelled, "an auto-property must be declared directly in a TYPE" )
+    end if
+
+    '' THE FIELD: private, named '<name>@prop' -- '@' never lexes into an identifier.
+    dim as Tko.InternId fieldNm = p.names->GetString( Tko.Text.LowerAscii( spelled ) & "@prop" )
+    dim as Tko.StmtPayload fp
+    fp.name = fieldNm
+    fp.a = tyField
+    fp.c = init_
+    fp.extra = Tko.PF_MEMB_PRIVATE
+    members.Push( cast( uint32, MakeStmt( p, Tko.N_FIELD, nameTok.loc, fp ) ) )
+
+    '' THE GETTER: 'declare const property Name( ) as T'. CONST, so a const object can read it.
+    dim as Tko.StmtPayload gp
+    gp.op = cast( uint16, Tko.KW_PROPERTY )
+    gp.name = nm
+    gp.a = tyGet
+    gp.first = p.ast->ChildPoolCount( )
+    gp.count = 0
+    gp.extra = vis or Tko.PF_CONST or Tko.PF_AUTOPROP
+    members.Push( cast( uint32, MakeStmt( p, Tko.N_PROC, nameTok.loc, gp ) ) )
+
+    '' THE SETTER: 'declare property Name( byval value as T )'.
+    dim as Tko.StmtPayload vp
+    vp.name = p.names->GetString( "value" )
+    vp.a = tySet
+    dim as Tko.NodeId vn = MakeStmt( p, Tko.N_PARAM, nameTok.loc, vp )
+    p.ast->OrFlags( vn, Tko.NF_BYVAL_WRITTEN )
+    dim as Tko.StmtPayload sp
+    sp.op = cast( uint16, Tko.KW_PROPERTY )
+    sp.name = nm
+    sp.first = p.ast->ChildPoolCount( )
+    sp.count = 1
+    p.ast->PushChild( vn )
+    sp.extra = setVis or Tko.PF_AUTOPROP
+    if initOnly then sp.extra or= Tko.PF_INIT_ONLY
+    members.Push( cast( uint32, MakeStmt( p, Tko.N_PROC, nameTok.loc, sp ) ) )
+    p.memberProcNames.Push( cast( uint32, nm ) )
+
+    '' THE BODIES ARE OWED once, by the first parse of these tokens: a generic's re-parse finds
+    '' the mark and declares the members again without writing them twice.
+    dim as Tko.Token ptr gt = @(*p.toks)[getAt]
+    if placed andalso ((gt->flags and Tko.TF_AUTOPROP) = 0) then
+        gt->flags or= Tko.TF_AUTOPROP
+        p.autoProps.Push( nameAt )
+        p.autoProps.Push( ty0 )
+        p.autoProps.Push( ty1 )
+        p.autoProps.Push( cast( int32, fieldNm ) )
+    end if
+    return true
+end function
+
+private sub Put_( byref v as Tko.TokenVec, byval k as Tko.TokenKind, byval at as Tko.SourceLoc, _
+                  byval ident as Tko.InternId = 0 )
+    dim as Tko.Token t
+    t.kind = cast( uint16, k )
+    t.flags = Tko.TF_SYNTHESISED or Tko.TF_AUTOPROP or Tko.TF_SPACE_BEFORE
+    t.loc = at
+    t.length = 0
+    t.ident = ident
+    v.Push( t )
+end sub
+
+private sub Copy_( byref p as ParserState, byref v as Tko.TokenVec, byval i0 as int32, byval i1 as int32 )
+    for i as int32 = i0 to i1 - 1
+        dim as Tko.Token t = p.toks->At( i )
+        t.flags or= Tko.TF_AUTOPROP
+        t.flags and= not Tko.TF_AT_LINE_START
+        v.Push( t )
+    next
+end sub
+
+private sub Eol_( byref v as Tko.TokenVec, byval at as Tko.SourceLoc )
+    Put_( v, Tko.TK_EOL, at )
+end sub
+
+'' The first token of each line says so: the statement parser reads labels by it.
+private sub LineStart_( byref v as Tko.TokenVec )
+    v[v.Count - 1].flags or= Tko.TF_AT_LINE_START
+end sub
+
+'' After 'end type': the owed bodies, inserted at the cursor ahead of the line's own end. 'own0' to
+'' 'own1' are the type's name tokens -- 'Box' or 'Box( of T )' -- which every definition repeats.
+sub AutoPropBodies( byref p as ParserState, byval own0 as int32, byval own1 as int32 )
+    if p.autoProps.Count = 0 then exit sub
+    dim as Tko.TokenVec v
+    dim as Tko.InternId thisNm = p.names->GetString( "this" )
+    dim as Tko.InternId valueNm = p.names->GetString( "value" )
+    for e as int32 = 0 to p.autoProps.Count - AP_STRIDE step AP_STRIDE
+        dim as int32 nameAt = p.autoProps[e]
+        dim as int32 ty0 = p.autoProps[e + 1]
+        dim as int32 ty1 = p.autoProps[e + 2]
+        dim as Tko.InternId fieldNm = cast( Tko.InternId, p.autoProps[e + 3] )
+        dim as Tko.SourceLoc at = p.toks->At( nameAt ).loc
+
+        '' const property Owner.Name( ) as T
+        Eol_( v, at )
+        Put_( v, Tko.KW_CONST, at ) : LineStart_( v )
+        Put_( v, Tko.KW_PROPERTY, at )
+        Copy_( p, v, own0, own1 )
+        Put_( v, Tko.TK_DOT, at )
+        Copy_( p, v, nameAt, nameAt + 1 )
+        Put_( v, Tko.TK_LPAREN, at ) : Put_( v, Tko.TK_RPAREN, at )
+        Put_( v, Tko.KW_AS, at )
+        Copy_( p, v, ty0, ty1 )
+        Eol_( v, at )
+        '' return this.<field>
+        Put_( v, Tko.KW_RETURN, at ) : LineStart_( v )
+        Put_( v, Tko.TK_IDENT, at, thisNm )
+        Put_( v, Tko.TK_DOT, at )
+        Put_( v, Tko.TK_IDENT, at, fieldNm )
+        Eol_( v, at )
+        Put_( v, Tko.KW_END, at ) : LineStart_( v )
+        Put_( v, Tko.KW_PROPERTY, at )
+
+        '' property Owner.Name( byval value as T )
+        Eol_( v, at )
+        Put_( v, Tko.KW_PROPERTY, at ) : LineStart_( v )
+        Copy_( p, v, own0, own1 )
+        Put_( v, Tko.TK_DOT, at )
+        Copy_( p, v, nameAt, nameAt + 1 )
+        Put_( v, Tko.TK_LPAREN, at )
+        Put_( v, Tko.KW_BYVAL, at )
+        Put_( v, Tko.TK_IDENT, at, valueNm )
+        Put_( v, Tko.KW_AS, at )
+        Copy_( p, v, ty0, ty1 )
+        Put_( v, Tko.TK_RPAREN, at )
+        Eol_( v, at )
+        '' this.<field> = value
+        Put_( v, Tko.TK_IDENT, at, thisNm ) : LineStart_( v )
+        Put_( v, Tko.TK_DOT, at )
+        Put_( v, Tko.TK_IDENT, at, fieldNm )
+        Put_( v, Tko.TK_EQ, at )
+        Put_( v, Tko.TK_IDENT, at, valueNm )
+        Eol_( v, at )
+        Put_( v, Tko.KW_END, at ) : LineStart_( v )
+        Put_( v, Tko.KW_PROPERTY, at )
+    next
+    p.autoProps.Clear( )
+
+    '' INTO THE SHARED BUFFER, at the cursor. Only lookahead lies past it, so nothing the parse has
+    '' recorded moves -- except the preprocessor's '#pragma private' positions, which are shifted.
+    dim as int32 at0 = p.pos
+    HasTok( p, at0 )
+    for i as int32 = 0 to v.Count - 1
+        p.toks->Insert( at0 + i, v[i] )
+    next
+    if p.stream <> nullptr then
+        dim as Tko.PpStream ptr st = cast( Tko.PpStream ptr, p.stream )
+        if st->outp <> nullptr then
+            for i as int32 = 0 to st->outp->privateAt.Count - 2 step 2
+                if cast( int32, st->outp->privateAt[i] ) >= at0 then
+                    st->outp->privateAt[i] = st->outp->privateAt[i] + cast( uint32, v.Count )
+                end if
+            next
+        end if
+    end if
+end sub
+
+end namespace

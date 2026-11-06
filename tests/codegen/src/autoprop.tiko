@@ -1,0 +1,87 @@
+'' Auto-properties (docs/tiko-properties R8): the accessor clause, run. See autoprop-run.test.
+type Pt
+    as long x, y
+end type
+
+type Person
+    declare property Name as string get, set
+    declare property Age as long = 18 get, private set
+    declare property Id as long get, init
+    declare property Tag as long = 5 get
+    declare property Origin as Pt get, set
+    declare constructor( byval i as long )
+    declare sub Birthday( )
+end type
+
+constructor Person( byval i as long )
+    this.Id = i
+    Tag += i
+end constructor
+
+sub Person.Birthday( )
+    this.Age += 1
+    this.Name &= "!"
+    with this
+        .Origin = type<Pt>( .Origin.x + 1, 9 )
+    end with
+end sub
+
+type Box( of T )
+    declare property V as T get, set
+end type
+
+namespace NS
+    type Cell
+        declare property W as double = 1.5 get, set
+    end type
+end namespace
+
+'' D8 and D9 on a property written by hand: '&=' over a string one, a type<> literal into a UDT one.
+type Hand
+    s as string
+    o as Pt
+    declare property S1( ) as string
+    declare property S1( byval v as string )
+    declare property O1( ) as Pt
+    declare property O1( byval v as Pt )
+end type
+property Hand.S1( ) as string
+    return s
+end property
+property Hand.S1( byval v as string )
+    s = v
+end property
+property Hand.O1( ) as Pt
+    return o
+end property
+property Hand.O1( byval v as Pt )
+    o = v
+end property
+
+dim as Person p = Person( 7 )
+p.Name = "Ann"
+p.Birthday( )
+print p.Name; p.Age; p.Id; p.Tag; p.Origin.x; p.Origin.y
+p.Name += " Lee"
+print p.Name
+dim as const Person q = Person( 9 )
+print q.Id; q.Age; q.Tag
+
+dim as Box( of long ) b1, b2
+b1.V = 5 : b2.V = 7
+swap b1.V, b2.V
+dim as Box( of string ) bs
+bs.V = "hi"
+bs.V &= "!"
+print b1.V; b2.V; " "; bs.V
+
+dim as NS.Cell c
+c.W *= 2
+print c.W
+
+dim as Hand h
+h.S1 = "ab"
+h.S1 &= "cd"
+h.S1 += "e"
+h.O1 = type<Pt>( 3, 4 )
+print h.S1; h.O1.x; h.O1.y

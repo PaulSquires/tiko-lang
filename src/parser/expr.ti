@@ -193,6 +193,9 @@ namespace Tko
         '' that are one, folded, looked up the first time an identifier is.
         as boolean              mtNoted
         as InternId             mtCreate, mtWait
+        '' AUTO-PROPERTIES OF THE TYPE BEING READ whose accessor bodies are owed after its 'end type',
+        '' as AP_STRIDE int32s each -- see autoprop.tiko.
+        as containers.Array( of int32 ) autoProps
     end type
 
 end namespace

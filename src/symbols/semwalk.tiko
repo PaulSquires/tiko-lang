@@ -181,14 +181,30 @@ end sub
 
 '' The accessor a node calls, and for a COMPOUND store to a property the setter as well
 '' (propaccess.tiko) -- reported once: a getter already refused says enough.
+'' AN INIT-ONLY SETTER -- an auto-property's 'get' or 'get, init' (parser/autoprop.tiko) -- is called
+'' only from a constructor of the type that declares it, as C#'s get-only auto-property is.
+private sub CheckInitOnly_ _
+    ( byref c as Ctx, byval id as NodeId, byval here as TypeId, byval sid as SymbolId )
+    if IsInitOnlySetter_( c, sid ) = false then return              '' propaccess.tiko
+    dim as Symbol ptr s = c.syms->SymbolAt( sid )
+    dim as TypeId owner = OwningType_( c, s )
+    dim as boolean inCtor = (c.curProc <> NODE_NONE) andalso (here = owner)
+    if inCtor then inCtor = (c.ast->StmtOf( c.curProc )->op = cast( uint16, KW_CONSTRUCTOR ))
+    if inCtor then return
+    c.diags->Report( TKO0596, PointRange( c.ast->Loc( id ) ), c.names->Spelling( s->name ), _
+                     iif( owner <> TYPE_NONE, c.names->Spelling( c.types->NameOf( owner ) ), "" ) )
+end sub
+
 private sub CheckMember_ _
     ( byref c as Ctx, byval id as NodeId, byval here as TypeId )
     if IfaceMemberRefused_( c, id ) then return      '' semiface.tiko: Phase 3
     dim as int32 before = c.diags->ErrorCount( )
     CheckMemberSym_( c, id, here, AccessSymOf_( c, id ) )
+    if c.diags->ErrorCount( ) = before then CheckInitOnly_( c, id, here, AccessSymOf_( c, id ) )
     if cast( int32, id ) >= c.propSetFor.Count then return
     if c.diags->ErrorCount( ) <> before then return
     CheckMemberSym_( c, id, here, cast( SymbolId, c.propSetFor[cast( int32, id )] ) )
+    if c.diags->ErrorCount( ) = before then CheckInitOnly_( c, id, here, cast( SymbolId, c.propSetFor[cast( int32, id )] ) )
 end sub
 
 '' '.' AND '->' ARE NOT INTERCHANGEABLE. Measured, over 'x as UDT', 'p as UDT ptr' and
@@ -1135,12 +1151,13 @@ sub Walk_ _
     '' -- Check leaves the N_FUNCRESULT untyped, so the only handle on what the result
     '' was declared as is the procedure node the walk came through.
     dim as TypeId innerResult = resultType
+    dim as NodeId outerProc = c.curProc        '' put back at the end: a statement's walk ends there
     if k = N_WITH then
         dim as StmtPayload ptr wp = _
             c.ast->StmtOf( id )
         innerWith = IsThisBase_( c, wp->a )
     end if
-    if k = N_PROC then innerWith = false
+    if k = N_PROC then innerWith = false : c.curProc = id
     if k = N_PROC then
         dim as StmtPayload ptr rpp = _
             c.ast->StmtOf( id )
@@ -1318,6 +1335,7 @@ sub Walk_ _
     for i as int32 = 0 to sp->count - 1
         Walk_( c, c.ast->ChildAt( sp->first, i ), inner, innerByref, innerConst, innerWith, innerResult )
     next
+    c.curProc = outerProc
 end sub
 
 '' A VAR-LEN STRING WITH STATIC STORAGE CANNOT BE INITIALISED -- fbc error 87,
