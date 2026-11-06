@@ -31,7 +31,7 @@ and defines a symbol the program can test.
 | `-exx` | `-e`, plus array-bounds and null-pointer checks, and where each error happened |
 | `-g` | debug information for a debugger; also turns `assert` on |
 | `-O0` … `-O3` | how hard the optimiser works; `-O0`, none, is the default |
-| `-mt` | the thread-safe runtime, needed by programs that use threads |
+| `-mt` | the thread-safe runtime; `std/tasks` requires it, and a `threadcreate` call turns it on by itself |
 | `-target name` | `windows-x86_64` or `linux-x86_64`; the platform you are on is the default |
 | `-d NAME=value` | defines a preprocessor symbol |
 | `-v` | shows every tool tiko runs |

@@ -25,8 +25,10 @@ everything it wrote is visible, so the main program can read
 `slices( i ).result` safely. Every thread you create should be waited for
 before the data it uses goes away.
 
-`-mt` is needed here as well, even without `std/tasks`: it selects the runtime
-that is safe to call from several threads at once.
+The `#cmdline "-mt"` line is optional here. Without `std/tasks`, the call to
+`threadcreate` is enough: the compiler sees it and links the runtime that is
+safe to call from several threads at once by itself. The line just makes the
+program's needs explicit.
 
 Use a thread rather than a goroutine for something that must own a thread for
 its whole life, such as a loop that blocks for a long time. For ordinary

@@ -20,7 +20,7 @@ so each one sends its partial sum down a **channel**, and the main program
 receives four of them. They can arrive in any order, which is why the program
 adds them up rather than printing each one.
 
-Every concurrent program needs two lines at its top:
+A program that uses goroutines needs two lines at its top:
 
 ```tiko
 #import "std/tasks"
@@ -29,10 +29,16 @@ Every concurrent program needs two lines at its top:
 
 `std/tasks` holds goroutines, channels and the tools for coordinating them.
 `-mt` builds the program with the runtime that is safe to call from several
-threads at once. `std/tasks` refuses to compile without it, with
-`TKO0309: #error: "std/tasks needs the multithreaded runtime: build with -mt"`;
-a program that starts threads of its own, without `std/tasks`, needs `-mt` all
-the same.
+threads at once. You have to ask for it yourself: `std/tasks` refuses to
+compile without it, with
+`TKO0309: #error: "std/tasks needs the multithreaded runtime: build with -mt"`.
+
+A program that starts [threads](threads.md) of its own, without `std/tasks`,
+gets the thread-safe runtime without asking. When the compiler sees a call
+to `threadcreate`, it links that runtime by itself.
+Mutexes and condition variables alone do not count: a program with no second
+thread does not need the thread-safe runtime. Writing `#cmdline "-mt"` in such
+a program does no harm, and the examples in this section all carry it.
 
 The section has two levels:
 
