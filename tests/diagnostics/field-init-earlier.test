@@ -1,0 +1,11 @@
+'' docs/tiko-properties D11: a field's '= value' naming a field declared BEFORE it is refused --
+'' fbc-modern 1.20's error 215, "Only static members can be accessed from static functions and
+'' parameter initializers", on line 4; in the generic on line 8 fbc says 42, "Variable not
+'' declared", for the same name (measured 2026-11-06). One message here for both. tiko stopped on
+'' TKO0994.
+'' TEST: cli
+'' ARGS: --dump-ir tests/diagnostics/src/field-init-earlier.bas
+'' EXPECT-EXIT: 1
+'' EXPECT-OUT: field-init-earlier.bas(4,17): error TKO0591
+'' EXPECT-OUT: field-init-earlier.bas(8,14): error TKO0591
+'' EXPECT-NOT: TKO0994

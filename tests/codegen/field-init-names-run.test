@@ -1,0 +1,12 @@
+'' docs/tiko-properties D11, RUN: A FIELD'S '= value' IS BOUND IN DECLARATION ORDER. 'as long k = K'
+'' names the module's const K (the field's own name is not declared yet), as does a later field's
+'' name; a static member and a member const are read as written. tiko bound K to the field itself
+'' and stopped on TKO0994. Expected output is fbc-modern 1.20's, measured 2026-11-06.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/field-init-names.bas -o tests/codegen/fieldinitnames.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' RUN: tests/codegen/fieldinitnames.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT:  40 8 5 8 9
+'' EXPECT-RUN-OUT:  40 3 40 3

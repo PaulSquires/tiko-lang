@@ -293,6 +293,7 @@ private sub WalkExpr _
         '' rather than two.
         dim as Tko.SymbolId sid = c.syms->LookupTyped( scope_, nm, false )
         sid = VisibleToUse_( c, VisibleAbove_( c, sid, id, scope_, nm ), scope_ )  '' fbc's 42
+        sid = FieldInitName_( c, id, sid, nm )   '' in a field's '= value' (D11, geninit.tiko)
         if sid = Tko.SYMBOL_NONE then sid = LabelRef_( c, scope_, nm )  '' resolvestmt.tiko
         '' ...AND AN INHERITED MEMBER BEATS A MODULE-LEVEL NAME. The walk above
         '' reaches the procedure's locals and its OWN type's members, and then goes
@@ -1274,7 +1275,7 @@ sub WalkStmt _
         ''
         '' In the FIELD'S OWN SCOPE, which chains to the one around it: a module-level
         '' const, variable or function is what these initialisers name in practice.
-        if sp->c <> Tko.NODE_NONE then WalkExpr( c, sp->c, here )
+        if sp->c <> Tko.NODE_NONE then FieldInitWalk_( c, sp->c, here, sp->name )   '' geninit.tiko
 
         '' A BITFIELD is marked, not modelled. 'b' holds the width expression; the
         '' declared type is the storage UNIT's, not the field's, so reading or writing

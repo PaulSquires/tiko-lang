@@ -112,6 +112,9 @@ type Ctx
     '' instframe.tiko); curInstFrame is the TYPE instantiation being drained, or 0.
     as containers.Array( of uint32 )  pendInstFrame, pendProcFrame
     as int32                  curInstFrame
+    '' THE FIELD WHOSE '= value' IS BEING BOUND, or SYMBOL_NONE: a name in it sees only the fields
+    '' declared before it (FieldInitName_, geninit.tiko).
+    as Tko.SymbolId           fieldInitSym
     '' THE INSTANTIATION CACHE for generic procedures, one entry each: the key and the
     '' symbol it produced. A SIDE table rather than a name lookup, because the key has
     '' to name the GENERIC as well as the arguments and the symbol's name must not --
@@ -189,6 +192,8 @@ declare function IdentNameOf _
 declare function ProcPtrTypeOfName_ _
     ( byref c as Ctx, byval n as Tko.NodeId, byval scope_ as Tko.ScopeId ) as Tko.TypeId
 declare sub BindExpr_( byref c as Ctx, byval id as Tko.NodeId, byval scope_ as Tko.ScopeId )
+declare sub FieldInitWalk_( byref c as Ctx, byval init as Tko.NodeId, byval tscope as Tko.ScopeId, byval fnm as Tko.InternId )
+declare function FieldInitName_( byref c as Ctx, byval id as Tko.NodeId, byval sid as Tko.SymbolId, byval nm as Tko.InternId ) as Tko.SymbolId
 declare function InstTypeReparse_( byref c as Ctx, byval gn as Tko.NodeId ) as Tko.NodeId
 declare sub InstFieldInit_( byref c as Ctx, byval fs as Tko.Symbol ptr, byval m as Tko.NodeId, byval iin as Tko.ScopeId, byval fresh as Tko.NodeId )
 declare function InstantiateGenericProc_ _

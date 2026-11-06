@@ -1,4 +1,4 @@
-'' geninit.tiko -- A GENERIC TYPE'S FIELD INITIALISERS, per instance (docs/tiko-properties D10).
+'' geninit.tiko -- FIELD INITIALISERS: a generic's per instance (D10), and the names any type's see (D11).
 ''
 '' An instance's field symbols were declared without their N_FIELD node, so lowering -- which
 '' finds a declared '= value' through the node (FieldInitOf_) -- found none, synthesised no
@@ -81,7 +81,38 @@ sub InstFieldInit_ _
     dim as Tko.StmtPayload ptr fp = c.ast->StmtOf( n )
     if fp->b <> Tko.NODE_NONE then exit sub
     fs->payload = cast( int32, n )
-    if fp->c <> Tko.NODE_NONE then BindExpr_( c, fp->c, iin )
+    if fp->c <> Tko.NODE_NONE then FieldInitWalk_( c, fp->c, iin, fp->name )
 end sub
+
+'' A FIELD'S '= value' BOUND AS fbc-modern 1.20 READS IT: in declaration order (docs/tiko-properties
+'' D11). Measured: 'const K = 40' then 'as long k = K' is 40 -- the field's own name is not yet
+'' declared -- and so is a LATER field's name; an EARLIER field is error 215, "Only static members
+'' can be accessed from ... initializers"; a static member and a member const are fine. tiko bound
+'' all three to the field and the constructor's store had no value: TKO0994.
+sub FieldInitWalk_( byref c as Ctx, byval init as Tko.NodeId, byval tscope as Tko.ScopeId, byval fnm as Tko.InternId )
+    dim as Tko.SymbolId saved = c.fieldInitSym
+    c.fieldInitSym = c.syms->LookupLocal( tscope, fnm )
+    BindExpr_( c, init, tscope )
+    c.fieldInitSym = saved
+end sub
+
+'' A name in that value which found a non-static field of the same type: an earlier one is refused
+'' (TKO0591), the field itself or a later one is looked up again outside the type.
+function FieldInitName_ _
+    ( byref c as Ctx, byval id as Tko.NodeId, byval sid as Tko.SymbolId, byval nm as Tko.InternId ) as Tko.SymbolId
+    if (c.fieldInitSym = Tko.SYMBOL_NONE) orelse (sid = Tko.SYMBOL_NONE) then return sid
+    dim as Tko.Symbol ptr s = c.syms->SymbolAt( sid )
+    dim as Tko.Symbol ptr cur = c.syms->SymbolAt( c.fieldInitSym )
+    if (s = nullptr) orelse (cur = nullptr) then return sid
+    if s->kind <> cast( uint8, Tko.SYM_FIELD ) then return sid
+    if s->parent <> cur->parent then return sid
+    if sid < c.fieldInitSym then
+        c.diags->Report( Tko.TKO0591, Tko.PointRange( c.ast->Loc( id ) ), c.names->Spelling( s->name ) )
+        return sid
+    end if
+    dim as Tko.SymScope ptr ts = c.syms->ScopeAt( cur->parent )
+    if ts = nullptr then return Tko.SYMBOL_NONE
+    return c.syms->LookupTyped( ts->parent, nm, false )
+end function
 
 end namespace

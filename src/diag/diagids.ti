@@ -1077,6 +1077,8 @@
     '' The property block (docs/tiko-properties R9) -- propblock.tiko: a 'byref' result, whose getter
     '' would return a reference to its local 'value', and 'property' in a section, which in a block
     '' names a backing field (decision Q6) that a property written by hand does not have.
+    '' fbc's error 215: a field's '= value' naming a field declared before it -- geninit.tiko (D11).
+    DIAG( TKO0591, SEV_ERROR,   "field '%0' cannot be read in another field's initialiser: only static members can" )
     DIAG( TKO0592, SEV_ERROR,   "a property block's getter returns 'value', a local: it cannot return byref" )
     DIAG( TKO0593, SEV_ERROR,   "in a get/set block 'property' names a backing field, and this property has none: use 'value' or 'return'" )
     DIAG( TKO0594, SEV_ERROR,   "'%0' is an auto-property: its accessors are synthesised and cannot be written by hand" )
