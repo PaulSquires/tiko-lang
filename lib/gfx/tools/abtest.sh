@@ -100,7 +100,7 @@ for src in "$HERE"/abtest-*.bas "$HERE"/probe-driver.bas "$HERE"/probe-gdi.bas "
         label=${cfg%%|*}
         flags=${cfg#*|}
 
-        if ! "$FBC" $flags -gen llvm "$src" -x "$TMP/$name-$label.exe" \
+        if ! "$FBC" -d nullptr=0 $flags -gen llvm "$src" -x "$TMP/$name-$label.exe" \
                  > "$TMP/$name-$label.err" 2>&1; then
             echo "abtest: $name/$label -- FAILED TO BUILD" >&2
             sed -n '1,8p' "$TMP/$name-$label.err" >&2
@@ -129,7 +129,7 @@ for src in "$HERE"/abtest-*.bas "$HERE"/probe-driver.bas "$HERE"/probe-gdi.bas "
     [ "$mode" = "split" ] || continue
 
     gold="$HERE/golden/$name.txt"
-    if ! "$FBC" -gen llvm -d ABTEST_EMIT "$src" -x "$TMP/$name-emit.exe" \
+    if ! "$FBC" -d nullptr=0 -gen llvm -d ABTEST_EMIT "$src" -x "$TMP/$name-emit.exe" \
              > "$TMP/$name-emit.err" 2>&1; then
         echo "abtest: $name -- FAILED TO BUILD IN THE ABTEST_EMIT ROLE" >&2
         sed -n '1,8p' "$TMP/$name-emit.err" >&2
@@ -197,7 +197,7 @@ else
         log="$TMP/$name-msvc.log"
         rm -f "$ll" "$obj"
 
-        if ! "$FBC" -c "$src" -m "$name" -target win64 -gen llvm -r $role \
+        if ! "$FBC" -d nullptr=0 -c "$src" -m "$name" -target win64 -gen llvm -r $role \
                  -o "$obj" > "$log" 2>&1; then
             echo "abtest: $name/windows-x86_64 -- FAILED TO EMIT IR" >&2
             sed -n '1,8p' "$log" >&2

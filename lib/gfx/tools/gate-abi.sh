@@ -96,7 +96,7 @@ else
             win32) tflag="-target win32" ;;
         esac
 
-        if ! "$FBC" $tflag -gen llvm "$HERE/probe-fbabi.bas"                  -x "$TMP/probe-fb-$target.exe" > "$TMP/fbc.err" 2>&1; then
+        if ! "$FBC" -d nullptr=0 $tflag -gen llvm "$HERE/probe-fbabi.bas"                  -x "$TMP/probe-fb-$target.exe" > "$TMP/fbc.err" 2>&1; then
             echo "gate-abi: fb/$target -- MIRROR FAILED TO COMPILE" >&2
             sed -n '1,10p' "$TMP/fbc.err" >&2
             status=1
@@ -133,7 +133,7 @@ if [ -x "$FBC" ]; then
         status=1
     fi
 
-    if "$FBC" -gen llvm "$HERE/probe-rtlctx.bas" -x "$TMP/probe-rtlctx.exe"             > "$TMP/rtlctx.err" 2>&1; then
+    if "$FBC" -d nullptr=0 -gen llvm "$HERE/probe-rtlctx.bas" -x "$TMP/probe-rtlctx.exe"             > "$TMP/rtlctx.err" 2>&1; then
         if "$TMP/probe-rtlctx.exe" > "$TMP/rtlctx.out" 2>&1; then
             echo "gate-abi: rtlctx -- offsets address the real runtime fields (behavioural)"
         else
@@ -164,7 +164,7 @@ if [ -x "$FBC" ]; then
         label=${cfg%%|*}
         flags=${cfg#*|}
 
-        if ! "$FBC" $flags -gen llvm "$HERE/probe-rtlseam.bas"                  -x "$TMP/seam.exe" > "$TMP/seam.err" 2>&1; then
+        if ! "$FBC" -d nullptr=0 $flags -gen llvm "$HERE/probe-rtlseam.bas"                  -x "$TMP/seam.exe" > "$TMP/seam.err" 2>&1; then
             echo "gate-abi: seam/$label -- FAILED TO BUILD" >&2
             sed -n '1,8p' "$TMP/seam.err" >&2
             status=1
@@ -197,7 +197,7 @@ if [ -x "$FBC" ]; then
         label=${cfg%%|*}
         flags=${cfg#*|}
 
-        if ! "$FBC" $flags -gen llvm "$HERE/probe-hooks.bas"                  -x "$TMP/hooks.exe" > "$TMP/hooks.err" 2>&1; then
+        if ! "$FBC" -d nullptr=0 $flags -gen llvm "$HERE/probe-hooks.bas"                  -x "$TMP/hooks.exe" > "$TMP/hooks.err" 2>&1; then
             echo "gate-abi: hooks/$label -- FAILED TO BUILD" >&2
             sed -n '1,8p' "$TMP/hooks.err" >&2
             status=1
