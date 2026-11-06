@@ -5,8 +5,8 @@
 '' as a vtable's -- the stored pointer points at SLOT 0 with a header behind it:
 ''
 ''     -(2+k) .. -3   the itables of the interface's non-primary bases, last base furthest out
-''     -2             the interface descriptor (Phase 4; null until then)
-''     -1             the class descriptor (Phase 4; null until then)
+''     -2             the interface descriptor: { id }, the interface's mangled name
+''     -1             the class descriptor: { rtti, vptrFlag, (iface, itab) pairs..., null, null }
 ''      0 ..          one function per slot, in Slots(I) order (types/itable.tiko)
 ''
 '' A slot implemented by a VIRTUAL method holds a THUNK that dispatches through the
@@ -23,6 +23,7 @@
 #include once "mir/lowercall.ti"
 #include once "mir/lowerstruct.ti"
 #include once "mir/lowerexpr.ti"
+#include once "mir/lowerstore.ti"
 
 namespace Tko.Mir
 
@@ -173,16 +174,33 @@ private function ThunkFor_( byref c as Ctx, byval decl as Tko.NodeId, byval vslo
     return nm
 end function
 
-'' THE ITABLE OF (cls, iface), built on demand: internal, one per unit, as a vtable is.
-function ItableGlobalOf_( byref c as Ctx, byval cls as Tko.TypeId, byval iface as Tko.TypeId ) as int32
-    if c.ifs = nullptr then return -1
-    cls = c.types->Unqualify( cls )
+'' THE INTERFACE DESCRIPTOR (§9.1): one word, the interface's mangled name, which is what the
+'' run-time search compares when two units' copies have different addresses.
+function IfaceDescOf_( byref c as Ctx, byval iface as Tko.TypeId ) as int32
     iface = c.types->Unqualify( iface )
-    dim as int32 k = c.ifs->Find( iface )
-    if k < 0 then return -1
-    dim as Tko.InternId id = c.names->GetString( "__tko_itab_" & TypeCode_( c, cls ) & "_" & TypeCode_( c, iface ) )
+    dim as Tko.InternId id = c.names->GetString( "__tko_idesc_" & TypeCode_( c, iface ) )
     dim as int32 have = c.m->FindPtrTable( id )
     if have >= 0 then return have
+    dim as int32 sg = c.m->AddStringLiteral( TypeCode_( c, iface ), *c.names )
+    dim as int32 g = c.m->AddPtrTable( id )
+    c.m->globals[g].isInternal = true
+    c.m->PushPtrGlobal( g, sg )
+    return g
+end function
+
+private function ItabName_( byref c as Ctx, byval cls as Tko.TypeId, byval iface as Tko.TypeId ) as Tko.InternId
+    return c.names->GetString( "__tko_itab_" & TypeCode_( c, cls ) & "_" & TypeCode_( c, iface ) )
+end function
+
+'' ONE ITABLE, its class-descriptor word left null for ClassDescOf_ to fill: the two refer to
+'' each other, and a pointer table's run is contiguous, so one of them is patched.
+private function BuildItab_( byref c as Ctx, byval cls as Tko.TypeId, byval iface as Tko.TypeId ) as int32
+    dim as int32 k = c.ifs->Find( iface )
+    if k < 0 then return -1
+    dim as Tko.InternId id = ItabName_( c, cls, iface )
+    dim as int32 have = c.m->FindPtrTable( id )
+    if have >= 0 then return have
+    dim as int32 idg = IfaceDescOf_( c, iface )
 
     '' WHAT THE TABLE NAMES, BUILT FIRST: the pointer pool is shared and a table's run is
     '' contiguous (RttiGlobalOf_ says the same). The non-primary bases' itables, and the
@@ -190,7 +208,7 @@ function ItableGlobalOf_( byref c as Ctx, byval cls as Tko.TypeId, byval iface a
     dim as Tko.IfInfo it = c.ifs->ifaces[k]
     dim as containers.Array( of int32 ) baseG
     for j as int32 = 1 to it.basesCount - 1
-        baseG.Push( ItableGlobalOf_( c, cls, cast( Tko.TypeId, c.ifs->bases[it.basesFirst + j] ) ) )
+        baseG.Push( BuildItab_( c, cls, cast( Tko.TypeId, c.ifs->bases[it.basesFirst + j] ) ) )
     next
     dim as containers.Array( of uint32 ) fn
     for q as int32 = 0 to it.count - 1
@@ -228,8 +246,8 @@ function ItableGlobalOf_( byref c as Ctx, byval cls as Tko.TypeId, byval iface a
             c.m->PushPtrNull( g )
         end if
     next
-    c.m->PushPtrNull( g )               '' the interface descriptor: Phase 4
-    c.m->PushPtrNull( g )               '' the class descriptor: Phase 4
+    c.m->PushPtrGlobal( g, idg )        '' the interface descriptor
+    c.m->PushPtrNull( g )               '' the class descriptor: ClassDescOf_ patches it
     for q as int32 = 0 to fn.Count - 1
         if fn[q] = 0 then
             c.m->PushPtrNull( g )
@@ -238,6 +256,70 @@ function ItableGlobalOf_( byref c as Ctx, byval cls as Tko.TypeId, byval iface a
         end if
     next
     return g
+end function
+
+'' Does 'cls' implement anything, through its own lists or its base's?
+private function ImplementsAny_( byref c as Ctx, byval cls as Tko.TypeId ) as boolean
+    if c.ifs = nullptr then return false
+    for k as int32 = 0 to c.ifs->ifaces.Count - 1
+        if c.types->IfaceConvLinks( cls, c.ifs->ifaces[k].type_ ) >= 0 then return true
+    next
+    return false
+end function
+
+'' THE CLASS DESCRIPTOR OF A TYPE THAT IMPLEMENTS SOMETHING (§9.1), or -1: its RTTI record, a
+'' non-null word when it has a vptr, and one (interface descriptor, itable) pair per interface
+'' it implements -- base-provided ones included, so one search answers "does this dynamic type
+'' implement J". Builds every itable of the type and then fills their word -1.
+function ClassDescOf_( byref c as Ctx, byval cls as Tko.TypeId ) as int32
+    cls = c.types->Unqualify( cls )
+    if ImplementsAny_( c, cls ) = false then return -1
+    dim as Tko.InternId id = c.names->GetString( "__tko_cdesc_" & TypeCode_( c, cls ) )
+    dim as int32 have = c.m->FindPtrTable( id )
+    if have >= 0 then return have
+    dim as containers.Array( of int32 ) ifk, itg, idg
+    for k as int32 = 0 to c.ifs->ifaces.Count - 1
+        dim as Tko.TypeId j = c.ifs->ifaces[k].type_
+        if c.types->IfaceConvLinks( cls, j ) < 0 then continue for
+        ifk.Push( k )
+        itg.Push( BuildItab_( c, cls, j ) )
+        idg.Push( IfaceDescOf_( c, j ) )
+    next
+    dim as int32 rg = RttiGlobalOf_( c, cls )
+    dim as boolean hasVptr = (c.vts <> nullptr)
+    if hasVptr then hasVptr = (c.vts->Find( cls ) >= 0)
+
+    dim as int32 g = c.m->AddPtrTable( id )
+    c.m->globals[g].isInternal = true
+    if rg >= 0 then c.m->PushPtrGlobal( g, rg ) else c.m->PushPtrNull( g )
+    if hasVptr andalso (rg >= 0) then c.m->PushPtrGlobal( g, rg ) else c.m->PushPtrNull( g )
+    for i as int32 = 0 to ifk.Count - 1
+        if itg[i] < 0 then continue for
+        dim as Tko.TypeId j = c.ifs->ifaces[ifk[i]].type_
+        c.m->PushPtrGlobal( g, idg[i] )
+        c.m->PushPtrGlobalAt( g, itg[i], HeaderWords_( c, j ) * PtrBytes_( c ) )
+    next
+    c.m->PushPtrNull( g )
+    c.m->PushPtrNull( g )
+    '' Each itable's word -1, which BuildItab_ left null.
+    for i as int32 = 0 to ifk.Count - 1
+        if itg[i] < 0 then continue for
+        dim as int32 at = c.m->globals[itg[i]].ptrFirst + HeaderWords_( c, c.ifs->ifaces[ifk[i]].type_ ) - 1
+        c.m->ptrKinds[at] = 1
+        c.m->ptrRefs[at] = cast( uint32, g )
+    next
+    return g
+end function
+
+'' THE ITABLE OF (cls, iface), built on demand: internal, one per unit, as a vtable is. Built
+'' with the type's whole set, through its class descriptor.
+function ItableGlobalOf_( byref c as Ctx, byval cls as Tko.TypeId, byval iface as Tko.TypeId ) as int32
+    if c.ifs = nullptr then return -1
+    cls = c.types->Unqualify( cls )
+    iface = c.types->Unqualify( iface )
+    if c.ifs->Find( iface ) < 0 then return -1
+    ClassDescOf_( c, cls )
+    return c.m->FindPtrTable( ItabName_( c, cls, iface ) )
 end function
 
 '' The itable pointer a reference carries: the table's address plus its header.
@@ -277,9 +359,16 @@ function LowerIfaceConv_ _
     ( byref c as Ctx, byval arg as Tko.NodeId, byval toT as Tko.TypeId, byref outv as MirValue ) as boolean
     if c.ifs = nullptr then return false
     dim as Tko.TypeId it = c.types->Unqualify( toT )
-    if c.types->IsInterface( it ) = false then return false
     dim as Tko.TypeId st = c.types->Unqualify( c.info->TypeOf_( arg ) )
     if c.types->Kind( st ) = Tko.TK_REFERENCE then st = c.types->Unqualify( c.types->Inner( st ) )
+    '' 'cast( C ptr, i )': the object word, unchecked as a pointer downcast is (§5.5).
+    if c.types->IsInterface( st ) andalso (c.types->Kind( it ) = Tko.TK_POINTER) then
+        dim as MirValue ca = RefAddr_( c, arg )
+        if ca.kind = cast( uint8, MV_NONE ) then return false
+        outv = LowerExprLoad( c, ca, MT_PTR )
+        return (outv.kind <> cast( uint8, MV_NONE ))
+    end if
+    if c.types->IsInterface( it ) = false then return false
     if st = it then return false
     dim as MirValue obj, itab
     if c.types->IsInterface( st ) then
@@ -302,7 +391,13 @@ function LowerIfaceConv_ _
                     exit for
                 end if
             next
-            if pick < 0 then return false
+            if pick < 0 then
+                '' NOT A BASE: 'cast( J, i )' down or across, which only the object can answer
+                '' (§8.6). Unchecked in FB's sense -- a miss is the null reference -- and the
+                '' same search trycast makes.
+                outv = TryCastRef_( c, obj, itab, it )
+                return (outv.kind <> cast( uint8, MV_NONE ))
+            end if
             if pick > 0 then itab = LowerExprLoad( c, AddrPlus_( c, itab, -(2 + pick) * PtrBytes_( c ) ), MT_PTR )
             cur = cast( Tko.TypeId, c.ifs->bases[c.ifs->ifaces[k].basesFirst + pick] )
         next
@@ -325,6 +420,152 @@ function LowerIfaceConv_ _
     return (outv.kind <> cast( uint8, MV_NONE ))
 end function
 
+private function GlobalAddr_( byval g as int32 ) as MirValue
+    return MirVal_( MV_GLOBAL, MT_PTR, g )
+end function
+
+private sub PushArg_( byref args as containers.Array( of uint32 ), byref v as MirValue )
+    args.Push( cast( uint32, v.kind ) )
+    args.Push( cast( uint32, v.id ) )
+end sub
+
+'' { obj, itab of J } or the null reference, through tkort_IfaceTryCast.
+function TryCastRef_ _
+    ( byref c as Ctx, byref obj as MirValue, byref itab as MirValue, byval j as Tko.TypeId ) as MirValue
+    dim as int32 slot = NewTempLocal( c, MT_AGG, 2 * PtrBytes_( c ) )
+    if slot < 0 then return NoVal( )
+    dim as MirValue dst = MirVal_( MV_LOCAL, MT_PTR, slot )
+    dim as containers.Array( of uint32 ) args
+    PushArg_( args, obj ) : PushArg_( args, itab )
+    dim as MirValue dg = GlobalAddr_( IfaceDescOf_( c, j ) )
+    PushArg_( args, dg ) : PushArg_( args, dst )
+    EmitRtl( c, RTL_IFACE_TRYCAST, args )
+    return LowerExprLoad( c, dst, MT_AGG )
+end function
+
+'' THE OBJECT AN 'x' NAMES, and the itable it came with (null for a class value or pointer).
+private function ObjOf_( byref c as Ctx, byval x as Tko.NodeId, byref itab as MirValue ) as MirValue
+    dim as Tko.TypeId xt = c.types->Unqualify( c.info->TypeOf_( x ) )
+    if c.types->Kind( xt ) = Tko.TK_REFERENCE then xt = c.types->Unqualify( c.types->Inner( xt ) )
+    itab = ConstInt( c, 0, MT_PTR )
+    if c.types->IsInterface( xt ) then
+        dim as MirValue a = RefAddr_( c, x )
+        if a.kind = cast( uint8, MV_NONE ) then return a
+        itab = LowerExprLoad( c, AddrPlus_( c, a, PtrBytes_( c ) ), MT_PTR )
+        return LowerExprLoad( c, a, MT_PTR )
+    end if
+    if c.types->Kind( xt ) = Tko.TK_POINTER then return LowerExpr( c, x )
+    return LowerAddr( c, x )
+end function
+
+'' 'trycast( T, x )' (§5.5, §8.6): T an interface -- the search from x's object -- or a type
+'' pointer, which is the object when its dynamic type is T or derives from it.
+function LowerTryCast_( byref c as Ctx, byval id as Tko.NodeId, byref outv as MirValue ) as boolean
+    if c.ast->Kind( id ) <> Tko.N_CALL then return false
+    dim as Tko.ListPayload ptr lp = c.ast->ListOf( id )
+    if (lp->count <> 2) orelse (c.ast->Kind( lp->target ) <> Tko.N_IDENT) then return false
+    if c.names->Spelling( c.names->Fold( c.ast->IdentOf( lp->target )->name ) ) <> "trycast" then return false
+    if c.info->RefOf( lp->target ) <> Tko.SYMBOL_NONE then return false
+    dim as Tko.NodeId tn = c.ast->ChildAt( lp->first, 0 ), xn = c.ast->ChildAt( lp->first, 1 )
+    if c.ast->Kind( tn ) <> Tko.N_TYPEREF then return false
+    dim as Tko.TypeId tt = c.types->Unqualify( c.info->TypeOf_( tn ) )
+    dim as Tko.TypeId xt = c.types->Unqualify( c.info->TypeOf_( xn ) )
+    if c.types->Kind( xt ) = Tko.TK_REFERENCE then xt = c.types->Unqualify( c.types->Inner( xt ) )
+    dim as MirValue itab
+    dim as MirValue obj = ObjOf_( c, xn, itab )
+    if obj.kind = cast( uint8, MV_NONE ) then return false
+    dim as boolean fromIface = c.types->IsInterface( xt )
+    if c.types->IsInterface( tt ) then
+        if fromIface then
+            outv = TryCastRef_( c, obj, itab, tt )
+        else
+            '' A class value or pointer: its vptr's descriptor, or -- for a type without one --
+            '' the static answer Sem already warned about (TKO1016).
+            dim as Tko.TypeId ot = xt
+            if c.types->Kind( ot ) = Tko.TK_POINTER then ot = c.types->Unqualify( c.types->Inner( ot ) )
+            if (c.vts <> nullptr) andalso (c.vts->Find( ot ) >= 0) then
+                dim as int32 slot = NewTempLocal( c, MT_AGG, 2 * PtrBytes_( c ) )
+                if slot < 0 then return false
+                dim as MirValue dst = MirVal_( MV_LOCAL, MT_PTR, slot )
+                dim as containers.Array( of uint32 ) args
+                PushArg_( args, obj )
+                dim as MirValue dg = GlobalAddr_( IfaceDescOf_( c, tt ) )
+                PushArg_( args, dg ) : PushArg_( args, dst )
+                EmitRtl( c, RTL_OBJ_IFACE_TRYCAST, args )
+                outv = LowerExprLoad( c, dst, MT_AGG )
+            elseif c.types->IfaceConvLinks( ot, tt ) >= 0 then
+                outv = MakeRef_( c, obj, ItabValue_( c, ot, tt ) )
+            else
+                dim as MirValue z = ConstInt( c, 0, MT_PTR )
+                outv = MakeRef_( c, z, z )
+            end if
+        end if
+    elseif fromIface then
+        dim as Tko.TypeId ct = c.types->Unqualify( c.types->Inner( tt ) )
+        dim as int32 rg = RttiGlobalOf_( c, ct )
+        if rg < 0 then return false
+        dim as containers.Array( of uint32 ) args
+        PushArg_( args, obj ) : PushArg_( args, itab )
+        dim as MirValue rv = GlobalAddr_( rg )
+        PushArg_( args, rv )
+        outv = EmitRtl( c, RTL_IFACE_TYPECAST, args )
+    else
+        return false                          '' trycast( C ptr, obj ): not a question for here
+    end if
+    return (outv.kind <> cast( uint8, MV_NONE ))
+end function
+
+'' 'x IS T' WITH AN INTERFACE ON EITHER SIDE (§5.5): the search, answered -1 or 0.
+function LowerIfaceIs_ _
+    ( byref c as Ctx, byval lhs as Tko.NodeId, byval rhs as Tko.NodeId, byref outv as MirValue ) as boolean
+    if c.ifs = nullptr then return false
+    dim as Tko.TypeId lt = c.types->Unqualify( c.info->TypeOf_( lhs ) )
+    if c.types->Kind( lt ) = Tko.TK_REFERENCE then lt = c.types->Unqualify( c.types->Inner( lt ) )
+    dim as Tko.TypeId rt = c.types->Unqualify( c.info->TypeOf_( rhs ) )
+    dim as boolean lI = c.types->IsInterface( lt ), rI = c.types->IsInterface( rt )
+    if (lI orelse rI) = false then return false
+    dim as MirValue itab
+    dim as MirValue obj = ObjOf_( c, lhs, itab )
+    if obj.kind = cast( uint8, MV_NONE ) then return false
+    dim as MirValue found
+    dim as containers.Array( of uint32 ) args
+    if lI andalso (rI = false) then
+        dim as int32 rg = RttiGlobalOf_( c, rt )
+        if rg < 0 then return false
+        PushArg_( args, obj ) : PushArg_( args, itab )
+        dim as MirValue rv = GlobalAddr_( rg )
+        PushArg_( args, rv )
+        found = EmitRtl( c, RTL_IFACE_TYPECAST, args )
+    elseif lI then
+        PushArg_( args, obj ) : PushArg_( args, itab )
+        dim as MirValue dg = GlobalAddr_( IfaceDescOf_( c, rt ) )
+        PushArg_( args, dg )
+        found = EmitRtl( c, RTL_IFACE_FIND, args )
+    elseif (c.vts <> nullptr) andalso (c.vts->Find( lt ) >= 0) then
+        PushArg_( args, obj )
+        dim as MirValue dg = GlobalAddr_( IfaceDescOf_( c, rt ) )
+        PushArg_( args, dg )
+        found = EmitRtl( c, RTL_OBJ_IFACE_FIND, args )
+    else
+        '' No vptr: the static answer (TKO1016).
+        outv = ConstInt( c, iif( c.types->IfaceConvLinks( lt, rt ) >= 0, -1, 0 ), MT_I32 )
+        return true
+    end if
+    if found.kind = cast( uint8, MV_NONE ) then return false
+    dim as MirInst ci
+    ci.op = cast( uint16, M_ICMP_NE )
+    ci.ty = cast( uint8, MT_I32 )
+    ci.a = found
+    ci.b = ConstInt( c, 0, MT_PTR )
+    dim as MirValue b = Emit( c, ci )
+    dim as MirInst ng
+    ng.op = cast( uint16, M_NEG )
+    ng.ty = cast( uint8, MT_I32 )
+    ng.a = b
+    outv = Emit( c, ng )
+    return (outv.kind <> cast( uint8, MV_NONE ))
+end function
+
 '' THE RECEIVER OF A CALL THROUGH AN INTERFACE VALUE: its object word, unadjusted. The itable
 '' rides beside it in Ctx.itabFor for VirtualCalleeOf_.
 function IfaceReceiver_( byref c as Ctx, byval lhs as Tko.NodeId ) as MirValue
@@ -333,6 +574,9 @@ function IfaceReceiver_( byref c as Ctx, byval lhs as Tko.NodeId ) as MirValue
     dim as MirValue obj = LowerExprLoad( c, addr, MT_PTR )
     dim as MirValue itab = LowerExprLoad( c, AddrPlus_( c, addr, PtrBytes_( c ) ), MT_PTR )
     if (obj.kind = cast( uint8, MV_NONE )) orelse (itab.kind = cast( uint8, MV_NONE )) then return NoVal( )
+    '' -exx: A CALL THROUGH A NULL REFERENCE is the null-pointer error, checked before the itable
+    '' is indexed, exactly as '->' through a null pointer is (§8.8). No new error number.
+    if (c.errFlags and 16) <> 0 then EmitNullCheck_( c, lhs, obj )
     c.itabFor.Put( ValKey_( obj ), ValKey_( itab ) )
     return obj
 end function

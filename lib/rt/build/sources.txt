@@ -144,6 +144,7 @@ fs/upath.tiko
 fs/fileops2.tiko
 fs/filelow.tiko
 fs/legacydir.tiko
+oop/iface.tiko
 oop/istypeof.tiko
 oop/object_copyctor.tiko
 thread/claimlock.tiko

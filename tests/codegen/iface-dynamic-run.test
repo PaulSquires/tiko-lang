@@ -1,0 +1,21 @@
+'' RUN: trycast, 'is' and casts out of an interface through tkort_IfaceFind and friends
+'' (docs/tiko-interfaces Phase 4, lib/rt/src/oop/iface.tiko) -- see the source.
+'' TEST: cli
+'' ARGS: -target windows-x86_64 tests/codegen/src/iface-dynamic.bas -o tests/codegen/ifacedynamic.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-NOT: verify:
+'' EXPECT-FILE: tests/codegen/ifacedynamic.exe
+'' RUN: tests/codegen/ifacedynamic.exe
+'' EXPECT-RUN-EXIT: 0
+'' EXPECT-RUN-OUT: -1             me
+'' EXPECT-RUN-OUT: -1
+'' EXPECT-RUN-OUT: paddle
+'' EXPECT-RUN-OUT: -1             0             0            -1
+'' EXPECT-RUN-OUT: -1             0            -1            -1             0
+'' EXPECT-RUN-OUT: -1            me
+'' EXPECT-RUN-OUT: -1
+'' EXPECT-RUN-OUT: -1             0
+'' EXPECT-RUN-OUT: paddle
+'' EXPECT-RUN-OUT: me
+'' EXPECT-RUN-OUT: Rex

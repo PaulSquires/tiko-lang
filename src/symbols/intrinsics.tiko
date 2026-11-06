@@ -1238,6 +1238,7 @@ private function IntrinsicTableType_ _
         dim as Tko.NodeId sn = cast( Tko.NodeId, c.ast->ChildSlot( cp->first + 1 ) )
         dim as Tko.TypeId st = TypeOf_( c, sn )
         if st = Tko.TYPE_NONE then return rt
+        if c.types->IsInterface( rt ) orelse c.types->IsInterface( st ) then return rt   '' judged in semiface.tiko
         '' 'this' DENOTES THE OBJECT, not the pointer. tiko-lang types it as a
         '' POINTER because that is what the ABI passes -- fbc's own C spells the
         '' receiver 'struct $1T*' -- and every member access reaches through it, so

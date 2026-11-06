@@ -27,4 +27,23 @@ type TKORT_OBJECT
 	as TKORT_BASEVT ptr pVT
 end type
 
+'' INTERFACES (docs/tiko-interfaces/TIKO_INTERFACE_OOP_DESIGN.md §9). The compiler emits these as
+'' pointer tables, internal to each unit:
+''
+''   interface descriptor   { id }                    the interface's mangled name, as an RTTI id
+''   class descriptor       { rtti, vptrFlag, iface0, itab0, iface1, itab1, ..., null, null }
+''
+'' 'vptrFlag' is non-null when the class has a vptr, so the object's own vtable -- word 0,
+'' 'nullPtr', is the DYNAMIC type's class descriptor -- is the one to ask. An itable carries its
+'' class descriptor at itab[-1]; every 'itab' here is biased, as a stored vptr is, to slot 0.
+type TKORT_IFACEDESC
+	as zstring ptr    id
+end type
+
+type TKORT_CLASSDESC
+	as TKORT_RTTI ptr rtti
+	as any ptr        vptrFlag
+	'' then the map: (TKORT_IFACEDESC ptr, itab) pairs, ended by a null pair
+end type
+
 #endif '' __TKORT_OOP_BI__

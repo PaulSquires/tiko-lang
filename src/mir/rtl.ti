@@ -893,6 +893,12 @@ namespace Tko.Mir
         RTL( RTL_INIT_SIGNALS,          "fb_InitSignals",          "v",   ""          )
         RTL( RTL_INPUT_BOOL,            "fb_InputBool",            "l",   "p"         )
         RTL( RTL_IS_TYPE_OF,            "fb_IsTypeOf",             "l",   "pp"        )
+        '' Interfaces (docs/tiko-interfaces §9.2): lib/rt/src/oop/iface.tiko.
+        RTL( RTL_IFACE_FIND,            "tkort_IfaceFind",         "p",   "ppp"       )
+        RTL( RTL_OBJ_IFACE_FIND,        "tkort_ObjIfaceFind",      "p",   "pp"        )
+        RTL( RTL_IFACE_TRYCAST,         "tkort_IfaceTryCast",      "v",   "pppp"      )
+        RTL( RTL_OBJ_IFACE_TRYCAST,     "tkort_ObjIfaceTryCast",   "v",   "ppp"       )
+        RTL( RTL_IFACE_TYPECAST,        "tkort_IfaceTypeCast",     "p",   "ppp"       )
         RTL( RTL_LPRINT_BOOL,          "fb_LPrintBool",           "v",   "lbl"       )
         RTL( RTL_LPRINT_BYTE,          "fb_LPrintByte",           "v",   "lbl"       )
         RTL( RTL_LPRINT_DOUBLE,        "fb_LPrintDouble",         "v",   "ldl"       )

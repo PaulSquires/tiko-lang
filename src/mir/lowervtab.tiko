@@ -134,13 +134,17 @@ function VtableGlobalOf_( byref c as Ctx, byval t as Tko.TypeId ) as int32
     '' The RTTI record before the table is opened: its entries would otherwise land in
     '' the middle of this table's run.
     dim as int32 rg = RttiGlobalOf_( c, t )
+    '' ...AND THE CLASS DESCRIPTOR of a type that implements an interface (docs/tiko-interfaces
+    '' §9.3), which goes in word 0 -- -1, and a null word, for every other type.
+    dim as int32 cdg = ClassDescOf_( c, t )
 
     dim as int32 g = c.m->AddPtrTable( id )
     '' Internal for the same reason as the RTTI record above: fbc's 'static void*'.
     c.m->globals[g].isInternal = true
     '' The two leading words. INFERRED for the first: it is null in every shape
-    '' measured and nothing in the C fbc generates ever reads it.
-    c.m->PushPtrNull( g )
+    '' measured and nothing in the C fbc generates ever reads it -- so it carries the
+    '' class descriptor of a type that implements an interface (loweritab.tiko).
+    if cdg >= 0 then c.m->PushPtrGlobal( g, cdg ) else c.m->PushPtrNull( g )
     if rg >= 0 then
         c.m->PushPtrGlobal( g, rg )
     else
@@ -422,6 +426,7 @@ function LowerIsTypeOf_ _
 
     dim as Tko.TypeId rt = c.info->TypeOf_( rhs )
     if rt = Tko.TYPE_NONE then return false
+    if LowerIfaceIs_( c, lhs, rhs, outv ) then return true     '' an interface on either side
     rt = c.types->Unqualify( rt )
     if c.types->Kind( rt ) <> Tko.TK_UDT then return false
 

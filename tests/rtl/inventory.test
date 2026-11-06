@@ -39,4 +39,8 @@
 '' TWO MORE, 2026-10-17: fb_WstrAssignToAUtf8 and fb_hPathRename, the classic file statements'
 '' Unicode paths (tests/codegen/unicode-paths-run).
 '' EXPECT-OUT: fb_hPathRename i32 (ptr, ptr)
-'' EXPECT-OUT: rtl: 537 entries
+'' FIVE MORE, 2026-11-06: tkort_IfaceFind, tkort_ObjIfaceFind, tkort_IfaceTryCast,
+'' tkort_ObjIfaceTryCast and tkort_IfaceTypeCast, interfaces' run-time search (lib/rt/src/oop/
+'' iface.tiko, tests/codegen/iface-dynamic-run).
+'' EXPECT-OUT: tkort_IfaceFind ptr (ptr, ptr, ptr)
+'' EXPECT-OUT: rtl: 542 entries

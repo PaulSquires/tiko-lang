@@ -1,0 +1,91 @@
+'' oop/iface.tiko -- the run-time half of interfaces (docs/tiko-interfaces §9.2).
+''
+'' Only the DYNAMIC questions come here: 'trycast', 'is' with an interface on either side, and
+'' a cast down or across. Static conversions and calls are compile-time code and call nothing.
+''
+'' A descriptor is compared by ADDRESS first and then by its id STRING, the fb_IsTypeOf rule
+'' and for its reason: every unit emits its own internal copy, and a DLL its own again.
+
+#include once "../sys/sys.ti"
+#include once "../inc/oop.ti"
+
+'' The class descriptor of the object a reference names: the DYNAMIC type's, from the object's
+'' own vtable word 0, when the class has a vptr -- a derived type may implement more -- and the
+'' itable's otherwise. A null word 0 (fbc-built code, or a type implementing nothing) keeps the
+'' itable's.
+private function ClassDescOf_( byval obj as any ptr, byval itab as any ptr ) as TKORT_CLASSDESC ptr
+	dim as TKORT_CLASSDESC ptr cd = cast( TKORT_CLASSDESC ptr ptr, itab )[-1]
+	if( cd = nullptr ) then return nullptr
+	if( (cd->vptrFlag <> nullptr) andalso (obj <> nullptr) ) then
+		dim as TKORT_BASEVT ptr vt = cast( TKORT_BASEVT ptr, _
+			cast( uint8 ptr, cast( TKORT_OBJECT ptr, obj )->pVT ) - sizeof( TKORT_BASEVT ) )
+		if( vt->nullPtr <> nullptr ) then cd = cast( TKORT_CLASSDESC ptr, vt->nullPtr )
+	end if
+	return cd
+end function
+
+'' The itable of 'want' in a class descriptor's map, or null.
+private function MapFind_( byval cd as TKORT_CLASSDESC ptr, byval want as TKORT_IFACEDESC ptr ) as any ptr
+	if( (cd = nullptr) orelse (want = nullptr) ) then return nullptr
+	dim as any ptr ptr m = cast( any ptr ptr, cd ) + 2
+	while( m[0] <> nullptr )
+		dim as TKORT_IFACEDESC ptr d = cast( TKORT_IFACEDESC ptr, m[0] )
+		if( d = want ) then return m[1]
+		if( strcmp( d->id, want->id ) = 0 ) then return m[1]
+		m += 2
+	wend
+	return nullptr
+end function
+
+extern "rtlib"
+	'' 'want' for the object an interface reference names, or null.
+	function tkort_IfaceFind( byval obj as any ptr, byval itab as any ptr, _
+	                          byval want as TKORT_IFACEDESC ptr ) as any ptr
+		if( (obj = nullptr) orelse (itab = nullptr) ) then return nullptr
+		return MapFind_( ClassDescOf_( obj, itab ), want )
+	end function
+
+	'' ...for an object with a vptr and no itable in hand: 'obj is IFace'.
+	function tkort_ObjIfaceFind( byval obj as any ptr, byval want as TKORT_IFACEDESC ptr ) as any ptr
+		if( obj = nullptr ) then return nullptr
+		dim as TKORT_BASEVT ptr vt = cast( TKORT_BASEVT ptr, _
+			cast( uint8 ptr, cast( TKORT_OBJECT ptr, obj )->pVT ) - sizeof( TKORT_BASEVT ) )
+		return MapFind_( cast( TKORT_CLASSDESC ptr, vt->nullPtr ), want )
+	end function
+
+	'' 'trycast( J, x )' into dst: { obj, itab } or { null, null }.
+	sub tkort_IfaceTryCast( byval obj as any ptr, byval itab as any ptr, _
+	                        byval want as TKORT_IFACEDESC ptr, byval dst as any ptr ptr )
+		dim as any ptr found = tkort_IfaceFind( obj, itab, want )
+		dst[0] = iif( found <> nullptr, obj, nullptr )
+		dst[1] = found
+	end sub
+
+	sub tkort_ObjIfaceTryCast( byval obj as any ptr, byval want as TKORT_IFACEDESC ptr, _
+	                           byval dst as any ptr ptr )
+		dim as any ptr found = tkort_ObjIfaceFind( obj, want )
+		dst[0] = iif( found <> nullptr, obj, nullptr )
+		dst[1] = found
+	end sub
+
+	'' 'ifc is C' and 'trycast( C ptr, ifc )': the object when its type is C or derives from it,
+	'' else null. The chain is the object's own through its vptr, or the descriptor's for a
+	'' type without one (which has no subtypes).
+	function tkort_IfaceTypeCast( byval obj as any ptr, byval itab as any ptr, _
+	                              byval want as TKORT_RTTI ptr ) as any ptr
+		if( (obj = nullptr) orelse (itab = nullptr) orelse (want = nullptr) ) then return nullptr
+		dim as TKORT_CLASSDESC ptr cd = cast( TKORT_CLASSDESC ptr ptr, itab )[-1]
+		if( cd = nullptr ) then return nullptr
+		dim as TKORT_RTTI ptr r = cd->rtti
+		if( cd->vptrFlag <> nullptr ) then
+			dim as TKORT_BASEVT ptr vt = cast( TKORT_BASEVT ptr, _
+				cast( uint8 ptr, cast( TKORT_OBJECT ptr, obj )->pVT ) - sizeof( TKORT_BASEVT ) )
+			r = vt->pRTTI
+		end if
+		while( r <> nullptr )
+			if( strcmp( r->id, want->id ) = 0 ) then return obj
+			r = r->pRTTIBase
+		wend
+		return nullptr
+	end function
+end extern

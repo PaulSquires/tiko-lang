@@ -1407,8 +1407,8 @@ function LowerCallExpr_ _
     dim as MirValue v
     '' A PROCEDURE OF THE PROGRAM'S OWN spelled like a builtin -- see CallsUserProcNamedLikeBuiltin.
     if CallsUserProcNamedLikeBuiltin( c, id ) then return LowerCall( c, id, mt )
-    '' A conversion intrinsic is a KEYWORD, so there is no callee to find and
-    '' nothing to call: it lowers to the coercion its result type asks for.
+    '' A conversion intrinsic is a KEYWORD: the coercion its result asks for. 'trycast' is loweritab.tiko's.
+    if LowerTryCast_( c, id, v ) then return v
     if IsConvIntrinsic( c, id ) then return LowerConvIntrinsic( c, id, mt )
     '' 'iif( c, a, b )' is a CONDITIONAL, not a call: only one arm may run.
     dim as MirValue iifv

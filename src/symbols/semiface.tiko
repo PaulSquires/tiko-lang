@@ -206,7 +206,6 @@ private function CastIfaceJudged_( byref c as Ctx, byval id as NodeId, byval lp 
             return true
         end if
     end if
-    c.diags->Report( TKO0992, PointRange( c.ast->Loc( id ) ), "a cast out of an interface (docs/tiko-interfaces, Phase 4)" )
     return true
 end function
 
@@ -247,7 +246,6 @@ function TryCastJudged_( byref c as Ctx, byval id as NodeId ) as boolean
                              iif( yes, "the object itself", "null" ) )
         end if
     end if
-    c.diags->Report( TKO0992, PointRange( c.ast->Loc( id ) ), "trycast (docs/tiko-interfaces, Phase 4)" )
     return true
 end function
 
@@ -276,7 +274,6 @@ function IsTestIfaceJudged_ _
             c.diags->Report( TKO1016, r, "is " & c.types->Name( rt ), iif( has, "true", "false" ) )
         end if
     end if
-    c.diags->Report( TKO0992, r, "'is' over an interface (docs/tiko-interfaces, Phase 4)" )
     return true
 end function
 

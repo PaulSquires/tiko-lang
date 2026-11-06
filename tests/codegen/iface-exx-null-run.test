@@ -1,0 +1,10 @@
+'' RUN: under -exx a call through a null interface reference stops with runtime error 7,
+'' the null-pointer error '->' raises (docs/tiko-interfaces §8.8).
+'' TEST: cli
+'' ARGS: -target windows-x86_64 -exx tests/codegen/src/iface-exx-null.bas -o tests/codegen/ifaceexxnull.exe
+'' ENV: TIKO_LIBPATH=build/obj/rtlib/windows-x86_64
+'' EXPECT-EXIT: 0
+'' EXPECT-FILE: tests/codegen/ifaceexxnull.exe
+'' RUN: tests/codegen/ifaceexxnull.exe
+'' EXPECT-RUN-EXIT: 7
+'' EXPECT-RUN-OUT: before

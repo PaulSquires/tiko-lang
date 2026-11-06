@@ -3,16 +3,14 @@
 '' reference of the family or nullptr; 'new' (TKO1007), 'delete' (TKO1013), a temporary
 '' (TKO1012), a name two bases declare (TKO1010), a foreign declaration (TKO1015) and
 '' differing defaults (TKO1018) are diagnosed. A type-qualified call is the existing
-'' TKO0999. trycast and 'is' are TKO0992 until Phase 4; the comparison (51) and nullptr (45)
-'' compile.
+'' TKO0999. What is legal -- trycast (47), 'is' (50), the comparison (51), nullptr (45) --
+'' compiles.
 '' TEST: cli
 '' ARGS: --frontend-only tests/diagnostics/src/iface-uses.bas
 '' EXPECT-EXIT: 1
 '' EXPECT-OUT: iface-uses.bas(23,69): warning TKO1018: 'animal.speak' implements 'ianimal.speak' with different default arguments; calls through 'ianimal' use the interface's
-'' EXPECT-OUT: iface-uses.bas(47,18): error TKO0992: not implemented in this build: trycast
 '' EXPECT-OUT: iface-uses.bas(48,21): warning TKO1016: 'trycast( ianimal, ... )' is decided at compile time: it is always the object itself
 '' EXPECT-OUT: iface-uses.bas(49,26): error TKO1021: 'trycast' converts to an interface or to a pointer to a type, not to 'long'
-'' EXPECT-OUT: iface-uses.bas(50,9): error TKO0992: not implemented in this build: 'is' over an interface
 '' EXPECT-OUT: iface-uses.bas(50,21): warning TKO1016: 'is ianimal' is decided at compile time: it is always true
 '' EXPECT-OUT: iface-uses.bas(52,6): error TKO0720
 '' EXPECT-OUT: iface-uses.bas(54,25): error TKO1007: interface 'ianimal' cannot be created
@@ -21,4 +19,4 @@
 '' EXPECT-OUT: iface-uses.bas(57,8): error TKO0999
 '' EXPECT-OUT: iface-uses.bas(53,16): error TKO1012: an interface reference cannot refer to a temporary
 '' EXPECT-OUT: iface-uses.bas(40,37): error TKO1015: interface type 'ianimal' cannot appear in a foreign declaration
-'' EXPECT-MAX-DIAG: 15
+'' EXPECT-MAX-DIAG: 11
