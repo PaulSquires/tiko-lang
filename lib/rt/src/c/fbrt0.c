@@ -114,6 +114,33 @@ static void fb_hDoInit( void )
 	fb_hRunRecs( &tko_ctors_start, &tko_ctors_end, 0 );
 }
 
+/* THE ENTRY POINT OF EVERY MACH-O EXECUTABLE, which LinkExe names with -e.  dyld calls it
+** as it would call main -- after every initialiser, this object's above included -- and
+** what it does is decided at LINK time by which tko_darwin_start the program got:
+**
+**   this one, WEAK     main( ) on this thread, exactly as without an entry of our own
+**   libtkogfx's        AppKit keeps this thread -- it must: an NSWindow made anywhere else
+**                      is an uncaught exception, measured -- and main( ) runs on a thread
+**                      of its own (docs/graphics RFC-0012, model B, spike F5)
+**
+** A weak DEFINITION, not a weak reference: an archive member is loaded only to resolve an
+** UNDEFINED symbol, so this never pulls libtkogfx in; but a program that uses graphics has
+** already loaded its member for fb_Gfx*, and that member's strong definition replaces this
+** one.  Not here in a dylib: -e is an executable's. */
+int main( int argc, char **argv, char **envp );
+
+__attribute__(( weak ))
+int tko_darwin_start( int argc, char **argv, char **envp )
+{
+	return main( argc, argv, envp );
+}
+
+int tko_darwin_entry( int argc, char **argv, char **envp, char **apple )
+{
+	(void)apple;
+	return tko_darwin_start( argc, argv, envp );
+}
+
 #else
 
 void fb_hRtInit( void );

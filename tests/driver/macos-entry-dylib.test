@@ -1,0 +1,8 @@
+'' A MACH-O DYLIB NAMES NO ENTRY: -e is an executable's, and the program that loads the dylib
+'' has its own (see macos-entry.test).
+'' TEST: cli
+'' ARGS: -v -dll -target macos-arm64 tests/driver/src/no-fbrt0.bas -o tests/driver/macentry.dylib
+'' EXPECT-EXIT: 5
+'' EXPECT-OUT: -dynamiclib
+'' EXPECT-NOT: _tko_darwin_entry
+'' EXPECT-NO-FILE: tests/driver/macentry.dylib

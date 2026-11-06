@@ -632,6 +632,11 @@ function LinkExe _
     '' program's startup is msvccrt.c's mainCRTStartup, which calls main. The MinGW
     '' startup in crt2.o serves both subsystems and needs only the flag.
     dim as boolean wantGui = t.guiSubsystem andalso (t.buildDll = false)
+    '' AND ON MACH-O, FOR EVERY EXECUTABLE: fbrt0's tko_darwin_entry, which runs main( )
+    '' itself -- unless the program uses graphics, when libtkogfx's strong
+    '' tko_darwin_start puts main( ) on a thread of its own so AppKit keeps the main one
+    '' (lib/rt/src/c/fbrt0.c, docs/graphics RFC-0012 M1). Never a dylib's.
+    if macho andalso (t.buildDll = false) then cmd += " -Wl,-e,_tko_darwin_entry"
     if wantGui then
         if target.layout.isMsvc then
             cmd += " -Xlinker -subsystem:windows -Xlinker -entry:mainCRTStartup"

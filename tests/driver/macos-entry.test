@@ -1,0 +1,9 @@
+'' EVERY MACH-O EXECUTABLE ENTERS AT fbrt0's tko_darwin_entry, which runs main( ) -- or, in a
+'' program that uses graphics, libtkogfx's tko_darwin_start hands main( ) a thread of its own
+'' so AppKit keeps the main one (lib/rt/src/c/fbrt0.c; docs/graphics RFC-0012 M1). No fbrt0.o
+'' is on tests/driver's path, so the line is printed and the link stops: exit 5.
+'' TEST: cli
+'' ARGS: -v -target macos-arm64 tests/driver/src/no-fbrt0.bas -o tests/driver/macentry
+'' EXPECT-EXIT: 5
+'' EXPECT-OUT: -Wl,-e,_tko_darwin_entry
+'' EXPECT-NO-FILE: tests/driver/macentry
